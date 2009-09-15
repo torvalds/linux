@@ -462,12 +462,12 @@ static void qd_unlock(struct gfs2_quota_data *qd)
 	qd_put(qd);
 }
 
-static int qdsb_get(struct gfs2_sbd *sdp, int user, u32 id, int create,
+static int qdsb_get(struct gfs2_sbd *sdp, int user, u32 id,
 		    struct gfs2_quota_data **qdp)
 {
 	int error;
 
-	error = qd_get(sdp, user, id, create, qdp);
+	error = qd_get(sdp, user, id, CREATE, qdp);
 	if (error)
 		return error;
 
@@ -509,20 +509,20 @@ int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid)
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return 0;
 
-	error = qdsb_get(sdp, QUOTA_USER, ip->i_inode.i_uid, CREATE, qd);
+	error = qdsb_get(sdp, QUOTA_USER, ip->i_inode.i_uid, qd);
 	if (error)
 		goto out;
 	al->al_qd_num++;
 	qd++;
 
-	error = qdsb_get(sdp, QUOTA_GROUP, ip->i_inode.i_gid, CREATE, qd);
+	error = qdsb_get(sdp, QUOTA_GROUP, ip->i_inode.i_gid, qd);
 	if (error)
 		goto out;
 	al->al_qd_num++;
 	qd++;
 
 	if (uid != NO_QUOTA_CHANGE && uid != ip->i_inode.i_uid) {
-		error = qdsb_get(sdp, QUOTA_USER, uid, CREATE, qd);
+		error = qdsb_get(sdp, QUOTA_USER, uid, qd);
 		if (error)
 			goto out;
 		al->al_qd_num++;
@@ -530,7 +530,7 @@ int gfs2_quota_hold(struct gfs2_inode *ip, u32 uid, u32 gid)
 	}
 
 	if (gid != NO_QUOTA_CHANGE && gid != ip->i_inode.i_gid) {
-		error = qdsb_get(sdp, QUOTA_GROUP, gid, CREATE, qd);
+		error = qdsb_get(sdp, QUOTA_GROUP, gid, qd);
 		if (error)
 			goto out;
 		al->al_qd_num++;
