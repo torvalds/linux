@@ -72,7 +72,6 @@ do {									\
 
 #define SLOT_NAME_SIZE 10
 struct slot {
-	u8 bus;
 	u8 device;
 	u8 state;
 	u8 hp_slot;

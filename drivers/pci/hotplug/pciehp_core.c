@@ -126,7 +126,8 @@ static int init_slot(struct controller *ctrl)
 	ctrl_dbg(ctrl, "Registering domain:bus:dev=%04x:%02x:%02x "
 		 "hp_slot=%x sun=%x slot_device_offset=%x\n",
 		 pci_domain_nr(ctrl->pci_dev->subordinate),
-		 slot->bus, slot->device, slot->hp_slot, slot->number,
+		 ctrl->pci_dev->subordinate->number,
+		 slot->device, slot->hp_slot, slot->number,
 		 ctrl->slot_device_offset);
 	retval = pci_hp_register(hotplug,
 				 ctrl->pci_dev->subordinate,

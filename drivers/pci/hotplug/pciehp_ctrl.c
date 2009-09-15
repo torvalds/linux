@@ -242,7 +242,8 @@ static int board_added(struct slot *p_slot)
 	retval = pciehp_configure_device(p_slot);
 	if (retval) {
 		ctrl_err(ctrl, "Cannot add device at %04x:%02x:%02x\n",
-			 pci_domain_nr(parent), p_slot->bus, p_slot->device);
+			 pci_domain_nr(parent), parent->number,
+			 p_slot->device);
 		goto err_exit;
 	}
 
@@ -319,7 +320,8 @@ static void pciehp_power_thread(struct work_struct *work)
 		ctrl_dbg(p_slot->ctrl,
 			 "Disabling domain:bus:device=%04x:%02x:%02x\n",
 			 pci_domain_nr(p_slot->ctrl->pci_dev->subordinate),
-			 p_slot->bus, p_slot->device);
+			 p_slot->ctrl->pci_dev->subordinate->number,
+			 p_slot->device);
 		pciehp_disable_slot(p_slot);
 		mutex_lock(&p_slot->lock);
 		p_slot->state = STATIC_STATE;

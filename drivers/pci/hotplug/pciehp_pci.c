@@ -71,7 +71,8 @@ int pciehp_configure_device(struct slot *p_slot)
 	if (dev) {
 		ctrl_err(ctrl, "Device %s already exists "
 			 "at %04x:%02x:%02x, cannot hot-add\n", pci_name(dev),
-			 pci_domain_nr(parent), p_slot->bus, p_slot->device);
+			 pci_domain_nr(parent), parent->number,
+			 p_slot->device);
 		pci_dev_put(dev);
 		return -EINVAL;
 	}
@@ -116,7 +117,8 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	struct controller *ctrl = p_slot->ctrl;
 
 	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:%02x\n",
-		 __func__, pci_domain_nr(parent), p_slot->bus, p_slot->device);
+		 __func__, pci_domain_nr(parent), parent->number,
+		 p_slot->device);
 	ret = p_slot->hpc_ops->get_adapter_status(p_slot, &presence);
 	if (ret)
 		presence = 0;
