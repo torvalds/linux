@@ -216,6 +216,25 @@
 #define WM831X_PARENT_ID_SHIFT                       0  /* PARENT_ID - [15:0] */
 #define WM831X_PARENT_ID_WIDTH                      16  /* PARENT_ID - [15:0] */
 
+/*
+ * R16389 (0x4005) - ON Pin Control
+ */
+#define WM831X_ON_PIN_SECACT_MASK               0x0300  /* ON_PIN_SECACT - [9:8] */
+#define WM831X_ON_PIN_SECACT_SHIFT                   8  /* ON_PIN_SECACT - [9:8] */
+#define WM831X_ON_PIN_SECACT_WIDTH                   2  /* ON_PIN_SECACT - [9:8] */
+#define WM831X_ON_PIN_PRIMACT_MASK              0x0030  /* ON_PIN_PRIMACT - [5:4] */
+#define WM831X_ON_PIN_PRIMACT_SHIFT                  4  /* ON_PIN_PRIMACT - [5:4] */
+#define WM831X_ON_PIN_PRIMACT_WIDTH                  2  /* ON_PIN_PRIMACT - [5:4] */
+#define WM831X_ON_PIN_STS                       0x0008  /* ON_PIN_STS */
+#define WM831X_ON_PIN_STS_MASK                  0x0008  /* ON_PIN_STS */
+#define WM831X_ON_PIN_STS_SHIFT                      3  /* ON_PIN_STS */
+#define WM831X_ON_PIN_STS_WIDTH                      1  /* ON_PIN_STS */
+#define WM831X_ON_PIN_TO_MASK                   0x0003  /* ON_PIN_TO - [1:0] */
+#define WM831X_ON_PIN_TO_SHIFT                       0  /* ON_PIN_TO - [1:0] */
+#define WM831X_ON_PIN_TO_WIDTH                       2  /* ON_PIN_TO - [1:0] */
+
+struct regulator_dev;
+
 struct wm831x {
 	struct mutex io_lock;
 
