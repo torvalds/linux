@@ -78,8 +78,9 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	return r;
 }
 
-void kvm_arch_hardware_enable(void *garbage)
+int kvm_arch_hardware_enable(void *garbage)
 {
+	return 0;
 }
 
 void kvm_arch_hardware_disable(void *garbage)
