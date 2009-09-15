@@ -414,6 +414,14 @@ int disable_nonboot_cpus(void)
 	return error;
 }
 
+void __weak arch_enable_nonboot_cpus_begin(void)
+{
+}
+
+void __weak arch_enable_nonboot_cpus_end(void)
+{
+}
+
 void __ref enable_nonboot_cpus(void)
 {
 	int cpu, error;
@@ -425,6 +433,9 @@ void __ref enable_nonboot_cpus(void)
 		goto out;
 
 	printk("Enabling non-boot CPUs ...\n");
+
+	arch_enable_nonboot_cpus_begin();
+
 	for_each_cpu(cpu, frozen_cpus) {
 		error = _cpu_up(cpu, 1);
 		if (!error) {
@@ -433,6 +444,9 @@ void __ref enable_nonboot_cpus(void)
 		}
 		printk(KERN_WARNING "Error taking CPU%d up: %d\n", cpu, error);
 	}
+
+	arch_enable_nonboot_cpus_end();
+
 	cpumask_clear(frozen_cpus);
 out:
 	cpu_maps_update_done();

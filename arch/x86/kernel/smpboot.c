@@ -1118,9 +1118,22 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	if (is_uv_system())
 		uv_system_init();
+
+	set_mtrr_aps_delayed_init();
 out:
 	preempt_enable();
 }
+
+void arch_enable_nonboot_cpus_begin(void)
+{
+	set_mtrr_aps_delayed_init();
+}
+
+void arch_enable_nonboot_cpus_end(void)
+{
+	mtrr_aps_init();
+}
+
 /*
  * Early setup to make printk work.
  */
@@ -1142,6 +1155,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	setup_ioapic_dest();
 #endif
 	check_nmi_watchdog();
+	mtrr_aps_init();
 }
 
 static int __initdata setup_possible_cpus = -1;

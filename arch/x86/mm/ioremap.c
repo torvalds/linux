@@ -158,24 +158,14 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	retval = reserve_memtype(phys_addr, (u64)phys_addr + size,
 						prot_val, &new_prot_val);
 	if (retval) {
-		pr_debug("Warning: reserve_memtype returned %d\n", retval);
+		printk(KERN_ERR "ioremap reserve_memtype failed %d\n", retval);
 		return NULL;
 	}
 
 	if (prot_val != new_prot_val) {
-		/*
-		 * Do not fallback to certain memory types with certain
-		 * requested type:
-		 * - request is uc-, return cannot be write-back
-		 * - request is uc-, return cannot be write-combine
-		 * - request is write-combine, return cannot be write-back
-		 */
-		if ((prot_val == _PAGE_CACHE_UC_MINUS &&
-		     (new_prot_val == _PAGE_CACHE_WB ||
-		      new_prot_val == _PAGE_CACHE_WC)) ||
-		    (prot_val == _PAGE_CACHE_WC &&
-		     new_prot_val == _PAGE_CACHE_WB)) {
-			pr_debug(
+		if (!is_new_memtype_allowed(phys_addr, size,
+					    prot_val, new_prot_val)) {
+			printk(KERN_ERR
 		"ioremap error for 0x%llx-0x%llx, requested 0x%lx, got 0x%lx\n",
 				(unsigned long long)phys_addr,
 				(unsigned long long)(phys_addr + size),

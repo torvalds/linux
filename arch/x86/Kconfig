@@ -1417,6 +1417,10 @@ config X86_PAT
 
 	  If unsure, say Y.
 
+config ARCH_USES_PG_UNCACHED
+	def_bool y
+	depends on X86_PAT
+
 config EFI
 	bool "EFI runtime service support"
 	depends on ACPI
