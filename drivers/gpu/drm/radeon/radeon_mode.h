@@ -383,6 +383,8 @@ extern void radeon_combios_output_lock(struct drm_encoder *encoder, bool lock);
 extern void radeon_combios_initialize_bios_scratch_regs(struct drm_device *dev);
 extern void radeon_atom_output_lock(struct drm_encoder *encoder, bool lock);
 extern void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev);
+extern void radeon_save_bios_scratch_regs(struct radeon_device *rdev);
+extern void radeon_restore_bios_scratch_regs(struct radeon_device *rdev);
 extern void
 radeon_atombios_encoder_crtc_scratch_regs(struct drm_encoder *encoder, int crtc);
 extern void

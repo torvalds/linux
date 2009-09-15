@@ -75,6 +75,7 @@ extern int radeon_tv;
 #define RADEON_IB_POOL_SIZE		16
 #define RADEON_DEBUGFS_MAX_NUM_FILES	32
 #define RADEONFB_CONN_LIMIT		4
+#define RADEON_BIOS_NUM_SCRATCH		8
 
 enum radeon_family {
 	CHIP_R100,
@@ -783,6 +784,7 @@ struct radeon_device {
 	struct radeon_asic		*asic;
 	struct radeon_gem		gem;
 	struct radeon_pm		pm;
+	uint32_t			bios_scratch[RADEON_BIOS_NUM_SCRATCH];
 	struct mutex			cs_mutex;
 	struct radeon_wb		wb;
 	struct radeon_dummy_page	dummy_page;

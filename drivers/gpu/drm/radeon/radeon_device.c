@@ -755,6 +755,8 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	/* wait for gpu to finish processing current batch */
 	radeon_fence_wait_last(rdev);
 
+	radeon_save_bios_scratch_regs(rdev);
+
 	if (!rdev->new_init_path) {
 		radeon_cp_disable(rdev);
 		radeon_gart_disable(rdev);
@@ -828,6 +830,7 @@ int radeon_resume_kms(struct drm_device *dev)
 		radeon_resume(rdev);
 	}
 out:
+	radeon_restore_bios_scratch_regs(rdev);
 	fb_set_suspend(rdev->fbdev_info, 0);
 	release_console_sem();
 
