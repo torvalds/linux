@@ -333,7 +333,7 @@ static void ssb_sdio_block_read(struct ssb_device *dev, void *buffer,
 		goto out;
 
 err_out:
-	dev_dbg(ssb_sdio_dev(bus), "%04X:%04X (width=%u, len=%u), error %d\n",
+	dev_dbg(ssb_sdio_dev(bus), "%04X:%04X (width=%u, len=%zu), error %d\n",
 		bus->sdio_sbaddr >> 16, offset, reg_width, saved_count, error);
 out:
 	sdio_release_host(bus->host_sdio);
@@ -440,7 +440,7 @@ static void ssb_sdio_block_write(struct ssb_device *dev, const void *buffer,
 		goto out;
 
 err_out:
-	dev_dbg(ssb_sdio_dev(bus), "%04X:%04X (width=%u, len=%u), error %d\n",
+	dev_dbg(ssb_sdio_dev(bus), "%04X:%04X (width=%u, len=%zu), error %d\n",
 		bus->sdio_sbaddr >> 16, offset, reg_width, saved_count, error);
 out:
 	sdio_release_host(bus->host_sdio);
