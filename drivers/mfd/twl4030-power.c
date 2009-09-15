@@ -64,8 +64,8 @@ static u8 twl4030_start_script_address = 0x2b;
 #define R_MEMORY_DATA		PHY_TO_OFF_PM_MASTER(0x5a)
 
 #define R_PROTECT_KEY		0x0E
-#define KEY_1			0xC0
-#define KEY_2			0x0C
+#define R_KEY_1			0xC0
+#define R_KEY_2			0x0C
 
 /* resource configuration registers */
 
@@ -424,12 +424,12 @@ void __init twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
 	struct twl4030_resconfig *resconfig;
 	u8 address = twl4030_start_script_address;
 
-	err = twl4030_i2c_write_u8(TWL4030_MODULE_PM_MASTER, KEY_1,
+	err = twl4030_i2c_write_u8(TWL4030_MODULE_PM_MASTER, R_KEY_1,
 				R_PROTECT_KEY);
 	if (err)
 		goto unlock;
 
-	err = twl4030_i2c_write_u8(TWL4030_MODULE_PM_MASTER, KEY_2,
+	err = twl4030_i2c_write_u8(TWL4030_MODULE_PM_MASTER, R_KEY_2,
 				R_PROTECT_KEY);
 	if (err)
 		goto unlock;
