@@ -256,7 +256,8 @@ static void em28xx_copy_video(struct em28xx *dev,
 
 		if ((char *)startwrite + lencopy > (char *)outp +
 		    buf->vb.size) {
-			em28xx_isocdbg("Overflow of %zi bytes past buffer end (2)\n",
+			em28xx_isocdbg("Overflow of %zi bytes past buffer end"
+				       "(2)\n",
 				       ((char *)startwrite + lencopy) -
 				       ((char *)outp + buf->vb.size));
 			lencopy = remain = (char *)outp + buf->vb.size -
@@ -284,23 +285,23 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 	int bytesperline = 720;
 
 	if (dev == NULL) {
-		printk("dev is null\n");
+		em28xx_isocdbg("dev is null\n");
 		return;
 	}
 
 	if (dma_q == NULL) {
-		printk("dma_q is null\n");
+		em28xx_isocdbg("dma_q is null\n");
 		return;
 	}
 	if (buf == NULL) {
 		return;
 	}
 	if (p == NULL) {
-		printk("p is null\n");
+		em28xx_isocdbg("p is null\n");
 		return;
 	}
 	if (outp == NULL) {
-		printk("outp is null\n");
+		em28xx_isocdbg("outp is null\n");
 		return;
 	}
 
@@ -584,7 +585,7 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 			if (dev->vbi_read >= vbi_size) {
 				/* We've already read all the VBI data, so
 				   treat the rest as video */
-				printk("djh c should never happen\n");
+				em28xx_isocdbg("dev->vbi_read > vbi_size\n");
 			} else if ((dev->vbi_read + len) < vbi_size) {
 				/* This entire frame is VBI data */
 				if (dev->vbi_read == 0 &&
@@ -597,9 +598,9 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 					vbi_get_next_buf(vbi_dma_q, &vbi_buf);
 					if (vbi_buf == NULL)
 						vbioutp = NULL;
-					else {
-						vbioutp = videobuf_to_vmalloc(&vbi_buf->vb);
-					}
+					else
+						vbioutp = videobuf_to_vmalloc(
+							&vbi_buf->vb);
 				}
 
 				if (dev->vbi_read == 0) {
@@ -669,7 +670,8 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	struct em28xx        *dev = fh->dev;
 	struct v4l2_frequency f;
 
-	*size = (fh->dev->width * fh->dev->height * dev->format->depth + 7) >> 3;
+	*size = (fh->dev->width * fh->dev->height * dev->format->depth + 7)
+		>> 3;
 
 	if (0 == *count)
 		*count = EM28XX_DEF_BUF;
@@ -723,7 +725,8 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct em28xx        *dev = fh->dev;
 	int                  rc = 0, urb_init = 0;
 
-	buf->vb.size = (fh->dev->width * fh->dev->height * dev->format->depth + 7) >> 3;
+	buf->vb.size = (fh->dev->width * fh->dev->height * dev->format->depth
+			+ 7) >> 3;
 
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < buf->vb.size)
 		return -EINVAL;
@@ -858,12 +861,12 @@ static int res_get(struct em28xx_fh *fh, unsigned int bit)
 
 static int res_check(struct em28xx_fh *fh, unsigned int bit)
 {
-	return (fh->resources & bit);
+	return fh->resources & bit;
 }
 
 static int res_locked(struct em28xx *dev, unsigned int bit)
 {
-	return (dev->resources & bit);
+	return dev->resources & bit;
 }
 
 static void res_free(struct em28xx_fh *fh, unsigned int bits)
@@ -1066,7 +1069,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	} else {
 		/* width must even because of the YUYV format
 		   height must be even because of interlacing */
-		v4l_bound_align_image(&width, 48, maxw, 1, &height, 32, maxh, 1, 0);
+		v4l_bound_align_image(&width, 48, maxw, 1, &height, 32, maxh,
+				      1, 0);
 	}
 
 	get_scale(dev, width, height, &hscale, &vscale);
@@ -1718,7 +1722,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 	em28xx_videodbg("vidioc_streamon fh=%p t=%d fh->res=%d dev->res=%d\n",
 			fh, type, fh->resources, dev->resources);
 
-	if (unlikely(!res_get(fh,get_ressource(fh))))
+	if (unlikely(!res_get(fh, get_ressource(fh))))
 		return -EBUSY;
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1941,9 +1945,8 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return videobuf_qbuf(&fh->vb_vidq, b);
-	else {
+	else
 		return videobuf_qbuf(&fh->vb_vbiq, b);
-	}
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
@@ -2212,7 +2215,7 @@ static int em28xx_v4l2_close(struct file *filp)
 		res_free(fh, EM28XX_RESOURCE_VBI);
 	}
 
-	if(dev->users == 1) {
+	if (dev->users == 1) {
 		/* the device is already disconnect,
 		   free the remaining resources */
 		if (dev->state & DEV_DISCONNECTED) {
