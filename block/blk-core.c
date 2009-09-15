@@ -69,7 +69,7 @@ static void drive_stat_acct(struct request *rq, int new_io)
 		part_stat_inc(cpu, part, merges[rw]);
 	else {
 		part_round_stats(cpu, part);
-		part_inc_in_flight(part);
+		part_inc_in_flight(part, rw);
 	}
 
 	part_stat_unlock();
@@ -1031,7 +1031,7 @@ static void part_round_stats_single(int cpu, struct hd_struct *part,
 
 	if (part->in_flight) {
 		__part_stat_add(cpu, part, time_in_queue,
-				part->in_flight * (now - part->stamp));
+				part_in_flight(part) * (now - part->stamp));
 		__part_stat_add(cpu, part, io_ticks, (now - part->stamp));
 	}
 	part->stamp = now;
@@ -1112,31 +1112,27 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	req->cmd_type = REQ_TYPE_FS;
 
 	/*
-	 * inherit FAILFAST from bio (for read-ahead, and explicit FAILFAST)
+	 * Inherit FAILFAST from bio (for read-ahead, and explicit
+	 * FAILFAST).  FAILFAST flags are identical for req and bio.
 	 */
-	if (bio_rw_ahead(bio))
-		req->cmd_flags |= (REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |
-				   REQ_FAILFAST_DRIVER);
-	if (bio_failfast_dev(bio))
-		req->cmd_flags |= REQ_FAILFAST_DEV;
-	if (bio_failfast_transport(bio))
-		req->cmd_flags |= REQ_FAILFAST_TRANSPORT;
-	if (bio_failfast_driver(bio))
-		req->cmd_flags |= REQ_FAILFAST_DRIVER;
+	if (bio_rw_flagged(bio, BIO_RW_AHEAD))
+		req->cmd_flags |= REQ_FAILFAST_MASK;
+	else
+		req->cmd_flags |= bio->bi_rw & REQ_FAILFAST_MASK;
 
-	if (unlikely(bio_discard(bio))) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_DISCARD))) {
 		req->cmd_flags |= REQ_DISCARD;
-		if (bio_barrier(bio))
+		if (bio_rw_flagged(bio, BIO_RW_BARRIER))
 			req->cmd_flags |= REQ_SOFTBARRIER;
 		req->q->prepare_discard_fn(req->q, req);
-	} else if (unlikely(bio_barrier(bio)))
+	} else if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER)))
 		req->cmd_flags |= REQ_HARDBARRIER;
 
-	if (bio_sync(bio))
+	if (bio_rw_flagged(bio, BIO_RW_SYNCIO))
 		req->cmd_flags |= REQ_RW_SYNC;
-	if (bio_rw_meta(bio))
+	if (bio_rw_flagged(bio, BIO_RW_META))
 		req->cmd_flags |= REQ_RW_META;
-	if (bio_noidle(bio))
+	if (bio_rw_flagged(bio, BIO_RW_NOIDLE))
 		req->cmd_flags |= REQ_NOIDLE;
 
 	req->errors = 0;
@@ -1151,7 +1147,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
  */
 static inline bool queue_should_plug(struct request_queue *q)
 {
-	return !(blk_queue_nonrot(q) && blk_queue_tagged(q));
+	return !(blk_queue_nonrot(q) && blk_queue_queuing(q));
 }
 
 static int __make_request(struct request_queue *q, struct bio *bio)
@@ -1160,11 +1156,12 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	int el_ret;
 	unsigned int bytes = bio->bi_size;
 	const unsigned short prio = bio_prio(bio);
-	const int sync = bio_sync(bio);
-	const int unplug = bio_unplug(bio);
+	const bool sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
+	const bool unplug = bio_rw_flagged(bio, BIO_RW_UNPLUG);
+	const unsigned int ff = bio->bi_rw & REQ_FAILFAST_MASK;
 	int rw_flags;
 
-	if (bio_barrier(bio) && bio_has_data(bio) &&
+	if (bio_rw_flagged(bio, BIO_RW_BARRIER) && bio_has_data(bio) &&
 	    (q->next_ordered == QUEUE_ORDERED_NONE)) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
@@ -1178,7 +1175,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 	spin_lock_irq(q->queue_lock);
 
-	if (unlikely(bio_barrier(bio)) || elv_queue_empty(q))
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER)) || elv_queue_empty(q))
 		goto get_rq;
 
 	el_ret = elv_merge(q, &req, bio);
@@ -1190,6 +1187,9 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 			break;
 
 		trace_block_bio_backmerge(q, bio);
+
+		if ((req->cmd_flags & REQ_FAILFAST_MASK) != ff)
+			blk_rq_set_mixed_merge(req);
 
 		req->biotail->bi_next = bio;
 		req->biotail = bio;
@@ -1209,6 +1209,12 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 			break;
 
 		trace_block_bio_frontmerge(q, bio);
+
+		if ((req->cmd_flags & REQ_FAILFAST_MASK) != ff) {
+			blk_rq_set_mixed_merge(req);
+			req->cmd_flags &= ~REQ_FAILFAST_MASK;
+			req->cmd_flags |= ff;
+		}
 
 		bio->bi_next = req->bio;
 		req->bio = bio;
@@ -1457,18 +1463,19 @@ static inline void __generic_make_request(struct bio *bio)
 		if (old_sector != -1)
 			trace_block_remap(q, bio, old_dev, old_sector);
 
-		trace_block_bio_queue(q, bio);
-
 		old_sector = bio->bi_sector;
 		old_dev = bio->bi_bdev->bd_dev;
 
 		if (bio_check_eod(bio, nr_sectors))
 			goto end_io;
 
-		if (bio_discard(bio) && !q->prepare_discard_fn) {
+		if (bio_rw_flagged(bio, BIO_RW_DISCARD) &&
+		    !q->prepare_discard_fn) {
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
+
+		trace_block_bio_queue(q, bio);
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);
@@ -1654,6 +1661,50 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 }
 EXPORT_SYMBOL_GPL(blk_insert_cloned_request);
 
+/**
+ * blk_rq_err_bytes - determine number of bytes till the next failure boundary
+ * @rq: request to examine
+ *
+ * Description:
+ *     A request could be merge of IOs which require different failure
+ *     handling.  This function determines the number of bytes which
+ *     can be failed from the beginning of the request without
+ *     crossing into area which need to be retried further.
+ *
+ * Return:
+ *     The number of bytes to fail.
+ *
+ * Context:
+ *     queue_lock must be held.
+ */
+unsigned int blk_rq_err_bytes(const struct request *rq)
+{
+	unsigned int ff = rq->cmd_flags & REQ_FAILFAST_MASK;
+	unsigned int bytes = 0;
+	struct bio *bio;
+
+	if (!(rq->cmd_flags & REQ_MIXED_MERGE))
+		return blk_rq_bytes(rq);
+
+	/*
+	 * Currently the only 'mixing' which can happen is between
+	 * different fastfail types.  We can safely fail portions
+	 * which have all the failfast bits that the first one has -
+	 * the ones which are at least as eager to fail as the first
+	 * one.
+	 */
+	for (bio = rq->bio; bio; bio = bio->bi_next) {
+		if ((bio->bi_rw & ff) != ff)
+			break;
+		bytes += bio->bi_size;
+	}
+
+	/* this could lead to infinite loop */
+	BUG_ON(blk_rq_bytes(rq) && !bytes);
+	return bytes;
+}
+EXPORT_SYMBOL_GPL(blk_rq_err_bytes);
+
 static void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
 	if (blk_do_io_stat(req)) {
@@ -1687,7 +1738,7 @@ static void blk_account_io_done(struct request *req)
 		part_stat_inc(cpu, part, ios[rw]);
 		part_stat_add(cpu, part, ticks[rw], duration);
 		part_round_stats(cpu, part);
-		part_dec_in_flight(part);
+		part_dec_in_flight(part, rw);
 
 		part_stat_unlock();
 	}
@@ -1807,8 +1858,15 @@ void blk_dequeue_request(struct request *rq)
 	 * and to it is freed is accounted as io that is in progress at
 	 * the driver side.
 	 */
-	if (blk_account_rq(rq))
+	if (blk_account_rq(rq)) {
 		q->in_flight[rq_is_sync(rq)]++;
+		/*
+		 * Mark this device as supporting hardware queuing, if
+		 * we have more IOs in flight than 4.
+		 */
+		if (!blk_queue_queuing(q) && queue_in_flight(q) > 4)
+			set_bit(QUEUE_FLAG_CQ, &q->queue_flags);
+	}
 }
 
 /**
@@ -2000,6 +2058,12 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	if (blk_fs_request(req) || blk_discard_rq(req))
 		req->__sector += total_bytes >> 9;
 
+	/* mixed attributes always follow the first bio */
+	if (req->cmd_flags & REQ_MIXED_MERGE) {
+		req->cmd_flags &= ~REQ_FAILFAST_MASK;
+		req->cmd_flags |= req->bio->bi_rw & REQ_FAILFAST_MASK;
+	}
+
 	/*
 	 * If total number of sectors is less than the first segment
 	 * size, something has gone terribly wrong.
@@ -2179,6 +2243,25 @@ bool blk_end_request_cur(struct request *rq, int error)
 EXPORT_SYMBOL(blk_end_request_cur);
 
 /**
+ * blk_end_request_err - Finish a request till the next failure boundary.
+ * @rq: the request to finish till the next failure boundary for
+ * @error: must be negative errno
+ *
+ * Description:
+ *     Complete @rq till the next failure boundary.
+ *
+ * Return:
+ *     %false - we are done with this request
+ *     %true  - still buffers pending for this request
+ */
+bool blk_end_request_err(struct request *rq, int error)
+{
+	WARN_ON(error >= 0);
+	return blk_end_request(rq, error, blk_rq_err_bytes(rq));
+}
+EXPORT_SYMBOL_GPL(blk_end_request_err);
+
+/**
  * __blk_end_request - Helper function for drivers to complete the request.
  * @rq:       the request being processed
  * @error:    %0 for success, < %0 for error
@@ -2237,12 +2320,31 @@ bool __blk_end_request_cur(struct request *rq, int error)
 }
 EXPORT_SYMBOL(__blk_end_request_cur);
 
+/**
+ * __blk_end_request_err - Finish a request till the next failure boundary.
+ * @rq: the request to finish till the next failure boundary for
+ * @error: must be negative errno
+ *
+ * Description:
+ *     Complete @rq till the next failure boundary.  Must be called
+ *     with queue lock held.
+ *
+ * Return:
+ *     %false - we are done with this request
+ *     %true  - still buffers pending for this request
+ */
+bool __blk_end_request_err(struct request *rq, int error)
+{
+	WARN_ON(error >= 0);
+	return __blk_end_request(rq, error, blk_rq_err_bytes(rq));
+}
+EXPORT_SYMBOL_GPL(__blk_end_request_err);
+
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)
 {
-	/* Bit 0 (R/W) is identical in rq->cmd_flags and bio->bi_rw, and
-	   we want BIO_RW_AHEAD (bit 1) to imply REQ_FAILFAST (bit 1). */
-	rq->cmd_flags |= (bio->bi_rw & 3);
+	/* Bit 0 (R/W) is identical in rq->cmd_flags and bio->bi_rw */
+	rq->cmd_flags |= bio->bi_rw & REQ_RW;
 
 	if (bio_has_data(bio)) {
 		rq->nr_phys_segments = bio_phys_segments(q, bio);

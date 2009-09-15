@@ -130,7 +130,7 @@ struct mapped_device {
 	/*
 	 * A list of ios that arrived while we were suspended.
 	 */
-	atomic_t pending;
+	atomic_t pending[2];
 	wait_queue_head_t wait;
 	struct work_struct work;
 	struct bio_list deferred;
@@ -453,13 +453,14 @@ static void start_io_acct(struct dm_io *io)
 {
 	struct mapped_device *md = io->md;
 	int cpu;
+	int rw = bio_data_dir(io->bio);
 
 	io->start_time = jiffies;
 
 	cpu = part_stat_lock();
 	part_round_stats(cpu, &dm_disk(md)->part0);
 	part_stat_unlock();
-	dm_disk(md)->part0.in_flight = atomic_inc_return(&md->pending);
+	dm_disk(md)->part0.in_flight[rw] = atomic_inc_return(&md->pending[rw]);
 }
 
 static void end_io_acct(struct dm_io *io)
@@ -479,8 +480,9 @@ static void end_io_acct(struct dm_io *io)
 	 * After this is decremented the bio must not be touched if it is
 	 * a barrier.
 	 */
-	dm_disk(md)->part0.in_flight = pending =
-		atomic_dec_return(&md->pending);
+	dm_disk(md)->part0.in_flight[rw] = pending =
+		atomic_dec_return(&md->pending[rw]);
+	pending += atomic_read(&md->pending[rw^0x1]);
 
 	/* nudge anyone waiting on suspend queue */
 	if (!pending)
@@ -586,7 +588,7 @@ static void dec_pending(struct dm_io *io, int error)
 			 */
 			spin_lock_irqsave(&md->deferred_lock, flags);
 			if (__noflush_suspending(md)) {
-				if (!bio_barrier(io->bio))
+				if (!bio_rw_flagged(io->bio, BIO_RW_BARRIER))
 					bio_list_add_head(&md->deferred,
 							  io->bio);
 			} else
@@ -598,7 +600,7 @@ static void dec_pending(struct dm_io *io, int error)
 		io_error = io->error;
 		bio = io->bio;
 
-		if (bio_barrier(bio)) {
+		if (bio_rw_flagged(bio, BIO_RW_BARRIER)) {
 			/*
 			 * There can be just one barrier request so we use
 			 * a per-device variable for error reporting.
@@ -1209,7 +1211,7 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 
 	ci.map = dm_get_table(md);
 	if (unlikely(!ci.map)) {
-		if (!bio_barrier(bio))
+		if (!bio_rw_flagged(bio, BIO_RW_BARRIER))
 			bio_io_error(bio);
 		else
 			if (!md->barrier_error)
@@ -1321,7 +1323,7 @@ static int _dm_request(struct request_queue *q, struct bio *bio)
 	 * we have to queue this io for later.
 	 */
 	if (unlikely(test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags)) ||
-	    unlikely(bio_barrier(bio))) {
+	    unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		up_read(&md->io_lock);
 
 		if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) &&
@@ -1344,7 +1346,7 @@ static int dm_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct mapped_device *md = q->queuedata;
 
-	if (unlikely(bio_barrier(bio))) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
@@ -1785,7 +1787,8 @@ static struct mapped_device *alloc_dev(int minor)
 	if (!md->disk)
 		goto bad_disk;
 
-	atomic_set(&md->pending, 0);
+	atomic_set(&md->pending[0], 0);
+	atomic_set(&md->pending[1], 0);
 	init_waitqueue_head(&md->wait);
 	INIT_WORK(&md->work, dm_wq_work);
 	init_waitqueue_head(&md->eventq);
@@ -2088,7 +2091,8 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 				break;
 			}
 			spin_unlock_irqrestore(q->queue_lock, flags);
-		} else if (!atomic_read(&md->pending))
+		} else if (!atomic_read(&md->pending[0]) &&
+					!atomic_read(&md->pending[1]))
 			break;
 
 		if (interruptible == TASK_INTERRUPTIBLE &&
@@ -2164,7 +2168,7 @@ static void dm_wq_work(struct work_struct *work)
 		if (dm_request_based(md))
 			generic_make_request(c);
 		else {
-			if (bio_barrier(c))
+			if (bio_rw_flagged(c, BIO_RW_BARRIER))
 				process_barrier(md, c);
 			else
 				__split_and_process_bio(md, c);
