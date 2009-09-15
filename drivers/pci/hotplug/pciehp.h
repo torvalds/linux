@@ -117,24 +117,14 @@ struct controller {
 #define POWERON_STATE			3
 #define POWEROFF_STATE			4
 
-/* Field definitions in Slot Capabilities Register */
-#define ATTN_BUTTN_PRSN	0x00000001
-#define	PWR_CTRL_PRSN	0x00000002
-#define MRL_SENS_PRSN	0x00000004
-#define ATTN_LED_PRSN	0x00000008
-#define PWR_LED_PRSN	0x00000010
-#define HP_SUPR_RM_SUP	0x00000020
-#define EMI_PRSN	0x00020000
-#define NO_CMD_CMPL_SUP	0x00040000
-
-#define ATTN_BUTTN(ctrl)	((ctrl)->slot_cap & ATTN_BUTTN_PRSN)
-#define POWER_CTRL(ctrl)	((ctrl)->slot_cap & PWR_CTRL_PRSN)
-#define MRL_SENS(ctrl)		((ctrl)->slot_cap & MRL_SENS_PRSN)
-#define ATTN_LED(ctrl)		((ctrl)->slot_cap & ATTN_LED_PRSN)
-#define PWR_LED(ctrl)		((ctrl)->slot_cap & PWR_LED_PRSN)
-#define HP_SUPR_RM(ctrl)	((ctrl)->slot_cap & HP_SUPR_RM_SUP)
-#define EMI(ctrl)		((ctrl)->slot_cap & EMI_PRSN)
-#define NO_CMD_CMPL(ctrl)	((ctrl)->slot_cap & NO_CMD_CMPL_SUP)
+#define ATTN_BUTTN(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_ABP)
+#define POWER_CTRL(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_PCP)
+#define MRL_SENS(ctrl)		((ctrl)->slot_cap & PCI_EXP_SLTCAP_MRLSP)
+#define ATTN_LED(ctrl)		((ctrl)->slot_cap & PCI_EXP_SLTCAP_AIP)
+#define PWR_LED(ctrl)		((ctrl)->slot_cap & PCI_EXP_SLTCAP_PIP)
+#define HP_SUPR_RM(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_HPS)
+#define EMI(ctrl)		((ctrl)->slot_cap & PCI_EXP_SLTCAP_EIP)
+#define NO_CMD_CMPL(ctrl)	((ctrl)->slot_cap & PCI_EXP_SLTCAP_NCCS)
 #define PSN(ctrl)		((ctrl)->slot_cap >> 19)
 
 extern int pciehp_sysfs_enable_slot(struct slot *slot);
