@@ -74,7 +74,12 @@ static void check_idle_worker(struct btrfs_worker_thread *worker)
 		unsigned long flags;
 		spin_lock_irqsave(&worker->workers->lock, flags);
 		worker->idle = 1;
-		list_move(&worker->worker_list, &worker->workers->idle_list);
+
+		/* the list may be empty if the worker is just starting */
+		if (!list_empty(&worker->worker_list)) {
+			list_move(&worker->worker_list,
+				 &worker->workers->idle_list);
+		}
 		spin_unlock_irqrestore(&worker->workers->lock, flags);
 	}
 }
@@ -90,8 +95,11 @@ static void check_busy_worker(struct btrfs_worker_thread *worker)
 		unsigned long flags;
 		spin_lock_irqsave(&worker->workers->lock, flags);
 		worker->idle = 0;
-		list_move_tail(&worker->worker_list,
-			       &worker->workers->worker_list);
+
+		if (!list_empty(&worker->worker_list)) {
+			list_move_tail(&worker->worker_list,
+				      &worker->workers->worker_list);
+		}
 		spin_unlock_irqrestore(&worker->workers->lock, flags);
 	}
 }
