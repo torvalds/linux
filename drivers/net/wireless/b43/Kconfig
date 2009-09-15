@@ -63,7 +63,7 @@ config B43_PCMCIA
 
 config B43_SDIO
 	bool "Broadcom 43xx SDIO device support (EXPERIMENTAL)"
-	depends on B43 && SSB_SDIOHOST_POSSIBLE && EXPERIMENTAL && BROKEN
+	depends on B43 && SSB_SDIOHOST_POSSIBLE && EXPERIMENTAL
 	select SSB_SDIOHOST
 	---help---
 	  Broadcom 43xx device support for Soft-MAC SDIO devices.
