@@ -365,7 +365,7 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 		return ret;
 	}
 	drm_mode_connector_update_edid_property(&radeon_connector->base, NULL);
-	return -1;
+	return 0;
 }
 
 static int radeon_ddc_dump(struct drm_connector *connector)
