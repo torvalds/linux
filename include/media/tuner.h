@@ -127,6 +127,7 @@
 #define TUNER_PHILIPS_FM1216MK5		79
 #define TUNER_PHILIPS_FQ1216LME_MK3	80	/* Active loopthrough, no FM */
 #define TUNER_PARTSNIC_PTI_5NF05	81
+#define TUNER_PHILIPS_CU1216L           82
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
