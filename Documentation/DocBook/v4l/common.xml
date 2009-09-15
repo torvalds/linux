@@ -802,7 +802,7 @@ optional.</para>
 a special ioctl to enumerate all image formats supported by video
 capture, overlay or output devices is available.<footnote>
 	  <para>Enumerating formats an application has no a-priori
-knowledge of (otherwise it could explicitely ask for them and need not
+knowledge of (otherwise it could explicitly ask for them and need not
 enumerate) seems useless, but there are applications serving as proxy
 between drivers and the actual video applications for which this is
 useful.</para>
