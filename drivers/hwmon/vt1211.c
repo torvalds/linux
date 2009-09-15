@@ -33,7 +33,7 @@
 #include <linux/mutex.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static int uch_config = -1;
 module_param(uch_config, int, 0);
