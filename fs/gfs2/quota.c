@@ -165,7 +165,7 @@ fail:
 	return error;
 }
 
-static int qd_get(struct gfs2_sbd *sdp, int user, u32 id, int create,
+static int qd_get(struct gfs2_sbd *sdp, int user, u32 id,
 		  struct gfs2_quota_data **qdp)
 {
 	struct gfs2_quota_data *qd = NULL, *new_qd = NULL;
@@ -203,7 +203,7 @@ static int qd_get(struct gfs2_sbd *sdp, int user, u32 id, int create,
 
 		spin_unlock(&qd_lru_lock);
 
-		if (qd || !create) {
+		if (qd) {
 			if (new_qd) {
 				gfs2_glock_put(new_qd->qd_gl);
 				kmem_cache_free(gfs2_quotad_cachep, new_qd);
@@ -467,7 +467,7 @@ static int qdsb_get(struct gfs2_sbd *sdp, int user, u32 id,
 {
 	int error;
 
-	error = qd_get(sdp, user, id, CREATE, qdp);
+	error = qd_get(sdp, user, id, qdp);
 	if (error)
 		return error;
 
@@ -1117,7 +1117,7 @@ int gfs2_quota_refresh(struct gfs2_sbd *sdp, int user, u32 id)
 	struct gfs2_holder q_gh;
 	int error;
 
-	error = qd_get(sdp, user, id, CREATE, &qd);
+	error = qd_get(sdp, user, id, &qd);
 	if (error)
 		return error;
 
