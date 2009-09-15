@@ -696,10 +696,6 @@ shutdown_callback_client(struct nfs4_client *clp)
 		clp->cl_cb_conn.cb_client = NULL;
 		rpc_shutdown_client(clnt);
 	}
-	if (clp->cl_cb_conn.cb_cred) {
-		put_rpccred(clp->cl_cb_conn.cb_cred);
-		clp->cl_cb_conn.cb_cred = NULL;
-	}
 }
 
 static inline void
@@ -4020,7 +4016,7 @@ __nfs4_state_start(void)
 		return -ENOMEM;
 	queue_delayed_work(laundry_wq, &laundromat_work, grace_time);
 	set_max_delegations();
-	return 0;
+	return set_callback_cred();
 }
 
 int
