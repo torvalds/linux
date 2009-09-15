@@ -151,7 +151,7 @@ int arch_update_cpu_topology(void);
 	.cache_nice_tries	= 1,					\
 	.busy_idx		= 2,					\
 	.idle_idx		= 1,					\
-	.newidle_idx		= 2,					\
+	.newidle_idx		= 0,					\
 	.wake_idx		= 0,					\
 	.forkexec_idx		= 1,					\
 									\

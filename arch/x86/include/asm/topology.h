@@ -116,14 +116,12 @@ extern unsigned long node_remap_size[];
 
 # define SD_CACHE_NICE_TRIES	1
 # define SD_IDLE_IDX		1
-# define SD_NEWIDLE_IDX		2
 # define SD_FORKEXEC_IDX	0
 
 #else
 
 # define SD_CACHE_NICE_TRIES	2
 # define SD_IDLE_IDX		2
-# define SD_NEWIDLE_IDX		2
 # define SD_FORKEXEC_IDX	1
 
 #endif
@@ -137,7 +135,7 @@ extern unsigned long node_remap_size[];
 	.cache_nice_tries	= SD_CACHE_NICE_TRIES,			\
 	.busy_idx		= 3,					\
 	.idle_idx		= SD_IDLE_IDX,				\
-	.newidle_idx		= SD_NEWIDLE_IDX,			\
+	.newidle_idx		= 0,					\
 	.wake_idx		= 0,					\
 	.forkexec_idx		= SD_FORKEXEC_IDX,			\
 									\

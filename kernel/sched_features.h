@@ -67,7 +67,7 @@ SCHED_FEAT(AFFINE_WAKEUPS, 1)
  * wakeup-preemption), since its likely going to consume data we
  * touched, increases cache locality.
  */
-SCHED_FEAT(NEXT_BUDDY, 1)
+SCHED_FEAT(NEXT_BUDDY, 0)
 
 /*
  * Prefer to schedule the task that ran last (when we did
