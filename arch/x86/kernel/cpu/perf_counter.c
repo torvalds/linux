@@ -36,10 +36,10 @@ static u64 perf_counter_mask __read_mostly;
 #define BTS_RECORD_SIZE		24
 
 /* The size of a per-cpu BTS buffer in bytes: */
-#define BTS_BUFFER_SIZE		(BTS_RECORD_SIZE * 1024)
+#define BTS_BUFFER_SIZE		(BTS_RECORD_SIZE * 2048)
 
 /* The BTS overflow threshold in bytes from the end of the buffer: */
-#define BTS_OVFL_TH		(BTS_RECORD_SIZE * 64)
+#define BTS_OVFL_TH		(BTS_RECORD_SIZE * 128)
 
 
 /*
@@ -1488,8 +1488,7 @@ void perf_counter_print_debug(void)
 	local_irq_restore(flags);
 }
 
-static void intel_pmu_drain_bts_buffer(struct cpu_hw_counters *cpuc,
-				       struct perf_sample_data *data)
+static void intel_pmu_drain_bts_buffer(struct cpu_hw_counters *cpuc)
 {
 	struct debug_store *ds = cpuc->ds;
 	struct bts_record {
@@ -1498,8 +1497,11 @@ static void intel_pmu_drain_bts_buffer(struct cpu_hw_counters *cpuc,
 		u64	flags;
 	};
 	struct perf_counter *counter = cpuc->counters[X86_PMC_IDX_FIXED_BTS];
-	unsigned long orig_ip = data->regs->ip;
 	struct bts_record *at, *top;
+	struct perf_output_handle handle;
+	struct perf_event_header header;
+	struct perf_sample_data data;
+	struct pt_regs regs;
 
 	if (!counter)
 		return;
@@ -1510,19 +1512,38 @@ static void intel_pmu_drain_bts_buffer(struct cpu_hw_counters *cpuc,
 	at  = (struct bts_record *)(unsigned long)ds->bts_buffer_base;
 	top = (struct bts_record *)(unsigned long)ds->bts_index;
 
+	if (top <= at)
+		return;
+
 	ds->bts_index = ds->bts_buffer_base;
 
-	for (; at < top; at++) {
-		data->regs->ip	= at->from;
-		data->addr	= at->to;
 
-		perf_counter_output(counter, 1, data);
+	data.period	= counter->hw.last_period;
+	data.addr	= 0;
+	regs.ip		= 0;
+
+	/*
+	 * Prepare a generic sample, i.e. fill in the invariant fields.
+	 * We will overwrite the from and to address before we output
+	 * the sample.
+	 */
+	perf_prepare_sample(&header, &data, counter, &regs);
+
+	if (perf_output_begin(&handle, counter,
+			      header.size * (top - at), 1, 1))
+		return;
+
+	for (; at < top; at++) {
+		data.ip		= at->from;
+		data.addr	= at->to;
+
+		perf_output_sample(&handle, &header, &data, counter);
 	}
 
-	data->regs->ip	= orig_ip;
-	data->addr	= 0;
+	perf_output_end(&handle);
 
 	/* There's new data available. */
+	counter->hw.interrupts++;
 	counter->pending_kill = POLL_IN;
 }
 
@@ -1552,13 +1573,9 @@ static void x86_pmu_disable(struct perf_counter *counter)
 	x86_perf_counter_update(counter, hwc, idx);
 
 	/* Drain the remaining BTS records. */
-	if (unlikely(idx == X86_PMC_IDX_FIXED_BTS)) {
-		struct perf_sample_data data;
-		struct pt_regs regs;
+	if (unlikely(idx == X86_PMC_IDX_FIXED_BTS))
+		intel_pmu_drain_bts_buffer(cpuc);
 
-		data.regs = &regs;
-		intel_pmu_drain_bts_buffer(cpuc, &data);
-	}
 	cpuc->counters[idx] = NULL;
 	clear_bit(idx, cpuc->used_mask);
 
@@ -1619,7 +1636,6 @@ static int p6_pmu_handle_irq(struct pt_regs *regs)
 	int idx, handled = 0;
 	u64 val;
 
-	data.regs = regs;
 	data.addr = 0;
 
 	cpuc = &__get_cpu_var(cpu_hw_counters);
@@ -1644,7 +1660,7 @@ static int p6_pmu_handle_irq(struct pt_regs *regs)
 		if (!x86_perf_counter_set_period(counter, hwc, idx))
 			continue;
 
-		if (perf_counter_overflow(counter, 1, &data))
+		if (perf_counter_overflow(counter, 1, &data, regs))
 			p6_pmu_disable_counter(hwc, idx);
 	}
 
@@ -1665,13 +1681,12 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	int bit, loops;
 	u64 ack, status;
 
-	data.regs = regs;
 	data.addr = 0;
 
 	cpuc = &__get_cpu_var(cpu_hw_counters);
 
 	perf_disable();
-	intel_pmu_drain_bts_buffer(cpuc, &data);
+	intel_pmu_drain_bts_buffer(cpuc);
 	status = intel_pmu_get_status();
 	if (!status) {
 		perf_enable();
@@ -1702,7 +1717,7 @@ again:
 
 		data.period = counter->hw.last_period;
 
-		if (perf_counter_overflow(counter, 1, &data))
+		if (perf_counter_overflow(counter, 1, &data, regs))
 			intel_pmu_disable_counter(&counter->hw, bit);
 	}
 
@@ -1729,7 +1744,6 @@ static int amd_pmu_handle_irq(struct pt_regs *regs)
 	int idx, handled = 0;
 	u64 val;
 
-	data.regs = regs;
 	data.addr = 0;
 
 	cpuc = &__get_cpu_var(cpu_hw_counters);
@@ -1754,7 +1768,7 @@ static int amd_pmu_handle_irq(struct pt_regs *regs)
 		if (!x86_perf_counter_set_period(counter, hwc, idx))
 			continue;
 
-		if (perf_counter_overflow(counter, 1, &data))
+		if (perf_counter_overflow(counter, 1, &data, regs))
 			amd_pmu_disable_counter(hwc, idx);
 	}
 
