@@ -43,7 +43,7 @@
 #include "bf5xx-tdm.h"
 #include "bf5xx-sport.h"
 
-#define PCM_BUFFER_MAX  0x10000
+#define PCM_BUFFER_MAX  0x8000
 #define FRAGMENT_SIZE_MIN  (4*1024)
 #define FRAGMENTS_MIN  2
 #define FRAGMENTS_MAX  32
@@ -177,6 +177,9 @@ out:
 static int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
 	snd_pcm_uframes_t pos, void *buf, snd_pcm_uframes_t count)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct sport_device *sport = runtime->private_data;
+	struct bf5xx_tdm_port *tdm_port = sport->private_data;
 	unsigned int *src;
 	unsigned int *dst;
 	int i;
@@ -188,7 +191,7 @@ static int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
 		dst += pos * 8;
 		while (count--) {
 			for (i = 0; i < substream->runtime->channels; i++)
-				*(dst + i) = *src++;
+				*(dst + tdm_port->tx_map[i]) = *src++;
 			dst += 8;
 		}
 	} else {
@@ -198,7 +201,7 @@ static int bf5xx_pcm_copy(struct snd_pcm_substream *substream, int channel,
 		src += pos * 8;
 		while (count--) {
 			for (i = 0; i < substream->runtime->channels; i++)
-				*dst++ = *(src+i);
+				*dst++ = *(src + tdm_port->rx_map[i]);
 			src += 8;
 		}
 	}
