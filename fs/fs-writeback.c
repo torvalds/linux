@@ -884,8 +884,7 @@ int bdi_writeback_task(struct bdi_writeback *wb)
 		}
 
 		wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(wait_jiffies);
+		schedule_timeout_interruptible(wait_jiffies);
 		try_to_freeze();
 	}
 
