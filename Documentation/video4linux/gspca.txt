@@ -173,6 +173,8 @@ ov519		05a9:8519	OmniVision
 ov519		05a9:a518	D-Link DSB-C310 Webcam
 sunplus		05da:1018	Digital Dream Enigma 1.3
 stk014		05e1:0893	Syntek DV4000
+gl860		05e3:0503	Genesys Logic PC Camera
+gl860		05e3:f191	Genesys Logic PC Camera
 spca561		060b:a001	Maxell Compact Pc PM3
 zc3xx		0698:2003	CTX M730V built in
 spca500		06bd:0404	Agfa CL20

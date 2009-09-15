@@ -58,3 +58,4 @@ gspca_zc3xx-objs    := zc3xx.o
 
 obj-$(CONFIG_USB_M5602)   += m5602/
 obj-$(CONFIG_USB_STV06XX) += stv06xx/
+obj-$(CONFIG_USB_GL860)   += gl860/
