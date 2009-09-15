@@ -151,10 +151,10 @@ static void bdi_queue_work(struct backing_dev_info *bdi, struct bdi_work *work)
 	BUG_ON(!bdi->wb_cnt);
 
 	/*
-	 * Make sure stores are seen before it appears on the list
+	 * list_add_tail_rcu() contains the necessary barriers to
+	 * make sure the above stores are seen before the item is
+	 * noticed on the list
 	 */
-	smp_mb();
-
 	spin_lock(&bdi->wb_lock);
 	list_add_tail_rcu(&work->list, &bdi->work_list);
 	spin_unlock(&bdi->wb_lock);
