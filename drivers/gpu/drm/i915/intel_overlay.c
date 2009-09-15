@@ -323,7 +323,6 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	}
 
 	/* turn overlay off */
-	/* this is not done in userspace!
 	BEGIN_LP_RING(6);
         OUT_RING(MI_FLUSH);
         OUT_RING(MI_NOOP);
@@ -338,7 +337,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 		DRM_ERROR("intel overlay: ring sync failed, hw likely wedged\n");
 		overlay->hw_wedged = 1;
 		return ret;
-	}*/
+	}
 
 	overlay->active = 0;
 
