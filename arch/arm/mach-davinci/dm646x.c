@@ -32,6 +32,15 @@
 #include "clock.h"
 #include "mux.h"
 
+#define DAVINCI_VPIF_BASE       (0x01C12000)
+#define VDD3P3V_PWDN_OFFSET	(0x48)
+#define VSCLKDIS_OFFSET		(0x6C)
+
+#define VDD3P3V_VID_MASK	(BIT_MASK(3) | BIT_MASK(2) | BIT_MASK(1) |\
+					BIT_MASK(0))
+#define VSCLKDIS_MASK		(BIT_MASK(11) | BIT_MASK(10) | BIT_MASK(9) |\
+					BIT_MASK(8))
+
 /*
  * Device specific clocks
  */
@@ -686,6 +695,75 @@ static struct platform_device dm646x_dit_device = {
 	.id	= -1,
 };
 
+static u64 vpif_dma_mask = DMA_BIT_MASK(32);
+
+static struct resource vpif_resource[] = {
+	{
+		.start	= DAVINCI_VPIF_BASE,
+		.end	= DAVINCI_VPIF_BASE + 0x03ff,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device vpif_dev = {
+	.name		= "vpif",
+	.id		= -1,
+	.dev		= {
+			.dma_mask 		= &vpif_dma_mask,
+			.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= vpif_resource,
+	.num_resources	= ARRAY_SIZE(vpif_resource),
+};
+
+static struct resource vpif_display_resource[] = {
+	{
+		.start = IRQ_DM646X_VP_VERTINT2,
+		.end   = IRQ_DM646X_VP_VERTINT2,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_DM646X_VP_VERTINT3,
+		.end   = IRQ_DM646X_VP_VERTINT3,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device vpif_display_dev = {
+	.name		= "vpif_display",
+	.id		= -1,
+	.dev		= {
+			.dma_mask 		= &vpif_dma_mask,
+			.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= vpif_display_resource,
+	.num_resources	= ARRAY_SIZE(vpif_display_resource),
+};
+
+static struct resource vpif_capture_resource[] = {
+	{
+		.start = IRQ_DM646X_VP_VERTINT0,
+		.end   = IRQ_DM646X_VP_VERTINT0,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_DM646X_VP_VERTINT1,
+		.end   = IRQ_DM646X_VP_VERTINT1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device vpif_capture_dev = {
+	.name		= "vpif_capture",
+	.id		= -1,
+	.dev		= {
+			.dma_mask 		= &vpif_dma_mask,
+			.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= vpif_capture_resource,
+	.num_resources	= ARRAY_SIZE(vpif_capture_resource),
+};
+
 /*----------------------------------------------------------------------*/
 
 static struct map_desc dm646x_io_desc[] = {
@@ -812,6 +890,32 @@ void __init dm646x_init_mcasp1(struct snd_platform_data *pdata)
 	dm646x_mcasp1_device.dev.platform_data = pdata;
 	platform_device_register(&dm646x_mcasp1_device);
 	platform_device_register(&dm646x_dit_device);
+}
+
+void dm646x_setup_vpif(struct vpif_display_config *display_config,
+		       struct vpif_capture_config *capture_config)
+{
+	unsigned int value;
+	void __iomem *base = IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE);
+
+	value = __raw_readl(base + VSCLKDIS_OFFSET);
+	value &= ~VSCLKDIS_MASK;
+	__raw_writel(value, base + VSCLKDIS_OFFSET);
+
+	value = __raw_readl(base + VDD3P3V_PWDN_OFFSET);
+	value &= ~VDD3P3V_VID_MASK;
+	__raw_writel(value, base + VDD3P3V_PWDN_OFFSET);
+
+	davinci_cfg_reg(DM646X_STSOMUX_DISABLE);
+	davinci_cfg_reg(DM646X_STSIMUX_DISABLE);
+	davinci_cfg_reg(DM646X_PTSOMUX_DISABLE);
+	davinci_cfg_reg(DM646X_PTSIMUX_DISABLE);
+
+	vpif_display_dev.dev.platform_data = display_config;
+	vpif_capture_dev.dev.platform_data = capture_config;
+	platform_device_register(&vpif_dev);
+	platform_device_register(&vpif_display_dev);
+	platform_device_register(&vpif_capture_dev);
 }
 
 void __init dm646x_init(void)
