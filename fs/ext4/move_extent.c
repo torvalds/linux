@@ -597,8 +597,10 @@ out:
  * @orig_off:		block offset of original inode
  * @donor_off:		block offset of donor inode
  * @max_count:		the maximun length of extents
+ *
+ * Return 0 on success, or a negative error value on failure.
  */
-static void
+static int
 mext_calc_swap_extents(struct ext4_extent *tmp_dext,
 			      struct ext4_extent *tmp_oext,
 			      ext4_lblk_t orig_off, ext4_lblk_t donor_off,
@@ -606,6 +608,19 @@ mext_calc_swap_extents(struct ext4_extent *tmp_dext,
 {
 	ext4_lblk_t diff, orig_diff;
 	struct ext4_extent dext_old, oext_old;
+
+	BUG_ON(orig_off != donor_off);
+
+	/* original and donor extents have to cover the same block offset */
+	if (orig_off < le32_to_cpu(tmp_oext->ee_block) ||
+	    le32_to_cpu(tmp_oext->ee_block) +
+			ext4_ext_get_actual_len(tmp_oext) - 1 < orig_off)
+		return -ENODATA;
+
+	if (orig_off < le32_to_cpu(tmp_dext->ee_block) ||
+	    le32_to_cpu(tmp_dext->ee_block) +
+			ext4_ext_get_actual_len(tmp_dext) - 1 < orig_off)
+		return -ENODATA;
 
 	dext_old = *tmp_dext;
 	oext_old = *tmp_oext;
@@ -634,6 +649,8 @@ mext_calc_swap_extents(struct ext4_extent *tmp_dext,
 
 	copy_extent_status(&oext_old, tmp_dext);
 	copy_extent_status(&dext_old, tmp_oext);
+
+	return 0;
 }
 
 /**
@@ -690,8 +707,10 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	dext = donor_path[depth].p_ext;
 	tmp_dext = *dext;
 
-	mext_calc_swap_extents(&tmp_dext, &tmp_oext, orig_off,
+	err = mext_calc_swap_extents(&tmp_dext, &tmp_oext, orig_off,
 				      donor_off, count);
+	if (err)
+		goto out;
 
 	/* Loop for the donor extents */
 	while (1) {
@@ -760,9 +779,10 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 		}
 		tmp_dext = *dext;
 
-		mext_calc_swap_extents(&tmp_dext, &tmp_oext, orig_off,
-					      donor_off,
-					      count - replaced_count);
+		err = mext_calc_swap_extents(&tmp_dext, &tmp_oext, orig_off,
+					   donor_off, count - replaced_count);
+		if (err)
+			goto out;
 	}
 
 out:
@@ -1243,11 +1263,15 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 	ext_cur = holecheck_path[depth].p_ext;
 
 	/*
-	 * Get proper extent whose ee_block is beyond block_start
-	 * if block_start was within the hole.
+	 * Get proper starting location of block replacement if block_start was
+	 * within the hole.
 	 */
 	if (le32_to_cpu(ext_cur->ee_block) +
 		ext4_ext_get_actual_len(ext_cur) - 1 < block_start) {
+		/*
+		 * The hole exists between extents or the tail of
+		 * original file.
+		 */
 		last_extent = mext_next_extent(orig_inode,
 					holecheck_path, &ext_cur);
 		if (last_extent < 0) {
@@ -1260,8 +1284,12 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			ret1 = last_extent;
 			goto out;
 		}
-	}
-	seq_start = block_start;
+		seq_start = le32_to_cpu(ext_cur->ee_block);
+	} else if (le32_to_cpu(ext_cur->ee_block) > block_start)
+		/* The hole exists at the beginning of original file. */
+		seq_start = le32_to_cpu(ext_cur->ee_block);
+	else
+		seq_start = block_start;
 
 	/* No blocks within the specified range. */
 	if (le32_to_cpu(ext_cur->ee_block) > block_end) {
