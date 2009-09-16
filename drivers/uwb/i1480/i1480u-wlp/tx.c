@@ -503,7 +503,8 @@ out:
  *
  * @net_dev->xmit_lock is held
  */
-int i1480u_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
+netdev_tx_t i1480u_hard_start_xmit(struct sk_buff *skb,
+					 struct net_device *net_dev)
 {
 	int result;
 	struct i1480u *i1480u = netdev_priv(net_dev);

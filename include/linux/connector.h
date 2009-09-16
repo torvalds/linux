@@ -136,7 +136,7 @@ struct cn_callback_data {
 	void *ddata;
 	
 	void *callback_priv;
-	void (*callback) (void *);
+	void (*callback) (struct cn_msg *);
 
 	void *free;
 };
@@ -167,11 +167,11 @@ struct cn_dev {
 	struct cn_queue_dev *cbdev;
 };
 
-int cn_add_callback(struct cb_id *, char *, void (*callback) (void *));
+int cn_add_callback(struct cb_id *, char *, void (*callback) (struct cn_msg *));
 void cn_del_callback(struct cb_id *);
 int cn_netlink_send(struct cn_msg *, u32, gfp_t);
 
-int cn_queue_add_callback(struct cn_queue_dev *dev, char *name, struct cb_id *id, void (*callback)(void *));
+int cn_queue_add_callback(struct cn_queue_dev *dev, char *name, struct cb_id *id, void (*callback)(struct cn_msg *));
 void cn_queue_del_callback(struct cn_queue_dev *dev, struct cb_id *id);
 
 int queue_cn_work(struct cn_callback_entry *cbq, struct work_struct *work);

@@ -442,12 +442,6 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 	const char *msg;
 	int ret;
 
-	ret = nilfs_ioctl_move_blocks(nilfs, &argv[0], kbufs[0]);
-	if (ret < 0) {
-		msg = "cannot read source blocks";
-		goto failed;
-	}
-
 	ret = nilfs_ioctl_delete_checkpoints(nilfs, &argv[1], kbufs[1]);
 	if (ret < 0) {
 		/*
@@ -548,7 +542,25 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 		}
 	}
 
-	ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);
+	/*
+	 * nilfs_ioctl_move_blocks() will call nilfs_gc_iget(),
+	 * which will operates an inode list without blocking.
+	 * To protect the list from concurrent operations,
+	 * nilfs_ioctl_move_blocks should be atomic operation.
+	 */
+	if (test_and_set_bit(THE_NILFS_GC_RUNNING, &nilfs->ns_flags)) {
+		ret = -EBUSY;
+		goto out_free;
+	}
+
+	ret = nilfs_ioctl_move_blocks(nilfs, &argv[0], kbufs[0]);
+	if (ret < 0)
+		printk(KERN_ERR "NILFS: GC failed during preparation: "
+			"cannot read source blocks: err=%d\n", ret);
+	else
+		ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);
+
+	clear_nilfs_gc_running(nilfs);
 
  out_free:
 	while (--n >= 0)

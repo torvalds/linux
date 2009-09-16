@@ -615,10 +615,12 @@ static enum mlx4_qp_state to_mlx4_state(enum ib_qp_state state)
 }
 
 static void mlx4_ib_lock_cqs(struct mlx4_ib_cq *send_cq, struct mlx4_ib_cq *recv_cq)
+	__acquires(&send_cq->lock) __acquires(&recv_cq->lock)
 {
-	if (send_cq == recv_cq)
+	if (send_cq == recv_cq) {
 		spin_lock_irq(&send_cq->lock);
-	else if (send_cq->mcq.cqn < recv_cq->mcq.cqn) {
+		__acquire(&recv_cq->lock);
+	} else if (send_cq->mcq.cqn < recv_cq->mcq.cqn) {
 		spin_lock_irq(&send_cq->lock);
 		spin_lock_nested(&recv_cq->lock, SINGLE_DEPTH_NESTING);
 	} else {
@@ -628,10 +630,12 @@ static void mlx4_ib_lock_cqs(struct mlx4_ib_cq *send_cq, struct mlx4_ib_cq *recv
 }
 
 static void mlx4_ib_unlock_cqs(struct mlx4_ib_cq *send_cq, struct mlx4_ib_cq *recv_cq)
+	__releases(&send_cq->lock) __releases(&recv_cq->lock)
 {
-	if (send_cq == recv_cq)
+	if (send_cq == recv_cq) {
+		__release(&recv_cq->lock);
 		spin_unlock_irq(&send_cq->lock);
-	else if (send_cq->mcq.cqn < recv_cq->mcq.cqn) {
+	} else if (send_cq->mcq.cqn < recv_cq->mcq.cqn) {
 		spin_unlock(&recv_cq->lock);
 		spin_unlock_irq(&send_cq->lock);
 	} else {

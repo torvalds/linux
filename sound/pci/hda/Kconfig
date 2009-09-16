@@ -46,6 +46,20 @@ config SND_HDA_INPUT_JACK
 	  Say Y here to enable the jack plugging notification via
 	  input layer.
 
+config SND_HDA_PATCH_LOADER
+	bool "Support initialization patch loading for HD-audio"
+	depends on EXPERIMENTAL
+	select FW_LOADER
+	select SND_HDA_HWDEP
+	select SND_HDA_RECONFIG
+	help
+	  Say Y here to allow the HD-audio driver to load a pseudo
+	  firmware file ("patch") for overriding the BIOS setup at
+	  start up.  The "patch" file can be specified via patch module
+	  option, such as patch=hda-init.
+
+	  This option turns on hwdep and reconfig features automatically.
+
 config SND_HDA_CODEC_REALTEK
 	bool "Build Realtek HD-audio codec support"
 	default y
@@ -133,6 +147,19 @@ config SND_HDA_CODEC_INTELHDMI
 config SND_HDA_ELD
 	def_bool y
 	depends on SND_HDA_CODEC_INTELHDMI
+
+config SND_HDA_CODEC_CIRRUS
+	bool "Build Cirrus Logic codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include Cirrus Logic codec support in
+	  snd-hda-intel driver, such as CS4206.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-cirrus.
+	  This module is automatically loaded at probing.
 
 config SND_HDA_CODEC_CONEXANT
 	bool "Build Conexant HD-audio codec support"

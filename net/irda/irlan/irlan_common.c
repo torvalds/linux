@@ -69,14 +69,14 @@ static int eth;   /* Use "eth" or "irlan" name for devices */
 static int access = ACCESS_PEER; /* PEER, DIRECT or HOSTED */
 
 #ifdef CONFIG_PROC_FS
-static const char *irlan_access[] = {
+static const char *const irlan_access[] = {
 	"UNKNOWN",
 	"DIRECT",
 	"PEER",
 	"HOSTED"
 };
 
-static const char *irlan_media[] = {
+static const char *const irlan_media[] = {
 	"UNKNOWN",
 	"802.3",
 	"802.5"

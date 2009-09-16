@@ -189,6 +189,7 @@ struct req_que;
  */
 typedef struct srb {
 	struct fc_port *fcport;
+	uint32_t handle;
 
 	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
 
@@ -196,12 +197,36 @@ typedef struct srb {
 
 	uint32_t request_sense_length;
 	uint8_t *request_sense_ptr;
+
+	void *ctx;
 } srb_t;
 
 /*
  * SRB flag definitions
  */
 #define SRB_DMA_VALID		BIT_0	/* Command sent to ISP */
+
+/*
+ * SRB extensions.
+ */
+struct srb_ctx {
+#define SRB_LOGIN_CMD	1
+#define SRB_LOGOUT_CMD	2
+	uint16_t type;
+	struct timer_list timer;
+
+	void (*free)(srb_t *sp);
+	void (*timeout)(srb_t *sp);
+};
+
+struct srb_logio {
+	struct srb_ctx ctx;
+
+#define SRB_LOGIN_RETRIED	BIT_0
+#define SRB_LOGIN_COND_PLOGI	BIT_1
+#define SRB_LOGIN_SKIP_PRLI	BIT_2
+	uint16_t flags;
+};
 
 /*
  * ISP I/O Register Set structure definitions.
@@ -1482,7 +1507,7 @@ typedef union {
 		uint8_t domain;
 		uint8_t area;
 		uint8_t al_pa;
-#elif __LITTLE_ENDIAN
+#elif defined(__LITTLE_ENDIAN)
 		uint8_t al_pa;
 		uint8_t area;
 		uint8_t domain;
@@ -1565,6 +1590,7 @@ typedef struct fc_port {
 #define FCF_FABRIC_DEVICE	BIT_0
 #define FCF_LOGIN_NEEDED	BIT_1
 #define FCF_TAPE_PRESENT	BIT_2
+#define FCF_FCP2_DEVICE		BIT_3
 
 /* No loop ID flag. */
 #define FC_NO_LOOP_ID		0x1000
@@ -2093,6 +2119,10 @@ struct qla_msix_entry {
 enum qla_work_type {
 	QLA_EVT_AEN,
 	QLA_EVT_IDC_ACK,
+	QLA_EVT_ASYNC_LOGIN,
+	QLA_EVT_ASYNC_LOGIN_DONE,
+	QLA_EVT_ASYNC_LOGOUT,
+	QLA_EVT_ASYNC_LOGOUT_DONE,
 };
 
 
@@ -2111,6 +2141,11 @@ struct qla_work_evt {
 #define QLA_IDC_ACK_REGS	7
 			uint16_t mb[QLA_IDC_ACK_REGS];
 		} idc_ack;
+		struct {
+			struct fc_port *fcport;
+#define QLA_LOGIO_LOGIN_RETRIED	BIT_0
+			u16 data[2];
+		} logio;
 	} u;
 };
 
@@ -2224,6 +2259,7 @@ struct qla_hw_data {
 		uint32_t	chip_reset_done		:1;
 		uint32_t	port0			:1;
 		uint32_t	running_gold_fw		:1;
+		uint32_t	cpu_affinity_enabled	:1;
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -2350,6 +2386,7 @@ struct qla_hw_data {
 				(ha)->flags.msix_enabled)
 #define IS_FAC_REQUIRED(ha)	(IS_QLA81XX(ha))
 #define IS_NOCACHE_VPD_TYPE(ha)	(IS_QLA81XX(ha))
+#define IS_ALOGIO_CAPABLE(ha)	(IS_QLA23XX(ha) || IS_FWI2_CAPABLE(ha))
 
 #define IS_IIDMA_CAPABLE(ha)    ((ha)->device_type & DT_IIDMA)
 #define IS_FWI2_CAPABLE(ha)     ((ha)->device_type & DT_FWI2)

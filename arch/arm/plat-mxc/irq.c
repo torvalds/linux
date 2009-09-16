@@ -44,7 +44,7 @@
 #define AVIC_FIPNDH		0x60	/* fast int pending high */
 #define AVIC_FIPNDL		0x64	/* fast int pending low */
 
-static void __iomem *avic_base;
+void __iomem *avic_base;
 
 int imx_irq_set_priority(unsigned char irq, unsigned char prio)
 {
@@ -113,11 +113,11 @@ static struct irq_chip mxc_avic_chip = {
  * interrupts. It registers the interrupt enable and disable functions
  * to the kernel for each interrupt source.
  */
-void __init mxc_init_irq(void)
+void __init mxc_init_irq(void __iomem *irqbase)
 {
 	int i;
 
-	avic_base = IO_ADDRESS(AVIC_BASE_ADDR);
+	avic_base = irqbase;
 
 	/* put the AVIC into the reset value with
 	 * all interrupts disabled

@@ -40,7 +40,7 @@ static ctl_table ipv6_table_template[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table ipv6_table[] = {
+static ctl_table ipv6_rotable[] = {
 	{
 		.ctl_name	= NET_IPV6_MLD_MAX_MSF,
 		.procname	= "mld_max_msf",
@@ -130,7 +130,7 @@ int ipv6_sysctl_register(void)
 {
 	int err = -ENOMEM;
 
-	ip6_header = register_net_sysctl_rotable(net_ipv6_ctl_path, ipv6_table);
+	ip6_header = register_net_sysctl_rotable(net_ipv6_ctl_path, ipv6_rotable);
 	if (ip6_header == NULL)
 		goto out;
 

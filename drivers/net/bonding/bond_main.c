@@ -695,6 +695,9 @@ static int bond_check_dev_link(struct bonding *bond,
 	struct ifreq ifr;
 	struct mii_ioctl_data *mii;
 
+	if (!reporting && !netif_running(slave_dev))
+		return 0;
+
 	if (bond->params.use_carrier)
 		return netif_carrier_ok(slave_dev) ? BMSR_LSTATUS : 0;
 
@@ -1331,6 +1334,7 @@ static int bond_compute_features(struct bonding *bond)
 	struct slave *slave;
 	struct net_device *bond_dev = bond->dev;
 	unsigned long features = bond_dev->features;
+	unsigned long vlan_features = 0;
 	unsigned short max_hard_header_len = max((u16)ETH_HLEN,
 						bond_dev->hard_header_len);
 	int i;
@@ -1343,10 +1347,14 @@ static int bond_compute_features(struct bonding *bond)
 
 	features &= ~NETIF_F_ONE_FOR_ALL;
 
+	vlan_features = bond->first_slave->dev->vlan_features;
 	bond_for_each_slave(bond, slave, i) {
 		features = netdev_increment_features(features,
 						     slave->dev->features,
 						     NETIF_F_ONE_FOR_ALL);
+		vlan_features = netdev_increment_features(vlan_features,
+							slave->dev->vlan_features,
+							NETIF_F_ONE_FOR_ALL);
 		if (slave->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = slave->dev->hard_header_len;
 	}
@@ -1354,6 +1362,7 @@ static int bond_compute_features(struct bonding *bond)
 done:
 	features |= (bond_dev->features & BOND_VLAN_FEATURES);
 	bond_dev->features = netdev_fix_features(features, NULL);
+	bond_dev->vlan_features = netdev_fix_features(vlan_features, NULL);
 	bond_dev->hard_header_len = max_hard_header_len;
 
 	return 0;
@@ -1790,7 +1799,6 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *oldcurrent;
 	struct sockaddr addr;
-	int mac_addr_differ;
 
 	/* slave is not a slave or master is not master of this slave */
 	if (!(slave_dev->flags & IFF_SLAVE) ||
@@ -1814,9 +1822,8 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	if (!bond->params.fail_over_mac) {
-		mac_addr_differ = memcmp(bond_dev->dev_addr, slave->perm_hwaddr,
-					 ETH_ALEN);
-		if (!mac_addr_differ && (bond->slave_cnt > 1))
+		if (!compare_ether_addr(bond_dev->dev_addr, slave->perm_hwaddr)
+		    && bond->slave_cnt > 1)
 			pr_warning(DRV_NAME
 			       ": %s: Warning: the permanent HWaddr of %s - "
 			       "%pM - is still in use by %s. "
@@ -4285,7 +4292,7 @@ out:
 		dev_kfree_skb(skb);
 	}
 	read_unlock(&bond->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -4316,7 +4323,7 @@ out:
 
 	read_unlock(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -4362,7 +4369,7 @@ out:
 		dev_kfree_skb(skb);
 	}
 	read_unlock(&bond->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -4422,7 +4429,7 @@ out:
 
 	/* frame sent to all suitable interfaces */
 	read_unlock(&bond->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*------------------------- Device initialization ---------------------------*/
@@ -4443,7 +4450,7 @@ static void bond_set_xmit_hash_policy(struct bonding *bond)
 	}
 }
 
-static int bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	const struct bonding *bond = netdev_priv(dev);
 
@@ -4755,7 +4762,7 @@ static int bond_check_params(struct bond_params *params)
 		params->ad_select = BOND_AD_STABLE;
 	}
 
-	if (max_bonds < 0 || max_bonds > INT_MAX) {
+	if (max_bonds < 0) {
 		pr_warning(DRV_NAME
 		       ": Warning: max_bonds (%d) not in range %d-%d, so it "
 		       "was reset to BOND_DEFAULT_MAX_BONDS (%d)\n",
@@ -4837,7 +4844,7 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	if (bond_mode == BOND_MODE_ALB) {
-		printk(KERN_NOTICE DRV_NAME
+		pr_notice(DRV_NAME
 		       ": In ALB mode you might experience client "
 		       "disconnections upon reconnection of a link if the "
 		       "bonding module updelay parameter (%d msec) is "
@@ -4961,9 +4968,9 @@ static int bond_check_params(struct bond_params *params)
 		       arp_ip_count);
 
 		for (i = 0; i < arp_ip_count; i++)
-			printk(" %s", arp_ip_target[i]);
+			pr_info(" %s", arp_ip_target[i]);
 
-		printk("\n");
+		pr_info("\n");
 
 	} else if (max_bonds) {
 		/* miimon and arp_interval not set, we need one so things

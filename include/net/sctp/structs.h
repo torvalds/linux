@@ -219,6 +219,15 @@ extern struct sctp_globals {
 	/* Flag to idicate if SCTP-AUTH is enabled */
 	int auth_enable;
 
+	/*
+	 * Policy to control SCTP IPv4 address scoping
+	 * 0   - Disable IPv4 address scoping
+	 * 1   - Enable IPv4 address scoping
+	 * 2   - Selectively allow only IPv4 private addresses
+	 * 3   - Selectively allow only IPv4 link local address
+	 */
+	int ipv4_scope_policy;
+
 	/* Flag to indicate whether computing and verifying checksum
 	 * is disabled. */
         int checksum_disable;
@@ -252,6 +261,7 @@ extern struct sctp_globals {
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
 #define sctp_local_addr_list		(sctp_globals.local_addr_list)
 #define sctp_local_addr_lock		(sctp_globals.addr_list_lock)
+#define sctp_scope_policy		(sctp_globals.ipv4_scope_policy)
 #define sctp_addip_enable		(sctp_globals.addip_enable)
 #define sctp_addip_noauth		(sctp_globals.addip_noauth_enable)
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
@@ -628,7 +638,7 @@ struct sctp_datamsg {
 	/* Chunks waiting to be submitted to lower layer. */
 	struct list_head chunks;
 	/* Chunks that have been transmitted. */
-	struct list_head track;
+	size_t msg_size;
 	/* Reference counting. */
 	atomic_t refcnt;
 	/* When is this message no longer interesting to the peer? */
@@ -643,6 +653,7 @@ struct sctp_datamsg {
 struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *,
 					    struct sctp_sndrcvinfo *,
 					    struct msghdr *, int len);
+void sctp_datamsg_free(struct sctp_datamsg *);
 void sctp_datamsg_put(struct sctp_datamsg *);
 void sctp_chunk_fail(struct sctp_chunk *, int error);
 int sctp_chunk_abandoned(struct sctp_chunk *);
@@ -811,22 +822,12 @@ struct sctp_packet {
 	/* pointer to the auth chunk for this packet */
 	struct sctp_chunk *auth;
 
-	/* This packet contains a COOKIE-ECHO chunk. */
-	__u8 has_cookie_echo;
-
-	/* This packet contains a SACK chunk. */
-	__u8 has_sack;
-
-	/* This packet contains an AUTH chunk */
-	__u8 has_auth;
-
-	/* This packet contains at least 1 DATA chunk */
-	__u8 has_data;
-
-	/* SCTP cannot fragment this packet. So let ip fragment it. */
-	__u8 ipfragok;
-
-	__u8 malloced;
+	u8  has_cookie_echo:1,	/* This packet contains a COOKIE-ECHO chunk. */
+	    has_sack:1,		/* This packet contains a SACK chunk. */
+	    has_auth:1,		/* This packet contains an AUTH chunk */
+	    has_data:1,		/* This packet contains at least 1 DATA chunk */
+	    ipfragok:1,		/* So let ip fragment this packet */
+	    malloced:1;		/* Is it malloced? */
 };
 
 struct sctp_packet *sctp_packet_init(struct sctp_packet *,
@@ -1567,13 +1568,13 @@ struct sctp_association {
 		__u32	sack_cnt;
 
 		/* These are capabilities which our peer advertised.  */
-		__u8	ecn_capable;	 /* Can peer do ECN? */
-		__u8	ipv4_address;	 /* Peer understands IPv4 addresses? */
-		__u8	ipv6_address;	 /* Peer understands IPv6 addresses? */
-		__u8	hostname_address;/* Peer understands DNS addresses? */
-		__u8    asconf_capable;  /* Does peer support ADDIP? */
-		__u8    prsctp_capable;  /* Can peer do PR-SCTP? */
-		__u8	auth_capable;	 /* Is peer doing SCTP-AUTH? */
+		__u8	ecn_capable:1,	    /* Can peer do ECN? */
+			ipv4_address:1,	    /* Peer understands IPv4 addresses? */
+			ipv6_address:1,	    /* Peer understands IPv6 addresses? */
+			hostname_address:1, /* Peer understands DNS addresses? */
+			asconf_capable:1,   /* Does peer support ADDIP? */
+			prsctp_capable:1,   /* Can peer do PR-SCTP? */
+			auth_capable:1;	    /* Is peer doing SCTP-AUTH? */
 
 		__u32   adaptation_ind;	 /* Adaptation Code point. */
 
@@ -1738,6 +1739,12 @@ struct sctp_association {
 	 */
 	__u32 rwnd_over;
 
+	/* Keeps treack of rwnd pressure.  This happens when we have
+	 * a window, but not recevie buffer (i.e small packets).  This one
+	 * is releases slowly (1 PMTU at a time ).
+	 */
+	__u32 rwnd_press;
+
 	/* This is the sndbuf size in use for the association.
 	 * This corresponds to the sndbuf size for the association,
 	 * as specified in the sk->sndbuf.
@@ -1756,6 +1763,7 @@ struct sctp_association {
 
 	/* The message size at which SCTP fragmentation will occur. */
 	__u32 frag_point;
+	__u32 user_frag;
 
 	/* Counter used to count INIT errors. */
 	int init_err_counter;
@@ -1905,11 +1913,8 @@ struct sctp_association {
 
 	__u16 active_key_id;
 
-	/* Need to send an ECNE Chunk? */
-	char need_ecne;
-
-	/* Is it a temporary association? */
-	char temp;
+	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
+	     temp:1;		/* Is it a temporary association? */
 };
 
 

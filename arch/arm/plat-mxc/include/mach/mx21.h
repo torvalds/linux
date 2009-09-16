@@ -25,11 +25,6 @@
 #ifndef __ASM_ARCH_MXC_MX21_H__
 #define __ASM_ARCH_MXC_MX21_H__
 
-#ifndef __ASM_ARCH_MXC_HARDWARE_H__
-#error "Do not include directly."
-#endif
-
-
 /* Memory regions and CS */
 #define SDRAM_BASE_ADDR         0xC0000000
 #define CSD1_BASE_ADDR          0xC4000000

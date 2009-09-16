@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-sa1100/include/mach/neponset.h
  *
- * Created 2000/06/05 by Nicolas Pitre <nico@cam.org>
+ * Created 2000/06/05 by Nicolas Pitre <nico@fluxnic.net>
  *
  * This file contains the hardware specific definitions for Assabet
  * Only include this file from SA1100-specific files.

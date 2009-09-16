@@ -81,7 +81,7 @@
 		CALL(sys_ni_syscall)		/* was sys_ssetmask */
 /* 70 */	CALL(sys_setreuid16)
 		CALL(sys_setregid16)
-		CALL(sys_sigsuspend_wrapper)
+		CALL(sys_sigsuspend)
 		CALL(sys_sigpending)
 		CALL(sys_sethostname)
 /* 75 */	CALL(sys_setrlimit)
@@ -188,7 +188,7 @@
 		CALL(sys_rt_sigpending)
 		CALL(sys_rt_sigtimedwait)
 		CALL(sys_rt_sigqueueinfo)
-		CALL(sys_rt_sigsuspend_wrapper)
+		CALL(sys_rt_sigsuspend)
 /* 180 */	CALL(ABI(sys_pread64, sys_oabi_pread64))
 		CALL(ABI(sys_pwrite64, sys_oabi_pwrite64))
 		CALL(sys_chown16)
@@ -344,8 +344,8 @@
 		CALL(sys_readlinkat)
 		CALL(sys_fchmodat)
 		CALL(sys_faccessat)
-/* 335 */	CALL(sys_ni_syscall)		/* eventually pselect6 */
-		CALL(sys_ni_syscall)		/* eventually ppoll */
+/* 335 */	CALL(sys_pselect6)
+		CALL(sys_ppoll)
 		CALL(sys_unshare)
 		CALL(sys_set_robust_list)
 		CALL(sys_get_robust_list)
@@ -355,7 +355,7 @@
 		CALL(sys_vmsplice)
 		CALL(sys_move_pages)
 /* 345 */	CALL(sys_getcpu)
-		CALL(sys_ni_syscall)		/* eventually epoll_pwait */
+		CALL(sys_epoll_pwait)
 		CALL(sys_kexec_load)
 		CALL(sys_utimensat)
 		CALL(sys_signalfd)

@@ -36,7 +36,6 @@
 /* These five software bits must be masked out when the entry is loaded
  * into the TLB.
  */
-#define _PAGE_EXEC	0x0008	/* software: i-cache coherency required */
 #define _PAGE_GUARDED	0x0010	/* software: guarded access */
 #define _PAGE_DIRTY	0x0020	/* software: page changed */
 #define _PAGE_RW	0x0040	/* software: user write access allowed */

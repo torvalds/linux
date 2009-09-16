@@ -1026,9 +1026,15 @@ static int __init ur_init(void)
 
 	debug_set_level(vmur_dbf, 6);
 
+	vmur_class = class_create(THIS_MODULE, "vmur");
+	if (IS_ERR(vmur_class)) {
+		rc = PTR_ERR(vmur_class);
+		goto fail_free_dbf;
+	}
+
 	rc = ccw_driver_register(&ur_driver);
 	if (rc)
-		goto fail_free_dbf;
+		goto fail_class_destroy;
 
 	rc = alloc_chrdev_region(&dev, 0, NUM_MINORS, "vmur");
 	if (rc) {
@@ -1038,18 +1044,13 @@ static int __init ur_init(void)
 	}
 	ur_first_dev_maj_min = MKDEV(MAJOR(dev), 0);
 
-	vmur_class = class_create(THIS_MODULE, "vmur");
-	if (IS_ERR(vmur_class)) {
-		rc = PTR_ERR(vmur_class);
-		goto fail_unregister_region;
-	}
 	pr_info("%s loaded.\n", ur_banner);
 	return 0;
 
-fail_unregister_region:
-	unregister_chrdev_region(ur_first_dev_maj_min, NUM_MINORS);
 fail_unregister_driver:
 	ccw_driver_unregister(&ur_driver);
+fail_class_destroy:
+	class_destroy(vmur_class);
 fail_free_dbf:
 	debug_unregister(vmur_dbf);
 	return rc;
@@ -1057,9 +1058,9 @@ fail_free_dbf:
 
 static void __exit ur_exit(void)
 {
-	class_destroy(vmur_class);
 	unregister_chrdev_region(ur_first_dev_maj_min, NUM_MINORS);
 	ccw_driver_unregister(&ur_driver);
+	class_destroy(vmur_class);
 	debug_unregister(vmur_dbf);
 	pr_info("%s unloaded.\n", ur_banner);
 }

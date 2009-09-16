@@ -449,7 +449,7 @@ static void mcs7830_get_regs(struct net_device *net, struct ethtool_regs *regs, 
 	mcs7830_get_reg(dev, 0, regs->len, data);
 }
 
-static struct ethtool_ops mcs7830_ethtool_ops = {
+static const struct ethtool_ops mcs7830_ethtool_ops = {
 	.get_drvinfo		= mcs7830_get_drvinfo,
 	.get_regs_len		= mcs7830_get_regs_len,
 	.get_regs		= mcs7830_get_regs,

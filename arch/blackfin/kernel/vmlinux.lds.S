@@ -277,8 +277,5 @@ SECTIONS
 
 	DWARF_DEBUG
 
-	/DISCARD/ :
-	{
-		*(.exitcall.exit)
-	}
+	DISCARDS
 }

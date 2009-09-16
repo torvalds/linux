@@ -68,16 +68,16 @@ static inline unsigned int nmi_perfctr_msr_to_bit(unsigned int msr)
 	/* returns the bit offset of the performance counter register */
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
-		return (msr - MSR_K7_PERFCTR0);
+		return msr - MSR_K7_PERFCTR0;
 	case X86_VENDOR_INTEL:
 		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
-			return (msr - MSR_ARCH_PERFMON_PERFCTR0);
+			return msr - MSR_ARCH_PERFMON_PERFCTR0;
 
 		switch (boot_cpu_data.x86) {
 		case 6:
-			return (msr - MSR_P6_PERFCTR0);
+			return msr - MSR_P6_PERFCTR0;
 		case 15:
-			return (msr - MSR_P4_BPU_PERFCTR0);
+			return msr - MSR_P4_BPU_PERFCTR0;
 		}
 	}
 	return 0;
@@ -92,16 +92,16 @@ static inline unsigned int nmi_evntsel_msr_to_bit(unsigned int msr)
 	/* returns the bit offset of the event selection register */
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
-		return (msr - MSR_K7_EVNTSEL0);
+		return msr - MSR_K7_EVNTSEL0;
 	case X86_VENDOR_INTEL:
 		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
-			return (msr - MSR_ARCH_PERFMON_EVENTSEL0);
+			return msr - MSR_ARCH_PERFMON_EVENTSEL0;
 
 		switch (boot_cpu_data.x86) {
 		case 6:
-			return (msr - MSR_P6_EVNTSEL0);
+			return msr - MSR_P6_EVNTSEL0;
 		case 15:
-			return (msr - MSR_P4_BSU_ESCR0);
+			return msr - MSR_P4_BSU_ESCR0;
 		}
 	}
 	return 0;
@@ -113,7 +113,7 @@ int avail_to_resrv_perfctr_nmi_bit(unsigned int counter)
 {
 	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
 
-	return (!test_bit(counter, perfctr_nmi_owner));
+	return !test_bit(counter, perfctr_nmi_owner);
 }
 
 /* checks the an msr for availability */
@@ -124,7 +124,7 @@ int avail_to_resrv_perfctr_nmi(unsigned int msr)
 	counter = nmi_perfctr_msr_to_bit(msr);
 	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
 
-	return (!test_bit(counter, perfctr_nmi_owner));
+	return !test_bit(counter, perfctr_nmi_owner);
 }
 EXPORT_SYMBOL(avail_to_resrv_perfctr_nmi_bit);
 
@@ -237,7 +237,7 @@ static unsigned int adjust_for_32bit_ctr(unsigned int hz)
 	 */
 	counter_val = (u64)cpu_khz * 1000;
 	do_div(counter_val, retval);
- 	if (counter_val > 0x7fffffffULL) {
+	if (counter_val > 0x7fffffffULL) {
 		u64 count = (u64)cpu_khz * 1000;
 		do_div(count, 0x7fffffffUL);
 		retval = count + 1;
@@ -251,7 +251,7 @@ static void write_watchdog_counter(unsigned int perfctr_msr,
 	u64 count = (u64)cpu_khz * 1000;
 
 	do_div(count, nmi_hz);
-	if(descr)
+	if (descr)
 		pr_debug("setting %s to -0x%08Lx\n", descr, count);
 	wrmsrl(perfctr_msr, 0 - count);
 }
@@ -262,7 +262,7 @@ static void write_watchdog_counter32(unsigned int perfctr_msr,
 	u64 count = (u64)cpu_khz * 1000;
 
 	do_div(count, nmi_hz);
-	if(descr)
+	if (descr)
 		pr_debug("setting %s to -0x%08Lx\n", descr, count);
 	wrmsr(perfctr_msr, (u32)(-count), 0);
 }
@@ -296,7 +296,7 @@ static int setup_k7_watchdog(unsigned nmi_hz)
 
 	/* setup the timer */
 	wrmsr(evntsel_msr, evntsel, 0);
-	write_watchdog_counter(perfctr_msr, "K7_PERFCTR0",nmi_hz);
+	write_watchdog_counter(perfctr_msr, "K7_PERFCTR0", nmi_hz);
 
 	/* initialize the wd struct before enabling */
 	wd->perfctr_msr = perfctr_msr;
@@ -387,7 +387,7 @@ static int setup_p6_watchdog(unsigned nmi_hz)
 	/* setup the timer */
 	wrmsr(evntsel_msr, evntsel, 0);
 	nmi_hz = adjust_for_32bit_ctr(nmi_hz);
-	write_watchdog_counter32(perfctr_msr, "P6_PERFCTR0",nmi_hz);
+	write_watchdog_counter32(perfctr_msr, "P6_PERFCTR0", nmi_hz);
 
 	/* initialize the wd struct before enabling */
 	wd->perfctr_msr = perfctr_msr;
@@ -415,7 +415,7 @@ static void __kprobes p6_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 
 	/* P6/ARCH_PERFMON has 32 bit counter write */
-	write_watchdog_counter32(wd->perfctr_msr, NULL,nmi_hz);
+	write_watchdog_counter32(wd->perfctr_msr, NULL, nmi_hz);
 }
 
 static const struct wd_ops p6_wd_ops = {
@@ -490,9 +490,9 @@ static int setup_p4_watchdog(unsigned nmi_hz)
 	if (smp_num_siblings == 2) {
 		unsigned int ebx, apicid;
 
-        	ebx = cpuid_ebx(1);
-	        apicid = (ebx >> 24) & 0xff;
-        	ht_num = apicid & 1;
+		ebx = cpuid_ebx(1);
+		apicid = (ebx >> 24) & 0xff;
+		ht_num = apicid & 1;
 	} else
 #endif
 		ht_num = 0;
@@ -544,7 +544,7 @@ static int setup_p4_watchdog(unsigned nmi_hz)
 	}
 
 	evntsel = P4_ESCR_EVENT_SELECT(0x3F)
-	 	| P4_ESCR_OS
+		| P4_ESCR_OS
 		| P4_ESCR_USR;
 
 	cccr_val |= P4_CCCR_THRESHOLD(15)
@@ -612,7 +612,7 @@ static void __kprobes p4_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 {
 	unsigned dummy;
 	/*
- 	 * P4 quirks:
+	 * P4 quirks:
 	 * - An overflown perfctr will assert its interrupt
 	 *   until the OVF flag in its CCCR is cleared.
 	 * - LVTPC is masked on interrupt and must be
@@ -662,7 +662,8 @@ static int setup_intel_arch_watchdog(unsigned nmi_hz)
 	 * NOTE: Corresponding bit = 0 in ebx indicates event present.
 	 */
 	cpuid(10, &(eax.full), &ebx, &unused, &unused);
-	if ((eax.split.mask_length < (ARCH_PERFMON_UNHALTED_CORE_CYCLES_INDEX+1)) ||
+	if ((eax.split.mask_length <
+			(ARCH_PERFMON_UNHALTED_CORE_CYCLES_INDEX+1)) ||
 	    (ebx & ARCH_PERFMON_UNHALTED_CORE_CYCLES_PRESENT))
 		return 0;
 

@@ -24,6 +24,7 @@
 
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/i2c/twl4030.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -38,6 +39,11 @@
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
 #include "../codecs/twl4030.h"
+
+/* TWL4030 PMBR1 Register */
+#define TWL4030_INTBR_PMBR1		0x0D
+/* TWL4030 PMBR1 Register GPIO6 mux bit */
+#define TWL4030_GPIO6_PWM0_MUTE(value)	(value << 2)
 
 static struct snd_soc_card snd_soc_sdp3430;
 
@@ -96,7 +102,7 @@ static int sdp3430_hw_voice_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_fmt(codec_dai,
 				SND_SOC_DAIFMT_DSP_A |
 				SND_SOC_DAIFMT_IB_NF |
-				SND_SOC_DAIFMT_CBS_CFM);
+				SND_SOC_DAIFMT_CBM_CFM);
 	if (ret) {
 		printk(KERN_ERR "can't set codec DAI configuration\n");
 		return ret;
@@ -280,6 +286,7 @@ static struct snd_soc_card snd_soc_sdp3430 = {
 static struct twl4030_setup_data twl4030_setup = {
 	.ramp_delay_value = 3,
 	.sysclk = 26000,
+	.hs_extmute = 1,
 };
 
 /* Audio subsystem */
@@ -294,6 +301,7 @@ static struct platform_device *sdp3430_snd_device;
 static int __init sdp3430_soc_init(void)
 {
 	int ret;
+	u8 pin_mux;
 
 	if (!machine_is_omap_3430sdp()) {
 		pr_debug("Not SDP3430!\n");
@@ -311,6 +319,14 @@ static int __init sdp3430_soc_init(void)
 	sdp3430_snd_devdata.dev = &sdp3430_snd_device->dev;
 	*(unsigned int *)sdp3430_dai[0].cpu_dai->private_data = 1; /* McBSP2 */
 	*(unsigned int *)sdp3430_dai[1].cpu_dai->private_data = 2; /* McBSP3 */
+
+	/* Set TWL4030 GPIO6 as EXTMUTE signal */
+	twl4030_i2c_read_u8(TWL4030_MODULE_INTBR, &pin_mux,
+						TWL4030_INTBR_PMBR1);
+	pin_mux &= ~TWL4030_GPIO6_PWM0_MUTE(0x03);
+	pin_mux |= TWL4030_GPIO6_PWM0_MUTE(0x02);
+	twl4030_i2c_write_u8(TWL4030_MODULE_INTBR, pin_mux,
+						TWL4030_INTBR_PMBR1);
 
 	ret = platform_device_add(sdp3430_snd_device);
 	if (ret)

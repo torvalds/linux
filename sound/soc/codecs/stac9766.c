@@ -149,7 +149,7 @@ static int stac9766_ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 		stac9766_ac97_write(codec, AC97_INT_PAGING, 1);
 		return 0;
 	}
-	if (reg / 2 > ARRAY_SIZE(stac9766_reg))
+	if (reg / 2 >= ARRAY_SIZE(stac9766_reg))
 		return -EIO;
 
 	soc_ac97_ops.write(codec->ac97, reg, val);
@@ -168,7 +168,7 @@ static unsigned int stac9766_ac97_read(struct snd_soc_codec *codec,
 		stac9766_ac97_write(codec, AC97_INT_PAGING, 1);
 		return val;
 	}
-	if (reg / 2 > ARRAY_SIZE(stac9766_reg))
+	if (reg / 2 >= ARRAY_SIZE(stac9766_reg))
 		return -EIO;
 
 	if (reg == AC97_RESET || reg == AC97_GPIO_STATUS ||

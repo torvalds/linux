@@ -862,7 +862,7 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 {
 	struct net_device *net_dev = skb->dev;
 	PRTMP_ADAPTER pAd = net_dev->ml_priv;
-	int status = 0;
+	int status = NETDEV_TX_OK;
 	PNDIS_PACKET pPacket = (PNDIS_PACKET) skb;
 
 	{
@@ -892,7 +892,7 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 
 	STASendPackets((NDIS_HANDLE)pAd, (PPNDIS_PACKET) &pPacket, 1);
 
-	status = 0;
+	status = NETDEV_TX_OK;
 done:
 
 	return status;
@@ -923,7 +923,7 @@ INT rt28xx_send_packets(
 	if (!(net_dev->flags & IFF_UP))
 	{
 		RELEASE_NDIS_PACKET(pAd, (PNDIS_PACKET)skb_p, NDIS_STATUS_FAILURE);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	NdisZeroMemory((PUCHAR)&skb_p->cb[CB_OFF], 15);

@@ -49,11 +49,11 @@ enum b43_interference_mitigation {
 
 /* Antenna identifiers */
 enum {
-	B43_ANTENNA0,		/* Antenna 0 */
-	B43_ANTENNA1,		/* Antenna 0 */
-	B43_ANTENNA_AUTO1,	/* Automatic, starting with antenna 1 */
-	B43_ANTENNA_AUTO0,	/* Automatic, starting with antenna 0 */
-	B43_ANTENNA2,
+	B43_ANTENNA0 = 0,	/* Antenna 0 */
+	B43_ANTENNA1 = 1,	/* Antenna 1 */
+	B43_ANTENNA_AUTO0 = 2,	/* Automatic, starting with antenna 0 */
+	B43_ANTENNA_AUTO1 = 3,	/* Automatic, starting with antenna 1 */
+	B43_ANTENNA2 = 4,
 	B43_ANTENNA3 = 8,
 
 	B43_ANTENNA_AUTO = B43_ANTENNA_AUTO0,
@@ -95,6 +95,8 @@ enum b43_txpwr_result {
  * 			Must not be NULL.
  * @phy_write:		Write to a PHY register.
  * 			Must not be NULL.
+ * @phy_maskset:	Maskset a PHY register, taking shortcuts.
+ *			If it is NULL, a generic algorithm is used.
  * @radio_read:		Read from a Radio register.
  * 			Must not be NULL.
  * @radio_write:	Write to a Radio register.
@@ -129,7 +131,7 @@ enum b43_txpwr_result {
  * 			If the parameter "ignore_tssi" is true, the TSSI values should
  * 			be ignored and a recalculation of the power settings should be
  * 			done even if the TSSI values did not change.
- * 			This callback is called with wl->irq_lock held and must not sleep.
+ * 			This function may sleep, but should not.
  * 			Must not be NULL.
  * @adjust_txpower:	Write the previously calculated TX power settings
  * 			(from @recalc_txpower) to the hardware.
@@ -154,6 +156,7 @@ struct b43_phy_operations {
 	/* Register access */
 	u16 (*phy_read)(struct b43_wldev *dev, u16 reg);
 	void (*phy_write)(struct b43_wldev *dev, u16 reg, u16 value);
+	void (*phy_maskset)(struct b43_wldev *dev, u16 reg, u16 mask, u16 set);
 	u16 (*radio_read)(struct b43_wldev *dev, u16 reg);
 	void (*radio_write)(struct b43_wldev *dev, u16 reg, u16 value);
 
@@ -291,6 +294,11 @@ u16 b43_phy_read(struct b43_wldev *dev, u16 reg);
 void b43_phy_write(struct b43_wldev *dev, u16 reg, u16 value);
 
 /**
+ * b43_phy_copy - copy contents of 16bit PHY register to another
+ */
+void b43_phy_copy(struct b43_wldev *dev, u16 destreg, u16 srcreg);
+
+/**
  * b43_phy_mask - Mask a PHY register with a mask
  */
 void b43_phy_mask(struct b43_wldev *dev, u16 offset, u16 mask);
@@ -371,7 +379,6 @@ void b43_software_rfkill(struct b43_wldev *dev, bool blocked);
  *
  * Compare the current TX power output to the desired power emission
  * and schedule an adjustment in case it mismatches.
- * Requires wl->irq_lock locked.
  *
  * @flags:	OR'ed enum b43_phy_txpower_check_flags flags.
  * 		See the docs below.

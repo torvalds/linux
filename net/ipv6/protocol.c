@@ -20,20 +20,9 @@
  *      - Removed unused variable 'inet6_protocol_base'
  *      - Modified inet6_del_protocol() to correctly maintain copy bit.
  */
-
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/socket.h>
-#include <linux/sockios.h>
-#include <linux/net.h>
-#include <linux/in6.h>
+#include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/if_arp.h>
-
-#include <net/sock.h>
-#include <net/snmp.h>
-
-#include <net/ipv6.h>
+#include <linux/spinlock.h>
 #include <net/protocol.h>
 
 struct inet6_protocol *inet6_protos[MAX_INET_PROTOS];

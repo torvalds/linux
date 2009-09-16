@@ -400,7 +400,8 @@ static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 	struct efx_loopback_state *state = efx->loopback_selftest;
 	struct efx_loopback_payload *payload;
 	struct sk_buff *skb;
-	int i, rc;
+	int i;
+	netdev_tx_t rc;
 
 	/* Transmit N copies of buffer */
 	for (i = 0; i < state->packet_count; i++) {

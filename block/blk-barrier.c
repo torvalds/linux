@@ -348,6 +348,9 @@ static void blkdev_discard_end_io(struct bio *bio, int err)
 		clear_bit(BIO_UPTODATE, &bio->bi_flags);
 	}
 
+	if (bio->bi_private)
+		complete(bio->bi_private);
+
 	bio_put(bio);
 }
 
@@ -357,21 +360,20 @@ static void blkdev_discard_end_io(struct bio *bio, int err)
  * @sector:	start sector
  * @nr_sects:	number of sectors to discard
  * @gfp_mask:	memory allocation flags (for bio_alloc)
+ * @flags:	DISCARD_FL_* flags to control behaviour
  *
  * Description:
- *    Issue a discard request for the sectors in question. Does not wait.
+ *    Issue a discard request for the sectors in question.
  */
-int blkdev_issue_discard(struct block_device *bdev,
-			 sector_t sector, sector_t nr_sects, gfp_t gfp_mask)
+int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp_mask, int flags)
 {
-	struct request_queue *q;
-	struct bio *bio;
+	DECLARE_COMPLETION_ONSTACK(wait);
+	struct request_queue *q = bdev_get_queue(bdev);
+	int type = flags & DISCARD_FL_BARRIER ?
+		DISCARD_BARRIER : DISCARD_NOBARRIER;
 	int ret = 0;
 
-	if (bdev->bd_disk == NULL)
-		return -ENXIO;
-
-	q = bdev_get_queue(bdev);
 	if (!q)
 		return -ENXIO;
 
@@ -379,12 +381,14 @@ int blkdev_issue_discard(struct block_device *bdev,
 		return -EOPNOTSUPP;
 
 	while (nr_sects && !ret) {
-		bio = bio_alloc(gfp_mask, 0);
+		struct bio *bio = bio_alloc(gfp_mask, 0);
 		if (!bio)
 			return -ENOMEM;
 
 		bio->bi_end_io = blkdev_discard_end_io;
 		bio->bi_bdev = bdev;
+		if (flags & DISCARD_FL_WAIT)
+			bio->bi_private = &wait;
 
 		bio->bi_sector = sector;
 
@@ -396,10 +400,13 @@ int blkdev_issue_discard(struct block_device *bdev,
 			bio->bi_size = nr_sects << 9;
 			nr_sects = 0;
 		}
-		bio_get(bio);
-		submit_bio(DISCARD_BARRIER, bio);
 
-		/* Check if it failed immediately */
+		bio_get(bio);
+		submit_bio(type, bio);
+
+		if (flags & DISCARD_FL_WAIT)
+			wait_for_completion(&wait);
+
 		if (bio_flagged(bio, BIO_EOPNOTSUPP))
 			ret = -EOPNOTSUPP;
 		else if (!bio_flagged(bio, BIO_UPTODATE))

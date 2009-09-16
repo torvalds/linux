@@ -39,7 +39,6 @@
 
 #include "rds.h"
 #include "rdma.h"
-#include "rdma_transport.h"
 
 /* this is just used for stats gathering :/ */
 static DEFINE_SPINLOCK(rds_sock_lock);
@@ -509,7 +508,6 @@ out:
 
 static void __exit rds_exit(void)
 {
-	rds_rdma_exit();
 	sock_unregister(rds_family_ops.family);
 	proto_unregister(&rds_proto);
 	rds_conn_exit();
@@ -549,14 +547,8 @@ static int __init rds_init(void)
 	rds_info_register_func(RDS_INFO_SOCKETS, rds_sock_info);
 	rds_info_register_func(RDS_INFO_RECV_MESSAGES, rds_sock_inc_info);
 
-	/* ib/iwarp transports currently compiled-in */
-	ret = rds_rdma_init();
-	if (ret)
-		goto out_sock;
 	goto out;
 
-out_sock:
-	sock_unregister(rds_family_ops.family);
 out_proto:
 	proto_unregister(&rds_proto);
 out_stats:

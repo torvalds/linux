@@ -77,6 +77,9 @@ struct tda18271_config {
 	/* use i2c gate provided by analog or digital demod */
 	enum tda18271_i2c_gate gate;
 
+	/* force rf tracking filter calibration on startup */
+	unsigned int rf_cal_on_startup:1;
+
 	/* some i2c providers cant write all 39 registers at once */
 	unsigned int small_i2c:1;
 

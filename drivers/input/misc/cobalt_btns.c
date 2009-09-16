@@ -116,7 +116,7 @@ static int __devinit cobalt_buttons_probe(struct platform_device *pdev)
 	}
 
 	bdev->poll_dev = poll_dev;
-	bdev->reg = ioremap(res->start, res->end - res->start + 1);
+	bdev->reg = ioremap(res->start, resource_size(res));
 	dev_set_drvdata(&pdev->dev, bdev);
 
 	error = input_register_polled_device(poll_dev);

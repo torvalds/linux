@@ -65,26 +65,14 @@
 static int shrink_liability(struct ubifs_info *c, int nr_to_write)
 {
 	int nr_written;
-	struct writeback_control wbc = {
-		.sync_mode   = WB_SYNC_NONE,
-		.range_end   = LLONG_MAX,
-		.nr_to_write = nr_to_write,
-	};
 
-	generic_sync_sb_inodes(c->vfs_sb, &wbc);
-	nr_written = nr_to_write - wbc.nr_to_write;
-
+	nr_written = writeback_inodes_sb(c->vfs_sb);
 	if (!nr_written) {
 		/*
 		 * Re-try again but wait on pages/inodes which are being
 		 * written-back concurrently (e.g., by pdflush).
 		 */
-		memset(&wbc, 0, sizeof(struct writeback_control));
-		wbc.sync_mode   = WB_SYNC_ALL;
-		wbc.range_end   = LLONG_MAX;
-		wbc.nr_to_write = nr_to_write;
-		generic_sync_sb_inodes(c->vfs_sb, &wbc);
-		nr_written = nr_to_write - wbc.nr_to_write;
+		nr_written = sync_inodes_sb(c->vfs_sb);
 	}
 
 	dbg_budg("%d pages were written back", nr_written);

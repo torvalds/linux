@@ -43,8 +43,58 @@ static inline void copy_from_user_page(struct vm_area_struct *vma,
 	memcpy(dst, src, len);
 }
 
-#define PG_non_WB				PG_arch_1
-PAGEFLAG(NonWB, non_WB)
+#define PG_WC				PG_arch_1
+PAGEFLAG(WC, WC)
+
+#ifdef CONFIG_X86_PAT
+/*
+ * X86 PAT uses page flags WC and Uncached together to keep track of
+ * memory type of pages that have backing page struct. X86 PAT supports 3
+ * different memory types, _PAGE_CACHE_WB, _PAGE_CACHE_WC and
+ * _PAGE_CACHE_UC_MINUS and fourth state where page's memory type has not
+ * been changed from its default (value of -1 used to denote this).
+ * Note we do not support _PAGE_CACHE_UC here.
+ *
+ * Caller must hold memtype_lock for atomicity.
+ */
+static inline unsigned long get_page_memtype(struct page *pg)
+{
+	if (!PageUncached(pg) && !PageWC(pg))
+		return -1;
+	else if (!PageUncached(pg) && PageWC(pg))
+		return _PAGE_CACHE_WC;
+	else if (PageUncached(pg) && !PageWC(pg))
+		return _PAGE_CACHE_UC_MINUS;
+	else
+		return _PAGE_CACHE_WB;
+}
+
+static inline void set_page_memtype(struct page *pg, unsigned long memtype)
+{
+	switch (memtype) {
+	case _PAGE_CACHE_WC:
+		ClearPageUncached(pg);
+		SetPageWC(pg);
+		break;
+	case _PAGE_CACHE_UC_MINUS:
+		SetPageUncached(pg);
+		ClearPageWC(pg);
+		break;
+	case _PAGE_CACHE_WB:
+		SetPageUncached(pg);
+		SetPageWC(pg);
+		break;
+	default:
+	case -1:
+		ClearPageUncached(pg);
+		ClearPageWC(pg);
+		break;
+	}
+}
+#else
+static inline unsigned long get_page_memtype(struct page *pg) { return -1; }
+static inline void set_page_memtype(struct page *pg, unsigned long memtype) { }
+#endif
 
 /*
  * The set_memory_* API can be used to change various attributes of a virtual

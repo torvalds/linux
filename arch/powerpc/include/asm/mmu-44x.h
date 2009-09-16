@@ -79,15 +79,21 @@ typedef struct {
 
 #if (PAGE_SHIFT == 12)
 #define PPC44x_TLBE_SIZE	PPC44x_TLB_4K
+#define mmu_virtual_psize	MMU_PAGE_4K
 #elif (PAGE_SHIFT == 14)
 #define PPC44x_TLBE_SIZE	PPC44x_TLB_16K
+#define mmu_virtual_psize	MMU_PAGE_16K
 #elif (PAGE_SHIFT == 16)
 #define PPC44x_TLBE_SIZE	PPC44x_TLB_64K
+#define mmu_virtual_psize	MMU_PAGE_64K
 #elif (PAGE_SHIFT == 18)
 #define PPC44x_TLBE_SIZE	PPC44x_TLB_256K
+#define mmu_virtual_psize	MMU_PAGE_256K
 #else
 #error "Unsupported PAGE_SIZE"
 #endif
+
+#define mmu_linear_psize	MMU_PAGE_256M
 
 #define PPC44x_PGD_OFF_SHIFT	(32 - PGDIR_SHIFT + PGD_T_LOG2)
 #define PPC44x_PGD_OFF_MASK_BIT	(PGDIR_SHIFT - PGD_T_LOG2)

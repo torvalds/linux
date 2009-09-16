@@ -3294,15 +3294,33 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 	char *clock_source;
 	int x;
 
-	if (hdsp_check_for_iobox (hdsp)) {
-		snd_iprintf(buffer, "No I/O box connected.\nPlease connect one and upload firmware.\n");
+	status = hdsp_read(hdsp, HDSP_statusRegister);
+	status2 = hdsp_read(hdsp, HDSP_status2Register);
+
+	snd_iprintf(buffer, "%s (Card #%d)\n", hdsp->card_name,
+		    hdsp->card->number + 1);
+	snd_iprintf(buffer, "Buffers: capture %p playback %p\n",
+		    hdsp->capture_buffer, hdsp->playback_buffer);
+	snd_iprintf(buffer, "IRQ: %d Registers bus: 0x%lx VM: 0x%lx\n",
+		    hdsp->irq, hdsp->port, (unsigned long)hdsp->iobase);
+	snd_iprintf(buffer, "Control register: 0x%x\n", hdsp->control_register);
+	snd_iprintf(buffer, "Control2 register: 0x%x\n",
+		    hdsp->control2_register);
+	snd_iprintf(buffer, "Status register: 0x%x\n", status);
+	snd_iprintf(buffer, "Status2 register: 0x%x\n", status2);
+
+	if (hdsp_check_for_iobox(hdsp)) {
+		snd_iprintf(buffer, "No I/O box connected.\n"
+			    "Please connect one and upload firmware.\n");
 		return;
-        }
+	}
 
 	if (hdsp_check_for_firmware(hdsp, 0)) {
 		if (hdsp->state & HDSP_FirmwareCached) {
 			if (snd_hdsp_load_firmware_from_cache(hdsp) != 0) {
-				snd_iprintf(buffer, "Firmware loading from cache failed, please upload manually.\n");
+				snd_iprintf(buffer, "Firmware loading from "
+					    "cache failed, "
+					    "please upload manually.\n");
 				return;
 			}
 		} else {
@@ -3319,18 +3337,6 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 		}
 	}
 
-	status = hdsp_read(hdsp, HDSP_statusRegister);
-	status2 = hdsp_read(hdsp, HDSP_status2Register);
-
-	snd_iprintf(buffer, "%s (Card #%d)\n", hdsp->card_name, hdsp->card->number + 1);
-	snd_iprintf(buffer, "Buffers: capture %p playback %p\n",
-		    hdsp->capture_buffer, hdsp->playback_buffer);
-	snd_iprintf(buffer, "IRQ: %d Registers bus: 0x%lx VM: 0x%lx\n",
-		    hdsp->irq, hdsp->port, (unsigned long)hdsp->iobase);
-	snd_iprintf(buffer, "Control register: 0x%x\n", hdsp->control_register);
-	snd_iprintf(buffer, "Control2 register: 0x%x\n", hdsp->control2_register);
-	snd_iprintf(buffer, "Status register: 0x%x\n", status);
-	snd_iprintf(buffer, "Status2 register: 0x%x\n", status2);
 	snd_iprintf(buffer, "FIFO status: %d\n", hdsp_read(hdsp, HDSP_fifoStatus) & 0xff);
 	snd_iprintf(buffer, "MIDI1 Output status: 0x%x\n", hdsp_read(hdsp, HDSP_midiStatusOut0));
 	snd_iprintf(buffer, "MIDI1 Input status: 0x%x\n", hdsp_read(hdsp, HDSP_midiStatusIn0));
@@ -3350,7 +3356,6 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 	snd_iprintf(buffer, "Firmware version: %d\n", (status2&HDSP_version0)|(status2&HDSP_version1)<<1|(status2&HDSP_version2)<<2);
 
 	snd_iprintf(buffer, "\n");
-
 
 	switch (hdsp_clock_source(hdsp)) {
 	case HDSP_CLOCK_SOURCE_AUTOSYNC:

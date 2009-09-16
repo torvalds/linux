@@ -264,6 +264,22 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.fill_dst =		xfrm4_fill_dst,
 };
 
+#ifdef CONFIG_SYSCTL
+static struct ctl_table xfrm4_policy_table[] = {
+	{
+		.ctl_name       = CTL_UNNUMBERED,
+		.procname       = "xfrm4_gc_thresh",
+		.data           = &xfrm4_dst_ops.gc_thresh,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+	{ }
+};
+
+static struct ctl_table_header *sysctl_hdr;
+#endif
+
 static void __init xfrm4_policy_init(void)
 {
 	xfrm_policy_register_afinfo(&xfrm4_policy_afinfo);
@@ -271,12 +287,31 @@ static void __init xfrm4_policy_init(void)
 
 static void __exit xfrm4_policy_fini(void)
 {
+#ifdef CONFIG_SYSCTL
+	if (sysctl_hdr)
+		unregister_net_sysctl_table(sysctl_hdr);
+#endif
 	xfrm_policy_unregister_afinfo(&xfrm4_policy_afinfo);
 }
 
-void __init xfrm4_init(void)
+void __init xfrm4_init(int rt_max_size)
 {
 	xfrm4_state_init();
 	xfrm4_policy_init();
+	/*
+	 * Select a default value for the gc_thresh based on the main route
+	 * table hash size.  It seems to me the worst case scenario is when
+	 * we have ipsec operating in transport mode, in which we create a
+	 * dst_entry per socket.  The xfrm gc algorithm starts trying to remove
+	 * entries at gc_thresh, and prevents new allocations as 2*gc_thresh
+	 * so lets set an initial xfrm gc_thresh value at the rt_max_size/2.
+	 * That will let us store an ipsec connection per route table entry,
+	 * and start cleaning when were 1/2 full
+	 */
+	xfrm4_dst_ops.gc_thresh = rt_max_size/2;
+#ifdef CONFIG_SYSCTL
+	sysctl_hdr = register_net_sysctl_table(&init_net, net_ipv4_ctl_path,
+						xfrm4_policy_table);
+#endif
 }
 

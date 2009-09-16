@@ -65,6 +65,32 @@ void rndis_status(struct usbnet *dev, struct urb *urb)
 EXPORT_SYMBOL_GPL(rndis_status);
 
 /*
+ * RNDIS indicate messages.
+ */
+static void rndis_msg_indicate(struct usbnet *dev, struct rndis_indicate *msg,
+				int buflen)
+{
+	struct cdc_state *info = (void *)&dev->data;
+	struct device *udev = &info->control->dev;
+
+	if (dev->driver_info->indication) {
+		dev->driver_info->indication(dev, msg, buflen);
+	} else {
+		switch (msg->status) {
+		case RNDIS_STATUS_MEDIA_CONNECT:
+			dev_info(udev, "rndis media connect\n");
+			break;
+		case RNDIS_STATUS_MEDIA_DISCONNECT:
+			dev_info(udev, "rndis media disconnect\n");
+			break;
+		default:
+			dev_info(udev, "rndis indication: 0x%08x\n",
+					le32_to_cpu(msg->status));
+		}
+	}
+}
+
+/*
  * RPC done RNDIS-style.  Caller guarantees:
  * - message is properly byteswapped
  * - there's no other request pending
@@ -143,27 +169,9 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 					request_id, xid);
 				/* then likely retry */
 			} else switch (buf->msg_type) {
-			case RNDIS_MSG_INDICATE: {	/* fault/event */
-				struct rndis_indicate *msg = (void *)buf;
-				int state = 0;
+			case RNDIS_MSG_INDICATE:	/* fault/event */
+				rndis_msg_indicate(dev, (void *)buf, buflen);
 
-				switch (msg->status) {
-				case RNDIS_STATUS_MEDIA_CONNECT:
-					state = 1;
-				case RNDIS_STATUS_MEDIA_DISCONNECT:
-					dev_info(&info->control->dev,
-						"rndis media %sconnect\n",
-						!state?"dis":"");
-					if (dev->driver_info->link_change)
-						dev->driver_info->link_change(
-							dev, state);
-					break;
-				default:
-					dev_info(&info->control->dev,
-						"rndis indication: 0x%08x\n",
-						le32_to_cpu(msg->status));
-				}
-				}
 				break;
 			case RNDIS_MSG_KEEPALIVE: {	/* ping */
 				struct rndis_keepalive_c *msg = (void *)buf;

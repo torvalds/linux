@@ -275,7 +275,7 @@ struct zcore_header {
 	u32 num_pages;
 	u32 pad1;
 	u64 tod;
-	cpuid_t cpu_id;
+	struct cpuid cpu_id;
 	u32 arch_id;
 	u32 volnr;
 	u32 build_arch;

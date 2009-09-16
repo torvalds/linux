@@ -373,6 +373,7 @@ calc_exit_2:
 	   compare with the NTLM example */
 	hmac_md5_final(ses->server->ntlmv2_hash, pctxt);
 
+	kfree(pctxt);
 	return rc;
 }
 

@@ -412,3 +412,102 @@ found:
 	return 0;
 }
 EXPORT_SYMBOL(pn_sock_get_port);
+
+#ifdef CONFIG_PROC_FS
+static struct sock *pn_sock_get_idx(struct seq_file *seq, loff_t pos)
+{
+	struct net *net = seq_file_net(seq);
+	struct hlist_node *node;
+	struct sock *sknode;
+
+	sk_for_each(sknode, node, &pnsocks.hlist) {
+		if (!net_eq(net, sock_net(sknode)))
+			continue;
+		if (!pos)
+			return sknode;
+		pos--;
+	}
+	return NULL;
+}
+
+static struct sock *pn_sock_get_next(struct seq_file *seq, struct sock *sk)
+{
+	struct net *net = seq_file_net(seq);
+
+	do
+		sk = sk_next(sk);
+	while (sk && !net_eq(net, sock_net(sk)));
+
+	return sk;
+}
+
+static void *pn_sock_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(pnsocks.lock)
+{
+	spin_lock_bh(&pnsocks.lock);
+	return *pos ? pn_sock_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
+}
+
+static void *pn_sock_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	struct sock *sk;
+
+	if (v == SEQ_START_TOKEN)
+		sk = pn_sock_get_idx(seq, 0);
+	else
+		sk = pn_sock_get_next(seq, v);
+	(*pos)++;
+	return sk;
+}
+
+static void pn_sock_seq_stop(struct seq_file *seq, void *v)
+	__releases(pnsocks.lock)
+{
+	spin_unlock_bh(&pnsocks.lock);
+}
+
+static int pn_sock_seq_show(struct seq_file *seq, void *v)
+{
+	int len;
+
+	if (v == SEQ_START_TOKEN)
+		seq_printf(seq, "%s%n", "pt  loc  rem rs st tx_queue rx_queue "
+			"  uid inode ref pointer drops", &len);
+	else {
+		struct sock *sk = v;
+		struct pn_sock *pn = pn_sk(sk);
+
+		seq_printf(seq, "%2d %04X:%04X:%02X %02X %08X:%08X %5d %lu "
+			"%d %p %d%n",
+			sk->sk_protocol, pn->sobject, 0, pn->resource,
+			sk->sk_state,
+			sk_wmem_alloc_get(sk), sk_rmem_alloc_get(sk),
+			sock_i_uid(sk), sock_i_ino(sk),
+			atomic_read(&sk->sk_refcnt), sk,
+			atomic_read(&sk->sk_drops), &len);
+	}
+	seq_printf(seq, "%*s\n", 127 - len, "");
+	return 0;
+}
+
+static const struct seq_operations pn_sock_seq_ops = {
+	.start = pn_sock_seq_start,
+	.next = pn_sock_seq_next,
+	.stop = pn_sock_seq_stop,
+	.show = pn_sock_seq_show,
+};
+
+static int pn_sock_open(struct inode *inode, struct file *file)
+{
+	return seq_open_net(inode, file, &pn_sock_seq_ops,
+				sizeof(struct seq_net_private));
+}
+
+const struct file_operations pn_sock_seq_fops = {
+	.owner = THIS_MODULE,
+	.open = pn_sock_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release_net,
+};
+#endif

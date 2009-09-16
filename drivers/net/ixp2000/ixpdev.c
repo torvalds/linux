@@ -46,7 +46,7 @@ static int ixpdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(skb->len > PAGE_SIZE)) {
 		/* @@@ Count drops.  */
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	entry = tx_pointer;
@@ -70,7 +70,7 @@ static int ixpdev_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	local_irq_restore(flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

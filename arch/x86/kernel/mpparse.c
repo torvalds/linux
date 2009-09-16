@@ -482,11 +482,11 @@ static void __init construct_ioapic_table(int mpc_default_type)
 		MP_bus_info(&bus);
 	}
 
-	ioapic.type = MP_IOAPIC;
-	ioapic.apicid = 2;
-	ioapic.apicver = mpc_default_type > 4 ? 0x10 : 0x01;
-	ioapic.flags = MPC_APIC_USABLE;
-	ioapic.apicaddr = 0xFEC00000;
+	ioapic.type	= MP_IOAPIC;
+	ioapic.apicid	= 2;
+	ioapic.apicver	= mpc_default_type > 4 ? 0x10 : 0x01;
+	ioapic.flags	= MPC_APIC_USABLE;
+	ioapic.apicaddr	= IO_APIC_DEFAULT_PHYS_BASE;
 	MP_ioapic_info(&ioapic);
 
 	/*

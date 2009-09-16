@@ -78,28 +78,11 @@ csum_partial_copy_nocheck (const void *src, void *dst, int len, __wsum sum)
  */
 static inline __sum16 csum_fold(__wsum sum)
 {
-#ifndef __s390x__
-	register_pair rp;
+	u32 csum = (__force u32) sum;
 
-	asm volatile(
-		"	slr	%N1,%N1\n"	/* %0 = H L */
-		"	lr	%1,%0\n"	/* %0 = H L, %1 = H L 0 0 */
-		"	srdl	%1,16\n"	/* %0 = H L, %1 = 0 H L 0 */
-		"	alr	%1,%N1\n"	/* %0 = H L, %1 = L H L 0 */
-		"	alr	%0,%1\n"	/* %0 = H+L+C L+H */
-		"	srl	%0,16\n"	/* %0 = H+L+C */
-		: "+&d" (sum), "=d" (rp) : : "cc");
-#else /* __s390x__ */
-	asm volatile(
-		"	sr	3,3\n"		/* %0 = H*65536 + L */
-		"	lr	2,%0\n"		/* %0 = H L, 2/3 = H L / 0 0 */
-		"	srdl	2,16\n"		/* %0 = H L, 2/3 = 0 H / L 0 */
-		"	alr	2,3\n"		/* %0 = H L, 2/3 = L H / L 0 */
-		"	alr	%0,2\n"		/* %0 = H+L+C L+H */
-		"	srl	%0,16\n"	/* %0 = H+L+C */
-		: "+&d" (sum) : : "cc", "2", "3");
-#endif /* __s390x__ */
-	return (__force __sum16) ~sum;
+	csum += (csum >> 16) + (csum << 16);
+	csum >>= 16;
+	return (__force __sum16) ~csum;
 }
 
 /*

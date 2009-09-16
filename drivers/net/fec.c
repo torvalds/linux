@@ -367,7 +367,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&fep->hw_lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void
@@ -427,7 +427,7 @@ fec_enet_tx(struct net_device *dev)
 	struct	sk_buff	*skb;
 
 	fep = netdev_priv(dev);
-	spin_lock_irq(&fep->hw_lock);
+	spin_lock(&fep->hw_lock);
 	bdp = fep->dirty_tx;
 
 	while (((status = bdp->cbd_sc) & BD_ENET_TX_READY) == 0) {
@@ -486,7 +486,7 @@ fec_enet_tx(struct net_device *dev)
 		}
 	}
 	fep->dirty_tx = bdp;
-	spin_unlock_irq(&fep->hw_lock);
+	spin_unlock(&fep->hw_lock);
 }
 
 
@@ -509,7 +509,7 @@ fec_enet_rx(struct net_device *dev)
 	flush_cache_all();
 #endif
 
-	spin_lock_irq(&fep->hw_lock);
+	spin_lock(&fep->hw_lock);
 
 	/* First, grab all of the stats for the incoming packet.
 	 * These get messed up if we get called due to a busy condition.
@@ -604,7 +604,7 @@ rx_processing_done:
 	}
 	fep->cur_rx = bdp;
 
-	spin_unlock_irq(&fep->hw_lock);
+	spin_unlock(&fep->hw_lock);
 }
 
 /* called from interrupt context */
@@ -615,7 +615,7 @@ fec_enet_mii(struct net_device *dev)
 	mii_list_t	*mip;
 
 	fep = netdev_priv(dev);
-	spin_lock_irq(&fep->mii_lock);
+	spin_lock(&fep->mii_lock);
 
 	if ((mip = mii_head) == NULL) {
 		printk("MII and no head!\n");
@@ -633,20 +633,19 @@ fec_enet_mii(struct net_device *dev)
 		writel(mip->mii_regval, fep->hwp + FEC_MII_DATA);
 
 unlock:
-	spin_unlock_irq(&fep->mii_lock);
+	spin_unlock(&fep->mii_lock);
 }
 
 static int
-mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_device *))
+mii_queue_unlocked(struct net_device *dev, int regval,
+		void (*func)(uint, struct net_device *))
 {
 	struct fec_enet_private *fep;
-	unsigned long	flags;
 	mii_list_t	*mip;
 	int		retval;
 
 	/* Add PHY address to register command */
 	fep = netdev_priv(dev);
-	spin_lock_irqsave(&fep->mii_lock, flags);
 
 	regval |= fep->phy_addr << 23;
 	retval = 0;
@@ -667,6 +666,19 @@ mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_devi
 		retval = 1;
 	}
 
+	return retval;
+}
+
+static int
+mii_queue(struct net_device *dev, int regval,
+		void (*func)(uint, struct net_device *))
+{
+	struct fec_enet_private *fep;
+	unsigned long   flags;
+	int             retval;
+	fep = netdev_priv(dev);
+	spin_lock_irqsave(&fep->mii_lock, flags);
+	retval = mii_queue_unlocked(dev, regval, func);
 	spin_unlock_irqrestore(&fep->mii_lock, flags);
 	return retval;
 }
@@ -1373,11 +1385,11 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 
 			/* Got first part of ID, now get remainder */
 			fep->phy_id = phytype << 16;
-			mii_queue(dev, mk_mii_read(MII_REG_PHYIR2),
+			mii_queue_unlocked(dev, mk_mii_read(MII_REG_PHYIR2),
 							mii_discover_phy3);
 		} else {
 			fep->phy_addr++;
-			mii_queue(dev, mk_mii_read(MII_REG_PHYIR1),
+			mii_queue_unlocked(dev, mk_mii_read(MII_REG_PHYIR1),
 							mii_discover_phy);
 		}
 	} else {
