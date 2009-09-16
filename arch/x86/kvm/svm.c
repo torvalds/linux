@@ -763,14 +763,13 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	int i;
 
 	if (unlikely(cpu != vcpu->cpu)) {
-		u64 tsc_this, delta;
+		u64 delta;
 
 		/*
 		 * Make sure that the guest sees a monotonically
 		 * increasing TSC.
 		 */
-		rdtscll(tsc_this);
-		delta = vcpu->arch.host_tsc - tsc_this;
+		delta = vcpu->arch.host_tsc - native_read_tsc();
 		svm->vmcb->control.tsc_offset += delta;
 		if (is_nested(svm))
 			svm->nested.hsave->control.tsc_offset += delta;
@@ -792,7 +791,7 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 
-	rdtscll(vcpu->arch.host_tsc);
+	vcpu->arch.host_tsc = native_read_tsc();
 }
 
 static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
