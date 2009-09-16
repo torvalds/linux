@@ -147,6 +147,23 @@ int truncate_inode_page(struct address_space *mapping, struct page *page)
 }
 
 /*
+ * Used to get rid of pages on hardware memory corruption.
+ */
+int generic_error_remove_page(struct address_space *mapping, struct page *page)
+{
+	if (!mapping)
+		return -EINVAL;
+	/*
+	 * Only punch for normal data pages for now.
+	 * Handling other types like directories would need more auditing.
+	 */
+	if (!S_ISREG(mapping->host->i_mode))
+		return -EIO;
+	return truncate_inode_page(mapping, page);
+}
+EXPORT_SYMBOL(generic_error_remove_page);
+
+/*
  * Safely invalidate one page from its pagecache mapping.
  * It only drops clean, unused pages. The page must be locked.
  *

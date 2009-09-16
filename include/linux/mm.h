@@ -795,6 +795,7 @@ extern int vmtruncate(struct inode * inode, loff_t offset);
 extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
 
 int truncate_inode_page(struct address_space *mapping, struct page *page);
+int generic_error_remove_page(struct address_space *mapping, struct page *page);
 
 int invalidate_inode_page(struct page *page);
 

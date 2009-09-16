@@ -595,6 +595,7 @@ struct address_space_operations {
 	int (*launder_page) (struct page *);
 	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
 					unsigned long);
+	int (*error_remove_page)(struct address_space *, struct page *);
 };
 
 /*
