@@ -85,7 +85,18 @@ static inline void page_dup_rmap(struct page *page, struct vm_area_struct *vma, 
  */
 int page_referenced(struct page *, int is_locked,
 			struct mem_cgroup *cnt, unsigned long *vm_flags);
-int try_to_unmap(struct page *, int ignore_refs);
+enum ttu_flags {
+	TTU_UNMAP = 0,			/* unmap mode */
+	TTU_MIGRATION = 1,		/* migration mode */
+	TTU_MUNLOCK = 2,		/* munlock mode */
+	TTU_ACTION_MASK = 0xff,
+
+	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
+};
+#define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
+
+int try_to_unmap(struct page *, enum ttu_flags flags);
 
 /*
  * Called from mm/filemap_xip.c to unmap empty zero page
