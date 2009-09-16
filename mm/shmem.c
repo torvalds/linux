@@ -2421,6 +2421,7 @@ static const struct address_space_operations shmem_aops = {
 	.write_end	= shmem_write_end,
 #endif
 	.migratepage	= migrate_page,
+	.error_remove_page = generic_error_remove_page,
 };
 
 static const struct file_operations shmem_file_operations = {

@@ -1550,6 +1550,7 @@ const struct address_space_operations ntfs_aops = {
 	.migratepage	= buffer_migrate_page,	/* Move a page cache page from
 						   one physical page to an
 						   other. */
+	.error_remove_page = generic_error_remove_page,
 };
 
 /**
@@ -1569,6 +1570,7 @@ const struct address_space_operations ntfs_mst_aops = {
 	.migratepage	= buffer_migrate_page,	/* Move a page cache page from
 						   one physical page to an
 						   other. */
+	.error_remove_page = generic_error_remove_page,
 };
 
 #ifdef NTFS_RW
