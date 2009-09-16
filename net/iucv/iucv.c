@@ -362,7 +362,7 @@ static int iucv_query_maxconn(void)
 		"	srl	%0,28\n"
 		: "=d" (ccode), "+d" (reg0), "+d" (reg1) : : "cc");
 	if (ccode == 0)
-		iucv_max_pathid = reg0;
+		iucv_max_pathid = reg1;
 	kfree(param);
 	return ccode ? -EPERM : 0;
 }
