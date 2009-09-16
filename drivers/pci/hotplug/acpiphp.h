@@ -91,9 +91,6 @@ struct acpiphp_bridge {
 	/* PCI-to-PCI bridge device */
 	struct pci_dev *pci_dev;
 
-	/* ACPI 2.0 _HPP parameters */
-	struct hotplug_params hpp;
-
 	spinlock_t res_lock;
 };
 

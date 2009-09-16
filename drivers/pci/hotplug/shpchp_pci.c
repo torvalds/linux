@@ -34,66 +34,6 @@
 #include "../pci.h"
 #include "shpchp.h"
 
-static void program_fw_provided_values(struct pci_dev *dev)
-{
-	u16 pci_cmd, pci_bctl;
-	struct pci_dev *cdev;
-	struct hotplug_params hpp;
-
-	/* Program hpp values for this device */
-	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
-			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
-			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
-		return;
-
-	/* use default values if we can't get them from firmware */
-	if (get_hp_params_from_firmware(dev, &hpp) ||
-	    !hpp.t0 || (hpp.t0->revision > 1)) {
-		warn("Could not get hotplug parameters. Use defaults\n");
-		hpp.t0 = &hpp.type0_data;
-		hpp.t0->revision = 0;
-		hpp.t0->cache_line_size = 8;
-		hpp.t0->latency_timer = 0x40;
-		hpp.t0->enable_serr = 0;
-		hpp.t0->enable_perr = 0;
-	}
-
-	pci_write_config_byte(dev,
-			      PCI_CACHE_LINE_SIZE, hpp.t0->cache_line_size);
-	pci_write_config_byte(dev, PCI_LATENCY_TIMER, hpp.t0->latency_timer);
-	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
-	if (hpp.t0->enable_serr)
-		pci_cmd |= PCI_COMMAND_SERR;
-	else
-		pci_cmd &= ~PCI_COMMAND_SERR;
-	if (hpp.t0->enable_perr)
-		pci_cmd |= PCI_COMMAND_PARITY;
-	else
-		pci_cmd &= ~PCI_COMMAND_PARITY;
-	pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
-
-	/* Program bridge control value and child devices */
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
-		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
-				hpp.t0->latency_timer);
-		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
-		if (hpp.t0->enable_serr)
-			pci_bctl |= PCI_BRIDGE_CTL_SERR;
-		else
-			pci_bctl &= ~PCI_BRIDGE_CTL_SERR;
-		if (hpp.t0->enable_perr)
-			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
-		else
-			pci_bctl &= ~PCI_BRIDGE_CTL_PARITY;
-		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
-		if (dev->subordinate) {
-			list_for_each_entry(cdev, &dev->subordinate->devices,
-					bus_list)
-				program_fw_provided_values(cdev);
-		}
-	}
-}
-
 int __ref shpchp_configure_device(struct slot *p_slot)
 {
 	struct pci_dev *dev;
@@ -153,7 +93,7 @@ int __ref shpchp_configure_device(struct slot *p_slot)
 			child->subordinate = pci_do_scan_bus(child);
 			pci_bus_size_bridges(child);
 		}
-		program_fw_provided_values(dev);
+		pci_configure_slot(dev);
 		pci_dev_put(dev);
 	}
 

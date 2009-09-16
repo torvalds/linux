@@ -47,7 +47,7 @@ int pciehp_acpi_slot_detection_check(struct pci_dev *dev)
 {
 	if (slot_detection_mode != PCIEHP_DETECT_ACPI)
 		return 0;
-	if (acpi_pci_detect_ejectable(dev->subordinate))
+	if (acpi_pci_detect_ejectable(DEVICE_ACPI_HANDLE(&dev->dev)))
 		return 0;
 	return -ENODEV;
 }
@@ -76,9 +76,9 @@ static int __init dummy_probe(struct pcie_device *dev)
 {
 	int pos;
 	u32 slot_cap;
+	acpi_handle handle;
 	struct slot *slot, *tmp;
 	struct pci_dev *pdev = dev->port;
-	struct pci_bus *pbus = pdev->subordinate;
 	/* Note: pciehp_detect_mode != PCIEHP_DETECT_ACPI here */
 	if (pciehp_get_hp_hw_control_from_firmware(pdev))
 		return -ENODEV;
@@ -94,7 +94,8 @@ static int __init dummy_probe(struct pcie_device *dev)
 			dup_slot_id++;
 	}
 	list_add_tail(&slot->slot_list, &dummy_slots);
-	if (!acpi_slot_detected && acpi_pci_detect_ejectable(pbus))
+	handle = DEVICE_ACPI_HANDLE(&pdev->dev);
+	if (!acpi_slot_detected && acpi_pci_detect_ejectable(handle))
 		acpi_slot_detected = 1;
 	return -ENODEV;         /* dummy driver always returns error */
 }
