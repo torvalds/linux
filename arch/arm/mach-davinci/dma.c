@@ -813,7 +813,7 @@ EXPORT_SYMBOL(edma_alloc_cont_slots);
  */
 int edma_free_cont_slots(unsigned slot, int count)
 {
-	unsigned ctlr;
+	unsigned ctlr, slot_to_free;
 	int i;
 
 	ctlr = EDMA_CTLR(slot);
@@ -826,11 +826,11 @@ int edma_free_cont_slots(unsigned slot, int count)
 
 	for (i = slot; i < slot + count; ++i) {
 		ctlr = EDMA_CTLR(i);
-		slot = EDMA_CHAN_SLOT(i);
+		slot_to_free = EDMA_CHAN_SLOT(i);
 
-		memcpy_toio(edmacc_regs_base[ctlr] + PARM_OFFSET(slot),
+		memcpy_toio(edmacc_regs_base[ctlr] + PARM_OFFSET(slot_to_free),
 			&dummy_paramset, PARM_SIZE);
-		clear_bit(slot, edma_info[ctlr]->edma_inuse);
+		clear_bit(slot_to_free, edma_info[ctlr]->edma_inuse);
 	}
 
 	return 0;
