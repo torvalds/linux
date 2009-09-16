@@ -488,6 +488,14 @@ MUX_CFG(DM355,	VOUT_FIELD_G70,	1,   18,    3,	  0,	 false)
 MUX_CFG(DM355,	VOUT_HVSYNC,	1,   16,    1,	  0,	 false)
 MUX_CFG(DM355,	VOUT_COUTL_EN,	1,   0,     0xff, 0x55,  false)
 MUX_CFG(DM355,	VOUT_COUTH_EN,	1,   8,     0xff, 0x55,  false)
+
+MUX_CFG(DM355,	VIN_PCLK,	0,   14,    1,    1,	 false)
+MUX_CFG(DM355,	VIN_CAM_WEN,	0,   13,    1,    1,	 false)
+MUX_CFG(DM355,	VIN_CAM_VD,	0,   12,    1,    1,	 false)
+MUX_CFG(DM355,	VIN_CAM_HD,	0,   11,    1,    1,	 false)
+MUX_CFG(DM355,	VIN_YIN_EN,	0,   10,    1,    1,	 false)
+MUX_CFG(DM355,	VIN_CINL_EN,	0,   0,   0xff, 0x55,	 false)
+MUX_CFG(DM355,	VIN_CINH_EN,	0,   8,     3,    3,	 false)
 #endif
 };
 
@@ -659,6 +667,67 @@ static struct platform_device dm355_asp1_device = {
 	.resource	= dm355_asp1_resources,
 };
 
+static struct resource dm355_vpss_resources[] = {
+	{
+		/* VPSS BL Base address */
+		.name		= "vpss",
+		.start          = 0x01c70800,
+		.end            = 0x01c70800 + 0xff,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		/* VPSS CLK Base address */
+		.name		= "vpss",
+		.start          = 0x01c70000,
+		.end            = 0x01c70000 + 0xf,
+		.flags          = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device dm355_vpss_device = {
+	.name			= "vpss",
+	.id			= -1,
+	.dev.platform_data	= "dm355_vpss",
+	.num_resources		= ARRAY_SIZE(dm355_vpss_resources),
+	.resource		= dm355_vpss_resources,
+};
+
+static struct resource vpfe_resources[] = {
+	{
+		.start          = IRQ_VDINT0,
+		.end            = IRQ_VDINT0,
+		.flags          = IORESOURCE_IRQ,
+	},
+	{
+		.start          = IRQ_VDINT1,
+		.end            = IRQ_VDINT1,
+		.flags          = IORESOURCE_IRQ,
+	},
+	/* CCDC Base address */
+	{
+		.flags          = IORESOURCE_MEM,
+		.start          = 0x01c70600,
+		.end            = 0x01c70600 + 0x1ff,
+	},
+};
+
+static u64 vpfe_capture_dma_mask = DMA_BIT_MASK(32);
+static struct platform_device vpfe_capture_dev = {
+	.name		= CAPTURE_DRV_NAME,
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(vpfe_resources),
+	.resource	= vpfe_resources,
+	.dev = {
+		.dma_mask		= &vpfe_capture_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void dm355_set_vpfe_config(struct vpfe_config *cfg)
+{
+	vpfe_capture_dev.dev.platform_data = cfg;
+}
+
 /*----------------------------------------------------------------------*/
 
 static struct map_desc dm355_io_desc[] = {
@@ -792,6 +861,20 @@ static int __init dm355_init_devices(void)
 
 	davinci_cfg_reg(DM355_INT_EDMA_CC);
 	platform_device_register(&dm355_edma_device);
+	platform_device_register(&dm355_vpss_device);
+	/*
+	 * setup Mux configuration for vpfe input and register
+	 * vpfe capture platform device
+	 */
+	davinci_cfg_reg(DM355_VIN_PCLK);
+	davinci_cfg_reg(DM355_VIN_CAM_WEN);
+	davinci_cfg_reg(DM355_VIN_CAM_VD);
+	davinci_cfg_reg(DM355_VIN_CAM_HD);
+	davinci_cfg_reg(DM355_VIN_YIN_EN);
+	davinci_cfg_reg(DM355_VIN_CINL_EN);
+	davinci_cfg_reg(DM355_VIN_CINH_EN);
+	platform_device_register(&vpfe_capture_dev);
+
 	return 0;
 }
 postcore_initcall(dm355_init_devices);
