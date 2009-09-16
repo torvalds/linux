@@ -1348,7 +1348,7 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
  */
 static int select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
 {
-	struct sched_domain *tmp, *sd = NULL;
+	struct sched_domain *tmp, *shares = NULL, *sd = NULL;
 	int cpu = smp_processor_id();
 	int prev_cpu = task_cpu(p);
 	int new_cpu = cpu;
@@ -1387,21 +1387,13 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
 				break;
 		}
 
-		switch (sd_flag) {
-		case SD_BALANCE_WAKE:
-			if (!sched_feat(LB_WAKEUP_UPDATE))
-				break;
-		case SD_BALANCE_FORK:
-		case SD_BALANCE_EXEC:
-			if (root_task_group_empty())
-				break;
-			update_shares(tmp);
-		default:
-			break;
-		}
-
 		if (want_affine && (tmp->flags & SD_WAKE_AFFINE) &&
 		    cpumask_test_cpu(prev_cpu, sched_domain_span(tmp))) {
+
+			if (sched_feat(LB_SHARES_UPDATE)) {
+				update_shares(tmp);
+				shares = tmp;
+			}
 
 			if (wake_affine(tmp, p, sync)) {
 				new_cpu = cpu;
@@ -1416,6 +1408,9 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
 
 		sd = tmp;
 	}
+
+	if (sd && sd != shares && sched_feat(LB_SHARES_UPDATE))
+		update_shares(sd);
 
 	while (sd) {
 		struct sched_group *group;

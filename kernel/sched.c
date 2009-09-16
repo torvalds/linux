@@ -376,13 +376,6 @@ static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 
 #else
 
-#ifdef CONFIG_SMP
-static int root_task_group_empty(void)
-{
-	return 1;
-}
-#endif
-
 static inline void set_task_rq(struct task_struct *p, unsigned int cpu) { }
 static inline struct task_group *task_group(struct task_struct *p)
 {
