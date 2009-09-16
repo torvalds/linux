@@ -119,6 +119,7 @@ static unsigned long		replay_repeat = 10;
 static unsigned long		nr_timestamps;
 static unsigned long		nr_unordered_timestamps;
 static unsigned long		nr_state_machine_bugs;
+static unsigned long		nr_context_switch_bugs;
 static unsigned long		nr_events;
 static unsigned long		nr_lost_chunks;
 static unsigned long		nr_lost_events;
@@ -1399,6 +1400,14 @@ static void __cmd_lat(void)
 			printf(" (due to lost events?)");
 		printf("\n");
 	}
+	if (nr_context_switch_bugs && nr_timestamps) {
+		printf("  INFO: %.3f%% context switch bugs (%ld out of %ld)",
+			(double)nr_context_switch_bugs/(double)nr_timestamps*100.0,
+			nr_context_switch_bugs, nr_timestamps);
+		if (nr_lost_events)
+			printf(" (due to lost events?)");
+		printf("\n");
+	}
 	printf("\n");
 
 }
@@ -1425,10 +1434,16 @@ process_sched_wakeup_event(struct raw_event_sample *raw,
 	trace_handler->wakeup_event(&wakeup_event, event, cpu, timestamp, thread);
 }
 
+/*
+ * Track the current task - that way we can know whether there's any
+ * weird events, such as a task being switched away that is not current.
+ */
+static u32 curr_pid[MAX_CPUS] = { [0 ... MAX_CPUS-1] = -1 };
+
 static void
 process_sched_switch_event(struct raw_event_sample *raw,
 			   struct event *event,
-			   int cpu __used,
+			   int cpu,
 			   u64 timestamp __used,
 			   struct thread *thread __used)
 {
@@ -1443,6 +1458,16 @@ process_sched_switch_event(struct raw_event_sample *raw,
 	FILL_ARRAY(switch_event, next_comm, event, raw->data);
 	FILL_FIELD(switch_event, next_pid, event, raw->data);
 	FILL_FIELD(switch_event, next_prio, event, raw->data);
+
+	if (curr_pid[cpu] != (u32)-1) {
+		/*
+		 * Are we trying to switch away a PID that is
+		 * not current?
+		 */
+		if (curr_pid[cpu] != switch_event.prev_pid)
+			nr_context_switch_bugs++;
+	}
+	curr_pid[cpu] = switch_event.next_pid;
 
 	trace_handler->switch_event(&switch_event, event, cpu, timestamp, thread);
 }
