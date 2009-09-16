@@ -1309,5 +1309,12 @@ void vmemmap_populate_print_last(void);
 extern int account_locked_memory(struct mm_struct *mm, struct rlimit *rlim,
 				 size_t size);
 extern void refund_locked_memory(struct mm_struct *mm, size_t size);
+
+extern void memory_failure(unsigned long pfn, int trapno);
+extern int __memory_failure(unsigned long pfn, int trapno, int ref);
+extern int sysctl_memory_failure_early_kill;
+extern int sysctl_memory_failure_recovery;
+extern atomic_long_t mce_bad_pages;
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

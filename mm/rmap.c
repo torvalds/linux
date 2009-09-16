@@ -36,6 +36,11 @@
  *                 mapping->tree_lock (widely used, in set_page_dirty,
  *                           in arch-dependent flush_dcache_mmap_lock,
  *                           within inode_lock in __sync_single_inode)
+ *
+ * (code doesn't rely on that order so it could be switched around)
+ * ->tasklist_lock
+ *   anon_vma->lock      (memory_failure, collect_procs_anon)
+ *     pte map lock
  */
 
 #include <linux/mm.h>
@@ -311,7 +316,7 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
  * if the page is not mapped into the page tables of this VMA.  Only
  * valid for normal file or anonymous VMAs.
  */
-static int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
+int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
 {
 	unsigned long address;
 	pte_t *pte;

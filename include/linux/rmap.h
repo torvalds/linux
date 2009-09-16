@@ -129,6 +129,7 @@ int try_to_munlock(struct page *);
  */
 struct anon_vma *page_lock_anon_vma(struct page *page);
 void page_unlock_anon_vma(struct anon_vma *anon_vma);
+int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
 
 #else	/* !CONFIG_MMU */
 
