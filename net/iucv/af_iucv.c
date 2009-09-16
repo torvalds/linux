@@ -1036,6 +1036,10 @@ out:
 	return err;
 }
 
+/* iucv_fragment_skb() - Fragment a single IUCV message into multiple skb's
+ *
+ * Locking: must be called with message_q.lock held
+ */
 static int iucv_fragment_skb(struct sock *sk, struct sk_buff *skb, int len)
 {
 	int dataleft, size, copied = 0;
@@ -1070,6 +1074,10 @@ static int iucv_fragment_skb(struct sock *sk, struct sk_buff *skb, int len)
 	return 0;
 }
 
+/* iucv_process_message() - Receive a single outstanding IUCV message
+ *
+ * Locking: must be called with message_q.lock held
+ */
 static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 				 struct iucv_path *path,
 				 struct iucv_message *msg)
@@ -1120,6 +1128,10 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 		skb_queue_head(&iucv_sk(sk)->backlog_skb_q, skb);
 }
 
+/* iucv_process_message_q() - Process outstanding IUCV messages
+ *
+ * Locking: must be called with message_q.lock held
+ */
 static void iucv_process_message_q(struct sock *sk)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
@@ -1210,6 +1222,7 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		kfree_skb(skb);
 
 		/* Queue backlog skbs */
+		spin_lock_bh(&iucv->message_q.lock);
 		rskb = skb_dequeue(&iucv->backlog_skb_q);
 		while (rskb) {
 			if (sock_queue_rcv_skb(sk, rskb)) {
@@ -1221,11 +1234,10 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 			}
 		}
 		if (skb_queue_empty(&iucv->backlog_skb_q)) {
-			spin_lock_bh(&iucv->message_q.lock);
 			if (!list_empty(&iucv->message_q.list))
 				iucv_process_message_q(sk);
-			spin_unlock_bh(&iucv->message_q.lock);
 		}
+		spin_unlock_bh(&iucv->message_q.lock);
 	}
 
 done:
