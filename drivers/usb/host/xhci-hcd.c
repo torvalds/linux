@@ -335,6 +335,12 @@ void xhci_event_ring_work(unsigned long arg)
 	spin_lock_irqsave(&xhci->lock, flags);
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	xhci_dbg(xhci, "op reg status = 0x%x\n", temp);
+	if (temp == 0xffffffff) {
+		xhci_dbg(xhci, "HW died, polling stopped.\n");
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return;
+	}
+
 	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
 	xhci_dbg(xhci, "ir_set 0 pending = 0x%x\n", temp);
 	xhci_dbg(xhci, "No-op commands handled = %d\n", xhci->noops_handled);
