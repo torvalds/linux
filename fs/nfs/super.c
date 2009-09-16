@@ -1918,6 +1918,8 @@ static inline void nfs_initialise_sb(struct super_block *sb)
 	if (server->flags & NFS_MOUNT_NOAC)
 		sb->s_flags |= MS_SYNCHRONOUS;
 
+	sb->s_bdi = &server->backing_dev_info;
+
 	nfs_super_set_maxbytes(sb, server->maxfilesize);
 }
 

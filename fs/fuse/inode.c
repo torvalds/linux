@@ -894,6 +894,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (err)
 		goto err_put_conn;
 
+	sb->s_bdi = &fc->bdi;
+
 	/* Handle umasking inside the fuse code */
 	if (sb->s_flags & MS_POSIXACL)
 		fc->dont_mask = 1;
