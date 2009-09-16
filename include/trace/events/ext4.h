@@ -10,6 +10,9 @@
 struct ext4_allocation_context;
 struct ext4_allocation_request;
 struct ext4_prealloc_space;
+struct ext4_inode_info;
+
+#define EXT4_I(inode) (container_of(inode, struct ext4_inode_info, vfs_inode))
 
 TRACE_EVENT(ext4_free_inode,
 	TP_PROTO(struct inode *inode),
@@ -708,6 +711,30 @@ TRACE_EVENT(ext4_sync_fs,
 
 	TP_printk("dev %s wait %d", jbd2_dev_to_name(__entry->dev),
 		  __entry->wait)
+);
+
+TRACE_EVENT(ext4_alloc_da_blocks,
+	TP_PROTO(struct inode *inode),
+
+	TP_ARGS(inode),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field( unsigned int,	data_blocks	)
+		__field( unsigned int,	meta_blocks	)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->data_blocks = EXT4_I(inode)->i_reserved_data_blocks;
+		__entry->meta_blocks = EXT4_I(inode)->i_reserved_meta_blocks;
+	),
+
+	TP_printk("dev %s ino %lu data_blocks %u meta_blocks %u",
+		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
+		  __entry->data_blocks, __entry->meta_blocks)
 );
 
 #endif /* _TRACE_EXT4_H */
