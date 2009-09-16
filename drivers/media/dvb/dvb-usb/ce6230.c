@@ -274,7 +274,7 @@ static struct dvb_usb_device_properties ce6230_properties = {
 				.endpoint = 0x82,
 				.u = {
 					.bulk = {
-						.buffersize = 512,
+						.buffersize = (16*512),
 					}
 				}
 			},
