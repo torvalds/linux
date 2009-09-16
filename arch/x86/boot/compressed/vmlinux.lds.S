@@ -1,3 +1,5 @@
+#include <asm-generic/vmlinux.lds.h>
+
 OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT)
 
 #undef i386
@@ -18,9 +20,9 @@ SECTIONS
 	 * address 0.
 	 */
 	. = 0;
-	.text.head : {
+	.head.text : {
 		_head = . ;
-		*(.text.head)
+		HEAD_TEXT
 		_ehead = . ;
 	}
 	.rodata.compressed : {
