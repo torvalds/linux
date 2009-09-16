@@ -3214,8 +3214,10 @@ static bool handle_stripe6(struct stripe_head *sh)
 		/* now count some things */
 		if (test_bit(R5_LOCKED, &dev->flags)) s.locked++;
 		if (test_bit(R5_UPTODATE, &dev->flags)) s.uptodate++;
-		if (test_bit(R5_Wantcompute, &dev->flags))
-			BUG_ON(++s.compute > 2);
+		if (test_bit(R5_Wantcompute, &dev->flags)) {
+			s.compute++;
+			BUG_ON(s.compute > 2);
+		}
 
 		if (test_bit(R5_Wantfill, &dev->flags)) {
 			s.to_fill++;
