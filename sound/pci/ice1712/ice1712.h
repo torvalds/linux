@@ -359,7 +359,9 @@ struct snd_ice1712 {
 		unsigned int saved[2];		/* for ewx_i2c */
 		/* operators */
 		void (*set_mask)(struct snd_ice1712 *ice, unsigned int data);
+		unsigned int (*get_mask)(struct snd_ice1712 *ice);
 		void (*set_dir)(struct snd_ice1712 *ice, unsigned int data);
+		unsigned int (*get_dir)(struct snd_ice1712 *ice);
 		void (*set_data)(struct snd_ice1712 *ice, unsigned int data);
 		unsigned int (*get_data)(struct snd_ice1712 *ice);
 		/* misc operators - move to another place? */
@@ -397,6 +399,11 @@ struct snd_ice1712 {
 static inline void snd_ice1712_gpio_set_dir(struct snd_ice1712 *ice, unsigned int bits)
 {
 	ice->gpio.set_dir(ice, bits);
+}
+
+static inline unsigned int snd_ice1712_gpio_get_dir(struct snd_ice1712 *ice)
+{
+	return ice->gpio.get_dir(ice);
 }
 
 static inline void snd_ice1712_gpio_set_mask(struct snd_ice1712 *ice, unsigned int bits)

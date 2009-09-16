@@ -196,6 +196,12 @@ static void snd_vt1724_set_gpio_dir(struct snd_ice1712 *ice, unsigned int data)
 	inw(ICEREG1724(ice, GPIO_DIRECTION)); /* dummy read for pci-posting */
 }
 
+/* get gpio direction 0 = read, 1 = write */
+static unsigned int snd_vt1724_get_gpio_dir(struct snd_ice1712 *ice)
+{
+	return inl(ICEREG1724(ice, GPIO_DIRECTION));
+}
+
 /* set the gpio mask (0 = writable) */
 static void snd_vt1724_set_gpio_mask(struct snd_ice1712 *ice, unsigned int data)
 {
@@ -203,6 +209,17 @@ static void snd_vt1724_set_gpio_mask(struct snd_ice1712 *ice, unsigned int data)
 	if (!ice->vt1720) /* VT1720 supports only 16 GPIO bits */
 		outb((data >> 16) & 0xff, ICEREG1724(ice, GPIO_WRITE_MASK_22));
 	inw(ICEREG1724(ice, GPIO_WRITE_MASK)); /* dummy read for pci-posting */
+}
+
+static unsigned int snd_vt1724_get_gpio_mask(struct snd_ice1712 *ice)
+{
+	unsigned int mask;
+	if (!ice->vt1720)
+		mask = (unsigned int)inb(ICEREG1724(ice, GPIO_WRITE_MASK_22));
+	else
+		mask = 0;
+	mask = (mask << 16) | inw(ICEREG1724(ice, GPIO_WRITE_MASK));
+	return mask;
 }
 
 static void snd_vt1724_set_gpio_data(struct snd_ice1712 *ice, unsigned int data)
@@ -2434,7 +2451,9 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 	mutex_init(&ice->open_mutex);
 	mutex_init(&ice->i2c_mutex);
 	ice->gpio.set_mask = snd_vt1724_set_gpio_mask;
+	ice->gpio.get_mask = snd_vt1724_get_gpio_mask;
 	ice->gpio.set_dir = snd_vt1724_set_gpio_dir;
+	ice->gpio.get_dir = snd_vt1724_get_gpio_dir;
 	ice->gpio.set_data = snd_vt1724_set_gpio_data;
 	ice->gpio.get_data = snd_vt1724_get_gpio_data;
 	ice->card = card;
