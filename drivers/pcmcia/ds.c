@@ -236,7 +236,6 @@ pcmcia_store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	if (!dynid)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&dynid->node);
 	dynid->id.match_flags = match_flags;
 	dynid->id.manf_id = manf_id;
 	dynid->id.card_id = card_id;
@@ -246,7 +245,7 @@ pcmcia_store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	memcpy(dynid->id.prod_id_hash, prod_id_hash, sizeof(__u32) * 4);
 
 	spin_lock(&pdrv->dynids.lock);
-	list_add_tail(&pdrv->dynids.list, &dynid->node);
+	list_add_tail(&dynid->node, &pdrv->dynids.list);
 	spin_unlock(&pdrv->dynids.lock);
 
 	if (get_driver(&pdrv->drv)) {
