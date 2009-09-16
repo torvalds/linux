@@ -2343,7 +2343,11 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 	/*
 	 * In order to handle concurrent wakeups and release the rq->lock
 	 * we put the task in TASK_WAKING state.
+	 *
+	 * First fix up the nr_uninterruptible count:
 	 */
+	if (task_contributes_to_load(p))
+		rq->nr_uninterruptible--;
 	p->state = TASK_WAKING;
 	task_rq_unlock(rq, &flags);
 
