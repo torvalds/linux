@@ -2472,10 +2472,18 @@ static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
-	return (vmcb->save.rflags & X86_EFLAGS_IF) &&
-		!(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
-		gif_set(svm) &&
-		!(is_nested(svm) && (svm->vcpu.arch.hflags & HF_VINTR_MASK));
+	int ret;
+
+	if (!gif_set(svm) ||
+	     (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK))
+		return 0;
+
+	ret = !!(vmcb->save.rflags & X86_EFLAGS_IF);
+
+	if (is_nested(svm))
+		return ret && !(svm->vcpu.arch.hflags & HF_VINTR_MASK);
+
+	return ret;
 }
 
 static void enable_irq_window(struct kvm_vcpu *vcpu)
