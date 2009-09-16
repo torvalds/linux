@@ -506,15 +506,6 @@ are used for TV and radio devices alike. Drivers must support both
 ioctls when the tuner or modulator ioctls are supported, or
 when the device is a radio device.</para>
     </section>
-
-    <section>
-      <title>Satellite Receivers</title>
-
-      <para>To be discussed. See also <!-- private discussions of
-Peter Schlaf, BD & MHS on 23 Jun 1999 ff., subject "v4l2 and satellit" and -->
-proposals by Peter Schlaf, video4linux-list@redhat.com on 23 Oct 2002,
-subject: "Re: [V4L] Re: v4l2 api".</para>
-    </section>
   </section>
 
   <section id="standard">
