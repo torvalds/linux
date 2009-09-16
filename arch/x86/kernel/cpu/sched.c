@@ -8,11 +8,11 @@
 
 #ifdef CONFIG_SMP
 
-static DEFINE_PER_CPU(struct aperfmperf, old_perf);
+static DEFINE_PER_CPU(struct aperfmperf, old_perf_sched);
 
 static unsigned long scale_aperfmperf(void)
 {
-	struct aperfmperf val, *old = &__get_cpu_var(old_perf);
+	struct aperfmperf val, *old = &__get_cpu_var(old_perf_sched);
 	unsigned long ratio, flags;
 
 	local_irq_save(flags);
