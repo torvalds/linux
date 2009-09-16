@@ -864,7 +864,7 @@ int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -913,7 +913,7 @@ int iucv_path_connect(struct iucv_path *path, struct iucv_handler *handler,
 
 	spin_lock_bh(&iucv_table_lock);
 	iucv_cleanup_queue();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -973,7 +973,7 @@ int iucv_path_quiesce(struct iucv_path *path, u8 userdata[16])
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1005,7 +1005,7 @@ int iucv_path_resume(struct iucv_path *path, u8 userdata[16])
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1034,7 +1034,7 @@ int iucv_path_sever(struct iucv_path *path, u8 userdata[16])
 	int rc;
 
 	preempt_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1068,7 +1068,7 @@ int iucv_message_purge(struct iucv_path *path, struct iucv_message *msg,
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1160,7 +1160,7 @@ int __iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
 	if (msg->flags & IUCV_IPRMDATA)
 		return iucv_message_receive_iprmdata(path, msg, flags,
 						     buffer, size, residual);
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1233,7 +1233,7 @@ int iucv_message_reject(struct iucv_path *path, struct iucv_message *msg)
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1272,7 +1272,7 @@ int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1322,7 +1322,7 @@ int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
 	union iucv_param *parm;
 	int rc;
 
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
@@ -1409,7 +1409,7 @@ int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
 	int rc;
 
 	local_bh_disable();
-	if (!cpu_isset(smp_processor_id(), iucv_buffer_cpumask)) {
+	if (cpus_empty(iucv_buffer_cpumask)) {
 		rc = -EIO;
 		goto out;
 	}
