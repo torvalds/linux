@@ -582,16 +582,8 @@ static void balance_dirty_pages(struct address_space *mapping)
 	if ((laptop_mode && pages_written) ||
 	    (!laptop_mode && ((nr_writeback = global_page_state(NR_FILE_DIRTY)
 					  + global_page_state(NR_UNSTABLE_NFS))
-					  > background_thresh))) {
-		struct writeback_control wbc = {
-			.bdi		= bdi,
-			.sync_mode	= WB_SYNC_NONE,
-			.nr_to_write	= nr_writeback,
-		};
-
-
-		bdi_start_writeback(&wbc);
-	}
+					  > background_thresh)))
+		bdi_start_writeback(bdi, nr_writeback);
 }
 
 void set_page_dirty_balance(struct page *page, int page_mkwrite)
