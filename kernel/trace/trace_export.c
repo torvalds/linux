@@ -23,6 +23,47 @@
 #define __field_struct(type, item)
 
 #undef __field
+#define __field(type, item)				type item;
+
+#undef __field_desc
+#define __field_desc(type, container, item)		type item;
+
+#undef __array
+#define __array(type, item, size)			type item[size];
+
+#undef __array_desc
+#define __array_desc(type, container, item, size)	type item[size];
+
+#undef __dynamic_array
+#define __dynamic_array(type, item)			type item[];
+
+#undef F_STRUCT
+#define F_STRUCT(args...)				args
+
+#undef F_printk
+#define F_printk(fmt, args...) fmt, args
+
+#undef FTRACE_ENTRY
+#define FTRACE_ENTRY(name, struct_name, id, tstruct, print)	\
+struct ____ftrace_##name {					\
+	tstruct							\
+};								\
+static void __used ____ftrace_check_##name(void)		\
+{								\
+	struct ____ftrace_##name *__entry = NULL;		\
+								\
+	/* force cmpile-time check on F_printk() */		\
+	printk(print);						\
+}
+
+#undef FTRACE_ENTRY_DUP
+#define FTRACE_ENTRY_DUP(name, struct_name, id, tstruct, print)	\
+	FTRACE_ENTRY(name, struct_name, id, PARAMS(tstruct), PARAMS(print))
+
+#include "trace_entries.h"
+
+
+#undef __field
 #define __field(type, item)						\
 	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
 			       "offset:%zu;\tsize:%zu;\n",		\
@@ -87,10 +128,6 @@ ftrace_format_##name(struct ftrace_event_call *unused,			\
 									\
 	return ret;							\
 }
-
-#undef FTRACE_ENTRY_DUP
-#define FTRACE_ENTRY_DUP(name, struct_name, id, tstruct, print)	\
-	FTRACE_ENTRY(name, struct_name, id, PARAMS(tstruct), PARAMS(print))
 
 #include "trace_entries.h"
 
@@ -171,32 +208,6 @@ ftrace_define_fields_##name(struct ftrace_event_call *event_call)	\
 
 #undef __dynamic_array
 #define __dynamic_array(type, item)
-
-
-#undef TRACE_ZERO_CHAR
-#define TRACE_ZERO_CHAR(arg)
-
-#undef TRACE_FIELD
-#define TRACE_FIELD(type, item, assign)\
-	entry->item = assign;
-
-#undef TRACE_FIELD
-#define TRACE_FIELD(type, item, assign)\
-	entry->item = assign;
-
-#undef TRACE_FIELD_SIGN
-#define TRACE_FIELD_SIGN(type, item, assign, is_signed)	\
-	TRACE_FIELD(type, item, assign)
-
-#undef TP_CMD
-#define TP_CMD(cmd...)	cmd
-
-#undef TRACE_ENTRY
-#define TRACE_ENTRY	entry
-
-#undef TRACE_FIELD_SPECIAL
-#define TRACE_FIELD_SPECIAL(type_item, item, len, cmd)	\
-	cmd;
 
 #undef FTRACE_ENTRY
 #define FTRACE_ENTRY(call, struct_name, type, tstruct, print)		\
