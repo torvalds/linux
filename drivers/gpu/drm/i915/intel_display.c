@@ -1005,6 +1005,9 @@ void i8xx_disable_fbc(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 fbc_ctl;
 
+	if (!I915_HAS_FBC(dev))
+		return;
+
 	/* Disable compression */
 	fbc_ctl = I915_READ(FBC_CONTROL);
 	fbc_ctl &= ~FBC_CTL_EN;
