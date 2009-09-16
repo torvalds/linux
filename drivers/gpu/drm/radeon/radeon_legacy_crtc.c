@@ -341,6 +341,9 @@ void radeon_legacy_atom_set_surface(struct drm_crtc *crtc)
 	uint32_t crtc_pitch;
 
 	switch (crtc->fb->bits_per_pixel) {
+	case 8:
+		format = 2;
+		break;
 	case 15:      /*  555 */
 		format = 3;
 		break;
@@ -401,10 +404,32 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	uint32_t crtc_offset, crtc_offset_cntl, crtc_tile_x0_y0 = 0;
 	uint32_t crtc_pitch, pitch_pixels;
 	uint32_t tiling_flags;
+	int format;
+	uint32_t gen_cntl_reg, gen_cntl_val;
 
 	DRM_DEBUG("\n");
 
 	radeon_fb = to_radeon_framebuffer(crtc->fb);
+
+	switch (crtc->fb->bits_per_pixel) {
+	case 8:
+		format = 2;
+		break;
+	case 15:      /*  555 */
+		format = 3;
+		break;
+	case 16:      /*  565 */
+		format = 4;
+		break;
+	case 24:      /*  RGB */
+		format = 5;
+		break;
+	case 32:      /* xRGB */
+		format = 6;
+		break;
+	default:
+		return false;
+	}
 
 	obj = radeon_fb->obj;
 	if (radeon_gem_object_pin(obj, RADEON_GEM_DOMAIN_VRAM, &base)) {
@@ -458,6 +483,9 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	} else {
 		int offset = y * pitch_pixels + x;
 		switch (crtc->fb->bits_per_pixel) {
+		case 8:
+			offset *= 1;
+			break;
 		case 15:
 		case 16:
 			offset *= 2;
@@ -475,6 +503,16 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	base &= ~7;
+
+	if (radeon_crtc->crtc_id == 1)
+		gen_cntl_reg = RADEON_CRTC2_GEN_CNTL;
+	else
+		gen_cntl_reg = RADEON_CRTC_GEN_CNTL;
+
+	gen_cntl_val = RREG32(gen_cntl_reg);
+	gen_cntl_val &= ~(0xf << 8);
+	gen_cntl_val |= (format << 8);
+	WREG32(gen_cntl_reg, gen_cntl_val);
 
 	crtc_offset = (u32)base;
 
@@ -526,6 +564,9 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 	}
 
 	switch (crtc->fb->bits_per_pixel) {
+	case 8:
+		format = 2;
+		break;
 	case 15:      /*  555 */
 		format = 3;
 		break;

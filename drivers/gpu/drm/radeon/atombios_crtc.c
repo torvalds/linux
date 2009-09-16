@@ -488,6 +488,11 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	switch (crtc->fb->bits_per_pixel) {
+	case 8:
+		fb_format =
+		    AVIVO_D1GRPH_CONTROL_DEPTH_8BPP |
+		    AVIVO_D1GRPH_CONTROL_8BPP_INDEXED;
+		break;
 	case 15:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
