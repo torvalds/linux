@@ -1149,6 +1149,13 @@ int redirty_page_for_writepage(struct writeback_control *wbc, struct page *page)
 EXPORT_SYMBOL(redirty_page_for_writepage);
 
 /*
+ * Dirty a page.
+ *
+ * For pages with a mapping this should be done under the page lock
+ * for the benefit of asynchronous memory errors who prefer a consistent
+ * dirty state. This rule can be broken in some special cases,
+ * but should be better not to.
+ *
  * If the mapping doesn't provide a set_page_dirty a_op, then
  * just fall through and assume that it wants buffer_heads.
  */
