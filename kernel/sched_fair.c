@@ -1605,9 +1605,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 		return;
 	}
 
-	if (!sched_feat(WAKEUP_PREEMPT))
-		return;
-
 	if ((sched_feat(WAKEUP_SYNC) && sync) ||
 	    (sched_feat(WAKEUP_OVERLAP) &&
 	     (se->avg_overlap < sysctl_sched_migration_cost &&
@@ -1615,6 +1612,17 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 		resched_task(curr);
 		return;
 	}
+
+	if (sched_feat(WAKEUP_RUNNING)) {
+		if (pse->avg_running < se->avg_running) {
+			set_next_buddy(pse);
+			resched_task(curr);
+			return;
+		}
+	}
+
+	if (!sched_feat(WAKEUP_PREEMPT))
+		return;
 
 	find_matching_se(&se, &pse);
 

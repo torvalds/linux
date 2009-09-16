@@ -1113,6 +1113,8 @@ struct sched_entity {
 	u64			start_runtime;
 	u64			avg_wakeup;
 
+	u64			avg_running;
+
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
 	u64			wait_max;

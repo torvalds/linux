@@ -2458,6 +2458,7 @@ static void __sched_fork(struct task_struct *p)
 	p->se.avg_overlap		= 0;
 	p->se.start_runtime		= 0;
 	p->se.avg_wakeup		= sysctl_sched_wakeup_granularity;
+	p->se.avg_running		= 0;
 
 #ifdef CONFIG_SCHEDSTATS
 	p->se.wait_start			= 0;
@@ -5310,14 +5311,13 @@ static inline void schedule_debug(struct task_struct *prev)
 #endif
 }
 
-static void put_prev_task(struct rq *rq, struct task_struct *prev)
+static void put_prev_task(struct rq *rq, struct task_struct *p)
 {
-	if (prev->state == TASK_RUNNING) {
-		u64 runtime = prev->se.sum_exec_runtime;
+	u64 runtime = p->se.sum_exec_runtime - p->se.prev_sum_exec_runtime;
 
-		runtime -= prev->se.prev_sum_exec_runtime;
-		runtime = min_t(u64, runtime, 2*sysctl_sched_migration_cost);
+	update_avg(&p->se.avg_running, runtime);
 
+	if (p->state == TASK_RUNNING) {
 		/*
 		 * In order to avoid avg_overlap growing stale when we are
 		 * indeed overlapping and hence not getting put to sleep, grow
@@ -5327,9 +5327,12 @@ static void put_prev_task(struct rq *rq, struct task_struct *prev)
 		 * correlates to the amount of cache footprint a task can
 		 * build up.
 		 */
-		update_avg(&prev->se.avg_overlap, runtime);
+		runtime = min_t(u64, runtime, 2*sysctl_sched_migration_cost);
+		update_avg(&p->se.avg_overlap, runtime);
+	} else {
+		update_avg(&p->se.avg_running, 0);
 	}
-	prev->sched_class->put_prev_task(rq, prev);
+	p->sched_class->put_prev_task(rq, p);
 }
 
 /*
