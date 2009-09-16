@@ -117,7 +117,11 @@ static u64			run_avg;
 
 static unsigned long		replay_repeat = 10;
 static unsigned long		nr_timestamps;
-static unsigned long		unordered_timestamps;
+static unsigned long		nr_unordered_timestamps;
+static unsigned long		nr_state_machine_bugs;
+static unsigned long		nr_events;
+static unsigned long		nr_lost_chunks;
+static unsigned long		nr_lost_events;
 
 #define TASK_STATE_TO_CHAR_STR "RSDTtZX"
 
@@ -668,14 +672,14 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 
 	thread = threads__findnew(event->comm.pid, &threads, &last_match);
 
-	dump_printf("%p [%p]: PERF_EVENT_COMM: %s:%d\n",
+	dump_printf("%p [%p]: perf_event_comm: %s:%d\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->comm.comm, event->comm.pid);
 
 	if (thread == NULL ||
 	    thread__set_comm(thread, event->comm.comm)) {
-		dump_printf("problem processing PERF_EVENT_COMM, skipping event.\n");
+		dump_printf("problem processing perf_event_comm, skipping event.\n");
 		return -1;
 	}
 	total_comm++;
@@ -1168,14 +1172,12 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 
 	atom = list_entry(atoms->work_list.prev, struct work_atom, list);
 
-	if (atom->state != THREAD_SLEEPING) {
-		printf("boo2\n");
-		return;
-	}
+	if (atom->state != THREAD_SLEEPING)
+		nr_state_machine_bugs++;
 
 	nr_timestamps++;
 	if (atom->sched_out_time > timestamp) {
-		unordered_timestamps++;
+		nr_unordered_timestamps++;
 		return;
 	}
 
@@ -1214,7 +1216,7 @@ static void output_lat_thread(struct work_atoms *work_list)
 
 	avg = work_list->total_lat / work_list->nb_atoms;
 
-	printf("|%9.3f ms |%9llu | avg:%9.3f ms | max:%9.3f ms |\n",
+	printf("|%11.3f ms |%9llu | avg:%9.3f ms | max:%9.3f ms |\n",
 	      (double)work_list->total_runtime / 1e6,
 		 work_list->nb_atoms, (double)avg / 1e6,
 		 (double)work_list->max_lat / 1e6);
@@ -1359,9 +1361,9 @@ static void __cmd_lat(void)
 	read_events();
 	sort_lat();
 
-	printf("\n ---------------------------------------------------------------------------------------\n");
-	printf("  Task                  |  Runtime ms | Switches | Average delay ms | Maximum delay ms |\n");
-	printf(" ---------------------------------------------------------------------------------------\n");
+	printf("\n -----------------------------------------------------------------------------------------\n");
+	printf("  Task                  |   Runtime ms  | Switches | Average delay ms | Maximum delay ms |\n");
+	printf(" -----------------------------------------------------------------------------------------\n");
 
 	next = rb_first(&sorted_atom_root);
 
@@ -1373,18 +1375,32 @@ static void __cmd_lat(void)
 		next = rb_next(next);
 	}
 
-	printf(" ---------------------------------------------------------------------------------------\n");
-	printf("  TOTAL:                |%9.3f ms |%9Ld |",
+	printf(" -----------------------------------------------------------------------------------------\n");
+	printf("  TOTAL:                |%11.3f ms |%9Ld |\n",
 		(double)all_runtime/1e6, all_count);
 
-	if (unordered_timestamps && nr_timestamps) {
-		printf(" INFO: %.2f%% unordered events.\n",
-			(double)unordered_timestamps/(double)nr_timestamps*100.0);
+	printf(" ---------------------------------------------------\n");
+	if (nr_unordered_timestamps && nr_timestamps) {
+		printf("  INFO: %.3f%% unordered timestamps (%ld out of %ld)\n",
+			(double)nr_unordered_timestamps/(double)nr_timestamps*100.0,
+			nr_unordered_timestamps, nr_timestamps);
 	} else {
+	}
+	if (nr_lost_events && nr_events) {
+		printf("  INFO: %.3f%% lost events (%ld out of %ld, in %ld chunks)\n",
+			(double)nr_lost_events/(double)nr_events*100.0,
+			nr_lost_events, nr_events, nr_lost_chunks);
+	}
+	if (nr_state_machine_bugs && nr_timestamps) {
+		printf("  INFO: %.3f%% state machine bugs (%ld out of %ld)",
+			(double)nr_state_machine_bugs/(double)nr_timestamps*100.0,
+			nr_state_machine_bugs, nr_timestamps);
+		if (nr_lost_events)
+			printf(" (due to lost events?)");
 		printf("\n");
 	}
+	printf("\n");
 
-	printf(" -------------------------------------------------\n\n");
 }
 
 static struct trace_sched_handler *trace_handler;
@@ -1585,8 +1601,13 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	trace_event(event);
 
+	nr_events++;
 	switch (event->header.type) {
-	case PERF_EVENT_MMAP ... PERF_EVENT_LOST:
+	case PERF_EVENT_MMAP:
+		return 0;
+	case PERF_EVENT_LOST:
+		nr_lost_chunks++;
+		nr_lost_events += event->lost.lost;
 		return 0;
 
 	case PERF_EVENT_COMM:
@@ -1768,6 +1789,7 @@ static const char *record_args[] = {
 	"-R",
 	"-M",
 	"-f",
+	"-m", "1024",
 	"-c", "1",
 	"-e", "sched:sched_switch:r",
 	"-e", "sched:sched_stat_wait:r",

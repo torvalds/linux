@@ -52,7 +52,7 @@ struct lost_event {
  */
 struct read_event {
 	struct perf_event_header header;
-	u32 pid,tid;
+	u32 pid, tid;
 	u64 value;
 	u64 time_enabled;
 	u64 time_running;
