@@ -411,7 +411,7 @@ static struct davinci_clk da830_clks[] = {
 	CLK(NULL,		"pwm2",		&pwm2_clk),
 	CLK("eqep.0",		NULL,		&eqep0_clk),
 	CLK("eqep.1",		NULL,		&eqep1_clk),
-	CLK("da830_lcdc",	NULL,		&lcdc_clk),
+	CLK("da8xx_lcdc.0",	NULL,		&lcdc_clk),
 	CLK("davinci-mcasp.0",	NULL,		&mcasp0_clk),
 	CLK("davinci-mcasp.1",	NULL,		&mcasp1_clk),
 	CLK("davinci-mcasp.2",	NULL,		&mcasp2_clk),

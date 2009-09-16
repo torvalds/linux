@@ -101,6 +101,27 @@ config MACH_DAVINCI_DA830_EVM
 	help
 	  Say Y here to select the TI DA830/OMAP-L137 Evaluation Module.
 
+config DA830_UI
+	bool "DA830/OMAP-L137 UI (User Interface) board support"
+	depends on MACH_DAVINCI_DA830_EVM
+	help
+	  Say Y here if you have the DA830/OMAP-L137 UI
+	  (User Interface) board installed and you want to
+	  enable the peripherals located on User Interface
+	  board.
+
+choice
+	prompt "Select DA830/OMAP-L137 UI board peripheral"
+	depends on DA830_UI
+
+config DA830_UI_LCD
+	bool "LCD"
+	help
+	  Say Y here to use the LCD as a framebuffer or simple character
+	  display.
+
+endchoice
+
 config MACH_DAVINCI_DA850_EVM
 	bool "TI DA850/OMAP-L138 Reference Platform"
 	default ARCH_DAVINCI_DA850

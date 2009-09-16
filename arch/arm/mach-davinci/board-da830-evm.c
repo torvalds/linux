@@ -13,7 +13,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/console.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pcf857x.h>
 #include <linux/i2c/at24.h>
 
 #include <asm/mach-types.h>
@@ -38,6 +40,31 @@ static struct at24_platform_data da830_evm_i2c_eeprom_info = {
 	.context	= (void *)0x7f00,
 };
 
+static int da830_evm_ui_expander_setup(struct i2c_client *client, int gpio,
+		unsigned ngpio, void *context)
+{
+	gpio_request(gpio + 6, "MUX_MODE");
+#ifdef CONFIG_DA830_UI_LCD
+	gpio_direction_output(gpio + 6, 0);
+#else /* Must be NAND or NOR */
+	gpio_direction_output(gpio + 6, 1);
+#endif
+	return 0;
+}
+
+static int da830_evm_ui_expander_teardown(struct i2c_client *client, int gpio,
+		unsigned ngpio, void *context)
+{
+	gpio_free(gpio + 6);
+	return 0;
+}
+
+static struct pcf857x_platform_data da830_evm_ui_expander_info = {
+	.gpio_base	= DAVINCI_N_GPIO,
+	.setup		= da830_evm_ui_expander_setup,
+	.teardown	= da830_evm_ui_expander_teardown,
+};
+
 static struct i2c_board_info __initdata da830_evm_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("24c256", 0x50),
@@ -45,7 +72,11 @@ static struct i2c_board_info __initdata da830_evm_i2c_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
-	}
+	},
+	{
+		I2C_BOARD_INFO("pcf8574", 0x3f),
+		.platform_data	= &da830_evm_ui_expander_info,
+	},
 };
 
 static struct davinci_i2c_platform_data da830_evm_i2c_0_pdata = {
@@ -186,6 +217,17 @@ static __init void da830_evm_init(void)
 	da8xx_register_mcasp(1, &da830_evm_snd_data);
 
 	da830_evm_init_mmc();
+
+#ifdef CONFIG_DA830_UI_LCD
+	ret = da8xx_pinmux_setup(da830_lcdcntl_pins);
+	if (ret)
+		pr_warning("da830_evm_init: lcdcntl mux setup failed: %d\n",
+				ret);
+
+	ret = da8xx_register_lcdc(&sharp_lcd035q3dg01_pdata);
+	if (ret)
+		pr_warning("da830_evm_init: lcd setup failed: %d\n", ret);
+#endif
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
