@@ -121,8 +121,6 @@ source "drivers/staging/serqt_usb2/Kconfig"
 
 source "drivers/staging/vt6655/Kconfig"
 
-source "drivers/staging/cpc-usb/Kconfig"
-
 source "drivers/staging/pata_rdc/Kconfig"
 
 source "drivers/staging/udlfb/Kconfig"
