@@ -711,7 +711,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	if (!initial) {
 		/* sleeps upto a single latency don't count. */
-		if (sched_feat(NEW_FAIR_SLEEPERS)) {
+		if (sched_feat(FAIR_SLEEPERS)) {
 			unsigned long thresh = sysctl_sched_latency;
 
 			/*
@@ -724,6 +724,13 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 					(!entity_is_task(se) ||
 					 task_of(se)->policy != SCHED_IDLE))
 				thresh = calc_delta_fair(thresh, se);
+
+			/*
+			 * Halve their sleep time's effect, to allow
+			 * for a gentler effect of sleepers:
+			 */
+			if (sched_feat(GENTLE_FAIR_SLEEPERS))
+				thresh >>= 1;
 
 			vruntime -= thresh;
 		}

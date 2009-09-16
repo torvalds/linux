@@ -3,7 +3,14 @@
  * considers the task to be running during that period. This gives it
  * a service deficit on wakeup, allowing it to run sooner.
  */
-SCHED_FEAT(NEW_FAIR_SLEEPERS, 0)
+SCHED_FEAT(FAIR_SLEEPERS, 1)
+
+/*
+ * Only give sleepers 50% of their service deficit. This allows
+ * them to run sooner, but does not allow tons of sleepers to
+ * rip the spread apart.
+ */
+SCHED_FEAT(GENTLE_FAIR_SLEEPERS, 1)
 
 /*
  * By not normalizing the sleep time, heavy tasks get an effective
