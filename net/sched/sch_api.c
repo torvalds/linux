@@ -809,7 +809,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 			stab = qdisc_get_stab(tca[TCA_STAB]);
 			if (IS_ERR(stab)) {
 				err = PTR_ERR(stab);
-				goto err_out3;
+				goto err_out4;
 			}
 			sch->stab = stab;
 		}
@@ -838,7 +838,6 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 		return sch;
 	}
 err_out3:
-	qdisc_put_stab(sch->stab);
 	dev_put(dev);
 	kfree((char *) sch - sch->padded);
 err_out2:
@@ -852,6 +851,7 @@ err_out4:
 	 * Any broken qdiscs that would require a ops->reset() here?
 	 * The qdisc was never in action so it shouldn't be necessary.
 	 */
+	qdisc_put_stab(sch->stab);
 	if (ops->destroy)
 		ops->destroy(sch);
 	goto err_out3;
