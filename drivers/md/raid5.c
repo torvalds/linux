@@ -810,7 +810,7 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 	BUG_ON(!test_bit(R5_Wantcompute, &tgt->flags));
 	BUG_ON(!test_bit(R5_Wantcompute, &tgt2->flags));
 
-	/* we need to open-code set_syndrome_sources to handle to the
+	/* we need to open-code set_syndrome_sources to handle the
 	 * slot number conversion for 'faila' and 'failb'
 	 */
 	for (i = 0; i < disks ; i++)
@@ -879,18 +879,21 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 			return async_gen_syndrome(blocks, 0, count+2,
 						  STRIPE_SIZE, &submit);
 		}
-	}
-
-	init_async_submit(&submit, ASYNC_TX_FENCE, NULL, ops_complete_compute,
-			  sh, to_addr_conv(sh, percpu));
-	if (failb == syndrome_disks) {
-		/* We're missing D+P. */
-		return async_raid6_datap_recov(syndrome_disks+2, STRIPE_SIZE,
-					       faila, blocks, &submit);
 	} else {
-		/* We're missing D+D. */
-		return async_raid6_2data_recov(syndrome_disks+2, STRIPE_SIZE,
-					       faila, failb, blocks, &submit);
+		init_async_submit(&submit, ASYNC_TX_FENCE, NULL,
+				  ops_complete_compute, sh,
+				  to_addr_conv(sh, percpu));
+		if (failb == syndrome_disks) {
+			/* We're missing D+P. */
+			return async_raid6_datap_recov(syndrome_disks+2,
+						       STRIPE_SIZE, faila,
+						       blocks, &submit);
+		} else {
+			/* We're missing D+D. */
+			return async_raid6_2data_recov(syndrome_disks+2,
+						       STRIPE_SIZE, faila, failb,
+						       blocks, &submit);
+		}
 	}
 }
 
