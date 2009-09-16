@@ -39,7 +39,9 @@ get_ext_path(struct inode *inode, ext4_lblk_t lblock,
 	if (IS_ERR(*path)) {
 		ret = PTR_ERR(*path);
 		*path = NULL;
-	}
+	} else if ((*path)[ext_depth(inode)].p_ext == NULL)
+		ret = -ENODATA;
+
 	return ret;
 }
 
@@ -316,7 +318,7 @@ mext_insert_across_blocks(handle_t *handle, struct inode *orig_inode,
 
 	if (new_flag) {
 		err = get_ext_path(orig_inode, eblock, &orig_path);
-		if (orig_path == NULL)
+		if (err)
 			goto out;
 
 		if (ext4_ext_insert_extent(handle, orig_inode,
@@ -327,7 +329,7 @@ mext_insert_across_blocks(handle_t *handle, struct inode *orig_inode,
 	if (end_flag) {
 		err = get_ext_path(orig_inode,
 				le32_to_cpu(end_ext->ee_block) - 1, &orig_path);
-		if (orig_path == NULL)
+		if (err)
 			goto out;
 
 		if (ext4_ext_insert_extent(handle, orig_inode,
@@ -673,12 +675,12 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 
 	/* Get the original extent for the block "orig_off" */
 	err = get_ext_path(orig_inode, orig_off, &orig_path);
-	if (orig_path == NULL)
+	if (err)
 		goto out;
 
 	/* Get the donor extent for the head */
 	err = get_ext_path(donor_inode, donor_off, &donor_path);
-	if (donor_path == NULL)
+	if (err)
 		goto out;
 	depth = ext_depth(orig_inode);
 	oext = orig_path[depth].p_ext;
@@ -733,7 +735,7 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 		if (orig_path)
 			ext4_ext_drop_refs(orig_path);
 		err = get_ext_path(orig_inode, orig_off, &orig_path);
-		if (orig_path == NULL)
+		if (err)
 			goto out;
 		depth = ext_depth(orig_inode);
 		oext = orig_path[depth].p_ext;
@@ -747,7 +749,7 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 		if (donor_path)
 			ext4_ext_drop_refs(donor_path);
 		err = get_ext_path(donor_inode, donor_off, &donor_path);
-		if (donor_path == NULL)
+		if (err)
 			goto out;
 		depth = ext_depth(donor_inode);
 		dext = donor_path[depth].p_ext;
@@ -1221,7 +1223,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 					donor_start, &len, *moved_len);
 	mext_double_up_read(orig_inode, donor_inode);
 	if (ret1)
-		goto out2;
+		goto out;
 
 	file_end = (i_size_read(orig_inode) - 1) >> orig_inode->i_blkbits;
 	block_end = block_start + len - 1;
@@ -1229,20 +1231,16 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		len -= block_end - file_end;
 
 	ret1 = get_ext_path(orig_inode, block_start, &orig_path);
-	if (orig_path == NULL)
-		goto out2;
+	if (ret1)
+		goto out;
 
 	/* Get path structure to check the hole */
 	ret1 = get_ext_path(orig_inode, block_start, &holecheck_path);
-	if (holecheck_path == NULL)
+	if (ret1)
 		goto out;
 
 	depth = ext_depth(orig_inode);
 	ext_cur = holecheck_path[depth].p_ext;
-	if (ext_cur == NULL) {
-		ret1 = -EINVAL;
-		goto out;
-	}
 
 	/*
 	 * Get proper extent whose ee_block is beyond block_start
@@ -1371,7 +1369,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		if (holecheck_path)
 			ext4_ext_drop_refs(holecheck_path);
 		ret1 = get_ext_path(orig_inode, seq_start, &holecheck_path);
-		if (holecheck_path == NULL)
+		if (ret1)
 			break;
 		depth = holecheck_path->p_depth;
 
@@ -1379,7 +1377,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		if (orig_path)
 			ext4_ext_drop_refs(orig_path);
 		ret1 = get_ext_path(orig_inode, seq_start, &orig_path);
-		if (orig_path == NULL)
+		if (ret1)
 			break;
 
 		ext_cur = holecheck_path[depth].p_ext;
@@ -1396,7 +1394,7 @@ out:
 		ext4_ext_drop_refs(holecheck_path);
 		kfree(holecheck_path);
 	}
-out2:
+
 	ret2 = mext_inode_double_unlock(orig_inode, donor_inode);
 
 	if (ret1)
