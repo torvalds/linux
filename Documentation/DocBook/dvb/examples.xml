@@ -2,7 +2,7 @@
 <para>In this section we would like to present some examples for using the DVB API.
 </para>
 <para>Maintainer note: This section is out of date. Please refer to the sample programs packaged
-with the driver distribution from <emphasis role="tt">http://linuxtv.org/</emphasis>.
+with the driver distribution from <ulink url="http://linuxtv.org/hg/dvb-apps" />.
 </para>
 
 <section id="tuning">

@@ -11,8 +11,8 @@ role="tt">linux/dvb/frontend.h</emphasis> in your application.</para>
 is not yet handled by this API but a future extension is possible. For
 DVB-S the frontend device also supports satellite equipment control
 (SEC) via DiSEqC and V-SEC protocols. The DiSEqC (digital SEC)
-specification is available from Eutelsat <emphasis
-role="tt">http://www.eutelsat.org/</emphasis>.</para>
+specification is available from
+<ulink url="http://www.eutelsat.com/satellites/4_5_5.html">Eutelsat</ulink>.</para>
 
 <para>Note that the DVB API may also be used for MPEG decoder-only PCI
 cards, in which case there exists no frontend device.</para>

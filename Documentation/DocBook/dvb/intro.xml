@@ -10,8 +10,8 @@ you should know what a program/transport stream (PS/TS) is and what is
 meant by a packetized elementary stream (PES) or an I-frame.</para>
 
 <para>Various DVB standards documents are available from
-<emphasis role="tt">http://www.dvb.org/</emphasis> and/or
-<emphasis role="tt">http://www.etsi.org/</emphasis>.</para>
+<ulink url="http://www.dvb.org" /> and/or
+<ulink url="http://www.etsi.org" />.</para>
 
 <para>It is also necessary to know how to access unix/linux devices and
 how to use ioctl calls. This also includes the knowledge of C or C++.
@@ -31,8 +31,8 @@ and filtering several section and PES data streams at the same time.
 <para>In early 2000, we were approached by Nokia with a proposal for a
 new standard Linux DVB API. As a commitment to the development of
 terminals based on open standards, Nokia and Convergence made it
-available to all Linux developers and published it on <emphasis
-role="tt">http://www.linuxtv.org/</emphasis> in September 2000.
+available to all Linux developers and published it on
+<ulink url="http://www.linuxtv.org/" /> in September 2000.
 Convergence is the maintainer of the Linux DVB API. Together with the
 LinuxTV community (i.e. you, the reader of this document), the Linux DVB
 API will be constantly reviewed and improved. With the Linux driver for
