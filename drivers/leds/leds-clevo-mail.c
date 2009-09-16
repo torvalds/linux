@@ -93,12 +93,16 @@ static struct dmi_system_id __initdata mail_led_whitelist[] = {
 static void clevo_mail_led_set(struct led_classdev *led_cdev,
 				enum led_brightness value)
 {
+	i8042_lock_chip();
+
 	if (value == LED_OFF)
 		i8042_command(NULL, CLEVO_MAIL_LED_OFF);
 	else if (value <= LED_HALF)
 		i8042_command(NULL, CLEVO_MAIL_LED_BLINK_0_5HZ);
 	else
 		i8042_command(NULL, CLEVO_MAIL_LED_BLINK_1HZ);
+
+	i8042_unlock_chip();
 
 }
 
@@ -107,6 +111,8 @@ static int clevo_mail_led_blink(struct led_classdev *led_cdev,
 				unsigned long *delay_off)
 {
 	int status = -EINVAL;
+
+	i8042_lock_chip();
 
 	if (*delay_on == 0 /* ms */ && *delay_off == 0 /* ms */) {
 		/* Special case: the leds subsystem requested us to
@@ -134,6 +140,8 @@ static int clevo_mail_led_blink(struct led_classdev *led_cdev,
 		       " returning -EINVAL (unsupported)\n",
 		       *delay_on, *delay_off);
 	}
+
+	i8042_unlock_chip();
 
 	return status;
 }

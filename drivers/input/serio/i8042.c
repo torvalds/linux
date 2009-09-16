@@ -87,7 +87,21 @@ static bool i8042_bypass_aux_irq_test;
 
 #include "i8042.h"
 
+/*
+ * i8042_lock protects serialization between i8042_command and
+ * the interrupt handler.
+ */
 static DEFINE_SPINLOCK(i8042_lock);
+
+/*
+ * Writers to AUX and KBD ports as well as users issuing i8042_command
+ * directly should acquire i8042_mutex (by means of calling
+ * i8042_lock_chip() and i8042_unlock_ship() helpers) to ensure that
+ * they do not disturb each other (unfortunately in many i8042
+ * implementations write to one of the ports will immediately abort
+ * command that is being processed by another port).
+ */
+static DEFINE_MUTEX(i8042_mutex);
 
 struct i8042_port {
 	struct serio *serio;
@@ -112,6 +126,18 @@ static unsigned char i8042_suppress_kbd_ack;
 static struct platform_device *i8042_platform_device;
 
 static irqreturn_t i8042_interrupt(int irq, void *dev_id);
+
+void i8042_lock_chip(void)
+{
+	mutex_lock(&i8042_mutex);
+}
+EXPORT_SYMBOL(i8042_lock_chip);
+
+void i8042_unlock_chip(void)
+{
+	mutex_unlock(&i8042_mutex);
+}
+EXPORT_SYMBOL(i8042_unlock_chip);
 
 /*
  * The i8042_wait_read() and i8042_wait_write functions wait for the i8042 to
@@ -1160,6 +1186,21 @@ static void __devexit i8042_unregister_ports(void)
 		}
 	}
 }
+
+/*
+ * Checks whether port belongs to i8042 controller.
+ */
+bool i8042_check_port_owner(const struct serio *port)
+{
+	int i;
+
+	for (i = 0; i < I8042_NUM_PORTS; i++)
+		if (i8042_ports[i].serio == port)
+			return true;
+
+	return false;
+}
+EXPORT_SYMBOL(i8042_check_port_owner);
 
 static void i8042_free_irqs(void)
 {

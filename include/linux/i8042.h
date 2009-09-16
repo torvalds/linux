@@ -7,6 +7,7 @@
  * the Free Software Foundation.
  */
 
+#include <linux/types.h>
 
 /*
  * Standard commands.
@@ -30,6 +31,35 @@
 #define I8042_CMD_MUX_PFX	0x0090
 #define I8042_CMD_MUX_SEND	0x1090
 
+struct serio;
+
+#if defined(CONFIG_SERIO_I8042) || defined(CONFIG_SERIO_I8042_MODULE)
+
+void i8042_lock_chip(void);
+void i8042_unlock_chip(void);
 int i8042_command(unsigned char *param, int command);
+bool i8042_check_port_owner(const struct serio *);
+
+#else
+
+void i8042_lock_chip(void)
+{
+}
+
+void i8042_unlock_chip(void)
+{
+}
+
+int i8042_command(unsigned char *param, int command)
+{
+	return -ENOSYS;
+}
+
+bool i8042_check_port_owner(const struct serio *serio)
+{
+	return false;
+}
+
+#endif
 
 #endif
