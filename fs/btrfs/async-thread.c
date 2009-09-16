@@ -191,7 +191,8 @@ static int try_worker_shutdown(struct btrfs_worker_thread *worker)
 	    !worker->working &&
 	    !list_empty(&worker->worker_list) &&
 	    list_empty(&worker->prio_pending) &&
-	    list_empty(&worker->pending)) {
+	    list_empty(&worker->pending) &&
+	    atomic_read(&worker->num_pending) == 0) {
 		freeit = 1;
 		list_del_init(&worker->worker_list);
 		worker->workers->num_workers--;
@@ -485,7 +486,6 @@ static struct btrfs_worker_thread *next_worker(struct btrfs_workers *workers)
 	 */
 	next = workers->worker_list.next;
 	worker = list_entry(next, struct btrfs_worker_thread, worker_list);
-	atomic_inc(&worker->num_pending);
 	worker->sequence++;
 
 	if (worker->sequence % workers->idle_thresh == 0)
@@ -521,8 +521,7 @@ again:
 			goto again;
 		}
 	}
-	spin_unlock_irqrestore(&workers->lock, flags);
-	return worker;
+	goto found;
 
 fallback:
 	fallback = NULL;
@@ -537,6 +536,12 @@ fallback:
 	BUG_ON(!fallback);
 	worker = list_entry(fallback,
 		  struct btrfs_worker_thread, worker_list);
+found:
+	/*
+	 * this makes sure the worker doesn't exit before it is placed
+	 * onto a busy/idle list
+	 */
+	atomic_inc(&worker->num_pending);
 	spin_unlock_irqrestore(&workers->lock, flags);
 	return worker;
 }
@@ -569,7 +574,7 @@ int btrfs_requeue_work(struct btrfs_work *work)
 		spin_lock(&worker->workers->lock);
 		worker->idle = 0;
 		list_move_tail(&worker->worker_list,
-			       &worker->workers->worker_list);
+			      &worker->workers->worker_list);
 		spin_unlock(&worker->workers->lock);
 	}
 	if (!worker->working) {
@@ -627,7 +632,6 @@ int btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work)
 		list_add_tail(&work->list, &worker->prio_pending);
 	else
 		list_add_tail(&work->list, &worker->pending);
-	atomic_inc(&worker->num_pending);
 	check_busy_worker(worker);
 
 	/*
