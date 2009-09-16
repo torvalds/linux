@@ -59,8 +59,8 @@ do {									\
 	DEFINE_WAIT(__wait);						\
 	long __timeo = timeo;						\
 	ret = 0;							\
+	prepare_to_wait(sk->sk_sleep, &__wait, TASK_INTERRUPTIBLE);	\
 	while (!(condition)) {						\
-		prepare_to_wait(sk->sk_sleep, &__wait, TASK_INTERRUPTIBLE); \
 		if (!__timeo) {						\
 			ret = -EAGAIN;					\
 			break;						\
