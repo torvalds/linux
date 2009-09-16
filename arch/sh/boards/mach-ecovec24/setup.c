@@ -638,6 +638,16 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_KEYOUT0,     NULL);
 	gpio_request(GPIO_FN_KEYIN0,      NULL);
 
+	/* enable user debug switch */
+	gpio_request(GPIO_PTR0, NULL);
+	gpio_request(GPIO_PTR4, NULL);
+	gpio_request(GPIO_PTR5, NULL);
+	gpio_request(GPIO_PTR6, NULL);
+	gpio_direction_input(GPIO_PTR0);
+	gpio_direction_input(GPIO_PTR4);
+	gpio_direction_input(GPIO_PTR5);
+	gpio_direction_input(GPIO_PTR6);
+
 	/* enable I2C device */
 	i2c_register_board_info(1, i2c1_devices,
 				ARRAY_SIZE(i2c1_devices));
