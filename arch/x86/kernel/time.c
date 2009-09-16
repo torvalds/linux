@@ -105,7 +105,7 @@ void __init hpet_time_init(void)
 	setup_default_timer_irq();
 }
 
-static void x86_late_time_init(void)
+static __init void x86_late_time_init(void)
 {
 	x86_init.timers.timer_init();
 	tsc_init();

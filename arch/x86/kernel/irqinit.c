@@ -140,7 +140,7 @@ void __init init_ISA_irqs(void)
 	}
 }
 
-void init_IRQ(void)
+void __init init_IRQ(void)
 {
 	x86_init.irqs.intr_init();
 }

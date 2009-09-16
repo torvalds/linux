@@ -23,7 +23,7 @@ void __init x86_init_pgd_noop(pgd_t *unused) { }
  * The platform setup functions are preset with the default functions
  * for standard PC hardware.
  */
-struct __initdata x86_init_ops x86_init = {
+struct x86_init_ops x86_init __initdata = {
 
 	.resources = {
 		.probe_roms		= x86_init_noop,
@@ -64,7 +64,7 @@ struct __initdata x86_init_ops x86_init = {
 	},
 };
 
-__cpuinitdata struct x86_cpuinit_ops x86_cpuinit = {
+struct x86_cpuinit_ops x86_cpuinit __cpuinitdata = {
 	.setup_percpu_clockev		= setup_secondary_APIC_clock,
 };
 
