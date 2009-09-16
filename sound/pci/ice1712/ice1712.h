@@ -379,8 +379,11 @@ struct snd_ice1712 {
 	unsigned int (*get_rate)(struct snd_ice1712 *ice);
 	void (*set_rate)(struct snd_ice1712 *ice, unsigned int rate);
 	unsigned char (*set_mclk)(struct snd_ice1712 *ice, unsigned int rate);
-	void (*set_spdif_clock)(struct snd_ice1712 *ice);
-
+	int (*set_spdif_clock)(struct snd_ice1712 *ice, int type);
+	int (*get_spdif_master_type)(struct snd_ice1712 *ice);
+	char **ext_clock_names;
+	int ext_clock_count;
+	void (*pro_open)(struct snd_ice1712 *, struct snd_pcm_substream *);
 #ifdef CONFIG_PM
 	int (*pm_suspend)(struct snd_ice1712 *);
 	int (*pm_resume)(struct snd_ice1712 *);

@@ -529,13 +529,14 @@ static inline unsigned char juli_set_mclk(struct snd_ice1712 *ice,
 }
 
 /* setting clock to external - SPDIF */
-static void juli_set_spdif_clock(struct snd_ice1712 *ice)
+static int juli_set_spdif_clock(struct snd_ice1712 *ice, int type)
 {
 	unsigned int old;
 	old = ice->gpio.get_data(ice);
 	/* external clock (= 0), multiply 1x, 48kHz */
 	ice->gpio.set_data(ice, (old & ~GPIO_RATE_MASK) | GPIO_MULTI_1X |
 			GPIO_FREQ_48KHZ);
+	return 0;
 }
 
 /* Called when ak4114 detects change in the input SPDIF stream */
