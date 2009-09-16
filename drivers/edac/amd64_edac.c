@@ -2741,30 +2741,53 @@ static void amd64_restore_ecc_error_reporting(struct amd64_pvt *pvt)
 	wrmsr_on_cpus(cpumask, K8_MSR_MCGCTL, msrs);
 }
 
-static void check_mcg_ctl(void *ret)
+/* get all cores on this DCT */
+static void get_cpus_on_this_dct_cpumask(cpumask_t *mask, int nid)
 {
-	u64 msr_val = 0;
-	u8 nbe;
+	int cpu;
 
-	rdmsrl(MSR_IA32_MCG_CTL, msr_val);
-	nbe = msr_val & K8_MSR_MCGCTL_NBE;
-
-	debugf0("core: %u, MCG_CTL: 0x%llx, NB MSR is %s\n",
-		raw_smp_processor_id(), msr_val,
-		(nbe ? "enabled" : "disabled"));
-
-	if (!nbe)
-		*(int *)ret = 0;
+	for_each_online_cpu(cpu)
+		if (amd_get_nb_id(cpu) == nid)
+			cpumask_set_cpu(cpu, mask);
 }
 
 /* check MCG_CTL on all the cpus on this node */
-static int mcg_ctl_enabled_on_node(const struct cpumask *mask)
+static bool amd64_nb_mce_bank_enabled_on_node(int nid)
 {
-	int ret = 1;
-	preempt_disable();
-	smp_call_function_many(mask, check_mcg_ctl, &ret, 1);
-	preempt_enable();
+	cpumask_t mask;
+	struct msr *msrs;
+	int cpu, nbe, idx = 0;
+	bool ret = false;
 
+	cpumask_clear(&mask);
+
+	get_cpus_on_this_dct_cpumask(&mask, nid);
+
+	msrs = kzalloc(sizeof(struct msr) * cpumask_weight(&mask), GFP_KERNEL);
+	if (!msrs) {
+		amd64_printk(KERN_WARNING, "%s: error allocating msrs\n",
+			      __func__);
+		 return false;
+	}
+
+	rdmsr_on_cpus(&mask, MSR_IA32_MCG_CTL, msrs);
+
+	for_each_cpu(cpu, &mask) {
+		nbe = msrs[idx].l & K8_MSR_MCGCTL_NBE;
+
+		debugf0("core: %u, MCG_CTL: 0x%llx, NB MSR is %s\n",
+			cpu, msrs[idx].q,
+			(nbe ? "enabled" : "disabled"));
+
+		if (!nbe)
+			goto out;
+
+		idx++;
+	}
+	ret = true;
+
+out:
+	kfree(msrs);
 	return ret;
 }
 
@@ -2783,7 +2806,8 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 {
 	u32 value;
 	int err = 0;
-	u8 ecc_enabled = 0, mcg_ctl_en = 0;
+	u8 ecc_enabled = 0;
+	bool nb_mce_en = false;
 
 	err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCFG, &value);
 	if (err)
@@ -2797,13 +2821,13 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 	else
 		amd64_printk(KERN_INFO, "ECC is enabled by BIOS.\n");
 
-	mcg_ctl_en = mcg_ctl_enabled_on_node(cpumask_of_node(pvt->mc_node_id));
-	if (!mcg_ctl_en)
+	nb_mce_en = amd64_nb_mce_bank_enabled_on_node(pvt->mc_node_id);
+	if (!nb_mce_en)
 		amd64_printk(KERN_WARNING, "NB MCE bank disabled, set MSR "
 			     "0x%08x[4] on node %d to enable.\n",
 			     MSR_IA32_MCG_CTL, pvt->mc_node_id);
 
-	if (!ecc_enabled || !mcg_ctl_en) {
+	if (!ecc_enabled || !nb_mce_en) {
 		if (!ecc_enable_override) {
 			amd64_printk(KERN_WARNING, "%s", ecc_warning);
 			return -ENODEV;
