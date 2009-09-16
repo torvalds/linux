@@ -361,10 +361,9 @@ static void iucv_sock_cleanup_listen(struct sock *parent)
 	}
 
 	parent->sk_state = IUCV_CLOSED;
-	sock_set_flag(parent, SOCK_ZAPPED);
 }
 
-/* Kill socket */
+/* Kill socket (only if zapped and orphaned) */
 static void iucv_sock_kill(struct sock *sk)
 {
 	if (!sock_flag(sk, SOCK_ZAPPED) || sk->sk_socket)
@@ -426,17 +425,18 @@ static void iucv_sock_close(struct sock *sk)
 
 		skb_queue_purge(&iucv->send_skb_q);
 		skb_queue_purge(&iucv->backlog_skb_q);
-
-		sock_set_flag(sk, SOCK_ZAPPED);
 		break;
 
 	default:
 		sock_set_flag(sk, SOCK_ZAPPED);
+		/* nothing to do here */
 		break;
 	}
 
+	/* mark socket for deletion by iucv_sock_kill() */
+	sock_set_flag(sk, SOCK_ZAPPED);
+
 	release_sock(sk);
-	iucv_sock_kill(sk);
 }
 
 static void iucv_sock_init(struct sock *sk, struct sock *parent)
