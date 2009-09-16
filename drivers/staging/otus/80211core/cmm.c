@@ -871,7 +871,7 @@ void zfSendMmFrame(zdev_t* dev, u8_t frameType, u16_t* dst,
     zmw_declare_for_critical_section();
 
     zm_msg2_mm(ZM_LV_2, "Send mm frame, type=", frameType);
-    /* TBD : Maximum size of managment frame */
+    /* TBD : Maximum size of management frame */
     if ((buf = zfwBufAllocate(dev, 1024)) == NULL)
     {
         zm_msg0_mm(ZM_LV_0, "Alloc mm buf Fail!");
@@ -1099,7 +1099,7 @@ void zfSendMmFrame(zdev_t* dev, u8_t frameType, u16_t* dst,
             }
 
             if ((wd->sta.capability[1] & ZM_BIT_0) == 1)
-            {   //spectrum managment flag enable
+            {   //spectrum management flag enable
                 offset = zfStaAddIePowerCap(dev, buf, offset);
                 offset = zfStaAddIeSupportCh(dev, buf, offset);
             }

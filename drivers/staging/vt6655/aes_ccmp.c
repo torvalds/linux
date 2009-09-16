@@ -33,16 +33,8 @@
  *
  */
 
-#if !defined(__UMEM_H__)
-#include "umem.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -285,7 +277,7 @@ int             ii,jj,kk;
     pbyPayload = pbyIV + 8; //IV-length
 
     abyNonce[0]  = 0x00; //now is 0, if Qos here will be priority
-    MEMvCopy(&(abyNonce[1]), pMACHeader->abyAddr2, U_ETHER_ADDR_LEN);
+    memcpy(&(abyNonce[1]), pMACHeader->abyAddr2, U_ETHER_ADDR_LEN);
     abyNonce[7]  = pbyIV[7];
     abyNonce[8]  = pbyIV[6];
     abyNonce[9]  = pbyIV[5];
@@ -295,7 +287,7 @@ int             ii,jj,kk;
 
     //MIC_IV
     MIC_IV[0] = 0x59;
-    MEMvCopy(&(MIC_IV[1]), &(abyNonce[0]), 13);
+    memcpy(&(MIC_IV[1]), &(abyNonce[0]), 13);
     MIC_IV[14] = (BYTE)(wPayloadSize >> 8);
     MIC_IV[15] = (BYTE)(wPayloadSize & 0xff);
 
@@ -307,16 +299,16 @@ int             ii,jj,kk;
     byTmp = (BYTE)(pMACHeader->wFrameCtl >> 8);
     byTmp &= 0x87;
     MIC_HDR1[3] = byTmp | 0x40;
-    MEMvCopy(&(MIC_HDR1[4]), pMACHeader->abyAddr1, U_ETHER_ADDR_LEN);
-    MEMvCopy(&(MIC_HDR1[10]), pMACHeader->abyAddr2, U_ETHER_ADDR_LEN);
+    memcpy(&(MIC_HDR1[4]), pMACHeader->abyAddr1, U_ETHER_ADDR_LEN);
+    memcpy(&(MIC_HDR1[10]), pMACHeader->abyAddr2, U_ETHER_ADDR_LEN);
 
     //MIC_HDR2
-    MEMvCopy(&(MIC_HDR2[0]), pMACHeader->abyAddr3, U_ETHER_ADDR_LEN);
+    memcpy(&(MIC_HDR2[0]), pMACHeader->abyAddr3, U_ETHER_ADDR_LEN);
     byTmp = (BYTE)(pMACHeader->wSeqCtl & 0xff);
     MIC_HDR2[6] = byTmp & 0x0f;
     MIC_HDR2[7] = 0;
     if ( bA4 ) {
-        MEMvCopy(&(MIC_HDR2[8]), pMACHeader->abyAddr4, U_ETHER_ADDR_LEN);
+        memcpy(&(MIC_HDR2[8]), pMACHeader->abyAddr4, U_ETHER_ADDR_LEN);
     } else {
         MIC_HDR2[8]  = 0x00;
         MIC_HDR2[9]  = 0x00;
@@ -341,7 +333,7 @@ int             ii,jj,kk;
 
     wCnt = 1;
     abyCTRPLD[0] = 0x01;
-    MEMvCopy(&(abyCTRPLD[1]), &(abyNonce[0]), 13);
+    memcpy(&(abyCTRPLD[1]), &(abyNonce[0]), 13);
 
     for(jj=wPayloadSize; jj>16; jj=jj-16) {
 
@@ -358,13 +350,13 @@ int             ii,jj,kk;
         }
         AESv128(pbyRxKey,abyTmp,abyMIC);
 
-        MEMvCopy(pbyPayload, abyPlainText, 16);
+        memcpy(pbyPayload, abyPlainText, 16);
         wCnt++;
         pbyPayload += 16;
     } //for wPayloadSize
 
     //last payload
-    MEMvCopy(&(abyLastCipher[0]), pbyPayload, jj);
+    memcpy(&(abyLastCipher[0]), pbyPayload, jj);
     for ( ii=jj; ii<16; ii++ ) {
         abyLastCipher[ii] = 0x00;
     }
@@ -376,7 +368,7 @@ int             ii,jj,kk;
     for ( kk=0; kk<16; kk++ ) {
         abyPlainText[kk] = abyTmp[kk] ^ abyLastCipher[kk];
     }
-    MEMvCopy(pbyPayload, abyPlainText, jj);
+    memcpy(pbyPayload, abyPlainText, jj);
     pbyPayload += jj;
 
     //for MIC calculation
@@ -401,7 +393,7 @@ int             ii,jj,kk;
     //=>above is the dec-MIC from packet
     //--------------------------------------------
 
-    if ( MEMEqualMemory(abyMIC,abyTmp,8) ) {
+    if ( !memcmp(abyMIC,abyTmp,8) ) {
         return TRUE;
     } else {
         return FALSE;

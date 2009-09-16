@@ -29,37 +29,14 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13))
 #include <linux/wireless.h>
-#endif
+#include <linux/ieee80211.h>
 
-/*
-#ifndef bool
-#define bool int
-#endif
-
-#ifndef true
-#define true   1
-#endif
-
-#ifndef false
-#define false  0
-#endif
-*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-#ifndef bool
-typedef enum{false = 0, true} bool;
-#endif
-#endif
-//#ifdef JOHN_HWSEC
 #define KEY_TYPE_NA		0x0
 #define KEY_TYPE_WEP40 		0x1
 #define KEY_TYPE_TKIP		0x2
 #define KEY_TYPE_CCMP		0x4
 #define KEY_TYPE_WEP104		0x5
-//#endif
-
 
 #define aSifsTime					10
 
@@ -112,58 +89,6 @@ typedef enum{false = 0, true} bool;
 
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,10))
-#define ieee80211_wx_get_scan ieee80211_wx_get_scan_rtl
-#define ieee80211_wx_set_encode ieee80211_wx_set_encode_rtl
-#define ieee80211_wx_get_encode ieee80211_wx_get_encode_rtl
-////////////////////////////////
-// added for kernel conflict under FC5
-#define ieee80211_wx_get_name   ieee80211_wx_get_name_rtl
-#define free_ieee80211          free_ieee80211_rtl
-#define alloc_ieee80211        alloc_ieee80211_rtl
-///////////////////////////////
-#endif
-//error in ubuntu2.6.22,so add these
-#define ieee80211_wake_queue ieee80211_wake_queue_rtl
-#define ieee80211_stop_queue ieee80211_stop_queue_rtl
-
-#define ieee80211_rx ieee80211_rx_rtl
-
-#define ieee80211_register_crypto_ops	ieee80211_register_crypto_ops_rtl
-#define ieee80211_unregister_crypto_ops	ieee80211_unregister_crypto_ops_rtl
-#define ieee80211_get_crypto_ops	ieee80211_get_crypto_ops_rtl
-#define ieee80211_crypt_deinit_entries	ieee80211_crypt_deinit_entries_rtl
-#define ieee80211_crypt_deinit_handler	ieee80211_crypt_deinit_handler_rtl
-#define ieee80211_crypt_delayed_deinit	ieee80211_crypt_delayed_deinit_rtl
-
-#define ieee80211_txb_free	ieee80211_txb_free_rtl
-#define ieee80211_wx_get_essid	ieee80211_wx_get_essid_rtl
-#define ieee80211_wx_set_essid	ieee80211_wx_set_essid_rtl
-#define ieee80211_wx_set_rate	ieee80211_wx_set_rate_rtl
-#define ieee80211_wx_get_rate	ieee80211_wx_get_rate_rtl
-#define ieee80211_wx_set_wap	ieee80211_wx_set_wap_rtl
-#define ieee80211_wx_get_wap	ieee80211_wx_get_wap_rtl
-#define ieee80211_wx_set_mode	ieee80211_wx_set_mode_rtl
-#define ieee80211_wx_get_mode	ieee80211_wx_get_mode_rtl
-#define ieee80211_wx_set_scan	ieee80211_wx_set_scan_rtl
-#define ieee80211_wx_get_freq	ieee80211_wx_get_freq_rtl
-#define ieee80211_wx_set_freq	ieee80211_wx_set_freq_rtl
-#define ieee80211_wx_set_rawtx	ieee80211_wx_set_rawtx_rtl
-#define ieee80211_wx_set_power	ieee80211_wx_set_power_rtl
-#define ieee80211_wx_get_power	ieee80211_wx_get_power_rtl
-#define ieee80211_wlan_frequencies	ieee80211_wlan_frequencies_rtl
-#define ieee80211_softmac_stop_protocol	ieee80211_softmac_stop_protocol_rtl
-#define ieee80211_softmac_start_protocol ieee80211_softmac_start_protocol_rtl
-#define	ieee80211_start_protocol	ieee80211_start_protocol_rtl
-#define	ieee80211_stop_protocol		ieee80211_stop_protocol_rtl
-#define	ieee80211_rx_mgt		ieee80211_rx_mgt_rtl
-
-#define ieee80211_wx_set_auth ieee80211_wx_set_auth_rtl
-//by amy for ps
-#define notify_wx_assoc_event  notify_wx_assoc_event_rtl
-#define ieee80211_stop_send_beacons ieee80211_stop_send_beacons_rtl
-#define ieee80211_disassociate ieee80211_disassociate_rtl
-#define ieee80211_start_scan ieee80211_start_scan_rtl
 //by amy for ps
 typedef struct ieee_param {
 	u32 cmd;
@@ -196,32 +121,8 @@ typedef struct ieee_param {
 }ieee_param;
 
 
-#if WIRELESS_EXT < 17
-#define IW_QUAL_QUAL_INVALID   0x10
-#define IW_QUAL_LEVEL_INVALID  0x20
-#define IW_QUAL_NOISE_INVALID  0x40
-#define IW_QUAL_QUAL_UPDATED   0x1
-#define IW_QUAL_LEVEL_UPDATED  0x2
-#define IW_QUAL_NOISE_UPDATED  0x4
-#endif
-
-// linux under 2.6.9 release may not support it, so modify it for common use
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9))
-#define MSECS(t)	(1000 * ((t) / HZ) + 1000 * ((t) % HZ) / HZ)
-static inline unsigned long msleep_interruptible_rtl(unsigned int msecs)
-{
-         unsigned long timeout = MSECS(msecs) + 1;
-
-         while (timeout) {
-                 set_current_state(TASK_UNINTERRUPTIBLE);
-                 timeout = schedule_timeout(timeout);
-         }
-         return timeout;
-}
-#else
 #define MSECS(t) msecs_to_jiffies(t)
 #define msleep_interruptible_rtl  msleep_interruptible
-#endif
 
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
@@ -232,162 +133,21 @@ static inline unsigned long msleep_interruptible_rtl(unsigned int msecs)
    represents the 2304 bytes of real data, plus a possible 8 bytes of
    WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
 
-
-#define IEEE80211_HLEN			30
-#define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
-
-/* this is stolen and modified from the madwifi driver*/
-#define IEEE80211_FC0_TYPE_MASK		0x0c
-#define IEEE80211_FC0_TYPE_DATA		0x08
-#define IEEE80211_FC0_SUBTYPE_MASK	0xB0
-#define IEEE80211_FC0_SUBTYPE_QOS	0x80
-
-#define IEEE80211_QOS_HAS_SEQ(fc) \
-	(((fc) & (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) == \
-	 (IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_QOS))
-
-/* this is stolen from ipw2200 driver */
-#define IEEE_IBSS_MAC_HASH_SIZE 31
-struct ieee_ibss_seq {
-	u8 mac[ETH_ALEN];
-	u16 seq_num[17];
-	u16 frag_num[17];
-	unsigned long packet_time[17];
-	struct list_head list;
-};
-
-struct ieee80211_hdr {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-	u8 addr4[ETH_ALEN];
-} __attribute__ ((packed));
-
-struct ieee80211_hdr_QOS {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-	u8 addr4[ETH_ALEN];
-	u16 QOS_ctl;
-} __attribute__ ((packed));
-
-struct ieee80211_hdr_3addr {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-} __attribute__ ((packed));
-
-struct ieee80211_hdr_3addr_QOS {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-	u16 QOS_ctl;
-} __attribute__ ((packed));
-
-enum eap_type {
-	EAP_PACKET = 0,
-	EAPOL_START,
-	EAPOL_LOGOFF,
-	EAPOL_KEY,
-	EAPOL_ENCAP_ASF_ALERT
-};
-
-static const char *eap_types[] = {
-	[EAP_PACKET]		= "EAP-Packet",
-	[EAPOL_START]		= "EAPOL-Start",
-	[EAPOL_LOGOFF]		= "EAPOL-Logoff",
-	[EAPOL_KEY]		= "EAPOL-Key",
-	[EAPOL_ENCAP_ASF_ALERT]	= "EAPOL-Encap-ASF-Alert"
-};
-
-static inline const char *eap_get_type(int type)
-{
-	return (type >= ARRAY_SIZE(eap_types)) ? "Unknown" : eap_types[type];
-}
-
-struct eapol {
-	u8 snap[6];
-	u16 ethertype;
-	u8 version;
-	u8 type;
-	u16 length;
-} __attribute__ ((packed));
-
 #define IEEE80211_3ADDR_LEN 24
 #define IEEE80211_4ADDR_LEN 30
 #define IEEE80211_FCS_LEN    4
+#define IEEE80211_HLEN			IEEE80211_4ADDR_LEN
+#define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
+#define IEEE80211_MGMT_HDR_LEN 24
+#define IEEE80211_DATA_HDR3_LEN 24
+#define IEEE80211_DATA_HDR4_LEN 30
 
 #define MIN_FRAG_THRESHOLD     256U
 #define	MAX_FRAG_THRESHOLD     2346U
 
 /* Frame control field constants */
-#define IEEE80211_FCTL_VERS		0x0002
-#define IEEE80211_FCTL_FTYPE		0x000c
-#define IEEE80211_FCTL_STYPE		0x00f0
-#define IEEE80211_FCTL_TODS		0x0100
-#define IEEE80211_FCTL_FROMDS		0x0200
 #define IEEE80211_FCTL_DSTODS		0x0300 //added by david
-#define IEEE80211_FCTL_MOREFRAGS	0x0400
-#define IEEE80211_FCTL_RETRY		0x0800
-#define IEEE80211_FCTL_PM		0x1000
-#define IEEE80211_FCTL_MOREDATA	0x2000
 #define IEEE80211_FCTL_WEP		0x4000
-#define IEEE80211_FCTL_ORDER		0x8000
-
-#define IEEE80211_FTYPE_MGMT		0x0000
-#define IEEE80211_FTYPE_CTL		0x0004
-#define IEEE80211_FTYPE_DATA		0x0008
-
-/* management */
-#define IEEE80211_STYPE_ASSOC_REQ	0x0000
-#define IEEE80211_STYPE_ASSOC_RESP 	0x0010
-#define IEEE80211_STYPE_REASSOC_REQ	0x0020
-#define IEEE80211_STYPE_REASSOC_RESP	0x0030
-#define IEEE80211_STYPE_PROBE_REQ	0x0040
-#define IEEE80211_STYPE_PROBE_RESP	0x0050
-#define IEEE80211_STYPE_BEACON		0x0080
-#define IEEE80211_STYPE_ATIM		0x0090
-#define IEEE80211_STYPE_DISASSOC	0x00A0
-#define IEEE80211_STYPE_AUTH		0x00B0
-#define IEEE80211_STYPE_DEAUTH		0x00C0
-#define IEEE80211_STYPE_MANAGE_ACT	0x00D0
-
-/* control */
-#define IEEE80211_STYPE_PSPOLL		0x00A0
-#define IEEE80211_STYPE_RTS		0x00B0
-#define IEEE80211_STYPE_CTS		0x00C0
-#define IEEE80211_STYPE_ACK		0x00D0
-#define IEEE80211_STYPE_CFEND		0x00E0
-#define IEEE80211_STYPE_CFENDACK	0x00F0
-
-/* data */
-#define IEEE80211_STYPE_DATA		0x0000
-#define IEEE80211_STYPE_DATA_CFACK	0x0010
-#define IEEE80211_STYPE_DATA_CFPOLL	0x0020
-#define IEEE80211_STYPE_DATA_CFACKPOLL	0x0030
-#define IEEE80211_STYPE_NULLFUNC	0x0040
-#define IEEE80211_STYPE_CFACK		0x0050
-#define IEEE80211_STYPE_CFPOLL		0x0060
-#define IEEE80211_STYPE_CFACKPOLL	0x0070
-#define IEEE80211_STYPE_QOS_DATA	0x0080 //added for WMM 2006/8/2
-#define IEEE80211_STYPE_QOS_NULL	0x00C0
-
-
-#define IEEE80211_SCTL_FRAG		0x000F
-#define IEEE80211_SCTL_SEQ		0xFFF0
-
 
 /* debug macros */
 
@@ -400,6 +160,10 @@ do { if (ieee80211_debug_level & (level)) \
 #else
 #define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
+
+#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], \
+		   ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
 
 /*
  * To use the debug system;
@@ -493,67 +257,8 @@ struct ieee80211_snap_hdr {
 #define WLAN_GET_SEQ_FRAG(seq) ((seq) & IEEE80211_SCTL_FRAG)
 #define WLAN_GET_SEQ_SEQ(seq)  ((seq) & IEEE80211_SCTL_SEQ)
 
-/* Authentication algorithms */
-#define WLAN_AUTH_OPEN 0
-#define WLAN_AUTH_SHARED_KEY 1
-
-#define WLAN_AUTH_CHALLENGE_LEN 128
-
 #define WLAN_CAPABILITY_BSS (1<<0)
-#define WLAN_CAPABILITY_IBSS (1<<1)
-#define WLAN_CAPABILITY_CF_POLLABLE (1<<2)
-#define WLAN_CAPABILITY_CF_POLL_REQUEST (1<<3)
-#define WLAN_CAPABILITY_PRIVACY (1<<4)
-#define WLAN_CAPABILITY_SHORT_PREAMBLE (1<<5)
-#define WLAN_CAPABILITY_PBCC (1<<6)
-#define WLAN_CAPABILITY_CHANNEL_AGILITY (1<<7)
 #define WLAN_CAPABILITY_SHORT_SLOT (1<<10)
-
-/* Status codes */
-#define WLAN_STATUS_SUCCESS 0
-#define WLAN_STATUS_UNSPECIFIED_FAILURE 1
-#define WLAN_STATUS_CAPS_UNSUPPORTED 10
-#define WLAN_STATUS_REASSOC_NO_ASSOC 11
-#define WLAN_STATUS_ASSOC_DENIED_UNSPEC 12
-#define WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG 13
-#define WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION 14
-#define WLAN_STATUS_CHALLENGE_FAIL 15
-#define WLAN_STATUS_AUTH_TIMEOUT 16
-#define WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA 17
-#define WLAN_STATUS_ASSOC_DENIED_RATES 18
-/* 802.11b */
-#define WLAN_STATUS_ASSOC_DENIED_NOSHORT 19
-#define WLAN_STATUS_ASSOC_DENIED_NOPBCC 20
-#define WLAN_STATUS_ASSOC_DENIED_NOAGILITY 21
-
-/* Reason codes */
-#define WLAN_REASON_UNSPECIFIED 1
-#define WLAN_REASON_PREV_AUTH_NOT_VALID 2
-#define WLAN_REASON_DEAUTH_LEAVING 3
-#define WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY 4
-#define WLAN_REASON_DISASSOC_AP_BUSY 5
-#define WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA 6
-#define WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA 7
-#define WLAN_REASON_DISASSOC_STA_HAS_LEFT 8
-#define WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH 9
-
-
-/* Information Element IDs */
-#define WLAN_EID_SSID 0
-#define WLAN_EID_SUPP_RATES 1
-#define WLAN_EID_FH_PARAMS 2
-#define WLAN_EID_DS_PARAMS 3
-#define WLAN_EID_CF_PARAMS 4
-#define WLAN_EID_TIM 5
-#define WLAN_EID_IBSS_PARAMS 6
-#define WLAN_EID_CHALLENGE 16
-#define WLAN_EID_RSN 48
-#define WLAN_EID_GENERIC 221
-
-#define IEEE80211_MGMT_HDR_LEN 24
-#define IEEE80211_DATA_HDR3_LEN 24
-#define IEEE80211_DATA_HDR4_LEN 30
-
 
 #define IEEE80211_STATMASK_SIGNAL (1<<0)
 #define IEEE80211_STATMASK_RSSI (1<<1)
@@ -621,8 +326,25 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_NUM_CCK_RATES	            4
 #define IEEE80211_OFDM_SHIFT_MASK_A         4
 
+/* this is stolen and modified from the madwifi driver*/
+#define IEEE80211_FC0_TYPE_MASK		0x0c
+#define IEEE80211_FC0_TYPE_DATA		0x08
+#define IEEE80211_FC0_SUBTYPE_MASK	0xB0
+#define IEEE80211_FC0_SUBTYPE_QOS	0x80
 
+#define IEEE80211_QOS_HAS_SEQ(fc) \
+	(((fc) & (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) == \
+	 (IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_QOS))
 
+/* this is stolen from ipw2200 driver */
+#define IEEE_IBSS_MAC_HASH_SIZE 31
+struct ieee_ibss_seq {
+	u8 mac[ETH_ALEN];
+	u16 seq_num[17];
+	u16 frag_num[17];
+	unsigned long packet_time[17];
+	struct list_head list;
+};
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
@@ -681,26 +403,6 @@ struct ieee80211_stats {
 	unsigned int rx_message_in_bad_msg_fragments;
 };
 
-struct ieee80211_softmac_stats{
-	unsigned int rx_ass_ok;
-	unsigned int rx_ass_err;
-	unsigned int rx_probe_rq;
-	unsigned int tx_probe_rs;
-	unsigned int tx_beacons;
-	unsigned int rx_auth_rq;
-	unsigned int rx_auth_rs_ok;
-	unsigned int rx_auth_rs_err;
-	unsigned int tx_auth_rq;
-	unsigned int no_auth_rs;
-	unsigned int no_ass_rs;
-	unsigned int tx_ass_rq;
-	unsigned int rx_ass_rq;
-	unsigned int tx_probe_rq;
-	unsigned int reassoc;
-	unsigned int swtxstop;
-	unsigned int swtxawake;
-};
-
 struct ieee80211_device;
 
 #include "ieee80211_crypt.h"
@@ -754,6 +456,23 @@ Total: 28-2340 bytes
 
 */
 
+/* Management Frame Information Element Types */
+enum {
+	MFIE_TYPE_SSID = 0,
+	MFIE_TYPE_RATES = 1,
+	MFIE_TYPE_FH_SET = 2,
+	MFIE_TYPE_DS_SET = 3,
+	MFIE_TYPE_CF_SET = 4,
+	MFIE_TYPE_TIM = 5,
+	MFIE_TYPE_IBSS_SET = 6,
+	MFIE_TYPE_COUNTRY = 7,
+	MFIE_TYPE_CHALLENGE = 16,
+	MFIE_TYPE_ERP = 42,
+	MFIE_TYPE_RSN = 48,
+	MFIE_TYPE_RATES_EX = 50,
+	MFIE_TYPE_GENERIC = 221,
+};
+
 struct ieee80211_header_data {
 	u16 frame_ctl;
 	u16 duration_id;
@@ -763,39 +482,45 @@ struct ieee80211_header_data {
 	u16 seq_ctrl;
 };
 
-#define BEACON_PROBE_SSID_ID_POSITION 12
+struct ieee80211_hdr_3addr {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+} __attribute__ ((packed));
 
-/* Management Frame Information Element Types */
-#define MFIE_TYPE_SSID       0
-#define MFIE_TYPE_RATES      1
-#define MFIE_TYPE_FH_SET     2
-#define MFIE_TYPE_DS_SET     3
-#define MFIE_TYPE_CF_SET     4
-#define MFIE_TYPE_TIM        5
-#define MFIE_TYPE_IBSS_SET   6
-#define MFIE_TYPE_COUNTRY  7 //+YJ,080625
-#define MFIE_TYPE_CHALLENGE  16
-#define MFIE_TYPE_ERP        42
-#define MFIE_TYPE_RSN	     48
-#define MFIE_TYPE_RATES_EX   50
-#define MFIE_TYPE_GENERIC    221
+struct ieee80211_hdr_4addr {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+	u8 addr4[ETH_ALEN];
+} __attribute__ ((packed));
 
-#ifdef ENABLE_DOT11D
-typedef enum
-{
-	COUNTRY_CODE_FCC = 0,
-	COUNTRY_CODE_IC = 1,
-	COUNTRY_CODE_ETSI = 2,
-	COUNTRY_CODE_SPAIN = 3,
-	COUNTRY_CODE_FRANCE = 4,
-	COUNTRY_CODE_MKK = 5,
-	COUNTRY_CODE_MKK1 = 6,
-	COUNTRY_CODE_ISRAEL = 7,
-	COUNTRY_CODE_TELEC = 8,
-	COUNTRY_CODE_GLOBAL_DOMAIN = 9,
-	COUNTRY_CODE_WORLD_WIDE_13_INDEX = 10
-}country_code_type_t;
-#endif
+struct ieee80211_hdr_3addrqos {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+	u16 qos_ctl;
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_4addrqos {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+	u8 addr4[ETH_ALEN];
+	u16 qos_ctl;
+} __attribute__ ((packed));
 
 struct ieee80211_info_element_hdr {
 	u8 id;
@@ -808,26 +533,6 @@ struct ieee80211_info_element {
 	u8 data[0];
 } __attribute__ ((packed));
 
-/*
- * These are the data types that can make up management packets
- *
-	u16 auth_algorithm;
-	u16 auth_sequence;
-	u16 beacon_interval;
-	u16 capability;
-	u8 current_ap[ETH_ALEN];
-	u16 listen_interval;
-	struct {
-		u16 association_id:14, reserved:2;
-	} __attribute__ ((packed));
-	u32 time_stamp[2];
-	u16 reason;
-	u16 status;
-*/
-
-#define IEEE80211_DEFAULT_TX_ESSID "Penguin"
-#define IEEE80211_DEFAULT_BASIC_RATE 10
-
 struct ieee80211_authentication {
 	struct ieee80211_header_data header;
 	u16 algorithm;
@@ -836,6 +541,15 @@ struct ieee80211_authentication {
 	//struct ieee80211_info_element_hdr info_element;
 } __attribute__ ((packed));
 
+struct ieee80211_disassoc_frame {
+	struct ieee80211_hdr_3addr header;
+	u16    reasoncode;
+} __attribute__ ((packed));
+
+struct ieee80211_probe_request {
+	struct ieee80211_header_data header;
+	/* struct ieee80211_info_element info_element; */
+} __attribute__ ((packed));
 
 struct ieee80211_probe_response {
 	struct ieee80211_header_data header;
@@ -843,11 +557,6 @@ struct ieee80211_probe_response {
 	u16 beacon_interval;
 	u16 capability;
 	struct ieee80211_info_element info_element;
-} __attribute__ ((packed));
-
-struct ieee80211_probe_request {
-	struct ieee80211_header_data header;
-	/*struct ieee80211_info_element info_element;*/
 } __attribute__ ((packed));
 
 struct ieee80211_assoc_request_frame {
@@ -866,11 +575,6 @@ struct ieee80211_assoc_response_frame {
 	struct ieee80211_info_element info_element; /* supported rates */
 } __attribute__ ((packed));
 
-struct ieee80211_disassoc_frame{
-        struct ieee80211_hdr_3addr header;
-        u16    reasoncode;
-}__attribute__ ((packed));
-
 struct ieee80211_txb {
 	u8 nr_frags;
 	u8 encrypted;
@@ -879,6 +583,32 @@ struct ieee80211_txb {
 	u16 payload_size;
 	struct sk_buff *fragments[0];
 };
+
+/* SWEEP TABLE ENTRIES NUMBER */
+#define MAX_SWEEP_TAB_ENTRIES			42
+#define MAX_SWEEP_TAB_ENTRIES_PER_PACKET	7
+
+/* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
+ * only use 8, and then use extended rates for the remaining supported
+ * rates.  Other APs, however, stick all of their supported rates on the
+ * main rates information element... */
+#define MAX_RATES_LENGTH			((u8)12)
+#define MAX_RATES_EX_LENGTH			((u8)16)
+
+#define MAX_NETWORK_COUNT			128
+
+#define MAX_CHANNEL_NUMBER			165
+
+#define IEEE80211_SOFTMAC_SCAN_TIME		100 /* (HZ / 2) */
+#define IEEE80211_SOFTMAC_ASSOC_RETRY_TIME	(HZ * 2)
+
+#define CRC_LENGTH	4U
+
+#define MAX_WPA_IE_LEN	64
+
+#define NETWORK_EMPTY_ESSID	(1 << 0)
+#define NETWORK_HAS_OFDM	(1 << 1)
+#define NETWORK_HAS_CCK		(1 << 2)
 
 struct ieee80211_wmm_ac_param {
 	u8 ac_aci_acm_aifsn;
@@ -911,23 +641,82 @@ struct ieee80211_wmm_tspec_elem {
 	u16 medium_time;
 }__attribute__((packed));
 
+enum eap_type {
+	EAP_PACKET = 0,
+	EAPOL_START,
+	EAPOL_LOGOFF,
+	EAPOL_KEY,
+	EAPOL_ENCAP_ASF_ALERT
+};
+
+static const char *eap_types[] = {
+	[EAP_PACKET]		= "EAP-Packet",
+	[EAPOL_START]		= "EAPOL-Start",
+	[EAPOL_LOGOFF]		= "EAPOL-Logoff",
+	[EAPOL_KEY]		= "EAPOL-Key",
+	[EAPOL_ENCAP_ASF_ALERT]	= "EAPOL-Encap-ASF-Alert"
+};
+
+static inline const char *eap_get_type(int type)
+{
+	return (type >= ARRAY_SIZE(eap_types)) ? "Unknown" : eap_types[type];
+}
+
+struct eapol {
+	u8 snap[6];
+	u16 ethertype;
+	u8 version;
+	u8 type;
+	u16 length;
+} __attribute__ ((packed));
+
+struct ieee80211_softmac_stats {
+	unsigned int rx_ass_ok;
+	unsigned int rx_ass_err;
+	unsigned int rx_probe_rq;
+	unsigned int tx_probe_rs;
+	unsigned int tx_beacons;
+	unsigned int rx_auth_rq;
+	unsigned int rx_auth_rs_ok;
+	unsigned int rx_auth_rs_err;
+	unsigned int tx_auth_rq;
+	unsigned int no_auth_rs;
+	unsigned int no_ass_rs;
+	unsigned int tx_ass_rq;
+	unsigned int rx_ass_rq;
+	unsigned int tx_probe_rq;
+	unsigned int reassoc;
+	unsigned int swtxstop;
+	unsigned int swtxawake;
+};
+
+#define BEACON_PROBE_SSID_ID_POSITION 12
+
+/*
+ * These are the data types that can make up management packets
+ *
+	u16 auth_algorithm;
+	u16 auth_sequence;
+	u16 beacon_interval;
+	u16 capability;
+	u8 current_ap[ETH_ALEN];
+	u16 listen_interval;
+	struct {
+		u16 association_id:14, reserved:2;
+	} __attribute__ ((packed));
+	u32 time_stamp[2];
+	u16 reason;
+	u16 status;
+*/
+
+#define IEEE80211_DEFAULT_TX_ESSID "Penguin"
+#define IEEE80211_DEFAULT_BASIC_RATE 10
+
 enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 #define MAX_SP_Len  (WMM_all_frame << 4)
 #define IEEE80211_QOS_TID 0x0f
 #define QOS_CTL_NOTCONTAIN_ACK (0x01 << 5)
 
-/* SWEEP TABLE ENTRIES NUMBER*/
-#define MAX_SWEEP_TAB_ENTRIES		  42
-#define MAX_SWEEP_TAB_ENTRIES_PER_PACKET  7
-/* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
- * only use 8, and then use extended rates for the remaining supported
- * rates.  Other APs, however, stick all of their supported rates on the
- * main rates information element... */
-#define MAX_RATES_LENGTH                  ((u8)12)
-#define MAX_RATES_EX_LENGTH               ((u8)16)
-#define MAX_NETWORK_COUNT                  128
-//#define MAX_CHANNEL_NUMBER                 161
-#define MAX_CHANNEL_NUMBER                 165 //YJ,modified,080625
 #define MAX_IE_LEN						0xFF //+YJ,080625
 
 typedef struct _CHANNEL_LIST{
@@ -935,23 +724,12 @@ typedef struct _CHANNEL_LIST{
 	u8	Len;
 }CHANNEL_LIST, *PCHANNEL_LIST;
 
-#define IEEE80211_SOFTMAC_SCAN_TIME	  100//400
-//(HZ / 2)
 //by amy for ps
 #define IEEE80211_WATCH_DOG_TIME    2000
 //by amy for ps
 //by amy for antenna
 #define ANTENNA_DIVERSITY_TIMER_PERIOD		1000 // 1000 m
 //by amy for antenna
-#define IEEE80211_SOFTMAC_ASSOC_RETRY_TIME (HZ * 2)
-
-#define CRC_LENGTH                 4U
-
-#define MAX_WPA_IE_LEN 64
-
-#define NETWORK_EMPTY_ESSID (1<<0)
-#define NETWORK_HAS_OFDM    (1<<1)
-#define NETWORK_HAS_CCK     (1<<2)
 
 #define IEEE80211_DTIM_MBCAST 4
 #define IEEE80211_DTIM_UCAST 2
@@ -1044,13 +822,9 @@ struct ieee80211_network {
 //by amy 080312
 	u8 HighestOperaRate;
 //by amy 080312
-#ifdef THOMAS_TURBO
 	u8 Turbo_Enable;//enable turbo mode, added by thomas
-#endif
-#ifdef ENABLE_DOT11D
 	u16 CountryIeLen;
 	u8 CountryIeBuf[MAX_IE_LEN];
-#endif
 };
 
 enum ieee80211_state {
@@ -1094,24 +868,6 @@ enum ieee80211_state {
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
-
-
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,11))
-extern inline int is_multicast_ether_addr(const u8 *addr)
-{
-        return ((addr[0] != 0xff) && (0x01 & addr[0]));
-}
-#endif
-
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,13))
-extern inline int is_broadcast_ether_addr(const u8 *addr)
-{
-	return ((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) &&   \
-		(addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff));
-}
-#endif
 
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
 #define CFG_IEEE80211_COMPUTE_FCS (1<<1)
@@ -1121,6 +877,19 @@ typedef struct tx_pending_t{
 	struct ieee80211_txb *txb;
 }tx_pending_t;
 
+enum {
+	COUNTRY_CODE_FCC = 0,
+	COUNTRY_CODE_IC = 1,
+	COUNTRY_CODE_ETSI = 2,
+	COUNTRY_CODE_SPAIN = 3,
+	COUNTRY_CODE_FRANCE = 4,
+	COUNTRY_CODE_MKK = 5,
+	COUNTRY_CODE_MKK1 = 6,
+	COUNTRY_CODE_ISRAEL = 7,
+	COUNTRY_CODE_TELEC = 8,
+	COUNTRY_CODE_GLOBAL_DOMAIN = 9,
+	COUNTRY_CODE_WORLD_WIDE_13_INDEX = 10
+};
 
 struct ieee80211_device {
 	struct net_device *dev;
@@ -1207,18 +976,12 @@ struct ieee80211_device {
 	 */
 	short sync_scan_hurryup;
 
-#ifdef ENABLE_DOT11D
 	void * pDot11dInfo;
 	bool bGlobalDomain;
 
 	// For Liteon Ch12~13 passive scan
 	u8	MinPassiveChnlNum;
 	u8	IbssStartChnl;
-#else
-	/* map of allowed channels. 0 is dummy */
-	// FIXME: remeber to default to a basic channel plan depending of the PHY type
-	int channel_map[MAX_CHANNEL_NUMBER+1];
-#endif
 
 	int rate;       /* current rate */
 	int basic_rate;
@@ -1313,7 +1076,6 @@ struct ieee80211_device {
 	unsigned long NumRxOkTotal;
 	unsigned long NumRxUnicast;//YJ,add,080828,for keep alive
 	bool bHwRadioOff;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
         struct delayed_work softmac_scan_wq;
         struct delayed_work associate_retry_wq;
 	struct delayed_work hw_wakeup_wq;
@@ -1329,24 +1091,7 @@ struct ieee80211_device {
 
 //Added for RF power on power off by lizhaoming 080512
 	struct delayed_work GPIOChangeRFWorkItem;
-#else
 
-	struct work_struct start_ibss_wq;
-        struct work_struct softmac_scan_wq;
-        struct work_struct associate_retry_wq;
-	struct work_struct hw_wakeup_wq;
-	struct work_struct hw_sleep_wq;
-	struct work_struct watch_dog_wq;
-	struct work_struct sw_antenna_wq;
-//by amy for rate adaptive 080312
-    struct work_struct rate_adapter_wq;
-//by amy for rate adaptive
-	struct work_struct hw_dig_wq;
-	struct work_struct tx_pw_wq;
-
-//Added for RF power on power off by lizhaoming 080512
-	struct work_struct GPIOChangeRFWorkItem;
-#endif
 	struct workqueue_struct *wq;
 
 	/* Callback functions */
@@ -1582,7 +1327,7 @@ extern void ieee80211_txb_free(struct ieee80211_txb *);
 extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats);
 extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
-			     struct ieee80211_hdr *header,
+			     struct ieee80211_hdr_4addr *header,
 			     struct ieee80211_rx_stats *stats);
 
 /* ieee80211_wx.c */
@@ -1690,12 +1435,8 @@ extern int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_reques
 
 extern int ieee80211_wx_get_freq(struct ieee80211_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
+
 extern void ieee80211_wx_sync_scan_wq(struct work_struct *work);
-#else
- extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
-#endif
-//extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
 
 extern int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,

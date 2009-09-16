@@ -102,9 +102,9 @@ static u8 oui_8021h[] = { 0x00, 0x00, 0xf8 };
 * Call context:
 *	May be called in interrupt or non-interrupt context
 ----------------------------------------------------------------*/
-int skb_ether_to_p80211(wlandevice_t * wlandev, u32 ethconv,
-			struct sk_buff *skb, p80211_hdr_t * p80211_hdr,
-			p80211_metawep_t * p80211_wep)
+int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
+			struct sk_buff *skb, p80211_hdr_t *p80211_hdr,
+			p80211_metawep_t *p80211_wep)
 {
 
 	u16 fc;
@@ -230,8 +230,8 @@ int skb_ether_to_p80211(wlandevice_t * wlandev, u32 ethconv,
 }
 
 /* jkriegl: from orinoco, modified */
-static void orinoco_spy_gather(wlandevice_t * wlandev, char *mac,
-			       p80211_rxmeta_t * rxmeta)
+static void orinoco_spy_gather(wlandevice_t *wlandev, char *mac,
+			       p80211_rxmeta_t *rxmeta)
 {
 	int i;
 
@@ -272,7 +272,7 @@ static void orinoco_spy_gather(wlandevice_t * wlandev, char *mac,
 * Call context:
 *	May be called in interrupt or non-interrupt context
 ----------------------------------------------------------------*/
-int skb_p80211_to_ether(wlandevice_t * wlandev, u32 ethconv,
+int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 			struct sk_buff *skb)
 {
 	netdevice_t *netdev = wlandev->netdev;

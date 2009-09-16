@@ -404,8 +404,8 @@ static inline int plx9080_abort_dma(void *iobase, unsigned int channel)
 	}
 	if (i == timeout) {
 		printk
-			("plx9080: cancel() timed out waiting for dma %i done clear\n",
-			channel);
+		    ("plx9080: cancel() timed out waiting for dma %i done clear\n",
+		     channel);
 		return -ETIMEDOUT;
 	}
 	/*  disable and abort channel */
@@ -418,8 +418,8 @@ static inline int plx9080_abort_dma(void *iobase, unsigned int channel)
 	}
 	if (i == timeout) {
 		printk
-			("plx9080: cancel() timed out waiting for dma %i done set\n",
-			channel);
+		    ("plx9080: cancel() timed out waiting for dma %i done set\n",
+		     channel);
 		return -ETIMEDOUT;
 	}
 

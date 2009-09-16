@@ -174,49 +174,6 @@ static struct sk_buff* ieee80211_ADDBA(struct ieee80211_device* ieee, u8* Dst, P
 	//return NULL;
 }
 
-#if 0 //I try to merge ADDBA_REQ and ADDBA_RSP frames together..
-/********************************************************************************************************************
- *function:  construct ADDBAREQ frame
- *   input:  u8* 		dst 	//ADDBARsp frame's destination
- *   	     PBA_RECORD 	pBA	//BA_RECORD entry which stores the necessary information for BA_RSP.
- *   	     u16 		StatusCode  //status code.
- *  output:  none
- *  return:  sk_buff* 		skb     //return constructed skb to xmit
-********************************************************************************************************************/
-static struct sk_buff* ieee80211_ADDBA_Rsp( IN	struct ieee80211_device* ieee, u8* dst, PBA_RECORD pBA, u16 StatusCode)
-{
-	OCTET_STRING	osADDBAFrame, tmp;
-
-	FillOctetString(osADDBAFrame, Buffer, 0);
-	*pLength = 0;
-
-	ConstructMaFrameHdr(
-					Adapter,
-					Addr,
-					ACT_CAT_BA,
-					ACT_ADDBARSP,
-					&osADDBAFrame	);
-
-	// Dialog Token
-	FillOctetString(tmp, &pBA->DialogToken, 1);
-	PacketAppendData(&osADDBAFrame, tmp);
-
-	// Status Code
-	FillOctetString(tmp, &StatusCode, 2);
-	PacketAppendData(&osADDBAFrame, tmp);
-
-	// BA Parameter Set
-	FillOctetString(tmp, &pBA->BaParamSet, 2);
-	PacketAppendData(&osADDBAFrame, tmp);
-
-	// BA Timeout Value
-	FillOctetString(tmp, &pBA->BaTimeoutValue, 2);
-	PacketAppendData(&osADDBAFrame, tmp);
-
-	*pLength = osADDBAFrame.Length;
-}
-#endif
-
 /********************************************************************************************************************
  *function:  construct DELBA frame
  *   input:  u8* 		dst 	//DELBA frame's destination
@@ -382,7 +339,7 @@ int ieee80211_rx_ADDBAReq( struct ieee80211_device* ieee, struct sk_buff *skb)
 
 	if (skb->len < sizeof( struct ieee80211_hdr_3addr) + 9)
 	{
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, " Invalid skb len in BAREQ(%d / %d)\n", skb->len, 	(sizeof( struct ieee80211_hdr_3addr) + 9));
+		IEEE80211_DEBUG(IEEE80211_DL_ERR, " Invalid skb len in BAREQ(%d / %ld)\n", skb->len, 	(sizeof( struct ieee80211_hdr_3addr) + 9));
 		return -1;
 	}
 
@@ -483,7 +440,7 @@ int ieee80211_rx_ADDBARsp( struct ieee80211_device* ieee, struct sk_buff *skb)
 
 	if (skb->len < sizeof( struct ieee80211_hdr_3addr) + 9)
 	{
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, " Invalid skb len in BARSP(%d / %d)\n", skb->len, 	(sizeof( struct ieee80211_hdr_3addr) + 9));
+		IEEE80211_DEBUG(IEEE80211_DL_ERR, " Invalid skb len in BARSP(%d / %ld)\n", skb->len, 	(sizeof( struct ieee80211_hdr_3addr) + 9));
 		return -1;
 	}
 	rsp = ( struct ieee80211_hdr_3addr*)skb->data;
@@ -613,7 +570,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device* ieee,struct sk_buff *skb)
 
 	if (skb->len < sizeof( struct ieee80211_hdr_3addr) + 6)
 	{
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, " Invalid skb len in DELBA(%d / %d)\n", skb->len, 	(sizeof( struct ieee80211_hdr_3addr) + 6));
+		IEEE80211_DEBUG(IEEE80211_DL_ERR, " Invalid skb len in DELBA(%d / %ld)\n", skb->len, 	(sizeof( struct ieee80211_hdr_3addr) + 6));
 		return -1;
 	}
 

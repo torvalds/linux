@@ -111,7 +111,8 @@ static const struct comedi_lrange *const rangelist_728[] = {
 	&range_4_20mA, &range_0_20mA
 };
 
-static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcl726_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int pcl726_detach(struct comedi_device *dev);
 
 struct pcl726_board {
@@ -129,23 +130,22 @@ struct pcl726_board {
 	const struct comedi_lrange *const *range_type_list;	/*  list of supported ranges */
 };
 
-
 static const struct pcl726_board boardtypes[] = {
 	{"pcl726", 6, 6, 0x0000, PCL726_SIZE, 1,
-			PCL726_DI_HI, PCL726_DI_LO, PCL726_DO_HI, PCL726_DO_LO,
-		&rangelist_726[0],},
+	 PCL726_DI_HI, PCL726_DI_LO, PCL726_DO_HI, PCL726_DO_LO,
+	 &rangelist_726[0],},
 	{"pcl727", 12, 4, 0x0000, PCL727_SIZE, 1,
-			PCL727_DI_HI, PCL727_DI_LO, PCL727_DO_HI, PCL727_DO_LO,
-		&rangelist_727[0],},
+	 PCL727_DI_HI, PCL727_DI_LO, PCL727_DO_HI, PCL727_DO_LO,
+	 &rangelist_727[0],},
 	{"pcl728", 2, 6, 0x0000, PCL728_SIZE, 0,
-			0, 0, 0, 0,
-		&rangelist_728[0],},
+	 0, 0, 0, 0,
+	 &rangelist_728[0],},
 	{"acl6126", 6, 5, 0x96e8, PCL726_SIZE, 1,
-			PCL726_DI_HI, PCL726_DI_LO, PCL726_DO_HI, PCL726_DO_LO,
-		&rangelist_726[0],},
+	 PCL726_DI_HI, PCL726_DI_LO, PCL726_DO_HI, PCL726_DO_LO,
+	 &rangelist_726[0],},
 	{"acl6128", 2, 6, 0x0000, PCL728_SIZE, 0,
-			0, 0, 0, 0,
-		&rangelist_728[0],},
+	 0, 0, 0, 0,
+	 &rangelist_728[0],},
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl726_board))
@@ -173,7 +173,7 @@ struct pcl726_private {
 #define devpriv ((struct pcl726_private *)dev->private)
 
 static int pcl726_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+			  struct comedi_insn *insn, unsigned int *data)
 {
 	int hi, lo;
 	int n;
@@ -197,8 +197,9 @@ static int pcl726_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-static int pcl726_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl726_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int n;
@@ -209,20 +210,22 @@ static int pcl726_ao_insn_read(struct comedi_device *dev, struct comedi_subdevic
 	return n;
 }
 
-static int pcl726_di_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl726_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
 
 	data[1] = inb(dev->iobase + this_board->di_lo) |
-		(inb(dev->iobase + this_board->di_hi) << 8);
+	    (inb(dev->iobase + this_board->di_hi) << 8);
 
 	return 2;
 }
 
-static int pcl726_do_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcl726_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -254,7 +257,7 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	iobase = it->options[0];
 	iorange = this_board->io_range;
 	printk("comedi%d: pcl726: board=%s, 0x%03lx ", dev->minor,
-		this_board->name, iobase);
+	       this_board->name, iobase);
 	if (!request_region(iobase, iorange, "pcl726")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -281,15 +284,15 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & boardtypes[board].IRQbits) == 0) {
 				printk
-					(", IRQ %d is out of allowed range, DISABLING IT",
-					irq);
+				    (", IRQ %d is out of allowed range, DISABLING IT",
+				     irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
 				if (request_irq(irq, interrupt_pcl818, 0,
 						"pcl726", dev)) {
 					printk
-						(", unable to allocate IRQ %d, DISABLING IT",
-						irq);
+					    (", unable to allocate IRQ %d, DISABLING IT",
+					     irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
 					printk(", irq=%d", irq);
@@ -322,12 +325,14 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		j = it->options[2 + 1];
 		if ((j < 0) || (j >= this_board->num_of_ranges)) {
-			printk("Invalid range for channel %d! Must be 0<=%d<%d\n", i, j, this_board->num_of_ranges - 1);
+			printk
+			    ("Invalid range for channel %d! Must be 0<=%d<%d\n",
+			     i, j, this_board->num_of_ranges - 1);
 			j = 0;
 		}
 		devpriv->rangelist[i] = this_board->range_type_list[j];
 		if (devpriv->rangelist[i]->range[0].min ==
-			-devpriv->rangelist[i]->range[0].max)
+		    -devpriv->rangelist[i]->range[0].max)
 			devpriv->bipolar[i] = 1;	/* bipolar range */
 	}
 
