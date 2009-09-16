@@ -1204,13 +1204,13 @@ static void output_lat_thread(struct work_atoms *work_list)
 	/*
 	 * Ignore idle threads:
 	 */
-	if (!work_list->thread->pid)
+	if (!strcmp(work_list->thread->comm, "swapper"))
 		return;
 
 	all_runtime += work_list->total_runtime;
 	all_count += work_list->nb_atoms;
 
-	ret = printf("  %s-%d ", work_list->thread->comm, work_list->thread->pid);
+	ret = printf("  %s:%d ", work_list->thread->comm, work_list->thread->pid);
 
 	for (i = 0; i < 24 - ret; i++)
 		printf(" ");
