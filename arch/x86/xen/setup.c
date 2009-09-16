@@ -33,52 +33,69 @@ extern void xen_sysenter_target(void);
 extern void xen_syscall_target(void);
 extern void xen_syscall32_target(void);
 
-static unsigned long __init xen_release_chunk(phys_addr_t start_addr, phys_addr_t end_addr)
+static unsigned long __init xen_release_chunk(phys_addr_t start_addr,
+					      phys_addr_t end_addr)
 {
 	struct xen_memory_reservation reservation = {
 		.address_bits = 0,
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};
-	unsigned long *mfn_list = (unsigned long *)xen_start_info->mfn_list;
 	unsigned long start, end;
-	unsigned long len;
+	unsigned long len = 0;
 	unsigned long pfn;
 	int ret;
 
 	start = PFN_UP(start_addr);
-	end = PFN_UP(end_addr);
+	end = PFN_DOWN(end_addr);
 
 	if (end <= start)
 		return 0;
 
-	len = end - start;
+	printk(KERN_INFO "xen_release_chunk: looking at area pfn %lx-%lx: ",
+	       start, end);
+	for(pfn = start; pfn < end; pfn++) {
+		unsigned long mfn = pfn_to_mfn(pfn);
 
-	set_xen_guest_handle(reservation.extent_start, &mfn_list[start]);
-	reservation.nr_extents = len;
+		/* Make sure pfn exists to start with */
+		if (mfn == INVALID_P2M_ENTRY || mfn_to_pfn(mfn) != pfn)
+			continue;
 
-	ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation, &reservation);
-	WARN(ret != (end - start), "Failed to release memory %lx-%lx err=%d\n",
-	     start, end, ret);
+		set_xen_guest_handle(reservation.extent_start, &mfn);
+		reservation.nr_extents = 1;
 
-	for(pfn = start; pfn < end; pfn++)
-		set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+		ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
+					   &reservation);
+		WARN(ret != 1, "Failed to release memory %lx-%lx err=%d\n",
+		     start, end, ret);
+		if (ret == 1) {
+			set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+			len++;
+		}
+	}
+	printk(KERN_CONT "%ld pages freed\n", len);
 
 	return len;
 }
 
-static unsigned long __init xen_return_unused_memory(const struct e820map *e820)
+static unsigned long __init xen_return_unused_memory(unsigned long max_pfn,
+						     const struct e820map *e820)
 {
-	unsigned long last_end = 0;
+	phys_addr_t max_addr = PFN_PHYS(max_pfn);
+	phys_addr_t last_end = 0;
 	unsigned long released = 0;
 	int i;
 
-	for (i = 0; i < e820->nr_map; i++) {
-		released += xen_release_chunk(last_end, e820->map[i].addr);
+	for (i = 0; i < e820->nr_map && last_end < max_addr; i++) {
+		phys_addr_t end = e820->map[i].addr;
+		end = min(max_addr, end);
+
+		released += xen_release_chunk(last_end, end);
 		last_end = e820->map[i].addr + e820->map[i].size;
 	}
 
-	released += xen_release_chunk(last_end, PFN_PHYS(xen_start_info->nr_pages));
+	if (last_end < max_addr)
+		released += xen_release_chunk(last_end, max_addr);
 
 	printk(KERN_INFO "released %ld pages of unused memory\n", released);
 	return released;
@@ -118,7 +135,7 @@ char * __init xen_memory_setup(void)
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
-	xen_return_unused_memory(&e820);
+	xen_return_unused_memory(xen_start_info->nr_pages, &e820);
 
 	return "Xen";
 }
