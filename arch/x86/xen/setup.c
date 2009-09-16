@@ -20,6 +20,7 @@
 #include <xen/page.h>
 #include <xen/interface/callback.h>
 #include <xen/interface/physdev.h>
+#include <xen/interface/memory.h>
 #include <xen/features.h>
 
 #include "xen-ops.h"
@@ -32,6 +33,56 @@ extern void xen_sysenter_target(void);
 extern void xen_syscall_target(void);
 extern void xen_syscall32_target(void);
 
+static unsigned long __init xen_release_chunk(phys_addr_t start_addr, phys_addr_t end_addr)
+{
+	struct xen_memory_reservation reservation = {
+		.address_bits = 0,
+		.extent_order = 0,
+		.domid        = DOMID_SELF
+	};
+	unsigned long *mfn_list = (unsigned long *)xen_start_info->mfn_list;
+	unsigned long start, end;
+	unsigned long len;
+	unsigned long pfn;
+	int ret;
+
+	start = PFN_UP(start_addr);
+	end = PFN_UP(end_addr);
+
+	if (end <= start)
+		return 0;
+
+	len = end - start;
+
+	set_xen_guest_handle(reservation.extent_start, &mfn_list[start]);
+	reservation.nr_extents = len;
+
+	ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation, &reservation);
+	WARN(ret != (end - start), "Failed to release memory %lx-%lx err=%d\n",
+	     start, end, ret);
+
+	for(pfn = start; pfn < end; pfn++)
+		set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+
+	return len;
+}
+
+static unsigned long __init xen_return_unused_memory(const struct e820map *e820)
+{
+	unsigned long last_end = 0;
+	unsigned long released = 0;
+	int i;
+
+	for (i = 0; i < e820->nr_map; i++) {
+		released += xen_release_chunk(last_end, e820->map[i].addr);
+		last_end = e820->map[i].addr + e820->map[i].size;
+	}
+
+	released += xen_release_chunk(last_end, PFN_PHYS(xen_start_info->nr_pages));
+
+	printk(KERN_INFO "released %ld pages of unused memory\n", released);
+	return released;
+}
 
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
@@ -66,6 +117,8 @@ char * __init xen_memory_setup(void)
 			"XEN START INFO");
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+
+	xen_return_unused_memory(&e820);
 
 	return "Xen";
 }
