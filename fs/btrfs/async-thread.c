@@ -185,7 +185,7 @@ static int try_worker_shutdown(struct btrfs_worker_thread *worker)
 	int freeit = 0;
 
 	spin_lock_irq(&worker->lock);
-	spin_lock_irq(&worker->workers->lock);
+	spin_lock(&worker->workers->lock);
 	if (worker->workers->num_workers > 1 &&
 	    worker->idle &&
 	    !worker->working &&
@@ -196,7 +196,7 @@ static int try_worker_shutdown(struct btrfs_worker_thread *worker)
 		list_del_init(&worker->worker_list);
 		worker->workers->num_workers--;
 	}
-	spin_unlock_irq(&worker->workers->lock);
+	spin_unlock(&worker->workers->lock);
 	spin_unlock_irq(&worker->lock);
 
 	if (freeit)
