@@ -29,6 +29,7 @@
 #define DA8XX_TPTC1_BASE		0x01c08400
 #define DA8XX_WDOG_BASE			0x01c21000 /* DA8XX_TIMER64P1_BASE */
 #define DA8XX_I2C0_BASE			0x01c22000
+#define DA8XX_RTC_BASE			0x01C23000
 #define DA8XX_EMAC_CPPI_PORT_BASE	0x01e20000
 #define DA8XX_EMAC_CPGMACSS_BASE	0x01e22000
 #define DA8XX_EMAC_CPGMAC_BASE		0x01e23000
@@ -452,4 +453,38 @@ int __init da8xx_register_mmcsd0(struct davinci_mmc_config *config)
 {
 	da8xx_mmcsd0_device.dev.platform_data = config;
 	return platform_device_register(&da8xx_mmcsd0_device);
+}
+
+static struct resource da8xx_rtc_resources[] = {
+	{
+		.start		= DA8XX_RTC_BASE,
+		.end		= DA8XX_RTC_BASE + SZ_4K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{ /* timer irq */
+		.start		= IRQ_DA8XX_RTC,
+		.end		= IRQ_DA8XX_RTC,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{ /* alarm irq */
+		.start		= IRQ_DA8XX_RTC,
+		.end		= IRQ_DA8XX_RTC,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device da8xx_rtc_device = {
+	.name           = "omap_rtc",
+	.id             = -1,
+	.num_resources	= ARRAY_SIZE(da8xx_rtc_resources),
+	.resource	= da8xx_rtc_resources,
+};
+
+int da8xx_register_rtc(void)
+{
+	/* Unlock the rtc's registers */
+	__raw_writel(0x83e70b13, IO_ADDRESS(DA8XX_RTC_BASE + 0x6c));
+	__raw_writel(0x95a4f1e0, IO_ADDRESS(DA8XX_RTC_BASE + 0x70));
+
+	return platform_device_register(&da8xx_rtc_device);
 }

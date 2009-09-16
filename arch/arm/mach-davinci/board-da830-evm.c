@@ -228,6 +228,10 @@ static __init void da830_evm_init(void)
 	if (ret)
 		pr_warning("da830_evm_init: lcd setup failed: %d\n", ret);
 #endif
+
+	ret = da8xx_register_rtc();
+	if (ret)
+		pr_warning("da830_evm_init: rtc setup failed: %d\n", ret);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
