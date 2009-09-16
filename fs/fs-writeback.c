@@ -706,6 +706,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 	};
 	unsigned long oldest_jif;
 	long wrote = 0;
+	struct inode *inode;
 
 	if (wbc.for_kupdate) {
 		wbc.older_than_this = &oldest_jif;
@@ -747,8 +748,24 @@ static long wb_writeback(struct bdi_writeback *wb,
 		 * If we ran out of stuff to write, bail unless more_io got set
 		 */
 		if (wbc.nr_to_write > 0 || wbc.pages_skipped > 0) {
-			if (wbc.more_io && !wbc.for_kupdate)
+			if (wbc.more_io && !wbc.for_kupdate) {
+				if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
+					continue;
+				/*
+				 * Nothing written. Wait for some inode to
+				 * become available for writeback. Otherwise
+				 * we'll just busyloop.
+				 */
+				spin_lock(&inode_lock);
+				if (!list_empty(&wb->b_more_io))  {
+					inode = list_entry(
+							wb->b_more_io.prev,
+							struct inode, i_list);
+					inode_wait_for_writeback(inode);
+				}
+				spin_unlock(&inode_lock);
 				continue;
+			}
 			break;
 		}
 	}
