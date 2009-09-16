@@ -202,16 +202,6 @@ xfs_bmbt_get_state(
 				ext_flag);
 }
 
-/* Endian flipping versions of the bmbt extraction functions */
-void
-xfs_bmbt_disk_get_all(
-	xfs_bmbt_rec_t	*r,
-	xfs_bmbt_irec_t *s)
-{
-	__xfs_bmbt_get_all(get_unaligned_be64(&r->l0),
-				get_unaligned_be64(&r->l1), s);
-}
-
 /*
  * Extract the blockcount field from an on disk bmap extent record.
  */
@@ -814,6 +804,16 @@ xfs_bmbt_trace_key(
 {
 	*l0 = be64_to_cpu(key->bmbt.br_startoff);
 	*l1 = 0;
+}
+
+/* Endian flipping versions of the bmbt extraction functions */
+STATIC void
+xfs_bmbt_disk_get_all(
+	xfs_bmbt_rec_t	*r,
+	xfs_bmbt_irec_t *s)
+{
+	__xfs_bmbt_get_all(get_unaligned_be64(&r->l0),
+				get_unaligned_be64(&r->l1), s);
 }
 
 STATIC void

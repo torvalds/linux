@@ -3263,7 +3263,7 @@ xlog_recover_process_one_iunlink(
  * freeing of the inode and its removal from the list must be
  * atomic.
  */
-void
+STATIC void
 xlog_recover_process_iunlinks(
 	xlog_t		*log)
 {

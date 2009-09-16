@@ -216,7 +216,6 @@ xfs_setfilesize(
 	if (ip->i_d.di_size < isize) {
 		ip->i_d.di_size = isize;
 		ip->i_update_core = 1;
-		ip->i_update_size = 1;
 		xfs_mark_inode_dirty_sync(ip);
 	}
 
