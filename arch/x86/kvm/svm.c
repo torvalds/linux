@@ -1797,8 +1797,6 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	svm->nested.intercept            = nested_vmcb->control.intercept;
 
 	force_new_asid(&svm->vcpu);
-	svm->vmcb->control.exit_int_info = nested_vmcb->control.exit_int_info;
-	svm->vmcb->control.exit_int_info_err = nested_vmcb->control.exit_int_info_err;
 	svm->vmcb->control.int_ctl = nested_vmcb->control.int_ctl | V_INTR_MASKING_MASK;
 	if (nested_vmcb->control.int_ctl & V_IRQ_MASK) {
 		nsvm_printk("nSVM Injecting Interrupt: 0x%x\n",
