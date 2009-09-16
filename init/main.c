@@ -68,6 +68,7 @@
 #include <linux/async.h>
 #include <linux/kmemcheck.h>
 #include <linux/kmemtrace.h>
+#include <linux/shmem_fs.h>
 #include <trace/boot.h>
 
 #include <asm/io.h>
@@ -785,6 +786,7 @@ static void __init do_basic_setup(void)
 	init_workqueues();
 	cpuset_init_smp();
 	usermodehelper_init();
+	init_tmpfs();
 	driver_init();
 	init_irq_proc();
 	do_ctors();

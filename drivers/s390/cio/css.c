@@ -266,7 +266,7 @@ static struct attribute_group subch_attr_group = {
 	.attrs = subch_attrs,
 };
 
-static struct attribute_group *default_subch_attr_groups[] = {
+static const struct attribute_group *default_subch_attr_groups[] = {
 	&subch_attr_group,
 	NULL,
 };
