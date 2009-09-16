@@ -469,8 +469,18 @@ static int vif_add(struct net *net, struct vifctl *vifc, int mrtsock)
 			return err;
 		}
 		break;
+
+	case VIFF_USE_IFINDEX:
 	case 0:
-		dev = ip_dev_find(net, vifc->vifc_lcl_addr.s_addr);
+		if (vifc->vifc_flags == VIFF_USE_IFINDEX) {
+			dev = dev_get_by_index(net, vifc->vifc_lcl_ifindex);
+			if (dev && dev->ip_ptr == NULL) {
+				dev_put(dev);
+				return -EADDRNOTAVAIL;
+			}
+		} else
+			dev = ip_dev_find(net, vifc->vifc_lcl_addr.s_addr);
+
 		if (!dev)
 			return -EADDRNOTAVAIL;
 		err = dev_set_allmulti(dev, 1);

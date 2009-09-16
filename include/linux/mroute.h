@@ -59,13 +59,18 @@ struct vifctl {
 	unsigned char vifc_flags;	/* VIFF_ flags */
 	unsigned char vifc_threshold;	/* ttl limit */
 	unsigned int vifc_rate_limit;	/* Rate limiter values (NI) */
-	struct in_addr vifc_lcl_addr;	/* Our address */
+	union {
+		struct in_addr vifc_lcl_addr;     /* Local interface address */
+		int            vifc_lcl_ifindex;  /* Local interface index   */
+	};
 	struct in_addr vifc_rmt_addr;	/* IPIP tunnel addr */
 };
 
-#define VIFF_TUNNEL	0x1	/* IPIP tunnel */
-#define VIFF_SRCRT	0x2	/* NI */
-#define VIFF_REGISTER	0x4	/* register vif	*/
+#define VIFF_TUNNEL		0x1	/* IPIP tunnel */
+#define VIFF_SRCRT		0x2	/* NI */
+#define VIFF_REGISTER		0x4	/* register vif	*/
+#define VIFF_USE_IFINDEX	0x8	/* use vifc_lcl_ifindex instead of
+					   vifc_lcl_addr to find an interface */
 
 /*
  *	Cache manipulation structures for mrouted and PIMd
