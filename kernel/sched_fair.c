@@ -1248,26 +1248,11 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
  */
 static struct sched_group *
 find_idlest_group(struct sched_domain *sd, struct task_struct *p,
-		  int this_cpu, int flag)
+		  int this_cpu, int load_idx)
 {
 	struct sched_group *idlest = NULL, *this = NULL, *group = sd->groups;
 	unsigned long min_load = ULONG_MAX, this_load = 0;
 	int imbalance = 100 + (sd->imbalance_pct-100)/2;
-	int load_idx = 0;
-
-	switch (flag) {
-	case SD_BALANCE_FORK:
-	case SD_BALANCE_EXEC:
-		load_idx = sd->forkexec_idx;
-		break;
-
-	case SD_BALANCE_WAKE:
-		load_idx = sd->wake_idx;
-		break;
-
-	default:
-		break;
-	}
 
 	do {
 		unsigned long load, avg_load;
@@ -1346,14 +1331,14 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
  *
  * preempt must be disabled.
  */
-static int select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
+static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 {
 	struct sched_domain *tmp, *shares = NULL, *sd = NULL;
 	int cpu = smp_processor_id();
 	int prev_cpu = task_cpu(p);
 	int new_cpu = cpu;
 	int want_affine = 0;
-	int sync = flags & WF_SYNC;
+	int sync = wake_flags & WF_SYNC;
 
 	if (sd_flag & SD_BALANCE_WAKE) {
 		if (sched_feat(AFFINE_WAKEUPS))
@@ -1413,6 +1398,7 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
 		update_shares(sd);
 
 	while (sd) {
+		int load_idx = sd->forkexec_idx;
 		struct sched_group *group;
 		int weight;
 
@@ -1421,7 +1407,10 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
 			continue;
 		}
 
-		group = find_idlest_group(sd, p, cpu, sd_flag);
+		if (sd_flag & SD_BALANCE_WAKE)
+			load_idx = sd->wake_idx;
+
+		group = find_idlest_group(sd, p, cpu, load_idx);
 		if (!group) {
 			sd = sd->child;
 			continue;
