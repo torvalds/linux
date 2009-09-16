@@ -325,6 +325,7 @@ struct cx23885_dev {
 
 	int                        nr;
 	struct mutex               lock;
+	struct mutex               gpio_lock;
 
 	/* board details */
 	unsigned int               board;

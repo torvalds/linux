@@ -758,6 +758,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	int i;
 
 	mutex_init(&dev->lock);
+	mutex_init(&dev->gpio_lock);
 
 	atomic_inc(&dev->refcount);
 
