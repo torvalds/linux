@@ -159,8 +159,6 @@ static struct rb_root		atom_root, sorted_atom_root;
 static u64			all_runtime;
 static u64			all_count;
 
-static int read_events(void);
-
 
 static u64 get_nsecs(void)
 {
@@ -632,38 +630,6 @@ static void test_calibrations(void)
 	T1 = get_nsecs();
 
 	printf("the sleep test took %Ld nsecs\n", T1-T0);
-}
-
-static void __cmd_replay(void)
-{
-	unsigned long i;
-
-	calibrate_run_measurement_overhead();
-	calibrate_sleep_measurement_overhead();
-
-	test_calibrations();
-
-	read_events();
-
-	printf("nr_run_events:        %ld\n", nr_run_events);
-	printf("nr_sleep_events:      %ld\n", nr_sleep_events);
-	printf("nr_wakeup_events:     %ld\n", nr_wakeup_events);
-
-	if (targetless_wakeups)
-		printf("target-less wakeups:  %ld\n", targetless_wakeups);
-	if (multitarget_wakeups)
-		printf("multi-target wakeups: %ld\n", multitarget_wakeups);
-	if (nr_run_events_optimized)
-		printf("run atoms optimized: %ld\n",
-			nr_run_events_optimized);
-
-	print_task_traces();
-	add_cross_task_wakeups();
-
-	create_tasks();
-	printf("------------------------------------------------------------\n");
-	for (i = 0; i < replay_repeat; i++)
-		run_one_test();
 }
 
 static int
@@ -1354,64 +1320,6 @@ static void sort_lat(void)
 	}
 }
 
-static void __cmd_lat(void)
-{
-	struct rb_node *next;
-
-	setup_pager();
-	read_events();
-	sort_lat();
-
-	printf("\n -----------------------------------------------------------------------------------------\n");
-	printf("  Task                  |   Runtime ms  | Switches | Average delay ms | Maximum delay ms |\n");
-	printf(" -----------------------------------------------------------------------------------------\n");
-
-	next = rb_first(&sorted_atom_root);
-
-	while (next) {
-		struct work_atoms *work_list;
-
-		work_list = rb_entry(next, struct work_atoms, node);
-		output_lat_thread(work_list);
-		next = rb_next(next);
-	}
-
-	printf(" -----------------------------------------------------------------------------------------\n");
-	printf("  TOTAL:                |%11.3f ms |%9Ld |\n",
-		(double)all_runtime/1e6, all_count);
-
-	printf(" ---------------------------------------------------\n");
-	if (nr_unordered_timestamps && nr_timestamps) {
-		printf("  INFO: %.3f%% unordered timestamps (%ld out of %ld)\n",
-			(double)nr_unordered_timestamps/(double)nr_timestamps*100.0,
-			nr_unordered_timestamps, nr_timestamps);
-	} else {
-	}
-	if (nr_lost_events && nr_events) {
-		printf("  INFO: %.3f%% lost events (%ld out of %ld, in %ld chunks)\n",
-			(double)nr_lost_events/(double)nr_events*100.0,
-			nr_lost_events, nr_events, nr_lost_chunks);
-	}
-	if (nr_state_machine_bugs && nr_timestamps) {
-		printf("  INFO: %.3f%% state machine bugs (%ld out of %ld)",
-			(double)nr_state_machine_bugs/(double)nr_timestamps*100.0,
-			nr_state_machine_bugs, nr_timestamps);
-		if (nr_lost_events)
-			printf(" (due to lost events?)");
-		printf("\n");
-	}
-	if (nr_context_switch_bugs && nr_timestamps) {
-		printf("  INFO: %.3f%% context switch bugs (%ld out of %ld)",
-			(double)nr_context_switch_bugs/(double)nr_timestamps*100.0,
-			nr_context_switch_bugs, nr_timestamps);
-		if (nr_lost_events)
-			printf(" (due to lost events?)");
-		printf("\n");
-	}
-	printf("\n");
-
-}
-
 static struct trace_sched_handler *trace_handler;
 
 static void
@@ -1431,19 +1339,106 @@ process_sched_wakeup_event(struct raw_event_sample *raw,
 	FILL_FIELD(wakeup_event, success, event, raw->data);
 	FILL_FIELD(wakeup_event, cpu, event, raw->data);
 
-	trace_handler->wakeup_event(&wakeup_event, event, cpu, timestamp, thread);
+	if (trace_handler->wakeup_event)
+		trace_handler->wakeup_event(&wakeup_event, event, cpu, timestamp, thread);
 }
 
 /*
  * Track the current task - that way we can know whether there's any
  * weird events, such as a task being switched away that is not current.
  */
+static int max_cpu = 15;
+
 static u32 curr_pid[MAX_CPUS] = { [0 ... MAX_CPUS-1] = -1 };
+
+static struct thread *curr_thread[MAX_CPUS];
+
+static char next_shortname1 = 'A';
+static char next_shortname2 = '0';
+
+static void
+map_switch_event(struct trace_switch_event *switch_event,
+		 struct event *event __used,
+		 int this_cpu,
+		 u64 timestamp,
+		 struct thread *thread __used)
+{
+	struct thread *sched_out, *sched_in;
+	int new_shortname;
+	u64 timestamp0;
+	s64 delta;
+	int cpu;
+
+	BUG_ON(this_cpu >= MAX_CPUS || this_cpu < 0);
+
+	if (this_cpu > max_cpu)
+		max_cpu = this_cpu;
+
+	timestamp0 = cpu_last_switched[this_cpu];
+	cpu_last_switched[this_cpu] = timestamp;
+	if (timestamp0)
+		delta = timestamp - timestamp0;
+	else
+		delta = 0;
+
+	if (delta < 0)
+		die("hm, delta: %Ld < 0 ?\n", delta);
+
+
+	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
+	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
+
+	curr_thread[this_cpu] = sched_in;
+
+	printf("  ");
+
+	new_shortname = 0;
+	if (!sched_in->shortname[0]) {
+		sched_in->shortname[0] = next_shortname1;
+		sched_in->shortname[1] = next_shortname2;
+
+		if (next_shortname1 < 'Z') {
+			next_shortname1++;
+		} else {
+			next_shortname1='A';
+			if (next_shortname2 < '9') {
+				next_shortname2++;
+			} else {
+				next_shortname2='0';
+			}
+		}
+		new_shortname = 1;
+	}
+
+	for (cpu = 0; cpu <= max_cpu; cpu++) {
+		if (cpu != this_cpu)
+			printf(" ");
+		else
+			printf("*");
+
+		if (curr_thread[cpu]) {
+			if (curr_thread[cpu]->pid)
+				printf("%2s ", curr_thread[cpu]->shortname);
+			else
+				printf(".  ");
+		} else
+			printf("   ");
+	}
+
+	printf("  %12.6f secs ", (double)timestamp/1e9);
+	if (new_shortname) {
+		printf("%s => %s:%d\n",
+			sched_in->shortname, sched_in->comm, sched_in->pid);
+	} else {
+		printf("\n");
+	}
+}
+
 
 static void
 process_sched_switch_event(struct raw_event_sample *raw,
 			   struct event *event,
-			   int cpu,
+			   int this_cpu,
 			   u64 timestamp __used,
 			   struct thread *thread __used)
 {
@@ -1459,17 +1454,18 @@ process_sched_switch_event(struct raw_event_sample *raw,
 	FILL_FIELD(switch_event, next_pid, event, raw->data);
 	FILL_FIELD(switch_event, next_prio, event, raw->data);
 
-	if (curr_pid[cpu] != (u32)-1) {
+	if (curr_pid[this_cpu] != (u32)-1) {
 		/*
 		 * Are we trying to switch away a PID that is
 		 * not current?
 		 */
-		if (curr_pid[cpu] != switch_event.prev_pid)
+		if (curr_pid[this_cpu] != switch_event.prev_pid)
 			nr_context_switch_bugs++;
 	}
-	curr_pid[cpu] = switch_event.next_pid;
+	if (trace_handler->switch_event)
+		trace_handler->switch_event(&switch_event, event, this_cpu, timestamp, thread);
 
-	trace_handler->switch_event(&switch_event, event, cpu, timestamp, thread);
+	curr_pid[this_cpu] = switch_event.next_pid;
 }
 
 static void
@@ -1486,7 +1482,8 @@ process_sched_runtime_event(struct raw_event_sample *raw,
 	FILL_FIELD(runtime_event, runtime, event, raw->data);
 	FILL_FIELD(runtime_event, vruntime, event, raw->data);
 
-	trace_handler->runtime_event(&runtime_event, event, cpu, timestamp, thread);
+	if (trace_handler->runtime_event)
+		trace_handler->runtime_event(&runtime_event, event, cpu, timestamp, thread);
 }
 
 static void
@@ -1505,7 +1502,8 @@ process_sched_fork_event(struct raw_event_sample *raw,
 	FILL_ARRAY(fork_event, child_comm, event, raw->data);
 	FILL_FIELD(fork_event, child_pid, event, raw->data);
 
-	trace_handler->fork_event(&fork_event, event, cpu, timestamp, thread);
+	if (trace_handler->fork_event)
+		trace_handler->fork_event(&fork_event, event, cpu, timestamp, thread);
 }
 
 static void
@@ -1748,6 +1746,116 @@ more:
 	return rc;
 }
 
+static void print_bad_events(void)
+{
+	if (nr_unordered_timestamps && nr_timestamps) {
+		printf("  INFO: %.3f%% unordered timestamps (%ld out of %ld)\n",
+			(double)nr_unordered_timestamps/(double)nr_timestamps*100.0,
+			nr_unordered_timestamps, nr_timestamps);
+	}
+	if (nr_lost_events && nr_events) {
+		printf("  INFO: %.3f%% lost events (%ld out of %ld, in %ld chunks)\n",
+			(double)nr_lost_events/(double)nr_events*100.0,
+			nr_lost_events, nr_events, nr_lost_chunks);
+	}
+	if (nr_state_machine_bugs && nr_timestamps) {
+		printf("  INFO: %.3f%% state machine bugs (%ld out of %ld)",
+			(double)nr_state_machine_bugs/(double)nr_timestamps*100.0,
+			nr_state_machine_bugs, nr_timestamps);
+		if (nr_lost_events)
+			printf(" (due to lost events?)");
+		printf("\n");
+	}
+	if (nr_context_switch_bugs && nr_timestamps) {
+		printf("  INFO: %.3f%% context switch bugs (%ld out of %ld)",
+			(double)nr_context_switch_bugs/(double)nr_timestamps*100.0,
+			nr_context_switch_bugs, nr_timestamps);
+		if (nr_lost_events)
+			printf(" (due to lost events?)");
+		printf("\n");
+	}
+}
+
+static void __cmd_lat(void)
+{
+	struct rb_node *next;
+
+	setup_pager();
+	read_events();
+	sort_lat();
+
+	printf("\n -----------------------------------------------------------------------------------------\n");
+	printf("  Task                  |   Runtime ms  | Switches | Average delay ms | Maximum delay ms |\n");
+	printf(" -----------------------------------------------------------------------------------------\n");
+
+	next = rb_first(&sorted_atom_root);
+
+	while (next) {
+		struct work_atoms *work_list;
+
+		work_list = rb_entry(next, struct work_atoms, node);
+		output_lat_thread(work_list);
+		next = rb_next(next);
+	}
+
+	printf(" -----------------------------------------------------------------------------------------\n");
+	printf("  TOTAL:                |%11.3f ms |%9Ld |\n",
+		(double)all_runtime/1e6, all_count);
+
+	printf(" ---------------------------------------------------\n");
+
+	print_bad_events();
+	printf("\n");
+
+}
+
+static struct trace_sched_handler map_ops  = {
+	.wakeup_event		= NULL,
+	.switch_event		= map_switch_event,
+	.runtime_event		= NULL,
+	.fork_event		= NULL,
+};
+
+static void __cmd_map(void)
+{
+	setup_pager();
+	read_events();
+	print_bad_events();
+}
+
+static void __cmd_replay(void)
+{
+	unsigned long i;
+
+	calibrate_run_measurement_overhead();
+	calibrate_sleep_measurement_overhead();
+
+	test_calibrations();
+
+	read_events();
+
+	printf("nr_run_events:        %ld\n", nr_run_events);
+	printf("nr_sleep_events:      %ld\n", nr_sleep_events);
+	printf("nr_wakeup_events:     %ld\n", nr_wakeup_events);
+
+	if (targetless_wakeups)
+		printf("target-less wakeups:  %ld\n", targetless_wakeups);
+	if (multitarget_wakeups)
+		printf("multi-target wakeups: %ld\n", multitarget_wakeups);
+	if (nr_run_events_optimized)
+		printf("run atoms optimized: %ld\n",
+			nr_run_events_optimized);
+
+	print_task_traces();
+	add_cross_task_wakeups();
+
+	create_tasks();
+	printf("------------------------------------------------------------\n");
+	for (i = 0; i < replay_repeat; i++)
+		run_one_test();
+}
+
+
 static const char * const sched_usage[] = {
 	"perf sched [<options>] {record|latency|replay|trace}",
 	NULL
@@ -1867,6 +1975,10 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 		}
 		setup_sorting();
 		__cmd_lat();
+	} else if (!strcmp(argv[0], "map")) {
+		trace_handler = &map_ops;
+		setup_sorting();
+		__cmd_map();
 	} else if (!strncmp(argv[0], "rep", 3)) {
 		trace_handler = &replay_ops;
 		if (argc) {

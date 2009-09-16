@@ -8,7 +8,7 @@
 
 static struct thread *thread__new(pid_t pid)
 {
-	struct thread *self = malloc(sizeof(*self));
+	struct thread *self = calloc(1, sizeof(*self));
 
 	if (self != NULL) {
 		self->pid = pid;
