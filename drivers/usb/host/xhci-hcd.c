@@ -1428,11 +1428,20 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	unsigned long flags;
+	u32 state;
 
 	if (udev->slot_id == 0)
 		return;
 
 	spin_lock_irqsave(&xhci->lock, flags);
+	/* Don't disable the slot if the host controller is dead. */
+	state = xhci_readl(xhci, &xhci->op_regs->status);
+	if (state == 0xffffffff) {
+		xhci_free_virt_device(xhci, udev->slot_id);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return;
+	}
+
 	if (xhci_queue_slot_control(xhci, TRB_DISABLE_SLOT, udev->slot_id)) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
