@@ -47,7 +47,6 @@
 
 static unsigned long se_user;
 static unsigned long se_sys;
-static unsigned long se_skipped;
 static unsigned long se_half;
 static unsigned long se_word;
 static unsigned long se_dword;
@@ -77,7 +76,6 @@ proc_alignment_read(char *page, char **start, off_t off, int count, int *eof,
 
 	p += sprintf(p, "User:\t\t%lu\n", se_user);
 	p += sprintf(p, "System:\t\t%lu\n", se_sys);
-	p += sprintf(p, "Skipped:\t%lu\n", se_skipped);
 	p += sprintf(p, "Half:\t\t%lu\n", se_half);
 	p += sprintf(p, "Word:\t\t%lu\n", se_word);
 	p += sprintf(p, "DWord:\t\t%lu\n", se_dword);
