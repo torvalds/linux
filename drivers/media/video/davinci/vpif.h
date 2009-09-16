@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/videodev2.h>
 #include <mach/hardware.h>
+#include <mach/dm646x.h>
 
 /* Maximum channel allowed */
 #define VPIF_NUM_CHANNELS		(4)
@@ -26,7 +27,9 @@
 #define VPIF_DISPLAY_NUM_CHANNELS	(2)
 
 /* Macros to read/write registers */
-static void __iomem *vpif_base;
+extern void __iomem *vpif_base;
+extern spinlock_t vpif_lock;
+
 #define regr(reg)               readl((reg) + vpif_base)
 #define regw(value, reg)        writel(value, (reg + vpif_base))
 
@@ -280,6 +283,10 @@ static inline void enable_channel1(int enable)
 /* inline function to enable interrupt for channel0 */
 static inline void channel0_intr_enable(int enable)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&vpif_lock, flags);
+
 	if (enable) {
 		regw((regr(VPIF_INTEN) | 0x10), VPIF_INTEN);
 		regw((regr(VPIF_INTEN_SET) | 0x10), VPIF_INTEN_SET);
@@ -292,11 +299,16 @@ static inline void channel0_intr_enable(int enable)
 		regw((regr(VPIF_INTEN_SET) | VPIF_INTEN_FRAME_CH0),
 							VPIF_INTEN_SET);
 	}
+	spin_unlock_irqrestore(&vpif_lock, flags);
 }
 
 /* inline function to enable interrupt for channel1 */
 static inline void channel1_intr_enable(int enable)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&vpif_lock, flags);
+
 	if (enable) {
 		regw((regr(VPIF_INTEN) | 0x10), VPIF_INTEN);
 		regw((regr(VPIF_INTEN_SET) | 0x10), VPIF_INTEN_SET);
@@ -309,6 +321,7 @@ static inline void channel1_intr_enable(int enable)
 		regw((regr(VPIF_INTEN_SET) | VPIF_INTEN_FRAME_CH1),
 							VPIF_INTEN_SET);
 	}
+	spin_unlock_irqrestore(&vpif_lock, flags);
 }
 
 /* inline function to set buffer addresses in case of Y/C non mux mode */
@@ -431,6 +444,10 @@ static inline void enable_channel3(int enable)
 /* inline function to enable interrupt for channel2 */
 static inline void channel2_intr_enable(int enable)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&vpif_lock, flags);
+
 	if (enable) {
 		regw((regr(VPIF_INTEN) | 0x10), VPIF_INTEN);
 		regw((regr(VPIF_INTEN_SET) | 0x10), VPIF_INTEN_SET);
@@ -442,11 +459,16 @@ static inline void channel2_intr_enable(int enable)
 		regw((regr(VPIF_INTEN_SET) | VPIF_INTEN_FRAME_CH2),
 							VPIF_INTEN_SET);
 	}
+	spin_unlock_irqrestore(&vpif_lock, flags);
 }
 
 /* inline function to enable interrupt for channel3 */
 static inline void channel3_intr_enable(int enable)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&vpif_lock, flags);
+
 	if (enable) {
 		regw((regr(VPIF_INTEN) | 0x10), VPIF_INTEN);
 		regw((regr(VPIF_INTEN_SET) | 0x10), VPIF_INTEN_SET);
@@ -459,6 +481,7 @@ static inline void channel3_intr_enable(int enable)
 		regw((regr(VPIF_INTEN_SET) | VPIF_INTEN_FRAME_CH3),
 							VPIF_INTEN_SET);
 	}
+	spin_unlock_irqrestore(&vpif_lock, flags);
 }
 
 /* inline function to enable raw vbi data for channel2 */
@@ -571,7 +594,7 @@ struct vpif_channel_config_params {
 	v4l2_std_id stdid;
 };
 
-struct vpif_interface;
+struct vpif_video_params;
 struct vpif_params;
 struct vpif_vbi_params;
 
@@ -579,25 +602,11 @@ int vpif_set_video_params(struct vpif_params *vpifparams, u8 channel_id);
 void vpif_set_vbi_display_params(struct vpif_vbi_params *vbiparams,
 							u8 channel_id);
 int vpif_channel_getfid(u8 channel_id);
-void vpif_base_addr_init(void __iomem *base);
-
-/* Enumerated data types */
-enum vpif_capture_pinpol {
-	VPIF_CAPTURE_PINPOL_SAME	= 0,
-	VPIF_CAPTURE_PINPOL_INVERT	= 1
-};
 
 enum data_size {
 	_8BITS = 0,
 	_10BITS,
 	_12BITS,
-};
-
-struct vpif_capture_params_raw {
-	enum data_size data_sz;
-	enum vpif_capture_pinpol fid_pol;
-	enum vpif_capture_pinpol vd_pol;
-	enum vpif_capture_pinpol hd_pol;
 };
 
 /* Structure for vpif parameters for raw vbi data */
@@ -613,18 +622,19 @@ struct vpif_vbi_params {
 };
 
 /* structure for vpif parameters */
-struct vpif_interface {
+struct vpif_video_params {
 	__u8 storage_mode;	/* Indicates field or frame mode */
 	unsigned long hpitch;
 	v4l2_std_id stdid;
 };
 
 struct vpif_params {
-	struct vpif_interface video_params;
+	struct vpif_interface iface;
+	struct vpif_video_params video_params;
 	struct vpif_channel_config_params std_info;
 	union param {
 		struct vpif_vbi_params	vbi_params;
-		struct vpif_capture_params_raw	raw_params;
+		enum data_size data_sz;
 	} params;
 };
 

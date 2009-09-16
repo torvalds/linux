@@ -19,7 +19,11 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/spinlock.h>
 #include <linux/kernel.h>
+#include <linux/io.h>
+#include <mach/hardware.h>
 
 #include "vpif.h"
 
@@ -30,6 +34,12 @@ MODULE_LICENSE("GPL");
 #define VPIF_CH1_MAX_MODES	(02)
 #define VPIF_CH2_MAX_MODES	(15)
 #define VPIF_CH3_MAX_MODES	(02)
+
+static resource_size_t	res_len;
+static struct resource	*res;
+spinlock_t vpif_lock;
+
+void __iomem *vpif_base;
 
 static inline void vpif_wr_bit(u32 reg, u32 bit, u32 val)
 {
@@ -151,17 +161,17 @@ static void config_vpif_params(struct vpif_params *vpifparams,
 		else if (config->capture_format) {
 			/* Set the polarity of various pins */
 			vpif_wr_bit(reg, VPIF_CH_FID_POLARITY_BIT,
-					vpifparams->params.raw_params.fid_pol);
+					vpifparams->iface.fid_pol);
 			vpif_wr_bit(reg, VPIF_CH_V_VALID_POLARITY_BIT,
-					vpifparams->params.raw_params.vd_pol);
+					vpifparams->iface.vd_pol);
 			vpif_wr_bit(reg, VPIF_CH_H_VALID_POLARITY_BIT,
-					vpifparams->params.raw_params.hd_pol);
+					vpifparams->iface.hd_pol);
 
 			value = regr(reg);
 			/* Set data width */
 			value &= ((~(unsigned int)(0x3)) <<
 					VPIF_CH_DATA_WIDTH_BIT);
-			value |= ((vpifparams->params.raw_params.data_sz) <<
+			value |= ((vpifparams->params.data_sz) <<
 						     VPIF_CH_DATA_WIDTH_BIT);
 			regw(value, reg);
 		}
@@ -227,8 +237,60 @@ int vpif_channel_getfid(u8 channel_id)
 }
 EXPORT_SYMBOL(vpif_channel_getfid);
 
-void vpif_base_addr_init(void __iomem *base)
+static int __init vpif_probe(struct platform_device *pdev)
 {
-	vpif_base = base;
+	int status = 0;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENOENT;
+
+	res_len = res->end - res->start + 1;
+
+	res = request_mem_region(res->start, res_len, res->name);
+	if (!res)
+		return -EBUSY;
+
+	vpif_base = ioremap(res->start, res_len);
+	if (!vpif_base) {
+		status = -EBUSY;
+		goto fail;
+	}
+
+	spin_lock_init(&vpif_lock);
+	dev_info(&pdev->dev, "vpif probe success\n");
+	return 0;
+
+fail:
+	release_mem_region(res->start, res_len);
+	return status;
 }
-EXPORT_SYMBOL(vpif_base_addr_init);
+
+static int vpif_remove(struct platform_device *pdev)
+{
+	iounmap(vpif_base);
+	release_mem_region(res->start, res_len);
+	return 0;
+}
+
+static struct platform_driver vpif_driver = {
+	.driver = {
+		.name	= "vpif",
+		.owner = THIS_MODULE,
+	},
+	.remove = __devexit_p(vpif_remove),
+	.probe = vpif_probe,
+};
+
+static void vpif_exit(void)
+{
+	platform_driver_unregister(&vpif_driver);
+}
+
+static int __init vpif_init(void)
+{
+	return platform_driver_register(&vpif_driver);
+}
+subsys_initcall(vpif_init);
+module_exit(vpif_exit);
+
