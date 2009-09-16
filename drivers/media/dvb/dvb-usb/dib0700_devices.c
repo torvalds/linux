@@ -1860,6 +1860,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 /* 60 */{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_XXS_2) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XPVR) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XP) },
+	{ USB_DEVICE(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -2365,10 +2366,14 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 1,
+		.num_device_descs = 2,
 		.devices = {
 			{   "DiBcom STK807xP reference design",
 				{ &dib0700_usb_id_table[62], NULL },
+				{ NULL },
+			},
+			{   "Prolink Pixelview SBTVD",
+				{ &dib0700_usb_id_table[63], NULL },
 				{ NULL },
 			},
 		},
