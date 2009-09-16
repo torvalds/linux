@@ -1010,9 +1010,12 @@ static int __trace_add_event_call(struct ftrace_event_call *call)
 		return -ENOENT;
 
 	list_add(&call->list, &ftrace_events);
-	return event_create_dir(call, d_events, &ftrace_event_id_fops,
+	ret = event_create_dir(call, d_events, &ftrace_event_id_fops,
 				&ftrace_enable_fops, &ftrace_event_filter_fops,
 				&ftrace_event_format_fops);
+	if (ret < 0)
+		list_del(&call->list);
+	return ret;
 }
 
 /* Add an additional event_call dynamically */
