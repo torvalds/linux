@@ -113,11 +113,6 @@ int i2400m_open(struct net_device *net_dev)
 }
 
 
-/*
- *
- * On kernel versions where cancel_work_sync() didn't return anything,
- * we rely on wake_tx_skb() being non-NULL.
- */
 static
 int i2400m_stop(struct net_device *net_dev)
 {
@@ -125,21 +120,7 @@ int i2400m_stop(struct net_device *net_dev)
 	struct device *dev = i2400m_dev(i2400m);
 
 	d_fnstart(3, dev, "(net_dev %p [i2400m %p])\n", net_dev, i2400m);
-	/* See i2400m_hard_start_xmit(), references are taken there
-	 * and here we release them if the work was still
-	 * pending. Note we can't differentiate work not pending vs
-	 * never scheduled, so the NULL check does that. */
-	if (cancel_work_sync(&i2400m->wake_tx_ws) == 0
-	    && i2400m->wake_tx_skb != NULL) {
-		unsigned long flags;
-		struct sk_buff *wake_tx_skb;
-		spin_lock_irqsave(&i2400m->tx_lock, flags);
-		wake_tx_skb = i2400m->wake_tx_skb;	/* compat help */
-		i2400m->wake_tx_skb = NULL;	/* compat help */
-		spin_unlock_irqrestore(&i2400m->tx_lock, flags);
-		i2400m_put(i2400m);
-		kfree_skb(wake_tx_skb);
-	}
+	i2400m_net_wake_stop(i2400m);
 	d_fnend(3, dev, "(net_dev %p [i2400m %p]) = 0\n", net_dev, i2400m);
 	return 0;
 }
@@ -227,6 +208,38 @@ void i2400m_tx_prep_header(struct sk_buff *skb)
 	skb_pull(skb, ETH_HLEN);
 	pl_hdr = (struct i2400m_pl_data_hdr *) skb_push(skb, sizeof(*pl_hdr));
 	pl_hdr->reserved = 0;
+}
+
+
+
+/*
+ * Cleanup resources acquired during i2400m_net_wake_tx()
+ *
+ * This is called by __i2400m_dev_stop and means we have to make sure
+ * the workqueue is flushed from any pending work.
+ */
+void i2400m_net_wake_stop(struct i2400m *i2400m)
+{
+	struct device *dev = i2400m_dev(i2400m);
+
+	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
+	/* See i2400m_hard_start_xmit(), references are taken there
+	 * and here we release them if the work was still
+	 * pending. Note we can't differentiate work not pending vs
+	 * never scheduled, so the NULL check does that. */
+	if (cancel_work_sync(&i2400m->wake_tx_ws) == 0
+	    && i2400m->wake_tx_skb != NULL) {
+		unsigned long flags;
+		struct sk_buff *wake_tx_skb;
+		spin_lock_irqsave(&i2400m->tx_lock, flags);
+		wake_tx_skb = i2400m->wake_tx_skb;	/* compat help */
+		i2400m->wake_tx_skb = NULL;	/* compat help */
+		spin_unlock_irqrestore(&i2400m->tx_lock, flags);
+		i2400m_put(i2400m);
+		kfree_skb(wake_tx_skb);
+	}
+	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
+	return;
 }
 
 

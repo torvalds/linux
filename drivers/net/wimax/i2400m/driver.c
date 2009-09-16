@@ -527,6 +527,7 @@ void __i2400m_dev_stop(struct i2400m *i2400m)
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	wimax_state_change(wimax_dev, __WIMAX_ST_QUIESCING);
+	i2400m_net_wake_stop(i2400m);
 	i2400m_dev_shutdown(i2400m);
 	i2400m->ready = 0;
 	i2400m->bus_dev_stop(i2400m);

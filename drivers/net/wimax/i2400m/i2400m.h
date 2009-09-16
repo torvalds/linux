@@ -691,6 +691,7 @@ extern void i2400m_net_rx(struct i2400m *, struct sk_buff *, unsigned,
 			  const void *, int);
 extern void i2400m_net_erx(struct i2400m *, struct sk_buff *,
 			   enum i2400m_cs);
+extern void i2400m_net_wake_stop(struct i2400m *);
 enum i2400m_pt;
 extern int i2400m_tx(struct i2400m *, const void *, size_t, enum i2400m_pt);
 
