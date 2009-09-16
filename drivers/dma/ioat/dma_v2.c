@@ -42,18 +42,19 @@
 int ioat_ring_alloc_order = 8;
 module_param(ioat_ring_alloc_order, int, 0644);
 MODULE_PARM_DESC(ioat_ring_alloc_order,
-		 "ioat2+: allocate 2^n descriptors per channel (default: n=8)");
+		 "ioat2+: allocate 2^n descriptors per channel"
+		 " (default: 8 max: 16)");
 static int ioat_ring_max_alloc_order = IOAT_MAX_ORDER;
 module_param(ioat_ring_max_alloc_order, int, 0644);
 MODULE_PARM_DESC(ioat_ring_max_alloc_order,
-		 "ioat2+: upper limit for dynamic ring resizing (default: n=16)");
+		 "ioat2+: upper limit for ring size (default: 16)");
 
 void __ioat2_issue_pending(struct ioat2_dma_chan *ioat)
 {
 	void * __iomem reg_base = ioat->base.reg_base;
 
 	ioat->pending = 0;
-	ioat->dmacount += ioat2_ring_pending(ioat);;
+	ioat->dmacount += ioat2_ring_pending(ioat);
 	ioat->issued = ioat->head;
 	/* make descriptor updates globally visible before notifying channel */
 	wmb();
