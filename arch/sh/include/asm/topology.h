@@ -21,7 +21,6 @@
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_FORK	\
 				| SD_BALANCE_EXEC	\
-				| SD_BALANCE_WAKE	\
 				| SD_BALANCE_NEWIDLE	\
 				| SD_SERIALIZE,		\
 	.last_balance		= jiffies,		\
