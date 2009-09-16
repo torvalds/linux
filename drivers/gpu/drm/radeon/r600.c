@@ -1573,6 +1573,7 @@ int r600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	rdev->accel_working = true;
 	r = r600_resume(rdev);
 	if (r) {
 		if (rdev->flags & RADEON_IS_AGP) {
@@ -1581,22 +1582,24 @@ int r600_init(struct radeon_device *rdev)
 			rdev->flags &= ~RADEON_IS_AGP;
 			return r600_init(rdev);
 		}
-		return r;
+		rdev->accel_working = false;
 	}
-	r = radeon_ib_pool_init(rdev);
-	if (r) {
-		DRM_ERROR("radeon: failled initializing IB pool (%d).\n", r);
-		return r;
-	}
-	r = r600_blit_init(rdev);
-	if (r) {
-		DRM_ERROR("radeon: failled blitter (%d).\n", r);
-		return r;
-	}
-	r = radeon_ib_test(rdev);
-	if (r) {
-		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
-			return r;
+	if (rdev->accel_working) {
+		r = radeon_ib_pool_init(rdev);
+		if (r) {
+			DRM_ERROR("radeon: failled initializing IB pool (%d).\n", r);
+			rdev->accel_working = false;
+		}
+		r = r600_blit_init(rdev);
+		if (r) {
+			DRM_ERROR("radeon: failled blitter (%d).\n", r);
+			rdev->accel_working = false;
+		}
+		r = radeon_ib_test(rdev);
+		if (r) {
+			DRM_ERROR("radeon: failled testing IB (%d).\n", r);
+			rdev->accel_working = false;
+		}
 	}
 	return 0;
 }

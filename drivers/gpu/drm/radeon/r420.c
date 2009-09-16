@@ -329,6 +329,7 @@ int r420_init(struct radeon_device *rdev)
 			return r;
 	}
 	r300_set_reg_safe(rdev);
+	rdev->accel_working = true;
 	r = r420_resume(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
@@ -343,6 +344,7 @@ int r420_init(struct radeon_device *rdev)
 			r100_pci_gart_fini(rdev);
 		radeon_agp_fini(rdev);
 		radeon_irq_kms_fini(rdev);
+		rdev->accel_working = false;
 	}
 	return 0;
 }

@@ -793,6 +793,7 @@ struct radeon_device {
 	bool				suspend;
 	bool				need_dma32;
 	bool				new_init_path;
+	bool				accel_working;
 	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */

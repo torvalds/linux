@@ -112,6 +112,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	case RADEON_INFO_NUM_Z_PIPES:
 		value = rdev->num_z_pipes;
 		break;
+	case RADEON_INFO_ACCEL_WORKING:
+		value = rdev->accel_working;
+		break;
 	default:
 		DRM_DEBUG("Invalid request %d\n", info->request);
 		return -EINVAL;

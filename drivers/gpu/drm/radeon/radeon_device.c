@@ -504,6 +504,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->usec_timeout = RADEON_MAX_USEC_TIMEOUT;
 	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 	rdev->gpu_lockup = false;
+	rdev->accel_working = false;
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
 	mutex_init(&rdev->cs_mutex);
@@ -649,35 +650,26 @@ int radeon_device_init(struct radeon_device *rdev,
 		/* Initialize GART (initialize after TTM so we can allocate
 		 * memory through TTM but finalize after TTM) */
 		r = radeon_gart_enable(rdev);
-		if (!r) {
+		if (r)
+			return 0;
 			r = radeon_gem_init(rdev);
-		}
+		if (r)
+			return 0;
 
 		/* 1M ring buffer */
-		if (!r) {
-			r = radeon_cp_init(rdev, 1024 * 1024);
-		}
-		if (!r) {
-			r = radeon_wb_init(rdev);
-			if (r) {
-				DRM_ERROR("radeon: failled initializing WB (%d).\n", r);
-				return r;
-			}
-		}
-		if (!r) {
-			r = radeon_ib_pool_init(rdev);
-			if (r) {
-				DRM_ERROR("radeon: failled initializing IB pool (%d).\n", r);
-				return r;
-			}
-		}
-		if (!r) {
-			r = radeon_ib_test(rdev);
-			if (r) {
-				DRM_ERROR("radeon: failled testing IB (%d).\n", r);
-				return r;
-			}
-		}
+		r = radeon_cp_init(rdev, 1024 * 1024);
+		if (r)
+			return 0;
+		r = radeon_wb_init(rdev);
+		if (r)
+			DRM_ERROR("radeon: failled initializing WB (%d).\n", r);
+		r = radeon_ib_pool_init(rdev);
+		if (r)
+			return 0;
+		r = radeon_ib_test(rdev);
+		if (r)
+			return 0;
+		rdev->accel_working = true;
 	}
 	DRM_INFO("radeon: kernel modesetting successfully initialized.\n");
 	if (radeon_testing) {
