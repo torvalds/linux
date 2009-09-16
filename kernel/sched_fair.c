@@ -1360,7 +1360,7 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
 		 * If power savings logic is enabled for a domain, see if we
 		 * are not overloaded, if so, don't balance wider.
 		 */
-		if (tmp->flags & SD_POWERSAVINGS_BALANCE) {
+		if (tmp->flags & (SD_POWERSAVINGS_BALANCE|SD_PREFER_LOCAL)) {
 			unsigned long power = 0;
 			unsigned long nr_running = 0;
 			unsigned long capacity;
@@ -1373,7 +1373,10 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
 
 			capacity = DIV_ROUND_CLOSEST(power, SCHED_LOAD_SCALE);
 
-			if (nr_running/2 < capacity)
+			if (tmp->flags & SD_POWERSAVINGS_BALANCE)
+				nr_running /= 2;
+
+			if (nr_running < capacity)
 				break;
 		}
 
