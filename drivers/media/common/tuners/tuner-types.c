@@ -1801,6 +1801,10 @@ struct tunertype tuners[] = {
 		.count  = ARRAY_SIZE(tuner_philips_cu1216l_params),
 		.stepsize = 62500,
 	},
+	[TUNER_NXP_TDA18271] = {
+		.name   = "NXP TDA18271",
+		/* see tda18271-fe.c for details */
+	},
 };
 EXPORT_SYMBOL(tuners);
 
