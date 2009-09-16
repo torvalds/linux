@@ -19,14 +19,29 @@
 #include "ext4_extents.h"
 #include "ext4.h"
 
-#define get_ext_path(path, inode, block, ret)		\
-	do {								\
-		path = ext4_ext_find_extent(inode, block, path);	\
-		if (IS_ERR(path)) {					\
-			ret = PTR_ERR(path);				\
-			path = NULL;					\
-		}							\
-	} while (0)
+/**
+ * get_ext_path - Find an extent path for designated logical block number.
+ *
+ * @inode:	an inode which is searched
+ * @lblock:	logical block number to find an extent path
+ * @path:	pointer to an extent path pointer (for output)
+ *
+ * ext4_ext_find_extent wrapper. Return 0 on success, or a negative error value
+ * on failure.
+ */
+static inline int
+get_ext_path(struct inode *inode, ext4_lblk_t lblock,
+		struct ext4_ext_path **path)
+{
+	int ret = 0;
+
+	*path = ext4_ext_find_extent(inode, lblock, *path);
+	if (IS_ERR(*path)) {
+		ret = PTR_ERR(*path);
+		*path = NULL;
+	}
+	return ret;
+}
 
 /**
  * copy_extent_status - Copy the extent's initialization status
@@ -283,7 +298,7 @@ mext_insert_across_blocks(handle_t *handle, struct inode *orig_inode,
 	}
 
 	if (new_flag) {
-		get_ext_path(orig_path, orig_inode, eblock, err);
+		err = get_ext_path(orig_inode, eblock, &orig_path);
 		if (orig_path == NULL)
 			goto out;
 
@@ -293,8 +308,8 @@ mext_insert_across_blocks(handle_t *handle, struct inode *orig_inode,
 	}
 
 	if (end_flag) {
-		get_ext_path(orig_path, orig_inode,
-				      le32_to_cpu(end_ext->ee_block) - 1, err);
+		err = get_ext_path(orig_inode,
+				le32_to_cpu(end_ext->ee_block) - 1, &orig_path);
 		if (orig_path == NULL)
 			goto out;
 
@@ -631,12 +646,12 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	mext_double_down_write(orig_inode, donor_inode);
 
 	/* Get the original extent for the block "orig_off" */
-	get_ext_path(orig_path, orig_inode, orig_off, err);
+	err = get_ext_path(orig_inode, orig_off, &orig_path);
 	if (orig_path == NULL)
 		goto out;
 
 	/* Get the donor extent for the head */
-	get_ext_path(donor_path, donor_inode, donor_off, err);
+	err = get_ext_path(donor_inode, donor_off, &donor_path);
 	if (donor_path == NULL)
 		goto out;
 	depth = ext_depth(orig_inode);
@@ -678,7 +693,7 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 
 		if (orig_path)
 			ext4_ext_drop_refs(orig_path);
-		get_ext_path(orig_path, orig_inode, orig_off, err);
+		err = get_ext_path(orig_inode, orig_off, &orig_path);
 		if (orig_path == NULL)
 			goto out;
 		depth = ext_depth(orig_inode);
@@ -692,8 +707,7 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 
 		if (donor_path)
 			ext4_ext_drop_refs(donor_path);
-		get_ext_path(donor_path, donor_inode,
-				      donor_off, err);
+		err = get_ext_path(donor_inode, donor_off, &donor_path);
 		if (donor_path == NULL)
 			goto out;
 		depth = ext_depth(donor_inode);
@@ -1154,12 +1168,12 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 	if (file_end < block_end)
 		len -= block_end - file_end;
 
-	get_ext_path(orig_path, orig_inode, block_start, ret);
+	ret = get_ext_path(orig_inode, block_start, &orig_path);
 	if (orig_path == NULL)
 		goto out2;
 
 	/* Get path structure to check the hole */
-	get_ext_path(holecheck_path, orig_inode, block_start, ret);
+	ret = get_ext_path(orig_inode, block_start, &holecheck_path);
 	if (holecheck_path == NULL)
 		goto out;
 
@@ -1289,8 +1303,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		/* Decrease buffer counter */
 		if (holecheck_path)
 			ext4_ext_drop_refs(holecheck_path);
-		get_ext_path(holecheck_path, orig_inode,
-				      seq_start, ret);
+		ret = get_ext_path(orig_inode, seq_start, &holecheck_path);
 		if (holecheck_path == NULL)
 			break;
 		depth = holecheck_path->p_depth;
@@ -1298,7 +1311,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 		/* Decrease buffer counter */
 		if (orig_path)
 			ext4_ext_drop_refs(orig_path);
-		get_ext_path(orig_path, orig_inode, seq_start, ret);
+		ret = get_ext_path(orig_inode, seq_start, &orig_path);
 		if (orig_path == NULL)
 			break;
 
