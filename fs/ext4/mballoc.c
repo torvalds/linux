@@ -1965,6 +1965,10 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 	sb = ac->ac_sb;
 	sbi = EXT4_SB(sb);
 	ngroups = ext4_get_groups_count(sb);
+	/* non-extent files are limited to low blocks/groups */
+	if (!(EXT4_I(ac->ac_inode)->i_flags & EXT4_EXTENTS_FL))
+		ngroups = sbi->s_blockfile_groups;
+
 	BUG_ON(ac->ac_status == AC_STATUS_FOUND);
 
 	/* first, try the goal */
@@ -3380,6 +3384,11 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 		 * so we can skip locking for them */
 		if (ac->ac_o_ex.fe_logical < pa->pa_lstart ||
 			ac->ac_o_ex.fe_logical >= pa->pa_lstart + pa->pa_len)
+			continue;
+
+		/* non-extent files can't have physical blocks past 2^32 */
+		if (!(EXT4_I(ac->ac_inode)->i_flags & EXT4_EXTENTS_FL) &&
+			pa->pa_pstart + pa->pa_len > EXT4_MAX_BLOCK_FILE_PHYS)
 			continue;
 
 		/* found preallocated blocks, use them */

@@ -562,15 +562,21 @@ static ext4_fsblk_t ext4_find_near(struct inode *inode, Indirect *ind)
  *
  *	Normally this function find the preferred place for block allocation,
  *	returns it.
+ *	Because this is only used for non-extent files, we limit the block nr
+ *	to 32 bits.
  */
 static ext4_fsblk_t ext4_find_goal(struct inode *inode, ext4_lblk_t block,
 				   Indirect *partial)
 {
+	ext4_fsblk_t goal;
+
 	/*
 	 * XXX need to get goal block from mballoc's data structures
 	 */
 
-	return ext4_find_near(inode, partial);
+	goal = ext4_find_near(inode, partial);
+	goal = goal & EXT4_MAX_BLOCK_FILE_PHYS;
+	return goal;
 }
 
 /**
@@ -651,6 +657,8 @@ static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
 		if (*err)
 			goto failed_out;
 
+		BUG_ON(current_block + count > EXT4_MAX_BLOCK_FILE_PHYS);
+
 		target -= count;
 		/* allocate blocks for indirect blocks */
 		while (index < indirect_blks && count) {
@@ -685,6 +693,7 @@ static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
 		ar.flags = EXT4_MB_HINT_DATA;
 
 	current_block = ext4_mb_new_blocks(handle, &ar, err);
+	BUG_ON(current_block + ar.len > EXT4_MAX_BLOCK_FILE_PHYS);
 
 	if (*err && (target == blks)) {
 		/*

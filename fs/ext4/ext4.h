@@ -403,6 +403,9 @@ struct ext4_mount_options {
 #endif
 };
 
+/* Max physical block we can addres w/o extents */
+#define EXT4_MAX_BLOCK_FILE_PHYS	0xFFFFFFFF
+
 /*
  * Structure of an inode on the disk
  */
@@ -857,6 +860,7 @@ struct ext4_sb_info {
 	unsigned long s_gdb_count;	/* Number of group descriptor blocks */
 	unsigned long s_desc_per_block;	/* Number of group descriptors per block */
 	ext4_group_t s_groups_count;	/* Number of groups in the fs */
+	ext4_group_t s_blockfile_groups;/* Groups acceptable for non-extent files */
 	unsigned long s_overhead_last;  /* Last calculated overhead */
 	unsigned long s_blocks_last;    /* Last seen block count */
 	loff_t s_bitmap_maxbytes;	/* max bytes for bitmap files */
