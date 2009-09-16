@@ -34,7 +34,8 @@
 #include <asm/syscalls.h>
 #include <asm/fpu.h>
 
-#include <trace/syscall.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/syscalls.h>
 
 /*
  * This routine will get a word off of the process kernel stack.
@@ -461,10 +462,8 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		 */
 		ret = -1L;
 
-#ifdef CONFIG_FTRACE_SYSCALLS
-	if (unlikely(test_thread_flag(TIF_SYSCALL_FTRACE)))
-		ftrace_syscall_enter(regs);
-#endif
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+		trace_sys_enter(regs, regs->regs[0]);
 
 	if (unlikely(current->audit_context))
 		audit_syscall_entry(audit_arch(), regs->regs[3],
@@ -482,10 +481,8 @@ asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
 		audit_syscall_exit(AUDITSC_RESULT(regs->regs[0]),
 				   regs->regs[0]);
 
-#ifdef CONFIG_FTRACE_SYSCALLS
-	if (unlikely(test_thread_flag(TIF_SYSCALL_FTRACE)))
-		ftrace_syscall_exit(regs);
-#endif
+	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+		trace_sys_exit(regs, regs->regs[0]);
 
 	step = test_thread_flag(TIF_SINGLESTEP);
 	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
