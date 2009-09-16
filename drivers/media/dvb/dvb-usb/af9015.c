@@ -1297,7 +1297,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.firmware = "dvb-usb-af9015.fw",
 		.no_reconnect = 1,
 
-		.size_of_priv = sizeof(struct af9015_state), \
+		.size_of_priv = sizeof(struct af9015_state),
 
 		.num_adapters = 2,
 		.adapter = {
@@ -1403,7 +1403,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.firmware = "dvb-usb-af9015.fw",
 		.no_reconnect = 1,
 
-		.size_of_priv = sizeof(struct af9015_state), \
+		.size_of_priv = sizeof(struct af9015_state),
 
 		.num_adapters = 2,
 		.adapter = {
@@ -1509,7 +1509,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.firmware = "dvb-usb-af9015.fw",
 		.no_reconnect = 1,
 
-		.size_of_priv = sizeof(struct af9015_state), \
+		.size_of_priv = sizeof(struct af9015_state),
 
 		.num_adapters = 2,
 		.adapter = {
