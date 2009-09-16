@@ -771,8 +771,9 @@ int edma_alloc_cont_slots(unsigned ctlr, unsigned int id, int slot, int count)
 	 * the number of channels and lesser than the total number
 	 * of slots
 	 */
-	if (slot < edma_info[ctlr]->num_channels ||
-		slot >= edma_info[ctlr]->num_slots)
+	if ((id != EDMA_CONT_PARAMS_ANY) &&
+		(slot < edma_info[ctlr]->num_channels ||
+		slot >= edma_info[ctlr]->num_slots))
 		return -EINVAL;
 
 	/*
