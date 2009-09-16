@@ -626,7 +626,6 @@ struct wm8350 {
 	struct mutex auxadc_mutex;
 
 	/* Interrupt handling */
-	struct work_struct irq_work;
 	struct mutex irq_mutex; /* IRQ table mutex */
 	struct wm8350_irq irq[WM8350_NUM_IRQ];
 	int chip_irq;
