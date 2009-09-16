@@ -569,6 +569,7 @@ struct sock *iucv_accept_dequeue(struct sock *parent, struct socket *newsock)
 
 		if (sk->sk_state == IUCV_CONNECTED ||
 		    sk->sk_state == IUCV_SEVERED ||
+		    sk->sk_state == IUCV_DISCONN ||	/* due to PM restore */
 		    !newsock) {
 			iucv_accept_unlink(sk);
 			if (newsock)
