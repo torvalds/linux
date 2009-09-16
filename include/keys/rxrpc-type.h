@@ -53,8 +53,8 @@ struct krb5_tagged_data {
 	 * - KRB5_AUTHDATA_* for auth data
 	 * - 
 	 */
-	int32_t		tag;
-	uint32_t	data_len;
+	s32		tag;
+	u32		data_len;
 	u8		*data;
 };
 
@@ -62,17 +62,17 @@ struct krb5_tagged_data {
  * RxRPC key for Kerberos V (type-5 security)
  */
 struct rxk5_key {
-	uint64_t		authtime;	/* time at which auth token generated */
-	uint64_t		starttime;	/* time at which auth token starts */
-	uint64_t		endtime;	/* time at which auth token expired */
-	uint64_t		renew_till;	/* time to which auth token can be renewed */
-	int32_t			is_skey;	/* T if ticket is encrypted in another ticket's
+	u64			authtime;	/* time at which auth token generated */
+	u64			starttime;	/* time at which auth token starts */
+	u64			endtime;	/* time at which auth token expired */
+	u64			renew_till;	/* time to which auth token can be renewed */
+	s32			is_skey;	/* T if ticket is encrypted in another ticket's
 						 * skey */
-	int32_t			flags;		/* mask of TKT_FLG_* bits (krb5/krb5.h) */
+	s32			flags;		/* mask of TKT_FLG_* bits (krb5/krb5.h) */
 	struct krb5_principal	client;		/* client principal name */
 	struct krb5_principal	server;		/* server principal name */
-	uint16_t		ticket_len;	/* length of ticket */
-	uint16_t		ticket2_len;	/* length of second ticket */
+	u16			ticket_len;	/* length of ticket */
+	u16			ticket2_len;	/* length of second ticket */
 	u8			n_authdata;	/* number of authorisation data elements */
 	u8			n_addresses;	/* number of addresses */
 	struct krb5_tagged_data	session;	/* session data; tag is enctype */

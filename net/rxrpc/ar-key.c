@@ -360,7 +360,7 @@ static int rxrpc_krb5_decode_tagged_array(struct krb5_tagged_data **_td,
 /*
  * extract a krb5 ticket
  */
-static int rxrpc_krb5_decode_ticket(u8 **_ticket, uint16_t *_tktlen,
+static int rxrpc_krb5_decode_ticket(u8 **_ticket, u16 *_tktlen,
 				    const __be32 **_xdr, unsigned *_toklen)
 {
 	const __be32 *xdr = *_xdr;
