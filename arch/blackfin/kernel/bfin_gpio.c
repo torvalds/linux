@@ -762,6 +762,8 @@ int peripheral_request(unsigned short per, const char *label)
 	if (!(per & P_DEFINED))
 		return -ENODEV;
 
+	BUG_ON(ident >= MAX_RESOURCES);
+
 	local_irq_save_hw(flags);
 
 	/* If a pin can be muxed as either GPIO or peripheral, make
