@@ -237,7 +237,8 @@ struct mm_struct *mm_for_maps(struct task_struct *task)
 
 	mm = get_task_mm(task);
 	if (mm && mm != current->mm &&
-			!ptrace_may_access(task, PTRACE_MODE_READ)) {
+			!ptrace_may_access(task, PTRACE_MODE_READ) &&
+			!capable(CAP_SYS_RESOURCE)) {
 		mmput(mm);
 		mm = NULL;
 	}
