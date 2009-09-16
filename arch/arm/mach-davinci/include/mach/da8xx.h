@@ -11,6 +11,8 @@
 #ifndef __ASM_ARCH_DAVINCI_DA8XX_H
 #define __ASM_ARCH_DAVINCI_DA8XX_H
 
+#include <video/da8xx-fb.h>
+
 #include <mach/serial.h>
 #include <mach/edma.h>
 #include <mach/i2c.h>
@@ -76,12 +78,14 @@ int da8xx_register_edma(void);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
 int da8xx_register_watchdog(void);
 int da8xx_register_emac(void);
-int da8xx_register_lcdc(void);
+int da8xx_register_lcdc(struct da8xx_lcdc_platform_data *pdata);
 int da8xx_register_mmcsd0(struct davinci_mmc_config *config);
 void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
 
 extern struct platform_device da8xx_serial_device;
 extern struct emac_platform_data da8xx_emac_pdata;
+extern struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata;
+extern struct da8xx_lcdc_platform_data sharp_lk043t1dg01_pdata;
 
 extern const short da830_emif25_pins[];
 extern const short da830_spi0_pins[];

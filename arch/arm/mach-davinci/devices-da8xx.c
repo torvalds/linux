@@ -21,7 +21,6 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
-#include <video/da8xx-fb.h>
 
 #include "clock.h"
 
@@ -381,10 +380,16 @@ static struct lcd_ctrl_config lcd_cfg = {
 	.raster_order		= 0,
 };
 
-static struct da8xx_lcdc_platform_data da850_evm_lcdc_pdata = {
-	.manu_name = "sharp",
-	.controller_data = &lcd_cfg,
-	.type = "Sharp_LK043T1DG01",
+struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata = {
+	.manu_name		= "sharp",
+	.controller_data	= &lcd_cfg,
+	.type			= "Sharp_LCD035Q3DG01",
+};
+
+struct da8xx_lcdc_platform_data sharp_lk043t1dg01_pdata = {
+	.manu_name		= "sharp",
+	.controller_data	= &lcd_cfg,
+	.type			= "Sharp_LK043T1DG01",
 };
 
 static struct resource da8xx_lcdc_resources[] = {
@@ -400,19 +405,17 @@ static struct resource da8xx_lcdc_resources[] = {
 	},
 };
 
-static struct platform_device da850_lcdc_device = {
+static struct platform_device da8xx_lcdc_device = {
 	.name		= "da8xx_lcdc",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(da8xx_lcdc_resources),
 	.resource	= da8xx_lcdc_resources,
-	.dev = {
-		.platform_data = &da850_evm_lcdc_pdata,
-	}
 };
 
-int __init da8xx_register_lcdc(void)
+int __init da8xx_register_lcdc(struct da8xx_lcdc_platform_data *pdata)
 {
-	return platform_device_register(&da850_lcdc_device);
+	da8xx_lcdc_device.dev.platform_data = pdata;
+	return platform_device_register(&da8xx_lcdc_device);
 }
 
 static struct resource da8xx_mmcsd0_resources[] = {
