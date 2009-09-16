@@ -501,10 +501,21 @@ config DISPLAY_DAVINCI_DM646X_EVM
 	select VIDEO_ADV7343
 	select VIDEO_THS7303
 	help
-	  Support for DaVinci based display device.
+	  Support for DM6467 based display device.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called davincihd_display.
+	  module will be called vpif_display.
+
+config CAPTURE_DAVINCI_DM646X_EVM
+	tristate "DM646x EVM Video Capture"
+	depends on VIDEO_DEV && MACH_DAVINCI_DM6467_EVM
+	select VIDEOBUF_DMA_CONTIG
+	select VIDEO_DAVINCI_VPIF
+	help
+	  Support for DM6467 based capture device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vpif_capture.
 
 config VIDEO_DAVINCI_VPIF
 	tristate "DaVinci VPIF Driver"
