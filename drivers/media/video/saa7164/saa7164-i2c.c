@@ -69,29 +69,6 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 	return retval;
 }
 
-static int attach_inform(struct i2c_client *client)
-{
-	struct saa7164_i2c *bus = i2c_get_adapdata(client->adapter);
-	struct saa7164_dev *dev = bus->dev;
-
-	dprintk(DBGLVL_I2C, "%s i2c attach [addr=0x%x,client=%s]\n",
-		client->driver->driver.name, client->addr, client->name);
-
-	if (!client->driver->command)
-		return 0;
-
-	return 0;
-}
-
-static int detach_inform(struct i2c_client *client)
-{
-	struct saa7164_dev *dev = i2c_get_adapdata(client->adapter);
-
-	dprintk(DBGLVL_I2C, "i2c detach [client=%s]\n", client->name);
-
-	return 0;
-}
-
 void saa7164_call_i2c_clients(struct saa7164_i2c *bus, unsigned int cmd,
 	void *arg)
 {
@@ -117,8 +94,6 @@ static struct i2c_adapter saa7164_i2c_adap_template = {
 	.name              = "saa7164",
 	.owner             = THIS_MODULE,
 	.algo              = &saa7164_i2c_algo_template,
-	.client_register   = attach_inform,
-	.client_unregister = detach_inform,
 };
 
 static struct i2c_client saa7164_i2c_client_template = {
