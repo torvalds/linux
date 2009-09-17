@@ -130,8 +130,8 @@ struct ftrace_event_call {
 	void			*data;
 
 	atomic_t		profile_count;
-	int			(*profile_enable)(struct ftrace_event_call *);
-	void			(*profile_disable)(struct ftrace_event_call *);
+	int			(*profile_enable)(void);
+	void			(*profile_disable)(void);
 };
 
 #define MAX_FILTER_PRED		32

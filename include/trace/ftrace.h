@@ -382,20 +382,14 @@ static inline int ftrace_get_offsets_##call(				\
  *
  * NOTE: The insertion profile callback (ftrace_profile_<call>) is defined later
  *
- * static int ftrace_profile_enable_<call>(struct ftrace_event_call *event_call)
+ * static int ftrace_profile_enable_<call>(void)
  * {
- * 	int ret = 0;
- *
- * 	if (!atomic_inc_return(&event_call->profile_count))
- * 		ret = register_trace_<call>(ftrace_profile_<call>);
- *
- * 	return ret;
+ * 	return register_trace_<call>(ftrace_profile_<call>);
  * }
  *
- * static void ftrace_profile_disable_<call>(struct ftrace_event_call *event_call)
+ * static void ftrace_profile_disable_<call>(void)
  * {
- * 	if (atomic_add_negative(-1, &event->call->profile_count))
- * 		unregister_trace_<call>(ftrace_profile_<call>);
+ * 	unregister_trace_<call>(ftrace_profile_<call>);
  * }
  *
  */
@@ -405,20 +399,14 @@ static inline int ftrace_get_offsets_##call(				\
 									\
 static void ftrace_profile_##call(proto);				\
 									\
-static int ftrace_profile_enable_##call(struct ftrace_event_call *event_call) \
+static int ftrace_profile_enable_##call(void)				\
 {									\
-	int ret = 0;							\
-									\
-	if (!atomic_inc_return(&event_call->profile_count))		\
-		ret = register_trace_##call(ftrace_profile_##call);	\
-									\
-	return ret;							\
+	return register_trace_##call(ftrace_profile_##call);		\
 }									\
 									\
-static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
+static void ftrace_profile_disable_##call(void)				\
 {									\
-	if (atomic_add_negative(-1, &event_call->profile_count))	\
-		unregister_trace_##call(ftrace_profile_##call);		\
+	unregister_trace_##call(ftrace_profile_##call);			\
 }
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
