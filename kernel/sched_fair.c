@@ -764,10 +764,10 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 
 static void __clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	if (cfs_rq->last == se)
+	if (!se || cfs_rq->last == se)
 		cfs_rq->last = NULL;
 
-	if (cfs_rq->next == se)
+	if (!se || cfs_rq->next == se)
 		cfs_rq->next = NULL;
 }
 
@@ -1646,8 +1646,13 @@ static struct task_struct *pick_next_task_fair(struct rq *rq)
 		/*
 		 * If se was a buddy, clear it so that it will have to earn
 		 * the favour again.
+		 *
+		 * If se was not a buddy, clear the buddies because neither
+		 * was elegible to run, let them earn it again.
+		 *
+		 * IOW. unconditionally clear buddies.
 		 */
-		__clear_buddies(cfs_rq, se);
+		__clear_buddies(cfs_rq, NULL);
 		set_next_entity(cfs_rq, se);
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);
