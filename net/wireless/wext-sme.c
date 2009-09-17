@@ -229,8 +229,7 @@ int cfg80211_mgd_wext_giwessid(struct net_device *dev,
 		data->flags = 1;
 		data->length = wdev->wext.connect.ssid_len;
 		memcpy(ssid, wdev->wext.connect.ssid, data->length);
-	} else
-		data->flags = 0;
+	}
 	wdev_unlock(wdev);
 
 	return 0;
@@ -306,8 +305,6 @@ int cfg80211_mgd_wext_giwap(struct net_device *dev,
 	wdev_lock(wdev);
 	if (wdev->current_bss)
 		memcpy(ap_addr->sa_data, wdev->current_bss->pub.bssid, ETH_ALEN);
-	else if (wdev->wext.connect.bssid)
-		memcpy(ap_addr->sa_data, wdev->wext.connect.bssid, ETH_ALEN);
 	else
 		memset(ap_addr->sa_data, 0, ETH_ALEN);
 	wdev_unlock(wdev);
