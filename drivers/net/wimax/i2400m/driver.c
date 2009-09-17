@@ -455,6 +455,8 @@ retry:
 	result = i2400m->bus_dev_start(i2400m);
 	if (result < 0)
 		goto error_bus_dev_start;
+	i2400m->ready = 1;
+	wmb();		/* see i2400m->ready's documentation  */
 	result = i2400m_firmware_check(i2400m);	/* fw versions ok? */
 	if (result < 0)
 		goto error_fw_check;
@@ -462,7 +464,6 @@ retry:
 	result = i2400m_check_mac_addr(i2400m);
 	if (result < 0)
 		goto error_check_mac_addr;
-	i2400m->ready = 1;
 	wimax_state_change(wimax_dev, WIMAX_ST_UNINITIALIZED);
 	result = i2400m_dev_initialize(i2400m);
 	if (result < 0)
@@ -475,6 +476,9 @@ retry:
 
 error_dev_initialize:
 error_check_mac_addr:
+	i2400m->ready = 0;
+	wmb();		/* see i2400m->ready's documentation  */
+	flush_workqueue(i2400m->work_queue);
 error_fw_check:
 	i2400m->bus_dev_stop(i2400m);
 error_bus_dev_start:
@@ -498,11 +502,15 @@ error_bootstrap:
 static
 int i2400m_dev_start(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 {
-	int result;
+	int result = 0;
 	mutex_lock(&i2400m->init_mutex);	/* Well, start the device */
-	result = __i2400m_dev_start(i2400m, bm_flags);
-	if (result >= 0)
-		i2400m->updown = 1;
+	if (i2400m->updown == 0) {
+		result = __i2400m_dev_start(i2400m, bm_flags);
+		if (result >= 0) {
+			i2400m->updown = 1;
+			wmb();	/* see i2400m->updown's documentation */
+		}
+	}
 	mutex_unlock(&i2400m->init_mutex);
 	return result;
 }
@@ -529,7 +537,14 @@ void __i2400m_dev_stop(struct i2400m *i2400m)
 	wimax_state_change(wimax_dev, __WIMAX_ST_QUIESCING);
 	i2400m_net_wake_stop(i2400m);
 	i2400m_dev_shutdown(i2400m);
-	i2400m->ready = 0;
+	/*
+	 * Make sure no report hooks are running *before* we stop the
+	 * communication infrastructure with the device.
+	 */
+	i2400m->ready = 0;	/* nobody can queue work anymore */
+	wmb();		/* see i2400m->ready's documentation  */
+	flush_workqueue(i2400m->work_queue);
+
 	i2400m->bus_dev_stop(i2400m);
 	destroy_workqueue(i2400m->work_queue);
 	i2400m_rx_release(i2400m);
@@ -551,6 +566,7 @@ void i2400m_dev_stop(struct i2400m *i2400m)
 	if (i2400m->updown) {
 		__i2400m_dev_stop(i2400m);
 		i2400m->updown = 0;
+		wmb();	/* see i2400m->updown's documentation  */
 	}
 	mutex_unlock(&i2400m->init_mutex);
 }
@@ -632,7 +648,6 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 	const char *reason;
 	struct i2400m *i2400m = iw->i2400m;
 	struct device *dev = i2400m_dev(i2400m);
-	enum wimax_st wimax_state;
 	struct i2400m_reset_ctx *ctx = i2400m->reset_ctx;
 
 	if (WARN_ON(iw->pl_size != sizeof(reason)))
@@ -647,29 +662,28 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 		/* We are still in i2400m_dev_start() [let it fail] or
 		 * i2400m_dev_stop() [we are shutting down anyway, so
 		 * ignore it] or we are resetting somewhere else. */
-		dev_err(dev, "device rebooted\n");
+		dev_err(dev, "device rebooted somewhere else?\n");
 		i2400m_msg_to_dev_cancel_wait(i2400m, -EL3RST);
 		complete(&i2400m->msg_completion);
 		goto out;
 	}
-	wimax_state = wimax_state_get(&i2400m->wimax_dev);
-	if (wimax_state < WIMAX_ST_UNINITIALIZED) {
-		dev_info(dev, "%s: it is down, ignoring\n", reason);
-		goto out_unlock;	/* ifconfig up/down wasn't called */
+	if (i2400m->updown == 0)  {
+		dev_info(dev, "%s: device is down, doing nothing\n", reason);
+		goto out_unlock;
 	}
 	dev_err(dev, "%s: reinitializing driver\n", reason);
 	__i2400m_dev_stop(i2400m);
-	i2400m->updown = 0;
 	result = __i2400m_dev_start(i2400m,
 				    I2400M_BRI_SOFT | I2400M_BRI_MAC_REINIT);
 	if (result < 0) {
+		i2400m->updown = 0;
+		wmb();		/* see i2400m->updown's documentation  */
 		dev_err(dev, "%s: cannot start the device: %d\n",
 			reason, result);
 		result = i2400m->bus_reset(i2400m, I2400M_RT_BUS);
 		if (result >= 0)
 			result = -ENODEV;
-	} else
-		i2400m->updown = 1;
+	}
 out_unlock:
 	if (i2400m->reset_ctx) {
 		ctx->result = result;

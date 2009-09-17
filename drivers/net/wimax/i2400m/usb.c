@@ -516,7 +516,10 @@ void i2400mu_disconnect(struct usb_interface *iface)
  * So at the end, the three cases require common handling.
  *
  * If at the time of this call the device's firmware is not loaded,
- * nothing has to be done.
+ * nothing has to be done. Note we can be "loose" about not reading
+ * i2400m->updown under i2400m->init_mutex. If it happens to change
+ * inmediately, other parts of the call flow will fail and effectively
+ * catch it.
  *
  * If the firmware is loaded, we need to:
  *
@@ -555,6 +558,7 @@ int i2400mu_suspend(struct usb_interface *iface, pm_message_t pm_msg)
 #endif
 
 	d_fnstart(3, dev, "(iface %p pm_msg %u)\n", iface, pm_msg.event);
+	rmb();		/* see i2400m->updown's documentation  */
 	if (i2400m->updown == 0)
 		goto no_firmware;
 	if (i2400m->state == I2400M_SS_DATA_PATH_CONNECTED && is_autosuspend) {
@@ -608,6 +612,7 @@ int i2400mu_resume(struct usb_interface *iface)
 	struct i2400m *i2400m = &i2400mu->i2400m;
 
 	d_fnstart(3, dev, "(iface %p)\n", iface);
+	rmb();		/* see i2400m->updown's documentation  */
 	if (i2400m->updown == 0) {
 		d_printf(1, dev, "fw was down, no resume neeed\n");
 		goto out;

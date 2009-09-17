@@ -177,8 +177,7 @@ void i2400m_report_hook_work(struct work_struct *ws)
 	struct i2400m_work *iw =
 		container_of(ws, struct i2400m_work, ws);
 	struct i2400m_report_hook_args *args = (void *) iw->pl;
-	if (iw->i2400m->ready)
-		i2400m_report_hook(iw->i2400m, args->l3l4_hdr, args->size);
+	i2400m_report_hook(iw->i2400m, args->l3l4_hdr, args->size);
 	kfree_skb(args->skb_rx);
 	i2400m_put(iw->i2400m);
 	kfree(iw);
@@ -305,11 +304,12 @@ void i2400m_rx_ctl(struct i2400m *i2400m, struct sk_buff *skb_rx,
 			.l3l4_hdr = l3l4_hdr,
 			.size = size
 		};
-		if (unlikely(i2400m->ready == 0))	/* only send if up */
-			return;
-		skb_get(skb_rx);
-		i2400m_queue_work(i2400m, i2400m_report_hook_work,
-				  GFP_KERNEL, &args, sizeof(args));
+		rmb();		/* see i2400m->ready's documentation  */
+		if (likely(i2400m->ready)) {	/* only send if up */
+			skb_get(skb_rx);
+			i2400m_queue_work(i2400m, i2400m_report_hook_work,
+					  GFP_KERNEL, &args, sizeof(args));
+		}
 		if (unlikely(i2400m->trace_msg_from_user))
 			wimax_msg(&i2400m->wimax_dev, "echo",
 				  l3l4_hdr, size, GFP_KERNEL);
@@ -363,8 +363,6 @@ void i2400m_rx_trace(struct i2400m *i2400m,
 		 msg_type & I2400M_MT_REPORT_MASK ? "REPORT" : "CMD/SET/GET",
 		 msg_type, size);
 	d_dump(2, dev, l3l4_hdr, size);
-	if (unlikely(i2400m->ready == 0))	/* only send if up */
-		return;
 	result = wimax_msg(wimax_dev, "trace", l3l4_hdr, size, GFP_KERNEL);
 	if (result < 0)
 		dev_err(dev, "error sending trace to userspace: %d\n",

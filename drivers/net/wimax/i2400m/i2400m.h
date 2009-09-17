@@ -307,6 +307,27 @@ struct i2400m_barker_db;
  *     force this to be the first field so that we can get from
  *     netdev_priv() the right pointer.
  *
+ * @updown: the device is up and ready for transmitting control and
+ *     data packets. This implies @ready (communication infrastructure
+ *     with the device is ready) and the device's firmware has been
+ *     loaded and the device initialized.
+ *
+ *     Write to it only inside a i2400m->init_mutex protected area
+ *     followed with a wmb(); rmb() before accesing (unless locked
+ *     inside i2400m->init_mutex). Read access can be loose like that
+ *     [just using rmb()] because the paths that use this also do
+ *     other error checks later on.
+ *
+ * @ready: Communication infrastructure with the device is ready, data
+ *     frames can start to be passed around (this is lighter than
+ *     using the WiMAX state for certain hot paths).
+ *
+ *     Write to it only inside a i2400m->init_mutex protected area
+ *     followed with a wmb(); rmb() before accesing (unless locked
+ *     inside i2400m->init_mutex). Read access can be loose like that
+ *     [just using rmb()] because the paths that use this also do
+ *     other error checks later on.
+ *
  * @rx_reorder: 1 if RX reordering is enabled; this can only be
  *     set at probe time.
  *
@@ -458,7 +479,7 @@ struct i2400m {
 	unsigned updown:1;		/* Network device is up or down */
 	unsigned boot_mode:1;		/* is the device in boot mode? */
 	unsigned sboot:1;		/* signed or unsigned fw boot */
-	unsigned ready:1;		/* all probing steps done */
+	unsigned ready:1;		/* Device comm infrastructure ready */
 	unsigned rx_reorder:1;		/* RX reorder is enabled */
 	u8 trace_msg_from_user;		/* echo rx msgs to 'trace' pipe */
 					/* typed u8 so /sys/kernel/debug/u8 can tweak */
