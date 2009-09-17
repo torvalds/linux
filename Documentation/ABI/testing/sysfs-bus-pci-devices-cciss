@@ -45,3 +45,10 @@ Kernel Version: 2.6.31
 Contact:	iss_storagedev@hp.com
 Description:	Displays the 8-byte LUN ID used to address logical
 		drive Y of controller X.
+
+Where:		/sys/bus/pci/devices/<dev>/ccissX/cXdY/raid_level
+Date:		August 2009
+Kernel Version: 2.6.31
+Contact:	iss_storagedev@hp.com
+Description:	Displays the RAID level of logical drive Y of
+		controller X.

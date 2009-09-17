@@ -603,6 +603,29 @@ static ssize_t cciss_show_lunid(struct device *dev,
 }
 DEVICE_ATTR(lunid, S_IRUGO, cciss_show_lunid, NULL);
 
+static ssize_t cciss_show_raid_level(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	drive_info_struct *drv = dev_get_drvdata(dev);
+	struct ctlr_info *h = to_hba(drv->dev->parent);
+	int raid;
+	unsigned long flags;
+
+	spin_lock_irqsave(CCISS_LOCK(h->ctlr), flags);
+	if (h->busy_configuring) {
+		spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
+		return -EBUSY;
+	}
+	raid = drv->raid_level;
+	spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
+	if (raid < 0 || raid > RAID_UNKNOWN)
+		raid = RAID_UNKNOWN;
+
+	return snprintf(buf, strlen(raid_label[raid]) + 7, "RAID %s\n",
+			raid_label[raid]);
+}
+DEVICE_ATTR(raid_level, S_IRUGO, cciss_show_raid_level, NULL);
+
 static struct attribute *cciss_host_attrs[] = {
 	&dev_attr_rescan.attr,
 	NULL
@@ -629,6 +652,7 @@ static struct attribute *cciss_dev_attrs[] = {
 	&dev_attr_vendor.attr,
 	&dev_attr_rev.attr,
 	&dev_attr_lunid.attr,
+	&dev_attr_raid_level.attr,
 	NULL
 };
 
