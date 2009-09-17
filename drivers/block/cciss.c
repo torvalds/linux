@@ -1708,20 +1708,12 @@ static void cciss_update_drive_info(int ctlr, int drv_index, int first_time)
 	unsigned long flags = 0;
 	int ret = 0;
 	drive_info_struct *drvinfo;
-	int was_only_controller_node;
 
 	/* Get information about the disk and modify the driver structure */
 	inq_buff = kmalloc(sizeof(InquiryData_struct), GFP_KERNEL);
 	drvinfo = kmalloc(sizeof(*drvinfo), GFP_KERNEL);
 	if (inq_buff == NULL || drvinfo == NULL)
 		goto mem_msg;
-
-	/* See if we're trying to update the "controller node"
-	 * this will happen the when the first logical drive gets
-	 * created by ACU.
-	 */
-	was_only_controller_node = (drv_index == 0 &&
-				h->drv[0].raid_level == -1);
 
 	/* testing to see if 16-byte CDBs are already being used */
 	if (h->cciss_read == CCISS_READ_16) {
