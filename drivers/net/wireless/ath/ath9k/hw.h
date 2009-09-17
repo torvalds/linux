@@ -650,7 +650,7 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 				    const struct ath9k_beacon_state *bs);
 bool ath9k_hw_setpower(struct ath_hw *ah,
 		       enum ath9k_power_mode mode);
-void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore);
+void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore, int power_off);
 
 /* Interrupt Handling */
 bool ath9k_hw_intrpend(struct ath_hw *ah);

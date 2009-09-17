@@ -1131,7 +1131,7 @@ void ath_radio_enable(struct ath_softc *sc)
 	int r;
 
 	ath9k_ps_wakeup(sc);
-	ath9k_hw_configpcipowersave(ah, 0);
+	ath9k_hw_configpcipowersave(ah, 0, 0);
 
 	if (!ah->curchan)
 		ah->curchan = ath_get_curchannel(sc, sc->hw);
@@ -1202,7 +1202,7 @@ void ath_radio_disable(struct ath_softc *sc)
 	spin_unlock_bh(&sc->sc_resetlock);
 
 	ath9k_hw_phy_disable(ah);
-	ath9k_hw_configpcipowersave(ah, 1);
+	ath9k_hw_configpcipowersave(ah, 1, 1);
 	ath9k_ps_restore(sc);
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 }
@@ -1942,7 +1942,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	init_channel = ath_get_curchannel(sc, hw);
 
 	/* Reset SERDES registers */
-	ath9k_hw_configpcipowersave(sc->sc_ah, 0);
+	ath9k_hw_configpcipowersave(sc->sc_ah, 0, 0);
 
 	/*
 	 * The basic interface to setting the hardware in a good
@@ -2170,7 +2170,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(sc->sc_ah);
-	ath9k_hw_configpcipowersave(sc->sc_ah, 1);
+	ath9k_hw_configpcipowersave(sc->sc_ah, 1, 1);
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
 
 	sc->sc_flags |= SC_OP_INVALID;

@@ -965,7 +965,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 	ath9k_hw_init_mode_regs(ah);
 
 	if (ah->is_pciexpress)
-		ath9k_hw_configpcipowersave(ah, 0);
+		ath9k_hw_configpcipowersave(ah, 0, 0);
 	else
 		ath9k_hw_disablepcie(ah);
 
@@ -3005,9 +3005,10 @@ void ath9k_ps_restore(struct ath_softc *sc)
  * Programming the SerDes must go through the same 288 bit serial shift
  * register as the other analog registers.  Hence the 9 writes.
  */
-void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
+void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore, int power_off)
 {
 	u8 i;
+	u32 val;
 
 	if (ah->is_pciexpress != true)
 		return;
@@ -3017,84 +3018,113 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 		return;
 
 	/* Nothing to do on restore for 11N */
-	if (restore)
-		return;
+	if (!restore) {
+		if (AR_SREV_9280_20_OR_LATER(ah)) {
+			/*
+			 * AR9280 2.0 or later chips use SerDes values from the
+			 * initvals.h initialized depending on chipset during
+			 * ath9k_hw_init()
+			 */
+			for (i = 0; i < ah->iniPcieSerdes.ia_rows; i++) {
+				REG_WRITE(ah, INI_RA(&ah->iniPcieSerdes, i, 0),
+					  INI_RA(&ah->iniPcieSerdes, i, 1));
+			}
+		} else if (AR_SREV_9280(ah) &&
+			   (ah->hw_version.macRev == AR_SREV_REVISION_9280_10)) {
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fd00);
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
 
-	if (AR_SREV_9280_20_OR_LATER(ah)) {
-		/*
-		 * AR9280 2.0 or later chips use SerDes values from the
-		 * initvals.h initialized depending on chipset during
-		 * ath9k_hw_init()
-		 */
-		for (i = 0; i < ah->iniPcieSerdes.ia_rows; i++) {
-			REG_WRITE(ah, INI_RA(&ah->iniPcieSerdes, i, 0),
-				  INI_RA(&ah->iniPcieSerdes, i, 1));
+			/* RX shut off when elecidle is asserted */
+			REG_WRITE(ah, AR_PCIE_SERDES, 0xa8000019);
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x13160820);
+			REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980560);
+
+			/* Shut off CLKREQ active in L1 */
+			if (ah->config.pcie_clock_req)
+				REG_WRITE(ah, AR_PCIE_SERDES, 0x401deffc);
+			else
+				REG_WRITE(ah, AR_PCIE_SERDES, 0x401deffd);
+
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
+			REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x00043007);
+
+			/* Load the new settings */
+			REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
+
+		} else {
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
+
+			/* RX shut off when elecidle is asserted */
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x28000039);
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x53160824);
+			REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980579);
+
+			/*
+			 * Ignore ah->ah_config.pcie_clock_req setting for
+			 * pre-AR9280 11n
+			 */
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x001defff);
+
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
+			REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
+			REG_WRITE(ah, AR_PCIE_SERDES, 0x000e3007);
+
+			/* Load the new settings */
+			REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
 		}
-	} else if (AR_SREV_9280(ah) &&
-		   (ah->hw_version.macRev == AR_SREV_REVISION_9280_10)) {
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fd00);
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
 
-		/* RX shut off when elecidle is asserted */
-		REG_WRITE(ah, AR_PCIE_SERDES, 0xa8000019);
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x13160820);
-		REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980560);
+		udelay(1000);
 
-		/* Shut off CLKREQ active in L1 */
-		if (ah->config.pcie_clock_req)
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x401deffc);
-		else
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x401deffd);
+		/* set bit 19 to allow forcing of pcie core into L1 state */
+		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
-		REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x00043007);
+		/* Several PCIe massages to ensure proper behaviour */
+		if (ah->config.pcie_waen) {
+			val = ah->config.pcie_waen;
+			if (!power_off)
+				val &= (~AR_WA_D3_L1_DISABLE);
+		} else {
+			if (AR_SREV_9285(ah) || AR_SREV_9271(ah) ||
+			    AR_SREV_9287(ah)) {
+				val = AR9285_WA_DEFAULT;
+				if (!power_off)
+					val &= (~AR_WA_D3_L1_DISABLE);
+			} else if (AR_SREV_9280(ah)) {
+				/*
+				 * On AR9280 chips bit 22 of 0x4004 needs to be
+				 * set otherwise card may disappear.
+				 */
+				val = AR9280_WA_DEFAULT;
+				if (!power_off)
+					val &= (~AR_WA_D3_L1_DISABLE);
+			} else
+				val = AR_WA_DEFAULT;
+		}
 
-		/* Load the new settings */
-		REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
-
-	} else {
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
-
-		/* RX shut off when elecidle is asserted */
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x28000039);
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x53160824);
-		REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980579);
-
-		/*
-		 * Ignore ah->ah_config.pcie_clock_req setting for
-		 * pre-AR9280 11n
-		 */
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x001defff);
-
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
-		REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
-		REG_WRITE(ah, AR_PCIE_SERDES, 0x000e3007);
-
-		/* Load the new settings */
-		REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
+		REG_WRITE(ah, AR_WA, val);
 	}
 
-	udelay(1000);
-
-	/* set bit 19 to allow forcing of pcie core into L1 state */
-	REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
-
-	/* Several PCIe massages to ensure proper behaviour */
-	if (ah->config.pcie_waen) {
-		REG_WRITE(ah, AR_WA, ah->config.pcie_waen);
-	} else {
-		if (AR_SREV_9285(ah) || AR_SREV_9271(ah) || AR_SREV_9287(ah))
-			REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);
+	if (power_off) {
 		/*
-		 * On AR9280 chips bit 22 of 0x4004 needs to be set to
-		 * otherwise card may disappear.
+		 * Set PCIe workaround bits
+		 * bit 14 in WA register (disable L1) should only
+		 * be set when device enters D3 and be cleared
+		 * when device comes back to D0.
 		 */
-		else if (AR_SREV_9280(ah))
-			REG_WRITE(ah, AR_WA, AR9280_WA_DEFAULT);
-		else
-			REG_WRITE(ah, AR_WA, AR_WA_DEFAULT);
+		if (ah->config.pcie_waen) {
+			if (ah->config.pcie_waen & AR_WA_D3_L1_DISABLE)
+				REG_SET_BIT(ah, AR_WA, AR_WA_D3_L1_DISABLE);
+		} else {
+			if (((AR_SREV_9285(ah) || AR_SREV_9271(ah) ||
+			      AR_SREV_9287(ah)) &&
+			     (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)) ||
+			    (AR_SREV_9280(ah) &&
+			     (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE))) {
+				REG_SET_BIT(ah, AR_WA, AR_WA_D3_L1_DISABLE);
+			}
+		}
 	}
 }
 
