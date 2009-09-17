@@ -1407,8 +1407,8 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 	struct inet6_dev *idev = ifp->idev;
 
 	if (net_ratelimit())
-		printk(KERN_INFO "%s: IPv6 duplicate address detected!\n",
-			ifp->idev->dev->name);
+		printk(KERN_INFO "%s: IPv6 duplicate address %pI6c detected!\n",
+			ifp->idev->dev->name, &ifp->addr);
 
 	if (idev->cnf.accept_dad > 1 && !idev->cnf.disable_ipv6) {
 		struct in6_addr addr;
