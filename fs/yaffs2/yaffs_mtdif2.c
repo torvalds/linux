@@ -52,8 +52,6 @@ int nandmtd2_WriteChunkWithTagsToNAND(yaffs_Device *dev, int chunkInNAND,
 	   ("nandmtd2_WriteChunkWithTagsToNAND chunk %d data %p tags %p"
 	    TENDSTR), chunkInNAND, data, tags));
 
-	dev->nPageWrites++;
-
 	addr  = ((loff_t) chunkInNAND) * dev->totalBytesPerChunk;
 
 	/* For yaffs2 writing there must be both data and tags.
@@ -115,8 +113,6 @@ int nandmtd2_ReadChunkWithTagsFromNAND(yaffs_Device *dev, int chunkInNAND,
 	  (TSTR
 	   ("nandmtd2_ReadChunkWithTagsFromNAND chunk %d data %p tags %p"
 	    TENDSTR), chunkInNAND, data, tags));
-
-	dev->nPageReads++;
 
 	if (dev->inbandTags) {
 
