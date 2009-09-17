@@ -864,10 +864,6 @@ static struct hda_verb stac92hd73xx_core_init[] = {
 };
 
 static struct hda_verb stac92hd83xxx_core_init[] = {
-	{ 0xa, AC_VERB_SET_CONNECT_SEL, 0x1},
-	{ 0xb, AC_VERB_SET_CONNECT_SEL, 0x1},
-	{ 0xd, AC_VERB_SET_CONNECT_SEL, 0x0},
-
 	/* power state controls amps */
 	{ 0x01, AC_VERB_SET_EAPD, 1 << 2},
 	{}
@@ -1590,8 +1586,8 @@ static unsigned int ref92hd83xxx_pin_configs[10] = {
 };
 
 static unsigned int dell_s14_pin_configs[10] = {
-	0x02214030, 0x02211010, 0x02a19020, 0x01014050,
-	0x40f000f0, 0x01819040, 0x40f000f0, 0x90a60160,
+	0x0221403f, 0x0221101f, 0x02a19020, 0x90170110,
+	0x40f000f0, 0x40f000f0, 0x40f000f0, 0x90a60160,
 	0x40f000f0, 0x40f000f0,
 };
 
@@ -1690,6 +1686,8 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 		      "HP mini 1000", STAC_HP_M4),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x361b,
 		      "HP HDX", STAC_HP_HDX),  /* HDX16 */
+	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x3620,
+		      "HP dv6", STAC_HP_DV5),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x7010,
 		      "HP", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0233,
@@ -4166,7 +4164,10 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac92xx_auto_set_pinctl(codec, spec->autocfg.line_out_pins[0],
 				AC_PINCTL_OUT_EN);
 		/* fake event to set up pins */
-		stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0]);
+		if (cfg->hp_pins[0])
+			stac_issue_unsol_event(codec, cfg->hp_pins[0]);
+		else if (cfg->line_out_pins[0])
+			stac_issue_unsol_event(codec, cfg->line_out_pins[0]);
 	} else {
 		stac92xx_auto_init_multi_out(codec);
 		stac92xx_auto_init_hp_out(codec);
@@ -4688,8 +4689,13 @@ static int stac92xx_resume(struct hda_codec *codec)
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
 	/* fake event to set up pins again to override cached values */
-	if (spec->hp_detect)
-		stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0]);
+	if (spec->hp_detect) {
+		if (spec->autocfg.hp_pins[0])
+			stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0]);
+		else if (spec->autocfg.line_out_pins[0])
+			stac_issue_unsol_event(codec,
+					       spec->autocfg.line_out_pins[0]);
+	}
 	return 0;
 }
 
@@ -5016,7 +5022,7 @@ again:
 		spec->eapd_switch = 1;
 		break;
 	}
-	if (spec->board_config > STAC_92HD73XX_REF) {
+	if (spec->board_config != STAC_92HD73XX_REF) {
 		/* GPIO0 High = Enable EAPD */
 		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x1;
 		spec->gpio_data = 0x01;
@@ -5066,7 +5072,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 
 	codec->spec = spec;
 	codec->slave_dig_outs = stac92hd83xxx_slave_dig_outs;
-	spec->mono_nid = 0x19;
 	spec->digbeep_nid = 0x21;
 	spec->mux_nids = stac92hd83xxx_mux_nids;
 	spec->num_muxes = ARRAY_SIZE(stac92hd83xxx_mux_nids);
@@ -5242,7 +5247,7 @@ again:
 		stac92xx_set_config_regs(codec,
 				stac92hd71bxx_brd_tbl[spec->board_config]);
 
-	if (spec->board_config > STAC_92HD71BXX_REF) {
+	if (spec->board_config != STAC_92HD71BXX_REF) {
 		/* GPIO0 = EAPD */
 		spec->gpio_mask = 0x01;
 		spec->gpio_dir = 0x01;
@@ -5375,6 +5380,11 @@ again:
 	case STAC_HP_DV5:
 		snd_hda_codec_set_pincfg(codec, 0x0d, 0x90170010);
 		stac92xx_auto_set_pinctl(codec, 0x0d, AC_PINCTL_OUT_EN);
+		/* HP dv6 gives the headphone pin as a line-out.  Thus we
+		 * need to set hp_detect flag here to force to enable HP
+		 * detection.
+		 */
+		spec->hp_detect = 1;
 		break;
 	case STAC_HP_HDX:
 		spec->num_dmics = 1;
@@ -5557,14 +5567,17 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->dac_list = stac927x_dac_nids;
 	spec->multiout.dac_nids = spec->dac_nids;
 
+	if (spec->board_config != STAC_D965_REF) {
+		/* GPIO0 High = Enable EAPD */
+		spec->eapd_mask = spec->gpio_mask = 0x01;
+		spec->gpio_dir = spec->gpio_data = 0x01;
+	}
+
 	switch (spec->board_config) {
 	case STAC_D965_3ST:
 	case STAC_D965_5ST:
 		/* GPIO0 High = Enable EAPD */
-		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x01;
-		spec->gpio_data = 0x01;
 		spec->num_dmics = 0;
-
 		spec->init = d965_core_init;
 		break;
 	case STAC_DELL_BIOS:
@@ -5583,16 +5596,11 @@ static int patch_stac927x(struct hda_codec *codec)
 		snd_hda_codec_set_pincfg(codec, 0x0e, 0x02a79130);
 		/* fallthru */
 	case STAC_DELL_3ST:
-		/* GPIO2 High = Enable EAPD */
-		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x04;
-		spec->gpio_data = 0x04;
-		switch (codec->subsystem_id) {
-		case 0x1028022f:
-			/* correct EAPD to be GPIO0 */
-			spec->eapd_mask = spec->gpio_mask = 0x01;
-			spec->gpio_dir = spec->gpio_data = 0x01;
-			break;
-		};
+		if (codec->subsystem_id != 0x1028022f) {
+			/* GPIO2 High = Enable EAPD */
+			spec->eapd_mask = spec->gpio_mask = 0x04;
+			spec->gpio_dir = spec->gpio_data = 0x04;
+		}
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
 
@@ -5601,14 +5609,9 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->num_dmuxes = ARRAY_SIZE(stac927x_dmux_nids);
 		break;
 	default:
-		if (spec->board_config > STAC_D965_REF) {
-			/* GPIO0 High = Enable EAPD */
-			spec->eapd_mask = spec->gpio_mask = 0x01;
-			spec->gpio_dir = spec->gpio_data = 0x01;
-		}
 		spec->num_dmics = 0;
-
 		spec->init = stac927x_core_init;
+		break;
 	}
 
 	spec->num_caps = STAC927X_NUM_CAPS;
