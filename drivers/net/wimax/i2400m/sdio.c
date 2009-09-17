@@ -519,18 +519,6 @@ int i2400ms_probe(struct sdio_func *func,
 	i2400m->bus_bm_mac_addr_impaired = 1;
 	i2400m->bus_bm_pokes_table = &i2400ms_pokes[0];
 
-	/*
-	 * Before we are enabling the device interrupt register, make
-	 * sure the buffer used during bootmode operation is setup so
-	 * when the first D2H data interrupt comes, the memory is
-	 * available for copying the D2H data.
-	 */
-	result = i2400m_bm_buf_alloc(i2400m);
-	if (result < 0) {
-		dev_err(dev, "cannot allocate SDIO bootmode buffer\n");
-		goto error_bootmode_buf_setup;
-	}
-
 	result = i2400m_setup(i2400m, I2400M_BRI_NO_REBOOT);
 	if (result < 0) {
 		dev_err(dev, "cannot setup device: %d\n", result);
@@ -548,8 +536,6 @@ int i2400ms_probe(struct sdio_func *func,
 error_debugfs_add:
 	i2400m_release(i2400m);
 error_setup:
-	i2400m_bm_buf_free(i2400m);
-error_bootmode_buf_setup:
 	sdio_set_drvdata(func, NULL);
 	free_netdev(net_dev);
 error_alloc_netdev:
