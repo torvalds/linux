@@ -282,7 +282,7 @@ static int trackpoint_reconnect(struct psmouse *psmouse)
 	return 0;
 }
 
-int trackpoint_detect(struct psmouse *psmouse, int set_properties)
+int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
 {
 	struct trackpoint_data *priv;
 	struct ps2dev *ps2dev = &psmouse->ps2dev;

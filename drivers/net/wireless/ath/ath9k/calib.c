@@ -116,7 +116,7 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 				"NF calibrated [ctl] [chain 1] is %d\n", nf);
 		nfarray[1] = nf;
 
-		if (!AR_SREV_9280(ah)) {
+		if (!AR_SREV_9280(ah) && !AR_SREV_9287(ah)) {
 			nf = MS(REG_READ(ah, AR_PHY_CH2_CCA),
 					AR_PHY_CH2_MINCCA_PWR);
 			if (nf & 0x100)
@@ -154,7 +154,7 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 				"NF calibrated [ext] [chain 1] is %d\n", nf);
 		nfarray[4] = nf;
 
-		if (!AR_SREV_9280(ah)) {
+		if (!AR_SREV_9280(ah) && !AR_SREV_9287(ah)) {
 			nf = MS(REG_READ(ah, AR_PHY_CH2_EXT_CCA),
 					AR_PHY_CH2_EXT_MINCCA_PWR);
 			if (nf & 0x100)
@@ -613,7 +613,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	if (AR_SREV_9285(ah))
 		chainmask = 0x9;
-	else if (AR_SREV_9280(ah))
+	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah))
 		chainmask = 0x1B;
 	else
 		chainmask = 0x3F;
@@ -691,15 +691,22 @@ int16_t ath9k_hw_getnf(struct ath_hw *ah,
 void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah)
 {
 	int i, j;
+	s16 noise_floor;
+
+	if (AR_SREV_9280(ah))
+		noise_floor = AR_PHY_CCA_MAX_AR9280_GOOD_VALUE;
+	else if (AR_SREV_9285(ah))
+		noise_floor = AR_PHY_CCA_MAX_AR9285_GOOD_VALUE;
+	else
+		noise_floor = AR_PHY_CCA_MAX_AR5416_GOOD_VALUE;
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		ah->nfCalHist[i].currIndex = 0;
-		ah->nfCalHist[i].privNF = AR_PHY_CCA_MAX_GOOD_VALUE;
+		ah->nfCalHist[i].privNF = noise_floor;
 		ah->nfCalHist[i].invalidNFcount =
 			AR_PHY_CCA_FILTERWINDOW_LENGTH;
 		for (j = 0; j < ATH9K_NF_CAL_HIST_MAX; j++) {
-			ah->nfCalHist[i].nfCalBuffer[j] =
-				AR_PHY_CCA_MAX_GOOD_VALUE;
+			ah->nfCalHist[i].nfCalBuffer[j] = noise_floor;
 		}
 	}
 }
@@ -722,31 +729,139 @@ s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
 static void ath9k_olc_temp_compensation(struct ath_hw *ah)
 {
 	u32 rddata, i;
-	int delta, currPDADC, regval;
+	int delta, currPDADC, regval, slope;
 
 	rddata = REG_READ(ah, AR_PHY_TX_PWRCTRL4);
-
 	currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
 
-	if (ah->eep_ops->get_eeprom(ah, EEP_DAC_HPWR_5G))
-		delta = (currPDADC - ah->initPDADC + 4) / 8;
-	else
-		delta = (currPDADC - ah->initPDADC + 5) / 10;
 
-	if (delta != ah->PDADCdelta) {
-		ah->PDADCdelta = delta;
-		for (i = 1; i < AR9280_TX_GAIN_TABLE_SIZE; i++) {
-			regval = ah->originalGain[i] - delta;
-			if (regval < 0)
-				regval = 0;
+	if (OLC_FOR_AR9287_10_LATER) {
+		if (ah->initPDADC == 0 || currPDADC == 0) {
+			return;
+		} else {
+			slope = ah->eep_ops->get_eeprom(ah, EEP_TEMPSENSE_SLOPE);
+			if (slope == 0)
+				delta = 0;
+			else
+				delta = ((currPDADC - ah->initPDADC)*4) / slope;
+			REG_RMW_FIELD(ah, AR_PHY_CH0_TX_PWRCTRL11,
+					AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
+			REG_RMW_FIELD(ah, AR_PHY_CH1_TX_PWRCTRL11,
+					AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
+		}
+	} else {
+		if (ah->eep_ops->get_eeprom(ah, EEP_DAC_HPWR_5G))
+			delta = (currPDADC - ah->initPDADC + 4) / 8;
+		else
+			delta = (currPDADC - ah->initPDADC + 5) / 10;
 
-			REG_RMW_FIELD(ah, AR_PHY_TX_GAIN_TBL1 + i * 4,
-					AR_PHY_TX_GAIN, regval);
+		if (delta != ah->PDADCdelta) {
+			ah->PDADCdelta = delta;
+			for (i = 1; i < AR9280_TX_GAIN_TABLE_SIZE; i++) {
+				regval = ah->originalGain[i] - delta;
+				if (regval < 0)
+					regval = 0;
+
+				REG_RMW_FIELD(ah, AR_PHY_TX_GAIN_TBL1 + i * 4,
+						AR_PHY_TX_GAIN, regval);
+			}
 		}
 	}
 }
 
-static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
+static void ath9k_hw_9271_pa_cal(struct ath_hw *ah)
+{
+	u32 regVal;
+	unsigned int i;
+	u32 regList [][2] = {
+		{ 0x786c, 0 },
+		{ 0x7854, 0 },
+		{ 0x7820, 0 },
+		{ 0x7824, 0 },
+		{ 0x7868, 0 },
+		{ 0x783c, 0 },
+		{ 0x7838, 0 } ,
+		{ 0x7828, 0 } ,
+	};
+
+	for (i = 0; i < ARRAY_SIZE(regList); i++)
+		regList[i][1] = REG_READ(ah, regList[i][0]);
+
+	regVal = REG_READ(ah, 0x7834);
+	regVal &= (~(0x1));
+	REG_WRITE(ah, 0x7834, regVal);
+	regVal = REG_READ(ah, 0x9808);
+	regVal |= (0x1 << 27);
+	REG_WRITE(ah, 0x9808, regVal);
+
+	/* 786c,b23,1, pwddac=1 */
+	REG_RMW_FIELD(ah, AR9285_AN_TOP3, AR9285_AN_TOP3_PWDDAC, 1);
+	/* 7854, b5,1, pdrxtxbb=1 */
+	REG_RMW_FIELD(ah, AR9285_AN_RXTXBB1, AR9285_AN_RXTXBB1_PDRXTXBB1, 1);
+	/* 7854, b7,1, pdv2i=1 */
+	REG_RMW_FIELD(ah, AR9285_AN_RXTXBB1, AR9285_AN_RXTXBB1_PDV2I, 1);
+	/* 7854, b8,1, pddacinterface=1 */
+	REG_RMW_FIELD(ah, AR9285_AN_RXTXBB1, AR9285_AN_RXTXBB1_PDDACIF, 1);
+	/* 7824,b12,0, offcal=0 */
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G2, AR9285_AN_RF2G2_OFFCAL, 0);
+	/* 7838, b1,0, pwddb=0 */
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G7, AR9285_AN_RF2G7_PWDDB, 0);
+	/* 7820,b11,0, enpacal=0 */
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_ENPACAL, 0);
+	/* 7820,b25,1, pdpadrv1=0 */
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_PDPADRV1, 0);
+	/* 7820,b24,0, pdpadrv2=0 */
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G1,AR9285_AN_RF2G1_PDPADRV2,0);
+	/* 7820,b23,0, pdpaout=0 */
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_PDPAOUT, 0);
+	/* 783c,b14-16,7, padrvgn2tab_0=7 */
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G8,AR9285_AN_RF2G8_PADRVGN2TAB0, 7);
+	/*
+	 * 7838,b29-31,0, padrvgn1tab_0=0
+	 * does not matter since we turn it off
+	 */
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G7,AR9285_AN_RF2G7_PADRVGN2TAB0, 0);
+
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9271_AN_RF2G3_CCOMP, 0xfff);
+
+	/* Set:
+	 * localmode=1,bmode=1,bmoderxtx=1,synthon=1,
+	 * txon=1,paon=1,oscon=1,synthon_force=1
+	 */
+	REG_WRITE(ah, AR9285_AN_TOP2, 0xca0358a0);
+	udelay(30);
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9271_AN_RF2G6_OFFS, 0);
+
+	/* find off_6_1; */
+	for (i = 6; i >= 0; i--) {
+		regVal = REG_READ(ah, 0x7834);
+		regVal |= (1 << (20 + i));
+		REG_WRITE(ah, 0x7834, regVal);
+		udelay(1);
+		//regVal = REG_READ(ah, 0x7834);
+		regVal &= (~(0x1 << (20 + i)));
+		regVal |= (MS(REG_READ(ah, 0x7840), AR9285_AN_RXTXBB1_SPARE9)
+			    << (20 + i));
+		REG_WRITE(ah, 0x7834, regVal);
+	}
+
+	/*  Empirical offset correction  */
+#if 0
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9271_AN_RF2G6_OFFS, 0x20);
+#endif
+
+	regVal = REG_READ(ah, 0x7834);
+	regVal |= 0x1;
+	REG_WRITE(ah, 0x7834, regVal);
+	regVal = REG_READ(ah, 0x9808);
+	regVal &= (~(0x1 << 27));
+	REG_WRITE(ah, 0x9808, regVal);
+
+	for (i = 0; i < ARRAY_SIZE(regList); i++)
+		REG_WRITE(ah, regList[i][0], regList[i][1]);
+}
+
+static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah, bool is_reset)
 {
 
 	u32 regVal;
@@ -761,6 +876,13 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 		{ 0x783c, 0 },
 		{ 0x7838, 0 },
 	};
+
+	DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE, "Running PA Calibration\n");
+
+	/* PA CAL is not needed for high power solution */
+	if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) ==
+	    AR5416_EEP_TXGAIN_HIGH_POWER)
+		return;
 
 	if (AR_SREV_9285_11(ah)) {
 		REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
@@ -784,13 +906,13 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G2, AR9285_AN_RF2G2_OFFCAL, 0);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G7, AR9285_AN_RF2G7_PWDDB, 0);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_ENPACAL, 0);
-	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_PDPADRV1, 1);
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_PDPADRV1, 0);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_PDPADRV2, 0);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G1, AR9285_AN_RF2G1_PDPAOUT, 0);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G8, AR9285_AN_RF2G8_PADRVGN2TAB0, 7);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G7, AR9285_AN_RF2G7_PADRVGN2TAB0, 0);
 	ccomp_org = MS(REG_READ(ah, AR9285_AN_RF2G6), AR9285_AN_RF2G6_CCOMP);
-	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9285_AN_RF2G6_CCOMP, 7);
+	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9285_AN_RF2G6_CCOMP, 0xf);
 
 	REG_WRITE(ah, AR9285_AN_TOP2, 0xca0358a0);
 	udelay(30);
@@ -802,7 +924,6 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 		regVal |= (1 << (19 + i));
 		REG_WRITE(ah, 0x7834, regVal);
 		udelay(1);
-		regVal = REG_READ(ah, 0x7834);
 		regVal &= (~(0x1 << (19 + i)));
 		reg_field = MS(REG_READ(ah, 0x7840), AR9285_AN_RXTXBB1_SPARE9);
 		regVal |= (reg_field << (19 + i));
@@ -820,6 +941,17 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah)
 	offset = offset - 0;
 	offs_6_1 = offset>>1;
 	offs_0 = offset & 1;
+
+	if ((!is_reset) && (ah->pacal_info.prev_offset == offset)) {
+		if (ah->pacal_info.max_skipcount < MAX_PACAL_SKIPCOUNT)
+			ah->pacal_info.max_skipcount =
+				2 * ah->pacal_info.max_skipcount;
+		ah->pacal_info.skipcount = ah->pacal_info.max_skipcount;
+	} else {
+		ah->pacal_info.max_skipcount = 1;
+		ah->pacal_info.skipcount = 0;
+		ah->pacal_info.prev_offset = offset;
+	}
 
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9285_AN_RF2G6_OFFS, offs_6_1);
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_PDVCCOMP, offs_0);
@@ -862,14 +994,30 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 		}
 	}
 
+	/* Do NF cal only at longer intervals */
 	if (longcal) {
-		if (AR_SREV_9285_11_OR_LATER(ah))
-			ath9k_hw_9285_pa_cal(ah);
+		/* Do periodic PAOffset Cal */
+		if (AR_SREV_9271(ah))
+			ath9k_hw_9271_pa_cal(ah);
+		else if (AR_SREV_9285_11_OR_LATER(ah)) {
+			if (!ah->pacal_info.skipcount)
+				ath9k_hw_9285_pa_cal(ah, false);
+			else
+				ah->pacal_info.skipcount--;
+		}
 
-		if (OLC_FOR_AR9280_20_LATER)
+		if (OLC_FOR_AR9280_20_LATER || OLC_FOR_AR9287_10_LATER)
 			ath9k_olc_temp_compensation(ah);
+
+		/* Get the value from the previous NF cal and update history buffer */
 		ath9k_hw_getnf(ah, chan);
+
+		/*
+		 * Load the NF from history buffer of the current channel.
+		 * NF is slow time-variant, so it is OK to use a historical value.
+		 */
 		ath9k_hw_loadnf(ah, ah->curchan);
+
 		ath9k_hw_start_nfcal(ah);
 	}
 
@@ -922,8 +1070,11 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 			return false;
 	} else {
 		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
-			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+			if (!AR_SREV_9287_10_OR_LATER(ah))
+				REG_CLR_BIT(ah, AR_PHY_ADC_CTL,
+					    AR_PHY_ADC_CTL_OFF_PWDADC);
+			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
+				    AR_PHY_AGC_CONTROL_FLTR_CAL);
 		}
 
 		/* Calibrate the AGC */
@@ -941,14 +1092,17 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 		}
 
 		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			REG_SET_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
-			REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+			if (!AR_SREV_9287_10_OR_LATER(ah))
+				REG_SET_BIT(ah, AR_PHY_ADC_CTL,
+					    AR_PHY_ADC_CTL_OFF_PWDADC);
+			REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+				    AR_PHY_AGC_CONTROL_FLTR_CAL);
 		}
 	}
 
 	/* Do PA Calibration */
 	if (AR_SREV_9285_11_OR_LATER(ah))
-		ath9k_hw_9285_pa_cal(ah);
+		ath9k_hw_9285_pa_cal(ah, true);
 
 	/* Do NF Calibration after DC offset and other calibrations */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,

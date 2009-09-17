@@ -9,21 +9,16 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/ioport.h>
 #include <linux/kernel.h>
-#include <linux/mm.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/sched.h>
-#include <linux/io.h>
-#include <linux/i2c.h>
 #include <linux/mtd/physmap.h>
 
 #include <mach/hardware.h>
 
-#include <asm/mach/arch.h>
 #include <asm/mach-types.h>
+#include <asm/mach/arch.h>
+
 
 static struct ep93xx_eth_data micro9_eth_data = {
 	.phy_id		= 0x1f,

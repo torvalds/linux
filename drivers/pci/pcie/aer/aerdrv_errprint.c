@@ -27,69 +27,70 @@
 #define AER_AGENT_COMPLETER		2
 #define AER_AGENT_TRANSMITTER		3
 
-#define AER_AGENT_REQUESTER_MASK	(PCI_ERR_UNC_COMP_TIME|	\
-					PCI_ERR_UNC_UNSUP)
-
-#define AER_AGENT_COMPLETER_MASK	PCI_ERR_UNC_COMP_ABORT
-
-#define AER_AGENT_TRANSMITTER_MASK(t, e) (e & (PCI_ERR_COR_REP_ROLL| \
-	((t == AER_CORRECTABLE) ? PCI_ERR_COR_REP_TIMER: 0)))
+#define AER_AGENT_REQUESTER_MASK(t)	((t == AER_CORRECTABLE) ?	\
+	0 : (PCI_ERR_UNC_COMP_TIME|PCI_ERR_UNC_UNSUP))
+#define AER_AGENT_COMPLETER_MASK(t)	((t == AER_CORRECTABLE) ?	\
+	0 : PCI_ERR_UNC_COMP_ABORT)
+#define AER_AGENT_TRANSMITTER_MASK(t)	((t == AER_CORRECTABLE) ?	\
+	(PCI_ERR_COR_REP_ROLL|PCI_ERR_COR_REP_TIMER) : 0)
 
 #define AER_GET_AGENT(t, e)						\
-	((e & AER_AGENT_COMPLETER_MASK) ? AER_AGENT_COMPLETER :		\
-	(e & AER_AGENT_REQUESTER_MASK) ? AER_AGENT_REQUESTER :		\
-	(AER_AGENT_TRANSMITTER_MASK(t, e)) ? AER_AGENT_TRANSMITTER :	\
+	((e & AER_AGENT_COMPLETER_MASK(t)) ? AER_AGENT_COMPLETER :	\
+	(e & AER_AGENT_REQUESTER_MASK(t)) ? AER_AGENT_REQUESTER :	\
+	(e & AER_AGENT_TRANSMITTER_MASK(t)) ? AER_AGENT_TRANSMITTER :	\
 	AER_AGENT_RECEIVER)
-
-#define AER_PHYSICAL_LAYER_ERROR_MASK	PCI_ERR_COR_RCVR
-#define AER_DATA_LINK_LAYER_ERROR_MASK(t, e)	\
-		(PCI_ERR_UNC_DLP|		\
-		PCI_ERR_COR_BAD_TLP| 		\
-		PCI_ERR_COR_BAD_DLLP|		\
-		PCI_ERR_COR_REP_ROLL| 		\
-		((t == AER_CORRECTABLE) ?	\
-		PCI_ERR_COR_REP_TIMER: 0))
 
 #define AER_PHYSICAL_LAYER_ERROR	0
 #define AER_DATA_LINK_LAYER_ERROR	1
 #define AER_TRANSACTION_LAYER_ERROR	2
 
-#define AER_GET_LAYER_ERROR(t, e)				\
-	((e & AER_PHYSICAL_LAYER_ERROR_MASK) ?			\
-	AER_PHYSICAL_LAYER_ERROR :				\
-	(e & AER_DATA_LINK_LAYER_ERROR_MASK(t, e)) ?		\
-		AER_DATA_LINK_LAYER_ERROR : 			\
-		AER_TRANSACTION_LAYER_ERROR)
+#define AER_PHYSICAL_LAYER_ERROR_MASK(t) ((t == AER_CORRECTABLE) ?	\
+	PCI_ERR_COR_RCVR : 0)
+#define AER_DATA_LINK_LAYER_ERROR_MASK(t) ((t == AER_CORRECTABLE) ?	\
+	(PCI_ERR_COR_BAD_TLP|						\
+	PCI_ERR_COR_BAD_DLLP|						\
+	PCI_ERR_COR_REP_ROLL|						\
+	PCI_ERR_COR_REP_TIMER) : PCI_ERR_UNC_DLP)
+
+#define AER_GET_LAYER_ERROR(t, e)					\
+	((e & AER_PHYSICAL_LAYER_ERROR_MASK(t)) ? AER_PHYSICAL_LAYER_ERROR : \
+	(e & AER_DATA_LINK_LAYER_ERROR_MASK(t)) ? AER_DATA_LINK_LAYER_ERROR : \
+	AER_TRANSACTION_LAYER_ERROR)
+
+#define AER_PR(info, pdev, fmt, args...)				\
+	printk("%s%s %s: " fmt, (info->severity == AER_CORRECTABLE) ?	\
+		KERN_WARNING : KERN_ERR, dev_driver_string(&pdev->dev),	\
+		dev_name(&pdev->dev), ## args)
 
 /*
  * AER error strings
  */
-static char* aer_error_severity_string[] = {
+static char *aer_error_severity_string[] = {
 	"Uncorrected (Non-Fatal)",
 	"Uncorrected (Fatal)",
 	"Corrected"
 };
 
-static char* aer_error_layer[] = {
+static char *aer_error_layer[] = {
 	"Physical Layer",
 	"Data Link Layer",
 	"Transaction Layer"
 };
-static char* aer_correctable_error_string[] = {
-	"Receiver Error        ",	/* Bit Position 0 	*/
+static char *aer_correctable_error_string[] = {
+	"Receiver Error        ",	/* Bit Position 0	*/
 	NULL,
 	NULL,
 	NULL,
 	NULL,
 	NULL,
-	"Bad TLP               ",	/* Bit Position 6 	*/
-	"Bad DLLP              ",	/* Bit Position 7 	*/
-	"RELAY_NUM Rollover    ",	/* Bit Position 8 	*/
+	"Bad TLP               ",	/* Bit Position 6	*/
+	"Bad DLLP              ",	/* Bit Position 7	*/
+	"RELAY_NUM Rollover    ",	/* Bit Position 8	*/
 	NULL,
 	NULL,
 	NULL,
-	"Replay Timer Timeout  ",	/* Bit Position 12 	*/
-	"Advisory Non-Fatal    ", 	/* Bit Position 13	*/
+	"Replay Timer Timeout  ",	/* Bit Position 12	*/
+	"Advisory Non-Fatal    ",	/* Bit Position 13	*/
 	NULL,
 	NULL,
 	NULL,
@@ -110,7 +111,7 @@ static char* aer_correctable_error_string[] = {
 	NULL,
 };
 
-static char* aer_uncorrectable_error_string[] = {
+static char *aer_uncorrectable_error_string[] = {
 	NULL,
 	NULL,
 	NULL,
@@ -123,10 +124,10 @@ static char* aer_uncorrectable_error_string[] = {
 	NULL,
 	NULL,
 	NULL,
-	"Poisoned TLP          ",	/* Bit Position 12 	*/
+	"Poisoned TLP          ",	/* Bit Position 12	*/
 	"Flow Control Protocol ",	/* Bit Position 13	*/
-	"Completion Timeout    ",	/* Bit Position 14 	*/
-	"Completer Abort       ",	/* Bit Position 15 	*/
+	"Completion Timeout    ",	/* Bit Position 14	*/
+	"Completer Abort       ",	/* Bit Position 15	*/
 	"Unexpected Completion ",	/* Bit Position 16	*/
 	"Receiver Overflow     ",	/* Bit Position 17	*/
 	"Malformed TLP         ",	/* Bit Position 18	*/
@@ -145,98 +146,69 @@ static char* aer_uncorrectable_error_string[] = {
 	NULL,
 };
 
-static char* aer_agent_string[] = {
+static char *aer_agent_string[] = {
 	"Receiver ID",
 	"Requester ID",
 	"Completer ID",
 	"Transmitter ID"
 };
 
-static char * aer_get_error_source_name(int severity,
-			unsigned int status,
-			char errmsg_buff[])
+static void __aer_print_error(struct aer_err_info *info, struct pci_dev *dev)
 {
-	int i;
-	char * errmsg = NULL;
+	int i, status;
+	char *errmsg = NULL;
+
+	status = (info->status & ~info->mask);
 
 	for (i = 0; i < 32; i++) {
 		if (!(status & (1 << i)))
 			continue;
 
-		if (severity == AER_CORRECTABLE)
+		if (info->severity == AER_CORRECTABLE)
 			errmsg = aer_correctable_error_string[i];
 		else
 			errmsg = aer_uncorrectable_error_string[i];
 
-		if (!errmsg) {
-			sprintf(errmsg_buff, "Unknown Error Bit %2d  ", i);
-			errmsg = errmsg_buff;
-		}
-
-		break;
+		if (errmsg)
+			AER_PR(info, dev, "   [%2d] %s%s\n", i, errmsg,
+				info->first_error == i ? " (First)" : "");
+		else
+			AER_PR(info, dev, "   [%2d] Unknown Error Bit%s\n", i,
+				info->first_error == i ? " (First)" : "");
 	}
-
-	return errmsg;
 }
 
-static DEFINE_SPINLOCK(logbuf_lock);
-static char errmsg_buff[100];
 void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 {
-	char * errmsg;
-	int err_layer, agent;
-	char * loglevel;
+	int id = ((dev->bus->number << 8) | dev->devfn);
 
-	if (info->severity == AER_CORRECTABLE)
-		loglevel = KERN_WARNING;
-	else
-		loglevel = KERN_ERR;
-
-	printk("%s+------ PCI-Express Device Error ------+\n", loglevel);
-	printk("%sError Severity\t\t: %s\n", loglevel,
-		aer_error_severity_string[info->severity]);
-
-	if ( info->status == 0) {
-		printk("%sPCIE Bus Error type\t: (Unaccessible)\n", loglevel);
-		printk("%sUnaccessible Received\t: %s\n", loglevel,
-			info->flags & AER_MULTI_ERROR_VALID_FLAG ?
-				"Multiple" : "First");
-		printk("%sUnregistered Agent ID\t: %04x\n", loglevel,
-			(dev->bus->number << 8) | dev->devfn);
+	if (info->status == 0) {
+		AER_PR(info, dev,
+			"PCIE Bus Error: severity=%s, type=Unaccessible, "
+			"id=%04x(Unregistered Agent ID)\n",
+			aer_error_severity_string[info->severity], id);
 	} else {
-		err_layer = AER_GET_LAYER_ERROR(info->severity, info->status);
-		printk("%sPCIE Bus Error type\t: %s\n", loglevel,
-			aer_error_layer[err_layer]);
+		int layer, agent;
 
-		spin_lock(&logbuf_lock);
-		errmsg = aer_get_error_source_name(info->severity,
-				info->status,
-				errmsg_buff);
-		printk("%s%s\t: %s\n", loglevel, errmsg,
-			info->flags & AER_MULTI_ERROR_VALID_FLAG ?
-				"Multiple" : "First");
-		spin_unlock(&logbuf_lock);
-
+		layer = AER_GET_LAYER_ERROR(info->severity, info->status);
 		agent = AER_GET_AGENT(info->severity, info->status);
-		printk("%s%s\t\t: %04x\n", loglevel,
-			aer_agent_string[agent],
-			(dev->bus->number << 8) | dev->devfn);
 
-		printk("%sVendorID=%04xh, DeviceID=%04xh,"
-			" Bus=%02xh, Device=%02xh, Function=%02xh\n",
-			loglevel,
-			dev->vendor,
-			dev->device,
-			dev->bus->number,
-			PCI_SLOT(dev->devfn),
-			PCI_FUNC(dev->devfn));
+		AER_PR(info, dev,
+			"PCIE Bus Error: severity=%s, type=%s, id=%04x(%s)\n",
+			aer_error_severity_string[info->severity],
+			aer_error_layer[layer], id, aer_agent_string[agent]);
 
-		if (info->flags & AER_TLP_HEADER_VALID_FLAG) {
+		AER_PR(info, dev,
+			"  device [%04x:%04x] error status/mask=%08x/%08x\n",
+			dev->vendor, dev->device, info->status, info->mask);
+
+		__aer_print_error(info, dev);
+
+		if (info->tlp_header_valid) {
 			unsigned char *tlp = (unsigned char *) &info->tlp;
-			printk("%sTLP Header:\n", loglevel);
-			printk("%s%02x%02x%02x%02x %02x%02x%02x%02x"
+			AER_PR(info, dev, "  TLP Header:"
+				" %02x%02x%02x%02x %02x%02x%02x%02x"
 				" %02x%02x%02x%02x %02x%02x%02x%02x\n",
-				loglevel,
 				*(tlp + 3), *(tlp + 2), *(tlp + 1), *tlp,
 				*(tlp + 7), *(tlp + 6), *(tlp + 5), *(tlp + 4),
 				*(tlp + 11), *(tlp + 10), *(tlp + 9),
@@ -244,5 +216,15 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 				*(tlp + 13), *(tlp + 12));
 		}
 	}
+
+	if (info->id && info->error_dev_num > 1 && info->id == id)
+		AER_PR(info, dev,
+			"  Error of this Agent(%04x) is reported first\n", id);
 }
 
+void aer_print_port_info(struct pci_dev *dev, struct aer_err_info *info)
+{
+	dev_info(&dev->dev, "AER: %s%s error received: id=%04x\n",
+		info->multi_error_valid ? "Multiple " : "",
+		aer_error_severity_string[info->severity], info->id);
+}

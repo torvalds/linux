@@ -34,6 +34,8 @@ void kmemcheck_mark_initialized_pages(struct page *p, unsigned int n);
 int kmemcheck_show_addr(unsigned long address);
 int kmemcheck_hide_addr(unsigned long address);
 
+bool kmemcheck_is_obj_initialized(unsigned long addr, size_t size);
+
 #else
 #define kmemcheck_enabled 0
 
@@ -97,6 +99,11 @@ static inline void kmemcheck_mark_uninitialized_pages(struct page *p,
 static inline void kmemcheck_mark_initialized_pages(struct page *p,
 						    unsigned int n)
 {
+}
+
+static inline bool kmemcheck_is_obj_initialized(unsigned long addr, size_t size)
+{
+	return true;
 }
 
 #endif /* CONFIG_KMEMCHECK */

@@ -716,11 +716,6 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 			priv->sLocalPara.region = REGION_USA;	/* default setting */
 	}
 
-	// Get Software setting flag from hal
-	priv->sLocalPara.boAntennaDiversity = false;
-	if (hal_software_set(pHwData) & 0x00000001)
-		priv->sLocalPara.boAntennaDiversity = true;
-
 	Mds_initial(priv);
 
 	/*

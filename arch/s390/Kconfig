@@ -95,7 +95,6 @@ config S390
 	select HAVE_ARCH_TRACEHOOK
 	select INIT_ALL_POSSIBLE
 	select HAVE_PERF_COUNTERS
-	select GENERIC_ATOMIC64 if !64BIT
 
 config SCHED_OMIT_FRAME_POINTER
 	bool
@@ -480,13 +479,6 @@ config CMM_IUCV
 	help
 	  Select this option to enable the special message interface to
 	  the cooperative memory management.
-
-config PAGE_STATES
-	bool "Unused page notification"
-	help
-	  This enables the notification of unused pages to the
-	  hypervisor. The ESSA instruction is used to do the states
-	  changes between a page that has content and the unused state.
 
 config APPLDATA_BASE
 	bool "Linux - VM Monitor Stream, base infrastructure"

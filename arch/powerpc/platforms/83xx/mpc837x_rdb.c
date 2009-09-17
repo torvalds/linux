@@ -17,9 +17,31 @@
 #include <asm/time.h>
 #include <asm/ipic.h>
 #include <asm/udbg.h>
+#include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
 #include "mpc83xx.h"
+
+static void mpc837x_rdb_sd_cfg(void)
+{
+	void __iomem *im;
+
+	im = ioremap(get_immrbase(), 0x1000);
+	if (!im) {
+		WARN_ON(1);
+		return;
+	}
+
+	/*
+	 * On RDB boards (in contrast to MDS) USBB pins are used for SD only,
+	 * so we can safely mux them away from the USB block.
+	 */
+	clrsetbits_be32(im + MPC83XX_SICRL_OFFS, MPC837X_SICRL_USBB_MASK,
+						 MPC837X_SICRL_SD);
+	clrsetbits_be32(im + MPC83XX_SICRH_OFFS, MPC837X_SICRH_SPI_MASK,
+						 MPC837X_SICRH_SD);
+	iounmap(im);
+}
 
 /* ************************************************************************
  *
@@ -42,6 +64,7 @@ static void __init mpc837x_rdb_setup_arch(void)
 		mpc83xx_add_bridge(np);
 #endif
 	mpc837x_usb_cfg();
+	mpc837x_rdb_sd_cfg();
 }
 
 static struct of_device_id mpc837x_ids[] = {
@@ -86,11 +109,12 @@ static int __init mpc837x_rdb_probe(void)
 
 	return of_flat_dt_is_compatible(root, "fsl,mpc8377rdb") ||
 	       of_flat_dt_is_compatible(root, "fsl,mpc8378rdb") ||
-	       of_flat_dt_is_compatible(root, "fsl,mpc8379rdb");
+	       of_flat_dt_is_compatible(root, "fsl,mpc8379rdb") ||
+	       of_flat_dt_is_compatible(root, "fsl,mpc8377wlan");
 }
 
 define_machine(mpc837x_rdb) {
-	.name			= "MPC837x RDB",
+	.name			= "MPC837x RDB/WLAN",
 	.probe			= mpc837x_rdb_probe,
 	.setup_arch		= mpc837x_rdb_setup_arch,
 	.init_IRQ		= mpc837x_rdb_init_IRQ,

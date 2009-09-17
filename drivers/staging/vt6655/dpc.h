@@ -16,7 +16,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * File: whdr.h
+ * File: dpc.h
  *
  * Purpose:
  *
@@ -26,20 +26,12 @@
  *
  */
 
-
 #ifndef __DPC_H__
 #define __DPC_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WCMD_H__)
 #include "wcmd.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -49,26 +41,14 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
-
 BOOL
 device_receive_frame (
     IN  PSDevice pDevice,
     IN  PSRxDesc pCurrRD
     );
 
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 VOID	MngWorkItem(PVOID Context);
+
 #endif // __RXTX_H__
 
 

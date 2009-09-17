@@ -210,15 +210,25 @@ enum {
 	ATA_CMD_STANDBY		= 0xE2, /* place in standby power mode */
 	ATA_CMD_IDLE		= 0xE3, /* place in idle power mode */
 	ATA_CMD_EDD		= 0x90,	/* execute device diagnostic */
+	ATA_CMD_DOWNLOAD_MICRO  = 0x92,
+	ATA_CMD_NOP		= 0x00,
 	ATA_CMD_FLUSH		= 0xE7,
 	ATA_CMD_FLUSH_EXT	= 0xEA,
 	ATA_CMD_ID_ATA		= 0xEC,
 	ATA_CMD_ID_ATAPI	= 0xA1,
+	ATA_CMD_SERVICE		= 0xA2,
 	ATA_CMD_READ		= 0xC8,
 	ATA_CMD_READ_EXT	= 0x25,
+	ATA_CMD_READ_QUEUED	= 0x26,
+	ATA_CMD_READ_STREAM_EXT	= 0x2B,
+	ATA_CMD_READ_STREAM_DMA_EXT = 0x2A,
 	ATA_CMD_WRITE		= 0xCA,
 	ATA_CMD_WRITE_EXT	= 0x35,
+	ATA_CMD_WRITE_QUEUED	= 0x36,
+	ATA_CMD_WRITE_STREAM_EXT = 0x3B,
+	ATA_CMD_WRITE_STREAM_DMA_EXT = 0x3A,
 	ATA_CMD_WRITE_FUA_EXT	= 0x3D,
+	ATA_CMD_WRITE_QUEUED_FUA_EXT = 0x3E,
 	ATA_CMD_FPDMA_READ	= 0x60,
 	ATA_CMD_FPDMA_WRITE	= 0x61,
 	ATA_CMD_PIO_READ	= 0x20,
@@ -235,6 +245,7 @@ enum {
 	ATA_CMD_PACKET		= 0xA0,
 	ATA_CMD_VERIFY		= 0x40,
 	ATA_CMD_VERIFY_EXT	= 0x42,
+	ATA_CMD_WRITE_UNCORR_EXT = 0x45,
 	ATA_CMD_STANDBYNOW1	= 0xE0,
 	ATA_CMD_IDLEIMMEDIATE	= 0xE1,
 	ATA_CMD_SLEEP		= 0xE6,
@@ -243,15 +254,34 @@ enum {
 	ATA_CMD_READ_NATIVE_MAX_EXT = 0x27,
 	ATA_CMD_SET_MAX		= 0xF9,
 	ATA_CMD_SET_MAX_EXT	= 0x37,
-	ATA_CMD_READ_LOG_EXT	= 0x2f,
+	ATA_CMD_READ_LOG_EXT	= 0x2F,
+	ATA_CMD_WRITE_LOG_EXT	= 0x3F,
+	ATA_CMD_READ_LOG_DMA_EXT = 0x47,
+	ATA_CMD_WRITE_LOG_DMA_EXT = 0x57,
+	ATA_CMD_TRUSTED_RCV	= 0x5C,
+	ATA_CMD_TRUSTED_RCV_DMA = 0x5D,
+	ATA_CMD_TRUSTED_SND	= 0x5E,
+	ATA_CMD_TRUSTED_SND_DMA = 0x5F,
 	ATA_CMD_PMP_READ	= 0xE4,
 	ATA_CMD_PMP_WRITE	= 0xE8,
 	ATA_CMD_CONF_OVERLAY	= 0xB1,
+	ATA_CMD_SEC_SET_PASS	= 0xF1,
+	ATA_CMD_SEC_UNLOCK	= 0xF2,
+	ATA_CMD_SEC_ERASE_PREP	= 0xF3,
+	ATA_CMD_SEC_ERASE_UNIT	= 0xF4,
 	ATA_CMD_SEC_FREEZE_LOCK	= 0xF5,
+	ATA_CMD_SEC_DISABLE_PASS = 0xF6,
+	ATA_CMD_CONFIG_STREAM	= 0x51,
 	ATA_CMD_SMART		= 0xB0,
 	ATA_CMD_MEDIA_LOCK	= 0xDE,
 	ATA_CMD_MEDIA_UNLOCK	= 0xDF,
 	ATA_CMD_DSM		= 0x06,
+	ATA_CMD_CHK_MED_CRD_TYP = 0xD1,
+	ATA_CMD_CFA_REQ_EXT_ERR = 0x03,
+	ATA_CMD_CFA_WRITE_NE	= 0x38,
+	ATA_CMD_CFA_TRANS_SECT	= 0x87,
+	ATA_CMD_CFA_ERASE	= 0xC0,
+	ATA_CMD_CFA_WRITE_MULT_NE = 0xCD,
 	/* marked obsolete in the ATA/ATAPI-7 spec */
 	ATA_CMD_RESTORE		= 0x10,
 
@@ -306,6 +336,7 @@ enum {
 	/* SETFEATURE Sector counts for SATA features */
 	SATA_AN			= 0x05,  /* Asynchronous Notification */
 	SATA_DIPM		= 0x03,  /* Device Initiated Power Management */
+	SATA_FPDMA_AA		= 0x02,  /* DMA Setup FIS Auto-Activate */
 
 	/* feature values for SET_MAX */
 	ATA_SET_MAX_ADDR	= 0x00,
@@ -525,6 +556,9 @@ static inline int ata_is_data(u8 prot)
 #define ata_id_has_atapi_AN(id)	\
 	( (((id)[76] != 0x0000) && ((id)[76] != 0xffff)) && \
 	  ((id)[78] & (1 << 5)) )
+#define ata_id_has_fpdma_aa(id)	\
+	( (((id)[76] != 0x0000) && ((id)[76] != 0xffff)) && \
+	  ((id)[78] & (1 << 2)) )
 #define ata_id_iordy_disable(id) ((id)[ATA_ID_CAPABILITY] & (1 << 10))
 #define ata_id_has_iordy(id) ((id)[ATA_ID_CAPABILITY] & (1 << 11))
 #define ata_id_u32(id,n)	\

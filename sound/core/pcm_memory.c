@@ -304,6 +304,7 @@ int snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 
 EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);
 
+#ifdef CONFIG_SND_DMA_SGBUF
 /**
  * snd_pcm_sgbuf_ops_page - get the page struct at the given offset
  * @substream: the pcm substream instance
@@ -349,6 +350,7 @@ unsigned int snd_pcm_sgbuf_get_chunk_size(struct snd_pcm_substream *substream,
 	return size;
 }
 EXPORT_SYMBOL(snd_pcm_sgbuf_get_chunk_size);
+#endif /* CONFIG_SND_DMA_SGBUF */
 
 /**
  * snd_pcm_lib_malloc_pages - allocate the DMA buffer

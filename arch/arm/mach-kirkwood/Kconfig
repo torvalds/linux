@@ -38,6 +38,12 @@ config MACH_TS219
 	  Say 'Y' here if you want your kernel to support the
 	  QNAP TS-119 and TS-219 Turbo NAS devices.
 
+config MACH_OPENRD_BASE
+	bool "Marvell OpenRD Base Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell OpenRD Base Board.
+
 endmenu
 
 endif

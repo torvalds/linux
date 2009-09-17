@@ -183,6 +183,11 @@ void mce_log(struct mce *mce)
 	set_bit(0, &mce_need_notify);
 }
 
+void __weak decode_mce(struct mce *m)
+{
+	return;
+}
+
 static void print_mce(struct mce *m)
 {
 	printk(KERN_EMERG
@@ -205,6 +210,8 @@ static void print_mce(struct mce *m)
 	printk(KERN_EMERG "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
 			m->cpuvendor, m->cpuid, m->time, m->socketid,
 			m->apicid);
+
+	decode_mce(m);
 }
 
 static void print_mce_head(void)
@@ -215,7 +222,10 @@ static void print_mce_head(void)
 static void print_mce_tail(void)
 {
 	printk(KERN_EMERG "This is not a software problem!\n"
-	       "Run through mcelog --ascii to decode and contact your hardware vendor\n");
+#if (!defined(CONFIG_EDAC) || !defined(CONFIG_CPU_SUP_AMD))
+	       "Run through mcelog --ascii to decode and contact your hardware vendor\n"
+#endif
+	       );
 }
 
 #define PANIC_TIMEOUT 5 /* 5 seconds */
@@ -1091,7 +1101,7 @@ void mce_log_therm_throt_event(__u64 status)
  */
 static int check_interval = 5 * 60; /* 5 minutes */
 
-static DEFINE_PER_CPU(int, next_interval); /* in jiffies */
+static DEFINE_PER_CPU(int, mce_next_interval); /* in jiffies */
 static DEFINE_PER_CPU(struct timer_list, mce_timer);
 
 static void mcheck_timer(unsigned long data)
@@ -1110,7 +1120,7 @@ static void mcheck_timer(unsigned long data)
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
 	 * polling interval, otherwise increase the polling interval.
 	 */
-	n = &__get_cpu_var(next_interval);
+	n = &__get_cpu_var(mce_next_interval);
 	if (mce_notify_irq())
 		*n = max(*n/2, HZ/100);
 	else
@@ -1325,7 +1335,7 @@ static void mce_cpu_features(struct cpuinfo_x86 *c)
 static void mce_init_timer(void)
 {
 	struct timer_list *t = &__get_cpu_var(mce_timer);
-	int *n = &__get_cpu_var(next_interval);
+	int *n = &__get_cpu_var(mce_next_interval);
 
 	if (mce_ignore_ce)
 		return;
@@ -1925,7 +1935,7 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
 		t->expires = round_jiffies(jiffies +
-						__get_cpu_var(next_interval));
+					   __get_cpu_var(mce_next_interval));
 		add_timer_on(t, cpu);
 		smp_call_function_single(cpu, mce_reenable_cpu, &action, 1);
 		break;

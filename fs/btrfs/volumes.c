@@ -260,7 +260,7 @@ loop_lock:
 		num_run++;
 		batch_run++;
 
-		if (bio_sync(cur))
+		if (bio_rw_flagged(cur, BIO_RW_SYNCIO))
 			num_sync_run++;
 
 		if (need_resched()) {
@@ -2903,7 +2903,7 @@ static noinline int schedule_bio(struct btrfs_root *root,
 	bio->bi_rw |= rw;
 
 	spin_lock(&device->io_lock);
-	if (bio_sync(bio))
+	if (bio_rw_flagged(bio, BIO_RW_SYNCIO))
 		pending_bios = &device->pending_sync_bios;
 	else
 		pending_bios = &device->pending_bios;

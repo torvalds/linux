@@ -41,7 +41,7 @@
 #include <linux/timer.h>
 #include <linux/proc_fs.h>	// Necessary because we use the proc fs
 #include <linux/if_arp.h>
-#include "ieee80211.h"
+#include "ieee80211/ieee80211.h"
 #include <asm/io.h>
 //#include <asm/semaphore.h>
 
@@ -52,30 +52,15 @@
 
 #define DEFAULT_FRAG_THRESHOLD 2342U
 #define MIN_FRAG_THRESHOLD     256U
-//#define	MAX_FRAG_THRESHOLD     2342U
 #define DEFAULT_RTS_THRESHOLD 2342U
 #define MIN_RTS_THRESHOLD 0U
 #define MAX_RTS_THRESHOLD 2342U
 #define DEFAULT_BEACONINTERVAL 0x64U
-#define DEFAULT_BEACON_ESSID "Rtl8180"
 
-#define DEFAULT_SSID ""
 #define DEFAULT_RETRY_RTS 7
 #define DEFAULT_RETRY_DATA 7
-#define PRISM_HDR_SIZE 64
 
-#ifdef CONFIG_RTL8185B
-
-#define MGNT_QUEUE						0
-#define BK_QUEUE						1
-#define BE_QUEUE						2
-#define VI_QUEUE						3
-#define VO_QUEUE						4
-#define HIGH_QUEUE						5
 #define BEACON_QUEUE					6
-
-#define LOW_QUEUE						BE_QUEUE
-#define NORMAL_QUEUE					MGNT_QUEUE
 
 #define aSifsTime 	10
 
@@ -199,7 +184,6 @@ typedef	union _ThreeWire{
 	u16			longData;
 }ThreeWireReg;
 
-#endif
 
 typedef struct buffer
 {
@@ -659,7 +643,6 @@ typedef struct r8180_priv
 	short ack_tx_to_ieee;
 
 	u8 PowerProfile;
-#ifdef CONFIG_RTL8185B
 	u32 CSMethod;
 	u8 cck_txpwr_base;
 	u8 ofdm_txpwr_base;
@@ -675,7 +658,6 @@ typedef struct r8180_priv
 	u32 IntrMask;
 
 	struct 	ChnlAccessSetting  ChannelAccessSetting;
-#endif
 }r8180_priv;
 
 #define MANAGE_PRIORITY 0
@@ -750,11 +732,7 @@ void rtl8185b_irq_enable(struct net_device *dev);
 void fix_rx_fifo(struct net_device *dev);
 void fix_tx_fifo(struct net_device *dev);
 void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch);
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
 void rtl8180_rate_adapter(struct work_struct * work);
-#else
-void rtl8180_rate_adapter(struct net_device *dev);
-#endif
 //#endif
 bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet, u32 ChangeSource);
 

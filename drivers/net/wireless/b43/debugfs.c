@@ -46,8 +46,6 @@ struct b43_debugfs_fops {
 	struct file_operations fops;
 	/* Offset of struct b43_dfs_file in struct b43_dfsentry */
 	size_t file_struct_offset;
-	/* Take wl->irq_lock before calling read/write? */
-	bool take_irqlock;
 };
 
 static inline
@@ -127,7 +125,6 @@ static int shm16write__write_file(struct b43_wldev *dev,
 	unsigned int routing, addr, mask, set;
 	u16 val;
 	int res;
-	unsigned long flags;
 
 	res = sscanf(buf, "0x%X 0x%X 0x%X 0x%X",
 		     &routing, &addr, &mask, &set);
@@ -144,15 +141,13 @@ static int shm16write__write_file(struct b43_wldev *dev,
 	if ((mask > 0xFFFF) || (set > 0xFFFF))
 		return -E2BIG;
 
-	spin_lock_irqsave(&dev->wl->shm_lock, flags);
 	if (mask == 0)
 		val = 0;
 	else
-		val = __b43_shm_read16(dev, routing, addr);
+		val = b43_shm_read16(dev, routing, addr);
 	val &= mask;
 	val |= set;
-	__b43_shm_write16(dev, routing, addr, val);
-	spin_unlock_irqrestore(&dev->wl->shm_lock, flags);
+	b43_shm_write16(dev, routing, addr, val);
 
 	return 0;
 }
@@ -206,7 +201,6 @@ static int shm32write__write_file(struct b43_wldev *dev,
 	unsigned int routing, addr, mask, set;
 	u32 val;
 	int res;
-	unsigned long flags;
 
 	res = sscanf(buf, "0x%X 0x%X 0x%X 0x%X",
 		     &routing, &addr, &mask, &set);
@@ -223,15 +217,13 @@ static int shm32write__write_file(struct b43_wldev *dev,
 	if ((mask > 0xFFFFFFFF) || (set > 0xFFFFFFFF))
 		return -E2BIG;
 
-	spin_lock_irqsave(&dev->wl->shm_lock, flags);
 	if (mask == 0)
 		val = 0;
 	else
-		val = __b43_shm_read32(dev, routing, addr);
+		val = b43_shm_read32(dev, routing, addr);
 	val &= mask;
 	val |= set;
-	__b43_shm_write32(dev, routing, addr, val);
-	spin_unlock_irqrestore(&dev->wl->shm_lock, flags);
+	b43_shm_write32(dev, routing, addr, val);
 
 	return 0;
 }
@@ -372,14 +364,12 @@ static ssize_t txstat_read_file(struct b43_wldev *dev,
 {
 	struct b43_txstatus_log *log = &dev->dfsentry->txstatlog;
 	ssize_t count = 0;
-	unsigned long flags;
 	int i, idx;
 	struct b43_txstatus *stat;
 
-	spin_lock_irqsave(&log->lock, flags);
 	if (log->end < 0) {
 		fappend("Nothing transmitted, yet\n");
-		goto out_unlock;
+		goto out;
 	}
 	fappend("b43 TX status reports:\n\n"
 		"index | cookie | seq | phy_stat | frame_count | "
@@ -409,13 +399,11 @@ static ssize_t txstat_read_file(struct b43_wldev *dev,
 			break;
 		i++;
 	}
-out_unlock:
-	spin_unlock_irqrestore(&log->lock, flags);
+out:
 
 	return count;
 }
 
-/* wl->irq_lock is locked */
 static int restart_write_file(struct b43_wldev *dev,
 			      const char *buf, size_t count)
 {
@@ -556,12 +544,7 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 			goto out_unlock;
 		}
 		memset(buf, 0, bufsize);
-		if (dfops->take_irqlock) {
-			spin_lock_irq(&dev->wl->irq_lock);
-			ret = dfops->read(dev, buf, bufsize);
-			spin_unlock_irq(&dev->wl->irq_lock);
-		} else
-			ret = dfops->read(dev, buf, bufsize);
+		ret = dfops->read(dev, buf, bufsize);
 		if (ret <= 0) {
 			free_pages((unsigned long)buf, buforder);
 			err = ret;
@@ -623,12 +606,7 @@ static ssize_t b43_debugfs_write(struct file *file,
 		err = -EFAULT;
 		goto out_freepage;
 	}
-	if (dfops->take_irqlock) {
-		spin_lock_irq(&dev->wl->irq_lock);
-		err = dfops->write(dev, buf, count);
-		spin_unlock_irq(&dev->wl->irq_lock);
-	} else
-		err = dfops->write(dev, buf, count);
+	err = dfops->write(dev, buf, count);
 	if (err)
 		goto out_freepage;
 
@@ -641,7 +619,7 @@ out_unlock:
 }
 
 
-#define B43_DEBUGFS_FOPS(name, _read, _write, _take_irqlock)	\
+#define B43_DEBUGFS_FOPS(name, _read, _write)			\
 	static struct b43_debugfs_fops fops_##name = {		\
 		.read	= _read,				\
 		.write	= _write,				\
@@ -652,20 +630,19 @@ out_unlock:
 		},						\
 		.file_struct_offset = offsetof(struct b43_dfsentry, \
 					       file_##name),	\
-		.take_irqlock	= _take_irqlock,		\
 	}
 
-B43_DEBUGFS_FOPS(shm16read, shm16read__read_file, shm16read__write_file, 1);
-B43_DEBUGFS_FOPS(shm16write, NULL, shm16write__write_file, 1);
-B43_DEBUGFS_FOPS(shm32read, shm32read__read_file, shm32read__write_file, 1);
-B43_DEBUGFS_FOPS(shm32write, NULL, shm32write__write_file, 1);
-B43_DEBUGFS_FOPS(mmio16read, mmio16read__read_file, mmio16read__write_file, 1);
-B43_DEBUGFS_FOPS(mmio16write, NULL, mmio16write__write_file, 1);
-B43_DEBUGFS_FOPS(mmio32read, mmio32read__read_file, mmio32read__write_file, 1);
-B43_DEBUGFS_FOPS(mmio32write, NULL, mmio32write__write_file, 1);
-B43_DEBUGFS_FOPS(txstat, txstat_read_file, NULL, 0);
-B43_DEBUGFS_FOPS(restart, NULL, restart_write_file, 1);
-B43_DEBUGFS_FOPS(loctls, loctls_read_file, NULL, 0);
+B43_DEBUGFS_FOPS(shm16read, shm16read__read_file, shm16read__write_file);
+B43_DEBUGFS_FOPS(shm16write, NULL, shm16write__write_file);
+B43_DEBUGFS_FOPS(shm32read, shm32read__read_file, shm32read__write_file);
+B43_DEBUGFS_FOPS(shm32write, NULL, shm32write__write_file);
+B43_DEBUGFS_FOPS(mmio16read, mmio16read__read_file, mmio16read__write_file);
+B43_DEBUGFS_FOPS(mmio16write, NULL, mmio16write__write_file);
+B43_DEBUGFS_FOPS(mmio32read, mmio32read__read_file, mmio32read__write_file);
+B43_DEBUGFS_FOPS(mmio32write, NULL, mmio32write__write_file);
+B43_DEBUGFS_FOPS(txstat, txstat_read_file, NULL);
+B43_DEBUGFS_FOPS(restart, NULL, restart_write_file);
+B43_DEBUGFS_FOPS(loctls, loctls_read_file, NULL);
 
 
 bool b43_debug(struct b43_wldev *dev, enum b43_dyndbg feature)
@@ -738,7 +715,6 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 		return;
 	}
 	log->end = -1;
-	spin_lock_init(&log->lock);
 
 	dev->dfsentry = e;
 
@@ -822,7 +798,6 @@ void b43_debugfs_remove_device(struct b43_wldev *dev)
 	kfree(e);
 }
 
-/* Called with IRQs disabled. */
 void b43_debugfs_log_txstat(struct b43_wldev *dev,
 			    const struct b43_txstatus *status)
 {
@@ -834,14 +809,12 @@ void b43_debugfs_log_txstat(struct b43_wldev *dev,
 	if (!e)
 		return;
 	log = &e->txstatlog;
-	spin_lock(&log->lock); /* IRQs are already disabled. */
 	i = log->end + 1;
 	if (i == B43_NR_LOGGED_TXSTATUS)
 		i = 0;
 	log->end = i;
 	cur = &(log->log[i]);
 	memcpy(cur, status, sizeof(*cur));
-	spin_unlock(&log->lock);
 }
 
 void b43_debugfs_init(void)

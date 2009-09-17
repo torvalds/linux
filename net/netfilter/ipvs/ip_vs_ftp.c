@@ -22,6 +22,9 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -382,8 +385,8 @@ static int __init ip_vs_ftp_init(void)
 		ret = register_ip_vs_app_inc(app, app->protocol, ports[i]);
 		if (ret)
 			break;
-		IP_VS_INFO("%s: loaded support on port[%d] = %d\n",
-			   app->name, i, ports[i]);
+		pr_info("%s: loaded support on port[%d] = %d\n",
+			app->name, i, ports[i]);
 	}
 
 	if (ret)

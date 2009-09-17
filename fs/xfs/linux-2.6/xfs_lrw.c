@@ -817,7 +817,8 @@ write_retry:
 		xfs_iunlock(xip, iolock);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
-		error2 = sync_page_range(inode, mapping, pos, ret);
+		error2 = filemap_write_and_wait_range(mapping, pos,
+						      pos + ret - 1);
 		if (!error)
 			error = error2;
 		if (need_i_mutex)

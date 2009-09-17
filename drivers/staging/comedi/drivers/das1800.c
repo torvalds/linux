@@ -181,33 +181,44 @@ enum {
 	das1802hr, das1802hr_da, das1801hc, das1802hc, das1801ao, das1802ao
 };
 
-static int das1800_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int das1800_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it);
 static int das1800_detach(struct comedi_device *dev);
 static int das1800_probe(struct comedi_device *dev);
-static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static int das1800_cancel(struct comedi_device *dev,
+			  struct comedi_subdevice *s);
 static irqreturn_t das1800_interrupt(int irq, void *d);
-static int das1800_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s);
+static int das1800_ai_poll(struct comedi_device *dev,
+			   struct comedi_subdevice *s);
 static void das1800_ai_handler(struct comedi_device *dev);
-static void das1800_handle_dma(struct comedi_device *dev, struct comedi_subdevice *s,
-	unsigned int status);
-static void das1800_flush_dma(struct comedi_device *dev, struct comedi_subdevice *s);
-static void das1800_flush_dma_channel(struct comedi_device *dev, struct comedi_subdevice *s,
-	unsigned int channel, uint16_t *buffer);
+static void das1800_handle_dma(struct comedi_device *dev,
+			       struct comedi_subdevice *s, unsigned int status);
+static void das1800_flush_dma(struct comedi_device *dev,
+			      struct comedi_subdevice *s);
+static void das1800_flush_dma_channel(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      unsigned int channel, uint16_t * buffer);
 static void das1800_handle_fifo_half_full(struct comedi_device *dev,
-	struct comedi_subdevice *s);
+					  struct comedi_subdevice *s);
 static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
-	struct comedi_subdevice *s);
-static int das1800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd);
-static int das1800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int das1800_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int das1800_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int das1800_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int das1800_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+					  struct comedi_subdevice *s);
+static int das1800_ai_do_cmdtest(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_cmd *cmd);
+static int das1800_ai_do_cmd(struct comedi_device *dev,
+			     struct comedi_subdevice *s);
+static int das1800_ai_rinsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data);
+static int das1800_ao_winsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data);
+static int das1800_di_rbits(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data);
+static int das1800_do_wbits(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data);
 
 static int das1800_set_frequency(struct comedi_device *dev);
 static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
@@ -217,29 +228,29 @@ static unsigned int suggest_transfer_size(struct comedi_cmd *cmd);
 static const struct comedi_lrange range_ai_das1801 = {
 	8,
 	{
-			RANGE(-5, 5),
-			RANGE(-1, 1),
-			RANGE(-0.1, 0.1),
-			RANGE(-0.02, 0.02),
-			RANGE(0, 5),
-			RANGE(0, 1),
-			RANGE(0, 0.1),
-			RANGE(0, 0.02),
-		}
+	 RANGE(-5, 5),
+	 RANGE(-1, 1),
+	 RANGE(-0.1, 0.1),
+	 RANGE(-0.02, 0.02),
+	 RANGE(0, 5),
+	 RANGE(0, 1),
+	 RANGE(0, 0.1),
+	 RANGE(0, 0.02),
+	 }
 };
 
 static const struct comedi_lrange range_ai_das1802 = {
 	8,
 	{
-			RANGE(-10, 10),
-			RANGE(-5, 5),
-			RANGE(-2.5, 2.5),
-			RANGE(-1.25, 1.25),
-			RANGE(0, 10),
-			RANGE(0, 5),
-			RANGE(0, 2.5),
-			RANGE(0, 1.25),
-		}
+	 RANGE(-10, 10),
+	 RANGE(-5, 5),
+	 RANGE(-2.5, 2.5),
+	 RANGE(-1.25, 1.25),
+	 RANGE(0, 10),
+	 RANGE(0, 5),
+	 RANGE(0, 2.5),
+	 RANGE(0, 1.25),
+	 }
 };
 
 struct das1800_board {
@@ -260,203 +271,203 @@ struct das1800_board {
  */
 static const struct das1800_board das1800_boards[] = {
 	{
-	.name = "das-1701st",
-	.ai_speed = 6250,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 0,
-	.ao_n_chan = 0,
-	.range_ai = &range_ai_das1801,
-		},
+	 .name = "das-1701st",
+	 .ai_speed = 6250,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 0,
+	 .ao_n_chan = 0,
+	 .range_ai = &range_ai_das1801,
+	 },
 	{
-	.name = "das-1701st-da",
-	.ai_speed = 6250,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 1,
-	.ao_n_chan = 4,
-	.range_ai = &range_ai_das1801,
-		},
+	 .name = "das-1701st-da",
+	 .ai_speed = 6250,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 1,
+	 .ao_n_chan = 4,
+	 .range_ai = &range_ai_das1801,
+	 },
 	{
-	.name = "das-1702st",
-	.ai_speed = 6250,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 0,
-	.ao_n_chan = 0,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1702st",
+	 .ai_speed = 6250,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 0,
+	 .ao_n_chan = 0,
+	 .range_ai = &range_ai_das1802,
+	 },
 	{
-	.name = "das-1702st-da",
-	.ai_speed = 6250,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 1,
-	.ao_n_chan = 4,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1702st-da",
+	 .ai_speed = 6250,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 1,
+	 .ao_n_chan = 4,
+	 .range_ai = &range_ai_das1802,
+	 },
 	{
-	.name = "das-1702hr",
-	.ai_speed = 20000,
-	.resolution = 16,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 0,
-	.ao_n_chan = 0,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1702hr",
+	 .ai_speed = 20000,
+	 .resolution = 16,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 0,
+	 .ao_n_chan = 0,
+	 .range_ai = &range_ai_das1802,
+	 },
 	{
-	.name = "das-1702hr-da",
-	.ai_speed = 20000,
-	.resolution = 16,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 1,
-	.ao_n_chan = 2,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1702hr-da",
+	 .ai_speed = 20000,
+	 .resolution = 16,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 1,
+	 .ao_n_chan = 2,
+	 .range_ai = &range_ai_das1802,
+	 },
 	{
-	.name = "das-1701ao",
-	.ai_speed = 6250,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 2,
-	.ao_n_chan = 2,
-	.range_ai = &range_ai_das1801,
-		},
+	 .name = "das-1701ao",
+	 .ai_speed = 6250,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 2,
+	 .ao_n_chan = 2,
+	 .range_ai = &range_ai_das1801,
+	 },
 	{
-	.name = "das-1702ao",
-	.ai_speed = 6250,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 2,
-	.ao_n_chan = 2,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1702ao",
+	 .ai_speed = 6250,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 2,
+	 .ao_n_chan = 2,
+	 .range_ai = &range_ai_das1802,
+	 },
 	{
-	.name = "das-1801st",
-	.ai_speed = 3000,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 0,
-	.ao_n_chan = 0,
-	.range_ai = &range_ai_das1801,
-		},
+	 .name = "das-1801st",
+	 .ai_speed = 3000,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 0,
+	 .ao_n_chan = 0,
+	 .range_ai = &range_ai_das1801,
+	 },
 	{
-	.name = "das-1801st-da",
-	.ai_speed = 3000,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 0,
-	.ao_n_chan = 4,
-	.range_ai = &range_ai_das1801,
-		},
+	 .name = "das-1801st-da",
+	 .ai_speed = 3000,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 0,
+	 .ao_n_chan = 4,
+	 .range_ai = &range_ai_das1801,
+	 },
 	{
-	.name = "das-1802st",
-	.ai_speed = 3000,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 0,
-	.ao_n_chan = 0,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1802st",
+	 .ai_speed = 3000,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 0,
+	 .ao_n_chan = 0,
+	 .range_ai = &range_ai_das1802,
+	 },
 	{
-	.name = "das-1802st-da",
-	.ai_speed = 3000,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 1,
-	.ao_n_chan = 4,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1802st-da",
+	 .ai_speed = 3000,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 1,
+	 .ao_n_chan = 4,
+	 .range_ai = &range_ai_das1802,
+	 },
 	{
-	.name = "das-1802hr",
-	.ai_speed = 10000,
-	.resolution = 16,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 0,
-	.ao_n_chan = 0,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1802hr",
+	 .ai_speed = 10000,
+	 .resolution = 16,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 0,
+	 .ao_n_chan = 0,
+	 .range_ai = &range_ai_das1802,
+	 },
 	{
-	.name = "das-1802hr-da",
-	.ai_speed = 10000,
-	.resolution = 16,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 1,
-	.ao_n_chan = 2,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1802hr-da",
+	 .ai_speed = 10000,
+	 .resolution = 16,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 1,
+	 .ao_n_chan = 2,
+	 .range_ai = &range_ai_das1802,
+	 },
 	{
-	.name = "das-1801hc",
-	.ai_speed = 3000,
-	.resolution = 12,
-	.qram_len = 64,
-	.common = 0,
-	.do_n_chan = 8,
-	.ao_ability = 1,
-	.ao_n_chan = 2,
-	.range_ai = &range_ai_das1801,
-		},
+	 .name = "das-1801hc",
+	 .ai_speed = 3000,
+	 .resolution = 12,
+	 .qram_len = 64,
+	 .common = 0,
+	 .do_n_chan = 8,
+	 .ao_ability = 1,
+	 .ao_n_chan = 2,
+	 .range_ai = &range_ai_das1801,
+	 },
 	{
-	.name = "das-1802hc",
-	.ai_speed = 3000,
-	.resolution = 12,
-	.qram_len = 64,
-	.common = 0,
-	.do_n_chan = 8,
-	.ao_ability = 1,
-	.ao_n_chan = 2,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1802hc",
+	 .ai_speed = 3000,
+	 .resolution = 12,
+	 .qram_len = 64,
+	 .common = 0,
+	 .do_n_chan = 8,
+	 .ao_ability = 1,
+	 .ao_n_chan = 2,
+	 .range_ai = &range_ai_das1802,
+	 },
 	{
-	.name = "das-1801ao",
-	.ai_speed = 3000,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 2,
-	.ao_n_chan = 2,
-	.range_ai = &range_ai_das1801,
-		},
+	 .name = "das-1801ao",
+	 .ai_speed = 3000,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 2,
+	 .ao_n_chan = 2,
+	 .range_ai = &range_ai_das1801,
+	 },
 	{
-	.name = "das-1802ao",
-	.ai_speed = 3000,
-	.resolution = 12,
-	.qram_len = 256,
-	.common = 1,
-	.do_n_chan = 4,
-	.ao_ability = 2,
-	.ao_n_chan = 2,
-	.range_ai = &range_ai_das1802,
-		},
+	 .name = "das-1802ao",
+	 .ai_speed = 3000,
+	 .resolution = 12,
+	 .qram_len = 256,
+	 .common = 1,
+	 .do_n_chan = 4,
+	 .ao_ability = 2,
+	 .ao_n_chan = 2,
+	 .range_ai = &range_ai_das1802,
+	 },
 };
 
 /*
@@ -490,8 +501,8 @@ struct das1800_private {
 static const struct comedi_lrange range_ao_1 = {
 	1,
 	{
-			RANGE(-10, 10),
-		}
+	 RANGE(-10, 10),
+	 }
 };
 
 /* analog out range for 'ao' boards */
@@ -522,7 +533,7 @@ static struct comedi_driver driver_das1800 = {
 COMEDI_INITCLEANUP(driver_das1800);
 
 static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
-	unsigned int dma1)
+			    unsigned int dma1)
 {
 	unsigned long flags;
 
@@ -550,8 +561,8 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			break;
 		default:
 			printk(" only supports dma channels 5 through 7\n"
-				" Dual dma only allows the following combinations:\n"
-				" dma 5,6 / 6,7 / or 7,5\n");
+			       " Dual dma only allows the following combinations:\n"
+			       " dma 5,6 / 6,7 / or 7,5\n");
 			return -EINVAL;
 			break;
 		}
@@ -564,7 +575,7 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 		if (dma1) {
 			if (request_dma(dma1, driver_das1800.driver_name)) {
 				printk(" failed to allocate dma channel %i\n",
-					dma1);
+				       dma1);
 				return -EINVAL;
 			}
 			devpriv->dma1 = dma1;
@@ -575,7 +586,7 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 		devpriv->dma_current_buf = devpriv->ai_buf0;
 		if (dma1) {
 			devpriv->ai_buf1 =
-				kmalloc(DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA);
+			    kmalloc(DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA);
 			if (devpriv->ai_buf1 == NULL)
 				return -ENOMEM;
 		}
@@ -591,7 +602,8 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 	return 0;
 }
 
-static int das1800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int das1800_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];
@@ -607,7 +619,7 @@ static int das1800_attach(struct comedi_device *dev, struct comedi_devconfig *it
 		return -ENOMEM;
 
 	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_das1800.driver_name,
-		iobase);
+	       iobase);
 	if (irq) {
 		printk(", irq %u", irq);
 		if (dma0) {
@@ -625,7 +637,9 @@ static int das1800_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	/* check if io addresses are available */
 	if (!request_region(iobase, DAS1800_SIZE, driver_das1800.driver_name)) {
-		printk(" I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n", iobase, iobase + DAS1800_SIZE - 1);
+		printk
+		    (" I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
+		     iobase, iobase + DAS1800_SIZE - 1);
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -643,8 +657,10 @@ static int das1800_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	if (thisboard->ao_ability == 2) {
 		iobase2 = iobase + IOBASE2;
 		if (!request_region(iobase2, DAS1800_SIZE,
-				driver_das1800.driver_name)) {
-			printk(" I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n", iobase2, iobase2 + DAS1800_SIZE - 1);
+				    driver_das1800.driver_name)) {
+			printk
+			    (" I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
+			     iobase2, iobase2 + DAS1800_SIZE - 1);
 			return -EIO;
 		}
 		devpriv->iobase2 = iobase2;
@@ -694,7 +710,7 @@ static int das1800_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	if (devpriv->ai_buf0 == NULL) {
 		devpriv->ai_buf0 =
-			kmalloc(FIFO_SIZE * sizeof(uint16_t), GFP_KERNEL);
+		    kmalloc(FIFO_SIZE * sizeof(uint16_t), GFP_KERNEL);
 		if (devpriv->ai_buf0 == NULL)
 			return -ENOMEM;
 	}
@@ -759,7 +775,7 @@ static int das1800_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	if (thisboard->ao_ability == 1) {
 		/*  select 'update' dac channel for baseAddress + 0x0 */
 		outb(DAC(thisboard->ao_n_chan - 1),
-			dev->iobase + DAS1800_SELECT);
+		     dev->iobase + DAS1800_SELECT);
 		outw(devpriv->ao_update_bits, dev->iobase + DAS1800_DAC);
 	}
 
@@ -787,7 +803,7 @@ static int das1800_detach(struct comedi_device *dev)
 	}
 
 	printk("comedi%d: %s: remove\n", dev->minor,
-		driver_das1800.driver_name);
+	       driver_das1800.driver_name);
 
 	return 0;
 };
@@ -800,42 +816,45 @@ static int das1800_probe(struct comedi_device *dev)
 	int board;
 
 	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf;	/* get id bits */
-	board = ((struct das1800_board *) dev->board_ptr) - das1800_boards;
+	board = ((struct das1800_board *)dev->board_ptr) - das1800_boards;
 
 	switch (id) {
 	case 0x3:
 		if (board == das1801st_da || board == das1802st_da ||
-			board == das1701st_da || board == das1702st_da) {
+		    board == das1701st_da || board == das1702st_da) {
 			printk(" Board model: %s\n",
-				das1800_boards[board].name);
+			       das1800_boards[board].name);
 			return board;
 		}
-		printk(" Board model (probed, not recommended): das-1800st-da series\n");
+		printk
+		    (" Board model (probed, not recommended): das-1800st-da series\n");
 		return das1801st;
 		break;
 	case 0x4:
 		if (board == das1802hr_da || board == das1702hr_da) {
 			printk(" Board model: %s\n",
-				das1800_boards[board].name);
+			       das1800_boards[board].name);
 			return board;
 		}
-		printk(" Board model (probed, not recommended): das-1802hr-da\n");
+		printk
+		    (" Board model (probed, not recommended): das-1802hr-da\n");
 		return das1802hr;
 		break;
 	case 0x5:
 		if (board == das1801ao || board == das1802ao ||
-			board == das1701ao || board == das1702ao) {
+		    board == das1701ao || board == das1702ao) {
 			printk(" Board model: %s\n",
-				das1800_boards[board].name);
+			       das1800_boards[board].name);
 			return board;
 		}
-		printk(" Board model (probed, not recommended): das-1800ao series\n");
+		printk
+		    (" Board model (probed, not recommended): das-1800ao series\n");
 		return das1801ao;
 		break;
 	case 0x6:
 		if (board == das1802hr || board == das1702hr) {
 			printk(" Board model: %s\n",
-				das1800_boards[board].name);
+			       das1800_boards[board].name);
 			return board;
 		}
 		printk(" Board model (probed, not recommended): das-1802hr\n");
@@ -843,32 +862,37 @@ static int das1800_probe(struct comedi_device *dev)
 		break;
 	case 0x7:
 		if (board == das1801st || board == das1802st ||
-			board == das1701st || board == das1702st) {
+		    board == das1701st || board == das1702st) {
 			printk(" Board model: %s\n",
-				das1800_boards[board].name);
+			       das1800_boards[board].name);
 			return board;
 		}
-		printk(" Board model (probed, not recommended): das-1800st series\n");
+		printk
+		    (" Board model (probed, not recommended): das-1800st series\n");
 		return das1801st;
 		break;
 	case 0x8:
 		if (board == das1801hc || board == das1802hc) {
 			printk(" Board model: %s\n",
-				das1800_boards[board].name);
+			       das1800_boards[board].name);
 			return board;
 		}
-		printk(" Board model (probed, not recommended): das-1800hc series\n");
+		printk
+		    (" Board model (probed, not recommended): das-1800hc series\n");
 		return das1801hc;
 		break;
 	default:
-		printk(" Board model: probe returned 0x%x (unknown, please report)\n", id);
+		printk
+		    (" Board model: probe returned 0x%x (unknown, please report)\n",
+		     id);
 		return board;
 		break;
 	}
 	return -1;
 }
 
-static int das1800_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
+static int das1800_ai_poll(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	unsigned long flags;
 
@@ -963,18 +987,18 @@ static void das1800_ai_handler(struct comedi_device *dev)
 	return;
 }
 
-static void das1800_handle_dma(struct comedi_device *dev, struct comedi_subdevice *s,
-	unsigned int status)
+static void das1800_handle_dma(struct comedi_device *dev,
+			       struct comedi_subdevice *s, unsigned int status)
 {
 	unsigned long flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
 	flags = claim_dma_lock();
 	das1800_flush_dma_channel(dev, s, devpriv->dma_current,
-		devpriv->dma_current_buf);
+				  devpriv->dma_current_buf);
 	/*  re-enable  dma channel */
 	set_dma_addr(devpriv->dma_current,
-		virt_to_bus(devpriv->dma_current_buf));
+		     virt_to_bus(devpriv->dma_current_buf));
 	set_dma_count(devpriv->dma_current, devpriv->dma_transfer_size);
 	enable_dma(devpriv->dma_current);
 	release_dma_lock(flags);
@@ -999,14 +1023,14 @@ static void das1800_handle_dma(struct comedi_device *dev, struct comedi_subdevic
 }
 
 static inline uint16_t munge_bipolar_sample(const struct comedi_device *dev,
-	uint16_t sample)
+					    uint16_t sample)
 {
 	sample += 1 << (thisboard->resolution - 1);
 	return sample;
 }
 
-static void munge_data(struct comedi_device *dev, uint16_t *array,
-	unsigned int num_elements)
+static void munge_data(struct comedi_device *dev, uint16_t * array,
+		       unsigned int num_elements)
 {
 	unsigned int i;
 	int unipolar;
@@ -1024,8 +1048,9 @@ static void munge_data(struct comedi_device *dev, uint16_t *array,
 
 /* Utility function used by das1800_flush_dma() and das1800_handle_dma().
  * Assumes dma lock is held */
-static void das1800_flush_dma_channel(struct comedi_device *dev, struct comedi_subdevice *s,
-	unsigned int channel, uint16_t *buffer)
+static void das1800_flush_dma_channel(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      unsigned int channel, uint16_t * buffer)
 {
 	unsigned int num_bytes, num_samples;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -1054,14 +1079,15 @@ static void das1800_flush_dma_channel(struct comedi_device *dev, struct comedi_s
 
 /* flushes remaining data from board when external trigger has stopped aquisition
  * and we are using dma transfers */
-static void das1800_flush_dma(struct comedi_device *dev, struct comedi_subdevice *s)
+static void das1800_flush_dma(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
 {
 	unsigned long flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
 	flags = claim_dma_lock();
 	das1800_flush_dma_channel(dev, s, devpriv->dma_current,
-		devpriv->dma_current_buf);
+				  devpriv->dma_current_buf);
 
 	if (dual_dma) {
 		/*  switch to other channel and flush it */
@@ -1073,7 +1099,7 @@ static void das1800_flush_dma(struct comedi_device *dev, struct comedi_subdevice
 			devpriv->dma_current_buf = devpriv->ai_buf0;
 		}
 		das1800_flush_dma_channel(dev, s, devpriv->dma_current,
-			devpriv->dma_current_buf);
+					  devpriv->dma_current_buf);
 	}
 
 	release_dma_lock(flags);
@@ -1085,7 +1111,7 @@ static void das1800_flush_dma(struct comedi_device *dev, struct comedi_subdevice
 }
 
 static void das1800_handle_fifo_half_full(struct comedi_device *dev,
-	struct comedi_subdevice *s)
+					  struct comedi_subdevice *s)
 {
 	int numPoints = 0;	/* number of points to read */
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -1097,14 +1123,14 @@ static void das1800_handle_fifo_half_full(struct comedi_device *dev,
 	insw(dev->iobase + DAS1800_FIFO, devpriv->ai_buf0, numPoints);
 	munge_data(dev, devpriv->ai_buf0, numPoints);
 	cfc_write_array_to_buffer(s, devpriv->ai_buf0,
-		numPoints * sizeof(devpriv->ai_buf0[0]));
+				  numPoints * sizeof(devpriv->ai_buf0[0]));
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count -= numPoints;
 	return;
 }
 
 static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
-	struct comedi_subdevice *s)
+					  struct comedi_subdevice *s)
 {
 	short dpnt;
 	int unipolar;
@@ -1140,8 +1166,9 @@ static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 
 /* test analog input cmd */
-static int das1800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int das1800_ai_do_cmdtest(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1185,17 +1212,17 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdev
 	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
 		err++;
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-		cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT)
+	    cmd->scan_begin_src != TRIG_TIMER &&
+	    cmd->scan_begin_src != TRIG_EXT)
 		err++;
 	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
 		err++;
 	if (cmd->stop_src != TRIG_COUNT &&
-		cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
+	    cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
 		err++;
 	/* compatibility check */
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
-		cmd->convert_src != TRIG_TIMER)
+	    cmd->convert_src != TRIG_TIMER)
 		err++;
 
 	if (err)
@@ -1250,9 +1277,11 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdev
 			tmp_arg = cmd->convert_arg;
 			/* calculate counter values that give desired timing */
 			i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-				&(devpriv->divisor1), &(devpriv->divisor2),
-				&(cmd->convert_arg),
-				cmd->flags & TRIG_ROUND_MASK);
+						       &(devpriv->divisor1),
+						       &(devpriv->divisor2),
+						       &(cmd->convert_arg),
+						       cmd->
+						       flags & TRIG_ROUND_MASK);
 			if (tmp_arg != cmd->convert_arg)
 				err++;
 		}
@@ -1261,27 +1290,32 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdev
 			/*  check that convert_arg is compatible */
 			tmp_arg = cmd->convert_arg;
 			cmd->convert_arg =
-				burst_convert_arg(cmd->convert_arg,
-				cmd->flags & TRIG_ROUND_MASK);
+			    burst_convert_arg(cmd->convert_arg,
+					      cmd->flags & TRIG_ROUND_MASK);
 			if (tmp_arg != cmd->convert_arg)
 				err++;
 
 			if (cmd->scan_begin_src == TRIG_TIMER) {
 				/*  if scans are timed faster than conversion rate allows */
 				if (cmd->convert_arg * cmd->chanlist_len >
-					cmd->scan_begin_arg) {
+				    cmd->scan_begin_arg) {
 					cmd->scan_begin_arg =
-						cmd->convert_arg *
-						cmd->chanlist_len;
+					    cmd->convert_arg *
+					    cmd->chanlist_len;
 					err++;
 				}
 				tmp_arg = cmd->scan_begin_arg;
 				/* calculate counter values that give desired timing */
 				i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-					&(devpriv->divisor1),
-					&(devpriv->divisor2),
-					&(cmd->scan_begin_arg),
-					cmd->flags & TRIG_ROUND_MASK);
+							       &(devpriv->
+								 divisor1),
+							       &(devpriv->
+								 divisor2),
+							       &(cmd->
+								 scan_begin_arg),
+							       cmd->
+							       flags &
+							       TRIG_ROUND_MASK);
 				if (tmp_arg != cmd->scan_begin_arg)
 					err++;
 			}
@@ -1297,7 +1331,7 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdev
 		for (i = 1; i < cmd->chanlist_len; i++) {
 			if (unipolar != (CR_RANGE(cmd->chanlist[i]) & UNIPOLAR)) {
 				comedi_error(dev,
-					"unipolar and bipolar ranges cannot be mixed in the chanlist");
+					     "unipolar and bipolar ranges cannot be mixed in the chanlist");
 				err++;
 				break;
 			}
@@ -1394,9 +1428,11 @@ static int setup_counters(struct comedi_device *dev, struct comedi_cmd cmd)
 		if (cmd.convert_src == TRIG_TIMER) {
 			/* set conversion frequency */
 			i8253_cascade_ns_to_timer_2div(TIMER_BASE,
-				&(devpriv->divisor1), &(devpriv->divisor2),
-				&(cmd.convert_arg),
-				cmd.flags & TRIG_ROUND_MASK);
+						       &(devpriv->divisor1),
+						       &(devpriv->divisor2),
+						       &(cmd.convert_arg),
+						       cmd.
+						       flags & TRIG_ROUND_MASK);
 			if (das1800_set_frequency(dev) < 0) {
 				return -1;
 			}
@@ -1405,8 +1441,9 @@ static int setup_counters(struct comedi_device *dev, struct comedi_cmd cmd)
 	case TRIG_TIMER:	/*  in burst mode */
 		/* set scan frequency */
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
-			&(devpriv->divisor2), &(cmd.scan_begin_arg),
-			cmd.flags & TRIG_ROUND_MASK);
+					       &(devpriv->divisor2),
+					       &(cmd.scan_begin_arg),
+					       cmd.flags & TRIG_ROUND_MASK);
 		if (das1800_set_frequency(dev) < 0) {
 			return -1;
 		}
@@ -1478,9 +1515,9 @@ static void program_chanlist(struct comedi_device *dev, struct comedi_cmd cmd)
 	/* make channel / gain list */
 	for (i = 0; i < n; i++) {
 		chan_range =
-			CR_CHAN(cmd.chanlist[i]) | ((CR_RANGE(cmd.
-					chanlist[i]) & range_mask) <<
-			range_bitshift);
+		    CR_CHAN(cmd.
+			    chanlist[i]) | ((CR_RANGE(cmd.chanlist[i]) &
+					     range_mask) << range_bitshift);
 		outw(chan_range, dev->iobase + DAS1800_QRAM);
 	}
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*finish write to QRAM */
@@ -1490,7 +1527,8 @@ static void program_chanlist(struct comedi_device *dev, struct comedi_cmd cmd)
 }
 
 /* analog input do_cmd */
-static int das1800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+static int das1800_ai_do_cmd(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
 {
 	int ret;
 	int control_a, control_c;
@@ -1499,7 +1537,7 @@ static int das1800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice 
 
 	if (!dev->irq) {
 		comedi_error(dev,
-			"no irq assigned for das-1800, cannot do hardware conversions");
+			     "no irq assigned for das-1800, cannot do hardware conversions");
 		return -1;
 	}
 
@@ -1542,7 +1580,7 @@ static int das1800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice 
 	if (control_c & BMDE) {
 		/*  program conversion period with number of microseconds minus 1 */
 		outb(cmd.convert_arg / 1000 - 1,
-			dev->iobase + DAS1800_BURST_RATE);
+		     dev->iobase + DAS1800_BURST_RATE);
 		outb(cmd.chanlist_len - 1, dev->iobase + DAS1800_BURST_LENGTH);
 	}
 	outb(devpriv->irq_dma_bits, dev->iobase + DAS1800_CONTROL_B);	/*  enable irq/dma */
@@ -1553,8 +1591,9 @@ static int das1800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice 
 }
 
 /* read analog input */
-static int das1800_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int das1800_ai_rinsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int i, n;
 	int chan, range, aref, chan_range;
@@ -1613,8 +1652,9 @@ static int das1800_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *
 }
 
 /* writes to an analog output channel */
-static int das1800_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int das1800_ao_winsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 /* int range = CR_RANGE(insn->chanspec); */
@@ -1642,8 +1682,9 @@ static int das1800_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *
 }
 
 /* reads from digital input channels */
-static int das1800_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int das1800_di_rbits(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 
 	data[1] = inb(dev->iobase + DAS1800_DIGITAL) & 0xf;
@@ -1653,8 +1694,9 @@ static int das1800_di_rbits(struct comedi_device *dev, struct comedi_subdevice *
 }
 
 /* writes to digital output channels */
-static int das1800_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int das1800_do_wbits(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int wbits;
 
@@ -1679,11 +1721,11 @@ static int das1800_set_frequency(struct comedi_device *dev)
 
 	/*  counter 1, mode 2 */
 	if (i8254_load(dev->iobase + DAS1800_COUNTER, 0, 1, devpriv->divisor1,
-			2))
+		       2))
 		err++;
 	/*  counter 2, mode 2 */
 	if (i8254_load(dev->iobase + DAS1800_COUNTER, 0, 2, devpriv->divisor2,
-			2))
+		       2))
 		err++;
 	if (err)
 		return -1;
@@ -1736,7 +1778,7 @@ static unsigned int suggest_transfer_size(struct comedi_cmd *cmd)
 		break;
 	case TRIG_TIMER:
 		size = (fill_time / (cmd->scan_begin_arg * cmd->chanlist_len)) *
-			sample_size;
+		    sample_size;
 		break;
 	default:
 		size = DMA_BUF_SIZE;
@@ -1747,7 +1789,7 @@ static unsigned int suggest_transfer_size(struct comedi_cmd *cmd)
 	max_size = DMA_BUF_SIZE;
 	/*  if we are taking limited number of conversions, limit transfer size to that */
 	if (cmd->stop_src == TRIG_COUNT &&
-		cmd->stop_arg * cmd->chanlist_len * sample_size < max_size)
+	    cmd->stop_arg * cmd->chanlist_len * sample_size < max_size)
 		max_size = cmd->stop_arg * cmd->chanlist_len * sample_size;
 
 	if (size > max_size)

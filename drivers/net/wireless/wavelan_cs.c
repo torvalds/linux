@@ -3078,7 +3078,7 @@ wv_packet_write(struct net_device *	dev,
  * the packet. We also prevent reentrance. Then, we call the function
  * to send the packet...
  */
-static int
+static netdev_tx_t
 wavelan_packet_xmit(struct sk_buff *	skb,
 		    struct net_device *		dev)
 {
@@ -3113,7 +3113,7 @@ wavelan_packet_xmit(struct sk_buff *	skb,
 	 * able to detect collisions, therefore in theory we don't really
 	 * need to pad. Jean II */
 	if (skb_padto(skb, ETH_ZLEN))
-		return 0;
+		return NETDEV_TX_OK;
 
   wv_packet_write(dev, skb->data, skb->len);
 
@@ -3122,7 +3122,7 @@ wavelan_packet_xmit(struct sk_buff *	skb,
 #ifdef DEBUG_TX_TRACE
   printk(KERN_DEBUG "%s: <-wavelan_packet_xmit()\n", dev->name);
 #endif
-  return(0);
+  return NETDEV_TX_OK;
 }
 
 /********************** HARDWARE CONFIGURATION **********************/

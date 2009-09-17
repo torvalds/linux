@@ -119,6 +119,7 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 
 	return err;
 }
+EXPORT_SYMBOL(pci_claim_resource);
 
 #ifdef CONFIG_PCI_QUIRKS
 void pci_disable_bridge_window(struct pci_dev *dev)

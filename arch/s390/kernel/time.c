@@ -60,6 +60,7 @@
 #define TICK_SIZE tick
 
 u64 sched_clock_base_cc = -1;	/* Force to data section. */
+EXPORT_SYMBOL_GPL(sched_clock_base_cc);
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
@@ -68,7 +69,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
  */
 unsigned long long notrace sched_clock(void)
 {
-	return ((get_clock_xt() - sched_clock_base_cc) * 125) >> 9;
+	return (get_clock_monotonic() * 125) >> 9;
 }
 
 /*
@@ -90,6 +91,7 @@ void tod_to_timeval(__u64 todval, struct timespec *xtime)
 	todval -= (sec * 1000000) << 12;
 	xtime->tv_nsec = ((todval * 1000) >> 12);
 }
+EXPORT_SYMBOL(tod_to_timeval);
 
 void clock_comparator_work(void)
 {

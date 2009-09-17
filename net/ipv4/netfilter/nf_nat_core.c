@@ -212,7 +212,7 @@ find_best_ips_proto(struct nf_conntrack_tuple *tuple,
 	maxip = ntohl(range->max_ip);
 	j = jhash_2words((__force u32)tuple->src.u3.ip,
 			 range->flags & IP_NAT_RANGE_PERSISTENT ?
-				(__force u32)tuple->dst.u3.ip : 0, 0);
+				0 : (__force u32)tuple->dst.u3.ip, 0);
 	j = ((u64)j * (maxip - minip + 1)) >> 32;
 	*var_ipp = htonl(minip + j);
 }
@@ -620,7 +620,7 @@ static const struct nla_policy nat_nla_policy[CTA_NAT_MAX+1] = {
 };
 
 static int
-nfnetlink_parse_nat(struct nlattr *nat,
+nfnetlink_parse_nat(const struct nlattr *nat,
 		    const struct nf_conn *ct, struct nf_nat_range *range)
 {
 	struct nlattr *tb[CTA_NAT_MAX+1];
@@ -656,7 +656,7 @@ nfnetlink_parse_nat(struct nlattr *nat,
 static int
 nfnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
-			  struct nlattr *attr)
+			  const struct nlattr *attr)
 {
 	struct nf_nat_range range;
 
@@ -671,7 +671,7 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 static int
 nfnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
-			  struct nlattr *attr)
+			  const struct nlattr *attr)
 {
 	return -EOPNOTSUPP;
 }

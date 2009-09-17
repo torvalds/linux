@@ -13,6 +13,9 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
@@ -442,7 +445,7 @@ static int udp_app_conn_bind(struct ip_vs_conn *cp)
 				break;
 			spin_unlock(&udp_app_lock);
 
-			IP_VS_DBG_BUF(9, "%s: Binding conn %s:%u->"
+			IP_VS_DBG_BUF(9, "%s(): Binding conn %s:%u->"
 				      "%s:%u to app %s on port %u\n",
 				      __func__,
 				      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
@@ -469,7 +472,7 @@ static int udp_timeouts[IP_VS_UDP_S_LAST+1] = {
 	[IP_VS_UDP_S_LAST]		=	2*HZ,
 };
 
-static char * udp_state_name_table[IP_VS_UDP_S_LAST+1] = {
+static const char *const udp_state_name_table[IP_VS_UDP_S_LAST+1] = {
 	[IP_VS_UDP_S_NORMAL]		=	"UDP",
 	[IP_VS_UDP_S_LAST]		=	"BUG!",
 };

@@ -8,9 +8,9 @@
 */
 #ifndef _IPT_ECN_H
 #define _IPT_ECN_H
-#include <linux/netfilter_ipv4/ipt_dscp.h>
+#include <linux/netfilter/xt_dscp.h>
 
-#define IPT_ECN_IP_MASK	(~IPT_DSCP_MASK)
+#define IPT_ECN_IP_MASK	(~XT_DSCP_MASK)
 
 #define IPT_ECN_OP_MATCH_IP	0x01
 #define IPT_ECN_OP_MATCH_ECE	0x10

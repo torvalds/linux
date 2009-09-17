@@ -772,13 +772,15 @@ static void sh_eth_error(struct net_device *ndev, int intr_status)
 			mdp->stats.tx_carrier_errors++;
 		if (felic_stat & ECSR_LCHNG) {
 			/* Link Changed */
-			if (mdp->cd->no_psr) {
+			if (mdp->cd->no_psr || mdp->no_ether_link) {
 				if (mdp->link == PHY_DOWN)
 					link_stat = 0;
 				else
 					link_stat = PHY_ST_LINK;
 			} else {
 				link_stat = (ctrl_inl(ioaddr + PSR));
+				if (mdp->ether_link_active_low)
+					link_stat = ~link_stat;
 			}
 			if (!(link_stat & PHY_ST_LINK)) {
 				/* Link Down : disable tx and rx */
@@ -1133,7 +1135,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	ndev->trans_start = jiffies;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* device close function */
@@ -1410,6 +1412,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->phy_id = pd->phy;
 	/* EDMAC endian */
 	mdp->edmac_endian = pd->edmac_endian;
+	mdp->no_ether_link = pd->no_ether_link;
+	mdp->ether_link_active_low = pd->ether_link_active_low;
 
 	/* set cpu data */
 	mdp->cd = &sh_eth_my_cpu_data;

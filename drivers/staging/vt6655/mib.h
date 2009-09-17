@@ -29,19 +29,9 @@
 #ifndef __MIB_H__
 #define __MIB_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__DESC_H__)
 #include "desc.h"
-#endif
-
-
-
-//#define ULONGLONG   ULONG
 
 /*---------------------  Export Definitions -------------------------*/
 //
@@ -75,7 +65,7 @@ typedef struct tagSDot11Counters {
 //    ULONGLONG   WEPICVErrorCount;
 //    ULONGLONG   DecryptSuccessCount;
 //    ULONGLONG   DecryptFailureCount;
-} SDot11Counters, DEF* PSDot11Counters;
+} SDot11Counters, *PSDot11Counters;
 
 
 //
@@ -83,7 +73,7 @@ typedef struct tagSDot11Counters {
 //
 typedef struct tagSMib2Counter {
     LONG    ifIndex;
-    TCHAR   ifDescr[256];               // max size 255 plus zero ending
+    char    ifDescr[256];               // max size 255 plus zero ending
                                         // e.g. "interface 1"
     LONG    ifType;
     LONG    ifMtu;
@@ -105,7 +95,7 @@ typedef struct tagSMib2Counter {
     DWORD   ifOutErrors;
     DWORD   ifOutQLen;
     DWORD   ifSpecific;
-} SMib2Counter, DEF* PSMib2Counter;
+} SMib2Counter, *PSMib2Counter;
 
 // Value in the ifType entry
 //#define ETHERNETCSMACD      6           //
@@ -142,7 +132,7 @@ typedef struct tagSRmonCounter {
     DWORD   etherStatsPkt1024to1518Octets;
     DWORD   etherStatsOwners;
     DWORD   etherStatsStatus;
-} SRmonCounter, DEF* PSRmonCounter;
+} SRmonCounter, *PSRmonCounter;
 
 //
 // Custom counter
@@ -180,7 +170,7 @@ typedef struct tagSCustomCounters {
     ULONGLONG   ullRsr9MCRCOk;
     ULONGLONG   ullRsr6MCRCOk;
 
-} SCustomCounters, DEF* PSCustomCounters;
+} SCustomCounters, *PSCustomCounters;
 
 
 //
@@ -211,7 +201,7 @@ typedef struct tagSISRCounters {
     DWORD   dwIsrSYNCFlushOK;
     DWORD   dwIsrSTIMER1Int;
     /////////////////////////////////////
-} SISRCounters, DEF* PSISRCounters;
+} SISRCounters, *PSISRCounters;
 
 
 // Value in the etherStatsStatus entry
@@ -344,17 +334,13 @@ typedef struct tagSStatCounter {
     ULONG SignalStren;
     ULONG LinkQuality;
    #endif
-} SStatCounter, DEF* PSStatCounter;
+} SStatCounter, *PSStatCounter;
 
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
 
 void STAvClearAllCounter(PSStatCounter pStatistic);
 
@@ -385,13 +371,6 @@ void STAvUpdate802_11Counter(
     );
 
 void STAvClear802_11Counter(PSDot11Counters p802_11Counter);
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __MIB_H__
 

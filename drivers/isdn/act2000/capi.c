@@ -78,7 +78,6 @@ static actcapi_msgdsc valid_msg[] = {
 #endif
 	{{ 0x00, 0x00}, NULL},
 };
-#define num_valid_msg (sizeof(valid_msg)/sizeof(actcapi_msgdsc))
 #define num_valid_imsg 27 /* MANUFACTURER_IND */
 
 /*
@@ -1025,7 +1024,7 @@ actcapi_debug_msg(struct sk_buff *skb, int direction)
 #ifdef DEBUG_DUMP_SKB
 	dump_skb(skb);
 #endif
-	for (i = 0; i < num_valid_msg; i++)
+	for (i = 0; i < ARRAY_SIZE(valid_msg); i++)
 		if ((msg->hdr.cmd.cmd == valid_msg[i].cmd.cmd) &&
 		    (msg->hdr.cmd.subcmd == valid_msg[i].cmd.subcmd)) {
 			descr = valid_msg[i].description;

@@ -237,17 +237,8 @@ static inline int pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 		return retval;
 	return pciehp_acpi_slot_detection_check(dev);
 }
-
-static inline int pciehp_get_hp_params_from_firmware(struct pci_dev *dev,
-			struct hotplug_params *hpp)
-{
-	if (ACPI_FAILURE(acpi_get_hp_params_from_firmware(dev->bus, hpp)))
-		return -ENODEV;
-	return 0;
-}
 #else
 #define pciehp_firmware_init()				do {} while (0)
 #define pciehp_get_hp_hw_control_from_firmware(dev) 	0
-#define pciehp_get_hp_params_from_firmware(dev, hpp)    (-ENODEV)
 #endif 				/* CONFIG_ACPI */
 #endif				/* _PCIEHP_H */

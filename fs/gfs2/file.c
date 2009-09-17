@@ -38,7 +38,6 @@
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
-#include "eaops.h"
 
 /**
  * gfs2_llseek - seek to a location in a file

@@ -39,7 +39,7 @@ struct rds_page_remainder {
 	unsigned long	r_offset;
 };
 
-DEFINE_PER_CPU(struct rds_page_remainder, rds_page_remainders) ____cacheline_aligned;
+DEFINE_PER_CPU_SHARED_ALIGNED(struct rds_page_remainder, rds_page_remainders);
 
 /*
  * returns 0 on success or -errno on failure.
@@ -81,6 +81,7 @@ int rds_page_copy_user(struct page *page, unsigned long offset,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rds_page_copy_user);
 
 /*
  * Message allocation uses this to build up regions of a message.

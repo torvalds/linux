@@ -32,6 +32,9 @@ struct cpu_hw_counters {
 	unsigned long mmcr[3];
 	struct perf_counter *limited_counter[MAX_LIMITED_HWCOUNTERS];
 	u8  limited_hwidx[MAX_LIMITED_HWCOUNTERS];
+	u64 alternatives[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
+	unsigned long amasks[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
+	unsigned long avalues[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
 };
 DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters);
 
@@ -62,7 +65,6 @@ static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
 {
 	return 0;
 }
-static inline void perf_set_pmu_inuse(int inuse) { }
 static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp) { }
 static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
@@ -91,11 +93,6 @@ static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
 			return 4 * (slot - 1);
 	}
 	return 0;
-}
-
-static inline void perf_set_pmu_inuse(int inuse)
-{
-	get_lppaca()->pmcregs_in_use = inuse;
 }
 
 /*
@@ -245,13 +242,11 @@ static void write_pmc(int idx, unsigned long val)
  * and see if any combination of alternative codes is feasible.
  * The feasible set is returned in event[].
  */
-static int power_check_constraints(u64 event[], unsigned int cflags[],
+static int power_check_constraints(struct cpu_hw_counters *cpuhw,
+				   u64 event[], unsigned int cflags[],
 				   int n_ev)
 {
 	unsigned long mask, value, nv;
-	u64 alternatives[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
-	unsigned long amasks[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
-	unsigned long avalues[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
 	unsigned long smasks[MAX_HWCOUNTERS], svalues[MAX_HWCOUNTERS];
 	int n_alt[MAX_HWCOUNTERS], choice[MAX_HWCOUNTERS];
 	int i, j;
@@ -266,21 +261,23 @@ static int power_check_constraints(u64 event[], unsigned int cflags[],
 		if ((cflags[i] & PPMU_LIMITED_PMC_REQD)
 		    && !ppmu->limited_pmc_event(event[i])) {
 			ppmu->get_alternatives(event[i], cflags[i],
-					       alternatives[i]);
-			event[i] = alternatives[i][0];
+					       cpuhw->alternatives[i]);
+			event[i] = cpuhw->alternatives[i][0];
 		}
-		if (ppmu->get_constraint(event[i], &amasks[i][0],
-					 &avalues[i][0]))
+		if (ppmu->get_constraint(event[i], &cpuhw->amasks[i][0],
+					 &cpuhw->avalues[i][0]))
 			return -1;
 	}
 	value = mask = 0;
 	for (i = 0; i < n_ev; ++i) {
-		nv = (value | avalues[i][0]) + (value & avalues[i][0] & addf);
+		nv = (value | cpuhw->avalues[i][0]) +
+			(value & cpuhw->avalues[i][0] & addf);
 		if ((((nv + tadd) ^ value) & mask) != 0 ||
-		    (((nv + tadd) ^ avalues[i][0]) & amasks[i][0]) != 0)
+		    (((nv + tadd) ^ cpuhw->avalues[i][0]) &
+		     cpuhw->amasks[i][0]) != 0)
 			break;
 		value = nv;
-		mask |= amasks[i][0];
+		mask |= cpuhw->amasks[i][0];
 	}
 	if (i == n_ev)
 		return 0;	/* all OK */
@@ -291,10 +288,11 @@ static int power_check_constraints(u64 event[], unsigned int cflags[],
 	for (i = 0; i < n_ev; ++i) {
 		choice[i] = 0;
 		n_alt[i] = ppmu->get_alternatives(event[i], cflags[i],
-						  alternatives[i]);
+						  cpuhw->alternatives[i]);
 		for (j = 1; j < n_alt[i]; ++j)
-			ppmu->get_constraint(alternatives[i][j],
-					     &amasks[i][j], &avalues[i][j]);
+			ppmu->get_constraint(cpuhw->alternatives[i][j],
+					     &cpuhw->amasks[i][j],
+					     &cpuhw->avalues[i][j]);
 	}
 
 	/* enumerate all possibilities and see if any will work */
@@ -313,11 +311,11 @@ static int power_check_constraints(u64 event[], unsigned int cflags[],
 		 * where k > j, will satisfy the constraints.
 		 */
 		while (++j < n_alt[i]) {
-			nv = (value | avalues[i][j]) +
-				(value & avalues[i][j] & addf);
+			nv = (value | cpuhw->avalues[i][j]) +
+				(value & cpuhw->avalues[i][j] & addf);
 			if ((((nv + tadd) ^ value) & mask) == 0 &&
-			    (((nv + tadd) ^ avalues[i][j])
-			     & amasks[i][j]) == 0)
+			    (((nv + tadd) ^ cpuhw->avalues[i][j])
+			     & cpuhw->amasks[i][j]) == 0)
 				break;
 		}
 		if (j >= n_alt[i]) {
@@ -339,7 +337,7 @@ static int power_check_constraints(u64 event[], unsigned int cflags[],
 			svalues[i] = value;
 			smasks[i] = mask;
 			value = nv;
-			mask |= amasks[i][j];
+			mask |= cpuhw->amasks[i][j];
 			++i;
 			j = -1;
 		}
@@ -347,7 +345,7 @@ static int power_check_constraints(u64 event[], unsigned int cflags[],
 
 	/* OK, we have a feasible combination, tell the caller the solution */
 	for (i = 0; i < n_ev; ++i)
-		event[i] = alternatives[i][choice[i]];
+		event[i] = cpuhw->alternatives[i][choice[i]];
 	return 0;
 }
 
@@ -531,8 +529,7 @@ void hw_perf_disable(void)
 		 * Check if we ever enabled the PMU on this cpu.
 		 */
 		if (!cpuhw->pmcs_enabled) {
-			if (ppc_md.enable_pmcs)
-				ppc_md.enable_pmcs();
+			ppc_enable_pmcs();
 			cpuhw->pmcs_enabled = 1;
 		}
 
@@ -594,7 +591,7 @@ void hw_perf_enable(void)
 		mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 		mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
 		if (cpuhw->n_counters == 0)
-			perf_set_pmu_inuse(0);
+			ppc_set_pmu_inuse(0);
 		goto out_enable;
 	}
 
@@ -627,7 +624,7 @@ void hw_perf_enable(void)
 	 * bit set and set the hardware counters to their initial values.
 	 * Then unfreeze the counters.
 	 */
-	perf_set_pmu_inuse(1);
+	ppc_set_pmu_inuse(1);
 	mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 	mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
 	mtspr(SPRN_MMCR0, (cpuhw->mmcr[0] & ~(MMCR0_PMC1CE | MMCR0_PMCjCE))
@@ -752,7 +749,7 @@ int hw_perf_group_sched_in(struct perf_counter *group_leader,
 		return -EAGAIN;
 	if (check_excludes(cpuhw->counter, cpuhw->flags, n0, n))
 		return -EAGAIN;
-	i = power_check_constraints(cpuhw->events, cpuhw->flags, n + n0);
+	i = power_check_constraints(cpuhw, cpuhw->events, cpuhw->flags, n + n0);
 	if (i < 0)
 		return -EAGAIN;
 	cpuhw->n_counters = n0 + n;
@@ -807,7 +804,7 @@ static int power_pmu_enable(struct perf_counter *counter)
 	cpuhw->flags[n0] = counter->hw.counter_base;
 	if (check_excludes(cpuhw->counter, cpuhw->flags, n0, 1))
 		goto out;
-	if (power_check_constraints(cpuhw->events, cpuhw->flags, n0 + 1))
+	if (power_check_constraints(cpuhw, cpuhw->events, cpuhw->flags, n0 + 1))
 		goto out;
 
 	counter->hw.config = cpuhw->events[n0];
@@ -1012,6 +1009,7 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 	unsigned int cflags[MAX_HWCOUNTERS];
 	int n;
 	int err;
+	struct cpu_hw_counters *cpuhw;
 
 	if (!ppmu)
 		return ERR_PTR(-ENXIO);
@@ -1090,7 +1088,11 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 	cflags[n] = flags;
 	if (check_excludes(ctrs, cflags, n, 1))
 		return ERR_PTR(-EINVAL);
-	if (power_check_constraints(events, cflags, n + 1))
+
+	cpuhw = &get_cpu_var(cpu_hw_counters);
+	err = power_check_constraints(cpuhw, events, cflags, n + 1);
+	put_cpu_var(cpu_hw_counters);
+	if (err)
 		return ERR_PTR(-EINVAL);
 
 	counter->hw.config = events[n];

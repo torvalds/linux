@@ -156,10 +156,6 @@ int iwm_eeprom_init(struct iwm_priv *iwm)
 		return -ENOMEM;
 
 	for (i = IWM_EEPROM_FIRST; i < IWM_EEPROM_LAST; i++) {
-#ifdef CONFIG_IWM_B0_HW_SUPPORT
-		if (iwm->conf.hw_b0 && (i >= IWM_EEPROM_INDIRECT_OFFSET))
-			break;
-#endif
 		ret = iwm_eeprom_read(iwm, i);
 		if (ret < 0) {
 			IWM_ERR(iwm, "Couldn't read eeprom entry #%d: %s\n",

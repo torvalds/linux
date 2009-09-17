@@ -21,6 +21,8 @@
 
 #include "spdif_transciever.h"
 
+MODULE_LICENSE("GPL");
+
 #define STUB_RATES	SNDRV_PCM_RATE_8000_96000
 #define STUB_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
 
@@ -34,6 +36,7 @@ struct snd_soc_dai dit_stub_dai = {
 		.formats	= STUB_FORMATS,
 	},
 };
+EXPORT_SYMBOL_GPL(dit_stub_dai);
 
 static int spdif_dit_probe(struct platform_device *pdev)
 {

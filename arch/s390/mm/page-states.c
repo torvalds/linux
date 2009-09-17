@@ -1,6 +1,4 @@
 /*
- * arch/s390/mm/page-states.c
- *
  * Copyright IBM Corp. 2008
  *
  * Guest page hinting for unused pages.
@@ -17,11 +15,12 @@
 #define ESSA_SET_STABLE		1
 #define ESSA_SET_UNUSED		2
 
-static int cmma_flag;
+static int cmma_flag = 1;
 
 static int __init cmma(char *str)
 {
 	char *parm;
+
 	parm = strstrip(str);
 	if (strcmp(parm, "yes") == 0 || strcmp(parm, "on") == 0) {
 		cmma_flag = 1;
@@ -32,7 +31,6 @@ static int __init cmma(char *str)
 		return 1;
 	return 0;
 }
-
 __setup("cmma=", cmma);
 
 void __init cmma_init(void)

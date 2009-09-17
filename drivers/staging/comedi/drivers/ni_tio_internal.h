@@ -27,7 +27,7 @@
 #include "ni_tio.h"
 
 static inline enum ni_gpct_register NITIO_Gi_Autoincrement_Reg(unsigned
-	counter_index)
+							       counter_index)
 {
 	switch (counter_index) {
 	case 0:
@@ -72,7 +72,7 @@ static inline enum ni_gpct_register NITIO_Gi_Command_Reg(unsigned counter_index)
 }
 
 static inline enum ni_gpct_register NITIO_Gi_Counting_Mode_Reg(unsigned
-	counter_index)
+							       counter_index)
 {
 	switch (counter_index) {
 	case 0:
@@ -95,7 +95,7 @@ static inline enum ni_gpct_register NITIO_Gi_Counting_Mode_Reg(unsigned
 }
 
 static inline enum ni_gpct_register NITIO_Gi_Input_Select_Reg(unsigned
-	counter_index)
+							      counter_index)
 {
 	switch (counter_index) {
 	case 0:
@@ -118,7 +118,7 @@ static inline enum ni_gpct_register NITIO_Gi_Input_Select_Reg(unsigned
 }
 
 static inline enum ni_gpct_register NITIO_Gxx_Joint_Reset_Reg(unsigned
-	counter_index)
+							      counter_index)
 {
 	switch (counter_index) {
 	case 0:
@@ -137,7 +137,7 @@ static inline enum ni_gpct_register NITIO_Gxx_Joint_Reset_Reg(unsigned
 }
 
 static inline enum ni_gpct_register NITIO_Gxx_Joint_Status1_Reg(unsigned
-	counter_index)
+								counter_index)
 {
 	switch (counter_index) {
 	case 0:
@@ -156,7 +156,7 @@ static inline enum ni_gpct_register NITIO_Gxx_Joint_Status1_Reg(unsigned
 }
 
 static inline enum ni_gpct_register NITIO_Gxx_Joint_Status2_Reg(unsigned
-	counter_index)
+								counter_index)
 {
 	switch (counter_index) {
 	case 0:
@@ -363,7 +363,7 @@ static inline enum ni_gpct_register NITIO_Gi_ABZ_Reg(int counter_index)
 }
 
 static inline enum ni_gpct_register NITIO_Gi_Interrupt_Acknowledge_Reg(int
-	counter_index)
+								       counter_index)
 {
 	switch (counter_index) {
 	case 0:
@@ -408,7 +408,7 @@ static inline enum ni_gpct_register NITIO_Gi_Status_Reg(int counter_index)
 }
 
 static inline enum ni_gpct_register NITIO_Gi_Interrupt_Enable_Reg(int
-	counter_index)
+								  counter_index)
 {
 	switch (counter_index) {
 	case 0:
@@ -542,7 +542,7 @@ enum Gi_Second_Gate_Bits {
 static inline unsigned Gi_Second_Gate_Select_Bits(unsigned second_gate_select)
 {
 	return (second_gate_select << Gi_Second_Gate_Select_Shift) &
-		Gi_Second_Gate_Select_Mask;
+	    Gi_Second_Gate_Select_Mask;
 }
 
 enum Gxx_Status_Bits {
@@ -569,31 +569,36 @@ static inline enum Gxx_Status_Bits Gi_Counting_Bit(unsigned counter_index)
 		return G1_Counting_Bit;
 	return G0_Counting_Bit;
 }
+
 static inline enum Gxx_Status_Bits Gi_Armed_Bit(unsigned counter_index)
 {
 	if (counter_index % 2)
 		return G1_Armed_Bit;
 	return G0_Armed_Bit;
 }
+
 static inline enum Gxx_Status_Bits Gi_Next_Load_Source_Bit(unsigned
-	counter_index)
+							   counter_index)
 {
 	if (counter_index % 2)
 		return G1_Next_Load_Source_Bit;
 	return G0_Next_Load_Source_Bit;
 }
+
 static inline enum Gxx_Status_Bits Gi_Stale_Data_Bit(unsigned counter_index)
 {
 	if (counter_index % 2)
 		return G1_Stale_Data_Bit;
 	return G0_Stale_Data_Bit;
 }
+
 static inline enum Gxx_Status_Bits Gi_TC_Error_Bit(unsigned counter_index)
 {
 	if (counter_index % 2)
 		return G1_TC_Error_Bit;
 	return G0_TC_Error_Bit;
 }
+
 static inline enum Gxx_Status_Bits Gi_Gate_Error_Bit(unsigned counter_index)
 {
 	if (counter_index % 2)
@@ -616,7 +621,7 @@ enum Gxx_Joint_Status2_Bits {
 	G1_Permanent_Stale_Bit = 0x8000
 };
 static inline enum Gxx_Joint_Status2_Bits Gi_Permanent_Stale_Bit(unsigned
-	counter_index)
+								 counter_index)
 {
 	if (counter_index % 2)
 		return G1_Permanent_Stale_Bit;
@@ -649,6 +654,7 @@ static inline unsigned Gi_Gate_Error_Confirm_Bit(unsigned counter_index)
 		return G1_Gate_Error_Confirm_Bit;
 	return G0_Gate_Error_Confirm_Bit;
 }
+
 static inline unsigned Gi_TC_Error_Confirm_Bit(unsigned counter_index)
 {
 	if (counter_index % 2)
@@ -689,21 +695,22 @@ static inline unsigned Gi_Gate_Interrupt_Enable_Bit(unsigned counter_index)
 }
 
 static inline void write_register(struct ni_gpct *counter, unsigned bits,
-	enum ni_gpct_register reg)
+				  enum ni_gpct_register reg)
 {
 	BUG_ON(reg >= NITIO_Num_Registers);
 	counter->counter_dev->write_register(counter, bits, reg);
 }
 
 static inline unsigned read_register(struct ni_gpct *counter,
-	enum ni_gpct_register reg)
+				     enum ni_gpct_register reg)
 {
 	BUG_ON(reg >= NITIO_Num_Registers);
 	return counter->counter_dev->read_register(counter, reg);
 }
 
-static inline int ni_tio_counting_mode_registers_present(
-	const struct ni_gpct_device *counter_dev)
+static inline int ni_tio_counting_mode_registers_present(const struct
+							 ni_gpct_device
+							 *counter_dev)
 {
 	switch (counter_dev->variant) {
 	case ni_gpct_variant_e_series:
@@ -721,8 +728,10 @@ static inline int ni_tio_counting_mode_registers_present(
 }
 
 static inline void ni_tio_set_bits_transient(struct ni_gpct *counter,
-	enum ni_gpct_register register_index, unsigned bit_mask,
-	unsigned bit_values, unsigned transient_bit_values)
+					     enum ni_gpct_register
+					     register_index, unsigned bit_mask,
+					     unsigned bit_values,
+					     unsigned transient_bit_values)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned long flags;
@@ -732,8 +741,8 @@ static inline void ni_tio_set_bits_transient(struct ni_gpct *counter,
 	counter_dev->regs[register_index] &= ~bit_mask;
 	counter_dev->regs[register_index] |= (bit_values & bit_mask);
 	write_register(counter,
-		counter_dev->regs[register_index] | transient_bit_values,
-		register_index);
+		       counter_dev->regs[register_index] | transient_bit_values,
+		       register_index);
 	mmiowb();
 	spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
 }
@@ -742,11 +751,11 @@ static inline void ni_tio_set_bits_transient(struct ni_gpct *counter,
 twiddled in interrupt context, or whose software copy may be read in interrupt context.
 */
 static inline void ni_tio_set_bits(struct ni_gpct *counter,
-	enum ni_gpct_register register_index, unsigned bit_mask,
-	unsigned bit_values)
+				   enum ni_gpct_register register_index,
+				   unsigned bit_mask, unsigned bit_values)
 {
 	ni_tio_set_bits_transient(counter, register_index, bit_mask, bit_values,
-		0x0);
+				  0x0);
 }
 
 /* ni_tio_get_soft_copy( ) is for safely reading the software copy of a register
@@ -754,7 +763,8 @@ whose bits might be modified in interrupt context, or whose software copy
 might need to be read in interrupt context.
 */
 static inline unsigned ni_tio_get_soft_copy(const struct ni_gpct *counter,
-	enum ni_gpct_register register_index)
+					    enum ni_gpct_register
+					    register_index)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned long flags;
@@ -769,6 +779,6 @@ static inline unsigned ni_tio_get_soft_copy(const struct ni_gpct *counter,
 
 int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger);
 int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index,
-	unsigned int gate_source);
+			unsigned int gate_source);
 
 #endif /* _COMEDI_NI_TIO_INTERNAL_H */

@@ -49,6 +49,9 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool PPC64
 
+config NEED_PER_CPU_EMBED_FIRST_CHUNK
+	def_bool PPC64
+
 config IRQ_PER_CPU
 	bool
 	default y
@@ -120,7 +123,8 @@ config PPC
 	select HAVE_KRETPROBES
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_LMB
-	select HAVE_DMA_ATTRS if PPC64
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_OPROFILE
 	select HAVE_SYSCALL_WRAPPERS if PPC64
@@ -307,10 +311,6 @@ config SWIOTLB
 	  platforms where the size of a physical address is larger
 	  than the bus address.  Not all platforms support this.
 
-config PPC_NEED_DMA_SYNC_OPS
-	def_bool y
-	depends on (NOT_COHERENT_CACHE || SWIOTLB)
-
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && HOTPLUG && EXPERIMENTAL && (PPC_PSERIES || PPC_PMAC)
@@ -472,7 +472,7 @@ config PPC_16K_PAGES
 	bool "16k page size" if 44x
 
 config PPC_64K_PAGES
-	bool "64k page size" if 44x || PPC_STD_MMU_64
+	bool "64k page size" if 44x || PPC_STD_MMU_64 || PPC_BOOK3E_64
 	select PPC_HAS_HASH_64K if PPC_STD_MMU_64
 
 config PPC_256K_PAGES
@@ -492,16 +492,16 @@ endchoice
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
-	range 9 64 if PPC_STD_MMU_64 && PPC_64K_PAGES
-	default "9" if PPC_STD_MMU_64 && PPC_64K_PAGES
-	range 13 64 if PPC_STD_MMU_64 && !PPC_64K_PAGES
-	default "13" if PPC_STD_MMU_64 && !PPC_64K_PAGES
-	range 9 64 if PPC_STD_MMU_32 && PPC_16K_PAGES
-	default "9" if PPC_STD_MMU_32 && PPC_16K_PAGES
-	range 7 64 if PPC_STD_MMU_32 && PPC_64K_PAGES
-	default "7" if PPC_STD_MMU_32 && PPC_64K_PAGES
-	range 5 64 if PPC_STD_MMU_32 && PPC_256K_PAGES
-	default "5" if PPC_STD_MMU_32 && PPC_256K_PAGES
+	range 9 64 if PPC64 && PPC_64K_PAGES
+	default "9" if PPC64 && PPC_64K_PAGES
+	range 13 64 if PPC64 && !PPC_64K_PAGES
+	default "13" if PPC64 && !PPC_64K_PAGES
+	range 9 64 if PPC32 && PPC_16K_PAGES
+	default "9" if PPC32 && PPC_16K_PAGES
+	range 7 64 if PPC32 && PPC_64K_PAGES
+	default "7" if PPC32 && PPC_64K_PAGES
+	range 5 64 if PPC32 && PPC_256K_PAGES
+	default "5" if PPC32 && PPC_256K_PAGES
 	range 11 64
 	default "11"
 	help

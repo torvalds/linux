@@ -227,7 +227,7 @@ restart:
 				preempt_count() = prev_count;
 			}
 
-			rcu_bh_qsctr_inc(cpu);
+			rcu_bh_qs(cpu);
 		}
 		h++;
 		pending >>= 1;
@@ -721,7 +721,7 @@ static int ksoftirqd(void * __bind_cpu)
 			preempt_enable_no_resched();
 			cond_resched();
 			preempt_disable();
-			rcu_qsctr_inc((long)__bind_cpu);
+			rcu_sched_qs((long)__bind_cpu);
 		}
 		preempt_enable();
 		set_current_state(TASK_INTERRUPTIBLE);

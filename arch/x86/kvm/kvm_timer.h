@@ -6,7 +6,7 @@ struct kvm_timer {
 	bool reinject;
 	struct kvm_timer_ops *t_ops;
 	struct kvm *kvm;
-	int vcpu_id;
+	struct kvm_vcpu *vcpu;
 };
 
 struct kvm_timer_ops {

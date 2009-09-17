@@ -523,11 +523,8 @@ s32 e1000_check_phy_reset_block(struct e1000_hw *hw);
 
 /* The sizes (in bytes) of a ethernet packet */
 #define ENET_HEADER_SIZE             14
-#define MAXIMUM_ETHERNET_FRAME_SIZE  1518 /* With FCS */
 #define MINIMUM_ETHERNET_FRAME_SIZE  64   /* With FCS */
 #define ETHERNET_FCS_SIZE            4
-#define MAXIMUM_ETHERNET_PACKET_SIZE \
-    (MAXIMUM_ETHERNET_FRAME_SIZE - ETHERNET_FCS_SIZE)
 #define MINIMUM_ETHERNET_PACKET_SIZE \
     (MINIMUM_ETHERNET_FRAME_SIZE - ETHERNET_FCS_SIZE)
 #define CRC_LENGTH                   ETHERNET_FCS_SIZE

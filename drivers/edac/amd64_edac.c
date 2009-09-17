@@ -19,6 +19,63 @@ static struct mem_ctl_info *mci_lookup[MAX_NUMNODES];
 static struct amd64_pvt *pvt_lookup[MAX_NUMNODES];
 
 /*
+ * See F2x80 for K8 and F2x[1,0]80 for Fam10 and later. The table below is only
+ * for DDR2 DRAM mapping.
+ */
+u32 revf_quad_ddr2_shift[] = {
+	0,	/* 0000b NULL DIMM (128mb) */
+	28,	/* 0001b 256mb */
+	29,	/* 0010b 512mb */
+	29,	/* 0011b 512mb */
+	29,	/* 0100b 512mb */
+	30,	/* 0101b 1gb */
+	30,	/* 0110b 1gb */
+	31,	/* 0111b 2gb */
+	31,	/* 1000b 2gb */
+	32,	/* 1001b 4gb */
+	32,	/* 1010b 4gb */
+	33,	/* 1011b 8gb */
+	0,	/* 1100b future */
+	0,	/* 1101b future */
+	0,	/* 1110b future */
+	0	/* 1111b future */
+};
+
+/*
+ * Valid scrub rates for the K8 hardware memory scrubber. We map the scrubbing
+ * bandwidth to a valid bit pattern. The 'set' operation finds the 'matching-
+ * or higher value'.
+ *
+ *FIXME: Produce a better mapping/linearisation.
+ */
+
+struct scrubrate scrubrates[] = {
+	{ 0x01, 1600000000UL},
+	{ 0x02, 800000000UL},
+	{ 0x03, 400000000UL},
+	{ 0x04, 200000000UL},
+	{ 0x05, 100000000UL},
+	{ 0x06, 50000000UL},
+	{ 0x07, 25000000UL},
+	{ 0x08, 12284069UL},
+	{ 0x09, 6274509UL},
+	{ 0x0A, 3121951UL},
+	{ 0x0B, 1560975UL},
+	{ 0x0C, 781440UL},
+	{ 0x0D, 390720UL},
+	{ 0x0E, 195300UL},
+	{ 0x0F, 97650UL},
+	{ 0x10, 48854UL},
+	{ 0x11, 24427UL},
+	{ 0x12, 12213UL},
+	{ 0x13, 6101UL},
+	{ 0x14, 3051UL},
+	{ 0x15, 1523UL},
+	{ 0x16, 761UL},
+	{ 0x00, 0UL},        /* scrubbing off */
+};
+
+/*
  * Memory scrubber control interface. For K8, memory scrubbing is handled by
  * hardware and can involve L2 cache, dcache as well as the main memory. With
  * F10, this is extended to L3 cache scrubbing on CPU models sporting that
@@ -693,7 +750,7 @@ static void find_csrow_limits(struct mem_ctl_info *mci, int csrow,
  * specific.
  */
 static u64 extract_error_address(struct mem_ctl_info *mci,
-				 struct amd64_error_info_regs *info)
+				 struct err_regs *info)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 
@@ -1049,7 +1106,7 @@ static int k8_early_channel_count(struct amd64_pvt *pvt)
 
 /* extract the ERROR ADDRESS for the K8 CPUs */
 static u64 k8_get_error_address(struct mem_ctl_info *mci,
-				struct amd64_error_info_regs *info)
+				struct err_regs *info)
 {
 	return (((u64) (info->nbeah & 0xff)) << 32) +
 			(info->nbeal & ~0x03);
@@ -1092,7 +1149,7 @@ static void k8_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 }
 
 static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
-					struct amd64_error_info_regs *info,
+					struct err_regs *info,
 					u64 SystemAddress)
 {
 	struct mem_ctl_info *src_mci;
@@ -1101,8 +1158,8 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 	u32 page, offset;
 
 	/* Extract the syndrome parts and form a 16-bit syndrome */
-	syndrome = EXTRACT_HIGH_SYNDROME(info->nbsl) << 8;
-	syndrome |= EXTRACT_LOW_SYNDROME(info->nbsh);
+	syndrome  = HIGH_SYNDROME(info->nbsl) << 8;
+	syndrome |= LOW_SYNDROME(info->nbsh);
 
 	/* CHIPKILL enabled */
 	if (info->nbcfg & K8_NBCFG_CHIPKILL) {
@@ -1311,7 +1368,7 @@ static void amd64_teardown(struct amd64_pvt *pvt)
 }
 
 static u64 f10_get_error_address(struct mem_ctl_info *mci,
-			struct amd64_error_info_regs *info)
+			struct err_regs *info)
 {
 	return (((u64) (info->nbeah & 0xffff)) << 32) +
 			(info->nbeal & ~0x01);
@@ -1688,7 +1745,7 @@ static int f10_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
  * The @sys_addr is usually an error address received from the hardware.
  */
 static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
-				     struct amd64_error_info_regs *info,
+				     struct err_regs *info,
 				     u64 sys_addr)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
@@ -1701,8 +1758,8 @@ static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 	if (csrow >= 0) {
 		error_address_to_page_and_offset(sys_addr, &page, &offset);
 
-		syndrome = EXTRACT_HIGH_SYNDROME(info->nbsl) << 8;
-		syndrome |= EXTRACT_LOW_SYNDROME(info->nbsh);
+		syndrome  = HIGH_SYNDROME(info->nbsl) << 8;
+		syndrome |= LOW_SYNDROME(info->nbsh);
 
 		/*
 		 * Is CHIPKILL on? If so, then we can attempt to use the
@@ -2045,7 +2102,7 @@ static int get_channel_from_ecc_syndrome(unsigned short syndrome)
  *	- 0: if no valid error is indicated
  */
 static int amd64_get_error_info_regs(struct mem_ctl_info *mci,
-				     struct amd64_error_info_regs *regs)
+				     struct err_regs *regs)
 {
 	struct amd64_pvt *pvt;
 	struct pci_dev *misc_f3_ctl;
@@ -2094,10 +2151,10 @@ err_reg:
  *	- 0: if no error is found
  */
 static int amd64_get_error_info(struct mem_ctl_info *mci,
-				struct amd64_error_info_regs *info)
+				struct err_regs *info)
 {
 	struct amd64_pvt *pvt;
-	struct amd64_error_info_regs regs;
+	struct err_regs regs;
 
 	pvt = mci->pvt_info;
 
@@ -2152,48 +2209,12 @@ static int amd64_get_error_info(struct mem_ctl_info *mci,
 	return 1;
 }
 
-static inline void amd64_decode_gart_tlb_error(struct mem_ctl_info *mci,
-					 struct amd64_error_info_regs *info)
-{
-	u32 err_code;
-	u32 ec_tt;		/* error code transaction type (2b) */
-	u32 ec_ll;		/* error code cache level (2b) */
-
-	err_code = EXTRACT_ERROR_CODE(info->nbsl);
-	ec_ll = EXTRACT_LL_CODE(err_code);
-	ec_tt = EXTRACT_TT_CODE(err_code);
-
-	amd64_mc_printk(mci, KERN_ERR,
-		     "GART TLB event: transaction type(%s), "
-		     "cache level(%s)\n", tt_msgs[ec_tt], ll_msgs[ec_ll]);
-}
-
-static inline void amd64_decode_mem_cache_error(struct mem_ctl_info *mci,
-				      struct amd64_error_info_regs *info)
-{
-	u32 err_code;
-	u32 ec_rrrr;		/* error code memory transaction (4b) */
-	u32 ec_tt;		/* error code transaction type (2b) */
-	u32 ec_ll;		/* error code cache level (2b) */
-
-	err_code = EXTRACT_ERROR_CODE(info->nbsl);
-	ec_ll = EXTRACT_LL_CODE(err_code);
-	ec_tt = EXTRACT_TT_CODE(err_code);
-	ec_rrrr = EXTRACT_RRRR_CODE(err_code);
-
-	amd64_mc_printk(mci, KERN_ERR,
-		     "cache hierarchy error: memory transaction type(%s), "
-		     "transaction type(%s), cache level(%s)\n",
-		     rrrr_msgs[ec_rrrr], tt_msgs[ec_tt], ll_msgs[ec_ll]);
-}
-
-
 /*
  * Handle any Correctable Errors (CEs) that have occurred. Check for valid ERROR
  * ADDRESS and process.
  */
 static void amd64_handle_ce(struct mem_ctl_info *mci,
-			    struct amd64_error_info_regs *info)
+			    struct err_regs *info)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u64 SystemAddress;
@@ -2216,7 +2237,7 @@ static void amd64_handle_ce(struct mem_ctl_info *mci,
 
 /* Handle any Un-correctable Errors (UEs) */
 static void amd64_handle_ue(struct mem_ctl_info *mci,
-			    struct amd64_error_info_regs *info)
+			    struct err_regs *info)
 {
 	int csrow;
 	u64 SystemAddress;
@@ -2261,59 +2282,24 @@ static void amd64_handle_ue(struct mem_ctl_info *mci,
 	}
 }
 
-static void amd64_decode_bus_error(struct mem_ctl_info *mci,
-				   struct amd64_error_info_regs *info)
+static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
+					    struct err_regs *info)
 {
-	u32 err_code, ext_ec;
-	u32 ec_pp;		/* error code participating processor (2p) */
-	u32 ec_to;		/* error code timed out (1b) */
-	u32 ec_rrrr;		/* error code memory transaction (4b) */
-	u32 ec_ii;		/* error code memory or I/O (2b) */
-	u32 ec_ll;		/* error code cache level (2b) */
+	u32 ec  = ERROR_CODE(info->nbsl);
+	u32 xec = EXT_ERROR_CODE(info->nbsl);
+	int ecc_type = info->nbsh & (0x3 << 13);
 
-	ext_ec = EXTRACT_EXT_ERROR_CODE(info->nbsl);
-	err_code = EXTRACT_ERROR_CODE(info->nbsl);
-
-	ec_ll = EXTRACT_LL_CODE(err_code);
-	ec_ii = EXTRACT_II_CODE(err_code);
-	ec_rrrr = EXTRACT_RRRR_CODE(err_code);
-	ec_to = EXTRACT_TO_CODE(err_code);
-	ec_pp = EXTRACT_PP_CODE(err_code);
-
-	amd64_mc_printk(mci, KERN_ERR,
-		"BUS ERROR:\n"
-		"  time-out(%s) mem or i/o(%s)\n"
-		"  participating processor(%s)\n"
-		"  memory transaction type(%s)\n"
-		"  cache level(%s) Error Found by: %s\n",
-		to_msgs[ec_to],
-		ii_msgs[ec_ii],
-		pp_msgs[ec_pp],
-		rrrr_msgs[ec_rrrr],
-		ll_msgs[ec_ll],
-		(info->nbsh & K8_NBSH_ERR_SCRUBER) ?
-			"Scrubber" : "Normal Operation");
-
-	/* If this was an 'observed' error, early out */
-	if (ec_pp == K8_NBSL_PP_OBS)
-		return;		/* We aren't the node involved */
-
-	/* Parse out the extended error code for ECC events */
-	switch (ext_ec) {
-	/* F10 changed to one Extended ECC error code */
-	case F10_NBSL_EXT_ERR_RES:		/* Reserved field */
-	case F10_NBSL_EXT_ERR_ECC:		/* F10 ECC ext err code */
-		break;
-
-	default:
-		amd64_mc_printk(mci, KERN_ERR, "NOT ECC: no special error "
-					       "handling for this error\n");
+	/* Bail early out if this was an 'observed' error */
+	if (PP(ec) == K8_NBSL_PP_OBS)
 		return;
-	}
 
-	if (info->nbsh & K8_NBSH_CECC)
+	/* Do only ECC errors */
+	if (xec && xec != F10_NBSL_EXT_ERR_ECC)
+		return;
+
+	if (ecc_type == 2)
 		amd64_handle_ce(mci, info);
-	else if (info->nbsh & K8_NBSH_UECC)
+	else if (ecc_type == 1)
 		amd64_handle_ue(mci, info);
 
 	/*
@@ -2324,139 +2310,26 @@ static void amd64_decode_bus_error(struct mem_ctl_info *mci,
 	 * catastrophic.
 	 */
 	if (info->nbsh & K8_NBSH_OVERFLOW)
-		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR
-					  "Error Overflow set");
+		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR "Error Overflow");
 }
 
-int amd64_process_error_info(struct mem_ctl_info *mci,
-			     struct amd64_error_info_regs *info,
-			     int handle_errors)
+void amd64_decode_bus_error(int node_id, struct err_regs *regs)
 {
-	struct amd64_pvt *pvt;
-	struct amd64_error_info_regs *regs;
-	u32 err_code, ext_ec;
-	int gart_tlb_error = 0;
+	struct mem_ctl_info *mci = mci_lookup[node_id];
 
-	pvt = mci->pvt_info;
-
-	/* If caller doesn't want us to process the error, return */
-	if (!handle_errors)
-		return 1;
-
-	regs = info;
-
-	debugf1("NorthBridge ERROR: mci(0x%p)\n", mci);
-	debugf1("  MC node(%d) Error-Address(0x%.8x-%.8x)\n",
-		pvt->mc_node_id, regs->nbeah, regs->nbeal);
-	debugf1("  nbsh(0x%.8x) nbsl(0x%.8x)\n",
-		regs->nbsh, regs->nbsl);
-	debugf1("  Valid Error=%s Overflow=%s\n",
-		(regs->nbsh & K8_NBSH_VALID_BIT) ? "True" : "False",
-		(regs->nbsh & K8_NBSH_OVERFLOW) ? "True" : "False");
-	debugf1("  Err Uncorrected=%s MCA Error Reporting=%s\n",
-		(regs->nbsh & K8_NBSH_UNCORRECTED_ERR) ?
-			"True" : "False",
-		(regs->nbsh & K8_NBSH_ERR_ENABLE) ?
-			"True" : "False");
-	debugf1("  MiscErr Valid=%s ErrAddr Valid=%s PCC=%s\n",
-		(regs->nbsh & K8_NBSH_MISC_ERR_VALID) ?
-			"True" : "False",
-		(regs->nbsh & K8_NBSH_VALID_ERROR_ADDR) ?
-			"True" : "False",
-		(regs->nbsh & K8_NBSH_PCC) ?
-			"True" : "False");
-	debugf1("  CECC=%s UECC=%s Found by Scruber=%s\n",
-		(regs->nbsh & K8_NBSH_CECC) ?
-			"True" : "False",
-		(regs->nbsh & K8_NBSH_UECC) ?
-			"True" : "False",
-		(regs->nbsh & K8_NBSH_ERR_SCRUBER) ?
-			"True" : "False");
-	debugf1("  CORE0=%s CORE1=%s CORE2=%s CORE3=%s\n",
-		(regs->nbsh & K8_NBSH_CORE0) ? "True" : "False",
-		(regs->nbsh & K8_NBSH_CORE1) ? "True" : "False",
-		(regs->nbsh & K8_NBSH_CORE2) ? "True" : "False",
-		(regs->nbsh & K8_NBSH_CORE3) ? "True" : "False");
-
-
-	err_code = EXTRACT_ERROR_CODE(regs->nbsl);
-
-	/* Determine which error type:
-	 *	1) GART errors - non-fatal, developmental events
-	 *	2) MEMORY errors
-	 *	3) BUS errors
-	 *	4) Unknown error
-	 */
-	if (TEST_TLB_ERROR(err_code)) {
-		/*
-		 * GART errors are intended to help graphics driver developers
-		 * to detect bad GART PTEs. It is recommended by AMD to disable
-		 * GART table walk error reporting by default[1] (currently
-		 * being disabled in mce_cpu_quirks()) and according to the
-		 * comment in mce_cpu_quirks(), such GART errors can be
-		 * incorrectly triggered. We may see these errors anyway and
-		 * unless requested by the user, they won't be reported.
-		 *
-		 * [1] section 13.10.1 on BIOS and Kernel Developers Guide for
-		 *     AMD NPT family 0Fh processors
-		 */
-		if (report_gart_errors == 0)
-			return 1;
-
-		/*
-		 * Only if GART error reporting is requested should we generate
-		 * any logs.
-		 */
-		gart_tlb_error = 1;
-
-		debugf1("GART TLB error\n");
-		amd64_decode_gart_tlb_error(mci, info);
-	} else if (TEST_MEM_ERROR(err_code)) {
-		debugf1("Memory/Cache error\n");
-		amd64_decode_mem_cache_error(mci, info);
-	} else if (TEST_BUS_ERROR(err_code)) {
-		debugf1("Bus (Link/DRAM) error\n");
-		amd64_decode_bus_error(mci, info);
-	} else {
-		/* shouldn't reach here! */
-		amd64_mc_printk(mci, KERN_WARNING,
-			     "%s(): unknown MCE error 0x%x\n", __func__,
-			     err_code);
-	}
-
-	ext_ec = EXTRACT_EXT_ERROR_CODE(regs->nbsl);
-	amd64_mc_printk(mci, KERN_ERR,
-		"ExtErr=(0x%x) %s\n", ext_ec, ext_msgs[ext_ec]);
-
-	if (((ext_ec >= F10_NBSL_EXT_ERR_CRC &&
-			ext_ec <= F10_NBSL_EXT_ERR_TGT) ||
-			(ext_ec == F10_NBSL_EXT_ERR_RMW)) &&
-			EXTRACT_LDT_LINK(info->nbsh)) {
-
-		amd64_mc_printk(mci, KERN_ERR,
-			"Error on hypertransport link: %s\n",
-			htlink_msgs[
-			EXTRACT_LDT_LINK(info->nbsh)]);
-	}
+	__amd64_decode_bus_error(mci, regs);
 
 	/*
 	 * Check the UE bit of the NB status high register, if set generate some
 	 * logs. If NOT a GART error, then process the event as a NO-INFO event.
 	 * If it was a GART error, skip that process.
+	 *
+	 * FIXME: this should go somewhere else, if at all.
 	 */
-	if (regs->nbsh & K8_NBSH_UNCORRECTED_ERR) {
-		amd64_mc_printk(mci, KERN_CRIT, "uncorrected error\n");
-		if (!gart_tlb_error)
-			edac_mc_handle_ue_no_info(mci, "UE bit is set\n");
-	}
+	if (regs->nbsh & K8_NBSH_UC_ERR && !report_gart_errors)
+		edac_mc_handle_ue_no_info(mci, "UE bit is set");
 
-	if (regs->nbsh & K8_NBSH_PCC)
-		amd64_mc_printk(mci, KERN_CRIT,
-			"PCC (processor context corrupt) set\n");
-
-	return 1;
 }
-EXPORT_SYMBOL_GPL(amd64_process_error_info);
 
 /*
  * The main polling 'check' function, called FROM the edac core to perform the
@@ -2464,10 +2337,12 @@ EXPORT_SYMBOL_GPL(amd64_process_error_info);
  */
 static void amd64_check(struct mem_ctl_info *mci)
 {
-	struct amd64_error_info_regs info;
+	struct err_regs regs;
 
-	if (amd64_get_error_info(mci, &info))
-		amd64_process_error_info(mci, &info, 1);
+	if (amd64_get_error_info(mci, &regs)) {
+		struct amd64_pvt *pvt = mci->pvt_info;
+		amd_decode_nb_mce(pvt->mc_node_id, &regs, 1);
+	}
 }
 
 /*
@@ -3163,6 +3038,13 @@ static int amd64_init_2nd_stage(struct amd64_pvt *pvt)
 
 	mci_lookup[node_id] = mci;
 	pvt_lookup[node_id] = NULL;
+
+	/* register stuff with EDAC MCE */
+	if (report_gart_errors)
+		amd_report_gart_errors(true);
+
+	amd_register_ecc_decoder(amd64_decode_bus_error);
+
 	return 0;
 
 err_add_mc:
@@ -3228,6 +3110,10 @@ static void __devexit amd64_remove_one_instance(struct pci_dev *pdev)
 	mci->pvt_info = NULL;
 
 	mci_lookup[pvt->mc_node_id] = NULL;
+
+	/* unregister from EDAC MCE */
+	amd_report_gart_errors(false);
+	amd_unregister_ecc_decoder(amd64_decode_bus_error);
 
 	/* Free the EDAC CORE resources */
 	edac_mc_free(mci);

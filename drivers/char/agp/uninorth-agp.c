@@ -7,6 +7,7 @@
 #include <linux/pagemap.h>
 #include <linux/agp_backend.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
 #include <asm/uninorth.h>
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
@@ -27,6 +28,8 @@
 static int uninorth_rev;
 static int is_u3;
 
+#define DEFAULT_APERTURE_SIZE 256
+#define DEFAULT_APERTURE_STRING "256"
 static char *aperture = NULL;
 
 static int uninorth_fetch_size(void)
@@ -55,7 +58,7 @@ static int uninorth_fetch_size(void)
 
 	if (!size) {
 		for (i = 0; i < agp_bridge->driver->num_aperture_sizes; i++)
-			if (values[i].size == 32)
+			if (values[i].size == DEFAULT_APERTURE_SIZE)
 				break;
 	}
 
@@ -135,7 +138,7 @@ static int uninorth_configure(void)
 	if (is_u3) {
 		pci_write_config_dword(agp_bridge->dev,
 				       UNI_N_CFG_GART_DUMMY_PAGE,
-				       agp_bridge->scratch_page_real >> 12);
+				       page_to_phys(agp_bridge->scratch_page_page) >> 12);
 	}
 
 	return 0;
@@ -179,8 +182,6 @@ static int uninorth_insert_memory(struct agp_memory *mem, off_t pg_start,
 	}
 	(void)in_le32((volatile u32*)&agp_bridge->gatt_table[pg_start]);
 	mb();
-	flush_dcache_range((unsigned long)&agp_bridge->gatt_table[pg_start],
-		(unsigned long)&agp_bridge->gatt_table[pg_start + mem->page_count]);
 
 	uninorth_tlbflush(mem);
 	return 0;
@@ -224,7 +225,6 @@ static int u3_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 				   (unsigned long)__va(page_to_phys(mem->pages[i]))+0x1000);
 	}
 	mb();
-	flush_dcache_range((unsigned long)gp, (unsigned long) &gp[i]);
 	uninorth_tlbflush(mem);
 
 	return 0;
@@ -243,7 +243,6 @@ int u3_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 	for (i = 0; i < mem->page_count; ++i)
 		gp[i] = 0;
 	mb();
-	flush_dcache_range((unsigned long)gp, (unsigned long) &gp[i]);
 	uninorth_tlbflush(mem);
 
 	return 0;
@@ -396,6 +395,7 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 	int i;
 	void *temp;
 	struct page *page;
+	struct page **pages;
 
 	/* We can't handle 2 level gatt's */
 	if (bridge->driver->size_type == LVL2_APER_SIZE)
@@ -424,21 +424,39 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 	if (table == NULL)
 		return -ENOMEM;
 
+	pages = kmalloc((1 << page_order) * sizeof(struct page*), GFP_KERNEL);
+	if (pages == NULL)
+		goto enomem;
+
 	table_end = table + ((PAGE_SIZE * (1 << page_order)) - 1);
 
-	for (page = virt_to_page(table); page <= virt_to_page(table_end); page++)
+	for (page = virt_to_page(table), i = 0; page <= virt_to_page(table_end);
+	     page++, i++) {
 		SetPageReserved(page);
+		pages[i] = page;
+	}
 
 	bridge->gatt_table_real = (u32 *) table;
-	bridge->gatt_table = (u32 *)table;
-	bridge->gatt_bus_addr = virt_to_gart(table);
+	/* Need to clear out any dirty data still sitting in caches */
+	flush_dcache_range((unsigned long)table,
+			   (unsigned long)(table_end + PAGE_SIZE));
+	bridge->gatt_table = vmap(pages, (1 << page_order), 0, PAGE_KERNEL_NCG);
+
+	if (bridge->gatt_table == NULL)
+		goto enomem;
+
+	bridge->gatt_bus_addr = virt_to_phys(table);
 
 	for (i = 0; i < num_entries; i++)
 		bridge->gatt_table[i] = 0;
 
-	flush_dcache_range((unsigned long)table, (unsigned long)table_end);
-
 	return 0;
+
+enomem:
+	kfree(pages);
+	if (table)
+		free_pages((unsigned long)table, page_order);
+	return -ENOMEM;
 }
 
 static int uninorth_free_gatt_table(struct agp_bridge_data *bridge)
@@ -456,6 +474,7 @@ static int uninorth_free_gatt_table(struct agp_bridge_data *bridge)
 	 * from the table.
 	 */
 
+	vunmap(bridge->gatt_table);
 	table = (char *) bridge->gatt_table_real;
 	table_end = table + ((PAGE_SIZE * (1 << page_order)) - 1);
 
@@ -474,13 +493,11 @@ void null_cache_flush(void)
 
 /* Setup function */
 
-static const struct aper_size_info_32 uninorth_sizes[7] =
+static const struct aper_size_info_32 uninorth_sizes[] =
 {
-#if 0 /* Not sure uninorth supports that high aperture sizes */
 	{256, 65536, 6, 64},
 	{128, 32768, 5, 32},
 	{64, 16384, 4, 16},
-#endif
 	{32, 8192, 3, 8},
 	{16, 4096, 2, 4},
 	{8, 2048, 1, 2},
@@ -491,7 +508,7 @@ static const struct aper_size_info_32 uninorth_sizes[7] =
  * Not sure that u3 supports that high aperture sizes but it
  * would strange if it did not :)
  */
-static const struct aper_size_info_32 u3_sizes[8] =
+static const struct aper_size_info_32 u3_sizes[] =
 {
 	{512, 131072, 7, 128},
 	{256, 65536, 6, 64},
@@ -507,7 +524,7 @@ const struct agp_bridge_driver uninorth_agp_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= (void *)uninorth_sizes,
 	.size_type		= U32_APER_SIZE,
-	.num_aperture_sizes	= 4,
+	.num_aperture_sizes	= ARRAY_SIZE(uninorth_sizes),
 	.configure		= uninorth_configure,
 	.fetch_size		= uninorth_fetch_size,
 	.cleanup		= uninorth_cleanup,
@@ -534,7 +551,7 @@ const struct agp_bridge_driver u3_agp_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= (void *)u3_sizes,
 	.size_type		= U32_APER_SIZE,
-	.num_aperture_sizes	= 8,
+	.num_aperture_sizes	= ARRAY_SIZE(u3_sizes),
 	.configure		= uninorth_configure,
 	.fetch_size		= uninorth_fetch_size,
 	.cleanup		= uninorth_cleanup,
@@ -717,7 +734,7 @@ module_param(aperture, charp, 0);
 MODULE_PARM_DESC(aperture,
 		 "Aperture size, must be power of two between 4MB and an\n"
 		 "\t\tupper limit specific to the UniNorth revision.\n"
-		 "\t\tDefault: 32M");
+		 "\t\tDefault: " DEFAULT_APERTURE_STRING "M");
 
 MODULE_AUTHOR("Ben Herrenschmidt & Paul Mackerras");
 MODULE_LICENSE("GPL");

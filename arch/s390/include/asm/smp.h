@@ -51,32 +51,7 @@ extern void machine_power_off_smp(void);
 #define PROC_CHANGE_PENALTY	20		/* Schedule penalty */
 
 #define raw_smp_processor_id()	(S390_lowcore.cpu_nr)
-
-/*
- * returns 1 if cpu is in stopped/check stopped state or not operational
- * returns 0 otherwise
- */
-static inline int
-smp_cpu_not_running(int cpu)
-{
-	__u32 status;
-
-	switch (signal_processor_ps(&status, 0, cpu, sigp_sense)) {
-	case sigp_order_code_accepted:
-	case sigp_status_stored:
-		/* Check for stopped and check stop state */
-		if (status & 0x50)
-			return 1;
-		break;
-	case sigp_not_operational:
-		return 1;
-	default:
-		break;
-	}
-	return 0;
-}
-
-#define cpu_logical_map(cpu) (cpu)
+#define cpu_logical_map(cpu)	(cpu)
 
 extern int __cpu_disable (void);
 extern void __cpu_die (unsigned int cpu);
@@ -89,11 +64,6 @@ extern int smp_cpu_polarization[];
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi(cpumask_t mask);
 
-#endif
-
-#ifndef CONFIG_SMP
-#define hard_smp_processor_id()		0
-#define smp_cpu_not_running(cpu)	1
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU

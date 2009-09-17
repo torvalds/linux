@@ -22,12 +22,12 @@ tracing information should be printed.
 ---------------------------------
 
 The events which are available for tracing can be found in the file
-/debug/tracing/available_events.
+/sys/kernel/debug/tracing/available_events.
 
 To enable a particular event, such as 'sched_wakeup', simply echo it
-to /debug/tracing/set_event. For example:
+to /sys/kernel/debug/tracing/set_event. For example:
 
-	# echo sched_wakeup >> /debug/tracing/set_event
+	# echo sched_wakeup >> /sys/kernel/debug/tracing/set_event
 
 [ Note: '>>' is necessary, otherwise it will firstly disable
   all the events. ]
@@ -35,15 +35,15 @@ to /debug/tracing/set_event. For example:
 To disable an event, echo the event name to the set_event file prefixed
 with an exclamation point:
 
-	# echo '!sched_wakeup' >> /debug/tracing/set_event
+	# echo '!sched_wakeup' >> /sys/kernel/debug/tracing/set_event
 
 To disable all events, echo an empty line to the set_event file:
 
-	# echo > /debug/tracing/set_event
+	# echo > /sys/kernel/debug/tracing/set_event
 
 To enable all events, echo '*:*' or '*:' to the set_event file:
 
-	# echo *:* > /debug/tracing/set_event
+	# echo *:* > /sys/kernel/debug/tracing/set_event
 
 The events are organized into subsystems, such as ext4, irq, sched,
 etc., and a full event name looks like this: <subsystem>:<event>.  The
@@ -52,29 +52,29 @@ file.  All of the events in a subsystem can be specified via the syntax
 "<subsystem>:*"; for example, to enable all irq events, you can use the
 command:
 
-	# echo 'irq:*' > /debug/tracing/set_event
+	# echo 'irq:*' > /sys/kernel/debug/tracing/set_event
 
 2.2 Via the 'enable' toggle
 ---------------------------
 
-The events available are also listed in /debug/tracing/events/ hierarchy
+The events available are also listed in /sys/kernel/debug/tracing/events/ hierarchy
 of directories.
 
 To enable event 'sched_wakeup':
 
-	# echo 1 > /debug/tracing/events/sched/sched_wakeup/enable
+	# echo 1 > /sys/kernel/debug/tracing/events/sched/sched_wakeup/enable
 
 To disable it:
 
-	# echo 0 > /debug/tracing/events/sched/sched_wakeup/enable
+	# echo 0 > /sys/kernel/debug/tracing/events/sched/sched_wakeup/enable
 
 To enable all events in sched subsystem:
 
-	# echo 1 > /debug/tracing/events/sched/enable
+	# echo 1 > /sys/kernel/debug/tracing/events/sched/enable
 
 To eanble all events:
 
-	# echo 1 > /debug/tracing/events/enable
+	# echo 1 > /sys/kernel/debug/tracing/events/enable
 
 When reading one of these enable files, there are four results:
 
