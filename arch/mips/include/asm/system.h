@@ -63,11 +63,23 @@ do {									\
 #define __mips_mt_fpaff_switch_to(prev) do { (void) (prev); } while (0)
 #endif
 
+#ifdef CONFIG_CPU_HAS_LLSC
+#define __clear_software_ll_bit() do { } while (0)
+#else
+extern unsigned long ll_bit;
+
+#define __clear_software_ll_bit()					\
+do {									\
+	ll_bit = 0;							\
+} while (0)
+#endif
+
 #define switch_to(prev, next, last)					\
 do {									\
 	__mips_mt_fpaff_switch_to(prev);				\
 	if (cpu_has_dsp)						\
 		__save_dsp(prev);					\
+	__clear_software_ll_bit();					\
 	(last) = resume(prev, next, task_thread_info(next));		\
 } while (0)
 
