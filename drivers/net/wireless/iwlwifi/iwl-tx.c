@@ -1400,7 +1400,7 @@ static int iwl_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 
 	info = IEEE80211_SKB_CB(priv->txq[scd_flow].txb[agg->start_idx].skb[0]);
 	memset(&info->status, 0, sizeof(info->status));
-	info->flags = IEEE80211_TX_STAT_ACK;
+	info->flags |= IEEE80211_TX_STAT_ACK;
 	info->flags |= IEEE80211_TX_STAT_AMPDU;
 	info->status.ampdu_ack_map = successes;
 	info->status.ampdu_ack_len = agg->frame_count;
