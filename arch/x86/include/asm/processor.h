@@ -1020,4 +1020,6 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
 
+extern int amd_get_nb_id(int cpu);
+
 #endif /* _ASM_X86_PROCESSOR_H */

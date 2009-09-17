@@ -1255,7 +1255,9 @@ static int k8_dbam_map_to_pages(struct amd64_pvt *pvt, int dram_map)
  */
 static int f10_early_channel_count(struct amd64_pvt *pvt)
 {
+	int dbams[] = { DBAM0, DBAM1 };
 	int err = 0, channels = 0;
+	int i, j;
 	u32 dbam;
 
 	err = pci_read_config_dword(pvt->dram_f2_ctl, F10_DCLR_0, &pvt->dclr0);
@@ -1288,45 +1290,18 @@ static int f10_early_channel_count(struct amd64_pvt *pvt)
 	 * is more than just one DIMM present in unganged mode. Need to check
 	 * both controllers since DIMMs can be placed in either one.
 	 */
-	channels = 0;
-	err = pci_read_config_dword(pvt->dram_f2_ctl, DBAM0, &dbam);
-	if (err)
-		goto err_reg;
-
-	if (DBAM_DIMM(0, dbam) > 0)
-		channels++;
-	if (DBAM_DIMM(1, dbam) > 0)
-		channels++;
-	if (DBAM_DIMM(2, dbam) > 0)
-		channels++;
-	if (DBAM_DIMM(3, dbam) > 0)
-		channels++;
-
-	/* If more than 2 DIMMs are present, then we have 2 channels */
-	if (channels > 2)
-		channels = 2;
-	else if (channels == 0) {
-		/* No DIMMs on DCT0, so look at DCT1 */
-		err = pci_read_config_dword(pvt->dram_f2_ctl, DBAM1, &dbam);
+	for (i = 0; i < ARRAY_SIZE(dbams); i++) {
+		err = pci_read_config_dword(pvt->dram_f2_ctl, dbams[i], &dbam);
 		if (err)
 			goto err_reg;
 
-		if (DBAM_DIMM(0, dbam) > 0)
-			channels++;
-		if (DBAM_DIMM(1, dbam) > 0)
-			channels++;
-		if (DBAM_DIMM(2, dbam) > 0)
-			channels++;
-		if (DBAM_DIMM(3, dbam) > 0)
-			channels++;
-
-		if (channels > 2)
-			channels = 2;
+		for (j = 0; j < 4; j++) {
+			if (DBAM_DIMM(j, dbam) > 0) {
+				channels++;
+				break;
+			}
+		}
 	}
-
-	/* If we found ALL 0 values, then assume just ONE DIMM-ONE Channel */
-	if (channels == 0)
-		channels = 1;
 
 	debugf0("MCT channel count: %d\n", channels);
 
@@ -2766,30 +2741,53 @@ static void amd64_restore_ecc_error_reporting(struct amd64_pvt *pvt)
 	wrmsr_on_cpus(cpumask, K8_MSR_MCGCTL, msrs);
 }
 
-static void check_mcg_ctl(void *ret)
+/* get all cores on this DCT */
+static void get_cpus_on_this_dct_cpumask(cpumask_t *mask, int nid)
 {
-	u64 msr_val = 0;
-	u8 nbe;
+	int cpu;
 
-	rdmsrl(MSR_IA32_MCG_CTL, msr_val);
-	nbe = msr_val & K8_MSR_MCGCTL_NBE;
-
-	debugf0("core: %u, MCG_CTL: 0x%llx, NB MSR is %s\n",
-		raw_smp_processor_id(), msr_val,
-		(nbe ? "enabled" : "disabled"));
-
-	if (!nbe)
-		*(int *)ret = 0;
+	for_each_online_cpu(cpu)
+		if (amd_get_nb_id(cpu) == nid)
+			cpumask_set_cpu(cpu, mask);
 }
 
 /* check MCG_CTL on all the cpus on this node */
-static int amd64_mcg_ctl_enabled_on_cpus(const cpumask_t *mask)
+static bool amd64_nb_mce_bank_enabled_on_node(int nid)
 {
-	int ret = 1;
-	preempt_disable();
-	smp_call_function_many(mask, check_mcg_ctl, &ret, 1);
-	preempt_enable();
+	cpumask_t mask;
+	struct msr *msrs;
+	int cpu, nbe, idx = 0;
+	bool ret = false;
 
+	cpumask_clear(&mask);
+
+	get_cpus_on_this_dct_cpumask(&mask, nid);
+
+	msrs = kzalloc(sizeof(struct msr) * cpumask_weight(&mask), GFP_KERNEL);
+	if (!msrs) {
+		amd64_printk(KERN_WARNING, "%s: error allocating msrs\n",
+			      __func__);
+		 return false;
+	}
+
+	rdmsr_on_cpus(&mask, MSR_IA32_MCG_CTL, msrs);
+
+	for_each_cpu(cpu, &mask) {
+		nbe = msrs[idx].l & K8_MSR_MCGCTL_NBE;
+
+		debugf0("core: %u, MCG_CTL: 0x%llx, NB MSR is %s\n",
+			cpu, msrs[idx].q,
+			(nbe ? "enabled" : "disabled"));
+
+		if (!nbe)
+			goto out;
+
+		idx++;
+	}
+	ret = true;
+
+out:
+	kfree(msrs);
 	return ret;
 }
 
@@ -2799,71 +2797,46 @@ static int amd64_mcg_ctl_enabled_on_cpus(const cpumask_t *mask)
  * the memory system completely. A command line option allows to force-enable
  * hardware ECC later in amd64_enable_ecc_error_reporting().
  */
+static const char *ecc_warning =
+	"WARNING: ECC is disabled by BIOS. Module will NOT be loaded.\n"
+	" Either Enable ECC in the BIOS, or set 'ecc_enable_override'.\n"
+	" Also, use of the override can cause unknown side effects.\n";
+
 static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 {
 	u32 value;
-	int err = 0, ret = 0;
+	int err = 0;
 	u8 ecc_enabled = 0;
+	bool nb_mce_en = false;
 
 	err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCFG, &value);
 	if (err)
 		debugf0("Reading K8_NBCTL failed\n");
 
 	ecc_enabled = !!(value & K8_NBCFG_ECC_ENABLE);
+	if (!ecc_enabled)
+		amd64_printk(KERN_WARNING, "This node reports that Memory ECC "
+			     "is currently disabled, set F3x%x[22] (%s).\n",
+			     K8_NBCFG, pci_name(pvt->misc_f3_ctl));
+	else
+		amd64_printk(KERN_INFO, "ECC is enabled by BIOS.\n");
 
-	ret = amd64_mcg_ctl_enabled_on_cpus(cpumask_of_node(pvt->mc_node_id));
+	nb_mce_en = amd64_nb_mce_bank_enabled_on_node(pvt->mc_node_id);
+	if (!nb_mce_en)
+		amd64_printk(KERN_WARNING, "NB MCE bank disabled, set MSR "
+			     "0x%08x[4] on node %d to enable.\n",
+			     MSR_IA32_MCG_CTL, pvt->mc_node_id);
 
-	debugf0("K8_NBCFG=0x%x,  DRAM ECC is %s\n", value,
-			(value & K8_NBCFG_ECC_ENABLE ? "enabled" : "disabled"));
-
-	if (!ecc_enabled || !ret) {
-		if (!ecc_enabled) {
-			amd64_printk(KERN_WARNING, "This node reports that "
-						   "Memory ECC is currently "
-						   "disabled.\n");
-
-			amd64_printk(KERN_WARNING, "bit 0x%lx in register "
-				"F3x%x of the MISC_CONTROL device (%s) "
-				"should be enabled\n", K8_NBCFG_ECC_ENABLE,
-				K8_NBCFG, pci_name(pvt->misc_f3_ctl));
-		}
-		if (!ret) {
-			amd64_printk(KERN_WARNING, "bit 0x%016lx in MSR 0x%08x "
-					"of node %d should be enabled\n",
-					K8_MSR_MCGCTL_NBE, MSR_IA32_MCG_CTL,
-					pvt->mc_node_id);
-		}
+	if (!ecc_enabled || !nb_mce_en) {
 		if (!ecc_enable_override) {
-			amd64_printk(KERN_WARNING, "WARNING: ECC is NOT "
-				"currently enabled by the BIOS. Module "
-				"will NOT be loaded.\n"
-				"    Either Enable ECC in the BIOS, "
-				"or use the 'ecc_enable_override' "
-				"parameter.\n"
-				"    Might be a BIOS bug, if BIOS says "
-				"ECC is enabled\n"
-				"    Use of the override can cause "
-				"unknown side effects.\n");
-			ret = -ENODEV;
-		} else
-			/*
-			 * enable further driver loading if ECC enable is
-			 * overridden.
-			 */
-			ret = 0;
-	} else {
-		amd64_printk(KERN_INFO,
-			"ECC is enabled by BIOS, Proceeding "
-			"with EDAC module initialization\n");
-
-		/* Signal good ECC status */
-		ret = 0;
-
+			amd64_printk(KERN_WARNING, "%s", ecc_warning);
+			return -ENODEV;
+		}
+	} else
 		/* CLEAR the override, since BIOS controlled it */
 		ecc_enable_override = 0;
-	}
 
-	return ret;
+	return 0;
 }
 
 struct mcidev_sysfs_attribute sysfs_attrs[ARRAY_SIZE(amd64_dbg_attrs) +
