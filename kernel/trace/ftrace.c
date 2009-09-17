@@ -1405,7 +1405,7 @@ static int t_hash_show(struct seq_file *m, void *v)
 	if (rec->ops->print)
 		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
 
-	seq_printf(m, "%pf:%pf", (void *)rec->ip, (void *)rec->ops->func);
+	seq_printf(m, "%ps:%ps", (void *)rec->ip, (void *)rec->ops->func);
 
 	if (rec->data)
 		seq_printf(m, ":%p", rec->data);
@@ -1515,7 +1515,7 @@ static int t_show(struct seq_file *m, void *v)
 	if (!rec)
 		return 0;
 
-	seq_printf(m, "%pf\n", (void *)rec->ip);
+	seq_printf(m, "%ps\n", (void *)rec->ip);
 
 	return 0;
 }
@@ -2456,7 +2456,7 @@ static int g_show(struct seq_file *m, void *v)
 		return 0;
 	}
 
-	seq_printf(m, "%pf\n", (void *)*ptr);
+	seq_printf(m, "%ps\n", (void *)*ptr);
 
 	return 0;
 }
