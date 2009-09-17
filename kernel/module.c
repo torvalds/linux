@@ -2237,10 +2237,6 @@ static noinline struct module *load_module(void __user *umod,
 				  sizeof(*mod->ctors), &mod->num_ctors);
 #endif
 
-#ifdef CONFIG_MARKERS
-	mod->markers = section_objs(hdr, sechdrs, secstrings, "__markers",
-				    sizeof(*mod->markers), &mod->num_markers);
-#endif
 #ifdef CONFIG_TRACEPOINTS
 	mod->tracepoints = section_objs(hdr, sechdrs, secstrings,
 					"__tracepoints",
@@ -2956,20 +2952,6 @@ void module_layout(struct module *mod,
 {
 }
 EXPORT_SYMBOL(module_layout);
-#endif
-
-#ifdef CONFIG_MARKERS
-void module_update_markers(void)
-{
-	struct module *mod;
-
-	mutex_lock(&module_mutex);
-	list_for_each_entry(mod, &modules, list)
-		if (!mod->taints)
-			marker_update_probe_range(mod->markers,
-				mod->markers + mod->num_markers);
-	mutex_unlock(&module_mutex);
-}
 #endif
 
 #ifdef CONFIG_TRACEPOINTS

@@ -39,7 +39,6 @@
 #include <linux/pid_namespace.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/marker.h>
 
 #include <asm/io.h>
 #include <asm/mmu_context.h>
