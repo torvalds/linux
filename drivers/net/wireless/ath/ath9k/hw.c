@@ -3700,15 +3700,7 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 #endif
 
-	if ((ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) ||
-	    (ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCIE) ||
-	    (ah->hw_version.macVersion == AR_SREV_VERSION_9160) ||
-	    (ah->hw_version.macVersion == AR_SREV_VERSION_9100) ||
-	    (ah->hw_version.macVersion == AR_SREV_VERSION_9280) ||
-	    (ah->hw_version.macVersion == AR_SREV_VERSION_9285))
-		pCap->hw_caps &= ~ATH9K_HW_CAP_AUTOSLEEP;
-	else
-		pCap->hw_caps |= ATH9K_HW_CAP_AUTOSLEEP;
+	pCap->hw_caps &= ~ATH9K_HW_CAP_AUTOSLEEP;
 
 	if (AR_SREV_9280(ah) || AR_SREV_9285(ah))
 		pCap->hw_caps &= ~ATH9K_HW_CAP_4KB_SPLITTRANS;
