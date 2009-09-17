@@ -2338,6 +2338,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	struct ath9k_channel *curchan = ah->curchan;
 	u32 saveDefAntenna;
 	u32 macStaId1;
+	u64 tsf = 0;
 	int i, rx_chainmask, r;
 
 	ah->extprotspacing = sc->ht_extprotspacing;
@@ -2372,6 +2373,10 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	macStaId1 = REG_READ(ah, AR_STA_ID1) & AR_STA_ID1_BASE_RATE_11B;
 
+	/* For chips on which RTC reset is done, save TSF before it gets cleared */
+	if (AR_SREV_9280(ah) && ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
+		tsf = ath9k_hw_gettsf64(ah);
+
 	saveLedState = REG_READ(ah, AR_CFG_LED) &
 		(AR_CFG_LED_ASSOC_CTL | AR_CFG_LED_MODE_SEL |
 		 AR_CFG_LED_BLINK_THRESH_SEL | AR_CFG_LED_BLINK_SLOW);
@@ -2397,6 +2402,10 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 			  AR9271_GATE_MAC_CTL);
 		udelay(50);
 	}
+
+	/* Restore TSF */
+	if (tsf && AR_SREV_9280(ah) && ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
+		ath9k_hw_settsf64(ah, tsf);
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
 		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
