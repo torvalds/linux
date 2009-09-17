@@ -3494,13 +3494,14 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
  * Generic counter overflow handling, sampling.
  */
 
-int perf_counter_overflow(struct perf_counter *counter, int nmi,
-			  struct perf_sample_data *data)
+static int __perf_counter_overflow(struct perf_counter *counter, int nmi,
+				   int throttle, struct perf_sample_data *data)
 {
 	int events = atomic_read(&counter->event_limit);
-	int throttle = counter->pmu->unthrottle != NULL;
 	struct hw_perf_counter *hwc = &counter->hw;
 	int ret = 0;
+
+	throttle = (throttle && counter->pmu->unthrottle != NULL);
 
 	if (!throttle) {
 		hwc->interrupts++;
@@ -3554,6 +3555,12 @@ int perf_counter_overflow(struct perf_counter *counter, int nmi,
 	return ret;
 }
 
+int perf_counter_overflow(struct perf_counter *counter, int nmi,
+			  struct perf_sample_data *data)
+{
+	return __perf_counter_overflow(counter, nmi, 1, data);
+}
+
 /*
  * Generic software counter infrastructure
  */
@@ -3592,6 +3599,7 @@ static void perf_swcounter_overflow(struct perf_counter *counter,
 				    int nmi, struct perf_sample_data *data)
 {
 	struct hw_perf_counter *hwc = &counter->hw;
+	int throttle = 0;
 	u64 overflow;
 
 	data->period = counter->hw.last_period;
@@ -3601,13 +3609,14 @@ static void perf_swcounter_overflow(struct perf_counter *counter,
 		return;
 
 	for (; overflow; overflow--) {
-		if (perf_counter_overflow(counter, nmi, data)) {
+		if (__perf_counter_overflow(counter, nmi, throttle, data)) {
 			/*
 			 * We inhibit the overflow from happening when
 			 * hwc->interrupts == MAX_INTERRUPTS.
 			 */
 			break;
 		}
+		throttle = 0;
 	}
 }
 
