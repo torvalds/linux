@@ -425,8 +425,11 @@ parse_single_tracepoint_event(char *sys_name,
 	int fd;
 
 	if (flags) {
-		if (!strncmp(flags, "record", strlen(flags)))
+		if (!strncmp(flags, "record", strlen(flags))) {
 			attr->sample_type |= PERF_SAMPLE_RAW;
+			attr->sample_type |= PERF_SAMPLE_TIME;
+			attr->sample_type |= PERF_SAMPLE_CPU;
+		}
 	}
 
 	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", debugfs_path,
