@@ -2546,10 +2546,10 @@ int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
 
 /**
  * pci_set_vga_state - set VGA decode state on device and parents if requested
- * @dev the PCI device
- * @decode - true = enable decoding, false = disable decoding
- * @command_bits PCI_COMMAND_IO and/or PCI_COMMAND_MEMORY
- * @change_bridge - traverse ancestors and change bridges
+ * @dev: the PCI device
+ * @decode: true = enable decoding, false = disable decoding
+ * @command_bits: PCI_COMMAND_IO and/or PCI_COMMAND_MEMORY
+ * @change_bridge: traverse ancestors and change bridges
  */
 int pci_set_vga_state(struct pci_dev *dev, bool decode,
 		      unsigned int command_bits, bool change_bridge)
