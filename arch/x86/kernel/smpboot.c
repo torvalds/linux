@@ -48,6 +48,7 @@
 #include <linux/err.h>
 #include <linux/nmi.h>
 #include <linux/tboot.h>
+#include <linux/stackprotector.h>
 
 #include <asm/acpi.h>
 #include <asm/desc.h>
@@ -323,6 +324,9 @@ notrace static void __cpuinit start_secondary(void *unused)
 
 	/* enable local interrupts */
 	local_irq_enable();
+
+	/* to prevent fake stack check failure in clock setup */
+	boot_init_stack_canary();
 
 	x86_cpuinit.setup_percpu_clockev();
 
