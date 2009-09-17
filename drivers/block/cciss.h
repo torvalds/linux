@@ -30,7 +30,7 @@ struct access_method {
 };
 typedef struct _drive_info_struct
 {
- 	__u32   LunID;	
+	unsigned char LunID[8];
 	int 	usage_count;
 	struct request_queue *queue;
 	sector_t nr_blocks;
