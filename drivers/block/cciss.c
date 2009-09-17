@@ -2134,6 +2134,25 @@ mem_msg:
 	goto freeret;
 }
 
+static void cciss_clear_drive_info(drive_info_struct *drive_info)
+{
+	/* zero out the disk size info */
+	drive_info->nr_blocks = 0;
+	drive_info->block_size = 0;
+	drive_info->heads = 0;
+	drive_info->sectors = 0;
+	drive_info->cylinders = 0;
+	drive_info->raid_level = -1;
+	memset(drive_info->serial_no, 0, sizeof(drive_info->serial_no));
+	memset(drive_info->model, 0, sizeof(drive_info->model));
+	memset(drive_info->rev, 0, sizeof(drive_info->rev));
+	memset(drive_info->vendor, 0, sizeof(drive_info->vendor));
+	/*
+	 * don't clear the LUNID though, we need to remember which
+	 * one this one is.
+	 */
+}
+
 /* This function will deregister the disk and it's queue from the
  * kernel.  It must be called with the controller lock held and the
  * drv structures busy_configuring flag set.  It's parameters are:
@@ -2212,16 +2231,8 @@ static int deregister_disk(ctlr_info_t *h, int drv_index,
 	}
 
 	--h->num_luns;
-	/* zero out the disk size info */
-	drv->nr_blocks = 0;
-	drv->block_size = 0;
-	drv->heads = 0;
-	drv->sectors = 0;
-	drv->cylinders = 0;
-	drv->raid_level = -1;	/* This can be used as a flag variable to
-				 * indicate that this element of the drive
-				 * array is free.
-				 */
+	cciss_clear_drive_info(drv);
+
 	if (clear_all) {
 		/* check to see if it was the last disk */
 		if (drv == h->drv + h->highest_lun) {
