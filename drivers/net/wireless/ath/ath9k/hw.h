@@ -106,7 +106,7 @@
 #define AH_TSF_WRITE_TIMEOUT        100    /* (us) */
 #define AH_TIME_QUANTUM             10
 #define AR_KEYTABLE_SIZE            128
-#define POWER_UP_TIME               200000
+#define POWER_UP_TIME               10000
 #define SPUR_RSSI_THRESH            40
 
 #define CAB_TIMEOUT_VAL             10
