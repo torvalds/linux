@@ -3322,9 +3322,9 @@ module_exit(iwl_exit);
 module_init(iwl_init);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-module_param_named(debug50, iwl_debug_level, uint, 0444);
+module_param_named(debug50, iwl_debug_level, uint, S_IRUGO);
 MODULE_PARM_DESC(debug50, "50XX debug output mask (deprecated)");
-module_param_named(debug, iwl_debug_level, uint, 0644);
+module_param_named(debug, iwl_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 

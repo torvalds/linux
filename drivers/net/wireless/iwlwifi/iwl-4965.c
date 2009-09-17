@@ -2361,21 +2361,22 @@ struct iwl_cfg iwl4965_agn_cfg = {
 /* Module firmware */
 MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE(IWL4965_UCODE_API_MAX));
 
-module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
+module_param_named(antenna, iwl4965_mod_params.antenna, int, S_IRUGO);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
-module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, 0444);
+module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, S_IRUGO);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(
-	disable_hw_scan, iwl4965_mod_params.disable_hw_scan, int, 0444);
+	disable_hw_scan, iwl4965_mod_params.disable_hw_scan, int, S_IRUGO);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
 
-module_param_named(queues_num, iwl4965_mod_params.num_of_queues, int, 0444);
+module_param_named(queues_num, iwl4965_mod_params.num_of_queues, int, S_IRUGO);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
 /* 11n */
-module_param_named(11n_disable, iwl4965_mod_params.disable_11n, int, 0444);
+module_param_named(11n_disable, iwl4965_mod_params.disable_11n, int, S_IRUGO);
 MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
-module_param_named(amsdu_size_8K, iwl4965_mod_params.amsdu_size_8K, int, 0444);
+module_param_named(amsdu_size_8K, iwl4965_mod_params.amsdu_size_8K,
+		   int, S_IRUGO);
 MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
 
-module_param_named(fw_restart4965, iwl4965_mod_params.restart_fw, int, 0444);
+module_param_named(fw_restart4965, iwl4965_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart4965, "restart firmware in case of error");

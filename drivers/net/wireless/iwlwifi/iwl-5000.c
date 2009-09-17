@@ -1752,14 +1752,15 @@ struct iwl_cfg iwl5150_agn_cfg = {
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL5150_MODULE_FIRMWARE(IWL5150_UCODE_API_MAX));
 
-module_param_named(swcrypto50, iwl50_mod_params.sw_crypto, bool, 0444);
+module_param_named(swcrypto50, iwl50_mod_params.sw_crypto, bool, S_IRUGO);
 MODULE_PARM_DESC(swcrypto50,
 		  "using software crypto engine (default 0 [hardware])\n");
-module_param_named(queues_num50, iwl50_mod_params.num_of_queues, int, 0444);
+module_param_named(queues_num50, iwl50_mod_params.num_of_queues, int, S_IRUGO);
 MODULE_PARM_DESC(queues_num50, "number of hw queues in 50xx series");
-module_param_named(11n_disable50, iwl50_mod_params.disable_11n, int, 0444);
+module_param_named(11n_disable50, iwl50_mod_params.disable_11n, int, S_IRUGO);
 MODULE_PARM_DESC(11n_disable50, "disable 50XX 11n functionality");
-module_param_named(amsdu_size_8K50, iwl50_mod_params.amsdu_size_8K, int, 0444);
+module_param_named(amsdu_size_8K50, iwl50_mod_params.amsdu_size_8K,
+		   int, S_IRUGO);
 MODULE_PARM_DESC(amsdu_size_8K50, "enable 8K amsdu size in 50XX series");
-module_param_named(fw_restart50, iwl50_mod_params.restart_fw, int, 0444);
+module_param_named(fw_restart50, iwl50_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart50, "restart firmware in case of error");

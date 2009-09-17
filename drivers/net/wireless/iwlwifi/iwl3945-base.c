@@ -4225,18 +4225,19 @@ static void __exit iwl3945_exit(void)
 
 MODULE_FIRMWARE(IWL3945_MODULE_FIRMWARE(IWL3945_UCODE_API_MAX));
 
-module_param_named(antenna, iwl3945_mod_params.antenna, int, 0444);
+module_param_named(antenna, iwl3945_mod_params.antenna, int, S_IRUGO);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
-module_param_named(swcrypto, iwl3945_mod_params.sw_crypto, int, 0444);
+module_param_named(swcrypto, iwl3945_mod_params.sw_crypto, int, S_IRUGO);
 MODULE_PARM_DESC(swcrypto,
 		 "using software crypto (default 1 [software])\n");
 #ifdef CONFIG_IWLWIFI_DEBUG
-module_param_named(debug, iwl_debug_level, uint, 0644);
+module_param_named(debug, iwl_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
-module_param_named(disable_hw_scan, iwl3945_mod_params.disable_hw_scan, int, 0444);
+module_param_named(disable_hw_scan, iwl3945_mod_params.disable_hw_scan,
+		   int, S_IRUGO);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
-module_param_named(fw_restart3945, iwl3945_mod_params.restart_fw, int, 0444);
+module_param_named(fw_restart3945, iwl3945_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart3945, "restart firmware in case of error");
 
 module_exit(iwl3945_exit);
