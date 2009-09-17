@@ -1793,7 +1793,7 @@ static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 				struct ath9k_channel *chan)
 {
-	if (OLC_FOR_AR9280_20_LATER) {
+	if (AR_SREV_9280(ah) && ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL)) {
 		if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON))
 			return false;
 	} else if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_WARM))
