@@ -609,14 +609,24 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		AR_PHY_CH1_EXT_CCA,
 		AR_PHY_CH2_EXT_CCA
 	};
-	u8 chainmask;
+	u8 chainmask, rx_chain_status;
 
+	rx_chain_status = REG_READ(ah, AR_PHY_RX_CHAINMASK);
 	if (AR_SREV_9285(ah))
 		chainmask = 0x9;
-	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah))
-		chainmask = 0x1B;
-	else
-		chainmask = 0x3F;
+	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah)) {
+		if ((rx_chain_status & 0x2) || (rx_chain_status & 0x4))
+			chainmask = 0x1B;
+		else
+			chainmask = 0x09;
+	} else {
+		if (rx_chain_status & 0x4)
+			chainmask = 0x3F;
+		else if (rx_chain_status & 0x2)
+			chainmask = 0x1B;
+		else
+			chainmask = 0x09;
+	}
 
 	h = ah->nfCalHist;
 
