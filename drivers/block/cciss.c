@@ -1690,6 +1690,8 @@ static int cciss_add_disk(ctlr_info_t *h, struct gendisk *disk,
 				int drv_index)
 {
 	disk->queue = blk_init_queue(do_cciss_request, &h->lock);
+	if (!disk->queue)
+		goto init_queue_failure;
 	sprintf(disk->disk_name, "cciss/c%dd%d", h->ctlr, drv_index);
 	disk->major = h->major;
 	disk->first_minor = drv_index << NWD_SHIFT;
@@ -1730,6 +1732,7 @@ static int cciss_add_disk(ctlr_info_t *h, struct gendisk *disk,
 cleanup_queue:
 	blk_cleanup_queue(disk->queue);
 	disk->queue = NULL;
+init_queue_failure:
 	return -1;
 }
 
