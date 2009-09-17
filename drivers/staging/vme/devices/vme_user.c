@@ -31,7 +31,6 @@
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
