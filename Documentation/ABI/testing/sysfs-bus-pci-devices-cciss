@@ -52,3 +52,10 @@ Kernel Version: 2.6.31
 Contact:	iss_storagedev@hp.com
 Description:	Displays the RAID level of logical drive Y of
 		controller X.
+
+Where:		/sys/bus/pci/devices/<dev>/ccissX/cXdY/usage_count
+Date:		August 2009
+Kernel Version: 2.6.31
+Contact:	iss_storagedev@hp.com
+Description:	Displays the usage count (number of opens) of logical drive Y
+		of controller X.

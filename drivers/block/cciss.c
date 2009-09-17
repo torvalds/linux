@@ -626,6 +626,25 @@ static ssize_t cciss_show_raid_level(struct device *dev,
 }
 DEVICE_ATTR(raid_level, S_IRUGO, cciss_show_raid_level, NULL);
 
+static ssize_t cciss_show_usage_count(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	drive_info_struct *drv = dev_get_drvdata(dev);
+	struct ctlr_info *h = to_hba(drv->dev->parent);
+	unsigned long flags;
+	int count;
+
+	spin_lock_irqsave(CCISS_LOCK(h->ctlr), flags);
+	if (h->busy_configuring) {
+		spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
+		return -EBUSY;
+	}
+	count = drv->usage_count;
+	spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
+	return snprintf(buf, 20, "%d\n", count);
+}
+DEVICE_ATTR(usage_count, S_IRUGO, cciss_show_usage_count, NULL);
+
 static struct attribute *cciss_host_attrs[] = {
 	&dev_attr_rescan.attr,
 	NULL
@@ -653,6 +672,7 @@ static struct attribute *cciss_dev_attrs[] = {
 	&dev_attr_rev.attr,
 	&dev_attr_lunid.attr,
 	&dev_attr_raid_level.attr,
+	&dev_attr_usage_count.attr,
 	NULL
 };
 
