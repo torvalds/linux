@@ -682,6 +682,10 @@ static long cciss_create_ld_sysfs_entry(struct ctlr_info *h,
 {
 	struct device *dev;
 
+	/* Special case for c*d0, we only create it once. */
+	if (drv_index == 0 && h->drv[drv_index].dev != NULL)
+		return 0;
+
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
@@ -698,9 +702,15 @@ static long cciss_create_ld_sysfs_entry(struct ctlr_info *h,
 /*
  * Remove sysfs entries for a logical drive.
  */
-static void cciss_destroy_ld_sysfs_entry(struct ctlr_info *h, int drv_index)
+static void cciss_destroy_ld_sysfs_entry(struct ctlr_info *h, int drv_index,
+	int ctlr_exiting)
 {
 	struct device *dev = h->drv[drv_index].dev;
+
+	/* special case for c*d0, we only destroy it on controller exit */
+	if (drv_index == 0 && !ctlr_exiting)
+		return;
+
 	device_del(dev);
 	put_device(dev); /* the "final" put. */
 	h->drv[drv_index].dev = NULL;
@@ -1920,6 +1930,7 @@ static int cciss_add_gendisk(ctlr_info_t *h, __u32 lunid, int controller_node)
 	drv_index = cciss_find_free_drive_index(h->ctlr, controller_node);
 	if (drv_index == -1)
 		return -1;
+
 	/*Check if the gendisk needs to be allocated */
 	if (!h->gendisk[drv_index]) {
 		h->gendisk[drv_index] =
@@ -2165,7 +2176,7 @@ static int deregister_disk(ctlr_info_t *h, int drv_index,
 	if (h->gendisk[0] != disk) {
 		struct request_queue *q = disk->queue;
 		if (disk->flags & GENHD_FL_UP) {
-			cciss_destroy_ld_sysfs_entry(h, drv_index);
+			cciss_destroy_ld_sysfs_entry(h, drv_index, 0);
 			del_gendisk(disk);
 		}
 		if (q) {
@@ -2211,7 +2222,6 @@ static int deregister_disk(ctlr_info_t *h, int drv_index,
 				 * indicate that this element of the drive
 				 * array is free.
 				 */
-
 	if (clear_all) {
 		/* check to see if it was the last disk */
 		if (drv == h->drv + h->highest_lun) {
@@ -4329,7 +4339,7 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 			struct request_queue *q = disk->queue;
 
 			if (disk->flags & GENHD_FL_UP) {
-				cciss_destroy_ld_sysfs_entry(hba[i], j);
+				cciss_destroy_ld_sysfs_entry(hba[i], j, 1);
 				del_gendisk(disk);
 			}
 			if (q)
