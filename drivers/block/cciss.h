@@ -45,13 +45,14 @@ typedef struct _drive_info_struct
 				   * to prevent it from being opened or it's
 				   * queue from being started.
 				   */
-	struct	device *dev;
+	struct	device dev;
 	__u8 serial_no[16]; /* from inquiry page 0x83,
 			     * not necc. null terminated.
 			     */
 	char vendor[VENDOR_LEN + 1]; /* SCSI vendor string */
 	char model[MODEL_LEN + 1];   /* SCSI model string */
 	char rev[REV_LEN + 1];       /* SCSI revision string */
+	char device_initialized;     /* indicates whether dev is initialized */
 } drive_info_struct;
 
 struct ctlr_info 
@@ -87,7 +88,7 @@ struct ctlr_info
 	BYTE	cciss_read_capacity;
 
 	// information about each logical volume
-	drive_info_struct drv[CISS_MAX_LUN];
+	drive_info_struct *drv[CISS_MAX_LUN];
 
 	struct access_method access;
 
