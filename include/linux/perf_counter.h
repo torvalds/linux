@@ -199,10 +199,14 @@ struct perf_counter_attr {
 				inherit_stat   :  1, /* per task counts       */
 				enable_on_exec :  1, /* next exec enables     */
 				task           :  1, /* trace fork/exit       */
+				watermark      :  1, /* wakeup_watermark      */
 
-				__reserved_1   : 50;
+				__reserved_1   : 49;
 
-	__u32			wakeup_events;	/* wakeup every n events */
+	union {
+		__u32		wakeup_events;	  /* wakeup every n events */
+		__u32		wakeup_watermark; /* bytes before wakeup   */
+	};
 	__u32			__reserved_2;
 
 	__u64			__reserved_3;
@@ -520,6 +524,8 @@ struct perf_mmap_data {
 	atomic_t			lock;		/* concurrent writes */
 	atomic_t			wakeup;		/* needs a wakeup    */
 	atomic_t			lost;		/* nr records lost   */
+
+	long				watermark;	/* wakeup watermark  */
 
 	struct perf_counter_mmap_page   *user_page;
 	void				*data_pages[0];
