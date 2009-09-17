@@ -1125,7 +1125,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 		return;
 	}
 
-	compressed_llb = drm_mm_get_block(compressed_fb, 4096, 4096);
+	compressed_llb = drm_mm_get_block(compressed_llb, 4096, 4096);
 	if (!compressed_llb) {
 		i915_warn_stolen(dev);
 		return;
