@@ -47,6 +47,18 @@ enum led_type {
 	IWL_LED_TRG_RADIO,
 	IWL_LED_TRG_MAX,
 };
+
+/*
+ * LED mode
+ *    IWL_LED_BLINK:    adjust led blink rate based on blink table
+ *    IWL_LED_RF_STATE: turn LED on/off based on RF state
+ *			LED ON  = RF ON
+ *			LED OFF = RF OFF
+ */
+enum iwl_led_mode {
+	IWL_LED_BLINK,
+	IWL_LED_RF_STATE,
+};
 #endif
 
 #ifdef CONFIG_IWLWIFI_LEDS
