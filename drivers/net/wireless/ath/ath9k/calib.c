@@ -936,6 +936,7 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah, bool is_reset)
 		regVal |= (1 << (19 + i));
 		REG_WRITE(ah, 0x7834, regVal);
 		udelay(1);
+		regVal = REG_READ(ah, 0x7834);
 		regVal &= (~(0x1 << (19 + i)));
 		reg_field = MS(REG_READ(ah, 0x7840), AR9285_AN_RXTXBB1_SPARE9);
 		regVal |= (reg_field << (19 + i));
