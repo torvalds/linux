@@ -548,10 +548,13 @@ void r600_vb_ib_put(struct radeon_device *rdev)
 int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 {
 	int r;
-	int ring_size;
+	int ring_size, line_size;
 	int max_size;
 	/* loops of emits 64 + fence emit possible */
-	int dwords_per_loop = 76;
+	int dwords_per_loop = 76, num_loops;
+
+	r = r600_vb_ib_get(rdev);
+	WARN_ON(r);
 
 	/* set_render_target emits 2 extra dwords on rv6xx */
 	if (rdev->family > CHIP_R600 && rdev->family < CHIP_RV770)
@@ -559,14 +562,18 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 
 	/* 8 bpp vs 32 bpp for xfer unit */
 	if (size_bytes & 3)
-		max_size = 8192*8192;
+		line_size = 8192;
 	else
-		max_size = 8192*8192*4;
+		line_size = 8192*4;
 
-	r = r600_vb_ib_get(rdev);
-	WARN_ON(r);
+	max_size = 8192 * line_size;
 
-	ring_size = ((size_bytes + max_size) / max_size) * dwords_per_loop;
+	/* major loops cover the max size transfer */
+	num_loops = ((size_bytes + max_size) / max_size);
+	/* minor loops cover the extra non aligned bits */
+	num_loops += ((size_bytes % line_size) ? 1 : 0);
+	/* calculate number of loops correctly */
+	ring_size = num_loops * dwords_per_loop;
 	/* set default  + shaders */
 	ring_size += 40; /* shaders + def state */
 	ring_size += 3; /* fence emit for VB IB */
