@@ -167,3 +167,23 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.led_compensation = 51,
 };
 
+struct iwl_cfg iwl1000_bg_cfg = {
+	.name = "1000 Series BG",
+	.fw_name_pre = IWL1000_FW_PRE,
+	.ucode_api_max = IWL1000_UCODE_API_MAX,
+	.ucode_api_min = IWL1000_UCODE_API_MIN,
+	.sku = IWL_SKU_G,
+	.ops = &iwl1000_ops,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE,
+	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
+	.mod_params = &iwl50_mod_params,
+	.valid_tx_ant = ANT_A,
+	.valid_rx_ant = ANT_AB,
+	.need_pll_cfg = true,
+	.max_ll_items = OTP_MAX_LL_ITEMS_1000,
+	.shadow_ram_support = false,
+	.ht_greenfield_support = true,
+	.led_compensation = 51,
+};
+
