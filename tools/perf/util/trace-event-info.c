@@ -458,7 +458,7 @@ static void read_proc_kallsyms(void)
 static void read_ftrace_printk(void)
 {
 	unsigned int size, check_size;
-	const char *path;
+	char *path;
 	struct stat st;
 	int ret;
 
@@ -468,14 +468,15 @@ static void read_ftrace_printk(void)
 		/* not found */
 		size = 0;
 		write_or_die(&size, 4);
-		return;
+		goto out;
 	}
 	size = get_size(path);
 	write_or_die(&size, 4);
 	check_size = copy_file(path);
 	if (size != check_size)
 		die("error in size of file '%s'", path);
-
+out:
+	put_tracing_file(path);
 }
 
 static struct tracepoint_path *
