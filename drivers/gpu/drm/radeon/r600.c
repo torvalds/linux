@@ -1537,6 +1537,7 @@ int r600_init(struct radeon_device *rdev)
 	r600_scratch_init(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
+	radeon_get_clock_info(rdev->ddev);
 	r = radeon_clocks_init(rdev);
 	if (r)
 		return r;

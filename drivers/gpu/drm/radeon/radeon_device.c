@@ -386,7 +386,6 @@ int radeon_clocks_init(struct radeon_device *rdev)
 {
 	int r;
 
-	radeon_get_clock_info(rdev->ddev);
 	r = radeon_static_clocks_init(rdev->ddev);
 	if (r) {
 		return r;
@@ -617,7 +616,8 @@ int radeon_device_init(struct radeon_device *rdev,
 				radeon_combios_asic_init(rdev->ddev);
 			}
 		}
-		/* Get vram informations */
+		/* Get clock & vram information */
+		radeon_get_clock_info(rdev->ddev);
 		radeon_vram_info(rdev);
 		/* Initialize clocks */
 		r = radeon_clocks_init(rdev);
