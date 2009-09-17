@@ -28,6 +28,7 @@
 #define NDISKS 16 /* Including P and Q */
 
 static struct page *dataptrs[NDISKS];
+static addr_conv_t addr_conv[NDISKS];
 static struct page *data[NDISKS+3];
 static struct page *spare;
 static struct page *recovi;
@@ -69,7 +70,6 @@ static char disk_type(int d, int disks)
 static void raid6_dual_recov(int disks, size_t bytes, int faila, int failb, struct page **ptrs)
 {
 	struct async_submit_ctl submit;
-	addr_conv_t addr_conv[disks];
 	struct completion cmp;
 	struct dma_async_tx_descriptor *tx = NULL;
 	enum sum_check_flags result = ~0;
@@ -156,7 +156,6 @@ static int test_disks(int i, int j, int disks)
 
 static int test(int disks, int *tests)
 {
-	addr_conv_t addr_conv[disks];
 	struct dma_async_tx_descriptor *tx;
 	struct async_submit_ctl submit;
 	struct completion cmp;
