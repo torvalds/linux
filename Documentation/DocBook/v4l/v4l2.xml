@@ -397,9 +397,8 @@ and discussions on the V4L mailing list.</revremark>
 	  &sub-compat;
   </chapter>
 
-  <appendix id="function_ref">
+  <appendix id="user-func">
   <title>Function Reference</title>
-  <reference id="user-func">
 
     <!-- Keep this alphabetically sorted. -->
 
@@ -454,7 +453,6 @@ and discussions on the V4L mailing list.</revremark>
     &sub-read;
     &sub-select;
     &sub-write;
-  </reference>
   </appendix>
 
   <appendix id="videodev">
