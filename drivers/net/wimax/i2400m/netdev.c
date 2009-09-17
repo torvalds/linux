@@ -74,6 +74,7 @@
  */
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
+#include <linux/ethtool.h>
 #include "i2400m.h"
 
 
@@ -559,6 +560,22 @@ static const struct net_device_ops i2400m_netdev_ops = {
 	.ndo_change_mtu = i2400m_change_mtu,
 };
 
+static void i2400m_get_drvinfo(struct net_device *net_dev,
+			       struct ethtool_drvinfo *info)
+{
+	struct i2400m *i2400m = net_dev_to_i2400m(net_dev);
+
+	strncpy(info->driver, KBUILD_MODNAME, sizeof(info->driver) - 1);
+	strncpy(info->fw_version, i2400m->fw_name, sizeof(info->fw_version) - 1);
+	if (net_dev->dev.parent)
+		strncpy(info->bus_info, dev_name(net_dev->dev.parent),
+			sizeof(info->bus_info) - 1);
+}
+
+static const struct ethtool_ops i2400m_ethtool_ops = {
+	.get_drvinfo = i2400m_get_drvinfo,
+	.get_link = ethtool_op_get_link,
+};
 
 /**
  * i2400m_netdev_setup - Setup setup @net_dev's i2400m private data
@@ -580,6 +597,7 @@ void i2400m_netdev_setup(struct net_device *net_dev)
 		   & ~IFF_MULTICAST);
 	net_dev->watchdog_timeo = I2400M_TX_TIMEOUT;
 	net_dev->netdev_ops = &i2400m_netdev_ops;
+	net_dev->ethtool_ops = &i2400m_ethtool_ops;
 	d_fnend(3, NULL, "(net_dev %p) = void\n", net_dev);
 }
 EXPORT_SYMBOL_GPL(i2400m_netdev_setup);
