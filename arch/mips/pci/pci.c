@@ -31,8 +31,8 @@ unsigned int pci_probe = PCI_ASSIGN_ALL_BUSSES;
 
 static struct pci_controller *hose_head, **hose_tail = &hose_head;
 
-unsigned long PCIBIOS_MIN_IO	= 0x0000;
-unsigned long PCIBIOS_MIN_MEM	= 0;
+unsigned long PCIBIOS_MIN_IO;
+unsigned long PCIBIOS_MIN_MEM;
 
 static int pci_initialized;
 

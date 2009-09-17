@@ -31,7 +31,7 @@
  * The wait instruction stops the pipeline and reduces the power consumption of
  * the CPU very much.
  */
-void (*cpu_wait)(void) = NULL;
+void (*cpu_wait)(void);
 
 static void r3081_wait(void)
 {
@@ -112,7 +112,7 @@ static void au1k_wait(void)
 		: : "r" (au1k_wait));
 }
 
-static int __initdata nowait = 0;
+static int __initdata nowait;
 
 static int __init wait_disable(char *s)
 {
