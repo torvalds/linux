@@ -200,6 +200,7 @@ static int scan_thread(void *data);
 static int check_for_unit_attention(ctlr_info_t *h, CommandList_struct *c);
 static void cciss_hba_release(struct device *dev);
 static void cciss_device_release(struct device *dev);
+static void cciss_free_gendisk(ctlr_info_t *h, int drv_index);
 
 #ifdef CONFIG_PROC_FS
 static void cciss_procinit(int i);
@@ -1856,8 +1857,14 @@ static void cciss_update_drive_info(int ctlr, int drv_index, int first_time)
 	 * (raid_leve == -1) then we want to update the
 	 * logical drive's information.
 	 */
-	if (drv_index || first_time)
-		cciss_add_disk(h, disk, drv_index);
+	if (drv_index || first_time) {
+		if (cciss_add_disk(h, disk, drv_index) != 0) {
+			cciss_free_gendisk(h, drv_index);
+			printk(KERN_WARNING "cciss:%d could not update "
+				"disk %d\n", h->ctlr, drv_index);
+			--h->num_luns;
+		}
+	}
 
 freeret:
 	kfree(inq_buff);
@@ -1889,6 +1896,12 @@ static int cciss_find_free_drive_index(int ctlr, int controller_node)
 		}
 	}
 	return -1;
+}
+
+static void cciss_free_gendisk(ctlr_info_t *h, int drv_index)
+{
+	put_disk(h->gendisk[drv_index]);
+	h->gendisk[drv_index] = NULL;
 }
 
 /* cciss_add_gendisk finds a free hba[]->drv structure
@@ -1931,8 +1944,7 @@ static int cciss_add_gendisk(ctlr_info_t *h, __u32 lunid, int controller_node)
 	return drv_index;
 
 err_free_disk:
-	put_disk(h->gendisk[drv_index]);
-	h->gendisk[drv_index] = NULL;
+	cciss_free_gendisk(h, drv_index);
 	return -1;
 }
 
@@ -1950,11 +1962,8 @@ static void cciss_add_controller_node(ctlr_info_t *h)
 		return;
 
 	drv_index = cciss_add_gendisk(h, 0, 1);
-	if (drv_index == -1) {
-		printk(KERN_WARNING "cciss%d: could not "
-			"add disk 0.\n", h->ctlr);
-		return;
-	}
+	if (drv_index == -1)
+		goto error;
 	h->drv[drv_index].block_size = 512;
 	h->drv[drv_index].nr_blocks = 0;
 	h->drv[drv_index].heads = 0;
@@ -1963,7 +1972,13 @@ static void cciss_add_controller_node(ctlr_info_t *h)
 	h->drv[drv_index].raid_level = -1;
 	memset(h->drv[drv_index].serial_no, 0, 16);
 	disk = h->gendisk[drv_index];
-	cciss_add_disk(h, disk, drv_index);
+	if (cciss_add_disk(h, disk, drv_index) == 0)
+		return;
+	cciss_free_gendisk(h, drv_index);
+error:
+	printk(KERN_WARNING "cciss%d: could not "
+		"add disk 0.\n", h->ctlr);
+	return;
 }
 
 /* This function will add and remove logical drives from the Logical
