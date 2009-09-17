@@ -509,13 +509,14 @@ int ecryptfs_encrypt_page(struct page *page)
 				  + extent_offset), crypt_stat);
 		rc = ecryptfs_write_lower(ecryptfs_inode, enc_extent_virt,
 					  offset, crypt_stat->extent_size);
-		if (rc) {
+		if (rc < 0) {
 			ecryptfs_printk(KERN_ERR, "Error attempting "
 					"to write lower page; rc = [%d]"
 					"\n", rc);
 			goto out;
 		}
 	}
+	rc = 0;
 out:
 	if (enc_extent_page) {
 		kunmap(enc_extent_page);
@@ -631,7 +632,7 @@ int ecryptfs_decrypt_page(struct page *page)
 		rc = ecryptfs_read_lower(enc_extent_virt, offset,
 					 crypt_stat->extent_size,
 					 ecryptfs_inode);
-		if (rc) {
+		if (rc < 0) {
 			ecryptfs_printk(KERN_ERR, "Error attempting "
 					"to read lower page; rc = [%d]"
 					"\n", rc);
@@ -1213,14 +1214,15 @@ int ecryptfs_read_and_validate_header_region(char *data,
 		crypt_stat->extent_size = ECRYPTFS_DEFAULT_EXTENT_SIZE;
 	rc = ecryptfs_read_lower(data, 0, crypt_stat->extent_size,
 				 ecryptfs_inode);
-	if (rc) {
+	if (rc < 0) {
 		printk(KERN_ERR "%s: Error reading header region; rc = [%d]\n",
 		       __func__, rc);
 		goto out;
 	}
 	if (!contains_ecryptfs_marker(data + ECRYPTFS_FILE_SIZE_BYTES)) {
 		rc = -EINVAL;
-	}
+	} else
+		rc = 0;
 out:
 	return rc;
 }
@@ -1315,10 +1317,11 @@ ecryptfs_write_metadata_to_contents(struct dentry *ecryptfs_dentry,
 
 	rc = ecryptfs_write_lower(ecryptfs_dentry->d_inode, virt,
 				  0, virt_len);
-	if (rc)
+	if (rc < 0)
 		printk(KERN_ERR "%s: Error attempting to write header "
-		       "information to lower file; rc = [%d]\n", __func__,
-		       rc);
+		       "information to lower file; rc = [%d]\n", __func__, rc);
+	else
+		rc = 0;
 	return rc;
 }
 
@@ -1598,7 +1601,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 	}
 	rc = ecryptfs_read_lower(page_virt, 0, crypt_stat->extent_size,
 				 ecryptfs_inode);
-	if (!rc)
+	if (rc >= 0)
 		rc = ecryptfs_read_headers_virt(page_virt, crypt_stat,
 						ecryptfs_dentry,
 						ECRYPTFS_VALIDATE_HEADER_SIZE);
