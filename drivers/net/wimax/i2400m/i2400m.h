@@ -117,16 +117,28 @@
  * well as i2400m->wimax_dev.net_dev and call i2400m_setup(). The
  * i2400m driver will only register with the WiMAX and network stacks;
  * the only access done to the device is to read the MAC address so we
- * can register a network device. This calls i2400m_dev_start() to
- * load firmware, setup communication with the device and configure it
- * for operation.
+ * can register a network device.
+ *
+ * The high-level call flow is:
+ *
+ * bus_probe()
+ *   i2400m_setup()
+ *     boot rom initialization / read mac addr
+ *     network / WiMAX stacks registration
+ *     i2400m_dev_start()
+ *       i2400m->bus_dev_start()
+ *       i2400m_dev_initialize()
+ *
+ * The reverse applies for a disconnect() call:
+ *
+ * bus_disconnect()
+ *   i2400m_release()
+ *     i2400m_dev_stop()
+ *       i2400m_dev_shutdown()
+ *       i2400m->bus_dev_stop()
+ *     network / WiMAX stack unregistration
  *
  * At this point, control and data communications are possible.
- *
- * On disconnect/driver unload, the bus-specific disconnect function
- * calls i2400m_release() to undo i2400m_setup(). i2400m_dev_stop()
- * shuts the firmware down and releases resources uses to communicate
- * with the device.
  *
  * While the device is up, it might reset. The bus-specific driver has
  * to catch that situation and call i2400m_dev_reset_handle() to deal
@@ -706,7 +718,7 @@ static inline int i2400m_debugfs_add(struct i2400m *i2400m)
 static inline void i2400m_debugfs_rm(struct i2400m *i2400m) {}
 #endif
 
-/* Called by _dev_start()/_dev_stop() to initialize the device itself */
+/* Initialize/shutdown the device */
 extern int i2400m_dev_initialize(struct i2400m *);
 extern void i2400m_dev_shutdown(struct i2400m *);
 

@@ -754,13 +754,9 @@ EXPORT_SYMBOL_GPL(i2400m_bm_buf_free
  *
  * Returns: 0 if ok, < 0 errno code on error.
  *
- * Initializes the bus-generic parts of the i2400m driver; the
- * bus-specific parts have been initialized, function pointers filled
- * out by the bus-specific probe function.
- *
- * As well, this registers the WiMAX and net device nodes. Once this
- * function returns, the device is operative and has to be ready to
- * receive and send network traffic and WiMAX control operations.
+ * Sets up basic device comunication infrastructure, boots the ROM to
+ * read the MAC address, registers with the WiMAX and network stacks
+ * and then brings up the device.
  */
 int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 {
@@ -796,18 +792,13 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	}
 	netif_carrier_off(net_dev);
 
-	result = i2400m_dev_start(i2400m, bm_flags);
-	if (result < 0)
-		goto error_dev_start;
-
 	i2400m->wimax_dev.op_msg_from_user = i2400m_op_msg_from_user;
 	i2400m->wimax_dev.op_rfkill_sw_toggle = i2400m_op_rfkill_sw_toggle;
 	i2400m->wimax_dev.op_reset = i2400m_op_reset;
+
 	result = wimax_dev_add(&i2400m->wimax_dev, net_dev);
 	if (result < 0)
 		goto error_wimax_dev_add;
-	/* User space needs to do some init stuff */
-	wimax_state_change(wimax_dev, WIMAX_ST_UNINITIALIZED);
 
 	/* Now setup all that requires a registered net and wimax device. */
 	result = sysfs_create_group(&net_dev->dev.kobj, &i2400m_dev_attr_group);
@@ -815,22 +806,27 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 		dev_err(dev, "cannot setup i2400m's sysfs: %d\n", result);
 		goto error_sysfs_setup;
 	}
+
 	result = i2400m_debugfs_add(i2400m);
 	if (result < 0) {
 		dev_err(dev, "cannot setup i2400m's debugfs: %d\n", result);
 		goto error_debugfs_setup;
 	}
+
+	result = i2400m_dev_start(i2400m, bm_flags);
+	if (result < 0)
+		goto error_dev_start;
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
 	return result;
 
+error_dev_start:
+	i2400m_debugfs_rm(i2400m);
 error_debugfs_setup:
 	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
 			   &i2400m_dev_attr_group);
 error_sysfs_setup:
 	wimax_dev_rm(&i2400m->wimax_dev);
 error_wimax_dev_add:
-	i2400m_dev_stop(i2400m);
-error_dev_start:
 	unregister_netdev(net_dev);
 error_register_netdev:
 	unregister_pm_notifier(&i2400m->pm_notifier);
@@ -854,15 +850,15 @@ void i2400m_release(struct i2400m *i2400m)
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	netif_stop_queue(i2400m->wimax_dev.net_dev);
 
+	i2400m_dev_stop(i2400m);
+
 	i2400m_debugfs_rm(i2400m);
 	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
 			   &i2400m_dev_attr_group);
 	wimax_dev_rm(&i2400m->wimax_dev);
-	i2400m_dev_stop(i2400m);
 	unregister_netdev(i2400m->wimax_dev.net_dev);
 	unregister_pm_notifier(&i2400m->pm_notifier);
-	kfree(i2400m->bm_ack_buf);
-	kfree(i2400m->bm_cmd_buf);
+	i2400m_bm_buf_free(i2400m);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
 }
 EXPORT_SYMBOL_GPL(i2400m_release);

@@ -102,11 +102,13 @@ int i2400m_open(struct net_device *net_dev)
 	struct device *dev = i2400m_dev(i2400m);
 
 	d_fnstart(3, dev, "(net_dev %p [i2400m %p])\n", net_dev, i2400m);
-	if (i2400m->ready == 0) {
-		dev_err(dev, "Device is still initializing\n");
-		result = -EBUSY;
-	} else
+	/* Make sure we wait until init is complete... */
+	mutex_lock(&i2400m->init_mutex);
+	if (i2400m->updown)
 		result = 0;
+	else
+		result = -EBUSY;
+	mutex_unlock(&i2400m->init_mutex);
 	d_fnend(3, dev, "(net_dev %p [i2400m %p]) = %d\n",
 		net_dev, i2400m, result);
 	return result;
