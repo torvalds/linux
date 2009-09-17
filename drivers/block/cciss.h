@@ -45,7 +45,7 @@ typedef struct _drive_info_struct
 				   * to prevent it from being opened or it's
 				   * queue from being started.
 				   */
-	struct	device dev;
+	struct	device *dev;
 	__u8 serial_no[16]; /* from inquiry page 0x83,
 			     * not necc. null terminated.
 			     */
