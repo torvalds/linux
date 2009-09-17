@@ -646,8 +646,8 @@ static int wl1271_op_config_interface(struct ieee80211_hw *hw,
 	struct sk_buff *beacon;
 	int ret;
 
-	wl1271_debug(DEBUG_MAC80211, "mac80211 config_interface bssid %s",
-		     printf("%pM", conf->bssid);
+	wl1271_debug(DEBUG_MAC80211, "mac80211 config_interface bssid %pM",
+		     conf->bssid);
 	wl1271_dump_ascii(DEBUG_MAC80211, "ssid: ", conf->ssid,
 			  conf->ssid_len);
 
