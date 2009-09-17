@@ -591,6 +591,18 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	I915_WRITE(PFIT_CONTROL, lvds_priv->pfit_control);
 }
 
+/* Some lid devices report incorrect lid status, assume they're connected */
+static const struct dmi_system_id bad_lid_status[] = {
+	{
+		.ident = "Aspire One",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire one"),
+		},
+	},
+	{ }
+};
+
 /**
  * Detect the LVDS connection.
  *
@@ -602,7 +614,7 @@ static enum drm_connector_status intel_lvds_detect(struct drm_connector *connect
 {
 	enum drm_connector_status status = connector_status_connected;
 
-	if (!acpi_lid_open())
+	if (!acpi_lid_open() && !dmi_check_system(bad_lid_status))
 		status = connector_status_disconnected;
 
 	return status;
