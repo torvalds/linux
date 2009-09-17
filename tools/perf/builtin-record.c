@@ -524,6 +524,7 @@ static int __cmd_record(int argc, const char **argv)
 	pid_t pid = 0;
 	int flags;
 	int ret;
+	unsigned long waking = 0;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -634,9 +635,19 @@ static int __cmd_record(int argc, const char **argv)
 		if (hits == samples) {
 			if (done)
 				break;
-			ret = poll(event_array, nr_poll, 100);
+			ret = poll(event_array, nr_poll, -1);
+			waking++;
+		}
+
+		if (done) {
+			for (i = 0; i < nr_cpu; i++) {
+				for (counter = 0; counter < nr_counters; counter++)
+					ioctl(fd[i][counter], PERF_COUNTER_IOC_DISABLE);
+			}
 		}
 	}
+
+	fprintf(stderr, "[ perf record: Woken up %ld times to write data ]\n", waking);
 
 	/*
 	 * Approximate RIP event size: 24 bytes.
