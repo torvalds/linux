@@ -96,7 +96,8 @@
 				in the missing parameters.</para>
 		</section>
 	</section>
-	<section id="isdbt-new-parms">ISDB-T only parameters
+	<section id="isdbt-new-parms">
+		<title>ISDB-T only parameters</title>
 
 		<section id="isdbt-part-rec">
 			<title><constant>DTV_ISDBT_PARTIAL_RECEPTION</constant></title>
@@ -121,7 +122,7 @@
 				referring to an ISDB-T and an ISDB-Tsb channel. (See also
 				<constant>DTV_ISDBT_PARTIAL_RECEPTION</constant>).</para>
 
-			Possible values: 0, 1, -1 (AUTO)
+			<para>Possible values: 0, 1, -1 (AUTO)</para>
 		</section>
 
 		<section id="isdbt-sb-ch-id">
