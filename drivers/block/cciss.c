@@ -579,6 +579,31 @@ static ssize_t dev_show_rev(struct device *dev,
 }
 DEVICE_ATTR(rev, S_IRUGO, dev_show_rev, NULL);
 
+static ssize_t cciss_show_lunid(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	drive_info_struct *drv = dev_get_drvdata(dev);
+	struct ctlr_info *h = to_hba(drv->dev->parent);
+	unsigned long flags;
+	unsigned char lunid[8];
+
+	spin_lock_irqsave(CCISS_LOCK(h->ctlr), flags);
+	if (h->busy_configuring) {
+		spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
+		return -EBUSY;
+	}
+	if (!drv->heads) {
+		spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
+		return -ENOTTY;
+	}
+	memcpy(lunid, drv->LunID, sizeof(lunid));
+	spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
+	return snprintf(buf, 20, "0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		lunid[0], lunid[1], lunid[2], lunid[3],
+		lunid[4], lunid[5], lunid[6], lunid[7]);
+}
+DEVICE_ATTR(lunid, S_IRUGO, cciss_show_lunid, NULL);
+
 static struct attribute *cciss_host_attrs[] = {
 	&dev_attr_rescan.attr,
 	NULL
@@ -604,6 +629,7 @@ static struct attribute *cciss_dev_attrs[] = {
 	&dev_attr_model.attr,
 	&dev_attr_vendor.attr,
 	&dev_attr_rev.attr,
+	&dev_attr_lunid.attr,
 	NULL
 };
 

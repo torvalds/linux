@@ -38,3 +38,10 @@ Kernel Version:	2.6.31
 Contact:	iss_storagedev@hp.com
 Description:	Kicks of a rescan of the controller to discover logical
 		drive topology changes.
+
+Where:		/sys/bus/pci/devices/<dev>/ccissX/cXdY/lunid
+Date:		August 2009
+Kernel Version: 2.6.31
+Contact:	iss_storagedev@hp.com
+Description:	Displays the 8-byte LUN ID used to address logical
+		drive Y of controller X.
