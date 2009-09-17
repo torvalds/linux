@@ -1005,8 +1005,10 @@ out:
 	ubifs_msg("saved lprops statistics dump");
 	dbg_dump_lstats(&d->saved_lst);
 	ubifs_get_lp_stats(c, &lst);
+
 	ubifs_msg("current lprops statistics dump");
-	dbg_dump_lstats(&d->saved_lst);
+	dbg_dump_lstats(&lst);
+
 	spin_lock(&c->space_lock);
 	dbg_dump_budg(c);
 	spin_unlock(&c->space_lock);
