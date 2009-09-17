@@ -1255,8 +1255,7 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 			 * i_data's format changing.  Force the migrate
 			 * to fail by clearing migrate flags
 			 */
-			EXT4_I(inode)->i_flags = EXT4_I(inode)->i_flags &
-							~EXT4_EXT_MIGRATE;
+			EXT4_I(inode)->i_state &= ~EXT4_STATE_EXT_MIGRATE;
 		}
 	}
 
@@ -4596,8 +4595,7 @@ static int ext4_do_update_inode(handle_t *handle,
 	if (ext4_inode_blocks_set(handle, raw_inode, ei))
 		goto out_brelse;
 	raw_inode->i_dtime = cpu_to_le32(ei->i_dtime);
-	/* clear the migrate flag in the raw_inode */
-	raw_inode->i_flags = cpu_to_le32(ei->i_flags & ~EXT4_EXT_MIGRATE);
+	raw_inode->i_flags = cpu_to_le32(ei->i_flags);
 	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
 	    cpu_to_le32(EXT4_OS_HURD))
 		raw_inode->i_file_acl_high =
