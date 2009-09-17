@@ -2602,8 +2602,6 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 	} else {		/* Get geometry failed */
 		printk(KERN_WARNING "cciss: reading geometry failed\n");
 	}
-	printk(KERN_INFO "      heads=%d, sectors=%d, cylinders=%d\n\n",
-	       drv->heads, drv->sectors, drv->cylinders);
 }
 
 static void
@@ -2637,9 +2635,6 @@ cciss_read_capacity(int ctlr, int logvol, int withirq, sector_t *total_size,
 		*total_size = 0;
 		*block_size = BLOCK_SIZE;
 	}
-	if (*total_size != 0)
-		printk(KERN_INFO "      blocks= %llu block_size= %d\n",
-		(unsigned long long)*total_size+1, *block_size);
 	kfree(buf);
 }
 
