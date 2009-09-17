@@ -697,6 +697,8 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah)
 		noise_floor = AR_PHY_CCA_MAX_AR9280_GOOD_VALUE;
 	else if (AR_SREV_9285(ah))
 		noise_floor = AR_PHY_CCA_MAX_AR9285_GOOD_VALUE;
+	else if (AR_SREV_9287(ah))
+		noise_floor = AR_PHY_CCA_MAX_AR9287_GOOD_VALUE;
 	else
 		noise_floor = AR_PHY_CCA_MAX_AR5416_GOOD_VALUE;
 
