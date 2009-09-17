@@ -32,6 +32,9 @@ extern asmlinkage void *resume(void *last, void *next, void *next_ti);
 
 struct task_struct;
 
+extern unsigned int ll_bit;
+extern struct task_struct *ll_task;
+
 #ifdef CONFIG_MIPS_MT_FPAFF
 
 /*
