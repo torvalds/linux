@@ -38,6 +38,8 @@
 #include <linux/workqueue.h>
 #include <linux/preempt.h>
 
+extern void ram_console_enable_console(int);
+
 struct panic_header {
 	u32 magic;
 #define PANIC_MAGIC 0xdeadf00d
@@ -467,6 +469,8 @@ static int apanic(struct notifier_block *this, unsigned long event,
 			       ctx->mtd->writesize);
 	if (!threads_offset)
 		threads_offset = ctx->mtd->writesize;
+
+	ram_console_enable_console(0);
 
 	log_buf_clear();
 	show_state_filter(0);
