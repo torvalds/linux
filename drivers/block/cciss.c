@@ -3893,15 +3893,16 @@ Enomem:
 	return -1;
 }
 
-static void free_hba(int i)
+static void free_hba(int n)
 {
-	ctlr_info_t *p = hba[i];
-	int n;
+	ctlr_info_t *h = hba[n];
+	int i;
 
-	hba[i] = NULL;
-	for (n = 0; n < CISS_MAX_LUN; n++)
-		put_disk(p->gendisk[n]);
-	kfree(p);
+	hba[n] = NULL;
+	for (i = 0; i < h->highest_lun + 1; i++)
+		if (h->gendisk[i] != NULL)
+			put_disk(h->gendisk[i]);
+	kfree(h);
 }
 
 /* Send a message CDB to the firmware. */
