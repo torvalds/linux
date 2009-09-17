@@ -620,6 +620,87 @@ int i2400m_pm_notifier(struct notifier_block *notifier,
 
 
 /*
+ * pre-reset is called before a device is going on reset
+ *
+ * This has to be followed by a call to i2400m_post_reset(), otherwise
+ * bad things might happen.
+ */
+int i2400m_pre_reset(struct i2400m *i2400m)
+{
+	int result;
+	struct device *dev = i2400m_dev(i2400m);
+
+	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
+	d_printf(1, dev, "pre-reset shut down\n");
+
+	result = 0;
+	mutex_lock(&i2400m->init_mutex);
+	if (i2400m->updown) {
+		netif_tx_disable(i2400m->wimax_dev.net_dev);
+		__i2400m_dev_stop(i2400m);
+		result = 0;
+		/* down't set updown to zero -- this way
+		 * post_reset can restore properly */
+	}
+	mutex_unlock(&i2400m->init_mutex);
+	if (i2400m->bus_release)
+		i2400m->bus_release(i2400m);
+	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
+	return result;
+}
+EXPORT_SYMBOL_GPL(i2400m_pre_reset);
+
+
+/*
+ * Restore device state after a reset
+ *
+ * Do the work needed after a device reset to bring it up to the same
+ * state as it was before the reset.
+ *
+ * NOTE: this requires i2400m->init_mutex taken
+ */
+int i2400m_post_reset(struct i2400m *i2400m)
+{
+	int result = 0;
+	struct device *dev = i2400m_dev(i2400m);
+
+	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
+	d_printf(1, dev, "post-reset start\n");
+	if (i2400m->bus_setup) {
+		result = i2400m->bus_setup(i2400m);
+		if (result < 0) {
+			dev_err(dev, "bus-specific setup failed: %d\n",
+				result);
+			goto error_bus_setup;
+		}
+	}
+	mutex_lock(&i2400m->init_mutex);
+	if (i2400m->updown) {
+		result = __i2400m_dev_start(
+			i2400m, I2400M_BRI_SOFT | I2400M_BRI_MAC_REINIT);
+		if (result < 0)
+			goto error_dev_start;
+	}
+	mutex_unlock(&i2400m->init_mutex);
+	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
+	return result;
+
+error_dev_start:
+	if (i2400m->bus_release)
+		i2400m->bus_release(i2400m);
+error_bus_setup:
+	/* even if the device was up, it could not be recovered, so we
+	 * mark it as down. */
+	i2400m->updown = 0;
+	wmb();		/* see i2400m->updown's documentation  */
+	mutex_unlock(&i2400m->init_mutex);
+	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
+	return result;
+}
+EXPORT_SYMBOL_GPL(i2400m_post_reset);
+
+
+/*
  * The device has rebooted; fix up the device and the driver
  *
  * Tear down the driver communication with the device, reload the

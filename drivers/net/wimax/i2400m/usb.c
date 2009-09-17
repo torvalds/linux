@@ -637,6 +637,37 @@ int i2400mu_reset_resume(struct usb_interface *iface)
 }
 
 
+/*
+ * Another driver or user space is triggering a reset on the device
+ * which contains the interface passed as an argument. Cease IO and
+ * save any device state you need to restore.
+ *
+ * If you need to allocate memory here, use GFP_NOIO or GFP_ATOMIC, if
+ * you are in atomic context.
+ */
+static
+int i2400mu_pre_reset(struct usb_interface *iface)
+{
+	struct i2400mu *i2400mu = usb_get_intfdata(iface);
+	return i2400m_pre_reset(&i2400mu->i2400m);
+}
+
+
+/*
+ * The reset has completed.  Restore any saved device state and begin
+ * using the device again.
+ *
+ * If you need to allocate memory here, use GFP_NOIO or GFP_ATOMIC, if
+ * you are in atomic context.
+ */
+static
+int i2400mu_post_reset(struct usb_interface *iface)
+{
+	struct i2400mu *i2400mu = usb_get_intfdata(iface);
+	return i2400m_post_reset(&i2400mu->i2400m);
+}
+
+
 static
 struct usb_device_id i2400mu_id_table[] = {
 	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050) },
@@ -660,6 +691,8 @@ struct usb_driver i2400mu_driver = {
 	.reset_resume = i2400mu_reset_resume,
 	.probe = i2400mu_probe,
 	.disconnect = i2400mu_disconnect,
+	.pre_reset = i2400mu_pre_reset,
+	.post_reset = i2400mu_post_reset,
 	.id_table = i2400mu_id_table,
 	.supports_autosuspend = 1,
 };

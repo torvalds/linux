@@ -817,6 +817,8 @@ void i2400m_put(struct i2400m *i2400m)
 }
 
 extern int i2400m_dev_reset_handle(struct i2400m *, const char *);
+extern int i2400m_pre_reset(struct i2400m *);
+extern int i2400m_post_reset(struct i2400m *);
 
 /*
  * _setup()/_release() are called by the probe/disconnect functions of
