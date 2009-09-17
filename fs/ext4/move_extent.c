@@ -1040,12 +1040,12 @@ mext_check_arguments(struct inode *orig_inode,
 		return -EINVAL;
 	}
 
-	if ((orig_start > MAX_DEFRAG_SIZE) ||
-	    (donor_start > MAX_DEFRAG_SIZE) ||
-	    (*len > MAX_DEFRAG_SIZE) ||
-	    (orig_start + *len > MAX_DEFRAG_SIZE))  {
-		ext4_debug("ext4 move extent: Can't handle over [%lu] blocks "
-			"[ino:orig %lu, donor %lu]\n", MAX_DEFRAG_SIZE,
+	if ((orig_start > EXT_MAX_BLOCK) ||
+	    (donor_start > EXT_MAX_BLOCK) ||
+	    (*len > EXT_MAX_BLOCK) ||
+	    (orig_start + *len > EXT_MAX_BLOCK))  {
+		ext4_debug("ext4 move extent: Can't handle over [%u] blocks "
+			"[ino:orig %lu, donor %lu]\n", EXT_MAX_BLOCK,
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
 	}

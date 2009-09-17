@@ -476,7 +476,6 @@ struct move_extent {
 	__u64 len;		/* block length to be moved */
 	__u64 moved_len;	/* moved block length */
 };
-#define MAX_DEFRAG_SIZE         ((1UL<<31) - 1)
 
 #define EXT4_EPOCH_BITS 2
 #define EXT4_EPOCH_MASK ((1 << EXT4_EPOCH_BITS) - 1)
