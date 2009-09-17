@@ -255,8 +255,6 @@ static inline void removeQ(CommandList_struct *c)
 
 #include "cciss_scsi.c"		/* For SCSI tape support */
 
-#define RAID_UNKNOWN 6
-
 #ifdef CONFIG_PROC_FS
 
 /*
@@ -268,6 +266,7 @@ static inline void removeQ(CommandList_struct *c)
 static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
 	"UNKNOWN"
 };
+#define RAID_UNKNOWN (sizeof(raid_label) / sizeof(raid_label[0])-1)
 
 static struct proc_dir_entry *proc_cciss;
 
@@ -341,7 +340,7 @@ static int cciss_seq_show(struct seq_file *seq, void *v)
 	vol_sz_frac *= 100;
 	sector_div(vol_sz_frac, ENG_GIG_FACTOR);
 
-	if (drv->raid_level > 5)
+	if (drv->raid_level < 0 || drv->raid_level > RAID_UNKNOWN)
 		drv->raid_level = RAID_UNKNOWN;
 	seq_printf(seq, "cciss/c%dd%d:"
 			"\t%4u.%02uGB\tRAID %s\n",
