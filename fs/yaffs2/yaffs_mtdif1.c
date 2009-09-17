@@ -102,8 +102,6 @@ int nandmtd1_WriteChunkWithTagsToNAND(yaffs_Device *dev,
 	compile_time_assertion(sizeof(yaffs_PackedTags1) == 12);
 	compile_time_assertion(sizeof(yaffs_Tags) == 8);
 
-	dev->nPageWrites++;
-
 	yaffs_PackTags1(&pt1, etags);
 	yaffs_CalcTagsECC((yaffs_Tags *)&pt1);
 
@@ -179,8 +177,6 @@ int nandmtd1_ReadChunkWithTagsFromNAND(yaffs_Device *dev,
 	yaffs_PackedTags1 pt1;
 	int retval;
 	int deleted;
-
-	dev->nPageReads++;
 
 	memset(&ops, 0, sizeof(ops));
 	ops.mode = MTD_OOB_AUTO;

@@ -170,7 +170,6 @@ static int yaffs_WriteChunkToNAND(struct yaffs_DeviceStruct *dev,
 		return YAFFS_FAIL;
 	}
 
-	dev->nPageWrites++;
 	return dev->writeChunkToNAND(dev, chunkInNAND, data, spare);
 }
 
@@ -183,8 +182,6 @@ static int yaffs_ReadChunkFromNAND(struct yaffs_DeviceStruct *dev,
 {
 	int retVal;
 	yaffs_Spare localSpare;
-
-	dev->nPageReads++;
 
 	if (!spare && data) {
 		/* If we don't have a real spare, then we use a local one. */
