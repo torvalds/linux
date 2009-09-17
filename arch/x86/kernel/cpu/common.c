@@ -18,8 +18,8 @@
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
-#include <asm/topology.h>
-#include <asm/cpumask.h>
+#include <linux/topology.h>
+#include <linux/cpumask.h>
 #include <asm/pgtable.h>
 #include <asm/atomic.h>
 #include <asm/proto.h>
@@ -28,13 +28,13 @@
 #include <asm/desc.h>
 #include <asm/i387.h>
 #include <asm/mtrr.h>
-#include <asm/numa.h>
+#include <linux/numa.h>
 #include <asm/asm.h>
 #include <asm/cpu.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/pat.h>
-#include <asm/smp.h>
+#include <linux/smp.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/uv/uv.h>
@@ -982,7 +982,7 @@ static __init int setup_disablecpuid(char *arg)
 __setup("clearcpuid=", setup_disablecpuid);
 
 #ifdef CONFIG_X86_64
-struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
+struct desc_ptr idt_descr = { NR_VECTORS * 16 - 1, (unsigned long) idt_table };
 
 DEFINE_PER_CPU_FIRST(union irq_stack_union,
 		     irq_stack_union) __aligned(PAGE_SIZE);

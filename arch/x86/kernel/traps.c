@@ -76,7 +76,7 @@ char ignore_fpu_irq;
  * F0 0F bug workaround.. We have a special link segment
  * for this.
  */
-gate_desc idt_table[256]
+gate_desc idt_table[NR_VECTORS]
 	__attribute__((__section__(".data.idt"))) = { { { { 0, 0 } } }, };
 #endif
 
