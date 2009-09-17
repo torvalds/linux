@@ -1347,7 +1347,7 @@ process_sched_wakeup_event(struct raw_event_sample *raw,
  * Track the current task - that way we can know whether there's any
  * weird events, such as a task being switched away that is not current.
  */
-static int max_cpu = 15;
+static int max_cpu;
 
 static u32 curr_pid[MAX_CPUS] = { [0 ... MAX_CPUS-1] = -1 };
 
@@ -1818,6 +1818,8 @@ static struct trace_sched_handler map_ops  = {
 
 static void __cmd_map(void)
 {
+	max_cpu = sysconf(_SC_NPROCESSORS_CONF);
+
 	setup_pager();
 	read_events();
 	print_bad_events();
