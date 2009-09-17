@@ -251,3 +251,14 @@ config BACKLIGHT_ADX
 	help
 	  Say Y to enable the backlight driver on Avionic Design Xanthos-based
 	  boards.
+
+config BACKLIGHT_ADP5520
+	tristate "Backlight Driver for ADP5520/ADP5501 using WLED"
+	depends on BACKLIGHT_CLASS_DEVICE && PMIC_ADP5520
+	help
+	  If you have a LCD backlight connected to the BST/BL_SNK output of
+	  ADP5520 or ADP5501, say Y here to enable this driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adp5520_bl.
+

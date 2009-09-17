@@ -27,3 +27,5 @@ obj-$(CONFIG_BACKLIGHT_TOSA)	+= tosa_bl.o
 obj-$(CONFIG_BACKLIGHT_SAHARA)	+= kb3886_bl.o
 obj-$(CONFIG_BACKLIGHT_WM831X)	+= wm831x_bl.o
 obj-$(CONFIG_BACKLIGHT_ADX)    += adx_bl.o
+obj-$(CONFIG_BACKLIGHT_ADP5520)	+= adp5520_bl.o
+
