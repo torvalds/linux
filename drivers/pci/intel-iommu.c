@@ -735,7 +735,7 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 				return NULL;
 
 			domain_flush_cache(domain, tmp_page, VTD_PAGE_SIZE);
-			pteval = (virt_to_dma_pfn(tmp_page) << VTD_PAGE_SHIFT) | DMA_PTE_READ | DMA_PTE_WRITE;
+			pteval = ((uint64_t)virt_to_dma_pfn(tmp_page) << VTD_PAGE_SHIFT) | DMA_PTE_READ | DMA_PTE_WRITE;
 			if (cmpxchg64(&pte->val, 0ULL, pteval)) {
 				/* Someone else set it while we were thinking; use theirs. */
 				free_pgtable_page(tmp_page);
@@ -2648,10 +2648,9 @@ static void flush_unmaps(void)
 			unsigned long mask;
 			struct iova *iova = deferred_flush[i].iova[j];
 
-			mask = (iova->pfn_hi - iova->pfn_lo + 1) << PAGE_SHIFT;
-			mask = ilog2(mask >> VTD_PAGE_SHIFT);
+			mask = ilog2(mm_to_dma_pfn(iova->pfn_hi - iova->pfn_lo + 1));
 			iommu_flush_dev_iotlb(deferred_flush[i].domain[j],
-					iova->pfn_lo << PAGE_SHIFT, mask);
+					(uint64_t)iova->pfn_lo << PAGE_SHIFT, mask);
 			__free_iova(&deferred_flush[i].domain[j]->iovad, iova);
 		}
 		deferred_flush[i].next = 0;
