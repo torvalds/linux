@@ -362,6 +362,7 @@ struct <link linkend="v4l2-pix-format">v4l2_pix_format</link> {
 #define <link linkend="V4L2-PIX-FMT-PJPG">V4L2_PIX_FMT_PJPG</link>     v4l2_fourcc('P', 'J', 'P', 'G') /* Pixart 73xx JPEG */
 #define <link linkend="V4L2-PIX-FMT-OV511">V4L2_PIX_FMT_OV511</link>    v4l2_fourcc('O', '5', '1', '1') /* ov511 JPEG */
 #define <link linkend="V4L2-PIX-FMT-OV518">V4L2_PIX_FMT_OV518</link>    v4l2_fourcc('O', '5', '1', '8') /* ov518 JPEG */
+#define <link linkend="V4L2-PIX-FMT-TM6000">V4L2_PIX_FMT_TM6000</link>   v4l2_fourcc('T', 'M', '6', '0') /* tm5600/tm60x0 */
 
 /*
  *      F O R M A T   E N U M E R A T I O N

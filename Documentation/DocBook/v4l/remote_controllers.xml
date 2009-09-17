@@ -2,12 +2,12 @@
 <section id="Remote_controllers_Intro">
 <title>Introduction</title>
 
-<para>Currently, most analog and digital devices have a Infrared input for remote controllers. Each 
-manufacturer has their own type of control. It is not rare for the same manufacturer to ship different 
+<para>Currently, most analog and digital devices have a Infrared input for remote controllers. Each
+manufacturer has their own type of control. It is not rare for the same manufacturer to ship different
 types of controls, depending on the device.</para>
 <para>Unfortunately, for several years, there was no effort to create uniform IR keycodes for
 different devices.  This caused the same IR keyname to be mapped completely differently on
-different IR devices. This resulted that the same IR keyname to be mapped completely different on 
+different IR devices. This resulted that the same IR keyname to be mapped completely different on
 different IR's. Due to that, V4L2 API now specifies a standard for mapping Media keys on IR.</para>
 <para>This standard should be used by both V4L/DVB drivers and userspace applications</para>
 <para>The modules register the remote as keyboard within the linux input layer. This means that the IR key strokes will look like normal keyboard key strokes (if CONFIG_INPUT_KEYBOARD is enabled). Using the event devices (CONFIG_INPUT_EVDEV) it is possible for applications to access the remote via /dev/input/event devices.</para>
