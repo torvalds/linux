@@ -521,30 +521,35 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.name = "LDO_E",
 		.id   = AB3100_LDO_E,
 		.ops  = &regulator_ops_variable_sleepable,
+		.n_voltages = ARRAY_SIZE(ldo_e_buck_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
 	},
 	{
 		.name = "LDO_F",
 		.id   = AB3100_LDO_F,
 		.ops  = &regulator_ops_variable,
+		.n_voltages = ARRAY_SIZE(ldo_f_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
 	},
 	{
 		.name = "LDO_G",
 		.id   = AB3100_LDO_G,
 		.ops  = &regulator_ops_variable,
+		.n_voltages = ARRAY_SIZE(ldo_g_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
 	},
 	{
 		.name = "LDO_H",
 		.id   = AB3100_LDO_H,
 		.ops  = &regulator_ops_variable,
+		.n_voltages = ARRAY_SIZE(ldo_h_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
 	},
 	{
 		.name = "LDO_K",
 		.id   = AB3100_LDO_K,
 		.ops  = &regulator_ops_variable,
+		.n_voltages = ARRAY_SIZE(ldo_k_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
 	},
 	{
@@ -557,6 +562,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.name = "BUCK",
 		.id   = AB3100_BUCK,
 		.ops  = &regulator_ops_variable_sleepable,
+		.n_voltages = ARRAY_SIZE(ldo_e_buck_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
 	},
 };
