@@ -30,6 +30,14 @@
 <revhistory>
 <!-- Put document revisions here, newest first. -->
 <revision>
+<revnumber>2.0.1</revnumber>
+<date>2009-09-16</date>
+<authorinitials>mcc</authorinitials>
+<revremark>
+Added ISDB-T test originally written by Patrick Boettcher
+</revremark>
+</revision>
+<revision>
 <revnumber>2.0.0</revnumber>
 <date>2009-09-06</date>
 <authorinitials>mcc</authorinitials>
