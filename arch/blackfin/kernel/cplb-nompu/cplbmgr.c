@@ -48,36 +48,13 @@ int nr_cplb_flush[NR_CPUS], nr_dcplb_prot[NR_CPUS];
 #define MGR_ATTR
 #endif
 
-/*
- * We're in an exception handler.  The normal cli nop nop workaround
- * isn't going to do very much, as the only thing that can interrupt
- * us is an NMI, and the cli isn't going to stop that.
- */
-#define NOWA_SSYNC __asm__ __volatile__ ("ssync;")
-
-/* Anomaly handlers provide SSYNCs, so avoid extra if anomaly is present */
-#if ANOMALY_05000125
-
-#define bfin_write_DMEM_CONTROL_SSYNC(v)    bfin_write_DMEM_CONTROL(v)
-#define bfin_write_IMEM_CONTROL_SSYNC(v)    bfin_write_IMEM_CONTROL(v)
-
-#else
-
-#define bfin_write_DMEM_CONTROL_SSYNC(v) \
-    do { NOWA_SSYNC; bfin_write_DMEM_CONTROL(v); NOWA_SSYNC; } while (0)
-#define bfin_write_IMEM_CONTROL_SSYNC(v) \
-    do { NOWA_SSYNC; bfin_write_IMEM_CONTROL(v); NOWA_SSYNC; } while (0)
-
-#endif
-
 static inline void write_dcplb_data(int cpu, int idx, unsigned long data,
 				    unsigned long addr)
 {
-	unsigned long ctrl = bfin_read_DMEM_CONTROL();
-	bfin_write_DMEM_CONTROL_SSYNC(ctrl & ~ENDCPLB);
+	_disable_dcplb();
 	bfin_write32(DCPLB_DATA0 + idx * 4, data);
 	bfin_write32(DCPLB_ADDR0 + idx * 4, addr);
-	bfin_write_DMEM_CONTROL_SSYNC(ctrl);
+	_enable_dcplb();
 
 #ifdef CONFIG_CPLB_INFO
 	dcplb_tbl[cpu][idx].addr = addr;
@@ -88,12 +65,10 @@ static inline void write_dcplb_data(int cpu, int idx, unsigned long data,
 static inline void write_icplb_data(int cpu, int idx, unsigned long data,
 				    unsigned long addr)
 {
-	unsigned long ctrl = bfin_read_IMEM_CONTROL();
-
-	bfin_write_IMEM_CONTROL_SSYNC(ctrl & ~ENICPLB);
+	_disable_icplb();
 	bfin_write32(ICPLB_DATA0 + idx * 4, data);
 	bfin_write32(ICPLB_ADDR0 + idx * 4, addr);
-	bfin_write_IMEM_CONTROL_SSYNC(ctrl);
+	_enable_icplb();
 
 #ifdef CONFIG_CPLB_INFO
 	icplb_tbl[cpu][idx].addr = addr;
@@ -227,7 +202,7 @@ MGR_ATTR static int dcplb_miss(int cpu)
 MGR_ATTR int cplb_hdr(int seqstat, struct pt_regs *regs)
 {
 	int cause = seqstat & 0x3f;
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu = raw_smp_processor_id();
 	switch (cause) {
 	case VEC_CPLB_I_M:
 		return icplb_miss(cpu);

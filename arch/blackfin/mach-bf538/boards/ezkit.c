@@ -31,6 +31,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
@@ -177,6 +178,14 @@ static struct platform_device bfin_sir2_device = {
  *  Driver needs to know address, irq and flag pin.
  */
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
+#include <linux/smc91x.h>
+
+static struct smc91x_platdata smc91x_info = {
+	.flags = SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda = RPC_LED_100_10,
+	.ledb = RPC_LED_TX_RX,
+};
+
 static struct resource smc91x_resources[] = {
 	{
 		.name = "smc91x-regs",
@@ -194,6 +203,9 @@ static struct platform_device smc91x_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(smc91x_resources),
 	.resource = smc91x_resources,
+	.dev	= {
+		.platform_data	= &smc91x_info,
+	},
 };
 #endif
 
@@ -390,6 +402,11 @@ static struct resource bfin_spi2_resource[] = {
 	[1] = {
 		.start = CH_SPI2,
 		.end   = CH_SPI2,
+		.flags = IORESOURCE_DMA,
+	},
+	[2] = {
+		.start = IRQ_SPI2,
+		.end   = IRQ_SPI2,
 		.flags = IORESOURCE_IRQ,
 	}
 };
@@ -550,6 +567,50 @@ static struct platform_device bfin_dpmc = {
 	},
 };
 
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+static struct mtd_partition ezkit_partitions[] = {
+	{
+		.name       = "bootloader(nor)",
+		.size       = 0x40000,
+		.offset     = 0,
+	}, {
+		.name       = "linux kernel(nor)",
+		.size       = 0x180000,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "file system(nor)",
+		.size       = MTDPART_SIZ_FULL,
+		.offset     = MTDPART_OFS_APPEND,
+	}
+};
+
+static struct physmap_flash_data ezkit_flash_data = {
+	.width      = 2,
+	.parts      = ezkit_partitions,
+	.nr_parts   = ARRAY_SIZE(ezkit_partitions),
+};
+
+static struct resource ezkit_flash_resource = {
+	.start = 0x20000000,
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
+	.end   = 0x202fffff,
+#else
+	.end   = 0x203fffff,
+#endif
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device ezkit_flash_device = {
+	.name          = "physmap-flash",
+	.id            = 0,
+	.dev = {
+		.platform_data = &ezkit_flash_data,
+	},
+	.num_resources = 1,
+	.resource      = &ezkit_flash_resource,
+};
+#endif
+
 static struct platform_device *cm_bf538_devices[] __initdata = {
 
 	&bfin_dpmc,
@@ -598,6 +659,10 @@ static struct platform_device *cm_bf538_devices[] __initdata = {
 #endif
 
 	&bfin_gpios_device,
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+	&ezkit_flash_device,
+#endif
 };
 
 static int __init ezkit_init(void)

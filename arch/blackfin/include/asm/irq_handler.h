@@ -17,6 +17,7 @@ asmlinkage void evt_evt10(void);
 asmlinkage void evt_evt11(void);
 asmlinkage void evt_evt12(void);
 asmlinkage void evt_evt13(void);
+asmlinkage void evt_evt14(void);
 asmlinkage void evt_soft_int1(void);
 asmlinkage void evt_system_call(void);
 asmlinkage void init_exception_buff(void);

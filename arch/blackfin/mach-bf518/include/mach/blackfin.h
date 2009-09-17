@@ -68,11 +68,6 @@
 #endif
 #endif
 
-/* UART_IIR Register */
-#define STATUS(x)	((x << 1) & 0x06)
-#define STATUS_P1	0x02
-#define STATUS_P0	0x01
-
 #define BFIN_UART_NR_PORTS	2
 
 #define OFFSET_THR              0x00	/* Transmit Holding register            */
@@ -87,11 +82,6 @@
 #define OFFSET_MSR              0x18	/* Modem Status Register                */
 #define OFFSET_SCR              0x1C	/* SCR Scratch Register                 */
 #define OFFSET_GCTL             0x24	/* Global Control Register              */
-
-/* DPMC*/
-#define bfin_read_STOPCK_OFF() bfin_read_STOPCK()
-#define bfin_write_STOPCK_OFF(val) bfin_write_STOPCK(val)
-#define STOPCK_OFF STOPCK
 
 /* PLL_DIV Masks													*/
 #define CCLK_DIV1 CSEL_DIV1	/*          CCLK = VCO / 1                                  */

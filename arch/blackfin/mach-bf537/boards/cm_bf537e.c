@@ -1,6 +1,6 @@
 /*
- * File:         arch/blackfin/mach-bf537/boards/tcm_bf537.c
- * Based on:     arch/blackfin/mach-bf533/boards/cm_bf537.c
+ * File:         arch/blackfin/mach-bf537/boards/cm_bf537.c
+ * Based on:     arch/blackfin/mach-bf533/boards/ezkit.c
  * Author:       Aidan Williams <aidan@nicta.com.au>
  *
  * Created:      2005
@@ -45,12 +45,11 @@
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>
 #include <asm/dpmc.h>
-#include <linux/spi/mmc_spi.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "Bluetechnix TCM BF537";
+const char bfin_board_name[] = "Bluetechnix CM BF537E";
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI peripherals info goes here */
@@ -103,7 +102,7 @@ static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 #endif
 
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
-static struct bfin5xx_spi_chip mmc_spi_chip_info = {
+static struct bfin5xx_spi_chip  mmc_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 8,
 };
@@ -147,7 +146,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 	{
 		.modalias = "mmc_spi",
-		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
+		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 1,
 		.controller_data = &mmc_spi_chip_info,
@@ -172,7 +171,7 @@ static struct resource bfin_spi0_resource[] = {
 		.start = IRQ_SPI,
 		.end   = IRQ_SPI,
 		.flags = IORESOURCE_IRQ,
-	}
+	},
 };
 
 /* SPI controller data */
@@ -334,7 +333,7 @@ static struct physmap_flash_data cm_flash_data = {
 	.nr_parts = ARRAY_SIZE(cm_partitions),
 };
 
-static unsigned cm_flash_gpios[] = { GPIO_PF4, GPIO_PF5 };
+static unsigned cm_flash_gpios[] = { GPIO_PF4 };
 
 static struct resource cm_flash_resource[] = {
 	{
@@ -361,24 +360,114 @@ static struct platform_device cm_flash_device = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-static struct resource bfin_uart_resources[] = {
+#ifdef CONFIG_SERIAL_BFIN_UART0
+static struct resource bfin_uart0_resources[] = {
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
-	}, {
+	},
+	{
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_UART0_ERROR,
+		.end = IRQ_UART0_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_TX,
+		.end = CH_UART0_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX,
+		.flags = IORESOURCE_DMA,
+	},
+#ifdef CONFIG_BFIN_UART0_CTSRTS
+	{
+		/*
+		 * Refer to arch/blackfin/mach-xxx/include/mach/gpio.h for the GPIO map.
+		 */
+		.start = -1,
+		.end = -1,
+		.flags = IORESOURCE_IO,
+	},
+	{
+		/*
+		 * Refer to arch/blackfin/mach-xxx/include/mach/gpio.h for the GPIO map.
+		 */
+		.start = -1,
+		.end = -1,
+		.flags = IORESOURCE_IO,
+	},
+#endif
+};
+
+static struct platform_device bfin_uart0_device = {
+	.name = "bfin-uart",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_uart0_resources),
+	.resource = bfin_uart0_resources,
+};
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+static struct resource bfin_uart1_resources[] = {
+	{
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART1_RX,
+		.end = IRQ_UART1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_UART1_ERROR,
+		.end = IRQ_UART1_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART1_TX,
+		.end = CH_UART1_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART1_RX,
+		.end = CH_UART1_RX,
+		.flags = IORESOURCE_DMA,
+	},
+#ifdef CONFIG_BFIN_UART1_CTSRTS
+	{
+		/*
+		 * Refer to arch/blackfin/mach-xxx/include/mach/gpio.h for the GPIO map.
+		 */
+		.start = -1,
+		.end = -1,
+		.flags = IORESOURCE_IO,
+	},
+	{
+		/*
+		 * Refer to arch/blackfin/mach-xxx/include/mach/gpio.h for the GPIO map.
+		 */
+		.start = -1,
+		.end = -1,
+		.flags = IORESOURCE_IO,
+	},
+#endif
 };
 
-static struct platform_device bfin_uart_device = {
+static struct platform_device bfin_uart1_device = {
 	.name = "bfin-uart",
 	.id = 1,
-	.num_resources = ARRAY_SIZE(bfin_uart_resources),
-	.resource = bfin_uart_resources,
+	.num_resources = ARRAY_SIZE(bfin_uart1_resources),
+	.resource = bfin_uart1_resources,
 };
+#endif
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
@@ -400,7 +489,6 @@ static struct resource bfin_sir0_resources[] = {
 		.flags = IORESOURCE_DMA,
 	},
 };
-
 static struct platform_device bfin_sir0_device = {
 	.name = "bfin_sir",
 	.id = 0,
@@ -426,7 +514,6 @@ static struct resource bfin_sir1_resources[] = {
 		.flags = IORESOURCE_DMA,
 	},
 };
-
 static struct platform_device bfin_sir1_device = {
 	.name = "bfin_sir",
 	.id = 1,
@@ -545,7 +632,7 @@ static struct platform_device bfin_dpmc = {
 	},
 };
 
-static struct platform_device *cm_bf537_devices[] __initdata = {
+static struct platform_device *cm_bf537e_devices[] __initdata = {
 
 	&bfin_dpmc,
 
@@ -558,7 +645,12 @@ static struct platform_device *cm_bf537_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-	&bfin_uart_device,
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	&bfin_uart1_device,
+#endif
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
@@ -611,10 +703,10 @@ static struct platform_device *cm_bf537_devices[] __initdata = {
 	&bfin_gpios_device,
 };
 
-static int __init tcm_bf537_init(void)
+static int __init cm_bf537e_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
-	platform_add_devices(cm_bf537_devices, ARRAY_SIZE(cm_bf537_devices));
+	platform_add_devices(cm_bf537e_devices, ARRAY_SIZE(cm_bf537e_devices));
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 #endif
@@ -625,7 +717,7 @@ static int __init tcm_bf537_init(void)
 	return 0;
 }
 
-arch_initcall(tcm_bf537_init);
+arch_initcall(cm_bf537e_init);
 
 void bfin_get_ether_addr(char *addr)
 {
