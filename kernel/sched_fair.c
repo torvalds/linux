@@ -1333,11 +1333,12 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
  */
 static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 {
-	struct sched_domain *tmp, *shares = NULL, *sd = NULL;
+	struct sched_domain *tmp, *affine_sd = NULL, *sd = NULL;
 	int cpu = smp_processor_id();
 	int prev_cpu = task_cpu(p);
 	int new_cpu = cpu;
 	int want_affine = 0;
+	int want_sd = 1;
 	int sync = wake_flags & WF_SYNC;
 
 	if (sd_flag & SD_BALANCE_WAKE) {
@@ -1369,33 +1370,44 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flag
 				nr_running /= 2;
 
 			if (nr_running < capacity)
-				break;
+				want_sd = 0;
 		}
 
 		if (want_affine && (tmp->flags & SD_WAKE_AFFINE) &&
 		    cpumask_test_cpu(prev_cpu, sched_domain_span(tmp))) {
 
-			if (sched_feat(LB_SHARES_UPDATE)) {
-				update_shares(tmp);
-				shares = tmp;
-			}
-
-			if (wake_affine(tmp, p, sync)) {
-				new_cpu = cpu;
-				goto out;
-			}
-
+			affine_sd = tmp;
 			want_affine = 0;
 		}
+
+		if (!want_sd && !want_affine)
+			break;
 
 		if (!(tmp->flags & sd_flag))
 			continue;
 
-		sd = tmp;
+		if (want_sd)
+			sd = tmp;
 	}
 
-	if (sd && sd != shares && sched_feat(LB_SHARES_UPDATE))
-		update_shares(sd);
+	if (sched_feat(LB_SHARES_UPDATE)) {
+		/*
+		 * Pick the largest domain to update shares over
+		 */
+		tmp = sd;
+		if (affine_sd && (!tmp ||
+				  cpumask_weight(sched_domain_span(affine_sd)) >
+				  cpumask_weight(sched_domain_span(sd))))
+			tmp = affine_sd;
+
+		if (tmp)
+			update_shares(tmp);
+	}
+
+	if (affine_sd && wake_affine(affine_sd, p, sync)) {
+		new_cpu = cpu;
+		goto out;
+	}
 
 	while (sd) {
 		int load_idx = sd->forkexec_idx;
