@@ -1273,6 +1273,15 @@ static void ath9k_hw_override_ini(struct ath_hw *ah,
 	 */
 	REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
+		val = REG_READ(ah, AR_PCU_MISC_MODE2) &
+			       (~AR_PCU_MISC_MODE2_HWWAR1);
+
+		if (AR_SREV_9287_10_OR_LATER(ah))
+			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
+
+		REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
+	}
 
 	if (!AR_SREV_5416_20_OR_LATER(ah) ||
 	    AR_SREV_9280_10_OR_LATER(ah))
