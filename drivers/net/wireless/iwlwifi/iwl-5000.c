@@ -1450,6 +1450,24 @@ int iwl5000_calc_rssi(struct iwl_priv *priv,
 	return max_rssi - agc - IWL49_RSSI_OFFSET;
 }
 
+static int iwl5000_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
+{
+	struct iwl_tx_ant_config_cmd tx_ant_cmd = {
+	  .valid = cpu_to_le32(valid_tx_ant),
+	};
+
+	if (IWL_UCODE_API(priv->ucode_ver) > 1) {
+		IWL_DEBUG_HC(priv, "select valid tx ant: %u\n", valid_tx_ant);
+		return iwl_send_cmd_pdu(priv, TX_ANT_CONFIGURATION_CMD,
+					sizeof(struct iwl_tx_ant_config_cmd),
+					&tx_ant_cmd);
+	} else {
+		IWL_DEBUG_HC(priv, "TX_ANT_CONFIGURATION_CMD not supported\n");
+		return -EOPNOTSUPP;
+	}
+}
+
+
 #define IWL5000_UCODE_GET(item)						\
 static u32 iwl5000_ucode_get_##item(const struct iwl_ucode_header *ucode,\
 				    u32 api_ver)			\
@@ -1492,6 +1510,7 @@ struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
 	.set_rxon_chain = iwl_set_rxon_chain,
+	.set_tx_ant = iwl5000_send_tx_ant_config,
 };
 
 struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {

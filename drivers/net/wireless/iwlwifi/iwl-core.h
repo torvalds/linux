@@ -89,6 +89,7 @@ struct iwl_hcmd_ops {
 	int (*rxon_assoc)(struct iwl_priv *priv);
 	int (*commit_rxon)(struct iwl_priv *priv);
 	void (*set_rxon_chain)(struct iwl_priv *priv);
+	int (*set_tx_ant)(struct iwl_priv *priv, u8 valid_tx_ant);
 };
 
 struct iwl_hcmd_utils_ops {

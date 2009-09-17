@@ -148,7 +148,7 @@ enum {
 	QUIET_NOTIFICATION = 0x96,		/* not used */
 	REPLY_TX_PWR_TABLE_CMD = 0x97,
 	REPLY_TX_POWER_DBM_CMD_V1 = 0x98,	/* old version of API */
-	TX_ANT_CONFIGURATION_CMD = 0x98,	/* not used */
+	TX_ANT_CONFIGURATION_CMD = 0x98,
 	MEASURE_ABORT_NOTIFICATION = 0x99,	/* not used */
 
 	/* Bluetooth device coexistence config command */
@@ -409,6 +409,16 @@ struct iwl5000_tx_power_dbm_cmd {
 	u8 flags;
 	s8 srv_chan_lmt; /*in half-dBm (e.g. 30 = 15 dBm) */
 	u8 reserved;
+} __attribute__ ((packed));
+
+/**
+ * Command TX_ANT_CONFIGURATION_CMD = 0x98
+ * This command is used to configure valid Tx antenna.
+ * By default uCode concludes the valid antenna according to the radio flavor.
+ * This command enables the driver to override/modify this conclusion.
+ */
+struct iwl_tx_ant_config_cmd {
+	__le32 valid;
 } __attribute__ ((packed));
 
 /******************************************************************************
