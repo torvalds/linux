@@ -2289,11 +2289,7 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 			err = -ENODEV;
 			goto error;
 		}
-		msleep_interruptible(50);
-		if (signal_pending(current)) {
-			err = -EINTR;
-			goto error;
-		}
+		msleep(50);
 	}
 	b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);	/* dummy read */
 
@@ -4286,6 +4282,8 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	b43_security_init(dev);
 	if (!dev->suspend_in_progress)
 		b43_rng_init(wl);
+
+	ieee80211_wake_queues(dev->wl->hw);
 
 	b43_set_status(dev, B43_STAT_INITIALIZED);
 

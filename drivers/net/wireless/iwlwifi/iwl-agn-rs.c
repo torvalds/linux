@@ -760,6 +760,7 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 	u16 high_low;
 	u8 switch_to_legacy = 0;
 	u8 is_green = lq_sta->is_green;
+	struct iwl_priv *priv = lq_sta->drv;
 
 	/* check if we need to switch from HT to legacy rates.
 	 * assumption is that mandatory rates (1Mbps or 6Mbps)
@@ -773,7 +774,8 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 			tbl->lq_type = LQ_G;
 
 		if (num_of_ant(tbl->ant_type) > 1)
-			tbl->ant_type = ANT_A;/*FIXME:RS*/
+			tbl->ant_type =
+				first_antenna(priv->hw_params.valid_tx_ant);
 
 		tbl->is_ht40 = 0;
 		tbl->is_SGI = 0;
@@ -883,6 +885,12 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		mac_index &= RATE_MCS_CODE_MSK;	/* Remove # of streams */
 		if (mac_index >= (IWL_RATE_9M_INDEX - IWL_FIRST_OFDM_RATE))
 			mac_index++;
+		/*
+		 * mac80211 HT index is always zero-indexed; we need to move
+		 * HT OFDM rates after CCK rates in 2.4 GHz band
+		 */
+		if (priv->band == IEEE80211_BAND_2GHZ)
+			mac_index += IWL_FIRST_OFDM_RATE;
 	}
 
 	if ((mac_index < 0) ||
