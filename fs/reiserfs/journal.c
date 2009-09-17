@@ -2801,11 +2801,27 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 		goto free_and_return;
 	}
 
+	/*
+	 * We need to unlock here to avoid creating the following
+	 * dependency:
+	 * reiserfs_lock -> sysfs_mutex
+	 * Because the reiserfs mmap path creates the following dependency:
+	 * mm->mmap -> reiserfs_lock, hence we have
+	 * mm->mmap -> reiserfs_lock ->sysfs_mutex
+	 * This would ends up in a circular dependency with sysfs readdir path
+	 * which does sysfs_mutex -> mm->mmap_sem
+	 * This is fine because the reiserfs lock is useless in mount path,
+	 * at least until we call journal_begin. We keep it for paranoid
+	 * reasons.
+	 */
+	reiserfs_write_unlock(sb);
 	if (journal_init_dev(sb, journal, j_dev_name) != 0) {
+		reiserfs_write_lock(sb);
 		reiserfs_warning(sb, "sh-462",
 				 "unable to initialize jornal device");
 		goto free_and_return;
 	}
+	reiserfs_write_lock(sb);
 
 	rs = SB_DISK_SUPER_BLOCK(sb);
 
