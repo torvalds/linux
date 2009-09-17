@@ -41,8 +41,10 @@
  *     __i2400m_dev_start()
  *
  * i2400m_setup()
+ *   i2400m->bus_setup()
  *   i2400m_bootrom_init()
  *   register_netdev()
+ *   wimax_dev_add()
  *   i2400m_dev_start()
  *     __i2400m_dev_start()
  *       i2400m_dev_bootstrap()
@@ -50,15 +52,15 @@
  *       i2400m->bus_dev_start()
  *       i2400m_firmware_check()
  *       i2400m_check_mac_addr()
- *   wimax_dev_add()
  *
  * i2400m_release()
- *   wimax_dev_rm()
  *   i2400m_dev_stop()
  *     __i2400m_dev_stop()
  *       i2400m_dev_shutdown()
  *       i2400m->bus_dev_stop()
  *       i2400m_tx_release()
+ *   i2400m->bus_release()
+ *   wimax_dev_rm()
  *   unregister_netdev()
  */
 #include "i2400m.h"
@@ -784,6 +786,15 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	snprintf(wimax_dev->name, sizeof(wimax_dev->name),
 		 "i2400m-%s:%s", dev->bus->name, dev_name(dev));
 
+	if (i2400m->bus_setup) {
+		result = i2400m->bus_setup(i2400m);
+		if (result < 0) {
+			dev_err(dev, "bus-specific setup failed: %d\n",
+				result);
+			goto error_bus_setup;
+		}
+	}
+
 	result = i2400m_bootrom_init(i2400m, bm_flags);
 	if (result < 0) {
 		dev_err(dev, "read mac addr: bootrom init "
@@ -846,6 +857,9 @@ error_register_netdev:
 	unregister_pm_notifier(&i2400m->pm_notifier);
 error_read_mac_addr:
 error_bootrom_init:
+	if (i2400m->bus_release)
+		i2400m->bus_release(i2400m);
+error_bus_setup:
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
 	return result;
 }
@@ -872,6 +886,8 @@ void i2400m_release(struct i2400m *i2400m)
 	wimax_dev_rm(&i2400m->wimax_dev);
 	unregister_netdev(i2400m->wimax_dev.net_dev);
 	unregister_pm_notifier(&i2400m->pm_notifier);
+	if (i2400m->bus_release)
+		i2400m->bus_release(i2400m);
 	i2400m_bm_buf_free(i2400m);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
 }

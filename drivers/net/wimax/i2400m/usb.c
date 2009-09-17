@@ -416,8 +416,10 @@ int i2400mu_probe(struct usb_interface *iface,
 
 	i2400m->bus_tx_block_size = I2400MU_BLK_SIZE;
 	i2400m->bus_pl_size_max = I2400MU_PL_SIZE_MAX;
+	i2400m->bus_setup = NULL;
 	i2400m->bus_dev_start = i2400mu_bus_dev_start;
 	i2400m->bus_dev_stop = i2400mu_bus_dev_stop;
+	i2400m->bus_release = NULL;
 	i2400m->bus_tx_kick = i2400mu_bus_tx_kick;
 	i2400m->bus_reset = i2400mu_bus_reset;
 	i2400m->bus_bm_retries = I2400M_USB_BOOT_RETRIES;

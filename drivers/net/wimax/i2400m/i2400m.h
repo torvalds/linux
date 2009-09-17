@@ -123,6 +123,7 @@
  *
  * bus_probe()
  *   i2400m_setup()
+ *     i2400m->bus_setup()
  *     boot rom initialization / read mac addr
  *     network / WiMAX stacks registration
  *     i2400m_dev_start()
@@ -137,6 +138,7 @@
  *       i2400m_dev_shutdown()
  *       i2400m->bus_dev_stop()
  *     network / WiMAX stack unregistration
+ *     i2400m->bus_release()
  *
  * At this point, control and data communications are possible.
  *
@@ -214,11 +216,34 @@ struct i2400m_barker_db;
  * Members marked with [fill] must be filled out/initialized before
  * calling i2400m_setup().
  *
+ * Note the @bus_setup/@bus_release, @bus_dev_start/@bus_dev_release
+ * call pairs are very much doing almost the same, and depending on
+ * the underlying bus, some stuff has to be put in one or the
+ * other. The idea of setup/release is that they setup the minimal
+ * amount needed for loading firmware, where us dev_start/stop setup
+ * the rest needed to do full data/control traffic.
+ *
  * @bus_tx_block_size: [fill] SDIO imposes a 256 block size, USB 16,
  *     so we have a tx_blk_size variable that the bus layer sets to
  *     tell the engine how much of that we need.
  *
  * @bus_pl_size_max: [fill] Maximum payload size.
+ *
+ * @bus_setup: [optional fill] Function called by the bus-generic code
+ *     [i2400m_setup()] to setup the basic bus-specific communications
+ *     to the the device needed to load firmware. See LIFE CYCLE above.
+ *
+ *     NOTE: Doesn't need to upload the firmware, as that is taken
+ *     care of by the bus-generic code.
+ *
+ * @bus_release: [optional fill] Function called by the bus-generic
+ *     code [i2400m_release()] to shutdown the basic bus-specific
+ *     communications to the the device needed to load firmware. See
+ *     LIFE CYCLE above.
+ *
+ *     This function does not need to reset the device, just tear down
+ *     all the host resources created to  handle communication with
+ *     the device.
  *
  * @bus_dev_start: [fill] Function called by the bus-generic code
  *     [i2400m_dev_start()] to setup the bus-specific communications
@@ -490,8 +515,10 @@ struct i2400m {
 	size_t bus_pl_size_max;
 	unsigned bus_bm_retries;
 
+	int (*bus_setup)(struct i2400m *);
 	int (*bus_dev_start)(struct i2400m *);
 	void (*bus_dev_stop)(struct i2400m *);
+	void (*bus_release)(struct i2400m *);
 	void (*bus_tx_kick)(struct i2400m *);
 	int (*bus_reset)(struct i2400m *, enum i2400m_reset_type);
 	ssize_t (*bus_bm_cmd_send)(struct i2400m *,

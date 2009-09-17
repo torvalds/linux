@@ -165,6 +165,66 @@ function_enabled:
 
 
 /*
+ * Setup minimal device communication infrastructure needed to at
+ * least be able to update the firmware.
+ */
+static
+int i2400ms_bus_setup(struct i2400m *i2400m)
+{
+	int result;
+	struct i2400ms *i2400ms =
+		container_of(i2400m, struct i2400ms, i2400m);
+	struct device *dev = i2400m_dev(i2400m);
+	struct sdio_func *func = i2400ms->func;
+
+	sdio_claim_host(func);
+	result = sdio_set_block_size(func, I2400MS_BLK_SIZE);
+	sdio_release_host(func);
+	if (result < 0) {
+		dev_err(dev, "Failed to set block size: %d\n", result);
+		goto error_set_blk_size;
+	}
+
+	result = i2400ms_enable_function(func, 1);
+	if (result < 0) {
+		dev_err(dev, "Cannot enable SDIO function: %d\n", result);
+		goto error_func_enable;
+	}
+
+	result = i2400ms_rx_setup(i2400ms);
+	if (result < 0)
+		goto error_rx_setup;
+	return 0;
+
+error_rx_setup:
+	sdio_claim_host(func);
+	sdio_disable_func(func);
+	sdio_release_host(func);
+error_func_enable:
+error_set_blk_size:
+	return result;
+}
+
+
+/*
+ * Tear down minimal device communication infrastructure needed to at
+ * least be able to update the firmware.
+ */
+static
+void i2400ms_bus_release(struct i2400m *i2400m)
+{
+	struct i2400ms *i2400ms =
+		container_of(i2400m, struct i2400ms, i2400m);
+	struct sdio_func *func = i2400ms->func;
+
+	i2400ms_rx_release(i2400ms);
+	sdio_claim_host(func);
+	sdio_disable_func(func);
+	sdio_release_host(func);
+}
+
+
+/*
  * Setup driver resources needed to communicate with the device
  *
  * The fw needs some time to settle, and it was just uploaded,
@@ -315,17 +375,12 @@ do_bus_reset:
 		if (i2400m->wimax_dev.net_dev->reg_state == NETREG_REGISTERED)
 			netif_tx_disable(i2400m->wimax_dev.net_dev);
 
-		i2400ms_rx_release(i2400ms);
-		sdio_claim_host(i2400ms->func);
-		sdio_disable_func(i2400ms->func);
-		sdio_release_host(i2400ms->func);
+		i2400ms_bus_release(i2400m);
 
 		/* Wait for the device to settle */
 		msleep(40);
 
-		result = i2400ms_enable_function(i2400ms->func, 0);
-		if (result >= 0)
-			i2400ms_rx_setup(i2400ms);
+		result =  i2400ms_bus_setup(i2400m);
 	} else
 		BUG();
 	if (result < 0 && rt != I2400M_RT_BUS) {
@@ -449,8 +504,10 @@ int i2400ms_probe(struct sdio_func *func,
 
 	i2400m->bus_tx_block_size = I2400MS_BLK_SIZE;
 	i2400m->bus_pl_size_max = I2400MS_PL_SIZE_MAX;
+	i2400m->bus_setup = i2400ms_bus_setup;
 	i2400m->bus_dev_start = i2400ms_bus_dev_start;
 	i2400m->bus_dev_stop = i2400ms_bus_dev_stop;
+	i2400m->bus_release = i2400ms_bus_release;
 	i2400m->bus_tx_kick = i2400ms_bus_tx_kick;
 	i2400m->bus_reset = i2400ms_bus_reset;
 	/* The iwmc3200-wimax sometimes requires the driver to try
@@ -461,20 +518,6 @@ int i2400ms_probe(struct sdio_func *func,
 	i2400m->bus_fw_names = i2400ms_bus_fw_names;
 	i2400m->bus_bm_mac_addr_impaired = 1;
 	i2400m->bus_bm_pokes_table = &i2400ms_pokes[0];
-
-	sdio_claim_host(func);
-	result = sdio_set_block_size(func, I2400MS_BLK_SIZE);
-	sdio_release_host(func);
-	if (result < 0) {
-		dev_err(dev, "Failed to set block size: %d\n", result);
-		goto error_set_blk_size;
-	}
-
-	result = i2400ms_enable_function(i2400ms->func, 1);
-	if (result < 0) {
-		dev_err(dev, "Cannot enable SDIO function: %d\n", result);
-		goto error_func_enable;
-	}
 
 	/*
 	 * Before we are enabling the device interrupt register, make
@@ -487,10 +530,6 @@ int i2400ms_probe(struct sdio_func *func,
 		dev_err(dev, "cannot allocate SDIO bootmode buffer\n");
 		goto error_bootmode_buf_setup;
 	}
-
-	result = i2400ms_rx_setup(i2400ms);
-	if (result < 0)
-		goto error_rx_setup;
 
 	result = i2400m_setup(i2400m, I2400M_BRI_NO_REBOOT);
 	if (result < 0) {
@@ -509,15 +548,8 @@ int i2400ms_probe(struct sdio_func *func,
 error_debugfs_add:
 	i2400m_release(i2400m);
 error_setup:
-	i2400ms_rx_release(i2400ms);
-error_rx_setup:
 	i2400m_bm_buf_free(i2400m);
 error_bootmode_buf_setup:
-	sdio_claim_host(func);
-	sdio_disable_func(func);
-	sdio_release_host(func);
-error_func_enable:
-error_set_blk_size:
 	sdio_set_drvdata(func, NULL);
 	free_netdev(net_dev);
 error_alloc_netdev:
@@ -535,12 +567,8 @@ void i2400ms_remove(struct sdio_func *func)
 
 	d_fnstart(3, dev, "SDIO func %p\n", func);
 	debugfs_remove_recursive(i2400ms->debugfs_dentry);
-	i2400ms_rx_release(i2400ms);
 	i2400m_release(i2400m);
 	sdio_set_drvdata(func, NULL);
-	sdio_claim_host(func);
-	sdio_disable_func(func);
-	sdio_release_host(func);
 	free_netdev(net_dev);
 	d_fnend(3, dev, "SDIO func %p\n", func);
 }
