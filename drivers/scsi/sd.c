@@ -370,6 +370,31 @@ static void scsi_disk_put(struct scsi_disk *sdkp)
 	mutex_unlock(&sd_ref_mutex);
 }
 
+static void sd_prot_op(struct scsi_cmnd *scmd, unsigned int dif)
+{
+	unsigned int prot_op = SCSI_PROT_NORMAL;
+	unsigned int dix = scsi_prot_sg_count(scmd);
+
+	if (scmd->sc_data_direction == DMA_FROM_DEVICE) {
+		if (dif && dix)
+			prot_op = SCSI_PROT_READ_PASS;
+		else if (dif && !dix)
+			prot_op = SCSI_PROT_READ_STRIP;
+		else if (!dif && dix)
+			prot_op = SCSI_PROT_READ_INSERT;
+	} else {
+		if (dif && dix)
+			prot_op = SCSI_PROT_WRITE_PASS;
+		else if (dif && !dix)
+			prot_op = SCSI_PROT_WRITE_INSERT;
+		else if (!dif && dix)
+			prot_op = SCSI_PROT_WRITE_STRIP;
+	}
+
+	scsi_set_prot_op(scmd, prot_op);
+	scsi_set_prot_type(scmd, dif);
+}
+
 /**
  *	sd_init_command - build a scsi (read or write) command from
  *	information in the request structure.
@@ -578,8 +603,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 
 	/* If DIF or DIX is enabled, tell HBA how to handle request */
 	if (host_dif || scsi_prot_sg_count(SCpnt))
-		sd_dif_op(SCpnt, host_dif, scsi_prot_sg_count(SCpnt),
-			  sdkp->protection_type);
+		sd_prot_op(SCpnt, host_dif);
 
 	/*
 	 * We shouldn't disconnect in the middle of a sector, so with a dumb
@@ -1238,34 +1262,33 @@ void sd_read_protection_type(struct scsi_disk *sdkp, unsigned char *buffer)
 	u8 type;
 
 	if (scsi_device_protection(sdp) == 0 || (buffer[12] & 1) == 0)
-		type = 0;
-	else
-		type = ((buffer[12] >> 1) & 7) + 1; /* P_TYPE 0 = Type 1 */
+		return;
+
+	type = ((buffer[12] >> 1) & 7) + 1; /* P_TYPE 0 = Type 1 */
+
+	if (type == sdkp->protection_type || !sdkp->first_scan)
+		return;
 
 	sdkp->protection_type = type;
 
 	switch (type) {
-	case SD_DIF_TYPE0_PROTECTION:
 	case SD_DIF_TYPE1_PROTECTION:
 	case SD_DIF_TYPE3_PROTECTION:
 		break;
 
-	case SD_DIF_TYPE2_PROTECTION:
-		sd_printk(KERN_ERR, sdkp, "formatted with DIF Type 2 "	\
-			  "protection which is currently unsupported. "	\
-			  "Disabling disk!\n");
-		goto disable;
-
 	default:
-		sd_printk(KERN_ERR, sdkp, "formatted with unknown "	\
-			  "protection type %d. Disabling disk!\n", type);
-		goto disable;
+		sd_printk(KERN_ERR, sdkp, "formatted with unsupported "	\
+			  "protection type %u. Disabling disk!\n", type);
+		sdkp->capacity = 0;
+		return;
 	}
 
-	return;
-
-disable:
-	sdkp->capacity = 0;
+	if (scsi_host_dif_capable(sdp->host, type))
+		sd_printk(KERN_NOTICE, sdkp,
+			  "Enabling DIF Type %u protection\n", type);
+	else
+		sd_printk(KERN_NOTICE, sdkp,
+			  "Disabling DIF Type %u protection\n", type);
 }
 
 static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
