@@ -14,20 +14,27 @@
 #include <linux/console.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/i2c/at24.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include <mach/cp_intc.h>
 #include <mach/mux.h>
+#include <mach/nand.h>
 #include <mach/da8xx.h>
 #include <mach/usb.h>
 
 #define DA830_EVM_PHY_MASK		0x0
 #define DA830_EVM_MDIO_FREQUENCY	2200000	/* PHY bus frequency */
+
+#define DA830_EMIF25_ASYNC_DATA_CE3_BASE	0x62000000
+#define DA830_EMIF25_CONTROL_BASE		0x68000000
 
 static struct at24_platform_data da830_evm_i2c_eeprom_info = {
 	.byte_len	= SZ_256K / 8,
@@ -313,6 +320,118 @@ static inline void da830_evm_init_mmc(void)
 	}
 }
 
+#ifdef CONFIG_DA830_UI_NAND
+static struct mtd_partition da830_evm_nand_partitions[] = {
+	/* bootloader (U-Boot, etc) in first sector */
+	[0] = {
+		.name		= "bootloader",
+		.offset		= 0,
+		.size		= SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
+	},
+	/* bootloader params in the next sector */
+	[1] = {
+		.name		= "params",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
+	},
+	/* kernel */
+	[2] = {
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_2M,
+		.mask_flags	= 0,
+	},
+	/* file system */
+	[3] = {
+		.name		= "filesystem",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0,
+	}
+};
+
+/* flash bbt decriptors */
+static uint8_t da830_evm_nand_bbt_pattern[] = { 'B', 'b', 't', '0' };
+static uint8_t da830_evm_nand_mirror_pattern[] = { '1', 't', 'b', 'B' };
+
+static struct nand_bbt_descr da830_evm_nand_bbt_main_descr = {
+	.options	= NAND_BBT_LASTBLOCK | NAND_BBT_CREATE |
+			  NAND_BBT_WRITE | NAND_BBT_2BIT |
+			  NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+	.offs		= 2,
+	.len		= 4,
+	.veroffs	= 16,
+	.maxblocks	= 4,
+	.pattern	= da830_evm_nand_bbt_pattern
+};
+
+static struct nand_bbt_descr da830_evm_nand_bbt_mirror_descr = {
+	.options	= NAND_BBT_LASTBLOCK | NAND_BBT_CREATE |
+			  NAND_BBT_WRITE | NAND_BBT_2BIT |
+			  NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+	.offs		= 2,
+	.len		= 4,
+	.veroffs	= 16,
+	.maxblocks	= 4,
+	.pattern	= da830_evm_nand_mirror_pattern
+};
+
+static struct davinci_nand_pdata da830_evm_nand_pdata = {
+	.parts		= da830_evm_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(da830_evm_nand_partitions),
+	.ecc_mode	= NAND_ECC_HW,
+	.ecc_bits	= 4,
+	.options	= NAND_USE_FLASH_BBT,
+	.bbt_td		= &da830_evm_nand_bbt_main_descr,
+	.bbt_md		= &da830_evm_nand_bbt_mirror_descr,
+};
+
+static struct resource da830_evm_nand_resources[] = {
+	[0] = {		/* First memory resource is NAND I/O window */
+		.start	= DA830_EMIF25_ASYNC_DATA_CE3_BASE,
+		.end	= DA830_EMIF25_ASYNC_DATA_CE3_BASE + PAGE_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {		/* Second memory resource is AEMIF control registers */
+		.start	= DA830_EMIF25_CONTROL_BASE,
+		.end	= DA830_EMIF25_CONTROL_BASE + SZ_32K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device da830_evm_nand_device = {
+	.name		= "davinci_nand",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &da830_evm_nand_pdata,
+	},
+	.num_resources	= ARRAY_SIZE(da830_evm_nand_resources),
+	.resource	= da830_evm_nand_resources,
+};
+#endif
+
+static struct platform_device *da830_evm_devices[] __initdata = {
+#ifdef CONFIG_DA830_UI_NAND
+	&da830_evm_nand_device,
+#endif
+};
+
+/*
+ * UI board NAND/NOR flashes only use 8-bit data bus.
+ */
+static const short da830_evm_emif25_pins[] = {
+	DA830_EMA_D_0, DA830_EMA_D_1, DA830_EMA_D_2, DA830_EMA_D_3,
+	DA830_EMA_D_4, DA830_EMA_D_5, DA830_EMA_D_6, DA830_EMA_D_7,
+	DA830_EMA_A_0, DA830_EMA_A_1, DA830_EMA_A_2, DA830_EMA_A_3,
+	DA830_EMA_A_4, DA830_EMA_A_5, DA830_EMA_A_6, DA830_EMA_A_7,
+	DA830_EMA_A_8, DA830_EMA_A_9, DA830_EMA_A_10, DA830_EMA_A_11,
+	DA830_EMA_A_12, DA830_EMA_BA_0, DA830_EMA_BA_1, DA830_NEMA_WE,
+	DA830_NEMA_CS_2, DA830_NEMA_CS_3, DA830_NEMA_OE, DA830_EMA_WAIT_0,
+	-1
+};
+
 static __init void da830_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
@@ -367,6 +486,7 @@ static __init void da830_evm_init(void)
 
 	da830_evm_init_mmc();
 
+#ifdef CONFIG_DA830_UI
 #ifdef CONFIG_DA830_UI_LCD
 	ret = da8xx_pinmux_setup(da830_lcdcntl_pins);
 	if (ret)
@@ -376,6 +496,17 @@ static __init void da830_evm_init(void)
 	ret = da8xx_register_lcdc(&sharp_lcd035q3dg01_pdata);
 	if (ret)
 		pr_warning("da830_evm_init: lcd setup failed: %d\n", ret);
+#else /* Must be NAND or NOR */
+	ret = da8xx_pinmux_setup(da830_evm_emif25_pins);
+	if (ret)
+		pr_warning("da830_evm_init: emif25 mux setup failed: %d\n",
+				ret);
+
+	ret = platform_add_devices(da830_evm_devices,
+			ARRAY_SIZE(da830_evm_devices));
+	if (ret)
+		pr_warning("da830_evm_init: EVM devices not added\n");
+#endif
 #endif
 
 	ret = da8xx_register_rtc();

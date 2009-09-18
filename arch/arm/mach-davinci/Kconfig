@@ -122,6 +122,11 @@ config DA830_UI_LCD
 	  Say Y here to use the LCD as a framebuffer or simple character
 	  display.
 
+config DA830_UI_NAND
+	bool "NAND flash"
+	help
+	  Say Y here to use the NAND flash.  Do not forget to setup
+	  the switch correctly.
 endchoice
 
 config MACH_DAVINCI_DA850_EVM
