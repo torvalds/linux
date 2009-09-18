@@ -143,6 +143,9 @@ struct wpan_phy *wpan_phy_alloc(size_t priv_size)
 
 	phy->dev.class = &wpan_phy_class;
 
+	phy->current_channel = -1; /* not initialised */
+	phy->current_page = 0; /* for compatibility */
+
 	return phy;
 }
 EXPORT_SYMBOL(wpan_phy_alloc);
