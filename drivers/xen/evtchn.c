@@ -108,10 +108,9 @@ irqreturn_t evtchn_interrupt(int irq, void *data)
 
 	u = get_port_user(port);
 
-	if (WARN(!get_port_enabled(port),
-		 "Interrupt for port %d, but apparently not enabled; per-user %p\n",
-		 port, u))
-		goto out;
+	WARN(!get_port_enabled(port),
+	     "Interrupt for port %d, but apparently not enabled; per-user %p\n",
+	     port, u);
 
 	disable_irq_nosync(irq);
 	set_port_enabled(port, false);
@@ -127,7 +126,6 @@ irqreturn_t evtchn_interrupt(int irq, void *data)
 	} else
 		u->ring_overflow = 1;
 
-out:
 	spin_unlock(&port_user_lock);
 
 	return IRQ_HANDLED;
@@ -265,6 +263,7 @@ static int evtchn_bind_to_user(struct per_user_data *u, int port)
 	 */
 	BUG_ON(get_port_user(port) != NULL);
 	set_port_user(port, u);
+	set_port_enabled(port, true); /* start enabled */
 
 	rc = bind_evtchn_to_irqhandler(port, evtchn_interrupt, IRQF_DISABLED,
 				       u->name, (void *)(unsigned long)port);
