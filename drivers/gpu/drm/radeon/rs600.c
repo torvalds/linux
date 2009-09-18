@@ -28,6 +28,7 @@
 #include "drmP.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "avivod.h"
 
 #include "rs600_reg_safe.h"
 
@@ -196,6 +197,8 @@ void rs600_mc_disable_clients(struct radeon_device *rdev)
 		printk(KERN_WARNING "Failed to wait GUI idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
+
+	radeon_avivo_vga_render_disable(rdev);
 
 	tmp = RREG32(AVIVO_D1VGA_CONTROL);
 	WREG32(AVIVO_D1VGA_CONTROL, tmp & ~AVIVO_DVGA_CONTROL_MODE_ENABLE);

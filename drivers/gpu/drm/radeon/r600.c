@@ -340,6 +340,10 @@ static void r600_mc_resume(struct radeon_device *rdev)
 	WREG32(D1VGA_CONTROL, d1vga_control);
 	WREG32(D2VGA_CONTROL, d2vga_control);
 	WREG32(VGA_RENDER_CONTROL, vga_render_control);
+
+	/* we need to own VRAM, so turn off the VGA renderer here
+	 * to stop it overwriting our objects */
+	radeon_avivo_vga_render_disable(rdev);
 }
 
 int r600_mc_init(struct radeon_device *rdev)
