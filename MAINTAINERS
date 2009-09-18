@@ -4454,6 +4454,14 @@ S:	Maintained
 F:	kernel/sched*
 F:	include/linux/sched.h
 
+SCORE ARCHITECTURE
+P:	Chen Liqin
+M:	liqin.chen@sunplusct.com
+P:	Lennox Wu
+M:	lennox.wu@sunplusct.com
+W:	http://www.sunplusct.com
+S:	Supported
+
 SCSI CDROM DRIVER
 M:	Jens Axboe <axboe@kernel.dk>
 L:	linux-scsi@vger.kernel.org
