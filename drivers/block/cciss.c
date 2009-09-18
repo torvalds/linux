@@ -656,7 +656,7 @@ static struct attribute_group cciss_host_attr_group = {
 	.attrs = cciss_host_attrs,
 };
 
-static struct attribute_group *cciss_host_attr_groups[] = {
+static const struct attribute_group *cciss_host_attr_groups[] = {
 	&cciss_host_attr_group,
 	NULL
 };
