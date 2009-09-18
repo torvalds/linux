@@ -77,7 +77,7 @@ void menu_end_menu(void)
 	current_menu = current_menu->parent;
 }
 
-struct expr *menu_check_dep(struct expr *e)
+static struct expr *menu_check_dep(struct expr *e)
 {
 	if (!e)
 		return e;
@@ -187,7 +187,7 @@ static int menu_range_valid_sym(struct symbol *sym, struct symbol *sym2)
 	       (sym2->type == S_UNKNOWN && sym_string_valid(sym, sym2->name));
 }
 
-void sym_check_prop(struct symbol *sym)
+static void sym_check_prop(struct symbol *sym)
 {
 	struct property *prop;
 	struct symbol *sym2;

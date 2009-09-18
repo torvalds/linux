@@ -125,7 +125,7 @@ char *target;
 char *depfile;
 char *cmdline;
 
-void usage(void)
+static void usage(void)
 
 {
 	fprintf(stderr, "Usage: fixdep <depfile> <target> <cmdline>\n");
@@ -135,7 +135,7 @@ void usage(void)
 /*
  * Print out the commandline prefixed with cmd_<target filename> :=
  */
-void print_cmdline(void)
+static void print_cmdline(void)
 {
 	printf("cmd_%s := %s\n\n", target, cmdline);
 }
@@ -148,7 +148,7 @@ int    len_config  = 0;
  * Grow the configuration string to a desired length.
  * Usually the first growth is plenty.
  */
-void grow_config(int len)
+static void grow_config(int len)
 {
 	while (len_config + len > size_config) {
 		if (size_config == 0)
@@ -164,7 +164,7 @@ void grow_config(int len)
 /*
  * Lookup a value in the configuration string.
  */
-int is_defined_config(const char * name, int len)
+static int is_defined_config(const char * name, int len)
 {
 	const char * pconfig;
 	const char * plast = str_config + len_config - len;
@@ -180,7 +180,7 @@ int is_defined_config(const char * name, int len)
 /*
  * Add a new value to the configuration string.
  */
-void define_config(const char * name, int len)
+static void define_config(const char * name, int len)
 {
 	grow_config(len + 1);
 
@@ -192,7 +192,7 @@ void define_config(const char * name, int len)
 /*
  * Clear the set of configuration strings.
  */
-void clear_config(void)
+static void clear_config(void)
 {
 	len_config = 0;
 	define_config("", 0);
@@ -201,7 +201,7 @@ void clear_config(void)
 /*
  * Record the use of a CONFIG_* word.
  */
-void use_config(char *m, int slen)
+static void use_config(char *m, int slen)
 {
 	char s[PATH_MAX];
 	char *p;
@@ -222,7 +222,7 @@ void use_config(char *m, int slen)
 	printf("    $(wildcard include/config/%s.h) \\\n", s);
 }
 
-void parse_config_file(char *map, size_t len)
+static void parse_config_file(char *map, size_t len)
 {
 	int *end = (int *) (map + len);
 	/* start at +1, so that p can never be < map */
@@ -256,7 +256,7 @@ void parse_config_file(char *map, size_t len)
 }
 
 /* test is s ends in sub */
-int strrcmp(char *s, char *sub)
+static int strrcmp(char *s, char *sub)
 {
 	int slen = strlen(s);
 	int sublen = strlen(sub);
@@ -267,7 +267,7 @@ int strrcmp(char *s, char *sub)
 	return memcmp(s + slen - sublen, sub, sublen);
 }
 
-void do_config_file(char *filename)
+static void do_config_file(char *filename)
 {
 	struct stat st;
 	int fd;
@@ -298,7 +298,7 @@ void do_config_file(char *filename)
 	close(fd);
 }
 
-void parse_dep_file(void *map, size_t len)
+static void parse_dep_file(void *map, size_t len)
 {
 	char *m = map;
 	char *end = m + len;
@@ -338,7 +338,7 @@ void parse_dep_file(void *map, size_t len)
 	printf("$(deps_%s):\n", target);
 }
 
-void print_deps(void)
+static void print_deps(void)
 {
 	struct stat st;
 	int fd;
@@ -370,7 +370,7 @@ void print_deps(void)
 	close(fd);
 }
 
-void traps(void)
+static void traps(void)
 {
 	static char test[] __attribute__((aligned(sizeof(int)))) = "CONF";
 	int *p = (int *)test;

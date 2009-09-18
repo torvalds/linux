@@ -121,7 +121,7 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 	return 1;
 }
 
-int conf_string(struct menu *menu)
+static int conf_string(struct menu *menu)
 {
 	struct symbol *sym = menu->sym;
 	const char *def;
