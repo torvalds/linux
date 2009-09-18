@@ -243,10 +243,6 @@ static void __restore_processor_state(struct saved_context *ctxt)
 
 	do_fpu_end();
 	mtrr_bp_restore();
-
-#ifdef CONFIG_X86_OLD_MCE
-	mcheck_init(&boot_cpu_data);
-#endif
 }
 
 /* Needed by apm.c */
