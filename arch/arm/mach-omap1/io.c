@@ -29,9 +29,9 @@ extern void omapfb_reserve_sdram(void);
  */
 static struct map_desc omap_io_desc[] __initdata = {
 	{
-		.virtual	= IO_VIRT,
-		.pfn		= __phys_to_pfn(IO_PHYS),
-		.length		= IO_SIZE,
+		.virtual	= OMAP1_IO_VIRT,
+		.pfn		= __phys_to_pfn(OMAP1_IO_PHYS),
+		.length		= OMAP1_IO_SIZE,
 		.type		= MT_DEVICE
 	}
 };

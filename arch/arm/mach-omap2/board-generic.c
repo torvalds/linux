@@ -31,24 +31,19 @@
 #include <mach/board.h>
 #include <mach/common.h>
 
+static struct omap_board_config_kernel generic_config[] = {
+};
+
 static void __init omap_generic_init_irq(void)
 {
+	omap_board_config = generic_config;
+	omap_board_config_size = ARRAY_SIZE(generic_config);
 	omap2_init_common_hw(NULL, NULL);
 	omap_init_irq();
 }
 
-static struct omap_uart_config generic_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
-static struct omap_board_config_kernel generic_config[] = {
-	{ OMAP_TAG_UART,	&generic_uart_config },
-};
-
 static void __init omap_generic_init(void)
 {
-	omap_board_config = generic_config;
-	omap_board_config_size = ARRAY_SIZE(generic_config);
 	omap_serial_init();
 }
 

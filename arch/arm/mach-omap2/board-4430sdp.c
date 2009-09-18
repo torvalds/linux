@@ -47,14 +47,13 @@ static struct omap_lcd_config sdp4430_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel sdp4430_config[] __initdata = {
-	{ OMAP_TAG_UART,	&sdp4430_uart_config },
 	{ OMAP_TAG_LCD,		&sdp4430_lcd_config },
 };
 
 static void __init gic_init_irq(void)
 {
-	gic_dist_init(0, IO_ADDRESS(OMAP44XX_GIC_DIST_BASE), 29);
-	gic_cpu_init(0, IO_ADDRESS(OMAP44XX_GIC_CPU_BASE));
+	gic_dist_init(0, OMAP2_IO_ADDRESS(OMAP44XX_GIC_DIST_BASE), 29);
+	gic_cpu_init(0, OMAP2_IO_ADDRESS(OMAP44XX_GIC_CPU_BASE));
 }
 
 static void __init omap_4430sdp_init_irq(void)
