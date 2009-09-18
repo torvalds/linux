@@ -43,8 +43,7 @@
 #define CHECK_BINSEARCH__
 
 /*
- * If EXT_DEBUG is defined you can use the 'extdebug' mount option
- * to get lots of info about what's going on.
+ * Turn on EXT_DEBUG to get lots of info about extents operations.
  */
 #define EXT_DEBUG__
 #ifdef EXT_DEBUG
