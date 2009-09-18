@@ -41,7 +41,7 @@ struct regulator;
 #define REGULATOR_CHANGE_DRMS		0x10
 
 /**
- * struct regulator_state - regulator state during low power syatem states
+ * struct regulator_state - regulator state during low power system states
  *
  * This describes a regulators state during a system wide low power state.
  *
@@ -117,10 +117,10 @@ struct regulation_constraints {
 	/* mode to set on startup */
 	unsigned int initial_mode;
 
-	/* constriant flags */
+	/* constraint flags */
 	unsigned always_on:1;	/* regulator never off when system is on */
 	unsigned boot_on:1;	/* bootloader/firmware enabled regulator */
-	unsigned apply_uV:1;	/* apply uV constraint iff min == max */
+	unsigned apply_uV:1;	/* apply uV constraint if min == max */
 };
 
 /**
