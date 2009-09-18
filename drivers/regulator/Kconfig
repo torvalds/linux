@@ -1,6 +1,5 @@
 menuconfig REGULATOR
 	bool "Voltage and Current Regulator Support"
-	default n
 	help
 	  Generic Voltage and Current Regulator support.
 
@@ -30,7 +29,6 @@ config REGULATOR_DEBUG
 
 config REGULATOR_FIXED_VOLTAGE
 	tristate "Fixed voltage regulator support"
-	default n
 	help
 	  This driver provides support for fixed voltage regulators,
 	  useful for systems which use a combination of software
@@ -38,7 +36,6 @@ config REGULATOR_FIXED_VOLTAGE
 
 config REGULATOR_VIRTUAL_CONSUMER
 	tristate "Virtual regulator consumer support"
-	default n
 	help
 	  This driver provides a virtual consumer for the voltage and
           current regulator API which provides sysfs controls for
@@ -49,7 +46,6 @@ config REGULATOR_VIRTUAL_CONSUMER
 
 config REGULATOR_USERSPACE_CONSUMER
 	tristate "Userspace regulator consumer support"
-	default n
 	help
 	  There are some classes of devices that are controlled entirely
 	  from user space. Userspace consumer driver provides ability to
@@ -59,7 +55,6 @@ config REGULATOR_USERSPACE_CONSUMER
 
 config REGULATOR_BQ24022
 	tristate "TI bq24022 Dual Input 1-Cell Li-Ion Charger IC"
-	default n
 	help
 	  This driver controls a TI bq24022 Charger attached via
 	  GPIOs. The provided current regulator can enable/disable
@@ -69,7 +64,6 @@ config REGULATOR_BQ24022
 config REGULATOR_MAX1586
 	tristate "Maxim 1586/1587 voltage regulator"
 	depends on I2C
-	default n
 	help
 	  This driver controls a Maxim 1586 or 1587 voltage output
 	  regulator via I2C bus. The provided regulator is suitable
