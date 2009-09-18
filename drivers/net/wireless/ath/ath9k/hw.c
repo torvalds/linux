@@ -1691,8 +1691,6 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 	if (!AR_SREV_9100(ah))
 		REG_WRITE(ah, AR_RC, 0);
 
-	ath9k_hw_init_pll(ah, NULL);
-
 	if (AR_SREV_9100(ah))
 		udelay(50);
 
@@ -2885,6 +2883,7 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah, int setChip)
 					   ATH9K_RESET_POWER_ON) != true) {
 				return false;
 			}
+			ath9k_hw_init_pll(ah, NULL);
 		}
 		if (AR_SREV_9100(ah))
 			REG_SET_BIT(ah, AR_RTC_RESET,
@@ -3968,7 +3967,11 @@ void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits)
 
 bool ath9k_hw_phy_disable(struct ath_hw *ah)
 {
-	return ath9k_hw_set_reset_reg(ah, ATH9K_RESET_WARM);
+	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_WARM))
+		return false;
+
+	ath9k_hw_init_pll(ah, NULL);
+	return true;
 }
 
 bool ath9k_hw_disable(struct ath_hw *ah)
@@ -3976,7 +3979,11 @@ bool ath9k_hw_disable(struct ath_hw *ah)
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
 		return false;
 
-	return ath9k_hw_set_reset_reg(ah, ATH9K_RESET_COLD);
+	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_COLD))
+		return false;
+
+	ath9k_hw_init_pll(ah, NULL);
+	return true;
 }
 
 void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit)

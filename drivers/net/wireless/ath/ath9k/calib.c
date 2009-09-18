@@ -653,11 +653,11 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 
-	for (j = 0; j < 1000; j++) {
+	for (j = 0; j < 5; j++) {
 		if ((REG_READ(ah, AR_PHY_AGC_CONTROL) &
 		     AR_PHY_AGC_CONTROL_NF) == 0)
 			break;
-		udelay(10);
+		udelay(50);
 	}
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
