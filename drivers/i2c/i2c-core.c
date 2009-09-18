@@ -538,6 +538,10 @@ static struct device_type i2c_adapter_type = {
 	.release	= i2c_adapter_dev_release,
 };
 
+#ifdef CONFIG_I2C_COMPAT
+static struct class_compat *i2c_adapter_compat_class;
+#endif
+
 static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 {
 	struct i2c_devinfo	*devinfo;
@@ -594,6 +598,14 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		goto out_list;
 
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
+
+#ifdef CONFIG_I2C_COMPAT
+	res = class_compat_create_link(i2c_adapter_compat_class, &adap->dev,
+				       adap->dev.parent);
+	if (res)
+		dev_warn(&adap->dev,
+			 "Failed to create compatibility class link\n");
+#endif
 
 	/* create pre-declared device nodes */
 	if (adap->nr < __i2c_first_dynamic_bus_num)
@@ -772,6 +784,11 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	/* Detach any active clients. This can't fail, thus we do not
 	   checking the returned value. */
 	res = device_for_each_child(&adap->dev, NULL, __unregister_client);
+
+#ifdef CONFIG_I2C_COMPAT
+	class_compat_remove_link(i2c_adapter_compat_class, &adap->dev,
+				 adap->dev.parent);
+#endif
 
 	/* clean up the sysfs representation */
 	init_completion(&adap->dev_released);
@@ -978,12 +995,23 @@ static int __init i2c_init(void)
 	retval = bus_register(&i2c_bus_type);
 	if (retval)
 		return retval;
+#ifdef CONFIG_I2C_COMPAT
+	i2c_adapter_compat_class = class_compat_register("i2c-adapter");
+	if (!i2c_adapter_compat_class) {
+		retval = -ENOMEM;
+		goto bus_err;
+	}
+#endif
 	retval = i2c_add_driver(&dummy_driver);
 	if (retval)
-		goto bus_err;
+		goto class_err;
 	return 0;
 
+class_err:
+#ifdef CONFIG_I2C_COMPAT
+	class_compat_unregister(i2c_adapter_compat_class);
 bus_err:
+#endif
 	bus_unregister(&i2c_bus_type);
 	return retval;
 }
@@ -991,6 +1019,9 @@ bus_err:
 static void __exit i2c_exit(void)
 {
 	i2c_del_driver(&dummy_driver);
+#ifdef CONFIG_I2C_COMPAT
+	class_compat_unregister(i2c_adapter_compat_class);
+#endif
 	bus_unregister(&i2c_bus_type);
 }
 

@@ -27,6 +27,14 @@ config I2C_BOARDINFO
 	boolean
 	default y
 
+config I2C_COMPAT
+	boolean "Enable compatibility bits for old user-space"
+	default y
+	help
+	  Say Y here if you intend to run lm-sensors 3.1.1 or older, or any
+	  other user-space package which expects i2c adapters to be class
+	  devices. If you don't know, say Y.
+
 config I2C_CHARDEV
 	tristate "I2C device interface"
 	help
