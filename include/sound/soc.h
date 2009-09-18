@@ -205,7 +205,6 @@ struct snd_soc_jack_gpio;
 #endif
 
 typedef int (*hw_write_t)(void *,const char* ,int);
-typedef int (*hw_read_t)(void *,char* ,int);
 
 extern struct snd_ac97_bus_ops soc_ac97_ops;
 

@@ -1135,9 +1135,10 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 	ret = snprintf(buf, PAGE_SIZE, "%s: %s  in %d out %d\n",
 		       w->name, w->power ? "On" : "Off", in, out);
 
-	if (w->active && w->sname)
-		ret += snprintf(buf, PAGE_SIZE - ret, " stream %s active\n",
-				w->sname);
+	if (w->sname)
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, " stream %s %s\n",
+				w->sname,
+				w->active ? "active" : "inactive");
 
 	list_for_each_entry(p, &w->sources, list_sink) {
 		if (p->connected && !p->connected(w, p->sink))

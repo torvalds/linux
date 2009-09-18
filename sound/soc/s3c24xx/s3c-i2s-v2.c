@@ -230,6 +230,8 @@ static void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 	pr_debug("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
 }
 
+#define msecs_to_loops(t) (loops_per_jiffy / 1000 * HZ * t)
+
 /*
  * Wait for the LR signal to allow synchronisation to the L/R clock
  * from the codec. May only be needed for slave mode.
@@ -237,19 +239,21 @@ static void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 static int s3c2412_snd_lrsync(struct s3c_i2sv2_info *i2s)
 {
 	u32 iiscon;
-	unsigned long timeout = jiffies + msecs_to_jiffies(5);
+	unsigned long loops = msecs_to_loops(5);
 
 	pr_debug("Entered %s\n", __func__);
 
-	while (1) {
+	while (--loops) {
 		iiscon = readl(i2s->regs + S3C2412_IISCON);
 		if (iiscon & S3C2412_IISCON_LRINDEX)
 			break;
 
-		if (timeout < jiffies) {
-			printk(KERN_ERR "%s: timeout\n", __func__);
-			return -ETIMEDOUT;
-		}
+		cpu_relax();
+	}
+
+	if (!loops) {
+		printk(KERN_ERR "%s: timeout\n", __func__);
+		return -ETIMEDOUT;
 	}
 
 	return 0;
