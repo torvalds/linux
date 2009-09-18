@@ -179,18 +179,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-#ifndef I2C_PEC
-static void inc_use(struct i2c_adapter *adap)
-{
-	MOD_INC_USE_COUNT;
-}
-
-static void dec_use(struct i2c_adapter *adap)
-{
-	MOD_DEC_USE_COUNT;
-}
-#endif
-
 #define mass_write(addr, reg, data...)					\
 	{ const static u8 _val[] = data;				\
 	rc=tm6000_read_write_usb(dev,USB_DIR_OUT | USB_TYPE_VENDOR,	\
@@ -209,12 +197,7 @@ static struct i2c_algorithm tm6000_algo = {
 };
 
 static struct i2c_adapter tm6000_adap_template = {
-#ifdef I2C_PEC
 	.owner = THIS_MODULE,
-#else
-	.inc_use = inc_use,
-	.dec_use = dec_use,
-#endif
 	.class = I2C_CLASS_TV_ANALOG,
 	.name = "tm6000",
 	.id = I2C_HW_B_TM6000,
