@@ -280,7 +280,7 @@ static int hdcs_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	   within the column processing period */
 	int mnct;
 	int cycles, err;
-	u8 exp[4];
+	u8 exp[14];
 
 	cycles = val * HDCS_CLK_FREQ_MHZ;
 
@@ -316,24 +316,37 @@ static int hdcs_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 		srowexp = max_srowexp;
 
 	if (IS_1020(sd)) {
-		exp[0] = rowexp & 0xff;
-		exp[1] = rowexp >> 8;
-		exp[2] = (srowexp >> 2) & 0xff;
-		/* this clears exposure error flag */
-		exp[3] = 0x1;
-		err = hdcs_reg_write_seq(sd, HDCS_ROWEXPL, exp, 4);
+		exp[0] = HDCS20_CONTROL;
+		exp[1] = 0x00;		/* Stop streaming */
+		exp[2] = HDCS_ROWEXPL;
+		exp[3] = rowexp & 0xff;
+		exp[4] = HDCS_ROWEXPH;
+		exp[5] = rowexp >> 8;
+		exp[6] = HDCS20_SROWEXP;
+		exp[7] = (srowexp >> 2) & 0xff;
+		exp[8] = HDCS20_ERROR;
+		exp[9] = 0x10;		/* Clear exposure error flag*/
+		exp[10] = HDCS20_CONTROL;
+		exp[11] = 0x04;		/* Restart streaming */
+		err = stv06xx_write_sensor_bytes(sd, exp, 6);
 	} else {
-		exp[0] = rowexp & 0xff;
-		exp[1] = rowexp >> 8;
-		exp[2] = srowexp & 0xff;
-		exp[3] = srowexp >> 8;
-		err = hdcs_reg_write_seq(sd, HDCS_ROWEXPL, exp, 4);
+		exp[0] = HDCS00_CONTROL;
+		exp[1] = 0x00;         /* Stop streaming */
+		exp[2] = HDCS_ROWEXPL;
+		exp[3] = rowexp & 0xff;
+		exp[4] = HDCS_ROWEXPH;
+		exp[5] = rowexp >> 8;
+		exp[6] = HDCS00_SROWEXPL;
+		exp[7] = srowexp & 0xff;
+		exp[8] = HDCS00_SROWEXPH;
+		exp[9] = srowexp >> 8;
+		exp[10] = HDCS_STATUS;
+		exp[11] = 0x10;         /* Clear exposure error flag*/
+		exp[12] = HDCS00_CONTROL;
+		exp[13] = 0x04;         /* Restart streaming */
+		err = stv06xx_write_sensor_bytes(sd, exp, 7);
 		if (err < 0)
 			return err;
-
-		/* clear exposure error flag */
-		err = stv06xx_write_sensor(sd,
-		     HDCS_STATUS, BIT(4));
 	}
 	PDEBUG(D_V4L2, "Writing exposure %d, rowexp %d, srowexp %d",
 	       val, rowexp, srowexp);
@@ -605,11 +618,11 @@ static int hdcs_init(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	err = hdcs_set_exposure(&sd->gspca_dev, HDCS_DEFAULT_EXPOSURE);
+	err = hdcs_set_size(sd, hdcs->array.width, hdcs->array.height);
 	if (err < 0)
 		return err;
 
-	err = hdcs_set_size(sd, hdcs->array.width, hdcs->array.height);
+	err = hdcs_set_exposure(&sd->gspca_dev, HDCS_DEFAULT_EXPOSURE);
 	return err;
 }
 
