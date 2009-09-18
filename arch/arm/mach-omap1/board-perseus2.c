@@ -74,7 +74,7 @@ static struct resource smc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= INT_730_MPU_EXT_NIRQ,
+		.start	= INT_7XX_MPU_EXT_NIRQ,
 		.end	= 0,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
@@ -163,8 +163,8 @@ static struct platform_device smc91x_device = {
 
 static struct resource kp_resources[] = {
 	[0] = {
-		.start	= INT_730_MPUIO_KEYPAD,
-		.end	= INT_730_MPUIO_KEYPAD,
+		.start	= INT_7XX_MPUIO_KEYPAD,
+		.end	= INT_7XX_MPUIO_KEYPAD,
 		.flags	= IORESOURCE_IRQ,
 	},
 };

@@ -234,7 +234,7 @@ void __init omap_init_irq(void)
 	/* Unmask level 2 handler */
 
 	if (cpu_is_omap7xx())
-		omap_unmask_irq(INT_730_IH2_IRQ);
+		omap_unmask_irq(INT_7XX_IH2_IRQ);
 	else if (cpu_is_omap15xx())
 		omap_unmask_irq(INT_1510_IH2_IRQ);
 	else if (cpu_is_omap16xx())

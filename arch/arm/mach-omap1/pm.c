@@ -184,8 +184,8 @@ static void omap_pm_wakeup_setup(void)
 	 * wake up to a GPIO interrupt.
 	 */
 	if (cpu_is_omap7xx())
-		level1_wake = OMAP_IRQ_BIT(INT_730_GPIO_BANK1) |
-			OMAP_IRQ_BIT(INT_730_IH2_IRQ);
+		level1_wake = OMAP_IRQ_BIT(INT_7XX_GPIO_BANK1) |
+			OMAP_IRQ_BIT(INT_7XX_IH2_IRQ);
 	else if (cpu_is_omap15xx())
 		level1_wake = OMAP_IRQ_BIT(INT_GPIO_BANK1) |
 			OMAP_IRQ_BIT(INT_1510_IH2_IRQ);
@@ -197,8 +197,8 @@ static void omap_pm_wakeup_setup(void)
 
 	if (cpu_is_omap7xx()) {
 		omap_writel(~level2_wake, OMAP_IH2_0_MIR);
-		omap_writel(~(OMAP_IRQ_BIT(INT_730_WAKE_UP_REQ) |
-				OMAP_IRQ_BIT(INT_730_MPUIO_KEYPAD)),
+		omap_writel(~(OMAP_IRQ_BIT(INT_7XX_WAKE_UP_REQ) |
+				OMAP_IRQ_BIT(INT_7XX_MPUIO_KEYPAD)),
 				OMAP_IH2_1_MIR);
 	} else if (cpu_is_omap15xx()) {
 		level2_wake |= OMAP_IRQ_BIT(INT_KEYBOARD);
@@ -687,7 +687,7 @@ static int __init omap_pm_init(void)
 	pm_idle = omap1_pm_idle;
 
 	if (cpu_is_omap7xx())
-		setup_irq(INT_730_WAKE_UP_REQ, &omap_wakeup_irq);
+		setup_irq(INT_7XX_WAKE_UP_REQ, &omap_wakeup_irq);
 	else if (cpu_is_omap16xx())
 		setup_irq(INT_1610_WAKE_UP_REQ, &omap_wakeup_irq);
 

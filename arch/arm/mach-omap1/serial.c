@@ -113,8 +113,8 @@ void __init omap_serial_init(void)
 	if (cpu_is_omap7xx()) {
 		serial_platform_data[0].regshift = 0;
 		serial_platform_data[1].regshift = 0;
-		serial_platform_data[0].irq = INT_730_UART_MODEM_1;
-		serial_platform_data[1].irq = INT_730_UART_MODEM_IRDA_2;
+		serial_platform_data[0].irq = INT_7XX_UART_MODEM_1;
+		serial_platform_data[1].irq = INT_7XX_UART_MODEM_IRDA_2;
 	}
 
 	if (cpu_is_omap15xx()) {
