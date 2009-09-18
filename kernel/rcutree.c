@@ -767,10 +767,10 @@ cpu_quiet_msk(unsigned long mask, struct rcu_state *rsp, struct rcu_node *rnp,
 
 /*
  * Record a quiescent state for the specified CPU, which must either be
- * the current CPU or an offline CPU.  The lastcomp argument is used to
- * make sure we are still in the grace period of interest.  We don't want
- * to end the current grace period based on quiescent states detected in
- * an earlier grace period!
+ * the current CPU.  The lastcomp argument is used to make sure we are
+ * still in the grace period of interest.  We don't want to end the current
+ * grace period based on quiescent states detected in an earlier grace
+ * period!
  */
 static void
 cpu_quiet(int cpu, struct rcu_state *rsp, struct rcu_data *rdp, long lastcomp)
@@ -805,7 +805,6 @@ cpu_quiet(int cpu, struct rcu_state *rsp, struct rcu_data *rdp, long lastcomp)
 		 * This GP can't end until cpu checks in, so all of our
 		 * callbacks can be processed during the next GP.
 		 */
-		rdp = rsp->rda[smp_processor_id()];
 		rdp->nxttail[RCU_NEXT_READY_TAIL] = rdp->nxttail[RCU_NEXT_TAIL];
 
 		cpu_quiet_msk(mask, rsp, rnp, flags); /* releases rnp->lock */
@@ -880,9 +879,6 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 	lastcomp = rsp->completed;
 
 	spin_unlock(&rsp->onofflock);		/* irqs remain disabled. */
-
-	/* Being offline is a quiescent state, so go record it. */
-	cpu_quiet(cpu, rsp, rdp, lastcomp);
 
 	/*
 	 * Move callbacks from the outgoing CPU to the running CPU.
@@ -1448,20 +1444,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptable)
 		rnp = rnp->parent;
 	} while (rnp != NULL && !(rnp->qsmaskinit & mask));
 
-	spin_unlock(&rsp->onofflock);		/* irqs remain disabled. */
-
-	/*
-	 * A new grace period might start here.  If so, we will be part of
-	 * it, and its gpnum will be greater than ours, so we will
-	 * participate.  It is also possible for the gpnum to have been
-	 * incremented before this function was called, and the bitmasks
-	 * to not be filled out until now, in which case we will also
-	 * participate due to our gpnum being behind.
-	 */
-
-	/* Since it is coming online, the CPU is in a quiescent state. */
-	cpu_quiet(cpu, rsp, rdp, lastcomp);
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&rsp->onofflock, flags);
 }
 
 static void __cpuinit rcu_online_cpu(int cpu)

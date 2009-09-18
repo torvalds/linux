@@ -117,9 +117,9 @@ static void rcu_preempt_note_context_switch(int cpu)
 		 * on line!
 		 */
 		WARN_ON_ONCE((rdp->grpmask & rnp->qsmaskinit) == 0);
-		phase = !(rnp->qsmask & rdp->grpmask) ^ (rnp->gpnum & 0x1);
+		WARN_ON_ONCE(!list_empty(&t->rcu_node_entry));
+		phase = (rnp->gpnum + !(rnp->qsmask & rdp->grpmask)) & 0x1;
 		list_add(&t->rcu_node_entry, &rnp->blocked_tasks[phase]);
-		smp_mb();  /* Ensure later ctxt swtch seen after above. */
 		spin_unlock_irqrestore(&rnp->lock, flags);
 	}
 
@@ -133,7 +133,9 @@ static void rcu_preempt_note_context_switch(int cpu)
 	 * means that we continue to block the current grace period.
 	 */
 	rcu_preempt_qs(cpu);
+	local_irq_save(flags);
 	t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
+	local_irq_restore(flags);
 }
 
 /*
@@ -189,10 +191,10 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		 */
 		for (;;) {
 			rnp = t->rcu_blocked_node;
-			spin_lock(&rnp->lock);
+			spin_lock(&rnp->lock);  /* irqs already disabled. */
 			if (rnp == t->rcu_blocked_node)
 				break;
-			spin_unlock(&rnp->lock);
+			spin_unlock(&rnp->lock);  /* irqs remain disabled. */
 		}
 		empty = list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]);
 		list_del_init(&t->rcu_node_entry);
