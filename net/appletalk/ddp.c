@@ -1372,7 +1372,7 @@ static int atalk_route_packet(struct sk_buff *skb, struct net_device *dev,
 
 	if (aarp_send_ddp(rt->dev, skb, &ta, NULL) == NET_XMIT_DROP)
 		return NET_RX_DROP;
-	return NET_XMIT_SUCCESS;
+	return NET_RX_SUCCESS;
 free_it:
 	kfree_skb(skb);
 drop:

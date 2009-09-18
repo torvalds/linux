@@ -58,5 +58,12 @@ struct sockaddr_rxrpc {
 #define RXRPC_SECURITY_AUTH	1	/* authenticated packets */
 #define RXRPC_SECURITY_ENCRYPT	2	/* encrypted packets */
 
+/*
+ * RxRPC security indices
+ */
+#define RXRPC_SECURITY_NONE	0	/* no security protocol */
+#define RXRPC_SECURITY_RXKAD	2	/* kaserver or kerberos 4 */
+#define RXRPC_SECURITY_RXGK	4	/* gssapi-based */
+#define RXRPC_SECURITY_RXK5	5	/* kerberos 5 */
 
 #endif /* _LINUX_RXRPC_H */

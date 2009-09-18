@@ -97,6 +97,8 @@ static struct pci_device_id ixgbe_pci_tbl[] = {
 	 board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP),
 	 board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_CX4),
+	 board_82599 },
 
 	/* required last entry */
 	{0, }
@@ -2055,6 +2057,8 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 
 		if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED)
 			rx_ring->flags |= IXGBE_RING_RX_PS_ENABLED;
+		else
+			rx_ring->flags &= ~IXGBE_RING_RX_PS_ENABLED;
 
 #ifdef IXGBE_FCOE
 		if (netdev->features & NETIF_F_FCOE_MTU) {

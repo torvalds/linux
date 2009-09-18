@@ -178,7 +178,7 @@ static const struct xfrm_type ipcomp6_type =
 	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
-static struct inet6_protocol ipcomp6_protocol =
+static const struct inet6_protocol ipcomp6_protocol =
 {
 	.handler	= xfrm6_rcv,
 	.err_handler	= ipcomp6_err,

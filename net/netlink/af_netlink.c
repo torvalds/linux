@@ -177,9 +177,11 @@ static void netlink_sock_destruct(struct sock *sk)
  * this, _but_ remember, it adds useless work on UP machines.
  */
 
-static void netlink_table_grab(void)
+void netlink_table_grab(void)
 	__acquires(nl_table_lock)
 {
+	might_sleep();
+
 	write_lock_irq(&nl_table_lock);
 
 	if (atomic_read(&nl_table_users)) {
@@ -200,7 +202,7 @@ static void netlink_table_grab(void)
 	}
 }
 
-static void netlink_table_ungrab(void)
+void netlink_table_ungrab(void)
 	__releases(nl_table_lock)
 {
 	write_unlock_irq(&nl_table_lock);
@@ -1549,37 +1551,21 @@ static void netlink_free_old_listeners(struct rcu_head *rcu_head)
 	kfree(lrh->ptr);
 }
 
-/**
- * netlink_change_ngroups - change number of multicast groups
- *
- * This changes the number of multicast groups that are available
- * on a certain netlink family. Note that it is not possible to
- * change the number of groups to below 32. Also note that it does
- * not implicitly call netlink_clear_multicast_users() when the
- * number of groups is reduced.
- *
- * @sk: The kernel netlink socket, as returned by netlink_kernel_create().
- * @groups: The new number of groups.
- */
-int netlink_change_ngroups(struct sock *sk, unsigned int groups)
+int __netlink_change_ngroups(struct sock *sk, unsigned int groups)
 {
 	unsigned long *listeners, *old = NULL;
 	struct listeners_rcu_head *old_rcu_head;
 	struct netlink_table *tbl = &nl_table[sk->sk_protocol];
-	int err = 0;
 
 	if (groups < 32)
 		groups = 32;
 
-	netlink_table_grab();
 	if (NLGRPSZ(tbl->groups) < NLGRPSZ(groups)) {
 		listeners = kzalloc(NLGRPSZ(groups) +
 				    sizeof(struct listeners_rcu_head),
 				    GFP_ATOMIC);
-		if (!listeners) {
-			err = -ENOMEM;
-			goto out_ungrab;
-		}
+		if (!listeners)
+			return -ENOMEM;
 		old = tbl->listeners;
 		memcpy(listeners, old, NLGRPSZ(tbl->groups));
 		rcu_assign_pointer(tbl->listeners, listeners);
@@ -1597,8 +1583,29 @@ int netlink_change_ngroups(struct sock *sk, unsigned int groups)
 	}
 	tbl->groups = groups;
 
- out_ungrab:
+	return 0;
+}
+
+/**
+ * netlink_change_ngroups - change number of multicast groups
+ *
+ * This changes the number of multicast groups that are available
+ * on a certain netlink family. Note that it is not possible to
+ * change the number of groups to below 32. Also note that it does
+ * not implicitly call netlink_clear_multicast_users() when the
+ * number of groups is reduced.
+ *
+ * @sk: The kernel netlink socket, as returned by netlink_kernel_create().
+ * @groups: The new number of groups.
+ */
+int netlink_change_ngroups(struct sock *sk, unsigned int groups)
+{
+	int err;
+
+	netlink_table_grab();
+	err = __netlink_change_ngroups(sk, groups);
 	netlink_table_ungrab();
+
 	return err;
 }
 

@@ -125,13 +125,18 @@ static struct netdev_queue *mq_queue_get(struct Qdisc *sch, unsigned long cl)
 	return netdev_get_tx_queue(dev, ntx);
 }
 
-static unsigned int mq_select_queue(struct Qdisc *sch, struct tcmsg *tcm)
+static struct netdev_queue *mq_select_queue(struct Qdisc *sch,
+					    struct tcmsg *tcm)
 {
 	unsigned int ntx = TC_H_MIN(tcm->tcm_parent);
+	struct netdev_queue *dev_queue = mq_queue_get(sch, ntx);
 
-	if (!mq_queue_get(sch, ntx))
-		return 0;
-	return ntx - 1;
+	if (!dev_queue) {
+		struct net_device *dev = qdisc_dev(sch);
+
+		return netdev_get_tx_queue(dev, 0);
+	}
+	return dev_queue;
 }
 
 static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
@@ -188,6 +193,7 @@ static int mq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	struct netdev_queue *dev_queue = mq_queue_get(sch, cl);
 
 	sch = dev_queue->qdisc_sleeping;
+	sch->qstats.qlen = sch->q.qlen;
 	if (gnet_stats_copy_basic(d, &sch->bstats) < 0 ||
 	    gnet_stats_copy_queue(d, &sch->qstats) < 0)
 		return -1;

@@ -239,13 +239,34 @@ void iwl_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
+	struct sk_buff *skb;
 	unsigned long flags;
 
 	while (1) {
 		spin_lock_irqsave(&rxq->lock, flags);
+		if (list_empty(&rxq->rx_used)) {
+			spin_unlock_irqrestore(&rxq->lock, flags);
+			return;
+		}
+		spin_unlock_irqrestore(&rxq->lock, flags);
+
+		/* Alloc a new receive buffer */
+		skb = alloc_skb(priv->hw_params.rx_buf_size + 256,
+						priority);
+
+		if (!skb) {
+			IWL_CRIT(priv, "Can not allocate SKB buffers\n");
+			/* We don't reschedule replenish work here -- we will
+			 * call the restock method and if it still needs
+			 * more buffers it will schedule replenish */
+			break;
+		}
+
+		spin_lock_irqsave(&rxq->lock, flags);
 
 		if (list_empty(&rxq->rx_used)) {
 			spin_unlock_irqrestore(&rxq->lock, flags);
+			dev_kfree_skb_any(skb);
 			return;
 		}
 		element = rxq->rx_used.next;
@@ -254,18 +275,7 @@ void iwl_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 
 		spin_unlock_irqrestore(&rxq->lock, flags);
 
-		/* Alloc a new receive buffer */
-		rxb->skb = alloc_skb(priv->hw_params.rx_buf_size + 256,
-						priority);
-
-		if (!rxb->skb) {
-			IWL_CRIT(priv, "Can not allocate SKB buffers\n");
-			/* We don't reschedule replenish work here -- we will
-			 * call the restock method and if it still needs
-			 * more buffers it will schedule replenish */
-			break;
-		}
-
+		rxb->skb = skb;
 		/* Get physical address of RB/SKB */
 		rxb->real_dma_addr = pci_map_single(
 					priv->pci_dev,

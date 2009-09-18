@@ -1,6 +1,4 @@
 /*
- *  net/dccp/ccids/lib/loss_interval.c
- *
  *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005-7 The University of Waikato, Hamilton, New Zealand.
  *  Copyright (c) 2005-7 Ian McDonald <ian.mcdonald@jandi.co.nz>
@@ -21,7 +19,7 @@ static const int tfrc_lh_weights[NINTERVAL] = { 10, 10, 10, 10, 8, 6, 4, 2 };
 /* implements LIFO semantics on the array */
 static inline u8 LIH_INDEX(const u8 ctr)
 {
-	return (LIH_SIZE - 1 - (ctr % LIH_SIZE));
+	return LIH_SIZE - 1 - (ctr % LIH_SIZE);
 }
 
 /* the `counter' index always points at the next entry to be populated */
@@ -129,7 +127,8 @@ static inline u8 tfrc_lh_is_new_loss(struct tfrc_loss_interval *cur,
 		(cur->li_is_closed || SUB16(new_loss->tfrchrx_ccval, cur->li_ccval) > 4);
 }
 
-/** tfrc_lh_interval_add  -  Insert new record into the Loss Interval database
+/**
+ * tfrc_lh_interval_add  -  Insert new record into the Loss Interval database
  * @lh:		   Loss Interval database
  * @rh:		   Receive history containing a fresh loss event
  * @calc_first_li: Caller-dependent routine to compute length of first interval
