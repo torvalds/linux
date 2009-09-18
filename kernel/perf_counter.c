@@ -3634,7 +3634,7 @@ static void perf_swcounter_overflow(struct perf_counter *counter,
 			 */
 			break;
 		}
-		throttle = 0;
+		throttle = 1;
 	}
 }
 
