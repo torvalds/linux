@@ -1031,6 +1031,8 @@ static struct dtv_cmds_h dtv_cmds[] = {
 	_DTV_CMD(DTV_ISDBT_LAYERC_SEGMENT_COUNT, 0, 0),
 	_DTV_CMD(DTV_ISDBT_LAYERC_TIME_INTERLEAVING, 0, 0),
 
+	_DTV_CMD(DTV_ISDBS_TS_ID, 1, 0),
+
 	/* Get */
 	[DTV_DISEQC_SLAVE_REPLY] = {
 		.name	= "DTV_DISEQC_SLAVE_REPLY",
@@ -1420,6 +1422,9 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	case DTV_ISDBT_LAYERC_TIME_INTERLEAVING:
 		tvp->u.data = fe->dtv_property_cache.layer[2].interleaving;
 		break;
+	case DTV_ISDBS_TS_ID:
+		tvp->u.data = fe->dtv_property_cache.isdbs_ts_id;
+		break;
 	default:
 		r = -1;
 	}
@@ -1570,6 +1575,9 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		break;
 	case DTV_ISDBT_LAYERC_TIME_INTERLEAVING:
 		fe->dtv_property_cache.layer[2].interleaving = tvp->u.data;
+		break;
+	case DTV_ISDBS_TS_ID:
+		fe->dtv_property_cache.isdbs_ts_id = tvp->u.data;
 		break;
 	default:
 		r = -1;

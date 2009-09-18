@@ -302,7 +302,9 @@ struct dvb_frontend_event {
 
 #define DTV_ISDBT_LAYER_ENABLED	41
 
-#define DTV_MAX_COMMAND				DTV_ISDBT_LAYER_ENABLED
+#define DTV_ISDBS_TS_ID		42
+
+#define DTV_MAX_COMMAND				DTV_ISDBS_TS_ID
 
 typedef enum fe_pilot {
 	PILOT_ON,

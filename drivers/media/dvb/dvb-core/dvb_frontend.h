@@ -355,6 +355,9 @@ struct dtv_frontend_properties {
 	    fe_modulation_t	modulation;
 	    u8			interleaving;
 	} layer[3];
+
+	/* ISDB-T specifics */
+	u32			isdbs_ts_id;
 };
 
 struct dvb_frontend {
