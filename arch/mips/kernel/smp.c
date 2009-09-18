@@ -32,7 +32,6 @@
 #include <linux/cpumask.h>
 #include <linux/cpu.h>
 #include <linux/err.h>
-#include <linux/smp.h>
 
 #include <asm/atomic.h>
 #include <asm/cpu.h>
