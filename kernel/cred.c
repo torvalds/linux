@@ -799,6 +799,7 @@ bool creds_are_invalid(const struct cred *cred)
 #endif
 	return false;
 }
+EXPORT_SYMBOL(creds_are_invalid);
 
 /*
  * dump invalid credentials
