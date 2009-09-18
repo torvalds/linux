@@ -1973,7 +1973,6 @@ F:	fs/ext2/
 F:	include/linux/ext2*
 
 EXT3 FILE SYSTEM
-M:	Stephen Tweedie <sct@redhat.com>
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	Andreas Dilger <adilger@sun.com>
 L:	linux-ext4@vger.kernel.org
@@ -2901,8 +2900,8 @@ F:	fs/jffs2/
 F:	include/linux/jffs2.h
 
 JOURNALLING LAYER FOR BLOCK DEVICES (JBD)
-M:	Stephen Tweedie <sct@redhat.com>
 M:	Andrew Morton <akpm@linux-foundation.org>
+M:	Jan Kara <jack@suse.cz>
 L:	linux-ext4@vger.kernel.org
 S:	Maintained
 F:	fs/jbd*/
