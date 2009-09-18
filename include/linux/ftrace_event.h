@@ -4,6 +4,7 @@
 #include <linux/ring_buffer.h>
 #include <linux/trace_seq.h>
 #include <linux/percpu.h>
+#include <linux/hardirq.h>
 
 struct trace_array;
 struct tracer;
@@ -133,6 +134,11 @@ struct ftrace_event_call {
 	int			(*profile_enable)(void);
 	void			(*profile_disable)(void);
 };
+
+#define FTRACE_MAX_PROFILE_SIZE	2048
+
+extern char			*trace_profile_buf;
+extern char			*trace_profile_buf_nmi;
 
 #define MAX_FILTER_PRED		32
 #define MAX_FILTER_STR_VAL	256	/* Should handle KSYM_SYMBOL_LEN */

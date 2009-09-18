@@ -648,11 +648,12 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  *	struct ftrace_raw_##call *entry;
  *	u64 __addr = 0, __count = 1;
  *	unsigned long irq_flags;
+ *	struct trace_entry *ent;
  *	int __entry_size;
  *	int __data_size;
+ *	int __cpu
  *	int pc;
  *
- *	local_save_flags(irq_flags);
  *	pc = preempt_count();
  *
  *	__data_size = ftrace_get_offsets_<call>(&__data_offsets, args);
@@ -663,25 +664,34 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  *			     sizeof(u64));
  *	__entry_size -= sizeof(u32);
  *
- *	do {
- *		char raw_data[__entry_size]; <- allocate our sample in the stack
- *		struct trace_entry *ent;
+ *	// Protect the non nmi buffer
+ *	// This also protects the rcu read side
+ *	local_irq_save(irq_flags);
+ *	__cpu = smp_processor_id();
  *
- *		zero dead bytes from alignment to avoid stack leak to userspace:
+ *	if (in_nmi())
+ *		raw_data = rcu_dereference(trace_profile_buf_nmi);
+ *	else
+ *		raw_data = rcu_dereference(trace_profile_buf);
  *
- *		*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;
- *		entry = (struct ftrace_raw_<call> *)raw_data;
- *		ent = &entry->ent;
- *		tracing_generic_entry_update(ent, irq_flags, pc);
- *		ent->type = event_call->id;
+ *	if (!raw_data)
+ *		goto end;
  *
- *		<tstruct> <- do some jobs with dynamic arrays
+ *	raw_data = per_cpu_ptr(raw_data, __cpu);
  *
- *		<assign>  <- affect our values
+ *	//zero dead bytes from alignment to avoid stack leak to userspace:
+ *	*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;
+ *	entry = (struct ftrace_raw_<call> *)raw_data;
+ *	ent = &entry->ent;
+ *	tracing_generic_entry_update(ent, irq_flags, pc);
+ *	ent->type = event_call->id;
  *
- *		perf_tpcounter_event(event_call->id, __addr, __count, entry,
- *			     __entry_size);  <- submit them to perf counter
- *	} while (0);
+ *	<tstruct> <- do some jobs with dynamic arrays
+ *
+ *	<assign>  <- affect our values
+ *
+ *	perf_tpcounter_event(event_call->id, __addr, __count, entry,
+ *		     __entry_size);  <- submit them to perf counter
  *
  * }
  */
@@ -704,11 +714,13 @@ static void ftrace_profile_##call(proto)				\
 	struct ftrace_raw_##call *entry;				\
 	u64 __addr = 0, __count = 1;					\
 	unsigned long irq_flags;					\
+	struct trace_entry *ent;					\
 	int __entry_size;						\
 	int __data_size;						\
+	char *raw_data;							\
+	int __cpu;							\
 	int pc;								\
 									\
-	local_save_flags(irq_flags);					\
 	pc = preempt_count();						\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
@@ -716,23 +728,38 @@ static void ftrace_profile_##call(proto)				\
 			     sizeof(u64));				\
 	__entry_size -= sizeof(u32);					\
 									\
-	do {								\
-		char raw_data[__entry_size];				\
-		struct trace_entry *ent;				\
+	if (WARN_ONCE(__entry_size > FTRACE_MAX_PROFILE_SIZE,		\
+		      "profile buffer not large enough"))		\
+		return;							\
 									\
-		*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;	\
-		entry = (struct ftrace_raw_##call *)raw_data;		\
-		ent = &entry->ent;					\
-		tracing_generic_entry_update(ent, irq_flags, pc);	\
-		ent->type = event_call->id;				\
+	local_irq_save(irq_flags);					\
+	__cpu = smp_processor_id();					\
 									\
-		tstruct							\
+	if (in_nmi())							\
+		raw_data = rcu_dereference(trace_profile_buf_nmi);		\
+	else								\
+		raw_data = rcu_dereference(trace_profile_buf);		\
 									\
-		{ assign; }						\
+	if (!raw_data)							\
+		goto end;						\
 									\
-		perf_tpcounter_event(event_call->id, __addr, __count, entry,\
+	raw_data = per_cpu_ptr(raw_data, __cpu);			\
+									\
+	*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;		\
+	entry = (struct ftrace_raw_##call *)raw_data;			\
+	ent = &entry->ent;						\
+	tracing_generic_entry_update(ent, irq_flags, pc);		\
+	ent->type = event_call->id;					\
+									\
+	tstruct								\
+									\
+	{ assign; }							\
+									\
+	perf_tpcounter_event(event_call->id, __addr, __count, entry,	\
 			     __entry_size);				\
-	} while (0);							\
+									\
+end:									\
+	local_irq_restore(irq_flags);					\
 									\
 }
 
