@@ -364,15 +364,9 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
  */
 void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix, unsigned int type)
 {
-	int csum_convert, prot_op;
+	int prot_op;
 
-	prot_op = 0;
-
-	/* Convert checksum? */
-	if (scsi_host_get_guard(scmd->device->host) != SHOST_DIX_GUARD_CRC)
-		csum_convert = 1;
-	else
-		csum_convert = 0;
+	prot_op = SCSI_PROT_NORMAL;
 
 	BUG_ON(dif && (scmd->cmnd[0] == READ_6 || scmd->cmnd[0] == WRITE_6));
 
@@ -382,10 +376,7 @@ void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix, unsig
 	case READ_12:
 	case READ_16:
 		if (dif && dix)
-			if (csum_convert)
-				prot_op = SCSI_PROT_READ_CONVERT;
-			else
-				prot_op = SCSI_PROT_READ_PASS;
+			prot_op = SCSI_PROT_READ_PASS;
 		else if (dif && !dix)
 			prot_op = SCSI_PROT_READ_STRIP;
 		else if (!dif && dix)
@@ -398,10 +389,7 @@ void sd_dif_op(struct scsi_cmnd *scmd, unsigned int dif, unsigned int dix, unsig
 	case WRITE_12:
 	case WRITE_16:
 		if (dif && dix)
-			if (csum_convert)
-				prot_op = SCSI_PROT_WRITE_CONVERT;
-			else
-				prot_op = SCSI_PROT_WRITE_PASS;
+			prot_op = SCSI_PROT_WRITE_PASS;
 		else if (dif && !dix)
 			prot_op = SCSI_PROT_WRITE_INSERT;
 		else if (!dif && dix)
