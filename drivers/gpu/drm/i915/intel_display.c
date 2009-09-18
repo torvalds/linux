@@ -1260,6 +1260,9 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		I915_READ(dspbase);
 	}
 
+	if (I915_HAS_FBC(dev) && (IS_I965G(dev) || plane == 0))
+		intel_update_fbc(crtc, &crtc->mode);
+
 	intel_wait_for_vblank(dev);
 
 	if (old_fb) {
@@ -1285,9 +1288,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		master_priv->sarea_priv->pipeA_x = x;
 		master_priv->sarea_priv->pipeA_y = y;
 	}
-
-	if (I915_HAS_FBC(dev) && (IS_I965G(dev) || plane == 0))
-		intel_update_fbc(crtc, &crtc->mode);
 
 	return 0;
 }
