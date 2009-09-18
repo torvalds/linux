@@ -3422,7 +3422,6 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 
 	beacon_period &= ~ATH9K_BEACON_ENA;
 	if (beacon_period & ATH9K_BEACON_RESET_TSF) {
-		beacon_period &= ~ATH9K_BEACON_RESET_TSF;
 		ath9k_hw_reset_tsf(ah);
 	}
 
