@@ -4191,8 +4191,16 @@ static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
 		return;
 
 	size = ac->ac_o_ex.fe_logical + ac->ac_o_ex.fe_len;
-	isize = i_size_read(ac->ac_inode) >> bsbits;
+	isize = (i_size_read(ac->ac_inode) + ac->ac_sb->s_blocksize - 1)
+		>> bsbits;
 	size = max(size, isize);
+
+	if ((size == isize) &&
+	    !ext4_fs_is_busy(sbi) &&
+	    (atomic_read(&ac->ac_inode->i_writecount) == 0)) {
+		ac->ac_flags |= EXT4_MB_HINT_NOPREALLOC;
+		return;
+	}
 
 	/* don't use group allocation for large files */
 	if (size >= sbi->s_mb_stream_request) {
