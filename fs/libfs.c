@@ -739,10 +739,11 @@ ssize_t simple_attr_write(struct file *file, const char __user *buf,
 	if (copy_from_user(attr->set_buf, buf, size))
 		goto out;
 
-	ret = len; /* claim we got the whole input */
 	attr->set_buf[size] = '\0';
 	val = simple_strtol(attr->set_buf, NULL, 0);
-	attr->set(attr->data, val);
+	ret = attr->set(attr->data, val);
+	if (ret == 0)
+		ret = len; /* on success, claim we got the whole input */
 out:
 	mutex_unlock(&attr->mutex);
 	return ret;
