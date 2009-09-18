@@ -367,6 +367,54 @@ out:
 }
 
 /**
+ * search_extent_mapping - find a nearby extent map
+ * @tree:	tree to lookup in
+ * @start:	byte offset to start the search
+ * @len:	length of the lookup range
+ *
+ * Find and return the first extent_map struct in @tree that intersects the
+ * [start, len] range.
+ *
+ * If one can't be found, any nearby extent may be returned
+ */
+struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
+					 u64 start, u64 len)
+{
+	struct extent_map *em;
+	struct rb_node *rb_node;
+	struct rb_node *prev = NULL;
+	struct rb_node *next = NULL;
+
+	rb_node = __tree_search(&tree->map, start, &prev, &next);
+	if (!rb_node && prev) {
+		em = rb_entry(prev, struct extent_map, rb_node);
+		goto found;
+	}
+	if (!rb_node && next) {
+		em = rb_entry(next, struct extent_map, rb_node);
+		goto found;
+	}
+	if (!rb_node) {
+		em = NULL;
+		goto out;
+	}
+	if (IS_ERR(rb_node)) {
+		em = ERR_PTR(PTR_ERR(rb_node));
+		goto out;
+	}
+	em = rb_entry(rb_node, struct extent_map, rb_node);
+	goto found;
+
+	em = NULL;
+	goto out;
+
+found:
+	atomic_inc(&em->refs);
+out:
+	return em;
+}
+
+/**
  * remove_extent_mapping - removes an extent_map from the extent tree
  * @tree:	extent tree to remove from
  * @em:		extent map beeing removed

@@ -726,6 +726,15 @@ static noinline int cow_file_range(struct inode *inode,
 	BUG_ON(disk_num_bytes >
 	       btrfs_super_total_bytes(&root->fs_info->super_copy));
 
+
+	read_lock(&BTRFS_I(inode)->extent_tree.lock);
+	em = search_extent_mapping(&BTRFS_I(inode)->extent_tree,
+				   start, num_bytes);
+	if (em) {
+		alloc_hint = em->block_start;
+		free_extent_map(em);
+	}
+	read_unlock(&BTRFS_I(inode)->extent_tree.lock);
 	btrfs_drop_extent_cache(inode, start, start + num_bytes - 1, 0);
 
 	while (disk_num_bytes > 0) {
@@ -738,7 +747,6 @@ static noinline int cow_file_range(struct inode *inode,
 		em = alloc_extent_map(GFP_NOFS);
 		em->start = start;
 		em->orig_start = em->start;
-
 		ram_size = ins.offset;
 		em->len = ins.offset;
 
