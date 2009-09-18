@@ -943,6 +943,16 @@ int ath9k_hw_init(struct ath_hw *ah)
 	else
 		ath9k_hw_disablepcie(ah);
 
+	/* Support for Japan ch.14 (2484) spread */
+	if (AR_SREV_9287_11_OR_LATER(ah)) {
+		INIT_INI_ARRAY(&ah->iniCckfirNormal,
+		       ar9287Common_normal_cck_fir_coeff_92871_1,
+		       ARRAY_SIZE(ar9287Common_normal_cck_fir_coeff_92871_1), 2);
+		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
+		       ar9287Common_japan_2484_cck_fir_coeff_92871_1,
+		       ARRAY_SIZE(ar9287Common_japan_2484_cck_fir_coeff_92871_1), 2);
+	}
+
 	r = ath9k_hw_post_init(ah);
 	if (r)
 		return r;

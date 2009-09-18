@@ -592,6 +592,8 @@ struct ath_hw {
 	struct ar5416IniArray iniModesAdditional;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
+	struct ar5416IniArray iniCckfirNormal;
+	struct ar5416IniArray iniCckfirJapan2484;
 
 	u32 intr_gen_timer_trigger;
 	u32 intr_gen_timer_thresh;

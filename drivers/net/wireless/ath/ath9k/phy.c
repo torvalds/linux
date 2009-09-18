@@ -113,20 +113,31 @@ void ath9k_hw_ar9280_set_channel(struct ath_hw *ah,
 
 	if (freq < 4800) {
 		u32 txctl;
+		int regWrites = 0;
 
 		bMode = 1;
 		fracMode = 1;
 		aModeRefSel = 0;
 		channelSel = (freq * 0x10000) / 15;
 
-		txctl = REG_READ(ah, AR_PHY_CCK_TX_CTRL);
-		if (freq == 2484) {
-
-			REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
-				  txctl | AR_PHY_CCK_TX_CTRL_JAPAN);
+		if (AR_SREV_9287_11_OR_LATER(ah)) {
+			if (freq == 2484) {
+				REG_WRITE_ARRAY(&ah->iniCckfirJapan2484,
+						1, regWrites);
+			} else {
+				REG_WRITE_ARRAY(&ah->iniCckfirNormal,
+						1, regWrites);
+			}
 		} else {
-			REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
-				  txctl & ~AR_PHY_CCK_TX_CTRL_JAPAN);
+			txctl = REG_READ(ah, AR_PHY_CCK_TX_CTRL);
+			if (freq == 2484) {
+				/* Enable channel spreading for channel 14 */
+				REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
+					  txctl | AR_PHY_CCK_TX_CTRL_JAPAN);
+			} else {
+				REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
+					  txctl &~ AR_PHY_CCK_TX_CTRL_JAPAN);
+			}
 		}
 	} else {
 		bMode = 0;

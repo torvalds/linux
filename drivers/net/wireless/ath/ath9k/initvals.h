@@ -5918,9 +5918,6 @@ static const u_int32_t ar9287Common_9287_1_1[][2] = {
     { 0x000099ec, 0x0cc80caa },
     { 0x000099f0, 0x00000000 },
     { 0x000099fc, 0x00001042 },
-    { 0x0000a1f4, 0x00fffeff },
-    { 0x0000a1f8, 0x00f5f9ff },
-    { 0x0000a1fc, 0xb79f6427 },
     { 0x0000a208, 0x803e4788 },
     { 0x0000a210, 0x4080a333 },
     { 0x0000a214, 0x40206c10 },
@@ -5980,7 +5977,7 @@ static const u_int32_t ar9287Common_9287_1_1[][2] = {
     { 0x0000b3f4, 0x00000000 },
     { 0x0000a7d8, 0x000003f1 },
     { 0x00007800, 0x00000800 },
-    { 0x00007804, 0x6c35ffc2 },
+    { 0x00007804, 0x6c35ffd2 },
     { 0x00007808, 0x6db6c000 },
     { 0x0000780c, 0x6db6cb30 },
     { 0x00007810, 0x6db6cb6c },
@@ -6000,7 +5997,7 @@ static const u_int32_t ar9287Common_9287_1_1[][2] = {
     { 0x00007848, 0x934934a8 },
     { 0x00007850, 0x00000000 },
     { 0x00007854, 0x00000800 },
-    { 0x00007858, 0x6c35ffc2 },
+    { 0x00007858, 0x6c35ffd2 },
     { 0x0000785c, 0x6db6c000 },
     { 0x00007860, 0x6db6cb30 },
     { 0x00007864, 0x6db6cb6c },
@@ -6025,6 +6022,22 @@ static const u_int32_t ar9287Common_9287_1_1[][2] = {
     { 0x000078b0, 0x00060aeb },
     { 0x000078b4, 0x40008080 },
     { 0x000078b8, 0x2a850160 },
+};
+
+/*
+ * For Japanese regulatory requirements, 2484 MHz requires the following three
+ * registers be programmed differently from the channel between 2412 and 2472 MHz.
+ */
+static const u_int32_t ar9287Common_normal_cck_fir_coeff_92871_1[][2] = {
+    { 0x0000a1f4, 0x00fffeff },
+    { 0x0000a1f8, 0x00f5f9ff },
+    { 0x0000a1fc, 0xb79f6427 },
+};
+
+static const u_int32_t ar9287Common_japan_2484_cck_fir_coeff_92871_1[][2] = {
+    { 0x0000a1f4, 0x00000000 },
+    { 0x0000a1f8, 0xefff0301 },
+    { 0x0000a1fc, 0xca9228ee },
 };
 
 static const u_int32_t ar9287Modes_tx_gain_9287_1_1[][6] = {
