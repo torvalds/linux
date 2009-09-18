@@ -15,6 +15,7 @@ menuconfig THERMAL
 
 config THERMAL_HWMON
 	bool "Hardware monitoring support"
+	depends on THERMAL
 	depends on HWMON=y || HWMON=THERMAL
 	help
 	  The generic thermal sysfs driver's hardware monitoring support
