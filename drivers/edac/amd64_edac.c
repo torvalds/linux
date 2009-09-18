@@ -279,14 +279,11 @@ static struct mem_ctl_info *find_mc_by_sys_addr(struct mem_ctl_info *mci,
 	intlv_en = pvt->dram_IntlvEn[0];
 
 	if (intlv_en == 0) {
-		for (node_id = 0; ; ) {
+		for (node_id = 0; node_id < DRAM_REG_COUNT; node_id++) {
 			if (amd64_base_limit_match(pvt, sys_addr, node_id))
-				break;
-
-			if (++node_id >= DRAM_REG_COUNT)
-				goto err_no_match;
+				goto found;
 		}
-		goto found;
+		goto err_no_match;
 	}
 
 	if (unlikely((intlv_en != 0x01) &&
@@ -301,7 +298,7 @@ static struct mem_ctl_info *find_mc_by_sys_addr(struct mem_ctl_info *mci,
 	bits = (((u32) sys_addr) >> 12) & intlv_en;
 
 	for (node_id = 0; ; ) {
-		if ((pvt->dram_limit[node_id] & intlv_en) == bits)
+		if ((pvt->dram_IntlvSel[node_id] & intlv_en) == bits)
 			break;	/* intlv_sel field matches */
 
 		if (++node_id >= DRAM_REG_COUNT)
@@ -311,10 +308,10 @@ static struct mem_ctl_info *find_mc_by_sys_addr(struct mem_ctl_info *mci,
 	/* sanity test for sys_addr */
 	if (unlikely(!amd64_base_limit_match(pvt, sys_addr, node_id))) {
 		amd64_printk(KERN_WARNING,
-			  "%s(): sys_addr 0x%lx falls outside base/limit "
-			  "address range for node %d with node interleaving "
-			  "enabled.\n", __func__, (unsigned long)sys_addr,
-			  node_id);
+			     "%s(): sys_addr 0x%llx falls outside base/limit "
+			     "address range for node %d with node interleaving "
+			     "enabled.\n",
+			     __func__, sys_addr, node_id);
 		return NULL;
 	}
 
