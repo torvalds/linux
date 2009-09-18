@@ -2,7 +2,7 @@
 # Makefile for the i2c bus drivers.
 #
 
-# SMBus CMI driver
+# ACPI drivers
 obj-$(CONFIG_I2C_SCMI)		+= i2c-scmi.o
 
 # PC SMBus host controller drivers

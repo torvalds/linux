@@ -232,6 +232,22 @@ config I2C_VIAPRO
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-viapro.
 
+if ACPI
+
+comment "ACPI drivers"
+
+config I2C_SCMI
+	tristate "SMBus Control Method Interface"
+	help
+	  This driver supports the SMBus Control Method Interface. It needs the
+	  BIOS to declare ACPI control methods as described in the SMBus Control
+	  Method Interface specification.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called i2c-scmi.
+
+endif # ACPI
+
 comment "Mac SMBus host controller drivers"
 	depends on PPC_CHRP || PPC_PMAC
 
@@ -761,16 +777,5 @@ config SCx200_ACB
 
 	  This support is also available as a module.  If so, the module
 	  will be called scx200_acb.
-
-config I2C_SCMI
-	tristate "SMBus Control Method Interface"
-	depends on ACPI
-	help
-	  This driver supports the SMBus Control Method Interface. It needs the
-	  BIOS to declare ACPI control methods as described in the SMBus Control
-	  Method Interface specification.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called i2c-scmi.
 
 endmenu
