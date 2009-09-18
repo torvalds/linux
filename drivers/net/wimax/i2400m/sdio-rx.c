@@ -165,7 +165,7 @@ void i2400ms_rx(struct i2400ms *i2400ms)
 		spin_unlock(&i2400m->rx_lock);
 		memcpy(i2400m->bm_ack_buf, skb->data, rx_size);
 		wake_up(&i2400ms->bm_wfa_wq);
-		dev_err(dev, "RX: SDIO boot mode message\n");
+		d_printf(5, dev, "RX: SDIO boot mode message\n");
 		kfree_skb(skb);
 		goto out;
 	}
