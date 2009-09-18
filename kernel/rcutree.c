@@ -25,7 +25,7 @@
  * and inputs from Rusty Russell, Andrea Arcangeli and Andi Kleen.
  *
  * For detailed explanation of Read-Copy Update mechanism see -
- * 	Documentation/RCU
+ *	Documentation/RCU
  */
 #include <linux/types.h>
 #include <linux/kernel.h>

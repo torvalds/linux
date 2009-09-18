@@ -24,7 +24,7 @@
  * and inputs from Rusty Russell, Andrea Arcangeli and Andi Kleen.
  *
  * For detailed explanation of Read-Copy Update mechanism see -
- * 	Documentation/RCU
+ *	Documentation/RCU
  */
 
 #ifndef __LINUX_RCUTREE_H
