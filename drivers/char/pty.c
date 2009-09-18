@@ -120,8 +120,10 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 		/* Stuff the data into the input queue of the other end */
 		c = tty_insert_flip_string(to, buf, c);
 		/* And shovel */
-		tty_flip_buffer_push(to);
-		tty_wakeup(tty);
+		if (c) {
+			tty_flip_buffer_push(to);
+			tty_wakeup(tty);
+		}
 	}
 	return c;
 }
