@@ -892,6 +892,16 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
  	if (error)
  		goto out_sb;
 
+	/*
+	 * filesystems should never set s_maxbytes larger than MAX_LFS_FILESIZE
+	 * but s_maxbytes was an unsigned long long for many releases. Throw
+	 * this warning for a little while to try and catch filesystems that
+	 * violate this rule. This warning should be either removed or
+	 * converted to a BUG() in 2.6.34.
+	 */
+	WARN((mnt->mnt_sb->s_maxbytes < 0), "%s set sb->s_maxbytes to "
+		"negative value (%lld)\n", type->name, mnt->mnt_sb->s_maxbytes);
+
 	mnt->mnt_mountpoint = mnt->mnt_root;
 	mnt->mnt_parent = mnt;
 	up_write(&mnt->mnt_sb->s_umount);
