@@ -4164,7 +4164,7 @@ struct saa7134_board saa7134_boards[] = {
 		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 505 RDS",
 		.audio_clock    = 0x00200000,
-		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3, /* FIXME to MK5 */
+		.tuner_type     = TUNER_PHILIPS_FM1216MK5,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -4229,7 +4229,7 @@ struct saa7134_board saa7134_boards[] = {
 		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 507 RDS",
 		.audio_clock    = 0x00187de7,
-		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3, /* FIXME to MK5 */
+		.tuner_type     = TUNER_PHILIPS_FM1216MK5,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -4380,7 +4380,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Andrey Melnikoff <temnota@kmv.ru> */
 		.name           = "Beholder BeholdTV 607 FM",
 		.audio_clock    = 0x00187de7,
-		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3, /* FIXME to MK5 */
+		.tuner_type     = TUNER_PHILIPS_FM1216MK5,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -4408,7 +4408,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Andrey Melnikoff <temnota@kmv.ru> */
 		.name           = "Beholder BeholdTV 609 FM",
 		.audio_clock    = 0x00187de7,
-		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3, /* FIXME to MK5 */
+		.tuner_type     = TUNER_PHILIPS_FM1216MK5,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -4494,7 +4494,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Andrey Melnikoff <temnota@kmv.ru> */
 		.name           = "Beholder BeholdTV 607 RDS",
 		.audio_clock    = 0x00187de7,
-		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3, /* FIXME to MK5 */
+		.tuner_type     = TUNER_PHILIPS_FM1216MK5,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -4523,7 +4523,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Andrey Melnikoff <temnota@kmv.ru> */
 		.name           = "Beholder BeholdTV 609 RDS",
 		.audio_clock    = 0x00187de7,
-		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3, /* FIXME to MK5 */
+		.tuner_type     = TUNER_PHILIPS_FM1216MK5,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -4630,7 +4630,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Alexey Osipov <lion-simba@pridelands.ru> */
 		.name           = "Beholder BeholdTV M6 Extra",
 		.audio_clock    = 0x00187de7,
-		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3, /* FIXME to MK5 */
+		.tuner_type     = TUNER_PHILIPS_FM1216MK5,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
