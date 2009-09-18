@@ -1929,7 +1929,7 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 	ec->tx_max_coalesced_frames_irq = adapter->tx_ring[0].work_limit;
 
 	/* only valid if in constant ITR mode */
-	switch (adapter->itr_setting) {
+	switch (adapter->rx_itr_setting) {
 	case 0:
 		/* throttling disabled */
 		ec->rx_coalesce_usecs = 0;
@@ -1940,9 +1940,25 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 		break;
 	default:
 		/* fixed interrupt rate mode */
-		ec->rx_coalesce_usecs = 1000000/adapter->eitr_param;
+		ec->rx_coalesce_usecs = 1000000/adapter->rx_eitr_param;
 		break;
 	}
+
+	/* only valid if in constant ITR mode */
+	switch (adapter->tx_itr_setting) {
+	case 0:
+		/* throttling disabled */
+		ec->tx_coalesce_usecs = 0;
+		break;
+	case 1:
+		/* dynamic ITR mode */
+		ec->tx_coalesce_usecs = 1;
+		break;
+	default:
+		ec->tx_coalesce_usecs = 1000000/adapter->tx_eitr_param;
+		break;
+	}
+
 	return 0;
 }
 
@@ -1952,6 +1968,14 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_q_vector *q_vector;
 	int i;
+
+	/*
+	 * don't accept tx specific changes if we've got mixed RxTx vectors
+	 * test and jump out here if needed before changing the rx numbers
+	 */
+	if ((1000000/ec->tx_coalesce_usecs) != adapter->tx_eitr_param &&
+	    adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count)
+		return -EINVAL;
 
 	if (ec->tx_max_coalesced_frames_irq)
 		adapter->tx_ring[0].work_limit = ec->tx_max_coalesced_frames_irq;
@@ -1963,26 +1987,49 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 			return -EINVAL;
 
 		/* store the value in ints/second */
-		adapter->eitr_param = 1000000/ec->rx_coalesce_usecs;
+		adapter->rx_eitr_param = 1000000/ec->rx_coalesce_usecs;
 
 		/* static value of interrupt rate */
-		adapter->itr_setting = adapter->eitr_param;
+		adapter->rx_itr_setting = adapter->rx_eitr_param;
 		/* clear the lower bit as its used for dynamic state */
-		adapter->itr_setting &= ~1;
+		adapter->rx_itr_setting &= ~1;
 	} else if (ec->rx_coalesce_usecs == 1) {
 		/* 1 means dynamic mode */
-		adapter->eitr_param = 20000;
-		adapter->itr_setting = 1;
+		adapter->rx_eitr_param = 20000;
+		adapter->rx_itr_setting = 1;
 	} else {
 		/*
 		 * any other value means disable eitr, which is best
 		 * served by setting the interrupt rate very high
 		 */
 		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
-			adapter->eitr_param = IXGBE_MAX_RSC_INT_RATE;
+			adapter->rx_eitr_param = IXGBE_MAX_RSC_INT_RATE;
 		else
-			adapter->eitr_param = IXGBE_MAX_INT_RATE;
-		adapter->itr_setting = 0;
+			adapter->rx_eitr_param = IXGBE_MAX_INT_RATE;
+		adapter->rx_itr_setting = 0;
+	}
+
+	if (ec->tx_coalesce_usecs > 1) {
+		/* check the limits */
+		if ((1000000/ec->tx_coalesce_usecs > IXGBE_MAX_INT_RATE) ||
+		    (1000000/ec->tx_coalesce_usecs < IXGBE_MIN_INT_RATE))
+			return -EINVAL;
+
+		/* store the value in ints/second */
+		adapter->tx_eitr_param = 1000000/ec->tx_coalesce_usecs;
+
+		/* static value of interrupt rate */
+		adapter->tx_itr_setting = adapter->tx_eitr_param;
+
+		/* clear the lower bit as its used for dynamic state */
+		adapter->tx_itr_setting &= ~1;
+	} else if (ec->tx_coalesce_usecs == 1) {
+		/* 1 means dynamic mode */
+		adapter->tx_eitr_param = 10000;
+		adapter->tx_itr_setting = 1;
+	} else {
+		adapter->tx_eitr_param = IXGBE_MAX_INT_RATE;
+		adapter->tx_itr_setting = 0;
 	}
 
 	/* MSI/MSIx Interrupt Mode */
@@ -1992,17 +2039,17 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		for (i = 0; i < num_vectors; i++) {
 			q_vector = adapter->q_vector[i];
 			if (q_vector->txr_count && !q_vector->rxr_count)
-				/* tx vector gets half the rate */
-				q_vector->eitr = (adapter->eitr_param >> 1);
+				/* tx only */
+				q_vector->eitr = adapter->tx_eitr_param;
 			else
 				/* rx only or mixed */
-				q_vector->eitr = adapter->eitr_param;
+				q_vector->eitr = adapter->rx_eitr_param;
 			ixgbe_write_eitr(q_vector);
 		}
 	/* Legacy Interrupt Mode */
 	} else {
 		q_vector = adapter->q_vector[0];
-		q_vector->eitr = adapter->eitr_param;
+		q_vector->eitr = adapter->rx_eitr_param;
 		ixgbe_write_eitr(q_vector);
 	}
 
