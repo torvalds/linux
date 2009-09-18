@@ -84,7 +84,6 @@ int my_data_handler(void)
 	task = kthread_run(more_data_handling, data, "more_data_handling");
 	if (task == ERR_PTR(-ENOMEM)) {
 		rv = -ENOMEM;
-	        kref_put(&data->refcount, data_release);
 		goto out;
 	}
 
