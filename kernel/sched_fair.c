@@ -709,31 +709,28 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	if (initial && sched_feat(START_DEBIT))
 		vruntime += sched_vslice(cfs_rq, se);
 
-	if (!initial) {
-		/* sleeps upto a single latency don't count. */
-		if (sched_feat(FAIR_SLEEPERS)) {
-			unsigned long thresh = sysctl_sched_latency;
+	/* sleeps up to a single latency don't count. */
+	if (!initial && sched_feat(FAIR_SLEEPERS)) {
+		unsigned long thresh = sysctl_sched_latency;
 
-			/*
-			 * Convert the sleeper threshold into virtual time.
-			 * SCHED_IDLE is a special sub-class.  We care about
-			 * fairness only relative to other SCHED_IDLE tasks,
-			 * all of which have the same weight.
-			 */
-			if (sched_feat(NORMALIZED_SLEEPER) &&
-					(!entity_is_task(se) ||
-					 task_of(se)->policy != SCHED_IDLE))
-				thresh = calc_delta_fair(thresh, se);
+		/*
+		 * Convert the sleeper threshold into virtual time.
+		 * SCHED_IDLE is a special sub-class.  We care about
+		 * fairness only relative to other SCHED_IDLE tasks,
+		 * all of which have the same weight.
+		 */
+		if (sched_feat(NORMALIZED_SLEEPER) && (!entity_is_task(se) ||
+				 task_of(se)->policy != SCHED_IDLE))
+			thresh = calc_delta_fair(thresh, se);
 
-			/*
-			 * Halve their sleep time's effect, to allow
-			 * for a gentler effect of sleepers:
-			 */
-			if (sched_feat(GENTLE_FAIR_SLEEPERS))
-				thresh >>= 1;
+		/*
+		 * Halve their sleep time's effect, to allow
+		 * for a gentler effect of sleepers:
+		 */
+		if (sched_feat(GENTLE_FAIR_SLEEPERS))
+			thresh >>= 1;
 
-			vruntime -= thresh;
-		}
+		vruntime -= thresh;
 	}
 
 	/* ensure we never gain time by being placed backwards. */
