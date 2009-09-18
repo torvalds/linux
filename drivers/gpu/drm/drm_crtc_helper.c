@@ -869,6 +869,9 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		}
 		drm_helper_disable_unused_functions(dev);
 	} else if (fb_changed) {
+		set->crtc->x = set->x;
+		set->crtc->y = set->y;
+
 		old_fb = set->crtc->fb;
 		if (set->crtc->fb != set->fb)
 			set->crtc->fb = set->fb;
