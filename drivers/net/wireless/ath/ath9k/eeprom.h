@@ -639,6 +639,7 @@ struct ar9287_eeprom {
 } __packed;
 
 enum reg_ext_bitmap {
+	REG_EXT_FCC_MIDBAND = 0,
 	REG_EXT_JAPAN_MIDBAND = 1,
 	REG_EXT_FCC_DFS_HT40 = 2,
 	REG_EXT_JAPAN_NONDFS_HT40 = 3,

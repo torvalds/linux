@@ -3660,7 +3660,10 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			AR_EEPROM_EEREGCAP_EN_KK_U1_EVEN;
 	}
 
-	pCap->reg_cap |= AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND;
+	/* Advertise midband for AR5416 with FCC midband set in eeprom */
+	if (regulatory->current_rd_ext & (1 << REG_EXT_FCC_MIDBAND) &&
+	    AR_SREV_5416(ah))
+		pCap->reg_cap |= AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND;
 
 	pCap->num_antcfg_5ghz =
 		ah->eep_ops->get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_5GHZ);
