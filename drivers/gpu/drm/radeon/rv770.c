@@ -860,6 +860,14 @@ static int rv770_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 	rv770_gpu_init(rdev);
+
+	r = radeon_object_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
+			      &rdev->r600_blit.shader_gpu_addr);
+	if (r) {
+		DRM_ERROR("failed to pin blit object %d\n", r);
+		return r;
+	}
+
 	r = radeon_ring_init(rdev, rdev->cp.ring_size);
 	if (r)
 		return r;
@@ -993,6 +1001,12 @@ int rv770_init(struct radeon_device *rdev)
 		return r;
 
 	rdev->accel_working = true;
+	r = r600_blit_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: failled blitter (%d).\n", r);
+		rdev->accel_working = false;
+	}
+
 	r = rv770_startup(rdev);
 	if (r) {
 		if (rdev->flags & RADEON_IS_AGP) {
@@ -1004,11 +1018,6 @@ int rv770_init(struct radeon_device *rdev)
 		rdev->accel_working = false;
 	}
 	if (rdev->accel_working) {
-		r = r600_blit_init(rdev);
-		if (r) {
-			DRM_ERROR("radeon: failled blitter (%d).\n", r);
-			rdev->accel_working = false;
-		}
 		r = radeon_ib_pool_init(rdev);
 		if (r) {
 			DRM_ERROR("radeon: failled initializing IB pool (%d).\n", r);
