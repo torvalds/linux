@@ -1466,7 +1466,7 @@ bool r600_card_posted(struct radeon_device *rdev)
 	return false;
 }
 
-int r600_resume(struct radeon_device *rdev)
+int r600_startup(struct radeon_device *rdev)
 {
 	int r;
 
@@ -1498,6 +1498,40 @@ int r600_resume(struct radeon_device *rdev)
 		return r;
 	return 0;
 }
+
+int r600_resume(struct radeon_device *rdev)
+{
+	int r;
+
+	if (radeon_gpu_reset(rdev)) {
+		/* FIXME: what do we want to do here ? */
+	}
+	/* post card */
+	if (rdev->is_atom_bios) {
+		atom_asic_init(rdev->mode_info.atom_context);
+	} else {
+		radeon_combios_asic_init(rdev->ddev);
+	}
+	/* Initialize clocks */
+	r = radeon_clocks_init(rdev);
+	if (r) {
+		return r;
+	}
+
+	r = r600_startup(rdev);
+	if (r) {
+		DRM_ERROR("r600 startup failed on resume\n");
+		return r;
+	}
+
+	r = radeon_ib_test(rdev);
+	if (r) {
+		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
+		return r;
+	}
+	return r;
+}
+
 
 int r600_suspend(struct radeon_device *rdev)
 {
@@ -1596,7 +1630,7 @@ int r600_init(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_resume(rdev);
+	r = r600_startup(rdev);
 	if (r) {
 		if (rdev->flags & RADEON_IS_AGP) {
 			/* Retry with disabling AGP */

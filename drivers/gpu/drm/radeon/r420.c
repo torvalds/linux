@@ -157,31 +157,10 @@ static void r420_clock_resume(struct radeon_device *rdev)
 	WREG32_PLL(R_00000D_SCLK_CNTL, sclk_cntl);
 }
 
-int r420_resume(struct radeon_device *rdev)
+static int r420_startup(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
-	if (rdev->flags & RADEON_IS_PCIE)
-		rv370_pcie_gart_disable(rdev);
-	if (rdev->flags & RADEON_IS_PCI)
-		r100_pci_gart_disable(rdev);
-	/* Resume clock before doing reset */
-	r420_clock_resume(rdev);
-	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
-		dev_warn(rdev->dev, "GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
-			RREG32(R_000E40_RBBM_STATUS),
-			RREG32(R_0007C0_CP_STAT));
-	}
-	/* check if cards are posted or not */
-	if (rdev->is_atom_bios) {
-		atom_asic_init(rdev->mode_info.atom_context);
-	} else {
-		radeon_combios_asic_init(rdev->ddev);
-	}
-	/* Resume clock after posting */
-	r420_clock_resume(rdev);
 	r300_mc_program(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
@@ -215,6 +194,33 @@ int r420_resume(struct radeon_device *rdev)
 		return r;
 	}
 	return 0;
+}
+
+int r420_resume(struct radeon_device *rdev)
+{
+	/* Make sur GART are not working */
+	if (rdev->flags & RADEON_IS_PCIE)
+		rv370_pcie_gart_disable(rdev);
+	if (rdev->flags & RADEON_IS_PCI)
+		r100_pci_gart_disable(rdev);
+	/* Resume clock before doing reset */
+	r420_clock_resume(rdev);
+	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
+	if (radeon_gpu_reset(rdev)) {
+		dev_warn(rdev->dev, "GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
+			RREG32(R_000E40_RBBM_STATUS),
+			RREG32(R_0007C0_CP_STAT));
+	}
+	/* check if cards are posted or not */
+	if (rdev->is_atom_bios) {
+		atom_asic_init(rdev->mode_info.atom_context);
+	} else {
+		radeon_combios_asic_init(rdev->ddev);
+	}
+	/* Resume clock after posting */
+	r420_clock_resume(rdev);
+
+	return r420_startup(rdev);
 }
 
 int r420_suspend(struct radeon_device *rdev)
@@ -330,7 +336,7 @@ int r420_init(struct radeon_device *rdev)
 	}
 	r300_set_reg_safe(rdev);
 	rdev->accel_working = true;
-	r = r420_resume(rdev);
+	r = r420_startup(rdev);
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
