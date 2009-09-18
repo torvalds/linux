@@ -420,9 +420,7 @@ static const struct usb_action adcm2700_NoFliker[] = {
 	{0xaa, 0xfe, 0x0010},				/* 00,fe,10,aa */
 	{}
 };
-static const struct usb_action cs2102_Initial[] = {
-	{0xa1, 0x01, 0x0008},
-	{0xa1, 0x01, 0x0008},
+static const struct usb_action cs2102_Initial[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R010_CMOSSENSORSELECT},
@@ -471,88 +469,10 @@ static const struct usb_action cs2102_Initial[] = {
 	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
 	{0xa0, 0x68, ZC3XX_R18D_YTARGET},
 	{0xa0, 0x00, 0x01ad},
-	{0xa1, 0x01, 0x0002},
-	{0xa1, 0x01, 0x0008},
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},	/* 00 */
-	{0xa0, 0x08, ZC3XX_R1C6_SHARPNESS00},	/* sharpness+ */
-	{0xa1, 0x01, 0x01c8},
-	{0xa1, 0x01, 0x01c9},
-	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, ZC3XX_R1CB_SHARPNESS05},	/* sharpness- */
-	{0xa0, 0x24, ZC3XX_R120_GAMMA00},	/* gamma 5 */
-	{0xa0, 0x44, ZC3XX_R121_GAMMA01},
-	{0xa0, 0x64, ZC3XX_R122_GAMMA02},
-	{0xa0, 0x84, ZC3XX_R123_GAMMA03},
-	{0xa0, 0x9d, ZC3XX_R124_GAMMA04},
-	{0xa0, 0xb2, ZC3XX_R125_GAMMA05},
-	{0xa0, 0xc4, ZC3XX_R126_GAMMA06},
-	{0xa0, 0xd3, ZC3XX_R127_GAMMA07},
-	{0xa0, 0xe0, ZC3XX_R128_GAMMA08},
-	{0xa0, 0xeb, ZC3XX_R129_GAMMA09},
-	{0xa0, 0xf4, ZC3XX_R12A_GAMMA0A},
-	{0xa0, 0xfb, ZC3XX_R12B_GAMMA0B},
-	{0xa0, 0xff, ZC3XX_R12C_GAMMA0C},
-	{0xa0, 0xff, ZC3XX_R12D_GAMMA0D},
-	{0xa0, 0xff, ZC3XX_R12E_GAMMA0E},
-	{0xa0, 0xff, ZC3XX_R12F_GAMMA0F},
-	{0xa0, 0x18, ZC3XX_R130_GAMMA10},
-	{0xa0, 0x20, ZC3XX_R131_GAMMA11},
-	{0xa0, 0x20, ZC3XX_R132_GAMMA12},
-	{0xa0, 0x1c, ZC3XX_R133_GAMMA13},
-	{0xa0, 0x16, ZC3XX_R134_GAMMA14},
-	{0xa0, 0x13, ZC3XX_R135_GAMMA15},
-	{0xa0, 0x10, ZC3XX_R136_GAMMA16},
-	{0xa0, 0x0e, ZC3XX_R137_GAMMA17},
-	{0xa0, 0x0b, ZC3XX_R138_GAMMA18},
-	{0xa0, 0x09, ZC3XX_R139_GAMMA19},
-	{0xa0, 0x07, ZC3XX_R13A_GAMMA1A},
-	{0xa0, 0x06, ZC3XX_R13B_GAMMA1B},
-	{0xa0, 0x00, ZC3XX_R13C_GAMMA1C},
-	{0xa0, 0x00, ZC3XX_R13D_GAMMA1D},
-	{0xa0, 0x00, ZC3XX_R13E_GAMMA1E},
-	{0xa0, 0x01, ZC3XX_R13F_GAMMA1F},
-	{0xa0, 0x58, ZC3XX_R10A_RGB00},	/* matrix */
-	{0xa0, 0xf4, ZC3XX_R10B_RGB01},
-	{0xa0, 0xf4, ZC3XX_R10C_RGB02},
-	{0xa0, 0xf4, ZC3XX_R10D_RGB10},
-	{0xa0, 0x58, ZC3XX_R10E_RGB11},
-	{0xa0, 0xf4, ZC3XX_R10F_RGB12},
-	{0xa0, 0xf4, ZC3XX_R110_RGB20},
-	{0xa0, 0xf4, ZC3XX_R111_RGB21},
-	{0xa0, 0x58, ZC3XX_R112_RGB22},
-	{0xa1, 0x01, 0x0180},
-	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
-	{0xaa, 0x23, 0x0001},
-	{0xaa, 0x24, 0x0055},
-	{0xaa, 0x25, 0x00cc},
-	{0xaa, 0x21, 0x003f},
-	{0xa0, 0x02, ZC3XX_R190_EXPOSURELIMITHIGH},
-	{0xa0, 0xab, ZC3XX_R191_EXPOSURELIMITMID},
-	{0xa0, 0x98, ZC3XX_R192_EXPOSURELIMITLOW},
-	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
-	{0xa0, 0x30, ZC3XX_R196_ANTIFLICKERMID},
-	{0xa0, 0xd4, ZC3XX_R197_ANTIFLICKERLOW},
-	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE},
-	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
-	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF},
-	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP},
-	{0xa0, 0x39, ZC3XX_R01D_HSYNC_0},
-	{0xa0, 0x70, ZC3XX_R01E_HSYNC_1},
-	{0xa0, 0xb0, ZC3XX_R01F_HSYNC_2},
-	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
-	{0xa0, 0x40, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa1, 0x01, 0x0180},
-	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x40, ZC3XX_R116_RGAIN},
-	{0xa0, 0x40, ZC3XX_R117_GGAIN},
-	{0xa0, 0x40, ZC3XX_R118_BGAIN},
 	{}
 };
 
-static const struct usb_action cs2102_InitialScale[] = {
-	{0xa1, 0x01, 0x0008},
-	{0xa1, 0x01, 0x0008},
+static const struct usb_action cs2102_InitialScale[] = {	/* 640x480 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R010_CMOSSENSORSELECT},
@@ -601,57 +521,75 @@ static const struct usb_action cs2102_InitialScale[] = {
 	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
 	{0xa0, 0x68, ZC3XX_R18D_YTARGET},
 	{0xa0, 0x00, 0x01ad},
-	{0xa1, 0x01, 0x0002},
-	{0xa1, 0x01, 0x0008},
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},	/* 00 */
-	{0xa0, 0x08, ZC3XX_R1C6_SHARPNESS00},	/* sharpness+ */
-	{0xa1, 0x01, 0x01c8},
-	{0xa1, 0x01, 0x01c9},
-	{0xa1, 0x01, 0x01ca},
-	{0xa0, 0x0f, ZC3XX_R1CB_SHARPNESS05},	/* sharpness- */
-	{0xa0, 0x24, ZC3XX_R120_GAMMA00},	/* gamma 5 */
-	{0xa0, 0x44, ZC3XX_R121_GAMMA01},
-	{0xa0, 0x64, ZC3XX_R122_GAMMA02},
-	{0xa0, 0x84, ZC3XX_R123_GAMMA03},
-	{0xa0, 0x9d, ZC3XX_R124_GAMMA04},
-	{0xa0, 0xb2, ZC3XX_R125_GAMMA05},
-	{0xa0, 0xc4, ZC3XX_R126_GAMMA06},
-	{0xa0, 0xd3, ZC3XX_R127_GAMMA07},
-	{0xa0, 0xe0, ZC3XX_R128_GAMMA08},
-	{0xa0, 0xeb, ZC3XX_R129_GAMMA09},
-	{0xa0, 0xf4, ZC3XX_R12A_GAMMA0A},
-	{0xa0, 0xfb, ZC3XX_R12B_GAMMA0B},
-	{0xa0, 0xff, ZC3XX_R12C_GAMMA0C},
-	{0xa0, 0xff, ZC3XX_R12D_GAMMA0D},
-	{0xa0, 0xff, ZC3XX_R12E_GAMMA0E},
-	{0xa0, 0xff, ZC3XX_R12F_GAMMA0F},
-	{0xa0, 0x18, ZC3XX_R130_GAMMA10},
-	{0xa0, 0x20, ZC3XX_R131_GAMMA11},
-	{0xa0, 0x20, ZC3XX_R132_GAMMA12},
-	{0xa0, 0x1c, ZC3XX_R133_GAMMA13},
-	{0xa0, 0x16, ZC3XX_R134_GAMMA14},
-	{0xa0, 0x13, ZC3XX_R135_GAMMA15},
-	{0xa0, 0x10, ZC3XX_R136_GAMMA16},
-	{0xa0, 0x0e, ZC3XX_R137_GAMMA17},
-	{0xa0, 0x0b, ZC3XX_R138_GAMMA18},
-	{0xa0, 0x09, ZC3XX_R139_GAMMA19},
-	{0xa0, 0x07, ZC3XX_R13A_GAMMA1A},
-	{0xa0, 0x06, ZC3XX_R13B_GAMMA1B},
-	{0xa0, 0x00, ZC3XX_R13C_GAMMA1C},
-	{0xa0, 0x00, ZC3XX_R13D_GAMMA1D},
-	{0xa0, 0x00, ZC3XX_R13E_GAMMA1E},
-	{0xa0, 0x01, ZC3XX_R13F_GAMMA1F},
-	{0xa0, 0x58, ZC3XX_R10A_RGB00},	/* matrix */
-	{0xa0, 0xf4, ZC3XX_R10B_RGB01},
-	{0xa0, 0xf4, ZC3XX_R10C_RGB02},
-	{0xa0, 0xf4, ZC3XX_R10D_RGB10},
-	{0xa0, 0x58, ZC3XX_R10E_RGB11},
-	{0xa0, 0xf4, ZC3XX_R10F_RGB12},
-	{0xa0, 0xf4, ZC3XX_R110_RGB20},
-	{0xa0, 0xf4, ZC3XX_R111_RGB21},
-	{0xa0, 0x58, ZC3XX_R112_RGB22},
-	{0xa1, 0x01, 0x0180},
-	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
+	{}
+};
+static const struct usb_action cs2102_50HZ[] = {
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x23, 0x0001},
+	{0xaa, 0x24, 0x005f},
+	{0xaa, 0x25, 0x0090},
+	{0xaa, 0x21, 0x00dd},
+	{0xa0, 0x02, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0xbf, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x20, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x3a, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x98, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0xdd, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xe4, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0xf0, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
+	{}
+};
+static const struct usb_action cs2102_50HZScale[] = {
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x23, 0x0000},
+	{0xaa, 0x24, 0x00af},
+	{0xaa, 0x25, 0x00c8},
+	{0xaa, 0x21, 0x0068},
+	{0xa0, 0x01, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x5f, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x90, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x1d, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x4c, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x68, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0xe3, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0xf0, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
+	{}
+};
+static const struct usb_action cs2102_60HZ[] = {
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x23, 0x0001},
+	{0xaa, 0x24, 0x0055},
+	{0xaa, 0x25, 0x00cc},
+	{0xaa, 0x21, 0x003f},
+	{0xa0, 0x02, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0xab, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x98, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x30, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0xd4, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x39, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0x70, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0xb0, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
+	{}
+};
+static const struct usb_action cs2102_60HZScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x23, 0x0000},
 	{0xaa, 0x24, 0x00aa},
@@ -671,162 +609,50 @@ static const struct usb_action cs2102_InitialScale[] = {
 	{0xa0, 0xa5, ZC3XX_R01E_HSYNC_1},
 	{0xa0, 0xf0, ZC3XX_R01F_HSYNC_2},
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
-	{0xa0, 0x40, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa1, 0x01, 0x0180},
-	{0xa0, 0x42, ZC3XX_R180_AUTOCORRECTENABLE},
-	{0xa0, 0x40, ZC3XX_R116_RGAIN},
-	{0xa0, 0x40, ZC3XX_R117_GGAIN},
-	{0xa0, 0x40, ZC3XX_R118_BGAIN},
-	{}
-};
-static const struct usb_action cs2102_50HZ[] = {
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
-	{0xaa, 0x0f, 0x008c}, /* 00,0f,8c,aa */
-	{0xaa, 0x03, 0x0005}, /* 00,03,05,aa */
-	{0xaa, 0x04, 0x00ac}, /* 00,04,ac,aa */
-	{0xaa, 0x10, 0x0005}, /* 00,10,05,aa */
-	{0xaa, 0x11, 0x00ac}, /* 00,11,ac,aa */
-	{0xaa, 0x1b, 0x0000}, /* 00,1b,00,aa */
-	{0xaa, 0x1c, 0x0005}, /* 00,1c,05,aa */
-	{0xaa, 0x1d, 0x00ac}, /* 00,1d,ac,aa */
-	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH}, /* 01,90,00,cc */
-	{0xa0, 0x3f, ZC3XX_R191_EXPOSURELIMITMID}, /* 01,91,3f,cc */
-	{0xa0, 0xf0, ZC3XX_R192_EXPOSURELIMITLOW}, /* 01,92,f0,cc */
-	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH}, /* 01,95,00,cc */
-	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID}, /* 01,96,00,cc */
-	{0xa0, 0x42, ZC3XX_R197_ANTIFLICKERLOW}, /* 01,97,42,cc */
-	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE}, /* 01,8c,10,cc */
-	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE}, /* 01,8f,20,cc */
-	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF}, /* 01,a9,10,cc */
-	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP}, /* 01,aa,24,cc */
-	{0xa0, 0x8c, ZC3XX_R01D_HSYNC_0}, /* 00,1d,8c,cc */
-	{0xa0, 0xb0, ZC3XX_R01E_HSYNC_1}, /* 00,1e,b0,cc */
-	{0xa0, 0xd0, ZC3XX_R01F_HSYNC_2}, /* 00,1f,d0,cc */
-	{}
-};
-static const struct usb_action cs2102_50HZScale[] = {
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
-	{0xaa, 0x0f, 0x0093}, /* 00,0f,93,aa */
-	{0xaa, 0x03, 0x0005}, /* 00,03,05,aa */
-	{0xaa, 0x04, 0x00a1}, /* 00,04,a1,aa */
-	{0xaa, 0x10, 0x0005}, /* 00,10,05,aa */
-	{0xaa, 0x11, 0x00a1}, /* 00,11,a1,aa */
-	{0xaa, 0x1b, 0x0000}, /* 00,1b,00,aa */
-	{0xaa, 0x1c, 0x0005}, /* 00,1c,05,aa */
-	{0xaa, 0x1d, 0x00a1}, /* 00,1d,a1,aa */
-	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH}, /* 01,90,00,cc */
-	{0xa0, 0x3f, ZC3XX_R191_EXPOSURELIMITMID}, /* 01,91,3f,cc */
-	{0xa0, 0xf7, ZC3XX_R192_EXPOSURELIMITLOW}, /* 01,92,f7,cc */
-	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH}, /* 01,95,00,cc */
-	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID}, /* 01,96,00,cc */
-	{0xa0, 0x83, ZC3XX_R197_ANTIFLICKERLOW}, /* 01,97,83,cc */
-	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE}, /* 01,8c,10,cc */
-	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE}, /* 01,8f,20,cc */
-	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF}, /* 01,a9,10,cc */
-	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP}, /* 01,aa,24,cc */
-	{0xa0, 0x93, ZC3XX_R01D_HSYNC_0}, /* 00,1d,93,cc */
-	{0xa0, 0xb0, ZC3XX_R01E_HSYNC_1}, /* 00,1e,b0,cc */
-	{0xa0, 0xd0, ZC3XX_R01F_HSYNC_2}, /* 00,1f,d0,cc */
-	{}
-};
-static const struct usb_action cs2102_60HZ[] = {
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
-	{0xaa, 0x0f, 0x005d}, /* 00,0f,5d,aa */
-	{0xaa, 0x03, 0x0005}, /* 00,03,05,aa */
-	{0xaa, 0x04, 0x00aa}, /* 00,04,aa,aa */
-	{0xaa, 0x10, 0x0005}, /* 00,10,05,aa */
-	{0xaa, 0x11, 0x00aa}, /* 00,11,aa,aa */
-	{0xaa, 0x1b, 0x0000}, /* 00,1b,00,aa */
-	{0xaa, 0x1c, 0x0005}, /* 00,1c,05,aa */
-	{0xaa, 0x1d, 0x00aa}, /* 00,1d,aa,aa */
-	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH}, /* 01,90,00,cc */
-	{0xa0, 0x3f, ZC3XX_R191_EXPOSURELIMITMID}, /* 01,91,3f,cc */
-	{0xa0, 0xe4, ZC3XX_R192_EXPOSURELIMITLOW}, /* 01,92,e4,cc */
-	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH}, /* 01,95,00,cc */
-	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID}, /* 01,96,00,cc */
-	{0xa0, 0x3a, ZC3XX_R197_ANTIFLICKERLOW}, /* 01,97,3a,cc */
-	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE}, /* 01,8c,10,cc */
-	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE}, /* 01,8f,20,cc */
-	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF}, /* 01,a9,10,cc */
-	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP}, /* 01,aa,24,cc */
-	{0xa0, 0x5d, ZC3XX_R01D_HSYNC_0}, /* 00,1d,5d,cc */
-	{0xa0, 0x90, ZC3XX_R01E_HSYNC_1}, /* 00,1e,90,cc */
-	{0xa0, 0xd0, 0x00c8}, /* 00,c8,d0,cc */
-	{}
-};
-static const struct usb_action cs2102_60HZScale[] = {
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
-	{0xaa, 0x0f, 0x00b7}, /* 00,0f,b7,aa */
-	{0xaa, 0x03, 0x0005}, /* 00,03,05,aa */
-	{0xaa, 0x04, 0x00be}, /* 00,04,be,aa */
-	{0xaa, 0x10, 0x0005}, /* 00,10,05,aa */
-	{0xaa, 0x11, 0x00be}, /* 00,11,be,aa */
-	{0xaa, 0x1b, 0x0000}, /* 00,1b,00,aa */
-	{0xaa, 0x1c, 0x0005}, /* 00,1c,05,aa */
-	{0xaa, 0x1d, 0x00be}, /* 00,1d,be,aa */
-	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH}, /* 01,90,00,cc */
-	{0xa0, 0x3f, ZC3XX_R191_EXPOSURELIMITMID}, /* 01,91,3f,cc */
-	{0xa0, 0xfc, ZC3XX_R192_EXPOSURELIMITLOW}, /* 01,92,fc,cc */
-	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH}, /* 01,95,00,cc */
-	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID}, /* 01,96,00,cc */
-	{0xa0, 0x69, ZC3XX_R197_ANTIFLICKERLOW}, /* 01,97,69,cc */
-	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE}, /* 01,8c,10,cc */
-	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE}, /* 01,8f,20,cc */
-	{0xa0, 0x10, ZC3XX_R1A9_DIGITALLIMITDIFF}, /* 01,a9,10,cc */
-	{0xa0, 0x24, ZC3XX_R1AA_DIGITALGAINSTEP}, /* 01,aa,24,cc */
-	{0xa0, 0xb7, ZC3XX_R01D_HSYNC_0}, /* 00,1d,b7,cc */
-	{0xa0, 0xd0, ZC3XX_R01E_HSYNC_1}, /* 00,1e,d0,cc */
-	{0xa0, 0xe8, ZC3XX_R01F_HSYNC_2}, /* 00,1f,e8,cc */
 	{}
 };
 static const struct usb_action cs2102_NoFliker[] = {
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
-	{0xaa, 0x0f, 0x0059}, /* 00,0f,59,aa */
-	{0xaa, 0x03, 0x0005}, /* 00,03,05,aa */
-	{0xaa, 0x04, 0x0080}, /* 00,04,80,aa */
-	{0xaa, 0x10, 0x0005}, /* 00,10,05,aa */
-	{0xaa, 0x11, 0x0080}, /* 00,11,80,aa */
-	{0xaa, 0x1b, 0x0000}, /* 00,1b,00,aa */
-	{0xaa, 0x1c, 0x0005}, /* 00,1c,05,aa */
-	{0xaa, 0x1d, 0x0080}, /* 00,1d,80,aa */
-	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH}, /* 01,90,00,cc */
-	{0xa0, 0x3f, ZC3XX_R191_EXPOSURELIMITMID}, /* 01,91,3f,cc */
-	{0xa0, 0xf0, ZC3XX_R192_EXPOSURELIMITLOW}, /* 01,92,f0,cc */
-	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH}, /* 01,95,00,cc */
-	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID}, /* 01,96,00,cc */
-	{0xa0, 0x10, ZC3XX_R197_ANTIFLICKERLOW}, /* 01,97,10,cc */
-	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE}, /* 01,8c,10,cc */
-	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE}, /* 01,8f,20,cc */
-	{0xa0, 0x00, ZC3XX_R1A9_DIGITALLIMITDIFF}, /* 01,a9,00,cc */
-	{0xa0, 0x00, ZC3XX_R1AA_DIGITALGAINSTEP}, /* 01,aa,00,cc */
-	{0xa0, 0x59, ZC3XX_R01D_HSYNC_0}, /* 00,1d,59,cc */
-	{0xa0, 0x90, ZC3XX_R01E_HSYNC_1}, /* 00,1e,90,cc */
-	{0xa0, 0xc8, ZC3XX_R01F_HSYNC_2}, /* 00,1f,c8,cc */
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x23, 0x0001},
+	{0xaa, 0x24, 0x005f},
+	{0xaa, 0x25, 0x0000},
+	{0xaa, 0x21, 0x0001},
+	{0xa0, 0x02, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0xbf, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x00, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x80, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x00, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x00, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x01, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0x40, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0xa0, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
 	{}
 };
 static const struct usb_action cs2102_NoFlikerScale[] = {
-	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
-	{0xaa, 0x0f, 0x0059}, /* 00,0f,59,aa */
-	{0xaa, 0x03, 0x0005}, /* 00,03,05,aa */
-	{0xaa, 0x04, 0x0080}, /* 00,04,80,aa */
-	{0xaa, 0x10, 0x0005}, /* 00,10,05,aa */
-	{0xaa, 0x11, 0x0080}, /* 00,11,80,aa */
-	{0xaa, 0x1b, 0x0000}, /* 00,1b,00,aa */
-	{0xaa, 0x1c, 0x0005}, /* 00,1c,05,aa */
-	{0xaa, 0x1d, 0x0080}, /* 00,1d,80,aa */
-	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH}, /* 01,90,00,cc */
-	{0xa0, 0x3f, ZC3XX_R191_EXPOSURELIMITMID}, /* 01,91,3f,cc */
-	{0xa0, 0xf0, ZC3XX_R192_EXPOSURELIMITLOW}, /* 01,92,f0,cc */
-	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH}, /* 01,95,00,cc */
-	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID}, /* 01,96,00,cc */
-	{0xa0, 0x10, ZC3XX_R197_ANTIFLICKERLOW}, /* 01,97,10,cc */
-	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE}, /* 01,8c,10,cc */
-	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE}, /* 01,8f,20,cc */
-	{0xa0, 0x00, ZC3XX_R1A9_DIGITALLIMITDIFF}, /* 01,a9,00,cc */
-	{0xa0, 0x00, ZC3XX_R1AA_DIGITALGAINSTEP}, /* 01,aa,00,cc */
-	{0xa0, 0x59, ZC3XX_R01D_HSYNC_0}, /* 00,1d,59,cc */
-	{0xa0, 0x90, ZC3XX_R01E_HSYNC_1}, /* 00,1e,90,cc */
-	{0xa0, 0xc8, ZC3XX_R01F_HSYNC_2}, /* 00,1f,c8,cc */
+	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
+	{0xaa, 0x23, 0x0000},
+	{0xaa, 0x24, 0x00af},
+	{0xaa, 0x25, 0x0080},
+	{0xaa, 0x21, 0x0001},
+	{0xa0, 0x01, ZC3XX_R190_EXPOSURELIMITHIGH},
+	{0xa0, 0x5f, ZC3XX_R191_EXPOSURELIMITMID},
+	{0xa0, 0x80, ZC3XX_R192_EXPOSURELIMITLOW},
+	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},
+	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},
+	{0xa0, 0x80, ZC3XX_R197_ANTIFLICKERLOW},
+	{0xa0, 0x10, ZC3XX_R18C_AEFREEZE},
+	{0xa0, 0x20, ZC3XX_R18F_AEUNFREEZE},
+	{0xa0, 0x00, ZC3XX_R1A9_DIGITALLIMITDIFF},
+	{0xa0, 0x00, ZC3XX_R1AA_DIGITALGAINSTEP},
+	{0xa0, 0x01, ZC3XX_R01D_HSYNC_0},
+	{0xa0, 0x40, ZC3XX_R01E_HSYNC_1},
+	{0xa0, 0xa0, ZC3XX_R01F_HSYNC_2},
+	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
 	{}
 };
 
@@ -6384,7 +6210,7 @@ static void setmatrix(struct gspca_dev *gspca_dev)
 		{0x7b, 0xea, 0xea, 0xea, 0x7b, 0xea, 0xea, 0xea, 0x7b};
 	static const __u8 *matrix_tb[SENSOR_MAX] = {
 		adcm2700_matrix, /* SENSOR_ADCM2700 0 */
-		NULL,		/* SENSOR_CS2102 1 */
+		ov7620_matrix,	/* SENSOR_CS2102 1 */
 		NULL,		/* SENSOR_CS2102K 2 */
 		gc0305_matrix,	/* SENSOR_GC0305 3 */
 		NULL,		/* SENSOR_HDCS2020b 4 */
@@ -7025,7 +6851,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	int vga = 1;		/* 1: vga, 0: sif */
 	static const __u8 gamma[SENSOR_MAX] = {
 		4,	/* SENSOR_ADCM2700 0 */
-		5,	/* SENSOR_CS2102 1 */
+		4,	/* SENSOR_CS2102 1 */
 		5,	/* SENSOR_CS2102K 2 */
 		4,	/* SENSOR_GC0305 3 */
 		4,	/* SENSOR_HDCS2020b 4 */
@@ -7310,8 +7136,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* set the gamma tables when not set */
 	switch (sd->sensor) {
-	case SENSOR_CS2102:		/* gamma set in xxx_Initial */
-	case SENSOR_CS2102K:
+	case SENSOR_CS2102K:		/* gamma set in xxx_Initial */
 	case SENSOR_HDCS2020b:
 	case SENSOR_PB0330:		/* pb with chip_revision - see above */
 	case SENSOR_OV7630C:
