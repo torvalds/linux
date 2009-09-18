@@ -24,7 +24,6 @@ config MTD_ONENAND_VERIFY_WRITE
 
 config MTD_ONENAND_GENERIC
 	tristate "OneNAND Flash device via platform device driver"
-	depends on ARM
 	help
 	  Support for OneNAND flash via platform device driver.
 
