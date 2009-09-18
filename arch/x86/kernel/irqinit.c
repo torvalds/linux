@@ -190,7 +190,7 @@ static void __init apic_intr_init(void)
 #ifdef CONFIG_X86_MCE_THRESHOLD
 	alloc_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
 #endif
-#if defined(CONFIG_X86_NEW_MCE) && defined(CONFIG_X86_LOCAL_APIC)
+#if defined(CONFIG_X86_MCE) && defined(CONFIG_X86_LOCAL_APIC)
 	alloc_intr_gate(MCE_SELF_VECTOR, mce_self_interrupt);
 #endif
 
