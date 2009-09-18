@@ -124,8 +124,12 @@ static int s3c64xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 struct clk *s3c64xx_i2s_get_clock(struct snd_soc_dai *dai)
 {
 	struct s3c_i2sv2_info *i2s = to_info(dai);
+	u32 iismod = readl(i2s->regs + S3C2412_IISMOD);
 
-	return i2s->iis_cclk;
+	if (iismod & S3C64XX_IISMOD_IMS_SYSMUX)
+		return i2s->iis_cclk;
+	else
+		return i2s->iis_pclk;
 }
 EXPORT_SYMBOL_GPL(s3c64xx_i2s_get_clock);
 
