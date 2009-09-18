@@ -895,7 +895,7 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	ctrl_ctx->drop_flags |= drop_flag;
 	new_drop_flags = ctrl_ctx->drop_flags;
 
-	ctrl_ctx->add_flags = ~drop_flag;
+	ctrl_ctx->add_flags &= ~drop_flag;
 	new_add_flags = ctrl_ctx->add_flags;
 
 	last_ctx = xhci_last_valid_endpoint(ctrl_ctx->add_flags);
