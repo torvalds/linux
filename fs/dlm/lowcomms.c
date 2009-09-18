@@ -316,6 +316,10 @@ int dlm_lowcomms_connect_node(int nodeid)
 {
 	struct connection *con;
 
+	/* with sctp there's no connecting without sending */
+	if (dlm_config.ci_protocol != 0)
+		return 0;
+
 	if (nodeid == dlm_our_nodeid())
 		return 0;
 
@@ -855,11 +859,14 @@ static void sctp_init_assoc(struct connection *con)
 	outmessage.msg_flags = MSG_EOR;
 
 	spin_lock(&con->writequeue_lock);
-	e = list_entry(con->writequeue.next, struct writequeue_entry,
-		       list);
 
-	BUG_ON((struct list_head *) e == &con->writequeue);
+	if (list_empty(&con->writequeue)) {
+		spin_unlock(&con->writequeue_lock);
+		log_print("writequeue empty for nodeid %d", con->nodeid);
+		return;
+	}
 
+	e = list_first_entry(&con->writequeue, struct writequeue_entry, list);
 	len = e->len;
 	offset = e->offset;
 	spin_unlock(&con->writequeue_lock);
