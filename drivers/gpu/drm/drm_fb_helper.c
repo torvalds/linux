@@ -116,27 +116,30 @@ static void drm_fb_helper_on(struct fb_info *info)
 	 * For each CRTC in this fb, turn the crtc on then,
 	 * find all associated encoders and turn them on.
 	 */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+			struct drm_crtc_helper_funcs *crtc_funcs =
+				crtc->helper_private;
 
-		for (i = 0; i < fb_helper->crtc_count; i++) {
-			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
-				break;
-		}
+			/* Only mess with CRTCs in this fb */
+			if (crtc->base.id != fb_helper->crtc_info[i].crtc_id ||
+			    !crtc->enabled)
+				continue;
 
-		mutex_lock(&dev->mode_config.mutex);
-		crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-		mutex_unlock(&dev->mode_config.mutex);
+			mutex_lock(&dev->mode_config.mutex);
+			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
+			mutex_unlock(&dev->mode_config.mutex);
 
-		/* Found a CRTC on this fb, now find encoders */
-		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-			if (encoder->crtc == crtc) {
-				struct drm_encoder_helper_funcs *encoder_funcs;
+			/* Found a CRTC on this fb, now find encoders */
+			list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+				if (encoder->crtc == crtc) {
+					struct drm_encoder_helper_funcs *encoder_funcs;
 
-				encoder_funcs = encoder->helper_private;
-				mutex_lock(&dev->mode_config.mutex);
-				encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
-				mutex_unlock(&dev->mode_config.mutex);
+					encoder_funcs = encoder->helper_private;
+					mutex_lock(&dev->mode_config.mutex);
+					encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
+					mutex_unlock(&dev->mode_config.mutex);
+				}
 			}
 		}
 	}
@@ -154,29 +157,32 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 	 * For each CRTC in this fb, find all associated encoders
 	 * and turn them off, then turn off the CRTC.
 	 */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+			struct drm_crtc_helper_funcs *crtc_funcs =
+				crtc->helper_private;
 
-		for (i = 0; i < fb_helper->crtc_count; i++) {
-			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
-				break;
-		}
+			/* Only mess with CRTCs in this fb */
+			if (crtc->base.id != fb_helper->crtc_info[i].crtc_id ||
+			    !crtc->enabled)
+				continue;
 
-		/* Found a CRTC on this fb, now find encoders */
-		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-			if (encoder->crtc == crtc) {
-				struct drm_encoder_helper_funcs *encoder_funcs;
+			/* Found a CRTC on this fb, now find encoders */
+			list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+				if (encoder->crtc == crtc) {
+					struct drm_encoder_helper_funcs *encoder_funcs;
 
-				encoder_funcs = encoder->helper_private;
+					encoder_funcs = encoder->helper_private;
+					mutex_lock(&dev->mode_config.mutex);
+					encoder_funcs->dpms(encoder, dpms_mode);
+					mutex_unlock(&dev->mode_config.mutex);
+				}
+			}
+			if (dpms_mode == DRM_MODE_DPMS_OFF) {
 				mutex_lock(&dev->mode_config.mutex);
-				encoder_funcs->dpms(encoder, dpms_mode);
+				crtc_funcs->dpms(crtc, dpms_mode);
 				mutex_unlock(&dev->mode_config.mutex);
 			}
-		}
-		if (dpms_mode == DRM_MODE_DPMS_OFF) {
-			mutex_lock(&dev->mode_config.mutex);
-			crtc_funcs->dpms(crtc, dpms_mode);
-			mutex_unlock(&dev->mode_config.mutex);
 		}
 	}
 }
