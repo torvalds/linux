@@ -178,7 +178,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 }
 
 /* not static: needed by APM */
-unsigned long read_persistent_clock(void)
+void read_persistent_clock(struct timespec *ts)
 {
 	unsigned long retval, flags;
 
@@ -186,7 +186,8 @@ unsigned long read_persistent_clock(void)
 	retval = get_wallclock();
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
-	return retval;
+	ts->tv_sec = retval;
+	ts->tv_nsec = 0;
 }
 
 int update_persistent_clock(struct timespec now)

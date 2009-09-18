@@ -92,10 +92,12 @@ static int rtctmp;
 int proc_dolasatrtc(ctl_table *table, int write, struct file *filp,
 		       void *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct timespec ts;
 	int r;
 
 	if (!write) {
-		rtctmp = read_persistent_clock();
+		read_persistent_clock(&ts);
+		rtctmp = ts.tv_sec;
 		/* check for time < 0 and set to 0 */
 		if (rtctmp < 0)
 			rtctmp = 0;
@@ -134,9 +136,11 @@ int sysctl_lasat_rtc(ctl_table *table,
 		    void *oldval, size_t *oldlenp,
 		    void *newval, size_t newlen)
 {
+	struct timespec ts;
 	int r;
 
-	rtctmp = read_persistent_clock();
+	read_persistent_clock(&ts);
+	rtctmp = ts.tv_sec;
 	if (rtctmp < 0)
 		rtctmp = 0;
 	r = sysctl_intvec(table, oldval, oldlenp, newval, newlen);

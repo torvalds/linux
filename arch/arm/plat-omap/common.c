@@ -253,11 +253,8 @@ static struct clocksource clocksource_32k = {
  */
 unsigned long long sched_clock(void)
 {
-	unsigned long long ret;
-
-	ret = (unsigned long long)clocksource_32k.read(&clocksource_32k);
-	ret = (ret * clocksource_32k.mult_orig) >> clocksource_32k.shift;
-	return ret;
+	return clocksource_cyc2ns(clocksource_32k.read(&clocksource_32k),
+				  clocksource_32k.mult, clocksource_32k.shift);
 }
 
 static int __init omap_init_clocksource_32k(void)
