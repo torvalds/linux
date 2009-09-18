@@ -272,11 +272,9 @@ int rs600_irq_set(struct radeon_device *rdev)
 		tmp |= RADEON_SW_INT_ENABLE;
 	}
 	if (rdev->irq.crtc_vblank_int[0]) {
-		tmp |= AVIVO_DISPLAY_INT_STATUS;
 		mode_int |= AVIVO_D1MODE_INT_MASK;
 	}
 	if (rdev->irq.crtc_vblank_int[1]) {
-		tmp |= AVIVO_DISPLAY_INT_STATUS;
 		mode_int |= AVIVO_D2MODE_INT_MASK;
 	}
 	WREG32(RADEON_GEN_INT_CNTL, tmp);
