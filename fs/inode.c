@@ -1416,31 +1416,31 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 	struct timespec now;
 
-	if (mnt_want_write(mnt))
-		return;
 	if (inode->i_flags & S_NOATIME)
-		goto out;
+		return;
 	if (IS_NOATIME(inode))
-		goto out;
+		return;
 	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))
-		goto out;
+		return;
 
 	if (mnt->mnt_flags & MNT_NOATIME)
-		goto out;
+		return;
 	if ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))
-		goto out;
+		return;
 
 	now = current_fs_time(inode->i_sb);
 
 	if (!relatime_need_update(mnt, inode, now))
-		goto out;
+		return;
 
 	if (timespec_equal(&inode->i_atime, &now))
-		goto out;
+		return;
+
+	if (mnt_want_write(mnt))
+		return;
 
 	inode->i_atime = now;
 	mark_inode_dirty_sync(inode);
-out:
 	mnt_drop_write(mnt);
 }
 EXPORT_SYMBOL(touch_atime);
