@@ -2182,7 +2182,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	delalloc_end = 0;
 	page_started = 0;
 	if (!epd->extent_locked) {
-		u64 delalloc_to_write;
+		u64 delalloc_to_write = 0;
 		/*
 		 * make sure the wbc mapping index is at least updated
 		 * to this page.
@@ -2202,15 +2202,23 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			tree->ops->fill_delalloc(inode, page, delalloc_start,
 						 delalloc_end, &page_started,
 						 &nr_written);
-			delalloc_to_write = (delalloc_end -
-					max_t(u64, page_offset(page),
-					      delalloc_start) + 1) >>
-				        PAGE_CACHE_SHIFT;
-			if (wbc->nr_to_write < delalloc_to_write) {
-				wbc->nr_to_write = min_t(long, 8192,
-						 delalloc_to_write);
-			}
+			/*
+			 * delalloc_end is already one less than the total
+			 * length, so we don't subtract one from
+			 * PAGE_CACHE_SIZE
+			 */
+			delalloc_to_write += (delalloc_end - delalloc_start +
+					      PAGE_CACHE_SIZE) >>
+					      PAGE_CACHE_SHIFT;
 			delalloc_start = delalloc_end + 1;
+		}
+		if (wbc->nr_to_write < delalloc_to_write) {
+			int thresh = 8192;
+
+			if (delalloc_to_write < thresh * 2)
+				thresh = delalloc_to_write;
+			wbc->nr_to_write = min_t(u64, delalloc_to_write,
+						 thresh);
 		}
 
 		/* did the fill delalloc function already unlock and start
@@ -2388,6 +2396,7 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 {
 	int ret = 0;
 	int done = 0;
+	int nr_to_write_done = 0;
 	struct pagevec pvec;
 	int nr_pages;
 	pgoff_t index;
@@ -2407,7 +2416,7 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 		scanned = 1;
 	}
 retry:
-	while (!done && (index <= end) &&
+	while (!done && !nr_to_write_done && (index <= end) &&
 	       (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
 			      PAGECACHE_TAG_DIRTY, min(end - index,
 				  (pgoff_t)PAGEVEC_SIZE-1) + 1))) {
@@ -2458,8 +2467,15 @@ retry:
 				unlock_page(page);
 				ret = 0;
 			}
-			if (ret || wbc->nr_to_write <= 0)
+			if (ret)
 				done = 1;
+
+			/*
+			 * the filesystem may choose to bump up nr_to_write.
+			 * We have to make sure to honor the new nr_to_write
+			 * at any time
+			 */
+			nr_to_write_done = wbc->nr_to_write <= 0;
 		}
 		pagevec_release(&pvec);
 		cond_resched();
