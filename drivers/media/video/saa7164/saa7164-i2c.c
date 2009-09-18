@@ -127,10 +127,7 @@ int saa7164_i2c_register(struct saa7164_i2c *bus)
 
 	bus->i2c_client.adapter = &bus->i2c_adap;
 
-	if (0 == bus->i2c_rc) {
-		printk(KERN_ERR "%s: i2c bus %d registered\n",
-			dev->name, bus->nr);
-	} else
+	if (0 != bus->i2c_rc)
 		printk(KERN_ERR "%s: i2c bus %d register FAILED\n",
 			dev->name, bus->nr);
 
