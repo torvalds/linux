@@ -628,8 +628,8 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 
 	/* Special-case the common single-level case. */
 	if (NUM_RCU_NODES == 1) {
-		rnp->qsmask = rnp->qsmaskinit;
 		rcu_preempt_check_blocked_tasks(rnp);
+		rnp->qsmask = rnp->qsmaskinit;
 		rnp->gpnum = rsp->gpnum;
 		rsp->signaled = RCU_SIGNAL_INIT; /* force_quiescent_state OK. */
 		spin_unlock_irqrestore(&rnp->lock, flags);
@@ -662,8 +662,8 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	rnp_end = &rsp->node[NUM_RCU_NODES];
 	for (rnp_cur = &rsp->node[0]; rnp_cur < rnp_end; rnp_cur++) {
 		spin_lock(&rnp_cur->lock);	/* irqs already disabled. */
-		rnp_cur->qsmask = rnp_cur->qsmaskinit;
 		rcu_preempt_check_blocked_tasks(rnp);
+		rnp_cur->qsmask = rnp_cur->qsmaskinit;
 		rnp->gpnum = rsp->gpnum;
 		spin_unlock(&rnp_cur->lock);	/* irqs already disabled. */
 	}
@@ -708,6 +708,7 @@ rcu_process_gp_end(struct rcu_state *rsp, struct rcu_data *rdp)
 static void cpu_quiet_msk_finish(struct rcu_state *rsp, unsigned long flags)
 	__releases(rnp->lock)
 {
+	WARN_ON_ONCE(rsp->completed == rsp->gpnum);
 	rsp->completed = rsp->gpnum;
 	rcu_process_gp_end(rsp, rsp->rda[smp_processor_id()]);
 	rcu_start_gp(rsp, flags);  /* releases root node's rnp->lock. */
@@ -725,6 +726,8 @@ cpu_quiet_msk(unsigned long mask, struct rcu_state *rsp, struct rcu_node *rnp,
 	      unsigned long flags)
 	__releases(rnp->lock)
 {
+	struct rcu_node *rnp_c;
+
 	/* Walk up the rcu_node hierarchy. */
 	for (;;) {
 		if (!(rnp->qsmask & mask)) {
@@ -748,8 +751,10 @@ cpu_quiet_msk(unsigned long mask, struct rcu_state *rsp, struct rcu_node *rnp,
 			break;
 		}
 		spin_unlock_irqrestore(&rnp->lock, flags);
+		rnp_c = rnp;
 		rnp = rnp->parent;
 		spin_lock_irqsave(&rnp->lock, flags);
+		WARN_ON_ONCE(rnp_c->qsmask);
 	}
 
 	/*
@@ -858,7 +863,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 	spin_lock_irqsave(&rsp->onofflock, flags);
 
 	/* Remove the outgoing CPU from the masks in the rcu_node hierarchy. */
-	rnp = rdp->mynode;
+	rnp = rdp->mynode;	/* this is the outgoing CPU's rnp. */
 	mask = rdp->grpmask;	/* rnp->grplo is constant. */
 	do {
 		spin_lock(&rnp->lock);		/* irqs already disabled. */
@@ -867,7 +872,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 			spin_unlock(&rnp->lock); /* irqs remain disabled. */
 			break;
 		}
-		rcu_preempt_offline_tasks(rsp, rnp);
+		rcu_preempt_offline_tasks(rsp, rnp, rdp);
 		mask = rnp->grpmask;
 		spin_unlock(&rnp->lock);	/* irqs remain disabled. */
 		rnp = rnp->parent;
