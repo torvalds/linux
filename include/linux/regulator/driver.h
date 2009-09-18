@@ -37,7 +37,8 @@ enum regulator_status {
  *
  * @enable: Configure the regulator as enabled.
  * @disable: Configure the regulator as disabled.
- * @is_enabled: Return 1 if the regulator is enabled, 0 otherwise.
+ * @is_enabled: Return 1 if the regulator is enabled, 0 if not.
+ *		May also return negative errno.
  *
  * @set_voltage: Set the voltage for the regulator within the range specified.
  *               The driver should select the voltage closest to min_uV.
