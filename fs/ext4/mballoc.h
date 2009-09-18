@@ -37,11 +37,19 @@
 
 /*
  */
-#define MB_DEBUG__
-#ifdef MB_DEBUG
-#define mb_debug(fmt, a...)	printk(fmt, ##a)
+#ifdef CONFIG_EXT4_DEBUG
+extern u8 mb_enable_debug;
+
+#define mb_debug(n, fmt, a...)	                                        \
+	do {								\
+		if ((n) <= mb_enable_debug) {		        	\
+			printk(KERN_DEBUG "(%s, %d): %s: ",		\
+			       __FILE__, __LINE__, __func__);		\
+			printk(fmt, ## a);				\
+		}							\
+	} while (0)
 #else
-#define mb_debug(fmt, a...)
+#define mb_debug(n, fmt, a...)
 #endif
 
 /*

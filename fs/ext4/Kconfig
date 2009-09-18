@@ -77,3 +77,12 @@ config EXT4_FS_SECURITY
 
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
+
+config EXT4_DEBUG
+	bool "EXT4 debugging support"
+	depends on EXT4_FS
+	help
+	  Enables run-time debugging support for the ext4 filesystem.
+
+	  If you select Y here, then you will be able to turn on debugging
+	  with a command such as "echo 1 > /sys/kernel/debug/ext4/mballoc-debug"
