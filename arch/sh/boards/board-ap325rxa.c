@@ -188,7 +188,7 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.name = "LB070WV1",
 			.xres = 800,
 			.yres = 480,
-			.left_margin = 40,
+			.left_margin = 32,
 			.right_margin = 160,
 			.hsync_len = 8,
 			.upper_margin = 63,
@@ -211,7 +211,7 @@ static struct resource lcdc_resources[] = {
 	[0] = {
 		.name	= "LCDC",
 		.start	= 0xfe940000, /* P4-only space */
-		.end	= 0xfe941fff,
+		.end	= 0xfe942fff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -226,6 +226,9 @@ static struct platform_device lcdc_device = {
 	.resource	= lcdc_resources,
 	.dev		= {
 		.platform_data	= &lcdc_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_LCDC,
 	},
 };
 
@@ -376,6 +379,9 @@ static struct platform_device ceu_device = {
 	.resource	= ceu_resources,
 	.dev		= {
 		.platform_data	= &sh_mobile_ceu_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_CEU,
 	},
 };
 

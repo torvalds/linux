@@ -29,7 +29,7 @@
 #include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"
-#define DRV_VERSION	"0.2.2"
+#define DRV_VERSION	"0.2.3"
 
 #define RTC_REG(r)	((r) * rtc_reg_size)
 
@@ -215,7 +215,7 @@ static irqreturn_t sh_rtc_shared(int irq, void *dev_id)
 	return IRQ_RETVAL(ret);
 }
 
-static inline void sh_rtc_setpie(struct device *dev, unsigned int enable)
+static int sh_rtc_irq_set_state(struct device *dev, int enable)
 {
 	struct sh_rtc *rtc = dev_get_drvdata(dev);
 	unsigned int tmp;
@@ -225,17 +225,22 @@ static inline void sh_rtc_setpie(struct device *dev, unsigned int enable)
 	tmp = readb(rtc->regbase + RCR2);
 
 	if (enable) {
+		rtc->periodic_freq |= PF_KOU;
 		tmp &= ~RCR2_PEF;	/* Clear PES bit */
 		tmp |= (rtc->periodic_freq & ~PF_HP);	/* Set PES2-0 */
-	} else
+	} else {
+		rtc->periodic_freq &= ~PF_KOU;
 		tmp &= ~(RCR2_PESMASK | RCR2_PEF);
+	}
 
 	writeb(tmp, rtc->regbase + RCR2);
 
 	spin_unlock_irq(&rtc->lock);
+
+	return 0;
 }
 
-static inline int sh_rtc_setfreq(struct device *dev, unsigned int freq)
+static int sh_rtc_irq_set_freq(struct device *dev, int freq)
 {
 	struct sh_rtc *rtc = dev_get_drvdata(dev);
 	int tmp, ret = 0;
@@ -278,10 +283,8 @@ static inline int sh_rtc_setfreq(struct device *dev, unsigned int freq)
 		ret = -ENOTSUPP;
 	}
 
-	if (ret == 0) {
+	if (ret == 0)
 		rtc->periodic_freq |= tmp;
-		rtc->rtc_dev->irq_freq = freq;
-	}
 
 	spin_unlock_irq(&rtc->lock);
 	return ret;
@@ -346,10 +349,6 @@ static int sh_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	unsigned int ret = 0;
 
 	switch (cmd) {
-	case RTC_PIE_OFF:
-	case RTC_PIE_ON:
-		sh_rtc_setpie(dev, cmd == RTC_PIE_ON);
-		break;
 	case RTC_AIE_OFF:
 	case RTC_AIE_ON:
 		sh_rtc_setaie(dev, cmd == RTC_AIE_ON);
@@ -361,13 +360,6 @@ static int sh_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	case RTC_UIE_ON:
 		rtc->periodic_freq |= PF_OXS;
 		sh_rtc_setcie(dev, 1);
-		break;
-	case RTC_IRQP_READ:
-		ret = put_user(rtc->rtc_dev->irq_freq,
-			       (unsigned long __user *)arg);
-		break;
-	case RTC_IRQP_SET:
-		ret = sh_rtc_setfreq(dev, arg);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -602,28 +594,6 @@ static int sh_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	return 0;
 }
 
-static int sh_rtc_irq_set_state(struct device *dev, int enabled)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sh_rtc *rtc = platform_get_drvdata(pdev);
-
-	if (enabled) {
-		rtc->periodic_freq |= PF_KOU;
-		return sh_rtc_ioctl(dev, RTC_PIE_ON, 0);
-	} else {
-		rtc->periodic_freq &= ~PF_KOU;
-		return sh_rtc_ioctl(dev, RTC_PIE_OFF, 0);
-	}
-}
-
-static int sh_rtc_irq_set_freq(struct device *dev, int freq)
-{
-	if (!is_power_of_2(freq))
-		return -EINVAL;
-
-	return sh_rtc_ioctl(dev, RTC_IRQP_SET, freq);
-}
-
 static struct rtc_class_ops sh_rtc_ops = {
 	.ioctl		= sh_rtc_ioctl,
 	.read_time	= sh_rtc_read_time,
@@ -635,7 +605,7 @@ static struct rtc_class_ops sh_rtc_ops = {
 	.proc		= sh_rtc_proc,
 };
 
-static int __devinit sh_rtc_probe(struct platform_device *pdev)
+static int __init sh_rtc_probe(struct platform_device *pdev)
 {
 	struct sh_rtc *rtc;
 	struct resource *res;
@@ -702,13 +672,6 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 
 	clk_enable(rtc->clk);
 
-	rtc->rtc_dev = rtc_device_register("sh", &pdev->dev,
-					   &sh_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtc_dev)) {
-		ret = PTR_ERR(rtc->rtc_dev);
-		goto err_unmap;
-	}
-
 	rtc->capabilities = RTC_DEF_CAPABILITIES;
 	if (pdev->dev.platform_data) {
 		struct sh_rtc_platform_info *pinfo = pdev->dev.platform_data;
@@ -719,10 +682,6 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 		 */
 		rtc->capabilities |= pinfo->capabilities;
 	}
-
-	rtc->rtc_dev->max_user_freq = 256;
-
-	platform_set_drvdata(pdev, rtc);
 
 	if (rtc->carry_irq <= 0) {
 		/* register shared periodic/carry/alarm irq */
@@ -767,12 +726,25 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
+	platform_set_drvdata(pdev, rtc);
+
 	/* everything disabled by default */
-	rtc->periodic_freq = 0;
-	rtc->rtc_dev->irq_freq = 0;
-	sh_rtc_setpie(&pdev->dev, 0);
+	sh_rtc_irq_set_freq(&pdev->dev, 0);
+	sh_rtc_irq_set_state(&pdev->dev, 0);
 	sh_rtc_setaie(&pdev->dev, 0);
 	sh_rtc_setcie(&pdev->dev, 0);
+
+	rtc->rtc_dev = rtc_device_register("sh", &pdev->dev,
+					   &sh_rtc_ops, THIS_MODULE);
+	if (IS_ERR(rtc->rtc_dev)) {
+		ret = PTR_ERR(rtc->rtc_dev);
+		free_irq(rtc->periodic_irq, rtc);
+		free_irq(rtc->carry_irq, rtc);
+		free_irq(rtc->alarm_irq, rtc);
+		goto err_unmap;
+	}
+
+	rtc->rtc_dev->max_user_freq = 256;
 
 	/* reset rtc to epoch 0 if time is invalid */
 	if (rtc_read_time(rtc->rtc_dev, &r) < 0) {
@@ -795,14 +767,13 @@ err_badres:
 	return ret;
 }
 
-static int __devexit sh_rtc_remove(struct platform_device *pdev)
+static int __exit sh_rtc_remove(struct platform_device *pdev)
 {
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
 
-	if (likely(rtc->rtc_dev))
-		rtc_device_unregister(rtc->rtc_dev);
+	rtc_device_unregister(rtc->rtc_dev);
+	sh_rtc_irq_set_state(&pdev->dev, 0);
 
-	sh_rtc_setpie(&pdev->dev, 0);
 	sh_rtc_setaie(&pdev->dev, 0);
 	sh_rtc_setcie(&pdev->dev, 0);
 
@@ -813,9 +784,8 @@ static int __devexit sh_rtc_remove(struct platform_device *pdev)
 		free_irq(rtc->alarm_irq, rtc);
 	}
 
-	release_resource(rtc->res);
-
 	iounmap(rtc->regbase);
+	release_resource(rtc->res);
 
 	clk_disable(rtc->clk);
 	clk_put(rtc->clk);
@@ -867,13 +837,12 @@ static struct platform_driver sh_rtc_platform_driver = {
 		.owner	= THIS_MODULE,
 		.pm	= &sh_rtc_dev_pm_ops,
 	},
-	.probe		= sh_rtc_probe,
-	.remove		= __devexit_p(sh_rtc_remove),
+	.remove		= __exit_p(sh_rtc_remove),
 };
 
 static int __init sh_rtc_init(void)
 {
-	return platform_driver_register(&sh_rtc_platform_driver);
+	return platform_driver_probe(&sh_rtc_platform_driver, sh_rtc_probe);
 }
 
 static void __exit sh_rtc_exit(void)

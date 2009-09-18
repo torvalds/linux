@@ -251,6 +251,24 @@ config USB_PXA25X_SMALL
 	default y if USB_ETH
 	default y if USB_G_SERIAL
 
+config USB_GADGET_R8A66597
+	boolean "Renesas R8A66597 USB Peripheral Controller"
+	select USB_GADGET_DUALSPEED
+	help
+	   R8A66597 is a discrete USB host and peripheral controller chip that
+	   supports both full and high speed USB 2.0 data transfers.
+	   It has nine configurable endpoints, and endpoint zero.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "r8a66597_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_R8A66597
+	tristate
+	depends on USB_GADGET_R8A66597
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_PXA27X
 	boolean "PXA 27x"
 	depends on ARCH_PXA && (PXA27x || PXA3xx)
@@ -359,16 +377,6 @@ config USB_M66592
 	depends on USB_GADGET_M66592
 	default USB_GADGET
 	select USB_GADGET_SELECTED
-
-config SUPERH_BUILT_IN_M66592
-	boolean "Enable SuperH built-in USB like the M66592"
-	depends on USB_GADGET_M66592 && CPU_SUBTYPE_SH7722
-	help
-	   SH7722 has USB like the M66592.
-
-	   The transfer rate is very slow when use "Ethernet Gadget".
-	   However, this problem is improved if change a value of
-	   NET_IP_ALIGN to 4.
 
 #
 # Controllers available only in discrete form (and all PCI controllers)

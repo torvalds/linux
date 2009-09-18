@@ -21,6 +21,7 @@
 #include <linux/smp.h>
 #include <linux/rtc.h>
 #include <asm/clock.h>
+#include <asm/hwblk.h>
 #include <asm/rtc.h>
 
 /* Dummy RTC ops */
@@ -89,21 +90,8 @@ module_init(rtc_generic_init);
 
 void (*board_time_init)(void);
 
-void __init time_init(void)
+static void __init sh_late_time_init(void)
 {
-	if (board_time_init)
-		board_time_init();
-
-	clk_init();
-
-	rtc_sh_get_time(&xtime);
-	set_normalized_timespec(&wall_to_monotonic,
-				-xtime.tv_sec, -xtime.tv_nsec);
-
-#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
-	local_timer_setup(smp_processor_id());
-#endif
-
 	/*
 	 * Make sure all compiled-in early timers register themselves.
 	 *
@@ -115,4 +103,19 @@ void __init time_init(void)
 	 */
 	early_platform_driver_register_all("earlytimer");
 	early_platform_driver_probe("earlytimer", 2, 0);
+}
+
+void __init time_init(void)
+{
+	if (board_time_init)
+		board_time_init();
+
+	hwblk_init();
+	clk_init();
+
+	rtc_sh_get_time(&xtime);
+	set_normalized_timespec(&wall_to_monotonic,
+				-xtime.tv_sec, -xtime.tv_nsec);
+
+	late_time_init = sh_late_time_init;
 }

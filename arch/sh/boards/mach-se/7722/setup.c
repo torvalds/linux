@@ -22,6 +22,7 @@
 #include <asm/io.h>
 #include <asm/heartbeat.h>
 #include <asm/sh_keysc.h>
+#include <cpu/sh7722.h>
 
 /* Heartbeat */
 static struct heartbeat_data heartbeat_data = {
@@ -136,6 +137,9 @@ static struct platform_device sh_keysc_device = {
 	.resource       = sh_keysc_resources,
 	.dev	= {
 		.platform_data	= &sh_keysc_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_KEYSC,
 	},
 };
 

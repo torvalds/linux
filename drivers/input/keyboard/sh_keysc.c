@@ -80,6 +80,9 @@ static irqreturn_t sh_keysc_isr(int irq, void *dev_id)
 		iowrite16(KYCR2_IRQ_LEVEL | (keyin_set << 8),
 			  priv->iomem_base + KYCR2_OFFS);
 
+		if (pdata->kycr2_delay)
+			udelay(pdata->kycr2_delay);
+
 		keys ^= ~0;
 		keys &= (1 << (sh_keysc_mode[pdata->mode].keyin *
 			       sh_keysc_mode[pdata->mode].keyout)) - 1;
