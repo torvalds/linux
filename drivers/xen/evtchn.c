@@ -73,7 +73,7 @@ struct per_user_data {
  * Who's bound to each port?  This is logically an array of struct
  * per_user_data *, but we encode the current enabled-state in bit 0.
  */
-static unsigned long port_user[NR_EVENT_CHANNELS];
+static unsigned long *port_user;
 static DEFINE_SPINLOCK(port_user_lock); /* protects port_user[] and ring_prod */
 
 static inline struct per_user_data *get_port_user(unsigned port)
@@ -522,8 +522,11 @@ static int __init evtchn_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
+	port_user = kcalloc(NR_EVENT_CHANNELS, sizeof(*port_user), GFP_KERNEL);
+	if (port_user == NULL)
+		return -ENOMEM;
+
 	spin_lock_init(&port_user_lock);
-	memset(port_user, 0, sizeof(port_user));
 
 	/* Create '/dev/misc/evtchn'. */
 	err = misc_register(&evtchn_miscdev);
@@ -539,6 +542,9 @@ static int __init evtchn_init(void)
 
 static void __exit evtchn_cleanup(void)
 {
+	kfree(port_user);
+	port_user = NULL;
+
 	misc_deregister(&evtchn_miscdev);
 }
 
