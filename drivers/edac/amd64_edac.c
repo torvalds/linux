@@ -289,12 +289,12 @@ static struct mem_ctl_info *find_mc_by_sys_addr(struct mem_ctl_info *mci,
 		goto found;
 	}
 
-	if (unlikely((intlv_en != (0x01 << 8)) &&
-		     (intlv_en != (0x03 << 8)) &&
-		     (intlv_en != (0x07 << 8)))) {
+	if (unlikely((intlv_en != 0x01) &&
+		     (intlv_en != 0x03) &&
+		     (intlv_en != 0x07))) {
 		amd64_printk(KERN_WARNING, "junk value of 0x%x extracted from "
 			     "IntlvEn field of DRAM Base Register for node 0: "
-			     "This probably indicates a BIOS bug.\n", intlv_en);
+			     "this probably indicates a BIOS bug.\n", intlv_en);
 		return NULL;
 	}
 
