@@ -82,6 +82,13 @@ config REGULATOR_TWL4030
 	  This driver supports the voltage regulators provided by
 	  this family of companion chips.
 
+config REGULATOR_WM831X
+	tristate "Wolfson Microelcronics WM831x PMIC regulators"
+	depends on MFD_WM831X
+	help
+	  Support the voltage and current regulators of the WM831x series
+	  of PMIC devices.
+
 config REGULATOR_WM8350
 	tristate "Wolfson Microelectroncis WM8350 AudioPlus PMIC"
 	depends on MFD_WM8350
@@ -117,4 +124,28 @@ config REGULATOR_LP3971
 	 Say Y here to support the voltage regulators and convertors
 	 on National Semiconductors LP3971 PMIC
 
+config REGULATOR_PCAP
+	tristate "PCAP2 regulator driver"
+	depends on EZX_PCAP
+	help
+	 This driver provides support for the voltage regulators of the
+	 PCAP2 PMIC.
+
+config REGULATOR_MC13783
+	tristate "Support regulators on Freescale MC13783 PMIC"
+	depends on MFD_MC13783
+	help
+	  Say y here to support the regulators found on the Freescale MC13783
+	  PMIC.
+
+config REGULATOR_AB3100
+	tristate "ST-Ericsson AB3100 Regulator functions"
+	depends on AB3100_CORE
+	default y if AB3100_CORE
+	help
+	 These regulators correspond to functionality in the
+	 AB3100 analog baseband dealing with power regulators
+	 for the system.
+
 endif
+
