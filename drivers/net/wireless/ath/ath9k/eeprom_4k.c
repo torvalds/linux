@@ -210,6 +210,8 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 		return pBase->rxMask;
 	case EEP_FRAC_N_5G:
 		return 0;
+	case EEP_PWR_TABLE_OFFSET:
+		return AR5416_PWR_TABLE_OFFSET_DB;
 	default:
 		return 0;
 	}
@@ -753,7 +755,7 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 
 	if (AR_SREV_9280_10_OR_LATER(ah)) {
 		for (i = 0; i < Ar5416RateSize; i++)
-			ratesArray[i] -= AR5416_PWR_TABLE_OFFSET * 2;
+			ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
 	}
 
 	/* OFDM power per rate */

@@ -134,6 +134,7 @@
 #define AR5416_EEP_MINOR_VER_17      0x11
 #define AR5416_EEP_MINOR_VER_19      0x13
 #define AR5416_EEP_MINOR_VER_20      0x14
+#define AR5416_EEP_MINOR_VER_21      0x15
 #define AR5416_EEP_MINOR_VER_22      0x16
 
 #define AR5416_NUM_5G_CAL_PIERS         8
@@ -154,7 +155,7 @@
 #define AR5416_BCHAN_UNUSED             0xFF
 #define AR5416_MAX_PWR_RANGE_IN_HALF_DB 64
 #define AR5416_MAX_CHAINS               3
-#define AR5416_PWR_TABLE_OFFSET         -5
+#define AR5416_PWR_TABLE_OFFSET_DB     -5
 
 /* Rx gain type values */
 #define AR5416_EEP_RXGAIN_23DB_BACKOFF     0
@@ -302,7 +303,7 @@ struct base_eep_header {
 	u8 txGainType;
 	u8 rcChainMask;
 	u8 desiredScaleCCK;
-	u8 power_table_offset;
+	u8 pwr_table_offset;
 	u8 frac_n_5g;
 	u8 futureBase_3[21];
 } __packed;
