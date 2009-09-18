@@ -1461,34 +1461,37 @@ void file_update_time(struct file *file)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct timespec now;
-	int sync_it = 0;
-	int err;
+	enum { S_MTIME = 1, S_CTIME = 2, S_VERSION = 4 } sync_it = 0;
 
+	/* First try to exhaust all avenues to not sync */
 	if (IS_NOCMTIME(inode))
 		return;
 
-	err = mnt_want_write_file(file);
-	if (err)
+	now = current_fs_time(inode->i_sb);
+	if (!timespec_equal(&inode->i_mtime, &now))
+		sync_it = S_MTIME;
+
+	if (!timespec_equal(&inode->i_ctime, &now))
+		sync_it |= S_CTIME;
+
+	if (IS_I_VERSION(inode))
+		sync_it |= S_VERSION;
+
+	if (!sync_it)
 		return;
 
-	now = current_fs_time(inode->i_sb);
-	if (!timespec_equal(&inode->i_mtime, &now)) {
-		inode->i_mtime = now;
-		sync_it = 1;
-	}
+	/* Finally allowed to write? Takes lock. */
+	if (mnt_want_write_file(file))
+		return;
 
-	if (!timespec_equal(&inode->i_ctime, &now)) {
-		inode->i_ctime = now;
-		sync_it = 1;
-	}
-
-	if (IS_I_VERSION(inode)) {
+	/* Only change inode inside the lock region */
+	if (sync_it & S_VERSION)
 		inode_inc_iversion(inode);
-		sync_it = 1;
-	}
-
-	if (sync_it)
-		mark_inode_dirty_sync(inode);
+	if (sync_it & S_CTIME)
+		inode->i_ctime = now;
+	if (sync_it & S_MTIME)
+		inode->i_mtime = now;
+	mark_inode_dirty_sync(inode);
 	mnt_drop_write(file->f_path.mnt);
 }
 EXPORT_SYMBOL(file_update_time);
