@@ -49,8 +49,6 @@ SECTIONS
 
   /* writeable */
   .data : {			/* Data */
-	*(.spu)
-	*(.spi)
 	DATA_DATA
 	CONSTRUCTORS
 	}
