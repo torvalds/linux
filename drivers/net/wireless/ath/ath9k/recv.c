@@ -423,7 +423,10 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	if (sc->rx.rxfilter & FIF_PSPOLL)
+	if ((AR_SREV_9280_10_OR_LATER(sc->sc_ah) ||
+	    AR_SREV_9285_10_OR_LATER(sc->sc_ah)) &&
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_AP) &&
+	    (sc->rx.rxfilter & FIF_PSPOLL))
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
 	if (conf_is_ht(&sc->hw->conf))
