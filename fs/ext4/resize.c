@@ -746,7 +746,6 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	struct inode *inode = NULL;
 	handle_t *handle;
 	int gdb_off, gdb_num;
-	int num_grp_locked = 0;
 	int err, err2;
 
 	gdb_num = input->group / EXT4_DESC_PER_BLOCK(sb);
@@ -856,7 +855,6 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
          * using the new disk blocks.
          */
 
-	num_grp_locked = ext4_mb_get_buddy_cache_lock(sb, input->group);
 	/* Update group descriptor block for new group */
 	gdp = (struct ext4_group_desc *)((char *)primary->b_data +
 					 gdb_off * EXT4_DESC_SIZE(sb));
@@ -875,10 +873,8 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	 * descriptor
 	 */
 	err = ext4_mb_add_groupinfo(sb, input->group, gdp);
-	if (err) {
-		ext4_mb_put_buddy_cache_lock(sb, input->group, num_grp_locked);
+	if (err)
 		goto exit_journal;
-	}
 
 	/*
 	 * Make the new blocks and inodes valid next.  We do this before
@@ -920,7 +916,6 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 
 	/* Update the global fs size fields */
 	sbi->s_groups_count++;
-	ext4_mb_put_buddy_cache_lock(sb, input->group, num_grp_locked);
 
 	ext4_handle_dirty_metadata(handle, NULL, primary);
 

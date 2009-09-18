@@ -810,12 +810,23 @@ inserted:
 			get_bh(new_bh);
 		} else {
 			/* We need to allocate a new block */
-			ext4_fsblk_t goal = ext4_group_first_block_no(sb,
+			ext4_fsblk_t goal, block;
+
+			goal = ext4_group_first_block_no(sb,
 						EXT4_I(inode)->i_block_group);
-			ext4_fsblk_t block = ext4_new_meta_blocks(handle, inode,
+
+			/* non-extent files can't have physical blocks past 2^32 */
+			if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
+				goal = goal & EXT4_MAX_BLOCK_FILE_PHYS;
+
+			block = ext4_new_meta_blocks(handle, inode,
 						  goal, NULL, &error);
 			if (error)
 				goto cleanup;
+
+			if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
+				BUG_ON(block > EXT4_MAX_BLOCK_FILE_PHYS);
+
 			ea_idebug(inode, "creating block %d", block);
 
 			new_bh = sb_getblk(sb, block);
