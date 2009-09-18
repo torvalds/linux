@@ -1190,7 +1190,7 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 	 * different from the node that detected the error.
 	 */
 	src_mci = find_mc_by_sys_addr(mci, SystemAddress);
-	if (src_mci) {
+	if (!src_mci) {
 		amd64_mc_printk(mci, KERN_ERR,
 			     "failed to map error address 0x%lx to a node\n",
 			     (unsigned long)SystemAddress);
