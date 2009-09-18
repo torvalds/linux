@@ -852,14 +852,14 @@ static const struct file_operations hiddev_fops = {
 #endif
 };
 
-static char *hiddev_nodename(struct device *dev)
+static char *hiddev_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
 }
 
 static struct usb_class_driver hiddev_class = {
 	.name =		"hiddev%d",
-	.nodename =	hiddev_nodename,
+	.devnode =	hiddev_devnode,
 	.fops =		&hiddev_fops,
 	.minor_base =	HIDDEV_MINOR_BASE,
 };
