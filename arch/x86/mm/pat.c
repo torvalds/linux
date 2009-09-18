@@ -424,17 +424,9 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 	spin_lock(&memtype_lock);
 
-	entry = memtype_rb_search(&memtype_rbroot, new->start);
-	if (likely(entry != NULL)) {
-		/* To work correctly with list_for_each_entry_continue */
-		entry = list_entry(entry->nd.prev, struct memtype, nd);
-	} else {
-		entry = list_entry(&memtype_list, struct memtype, nd);
-	}
-
 	/* Search for existing mapping that overlaps the current range */
 	where = NULL;
-	list_for_each_entry_continue(entry, &memtype_list, nd) {
+	list_for_each_entry(entry, &memtype_list, nd) {
 		if (end <= entry->start) {
 			where = entry->nd.prev;
 			break;
@@ -532,7 +524,7 @@ int free_memtype(u64 start, u64 end)
 	 * in sorted start address
 	 */
 	saved_entry = entry;
-	list_for_each_entry(entry, &memtype_list, nd) {
+	list_for_each_entry_from(entry, &memtype_list, nd) {
 		if (entry->start == start && entry->end == end) {
 			rb_erase(&entry->rb, &memtype_rbroot);
 			list_del(&entry->nd);
