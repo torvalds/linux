@@ -476,10 +476,12 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 
 /*
  * Because there is no preemptable RCU, there can be no readers blocked,
- * so there is no need to check for blocked tasks.
+ * so there is no need to check for blocked tasks.  So check only for
+ * bogus qsmask values.
  */
 static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 {
+	WARN_ON_ONCE(rnp->qsmask);
 }
 
 /*

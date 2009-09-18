@@ -601,8 +601,6 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 {
 	struct rcu_data *rdp = rsp->rda[smp_processor_id()];
 	struct rcu_node *rnp = rcu_get_root(rsp);
-	struct rcu_node *rnp_cur;
-	struct rcu_node *rnp_end;
 
 	if (!cpu_needs_another_gp(rsp, rdp)) {
 		spin_unlock_irqrestore(&rnp->lock, flags);
@@ -659,13 +657,12 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	 * one corresponding to this CPU, due to the fact that we have
 	 * irqs disabled.
 	 */
-	rnp_end = &rsp->node[NUM_RCU_NODES];
-	for (rnp_cur = &rsp->node[0]; rnp_cur < rnp_end; rnp_cur++) {
-		spin_lock(&rnp_cur->lock);	/* irqs already disabled. */
+	for (rnp = &rsp->node[0]; rnp < &rsp->node[NUM_RCU_NODES]; rnp++) {
+		spin_lock(&rnp->lock);	/* irqs already disabled. */
 		rcu_preempt_check_blocked_tasks(rnp);
-		rnp_cur->qsmask = rnp_cur->qsmaskinit;
+		rnp->qsmask = rnp->qsmaskinit;
 		rnp->gpnum = rsp->gpnum;
-		spin_unlock(&rnp_cur->lock);	/* irqs already disabled. */
+		spin_unlock(&rnp->lock);	/* irqs already disabled. */
 	}
 
 	rsp->signaled = RCU_SIGNAL_INIT; /* force_quiescent_state now OK. */
