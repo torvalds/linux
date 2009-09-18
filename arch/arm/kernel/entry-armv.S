@@ -272,7 +272,15 @@ __und_svc:
 	@
 	@  r0 - instruction
 	@
+#ifndef	CONFIG_THUMB2_KERNEL
 	ldr	r0, [r2, #-4]
+#else
+	ldrh	r0, [r2, #-2]			@ Thumb instruction at LR - 2
+	and	r9, r0, #0xf800
+	cmp	r9, #0xe800			@ 32-bit instruction if xx >= 0
+	ldrhhs	r9, [r2]			@ bottom 16 bits
+	orrhs	r0, r9, r0, lsl #16
+#endif
 	adr	r9, BSYM(1f)
 	bl	call_fpe
 
@@ -678,7 +686,9 @@ ENTRY(fp_enter)
 	.word	no_fp
 	.previous
 
-no_fp:	mov	pc, lr
+ENTRY(no_fp)
+	mov	pc, lr
+ENDPROC(no_fp)
 
 __und_usr_unknown:
 	enable_irq
