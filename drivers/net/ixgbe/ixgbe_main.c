@@ -1970,6 +1970,50 @@ static u32 ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 }
 
 /**
+ * ixgbe_configure_rscctl - enable RSC for the indicated ring
+ * @adapter:    address of board private structure
+ * @index:      index of ring to set
+ * @rx_buf_len: rx buffer length
+ **/
+static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter, int index,
+                                   int rx_buf_len)
+{
+	struct ixgbe_ring *rx_ring;
+	struct ixgbe_hw *hw = &adapter->hw;
+	int j;
+	u32 rscctrl;
+
+	rx_ring = &adapter->rx_ring[index];
+	j = rx_ring->reg_idx;
+	rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(j));
+	rscctrl |= IXGBE_RSCCTL_RSCEN;
+	/*
+	 * we must limit the number of descriptors so that the
+	 * total size of max desc * buf_len is not greater
+	 * than 65535
+	 */
+	if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
+#if (MAX_SKB_FRAGS > 16)
+		rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
+#elif (MAX_SKB_FRAGS > 8)
+		rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
+#elif (MAX_SKB_FRAGS > 4)
+		rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
+#else
+		rscctrl |= IXGBE_RSCCTL_MAXDESC_1;
+#endif
+	} else {
+		if (rx_buf_len < IXGBE_RXBUFFER_4096)
+			rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
+		else if (rx_buf_len < IXGBE_RXBUFFER_8192)
+			rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
+		else
+			rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
+	}
+	IXGBE_WRITE_REG(hw, IXGBE_RSCCTL(j), rscctrl);
+}
+
+/**
  * ixgbe_configure_rx - Configure 8259x Receive Unit after Reset
  * @adapter: board private structure
  *
@@ -1990,7 +2034,6 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	u32 fctrl, hlreg0;
 	u32 reta = 0, mrqc = 0;
 	u32 rdrxctl;
-	u32 rscctrl;
 	int rx_buf_len;
 
 	/* Decide whether to use packet split mode or not */
@@ -2148,36 +2191,9 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 
 	if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
 		/* Enable 82599 HW-RSC */
-		for (i = 0; i < adapter->num_rx_queues; i++) {
-			rx_ring = &adapter->rx_ring[i];
-			j = rx_ring->reg_idx;
-			rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(j));
-			rscctrl |= IXGBE_RSCCTL_RSCEN;
-			/*
-			 * we must limit the number of descriptors so that the
-			 * total size of max desc * buf_len is not greater
-			 * than 65535
-			 */
-			if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
-#if (MAX_SKB_FRAGS > 16)
-				rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-#elif (MAX_SKB_FRAGS > 8)
-				rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
-#elif (MAX_SKB_FRAGS > 4)
-				rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
-#else
-				rscctrl |= IXGBE_RSCCTL_MAXDESC_1;
-#endif
-			} else {
-				if (rx_buf_len < IXGBE_RXBUFFER_4096)
-					rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-				else if (rx_buf_len < IXGBE_RXBUFFER_8192)
-					rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
-				else
-					rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
-			}
-			IXGBE_WRITE_REG(hw, IXGBE_RSCCTL(j), rscctrl);
-		}
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			ixgbe_configure_rscctl(adapter, i, rx_buf_len);
+
 		/* Disable RSC for ACK packets */
 		IXGBE_WRITE_REG(hw, IXGBE_RSCDBU,
 		   (IXGBE_RSCDBU_RSCACKDIS | IXGBE_READ_REG(hw, IXGBE_RSCDBU)));
