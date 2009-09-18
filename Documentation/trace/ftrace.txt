@@ -26,6 +26,12 @@ disabled, and more (ftrace allows for tracer plugins, which
 means that the list of tracers can always grow).
 
 
+Implementation Details
+----------------------
+
+See ftrace-design.txt for details for arch porters and such.
+
+
 The File System
 ---------------
 

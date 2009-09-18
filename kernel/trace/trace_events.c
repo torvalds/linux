@@ -21,6 +21,7 @@
 
 #include "trace_output.h"
 
+#undef TRACE_SYSTEM
 #define TRACE_SYSTEM "TRACE_SYSTEM"
 
 DEFINE_MUTEX(event_mutex);
@@ -86,7 +87,7 @@ int trace_define_common_fields(struct ftrace_event_call *call)
 	__common_field(unsigned char, flags);
 	__common_field(unsigned char, preempt_count);
 	__common_field(int, pid);
-	__common_field(int, tgid);
+	__common_field(int, lock_depth);
 
 	return ret;
 }
@@ -230,11 +231,9 @@ static ssize_t
 ftrace_event_write(struct file *file, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos)
 {
+	struct trace_parser parser;
 	size_t read = 0;
-	int i, set = 1;
 	ssize_t ret;
-	char *buf;
-	char ch;
 
 	if (!cnt || cnt < 0)
 		return 0;
@@ -243,60 +242,28 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 	if (ret < 0)
 		return ret;
 
-	ret = get_user(ch, ubuf++);
-	if (ret)
-		return ret;
-	read++;
-	cnt--;
-
-	/* skip white space */
-	while (cnt && isspace(ch)) {
-		ret = get_user(ch, ubuf++);
-		if (ret)
-			return ret;
-		read++;
-		cnt--;
-	}
-
-	/* Only white space found? */
-	if (isspace(ch)) {
-		file->f_pos += read;
-		ret = read;
-		return ret;
-	}
-
-	buf = kmalloc(EVENT_BUF_SIZE+1, GFP_KERNEL);
-	if (!buf)
+	if (trace_parser_get_init(&parser, EVENT_BUF_SIZE + 1))
 		return -ENOMEM;
 
-	if (cnt > EVENT_BUF_SIZE)
-		cnt = EVENT_BUF_SIZE;
+	read = trace_get_user(&parser, ubuf, cnt, ppos);
 
-	i = 0;
-	while (cnt && !isspace(ch)) {
-		if (!i && ch == '!')
+	if (trace_parser_loaded((&parser))) {
+		int set = 1;
+
+		if (*parser.buffer == '!')
 			set = 0;
-		else
-			buf[i++] = ch;
 
-		ret = get_user(ch, ubuf++);
+		parser.buffer[parser.idx] = 0;
+
+		ret = ftrace_set_clr_event(parser.buffer + !set, set);
 		if (ret)
-			goto out_free;
-		read++;
-		cnt--;
+			goto out_put;
 	}
-	buf[i] = 0;
-
-	file->f_pos += read;
-
-	ret = ftrace_set_clr_event(buf, set);
-	if (ret)
-		goto out_free;
 
 	ret = read;
 
- out_free:
-	kfree(buf);
+ out_put:
+	trace_parser_put(&parser);
 
 	return ret;
 }
@@ -578,7 +545,7 @@ static int trace_write_header(struct trace_seq *s)
 				FIELD(unsigned char, flags),
 				FIELD(unsigned char, preempt_count),
 				FIELD(int, pid),
-				FIELD(int, tgid));
+				FIELD(int, lock_depth));
 }
 
 static ssize_t
@@ -1187,7 +1154,7 @@ static int trace_module_notify(struct notifier_block *self,
 }
 #endif /* CONFIG_MODULES */
 
-struct notifier_block trace_module_nb = {
+static struct notifier_block trace_module_nb = {
 	.notifier_call = trace_module_notify,
 	.priority = 0,
 };
@@ -1358,6 +1325,18 @@ static __init void event_trace_self_tests(void)
 		/* Only test those that have a regfunc */
 		if (!call->regfunc)
 			continue;
+
+/*
+ * Testing syscall events here is pretty useless, but
+ * we still do it if configured. But this is time consuming.
+ * What we really need is a user thread to perform the
+ * syscalls as we test.
+ */
+#ifndef CONFIG_EVENT_TRACE_TEST_SYSCALLS
+		if (call->system &&
+		    strcmp(call->system, "syscalls") == 0)
+			continue;
+#endif
 
 		pr_info("Testing event %s: ", call->name);
 
