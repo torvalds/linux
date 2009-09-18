@@ -126,8 +126,6 @@ extern void e820_reserve_resources(void);
 extern void e820_reserve_resources_late(void);
 extern void setup_memory_map(void);
 extern char *default_machine_specific_memory_setup(void);
-extern char *machine_specific_memory_setup(void);
-extern char *memory_setup(void);
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 

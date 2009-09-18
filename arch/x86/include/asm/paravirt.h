@@ -24,22 +24,6 @@ static inline void load_sp0(struct tss_struct *tss,
 	PVOP_VCALL2(pv_cpu_ops.load_sp0, tss, thread);
 }
 
-#define ARCH_SETUP			pv_init_ops.arch_setup();
-static inline unsigned long get_wallclock(void)
-{
-	return PVOP_CALL0(unsigned long, pv_time_ops.get_wallclock);
-}
-
-static inline int set_wallclock(unsigned long nowtime)
-{
-	return PVOP_CALL1(int, pv_time_ops.set_wallclock, nowtime);
-}
-
-static inline void (*choose_time_init(void))(void)
-{
-	return pv_time_ops.time_init;
-}
-
 /* The paravirtualized CPUID instruction. */
 static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
 			   unsigned int *ecx, unsigned int *edx)
@@ -245,7 +229,6 @@ static inline unsigned long long paravirt_sched_clock(void)
 {
 	return PVOP_CALL0(unsigned long long, pv_time_ops.sched_clock);
 }
-#define calibrate_tsc() (pv_time_ops.get_tsc_khz())
 
 static inline unsigned long long paravirt_read_pmc(int counter)
 {
@@ -361,34 +344,6 @@ static inline void slow_down_io(void)
 	pv_cpu_ops.io_delay();
 	pv_cpu_ops.io_delay();
 #endif
-}
-
-#ifdef CONFIG_X86_LOCAL_APIC
-static inline void setup_boot_clock(void)
-{
-	PVOP_VCALL0(pv_apic_ops.setup_boot_clock);
-}
-
-static inline void setup_secondary_clock(void)
-{
-	PVOP_VCALL0(pv_apic_ops.setup_secondary_clock);
-}
-#endif
-
-static inline void paravirt_post_allocator_init(void)
-{
-	if (pv_init_ops.post_allocator_init)
-		(*pv_init_ops.post_allocator_init)();
-}
-
-static inline void paravirt_pagetable_setup_start(pgd_t *base)
-{
-	(*pv_mmu_ops.pagetable_setup_start)(base);
-}
-
-static inline void paravirt_pagetable_setup_done(pgd_t *base)
-{
-	(*pv_mmu_ops.pagetable_setup_done)(base);
 }
 
 #ifdef CONFIG_SMP
@@ -948,6 +903,8 @@ static inline unsigned long __raw_local_irq_save(void)
 #undef PVOP_VCALL4
 #undef PVOP_CALL4
 
+extern void default_banner(void);
+
 #else  /* __ASSEMBLY__ */
 
 #define _PVSITE(ptype, clobbers, ops, word, algn)	\
@@ -1088,5 +1045,7 @@ static inline unsigned long __raw_local_irq_save(void)
 #endif	/* CONFIG_X86_32 */
 
 #endif /* __ASSEMBLY__ */
-#endif /* CONFIG_PARAVIRT */
+#else  /* CONFIG_PARAVIRT */
+# define default_banner x86_init_noop
+#endif /* !CONFIG_PARAVIRT */
 #endif /* _ASM_X86_PARAVIRT_H */

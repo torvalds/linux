@@ -54,15 +54,10 @@ u64 _paravirt_ident_64(u64 x)
 	return x;
 }
 
-static void __init default_banner(void)
+void __init default_banner(void)
 {
 	printk(KERN_INFO "Booting paravirtualized kernel on %s\n",
 	       pv_info.name);
-}
-
-char *memory_setup(void)
-{
-	return pv_init_ops.memory_setup();
 }
 
 /* Simple instruction patching code. */
@@ -188,11 +183,6 @@ unsigned paravirt_patch_insns(void *insnbuf, unsigned len,
 	return insn_len;
 }
 
-void init_IRQ(void)
-{
-	pv_irq_ops.init_IRQ();
-}
-
 static void native_flush_tlb(void)
 {
 	__native_flush_tlb();
@@ -217,13 +207,6 @@ extern void native_iret(void);
 extern void native_irq_enable_sysexit(void);
 extern void native_usergs_sysret32(void);
 extern void native_usergs_sysret64(void);
-
-static int __init print_banner(void)
-{
-	pv_init_ops.banner();
-	return 0;
-}
-core_initcall(print_banner);
 
 static struct resource reserve_ioports = {
 	.start = 0,
@@ -320,21 +303,13 @@ struct pv_info pv_info = {
 
 struct pv_init_ops pv_init_ops = {
 	.patch = native_patch,
-	.banner = default_banner,
-	.arch_setup = paravirt_nop,
-	.memory_setup = machine_specific_memory_setup,
 };
 
 struct pv_time_ops pv_time_ops = {
-	.time_init = hpet_time_init,
-	.get_wallclock = native_get_wallclock,
-	.set_wallclock = native_set_wallclock,
 	.sched_clock = native_sched_clock,
-	.get_tsc_khz = native_calibrate_tsc,
 };
 
 struct pv_irq_ops pv_irq_ops = {
-	.init_IRQ = native_init_IRQ,
 	.save_fl = __PV_IS_CALLEE_SAVE(native_save_fl),
 	.restore_fl = __PV_IS_CALLEE_SAVE(native_restore_fl),
 	.irq_disable = __PV_IS_CALLEE_SAVE(native_irq_disable),
@@ -409,8 +384,6 @@ struct pv_cpu_ops pv_cpu_ops = {
 
 struct pv_apic_ops pv_apic_ops = {
 #ifdef CONFIG_X86_LOCAL_APIC
-	.setup_boot_clock = setup_boot_APIC_clock,
-	.setup_secondary_clock = setup_secondary_APIC_clock,
 	.startup_ipi_hook = paravirt_nop,
 #endif
 };
@@ -424,13 +397,6 @@ struct pv_apic_ops pv_apic_ops = {
 #endif
 
 struct pv_mmu_ops pv_mmu_ops = {
-#ifndef CONFIG_X86_64
-	.pagetable_setup_start = native_pagetable_setup_start,
-	.pagetable_setup_done = native_pagetable_setup_done,
-#else
-	.pagetable_setup_start = paravirt_nop,
-	.pagetable_setup_done = paravirt_nop,
-#endif
 
 	.read_cr2 = native_read_cr2,
 	.write_cr2 = native_write_cr2,

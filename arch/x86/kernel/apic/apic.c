@@ -36,6 +36,7 @@
 #include <linux/mm.h>
 
 #include <asm/perf_counter.h>
+#include <asm/x86_init.h>
 #include <asm/pgalloc.h>
 #include <asm/atomic.h>
 #include <asm/mpspec.h>
@@ -1709,7 +1710,7 @@ int __init APIC_init_uniprocessor(void)
 	localise_nmi_watchdog();
 #endif
 
-	setup_boot_clock();
+	x86_init.timers.setup_percpu_clockev();
 #ifdef CONFIG_X86_64
 	check_nmi_watchdog();
 #endif
