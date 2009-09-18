@@ -1302,6 +1302,24 @@ struct i2c_adapter * dib7000p_get_i2c_master(struct dvb_frontend *demod, enum di
 }
 EXPORT_SYMBOL(dib7000p_get_i2c_master);
 
+int dib7000p_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+{
+    struct dib7000p_state *state = fe->demodulator_priv;
+    u16 val = dib7000p_read_word(state, 235) & 0xffef;
+    val |= (onoff & 0x1) << 4;
+    dprintk("PID filter enabled %d", onoff);
+    return dib7000p_write_word(state, 235, val);
+}
+EXPORT_SYMBOL(dib7000p_pid_filter_ctrl);
+
+int dib7000p_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+{
+    struct dib7000p_state *state = fe->demodulator_priv;
+    dprintk("PID filter: index %x, PID %d, OnOff %d", id, pid, onoff);
+    return dib7000p_write_word(state, 241 + id, onoff ? (1 << 13) | pid : 0);
+}
+EXPORT_SYMBOL(dib7000p_pid_filter);
+
 int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib7000p_config cfg[])
 {
 	struct dib7000p_state st = { .i2c_adap = i2c };

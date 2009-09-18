@@ -1252,6 +1252,16 @@ static int dib7070p_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static int stk70x0p_pid_filter(struct dvb_usb_adapter *adapter, int index, u16 pid, int onoff)
+{
+    return dib7000p_pid_filter(adapter->fe, index, pid, onoff);
+}
+
+static int stk70x0p_pid_filter_ctrl(struct dvb_usb_adapter *adapter, int onoff)
+{
+    return dib7000p_pid_filter_ctrl(adapter->fe, onoff);
+}
+
 static struct dibx000_bandwidth_config dib7070_bw_config_12_mhz = {
 	60000, 15000, // internal, sampling
 	1, 20, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
@@ -1543,6 +1553,15 @@ static int dib807x_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static int stk807x_pid_filter(struct dvb_usb_adapter *adapter, int index, u16 pid, int onoff)
+{
+    return dib8000_pid_filter(adapter->fe, index, pid, onoff);
+}
+
+static int stk807x_pid_filter_ctrl(struct dvb_usb_adapter *adapter, int onoff)
+{
+    return dib8000_pid_filter_ctrl(adapter->fe, onoff);
+}
 
 /* STK807x */
 static int stk807x_frontend_attach(struct dvb_usb_adapter *adap)
@@ -1938,6 +1957,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7700p_frontend_attach,
 				.tuner_attach     = stk7700p_tuner_attach,
 
@@ -2019,11 +2042,19 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 2,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7700d_frontend_attach,
 				.tuner_attach     = stk7700d_tuner_attach,
 
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
 			}, {
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7700d_frontend_attach,
 				.tuner_attach     = stk7700d_tuner_attach,
 
@@ -2066,6 +2097,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7700P2_frontend_attach,
 				.tuner_attach     = stk7700d_tuner_attach,
 
@@ -2098,6 +2133,14 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7070p_frontend_attach,
 				.tuner_attach     = dib7070p_tuner_attach,
 
@@ -2200,6 +2243,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 2,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7070pd_frontend_attach0,
 				.tuner_attach     = dib7070p_tuner_attach,
 
@@ -2207,6 +2254,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 				.size_of_priv     = sizeof(struct dib0700_adapter_state),
 			}, {
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7070pd_frontend_attach1,
 				.tuner_attach     = dib7070p_tuner_attach,
 
@@ -2253,6 +2304,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7700ph_frontend_attach,
 				.tuner_attach     = stk7700ph_tuner_attach,
 
@@ -2365,6 +2420,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7070p_frontend_attach,
 				.tuner_attach     = dib7770p_tuner_attach,
 
@@ -2396,6 +2455,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.caps  = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter = stk807x_pid_filter,
+				.pid_filter_ctrl = stk807x_pid_filter_ctrl,
 				.frontend_attach  = stk807x_frontend_attach,
 				.tuner_attach     = dib807x_tuner_attach,
 
@@ -2427,6 +2490,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 2,
 		.adapter = {
 			{
+				.caps  = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter = stk807x_pid_filter,
+				.pid_filter_ctrl = stk807x_pid_filter_ctrl,
 				.frontend_attach  = stk807xpvr_frontend_attach0,
 				.tuner_attach     = dib807x_tuner_attach,
 
@@ -2436,6 +2503,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 					sizeof(struct dib0700_adapter_state),
 			},
 			{
+				.caps  = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter = stk807x_pid_filter,
+				.pid_filter_ctrl = stk807x_pid_filter_ctrl,
 				.frontend_attach  = stk807xpvr_frontend_attach1,
 				.tuner_attach     = dib807x_tuner_attach,
 

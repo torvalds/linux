@@ -2121,7 +2121,7 @@ static int dib8000_read_snr(struct dvb_frontend *fe, u16 * snr)
 	else
 		result -= intlog10(2) * 10 * noise_exp - 100;
 
-	*snr = result / (1 << 24);
+	*snr = result / ((1 << 24) / 10);
 	return 0;
 }
 
@@ -2194,6 +2194,25 @@ struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *fe, enum dibx000
 }
 
 EXPORT_SYMBOL(dib8000_get_i2c_master);
+
+int dib8000_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+{
+	struct dib8000_state *st = fe->demodulator_priv;
+    u16 val = dib8000_read_word(st, 299) & 0xffef;
+    val |= (onoff & 0x1) << 4;
+
+    dprintk("pid filter enabled %d", onoff);
+    return dib8000_write_word(st, 299, val);
+}
+EXPORT_SYMBOL(dib8000_pid_filter_ctrl);
+
+int dib8000_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+{
+	struct dib8000_state *st = fe->demodulator_priv;
+    dprintk("Index %x, PID %d, OnOff %d", id, pid, onoff);
+    return dib8000_write_word(st, 305 + id, onoff ? (1 << 13) | pid : 0);
+}
+EXPORT_SYMBOL(dib8000_pid_filter);
 
 static const struct dvb_frontend_ops dib8000_ops = {
 	.info = {

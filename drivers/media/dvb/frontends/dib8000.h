@@ -44,6 +44,8 @@ extern int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods, u
 
 extern int dib8000_set_gpio(struct dvb_frontend *, u8 num, u8 dir, u8 val);
 extern int dib8000_set_wbd_ref(struct dvb_frontend *, u16 value);
+extern int dib8000_pid_filter_ctrl(struct dvb_frontend *, u8 onoff);
+extern int dib8000_pid_filter(struct dvb_frontend *, u8 id, u16 pid, u8 onoff);
 #else
 static inline struct dvb_frontend *dib8000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg)
 {
@@ -70,6 +72,18 @@ int dib8000_set_gpio(struct dvb_frontend *fe, u8 num, u8 dir, u8 val)
 }
 
 int dib8000_set_wbd_ref(struct dvb_frontend *fe, u16 value)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
+}
+
+int dib8000_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
+}
+
+int dib8000_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;
