@@ -57,7 +57,7 @@ static struct chan_waitqueues {
 } channel_wqs[RTLX_CHANNELS];
 
 static struct vpe_notifications notify;
-static int sp_stopping = 0;
+static int sp_stopping;
 
 extern void *vpe_get_shared(int index);
 

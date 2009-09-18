@@ -95,14 +95,14 @@ void init_smtc_stats(void);
 
 /* Global SMTC Status */
 
-unsigned int smtc_status = 0;
+unsigned int smtc_status;
 
 /* Boot command line configuration overrides */
 
 static int vpe0limit;
-static int ipibuffers = 0;
-static int nostlb = 0;
-static int asidmask = 0;
+static int ipibuffers;
+static int nostlb;
+static int asidmask;
 unsigned long smtc_asid_mask = 0xff;
 
 static int __init vpe0tcs(char *str)
@@ -151,7 +151,7 @@ __setup("asidmask=", asidmask_set);
 
 #ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
 
-static int hang_trig = 0;
+static int hang_trig;
 
 static int __init hangtrig_enable(char *s)
 {

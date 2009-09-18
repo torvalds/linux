@@ -31,7 +31,7 @@
 #include <asm/rtlx.h>
 #include <asm/kspd.h>
 
-static struct workqueue_struct *workqueue = NULL;
+static struct workqueue_struct *workqueue;
 static struct work_struct work;
 
 extern unsigned long cpu_khz;
@@ -58,7 +58,7 @@ struct mtsp_syscall_generic {
 };
 
 static struct list_head kspd_notifylist;
-static int sp_stopping = 0;
+static int sp_stopping;
 
 /* these should match with those in the SDE kit */
 #define MTSP_SYSCALL_BASE	0
@@ -328,7 +328,7 @@ static void sp_cleanup(void)
 	sys_chdir("/");
 }
 
-static int channel_open = 0;
+static int channel_open;
 
 /* the work handler */
 static void sp_work(struct work_struct *unused)

@@ -227,6 +227,7 @@ extern void lasat_write_eeprom_info(void);
  * It is used for the bit-banging rtc and eeprom drivers */
 
 #include <linux/delay.h>
+#include <linux/smp.h>
 
 /* calculating with the slowest board with 100 MHz clock */
 #define LASAT_100_DIVIDER 20
