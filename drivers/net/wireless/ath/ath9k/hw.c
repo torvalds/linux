@@ -2851,8 +2851,9 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 		if (!AR_SREV_9100(ah))
 			REG_WRITE(ah, AR_RC, AR_RC_AHB | AR_RC_HOSTIF);
 
-		REG_CLR_BIT(ah, (AR_RTC_RESET),
-			    AR_RTC_RESET_EN);
+		if(!AR_SREV_5416(ah))
+			REG_CLR_BIT(ah, (AR_RTC_RESET),
+				    AR_RTC_RESET_EN);
 	}
 }
 
