@@ -29,6 +29,7 @@
 #include <linux/platform_device.h>
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_drm.h"
 #include "rv770d.h"
 #include "avivod.h"
 #include "atom.h"
@@ -921,7 +922,11 @@ int rv770_suspend(struct radeon_device *rdev)
 {
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
+	rdev->cp.ready = false;
 	rv770_pcie_gart_disable(rdev);
+
+	/* unpin shaders bo */
+        radeon_object_unpin(rdev->r600_blit.shader_obj);
 	return 0;
 }
 
