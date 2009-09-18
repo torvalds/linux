@@ -2955,10 +2955,7 @@ void perf_prepare_sample(struct perf_event_header *header,
 	}
 
 	if (sample_type & PERF_SAMPLE_TIME) {
-		/*
-		 * Maybe do better on x86 and provide cpu_clock_nmi()
-		 */
-		data->time = sched_clock();
+		data->time = perf_clock();
 
 		header->size += sizeof(data->time);
 	}
@@ -3488,7 +3485,7 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
 			.misc = 0,
 			.size = sizeof(throttle_event),
 		},
-		.time		= sched_clock(),
+		.time		= perf_clock(),
 		.id		= primary_counter_id(counter),
 		.stream_id	= counter->id,
 	};
@@ -3540,7 +3537,7 @@ static int __perf_counter_overflow(struct perf_counter *counter, int nmi,
 	}
 
 	if (counter->attr.freq) {
-		u64 now = sched_clock();
+		u64 now = perf_clock();
 		s64 delta = now - hwc->freq_stamp;
 
 		hwc->freq_stamp = now;
