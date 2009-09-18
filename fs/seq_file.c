@@ -470,6 +470,7 @@ int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
 				m->count = s - m->buf;
 				return 0;
 			}
+			err = -ENAMETOOLONG;
 		}
 	}
 	m->count = m->size;
