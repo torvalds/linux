@@ -117,4 +117,5 @@ struct vt_spawn_console {
 };
 extern struct vt_spawn_console vt_spawn_con;
 
+extern int vt_move_to_console(unsigned int vt, int alloc);
 #endif /* _VT_KERN_H */
