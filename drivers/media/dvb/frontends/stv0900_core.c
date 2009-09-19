@@ -34,7 +34,7 @@
 #include "stv0900_priv.h"
 #include "stv0900_init.h"
 
-static int stvdebug = 1;
+int stvdebug = 1;
 module_param_named(debug, stvdebug, int, 0644);
 
 /* internal params node */
@@ -146,7 +146,7 @@ void stv0900_write_reg(struct stv0900_internal *i_params, u16 reg_addr,
 
 	ret = i2c_transfer(i_params->i2c_adap, &i2cmsg, 1);
 	if (ret != 1)
-		dprintk(KERN_ERR "%s: i2c error %d\n", __func__, ret);
+		dprintk("%s: i2c error %d\n", __func__, ret);
 }
 
 u8 stv0900_read_reg(struct stv0900_internal *i_params, u16 reg)
@@ -170,7 +170,7 @@ u8 stv0900_read_reg(struct stv0900_internal *i_params, u16 reg)
 
 	ret = i2c_transfer(i_params->i2c_adap, msg, 2);
 	if (ret != 2)
-		dprintk(KERN_ERR "%s: i2c error %d, reg[0x%02x]\n",
+		dprintk("%s: i2c error %d, reg[0x%02x]\n",
 				__func__, ret, reg);
 
 	return buf;
@@ -281,7 +281,7 @@ u32 stv0900_get_mclk_freq(struct stv0900_internal *i_params, u32 ext_clk)
 
 	mclk = (div + 1) * ext_clk / ad_div;
 
-	dprintk(KERN_INFO "%s: Calculated Mclk = %d\n", __func__, mclk);
+	dprintk("%s: Calculated Mclk = %d\n", __func__, mclk);
 
 	return mclk;
 }
@@ -291,7 +291,7 @@ enum fe_stv0900_error stv0900_set_mclk(struct stv0900_internal *i_params, u32 mc
 	enum fe_stv0900_error error = STV0900_NO_ERROR;
 	u32 m_div, clk_sel;
 
-	dprintk(KERN_INFO "%s: Mclk set to %d, Quartz = %d\n", __func__, mclk,
+	dprintk("%s: Mclk set to %d, Quartz = %d\n", __func__, mclk,
 			i_params->quartz);
 
 	if (i_params == NULL)
@@ -381,7 +381,7 @@ static void stv0900_set_ts_parallel_serial(struct stv0900_internal *i_params,
 					enum fe_stv0900_clock_type path2_ts)
 {
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	if (i_params->chip_id >= 0x20) {
 		switch (path1_ts) {
@@ -423,7 +423,7 @@ static void stv0900_set_ts_parallel_serial(struct stv0900_internal *i_params,
 			case STV0900_DVBCI_CLOCK:
 				stv0900_write_reg(i_params,
 						R0900_TSGENERAL, 0x0A);
-				dprintk(KERN_INFO "%s: 0x0a\n", __func__);
+				dprintk("%s: 0x0a\n", __func__);
 				break;
 			}
 			break;
@@ -469,7 +469,7 @@ static void stv0900_set_ts_parallel_serial(struct stv0900_internal *i_params,
 			case STV0900_DVBCI_CLOCK:
 				stv0900_write_reg(i_params, R0900_TSGENERAL1X,
 							0x12);
-				dprintk(KERN_INFO "%s: 0x12\n", __func__);
+				dprintk("%s: 0x12\n", __func__);
 				break;
 			}
 
@@ -584,7 +584,7 @@ static s32 stv0900_get_rf_level(struct stv0900_internal *i_params,
 		i,
 		rf_lvl = 0;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	if ((lookup != NULL) && lookup->size) {
 		switch (demod) {
@@ -622,7 +622,7 @@ static s32 stv0900_get_rf_level(struct stv0900_internal *i_params,
 
 	}
 
-	dprintk(KERN_INFO "%s: RFLevel = %d\n", __func__, rf_lvl);
+	dprintk("%s: RFLevel = %d\n", __func__, rf_lvl);
 
 	return rf_lvl;
 }
@@ -654,7 +654,7 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 		noise_field1,
 		noise_field0;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	dmd_reg(lock_flag_field, F0900_P1_LOCK_DEFINITIF,
 					F0900_P2_LOCK_DEFINITIF);
@@ -876,7 +876,7 @@ void stv0900_stop_all_s2_modcod(struct stv0900_internal *i_params,
 	s32 regflist,
 	i;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	dmd_reg(regflist, R0900_P1_MODCODLST0, R0900_P2_MODCODLST0);
 
@@ -893,7 +893,7 @@ void stv0900_activate_s2_modcode(struct stv0900_internal *i_params,
 	reg_index,
 	field_index;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	if (i_params->chip_id <= 0x11) {
 		msleep(5);
@@ -979,7 +979,7 @@ void stv0900_activate_s2_modcode_single(struct stv0900_internal *i_params,
 {
 	u32 reg_index;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	switch (demod) {
 	case STV0900_DEMOD_1:
@@ -1012,7 +1012,7 @@ static enum dvbfe_algo stv0900_frontend_algo(struct dvb_frontend *fe)
 static int stb0900_set_property(struct dvb_frontend *fe,
 				struct dtv_property *tvp)
 {
-	dprintk(KERN_INFO "%s(..)\n", __func__);
+	dprintk("%s(..)\n", __func__);
 
 	return 0;
 }
@@ -1020,7 +1020,7 @@ static int stb0900_set_property(struct dvb_frontend *fe,
 static int stb0900_get_property(struct dvb_frontend *fe,
 				struct dtv_property *tvp)
 {
-	dprintk(KERN_INFO "%s(..)\n", __func__);
+	dprintk("%s(..)\n", __func__);
 
 	return 0;
 }
@@ -1191,7 +1191,7 @@ u8 stv0900_get_optim_carr_loop(s32 srate, enum fe_stv0900_modcode modcode,
 	s32	i;
 	const struct stv0900_car_loop_optim *car_loop_s2;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	if (chip_id <= 0x12)
 		car_loop_s2 = FE_STV0900_S2CarLoop;
@@ -1294,7 +1294,7 @@ u8 stv0900_get_optim_short_carr_loop(s32 srate, enum fe_stv0900_modulation modul
 
 	u8 aclc_value = 0x0b;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	switch (modulation) {
 	case STV0900_QPSK:
@@ -1351,7 +1351,7 @@ static enum fe_stv0900_error stv0900_st_dvbs2_single(struct stv0900_internal *i_
 {
 	enum fe_stv0900_error error = STV0900_NO_ERROR;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	switch (LDPC_Mode) {
 	case STV0900_DUAL:
@@ -1398,12 +1398,12 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 	struct stv0900_inode *temp_int = find_inode(state->i2c_adap,
 						state->config->demod_address);
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	if (temp_int != NULL) {
 		state->internal = temp_int->internal;
 		(state->internal->dmds_used)++;
-		dprintk(KERN_INFO "%s: Find Internal Structure!\n", __func__);
+		dprintk("%s: Find Internal Structure!\n", __func__);
 		return STV0900_NO_ERROR;
 	} else {
 		state->internal = kmalloc(sizeof(struct stv0900_internal), GFP_KERNEL);
@@ -1413,7 +1413,7 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 		state->internal->i2c_addr = state->config->demod_address;
 		state->internal->clkmode = state->config->clkmode;
 		state->internal->errs = STV0900_NO_ERROR;
-		dprintk(KERN_INFO "%s: Create New Internal Structure!\n", __func__);
+		dprintk("%s: Create New Internal Structure!\n", __func__);
 	}
 
 	if (state->internal != NULL) {
@@ -1551,7 +1551,7 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe,
 
 	enum fe_stv0900_error error = STV0900_NO_ERROR;
 
-	dprintk(KERN_INFO "%s: ", __func__);
+	dprintk("%s: ", __func__);
 
 	p_result.locked = FALSE;
 	p_search.path = state->demod;
@@ -1652,10 +1652,10 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe,
 		error = STV0900_BAD_PARAMETER;
 
 	if ((p_result.locked == TRUE) && (error == STV0900_NO_ERROR)) {
-		dprintk(KERN_INFO "Search Success\n");
+		dprintk("Search Success\n");
 		return DVBFE_ALGO_SEARCH_SUCCESS;
 	} else {
-		dprintk(KERN_INFO "Search Fail\n");
+		dprintk("Search Fail\n");
 		return DVBFE_ALGO_SEARCH_FAILED;
 	}
 
@@ -1723,7 +1723,7 @@ static int stv0900_diseqc_init(struct dvb_frontend *fe)
 
 static int stv0900_init(struct dvb_frontend *fe)
 {
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	stv0900_stop_ts(fe, 1);
 	stv0900_diseqc_init(fe);
@@ -1865,7 +1865,7 @@ static int stv0900_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 	enum fe_stv0900_demod_num demod = state->demod;
 	s32 mode_field, reset_field;
 
-	dprintk(KERN_INFO "%s: %s\n", __func__, ((tone == 0) ? "Off" : "On"));
+	dprintk("%s: %s\n", __func__, ((tone == 0) ? "Off" : "On"));
 
 	dmd_reg(mode_field, F0900_P1_DISTX_MODE, F0900_P2_DISTX_MODE);
 	dmd_reg(reset_field, F0900_P1_DISEQC_RESET, F0900_P2_DISEQC_RESET);
@@ -1889,11 +1889,11 @@ static void stv0900_release(struct dvb_frontend *fe)
 {
 	struct stv0900_state *state = fe->demodulator_priv;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	if ((--(state->internal->dmds_used)) <= 0) {
 
-		dprintk(KERN_INFO "%s: Actually removing\n", __func__);
+		dprintk("%s: Actually removing\n", __func__);
 
 		remove_inode(state->internal);
 		kfree(state->internal);

@@ -527,7 +527,7 @@ static void stv0900_set_symbol_rate(struct stv0900_internal *i_params,
 	s32 sfr_init_reg;
 	u32 symb;
 
-	dprintk(KERN_INFO "%s: Mclk %d, SR %d, Dmd %d\n", __func__, mclk,
+	dprintk("%s: Mclk %d, SR %d, Dmd %d\n", __func__, mclk,
 							srate, demod);
 
 	dmd_reg(sfr_init_reg, R0900_P1_SFRINIT1, R0900_P2_SFRINIT1);
@@ -952,7 +952,7 @@ static void stv0900_set_viterbi_tracq(struct stv0900_internal *i_params,
 
 	s32 vth_reg;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	dmd_reg(vth_reg, R0900_P1_VTH12, R0900_P2_VTH12);
 
@@ -973,7 +973,7 @@ static void stv0900_set_viterbi_standard(struct stv0900_internal *i_params,
 	s32 fecmReg,
 	prvitReg;
 
-	dprintk(KERN_INFO "%s: ViterbiStandard = ", __func__);
+	dprintk("%s: ViterbiStandard = ", __func__);
 
 	switch (demod) {
 	case STV0900_DEMOD_1:
@@ -1055,7 +1055,7 @@ static void stv0900_track_optimization(struct dvb_frontend *fe)
 	enum fe_stv0900_rolloff rolloff;
 	enum fe_stv0900_modcode foundModcod;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	srate = stv0900_get_symbol_rate(i_params, i_params->mclk, demod);
 	srate += stv0900_get_timing_offst(i_params, srate, demod);
@@ -1370,7 +1370,7 @@ static int stv0900_get_fec_lock(struct stv0900_internal *i_params, enum fe_stv09
 
 	enum fe_stv0900_search_state dmd_state;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	dmd_reg(header_field, F0900_P1_HEADER_MODE, F0900_P2_HEADER_MODE);
 	dmd_reg(pktdelin_field, F0900_P1_PKTDELIN_LOCK, F0900_P2_PKTDELIN_LOCK);
@@ -1414,7 +1414,7 @@ static int stv0900_wait_for_lock(struct stv0900_internal *i_params,
 
 	s32 timer = 0, lock = 0, str_merg_rst_fld, str_merg_lock_fld;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	dmd_reg(str_merg_rst_fld, F0900_P1_RST_HWARE, F0900_P2_RST_HWARE);
 	dmd_reg(str_merg_lock_fld, F0900_P1_TSFIFO_LINEOK, F0900_P2_TSFIFO_LINEOK);
@@ -1427,7 +1427,8 @@ static int stv0900_wait_for_lock(struct stv0900_internal *i_params,
 	if (lock) {
 		lock = 0;
 
-		dprintk(KERN_INFO "%s: Timer = %d, time_out = %d\n", __func__, timer, fec_timeout);
+		dprintk("%s: Timer = %d, time_out = %d\n", __func__, timer,
+								fec_timeout);
 
 		while ((timer < fec_timeout) && (lock == 0)) {
 			lock = stv0900_get_bits(i_params, str_merg_lock_fld);
@@ -1437,9 +1438,9 @@ static int stv0900_wait_for_lock(struct stv0900_internal *i_params,
 	}
 
 	if (lock)
-		dprintk(KERN_INFO "%s: DEMOD LOCK OK\n", __func__);
+		dprintk("%s: DEMOD LOCK OK\n", __func__);
 	else
-		dprintk(KERN_INFO "%s: DEMOD LOCK FAIL\n", __func__);
+		dprintk("%s: DEMOD LOCK FAIL\n", __func__);
 
 	if (lock)
 		return TRUE;
@@ -1456,7 +1457,7 @@ enum fe_stv0900_tracking_standard stv0900_get_standard(struct dvb_frontend *fe,
 	s32 state_field,
 	dss_dvb_field;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	dmd_reg(state_field, F0900_P1_HEADER_MODE, F0900_P2_HEADER_MODE);
 	dmd_reg(dss_dvb_field, F0900_P1_DSS_DVB, F0900_P2_DSS_DVB);
@@ -1820,7 +1821,7 @@ static u16 stv0900_blind_check_agc2_min_level(struct stv0900_internal *i_params,
 
 	s32 i, j, nb_steps, direction;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	switch (demod) {
 	case STV0900_DEMOD_1:
@@ -2274,7 +2275,7 @@ static int stv0900_blind_search_algo(struct dvb_frontend *fe)
 	u16 agc2_integr;
 	u8 dstatus2;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	if (i_params->chip_id < 0x20) {
 		k_ref_tmg_max = 233;
@@ -2397,7 +2398,7 @@ static void stv0900_set_viterbi_acq(struct stv0900_internal *i_params,
 {
 	s32 vth_reg;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	dmd_reg(vth_reg, R0900_P1_VTH12, R0900_P2_VTH12);
 
@@ -2415,7 +2416,7 @@ static void stv0900_set_search_standard(struct stv0900_internal *i_params,
 
 	int sstndrd;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	sstndrd = i_params->dmd1_srch_standard;
 	if (demod == 1)
@@ -2578,7 +2579,7 @@ enum fe_stv0900_signal_type stv0900_algo(struct dvb_frontend *fe)
 	enum fe_stv0900_search_algo algo;
 	int no_signal = FALSE;
 
-	dprintk(KERN_INFO "%s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	switch (demod) {
 	case STV0900_DEMOD_1:

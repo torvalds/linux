@@ -60,7 +60,7 @@
 		} \
 	} while (0)
 
-static int stvdebug;
+extern int stvdebug;
 
 #define dprintk(args...) \
 	do { \
