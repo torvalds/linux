@@ -25,6 +25,9 @@
 #ifndef __TWL4030_H_
 #define __TWL4030_H_
 
+#include <linux/types.h>
+#include <linux/input/matrix_keypad.h>
+
 /*
  * Using the twl4030 core we address registers using a pair
  *	{ module id, relative register offset }
@@ -302,13 +305,17 @@ struct twl4030_madc_platform_data {
 	int		irq_line;
 };
 
+/* Boards have uniqe mappings of {col, row} --> keycode.
+ * Column and row are 4 bits, but range only from 0..7.
+ * a PERSISTENT_KEY is "always on" and never reported.
+ */
+#define PERSISTENT_KEY(c, r)	KEY((c), (r), KEY_RESERVED)
+
 struct twl4030_keypad_data {
-	int rows;
-	int cols;
-	int *keymap;
-	int irq;
-	unsigned int keymapsize;
-	unsigned int rep:1;
+	const struct matrix_keymap_data *keymap_data;
+	unsigned rows;
+	unsigned cols;
+	bool rep;
 };
 
 enum twl4030_usb_mode {

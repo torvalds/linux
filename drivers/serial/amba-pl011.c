@@ -826,6 +826,28 @@ static int pl011_remove(struct amba_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int pl011_suspend(struct amba_device *dev, pm_message_t state)
+{
+	struct uart_amba_port *uap = amba_get_drvdata(dev);
+
+	if (!uap)
+		return -EINVAL;
+
+	return uart_suspend_port(&amba_reg, &uap->port);
+}
+
+static int pl011_resume(struct amba_device *dev)
+{
+	struct uart_amba_port *uap = amba_get_drvdata(dev);
+
+	if (!uap)
+		return -EINVAL;
+
+	return uart_resume_port(&amba_reg, &uap->port);
+}
+#endif
+
 static struct amba_id pl011_ids[] __initdata = {
 	{
 		.id	= 0x00041011,
@@ -847,6 +869,10 @@ static struct amba_driver pl011_driver = {
 	.id_table	= pl011_ids,
 	.probe		= pl011_probe,
 	.remove		= pl011_remove,
+#ifdef CONFIG_PM
+	.suspend	= pl011_suspend,
+	.resume		= pl011_resume,
+#endif
 };
 
 static int __init pl011_init(void)

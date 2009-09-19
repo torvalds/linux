@@ -193,11 +193,11 @@ int ieee80211_encrypt_fragment(
 		return -1;
 	}
 #ifdef CONFIG_IEEE80211_CRYPT_TKIP
-	struct ieee80211_hdr *header;
+	struct rtl_ieee80211_hdr *header;
 
 	if (ieee->tkip_countermeasures &&
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
-		header = (struct ieee80211_hdr *) frag->data;
+		header = (struct rtl_ieee80211_hdr *)frag->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
 			       "TX packet to " MAC_FMT "\n",
@@ -235,11 +235,6 @@ void ieee80211_txb_free(struct ieee80211_txb *txb) {
 	//int i;
 	if (unlikely(!txb))
 		return;
-#if 0
-	for (i = 0; i < txb->nr_frags; i++)
-		if (txb->fragments[i])
-			dev_kfree_skb_any(txb->fragments[i]);
-#endif
 	kfree(txb);
 }
 
@@ -287,11 +282,8 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 		return 0;
 
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, skb->data, skb->len);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22))
 	ip = ip_hdr(skb);
-#else
-	ip = (struct iphdr*)(skb->data + sizeof(struct ether_header));
-#endif
+
 	switch (ip->tos & 0xfc) {
 		case 0x20:
 			return 2;
@@ -312,7 +304,6 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 	}
 }
 
-#define SN_LESS(a, b)		(((a-b)&0x800)!=0)
 void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* skb, cb_desc* tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
@@ -498,11 +489,7 @@ void ieee80211_query_protectionmode(struct ieee80211_device* ieee, cb_desc* tcb_
 			{
 				tcb_desc->bCTSEnable	= true;
 				tcb_desc->rts_rate  = 	MGN_24M;
-#if defined(RTL8192SE) || defined(RTL8192SU)
 				tcb_desc->bRTSEnable = false;
-#else
-				tcb_desc->bRTSEnable = true;
-#endif
 				break;
 			}
 			else if(pHTInfo->IOTAction & (HT_IOT_ACT_FORCED_RTS|HT_IOT_ACT_PURE_N_MODE))
@@ -620,11 +607,7 @@ void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u
 
 int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	struct ieee80211_device *ieee = netdev_priv(dev);
-#else
-	struct ieee80211_device *ieee = (struct ieee80211_device *)dev->priv;
-#endif
 	struct ieee80211_txb *txb = NULL;
 	struct ieee80211_hdr_3addrqos *frag_hdr;
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;
@@ -943,6 +926,3 @@ int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 1;
 
 }
-EXPORT_SYMBOL(rtl8192_ieee80211_xmit);
-
-EXPORT_SYMBOL(ieee80211_txb_free);

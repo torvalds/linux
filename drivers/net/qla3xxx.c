@@ -2572,7 +2572,8 @@ map_error:
  * The IOCB is always the top of the chain followed by one or more
  * OALs (when necessary).
  */
-static int ql3xxx_send(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t ql3xxx_send(struct sk_buff *skb,
+			       struct net_device *ndev)
 {
 	struct ql3_adapter *qdev = (struct ql3_adapter *)netdev_priv(ndev);
 	struct ql3xxx_port_registers __iomem *port_regs = qdev->mem_map_registers;

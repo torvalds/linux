@@ -463,7 +463,7 @@ static int ni5010_send_packet(struct sk_buff *skb, struct net_device *dev)
 	hardware_send_packet(dev, (unsigned char *)skb->data, skb->len, length-skb->len);
 	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

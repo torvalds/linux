@@ -50,6 +50,8 @@ struct dcbmsg {
  * @DCB_CMD_SNUMTCS: set the number of traffic classes
  * @DCB_CMD_GBCN: set backward congestion notification configuration
  * @DCB_CMD_SBCN: get backward congestion notification configration.
+ * @DCB_CMD_GAPP: get application protocol configuration
+ * @DCB_CMD_SAPP: set application protocol configuration
  */
 enum dcbnl_commands {
 	DCB_CMD_UNDEFINED,
@@ -79,6 +81,9 @@ enum dcbnl_commands {
 
 	DCB_CMD_BCN_GCFG,
 	DCB_CMD_BCN_SCFG,
+
+	DCB_CMD_GAPP,
+	DCB_CMD_SAPP,
 
 	__DCB_CMD_ENUM_MAX,
 	DCB_CMD_MAX = __DCB_CMD_ENUM_MAX - 1,
@@ -114,6 +119,7 @@ enum dcbnl_attrs {
 	DCB_ATTR_CAP,
 	DCB_ATTR_NUMTCS,
 	DCB_ATTR_BCN,
+	DCB_ATTR_APP,
 
 	__DCB_ATTR_ENUM_MAX,
 	DCB_ATTR_MAX = __DCB_ATTR_ENUM_MAX - 1,
@@ -338,5 +344,17 @@ enum dcb_general_attr_values {
 	DCB_ATTR_VALUE_UNDEFINED = 0xff
 };
 
+#define DCB_APP_IDTYPE_ETHTYPE	0x00
+#define DCB_APP_IDTYPE_PORTNUM	0x01
+enum dcbnl_app_attrs {
+	DCB_APP_ATTR_UNDEFINED,
+
+	DCB_APP_ATTR_IDTYPE,
+	DCB_APP_ATTR_ID,
+	DCB_APP_ATTR_PRIORITY,
+
+	__DCB_APP_ATTR_ENUM_MAX,
+	DCB_APP_ATTR_MAX = __DCB_APP_ATTR_ENUM_MAX - 1,
+};
 
 #endif /* __LINUX_DCBNL_H__ */

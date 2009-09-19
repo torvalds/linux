@@ -489,6 +489,7 @@ static struct socket *sock_alloc(void)
 
 	sock = SOCKET_I(inode);
 
+	kmemcheck_annotate_bitfield(sock, type);
 	inode->i_mode = S_IFSOCK | S_IRWXUGO;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();

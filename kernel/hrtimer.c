@@ -485,6 +485,7 @@ void hrtimer_init_on_stack(struct hrtimer *timer, clockid_t clock_id,
 	debug_object_init_on_stack(timer, &hrtimer_debug_descr);
 	__hrtimer_init(timer, clock_id, mode);
 }
+EXPORT_SYMBOL_GPL(hrtimer_init_on_stack);
 
 void destroy_hrtimer_on_stack(struct hrtimer *timer)
 {
@@ -1477,6 +1478,7 @@ void hrtimer_init_sleeper(struct hrtimer_sleeper *sl, struct task_struct *task)
 	sl->timer.function = hrtimer_wakeup;
 	sl->task = task;
 }
+EXPORT_SYMBOL_GPL(hrtimer_init_sleeper);
 
 static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mode)
 {

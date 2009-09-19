@@ -50,14 +50,14 @@ resource_size_t isa_mem_base;
 unsigned int ppc_pci_flags = 0;
 
 
-static struct dma_mapping_ops *pci_dma_ops = &dma_direct_ops;
+static struct dma_map_ops *pci_dma_ops = &dma_direct_ops;
 
-void set_pci_dma_ops(struct dma_mapping_ops *dma_ops)
+void set_pci_dma_ops(struct dma_map_ops *dma_ops)
 {
 	pci_dma_ops = dma_ops;
 }
 
-struct dma_mapping_ops *get_pci_dma_ops(void)
+struct dma_map_ops *get_pci_dma_ops(void)
 {
 	return pci_dma_ops;
 }
@@ -176,8 +176,6 @@ int pci_domain_nr(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_domain_nr);
 
-#ifdef CONFIG_PPC_OF
-
 /* This routine is meant to be used early during boot, when the
  * PCI bus numbers have not yet been assigned, and you need to
  * issue PCI config cycles to an OF device.
@@ -210,17 +208,11 @@ static ssize_t pci_show_devspec(struct device *dev,
 	return sprintf(buf, "%s", np->full_name);
 }
 static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
-#endif /* CONFIG_PPC_OF */
 
 /* Add sysfs properties */
 int pcibios_add_platform_entries(struct pci_dev *pdev)
 {
-#ifdef CONFIG_PPC_OF
 	return device_create_file(&pdev->dev, &dev_attr_devspec);
-#else
-	return 0;
-#endif /* CONFIG_PPC_OF */
-
 }
 
 char __devinit *pcibios_setup(char *str)
@@ -1626,3 +1618,122 @@ void __devinit pcibios_setup_phb_resources(struct pci_controller *hose)
 
 }
 
+/*
+ * Null PCI config access functions, for the case when we can't
+ * find a hose.
+ */
+#define NULL_PCI_OP(rw, size, type)					\
+static int								\
+null_##rw##_config_##size(struct pci_dev *dev, int offset, type val)	\
+{									\
+	return PCIBIOS_DEVICE_NOT_FOUND;    				\
+}
+
+static int
+null_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
+		 int len, u32 *val)
+{
+	return PCIBIOS_DEVICE_NOT_FOUND;
+}
+
+static int
+null_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
+		  int len, u32 val)
+{
+	return PCIBIOS_DEVICE_NOT_FOUND;
+}
+
+static struct pci_ops null_pci_ops =
+{
+	.read = null_read_config,
+	.write = null_write_config,
+};
+
+/*
+ * These functions are used early on before PCI scanning is done
+ * and all of the pci_dev and pci_bus structures have been created.
+ */
+static struct pci_bus *
+fake_pci_bus(struct pci_controller *hose, int busnr)
+{
+	static struct pci_bus bus;
+
+	if (hose == 0) {
+		printk(KERN_ERR "Can't find hose for PCI bus %d!\n", busnr);
+	}
+	bus.number = busnr;
+	bus.sysdata = hose;
+	bus.ops = hose? hose->ops: &null_pci_ops;
+	return &bus;
+}
+
+#define EARLY_PCI_OP(rw, size, type)					\
+int early_##rw##_config_##size(struct pci_controller *hose, int bus,	\
+			       int devfn, int offset, type value)	\
+{									\
+	return pci_bus_##rw##_config_##size(fake_pci_bus(hose, bus),	\
+					    devfn, offset, value);	\
+}
+
+EARLY_PCI_OP(read, byte, u8 *)
+EARLY_PCI_OP(read, word, u16 *)
+EARLY_PCI_OP(read, dword, u32 *)
+EARLY_PCI_OP(write, byte, u8)
+EARLY_PCI_OP(write, word, u16)
+EARLY_PCI_OP(write, dword, u32)
+
+extern int pci_bus_find_capability (struct pci_bus *bus, unsigned int devfn, int cap);
+int early_find_capability(struct pci_controller *hose, int bus, int devfn,
+			  int cap)
+{
+	return pci_bus_find_capability(fake_pci_bus(hose, bus), devfn, cap);
+}
+
+/**
+ * pci_scan_phb - Given a pci_controller, setup and scan the PCI bus
+ * @hose: Pointer to the PCI host controller instance structure
+ * @sysdata: value to use for sysdata pointer.  ppc32 and ppc64 differ here
+ *
+ * Note: the 'data' pointer is a temporary measure.  As 32 and 64 bit
+ * pci code gets merged, this parameter should become unnecessary because
+ * both will use the same value.
+ */
+void __devinit pcibios_scan_phb(struct pci_controller *hose, void *sysdata)
+{
+	struct pci_bus *bus;
+	struct device_node *node = hose->dn;
+	int mode;
+
+	pr_debug("PCI: Scanning PHB %s\n",
+		 node ? node->full_name : "<NO NAME>");
+
+	/* Create an empty bus for the toplevel */
+	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops,
+			     sysdata);
+	if (bus == NULL) {
+		pr_err("Failed to create bus for PCI domain %04x\n",
+			hose->global_number);
+		return;
+	}
+	bus->secondary = hose->first_busno;
+	hose->bus = bus;
+
+	/* Get some IO space for the new PHB */
+	pcibios_setup_phb_io_space(hose);
+
+	/* Wire up PHB bus resources */
+	pcibios_setup_phb_resources(hose);
+
+	/* Get probe mode and perform scan */
+	mode = PCI_PROBE_NORMAL;
+	if (node && ppc_md.pci_probe_mode)
+		mode = ppc_md.pci_probe_mode(bus);
+	pr_debug("    probe mode: %d\n", mode);
+	if (mode == PCI_PROBE_DEVTREE) {
+		bus->subordinate = hose->last_busno;
+		of_scan_bus(node, bus);
+	}
+
+	if (mode == PCI_PROBE_NORMAL)
+		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
+}

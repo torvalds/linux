@@ -4,8 +4,8 @@
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
- *  Copyright (c) 2006-2008 Jiri Kosina
  *  Copyright (c) 2007-2008 Oliver Neukum
+ *  Copyright (c) 2006-2009 Jiri Kosina
  */
 
 /*
@@ -489,7 +489,8 @@ static void hid_ctrl(struct urb *urb)
 	wake_up(&usbhid->wait);
 }
 
-void __usbhid_submit_report(struct hid_device *hid, struct hid_report *report, unsigned char dir)
+static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *report,
+				   unsigned char dir)
 {
 	int head;
 	struct usbhid_device *usbhid = hid->driver_data;
@@ -885,11 +886,6 @@ static int usbhid_parse(struct hid_device *hid)
 		goto err;
 	}
 
-	dbg_hid("report descriptor (size %u, read %d) = ", rsize, n);
-	for (n = 0; n < rsize; n++)
-		dbg_hid_line(" %02x", (unsigned char) rdesc[n]);
-	dbg_hid_line("\n");
-
 	ret = hid_parse_report(hid, rdesc, rsize);
 	kfree(rdesc);
 	if (ret) {
@@ -986,7 +982,6 @@ static int usbhid_start(struct hid_device *hid)
 	setup_timer(&usbhid->io_retry, hid_retry_timeout, (unsigned long) hid);
 
 	spin_lock_init(&usbhid->lock);
-	spin_lock_init(&usbhid->lock);
 
 	usbhid->intf = intf;
 	usbhid->ifnum = interface->desc.bInterfaceNumber;
@@ -1004,7 +999,6 @@ static int usbhid_start(struct hid_device *hid)
 	usbhid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
 
 	usbhid_init_reports(hid);
-	hid_dump_device(hid);
 
 	set_bit(HID_STARTED, &usbhid->iofl);
 

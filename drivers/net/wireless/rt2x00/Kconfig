@@ -1,8 +1,8 @@
 menuconfig RT2X00
 	tristate "Ralink driver support"
-	depends on MAC80211 && WLAN_80211 && EXPERIMENTAL
+	depends on MAC80211 && WLAN_80211
 	---help---
-	  This will enable the experimental support for the Ralink drivers,
+	  This will enable the support for the Ralink drivers,
 	  developed in the rt2x00 project <http://rt2x00.serialmonkey.com>.
 
 	  These drivers make use of the mac80211 stack.
@@ -79,14 +79,14 @@ config RT73USB
 
 config RT2800USB
 	tristate "Ralink rt2800 (USB) support"
-	depends on USB
+	depends on USB && EXPERIMENTAL
 	select RT2X00_LIB_USB
 	select RT2X00_LIB_HT
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
 	---help---
-	  This adds support for rt2800 wireless chipset family.
+	  This adds experimental support for rt2800 wireless chipset family.
 	  Supported chips: RT2770, RT2870 & RT3070.
 
 	  When compiled as a module, this driver will be called "rt2800usb.ko".
@@ -111,14 +111,6 @@ config RT2X00_LIB_FIRMWARE
 
 config RT2X00_LIB_CRYPTO
 	boolean
-
-config RT2X00_LIB_RFKILL
-	boolean
-	default y if (RT2X00_LIB=y && INPUT=y) || (RT2X00_LIB=m && INPUT!=n)
-	select INPUT_POLLDEV
-
-comment "rt2x00 rfkill support disabled due to modularized INPUT and built-in rt2x00"
-	depends on RT2X00_LIB=y && INPUT=m
 
 config RT2X00_LIB_LEDS
 	boolean

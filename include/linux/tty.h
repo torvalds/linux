@@ -519,10 +519,6 @@ extern void serial_console_init(void);
 
 extern int pcxe_open(struct tty_struct *tty, struct file *filp);
 
-/* printk.c */
-
-extern void console_print(const char *);
-
 /* vt.c */
 
 extern int vt_ioctl(struct tty_struct *tty, struct file *file,

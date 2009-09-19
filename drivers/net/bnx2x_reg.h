@@ -190,12 +190,6 @@
    _(0..15) stands for the connection type (one of 16). */
 #define CCM_REG_N_SM_CTX_LD_0					 0xd004c
 #define CCM_REG_N_SM_CTX_LD_1					 0xd0050
-#define CCM_REG_N_SM_CTX_LD_10					 0xd0074
-#define CCM_REG_N_SM_CTX_LD_11					 0xd0078
-#define CCM_REG_N_SM_CTX_LD_12					 0xd007c
-#define CCM_REG_N_SM_CTX_LD_13					 0xd0080
-#define CCM_REG_N_SM_CTX_LD_14					 0xd0084
-#define CCM_REG_N_SM_CTX_LD_15					 0xd0088
 #define CCM_REG_N_SM_CTX_LD_2					 0xd0054
 #define CCM_REG_N_SM_CTX_LD_3					 0xd0058
 #define CCM_REG_N_SM_CTX_LD_4					 0xd005c
@@ -370,7 +364,6 @@
 #define CFC_REG_NUM_LCIDS_LEAVING				 0x104018
 /* [RW 8] The event id for aggregated interrupt 0 */
 #define CSDM_REG_AGG_INT_EVENT_0				 0xc2038
-#define CSDM_REG_AGG_INT_EVENT_1				 0xc203c
 #define CSDM_REG_AGG_INT_EVENT_10				 0xc2060
 #define CSDM_REG_AGG_INT_EVENT_11				 0xc2064
 #define CSDM_REG_AGG_INT_EVENT_12				 0xc2068
@@ -378,37 +371,27 @@
 #define CSDM_REG_AGG_INT_EVENT_14				 0xc2070
 #define CSDM_REG_AGG_INT_EVENT_15				 0xc2074
 #define CSDM_REG_AGG_INT_EVENT_16				 0xc2078
-#define CSDM_REG_AGG_INT_EVENT_17				 0xc207c
-#define CSDM_REG_AGG_INT_EVENT_18				 0xc2080
-#define CSDM_REG_AGG_INT_EVENT_19				 0xc2084
 #define CSDM_REG_AGG_INT_EVENT_2				 0xc2040
-#define CSDM_REG_AGG_INT_EVENT_20				 0xc2088
-#define CSDM_REG_AGG_INT_EVENT_21				 0xc208c
-#define CSDM_REG_AGG_INT_EVENT_22				 0xc2090
-#define CSDM_REG_AGG_INT_EVENT_23				 0xc2094
-#define CSDM_REG_AGG_INT_EVENT_24				 0xc2098
-#define CSDM_REG_AGG_INT_EVENT_25				 0xc209c
-#define CSDM_REG_AGG_INT_EVENT_26				 0xc20a0
-#define CSDM_REG_AGG_INT_EVENT_27				 0xc20a4
-#define CSDM_REG_AGG_INT_EVENT_28				 0xc20a8
-#define CSDM_REG_AGG_INT_EVENT_29				 0xc20ac
 #define CSDM_REG_AGG_INT_EVENT_3				 0xc2044
-#define CSDM_REG_AGG_INT_EVENT_30				 0xc20b0
-#define CSDM_REG_AGG_INT_EVENT_31				 0xc20b4
 #define CSDM_REG_AGG_INT_EVENT_4				 0xc2048
-/* [RW 1] The T bit for aggregated interrupt 0 */
-#define CSDM_REG_AGG_INT_T_0					 0xc20b8
-#define CSDM_REG_AGG_INT_T_1					 0xc20bc
-#define CSDM_REG_AGG_INT_T_10					 0xc20e0
-#define CSDM_REG_AGG_INT_T_11					 0xc20e4
-#define CSDM_REG_AGG_INT_T_12					 0xc20e8
-#define CSDM_REG_AGG_INT_T_13					 0xc20ec
-#define CSDM_REG_AGG_INT_T_14					 0xc20f0
-#define CSDM_REG_AGG_INT_T_15					 0xc20f4
-#define CSDM_REG_AGG_INT_T_16					 0xc20f8
-#define CSDM_REG_AGG_INT_T_17					 0xc20fc
-#define CSDM_REG_AGG_INT_T_18					 0xc2100
-#define CSDM_REG_AGG_INT_T_19					 0xc2104
+#define CSDM_REG_AGG_INT_EVENT_5				 0xc204c
+#define CSDM_REG_AGG_INT_EVENT_6				 0xc2050
+#define CSDM_REG_AGG_INT_EVENT_7				 0xc2054
+#define CSDM_REG_AGG_INT_EVENT_8				 0xc2058
+#define CSDM_REG_AGG_INT_EVENT_9				 0xc205c
+/* [RW 1] For each aggregated interrupt index whether the mode is normal (0)
+   or auto-mask-mode (1) */
+#define CSDM_REG_AGG_INT_MODE_10				 0xc21e0
+#define CSDM_REG_AGG_INT_MODE_11				 0xc21e4
+#define CSDM_REG_AGG_INT_MODE_12				 0xc21e8
+#define CSDM_REG_AGG_INT_MODE_13				 0xc21ec
+#define CSDM_REG_AGG_INT_MODE_14				 0xc21f0
+#define CSDM_REG_AGG_INT_MODE_15				 0xc21f4
+#define CSDM_REG_AGG_INT_MODE_16				 0xc21f8
+#define CSDM_REG_AGG_INT_MODE_6 				 0xc21d0
+#define CSDM_REG_AGG_INT_MODE_7 				 0xc21d4
+#define CSDM_REG_AGG_INT_MODE_8 				 0xc21d8
+#define CSDM_REG_AGG_INT_MODE_9 				 0xc21dc
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define CSDM_REG_CFC_RSP_START_ADDR				 0xc2008
 /* [RW 16] The maximum value of the competion counter #0 */
@@ -633,24 +616,6 @@
 #define DMAE_REG_GO_C1						 0x102084
 /* [RW 1] Command 10 go. */
 #define DMAE_REG_GO_C10 					 0x102088
-#define DMAE_REG_GO_C10_SIZE					 1
-/* [RW 1] Command 11 go. */
-#define DMAE_REG_GO_C11 					 0x10208c
-#define DMAE_REG_GO_C11_SIZE					 1
-/* [RW 1] Command 12 go. */
-#define DMAE_REG_GO_C12 					 0x102090
-#define DMAE_REG_GO_C12_SIZE					 1
-/* [RW 1] Command 13 go. */
-#define DMAE_REG_GO_C13 					 0x102094
-#define DMAE_REG_GO_C13_SIZE					 1
-/* [RW 1] Command 14 go. */
-#define DMAE_REG_GO_C14 					 0x102098
-#define DMAE_REG_GO_C14_SIZE					 1
-/* [RW 1] Command 15 go. */
-#define DMAE_REG_GO_C15 					 0x10209c
-#define DMAE_REG_GO_C15_SIZE					 1
-/* [RW 1] Command 10 go. */
-#define DMAE_REG_GO_C10 					 0x102088
 /* [RW 1] Command 11 go. */
 #define DMAE_REG_GO_C11 					 0x10208c
 /* [RW 1] Command 12 go. */
@@ -800,7 +765,6 @@
 #define MCP_REG_MCPR_NVM_READ					 0x86410
 #define MCP_REG_MCPR_NVM_SW_ARB 				 0x86420
 #define MCP_REG_MCPR_NVM_WRITE					 0x86408
-#define MCP_REG_MCPR_NVM_WRITE1 				 0x86428
 #define MCP_REG_MCPR_SCRATCH					 0xa0000
 /* [R 32] read first 32 bit after inversion of function 0. mapped as
    follows: [0] NIG attention for function0; [1] NIG attention for
@@ -1186,19 +1150,7 @@
 #define MISC_REG_AEU_GENERAL_ATTN_10				 0xa028
 #define MISC_REG_AEU_GENERAL_ATTN_11				 0xa02c
 #define MISC_REG_AEU_GENERAL_ATTN_12				 0xa030
-#define MISC_REG_AEU_GENERAL_ATTN_13				 0xa034
-#define MISC_REG_AEU_GENERAL_ATTN_14				 0xa038
-#define MISC_REG_AEU_GENERAL_ATTN_15				 0xa03c
-#define MISC_REG_AEU_GENERAL_ATTN_16				 0xa040
-#define MISC_REG_AEU_GENERAL_ATTN_17				 0xa044
-#define MISC_REG_AEU_GENERAL_ATTN_18				 0xa048
-#define MISC_REG_AEU_GENERAL_ATTN_19				 0xa04c
-#define MISC_REG_AEU_GENERAL_ATTN_10				 0xa028
-#define MISC_REG_AEU_GENERAL_ATTN_11				 0xa02c
-#define MISC_REG_AEU_GENERAL_ATTN_12				 0xa030
 #define MISC_REG_AEU_GENERAL_ATTN_2				 0xa008
-#define MISC_REG_AEU_GENERAL_ATTN_20				 0xa050
-#define MISC_REG_AEU_GENERAL_ATTN_21				 0xa054
 #define MISC_REG_AEU_GENERAL_ATTN_3				 0xa00c
 #define MISC_REG_AEU_GENERAL_ATTN_4				 0xa010
 #define MISC_REG_AEU_GENERAL_ATTN_5				 0xa014
@@ -1290,137 +1242,13 @@
    set. if the appropriate bit is clear (the driver request to free a client
    it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
    be asserted). */
-#define MISC_REG_DRIVER_CONTROL_10				 0xa3e0
-#define MISC_REG_DRIVER_CONTROL_10_SIZE 			 2
-/* [RW 32] The following driver registers(1...16) represent 16 drivers and
-   32 clients. Each client can be controlled by one driver only. One in each
-   bit represent that this driver control the appropriate client (Ex: bit 5
-   is set means this driver control client number 5). addr1 = set; addr0 =
-   clear; read from both addresses will give the same result = status. write
-   to address 1 will set a request to control all the clients that their
-   appropriate bit (in the write command) is set. if the client is free (the
-   appropriate bit in all the other drivers is clear) one will be written to
-   that driver register; if the client isn't free the bit will remain zero.
-   if the appropriate bit is set (the driver request to gain control on a
-   client it already controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW
-   interrupt will be asserted). write to address 0 will set a request to
-   free all the clients that their appropriate bit (in the write command) is
-   set. if the appropriate bit is clear (the driver request to free a client
-   it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
-   be asserted). */
-#define MISC_REG_DRIVER_CONTROL_11				 0xa3e8
-#define MISC_REG_DRIVER_CONTROL_11_SIZE 			 2
-/* [RW 32] The following driver registers(1...16) represent 16 drivers and
-   32 clients. Each client can be controlled by one driver only. One in each
-   bit represent that this driver control the appropriate client (Ex: bit 5
-   is set means this driver control client number 5). addr1 = set; addr0 =
-   clear; read from both addresses will give the same result = status. write
-   to address 1 will set a request to control all the clients that their
-   appropriate bit (in the write command) is set. if the client is free (the
-   appropriate bit in all the other drivers is clear) one will be written to
-   that driver register; if the client isn't free the bit will remain zero.
-   if the appropriate bit is set (the driver request to gain control on a
-   client it already controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW
-   interrupt will be asserted). write to address 0 will set a request to
-   free all the clients that their appropriate bit (in the write command) is
-   set. if the appropriate bit is clear (the driver request to free a client
-   it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
-   be asserted). */
-#define MISC_REG_DRIVER_CONTROL_12				 0xa3f0
-#define MISC_REG_DRIVER_CONTROL_12_SIZE 			 2
-/* [RW 32] The following driver registers(1...16) represent 16 drivers and
-   32 clients. Each client can be controlled by one driver only. One in each
-   bit represent that this driver control the appropriate client (Ex: bit 5
-   is set means this driver control client number 5). addr1 = set; addr0 =
-   clear; read from both addresses will give the same result = status. write
-   to address 1 will set a request to control all the clients that their
-   appropriate bit (in the write command) is set. if the client is free (the
-   appropriate bit in all the other drivers is clear) one will be written to
-   that driver register; if the client isn't free the bit will remain zero.
-   if the appropriate bit is set (the driver request to gain control on a
-   client it already controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW
-   interrupt will be asserted). write to address 0 will set a request to
-   free all the clients that their appropriate bit (in the write command) is
-   set. if the appropriate bit is clear (the driver request to free a client
-   it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
-   be asserted). */
-#define MISC_REG_DRIVER_CONTROL_13				 0xa3f8
-#define MISC_REG_DRIVER_CONTROL_13_SIZE 			 2
-/* [RW 32] The following driver registers(1...16) represent 16 drivers and
-   32 clients. Each client can be controlled by one driver only. One in each
-   bit represent that this driver control the appropriate client (Ex: bit 5
-   is set means this driver control client number 5). addr1 = set; addr0 =
-   clear; read from both addresses will give the same result = status. write
-   to address 1 will set a request to control all the clients that their
-   appropriate bit (in the write command) is set. if the client is free (the
-   appropriate bit in all the other drivers is clear) one will be written to
-   that driver register; if the client isn't free the bit will remain zero.
-   if the appropriate bit is set (the driver request to gain control on a
-   client it already controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW
-   interrupt will be asserted). write to address 0 will set a request to
-   free all the clients that their appropriate bit (in the write command) is
-   set. if the appropriate bit is clear (the driver request to free a client
-   it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
-   be asserted). */
 #define MISC_REG_DRIVER_CONTROL_1				 0xa510
-#define MISC_REG_DRIVER_CONTROL_14				 0xa5e0
-#define MISC_REG_DRIVER_CONTROL_14_SIZE 			 2
-/* [RW 32] The following driver registers(1...16) represent 16 drivers and
-   32 clients. Each client can be controlled by one driver only. One in each
-   bit represent that this driver control the appropriate client (Ex: bit 5
-   is set means this driver control client number 5). addr1 = set; addr0 =
-   clear; read from both addresses will give the same result = status. write
-   to address 1 will set a request to control all the clients that their
-   appropriate bit (in the write command) is set. if the client is free (the
-   appropriate bit in all the other drivers is clear) one will be written to
-   that driver register; if the client isn't free the bit will remain zero.
-   if the appropriate bit is set (the driver request to gain control on a
-   client it already controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW
-   interrupt will be asserted). write to address 0 will set a request to
-   free all the clients that their appropriate bit (in the write command) is
-   set. if the appropriate bit is clear (the driver request to free a client
-   it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
-   be asserted). */
-#define MISC_REG_DRIVER_CONTROL_15				 0xa5e8
-#define MISC_REG_DRIVER_CONTROL_15_SIZE 			 2
-/* [RW 32] The following driver registers(1...16) represent 16 drivers and
-   32 clients. Each client can be controlled by one driver only. One in each
-   bit represent that this driver control the appropriate client (Ex: bit 5
-   is set means this driver control client number 5). addr1 = set; addr0 =
-   clear; read from both addresses will give the same result = status. write
-   to address 1 will set a request to control all the clients that their
-   appropriate bit (in the write command) is set. if the client is free (the
-   appropriate bit in all the other drivers is clear) one will be written to
-   that driver register; if the client isn't free the bit will remain zero.
-   if the appropriate bit is set (the driver request to gain control on a
-   client it already controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW
-   interrupt will be asserted). write to address 0 will set a request to
-   free all the clients that their appropriate bit (in the write command) is
-   set. if the appropriate bit is clear (the driver request to free a client
-   it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
-   be asserted). */
-#define MISC_REG_DRIVER_CONTROL_16				 0xa5f0
-#define MISC_REG_DRIVER_CONTROL_16_SIZE 			 2
-/* [RW 32] The following driver registers(1...16) represent 16 drivers and
-   32 clients. Each client can be controlled by one driver only. One in each
-   bit represent that this driver control the appropriate client (Ex: bit 5
-   is set means this driver control client number 5). addr1 = set; addr0 =
-   clear; read from both addresses will give the same result = status. write
-   to address 1 will set a request to control all the clients that their
-   appropriate bit (in the write command) is set. if the client is free (the
-   appropriate bit in all the other drivers is clear) one will be written to
-   that driver register; if the client isn't free the bit will remain zero.
-   if the appropriate bit is set (the driver request to gain control on a
-   client it already controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW
-   interrupt will be asserted). write to address 0 will set a request to
-   free all the clients that their appropriate bit (in the write command) is
-   set. if the appropriate bit is clear (the driver request to free a client
-   it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
-   be asserted). */
 #define MISC_REG_DRIVER_CONTROL_7				 0xa3c8
 /* [RW 1] e1hmf for WOL. If clr WOL signal o the PXP will be send on bit 0
    only. */
 #define MISC_REG_E1HMF_MODE					 0xa5f8
+/* [RW 32] Debug only: spare RW register reset by core reset */
+#define MISC_REG_GENERIC_CR_0					 0xa460
 /* [RW 32] GPIO. [31-28] FLOAT port 0; [27-24] FLOAT port 0; When any of
    these bits is written as a '1'; the corresponding SPIO bit will turn off
    it's drivers and become an input. This is the reset state of all GPIO
@@ -1616,6 +1444,11 @@
 /* [RW 1] Set by the MCP to remember if one or more of the drivers is/are
    loaded; 0-prepare; -unprepare */
 #define MISC_REG_UNPREPARED					 0xa424
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_BRCST	 (0x1<<0)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_MLCST	 (0x1<<1)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_NO_VLAN	 (0x1<<4)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_UNCST	 (0x1<<2)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_VLAN	 (0x1<<3)
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_EMAC0_MISC_MI_INT	 (0x1<<0)
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_SERDES0_LINK_STATUS	 (0x1<<9)
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_XGXS0_LINK10G 	 (0x1<<15)
@@ -1654,12 +1487,12 @@
 /* [RW 1] MAC configuration for packets of port0. If 1 - all packet outputs
    to emac for port0; other way to bmac for port0 */
 #define NIG_REG_EGRESS_EMAC0_PORT				 0x10058
-/* [RW 32] TX_MNG_FIFO in NIG_TX_PORT0; data[31:0] written in FIFO order. */
-#define NIG_REG_EGRESS_MNG0_FIFO				 0x1045c
 /* [RW 1] Input enable for TX PBF user packet port0 IF */
 #define NIG_REG_EGRESS_PBF0_IN_EN				 0x100cc
 /* [RW 1] Input enable for TX PBF user packet port1 IF */
 #define NIG_REG_EGRESS_PBF1_IN_EN				 0x100d0
+/* [RW 1] Input enable for TX UMP management packet port0 IF */
+#define NIG_REG_EGRESS_UMP0_IN_EN				 0x100d4
 /* [RW 1] Input enable for RX_EMAC0 IF */
 #define NIG_REG_EMAC0_IN_EN					 0x100a4
 /* [RW 1] output enable for TX EMAC pause port 0 IF */
@@ -1683,6 +1516,24 @@
 /* [RW 17] Debug only. RX_EOP_DSCR_lb_FIFO in NIG_RX_EOP. Data
    packet_length[13:0]; mac_error[14]; trunc_error[15]; parity[16] */
 #define NIG_REG_INGRESS_EOP_LB_FIFO				 0x104e4
+/* [RW 27] 0 - must be active for Everest A0; 1- for Everest B0 when latch
+   logic for interrupts must be used. Enable per bit of interrupt of
+   ~latch_status.latch_status */
+#define NIG_REG_LATCH_BC_0					 0x16210
+/* [RW 27] Latch for each interrupt from Unicore.b[0]
+   status_emac0_misc_mi_int; b[1] status_emac0_misc_mi_complete;
+   b[2]status_emac0_misc_cfg_change; b[3]status_emac0_misc_link_status;
+   b[4]status_emac0_misc_link_change; b[5]status_emac0_misc_attn;
+   b[6]status_serdes0_mac_crs; b[7]status_serdes0_autoneg_complete;
+   b[8]status_serdes0_fiber_rxact; b[9]status_serdes0_link_status;
+   b[10]status_serdes0_mr_page_rx; b[11]status_serdes0_cl73_an_complete;
+   b[12]status_serdes0_cl73_mr_page_rx; b[13]status_serdes0_rx_sigdet;
+   b[14]status_xgxs0_remotemdioreq; b[15]status_xgxs0_link10g;
+   b[16]status_xgxs0_autoneg_complete; b[17]status_xgxs0_fiber_rxact;
+   b[21:18]status_xgxs0_link_status; b[22]status_xgxs0_mr_page_rx;
+   b[23]status_xgxs0_cl73_an_complete; b[24]status_xgxs0_cl73_mr_page_rx;
+   b[25]status_xgxs0_rx_sigdet; b[26]status_xgxs0_mac_crs */
+#define NIG_REG_LATCH_STATUS_0					 0x18000
 /* [RW 1] led 10g for port 0 */
 #define NIG_REG_LED_10G_P0					 0x10320
 /* [RW 1] led 10g for port 1 */
@@ -1722,6 +1573,7 @@
 /* [RW 3] for port0 enable for llfc ppp and pause. b0 - brb1 enable; b1-
    tsdm enable; b2- usdm enable */
 #define NIG_REG_LLFC_EGRESS_SRC_ENABLE_0			 0x16070
+#define NIG_REG_LLFC_EGRESS_SRC_ENABLE_1			 0x16074
 /* [RW 1] SAFC enable for port0. This register may get 1 only when
    ~ppp_enable.ppp_enable = 0 and pause_enable.pause_enable =0 for the same
    port */
@@ -1872,6 +1724,7 @@
 #define NIG_REG_XGXS_LANE_SEL_P0				 0x102e8
 /* [RW 1] selection for port0 for NIG_MUX block : 0 = SerDes; 1 = XGXS */
 #define NIG_REG_XGXS_SERDES0_MODE_SEL				 0x102e0
+#define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_EMAC0_MISC_MI_INT  (0x1<<0)
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_SERDES0_LINK_STATUS (0x1<<9)
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK10G	 (0x1<<15)
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK_STATUS  (0xf<<18)
@@ -2072,6 +1925,7 @@
 #define PXP2_REG_PGL_ADDR_94_F0 				 0x120540
 #define PXP2_REG_PGL_CONTROL0					 0x120490
 #define PXP2_REG_PGL_CONTROL1					 0x120514
+#define PXP2_REG_PGL_DEBUG					 0x120520
 /* [RW 32] third dword data of expansion rom request. this register is
    special. reading from it provides a vector outstanding read requests. if
    a bit is zero it means that a read request on the corresponding tag did
@@ -2142,10 +1996,7 @@
 #define PXP2_REG_PSWRQ_BW_ADD1					 0x1201c0
 #define PXP2_REG_PSWRQ_BW_ADD10 				 0x1201e4
 #define PXP2_REG_PSWRQ_BW_ADD11 				 0x1201e8
-#define PXP2_REG_PSWRQ_BW_ADD10 				 0x1201e4
-#define PXP2_REG_PSWRQ_BW_ADD11 				 0x1201e8
 #define PXP2_REG_PSWRQ_BW_ADD2					 0x1201c4
-#define PXP2_REG_PSWRQ_BW_ADD28 				 0x120228
 #define PXP2_REG_PSWRQ_BW_ADD28 				 0x120228
 #define PXP2_REG_PSWRQ_BW_ADD3					 0x1201c8
 #define PXP2_REG_PSWRQ_BW_ADD6					 0x1201d4
@@ -2156,10 +2007,7 @@
 #define PXP2_REG_PSWRQ_BW_L1					 0x1202b0
 #define PXP2_REG_PSWRQ_BW_L10					 0x1202d4
 #define PXP2_REG_PSWRQ_BW_L11					 0x1202d8
-#define PXP2_REG_PSWRQ_BW_L10					 0x1202d4
-#define PXP2_REG_PSWRQ_BW_L11					 0x1202d8
 #define PXP2_REG_PSWRQ_BW_L2					 0x1202b4
-#define PXP2_REG_PSWRQ_BW_L28					 0x120318
 #define PXP2_REG_PSWRQ_BW_L28					 0x120318
 #define PXP2_REG_PSWRQ_BW_L3					 0x1202b8
 #define PXP2_REG_PSWRQ_BW_L6					 0x1202c4
@@ -2170,10 +2018,7 @@
 #define PXP2_REG_PSWRQ_BW_UB1					 0x120238
 #define PXP2_REG_PSWRQ_BW_UB10					 0x12025c
 #define PXP2_REG_PSWRQ_BW_UB11					 0x120260
-#define PXP2_REG_PSWRQ_BW_UB10					 0x12025c
-#define PXP2_REG_PSWRQ_BW_UB11					 0x120260
 #define PXP2_REG_PSWRQ_BW_UB2					 0x12023c
-#define PXP2_REG_PSWRQ_BW_UB28					 0x1202a0
 #define PXP2_REG_PSWRQ_BW_UB28					 0x1202a0
 #define PXP2_REG_PSWRQ_BW_UB3					 0x120240
 #define PXP2_REG_PSWRQ_BW_UB6					 0x12024c
@@ -2231,6 +2076,9 @@
 /* [RW 8] The maximum number of blocks in Tetris Buffer that can be
    allocated for vq22 */
 #define PXP2_REG_RD_MAX_BLKS_VQ22				 0x1203d0
+/* [RW 8] The maximum number of blocks in Tetris Buffer that can be
+   allocated for vq25 */
+#define PXP2_REG_RD_MAX_BLKS_VQ25				 0x1203dc
 /* [RW 8] The maximum number of blocks in Tetris Buffer that can be
    allocated for vq6 */
 #define PXP2_REG_RD_MAX_BLKS_VQ6				 0x120390
@@ -2762,16 +2610,6 @@
 #define QM_REG_QVOQIDX_107					 0x16e4b8
 #define QM_REG_QVOQIDX_108					 0x16e4bc
 #define QM_REG_QVOQIDX_109					 0x16e4c0
-#define QM_REG_QVOQIDX_100					 0x16e49c
-#define QM_REG_QVOQIDX_101					 0x16e4a0
-#define QM_REG_QVOQIDX_102					 0x16e4a4
-#define QM_REG_QVOQIDX_103					 0x16e4a8
-#define QM_REG_QVOQIDX_104					 0x16e4ac
-#define QM_REG_QVOQIDX_105					 0x16e4b0
-#define QM_REG_QVOQIDX_106					 0x16e4b4
-#define QM_REG_QVOQIDX_107					 0x16e4b8
-#define QM_REG_QVOQIDX_108					 0x16e4bc
-#define QM_REG_QVOQIDX_109					 0x16e4c0
 #define QM_REG_QVOQIDX_11					 0x168120
 #define QM_REG_QVOQIDX_110					 0x16e4c4
 #define QM_REG_QVOQIDX_111					 0x16e4c8
@@ -2783,25 +2621,7 @@
 #define QM_REG_QVOQIDX_117					 0x16e4e0
 #define QM_REG_QVOQIDX_118					 0x16e4e4
 #define QM_REG_QVOQIDX_119					 0x16e4e8
-#define QM_REG_QVOQIDX_110					 0x16e4c4
-#define QM_REG_QVOQIDX_111					 0x16e4c8
-#define QM_REG_QVOQIDX_112					 0x16e4cc
-#define QM_REG_QVOQIDX_113					 0x16e4d0
-#define QM_REG_QVOQIDX_114					 0x16e4d4
-#define QM_REG_QVOQIDX_115					 0x16e4d8
-#define QM_REG_QVOQIDX_116					 0x16e4dc
-#define QM_REG_QVOQIDX_117					 0x16e4e0
-#define QM_REG_QVOQIDX_118					 0x16e4e4
-#define QM_REG_QVOQIDX_119					 0x16e4e8
 #define QM_REG_QVOQIDX_12					 0x168124
-#define QM_REG_QVOQIDX_120					 0x16e4ec
-#define QM_REG_QVOQIDX_121					 0x16e4f0
-#define QM_REG_QVOQIDX_122					 0x16e4f4
-#define QM_REG_QVOQIDX_123					 0x16e4f8
-#define QM_REG_QVOQIDX_124					 0x16e4fc
-#define QM_REG_QVOQIDX_125					 0x16e500
-#define QM_REG_QVOQIDX_126					 0x16e504
-#define QM_REG_QVOQIDX_127					 0x16e508
 #define QM_REG_QVOQIDX_120					 0x16e4ec
 #define QM_REG_QVOQIDX_121					 0x16e4f0
 #define QM_REG_QVOQIDX_122					 0x16e4f4
@@ -2855,27 +2675,7 @@
 #define QM_REG_QVOQIDX_57					 0x1681d8
 #define QM_REG_QVOQIDX_58					 0x1681dc
 #define QM_REG_QVOQIDX_59					 0x1681e0
-#define QM_REG_QVOQIDX_50					 0x1681bc
-#define QM_REG_QVOQIDX_51					 0x1681c0
-#define QM_REG_QVOQIDX_52					 0x1681c4
-#define QM_REG_QVOQIDX_53					 0x1681c8
-#define QM_REG_QVOQIDX_54					 0x1681cc
-#define QM_REG_QVOQIDX_55					 0x1681d0
-#define QM_REG_QVOQIDX_56					 0x1681d4
-#define QM_REG_QVOQIDX_57					 0x1681d8
-#define QM_REG_QVOQIDX_58					 0x1681dc
-#define QM_REG_QVOQIDX_59					 0x1681e0
 #define QM_REG_QVOQIDX_6					 0x16810c
-#define QM_REG_QVOQIDX_60					 0x1681e4
-#define QM_REG_QVOQIDX_61					 0x1681e8
-#define QM_REG_QVOQIDX_62					 0x1681ec
-#define QM_REG_QVOQIDX_63					 0x1681f0
-#define QM_REG_QVOQIDX_64					 0x16e40c
-#define QM_REG_QVOQIDX_65					 0x16e410
-#define QM_REG_QVOQIDX_66					 0x16e414
-#define QM_REG_QVOQIDX_67					 0x16e418
-#define QM_REG_QVOQIDX_68					 0x16e41c
-#define QM_REG_QVOQIDX_69					 0x16e420
 #define QM_REG_QVOQIDX_60					 0x1681e4
 #define QM_REG_QVOQIDX_61					 0x1681e8
 #define QM_REG_QVOQIDX_62					 0x1681ec
@@ -2894,27 +2694,7 @@
 #define QM_REG_QVOQIDX_77					 0x16e440
 #define QM_REG_QVOQIDX_78					 0x16e444
 #define QM_REG_QVOQIDX_79					 0x16e448
-#define QM_REG_QVOQIDX_70					 0x16e424
-#define QM_REG_QVOQIDX_71					 0x16e428
-#define QM_REG_QVOQIDX_72					 0x16e42c
-#define QM_REG_QVOQIDX_73					 0x16e430
-#define QM_REG_QVOQIDX_74					 0x16e434
-#define QM_REG_QVOQIDX_75					 0x16e438
-#define QM_REG_QVOQIDX_76					 0x16e43c
-#define QM_REG_QVOQIDX_77					 0x16e440
-#define QM_REG_QVOQIDX_78					 0x16e444
-#define QM_REG_QVOQIDX_79					 0x16e448
 #define QM_REG_QVOQIDX_8					 0x168114
-#define QM_REG_QVOQIDX_80					 0x16e44c
-#define QM_REG_QVOQIDX_81					 0x16e450
-#define QM_REG_QVOQIDX_82					 0x16e454
-#define QM_REG_QVOQIDX_83					 0x16e458
-#define QM_REG_QVOQIDX_84					 0x16e45c
-#define QM_REG_QVOQIDX_85					 0x16e460
-#define QM_REG_QVOQIDX_86					 0x16e464
-#define QM_REG_QVOQIDX_87					 0x16e468
-#define QM_REG_QVOQIDX_88					 0x16e46c
-#define QM_REG_QVOQIDX_89					 0x16e470
 #define QM_REG_QVOQIDX_80					 0x16e44c
 #define QM_REG_QVOQIDX_81					 0x16e450
 #define QM_REG_QVOQIDX_85					 0x16e460
@@ -2933,23 +2713,11 @@
 #define QM_REG_QVOQIDX_97					 0x16e490
 #define QM_REG_QVOQIDX_98					 0x16e494
 #define QM_REG_QVOQIDX_99					 0x16e498
-#define QM_REG_QVOQIDX_90					 0x16e474
-#define QM_REG_QVOQIDX_91					 0x16e478
-#define QM_REG_QVOQIDX_92					 0x16e47c
-#define QM_REG_QVOQIDX_93					 0x16e480
-#define QM_REG_QVOQIDX_94					 0x16e484
-#define QM_REG_QVOQIDX_95					 0x16e488
-#define QM_REG_QVOQIDX_96					 0x16e48c
-#define QM_REG_QVOQIDX_97					 0x16e490
-#define QM_REG_QVOQIDX_98					 0x16e494
-#define QM_REG_QVOQIDX_99					 0x16e498
 /* [RW 1] Initialization bit command */
 #define QM_REG_SOFT_RESET					 0x168428
 /* [RW 8] The credit cost per every task in the QM. A value per each VOQ */
 #define QM_REG_TASKCRDCOST_0					 0x16809c
 #define QM_REG_TASKCRDCOST_1					 0x1680a0
-#define QM_REG_TASKCRDCOST_10					 0x1680c4
-#define QM_REG_TASKCRDCOST_11					 0x1680c8
 #define QM_REG_TASKCRDCOST_2					 0x1680a4
 #define QM_REG_TASKCRDCOST_4					 0x1680ac
 #define QM_REG_TASKCRDCOST_5					 0x1680b0
@@ -2962,24 +2730,18 @@
 /* [R 16] The credit value for each VOQ */
 #define QM_REG_VOQCREDIT_0					 0x1682d0
 #define QM_REG_VOQCREDIT_1					 0x1682d4
-#define QM_REG_VOQCREDIT_10					 0x1682f8
-#define QM_REG_VOQCREDIT_11					 0x1682fc
 #define QM_REG_VOQCREDIT_4					 0x1682e0
 /* [RW 16] The credit value that if above the QM is considered almost full */
 #define QM_REG_VOQCREDITAFULLTHR				 0x168090
 /* [RW 16] The init and maximum credit for each VoQ */
 #define QM_REG_VOQINITCREDIT_0					 0x168060
 #define QM_REG_VOQINITCREDIT_1					 0x168064
-#define QM_REG_VOQINITCREDIT_10 				 0x168088
-#define QM_REG_VOQINITCREDIT_11 				 0x16808c
 #define QM_REG_VOQINITCREDIT_2					 0x168068
 #define QM_REG_VOQINITCREDIT_4					 0x168070
 #define QM_REG_VOQINITCREDIT_5					 0x168074
 /* [RW 1] The port of which VOQ belongs */
 #define QM_REG_VOQPORT_0					 0x1682a0
 #define QM_REG_VOQPORT_1					 0x1682a4
-#define QM_REG_VOQPORT_10					 0x1682c8
-#define QM_REG_VOQPORT_11					 0x1682cc
 #define QM_REG_VOQPORT_2					 0x1682a8
 /* [RW 32] The physical queue number associated with each VOQ; queues 31-0 */
 #define QM_REG_VOQQMASK_0_LSB					 0x168240
@@ -3077,36 +2839,6 @@
 #define QM_REG_WRRWEIGHTS_0					 0x16880c
 #define QM_REG_WRRWEIGHTS_1					 0x168810
 #define QM_REG_WRRWEIGHTS_10					 0x168814
-#define QM_REG_WRRWEIGHTS_10_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_11					 0x168818
-#define QM_REG_WRRWEIGHTS_11_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_12					 0x16881c
-#define QM_REG_WRRWEIGHTS_12_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_13					 0x168820
-#define QM_REG_WRRWEIGHTS_13_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_14					 0x168824
-#define QM_REG_WRRWEIGHTS_14_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_15					 0x168828
-#define QM_REG_WRRWEIGHTS_15_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_16					 0x16e000
-#define QM_REG_WRRWEIGHTS_16_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_17					 0x16e004
-#define QM_REG_WRRWEIGHTS_17_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_18					 0x16e008
-#define QM_REG_WRRWEIGHTS_18_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_19					 0x16e00c
-#define QM_REG_WRRWEIGHTS_19_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_10					 0x168814
 #define QM_REG_WRRWEIGHTS_11					 0x168818
 #define QM_REG_WRRWEIGHTS_12					 0x16881c
 #define QM_REG_WRRWEIGHTS_13					 0x168820
@@ -3118,36 +2850,6 @@
 #define QM_REG_WRRWEIGHTS_19					 0x16e00c
 #define QM_REG_WRRWEIGHTS_2					 0x16882c
 #define QM_REG_WRRWEIGHTS_20					 0x16e010
-#define QM_REG_WRRWEIGHTS_20_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_21					 0x16e014
-#define QM_REG_WRRWEIGHTS_21_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_22					 0x16e018
-#define QM_REG_WRRWEIGHTS_22_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_23					 0x16e01c
-#define QM_REG_WRRWEIGHTS_23_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_24					 0x16e020
-#define QM_REG_WRRWEIGHTS_24_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_25					 0x16e024
-#define QM_REG_WRRWEIGHTS_25_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_26					 0x16e028
-#define QM_REG_WRRWEIGHTS_26_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_27					 0x16e02c
-#define QM_REG_WRRWEIGHTS_27_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_28					 0x16e030
-#define QM_REG_WRRWEIGHTS_28_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_29					 0x16e034
-#define QM_REG_WRRWEIGHTS_29_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_20					 0x16e010
 #define QM_REG_WRRWEIGHTS_21					 0x16e014
 #define QM_REG_WRRWEIGHTS_22					 0x16e018
 #define QM_REG_WRRWEIGHTS_23					 0x16e01c
@@ -3158,12 +2860,6 @@
 #define QM_REG_WRRWEIGHTS_28					 0x16e030
 #define QM_REG_WRRWEIGHTS_29					 0x16e034
 #define QM_REG_WRRWEIGHTS_3					 0x168830
-#define QM_REG_WRRWEIGHTS_30					 0x16e038
-#define QM_REG_WRRWEIGHTS_30_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_31					 0x16e03c
-#define QM_REG_WRRWEIGHTS_31_SIZE				 1
-/* [RW 32] Wrr weights */
 #define QM_REG_WRRWEIGHTS_30					 0x16e038
 #define QM_REG_WRRWEIGHTS_31					 0x16e03c
 #define QM_REG_WRRWEIGHTS_4					 0x168834
@@ -3174,362 +2870,6 @@
 #define QM_REG_WRRWEIGHTS_9					 0x168848
 /* [R 6] Keep the fill level of the fifo from write client 1 */
 #define QM_REG_XQM_WRC_FIFOLVL					 0x168000
-#define BRB1_BRB1_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define BRB1_BRB1_INT_STS_REG_ADDRESS_ERROR_SIZE		 0
-#define BRB1_BRB1_INT_STS_CLR_REG_ADDRESS_ERROR 		 (0x1<<0)
-#define BRB1_BRB1_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define BRB1_BRB1_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define BRB1_BRB1_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define BRB1_BRB1_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define BRB1_BRB1_INT_MASK_REG_ADDRESS_ERROR_SIZE		 0
-#define CCM_CCM_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CCM_CCM_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define CCM_CCM_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CCM_CCM_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define CCM_CCM_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CCM_CCM_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define CCM_CCM_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CCM_CCM_INT_MASK_REG_ADDRESS_ERROR_SIZE 		 0
-#define CDU_CDU_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CDU_CDU_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define CDU_CDU_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CDU_CDU_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define CDU_CDU_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CDU_CDU_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define CDU_CDU_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CDU_CDU_INT_MASK_REG_ADDRESS_ERROR_SIZE 		 0
-#define CFC_CFC_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CFC_CFC_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define CFC_CFC_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CFC_CFC_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define CFC_CFC_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CFC_CFC_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define CFC_CFC_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CFC_CFC_INT_MASK_REG_ADDRESS_ERROR_SIZE 		 0
-#define CSDM_CSDM_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CSDM_CSDM_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define CSDM_CSDM_INT_STS_CLR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define CSDM_CSDM_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define CSDM_CSDM_INT_STS_WR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define CSDM_CSDM_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define CSDM_CSDM_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CSDM_CSDM_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define CSEM_CSEM_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CSEM_CSEM_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define CSEM_CSEM_INT_STS_CLR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define CSEM_CSEM_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define CSEM_CSEM_INT_STS_WR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define CSEM_CSEM_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define CSEM_CSEM_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define CSEM_CSEM_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define DBG_DBG_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define DBG_DBG_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define DBG_DBG_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define DBG_DBG_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define DBG_DBG_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define DBG_DBG_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define DBG_DBG_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define DBG_DBG_INT_MASK_REG_ADDRESS_ERROR_SIZE 		 0
-#define DMAE_DMAE_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define DMAE_DMAE_INT_STS_REG_ADDRESS_ERROR_SIZE		 0
-#define DMAE_DMAE_INT_STS_CLR_REG_ADDRESS_ERROR 		 (0x1<<0)
-#define DMAE_DMAE_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define DMAE_DMAE_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define DMAE_DMAE_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define DMAE_DMAE_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define DMAE_DMAE_INT_MASK_REG_ADDRESS_ERROR_SIZE		 0
-#define DORQ_DORQ_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define DORQ_DORQ_INT_STS_REG_ADDRESS_ERROR_SIZE		 0
-#define DORQ_DORQ_INT_STS_CLR_REG_ADDRESS_ERROR 		 (0x1<<0)
-#define DORQ_DORQ_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define DORQ_DORQ_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define DORQ_DORQ_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define DORQ_DORQ_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define DORQ_DORQ_INT_MASK_REG_ADDRESS_ERROR_SIZE		 0
-#define HC_HC_INT_STS_REG_ADDRESS_ERROR 			 (0x1<<0)
-#define HC_HC_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define HC_HC_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define HC_HC_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define HC_HC_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define HC_HC_INT_STS_WR_REG_ADDRESS_ERROR_SIZE 		 0
-#define HC_HC_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define HC_HC_INT_MASK_REG_ADDRESS_ERROR_SIZE			 0
-#define MISC_MISC_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define MISC_MISC_INT_STS_REG_ADDRESS_ERROR_SIZE		 0
-#define MISC_MISC_INT_STS_CLR_REG_ADDRESS_ERROR 		 (0x1<<0)
-#define MISC_MISC_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define MISC_MISC_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define MISC_MISC_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define MISC_MISC_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define MISC_MISC_INT_MASK_REG_ADDRESS_ERROR_SIZE		 0
-#define NIG_NIG_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define NIG_NIG_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define NIG_NIG_INT_STS_CLR_0_REG_ADDRESS_ERROR 		 (0x1<<0)
-#define NIG_NIG_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define NIG_NIG_INT_STS_WR_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define NIG_NIG_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define NIG_NIG_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define NIG_NIG_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define PBF_PBF_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PBF_PBF_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define PBF_PBF_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PBF_PBF_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define PBF_PBF_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PBF_PBF_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define PBF_PBF_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PBF_PBF_INT_MASK_REG_ADDRESS_ERROR_SIZE 		 0
-#define PB_PB_INT_STS_REG_ADDRESS_ERROR 			 (0x1<<0)
-#define PB_PB_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define PB_PB_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PB_PB_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define PB_PB_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PB_PB_INT_STS_WR_REG_ADDRESS_ERROR_SIZE 		 0
-#define PB_PB_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PB_PB_INT_MASK_REG_ADDRESS_ERROR_SIZE			 0
-#define PRS_PRS_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PRS_PRS_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define PRS_PRS_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PRS_PRS_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define PRS_PRS_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PRS_PRS_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define PRS_PRS_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PRS_PRS_INT_MASK_REG_ADDRESS_ERROR_SIZE 		 0
-#define PXP2_PXP2_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PXP2_PXP2_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define PXP2_PXP2_INT_STS_CLR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define PXP2_PXP2_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define PXP2_PXP2_INT_STS_WR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define PXP2_PXP2_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define PXP2_PXP2_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PXP2_PXP2_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define PXP_PXP_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PXP_PXP_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define PXP_PXP_INT_STS_CLR_0_REG_ADDRESS_ERROR 		 (0x1<<0)
-#define PXP_PXP_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define PXP_PXP_INT_STS_WR_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PXP_PXP_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define PXP_PXP_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define PXP_PXP_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define QM_QM_INT_STS_REG_ADDRESS_ERROR 			 (0x1<<0)
-#define QM_QM_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define QM_QM_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define QM_QM_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define QM_QM_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define QM_QM_INT_STS_WR_REG_ADDRESS_ERROR_SIZE 		 0
-#define QM_QM_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define QM_QM_INT_MASK_REG_ADDRESS_ERROR_SIZE			 0
-#define SEM_FAST_SEM_FAST_INT_STS_REG_ADDRESS_ERROR		 (0x1<<0)
-#define SEM_FAST_SEM_FAST_INT_STS_REG_ADDRESS_ERROR_SIZE	 0
-#define SEM_FAST_SEM_FAST_INT_STS_CLR_REG_ADDRESS_ERROR 	 (0x1<<0)
-#define SEM_FAST_SEM_FAST_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE	 0
-#define SEM_FAST_SEM_FAST_INT_STS_WR_REG_ADDRESS_ERROR		 (0x1<<0)
-#define SEM_FAST_SEM_FAST_INT_STS_WR_REG_ADDRESS_ERROR_SIZE	 0
-#define SEM_FAST_SEM_FAST_INT_MASK_REG_ADDRESS_ERROR		 (0x1<<0)
-#define SEM_FAST_SEM_FAST_INT_MASK_REG_ADDRESS_ERROR_SIZE	 0
-#define SRC_SRC_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define SRC_SRC_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define SRC_SRC_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define SRC_SRC_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define SRC_SRC_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define SRC_SRC_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define SRC_SRC_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define SRC_SRC_INT_MASK_REG_ADDRESS_ERROR_SIZE 		 0
-#define TCM_TCM_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TCM_TCM_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define TCM_TCM_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TCM_TCM_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define TCM_TCM_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TCM_TCM_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define TCM_TCM_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TCM_TCM_INT_MASK_REG_ADDRESS_ERROR_SIZE 		 0
-#define TM_TM_INT_STS_REG_ADDRESS_ERROR 			 (0x1<<0)
-#define TM_TM_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define TM_TM_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TM_TM_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define TM_TM_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TM_TM_INT_STS_WR_REG_ADDRESS_ERROR_SIZE 		 0
-#define TM_TM_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TM_TM_INT_MASK_REG_ADDRESS_ERROR_SIZE			 0
-#define TSDM_TSDM_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TSDM_TSDM_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define TSDM_TSDM_INT_STS_CLR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define TSDM_TSDM_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define TSDM_TSDM_INT_STS_WR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define TSDM_TSDM_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define TSDM_TSDM_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TSDM_TSDM_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define TSEM_TSEM_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TSEM_TSEM_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define TSEM_TSEM_INT_STS_CLR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define TSEM_TSEM_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define TSEM_TSEM_INT_STS_WR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define TSEM_TSEM_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define TSEM_TSEM_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define TSEM_TSEM_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define UCM_UCM_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define UCM_UCM_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define UCM_UCM_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define UCM_UCM_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define UCM_UCM_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define UCM_UCM_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define UCM_UCM_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define UCM_UCM_INT_MASK_REG_ADDRESS_ERROR_SIZE 		 0
-#define USDM_USDM_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define USDM_USDM_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define USDM_USDM_INT_STS_CLR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define USDM_USDM_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define USDM_USDM_INT_STS_WR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define USDM_USDM_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define USDM_USDM_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define USDM_USDM_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define USEM_USEM_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define USEM_USEM_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define USEM_USEM_INT_STS_CLR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define USEM_USEM_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define USEM_USEM_INT_STS_WR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define USEM_USEM_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define USEM_USEM_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define USEM_USEM_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define XCM_XCM_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
-#define XCM_XCM_INT_STS_REG_ADDRESS_ERROR_SIZE			 0
-#define XCM_XCM_INT_STS_CLR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define XCM_XCM_INT_STS_CLR_REG_ADDRESS_ERROR_SIZE		 0
-#define XCM_XCM_INT_STS_WR_REG_ADDRESS_ERROR			 (0x1<<0)
-#define XCM_XCM_INT_STS_WR_REG_ADDRESS_ERROR_SIZE		 0
-#define XCM_XCM_INT_MASK_REG_ADDRESS_ERROR			 (0x1<<0)
-#define XCM_XCM_INT_MASK_REG_ADDRESS_ERROR_SIZE 		 0
-#define XSDM_XSDM_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define XSDM_XSDM_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define XSDM_XSDM_INT_STS_CLR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define XSDM_XSDM_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define XSDM_XSDM_INT_STS_WR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define XSDM_XSDM_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define XSDM_XSDM_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define XSDM_XSDM_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define XSEM_XSEM_INT_STS_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define XSEM_XSEM_INT_STS_0_REG_ADDRESS_ERROR_SIZE		 0
-#define XSEM_XSEM_INT_STS_CLR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define XSEM_XSEM_INT_STS_CLR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define XSEM_XSEM_INT_STS_WR_0_REG_ADDRESS_ERROR		 (0x1<<0)
-#define XSEM_XSEM_INT_STS_WR_0_REG_ADDRESS_ERROR_SIZE		 0
-#define XSEM_XSEM_INT_MASK_0_REG_ADDRESS_ERROR			 (0x1<<0)
-#define XSEM_XSEM_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
-#define CFC_DEBUG1_REG_WRITE_AC 				 (0x1<<4)
-#define CFC_DEBUG1_REG_WRITE_AC_SIZE				 4
-/* [R 1] debug only: This bit indicates whether indicates that external
-   buffer was wrapped (oldest data was thrown); Relevant only when
-   ~dbg_registers_debug_target=2 (PCI) & ~dbg_registers_full_mode=1 (wrap); */
-#define DBG_REG_WRAP_ON_EXT_BUFFER				 0xc124
-#define DBG_REG_WRAP_ON_EXT_BUFFER_SIZE 			 1
-/* [R 1] debug only: This bit indicates whether the internal buffer was
-   wrapped (oldest data was thrown) Relevant only when
-   ~dbg_registers_debug_target=0 (internal buffer) */
-#define DBG_REG_WRAP_ON_INT_BUFFER				 0xc128
-#define DBG_REG_WRAP_ON_INT_BUFFER_SIZE 			 1
-#define QM_QM_PRTY_STS_REG_WRBUFF				 (0x1<<8)
-#define QM_QM_PRTY_STS_REG_WRBUFF_SIZE				 8
-#define QM_QM_PRTY_STS_CLR_REG_WRBUFF				 (0x1<<8)
-#define QM_QM_PRTY_STS_CLR_REG_WRBUFF_SIZE			 8
-#define QM_QM_PRTY_STS_WR_REG_WRBUFF				 (0x1<<8)
-#define QM_QM_PRTY_STS_WR_REG_WRBUFF_SIZE			 8
-#define QM_QM_PRTY_MASK_REG_WRBUFF				 (0x1<<8)
-#define QM_QM_PRTY_MASK_REG_WRBUFF_SIZE 			 8
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_0					 0x16880c
-#define QM_REG_WRRWEIGHTS_0_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_1					 0x168810
-#define QM_REG_WRRWEIGHTS_1_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_10					 0x168814
-#define QM_REG_WRRWEIGHTS_10_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_11					 0x168818
-#define QM_REG_WRRWEIGHTS_11_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_12					 0x16881c
-#define QM_REG_WRRWEIGHTS_12_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_13					 0x168820
-#define QM_REG_WRRWEIGHTS_13_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_14					 0x168824
-#define QM_REG_WRRWEIGHTS_14_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_15					 0x168828
-#define QM_REG_WRRWEIGHTS_15_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_2					 0x16882c
-#define QM_REG_WRRWEIGHTS_2_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_3					 0x168830
-#define QM_REG_WRRWEIGHTS_3_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_4					 0x168834
-#define QM_REG_WRRWEIGHTS_4_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_5					 0x168838
-#define QM_REG_WRRWEIGHTS_5_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_6					 0x16883c
-#define QM_REG_WRRWEIGHTS_6_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_7					 0x168840
-#define QM_REG_WRRWEIGHTS_7_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_8					 0x168844
-#define QM_REG_WRRWEIGHTS_8_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_9					 0x168848
-#define QM_REG_WRRWEIGHTS_9_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_16					 0x16e000
-#define QM_REG_WRRWEIGHTS_16_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_17					 0x16e004
-#define QM_REG_WRRWEIGHTS_17_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_18					 0x16e008
-#define QM_REG_WRRWEIGHTS_18_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_19					 0x16e00c
-#define QM_REG_WRRWEIGHTS_19_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_20					 0x16e010
-#define QM_REG_WRRWEIGHTS_20_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_21					 0x16e014
-#define QM_REG_WRRWEIGHTS_21_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_22					 0x16e018
-#define QM_REG_WRRWEIGHTS_22_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_23					 0x16e01c
-#define QM_REG_WRRWEIGHTS_23_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_24					 0x16e020
-#define QM_REG_WRRWEIGHTS_24_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_25					 0x16e024
-#define QM_REG_WRRWEIGHTS_25_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_26					 0x16e028
-#define QM_REG_WRRWEIGHTS_26_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_27					 0x16e02c
-#define QM_REG_WRRWEIGHTS_27_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_28					 0x16e030
-#define QM_REG_WRRWEIGHTS_28_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_29					 0x16e034
-#define QM_REG_WRRWEIGHTS_29_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_30					 0x16e038
-#define QM_REG_WRRWEIGHTS_30_SIZE				 1
-/* [RW 32] Wrr weights */
-#define QM_REG_WRRWEIGHTS_31					 0x16e03c
-#define QM_REG_WRRWEIGHTS_31_SIZE				 1
 #define SRC_REG_COUNTFREE0					 0x40500
 /* [RW 1] If clr the searcher is compatible to E1 A0 - support only two
    ports. If set the searcher support 8 functions. */
@@ -3629,12 +2969,6 @@
    type (one of 16). */
 #define TCM_REG_N_SM_CTX_LD_0					 0x50050
 #define TCM_REG_N_SM_CTX_LD_1					 0x50054
-#define TCM_REG_N_SM_CTX_LD_10					 0x50078
-#define TCM_REG_N_SM_CTX_LD_11					 0x5007c
-#define TCM_REG_N_SM_CTX_LD_12					 0x50080
-#define TCM_REG_N_SM_CTX_LD_13					 0x50084
-#define TCM_REG_N_SM_CTX_LD_14					 0x50088
-#define TCM_REG_N_SM_CTX_LD_15					 0x5008c
 #define TCM_REG_N_SM_CTX_LD_2					 0x50058
 #define TCM_REG_N_SM_CTX_LD_3					 0x5005c
 #define TCM_REG_N_SM_CTX_LD_4					 0x50060
@@ -3828,6 +3162,7 @@
 #define TM_REG_LIN0_PHY_ADDR					 0x164270
 /* [RW 1] Linear0 physical address valid. */
 #define TM_REG_LIN0_PHY_ADDR_VALID				 0x164248
+#define TM_REG_LIN0_SCAN_ON					 0x1640d0
 /* [RW 24] Linear0 array scan timeout. */
 #define TM_REG_LIN0_SCAN_TIME					 0x16403c
 /* [RW 32] Linear1 logic address. */
@@ -3840,8 +3175,6 @@
 #define TM_REG_LIN_SETCLR_FIFO_ALFULL_THR			 0x164070
 /* [RW 2] Load value for pci arbiter credit cnt. */
 #define TM_REG_PCIARB_CRDCNT_VAL				 0x164260
-/* [RW 1] Timer software reset - active high. */
-#define TM_REG_TIMER_SOFT_RST					 0x164004
 /* [RW 20] The amount of hardware cycles for each timer tick. */
 #define TM_REG_TIMER_TICK_SIZE					 0x16401c
 /* [RW 8] Timers Context region. */
@@ -3853,44 +3186,12 @@
 /* [RW 8] The event id for aggregated interrupt 0 */
 #define TSDM_REG_AGG_INT_EVENT_0				 0x42038
 #define TSDM_REG_AGG_INT_EVENT_1				 0x4203c
-#define TSDM_REG_AGG_INT_EVENT_10				 0x42060
-#define TSDM_REG_AGG_INT_EVENT_11				 0x42064
-#define TSDM_REG_AGG_INT_EVENT_12				 0x42068
-#define TSDM_REG_AGG_INT_EVENT_13				 0x4206c
-#define TSDM_REG_AGG_INT_EVENT_14				 0x42070
-#define TSDM_REG_AGG_INT_EVENT_15				 0x42074
-#define TSDM_REG_AGG_INT_EVENT_16				 0x42078
-#define TSDM_REG_AGG_INT_EVENT_17				 0x4207c
-#define TSDM_REG_AGG_INT_EVENT_18				 0x42080
-#define TSDM_REG_AGG_INT_EVENT_19				 0x42084
 #define TSDM_REG_AGG_INT_EVENT_2				 0x42040
-#define TSDM_REG_AGG_INT_EVENT_20				 0x42088
-#define TSDM_REG_AGG_INT_EVENT_21				 0x4208c
-#define TSDM_REG_AGG_INT_EVENT_22				 0x42090
-#define TSDM_REG_AGG_INT_EVENT_23				 0x42094
-#define TSDM_REG_AGG_INT_EVENT_24				 0x42098
-#define TSDM_REG_AGG_INT_EVENT_25				 0x4209c
-#define TSDM_REG_AGG_INT_EVENT_26				 0x420a0
-#define TSDM_REG_AGG_INT_EVENT_27				 0x420a4
-#define TSDM_REG_AGG_INT_EVENT_28				 0x420a8
-#define TSDM_REG_AGG_INT_EVENT_29				 0x420ac
 #define TSDM_REG_AGG_INT_EVENT_3				 0x42044
-#define TSDM_REG_AGG_INT_EVENT_30				 0x420b0
-#define TSDM_REG_AGG_INT_EVENT_31				 0x420b4
 #define TSDM_REG_AGG_INT_EVENT_4				 0x42048
 /* [RW 1] The T bit for aggregated interrupt 0 */
 #define TSDM_REG_AGG_INT_T_0					 0x420b8
 #define TSDM_REG_AGG_INT_T_1					 0x420bc
-#define TSDM_REG_AGG_INT_T_10					 0x420e0
-#define TSDM_REG_AGG_INT_T_11					 0x420e4
-#define TSDM_REG_AGG_INT_T_12					 0x420e8
-#define TSDM_REG_AGG_INT_T_13					 0x420ec
-#define TSDM_REG_AGG_INT_T_14					 0x420f0
-#define TSDM_REG_AGG_INT_T_15					 0x420f4
-#define TSDM_REG_AGG_INT_T_16					 0x420f8
-#define TSDM_REG_AGG_INT_T_17					 0x420fc
-#define TSDM_REG_AGG_INT_T_18					 0x42100
-#define TSDM_REG_AGG_INT_T_19					 0x42104
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define TSDM_REG_CFC_RSP_START_ADDR				 0x42008
 /* [RW 16] The maximum value of the competion counter #0 */
@@ -4175,12 +3476,6 @@
    connection type (one of 16). */
 #define UCM_REG_N_SM_CTX_LD_0					 0xe0054
 #define UCM_REG_N_SM_CTX_LD_1					 0xe0058
-#define UCM_REG_N_SM_CTX_LD_10					 0xe007c
-#define UCM_REG_N_SM_CTX_LD_11					 0xe0080
-#define UCM_REG_N_SM_CTX_LD_12					 0xe0084
-#define UCM_REG_N_SM_CTX_LD_13					 0xe0088
-#define UCM_REG_N_SM_CTX_LD_14					 0xe008c
-#define UCM_REG_N_SM_CTX_LD_15					 0xe0090
 #define UCM_REG_N_SM_CTX_LD_2					 0xe005c
 #define UCM_REG_N_SM_CTX_LD_3					 0xe0060
 #define UCM_REG_N_SM_CTX_LD_4					 0xe0064
@@ -4330,48 +3625,20 @@
 /* [RW 8] The event id for aggregated interrupt 0 */
 #define USDM_REG_AGG_INT_EVENT_0				 0xc4038
 #define USDM_REG_AGG_INT_EVENT_1				 0xc403c
-#define USDM_REG_AGG_INT_EVENT_10				 0xc4060
-#define USDM_REG_AGG_INT_EVENT_11				 0xc4064
-#define USDM_REG_AGG_INT_EVENT_12				 0xc4068
-#define USDM_REG_AGG_INT_EVENT_13				 0xc406c
-#define USDM_REG_AGG_INT_EVENT_14				 0xc4070
-#define USDM_REG_AGG_INT_EVENT_15				 0xc4074
-#define USDM_REG_AGG_INT_EVENT_16				 0xc4078
-#define USDM_REG_AGG_INT_EVENT_17				 0xc407c
-#define USDM_REG_AGG_INT_EVENT_18				 0xc4080
-#define USDM_REG_AGG_INT_EVENT_19				 0xc4084
 #define USDM_REG_AGG_INT_EVENT_2				 0xc4040
-#define USDM_REG_AGG_INT_EVENT_20				 0xc4088
-#define USDM_REG_AGG_INT_EVENT_21				 0xc408c
-#define USDM_REG_AGG_INT_EVENT_22				 0xc4090
-#define USDM_REG_AGG_INT_EVENT_23				 0xc4094
-#define USDM_REG_AGG_INT_EVENT_24				 0xc4098
-#define USDM_REG_AGG_INT_EVENT_25				 0xc409c
-#define USDM_REG_AGG_INT_EVENT_26				 0xc40a0
-#define USDM_REG_AGG_INT_EVENT_27				 0xc40a4
-#define USDM_REG_AGG_INT_EVENT_28				 0xc40a8
-#define USDM_REG_AGG_INT_EVENT_29				 0xc40ac
-#define USDM_REG_AGG_INT_EVENT_3				 0xc4044
-#define USDM_REG_AGG_INT_EVENT_30				 0xc40b0
-#define USDM_REG_AGG_INT_EVENT_31				 0xc40b4
 #define USDM_REG_AGG_INT_EVENT_4				 0xc4048
 #define USDM_REG_AGG_INT_EVENT_5				 0xc404c
+#define USDM_REG_AGG_INT_EVENT_6				 0xc4050
 /* [RW 1] For each aggregated interrupt index whether the mode is normal (0)
    or auto-mask-mode (1) */
 #define USDM_REG_AGG_INT_MODE_0 				 0xc41b8
 #define USDM_REG_AGG_INT_MODE_1 				 0xc41bc
-#define USDM_REG_AGG_INT_MODE_10				 0xc41e0
-#define USDM_REG_AGG_INT_MODE_11				 0xc41e4
-#define USDM_REG_AGG_INT_MODE_12				 0xc41e8
-#define USDM_REG_AGG_INT_MODE_13				 0xc41ec
-#define USDM_REG_AGG_INT_MODE_14				 0xc41f0
-#define USDM_REG_AGG_INT_MODE_15				 0xc41f4
-#define USDM_REG_AGG_INT_MODE_16				 0xc41f8
-#define USDM_REG_AGG_INT_MODE_17				 0xc41fc
-#define USDM_REG_AGG_INT_MODE_18				 0xc4200
-#define USDM_REG_AGG_INT_MODE_19				 0xc4204
 #define USDM_REG_AGG_INT_MODE_4 				 0xc41c8
 #define USDM_REG_AGG_INT_MODE_5 				 0xc41cc
+#define USDM_REG_AGG_INT_MODE_6 				 0xc41d0
+/* [RW 1] The T bit for aggregated interrupt 5 */
+#define USDM_REG_AGG_INT_T_5					 0xc40cc
+#define USDM_REG_AGG_INT_T_6					 0xc40d0
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define USDM_REG_CFC_RSP_START_ADDR				 0xc4008
 /* [RW 16] The maximum value of the competion counter #0 */
@@ -4675,10 +3942,6 @@
 /* [RC 1] Set at message length mismatch (relative to last indication) at
    the nig1 interface. */
 #define XCM_REG_NIG1_LENGTH_MIS 				 0x2023c
-/* [RW 3] The weight of the input nig1 in the WRR mechanism. 0 stands for
-   weight 8 (the most prioritised); 1 stands for weight 1(least
-   prioritised); 2 stands for weight 2; tc. */
-#define XCM_REG_NIG1_WEIGHT					 0x200d8
 /* [RW 5] The number of double REG-pairs; loaded from the STORM context and
    sent to STORM; for a specific connection type. The double REG-pairs are
    used in order to align to STORM context row size of 128 bits. The offset
@@ -4686,12 +3949,6 @@
    connection type (one of 16). */
 #define XCM_REG_N_SM_CTX_LD_0					 0x20060
 #define XCM_REG_N_SM_CTX_LD_1					 0x20064
-#define XCM_REG_N_SM_CTX_LD_10					 0x20088
-#define XCM_REG_N_SM_CTX_LD_11					 0x2008c
-#define XCM_REG_N_SM_CTX_LD_12					 0x20090
-#define XCM_REG_N_SM_CTX_LD_13					 0x20094
-#define XCM_REG_N_SM_CTX_LD_14					 0x20098
-#define XCM_REG_N_SM_CTX_LD_15					 0x2009c
 #define XCM_REG_N_SM_CTX_LD_2					 0x20068
 #define XCM_REG_N_SM_CTX_LD_3					 0x2006c
 #define XCM_REG_N_SM_CTX_LD_4					 0x20070
@@ -4868,30 +4125,8 @@
 #define XSDM_REG_AGG_INT_EVENT_12				 0x166068
 #define XSDM_REG_AGG_INT_EVENT_13				 0x16606c
 #define XSDM_REG_AGG_INT_EVENT_14				 0x166070
-#define XSDM_REG_AGG_INT_EVENT_15				 0x166074
-#define XSDM_REG_AGG_INT_EVENT_16				 0x166078
-#define XSDM_REG_AGG_INT_EVENT_17				 0x16607c
-#define XSDM_REG_AGG_INT_EVENT_18				 0x166080
-#define XSDM_REG_AGG_INT_EVENT_19				 0x166084
-#define XSDM_REG_AGG_INT_EVENT_10				 0x166060
-#define XSDM_REG_AGG_INT_EVENT_11				 0x166064
-#define XSDM_REG_AGG_INT_EVENT_12				 0x166068
-#define XSDM_REG_AGG_INT_EVENT_13				 0x16606c
-#define XSDM_REG_AGG_INT_EVENT_14				 0x166070
 #define XSDM_REG_AGG_INT_EVENT_2				 0x166040
-#define XSDM_REG_AGG_INT_EVENT_20				 0x166088
-#define XSDM_REG_AGG_INT_EVENT_21				 0x16608c
-#define XSDM_REG_AGG_INT_EVENT_22				 0x166090
-#define XSDM_REG_AGG_INT_EVENT_23				 0x166094
-#define XSDM_REG_AGG_INT_EVENT_24				 0x166098
-#define XSDM_REG_AGG_INT_EVENT_25				 0x16609c
-#define XSDM_REG_AGG_INT_EVENT_26				 0x1660a0
-#define XSDM_REG_AGG_INT_EVENT_27				 0x1660a4
-#define XSDM_REG_AGG_INT_EVENT_28				 0x1660a8
-#define XSDM_REG_AGG_INT_EVENT_29				 0x1660ac
 #define XSDM_REG_AGG_INT_EVENT_3				 0x166044
-#define XSDM_REG_AGG_INT_EVENT_30				 0x1660b0
-#define XSDM_REG_AGG_INT_EVENT_31				 0x1660b4
 #define XSDM_REG_AGG_INT_EVENT_4				 0x166048
 #define XSDM_REG_AGG_INT_EVENT_5				 0x16604c
 #define XSDM_REG_AGG_INT_EVENT_6				 0x166050
@@ -4902,16 +4137,6 @@
    or auto-mask-mode (1) */
 #define XSDM_REG_AGG_INT_MODE_0 				 0x1661b8
 #define XSDM_REG_AGG_INT_MODE_1 				 0x1661bc
-#define XSDM_REG_AGG_INT_MODE_10				 0x1661e0
-#define XSDM_REG_AGG_INT_MODE_11				 0x1661e4
-#define XSDM_REG_AGG_INT_MODE_12				 0x1661e8
-#define XSDM_REG_AGG_INT_MODE_13				 0x1661ec
-#define XSDM_REG_AGG_INT_MODE_14				 0x1661f0
-#define XSDM_REG_AGG_INT_MODE_15				 0x1661f4
-#define XSDM_REG_AGG_INT_MODE_16				 0x1661f8
-#define XSDM_REG_AGG_INT_MODE_17				 0x1661fc
-#define XSDM_REG_AGG_INT_MODE_18				 0x166200
-#define XSDM_REG_AGG_INT_MODE_19				 0x166204
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define XSDM_REG_CFC_RSP_START_ADDR				 0x166008
 /* [RW 16] The maximum value of the competion counter #0 */
@@ -5119,10 +4344,6 @@
 #define MCPR_NVM_COMMAND_FIRST					 (1L<<7)
 #define MCPR_NVM_COMMAND_LAST					 (1L<<8)
 #define MCPR_NVM_COMMAND_WR					 (1L<<5)
-#define MCPR_NVM_COMMAND_WREN					 (1L<<16)
-#define MCPR_NVM_COMMAND_WREN_BITSHIFT				 16
-#define MCPR_NVM_COMMAND_WRDI					 (1L<<17)
-#define MCPR_NVM_COMMAND_WRDI_BITSHIFT				 17
 #define MCPR_NVM_SW_ARB_ARB_ARB1				 (1L<<9)
 #define MCPR_NVM_SW_ARB_ARB_REQ_CLR1				 (1L<<5)
 #define MCPR_NVM_SW_ARB_ARB_REQ_SET1				 (1L<<1)
@@ -5223,10 +4444,6 @@
 #define MISC_REGISTERS_SPIO_7					 7
 #define MISC_REGISTERS_SPIO_CLR_POS				 16
 #define MISC_REGISTERS_SPIO_FLOAT				 (0xffL<<24)
-#define GRC_MISC_REGISTERS_SPIO_FLOAT7				 0x80000000
-#define GRC_MISC_REGISTERS_SPIO_FLOAT6				 0x40000000
-#define GRC_MISC_REGISTERS_SPIO_FLOAT5				 0x20000000
-#define GRC_MISC_REGISTERS_SPIO_FLOAT4				 0x10000000
 #define MISC_REGISTERS_SPIO_FLOAT_POS				 24
 #define MISC_REGISTERS_SPIO_INPUT_HI_Z				 2
 #define MISC_REGISTERS_SPIO_INT_OLD_SET_POS			 16
@@ -5344,7 +4561,8 @@
 #define LATCHED_ATTN_SCPAD_PARITY_MCP		33
 
 #define GENERAL_ATTEN_WORD(atten_name)	       ((94 + atten_name) / 32)
-#define GENERAL_ATTEN_OFFSET(atten_name)       (1 << ((94 + atten_name) % 32))
+#define GENERAL_ATTEN_OFFSET(atten_name)\
+	(1UL << ((94 + atten_name) % 32))
 /*
  * This file defines GRC base address for every block.
  * This file is included by chipsim, asm microcode and cpp microcode.
@@ -5568,6 +4786,9 @@
 #define MDIO_CL73_IEEEB1_AN_ADV2_ADVR_10G_KR		0x0080
 
 #define MDIO_REG_BANK_RX0				0x80b0
+#define MDIO_RX0_RX_STATUS				0x10
+#define MDIO_RX0_RX_STATUS_SIGDET			0x8000
+#define MDIO_RX0_RX_STATUS_RX_SEQ_DONE			0x1000
 #define MDIO_RX0_RX_EQ_BOOST				0x1c
 #define MDIO_RX0_RX_EQ_BOOST_EQUALIZER_CTRL_MASK	0x7
 #define MDIO_RX0_RX_EQ_BOOST_OFFSET_CTRL		0x10
@@ -5761,12 +4982,22 @@
 #define MDIO_OVER_1G_LP_UP2_PREEMPHASIS_SHIFT				7
 #define MDIO_OVER_1G_LP_UP3						0x1E
 
+#define MDIO_REG_BANK_REMOTE_PHY			0x8330
+#define MDIO_REMOTE_PHY_MISC_RX_STATUS				0x10
+#define MDIO_REMOTE_PHY_MISC_RX_STATUS_CL37_FSM_RECEIVED_OVER1G_MSG	0x0010
+#define MDIO_REMOTE_PHY_MISC_RX_STATUS_CL37_FSM_RECEIVED_BRCM_OUI_MSG	0x0600
+
 #define MDIO_REG_BANK_BAM_NEXT_PAGE			0x8350
 #define MDIO_BAM_NEXT_PAGE_MP5_NEXT_PAGE_CTRL			0x10
 #define MDIO_BAM_NEXT_PAGE_MP5_NEXT_PAGE_CTRL_BAM_MODE			0x0001
 #define MDIO_BAM_NEXT_PAGE_MP5_NEXT_PAGE_CTRL_TETON_AN			0x0002
 
 #define MDIO_REG_BANK_CL73_USERB0		0x8370
+#define MDIO_CL73_USERB0_CL73_UCTRL				0x10
+#define MDIO_CL73_USERB0_CL73_UCTRL_USTAT1_MUXSEL			0x0002
+#define MDIO_CL73_USERB0_CL73_USTAT1				0x11
+#define MDIO_CL73_USERB0_CL73_USTAT1_LINK_STATUS_CHECK			0x0100
+#define MDIO_CL73_USERB0_CL73_USTAT1_AN_GOOD_CHECK_BAM37		0x0400
 #define MDIO_CL73_USERB0_CL73_BAM_CTRL1 			0x12
 #define MDIO_CL73_USERB0_CL73_BAM_CTRL1_BAM_EN				0x8000
 #define MDIO_CL73_USERB0_CL73_BAM_CTRL1_BAM_STATION_MNGR_EN		0x4000
@@ -5843,25 +5074,33 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_ROM_VER2		0xca1a
 #define MDIO_PMA_REG_EDC_FFE_MAIN	0xca1b
 #define MDIO_PMA_REG_PLL_BANDWIDTH	0xca1d
-#define MDIO_PMA_REG_GEN_CTRL2		0xca1e
+#define MDIO_PMA_REG_PLL_CTRL		0xca1e
 #define MDIO_PMA_REG_MISC_CTRL0 	0xca23
 #define MDIO_PMA_REG_LRM_MODE		0xca3f
 #define MDIO_PMA_REG_CDR_BANDWIDTH	0xca46
 #define MDIO_PMA_REG_MISC_CTRL1 	0xca85
 
-#define MDIO_PMA_REG_8726_TWO_WIRE_CTRL 	0x8000
-#define MDIO_PMA_REG_8726_TWO_WIRE_CTRL_STATUS_MASK	0x000c
-#define MDIO_PMA_REG_8726_TWO_WIRE_STATUS_IDLE		0x0000
-#define MDIO_PMA_REG_8726_TWO_WIRE_STATUS_COMPLETE	0x0004
-#define MDIO_PMA_REG_8726_TWO_WIRE_STATUS_IN_PROGRESS	0x0008
-#define MDIO_PMA_REG_8726_TWO_WIRE_STATUS_FAILED	0x000c
-#define MDIO_PMA_REG_8726_TWO_WIRE_BYTE_CNT	0x8002
-#define MDIO_PMA_REG_8726_TWO_WIRE_MEM_ADDR	0x8003
+#define MDIO_PMA_REG_SFP_TWO_WIRE_CTRL		0x8000
+#define MDIO_PMA_REG_SFP_TWO_WIRE_CTRL_STATUS_MASK	0x000c
+#define MDIO_PMA_REG_SFP_TWO_WIRE_STATUS_IDLE		0x0000
+#define MDIO_PMA_REG_SFP_TWO_WIRE_STATUS_COMPLETE	0x0004
+#define MDIO_PMA_REG_SFP_TWO_WIRE_STATUS_IN_PROGRESS	0x0008
+#define MDIO_PMA_REG_SFP_TWO_WIRE_STATUS_FAILED 	0x000c
+#define MDIO_PMA_REG_SFP_TWO_WIRE_BYTE_CNT	0x8002
+#define MDIO_PMA_REG_SFP_TWO_WIRE_MEM_ADDR	0x8003
 #define MDIO_PMA_REG_8726_TWO_WIRE_DATA_BUF	0xc820
 #define MDIO_PMA_REG_8726_TWO_WIRE_DATA_MASK 0xff
 #define MDIO_PMA_REG_8726_TX_CTRL1		0xca01
 #define MDIO_PMA_REG_8726_TX_CTRL2		0xca05
 
+#define MDIO_PMA_REG_8727_TWO_WIRE_SLAVE_ADDR	0x8005
+#define MDIO_PMA_REG_8727_TWO_WIRE_DATA_BUF	0x8007
+#define MDIO_PMA_REG_8727_TWO_WIRE_DATA_MASK 0xff
+#define MDIO_PMA_REG_8727_MISC_CTRL		0x8309
+#define MDIO_PMA_REG_8727_TX_CTRL1		0xca02
+#define MDIO_PMA_REG_8727_TX_CTRL2		0xca05
+#define MDIO_PMA_REG_8727_PCS_OPT_CTRL		0xc808
+#define MDIO_PMA_REG_8727_GPIO_CTRL		0xc80e
 
 #define MDIO_PMA_REG_8073_CHIP_REV			0xc801
 #define MDIO_PMA_REG_8073_SPEED_LINK_STATUS		0xc820
@@ -5871,6 +5110,13 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_7107_LED_CNTL	0xc007
 #define MDIO_PMA_REG_7101_VER1		0xc026
 #define MDIO_PMA_REG_7101_VER2		0xc027
+
+#define MDIO_PMA_REG_8481_PMD_SIGNAL	0xa811
+#define MDIO_PMA_REG_8481_LED1_MASK	0xa82c
+#define MDIO_PMA_REG_8481_LED2_MASK	0xa82f
+#define MDIO_PMA_REG_8481_LED3_MASK	0xa832
+#define MDIO_PMA_REG_8481_SIGNAL_MASK	0xa835
+#define MDIO_PMA_REG_8481_LINK_SIGNAL	0xa83b
 
 
 #define MDIO_WIS_DEVAD			0x2
@@ -5925,6 +5171,12 @@ Theotherbitsarereservedandshouldbezero*/
 
 #define MDIO_AN_REG_8073_2_5G		0x8329
 
+#define MDIO_AN_REG_8481_LEGACY_MII_CTRL	0xffe0
+#define MDIO_AN_REG_8481_LEGACY_AN_ADV		0xffe4
+#define MDIO_AN_REG_8481_1000T_CTRL		0xffe9
+#define MDIO_AN_REG_8481_EXPANSION_REG_RD_RW	0xfff5
+#define MDIO_AN_REG_8481_EXPANSION_REG_ACCESS	0xfff7
+#define MDIO_AN_REG_8481_LEGACY_SHADOW		0xfffc
 
 #define IGU_FUNC_BASE			0x0400
 
@@ -5955,5 +5207,118 @@ Theotherbitsarereservedandshouldbezero*/
 #define COMMAND_REG_COALESCE_NOW    0x14
 #define COMMAND_REG_SIMD_MASK	    0x18
 #define COMMAND_REG_SIMD_NOMASK     0x1c
+
+
+#define IGU_MEM_BASE						0x0000
+
+#define IGU_MEM_MSIX_BASE					0x0000
+#define IGU_MEM_MSIX_UPPER					0x007f
+#define IGU_MEM_MSIX_RESERVED_UPPER			0x01ff
+
+#define IGU_MEM_PBA_MSIX_BASE				0x0200
+#define IGU_MEM_PBA_MSIX_UPPER				0x0200
+
+#define IGU_CMD_BACKWARD_COMP_PROD_UPD		0x0201
+#define IGU_MEM_PBA_MSIX_RESERVED_UPPER 	0x03ff
+
+#define IGU_CMD_INT_ACK_BASE				0x0400
+#define IGU_CMD_INT_ACK_UPPER\
+	(IGU_CMD_INT_ACK_BASE + MAX_SB_PER_PORT * NUM_OF_PORTS_PER_PATH - 1)
+#define IGU_CMD_INT_ACK_RESERVED_UPPER		0x04ff
+
+#define IGU_CMD_E2_PROD_UPD_BASE			0x0500
+#define IGU_CMD_E2_PROD_UPD_UPPER\
+	(IGU_CMD_E2_PROD_UPD_BASE + MAX_SB_PER_PORT * NUM_OF_PORTS_PER_PATH - 1)
+#define IGU_CMD_E2_PROD_UPD_RESERVED_UPPER	0x059f
+
+#define IGU_CMD_ATTN_BIT_UPD_UPPER			0x05a0
+#define IGU_CMD_ATTN_BIT_SET_UPPER			0x05a1
+#define IGU_CMD_ATTN_BIT_CLR_UPPER			0x05a2
+
+#define IGU_REG_SISR_MDPC_WMASK_UPPER		0x05a3
+#define IGU_REG_SISR_MDPC_WMASK_LSB_UPPER	0x05a4
+#define IGU_REG_SISR_MDPC_WMASK_MSB_UPPER	0x05a5
+#define IGU_REG_SISR_MDPC_WOMASK_UPPER		0x05a6
+
+#define IGU_REG_RESERVED_UPPER				0x05ff
+
+
+#define CDU_REGION_NUMBER_XCM_AG 2
+#define CDU_REGION_NUMBER_UCM_AG 4
+
+
+/**
+ * String-to-compress [31:8] = CID (all 24 bits)
+ * String-to-compress [7:4] = Region
+ * String-to-compress [3:0] = Type
+ */
+#define CDU_VALID_DATA(_cid, _region, _type)\
+	(((_cid) << 8) | (((_region)&0xf)<<4) | (((_type)&0xf)))
+#define CDU_CRC8(_cid, _region, _type)\
+	(calc_crc8(CDU_VALID_DATA(_cid, _region, _type), 0xff))
+#define CDU_RSRVD_VALUE_TYPE_A(_cid, _region, _type)\
+	(0x80 | ((CDU_CRC8(_cid, _region, _type)) & 0x7f))
+#define CDU_RSRVD_VALUE_TYPE_B(_crc, _type)\
+	(0x80 | ((_type)&0xf << 3) | ((CDU_CRC8(_cid, _region, _type)) & 0x7))
+#define CDU_RSRVD_INVALIDATE_CONTEXT_VALUE(_val) ((_val) & ~0x80)
+
+/******************************************************************************
+ * Description:
+ *	   Calculates crc 8 on a word value: polynomial 0-1-2-8
+ *	   Code was translated from Verilog.
+ * Return:
+ *****************************************************************************/
+static inline u8 calc_crc8(u32 data, u8 crc)
+{
+	u8 D[32];
+	u8 NewCRC[8];
+	u8 C[8];
+	u8 crc_res;
+	u8 i;
+
+	/* split the data into 31 bits */
+	for (i = 0; i < 32; i++) {
+		D[i] = (u8)(data & 1);
+		data = data >> 1;
+	}
+
+	/* split the crc into 8 bits */
+	for (i = 0; i < 8; i++) {
+		C[i] = crc & 1;
+		crc = crc >> 1;
+	}
+
+	NewCRC[0] = D[31] ^ D[30] ^ D[28] ^ D[23] ^ D[21] ^ D[19] ^ D[18] ^
+		    D[16] ^ D[14] ^ D[12] ^ D[8] ^ D[7] ^ D[6] ^ D[0] ^ C[4] ^
+		    C[6] ^ C[7];
+	NewCRC[1] = D[30] ^ D[29] ^ D[28] ^ D[24] ^ D[23] ^ D[22] ^ D[21] ^
+		    D[20] ^ D[18] ^ D[17] ^ D[16] ^ D[15] ^ D[14] ^ D[13] ^
+		    D[12] ^ D[9] ^ D[6] ^ D[1] ^ D[0] ^ C[0] ^ C[4] ^ C[5] ^
+		    C[6];
+	NewCRC[2] = D[29] ^ D[28] ^ D[25] ^ D[24] ^ D[22] ^ D[17] ^ D[15] ^
+		    D[13] ^ D[12] ^ D[10] ^ D[8] ^ D[6] ^ D[2] ^ D[1] ^ D[0] ^
+		    C[0] ^ C[1] ^ C[4] ^ C[5];
+	NewCRC[3] = D[30] ^ D[29] ^ D[26] ^ D[25] ^ D[23] ^ D[18] ^ D[16] ^
+		    D[14] ^ D[13] ^ D[11] ^ D[9] ^ D[7] ^ D[3] ^ D[2] ^ D[1] ^
+		    C[1] ^ C[2] ^ C[5] ^ C[6];
+	NewCRC[4] = D[31] ^ D[30] ^ D[27] ^ D[26] ^ D[24] ^ D[19] ^ D[17] ^
+		    D[15] ^ D[14] ^ D[12] ^ D[10] ^ D[8] ^ D[4] ^ D[3] ^ D[2] ^
+		    C[0] ^ C[2] ^ C[3] ^ C[6] ^ C[7];
+	NewCRC[5] = D[31] ^ D[28] ^ D[27] ^ D[25] ^ D[20] ^ D[18] ^ D[16] ^
+		    D[15] ^ D[13] ^ D[11] ^ D[9] ^ D[5] ^ D[4] ^ D[3] ^ C[1] ^
+		    C[3] ^ C[4] ^ C[7];
+	NewCRC[6] = D[29] ^ D[28] ^ D[26] ^ D[21] ^ D[19] ^ D[17] ^ D[16] ^
+		    D[14] ^ D[12] ^ D[10] ^ D[6] ^ D[5] ^ D[4] ^ C[2] ^ C[4] ^
+		    C[5];
+	NewCRC[7] = D[30] ^ D[29] ^ D[27] ^ D[22] ^ D[20] ^ D[18] ^ D[17] ^
+		    D[15] ^ D[13] ^ D[11] ^ D[7] ^ D[6] ^ D[5] ^ C[3] ^ C[5] ^
+		    C[6];
+
+	crc_res = 0;
+	for (i = 0; i < 8; i++)
+		crc_res |= (NewCRC[i] << i);
+
+	return crc_res;
+}
 
 

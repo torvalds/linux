@@ -69,7 +69,7 @@ do {                                                            	\
 		do {							\
 			CMD;						\
 		} while (0);						\
-} while (0);
+} while (0)
 
 #define LIBFCOE_DBG(fmt, args...)					\
 	LIBFCOE_CHECK_LOGGING(LIBFCOE_LOGGING,				\
@@ -148,13 +148,17 @@ static void fcoe_ctlr_reset_fcfs(struct fcoe_ctlr *fip)
  */
 void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 {
-	flush_work(&fip->recv_work);
+	cancel_work_sync(&fip->recv_work);
+	spin_lock_bh(&fip->fip_recv_list.lock);
+	__skb_queue_purge(&fip->fip_recv_list);
+	spin_unlock_bh(&fip->fip_recv_list.lock);
+
 	spin_lock_bh(&fip->lock);
 	fip->state = FIP_ST_DISABLED;
 	fcoe_ctlr_reset_fcfs(fip);
 	spin_unlock_bh(&fip->lock);
 	del_timer_sync(&fip->timer);
-	flush_work(&fip->link_work);
+	cancel_work_sync(&fip->link_work);
 }
 EXPORT_SYMBOL(fcoe_ctlr_destroy);
 
@@ -413,10 +417,18 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	struct fip_mac_desc *mac;
 	struct fcoe_fcf *fcf;
 	size_t dlen;
+	u16 fip_flags;
 
 	fcf = fip->sel_fcf;
 	if (!fcf)
 		return -ENODEV;
+
+	/* set flags according to both FCF and lport's capability on SPMA */
+	fip_flags = fcf->flags;
+	fip_flags &= fip->spma ? FIP_FL_SPMA | FIP_FL_FPMA : FIP_FL_FPMA;
+	if (!fip_flags)
+		return -ENODEV;
+
 	dlen = sizeof(struct fip_encaps) + skb->len;	/* len before push */
 	cap = (struct fip_encaps_head *)skb_push(skb, sizeof(*cap));
 
@@ -429,9 +441,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	cap->fip.fip_op = htons(FIP_OP_LS);
 	cap->fip.fip_subcode = FIP_SC_REQ;
 	cap->fip.fip_dl_len = htons((dlen + sizeof(*mac)) / FIP_BPW);
-	cap->fip.fip_flags = htons(FIP_FL_FPMA);
-	if (fip->spma)
-		cap->fip.fip_flags |= htons(FIP_FL_SPMA);
+	cap->fip.fip_flags = htons(fip_flags);
 
 	cap->encaps.fd_desc.fip_dtype = dtype;
 	cap->encaps.fd_desc.fip_dlen = dlen / FIP_BPW;
@@ -879,7 +889,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	stats->RxFrames++;
 	stats->RxWords += skb->len / FIP_BPW;
 
-	fc_exch_recv(lp, lp->emp, fp);
+	fc_exch_recv(lp, fp);
 	return;
 
 len_err:
@@ -1104,7 +1114,6 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 	struct fcoe_fcf *sel;
 	struct fcoe_fcf *fcf;
 	unsigned long next_timer = jiffies + msecs_to_jiffies(FIP_VN_KA_PERIOD);
-	DECLARE_MAC_BUF(buf);
 	u8 send_ctlr_ka;
 	u8 send_port_ka;
 
@@ -1128,9 +1137,8 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 		fcf = sel;		/* the old FCF may have been freed */
 		if (sel) {
 			printk(KERN_INFO "libfcoe: host%d: FIP selected "
-			       "Fibre-Channel Forwarder MAC %s\n",
-			       fip->lp->host->host_no,
-			       print_mac(buf, sel->fcf_mac));
+			       "Fibre-Channel Forwarder MAC %pM\n",
+			       fip->lp->host->host_no, sel->fcf_mac);
 			memcpy(fip->dest_addr, sel->fcf_mac, ETH_ALEN);
 			fip->port_ka_time = jiffies +
 					    msecs_to_jiffies(FIP_VN_KA_PERIOD);

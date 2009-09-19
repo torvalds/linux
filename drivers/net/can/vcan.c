@@ -80,10 +80,10 @@ static void vcan_rx(struct sk_buff *skb, struct net_device *dev)
 	skb->dev       = dev;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	netif_rx(skb);
+	netif_rx_ni(skb);
 }
 
-static int vcan_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t vcan_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_device_stats *stats = &dev->stats;
 	int loop;

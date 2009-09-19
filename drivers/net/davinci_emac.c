@@ -1920,7 +1920,6 @@ static int emac_net_rx_cb(struct emac_priv *priv,
 	skb_put(p_skb, net_pkt_list->pkt_length);
 	EMAC_CACHE_INVALIDATE((unsigned long)p_skb->data, p_skb->len);
 	p_skb->protocol = eth_type_trans(p_skb, priv->ndev);
-	p_skb->dev->last_rx = jiffies;
 	netif_receive_skb(p_skb);
 	priv->net_dev_stats.rx_bytes += net_pkt_list->pkt_length;
 	priv->net_dev_stats.rx_packets++;
@@ -2817,7 +2816,7 @@ static int __init davinci_emac_init(void)
 {
 	return platform_driver_register(&davinci_emac_driver);
 }
-module_init(davinci_emac_init);
+late_initcall(davinci_emac_init);
 
 /**
  * davinci_emac_exit: EMAC driver module exit

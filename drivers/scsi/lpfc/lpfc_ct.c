@@ -97,6 +97,8 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	struct list_head head;
 	struct lpfc_dmabuf *bdeBuf;
 
+	lpfc_bsg_ct_unsol_event(phba, pring, piocbq);
+
 	if (unlikely(icmd->ulpStatus == IOSTAT_NEED_BUFFER)) {
 		lpfc_sli_hbqbuf_add_hbqs(phba, LPFC_ELS_HBQ);
 	} else if ((icmd->ulpStatus == IOSTAT_LOCAL_REJECT) &&

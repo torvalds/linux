@@ -209,7 +209,7 @@ config MII
 
 config MACB
 	tristate "Atmel MACB support"
-	depends on AVR32 || ARCH_AT91SAM9260 || ARCH_AT91SAM9263 || ARCH_AT91SAM9G20 || ARCH_AT91CAP9
+	depends on AVR32 || ARCH_AT91SAM9260 || ARCH_AT91SAM9263 || ARCH_AT91SAM9G20 || ARCH_AT91SAM9G45 || ARCH_AT91CAP9
 	select PHYLIB
 	help
 	  The Atmel MACB ethernet interface is found on many AT32 and AT91
@@ -1776,7 +1776,7 @@ config SC92031
 
 config CPMAC
 	tristate "TI AR7 CPMAC Ethernet support (EXPERIMENTAL)"
-	depends on NET_ETHERNET && EXPERIMENTAL && AR7 && BROKEN
+	depends on NET_ETHERNET && EXPERIMENTAL && AR7
 	select PHYLIB
 	help
 	  TI AR7 CPMAC Ethernet support
@@ -1927,6 +1927,21 @@ config ATL2
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl2.
+
+config XILINX_EMACLITE
+	tristate "Xilinx 10/100 Ethernet Lite support"
+	depends on PPC32 || MICROBLAZE
+	help
+	  This driver supports the 10/100 Ethernet Lite from Xilinx.
+
+config BCM63XX_ENET
+	tristate "Broadcom 63xx internal mac support"
+	depends on BCM63XX
+	select MII
+	select PHYLIB
+	help
+	  This driver supports the ethernet MACs in the Broadcom 63xx
+	  MIPS chipset family (BCM63XX).
 
 source "drivers/net/fs_enet/Kconfig"
 
@@ -2369,10 +2384,6 @@ config UCC_GETH
 	  This driver supports the Gigabit Ethernet mode of the QUICC Engine,
 	  which is available on some Freescale SOCs.
 
-config UGETH_MAGIC_PACKET
-	bool "Magic Packet detection support"
-	depends on UCC_GETH
-
 config UGETH_TX_ON_DEMAND
 	bool "Transmit on Demand support"
 	depends on UCC_GETH
@@ -2724,6 +2735,7 @@ config BNX2X
 	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C
+	select MDIO
 	help
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
 	  To compile this driver as a module, choose M here: the module

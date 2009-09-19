@@ -1,8 +1,8 @@
 #ifndef _LINUX_FTRACE_EVENT_H
 #define _LINUX_FTRACE_EVENT_H
 
-#include <linux/trace_seq.h>
 #include <linux/ring_buffer.h>
+#include <linux/trace_seq.h>
 #include <linux/percpu.h>
 
 struct trace_array;
@@ -34,7 +34,7 @@ struct trace_entry {
 	unsigned char		flags;
 	unsigned char		preempt_count;
 	int			pid;
-	int			tgid;
+	int			lock_depth;
 };
 
 #define FTRACE_MAX_EVENT						\
@@ -135,7 +135,7 @@ struct ftrace_event_call {
 };
 
 #define MAX_FILTER_PRED		32
-#define MAX_FILTER_STR_VAL	128
+#define MAX_FILTER_STR_VAL	256	/* Should handle KSYM_SYMBOL_LEN */
 
 extern void destroy_preds(struct ftrace_event_call *call);
 extern int filter_match_preds(struct ftrace_event_call *call, void *rec);

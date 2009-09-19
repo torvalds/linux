@@ -60,7 +60,6 @@ enum {
 };
 
 #define INTEL_MSR_RANGE		(0xffff)
-#define CPUID_6_ECX_APERFMPERF_CAPABILITY	(0x1)
 
 struct acpi_cpufreq_data {
 	struct acpi_processor_performance *acpi_data;
@@ -71,11 +70,7 @@ struct acpi_cpufreq_data {
 
 static DEFINE_PER_CPU(struct acpi_cpufreq_data *, drv_data);
 
-struct acpi_msr_data {
-	u64 saved_aperf, saved_mperf;
-};
-
-static DEFINE_PER_CPU(struct acpi_msr_data, msr_data);
+static DEFINE_PER_CPU(struct aperfmperf, old_perf);
 
 DEFINE_TRACE(power_mark);
 
@@ -244,23 +239,12 @@ static u32 get_cur_val(const struct cpumask *mask)
 	return cmd.val;
 }
 
-struct perf_pair {
-	union {
-		struct {
-			u32 lo;
-			u32 hi;
-		} split;
-		u64 whole;
-	} aperf, mperf;
-};
-
 /* Called via smp_call_function_single(), on the target CPU */
 static void read_measured_perf_ctrs(void *_cur)
 {
-	struct perf_pair *cur = _cur;
+	struct aperfmperf *am = _cur;
 
-	rdmsr(MSR_IA32_APERF, cur->aperf.split.lo, cur->aperf.split.hi);
-	rdmsr(MSR_IA32_MPERF, cur->mperf.split.lo, cur->mperf.split.hi);
+	get_aperfmperf(am);
 }
 
 /*
@@ -279,63 +263,17 @@ static void read_measured_perf_ctrs(void *_cur)
 static unsigned int get_measured_perf(struct cpufreq_policy *policy,
 				      unsigned int cpu)
 {
-	struct perf_pair readin, cur;
-	unsigned int perf_percent;
+	struct aperfmperf perf;
+	unsigned long ratio;
 	unsigned int retval;
 
-	if (smp_call_function_single(cpu, read_measured_perf_ctrs, &readin, 1))
+	if (smp_call_function_single(cpu, read_measured_perf_ctrs, &perf, 1))
 		return 0;
 
-	cur.aperf.whole = readin.aperf.whole -
-				per_cpu(msr_data, cpu).saved_aperf;
-	cur.mperf.whole = readin.mperf.whole -
-				per_cpu(msr_data, cpu).saved_mperf;
-	per_cpu(msr_data, cpu).saved_aperf = readin.aperf.whole;
-	per_cpu(msr_data, cpu).saved_mperf = readin.mperf.whole;
+	ratio = calc_aperfmperf_ratio(&per_cpu(old_perf, cpu), &perf);
+	per_cpu(old_perf, cpu) = perf;
 
-#ifdef __i386__
-	/*
-	 * We dont want to do 64 bit divide with 32 bit kernel
-	 * Get an approximate value. Return failure in case we cannot get
-	 * an approximate value.
-	 */
-	if (unlikely(cur.aperf.split.hi || cur.mperf.split.hi)) {
-		int shift_count;
-		u32 h;
-
-		h = max_t(u32, cur.aperf.split.hi, cur.mperf.split.hi);
-		shift_count = fls(h);
-
-		cur.aperf.whole >>= shift_count;
-		cur.mperf.whole >>= shift_count;
-	}
-
-	if (((unsigned long)(-1) / 100) < cur.aperf.split.lo) {
-		int shift_count = 7;
-		cur.aperf.split.lo >>= shift_count;
-		cur.mperf.split.lo >>= shift_count;
-	}
-
-	if (cur.aperf.split.lo && cur.mperf.split.lo)
-		perf_percent = (cur.aperf.split.lo * 100) / cur.mperf.split.lo;
-	else
-		perf_percent = 0;
-
-#else
-	if (unlikely(((unsigned long)(-1) / 100) < cur.aperf.whole)) {
-		int shift_count = 7;
-		cur.aperf.whole >>= shift_count;
-		cur.mperf.whole >>= shift_count;
-	}
-
-	if (cur.aperf.whole && cur.mperf.whole)
-		perf_percent = (cur.aperf.whole * 100) / cur.mperf.whole;
-	else
-		perf_percent = 0;
-
-#endif
-
-	retval = (policy->cpuinfo.max_freq * perf_percent) / 100;
+	retval = (policy->cpuinfo.max_freq * ratio) >> APERFMPERF_SHIFT;
 
 	return retval;
 }
@@ -731,12 +669,8 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	acpi_processor_notify_smm(THIS_MODULE);
 
 	/* Check for APERF/MPERF support in hardware */
-	if (c->x86_vendor == X86_VENDOR_INTEL && c->cpuid_level >= 6) {
-		unsigned int ecx;
-		ecx = cpuid_ecx(6);
-		if (ecx & CPUID_6_ECX_APERFMPERF_CAPABILITY)
-			acpi_cpufreq_driver.getavg = get_measured_perf;
-	}
+	if (cpu_has(c, X86_FEATURE_APERFMPERF))
+		acpi_cpufreq_driver.getavg = get_measured_perf;
 
 	dprintk("CPU%u - ACPI performance management activated.\n", cpu);
 	for (i = 0; i < perf->state_count; i++)

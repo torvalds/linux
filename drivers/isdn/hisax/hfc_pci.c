@@ -1506,8 +1506,6 @@ hfcpci_bh(struct work_struct *work)
 	u_long	flags;
 //      struct PStack *stptr;
 
-	if (!cs)
-		return;
 	if (test_and_clear_bit(D_L1STATECHANGE, &cs->event)) {
 		if (!cs->hw.hfcpci.nt_mode)
 			switch (cs->dc.hfcpci.ph_state) {

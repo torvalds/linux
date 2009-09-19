@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/smp.h>
 
+#include <asm/perf_counter.h>
 #include <asm/ptrace.h>
 #include <asm/local.h>
 #include <asm/pcr.h>
@@ -31,13 +32,19 @@
  * level 14 as our IRQ off level.
  */
 
-static int nmi_watchdog_active;
 static int panic_on_timeout;
 
-int nmi_usable;
-EXPORT_SYMBOL_GPL(nmi_usable);
+/* nmi_active:
+ * >0: the NMI watchdog is active, but can be disabled
+ * <0: the NMI watchdog has not been set up, and cannot be enabled
+ *  0: the NMI watchdog is disabled, but can be enabled
+ */
+atomic_t nmi_active = ATOMIC_INIT(0);		/* oprofile uses this */
+EXPORT_SYMBOL(nmi_active);
 
 static unsigned int nmi_hz = HZ;
+static DEFINE_PER_CPU(short, wd_enabled);
+static int endflag __initdata;
 
 static DEFINE_PER_CPU(unsigned int, last_irq_sum);
 static DEFINE_PER_CPU(local_t, alert_counter);
@@ -45,7 +52,7 @@ static DEFINE_PER_CPU(int, nmi_touch);
 
 void touch_nmi_watchdog(void)
 {
-	if (nmi_watchdog_active) {
+	if (atomic_read(&nmi_active)) {
 		int cpu;
 
 		for_each_present_cpu(cpu) {
@@ -78,6 +85,7 @@ static void die_nmi(const char *str, struct pt_regs *regs, int do_panic)
 	if (do_panic || panic_on_oops)
 		panic("Non maskable interrupt");
 
+	nmi_exit();
 	local_irq_enable();
 	do_exit(SIGBUS);
 }
@@ -91,6 +99,8 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 	pcr_ops->write(PCR_PIC_PRIV);
 
 	local_cpu_data().__nmi_count++;
+
+	nmi_enter();
 
 	if (notify_die(DIE_NMI, "nmi", regs, 0,
 		       pt_regs_trap_type(regs), SIGINT) == NOTIFY_STOP)
@@ -110,18 +120,18 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 		__get_cpu_var(last_irq_sum) = sum;
 		local_set(&__get_cpu_var(alert_counter), 0);
 	}
-	if (nmi_usable) {
+	if (__get_cpu_var(wd_enabled)) {
 		write_pic(picl_value(nmi_hz));
 		pcr_ops->write(pcr_enable);
 	}
+
+	nmi_exit();
 }
 
 static inline unsigned int get_nmi_count(int cpu)
 {
 	return cpu_data(cpu).__nmi_count;
 }
-
-static int endflag __initdata;
 
 static __init void nmi_cpu_busy(void *data)
 {
@@ -143,18 +153,24 @@ static void report_broken_nmi(int cpu, int *prev_nmi_count)
 	printk(KERN_WARNING
 		"and attach the output of the 'dmesg' command.\n");
 
-	nmi_usable = 0;
+	per_cpu(wd_enabled, cpu) = 0;
+	atomic_dec(&nmi_active);
 }
 
-static void stop_watchdog(void *unused)
+void stop_nmi_watchdog(void *unused)
 {
 	pcr_ops->write(PCR_PIC_PRIV);
+	__get_cpu_var(wd_enabled) = 0;
+	atomic_dec(&nmi_active);
 }
 
 static int __init check_nmi_watchdog(void)
 {
 	unsigned int *prev_nmi_count;
 	int cpu, err;
+
+	if (!atomic_read(&nmi_active))
+		return 0;
 
 	prev_nmi_count = kmalloc(nr_cpu_ids * sizeof(unsigned int), GFP_KERNEL);
 	if (!prev_nmi_count) {
@@ -172,12 +188,15 @@ static int __init check_nmi_watchdog(void)
 	mdelay((20 * 1000) / nmi_hz); /* wait 20 ticks */
 
 	for_each_online_cpu(cpu) {
+		if (!per_cpu(wd_enabled, cpu))
+			continue;
 		if (get_nmi_count(cpu) - prev_nmi_count[cpu] <= 5)
 			report_broken_nmi(cpu, prev_nmi_count);
 	}
 	endflag = 1;
-	if (!nmi_usable) {
+	if (!atomic_read(&nmi_active)) {
 		kfree(prev_nmi_count);
+		atomic_set(&nmi_active, -1);
 		err = -ENODEV;
 		goto error;
 	}
@@ -188,12 +207,26 @@ static int __init check_nmi_watchdog(void)
 	kfree(prev_nmi_count);
 	return 0;
 error:
-	on_each_cpu(stop_watchdog, NULL, 1);
+	on_each_cpu(stop_nmi_watchdog, NULL, 1);
 	return err;
 }
 
-static void start_watchdog(void *unused)
+void start_nmi_watchdog(void *unused)
 {
+	__get_cpu_var(wd_enabled) = 1;
+	atomic_inc(&nmi_active);
+
+	pcr_ops->write(PCR_PIC_PRIV);
+	write_pic(picl_value(nmi_hz));
+
+	pcr_ops->write(pcr_enable);
+}
+
+static void nmi_adjust_hz_one(void *unused)
+{
+	if (!__get_cpu_var(wd_enabled))
+		return;
+
 	pcr_ops->write(PCR_PIC_PRIV);
 	write_pic(picl_value(nmi_hz));
 
@@ -203,13 +236,13 @@ static void start_watchdog(void *unused)
 void nmi_adjust_hz(unsigned int new_hz)
 {
 	nmi_hz = new_hz;
-	on_each_cpu(start_watchdog, NULL, 1);
+	on_each_cpu(nmi_adjust_hz_one, NULL, 1);
 }
 EXPORT_SYMBOL_GPL(nmi_adjust_hz);
 
 static int nmi_shutdown(struct notifier_block *nb, unsigned long cmd, void *p)
 {
-	on_each_cpu(stop_watchdog, NULL, 1);
+	on_each_cpu(stop_nmi_watchdog, NULL, 1);
 	return 0;
 }
 
@@ -221,18 +254,19 @@ int __init nmi_init(void)
 {
 	int err;
 
-	nmi_usable = 1;
-
-	on_each_cpu(start_watchdog, NULL, 1);
+	on_each_cpu(start_nmi_watchdog, NULL, 1);
 
 	err = check_nmi_watchdog();
 	if (!err) {
 		err = register_reboot_notifier(&nmi_reboot_notifier);
 		if (err) {
-			nmi_usable = 0;
-			on_each_cpu(stop_watchdog, NULL, 1);
+			on_each_cpu(stop_nmi_watchdog, NULL, 1);
+			atomic_set(&nmi_active, -1);
 		}
 	}
+	if (!err)
+		init_hw_perf_counters();
+
 	return err;
 }
 

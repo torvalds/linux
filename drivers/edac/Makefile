@@ -17,6 +17,10 @@ ifdef CONFIG_PCI
 edac_core-objs	+= edac_pci.o edac_pci_sysfs.o
 endif
 
+ifdef CONFIG_CPU_SUP_AMD
+edac_core-objs  += edac_mce_amd.o
+endif
+
 obj-$(CONFIG_EDAC_AMD76X)		+= amd76x_edac.o
 obj-$(CONFIG_EDAC_CPC925)		+= cpc925_edac.o
 obj-$(CONFIG_EDAC_I5000)		+= i5000_edac.o
@@ -32,7 +36,7 @@ obj-$(CONFIG_EDAC_X38)			+= x38_edac.o
 obj-$(CONFIG_EDAC_I82860)		+= i82860_edac.o
 obj-$(CONFIG_EDAC_R82600)		+= r82600_edac.o
 
-amd64_edac_mod-y :=  amd64_edac_err_types.o amd64_edac.o
+amd64_edac_mod-y := amd64_edac.o
 amd64_edac_mod-$(CONFIG_EDAC_DEBUG) += amd64_edac_dbg.o
 amd64_edac_mod-$(CONFIG_EDAC_AMD64_ERROR_INJECTION) += amd64_edac_inj.o
 

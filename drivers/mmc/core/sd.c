@@ -314,7 +314,7 @@ static struct attribute_group sd_std_attr_group = {
 	.attrs = sd_std_attrs,
 };
 
-static struct attribute_group *sd_attr_groups[] = {
+static const struct attribute_group *sd_attr_groups[] = {
 	&sd_std_attr_group,
 	NULL,
 };

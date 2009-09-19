@@ -433,9 +433,6 @@ int generic_mii_ioctl(struct mii_if_info *mii_if,
 	case SIOCSMIIREG: {
 		u16 val = mii_data->val_in;
 
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-
 		if (mii_data->phy_id == mii_if->phy_id) {
 			switch(mii_data->reg_num) {
 			case MII_BMCR: {

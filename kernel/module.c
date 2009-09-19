@@ -369,7 +369,7 @@ EXPORT_SYMBOL_GPL(find_module);
 
 #ifdef CONFIG_SMP
 
-#ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
+#ifndef CONFIG_HAVE_LEGACY_PER_CPU_AREA
 
 static void *percpu_modalloc(unsigned long size, unsigned long align,
 			     const char *name)
@@ -394,7 +394,7 @@ static void percpu_modfree(void *freeme)
 	free_percpu(freeme);
 }
 
-#else /* ... !CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+#else /* ... CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 /* Number of blocks used and allocated. */
 static unsigned int pcpu_num_used, pcpu_num_allocated;
@@ -540,7 +540,7 @@ static int percpu_modinit(void)
 }
 __initcall(percpu_modinit);
 
-#endif /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+#endif /* CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 static unsigned int find_pcpusec(Elf_Ehdr *hdr,
 				 Elf_Shdr *sechdrs,

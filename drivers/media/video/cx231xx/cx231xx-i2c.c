@@ -432,7 +432,6 @@ static struct i2c_algorithm cx231xx_algo = {
 static struct i2c_adapter cx231xx_adap_template = {
 	.owner = THIS_MODULE,
 	.name = "cx231xx",
-	.id = I2C_HW_B_CX231XX,
 	.algo = &cx231xx_algo,
 };
 

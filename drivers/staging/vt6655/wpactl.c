@@ -16,6 +16,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: wpactl.c
  *
  * Purpose: handle wpa supplicant ioctl input/out functions
@@ -30,32 +31,14 @@
  *
  */
 
-
-#if !defined(__WPACTL_H__)
 #include "wpactl.h"
-#endif
-#if !defined(__KEY_H__)
 #include "key.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WMGR_H__)
 #include "wmgr.h"
-#endif
-#if !defined(__IOCMD_H__)
 #include "iocmd.h"
-#endif
-#if !defined(__IOWPA_H__)
 #include "iowpa.h"
-#endif
-//2008-0717-05, <Add> by James
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -79,8 +62,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 
 /*---------------------  Export Variables  --------------------------*/
-
-
 static void wpadev_setup(struct net_device *dev)
 {
 	dev->type               = ARPHRD_IEEE80211;
@@ -93,8 +74,6 @@ static void wpadev_setup(struct net_device *dev)
 
 	dev->flags              = IFF_BROADCAST|IFF_MULTICAST;
 }
-
-
 
 /*
  * Description:
@@ -122,7 +101,6 @@ static int wpa_init_wpadev(PSDevice pDevice)
 
     wpadev_priv = netdev_priv(pDevice->wpadev);
     *wpadev_priv = *pDevice;
-
 	memcpy(pDevice->wpadev->dev_addr, dev->dev_addr, U_ETHER_ADDR_LEN);
          pDevice->wpadev->base_addr = dev->base_addr;
 	pDevice->wpadev->irq = dev->irq;
@@ -130,7 +108,7 @@ static int wpa_init_wpadev(PSDevice pDevice)
 	pDevice->wpadev->mem_end = dev->mem_end;
 	ret = register_netdev(pDevice->wpadev);
 	if (ret) {
-		DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: register_netdev(WPA) failed!\n",
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: register_netdev(WPA) failed!\n",
 		       dev->name);
 		free_netdev(pDevice->wpadev);
 		return -1;
@@ -142,7 +120,7 @@ static int wpa_init_wpadev(PSDevice pDevice)
 		    return -ENOMEM;
     }
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Registered netdev %s for WPA management\n",
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Registered netdev %s for WPA management\n",
 	       dev->name, pDevice->wpadev->name);
 
 	return 0;
@@ -164,14 +142,13 @@ static int wpa_init_wpadev(PSDevice pDevice)
 
 static int wpa_release_wpadev(PSDevice pDevice)
 {
-
     if (pDevice->skb) {
         dev_kfree_skb(pDevice->skb);
         pDevice->skb = NULL;
     }
 
     if (pDevice->wpadev) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Netdevice %s unregistered\n",
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Netdevice %s unregistered\n",
 	       pDevice->dev->name, pDevice->wpadev->name);
 	unregister_netdev(pDevice->wpadev);
 	free_netdev(pDevice->wpadev);
@@ -201,8 +178,6 @@ static int wpa_release_wpadev(PSDevice pDevice)
 
 int wpa_set_wpadev(PSDevice pDevice, int val)
 {
-
-
 	if (val)
 		return wpa_init_wpadev(pDevice);
 	else
@@ -224,9 +199,9 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
  *
  */
 
-int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel)
+ int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel)
 {
- struct viawget_wpa_param *param=ctx;
+    struct viawget_wpa_param *param=ctx;
     PSMgmtObject pMgmt = pDevice->pMgmt;
     DWORD   dwKeyIndex = 0;
     BYTE    abyKey[MAX_KEY_LEN];
@@ -241,7 +216,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel)
 	if (param->u.wpa_key.alg_name > WPA_ALG_CCMP)
 		return -EINVAL;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "param->u.wpa_key.alg_name = %d \n", param->u.wpa_key.alg_name);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "param->u.wpa_key.alg_name = %d \n", param->u.wpa_key.alg_name);
 	if (param->u.wpa_key.alg_name == WPA_ALG_NONE) {
         pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
         pDevice->bEncryptionEnable = FALSE;
@@ -261,8 +236,8 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel)
     else {
 	spin_unlock_irq(&pDevice->lock);
 	if (param->u.wpa_key.key &&
-	    copy_from_user(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len)){
-	        spin_lock_irq(&pDevice->lock);
+	    copy_from_user(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len)) {
+	    spin_lock_irq(&pDevice->lock);
 	    return -EINVAL;
     	}
 spin_lock_irq(&pDevice->lock);
@@ -302,9 +277,8 @@ spin_lock_irq(&pDevice->lock);
        else {
 	   	spin_unlock_irq(&pDevice->lock);
 	if (param->u.wpa_key.seq &&
-	    copy_from_user(&abySeq[0], param->u.wpa_key.seq, param->u.wpa_key.seq_len)){
-
-	 spin_lock_irq(&pDevice->lock);
+	    copy_from_user(&abySeq[0], param->u.wpa_key.seq, param->u.wpa_key.seq_len)) {
+	    spin_lock_irq(&pDevice->lock);
 	    return -EINVAL;
        	}
 spin_lock_irq(&pDevice->lock);
@@ -322,7 +296,7 @@ spin_lock_irq(&pDevice->lock);
 	}
 
     if (param->u.wpa_key.key_index >= MAX_GROUP_KEY) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "return  dwKeyIndex > 3\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "return  dwKeyIndex > 3\n");
         return -EINVAL;
     }
 
@@ -336,6 +310,7 @@ spin_lock_irq(&pDevice->lock);
 
 	if (param->u.wpa_key.set_tx)
 		dwKeyIndex |= (1 << 31);
+
 
     if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled)
         byKeyDecMode = KEY_CTL_CCMP;
@@ -359,13 +334,12 @@ spin_lock_irq(&pDevice->lock);
             byKeyDecMode = KEY_CTL_WEP;
     }
 
-
     // Check TKIP key length
     if ((byKeyDecMode == KEY_CTL_TKIP) &&
         (param->u.wpa_key.key_len != MAX_KEY_LEN)) {
         // TKIP Key must be 256 bits
         //DBG_PRN_WLAN03(("return NDIS_STATUS_INVALID_DATA - TKIP Key must be 256 bits\n"));
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "return- TKIP Key must be 256 bits!\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "return- TKIP Key must be 256 bits!\n");
         return -EINVAL;
     }
     // Check AES key length
@@ -379,7 +353,7 @@ spin_lock_irq(&pDevice->lock);
    // spin_lock_irq(&pDevice->lock);
     if (IS_BROADCAST_ADDRESS(&param->addr[0]) || (param->addr == NULL)) {
         // If IS_BROADCAST_ADDRESS, set the key as every key entry's group key.
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Groupe Key Assign.\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Groupe Key Assign.\n");
 
         if ((KeybSetAllGroupKey(&(pDevice->sKey),
                             dwKeyIndex,
@@ -397,7 +371,7 @@ spin_lock_irq(&pDevice->lock);
                             byKeyDecMode,
                             pDevice->PortOffset,
                             pDevice->byLocalID) == TRUE) ) {
-             DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GROUP Key Assign.\n");
+             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GROUP Key Assign.\n");
 
         } else {
             //DBG_PRN_WLAN03(("return NDIS_STATUS_INVALID_DATA -KeybSetDefaultKey Fail.0\n"));
@@ -406,11 +380,11 @@ spin_lock_irq(&pDevice->lock);
         }
 
     } else {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Assign.\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Assign.\n");
         // BSSID not 0xffffffffffff
         // Pairwise Key can't be WEP
         if (byKeyDecMode == KEY_CTL_WEP) {
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key can't be WEP\n");
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key can't be WEP\n");
             //spin_unlock_irq(&pDevice->lock);
             return -EINVAL;
         }
@@ -430,7 +404,7 @@ spin_lock_irq(&pDevice->lock);
                         byKeyDecMode,
                         pDevice->PortOffset,
                         pDevice->byLocalID) == TRUE) {
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Set\n");
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Set\n");
 
         } else {
             // Key Table Full
@@ -455,7 +429,7 @@ spin_lock_irq(&pDevice->lock);
     //spin_unlock_irq(&pDevice->lock);
 
 /*
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO " key=%x-%x-%x-%x-%x-xxxxx \n",
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " key=%x-%x-%x-%x-%x-xxxxx \n",
                pMgmt->sNodeDBTable[iNodeIndex].abyWepKey[byKeyIndex][0],
                pMgmt->sNodeDBTable[iNodeIndex].abyWepKey[byKeyIndex][1],
                pMgmt->sNodeDBTable[iNodeIndex].abyWepKey[byKeyIndex][2],
@@ -752,7 +726,7 @@ static int wpa_get_scan(PSDevice pDevice,
 		ret = -EFAULT;
 	};
 	param->u.scan_results.scan_count = count;
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO " param->u.scan_results.scan_count = %d\n", count)
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " param->u.scan_results.scan_count = %d\n", count)
 
     kfree(pBuf);
     return ret;
@@ -785,12 +759,12 @@ static int wpa_set_associate(PSDevice pDevice,
     BOOL bWepEnabled=FALSE;
 
 	// set key type & algorithm
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pairwise_suite = %d\n", param->u.wpa_associate.pairwise_suite);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "group_suite = %d\n", param->u.wpa_associate.group_suite);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "key_mgmt_suite = %d\n", param->u.wpa_associate.key_mgmt_suite);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "auth_alg = %d\n", param->u.wpa_associate.auth_alg);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "mode = %d\n", param->u.wpa_associate.mode);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wpa_ie_len = %d\n", param->u.wpa_associate.wpa_ie_len);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pairwise_suite = %d\n", param->u.wpa_associate.pairwise_suite);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "group_suite = %d\n", param->u.wpa_associate.group_suite);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "key_mgmt_suite = %d\n", param->u.wpa_associate.key_mgmt_suite);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "auth_alg = %d\n", param->u.wpa_associate.auth_alg);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "mode = %d\n", param->u.wpa_associate.mode);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wpa_ie_len = %d\n", param->u.wpa_associate.wpa_ie_len);
 
 
 	if (param->u.wpa_associate.wpa_ie &&
@@ -943,59 +917,59 @@ int wpa_ioctl(PSDevice pDevice, struct iw_point *p)
 	switch (param->cmd) {
 	case VIAWGET_SET_WPA:
         ret = wpa_set_wpa(pDevice, param);
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_WPA \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_WPA \n");
 		break;
 
 	case VIAWGET_SET_KEY:
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_KEY \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_KEY \n");
 	    spin_lock_irq(&pDevice->lock);
         ret = wpa_set_keys(pDevice, param, FALSE);
         spin_unlock_irq(&pDevice->lock);
 		break;
 
 	case VIAWGET_SET_SCAN:
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_SCAN \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_SCAN \n");
         ret = wpa_set_scan(pDevice, param);
 		break;
 
 	case VIAWGET_GET_SCAN:
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_GET_SCAN\n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_GET_SCAN\n");
         ret = wpa_get_scan(pDevice, param);
 		wpa_ioctl = 1;
 		break;
 
 	case VIAWGET_GET_SSID:
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_GET_SSID \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_GET_SSID \n");
         ret = wpa_get_ssid(pDevice, param);
 		wpa_ioctl = 1;
 		break;
 
 	case VIAWGET_GET_BSSID:
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_GET_BSSID \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_GET_BSSID \n");
         ret = wpa_get_bssid(pDevice, param);
 		wpa_ioctl = 1;
 		break;
 
 	case VIAWGET_SET_ASSOCIATE:
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_ASSOCIATE \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_ASSOCIATE \n");
         ret = wpa_set_associate(pDevice, param);
 		break;
 
 	case VIAWGET_SET_DISASSOCIATE:
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_DISASSOCIATE \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_DISASSOCIATE \n");
         ret = wpa_set_disassociate(pDevice, param);
 		break;
 
 	case VIAWGET_SET_DROP_UNENCRYPT:
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_DROP_UNENCRYPT \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_DROP_UNENCRYPT \n");
 		break;
 
     case VIAWGET_SET_DEAUTHENTICATE:
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_DEAUTHENTICATE \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "VIAWGET_SET_DEAUTHENTICATE \n");
 		break;
 
 	default:
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wpa_ioctl: unknown cmd=%d\n",
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wpa_ioctl: unknown cmd=%d\n",
 		       param->cmd);
 		return -EOPNOTSUPP;
 		break;

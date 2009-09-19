@@ -22,6 +22,12 @@
 #include <net/flow.h>
 #include <net/netlink.h>
 
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+#define FIB6_TABLE_HASHSZ 256
+#else
+#define FIB6_TABLE_HASHSZ 1
+#endif
+
 struct rt6_info;
 
 struct fib6_config

@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-sa1100/include/mach/uncompress.h
  *
- * (C) 1999 Nicolas Pitre <nico@cam.org>
+ * (C) 1999 Nicolas Pitre <nico@fluxnic.net>
  *
  * Reorganised to be machine independent.
  */

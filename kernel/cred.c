@@ -147,7 +147,8 @@ static void put_cred_rcu(struct rcu_head *rcu)
 	key_put(cred->thread_keyring);
 	key_put(cred->request_key_auth);
 	release_tgcred(cred);
-	put_group_info(cred->group_info);
+	if (cred->group_info)
+		put_group_info(cred->group_info);
 	free_uid(cred->user);
 	kmem_cache_free(cred_jar, cred);
 }

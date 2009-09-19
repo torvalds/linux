@@ -270,16 +270,9 @@ out:
 }
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 {
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, wx_sync_scan_wq);
-#else
-void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee)
-{
-#endif
-//void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee)
-//{
 	short chan;
 
 	chan = ieee->current_network.channel;
@@ -379,11 +372,7 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 
 	if (wrqu->essid.flags && wrqu->essid.length) {
 //YJ,modified,080819
-#if LINUX_VERSION_CODE <  KERNEL_VERSION(2,6,20)
-		len = ((wrqu->essid.length-1) < IW_ESSID_MAX_SIZE) ? (wrqu->essid.length-1) : IW_ESSID_MAX_SIZE;
-#else
 		len = (wrqu->essid.length < IW_ESSID_MAX_SIZE) ? (wrqu->essid.length) : IW_ESSID_MAX_SIZE;
-#endif
 		memset(ieee->current_network.ssid, 0, ieee->current_network.ssid_len); //YJ,add,080819
 		strncpy(ieee->current_network.ssid, extra, len);
 		ieee->current_network.ssid_len = len;
@@ -581,22 +570,3 @@ exit:
 	return ret;
 
 }
-
-#if 0
-EXPORT_SYMBOL(ieee80211_wx_get_essid);
-EXPORT_SYMBOL(ieee80211_wx_set_essid);
-EXPORT_SYMBOL(ieee80211_wx_set_rate);
-EXPORT_SYMBOL(ieee80211_wx_get_rate);
-EXPORT_SYMBOL(ieee80211_wx_set_wap);
-EXPORT_SYMBOL(ieee80211_wx_get_wap);
-EXPORT_SYMBOL(ieee80211_wx_set_mode);
-EXPORT_SYMBOL(ieee80211_wx_get_mode);
-EXPORT_SYMBOL(ieee80211_wx_set_scan);
-EXPORT_SYMBOL(ieee80211_wx_get_freq);
-EXPORT_SYMBOL(ieee80211_wx_set_freq);
-EXPORT_SYMBOL(ieee80211_wx_set_rawtx);
-EXPORT_SYMBOL(ieee80211_wx_get_name);
-EXPORT_SYMBOL(ieee80211_wx_set_power);
-EXPORT_SYMBOL(ieee80211_wx_get_power);
-EXPORT_SYMBOL(ieee80211_wlan_frequencies);
-#endif

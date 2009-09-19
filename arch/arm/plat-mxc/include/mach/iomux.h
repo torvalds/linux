@@ -49,6 +49,9 @@
 #ifdef CONFIG_ARCH_MX2
 # define GPIO_PORT_MAX  5
 #endif
+#ifdef CONFIG_ARCH_MX25
+# define GPIO_PORT_MAX  3
+#endif
 
 #ifndef GPIO_PORT_MAX
 # error "GPIO config port count unknown!"
@@ -106,6 +109,9 @@
 #ifdef CONFIG_MACH_MX27
 #include <mach/iomux-mx27.h>
 #endif
+#endif
+#ifdef CONFIG_ARCH_MX25
+#include <mach/iomux-mx25.h>
 #endif
 
 

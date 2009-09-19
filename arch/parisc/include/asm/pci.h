@@ -233,7 +233,6 @@ static inline void pcibios_register_hba(struct pci_hba_data *x)
  *   rp7420/8420 boxes and then revisit this issue.
  */
 #define pcibios_assign_all_busses()     (1)
-#define pcibios_scan_all_fns(a, b)	(0)
 
 #define PCIBIOS_MIN_IO          0x10
 #define PCIBIOS_MIN_MEM         0x1000 /* NBPG - but pci/setup-res.c dies */

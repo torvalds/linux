@@ -187,12 +187,12 @@ int uwbd_event_handle_urc(struct uwb_event *evt)
 	event = le16_to_cpu(evt->notif.rceb->wEvent);
 	context = evt->notif.rceb->bEventContext;
 
-	if (type > ARRAY_SIZE(uwbd_urc_evt_type_handlers))
+	if (type >= ARRAY_SIZE(uwbd_urc_evt_type_handlers))
 		goto out;
 	type_table = &uwbd_urc_evt_type_handlers[type];
 	if (type_table->uwbd_events == NULL)
 		goto out;
-	if (event > type_table->size)
+	if (event >= type_table->size)
 		goto out;
 	handler = type_table->uwbd_events[event].handler;
 	if (handler == NULL)

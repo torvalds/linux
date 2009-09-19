@@ -41,6 +41,13 @@ config CAN_SJA1000
 	---help---
 	  Driver for the SJA1000 CAN controllers from Philips or NXP
 
+config CAN_SJA1000_ISA
+	depends on CAN_SJA1000 && ISA
+	tristate "ISA Bus based legacy SJA1000 driver"
+	---help---
+	  This driver adds legacy support for SJA1000 chips connected to
+	  the ISA bus using I/O port, memory mapped or indirect access.
+
 config CAN_SJA1000_PLATFORM
 	depends on CAN_SJA1000
 	tristate "Generic Platform Bus based SJA1000 driver"
@@ -61,11 +68,12 @@ config CAN_SJA1000_OF_PLATFORM
 	  you may want to enable this option.
 
 config CAN_EMS_PCI
-	tristate "EMS CPC-PCI and CPC-PCIe Card"
+	tristate "EMS CPC-PCI, CPC-PCIe and CPC-104P Card"
 	depends on PCI && CAN_SJA1000
 	---help---
-	  This driver is for the one or two channel CPC-PCI and CPC-PCIe
-	  cards from EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
+	  This driver is for the one, two or four channel CPC-PCI,
+	  CPC-PCIe and CPC-104P cards from EMS Dr. Thomas Wuensche
+	  (http://www.ems-wuensche.de).
 
 config CAN_KVASER_PCI
 	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"

@@ -49,11 +49,10 @@ static s32  igb_read_phy_reg_sgmii_82575(struct e1000_hw *, u32, u16 *);
 static s32  igb_reset_hw_82575(struct e1000_hw *);
 static s32  igb_set_d0_lplu_state_82575(struct e1000_hw *, bool);
 static s32  igb_setup_copper_link_82575(struct e1000_hw *);
-static s32  igb_setup_fiber_serdes_link_82575(struct e1000_hw *);
+static s32  igb_setup_serdes_link_82575(struct e1000_hw *);
 static s32  igb_write_phy_reg_sgmii_82575(struct e1000_hw *, u32, u16);
 static void igb_clear_hw_cntrs_82575(struct e1000_hw *);
 static s32  igb_acquire_swfw_sync_82575(struct e1000_hw *, u16);
-static s32  igb_configure_pcs_link_82575(struct e1000_hw *);
 static s32  igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *, u16 *,
 						 u16 *);
 static s32  igb_get_phy_id_82575(struct e1000_hw *);
@@ -61,6 +60,7 @@ static void igb_release_swfw_sync_82575(struct e1000_hw *, u16);
 static bool igb_sgmii_active_82575(struct e1000_hw *);
 static s32  igb_reset_init_script_82575(struct e1000_hw *);
 static s32  igb_read_mac_addr_82575(struct e1000_hw *);
+static s32  igb_set_pcie_completion_timeout(struct e1000_hw *hw);
 
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
@@ -84,6 +84,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_82576_FIBER:
 	case E1000_DEV_ID_82576_SERDES:
 	case E1000_DEV_ID_82576_QUAD_COPPER:
+	case E1000_DEV_ID_82576_SERDES_QUAD:
 		mac->type = e1000_82576;
 		break;
 	default:
@@ -103,16 +104,20 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	dev_spec->sgmii_active = false;
 
 	ctrl_ext = rd32(E1000_CTRL_EXT);
-	if ((ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK) ==
-	    E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES) {
-		hw->phy.media_type = e1000_media_type_internal_serdes;
-		ctrl_ext |= E1000_CTRL_I2C_ENA;
-	} else if (ctrl_ext & E1000_CTRL_EXT_LINK_MODE_SGMII) {
+	switch (ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK) {
+	case E1000_CTRL_EXT_LINK_MODE_SGMII:
 		dev_spec->sgmii_active = true;
 		ctrl_ext |= E1000_CTRL_I2C_ENA;
-	} else {
+		break;
+	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
+		hw->phy.media_type = e1000_media_type_internal_serdes;
+		ctrl_ext |= E1000_CTRL_I2C_ENA;
+		break;
+	default:
 		ctrl_ext &= ~E1000_CTRL_I2C_ENA;
+		break;
 	}
+
 	wr32(E1000_CTRL_EXT, ctrl_ext);
 
 	/* Set mta register count */
@@ -132,7 +137,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	mac->ops.setup_physical_interface =
 		(hw->phy.media_type == e1000_media_type_copper)
 			? igb_setup_copper_link_82575
-			: igb_setup_fiber_serdes_link_82575;
+			: igb_setup_serdes_link_82575;
 
 	/* NVM initialization */
 	eecd = rd32(E1000_EECD);
@@ -169,6 +174,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	if (size > 14)
 		size = 14;
 	nvm->word_size = 1 << size;
+
+	/* if 82576 then initialize mailbox parameters */
+	if (mac->type == e1000_82576)
+		igb_init_mbx_params_pf(hw);
 
 	/* setup PHY parameters */
 	if (phy->media_type != e1000_media_type_copper) {
@@ -218,10 +227,6 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	default:
 		return -E1000_ERR_PHY;
 	}
-
-	/* if 82576 then initialize mailbox parameters */
-	if (mac->type == e1000_82576)
-		igb_init_mbx_params_pf(hw);
 
 	return 0;
 }
@@ -377,6 +382,7 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32  ret_val = 0;
 	u16 phy_id;
+	u32 ctrl_ext;
 
 	/*
 	 * For SGMII PHYs, we try the list of possible addresses until
@@ -390,6 +396,12 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 		ret_val = igb_get_phy_id(hw);
 		goto out;
 	}
+
+	/* Power on sgmii phy if it is disabled */
+	ctrl_ext = rd32(E1000_CTRL_EXT);
+	wr32(E1000_CTRL_EXT, ctrl_ext & ~E1000_CTRL_EXT_SDP3_DATA);
+	wrfl();
+	msleep(300);
 
 	/*
 	 * The address field in the I2CCMD register is 3 bits and 0 is invalid.
@@ -416,9 +428,12 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 		phy->addr = 0;
 		ret_val = -E1000_ERR_PHY;
 		goto out;
+	} else {
+		ret_val = igb_get_phy_id(hw);
 	}
 
-	ret_val = igb_get_phy_id(hw);
+	/* restore previous sfp cage power state */
+	wr32(E1000_CTRL_EXT, ctrl_ext);
 
 out:
 	return ret_val;
@@ -764,111 +779,18 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 }
 
 /**
- *  igb_init_rx_addrs_82575 - Initialize receive address's
- *  @hw: pointer to the HW structure
- *  @rar_count: receive address registers
- *
- *  Setups the receive address registers by setting the base receive address
- *  register to the devices MAC address and clearing all the other receive
- *  address registers to 0.
- **/
-static void igb_init_rx_addrs_82575(struct e1000_hw *hw, u16 rar_count)
-{
-	u32 i;
-	u8 addr[6] = {0,0,0,0,0,0};
-	/*
-	 * This function is essentially the same as that of
-	 * e1000_init_rx_addrs_generic. However it also takes care
-	 * of the special case where the register offset of the
-	 * second set of RARs begins elsewhere. This is implicitly taken care by
-	 * function e1000_rar_set_generic.
-	 */
-
-	hw_dbg("e1000_init_rx_addrs_82575");
-
-	/* Setup the receive address */
-	hw_dbg("Programming MAC Address into RAR[0]\n");
-	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
-
-	/* Zero out the other (rar_entry_count - 1) receive addresses */
-	hw_dbg("Clearing RAR[1-%u]\n", rar_count-1);
-	for (i = 1; i < rar_count; i++)
-	    hw->mac.ops.rar_set(hw, addr, i);
-}
-
-/**
- *  igb_update_mc_addr_list - Update Multicast addresses
- *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *  @rar_used_count: the first RAR register free to program
- *  @rar_count: total number of supported Receive Address Registers
- *
- *  Updates the Receive Address Registers and Multicast Table Array.
- *  The caller must have a packed mc_addr_list of multicast addresses.
- *  The parameter rar_count will usually be hw->mac.rar_entry_count
- *  unless there are workarounds that change this.
- **/
-void igb_update_mc_addr_list(struct e1000_hw *hw,
-                             u8 *mc_addr_list, u32 mc_addr_count,
-                             u32 rar_used_count, u32 rar_count)
-{
-	u32 hash_value;
-	u32 i;
-	u8 addr[6] = {0,0,0,0,0,0};
-	/*
-	 * This function is essentially the same as that of 
-	 * igb_update_mc_addr_list_generic. However it also takes care 
-	 * of the special case where the register offset of the 
-	 * second set of RARs begins elsewhere. This is implicitly taken care by 
-	 * function e1000_rar_set_generic.
-	 */
-
-	/*
-	 * Load the first set of multicast addresses into the exact
-	 * filters (RAR).  If there are not enough to fill the RAR
-	 * array, clear the filters.
-	 */
-	for (i = rar_used_count; i < rar_count; i++) {
-		if (mc_addr_count) {
-			igb_rar_set(hw, mc_addr_list, i);
-			mc_addr_count--;
-			mc_addr_list += ETH_ALEN;
-		} else {
-			igb_rar_set(hw, addr, i);
-		}
-	}
-
-	/* Clear the old settings from the MTA */
-	hw_dbg("Clearing MTA\n");
-	for (i = 0; i < hw->mac.mta_reg_count; i++) {
-		array_wr32(E1000_MTA, i, 0);
-		wrfl();
-	}
-
-	/* Load any remaining multicast addresses into the hash table. */
-	for (; mc_addr_count > 0; mc_addr_count--) {
-		hash_value = igb_hash_mc_addr(hw, mc_addr_list);
-		hw_dbg("Hash value = 0x%03X\n", hash_value);
-		igb_mta_set(hw, hash_value);
-		mc_addr_list += ETH_ALEN;
-	}
-}
-
-/**
- *  igb_shutdown_fiber_serdes_link_82575 - Remove link during power down
+ *  igb_shutdown_serdes_link_82575 - Remove link during power down
  *  @hw: pointer to the HW structure
  *
  *  In the case of fiber serdes, shut down optics and PCS on driver unload
  *  when management pass thru is not enabled.
  **/
-void igb_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw)
+void igb_shutdown_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 reg;
 
-	if (hw->mac.type != e1000_82576 ||
-	    (hw->phy.media_type != e1000_media_type_fiber &&
-	     hw->phy.media_type != e1000_media_type_internal_serdes))
+	if (hw->phy.media_type != e1000_media_type_internal_serdes ||
+	    igb_sgmii_active_82575(hw))
 		return;
 
 	/* if the management interface is not enabled, then power down */
@@ -880,7 +802,7 @@ void igb_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw)
 
 		/* shutdown the laser */
 		reg = rd32(E1000_CTRL_EXT);
-		reg |= E1000_CTRL_EXT_SDP7_DATA;
+		reg |= E1000_CTRL_EXT_SDP3_DATA;
 		wr32(E1000_CTRL_EXT, reg);
 
 		/* flush the write to verify completion */
@@ -910,6 +832,12 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 	ret_val = igb_disable_pcie_master(hw);
 	if (ret_val)
 		hw_dbg("PCI-E Master disable polling has failed.\n");
+
+	/* set the completion timeout for interface */
+	ret_val = igb_set_pcie_completion_timeout(hw);
+	if (ret_val) {
+		hw_dbg("PCI-E Set completion timeout has failed.\n");
+	}
 
 	hw_dbg("Masking off all interrupts\n");
 	wr32(E1000_IMC, 0xffffffff);
@@ -943,7 +871,8 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 	wr32(E1000_IMC, 0xffffffff);
 	icr = rd32(E1000_ICR);
 
-	igb_check_alt_mac_addr(hw);
+	/* Install any alternate MAC address into RAR0 */
+	ret_val = igb_check_alt_mac_addr(hw);
 
 	return ret_val;
 }
@@ -972,7 +901,8 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 	igb_clear_vfta(hw);
 
 	/* Setup the receive address */
-	igb_init_rx_addrs_82575(hw, rar_count);
+	igb_init_rx_addrs(hw, rar_count);
+
 	/* Zero out the Multicast HASH table */
 	hw_dbg("Zeroing the MTA\n");
 	for (i = 0; i < mac->mta_reg_count; i++)
@@ -1002,7 +932,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
  **/
 static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 {
-	u32 ctrl, led_ctrl;
+	u32 ctrl;
 	s32  ret_val;
 	bool link;
 
@@ -1011,17 +941,23 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	ctrl &= ~(E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
 	wr32(E1000_CTRL, ctrl);
 
+	ret_val = igb_setup_serdes_link_82575(hw);
+	if (ret_val)
+		goto out;
+
+	if (igb_sgmii_active_82575(hw) && !hw->phy.reset_disable) {
+		ret_val = hw->phy.ops.reset(hw);
+		if (ret_val) {
+			hw_dbg("Error resetting the PHY.\n");
+			goto out;
+		}
+	}
 	switch (hw->phy.type) {
 	case e1000_phy_m88:
 		ret_val = igb_copper_link_setup_m88(hw);
 		break;
 	case e1000_phy_igp_3:
 		ret_val = igb_copper_link_setup_igp(hw);
-		/* Setup activity LED */
-		led_ctrl = rd32(E1000_LEDCTL);
-		led_ctrl &= IGP_ACTIVITY_LED_MASK;
-		led_ctrl |= (IGP_ACTIVITY_LED_ENABLE | IGP_LED3_MODE);
-		wr32(E1000_LEDCTL, led_ctrl);
 		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
@@ -1052,10 +988,6 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		}
 	}
 
-	ret_val = igb_configure_pcs_link_82575(hw);
-	if (ret_val)
-		goto out;
-
 	/*
 	 * Check link status. Wait up to 100 microseconds for link to become
 	 * valid.
@@ -1078,14 +1010,18 @@ out:
 }
 
 /**
- *  igb_setup_fiber_serdes_link_82575 - Setup link for fiber/serdes
+ *  igb_setup_serdes_link_82575 - Setup link for fiber/serdes
  *  @hw: pointer to the HW structure
  *
  *  Configures speed and duplex for fiber and serdes links.
  **/
-static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
+static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 {
-	u32 reg;
+	u32 ctrl_reg, reg;
+
+	if ((hw->phy.media_type != e1000_media_type_internal_serdes) &&
+	    !igb_sgmii_active_82575(hw))
+		return 0;
 
 	/*
 	 * On the 82575, SerDes loopback mode persists until it is
@@ -1095,26 +1031,38 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 	 */
 	wr32(E1000_SCTL, E1000_SCTL_DISABLE_SERDES_LOOPBACK);
 
-	/* Force link up, set 1gb, set both sw defined pins */
-	reg = rd32(E1000_CTRL);
-	reg |= E1000_CTRL_SLU |
-	       E1000_CTRL_SPD_1000 |
-	       E1000_CTRL_FRCSPD |
-	       E1000_CTRL_SWDPIN0 |
-	       E1000_CTRL_SWDPIN1;
-	wr32(E1000_CTRL, reg);
+	/* power on the sfp cage if present */
+	reg = rd32(E1000_CTRL_EXT);
+	reg &= ~E1000_CTRL_EXT_SDP3_DATA;
+	wr32(E1000_CTRL_EXT, reg);
 
-	/* Power on phy for 82576 fiber adapters */
-	if (hw->mac.type == e1000_82576) {
-		reg = rd32(E1000_CTRL_EXT);
-		reg &= ~E1000_CTRL_EXT_SDP7_DATA;
-		wr32(E1000_CTRL_EXT, reg);
+	ctrl_reg = rd32(E1000_CTRL);
+	ctrl_reg |= E1000_CTRL_SLU;
+
+	if (hw->mac.type == e1000_82575 || hw->mac.type == e1000_82576) {
+		/* set both sw defined pins */
+		ctrl_reg |= E1000_CTRL_SWDPIN0 | E1000_CTRL_SWDPIN1;
+
+		/* Set switch control to serdes energy detect */
+		reg = rd32(E1000_CONNSW);
+		reg |= E1000_CONNSW_ENRGSRC;
+		wr32(E1000_CONNSW, reg);
 	}
 
-	/* Set switch control to serdes energy detect */
-	reg = rd32(E1000_CONNSW);
-	reg |= E1000_CONNSW_ENRGSRC;
-	wr32(E1000_CONNSW, reg);
+	reg = rd32(E1000_PCS_LCTL);
+
+	if (igb_sgmii_active_82575(hw)) {
+		/* allow time for SFP cage to power up phy */
+		msleep(300);
+
+		/* AN time out should be disabled for SGMII mode */
+		reg &= ~(E1000_PCS_LCTL_AN_TIMEOUT);
+	} else {
+		ctrl_reg |= E1000_CTRL_SPD_1000 | E1000_CTRL_FRCSPD |
+		            E1000_CTRL_FD | E1000_CTRL_FRCDPX;
+	}
+
+	wr32(E1000_CTRL, ctrl_reg);
 
 	/*
 	 * New SerDes mode allows for forcing speed or autonegotiating speed
@@ -1122,12 +1070,21 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 	 * mode that will be compatible with older link partners and switches.
 	 * However, both are supported by the hardware and some drivers/tools.
 	 */
-	reg = rd32(E1000_PCS_LCTL);
 
 	reg &= ~(E1000_PCS_LCTL_AN_ENABLE | E1000_PCS_LCTL_FLV_LINK_UP |
 		E1000_PCS_LCTL_FSD | E1000_PCS_LCTL_FORCE_LINK);
 
-	if (hw->mac.autoneg) {
+	/*
+	 * We force flow control to prevent the CTRL register values from being
+	 * overwritten by the autonegotiated flow control values
+	 */
+	reg |= E1000_PCS_LCTL_FORCE_FCTRL;
+
+	/*
+	 * we always set sgmii to autoneg since it is the phy that will be
+	 * forcing the link and the serdes is just a go-between
+	 */
+	if (hw->mac.autoneg || igb_sgmii_active_82575(hw)) {
 		/* Set PCS register for autoneg */
 		reg |= E1000_PCS_LCTL_FSV_1000 |      /* Force 1000    */
 		       E1000_PCS_LCTL_FDV_FULL |      /* SerDes Full duplex */
@@ -1144,77 +1101,11 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 		hw_dbg("Configuring Forced Link; PCS_LCTL = 0x%08X\n", reg);
 	}
 
-	if (hw->mac.type == e1000_82576) {
-		reg |= E1000_PCS_LCTL_FORCE_FCTRL;
+	wr32(E1000_PCS_LCTL, reg);
+
+	if (!igb_sgmii_active_82575(hw))
 		igb_force_mac_fc(hw);
-	}
 
-	wr32(E1000_PCS_LCTL, reg);
-
-	return 0;
-}
-
-/**
- *  igb_configure_pcs_link_82575 - Configure PCS link
- *  @hw: pointer to the HW structure
- *
- *  Configure the physical coding sub-layer (PCS) link.  The PCS link is
- *  only used on copper connections where the serialized gigabit media
- *  independent interface (sgmii) is being used.  Configures the link
- *  for auto-negotiation or forces speed/duplex.
- **/
-static s32 igb_configure_pcs_link_82575(struct e1000_hw *hw)
-{
-	struct e1000_mac_info *mac = &hw->mac;
-	u32 reg = 0;
-
-	if (hw->phy.media_type != e1000_media_type_copper ||
-	    !(igb_sgmii_active_82575(hw)))
-		goto out;
-
-	/* For SGMII, we need to issue a PCS autoneg restart */
-	reg = rd32(E1000_PCS_LCTL);
-
-	/* AN time out should be disabled for SGMII mode */
-	reg &= ~(E1000_PCS_LCTL_AN_TIMEOUT);
-
-	if (mac->autoneg) {
-		/* Make sure forced speed and force link are not set */
-		reg &= ~(E1000_PCS_LCTL_FSD | E1000_PCS_LCTL_FORCE_LINK);
-
-		/*
-		 * The PHY should be setup prior to calling this function.
-		 * All we need to do is restart autoneg and enable autoneg.
-		 */
-		reg |= E1000_PCS_LCTL_AN_RESTART | E1000_PCS_LCTL_AN_ENABLE;
-	} else {
-		/* Set PCS register for forced speed */
-
-		/* Turn off bits for full duplex, speed, and autoneg */
-		reg &= ~(E1000_PCS_LCTL_FSV_1000 |
-			 E1000_PCS_LCTL_FSV_100 |
-			 E1000_PCS_LCTL_FDV_FULL |
-			 E1000_PCS_LCTL_AN_ENABLE);
-
-		/* Check for duplex first */
-		if (mac->forced_speed_duplex & E1000_ALL_FULL_DUPLEX)
-			reg |= E1000_PCS_LCTL_FDV_FULL;
-
-		/* Now set speed */
-		if (mac->forced_speed_duplex & E1000_ALL_100_SPEED)
-			reg |= E1000_PCS_LCTL_FSV_100;
-
-		/* Force speed and force link */
-		reg |= E1000_PCS_LCTL_FSD |
-		       E1000_PCS_LCTL_FORCE_LINK |
-		       E1000_PCS_LCTL_FLV_LINK_UP;
-
-		hw_dbg("Wrote 0x%08X to PCS_LCTL to configure forced link\n",
-		       reg);
-	}
-	wr32(E1000_PCS_LCTL, reg);
-
-out:
 	return 0;
 }
 
@@ -1229,10 +1120,6 @@ out:
 static bool igb_sgmii_active_82575(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
-
-	if (hw->mac.type != e1000_82575 && hw->mac.type != e1000_82576)
-		return false;
-
 	return dev_spec->sgmii_active;
 }
 
@@ -1346,7 +1233,8 @@ static void igb_clear_hw_cntrs_82575(struct e1000_hw *hw)
 	temp = rd32(E1000_LENERRS);
 
 	/* This register should not be read in copper configurations */
-	if (hw->phy.media_type == e1000_media_type_internal_serdes)
+	if (hw->phy.media_type == e1000_media_type_internal_serdes ||
+	    igb_sgmii_active_82575(hw))
 		temp = rd32(E1000_SCVPC);
 }
 
@@ -1421,6 +1309,57 @@ void igb_rx_fifo_flush_82575(struct e1000_hw *hw)
 	rd32(E1000_ROC);
 	rd32(E1000_RNBC);
 	rd32(E1000_MPC);
+}
+
+/**
+ *  igb_set_pcie_completion_timeout - set pci-e completion timeout
+ *  @hw: pointer to the HW structure
+ *
+ *  The defaults for 82575 and 82576 should be in the range of 50us to 50ms,
+ *  however the hardware default for these parts is 500us to 1ms which is less
+ *  than the 10ms recommended by the pci-e spec.  To address this we need to
+ *  increase the value to either 10ms to 200ms for capability version 1 config,
+ *  or 16ms to 55ms for version 2.
+ **/
+static s32 igb_set_pcie_completion_timeout(struct e1000_hw *hw)
+{
+	u32 gcr = rd32(E1000_GCR);
+	s32 ret_val = 0;
+	u16 pcie_devctl2;
+
+	/* only take action if timeout value is defaulted to 0 */
+	if (gcr & E1000_GCR_CMPL_TMOUT_MASK)
+		goto out;
+
+	/*
+	 * if capababilities version is type 1 we can write the
+	 * timeout of 10ms to 200ms through the GCR register
+	 */
+	if (!(gcr & E1000_GCR_CAP_VER2)) {
+		gcr |= E1000_GCR_CMPL_TMOUT_10ms;
+		goto out;
+	}
+
+	/*
+	 * for version 2 capabilities we need to write the config space
+	 * directly in order to set the completion timeout value for
+	 * 16ms to 55ms
+	 */
+	ret_val = igb_read_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
+	                                &pcie_devctl2);
+	if (ret_val)
+		goto out;
+
+	pcie_devctl2 |= PCIE_DEVICE_CONTROL2_16ms;
+
+	ret_val = igb_write_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
+	                                 &pcie_devctl2);
+out:
+	/* disable completion timeout resend */
+	gcr &= ~E1000_GCR_CMPL_TMOUT_RESEND;
+
+	wr32(E1000_GCR, gcr);
+	return ret_val;
 }
 
 /**

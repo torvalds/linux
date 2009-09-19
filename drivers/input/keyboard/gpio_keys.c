@@ -216,8 +216,9 @@ static int __devexit gpio_keys_remove(struct platform_device *pdev)
 
 
 #ifdef CONFIG_PM
-static int gpio_keys_suspend(struct platform_device *pdev, pm_message_t state)
+static int gpio_keys_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
 	int i;
 
@@ -234,8 +235,9 @@ static int gpio_keys_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int gpio_keys_resume(struct platform_device *pdev)
+static int gpio_keys_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
 	int i;
 
@@ -251,19 +253,22 @@ static int gpio_keys_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define gpio_keys_suspend	NULL
-#define gpio_keys_resume	NULL
+
+static const struct dev_pm_ops gpio_keys_pm_ops = {
+	.suspend	= gpio_keys_suspend,
+	.resume		= gpio_keys_resume,
+};
 #endif
 
 static struct platform_driver gpio_keys_device_driver = {
 	.probe		= gpio_keys_probe,
 	.remove		= __devexit_p(gpio_keys_remove),
-	.suspend	= gpio_keys_suspend,
-	.resume		= gpio_keys_resume,
 	.driver		= {
 		.name	= "gpio-keys",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &gpio_keys_pm_ops,
+#endif
 	}
 };
 

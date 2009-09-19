@@ -586,7 +586,5 @@ u32 ath_regd_get_band_ctl(struct ath_regulatory *reg,
 	default:
 		return NO_CTL;
 	}
-
-	return NO_CTL;
 }
 EXPORT_SYMBOL(ath_regd_get_band_ctl);

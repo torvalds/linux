@@ -359,7 +359,8 @@ static void dscc4_tx_irq(struct dscc4_pci_priv *, struct dscc4_dev_priv *);
 static int dscc4_found1(struct pci_dev *, void __iomem *ioaddr);
 static int dscc4_init_one(struct pci_dev *, const struct pci_device_id *ent);
 static int dscc4_open(struct net_device *);
-static int dscc4_start_xmit(struct sk_buff *, struct net_device *);
+static netdev_tx_t dscc4_start_xmit(struct sk_buff *,
+					  struct net_device *);
 static int dscc4_close(struct net_device *);
 static int dscc4_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int dscc4_init_ring(struct net_device *);
@@ -663,12 +664,12 @@ static inline void dscc4_rx_skb(struct dscc4_dev_priv *dpriv,
 	} else {
 		if (skb->data[pkt_len] & FrameRdo)
 			dev->stats.rx_fifo_errors++;
-		else if (!(skb->data[pkt_len] | ~FrameCrc))
+		else if (!(skb->data[pkt_len] & FrameCrc))
 			dev->stats.rx_crc_errors++;
-		else if (!(skb->data[pkt_len] | ~(FrameVfr | FrameRab)))
+		else if ((skb->data[pkt_len] & (FrameVfr | FrameRab)) !=
+			 (FrameVfr | FrameRab))
 			dev->stats.rx_length_errors++;
-		else
-			dev->stats.rx_errors++;
+		dev->stats.rx_errors++;
 		dev_kfree_skb_irq(skb);
 	}
 refill:
@@ -1148,7 +1149,8 @@ static int dscc4_tx_poll(struct dscc4_dev_priv *dpriv, struct net_device *dev)
 }
 #endif /* DSCC4_POLLING */
 
-static int dscc4_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t dscc4_start_xmit(struct sk_buff *skb,
+					  struct net_device *dev)
 {
 	struct dscc4_dev_priv *dpriv = dscc4_priv(dev);
 	struct dscc4_pci_priv *ppriv = dpriv->pci_priv;
@@ -1182,7 +1184,7 @@ static int dscc4_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (dscc4_tx_quiescent(dpriv, dev))
 		dscc4_do_tx(dpriv, dev);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int dscc4_close(struct net_device *dev)

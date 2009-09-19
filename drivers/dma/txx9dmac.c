@@ -1291,17 +1291,18 @@ static void txx9dmac_shutdown(struct platform_device *pdev)
 	txx9dmac_off(ddev);
 }
 
-static int txx9dmac_suspend_late(struct platform_device *pdev,
-				 pm_message_t mesg)
+static int txx9dmac_suspend_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct txx9dmac_dev *ddev = platform_get_drvdata(pdev);
 
 	txx9dmac_off(ddev);
 	return 0;
 }
 
-static int txx9dmac_resume_early(struct platform_device *pdev)
+static int txx9dmac_resume_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct txx9dmac_dev *ddev = platform_get_drvdata(pdev);
 	struct txx9dmac_platform_data *pdata = pdev->dev.platform_data;
 	u32 mcr;
@@ -1314,6 +1315,11 @@ static int txx9dmac_resume_early(struct platform_device *pdev)
 
 }
 
+static struct dev_pm_ops txx9dmac_dev_pm_ops = {
+	.suspend_noirq = txx9dmac_suspend_noirq,
+	.resume_noirq = txx9dmac_resume_noirq,
+};
+
 static struct platform_driver txx9dmac_chan_driver = {
 	.remove		= __exit_p(txx9dmac_chan_remove),
 	.driver = {
@@ -1324,10 +1330,9 @@ static struct platform_driver txx9dmac_chan_driver = {
 static struct platform_driver txx9dmac_driver = {
 	.remove		= __exit_p(txx9dmac_remove),
 	.shutdown	= txx9dmac_shutdown,
-	.suspend_late	= txx9dmac_suspend_late,
-	.resume_early	= txx9dmac_resume_early,
 	.driver = {
 		.name	= "txx9dmac",
+		.pm	= &txx9dmac_dev_pm_ops,
 	},
 };
 

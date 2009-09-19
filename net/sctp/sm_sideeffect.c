@@ -440,14 +440,26 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	/* The check for association's overall error counter exceeding the
 	 * threshold is done in the state function.
 	 */
-	/* When probing UNCONFIRMED addresses, the association overall
-	 * error count is NOT incremented
+	/* We are here due to a timer expiration.  If the timer was
+	 * not a HEARTBEAT, then normal error tracking is done.
+	 * If the timer was a heartbeat, we only increment error counts
+	 * when we already have an outstanding HEARTBEAT that has not
+	 * been acknowledged.
+	 * Additionaly, some tranport states inhibit error increments.
 	 */
-	if (transport->state != SCTP_UNCONFIRMED)
+	if (!is_hb) {
 		asoc->overall_error_count++;
+		if (transport->state != SCTP_INACTIVE)
+			transport->error_count++;
+	 } else if (transport->hb_sent) {
+		if (transport->state != SCTP_UNCONFIRMED)
+			asoc->overall_error_count++;
+		if (transport->state != SCTP_INACTIVE)
+			transport->error_count++;
+	}
 
 	if (transport->state != SCTP_INACTIVE &&
-	    (transport->error_count++ >= transport->pathmaxrxt)) {
+	    (transport->error_count > transport->pathmaxrxt)) {
 		SCTP_DEBUG_PRINTK_IPADDR("transport_strike:association %p",
 					 " transport IP: port:%d failed.\n",
 					 asoc,
@@ -930,6 +942,27 @@ static void sctp_cmd_t1_timer_update(struct sctp_association *asoc,
 	}
 
 }
+
+/* Send the whole message, chunk by chunk, to the outqueue.
+ * This way the whole message is queued up and bundling if
+ * encouraged for small fragments.
+ */
+static int sctp_cmd_send_msg(struct sctp_association *asoc,
+				struct sctp_datamsg *msg)
+{
+	struct sctp_chunk *chunk;
+	int error = 0;
+
+	list_for_each_entry(chunk, &msg->chunks, frag_list) {
+		error = sctp_outq_tail(&asoc->outqueue, chunk);
+		if (error)
+			break;
+	}
+
+	return error;
+}
+
+
 
 /* These three macros allow us to pull the debugging code out of the
  * main flow of sctp_do_sm() to keep attention focused on the real
@@ -1500,7 +1533,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_PROCESS_CTSN:
 			/* Dummy up a SACK for processing. */
 			sackh.cum_tsn_ack = cmd->obj.be32;
-			sackh.a_rwnd = 0;
+			sackh.a_rwnd = asoc->peer.rwnd +
+					asoc->outqueue.outstanding_bytes;
 			sackh.num_gap_ack_blocks = 0;
 			sackh.num_dup_tsns = 0;
 			sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_SACK,
@@ -1575,7 +1609,13 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_UPDATE_INITTAG:
 			asoc->peer.i.init_tag = cmd->obj.u32;
 			break;
-
+		case SCTP_CMD_SEND_MSG:
+			if (!asoc->outqueue.cork) {
+				sctp_outq_cork(&asoc->outqueue);
+				local_cork = 1;
+			}
+			error = sctp_cmd_send_msg(asoc, cmd->obj.msg);
+			break;
 		default:
 			printk(KERN_WARNING "Impossible command: %u, %p\n",
 			       cmd->verb, cmd->obj.ptr);
@@ -1593,9 +1633,9 @@ out:
 	 */
 	if (asoc && SCTP_EVENT_T_CHUNK == event_type && chunk) {
 		if (chunk->end_of_packet || chunk->singleton)
-			sctp_outq_uncork(&asoc->outqueue);
+			error = sctp_outq_uncork(&asoc->outqueue);
 	} else if (local_cork)
-			sctp_outq_uncork(&asoc->outqueue);
+		error = sctp_outq_uncork(&asoc->outqueue);
 	return error;
 nomem:
 	error = -ENOMEM;

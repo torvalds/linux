@@ -736,7 +736,8 @@ static void cp_tx (struct cp_private *cp)
 		netif_wake_queue(cp->dev);
 }
 
-static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
+					struct net_device *dev)
 {
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned entry;
@@ -890,7 +891,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	cpw8(TxPoll, NormalTxPoll);
 	dev->trans_start = jiffies;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* Set or clear the multicast filter for this adaptor.

@@ -391,6 +391,7 @@ comment "HiSax sub driver modules"
 config HISAX_ST5481
 	tristate "ST5481 USB ISDN modem (EXPERIMENTAL)"
 	depends on USB && EXPERIMENTAL
+	select ISDN_HDLC
 	select CRC_CCITT
 	select BITREVERSE
 	help
@@ -417,11 +418,6 @@ config HISAX_FRITZ_PCIPNP
 	  Fritz!Card PCI v2 and Fritz!Card PnP.
 	  (the latter also needs you to select "ISA Plug and Play support"
 	  from the menu "Plug and Play configuration")
-
-config HISAX_HDLC
-	bool
-	depends on HISAX_ST5481
-	default y
 
 config HISAX_AVM_A1_PCMCIA
 	bool

@@ -2496,9 +2496,6 @@ static int skge_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-
 		spin_lock_bh(&hw->phy_lock);
 		if (hw->chip_id == CHIP_ID_GENESIS)
 			err = xm_phy_write(hw, skge->port, data->reg_num & 0x1f,
@@ -2746,7 +2743,8 @@ static inline int skge_avail(const struct skge_ring *ring)
 		+ (ring->to_clean - ring->to_use) - 1;
 }
 
-static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
+				   struct net_device *dev)
 {
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;

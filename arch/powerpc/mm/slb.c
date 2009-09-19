@@ -191,7 +191,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	unsigned long slbie_data = 0;
 	unsigned long pc = KSTK_EIP(tsk);
 	unsigned long stack = KSTK_ESP(tsk);
-	unsigned long unmapped_base;
+	unsigned long exec_base;
 
 	/*
 	 * We need interrupts hard-disabled here, not just soft-disabled,
@@ -227,40 +227,42 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 
 	/*
 	 * preload some userspace segments into the SLB.
+	 * Almost all 32 and 64bit PowerPC executables are linked at
+	 * 0x10000000 so it makes sense to preload this segment.
 	 */
-	if (test_tsk_thread_flag(tsk, TIF_32BIT))
-		unmapped_base = TASK_UNMAPPED_BASE_USER32;
-	else
-		unmapped_base = TASK_UNMAPPED_BASE_USER64;
+	exec_base = 0x10000000;
 
-	if (is_kernel_addr(pc))
+	if (is_kernel_addr(pc) || is_kernel_addr(stack) ||
+	    is_kernel_addr(exec_base))
 		return;
+
 	slb_allocate(pc);
 
-	if (esids_match(pc,stack))
-		return;
+	if (!esids_match(pc, stack))
+		slb_allocate(stack);
 
-	if (is_kernel_addr(stack))
-		return;
-	slb_allocate(stack);
-
-	if (esids_match(pc,unmapped_base) || esids_match(stack,unmapped_base))
-		return;
-
-	if (is_kernel_addr(unmapped_base))
-		return;
-	slb_allocate(unmapped_base);
+	if (!esids_match(pc, exec_base) &&
+	    !esids_match(stack, exec_base))
+		slb_allocate(exec_base);
 }
 
 static inline void patch_slb_encoding(unsigned int *insn_addr,
 				      unsigned int immed)
 {
-	/* Assume the instruction had a "0" immediate value, just
-	 * "or" in the new value
-	 */
-	*insn_addr |= immed;
+	*insn_addr = (*insn_addr & 0xffff0000) | immed;
 	flush_icache_range((unsigned long)insn_addr, 4+
 			   (unsigned long)insn_addr);
+}
+
+void slb_set_size(u16 size)
+{
+	extern unsigned int *slb_compare_rr_to_size;
+
+	if (mmu_slb_size == size)
+		return;
+
+	mmu_slb_size = size;
+	patch_slb_encoding(slb_compare_rr_to_size, mmu_slb_size);
 }
 
 void slb_initialize(void)

@@ -91,6 +91,7 @@ void tod_to_timeval(__u64 todval, struct timespec *xtime)
 	todval -= (sec * 1000000) << 12;
 	xtime->tv_nsec = ((todval * 1000) >> 12);
 }
+EXPORT_SYMBOL(tod_to_timeval);
 
 void clock_comparator_work(void)
 {

@@ -156,6 +156,8 @@ int __devinit mmc_init(struct amba_device *adev)
 	mmci_card->mmc0_plat_data.ocr_mask = MMC_VDD_28_29;
 	mmci_card->mmc0_plat_data.translate_vdd = mmc_translate_vdd;
 	mmci_card->mmc0_plat_data.status = mmc_status;
+	mmci_card->mmc0_plat_data.gpio_wp = -1;
+	mmci_card->mmc0_plat_data.gpio_cd = -1;
 
 	mmcsd_device->platform_data = (void *) &mmci_card->mmc0_plat_data;
 

@@ -356,7 +356,7 @@ static int dm9601_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
 	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
 }
 
-static struct ethtool_ops dm9601_ethtool_ops = {
+static const struct ethtool_ops dm9601_ethtool_ops = {
 	.get_drvinfo	= dm9601_get_drvinfo,
 	.get_link	= dm9601_get_link,
 	.get_msglevel	= usbnet_get_msglevel,

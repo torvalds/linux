@@ -782,8 +782,9 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	struct bio_list bl;
 	struct page **behind_pages = NULL;
 	const int rw = bio_data_dir(bio);
-	const int do_sync = bio_sync(bio);
-	int cpu, do_barriers;
+	const bool do_sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
+	int cpu;
+	bool do_barriers;
 	mdk_rdev_t *blocked_rdev;
 
 	/*
@@ -797,7 +798,8 @@ static int make_request(struct request_queue *q, struct bio * bio)
 
 	md_write_start(mddev, bio); /* wait on superblock update early */
 
-	if (unlikely(!mddev->barriers_work && bio_barrier(bio))) {
+	if (unlikely(!mddev->barriers_work &&
+		     bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		if (rw == WRITE)
 			md_write_end(mddev);
 		bio_endio(bio, -EOPNOTSUPP);
@@ -925,7 +927,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	atomic_set(&r1_bio->remaining, 0);
 	atomic_set(&r1_bio->behind_remaining, 0);
 
-	do_barriers = bio_barrier(bio);
+	do_barriers = bio_rw_flagged(bio, BIO_RW_BARRIER);
 	if (do_barriers)
 		set_bit(R1BIO_Barrier, &r1_bio->state);
 
@@ -1600,7 +1602,7 @@ static void raid1d(mddev_t *mddev)
 			 * We already have a nr_pending reference on these rdevs.
 			 */
 			int i;
-			const int do_sync = bio_sync(r1_bio->master_bio);
+			const bool do_sync = bio_rw_flagged(r1_bio->master_bio, BIO_RW_SYNCIO);
 			clear_bit(R1BIO_BarrierRetry, &r1_bio->state);
 			clear_bit(R1BIO_Barrier, &r1_bio->state);
 			for (i=0; i < conf->raid_disks; i++)
@@ -1654,7 +1656,7 @@ static void raid1d(mddev_t *mddev)
 				       (unsigned long long)r1_bio->sector);
 				raid_end_bio_io(r1_bio);
 			} else {
-				const int do_sync = bio_sync(r1_bio->master_bio);
+				const bool do_sync = bio_rw_flagged(r1_bio->master_bio, BIO_RW_SYNCIO);
 				r1_bio->bios[r1_bio->read_disk] =
 					mddev->ro ? IO_BLOCKED : NULL;
 				r1_bio->read_disk = disk;

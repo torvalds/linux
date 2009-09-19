@@ -121,6 +121,7 @@ Code	Seq#	Include File		Comments
 'c'	00-7F	linux/comstats.h	conflict!
 'c'	00-7F	linux/coda.h		conflict!
 'c'	80-9F	arch/s390/include/asm/chsc.h
+'c'	A0-AF   arch/x86/include/asm/msr.h
 'd'	00-FF	linux/char/drm/drm/h	conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
@@ -192,7 +193,7 @@ Code	Seq#	Include File		Comments
 0xAD	00	Netfilter device	in development:
 					<mailto:rusty@rustcorp.com.au>	
 0xAE	all	linux/kvm.h		Kernel-based Virtual Machine
-					<mailto:kvm-devel@lists.sourceforge.net>
+					<mailto:kvm@vger.kernel.org>
 0xB0	all	RATIO devices		in development:
 					<mailto:vgo@ratio.de>
 0xB1	00-1F	PPPoX			<mailto:mostrows@styx.uwaterloo.ca>

@@ -1075,12 +1075,6 @@ void __sched console_conditional_schedule(void)
 }
 EXPORT_SYMBOL(console_conditional_schedule);
 
-void console_print(const char *s)
-{
-	printk(KERN_EMERG "%s", s);
-}
-EXPORT_SYMBOL(console_print);
-
 void console_unblank(void)
 {
 	struct console *c;

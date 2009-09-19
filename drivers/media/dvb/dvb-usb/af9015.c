@@ -538,24 +538,22 @@ exit:
 /* dump eeprom */
 static int af9015_eeprom_dump(struct dvb_usb_device *d)
 {
-	char buf[4+3*16+1], buf2[4];
 	u8 reg, val;
 
 	for (reg = 0; ; reg++) {
 		if (reg % 16 == 0) {
 			if (reg)
-				deb_info("%s\n", buf);
-			sprintf(buf, "%02x: ", reg);
+				deb_info(KERN_CONT "\n");
+			deb_info(KERN_DEBUG "%02x:", reg);
 		}
 		if (af9015_read_reg_i2c(d, AF9015_I2C_EEPROM, reg, &val) == 0)
-			sprintf(buf2, "%02x ", val);
+			deb_info(KERN_CONT " %02x", val);
 		else
-			strcpy(buf2, "-- ");
-		strcat(buf, buf2);
+			deb_info(KERN_CONT " --");
 		if (reg == 0xff)
 			break;
 	}
-	deb_info("%s\n", buf);
+	deb_info(KERN_CONT "\n");
 	return 0;
 }
 
@@ -1045,8 +1043,8 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*state = REMOTE_NO_KEY_PRESSED;
 
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (!buf[1] && keymap[i].custom == buf[0] &&
-		    keymap[i].data == buf[2]) {
+		if (!buf[1] && rc5_custom(&keymap[i]) == buf[0] &&
+		    rc5_data(&keymap[i]) == buf[2]) {
 			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 			break;
@@ -1266,6 +1264,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_CONCEPTRONIC_CTVDIGRCU)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_MC810)},
 	{USB_DEVICE(USB_VID_KYE,       USB_PID_GENIUS_TVGO_DVB_T03)},
+/* 25 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_399U_2)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1346,7 +1345,8 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "KWorld PlusTV Dual DVB-T Stick " \
 					"(DVB-T 399U)",
-				.cold_ids = {&af9015_usb_table[4], NULL},
+				.cold_ids = {&af9015_usb_table[4],
+					     &af9015_usb_table[25], NULL},
 				.warm_ids = {NULL},
 			},
 			{
