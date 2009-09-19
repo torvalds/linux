@@ -792,6 +792,11 @@ static int au8522_probe(struct i2c_client *client,
 	}
 
 	demod_config = kzalloc(sizeof(struct au8522_config), GFP_KERNEL);
+	if (demod_config == NULL) {
+		if (instance == 1)
+			kfree(state);
+		return -ENOMEM;
+	}
 	demod_config->demod_address = 0x8e >> 1;
 
 	state->config = demod_config;
