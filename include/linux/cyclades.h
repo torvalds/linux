@@ -544,7 +544,7 @@ struct cyclades_port {
 	struct cyclades_card	*card;
 	union {
 		struct {
-			int filler;
+			void __iomem *base_addr;
 		} cyy;
 		struct {
 			struct CH_CTRL __iomem	*ch_ctrl;
