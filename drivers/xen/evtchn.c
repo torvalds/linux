@@ -279,9 +279,6 @@ static void evtchn_unbind_from_user(struct per_user_data *u, int port)
 
 	unbind_from_irqhandler(irq, (void *)(unsigned long)port);
 
-	/* make sure we unbind the irq handler before clearing the port */
-	barrier();
-
 	set_port_user(port, NULL);
 }
 
