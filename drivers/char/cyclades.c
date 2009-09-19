@@ -814,7 +814,7 @@ static char rflow_thr[] = {	/* rflow threshold */
 /*  The Cyclom-Ye has placed the sequential chips in non-sequential
  *  address order.  This look-up table overcomes that problem.
  */
-static int cy_chip_offset[] = { 0x0000,
+static const unsigned int cy_chip_offset[] = { 0x0000,
 	0x0400,
 	0x0800,
 	0x0C00,
@@ -1406,14 +1406,8 @@ static int
 cyz_fetch_msg(struct cyclades_card *cinfo,
 		__u32 *channel, __u8 *cmd, __u32 *param)
 {
-	struct FIRM_ID __iomem *firm_id;
-	struct ZFW_CTRL __iomem *zfw_ctrl;
-	struct BOARD_CTRL __iomem *board_ctrl;
+	struct BOARD_CTRL __iomem *board_ctrl = cinfo->board_ctrl;
 	unsigned long loc_doorbell;
-
-	firm_id = cinfo->base_addr + ID_ADDRESS;
-	zfw_ctrl = cinfo->base_addr + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
-	board_ctrl = &zfw_ctrl->board_ctrl;
 
 	loc_doorbell = readl(&cinfo->ctl_addr.p9060->loc_doorbell);
 	if (loc_doorbell) {
@@ -1430,18 +1424,12 @@ static int
 cyz_issue_cmd(struct cyclades_card *cinfo,
 		__u32 channel, __u8 cmd, __u32 param)
 {
-	struct FIRM_ID __iomem *firm_id;
-	struct ZFW_CTRL __iomem *zfw_ctrl;
-	struct BOARD_CTRL __iomem *board_ctrl;
+	struct BOARD_CTRL __iomem *board_ctrl = cinfo->board_ctrl;
 	__u32 __iomem *pci_doorbell;
 	unsigned int index;
 
-	firm_id = cinfo->base_addr + ID_ADDRESS;
 	if (!cyz_is_loaded(cinfo))
 		return -1;
-
-	zfw_ctrl = cinfo->base_addr + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
-	board_ctrl = &zfw_ctrl->board_ctrl;
 
 	index = 0;
 	pci_doorbell = &cinfo->ctl_addr.p9060->pci_doorbell;
@@ -1457,9 +1445,9 @@ cyz_issue_cmd(struct cyclades_card *cinfo,
 	return 0;
 }				/* cyz_issue_cmd */
 
-static void cyz_handle_rx(struct cyclades_port *info, struct tty_struct *tty,
-		struct BUF_CTRL __iomem *buf_ctrl)
+static void cyz_handle_rx(struct cyclades_port *info, struct tty_struct *tty)
 {
+	struct BUF_CTRL __iomem *buf_ctrl = info->u.cyz.buf_ctrl;
 	struct cyclades_card *cinfo = info->card;
 	unsigned int char_count;
 	int len;
@@ -1549,9 +1537,9 @@ static void cyz_handle_rx(struct cyclades_port *info, struct tty_struct *tty,
 	}
 }
 
-static void cyz_handle_tx(struct cyclades_port *info, struct tty_struct *tty,
-		struct BUF_CTRL __iomem *buf_ctrl)
+static void cyz_handle_tx(struct cyclades_port *info, struct tty_struct *tty)
 {
+	struct BUF_CTRL __iomem *buf_ctrl = info->u.cyz.buf_ctrl;
 	struct cyclades_card *cinfo = info->card;
 	u8 data;
 	unsigned int char_count;
@@ -1627,21 +1615,14 @@ ztxdone:
 
 static void cyz_handle_cmd(struct cyclades_card *cinfo)
 {
+	struct BOARD_CTRL __iomem *board_ctrl = cinfo->board_ctrl;
 	struct tty_struct *tty;
 	struct cyclades_port *info;
-	static struct FIRM_ID __iomem *firm_id;
-	static struct ZFW_CTRL __iomem *zfw_ctrl;
-	static struct BOARD_CTRL __iomem *board_ctrl;
-	static struct CH_CTRL __iomem *ch_ctrl;
-	static struct BUF_CTRL __iomem *buf_ctrl;
 	__u32 channel, param, fw_ver;
 	__u8 cmd;
 	int special_count;
 	int delta_count;
 
-	firm_id = cinfo->base_addr + ID_ADDRESS;
-	zfw_ctrl = cinfo->base_addr + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
-	board_ctrl = &zfw_ctrl->board_ctrl;
 	fw_ver = readl(&board_ctrl->fw_version);
 
 	while (cyz_fetch_msg(cinfo, &channel, &cmd, &param) == 1) {
@@ -1651,9 +1632,6 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 		tty = tty_port_tty_get(&info->port);
 		if (tty == NULL)
 			continue;
-
-		ch_ctrl = &(zfw_ctrl->ch_ctrl[channel]);
-		buf_ctrl = &(zfw_ctrl->buf_ctrl[channel]);
 
 		switch (cmd) {
 		case C_CM_PR_ERROR:
@@ -1675,9 +1653,9 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 			info->icount.dcd++;
 			delta_count++;
 			if (info->port.flags & ASYNC_CHECK_CD) {
-				if ((fw_ver > 241 ? ((u_long) param) :
-						readl(&ch_ctrl->rs_status)) &
-						C_RS_DCD) {
+				u32 dcd = fw_ver > 241 ? param :
+					readl(&info->u.cyz.ch_ctrl->rs_status);
+				if (dcd & C_RS_DCD) {
 					wake_up_interruptible(&info->port.open_wait);
 				} else {
 					tty_hangup(tty);
@@ -1712,7 +1690,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 			printk(KERN_DEBUG "cyz_interrupt: rcvd intr, card %d, "
 					"port %ld\n", info->card, channel);
 #endif
-			cyz_handle_rx(info, tty, buf_ctrl);
+			cyz_handle_rx(info, tty);
 			break;
 		case C_CM_TXBEMPTY:
 		case C_CM_TXLOWWM:
@@ -1722,7 +1700,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 			printk(KERN_DEBUG "cyz_interrupt: xmit intr, card %d, "
 					"port %ld\n", info->card, channel);
 #endif
-			cyz_handle_tx(info, tty, buf_ctrl);
+			cyz_handle_tx(info, tty);
 			break;
 #endif				/* CONFIG_CYZ_INTR */
 		case C_CM_FATAL:
@@ -1781,9 +1759,6 @@ static void cyz_poll(unsigned long arg)
 {
 	struct cyclades_card *cinfo;
 	struct cyclades_port *info;
-	struct FIRM_ID __iomem *firm_id;
-	struct ZFW_CTRL __iomem *zfw_ctrl;
-	struct BUF_CTRL __iomem *buf_ctrl;
 	unsigned long expires = jiffies + HZ;
 	unsigned int port, card;
 
@@ -1794,10 +1769,6 @@ static void cyz_poll(unsigned long arg)
 			continue;
 		if (!cyz_is_loaded(cinfo))
 			continue;
-
-		firm_id = cinfo->base_addr + ID_ADDRESS;
-		zfw_ctrl = cinfo->base_addr +
-				(readl(&firm_id->zfwctrl_addr) & 0xfffff);
 
 	/* Skip first polling cycle to avoid racing conditions with the FW */
 		if (!cinfo->intr_enabled) {
@@ -1811,15 +1782,13 @@ static void cyz_poll(unsigned long arg)
 			struct tty_struct *tty;
 
 			info = &cinfo->ports[port];
-			buf_ctrl = &(zfw_ctrl->buf_ctrl[port]);
-
 			tty = tty_port_tty_get(&info->port);
 			/* OK to pass NULL to the handle functions below.
 			   They need to drop the data in that case. */
 
 			if (!info->throttle)
-				cyz_handle_rx(info, tty, buf_ctrl);
-			cyz_handle_tx(info, tty, buf_ctrl);
+				cyz_handle_rx(info, tty);
+			cyz_handle_tx(info, tty);
 			tty_kref_put(tty);
 		}
 		/* poll every 'cyz_polling_cycle' period */
@@ -1922,45 +1891,34 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 		spin_unlock_irqrestore(&card->card_lock, flags);
 
 	} else {
-		struct FIRM_ID __iomem *firm_id;
-		struct ZFW_CTRL __iomem *zfw_ctrl;
-		struct BOARD_CTRL __iomem *board_ctrl;
-		struct CH_CTRL __iomem *ch_ctrl;
+		struct CH_CTRL __iomem *ch_ctrl = info->u.cyz.ch_ctrl;
 
-		base_addr = card->base_addr;
-
-		firm_id = base_addr + ID_ADDRESS;
 		if (!cyz_is_loaded(card))
 			return -ENODEV;
 
-		zfw_ctrl = card->base_addr +
-				(readl(&firm_id->zfwctrl_addr) & 0xfffff);
-		board_ctrl = &zfw_ctrl->board_ctrl;
-		ch_ctrl = zfw_ctrl->ch_ctrl;
-
 #ifdef CY_DEBUG_OPEN
 		printk(KERN_DEBUG "cyc startup Z card %d, channel %d, "
-			"base_addr %p\n", card, channel, base_addr);
+			"base_addr %p\n", card, channel, card->base_addr);
 #endif
 		spin_lock_irqsave(&card->card_lock, flags);
 
-		cy_writel(&ch_ctrl[channel].op_mode, C_CH_ENABLE);
+		cy_writel(&ch_ctrl->op_mode, C_CH_ENABLE);
 #ifdef Z_WAKE
 #ifdef CONFIG_CYZ_INTR
-		cy_writel(&ch_ctrl[channel].intr_enable,
+		cy_writel(&ch_ctrl->intr_enable,
 			  C_IN_TXBEMPTY | C_IN_TXLOWWM | C_IN_RXHIWM |
 			  C_IN_RXNNDT | C_IN_IOCTLW | C_IN_MDCD);
 #else
-		cy_writel(&ch_ctrl[channel].intr_enable,
+		cy_writel(&ch_ctrl->intr_enable,
 			  C_IN_IOCTLW | C_IN_MDCD);
 #endif				/* CONFIG_CYZ_INTR */
 #else
 #ifdef CONFIG_CYZ_INTR
-		cy_writel(&ch_ctrl[channel].intr_enable,
+		cy_writel(&ch_ctrl->intr_enable,
 			  C_IN_TXBEMPTY | C_IN_TXLOWWM | C_IN_RXHIWM |
 			  C_IN_RXNNDT | C_IN_MDCD);
 #else
-		cy_writel(&ch_ctrl[channel].intr_enable, C_IN_MDCD);
+		cy_writel(&ch_ctrl->intr_enable, C_IN_MDCD);
 #endif				/* CONFIG_CYZ_INTR */
 #endif				/* Z_WAKE */
 
@@ -1979,9 +1937,8 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 
 		/* set timeout !!! */
 		/* set RTS and DTR !!! */
-		cy_writel(&ch_ctrl[channel].rs_control,
-			readl(&ch_ctrl[channel].rs_control) | C_RS_RTS |
-			C_RS_DTR);
+		cy_writel(&ch_ctrl->rs_control, readl(&ch_ctrl->rs_control) |
+				C_RS_RTS | C_RS_DTR);
 		retval = cyz_issue_cmd(card, channel, C_CM_IOCTLM, 0L);
 		if (retval != 0) {
 			printk(KERN_ERR "cyc:startup(3) retval on ttyC%d was "
@@ -2110,26 +2067,16 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 		info->port.flags &= ~ASYNC_INITIALIZED;
 		spin_unlock_irqrestore(&card->card_lock, flags);
 	} else {
-		struct FIRM_ID __iomem *firm_id;
-		struct ZFW_CTRL __iomem *zfw_ctrl;
-		struct BOARD_CTRL __iomem *board_ctrl;
-		struct CH_CTRL __iomem *ch_ctrl;
+		struct CH_CTRL __iomem *ch_ctrl = info->u.cyz.ch_ctrl;
 		int retval;
 
-		base_addr = card->base_addr;
 #ifdef CY_DEBUG_OPEN
 		printk(KERN_DEBUG "cyc shutdown Z card %d, channel %d, "
-			"base_addr %p\n", card, channel, base_addr);
+			"base_addr %p\n", card, channel, card->base_addr);
 #endif
 
-		firm_id = base_addr + ID_ADDRESS;
 		if (!cyz_is_loaded(card))
 			return;
-
-		zfw_ctrl = card->base_addr +
-				(readl(&firm_id->zfwctrl_addr) & 0xfffff);
-		board_ctrl = &zfw_ctrl->board_ctrl;
-		ch_ctrl = zfw_ctrl->ch_ctrl;
 
 		spin_lock_irqsave(&card->card_lock, flags);
 
@@ -2141,9 +2088,9 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 		}
 
 		if (tty->termios->c_cflag & HUPCL) {
-			cy_writel(&ch_ctrl[channel].rs_control,
-				(__u32)(readl(&ch_ctrl[channel].rs_control) &
-					~(C_RS_RTS | C_RS_DTR)));
+			cy_writel(&ch_ctrl->rs_control,
+				readl(&ch_ctrl->rs_control) &
+					~(C_RS_RTS | C_RS_DTR));
 			retval = cyz_issue_cmd(info->card, channel,
 					C_CM_IOCTLM, 0L);
 			if (retval != 0) {
@@ -2497,15 +2444,11 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 #ifdef Z_WAKE
 		/* Waiting for on-board buffers to be empty before closing
 		   the port */
-		void __iomem *base_addr = card->base_addr;
-		struct FIRM_ID __iomem *firm_id = base_addr + ID_ADDRESS;
-		struct ZFW_CTRL __iomem *zfw_ctrl =
-		    base_addr + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
-		struct CH_CTRL __iomem *ch_ctrl = zfw_ctrl->ch_ctrl;
+		struct CH_CTRL __iomem *ch_ctrl = info->u.cyz.ch_ctrl;
 		int channel = info->line - card->first_line;
 		int retval;
 
-		if (readl(&ch_ctrl[channel].flow_status) != C_FS_TXIDLE) {
+		if (readl(&ch_ctrl->flow_status) != C_FS_TXIDLE) {
 			retval = cyz_issue_cmd(card, channel, C_CM_IOCTLW, 0L);
 			if (retval != 0) {
 				printk(KERN_DEBUG "cyc:cy_close retval on "
@@ -2685,18 +2628,13 @@ static int cy_write_room(struct tty_struct *tty)
 
 static int cy_chars_in_buffer(struct tty_struct *tty)
 {
-	struct cyclades_card *card;
 	struct cyclades_port *info = tty->driver_data;
-	int channel;
 
 	if (serial_paranoia_check(info, tty->name, "cy_chars_in_buffer"))
 		return 0;
 
-	card = info->card;
-	channel = (info->line) - (card->first_line);
-
 #ifdef Z_EXT_CHARS_IN_BUFFER
-	if (!cy_is_Z(card)) {
+	if (!cy_is_Z(info->card)) {
 #endif				/* Z_EXT_CHARS_IN_BUFFER */
 #ifdef CY_DEBUG_IO
 		printk(KERN_DEBUG "cyc:cy_chars_in_buffer ttyC%d %d\n",
@@ -2705,20 +2643,11 @@ static int cy_chars_in_buffer(struct tty_struct *tty)
 		return info->xmit_cnt;
 #ifdef Z_EXT_CHARS_IN_BUFFER
 	} else {
-		static struct FIRM_ID *firm_id;
-		static struct ZFW_CTRL *zfw_ctrl;
-		static struct CH_CTRL *ch_ctrl;
-		static struct BUF_CTRL *buf_ctrl;
+		struct BUF_CTRL __iomem *buf_ctrl = info->u.cyz.buf_ctrl;
 		int char_count;
 		__u32 tx_put, tx_get, tx_bufsize;
 
 		lock_kernel();
-		firm_id = card->base_addr + ID_ADDRESS;
-		zfw_ctrl = card->base_addr +
-			(readl(&firm_id->zfwctrl_addr) & 0xfffff);
-		ch_ctrl = &(zfw_ctrl->ch_ctrl[channel]);
-		buf_ctrl = &(zfw_ctrl->buf_ctrl[channel]);
-
 		tx_get = readl(&buf_ctrl->tx_get);
 		tx_put = readl(&buf_ctrl->tx_put);
 		tx_bufsize = readl(&buf_ctrl->tx_bufsize);
@@ -3019,19 +2948,12 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 		spin_unlock_irqrestore(&card->card_lock, flags);
 
 	} else {
-		struct FIRM_ID __iomem *firm_id;
-		struct ZFW_CTRL __iomem *zfw_ctrl;
-		struct CH_CTRL __iomem *ch_ctrl;
+		struct CH_CTRL __iomem *ch_ctrl = info->u.cyz.ch_ctrl;
 		__u32 sw_flow;
 		int retval;
 
-		firm_id = card->base_addr + ID_ADDRESS;
 		if (!cyz_is_loaded(card))
 			return;
-
-		zfw_ctrl = card->base_addr +
-			(readl(&firm_id->zfwctrl_addr) & 0xfffff);
-		ch_ctrl = &(zfw_ctrl->ch_ctrl[channel]);
 
 		/* baud rate */
 		baud = tty_get_baud_rate(tty);
@@ -3268,10 +3190,6 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 	unsigned char status;
 	unsigned long lstatus;
 	unsigned int result;
-	struct FIRM_ID __iomem *firm_id;
-	struct ZFW_CTRL __iomem *zfw_ctrl;
-	struct BOARD_CTRL __iomem *board_ctrl;
-	struct CH_CTRL __iomem *ch_ctrl;
 
 	if (serial_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
@@ -3304,14 +3222,8 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 			((status & CyDSR) ? TIOCM_DSR : 0) |
 			((status & CyCTS) ? TIOCM_CTS : 0);
 	} else {
-		base_addr = card->base_addr;
-		firm_id = card->base_addr + ID_ADDRESS;
 		if (cyz_is_loaded(card)) {
-			zfw_ctrl = card->base_addr +
-				(readl(&firm_id->zfwctrl_addr) & 0xfffff);
-			board_ctrl = &zfw_ctrl->board_ctrl;
-			ch_ctrl = zfw_ctrl->ch_ctrl;
-			lstatus = readl(&ch_ctrl[channel].rs_status);
+			lstatus = readl(&info->u.cyz.ch_ctrl->rs_status);
 			result = ((lstatus & C_RS_RTS) ? TIOCM_RTS : 0) |
 				((lstatus & C_RS_DTR) ? TIOCM_DTR : 0) |
 				((lstatus & C_RS_DCD) ? TIOCM_CAR : 0) |
@@ -3336,12 +3248,7 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
 	struct cyclades_port *info = tty->driver_data;
 	struct cyclades_card *card;
 	int chip, channel, index;
-	void __iomem *base_addr;
 	unsigned long flags;
-	struct FIRM_ID __iomem *firm_id;
-	struct ZFW_CTRL __iomem *zfw_ctrl;
-	struct BOARD_CTRL __iomem *board_ctrl;
-	struct CH_CTRL __iomem *ch_ctrl;
 	int retval;
 
 	if (serial_paranoia_check(info, tty->name, __func__))
@@ -3350,6 +3257,7 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
 	card = info->card;
 	channel = (info->line) - (card->first_line);
 	if (!cy_is_Z(card)) {
+		void __iomem *base_addr;
 		chip = channel >> 2;
 		channel &= 0x03;
 		index = card->bus_index;
@@ -3421,34 +3329,26 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
 			spin_unlock_irqrestore(&card->card_lock, flags);
 		}
 	} else {
-		base_addr = card->base_addr;
-
-		firm_id = card->base_addr + ID_ADDRESS;
 		if (cyz_is_loaded(card)) {
-			zfw_ctrl = card->base_addr +
-				(readl(&firm_id->zfwctrl_addr) & 0xfffff);
-			board_ctrl = &zfw_ctrl->board_ctrl;
-			ch_ctrl = zfw_ctrl->ch_ctrl;
+			struct CH_CTRL __iomem *ch_ctrl = info->u.cyz.ch_ctrl;
 
 			if (set & TIOCM_RTS) {
 				spin_lock_irqsave(&card->card_lock, flags);
-				cy_writel(&ch_ctrl[channel].rs_control,
-					readl(&ch_ctrl[channel].rs_control) |
-					C_RS_RTS);
+				cy_writel(&ch_ctrl->rs_control,
+					readl(&ch_ctrl->rs_control) | C_RS_RTS);
 				spin_unlock_irqrestore(&card->card_lock, flags);
 			}
 			if (clear & TIOCM_RTS) {
 				spin_lock_irqsave(&card->card_lock, flags);
-				cy_writel(&ch_ctrl[channel].rs_control,
-					readl(&ch_ctrl[channel].rs_control) &
+				cy_writel(&ch_ctrl->rs_control,
+					readl(&ch_ctrl->rs_control) &
 					~C_RS_RTS);
 				spin_unlock_irqrestore(&card->card_lock, flags);
 			}
 			if (set & TIOCM_DTR) {
 				spin_lock_irqsave(&card->card_lock, flags);
-				cy_writel(&ch_ctrl[channel].rs_control,
-					readl(&ch_ctrl[channel].rs_control) |
-					C_RS_DTR);
+				cy_writel(&ch_ctrl->rs_control,
+					readl(&ch_ctrl->rs_control) | C_RS_DTR);
 #ifdef CY_DEBUG_DTR
 				printk(KERN_DEBUG "cyc:set_modem_info raising "
 					"Z DTR\n");
@@ -3457,8 +3357,8 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
 			}
 			if (clear & TIOCM_DTR) {
 				spin_lock_irqsave(&card->card_lock, flags);
-				cy_writel(&ch_ctrl[channel].rs_control,
-					readl(&ch_ctrl[channel].rs_control) &
+				cy_writel(&ch_ctrl->rs_control,
+					readl(&ch_ctrl->rs_control) &
 					~C_RS_DTR);
 #ifdef CY_DEBUG_DTR
 				printk(KERN_DEBUG "cyc:set_modem_info clearing "
@@ -4171,17 +4071,8 @@ static int cyz_carrier_raised(struct tty_port *port)
 {
 	struct cyclades_port *info = container_of(port, struct cyclades_port,
 			port);
-	struct cyclades_card *cinfo = info->card;
-	void __iomem *base = cinfo->base_addr;
-	struct FIRM_ID __iomem *firm_id = base + ID_ADDRESS;
-	struct ZFW_CTRL __iomem *zfw_ctrl;
-	struct CH_CTRL __iomem *ch_ctrl;
-	int channel = info->line - cinfo->first_line;
 
-	zfw_ctrl = base + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
-	ch_ctrl = zfw_ctrl->ch_ctrl;
-
-	return readl(&ch_ctrl[channel].rs_status) & C_RS_DCD;
+	return readl(&info->u.cyz.ch_ctrl->rs_status) & C_RS_DCD;
 }
 
 static void cyz_dtr_rts(struct tty_port *port, int raise)
@@ -4189,22 +4080,16 @@ static void cyz_dtr_rts(struct tty_port *port, int raise)
 	struct cyclades_port *info = container_of(port, struct cyclades_port,
 			port);
 	struct cyclades_card *cinfo = info->card;
-	void __iomem *base = cinfo->base_addr;
-	struct FIRM_ID __iomem *firm_id = base + ID_ADDRESS;
-	struct ZFW_CTRL __iomem *zfw_ctrl;
-	struct CH_CTRL __iomem *ch_ctrl;
+	struct CH_CTRL __iomem *ch_ctrl = info->u.cyz.ch_ctrl;
 	int ret, channel = info->line - cinfo->first_line;
 	u32 rs;
 
-	zfw_ctrl = base + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
-	ch_ctrl = zfw_ctrl->ch_ctrl;
-
-	rs = readl(&ch_ctrl[channel].rs_control);
+	rs = readl(&ch_ctrl->rs_control);
 	if (raise)
 		rs |= C_RS_RTS | C_RS_DTR;
 	else
 		rs &= ~(C_RS_RTS | C_RS_DTR);
-	cy_writel(&ch_ctrl[channel].rs_control, rs);
+	cy_writel(&ch_ctrl->rs_control, rs);
 	ret = cyz_issue_cmd(cinfo, channel, C_CM_IOCTLM, 0L);
 	if (ret != 0)
 		printk(KERN_ERR "%s: retval on ttyC%d was %x\n",
@@ -4235,8 +4120,7 @@ static const struct tty_port_operations cyz_port_ops = {
 static int __devinit cy_init_card(struct cyclades_card *cinfo)
 {
 	struct cyclades_port *info;
-	unsigned int port;
-	unsigned short chip_number;
+	unsigned int channel, port;
 
 	spin_lock_init(&cinfo->card_lock);
 	cinfo->intr_enabled = 0;
@@ -4248,9 +4132,9 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 		return -ENOMEM;
 	}
 
-	for (port = cinfo->first_line; port < cinfo->first_line + cinfo->nports;
-			port++) {
-		info = &cinfo->ports[port - cinfo->first_line];
+	for (channel = 0, port = cinfo->first_line; channel < cinfo->nports;
+			channel++, port++) {
+		info = &cinfo->ports[channel];
 		tty_port_init(&info->port);
 		info->magic = CYCLADES_MAGIC;
 		info->card = cinfo;
@@ -4263,8 +4147,17 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 		init_waitqueue_head(&info->delta_msr_wait);
 
 		if (cy_is_Z(cinfo)) {
+			struct FIRM_ID *firm_id = cinfo->base_addr + ID_ADDRESS;
+			struct ZFW_CTRL *zfw_ctrl;
+
 			info->port.ops = &cyz_port_ops;
 			info->type = PORT_STARTECH;
+
+			zfw_ctrl = cinfo->base_addr +
+				(readl(&firm_id->zfwctrl_addr) & 0xfffff);
+			info->u.cyz.ch_ctrl = &zfw_ctrl->ch_ctrl[channel];
+			info->u.cyz.buf_ctrl = &zfw_ctrl->buf_ctrl[channel];
+
 			if (cinfo->hw_ver == ZO_V1)
 				info->xmit_fifo_size = CYZ_FIFO_SIZE;
 			else
@@ -4274,7 +4167,9 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 				cyz_rx_restart, (unsigned long)info);
 #endif
 		} else {
+			unsigned short chip_number;
 			int index = cinfo->bus_index;
+
 			info->port.ops = &cyy_port_ops;
 			info->type = PORT_CIRRUS;
 			info->xmit_fifo_size = CyMAX_CHAR_FIFO;
@@ -4282,7 +4177,7 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 			info->cor2 = CyETC;
 			info->cor3 = 0x08;	/* _very_ small rcv threshold */
 
-			chip_number = (port - cinfo->first_line) / 4;
+			chip_number = channel / CyPORTS_PER_CHIP;
 			info->chip_rev = readb(cinfo->base_addr +
 				      (cy_chip_offset[chip_number] << index) +
 				      (CyGFRCR << index));
@@ -4976,8 +4871,14 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 		}
 		cy_card[card_no].num_chips = nchan / CyPORTS_PER_CHIP;
 	} else {
+		struct FIRM_ID __iomem *firm_id = addr2 + ID_ADDRESS;
+		struct ZFW_CTRL __iomem *zfw_ctrl;
+
+		zfw_ctrl = addr2 + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
+
 		cy_card[card_no].hw_ver = mailbox;
 		cy_card[card_no].num_chips = (unsigned int)-1;
+		cy_card[card_no].board_ctrl = &zfw_ctrl->board_ctrl;
 #ifdef CONFIG_CYZ_INTR
 		/* allocate IRQ only if board has an IRQ */
 		if (irq != 0 && irq != 255) {
