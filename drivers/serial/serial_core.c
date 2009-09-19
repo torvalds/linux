@@ -52,8 +52,6 @@ static struct lock_class_key port_lock_key;
 
 #define HIGH_BITS_OFFSET	((sizeof(long)-sizeof(int))*8)
 
-#define uart_users(state)	((state)->port.count + (state)->port.blocked_open)
-
 #ifdef CONFIG_SERIAL_CORE_CONSOLE
 #define uart_console(port)	((port)->cons && (port)->cons->index == (port)->line)
 #else
@@ -758,7 +756,7 @@ static int uart_set_info(struct uart_state *state,
 		/*
 		 * Make sure that we are the sole user of this port.
 		 */
-		if (uart_users(state) > 1)
+		if (tty_port_users(port) > 1)
 			goto exit;
 
 		/*
@@ -974,7 +972,7 @@ static int uart_do_autoconfig(struct uart_state *state)
 		return -ERESTARTSYS;
 
 	ret = -EBUSY;
-	if (uart_users(state) == 1) {
+	if (tty_port_users(port) == 1) {
 		uart_shutdown(state);
 
 		/*
