@@ -7,9 +7,8 @@
 #include "header.h"
 
 /*
- *
+ * Create new perf.data header attribute:
  */
-
 struct perf_header_attr *perf_header_attr__new(struct perf_counter_attr *attr)
 {
 	struct perf_header_attr *self = malloc(sizeof(*self));
@@ -43,9 +42,8 @@ void perf_header_attr__add_id(struct perf_header_attr *self, u64 id)
 }
 
 /*
- *
+ * Create new perf.data header:
  */
-
 struct perf_header *perf_header__new(void)
 {
 	struct perf_header *self = malloc(sizeof(*self));
@@ -86,9 +84,11 @@ void perf_header__add_attr(struct perf_header *self,
 	self->attr[pos] = attr;
 }
 
+#define MAX_EVENT_NAME 64
+
 struct perf_trace_event_type {
 	u64	event_id;
-	char	name[64];
+	char	name[MAX_EVENT_NAME];
 };
 
 static int event_count;
@@ -96,7 +96,7 @@ static struct perf_trace_event_type *events;
 
 void perf_header__push_event(u64 id, const char *name)
 {
-	if (strlen(name) > 64)
+	if (strlen(name) > MAX_EVENT_NAME)
 		printf("Event %s will be truncated\n", name);
 
 	if (!events) {
@@ -110,7 +110,7 @@ void perf_header__push_event(u64 id, const char *name)
 	}
 	memset(&events[event_count], 0, sizeof(struct perf_trace_event_type));
 	events[event_count].event_id = id;
-	strncpy(events[event_count].name, name, 63);
+	strncpy(events[event_count].name, name, MAX_EVENT_NAME - 1);
 	event_count++;
 }
 
