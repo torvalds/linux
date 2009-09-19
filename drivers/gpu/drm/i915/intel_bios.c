@@ -217,6 +217,9 @@ parse_general_features(struct drm_i915_private *dev_priv,
 			if (IS_I85X(dev_priv->dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 66 : 48;
+			else if (IS_IGDNG(dev_priv->dev))
+				dev_priv->lvds_ssc_freq =
+					general->ssc_freq ? 100 : 120;
 			else
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 100 : 96;
