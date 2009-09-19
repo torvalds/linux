@@ -1274,6 +1274,7 @@ struct tvcard bttv_tvcards[] = {
 		.pll            = PLL_28,
 		.tuner_type	= TUNER_TEMIC_PAL,
 		.tuner_addr	= ADDR_UNSET,
+		.has_remote	= 1,
 	},
 
 	/* ---- card 0x3c ---------------------------------- */

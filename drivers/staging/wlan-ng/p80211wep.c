@@ -54,10 +54,7 @@
 #include <linux/random.h>
 #include <linux/kernel.h>
 
-// #define WEP_DEBUG
-
-/*================================================================*/
-/* Project Includes */
+/* #define WEP_DEBUG	*/
 
 #include "p80211hdr.h"
 #include "p80211types.h"
@@ -65,13 +62,7 @@
 #include "p80211conv.h"
 #include "p80211netdev.h"
 
-/*================================================================*/
-/* Local Constants */
-
 #define WEP_KEY(x)       (((x) & 0xC0) >> 6)
-
-/*================================================================*/
-/* Local Static Definitions */
 
 static const u32 wep_crc32_table[256] = {
 	0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
@@ -128,15 +119,9 @@ static const u32 wep_crc32_table[256] = {
 	0x2d02ef8dL
 };
 
-/*================================================================*/
-/* Local Function Declarations */
-
-/*================================================================*/
-/* Function Definitions */
-
 /* keylen in bytes! */
 
-int wep_change_key(wlandevice_t * wlandev, int keynum, u8 * key, int keylen)
+int wep_change_key(wlandevice_t *wlandev, int keynum, u8 *key, int keylen)
 {
 	if (keylen < 0)
 		return -1;
@@ -166,8 +151,8 @@ int wep_change_key(wlandevice_t * wlandev, int keynum, u8 * key, int keylen)
   4-byte IV at start of buffer, 4-byte ICV at end of buffer.
   if successful, buf start is payload begin, length -= 8;
  */
-int wep_decrypt(wlandevice_t * wlandev, u8 * buf, u32 len, int key_override,
-		u8 * iv, u8 * icv)
+int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override,
+		u8 *iv, u8 *icv)
 {
 	u32 i, j, k, crc, keylen;
 	u8 s[256], key[64], c_crc[4];
@@ -245,8 +230,8 @@ int wep_decrypt(wlandevice_t * wlandev, u8 * buf, u32 len, int key_override,
 }
 
 /* encrypts in-place. */
-int wep_encrypt(wlandevice_t * wlandev, u8 * buf, u8 * dst, u32 len, int keynum,
-		u8 * iv, u8 * icv)
+int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
+		u8 *iv, u8 *icv)
 {
 	u32 i, j, k, crc, keylen;
 	u8 s[256], key[64];

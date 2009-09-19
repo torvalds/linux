@@ -1565,8 +1565,11 @@ out:
  **/
 s32 igb_phy_sw_reset(struct e1000_hw *hw)
 {
-	s32 ret_val;
+	s32 ret_val = 0;
 	u16 phy_ctrl;
+
+	if (!(hw->phy.ops.read_reg))
+		goto out;
 
 	ret_val = hw->phy.ops.read_reg(hw, PHY_CONTROL, &phy_ctrl);
 	if (ret_val)

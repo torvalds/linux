@@ -123,8 +123,3 @@
 	__initramfs_end = .;
   }
 
-  /* Sections to be discarded */
-  /DISCARD/ : {
- 	*(.exitcall.exit)
-  }
-

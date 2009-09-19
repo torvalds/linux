@@ -883,7 +883,7 @@ static void dib7000p_spur_protect(struct dib7000p_state *state, u32 rf_khz, u32 
 	255, 255, 255, 255, 255, 255};
 
 	u32 xtal = state->cfg.bw->xtal_hz / 1000;
-	int f_rel = ( (rf_khz + xtal/2) / xtal) * xtal - rf_khz;
+	int f_rel = DIV_ROUND_CLOSEST(rf_khz, xtal) * xtal - rf_khz;
 	int k;
 	int coef_re[8],coef_im[8];
 	int bw_khz = bw;

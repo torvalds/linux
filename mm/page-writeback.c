@@ -315,7 +315,7 @@ int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 {
 	int ret = 0;
 
-	spin_lock(&bdi_lock);
+	spin_lock_bh(&bdi_lock);
 	if (min_ratio > bdi->max_ratio) {
 		ret = -EINVAL;
 	} else {
@@ -327,7 +327,7 @@ int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 			ret = -EINVAL;
 		}
 	}
-	spin_unlock(&bdi_lock);
+	spin_unlock_bh(&bdi_lock);
 
 	return ret;
 }
@@ -339,14 +339,14 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned max_ratio)
 	if (max_ratio > 100)
 		return -EINVAL;
 
-	spin_lock(&bdi_lock);
+	spin_lock_bh(&bdi_lock);
 	if (bdi->min_ratio > max_ratio) {
 		ret = -EINVAL;
 	} else {
 		bdi->max_ratio = max_ratio;
 		bdi->max_prop_frac = (PROP_FRAC_BASE * max_ratio) / 100;
 	}
-	spin_unlock(&bdi_lock);
+	spin_unlock_bh(&bdi_lock);
 
 	return ret;
 }
@@ -582,16 +582,8 @@ static void balance_dirty_pages(struct address_space *mapping)
 	if ((laptop_mode && pages_written) ||
 	    (!laptop_mode && ((nr_writeback = global_page_state(NR_FILE_DIRTY)
 					  + global_page_state(NR_UNSTABLE_NFS))
-					  > background_thresh))) {
-		struct writeback_control wbc = {
-			.bdi		= bdi,
-			.sync_mode	= WB_SYNC_NONE,
-			.nr_to_write	= nr_writeback,
-		};
-
-
-		bdi_start_writeback(&wbc);
-	}
+					  > background_thresh)))
+		bdi_start_writeback(bdi, nr_writeback);
 }
 
 void set_page_dirty_balance(struct page *page, int page_mkwrite)
@@ -603,6 +595,8 @@ void set_page_dirty_balance(struct page *page, int page_mkwrite)
 			balance_dirty_pages_ratelimited(mapping);
 	}
 }
+
+static DEFINE_PER_CPU(unsigned long, bdp_ratelimits) = 0;
 
 /**
  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
@@ -621,7 +615,6 @@ void set_page_dirty_balance(struct page *page, int page_mkwrite)
 void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 					unsigned long nr_pages_dirtied)
 {
-	static DEFINE_PER_CPU(unsigned long, ratelimits) = 0;
 	unsigned long ratelimit;
 	unsigned long *p;
 
@@ -634,7 +627,7 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 	 * tasks in balance_dirty_pages(). Period.
 	 */
 	preempt_disable();
-	p =  &__get_cpu_var(ratelimits);
+	p =  &__get_cpu_var(bdp_ratelimits);
 	*p += nr_pages_dirtied;
 	if (unlikely(*p >= ratelimit)) {
 		*p = 0;
@@ -1019,12 +1012,10 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 
 	if (wbc->nr_to_write <= 0)
 		return 0;
-	wbc->for_writepages = 1;
 	if (mapping->a_ops->writepages)
 		ret = mapping->a_ops->writepages(mapping, wbc);
 	else
 		ret = generic_writepages(mapping, wbc);
-	wbc->for_writepages = 0;
 	return ret;
 }
 

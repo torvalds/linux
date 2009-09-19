@@ -108,6 +108,7 @@
 #define EM2882_BOARD_KWORLD_ATSC_315U		  69
 #define EM2882_BOARD_EVGA_INDTUBE		  70
 #define EM2820_BOARD_SILVERCREST_WEBCAM           71
+#define EM2861_BOARD_GADMEI_UTV330PLUS           72
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -398,6 +399,7 @@ struct em28xx_board {
 	unsigned int has_snapshot_button:1;
 	unsigned int is_webcam:1;
 	unsigned int valid:1;
+	unsigned int has_ir_i2c:1;
 
 	unsigned char xclk, i2c_speed;
 	unsigned char radio_addr;
@@ -408,7 +410,7 @@ struct em28xx_board {
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 	struct em28xx_input	  radio;
-	IR_KEYTAB_TYPE            *ir_codes;
+	struct ir_scancode_table  *ir_codes;
 };
 
 struct em28xx_eeprom {
@@ -595,6 +597,10 @@ struct em28xx {
 	struct delayed_work sbutton_query_work;
 
 	struct em28xx_dvb *dvb;
+
+	/* I2C keyboard data */
+	struct i2c_board_info info;
+	struct IR_i2c_init_data init_data;
 };
 
 struct em28xx_ops {

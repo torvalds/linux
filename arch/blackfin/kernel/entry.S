@@ -43,8 +43,28 @@
 
 ENTRY(_ret_from_fork)
 #ifdef CONFIG_IPIPE
-	[--sp] = reti; 		/* IRQs on. */
-	SP += 4;
+	/*
+	 * Hw IRQs are off on entry, and we don't want the scheduling tail
+	 * code to starve high priority domains from interrupts while it
+	 * runs. Therefore we first stall the root stage to have the
+	 * virtual interrupt state reflect IMASK.
+	 */
+	p0.l = ___ipipe_root_status;
+	p0.h = ___ipipe_root_status;
+	r4 = [p0];
+	bitset(r4, 0);
+	[p0] = r4;
+	/*
+	 * Then we may enable hw IRQs, allowing preemption from high
+	 * priority domains. schedule_tail() will do local_irq_enable()
+	 * since Blackfin does not define __ARCH_WANT_UNLOCKED_CTXSW, so
+	 * there is no need to unstall the root domain by ourselves
+	 * afterwards.
+	 */
+	p0.l = _bfin_irq_flags;
+	p0.h = _bfin_irq_flags;
+	r4 = [p0];
+	sti r4;
 #endif /* CONFIG_IPIPE */
 	SP += -12;
 	call _schedule_tail;

@@ -268,6 +268,20 @@ static void cx18_iounmap(struct cx18 *cx)
 	}
 }
 
+static void cx18_eeprom_dump(struct cx18 *cx, unsigned char *eedata, int len)
+{
+	int i;
+
+	CX18_INFO("eeprom dump:\n");
+	for (i = 0; i < len; i++) {
+		if (0 == (i % 16))
+			CX18_INFO("eeprom %02x:", i);
+		printk(KERN_CONT " %02x", eedata[i]);
+		if (15 == (i % 16))
+			printk(KERN_CONT "\n");
+	}
+}
+
 /* Hauppauge card? get values from tveeprom */
 void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 {
@@ -279,8 +293,26 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 	c.adapter = &cx->i2c_adap[0];
 	c.addr = 0xA0 >> 1;
 
-	tveeprom_read(&c, eedata, sizeof(eedata));
-	tveeprom_hauppauge_analog(&c, tv, eedata);
+	memset(tv, 0, sizeof(*tv));
+	if (tveeprom_read(&c, eedata, sizeof(eedata)))
+		return;
+
+	switch (cx->card->type) {
+	case CX18_CARD_HVR_1600_ESMT:
+	case CX18_CARD_HVR_1600_SAMSUNG:
+		tveeprom_hauppauge_analog(&c, tv, eedata);
+		break;
+	case CX18_CARD_YUAN_MPC718:
+		tv->model = 0x718;
+		cx18_eeprom_dump(cx, eedata, sizeof(eedata));
+		CX18_INFO("eeprom PCI ID: %02x%02x:%02x%02x\n",
+			  eedata[2], eedata[1], eedata[4], eedata[3]);
+		break;
+	default:
+		tv->model = 0xffffffff;
+		cx18_eeprom_dump(cx, eedata, sizeof(eedata));
+		break;
+	}
 }
 
 static void cx18_process_eeprom(struct cx18 *cx)
@@ -298,6 +330,11 @@ static void cx18_process_eeprom(struct cx18 *cx)
 	case 74000 ... 74999:
 		cx->card = cx18_get_card(CX18_CARD_HVR_1600_ESMT);
 		break;
+	case 0x718:
+		return;
+	case 0xffffffff:
+		CX18_INFO("Unknown EEPROM encoding\n");
+		return;
 	case 0:
 		CX18_ERR("Invalid EEPROM\n");
 		return;

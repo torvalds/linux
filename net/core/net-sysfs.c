@@ -493,7 +493,7 @@ void netdev_unregister_kobject(struct net_device * net)
 int netdev_register_kobject(struct net_device *net)
 {
 	struct device *dev = &(net->dev);
-	struct attribute_group **groups = net->sysfs_groups;
+	const struct attribute_group **groups = net->sysfs_groups;
 
 	dev->class = &net_class;
 	dev->platform_data = net;

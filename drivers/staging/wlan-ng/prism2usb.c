@@ -4,9 +4,9 @@
 #include "prism2sta.c"
 #include "prism2fw.c"
 
-#define PRISM_USB_DEVICE(vid, pid, name) \
-           USB_DEVICE(vid, pid),  \
-           .driver_info = (unsigned long) name
+#define PRISM_USB_DEVICE(vid, pid, name)	\
+	USB_DEVICE(vid, pid),			\
+	.driver_info = (unsigned long) name
 
 static struct usb_device_id usb_prism_tbl[] = {
 	{PRISM_USB_DEVICE(0x04bb, 0x0922, "IOData AirPort WN-B11/USBS")},
@@ -111,8 +111,8 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 	int result = 0;
 
 	dev = interface_to_usbdev(interface);
-
-	if ((wlandev = create_wlan()) == NULL) {
+	wlandev = create_wlan();
+	if (wlandev == NULL) {
 		printk(KERN_ERR "%s: Memory allocation failure.\n", dev_info);
 		result = -EIO;
 		goto failed;

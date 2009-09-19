@@ -1497,7 +1497,6 @@ static int w9968cf_i2c_init(struct w9968cf_device* cam)
 	};
 
 	static struct i2c_adapter adap = {
-		.id =                I2C_HW_SMBUS_W9968CF,
 		.owner =             THIS_MODULE,
 		.algo =              &algo,
 	};

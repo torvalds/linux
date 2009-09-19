@@ -1172,7 +1172,7 @@ out:
 	return segs;
 }
 
-static struct inet6_protocol udpv6_protocol = {
+static const struct inet6_protocol udpv6_protocol = {
 	.handler	=	udpv6_rcv,
 	.err_handler	=	udpv6_err,
 	.gso_send_check =	udp6_ufo_send_check,

@@ -1087,6 +1087,12 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 	case NETDEV_DOWN:
 		ip_mc_down(in_dev);
 		break;
+	case NETDEV_BONDING_OLDTYPE:
+		ip_mc_unmap(in_dev);
+		break;
+	case NETDEV_BONDING_NEWTYPE:
+		ip_mc_remap(in_dev);
+		break;
 	case NETDEV_CHANGEMTU:
 		if (inetdev_valid_mtu(dev->mtu))
 			break;

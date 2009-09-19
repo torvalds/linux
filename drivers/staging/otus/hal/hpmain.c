@@ -76,7 +76,7 @@ u32_t zfHpEchoCommand(zdev_t* dev, u32_t value);
 
 
 #define zm_hp_priv(x) (((struct zsHpPriv*)wd->hpPrivate)->x)
-struct zsHpPriv zgHpPriv;
+static struct zsHpPriv zgHpPriv;
 
 #define ZM_FIRMWARE_WLAN_ADDR           0x200000
 #define ZM_FIRMWARE_SPI_ADDR      0x114000

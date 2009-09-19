@@ -105,7 +105,8 @@ struct subdev_8255_struct {
 #define CALLBACK_FUNC	(((struct subdev_8255_struct *)s->private)->cb_func)
 #define subdevpriv	((struct subdev_8255_struct *)s->private)
 
-static int dev_8255_attach(struct comedi_device *dev, struct comedi_devconfig * it);
+static int dev_8255_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it);
 static int dev_8255_detach(struct comedi_device *dev);
 static struct comedi_driver driver_8255 = {
 	.driver_name = "8255",
@@ -116,9 +117,10 @@ static struct comedi_driver driver_8255 = {
 
 COMEDI_INITCLEANUP(driver_8255);
 
-static void do_config(struct comedi_device *dev, struct comedi_subdevice * s);
+static void do_config(struct comedi_device *dev, struct comedi_subdevice *s);
 
-void subdev_8255_interrupt(struct comedi_device *dev, struct comedi_subdevice * s)
+void subdev_8255_interrupt(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	short d;
 
@@ -143,8 +145,9 @@ static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 	}
 }
 
-static int subdev_8255_insn(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn *insn, unsigned int *data)
+static int subdev_8255_insn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -152,13 +155,13 @@ static int subdev_8255_insn(struct comedi_device *dev, struct comedi_subdevice *
 
 		if (data[0] & 0xff)
 			CALLBACK_FUNC(1, _8255_DATA, s->state & 0xff,
-				CALLBACK_ARG);
+				      CALLBACK_ARG);
 		if (data[0] & 0xff00)
 			CALLBACK_FUNC(1, _8255_DATA + 1, (s->state >> 8) & 0xff,
-				CALLBACK_ARG);
+				      CALLBACK_ARG);
 		if (data[0] & 0xff0000)
 			CALLBACK_FUNC(1, _8255_DATA + 2,
-				(s->state >> 16) & 0xff, CALLBACK_ARG);
+				      (s->state >> 16) & 0xff, CALLBACK_ARG);
 	}
 
 	data[1] = CALLBACK_FUNC(0, _8255_DATA, 0, CALLBACK_ARG);
@@ -168,8 +171,9 @@ static int subdev_8255_insn(struct comedi_device *dev, struct comedi_subdevice *
 	return 2;
 }
 
-static int subdev_8255_insn_config(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn *insn, unsigned int *data)
+static int subdev_8255_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask;
 	unsigned int bits;
@@ -205,7 +209,7 @@ static int subdev_8255_insn_config(struct comedi_device *dev, struct comedi_subd
 	return 1;
 }
 
-static void do_config(struct comedi_device *dev, struct comedi_subdevice * s)
+static void do_config(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int config;
 
@@ -222,8 +226,9 @@ static void do_config(struct comedi_device *dev, struct comedi_subdevice * s)
 	CALLBACK_FUNC(1, _8255_CR, config, CALLBACK_ARG);
 }
 
-static int subdev_8255_cmdtest(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_cmd *cmd)
+static int subdev_8255_cmdtest(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_cmd *cmd)
 {
 	int err = 0;
 	unsigned int tmp;
@@ -297,22 +302,25 @@ static int subdev_8255_cmdtest(struct comedi_device *dev, struct comedi_subdevic
 	return 0;
 }
 
-static int subdev_8255_cmd(struct comedi_device *dev, struct comedi_subdevice * s)
+static int subdev_8255_cmd(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	/* FIXME */
 
 	return 0;
 }
 
-static int subdev_8255_cancel(struct comedi_device *dev, struct comedi_subdevice * s)
+static int subdev_8255_cancel(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
 {
 	/* FIXME */
 
 	return 0;
 }
 
-int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice * s, int (*cb) (int,
-		int, int, unsigned long), unsigned long arg)
+int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
+		     int (*cb) (int, int, int, unsigned long),
+		     unsigned long arg)
 {
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
@@ -340,8 +348,9 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice * s, int
 	return 0;
 }
 
-int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice * s,
-	int (*cb) (int, int, int, unsigned long), unsigned long arg)
+int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
+			 int (*cb) (int, int, int, unsigned long),
+			 unsigned long arg)
 {
 	int ret;
 
@@ -358,7 +367,7 @@ int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice * s,
 	return 0;
 }
 
-void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice * s)
+void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	if (s->private) {
 		/* this test does nothing, so comment it out
@@ -376,7 +385,8 @@ void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice * s)
 
  */
 
-static int dev_8255_attach(struct comedi_device *dev, struct comedi_devconfig * it)
+static int dev_8255_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it)
 {
 	int ret;
 	unsigned long iobase;
@@ -410,7 +420,7 @@ static int dev_8255_attach(struct comedi_device *dev, struct comedi_devconfig * 
 			dev->subdevices[i].type = COMEDI_SUBD_UNUSED;
 		} else {
 			subdev_8255_init(dev, dev->subdevices + i, NULL,
-				iobase);
+					 iobase);
 		}
 	}
 
