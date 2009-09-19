@@ -2085,7 +2085,7 @@ static int tioccons(struct file *file)
  *	the generic functionality existed. This piece of history is preserved
  *	in the expected tty API of posix OS's.
  *
- *	Locking: none, the open fle handle ensures it won't go away.
+ *	Locking: none, the open file handle ensures it won't go away.
  */
 
 static int fionbio(struct file *file, int __user *p)
