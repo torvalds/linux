@@ -354,7 +354,6 @@ struct uart_state {
 #define USF_CLOSING_WAIT_INF	(0)
 #define USF_CLOSING_WAIT_NONE	(~0U)
 
-	int			count;
 	int			pm_state;
 	struct circ_buf		xmit;
 	uif_t			flags;

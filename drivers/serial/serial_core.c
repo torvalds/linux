@@ -52,7 +52,7 @@ static struct lock_class_key port_lock_key;
 
 #define HIGH_BITS_OFFSET	((sizeof(long)-sizeof(int))*8)
 
-#define uart_users(state)	((state)->count + (state)->port.blocked_open)
+#define uart_users(state)	((state)->port.count + (state)->port.blocked_open)
 
 #ifdef CONFIG_SERIAL_CORE_CONSOLE
 #define uart_console(port)	((port)->cons && (port)->cons->index == (port)->line)
@@ -694,7 +694,7 @@ static int uart_set_info(struct uart_state *state,
 			USF_CLOSING_WAIT_NONE : new_serial.closing_wait * 10;
 
 	/*
-	 * This semaphore protects state->count.  It is also
+	 * This semaphore protects port->count.  It is also
 	 * very useful to prevent opens.  Also, take the
 	 * port configuration semaphore to make sure that a
 	 * module insertion/removal doesn't change anything
@@ -1272,24 +1272,24 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	if (tty_hung_up_p(filp))
 		goto done;
 
-	if ((tty->count == 1) && (state->count != 1)) {
+	if ((tty->count == 1) && (port->count != 1)) {
 		/*
 		 * Uh, oh.  tty->count is 1, which means that the tty
-		 * structure will be freed.  state->count should always
+		 * structure will be freed.  port->count should always
 		 * be one in these conditions.  If it's greater than
 		 * one, we've got real problems, since it means the
 		 * serial port won't be shutdown.
 		 */
 		printk(KERN_ERR "uart_close: bad serial port count; tty->count is 1, "
-		       "state->count is %d\n", state->count);
-		state->count = 1;
+		       "port->count is %d\n", port->count);
+		port->count = 1;
 	}
-	if (--state->count < 0) {
+	if (--port->count < 0) {
 		printk(KERN_ERR "uart_close: bad serial port count for %s: %d\n",
-		       tty->name, state->count);
-		state->count = 0;
+		       tty->name, port->count);
+		port->count = 0;
 	}
-	if (state->count)
+	if (port->count)
 		goto done;
 
 	/*
@@ -1421,7 +1421,7 @@ static void uart_hangup(struct tty_struct *tty)
 	if (state->flags & UIF_NORMAL_ACTIVE) {
 		uart_flush_buffer(tty);
 		uart_shutdown(state);
-		state->count = 0;
+		port->count = 0;
 		state->flags &= ~UIF_NORMAL_ACTIVE;
 		port->tty = NULL;
 		wake_up_interruptible(&port->open_wait);
@@ -1478,7 +1478,7 @@ uart_block_til_ready(struct file *filp, struct uart_state *state)
 	unsigned int mctrl;
 
 	port->blocked_open++;
-	state->count--;
+	port->count--;
 
 	add_wait_queue(&port->open_wait, &wait);
 	while (1) {
@@ -1539,7 +1539,7 @@ uart_block_til_ready(struct file *filp, struct uart_state *state)
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&port->open_wait, &wait);
 
-	state->count++;
+	port->count++;
 	port->blocked_open--;
 
 	if (signal_pending(current))
@@ -1562,7 +1562,7 @@ static struct uart_state *uart_get(struct uart_driver *drv, int line)
 		goto err;
 	}
 
-	state->count++;
+	state->port.count++;
 	if (!state->uart_port || state->uart_port->flags & UPF_DEAD) {
 		ret = -ENXIO;
 		goto err_unlock;
@@ -1570,7 +1570,7 @@ static struct uart_state *uart_get(struct uart_driver *drv, int line)
 	return state;
 
  err_unlock:
-	state->count--;
+	state->port.count--;
 	mutex_unlock(&state->mutex);
  err:
 	return ERR_PTR(ret);
@@ -1590,6 +1590,7 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 {
 	struct uart_driver *drv = (struct uart_driver *)tty->driver->driver_state;
 	struct uart_state *state;
+	struct tty_port *port;
 	int retval, line = tty->index;
 
 	BUG_ON(!kernel_locked());
@@ -1617,6 +1618,7 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 		retval = PTR_ERR(state);
 		goto fail;
 	}
+	port = &state->port;
 
 	/*
 	 * Once we set tty->driver_data here, we are guaranteed that
@@ -1627,14 +1629,14 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	state->uart_port->state = state;
 	tty->low_latency = (state->uart_port->flags & UPF_LOW_LATENCY) ? 1 : 0;
 	tty->alt_speed = 0;
-	state->port.tty = tty;
+	port->tty = tty;
 
 	/*
 	 * If the port is in the middle of closing, bail out now.
 	 */
 	if (tty_hung_up_p(filp)) {
 		retval = -EAGAIN;
-		state->count--;
+		port->count--;
 		mutex_unlock(&state->mutex);
 		goto fail;
 	}
@@ -1642,7 +1644,7 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	/*
 	 * Make sure the device is in D0 state.
 	 */
-	if (state->count == 1)
+	if (port->count == 1)
 		uart_change_pm(state, 0);
 
 	/*
