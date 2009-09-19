@@ -351,8 +351,6 @@ struct uart_state {
 	struct tasklet_struct	tlet;
 	wait_queue_head_t	delta_msr_wait;
 	struct uart_port	*uart_port;
-
-	struct mutex		mutex;
 };
 
 #define UART_XMIT_SIZE	PAGE_SIZE
