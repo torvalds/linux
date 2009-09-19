@@ -1290,11 +1290,10 @@ static void cyy_chip_modem(struct cyclades_card *cinfo, int chip,
 	}
 
 	if ((mdm_change & CyDCD) && (info->port.flags & ASYNC_CHECK_CD)) {
-		if (!(mdm_status & CyDCD)) {
+		if (mdm_status & CyDCD)
+			wake_up_interruptible(&info->port.open_wait);
+		else
 			tty_hangup(tty);
-			info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
-		}
-		wake_up_interruptible(&info->port.open_wait);
 	}
 	if ((mdm_change & CyCTS) && (info->port.flags & ASYNC_CTS_FLOW)) {
 		if (tty->hw_stopped) {
@@ -1655,13 +1654,10 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 			if (info->port.flags & ASYNC_CHECK_CD) {
 				u32 dcd = fw_ver > 241 ? param :
 					readl(&info->u.cyz.ch_ctrl->rs_status);
-				if (dcd & C_RS_DCD) {
+				if (dcd & C_RS_DCD)
 					wake_up_interruptible(&info->port.open_wait);
-				} else {
+				else
 					tty_hangup(tty);
-					wake_up_interruptible(&info->port.open_wait);
-					info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
-				}
 			}
 			break;
 		case C_CM_MCTS:
@@ -4009,14 +4005,7 @@ static void cy_hangup(struct tty_struct *tty)
 
 	cy_flush_buffer(tty);
 	cy_shutdown(info, tty);
-	info->port.count = 0;
-#ifdef CY_DEBUG_COUNT
-	printk(KERN_DEBUG "cyc:cy_hangup (%d): setting count to 0\n",
-		current->pid);
-#endif
-	tty_port_tty_set(&info->port, NULL);
-	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
-	wake_up_interruptible(&info->port.open_wait);
+	tty_port_hangup(&info->port);
 }				/* cy_hangup */
 
 static int cyy_carrier_raised(struct tty_port *port)
