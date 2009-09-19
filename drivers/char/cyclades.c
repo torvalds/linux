@@ -831,6 +831,7 @@ static void cyy_change_rts_dtr(struct cyclades_port *info, unsigned int set,
 	struct cyclades_card *card = info->card;
 	void __iomem *base_addr;
 	int chip, channel, index;
+	u32 rts, dtr, msvrr, msvrd;
 
 	channel = info->line - card->first_line;
 	chip = channel >> 2;
@@ -838,29 +839,28 @@ static void cyy_change_rts_dtr(struct cyclades_port *info, unsigned int set,
 	index = card->bus_index;
 	base_addr = card->base_addr + (cy_chip_offset[chip] << index);
 
+	if (info->rtsdtr_inv) {
+		msvrr = CyMSVR2;
+		msvrd = CyMSVR1;
+		rts = CyDTR;
+		dtr = CyRTS;
+	} else {
+		msvrr = CyMSVR1;
+		msvrd = CyMSVR2;
+		rts = CyRTS;
+		dtr = CyDTR;
+	}
 	if (set & TIOCM_RTS) {
-		cy_writeb(base_addr + (CyCAR << index), (u_char) channel);
-		if (info->rtsdtr_inv) {
-			cy_writeb(base_addr + (CyMSVR2 << index), CyDTR);
-		} else {
-			cy_writeb(base_addr + (CyMSVR1 << index), CyRTS);
-		}
+		cy_writeb(base_addr + (CyCAR << index), (u8)channel);
+		cy_writeb(base_addr + (msvrr << index), rts);
 	}
 	if (clear & TIOCM_RTS) {
-		cy_writeb(base_addr + (CyCAR << index), (u_char) channel);
-		if (info->rtsdtr_inv) {
-			cy_writeb(base_addr + (CyMSVR2 << index), ~CyDTR);
-		} else {
-			cy_writeb(base_addr + (CyMSVR1 << index), ~CyRTS);
-		}
+		cy_writeb(base_addr + (CyCAR << index), (u8)channel);
+		cy_writeb(base_addr + (msvrr << index), ~rts);
 	}
 	if (set & TIOCM_DTR) {
-		cy_writeb(base_addr + (CyCAR << index), (u_char) channel);
-		if (info->rtsdtr_inv) {
-			cy_writeb(base_addr + (CyMSVR1 << index), CyRTS);
-		} else {
-			cy_writeb(base_addr + (CyMSVR2 << index), CyDTR);
-		}
+		cy_writeb(base_addr + (CyCAR << index), (u8)channel);
+		cy_writeb(base_addr + (msvrd << index), dtr);
 #ifdef CY_DEBUG_DTR
 		printk(KERN_DEBUG "cyc:set_modem_info raising DTR\n");
 		printk(KERN_DEBUG "     status: 0x%x, 0x%x\n",
@@ -869,13 +869,8 @@ static void cyy_change_rts_dtr(struct cyclades_port *info, unsigned int set,
 #endif
 	}
 	if (clear & TIOCM_DTR) {
-		cy_writeb(base_addr + (CyCAR << index), (u_char) channel);
-		if (info->rtsdtr_inv) {
-			cy_writeb(base_addr + (CyMSVR1 << index), ~CyRTS);
-		} else {
-			cy_writeb(base_addr + (CyMSVR2 << index), ~CyDTR);
-		}
-
+		cy_writeb(base_addr + (CyCAR << index), (u8)channel);
+		cy_writeb(base_addr + (msvrd << index), ~dtr);
 #ifdef CY_DEBUG_DTR
 		printk(KERN_DEBUG "cyc:set_modem_info dropping DTR\n");
 		printk(KERN_DEBUG "     status: 0x%x, 0x%x\n",
@@ -2518,28 +2513,27 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	struct cyclades_port *info = tty->driver_data;
 	struct cyclades_card *card;
-	int chip, channel, index;
 	void __iomem *base_addr;
-	unsigned long flags;
-	unsigned char status;
-	unsigned long lstatus;
-	unsigned int result;
+	int result, channel;
 
 	if (serial_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
 
-	lock_kernel();
-
 	card = info->card;
 	channel = info->line - card->first_line;
+
+	lock_kernel();
 	if (!cy_is_Z(card)) {
-		chip = channel >> 2;
+		unsigned long flags;
+		unsigned char status;
+		int chip = channel >> 2;
+		int index = card->bus_index;
+
 		channel &= 0x03;
-		index = card->bus_index;
 		base_addr = card->base_addr + (cy_chip_offset[chip] << index);
 
 		spin_lock_irqsave(&card->card_lock, flags);
-		cy_writeb(base_addr + (CyCAR << index), (u_char) channel);
+		cy_writeb(base_addr + (CyCAR << index), (u8)channel);
 		status = readb(base_addr + (CyMSVR1 << index));
 		status |= readb(base_addr + (CyMSVR2 << index));
 		spin_unlock_irqrestore(&card->card_lock, flags);
@@ -2556,21 +2550,22 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 			((status & CyDSR) ? TIOCM_DSR : 0) |
 			((status & CyCTS) ? TIOCM_CTS : 0);
 	} else {
-		if (cyz_is_loaded(card)) {
-			lstatus = readl(&info->u.cyz.ch_ctrl->rs_status);
-			result = ((lstatus & C_RS_RTS) ? TIOCM_RTS : 0) |
-				((lstatus & C_RS_DTR) ? TIOCM_DTR : 0) |
-				((lstatus & C_RS_DCD) ? TIOCM_CAR : 0) |
-				((lstatus & C_RS_RI) ? TIOCM_RNG : 0) |
-				((lstatus & C_RS_DSR) ? TIOCM_DSR : 0) |
-				((lstatus & C_RS_CTS) ? TIOCM_CTS : 0);
-		} else {
-			result = 0;
-			unlock_kernel();
-			return -ENODEV;
+		u32 lstatus;
+
+		if (!cyz_is_loaded(card)) {
+			result = -ENODEV;
+			goto end;
 		}
 
+		lstatus = readl(&info->u.cyz.ch_ctrl->rs_status);
+		result = ((lstatus & C_RS_RTS) ? TIOCM_RTS : 0) |
+			((lstatus & C_RS_DTR) ? TIOCM_DTR : 0) |
+			((lstatus & C_RS_DCD) ? TIOCM_CAR : 0) |
+			((lstatus & C_RS_RI) ? TIOCM_RNG : 0) |
+			((lstatus & C_RS_DSR) ? TIOCM_DSR : 0) |
+			((lstatus & C_RS_CTS) ? TIOCM_CTS : 0);
 	}
+end:
 	unlock_kernel();
 	return result;
 }				/* cy_tiomget */
@@ -2582,68 +2577,52 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
 	struct cyclades_port *info = tty->driver_data;
 	struct cyclades_card *card;
 	unsigned long flags;
-	int channel, retval;
 
 	if (serial_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
 
 	card = info->card;
-	channel = (info->line) - (card->first_line);
 	if (!cy_is_Z(card)) {
 		spin_lock_irqsave(&card->card_lock, flags);
 		cyy_change_rts_dtr(info, set, clear);
 		spin_unlock_irqrestore(&card->card_lock, flags);
 	} else {
-		if (cyz_is_loaded(card)) {
-			struct CH_CTRL __iomem *ch_ctrl = info->u.cyz.ch_ctrl;
+		struct CH_CTRL __iomem *ch_ctrl = info->u.cyz.ch_ctrl;
+		int retval, channel = info->line - card->first_line;
+		u32 rs;
 
-			if (set & TIOCM_RTS) {
-				spin_lock_irqsave(&card->card_lock, flags);
-				cy_writel(&ch_ctrl->rs_control,
-					readl(&ch_ctrl->rs_control) | C_RS_RTS);
-				spin_unlock_irqrestore(&card->card_lock, flags);
-			}
-			if (clear & TIOCM_RTS) {
-				spin_lock_irqsave(&card->card_lock, flags);
-				cy_writel(&ch_ctrl->rs_control,
-					readl(&ch_ctrl->rs_control) &
-					~C_RS_RTS);
-				spin_unlock_irqrestore(&card->card_lock, flags);
-			}
-			if (set & TIOCM_DTR) {
-				spin_lock_irqsave(&card->card_lock, flags);
-				cy_writel(&ch_ctrl->rs_control,
-					readl(&ch_ctrl->rs_control) | C_RS_DTR);
-#ifdef CY_DEBUG_DTR
-				printk(KERN_DEBUG "cyc:set_modem_info raising "
-					"Z DTR\n");
-#endif
-				spin_unlock_irqrestore(&card->card_lock, flags);
-			}
-			if (clear & TIOCM_DTR) {
-				spin_lock_irqsave(&card->card_lock, flags);
-				cy_writel(&ch_ctrl->rs_control,
-					readl(&ch_ctrl->rs_control) &
-					~C_RS_DTR);
-#ifdef CY_DEBUG_DTR
-				printk(KERN_DEBUG "cyc:set_modem_info clearing "
-					"Z DTR\n");
-#endif
-				spin_unlock_irqrestore(&card->card_lock, flags);
-			}
-		} else {
+		if (!cyz_is_loaded(card))
 			return -ENODEV;
-		}
+
 		spin_lock_irqsave(&card->card_lock, flags);
+		rs = readl(&ch_ctrl->rs_control);
+		if (set & TIOCM_RTS)
+			rs |= C_RS_RTS;
+		if (clear & TIOCM_RTS)
+			rs &= ~C_RS_RTS;
+		if (set & TIOCM_DTR) {
+			rs |= C_RS_DTR;
+#ifdef CY_DEBUG_DTR
+			printk(KERN_DEBUG "cyc:set_modem_info raising Z DTR\n");
+#endif
+		}
+		if (clear & TIOCM_DTR) {
+			rs &= ~C_RS_DTR;
+#ifdef CY_DEBUG_DTR
+			printk(KERN_DEBUG "cyc:set_modem_info clearing "
+				"Z DTR\n");
+#endif
+		}
+		cy_writel(&ch_ctrl->rs_control, rs);
 		retval = cyz_issue_cmd(card, channel, C_CM_IOCTLM, 0L);
+		spin_unlock_irqrestore(&card->card_lock, flags);
 		if (retval != 0) {
 			printk(KERN_ERR "cyc:set_modem_info retval on ttyC%d "
 				"was %x\n", info->line, retval);
 		}
-		spin_unlock_irqrestore(&card->card_lock, flags);
 	}
 	return 0;
-}				/* cy_tiocmset */
+}
 
 /*
  * cy_break() --- routine which turns the break handling on or off
