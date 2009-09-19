@@ -654,7 +654,7 @@ static inline void hci_conn_drop(struct hci_conn *conn)
 			if (conn->state == BT_CONNECTED) {
 				timeo = conn->disc_timeout;
 				if (!conn->out)
-					timeo *= 2;
+					timeo *= 20;
 			} else {
 				timeo = msecs_to_jiffies(10);
 			}
