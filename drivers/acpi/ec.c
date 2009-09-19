@@ -47,7 +47,6 @@
 #define ACPI_EC_DEVICE_NAME		"Embedded Controller"
 #define ACPI_EC_FILE_INFO		"info"
 
-#undef PREFIX
 #define PREFIX				"ACPI: EC: "
 
 /* EC status register */

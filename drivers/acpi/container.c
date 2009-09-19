@@ -35,6 +35,8 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/container.h>
 
+#define PREFIX "ACPI: "
+
 #define ACPI_CONTAINER_DEVICE_NAME	"ACPI container device"
 #define ACPI_CONTAINER_CLASS		"container"
 

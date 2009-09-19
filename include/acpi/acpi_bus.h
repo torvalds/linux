@@ -30,8 +30,6 @@
 
 #include <acpi/acpi.h>
 
-#define PREFIX			"ACPI: "
-
 /* TBD: Make dynamic */
 #define ACPI_MAX_HANDLES	10
 struct acpi_handle_list {

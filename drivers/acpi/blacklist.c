@@ -34,6 +34,8 @@
 #include <acpi/acpi_bus.h>
 #include <linux/dmi.h>
 
+#include "internal.h"
+
 enum acpi_blacklist_predicates {
 	all_versions,
 	less_than_or_equal,
