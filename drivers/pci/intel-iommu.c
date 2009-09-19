@@ -56,8 +56,14 @@
 
 #define MAX_AGAW_WIDTH 64
 
-#define DOMAIN_MAX_ADDR(gaw) ((((u64)1) << gaw) - 1)
-#define DOMAIN_MAX_PFN(gaw)  ((((u64)1) << (gaw-VTD_PAGE_SHIFT)) - 1)
+#define __DOMAIN_MAX_PFN(gaw)  ((((uint64_t)1) << (gaw-VTD_PAGE_SHIFT)) - 1)
+#define __DOMAIN_MAX_ADDR(gaw) ((((uint64_t)1) << gaw) - 1)
+
+/* We limit DOMAIN_MAX_PFN to fit in an unsigned long, and DOMAIN_MAX_ADDR
+   to match. That way, we can use 'unsigned long' for PFNs with impunity. */
+#define DOMAIN_MAX_PFN(gaw)	((unsigned long) min_t(uint64_t, \
+				__DOMAIN_MAX_PFN(gaw), (unsigned long)-1))
+#define DOMAIN_MAX_ADDR(gaw)	(((uint64_t)__DOMAIN_MAX_PFN(gaw)) << VTD_PAGE_SHIFT)
 
 #define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
 #define DMA_32BIT_PFN		IOVA_PFN(DMA_BIT_MASK(32))
