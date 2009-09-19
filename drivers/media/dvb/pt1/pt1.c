@@ -912,7 +912,7 @@ pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto err;
 
-	ret = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret < 0)
 		goto err_pci_disable_device;
 
