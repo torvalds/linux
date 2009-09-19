@@ -1110,6 +1110,24 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 	return 0;
 }
 
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *std)
+{
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
+
+	switch (go->standard) {
+	case GO7007_STD_NTSC:
+		*std = V4L2_STD_NTSC;
+		break;
+	case GO7007_STD_PAL:
+		*std = V4L2_STD_PAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 {
 	struct go7007 *go = ((struct go7007_file *) priv)->go;
@@ -1154,24 +1172,22 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 	return 0;
 }
 
-#if 0
-	case VIDIOC_QUERYSTD:
-	{
-		v4l2_std_id *std = arg;
+static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *std)
+{
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
-		if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) &&
-				go->input == go->board_info->num_inputs - 1) {
-			if (!go->i2c_adapter_online)
-				return -EIO;
-			i2c_clients_command(&go->i2c_adapter,
-						VIDIOC_QUERYSTD, arg);
-		} else if (go->board_info->sensor_flags & GO7007_SENSOR_TV)
-			*std = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
-		else
-			*std = 0;
-		return 0;
-	}
-#endif
+	if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) &&
+			go->input == go->board_info->num_inputs - 1) {
+		if (!go->i2c_adapter_online)
+			return -EIO;
+		i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYSTD, std);
+	} else if (go->board_info->sensor_flags & GO7007_SENSOR_TV)
+		*std = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
+	else
+		*std = 0;
+
+	return 0;
+}
 
 static int vidioc_enum_input(struct file *file, void *priv,
 				struct v4l2_input *inp)
@@ -1768,7 +1784,9 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querybuf          = vidioc_querybuf,
 	.vidioc_qbuf              = vidioc_qbuf,
 	.vidioc_dqbuf             = vidioc_dqbuf,
+	.vidioc_g_std             = vidioc_g_std,
 	.vidioc_s_std             = vidioc_s_std,
+	.vidioc_querystd          = vidioc_querystd,
 	.vidioc_enum_input        = vidioc_enum_input,
 	.vidioc_g_input           = vidioc_g_input,
 	.vidioc_s_input           = vidioc_s_input,
