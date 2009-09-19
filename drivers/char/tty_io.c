@@ -1386,10 +1386,14 @@ EXPORT_SYMBOL(tty_shutdown);
  *		tty_mutex - sometimes only
  *		takes the file list lock internally when working on the list
  *	of ttys that the driver keeps.
+ *
+ *	This method gets called from a work queue so that the driver private
+ *	shutdown ops can sleep (needed for USB at least)
  */
-static void release_one_tty(struct kref *kref)
+static void release_one_tty(struct work_struct *work)
 {
-	struct tty_struct *tty = container_of(kref, struct tty_struct, kref);
+	struct tty_struct *tty =
+		container_of(work, struct tty_struct, hangup_work);
 	struct tty_driver *driver = tty->driver;
 
 	if (tty->ops->shutdown)
@@ -1407,6 +1411,15 @@ static void release_one_tty(struct kref *kref)
 	free_tty_struct(tty);
 }
 
+static void queue_release_one_tty(struct kref *kref)
+{
+	struct tty_struct *tty = container_of(kref, struct tty_struct, kref);
+	/* The hangup queue is now free so we can reuse it rather than
+	   waste a chunk of memory for each port */
+	INIT_WORK(&tty->hangup_work, release_one_tty);
+	schedule_work(&tty->hangup_work);
+}
+
 /**
  *	tty_kref_put		-	release a tty kref
  *	@tty: tty device
@@ -1418,7 +1431,7 @@ static void release_one_tty(struct kref *kref)
 void tty_kref_put(struct tty_struct *tty)
 {
 	if (tty)
-		kref_put(&tty->kref, release_one_tty);
+		kref_put(&tty->kref, queue_release_one_tty);
 }
 EXPORT_SYMBOL(tty_kref_put);
 
