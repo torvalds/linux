@@ -972,6 +972,41 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		}
 		break;
 
+	case VT_SETACTIVATE:
+	{
+		struct vt_setactivate vsa;
+
+		if (!perm)
+			goto eperm;
+
+		if (copy_from_user(&vsa, (struct vt_setactivate __user *)arg,
+						sizeof(struct vt_setactivate)))
+			return -EFAULT;
+		if (vsa.console == 0 || vsa.console > MAX_NR_CONSOLES)
+			ret = -ENXIO;
+		else {
+			vsa.console--;
+			acquire_console_sem();
+			ret = vc_allocate(vsa.console);
+			if (ret == 0) {
+				struct vc_data *nvc;
+				/* This is safe providing we don't drop the
+				   console sem between vc_allocate and
+				   finishing referencing nvc */
+				nvc = vc_cons[vsa.console].d;
+				nvc->vt_mode = vsa.mode;
+				nvc->vt_mode.frsig = 0;
+				put_pid(nvc->vt_pid);
+				nvc->vt_pid = get_pid(task_pid(current));
+			}
+			release_console_sem();
+			if (ret)
+				break;
+			/* Commence switch and lock */
+			set_console(arg);
+		}
+	}
+
 	/*
 	 * wait until the specified VT has been activated
 	 */
@@ -1342,7 +1377,8 @@ void vc_SAK(struct work_struct *work)
 }
 
 /*
- * Performs the back end of a vt switch
+ * Performs the back end of a vt switch. Called under the console
+ * semaphore.
  */
 static void complete_change_console(struct vc_data *vc)
 {

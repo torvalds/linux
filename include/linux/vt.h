@@ -77,4 +77,11 @@ struct vt_event {
 
 #define VT_WAITEVENT	0x560E	/* Wait for an event */
 
+struct vt_setactivate {
+	unsigned int console;
+	struct vt_mode mode;
+};
+
+#define VT_SETACTIVATE	0x560F	/* Activate and set the mode of a console */
+
 #endif /* _LINUX_VT_H */
