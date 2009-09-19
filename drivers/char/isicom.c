@@ -952,18 +952,11 @@ static void isicom_flush_buffer(struct tty_struct *tty)
 	tty_wakeup(tty);
 }
 
-static void isicom_close(struct tty_struct *tty, struct file *filp)
+static void isicom_close_port(struct tty_port *port)
 {
-	struct isi_port *ip = tty->driver_data;
-	struct tty_port *port = &ip->port;
-	struct isi_board *card;
+	struct isi_port *ip = container_of(port, struct isi_port, port);
+	struct isi_board *card = ip->card;
 	unsigned long flags;
-
-	BUG_ON(!ip);
-
-	card = ip->card;
-	if (isicom_paranoia_check(ip, tty->name, "isicom_close"))
-		return;
 
 	/* indicate to the card that no more data can be received
 	   on this port */
@@ -974,9 +967,19 @@ static void isicom_close(struct tty_struct *tty, struct file *filp)
 	}
 	isicom_shutdown_port(ip);
 	spin_unlock_irqrestore(&card->card_lock, flags);
+}
 
+static void isicom_close(struct tty_struct *tty, struct file *filp)
+{
+	struct isi_port *ip = tty->driver_data;
+	struct tty_port *port = &ip->port;
+	if (isicom_paranoia_check(ip, tty->name, "isicom_close"))
+		return;
+
+	if (tty_port_close_start(port, tty, filp) == 0)
+		return;
+	isicom_close_port(port);
 	isicom_flush_buffer(tty);
-	
 	tty_port_close_end(port, tty);
 }
 
