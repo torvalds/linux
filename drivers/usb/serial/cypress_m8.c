@@ -172,8 +172,7 @@ static int  cypress_earthmate_startup(struct usb_serial *serial);
 static int  cypress_hidcom_startup(struct usb_serial *serial);
 static int  cypress_ca42v2_startup(struct usb_serial *serial);
 static void cypress_release(struct usb_serial *serial);
-static int  cypress_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static int  cypress_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void cypress_close(struct usb_serial_port *port);
 static void cypress_dtr_rts(struct usb_serial_port *port, int on);
 static int  cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
@@ -633,8 +632,7 @@ static void cypress_release(struct usb_serial *serial)
 }
 
 
-static int cypress_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int cypress_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;

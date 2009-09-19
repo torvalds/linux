@@ -1018,8 +1018,7 @@ static void iuu_close(struct usb_serial_port *port)
 	}
 }
 
-static int iuu_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	u8 *buf;
@@ -1077,7 +1076,7 @@ static int iuu_open(struct tty_struct *tty,
 		tty->termios->c_iflag = 0;
 		priv->termios_initialized = 1;
 		priv->poll = 0;
-	 }
+	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* initialize writebuf */

@@ -146,7 +146,7 @@ static int  whiteheat_firmware_attach(struct usb_serial *serial);
 static int  whiteheat_attach(struct usb_serial *serial);
 static void whiteheat_release(struct usb_serial *serial);
 static int  whiteheat_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+			struct usb_serial_port *port);
 static void whiteheat_close(struct usb_serial_port *port);
 static int  whiteheat_write(struct tty_struct *tty,
 			struct usb_serial_port *port,
@@ -659,8 +659,7 @@ static void whiteheat_release(struct usb_serial *serial)
 	return;
 }
 
-static int whiteheat_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int whiteheat_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int		retval = 0;
 

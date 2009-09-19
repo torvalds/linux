@@ -319,8 +319,7 @@ static int send_mos_cmd(struct usb_serial *serial, __u8 request, __u16 value,
 	return status;
 }
 
-static int mos7720_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial;
 	struct usb_serial_port *port0;

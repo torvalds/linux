@@ -45,8 +45,7 @@
 /* Function prototypes */
 static int  option_probe(struct usb_serial *serial,
 			const struct usb_device_id *id);
-static int  option_open(struct tty_struct *tty, struct usb_serial_port *port,
-							struct file *filp);
+static int  option_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void option_close(struct usb_serial_port *port);
 static void option_dtr_rts(struct usb_serial_port *port, int on);
 
@@ -961,8 +960,7 @@ static int option_chars_in_buffer(struct tty_struct *tty)
 	return data_len;
 }
 
-static int option_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int option_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct option_port_private *portdata;
 	int i, err;

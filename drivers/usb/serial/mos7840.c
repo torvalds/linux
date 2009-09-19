@@ -824,8 +824,7 @@ static int mos7840_serial_probe(struct usb_serial *serial,
  *	Otherwise we return a negative error number.
  *****************************************************************************/
 
-static int mos7840_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int response;
 	int j;

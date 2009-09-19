@@ -244,7 +244,7 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 
 		/* only call the device specific open if this
 		 * is the first time the port is opened */
-		retval = serial->type->open(tty, port, filp);
+		retval = serial->type->open(tty, port);
 		if (retval)
 			goto bailout_interface_put;
 		mutex_unlock(&serial->disc_mutex);

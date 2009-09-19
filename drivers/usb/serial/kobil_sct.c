@@ -70,8 +70,7 @@ static int debug;
 /* Function prototypes */
 static int  kobil_startup(struct usb_serial *serial);
 static void kobil_release(struct usb_serial *serial);
-static int  kobil_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static int  kobil_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void kobil_close(struct usb_serial_port *port);
 static int  kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 			 const unsigned char *buf, int count);
@@ -211,8 +210,7 @@ static void kobil_release(struct usb_serial *serial)
 }
 
 
-static int kobil_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int result = 0;
 	struct kobil_private *priv;

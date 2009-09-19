@@ -238,9 +238,8 @@ struct usb_serial_driver {
 	int (*resume)(struct usb_serial *serial);
 
 	/* serial function calls */
-	/* Called by console with tty = NULL and by tty */
-	int  (*open)(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+	/* Called by console and by the tty layer */
+	int  (*open)(struct tty_struct *tty, struct usb_serial_port *port);
 	void (*close)(struct usb_serial_port *port);
 	int  (*write)(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
@@ -300,7 +299,7 @@ static inline void usb_serial_console_disconnect(struct usb_serial *serial) {}
 extern struct usb_serial *usb_serial_get_by_index(unsigned int minor);
 extern void usb_serial_put(struct usb_serial *serial);
 extern int usb_serial_generic_open(struct tty_struct *tty,
-		struct usb_serial_port *port, struct file *filp);
+	struct usb_serial_port *port);
 extern int usb_serial_generic_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count);
 extern void usb_serial_generic_close(struct usb_serial_port *port);

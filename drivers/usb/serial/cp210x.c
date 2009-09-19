@@ -33,8 +33,7 @@
 /*
  * Function Prototypes
  */
-static int cp210x_open(struct tty_struct *, struct usb_serial_port *,
-							struct file *);
+static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *);
 static void cp210x_cleanup(struct usb_serial_port *);
 static void cp210x_close(struct usb_serial_port *);
 static void cp210x_get_termios(struct tty_struct *,
@@ -368,8 +367,7 @@ static unsigned int cp210x_quantise_baudrate(unsigned int baud) {
 	return baud;
 }
 
-static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port,
-				struct file *filp)
+static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	int result;

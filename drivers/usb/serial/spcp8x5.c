@@ -623,8 +623,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 
 /* open the serial port. do some usb system call. set termios and get the line
  * status of the device. then submit the read urb */
-static int spcp8x5_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
@@ -657,8 +656,6 @@ static int spcp8x5_open(struct tty_struct *tty,
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->line_status = status & 0xf0 ;
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* FIXME: need to assert RTS and DTR if CRTSCTS off */
 
 	dbg("%s - submitting read urb", __func__);
 	port->read_urb->dev = serial->dev;

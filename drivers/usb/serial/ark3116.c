@@ -318,8 +318,7 @@ static void ark3116_set_termios(struct tty_struct *tty,
 	return;
 }
 
-static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port,
-					struct file *filp)
+static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
@@ -334,7 +333,7 @@ static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port,
 		return -ENOMEM;
 	}
 
-	result = usb_serial_generic_open(tty, port, filp);
+	result = usb_serial_generic_open(tty, port);
 	if (result)
 		goto err_out;
 

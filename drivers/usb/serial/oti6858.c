@@ -141,8 +141,7 @@ struct oti6858_control_pkt {
 	  && ((a)->frame_fmt == (priv)->pending_setup.frame_fmt))
 
 /* function prototypes */
-static int oti6858_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static int oti6858_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void oti6858_close(struct usb_serial_port *port);
 static void oti6858_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
@@ -566,8 +565,7 @@ static void oti6858_set_termios(struct tty_struct *tty,
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static int oti6858_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int oti6858_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct oti6858_private *priv = usb_get_serial_port_data(port);
 	struct ktermios tmp_termios;
