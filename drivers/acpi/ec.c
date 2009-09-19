@@ -787,106 +787,6 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	return AE_CTRL_TERMINATE;
 }
 
-static void ec_remove_handlers(struct acpi_ec *ec)
-{
-	if (ACPI_FAILURE(acpi_remove_address_space_handler(ec->handle,
-				ACPI_ADR_SPACE_EC, &acpi_ec_space_handler)))
-		pr_err(PREFIX "failed to remove space handler\n");
-	if (ACPI_FAILURE(acpi_remove_gpe_handler(NULL, ec->gpe,
-				&acpi_ec_gpe_handler)))
-		pr_err(PREFIX "failed to remove gpe handler\n");
-	clear_bit(EC_FLAGS_HANDLERS_INSTALLED, &ec->flags);
-}
-
-static int acpi_ec_add(struct acpi_device *device)
-{
-	struct acpi_ec *ec = NULL;
-
-	if (!device)
-		return -EINVAL;
-	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
-
-	/* Check for boot EC */
-	if (boot_ec &&
-	    (boot_ec->handle == device->handle ||
-	     boot_ec->handle == ACPI_ROOT_OBJECT)) {
-		ec = boot_ec;
-		boot_ec = NULL;
-	} else {
-		ec = make_acpi_ec();
-		if (!ec)
-			return -ENOMEM;
-	}
-	if (ec_parse_device(device->handle, 0, ec, NULL) !=
-		AE_CTRL_TERMINATE) {
-			kfree(ec);
-			return -EINVAL;
-	}
-
-	ec->handle = device->handle;
-
-	/* Find and register all query methods */
-	acpi_walk_namespace(ACPI_TYPE_METHOD, ec->handle, 1,
-			    acpi_ec_register_query_methods, ec, NULL);
-
-	if (!first_ec)
-		first_ec = ec;
-	device->driver_data = ec;
-	acpi_ec_add_fs(device);
-	pr_info(PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx\n",
-			  ec->gpe, ec->command_addr, ec->data_addr);
-	pr_info(PREFIX "driver started in %s mode\n",
-		(test_bit(EC_FLAGS_GPE_MODE, &ec->flags))?"interrupt":"poll");
-	return 0;
-}
-
-static int acpi_ec_remove(struct acpi_device *device, int type)
-{
-	struct acpi_ec *ec;
-	struct acpi_ec_query_handler *handler, *tmp;
-
-	if (!device)
-		return -EINVAL;
-
-	ec = acpi_driver_data(device);
-	mutex_lock(&ec->lock);
-	list_for_each_entry_safe(handler, tmp, &ec->list, node) {
-		list_del(&handler->node);
-		kfree(handler);
-	}
-	mutex_unlock(&ec->lock);
-	acpi_ec_remove_fs(device);
-	device->driver_data = NULL;
-	if (ec == first_ec)
-		first_ec = NULL;
-	kfree(ec);
-	return 0;
-}
-
-static acpi_status
-ec_parse_io_ports(struct acpi_resource *resource, void *context)
-{
-	struct acpi_ec *ec = context;
-
-	if (resource->type != ACPI_RESOURCE_TYPE_IO)
-		return AE_OK;
-
-	/*
-	 * The first address region returned is the data port, and
-	 * the second address region returned is the status/command
-	 * port.
-	 */
-	if (ec->data_addr == 0)
-		ec->data_addr = resource->data.io.minimum;
-	else if (ec->command_addr == 0)
-		ec->command_addr = resource->data.io.minimum;
-	else
-		return AE_CTRL_TERMINATE;
-
-	return AE_OK;
-}
-
 static int ec_install_handlers(struct acpi_ec *ec)
 {
 	acpi_status status;
@@ -923,18 +823,56 @@ static int ec_install_handlers(struct acpi_ec *ec)
 	return 0;
 }
 
-static int acpi_ec_start(struct acpi_device *device)
+static void ec_remove_handlers(struct acpi_ec *ec)
 {
-	struct acpi_ec *ec;
-	int ret = 0;
+	if (ACPI_FAILURE(acpi_remove_address_space_handler(ec->handle,
+				ACPI_ADR_SPACE_EC, &acpi_ec_space_handler)))
+		pr_err(PREFIX "failed to remove space handler\n");
+	if (ACPI_FAILURE(acpi_remove_gpe_handler(NULL, ec->gpe,
+				&acpi_ec_gpe_handler)))
+		pr_err(PREFIX "failed to remove gpe handler\n");
+	clear_bit(EC_FLAGS_HANDLERS_INSTALLED, &ec->flags);
+}
 
-	if (!device)
-		return -EINVAL;
+static int acpi_ec_add(struct acpi_device *device)
+{
+	struct acpi_ec *ec = NULL;
+	int ret;
 
-	ec = acpi_driver_data(device);
+	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
+	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
 
-	if (!ec)
-		return -EINVAL;
+	/* Check for boot EC */
+	if (boot_ec &&
+	    (boot_ec->handle == device->handle ||
+	     boot_ec->handle == ACPI_ROOT_OBJECT)) {
+		ec = boot_ec;
+		boot_ec = NULL;
+	} else {
+		ec = make_acpi_ec();
+		if (!ec)
+			return -ENOMEM;
+	}
+	if (ec_parse_device(device->handle, 0, ec, NULL) !=
+		AE_CTRL_TERMINATE) {
+			kfree(ec);
+			return -EINVAL;
+	}
+
+	ec->handle = device->handle;
+
+	/* Find and register all query methods */
+	acpi_walk_namespace(ACPI_TYPE_METHOD, ec->handle, 1,
+			    acpi_ec_register_query_methods, ec, NULL);
+
+	if (!first_ec)
+		first_ec = ec;
+	device->driver_data = ec;
+	acpi_ec_add_fs(device);
+	pr_info(PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx\n",
+			  ec->gpe, ec->command_addr, ec->data_addr);
+	pr_info(PREFIX "driver started in %s mode\n",
+		(test_bit(EC_FLAGS_GPE_MODE, &ec->flags))?"interrupt":"poll");
 
 	ret = ec_install_handlers(ec);
 
@@ -943,17 +881,51 @@ static int acpi_ec_start(struct acpi_device *device)
 	return ret;
 }
 
-static int acpi_ec_stop(struct acpi_device *device, int type)
+static int acpi_ec_remove(struct acpi_device *device, int type)
 {
 	struct acpi_ec *ec;
+	struct acpi_ec_query_handler *handler, *tmp;
+
 	if (!device)
 		return -EINVAL;
-	ec = acpi_driver_data(device);
-	if (!ec)
-		return -EINVAL;
-	ec_remove_handlers(ec);
 
+	ec = acpi_driver_data(device);
+	ec_remove_handlers(ec);
+	mutex_lock(&ec->lock);
+	list_for_each_entry_safe(handler, tmp, &ec->list, node) {
+		list_del(&handler->node);
+		kfree(handler);
+	}
+	mutex_unlock(&ec->lock);
+	acpi_ec_remove_fs(device);
+	device->driver_data = NULL;
+	if (ec == first_ec)
+		first_ec = NULL;
+	kfree(ec);
 	return 0;
+}
+
+static acpi_status
+ec_parse_io_ports(struct acpi_resource *resource, void *context)
+{
+	struct acpi_ec *ec = context;
+
+	if (resource->type != ACPI_RESOURCE_TYPE_IO)
+		return AE_OK;
+
+	/*
+	 * The first address region returned is the data port, and
+	 * the second address region returned is the status/command
+	 * port.
+	 */
+	if (ec->data_addr == 0)
+		ec->data_addr = resource->data.io.minimum;
+	else if (ec->command_addr == 0)
+		ec->command_addr = resource->data.io.minimum;
+	else
+		return AE_CTRL_TERMINATE;
+
+	return AE_OK;
 }
 
 int __init acpi_boot_ec_enable(void)
@@ -1076,8 +1048,6 @@ static struct acpi_driver acpi_ec_driver = {
 	.ops = {
 		.add = acpi_ec_add,
 		.remove = acpi_ec_remove,
-		.start = acpi_ec_start,
-		.stop = acpi_ec_stop,
 		.suspend = acpi_ec_suspend,
 		.resume = acpi_ec_resume,
 		},

@@ -430,9 +430,6 @@ static int acpi_device_probe(struct device * dev)
 		if (acpi_drv->ops.notify) {
 			ret = acpi_device_install_notify_handler(acpi_dev);
 			if (ret) {
-				if (acpi_drv->ops.stop)
-					acpi_drv->ops.stop(acpi_dev,
-						   acpi_dev->removal_type);
 				if (acpi_drv->ops.remove)
 					acpi_drv->ops.remove(acpi_dev,
 						     acpi_dev->removal_type);
@@ -456,8 +453,6 @@ static int acpi_device_remove(struct device * dev)
 	if (acpi_drv) {
 		if (acpi_drv->ops.notify)
 			acpi_device_remove_notify_handler(acpi_dev);
-		if (acpi_drv->ops.stop)
-			acpi_drv->ops.stop(acpi_dev, acpi_dev->removal_type);
 		if (acpi_drv->ops.remove)
 			acpi_drv->ops.remove(acpi_dev, acpi_dev->removal_type);
 	}
