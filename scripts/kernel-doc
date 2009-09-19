@@ -1995,6 +1995,7 @@ sub process_file($) {
     my $identifier;
     my $func;
     my $descr;
+    my $in_purpose = 0;
     my $initial_section_counter = $section_counter;
 
     if (defined($ENV{'SRCTREE'})) {
@@ -2044,6 +2045,7 @@ sub process_file($) {
 		    $descr =~ s/\s*$//;
 		    $descr =~ s/\s+/ /;
 		    $declaration_purpose = xml_escape($descr);
+		    $in_purpose = 1;
 		} else {
 		    $declaration_purpose = "";
 		}
@@ -2090,6 +2092,7 @@ sub process_file($) {
 		}
 
 		$in_doc_sect = 1;
+		$in_purpose = 0;
 		$contents = $newcontents;
 		if ($contents ne "") {
 		    while ((substr($contents, 0, 1) eq " ") ||
@@ -2119,11 +2122,19 @@ sub process_file($) {
 	    } elsif (/$doc_content/) {
 		# miguel-style comment kludge, look for blank lines after
 		# @parameter line to signify start of description
-		if ($1 eq "" &&
-			($section =~ m/^@/ || $section eq $section_context)) {
-		    dump_section($file, $section, xml_escape($contents));
-		    $section = $section_default;
-		    $contents = "";
+		if ($1 eq "") {
+		    if ($section =~ m/^@/ || $section eq $section_context) {
+			dump_section($file, $section, xml_escape($contents));
+			$section = $section_default;
+			$contents = "";
+		    } else {
+			$contents .= "\n";
+		    }
+		    $in_purpose = 0;
+		} elsif ($in_purpose == 1) {
+		    # Continued declaration purpose
+		    chomp($declaration_purpose);
+		    $declaration_purpose .= " " . xml_escape($1);
 		} else {
 		    $contents .= $1 . "\n";
 		}

@@ -1811,6 +1811,12 @@ config ZFCP
           called zfcp. If you want to compile it as a module, say M here
           and read <file:Documentation/kbuild/modules.txt>.
 
+config SCSI_PMCRAID
+	tristate "PMC SIERRA Linux MaxRAID adapter support"
+	depends on PCI && SCSI
+	---help---
+	  This driver supports the PMC SIERRA MaxRAID adapters.
+
 config SCSI_SRP
 	tristate "SCSI RDMA Protocol helper library"
 	depends on SCSI && PCI

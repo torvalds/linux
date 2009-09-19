@@ -68,7 +68,7 @@ static struct attribute_group bt_link_group = {
 	.attrs = bt_link_attrs,
 };
 
-static struct attribute_group *bt_link_groups[] = {
+static const struct attribute_group *bt_link_groups[] = {
 	&bt_link_group,
 	NULL
 };
@@ -392,7 +392,7 @@ static struct attribute_group bt_host_group = {
 	.attrs = bt_host_attrs,
 };
 
-static struct attribute_group *bt_host_groups[] = {
+static const struct attribute_group *bt_host_groups[] = {
 	&bt_host_group,
 	NULL
 };

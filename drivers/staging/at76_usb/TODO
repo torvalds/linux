@@ -1,7 +1,0 @@
-Fix the mac80211 port of at76_usb (the proper in-kernel wireless
-stack) and get it included to the mainline. Patches available here:
-
-http://git.kernel.org/?p=linux/kernel/git/linville/wireless-legacy.git;a=shortlog;h=at76
-
-Contact Kalle Valo <kalle.valo@iki.fi> and linux-wireless list
-<linux-wireless@vger.kernel.org> for more information.

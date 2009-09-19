@@ -23,14 +23,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/*! \page fir_page FIR filtering
-\section fir_page_sec_1 What does it do?
-???.
-
-\section fir_page_sec_2 How does it work?
-???.
-*/
-
 #if !defined(_FIR_H_)
 #define _FIR_H_
 
@@ -62,14 +54,10 @@
    can.
 */
 
-#if defined(USE_MMX)  ||  defined(USE_SSE2)
-#include "mmx.h"
-#endif
-
-/*!
-    16 bit integer FIR descriptor. This defines the working state for a single
-    instance of an FIR filter using 16 bit integer coefficients.
-*/
+/*
+ * 16 bit integer FIR descriptor. This defines the working state for a single
+ * instance of an FIR filter using 16 bit integer coefficients.
+ */
 struct fir16_state_t {
 	int taps;
 	int curr_pos;
@@ -77,11 +65,11 @@ struct fir16_state_t {
 	int16_t *history;
 };
 
-/*!
-    32 bit integer FIR descriptor. This defines the working state for a single
-    instance of an FIR filter using 32 bit integer coefficients, and filtering
-    16 bit integer data.
-*/
+/*
+ * 32 bit integer FIR descriptor. This defines the working state for a single
+ * instance of an FIR filter using 32 bit integer coefficients, and filtering
+ * 16 bit integer data.
+ */
 struct fir32_state_t {
 	int taps;
 	int curr_pos;
@@ -89,10 +77,10 @@ struct fir32_state_t {
 	int16_t *history;
 };
 
-/*!
-    Floating point FIR descriptor. This defines the working state for a single
-    instance of an FIR filter using floating point coefficients and data.
-*/
+/*
+ * Floating point FIR descriptor. This defines the working state for a single
+ * instance of an FIR filter using floating point coefficients and data.
+ */
 struct fir_float_state_t {
 	int taps;
 	int curr_pos;
@@ -106,7 +94,7 @@ static inline const int16_t *fir16_create(struct fir16_state_t *fir,
 	fir->taps = taps;
 	fir->curr_pos = taps - 1;
 	fir->coeffs = coeffs;
-#if defined(USE_MMX)  ||  defined(USE_SSE2) || defined(__bfin__)
+#if defined(__bfin__)
 	fir->history = kcalloc(2 * taps, sizeof(int16_t), GFP_KERNEL);
 #else
 	fir->history = kcalloc(taps, sizeof(int16_t), GFP_KERNEL);
@@ -116,7 +104,7 @@ static inline const int16_t *fir16_create(struct fir16_state_t *fir,
 
 static inline void fir16_flush(struct fir16_state_t *fir)
 {
-#if defined(USE_MMX)  ||  defined(USE_SSE2) || defined(__bfin__)
+#if defined(__bfin__)
 	memset(fir->history, 0, 2 * fir->taps * sizeof(int16_t));
 #else
 	memset(fir->history, 0, fir->taps * sizeof(int16_t));
@@ -158,71 +146,7 @@ static inline int32_t dot_asm(short *x, short *y, int len)
 static inline int16_t fir16(struct fir16_state_t *fir, int16_t sample)
 {
 	int32_t y;
-#if defined(USE_MMX)
-	int i;
-	union mmx_t *mmx_coeffs;
-	union mmx_t *mmx_hist;
-
-	fir->history[fir->curr_pos] = sample;
-	fir->history[fir->curr_pos + fir->taps] = sample;
-
-	mmx_coeffs = (union mmx_t *)fir->coeffs;
-	mmx_hist = (union mmx_t *)&fir->history[fir->curr_pos];
-	i = fir->taps;
-	pxor_r2r(mm4, mm4);
-	/* 8 samples per iteration, so the filter must be a multiple of 8 long. */
-	while (i > 0) {
-		movq_m2r(mmx_coeffs[0], mm0);
-		movq_m2r(mmx_coeffs[1], mm2);
-		movq_m2r(mmx_hist[0], mm1);
-		movq_m2r(mmx_hist[1], mm3);
-		mmx_coeffs += 2;
-		mmx_hist += 2;
-		pmaddwd_r2r(mm1, mm0);
-		pmaddwd_r2r(mm3, mm2);
-		paddd_r2r(mm0, mm4);
-		paddd_r2r(mm2, mm4);
-		i -= 8;
-	}
-	movq_r2r(mm4, mm0);
-	psrlq_i2r(32, mm0);
-	paddd_r2r(mm0, mm4);
-	movd_r2m(mm4, y);
-	emms();
-#elif defined(USE_SSE2)
-	int i;
-	union xmm_t *xmm_coeffs;
-	union xmm_t *xmm_hist;
-
-	fir->history[fir->curr_pos] = sample;
-	fir->history[fir->curr_pos + fir->taps] = sample;
-
-	xmm_coeffs = (union xmm_t *)fir->coeffs;
-	xmm_hist = (union xmm_t *)&fir->history[fir->curr_pos];
-	i = fir->taps;
-	pxor_r2r(xmm4, xmm4);
-	/* 16 samples per iteration, so the filter must be a multiple of 16 long. */
-	while (i > 0) {
-		movdqu_m2r(xmm_coeffs[0], xmm0);
-		movdqu_m2r(xmm_coeffs[1], xmm2);
-		movdqu_m2r(xmm_hist[0], xmm1);
-		movdqu_m2r(xmm_hist[1], xmm3);
-		xmm_coeffs += 2;
-		xmm_hist += 2;
-		pmaddwd_r2r(xmm1, xmm0);
-		pmaddwd_r2r(xmm3, xmm2);
-		paddd_r2r(xmm0, xmm4);
-		paddd_r2r(xmm2, xmm4);
-		i -= 16;
-	}
-	movdqa_r2r(xmm4, xmm0);
-	psrldq_i2r(8, xmm0);
-	paddd_r2r(xmm0, xmm4);
-	movdqa_r2r(xmm4, xmm0);
-	psrldq_i2r(4, xmm0);
-	paddd_r2r(xmm0, xmm4);
-	movd_r2m(xmm4, y);
-#elif defined(__bfin__)
+#if defined(__bfin__)
 	fir->history[fir->curr_pos] = sample;
 	fir->history[fir->curr_pos + fir->taps] = sample;
 	y = dot_asm((int16_t *) fir->coeffs, &fir->history[fir->curr_pos],
@@ -290,4 +214,3 @@ static inline int16_t fir32(struct fir32_state_t *fir, int16_t sample)
 }
 
 #endif
-/*- End of file ------------------------------------------------------------*/

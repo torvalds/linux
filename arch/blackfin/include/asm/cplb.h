@@ -125,4 +125,48 @@
 #define FAULT_USERSUPV  (1 << 17)
 #define FAULT_CPLBBITS  0x0000ffff
 
-#endif				/* _CPLB_H */
+#ifndef __ASSEMBLY__
+
+static inline void _disable_cplb(u32 mmr, u32 mask)
+{
+	u32 ctrl = bfin_read32(mmr) & ~mask;
+	/* CSYNC to ensure load store ordering */
+	__builtin_bfin_csync();
+	bfin_write32(mmr, ctrl);
+	__builtin_bfin_ssync();
+}
+static inline void disable_cplb(u32 mmr, u32 mask)
+{
+	u32 ctrl = bfin_read32(mmr) & ~mask;
+	CSYNC();
+	bfin_write32(mmr, ctrl);
+	SSYNC();
+}
+#define _disable_dcplb() _disable_cplb(DMEM_CONTROL, ENDCPLB)
+#define  disable_dcplb()  disable_cplb(DMEM_CONTROL, ENDCPLB)
+#define _disable_icplb() _disable_cplb(IMEM_CONTROL, ENICPLB)
+#define  disable_icplb()  disable_cplb(IMEM_CONTROL, ENICPLB)
+
+static inline void _enable_cplb(u32 mmr, u32 mask)
+{
+	u32 ctrl = bfin_read32(mmr) | mask;
+	/* CSYNC to ensure load store ordering */
+	__builtin_bfin_csync();
+	bfin_write32(mmr, ctrl);
+	__builtin_bfin_ssync();
+}
+static inline void enable_cplb(u32 mmr, u32 mask)
+{
+	u32 ctrl = bfin_read32(mmr) | mask;
+	CSYNC();
+	bfin_write32(mmr, ctrl);
+	SSYNC();
+}
+#define _enable_dcplb()  _enable_cplb(DMEM_CONTROL, ENDCPLB)
+#define  enable_dcplb()   enable_cplb(DMEM_CONTROL, ENDCPLB)
+#define _enable_icplb()  _enable_cplb(IMEM_CONTROL, ENICPLB)
+#define  enable_icplb()   enable_cplb(IMEM_CONTROL, ENICPLB)
+
+#endif		/* __ASSEMBLY__ */
+
+#endif		/* _CPLB_H */

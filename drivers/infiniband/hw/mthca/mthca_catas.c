@@ -88,6 +88,7 @@ static void handle_catas(struct mthca_dev *dev)
 	event.device = &dev->ib_dev;
 	event.event  = IB_EVENT_DEVICE_FATAL;
 	event.element.port_num = 0;
+	dev->active = false;
 
 	ib_dispatch_event(&event);
 

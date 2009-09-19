@@ -32,7 +32,7 @@ enum cpu_type {
 
 	/* SH-4A types */
 	CPU_SH7763, CPU_SH7770, CPU_SH7780, CPU_SH7781, CPU_SH7785, CPU_SH7786,
-	CPU_SH7723, CPU_SH7724, CPU_SHX3,
+	CPU_SH7723, CPU_SH7724, CPU_SH7757, CPU_SHX3,
 
 	/* SH4AL-DSP types */
 	CPU_SH7343, CPU_SH7722, CPU_SH7366,
@@ -42,6 +42,17 @@ enum cpu_type {
 
 	/* Unknown subtype */
 	CPU_SH_NONE
+};
+
+enum cpu_family {
+	CPU_FAMILY_SH2,
+	CPU_FAMILY_SH2A,
+	CPU_FAMILY_SH3,
+	CPU_FAMILY_SH4,
+	CPU_FAMILY_SH4A,
+	CPU_FAMILY_SH4AL_DSP,
+	CPU_FAMILY_SH5,
+	CPU_FAMILY_UNKNOWN,
 };
 
 /*
@@ -61,7 +72,7 @@ struct tlb_info {
 };
 
 struct sh_cpuinfo {
-	unsigned int type;
+	unsigned int type, family;
 	int cut_major, cut_minor;
 	unsigned long loops_per_jiffy;
 	unsigned long asid_cache;

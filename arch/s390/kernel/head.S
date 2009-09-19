@@ -27,6 +27,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
+#include <asm/cpu.h>
 
 #ifdef CONFIG_64BIT
 #define ARCH_OFFSET	4

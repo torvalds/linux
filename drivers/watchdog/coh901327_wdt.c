@@ -110,7 +110,7 @@ static void coh901327_enable(u16 timeout)
 	 * Wait 3 32 kHz cycles for it to take effect
 	 */
 	freq = clk_get_rate(clk);
-	delay_ns = (1000000000 + freq - 1) / freq; /* Freq to ns and round up */
+	delay_ns = DIV_ROUND_UP(1000000000, freq); /* Freq to ns and round up */
 	delay_ns = 3 * delay_ns; /* Wait 3 cycles */
 	ndelay(delay_ns);
 	/* Enable the watchdog interrupt */

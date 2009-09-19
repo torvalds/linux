@@ -76,6 +76,8 @@
 #define CX23885_BOARD_HAUPPAUGE_HVR1255        20
 #define CX23885_BOARD_HAUPPAUGE_HVR1210        21
 #define CX23885_BOARD_MYGICA_X8506             22
+#define CX23885_BOARD_MAGICPRO_PROHDTVE2       23
+#define CX23885_BOARD_HAUPPAUGE_HVR1850        24
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -87,6 +89,12 @@
 #define GPIO_7 0x00000080
 #define GPIO_8 0x00000100
 #define GPIO_9 0x00000200
+#define GPIO_10 0x00000400
+#define GPIO_11 0x00000800
+#define GPIO_12 0x00001000
+#define GPIO_13 0x00002000
+#define GPIO_14 0x00004000
+#define GPIO_15 0x00008000
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
 #define CX23885_NORMS (\
@@ -331,6 +339,7 @@ struct cx23885_dev {
 		CX23885_BRIDGE_UNDEFINED = 0,
 		CX23885_BRIDGE_885 = 885,
 		CX23885_BRIDGE_887 = 887,
+		CX23885_BRIDGE_888 = 888,
 	} bridge;
 
 	/* Analog video */
@@ -395,7 +404,7 @@ struct sram_channel {
 	u32  cmds_start;
 	u32  ctrl_start;
 	u32  cdt;
-	u32  fifo_start;;
+	u32  fifo_start;
 	u32  fifo_size;
 	u32  ptr1_reg;
 	u32  ptr2_reg;
@@ -504,6 +513,9 @@ extern void cx23885_417_check_encoder(struct cx23885_dev *dev);
 extern void cx23885_mc417_init(struct cx23885_dev *dev);
 extern int mc417_memory_read(struct cx23885_dev *dev, u32 address, u32 *value);
 extern int mc417_memory_write(struct cx23885_dev *dev, u32 address, u32 value);
+extern void mc417_gpio_set(struct cx23885_dev *dev, u32 mask);
+extern void mc417_gpio_clear(struct cx23885_dev *dev, u32 mask);
+extern void mc417_gpio_enable(struct cx23885_dev *dev, u32 mask, int asoutput);
 
 
 /* ----------------------------------------------------------- */

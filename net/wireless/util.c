@@ -141,9 +141,12 @@ void ieee80211_set_bitrate_flags(struct wiphy *wiphy)
 			set_mandatory_flags_band(wiphy->bands[band], band);
 }
 
-int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
+int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
+				   struct key_params *params, int key_idx,
 				   const u8 *mac_addr)
 {
+	int i;
+
 	if (key_idx > 5)
 		return -EINVAL;
 
@@ -196,6 +199,12 @@ int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
 			break;
 		}
 	}
+
+	for (i = 0; i < rdev->wiphy.n_cipher_suites; i++)
+		if (params->cipher == rdev->wiphy.cipher_suites[i])
+			break;
+	if (i == rdev->wiphy.n_cipher_suites)
+		return -EINVAL;
 
 	return 0;
 }
@@ -265,11 +274,11 @@ static int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
 	switch (ae) {
 	case 0:
 		return 6;
-	case 1:
+	case MESH_FLAGS_AE_A4:
 		return 12;
-	case 2:
+	case MESH_FLAGS_AE_A5_A6:
 		return 18;
-	case 3:
+	case (MESH_FLAGS_AE_A4 | MESH_FLAGS_AE_A5_A6):
 		return 24;
 	default:
 		return 6;
@@ -324,10 +333,18 @@ int ieee80211_data_to_8023(struct sk_buff *skb, u8 *addr,
 		}
 		break;
 	case cpu_to_le16(IEEE80211_FCTL_FROMDS):
-		if (iftype != NL80211_IFTYPE_STATION ||
+		if ((iftype != NL80211_IFTYPE_STATION &&
+		    iftype != NL80211_IFTYPE_MESH_POINT) ||
 		    (is_multicast_ether_addr(dst) &&
 		     !compare_ether_addr(src, addr)))
 			return -1;
+		if (iftype == NL80211_IFTYPE_MESH_POINT) {
+			struct ieee80211s_hdr *meshdr =
+				(struct ieee80211s_hdr *) (skb->data + hdrlen);
+			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
+			if (meshdr->flags & MESH_FLAGS_AE_A4)
+				memcpy(src, meshdr->eaddr1, ETH_ALEN);
+		}
 		break;
 	case cpu_to_le16(0):
 		if (iftype != NL80211_IFTYPE_ADHOC)
@@ -502,3 +519,166 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb)
 	return dscp >> 5;
 }
 EXPORT_SYMBOL(cfg80211_classify8021d);
+
+const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie)
+{
+	u8 *end, *pos;
+
+	pos = bss->information_elements;
+	if (pos == NULL)
+		return NULL;
+	end = pos + bss->len_information_elements;
+
+	while (pos + 1 < end) {
+		if (pos + 2 + pos[1] > end)
+			break;
+		if (pos[0] == ie)
+			return pos;
+		pos += 2 + pos[1];
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(ieee80211_bss_get_ie);
+
+void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct net_device *dev = wdev->netdev;
+	int i;
+
+	if (!wdev->connect_keys)
+		return;
+
+	for (i = 0; i < 6; i++) {
+		if (!wdev->connect_keys->params[i].cipher)
+			continue;
+		if (rdev->ops->add_key(wdev->wiphy, dev, i, NULL,
+					&wdev->connect_keys->params[i])) {
+			printk(KERN_ERR "%s: failed to set key %d\n",
+				dev->name, i);
+			continue;
+		}
+		if (wdev->connect_keys->def == i)
+			if (rdev->ops->set_default_key(wdev->wiphy, dev, i)) {
+				printk(KERN_ERR "%s: failed to set defkey %d\n",
+					dev->name, i);
+				continue;
+			}
+		if (wdev->connect_keys->defmgmt == i)
+			if (rdev->ops->set_default_mgmt_key(wdev->wiphy, dev, i))
+				printk(KERN_ERR "%s: failed to set mgtdef %d\n",
+					dev->name, i);
+	}
+
+	kfree(wdev->connect_keys);
+	wdev->connect_keys = NULL;
+}
+
+static void cfg80211_process_wdev_events(struct wireless_dev *wdev)
+{
+	struct cfg80211_event *ev;
+	unsigned long flags;
+	const u8 *bssid = NULL;
+
+	spin_lock_irqsave(&wdev->event_lock, flags);
+	while (!list_empty(&wdev->event_list)) {
+		ev = list_first_entry(&wdev->event_list,
+				      struct cfg80211_event, list);
+		list_del(&ev->list);
+		spin_unlock_irqrestore(&wdev->event_lock, flags);
+
+		wdev_lock(wdev);
+		switch (ev->type) {
+		case EVENT_CONNECT_RESULT:
+			if (!is_zero_ether_addr(ev->cr.bssid))
+				bssid = ev->cr.bssid;
+			__cfg80211_connect_result(
+				wdev->netdev, bssid,
+				ev->cr.req_ie, ev->cr.req_ie_len,
+				ev->cr.resp_ie, ev->cr.resp_ie_len,
+				ev->cr.status,
+				ev->cr.status == WLAN_STATUS_SUCCESS,
+				NULL);
+			break;
+		case EVENT_ROAMED:
+			__cfg80211_roamed(wdev, ev->rm.bssid,
+					  ev->rm.req_ie, ev->rm.req_ie_len,
+					  ev->rm.resp_ie, ev->rm.resp_ie_len);
+			break;
+		case EVENT_DISCONNECTED:
+			__cfg80211_disconnected(wdev->netdev,
+						ev->dc.ie, ev->dc.ie_len,
+						ev->dc.reason, true);
+			break;
+		case EVENT_IBSS_JOINED:
+			__cfg80211_ibss_joined(wdev->netdev, ev->ij.bssid);
+			break;
+		}
+		wdev_unlock(wdev);
+
+		kfree(ev);
+
+		spin_lock_irqsave(&wdev->event_lock, flags);
+	}
+	spin_unlock_irqrestore(&wdev->event_lock, flags);
+}
+
+void cfg80211_process_rdev_events(struct cfg80211_registered_device *rdev)
+{
+	struct wireless_dev *wdev;
+
+	ASSERT_RTNL();
+	ASSERT_RDEV_LOCK(rdev);
+
+	mutex_lock(&rdev->devlist_mtx);
+
+	list_for_each_entry(wdev, &rdev->netdev_list, list)
+		cfg80211_process_wdev_events(wdev);
+
+	mutex_unlock(&rdev->devlist_mtx);
+}
+
+int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev, enum nl80211_iftype ntype,
+			  u32 *flags, struct vif_params *params)
+{
+	int err;
+	enum nl80211_iftype otype = dev->ieee80211_ptr->iftype;
+
+	ASSERT_RDEV_LOCK(rdev);
+
+	/* don't support changing VLANs, you just re-create them */
+	if (otype == NL80211_IFTYPE_AP_VLAN)
+		return -EOPNOTSUPP;
+
+	if (!rdev->ops->change_virtual_intf ||
+	    !(rdev->wiphy.interface_modes & (1 << ntype)))
+		return -EOPNOTSUPP;
+
+	if (ntype != otype) {
+		switch (otype) {
+		case NL80211_IFTYPE_ADHOC:
+			cfg80211_leave_ibss(rdev, dev, false);
+			break;
+		case NL80211_IFTYPE_STATION:
+			cfg80211_disconnect(rdev, dev,
+					    WLAN_REASON_DEAUTH_LEAVING, true);
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			/* mesh should be handled? */
+			break;
+		default:
+			break;
+		}
+
+		cfg80211_process_rdev_events(rdev);
+	}
+
+	err = rdev->ops->change_virtual_intf(&rdev->wiphy, dev,
+					     ntype, flags, params);
+
+	WARN_ON(!err && dev->ieee80211_ptr->iftype != ntype);
+
+	return err;
+}

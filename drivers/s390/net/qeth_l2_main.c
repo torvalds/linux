@@ -216,36 +216,16 @@ static void qeth_l2_del_all_mc(struct qeth_card *card)
 	spin_unlock_bh(&card->mclock);
 }
 
-static void qeth_l2_get_packet_type(struct qeth_card *card,
-			struct qeth_hdr *hdr, struct sk_buff *skb)
+static inline int qeth_l2_get_cast_type(struct qeth_card *card,
+			struct sk_buff *skb)
 {
-	__u16 hdr_mac;
-
-	if (!memcmp(skb->data + QETH_HEADER_SIZE,
-		    skb->dev->broadcast, 6)) {
-		/* broadcast? */
-		hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_BROADCAST;
-		return;
-	}
-	hdr_mac = *((__u16 *)skb->data);
-	/* tr multicast? */
-	switch (card->info.link_type) {
-	case QETH_LINK_TYPE_HSTR:
-	case QETH_LINK_TYPE_LANE_TR:
-		if ((hdr_mac == QETH_TR_MAC_NC) ||
-		    (hdr_mac == QETH_TR_MAC_C))
-			hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_MULTICAST;
-		else
-			hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_UNICAST;
-		break;
-		/* eth or so multicast? */
-	default:
-		if ((hdr_mac == QETH_ETH_MAC_V4) ||
-		     (hdr_mac == QETH_ETH_MAC_V6))
-			hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_MULTICAST;
-		else
-			hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_UNICAST;
-	}
+	if (card->info.type == QETH_CARD_TYPE_OSN)
+		return RTN_UNSPEC;
+	if (is_broadcast_ether_addr(skb->data))
+		return RTN_BROADCAST;
+	if (is_multicast_ether_addr(skb->data))
+		return RTN_MULTICAST;
+	return RTN_UNSPEC;
 }
 
 static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
@@ -262,7 +242,7 @@ static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	else if (cast_type == RTN_BROADCAST)
 		hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_BROADCAST;
 	else
-		qeth_l2_get_packet_type(card, hdr, skb);
+		hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_UNICAST;
 
 	hdr->hdr.l2.pkt_length = skb->len-QETH_HEADER_SIZE;
 	/* VSWITCH relies on the VLAN
@@ -469,7 +449,6 @@ static void qeth_l2_process_inbound_buffer(struct qeth_card *card,
 			QETH_DBF_HEX(CTRL, 3, hdr, QETH_DBF_CTRL_LEN);
 			continue;
 		}
-		card->dev->last_rx = jiffies;
 		card->stats.rx_packets++;
 		card->stats.rx_bytes += len;
 	}
@@ -672,7 +651,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct qeth_card *card = dev->ml_priv;
 	struct sk_buff *new_skb = skb;
 	int ipv = qeth_get_ip_version(skb);
-	int cast_type = qeth_get_cast_type(card, skb);
+	int cast_type = qeth_l2_get_cast_type(card, skb);
 	struct qeth_qdio_out_q *queue = card->qdio.out_qs
 		[qeth_get_priority_queue(card, skb, ipv, cast_type)];
 	int tx_bytes = skb->len;
@@ -744,6 +723,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		card->stats.tx_bytes += tx_bytes;
 		if (new_skb != skb)
 			dev_kfree_skb_any(skb);
+		rc = NETDEV_TX_OK;
 	} else {
 		if (data_offset >= 0)
 			kmem_cache_free(qeth_core_header_cache, hdr);
@@ -882,7 +862,7 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 	return;
 }
 
-static struct ethtool_ops qeth_l2_ethtool_ops = {
+static const struct ethtool_ops qeth_l2_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_strings = qeth_core_get_strings,
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
@@ -891,7 +871,7 @@ static struct ethtool_ops qeth_l2_ethtool_ops = {
 	.get_settings = qeth_core_ethtool_get_settings,
 };
 
-static struct ethtool_ops qeth_l2_osn_ops = {
+static const struct ethtool_ops qeth_l2_osn_ops = {
 	.get_strings = qeth_core_get_strings,
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
 	.get_stats_count = qeth_core_get_stats_count,

@@ -271,7 +271,8 @@ int t3_aq100x_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
 
 	cphy_init(phy, adapter, phy_addr, &aq100x_ops, mdio_ops,
 		  SUPPORTED_1000baseT_Full | SUPPORTED_10000baseT_Full |
-		  SUPPORTED_Autoneg | SUPPORTED_AUI, "1000/10GBASE-T");
+		  SUPPORTED_TP | SUPPORTED_Autoneg | SUPPORTED_AUI,
+		  "1000/10GBASE-T");
 
 	/*
 	 * The PHY has been out of reset ever since the system powered up.  So
@@ -316,11 +317,9 @@ int t3_aq100x_phy_prep(struct cphy *phy, struct adapter *adapter, int phy_addr,
 
 	/* Firmware version check. */
 	t3_mdio_read(phy, MDIO_MMD_VEND1, AQ_FW_VERSION, &v);
-	if (v != 30) {
+	if (v != 101)
 		CH_WARN(adapter, "PHY%d: unsupported firmware %d\n",
 			phy_addr, v);
-		return 0; /* allow t3_prep_adapter to succeed */
-	}
 
 	/*
 	 * The PHY should start in really-low-power mode.  Prepare it for normal

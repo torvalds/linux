@@ -456,12 +456,12 @@ static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
 	}
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	if (&orb->link != &lu->orb_list)
+	if (&orb->link != &lu->orb_list) {
 		orb->callback(orb, &status);
-	else
+		kref_put(&orb->kref, free_orb);
+	} else {
 		fw_error("status write for unknown orb\n");
-
-	kref_put(&orb->kref, free_orb);
+	}
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 }

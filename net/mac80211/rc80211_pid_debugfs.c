@@ -198,7 +198,7 @@ static ssize_t rate_control_pid_events_read(struct file *file, char __user *buf,
 
 #undef RC_PID_PRINT_BUF_SIZE
 
-static struct file_operations rc_pid_fop_events = {
+static const struct file_operations rc_pid_fop_events = {
 	.owner = THIS_MODULE,
 	.read = rate_control_pid_events_read,
 	.poll = rate_control_pid_events_poll,

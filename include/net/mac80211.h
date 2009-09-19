@@ -73,6 +73,21 @@
  */
 
 /**
+ * DOC: mac80211 workqueue
+ *
+ * mac80211 provides its own workqueue for drivers and internal mac80211 use.
+ * The workqueue is a single threaded workqueue and can only be accessed by
+ * helpers for sanity checking. Drivers must ensure all work added onto the
+ * mac80211 workqueue should be cancelled on the driver stop() callback.
+ *
+ * mac80211 will flushed the workqueue upon interface removal and during
+ * suspend.
+ *
+ * All work performed on the mac80211 workqueue must not acquire the RTNL lock.
+ *
+ */
+
+/**
  * enum ieee80211_max_queues - maximum number of queues
  *
  * @IEEE80211_MAX_QUEUES: Maximum number of regular device queues.
@@ -224,7 +239,14 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_AMPDU: this frame should be sent as part of an A-MPDU
  * @IEEE80211_TX_CTL_INJECTED: Frame was injected, internal to mac80211.
  * @IEEE80211_TX_STAT_TX_FILTERED: The frame was not transmitted
- *	because the destination STA was in powersave mode.
+ *	because the destination STA was in powersave mode. Note that to
+ *	avoid race conditions, the filter must be set by the hardware or
+ *	firmware upon receiving a frame that indicates that the station
+ *	went to sleep (must be done on device to filter frames already on
+ *	the queue) and may only be unset after mac80211 gives the OK for
+ *	that by setting the IEEE80211_TX_CTL_CLEAR_PS_FILT (see above),
+ *	since only then is it guaranteed that no more frames are in the
+ *	hardware queue.
  * @IEEE80211_TX_STAT_ACK: Frame was acknowledged
  * @IEEE80211_TX_STAT_AMPDU: The frame was aggregated, so status
  * 	is for the whole aggregation.
@@ -241,6 +263,15 @@ struct ieee80211_bss_conf {
  *	it can be sent out.
  * @IEEE80211_TX_INTFL_RETRIED: completely internal to mac80211,
  *	used to indicate that a frame was already retried due to PS
+ * @IEEE80211_TX_INTFL_DONT_ENCRYPT: completely internal to mac80211,
+ *	used to indicate frame should not be encrypted
+ * @IEEE80211_TX_CTL_PSPOLL_RESPONSE: (internal?)
+ *	This frame is a response to a PS-poll frame and should be sent
+ *	although the station is in powersave mode.
+ * @IEEE80211_TX_CTL_MORE_FRAMES: More frames will be passed to the
+ *	transmit function after the current frame, this can be used
+ *	by drivers to kick the DMA queue only if unset or when the
+ *	queue gets full.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -259,6 +290,9 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_RCALGO		= BIT(13),
 	IEEE80211_TX_INTFL_NEED_TXPROCESSING	= BIT(14),
 	IEEE80211_TX_INTFL_RETRIED		= BIT(15),
+	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(16),
+	IEEE80211_TX_CTL_PSPOLL_RESPONSE	= BIT(17),
+	IEEE80211_TX_CTL_MORE_FRAMES		= BIT(18),
 };
 
 /**
@@ -316,6 +350,21 @@ enum mac80211_rate_control_flags {
  *
  * When used for transmit status reporting, the driver should
  * always report the rate along with the flags it used.
+ *
+ * &struct ieee80211_tx_info contains an array of these structs
+ * in the control information, and it will be filled by the rate
+ * control algorithm according to what should be sent. For example,
+ * if this array contains, in the format { <idx>, <count> } the
+ * information
+ *    { 3, 2 }, { 2, 2 }, { 1, 4 }, { -1, 0 }, { -1, 0 }
+ * then this means that the frame should be transmitted
+ * up to twice at rate 3, up to twice at rate 2, and up to four
+ * times at rate 1 if it doesn't get acknowledged. Say it gets
+ * acknowledged by the peer after the fifth attempt, the status
+ * information should then contain
+ *   { 3, 2 }, { 2, 2 }, { 1, 1 }, { -1, 0 } ...
+ * since it was transmitted twice at rate 3, twice at rate 2
+ * and once at rate 1 after which we received an acknowledgement.
  */
 struct ieee80211_tx_rate {
 	s8 idx;
@@ -395,6 +444,11 @@ struct ieee80211_tx_info {
 static inline struct ieee80211_tx_info *IEEE80211_SKB_CB(struct sk_buff *skb)
 {
 	return (struct ieee80211_tx_info *)skb->cb;
+}
+
+static inline struct ieee80211_rx_status *IEEE80211_SKB_RXCB(struct sk_buff *skb)
+{
+	return (struct ieee80211_rx_status *)skb->cb;
 }
 
 /**
@@ -478,7 +532,7 @@ enum mac80211_rx_flags {
  *
  * The low-level driver should provide this information (the subset
  * supported by hardware) to the 802.11 code with each received
- * frame.
+ * frame, in the skb's control buffer (cb).
  *
  * @mactime: value in microseconds of the 64-bit Time Synchronization Function
  * 	(TSF) timer when the first data symbol (MPDU) arrived at the hardware.
@@ -529,7 +583,6 @@ enum ieee80211_conf_flags {
 /**
  * enum ieee80211_conf_changed - denotes which configuration changed
  *
- * @_IEEE80211_CONF_CHANGE_RADIO_ENABLED: DEPRECATED
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
  * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag or dynamic PS timeout changed
@@ -539,7 +592,6 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
  */
 enum ieee80211_conf_changed {
-	_IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
 	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
@@ -549,23 +601,12 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_IDLE		= BIT(8),
 };
 
-static inline __deprecated enum ieee80211_conf_changed
-__IEEE80211_CONF_CHANGE_RADIO_ENABLED(void)
-{
-	return _IEEE80211_CONF_CHANGE_RADIO_ENABLED;
-}
-#define IEEE80211_CONF_CHANGE_RADIO_ENABLED \
-	__IEEE80211_CONF_CHANGE_RADIO_ENABLED()
-
 /**
  * struct ieee80211_conf - configuration of the device
  *
  * This struct indicates how the driver shall configure the hardware.
  *
  * @flags: configuration flags defined above
- *
- * @radio_enabled: when zero, driver is required to switch off the radio.
- * @beacon_int: DEPRECATED, DO NOT USE
  *
  * @listen_interval: listen interval in units of beacon interval
  * @max_sleep_period: the maximum number of beacon intervals to sleep for
@@ -590,13 +631,11 @@ __IEEE80211_CONF_CHANGE_RADIO_ENABLED(void)
  *    number of transmissions not the number of retries
  */
 struct ieee80211_conf {
-	int __deprecated beacon_int;
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
 	int max_sleep_period;
 
 	u16 listen_interval;
-	bool __deprecated radio_enabled;
 
 	u8 long_frame_max_tx_count, short_frame_max_tx_count;
 
@@ -901,12 +940,6 @@ enum ieee80211_hw_flags {
  *
  * @conf: &struct ieee80211_conf, device configuration, don't use.
  *
- * @workqueue: single threaded workqueue available for driver use,
- *	allocated by mac80211 on registration and flushed when an
- *	interface is removed.
- *	NOTICE: All work performed on this workqueue must not
- *	acquire the RTNL lock.
- *
  * @priv: pointer to private area that was allocated for driver use
  *	along with this structure.
  *
@@ -942,7 +975,6 @@ enum ieee80211_hw_flags {
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
 	struct wiphy *wiphy;
-	struct workqueue_struct *workqueue;
 	const char *rate_control_algorithm;
 	void *priv;
 	u32 flags;
@@ -1172,10 +1204,13 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * the driver's configure_filter() function which frames should be
  * passed to mac80211 and which should be filtered out.
  *
- * The configure_filter() callback is invoked with the parameters
- * @mc_count and @mc_list for the combined multicast address list
- * of all virtual interfaces, @changed_flags telling which flags
- * were changed and @total_flags with the new flag states.
+ * Before configure_filter() is invoked, the prepare_multicast()
+ * callback is invoked with the parameters @mc_count and @mc_list
+ * for the combined multicast address list of all virtual interfaces.
+ * It's use is optional, and it returns a u64 that is passed to
+ * configure_filter(). Additionally, configure_filter() has the
+ * arguments @changed_flags telling which flags were changed and
+ * @total_flags with the new flag states.
  *
  * If your device has no multicast address filters your driver will
  * need to check both the %FIF_ALLMULTI flag and the @mc_count
@@ -1224,10 +1259,13 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  *	mac80211 needs to do and the amount of CPU wakeups, so you should
  *	honour this flag if possible.
  *
- * @FIF_CONTROL: pass control frames, if PROMISC_IN_BSS is not set then
- *	only those addressed to this station
+ * @FIF_CONTROL: pass control frames (except for PS Poll), if PROMISC_IN_BSS
+ *  is not set then only those addressed to this station.
  *
  * @FIF_OTHER_BSS: pass frames destined to other BSSes
+ *
+ * @FIF_PSPOLL: pass PS Poll frames, if PROMISC_IN_BSS  is not set then only
+ *  those addressed to this station.
  */
 enum ieee80211_filter_flags {
 	FIF_PROMISC_IN_BSS	= 1<<0,
@@ -1237,6 +1275,7 @@ enum ieee80211_filter_flags {
 	FIF_BCN_PRBRESP_PROMISC	= 1<<4,
 	FIF_CONTROL		= 1<<5,
 	FIF_OTHER_BSS		= 1<<6,
+	FIF_PSPOLL		= 1<<7,
 };
 
 /**
@@ -1289,7 +1328,8 @@ enum ieee80211_ampdu_mlme_action {
  *	is disabled. This should turn off the hardware (at least
  *	it must turn off frame reception.)
  *	May be called right after add_interface if that rejects
- *	an interface.
+ *	an interface. If you added any work onto the mac80211 workqueue
+ *	you should ensure to cancel it on this callback.
  *	Must be implemented.
  *
  * @add_interface: Called when a netdevice attached to the hardware is
@@ -1323,9 +1363,13 @@ enum ieee80211_ampdu_mlme_action {
  *	for association indication. The @changed parameter indicates which
  *	of the bss parameters has changed when a call is made.
  *
+ * @prepare_multicast: Prepare for multicast filter configuration.
+ *	This callback is optional, and its return value is passed
+ *	to configure_filter(). This callback must be atomic.
+ *
  * @configure_filter: Configure the device's RX filter.
  *	See the section "Frame filtering" for more information.
- *	This callback must be implemented and atomic.
+ *	This callback must be implemented.
  *
  * @set_tim: Set TIM bit. mac80211 calls this function when a TIM bit
  * 	must be set or cleared for a given STA. Must be atomic.
@@ -1411,6 +1455,8 @@ enum ieee80211_ampdu_mlme_action {
  * @rfkill_poll: Poll rfkill hardware state. If you need this, you also
  *	need to set wiphy->rfkill_poll to %true before registration,
  *	and need to call wiphy_rfkill_set_hw_state() in the callback.
+ *
+ * @testmode_cmd: Implement a cfg80211 test mode command.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1425,10 +1471,12 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
+	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
+				 int mc_count, struct dev_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
-				 int mc_count, struct dev_addr_list *mc_list);
+				 u64 multicast);
 	int (*set_tim)(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		       bool set);
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -1461,6 +1509,9 @@ struct ieee80211_ops {
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 
 	void (*rfkill_poll)(struct ieee80211_hw *hw);
+#ifdef CONFIG_NL80211_TESTMODE
+	int (*testmode_cmd)(struct ieee80211_hw *hw, void *data, int len);
+#endif
 };
 
 /**
@@ -1606,10 +1657,6 @@ void ieee80211_free_hw(struct ieee80211_hw *hw);
  */
 void ieee80211_restart_hw(struct ieee80211_hw *hw);
 
-/* trick to avoid symbol clashes with the ieee80211 subsystem */
-void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
-		    struct ieee80211_rx_status *status);
-
 /**
  * ieee80211_rx - receive frame
  *
@@ -1624,14 +1671,8 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
- * @status: status of this frame; the status pointer need not be valid
- *	after this function returns
  */
-static inline void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
-				struct ieee80211_rx_status *status)
-{
-	__ieee80211_rx(hw, skb, status);
-}
+void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb);
 
 /**
  * ieee80211_rx_irqsafe - receive frame
@@ -1644,13 +1685,8 @@ static inline void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
- * @status: status of this frame; the status pointer need not be valid
- *	after this function returns and is not freed by mac80211,
- *	it is recommended that it points to a stack area
  */
-void ieee80211_rx_irqsafe(struct ieee80211_hw *hw,
-			  struct sk_buff *skb,
-			  struct ieee80211_rx_status *status);
+void ieee80211_rx_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb);
 
 /**
  * ieee80211_tx_status - transmit status callback
@@ -1917,6 +1953,31 @@ void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
 						void *data);
 
 /**
+ * ieee80211_queue_work - add work onto the mac80211 workqueue
+ *
+ * Drivers and mac80211 use this to add work onto the mac80211 workqueue.
+ * This helper ensures drivers are not queueing work when they should not be.
+ *
+ * @hw: the hardware struct for the interface we are adding work for
+ * @work: the work we want to add onto the mac80211 workqueue
+ */
+void ieee80211_queue_work(struct ieee80211_hw *hw, struct work_struct *work);
+
+/**
+ * ieee80211_queue_delayed_work - add work onto the mac80211 workqueue
+ *
+ * Drivers and mac80211 use this to queue delayed work onto the mac80211
+ * workqueue.
+ *
+ * @hw: the hardware struct for the interface we are adding work for
+ * @dwork: delayable work to queue onto the mac80211 workqueue
+ * @delay: number of jiffies to wait before queueing
+ */
+void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
+				  struct delayed_work *dwork,
+				  unsigned long delay);
+
+/**
  * ieee80211_start_tx_ba_session - Start a tx Block Ack session.
  * @hw: pointer as obtained from ieee80211_alloc_hw().
  * @ra: receiver address of the BA session recipient
@@ -2090,6 +2151,29 @@ static inline int rate_supported(struct ieee80211_sta *sta,
 	return (sta == NULL || sta->supp_rates[band] & BIT(index));
 }
 
+/**
+ * rate_control_send_low - helper for drivers for management/no-ack frames
+ *
+ * Rate control algorithms that agree to use the lowest rate to
+ * send management frames and NO_ACK data with the respective hw
+ * retries should use this in the beginning of their mac80211 get_rate
+ * callback. If true is returned the rate control can simply return.
+ * If false is returned we guarantee that sta and sta and priv_sta is
+ * not null.
+ *
+ * Rate control algorithms wishing to do more intelligent selection of
+ * rate for multicast/broadcast frames may choose to not use this.
+ *
+ * @sta: &struct ieee80211_sta pointer to the target destination. Note
+ * 	that this may be null.
+ * @priv_sta: private rate control structure. This may be null.
+ * @txrc: rate control information we sholud populate for mac80211.
+ */
+bool rate_control_send_low(struct ieee80211_sta *sta,
+			   void *priv_sta,
+			   struct ieee80211_tx_rate_control *txrc);
+
+
 static inline s8
 rate_lowest_index(struct ieee80211_supported_band *sband,
 		  struct ieee80211_sta *sta)
@@ -2106,6 +2190,17 @@ rate_lowest_index(struct ieee80211_supported_band *sband,
 	return 0;
 }
 
+static inline
+bool rate_usable_index_exists(struct ieee80211_supported_band *sband,
+			      struct ieee80211_sta *sta)
+{
+	unsigned int i;
+
+	for (i = 0; i < sband->n_bitrates; i++)
+		if (rate_supported(sta, sband->band, i))
+			return true;
+	return false;
+}
 
 int ieee80211_rate_control_register(struct rate_control_ops *ops);
 void ieee80211_rate_control_unregister(struct rate_control_ops *ops);

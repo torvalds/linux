@@ -68,6 +68,11 @@ static int cryptomgr_probe(void *data)
 		goto err;
 
 	do {
+		if (tmpl->create) {
+			err = tmpl->create(tmpl, param->tb);
+			continue;
+		}
+
 		inst = tmpl->alloc(param->tb);
 		if (IS_ERR(inst))
 			err = PTR_ERR(inst);

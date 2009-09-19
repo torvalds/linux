@@ -56,6 +56,7 @@
 #include <linux/swapops.h>
 #include <linux/elf.h>
 
+#include <asm/io.h>
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
 #include <asm/tlb.h>

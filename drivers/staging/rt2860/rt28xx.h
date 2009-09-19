@@ -47,14 +47,9 @@
 #define PCI_EECTRL			0x0004
 #define PCI_MCUCTRL			0x0008
 
-#ifdef RT30xx
-#define	OPT_14			0x114
+typedef int NTSTATUS;
 
-typedef int				NTSTATUS;
-#define	RETRY_LIMIT             10
-#define STATUS_SUCCESS				0x00
-#define STATUS_UNSUCCESSFUL 		0x01
-#endif
+#define	OPT_14			0x114
 
 //
 // SCH/DMA registers - base address 0x0200
@@ -291,7 +286,6 @@ typedef	union	_USB_DMA_CFG_STRUC	{
 #define 	PBF_DBG 	 	 0x043c
 #define     PBF_CAP_CTRL     0x0440
 
-#ifdef RT30xx
 // eFuse registers
 #define EFUSE_CTRL              0x0580
 #define EFUSE_DATA0             0x0590
@@ -319,7 +313,6 @@ typedef	union	_EFUSE_CTRL_STRUC {
 
 #define LDO_CFG0 				0x05d4
 #define GPIO_SWITCH				0x05dc
-#endif /* RT30xx */
 
 //
 //  4  MAC  registers
@@ -1136,9 +1129,7 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define BBP_R22                     22
 #define BBP_R24                     24
 #define BBP_R25                     25
-#ifdef RT30xx
 #define BBP_R31                     31
-#endif
 #define BBP_R49                     49 //TSSI
 #define BBP_R50                     50
 #define BBP_R51                     51
@@ -1156,10 +1147,8 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define BBP_R73                     73
 #define BBP_R75						75
 #define BBP_R77                     77
-#ifdef RT30xx
 #define BBP_R79                     79
 #define BBP_R80                     80
-#endif
 #define BBP_R81                     81
 #define BBP_R82                     82
 #define BBP_R83                     83
@@ -1181,9 +1170,7 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define BBP_R121                    121
 #define BBP_R122                    122
 #define BBP_R123                    123
-#ifdef RT30xx
 #define BBP_R138                    138 // add by johnli, RF power sequence setup, ADC dynamic on/off control
-#endif // RT30xx //
 
 
 #define BBPR94_DEFAULT              0x06 // Add 1 value will gain 1db
@@ -1607,15 +1594,10 @@ typedef	union _EEPROM_NIC_CINFIG2_STRUC	{
 		USHORT		EnableWPSPBC:1;                 // WPS PBC Control bit
 		USHORT		BW40MAvailForG:1;			// 0:enable, 1:disable
 		USHORT		BW40MAvailForA:1;			// 0:enable, 1:disable
-#ifndef RT30xx
-		USHORT		Rsv2:6;                 // must be 0
-#endif
-#ifdef RT30xx
 		USHORT		Rsv1:1;					// must be 0
 		USHORT		AntDiversity:1;			// Antenna diversity
 		USHORT		Rsv2:3;					// must be 0
 		USHORT		DACTestBit:1;			// control if driver should patch the DAC issue
-#endif
 	}	field;
 	USHORT			word;
 }	EEPROM_NIC_CONFIG2_STRUC, *PEEPROM_NIC_CONFIG2_STRUC;

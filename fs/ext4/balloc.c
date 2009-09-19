@@ -478,7 +478,7 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	 * new bitmap information
 	 */
 	set_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &(grp->bb_state));
-	ext4_mb_update_group_info(grp, blocks_freed);
+	grp->bb_free += blocks_freed;
 	up_write(&grp->alloc_sem);
 
 	/* We dirtied the bitmap block */

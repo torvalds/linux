@@ -9,6 +9,7 @@
  * Copyright (C) 2002  Red Hat, Inc.
  */
 
+#include <linux/moduleparam.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/string.h>
@@ -49,6 +50,9 @@ static atomic_t trapped;
 
 static void zap_completion_queue(void);
 static void arp_reply(struct sk_buff *skb);
+
+static unsigned int carrier_timeout = 4;
+module_param(carrier_timeout, uint, 0644);
 
 static void queue_process(struct work_struct *work)
 {
@@ -737,7 +741,7 @@ int netpoll_setup(struct netpoll *np)
 		}
 
 		atleast = jiffies + HZ/10;
-		atmost = jiffies + 4*HZ;
+		atmost = jiffies + carrier_timeout * HZ;
 		while (!netif_carrier_ok(ndev)) {
 			if (time_after(jiffies, atmost)) {
 				printk(KERN_NOTICE

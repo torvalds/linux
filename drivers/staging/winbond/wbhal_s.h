@@ -314,7 +314,7 @@ typedef struct _T02_DESCRIPTOR
 	};
 } T02_DESCRIPTOR, *PT02_DESCRIPTOR;
 
-typedef struct _DESCRIPTOR {		// Skip length = 8 DWORD
+struct wb35_descriptor {		// Skip length = 8 DWORD
 	// ID for descriptor ---, The field doesn't be cleard in the operation of Descriptor definition
 	u8	Descriptor_ID;
 	//----------------------The above region doesn't be cleared by DESCRIPTOR_RESET------
@@ -368,7 +368,7 @@ typedef struct _DESCRIPTOR {		// Skip length = 8 DWORD
 	u16	buffer_size[ MAX_DESCRIPTOR_BUFFER_INDEX ];
 	void*	buffer_address[ MAX_DESCRIPTOR_BUFFER_INDEX ];//931130.4.q
 
-} DESCRIPTOR, *PDESCRIPTOR;
+};
 
 
 #define DEFAULT_NULL_PACKET_COUNT		180000	//20060828.1 Add. 180 seconds

@@ -740,7 +740,6 @@ int btrfs_fdatawrite_range(struct address_space *mapping, loff_t start,
 		.nr_to_write = mapping->nrpages * 2,
 		.range_start = start,
 		.range_end = end,
-		.for_writepages = 1,
 	};
 	return btrfs_writepages(mapping, &wbc);
 }

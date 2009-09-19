@@ -147,6 +147,18 @@ struct rds_info_socket {
 	u_int64_t	inum;
 } __attribute__((packed));
 
+struct rds_info_tcp_socket {
+	__be32          local_addr;
+	__be16          local_port;
+	__be32          peer_addr;
+	__be16          peer_port;
+	u_int64_t       hdr_rem;
+	u_int64_t       data_rem;
+	u_int32_t       last_sent_nxt;
+	u_int32_t       last_expected_una;
+	u_int32_t       last_seen_una;
+} __attribute__((packed));
+
 #define RDS_IB_GID_LEN	16
 struct rds_info_rdma_connection {
 	__be32		src_addr;

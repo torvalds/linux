@@ -63,10 +63,6 @@
 #include <linux/ctype.h>
 #include <linux/vmalloc.h>
 
-
-#ifdef RT30xx
-#include <linux/wireless.h>
-#endif
 #include <net/iw_handler.h>
 
 // load firmware
@@ -90,22 +86,23 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 
 // add by kathy
 
-#ifdef RT2860
-#define STA_PROFILE_PATH			"/etc/Wireless/RT2860STA/RT2860STA.dat"
-#define STA_RTMP_FIRMWARE_FILE_NAME "/etc/Wireless/RT2860STA/RT2860STA.bin"
-#define STA_NIC_DEVICE_NAME			"RT2860STA"
-#define STA_DRIVER_VERSION			"1.8.1.1"
-#endif
-#ifdef RT2870
-#define STA_PROFILE_PATH			"/etc/Wireless/RT2870STA/RT2870STA.dat"
-#define STA_RT2870_IMAGE_FILE_NAME  "/etc/Wireless/RT2870STA/rt2870.bin"
-#define STA_NIC_DEVICE_NAME			"RT2870STA"
-#ifndef RT30xx
-#define STA_DRIVER_VERSION			"1.4.0.0"
-#endif
-#ifdef RT30xx
-#define STA_DRIVER_VERSION			"2.0.1.0"
-#endif
+/* order of "if defined()" is important, because for 3070 driver
+   both RT2870 and RT3070 are defined */
+#if defined(RT2860)
+ #define STA_PROFILE_PATH			"/etc/Wireless/RT2860STA/RT2860STA.dat"
+ #define STA_RTMP_FIRMWARE_FILE_NAME "/etc/Wireless/RT2860STA/RT2860STA.bin"
+ #define STA_NIC_DEVICE_NAME			"RT2860STA"
+ #define STA_DRIVER_VERSION			"1.8.1.1"
+#elif defined(RT3070)
+ #define STA_PROFILE_PATH			"/etc/Wireless/RT3070STA/RT3070STA.dat"
+ #define STA_RT2870_IMAGE_FILE_NAME  "/etc/Wireless/RT3070STA/rt2870.bin"
+ #define STA_NIC_DEVICE_NAME			"RT3070STA"
+ #define STA_DRIVER_VERSION			"2.0.1.0"
+#elif defined(RT2870)
+ #define STA_PROFILE_PATH			"/etc/Wireless/RT2870STA/RT2870STA.dat"
+ #define STA_RT2870_IMAGE_FILE_NAME  "/etc/Wireless/RT2870STA/rt2870.bin"
+ #define STA_NIC_DEVICE_NAME			"RT2870STA"
+ #define STA_DRIVER_VERSION			"1.4.0.0"
 #endif
 
 #ifdef RT2860
@@ -161,15 +158,6 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #define NDIS_PACKET_TYPE_BROADCAST		2
 #define NDIS_PACKET_TYPE_ALL_MULTICAST	3
 
-#ifndef RT30xx
-typedef	struct pid *	THREAD_PID;
-#define	THREAD_PID_INIT_VALUE	NULL
-#define	GET_PID(_v)	find_get_pid(_v)
-#define	GET_PID_NUMBER(_v)	pid_nr(_v)
-#define CHECK_PID_LEGALITY(_pid)	if (pid_nr(_pid) >= 0)
-#define KILL_THREAD_PID(_A, _B, _C)	kill_pid(_A, _B, _C)
-#endif
-
 struct os_lock  {
 	spinlock_t		lock;
 	unsigned long  	flags;
@@ -185,16 +173,9 @@ struct os_cookie {
 #ifdef RT2870
 	struct usb_device		*pUsb_Dev;
 
-#ifndef RT30xx
-	THREAD_PID				MLMEThr_pid;
-	THREAD_PID				RTUSBCmdThr_pid;
-	THREAD_PID				TimerQThr_pid;
-#endif
-#ifdef RT30xx
 	struct pid	*MLMEThr_pid;
 	struct pid	*RTUSBCmdThr_pid;
 	struct pid	*TimerQThr_pid;
-#endif
 #endif // RT2870 //
 
 	struct tasklet_struct 	rx_done_task;
@@ -218,12 +199,6 @@ struct os_cookie {
 	INT						ioctl_if_type;
 	INT 					ioctl_if;
 };
-
-typedef struct _VIRTUAL_ADAPTER
-{
-	struct net_device		*RtmpDev;
-	struct net_device		*VirtualDev;
-} VIRTUAL_ADAPTER, PVIRTUAL_ADAPTER;
 
 #undef  ASSERT
 #define ASSERT(x)
@@ -444,51 +419,6 @@ extern ULONG    RTDebugLevel;
 }
 
 #ifdef RT2860
-#if defined(INF_TWINPASS) || defined(INF_DANUBE) || defined(IKANOS_VX_1X0)
-//Patch for ASIC turst read/write bug, needs to remove after metel fix
-#define RTMP_IO_READ32(_A, _R, _pV)									\
-{																	\
-    if ((_A)->bPCIclkOff == FALSE)                                      \
-    {                                                                   \
-	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
-	(*_pV = readl((void *)((_A)->CSRBaseAddress + (_R))));			\
-	(*_pV = SWAP32(*((UINT32 *)(_pV))));                           \
-    }                                                                   \
-}
-#define RTMP_IO_FORCE_READ32(_A, _R, _pV)							\
-{																	\
-	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
-	(*_pV = readl((void *)((_A)->CSRBaseAddress + (_R))));			\
-	(*_pV = SWAP32(*((UINT32 *)(_pV))));                           \
-}
-#define RTMP_IO_READ8(_A, _R, _pV)									\
-{																	\
-	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
-	(*_pV = readb((void *)((_A)->CSRBaseAddress + (_R))));			\
-}
-#define RTMP_IO_WRITE32(_A, _R, _V)									\
-{																	\
-    if ((_A)->bPCIclkOff == FALSE)                                      \
-    {                                                                   \
-	UINT32	_Val;													\
-	_Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));		\
-	_Val = SWAP32(_V);												\
-	writel(_Val, (void *)((_A)->CSRBaseAddress + (_R)));			\
-    }                                                                   \
-}
-#define RTMP_IO_WRITE8(_A, _R, _V)									\
-{																	\
-	UINT	Val;													\
-	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));		\
-	writeb((_V), (PUCHAR)((_A)->CSRBaseAddress + (_R)));			\
-}
-#define RTMP_IO_WRITE16(_A, _R, _V)									\
-{																	\
-	UINT	Val;													\
-	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));		\
-	writew(SWAP16((_V)), (PUSHORT)((_A)->CSRBaseAddress + (_R)));	\
-}
-#else
 //Patch for ASIC turst read/write bug, needs to remove after metel fix
 #define RTMP_IO_READ32(_A, _R, _pV)								\
 {																\
@@ -519,32 +449,18 @@ extern ULONG    RTDebugLevel;
 	writel(_V, (void *)((_A)->CSRBaseAddress + (_R)));								\
     }                                                               \
 }
-#if defined(BRCM_6358)
-#define RTMP_IO_WRITE8(_A, _R, _V)            \
-{                    \
-	ULONG Val;                \
-	UCHAR _i;                \
-	_i = (_R & 0x3);             \
-	Val = readl((void *)((_A)->CSRBaseAddress + (_R - _i)));   \
-	Val = Val & (~(0x000000ff << ((_i)*8)));         \
-	Val = Val | ((ULONG)_V << ((_i)*8));         \
-	writel((Val), (void *)((_A)->CSRBaseAddress + (_R - _i)));    \
-}
-#else
 #define RTMP_IO_WRITE8(_A, _R, _V)												\
 {																				\
 	UINT	Val;																\
 	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));			\
 	writeb((_V), (PUCHAR)((_A)->CSRBaseAddress + (_R)));		\
 }
-#endif
 #define RTMP_IO_WRITE16(_A, _R, _V)												\
 {																				\
 	UINT	Val;																\
 	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));			\
 	writew((_V), (PUSHORT)((_A)->CSRBaseAddress + (_R)));	\
 }
-#endif
 #endif /* RT2860 */
 #ifdef RT2870
 //Patch for ASIC turst read/write bug, needs to remove after metel fix

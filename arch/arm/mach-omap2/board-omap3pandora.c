@@ -213,10 +213,6 @@ static struct twl4030_hsmmc_info omap3pandora_mmc[] = {
 	{}	/* Terminator */
 };
 
-static struct omap_uart_config omap3pandora_uart_config __initdata = {
-	.enabled_uarts	= (1 << 2), /* UART3 */
-};
-
 static struct regulator_consumer_supply pandora_vmmc1_supply = {
 	.supply			= "vmmc",
 };
@@ -309,14 +305,6 @@ static int __init omap3pandora_i2c_init(void)
 	return 0;
 }
 
-static void __init omap3pandora_init_irq(void)
-{
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-			     mt46h32m32lf6_sdrc_params);
-	omap_init_irq();
-	omap_gpio_init();
-}
-
 static void __init omap3pandora_ads7846_init(void)
 {
 	int gpio = OMAP3_PANDORA_TS_GPIO;
@@ -376,9 +364,18 @@ static struct omap_lcd_config omap3pandora_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel omap3pandora_config[] __initdata = {
-	{ OMAP_TAG_UART,	&omap3pandora_uart_config },
 	{ OMAP_TAG_LCD,		&omap3pandora_lcd_config },
 };
+
+static void __init omap3pandora_init_irq(void)
+{
+	omap_board_config = omap3pandora_config;
+	omap_board_config_size = ARRAY_SIZE(omap3pandora_config);
+	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
+			     mt46h32m32lf6_sdrc_params);
+	omap_init_irq();
+	omap_gpio_init();
+}
 
 static struct platform_device *omap3pandora_devices[] __initdata = {
 	&omap3pandora_lcd_device,
@@ -391,8 +388,6 @@ static void __init omap3pandora_init(void)
 	omap3pandora_i2c_init();
 	platform_add_devices(omap3pandora_devices,
 			ARRAY_SIZE(omap3pandora_devices));
-	omap_board_config = omap3pandora_config;
-	omap_board_config_size = ARRAY_SIZE(omap3pandora_config);
 	omap_serial_init();
 	spi_register_board_info(omap3pandora_spi_board_info,
 			ARRAY_SIZE(omap3pandora_spi_board_info));

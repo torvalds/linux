@@ -2419,13 +2419,13 @@ static int __init probe_motherboard(void)
 	dt = of_find_node_by_name(NULL, "device-tree");
 	if (dt != NULL)
 		model = of_get_property(dt, "model", NULL);
-	for(i=0; model && i<(sizeof(pmac_mb_defs)/sizeof(struct pmac_mb_def)); i++) {
+	for(i=0; model && i<ARRAY_SIZE(pmac_mb_defs); i++) {
 	    if (strcmp(model, pmac_mb_defs[i].model_string) == 0) {
 		pmac_mb = pmac_mb_defs[i];
 		goto found;
 	    }
 	}
-	for(i=0; i<(sizeof(pmac_mb_defs)/sizeof(struct pmac_mb_def)); i++) {
+	for(i=0; i<ARRAY_SIZE(pmac_mb_defs); i++) {
 	    if (machine_is_compatible(pmac_mb_defs[i].model_string)) {
 		pmac_mb = pmac_mb_defs[i];
 		goto found;
@@ -2589,9 +2589,16 @@ static void __init probe_uninorth(void)
 	if (address == 0)
 		return;
 	uninorth_base = ioremap(address, 0x40000);
+	if (uninorth_base == NULL)
+		return;
 	uninorth_rev = in_be32(UN_REG(UNI_N_VERSION));
-	if (uninorth_maj == 3 || uninorth_maj == 4)
+	if (uninorth_maj == 3 || uninorth_maj == 4) {
 		u3_ht_base = ioremap(address + U3_HT_CONFIG_BASE, 0x1000);
+		if (u3_ht_base == NULL) {
+			iounmap(uninorth_base);
+			return;
+		}
+	}
 
 	printk(KERN_INFO "Found %s memory controller & host bridge"
 	       " @ 0x%08x revision: 0x%02x\n", uninorth_maj == 3 ? "U3" :

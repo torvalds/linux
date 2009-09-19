@@ -59,7 +59,7 @@ static DEFINE_SPINLOCK(ioapic_list_lock);
 
 static void handle_hotplug_event_bridge (acpi_handle, u32, void *);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
-static void acpiphp_set_hpp_values(acpi_handle handle, struct pci_bus *bus);
+static void acpiphp_set_hpp_values(struct pci_bus *bus);
 static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context);
 
 /* callback routine to check for the existence of a pci dock device */
@@ -261,50 +261,20 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 
 /* see if it's worth looking at this bridge */
-static int detect_ejectable_slots(struct pci_bus *pbus)
+static int detect_ejectable_slots(acpi_handle handle)
 {
-	int found = acpi_pci_detect_ejectable(pbus);
+	int found = acpi_pci_detect_ejectable(handle);
 	if (!found) {
-		acpi_handle bridge_handle = acpi_pci_get_bridge_handle(pbus);
-		if (!bridge_handle)
-			return 0;
-		acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge_handle, (u32)1,
+		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
 				    is_pci_dock_device, (void *)&found, NULL);
 	}
 	return found;
 }
 
-
-/* decode ACPI 2.0 _HPP hot plug parameters */
-static void decode_hpp(struct acpiphp_bridge *bridge)
-{
-	acpi_status status;
-
-	status = acpi_get_hp_params_from_firmware(bridge->pci_bus, &bridge->hpp);
-	if (ACPI_FAILURE(status) ||
-	    !bridge->hpp.t0 || (bridge->hpp.t0->revision > 1)) {
-		/* use default numbers */
-		printk(KERN_WARNING
-		       "%s: Could not get hotplug parameters. Use defaults\n",
-		       __func__);
-		bridge->hpp.t0 = &bridge->hpp.type0_data;
-		bridge->hpp.t0->revision = 0;
-		bridge->hpp.t0->cache_line_size = 0x10;
-		bridge->hpp.t0->latency_timer = 0x40;
-		bridge->hpp.t0->enable_serr = 0;
-		bridge->hpp.t0->enable_perr = 0;
-	}
-}
-
-
-
 /* initialize miscellaneous stuff for both root and PCI-to-PCI bridge */
 static void init_bridge_misc(struct acpiphp_bridge *bridge)
 {
 	acpi_status status;
-
-	/* decode ACPI 2.0 _HPP (hot plug parameters) */
-	decode_hpp(bridge);
 
 	/* must be added to the list prior to calling register_slot */
 	list_add(&bridge->list, &bridge_list);
@@ -399,9 +369,10 @@ static inline void config_p2p_bridge_flags(struct acpiphp_bridge *bridge)
 
 
 /* allocate and initialize host bridge data structure */
-static void add_host_bridge(acpi_handle *handle, struct pci_bus *pci_bus)
+static void add_host_bridge(acpi_handle *handle)
 {
 	struct acpiphp_bridge *bridge;
+	struct acpi_pci_root *root = acpi_pci_find_root(handle);
 
 	bridge = kzalloc(sizeof(struct acpiphp_bridge), GFP_KERNEL);
 	if (bridge == NULL)
@@ -410,7 +381,7 @@ static void add_host_bridge(acpi_handle *handle, struct pci_bus *pci_bus)
 	bridge->type = BRIDGE_TYPE_HOST;
 	bridge->handle = handle;
 
-	bridge->pci_bus = pci_bus;
+	bridge->pci_bus = root->bus;
 
 	spin_lock_init(&bridge->res_lock);
 
@@ -419,7 +390,7 @@ static void add_host_bridge(acpi_handle *handle, struct pci_bus *pci_bus)
 
 
 /* allocate and initialize PCI-to-PCI bridge data structure */
-static void add_p2p_bridge(acpi_handle *handle, struct pci_dev *pci_dev)
+static void add_p2p_bridge(acpi_handle *handle)
 {
 	struct acpiphp_bridge *bridge;
 
@@ -433,8 +404,8 @@ static void add_p2p_bridge(acpi_handle *handle, struct pci_dev *pci_dev)
 	bridge->handle = handle;
 	config_p2p_bridge_flags(bridge);
 
-	bridge->pci_dev = pci_dev_get(pci_dev);
-	bridge->pci_bus = pci_dev->subordinate;
+	bridge->pci_dev = acpi_get_pci_dev(handle);
+	bridge->pci_bus = bridge->pci_dev->subordinate;
 	if (!bridge->pci_bus) {
 		err("This is not a PCI-to-PCI bridge!\n");
 		goto err;
@@ -451,7 +422,7 @@ static void add_p2p_bridge(acpi_handle *handle, struct pci_dev *pci_dev)
 	init_bridge_misc(bridge);
 	return;
  err:
-	pci_dev_put(pci_dev);
+	pci_dev_put(bridge->pci_dev);
 	kfree(bridge);
 	return;
 }
@@ -462,39 +433,21 @@ static acpi_status
 find_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	acpi_status status;
-	acpi_handle dummy_handle;
-	unsigned long long tmp;
-	int device, function;
 	struct pci_dev *dev;
-	struct pci_bus *pci_bus = context;
 
-	status = acpi_get_handle(handle, "_ADR", &dummy_handle);
-	if (ACPI_FAILURE(status))
-		return AE_OK;		/* continue */
-
-	status = acpi_evaluate_integer(handle, "_ADR", NULL, &tmp);
-	if (ACPI_FAILURE(status)) {
-		dbg("%s: _ADR evaluation failure\n", __func__);
-		return AE_OK;
-	}
-
-	device = (tmp >> 16) & 0xffff;
-	function = tmp & 0xffff;
-
-	dev = pci_get_slot(pci_bus, PCI_DEVFN(device, function));
-
+	dev = acpi_get_pci_dev(handle);
 	if (!dev || !dev->subordinate)
 		goto out;
 
 	/* check if this bridge has ejectable slots */
-	if ((detect_ejectable_slots(dev->subordinate) > 0)) {
+	if ((detect_ejectable_slots(handle) > 0)) {
 		dbg("found PCI-to-PCI bridge at PCI %s\n", pci_name(dev));
-		add_p2p_bridge(handle, dev);
+		add_p2p_bridge(handle);
 	}
 
 	/* search P2P bridges under this p2p bridge */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     find_p2p_bridge, dev->subordinate, NULL);
+				     find_p2p_bridge, NULL, NULL);
 	if (ACPI_FAILURE(status))
 		warn("find_p2p_bridge failed (error code = 0x%x)\n", status);
 
@@ -509,9 +462,7 @@ static int add_bridge(acpi_handle handle)
 {
 	acpi_status status;
 	unsigned long long tmp;
-	int seg, bus;
 	acpi_handle dummy_handle;
-	struct pci_bus *pci_bus;
 
 	/* if the bridge doesn't have _STA, we assume it is always there */
 	status = acpi_get_handle(handle, "_STA", &dummy_handle);
@@ -526,36 +477,15 @@ static int add_bridge(acpi_handle handle)
 			return 0;
 	}
 
-	/* get PCI segment number */
-	status = acpi_evaluate_integer(handle, "_SEG", NULL, &tmp);
-
-	seg = ACPI_SUCCESS(status) ? tmp : 0;
-
-	/* get PCI bus number */
-	status = acpi_evaluate_integer(handle, "_BBN", NULL, &tmp);
-
-	if (ACPI_SUCCESS(status)) {
-		bus = tmp;
-	} else {
-		warn("can't get bus number, assuming 0\n");
-		bus = 0;
-	}
-
-	pci_bus = pci_find_bus(seg, bus);
-	if (!pci_bus) {
-		err("Can't find bus %04x:%02x\n", seg, bus);
-		return 0;
-	}
-
 	/* check if this bridge has ejectable slots */
-	if (detect_ejectable_slots(pci_bus) > 0) {
+	if (detect_ejectable_slots(handle) > 0) {
 		dbg("found PCI host-bus bridge with hot-pluggable slots\n");
-		add_host_bridge(handle, pci_bus);
+		add_host_bridge(handle);
 	}
 
 	/* search P2P bridges under this host bridge */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     find_p2p_bridge, pci_bus, NULL);
+				     find_p2p_bridge, NULL, NULL);
 
 	if (ACPI_FAILURE(status))
 		warn("find_p2p_bridge failed (error code = 0x%x)\n", status);
@@ -1083,7 +1013,7 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 
 	pci_bus_assign_resources(bus);
 	acpiphp_sanitize_bus(bus);
-	acpiphp_set_hpp_values(slot->bridge->handle, bus);
+	acpiphp_set_hpp_values(bus);
 	list_for_each_entry(func, &slot->funcs, sibling)
 		acpiphp_configure_ioapics(func->handle);
 	pci_enable_bridges(bus);
@@ -1294,70 +1224,12 @@ static int acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 	return retval;
 }
 
-static void program_hpp(struct pci_dev *dev, struct acpiphp_bridge *bridge)
+static void acpiphp_set_hpp_values(struct pci_bus *bus)
 {
-	u16 pci_cmd, pci_bctl;
-	struct pci_dev *cdev;
-
-	/* Program hpp values for this device */
-	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
-			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
-			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
-		return;
-
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_HOST)
-		return;
-
-	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE,
-			bridge->hpp.t0->cache_line_size);
-	pci_write_config_byte(dev, PCI_LATENCY_TIMER,
-			bridge->hpp.t0->latency_timer);
-	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
-	if (bridge->hpp.t0->enable_serr)
-		pci_cmd |= PCI_COMMAND_SERR;
-	else
-		pci_cmd &= ~PCI_COMMAND_SERR;
-	if (bridge->hpp.t0->enable_perr)
-		pci_cmd |= PCI_COMMAND_PARITY;
-	else
-		pci_cmd &= ~PCI_COMMAND_PARITY;
-	pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
-
-	/* Program bridge control value and child devices */
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
-		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
-				bridge->hpp.t0->latency_timer);
-		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
-		if (bridge->hpp.t0->enable_serr)
-			pci_bctl |= PCI_BRIDGE_CTL_SERR;
-		else
-			pci_bctl &= ~PCI_BRIDGE_CTL_SERR;
-		if (bridge->hpp.t0->enable_perr)
-			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
-		else
-			pci_bctl &= ~PCI_BRIDGE_CTL_PARITY;
-		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
-		if (dev->subordinate) {
-			list_for_each_entry(cdev, &dev->subordinate->devices,
-					bus_list)
-				program_hpp(cdev, bridge);
-		}
-	}
-}
-
-static void acpiphp_set_hpp_values(acpi_handle handle, struct pci_bus *bus)
-{
-	struct acpiphp_bridge bridge;
 	struct pci_dev *dev;
 
-	memset(&bridge, 0, sizeof(bridge));
-	bridge.handle = handle;
-	bridge.pci_bus = bus;
-	bridge.pci_dev = bus->self;
-	decode_hpp(&bridge);
 	list_for_each_entry(dev, &bus->devices, bus_list)
-		program_hpp(dev, &bridge);
-
+		pci_configure_slot(dev);
 }
 
 /*
@@ -1387,24 +1259,23 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus)
 /* Program resources in newly inserted bridge */
 static int acpiphp_configure_bridge (acpi_handle handle)
 {
-	struct pci_dev *dev;
 	struct pci_bus *bus;
 
-	dev = acpi_get_pci_dev(handle);
-	if (!dev) {
-		err("cannot get PCI domain and bus number for bridge\n");
-		return -EINVAL;
+	if (acpi_is_root_bridge(handle)) {
+		struct acpi_pci_root *root = acpi_pci_find_root(handle);
+		bus = root->bus;
+	} else {
+		struct pci_dev *pdev = acpi_get_pci_dev(handle);
+		bus = pdev->subordinate;
+		pci_dev_put(pdev);
 	}
-
-	bus = dev->bus;
 
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
 	acpiphp_sanitize_bus(bus);
-	acpiphp_set_hpp_values(handle, bus);
+	acpiphp_set_hpp_values(bus);
 	pci_enable_bridges(bus);
 	acpiphp_configure_ioapics(handle);
-	pci_dev_put(dev);
 	return 0;
 }
 

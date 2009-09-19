@@ -1,1 +1,1 @@
-obj-y			+= drm/
+obj-y			+= drm/ vga/

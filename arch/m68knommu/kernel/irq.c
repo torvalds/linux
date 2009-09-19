@@ -29,32 +29,6 @@ asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 	set_irq_regs(oldregs);
 }
 
-void ack_bad_irq(unsigned int irq)
-{
-	printk(KERN_ERR "IRQ: unexpected irq=%d\n", irq);
-}
-
-static struct irq_chip m_irq_chip = {
-	.name		= "M68K-INTC",
-	.enable		= enable_vector,
-	.disable	= disable_vector,
-	.ack		= ack_vector,
-};
-
-void __init init_IRQ(void)
-{
-	int irq;
-
-	init_vectors();
-
-	for (irq = 0; (irq < NR_IRQS); irq++) {
-		irq_desc[irq].status = IRQ_DISABLED;
-		irq_desc[irq].action = NULL;
-		irq_desc[irq].depth = 1;
-		irq_desc[irq].chip = &m_irq_chip;
-	}
-}
-
 int show_interrupts(struct seq_file *p, void *v)
 {
 	struct irqaction *ap;

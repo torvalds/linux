@@ -15,8 +15,6 @@
 #include <linux/io.h>
 #include <asm/cacheflush.h>
 
-char in_nmi = 0;	/* Set during NMI to prevent re-entry */
-
 /* Macros for single step instruction identification */
 #define OPCODE_BT(op)		(((op) & 0xff00) == 0x8900)
 #define OPCODE_BF(op)		(((op) & 0xff00) == 0x8b00)
@@ -195,8 +193,6 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	regs->gbr = gdb_regs[GDB_GBR];
 	regs->mach = gdb_regs[GDB_MACH];
 	regs->macl = gdb_regs[GDB_MACL];
-
-	__asm__ __volatile__ ("ldc %0, vbr" : : "r" (gdb_regs[GDB_VBR]));
 }
 
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)

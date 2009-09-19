@@ -16,6 +16,7 @@ extern void pci_cleanup_rom(struct pci_dev *dev);
 extern int pci_mmap_fits(struct pci_dev *pdev, int resno,
 			 struct vm_area_struct *vma);
 #endif
+int pci_probe_reset_function(struct pci_dev *dev);
 
 /**
  * struct pci_platform_pm_ops - Firmware PM callbacks
@@ -133,7 +134,6 @@ static inline int pci_no_d1d2(struct pci_dev *dev)
 	return (dev->no_d1d2 || parent_dstates);
 
 }
-extern int pcie_mch_quirk;
 extern struct device_attribute pci_dev_attrs[];
 extern struct device_attribute dev_attr_cpuaffinity;
 extern struct device_attribute dev_attr_cpulistaffinity;
@@ -243,6 +243,7 @@ extern int pci_iov_init(struct pci_dev *dev);
 extern void pci_iov_release(struct pci_dev *dev);
 extern int pci_iov_resource_bar(struct pci_dev *dev, int resno,
 				enum pci_bar_type *type);
+extern int pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
 extern void pci_restore_iov_state(struct pci_dev *dev);
 extern int pci_iov_bus_range(struct pci_bus *bus);
 
@@ -297,5 +298,17 @@ static inline int pci_ats_enabled(struct pci_dev *dev)
 	return 0;
 }
 #endif /* CONFIG_PCI_IOV */
+
+static inline int pci_resource_alignment(struct pci_dev *dev,
+					 struct resource *res)
+{
+#ifdef CONFIG_PCI_IOV
+	int resno = res - dev->resource;
+
+	if (resno >= PCI_IOV_RESOURCES && resno <= PCI_IOV_RESOURCE_END)
+		return pci_sriov_resource_alignment(dev, resno);
+#endif
+	return resource_alignment(res);
+}
 
 #endif /* DRIVERS_PCI_H */

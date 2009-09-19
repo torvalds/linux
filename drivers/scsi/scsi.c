@@ -994,7 +994,7 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
 	 * all the existing users tried this hard.
 	 */
 	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer,
-				  len + 4, NULL, 30 * HZ, 3, NULL);
+				  len, NULL, 30 * HZ, 3, NULL);
 	if (result)
 		return result;
 
@@ -1021,13 +1021,14 @@ unsigned char *scsi_get_vpd_page(struct scsi_device *sdev, u8 page)
 {
 	int i, result;
 	unsigned int len;
-	unsigned char *buf = kmalloc(259, GFP_KERNEL);
+	const unsigned int init_vpd_len = 255;
+	unsigned char *buf = kmalloc(init_vpd_len, GFP_KERNEL);
 
 	if (!buf)
 		return NULL;
 
 	/* Ask for all the pages supported by this device */
-	result = scsi_vpd_inquiry(sdev, buf, 0, 255);
+	result = scsi_vpd_inquiry(sdev, buf, 0, init_vpd_len);
 	if (result)
 		goto fail;
 
@@ -1050,12 +1051,12 @@ unsigned char *scsi_get_vpd_page(struct scsi_device *sdev, u8 page)
 	 * Some pages are longer than 255 bytes.  The actual length of
 	 * the page is returned in the header.
 	 */
-	len = (buf[2] << 8) | buf[3];
-	if (len <= 255)
+	len = ((buf[2] << 8) | buf[3]) + 4;
+	if (len <= init_vpd_len)
 		return buf;
 
 	kfree(buf);
-	buf = kmalloc(len + 4, GFP_KERNEL);
+	buf = kmalloc(len, GFP_KERNEL);
 	result = scsi_vpd_inquiry(sdev, buf, page, len);
 	if (result)
 		goto fail;

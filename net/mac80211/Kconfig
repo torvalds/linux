@@ -6,7 +6,6 @@ config MAC80211
 	select CRYPTO_ARC4
 	select CRYPTO_AES
 	select CRC32
-	select WIRELESS_EXT
 	---help---
 	  This option enables the hardware independent IEEE 802.11
 	  networking stack.
@@ -14,24 +13,7 @@ config MAC80211
 comment "CFG80211 needs to be enabled for MAC80211"
 	depends on CFG80211=n
 
-config MAC80211_DEFAULT_PS
-	bool "enable powersave by default"
-	depends on MAC80211
-	default y
-	help
-	  This option enables powersave mode by default.
-
-	  If this causes your applications to misbehave you should fix your
-	  applications instead -- they need to register their network
-	  latency requirement, see Documentation/power/pm_qos_interface.txt.
-
-config MAC80211_DEFAULT_PS_VALUE
-	int
-	default 1 if MAC80211_DEFAULT_PS
-	default 0
-
-menu "Rate control algorithm selection"
-	depends on MAC80211 != n
+if MAC80211 != n
 
 config MAC80211_RC_PID
 	bool "PID controller based rate control algorithm" if EMBEDDED
@@ -78,17 +60,17 @@ config MAC80211_RC_DEFAULT
 	default "pid" if MAC80211_RC_DEFAULT_PID
 	default ""
 
-endmenu
+endif
 
 config MAC80211_MESH
 	bool "Enable mac80211 mesh networking (pre-802.11s) support"
 	depends on MAC80211 && EXPERIMENTAL
-	depends on BROKEN
 	---help---
 	 This options enables support of Draft 802.11s mesh networking.
-	 The implementation is based on Draft 1.08 of the Mesh Networking
-	 amendment. For more information visit http://o11s.org/.
-
+	 The implementation is based on Draft 2.08 of the Mesh Networking
+	 amendment.  However, no compliance with that draft is claimed or even
+	 possible, as drafts leave a number of identifiers to be defined after
+	 ratification.  For more information visit http://o11s.org/.
 
 config MAC80211_LEDS
 	bool "Enable LED triggers"
@@ -220,5 +202,17 @@ config MAC80211_DEBUG_COUNTERS
 	  Selecting this option causes mac80211 to keep additional
 	  and very verbose statistics about TX and RX handler use
 	  and show them in debugfs.
+
+	  If unsure, say N.
+
+config MAC80211_DRIVER_API_TRACER
+	bool "Driver API tracer"
+	depends on MAC80211_DEBUG_MENU
+	depends on EVENT_TRACING
+	help
+	  Say Y here to make mac80211 register with the ftrace
+	  framework for the driver API -- you can see which
+	  driver methods it is calling then by looking at the
+	  trace.
 
 	  If unsure, say N.

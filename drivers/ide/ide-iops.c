@@ -102,8 +102,8 @@ EXPORT_SYMBOL(ide_fixstring);
  * setting a timer to wake up at half second intervals thereafter,
  * until timeout is achieved, before timing out.
  */
-static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad,
-			   unsigned long timeout, u8 *rstat)
+int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad,
+		    unsigned long timeout, u8 *rstat)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
@@ -292,6 +292,7 @@ static const char *nien_quirk_list[] = {
 	"QUANTUM FIREBALLP KX27.3",
 	"QUANTUM FIREBALLP LM20.4",
 	"QUANTUM FIREBALLP LM20.5",
+	"FUJITSU MHZ2160BH G2",
 	NULL
 };
 
@@ -316,7 +317,7 @@ int ide_driveid_update(ide_drive_t *drive)
 		return 0;
 
 	SELECT_MASK(drive, 1);
-	rc = ide_dev_read_id(drive, ATA_CMD_ID_ATA, id);
+	rc = ide_dev_read_id(drive, ATA_CMD_ID_ATA, id, 1);
 	SELECT_MASK(drive, 0);
 
 	if (rc)
@@ -363,14 +364,6 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	 * this point (lost interrupt).
 	 */
 
-	/*
-	 *	FIXME: we race against the running IRQ here if
-	 *	this is called from non IRQ context. If we use
-	 *	disable_irq() we hang on the error path. Work
-	 *	is needed.
-	 */
-	disable_irq_nosync(hwif->irq);
-
 	udelay(1);
 	tp_ops->dev_select(drive);
 	SELECT_MASK(drive, 1);
@@ -393,8 +386,6 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 				WAIT_CMD, &stat);
 
 	SELECT_MASK(drive, 0);
-
-	enable_irq(hwif->irq);
 
 	if (error) {
 		(void) ide_dump_status(drive, "set_drive_speed_status", stat);

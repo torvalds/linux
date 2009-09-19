@@ -65,6 +65,8 @@
    6: osp nopl 0x00(%eax,%eax,1)
    7: nopl 0x00000000(%eax)
    8: nopl 0x00000000(%eax,%eax,1)
+   Note: All the above are assumed to be a single instruction.
+	There is kernel code that depends on this.
 */
 #define P6_NOP1	GENERIC_NOP1
 #define P6_NOP2	".byte 0x66,0x90\n"

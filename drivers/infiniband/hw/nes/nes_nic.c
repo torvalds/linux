@@ -1508,7 +1508,7 @@ static int nes_netdev_set_settings(struct net_device *netdev, struct ethtool_cmd
 }
 
 
-static struct ethtool_ops nes_ethtool_ops = {
+static const struct ethtool_ops nes_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_settings = nes_netdev_get_settings,
 	.set_settings = nes_netdev_set_settings,

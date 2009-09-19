@@ -50,7 +50,7 @@
 #include <linux/string.h>
 #include <linux/dmi.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define DRVNAME "it87"
 

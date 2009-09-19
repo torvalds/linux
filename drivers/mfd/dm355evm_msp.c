@@ -107,8 +107,16 @@ static const u8 msp_gpios[] = {
 	MSP_GPIO(2, SWITCH1), MSP_GPIO(3, SWITCH1),
 	MSP_GPIO(4, SWITCH1),
 	/* switches on MMC/SD sockets */
-	MSP_GPIO(1, SDMMC), MSP_GPIO(2, SDMMC),	/* mmc0 WP, nCD */
-	MSP_GPIO(3, SDMMC), MSP_GPIO(4, SDMMC),	/* mmc1 WP, nCD */
+	/*
+	 * Note: EVMDM355_ECP_VA4.pdf suggests that Bit 2 and 4 should be
+	 * checked for card detection. However on the EVM bit 1 and 3 gives
+	 * this status, for 0 and 1 instance respectively. The pdf also
+	 * suggests that Bit 1 and 3 should be checked for write protection.
+	 * However on the EVM bit 2 and 4 gives this status,for 0 and 1
+	 * instance respectively.
+	 */
+	MSP_GPIO(2, SDMMC), MSP_GPIO(1, SDMMC),	/* mmc0 WP, nCD */
+	MSP_GPIO(4, SDMMC), MSP_GPIO(3, SDMMC),	/* mmc1 WP, nCD */
 };
 
 #define MSP_GPIO_REG(offset)	(msp_gpios[(offset)] >> 3)

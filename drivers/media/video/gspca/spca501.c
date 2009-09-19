@@ -1923,7 +1923,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = vga_mode;
-	cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+	cam->nmodes = ARRAY_SIZE(vga_mode);
 	sd->subtype = id->driver_info;
 	sd->brightness = sd_ctrls[MY_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[MY_CONTRAST].qctrl.default_value;

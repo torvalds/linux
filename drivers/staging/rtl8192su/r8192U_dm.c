@@ -15,42 +15,18 @@ Major Change History:
 --*/
 
 
-#ifdef RTL8192SU
 #include "r8192U.h"
 #include "r8192U_dm.h"
-//#include "r8190_rtl8256.h"
 #include "r819xU_cmdpkt.h"
 #include "r8192S_hw.h"
 #include "r8192S_phy.h"
 #include "r8192S_phyreg.h"
-#else
-#include "r8192U.h"
-#include "r8192U_dm.h"
-#include "r8192U_hw.h"
-#include "r819xU_phy.h"
-#include "r819xU_phyreg.h"
-#include "r8190_rtl8256.h"
-#include "r819xU_cmdpkt.h"
-#endif
 
 /*---------------------------Define Local Constant---------------------------*/
 //
 // Indicate different AP vendor for IOT issue.
 //
-#if 0
-typedef enum _HT_IOT_PEER
-{
-	HT_IOT_PEER_UNKNOWN = 0,
-	HT_IOT_PEER_REALTEK = 1,
-	HT_IOT_PEER_BROADCOM = 2,
-	HT_IOT_PEER_RALINK = 3,
-	HT_IOT_PEER_ATHEROS = 4,
-	HT_IOT_PEER_CISCO = 5,
-	HT_IOT_PEER_MAX = 6
-}HT_IOT_PEER_E, *PHTIOT_PEER_E;
-#endif
 #if 1
-#ifdef RTL8192SU
 		static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
 		// UNKNOWN	REALTEK_90	/*REALTEK_92SE*/	BROADCOM	RALINK		ATHEROS		CISCO		MARVELL		92U_AP		SELF_AP
 		   { 0xa44f, 	0x5ea44f, 	0x5ea44f,		0xa44f,		0xa44f, 		0xa44f, 		0xa630,		0xa42b,		0x5e4322,	0x5e4322};
@@ -58,14 +34,6 @@ typedef enum _HT_IOT_PEER
 		// UNKNOWN	REALTEK		/*REALTEK_92SE*/	BROADCOM	RALINK		ATHEROS		CISCO		MARVELL		92U_AP		SELF_AP
 		   { 0x5ea44f, 	0xa44f, 	0x5ea44f,		0x5e4322, 	0x5ea422, 	0x5e4322, 	0x3ea44f,	0x5ea42b,	0x5e4322,	0x5e4322};
 
-#else
-
-static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
-		{ 0x5e4322, 	0x5e4322, 	0x5ea44f,		0x5e4322, 	0x604322, 	0xa44f, 	0x5ea44f};
-static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
-		{ 0x5e4322, 	0xa44f, 	0x5ea44f,	        0x5e4322, 	0x604322, 	0x5ea44f, 	0x5ea44f};
-
-#endif
 #endif
 
 #define RTK_UL_EDCA 0xa44f
@@ -98,12 +66,7 @@ extern void hal_dm_watchdog(struct net_device *dev);
 
 
 extern	void	init_rate_adaptive(struct net_device *dev);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_txpower_trackingcallback(struct work_struct *work);
-#else
-extern	void	dm_txpower_trackingcallback(struct net_device *dev);
-#endif
-
 extern	void	dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
 extern	void	dm_restore_dynamic_mechanism_state(struct net_device *dev);
 extern	void	dm_backup_dynamic_mechanism_state(struct net_device *dev);
@@ -118,15 +81,8 @@ extern	void dm_force_tx_fw_info(struct net_device *dev,
 										u32		force_value);
 extern	void	dm_init_edca_turbo(struct net_device *dev);
 extern	void	dm_rf_operation_test_callback(unsigned long data);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work);
-#else
-extern	void	dm_rf_pathcheck_workitemcallback(struct net_device *dev);
-#endif
 extern	void dm_fsync_timer_callback(unsigned long data);
-#if 0
-extern	bool	dm_check_lbus_status(struct net_device *dev);
-#endif
 extern	void dm_check_fsync(struct net_device *dev);
 extern	void	dm_shadow_init(struct net_device *dev);
 
@@ -211,7 +167,6 @@ static	void	dm_ctstoself(struct net_device *dev);
 //================================================================================
 //	HW Dynamic mechanism interface.
 //================================================================================
-#ifdef RTL8192SU
 static void dm_CheckAggrPolicy(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -282,7 +237,6 @@ static void dm_CheckAggrPolicy(struct net_device *dev)
 	lastTxOkCnt = priv->stats.txbytesunicast;
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }
-#endif
 //
 //	Description:
 //		Prepare SW resource for HW dynamic mechanism.
@@ -302,11 +256,7 @@ init_hal_dm(struct net_device *dev)
 	//Initial TX Power Control for near/far range , add by amy 2008/05/15, porting from windows code.
 	dm_init_dynamic_txpower(dev);
 	init_rate_adaptive(dev);
-#ifdef RTL8192SU
 	dm_initialize_txpower_tracking(dev);
-#else
-	//dm_initialize_txpower_tracking(dev);
-#endif
 	dm_dig_init(dev);
 	dm_init_edca_turbo(dev);
 	dm_init_bandwidth_autoswitch(dev);
@@ -324,101 +274,8 @@ extern void deinit_hal_dm(struct net_device *dev)
 }
 
 
-#ifdef USB_RX_AGGREGATION_SUPPORT
-void dm_CheckRxAggregation(struct net_device *dev) {
-	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->ieee80211->pHTInfo;
-	static unsigned long	lastTxOkCnt = 0;
-	static unsigned long	lastRxOkCnt = 0;
-	unsigned long		curTxOkCnt = 0;
-	unsigned long		curRxOkCnt = 0;
-
-/*
-	if (pHalData->bForcedUsbRxAggr) {
-		if (pHalData->ForcedUsbRxAggrInfo == 0) {
-			if (pHalData->bCurrentRxAggrEnable) {
-				Adapter->HalFunc.HalUsbRxAggrHandler(Adapter, FALSE);
-			}
-		} else {
-			if (!pHalData->bCurrentRxAggrEnable || (pHalData->ForcedUsbRxAggrInfo != pHalData->LastUsbRxAggrInfoSetting)) {
-				Adapter->HalFunc.HalUsbRxAggrHandler(Adapter, TRUE);
-			}
-		}
-		return;
-	}
-
-*/
-#ifdef RTL8192SU
-	if (priv->bForcedUsbRxAggr) {
-		if (priv->ForcedUsbRxAggrInfo == 0) {
-			if (priv->bCurrentRxAggrEnable) {
-				//Adapter->HalFunc.HalUsbRxAggrHandler(Adapter, FALSE);
-				write_nic_dword(dev, 0x1a8, 0);
-				priv->bCurrentRxAggrEnable = false;
-			}
-		} else {
-			if (!priv->bCurrentRxAggrEnable || (priv->ForcedUsbRxAggrInfo != priv->LastUsbRxAggrInfoSetting)) {
-				u32 ulValue;
-				ulValue = (pHTInfo->UsbRxFwAggrEn<<24) | (pHTInfo->UsbRxFwAggrPageNum<<16) |
-						(pHTInfo->UsbRxFwAggrPacketNum<<8) | (pHTInfo->UsbRxFwAggrTimeout);
-				/*
-				 * If usb rx firmware aggregation is enabled,
-				 * when anyone of three threshold conditions above is reached,
-				 * firmware will send aggregated packet to driver.
-			 	*/
-				write_nic_dword(dev, 0x1a8, ulValue);
-				priv->bCurrentRxAggrEnable = true;
-			}
-		}
-		return;
-	}
-
-	if((priv->ieee80211->mode & WIRELESS_MODE_B) || (priv->ieee80211->mode & WIRELESS_MODE_G))
-	{
-		if (priv->bCurrentRxAggrEnable)
-		{
-			RT_TRACE(COMP_RECV, "dm_CheckRxAggregation() :  Disable Rx Aggregation!!\n");
-			write_nic_dword(dev, 0x1a8, 0);
-			priv->bCurrentRxAggrEnable = false;
-			return;
-		}
-	}
-#endif
-
-	curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
-	curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;
-
-	if((curTxOkCnt + curRxOkCnt) < 15000000) {
-		return;
-	}
-
-	if(curTxOkCnt > 4*curRxOkCnt) {
-		if (priv->bCurrentRxAggrEnable) {
-			write_nic_dword(dev, 0x1a8, 0);
-			priv->bCurrentRxAggrEnable = false;
-		}
-	}else{
-		if (!priv->bCurrentRxAggrEnable && !pHTInfo->bCurrentRT2RTAggregation) {
-			u32 ulValue;
-			ulValue = (pHTInfo->UsbRxFwAggrEn<<24) | (pHTInfo->UsbRxFwAggrPageNum<<16) |
-				(pHTInfo->UsbRxFwAggrPacketNum<<8) | (pHTInfo->UsbRxFwAggrTimeout);
-			/*
-			 * If usb rx firmware aggregation is enabled,
-			 * when anyone of three threshold conditions above is reached,
-			 * firmware will send aggregated packet to driver.
-			 */
-			write_nic_dword(dev, 0x1a8, ulValue);
-			priv->bCurrentRxAggrEnable = true;
-		}
-	}
-
-	lastTxOkCnt = priv->stats.txbytesunicast;
-	lastRxOkCnt = priv->stats.rxbytesunicast;
-}	// dm_CheckEdcaTurbo
-#endif
 
 
-#ifdef RTL8192SU
 //#if 0
 extern  void    hal_dm_watchdog(struct net_device *dev)
 {
@@ -447,9 +304,6 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
 	//if (IS_HARDWARE_TYPE_8192S(dev))
 	return;
 
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	dm_CheckRxAggregation(dev);
-#endif
 #ifdef TO_DO_LIST
 	if(Adapter->MgntInfo.mActingAsAp)
 	{
@@ -476,34 +330,6 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
 	dm_ctstoself(dev);
 
 }	//HalDmWatchDog
-#else
-extern  void    hal_dm_watchdog(struct net_device *dev)
-{
-        //struct r8192_priv *priv = ieee80211_priv(dev);
-
-	//static u8 	previous_bssid[6] ={0};
-
-	/*Add by amy 2008/05/15 ,porting from windows code.*/
-	dm_check_rate_adaptive(dev);
-	dm_dynamic_txpower(dev);
-	dm_check_txrateandretrycount(dev);
-	dm_check_txpower_tracking(dev);
-	dm_ctrl_initgain_byrssi(dev);
-	dm_check_edca_turbo(dev);
-	dm_bandwidth_autoswitch(dev);
-	dm_check_rfctrl_gpio(dev);
-	dm_check_rx_path_selection(dev);
-	dm_check_fsync(dev);
-
-	// Add by amy 2008-05-15 porting from windows code.
-	dm_check_pbc_gpio(dev);
-	dm_send_rssi_tofw(dev);
-	dm_ctstoself(dev);
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	dm_CheckRxAggregation(dev);
-#endif
-}	//HalDmWatchDog
-#endif
 
 /*
   * Decide Rate Adaptive Set according to distance (signal strength)
@@ -1081,33 +907,6 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 		return;
 	}
 
-	//==========================
-	// this is only for test, should be masked
-#if 0
-{
-	//UINT32	eRFPath;
-	//UINT32	start_rf, end_rf;
-	UINT32	curr_addr;
-	//UINT32	reg_addr;
-	//UINT32	reg_addr_end;
-	UINT32	reg_value;
-	//start_rf 		= RF90_PATH_A;
-	//end_rf 			= RF90_PATH_B;//RF90_PATH_MAX;
-	//reg_addr 		= 0x0;
-	//reg_addr_end 	= 0x2F;
-
-		for (curr_addr = 0; curr_addr < 0x2d; curr_addr++)
-		{
-			reg_value = PHY_QueryRFReg(	Adapter, (RF90_RADIO_PATH_E)RF90_PATH_A,
-										curr_addr, bMaskDWord);
-		}
-
-	pHalData->TXPowercount = 0;
-	return;
-}
-#endif
-	//==========================
-
 	// read and filter out unreasonable value
 	tmpRegA = rtl8192_phy_QueryRFReg(dev, RF90_PATH_A, 0x12, 0x078);	// 0x12: RF Reg[10:7]
 	RT_TRACE(COMP_POWER_TRACKING, "Readback ThermalMeterA = %d \n", tmpRegA);
@@ -1180,17 +979,11 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	priv->txpower_count = 0;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_txpower_trackingcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,txpower_tracking_wq);
        struct net_device *dev = priv->ieee80211->dev;
-#else
-extern	void	dm_txpower_trackingcallback(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 
 #ifdef RTL8190P
 	dm_TXPowerTrackingCallback_TSSI(dev);
@@ -1708,37 +1501,15 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 
 }
 
-#ifndef RTL8192SU
-static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	// Tx Power tracking by Theremal Meter require Firmware R/W 3-wire. This mechanism
-	// can be enabled only when Firmware R/W 3-wire is enabled. Otherwise, frequent r/w
-	// 3-wire by driver cause RF goes into wrong state.
-	if(priv->ieee80211->FwRWRF)
-		priv->btxpower_tracking = TRUE;
-	else
-		priv->btxpower_tracking = FALSE;
-	priv->txpower_count       = 0;
-	priv->btxpower_trackingInit = FALSE;
-}
-#endif
 
 void dm_initialize_txpower_tracking(struct net_device *dev)
 {
 #if (defined RTL8190P)
 	dm_InitializeTXPowerTracking_TSSI(dev);
-#elif (defined RTL8192SU)
+#else
 	// 2009/01/12 MH Enable for 92S series channel 1-14 CCK tx pwer setting for MP.
 	//
 	dm_InitializeTXPowerTracking_TSSI(dev);
-#else
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	if(priv->bDcut == TRUE)
-		dm_InitializeTXPowerTracking_TSSI(dev);
-	else
-		dm_InitializeTXPowerTracking_ThermalMeter(dev);
 #endif
 }// dm_InitializeTXPowerTracking
 
@@ -1754,15 +1525,7 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 	{
 	 	if((tx_power_track_counter % 30 == 0)&&(tx_power_track_counter != 0))
 	 	{
-	 		#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 				queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
-			#else
-				#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-				schedule_task(&priv->txpower_tracking_wq);
-				#else
-				queue_work(priv->priv_wq,&priv->txpower_tracking_wq);
-				#endif
-			#endif
 	 	}
 		tx_power_track_counter++;
 	}
@@ -1774,19 +1537,7 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	static u8 	TM_Trigger=0;
-#if 0
-	u1Byte					i;
-	u4Byte tmpRegA;
-	for(i=0; i<50; i++)
-	{
-		tmpRegA = PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x12, 0x078);	// 0x12: RF Reg[10:7]
-		PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
-		//delay_us(100);
-		PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
-		//delay_us(100);
-	}
-	DbgPrint("Trigger and readback ThermalMeter, write RF reg0x2 = 0x4d to 0x4f for 50 times\n");
-#else
+
 	//DbgPrint("dm_CheckTXPowerTracking() \n");
 	if(!priv->btxpower_tracking)
 		return;
@@ -1804,35 +1555,19 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 		//Attention!! You have to wirte all 12bits data to RF, or it may cause RF to crash
 		//actually write reg0x02 bit1=0, then bit1=1.
 		//DbgPrint("Trigger ThermalMeter, write RF reg0x2 = 0x4d to 0x4f\n");
-#ifdef RTL8192SU
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bRFRegOffsetMask, 0x4d);
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bRFRegOffsetMask, 0x4f);
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bRFRegOffsetMask, 0x4d);
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bRFRegOffsetMask, 0x4f);
-#else
-		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
-		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
-		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
-		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
-#endif
 		TM_Trigger = 1;
 		return;
 	}
 	else
 	{
 		//DbgPrint("Schedule TxPowerTrackingWorkItem\n");
-		#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 			queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
-		#else
-			#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-			schedule_task(&priv->txpower_tracking_wq);
-			#else
-			queue_work(priv->priv_wq,&priv->txpower_tracking_wq);
-			#endif
-		#endif
 		TM_Trigger = 0;
 	}
-#endif
 }
 
 
@@ -2040,14 +1775,6 @@ extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 			//cosa PlatformEFIOWrite4Byte(Adapter, RATR0, ((pu4Byte)(val))[0]);
 			write_nic_dword(dev, RATR0, ratr_value);
 			write_nic_byte(dev, UFWP, 1);
-#if 0		// Disable old code.
-			u1Byte index;
-			u4Byte input_value;
-			index = (u1Byte)((((pu4Byte)(val))[0]) >> 28);
-			input_value = (((pu4Byte)(val))[0]) & 0x0fffffff;
-			// TODO: Correct it. Emily 2007.01.11
-			PlatformEFIOWrite4Byte(Adapter, RATR0+index*4, input_value);
-#endif
 	}
 	//Resore TX Power Tracking Index
 	if(priv->btxpower_trackingInit && priv->btxpower_tracking){
@@ -2150,14 +1877,12 @@ extern void dm_change_dynamic_initgain_thresh(struct net_device *dev,
 								u32		dm_type,
 								u32		dm_value)
 {
-#ifdef RTL8192SU
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	if(dm_type == DIG_TYPE_THRESH_HIGHPWR_HIGH)
 		priv->MidHighPwrTHR_L2 = (u8)dm_value;
 	else if(dm_type == DIG_TYPE_THRESH_HIGHPWR_LOW)
 		priv->MidHighPwrTHR_L1 = (u8)dm_value;
 	return;
-#endif
 	if (dm_type == DIG_TYPE_THRESH_HIGH)
 	{
 		dm_digtable.rssi_high_thresh = dm_value;
@@ -2317,29 +2042,6 @@ dm_change_rxpath_selection_setting(
 		pRA->ping_rssi_thresh_for_ra = DM_Value;
 	}
 }
-
-#if 0
-extern void dm_force_tx_fw_info(struct net_device *dev,
-										u32		force_type,
-										u32		force_value)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	if (force_type == 0)	// don't force TxSC
-	{
-		//DbgPrint("Set Force SubCarrier Off\n");
-		priv->tx_fwinfo_force_subcarriermode = 0;
-	}
-	else if(force_type == 1) //force
-	{
-		//DbgPrint("Set Force SubCarrier On\n");
-		priv->tx_fwinfo_force_subcarriermode = 1;
-		if(force_value > 3)
-			force_value = 3;
-		priv->tx_fwinfo_force_subcarrierval = (u8)force_value;
-	}
-}
-#endif
 
 /*-----------------------------------------------------------------------------
  * Function:	dm_dig_init()
@@ -2529,15 +2231,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 		{
 			/* 2008/01/11 MH 40MHZ 90/92 register are not the same. */
 			// 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
-#ifdef RTL8192SU
 			rtl8192_setBBreg(dev, (rOFDM0_XATxAFE+3), bMaskByte0, 0x00);
-#else
-			#ifdef RTL8190P
-				write_nic_byte(dev, rOFDM0_RxDetector1, 0x40);
-			#else
-				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
-			#endif
-#endif
 			/*else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
 				write_nic_byte(pAdapter, rOFDM0_RxDetector1, 0x40);
 			*/
@@ -2681,15 +2375,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 		// 3.1 Higher PD_TH for OFDM for high power state.
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
 		{
-#ifdef RTL8192SU
 			rtl8192_setBBreg(dev, (rOFDM0_XATxAFE+3), bMaskByte0, 0x10);
-#else
-			#ifdef RTL8190P
-				write_nic_byte(dev, rOFDM0_RxDetector1, 0x41);
-			#else
-				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x10);
-			#endif
-#endif
 			/*else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
 				write_nic_byte(dev, rOFDM0_RxDetector1, 0x41);
 			*/
@@ -2856,15 +2542,7 @@ static void dm_pd_th(
 				{
 					/* 2008/01/11 MH 40MHZ 90/92 register are not the same. */
 					// 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
-#ifdef RTL8192SU
 					rtl8192_setBBreg(dev, (rOFDM0_XATxAFE+3), bMaskByte0, 0x00);
-#else
-					#ifdef RTL8190P
-						write_nic_byte(dev, rOFDM0_RxDetector1, 0x40);
-					#else
-						write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
-					#endif
-#endif
 					/*else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
 						write_nic_byte(dev, rOFDM0_RxDetector1, 0x40);
 					*/
@@ -3028,7 +2706,6 @@ static void dm_check_edca_turbo(
 	{
 		curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
 		curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;
-#ifdef RTL8192SU
 		// Modify EDCA parameters selection bias
 		// For some APs, use downlink EDCA parameters for uplink+downlink
 		if(priv->ieee80211->pHTInfo->IOTAction & HT_IOT_ACT_EDCA_BIAS_ON_RX)
@@ -3071,31 +2748,6 @@ static void dm_check_edca_turbo(
 			}
 			priv->bcurrent_turbo_EDCA = true;
 		}
-#else
-		// For RT-AP, we needs to turn it on when Rx>Tx
-		if(curRxOkCnt > 4*curTxOkCnt)
-		{
-			//printk("%s():curRxOkCnt > 4*curTxOkCnt\n");
-			if(!priv->bis_cur_rdlstate || !priv->bcurrent_turbo_EDCA)
-			{
-				write_nic_dword(dev, EDCAPARA_BE, edca_setting_DL[pHTInfo->IOTPeer]);
-				priv->bis_cur_rdlstate = true;
-			}
-		}
-		else
-		{
-
-			//printk("%s():curRxOkCnt < 4*curTxOkCnt\n");
-			if(priv->bis_cur_rdlstate || !priv->bcurrent_turbo_EDCA)
-			{
-				write_nic_dword(dev, EDCAPARA_BE, edca_setting_UL[pHTInfo->IOTPeer]);
-				priv->bis_cur_rdlstate = false;
-			}
-
-		}
-
-		priv->bcurrent_turbo_EDCA = true;
-#endif
 	}
 	else
 	{
@@ -3235,80 +2887,6 @@ static void dm_ctstoself(struct net_device *dev)
 	}
 }
 
-
-#if 0
-/*-----------------------------------------------------------------------------
- * Function:	dm_rf_operation_test_callback()
- *
- * Overview:	Only for RF operation test now.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/29/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-extern void dm_rf_operation_test_callback(unsigned long dev)
-{
-//	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
-	u8 erfpath;
-
-
-	for(erfpath=0; erfpath<4; erfpath++)
-	{
-		//DbgPrint("Set RF-%d\n\r", eRFPath);
-		//PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x2c, bMask12Bits, 0x3d7);
-		udelay(100);
-	}
-
-	{
-		//PlatformSetPeriodicTimer(Adapter, &pHalData->RfTest1Timer, 500);
-	}
-
-	// For test
-	{
-		//u8 i;
-		//PlatformSetPeriodicTimer(Adapter, &pHalData->RfTest1Timer, 500);
-#if 0
-		for(i=0; i<50; i++)
-		{
-			// Write Test
-			PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
-			//delay_us(100);
-			PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
-			//delay_us(100);
-			PHY_SetRFReg(Adapter, RF90_PATH_C, 0x02, bMask12Bits, 0x4d);
-			//delay_us(100);
-			PHY_SetRFReg(Adapter, RF90_PATH_C, 0x02, bMask12Bits, 0x4f);
-			//delay_us(100);
-
-#if 0
-			// Read test
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x12, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x12, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x21, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x21, bMask12Bits);
-			//delay_us(100);
-#endif
-		}
-#endif
-	}
-
-}	/* DM_RfOperationTestCallBack */
-#endif
-
 /*-----------------------------------------------------------------------------
  * Function:	dm_check_rfctrl_gpio()
  *
@@ -3341,19 +2919,9 @@ static void dm_check_rfctrl_gpio(struct net_device * dev)
 #ifdef RTL8192U
 	return;
 #endif
-#ifdef RTL8192SU
 	return;
-#endif
 #ifdef RTL8192E
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 		queue_delayed_work(priv->priv_wq,&priv->gpio_change_rf_wq,0);
-	#else
-		#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-		schedule_task(&priv->gpio_change_rf_wq);
-             #else
-		queue_work(priv->priv_wq,&priv->gpio_change_rf_wq);
-		#endif
-	#endif
 #endif
 
 }	/* dm_CheckRfCtrlGPIO */
@@ -3394,7 +2962,6 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 		priv->bpbc_pressed = true;
 	}
 #endif
-#ifdef RTL8192SU
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8	tmp1byte;
 
@@ -3420,7 +2987,6 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 		priv->bpbc_pressed = true;
 	}
 
-#endif
 
 
 }
@@ -3442,17 +3008,11 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
  *	02/21/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
- #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_gpio_change_rf_callback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,gpio_change_rf_wq);
        struct net_device *dev = priv->ieee80211->dev;
-#else
-extern	void	dm_gpio_change_rf_callback(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 	u8 tmp1byte;
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
 	bool bActuallySet = false;
@@ -3520,17 +3080,11 @@ extern	void	dm_gpio_change_rf_callback(struct net_device *dev)
  *	01/30/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,rfpath_check_wq);
        struct net_device *dev =priv->ieee80211->dev;
-#else
-extern	void	dm_rf_pathcheck_workitemcallback(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 	//bool bactually_set = false;
 	u8 rfpath = 0, i;
 
@@ -3855,15 +3409,8 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 static	void	dm_check_rx_path_selection(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+
 	queue_delayed_work(priv->priv_wq,&priv->rfpath_check_wq,0);
-#else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	schedule_task(&priv->rfpath_check_wq);
-#else
-	queue_work(priv->priv_wq,&priv->rfpath_check_wq);
-#endif
-#endif
 }	/* dm_CheckRxRFPath */
 
 
@@ -4018,15 +3565,7 @@ extern void dm_fsync_timer_callback(unsigned long data)
 			write_nic_byte(dev, 0xC3e, 0x96);
 		}
 		priv->ContiuneDiffCount = 0;
-#ifdef RTL8192SU
 	rtl8192_setBBreg(dev, rOFDM0_RxDetector2, bMaskDWord, 0x164052cd);
-#else
-	#ifdef RTL8190P
-		write_nic_dword(dev, rOFDM0_RxDetector2, 0x164052cd);
-	#else
-		write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
-	#endif
-#endif
 	}
 	RT_TRACE(COMP_HALDM, "ContiuneDiffCount %d\n", priv->ContiuneDiffCount);
 	RT_TRACE(COMP_HALDM, "rateRecord %d rateCount %d, rateCountdiff %d bSwitchFsync %d\n", priv->rate_record, rate_count, rate_count_diff , priv->bswitch_fsync);
@@ -4215,12 +3754,6 @@ void dm_check_fsync(struct net_device *dev)
 						#endif
 
 						reg_c38_State = RegC38_NonFsync_Other_AP;
-					#if 0//cosa
-						if (Adapter->HardwareType == HARDWARE_TYPE_RTL8190P)
-							DbgPrint("Fsync is idle, rssi<=35, write 0xc38 = 0x%x \n", 0x10);
-						else
-							DbgPrint("Fsync is idle, rssi<=35, write 0xc38 = 0x%x \n", 0x90);
-					#endif
 					}
 				}
 				else if(priv->undecorated_smoothed_pwdb >= (RegC38_TH+5))
@@ -4264,51 +3797,6 @@ void dm_check_fsync(struct net_device *dev)
 		}
 	}
 }
-
-#if 0
-/*-----------------------------------------------------------------------------
- * Function:	DM_CheckLBusStatus()
- *
- * Overview:	For 9x series, we must make sure LBUS is active for IO.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	02/22/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-extern	s1Byte	DM_CheckLBusStatus(IN	PADAPTER	Adapter)
-{
-	PMGNT_INFO	pMgntInfo=&Adapter->MgntInfo;
-
-#if (HAL_CODE_BASE & RTL819X)
-
-#if (HAL_CODE_BASE == RTL8192)
-
-#if( DEV_BUS_TYPE==PCI_INTERFACE)
-	//return (pMgntInfo->bLbusEnable);	// For debug only
-	return TRUE;
-#endif
-
-#if( DEV_BUS_TYPE==USB_INTERFACE)
-	return TRUE;
-#endif
-
-#endif	// #if (HAL_CODE_BASE == RTL8192)
-
-#if (HAL_CODE_BASE == RTL8190)
-	return TRUE;
-#endif	// #if (HAL_CODE_BASE == RTL8190)
-
-#endif	// #if (HAL_CODE_BASE & RTL819X)
-}	/* DM_CheckLBusStatus */
-
-#endif
 
 /*-----------------------------------------------------------------------------
  * Function:	dm_shadow_init()
@@ -4439,16 +3927,6 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		(priv->bDynamicTxLowPower != priv->bLastDTPFlag_Low ) )
 	{
 		RT_TRACE(COMP_TXAGC,"SetTxPowerLevel8190()  channel = %d \n" , priv->ieee80211->current_network.channel);
-#ifndef RTL8192SU
-#if  defined(RTL8190P) || defined(RTL8192E)
-		SetTxPowerLevel8190(Adapter,pHalData->CurrentChannel);
-#endif
-
-#ifdef RTL8192U
-		rtl8192_phy_setTxPower(dev,priv->ieee80211->current_network.channel);
-		//pHalData->bStartTxCtrlByTPCNFR = FALSE;    //Clear th flag of Set TX Power from Sitesurvey
-#endif
-#endif
 	}
 	priv->bLastDTPFlag_High = priv->bDynamicTxHighPower;
 	priv->bLastDTPFlag_Low = priv->bDynamicTxLowPower;
@@ -4462,11 +3940,7 @@ static void dm_check_txrateandretrycount(struct net_device * dev)
 	struct ieee80211_device* ieee = priv->ieee80211;
 	//for 11n tx rate
 //	priv->stats.CurrentShowTxate = read_nic_byte(dev, Current_Tx_Rate_Reg);
-#ifdef RTL8192SU
 	ieee->softmac_stats.CurrentShowTxate = read_nic_byte(dev, TX_RATE_REG);
-#else
-	ieee->softmac_stats.CurrentShowTxate = read_nic_byte(dev, Current_Tx_Rate_Reg);
-#endif
 	//printk("=============>tx_rate_reg:%x\n", ieee->softmac_stats.CurrentShowTxate);
 	//for initial tx rate
 //	priv->stats.last_packet_rate = read_nic_byte(dev, Initial_Tx_Rate_Reg);
@@ -4478,24 +3952,6 @@ static void dm_check_txrateandretrycount(struct net_device * dev)
 
 static void dm_send_rssi_tofw(struct net_device *dev)
 {
-#ifndef RTL8192SU
-	DCMD_TXCMD_T			tx_cmd;
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	// If we test chariot, we should stop the TX command ?
-	// Because 92E will always silent reset when we send tx command. We use register
-	// 0x1e0(byte) to botify driver.
-	write_nic_byte(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
-	return;
-#if 1
-	tx_cmd.Op		= TXCMD_SET_RX_RSSI;
-	tx_cmd.Length	= 4;
-	tx_cmd.Value		= priv->undecorated_smoothed_pwdb;
-
-	cmpk_message_handle_tx(dev, (u8*)&tx_cmd,
-								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
-#endif
-#endif
 }
 
 #ifdef TO_DO_LIST

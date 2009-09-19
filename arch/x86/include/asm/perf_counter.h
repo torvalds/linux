@@ -84,6 +84,16 @@ union cpuid10_edx {
 #define MSR_ARCH_PERFMON_FIXED_CTR2			0x30b
 #define X86_PMC_IDX_FIXED_BUS_CYCLES			(X86_PMC_IDX_FIXED + 2)
 
+/*
+ * We model BTS tracing as another fixed-mode PMC.
+ *
+ * We choose a value in the middle of the fixed counter range, since lower
+ * values are used by actual fixed counters and higher values are used
+ * to indicate other overflow conditions in the PERF_GLOBAL_STATUS msr.
+ */
+#define X86_PMC_IDX_FIXED_BTS				(X86_PMC_IDX_FIXED + 16)
+
+
 #ifdef CONFIG_PERF_COUNTERS
 extern void init_hw_perf_counters(void);
 extern void perf_counters_lapic_init(void);

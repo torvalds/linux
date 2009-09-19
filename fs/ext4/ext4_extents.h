@@ -43,8 +43,7 @@
 #define CHECK_BINSEARCH__
 
 /*
- * If EXT_DEBUG is defined you can use the 'extdebug' mount option
- * to get lots of info about what's going on.
+ * Turn on EXT_DEBUG to get lots of info about extents operations.
  */
 #define EXT_DEBUG__
 #ifdef EXT_DEBUG
@@ -138,6 +137,7 @@ typedef int (*ext_prepare_callback)(struct inode *, struct ext4_ext_path *,
 #define EXT_BREAK      1
 #define EXT_REPEAT     2
 
+/* Maximum logical block in a file; ext4_extent's ee_block is __le32 */
 #define EXT_MAX_BLOCK	0xffffffff
 
 /*

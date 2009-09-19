@@ -5,18 +5,33 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
+#include <linux/hardirq.h>
+#include <asm/unwinder.h>
 #include <asm/system.h>
 
 #ifdef CONFIG_BUG
-static void handle_BUG(struct pt_regs *regs)
+void handle_BUG(struct pt_regs *regs)
 {
+	const struct bug_entry *bug;
+	unsigned long bugaddr = regs->pc;
 	enum bug_trap_type tt;
-	tt = report_bug(regs->pc, regs);
+
+	if (!is_valid_bugaddr(bugaddr))
+		goto invalid;
+
+	bug = find_bug(bugaddr);
+
+	/* Switch unwinders when unwind_stack() is called */
+	if (bug->flags & BUGFLAG_UNWINDER)
+		unwinder_faulted = 1;
+
+	tt = report_bug(bugaddr, regs);
 	if (tt == BUG_TRAP_TYPE_WARN) {
-		regs->pc += instruction_size(regs->pc);
+		regs->pc += instruction_size(bugaddr);
 		return;
 	}
 
+invalid:
 	die("Kernel BUG", regs, TRAPA_BUG_OPCODE & 0xff);
 }
 
@@ -28,8 +43,10 @@ int is_valid_bugaddr(unsigned long addr)
 		return 0;
 	if (probe_kernel_address((insn_size_t *)addr, opcode))
 		return 0;
+	if (opcode == TRAPA_BUG_OPCODE)
+		return 1;
 
-	return opcode == TRAPA_BUG_OPCODE;
+	return 0;
 }
 #endif
 
@@ -74,4 +91,24 @@ BUILD_TRAP_HANDLER(bug)
 #endif
 
 	force_sig(SIGTRAP, current);
+}
+
+BUILD_TRAP_HANDLER(nmi)
+{
+	TRAP_HANDLER_DECL;
+
+	nmi_enter();
+
+	switch (notify_die(DIE_NMI, "NMI", regs, 0, vec & 0xff, SIGINT)) {
+	case NOTIFY_OK:
+	case NOTIFY_STOP:
+		break;
+	case NOTIFY_BAD:
+		die("Fatal Non-Maskable Interrupt", regs, SIGINT);
+	default:
+		printk(KERN_ALERT "Got NMI, but nobody cared. Ignoring...\n");
+		break;
+	}
+
+	nmi_exit();
 }

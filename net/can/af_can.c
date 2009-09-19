@@ -199,6 +199,8 @@ static int can_create(struct net *net, struct socket *sock, int protocol)
  * @skb: pointer to socket buffer with CAN frame in data section
  * @loop: loopback for listeners on local CAN sockets (recommended default!)
  *
+ * Due to the loopback this routine must not be called from hardirq context.
+ *
  * Return:
  *  0 on success
  *  -ENETDOWN when the selected interface is down
@@ -278,7 +280,7 @@ int can_send(struct sk_buff *skb, int loop)
 	}
 
 	if (newskb)
-		netif_rx(newskb);
+		netif_rx_ni(newskb);
 
 	/* update statistics */
 	can_stats.tx_frames++;
@@ -651,12 +653,16 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct can_frame *cf = (struct can_frame *)skb->data;
 	int matches;
 
-	if (dev->type != ARPHRD_CAN || !net_eq(dev_net(dev), &init_net)) {
-		kfree_skb(skb);
-		return 0;
-	}
+	if (!net_eq(dev_net(dev), &init_net))
+		goto drop;
 
-	BUG_ON(skb->len != sizeof(struct can_frame) || cf->can_dlc > 8);
+	if (WARN_ONCE(dev->type != ARPHRD_CAN ||
+		      skb->len != sizeof(struct can_frame) ||
+		      cf->can_dlc > 8,
+		      "PF_CAN: dropped non conform skbuf: "
+		      "dev type %d, len %d, can_dlc %d\n",
+		      dev->type, skb->len, cf->can_dlc))
+		goto drop;
 
 	/* update statistics */
 	can_stats.rx_frames++;
@@ -682,7 +688,11 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 		can_stats.matches_delta++;
 	}
 
-	return 0;
+	return NET_RX_SUCCESS;
+
+drop:
+	kfree_skb(skb);
+	return NET_RX_DROP;
 }
 
 /*

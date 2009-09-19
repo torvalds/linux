@@ -84,7 +84,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	gfs2_tune_init(&sdp->sd_tune);
 
-	mutex_init(&sdp->sd_inum_mutex);
 	spin_lock_init(&sdp->sd_statfs_spin);
 
 	spin_lock_init(&sdp->sd_rindex_spin);
@@ -833,21 +832,12 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	if (error)
 		goto fail;
 
-	/* Read in the master inode number inode */
-	sdp->sd_inum_inode = gfs2_lookup_simple(master, "inum");
-	if (IS_ERR(sdp->sd_inum_inode)) {
-		error = PTR_ERR(sdp->sd_inum_inode);
-		fs_err(sdp, "can't read in inum inode: %d\n", error);
-		goto fail_journal;
-	}
-
-
 	/* Read in the master statfs inode */
 	sdp->sd_statfs_inode = gfs2_lookup_simple(master, "statfs");
 	if (IS_ERR(sdp->sd_statfs_inode)) {
 		error = PTR_ERR(sdp->sd_statfs_inode);
 		fs_err(sdp, "can't read in statfs inode: %d\n", error);
-		goto fail_inum;
+		goto fail_journal;
 	}
 
 	/* Read in the resource index inode */
@@ -876,8 +866,6 @@ fail_rindex:
 	iput(sdp->sd_rindex);
 fail_statfs:
 	iput(sdp->sd_statfs_inode);
-fail_inum:
-	iput(sdp->sd_inum_inode);
 fail_journal:
 	init_journal(sdp, UNDO);
 fail:
@@ -905,20 +893,12 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		return error;
 	}
 
-	sprintf(buf, "inum_range%u", sdp->sd_jdesc->jd_jid);
-	sdp->sd_ir_inode = gfs2_lookup_simple(pn, buf);
-	if (IS_ERR(sdp->sd_ir_inode)) {
-		error = PTR_ERR(sdp->sd_ir_inode);
-		fs_err(sdp, "can't find local \"ir\" file: %d\n", error);
-		goto fail;
-	}
-
 	sprintf(buf, "statfs_change%u", sdp->sd_jdesc->jd_jid);
 	sdp->sd_sc_inode = gfs2_lookup_simple(pn, buf);
 	if (IS_ERR(sdp->sd_sc_inode)) {
 		error = PTR_ERR(sdp->sd_sc_inode);
 		fs_err(sdp, "can't find local \"sc\" file: %d\n", error);
-		goto fail_ir_i;
+		goto fail;
 	}
 
 	sprintf(buf, "quota_change%u", sdp->sd_jdesc->jd_jid);
@@ -932,27 +912,16 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	iput(pn);
 	pn = NULL;
 
-	ip = GFS2_I(sdp->sd_ir_inode);
-	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, 0,
-				   &sdp->sd_ir_gh);
-	if (error) {
-		fs_err(sdp, "can't lock local \"ir\" file: %d\n", error);
-		goto fail_qc_i;
-	}
-
 	ip = GFS2_I(sdp->sd_sc_inode);
-	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, 0,
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_sc_gh);
 	if (error) {
 		fs_err(sdp, "can't lock local \"sc\" file: %d\n", error);
-		goto fail_ir_gh;
+		goto fail_qc_i;
 	}
 
 	ip = GFS2_I(sdp->sd_qc_inode);
-	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, 0,
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_qc_gh);
 	if (error) {
 		fs_err(sdp, "can't lock local \"qc\" file: %d\n", error);
@@ -965,14 +934,10 @@ fail_qc_gh:
 	gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
 fail_ut_gh:
 	gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
-fail_ir_gh:
-	gfs2_glock_dq_uninit(&sdp->sd_ir_gh);
 fail_qc_i:
 	iput(sdp->sd_qc_inode);
 fail_ut_i:
 	iput(sdp->sd_sc_inode);
-fail_ir_i:
-	iput(sdp->sd_ir_inode);
 fail:
 	if (pn)
 		iput(pn);
@@ -1063,7 +1028,6 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 
 	ls->ls_ops = lm;
 	ls->ls_first = 1;
-	ls->ls_id = 0;
 
 	for (options = args->ar_hostdata; (o = strsep(&options, ":")); ) {
 		substring_t tmp[MAX_OPT_ARGS];
@@ -1081,10 +1045,7 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 			ls->ls_jid = option;
 			break;
 		case Opt_id:
-			ret = match_int(&tmp[0], &option);
-			if (ret)
-				goto hostdata_error;
-			ls->ls_id = option;
+			/* Obsolete, but left for backward compat purposes */
 			break;
 		case Opt_first:
 			ret = match_int(&tmp[0], &option);
@@ -1133,6 +1094,17 @@ void gfs2_lm_unmount(struct gfs2_sbd *sdp)
 		lm->lm_unmount(sdp);
 }
 
+void gfs2_online_uevent(struct gfs2_sbd *sdp)
+{
+	struct super_block *sb = sdp->sd_vfs;
+	char ro[20];
+	char spectator[20];
+	char *envp[] = { ro, spectator, NULL };
+	sprintf(ro, "RDONLY=%d", (sb->s_flags & MS_RDONLY) ? 1 : 0);
+	sprintf(spectator, "SPECTATOR=%d", sdp->sd_args.ar_spectator ? 1 : 0);
+	kobject_uevent_env(&sdp->sd_kobj, KOBJ_ONLINE, envp);
+}
+
 /**
  * fill_super - Read in superblock
  * @sb: The VFS superblock
@@ -1157,6 +1129,7 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	sdp->sd_args.ar_quota = GFS2_QUOTA_DEFAULT;
 	sdp->sd_args.ar_data = GFS2_DATA_DEFAULT;
 	sdp->sd_args.ar_commit = 60;
+	sdp->sd_args.ar_errors = GFS2_ERRORS_DEFAULT;
 
 	error = gfs2_mount_args(sdp, &sdp->sd_args, data);
 	if (error) {
@@ -1174,6 +1147,7 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
 	sb->s_export_op = &gfs2_export_ops;
+	sb->s_xattr = gfs2_xattr_handlers;
 	sb->s_time_gran = 1;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
@@ -1236,7 +1210,7 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	gfs2_glock_dq_uninit(&mount_gh);
-
+	gfs2_online_uevent(sdp);
 	return 0;
 
 fail_threads:

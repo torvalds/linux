@@ -16,7 +16,7 @@
 #include <asm/cacheflush.h>
 #include <asm/io.h>
 
-void __flush_wback_region(void *start, int size)
+static void sh2__flush_wback_region(void *start, int size)
 {
 	unsigned long v;
 	unsigned long begin, end;
@@ -37,7 +37,7 @@ void __flush_wback_region(void *start, int size)
 	}
 }
 
-void __flush_purge_region(void *start, int size)
+static void sh2__flush_purge_region(void *start, int size)
 {
 	unsigned long v;
 	unsigned long begin, end;
@@ -51,7 +51,7 @@ void __flush_purge_region(void *start, int size)
 			  CACHE_OC_ADDRESS_ARRAY | (v & 0x00000ff0) | 0x00000008);
 }
 
-void __flush_invalidate_region(void *start, int size)
+static void sh2__flush_invalidate_region(void *start, int size)
 {
 #ifdef CONFIG_CACHE_WRITEBACK
 	/*
@@ -81,4 +81,11 @@ void __flush_invalidate_region(void *start, int size)
 		ctrl_outl((v & CACHE_PHYSADDR_MASK),
 			  CACHE_OC_ADDRESS_ARRAY | (v & 0x00000ff0) | 0x00000008);
 #endif
+}
+
+void __init sh2_cache_init(void)
+{
+	__flush_wback_region		= sh2__flush_wback_region;
+	__flush_purge_region		= sh2__flush_purge_region;
+	__flush_invalidate_region	= sh2__flush_invalidate_region;
 }

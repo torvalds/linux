@@ -605,6 +605,11 @@ struct wm8350_irq {
 	void *data;
 };
 
+struct wm8350_hwmon {
+	struct platform_device *pdev;
+	struct device *classdev;
+};
+
 struct wm8350 {
 	struct device *dev;
 
@@ -621,7 +626,6 @@ struct wm8350 {
 	struct mutex auxadc_mutex;
 
 	/* Interrupt handling */
-	struct work_struct irq_work;
 	struct mutex irq_mutex; /* IRQ table mutex */
 	struct wm8350_irq irq[WM8350_NUM_IRQ];
 	int chip_irq;
@@ -629,6 +633,7 @@ struct wm8350 {
 	/* Client devices */
 	struct wm8350_codec codec;
 	struct wm8350_gpio gpio;
+	struct wm8350_hwmon hwmon;
 	struct wm8350_pmic pmic;
 	struct wm8350_power power;
 	struct wm8350_rtc rtc;

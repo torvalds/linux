@@ -1262,7 +1262,6 @@ __init void lguest_init(void)
 	 */
 
 	/* Interrupt-related operations */
-	pv_irq_ops.init_IRQ = lguest_init_IRQ;
 	pv_irq_ops.save_fl = PV_CALLEE_SAVE(save_fl);
 	pv_irq_ops.restore_fl = __PV_IS_CALLEE_SAVE(lg_restore_fl);
 	pv_irq_ops.irq_disable = PV_CALLEE_SAVE(irq_disable);
@@ -1270,7 +1269,6 @@ __init void lguest_init(void)
 	pv_irq_ops.safe_halt = lguest_safe_halt;
 
 	/* Setup operations */
-	pv_init_ops.memory_setup = lguest_memory_setup;
 	pv_init_ops.patch = lguest_patch;
 
 	/* Intercepts of various CPU instructions */
@@ -1320,10 +1318,11 @@ __init void lguest_init(void)
 	set_lguest_basic_apic_ops();
 #endif
 
-	/* Time operations */
-	pv_time_ops.get_wallclock = lguest_get_wallclock;
-	pv_time_ops.time_init = lguest_time_init;
-	pv_time_ops.get_tsc_khz = lguest_tsc_khz;
+	x86_init.resources.memory_setup = lguest_memory_setup;
+	x86_init.irqs.intr_init = lguest_init_IRQ;
+	x86_init.timers.timer_init = lguest_time_init;
+	x86_platform.calibrate_tsc = lguest_tsc_khz;
+	x86_platform.get_wallclock =  lguest_get_wallclock;
 
 	/*
 	 * Now is a good time to look at the implementations of these functions

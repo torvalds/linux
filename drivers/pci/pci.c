@@ -41,6 +41,12 @@ int pci_domains_supported = 1;
 unsigned long pci_cardbus_io_size = DEFAULT_CARDBUS_IO_SIZE;
 unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 
+#define DEFAULT_HOTPLUG_IO_SIZE		(256)
+#define DEFAULT_HOTPLUG_MEM_SIZE	(2*1024*1024)
+/* pci=hpmemsize=nnM,hpiosize=nn can override this */
+unsigned long pci_hotplug_io_size  = DEFAULT_HOTPLUG_IO_SIZE;
+unsigned long pci_hotplug_mem_size = DEFAULT_HOTPLUG_MEM_SIZE;
+
 /**
  * pci_bus_max_busnr - returns maximum PCI bus number of given bus' children
  * @bus: pointer to PCI bus structure to search
@@ -848,6 +854,7 @@ pci_restore_state(struct pci_dev *dev)
 
 	if (!dev->state_saved)
 		return 0;
+
 	/* PCI Express register must be restored first */
 	pci_restore_pcie_state(dev);
 
@@ -868,6 +875,8 @@ pci_restore_state(struct pci_dev *dev)
 	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
 	pci_restore_iov_state(dev);
+
+	dev->state_saved = false;
 
 	return 0;
 }
@@ -1214,11 +1223,14 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
  */
 int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 {
-	int error = 0;
-	bool pme_done = false;
+	int ret = 0;
 
 	if (enable && !device_may_wakeup(&dev->dev))
 		return -EINVAL;
+
+	/* Don't do the same thing twice in a row for one device. */
+	if (!!enable == !!dev->wakeup_prepared)
+		return 0;
 
 	/*
 	 * According to "PCI System Architecture" 4th ed. by Tom Shanley & Don
@@ -1226,18 +1238,25 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 	 * enable.  To disable wake-up we call the platform first, for symmetry.
 	 */
 
-	if (!enable && platform_pci_can_wakeup(dev))
-		error = platform_pci_sleep_wake(dev, false);
+	if (enable) {
+		int error;
 
-	if (!enable || pci_pme_capable(dev, state)) {
-		pci_pme_active(dev, enable);
-		pme_done = true;
+		if (pci_pme_capable(dev, state))
+			pci_pme_active(dev, true);
+		else
+			ret = 1;
+		error = platform_pci_sleep_wake(dev, true);
+		if (ret)
+			ret = error;
+		if (!ret)
+			dev->wakeup_prepared = true;
+	} else {
+		platform_pci_sleep_wake(dev, false);
+		pci_pme_active(dev, false);
+		dev->wakeup_prepared = false;
 	}
 
-	if (enable && platform_pci_can_wakeup(dev))
-		error = platform_pci_sleep_wake(dev, true);
-
-	return pme_done ? 0 : error;
+	return ret;
 }
 
 /**
@@ -1356,6 +1375,7 @@ void pci_pm_init(struct pci_dev *dev)
 	int pm;
 	u16 pmc;
 
+	dev->wakeup_prepared = false;
 	dev->pm_cap = 0;
 
 	/* find PCI PM capability in list */
@@ -2262,6 +2282,22 @@ int __pci_reset_function(struct pci_dev *dev)
 EXPORT_SYMBOL_GPL(__pci_reset_function);
 
 /**
+ * pci_probe_reset_function - check whether the device can be safely reset
+ * @dev: PCI device to reset
+ *
+ * Some devices allow an individual function to be reset without affecting
+ * other functions in the same device.  The PCI device must be responsive
+ * to PCI config space in order to use this function.
+ *
+ * Returns 0 if the device function can be reset or negative if the
+ * device doesn't support resetting a single function.
+ */
+int pci_probe_reset_function(struct pci_dev *dev)
+{
+	return pci_dev_reset(dev, 1);
+}
+
+/**
  * pci_reset_function - quiesce and reset a PCI device function
  * @dev: PCI device to reset
  *
@@ -2504,6 +2540,50 @@ int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
 	return 0;
 }
 
+/**
+ * pci_set_vga_state - set VGA decode state on device and parents if requested
+ * @dev the PCI device
+ * @decode - true = enable decoding, false = disable decoding
+ * @command_bits PCI_COMMAND_IO and/or PCI_COMMAND_MEMORY
+ * @change_bridge - traverse ancestors and change bridges
+ */
+int pci_set_vga_state(struct pci_dev *dev, bool decode,
+		      unsigned int command_bits, bool change_bridge)
+{
+	struct pci_bus *bus;
+	struct pci_dev *bridge;
+	u16 cmd;
+
+	WARN_ON(command_bits & ~(PCI_COMMAND_IO|PCI_COMMAND_MEMORY));
+
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	if (decode == true)
+		cmd |= command_bits;
+	else
+		cmd &= ~command_bits;
+	pci_write_config_word(dev, PCI_COMMAND, cmd);
+
+	if (change_bridge == false)
+		return 0;
+
+	bus = dev->bus;
+	while (bus) {
+		bridge = bus->self;
+		if (bridge) {
+			pci_read_config_word(bridge, PCI_BRIDGE_CONTROL,
+					     &cmd);
+			if (decode == true)
+				cmd |= PCI_BRIDGE_CTL_VGA;
+			else
+				cmd &= ~PCI_BRIDGE_CTL_VGA;
+			pci_write_config_word(bridge, PCI_BRIDGE_CONTROL,
+					      cmd);
+		}
+		bus = bus->parent;
+	}
+	return 0;
+}
+
 #define RESOURCE_ALIGNMENT_PARAM_SIZE COMMAND_LINE_SIZE
 static char resource_alignment_param[RESOURCE_ALIGNMENT_PARAM_SIZE] = {0};
 spinlock_t resource_alignment_lock = SPIN_LOCK_UNLOCKED;
@@ -2672,6 +2752,10 @@ static int __init pci_setup(char *str)
 							strlen(str + 19));
 			} else if (!strncmp(str, "ecrc=", 5)) {
 				pcie_ecrc_get_policy(str + 5);
+			} else if (!strncmp(str, "hpiosize=", 9)) {
+				pci_hotplug_io_size = memparse(str + 9, &str);
+			} else if (!strncmp(str, "hpmemsize=", 10)) {
+				pci_hotplug_mem_size = memparse(str + 10, &str);
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);

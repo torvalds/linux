@@ -406,7 +406,8 @@ extern int z8530_sync_dma_close(struct net_device *, struct z8530_channel *);
 extern int z8530_sync_txdma_open(struct net_device *, struct z8530_channel *);
 extern int z8530_sync_txdma_close(struct net_device *, struct z8530_channel *);
 extern int z8530_channel_load(struct z8530_channel *, u8 *);
-extern int z8530_queue_xmit(struct z8530_channel *c, struct sk_buff *skb);
+extern netdev_tx_t z8530_queue_xmit(struct z8530_channel *c,
+					  struct sk_buff *skb);
 extern void z8530_null_rx(struct z8530_channel *c, struct sk_buff *skb);
 
 

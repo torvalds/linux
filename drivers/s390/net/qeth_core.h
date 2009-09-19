@@ -435,6 +435,7 @@ struct qeth_qdio_out_q {
 	 * index of buffer to be filled by driver; state EMPTY or PACKING
 	 */
 	int next_buf_to_fill;
+	int sync_iqdio_error;
 	/*
 	 * number of buffers that are currently filled (PRIMED)
 	 * -> these buffers are hardware-owned
@@ -685,6 +686,14 @@ struct qeth_mc_mac {
 	int is_vmac;
 };
 
+struct qeth_skb_data {
+	__u32 magic;
+	int count;
+};
+
+#define QETH_SKB_MAGIC 0x71657468
+#define QETH_SIGA_CC2_RETRIES 3
+
 struct qeth_card {
 	struct list_head list;
 	enum qeth_card_states state;
@@ -834,7 +843,6 @@ int qeth_default_setadapterparms_cb(struct qeth_card *, struct qeth_reply *,
 int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,
 	int (*reply_cb)(struct qeth_card *, struct qeth_reply*, unsigned long),
 	void *reply_param);
-int qeth_get_cast_type(struct qeth_card *, struct sk_buff *);
 int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
 int qeth_get_elements_no(struct qeth_card *, void *, struct sk_buff *, int);
 int qeth_do_send_packet_fast(struct qeth_card *, struct qeth_qdio_out_q *,
