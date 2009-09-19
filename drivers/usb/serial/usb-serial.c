@@ -316,16 +316,19 @@ static void serial_do_down(struct usb_serial_port *port)
  *
  *	Do the resource freeing and refcount dropping for the port. We must
  *	be careful about ordering and we must avoid freeing up the console.
+ *
+ *	Called when the last tty kref is dropped.
  */
 
-static void serial_do_free(struct usb_serial_port *port)
+static void serial_do_free(struct tty_struct *tty)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial;
 	struct module *owner;
 
 	/* The console is magical, do not hang up the console hardware
 	   or there will be tears */
-	if (port->console)
+	if (port == NULL || port->console)
 		return;
 
 	serial = port->serial;
@@ -350,30 +353,12 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	/* FIXME:
-	   This leaves a very narrow race. Really we should do the
-	   serial_do_free() on tty->shutdown(), but tty->shutdown can
-	   be called from IRQ context and serial_do_free can sleep.
-
-	   The right fix is probably to make the tty free (which is rare)
-	   and thus tty->shutdown() occur via a work queue and simplify all
-	   the drivers that use it.
-	*/
-	if (tty_hung_up_p(filp)) {
-		/* serial_hangup already called serial_down at this point.
-		   Another user may have already reopened the port but
-		   serial_do_free is refcounted */
-		serial_do_free(port);
-		return;
-	}
-
 	if (tty_port_close_start(&port->port, tty, filp) == 0)
 		return;
-
 	serial_do_down(port);		
 	tty_port_close_end(&port->port, tty);
 	tty_port_tty_set(&port->port, NULL);
-	serial_do_free(port);
+
 }
 
 static void serial_hangup(struct tty_struct *tty)
@@ -1243,6 +1228,7 @@ static const struct tty_operations serial_ops = {
 	.chars_in_buffer =	serial_chars_in_buffer,
 	.tiocmget =		serial_tiocmget,
 	.tiocmset =		serial_tiocmset,
+	.shutdown =		serial_do_free,
 	.proc_fops =		&serial_proc_fops,
 };
 
