@@ -681,15 +681,9 @@ inline void update_rq_clock(struct rq *rq)
  * This interface allows printk to be called with the runqueue lock
  * held and know whether or not it is OK to wake up the klogd.
  */
-int runqueue_is_locked(void)
+int runqueue_is_locked(int cpu)
 {
-	int cpu = get_cpu();
-	struct rq *rq = cpu_rq(cpu);
-	int ret;
-
-	ret = spin_is_locked(&rq->lock);
-	put_cpu();
-	return ret;
+	return spin_is_locked(&cpu_rq(cpu)->lock);
 }
 
 /*
