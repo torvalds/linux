@@ -399,12 +399,6 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 	/* Configure the termios structure */
 	cp210x_get_termios(tty, port);
-
-	/* Set the DTR and RTS pins low */
-	cp210x_tiocmset_port(tty ? (struct usb_serial_port *) tty->driver_data
-			: port,
-		NULL, TIOCM_DTR | TIOCM_RTS, 0);
-
 	return 0;
 }
 
