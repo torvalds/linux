@@ -627,7 +627,7 @@ static int icom_write(struct uart_port *port)
 	unsigned long data_count;
 	unsigned char cmdReg;
 	unsigned long offset;
-	int temp_tail = port->info->xmit.tail;
+	int temp_tail = port->state->xmit.tail;
 
 	trace(ICOM_PORT, "WRITE", 0);
 
@@ -638,11 +638,11 @@ static int icom_write(struct uart_port *port)
 	}
 
 	data_count = 0;
-	while ((port->info->xmit.head != temp_tail) &&
+	while ((port->state->xmit.head != temp_tail) &&
 	       (data_count <= XMIT_BUFF_SZ)) {
 
 		ICOM_PORT->xmit_buf[data_count++] =
-		    port->info->xmit.buf[temp_tail];
+		    port->state->xmit.buf[temp_tail];
 
 		temp_tail++;
 		temp_tail &= (UART_XMIT_SIZE - 1);
@@ -694,7 +694,7 @@ static inline void check_modem_status(struct icom_port *icom_port)
 			uart_handle_cts_change(&icom_port->uart_port,
 					       delta_status & ICOM_CTS);
 
-		wake_up_interruptible(&icom_port->uart_port.info->
+		wake_up_interruptible(&icom_port->uart_port.state->
 				      delta_msr_wait);
 		old_status = status;
 	}
@@ -718,10 +718,10 @@ static void xmit_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 		icom_port->uart_port.icount.tx += count;
 
 		for (i=0; i<count &&
-			!uart_circ_empty(&icom_port->uart_port.info->xmit); i++) {
+			!uart_circ_empty(&icom_port->uart_port.state->xmit); i++) {
 
-			icom_port->uart_port.info->xmit.tail++;
-			icom_port->uart_port.info->xmit.tail &=
+			icom_port->uart_port.state->xmit.tail++;
+			icom_port->uart_port.state->xmit.tail &=
 				(UART_XMIT_SIZE - 1);
 		}
 
@@ -735,7 +735,7 @@ static void xmit_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 {
 	short int count, rcv_buff;
-	struct tty_struct *tty = icom_port->uart_port.info->port.tty;
+	struct tty_struct *tty = icom_port->uart_port.state->port.tty;
 	unsigned short int status;
 	struct uart_icount *icount;
 	unsigned long offset;

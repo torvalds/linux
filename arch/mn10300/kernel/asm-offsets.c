@@ -95,7 +95,7 @@ void foo(void)
 	OFFSET(__iobase,		mn10300_serial_port, _iobase);
 
 	DEFINE(__UART_XMIT_SIZE,	UART_XMIT_SIZE);
-	OFFSET(__xmit_buffer,		uart_info, xmit.buf);
-	OFFSET(__xmit_head,		uart_info, xmit.head);
-	OFFSET(__xmit_tail,		uart_info, xmit.tail);
+	OFFSET(__xmit_buffer,		uart_state, xmit.buf);
+	OFFSET(__xmit_head,		uart_state, xmit.head);
+	OFFSET(__xmit_tail,		uart_state, xmit.tail);
 }

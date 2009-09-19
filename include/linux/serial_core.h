@@ -186,7 +186,6 @@
 #include <linux/sysrq.h>
 
 struct uart_port;
-struct uart_info;
 struct serial_struct;
 struct device;
 
@@ -284,7 +283,7 @@ struct uart_port {
 
 	unsigned int		read_status_mask;	/* driver specific */
 	unsigned int		ignore_status_mask;	/* driver specific */
-	struct uart_info	*info;			/* pointer to parent info */
+	struct uart_state	*state;			/* pointer to parent state */
 	struct uart_icount	icount;			/* statistics */
 
 	struct console		*cons;			/* struct console, if any */
@@ -343,8 +342,22 @@ struct uart_port {
  */
 typedef unsigned int __bitwise__ uif_t;
 
-struct uart_info {
+
+/*
+ * This is the state information which is persistent across opens.
+ * The low level driver must not to touch any elements contained
+ * within.
+ */
+struct uart_state {
 	struct tty_port		port;
+	unsigned int		close_delay;		/* msec */
+	unsigned int		closing_wait;		/* msec */
+
+#define USF_CLOSING_WAIT_INF	(0)
+#define USF_CLOSING_WAIT_NONE	(~0U)
+
+	int			count;
+	int			pm_state;
 	struct circ_buf		xmit;
 	uif_t			flags;
 
@@ -362,24 +375,7 @@ struct uart_info {
 
 	struct tasklet_struct	tlet;
 	wait_queue_head_t	delta_msr_wait;
-};
-
-/*
- * This is the state information which is persistent across opens.
- * The low level driver must not to touch any elements contained
- * within.
- */
-struct uart_state {
-	unsigned int		close_delay;		/* msec */
-	unsigned int		closing_wait;		/* msec */
-
-#define USF_CLOSING_WAIT_INF	(0)
-#define USF_CLOSING_WAIT_NONE	(~0U)
-
-	int			count;
-	int			pm_state;
-	struct uart_info	info;
-	struct uart_port	*port;
+	struct uart_port	*uart_port;
 
 	struct mutex		mutex;
 };
@@ -462,7 +458,7 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
 
 static inline int uart_tx_stopped(struct uart_port *port)
 {
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	if(tty->stopped || tty->hw_stopped)
 		return 1;
 	return 0;
@@ -477,7 +473,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 #ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch, port->info->port.tty);
+			handle_sysrq(ch, port->state->port.tty);
 			port->sysrq = 0;
 			return 1;
 		}
@@ -495,7 +491,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
  */
 static inline int uart_handle_break(struct uart_port *port)
 {
-	struct uart_info *info = port->info;
+	struct uart_state *state = port->state;
 #ifdef SUPPORT_SYSRQ
 	if (port->cons && port->cons->index == port->line) {
 		if (!port->sysrq) {
@@ -506,7 +502,7 @@ static inline int uart_handle_break(struct uart_port *port)
 	}
 #endif
 	if (port->flags & UPF_SAK)
-		do_SAK(info->port.tty);
+		do_SAK(state->port.tty);
 	return 0;
 }
 
@@ -518,7 +514,7 @@ static inline int uart_handle_break(struct uart_port *port)
 static inline void
 uart_handle_dcd_change(struct uart_port *port, unsigned int status)
 {
-	struct uart_info *info = port->info;
+	struct uart_state *state = port->state;
 
 	port->icount.dcd++;
 
@@ -527,11 +523,11 @@ uart_handle_dcd_change(struct uart_port *port, unsigned int status)
 		hardpps();
 #endif
 
-	if (info->flags & UIF_CHECK_CD) {
+	if (state->flags & UIF_CHECK_CD) {
 		if (status)
-			wake_up_interruptible(&info->port.open_wait);
-		else if (info->port.tty)
-			tty_hangup(info->port.tty);
+			wake_up_interruptible(&state->port.open_wait);
+		else if (state->port.tty)
+			tty_hangup(state->port.tty);
 	}
 }
 
@@ -543,12 +539,12 @@ uart_handle_dcd_change(struct uart_port *port, unsigned int status)
 static inline void
 uart_handle_cts_change(struct uart_port *port, unsigned int status)
 {
-	struct uart_info *info = port->info;
-	struct tty_struct *tty = info->port.tty;
+	struct uart_state *state = port->state;
+	struct tty_struct *tty = state->port.tty;
 
 	port->icount.cts++;
 
-	if (info->flags & UIF_CTS_FLOW) {
+	if (state->flags & UIF_CTS_FLOW) {
 		if (tty->hw_stopped) {
 			if (status) {
 				tty->hw_stopped = 0;
@@ -570,7 +566,7 @@ static inline void
 uart_insert_char(struct uart_port *port, unsigned int status,
 		 unsigned int overrun, unsigned int ch, unsigned int flag)
 {
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 
 	if ((status & port->ignore_status_mask & ~overrun) == 0)
 		tty_insert_flip_char(tty, ch, flag);

@@ -242,12 +242,12 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 	}
 
 	/* Sanity check, make sure the old bug is no longer happening */
-	if (uap->port.info == NULL || uap->port.info->port.tty == NULL) {
+	if (uap->port.state == NULL || uap->port.state->port.tty == NULL) {
 		WARN_ON(1);
 		(void)read_zsdata(uap);
 		return NULL;
 	}
-	tty = uap->port.info->port.tty;
+	tty = uap->port.state->port.tty;
 
 	while (1) {
 		error = 0;
@@ -369,7 +369,7 @@ static void pmz_status_handle(struct uart_pmac_port *uap)
 			uart_handle_cts_change(&uap->port,
 					       !(status & CTS));
 
-		wake_up_interruptible(&uap->port.info->delta_msr_wait);
+		wake_up_interruptible(&uap->port.state->delta_msr_wait);
 	}
 
 	if (status & BRK_ABRT)
@@ -420,9 +420,9 @@ static void pmz_transmit_chars(struct uart_pmac_port *uap)
 		return;
 	}
 
-	if (uap->port.info == NULL)
+	if (uap->port.state == NULL)
 		goto ack_tx_int;
-	xmit = &uap->port.info->xmit;
+	xmit = &uap->port.state->xmit;
 	if (uart_circ_empty(xmit)) {
 		uart_write_wakeup(&uap->port);
 		goto ack_tx_int;
@@ -655,7 +655,7 @@ static void pmz_start_tx(struct uart_port *port)
 		port->icount.tx++;
 		port->x_char = 0;
 	} else {
-		struct circ_buf *xmit = &port->info->xmit;
+		struct circ_buf *xmit = &port->state->xmit;
 
 		write_zsdata(uap, xmit->buf[xmit->tail]);
 		zssync(uap);
