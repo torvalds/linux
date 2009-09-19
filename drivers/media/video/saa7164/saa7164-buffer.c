@@ -107,10 +107,10 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_tsport *port,
 	memset(buf->pt_cpu, 0xff, buf->pt_size);
 
 	dprintk(DBGLVL_BUF, "%s()   allocated buffer @ 0x%p\n", __func__, buf);
-	dprintk(DBGLVL_BUF, "  pci_cpu @ 0x%p    dma @ 0x%p len = 0x%x\n",
-		buf->cpu, (void *)buf->dma, buf->pci_size);
-	dprintk(DBGLVL_BUF, "   pt_cpu @ 0x%p pt_dma @ 0x%p len = 0x%x\n",
-		buf->pt_cpu, (void *)buf->pt_dma, buf->pt_size);
+	dprintk(DBGLVL_BUF, "  pci_cpu @ 0x%p    dma @ 0x%08lx len = 0x%x\n",
+		buf->cpu, (long)buf->dma, buf->pci_size);
+	dprintk(DBGLVL_BUF, "   pt_cpu @ 0x%p pt_dma @ 0x%08lx len = 0x%x\n",
+		buf->pt_cpu, (long)buf->pt_dma, buf->pt_size);
 
 	/* Format the Page Table Entries to point into the data buffer */
 	for (i = 0 ; i < SAA7164_PT_ENTRIES; i++) {
