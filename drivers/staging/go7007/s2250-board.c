@@ -112,7 +112,7 @@ static u16 vid_regs_fp_pal[] =
 };
 
 struct s2250 {
-	int std;
+	v4l2_std_id std;
 	int input;
 	int brightness;
 	int contrast;
@@ -240,6 +240,45 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 	return 0;
 }
 
+static int read_reg_fp(struct i2c_client *client, u16 addr, u16 *val)
+{
+	struct go7007 *go = i2c_get_adapdata(client->adapter);
+	struct go7007_usb *usb;
+	u8 *buf;
+
+	if (go == NULL)
+		return -ENODEV;
+
+	if (go->status == STATUS_SHUTDOWN)
+		return -EBUSY;
+
+	buf = kzalloc(16, GFP_KERNEL);
+
+	if (buf == NULL)
+		return -ENOMEM;
+
+
+
+	memset(buf, 0xcd, 6);
+	usb = go->hpi_context;
+	if (down_interruptible(&usb->i2c_lock) != 0) {
+		printk(KERN_INFO "i2c lock failed\n");
+		kfree(buf);
+		return -EINTR;
+	}
+	if (go7007_usb_vendor_request(go, 0x58, addr, 0, buf, 16, 1) < 0) {
+		kfree(buf);
+		return -EFAULT;
+	}
+	up(&usb->i2c_lock);
+
+	*val = (buf[0] << 8) | buf[1];
+	kfree(buf);
+
+	return 0;
+}
+
+
 static int write_regs(struct i2c_client *client, u8 *regs)
 {
 	int i;
@@ -354,14 +393,42 @@ static int s2250_command(struct i2c_client *client,
 	{
 		struct v4l2_control *ctrl = arg;
 		int value1;
+		u16 oldvalue;
 
 		switch (ctrl->id) {
 		case V4L2_CID_BRIGHTNESS:
-			printk(KERN_INFO "s2250: future setting\n");
-			return -EINVAL;
+			if (ctrl->value > 100)
+				dec->brightness = 100;
+			else if (ctrl->value < 0)
+				dec->brightness = 0;
+			else
+				dec->brightness = ctrl->value;
+			value1 = (dec->brightness - 50) * 255 / 100;
+			read_reg_fp(client, VPX322_ADDR_BRIGHTNESS0, &oldvalue);
+			write_reg_fp(client, VPX322_ADDR_BRIGHTNESS0,
+				     value1 | (oldvalue & ~0xff));
+			read_reg_fp(client, VPX322_ADDR_BRIGHTNESS1, &oldvalue);
+			write_reg_fp(client, VPX322_ADDR_BRIGHTNESS1,
+				     value1 | (oldvalue & ~0xff));
+			write_reg_fp(client, 0x140, 0x60);
+			break;
 		case V4L2_CID_CONTRAST:
-			printk(KERN_INFO "s2250: future setting\n");
-			return -EINVAL;
+			if (ctrl->value > 100)
+				dec->contrast = 100;
+			else if (ctrl->value < 0)
+				dec->contrast = 0;
+			else
+				dec->contrast = ctrl->value;
+			value1 = dec->contrast * 0x40 / 100;
+			if (value1 > 0x3f)
+				value1 = 0x3f; /* max */
+			read_reg_fp(client, VPX322_ADDR_CONTRAST0, &oldvalue);
+			write_reg_fp(client, VPX322_ADDR_CONTRAST0,
+				     value1 | (oldvalue & ~0x3f));
+			read_reg_fp(client, VPX322_ADDR_CONTRAST1, &oldvalue);
+			write_reg_fp(client, VPX322_ADDR_CONTRAST1,
+				     value1 | (oldvalue & ~0x3f));
+			write_reg_fp(client, 0x140, 0x60);
 			break;
 		case V4L2_CID_SATURATION:
 			if (ctrl->value > 127)
