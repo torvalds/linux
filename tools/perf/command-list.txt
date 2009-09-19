@@ -8,5 +8,6 @@ perf-sched			mainporcelain common
 perf-record			mainporcelain common
 perf-report			mainporcelain common
 perf-stat			mainporcelain common
+perf-timechart			mainporcelain common
 perf-top			mainporcelain common
 perf-trace			mainporcelain common
