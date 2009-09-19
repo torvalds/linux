@@ -203,10 +203,13 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 	usb = go->hpi_context;
 	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
 		printk(KERN_INFO "i2c lock failed\n");
+		kfree(buf);
 		return -EINTR;
 	}
-	if (go7007_usb_vendor_request(go, 0x57, addr, val, buf, 16, 1) < 0)
+	if (go7007_usb_vendor_request(go, 0x57, addr, val, buf, 16, 1) < 0) {
+		kfree(buf);
 		return -EFAULT;
+	}
 
 	mutex_unlock(&usb->i2c_lock);
 	if (buf[0] == 0) {
@@ -214,6 +217,7 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 
 		subaddr = (buf[4] << 8) + buf[5];
 		val_read = (buf[2] << 8) + buf[3];
+		kfree(buf);
 		if (val_read != val) {
 			printk(KERN_INFO "invalid fp write %x %x\n",
 			       val_read, val);
@@ -224,8 +228,10 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 			       subaddr, addr);
 			return -EFAULT;
 		}
-	} else
+	} else {
+		kfree(buf);
 		return -EFAULT;
+	}
 
 	/* save last 12b value */
 	if (addr == 0x12b)
