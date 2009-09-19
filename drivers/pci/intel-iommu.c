@@ -785,9 +785,10 @@ static void dma_pte_clear_range(struct dmar_domain *domain,
 
 	BUG_ON(addr_width < BITS_PER_LONG && start_pfn >> addr_width);
 	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
+	BUG_ON(start_pfn > last_pfn);
 
 	/* we don't need lock here; nobody else touches the iova range */
-	while (start_pfn <= last_pfn) {
+	do {
 		first_pte = pte = dma_pfn_level_pte(domain, start_pfn, 1);
 		if (!pte) {
 			start_pfn = align_to_level(start_pfn + 1, 2);
@@ -801,7 +802,8 @@ static void dma_pte_clear_range(struct dmar_domain *domain,
 
 		domain_flush_cache(domain, first_pte,
 				   (void *)pte - (void *)first_pte);
-	}
+
+	} while (start_pfn && start_pfn <= last_pfn);
 }
 
 /* free page table pages. last level pte should already be cleared */
@@ -817,6 +819,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 
 	BUG_ON(addr_width < BITS_PER_LONG && start_pfn >> addr_width);
 	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
+	BUG_ON(start_pfn > last_pfn);
 
 	/* We don't need lock here; nobody else touches the iova range */
 	level = 2;
@@ -827,7 +830,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 		if (tmp + level_size(level) - 1 > last_pfn)
 			return;
 
-		while (tmp + level_size(level) - 1 <= last_pfn) {
+		do {
 			first_pte = pte = dma_pfn_level_pte(domain, tmp, level);
 			if (!pte) {
 				tmp = align_to_level(tmp + 1, level + 1);
@@ -846,7 +849,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 			domain_flush_cache(domain, first_pte,
 					   (void *)pte - (void *)first_pte);
 			
-		}
+		} while (tmp && tmp + level_size(level) - 1 <= last_pfn);
 		level++;
 	}
 	/* free pgd */
