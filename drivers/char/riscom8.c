@@ -921,20 +921,12 @@ static void rc_flush_buffer(struct tty_struct *tty)
 	tty_wakeup(tty);
 }
 
-static void rc_close(struct tty_struct *tty, struct file *filp)
+static void rc_close_port(struct tty_struct *tty, struct tty_port *port)
 {
-	struct riscom_port *port = tty->driver_data;
-	struct riscom_board *bp;
 	unsigned long flags;
+	struct riscom_port *rp = container_of(port, struct riscom_port, port);
+	struct riscom_board *bp = port_Board(rp);
 	unsigned long timeout;
-
-	if (!port || rc_paranoia_check(port, tty->name, "close"))
-		return;
-
-	bp = port_Board(port);
-	
-	if (tty_port_close_start(&port->port, tty, filp) == 0)
-		return;
 	
 	/*
 	 * At this point we stop accepting input.  To do this, we
@@ -944,29 +936,42 @@ static void rc_close(struct tty_struct *tty, struct file *filp)
 	 */
 
 	spin_lock_irqsave(&riscom_lock, flags);
-	port->IER &= ~IER_RXD;
-	if (port->port.flags & ASYNC_INITIALIZED) {
-		port->IER &= ~IER_TXRDY;
-		port->IER |= IER_TXEMPTY;
-		rc_out(bp, CD180_CAR, port_No(port));
-		rc_out(bp, CD180_IER, port->IER);
+	rp->IER &= ~IER_RXD;
+	if (port->flags & ASYNC_INITIALIZED) {
+		rp->IER &= ~IER_TXRDY;
+		rp->IER |= IER_TXEMPTY;
+		rc_out(bp, CD180_CAR, port_No(rp));
+		rc_out(bp, CD180_IER, rp->IER);
 		/*
 		 * Before we drop DTR, make sure the UART transmitter
 		 * has completely drained; this is especially
 		 * important if there is a transmit FIFO!
 		 */
 		timeout = jiffies + HZ;
-		while (port->IER & IER_TXEMPTY) {
+		while (rp->IER & IER_TXEMPTY) {
 			spin_unlock_irqrestore(&riscom_lock, flags);
-			msleep_interruptible(jiffies_to_msecs(port->timeout));
+			msleep_interruptible(jiffies_to_msecs(rp->timeout));
 			spin_lock_irqsave(&riscom_lock, flags);
 			if (time_after(jiffies, timeout))
 				break;
 		}
 	}
-	rc_shutdown_port(tty, bp, port);
-	rc_flush_buffer(tty);
+	rc_shutdown_port(tty, bp, rp);
 	spin_unlock_irqrestore(&riscom_lock, flags);
+}
+
+static void rc_close(struct tty_struct *tty, struct file *filp)
+{
+	struct riscom_port *port = tty->driver_data;
+
+	if (!port || rc_paranoia_check(port, tty->name, "close"))
+		return;
+
+	if (tty_port_close_start(&port->port, tty, filp) == 0)
+		return;
+
+	rc_close_port(tty, &port->port);
+	rc_flush_buffer(tty);
 
 	tty_port_close_end(&port->port, tty);
 }
