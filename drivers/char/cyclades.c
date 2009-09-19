@@ -2361,61 +2361,13 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 	struct cyclades_card *card;
 	unsigned long flags;
 
-#ifdef CY_DEBUG_OTHER
-	printk(KERN_DEBUG "cyc:cy_close ttyC%d\n", info->line);
-#endif
-
 	if (!info || serial_paranoia_check(info, tty->name, "cy_close"))
 		return;
 
 	card = info->card;
 
-	spin_lock_irqsave(&card->card_lock, flags);
-	/* If the TTY is being hung up, nothing to do */
-	if (tty_hung_up_p(filp)) {
-		spin_unlock_irqrestore(&card->card_lock, flags);
+	if (!tty_port_close_start(&info->port, tty, filp))
 		return;
-	}
-#ifdef CY_DEBUG_OPEN
-	printk(KERN_DEBUG "cyc:cy_close ttyC%d, count = %d\n", info->line,
-		info->port.count);
-#endif
-	if ((tty->count == 1) && (info->port.count != 1)) {
-		/*
-		 * Uh, oh.  tty->count is 1, which means that the tty
-		 * structure will be freed.  Info->count should always
-		 * be one in these conditions.  If it's greater than
-		 * one, we've got real problems, since it means the
-		 * serial port won't be shutdown.
-		 */
-		printk(KERN_ERR "cyc:cy_close: bad serial port count; "
-			"tty->count is 1, info->port.count is %d\n", info->port.count);
-		info->port.count = 1;
-	}
-#ifdef CY_DEBUG_COUNT
-	printk(KERN_DEBUG  "cyc:cy_close at (%d): decrementing count to %d\n",
-		current->pid, info->port.count - 1);
-#endif
-	if (--info->port.count < 0) {
-#ifdef CY_DEBUG_COUNT
-		printk(KERN_DEBUG "cyc:cyc_close setting count to 0\n");
-#endif
-		info->port.count = 0;
-	}
-	if (info->port.count) {
-		spin_unlock_irqrestore(&card->card_lock, flags);
-		return;
-	}
-	info->port.flags |= ASYNC_CLOSING;
-
-	/*
-	 * Now we wait for the transmit buffer to clear; and we notify
-	 * the line discipline to only process XON/XOFF characters.
-	 */
-	tty->closing = 1;
-	spin_unlock_irqrestore(&card->card_lock, flags);
-	if (info->port.closing_wait != CY_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, info->port.closing_wait);
 
 	spin_lock_irqsave(&card->card_lock, flags);
 
@@ -2460,28 +2412,10 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 	spin_unlock_irqrestore(&card->card_lock, flags);
 	cy_shutdown(info, tty);
 	cy_flush_buffer(tty);
-	tty_ldisc_flush(tty);
-	spin_lock_irqsave(&card->card_lock, flags);
 
-	tty->closing = 0;
 	tty_port_tty_set(&info->port, NULL);
-	if (info->port.blocked_open) {
-		spin_unlock_irqrestore(&card->card_lock, flags);
-		if (info->port.close_delay) {
-			msleep_interruptible(jiffies_to_msecs
-						(info->port.close_delay));
-		}
-		wake_up_interruptible(&info->port.open_wait);
-		spin_lock_irqsave(&card->card_lock, flags);
-	}
-	info->port.flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
-	wake_up_interruptible(&info->port.close_wait);
 
-#ifdef CY_DEBUG_OTHER
-	printk(KERN_DEBUG "cyc:cy_close done\n");
-#endif
-
-	spin_unlock_irqrestore(&card->card_lock, flags);
+	tty_port_close_end(&info->port, tty);
 }				/* cy_close */
 
 /* This routine gets called when tty_write has put something into
