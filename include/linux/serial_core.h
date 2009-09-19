@@ -342,9 +342,6 @@ struct uart_port {
 struct uart_state {
 	struct tty_port		port;
 
-#define USF_CLOSING_WAIT_INF	(0)
-#define USF_CLOSING_WAIT_NONE	(~0U)
-
 	int			pm_state;
 	struct circ_buf		xmit;
 

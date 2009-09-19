@@ -652,7 +652,7 @@ static int uart_get_info(struct uart_state *state,
 	tmp.xmit_fifo_size  = uport->fifosize;
 	tmp.baud_base	    = uport->uartclk / 16;
 	tmp.close_delay	    = port->close_delay / 10;
-	tmp.closing_wait    = port->closing_wait == USF_CLOSING_WAIT_NONE ?
+	tmp.closing_wait    = port->closing_wait == ASYNC_CLOSING_WAIT_NONE ?
 				ASYNC_CLOSING_WAIT_NONE :
 				port->closing_wait / 10;
 	tmp.custom_divisor  = uport->custom_divisor;
@@ -690,7 +690,7 @@ static int uart_set_info(struct uart_state *state,
 	new_serial.irq = irq_canonicalize(new_serial.irq);
 	close_delay = new_serial.close_delay * 10;
 	closing_wait = new_serial.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
-			USF_CLOSING_WAIT_NONE : new_serial.closing_wait * 10;
+			ASYNC_CLOSING_WAIT_NONE : new_serial.closing_wait * 10;
 
 	/*
 	 * This semaphore protects port->count.  It is also
@@ -1307,7 +1307,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	 */
 	tty->closing = 1;
 
-	if (port->closing_wait != USF_CLOSING_WAIT_NONE)
+	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
 		tty_wait_until_sent(tty, msecs_to_jiffies(port->closing_wait));
 
 	/*
