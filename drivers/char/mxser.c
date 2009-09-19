@@ -258,7 +258,6 @@ struct mxser_port {
 	struct mxser_mon mon_data;
 
 	spinlock_t slock;
-	wait_queue_head_t delta_msr_wait;
 };
 
 struct mxser_board {
@@ -818,7 +817,7 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 	if (status & UART_MSR_DCTS)
 		port->icount.cts++;
 	port->mon_data.modem_status = status;
-	wake_up_interruptible(&port->delta_msr_wait);
+	wake_up_interruptible(&port->port.delta_msr_wait);
 
 	if ((port->port.flags & ASYNC_CHECK_CD) && (status & UART_MSR_DDCD)) {
 		if (status & UART_MSR_DCD)
@@ -973,7 +972,7 @@ static void mxser_shutdown(struct tty_struct *tty)
 	 * clear delta_msr_wait queue to avoid mem leaks: we may free the irq
 	 * here so the queue might never be waken up
 	 */
-	wake_up_interruptible(&info->delta_msr_wait);
+	wake_up_interruptible(&info->port.delta_msr_wait);
 
 	/*
 	 * Free the IRQ, if necessary
@@ -1762,7 +1761,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		cnow = info->icount;	/* note the counters on entry */
 		spin_unlock_irqrestore(&info->slock, flags);
 
-		return wait_event_interruptible(info->delta_msr_wait,
+		return wait_event_interruptible(info->port.delta_msr_wait,
 				mxser_cflags_changed(info, arg, &cnow));
 	/*
 	 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
@@ -2414,7 +2413,6 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 		info->port.close_delay = 5 * HZ / 10;
 		info->port.closing_wait = 30 * HZ;
 		info->normal_termios = mxvar_sdriver->init_termios;
-		init_waitqueue_head(&info->delta_msr_wait);
 		memset(&info->mon_data, 0, sizeof(struct mxser_mon));
 		info->err_shadow = 0;
 		spin_lock_init(&info->slock);

@@ -349,7 +349,6 @@ struct uart_state {
 	struct circ_buf		xmit;
 
 	struct tasklet_struct	tlet;
-	wait_queue_head_t	delta_msr_wait;
 	struct uart_port	*uart_port;
 };
 

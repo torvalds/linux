@@ -686,7 +686,7 @@ static void zs_status_handle(struct zs_port *zport, struct zs_port *zport_a)
 			uport->icount.rng++;
 
 		if (delta)
-			wake_up_interruptible(&uport->state->delta_msr_wait);
+			wake_up_interruptible(&uport->state->port.delta_msr_wait);
 
 		spin_lock(&scc->zlock);
 	}

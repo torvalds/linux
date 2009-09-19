@@ -226,7 +226,7 @@ static void pl011_modem_status(struct uart_amba_port *uap)
 	if (delta & UART01x_FR_CTS)
 		uart_handle_cts_change(&uap->port, status & UART01x_FR_CTS);
 
-	wake_up_interruptible(&uap->port.state->delta_msr_wait);
+	wake_up_interruptible(&uap->port.state->port.delta_msr_wait);
 }
 
 static irqreturn_t pl011_int(int irq, void *dev_id)

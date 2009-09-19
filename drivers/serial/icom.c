@@ -695,7 +695,7 @@ static inline void check_modem_status(struct icom_port *icom_port)
 					       delta_status & ICOM_CTS);
 
 		wake_up_interruptible(&icom_port->uart_port.state->
-				      delta_msr_wait);
+				      port.delta_msr_wait);
 		old_status = status;
 	}
 	spin_unlock(&icom_port->uart_port.lock);

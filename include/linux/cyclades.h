@@ -578,7 +578,6 @@ struct cyclades_port {
 	struct cyclades_idle_stats	idle_stats;
 	struct cyclades_icount	icount;
 	struct completion       shutdown_wait;
-	wait_queue_head_t       delta_msr_wait;
 	int throttle;
 };
 

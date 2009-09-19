@@ -386,7 +386,7 @@ static inline void check_modem_status(struct uart_port *port)
 	if (msr & UART_MSR_DCTS)
 		uart_handle_cts_change(port, msr & UART_MSR_CTS);
 
-	wake_up_interruptible(&port->state->delta_msr_wait);
+	wake_up_interruptible(&port->state->port.delta_msr_wait);
 }
 
 static inline void transmit_chars(struct uart_port *port)

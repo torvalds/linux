@@ -369,7 +369,7 @@ static void pmz_status_handle(struct uart_pmac_port *uap)
 			uart_handle_cts_change(&uap->port,
 					       !(status & CTS));
 
-		wake_up_interruptible(&uap->port.state->delta_msr_wait);
+		wake_up_interruptible(&uap->port.state->port.delta_msr_wait);
 	}
 
 	if (status & BRK_ABRT)

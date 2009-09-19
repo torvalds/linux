@@ -729,7 +729,7 @@ static void cyy_chip_modem(struct cyclades_card *cinfo, int chip,
 		if (mdm_change & CyRI)
 			info->icount.rng++;
 
-		wake_up_interruptible(&info->delta_msr_wait);
+		wake_up_interruptible(&info->port.delta_msr_wait);
 	}
 
 	if ((mdm_change & CyDCD) && (info->port.flags & ASYNC_CHECK_CD)) {
@@ -1197,7 +1197,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 			break;
 		}
 		if (delta_count)
-			wake_up_interruptible(&info->delta_msr_wait);
+			wake_up_interruptible(&info->port.delta_msr_wait);
 		if (special_count)
 			tty_schedule_flip(tty);
 		tty_kref_put(tty);
@@ -1464,7 +1464,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 		spin_lock_irqsave(&card->card_lock, flags);
 
 		/* Clear delta_msr_wait queue to avoid mem leaks. */
-		wake_up_interruptible(&info->delta_msr_wait);
+		wake_up_interruptible(&info->port.delta_msr_wait);
 
 		if (info->port.xmit_buf) {
 			unsigned char *temp;
@@ -2788,7 +2788,7 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 		/* note the counters on entry */
 		cnow = info->icount;
 		spin_unlock_irqrestore(&info->card->card_lock, flags);
-		ret_val = wait_event_interruptible(info->delta_msr_wait,
+		ret_val = wait_event_interruptible(info->port.delta_msr_wait,
 				cy_cflags_changed(info, arg, &cnow));
 		break;
 
@@ -3153,7 +3153,6 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 		info->port.close_delay = 5 * HZ / 10;
 		info->port.flags = STD_COM_FLAGS;
 		init_completion(&info->shutdown_wait);
-		init_waitqueue_head(&info->delta_msr_wait);
 
 		if (cy_is_Z(cinfo)) {
 			struct FIRM_ID *firm_id = cinfo->base_addr + ID_ADDRESS;

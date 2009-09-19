@@ -1287,7 +1287,7 @@ static inline int do_read(struct uart_port *the_port, char *buf, int len)
 							(port->ip_port, 0);
 						wake_up_interruptible
 						    (&the_port->state->
-						     delta_msr_wait);
+						     port.delta_msr_wait);
 					}
 
 					/* If we had any data to return, we
@@ -1491,7 +1491,7 @@ ioc3uart_intr_one(struct ioc3_submodule *is,
 				uart_handle_dcd_change(the_port,
 						shadow & SHADOW_DCD);
 				wake_up_interruptible
-				    (&the_port->state->delta_msr_wait);
+				    (&the_port->state->port.delta_msr_wait);
 			} else if ((port->ip_notify & N_DDCD)
 				   && !(shadow & SHADOW_DCD)) {
 				/* Flag delta DCD/no DCD */
@@ -1511,7 +1511,7 @@ ioc3uart_intr_one(struct ioc3_submodule *is,
 				uart_handle_cts_change(the_port, shadow
 						& SHADOW_CTS);
 				wake_up_interruptible
-				    (&the_port->state->delta_msr_wait);
+				    (&the_port->state->port.delta_msr_wait);
 			}
 		}
 
@@ -1728,7 +1728,7 @@ static void ic3_shutdown(struct uart_port *the_port)
 		return;
 
 	state = the_port->state;
-	wake_up_interruptible(&state->delta_msr_wait);
+	wake_up_interruptible(&state->port.delta_msr_wait);
 
 	spin_lock_irqsave(&the_port->lock, port_flags);
 	set_notification(port, N_ALL, 0);

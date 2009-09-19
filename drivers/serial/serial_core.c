@@ -215,7 +215,8 @@ static int uart_startup(struct uart_state *state, int init_hw)
 static void uart_shutdown(struct uart_state *state)
 {
 	struct uart_port *uport = state->uart_port;
-	struct tty_struct *tty = state->port.tty;
+	struct tty_port *port = &state->port;
+	struct tty_struct *tty = port->tty;
 
 	/*
 	 * Set the TTY IO error marker
@@ -223,7 +224,7 @@ static void uart_shutdown(struct uart_state *state)
 	if (tty)
 		set_bit(TTY_IO_ERROR, &tty->flags);
 
-	if (test_and_clear_bit(ASYNCB_INITIALIZED, &state->port.flags)) {
+	if (test_and_clear_bit(ASYNCB_INITIALIZED, &port->flags)) {
 		/*
 		 * Turn off DTR and RTS early.
 		 */
@@ -237,7 +238,7 @@ static void uart_shutdown(struct uart_state *state)
 		 * any outstanding file descriptors should be pointing at
 		 * hung_up_tty_fops now.
 		 */
-		wake_up_interruptible(&state->delta_msr_wait);
+		wake_up_interruptible(&port->delta_msr_wait);
 
 		/*
 		 * Free the IRQ and disable the port.
@@ -1004,11 +1005,15 @@ static int uart_do_autoconfig(struct uart_state *state)
  * - mask passed in arg for lines of interest
  *   (use |'ed TIOCM_RNG/DSR/CD/CTS for masking)
  * Caller should use TIOCGICOUNT to see which one it was
+ *
+ * FIXME: This wants extracting into a common all driver implementation
+ * of TIOCMWAIT using tty_port.
  */
 static int
 uart_wait_modem_status(struct uart_state *state, unsigned long arg)
 {
 	struct uart_port *uport = state->uart_port;
+	struct tty_port *port = &state->port;
 	DECLARE_WAITQUEUE(wait, current);
 	struct uart_icount cprev, cnow;
 	int ret;
@@ -1025,7 +1030,7 @@ uart_wait_modem_status(struct uart_state *state, unsigned long arg)
 	uport->ops->enable_ms(uport);
 	spin_unlock_irq(&uport->lock);
 
-	add_wait_queue(&state->delta_msr_wait, &wait);
+	add_wait_queue(&port->delta_msr_wait, &wait);
 	for (;;) {
 		spin_lock_irq(&uport->lock);
 		memcpy(&cnow, &uport->icount, sizeof(struct uart_icount));
@@ -1053,7 +1058,7 @@ uart_wait_modem_status(struct uart_state *state, unsigned long arg)
 	}
 
 	current->state = TASK_RUNNING;
-	remove_wait_queue(&state->delta_msr_wait, &wait);
+	remove_wait_queue(&port->delta_msr_wait, &wait);
 
 	return ret;
 }
@@ -1430,7 +1435,7 @@ static void uart_hangup(struct tty_struct *tty)
 		clear_bit(ASYNCB_NORMAL_ACTIVE, &port->flags);
 		port->tty = NULL;
 		wake_up_interruptible(&port->open_wait);
-		wake_up_interruptible(&state->delta_msr_wait);
+		wake_up_interruptible(&port->delta_msr_wait);
 	}
 	mutex_unlock(&port->mutex);
 }
@@ -2378,7 +2383,6 @@ int uart_register_driver(struct uart_driver *drv)
 		tty_port_init(port);
 		port->close_delay     = 500;	/* .5 seconds */
 		port->closing_wait    = 30000;	/* 30 seconds */
-		init_waitqueue_head(&state->delta_msr_wait);
 		tasklet_init(&state->tlet, uart_tasklet_action,
 			     (unsigned long)state);
 	}

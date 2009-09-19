@@ -224,7 +224,7 @@ static void imx_mctrl_check(struct imx_port *sport)
 	if (changed & TIOCM_CTS)
 		uart_handle_cts_change(&sport->port, status & TIOCM_CTS);
 
-	wake_up_interruptible(&sport->port.state->delta_msr_wait);
+	wake_up_interruptible(&sport->port.state->port.delta_msr_wait);
 }
 
 /*
@@ -388,7 +388,7 @@ static irqreturn_t imx_rtsint(int irq, void *dev_id)
 
 	writel(USR1_RTSD, sport->port.membase + USR1);
 	uart_handle_cts_change(&sport->port, !!val);
-	wake_up_interruptible(&sport->port.state->delta_msr_wait);
+	wake_up_interruptible(&sport->port.state->port.delta_msr_wait);
 
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 	return IRQ_HANDLED;

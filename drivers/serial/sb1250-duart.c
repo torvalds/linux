@@ -440,7 +440,7 @@ static void sbd_status_handle(struct sbd_port *sport)
 
 	if (delta & ((M_DUART_IN_PIN2_VAL | M_DUART_IN_PIN0_VAL) <<
 		     S_DUART_IN_PIN_CHNG))
-		wake_up_interruptible(&uport->state->delta_msr_wait);
+		wake_up_interruptible(&uport->state->port.delta_msr_wait);
 }
 
 static irqreturn_t sbd_interrupt(int irq, void *dev_id)

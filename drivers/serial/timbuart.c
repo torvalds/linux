@@ -231,7 +231,7 @@ static void timbuart_mctrl_check(struct uart_port *port, u32 isr, u32 *ier)
 		iowrite32(CTS_DELTA, port->membase + TIMBUART_ISR);
 		cts = timbuart_get_mctrl(port);
 		uart_handle_cts_change(port, cts & TIOCM_CTS);
-		wake_up_interruptible(&port->state->delta_msr_wait);
+		wake_up_interruptible(&port->state->port.delta_msr_wait);
 	}
 
 	*ier |= CTS_DELTA;

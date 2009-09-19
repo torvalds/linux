@@ -441,7 +441,7 @@ static void check_modem_status(struct uart_sunsu_port *up)
 	if (status & UART_MSR_DCTS)
 		uart_handle_cts_change(&up->port, status & UART_MSR_CTS);
 
-	wake_up_interruptible(&up->port.state->delta_msr_wait);
+	wake_up_interruptible(&up->port.state->port.delta_msr_wait);
 }
 
 static irqreturn_t sunsu_serial_interrupt(int irq, void *dev_id)

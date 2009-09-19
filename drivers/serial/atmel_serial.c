@@ -776,7 +776,7 @@ static void atmel_tasklet_func(unsigned long data)
 		if (status_change & ATMEL_US_CTS)
 			uart_handle_cts_change(port, !(status & ATMEL_US_CTS));
 
-		wake_up_interruptible(&port->state->delta_msr_wait);
+		wake_up_interruptible(&port->state->port.delta_msr_wait);
 
 		atmel_port->irq_status_prev = status;
 	}

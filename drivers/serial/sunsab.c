@@ -297,7 +297,7 @@ static void check_status(struct uart_sunsab_port *up,
 		up->port.icount.dsr++;
 	}
 
-	wake_up_interruptible(&up->port.state->delta_msr_wait);
+	wake_up_interruptible(&up->port.state->port.delta_msr_wait);
 }
 
 static irqreturn_t sunsab_interrupt(int irq, void *dev_id)

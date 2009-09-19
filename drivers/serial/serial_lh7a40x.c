@@ -241,7 +241,7 @@ static void lh7a40xuart_modem_status (struct uart_port* port)
 	if (delta & CTS)
 		uart_handle_cts_change (port, status & CTS);
 
-	wake_up_interruptible (&port->state->delta_msr_wait);
+	wake_up_interruptible (&port->state->port.delta_msr_wait);
 }
 
 static irqreturn_t lh7a40xuart_int (int irq, void* dev_id)

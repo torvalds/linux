@@ -266,7 +266,7 @@ static irqreturn_t ks8695uart_modem_status(int irq, void *dev_id)
 	if (status & URMS_URTERI)
 		port->icount.rng++;
 
-	wake_up_interruptible(&port->state->delta_msr_wait);
+	wake_up_interruptible(&port->state->port.delta_msr_wait);
 
 	return IRQ_HANDLED;
 }

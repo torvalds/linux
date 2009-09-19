@@ -169,7 +169,7 @@ static void handle_delta_cts(struct uart_port *port)
 {
 	msm_write(port, UART_CR_CMD_RESET_CTS, UART_CR);
 	port->icount.cts++;
-	wake_up_interruptible(&port->state->delta_msr_wait);
+	wake_up_interruptible(&port->state->port.delta_msr_wait);
 }
 
 static irqreturn_t msm_irq(int irq, void *dev_id)

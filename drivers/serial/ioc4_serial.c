@@ -1882,7 +1882,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 				the_port = port->ip_port;
 				the_port->icount.dcd = 1;
 				wake_up_interruptible
-					    (&the_port->state->delta_msr_wait);
+					    (&the_port->state->port.delta_msr_wait);
 			} else if ((port->ip_notify & N_DDCD)
 					&& !(shadow & IOC4_SHADOW_DCD)) {
 				/* Flag delta DCD/no DCD */
@@ -1904,7 +1904,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 				the_port->icount.cts =
 					(shadow & IOC4_SHADOW_CTS) ? 1 : 0;
 				wake_up_interruptible
-					(&the_port->state->delta_msr_wait);
+					(&the_port->state->port.delta_msr_wait);
 			}
 		}
 
@@ -2237,7 +2237,7 @@ static inline int do_read(struct uart_port *the_port, unsigned char *buf,
 						the_port->icount.dcd = 0;
 						wake_up_interruptible
 						    (&the_port->state->
-							delta_msr_wait);
+							port.delta_msr_wait);
 					}
 
 					/* If we had any data to return, we
@@ -2439,7 +2439,7 @@ static void ic4_shutdown(struct uart_port *the_port)
 	state = the_port->state;
 	port->ip_port = NULL;
 
-	wake_up_interruptible(&state->delta_msr_wait);
+	wake_up_interruptible(&state->port.delta_msr_wait);
 
 	if (state->port.tty)
 		set_bit(TTY_IO_ERROR, &state->port.tty->flags);
