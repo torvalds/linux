@@ -451,12 +451,16 @@ static void fat_write_super(struct super_block *sb)
 
 static int fat_sync_fs(struct super_block *sb, int wait)
 {
-	lock_super(sb);
-	fat_clusters_flush(sb);
-	sb->s_dirt = 0;
-	unlock_super(sb);
+	int err = 0;
 
-	return 0;
+	if (sb->s_dirt) {
+		lock_super(sb);
+		sb->s_dirt = 0;
+		err = fat_clusters_flush(sb);
+		unlock_super(sb);
+	}
+
+	return err;
 }
 
 static void fat_put_super(struct super_block *sb)

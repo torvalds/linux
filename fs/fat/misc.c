@@ -43,19 +43,19 @@ EXPORT_SYMBOL_GPL(fat_fs_error);
 
 /* Flushes the number of free clusters on FAT32 */
 /* XXX: Need to write one per FSINFO block.  Currently only writes 1 */
-void fat_clusters_flush(struct super_block *sb)
+int fat_clusters_flush(struct super_block *sb)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	struct buffer_head *bh;
 	struct fat_boot_fsinfo *fsinfo;
 
 	if (sbi->fat_bits != 32)
-		return;
+		return 0;
 
 	bh = sb_bread(sb, sbi->fsinfo_sector);
 	if (bh == NULL) {
 		printk(KERN_ERR "FAT: bread failed in fat_clusters_flush\n");
-		return;
+		return -EIO;
 	}
 
 	fsinfo = (struct fat_boot_fsinfo *)bh->b_data;
@@ -74,6 +74,8 @@ void fat_clusters_flush(struct super_block *sb)
 		mark_buffer_dirty(bh);
 	}
 	brelse(bh);
+
+	return 0;
 }
 
 /*
