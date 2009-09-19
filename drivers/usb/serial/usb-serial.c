@@ -721,6 +721,41 @@ static const struct tty_port_operations serial_port_ops = {
 	.dtr_rts = serial_dtr_rts,
 };
 
+/**
+ *	serial_install		-	install tty
+ *	@driver: the driver (USB in our case)
+ *	@tty: the tty being created
+ *
+ *	Create the termios objects for this tty. We use the default USB
+ *	serial ones but permit them to be overriddenby serial->type->termios.
+ *	This lets us remove all the ugly hackery
+ */
+
+static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	int idx = tty->index;
+	struct usb_serial *serial;
+	int retval;
+
+	/* If the termios setup has yet to be done */
+	if (tty->driver->termios[idx] == NULL) {
+		/* perform the standard setup */
+		retval = tty_init_termios(tty);
+		if (retval)
+			return retval;
+		/* allow the driver to update it */
+		serial = usb_serial_get_by_index(tty->index);
+		if (serial->type->init_termios)
+			serial->type->init_termios(tty);
+		usb_serial_put(serial);
+	}
+	/* Final install (we use the default method) */
+	tty_driver_kref_get(driver);
+	tty->count++;
+	driver->ttys[idx] = tty;
+	return 0;
+}
+
 int usb_serial_probe(struct usb_interface *interface,
 			       const struct usb_device_id *id)
 {
@@ -1228,7 +1263,8 @@ static const struct tty_operations serial_ops = {
 	.chars_in_buffer =	serial_chars_in_buffer,
 	.tiocmget =		serial_tiocmget,
 	.tiocmset =		serial_tiocmset,
-	.shutdown =		serial_do_free,
+	.shutdown = 		serial_do_free,
+	.install = 		serial_install,
 	.proc_fops =		&serial_proc_fops,
 };
 

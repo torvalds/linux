@@ -1184,6 +1184,7 @@ int tty_init_termios(struct tty_struct *tty)
 	tty->termios->c_ospeed = tty_termios_baud_rate(tty->termios);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tty_init_termios);
 
 /**
  *	tty_driver_install_tty() - install a tty entry in the driver

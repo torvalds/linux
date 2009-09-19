@@ -657,15 +657,7 @@ static int cypress_open(struct tty_struct *tty, struct usb_serial_port *port)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Set termios */
-	result = cypress_write(tty, port, NULL, 0);
-
-	if (result) {
-		dev_err(&port->dev,
-			"%s - failed setting the control lines - error %d\n",
-							__func__, result);
-		return result;
-	} else
-		dbg("%s - success setting the control lines", __func__);
+	cypress_send(port);
 
 	if (tty)
 		cypress_set_termios(tty, port, &priv->tmp_termios);
@@ -1003,6 +995,8 @@ static void cypress_set_termios(struct tty_struct *tty,
 	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
+	/* We can't clean this one up as we don't know the device type
+	   early enough */
 	if (!priv->termios_initialized) {
 		if (priv->chiptype == CT_EARTHMATE) {
 			*(tty->termios) = tty_std_termios;
