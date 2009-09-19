@@ -59,17 +59,17 @@ struct pcmad_board_struct {
 };
 static const struct pcmad_board_struct pcmad_boards[] = {
 	{
-	.name = "pcmad12",
-	.n_ai_bits = 12,
-		},
+	 .name = "pcmad12",
+	 .n_ai_bits = 12,
+	 },
 	{
-	.name = "pcmad16",
-	.n_ai_bits = 16,
-		},
+	 .name = "pcmad16",
+	 .n_ai_bits = 16,
+	 },
 };
 
 #define this_board ((const struct pcmad_board_struct *)(dev->board_ptr))
-#define n_pcmad_boards (sizeof(pcmad_boards)/sizeof(pcmad_boards[0]))
+#define n_pcmad_boards ARRAY_SIZE(pcmad_boards)
 
 struct pcmad_priv_struct {
 	int differential;
@@ -93,8 +93,9 @@ COMEDI_INITCLEANUP(driver_pcmad);
 
 #define TIMEOUT	100
 
-static int pcmad_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int pcmad_ai_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan;

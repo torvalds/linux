@@ -79,7 +79,8 @@ int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 	/*
 	 * Don't merge file system requests and discard requests
 	 */
-	if (bio_discard(bio) != bio_discard(rq->bio))
+	if (bio_rw_flagged(bio, BIO_RW_DISCARD) !=
+	    bio_rw_flagged(rq->bio, BIO_RW_DISCARD))
 		return 0;
 
 	/*
@@ -98,19 +99,6 @@ int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 	 * only merge integrity protected bio into ditto rq
 	 */
 	if (bio_integrity(bio) != blk_integrity_rq(rq))
-		return 0;
-
-	/*
-	 * Don't merge if failfast settings don't match.
-	 *
-	 * FIXME: The negation in front of each condition is necessary
-	 * because bio and request flags use different bit positions
-	 * and the accessors return those bits directly.  This
-	 * ugliness will soon go away.
-	 */
-	if (!bio_failfast_dev(bio)	 != !blk_failfast_dev(rq)	||
-	    !bio_failfast_transport(bio) != !blk_failfast_transport(rq)	||
-	    !bio_failfast_driver(bio)	 != !blk_failfast_driver(rq))
 		return 0;
 
 	if (!elv_iosched_allow_merge(rq, bio))

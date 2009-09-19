@@ -72,6 +72,7 @@
 #include <linux/edac.h>
 #include <asm/msr.h>
 #include "edac_core.h"
+#include "edac_mce_amd.h"
 
 #define amd64_printk(level, fmt, arg...) \
 	edac_printk(level, "amd64", fmt, ##arg)
@@ -303,21 +304,9 @@ enum {
 #define K8_NBSL				0x48
 
 
-#define EXTRACT_HIGH_SYNDROME(x)	(((x) >> 24) & 0xff)
-#define EXTRACT_EXT_ERROR_CODE(x)	(((x) >> 16) & 0x1f)
-
 /* Family F10h: Normalized Extended Error Codes */
 #define F10_NBSL_EXT_ERR_RES		0x0
-#define F10_NBSL_EXT_ERR_CRC		0x1
-#define F10_NBSL_EXT_ERR_SYNC		0x2
-#define F10_NBSL_EXT_ERR_MST		0x3
-#define F10_NBSL_EXT_ERR_TGT		0x4
-#define F10_NBSL_EXT_ERR_GART		0x5
-#define F10_NBSL_EXT_ERR_RMW		0x6
-#define F10_NBSL_EXT_ERR_WDT		0x7
 #define F10_NBSL_EXT_ERR_ECC		0x8
-#define F10_NBSL_EXT_ERR_DEV		0x9
-#define F10_NBSL_EXT_ERR_LINK_DATA	0xA
 
 /* Next two are overloaded values */
 #define F10_NBSL_EXT_ERR_LINK_PROTO	0xB
@@ -348,17 +337,6 @@ enum {
 #define K8_NBSL_EXT_ERR_CHIPKILL_ECC	0x8
 #define K8_NBSL_EXT_ERR_DRAM_PARITY	0xD
 
-#define EXTRACT_ERROR_CODE(x)		((x) & 0xffff)
-#define	TEST_TLB_ERROR(x)		(((x) & 0xFFF0) == 0x0010)
-#define	TEST_MEM_ERROR(x)		(((x) & 0xFF00) == 0x0100)
-#define	TEST_BUS_ERROR(x)		(((x) & 0xF800) == 0x0800)
-#define	EXTRACT_TT_CODE(x)		(((x) >> 2) & 0x3)
-#define	EXTRACT_II_CODE(x)		(((x) >> 2) & 0x3)
-#define	EXTRACT_LL_CODE(x)		(((x) >> 0) & 0x3)
-#define	EXTRACT_RRRR_CODE(x)		(((x) >> 4) & 0xf)
-#define	EXTRACT_TO_CODE(x)		(((x) >> 8) & 0x1)
-#define	EXTRACT_PP_CODE(x)		(((x) >> 9) & 0x3)
-
 /*
  * The following are for BUS type errors AFTER values have been normalized by
  * shifting right
@@ -368,28 +346,7 @@ enum {
 #define K8_NBSL_PP_OBS			0x2
 #define K8_NBSL_PP_GENERIC		0x3
 
-
-#define K8_NBSH				0x4C
-
-#define K8_NBSH_VALID_BIT		BIT(31)
-#define K8_NBSH_OVERFLOW		BIT(30)
-#define K8_NBSH_UNCORRECTED_ERR		BIT(29)
-#define K8_NBSH_ERR_ENABLE		BIT(28)
-#define K8_NBSH_MISC_ERR_VALID		BIT(27)
-#define K8_NBSH_VALID_ERROR_ADDR	BIT(26)
-#define K8_NBSH_PCC			BIT(25)
-#define K8_NBSH_CECC			BIT(14)
-#define K8_NBSH_UECC			BIT(13)
-#define K8_NBSH_ERR_SCRUBER		BIT(8)
-#define K8_NBSH_CORE3			BIT(3)
-#define K8_NBSH_CORE2			BIT(2)
-#define K8_NBSH_CORE1			BIT(1)
-#define K8_NBSH_CORE0			BIT(0)
-
-#define EXTRACT_LDT_LINK(x)		(((x) >> 4) & 0x7)
 #define EXTRACT_ERR_CPU_MAP(x)		((x) & 0xF)
-#define EXTRACT_LOW_SYNDROME(x)		(((x) >> 15) & 0xff)
-
 
 #define K8_NBEAL			0x50
 #define K8_NBEAH			0x54
@@ -453,23 +410,6 @@ enum amd64_chipset_families {
 	K8_CPUS = 0,
 	F10_CPUS,
 	F11_CPUS,
-};
-
-/*
- * Structure to hold:
- *
- * 1) dynamically read status and error address HW registers
- * 2) sysfs entered values
- * 3) MCE values
- *
- * Depends on entry into the modules
- */
-struct amd64_error_info_regs {
-	u32 nbcfg;
-	u32 nbsh;
-	u32 nbsl;
-	u32 nbeah;
-	u32 nbeal;
 };
 
 /* Error injection control structure */
@@ -542,7 +482,7 @@ struct amd64_pvt {
 	u32 online_spare;               /* On-Line spare Reg */
 
 	/* temp storage for when input is received from sysfs */
-	struct amd64_error_info_regs ctl_error_info;
+	struct err_regs ctl_error_info;
 
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
@@ -601,11 +541,11 @@ struct low_ops {
 	int (*early_channel_count)(struct amd64_pvt *pvt);
 
 	u64 (*get_error_address)(struct mem_ctl_info *mci,
-			struct amd64_error_info_regs *info);
+			struct err_regs *info);
 	void (*read_dram_base_limit)(struct amd64_pvt *pvt, int dram);
 	void (*read_dram_ctl_register)(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)(struct mem_ctl_info *mci,
-					struct amd64_error_info_regs *info,
+					struct err_regs *info,
 					u64 SystemAddr);
 	int (*dbam_map_to_pages)(struct amd64_pvt *pvt, int dram_map);
 };
@@ -637,8 +577,5 @@ static inline struct low_ops *family_ops(int index)
 #define F10_MIN_SCRUB_RATE_BITS	0x5
 #define F11_MIN_SCRUB_RATE_BITS	0x6
 
-int amd64_process_error_info(struct mem_ctl_info *mci,
-			     struct amd64_error_info_regs *info,
-			     int handle_errors);
 int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size);

@@ -32,6 +32,8 @@
 #include <linux/leds.h>
 #include <linux/string.h>
 #include <linux/etherdevice.h>
+#include <linux/phy.h>
+#include <linux/phy_fixed.h>
 
 #include <asm/addrspace.h>
 #include <asm/mach-ar7/ar7.h>
@@ -206,6 +208,12 @@ static struct resource usb_res[] = {
 
 static struct physmap_flash_data physmap_flash_data = {
 	.width = 2,
+};
+
+static struct fixed_phy_status fixed_phy_status __initdata = {
+	.link = 1,
+	.speed = 100,
+	.duplex = 1,
 };
 
 static struct plat_cpmac_data cpmac_low_data = {
@@ -409,6 +417,20 @@ static struct platform_device ar7_udc = {
 	.num_resources = ARRAY_SIZE(usb_res),
 };
 
+static struct resource ar7_wdt_res = {
+	.name = "regs",
+	.start = -1, /* Filled at runtime */
+	.end = -1, /* Filled at runtime */
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device ar7_wdt = {
+	.id = -1,
+	.name  = "ar7_wdt",
+	.resource = &ar7_wdt_res,
+	.num_resources = 1,
+};
+
 static inline unsigned char char2hex(char h)
 {
 	switch (h) {
@@ -479,6 +501,7 @@ static void __init detect_leds(void)
 
 static int __init ar7_register_devices(void)
 {
+	u16 chip_id;
 	int res;
 #ifdef CONFIG_SERIAL_8250
 	static struct uart_port uart_port[2];
@@ -530,6 +553,9 @@ static int __init ar7_register_devices(void)
 	}
 
 	if (ar7_has_high_cpmac()) {
+		res = fixed_phy_add(PHY_POLL, cpmac_high.id, &fixed_phy_status);
+		if (res && res != -ENODEV)
+			return res;
 		cpmac_get_mac(1, cpmac_high_data.dev_addr);
 		res = platform_device_register(&cpmac_high);
 		if (res)
@@ -537,6 +563,10 @@ static int __init ar7_register_devices(void)
 	} else {
 		cpmac_low_data.phy_mask = 0xffffffff;
 	}
+
+	res = fixed_phy_add(PHY_POLL, cpmac_low.id, &fixed_phy_status);
+	if (res && res != -ENODEV)
+		return res;
 
 	cpmac_get_mac(0, cpmac_low_data.dev_addr);
 	res = platform_device_register(&cpmac_low);
@@ -549,6 +579,23 @@ static int __init ar7_register_devices(void)
 		return res;
 
 	res = platform_device_register(&ar7_udc);
+
+	chip_id = ar7_chip_id();
+	switch (chip_id) {
+	case AR7_CHIP_7100:
+	case AR7_CHIP_7200:
+		ar7_wdt_res.start = AR7_REGS_WDT;
+		break;
+	case AR7_CHIP_7300:
+		ar7_wdt_res.start = UR8_REGS_WDT;
+		break;
+	default:
+		break;
+	}
+
+	ar7_wdt_res.end = ar7_wdt_res.start + 0x20;
+
+	res = platform_device_register(&ar7_wdt);
 
 	return res;
 }

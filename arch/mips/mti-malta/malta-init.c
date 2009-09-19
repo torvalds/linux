@@ -47,7 +47,7 @@ int *_prom_argv, *_prom_envp;
  */
 #define prom_envp(index) ((char *)(long)_prom_envp[(index)])
 
-int init_debug = 0;
+int init_debug;
 
 static int mips_revision_corid;
 int mips_revision_sconid;

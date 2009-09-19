@@ -72,6 +72,7 @@ MODULE_PARM_DESC(dvb_mfe_wait_time, "Wait up to <mfe_wait_time> seconds on open(
 #define FESTATE_ZIGZAG_FAST 32
 #define FESTATE_ZIGZAG_SLOW 64
 #define FESTATE_DISEQC 128
+#define FESTATE_ERROR 256
 #define FESTATE_WAITFORLOCK (FESTATE_TUNING_FAST | FESTATE_TUNING_SLOW | FESTATE_ZIGZAG_FAST | FESTATE_ZIGZAG_SLOW | FESTATE_DISEQC)
 #define FESTATE_SEARCHING_FAST (FESTATE_TUNING_FAST | FESTATE_ZIGZAG_FAST)
 #define FESTATE_SEARCHING_SLOW (FESTATE_TUNING_SLOW | FESTATE_ZIGZAG_SLOW)
@@ -269,6 +270,7 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 {
 	int autoinversion;
 	int ready = 0;
+	int fe_set_err = 0;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	int original_inversion = fepriv->parameters.inversion;
 	u32 original_frequency = fepriv->parameters.frequency;
@@ -345,7 +347,11 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 	if (autoinversion)
 		fepriv->parameters.inversion = fepriv->inversion;
 	if (fe->ops.set_frontend)
-		fe->ops.set_frontend(fe, &fepriv->parameters);
+		fe_set_err = fe->ops.set_frontend(fe, &fepriv->parameters);
+	if (fe_set_err < 0) {
+		fepriv->state = FESTATE_ERROR;
+		return fe_set_err;
+	}
 
 	fepriv->parameters.frequency = original_frequency;
 	fepriv->parameters.inversion = original_inversion;
@@ -357,6 +363,7 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 {
 	fe_status_t s = 0;
+	int retval = 0;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 
 	/* if we've got no parameters, just keep idling */
@@ -370,8 +377,12 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	if (fepriv->tune_mode_flags & FE_TUNE_MODE_ONESHOT) {
 		if (fepriv->state & FESTATE_RETUNE) {
 			if (fe->ops.set_frontend)
-				fe->ops.set_frontend(fe, &fepriv->parameters);
-			fepriv->state = FESTATE_TUNED;
+				retval = fe->ops.set_frontend(fe,
+							&fepriv->parameters);
+			if (retval < 0)
+				fepriv->state = FESTATE_ERROR;
+			else
+				fepriv->state = FESTATE_TUNED;
 		}
 		fepriv->delay = 3*HZ;
 		fepriv->quality = 0;
@@ -449,7 +460,11 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 		fepriv->delay = fepriv->min_delay;
 
 		/* peform a tune */
-		if (dvb_frontend_swzigzag_autotune(fe, fepriv->check_wrapped)) {
+		retval = dvb_frontend_swzigzag_autotune(fe,
+							fepriv->check_wrapped);
+		if (retval < 0) {
+			return;
+		} else if (retval) {
 			/* OK, if we've run out of trials at the fast speed.
 			 * Drop back to slow for the _next_ attempt */
 			fepriv->state = FESTATE_SEARCHING_SLOW;
@@ -821,6 +836,15 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 			       fe->ops.info.symbol_rate_min, fe->ops.info.symbol_rate_max);
 			return -EINVAL;
 		}
+	}
+
+	/* check for supported modulation */
+	if (fe->ops.info.type == FE_QAM &&
+	    (parms->u.qam.modulation > QAM_AUTO ||
+	     !((1 << (parms->u.qam.modulation + 10)) & fe->ops.info.caps))) {
+		printk(KERN_WARNING "DVB: adapter %i frontend %i modulation %u not supported\n",
+		       fe->dvb->num, fe->id, parms->u.qam.modulation);
+			return -EINVAL;
 	}
 
 	return 0;
@@ -1499,7 +1523,8 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 
 		/* if retune was requested but hasn't occured yet, prevent
 		 * that user get signal state from previous tuning */
-		if(fepriv->state == FESTATE_RETUNE) {
+		if (fepriv->state == FESTATE_RETUNE ||
+		    fepriv->state == FESTATE_ERROR) {
 			err=0;
 			*status = 0;
 			break;

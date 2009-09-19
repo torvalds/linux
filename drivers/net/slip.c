@@ -474,7 +474,7 @@ out:
 
 
 /* Encapsulate an IP datagram and kick it into a TTY queue. */
-static int
+static netdev_tx_t
 sl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct slip *sl = netdev_priv(dev);
@@ -484,12 +484,12 @@ sl_xmit(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock(&sl->lock);
 		printk(KERN_WARNING "%s: xmit call when iface is down\n", dev->name);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	if (sl->tty == NULL) {
 		spin_unlock(&sl->lock);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	sl_lock(sl);
@@ -498,7 +498,7 @@ sl_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock(&sl->lock);
 
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

@@ -203,7 +203,8 @@ static int streamer_ioctl(struct net_device *, struct ifreq *, int);
 
 static int streamer_reset(struct net_device *dev);
 static int streamer_open(struct net_device *dev);
-static int streamer_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t streamer_xmit(struct sk_buff *skb,
+				       struct net_device *dev);
 static int streamer_close(struct net_device *dev);
 static void streamer_set_rx_mode(struct net_device *dev);
 static irqreturn_t streamer_interrupt(int irq, void *dev_id);
@@ -1141,7 +1142,8 @@ static irqreturn_t streamer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int streamer_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t streamer_xmit(struct sk_buff *skb,
+				       struct net_device *dev)
 {
 	struct streamer_private *streamer_priv =
 	    netdev_priv(dev);
@@ -1183,7 +1185,7 @@ static int streamer_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		streamer_priv->tx_ring_free = (streamer_priv->tx_ring_free + 1) & (STREAMER_TX_RING_SIZE - 1);
 		spin_unlock_irqrestore(&streamer_priv->streamer_lock,flags);
-		return 0;
+		return NETDEV_TX_OK;
 	} else {
 	        netif_stop_queue(dev);
 	        spin_unlock_irqrestore(&streamer_priv->streamer_lock,flags);

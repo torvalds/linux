@@ -443,6 +443,7 @@ int netup_ci_init(struct cx23885_tsport *port)
 		goto err;
 
 	INIT_WORK(&state->work, netup_read_ci_status);
+	schedule_work(&state->work);
 
 	ci_dbg_print("%s: CI initialized!\n", __func__);
 

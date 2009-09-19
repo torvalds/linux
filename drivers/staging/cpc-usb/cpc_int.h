@@ -39,10 +39,10 @@ typedef void (*chan_write_byte_t) (void *chan, unsigned int reg,
 typedef unsigned char (*chan_read_byte_t) (void *chan, unsigned int reg);
 
 typedef struct CPC_CHAN {
-	void __iomem * canBase;	// base address of SJA1000
-	chan_read_byte_t read_byte;	// CAN controller read access routine
-	chan_write_byte_t write_byte;	// CAN controller write access routine
-	CPC_MSG_T *buf;		// buffer for CPC msg
+	void __iomem * canBase;	/* base address of SJA1000 */
+	chan_read_byte_t read_byte;	/* CAN controller read access routine */
+	chan_write_byte_t write_byte;	/* CAN controller write access routine */
+	CPC_MSG_T *buf;		/* buffer for CPC msg */
 	unsigned int iidx;
 	unsigned int oidx;
 	unsigned int WnR;

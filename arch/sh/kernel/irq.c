@@ -114,24 +114,7 @@ asmlinkage int do_IRQ(unsigned int irq, struct pt_regs *regs)
 #endif
 
 	irq_enter();
-
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	/* Debugging check for stack overflow: is there less than 1KB free? */
-	{
-		long sp;
-
-		__asm__ __volatile__ ("and r15, %0" :
-					"=r" (sp) : "0" (THREAD_SIZE - 1));
-
-		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
-			printk("do_IRQ: stack overflow: %ld\n",
-			       sp - sizeof(struct thread_info));
-			dump_stack();
-		}
-	}
-#endif
-
-	irq = irq_demux(intc_evt2irq(irq));
+	irq = irq_demux(irq);
 
 #ifdef CONFIG_IRQSTACKS
 	curctx = (union irq_ctx *)current_thread_info();

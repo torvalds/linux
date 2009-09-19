@@ -34,7 +34,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/hardirq.h>
 
 #include <linux/mlx4/cmd.h>

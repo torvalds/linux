@@ -68,7 +68,7 @@ typedef struct xfs_trans_header {
 #define XFS_TRANS_GROWFS		14
 #define XFS_TRANS_STRAT_WRITE		15
 #define XFS_TRANS_DIOSTRAT		16
-#define	XFS_TRANS_WRITE_SYNC		17
+/* 17 was XFS_TRANS_WRITE_SYNC */
 #define	XFS_TRANS_WRITEID		18
 #define	XFS_TRANS_ADDAFORK		19
 #define	XFS_TRANS_ATTRINVAL		20

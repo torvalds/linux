@@ -682,8 +682,6 @@ struct __vxge_hw_vpath_handle{
  * @major_revision: PCI Device major revision
  * @minor_revision: PCI Device minor revision
  * @bar0: BAR0 virtual address.
- * @bar1: BAR1 virtual address.
- * @bar2: BAR2 virtual address.
  * @pdev: Physical device handle
  * @config: Confguration passed by the LL driver at initialization
  * @link_state: Link state
@@ -698,8 +696,6 @@ struct __vxge_hw_device {
 	u8				major_revision;
 	u8				minor_revision;
 	void __iomem			*bar0;
-	void __iomem			*bar1;
-	void __iomem			*bar2;
 	struct pci_dev			*pdev;
 	struct net_device		*ndev;
 	struct vxge_hw_device_config	config;
@@ -788,17 +784,13 @@ struct vxge_hw_device_hw_info {
 /**
  * struct vxge_hw_device_attr - Device memory spaces.
  * @bar0: BAR0 virtual address.
- * @bar1: BAR1 virtual address.
- * @bar2: BAR2 virtual address.
  * @pdev: PCI device object.
  *
- * Device memory spaces. Includes configuration, BAR0, BAR1, etc. per device
+ * Device memory spaces. Includes configuration, BAR0 etc. per device
  * mapped memories. Also, includes a pointer to OS-specific PCI device object.
  */
 struct vxge_hw_device_attr {
 	void __iomem		*bar0;
-	void __iomem		*bar1;
-	void __iomem		*bar2;
 	struct pci_dev 		*pdev;
 	struct vxge_hw_uld_cbs	uld_callbacks;
 };
@@ -986,7 +978,9 @@ struct __vxge_hw_fifo {
 			void *txdlh,
 			enum vxge_hw_fifo_tcode t_code,
 			void *userdata,
-			void **skb_ptr);
+			struct sk_buff ***skb_ptr,
+			int nr_skb,
+			int *more);
 
 	void (*txdl_term)(
 			void *txdlh,
@@ -1787,7 +1781,8 @@ struct vxge_hw_fifo_attr {
 			void *txdlh,
 			enum vxge_hw_fifo_tcode t_code,
 			void *userdata,
-			void **skb_ptr);
+			struct sk_buff ***skb_ptr,
+			int nr_skb, int *more);
 
 	void (*txdl_term)(
 			void *txdlh,

@@ -276,7 +276,7 @@ static void journal_kill_thread(journal_t *journal)
 int journal_write_metadata_buffer(transaction_t *transaction,
 				  struct journal_head  *jh_in,
 				  struct journal_head **jh_out,
-				  unsigned long blocknr)
+				  unsigned int blocknr)
 {
 	int need_copy_out = 0;
 	int done_copy_out = 0;
@@ -567,9 +567,9 @@ int log_wait_commit(journal_t *journal, tid_t tid)
  * Log buffer allocation routines:
  */
 
-int journal_next_log_block(journal_t *journal, unsigned long *retp)
+int journal_next_log_block(journal_t *journal, unsigned int *retp)
 {
-	unsigned long blocknr;
+	unsigned int blocknr;
 
 	spin_lock(&journal->j_state_lock);
 	J_ASSERT(journal->j_free > 1);
@@ -590,11 +590,11 @@ int journal_next_log_block(journal_t *journal, unsigned long *retp)
  * this is a no-op.  If needed, we can use j_blk_offset - everything is
  * ready.
  */
-int journal_bmap(journal_t *journal, unsigned long blocknr,
-		 unsigned long *retp)
+int journal_bmap(journal_t *journal, unsigned int blocknr,
+		 unsigned int *retp)
 {
 	int err = 0;
-	unsigned long ret;
+	unsigned int ret;
 
 	if (journal->j_inode) {
 		ret = bmap(journal->j_inode, blocknr);
@@ -604,7 +604,7 @@ int journal_bmap(journal_t *journal, unsigned long blocknr,
 			char b[BDEVNAME_SIZE];
 
 			printk(KERN_ALERT "%s: journal block not found "
-					"at offset %lu on %s\n",
+					"at offset %u on %s\n",
 				__func__,
 				blocknr,
 				bdevname(journal->j_dev, b));
@@ -630,7 +630,7 @@ int journal_bmap(journal_t *journal, unsigned long blocknr,
 struct journal_head *journal_get_descriptor_buffer(journal_t *journal)
 {
 	struct buffer_head *bh;
-	unsigned long blocknr;
+	unsigned int blocknr;
 	int err;
 
 	err = journal_next_log_block(journal, &blocknr);
@@ -774,7 +774,7 @@ journal_t * journal_init_inode (struct inode *inode)
 	journal_t *journal = journal_init_common();
 	int err;
 	int n;
-	unsigned long blocknr;
+	unsigned int blocknr;
 
 	if (!journal)
 		return NULL;
@@ -846,12 +846,12 @@ static void journal_fail_superblock (journal_t *journal)
 static int journal_reset(journal_t *journal)
 {
 	journal_superblock_t *sb = journal->j_superblock;
-	unsigned long first, last;
+	unsigned int first, last;
 
 	first = be32_to_cpu(sb->s_first);
 	last = be32_to_cpu(sb->s_maxlen);
 	if (first + JFS_MIN_JOURNAL_BLOCKS > last + 1) {
-		printk(KERN_ERR "JBD: Journal too short (blocks %lu-%lu).\n",
+		printk(KERN_ERR "JBD: Journal too short (blocks %u-%u).\n",
 		       first, last);
 		journal_fail_superblock(journal);
 		return -EINVAL;
@@ -885,7 +885,7 @@ static int journal_reset(journal_t *journal)
  **/
 int journal_create(journal_t *journal)
 {
-	unsigned long blocknr;
+	unsigned int blocknr;
 	struct buffer_head *bh;
 	journal_superblock_t *sb;
 	int i, err;
@@ -969,14 +969,14 @@ void journal_update_superblock(journal_t *journal, int wait)
 	if (sb->s_start == 0 && journal->j_tail_sequence ==
 				journal->j_transaction_sequence) {
 		jbd_debug(1,"JBD: Skipping superblock update on recovered sb "
-			"(start %ld, seq %d, errno %d)\n",
+			"(start %u, seq %d, errno %d)\n",
 			journal->j_tail, journal->j_tail_sequence,
 			journal->j_errno);
 		goto out;
 	}
 
 	spin_lock(&journal->j_state_lock);
-	jbd_debug(1,"JBD: updating superblock (start %ld, seq %d, errno %d)\n",
+	jbd_debug(1,"JBD: updating superblock (start %u, seq %d, errno %d)\n",
 		  journal->j_tail, journal->j_tail_sequence, journal->j_errno);
 
 	sb->s_sequence = cpu_to_be32(journal->j_tail_sequence);
@@ -1371,7 +1371,7 @@ int journal_flush(journal_t *journal)
 {
 	int err = 0;
 	transaction_t *transaction = NULL;
-	unsigned long old_tail;
+	unsigned int old_tail;
 
 	spin_lock(&journal->j_state_lock);
 

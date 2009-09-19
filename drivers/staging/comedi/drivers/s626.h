@@ -134,17 +134,17 @@
 #define DAC_WDMABUF_OS		ADC_DMABUF_DWORDS
 
 /*  Interrupt enab bit in ISR and IER. */
-#define IRQ_GPIO3		0x00000040  /*  IRQ enable for GPIO3. */
+#define IRQ_GPIO3		0x00000040	/*  IRQ enable for GPIO3. */
 #define IRQ_RPS1                0x10000000
 #define ISR_AFOU		0x00000800
 /* Audio fifo under/overflow  detected. */
 
-#define IRQ_COINT1A             0x0400 /* conter 1A overflow interrupt mask */
-#define IRQ_COINT1B             0x0800 /* conter 1B overflow interrupt mask */
-#define IRQ_COINT2A             0x1000 /* conter 2A overflow interrupt mask */
-#define IRQ_COINT2B             0x2000 /* conter 2B overflow interrupt mask */
-#define IRQ_COINT3A             0x4000 /* conter 3A overflow interrupt mask */
-#define IRQ_COINT3B             0x8000 /* conter 3B overflow interrupt mask */
+#define IRQ_COINT1A             0x0400	/* conter 1A overflow interrupt mask */
+#define IRQ_COINT1B             0x0800	/* conter 1B overflow interrupt mask */
+#define IRQ_COINT2A             0x1000	/* conter 2A overflow interrupt mask */
+#define IRQ_COINT2B             0x2000	/* conter 2B overflow interrupt mask */
+#define IRQ_COINT3A             0x4000	/* conter 3A overflow interrupt mask */
+#define IRQ_COINT3B             0x8000	/* conter 3B overflow interrupt mask */
 
 /*  RPS command codes. */
 #define RPS_CLRSIGNAL		0x00000000	/*  CLEAR SIGNAL */
@@ -438,7 +438,6 @@
 						/*  tri-state. */
 #define EOS		     	0x00000001	/*  End of superframe. */
 
-
 /*  I2C configuration constants. */
 #define I2C_CLKSEL		0x0400
 /* I2C bit rate = PCIclk/480 = 68.75 KHz. */
@@ -728,7 +727,6 @@
 #define STDMSK_CLKPOL		((uint16_t)(1 << STDBIT_CLKPOL))
 #define STDMSK_CLKMULT		((uint16_t)(3 << STDBIT_CLKMULT))
 #define STDMSK_CLKENAB		((uint16_t)(1 << STDBIT_CLKENAB))
-
 
 /* typedef struct indexCounter */
 /* { */

@@ -1864,6 +1864,30 @@ int regulator_notifier_call_chain(struct regulator_dev *rdev,
 }
 EXPORT_SYMBOL_GPL(regulator_notifier_call_chain);
 
+/**
+ * regulator_mode_to_status - convert a regulator mode into a status
+ *
+ * @mode: Mode to convert
+ *
+ * Convert a regulator mode into a status.
+ */
+int regulator_mode_to_status(unsigned int mode)
+{
+	switch (mode) {
+	case REGULATOR_MODE_FAST:
+		return REGULATOR_STATUS_FAST;
+	case REGULATOR_MODE_NORMAL:
+		return REGULATOR_STATUS_NORMAL;
+	case REGULATOR_MODE_IDLE:
+		return REGULATOR_STATUS_IDLE;
+	case REGULATOR_STATUS_STANDBY:
+		return REGULATOR_STATUS_STANDBY;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL_GPL(regulator_mode_to_status);
+
 /*
  * To avoid cluttering sysfs (and memory) with useless state, only
  * create attributes that can be meaningfully displayed.

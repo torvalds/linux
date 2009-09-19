@@ -108,6 +108,19 @@ config TWL4030_CORE
 	  high speed USB OTG transceiver, an audio codec (on most
 	  versions) and many other features.
 
+config TWL4030_POWER
+	bool "Support power resources on TWL4030 family chips"
+	depends on TWL4030_CORE && ARM
+	help
+	  Say yes here if you want to use the power resources on the
+	  TWL4030 family chips.  Most of these resources are regulators,
+	  which have a separate driver; some are control signals, such
+	  as clock request handshaking.
+
+	  This driver uses board-specific data to initialize the resources
+	  and load scripts controling which resources are switched off/on
+	  or reset when a sleep, wakeup or warm reset event occurs.
+
 config MFD_TMIO
 	bool
 	default n
@@ -156,6 +169,16 @@ config MFD_WM8400
 	  CODEC.  This driver provides common support for accessing
 	  the device, additional drivers must be enabled in order to use
 	  the functionality of the device.
+
+config MFD_WM831X
+	tristate "Support Wolfson Microelectronics WM831x PMICs"
+	select MFD_CORE
+	depends on I2C
+	help
+	  Support for the Wolfson Microelecronics WM831x PMICs.  This
+	  driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
 
 config MFD_WM8350
 	tristate
@@ -228,6 +251,16 @@ config MFD_PCF50633
 	  facilities, and registers devices for the various functions
 	  so that function-specific drivers can bind to them.
 
+config MFD_MC13783
+	tristate "Support Freescale MC13783"
+	depends on SPI_MASTER
+	select MFD_CORE
+	help
+	  Support for the Freescale (Atlas) MC13783 PMIC and audio CODEC.
+	  This driver provides common support for accessing  the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
 config PCF50633_ADC
 	tristate "Support for NXP PCF50633 ADC"
 	depends on MFD_PCF50633
@@ -255,6 +288,15 @@ config AB3100_CORE
 	  of the AB3100 such as battery-backed RTC, charging control,
 	  LEDs, vibrator, system power and temperature, power management
 	  and ALSA sound.
+
+config AB3100_OTP
+	tristate "ST-Ericsson AB3100 OTP functions"
+	depends on AB3100_CORE
+	default y if AB3100_CORE
+	help
+	  Select this to enable the AB3100 Mixed Signal IC OTP (one-time
+	  programmable memory) support. This exposes a sysfs file to read
+	  out OTP values.
 
 config EZX_PCAP
 	bool "PCAP Support"

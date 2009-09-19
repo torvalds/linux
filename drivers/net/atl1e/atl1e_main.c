@@ -453,10 +453,6 @@ static int atl1e_mii_ioctl(struct net_device *netdev,
 		break;
 
 	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN)) {
-			retval = -EPERM;
-			goto out;
-		}
 		if (atl1e_read_phy_reg(&adapter->hw, data->reg_num & 0x1F,
 				    &data->val_out)) {
 			retval = -EIO;
@@ -465,10 +461,6 @@ static int atl1e_mii_ioctl(struct net_device *netdev,
 		break;
 
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN)) {
-			retval = -EPERM;
-			goto out;
-		}
 		if (data->reg_num & ~(0x1F)) {
 			retval = -EFAULT;
 			goto out;
@@ -643,7 +635,11 @@ static void atl1e_clean_tx_ring(struct atl1e_adapter *adapter)
 	for (index = 0; index < ring_count; index++) {
 		tx_buffer = &tx_ring->tx_buffer[index];
 		if (tx_buffer->dma) {
-			pci_unmap_page(pdev, tx_buffer->dma,
+			if (tx_buffer->flags & ATL1E_TX_PCIMAP_SINGLE)
+				pci_unmap_single(pdev, tx_buffer->dma,
+					tx_buffer->length, PCI_DMA_TODEVICE);
+			else if (tx_buffer->flags & ATL1E_TX_PCIMAP_PAGE)
+				pci_unmap_page(pdev, tx_buffer->dma,
 					tx_buffer->length, PCI_DMA_TODEVICE);
 			tx_buffer->dma = 0;
 		}
@@ -1228,7 +1224,11 @@ static bool atl1e_clean_tx_irq(struct atl1e_adapter *adapter)
 	while (next_to_clean != hw_next_to_clean) {
 		tx_buffer = &tx_ring->tx_buffer[next_to_clean];
 		if (tx_buffer->dma) {
-			pci_unmap_page(adapter->pdev, tx_buffer->dma,
+			if (tx_buffer->flags & ATL1E_TX_PCIMAP_SINGLE)
+				pci_unmap_single(adapter->pdev, tx_buffer->dma,
+					tx_buffer->length, PCI_DMA_TODEVICE);
+			else if (tx_buffer->flags & ATL1E_TX_PCIMAP_PAGE)
+				pci_unmap_page(adapter->pdev, tx_buffer->dma,
 					tx_buffer->length, PCI_DMA_TODEVICE);
 			tx_buffer->dma = 0;
 		}
@@ -1749,6 +1749,7 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 		tx_buffer->length = map_len;
 		tx_buffer->dma = pci_map_single(adapter->pdev,
 					skb->data, hdr_len, PCI_DMA_TODEVICE);
+		ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_SINGLE);
 		mapped_len += map_len;
 		use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
 		use_tpd->word2 = (use_tpd->word2 & (~TPD_BUFLEN_MASK)) |
@@ -1774,6 +1775,7 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 		tx_buffer->dma =
 			pci_map_single(adapter->pdev, skb->data + mapped_len,
 					map_len, PCI_DMA_TODEVICE);
+		ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_SINGLE);
 		mapped_len  += map_len;
 		use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
 		use_tpd->word2 = (use_tpd->word2 & (~TPD_BUFLEN_MASK)) |
@@ -1809,6 +1811,7 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 						(i * MAX_TX_BUF_LEN),
 						tx_buffer->length,
 						PCI_DMA_TODEVICE);
+			ATL1E_SET_PCIMAP_TYPE(tx_buffer, ATL1E_TX_PCIMAP_PAGE);
 			use_tpd->buffer_addr = cpu_to_le64(tx_buffer->dma);
 			use_tpd->word2 = (use_tpd->word2 & (~TPD_BUFLEN_MASK)) |
 					((cpu_to_le32(tx_buffer->length) &
@@ -1839,7 +1842,8 @@ static void atl1e_tx_queue(struct atl1e_adapter *adapter, u16 count,
 	AT_WRITE_REG(&adapter->hw, REG_MB_TPD_PROD_IDX, tx_ring->next_to_use);
 }
 
-static int atl1e_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t atl1e_xmit_frame(struct sk_buff *skb,
+					  struct net_device *netdev)
 {
 	struct atl1e_adapter *adapter = netdev_priv(netdev);
 	unsigned long flags;
@@ -2496,6 +2500,9 @@ atl1e_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	struct atl1e_adapter *adapter = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
 
 	if (netif_running(netdev))
 		atl1e_down(adapter);

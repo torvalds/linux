@@ -722,7 +722,6 @@ void bfin_gpio_pm_hibernate_suspend(void)
 		gpio_bank_saved[bank].fer = gpio_array[bank]->port_fer;
 		gpio_bank_saved[bank].mux = gpio_array[bank]->port_mux;
 		gpio_bank_saved[bank].data = gpio_array[bank]->data;
-		gpio_bank_saved[bank].data = gpio_array[bank]->data;
 		gpio_bank_saved[bank].inen = gpio_array[bank]->inen;
 		gpio_bank_saved[bank].dir = gpio_array[bank]->dir_set;
 	}

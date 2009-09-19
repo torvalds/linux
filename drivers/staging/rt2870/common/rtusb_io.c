@@ -110,11 +110,9 @@ NTSTATUS RTUSBFirmwareWrite(
 	Status = RTUSBWriteMACRegister(pAd, 0x701c, 0xffffffff);
 	Status = RTUSBFirmwareRun(pAd);
 
-#ifdef RT30xx
 	RTMPusecDelay(10000);
 	RTUSBWriteMACRegister(pAd,H2M_MAILBOX_CSR,0);
 	AsicSendCommandToMcu(pAd, 0x72, 0x00, 0x00, 0x00);//reset rf by MCU supported by new firmware
-#endif
 
 	return Status;
 }
@@ -671,11 +669,10 @@ NTSTATUS	RTUSBWriteRFRegister(
 	return STATUS_SUCCESS;
 }
 
-#ifndef RT30xx
 /*
 	========================================================================
 
-	Routine Description: Write RT3070 RF register through MAC
+	Routine Description: Write RT30xx RF register through MAC
 
 	Arguments:
 
@@ -687,7 +684,7 @@ NTSTATUS	RTUSBWriteRFRegister(
 
 	========================================================================
 */
-NTSTATUS	RT30xxWriteRFRegister(
+NTSTATUS RT30xxWriteRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			RegID,
 	IN	UCHAR			Value)
@@ -697,7 +694,7 @@ NTSTATUS	RT30xxWriteRFRegister(
 
 	do
 	{
-		RTUSBReadMACRegister(pAd, RF_CSR_CFG, &rfcsr.word);
+		RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
 
 		if (!rfcsr.field.RF_CSR_KICK)
 			break;
@@ -716,15 +713,16 @@ NTSTATUS	RT30xxWriteRFRegister(
 	rfcsr.field.TESTCSR_RFACC_REGNUM = RegID;
 	rfcsr.field.RF_CSR_DATA = Value;
 
-	RTUSBWriteMACRegister(pAd, RF_CSR_CFG, rfcsr.word);
+	RTMP_IO_WRITE32(pAd, RF_CSR_CFG, rfcsr.word);
 
 	return STATUS_SUCCESS;
 }
 
+
 /*
 	========================================================================
 
-	Routine Description: Read RT3070 RF register through MAC
+	Routine Description: Read RT30xx RF register through MAC
 
 	Arguments:
 
@@ -736,17 +734,17 @@ NTSTATUS	RT30xxWriteRFRegister(
 
 	========================================================================
 */
-NTSTATUS	RT30xxReadRFRegister(
+NTSTATUS RT30xxReadRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			RegID,
 	IN	PUCHAR			pValue)
 {
 	RF_CSR_CFG_STRUC	rfcsr;
-	UINT				i=0, k;
+	UINT				i=0, k=0;
 
 	for (i=0; i<MAX_BUSY_COUNT; i++)
 	{
-		RTUSBReadMACRegister(pAd, RF_CSR_CFG, &rfcsr.word);
+		RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
 
 		if (rfcsr.field.RF_CSR_KICK == BUSY)
 		{
@@ -756,10 +754,10 @@ NTSTATUS	RT30xxReadRFRegister(
 		rfcsr.field.RF_CSR_WR = 0;
 		rfcsr.field.RF_CSR_KICK = 1;
 		rfcsr.field.TESTCSR_RFACC_REGNUM = RegID;
-		RTUSBWriteMACRegister(pAd, RF_CSR_CFG, rfcsr.word);
+		RTMP_IO_WRITE32(pAd, RF_CSR_CFG, rfcsr.word);
 		for (k=0; k<MAX_BUSY_COUNT; k++)
 		{
-			RTUSBReadMACRegister(pAd, RF_CSR_CFG, &rfcsr.word);
+			RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
 
 			if (rfcsr.field.RF_CSR_KICK == IDLE)
 				break;
@@ -773,13 +771,12 @@ NTSTATUS	RT30xxReadRFRegister(
 	}
 	if (rfcsr.field.RF_CSR_KICK == BUSY)
 	{
-		DBGPRINT_ERR(("RF read R%d=0x%x fail\n", RegID, rfcsr.word));
+		DBGPRINT_ERR(("RF read R%d=0x%x fail, i[%d], k[%d]\n", RegID, rfcsr.word,i,k));
 		return STATUS_UNSUCCESSFUL;
 	}
 
 	return STATUS_SUCCESS;
 }
-#endif /* RT30xx */
 
 /*
 	========================================================================
@@ -804,13 +801,9 @@ NTSTATUS	RTUSBReadEEPROM(
 {
 	NTSTATUS	Status = STATUS_SUCCESS;
 
-#ifdef RT30xx
 	if(pAd->bUseEfuse)
-	{
 		Status =eFuseRead(pAd, Offset, pData, length);
-	}
 	else
-#endif // RT30xx //
 	{
 	Status = RTUSB_VendorRequest(
 		pAd,
@@ -849,13 +842,9 @@ NTSTATUS	RTUSBWriteEEPROM(
 {
 	NTSTATUS	Status = STATUS_SUCCESS;
 
-#ifdef RT30xx
 	if(pAd->bUseEfuse)
-	{
 		Status = eFuseWrite(pAd, Offset, pData, length);
-	}
 	else
-#endif // RT30xx //
 	{
 	Status = RTUSB_VendorRequest(
 		pAd,
@@ -983,12 +972,7 @@ NDIS_STATUS	RTUSBEnqueueCmdFromNdis(
 	PCmdQElmt	cmdqelmt = NULL;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-#ifndef RT30xx
-	CHECK_PID_LEGALITY(pObj->RTUSBCmdThr_pid)
-#endif
-#ifdef RT30xx
-	if (pObj->RTUSBCmdThr_pid < 0)
-#endif
+	if (pid_nr(pObj->RTUSBCmdThr_pid) > 0)
 		return (NDIS_STATUS_RESOURCES);
 
 	status = RTMPAllocateMemory((PVOID *)&cmdqelmt, sizeof(CmdQElmt));
@@ -1738,39 +1722,6 @@ VOID CMDHandler(
 						}
 					}
 					break;
-
-#ifdef RT30xx
-//Benson modified for USB interface, avoid in interrupt when write key, 20080724 -->
-				case RT_CMD_SET_KEY_TABLE: //General call for AsicAddPairwiseKeyEntry()
-				{
-					RT_ADD_PAIRWISE_KEY_ENTRY KeyInfo;
-					KeyInfo = *((PRT_ADD_PAIRWISE_KEY_ENTRY)(pData));
-					AsicAddPairwiseKeyEntry(pAd,
-											KeyInfo.MacAddr,
-											(UCHAR)KeyInfo.MacTabMatchWCID,
-											&KeyInfo.CipherKey);
-				}
-					break;
-				case RT_CMD_SET_RX_WCID_TABLE: //General call for RTMPAddWcidAttributeEntry()
-				{
-					PMAC_TABLE_ENTRY pEntry;
-					UCHAR KeyIdx;
-					UCHAR CipherAlg;
-					UCHAR ApIdx;
-
-					pEntry = (PMAC_TABLE_ENTRY)(pData);
-
-						RTMPAddWcidAttributeEntry(
-										  pAd,
-										  ApIdx,
-										  KeyIdx,
-										  CipherAlg,
-										  pEntry);
-					}
-						break;
-//Benson modified for USB interface, avoid in interrupt when write key, 20080724 <--
-#endif
-
 				case CMDTHREAD_SET_CLIENT_MAC_ENTRY:
 					{
 						MAC_TABLE_ENTRY *pEntry;
@@ -1816,17 +1767,11 @@ VOID CMDHandler(
 								pEntry->Addr[0], pEntry->Addr[1], pEntry->Addr[2], pEntry->Addr[3], pEntry->Addr[4], pEntry->Addr[5]);
 					}
 					break;
-
-#ifdef RT30xx
-// add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
 				case CMDTHREAD_UPDATE_PROTECT:
 					{
 						AsicUpdateProtect(pAd, 0, (ALLN_SETPROTECT), TRUE, 0);
 					}
 					break;
-// end johnli
-#endif
-
 				case OID_802_11_ADD_WEP:
 					{
 						UINT	i;

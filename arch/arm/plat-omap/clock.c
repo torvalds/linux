@@ -488,7 +488,7 @@ static int __init clk_debugfs_init(void)
 	}
 	return 0;
 err_out:
-	debugfs_remove(clk_debugfs_root); /* REVISIT: Cleanup correctly */
+	debugfs_remove_recursive(clk_debugfs_root);
 	return err;
 }
 late_initcall(clk_debugfs_init);

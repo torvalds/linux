@@ -74,7 +74,7 @@ static const int minor = 1;	/* fixed for now  */
 
 #ifdef CONFIG_MIPS_APSP_KSPD
 static struct kspd_notifications kspd_events;
-static int kspd_events_reqd = 0;
+static int kspd_events_reqd;
 #endif
 
 /* grab the likely amount of memory we will need. */

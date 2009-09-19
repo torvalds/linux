@@ -692,7 +692,7 @@ static int myri_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	DTX(("tbusy=0, returning 0\n"));
 	netif_start_queue(dev);
 	spin_unlock_irqrestore(&mp->irq_lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* Create the MyriNet MAC header for an arbitrary protocol layer

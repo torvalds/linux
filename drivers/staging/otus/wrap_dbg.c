@@ -27,10 +27,7 @@
 #include "usbdrv.h"
 
 #include <linux/netlink.h>
-
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
-#endif
 
 void zfwDumpBuf(zdev_t* dev, zbuf_t* buf)
 {

@@ -11,6 +11,10 @@
  * Changes:
  *
  */
+
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>

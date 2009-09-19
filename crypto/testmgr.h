@@ -1654,6 +1654,22 @@ static struct hash_testvec aes_xcbc128_tv_template[] = {
 	}
 };
 
+#define VMAC_AES_TEST_VECTORS	1
+static char vmac_string[128] = {'\x01', '\x01', '\x01', '\x01',
+				'\x02', '\x03', '\x02', '\x02',
+				'\x02', '\x04', '\x01', '\x07',
+				'\x04', '\x01', '\x04', '\x03',};
+static struct hash_testvec aes_vmac128_tv_template[] = {
+	{
+		.key    = "\x00\x01\x02\x03\x04\x05\x06\x07"
+			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
+		.plaintext = vmac_string,
+		.digest = "\xcb\xd7\x8a\xfd\xb7\x33\x79\xe7",
+		.psize  = 128,
+		.ksize  = 16,
+	},
+};
+
 /*
  * SHA384 HMAC test vectors from RFC4231
  */

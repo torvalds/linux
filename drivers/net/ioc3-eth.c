@@ -1515,7 +1515,7 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irq(&ip->ioc3_lock);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void ioc3_timeout(struct net_device *dev)

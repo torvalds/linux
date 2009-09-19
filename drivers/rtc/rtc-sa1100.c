@@ -9,7 +9,7 @@
  *
  * Modifications from:
  *   CIH <cih@coventive.com>
- *   Nicolas Pitre <nico@cam.org>
+ *   Nicolas Pitre <nico@fluxnic.net>
  *   Andrew Christian <andrew.christian@hp.com>
  *
  * Converted to the RTC subsystem and Driver Model

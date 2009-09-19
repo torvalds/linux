@@ -99,6 +99,9 @@ struct sockaddr_pn {
 	__u8 spn_zero[sizeof(struct sockaddr) - sizeof(sa_family_t) - 3];
 } __attribute__ ((packed));
 
+/* Well known address */
+#define PN_DEV_PC	0x10
+
 static inline __u16 pn_object(__u8 addr, __u16 port)
 {
 	return (addr << 8) | (port & 0x3ff);
@@ -169,5 +172,22 @@ static inline __u8 pn_sockaddr_get_resource(const struct sockaddr_pn *spn)
 {
 	return spn->spn_resource;
 }
+
+/* Phonet device ioctl requests */
+#ifdef __KERNEL__
+#define SIOCPNGAUTOCONF		(SIOCDEVPRIVATE + 0)
+
+struct if_phonet_autoconf {
+	uint8_t device;
+};
+
+struct if_phonet_req {
+	char ifr_phonet_name[16];
+	union {
+		struct if_phonet_autoconf ifru_phonet_autoconf;
+	} ifr_ifru;
+};
+#define ifr_phonet_autoconf ifr_ifru.ifru_phonet_autoconf
+#endif /* __KERNEL__ */
 
 #endif

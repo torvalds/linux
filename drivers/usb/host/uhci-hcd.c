@@ -67,7 +67,7 @@ MODULE_PARM_DESC(ignore_oc, "ignore hardware overcurrent indications");
  * debug = 0, no debugging messages
  * debug = 1, dump failed URBs except for stalls
  * debug = 2, dump all failed URBs (including stalls)
- *            show all queues in /debug/uhci/[pci_addr]
+ *            show all queues in /sys/kernel/debug/uhci/[pci_addr]
  * debug = 3, show all TDs in URBs when dumping
  */
 #ifdef DEBUG

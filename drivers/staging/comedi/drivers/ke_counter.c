@@ -52,9 +52,10 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int cnt_detach(struct comedi_device *dev);
 
 static DEFINE_PCI_DEVICE_TABLE(cnt_pci_table) = {
-	{PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		0},
-	{0}
+	{
+	PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID, PCI_ANY_ID,
+		    PCI_ANY_ID, 0, 0, 0}, {
+	0}
 };
 
 MODULE_DEVICE_TABLE(pci, cnt_pci_table);
@@ -69,13 +70,12 @@ struct cnt_board_struct {
 	int cnt_bits;
 };
 
-
 static const struct cnt_board_struct cnt_boards[] = {
 	{
-	.name = CNT_DRIVER_NAME,
-	.device_id = CNT_CARD_DEVICE_ID,
-	.cnt_channel_nbr = 3,
-	.cnt_bits = 24}
+	 .name = CNT_DRIVER_NAME,
+	 .device_id = CNT_CARD_DEVICE_ID,
+	 .cnt_channel_nbr = 3,
+	 .cnt_bits = 24}
 };
 
 #define cnt_board_nbr (sizeof(cnt_boards)/sizeof(struct cnt_board_struct))
@@ -86,7 +86,6 @@ struct cnt_device_private {
 
 	struct pci_dev *pcidev;
 };
-
 
 #define devpriv ((struct cnt_device_private *)dev->private)
 
@@ -104,18 +103,19 @@ COMEDI_PCI_INITCLEANUP(cnt_driver, cnt_pci_table);
 /* This should be used only for resetting the counters; maybe it is better
    to make a special command 'reset'. */
 static int cnt_winsn(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+		     struct comedi_subdevice *s, struct comedi_insn *insn,
+		     unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
 	outb((unsigned char)((data[0] >> 24) & 0xff),
-		dev->iobase + chan * 0x20 + 0x10);
+	     dev->iobase + chan * 0x20 + 0x10);
 	outb((unsigned char)((data[0] >> 16) & 0xff),
-		dev->iobase + chan * 0x20 + 0x0c);
+	     dev->iobase + chan * 0x20 + 0x0c);
 	outb((unsigned char)((data[0] >> 8) & 0xff),
-		dev->iobase + chan * 0x20 + 0x08);
+	     dev->iobase + chan * 0x20 + 0x08);
 	outb((unsigned char)((data[0] >> 0) & 0xff),
-		dev->iobase + chan * 0x20 + 0x04);
+	     dev->iobase + chan * 0x20 + 0x04);
 
 	/* return the number of samples written */
 	return 1;
@@ -124,7 +124,8 @@ static int cnt_winsn(struct comedi_device *dev,
 /*-- counter read -----------------------------------------------------------*/
 
 static int cnt_rinsn(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+		     struct comedi_subdevice *s, struct comedi_insn *insn,
+		     unsigned int *data)
 {
 	unsigned char a0, a1, a2, a3, a4;
 	int chan = CR_CHAN(insn->chanspec);
@@ -140,7 +141,7 @@ static int cnt_rinsn(struct comedi_device *dev,
 	if (a4 > 0)
 		result = result - s->maxdata;
 
-	*data = (unsigned int) result;
+	*data = (unsigned int)result;
 
 	/* return the number of samples read */
 	return 1;
@@ -163,49 +164,51 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* Probe the device to determine what device in the series it is. */
 	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pci_device != NULL;
-		pci_device =
-		pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
+	     pci_device != NULL;
+	     pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
 		if (pci_device->vendor == PCI_VENDOR_ID_KOLTER) {
 			for (i = 0; i < cnt_board_nbr; i++) {
 				if (cnt_boards[i].device_id ==
-					pci_device->device) {
+				    pci_device->device) {
 					/* was a particular bus/slot requested? */
 					if ((it->options[0] != 0)
-						|| (it->options[1] != 0)) {
+					    || (it->options[1] != 0)) {
 						/* are we on the wrong bus/slot? */
 						if (pci_device->bus->number !=
-							it->options[0]
-							|| PCI_SLOT(pci_device->
-								devfn) !=
-							it->options[1]) {
+						    it->options[0]
+						    ||
+						    PCI_SLOT(pci_device->devfn)
+						    != it->options[1]) {
 							continue;
 						}
 					}
 
 					dev->board_ptr = cnt_boards + i;
-					board = (struct cnt_board_struct *) dev->
-						board_ptr;
+					board =
+					    (struct cnt_board_struct *)
+					    dev->board_ptr;
 					goto found;
 				}
 			}
 		}
 	}
 	printk("comedi%d: no supported board found! (req. bus/slot: %d/%d)\n",
-		dev->minor, it->options[0], it->options[1]);
+	       dev->minor, it->options[0], it->options[1]);
 	return -EIO;
 
-      found:
+found:
 	printk("comedi%d: found %s at PCI bus %d, slot %d\n", dev->minor,
-		board->name, pci_device->bus->number,
-		PCI_SLOT(pci_device->devfn));
+	       board->name, pci_device->bus->number,
+	       PCI_SLOT(pci_device->devfn));
 	devpriv->pcidev = pci_device;
 	dev->board_name = board->name;
 
 	/* enable PCI device and request regions */
 	error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME);
 	if (error < 0) {
-		printk("comedi%d: failed to enable PCI device and request regions!\n", dev->minor);
+		printk
+		    ("comedi%d: failed to enable PCI device and request regions!\n",
+		     dev->minor);
 		return error;
 	}
 

@@ -36,20 +36,26 @@ struct pcilst_struct *inova_devices;
 static void pci_card_list_init(unsigned short pci_vendor, char display);
 static void pci_card_list_cleanup(unsigned short pci_vendor);
 static struct pcilst_struct *find_free_pci_card_by_device(unsigned short
-	vendor_id, unsigned short device_id);
+							  vendor_id,
+							  unsigned short
+							  device_id);
 static int find_free_pci_card_by_position(unsigned short vendor_id,
-	unsigned short device_id, unsigned short pci_bus,
-	unsigned short pci_slot, struct pcilst_struct **card);
+					  unsigned short device_id,
+					  unsigned short pci_bus,
+					  unsigned short pci_slot,
+					  struct pcilst_struct **card);
 static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id,
-	unsigned short device_id, unsigned short pci_bus,
-	unsigned short pci_slot);
+						       unsigned short device_id,
+						       unsigned short pci_bus,
+						       unsigned short pci_slot);
 
 static int pci_card_alloc(struct pcilst_struct *amcc);
 static int pci_card_free(struct pcilst_struct *amcc);
 static void pci_card_list_display(void);
 static int pci_card_data(struct pcilst_struct *amcc,
-	unsigned char *pci_bus, unsigned char *pci_slot,
-	unsigned char *pci_func, resource_size_t * io_addr, unsigned int *irq);
+			 unsigned char *pci_bus, unsigned char *pci_slot,
+			 unsigned char *pci_func, resource_size_t * io_addr,
+			 unsigned int *irq);
 
 /****************************************************************************/
 
@@ -64,12 +70,13 @@ static void pci_card_list_init(unsigned short pci_vendor, char display)
 	last = NULL;
 
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	     pcidev != NULL;
+	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if (pcidev->vendor == pci_vendor) {
 			inova = kmalloc(sizeof(*inova), GFP_KERNEL);
 			if (!inova) {
-				printk("icp_multi: pci_card_list_init: allocation failed\n");
+				printk
+				    ("icp_multi: pci_card_list_init: allocation failed\n");
 				pci_dev_put(pcidev);
 				break;
 			}
@@ -93,7 +100,7 @@ static void pci_card_list_init(unsigned short pci_vendor, char display)
 			 * pci_card_alloc. */
 			for (i = 0; i < 5; i++)
 				inova->io_addr[i] =
-					pci_resource_start(pcidev, i);
+				    pci_resource_start(pcidev, i);
 			inova->irq = pcidev->irq;
 		}
 	}
@@ -120,14 +127,16 @@ static void pci_card_list_cleanup(unsigned short pci_vendor)
 /****************************************************************************/
 /* find first unused card with this device_id */
 static struct pcilst_struct *find_free_pci_card_by_device(unsigned short
-	vendor_id, unsigned short device_id)
+							  vendor_id,
+							  unsigned short
+							  device_id)
 {
 	struct pcilst_struct *inova, *next;
 
 	for (inova = inova_devices; inova; inova = next) {
 		next = inova->next;
 		if ((!inova->used) && (inova->device == device_id)
-			&& (inova->vendor == vendor_id))
+		    && (inova->vendor == vendor_id))
 			return inova;
 
 	}
@@ -138,8 +147,10 @@ static struct pcilst_struct *find_free_pci_card_by_device(unsigned short
 /****************************************************************************/
 /* find card on requested position */
 static int find_free_pci_card_by_position(unsigned short vendor_id,
-	unsigned short device_id, unsigned short pci_bus,
-	unsigned short pci_slot, struct pcilst_struct **card)
+					  unsigned short device_id,
+					  unsigned short pci_bus,
+					  unsigned short pci_slot,
+					  struct pcilst_struct **card)
 {
 	struct pcilst_struct *inova, *next;
 
@@ -147,8 +158,8 @@ static int find_free_pci_card_by_position(unsigned short vendor_id,
 	for (inova = inova_devices; inova; inova = next) {
 		next = inova->next;
 		if ((inova->vendor == vendor_id) && (inova->device == device_id)
-			&& (inova->pci_bus == pci_bus)
-			&& (inova->pci_slot == pci_slot)) {
+		    && (inova->pci_bus == pci_bus)
+		    && (inova->pci_slot == pci_slot)) {
 			if (!(inova->used)) {
 				*card = inova;
 				return 0;	/* ok, card is found */
@@ -211,7 +222,13 @@ static void pci_card_list_display(void)
 
 	for (inova = inova_devices; inova; inova = next) {
 		next = inova->next;
-		printk("%2d   %2d   %2d  0x%4x 0x%4x   0x%8llx 0x%8llx  %2u  %2d\n", inova->pci_bus, inova->pci_slot, inova->pci_func, inova->vendor, inova->device, (unsigned long long)inova->io_addr[0], (unsigned long long)inova->io_addr[2], inova->irq, inova->used);
+		printk
+		    ("%2d   %2d   %2d  0x%4x 0x%4x   0x%8llx 0x%8llx  %2u  %2d\n",
+		     inova->pci_bus, inova->pci_slot, inova->pci_func,
+		     inova->vendor, inova->device,
+		     (unsigned long long)inova->io_addr[0],
+		     (unsigned long long)inova->io_addr[2], inova->irq,
+		     inova->used);
 
 	}
 }
@@ -219,8 +236,9 @@ static void pci_card_list_display(void)
 /****************************************************************************/
 /* return all card information for driver */
 static int pci_card_data(struct pcilst_struct *inova,
-	unsigned char *pci_bus, unsigned char *pci_slot,
-	unsigned char *pci_func, resource_size_t * io_addr, unsigned int *irq)
+			 unsigned char *pci_bus, unsigned char *pci_slot,
+			 unsigned char *pci_func, resource_size_t * io_addr,
+			 unsigned int *irq)
 {
 	int i;
 
@@ -238,8 +256,9 @@ static int pci_card_data(struct pcilst_struct *inova,
 /****************************************************************************/
 /* select and alloc card */
 static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id,
-	unsigned short device_id, unsigned short pci_bus,
-	unsigned short pci_slot)
+						       unsigned short device_id,
+						       unsigned short pci_bus,
+						       unsigned short pci_slot)
 {
 	struct pcilst_struct *card;
 	int err;
@@ -253,16 +272,17 @@ static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id,
 		}
 	} else {
 		switch (find_free_pci_card_by_position(vendor_id, device_id,
-				pci_bus, pci_slot, &card)) {
+						       pci_bus, pci_slot,
+						       &card)) {
 		case 1:
 			printk
-				(" - Card not found on requested position b:s %d:%d!\n",
-				pci_bus, pci_slot);
+			    (" - Card not found on requested position b:s %d:%d!\n",
+			     pci_bus, pci_slot);
 			return NULL;
 		case 2:
 			printk
-				(" - Card on requested position is used b:s %d:%d!\n",
-				pci_bus, pci_slot);
+			    (" - Card on requested position is used b:s %d:%d!\n",
+			     pci_bus, pci_slot);
 			return NULL;
 		}
 	}

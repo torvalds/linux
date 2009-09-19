@@ -22,35 +22,20 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
-
-#include <asm/uaccess.h>
-#include <asm/system.h>
+#include <linux/cache.h>
 #include <linux/module.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/socket.h>
-#include <linux/in.h>
-#include <linux/inet.h>
 #include <linux/netdevice.h>
-#include <linux/timer.h>
-#include <net/ip.h>
+#include <linux/spinlock.h>
 #include <net/protocol.h>
-#include <linux/skbuff.h>
-#include <net/sock.h>
-#include <net/icmp.h>
-#include <net/udp.h>
-#include <net/ipip.h>
-#include <linux/igmp.h>
 
-struct net_protocol *inet_protos[MAX_INET_PROTOS] ____cacheline_aligned_in_smp;
+const struct net_protocol *inet_protos[MAX_INET_PROTOS] ____cacheline_aligned_in_smp;
 static DEFINE_SPINLOCK(inet_proto_lock);
 
 /*
  *	Add a protocol handler to the hash tables
  */
 
-int inet_add_protocol(struct net_protocol *prot, unsigned char protocol)
+int inet_add_protocol(const struct net_protocol *prot, unsigned char protocol)
 {
 	int hash, ret;
 
@@ -72,7 +57,7 @@ int inet_add_protocol(struct net_protocol *prot, unsigned char protocol)
  *	Remove a protocol from the hash tables.
  */
 
-int inet_del_protocol(struct net_protocol *prot, unsigned char protocol)
+int inet_del_protocol(const struct net_protocol *prot, unsigned char protocol)
 {
 	int hash, ret;
 

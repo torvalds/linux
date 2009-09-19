@@ -118,16 +118,16 @@ enum DIO_METHODS {
 
 static const struct board_struct boards[] = {
 	{
-	.name = "cb_pcimdda06-16",
-	.device_id = PCI_ID_PCIM_DDA06_16,
-	.ao_chans = 6,
-	.ao_bits = 16,
-	.dio_chans = 24,
-	.dio_method = DIO_8255,
-	.dio_offset = 12,
-	.regs_badrindex = 3,
-	.reg_sz = 16,
-		}
+	 .name = "cb_pcimdda06-16",
+	 .device_id = PCI_ID_PCIM_DDA06_16,
+	 .ao_chans = 6,
+	 .ao_bits = 16,
+	 .dio_chans = 24,
+	 .dio_method = DIO_8255,
+	 .dio_offset = 12,
+	 .regs_badrindex = 3,
+	 .reg_sz = 16,
+	 }
 };
 
 /*
@@ -143,9 +143,10 @@ static const struct board_struct boards[] = {
 /* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
  * upstream. */
 static DEFINE_PCI_DEVICE_TABLE(pci_table) = {
-	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_ID_PCIM_DDA06_16, PCI_ANY_ID,
-		PCI_ANY_ID, 0, 0, 0},
-	{0}
+	{
+	PCI_VENDOR_ID_COMPUTERBOARDS, PCI_ID_PCIM_DDA06_16, PCI_ANY_ID,
+		    PCI_ANY_ID, 0, 0, 0}, {
+	0}
 };
 
 MODULE_DEVICE_TABLE(pci, pci_table);
@@ -190,15 +191,15 @@ static struct comedi_driver cb_pcimdda_driver = {
 
 MODULE_AUTHOR("Calin A. Culianu <calin@rtlab.org>");
 MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA "
-	"series.  Currently only supports PCIM-DDA06-16 (which "
-	"also happens to be the only board in this series. :) ) ");
+		   "series.  Currently only supports PCIM-DDA06-16 (which "
+		   "also happens to be the only board in this series. :) ) ");
 MODULE_LICENSE("GPL");
 COMEDI_PCI_INITCLEANUP_NOMODULE(cb_pcimdda_driver, pci_table);
 
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+		    struct comedi_insn *insn, unsigned int *data);
 static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+		    struct comedi_insn *insn, unsigned int *data);
 
 /*---------------------------------------------------------------------------
   HELPER FUNCTION DECLARATIONS
@@ -207,7 +208,7 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 /* returns a maxdata value for a given n_bits */
 static inline unsigned int figure_out_maxdata(int bits)
 {
-	return ((unsigned int) 1 << bits) - 1;
+	return ((unsigned int)1 << bits) - 1;
 }
 
 /*
@@ -344,7 +345,7 @@ static int detach(struct comedi_device *dev)
 
 		if (devpriv->attached_successfully && thisboard)
 			printk("comedi%d: %s: detached\n", dev->minor,
-				thisboard->name);
+			       thisboard->name);
 
 	}
 
@@ -352,7 +353,7 @@ static int detach(struct comedi_device *dev)
 }
 
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+		    struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -391,7 +392,7 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
    applications, I would imagine.
 */
 static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+		    struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -431,8 +432,8 @@ static int probe(struct comedi_device *dev, const struct comedi_devconfig *it)
 	unsigned long registers;
 
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	     pcidev != NULL;
+	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
@@ -444,8 +445,7 @@ static int probe(struct comedi_device *dev, const struct comedi_devconfig *it)
 			if (it->options[0] || it->options[1]) {
 				/*  are we on the wrong bus/slot? */
 				if (pcidev->bus->number != it->options[0] ||
-					PCI_SLOT(pcidev->devfn) !=
-					it->options[1]) {
+				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
 					continue;
 				}
 			}
@@ -454,20 +454,21 @@ static int probe(struct comedi_device *dev, const struct comedi_devconfig *it)
 			devpriv->pci_dev = pcidev;
 			dev->board_ptr = boards + index;
 			if (comedi_pci_enable(pcidev, thisboard->name)) {
-				printk("cb_pcimdda: Failed to enable PCI device and request regions\n");
+				printk
+				    ("cb_pcimdda: Failed to enable PCI device and request regions\n");
 				return -EIO;
 			}
 			registers =
-				pci_resource_start(devpriv->pci_dev,
-				REGS_BADRINDEX);
+			    pci_resource_start(devpriv->pci_dev,
+					       REGS_BADRINDEX);
 			devpriv->registers = registers;
 			devpriv->dio_registers
-				= devpriv->registers + thisboard->dio_offset;
+			    = devpriv->registers + thisboard->dio_offset;
 			return 0;
 		}
 	}
 
 	printk("cb_pcimdda: No supported ComputerBoards/MeasurementComputing "
-		"card found at the requested position\n");
+	       "card found at the requested position\n");
 	return -ENODEV;
 }

@@ -13,6 +13,7 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
+#include <mach/cputype.h>
 
 #define DAVINCI_USB_OTG_BASE 0x01C64000
 
@@ -64,6 +65,10 @@ static struct resource usb_resources[] = {
 		.start          = IRQ_USBINT,
 		.flags          = IORESOURCE_IRQ,
 	},
+	{
+		/* placeholder for the dedicated CPPI IRQ */
+		.flags          = IORESOURCE_IRQ,
+	},
 };
 
 static u64 usb_dmamask = DMA_BIT_MASK(32);
@@ -84,6 +89,14 @@ void __init setup_usb(unsigned mA, unsigned potpgt_msec)
 {
 	usb_data.power = mA / 2;
 	usb_data.potpgt = potpgt_msec / 2;
+
+	if (cpu_is_davinci_dm646x()) {
+		/* Override the defaults as DM6467 uses different IRQs. */
+		usb_dev.resource[1].start = IRQ_DM646X_USBINT;
+		usb_dev.resource[2].start = IRQ_DM646X_USBDMAINT;
+	} else	/* other devices don't have dedicated CPPI IRQ */
+		usb_dev.num_resources = 2;
+
 	platform_device_register(&usb_dev);
 }
 

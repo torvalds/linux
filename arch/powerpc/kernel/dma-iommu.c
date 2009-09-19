@@ -89,7 +89,7 @@ static int dma_iommu_dma_supported(struct device *dev, u64 mask)
 		return 1;
 }
 
-struct dma_mapping_ops dma_iommu_ops = {
+struct dma_map_ops dma_iommu_ops = {
 	.alloc_coherent	= dma_iommu_alloc_coherent,
 	.free_coherent	= dma_iommu_free_coherent,
 	.map_sg		= dma_iommu_map_sg,

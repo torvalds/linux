@@ -25,6 +25,7 @@
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/bio.h>
+#include <linux/blkdev.h>
 #include <trace/events/jbd2.h>
 
 /*
@@ -133,8 +134,8 @@ static int journal_submit_commit_record(journal_t *journal,
 	bh->b_end_io = journal_end_buffer_io_sync;
 
 	if (journal->j_flags & JBD2_BARRIER &&
-		!JBD2_HAS_INCOMPAT_FEATURE(journal,
-					 JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
+	    !JBD2_HAS_INCOMPAT_FEATURE(journal,
+				       JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
 		set_buffer_ordered(bh);
 		barrier_done = 1;
 	}
@@ -220,7 +221,6 @@ static int journal_submit_inode_data_buffers(struct address_space *mapping)
 		.nr_to_write = mapping->nrpages * 2,
 		.range_start = 0,
 		.range_end = i_size_read(mapping->host),
-		.for_writepages = 1,
 	};
 
 	ret = generic_writepages(mapping, &wbc);
@@ -707,11 +707,13 @@ start_journal_io:
 	/* Done it all: now write the commit record asynchronously. */
 
 	if (JBD2_HAS_INCOMPAT_FEATURE(journal,
-		JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
+				      JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
 		err = journal_submit_commit_record(journal, commit_transaction,
 						 &cbh, crc32_sum);
 		if (err)
 			__jbd2_journal_abort_hard(journal);
+		if (journal->j_flags & JBD2_BARRIER)
+			blkdev_issue_flush(journal->j_dev, NULL);
 	}
 
 	/*
@@ -834,7 +836,7 @@ wait_for_iobuf:
 	jbd_debug(3, "JBD: commit phase 5\n");
 
 	if (!JBD2_HAS_INCOMPAT_FEATURE(journal,
-		JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
+				       JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
 		err = journal_submit_commit_record(journal, commit_transaction,
 						&cbh, crc32_sum);
 		if (err)

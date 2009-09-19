@@ -69,5 +69,5 @@ cleanup_sunrpc(void)
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 MODULE_LICENSE("GPL");
-module_init(init_sunrpc);
+fs_initcall(init_sunrpc); /* Ensure we're initialised before nfs */
 module_exit(cleanup_sunrpc);

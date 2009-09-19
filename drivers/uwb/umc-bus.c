@@ -66,7 +66,7 @@ int umc_controller_reset(struct umc_dev *umc)
 		return -EAGAIN;
 	ret = device_for_each_child(parent, parent, umc_bus_pre_reset_helper);
 	if (ret >= 0)
-		device_for_each_child(parent, parent, umc_bus_post_reset_helper);
+		ret = device_for_each_child(parent, parent, umc_bus_post_reset_helper);
 	up(&parent->sem);
 
 	return ret;

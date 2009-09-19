@@ -252,7 +252,8 @@ static void ni65_xmit_intr(struct net_device *dev,int);
 static int  ni65_open(struct net_device *dev);
 static int  ni65_lance_reinit(struct net_device *dev);
 static void ni65_init_lance(struct priv *p,unsigned char*,int,int);
-static int  ni65_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t ni65_send_packet(struct sk_buff *skb,
+				    struct net_device *dev);
 static void  ni65_timeout(struct net_device *dev);
 static int  ni65_close(struct net_device *dev);
 static int  ni65_alloc_buffer(struct net_device *dev);
@@ -1157,7 +1158,8 @@ static void ni65_timeout(struct net_device *dev)
  *	Send a packet
  */
 
-static int ni65_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ni65_send_packet(struct sk_buff *skb,
+				    struct net_device *dev)
 {
 	struct priv *p = dev->ml_priv;
 
@@ -1216,7 +1218,7 @@ static int ni65_send_packet(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_irqrestore(&p->ring_lock, flags);
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void set_multicast_list(struct net_device *dev)

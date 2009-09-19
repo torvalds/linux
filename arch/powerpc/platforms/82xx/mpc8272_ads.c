@@ -29,7 +29,6 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/cpm2_pic.h>
 
-#include "pq2ads.h"
 #include "pq2.h"
 
 static void __init mpc8272_ads_pic_init(void)
@@ -100,6 +99,15 @@ static struct cpm_pin mpc8272_ads_pins[] = {
 	/* I2C */
 	{3, 14, CPM_PIN_INPUT | CPM_PIN_SECONDARY | CPM_PIN_OPENDRAIN},
 	{3, 15, CPM_PIN_INPUT | CPM_PIN_SECONDARY | CPM_PIN_OPENDRAIN},
+
+	/* USB */
+	{2, 10, CPM_PIN_INPUT | CPM_PIN_PRIMARY},
+	{2, 11, CPM_PIN_INPUT | CPM_PIN_PRIMARY},
+	{2, 20, CPM_PIN_OUTPUT | CPM_PIN_PRIMARY},
+	{2, 24, CPM_PIN_INPUT | CPM_PIN_PRIMARY},
+	{3, 23, CPM_PIN_OUTPUT | CPM_PIN_PRIMARY},
+	{3, 24, CPM_PIN_OUTPUT | CPM_PIN_PRIMARY},
+	{3, 25, CPM_PIN_INPUT | CPM_PIN_PRIMARY},
 };
 
 static void __init init_ioports(void)
@@ -113,6 +121,8 @@ static void __init init_ioports(void)
 
 	cpm2_clk_setup(CPM_CLK_SCC1, CPM_BRG1, CPM_CLK_RX);
 	cpm2_clk_setup(CPM_CLK_SCC1, CPM_BRG1, CPM_CLK_TX);
+	cpm2_clk_setup(CPM_CLK_SCC3, CPM_CLK8, CPM_CLK_RX);
+	cpm2_clk_setup(CPM_CLK_SCC3, CPM_CLK8, CPM_CLK_TX);
 	cpm2_clk_setup(CPM_CLK_SCC4, CPM_BRG4, CPM_CLK_RX);
 	cpm2_clk_setup(CPM_CLK_SCC4, CPM_BRG4, CPM_CLK_TX);
 	cpm2_clk_setup(CPM_CLK_FCC1, CPM_CLK11, CPM_CLK_RX);
@@ -144,11 +154,21 @@ static void __init mpc8272_ads_setup_arch(void)
 		return;
 	}
 
+#define BCSR1_FETHIEN		0x08000000
+#define BCSR1_FETH_RST		0x04000000
+#define BCSR1_RS232_EN1		0x02000000
+#define BCSR1_RS232_EN2		0x01000000
+#define BCSR3_USB_nEN		0x80000000
+#define BCSR3_FETHIEN2		0x10000000
+#define BCSR3_FETH2_RST		0x08000000
+
 	clrbits32(&bcsr[1], BCSR1_RS232_EN1 | BCSR1_RS232_EN2 | BCSR1_FETHIEN);
 	setbits32(&bcsr[1], BCSR1_FETH_RST);
 
 	clrbits32(&bcsr[3], BCSR3_FETHIEN2);
 	setbits32(&bcsr[3], BCSR3_FETH2_RST);
+
+	clrbits32(&bcsr[3], BCSR3_USB_nEN);
 
 	iounmap(bcsr);
 

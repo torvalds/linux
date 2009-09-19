@@ -145,10 +145,6 @@ void __ipipe_handle_irq(unsigned irq, struct pt_regs *regs);
 
 int __ipipe_get_irq_priority(unsigned irq);
 
-void __ipipe_stall_root_raw(void);
-
-void __ipipe_unstall_root_raw(void);
-
 void __ipipe_serial_debug(const char *fmt, ...);
 
 asmlinkage void __ipipe_call_irqtail(unsigned long addr);
@@ -233,9 +229,6 @@ int ipipe_start_irq_thread(unsigned irq, struct irq_desc *desc);
 
 #define task_hijacked(p)		0
 #define ipipe_trap_notify(t, r)  	0
-
-#define __ipipe_stall_root_raw()	do { } while (0)
-#define __ipipe_unstall_root_raw()	do { } while (0)
 
 #define ipipe_init_irq_threads()		do { } while (0)
 #define ipipe_start_irq_thread(irq, desc)	0

@@ -35,7 +35,7 @@
 #include <linux/dmi.h>
 #include <linux/mutex.h>
 #include <linux/hwmon-sysfs.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/leds.h>
 #include <linux/hwmon.h>
 #include <linux/workqueue.h>

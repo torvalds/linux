@@ -70,7 +70,6 @@ struct b43_pio_txpacket {
 
 struct b43_pio_txqueue {
 	struct b43_wldev *dev;
-	spinlock_t lock;
 	u16 mmio_base;
 
 	/* The device queue buffer size in bytes. */
@@ -103,11 +102,7 @@ struct b43_pio_txqueue {
 
 struct b43_pio_rxqueue {
 	struct b43_wldev *dev;
-	spinlock_t lock;
 	u16 mmio_base;
-
-	/* Work to reduce latency issues on RX. */
-	struct work_struct rx_work;
 
 	/* Shortcut to the 802.11 core revision. This is to
 	 * avoid horrible pointer dereferencing in the fastpaths. */
@@ -162,7 +157,6 @@ static inline void b43_piorx_write32(struct b43_pio_rxqueue *q,
 
 
 int b43_pio_init(struct b43_wldev *dev);
-void b43_pio_stop(struct b43_wldev *dev);
 void b43_pio_free(struct b43_wldev *dev);
 
 int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb);

@@ -680,7 +680,7 @@ static int pohmelfs_root_cap_response(struct netfs_state *st)
 		printk(KERN_INFO "Mounting POHMELFS (%d) "
 			"with extended attributes support.\n", psb->idx);
 
-	if (atomic_read(&psb->total_inodes) <= 1)
+	if (atomic_long_read(&psb->total_inodes) <= 1)
 		atomic_long_set(&psb->total_inodes, cap->nr_files);
 
 	dprintk("%s: total: %llu, avail: %llu, flags: %llx, inodes: %llu.\n",
@@ -1005,13 +1005,12 @@ int netfs_state_init(struct netfs_state *st)
 
 	if (st->socket->ops->family == AF_INET) {
 		struct sockaddr_in *sin = (struct sockaddr_in *)&ctl->addr;
-		printk(KERN_INFO "%s: (re)connected to peer %u.%u.%u.%u:%d.\n", __func__,
-			NIPQUAD(sin->sin_addr.s_addr), ntohs(sin->sin_port));
+		printk(KERN_INFO "%s: (re)connected to peer %pi4:%d.\n", __func__,
+			&sin->sin_addr.s_addr, ntohs(sin->sin_port));
 	} else if (st->socket->ops->family == AF_INET6) {
 		struct sockaddr_in6 *sin = (struct sockaddr_in6 *)&ctl->addr;
-		printk(KERN_INFO "%s: (re)connected to peer "
-			"%pi6:%d",
-			__func__, &sin->sin6_addr, ntohs(sin->sin6_port));
+		printk(KERN_INFO "%s: (re)connected to peer %pi6:%d", __func__,
+				&sin->sin6_addr, ntohs(sin->sin6_port));
 	}
 
 	return 0;
@@ -1031,13 +1030,12 @@ void netfs_state_exit(struct netfs_state *st)
 
 		if (st->socket->ops->family == AF_INET) {
 			struct sockaddr_in *sin = (struct sockaddr_in *)&st->ctl.addr;
-			printk("%s: disconnected from peer %u.%u.%u.%u:%d.\n", __func__,
-				NIPQUAD(sin->sin_addr.s_addr), ntohs(sin->sin_port));
+			printk(KERN_INFO "%s: disconnected from peer %pi4:%d.\n", __func__,
+				&sin->sin_addr.s_addr, ntohs(sin->sin_port));
 		} else if (st->socket->ops->family == AF_INET6) {
 			struct sockaddr_in6 *sin = (struct sockaddr_in6 *)&st->ctl.addr;
-			printk("%s: disconnected from peer "
-				"%pi6:%d",
-				__func__, &sin->sin6_addr, ntohs(sin->sin6_port));
+			printk(KERN_INFO "%s: disconnected from peer %pi6:%d", __func__,
+				&sin->sin6_addr, ntohs(sin->sin6_port));
 		}
 
 		sock_release(st->socket);

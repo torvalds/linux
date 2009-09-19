@@ -17,11 +17,11 @@
 #include "prcm-common.h"
 
 #define OMAP2420_CM_REGADDR(module, reg)				\
-			IO_ADDRESS(OMAP2420_CM_BASE + (module) + (reg))
+			OMAP2_IO_ADDRESS(OMAP2420_CM_BASE + (module) + (reg))
 #define OMAP2430_CM_REGADDR(module, reg)				\
-			IO_ADDRESS(OMAP2430_CM_BASE + (module) + (reg))
+			OMAP2_IO_ADDRESS(OMAP2430_CM_BASE + (module) + (reg))
 #define OMAP34XX_CM_REGADDR(module, reg)				\
-			IO_ADDRESS(OMAP3430_CM_BASE + (module) + (reg))
+			OMAP2_IO_ADDRESS(OMAP3430_CM_BASE + (module) + (reg))
 
 /*
  * Architecture-specific global CM registers
@@ -97,6 +97,10 @@
 extern u32 cm_read_mod_reg(s16 module, u16 idx);
 extern void cm_write_mod_reg(u32 val, s16 module, u16 idx);
 extern u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
+
+extern int omap2_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id,
+				      u8 idlest_shift);
+extern int omap4_cm_wait_module_ready(u32 prcm_mod, u8 prcm_dev_offs);
 
 static inline u32 cm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
 {

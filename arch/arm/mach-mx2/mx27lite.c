@@ -89,7 +89,7 @@ MACHINE_START(IMX27LITE, "LogicPD i.MX27LITE")
 	.io_pg_offst    = ((AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx27_map_io,
-	.init_irq       = mxc_init_irq,
+	.init_irq       = mx27_init_irq,
 	.init_machine   = mx27lite_init,
 	.timer          = &mx27lite_timer,
 MACHINE_END

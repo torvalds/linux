@@ -78,9 +78,9 @@ unsigned long *crst_table_alloc(struct mm_struct *mm, int noexec)
 		}
 		page->index = page_to_phys(shadow);
 	}
-	spin_lock(&mm->page_table_lock);
+	spin_lock(&mm->context.list_lock);
 	list_add(&page->lru, &mm->context.crst_list);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock(&mm->context.list_lock);
 	return (unsigned long *) page_to_phys(page);
 }
 
@@ -89,9 +89,9 @@ void crst_table_free(struct mm_struct *mm, unsigned long *table)
 	unsigned long *shadow = get_shadow_table(table);
 	struct page *page = virt_to_page(table);
 
-	spin_lock(&mm->page_table_lock);
+	spin_lock(&mm->context.list_lock);
 	list_del(&page->lru);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock(&mm->context.list_lock);
 	if (shadow)
 		free_pages((unsigned long) shadow, ALLOC_ORDER);
 	free_pages((unsigned long) table, ALLOC_ORDER);
@@ -182,7 +182,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	unsigned long bits;
 
 	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
-	spin_lock(&mm->page_table_lock);
+	spin_lock(&mm->context.list_lock);
 	page = NULL;
 	if (!list_empty(&mm->context.pgtable_list)) {
 		page = list_first_entry(&mm->context.pgtable_list,
@@ -191,7 +191,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 			page = NULL;
 	}
 	if (!page) {
-		spin_unlock(&mm->page_table_lock);
+		spin_unlock(&mm->context.list_lock);
 		page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
 		if (!page)
 			return NULL;
@@ -202,7 +202,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 			clear_table_pgstes(table);
 		else
 			clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE);
-		spin_lock(&mm->page_table_lock);
+		spin_lock(&mm->context.list_lock);
 		list_add(&page->lru, &mm->context.pgtable_list);
 	}
 	table = (unsigned long *) page_to_phys(page);
@@ -213,7 +213,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	page->flags |= bits;
 	if ((page->flags & FRAG_MASK) == ((1UL << TABLES_PER_PAGE) - 1))
 		list_move_tail(&page->lru, &mm->context.pgtable_list);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock(&mm->context.list_lock);
 	return table;
 }
 
@@ -225,7 +225,7 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 	bits = (mm->context.noexec || mm->context.has_pgste) ? 3UL : 1UL;
 	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
 	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
-	spin_lock(&mm->page_table_lock);
+	spin_lock(&mm->context.list_lock);
 	page->flags ^= bits;
 	if (page->flags & FRAG_MASK) {
 		/* Page now has some free pgtable fragments. */
@@ -234,7 +234,7 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 	} else
 		/* All fragments of the 4K page have been freed. */
 		list_del(&page->lru);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock(&mm->context.list_lock);
 	if (page) {
 		pgtable_page_dtor(page);
 		__free_page(page);
@@ -245,7 +245,7 @@ void disable_noexec(struct mm_struct *mm, struct task_struct *tsk)
 {
 	struct page *page;
 
-	spin_lock(&mm->page_table_lock);
+	spin_lock(&mm->context.list_lock);
 	/* Free shadow region and segment tables. */
 	list_for_each_entry(page, &mm->context.crst_list, lru)
 		if (page->index) {
@@ -255,7 +255,7 @@ void disable_noexec(struct mm_struct *mm, struct task_struct *tsk)
 	/* "Free" second halves of page tables. */
 	list_for_each_entry(page, &mm->context.pgtable_list, lru)
 		page->flags &= ~SECOND_HALVES;
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock(&mm->context.list_lock);
 	mm->context.noexec = 0;
 	update_mm(mm, tsk);
 }

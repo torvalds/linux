@@ -97,7 +97,8 @@ union encvaluetype {
 
 #define C6XDIGIO_TIME_OUT 20
 
-static int c6xdigio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int c6xdigio_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it);
 static int c6xdigio_detach(struct comedi_device *dev);
 struct comedi_driver driver_c6xdigio = {
 	.driver_name = "c6xdigio",
@@ -114,28 +115,28 @@ static void C6X_pwmInit(unsigned long baseAddr)
 
 	WriteByteToHwPort(baseAddr, 0x70);
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x74);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x70);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x0)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
 	WriteByteToHwPort(baseAddr, 0x0);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 
@@ -315,38 +316,41 @@ static void C6X_encResetAll(unsigned long baseAddr)
 
 	WriteByteToHwPort(baseAddr, 0x68);
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 	WriteByteToHwPort(baseAddr, 0x6C);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 	WriteByteToHwPort(baseAddr, 0x68);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x0)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 	WriteByteToHwPort(baseAddr, 0x0);
 	timeout = 0;
 	while (((ReadByteFromHwPort(baseAddr + 1) & 0x80) == 0x80)
-		&& (timeout < C6XDIGIO_TIME_OUT)) {
+	       && (timeout < C6XDIGIO_TIME_OUT)) {
 		timeout++;
 	}
 }
 
 static int c6xdigio_pwmo_insn_read(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn, unsigned int *data)
 {
 	printk("c6xdigio_pwmo_insn_read %x\n", insn->n);
 	return insn->n;
 }
 
 static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -375,12 +379,13 @@ static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
 /* { */
 /* int i; */
 /* int chan = CR_CHAN(insn->chanspec); */
-/*  *//* C6X_encResetAll( dev->iobase ); */
-/*  *//* return insn->n; */
+      /*  *//* C6X_encResetAll( dev->iobase ); */
+      /*  *//* return insn->n; */
 /* } */
 
 static int c6xdigio_ei_insn_read(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data)
 {
 	/*   printk("c6xdigio_ei__insn_read %x\n", insn->n); */
 	int n;
@@ -415,9 +420,9 @@ static void board_init(struct comedi_device *dev)
 
 static const struct pnp_device_id c6xdigio_pnp_tbl[] = {
 	/* Standard LPT Printer Port */
-	{.id = "PNP0400", .driver_data = 0},
+	{.id = "PNP0400",.driver_data = 0},
 	/* ECP Printer Port */
-	{.id = "PNP0401", .driver_data = 0},
+	{.id = "PNP0401",.driver_data = 0},
 	{}
 };
 
@@ -426,7 +431,8 @@ static struct pnp_driver c6xdigio_pnp_driver = {
 	.id_table = c6xdigio_pnp_tbl,
 };
 
-static int c6xdigio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int c6xdigio_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it)
 {
 	int result = 0;
 	unsigned long iobase;
@@ -478,7 +484,7 @@ static int c6xdigio_attach(struct comedi_device *dev, struct comedi_devconfig *i
 	s->range_table = &range_unknown;
 
 	/*           s = dev->subdevices + 2; */
-	      /* pwm output subdevice */
+	/* pwm output subdevice */
 	/*       s->type = COMEDI_SUBD_COUNTER;  // Not sure what to put here */
 	/*       s->subdev_flags = SDF_WRITEABLE; */
 	/*       s->n_chan = 1; */

@@ -1166,32 +1166,37 @@ static void at_dma_shutdown(struct platform_device *pdev)
 	clk_disable(atdma->clk);
 }
 
-static int at_dma_suspend_late(struct platform_device *pdev, pm_message_t mesg)
+static int at_dma_suspend_noirq(struct device *dev)
 {
-	struct at_dma	*atdma = platform_get_drvdata(pdev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct at_dma *atdma = platform_get_drvdata(pdev);
 
 	at_dma_off(platform_get_drvdata(pdev));
 	clk_disable(atdma->clk);
 	return 0;
 }
 
-static int at_dma_resume_early(struct platform_device *pdev)
+static int at_dma_resume_noirq(struct device *dev)
 {
-	struct at_dma	*atdma = platform_get_drvdata(pdev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct at_dma *atdma = platform_get_drvdata(pdev);
 
 	clk_enable(atdma->clk);
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
 	return 0;
-
 }
+
+static struct dev_pm_ops at_dma_dev_pm_ops = {
+	.suspend_noirq = at_dma_suspend_noirq,
+	.resume_noirq = at_dma_resume_noirq,
+};
 
 static struct platform_driver at_dma_driver = {
 	.remove		= __exit_p(at_dma_remove),
 	.shutdown	= at_dma_shutdown,
-	.suspend_late	= at_dma_suspend_late,
-	.resume_early	= at_dma_resume_early,
 	.driver = {
 		.name	= "at_hdmac",
+		.pm	= &at_dma_dev_pm_ops,
 	},
 };
 

@@ -30,9 +30,6 @@ static inline void arch_kgdb_breakpoint(void)
 	__asm__ __volatile__ ("trapa #0x3c\n");
 }
 
-/* State info */
-extern char in_nmi;		/* Debounce flag to prevent NMI reentry*/
-
 #define BUFMAX                 2048
 
 #define CACHE_FLUSH_IS_SAFE	1

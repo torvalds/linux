@@ -1,6 +1,4 @@
 /*
- *  net/dccp/ccids/ccid2.c
- *
  *  Copyright (c) 2005, 2006 Andrea Bittau <a.bittau@cs.ucl.ac.uk>
  *
  *  Changes to meet Linux coding standards, and DCCP infrastructure fixes.

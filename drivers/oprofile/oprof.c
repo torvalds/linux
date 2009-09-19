@@ -12,6 +12,8 @@
 #include <linux/init.h>
 #include <linux/oprofile.h>
 #include <linux/moduleparam.h>
+#include <linux/workqueue.h>
+#include <linux/time.h>
 #include <asm/mutex.h>
 
 #include "oprof.h"
@@ -87,6 +89,69 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+
+static void switch_worker(struct work_struct *work);
+static DECLARE_DELAYED_WORK(switch_work, switch_worker);
+
+static void start_switch_worker(void)
+{
+	if (oprofile_ops.switch_events)
+		schedule_delayed_work(&switch_work, oprofile_time_slice);
+}
+
+static void stop_switch_worker(void)
+{
+	cancel_delayed_work_sync(&switch_work);
+}
+
+static void switch_worker(struct work_struct *work)
+{
+	if (oprofile_ops.switch_events())
+		return;
+
+	atomic_inc(&oprofile_stats.multiplex_counter);
+	start_switch_worker();
+}
+
+/* User inputs in ms, converts to jiffies */
+int oprofile_set_timeout(unsigned long val_msec)
+{
+	int err = 0;
+	unsigned long time_slice;
+
+	mutex_lock(&start_mutex);
+
+	if (oprofile_started) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	if (!oprofile_ops.switch_events) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	time_slice = msecs_to_jiffies(val_msec);
+	if (time_slice == MAX_JIFFY_OFFSET) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	oprofile_time_slice = time_slice;
+
+out:
+	mutex_unlock(&start_mutex);
+	return err;
+
+}
+
+#else
+
+static inline void start_switch_worker(void) { }
+static inline void stop_switch_worker(void) { }
+
+#endif
 
 /* Actually start profiling (echo 1>/dev/oprofile/enable) */
 int oprofile_start(void)
@@ -108,6 +173,8 @@ int oprofile_start(void)
 	if ((err = oprofile_ops.start()))
 		goto out;
 
+	start_switch_worker();
+
 	oprofile_started = 1;
 out:
 	mutex_unlock(&start_mutex);
@@ -123,6 +190,9 @@ void oprofile_stop(void)
 		goto out;
 	oprofile_ops.stop();
 	oprofile_started = 0;
+
+	stop_switch_worker();
+
 	/* wake up the daemon to read what remains */
 	wake_up_buffer_waiter();
 out:
@@ -154,7 +224,6 @@ post_sync:
 	free_cpu_buffers();
 	mutex_unlock(&start_mutex);
 }
-
 
 int oprofile_set_backtrace(unsigned long val)
 {

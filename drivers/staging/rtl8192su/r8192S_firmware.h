@@ -30,12 +30,7 @@
 #define	MAX_FIRMWARE_CODE_SIZE	0xFF00 // Firmware Local buffer size.
 #define 	RTL8190_CPU_START_OFFSET			0x80
 
-#ifdef RTL8192SE
-//It should be double word alignment
-#define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	4*(v/4) - 8
-#else
 #define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8 - USB_HWDESC_HEADER_LEN)
-#endif
 
 //typedef enum _DESC_PACKET_TYPE{
 //	DESC_PACKET_TYPE_INIT = 0,

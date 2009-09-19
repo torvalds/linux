@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -20,7 +20,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -41,7 +41,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -64,10 +64,10 @@
 #define USE_FBR0 true
 
 #ifdef USE_FBR0
-//#define FBR0_BUFFER_SIZE 256
+/* #define FBR0_BUFFER_SIZE 256 */
 #endif
 
-//#define FBR1_BUFFER_SIZE 2048
+/* #define FBR1_BUFFER_SIZE 2048 */
 
 #define FBR_CHUNKS 32
 
@@ -95,11 +95,11 @@ typedef union _FBR_WORD2_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
-		u32 reserved:22;	// bits 10-31
-		u32 bi:10;		// bits 0-9(Buffer Index)
+		u32 reserved:22;	/* bits 10-31 */
+		u32 bi:10;		/* bits 0-9(Buffer Index) */
 #else
-		u32 bi:10;		// bits 0-9(Buffer Index)
-		u32 reserved:22;	// bit 10-31
+		u32 bi:10;		/* bits 0-9(Buffer Index) */
+		u32 reserved:22;	/* bit 10-31 */
 #endif
 	} bits;
 } FBR_WORD2_t, *PFBR_WORD2_t;
@@ -115,70 +115,70 @@ typedef union _PKT_STAT_DESC_WORD0_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
-		// top 16 bits are from the Alcatel Status Word as enumerated in
-		// PE-MCXMAC Data Sheet IPD DS54 0210-1 (also IPD-DS80 0205-2)
+		/* top 16 bits are from the Alcatel Status Word as enumerated in */
+		/* PE-MCXMAC Data Sheet IPD DS54 0210-1 (also IPD-DS80 0205-2) */
 #if 0
-		u32 asw_trunc:1;		// bit 31(Rx frame truncated)
+		u32 asw_trunc:1;		/* bit 31(Rx frame truncated) */
 #endif
-		u32 asw_long_evt:1;	// bit 31(Rx long event)
-		u32 asw_VLAN_tag:1;	// bit 30(VLAN tag detected)
-		u32 asw_unsupported_op:1;	// bit 29(unsupported OP code)
-		u32 asw_pause_frame:1;	// bit 28(is a pause frame)
-		u32 asw_control_frame:1;	// bit 27(is a control frame)
-		u32 asw_dribble_nibble:1;	// bit 26(spurious bits after EOP)
-		u32 asw_broadcast:1;	// bit 25(has a broadcast address)
-		u32 asw_multicast:1;	// bit 24(has a multicast address)
-		u32 asw_OK:1;		// bit 23(valid CRC + no code error)
-		u32 asw_too_long:1;	// bit 22(frame length > 1518 bytes)
-		u32 asw_len_chk_err:1;	// bit 21(frame length field incorrect)
-		u32 asw_CRC_err:1;		// bit 20(CRC error)
-		u32 asw_code_err:1;	// bit 19(one or more nibbles signalled as errors)
-		u32 asw_false_carrier_event:1;	// bit 18(bad carrier since last good packet)
-		u32 asw_RX_DV_event:1;	// bit 17(short receive event detected)
-		u32 asw_prev_pkt_dropped:1;// bit 16(e.g. IFG too small on previous)
-		u32 unused:5;		// bits 11-15
-		u32 vp:1;			// bit 10(VLAN Packet)
-		u32 jp:1;			// bit 9(Jumbo Packet)
-		u32 ft:1;			// bit 8(Frame Truncated)
-		u32 drop:1;		// bit 7(Drop packet)
-		u32 rxmac_error:1;		// bit 6(RXMAC Error Indicator)
-		u32 wol:1;			// bit 5(WOL Event)
-		u32 tcpp:1;		// bit 4(TCP checksum pass)
-		u32 tcpa:1;		// bit 3(TCP checksum assist)
-		u32 ipp:1;			// bit 2(IP checksum pass)
-		u32 ipa:1;			// bit 1(IP checksum assist)
-		u32 hp:1;			// bit 0(hash pass)
+		u32 asw_long_evt:1;	/* bit 31(Rx long event) */
+		u32 asw_VLAN_tag:1;	/* bit 30(VLAN tag detected) */
+		u32 asw_unsupported_op:1;	/* bit 29(unsupported OP code) */
+		u32 asw_pause_frame:1;	/* bit 28(is a pause frame) */
+		u32 asw_control_frame:1;	/* bit 27(is a control frame) */
+		u32 asw_dribble_nibble:1;	/* bit 26(spurious bits after EOP) */
+		u32 asw_broadcast:1;	/* bit 25(has a broadcast address) */
+		u32 asw_multicast:1;	/* bit 24(has a multicast address) */
+		u32 asw_OK:1;		/* bit 23(valid CRC + no code error) */
+		u32 asw_too_long:1;	/* bit 22(frame length > 1518 bytes) */
+		u32 asw_len_chk_err:1;	/* bit 21(frame length field incorrect) */
+		u32 asw_CRC_err:1;		/* bit 20(CRC error) */
+		u32 asw_code_err:1;	/* bit 19(one or more nibbles signalled as errors) */
+		u32 asw_false_carrier_event:1;	/* bit 18(bad carrier since last good packet) */
+		u32 asw_RX_DV_event:1;	/* bit 17(short receive event detected) */
+		u32 asw_prev_pkt_dropped:1;/* bit 16(e.g. IFG too small on previous) */
+		u32 unused:5;		/* bits 11-15 */
+		u32 vp:1;			/* bit 10(VLAN Packet) */
+		u32 jp:1;			/* bit 9(Jumbo Packet) */
+		u32 ft:1;			/* bit 8(Frame Truncated) */
+		u32 drop:1;		/* bit 7(Drop packet) */
+		u32 rxmac_error:1;		/* bit 6(RXMAC Error Indicator) */
+		u32 wol:1;			/* bit 5(WOL Event) */
+		u32 tcpp:1;		/* bit 4(TCP checksum pass) */
+		u32 tcpa:1;		/* bit 3(TCP checksum assist) */
+		u32 ipp:1;			/* bit 2(IP checksum pass) */
+		u32 ipa:1;			/* bit 1(IP checksum assist) */
+		u32 hp:1;			/* bit 0(hash pass) */
 #else
-		u32 hp:1;			// bit 0(hash pass)
-		u32 ipa:1;			// bit 1(IP checksum assist)
-		u32 ipp:1;			// bit 2(IP checksum pass)
-		u32 tcpa:1;		// bit 3(TCP checksum assist)
-		u32 tcpp:1;		// bit 4(TCP checksum pass)
-		u32 wol:1;			// bit 5(WOL Event)
-		u32 rxmac_error:1;		// bit 6(RXMAC Error Indicator)
-		u32 drop:1;		// bit 7(Drop packet)
-		u32 ft:1;			// bit 8(Frame Truncated)
-		u32 jp:1;			// bit 9(Jumbo Packet)
-		u32 vp:1;			// bit 10(VLAN Packet)
-		u32 unused:5;		// bits 11-15
-		u32 asw_prev_pkt_dropped:1;// bit 16(e.g. IFG too small on previous)
-		u32 asw_RX_DV_event:1;	// bit 17(short receive event detected)
-		u32 asw_false_carrier_event:1;	// bit 18(bad carrier since last good packet)
-		u32 asw_code_err:1;	// bit 19(one or more nibbles signalled as errors)
-		u32 asw_CRC_err:1;		// bit 20(CRC error)
-		u32 asw_len_chk_err:1;	// bit 21(frame length field incorrect)
-		u32 asw_too_long:1;	// bit 22(frame length > 1518 bytes)
-		u32 asw_OK:1;		// bit 23(valid CRC + no code error)
-		u32 asw_multicast:1;	// bit 24(has a multicast address)
-		u32 asw_broadcast:1;	// bit 25(has a broadcast address)
-		u32 asw_dribble_nibble:1;	// bit 26(spurious bits after EOP)
-		u32 asw_control_frame:1;	// bit 27(is a control frame)
-		u32 asw_pause_frame:1;	// bit 28(is a pause frame)
-		u32 asw_unsupported_op:1;	// bit 29(unsupported OP code)
-		u32 asw_VLAN_tag:1;	// bit 30(VLAN tag detected)
-		u32 asw_long_evt:1;	// bit 31(Rx long event)
+		u32 hp:1;			/* bit 0(hash pass) */
+		u32 ipa:1;			/* bit 1(IP checksum assist) */
+		u32 ipp:1;			/* bit 2(IP checksum pass) */
+		u32 tcpa:1;		/* bit 3(TCP checksum assist) */
+		u32 tcpp:1;		/* bit 4(TCP checksum pass) */
+		u32 wol:1;			/* bit 5(WOL Event) */
+		u32 rxmac_error:1;		/* bit 6(RXMAC Error Indicator) */
+		u32 drop:1;		/* bit 7(Drop packet) */
+		u32 ft:1;			/* bit 8(Frame Truncated) */
+		u32 jp:1;			/* bit 9(Jumbo Packet) */
+		u32 vp:1;			/* bit 10(VLAN Packet) */
+		u32 unused:5;		/* bits 11-15 */
+		u32 asw_prev_pkt_dropped:1;/* bit 16(e.g. IFG too small on previous) */
+		u32 asw_RX_DV_event:1;	/* bit 17(short receive event detected) */
+		u32 asw_false_carrier_event:1;	/* bit 18(bad carrier since last good packet) */
+		u32 asw_code_err:1;	/* bit 19(one or more nibbles signalled as errors) */
+		u32 asw_CRC_err:1;		/* bit 20(CRC error) */
+		u32 asw_len_chk_err:1;	/* bit 21(frame length field incorrect) */
+		u32 asw_too_long:1;	/* bit 22(frame length > 1518 bytes) */
+		u32 asw_OK:1;		/* bit 23(valid CRC + no code error) */
+		u32 asw_multicast:1;	/* bit 24(has a multicast address) */
+		u32 asw_broadcast:1;	/* bit 25(has a broadcast address) */
+		u32 asw_dribble_nibble:1;	/* bit 26(spurious bits after EOP) */
+		u32 asw_control_frame:1;	/* bit 27(is a control frame) */
+		u32 asw_pause_frame:1;	/* bit 28(is a pause frame) */
+		u32 asw_unsupported_op:1;	/* bit 29(unsupported OP code) */
+		u32 asw_VLAN_tag:1;	/* bit 30(VLAN tag detected) */
+		u32 asw_long_evt:1;	/* bit 31(Rx long event) */
 #if 0
-		u32 asw_trunc:1;		// bit 31(Rx frame truncated)
+		u32 asw_trunc:1;		/* bit 31(Rx frame truncated) */
 #endif
 #endif
 	} bits;
@@ -188,15 +188,15 @@ typedef union _PKT_STAT_DESC_WORD1_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
-		u32 unused:4;	// bits 28-31
-		u32 ri:2;		// bits 26-27(Ring Index)
-		u32 bi:10;		// bits 16-25(Buffer Index)
-		u32 length:16;	// bit 0-15(length in bytes)
+		u32 unused:4;	/* bits 28-31 */
+		u32 ri:2;		/* bits 26-27(Ring Index) */
+		u32 bi:10;		/* bits 16-25(Buffer Index) */
+		u32 length:16;	/* bit 0-15(length in bytes) */
 #else
-		u32 length:16;	// bit 0-15(length in bytes)
-		u32 bi:10;		// bits 16-25(Buffer Index)
-		u32 ri:2;		// bits 26-27(Ring Index)
-		u32 unused:4;	// bits 28-31
+		u32 length:16;	/* bit 0-15(length in bytes) */
+		u32 bi:10;		/* bits 16-25(Buffer Index) */
+		u32 ri:2;		/* bits 26-27(Ring Index) */
+		u32 unused:4;	/* bits 28-31 */
 #endif
 	} bits;
 } PKT_STAT_DESC_WORD1_t, *PPKT_STAT_WORD1_t;
@@ -217,19 +217,19 @@ typedef union _rxstat_word0_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
-		u32 FBR1unused:5;	// bits 27-31
-		u32 FBR1wrap:1;	// bit 26
-		u32 FBR1offset:10;	// bits 16-25
-		u32 FBR0unused:5;	// bits 11-15
-		u32 FBR0wrap:1;	// bit 10
-		u32 FBR0offset:10;	// bits 0-9
+		u32 FBR1unused:5;	/* bits 27-31 */
+		u32 FBR1wrap:1;	/* bit 26 */
+		u32 FBR1offset:10;	/* bits 16-25 */
+		u32 FBR0unused:5;	/* bits 11-15 */
+		u32 FBR0wrap:1;	/* bit 10 */
+		u32 FBR0offset:10;	/* bits 0-9 */
 #else
-		u32 FBR0offset:10;	// bits 0-9
-		u32 FBR0wrap:1;	// bit 10
-		u32 FBR0unused:5;	// bits 11-15
-		u32 FBR1offset:10;	// bits 16-25
-		u32 FBR1wrap:1;	// bit 26
-		u32 FBR1unused:5;	// bits 27-31
+		u32 FBR0offset:10;	/* bits 0-9 */
+		u32 FBR0wrap:1;	/* bit 10 */
+		u32 FBR0unused:5;	/* bits 11-15 */
+		u32 FBR1offset:10;	/* bits 16-25 */
+		u32 FBR1wrap:1;	/* bit 26 */
+		u32 FBR1unused:5;	/* bits 27-31 */
 #endif
 	} bits;
 } RXSTAT_WORD0_t, *PRXSTAT_WORD0_t;
@@ -243,15 +243,15 @@ typedef union _rxstat_word1_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
-		u32 PSRunused:3;	// bits 29-31
-		u32 PSRwrap:1;	// bit 28
-		u32 PSRoffset:12;	// bits 16-27
-		u32 reserved:16;	// bits 0-15
+		u32 PSRunused:3;	/* bits 29-31 */
+		u32 PSRwrap:1;	/* bit 28 */
+		u32 PSRoffset:12;	/* bits 16-27 */
+		u32 reserved:16;	/* bits 0-15 */
 #else
-		u32 reserved:16;	// bits 0-15
-		u32 PSRoffset:12;	// bits 16-27
-		u32 PSRwrap:1;	// bit 28
-		u32 PSRunused:3;	// bits 29-31
+		u32 reserved:16;	/* bits 0-15 */
+		u32 PSRoffset:12;	/* bits 16-27 */
+		u32 PSRwrap:1;	/* bit 28 */
+		u32 PSRunused:3;	/* bits 29-31 */
 #endif
 	} bits;
 } RXSTAT_WORD1_t, *PRXSTAT_WORD1_t;
@@ -302,7 +302,7 @@ typedef struct _rx_ring_t {
 	dma_addr_t Fbr0MemPa[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
 	uint64_t Fbr0Realpa;
 	uint64_t Fbr0offset;
-	DMA10W_t local_Fbr0_full;
+	u32 local_Fbr0_full;
 	u32 Fbr0NumEntries;
 	u32 Fbr0BufferSize;
 #endif
@@ -313,7 +313,7 @@ typedef struct _rx_ring_t {
 	uint64_t Fbr1Realpa;
 	uint64_t Fbr1offset;
 	FBRLOOKUPTABLE *Fbr[2];
-	DMA10W_t local_Fbr1_full;
+	u32 local_Fbr1_full;
 	u32 Fbr1NumEntries;
 	u32 Fbr1BufferSize;
 

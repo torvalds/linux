@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -20,7 +20,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -41,7 +41,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -70,15 +70,15 @@ typedef union _txdesc_word2_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
-		u32 vlan_prio:3;		// bits 29-31(VLAN priority)
-		u32 vlan_cfi:1;		// bit 28(cfi)
-		u32 vlan_tag:12;		// bits 16-27(VLAN tag)
-		u32 length_in_bytes:16;	// bits  0-15(packet length)
+		u32 vlan_prio:3;		/* bits 29-31(VLAN priority) */
+		u32 vlan_cfi:1;		/* bit 28(cfi) */
+		u32 vlan_tag:12;		/* bits 16-27(VLAN tag) */
+		u32 length_in_bytes:16;	/* bits  0-15(packet length) */
 #else
-		u32 length_in_bytes:16;	// bits  0-15(packet length)
-		u32 vlan_tag:12;		// bits 16-27(VLAN tag)
-		u32 vlan_cfi:1;		// bit 28(cfi)
-		u32 vlan_prio:3;		// bits 29-31(VLAN priority)
+		u32 length_in_bytes:16;	/* bits  0-15(packet length) */
+		u32 vlan_tag:12;		/* bits 16-27(VLAN tag) */
+		u32 vlan_cfi:1;		/* bit 28(cfi) */
+		u32 vlan_prio:3;		/* bits 29-31(VLAN priority) */
 #endif	/* _BIT_FIELDS_HTOL */
 	} bits;
 } TXDESC_WORD2_t, *PTXDESC_WORD2_t;
@@ -91,39 +91,39 @@ typedef union _txdesc_word3_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
-		u32 unused:17;	// bits 15-31
-		u32 udpa:1;	// bit 14(UDP checksum assist)
-		u32 tcpa:1;	// bit 13(TCP checksum assist)
-		u32 ipa:1;		// bit 12(IP checksum assist)
-		u32 vlan:1;	// bit 11(append VLAN tag)
-		u32 hp:1;		// bit 10(Packet is a Huge packet)
-		u32 pp:1;		// bit  9(pad packet)
-		u32 mac:1;		// bit  8(MAC override)
-		u32 crc:1;		// bit  7(append CRC)
-		u32 e:1;		// bit  6(Tx frame has error)
-		u32 pf:1;		// bit  5(send pause frame)
-		u32 bp:1;		// bit  4(Issue half-duplex backpressure (XON/XOFF)
-		u32 cw:1;		// bit  3(Control word - no packet data)
-		u32 ir:1;		// bit  2(interrupt the processor when this pkt sent)
-		u32 f:1;		// bit  1(first packet in the sequence)
-		u32 l:1;		// bit  0(last packet in the sequence)
+		u32 unused:17;	/* bits 15-31 */
+		u32 udpa:1;	/* bit 14(UDP checksum assist) */
+		u32 tcpa:1;	/* bit 13(TCP checksum assist) */
+		u32 ipa:1;		/* bit 12(IP checksum assist) */
+		u32 vlan:1;	/* bit 11(append VLAN tag) */
+		u32 hp:1;		/* bit 10(Packet is a Huge packet) */
+		u32 pp:1;		/* bit  9(pad packet) */
+		u32 mac:1;		/* bit  8(MAC override) */
+		u32 crc:1;		/* bit  7(append CRC) */
+		u32 e:1;		/* bit  6(Tx frame has error) */
+		u32 pf:1;		/* bit  5(send pause frame) */
+		u32 bp:1;		/* bit  4(Issue half-duplex backpressure (XON/XOFF) */
+		u32 cw:1;		/* bit  3(Control word - no packet data) */
+		u32 ir:1;		/* bit  2(interrupt the processor when this pkt sent) */
+		u32 f:1;		/* bit  1(first packet in the sequence) */
+		u32 l:1;		/* bit  0(last packet in the sequence) */
 #else
-		u32 l:1;		// bit  0(last packet in the sequence)
-		u32 f:1;		// bit  1(first packet in the sequence)
-		u32 ir:1;		// bit  2(interrupt the processor when this pkt sent)
-		u32 cw:1;		// bit  3(Control word - no packet data)
-		u32 bp:1;		// bit  4(Issue half-duplex backpressure (XON/XOFF)
-		u32 pf:1;		// bit  5(send pause frame)
-		u32 e:1;		// bit  6(Tx frame has error)
-		u32 crc:1;		// bit  7(append CRC)
-		u32 mac:1;		// bit  8(MAC override)
-		u32 pp:1;		// bit  9(pad packet)
-		u32 hp:1;		// bit 10(Packet is a Huge packet)
-		u32 vlan:1;	// bit 11(append VLAN tag)
-		u32 ipa:1;		// bit 12(IP checksum assist)
-		u32 tcpa:1;	// bit 13(TCP checksum assist)
-		u32 udpa:1;	// bit 14(UDP checksum assist)
-		u32 unused:17;	// bits 15-31
+		u32 l:1;		/* bit  0(last packet in the sequence) */
+		u32 f:1;		/* bit  1(first packet in the sequence) */
+		u32 ir:1;		/* bit  2(interrupt the processor when this pkt sent) */
+		u32 cw:1;		/* bit  3(Control word - no packet data) */
+		u32 bp:1;		/* bit  4(Issue half-duplex backpressure (XON/XOFF) */
+		u32 pf:1;		/* bit  5(send pause frame) */
+		u32 e:1;		/* bit  6(Tx frame has error) */
+		u32 crc:1;		/* bit  7(append CRC) */
+		u32 mac:1;		/* bit  8(MAC override) */
+		u32 pp:1;		/* bit  9(pad packet) */
+		u32 hp:1;		/* bit 10(Packet is a Huge packet) */
+		u32 vlan:1;	/* bit 11(append VLAN tag) */
+		u32 ipa:1;		/* bit 12(IP checksum assist) */
+		u32 tcpa:1;	/* bit 13(TCP checksum assist) */
+		u32 udpa:1;	/* bit 14(UDP checksum assist) */
+		u32 unused:17;	/* bits 15-31 */
 #endif	/* _BIT_FIELDS_HTOL */
 	} bits;
 } TXDESC_WORD3_t, *PTXDESC_WORD3_t;
@@ -132,8 +132,8 @@ typedef union _txdesc_word3_t {
 typedef struct _tx_desc_entry_t {
 	u32 DataBufferPtrHigh;
 	u32 DataBufferPtrLow;
-	TXDESC_WORD2_t word2;	// control words how to xmit the
-	TXDESC_WORD3_t word3;	// data (detailed above)
+	TXDESC_WORD2_t word2;	/* control words how to xmit the */
+	TXDESC_WORD3_t word3;	/* data (detailed above) */
 } TX_DESC_ENTRY_t, *PTX_DESC_ENTRY_t;
 
 
@@ -147,13 +147,13 @@ typedef union _tx_status_block_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
-		u32 unused:21;		// bits 11-31
-		u32 serv_cpl_wrap:1;	// bit 10
-		u32 serv_cpl:10;		// bits 0-9
+		u32 unused:21;		/* bits 11-31 */
+		u32 serv_cpl_wrap:1;	/* bit 10 */
+		u32 serv_cpl:10;		/* bits 0-9 */
 #else
-		u32 serv_cpl:10;		// bits 0-9
-		u32 serv_cpl_wrap:1;	// bit 10
-		u32 unused:21;		// bits 11-31
+		u32 serv_cpl:10;		/* bits 0-9 */
+		u32 serv_cpl_wrap:1;	/* bit 10 */
+		u32 unused:21;		/* bits 11-31 */
 #endif
 	} bits;
 } TX_STATUS_BLOCK_t, *PTX_STATUS_BLOCK_t;
@@ -166,8 +166,8 @@ typedef struct _MP_TCB {
 	u32 PacketStaleCount;
 	struct sk_buff *Packet;
 	u32 PacketLength;
-	DMA10W_t WrIndex;
-	DMA10W_t WrIndexStart;
+	u32 WrIndex;
+	u32 WrIndexStart;
 } MP_TCB, *PMP_TCB;
 
 /* Structure to hold the skb's in a list */
@@ -206,7 +206,7 @@ typedef struct _tx_ring_t {
 	uint64_t TxDescOffset;
 
 	/* ReadyToSend indicates where we last wrote to in the descriptor ring. */
-	DMA10W_t txDmaReadyToSend;
+	u32 txDmaReadyToSend;
 
 	/* The location of the write-back status block */
 	PTX_STATUS_BLOCK_t pTxStatusVa;

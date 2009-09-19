@@ -42,6 +42,12 @@
 			printk(KERN_DEBUG "%s: " fmt, vfd->name, ## arg);\
 		} while (0)
 
+#define dbgarg3(fmt, arg...) \
+		do {							\
+		    if (vfd->debug & V4L2_DEBUG_IOCTL_ARG)		\
+			printk(KERN_CONT "%s: " fmt, vfd->name, ## arg);\
+		} while (0)
+
 /* Zero out the end of the struct pointed to by p.  Everthing after, but
  * not including, the specified field is cleared. */
 #define CLEAR_AFTER_FIELD(p, field) \
@@ -507,11 +513,12 @@ static inline void v4l_print_ext_ctrls(unsigned int cmd,
 	dbgarg(cmd, "");
 	printk(KERN_CONT "class=0x%x", c->ctrl_class);
 	for (i = 0; i < c->count; i++) {
-		if (show_vals)
+		if (show_vals && !c->controls[i].size)
 			printk(KERN_CONT " id/val=0x%x/0x%x",
 				c->controls[i].id, c->controls[i].value);
 		else
-			printk(KERN_CONT " id=0x%x", c->controls[i].id);
+			printk(KERN_CONT " id=0x%x,size=%u",
+				c->controls[i].id, c->controls[i].size);
 	}
 	printk(KERN_CONT "\n");
 };
@@ -522,10 +529,9 @@ static inline int check_ext_ctrls(struct v4l2_ext_controls *c, int allow_priv)
 
 	/* zero the reserved fields */
 	c->reserved[0] = c->reserved[1] = 0;
-	for (i = 0; i < c->count; i++) {
+	for (i = 0; i < c->count; i++)
 		c->controls[i].reserved2[0] = 0;
-		c->controls[i].reserved2[1] = 0;
-	}
+
 	/* V4L2_CID_PRIVATE_BASE cannot be used as control class
 	   when using extended controls.
 	   Only when passed in through VIDIOC_G_CTRL and VIDIOC_S_CTRL
@@ -1726,24 +1732,29 @@ static long __video_do_ioctl(struct file *file,
 
 		ret = ops->vidioc_enum_framesizes(file, fh, p);
 		dbgarg(cmd,
-			"index=%d, pixelformat=%d, type=%d ",
-			p->index, p->pixel_format, p->type);
+			"index=%d, pixelformat=%c%c%c%c, type=%d ",
+			p->index,
+			(p->pixel_format & 0xff),
+			(p->pixel_format >>  8) & 0xff,
+			(p->pixel_format >> 16) & 0xff,
+			(p->pixel_format >> 24) & 0xff,
+			p->type);
 		switch (p->type) {
 		case V4L2_FRMSIZE_TYPE_DISCRETE:
-			dbgarg2("width = %d, height=%d\n",
+			dbgarg3("width = %d, height=%d\n",
 				p->discrete.width, p->discrete.height);
 			break;
 		case V4L2_FRMSIZE_TYPE_STEPWISE:
-			dbgarg2("min %dx%d, max %dx%d, step %dx%d\n",
+			dbgarg3("min %dx%d, max %dx%d, step %dx%d\n",
 				p->stepwise.min_width,  p->stepwise.min_height,
 				p->stepwise.step_width, p->stepwise.step_height,
 				p->stepwise.max_width,  p->stepwise.max_height);
 			break;
 		case V4L2_FRMSIZE_TYPE_CONTINUOUS:
-			dbgarg2("continuous\n");
+			dbgarg3("continuous\n");
 			break;
 		default:
-			dbgarg2("- Unknown type!\n");
+			dbgarg3("- Unknown type!\n");
 		}
 
 		break;
