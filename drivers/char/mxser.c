@@ -1073,34 +1073,17 @@ static void mxser_flush_buffer(struct tty_struct *tty)
 }
 
 
-/*
- * This routine is called when the serial port gets closed.  First, we
- * wait for the last remaining data to be sent.  Then, we unlink its
- * async structure from the interrupt chain if necessary, and we free
- * that IRQ if nothing is left in the chain.
- */
-static void mxser_close(struct tty_struct *tty, struct file *filp)
+static void mxser_close_port(struct tty_struct *tty, struct tty_port *port)
 {
-	struct mxser_port *info = tty->driver_data;
-	struct tty_port *port = &info->port;
-
+	struct mxser_port *info = container_of(port, struct mxser_port, port);
 	unsigned long timeout;
-
-	if (tty->index == MXSER_PORTS)
-		return;
-	if (!info)
-		return;
-
-	if (tty_port_close_start(port, tty, filp) == 0)
-		return;
-
 	/*
 	 * Save the termios structure, since this port may have
 	 * separate termios for callout and dialin.
 	 *
 	 * FIXME: Can this go ?
 	 */
-	if (info->port.flags & ASYNC_NORMAL_ACTIVE)
+	if (port->flags & ASYNC_NORMAL_ACTIVE)
 		info->normal_termios = *tty->termios;
 	/*
 	 * At this point we stop accepting input.  To do this, we
@@ -1112,7 +1095,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	if (info->board->chip_flag)
 		info->IER &= ~MOXA_MUST_RECV_ISR;
 
-	if (info->port.flags & ASYNC_INITIALIZED) {
+	if (port->flags & ASYNC_INITIALIZED) {
 		outb(info->IER, info->ioaddr + UART_IER);
 		/*
 		 * Before we drop DTR, make sure the UART transmitter
@@ -1127,8 +1110,26 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 		}
 	}
 	mxser_shutdown(tty);
-	mxser_flush_buffer(tty);
 
+}
+
+/*
+ * This routine is called when the serial port gets closed.  First, we
+ * wait for the last remaining data to be sent.  Then, we unlink its
+ * async structure from the interrupt chain if necessary, and we free
+ * that IRQ if nothing is left in the chain.
+ */
+static void mxser_close(struct tty_struct *tty, struct file *filp)
+{
+	struct mxser_port *info = tty->driver_data;
+	struct tty_port *port = &info->port;
+
+	if (tty->index == MXSER_PORTS)
+		return;
+	if (tty_port_close_start(port, tty, filp) == 0)
+		return;
+	mxser_close_port(tty, port);
+	mxser_flush_buffer(tty);
 	/* Right now the tty_port set is done outside of the close_end helper
 	   as we don't yet have everyone using refcounts */	
 	tty_port_close_end(port, tty);
