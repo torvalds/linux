@@ -1391,6 +1391,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int transconf_reg = (pipe == 0) ? TRANSACONF : TRANSBCONF;
 	int pf_ctl_reg = (pipe == 0) ? PFA_CTL_1 : PFB_CTL_1;
 	int pf_win_size = (pipe == 0) ? PFA_WIN_SZ : PFB_WIN_SZ;
+	int pf_win_pos = (pipe == 0) ? PFA_WIN_POS : PFB_WIN_POS;
 	int cpu_htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
 	int cpu_hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
 	int cpu_hsync_reg = (pipe == 0) ? HSYNC_A : HSYNC_B;
@@ -1440,6 +1441,19 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 				I915_READ(fdi_tx_reg);
 				udelay(100);
 			}
+		}
+
+		/* Enable panel fitting for LVDS */
+		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+			temp = I915_READ(pf_ctl_reg);
+			I915_WRITE(pf_ctl_reg, temp | PF_ENABLE);
+
+			/* currently full aspect */
+			I915_WRITE(pf_win_pos, 0);
+
+			I915_WRITE(pf_win_size,
+				   (dev_priv->panel_fixed_mode->hdisplay << 16) |
+				   (dev_priv->panel_fixed_mode->vdisplay));
 		}
 
 		/* Enable CPU pipe */

@@ -296,6 +296,10 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		goto out;
 	}
 
+	/* full screen scale for now */
+	if (IS_IGDNG(dev))
+		goto out;
+
 	/* 965+ wants fuzzy fitting */
 	if (IS_I965G(dev))
 		pfit_control |= (intel_crtc->pipe << PFIT_PIPE_SHIFT) |
@@ -323,8 +327,10 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * to register description and PRM.
 	 * Change the value here to see the borders for debugging
 	 */
-	I915_WRITE(BCLRPAT_A, 0);
-	I915_WRITE(BCLRPAT_B, 0);
+	if (!IS_IGDNG(dev)) {
+		I915_WRITE(BCLRPAT_A, 0);
+		I915_WRITE(BCLRPAT_B, 0);
+	}
 
 	switch (lvds_priv->fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
@@ -573,7 +579,6 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	 * settings.
 	 */
 
-	/* No panel fitting yet, fixme */
 	if (IS_IGDNG(dev))
 		return;
 
