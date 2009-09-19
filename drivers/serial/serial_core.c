@@ -2068,11 +2068,29 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 	struct tty_port *port = &state->port;
 	struct device *tty_dev;
 	struct uart_match match = {uport, drv};
+	struct ktermios termios;
 
 	mutex_lock(&port->mutex);
 
 	if (!console_suspend_enabled && uart_console(uport)) {
 		/* no need to resume serial console, it wasn't suspended */
+		/*
+		 * First try to use the console cflag setting.
+		 */
+		memset(&termios, 0, sizeof(struct ktermios));
+		termios.c_cflag = uport->cons->cflag;
+		/*
+		 * If that's unset, use the tty termios setting.
+		 */
+		if (termios.c_cflag == 0)
+			termios = *state->port.tty->termios;
+		else {
+			termios.c_ispeed = termios.c_ospeed =
+				tty_termios_input_baud_rate(&termios);
+			termios.c_ispeed = termios.c_ospeed =
+				tty_termios_baud_rate(&termios);
+		}
+		uport->ops->set_termios(uport, &termios, NULL);
 		mutex_unlock(&port->mutex);
 		return 0;
 	}
@@ -2089,20 +2107,6 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 	 * Re-enable the console device after suspending.
 	 */
 	if (uart_console(uport)) {
-		struct ktermios termios;
-
-		/*
-		 * First try to use the console cflag setting.
-		 */
-		memset(&termios, 0, sizeof(struct ktermios));
-		termios.c_cflag = uport->cons->cflag;
-
-		/*
-		 * If that's unset, use the tty termios setting.
-		 */
-		if (port->tty && termios.c_cflag == 0)
-			termios = *port->tty->termios;
-
 		uart_change_pm(state, 0);
 		uport->ops->set_termios(uport, &termios, NULL);
 		console_start(uport->cons);
