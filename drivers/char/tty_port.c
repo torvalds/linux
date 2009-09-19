@@ -96,6 +96,14 @@ void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty)
 }
 EXPORT_SYMBOL(tty_port_tty_set);
 
+static void tty_port_shutdown(struct tty_port *port)
+{
+	if (port->ops->shutdown &&
+		test_and_clear_bit(ASYNC_INITIALIZED, &port->flags))
+			port->ops->shutdown(port);
+
+}
+
 /**
  *	tty_port_hangup		-	hangup helper
  *	@port: tty port
@@ -116,6 +124,7 @@ void tty_port_hangup(struct tty_port *port)
 	port->tty = NULL;
 	spin_unlock_irqrestore(&port->lock, flags);
 	wake_up_interruptible(&port->open_wait);
+	tty_port_shutdown(port);
 }
 EXPORT_SYMBOL(tty_port_hangup);
 
@@ -296,15 +305,17 @@ int tty_port_close_start(struct tty_port *port, struct tty_struct *tty, struct f
 
 	if (port->count) {
 		spin_unlock_irqrestore(&port->lock, flags);
+		if (port->ops->drop)
+			port->ops->drop(port);
 		return 0;
 	}
-	port->flags |= ASYNC_CLOSING;
+	set_bit(ASYNC_CLOSING, &port->flags);
 	tty->closing = 1;
 	spin_unlock_irqrestore(&port->lock, flags);
 	/* Don't block on a stalled port, just pull the chain */
 	if (tty->flow_stopped)
 		tty_driver_flush_buffer(tty);
-	if (port->flags & ASYNC_INITIALIZED &&
+	if (test_bit(ASYNCB_INITIALIZED, &port->flags) &&
 			port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
 		tty_wait_until_sent(tty, port->closing_wait);
 	if (port->drain_delay) {
@@ -318,6 +329,9 @@ int tty_port_close_start(struct tty_port *port, struct tty_struct *tty, struct f
 			timeout = 2 * HZ;
 		schedule_timeout_interruptible(timeout);
 	}
+	/* Don't call port->drop for the last reference. Callers will want
+	   to drop the last active reference in ->shutdown() or the tty
+	   shutdown path */
 	return 1;
 }
 EXPORT_SYMBOL(tty_port_close_start);
@@ -348,3 +362,14 @@ void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 EXPORT_SYMBOL(tty_port_close_end);
+
+void tty_port_close(struct tty_port *port, struct tty_struct *tty,
+							struct file *filp)
+{
+	if (tty_port_close_start(port, tty, filp) == 0)
+		return;
+	tty_port_shutdown(port);
+	tty_port_close_end(port, tty);
+	tty_port_tty_set(port, NULL);
+}
+EXPORT_SYMBOL(tty_port_close);

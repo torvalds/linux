@@ -187,7 +187,12 @@ struct tty_port;
 struct tty_port_operations {
 	/* Return 1 if the carrier is raised */
 	int (*carrier_raised)(struct tty_port *port);
+	/* Control the DTR line */
 	void (*dtr_rts)(struct tty_port *port, int raise);
+	/* Called when the last close completes or a hangup finishes
+	   IFF the port was initialized. Do not use to free resources */
+	void (*shutdown)(struct tty_port *port);
+	void (*drop)(struct tty_port *port);
 };
 	
 struct tty_port {
@@ -459,7 +464,8 @@ extern int tty_port_block_til_ready(struct tty_port *port,
 extern int tty_port_close_start(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);
 extern void tty_port_close_end(struct tty_port *port, struct tty_struct *tty);
-
+extern void tty_port_close(struct tty_port *port,
+				struct tty_struct *tty, struct file *filp);
 extern int tty_register_ldisc(int disc, struct tty_ldisc_ops *new_ldisc);
 extern int tty_unregister_ldisc(int disc);
 extern int tty_set_ldisc(struct tty_struct *tty, int ldisc);
