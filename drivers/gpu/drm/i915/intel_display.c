@@ -877,7 +877,7 @@ intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 					       refclk, best_clock);
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		if ((I915_READ(LVDS) & LVDS_CLKB_POWER_MASK) ==
+		if ((I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) ==
 		    LVDS_CLKB_POWER_UP)
 			clock.p2 = limit->p2.p2_fast;
 		else
