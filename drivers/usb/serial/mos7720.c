@@ -85,7 +85,7 @@ static int debug;
 #define MOSCHIP_DEVICE_ID_7720		0x7720
 #define MOSCHIP_DEVICE_ID_7715		0x7715
 
-static struct usb_device_id moschip_port_id_table [] = {
+static struct usb_device_id moschip_port_id_table[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7720) },
 	{ } /* terminating entry */
 };
@@ -1264,6 +1264,67 @@ static int get_lsr_info(struct tty_struct *tty,
 	return 0;
 }
 
+static int mos7720_tiocmget(struct tty_struct *tty, struct file *file)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7720_port = usb_get_serial_port_data(port);
+	unsigned int result = 0;
+	unsigned int mcr ;
+	unsigned int msr ;
+
+	dbg("%s - port %d", __func__, port->number);
+
+	mcr = mos7720_port->shadowMCR;
+	msr = mos7720_port->shadowMSR;
+
+	result = ((mcr & UART_MCR_DTR)  ? TIOCM_DTR : 0)   /* 0x002 */
+	  | ((mcr & UART_MCR_RTS)   ? TIOCM_RTS : 0)   /* 0x004 */
+	  | ((msr & UART_MSR_CTS)   ? TIOCM_CTS : 0)   /* 0x020 */
+	  | ((msr & UART_MSR_DCD)   ? TIOCM_CAR : 0)   /* 0x040 */
+	  | ((msr & UART_MSR_RI)    ? TIOCM_RI :  0)   /* 0x080 */
+	  | ((msr & UART_MSR_DSR)   ? TIOCM_DSR : 0);  /* 0x100 */
+
+	dbg("%s -- %x", __func__, result);
+
+	return result;
+}
+
+static int mos7720_tiocmset(struct tty_struct *tty, struct file *file,
+					unsigned int set, unsigned int clear)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7720_port = usb_get_serial_port_data(port);
+	unsigned int mcr ;
+	unsigned char lmcr;
+
+	dbg("%s - port %d", __func__, port->number);
+	dbg("he was at tiocmget");
+
+	mcr = mos7720_port->shadowMCR;
+
+	if (set & TIOCM_RTS)
+		mcr |= UART_MCR_RTS;
+	if (set & TIOCM_DTR)
+		mcr |= UART_MCR_DTR;
+	if (set & TIOCM_LOOP)
+		mcr |= UART_MCR_LOOP;
+
+	if (clear & TIOCM_RTS)
+		mcr &= ~UART_MCR_RTS;
+	if (clear & TIOCM_DTR)
+		mcr &= ~UART_MCR_DTR;
+	if (clear & TIOCM_LOOP)
+		mcr &= ~UART_MCR_LOOP;
+
+	mos7720_port->shadowMCR = mcr;
+	lmcr = mos7720_port->shadowMCR;
+
+	send_mos_cmd(port->serial, MOS_WRITE,
+		port->number - port->serial->minor, UART_MCR, &lmcr);
+
+	return 0;
+}
+
 static int set_modem_info(struct moschip_port *mos7720_port, unsigned int cmd,
 			  unsigned int __user *value)
 {
@@ -1301,14 +1362,6 @@ static int set_modem_info(struct moschip_port *mos7720_port, unsigned int cmd,
 			mcr &= ~UART_MCR_LOOP;
 		break;
 
-	case TIOCMSET:
-		/* turn off the RTS and DTR and LOOPBACK
-		 * and then only turn on what was asked to */
-		mcr &=  ~(UART_MCR_RTS | UART_MCR_DTR | UART_MCR_LOOP);
-		mcr |= ((arg & TIOCM_RTS) ? UART_MCR_RTS : 0);
-		mcr |= ((arg & TIOCM_DTR) ? UART_MCR_DTR : 0);
-		mcr |= ((arg & TIOCM_LOOP) ? UART_MCR_LOOP : 0);
-		break;
 	}
 
 	mos7720_port->shadowMCR = mcr;
@@ -1317,28 +1370,6 @@ static int set_modem_info(struct moschip_port *mos7720_port, unsigned int cmd,
 	send_mos_cmd(port->serial, MOS_WRITE,
 		     port->number - port->serial->minor, UART_MCR, &data);
 
-	return 0;
-}
-
-static int get_modem_info(struct moschip_port *mos7720_port,
-			  unsigned int __user *value)
-{
-	unsigned int result = 0;
-	unsigned int msr = mos7720_port->shadowMSR;
-	unsigned int mcr = mos7720_port->shadowMCR;
-
-	result = ((mcr & UART_MCR_DTR)	? TIOCM_DTR: 0)	  /* 0x002 */
-		  | ((mcr & UART_MCR_RTS)	? TIOCM_RTS: 0)   /* 0x004 */
-		  | ((msr & UART_MSR_CTS)	? TIOCM_CTS: 0)   /* 0x020 */
-		  | ((msr & UART_MSR_DCD)	? TIOCM_CAR: 0)   /* 0x040 */
-		  | ((msr & UART_MSR_RI)	? TIOCM_RI:  0)   /* 0x080 */
-		  | ((msr & UART_MSR_DSR)	? TIOCM_DSR: 0);  /* 0x100 */
-
-
-	dbg("%s -- %x", __func__, result);
-
-	if (copy_to_user(value, &result, sizeof(int)))
-		return -EFAULT;
 	return 0;
 }
 
@@ -1392,15 +1423,9 @@ static int mos7720_ioctl(struct tty_struct *tty, struct file *file,
 	/* FIXME: These should be using the mode methods */
 	case TIOCMBIS:
 	case TIOCMBIC:
-	case TIOCMSET:
 		dbg("%s (%d) TIOCMSET/TIOCMBIC/TIOCMSET",
 					__func__, port->number);
 		return set_modem_info(mos7720_port, cmd,
-				      (unsigned int __user *)arg);
-
-	case TIOCMGET:
-		dbg("%s (%d) TIOCMGET", __func__,  port->number);
-		return get_modem_info(mos7720_port,
 				      (unsigned int __user *)arg);
 
 	case TIOCGSERIAL:
@@ -1557,6 +1582,8 @@ static struct usb_serial_driver moschip7720_2port_driver = {
 	.attach			= mos7720_startup,
 	.release		= mos7720_release,
 	.ioctl			= mos7720_ioctl,
+	.tiocmget		= mos7720_tiocmget,
+	.tiocmset		= mos7720_tiocmset,
 	.set_termios		= mos7720_set_termios,
 	.write			= mos7720_write,
 	.write_room		= mos7720_write_room,
