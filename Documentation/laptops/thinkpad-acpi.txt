@@ -219,7 +219,7 @@ The following commands can be written to the /proc/acpi/ibm/hotkey file:
 	echo 0xffffffff > /proc/acpi/ibm/hotkey -- enable all hot keys
 	echo 0 > /proc/acpi/ibm/hotkey -- disable all possible hot keys
 	... any other 8-hex-digit mask ...
-	echo reset > /proc/acpi/ibm/hotkey -- restore the original mask
+	echo reset > /proc/acpi/ibm/hotkey -- restore the recommended mask
 
 The following commands have been deprecated and will cause the kernel
 to log a warning:
@@ -240,9 +240,13 @@ sysfs notes:
 		Returns 0.
 
 	hotkey_bios_mask:
+		DEPRECATED, DON'T USE, WILL BE REMOVED IN THE FUTURE.
+
 		Returns the hot keys mask when thinkpad-acpi was loaded.
 		Upon module unload, the hot keys mask will be restored
-		to this value.
+		to this value.   This is always 0x80c, because those are
+		the hotkeys that were supported by ancient firmware
+		without mask support.
 
 	hotkey_enable:
 		DEPRECATED, WILL BE REMOVED SOON.
