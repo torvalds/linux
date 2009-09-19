@@ -173,6 +173,7 @@ extern struct ir_scancode_table ir_codes_ati_tv_wonder_hd_600_table;
 extern struct ir_scancode_table ir_codes_kworld_plus_tv_analog_table;
 extern struct ir_scancode_table ir_codes_kaiomy_table;
 extern struct ir_scancode_table ir_codes_dm1105_nec_table;
+extern struct ir_scancode_table ir_codes_tbs_nec_table;
 extern struct ir_scancode_table ir_codes_evga_indtube_table;
 extern struct ir_scancode_table ir_codes_terratec_cinergy_xs_table;
 extern struct ir_scancode_table ir_codes_videomate_s350_table;

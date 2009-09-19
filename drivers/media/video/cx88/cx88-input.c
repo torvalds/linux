@@ -303,6 +303,22 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->mask_keydown = 0x02;
 		ir->polling      = 50; /* ms */
 		break;
+	case CX88_BOARD_OMICOM_SS4_PCI:
+	case CX88_BOARD_SATTRADE_ST4200:
+	case CX88_BOARD_TBS_8920:
+	case CX88_BOARD_TBS_8910:
+	case CX88_BOARD_PROF_7300:
+	case CX88_BOARD_PROF_6200:
+		ir_codes = &ir_codes_tbs_nec_table;
+		ir_type = IR_TYPE_PD;
+		ir->sampling = 0xff00; /* address */
+		break;
+	case CX88_BOARD_TEVII_S460:
+	case CX88_BOARD_TEVII_S420:
+		ir_codes = &ir_codes_dm1105_nec_table;
+		ir_type = IR_TYPE_PD;
+		ir->sampling = 0xff00; /* address */
+		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
 		ir_codes         = &ir_codes_dntv_live_dvbt_pro_table;
 		ir_type          = IR_TYPE_PD;
@@ -432,8 +448,16 @@ void cx88_ir_irq(struct cx88_core *core)
 
 	/* decode it */
 	switch (core->boardnr) {
+	case CX88_BOARD_TEVII_S460:
+	case CX88_BOARD_TEVII_S420:
 	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
+	case CX88_BOARD_OMICOM_SS4_PCI:
+	case CX88_BOARD_SATTRADE_ST4200:
+	case CX88_BOARD_TBS_8920:
+	case CX88_BOARD_TBS_8910:
+	case CX88_BOARD_PROF_7300:
+	case CX88_BOARD_PROF_6200:
 		ircode = ir_decode_pulsedistance(ir->samples, ir->scount, 1, 4);
 
 		if (ircode == 0xffffffff) { /* decoding error */
