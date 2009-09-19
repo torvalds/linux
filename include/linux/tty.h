@@ -206,8 +206,8 @@ struct tty_port {
 	unsigned long		flags;		/* TTY flags ASY_*/
 	struct mutex		mutex;		/* Locking */
 	unsigned char		*xmit_buf;	/* Optional buffer */
-	int			close_delay;	/* Close port delay */
-	int			closing_wait;	/* Delay for output */
+	unsigned int		close_delay;	/* Close port delay */
+	unsigned int		closing_wait;	/* Delay for output */
 	int			drain_delay;	/* Set to zero if no pure time
 						   based drain is needed else
 						   set to size of fifo */

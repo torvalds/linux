@@ -350,8 +350,6 @@ typedef unsigned int __bitwise__ uif_t;
  */
 struct uart_state {
 	struct tty_port		port;
-	unsigned int		close_delay;		/* msec */
-	unsigned int		closing_wait;		/* msec */
 
 #define USF_CLOSING_WAIT_INF	(0)
 #define USF_CLOSING_WAIT_NONE	(~0U)
