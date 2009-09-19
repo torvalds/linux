@@ -90,7 +90,15 @@ const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT] = {
 	"\\_S5_"
 };
 
-const char *acpi_gbl_highest_dstate_names[4] = {
+const char *acpi_gbl_lowest_dstate_names[ACPI_NUM_sx_w_METHODS] = {
+	"_S0W",
+	"_S1W",
+	"_S2W",
+	"_S3W",
+	"_S4W"
+};
+
+const char *acpi_gbl_highest_dstate_names[ACPI_NUM_sx_d_METHODS] = {
 	"_S1D",
 	"_S2D",
 	"_S3D",
@@ -351,6 +359,7 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"SMBus",
 	"SystemCMOS",
 	"PCIBARTarget",
+	"IPMI",
 	"DataTable"
 };
 
@@ -798,6 +807,7 @@ acpi_status acpi_ut_init_globals(void)
 
 	/* Namespace */
 
+	acpi_gbl_module_code_list = NULL;
 	acpi_gbl_root_node = NULL;
 	acpi_gbl_root_node_struct.name.integer = ACPI_ROOT_NAME;
 	acpi_gbl_root_node_struct.descriptor_type = ACPI_DESC_TYPE_NAMED;

@@ -44,9 +44,23 @@
 #ifndef __ACTBL_H__
 #define __ACTBL_H__
 
+/*******************************************************************************
+ *
+ * Fundamental ACPI tables
+ *
+ * This file contains definitions for the ACPI tables that are directly consumed
+ * by ACPICA. All other tables are consumed by the OS-dependent ACPI-related
+ * device drivers and other OS support code.
+ *
+ * The RSDP and FACS do not use the common ACPI table header. All other ACPI
+ * tables use the header.
+ *
+ ******************************************************************************/
+
 /*
- * Values for description table header signatures. Useful because they make
- * it more difficult to inadvertently type in the wrong signature.
+ * Values for description table header signatures for tables defined in this
+ * file. Useful because they make it more difficult to inadvertently type in
+ * the wrong signature.
  */
 #define ACPI_SIG_DSDT           "DSDT"	/* Differentiated System Description Table */
 #define ACPI_SIG_FADT           "FACP"	/* Fixed ACPI Description Table */
@@ -65,11 +79,6 @@
 #pragma pack(1)
 
 /*
- * These are the ACPI tables that are directly consumed by the subsystem.
- *
- * The RSDP and FACS do not use the common ACPI table header. All other ACPI
- * tables use the header.
- *
  * Note about bitfields: The u8 type is used for bitfields in ACPI tables.
  * This is the only type that is even remotely portable. Anything else is not
  * portable, so do not use any other bitfield types.
@@ -77,9 +86,8 @@
 
 /*******************************************************************************
  *
- * ACPI Table Header. This common header is used by all tables except the
- * RSDP and FACS. The define is used for direct inclusion of header into
- * other ACPI tables
+ * Master ACPI Table Header. This common header is used by all ACPI tables
+ * except the RSDP and FACS.
  *
  ******************************************************************************/
 
@@ -95,13 +103,16 @@ struct acpi_table_header {
 	u32 asl_compiler_revision;	/* ASL compiler version */
 };
 
-/*
+/*******************************************************************************
+ *
  * GAS - Generic Address Structure (ACPI 2.0+)
  *
  * Note: Since this structure is used in the ACPI tables, it is byte aligned.
- * If misalignment is not supported, access to the Address field must be
- * performed with care.
- */
+ * If misaliged access is not supported by the hardware, accesses to the
+ * 64-bit Address field must be performed with care.
+ *
+ ******************************************************************************/
+
 struct acpi_generic_address {
 	u8 space_id;		/* Address space where struct or register exists */
 	u8 bit_width;		/* Size in bits of given register */
@@ -113,6 +124,7 @@ struct acpi_generic_address {
 /*******************************************************************************
  *
  * RSDP - Root System Description Pointer (Signature is "RSD PTR ")
+ *        Version 2
  *
  ******************************************************************************/
 
@@ -133,6 +145,7 @@ struct acpi_table_rsdp {
 /*******************************************************************************
  *
  * RSDT/XSDT - Root System Description Tables
+ *             Version 1 (both)
  *
  ******************************************************************************/
 
@@ -161,21 +174,29 @@ struct acpi_table_facs {
 	u32 flags;
 	u64 xfirmware_waking_vector;	/* 64-bit version of the Firmware Waking Vector (ACPI 2.0+) */
 	u8 version;		/* Version of this table (ACPI 2.0+) */
-	u8 reserved[31];	/* Reserved, must be zero */
+	u8 reserved[3];		/* Reserved, must be zero */
+	u32 ospm_flags;		/* Flags to be set by OSPM (ACPI 4.0) */
+	u8 reserved1[24];	/* Reserved, must be zero */
 };
 
-/* Flag macros */
+/* Masks for global_lock flag field above */
 
-#define ACPI_FACS_S4_BIOS_PRESENT (1)	/* 00: S4BIOS support is present */
+#define ACPI_GLOCK_PENDING          (1)	/* 00: Pending global lock ownership */
+#define ACPI_GLOCK_OWNED            (1<<1)	/* 01: Global lock is owned */
 
-/* Global lock flags */
+/* Masks for Flags field above  */
 
-#define ACPI_GLOCK_PENDING      0x01	/* 00: Pending global lock ownership */
-#define ACPI_GLOCK_OWNED        0x02	/* 01: Global lock is owned */
+#define ACPI_FACS_S4_BIOS_PRESENT   (1)	/* 00: S4BIOS support is present */
+#define ACPI_FACS_64BIT_WAKE        (1<<1)	/* 01: 64-bit wake vector supported (ACPI 4.0) */
+
+/* Masks for ospm_flags field above */
+
+#define ACPI_FACS_64BIT_ENVIRONMENT (1)	/* 00: 64-bit wake environment is required (ACPI 4.0) */
 
 /*******************************************************************************
  *
  * FADT - Fixed ACPI Description Table (Signature "FACP")
+ *        Version 4
  *
  ******************************************************************************/
 
@@ -236,7 +257,7 @@ struct acpi_table_fadt {
 	struct acpi_generic_address xgpe1_block;	/* 64-bit Extended General Purpose Event 1 Reg Blk address */
 };
 
-/* FADT Boot Architecture Flags (boot_flags) */
+/* Masks for FADT Boot Architecture Flags (boot_flags) */
 
 #define ACPI_FADT_LEGACY_DEVICES    (1)  	/* 00: [V2] System has LPC or ISA bus devices */
 #define ACPI_FADT_8042              (1<<1)	/* 01: [V3] System has an 8042 controller on port 60/64 */
@@ -246,7 +267,7 @@ struct acpi_table_fadt {
 
 #define FADT2_REVISION_ID               3
 
-/* FADT flags */
+/* Masks for FADT flags */
 
 #define ACPI_FADT_WBINVD            (1)	/* 00: [V1] The wbinvd instruction works properly */
 #define ACPI_FADT_WBINVD_FLUSH      (1<<1)	/* 01: [V1] wbinvd flushes but does not invalidate caches */
@@ -269,7 +290,7 @@ struct acpi_table_fadt {
 #define ACPI_FADT_APIC_CLUSTER      (1<<18)	/* 18: [V4] All local APICs must use cluster model (ACPI 3.0) */
 #define ACPI_FADT_APIC_PHYSICAL     (1<<19)	/* 19: [V4] All local x_aPICs must use physical dest mode (ACPI 3.0) */
 
-/* FADT Prefered Power Management Profiles */
+/* Values for preferred_profile (Prefered Power Management Profiles) */
 
 enum acpi_prefered_pm_profiles {
 	PM_UNSPECIFIED = 0,
@@ -287,14 +308,16 @@ enum acpi_prefered_pm_profiles {
 
 #define ACPI_FADT_OFFSET(f)             (u8) ACPI_OFFSET (struct acpi_table_fadt, f)
 
+/*
+ * Internal table-related structures
+ */
 union acpi_name_union {
 	u32 integer;
 	char ascii[4];
 };
 
-/*
- * Internal ACPI Table Descriptor. One per ACPI table
- */
+/* Internal ACPI Table Descriptor. One per ACPI table. */
+
 struct acpi_table_desc {
 	acpi_physical_address address;
 	struct acpi_table_header *pointer;
@@ -304,7 +327,7 @@ struct acpi_table_desc {
 	u8 flags;
 };
 
-/* Flags for above */
+/* Masks for Flags field above */
 
 #define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
 #define ACPI_TABLE_ORIGIN_MAPPED        (1)
@@ -318,5 +341,6 @@ struct acpi_table_desc {
  */
 
 #include <acpi/actbl1.h>
+#include <acpi/actbl2.h>
 
 #endif				/* __ACTBL_H__ */

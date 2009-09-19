@@ -424,8 +424,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 			/* Read the Status Register */
 
 			status =
-			    acpi_read(&status_reg,
-				      &gpe_register_info->status_address);
+			    acpi_hw_read(&status_reg,
+					 &gpe_register_info->status_address);
 			if (ACPI_FAILURE(status)) {
 				goto unlock_and_exit;
 			}
@@ -433,8 +433,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 			/* Read the Enable Register */
 
 			status =
-			    acpi_read(&enable_reg,
-				      &gpe_register_info->enable_address);
+			    acpi_hw_read(&enable_reg,
+					 &gpe_register_info->enable_address);
 			if (ACPI_FAILURE(status)) {
 				goto unlock_and_exit;
 			}

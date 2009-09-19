@@ -194,13 +194,13 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 		pnpacpi_parse_resource_option_data(dev);
 
 	if (device->flags.compatible_ids) {
-		struct acpi_compatible_id_list *cid_list = device->pnp.cid_list;
+		struct acpica_device_id_list *cid_list = device->pnp.cid_list;
 		int i;
 
 		for (i = 0; i < cid_list->count; i++) {
-			if (!ispnpidacpi(cid_list->id[i].value))
+			if (!ispnpidacpi(cid_list->ids[i].string))
 				continue;
-			pnp_add_id(dev, cid_list->id[i].value);
+			pnp_add_id(dev, cid_list->ids[i].string);
 		}
 	}
 

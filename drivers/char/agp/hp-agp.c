@@ -476,7 +476,6 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 {
 	acpi_handle handle, parent;
 	acpi_status status;
-	struct acpi_buffer buffer;
 	struct acpi_device_info *info;
 	u64 lba_hpa, sba_hpa, length;
 	int match;
@@ -488,13 +487,11 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 	/* Look for an enclosing IOC scope and find its CSR space */
 	handle = obj;
 	do {
-		buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
-		status = acpi_get_object_info(handle, &buffer);
+		status = acpi_get_object_info(handle, &info);
 		if (ACPI_SUCCESS(status)) {
 			/* TBD check _CID also */
-			info = buffer.pointer;
-			info->hardware_id.value[sizeof(info->hardware_id)-1] = '\0';
-			match = (strcmp(info->hardware_id.value, "HWP0001") == 0);
+			info->hardware_id.string[sizeof(info->hardware_id.length)-1] = '\0';
+			match = (strcmp(info->hardware_id.string, "HWP0001") == 0);
 			kfree(info);
 			if (match) {
 				status = hp_acpi_csr_space(handle, &sba_hpa, &length);

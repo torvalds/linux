@@ -114,8 +114,6 @@ static int ide_get_dev_handle(struct device *dev, acpi_handle *handle,
 	unsigned int bus, devnum, func;
 	acpi_integer addr;
 	acpi_handle dev_handle;
-	struct acpi_buffer buffer = {.length = ACPI_ALLOCATE_BUFFER,
-					.pointer = NULL};
 	acpi_status status;
 	struct acpi_device_info	*dinfo = NULL;
 	int ret = -ENODEV;
@@ -134,12 +132,11 @@ static int ide_get_dev_handle(struct device *dev, acpi_handle *handle,
 		goto err;
 	}
 
-	status = acpi_get_object_info(dev_handle, &buffer);
+	status = acpi_get_object_info(dev_handle, &dinfo);
 	if (ACPI_FAILURE(status)) {
 		DEBPRINT("get_object_info for device failed\n");
 		goto err;
 	}
-	dinfo = buffer.pointer;
 	if (dinfo && (dinfo->valid & ACPI_VALID_ADR) &&
 	    dinfo->address == addr) {
 		*pcidevfn = addr;

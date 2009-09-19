@@ -358,50 +358,67 @@ static u32 acpi_ex_digits_needed(acpi_integer value, u32 base)
  *
  * FUNCTION:    acpi_ex_eisa_id_to_string
  *
- * PARAMETERS:  numeric_id      - EISA ID to be converted
+ * PARAMETERS:  compressed_id   - EISAID to be converted
  *              out_string      - Where to put the converted string (8 bytes)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Convert a numeric EISA ID to string representation
+ * DESCRIPTION: Convert a numeric EISAID to string representation. Return
+ *              buffer must be large enough to hold the string. The string
+ *              returned is always exactly of length ACPI_EISAID_STRING_SIZE
+ *              (includes null terminator). The EISAID is always 32 bits.
  *
  ******************************************************************************/
 
-void acpi_ex_eisa_id_to_string(u32 numeric_id, char *out_string)
+void acpi_ex_eisa_id_to_string(char *out_string, acpi_integer compressed_id)
 {
-	u32 eisa_id;
+	u32 swapped_id;
 
 	ACPI_FUNCTION_ENTRY();
 
+	/* The EISAID should be a 32-bit integer */
+
+	if (compressed_id > ACPI_UINT32_MAX) {
+		ACPI_WARNING((AE_INFO,
+			      "Expected EISAID is larger than 32 bits: 0x%8.8X%8.8X, truncating",
+			      ACPI_FORMAT_UINT64(compressed_id)));
+	}
+
 	/* Swap ID to big-endian to get contiguous bits */
 
-	eisa_id = acpi_ut_dword_byte_swap(numeric_id);
+	swapped_id = acpi_ut_dword_byte_swap((u32)compressed_id);
 
-	out_string[0] = (char)('@' + (((unsigned long)eisa_id >> 26) & 0x1f));
-	out_string[1] = (char)('@' + ((eisa_id >> 21) & 0x1f));
-	out_string[2] = (char)('@' + ((eisa_id >> 16) & 0x1f));
-	out_string[3] = acpi_ut_hex_to_ascii_char((acpi_integer) eisa_id, 12);
-	out_string[4] = acpi_ut_hex_to_ascii_char((acpi_integer) eisa_id, 8);
-	out_string[5] = acpi_ut_hex_to_ascii_char((acpi_integer) eisa_id, 4);
-	out_string[6] = acpi_ut_hex_to_ascii_char((acpi_integer) eisa_id, 0);
+	/* First 3 bytes are uppercase letters. Next 4 bytes are hexadecimal */
+
+	out_string[0] =
+	    (char)(0x40 + (((unsigned long)swapped_id >> 26) & 0x1F));
+	out_string[1] = (char)(0x40 + ((swapped_id >> 21) & 0x1F));
+	out_string[2] = (char)(0x40 + ((swapped_id >> 16) & 0x1F));
+	out_string[3] = acpi_ut_hex_to_ascii_char((acpi_integer)swapped_id, 12);
+	out_string[4] = acpi_ut_hex_to_ascii_char((acpi_integer)swapped_id, 8);
+	out_string[5] = acpi_ut_hex_to_ascii_char((acpi_integer)swapped_id, 4);
+	out_string[6] = acpi_ut_hex_to_ascii_char((acpi_integer)swapped_id, 0);
 	out_string[7] = 0;
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ex_unsigned_integer_to_string
+ * FUNCTION:    acpi_ex_integer_to_string
  *
- * PARAMETERS:  Value           - Value to be converted
- *              out_string      - Where to put the converted string (8 bytes)
+ * PARAMETERS:  out_string      - Where to put the converted string. At least
+ *                                21 bytes are needed to hold the largest
+ *                                possible 64-bit integer.
+ *              Value           - Value to be converted
  *
  * RETURN:      None, string
  *
- * DESCRIPTION: Convert a number to string representation. Assumes string
- *              buffer is large enough to hold the string.
+ * DESCRIPTION: Convert a 64-bit integer to decimal string representation.
+ *              Assumes string buffer is large enough to hold the string. The
+ *              largest string is (ACPI_MAX64_DECIMAL_DIGITS + 1).
  *
  ******************************************************************************/
 
-void acpi_ex_unsigned_integer_to_string(acpi_integer value, char *out_string)
+void acpi_ex_integer_to_string(char *out_string, acpi_integer value)
 {
 	u32 count;
 	u32 digits_needed;
