@@ -2403,11 +2403,12 @@ int __init init_dmars(void)
 
 		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
-		iommu_disable_protect_mem_regions(iommu);
 
 		ret = iommu_enable_translation(iommu);
 		if (ret)
 			goto error;
+
+		iommu_disable_protect_mem_regions(iommu);
 	}
 
 	return 0;
@@ -3066,8 +3067,8 @@ static int init_iommu_hw(void)
 					   DMA_CCMD_GLOBAL_INVL);
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
 					 DMA_TLB_GLOBAL_FLUSH);
-		iommu_disable_protect_mem_regions(iommu);
 		iommu_enable_translation(iommu);
+		iommu_disable_protect_mem_regions(iommu);
 	}
 
 	return 0;
