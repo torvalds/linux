@@ -1296,7 +1296,7 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 	unsigned long flags;
 	int retval = 0;
 	void __iomem *base_addr;
-	int chip, channel, index;
+	int channel;
 	unsigned long page;
 
 	card = info->card;
@@ -1308,14 +1308,11 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 
 	spin_lock_irqsave(&card->card_lock, flags);
 
-	if (info->port.flags & ASYNC_INITIALIZED) {
-		free_page(page);
+	if (info->port.flags & ASYNC_INITIALIZED)
 		goto errout;
-	}
 
 	if (!info->type) {
 		set_bit(TTY_IO_ERROR, &tty->flags);
-		free_page(page);
 		goto errout;
 	}
 
@@ -1329,9 +1326,9 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 	cy_set_line_char(info, tty);
 
 	if (!cy_is_Z(card)) {
-		chip = channel >> 2;
+		int chip = channel >> 2;
+		int index = card->bus_index;
 		channel &= 0x03;
-		index = card->bus_index;
 		base_addr = card->base_addr + (cy_chip_offset[chip] << index);
 
 #ifdef CY_DEBUG_OPEN
@@ -1354,18 +1351,6 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 
 		cy_writeb(base_addr + (CySRER << index),
 			readb(base_addr + (CySRER << index)) | CyRxData);
-		info->port.flags |= ASYNC_INITIALIZED;
-
-		clear_bit(TTY_IO_ERROR, &tty->flags);
-		info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
-		info->breakon = info->breakoff = 0;
-		memset((char *)&info->idle_stats, 0, sizeof(info->idle_stats));
-		info->idle_stats.in_use =
-		info->idle_stats.recv_idle =
-		info->idle_stats.xmit_idle = jiffies;
-
-		spin_unlock_irqrestore(&card->card_lock, flags);
-
 	} else {
 		struct CH_CTRL __iomem *ch_ctrl = info->u.cyz.ch_ctrl;
 
@@ -1416,18 +1401,19 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 		tty_port_raise_dtr_rts(&info->port);
 
 		/* enable send, recv, modem !!! */
-
-		info->port.flags |= ASYNC_INITIALIZED;
-		clear_bit(TTY_IO_ERROR, &tty->flags);
-		info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
-		info->breakon = info->breakoff = 0;
-		memset((char *)&info->idle_stats, 0, sizeof(info->idle_stats));
-		info->idle_stats.in_use =
-		info->idle_stats.recv_idle =
-		info->idle_stats.xmit_idle = jiffies;
-
-		spin_unlock_irqrestore(&card->card_lock, flags);
 	}
+
+	info->port.flags |= ASYNC_INITIALIZED;
+
+	clear_bit(TTY_IO_ERROR, &tty->flags);
+	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
+	info->breakon = info->breakoff = 0;
+	memset((char *)&info->idle_stats, 0, sizeof(info->idle_stats));
+	info->idle_stats.in_use =
+	info->idle_stats.recv_idle =
+	info->idle_stats.xmit_idle = jiffies;
+
+	spin_unlock_irqrestore(&card->card_lock, flags);
 
 #ifdef CY_DEBUG_OPEN
 	printk(KERN_DEBUG "cyc startup done\n");
@@ -1436,6 +1422,7 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 
 errout:
 	spin_unlock_irqrestore(&card->card_lock, flags);
+	free_page(page);
 	return retval;
 }				/* startup */
 
