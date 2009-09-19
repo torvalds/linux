@@ -1333,7 +1333,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	tty_ldisc_flush(tty);
 
 	tty->closing = 0;
-	port->tty = NULL;
+	tty_port_tty_set(port, NULL);
 
 	if (port->blocked_open) {
 		if (port->close_delay)
@@ -1431,7 +1431,7 @@ static void uart_hangup(struct tty_struct *tty)
 		uart_shutdown(state);
 		port->count = 0;
 		clear_bit(ASYNCB_NORMAL_ACTIVE, &port->flags);
-		port->tty = NULL;
+		tty_port_tty_set(port, NULL);
 		wake_up_interruptible(&port->open_wait);
 		wake_up_interruptible(&port->delta_msr_wait);
 	}
@@ -1639,7 +1639,7 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	state->uart_port->state = state;
 	tty->low_latency = (state->uart_port->flags & UPF_LOW_LATENCY) ? 1 : 0;
 	tty->alt_speed = 0;
-	port->tty = tty;
+	tty_port_tty_set(port, tty);
 
 	/*
 	 * If the port is in the middle of closing, bail out now.
