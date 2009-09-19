@@ -129,6 +129,8 @@ static int gl860_build_control_table(struct gspca_dev *gspca_dev)
 		sd_ctrls = sd_ctrls_ov2640;
 	else if (_OV9655_)
 		sd_ctrls = sd_ctrls_ov9655;
+	else
+		return 0;
 
 	memset(sd_ctrls, 0, GL860_NCTRLS * sizeof(struct ctrl));
 
