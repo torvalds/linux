@@ -383,13 +383,10 @@ static int clip_to_modet_map(struct go7007 *go, int region,
 	}
 	return 0;
 }
+#endif
 
-static int mpeg_queryctrl(u32 id, struct v4l2_queryctrl *ctrl)
+static int mpeg_queryctrl(struct v4l2_queryctrl *ctrl)
 {
-	static const u32 user_ctrls[] = {
-		V4L2_CID_USER_CLASS,
-		0
-	};
 	static const u32 mpeg_ctrls[] = {
 		V4L2_CID_MPEG_CLASS,
 		V4L2_CID_MPEG_STREAM_TYPE,
@@ -401,26 +398,15 @@ static int mpeg_queryctrl(u32 id, struct v4l2_queryctrl *ctrl)
 		0
 	};
 	static const u32 *ctrl_classes[] = {
-		user_ctrls,
 		mpeg_ctrls,
 		NULL
 	};
 
-	/* The ctrl may already contain the queried i2c controls,
-	 * query the mpeg controls if the existing ctrl id is
-	 * greater than the next mpeg ctrl id.
-	 */
-	id = v4l2_ctrl_next(ctrl_classes, id);
-	if (id >= ctrl->id && ctrl->name[0])
-		return 0;
-
-	memset(ctrl, 0, sizeof(*ctrl));
-	ctrl->id = id;
+	ctrl->id = v4l2_ctrl_next(ctrl_classes, ctrl->id);
 
 	switch (ctrl->id) {
-	case V4L2_CID_USER_CLASS:
 	case V4L2_CID_MPEG_CLASS:
-		return v4l2_ctrl_query_fill_std(ctrl);
+		return v4l2_ctrl_query_fill(ctrl, 0, 0, 0, 0);
 	case V4L2_CID_MPEG_STREAM_TYPE:
 		return v4l2_ctrl_query_fill(ctrl,
 				V4L2_MPEG_STREAM_TYPE_MPEG2_DVD,
@@ -437,20 +423,21 @@ static int mpeg_queryctrl(u32 id, struct v4l2_queryctrl *ctrl)
 				V4L2_MPEG_VIDEO_ASPECT_16x9, 1,
 				V4L2_MPEG_VIDEO_ASPECT_1x1);
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+		return v4l2_ctrl_query_fill(ctrl, 0, 34, 1, 15);
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
-		return v4l2_ctrl_query_fill_std(ctrl);
+		return v4l2_ctrl_query_fill(ctrl, 0, 1, 1, 0);
 	case V4L2_CID_MPEG_VIDEO_BITRATE:
 		return v4l2_ctrl_query_fill(ctrl,
 				64000,
 				10000000, 1,
-				9800000);
+				1500000);
 	default:
-		break;
+		return -EINVAL;
 	}
-	return -EINVAL;
+	return 0;
 }
 
-static int mpeg_s_control(struct v4l2_control *ctrl, struct go7007 *go)
+static int mpeg_s_ctrl(struct v4l2_control *ctrl, struct go7007 *go)
 {
 	/* pretty sure we can't change any of these while streaming */
 	if (go->streaming)
@@ -528,6 +515,8 @@ static int mpeg_s_control(struct v4l2_control *ctrl, struct go7007 *go)
 		}
 		break;
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+		if (ctrl->value < 0 || ctrl->value > 34)
+			return -EINVAL;
 		go->gop_size = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
@@ -547,7 +536,7 @@ static int mpeg_s_control(struct v4l2_control *ctrl, struct go7007 *go)
 	return 0;
 }
 
-static int mpeg_g_control(struct v4l2_control *ctrl, struct go7007 *go)
+static int mpeg_g_ctrl(struct v4l2_control *ctrl, struct go7007 *go)
 {
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_STREAM_TYPE:
@@ -600,7 +589,6 @@ static int mpeg_g_control(struct v4l2_control *ctrl, struct go7007 *go)
 	}
 	return 0;
 }
-#endif
 
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
@@ -996,7 +984,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 
 	i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, query);
 
-	return (!query->name[0]) ? -EINVAL : 0;
+	return (!query->name[0]) ? mpeg_queryctrl(query) : 0;
 }
 
 static int vidioc_g_ctrl(struct file *file, void *priv,
@@ -1013,7 +1001,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	query.id = ctrl->id;
 	i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, &query);
 	if (query.name[0] == 0)
-		return -EINVAL;
+		return mpeg_g_ctrl(ctrl, go);
 	i2c_clients_command(&go->i2c_adapter, VIDIOC_G_CTRL, ctrl);
 
 	return 0;
@@ -1033,7 +1021,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	query.id = ctrl->id;
 	i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, &query);
 	if (query.name[0] == 0)
-		return -EINVAL;
+		return mpeg_s_ctrl(ctrl, go);
 	i2c_clients_command(&go->i2c_adapter, VIDIOC_S_CTRL, ctrl);
 
 	return 0;
