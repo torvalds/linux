@@ -1750,24 +1750,15 @@ static void cy_flush_buffer(struct tty_struct *tty)
 }				/* cy_flush_buffer */
 
 
-/*
- * This routine is called when a particular tty device is closed.
- */
-static void cy_close(struct tty_struct *tty, struct file *filp)
+static void cy_do_close(struct tty_port *port)
 {
-	struct cyclades_port *info = tty->driver_data;
+	struct cyclades_port *info = container_of(port, struct cyclades_port,
+								port);
 	struct cyclades_card *card;
 	unsigned long flags;
 	int channel;
 
-	if (!info || serial_paranoia_check(info, tty->name, "cy_close"))
-		return;
-
 	card = info->card;
-
-	if (!tty_port_close_start(&info->port, tty, filp))
-		return;
-
 	channel = info->line - card->first_line;
 	spin_lock_irqsave(&card->card_lock, flags);
 
@@ -1779,7 +1770,7 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 			/* Waiting for on-board buffers to be empty before
 			   closing the port */
 			spin_unlock_irqrestore(&card->card_lock, flags);
-			cy_wait_until_sent(tty, info->timeout);
+			cy_wait_until_sent(port->tty, info->timeout);
 			spin_lock_irqsave(&card->card_lock, flags);
 		}
 	} else {
@@ -1801,14 +1792,19 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 		}
 #endif
 	}
-
 	spin_unlock_irqrestore(&card->card_lock, flags);
-	cy_shutdown(info, tty);
-	cy_flush_buffer(tty);
+	cy_shutdown(info, port->tty);
+}
 
-	tty_port_tty_set(&info->port, NULL);
-
-	tty_port_close_end(&info->port, tty);
+/*
+ * This routine is called when a particular tty device is closed.
+ */
+static void cy_close(struct tty_struct *tty, struct file *filp)
+{
+	struct cyclades_port *info = tty->driver_data;
+	if (!info || serial_paranoia_check(info, tty->name, "cy_close"))
+		return;
+	tty_port_close(&info->port, tty, filp);
 }				/* cy_close */
 
 /* This routine gets called when tty_write has put something into
@@ -3113,11 +3109,13 @@ static void cyz_dtr_rts(struct tty_port *port, int raise)
 static const struct tty_port_operations cyy_port_ops = {
 	.carrier_raised = cyy_carrier_raised,
 	.dtr_rts = cyy_dtr_rts,
+	.shutdown = cy_do_close,
 };
 
 static const struct tty_port_operations cyz_port_ops = {
 	.carrier_raised = cyz_carrier_raised,
 	.dtr_rts = cyz_dtr_rts,
+	.shutdown = cy_do_close,
 };
 
 /*
