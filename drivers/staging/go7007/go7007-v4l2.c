@@ -593,8 +593,7 @@ static int mpeg_g_ctrl(struct v4l2_control *ctrl, struct go7007 *go)
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	strlcpy(cap->driver, "go7007", sizeof(cap->driver));
 	strlcpy(cap->card, go->name, sizeof(cap->card));
@@ -641,8 +640,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *fmt)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	fmt->fmt.pix.width = go->width;
@@ -660,8 +658,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *fmt)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	return set_capture_size(go, fmt, 1);
 }
@@ -669,8 +666,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *fmt)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (go->streaming)
 		return -EBUSY;
@@ -976,8 +972,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 static int vidioc_queryctrl(struct file *file, void *priv,
 			   struct v4l2_queryctrl *query)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (!go->i2c_adapter_online)
 		return -EIO;
@@ -990,8 +985,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 static int vidioc_g_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 	struct v4l2_queryctrl query;
 
 	if (!go->i2c_adapter_online)
@@ -1010,8 +1004,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 	struct v4l2_queryctrl query;
 
 	if (!go->i2c_adapter_online)
@@ -1030,8 +1023,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 static int vidioc_g_parm(struct file *filp, void *priv,
 		struct v4l2_streamparm *parm)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 	struct v4l2_fract timeperframe = {
 		.numerator = 1001 *  go->fps_scale,
 		.denominator = go->sensor_framerate,
@@ -1049,8 +1041,7 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 static int vidioc_s_parm(struct file *filp, void *priv,
 		struct v4l2_streamparm *parm)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 	unsigned int n, d;
 
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1082,8 +1073,7 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 static int vidioc_enum_framesizes(struct file *filp, void *priv,
 				  struct v4l2_frmsizeenum *fsize)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	/* Return -EINVAL, if it is a TV board */
 	if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) ||
@@ -1103,8 +1093,7 @@ static int vidioc_enum_framesizes(struct file *filp, void *priv,
 static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 				      struct v4l2_frmivalenum *fival)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	/* Return -EINVAL, if it is a TV board */
 	if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) ||
@@ -1123,8 +1112,7 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (go->streaming)
 		return -EBUSY;
@@ -1188,8 +1176,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 static int vidioc_enum_input(struct file *file, void *priv,
 				struct v4l2_input *inp)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (inp->index >= go->board_info->num_inputs)
 		return -EINVAL;
@@ -1218,8 +1205,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *input)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	*input = go->input;
 
@@ -1228,8 +1214,7 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *input)
 
 static int vidioc_s_input(struct file *file, void *priv, unsigned int input)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (input >= go->board_info->num_inputs)
 		return -EINVAL;
@@ -1250,8 +1235,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int input)
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *t)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
 		return -EINVAL;
@@ -1269,8 +1253,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 static int vidioc_s_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *t)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
 		return -EINVAL;
@@ -1296,8 +1279,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
 		return -EINVAL;
@@ -1312,8 +1294,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
 		return -EINVAL;
@@ -1328,8 +1309,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 static int vidioc_cropcap(struct file *file, void *priv,
 					struct v4l2_cropcap *cropcap)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1373,8 +1353,7 @@ static int vidioc_cropcap(struct file *file, void *priv,
 
 static int vidioc_g_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 {
-	struct go7007_file *gofh = priv;
-	struct go7007 *go = gofh->go;
+	struct go7007 *go = ((struct go7007_file *) priv)->go;
 
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
