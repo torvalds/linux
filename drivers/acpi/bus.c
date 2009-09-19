@@ -38,6 +38,7 @@
 #include <linux/pci.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <linux/dmi.h>
 
 #include "internal.h"
 
