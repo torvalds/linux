@@ -1086,10 +1086,41 @@ done:
 	return rc;
 }
 
-static const char * const report_usage[] = {
-	"perf report [<options>] <command>",
+static const char * const timechart_usage[] = {
+	"perf timechart [<options>] {record}",
 	NULL
 };
+
+static const char *record_args[] = {
+	"record",
+	"-a",
+	"-R",
+	"-M",
+	"-f",
+	"-c", "1",
+	"-e", "power:power_start",
+	"-e", "power:power_end",
+	"-e", "power:power_frequency",
+	"-e", "sched:sched_wakeup",
+	"-e", "sched:sched_switch",
+};
+
+static int __cmd_record(int argc, const char **argv)
+{
+	unsigned int rec_argc, i, j;
+	const char **rec_argv;
+
+	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
+	rec_argv = calloc(rec_argc + 1, sizeof(char *));
+
+	for (i = 0; i < ARRAY_SIZE(record_args); i++)
+		rec_argv[i] = strdup(record_args[i]);
+
+	for (j = 1; j < (unsigned int)argc; j++, i++)
+		rec_argv[i] = argv[j];
+
+	return cmd_record(i, rec_argv, NULL);
+}
 
 static const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
@@ -1106,13 +1137,13 @@ int cmd_timechart(int argc, const char **argv, const char *prefix __used)
 
 	page_size = getpagesize();
 
-	argc = parse_options(argc, argv, options, report_usage, 0);
+	argc = parse_options(argc, argv, options, timechart_usage,
+			PARSE_OPT_STOP_AT_NON_OPTION);
 
-	/*
-	 * Any (unrecognized) arguments left?
-	 */
-	if (argc)
-		usage_with_options(report_usage, options);
+	if (argc && !strncmp(argv[0], "rec", 3))
+		return __cmd_record(argc, argv);
+	else if (argc)
+		usage_with_options(timechart_usage, options);
 
 	setup_pager();
 
