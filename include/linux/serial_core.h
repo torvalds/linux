@@ -337,18 +337,7 @@ struct uart_port {
 };
 
 /*
- * This is the state information which is only valid when the port
- * is open; it may be cleared the core driver once the device has
- * been closed.  Either the low level driver or the core can modify
- * stuff here.
- */
-typedef unsigned int __bitwise__ uif_t;
-
-
-/*
  * This is the state information which is persistent across opens.
- * The low level driver must not to touch any elements contained
- * within.
  */
 struct uart_state {
 	struct tty_port		port;
