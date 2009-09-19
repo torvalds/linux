@@ -252,7 +252,6 @@ static void notify_update(struct vc_data *vc)
 	struct vt_notifier_param param = { .vc = vc };
 	atomic_notifier_call_chain(&vt_notifier_list, VT_UPDATE, &param);
 }
-
 /*
  *	Low-Level Functions
  */
@@ -935,6 +934,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 
 	if (CON_IS_VISIBLE(vc))
 		update_screen(vc);
+	vt_event_post(VT_EVENT_RESIZE, vc->vc_num, vc->vc_num);
 	return err;
 }
 
@@ -3637,6 +3637,7 @@ void do_blank_screen(int entering_gfx)
 		blank_state = blank_vesa_wait;
 		mod_timer(&console_timer, jiffies + vesa_off_interval);
 	}
+	vt_event_post(VT_EVENT_BLANK, vc->vc_num, vc->vc_num);
 }
 EXPORT_SYMBOL(do_blank_screen);
 
@@ -3681,6 +3682,7 @@ void do_unblank_screen(int leaving_gfx)
 		console_blank_hook(0);
 	set_palette(vc);
 	set_cursor(vc);
+	vt_event_post(VT_EVENT_UNBLANK, vc->vc_num, vc->vc_num);
 }
 EXPORT_SYMBOL(do_unblank_screen);
 
