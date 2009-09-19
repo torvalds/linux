@@ -389,7 +389,7 @@ static unsigned detect_isa_irq(void __iomem *address)
 
 	irqs = probe_irq_on();
 	/* Wait ... */
-	udelay(5000L);
+	msleep(5);
 
 	/* Enable the Tx interrupts on the CD1400 */
 	local_irq_save(flags);
@@ -402,7 +402,7 @@ static unsigned detect_isa_irq(void __iomem *address)
 	local_irq_restore(flags);
 
 	/* Wait ... */
-	udelay(5000L);
+	msleep(5);
 
 	/* Check which interrupt is in use */
 	irq = probe_irq_off(irqs);
