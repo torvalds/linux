@@ -2057,6 +2057,8 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 	channel = info->line - card->first_line;
 
 	if (!cy_is_Z(card)) {
+		u32 cflags;
+
 		/* baud rate */
 		baud = tty_get_baud_rate(tty);
 		if (baud == 38400 && (info->port.flags & ASYNC_SPD_MASK) ==
@@ -2198,37 +2200,18 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 			(info->default_timeout ? info->default_timeout : 0x02));
 		/* 10ms rx timeout */
 
-		if (C_CLOCAL(tty)) {
-			/* without modem intr */
-			cyy_writeb(info, CySRER,
-					cyy_readb(info, CySRER) | CyMdmCh);
-			/* act on 1->0 modem transitions */
-			if ((cflag & CRTSCTS) && info->rflow) {
-				cyy_writeb(info, CyMCOR1,
-					  (CyCTS | rflow_thr[i]));
-			} else {
-				cyy_writeb(info, CyMCOR1,
-					  CyCTS);
-			}
-			/* act on 0->1 modem transitions */
-			cyy_writeb(info, CyMCOR2, CyCTS);
-		} else {
-			/* without modem intr */
-			cyy_writeb(info, CySRER,
-					cyy_readb(info, CySRER) | CyMdmCh);
-			/* act on 1->0 modem transitions */
-			if ((cflag & CRTSCTS) && info->rflow) {
-				cyy_writeb(info, CyMCOR1,
-					  (CyDSR | CyCTS | CyRI | CyDCD |
-					   rflow_thr[i]));
-			} else {
-				cyy_writeb(info, CyMCOR1,
-						CyDSR | CyCTS | CyRI | CyDCD);
-			}
-			/* act on 0->1 modem transitions */
-			cyy_writeb(info, CyMCOR2,
-					CyDSR | CyCTS | CyRI | CyDCD);
-		}
+		cflags = CyCTS;
+		if (!C_CLOCAL(tty))
+			cflags |= CyDSR | CyRI | CyDCD;
+		/* without modem intr */
+		cyy_writeb(info, CySRER, cyy_readb(info, CySRER) | CyMdmCh);
+		/* act on 1->0 modem transitions */
+		if ((cflag & CRTSCTS) && info->rflow)
+			cyy_writeb(info, CyMCOR1, cflags | rflow_thr[i]);
+		else
+			cyy_writeb(info, CyMCOR1, cflags);
+		/* act on 0->1 modem transitions */
+		cyy_writeb(info, CyMCOR2, cflags);
 
 		if (i == 0)	/* baud rate is zero, turn off line */
 			cyy_change_rts_dtr(info, 0, TIOCM_DTR);
