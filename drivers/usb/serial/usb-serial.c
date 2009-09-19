@@ -1161,10 +1161,7 @@ void usb_serial_disconnect(struct usb_interface *interface)
 		if (port) {
 			struct tty_struct *tty = tty_port_tty_get(&port->port);
 			if (tty) {
-				/* The hangup will occur asynchronously but
-				   the object refcounts will sort out all the
-				   cleanup */
-				tty_hangup(tty);
+				tty_vhangup(tty);
 				tty_kref_put(tty);
 			}
 			kill_traffic(port);
