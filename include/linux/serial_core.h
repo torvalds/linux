@@ -20,6 +20,8 @@
 #ifndef LINUX_SERIAL_CORE_H
 #define LINUX_SERIAL_CORE_H
 
+#include <linux/serial.h>
+
 /*
  * The type definitions.  These are from Ted Ts'o's serial.h
  */
@@ -356,19 +358,6 @@ struct uart_state {
 
 	int			pm_state;
 	struct circ_buf		xmit;
-	uif_t			flags;
-
-/*
- * Definitions for info->flags.  These are _private_ to serial_core, and
- * are specific to this structure.  They may be queried by low level drivers.
- *
- * FIXME: use the ASY_ definitions
- */
-#define UIF_CHECK_CD		((__force uif_t) (1 << 25))
-#define UIF_CTS_FLOW		((__force uif_t) (1 << 26))
-#define UIF_NORMAL_ACTIVE	((__force uif_t) (1 << 29))
-#define UIF_INITIALIZED		((__force uif_t) (1 << 31))
-#define UIF_SUSPENDED		((__force uif_t) (1 << 30))
 
 	struct tasklet_struct	tlet;
 	wait_queue_head_t	delta_msr_wait;
@@ -509,22 +498,23 @@ static inline int uart_handle_break(struct uart_port *port)
  *	@status: new carrier detect status, nonzero if active
  */
 static inline void
-uart_handle_dcd_change(struct uart_port *port, unsigned int status)
+uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 {
-	struct uart_state *state = port->state;
+	struct uart_state *state = uport->state;
+	struct tty_port *port = &state->port;
 
-	port->icount.dcd++;
+	uport->icount.dcd++;
 
 #ifdef CONFIG_HARD_PPS
-	if ((port->flags & UPF_HARDPPS_CD) && status)
+	if ((uport->flags & UPF_HARDPPS_CD) && status)
 		hardpps();
 #endif
 
-	if (state->flags & UIF_CHECK_CD) {
+	if (port->flags & ASYNC_CHECK_CD) {
 		if (status)
-			wake_up_interruptible(&state->port.open_wait);
-		else if (state->port.tty)
-			tty_hangup(state->port.tty);
+			wake_up_interruptible(&port->open_wait);
+		else if (port->tty)
+			tty_hangup(port->tty);
 	}
 }
 
@@ -534,24 +524,24 @@ uart_handle_dcd_change(struct uart_port *port, unsigned int status)
  *	@status: new clear to send status, nonzero if active
  */
 static inline void
-uart_handle_cts_change(struct uart_port *port, unsigned int status)
+uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 {
-	struct uart_state *state = port->state;
-	struct tty_struct *tty = state->port.tty;
+	struct tty_port *port = &uport->state->port;
+	struct tty_struct *tty = port->tty;
 
-	port->icount.cts++;
+	uport->icount.cts++;
 
-	if (state->flags & UIF_CTS_FLOW) {
+	if (port->flags & ASYNC_CTS_FLOW) {
 		if (tty->hw_stopped) {
 			if (status) {
 				tty->hw_stopped = 0;
-				port->ops->start_tx(port);
-				uart_write_wakeup(port);
+				uport->ops->start_tx(uport);
+				uart_write_wakeup(uport);
 			}
 		} else {
 			if (!status) {
 				tty->hw_stopped = 1;
-				port->ops->stop_tx(port);
+				uport->ops->stop_tx(uport);
 			}
 		}
 	}
