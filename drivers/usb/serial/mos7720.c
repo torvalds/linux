@@ -378,10 +378,14 @@ static int mos7720_open(struct tty_struct *tty,
 	 /* Initialize MCS7720 -- Write Init values to corresponding Registers
 	  *
 	  * Register Index
+	  * 0 : THR/RHR
 	  * 1 : IER
 	  * 2 : FCR
 	  * 3 : LCR
 	  * 4 : MCR
+	  * 5 : LSR
+	  * 6 : MSR
+	  * 7 : SPR
 	  *
 	  * 0x08 : SP1/2 Control Reg
 	  */
@@ -1250,15 +1254,22 @@ static void mos7720_set_termios(struct tty_struct *tty,
 static int get_lsr_info(struct tty_struct *tty,
 		struct moschip_port *mos7720_port, unsigned int __user *value)
 {
-	int count;
+	struct usb_serial_port *port = tty->driver_data;
 	unsigned int result = 0;
+	unsigned char data = 0;
+	int port_number = port->number - port->serial->minor;
+	int count;
 
 	count = mos7720_chars_in_buffer(tty);
 	if (count == 0) {
-		dbg("%s -- Empty", __func__);
-		result = TIOCSER_TEMT;
+		send_mos_cmd(port->serial, MOS_READ, port_number,
+							UART_LSR, &data);
+		if ((data & (UART_LSR_TEMT | UART_LSR_THRE))
+					== (UART_LSR_TEMT | UART_LSR_THRE)) {
+			dbg("%s -- Empty", __func__);
+			result = TIOCSER_TEMT;
+		}
 	}
-
 	if (copy_to_user(value, &result, sizeof(int)))
 		return -EFAULT;
 	return 0;
