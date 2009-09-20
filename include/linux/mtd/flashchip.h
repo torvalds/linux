@@ -38,6 +38,13 @@ typedef enum {
 	FL_XIP_WHILE_ERASING,
 	FL_XIP_WHILE_WRITING,
 	FL_SHUTDOWN,
+	/* These 2 come from nand_state_t, which has been unified here */
+	FL_READING,
+	FL_CACHEDPRG,
+	/* These 2 come from onenand_state_t, which has been unified here */
+	FL_RESETING,
+	FL_OTPING,
+
 	FL_UNKNOWN
 } flstate_t;
 

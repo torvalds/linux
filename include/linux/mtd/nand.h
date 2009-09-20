@@ -21,6 +21,7 @@
 #include <linux/wait.h>
 #include <linux/spinlock.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/flashchip.h>
 #include <linux/mtd/bbm.h>
 
 struct mtd_info;
@@ -202,20 +203,6 @@ typedef enum {
 /* Cell info constants */
 #define NAND_CI_CHIPNR_MSK	0x03
 #define NAND_CI_CELLTYPE_MSK	0x0C
-
-/*
- * nand_state_t - chip states
- * Enumeration for NAND flash chip state
- */
-typedef enum {
-	FL_READY,
-	FL_READING,
-	FL_WRITING,
-	FL_ERASING,
-	FL_SYNCING,
-	FL_CACHEDPRG,
-	FL_PM_SUSPENDED,
-} nand_state_t;
 
 /* Keep gcc happy */
 struct nand_chip;
@@ -403,7 +390,7 @@ struct nand_chip {
 	uint8_t		cellinfo;
 	int		badblockpos;
 
-	nand_state_t	state;
+	flstate_t	state;
 
 	uint8_t		*oob_poi;
 	struct nand_hw_control  *controller;
