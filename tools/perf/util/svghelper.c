@@ -69,7 +69,8 @@ void open_svg(const char *filename, int cpus, int rows)
 	fprintf(svgfile, "      rect.process2 { fill:rgb(180,180,180); fill-opacity:0.9; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.sample   { fill:rgb(  0,  0,255); fill-opacity:0.8; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.blocked  { fill:rgb(255,  0,  0); fill-opacity:0.5; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
-	fprintf(svgfile, "      rect.waiting  { fill:rgb(255,255,  0); fill-opacity:0.3; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
+	fprintf(svgfile, "      rect.waiting  { fill:rgb(214,214,  0); fill-opacity:0.3; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
+	fprintf(svgfile, "      rect.WAITING  { fill:rgb(255,214, 48); fill-opacity:0.6; stroke-width:0;   stroke:rgb(  0,  0,  0); } \n");
 	fprintf(svgfile, "      rect.cpu      { fill:rgb(192,192,192); fill-opacity:0.2; stroke-width:0.5; stroke:rgb(128,128,128); } \n");
 	fprintf(svgfile, "      rect.pstate   { fill:rgb(128,128,128); fill-opacity:0.8; stroke-width:0; } \n");
 	fprintf(svgfile, "      rect.c1       { fill:rgb(255,214,214); fill-opacity:0.5; stroke-width:0; } \n");
@@ -92,14 +93,14 @@ void svg_box(int Yslot, u64 start, u64 end, const char *type)
 		time2pixels(start), time2pixels(end)-time2pixels(start), Yslot * SLOT_MULT, SLOT_HEIGHT, type);
 }
 
-void svg_sample(int Yslot, int cpu, u64 start, u64 end, const char *type)
+void svg_sample(int Yslot, int cpu, u64 start, u64 end)
 {
 	double text_size;
 	if (!svgfile)
 		return;
 
-	fprintf(svgfile, "<rect x=\"%4.8f\" width=\"%4.8f\" y=\"%4.1f\" height=\"%4.1f\" class=\"%s\"/>\n",
-		time2pixels(start), time2pixels(end)-time2pixels(start), Yslot * SLOT_MULT, SLOT_HEIGHT, type);
+	fprintf(svgfile, "<rect x=\"%4.8f\" width=\"%4.8f\" y=\"%4.1f\" height=\"%4.1f\" class=\"sample\"/>\n",
+		time2pixels(start), time2pixels(end)-time2pixels(start), Yslot * SLOT_MULT, SLOT_HEIGHT);
 
 	text_size = (time2pixels(end)-time2pixels(start));
 	if (cpu > 9)
@@ -110,6 +111,53 @@ void svg_sample(int Yslot, int cpu, u64 start, u64 end, const char *type)
 		fprintf(svgfile, "<text transform=\"translate(%1.8f,%1.8f)\" font-size=\"%1.6fpt\">%i</text>\n",
 			time2pixels(start), Yslot *  SLOT_MULT + SLOT_HEIGHT - 1, text_size,  cpu + 1);
 
+}
+
+static char *time_to_string(u64 duration)
+{
+	static char text[80];
+
+	text[0] = 0;
+
+	if (duration < 1000) /* less than 1 usec */
+		return text;
+
+	if (duration < 1000 * 1000) { /* less than 1 msec */
+		sprintf(text, "%4.1f us", duration / 1000.0);
+		return text;
+	}
+	sprintf(text, "%4.1f ms", duration / 1000.0 / 1000);
+
+	return text;
+}
+
+void svg_waiting(int Yslot, u64 start, u64 end)
+{
+	char *text;
+	const char *style;
+	double font_size;
+
+	if (!svgfile)
+		return;
+
+	style = "waiting";
+
+	if (end-start > 10 * 1000000) /* 10 msec */
+		style = "WAITING";
+
+	text = time_to_string(end-start);
+
+	font_size = 1.0 * (time2pixels(end)-time2pixels(start)) / strlen(text);
+
+	if (font_size > 0.2)
+		font_size = 0.2;
+
+
+	fprintf(svgfile, "<rect x=\"%4.8f\" width=\"%4.8f\" y=\"%4.1f\" height=\"%4.1f\" class=\"%s\"/>\n",
+		time2pixels(start), time2pixels(end)-time2pixels(start), Yslot * SLOT_MULT, SLOT_HEIGHT, style);
+	if (font_size > MIN_TEXT_SIZE)
+		fprintf(svgfile, "<text transform=\"translate(%1.8f,%1.8f)\" font-size=\"%1.6fpt\">%s</text>\n",
+			time2pixels(start), Yslot * SLOT_MULT + 2, font_size, text);
 }
 
 static char *cpu_model(void)

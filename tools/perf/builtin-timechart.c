@@ -827,15 +827,15 @@ static void draw_process_bars(void)
 				continue;
 			}
 
-			svg_box(Y, p->start_time, p->end_time, "process");
+			svg_box(Y, c->start_time, c->end_time, "process");
 			sample = c->samples;
 			while (sample) {
 				if (sample->type == TYPE_RUNNING)
-					svg_sample(Y, sample->cpu, sample->start_time, sample->end_time, "sample");
+					svg_sample(Y, sample->cpu, sample->start_time, sample->end_time);
 				if (sample->type == TYPE_BLOCKED)
 					svg_box(Y, sample->start_time, sample->end_time, "blocked");
 				if (sample->type == TYPE_WAITING)
-					svg_box(Y, sample->start_time, sample->end_time, "waiting");
+					svg_waiting(Y, sample->start_time, sample->end_time);
 				sample = sample->next;
 			}
 
