@@ -2078,27 +2078,14 @@ i915_gem_evict_everything(struct drm_device *dev)
 	int ret;
 	bool lists_empty;
 
-	DRM_INFO("GTT full, evicting everything: "
-		 "%d objects [%d pinned], "
-		 "%d object bytes [%d pinned], "
-		 "%d/%d gtt bytes\n",
-		 atomic_read(&dev->object_count),
-		 atomic_read(&dev->pin_count),
-		 atomic_read(&dev->object_memory),
-		 atomic_read(&dev->pin_memory),
-		 atomic_read(&dev->gtt_memory),
-		 dev->gtt_total);
-
 	spin_lock(&dev_priv->mm.active_list_lock);
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
 		       list_empty(&dev_priv->mm.flushing_list) &&
 		       list_empty(&dev_priv->mm.active_list));
 	spin_unlock(&dev_priv->mm.active_list_lock);
 
-	if (lists_empty) {
-		DRM_ERROR("GTT full, but lists empty!\n");
+	if (lists_empty)
 		return -ENOSPC;
-	}
 
 	/* Flush everything (on to the inactive lists) and evict */
 	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
@@ -2209,10 +2196,9 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 		 * large enough to swap out for the new one, so just evict
 		 * everything and start again. (This should be rare.)
 		 */
-		if (!list_empty (&dev_priv->mm.inactive_list)) {
-			DRM_INFO("GTT full, evicting inactive buffers\n");
+		if (!list_empty (&dev_priv->mm.inactive_list))
 			return i915_gem_evict_from_inactive_list(dev);
-		} else
+		else
 			return i915_gem_evict_everything(dev);
 	}
 }
@@ -2237,7 +2223,6 @@ i915_gem_object_get_pages(struct drm_gem_object *obj)
 	BUG_ON(obj_priv->pages != NULL);
 	obj_priv->pages = drm_calloc_large(page_count, sizeof(struct page *));
 	if (obj_priv->pages == NULL) {
-		DRM_ERROR("Failed to allocate page list\n");
 		obj_priv->pages_refcount--;
 		return -ENOMEM;
 	}
@@ -2605,11 +2590,9 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		DRM_INFO("%s: GTT full, evicting something\n", __func__);
 #endif
 		ret = i915_gem_evict_something(dev, obj->size);
-		if (ret != 0) {
-			if (ret != -ERESTARTSYS)
-				DRM_ERROR("Failed to evict a buffer %d\n", ret);
+		if (ret)
 			return ret;
-		}
+
 		goto search_free;
 	}
 
@@ -2634,9 +2617,6 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 			/* first try to clear up some space from the GTT */
 			ret = i915_gem_evict_something(dev, obj->size);
 			if (ret) {
-				if (ret != -ERESTARTSYS)
-					DRM_ERROR("Failed to allocate space for backing pages %d\n", ret);
-
 				/* now try to shrink everyone else */
 				if (! retry_alloc) {
 				    retry_alloc = true;
@@ -2666,11 +2646,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		obj_priv->gtt_space = NULL;
 
 		ret = i915_gem_evict_something(dev, obj->size);
-		if (ret) {
-			if (ret != -ERESTARTSYS)
-				DRM_ERROR("Failed to allocate space to bind AGP: %d\n", ret);
+		if (ret)
 			return ret;
-		}
 
 		goto search_free;
 	}
@@ -3870,11 +3847,8 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 	if (obj_priv->gtt_space == NULL) {
 		ret = i915_gem_object_bind_to_gtt(obj, alignment);
-		if (ret != 0) {
-			if (ret != -EBUSY && ret != -ERESTARTSYS)
-				DRM_ERROR("Failure to bind: %d\n", ret);
+		if (ret)
 			return ret;
-		}
 	}
 	/*
 	 * Pre-965 chips need a fence register set up in order to
