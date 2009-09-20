@@ -515,17 +515,30 @@ static int reserve_contiguous_params(int ctlr, unsigned int id,
 {
 	int i, j;
 	unsigned int count = num_params;
+	int stop_param = start_param;
+	DECLARE_BITMAP(tmp_inuse, EDMA_MAX_PARAMENTRY);
 
 	for (i = start_param; i < edma_info[ctlr]->num_slots; ++i) {
 		j = EDMA_CHAN_SLOT(i);
-		if (!test_and_set_bit(j, edma_info[ctlr]->edma_inuse))
+		if (!test_and_set_bit(j, edma_info[ctlr]->edma_inuse)) {
+			/* Record our current beginning slot */
+			if (count == num_params)
+				stop_param = i;
+
 			count--;
+			set_bit(j, tmp_inuse);
+
 			if (count == 0)
 				break;
-		else if (id == EDMA_CONT_PARAMS_FIXED_EXACT)
-			break;
-		else
-			count = num_params;
+		} else {
+			clear_bit(j, tmp_inuse);
+
+			if (id == EDMA_CONT_PARAMS_FIXED_EXACT) {
+				stop_param = i;
+				break;
+			} else
+				count = num_params;
+		}
 	}
 
 	/*
@@ -534,12 +547,15 @@ static int reserve_contiguous_params(int ctlr, unsigned int id,
 	 * of contiguous parameter RAMs but do not find the exact number
 	 * requested as we may reach the total number of parameter RAMs
 	 */
-	if (count) {
-		for (j = i - num_params + count + 1; j <= i ; ++j)
+	if (i == edma_info[ctlr]->num_slots)
+		stop_param = i;
+
+	for (j = start_param; j < stop_param; j++)
+		if (test_bit(j, tmp_inuse))
 			clear_bit(j, edma_info[ctlr]->edma_inuse);
 
+	if (count)
 		return -EBUSY;
-	}
 
 	for (j = i - num_params + 1; j <= i; ++j)
 		memcpy_toio(edmacc_regs_base[ctlr] + PARM_OFFSET(j),
