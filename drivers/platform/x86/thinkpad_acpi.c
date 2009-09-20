@@ -6010,8 +6010,10 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 					TPACPI_BACKLIGHT_DEV_NAME, NULL, NULL,
 					&ibm_backlight_data);
 	if (IS_ERR(ibm_backlight_device)) {
+		int rc = PTR_ERR(ibm_backlight_device);
+		ibm_backlight_device = NULL;
 		printk(TPACPI_ERR "Could not register backlight device\n");
-		return PTR_ERR(ibm_backlight_device);
+		return rc;
 	}
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
 			"brightness is supported\n");
