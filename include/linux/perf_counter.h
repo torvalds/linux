@@ -199,10 +199,14 @@ struct perf_counter_attr {
 				inherit_stat   :  1, /* per task counts       */
 				enable_on_exec :  1, /* next exec enables     */
 				task           :  1, /* trace fork/exit       */
+				watermark      :  1, /* wakeup_watermark      */
 
-				__reserved_1   : 50;
+				__reserved_1   : 49;
 
-	__u32			wakeup_events;	/* wakeup every n events */
+	union {
+		__u32		wakeup_events;	  /* wakeup every n events */
+		__u32		wakeup_watermark; /* bytes before wakeup   */
+	};
 	__u32			__reserved_2;
 
 	__u64			__reserved_3;
@@ -332,6 +336,7 @@ enum perf_event_type {
 	 *	struct perf_event_header	header;
 	 *	u32				pid, ppid;
 	 *	u32				tid, ptid;
+	 *	u64				time;
 	 * };
 	 */
 	PERF_EVENT_EXIT			= 4,
@@ -352,6 +357,7 @@ enum perf_event_type {
 	 *	struct perf_event_header	header;
 	 *	u32				pid, ppid;
 	 *	u32				tid, ptid;
+	 *	{ u64				time;     } && PERF_SAMPLE_TIME
 	 * };
 	 */
 	PERF_EVENT_FORK			= 7,
@@ -521,6 +527,8 @@ struct perf_mmap_data {
 	atomic_t			wakeup;		/* needs a wakeup    */
 	atomic_t			lost;		/* nr records lost   */
 
+	long				watermark;	/* wakeup watermark  */
+
 	struct perf_counter_mmap_page   *user_page;
 	void				*data_pages[0];
 };
@@ -685,6 +693,17 @@ struct perf_cpu_context {
 	int				recursion[4];
 };
 
+struct perf_output_handle {
+	struct perf_counter	*counter;
+	struct perf_mmap_data	*data;
+	unsigned long		head;
+	unsigned long		offset;
+	int			nmi;
+	int			sample;
+	int			locked;
+	unsigned long		flags;
+};
+
 #ifdef CONFIG_PERF_COUNTERS
 
 /*
@@ -716,16 +735,38 @@ extern int hw_perf_group_sched_in(struct perf_counter *group_leader,
 extern void perf_counter_update_userpage(struct perf_counter *counter);
 
 struct perf_sample_data {
-	struct pt_regs			*regs;
+	u64				type;
+
+	u64				ip;
+	struct {
+		u32	pid;
+		u32	tid;
+	}				tid_entry;
+	u64				time;
 	u64				addr;
+	u64				id;
+	u64				stream_id;
+	struct {
+		u32	cpu;
+		u32	reserved;
+	}				cpu_entry;
 	u64				period;
+	struct perf_callchain_entry	*callchain;
 	struct perf_raw_record		*raw;
 };
 
+extern void perf_output_sample(struct perf_output_handle *handle,
+			       struct perf_event_header *header,
+			       struct perf_sample_data *data,
+			       struct perf_counter *counter);
+extern void perf_prepare_sample(struct perf_event_header *header,
+				struct perf_sample_data *data,
+				struct perf_counter *counter,
+				struct pt_regs *regs);
+
 extern int perf_counter_overflow(struct perf_counter *counter, int nmi,
-				 struct perf_sample_data *data);
-extern void perf_counter_output(struct perf_counter *counter, int nmi,
-				struct perf_sample_data *data);
+				 struct perf_sample_data *data,
+				 struct pt_regs *regs);
 
 /*
  * Return 1 for a software counter, 0 for a hardware counter
@@ -775,6 +816,12 @@ extern void perf_tpcounter_event(int event_id, u64 addr, u64 count,
 #define perf_instruction_pointer(regs)	instruction_pointer(regs)
 #endif
 
+extern int perf_output_begin(struct perf_output_handle *handle,
+			     struct perf_counter *counter, unsigned int size,
+			     int nmi, int sample);
+extern void perf_output_end(struct perf_output_handle *handle);
+extern void perf_output_copy(struct perf_output_handle *handle,
+			     const void *buf, unsigned int len);
 #else
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
@@ -801,7 +848,28 @@ static inline void perf_counter_mmap(struct vm_area_struct *vma)	{ }
 static inline void perf_counter_comm(struct task_struct *tsk)		{ }
 static inline void perf_counter_fork(struct task_struct *tsk)		{ }
 static inline void perf_counter_init(void)				{ }
+
+static inline int
+perf_output_begin(struct perf_output_handle *handle, struct perf_counter *c,
+		  unsigned int size, int nmi, int sample)		{ }
+static inline void perf_output_end(struct perf_output_handle *handle)	{ }
+static inline void
+perf_output_copy(struct perf_output_handle *handle,
+		 const void *buf, unsigned int len)			{ }
+static inline void
+perf_output_sample(struct perf_output_handle *handle,
+		   struct perf_event_header *header,
+		   struct perf_sample_data *data,
+		   struct perf_counter *counter)			{ }
+static inline void
+perf_prepare_sample(struct perf_event_header *header,
+		    struct perf_sample_data *data,
+		    struct perf_counter *counter,
+		    struct pt_regs *regs)				{ }
 #endif
+
+#define perf_output_put(handle, x) \
+	perf_output_copy((handle), &(x), sizeof(x))
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_PERF_COUNTER_H */

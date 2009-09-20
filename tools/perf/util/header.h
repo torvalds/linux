@@ -19,6 +19,8 @@ struct perf_header {
 	s64 attr_offset;
 	u64 data_offset;
 	u64 data_size;
+	u64 event_offset;
+	u64 event_size;
 };
 
 struct perf_header *perf_header__read(int fd);
@@ -26,6 +28,10 @@ void perf_header__write(struct perf_header *self, int fd);
 
 void perf_header__add_attr(struct perf_header *self,
 			   struct perf_header_attr *attr);
+
+void perf_header__push_event(u64 id, const char *name);
+char *perf_header__find_event(u64 id);
+
 
 struct perf_header_attr *
 perf_header_attr__new(struct perf_counter_attr *attr);
