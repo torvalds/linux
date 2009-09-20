@@ -50,8 +50,7 @@ static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
 static int i915_gem_evict_something(struct drm_device *dev, int min_size);
-static int i915_gem_evict_from_list(struct drm_device *dev,
-				    struct list_head *head);
+static int i915_gem_evict_from_inactive_list(struct drm_device *dev);
 static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
 				struct drm_file *file_priv);
@@ -2095,7 +2094,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	ret = i915_gem_evict_from_list(dev, &dev_priv->mm.inactive_list);
+	ret = i915_gem_evict_from_inactive_list(dev);
 	if (ret)
 		return ret;
 
@@ -2195,8 +2194,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 		 */
 		if (!list_empty (&dev_priv->mm.inactive_list)) {
 			DRM_INFO("GTT full, evicting inactive buffers\n");
-			return i915_gem_evict_from_list(dev,
-							&dev_priv->mm.inactive_list);
+			return i915_gem_evict_from_inactive_list(dev);
 		} else
 			return i915_gem_evict_everything(dev);
 	}
@@ -4155,35 +4153,26 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 	kfree(obj->driver_private);
 }
 
-/** Unbinds all objects that are on the given buffer list. */
+/** Unbinds all inactive objects. */
 static int
-i915_gem_evict_from_list(struct drm_device *dev, struct list_head *head)
+i915_gem_evict_from_inactive_list(struct drm_device *dev)
 {
-	struct drm_gem_object *obj;
-	struct drm_i915_gem_object *obj_priv;
-	int ret;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	while (!list_empty(head)) {
-		obj_priv = list_first_entry(head,
-					    struct drm_i915_gem_object,
-					    list);
-		obj = obj_priv->obj;
+	while (!list_empty(&dev_priv->mm.inactive_list)) {
+		struct drm_gem_object *obj;
+		int ret;
 
-		if (obj_priv->pin_count != 0) {
-			DRM_ERROR("Pinned object in unbind list\n");
-			mutex_unlock(&dev->struct_mutex);
-			return -EINVAL;
-		}
+		obj = list_first_entry(&dev_priv->mm.inactive_list,
+				       struct drm_i915_gem_object,
+				       list)->obj;
 
 		ret = i915_gem_object_unbind(obj);
 		if (ret != 0) {
-			DRM_ERROR("Error unbinding object in LeaveVT: %d\n",
-				  ret);
-			mutex_unlock(&dev->struct_mutex);
+			DRM_ERROR("Error unbinding object: %d\n", ret);
 			return ret;
 		}
 	}
-
 
 	return 0;
 }
@@ -4301,7 +4290,7 @@ i915_gem_idle(struct drm_device *dev)
 
 
 	/* Move all inactive buffers out of the GTT. */
-	ret = i915_gem_evict_from_list(dev, &dev_priv->mm.inactive_list);
+	ret = i915_gem_evict_from_inactive_list(dev);
 	WARN_ON(!list_empty(&dev_priv->mm.inactive_list));
 	if (ret) {
 		mutex_unlock(&dev->struct_mutex);
