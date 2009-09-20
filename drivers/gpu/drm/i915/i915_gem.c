@@ -2004,6 +2004,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	}
 
 	i915_gem_object_put_pages(obj);
+	BUG_ON(obj_priv->pages_refcount);
 
 	if (obj_priv->gtt_space) {
 		atomic_dec(&dev->gtt_count);
