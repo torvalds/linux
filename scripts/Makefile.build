@@ -271,7 +271,7 @@ targets += $(extra-y) $(MAKECMDGOALS) $(always)
 # ---------------------------------------------------------------------------
 quiet_cmd_cpp_lds_S = LDS     $@
       cmd_cpp_lds_S = $(CPP) $(cpp_flags) -P -C -U$(ARCH) \
-	                     -D__ASSEMBLY__ -o $@ $<
+	                     -D__ASSEMBLY__ -DLINKER_SCRIPT -o $@ $<
 
 $(obj)/%.lds: $(src)/%.lds.S FORCE
 	$(call if_changed_dep,cpp_lds_S)
