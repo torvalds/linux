@@ -4110,6 +4110,11 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	obj_priv->madv = args->madv;
 	args->retained = obj_priv->gtt_space != NULL;
 
+	/* if the object is no longer bound, discard its backing storage */
+	if (i915_gem_object_is_purgeable(obj_priv) &&
+	    obj_priv->gtt_space == NULL)
+		i915_gem_object_truncate(obj);
+
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
 
