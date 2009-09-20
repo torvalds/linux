@@ -17,7 +17,7 @@ extern void svg_pstate(int cpu, u64 start, u64 end, u64 freq);
 extern void svg_time_grid(u64 start, u64 end);
 extern void svg_legenda(void);
 extern void svg_wakeline(u64 start, int row1, int row2);
-extern void svg_partial_wakeline(u64 start, int row1, int row2);
+extern void svg_partial_wakeline(u64 start, int row1, char *desc1, int row2, char *desc2);
 extern void svg_interrupt(u64 start, int row);
 extern void svg_text(int Yslot, u64 start, const char *text);
 extern void svg_close(void);

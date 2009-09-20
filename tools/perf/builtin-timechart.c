@@ -752,6 +752,7 @@ static void draw_wakeups(void)
 	we = wake_events;
 	while (we) {
 		int from = 0, to = 0;
+		char *task_from = NULL, *task_to = NULL;
 
 		/* locate the column of the waker and wakee */
 		p = all_data;
@@ -760,10 +761,14 @@ static void draw_wakeups(void)
 				c = p->all;
 				while (c) {
 					if (c->Y && c->start_time <= we->time && c->end_time >= we->time) {
-						if (p->pid == we->waker)
+						if (p->pid == we->waker) {
 							from = c->Y;
-						if (p->pid == we->wakee)
+							task_from = c->comm;
+						}
+						if (p->pid == we->wakee) {
 							to = c->Y;
+							task_to = c->comm;
+						}
 					}
 					c = c->next;
 				}
@@ -776,7 +781,7 @@ static void draw_wakeups(void)
 		else if (from && to && abs(from - to) == 1)
 			svg_wakeline(we->time, from, to);
 		else
-			svg_partial_wakeline(we->time, from, to);
+			svg_partial_wakeline(we->time, from, task_from, to, task_to);
 		we = we->next;
 	}
 }
