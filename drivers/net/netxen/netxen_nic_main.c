@@ -1469,6 +1469,7 @@ netxen_nic_resume(struct pci_dev *pdev)
 	}
 
 	netxen_schedule_work(adapter, netxen_fw_poll_work, FW_POLL_DELAY);
+	return 0;
 
 err_out_detach:
 	netxen_nic_detach(adapter);
