@@ -1781,8 +1781,8 @@ static int ax25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		ax25_info.idletimer = ax25_display_timer(&ax25->idletimer) / (60 * HZ);
 		ax25_info.n2count   = ax25->n2count;
 		ax25_info.state     = ax25->state;
-		ax25_info.rcv_q     = sk_wmem_alloc_get(sk);
-		ax25_info.snd_q     = sk_rmem_alloc_get(sk);
+		ax25_info.rcv_q     = sk_rmem_alloc_get(sk);
+		ax25_info.snd_q     = sk_wmem_alloc_get(sk);
 		ax25_info.vs        = ax25->vs;
 		ax25_info.vr        = ax25->vr;
 		ax25_info.va        = ax25->va;
