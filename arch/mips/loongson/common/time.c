@@ -23,6 +23,6 @@ void __init plat_time_init(void)
 
 void read_persistent_clock(struct timespec *ts)
 {
-	ts->tv_sec = return mc146818_get_cmos_time();
+	ts->tv_sec = mc146818_get_cmos_time();
 	ts->tv_nsec = 0;
 }
