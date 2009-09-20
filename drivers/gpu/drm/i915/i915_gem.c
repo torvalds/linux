@@ -1478,7 +1478,7 @@ i915_gem_object_put_pages(struct drm_gem_object *obj)
 		i915_gem_object_save_bit_17_swizzle(obj);
 
 	if (obj_priv->madv == I915_MADV_DONTNEED)
-	    obj_priv->dirty = 0;
+		obj_priv->dirty = 0;
 
 	for (i = 0; i < page_count; i++) {
 		if (obj_priv->pages[i] == NULL)
@@ -1488,7 +1488,7 @@ i915_gem_object_put_pages(struct drm_gem_object *obj)
 			set_page_dirty(obj_priv->pages[i]);
 
 		if (obj_priv->madv == I915_MADV_WILLNEED)
-		    mark_page_accessed(obj_priv->pages[i]);
+			mark_page_accessed(obj_priv->pages[i]);
 
 		page_cache_release(obj_priv->pages[i]);
 	}
