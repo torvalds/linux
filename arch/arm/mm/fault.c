@@ -271,6 +271,13 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		if (!user_mode(regs) && !search_exception_tables(regs->ARM_pc))
 			goto no_context;
 		down_read(&mm->mmap_sem);
+	} else {
+		/*
+		 * The above down_read_trylock() might have succeeded in
+		 * which case, we'll have missed the might_sleep() from
+		 * down_read()
+		 */
+		might_sleep();
 	}
 
 	fault = __do_page_fault(mm, addr, fsr, tsk);
