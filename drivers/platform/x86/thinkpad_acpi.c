@@ -2014,6 +2014,9 @@ static u16 *hotkey_keycode_map;
 
 static struct attribute_set *hotkey_dev_attributes;
 
+static void tpacpi_driver_event(const unsigned int hkey_event);
+static void hotkey_driver_event(const unsigned int scancode);
+
 /* HKEY.MHKG() return bits */
 #define TP_HOTKEY_TABLET_MASK (1 << 3)
 
@@ -2168,6 +2171,35 @@ static int hotkey_user_mask_set(const u32 mask)
 	return rc;
 }
 
+/*
+ * Sets the driver hotkey mask.
+ *
+ * Can be called even if the hotkey subdriver is inactive
+ */
+static int tpacpi_hotkey_driver_mask_set(const u32 mask)
+{
+	int rc;
+
+	/* Do the right thing if hotkey_init has not been called yet */
+	if (!tp_features.hotkey) {
+		hotkey_driver_mask = mask;
+		return 0;
+	}
+
+	mutex_lock(&hotkey_mutex);
+
+	HOTKEY_CONFIG_CRITICAL_START
+	hotkey_driver_mask = mask;
+	hotkey_source_mask |= (mask & ~hotkey_all_mask);
+	HOTKEY_CONFIG_CRITICAL_END
+
+	rc = hotkey_mask_set((hotkey_acpi_mask | hotkey_driver_mask) &
+							~hotkey_source_mask);
+	mutex_unlock(&hotkey_mutex);
+
+	return rc;
+}
+
 static int hotkey_status_get(int *status)
 {
 	if (!acpi_evalf(hkey_handle, status, "DHKC", "d"))
@@ -2227,6 +2259,7 @@ static void tpacpi_input_send_key(const unsigned int scancode)
 /* Do NOT call without validating scancode first */
 static void tpacpi_input_send_key_masked(const unsigned int scancode)
 {
+	hotkey_driver_event(scancode);
 	if (hotkey_user_mask & (1 << scancode))
 		tpacpi_input_send_key(scancode);
 }
@@ -7624,6 +7657,21 @@ static struct ibm_struct fan_driver_data = {
  *
  ****************************************************************************
  ****************************************************************************/
+
+/*
+ * HKEY event callout for other subdrivers go here
+ * (yes, it is ugly, but it is quick, safe, and gets the job done
+ */
+static void tpacpi_driver_event(const unsigned int hkey_event)
+{
+}
+
+
+
+static void hotkey_driver_event(const unsigned int scancode)
+{
+	tpacpi_driver_event(0x1001 + scancode);
+}
 
 /* sysfs name ---------------------------------------------------------- */
 static ssize_t thinkpad_acpi_pdev_name_show(struct device *dev,
