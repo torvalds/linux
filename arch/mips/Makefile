@@ -627,16 +627,6 @@ endif
 cflags-y			+= -I$(srctree)/arch/mips/include/asm/mach-generic
 drivers-$(CONFIG_PCI)		+= arch/mips/pci/
 
-ifdef CONFIG_32BIT
-ifdef CONFIG_CPU_LITTLE_ENDIAN
-JIFFIES			= jiffies_64
-else
-JIFFIES			= jiffies_64 + 4
-endif
-else
-JIFFIES			= jiffies_64
-endif
-
 #
 # Automatically detect the build format. By default we choose
 # the elf format according to the load address.
@@ -660,8 +650,9 @@ ifdef CONFIG_64BIT
 endif
 
 KBUILD_AFLAGS	+= $(cflags-y)
-KBUILD_CFLAGS	+= $(cflags-y) \
-			-D"VMLINUX_LOAD_ADDRESS=$(load-y)"
+KBUILD_CFLAGS	+= $(cflags-y)
+KBUILD_CPPFLAGS += -D"VMLINUX_LOAD_ADDRESS=$(load-y)"
+KBUILD_CPPFLAGS += -D"DATAOFFSET=$(if $(dataoffset-y),$(dataoffset-y),0)"
 
 LDFLAGS			+= -m $(ld-emul)
 
@@ -675,18 +666,6 @@ endif
 endif
 
 OBJCOPYFLAGS		+= --remove-section=.reginfo
-
-#
-# Choosing incompatible machines durings configuration will result in
-# error messages during linking.  Select a default linkscript if
-# none has been choosen above.
-#
-
-CPPFLAGS_vmlinux.lds := \
-	$(KBUILD_CFLAGS) \
-	-D"LOADADDR=$(load-y)" \
-	-D"JIFFIES=$(JIFFIES)" \
-	-D"DATAOFFSET=$(if $(dataoffset-y),$(dataoffset-y),0)"
 
 head-y := arch/mips/kernel/head.o arch/mips/kernel/init_task.o
 
