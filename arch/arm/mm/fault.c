@@ -194,18 +194,33 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 #define VM_FAULT_BADMAP		0x010000
 #define VM_FAULT_BADACCESS	0x020000
 
-static int
+/*
+ * Check that the permissions on the VMA allow for the fault which occurred.
+ * If we encountered a write fault, we must have write permission, otherwise
+ * we allow any permission.
+ */
+static inline bool access_error(unsigned int fsr, struct vm_area_struct *vma)
+{
+	unsigned int mask = VM_READ | VM_WRITE | VM_EXEC;
+
+	if (fsr & FSR_WRITE)
+		mask = VM_WRITE;
+
+	return vma->vm_flags & mask ? false : true;
+}
+
+static int __kprobes
 __do_page_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 		struct task_struct *tsk)
 {
 	struct vm_area_struct *vma;
-	int fault, mask;
+	int fault;
 
 	vma = find_vma(mm, addr);
 	fault = VM_FAULT_BADMAP;
-	if (!vma)
+	if (unlikely(!vma))
 		goto out;
-	if (vma->vm_start > addr)
+	if (unlikely(vma->vm_start > addr))
 		goto check_stack;
 
 	/*
@@ -213,14 +228,10 @@ __do_page_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 	 * memory access, so we can handle it.
 	 */
 good_area:
-	if (fsr & FSR_WRITE)
-		mask = VM_WRITE;
-	else
-		mask = VM_READ|VM_EXEC|VM_WRITE;
-
-	fault = VM_FAULT_BADACCESS;
-	if (!(vma->vm_flags & mask))
+	if (access_error(fsr, vma)) {
+		fault = VM_FAULT_BADACCESS;
 		goto out;
+	}
 
 	/*
 	 * If for any reason at all we couldn't handle the fault, make
