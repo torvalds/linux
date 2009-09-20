@@ -2296,7 +2296,7 @@ static int atl1c_suspend(struct pci_dev *pdev, pm_message_t state)
 	u32 ctrl;
 	u32 mac_ctrl_data;
 	u32 master_ctrl_data;
-	u32 wol_ctrl_data;
+	u32 wol_ctrl_data = 0;
 	u16 mii_bmsr_data;
 	u16 save_autoneg_advertised;
 	u16 mii_intr_status_data;
