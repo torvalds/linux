@@ -2843,16 +2843,14 @@ static void hotkey_exit(void)
 
 	kfree(hotkey_keycode_map);
 
-	if (tp_features.hotkey) {
-		dbg_printk(TPACPI_DBG_EXIT | TPACPI_DBG_HKEY,
-			   "restoring original hot key mask\n");
-		/* no short-circuit boolean operator below! */
-		if ((hotkey_mask_set(hotkey_orig_mask) |
-		     hotkey_status_set(false)) != 0)
-			printk(TPACPI_ERR
-			       "failed to restore hot key mask "
-			       "to BIOS defaults\n");
-	}
+	dbg_printk(TPACPI_DBG_EXIT | TPACPI_DBG_HKEY,
+		   "restoring original hot key mask\n");
+	/* no short-circuit boolean operator below! */
+	if (((tp_features.hotkey_mask && hotkey_mask_set(hotkey_orig_mask))
+	     | hotkey_status_set(false)) != 0)
+		printk(TPACPI_ERR
+		       "failed to restore hot key mask "
+		       "to BIOS defaults\n");
 }
 
 static void __init hotkey_unmap(const unsigned int scancode)
