@@ -15,7 +15,10 @@
 typedef struct {char buf[FTRACE_MAX_PROFILE_SIZE];} profile_buf_t;
 
 char		*trace_profile_buf;
-char 		*trace_profile_buf_nmi;
+EXPORT_SYMBOL_GPL(trace_profile_buf);
+
+char		*trace_profile_buf_nmi;
+EXPORT_SYMBOL_GPL(trace_profile_buf_nmi);
 
 /* Count the events in use (per event id, not per instance) */
 static int	total_profile_count;
