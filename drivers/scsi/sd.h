@@ -37,6 +37,11 @@
  */
 #define SD_LAST_BUGGY_SECTORS	8
 
+enum {
+	SD_EXT_CDB_SIZE = 32,	/* Extended CDB size */
+	SD_MEMPOOL_SIZE = 2,	/* CDB pool size */
+};
+
 struct scsi_disk {
 	struct scsi_driver *driver;	/* always &sd_template */
 	struct scsi_device *device;
