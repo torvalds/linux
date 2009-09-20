@@ -25,6 +25,18 @@
 
 #include "fault.h"
 
+/*
+ * Fault status register encodings
+ */
+#define FSR_WRITE		(1 << 11)
+#define FSR_FS4			(1 << 10)
+#define FSR_FS3_0		(15)
+
+static inline int fsr_fs(unsigned int fsr)
+{
+	return (fsr & FSR_FS3_0) | (fsr & FSR_FS4) >> 6;
+}
+
 #ifdef CONFIG_MMU
 
 #ifdef CONFIG_KPROBES
@@ -201,7 +213,7 @@ __do_page_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 	 * memory access, so we can handle it.
 	 */
 good_area:
-	if (fsr & (1 << 11)) /* write? */
+	if (fsr & FSR_WRITE)
 		mask = VM_WRITE;
 	else
 		mask = VM_READ|VM_EXEC|VM_WRITE;
@@ -216,7 +228,7 @@ good_area:
 	 * than endlessly redo the fault.
 	 */
 survive:
-	fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, (fsr & (1 << 11)) ? FAULT_FLAG_WRITE : 0);
+	fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, (fsr & FSR_WRITE) ? FAULT_FLAG_WRITE : 0);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
@@ -489,7 +501,7 @@ hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *)
 asmlinkage void __exception
 do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
-	const struct fsr_info *inf = fsr_info + (fsr & 15) + ((fsr & (1 << 10)) >> 6);
+	const struct fsr_info *inf = fsr_info + fsr_fs(fsr);
 	struct siginfo info;
 
 	if (!inf->fn(addr, fsr, regs))
