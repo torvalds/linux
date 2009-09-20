@@ -2113,7 +2113,6 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_gem_object *obj;
-	int have_waited = 0;
 	int ret;
 
 	for (;;) {
@@ -2137,9 +2136,6 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 			return i915_gem_object_unbind(obj);
 		}
 
-		if (have_waited)
-			return 0;
-
 		/* If we didn't get anything, but the ring is still processing
 		 * things, wait for the next to finish and hopefully leave us
 		 * a buffer to evict.
@@ -2155,7 +2151,6 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 			if (ret)
 				return ret;
 
-			have_waited = 1;
 			continue;
 		}
 
@@ -2166,26 +2161,32 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 		 */
 		if (!list_empty(&dev_priv->mm.flushing_list)) {
 			struct drm_i915_gem_object *obj_priv;
-			uint32_t seqno;
 
-			obj_priv = list_first_entry(&dev_priv->mm.flushing_list,
-						    struct drm_i915_gem_object,
-						    list);
-			obj = obj_priv->obj;
+			/* Find an object that we can immediately reuse */
+			list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, list) {
+				obj = obj_priv->obj;
+				if (obj->size >= min_size)
+					break;
 
-			i915_gem_flush(dev,
-				       obj->write_domain,
-				       obj->write_domain);
-			seqno = i915_add_request(dev, NULL, obj->write_domain);
-			if (seqno == 0)
-				return -ENOMEM;
+				obj = NULL;
+			}
 
-			ret = i915_wait_request(dev, seqno);
-			if (ret)
-				return ret;
+			if (obj != NULL) {
+				uint32_t seqno;
 
-			have_waited = 1;
-			continue;
+				i915_gem_flush(dev,
+					       obj->write_domain,
+					       obj->write_domain);
+				seqno = i915_add_request(dev, NULL, obj->write_domain);
+				if (seqno == 0)
+					return -ENOMEM;
+
+				ret = i915_wait_request(dev, seqno);
+				if (ret)
+					return ret;
+
+				continue;
+			}
 		}
 
 		/* If we didn't do any of the above, there's no single buffer
