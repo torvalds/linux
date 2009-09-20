@@ -167,6 +167,10 @@ debug_text_event(debug_info_t* id, int level, const char* txt)
         return debug_event_common(id,level,txt,strlen(txt));
 }
 
+/*
+ * IMPORTANT: Use "%s" in sprintf format strings with care! Only pointers are
+ * stored in the s390dbf. See Documentation/s390/s390dbf.txt for more details!
+ */
 extern debug_entry_t *
 debug_sprintf_event(debug_info_t* id,int level,char *string,...)
 	__attribute__ ((format(printf, 3, 4)));
@@ -206,7 +210,10 @@ debug_text_exception(debug_info_t* id, int level, const char* txt)
         return debug_exception_common(id,level,txt,strlen(txt));
 }
 
-
+/*
+ * IMPORTANT: Use "%s" in sprintf format strings with care! Only pointers are
+ * stored in the s390dbf. See Documentation/s390/s390dbf.txt for more details!
+ */
 extern debug_entry_t *
 debug_sprintf_exception(debug_info_t* id,int level,char *string,...)
 	__attribute__ ((format(printf, 3, 4)));

@@ -88,10 +88,10 @@ struct iwl_priv;
  * requirement for establishing a new network for legal operation on channels
  * requiring RADAR detection or restricting ACTIVE scanning.
  *
- * NOTE:  "WIDE" flag does not indicate anything about "FAT" 40 MHz channels.
- *        It only indicates that 20 MHz channel use is supported; FAT channel
+ * NOTE:  "WIDE" flag does not indicate anything about "HT40" 40 MHz channels.
+ *        It only indicates that 20 MHz channel use is supported; HT40 channel
  *        usage is indicated by a separate set of regulatory flags for each
- *        FAT channel pair.
+ *        HT40 channel pair.
  *
  * NOTE:  Using a channel inappropriately will result in a uCode error!
  */
@@ -112,10 +112,34 @@ enum {
 #define EEPROM_SKU_CAP_HW_RF_KILL_ENABLE                (1 << 1)
 
 /* *regulatory* channel data format in eeprom, one for each channel.
- * There are separate entries for FAT (40 MHz) vs. normal (20 MHz) channels. */
+ * There are separate entries for HT40 (40 MHz) vs. normal (20 MHz) channels. */
 struct iwl_eeprom_channel {
 	u8 flags;		/* EEPROM_CHANNEL_* flags copied from EEPROM */
 	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
+} __attribute__ ((packed));
+
+/**
+ * iwl_eeprom_enhanced_txpwr structure
+ *    This structure presents the enhanced regulatory tx power limit layout
+ *    in eeprom image
+ *    Enhanced regulatory tx power portion of eeprom image can be broken down
+ *    into individual structures; each one is 8 bytes in size and contain the
+ *    following information
+ * @chain_a_max_pwr: chain a max power in 1/2 dBm
+ * @chain_b_max_pwr: chain b max power in 1/2 dBm
+ * @chain_c_max_pwr: chain c max power in 1/2 dBm
+ * @mimo2_max_pwr: mimo2 max power in 1/2 dBm
+ * @mimo3_max_pwr: mimo3 max power in 1/2 dBm
+ *
+ */
+struct iwl_eeprom_enhanced_txpwr {
+	u16 reserved;
+	s8 chain_a_max;
+	s8 chain_b_max;
+	s8 chain_c_max;
+	s8 reserved1;
+	s8 mimo2_max;
+	s8 mimo3_max;
 } __attribute__ ((packed));
 
 /* 3945 Specific */
@@ -170,18 +194,77 @@ struct iwl_eeprom_channel {
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22 bytes */
 #define EEPROM_5000_REG_BAND_5_CHANNELS       ((0x74)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 12 bytes */
-#define EEPROM_5000_REG_BAND_24_FAT_CHANNELS  ((0x82)\
+#define EEPROM_5000_REG_BAND_24_HT40_CHANNELS  ((0x82)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
-#define EEPROM_5000_REG_BAND_52_FAT_CHANNELS  ((0x92)\
+#define EEPROM_5000_REG_BAND_52_HT40_CHANNELS  ((0x92)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22  bytes */
+
+/* 6000 and up regulatory tx power - indirect access */
+/* max. elements per section */
+#define EEPROM_MAX_TXPOWER_SECTION_ELEMENTS	(8)
+#define EEPROM_TXPOWER_COMMON_HT40_INDEX	(2)
+
+/**
+ * Partition the enhanced tx power portion of eeprom image into
+ * 10 sections based on band, modulation, frequency and channel
+ *
+ * Section 1: all CCK channels
+ * Section 2: all 2.4 GHz OFDM (Legacy, HT and HT40 ) channels
+ * Section 3: all 5.2 GHz OFDM (Legacy, HT and HT40) channels
+ * Section 4: 2.4 GHz 20MHz channels: 1, 2, 10, 11. Both Legacy and HT
+ * Section 5: 2.4 GHz 40MHz channels: 1, 2, 6, 7, 9, (_above_)
+ * Section 6: 5.2 GHz 20MHz channels: 36, 64, 100, both Legacy and HT
+ * Section 7: 5.2 GHz 40MHz channels: 36, 60, 100 (_above_)
+ * Section 8: 2.4 GHz channel 13, Both Legacy and HT
+ * Section 9: 2.4 GHz channel 140, Both Legacy and HT
+ * Section 10: 2.4 GHz 40MHz channels: 132, 44 (_above_)
+ */
+/* 2.4 GHz band: CCK */
+#define EEPROM_LB_CCK_20_COMMON       ((0xAA)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 8 bytes */
+/* 2.4 GHz band: 20MHz-Legacy, 20MHz-HT, 40MHz-HT */
+#define EEPROM_LB_OFDM_COMMON       ((0xB2)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
+/* 5.2 GHz band: 20MHz-Legacy, 20MHz-HT, 40MHz-HT */
+#define EEPROM_HB_OFDM_COMMON       ((0xCA)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
+/* 2.4GHz band channels:
+ *	1Legacy, 1HT, 2Legacy, 2HT, 10Legacy, 10HT, 11Legacy, 11HT */
+#define EEPROM_LB_OFDM_20_BAND       ((0xE2)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 64 bytes */
+/* 2.4 GHz band HT40 channels: (1,+1) (2,+1) (6,+1) (7,+1) (9,+1) */
+#define EEPROM_LB_OFDM_HT40_BAND       ((0x122)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 40 bytes */
+/* 5.2GHz band channels: 36Legacy, 36HT, 64Legacy, 64HT, 100Legacy, 100HT */
+#define EEPROM_HB_OFDM_20_BAND       ((0x14A)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 48 bytes */
+/* 5.2 GHz band HT40 channels: (36,+1) (60,+1) (100,+1) */
+#define EEPROM_HB_OFDM_HT40_BAND       ((0x17A)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
+/* 2.4 GHz band, channnel 13: Legacy, HT */
+#define EEPROM_LB_OFDM_20_CHANNEL_13       ((0x192)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
+/* 5.2 GHz band, channnel 140: Legacy, HT */
+#define EEPROM_HB_OFDM_20_CHANNEL_140       ((0x1A2)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
+/* 5.2 GHz band, HT40 channnels (132,+1) (44,+1) */
+#define EEPROM_HB_OFDM_HT40_BAND_1       ((0x1B2)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
+
 
 /* 5050 Specific */
 #define EEPROM_5050_TX_POWER_VERSION    (4)
 #define EEPROM_5050_EEPROM_VERSION	(0x21E)
 
 /* OTP */
-#define OTP_LOWER_BLOCKS_TOTAL		(3)
-#define OTP_BLOCK_SIZE			(0x400)
+/* lower blocks contain EEPROM image and calibration data */
+#define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
+/* high blocks contain PAPD data */
+#define OTP_HIGH_IMAGE_SIZE_6x00        (6 * 512 * sizeof(u16)) /* 6 KB */
+#define OTP_HIGH_IMAGE_SIZE_1000        (0x200 * sizeof(u16)) /* 1024 bytes */
+#define OTP_MAX_LL_ITEMS_1000		(3)	/* OTP blocks for 1000 */
+#define OTP_MAX_LL_ITEMS_6x00		(4)	/* OTP blocks for 6x00 */
+#define OTP_MAX_LL_ITEMS_6x50		(7)	/* OTP blocks for 6x50 */
 
 /* 2.4 GHz */
 extern const u8 iwl_eeprom_band_1[14];
@@ -313,7 +396,7 @@ struct iwl_eeprom_calib_info {
  * in EEPROM containing EEPROM_CHANNEL_* usage flags (LSB) and max regulatory
  * txpower (MSB).
  *
- * Entries immediately below are for 20 MHz channel width.  FAT (40 MHz)
+ * Entries immediately below are for 20 MHz channel width.  HT40 (40 MHz)
  * channels (only for 4965, not supported by 3945) appear later in the EEPROM.
  *
  * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
@@ -352,29 +435,29 @@ struct iwl_eeprom_calib_info {
 #define EEPROM_REGULATORY_BAND_5_CHANNELS   (2*0x99)	/* 12 bytes */
 
 /*
- * 2.4 GHz FAT channels 1 (5), 2 (6), 3 (7), 4 (8), 5 (9), 6 (10), 7 (11)
+ * 2.4 GHz HT40 channels 1 (5), 2 (6), 3 (7), 4 (8), 5 (9), 6 (10), 7 (11)
  *
  * The channel listed is the center of the lower 20 MHz half of the channel.
  * The overall center frequency is actually 2 channels (10 MHz) above that,
- * and the upper half of each FAT channel is centered 4 channels (20 MHz) away
- * from the lower half; e.g. the upper half of FAT channel 1 is channel 5,
- * and the overall FAT channel width centers on channel 3.
+ * and the upper half of each HT40 channel is centered 4 channels (20 MHz) away
+ * from the lower half; e.g. the upper half of HT40 channel 1 is channel 5,
+ * and the overall HT40 channel width centers on channel 3.
  *
  * NOTE:  The RXON command uses 20 MHz channel numbers to specify the
  *        control channel to which to tune.  RXON also specifies whether the
- *        control channel is the upper or lower half of a FAT channel.
+ *        control channel is the upper or lower half of a HT40 channel.
  *
- * NOTE:  4965 does not support FAT channels on 2.4 GHz.
+ * NOTE:  4965 does not support HT40 channels on 2.4 GHz.
  */
-#define EEPROM_4965_REGULATORY_BAND_24_FAT_CHANNELS (2*0xA0)	/* 14 bytes */
+#define EEPROM_4965_REGULATORY_BAND_24_HT40_CHANNELS (2*0xA0)	/* 14 bytes */
 
 /*
- * 5.2 GHz FAT channels 36 (40), 44 (48), 52 (56), 60 (64),
+ * 5.2 GHz HT40 channels 36 (40), 44 (48), 52 (56), 60 (64),
  * 100 (104), 108 (112), 116 (120), 124 (128), 132 (136), 149 (153), 157 (161)
  */
-#define EEPROM_4965_REGULATORY_BAND_52_FAT_CHANNELS (2*0xA8)	/* 22 bytes */
+#define EEPROM_4965_REGULATORY_BAND_52_HT40_CHANNELS (2*0xA8)	/* 22 bytes */
 
-#define EEPROM_REGULATORY_BAND_NO_FAT			(0)
+#define EEPROM_REGULATORY_BAND_NO_HT40			(0)
 
 struct iwl_eeprom_ops {
 	const u32 regulatory_bands[7];
@@ -383,6 +466,7 @@ struct iwl_eeprom_ops {
 	void (*release_semaphore) (struct iwl_priv *priv);
 	u16 (*calib_version) (struct iwl_priv *priv);
 	const u8* (*query_addr) (const struct iwl_priv *priv, size_t offset);
+	void (*update_enhanced_txpower) (struct iwl_priv *priv);
 };
 
 
@@ -397,7 +481,7 @@ int iwlcore_eeprom_verify_signature(struct iwl_priv *priv);
 int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv);
 void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
 const u8 *iwlcore_eeprom_query_addr(const struct iwl_priv *priv, size_t offset);
-
+void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv);
 int iwl_init_channel_map(struct iwl_priv *priv);
 void iwl_free_channel_map(struct iwl_priv *priv);
 const struct iwl_channel_info *iwl_get_channel_info(

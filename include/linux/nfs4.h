@@ -472,6 +472,7 @@ enum lock_type4 {
 
 #define NFSPROC4_NULL 0
 #define NFSPROC4_COMPOUND 1
+#define NFS4_VERSION 4
 #define NFS4_MINOR_VERSION 0
 
 #if defined(CONFIG_NFS_V4_1)

@@ -86,6 +86,7 @@ struct usb_mixer_interface {
 	u8 rc_buffer[6];
 
 	u8 audigy2nx_leds[3];
+	u8 xonar_u1_status;
 };
 
 
@@ -461,7 +462,7 @@ static int mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 			 unsigned int size, unsigned int __user *_tlv)
 {
 	struct usb_mixer_elem_info *cval = kcontrol->private_data;
-	DECLARE_TLV_DB_SCALE(scale, 0, 0, 0);
+	DECLARE_TLV_DB_MINMAX(scale, 0, 0);
 
 	if (size < sizeof(scale))
 		return -ENOMEM;
@@ -469,7 +470,16 @@ static int mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	 * while ALSA TLV contains in 1/100 dB unit
 	 */
 	scale[2] = (convert_signed_value(cval, cval->min) * 100) / 256;
-	scale[3] = (convert_signed_value(cval, cval->res) * 100) / 256;
+	scale[3] = (convert_signed_value(cval, cval->max) * 100) / 256;
+	if (scale[3] <= scale[2]) {
+		/* something is wrong; assume it's either from/to 0dB */
+		if (scale[2] < 0)
+			scale[3] = 0;
+		else if (scale[2] > 0)
+			scale[2] = 0;
+		else /* totally crap, return an error */
+			return -EINVAL;
+	}
 	if (copy_to_user(_tlv, scale, sizeof(scale)))
 		return -EFAULT;
 	return 0;
@@ -2033,6 +2043,58 @@ static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 	}
 }
 
+static int snd_xonar_u1_switch_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = !!(mixer->xonar_u1_status & 0x02);
+	return 0;
+}
+
+static int snd_xonar_u1_switch_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
+	u8 old_status, new_status;
+	int err, changed;
+
+	old_status = mixer->xonar_u1_status;
+	if (ucontrol->value.integer.value[0])
+		new_status = old_status | 0x02;
+	else
+		new_status = old_status & ~0x02;
+	changed = new_status != old_status;
+	err = snd_usb_ctl_msg(mixer->chip->dev,
+			      usb_sndctrlpipe(mixer->chip->dev, 0), 0x08,
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
+			      50, 0, &new_status, 1, 100);
+	if (err < 0)
+		return err;
+	mixer->xonar_u1_status = new_status;
+	return changed;
+}
+
+static struct snd_kcontrol_new snd_xonar_u1_output_switch = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Digital Playback Switch",
+	.info = snd_ctl_boolean_mono_info,
+	.get = snd_xonar_u1_switch_get,
+	.put = snd_xonar_u1_switch_put,
+};
+
+static int snd_xonar_u1_controls_create(struct usb_mixer_interface *mixer)
+{
+	int err;
+
+	err = snd_ctl_add(mixer->chip->card,
+			  snd_ctl_new1(&snd_xonar_u1_output_switch, mixer));
+	if (err < 0)
+		return err;
+	mixer->xonar_u1_status = 0x05;
+	return 0;
+}
+
 int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 			 int ignore_error)
 {
@@ -2073,6 +2135,13 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 		if (!snd_card_proc_new(chip->card, "audigy2nx", &entry))
 			snd_info_set_text_ops(entry, mixer,
 					      snd_audigy2nx_proc_read);
+	}
+
+	if (mixer->chip->usb_id == USB_ID(0x0b05, 0x1739) ||
+	    mixer->chip->usb_id == USB_ID(0x0b05, 0x1743)) {
+		err = snd_xonar_u1_controls_create(mixer);
+		if (err < 0)
+			goto _error;
 	}
 
 	err = snd_device_new(chip->card, SNDRV_DEV_LOWLEVEL, mixer, &dev_ops);

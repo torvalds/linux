@@ -504,7 +504,7 @@ static int pxa_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 			pxa_irda_set_speed(si, speed);
 		}
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	netif_stop_queue(dev);
@@ -539,7 +539,7 @@ static int pxa_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int pxa_irda_ioctl(struct net_device *dev, struct ifreq *ifreq, int cmd)

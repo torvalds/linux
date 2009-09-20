@@ -112,8 +112,6 @@ struct ath_rate_table {
 		u8 short_preamble;
 		u8 dot11rate;
 		u8 ctrl_rate;
-		int8_t rssi_ack_validmin;
-		int8_t rssi_ack_deltamin;
 		u8 base_index;
 		u8 cw40index;
 		u8 sgi_index;
@@ -121,13 +119,7 @@ struct ath_rate_table {
 		u32 max_4ms_framelen;
 	} info[RATE_TABLE_SIZE];
 	u32 probe_interval;
-	u32 rssi_reduce_interval;
 	u8 initial_ratemax;
-};
-
-struct ath_tx_ratectrl_state {
-	int8_t rssi_thres;	/* required rssi for this rate (dB) */
-	u8 per;			/* recent estimate of packet error rate (%) */
 };
 
 struct ath_rateset {
@@ -138,22 +130,14 @@ struct ath_rateset {
 /**
  * struct ath_rate_priv - Rate Control priv data
  * @state: RC state
- * @rssi_last: last ACK rssi
- * @rssi_last_lookup: last ACK rssi used for lookup
- * @rssi_last_prev: previous last ACK rssi
- * @rssi_last_prev2: 2nd previous last ACK rssi
- * @rssi_sum_cnt: count of rssi_sum for averaging
- * @rssi_sum_rate: rate that we are averaging
- * @rssi_sum: running sum of rssi for averaging
  * @probe_rate: rate we are probing at
- * @rssi_time: msec timestamp for last ack rssi
- * @rssi_down_time: msec timestamp for last down step
  * @probe_time: msec timestamp for last probe
  * @hw_maxretry_pktcnt: num of packets since we got HW max retry error
  * @max_valid_rate: maximum number of valid rate
  * @per_down_time: msec timestamp for last PER down step
  * @valid_phy_ratecnt: valid rate count
  * @rate_max_phy: phy index for the max rate
+ * @per: PER for every valid rate in %
  * @probe_interval: interval for ratectrl to probe for other rates
  * @prev_data_rix: rate idx of last data frame
  * @ht_cap: HT capabilities
@@ -161,13 +145,6 @@ struct ath_rateset {
  * @neg_ht_rates: Negotiated HT rates
  */
 struct ath_rate_priv {
-	int8_t rssi_last;
-	int8_t rssi_last_lookup;
-	int8_t rssi_last_prev;
-	int8_t rssi_last_prev2;
-	int32_t rssi_sum_cnt;
-	int32_t rssi_sum_rate;
-	int32_t rssi_sum;
 	u8 rate_table_size;
 	u8 probe_rate;
 	u8 hw_maxretry_pktcnt;
@@ -177,14 +154,12 @@ struct ath_rate_priv {
 	u8 valid_phy_ratecnt[WLAN_RC_PHY_MAX];
 	u8 valid_phy_rateidx[WLAN_RC_PHY_MAX][RATE_TABLE_SIZE];
 	u8 rate_max_phy;
-	u32 rssi_time;
-	u32 rssi_down_time;
+	u8 per[RATE_TABLE_SIZE];
 	u32 probe_time;
 	u32 per_down_time;
 	u32 probe_interval;
 	u32 prev_data_rix;
 	u32 tx_triglevel_max;
-	struct ath_tx_ratectrl_state state[RATE_TABLE_SIZE];
 	struct ath_rateset neg_rates;
 	struct ath_rateset neg_ht_rates;
 	struct ath_rate_softc *asc;

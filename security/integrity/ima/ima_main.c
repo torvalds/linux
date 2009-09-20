@@ -249,7 +249,11 @@ void ima_counts_put(struct path *path, int mask)
 	struct inode *inode = path->dentry->d_inode;
 	struct ima_iint_cache *iint;
 
-	if (!ima_initialized || !S_ISREG(inode->i_mode))
+	/* The inode may already have been freed, freeing the iint
+	 * with it. Verify the inode is not NULL before dereferencing
+	 * it.
+	 */
+	if (!ima_initialized || !inode || !S_ISREG(inode->i_mode))
 		return;
 	iint = ima_iint_find_insert_get(inode);
 	if (!iint)

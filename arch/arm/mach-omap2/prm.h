@@ -17,11 +17,11 @@
 #include "prcm-common.h"
 
 #define OMAP2420_PRM_REGADDR(module, reg)				\
-			IO_ADDRESS(OMAP2420_PRM_BASE + (module) + (reg))
+			OMAP2_IO_ADDRESS(OMAP2420_PRM_BASE + (module) + (reg))
 #define OMAP2430_PRM_REGADDR(module, reg)				\
-			IO_ADDRESS(OMAP2430_PRM_BASE + (module) + (reg))
+			OMAP2_IO_ADDRESS(OMAP2430_PRM_BASE + (module) + (reg))
 #define OMAP34XX_PRM_REGADDR(module, reg)				\
-			IO_ADDRESS(OMAP3430_PRM_BASE + (module) + (reg))
+			OMAP2_IO_ADDRESS(OMAP3430_PRM_BASE + (module) + (reg))
 
 /*
  * Architecture-specific global PRM registers

@@ -44,7 +44,7 @@
 #define HIDDEV_MINOR_BASE	96
 #define HIDDEV_MINORS		16
 #endif
-#define HIDDEV_BUFFER_SIZE	64
+#define HIDDEV_BUFFER_SIZE	2048
 
 struct hiddev {
 	int exist;

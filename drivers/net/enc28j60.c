@@ -1276,7 +1276,8 @@ static void enc28j60_hw_tx(struct enc28j60_net *priv)
 	locked_reg_bfset(priv, ECON1, ECON1_TXRTS);
 }
 
-static int enc28j60_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t enc28j60_send_packet(struct sk_buff *skb,
+					struct net_device *dev)
 {
 	struct enc28j60_net *priv = netdev_priv(dev);
 
@@ -1299,7 +1300,7 @@ static int enc28j60_send_packet(struct sk_buff *skb, struct net_device *dev)
 	priv->tx_skb = skb;
 	schedule_work(&priv->tx_work);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void enc28j60_tx_work_handler(struct work_struct *work)

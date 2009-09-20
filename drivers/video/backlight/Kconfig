@@ -110,7 +110,7 @@ config BACKLIGHT_CLASS_DEVICE
 config BACKLIGHT_ATMEL_LCDC
 	bool "Atmel LCDC Contrast-as-Backlight control"
 	depends on BACKLIGHT_CLASS_DEVICE && FB_ATMEL
-	default y if MACH_SAM9261EK || MACH_SAM9263EK
+	default y if MACH_SAM9261EK || MACH_SAM9G10EK || MACH_SAM9263EK
 	help
 	  This provides a backlight control internal to the Atmel LCDC
 	  driver.  If the LCD "contrast control" on your board is wired

@@ -28,6 +28,7 @@
 #include "cx18-gpio.h"
 #include "cx18-i2c.h"
 #include "cx18-irq.h"
+#include <media/ir-kbd-i2c.h>
 
 #define CX18_REG_I2C_1_WR   0xf15000
 #define CX18_REG_I2C_1_RD   0xf15008
@@ -40,16 +41,20 @@
 #define GETSDL_BIT      0x0008
 
 #define CX18_CS5345_I2C_ADDR		0x4c
+#define CX18_Z8F0811_IR_TX_I2C_ADDR	0x70
+#define CX18_Z8F0811_IR_RX_I2C_ADDR	0x71
 
 /* This array should match the CX18_HW_ defines */
 static const u8 hw_addrs[] = {
-	0,			/* CX18_HW_TUNER */
-	0,			/* CX18_HW_TVEEPROM */
-	CX18_CS5345_I2C_ADDR,	/* CX18_HW_CS5345 */
-	0,			/* CX18_HW_DVB */
-	0,			/* CX18_HW_418_AV */
-	0,			/* CX18_HW_GPIO_MUX */
-	0,			/* CX18_HW_GPIO_RESET_CTRL */
+	0,				/* CX18_HW_TUNER */
+	0,				/* CX18_HW_TVEEPROM */
+	CX18_CS5345_I2C_ADDR,		/* CX18_HW_CS5345 */
+	0,				/* CX18_HW_DVB */
+	0,				/* CX18_HW_418_AV */
+	0,				/* CX18_HW_GPIO_MUX */
+	0,				/* CX18_HW_GPIO_RESET_CTRL */
+	CX18_Z8F0811_IR_TX_I2C_ADDR,	/* CX18_HW_Z8F0811_IR_TX_HAUP */
+	CX18_Z8F0811_IR_RX_I2C_ADDR,	/* CX18_HW_Z8F0811_IR_RX_HAUP */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -62,6 +67,8 @@ static const u8 hw_bus[] = {
 	0,	/* CX18_HW_418_AV */
 	0,	/* CX18_HW_GPIO_MUX */
 	0,	/* CX18_HW_GPIO_RESET_CTRL */
+	0,	/* CX18_HW_Z8F0811_IR_TX_HAUP */
+	0,	/* CX18_HW_Z8F0811_IR_RX_HAUP */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -73,6 +80,8 @@ static const char * const hw_modules[] = {
 	NULL,		/* CX18_HW_418_AV */
 	NULL,		/* CX18_HW_GPIO_MUX */
 	NULL,		/* CX18_HW_GPIO_RESET_CTRL */
+	NULL,		/* CX18_HW_Z8F0811_IR_TX_HAUP */
+	NULL,		/* CX18_HW_Z8F0811_IR_RX_HAUP */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -84,7 +93,37 @@ static const char * const hw_devicenames[] = {
 	"cx23418_AV",
 	"gpio_mux",
 	"gpio_reset_ctrl",
+	"ir_tx_z8f0811_haup",
+	"ir_rx_z8f0811_haup",
 };
+
+static const struct IR_i2c_init_data z8f0811_ir_init_data = {
+	.ir_codes = &ir_codes_hauppauge_new_table,
+	.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR,
+	.type = IR_TYPE_RC5,
+	.name = "CX23418 Z8F0811 Hauppauge",
+};
+
+static int cx18_i2c_new_ir(struct i2c_adapter *adap, u32 hw, const char *type,
+			   u8 addr)
+{
+	struct i2c_board_info info;
+	unsigned short addr_list[2] = { addr, I2C_CLIENT_END };
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, type, I2C_NAME_SIZE);
+
+	/* Our default information for ir-kbd-i2c.c to use */
+	switch (hw) {
+	case CX18_HW_Z8F0811_IR_RX_HAUP:
+		info.platform_data = &z8f0811_ir_init_data;
+		break;
+	default:
+		break;
+	}
+
+	return i2c_new_probed_device(adap, &info, addr_list) == NULL ? -1 : 0;
+}
 
 int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 {
@@ -115,11 +154,14 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 		return sd != NULL ? 0 : -1;
 	}
 
+	if (hw & CX18_HW_Z8F0811_IR_HAUP)
+		return cx18_i2c_new_ir(adap, hw, type, hw_addrs[idx]);
+
 	/* Is it not an I2C device or one we do not wish to register? */
 	if (!hw_addrs[idx])
 		return -1;
 
-	/* It's an I2C device other than an analog tuner */
+	/* It's an I2C device other than an analog tuner or IR chip */
 	sd = v4l2_i2c_new_subdev(&cx->v4l2_dev, adap, mod, type, hw_addrs[idx]);
 	if (sd != NULL)
 		sd->grp_id = hw;
@@ -190,7 +232,6 @@ static int cx18_getsda(void *data)
 /* template for i2c-bit-algo */
 static struct i2c_adapter cx18_i2c_adap_template = {
 	.name = "cx18 i2c driver",
-	.id = I2C_HW_B_CX2341X,
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */
 	.owner = THIS_MODULE,

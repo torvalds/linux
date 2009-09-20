@@ -948,7 +948,7 @@ intr_check_sig:
 	/* As above */
 	mfctl   %cr30,%r1
 	LDREG	TI_FLAGS(%r1),%r19
-	ldi	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK), %r20
+	ldi	(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK|_TIF_NOTIFY_RESUME), %r20
 	and,COND(<>)	%r19, %r20, %r0
 	b,n	intr_restore	/* skip past if we've nothing to do */
 

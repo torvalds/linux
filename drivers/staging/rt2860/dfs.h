@@ -77,18 +77,6 @@ ULONG RTMPReadRadarDuration(
 VOID RTMPCleanRadarDuration(
 	IN PRTMP_ADAPTER	pAd);
 
-VOID RTMPPrepareRDCTSFrame(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			pDA,
-	IN	ULONG			Duration,
-	IN  UCHAR           RTSRate,
-	IN  ULONG           CTSBaseAddr,
-	IN  UCHAR			FrameGap);
-
-VOID RTMPPrepareRadarDetectParams(
-	IN PRTMP_ADAPTER	pAd);
-
-
 INT Set_ChMovingTime_Proc(
 	IN PRTMP_ADAPTER pAd,
 	IN PUCHAR arg);

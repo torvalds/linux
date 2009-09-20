@@ -89,8 +89,8 @@ static struct rpc_wait_queue pipe_version_rpc_waitqueue;
 static DECLARE_WAIT_QUEUE_HEAD(pipe_version_waitqueue);
 
 static void gss_free_ctx(struct gss_cl_ctx *);
-static struct rpc_pipe_ops gss_upcall_ops_v0;
-static struct rpc_pipe_ops gss_upcall_ops_v1;
+static const struct rpc_pipe_ops gss_upcall_ops_v0;
+static const struct rpc_pipe_ops gss_upcall_ops_v1;
 
 static inline struct gss_cl_ctx *
 gss_get_ctx(struct gss_cl_ctx *ctx)
@@ -777,7 +777,7 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	 * that we supported only the old pipe.  So we instead create
 	 * the new pipe first.
 	 */
-	gss_auth->dentry[1] = rpc_mkpipe(clnt->cl_dentry,
+	gss_auth->dentry[1] = rpc_mkpipe(clnt->cl_path.dentry,
 					 "gssd",
 					 clnt, &gss_upcall_ops_v1,
 					 RPC_PIPE_WAIT_FOR_OPEN);
@@ -786,7 +786,7 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 		goto err_put_mech;
 	}
 
-	gss_auth->dentry[0] = rpc_mkpipe(clnt->cl_dentry,
+	gss_auth->dentry[0] = rpc_mkpipe(clnt->cl_path.dentry,
 					 gss_auth->mech->gm_name,
 					 clnt, &gss_upcall_ops_v0,
 					 RPC_PIPE_WAIT_FOR_OPEN);
@@ -1507,7 +1507,7 @@ static const struct rpc_credops gss_nullops = {
 	.crunwrap_resp	= gss_unwrap_resp,
 };
 
-static struct rpc_pipe_ops gss_upcall_ops_v0 = {
+static const struct rpc_pipe_ops gss_upcall_ops_v0 = {
 	.upcall		= gss_pipe_upcall,
 	.downcall	= gss_pipe_downcall,
 	.destroy_msg	= gss_pipe_destroy_msg,
@@ -1515,7 +1515,7 @@ static struct rpc_pipe_ops gss_upcall_ops_v0 = {
 	.release_pipe	= gss_pipe_release,
 };
 
-static struct rpc_pipe_ops gss_upcall_ops_v1 = {
+static const struct rpc_pipe_ops gss_upcall_ops_v1 = {
 	.upcall		= gss_pipe_upcall,
 	.downcall	= gss_pipe_downcall,
 	.destroy_msg	= gss_pipe_destroy_msg,

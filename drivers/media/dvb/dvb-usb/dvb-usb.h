@@ -81,9 +81,24 @@ struct dvb_usb_device_description {
  * @event: the input event assigned to key identified by custom and data
  */
 struct dvb_usb_rc_key {
-	u8 custom,data;
+	u16 scan;
 	u32 event;
 };
+
+static inline u8 rc5_custom(struct dvb_usb_rc_key *key)
+{
+	return (key->scan >> 8) & 0xff;
+}
+
+static inline u8 rc5_data(struct dvb_usb_rc_key *key)
+{
+	return key->scan & 0xff;
+}
+
+static inline u8 rc5_scan(struct dvb_usb_rc_key *key)
+{
+	return key->scan & 0xffff;
+}
 
 struct dvb_usb_device;
 struct dvb_usb_adapter;

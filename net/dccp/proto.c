@@ -124,7 +124,7 @@ EXPORT_SYMBOL_GPL(dccp_done);
 
 const char *dccp_packet_name(const int type)
 {
-	static const char *dccp_packet_names[] = {
+	static const char *const dccp_packet_names[] = {
 		[DCCP_PKT_REQUEST]  = "REQUEST",
 		[DCCP_PKT_RESPONSE] = "RESPONSE",
 		[DCCP_PKT_DATA]	    = "DATA",
@@ -147,7 +147,7 @@ EXPORT_SYMBOL_GPL(dccp_packet_name);
 
 const char *dccp_state_name(const int state)
 {
-	static char *dccp_state_names[] = {
+	static const char *const dccp_state_names[] = {
 	[DCCP_OPEN]		= "OPEN",
 	[DCCP_REQUESTING]	= "REQUESTING",
 	[DCCP_PARTOPEN]		= "PARTOPEN",

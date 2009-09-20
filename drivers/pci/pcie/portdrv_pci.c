@@ -205,6 +205,7 @@ static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 
 	/* If fatal, restore cfg space for possible link reset at upstream */
 	if (dev->error_state == pci_channel_io_frozen) {
+		dev->state_saved = true;
 		pci_restore_state(dev);
 		pcie_portdrv_restore_config(dev);
 		pci_enable_pcie_error_reporting(dev);

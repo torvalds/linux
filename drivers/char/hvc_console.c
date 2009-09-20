@@ -516,8 +516,6 @@ static void hvc_set_winsz(struct work_struct *work)
 	struct winsize ws;
 
 	hp = container_of(work, struct hvc_struct, tty_resize);
-	if (!hp)
-		return;
 
 	spin_lock_irqsave(&hp->lock, hvc_flags);
 	if (!hp->tty) {

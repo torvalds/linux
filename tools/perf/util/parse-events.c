@@ -1,23 +1,21 @@
 
-#include "../perf.h"
 #include "util.h"
+#include "../perf.h"
 #include "parse-options.h"
 #include "parse-events.h"
 #include "exec_cmd.h"
 #include "string.h"
 #include "cache.h"
 
-extern char *strcasestr(const char *haystack, const char *needle);
-
 int					nr_counters;
 
 struct perf_counter_attr		attrs[MAX_COUNTERS];
 
 struct event_symbol {
-	u8	type;
-	u64	config;
-	char	*symbol;
-	char	*alias;
+	u8		type;
+	u64		config;
+	const char	*symbol;
+	const char	*alias;
 };
 
 char debugfs_path[MAXPATHLEN];
@@ -51,7 +49,7 @@ static struct event_symbol event_symbols[] = {
 #define PERF_COUNTER_TYPE(config)	__PERF_COUNTER_FIELD(config, TYPE)
 #define PERF_COUNTER_ID(config)		__PERF_COUNTER_FIELD(config, EVENT)
 
-static char *hw_event_names[] = {
+static const char *hw_event_names[] = {
 	"cycles",
 	"instructions",
 	"cache-references",
@@ -61,7 +59,7 @@ static char *hw_event_names[] = {
 	"bus-cycles",
 };
 
-static char *sw_event_names[] = {
+static const char *sw_event_names[] = {
 	"cpu-clock-msecs",
 	"task-clock-msecs",
 	"page-faults",
@@ -73,7 +71,7 @@ static char *sw_event_names[] = {
 
 #define MAX_ALIASES 8
 
-static char *hw_cache[][MAX_ALIASES] = {
+static const char *hw_cache[][MAX_ALIASES] = {
  { "L1-dcache",	"l1-d",		"l1d",		"L1-data",		},
  { "L1-icache",	"l1-i",		"l1i",		"L1-instruction",	},
  { "LLC",	"L2"							},
@@ -82,13 +80,13 @@ static char *hw_cache[][MAX_ALIASES] = {
  { "branch",	"branches",	"bpu",		"btb",		"bpc",	},
 };
 
-static char *hw_cache_op[][MAX_ALIASES] = {
+static const char *hw_cache_op[][MAX_ALIASES] = {
  { "load",	"loads",	"read",					},
  { "store",	"stores",	"write",				},
  { "prefetch",	"prefetches",	"speculative-read", "speculative-load",	},
 };
 
-static char *hw_cache_result[][MAX_ALIASES] = {
+static const char *hw_cache_result[][MAX_ALIASES] = {
  { "refs",	"Reference",	"ops",		"access",		},
  { "misses",	"miss",							},
 };
@@ -113,11 +111,9 @@ static unsigned long hw_cache_stat[C(MAX)] = {
  [C(BPU)]	= (CACHE_READ),
 };
 
-#define for_each_subsystem(sys_dir, sys_dirent, sys_next, file, st)	       \
+#define for_each_subsystem(sys_dir, sys_dirent, sys_next)	       \
 	while (!readdir_r(sys_dir, &sys_dirent, &sys_next) && sys_next)	       \
-	if (snprintf(file, MAXPATHLEN, "%s/%s", debugfs_path,	       	       \
-			sys_dirent.d_name) &&		       		       \
-	   (!stat(file, &st)) && (S_ISDIR(st.st_mode)) &&		       \
+	if (sys_dirent.d_type == DT_DIR &&				       \
 	   (strcmp(sys_dirent.d_name, ".")) &&				       \
 	   (strcmp(sys_dirent.d_name, "..")))
 
@@ -136,11 +132,9 @@ static int tp_event_has_id(struct dirent *sys_dir, struct dirent *evt_dir)
 	return 0;
 }
 
-#define for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next, file, st)    \
+#define for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next)	       \
 	while (!readdir_r(evt_dir, &evt_dirent, &evt_next) && evt_next)        \
-	if (snprintf(file, MAXPATHLEN, "%s/%s/%s", debugfs_path,	       \
-		     sys_dirent.d_name, evt_dirent.d_name) &&		       \
-	   (!stat(file, &st)) && (S_ISDIR(st.st_mode)) &&		       \
+	if (evt_dirent.d_type == DT_DIR &&				       \
 	   (strcmp(evt_dirent.d_name, ".")) &&				       \
 	   (strcmp(evt_dirent.d_name, "..")) &&				       \
 	   (!tp_event_has_id(&sys_dirent, &evt_dirent)))
@@ -158,34 +152,39 @@ int valid_debugfs_mount(const char *debugfs)
 	return 0;
 }
 
-static char *tracepoint_id_to_name(u64 config)
+struct tracepoint_path *tracepoint_id_to_path(u64 config)
 {
-	static char tracepoint_name[2 * MAX_EVENT_LENGTH];
+	struct tracepoint_path *path = NULL;
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
-	struct stat st;
 	char id_buf[4];
-	int fd;
+	int sys_dir_fd, fd;
 	u64 id;
 	char evt_path[MAXPATHLEN];
 
 	if (valid_debugfs_mount(debugfs_path))
-		return "unkown";
+		return NULL;
 
 	sys_dir = opendir(debugfs_path);
 	if (!sys_dir)
 		goto cleanup;
+	sys_dir_fd = dirfd(sys_dir);
 
-	for_each_subsystem(sys_dir, sys_dirent, sys_next, evt_path, st) {
-		evt_dir = opendir(evt_path);
-		if (!evt_dir)
-			goto cleanup;
-		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next,
-								evt_path, st) {
-			snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id",
-				 debugfs_path, sys_dirent.d_name,
+	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
+		int dfd = openat(sys_dir_fd, sys_dirent.d_name,
+				 O_RDONLY|O_DIRECTORY), evt_dir_fd;
+		if (dfd == -1)
+			continue;
+		evt_dir = fdopendir(dfd);
+		if (!evt_dir) {
+			close(dfd);
+			continue;
+		}
+		evt_dir_fd = dirfd(evt_dir);
+		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
+			snprintf(evt_path, MAXPATHLEN, "%s/id",
 				 evt_dirent.d_name);
-			fd = open(evt_path, O_RDONLY);
+			fd = openat(evt_dir_fd, evt_path, O_RDONLY);
 			if (fd < 0)
 				continue;
 			if (read(fd, id_buf, sizeof(id_buf)) < 0) {
@@ -197,10 +196,23 @@ static char *tracepoint_id_to_name(u64 config)
 			if (id == config) {
 				closedir(evt_dir);
 				closedir(sys_dir);
-				snprintf(tracepoint_name, 2 * MAX_EVENT_LENGTH,
-					"%s:%s", sys_dirent.d_name,
-					evt_dirent.d_name);
-				return tracepoint_name;
+				path = calloc(1, sizeof(path));
+				path->system = malloc(MAX_EVENT_LENGTH);
+				if (!path->system) {
+					free(path);
+					return NULL;
+				}
+				path->name = malloc(MAX_EVENT_LENGTH);
+				if (!path->name) {
+					free(path->system);
+					free(path);
+					return NULL;
+				}
+				strncpy(path->system, sys_dirent.d_name,
+					MAX_EVENT_LENGTH);
+				strncpy(path->name, evt_dirent.d_name,
+					MAX_EVENT_LENGTH);
+				return path;
 			}
 		}
 		closedir(evt_dir);
@@ -208,7 +220,25 @@ static char *tracepoint_id_to_name(u64 config)
 
 cleanup:
 	closedir(sys_dir);
-	return "unkown";
+	return NULL;
+}
+
+#define TP_PATH_LEN (MAX_EVENT_LENGTH * 2 + 1)
+static const char *tracepoint_id_to_name(u64 config)
+{
+	static char buf[TP_PATH_LEN];
+	struct tracepoint_path *path;
+
+	path = tracepoint_id_to_path(config);
+	if (path) {
+		snprintf(buf, TP_PATH_LEN, "%s:%s", path->system, path->name);
+		free(path->name);
+		free(path->system);
+		free(path);
+	} else
+		snprintf(buf, TP_PATH_LEN, "%s:%s", "unknown", "unknown");
+
+	return buf;
 }
 
 static int is_cache_op_valid(u8 cache_type, u8 cache_op)
@@ -235,7 +265,7 @@ static char *event_cache_name(u8 cache_type, u8 cache_op, u8 cache_result)
 	return name;
 }
 
-char *event_name(int counter)
+const char *event_name(int counter)
 {
 	u64 config = attrs[counter].config;
 	int type = attrs[counter].type;
@@ -243,7 +273,7 @@ char *event_name(int counter)
 	return __event_name(type, config);
 }
 
-char *__event_name(int type, u64 config)
+const char *__event_name(int type, u64 config)
 {
 	static char buf[32];
 
@@ -294,7 +324,7 @@ char *__event_name(int type, u64 config)
 	return "unknown";
 }
 
-static int parse_aliases(const char **str, char *names[][MAX_ALIASES], int size)
+static int parse_aliases(const char **str, const char *names[][MAX_ALIASES], int size)
 {
 	int i, j;
 	int n, longest = -1;
@@ -598,7 +628,7 @@ static void print_tracepoint_events(void)
 {
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
-	struct stat st;
+	int sys_dir_fd;
 	char evt_path[MAXPATHLEN];
 
 	if (valid_debugfs_mount(debugfs_path))
@@ -607,16 +637,23 @@ static void print_tracepoint_events(void)
 	sys_dir = opendir(debugfs_path);
 	if (!sys_dir)
 		goto cleanup;
+	sys_dir_fd = dirfd(sys_dir);
 
-	for_each_subsystem(sys_dir, sys_dirent, sys_next, evt_path, st) {
-		evt_dir = opendir(evt_path);
-		if (!evt_dir)
-			goto cleanup;
-		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next,
-								evt_path, st) {
+	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
+		int dfd = openat(sys_dir_fd, sys_dirent.d_name,
+				 O_RDONLY|O_DIRECTORY), evt_dir_fd;
+		if (dfd == -1)
+			continue;
+		evt_dir = fdopendir(dfd);
+		if (!evt_dir) {
+			close(dfd);
+			continue;
+		}
+		evt_dir_fd = dirfd(evt_dir);
+		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent.d_name, evt_dirent.d_name);
-			fprintf(stderr, "  %-40s [%s]\n", evt_path,
+			fprintf(stderr, "  %-42s [%s]\n", evt_path,
 				event_type_descriptors[PERF_TYPE_TRACEPOINT+1]);
 		}
 		closedir(evt_dir);
@@ -650,7 +687,7 @@ void print_events(void)
 			sprintf(name, "%s OR %s", syms->symbol, syms->alias);
 		else
 			strcpy(name, syms->symbol);
-		fprintf(stderr, "  %-40s [%s]\n", name,
+		fprintf(stderr, "  %-42s [%s]\n", name,
 			event_type_descriptors[type]);
 
 		prev_type = type;
@@ -664,7 +701,7 @@ void print_events(void)
 				continue;
 
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {
-				fprintf(stderr, "  %-40s [%s]\n",
+				fprintf(stderr, "  %-42s [%s]\n",
 					event_cache_name(type, op, i),
 					event_type_descriptors[4]);
 			}
@@ -672,7 +709,7 @@ void print_events(void)
 	}
 
 	fprintf(stderr, "\n");
-	fprintf(stderr, "  %-40s [raw hardware event descriptor]\n",
+	fprintf(stderr, "  %-42s [raw hardware event descriptor]\n",
 		"rNNN");
 	fprintf(stderr, "\n");
 

@@ -23,9 +23,10 @@ struct dentry;
 #define B43_NR_LOGGED_TXSTATUS	100
 
 struct b43_txstatus_log {
+	/* This structure is protected by wl->mutex */
+
 	struct b43_txstatus *log;
 	int end;
-	spinlock_t lock;
 };
 
 struct b43_dfs_file {

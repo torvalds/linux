@@ -25,6 +25,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/device.h>
+#include <linux/clk.h>
 
 #define MODULE_NAME "DAVINCI-WDT: "
 
@@ -69,6 +70,7 @@ static unsigned long wdt_status;
 
 static struct resource	*wdt_mem;
 static void __iomem	*wdt_base;
+struct clk		*wdt_clk;
 
 static void wdt_service(void)
 {
@@ -86,6 +88,9 @@ static void wdt_enable(void)
 {
 	u32 tgcr;
 	u32 timer_margin;
+	unsigned long wdt_freq;
+
+	wdt_freq = clk_get_rate(wdt_clk);
 
 	spin_lock(&io_lock);
 
@@ -99,9 +104,9 @@ static void wdt_enable(void)
 	iowrite32(0, wdt_base + TIM12);
 	iowrite32(0, wdt_base + TIM34);
 	/* set timeout period */
-	timer_margin = (((u64)heartbeat * CLOCK_TICK_RATE) & 0xffffffff);
+	timer_margin = (((u64)heartbeat * wdt_freq) & 0xffffffff);
 	iowrite32(timer_margin, wdt_base + PRD12);
-	timer_margin = (((u64)heartbeat * CLOCK_TICK_RATE) >> 32);
+	timer_margin = (((u64)heartbeat * wdt_freq) >> 32);
 	iowrite32(timer_margin, wdt_base + PRD34);
 	/* enable run continuously */
 	iowrite32(ENAMODE12_PERIODIC, wdt_base + TCR);
@@ -199,6 +204,12 @@ static int __devinit davinci_wdt_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device *dev = &pdev->dev;
 
+	wdt_clk = clk_get(dev, NULL);
+	if (WARN_ON(IS_ERR(wdt_clk)))
+		return PTR_ERR(wdt_clk);
+
+	clk_enable(wdt_clk);
+
 	if (heartbeat < 1 || heartbeat > MAX_HEARTBEAT)
 		heartbeat = DEFAULT_HEARTBEAT;
 
@@ -245,6 +256,10 @@ static int __devexit davinci_wdt_remove(struct platform_device *pdev)
 		kfree(wdt_mem);
 		wdt_mem = NULL;
 	}
+
+	clk_disable(wdt_clk);
+	clk_put(wdt_clk);
+
 	return 0;
 }
 

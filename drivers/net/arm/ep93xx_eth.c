@@ -762,7 +762,7 @@ static u32 ep93xx_get_link(struct net_device *dev)
 	return mii_link_ok(&ep->mii);
 }
 
-static struct ethtool_ops ep93xx_ethtool_ops = {
+static const struct ethtool_ops ep93xx_ethtool_ops = {
 	.get_drvinfo		= ep93xx_get_drvinfo,
 	.get_settings		= ep93xx_get_settings,
 	.set_settings		= ep93xx_set_settings,

@@ -22,48 +22,39 @@
 #include <mach/hardware.h>
 
 
-/*
- * The EP93xx has two external crystal oscillators.  To generate the
- * required high-frequency clocks, the processor uses two phase-locked-
- * loops (PLLs) to multiply the incoming external clock signal to much
- * higher frequencies that are then divided down by programmable dividers
- * to produce the needed clocks.  The PLLs operate independently of one
- * another.
- */
-#define EP93XX_EXT_CLK_RATE	14745600
-#define EP93XX_EXT_RTC_RATE	32768
-
-
 struct clk {
 	unsigned long	rate;
 	int		users;
 	int		sw_locked;
-	u32		enable_reg;
+	void __iomem	*enable_reg;
 	u32		enable_mask;
 
 	unsigned long	(*get_rate)(struct clk *clk);
+	int		(*set_rate)(struct clk *clk, unsigned long rate);
 };
 
 
 static unsigned long get_uart_rate(struct clk *clk);
 
+static int set_keytchclk_rate(struct clk *clk, unsigned long rate);
+
 
 static struct clk clk_uart1 = {
 	.sw_locked	= 1,
-	.enable_reg	= EP93XX_SYSCON_DEVICE_CONFIG,
-	.enable_mask	= EP93XX_SYSCON_DEVICE_CONFIG_U1EN,
+	.enable_reg	= EP93XX_SYSCON_DEVCFG,
+	.enable_mask	= EP93XX_SYSCON_DEVCFG_U1EN,
 	.get_rate	= get_uart_rate,
 };
 static struct clk clk_uart2 = {
 	.sw_locked	= 1,
-	.enable_reg	= EP93XX_SYSCON_DEVICE_CONFIG,
-	.enable_mask	= EP93XX_SYSCON_DEVICE_CONFIG_U2EN,
+	.enable_reg	= EP93XX_SYSCON_DEVCFG,
+	.enable_mask	= EP93XX_SYSCON_DEVCFG_U2EN,
 	.get_rate	= get_uart_rate,
 };
 static struct clk clk_uart3 = {
 	.sw_locked	= 1,
-	.enable_reg	= EP93XX_SYSCON_DEVICE_CONFIG,
-	.enable_mask	= EP93XX_SYSCON_DEVICE_CONFIG_U3EN,
+	.enable_reg	= EP93XX_SYSCON_DEVCFG,
+	.enable_mask	= EP93XX_SYSCON_DEVCFG_U3EN,
 	.get_rate	= get_uart_rate,
 };
 static struct clk clk_pll1;
@@ -74,6 +65,15 @@ static struct clk clk_pll2;
 static struct clk clk_usb_host = {
 	.enable_reg	= EP93XX_SYSCON_PWRCNT,
 	.enable_mask	= EP93XX_SYSCON_PWRCNT_USH_EN,
+};
+static struct clk clk_keypad = {
+	.sw_locked	= 1,
+	.enable_reg	= EP93XX_SYSCON_KEYTCHCLKDIV,
+	.enable_mask	= EP93XX_SYSCON_KEYTCHCLKDIV_KEN,
+	.set_rate	= set_keytchclk_rate,
+};
+static struct clk clk_pwm = {
+	.rate		= EP93XX_EXT_CLK_RATE,
 };
 
 /* DMA Clocks */
@@ -130,27 +130,29 @@ static struct clk clk_m2m1 = {
 	{ .dev_id = dev, .con_id = con, .clk = ck }
 
 static struct clk_lookup clocks[] = {
-	INIT_CK("apb:uart1", NULL, &clk_uart1),
-	INIT_CK("apb:uart2", NULL, &clk_uart2),
-	INIT_CK("apb:uart3", NULL, &clk_uart3),
-	INIT_CK(NULL, "pll1", &clk_pll1),
-	INIT_CK(NULL, "fclk", &clk_f),
-	INIT_CK(NULL, "hclk", &clk_h),
-	INIT_CK(NULL, "pclk", &clk_p),
-	INIT_CK(NULL, "pll2", &clk_pll2),
-	INIT_CK("ep93xx-ohci", NULL, &clk_usb_host),
-	INIT_CK(NULL, "m2p0", &clk_m2p0),
-	INIT_CK(NULL, "m2p1", &clk_m2p1),
-	INIT_CK(NULL, "m2p2", &clk_m2p2),
-	INIT_CK(NULL, "m2p3", &clk_m2p3),
-	INIT_CK(NULL, "m2p4", &clk_m2p4),
-	INIT_CK(NULL, "m2p5", &clk_m2p5),
-	INIT_CK(NULL, "m2p6", &clk_m2p6),
-	INIT_CK(NULL, "m2p7", &clk_m2p7),
-	INIT_CK(NULL, "m2p8", &clk_m2p8),
-	INIT_CK(NULL, "m2p9", &clk_m2p9),
-	INIT_CK(NULL, "m2m0", &clk_m2m0),
-	INIT_CK(NULL, "m2m1", &clk_m2m1),
+	INIT_CK("apb:uart1",		NULL,		&clk_uart1),
+	INIT_CK("apb:uart2",		NULL,		&clk_uart2),
+	INIT_CK("apb:uart3",		NULL,		&clk_uart3),
+	INIT_CK(NULL,			"pll1",		&clk_pll1),
+	INIT_CK(NULL,			"fclk",		&clk_f),
+	INIT_CK(NULL,			"hclk",		&clk_h),
+	INIT_CK(NULL,			"pclk",		&clk_p),
+	INIT_CK(NULL,			"pll2",		&clk_pll2),
+	INIT_CK("ep93xx-ohci",		NULL,		&clk_usb_host),
+	INIT_CK("ep93xx-keypad",	NULL,		&clk_keypad),
+	INIT_CK(NULL,			"pwm_clk",	&clk_pwm),
+	INIT_CK(NULL,			"m2p0",		&clk_m2p0),
+	INIT_CK(NULL,			"m2p1",		&clk_m2p1),
+	INIT_CK(NULL,			"m2p2",		&clk_m2p2),
+	INIT_CK(NULL,			"m2p3",		&clk_m2p3),
+	INIT_CK(NULL,			"m2p4",		&clk_m2p4),
+	INIT_CK(NULL,			"m2p5",		&clk_m2p5),
+	INIT_CK(NULL,			"m2p6",		&clk_m2p6),
+	INIT_CK(NULL,			"m2p7",		&clk_m2p7),
+	INIT_CK(NULL,			"m2p8",		&clk_m2p8),
+	INIT_CK(NULL,			"m2p9",		&clk_m2p9),
+	INIT_CK(NULL,			"m2m0",		&clk_m2m0),
+	INIT_CK(NULL,			"m2m1",		&clk_m2m1),
 };
 
 
@@ -160,9 +162,11 @@ int clk_enable(struct clk *clk)
 		u32 value;
 
 		value = __raw_readl(clk->enable_reg);
+		value |= clk->enable_mask;
 		if (clk->sw_locked)
-			__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
-		__raw_writel(value | clk->enable_mask, clk->enable_reg);
+			ep93xx_syscon_swlocked_write(value, clk->enable_reg);
+		else
+			__raw_writel(value, clk->enable_reg);
 	}
 
 	return 0;
@@ -175,9 +179,11 @@ void clk_disable(struct clk *clk)
 		u32 value;
 
 		value = __raw_readl(clk->enable_reg);
+		value &= ~clk->enable_mask;
 		if (clk->sw_locked)
-			__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
-		__raw_writel(value & ~clk->enable_mask, clk->enable_reg);
+			ep93xx_syscon_swlocked_write(value, clk->enable_reg);
+		else
+			__raw_writel(value, clk->enable_reg);
 	}
 }
 EXPORT_SYMBOL(clk_disable);
@@ -201,6 +207,43 @@ unsigned long clk_get_rate(struct clk *clk)
 	return clk->rate;
 }
 EXPORT_SYMBOL(clk_get_rate);
+
+static int set_keytchclk_rate(struct clk *clk, unsigned long rate)
+{
+	u32 val;
+	u32 div_bit;
+
+	val = __raw_readl(clk->enable_reg);
+
+	/*
+	 * The Key Matrix and ADC clocks are configured using the same
+	 * System Controller register.  The clock used will be either
+	 * 1/4 or 1/16 the external clock rate depending on the
+	 * EP93XX_SYSCON_KEYTCHCLKDIV_KDIV/EP93XX_SYSCON_KEYTCHCLKDIV_ADIV
+	 * bit being set or cleared.
+	 */
+	div_bit = clk->enable_mask >> 15;
+
+	if (rate == EP93XX_KEYTCHCLK_DIV4)
+		val |= div_bit;
+	else if (rate == EP93XX_KEYTCHCLK_DIV16)
+		val &= ~div_bit;
+	else
+		return -EINVAL;
+
+	ep93xx_syscon_swlocked_write(val, clk->enable_reg);
+	clk->rate = rate;
+	return 0;
+}
+
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	if (clk->set_rate)
+		return clk->set_rate(clk, rate);
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(clk_set_rate);
 
 
 static char fclk_divisors[] = { 1, 2, 4, 8, 16, 1, 1, 1 };

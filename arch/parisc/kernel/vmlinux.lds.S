@@ -237,9 +237,12 @@ SECTIONS
 	/* freed after init ends here */
 	_end = . ;
 
+	STABS_DEBUG
+	.note 0 : { *(.note) }
+
 	/* Sections to be discarded */
+	DISCARDS
 	/DISCARD/ : {
-		*(.exitcall.exit)
 #ifdef CONFIG_64BIT
 		/* temporary hack until binutils is fixed to not emit these
 	 	 * for static binaries
@@ -252,7 +255,4 @@ SECTIONS
 		*(.gnu.hash)
 #endif
 	}
-
-	STABS_DEBUG
-	.note 0 : { *(.note) }	
 }

@@ -286,7 +286,7 @@ static int pccard_get_status(struct pcmcia_socket *s,
 	return 0;
 } /* pccard_get_status */
 
-int pccard_get_configuration_info(struct pcmcia_socket *s,
+static int pccard_get_configuration_info(struct pcmcia_socket *s,
 				  struct pcmcia_device *p_dev,
 				  config_info_t *config)
 {

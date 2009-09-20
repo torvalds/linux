@@ -396,7 +396,7 @@ static struct stv0900_reg stv0900_ts_regs[] = {
 
 static struct stv0900_config netup_stv0900_config = {
 	.demod_address = 0x68,
-	.xtal = 27000000,
+	.xtal = 8000000,
 	.clkmode = 3,/* 0-CLKI, 2-XTALI, else AUTO */
 	.diseqc_mode = 2,/* 2/3 PWM */
 	.ts_config_regs = stv0900_ts_regs,
@@ -408,14 +408,14 @@ static struct stv0900_config netup_stv0900_config = {
 
 static struct stv6110_config netup_stv6110_tunerconfig_a = {
 	.i2c_address = 0x60,
-	.mclk = 27000000,
-	.iq_wiring = 0,
+	.mclk = 16000000,
+	.clk_div = 1,
 };
 
 static struct stv6110_config netup_stv6110_tunerconfig_b = {
 	.i2c_address = 0x63,
-	.mclk = 27000000,
-	.iq_wiring = 1,
+	.mclk = 16000000,
+	.clk_div = 1,
 };
 
 static int tbs_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
@@ -486,6 +486,26 @@ static int cx23885_dvb_set_frontend(struct dvb_frontend *fe,
 	return (port->set_frontend_save) ?
 		port->set_frontend_save(fe, param) : -ENODEV;
 }
+
+static struct lgs8gxx_config magicpro_prohdtve2_lgs8g75_config = {
+	.prod = LGS8GXX_PROD_LGS8G75,
+	.demod_address = 0x19,
+	.serial_ts = 0,
+	.ts_clk_pol = 1,
+	.ts_clk_gated = 1,
+	.if_clk_freq = 30400, /* 30.4 MHz */
+	.if_freq = 6500, /* 6.50 MHz */
+	.if_neg_center = 1,
+	.ext_adc = 0,
+	.adc_signed = 1,
+	.adc_vpp = 2, /* 1.6 Vpp */
+	.if_neg_edge = 1,
+};
+
+static struct xc5000_config magicpro_prohdtve2_xc5000_config = {
+	.i2c_address = 0x61,
+	.if_khz = 6500,
+};
 
 static int dvb_register(struct cx23885_tsport *port)
 {
@@ -833,6 +853,30 @@ static int dvb_register(struct cx23885_tsport *port)
 				&mygica_x8506_xc5000_config);
 		}
 		break;
+	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
+		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus2 = &dev->i2c_bus[1];
+		fe0->dvb.frontend = dvb_attach(lgs8gxx_attach,
+			&magicpro_prohdtve2_lgs8g75_config,
+			&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(xc5000_attach,
+				fe0->dvb.frontend,
+				&i2c_bus2->i2c_adap,
+				&magicpro_prohdtve2_xc5000_config);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+		i2c_bus = &dev->i2c_bus[0];
+		fe0->dvb.frontend = dvb_attach(s5h1411_attach,
+			&hcw_s5h1411_config,
+			&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL)
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				0x60, &dev->i2c_bus[0].i2c_adap,
+				&hauppauge_tda18271_config);
+		break;
+
 	default:
 		printk(KERN_INFO "%s: The frontend of your DVB/ATSC card "
 			" isn't supported yet\n",

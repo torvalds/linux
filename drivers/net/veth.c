@@ -129,7 +129,7 @@ static int veth_set_tx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static struct ethtool_ops veth_ethtool_ops = {
+static const struct ethtool_ops veth_ethtool_ops = {
 	.get_settings		= veth_get_settings,
 	.get_drvinfo		= veth_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -148,7 +148,7 @@ static struct ethtool_ops veth_ethtool_ops = {
  * xmit
  */
 
-static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_device *rcv = NULL;
 	struct veth_priv *priv, *rcv_priv;
@@ -171,6 +171,7 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len > (rcv->mtu + MTU_PAD))
 		goto rx_drop;
 
+        skb->tstamp.tv64 = 0;
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, rcv);
 	if (dev->features & NETIF_F_NO_CSUM)
@@ -189,17 +190,17 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	rcv_stats->rx_packets++;
 
 	netif_rx(skb);
-	return 0;
+	return NETDEV_TX_OK;
 
 tx_drop:
 	kfree_skb(skb);
 	stats->tx_dropped++;
-	return 0;
+	return NETDEV_TX_OK;
 
 rx_drop:
 	kfree_skb(skb);
 	rcv_stats->rx_dropped++;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

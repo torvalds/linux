@@ -283,7 +283,7 @@ static int __try_deliver_ckc_interrupt(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
+static int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_float_interrupt *fi = vcpu->arch.local_int.float_int;
@@ -318,12 +318,6 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	}
 
 	return rc;
-}
-
-int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
-{
-	/* do real check here */
-	return 1;
 }
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)

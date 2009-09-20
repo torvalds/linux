@@ -2267,8 +2267,6 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 				    fence_list) {
 			old_obj = old_obj_priv->obj;
 
-			reg = &dev_priv->fence_regs[old_obj_priv->fence_reg];
-
 			if (old_obj_priv->pin_count)
 				continue;
 
@@ -2290,8 +2288,11 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 			 */
 			i915_gem_object_flush_gpu_write_domain(old_obj);
 			ret = i915_gem_object_wait_rendering(old_obj);
-			if (ret != 0)
+			if (ret != 0) {
+				drm_gem_object_unreference(old_obj);
 				return ret;
+			}
+
 			break;
 		}
 
@@ -2299,10 +2300,14 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 		 * Zap this virtual mapping so we can set up a fence again
 		 * for this object next time we need it.
 		 */
-		i915_gem_release_mmap(reg->obj);
+		i915_gem_release_mmap(old_obj);
+
 		i = old_obj_priv->fence_reg;
+		reg = &dev_priv->fence_regs[i];
+
 		old_obj_priv->fence_reg = I915_FENCE_REG_NONE;
 		list_del_init(&old_obj_priv->fence_list);
+
 		drm_gem_object_unreference(old_obj);
 	}
 
@@ -4227,15 +4232,11 @@ int
 i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	int ret;
-
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
-	ret = i915_gem_idle(dev);
 	drm_irq_uninstall(dev);
-
-	return ret;
+	return i915_gem_idle(dev);
 }
 
 void

@@ -211,7 +211,7 @@ static int __devinit mdio_ofgpio_probe(struct of_device *ofdev,
 
 	new_bus = mdio_gpio_bus_init(&ofdev->dev, pdata, pdata->mdc);
 	if (!new_bus)
-		return -ENODEV;
+		goto out_free;
 
 	ret = of_mdiobus_register(new_bus, ofdev->node);
 	if (ret)

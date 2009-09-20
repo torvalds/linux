@@ -798,8 +798,10 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 
 	if (!qdio_inbound_q_done(q)) {
 		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop);
-		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
+		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED)) {
 			tasklet_schedule(&q->tasklet);
+			return;
+		}
 	}
 
 	qdio_stop_polling(q);

@@ -164,7 +164,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_connect
 	PTR	sys_accept
 	PTR	sys_sendto
-	PTR	sys_recvfrom
+	PTR	compat_sys_recvfrom
 	PTR	compat_sys_sendmsg		/* 6045 */
 	PTR	compat_sys_recvmsg
 	PTR	sys_shutdown

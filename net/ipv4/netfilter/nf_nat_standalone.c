@@ -251,7 +251,7 @@ static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
 	{
 		.hook		= nf_nat_in,
 		.owner		= THIS_MODULE,
-		.pf		= PF_INET,
+		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP_PRI_NAT_DST,
 	},
@@ -259,7 +259,7 @@ static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
 	{
 		.hook		= nf_nat_out,
 		.owner		= THIS_MODULE,
-		.pf		= PF_INET,
+		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_NAT_SRC,
 	},
@@ -267,7 +267,7 @@ static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
 	{
 		.hook		= nf_nat_local_fn,
 		.owner		= THIS_MODULE,
-		.pf		= PF_INET,
+		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP_PRI_NAT_DST,
 	},
@@ -275,7 +275,7 @@ static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
 	{
 		.hook		= nf_nat_fn,
 		.owner		= THIS_MODULE,
-		.pf		= PF_INET,
+		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_NAT_SRC,
 	},

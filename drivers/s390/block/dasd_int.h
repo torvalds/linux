@@ -59,6 +59,11 @@
 #include <asm/dasd.h>
 #include <asm/idals.h>
 
+/* DASD discipline magic */
+#define DASD_ECKD_MAGIC 0xC5C3D2C4
+#define DASD_DIAG_MAGIC 0xC4C9C1C7
+#define DASD_FBA_MAGIC 0xC6C2C140
+
 /*
  * SECTION: Type definitions
  */
@@ -540,9 +545,9 @@ extern struct block_device_operations dasd_device_operations;
 extern struct kmem_cache *dasd_page_cache;
 
 struct dasd_ccw_req *
-dasd_kmalloc_request(char *, int, int, struct dasd_device *);
+dasd_kmalloc_request(int , int, int, struct dasd_device *);
 struct dasd_ccw_req *
-dasd_smalloc_request(char *, int, int, struct dasd_device *);
+dasd_smalloc_request(int , int, int, struct dasd_device *);
 void dasd_kfree_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_sfree_request(struct dasd_ccw_req *, struct dasd_device *);
 
@@ -587,7 +592,7 @@ void dasd_generic_handle_state_change(struct dasd_device *);
 int dasd_generic_pm_freeze(struct ccw_device *);
 int dasd_generic_restore_device(struct ccw_device *);
 
-int dasd_generic_read_dev_chars(struct dasd_device *, char *, void *, int);
+int dasd_generic_read_dev_chars(struct dasd_device *, int, void *, int);
 char *dasd_get_sense(struct irb *);
 
 /* externals in dasd_devmap.c */

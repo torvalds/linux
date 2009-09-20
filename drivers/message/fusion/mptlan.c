@@ -795,7 +795,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 			IOC_AND_NETDEV_NAMES_s_s(dev),
 			le32_to_cpu(pSimple->FlagsLength)));
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

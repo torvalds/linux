@@ -317,7 +317,7 @@ static int power7_generic_events[] = {
  */
 static int power7_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
-		[C(OP_READ)] = {	0x400f0,	0xc880	},
+		[C(OP_READ)] = {	0xc880,		0x400f0	},
 		[C(OP_WRITE)] = {	0,		0x300f0	},
 		[C(OP_PREFETCH)] = {	0xd8b8,		0	},
 	},
@@ -327,8 +327,8 @@ static int power7_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_PREFETCH)] = {	0x408a,		0	},
 	},
 	[C(LL)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
-		[C(OP_READ)] = {	0x6080,		0x6084	},
-		[C(OP_WRITE)] = {	0x6082,		0x6086	},
+		[C(OP_READ)] = {	0x16080,	0x26080	},
+		[C(OP_WRITE)] = {	0x16082,	0x26082	},
 		[C(OP_PREFETCH)] = {	0,		0	},
 	},
 	[C(DTLB)] = {		/* 	RESULT_ACCESS	RESULT_MISS */

@@ -86,7 +86,7 @@ static inline struct sock *icmpv6_sk(struct net *net)
 
 static int icmpv6_rcv(struct sk_buff *skb);
 
-static struct inet6_protocol icmpv6_protocol = {
+static const struct inet6_protocol icmpv6_protocol = {
 	.handler	=	icmpv6_rcv,
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
@@ -323,7 +323,7 @@ void icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	int iif = 0;
 	int addr_type = 0;
 	int len;
-	int hlimit, tclass;
+	int hlimit;
 	int err = 0;
 
 	if ((u8 *)hdr < skb->head ||
@@ -469,10 +469,6 @@ route_done:
 	if (hlimit < 0)
 		hlimit = ip6_dst_hoplimit(dst);
 
-	tclass = np->tclass;
-	if (tclass < 0)
-		tclass = 0;
-
 	msg.skb = skb;
 	msg.offset = skb_network_offset(skb);
 	msg.type = type;
@@ -488,8 +484,8 @@ route_done:
 
 	err = ip6_append_data(sk, icmpv6_getfrag, &msg,
 			      len + sizeof(struct icmp6hdr),
-			      sizeof(struct icmp6hdr),
-			      hlimit, tclass, NULL, &fl, (struct rt6_info*)dst,
+			      sizeof(struct icmp6hdr), hlimit,
+			      np->tclass, NULL, &fl, (struct rt6_info*)dst,
 			      MSG_DONTWAIT);
 	if (err) {
 		ip6_flush_pending_frames(sk);
@@ -522,7 +518,6 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	struct dst_entry *dst;
 	int err = 0;
 	int hlimit;
-	int tclass;
 
 	saddr = &ipv6_hdr(skb)->daddr;
 
@@ -562,10 +557,6 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	if (hlimit < 0)
 		hlimit = ip6_dst_hoplimit(dst);
 
-	tclass = np->tclass;
-	if (tclass < 0)
-		tclass = 0;
-
 	idev = in6_dev_get(skb->dev);
 
 	msg.skb = skb;
@@ -573,7 +564,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	msg.type = ICMPV6_ECHO_REPLY;
 
 	err = ip6_append_data(sk, icmpv6_getfrag, &msg, skb->len + sizeof(struct icmp6hdr),
-				sizeof(struct icmp6hdr), hlimit, tclass, NULL, &fl,
+				sizeof(struct icmp6hdr), hlimit, np->tclass, NULL, &fl,
 				(struct rt6_info*)dst, MSG_DONTWAIT);
 
 	if (err) {
@@ -592,7 +583,7 @@ out:
 
 static void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 {
-	struct inet6_protocol *ipprot;
+	const struct inet6_protocol *ipprot;
 	int inner_offset;
 	int hash;
 	u8 nexthdr;

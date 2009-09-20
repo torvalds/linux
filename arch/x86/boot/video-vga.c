@@ -47,14 +47,6 @@ static u8 vga_set_basic_mode(void)
 
 	initregs(&ireg);
 
-#ifdef CONFIG_VIDEO_400_HACK
-	if (adapter >= ADAPTER_VGA) {
-		ireg.ax = 0x1202;
-		ireg.bx = 0x0030;
-		intcall(0x10, &ireg, NULL);
-	}
-#endif
-
 	ax = 0x0f00;
 	intcall(0x10, &ireg, &oreg);
 	mode = oreg.al;
@@ -62,11 +54,9 @@ static u8 vga_set_basic_mode(void)
 	set_fs(0);
 	rows = rdfs8(0x484);	/* rows minus one */
 
-#ifndef CONFIG_VIDEO_400_HACK
 	if ((oreg.ax == 0x5003 || oreg.ax == 0x5007) &&
 	    (rows == 0 || rows == 24))
 		return mode;
-#endif
 
 	if (mode != 3 && mode != 7)
 		mode = 3;

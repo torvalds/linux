@@ -272,7 +272,8 @@ static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 		__raw_writew(data, PSCR);
 	}
 }
-#elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
+#elif defined(CONFIG_CPU_SUBTYPE_SH7757) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7763) || \
       defined(CONFIG_CPU_SUBTYPE_SH7780) || \
       defined(CONFIG_CPU_SUBTYPE_SH7785) || \
       defined(CONFIG_CPU_SUBTYPE_SH7786) || \
@@ -662,10 +663,11 @@ static irqreturn_t sci_rx_interrupt(int irq, void *port)
 static irqreturn_t sci_tx_interrupt(int irq, void *ptr)
 {
 	struct uart_port *port = ptr;
+	unsigned long flags;
 
-	spin_lock_irq(&port->lock);
+	spin_lock_irqsave(&port->lock, flags);
 	sci_transmit_chars(port);
-	spin_unlock_irq(&port->lock);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	return IRQ_HANDLED;
 }

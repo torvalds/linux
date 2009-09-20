@@ -802,7 +802,7 @@ static int ixp4xx_nway_reset(struct net_device *dev)
 	return phy_start_aneg(port->phydev);
 }
 
-static struct ethtool_ops ixp4xx_ethtool_ops = {
+static const struct ethtool_ops ixp4xx_ethtool_ops = {
 	.get_drvinfo = ixp4xx_get_drvinfo,
 	.get_settings = ixp4xx_get_settings,
 	.set_settings = ixp4xx_set_settings,

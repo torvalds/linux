@@ -237,9 +237,44 @@ struct perf_header *perf_header__read(int fd)
 	self->data_offset = f_header.data.offset;
 	self->data_size   = f_header.data.size;
 
-	lseek(fd, self->data_offset + self->data_size, SEEK_SET);
+	lseek(fd, self->data_offset, SEEK_SET);
 
 	self->frozen = 1;
 
 	return self;
+}
+
+u64 perf_header__sample_type(struct perf_header *header)
+{
+	u64 type = 0;
+	int i;
+
+	for (i = 0; i < header->attrs; i++) {
+		struct perf_header_attr *attr = header->attr[i];
+
+		if (!type)
+			type = attr->attr.sample_type;
+		else if (type != attr->attr.sample_type)
+			die("non matching sample_type");
+	}
+
+	return type;
+}
+
+struct perf_counter_attr *
+perf_header__find_attr(u64 id, struct perf_header *header)
+{
+	int i;
+
+	for (i = 0; i < header->attrs; i++) {
+		struct perf_header_attr *attr = header->attr[i];
+		int j;
+
+		for (j = 0; j < attr->ids; j++) {
+			if (attr->id[j] == id)
+				return &attr->attr;
+		}
+	}
+
+	return NULL;
 }

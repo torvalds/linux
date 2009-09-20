@@ -78,12 +78,12 @@ static struct hid_driver ez_driver = {
 	.event = ez_event,
 };
 
-static int ez_init(void)
+static int __init ez_init(void)
 {
 	return hid_register_driver(&ez_driver);
 }
 
-static void ez_exit(void)
+static void __exit ez_exit(void)
 {
 	hid_unregister_driver(&ez_driver);
 }

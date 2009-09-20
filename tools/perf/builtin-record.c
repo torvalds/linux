@@ -15,6 +15,9 @@
 #include "util/string.h"
 
 #include "util/header.h"
+#include "util/event.h"
+#include "util/debug.h"
+#include "util/trace-event.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -42,7 +45,6 @@ static int			inherit				= 1;
 static int			force				= 0;
 static int			append_file			= 0;
 static int			call_graph			= 0;
-static int			verbose				= 0;
 static int			inherit_stat			= 0;
 static int			no_samples			= 0;
 static int			sample_address			= 0;
@@ -61,24 +63,6 @@ static int			nr_cpu;
 static int			file_new = 1;
 
 struct perf_header		*header;
-
-struct mmap_event {
-	struct perf_event_header	header;
-	u32				pid;
-	u32				tid;
-	u64				start;
-	u64				len;
-	u64				pgoff;
-	char				filename[PATH_MAX];
-};
-
-struct comm_event {
-	struct perf_event_header	header;
-	u32				pid;
-	u32				tid;
-	char				comm[16];
-};
-
 
 struct mmap_data {
 	int			counter;
@@ -419,8 +403,11 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	if (call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
-	if (raw_samples)
+	if (raw_samples) {
+		attr->sample_type	|= PERF_SAMPLE_TIME;
 		attr->sample_type	|= PERF_SAMPLE_RAW;
+		attr->sample_type	|= PERF_SAMPLE_CPU;
+	}
 
 	attr->mmap		= track;
 	attr->comm		= track;
@@ -563,6 +550,17 @@ static int __cmd_record(int argc, const char **argv)
 	else
 		header = perf_header__new();
 
+
+	if (raw_samples) {
+		read_tracing_data(attrs, nr_counters);
+	} else {
+		for (i = 0; i < nr_counters; i++) {
+			if (attrs[i].sample_type & PERF_SAMPLE_RAW) {
+				read_tracing_data(attrs, nr_counters);
+				break;
+			}
+		}
+	}
 	atexit(atexit_header);
 
 	if (!system_wide) {

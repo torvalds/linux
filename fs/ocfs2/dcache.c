@@ -85,6 +85,17 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry,
 		goto bail;
 	}
 
+	/*
+	 * If the last lookup failed to create dentry lock, let us
+	 * redo it.
+	 */
+	if (!dentry->d_fsdata) {
+		mlog(0, "Inode %llu doesn't have dentry lock, "
+		     "returning false\n",
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+		goto bail;
+	}
+
 	ret = 1;
 
 bail:

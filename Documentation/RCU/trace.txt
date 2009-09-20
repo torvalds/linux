@@ -191,8 +191,7 @@ rcu/rcuhier (which displays the struct rcu_node hierarchy).
 
 The output of "cat rcu/rcudata" looks as follows:
 
-rcu:
-rcu:
+rcu_sched:
   0 c=17829 g=17829 pq=1 pqc=17829 qp=0 dt=10951/1 dn=0 df=1101 of=0 ri=36 ql=0 b=10
   1 c=17829 g=17829 pq=1 pqc=17829 qp=0 dt=16117/1 dn=0 df=1015 of=0 ri=0 ql=0 b=10
   2 c=17829 g=17829 pq=1 pqc=17829 qp=0 dt=1445/1 dn=0 df=1839 of=0 ri=0 ql=0 b=10
@@ -306,7 +305,7 @@ comma-separated-variable spreadsheet format.
 
 The output of "cat rcu/rcugp" looks as follows:
 
-rcu: completed=33062  gpnum=33063
+rcu_sched: completed=33062  gpnum=33063
 rcu_bh: completed=464  gpnum=464
 
 Again, this output is for both "rcu" and "rcu_bh".  The fields are
@@ -413,7 +412,7 @@ o	Each element of the form "1/1 0:127 ^0" represents one struct
 
 The output of "cat rcu/rcu_pending" looks as follows:
 
-rcu:
+rcu_sched:
   0 np=255892 qsp=53936 cbr=0 cng=14417 gpc=10033 gps=24320 nf=6445 nn=146741
   1 np=261224 qsp=54638 cbr=0 cng=25723 gpc=16310 gps=2849 nf=5912 nn=155792
   2 np=237496 qsp=49664 cbr=0 cng=2762 gpc=45478 gps=1762 nf=1201 nn=136629

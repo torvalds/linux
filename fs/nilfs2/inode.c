@@ -430,7 +430,8 @@ static int __nilfs_read_inode(struct super_block *sb, unsigned long ino,
 
 	raw_inode = nilfs_ifile_map_inode(sbi->s_ifile, ino, bh);
 
-	if (nilfs_read_inode_common(inode, raw_inode))
+	err = nilfs_read_inode_common(inode, raw_inode);
+	if (err)
 		goto failed_unmap;
 
 	if (S_ISREG(inode->i_mode)) {

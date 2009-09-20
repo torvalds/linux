@@ -3,6 +3,11 @@ ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm.h \
 header-y  += kvm.h
 endif
 
+ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm_para.h \
+		  $(srctree)/include/asm-$(SRCARCH)/kvm_para.h),)
+header-y  += kvm_para.h
+endif
+
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/a.out.h \
       		  $(srctree)/include/asm-$(SRCARCH)/a.out.h),)
 unifdef-y += a.out.h

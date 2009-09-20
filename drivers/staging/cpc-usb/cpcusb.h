@@ -75,7 +75,7 @@ typedef struct CPC_USB {
 #define CPC_DRIVER_VERSION "0.724"
 #define CPC_DRIVER_SERIAL  "not applicable"
 
-#define OBUF_SIZE 255		// 4096
+#define OBUF_SIZE 255		/* 4096 */
 
 /* read timeouts -- RD_NAK_TIMEOUT * RD_EXPIRE = Number of seconds */
 #define RD_NAK_TIMEOUT (10*HZ)	/* Default number of X seconds to wait */

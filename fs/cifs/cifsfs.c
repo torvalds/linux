@@ -361,13 +361,10 @@ cifs_show_address(struct seq_file *s, struct TCP_Server_Info *server)
 static int
 cifs_show_options(struct seq_file *s, struct vfsmount *m)
 {
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *tcon;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(m->mnt_sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
 
-	cifs_sb = CIFS_SB(m->mnt_sb);
-	tcon = cifs_sb->tcon;
-
-	seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
+	seq_printf(s, ",unc=%s", tcon->treeName);
 	if (tcon->ses->userName)
 		seq_printf(s, ",username=%s", tcon->ses->userName);
 	if (tcon->ses->domainName)
@@ -989,19 +986,19 @@ static int cifs_oplock_thread(void *dummyarg)
 		if (try_to_freeze())
 			continue;
 
-		spin_lock(&GlobalMid_Lock);
-		if (list_empty(&GlobalOplock_Q)) {
-			spin_unlock(&GlobalMid_Lock);
+		spin_lock(&cifs_oplock_lock);
+		if (list_empty(&cifs_oplock_list)) {
+			spin_unlock(&cifs_oplock_lock);
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(39*HZ);
 		} else {
-			oplock_item = list_entry(GlobalOplock_Q.next,
+			oplock_item = list_entry(cifs_oplock_list.next,
 						struct oplock_q_entry, qhead);
 			cFYI(1, ("found oplock item to write out"));
 			pTcon = oplock_item->tcon;
 			inode = oplock_item->pinode;
 			netfid = oplock_item->netfid;
-			spin_unlock(&GlobalMid_Lock);
+			spin_unlock(&cifs_oplock_lock);
 			DeleteOplockQEntry(oplock_item);
 			/* can not grab inode sem here since it would
 				deadlock when oplock received on delete
@@ -1058,7 +1055,7 @@ init_cifs(void)
 	int rc = 0;
 	cifs_proc_init();
 	INIT_LIST_HEAD(&cifs_tcp_ses_list);
-	INIT_LIST_HEAD(&GlobalOplock_Q);
+	INIT_LIST_HEAD(&cifs_oplock_list);
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	INIT_LIST_HEAD(&GlobalDnotifyReqList);
 	INIT_LIST_HEAD(&GlobalDnotifyRsp_Q);
@@ -1087,6 +1084,7 @@ init_cifs(void)
 	rwlock_init(&GlobalSMBSeslock);
 	rwlock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&GlobalMid_Lock);
+	spin_lock_init(&cifs_oplock_lock);
 
 	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;

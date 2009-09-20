@@ -31,21 +31,6 @@ config HID
 
 	  If unsure, say Y.
 
-config HID_DEBUG
-	bool "HID debugging support"
-	default y
-	depends on HID
-	---help---
-	This option lets the HID layer output diagnostics about its internal
-	state, resolve HID usages, dump HID fields, etc. Individual HID drivers
-	use this debugging facility to output information about individual HID
-	devices, etc.
-
-	This feature is useful for those who are either debugging the HID parser
-	or any HID hardware device.
-
-	If unsure, say Y.
-
 config HIDRAW
 	bool "/dev/hidraw raw HID device support"
 	depends on HID
@@ -152,6 +137,13 @@ config HID_GYRATION
 	---help---
 	Support for Gyration remote control.
 
+config HID_TWINHAN
+	tristate "Twinhan" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for Twinhan IR remote control.
+
 config HID_KENSINGTON
 	tristate "Kensington" if EMBEDDED
 	depends on USB_HID
@@ -176,6 +168,7 @@ config LOGITECH_FF
 	  - Logitech WingMan Cordless RumblePad 2
 	  - Logitech WingMan Force 3D
 	  - Logitech Formula Force EX
+	  - Logitech WingMan Formula Force GP
 	  - Logitech MOMO Force wheel
 
 	  and if you want to enable force feedback for them.
@@ -314,9 +307,9 @@ config THRUSTMASTER_FF
 	depends on HID_THRUSTMASTER
 	select INPUT_FF_MEMLESS
 	---help---
-	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or
-	  a THRUSTMASTER Ferrari GT Rumble Force or Force Feedback Wheel and
-	  want to enable force feedback support for it.
+	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or 3,
+	  a THRUSTMASTER Dual Trigger 3-in-1 or a THRUSTMASTER Ferrari GT
+	  Rumble Force or Force Feedback Wheel.
 
 config HID_WACOM
 	tristate "Wacom Bluetooth devices support" if EMBEDDED

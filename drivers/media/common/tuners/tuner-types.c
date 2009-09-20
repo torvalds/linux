@@ -1301,6 +1301,25 @@ static struct tuner_params tuner_fq1216lme_mk3_params[] = {
 	},
 };
 
+/* ----- TUNER_PARTSNIC_PTI_5NF05 - Partsnic (Daewoo) PTI-5NF05 NTSC ----- */
+
+static struct tuner_range tuner_partsnic_pti_5nf05_ranges[] = {
+	/* The datasheet specified channel ranges and the bandswitch byte */
+	/* The control byte value of 0x8e is just a guess */
+	{ 16 * 133.25 /*MHz*/, 0x8e, 0x01, }, /* Channels    2 -    B */
+	{ 16 * 367.25 /*MHz*/, 0x8e, 0x02, }, /* Channels    C - W+11 */
+	{ 16 * 999.99        , 0x8e, 0x08, }, /* Channels W+12 -   69 */
+};
+
+static struct tuner_params tuner_partsnic_pti_5nf05_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_partsnic_pti_5nf05_ranges,
+		.count  = ARRAY_SIZE(tuner_partsnic_pti_5nf05_ranges),
+		.cb_first_if_lower_freq = 1, /* not specified but safe to do */
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1752,6 +1771,12 @@ struct tunertype tuners[] = {
 		.name = "Philips FQ1216LME MK3 PAL/SECAM w/active loopthrough",
 		.params = tuner_fq1216lme_mk3_params,
 		.count  = ARRAY_SIZE(tuner_fq1216lme_mk3_params),
+	},
+
+	[TUNER_PARTSNIC_PTI_5NF05] = {
+		.name = "Partsnic (Daewoo) PTI-5NF05",
+		.params = tuner_partsnic_pti_5nf05_params,
+		.count  = ARRAY_SIZE(tuner_partsnic_pti_5nf05_params),
 	},
 };
 EXPORT_SYMBOL(tuners);

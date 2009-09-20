@@ -765,8 +765,10 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 	} else
 		return -ENOMEM;
 	ret = device_register(dev);
-	if (ret)
+	if (ret) {
+		put_device(dev);
 		return ret;
+	}
 
 	ret = sysfs_create_group(&dev->kobj, &vmlogrdr_attr_group);
 	if (ret) {

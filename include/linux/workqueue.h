@@ -240,6 +240,21 @@ static inline int cancel_delayed_work(struct delayed_work *work)
 	return ret;
 }
 
+/*
+ * Like above, but uses del_timer() instead of del_timer_sync(). This means,
+ * if it returns 0 the timer function may be running and the queueing is in
+ * progress.
+ */
+static inline int __cancel_delayed_work(struct delayed_work *work)
+{
+	int ret;
+
+	ret = del_timer(&work->timer);
+	if (ret)
+		work_clear_pending(&work->work);
+	return ret;
+}
+
 extern int cancel_delayed_work_sync(struct delayed_work *work);
 
 /* Obsolete. use cancel_delayed_work_sync() */

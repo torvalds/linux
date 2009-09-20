@@ -52,13 +52,12 @@ static inline int pcibus_to_node(struct pci_bus *pbus)
 	.busy_idx		= 3,			\
 	.idle_idx		= 2,			\
 	.newidle_idx		= 0, 			\
-	.wake_idx		= 1,			\
-	.forkexec_idx		= 1,			\
+	.wake_idx		= 0,			\
+	.forkexec_idx		= 0,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_FORK	\
 				| SD_BALANCE_EXEC	\
-				| SD_SERIALIZE		\
-				| SD_WAKE_BALANCE,	\
+				| SD_SERIALIZE,		\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
 }

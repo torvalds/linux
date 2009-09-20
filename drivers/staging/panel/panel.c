@@ -243,6 +243,7 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
  */
 #define LCD_PROTO_PARALLEL      0
 #define LCD_PROTO_SERIAL        1
+#define LCD_PROTO_TI_DA8XX_LCD	2
 
 /*
  * LCD character sets
@@ -440,7 +441,8 @@ MODULE_PARM_DESC(lcd_type,
 
 static int lcd_proto = -1;
 module_param(lcd_proto, int, 0000);
-MODULE_PARM_DESC(lcd_proto, "LCD communication: 0=parallel (//), 1=serial");
+MODULE_PARM_DESC(lcd_proto, "LCD communication: 0=parallel (//), 1=serial,"
+		"2=TI LCD Interface");
 
 static int lcd_charset = -1;
 module_param(lcd_charset, int, 0000);
@@ -797,6 +799,26 @@ static void lcd_write_data_p8(int data)
 	spin_unlock(&pprt_lock);
 }
 
+/* send a command to the TI LCD panel */
+static void lcd_write_cmd_tilcd(int cmd)
+{
+	spin_lock(&pprt_lock);
+	/* present the data to the control port */
+	w_ctr(pprt, cmd);
+	udelay(60);
+	spin_unlock(&pprt_lock);
+}
+
+/* send data to the TI LCD panel */
+static void lcd_write_data_tilcd(int data)
+{
+	spin_lock(&pprt_lock);
+	/* present the data to the data port */
+	w_dtr(pprt, data);
+	udelay(60);
+	spin_unlock(&pprt_lock);
+}
+
 static void lcd_gotoxy(void)
 {
 	lcd_write_cmd(0x80	/* set DDRAM address */
@@ -864,6 +886,26 @@ static void lcd_clear_fast_p8(void)
 
 		udelay(45);	/* the shortest data takes at least 45 us */
 	}
+	spin_unlock(&pprt_lock);
+
+	lcd_addr_x = lcd_addr_y = 0;
+	lcd_gotoxy();
+}
+
+/* fills the display with spaces and resets X/Y */
+static void lcd_clear_fast_tilcd(void)
+{
+	int pos;
+	lcd_addr_x = lcd_addr_y = 0;
+	lcd_gotoxy();
+
+	spin_lock(&pprt_lock);
+	for (pos = 0; pos < lcd_height * lcd_hwidth; pos++) {
+		/* present the data to the data port */
+		w_dtr(pprt, ' ');
+		udelay(60);
+	}
+
 	spin_unlock(&pprt_lock);
 
 	lcd_addr_x = lcd_addr_y = 0;
@@ -1396,7 +1438,7 @@ void lcd_init(void)
 		if (lcd_da_pin == PIN_NOT_SET)
 			lcd_da_pin = DEFAULT_LCD_PIN_SDA;
 
-	} else {		/* PARALLEL */
+	} else if (lcd_proto == LCD_PROTO_PARALLEL) {	/* PARALLEL */
 		lcd_write_cmd = lcd_write_cmd_p8;
 		lcd_write_data = lcd_write_data_p8;
 		lcd_clear_fast = lcd_clear_fast_p8;
@@ -1407,6 +1449,10 @@ void lcd_init(void)
 			lcd_rs_pin = DEFAULT_LCD_PIN_RS;
 		if (lcd_rw_pin == PIN_NOT_SET)
 			lcd_rw_pin = DEFAULT_LCD_PIN_RW;
+	} else {
+		lcd_write_cmd = lcd_write_cmd_tilcd;
+		lcd_write_data = lcd_write_data_tilcd;
+		lcd_clear_fast = lcd_clear_fast_tilcd;
 	}
 
 	if (lcd_bl_pin == PIN_NOT_SET)

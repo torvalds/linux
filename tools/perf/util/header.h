@@ -31,6 +31,10 @@ struct perf_header_attr *
 perf_header_attr__new(struct perf_counter_attr *attr);
 void perf_header_attr__add_id(struct perf_header_attr *self, u64 id);
 
+u64 perf_header__sample_type(struct perf_header *header);
+struct perf_counter_attr *
+perf_header__find_attr(u64 id, struct perf_header *header);
+
 
 struct perf_header *perf_header__new(void);
 

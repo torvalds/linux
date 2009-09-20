@@ -115,12 +115,10 @@ SECTIONS
   . = ALIGN(PAGE_SIZE);
   pg0 = .;
 
-  /* Sections to be discarded */
-  /DISCARD/ : {
-	EXIT_CALL
-	}
-
   STABS_DEBUG
 
   DWARF_DEBUG
+
+  /* Sections to be discarded */
+  DISCARDS
 }

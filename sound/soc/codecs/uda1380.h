@@ -72,14 +72,6 @@
 #define R22_SKIP_DCFIL	0x0002
 #define R23_AGC_EN	0x0001
 
-struct uda1380_setup_data {
-	int            i2c_bus;
-	unsigned short i2c_address;
-	int            dac_clk;
-#define UDA1380_DAC_CLK_SYSCLK 0
-#define UDA1380_DAC_CLK_WSPLL  1
-};
-
 #define UDA1380_DAI_DUPLEX	0 /* playback and capture on single DAI */
 #define UDA1380_DAI_PLAYBACK	1 /* playback DAI */
 #define UDA1380_DAI_CAPTURE	2 /* capture DAI */

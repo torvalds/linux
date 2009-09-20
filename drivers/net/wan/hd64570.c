@@ -620,7 +620,7 @@ static void sca_dump_rings(struct net_device *dev)
 #endif /* DEBUG_RINGS */
 
 
-static int sca_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t sca_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
 	card_t *card = port_to_card(port);
@@ -674,7 +674,7 @@ static int sca_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irq(&port->lock);
 
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

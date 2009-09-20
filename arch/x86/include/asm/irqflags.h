@@ -13,14 +13,13 @@ static inline unsigned long native_save_fl(void)
 	unsigned long flags;
 
 	/*
-	 * Note: this needs to be "=r" not "=rm", because we have the
-	 * stack offset from what gcc expects at the time the "pop" is
-	 * executed, and so a memory reference with respect to the stack
-	 * would end up using the wrong address.
+	 * "=rm" is safe here, because "pop" adjusts the stack before
+	 * it evaluates its effective address -- this is part of the
+	 * documented behavior of the "pop" instruction.
 	 */
 	asm volatile("# __raw_save_flags\n\t"
 		     "pushf ; pop %0"
-		     : "=r" (flags)
+		     : "=rm" (flags)
 		     : /* no input */
 		     : "memory");
 

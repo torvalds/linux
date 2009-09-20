@@ -3,6 +3,7 @@
 #include <linux/dmar.h>
 #include <linux/bootmem.h>
 #include <linux/pci.h>
+#include <linux/kmemleak.h>
 
 #include <asm/proto.h>
 #include <asm/dma.h>
@@ -32,7 +33,14 @@ int no_iommu __read_mostly;
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
 
-int iommu_pass_through;
+/*
+ * This variable becomes 1 if iommu=pt is passed on the kernel command line.
+ * If this variable is 1, IOMMU implementations do no DMA ranslation for
+ * devices and allow every device to access to whole physical memory. This is
+ * useful if a user want to use an IOMMU only for KVM device assignment to
+ * guests and not for driver dma translation.
+ */
+int iommu_pass_through __read_mostly;
 
 dma_addr_t bad_dma_address __read_mostly = 0;
 EXPORT_SYMBOL(bad_dma_address);
@@ -88,6 +96,11 @@ void __init dma32_reserve_bootmem(void)
 	size = roundup(dma32_bootmem_size, align);
 	dma32_bootmem_ptr = __alloc_bootmem_nopanic(size, align,
 				 512ULL<<20);
+	/*
+	 * Kmemleak should not scan this block as it may not be mapped via the
+	 * kernel direct mapping.
+	 */
+	kmemleak_ignore(dma32_bootmem_ptr);
 	if (dma32_bootmem_ptr)
 		dma32_bootmem_size = size;
 	else
@@ -147,7 +160,7 @@ again:
 		return NULL;
 
 	addr = page_to_phys(page);
-	if (!is_buffer_dma_capable(dma_mask, addr, size)) {
+	if (addr + size > dma_mask) {
 		__free_pages(page, get_order(size));
 
 		if (dma_mask < DMA_BIT_MASK(32) && !(flag & GFP_DMA)) {
@@ -212,10 +225,8 @@ static __init int iommu_setup(char *p)
 		if (!strncmp(p, "soft", 4))
 			swiotlb = 1;
 #endif
-		if (!strncmp(p, "pt", 2)) {
+		if (!strncmp(p, "pt", 2))
 			iommu_pass_through = 1;
-			return 1;
-		}
 
 		gart_parse_options(p);
 

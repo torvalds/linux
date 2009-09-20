@@ -196,7 +196,7 @@ static int manage_bandwidth(struct fw_card *card, int irm_id, int generation,
 		switch (fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
 				irm_id, generation, SCODE_100,
 				CSR_REGISTER_BASE + CSR_BANDWIDTH_AVAILABLE,
-				data, sizeof(data))) {
+				data, 8)) {
 		case RCODE_GENERATION:
 			/* A generation change frees all bandwidth. */
 			return allocate ? -EAGAIN : bandwidth;
@@ -233,7 +233,7 @@ static int manage_channel(struct fw_card *card, int irm_id, int generation,
 		data[1] = old ^ c;
 		switch (fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
 					   irm_id, generation, SCODE_100,
-					   offset, data, sizeof(data))) {
+					   offset, data, 8)) {
 		case RCODE_GENERATION:
 			/* A generation change frees all channels. */
 			return allocate ? -EAGAIN : i;

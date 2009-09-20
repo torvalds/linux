@@ -281,7 +281,7 @@ static void free_more_memory(void)
 	struct zone *zone;
 	int nid;
 
-	wakeup_pdflush(1024);
+	wakeup_flusher_threads(1024);
 	yield();
 
 	for_each_online_node(nid) {

@@ -280,7 +280,7 @@ static void agnx_stop(struct ieee80211_hw *dev)
 	/* make sure hardware will not generate irq */
 	agnx_hw_reset(priv);
 	free_irq(priv->pdev->irq, dev);
-	flush_workqueue(priv->hw->workqueue);
+/*	flush_workqueue(priv->hw->workqueue); */
 /*	cancel_delayed_work_sync(&priv->periodic_work); */
 	unfill_rings(priv);
 	rings_free(priv);

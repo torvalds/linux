@@ -24,6 +24,7 @@ startup_continue:
 # Setup stack
 #
 	l	%r15,.Linittu-.LPG1(%r13)
+	st	%r15,__LC_THREAD_INFO	# cache thread info in lowcore
 	mvc	__LC_CURRENT(4),__TI_task(%r15)
 	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union+THREAD_SIZE
 	st	%r15,__LC_KERNEL_STACK	# set end of kernel stack

@@ -316,38 +316,28 @@ choice
 	prompt "RCU Implementation"
 	default TREE_RCU
 
-config CLASSIC_RCU
-	bool "Classic RCU"
-	help
-	  This option selects the classic RCU implementation that is
-	  designed for best read-side performance on non-realtime
-	  systems.
-
-	  Select this option if you are unsure.
-
 config TREE_RCU
 	bool "Tree-based hierarchical RCU"
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP system with hundreds or
-	  thousands of CPUs.
+	  thousands of CPUs.  It also scales down nicely to
+	  smaller systems.
 
-config PREEMPT_RCU
-	bool "Preemptible RCU"
+config TREE_PREEMPT_RCU
+	bool "Preemptable tree-based hierarchical RCU"
 	depends on PREEMPT
 	help
-	  This option reduces the latency of the kernel by making certain
-	  RCU sections preemptible. Normally RCU code is non-preemptible, if
-	  this option is selected then read-only RCU sections become
-	  preemptible. This helps latency, but may expose bugs due to
-	  now-naive assumptions about each RCU read-side critical section
-	  remaining on a given CPU through its execution.
+	  This option selects the RCU implementation that is
+	  designed for very large SMP systems with hundreds or
+	  thousands of CPUs, but for which real-time response
+	  is also required.
 
 endchoice
 
 config RCU_TRACE
 	bool "Enable tracing for RCU"
-	depends on TREE_RCU || PREEMPT_RCU
+	depends on TREE_RCU || TREE_PREEMPT_RCU
 	help
 	  This option provides tracing in RCU which presents stats
 	  in debugfs for debugging RCU implementation.
@@ -359,7 +349,7 @@ config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
 	range 2 64 if 64BIT
 	range 2 32 if !64BIT
-	depends on TREE_RCU
+	depends on TREE_RCU || TREE_PREEMPT_RCU
 	default 64 if 64BIT
 	default 32 if !64BIT
 	help
@@ -374,7 +364,7 @@ config RCU_FANOUT
 
 config RCU_FANOUT_EXACT
 	bool "Disable tree-based hierarchical RCU auto-balancing"
-	depends on TREE_RCU
+	depends on TREE_RCU || TREE_PREEMPT_RCU
 	default n
 	help
 	  This option forces use of the exact RCU_FANOUT value specified,
@@ -387,18 +377,12 @@ config RCU_FANOUT_EXACT
 	  Say N if unsure.
 
 config TREE_RCU_TRACE
-	def_bool RCU_TRACE && TREE_RCU
+	def_bool RCU_TRACE && ( TREE_RCU || TREE_PREEMPT_RCU )
 	select DEBUG_FS
 	help
-	  This option provides tracing for the TREE_RCU implementation,
-	  permitting Makefile to trivially select kernel/rcutree_trace.c.
-
-config PREEMPT_RCU_TRACE
-	def_bool RCU_TRACE && PREEMPT_RCU
-	select DEBUG_FS
-	help
-	  This option provides tracing for the PREEMPT_RCU implementation,
-	  permitting Makefile to trivially select kernel/rcupreempt_trace.c.
+	  This option provides tracing for the TREE_RCU and
+	  TREE_PREEMPT_RCU implementations, permitting Makefile to
+	  trivially select kernel/rcutree_trace.c.
 
 endmenu # "RCU Subsystem"
 

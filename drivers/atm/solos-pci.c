@@ -372,7 +372,7 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 	}
 
 	snr = next_string(skb);
-	if (!str)
+	if (!snr)
 		return -EIO;
 	attn = next_string(skb);
 	if (!attn)

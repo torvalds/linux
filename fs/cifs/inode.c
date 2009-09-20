@@ -800,7 +800,7 @@ set_via_filehandle:
 	if (open_file == NULL)
 		CIFSSMBClose(xid, pTcon, netfid);
 	else
-		atomic_dec(&open_file->wrtPending);
+		cifsFileInfo_put(open_file);
 out:
 	return rc;
 }
@@ -1635,7 +1635,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 		__u32 npid = open_file->pid;
 		rc = CIFSSMBSetFileSize(xid, pTcon, attrs->ia_size, nfid,
 					npid, false);
-		atomic_dec(&open_file->wrtPending);
+		cifsFileInfo_put(open_file);
 		cFYI(1, ("SetFSize for attrs rc = %d", rc));
 		if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			unsigned int bytes_written;
@@ -1790,7 +1790,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		u16 nfid = open_file->netfid;
 		u32 npid = open_file->pid;
 		rc = CIFSSMBUnixSetFileInfo(xid, pTcon, args, nfid, npid);
-		atomic_dec(&open_file->wrtPending);
+		cifsFileInfo_put(open_file);
 	} else {
 		rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, args,
 				    cifs_sb->local_nls,

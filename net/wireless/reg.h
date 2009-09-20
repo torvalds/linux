@@ -37,4 +37,19 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
 					struct ieee80211_channel *beacon_chan,
 					gfp_t gfp);
 
+/**
+ * regulatory_hint_11d - hints a country IE as a regulatory domain
+ * @wiphy: the wireless device giving the hint (used only for reporting
+ *	conflicts)
+ * @country_ie: pointer to the country IE
+ * @country_ie_len: length of the country IE
+ *
+ * We will intersect the rd with the what CRDA tells us should apply
+ * for the alpha2 this country IE belongs to, this prevents APs from
+ * sending us incorrect or outdated information against a country.
+ */
+void regulatory_hint_11d(struct wiphy *wiphy,
+			 u8 *country_ie,
+			 u8 country_ie_len);
+
 #endif  /* __NET_WIRELESS_REG_H */
