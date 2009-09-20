@@ -774,11 +774,12 @@ int update_persistent_clock(struct timespec now)
 	return ppc_md.set_rtc_time(&tm);
 }
 
-unsigned long read_persistent_clock(void)
+void read_persistent_clock(struct timespec *ts)
 {
 	struct rtc_time tm;
 	static int first = 1;
 
+	ts->tv_nsec = 0;
 	/* XXX this is a litle fragile but will work okay in the short term */
 	if (first) {
 		first = 0;
@@ -786,14 +787,18 @@ unsigned long read_persistent_clock(void)
 			timezone_offset = ppc_md.time_init();
 
 		/* get_boot_time() isn't guaranteed to be safe to call late */
-		if (ppc_md.get_boot_time)
-			return ppc_md.get_boot_time() -timezone_offset;
+		if (ppc_md.get_boot_time) {
+			ts->tv_sec = ppc_md.get_boot_time() - timezone_offset;
+			return;
+		}
 	}
-	if (!ppc_md.get_rtc_time)
-		return 0;
+	if (!ppc_md.get_rtc_time) {
+		ts->tv_sec = 0;
+		return;
+	}
 	ppc_md.get_rtc_time(&tm);
-	return mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
-		      tm.tm_hour, tm.tm_min, tm.tm_sec);
+	ts->tv_sec = mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+			    tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 
 /* clocksource code */

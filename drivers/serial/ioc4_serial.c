@@ -930,7 +930,7 @@ static void handle_dma_error_intr(void *arg, uint32_t other_ir)
 
 	if (readl(&port->ip_mem->pci_err_addr_l.raw) & IOC4_PCI_ERR_ADDR_VLD) {
 		printk(KERN_ERR
-			"PCI error address is 0x%lx, "
+			"PCI error address is 0x%llx, "
 				"master is serial port %c %s\n",
 		     (((uint64_t)readl(&port->ip_mem->pci_err_addr_h)
 							 << 32)

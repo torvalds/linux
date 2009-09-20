@@ -101,7 +101,7 @@ struct jbd_revoke_record_s
 {
 	struct list_head  hash;
 	tid_t		  sequence;	/* Used for recovery only */
-	unsigned long	  blocknr;
+	unsigned int	  blocknr;
 };
 
 
@@ -126,7 +126,7 @@ static void flush_descriptor(journal_t *, struct journal_head *, int, int);
 /* Utility functions to maintain the revoke table */
 
 /* Borrowed from buffer.c: this is a tried and tested block hash function */
-static inline int hash(journal_t *journal, unsigned long block)
+static inline int hash(journal_t *journal, unsigned int block)
 {
 	struct jbd_revoke_table_s *table = journal->j_revoke;
 	int hash_shift = table->hash_shift;
@@ -136,7 +136,7 @@ static inline int hash(journal_t *journal, unsigned long block)
 		(block << (hash_shift - 12))) & (table->hash_size - 1);
 }
 
-static int insert_revoke_hash(journal_t *journal, unsigned long blocknr,
+static int insert_revoke_hash(journal_t *journal, unsigned int blocknr,
 			      tid_t seq)
 {
 	struct list_head *hash_list;
@@ -166,7 +166,7 @@ oom:
 /* Find a revoke record in the journal's hash table. */
 
 static struct jbd_revoke_record_s *find_revoke_record(journal_t *journal,
-						      unsigned long blocknr)
+						      unsigned int blocknr)
 {
 	struct list_head *hash_list;
 	struct jbd_revoke_record_s *record;
@@ -332,7 +332,7 @@ void journal_destroy_revoke(journal_t *journal)
  * by one.
  */
 
-int journal_revoke(handle_t *handle, unsigned long blocknr,
+int journal_revoke(handle_t *handle, unsigned int blocknr,
 		   struct buffer_head *bh_in)
 {
 	struct buffer_head *bh = NULL;
@@ -401,7 +401,7 @@ int journal_revoke(handle_t *handle, unsigned long blocknr,
 		}
 	}
 
-	jbd_debug(2, "insert revoke for block %lu, bh_in=%p\n", blocknr, bh_in);
+	jbd_debug(2, "insert revoke for block %u, bh_in=%p\n", blocknr, bh_in);
 	err = insert_revoke_hash(journal, blocknr,
 				handle->h_transaction->t_tid);
 	BUFFER_TRACE(bh_in, "exit");
@@ -644,7 +644,7 @@ static void flush_descriptor(journal_t *journal,
  */
 
 int journal_set_revoke(journal_t *journal,
-		       unsigned long blocknr,
+		       unsigned int blocknr,
 		       tid_t sequence)
 {
 	struct jbd_revoke_record_s *record;
@@ -668,7 +668,7 @@ int journal_set_revoke(journal_t *journal,
  */
 
 int journal_test_revoke(journal_t *journal,
-			unsigned long blocknr,
+			unsigned int blocknr,
 			tid_t sequence)
 {
 	struct jbd_revoke_record_s *record;

@@ -136,6 +136,7 @@ struct pcf50633 {
 	int irq;
 	struct pcf50633_irq irq_handler[PCF50633_NUM_IRQ];
 	struct work_struct irq_work;
+	struct workqueue_struct *work_queue;
 	struct mutex lock;
 
 	u8 mask_regs[5];

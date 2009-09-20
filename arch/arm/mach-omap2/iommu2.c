@@ -217,10 +217,19 @@ static ssize_t omap2_dump_cr(struct iommu *obj, struct cr_regs *cr, char *buf)
 }
 
 #define pr_reg(name)							\
-	p += sprintf(p, "%20s: %08x\n",					\
-		     __stringify(name), iommu_read_reg(obj, MMU_##name));
+	do {								\
+		ssize_t bytes;						\
+		const char *str = "%20s: %08x\n";			\
+		const int maxcol = 32;					\
+		bytes = snprintf(p, maxcol, str, __stringify(name),	\
+				 iommu_read_reg(obj, MMU_##name));	\
+		p += bytes;						\
+		len -= bytes;						\
+		if (len < maxcol)					\
+			goto out;					\
+	} while (0)
 
-static ssize_t omap2_iommu_dump_ctx(struct iommu *obj, char *buf)
+static ssize_t omap2_iommu_dump_ctx(struct iommu *obj, char *buf, ssize_t len)
 {
 	char *p = buf;
 
@@ -242,7 +251,7 @@ static ssize_t omap2_iommu_dump_ctx(struct iommu *obj, char *buf)
 	pr_reg(READ_CAM);
 	pr_reg(READ_RAM);
 	pr_reg(EMU_FAULT_AD);
-
+out:
 	return p - buf;
 }
 

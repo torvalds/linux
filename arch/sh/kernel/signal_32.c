@@ -41,6 +41,16 @@ struct fdpic_func_descriptor {
 };
 
 /*
+ * The following define adds a 64 byte gap between the signal
+ * stack frame and previous contents of the stack.  This allows
+ * frame unwinding in a function epilogue but only if a frame
+ * pointer is used in the function.  This is necessary because
+ * current gcc compilers (<4.3) do not generate unwind info on
+ * SH for function epilogues.
+ */
+#define UNWINDGUARD 64
+
+/*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 asmlinkage int
@@ -327,7 +337,7 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 			sp = current->sas_ss_sp + current->sas_ss_size;
 	}
 
-	return (void __user *)((sp - frame_size) & -8ul);
+	return (void __user *)((sp - (frame_size+UNWINDGUARD)) & -8ul);
 }
 
 /* These symbols are defined with the addresses in the vsyscall page.
