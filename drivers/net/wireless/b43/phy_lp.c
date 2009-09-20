@@ -379,6 +379,8 @@ static void lpphy_save_dig_flt_state(struct b43_wldev *dev)
 	}
 }
 
+/* lpphy_restore_dig_flt_state is unused but kept as a reference */
+#if 0
 static void lpphy_restore_dig_flt_state(struct b43_wldev *dev)
 {
 	static const u16 addr[] = {
@@ -399,6 +401,7 @@ static void lpphy_restore_dig_flt_state(struct b43_wldev *dev)
 	for (i = 0; i < ARRAY_SIZE(addr); i++)
 		b43_phy_write(dev, addr[i], lpphy->dig_flt_state[i]);
 }
+#endif
 
 static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 {
@@ -887,6 +890,8 @@ static void lpphy_rev2plus_set_rx_gain(struct b43_wldev *dev, u32 gain)
 	}
 }
 
+/* lpphy_disable_rx_gain_override is unused but kept as a reference */
+#if 0
 static void lpphy_disable_rx_gain_override(struct b43_wldev *dev)
 {
 	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xFFFE);
@@ -902,6 +907,7 @@ static void lpphy_disable_rx_gain_override(struct b43_wldev *dev)
 		b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFDFF);
 	}
 }
+#endif
 
 static void lpphy_enable_rx_gain_override(struct b43_wldev *dev)
 {
