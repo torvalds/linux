@@ -266,7 +266,7 @@ static const struct file_operations tower_fops = {
 	.llseek =	tower_llseek,
 };
 
-static char *legousbtower_nodename(struct device *dev)
+static char *legousbtower_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
 }
@@ -277,7 +277,7 @@ static char *legousbtower_nodename(struct device *dev)
  */
 static struct usb_class_driver tower_class = {
 	.name =		"legousbtower%d",
-	.nodename = 	legousbtower_nodename,
+	.devnode = 	legousbtower_devnode,
 	.fops =		&tower_fops,
 	.minor_base =	LEGO_USB_TOWER_MINOR_BASE,
 };
