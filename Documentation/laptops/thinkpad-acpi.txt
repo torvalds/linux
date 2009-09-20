@@ -525,6 +525,7 @@ compatibility purposes when hotkey_report_mode is set to 1.
 0x2305		System is waking up from suspend to eject bay
 0x2404		System is waking up from hibernation to undock
 0x2405		System is waking up from hibernation to eject bay
+0x5010		Brightness level changed/control event
 
 The above events are never propagated by the driver.
 
@@ -532,7 +533,6 @@ The above events are never propagated by the driver.
 0x4003		Undocked (see 0x2x04), can sleep again
 0x500B		Tablet pen inserted into its storage bay
 0x500C		Tablet pen removed from its storage bay
-0x5010		Brightness level changed (newer Lenovo BIOSes)
 
 The above events are propagated by the driver.
 
