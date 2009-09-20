@@ -915,9 +915,9 @@ static void write_svg_file(const char *filename)
 	if (count < 15)
 		count = determine_display_tasks(TIME_THRESH / 10);
 
-	open_svg(filename, numcpus, count);
+	open_svg(filename, numcpus, count, first_time, last_time);
 
-	svg_time_grid(first_time, last_time);
+	svg_time_grid();
 	svg_legenda();
 
 	for (i = 0; i < numcpus; i++)
@@ -1132,6 +1132,8 @@ static const struct option options[] = {
 		    "input file name"),
 	OPT_STRING('o', "output", &output_name, "file",
 		    "output file name"),
+	OPT_INTEGER('w', "width", &svg_page_width,
+		    "page width"),
 	OPT_END()
 };
 

@@ -25,7 +25,8 @@ static u64 turbo_frequency, max_freq;
 
 #define SLOT_MULT 30.0
 #define SLOT_HEIGHT 25.0
-#define WIDTH 1000.0
+
+int svg_page_width = 1000;
 
 #define MIN_TEXT_SIZE 0.001
 
@@ -46,21 +47,35 @@ static double time2pixels(u64 time)
 {
 	double X;
 
-	X = WIDTH * (time - first_time) / (last_time - first_time);
+	X = 1.0 * svg_page_width * (time - first_time) / (last_time - first_time);
 	return X;
 }
 
-void open_svg(const char *filename, int cpus, int rows)
+void open_svg(const char *filename, int cpus, int rows, u64 start, u64 end)
 {
+	int new_width;
 
 	svgfile = fopen(filename, "w");
 	if (!svgfile) {
 		fprintf(stderr, "Cannot open %s for output\n", filename);
 		return;
 	}
+	first_time = start;
+	first_time = first_time / 100000000 * 100000000;
+	last_time = end;
+
+	/*
+	 * if the recording is short, we default to a width of 1000, but
+	 * for longer recordings we want at least 200 units of width per second
+	 */
+	new_width = (last_time - first_time) / 5000000;
+
+	if (new_width > svg_page_width)
+		svg_page_width = new_width;
+
 	total_height = (1 + rows + cpu2slot(cpus)) * SLOT_MULT;
 	fprintf(svgfile, "<?xml version=\"1.0\" standalone=\"no\"?> \n");
-	fprintf(svgfile, "<svg width=\"%4.1f\" height=\"%llu\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n", WIDTH, total_height);
+	fprintf(svgfile, "<svg width=\"%i\" height=\"%llu\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n", svg_page_width, total_height);
 
 	fprintf(svgfile, "<defs>\n  <style type=\"text/css\">\n    <![CDATA[\n");
 
@@ -404,14 +419,9 @@ void svg_legenda(void)
 	svg_legenda_box(800,	"Blocked on IO", "blocked");
 }
 
-void svg_time_grid(u64 start, u64 end)
+void svg_time_grid(void)
 {
 	u64 i;
-
-	first_time = start;
-	last_time = end;
-
-	first_time = first_time / 100000000 * 100000000;
 
 	if (!svgfile)
 		return;
