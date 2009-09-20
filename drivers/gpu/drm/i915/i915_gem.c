@@ -1530,6 +1530,23 @@ i915_gem_object_move_to_flushing(struct drm_gem_object *obj)
 	obj_priv->last_rendering_seqno = 0;
 }
 
+/* Immediately discard the backing storage */
+static void
+i915_gem_object_truncate(struct drm_gem_object *obj)
+{
+    struct inode *inode;
+
+    inode = obj->filp->f_path.dentry->d_inode;
+    if (inode->i_op->truncate)
+	    inode->i_op->truncate (inode);
+}
+
+static inline int
+i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj_priv)
+{
+	return obj_priv->madv == I915_MADV_DONTNEED;
+}
+
 static void
 i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
 {
@@ -2018,15 +2035,12 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	if (!list_empty(&obj_priv->list))
 		list_del_init(&obj_priv->list);
 
+	if (i915_gem_object_is_purgeable(obj_priv))
+		i915_gem_object_truncate(obj);
+
 	trace_i915_gem_object_unbind(obj);
 
 	return 0;
-}
-
-static inline int
-i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj_priv)
-{
-	return !obj_priv->dirty || obj_priv->madv == I915_MADV_DONTNEED;
 }
 
 static struct drm_gem_object *
@@ -2041,7 +2055,8 @@ i915_gem_find_inactive_object(struct drm_device *dev, int min_size)
 	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
 		struct drm_gem_object *obj = obj_priv->obj;
 		if (obj->size >= min_size) {
-			if (i915_gem_object_is_purgeable(obj_priv) &&
+			if ((!obj_priv->dirty ||
+			     i915_gem_object_is_purgeable(obj_priv)) &&
 			    (!best || obj->size < best->size)) {
 				best = obj;
 				if (best->size == min_size)
@@ -4808,19 +4823,6 @@ void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-/* Immediately discard the backing storage */
-static void
-i915_gem_object_truncate(struct drm_gem_object *obj)
-{
-    struct inode *inode;
-
-    inode = obj->filp->f_path.dentry->d_inode;
-
-    mutex_lock(&inode->i_mutex);
-    truncate_inode_pages(inode->i_mapping, 0);
-    mutex_unlock(&inode->i_mutex);
-}
-
 static int
 i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 {
@@ -4866,10 +4868,7 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 					 &dev_priv->mm.inactive_list,
 					 list) {
 			if (i915_gem_object_is_purgeable(obj_priv)) {
-				struct drm_gem_object *obj = obj_priv->obj;
-				i915_gem_object_unbind(obj);
-				i915_gem_object_truncate(obj);
-
+				i915_gem_object_unbind(obj_priv->obj);
 				if (--nr_to_scan <= 0)
 					break;
 			}
@@ -4877,6 +4876,8 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 
 		spin_lock(&shrink_list_lock);
 		mutex_unlock(&dev->struct_mutex);
+
+		would_deadlock = 0;
 
 		if (nr_to_scan <= 0)
 			break;
@@ -4896,11 +4897,7 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 					 &dev_priv->mm.inactive_list,
 					 list) {
 			if (nr_to_scan > 0) {
-				struct drm_gem_object *obj = obj_priv->obj;
-				i915_gem_object_unbind(obj);
-				if (i915_gem_object_is_purgeable(obj_priv))
-					i915_gem_object_truncate(obj);
-
+				i915_gem_object_unbind(obj_priv->obj);
 				nr_to_scan--;
 			} else
 				cnt++;
