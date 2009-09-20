@@ -26,8 +26,9 @@
 #include "fault.h"
 
 /*
- * Fault status register encodings
+ * Fault status register encodings.  We steal bit 31 for our own purposes.
  */
+#define FSR_LNX_PF		(1 << 31)
 #define FSR_WRITE		(1 << 11)
 #define FSR_FS4			(1 << 10)
 #define FSR_FS3_0		(15)
@@ -205,6 +206,8 @@ static inline bool access_error(unsigned int fsr, struct vm_area_struct *vma)
 
 	if (fsr & FSR_WRITE)
 		mask = VM_WRITE;
+	if (fsr & FSR_LNX_PF)
+		mask = VM_EXEC;
 
 	return vma->vm_flags & mask ? false : true;
 }
@@ -503,7 +506,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	const struct fsr_info *inf = fsr_info + fsr_fs(fsr);
 	struct siginfo info;
 
-	if (!inf->fn(addr, fsr, regs))
+	if (!inf->fn(addr, fsr & ~FSR_LNX_PF, regs))
 		return;
 
 	printk(KERN_ALERT "Unhandled fault: %s (0x%03x) at 0x%08lx\n",
@@ -519,6 +522,6 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 asmlinkage void __exception
 do_PrefetchAbort(unsigned long addr, struct pt_regs *regs)
 {
-	do_translation_fault(addr, 0, regs);
+	do_translation_fault(addr, FSR_LNX_PF, regs);
 }
 
