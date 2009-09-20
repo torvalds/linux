@@ -223,36 +223,17 @@ good_area:
 		goto out;
 
 	/*
-	 * If for any reason at all we couldn't handle
-	 * the fault, make sure we exit gracefully rather
-	 * than endlessly redo the fault.
+	 * If for any reason at all we couldn't handle the fault, make
+	 * sure we exit gracefully rather than endlessly redo the fault.
 	 */
-survive:
 	fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, (fsr & FSR_WRITE) ? FAULT_FLAG_WRITE : 0);
-	if (unlikely(fault & VM_FAULT_ERROR)) {
-		if (fault & VM_FAULT_OOM)
-			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGBUS)
-			return fault;
-		BUG();
-	}
+	if (unlikely(fault & VM_FAULT_ERROR))
+		return fault;
 	if (fault & VM_FAULT_MAJOR)
 		tsk->maj_flt++;
 	else
 		tsk->min_flt++;
 	return fault;
-
-out_of_memory:
-	if (!is_global_init(tsk))
-		goto out;
-
-	/*
-	 * If we are out of memory for pid1, sleep for a while and retry
-	 */
-	up_read(&mm->mmap_sem);
-	yield();
-	down_read(&mm->mmap_sem);
-	goto survive;
 
 check_stack:
 	if (vma->vm_flags & VM_GROWSDOWN && !expand_stack(vma, addr))
@@ -301,6 +282,16 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	if (likely(!(fault & (VM_FAULT_ERROR | VM_FAULT_BADMAP | VM_FAULT_BADACCESS))))
 		return 0;
 
+	if (fault & VM_FAULT_OOM) {
+		/*
+		 * We ran out of memory, call the OOM killer, and return to
+		 * userspace (which will retry the fault, or kill us if we
+		 * got oom-killed)
+		 */
+		pagefault_out_of_memory();
+		return 0;
+	}
+
 	/*
 	 * If we are in kernel mode at this point, we
 	 * have no context to handle this fault with.
@@ -308,16 +299,6 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	if (!user_mode(regs))
 		goto no_context;
 
-	if (fault & VM_FAULT_OOM) {
-		/*
-		 * We ran out of memory, or some other thing
-		 * happened to us that made us unable to handle
-		 * the page fault gracefully.
-		 */
-		printk("VM: killing process %s\n", tsk->comm);
-		do_group_exit(SIGKILL);
-		return 0;
-	}
 	if (fault & VM_FAULT_SIGBUS) {
 		/*
 		 * We had some memory, but were unable to
