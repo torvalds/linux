@@ -745,7 +745,7 @@ static struct uart_ops mpc52xx_uart_ops = {
 static inline int
 mpc52xx_uart_int_rx_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	unsigned char ch, flag;
 	unsigned short status;
 
@@ -812,7 +812,7 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 static inline int
 mpc52xx_uart_int_tx_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 
 	/* Process out of band chars */
 	if (port->x_char) {

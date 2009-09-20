@@ -691,8 +691,7 @@ static void pl2303_close(struct usb_serial_port *port)
 
 }
 
-static int pl2303_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
@@ -713,8 +712,6 @@ static int pl2303_open(struct tty_struct *tty,
 	/* Setup termios */
 	if (tty)
 		pl2303_set_termios(tty, port, &tmp_termios);
-
-	/* FIXME: need to assert RTS and DTR if CRTSCTS off */
 
 	dbg("%s - submitting read urb", __func__);
 	port->read_urb->dev = serial->dev;
