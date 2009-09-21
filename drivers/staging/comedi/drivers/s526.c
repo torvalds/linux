@@ -126,10 +126,10 @@ struct counter_mode_register_t {
 	unsigned short reserved:1;
 };
 
-union {
+union cmReg {
 	struct counter_mode_register_t reg;
 	unsigned short value;
-} cmReg;
+};
 
 #define MAX_GPCT_CONFIG_DATA 6
 
@@ -285,6 +285,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i, n;
 /* short value; */
 /* int subdev_channel = 0; */
+	union cmReg cmReg;
 
 	printk("comedi%d: s526: ", dev->minor);
 
@@ -516,6 +517,7 @@ static int s526_gpct_insn_config(struct comedi_device *dev,
 	int subdev_channel = CR_CHAN(insn->chanspec);	/*  Unpack chanspec */
 	int i;
 	short value;
+	union cmReg cmReg;
 
 /* printk("s526: GPCT_INSN_CONFIG: Configuring Channel %d\n", subdev_channel); */
 
@@ -741,6 +743,7 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 {
 	int subdev_channel = CR_CHAN(insn->chanspec);	/*  Unpack chanspec */
 	short value;
+	union cmReg cmReg;
 
 	printk("s526: GPCT_INSN_WRITE on channel %d\n", subdev_channel);
 	cmReg.value = inw(ADDR_CHAN_REG(REG_C0M, subdev_channel));
