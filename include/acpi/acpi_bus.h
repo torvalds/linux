@@ -142,7 +142,6 @@ struct acpi_device_status {
 struct acpi_device_flags {
 	u32 dynamic_status:1;
 	u32 bus_address:1;
-	u32 unique_id:1;
 	u32 removable:1;
 	u32 ejectable:1;
 	u32 lockable:1;
@@ -151,7 +150,7 @@ struct acpi_device_flags {
 	u32 performance_manageable:1;
 	u32 wake_capable:1;	/* Wakeup(_PRW) supported? */
 	u32 force_power_state:1;
-	u32 reserved:21;
+	u32 reserved:22;
 };
 
 /* File System */
@@ -186,7 +185,6 @@ struct acpi_device_pnp {
 #define acpi_device_bid(d)	((d)->pnp.bus_id)
 #define acpi_device_adr(d)	((d)->pnp.bus_address)
 char *acpi_device_hid(struct acpi_device *device);
-#define acpi_device_uid(d)	((d)->pnp.unique_id)
 #define acpi_device_name(d)	((d)->pnp.device_name)
 #define acpi_device_class(d)	((d)->pnp.device_class)
 

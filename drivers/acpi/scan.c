@@ -1018,7 +1018,6 @@ static void acpi_device_set_id(struct acpi_device *device)
 {
 	struct acpi_device_info *info = NULL;
 	char *hid = NULL;
-	char *uid = NULL;
 	struct acpica_device_id_list *cid_list = NULL;
 	char *cid_add = NULL;
 	acpi_status status;
@@ -1045,8 +1044,6 @@ static void acpi_device_set_id(struct acpi_device *device)
 
 		if (info->valid & ACPI_VALID_HID)
 			hid = info->hardware_id.string;
-		if (info->valid & ACPI_VALID_UID)
-			uid = info->unique_id.string;
 		if (info->valid & ACPI_VALID_CID)
 			cid_list = &info->compatible_id_list;
 		if (info->valid & ACPI_VALID_ADR) {
@@ -1096,16 +1093,6 @@ static void acpi_device_set_id(struct acpi_device *device)
 
 	if (hid)
 		acpi_add_id(device, hid);
-	if (uid) {
-		device->pnp.unique_id = ACPI_ALLOCATE_ZEROED(strlen (uid) + 1);
-		if (device->pnp.unique_id) {
-			strcpy(device->pnp.unique_id, uid);
-			device->flags.unique_id = 1;
-		}
-	}
-	if (!device->flags.unique_id)
-		device->pnp.unique_id = "";
-
 	if (cid_list)
 		for (i = 0; i < cid_list->count; i++)
 			acpi_add_id(device, cid_list->ids[i].string);
@@ -1199,11 +1186,6 @@ static int acpi_add_single_object(struct acpi_device **child,
 	 * Initialize Device
 	 * -----------------
 	 * TBD: Synch with Core's enumeration/initialization process.
-	 */
-
-	/*
-	 * Hardware ID, Unique ID, & Bus Address
-	 * -------------------------------------
 	 */
 	acpi_device_set_id(device);
 
