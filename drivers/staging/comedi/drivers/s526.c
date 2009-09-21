@@ -43,6 +43,7 @@ comedi_config /dev/comedi0 s526 0x2C0,0x3
 
 #include "../comedidev.h"
 #include <linux/ioport.h>
+#include <asm/byteorder.h>
 
 #define S526_SIZE 64
 
@@ -113,6 +114,7 @@ static const int s526_ports[] = {
 };
 
 struct counter_mode_register_t {
+#if defined (__LITTLE_ENDIAN_BITFIELD)
 	unsigned short coutSource:1;
 	unsigned short coutPolarity:1;
 	unsigned short autoLoadResetRcap:3;
@@ -124,6 +126,21 @@ struct counter_mode_register_t {
 	unsigned short outputRegLatchCtrl:1;
 	unsigned short preloadRegSel:1;
 	unsigned short reserved:1;
+ #elif defined(__BIG_ENDIAN_BITFIELD)
+	unsigned short reserved:1;
+	unsigned short preloadRegSel:1;
+	unsigned short outputRegLatchCtrl:1;
+	unsigned short countDirCtrl:1;
+	unsigned short countDir:1;
+	unsigned short clockSource:2;
+	unsigned short ctEnableCtrl:2;
+	unsigned short hwCtEnableSource:2;
+	unsigned short autoLoadResetRcap:3;
+	unsigned short coutPolarity:1;
+	unsigned short coutSource:1;
+#else
+#error Unknown bit field order
+#endif
 };
 
 union cmReg {
