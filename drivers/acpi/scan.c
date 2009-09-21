@@ -1400,10 +1400,10 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 				      void *context, void **return_value)
 {
 	struct acpi_bus_ops *ops = context;
-	struct acpi_device *device = NULL;
-	acpi_status status;
 	int type;
 	unsigned long long sta;
+	struct acpi_device *device;
+	acpi_status status;
 	int result;
 
 	result = acpi_bus_type_and_status(handle, &type, &sta);
@@ -1414,13 +1414,16 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 	    !(sta & ACPI_STA_DEVICE_FUNCTIONING))
 		return AE_CTRL_DEPTH;
 
-	if (ops->acpi_op_add)
-		status = acpi_add_single_object(&device, handle, type, sta,
-						ops);
-	else
-		status = acpi_bus_get_device(handle, &device);
+	/*
+	 * We may already have an acpi_device from a previous enumeration.  If
+	 * so, we needn't add it again, but we may still have to start it.
+	 */
+	device = NULL;
+	acpi_bus_get_device(handle, &device);
+	if (ops->acpi_op_add && !device)
+		acpi_add_single_object(&device, handle, type, sta, ops);
 
-	if (ACPI_FAILURE(status))
+	if (!device)
 		return AE_CTRL_DEPTH;
 
 	if (ops->acpi_op_start && !(ops->acpi_op_add)) {
