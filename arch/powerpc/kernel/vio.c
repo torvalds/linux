@@ -1235,7 +1235,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 		vio_cmo_set_dma_ops(viodev);
 	else
 		viodev->dev.archdata.dma_ops = &dma_iommu_ops;
-	viodev->dev.archdata.dma_data = vio_build_iommu_table(viodev);
+	set_iommu_table_base(&viodev->dev, vio_build_iommu_table(viodev));
 	set_dev_node(&viodev->dev, of_node_to_nid(of_node));
 
 	/* init generic 'struct device' fields: */

@@ -97,12 +97,18 @@ static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
  * swiotlb use this function, but it is typically not used by implementations
  * with an iommu.
  */
-static inline unsigned long get_dma_offset(struct device *dev)
+static inline dma_addr_t get_dma_offset(struct device *dev)
 {
 	if (dev)
-		return (unsigned long)dev->archdata.dma_data;
+		return dev->archdata.dma_data.dma_offset;
 
 	return PCI_DRAM_OFFSET;
+}
+
+static inline void set_dma_offset(struct device *dev, dma_addr_t off)
+{
+	if (dev)
+		dev->archdata.dma_data.dma_offset = off;
 }
 
 /* this will be removed soon */
