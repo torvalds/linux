@@ -47,6 +47,7 @@ uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg);
 void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void r100_errata(struct radeon_device *rdev);
 void r100_vram_info(struct radeon_device *rdev);
+void r100_vga_set_state(struct radeon_device *rdev, bool state);
 int r100_gpu_reset(struct radeon_device *rdev);
 int r100_mc_init(struct radeon_device *rdev);
 void r100_mc_fini(struct radeon_device *rdev);
@@ -89,6 +90,7 @@ static struct radeon_asic r100_asic = {
 	.init = &r100_init,
 	.errata = &r100_errata,
 	.vram_info = &r100_vram_info,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r100_gpu_reset,
 	.mc_init = &r100_mc_init,
 	.mc_fini = &r100_mc_fini,
@@ -158,6 +160,7 @@ static struct radeon_asic r300_asic = {
 	.init = &r300_init,
 	.errata = &r300_errata,
 	.vram_info = &r300_vram_info,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
 	.mc_init = &r300_mc_init,
 	.mc_fini = &r300_mc_fini,
@@ -208,6 +211,7 @@ static struct radeon_asic r420_asic = {
 	.resume = &r420_resume,
 	.errata = NULL,
 	.vram_info = NULL,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
 	.mc_init = NULL,
 	.mc_fini = NULL,
@@ -262,6 +266,7 @@ static struct radeon_asic rs400_asic = {
 	.init = &r300_init,
 	.errata = &rs400_errata,
 	.vram_info = &rs400_vram_info,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
 	.mc_init = &rs400_mc_init,
 	.mc_fini = &rs400_mc_fini,
@@ -323,6 +328,7 @@ static struct radeon_asic rs600_asic = {
 	.init = &rs600_init,
 	.errata = &rs600_errata,
 	.vram_info = &rs600_vram_info,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
 	.mc_init = &rs600_mc_init,
 	.mc_fini = &rs600_mc_fini,
@@ -372,6 +378,7 @@ static struct radeon_asic rs690_asic = {
 	.init = &rs600_init,
 	.errata = &rs690_errata,
 	.vram_info = &rs690_vram_info,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &r300_gpu_reset,
 	.mc_init = &rs690_mc_init,
 	.mc_fini = &rs690_mc_fini,
@@ -428,6 +435,7 @@ static struct radeon_asic rv515_asic = {
 	.init = &rv515_init,
 	.errata = &rv515_errata,
 	.vram_info = &rv515_vram_info,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &rv515_gpu_reset,
 	.mc_init = &rv515_mc_init,
 	.mc_fini = &rv515_mc_fini,
@@ -477,6 +485,7 @@ static struct radeon_asic r520_asic = {
 	.init = &rv515_init,
 	.errata = &r520_errata,
 	.vram_info = &r520_vram_info,
+	.vga_set_state = &r100_vga_set_state,
 	.gpu_reset = &rv515_gpu_reset,
 	.mc_init = &r520_mc_init,
 	.mc_fini = &r520_mc_fini,
@@ -520,6 +529,7 @@ int r600_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 int r600_suspend(struct radeon_device *rdev);
 int r600_resume(struct radeon_device *rdev);
+void r600_vga_set_state(struct radeon_device *rdev, bool state);
 int r600_wb_init(struct radeon_device *rdev);
 void r600_wb_fini(struct radeon_device *rdev);
 void r600_cp_commit(struct radeon_device *rdev);
@@ -556,6 +566,7 @@ static struct radeon_asic r600_asic = {
 	.resume = &r600_resume,
 	.cp_commit = &r600_cp_commit,
 	.vram_info = NULL,
+	.vga_set_state = &r600_vga_set_state,
 	.gpu_reset = &r600_gpu_reset,
 	.mc_init = NULL,
 	.mc_fini = NULL,
@@ -606,6 +617,7 @@ static struct radeon_asic rv770_asic = {
 	.cp_commit = &r600_cp_commit,
 	.vram_info = NULL,
 	.gpu_reset = &rv770_gpu_reset,
+	.vga_set_state = &r600_vga_set_state,
 	.mc_init = NULL,
 	.mc_fini = NULL,
 	.wb_init = &r600_wb_init,

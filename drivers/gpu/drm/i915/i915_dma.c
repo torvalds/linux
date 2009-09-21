@@ -33,6 +33,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include <linux/vgaarb.h>
 
 /* Really want an OS-independent resettable timer.  Would like to have
  * this loop run for (eg) 3 sec, but have the timer reset every time
@@ -1012,6 +1013,19 @@ static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
 	return 0;
 }
 
+/* true = enable decode, false = disable decoder */
+static unsigned int i915_vga_set_decode(void *cookie, bool state)
+{
+	struct drm_device *dev = cookie;
+
+	intel_modeset_vga_set_state(dev, state);
+	if (state)
+		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
+		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+	else
+		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+}
+
 static int i915_load_modeset_init(struct drm_device *dev,
 				  unsigned long prealloc_size,
 				  unsigned long agp_size)
@@ -1056,6 +1070,11 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	ret = intel_init_bios(dev);
 	if (ret)
 		DRM_INFO("failed to find VBIOS tables\n");
+
+	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
+	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
+	if (ret)
+		goto destroy_ringbuffer;
 
 	ret = drm_irq_install(dev);
 	if (ret)
@@ -1324,6 +1343,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		drm_irq_uninstall(dev);
+		vga_client_register(dev->pdev, NULL, NULL, NULL);
 	}
 
 	if (dev->pdev->msi_enabled)

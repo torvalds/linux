@@ -178,4 +178,5 @@ extern int intel_framebuffer_create(struct drm_device *dev,
 				    struct drm_mode_fb_cmd *mode_cmd,
 				    struct drm_framebuffer **fb,
 				    struct drm_gem_object *obj);
+
 #endif /* __INTEL_DRV_H__ */

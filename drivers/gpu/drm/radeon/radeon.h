@@ -596,6 +596,7 @@ struct radeon_asic {
 	int (*suspend)(struct radeon_device *rdev);
 	void (*errata)(struct radeon_device *rdev);
 	void (*vram_info)(struct radeon_device *rdev);
+	void (*vga_set_state)(struct radeon_device *rdev, bool state);
 	int (*gpu_reset)(struct radeon_device *rdev);
 	int (*mc_init)(struct radeon_device *rdev);
 	void (*mc_fini)(struct radeon_device *rdev);
@@ -954,6 +955,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_cs_parse(p) rdev->asic->cs_parse((p))
 #define radeon_errata(rdev) (rdev)->asic->errata((rdev))
 #define radeon_vram_info(rdev) (rdev)->asic->vram_info((rdev))
+#define radeon_vga_set_state(rdev, state) (rdev)->asic->vga_set_state((rdev), (state))
 #define radeon_gpu_reset(rdev) (rdev)->asic->gpu_reset((rdev))
 #define radeon_mc_init(rdev) (rdev)->asic->mc_init((rdev))
 #define radeon_mc_fini(rdev) (rdev)->asic->mc_fini((rdev))

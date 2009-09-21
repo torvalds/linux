@@ -766,6 +766,7 @@ static inline void opregion_enable_asle(struct drm_device *dev) { return; }
 /* modesetting */
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
+extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
 
 /**
  * Lock test for when it's just for synchronization of ring access.

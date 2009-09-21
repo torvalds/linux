@@ -29,6 +29,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
+#include <linux/vgaarb.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_asic.h"
@@ -480,7 +481,18 @@ void radeon_combios_fini(struct radeon_device *rdev)
 {
 }
 
+/* if we get transitioned to only one device, tak VGA back */
+static unsigned int radeon_vga_set_decode(void *cookie, bool state)
+{
+	struct radeon_device *rdev = cookie;
 
+	radeon_vga_set_state(rdev, state);
+	if (state)
+		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
+		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+	else
+		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+}
 /*
  * Radeon device.
  */
@@ -578,6 +590,13 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r) {
 		return r;
 	}
+
+	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
+	r = vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
+	if (r) {
+		return -EINVAL;
+	}
+
 	if (!rdev->new_init_path) {
 		/* Setup errata flags */
 		radeon_errata(rdev);
@@ -586,7 +605,6 @@ int radeon_device_init(struct radeon_device *rdev,
 		/* Initialize surface registers */
 		radeon_surface_init(rdev);
 
-		/* TODO: disable VGA need to use VGA request */
 		/* BIOS*/
 		if (!radeon_get_bios(rdev)) {
 			if (ASIC_IS_AVIVO(rdev))
@@ -697,6 +715,7 @@ void radeon_device_fini(struct radeon_device *rdev)
 		radeon_agp_fini(rdev);
 #endif
 		radeon_irq_kms_fini(rdev);
+		vga_client_register(rdev->pdev, NULL, NULL, NULL);
 		radeon_fence_driver_fini(rdev);
 		radeon_clocks_fini(rdev);
 		radeon_object_fini(rdev);

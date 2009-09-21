@@ -30,6 +30,7 @@
  * fb aperture size and the amount of pre-reserved memory.
  */
 #define INTEL_GMCH_CTRL		0x52
+#define INTEL_GMCH_VGA_DISABLE  (1 << 1)
 #define INTEL_GMCH_ENABLED	0x4
 #define INTEL_GMCH_MEM_MASK	0x1
 #define INTEL_GMCH_MEM_64M	0x1

@@ -810,6 +810,9 @@ struct drm_driver {
 	int (*gem_init_object) (struct drm_gem_object *obj);
 	void (*gem_free_object) (struct drm_gem_object *obj);
 
+	/* vga arb irq handler */
+	void (*vgaarb_irq)(struct drm_device *dev, bool state);
+
 	/* Driver private ops for this object */
 	struct vm_operations_struct *gem_vm_ops;
 
