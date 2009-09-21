@@ -322,6 +322,8 @@ extern void unregister_acpi_bus_notifier(struct notifier_block *nb);
 
 int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
 void acpi_bus_data_handler(acpi_handle handle, void *context);
+acpi_status acpi_bus_get_status_handle(acpi_handle handle,
+				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);
 int acpi_bus_get_power(acpi_handle handle, int *state);
 int acpi_bus_set_power(acpi_handle handle, int state);
