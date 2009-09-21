@@ -946,6 +946,27 @@ config SENSORS_W83627EHF
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627ehf.
 
+config SENSORS_WM831X
+	tristate "WM831x PMICs"
+	depends on MFD_WM831X
+	help
+	  If you say yes here you get support for the hardware
+	  monitoring functionality of the Wolfson Microelectronics
+	  WM831x series of PMICs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called wm831x-hwmon.
+
+config SENSORS_WM8350
+	tristate "Wolfson Microelectronics WM835x"
+	depends on MFD_WM8350
+	help
+	  If you say yes here you get support for the hardware
+	  monitoring features of the WM835x series of PMICs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called wm8350-hwmon.
+
 config SENSORS_ULTRA45
 	tristate "Sun Ultra45 PIC16F747"
 	depends on SPARC64

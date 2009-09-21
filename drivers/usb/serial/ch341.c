@@ -300,8 +300,7 @@ static void ch341_close(struct usb_serial_port *port)
 
 
 /* open this device, set default parameters */
-static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port,
-				struct file *filp)
+static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct ch341_private *priv = usb_get_serial_port_data(serial->port[0]);
@@ -333,7 +332,7 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port,
 		return -EPROTO;
 	}
 
-	r = usb_serial_generic_open(tty, port, filp);
+	r = usb_serial_generic_open(tty, port);
 
 out:	return r;
 }

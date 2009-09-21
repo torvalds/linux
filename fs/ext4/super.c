@@ -45,6 +45,7 @@
 #include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
+#include "mballoc.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
@@ -344,7 +345,8 @@ static const char *ext4_decode_error(struct super_block *sb, int errno,
 		errstr = "Out of memory";
 		break;
 	case -EROFS:
-		if (!sb || EXT4_SB(sb)->s_journal->j_flags & JBD2_ABORT)
+		if (!sb || (EXT4_SB(sb)->s_journal &&
+			    EXT4_SB(sb)->s_journal->j_flags & JBD2_ABORT))
 			errstr = "Journal has aborted";
 		else
 			errstr = "Readonly filesystem";
@@ -1279,11 +1281,9 @@ static int parse_options(char *options, struct super_block *sb,
 			*journal_devnum = option;
 			break;
 		case Opt_journal_checksum:
-			set_opt(sbi->s_mount_opt, JOURNAL_CHECKSUM);
-			break;
+			break;	/* Kept for backwards compatibility */
 		case Opt_journal_async_commit:
 			set_opt(sbi->s_mount_opt, JOURNAL_ASYNC_COMMIT);
-			set_opt(sbi->s_mount_opt, JOURNAL_CHECKSUM);
 			break;
 		case Opt_noload:
 			set_opt(sbi->s_mount_opt, NOLOAD);
@@ -1695,12 +1695,12 @@ static int ext4_fill_flex_info(struct super_block *sb)
 		gdp = ext4_get_group_desc(sb, i, NULL);
 
 		flex_group = ext4_flex_group(sbi, i);
-		atomic_set(&sbi->s_flex_groups[flex_group].free_inodes,
-			   ext4_free_inodes_count(sb, gdp));
-		atomic_set(&sbi->s_flex_groups[flex_group].free_blocks,
-			   ext4_free_blks_count(sb, gdp));
-		atomic_set(&sbi->s_flex_groups[flex_group].used_dirs,
-			   ext4_used_dirs_count(sb, gdp));
+		atomic_add(ext4_free_inodes_count(sb, gdp),
+			   &sbi->s_flex_groups[flex_group].free_inodes);
+		atomic_add(ext4_free_blks_count(sb, gdp),
+			   &sbi->s_flex_groups[flex_group].free_blocks);
+		atomic_add(ext4_used_dirs_count(sb, gdp),
+			   &sbi->s_flex_groups[flex_group].used_dirs);
 	}
 
 	return 1;
@@ -2253,6 +2253,49 @@ static struct kobj_type ext4_ktype = {
 	.release	= ext4_sb_release,
 };
 
+/*
+ * Check whether this filesystem can be mounted based on
+ * the features present and the RDONLY/RDWR mount requested.
+ * Returns 1 if this filesystem can be mounted as requested,
+ * 0 if it cannot be.
+ */
+static int ext4_feature_set_ok(struct super_block *sb, int readonly)
+{
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, ~EXT4_FEATURE_INCOMPAT_SUPP)) {
+		ext4_msg(sb, KERN_ERR,
+			"Couldn't mount because of "
+			"unsupported optional features (%x)",
+			(le32_to_cpu(EXT4_SB(sb)->s_es->s_feature_incompat) &
+			~EXT4_FEATURE_INCOMPAT_SUPP));
+		return 0;
+	}
+
+	if (readonly)
+		return 1;
+
+	/* Check that feature set is OK for a read-write mount */
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, ~EXT4_FEATURE_RO_COMPAT_SUPP)) {
+		ext4_msg(sb, KERN_ERR, "couldn't mount RDWR because of "
+			 "unsupported optional features (%x)",
+			 (le32_to_cpu(EXT4_SB(sb)->s_es->s_feature_ro_compat) &
+				~EXT4_FEATURE_RO_COMPAT_SUPP));
+		return 0;
+	}
+	/*
+	 * Large file size enabled file system can only be mounted
+	 * read-write on 32-bit systems if kernel is built with CONFIG_LBDAF
+	 */
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_HUGE_FILE)) {
+		if (sizeof(blkcnt_t) < sizeof(u64)) {
+			ext4_msg(sb, KERN_ERR, "Filesystem with huge files "
+				 "cannot be mounted RDWR without "
+				 "CONFIG_LBDAF");
+			return 0;
+		}
+	}
+	return 1;
+}
+
 static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 				__releases(kernel_lock)
 				__acquires(kernel_lock)
@@ -2274,7 +2317,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned int db_count;
 	unsigned int i;
 	int needs_recovery, has_huge_files;
-	int features;
 	__u64 blocks_count;
 	int err;
 	unsigned int journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
@@ -2401,39 +2443,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * previously didn't change the revision level when setting the flags,
 	 * so there is a chance incompat flags are set on a rev 0 filesystem.
 	 */
-	features = EXT4_HAS_INCOMPAT_FEATURE(sb, ~EXT4_FEATURE_INCOMPAT_SUPP);
-	if (features) {
-		ext4_msg(sb, KERN_ERR,
-			"Couldn't mount because of "
-			"unsupported optional features (%x)",
-			(le32_to_cpu(EXT4_SB(sb)->s_es->s_feature_incompat) &
-			~EXT4_FEATURE_INCOMPAT_SUPP));
+	if (!ext4_feature_set_ok(sb, (sb->s_flags & MS_RDONLY)))
 		goto failed_mount;
-	}
-	features = EXT4_HAS_RO_COMPAT_FEATURE(sb, ~EXT4_FEATURE_RO_COMPAT_SUPP);
-	if (!(sb->s_flags & MS_RDONLY) && features) {
-		ext4_msg(sb, KERN_ERR,
-			"Couldn't mount RDWR because of "
-			"unsupported optional features (%x)",
-			(le32_to_cpu(EXT4_SB(sb)->s_es->s_feature_ro_compat) &
-			~EXT4_FEATURE_RO_COMPAT_SUPP));
-		goto failed_mount;
-	}
-	has_huge_files = EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				    EXT4_FEATURE_RO_COMPAT_HUGE_FILE);
-	if (has_huge_files) {
-		/*
-		 * Large file size enabled file system can only be
-		 * mount if kernel is build with CONFIG_LBDAF
-		 */
-		if (sizeof(root->i_blocks) < sizeof(u64) &&
-				!(sb->s_flags & MS_RDONLY)) {
-			ext4_msg(sb, KERN_ERR, "Filesystem with huge "
-					"files cannot be mounted read-write "
-					"without CONFIG_LBDAF");
-			goto failed_mount;
-		}
-	}
+
 	blocksize = BLOCK_SIZE << le32_to_cpu(es->s_log_block_size);
 
 	if (blocksize < EXT4_MIN_BLOCK_SIZE ||
@@ -2469,6 +2481,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		}
 	}
 
+	has_huge_files = EXT4_HAS_RO_COMPAT_FEATURE(sb,
+				EXT4_FEATURE_RO_COMPAT_HUGE_FILE);
 	sbi->s_bitmap_maxbytes = ext4_max_bitmap_size(sb->s_blocksize_bits,
 						      has_huge_files);
 	sb->s_maxbytes = ext4_max_size(sb->s_blocksize_bits, has_huge_files);
@@ -2549,12 +2563,19 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
-	if (ext4_blocks_count(es) >
-		    (sector_t)(~0ULL) >> (sb->s_blocksize_bits - 9)) {
+	/*
+	 * Test whether we have more sectors than will fit in sector_t,
+	 * and whether the max offset is addressable by the page cache.
+	 */
+	if ((ext4_blocks_count(es) >
+	     (sector_t)(~0ULL) >> (sb->s_blocksize_bits - 9)) ||
+	    (ext4_blocks_count(es) >
+	     (pgoff_t)(~0ULL) >> (PAGE_CACHE_SHIFT - sb->s_blocksize_bits))) {
 		ext4_msg(sb, KERN_ERR, "filesystem"
-			" too large to mount safely");
+			 " too large to mount safely on this system");
 		if (sizeof(sector_t) < 8)
 			ext4_msg(sb, KERN_WARNING, "CONFIG_LBDAF not enabled");
+		ret = -EFBIG;
 		goto failed_mount;
 	}
 
@@ -2595,6 +2616,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 	sbi->s_groups_count = blocks_count;
+	sbi->s_blockfile_groups = min_t(ext4_group_t, sbi->s_groups_count,
+			(EXT4_MAX_BLOCK_FILE_PHYS / EXT4_BLOCKS_PER_GROUP(sb)));
 	db_count = (sbi->s_groups_count + EXT4_DESC_PER_BLOCK(sb) - 1) /
 		   EXT4_DESC_PER_BLOCK(sb);
 	sbi->s_group_desc = kmalloc(db_count * sizeof(struct buffer_head *),
@@ -2729,20 +2752,14 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount4;
 	}
 
-	if (test_opt(sb, JOURNAL_ASYNC_COMMIT)) {
-		jbd2_journal_set_features(sbi->s_journal,
-				JBD2_FEATURE_COMPAT_CHECKSUM, 0,
+	jbd2_journal_set_features(sbi->s_journal,
+				  JBD2_FEATURE_COMPAT_CHECKSUM, 0, 0);
+	if (test_opt(sb, JOURNAL_ASYNC_COMMIT))
+		jbd2_journal_set_features(sbi->s_journal, 0, 0,
 				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT);
-	} else if (test_opt(sb, JOURNAL_CHECKSUM)) {
-		jbd2_journal_set_features(sbi->s_journal,
-				JBD2_FEATURE_COMPAT_CHECKSUM, 0, 0);
+	else
 		jbd2_journal_clear_features(sbi->s_journal, 0, 0,
 				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT);
-	} else {
-		jbd2_journal_clear_features(sbi->s_journal,
-				JBD2_FEATURE_COMPAT_CHECKSUM, 0,
-				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT);
-	}
 
 	/* We have now updated the journal if required, so we can
 	 * validate the data journaling mode. */
@@ -3208,7 +3225,18 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 		clear_buffer_write_io_error(sbh);
 		set_buffer_uptodate(sbh);
 	}
-	es->s_wtime = cpu_to_le32(get_seconds());
+	/*
+	 * If the file system is mounted read-only, don't update the
+	 * superblock write time.  This avoids updating the superblock
+	 * write time when we are mounting the root file system
+	 * read/only but we need to replay the journal; at that point,
+	 * for people who are east of GMT and who make their clock
+	 * tick in localtime for Windows bug-for-bug compatibility,
+	 * the clock is set in the future, and this will cause e2fsck
+	 * to complain and force a full file system check.
+	 */
+	if (!(sb->s_flags & MS_RDONLY))
+		es->s_wtime = cpu_to_le32(get_seconds());
 	es->s_kbytes_written =
 		cpu_to_le64(EXT4_SB(sb)->s_kbytes_written + 
 			    ((part_stat_read(sb->s_bdev->bd_part, sectors[1]) -
@@ -3477,18 +3505,11 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 			if (sbi->s_journal)
 				ext4_mark_recovery_complete(sb, es);
 		} else {
-			int ret;
-			if ((ret = EXT4_HAS_RO_COMPAT_FEATURE(sb,
-					~EXT4_FEATURE_RO_COMPAT_SUPP))) {
-				ext4_msg(sb, KERN_WARNING, "couldn't "
-				       "remount RDWR because of unsupported "
-				       "optional features (%x)",
-				(le32_to_cpu(sbi->s_es->s_feature_ro_compat) &
-					~EXT4_FEATURE_RO_COMPAT_SUPP));
+			/* Make sure we can mount this feature set readwrite */
+			if (!ext4_feature_set_ok(sb, 0)) {
 				err = -EROFS;
 				goto restore_opts;
 			}
-
 			/*
 			 * Make sure the group descriptor checksums
 			 * are sane.  If they aren't, refuse to remount r/w.

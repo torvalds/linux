@@ -180,7 +180,6 @@ static inline void vga_set_mem_top(struct vc_data *c)
 }
 
 #ifdef CONFIG_VGACON_SOFT_SCROLLBACK
-#include <linux/slab.h>
 /* software scrollback */
 static void *vgacon_scrollback;
 static int vgacon_scrollback_tail;

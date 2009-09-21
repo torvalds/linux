@@ -241,7 +241,7 @@ static struct notifier_block __refdata msr_class_cpu_notifier = {
 	.notifier_call = msr_class_cpu_callback,
 };
 
-static char *msr_nodename(struct device *dev)
+static char *msr_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cpu/%u/msr", MINOR(dev->devt));
 }
@@ -262,7 +262,7 @@ static int __init msr_init(void)
 		err = PTR_ERR(msr_class);
 		goto out_chrdev;
 	}
-	msr_class->nodename = msr_nodename;
+	msr_class->devnode = msr_devnode;
 	for_each_online_cpu(i) {
 		err = msr_device_create(i);
 		if (err != 0)

@@ -499,6 +499,7 @@ struct cyclades_card {
 		void __iomem *p9050;
 		struct RUNTIME_9060 __iomem *p9060;
 	} ctl_addr;
+	struct BOARD_CTRL __iomem *board_ctrl;	/* cyz specific */
 	int irq;
 	unsigned int num_chips;	/* 0 if card absent, -1 if Z/PCI, else Y */
 	unsigned int first_line;	/* minor number of first channel on card */
@@ -541,6 +542,15 @@ struct cyclades_port {
 	int                     magic;
 	struct tty_port		port;
 	struct cyclades_card	*card;
+	union {
+		struct {
+			void __iomem *base_addr;
+		} cyy;
+		struct {
+			struct CH_CTRL __iomem	*ch_ctrl;
+			struct BUF_CTRL __iomem	*buf_ctrl;
+		} cyz;
+	} u;
 	int			line;
 	int			flags; 		/* defined in tty.h */
 	int                     type;		/* UART type */
@@ -568,7 +578,6 @@ struct cyclades_port {
 	struct cyclades_idle_stats	idle_stats;
 	struct cyclades_icount	icount;
 	struct completion       shutdown_wait;
-	wait_queue_head_t       delta_msr_wait;
 	int throttle;
 };
 

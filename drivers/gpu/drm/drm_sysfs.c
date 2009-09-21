@@ -76,7 +76,7 @@ static ssize_t version_show(struct class *dev, char *buf)
 		       CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
 }
 
-static char *drm_nodename(struct device *dev)
+static char *drm_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
 }
@@ -112,7 +112,7 @@ struct class *drm_sysfs_create(struct module *owner, char *name)
 	if (err)
 		goto err_out_class;
 
-	class->nodename = drm_nodename;
+	class->devnode = drm_devnode;
 
 	return class;
 

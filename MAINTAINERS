@@ -1973,7 +1973,6 @@ F:	fs/ext2/
 F:	include/linux/ext2*
 
 EXT3 FILE SYSTEM
-M:	Stephen Tweedie <sct@redhat.com>
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	Andreas Dilger <adilger@sun.com>
 L:	linux-ext4@vger.kernel.org
@@ -2901,8 +2900,8 @@ F:	fs/jffs2/
 F:	include/linux/jffs2.h
 
 JOURNALLING LAYER FOR BLOCK DEVICES (JBD)
-M:	Stephen Tweedie <sct@redhat.com>
 M:	Andrew Morton <akpm@linux-foundation.org>
+M:	Jan Kara <jack@suse.cz>
 L:	linux-ext4@vger.kernel.org
 S:	Maintained
 F:	fs/jbd*/
@@ -4455,6 +4454,14 @@ S:	Maintained
 F:	kernel/sched*
 F:	include/linux/sched.h
 
+SCORE ARCHITECTURE
+P:	Chen Liqin
+M:	liqin.chen@sunplusct.com
+P:	Lennox Wu
+M:	lennox.wu@sunplusct.com
+W:	http://www.sunplusct.com
+S:	Supported
+
 SCSI CDROM DRIVER
 M:	Jens Axboe <axboe@kernel.dk>
 L:	linux-scsi@vger.kernel.org
@@ -4653,6 +4660,12 @@ S:	Supported
 F:	arch/arm/mach-s3c2410/
 F:	drivers/*/*s3c2410*
 F:	drivers/*/*/*s3c2410*
+
+TI DAVINCI MACHINE SUPPORT
+P:	Kevin Hilman
+M:	davinci-linux-open-source@linux.davincidsp.com
+S:	Supported
+F:	arch/arm/mach-davinci
 
 SIS 190 ETHERNET DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
@@ -5677,6 +5690,26 @@ W:	http://opensource.wolfsonmicro.com/node/7
 S:	Supported
 F:	drivers/input/touchscreen/*wm97*
 F:	include/linux/wm97xx.h
+
+WOLFSON MICROELECTRONICS PMIC DRIVERS
+P:	Mark Brown
+M:	broonie@opensource.wolfsonmicro.com
+L:	linux-kernel@vger.kernel.org
+T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
+W:	http://opensource.wolfsonmicro.com/node/8
+S:	Supported
+F:	drivers/leds/leds-wm83*.c
+F:	drivers/mfd/wm8*.c
+F:	drivers/power/wm83*.c
+F:	drivers/rtc/rtc-wm83*.c
+F:	drivers/regulator/wm8*.c
+F:	drivers/video/backlight/wm83*_bl.c
+F:	drivers/watchdog/wm83*_wdt.c
+F:	include/linux/mfd/wm831x/
+F:	include/linux/mfd/wm8350/
+F:	include/linux/mfd/wm8400/
+F:	sound/soc/codecs/wm8350.c
+F:	sound/soc/codecs/wm8400.c
 
 X.25 NETWORK LAYER
 M:	Henner Eisen <eis@baty.hanse.de>

@@ -427,7 +427,7 @@ static void atmel_rx_chars(struct uart_port *port)
  */
 static void atmel_tx_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 
 	if (port->x_char && UART_GET_CSR(port) & ATMEL_US_TXRDY) {
 		UART_PUT_CHAR(port, port->x_char);
@@ -560,7 +560,7 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 static void atmel_tx_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 	struct atmel_dma_buffer *pdc = &atmel_port->pdc_tx;
 	int count;
 
@@ -663,14 +663,14 @@ static void atmel_rx_from_ring(struct uart_port *port)
 	 * uart_start(), which takes the lock.
 	 */
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(port->info->port.tty);
+	tty_flip_buffer_push(port->state->port.tty);
 	spin_lock(&port->lock);
 }
 
 static void atmel_rx_from_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	struct atmel_dma_buffer *pdc;
 	int rx_idx = atmel_port->pdc_rx_idx;
 	unsigned int head;
@@ -776,7 +776,7 @@ static void atmel_tasklet_func(unsigned long data)
 		if (status_change & ATMEL_US_CTS)
 			uart_handle_cts_change(port, !(status & ATMEL_US_CTS));
 
-		wake_up_interruptible(&port->info->delta_msr_wait);
+		wake_up_interruptible(&port->state->port.delta_msr_wait);
 
 		atmel_port->irq_status_prev = status;
 	}
@@ -795,7 +795,7 @@ static void atmel_tasklet_func(unsigned long data)
 static int atmel_startup(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	int retval;
 
 	/*
@@ -854,7 +854,7 @@ static int atmel_startup(struct uart_port *port)
 	}
 	if (atmel_use_dma_tx(port)) {
 		struct atmel_dma_buffer *pdc = &atmel_port->pdc_tx;
-		struct circ_buf *xmit = &port->info->xmit;
+		struct circ_buf *xmit = &port->state->xmit;
 
 		pdc->buf = xmit->buf;
 		pdc->dma_addr = dma_map_single(port->dev,

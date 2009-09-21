@@ -159,7 +159,7 @@ TRACE_EVENT(jbd2_submit_inode_data,
 	),
 
 	TP_printk("dev %s ino %lu",
-		  jbd2_dev_to_name(__entry->dev), __entry->ino)
+		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino)
 );
 
 #endif /* _TRACE_JBD2_H */

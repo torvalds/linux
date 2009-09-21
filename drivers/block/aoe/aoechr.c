@@ -266,7 +266,7 @@ static const struct file_operations aoe_fops = {
 	.owner = THIS_MODULE,
 };
 
-static char *aoe_nodename(struct device *dev)
+static char *aoe_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "etherd/%s", dev_name(dev));
 }
@@ -288,7 +288,7 @@ aoechr_init(void)
 		unregister_chrdev(AOE_MAJOR, "aoechr");
 		return PTR_ERR(aoe_class);
 	}
-	aoe_class->nodename = aoe_nodename;
+	aoe_class->devnode = aoe_devnode;
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
 		device_create(aoe_class, NULL,

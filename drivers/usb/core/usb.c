@@ -311,7 +311,7 @@ static struct dev_pm_ops usb_device_pm_ops = {
 #endif	/* CONFIG_PM */
 
 
-static char *usb_nodename(struct device *dev)
+static char *usb_devnode(struct device *dev, mode_t *mode)
 {
 	struct usb_device *usb_dev;
 
@@ -324,7 +324,7 @@ struct device_type usb_device_type = {
 	.name =		"usb_device",
 	.release =	usb_release_dev,
 	.uevent =	usb_dev_uevent,
-	.nodename = 	usb_nodename,
+	.devnode = 	usb_devnode,
 	.pm =		&usb_device_pm_ops,
 };
 

@@ -734,8 +734,7 @@ static void sierra_close(struct usb_serial_port *port)
 	}
 }
 
-static int sierra_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct sierra_port_private *portdata;
 	struct usb_serial *serial = port->serial;

@@ -42,6 +42,9 @@
  */
 #define	GPIO(X)		(X)		/* 0 <= X <= (DAVINCI_N_GPIO - 1) */
 
+/* Convert GPIO signal to GPIO pin number */
+#define GPIO_TO_PIN(bank, gpio)	(16 * (bank) + (gpio))
+
 struct gpio_controller {
 	u32	dir;
 	u32	out_data;
@@ -78,6 +81,8 @@ __gpio_to_controller(unsigned gpio)
 		ptr = base + 0x60;
 	else if (gpio < 32 * 4)
 		ptr = base + 0x88;
+	else if (gpio < 32 * 5)
+		ptr = base + 0xb0;
 	else
 		ptr = NULL;
 	return ptr;
@@ -142,15 +147,13 @@ static inline int gpio_cansleep(unsigned gpio)
 
 static inline int gpio_to_irq(unsigned gpio)
 {
-	if (gpio >= DAVINCI_N_GPIO)
-		return -EINVAL;
-	return davinci_soc_info.intc_irq_num + gpio;
+	return __gpio_to_irq(gpio);
 }
 
 static inline int irq_to_gpio(unsigned irq)
 {
-	/* caller guarantees gpio_to_irq() succeeded */
-	return irq - davinci_soc_info.intc_irq_num;
+	/* don't support the reverse mapping */
+	return -ENOSYS;
 }
 
 #endif				/* __DAVINCI_GPIO_H */

@@ -446,7 +446,6 @@ static inline void unpause_graph_tracing(void) { }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #ifdef CONFIG_TRACING
-#include <linux/sched.h>
 
 /* flags for current->trace */
 enum {

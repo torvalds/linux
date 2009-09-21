@@ -52,7 +52,7 @@ GLOBAL_ENTRY(relocate_new_kernel)
 	srlz.i
 	;;
 	mov ar.rnat=r18
-	rfi
+	rfi				// note: this unmask MCA/INIT (psr.mc)
 	;;
 1:
 	//physical mode code begin
