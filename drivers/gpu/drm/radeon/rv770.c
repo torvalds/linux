@@ -56,8 +56,6 @@ int rv770_pcie_gart_enable(struct radeon_device *rdev)
 	r = radeon_gart_table_vram_pin(rdev);
 	if (r)
 		return r;
-	for (i = 0; i < rdev->gart.num_gpu_pages; i++)
-		r600_gart_clear_page(rdev, i);
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE | ENABLE_L2_FRAGMENT_PROCESSING |
 				ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
@@ -681,11 +679,11 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	WREG32(SQ_CONFIG, sq_config);
 
 	WREG32(SQ_GPR_RESOURCE_MGMT_1,  (NUM_PS_GPRS((rdev->config.rv770.max_gprs * 24)/64) |
-						    NUM_VS_GPRS((rdev->config.rv770.max_gprs * 24)/64) |
-						    NUM_CLAUSE_TEMP_GPRS(((rdev->config.rv770.max_gprs * 24)/64)/2)));
+					 NUM_VS_GPRS((rdev->config.rv770.max_gprs * 24)/64) |
+					 NUM_CLAUSE_TEMP_GPRS(((rdev->config.rv770.max_gprs * 24)/64)/2)));
 
 	WREG32(SQ_GPR_RESOURCE_MGMT_2,  (NUM_GS_GPRS((rdev->config.rv770.max_gprs * 7)/64) |
-						    NUM_ES_GPRS((rdev->config.rv770.max_gprs * 7)/64)));
+					 NUM_ES_GPRS((rdev->config.rv770.max_gprs * 7)/64)));
 
 	sq_thread_resource_mgmt = (NUM_PS_THREADS((rdev->config.rv770.max_threads * 4)/8) |
 				   NUM_VS_THREADS((rdev->config.rv770.max_threads * 2)/8) |
@@ -717,14 +715,14 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	WREG32(SQ_DYN_GPR_SIZE_SIMD_AB_7, sq_dyn_gpr_size_simd_ab_0);
 
 	WREG32(PA_SC_FORCE_EOV_MAX_CNTS, (FORCE_EOV_MAX_CLK_CNT(4095) |
-						     FORCE_EOV_MAX_REZ_CNT(255)));
+					  FORCE_EOV_MAX_REZ_CNT(255)));
 
 	if (rdev->family == CHIP_RV710)
 		WREG32(VGT_CACHE_INVALIDATION, (CACHE_INVALIDATION(TC_ONLY) |
-							   AUTO_INVLD_EN(ES_AND_GS_AUTO)));
+						AUTO_INVLD_EN(ES_AND_GS_AUTO)));
 	else
 		WREG32(VGT_CACHE_INVALIDATION, (CACHE_INVALIDATION(VC_AND_TC) |
-							   AUTO_INVLD_EN(ES_AND_GS_AUTO)));
+						AUTO_INVLD_EN(ES_AND_GS_AUTO)));
 
 	switch (rdev->family) {
 	case CHIP_RV770:
@@ -848,14 +846,15 @@ int rv770_mc_init(struct radeon_device *rdev)
 }
 int rv770_gpu_reset(struct radeon_device *rdev)
 {
-	/* FIXME: implement */
-	return 0;
+	/* FIXME: implement any rv770 specific bits */
+	return r600_gpu_reset(rdev);
 }
 
 static int rv770_startup(struct radeon_device *rdev)
 {
 	int r;
 
+	radeon_gpu_reset(rdev);
 	rv770_mc_resume(rdev);
 	r = rv770_pcie_gart_enable(rdev);
 	if (r)
@@ -1039,6 +1038,8 @@ int rv770_init(struct radeon_device *rdev)
 
 void rv770_fini(struct radeon_device *rdev)
 {
+	rv770_suspend(rdev);
+
 	r600_blit_fini(rdev);
 	radeon_ring_fini(rdev);
 	rv770_pcie_gart_fini(rdev);

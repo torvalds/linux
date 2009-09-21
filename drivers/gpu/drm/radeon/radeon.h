@@ -1070,5 +1070,6 @@ extern void r600_scratch_init(struct radeon_device *rdev);
 extern int r600_blit_init(struct radeon_device *rdev);
 extern void r600_blit_fini(struct radeon_device *rdev);
 extern int r600_cp_init_microcode(struct radeon_device *rdev);
+extern int r600_gpu_reset(struct radeon_device *rdev);
 
 #endif
