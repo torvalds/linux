@@ -91,6 +91,9 @@ extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 				      int offset);
 
+extern struct cifsFileInfo *cifs_new_fileinfo(struct inode *newinode,
+				__u16 fileHandle, struct file *file,
+				struct cifsTconInfo *tcon, unsigned int oflags);
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
 			   struct vfsmount *mnt, int mode, int oflags,
 			   __u32 *poplock, __u16 *pnetfid, int xid);

@@ -40,29 +40,6 @@
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
 
-static inline struct cifsFileInfo *cifs_init_private(
-	struct cifsFileInfo *private_data, struct inode *inode,
-	struct file *file, __u16 netfid)
-{
-	memset(private_data, 0, sizeof(struct cifsFileInfo));
-	private_data->netfid = netfid;
-	private_data->pid = current->tgid;
-	mutex_init(&private_data->fh_mutex);
-	mutex_init(&private_data->lock_mutex);
-	INIT_LIST_HEAD(&private_data->llist);
-	private_data->pfile = file; /* needed for writepage */
-	private_data->pInode = igrab(inode);
-	private_data->mnt = file->f_path.mnt;
-	private_data->invalidHandle = false;
-	private_data->closePend = false;
-	/* Initialize reference count to one.  The private data is
-	freed on the release of the last reference */
-	atomic_set(&private_data->count, 1);
-	slow_work_init(&private_data->oplock_break, &cifs_oplock_break_ops);
-
-	return private_data;
-}
-
 static inline int cifs_convert_flags(unsigned int flags)
 {
 	if ((flags & O_ACCMODE) == O_RDONLY)
@@ -420,15 +397,13 @@ int cifs_open(struct inode *inode, struct file *file)
 		cFYI(1, ("cifs_open returned 0x%x", rc));
 		goto out;
 	}
-	file->private_data =
-		kmalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
+	pCifsFile = cifs_new_fileinfo(inode, netfid, file, file->f_path.mnt,
+					file->f_flags);
+	file->private_data = pCifsFile;
 	if (file->private_data == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	pCifsFile = cifs_init_private(file->private_data, inode, file, netfid);
-	write_lock(&GlobalSMBSeslock);
-	list_add(&pCifsFile->tlist, &tcon->openFileList);
 
 	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
 	if (pCifsInode) {

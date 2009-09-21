@@ -130,9 +130,9 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-static void
-cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
-			struct vfsmount *mnt, bool write_only)
+struct cifsFileInfo *
+cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
+		  struct file *file, struct vfsmount *mnt, unsigned int oflags)
 {
 	int oplock = 0;
 	struct cifsFileInfo *pCifsFile;
@@ -140,9 +140,8 @@ cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(mnt->mnt_sb);
 
 	pCifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
-
 	if (pCifsFile == NULL)
-		return;
+		return pCifsFile;
 
 	if (oplockEnabled)
 		oplock = REQ_OPLOCK;
@@ -151,6 +150,7 @@ cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
 	pCifsFile->pid = current->tgid;
 	pCifsFile->pInode = igrab(newinode);
 	pCifsFile->mnt = mnt;
+	pCifsFile->pfile = file;
 	pCifsFile->invalidHandle = false;
 	pCifsFile->closePend = false;
 	mutex_init(&pCifsFile->fh_mutex);
@@ -159,18 +159,16 @@ cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
 	atomic_set(&pCifsFile->count, 1);
 	slow_work_init(&pCifsFile->oplock_break, &cifs_oplock_break_ops);
 
-	/* set the following in open now
-			pCifsFile->pfile = file; */
 	write_lock(&GlobalSMBSeslock);
 	list_add(&pCifsFile->tlist, &cifs_sb->tcon->openFileList);
 	pCifsInode = CIFS_I(newinode);
 	if (pCifsInode) {
 		/* if readable file instance put first in list*/
-		if (write_only)
+		if (oflags & FMODE_READ)
+			list_add(&pCifsFile->flist, &pCifsInode->openFileList);
+		else
 			list_add_tail(&pCifsFile->flist,
 				      &pCifsInode->openFileList);
-		else
-			list_add(&pCifsFile->flist, &pCifsInode->openFileList);
 
 		if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
 			pCifsInode->clientCanCacheAll = true;
@@ -180,6 +178,8 @@ cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
 				pCifsInode->clientCanCacheRead = true;
 	}
 	write_unlock(&GlobalSMBSeslock);
+
+	return pCifsFile;
 }
 
 int cifs_posix_open(char *full_path, struct inode **pinode,
@@ -187,7 +187,6 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 		    __u32 *poplock, __u16 *pnetfid, int xid)
 {
 	int rc;
-	bool write_only = false;
 	FILE_UNIX_BASIC_INFO *presp_data;
 	__u32 posix_flags = 0;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(mnt->mnt_sb);
@@ -226,9 +225,6 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	if (oflags & O_DIRECT)
 		posix_flags |= SMB_O_DIRECT;
 
-	if (!(oflags & FMODE_READ))
-		write_only = true;
-
 	mode &= ~current_umask();
 	rc = CIFSPOSIXCreate(xid, cifs_sb->tcon, posix_flags, mode,
 			pnetfid, presp_data, poplock, full_path,
@@ -256,7 +252,7 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 		cifs_fattr_to_inode(*pinode, &fattr);
 	}
 
-	cifs_fill_fileinfo(*pinode, *pnetfid, mnt, write_only);
+	cifs_new_fileinfo(*pinode, *pnetfid, NULL, mnt, oflags);
 
 posix_open_ret:
 	kfree(presp_data);
@@ -301,7 +297,6 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	FILE_ALL_INFO *buf = NULL;
 	struct inode *newinode = NULL;
 	int disposition = FILE_OVERWRITE_IF;
-	bool write_only = false;
 
 	xid = GetXid();
 
@@ -354,11 +349,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		desiredAccess = 0;
 		if (oflags & FMODE_READ)
 			desiredAccess |= GENERIC_READ; /* is this too little? */
-		if (oflags & FMODE_WRITE) {
+		if (oflags & FMODE_WRITE)
 			desiredAccess |= GENERIC_WRITE;
-			if (!(oflags & FMODE_READ))
-				write_only = true;
-		}
 
 		if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
 			disposition = FILE_CREATE;
@@ -473,8 +465,8 @@ cifs_create_set_dentry:
 		/* mknod case - do not leave file open */
 		CIFSSMBClose(xid, tcon, fileHandle);
 	} else if (!(posix_create) && (newinode)) {
-			cifs_fill_fileinfo(newinode, fileHandle, nd->path.mnt,
-					   write_only);
+			cifs_new_fileinfo(newinode, fileHandle, NULL,
+						nd->path.mnt, oflags);
 	}
 cifs_create_out:
 	kfree(buf);
