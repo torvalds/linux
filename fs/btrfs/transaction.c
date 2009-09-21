@@ -720,7 +720,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
 
 	key.objectid = objectid;
-	key.offset = 0;
+	/* record when the snapshot was created in key.offset */
+	key.offset = trans->transid;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
 
 	old = btrfs_lock_root_node(root);
