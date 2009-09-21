@@ -47,9 +47,6 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 	int count;
 	struct acpi_hardware_id *id;
 
-	if (!acpi_dev->flags.hardware_id)
-		return -ENODEV;
-
 	len = snprintf(modalias, size, "acpi:");
 	size -= len;
 
@@ -203,17 +200,13 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 			goto end;
 	}
 
-	if (dev->flags.hardware_id) {
-		result = device_create_file(&dev->dev, &dev_attr_hid);
-		if (result)
-			goto end;
-	}
+	result = device_create_file(&dev->dev, &dev_attr_hid);
+	if (result)
+		goto end;
 
-	if (dev->flags.hardware_id) {
-		result = device_create_file(&dev->dev, &dev_attr_modalias);
-		if (result)
-			goto end;
-	}
+	result = device_create_file(&dev->dev, &dev_attr_modalias);
+	if (result)
+		goto end;
 
         /*
          * If device has _EJ0, 'eject' file is created that is used to trigger
@@ -239,11 +232,8 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 	if (ACPI_SUCCESS(status))
 		device_remove_file(&dev->dev, &dev_attr_eject);
 
-	if (dev->flags.hardware_id)
-		device_remove_file(&dev->dev, &dev_attr_modalias);
-
-	if (dev->flags.hardware_id)
-		device_remove_file(&dev->dev, &dev_attr_hid);
+	device_remove_file(&dev->dev, &dev_attr_modalias);
+	device_remove_file(&dev->dev, &dev_attr_hid);
 	if (dev->handle)
 		device_remove_file(&dev->dev, &dev_attr_path);
 }
@@ -474,8 +464,9 @@ static int acpi_device_register(struct acpi_device *device)
 	 * If failed, create one and link it into acpi_bus_id_list
 	 */
 	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node) {
-		if (!strcmp(acpi_device_bus_id->bus_id, device->flags.hardware_id ? acpi_device_hid(device) : "device")) {
-			acpi_device_bus_id->instance_no ++;
+		if (!strcmp(acpi_device_bus_id->bus_id,
+			    acpi_device_hid(device))) {
+			acpi_device_bus_id->instance_no++;
 			found = 1;
 			kfree(new_bus_id);
 			break;
@@ -483,7 +474,7 @@ static int acpi_device_register(struct acpi_device *device)
 	}
 	if (!found) {
 		acpi_device_bus_id = new_bus_id;
-		strcpy(acpi_device_bus_id->bus_id, device->flags.hardware_id ? acpi_device_hid(device) : "device");
+		strcpy(acpi_device_bus_id->bus_id, acpi_device_hid(device));
 		acpi_device_bus_id->instance_no = 0;
 		list_add_tail(&acpi_device_bus_id->node, &acpi_bus_id_list);
 	}
@@ -1103,10 +1094,8 @@ static void acpi_device_set_id(struct acpi_device *device)
 	if (!hid && !cid_list && !cid_add)
 		hid = "device";
 
-	if (hid) {
+	if (hid)
 		acpi_add_id(device, hid);
-		device->flags.hardware_id = 1;
-	}
 	if (uid) {
 		device->pnp.unique_id = ACPI_ALLOCATE_ZEROED(strlen (uid) + 1);
 		if (device->pnp.unique_id) {

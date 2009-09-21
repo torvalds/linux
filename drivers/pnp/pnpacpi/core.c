@@ -230,8 +230,7 @@ static int __init acpi_pnp_match(struct device *dev, void *_pnp)
 	struct pnp_dev *pnp = _pnp;
 
 	/* true means it matched */
-	return acpi->flags.hardware_id
-	    && !acpi_get_physical_device(acpi->handle)
+	return !acpi_get_physical_device(acpi->handle)
 	    && compare_pnp_id(pnp->id, acpi_device_hid(acpi));
 }
 
