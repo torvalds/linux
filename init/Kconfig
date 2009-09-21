@@ -1054,13 +1054,6 @@ config PROFILING
 config TRACEPOINTS
 	bool
 
-config MARKERS
-	bool "Activate markers"
-	select TRACEPOINTS
-	help
-	  Place an empty function call at each marker site. Can be
-	  dynamically changed for a probe function.
-
 source "arch/Kconfig"
 
 config SLOW_WORK

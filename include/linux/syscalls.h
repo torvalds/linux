@@ -100,33 +100,25 @@ struct perf_counter_attr;
 
 #ifdef CONFIG_EVENT_PROFILE
 #define TRACE_SYS_ENTER_PROFILE(sname)					       \
-static int prof_sysenter_enable_##sname(struct ftrace_event_call *event_call)  \
+static int prof_sysenter_enable_##sname(void)				       \
 {									       \
-	int ret = 0;							       \
-	if (!atomic_inc_return(&event_enter_##sname.profile_count))	       \
-		ret = reg_prof_syscall_enter("sys"#sname);		       \
-	return ret;							       \
+	return reg_prof_syscall_enter("sys"#sname);			       \
 }									       \
 									       \
-static void prof_sysenter_disable_##sname(struct ftrace_event_call *event_call)\
+static void prof_sysenter_disable_##sname(void)				       \
 {									       \
-	if (atomic_add_negative(-1, &event_enter_##sname.profile_count))       \
-		unreg_prof_syscall_enter("sys"#sname);			       \
+	unreg_prof_syscall_enter("sys"#sname);				       \
 }
 
 #define TRACE_SYS_EXIT_PROFILE(sname)					       \
-static int prof_sysexit_enable_##sname(struct ftrace_event_call *event_call)   \
+static int prof_sysexit_enable_##sname(void)				       \
 {									       \
-	int ret = 0;							       \
-	if (!atomic_inc_return(&event_exit_##sname.profile_count))	       \
-		ret = reg_prof_syscall_exit("sys"#sname);		       \
-	return ret;							       \
+	return reg_prof_syscall_exit("sys"#sname);			       \
 }									       \
 									       \
-static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
+static void prof_sysexit_disable_##sname(void)				       \
 {                                                                              \
-	if (atomic_add_negative(-1, &event_exit_##sname.profile_count))	       \
-		unreg_prof_syscall_exit("sys"#sname);			       \
+	unreg_prof_syscall_exit("sys"#sname);				       \
 }
 
 #define TRACE_SYS_ENTER_PROFILE_INIT(sname)				       \
