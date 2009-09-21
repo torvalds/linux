@@ -3624,9 +3624,6 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	if (ret != 0)
 		goto fail;
 
-	if (objectid > root->highest_inode)
-		root->highest_inode = objectid;
-
 	inode->i_uid = current_fsuid();
 
 	if (dir && (dir->i_mode & S_ISGID)) {

@@ -177,8 +177,6 @@ int btrfs_insert_empty_inode(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
 				      sizeof(struct btrfs_inode_item));
-	if (ret == 0 && objectid > root->highest_inode)
-		root->highest_inode = objectid;
 	return ret;
 }
 

@@ -1007,8 +1007,8 @@ struct btrfs_root {
 	u32 stripesize;
 
 	u32 type;
-	u64 highest_inode;
-	u64 last_inode_alloc;
+
+	u64 highest_objectid;
 	int ref_cows;
 	int track_dirty;
 	u64 defrag_trans_start;

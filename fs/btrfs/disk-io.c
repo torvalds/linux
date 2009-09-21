@@ -895,8 +895,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->fs_info = fs_info;
 	root->objectid = objectid;
 	root->last_trans = 0;
-	root->highest_inode = 0;
-	root->last_inode_alloc = 0;
+	root->highest_objectid = 0;
 	root->name = NULL;
 	root->in_sysfs = 0;
 	root->inode_tree.rb_node = NULL;
@@ -1095,7 +1094,6 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	struct btrfs_fs_info *fs_info = tree_root->fs_info;
 	struct btrfs_path *path;
 	struct extent_buffer *l;
-	u64 highest_inode;
 	u64 generation;
 	u32 blocksize;
 	int ret = 0;
@@ -1110,7 +1108,7 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 			kfree(root);
 			return ERR_PTR(ret);
 		}
-		goto insert;
+		goto out;
 	}
 
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
@@ -1120,39 +1118,30 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	ret = btrfs_search_slot(NULL, tree_root, location, path, 0, 0);
-	if (ret != 0) {
-		if (ret > 0)
-			ret = -ENOENT;
-		goto out;
+	if (ret == 0) {
+		l = path->nodes[0];
+		read_extent_buffer(l, &root->root_item,
+				btrfs_item_ptr_offset(l, path->slots[0]),
+				sizeof(root->root_item));
+		memcpy(&root->root_key, location, sizeof(*location));
 	}
-	l = path->nodes[0];
-	read_extent_buffer(l, &root->root_item,
-	       btrfs_item_ptr_offset(l, path->slots[0]),
-	       sizeof(root->root_item));
-	memcpy(&root->root_key, location, sizeof(*location));
-	ret = 0;
-out:
-	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	if (ret) {
-		kfree(root);
+		if (ret > 0)
+			ret = -ENOENT;
 		return ERR_PTR(ret);
 	}
+
 	generation = btrfs_root_generation(&root->root_item);
 	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
 				     blocksize, generation);
 	root->commit_root = btrfs_root_node(root);
 	BUG_ON(!root->node);
-insert:
-	if (location->objectid != BTRFS_TREE_LOG_OBJECTID) {
+out:
+	if (location->objectid != BTRFS_TREE_LOG_OBJECTID)
 		root->ref_cows = 1;
-		ret = btrfs_find_highest_inode(root, &highest_inode);
-		if (ret == 0) {
-			root->highest_inode = highest_inode;
-			root->last_inode_alloc = highest_inode;
-		}
-	}
+
 	return root;
 }
 
