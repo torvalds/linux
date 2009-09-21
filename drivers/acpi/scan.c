@@ -1100,6 +1100,12 @@ static void acpi_device_set_id(struct acpi_device *device)
 		if (ACPI_IS_ROOT_DEVICE(device)) {
 			hid = ACPI_SYSTEM_HID;
 			break;
+		} else if (ACPI_IS_ROOT_DEVICE(device->parent)) {
+			/* \_SB_, the only root-level namespace device */
+			hid = ACPI_BUS_HID;
+			strcpy(device->pnp.device_name, ACPI_BUS_DEVICE_NAME);
+			strcpy(device->pnp.device_class, ACPI_BUS_CLASS);
+			break;
 		}
 
 		status = acpi_get_object_info(device->handle, &info);
@@ -1147,18 +1153,6 @@ static void acpi_device_set_id(struct acpi_device *device)
 	case ACPI_BUS_TYPE_SLEEP_BUTTON:
 		hid = ACPI_BUTTON_HID_SLEEPF;
 		break;
-	}
-
-	/*
-	 * \_SB
-	 * ----
-	 * Fix for the system root bus device -- the only root-level device.
-	 */
-	if (((acpi_handle)device->parent == ACPI_ROOT_OBJECT) &&
-	     (device->device_type == ACPI_BUS_TYPE_DEVICE)) {
-		hid = ACPI_BUS_HID;
-		strcpy(device->pnp.device_name, ACPI_BUS_DEVICE_NAME);
-		strcpy(device->pnp.device_class, ACPI_BUS_CLASS);
 	}
 
 	if (hid) {
