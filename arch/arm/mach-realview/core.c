@@ -296,31 +296,31 @@ static struct clk ref24_clk = {
 
 static struct clk_lookup lookups[] = {
 	{	/* UART0 */
-		.dev_id		= "dev:f1",
+		.dev_id		= "dev:uart0",
 		.clk		= &ref24_clk,
 	}, {	/* UART1 */
-		.dev_id		= "dev:f2",
+		.dev_id		= "dev:uart1",
 		.clk		= &ref24_clk,
 	}, {	/* UART2 */
-		.dev_id		= "dev:f3",
+		.dev_id		= "dev:uart2",
 		.clk		= &ref24_clk,
 	}, {	/* UART3 */
-		.dev_id		= "fpga:09",
+		.dev_id		= "fpga:uart3",
 		.clk		= &ref24_clk,
 	}, {	/* KMI0 */
-		.dev_id		= "fpga:06",
+		.dev_id		= "fpga:kmi0",
 		.clk		= &ref24_clk,
 	}, {	/* KMI1 */
-		.dev_id		= "fpga:07",
+		.dev_id		= "fpga:kmi1",
 		.clk		= &ref24_clk,
 	}, {	/* MMC0 */
-		.dev_id		= "fpga:05",
+		.dev_id		= "fpga:mmc0",
 		.clk		= &ref24_clk,
 	}, {	/* EB:CLCD */
-		.dev_id		= "dev:20",
+		.dev_id		= "dev:clcd",
 		.clk		= &oscvco_clk,
 	}, {	/* PB:CLCD */
-		.dev_id		= "issp:20",
+		.dev_id		= "issp:clcd",
 		.clk		= &oscvco_clk,
 	}
 };
