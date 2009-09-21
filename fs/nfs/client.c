@@ -933,10 +933,6 @@ static int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, str
 		goto out_error;
 
 	nfs_server_set_fsinfo(server, &fsinfo);
-	error = bdi_init(&server->backing_dev_info);
-	if (error)
-		goto out_error;
-
 
 	/* Get some general file system info */
 	if (server->namelen == 0) {
@@ -991,6 +987,12 @@ static struct nfs_server *nfs_alloc_server(void)
 
 	server->io_stats = nfs_alloc_iostats();
 	if (!server->io_stats) {
+		kfree(server);
+		return NULL;
+	}
+
+	if (bdi_init(&server->backing_dev_info)) {
+		nfs_free_iostats(server->io_stats);
 		kfree(server);
 		return NULL;
 	}
