@@ -30,8 +30,8 @@ struct cpu_hw_events {
 	u64 events[MAX_HWEVENTS];
 	unsigned int flags[MAX_HWEVENTS];
 	unsigned long mmcr[3];
-	struct perf_event *limited_event[MAX_LIMITED_HWEVENTS];
-	u8  limited_hwidx[MAX_LIMITED_HWEVENTS];
+	struct perf_event *limited_counter[MAX_LIMITED_HWCOUNTERS];
+	u8  limited_hwidx[MAX_LIMITED_HWCOUNTERS];
 	u64 alternatives[MAX_HWEVENTS][MAX_EVENT_ALTERNATIVES];
 	unsigned long amasks[MAX_HWEVENTS][MAX_EVENT_ALTERNATIVES];
 	unsigned long avalues[MAX_HWEVENTS][MAX_EVENT_ALTERNATIVES];
@@ -253,7 +253,7 @@ static int power_check_constraints(struct cpu_hw_events *cpuhw,
 	unsigned long addf = ppmu->add_fields;
 	unsigned long tadd = ppmu->test_adder;
 
-	if (n_ev > ppmu->n_event)
+	if (n_ev > ppmu->n_counter)
 		return -1;
 
 	/* First see if the events will go on as-is */
@@ -426,7 +426,7 @@ static int is_limited_pmc(int pmcnum)
 		&& (pmcnum == 5 || pmcnum == 6);
 }
 
-static void freeze_limited_events(struct cpu_hw_events *cpuhw,
+static void freeze_limited_counters(struct cpu_hw_events *cpuhw,
 				    unsigned long pmc5, unsigned long pmc6)
 {
 	struct perf_event *event;
@@ -434,7 +434,7 @@ static void freeze_limited_events(struct cpu_hw_events *cpuhw,
 	int i;
 
 	for (i = 0; i < cpuhw->n_limited; ++i) {
-		event = cpuhw->limited_event[i];
+		event = cpuhw->limited_counter[i];
 		if (!event->hw.idx)
 			continue;
 		val = (event->hw.idx == 5) ? pmc5 : pmc6;
@@ -445,7 +445,7 @@ static void freeze_limited_events(struct cpu_hw_events *cpuhw,
 	}
 }
 
-static void thaw_limited_events(struct cpu_hw_events *cpuhw,
+static void thaw_limited_counters(struct cpu_hw_events *cpuhw,
 				  unsigned long pmc5, unsigned long pmc6)
 {
 	struct perf_event *event;
@@ -453,7 +453,7 @@ static void thaw_limited_events(struct cpu_hw_events *cpuhw,
 	int i;
 
 	for (i = 0; i < cpuhw->n_limited; ++i) {
-		event = cpuhw->limited_event[i];
+		event = cpuhw->limited_counter[i];
 		event->hw.idx = cpuhw->limited_hwidx[i];
 		val = (event->hw.idx == 5) ? pmc5 : pmc6;
 		atomic64_set(&event->hw.prev_count, val);
@@ -495,9 +495,9 @@ static void write_mmcr0(struct cpu_hw_events *cpuhw, unsigned long mmcr0)
 		       "i" (SPRN_PMC5), "i" (SPRN_PMC6));
 
 	if (mmcr0 & MMCR0_FC)
-		freeze_limited_events(cpuhw, pmc5, pmc6);
+		freeze_limited_counters(cpuhw, pmc5, pmc6);
 	else
-		thaw_limited_events(cpuhw, pmc5, pmc6);
+		thaw_limited_counters(cpuhw, pmc5, pmc6);
 
 	/*
 	 * Write the full MMCR0 including the event overflow interrupt
@@ -653,7 +653,7 @@ void hw_perf_enable(void)
 			continue;
 		idx = hwc_index[i] + 1;
 		if (is_limited_pmc(idx)) {
-			cpuhw->limited_event[n_lim] = event;
+			cpuhw->limited_counter[n_lim] = event;
 			cpuhw->limited_hwidx[n_lim] = idx;
 			++n_lim;
 			continue;
@@ -702,7 +702,7 @@ static int collect_events(struct perf_event *group, int max_count,
 		flags[n] = group->hw.event_base;
 		events[n++] = group->hw.config;
 	}
-	list_for_each_entry(event, &group->sibling_list, list_entry) {
+	list_for_each_entry(event, &group->sibling_list, group_entry) {
 		if (!is_software_event(event) &&
 		    event->state != PERF_EVENT_STATE_OFF) {
 			if (n >= max_count)
@@ -742,7 +742,7 @@ int hw_perf_group_sched_in(struct perf_event *group_leader,
 		return 0;
 	cpuhw = &__get_cpu_var(cpu_hw_events);
 	n0 = cpuhw->n_events;
-	n = collect_events(group_leader, ppmu->n_event - n0,
+	n = collect_events(group_leader, ppmu->n_counter - n0,
 			   &cpuhw->event[n0], &cpuhw->events[n0],
 			   &cpuhw->flags[n0]);
 	if (n < 0)
@@ -764,7 +764,7 @@ int hw_perf_group_sched_in(struct perf_event *group_leader,
 	cpuctx->active_oncpu += n;
 	n = 1;
 	event_sched_in(group_leader, cpu);
-	list_for_each_entry(sub, &group_leader->sibling_list, list_entry) {
+	list_for_each_entry(sub, &group_leader->sibling_list, group_entry) {
 		if (sub->state != PERF_EVENT_STATE_OFF) {
 			event_sched_in(sub, cpu);
 			++n;
@@ -797,7 +797,7 @@ static int power_pmu_enable(struct perf_event *event)
 	 */
 	cpuhw = &__get_cpu_var(cpu_hw_events);
 	n0 = cpuhw->n_events;
-	if (n0 >= ppmu->n_event)
+	if (n0 >= ppmu->n_counter)
 		goto out;
 	cpuhw->event[n0] = event;
 	cpuhw->events[n0] = event->hw.config;
@@ -848,11 +848,11 @@ static void power_pmu_disable(struct perf_event *event)
 		}
 	}
 	for (i = 0; i < cpuhw->n_limited; ++i)
-		if (event == cpuhw->limited_event[i])
+		if (event == cpuhw->limited_counter[i])
 			break;
 	if (i < cpuhw->n_limited) {
 		while (++i < cpuhw->n_limited) {
-			cpuhw->limited_event[i-1] = cpuhw->limited_event[i];
+			cpuhw->limited_counter[i-1] = cpuhw->limited_counter[i];
 			cpuhw->limited_hwidx[i-1] = cpuhw->limited_hwidx[i];
 		}
 		--cpuhw->n_limited;
@@ -1078,7 +1078,7 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 	 */
 	n = 0;
 	if (event->group_leader != event) {
-		n = collect_events(event->group_leader, ppmu->n_event - 1,
+		n = collect_events(event->group_leader, ppmu->n_counter - 1,
 				   ctrs, events, cflags);
 		if (n < 0)
 			return ERR_PTR(-EINVAL);
@@ -1230,7 +1230,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 	int nmi;
 
 	if (cpuhw->n_limited)
-		freeze_limited_events(cpuhw, mfspr(SPRN_PMC5),
+		freeze_limited_counters(cpuhw, mfspr(SPRN_PMC5),
 					mfspr(SPRN_PMC6));
 
 	perf_read_regs(regs);
@@ -1260,7 +1260,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 	 * Any that we processed in the previous loop will not be negative.
 	 */
 	if (!found) {
-		for (i = 0; i < ppmu->n_event; ++i) {
+		for (i = 0; i < ppmu->n_counter; ++i) {
 			if (is_limited_pmc(i + 1))
 				continue;
 			val = read_pmc(i + 1);
