@@ -86,7 +86,6 @@ struct lx6464es {
 
 	/* messaging */
 	spinlock_t		msg_lock;          /* message spinlock */
-	atomic_t	        send_message_locked;
 	struct lx_rmh           rmh;
 
 	/* configuration */
