@@ -86,17 +86,13 @@ extern int CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			     const int stage,
 			     const struct nls_table *nls_cp);
 extern __u16 GetNextMid(struct TCP_Server_Info *server);
-extern struct oplock_q_entry *AllocOplockQEntry(struct inode *, u16,
-						 struct cifsTconInfo *);
-extern void DeleteOplockQEntry(struct oplock_q_entry *);
-extern void DeleteTconOplockQEntries(struct cifsTconInfo *);
 extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 				      int offset);
 
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
-			   struct super_block *sb, int mode, int oflags,
+			   struct vfsmount *mnt, int mode, int oflags,
 			   __u32 *poplock, __u16 *pnetfid, int xid);
 extern void cifs_unix_basic_to_fattr(struct cifs_fattr *fattr,
 				     FILE_UNIX_BASIC_INFO *info,

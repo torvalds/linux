@@ -30,6 +30,7 @@
 #include <linux/writeback.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/delay.h>
+#include <linux/mount.h>
 #include <asm/div64.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -51,11 +52,13 @@ static inline struct cifsFileInfo *cifs_init_private(
 	INIT_LIST_HEAD(&private_data->llist);
 	private_data->pfile = file; /* needed for writepage */
 	private_data->pInode = igrab(inode);
+	private_data->mnt = file->f_path.mnt;
 	private_data->invalidHandle = false;
 	private_data->closePend = false;
 	/* Initialize reference count to one.  The private data is
 	freed on the release of the last reference */
 	atomic_set(&private_data->count, 1);
+	slow_work_init(&private_data->oplock_break, &cifs_oplock_break_ops);
 
 	return private_data;
 }
@@ -327,7 +330,7 @@ int cifs_open(struct inode *inode, struct file *file)
 			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		int oflags = (int) cifs_posix_convert_flags(file->f_flags);
 		/* can not refresh inode info since size could be stale */
-		rc = cifs_posix_open(full_path, &inode, inode->i_sb,
+		rc = cifs_posix_open(full_path, &inode, file->f_path.mnt,
 				     cifs_sb->mnt_file_mode /* ignored */,
 				     oflags, &oplock, &netfid, xid);
 		if (rc == 0) {
@@ -547,7 +550,7 @@ reopen_error_exit:
 			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		int oflags = (int) cifs_posix_convert_flags(file->f_flags);
 		/* can not refresh inode info since size could be stale */
-		rc = cifs_posix_open(full_path, NULL, inode->i_sb,
+		rc = cifs_posix_open(full_path, NULL, file->f_path.mnt,
 				     cifs_sb->mnt_file_mode /* ignored */,
 				     oflags, &oplock, &netfid, xid);
 		if (rc == 0) {
@@ -2311,6 +2314,73 @@ out:
 	*pagep = page;
 	return rc;
 }
+
+static void
+cifs_oplock_break(struct slow_work *work)
+{
+	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
+						  oplock_break);
+	struct inode *inode = cfile->pInode;
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(cfile->mnt->mnt_sb);
+	int rc, waitrc = 0;
+
+	if (inode && S_ISREG(inode->i_mode)) {
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		if (cinode->clientCanCacheAll == 0)
+			break_lease(inode, FMODE_READ);
+		else if (cinode->clientCanCacheRead == 0)
+			break_lease(inode, FMODE_WRITE);
+#endif
+		rc = filemap_fdatawrite(inode->i_mapping);
+		if (cinode->clientCanCacheRead == 0) {
+			waitrc = filemap_fdatawait(inode->i_mapping);
+			invalidate_remote_inode(inode);
+		}
+		if (!rc)
+			rc = waitrc;
+		if (rc)
+			cinode->write_behind_rc = rc;
+		cFYI(1, ("Oplock flush inode %p rc %d", inode, rc));
+	}
+
+	/*
+	 * releasing stale oplock after recent reconnect of smb session using
+	 * a now incorrect file handle is not a data integrity issue but do
+	 * not bother sending an oplock release if session to server still is
+	 * disconnected since oplock already released by the server
+	 */
+	if (!cfile->closePend && !cfile->oplock_break_cancelled) {
+		rc = CIFSSMBLock(0, cifs_sb->tcon, cfile->netfid, 0, 0, 0, 0,
+				 LOCKING_ANDX_OPLOCK_RELEASE, false);
+		cFYI(1, ("Oplock release rc = %d", rc));
+	}
+}
+
+static int
+cifs_oplock_break_get(struct slow_work *work)
+{
+	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
+						  oplock_break);
+	mntget(cfile->mnt);
+	cifsFileInfo_get(cfile);
+	return 0;
+}
+
+static void
+cifs_oplock_break_put(struct slow_work *work)
+{
+	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
+						  oplock_break);
+	mntput(cfile->mnt);
+	cifsFileInfo_put(cfile);
+}
+
+const struct slow_work_ops cifs_oplock_break_ops = {
+	.get_ref	= cifs_oplock_break_get,
+	.put_ref	= cifs_oplock_break_put,
+	.execute	= cifs_oplock_break,
+};
 
 const struct address_space_operations cifs_addr_ops = {
 	.readpage = cifs_readpage,
