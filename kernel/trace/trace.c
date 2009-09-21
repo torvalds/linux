@@ -268,12 +268,18 @@ static DEFINE_SPINLOCK(tracing_start_lock);
  */
 void trace_wake_up(void)
 {
+	int cpu;
+
+	if (trace_flags & TRACE_ITER_BLOCK)
+		return;
 	/*
 	 * The runqueue_is_locked() can fail, but this is the best we
 	 * have for now:
 	 */
-	if (!(trace_flags & TRACE_ITER_BLOCK) && !runqueue_is_locked())
+	cpu = get_cpu();
+	if (!runqueue_is_locked(cpu))
 		wake_up(&trace_wait);
+	put_cpu();
 }
 
 static int __init set_buf_size(char *str)
