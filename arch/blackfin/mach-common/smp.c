@@ -19,6 +19,7 @@
 #include <linux/mm.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
+#include <linux/cpumask.h>
 #include <linux/seq_file.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
@@ -42,12 +43,6 @@ struct corelock_slot corelock __attribute__ ((__section__(".l2.bss")));
 void __cpuinitdata *init_retx_coreb, *init_saved_retx_coreb,
 	*init_saved_seqstat_coreb, *init_saved_icplb_fault_addr_coreb,
 	*init_saved_dcplb_fault_addr_coreb;
-
-cpumask_t cpu_possible_map;
-EXPORT_SYMBOL(cpu_possible_map);
-
-cpumask_t cpu_online_map;
-EXPORT_SYMBOL(cpu_online_map);
 
 #define BFIN_IPI_RESCHEDULE   0
 #define BFIN_IPI_CALL_FUNC    1
