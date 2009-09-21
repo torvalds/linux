@@ -41,7 +41,7 @@ DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 struct power_pmu *ppmu;
 
 /*
- * Normally, to ignore kernel events we set the FCS (freeze events
+ * Normally, to ignore kernel events we set the FCS (freeze counters
  * in supervisor mode) bit in MMCR0, but if the kernel runs with the
  * hypervisor bit set in the MSR, or if we are running on a processor
  * where the hypervisor bit is forced to 1 (as on Apple G5 processors),
@@ -159,7 +159,7 @@ void perf_event_print_debug(void)
 }
 
 /*
- * Read one performance monitor event (PMC).
+ * Read one performance monitor counter (PMC).
  */
 static unsigned long read_pmc(int idx)
 {
@@ -409,7 +409,7 @@ static void power_pmu_read(struct perf_event *event)
 		val = read_pmc(event->hw.idx);
 	} while (atomic64_cmpxchg(&event->hw.prev_count, prev, val) != prev);
 
-	/* The events are only 32 bits wide */
+	/* The counters are only 32 bits wide */
 	delta = (val - prev) & 0xfffffffful;
 	atomic64_add(delta, &event->count);
 	atomic64_sub(delta, &event->hw.period_left);
@@ -543,7 +543,7 @@ void hw_perf_disable(void)
 		}
 
 		/*
-		 * Set the 'freeze events' bit.
+		 * Set the 'freeze counters' bit.
 		 * The barrier is to make sure the mtspr has been
 		 * executed and the PMU has frozen the events
 		 * before we return.
@@ -1124,7 +1124,7 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 }
 
 /*
- * A event has overflowed; update its count and record
+ * A counter has overflowed; update its count and record
  * things if requested.  Note that interrupts are hard-disabled
  * here so there is no possibility of being interrupted.
  */
@@ -1271,7 +1271,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 
 	/*
 	 * Reset MMCR0 to its normal value.  This will set PMXE and
-	 * clear FC (freeze events) and PMAO (perf mon alert occurred)
+	 * clear FC (freeze counters) and PMAO (perf mon alert occurred)
 	 * and thus allow interrupts to occur again.
 	 * XXX might want to use MSR.PM to keep the events frozen until
 	 * we get back out of this interrupt.

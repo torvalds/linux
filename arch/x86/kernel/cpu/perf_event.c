@@ -2081,13 +2081,13 @@ void __init init_hw_perf_events(void)
 	perf_events_lapic_init();
 	register_die_notifier(&perf_event_nmi_notifier);
 
-	pr_info("... version:                 %d\n",     x86_pmu.version);
-	pr_info("... bit width:               %d\n",     x86_pmu.event_bits);
-	pr_info("... generic events:        %d\n",     x86_pmu.num_events);
-	pr_info("... value mask:              %016Lx\n", x86_pmu.event_mask);
-	pr_info("... max period:              %016Lx\n", x86_pmu.max_period);
-	pr_info("... fixed-purpose events:  %d\n",     x86_pmu.num_events_fixed);
-	pr_info("... event mask:            %016Lx\n", perf_event_mask);
+	pr_info("... version:                %d\n",     x86_pmu.version);
+	pr_info("... bit width:              %d\n",     x86_pmu.event_bits);
+	pr_info("... generic registers:      %d\n",     x86_pmu.num_events);
+	pr_info("... value mask:             %016Lx\n", x86_pmu.event_mask);
+	pr_info("... max period:             %016Lx\n", x86_pmu.max_period);
+	pr_info("... fixed-purpose events:   %d\n",     x86_pmu.num_events_fixed);
+	pr_info("... event mask:             %016Lx\n", perf_event_mask);
 }
 
 static inline void x86_pmu_read(struct perf_event *event)

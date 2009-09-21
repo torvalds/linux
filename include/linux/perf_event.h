@@ -1,15 +1,15 @@
 /*
- *  Performance events:
+ * Performance events:
  *
  *    Copyright (C) 2008-2009, Thomas Gleixner <tglx@linutronix.de>
  *    Copyright (C) 2008-2009, Red Hat, Inc., Ingo Molnar
  *    Copyright (C) 2008-2009, Red Hat, Inc., Peter Zijlstra
  *
- *  Data type definitions, declarations, prototypes.
+ * Data type definitions, declarations, prototypes.
  *
  *    Started by: Thomas Gleixner and Ingo Molnar
  *
- *  For licencing details see kernel-base/COPYING
+ * For licencing details see kernel-base/COPYING
  */
 #ifndef _LINUX_PERF_EVENT_H
 #define _LINUX_PERF_EVENT_H
@@ -131,19 +131,19 @@ enum perf_event_sample_format {
  * as specified by attr.read_format:
  *
  * struct read_format {
- * 	{ u64		value;
- * 	  { u64		time_enabled; } && PERF_FORMAT_ENABLED
- * 	  { u64		time_running; } && PERF_FORMAT_RUNNING
- * 	  { u64		id;           } && PERF_FORMAT_ID
- * 	} && !PERF_FORMAT_GROUP
+ *	{ u64		value;
+ *	  { u64		time_enabled; } && PERF_FORMAT_ENABLED
+ *	  { u64		time_running; } && PERF_FORMAT_RUNNING
+ *	  { u64		id;           } && PERF_FORMAT_ID
+ *	} && !PERF_FORMAT_GROUP
  *
- * 	{ u64		nr;
- * 	  { u64		time_enabled; } && PERF_FORMAT_ENABLED
- * 	  { u64		time_running; } && PERF_FORMAT_RUNNING
- * 	  { u64		value;
- * 	    { u64	id;           } && PERF_FORMAT_ID
- * 	  }		cntr[nr];
- * 	} && PERF_FORMAT_GROUP
+ *	{ u64		nr;
+ *	  { u64		time_enabled; } && PERF_FORMAT_ENABLED
+ *	  { u64		time_running; } && PERF_FORMAT_RUNNING
+ *	  { u64		value;
+ *	    { u64	id;           } && PERF_FORMAT_ID
+ *	  }		cntr[nr];
+ *	} && PERF_FORMAT_GROUP
  * };
  */
 enum perf_event_read_format {
@@ -152,7 +152,7 @@ enum perf_event_read_format {
 	PERF_FORMAT_ID				= 1U << 2,
 	PERF_FORMAT_GROUP			= 1U << 3,
 
-	PERF_FORMAT_MAX = 1U << 4, 		/* non-ABI */
+	PERF_FORMAT_MAX = 1U << 4,		/* non-ABI */
 };
 
 #define PERF_ATTR_SIZE_VER0	64	/* sizeof first published struct */
@@ -216,8 +216,8 @@ struct perf_event_attr {
  * Ioctls that can be done on a perf event fd:
  */
 #define PERF_EVENT_IOC_ENABLE		_IO ('$', 0)
-#define PERF_EVENT_IOC_DISABLE	_IO ('$', 1)
-#define PERF_EVENT_IOC_REFRESH	_IO ('$', 2)
+#define PERF_EVENT_IOC_DISABLE		_IO ('$', 1)
+#define PERF_EVENT_IOC_REFRESH		_IO ('$', 2)
 #define PERF_EVENT_IOC_RESET		_IO ('$', 3)
 #define PERF_EVENT_IOC_PERIOD		_IOW('$', 4, u64)
 #define PERF_EVENT_IOC_SET_OUTPUT	_IO ('$', 5)
@@ -314,9 +314,9 @@ enum perf_event_type {
 
 	/*
 	 * struct {
-	 * 	struct perf_event_header	header;
-	 * 	u64				id;
-	 * 	u64				lost;
+	 *	struct perf_event_header	header;
+	 *	u64				id;
+	 *	u64				lost;
 	 * };
 	 */
 	PERF_RECORD_LOST			= 2,
@@ -383,23 +383,23 @@ enum perf_event_type {
 	 *	{ u64			id;	  } && PERF_SAMPLE_ID
 	 *	{ u64			stream_id;} && PERF_SAMPLE_STREAM_ID
 	 *	{ u32			cpu, res; } && PERF_SAMPLE_CPU
-	 * 	{ u64			period;   } && PERF_SAMPLE_PERIOD
+	 *	{ u64			period;   } && PERF_SAMPLE_PERIOD
 	 *
 	 *	{ struct read_format	values;	  } && PERF_SAMPLE_READ
 	 *
 	 *	{ u64			nr,
 	 *	  u64			ips[nr];  } && PERF_SAMPLE_CALLCHAIN
 	 *
-	 * 	#
-	 * 	# The RAW record below is opaque data wrt the ABI
-	 * 	#
-	 * 	# That is, the ABI doesn't make any promises wrt to
-	 * 	# the stability of its content, it may vary depending
-	 * 	# on event_id, hardware, kernel version and phase of
-	 * 	# the moon.
-	 * 	#
-	 * 	# In other words, PERF_SAMPLE_RAW contents are not an ABI.
-	 * 	#
+	 *	#
+	 *	# The RAW record below is opaque data wrt the ABI
+	 *	#
+	 *	# That is, the ABI doesn't make any promises wrt to
+	 *	# the stability of its content, it may vary depending
+	 *	# on event, hardware, kernel version and phase of
+	 *	# the moon.
+	 *	#
+	 *	# In other words, PERF_SAMPLE_RAW contents are not an ABI.
+	 *	#
 	 *
 	 *	{ u32			size;
 	 *	  char                  data[size];}&& PERF_SAMPLE_RAW
@@ -503,10 +503,10 @@ struct pmu {
  * enum perf_event_active_state - the states of a event
  */
 enum perf_event_active_state {
-	PERF_EVENT_STATE_ERROR	= -2,
+	PERF_EVENT_STATE_ERROR		= -2,
 	PERF_EVENT_STATE_OFF		= -1,
 	PERF_EVENT_STATE_INACTIVE	=  0,
-	PERF_EVENT_STATE_ACTIVE	=  1,
+	PERF_EVENT_STATE_ACTIVE		=  1,
 };
 
 struct file;
@@ -529,7 +529,7 @@ struct perf_mmap_data {
 
 	long				watermark;	/* wakeup watermark  */
 
-	struct perf_event_mmap_page   *user_page;
+	struct perf_event_mmap_page	*user_page;
 	void				*data_pages[0];
 };
 
@@ -694,14 +694,14 @@ struct perf_cpu_context {
 };
 
 struct perf_output_handle {
-	struct perf_event	*event;
-	struct perf_mmap_data	*data;
-	unsigned long		head;
-	unsigned long		offset;
-	int			nmi;
-	int			sample;
-	int			locked;
-	unsigned long		flags;
+	struct perf_event		*event;
+	struct perf_mmap_data		*data;
+	unsigned long			head;
+	unsigned long			offset;
+	int				nmi;
+	int				sample;
+	int				locked;
+	unsigned long			flags;
 };
 
 #ifdef CONFIG_PERF_EVENTS
@@ -829,22 +829,22 @@ static inline void
 perf_event_task_sched_out(struct task_struct *task,
 			    struct task_struct *next, int cpu)		{ }
 static inline void
-perf_event_task_tick(struct task_struct *task, int cpu)		{ }
+perf_event_task_tick(struct task_struct *task, int cpu)			{ }
 static inline int perf_event_init_task(struct task_struct *child)	{ return 0; }
 static inline void perf_event_exit_task(struct task_struct *child)	{ }
 static inline void perf_event_free_task(struct task_struct *task)	{ }
-static inline void perf_event_do_pending(void)			{ }
-static inline void perf_event_print_debug(void)			{ }
+static inline void perf_event_do_pending(void)				{ }
+static inline void perf_event_print_debug(void)				{ }
 static inline void perf_disable(void)					{ }
 static inline void perf_enable(void)					{ }
-static inline int perf_event_task_disable(void)	{ return -EINVAL; }
-static inline int perf_event_task_enable(void)	{ return -EINVAL; }
+static inline int perf_event_task_disable(void)				{ return -EINVAL; }
+static inline int perf_event_task_enable(void)				{ return -EINVAL; }
 
 static inline void
 perf_sw_event(u32 event_id, u64 nr, int nmi,
 		     struct pt_regs *regs, u64 addr)			{ }
 
-static inline void perf_event_mmap(struct vm_area_struct *vma)	{ }
+static inline void perf_event_mmap(struct vm_area_struct *vma)		{ }
 static inline void perf_event_comm(struct task_struct *tsk)		{ }
 static inline void perf_event_fork(struct task_struct *tsk)		{ }
 static inline void perf_event_init(void)				{ }
