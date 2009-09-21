@@ -272,9 +272,8 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 		labpc_release(link);
 	}
 
-	/* This points to the parent local_info_t struct */
-	if (link->priv)
-		kfree(link->priv);
+	/* This points to the parent local_info_t struct (may be null) */
+	kfree(link->priv);
 
 }				/* labpc_cs_detach */
 
