@@ -15,8 +15,8 @@ module_param(ecc_enable_override, int, 0644);
 
 /* Lookup table for all possible MC control instances */
 struct amd64_pvt;
-static struct mem_ctl_info *mci_lookup[MAX_NUMNODES];
-static struct amd64_pvt *pvt_lookup[MAX_NUMNODES];
+static struct mem_ctl_info *mci_lookup[EDAC_MAX_NUMNODES];
+static struct amd64_pvt *pvt_lookup[EDAC_MAX_NUMNODES];
 
 /*
  * See F2x80 for K8 and F2x[1,0]80 for Fam10 and later. The table below is only

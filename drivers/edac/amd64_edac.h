@@ -132,6 +132,8 @@
 #define EDAC_AMD64_VERSION		" Ver: 3.2.0 " __DATE__
 #define EDAC_MOD_STR			"amd64_edac"
 
+#define EDAC_MAX_NUMNODES		8
+
 /* Extended Model from CPUID, for CPU Revision numbers */
 #define OPTERON_CPU_LE_REV_C		0
 #define OPTERON_CPU_REV_D		1
