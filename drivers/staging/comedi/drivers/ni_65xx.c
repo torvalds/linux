@@ -457,6 +457,12 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 		port_read_bits =
 		    readb(private(dev)->mite->daq_io_addr + Port_Data(port));
 /* printk("read 0x%x from port %i\n", port_read_bits, port); */
+		if (s->type == COMEDI_SUBD_DO && board(dev)->invert_outputs) {
+			/* Outputs inverted, so invert value read back from
+			 * DO subdevice.  (Does not apply to boards with DIO
+			 * subdevice.) */
+			port_read_bits ^= 0xFF;
+		}
 		if (bitshift > 0) {
 			port_read_bits <<= bitshift;
 		} else {
