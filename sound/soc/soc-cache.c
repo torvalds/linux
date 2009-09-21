@@ -179,10 +179,20 @@ static struct {
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	unsigned int (*i2c_read)(struct snd_soc_codec *, unsigned int);
 } io_types[] = {
-	{ 7, 9, snd_soc_7_9_write, snd_soc_7_9_spi_write, snd_soc_7_9_read },
-	{ 8, 8, snd_soc_8_8_write, NULL, snd_soc_8_8_read, NULL },
-	{ 8, 16, snd_soc_8_16_write, NULL, snd_soc_8_16_read,
-	  snd_soc_8_16_read_i2c },
+	{
+		.addr_bits = 7, .data_bits = 9,
+		.write = snd_soc_7_9_write, .read = snd_soc_7_9_read,
+		.spi_write = snd_soc_7_9_spi_write 
+	},
+	{
+		.addr_bits = 8, .data_bits = 8,
+		.write = snd_soc_8_8_write, .read = snd_soc_8_8_read,
+	},
+	{
+		.addr_bits = 8, .data_bits = 16,
+		.write = snd_soc_8_16_write, .read = snd_soc_8_16_read,
+		.i2c_read = snd_soc_8_16_read_i2c,
+	},
 };
 
 /**
