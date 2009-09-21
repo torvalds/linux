@@ -7,6 +7,9 @@
  * include/linux for final version.
  *
  */
+
+#include <linux/types.h>
+
 struct poch_counters {
 	__u32 fifo_empty;
 	__u32 fifo_overflow;
