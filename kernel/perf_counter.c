@@ -3044,22 +3044,22 @@ perf_counter_read_event(struct perf_counter *counter,
 			struct task_struct *task)
 {
 	struct perf_output_handle handle;
-	struct perf_read_event event = {
+	struct perf_read_event read_event = {
 		.header = {
 			.type = PERF_EVENT_READ,
 			.misc = 0,
-			.size = sizeof(event) + perf_counter_read_size(counter),
+			.size = sizeof(read_event) + perf_counter_read_size(counter),
 		},
 		.pid = perf_counter_pid(counter, task),
 		.tid = perf_counter_tid(counter, task),
 	};
 	int ret;
 
-	ret = perf_output_begin(&handle, counter, event.header.size, 0, 0);
+	ret = perf_output_begin(&handle, counter, read_event.header.size, 0, 0);
 	if (ret)
 		return;
 
-	perf_output_put(&handle, event);
+	perf_output_put(&handle, read_event);
 	perf_output_read(&handle, counter);
 
 	perf_output_end(&handle);
@@ -3698,14 +3698,14 @@ static int perf_swcounter_is_counting(struct perf_counter *counter)
 
 static int perf_swcounter_match(struct perf_counter *counter,
 				enum perf_type_id type,
-				u32 event, struct pt_regs *regs)
+				u32 event_id, struct pt_regs *regs)
 {
 	if (!perf_swcounter_is_counting(counter))
 		return 0;
 
 	if (counter->attr.type != type)
 		return 0;
-	if (counter->attr.config != event)
+	if (counter->attr.config != event_id)
 		return 0;
 
 	if (regs) {
@@ -3721,7 +3721,7 @@ static int perf_swcounter_match(struct perf_counter *counter,
 
 static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
 				     enum perf_type_id type,
-				     u32 event, u64 nr, int nmi,
+				     u32 event_id, u64 nr, int nmi,
 				     struct perf_sample_data *data,
 				     struct pt_regs *regs)
 {
@@ -3732,7 +3732,7 @@ static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
-		if (perf_swcounter_match(counter, type, event, regs))
+		if (perf_swcounter_match(counter, type, event_id, regs))
 			perf_swcounter_add(counter, nr, nmi, data, regs);
 	}
 	rcu_read_unlock();
@@ -4036,17 +4036,17 @@ atomic_t perf_swcounter_enabled[PERF_COUNT_SW_MAX];
 
 static void sw_perf_counter_destroy(struct perf_counter *counter)
 {
-	u64 event = counter->attr.config;
+	u64 event_id = counter->attr.config;
 
 	WARN_ON(counter->parent);
 
-	atomic_dec(&perf_swcounter_enabled[event]);
+	atomic_dec(&perf_swcounter_enabled[event_id]);
 }
 
 static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 {
 	const struct pmu *pmu = NULL;
-	u64 event = counter->attr.config;
+	u64 event_id = counter->attr.config;
 
 	/*
 	 * Software counters (currently) can't in general distinguish
@@ -4055,7 +4055,7 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	 * to be kernel events, and page faults are never hypervisor
 	 * events.
 	 */
-	switch (event) {
+	switch (event_id) {
 	case PERF_COUNT_SW_CPU_CLOCK:
 		pmu = &perf_ops_cpu_clock;
 
@@ -4077,7 +4077,7 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	case PERF_COUNT_SW_CONTEXT_SWITCHES:
 	case PERF_COUNT_SW_CPU_MIGRATIONS:
 		if (!counter->parent) {
-			atomic_inc(&perf_swcounter_enabled[event]);
+			atomic_inc(&perf_swcounter_enabled[event_id]);
 			counter->destroy = sw_perf_counter_destroy;
 		}
 		pmu = &perf_ops_generic;

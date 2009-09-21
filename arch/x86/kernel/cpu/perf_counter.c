@@ -124,9 +124,9 @@ static const u64 p6_perfmon_event_map[] =
   [PERF_COUNT_HW_BUS_CYCLES]		= 0x0062,
 };
 
-static u64 p6_pmu_event_map(int event)
+static u64 p6_pmu_event_map(int hw_event)
 {
-	return p6_perfmon_event_map[event];
+	return p6_perfmon_event_map[hw_event];
 }
 
 /*
@@ -137,7 +137,7 @@ static u64 p6_pmu_event_map(int event)
  */
 #define P6_NOP_COUNTER			0x0000002EULL
 
-static u64 p6_pmu_raw_event(u64 event)
+static u64 p6_pmu_raw_event(u64 hw_event)
 {
 #define P6_EVNTSEL_EVENT_MASK		0x000000FFULL
 #define P6_EVNTSEL_UNIT_MASK		0x0000FF00ULL
@@ -152,7 +152,7 @@ static u64 p6_pmu_raw_event(u64 event)
 	 P6_EVNTSEL_INV_MASK   |	\
 	 P6_EVNTSEL_COUNTER_MASK)
 
-	return event & P6_EVNTSEL_MASK;
+	return hw_event & P6_EVNTSEL_MASK;
 }
 
 
@@ -170,16 +170,16 @@ static const u64 intel_perfmon_event_map[] =
   [PERF_COUNT_HW_BUS_CYCLES]		= 0x013c,
 };
 
-static u64 intel_pmu_event_map(int event)
+static u64 intel_pmu_event_map(int hw_event)
 {
-	return intel_perfmon_event_map[event];
+	return intel_perfmon_event_map[hw_event];
 }
 
 /*
- * Generalized hw caching related event table, filled
+ * Generalized hw caching related hw_event table, filled
  * in on a per model basis. A value of 0 means
- * 'not supported', -1 means 'event makes no sense on
- * this CPU', any other value means the raw event
+ * 'not supported', -1 means 'hw_event makes no sense on
+ * this CPU', any other value means the raw hw_event
  * ID.
  */
 
@@ -463,7 +463,7 @@ static const u64 atom_hw_cache_event_ids
  },
 };
 
-static u64 intel_pmu_raw_event(u64 event)
+static u64 intel_pmu_raw_event(u64 hw_event)
 {
 #define CORE_EVNTSEL_EVENT_MASK		0x000000FFULL
 #define CORE_EVNTSEL_UNIT_MASK		0x0000FF00ULL
@@ -478,7 +478,7 @@ static u64 intel_pmu_raw_event(u64 event)
 	 CORE_EVNTSEL_INV_MASK  |	\
 	 CORE_EVNTSEL_COUNTER_MASK)
 
-	return event & CORE_EVNTSEL_MASK;
+	return hw_event & CORE_EVNTSEL_MASK;
 }
 
 static const u64 amd_hw_cache_event_ids
@@ -585,12 +585,12 @@ static const u64 amd_perfmon_event_map[] =
   [PERF_COUNT_HW_BRANCH_MISSES]		= 0x00c5,
 };
 
-static u64 amd_pmu_event_map(int event)
+static u64 amd_pmu_event_map(int hw_event)
 {
-	return amd_perfmon_event_map[event];
+	return amd_perfmon_event_map[hw_event];
 }
 
-static u64 amd_pmu_raw_event(u64 event)
+static u64 amd_pmu_raw_event(u64 hw_event)
 {
 #define K7_EVNTSEL_EVENT_MASK	0x7000000FFULL
 #define K7_EVNTSEL_UNIT_MASK	0x00000FF00ULL
@@ -605,7 +605,7 @@ static u64 amd_pmu_raw_event(u64 event)
 	 K7_EVNTSEL_INV_MASK   |	\
 	 K7_EVNTSEL_COUNTER_MASK)
 
-	return event & K7_EVNTSEL_MASK;
+	return hw_event & K7_EVNTSEL_MASK;
 }
 
 /*
@@ -956,7 +956,7 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	}
 
 	/*
-	 * Raw event type provide the config in the event structure
+	 * Raw hw_event type provide the config in the hw_event structure
 	 */
 	if (attr->type == PERF_TYPE_RAW) {
 		hwc->config |= x86_pmu.raw_event(attr->config);
@@ -1245,7 +1245,7 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 		ret = 1;
 	}
 	/*
-	 * Quirk: certain CPUs dont like it if just 1 event is left:
+	 * Quirk: certain CPUs dont like it if just 1 hw_event is left:
 	 */
 	if (unlikely(left < 2))
 		left = 2;
@@ -1337,11 +1337,11 @@ static void amd_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 static int
 fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 {
-	unsigned int event;
+	unsigned int hw_event;
 
-	event = hwc->config & ARCH_PERFMON_EVENT_MASK;
+	hw_event = hwc->config & ARCH_PERFMON_EVENT_MASK;
 
-	if (unlikely((event ==
+	if (unlikely((hw_event ==
 		      x86_pmu.event_map(PERF_COUNT_HW_BRANCH_INSTRUCTIONS)) &&
 		     (hwc->sample_period == 1)))
 		return X86_PMC_IDX_FIXED_BTS;
@@ -1349,11 +1349,11 @@ fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 	if (!x86_pmu.num_counters_fixed)
 		return -1;
 
-	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_INSTRUCTIONS)))
+	if (unlikely(hw_event == x86_pmu.event_map(PERF_COUNT_HW_INSTRUCTIONS)))
 		return X86_PMC_IDX_FIXED_INSTRUCTIONS;
-	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_CPU_CYCLES)))
+	if (unlikely(hw_event == x86_pmu.event_map(PERF_COUNT_HW_CPU_CYCLES)))
 		return X86_PMC_IDX_FIXED_CPU_CYCLES;
-	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_BUS_CYCLES)))
+	if (unlikely(hw_event == x86_pmu.event_map(PERF_COUNT_HW_BUS_CYCLES)))
 		return X86_PMC_IDX_FIXED_BUS_CYCLES;
 
 	return -1;
@@ -1970,7 +1970,7 @@ static int intel_pmu_init(void)
 
 	/*
 	 * Check whether the Architectural PerfMon supports
-	 * Branch Misses Retired Event or not.
+	 * Branch Misses Retired hw_event or not.
 	 */
 	cpuid(10, &eax.full, &ebx, &unused, &edx.full);
 	if (eax.split.mask_length <= ARCH_PERFMON_BRANCH_MISSES_RETIRED)
