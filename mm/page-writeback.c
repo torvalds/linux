@@ -485,6 +485,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 	unsigned long bdi_thresh;
 	unsigned long pages_written = 0;
 	unsigned long write_chunk = sync_writeback_pages();
+	unsigned long pause = 1;
 
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 
@@ -561,7 +562,15 @@ static void balance_dirty_pages(struct address_space *mapping)
 		if (pages_written >= write_chunk)
 			break;		/* We've done our duty */
 
-		schedule_timeout(1);
+		schedule_timeout_interruptible(pause);
+
+		/*
+		 * Increase the delay for each loop, up to our previous
+		 * default of taking a 100ms nap.
+		 */
+		pause <<= 1;
+		if (pause > HZ / 10)
+			pause = HZ / 10;
 	}
 
 	if (bdi_nr_reclaimable + bdi_nr_writeback < bdi_thresh &&
