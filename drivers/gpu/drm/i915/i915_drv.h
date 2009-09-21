@@ -153,6 +153,23 @@ struct drm_i915_error_state {
 	struct timeval time;
 };
 
+struct drm_i915_display_funcs {
+	void (*dpms)(struct drm_crtc *crtc, int mode);
+	bool (*fbc_enabled)(struct drm_crtc *crtc);
+	void (*enable_fbc)(struct drm_crtc *crtc, unsigned long interval);
+	void (*disable_fbc)(struct drm_device *dev);
+	int (*get_display_clock_speed)(struct drm_device *dev);
+	int (*get_fifo_size)(struct drm_device *dev, int plane);
+	void (*update_wm)(struct drm_device *dev, int planea_clock,
+			  int planeb_clock, int sr_hdisplay, int pixel_size);
+	/* clock updates for mode set */
+	/* cursor updates */
+	/* render clock increase/decrease */
+	/* display clock increase/decrease */
+	/* pll clock increase/decrease */
+	/* clock gating init */
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -251,6 +268,9 @@ typedef struct drm_i915_private {
 	struct drm_i915_error_state *first_error;
 	struct work_struct error_work;
 	struct workqueue_struct *wq;
+
+	/* Display functions */
+	struct drm_i915_display_funcs display;
 
 	/* Register state */
 	bool suspended;

@@ -1064,6 +1064,11 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	if (!i915_powersave)
 		return;
 
+	if (!dev_priv->display.fbc_enabled ||
+	    !dev_priv->display.enable_fbc ||
+	    !dev_priv->display.disable_fbc)
+		return;
+
 	if (!crtc->fb)
 		return;
 
@@ -1101,19 +1106,19 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 		goto out_disable;
 	}
 
-	if (i8xx_fbc_enabled(crtc)) {
+	if (dev_priv->display.fbc_enabled(crtc)) {
 		/* We can re-enable it in this case, but need to update pitch */
 		if (fb->pitch > dev_priv->cfb_pitch)
-			i8xx_disable_fbc(dev);
+			dev_priv->display.disable_fbc(dev);
 		if (obj_priv->fence_reg != dev_priv->cfb_fence)
-			i8xx_disable_fbc(dev);
+			dev_priv->display.disable_fbc(dev);
 		if (plane != dev_priv->cfb_plane)
-			i8xx_disable_fbc(dev);
+			dev_priv->display.disable_fbc(dev);
 	}
 
-	if (!i8xx_fbc_enabled(crtc)) {
+	if (!dev_priv->display.fbc_enabled(crtc)) {
 		/* Now try to turn it back on if possible */
-		i8xx_enable_fbc(crtc, 500);
+		dev_priv->display.enable_fbc(crtc, 500);
 	}
 
 	return;
@@ -1121,8 +1126,8 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 out_disable:
 	DRM_DEBUG("unsupported config, disabling FBC\n");
 	/* Multiple disables should be harmless */
-	if (i8xx_fbc_enabled(crtc))
-		i8xx_disable_fbc(dev);
+	if (dev_priv->display.fbc_enabled(crtc))
+		dev_priv->display.disable_fbc(dev);
 }
 
 static int
@@ -1769,8 +1774,7 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		intel_crtc_load_lut(crtc);
 
-		if (I915_HAS_FBC(dev) && (IS_I965G(dev) || plane == 0))
-			intel_update_fbc(crtc, &crtc->mode);
+		intel_update_fbc(crtc, &crtc->mode);
 
 		/* Give the overlay scaler a chance to enable if it's on this pipe */
 		//intel_crtc_dpms_video(crtc, true); TODO
@@ -1781,8 +1785,9 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* Give the overlay scaler a chance to disable if it's on this pipe */
 		//intel_crtc_dpms_video(crtc, FALSE); TODO
 
-		if (dev_priv->cfb_plane == plane)
-			i8xx_disable_fbc(dev);
+		if (dev_priv->cfb_plane == plane &&
+		    dev_priv->display.disable_fbc)
+			dev_priv->display.disable_fbc(dev);
 
 		/* Disable the VGA plane that we never use */
 		i915_disable_vga(dev);
@@ -1832,15 +1837,13 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	bool enabled;
 
-	if (IS_IGDNG(dev))
-		igdng_crtc_dpms(crtc, mode);
-	else
-		i9xx_crtc_dpms(crtc, mode);
+	dev_priv->display.dpms(crtc, mode);
 
 	intel_crtc->dpms_mode = mode;
 
@@ -1907,56 +1910,68 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-
-/** Returns the core display clock speed for i830 - i945 */
-static int intel_get_core_clock_speed(struct drm_device *dev)
+static int i945_get_display_clock_speed(struct drm_device *dev)
 {
+	return 400000;
+}
 
-	/* Core clock values taken from the published datasheets.
-	 * The 830 may go up to 166 Mhz, which we should check.
-	 */
-	if (IS_I945G(dev))
-		return 400000;
-	else if (IS_I915G(dev))
-		return 333000;
-	else if (IS_I945GM(dev) || IS_845G(dev) || IS_IGDGM(dev))
-		return 200000;
-	else if (IS_I915GM(dev)) {
-		u16 gcfgc = 0;
+static int i915_get_display_clock_speed(struct drm_device *dev)
+{
+	return 333000;
+}
 
-		pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
+static int i9xx_misc_get_display_clock_speed(struct drm_device *dev)
+{
+	return 200000;
+}
 
-		if (gcfgc & GC_LOW_FREQUENCY_ENABLE)
-			return 133000;
-		else {
-			switch (gcfgc & GC_DISPLAY_CLOCK_MASK) {
-			case GC_DISPLAY_CLOCK_333_MHZ:
-				return 333000;
-			default:
-			case GC_DISPLAY_CLOCK_190_200_MHZ:
-				return 190000;
-			}
-		}
-	} else if (IS_I865G(dev))
-		return 266000;
-	else if (IS_I855(dev)) {
-		u16 hpllcc = 0;
-		/* Assume that the hardware is in the high speed state.  This
-		 * should be the default.
-		 */
-		switch (hpllcc & GC_CLOCK_CONTROL_MASK) {
-		case GC_CLOCK_133_200:
-		case GC_CLOCK_100_200:
-			return 200000;
-		case GC_CLOCK_166_250:
-			return 250000;
-		case GC_CLOCK_100_133:
-			return 133000;
-		}
-	} else /* 852, 830 */
+static int i915gm_get_display_clock_speed(struct drm_device *dev)
+{
+	u16 gcfgc = 0;
+
+	pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
+
+	if (gcfgc & GC_LOW_FREQUENCY_ENABLE)
 		return 133000;
+	else {
+		switch (gcfgc & GC_DISPLAY_CLOCK_MASK) {
+		case GC_DISPLAY_CLOCK_333_MHZ:
+			return 333000;
+		default:
+		case GC_DISPLAY_CLOCK_190_200_MHZ:
+			return 190000;
+		}
+	}
+}
 
-	return 0; /* Silence gcc warning */
+static int i865_get_display_clock_speed(struct drm_device *dev)
+{
+	return 266000;
+}
+
+static int i855_get_display_clock_speed(struct drm_device *dev)
+{
+	u16 hpllcc = 0;
+	/* Assume that the hardware is in the high speed state.  This
+	 * should be the default.
+	 */
+	switch (hpllcc & GC_CLOCK_CONTROL_MASK) {
+	case GC_CLOCK_133_200:
+	case GC_CLOCK_100_200:
+		return 200000;
+	case GC_CLOCK_166_250:
+		return 250000;
+	case GC_CLOCK_100_133:
+		return 133000;
+	}
+
+	/* Shouldn't happen */
+	return 0;
+}
+
+static int i830_get_display_clock_speed(struct drm_device *dev)
+{
+	return 133000;
 }
 
 /**
@@ -2288,32 +2303,17 @@ static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
  */
 const static int latency_ns = 5000;
 
-static int intel_get_fifo_size(struct drm_device *dev, int plane)
+static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
 
-	if (IS_I9XX(dev)) {
-		if (plane == 0)
-			size = dsparb & 0x7f;
-		else
-			size = ((dsparb >> DSPARB_CSTART_SHIFT) & 0x7f) -
-				(dsparb & 0x7f);
-	} else if (IS_I85X(dev)) {
-		if (plane == 0)
-			size = dsparb & 0x1ff;
-		else
-			size = ((dsparb >> DSPARB_BEND_SHIFT) & 0x1ff) -
-				(dsparb & 0x1ff);
-		size >>= 1; /* Convert to cachelines */
-	} else if (IS_845G(dev)) {
+	if (plane == 0)
 		size = dsparb & 0x7f;
-		size >>= 2; /* Convert to cachelines */
-	} else {
-		size = dsparb & 0x7f;
-		size >>= 1; /* Convert to cachelines */
-	}
+	else
+		size = ((dsparb >> DSPARB_CSTART_SHIFT) & 0x7f) -
+			(dsparb & 0x7f);
 
 	DRM_DEBUG("FIFO size - (0x%08x) %s: %d\n", dsparb, plane ? "B" : "A",
 		  size);
@@ -2321,7 +2321,57 @@ static int intel_get_fifo_size(struct drm_device *dev, int plane)
 	return size;
 }
 
-static void g4x_update_wm(struct drm_device *dev)
+static int i85x_get_fifo_size(struct drm_device *dev, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t dsparb = I915_READ(DSPARB);
+	int size;
+
+	if (plane == 0)
+		size = dsparb & 0x1ff;
+	else
+		size = ((dsparb >> DSPARB_BEND_SHIFT) & 0x1ff) -
+			(dsparb & 0x1ff);
+	size >>= 1; /* Convert to cachelines */
+
+	DRM_DEBUG("FIFO size - (0x%08x) %s: %d\n", dsparb, plane ? "B" : "A",
+		  size);
+
+	return size;
+}
+
+static int i845_get_fifo_size(struct drm_device *dev, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t dsparb = I915_READ(DSPARB);
+	int size;
+
+	size = dsparb & 0x7f;
+	size >>= 2; /* Convert to cachelines */
+
+	DRM_DEBUG("FIFO size - (0x%08x) %s: %d\n", dsparb, plane ? "B" : "A",
+		  size);
+
+	return size;
+}
+
+static int i830_get_fifo_size(struct drm_device *dev, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t dsparb = I915_READ(DSPARB);
+	int size;
+
+	size = dsparb & 0x7f;
+	size >>= 1; /* Convert to cachelines */
+
+	DRM_DEBUG("FIFO size - (0x%08x) %s: %d\n", dsparb, plane ? "B" : "A",
+		  size);
+
+	return size;
+}
+
+static void g4x_update_wm(struct drm_device *dev, int unused, int unused2,
+			  int unused3, int unused4)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 fw_blc_self = I915_READ(FW_BLC_SELF);
@@ -2333,7 +2383,8 @@ static void g4x_update_wm(struct drm_device *dev)
 	I915_WRITE(FW_BLC_SELF, fw_blc_self);
 }
 
-static void i965_update_wm(struct drm_device *dev)
+static void i965_update_wm(struct drm_device *dev, int unused, int unused2,
+			   int unused3, int unused4)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -2369,8 +2420,8 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 	cacheline_size = planea_params.cacheline_size;
 
 	/* Update per-plane FIFO sizes */
-	planea_params.fifo_size = intel_get_fifo_size(dev, 0);
-	planeb_params.fifo_size = intel_get_fifo_size(dev, 1);
+	planea_params.fifo_size = dev_priv->display.get_fifo_size(dev, 0);
+	planeb_params.fifo_size = dev_priv->display.get_fifo_size(dev, 1);
 
 	planea_wm = intel_calculate_wm(planea_clock, &planea_params,
 				       pixel_size, latency_ns);
@@ -2417,14 +2468,14 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 	I915_WRITE(FW_BLC2, fwater_hi);
 }
 
-static void i830_update_wm(struct drm_device *dev, int planea_clock,
-			   int pixel_size)
+static void i830_update_wm(struct drm_device *dev, int planea_clock, int unused,
+			   int unused2, int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t fwater_lo = I915_READ(FW_BLC) & ~0xfff;
 	int planea_wm;
 
-	i830_wm_info.fifo_size = intel_get_fifo_size(dev, 0);
+	i830_wm_info.fifo_size = dev_priv->display.get_fifo_size(dev, 0);
 
 	planea_wm = intel_calculate_wm(planea_clock, &i830_wm_info,
 				       pixel_size, latency_ns);
@@ -2468,6 +2519,7 @@ static void i830_update_wm(struct drm_device *dev, int planea_clock,
   */
 static void intel_update_watermarks(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
 	int sr_hdisplay = 0;
@@ -2506,15 +2558,8 @@ static void intel_update_watermarks(struct drm_device *dev)
 	else if (IS_IGD(dev))
 		igd_disable_cxsr(dev);
 
-	if (IS_G4X(dev))
-		g4x_update_wm(dev);
-	else if (IS_I965G(dev))
-		i965_update_wm(dev);
-	else if (IS_I9XX(dev) || IS_MOBILE(dev))
-		i9xx_update_wm(dev, planea_clock, planeb_clock, sr_hdisplay,
-			       pixel_size);
-	else
-		i830_update_wm(dev, planea_clock, pixel_size);
+	dev_priv->display.update_wm(dev, planea_clock, planeb_clock,
+				    sr_hdisplay, pixel_size);
 }
 
 static int intel_crtc_mode_set(struct drm_crtc *crtc,
@@ -2785,7 +2830,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		 * XXX: No double-wide on 915GM pipe B. Is that the only reason for the
 		 * pipe == 0 check?
 		 */
-		if (mode->clock > intel_get_core_clock_speed(dev) * 9 / 10)
+		if (mode->clock >
+		    dev_priv->display.get_display_clock_speed(dev) * 9 / 10)
 			pipeconf |= PIPEACONF_DOUBLE_WIDE;
 		else
 			pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
@@ -2942,8 +2988,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	/* Flush the plane changes */
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
 
-	if (I915_HAS_FBC(dev) && (IS_I965G(dev) || plane == 0))
-		intel_update_fbc(crtc, &crtc->mode);
+	intel_update_fbc(crtc, &crtc->mode);
+
 	intel_update_watermarks(dev);
 
 	drm_vblank_post_modeset(dev, pipe);
@@ -4049,6 +4095,69 @@ void intel_init_clock_gating(struct drm_device *dev)
 	}
 }
 
+/* Set up chip specific display functions */
+static void intel_init_display(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* We always want a DPMS function */
+	if (IS_IGDNG(dev))
+		dev_priv->display.dpms = igdng_crtc_dpms;
+	else
+		dev_priv->display.dpms = i9xx_crtc_dpms;
+
+	/* Only mobile has FBC, leave pointers NULL for other chips */
+	if (IS_MOBILE(dev)) {
+		/* 855GM needs testing */
+		if (IS_I965GM(dev) || IS_I945GM(dev) || IS_I915GM(dev)) {
+			dev_priv->display.fbc_enabled = i8xx_fbc_enabled;
+			dev_priv->display.enable_fbc = i8xx_enable_fbc;
+			dev_priv->display.disable_fbc = i8xx_disable_fbc;
+		}
+	}
+
+	/* Returns the core display clock speed */
+	if (IS_I945G(dev))
+		dev_priv->display.get_display_clock_speed =
+			i945_get_display_clock_speed;
+	else if (IS_I915G(dev))
+		dev_priv->display.get_display_clock_speed =
+			i915_get_display_clock_speed;
+	else if (IS_I945GM(dev) || IS_845G(dev) || IS_IGDGM(dev))
+		dev_priv->display.get_display_clock_speed =
+			i9xx_misc_get_display_clock_speed;
+	else if (IS_I915GM(dev))
+		dev_priv->display.get_display_clock_speed =
+			i915gm_get_display_clock_speed;
+	else if (IS_I865G(dev))
+		dev_priv->display.get_display_clock_speed =
+			i865_get_display_clock_speed;
+	else if (IS_I855(dev))
+		dev_priv->display.get_display_clock_speed =
+			i855_get_display_clock_speed;
+	else /* 852, 830 */
+		dev_priv->display.get_display_clock_speed =
+			i830_get_display_clock_speed;
+
+	/* For FIFO watermark updates */
+	if (IS_G4X(dev))
+		dev_priv->display.update_wm = g4x_update_wm;
+	else if (IS_I965G(dev))
+		dev_priv->display.update_wm = i965_update_wm;
+	else if (IS_I9XX(dev) || IS_MOBILE(dev)) {
+		dev_priv->display.update_wm = i9xx_update_wm;
+		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
+	} else {
+		if (IS_I85X(dev))
+			dev_priv->display.get_fifo_size = i85x_get_fifo_size;
+		else if (IS_845G(dev))
+			dev_priv->display.get_fifo_size = i845_get_fifo_size;
+		else
+			dev_priv->display.get_fifo_size = i830_get_fifo_size;
+		dev_priv->display.update_wm = i830_update_wm;
+	}
+}
+
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4061,6 +4170,8 @@ void intel_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_height = 0;
 
 	dev->mode_config.funcs = (void *)&intel_mode_funcs;
+
+	intel_init_display(dev);
 
 	if (IS_I965G(dev)) {
 		dev->mode_config.max_width = 8192;
@@ -4127,7 +4238,9 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	mutex_unlock(&dev->struct_mutex);
 
-	i8xx_disable_fbc(dev);
+	if (dev_priv->display.disable_fbc)
+		dev_priv->display.disable_fbc(dev);
+
 	drm_mode_config_cleanup(dev);
 }
 
