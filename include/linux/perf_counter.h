@@ -849,23 +849,6 @@ static inline void perf_counter_comm(struct task_struct *tsk)		{ }
 static inline void perf_counter_fork(struct task_struct *tsk)		{ }
 static inline void perf_counter_init(void)				{ }
 
-static inline int
-perf_output_begin(struct perf_output_handle *handle, struct perf_counter *c,
-		  unsigned int size, int nmi, int sample)		{ }
-static inline void perf_output_end(struct perf_output_handle *handle)	{ }
-static inline void
-perf_output_copy(struct perf_output_handle *handle,
-		 const void *buf, unsigned int len)			{ }
-static inline void
-perf_output_sample(struct perf_output_handle *handle,
-		   struct perf_event_header *header,
-		   struct perf_sample_data *data,
-		   struct perf_counter *counter)			{ }
-static inline void
-perf_prepare_sample(struct perf_event_header *header,
-		    struct perf_sample_data *data,
-		    struct perf_counter *counter,
-		    struct pt_regs *regs)				{ }
 #endif
 
 #define perf_output_put(handle, x) \

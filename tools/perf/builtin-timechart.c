@@ -752,6 +752,7 @@ static void draw_wakeups(void)
 	we = wake_events;
 	while (we) {
 		int from = 0, to = 0;
+		char *task_from = NULL, *task_to = NULL;
 
 		/* locate the column of the waker and wakee */
 		p = all_data;
@@ -760,10 +761,14 @@ static void draw_wakeups(void)
 				c = p->all;
 				while (c) {
 					if (c->Y && c->start_time <= we->time && c->end_time >= we->time) {
-						if (p->pid == we->waker)
+						if (p->pid == we->waker) {
 							from = c->Y;
-						if (p->pid == we->wakee)
+							task_from = c->comm;
+						}
+						if (p->pid == we->wakee) {
 							to = c->Y;
+							task_to = c->comm;
+						}
 					}
 					c = c->next;
 				}
@@ -776,7 +781,7 @@ static void draw_wakeups(void)
 		else if (from && to && abs(from - to) == 1)
 			svg_wakeline(we->time, from, to);
 		else
-			svg_partial_wakeline(we->time, from, to);
+			svg_partial_wakeline(we->time, from, task_from, to, task_to);
 		we = we->next;
 	}
 }
@@ -822,15 +827,15 @@ static void draw_process_bars(void)
 				continue;
 			}
 
-			svg_box(Y, p->start_time, p->end_time, "process");
+			svg_box(Y, c->start_time, c->end_time, "process");
 			sample = c->samples;
 			while (sample) {
 				if (sample->type == TYPE_RUNNING)
-					svg_sample(Y, sample->cpu, sample->start_time, sample->end_time, "sample");
+					svg_sample(Y, sample->cpu, sample->start_time, sample->end_time);
 				if (sample->type == TYPE_BLOCKED)
 					svg_box(Y, sample->start_time, sample->end_time, "blocked");
 				if (sample->type == TYPE_WAITING)
-					svg_box(Y, sample->start_time, sample->end_time, "waiting");
+					svg_waiting(Y, sample->start_time, sample->end_time);
 				sample = sample->next;
 			}
 
@@ -910,9 +915,9 @@ static void write_svg_file(const char *filename)
 	if (count < 15)
 		count = determine_display_tasks(TIME_THRESH / 10);
 
-	open_svg(filename, numcpus, count);
+	open_svg(filename, numcpus, count, first_time, last_time);
 
-	svg_time_grid(first_time, last_time);
+	svg_time_grid();
 	svg_legenda();
 
 	for (i = 0; i < numcpus; i++)
@@ -1127,6 +1132,8 @@ static const struct option options[] = {
 		    "input file name"),
 	OPT_STRING('o', "output", &output_name, "file",
 		    "output file name"),
+	OPT_INTEGER('w', "width", &svg_page_width,
+		    "page width"),
 	OPT_END()
 };
 

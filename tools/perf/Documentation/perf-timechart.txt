@@ -28,6 +28,9 @@ OPTIONS
 -i::
 --input=::
         Select the input file (default: perf.data)
+-w::
+--width=::
+        Select the width of the SVG file (default: 1000)
 
 
 SEE ALSO

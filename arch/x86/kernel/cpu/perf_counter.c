@@ -924,6 +924,8 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	if (err)
 		return err;
 
+	counter->destroy = hw_perf_counter_destroy;
+
 	/*
 	 * Generate PMC IRQs:
 	 * (keep 'enabled' bit clear for now)
@@ -952,8 +954,6 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		if (!x86_pmu.apic)
 			return -EOPNOTSUPP;
 	}
-
-	counter->destroy = hw_perf_counter_destroy;
 
 	/*
 	 * Raw event type provide the config in the event structure
@@ -2107,8 +2107,11 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 	int err;
 
 	err = __hw_perf_counter_init(counter);
-	if (err)
+	if (err) {
+		if (counter->destroy)
+			counter->destroy(counter);
 		return ERR_PTR(err);
+	}
 
 	return &pmu;
 }
