@@ -76,7 +76,7 @@ NI manuals:
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-static struct pcmcia_device *pcmcia_cur_dev = NULL;
+static struct pcmcia_device *pcmcia_cur_dev;
 
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 
