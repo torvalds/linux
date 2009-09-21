@@ -189,7 +189,10 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
 /* Map from a CSROW entry to the mask entry that operates on it */
 static inline u32 amd64_map_to_dcs_mask(struct amd64_pvt *pvt, int csrow)
 {
-	return csrow >> (pvt->num_dcsm >> 3);
+	if (boot_cpu_data.x86 == 0xf && pvt->ext_model < OPTERON_CPU_REV_F)
+		return csrow;
+	else
+		return csrow >> 1;
 }
 
 /* return the 'base' address the i'th CS entry of the 'dct' DRAM controller */
@@ -374,7 +377,7 @@ static int input_addr_to_csrow(struct mem_ctl_info *mci, u64 input_addr)
 	 * base/mask register pair, test the condition shown near the start of
 	 * section 3.5.4 (p. 84, BKDG #26094, K8, revA-E).
 	 */
-	for (csrow = 0; csrow < CHIPSELECT_COUNT; csrow++) {
+	for (csrow = 0; csrow < pvt->cs_count; csrow++) {
 
 		/* This DRAM chip select is disabled on this node */
 		if ((pvt->dcsb0[csrow] & K8_DCSB_CS_ENABLE) == 0)
@@ -731,7 +734,7 @@ static void find_csrow_limits(struct mem_ctl_info *mci, int csrow,
 	u64 base, mask;
 
 	pvt = mci->pvt_info;
-	BUG_ON((csrow < 0) || (csrow >= CHIPSELECT_COUNT));
+	BUG_ON((csrow < 0) || (csrow >= pvt->cs_count));
 
 	base = base_from_dct_base(pvt, csrow);
 	mask = mask_from_dct_mask(pvt, csrow);
@@ -959,35 +962,27 @@ err_reg:
  */
 static void amd64_set_dct_base_and_mask(struct amd64_pvt *pvt)
 {
-	if (pvt->ext_model >= OPTERON_CPU_REV_F) {
+
+	if (boot_cpu_data.x86 == 0xf && pvt->ext_model < OPTERON_CPU_REV_F) {
+		pvt->dcsb_base		= REV_E_DCSB_BASE_BITS;
+		pvt->dcsm_mask		= REV_E_DCSM_MASK_BITS;
+		pvt->dcs_mask_notused	= REV_E_DCS_NOTUSED_BITS;
+		pvt->dcs_shift		= REV_E_DCS_SHIFT;
+		pvt->cs_count		= 8;
+		pvt->num_dcsm		= 8;
+	} else {
 		pvt->dcsb_base		= REV_F_F1Xh_DCSB_BASE_BITS;
 		pvt->dcsm_mask		= REV_F_F1Xh_DCSM_MASK_BITS;
 		pvt->dcs_mask_notused	= REV_F_F1Xh_DCS_NOTUSED_BITS;
 		pvt->dcs_shift		= REV_F_F1Xh_DCS_SHIFT;
 
-		switch (boot_cpu_data.x86) {
-		case 0xf:
-			pvt->num_dcsm = REV_F_DCSM_COUNT;
-			break;
-
-		case 0x10:
-			pvt->num_dcsm = F10_DCSM_COUNT;
-			break;
-
-		case 0x11:
-			pvt->num_dcsm = F11_DCSM_COUNT;
-			break;
-
-		default:
-			amd64_printk(KERN_ERR, "Unsupported family!\n");
-			break;
+		if (boot_cpu_data.x86 == 0x11) {
+			pvt->cs_count = 4;
+			pvt->num_dcsm = 2;
+		} else {
+			pvt->cs_count = 8;
+			pvt->num_dcsm = 4;
 		}
-	} else {
-		pvt->dcsb_base		= REV_E_DCSB_BASE_BITS;
-		pvt->dcsm_mask		= REV_E_DCSM_MASK_BITS;
-		pvt->dcs_mask_notused	= REV_E_DCS_NOTUSED_BITS;
-		pvt->dcs_shift		= REV_E_DCS_SHIFT;
-		pvt->num_dcsm		= REV_E_DCSM_COUNT;
 	}
 }
 
@@ -1000,7 +995,7 @@ static void amd64_read_dct_base_mask(struct amd64_pvt *pvt)
 
 	amd64_set_dct_base_and_mask(pvt);
 
-	for (cs = 0; cs < CHIPSELECT_COUNT; cs++) {
+	for (cs = 0; cs < pvt->cs_count; cs++) {
 		reg = K8_DCSB0 + (cs * 4);
 		err = pci_read_config_dword(pvt->dram_f2_ctl, reg,
 						&pvt->dcsb0[cs]);
@@ -1563,7 +1558,7 @@ static int f10_lookup_addr_in_dct(u32 in_addr, u32 nid, u32 cs)
 
 	debugf1("InputAddr=0x%x  channelselect=%d\n", in_addr, cs);
 
-	for (csrow = 0; csrow < CHIPSELECT_COUNT; csrow++) {
+	for (csrow = 0; csrow < pvt->cs_count; csrow++) {
 
 		cs_base = amd64_get_dct_base(pvt, cs, csrow);
 		if (!(cs_base & K8_DCSB_CS_ENABLE))
@@ -2494,7 +2489,7 @@ err_reg:
  * NOTE: CPU Revision Dependent code
  *
  * Input:
- *	@csrow_nr ChipSelect Row Number (0..CHIPSELECT_COUNT-1)
+ *	@csrow_nr ChipSelect Row Number (0..pvt->cs_count-1)
  *	k8 private pointer to -->
  *			DRAM Bank Address mapping register
  *			node_id
@@ -2574,7 +2569,7 @@ static int amd64_init_csrows(struct mem_ctl_info *mci)
 		(pvt->nbcfg & K8_NBCFG_ECC_ENABLE) ? "Enabled" : "Disabled"
 		);
 
-	for (i = 0; i < CHIPSELECT_COUNT; i++) {
+	for (i = 0; i < pvt->cs_count; i++) {
 		csrow = &mci->csrows[i];
 
 		if ((pvt->dcsb0[i] & K8_DCSB_CS_ENABLE) == 0) {
@@ -2985,7 +2980,7 @@ static int amd64_init_2nd_stage(struct amd64_pvt *pvt)
 		goto err_exit;
 
 	ret = -ENOMEM;
-	mci = edac_mc_alloc(0, CHIPSELECT_COUNT, pvt->channel_count, node_id);
+	mci = edac_mc_alloc(0, pvt->cs_count, pvt->channel_count, node_id);
 	if (!mci)
 		goto err_exit;
 

@@ -144,7 +144,7 @@
 #define OPTERON_CPU_REV_FA		5
 
 /* Hardware limit on ChipSelect rows per MC and processors per system */
-#define CHIPSELECT_COUNT		8
+#define MAX_CS_COUNT			8
 #define DRAM_REG_COUNT			8
 
 
@@ -195,7 +195,6 @@
  */
 #define REV_E_DCSB_BASE_BITS		(0xFFE0FE00ULL)
 #define REV_E_DCS_SHIFT			4
-#define REV_E_DCSM_COUNT		8
 
 #define REV_F_F1Xh_DCSB_BASE_BITS	(0x1FF83FE0ULL)
 #define REV_F_F1Xh_DCS_SHIFT		8
@@ -206,9 +205,6 @@
  */
 #define REV_F_DCSB_BASE_BITS		(0x1FF83FE0ULL)
 #define REV_F_DCS_SHIFT			8
-#define REV_F_DCSM_COUNT		4
-#define F10_DCSM_COUNT			4
-#define F11_DCSM_COUNT			2
 
 /* DRAM CS Mask Registers */
 #define K8_DCSM0			0x60
@@ -447,12 +443,12 @@ struct amd64_pvt {
 	u32 dbam1;		/* DRAM Base Address Mapping reg for DCT1 */
 
 	/* DRAM CS Base Address Registers F2x[1,0][5C:40] */
-	u32 dcsb0[CHIPSELECT_COUNT];
-	u32 dcsb1[CHIPSELECT_COUNT];
+	u32 dcsb0[MAX_CS_COUNT];
+	u32 dcsb1[MAX_CS_COUNT];
 
 	/* DRAM CS Mask Registers F2x[1,0][6C:60] */
-	u32 dcsm0[CHIPSELECT_COUNT];
-	u32 dcsm1[CHIPSELECT_COUNT];
+	u32 dcsm0[MAX_CS_COUNT];
+	u32 dcsm1[MAX_CS_COUNT];
 
 	/*
 	 * Decoded parts of DRAM BASE and LIMIT Registers
@@ -472,6 +468,7 @@ struct amd64_pvt {
 	 */
 	u32 dcsb_base;		/* DCSB base bits */
 	u32 dcsm_mask;		/* DCSM mask bits */
+	u32 cs_count;		/* num chip selects (== num DCSB registers) */
 	u32 num_dcsm;		/* Number of DCSM registers */
 	u32 dcs_mask_notused;	/* DCSM notused mask bits */
 	u32 dcs_shift;		/* DCSB and DCSM shift value */
