@@ -33,5 +33,6 @@
 #define cpu_is_at91cap9()	(0)
 #define cpu_is_at91sam9g10()	(0)
 #define cpu_is_at91sam9g45()	(0)
+#define cpu_is_at91sam9g45es()	(0)
 
 #endif /* __ASM_ARCH_CPU_H */
