@@ -3547,7 +3547,8 @@ int ocfs2_add_refcount_flag(struct inode *inode,
 			    struct ocfs2_caching_info *ref_ci,
 			    struct buffer_head *ref_root_bh,
 			    u32 cpos, u32 p_cluster, u32 num_clusters,
-			    struct ocfs2_cached_dealloc_ctxt *dealloc)
+			    struct ocfs2_cached_dealloc_ctxt *dealloc,
+			    struct ocfs2_post_refcount *post)
 {
 	int ret;
 	handle_t *handle;
@@ -3576,6 +3577,9 @@ int ocfs2_add_refcount_flag(struct inode *inode,
 		}
 	}
 
+	if (post)
+		credits += post->credits;
+
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
@@ -3594,8 +3598,16 @@ int ocfs2_add_refcount_flag(struct inode *inode,
 	ret = __ocfs2_increase_refcount(handle, ref_ci, ref_root_bh,
 					p_cluster, num_clusters,
 					meta_ac, dealloc);
-	if (ret)
+	if (ret) {
 		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	if (post && post->func) {
+		ret = post->func(inode, handle, post->para);
+		if (ret)
+			mlog_errno(ret);
+	}
 
 out_commit:
 	ocfs2_commit_trans(osb, handle);
@@ -3688,7 +3700,7 @@ static int ocfs2_attach_refcount_tree(struct inode *inode,
 						      &ref_tree->rf_ci,
 						      ref_root_bh, cpos,
 						      p_cluster, num_clusters,
-						      &dealloc);
+						      &dealloc, NULL);
 			if (ret) {
 				mlog_errno(ret);
 				goto unlock;
@@ -3697,6 +3709,17 @@ static int ocfs2_attach_refcount_tree(struct inode *inode,
 			data_changed = 1;
 		}
 		cpos += num_clusters;
+	}
+
+	if (oi->ip_dyn_features & OCFS2_HAS_XATTR_FL) {
+		ret = ocfs2_xattr_attach_refcount_tree(inode, di_bh,
+						       &ref_tree->rf_ci,
+						       ref_root_bh,
+						       &dealloc);
+		if (ret) {
+			mlog_errno(ret);
+			goto unlock;
+		}
 	}
 
 	if (data_changed) {

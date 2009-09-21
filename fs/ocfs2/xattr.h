@@ -83,5 +83,9 @@ struct ocfs2_xattr_value_buf {
 	struct ocfs2_xattr_value_root	*vb_xv;
 };
 
-
+int ocfs2_xattr_attach_refcount_tree(struct inode *inode,
+				     struct buffer_head *fe_bh,
+				     struct ocfs2_caching_info *ref_ci,
+				     struct buffer_head *ref_root_bh,
+				     struct ocfs2_cached_dealloc_ctxt *dealloc);
 #endif /* OCFS2_XATTR_H */

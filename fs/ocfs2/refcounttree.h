@@ -83,4 +83,11 @@ int ocfs2_refcount_cow_xattr(struct inode *inode,
 			     struct buffer_head *ref_root_bh,
 			     u32 cpos, u32 write_len,
 			     struct ocfs2_post_refcount *post);
+int ocfs2_add_refcount_flag(struct inode *inode,
+			    struct ocfs2_extent_tree *data_et,
+			    struct ocfs2_caching_info *ref_ci,
+			    struct buffer_head *ref_root_bh,
+			    u32 cpos, u32 p_cluster, u32 num_clusters,
+			    struct ocfs2_cached_dealloc_ctxt *dealloc,
+			    struct ocfs2_post_refcount *post);
 #endif /* OCFS2_REFCOUNTTREE_H */
