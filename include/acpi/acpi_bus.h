@@ -171,19 +171,23 @@ typedef unsigned long acpi_bus_address;
 typedef char acpi_device_name[40];
 typedef char acpi_device_class[20];
 
+struct acpi_hardware_id {
+	struct list_head list;
+	char *id;
+};
+
 struct acpi_device_pnp {
 	acpi_bus_id bus_id;	/* Object name */
 	acpi_bus_address bus_address;	/* _ADR */
-	char *hardware_id;	/* _HID */
-	struct acpica_device_id_list *cid_list;	/* _CIDs */
 	char *unique_id;	/* _UID */
+	struct list_head ids;		/* _HID and _CIDs */
 	acpi_device_name device_name;	/* Driver-determined */
 	acpi_device_class device_class;	/*        "          */
 };
 
 #define acpi_device_bid(d)	((d)->pnp.bus_id)
 #define acpi_device_adr(d)	((d)->pnp.bus_address)
-#define acpi_device_hid(d)	((d)->pnp.hardware_id)
+char *acpi_device_hid(struct acpi_device *device);
 #define acpi_device_uid(d)	((d)->pnp.unique_id)
 #define acpi_device_name(d)	((d)->pnp.device_name)
 #define acpi_device_class(d)	((d)->pnp.device_class)

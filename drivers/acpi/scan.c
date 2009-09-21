@@ -45,6 +45,7 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 {
 	int len;
 	int count;
+	struct acpi_hardware_id *id;
 
 	if (!acpi_dev->flags.hardware_id && !acpi_dev->flags.compatible_ids)
 		return -ENODEV;
@@ -52,31 +53,12 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 	len = snprintf(modalias, size, "acpi:");
 	size -= len;
 
-	if (acpi_dev->flags.hardware_id) {
-		count = snprintf(&modalias[len], size, "%s:",
-				 acpi_dev->pnp.hardware_id);
+	list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
+		count = snprintf(&modalias[len], size, "%s:", id->id);
 		if (count < 0 || count >= size)
 			return -EINVAL;
 		len += count;
 		size -= count;
-	}
-
-	if (acpi_dev->flags.compatible_ids) {
-		struct acpica_device_id_list *cid_list;
-		int i;
-
-		cid_list = acpi_dev->pnp.cid_list;
-		for (i = 0; i < cid_list->count; i++) {
-			count = snprintf(&modalias[len], size, "%s:",
-					 cid_list->ids[i].string);
-			if (count < 0 || count >= size) {
-				printk(KERN_ERR PREFIX "%s cid[%i] exceeds event buffer size",
-				       acpi_dev->pnp.device_name, i);
-				break;
-			}
-			len += count;
-			size -= count;
-		}
 	}
 
 	modalias[len] = '\0';
@@ -273,6 +255,7 @@ int acpi_match_device_ids(struct acpi_device *device,
 			  const struct acpi_device_id *ids)
 {
 	const struct acpi_device_id *id;
+	struct acpi_hardware_id *hwid;
 
 	/*
 	 * If the device is not present, it is unnecessary to load device
@@ -281,40 +264,30 @@ int acpi_match_device_ids(struct acpi_device *device,
 	if (!device->status.present)
 		return -ENODEV;
 
-	if (device->flags.hardware_id) {
-		for (id = ids; id->id[0]; id++) {
-			if (!strcmp((char*)id->id, device->pnp.hardware_id))
+	for (id = ids; id->id[0]; id++)
+		list_for_each_entry(hwid, &device->pnp.ids, list)
+			if (!strcmp((char *) id->id, hwid->id))
 				return 0;
-		}
-	}
-
-	if (device->flags.compatible_ids) {
-		struct acpica_device_id_list *cid_list = device->pnp.cid_list;
-		int i;
-
-		for (id = ids; id->id[0]; id++) {
-			/* compare multiple _CID entries against driver ids */
-			for (i = 0; i < cid_list->count; i++) {
-				if (!strcmp((char*)id->id,
-					    cid_list->ids[i].string))
-					return 0;
-			}
-		}
-	}
 
 	return -ENOENT;
 }
 EXPORT_SYMBOL(acpi_match_device_ids);
 
+static void acpi_free_ids(struct acpi_device *device)
+{
+	struct acpi_hardware_id *id, *tmp;
+
+	list_for_each_entry_safe(id, tmp, &device->pnp.ids, list) {
+		kfree(id->id);
+		kfree(id);
+	}
+}
+
 static void acpi_device_release(struct device *dev)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
-	kfree(acpi_dev->pnp.cid_list);
-	if (acpi_dev->flags.hardware_id)
-		kfree(acpi_dev->pnp.hardware_id);
-	if (acpi_dev->flags.unique_id)
-		kfree(acpi_dev->pnp.unique_id);
+	acpi_free_ids(acpi_dev);
 	kfree(acpi_dev);
 }
 
@@ -1028,62 +1001,31 @@ static int acpi_dock_match(struct acpi_device *device)
 	return acpi_get_handle(device->handle, "_DCK", &tmp);
 }
 
-static struct acpica_device_id_list*
-acpi_add_cid(
-	struct acpi_device_info         *info,
-	struct acpica_device_id         *new_cid)
+char *acpi_device_hid(struct acpi_device *device)
 {
-	struct acpica_device_id_list    *cid;
-	char                            *next_id_string;
-	acpi_size                       cid_length;
-	acpi_size                       new_cid_length;
-	u32                             i;
+	struct acpi_hardware_id *hid;
 
+	hid = list_first_entry(&device->pnp.ids, struct acpi_hardware_id, list);
+	return hid->id;
+}
+EXPORT_SYMBOL(acpi_device_hid);
 
-	/* Allocate new CID list with room for the new CID */
+static void acpi_add_id(struct acpi_device *device, const char *dev_id)
+{
+	struct acpi_hardware_id *id;
 
-	if (!new_cid)
-		new_cid_length = info->compatible_id_list.list_size;
-	else if (info->compatible_id_list.list_size)
-		new_cid_length = info->compatible_id_list.list_size +
-			new_cid->length + sizeof(struct acpica_device_id);
-	else
-		new_cid_length = sizeof(struct acpica_device_id_list) + new_cid->length;
+	id = kmalloc(sizeof(*id), GFP_KERNEL);
+	if (!id)
+		return;
 
-	cid = ACPI_ALLOCATE_ZEROED(new_cid_length);
-	if (!cid) {
-		return NULL;
+	id->id = kmalloc(strlen(dev_id) + 1, GFP_KERNEL);
+	if (!id->id) {
+		kfree(id);
+		return;
 	}
 
-	cid->list_size = new_cid_length;
-	cid->count = info->compatible_id_list.count;
-	if (new_cid)
-		cid->count++;
-	next_id_string = (char *) cid->ids + (cid->count * sizeof(struct acpica_device_id));
-
-	/* Copy all existing CIDs */
-
-	for (i = 0; i < info->compatible_id_list.count; i++) {
-		cid_length = info->compatible_id_list.ids[i].length;
-		cid->ids[i].string = next_id_string;
-		cid->ids[i].length = cid_length;
-
-		ACPI_MEMCPY(next_id_string, info->compatible_id_list.ids[i].string,
-			cid_length);
-
-		next_id_string += cid_length;
-	}
-
-	/* Append the new CID */
-
-	if (new_cid) {
-		cid->ids[i].string = next_id_string;
-		cid->ids[i].length = new_cid->length;
-
-		ACPI_MEMCPY(next_id_string, new_cid->string, new_cid->length);
-	}
-
-	return cid;
+	strcpy(id->id, dev_id);
+	list_add_tail(&id->list, &device->pnp.ids);
 }
 
 static void acpi_device_set_id(struct acpi_device *device)
@@ -1094,6 +1036,7 @@ static void acpi_device_set_id(struct acpi_device *device)
 	struct acpica_device_id_list *cid_list = NULL;
 	char *cid_add = NULL;
 	acpi_status status;
+	int i;
 
 	switch (device->device_type) {
 	case ACPI_BUS_TYPE_DEVICE:
@@ -1166,15 +1109,9 @@ static void acpi_device_set_id(struct acpi_device *device)
 		hid = "device";
 
 	if (hid) {
-		device->pnp.hardware_id = ACPI_ALLOCATE_ZEROED(strlen (hid) + 1);
-		if (device->pnp.hardware_id) {
-			strcpy(device->pnp.hardware_id, hid);
-			device->flags.hardware_id = 1;
-		}
+		acpi_add_id(device, hid);
+		device->flags.hardware_id = 1;
 	}
-	if (!device->flags.hardware_id)
-		device->pnp.hardware_id = "";
-
 	if (uid) {
 		device->pnp.unique_id = ACPI_ALLOCATE_ZEROED(strlen (uid) + 1);
 		if (device->pnp.unique_id) {
@@ -1185,24 +1122,12 @@ static void acpi_device_set_id(struct acpi_device *device)
 	if (!device->flags.unique_id)
 		device->pnp.unique_id = "";
 
-	if (cid_list || cid_add) {
-		struct acpica_device_id_list *list;
-
-		if (cid_add) {
-			struct acpica_device_id cid;
-			cid.length = strlen (cid_add) + 1;
-			cid.string = cid_add;
-
-			list = acpi_add_cid(info, &cid);
-		} else {
-			list = acpi_add_cid(info, NULL);
-		}
-
-		if (list) {
-			device->pnp.cid_list = list;
-			if (cid_add)
-				device->flags.compatible_ids = 1;
-		}
+	if (cid_list)
+		for (i = 0; i < cid_list->count; i++)
+			acpi_add_id(device, cid_list->ids[i].string);
+	if (cid_add) {
+		acpi_add_id(device, cid_add);
+		device->flags.compatible_ids = 1;
 	}
 
 	kfree(info);
@@ -1269,6 +1194,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 		return -ENOMEM;
 	}
 
+	INIT_LIST_HEAD(&device->pnp.ids);
 	device->device_type = type;
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
