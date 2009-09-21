@@ -55,6 +55,13 @@ async_sum_product(struct page *dest, struct page **srcs, unsigned char *coef,
 			async_tx_submit(chan, tx, submit);
 			return tx;
 		}
+
+		/* could not get a descriptor, unmap and fall through to
+		 * the synchronous path
+		 */
+		dma_unmap_page(dev, dma_dest[1], len, DMA_BIDIRECTIONAL);
+		dma_unmap_page(dev, dma_src[0], len, DMA_TO_DEVICE);
+		dma_unmap_page(dev, dma_src[1], len, DMA_TO_DEVICE);
 	}
 
 	/* run the operation synchronously */
@@ -101,6 +108,12 @@ async_mult(struct page *dest, struct page *src, u8 coef, size_t len,
 			async_tx_submit(chan, tx, submit);
 			return tx;
 		}
+
+		/* could not get a descriptor, unmap and fall through to
+		 * the synchronous path
+		 */
+		dma_unmap_page(dev, dma_dest[1], len, DMA_BIDIRECTIONAL);
+		dma_unmap_page(dev, dma_src[0], len, DMA_TO_DEVICE);
 	}
 
 	/* no channel available, or failed to allocate a descriptor, so
