@@ -1580,14 +1580,11 @@ int acpi_bus_trim(struct acpi_device *start, int rmdevice)
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
 
-static int acpi_bus_scan_fixed(struct acpi_device *root)
+static int acpi_bus_scan_fixed(void)
 {
 	int result = 0;
 	struct acpi_device *device = NULL;
 	struct acpi_bus_ops ops;
-
-	if (!root)
-		return -ENODEV;
 
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_add = 1;
@@ -1639,7 +1636,7 @@ int __init acpi_scan_init(void)
 	/*
 	 * Enumerate devices in the ACPI namespace.
 	 */
-	result = acpi_bus_scan_fixed(acpi_root);
+	result = acpi_bus_scan_fixed();
 
 	if (!result)
 		result = acpi_bus_scan(acpi_root, &ops);
