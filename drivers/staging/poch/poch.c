@@ -252,6 +252,11 @@ module_param(synth_rx, bool, 0600);
 MODULE_PARM_DESC(synth_rx,
 		"Synthesize received values using a counter. Default: No");
 
+static int loopback;
+module_param(loopback, bool, 0600);
+MODULE_PARM_DESC(loopback,
+		"Enable hardware loopback of trasnmitted data. Default: No");
+
 static dev_t poch_first_dev;
 static struct class *poch_cls;
 static DEFINE_IDR(poch_ids);
@@ -830,9 +835,14 @@ static int poch_open(struct inode *inode, struct file *filp)
 
 	if (channel->dir == CHANNEL_DIR_TX) {
 		/* Flush TX FIFO and output data from cardbus. */
-		iowrite32(FPGA_TX_CTL_FIFO_FLUSH
-			  | FPGA_TX_CTL_OUTPUT_CARDBUS,
-			  fpga + FPGA_TX_CTL_REG);
+		u32 ctl_val = 0;
+
+		ctl_val |= FPGA_TX_CTL_FIFO_FLUSH;
+		ctl_val |= FPGA_TX_CTL_OUTPUT_CARDBUS;
+		if (loopback)
+			ctl_val |= FPGA_TX_CTL_LOOPBACK;
+
+		iowrite32(ctl_val, fpga + FPGA_TX_CTL_REG);
 	} else {
 		/* Flush RX FIFO and output data to cardbus. */
 		u32 ctl_val = FPGA_RX_CTL_CONT_CAP | FPGA_RX_CTL_FIFO_FLUSH;
