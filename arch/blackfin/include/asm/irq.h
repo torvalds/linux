@@ -12,6 +12,8 @@
 
 #include <linux/irqflags.h>
 
+#include <mach/anomaly.h>
+
 /* SYS_IRQS and NR_IRQS are defined in <mach-bf5xx/irq.h> */
 #include <mach/irq.h>
 
