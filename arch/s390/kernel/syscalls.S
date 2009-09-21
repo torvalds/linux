@@ -339,4 +339,4 @@ SYSCALL(sys_epoll_create1,sys_epoll_create1,sys_epoll_create1_wrapper)
 SYSCALL(sys_preadv,sys_preadv,compat_sys_preadv_wrapper)
 SYSCALL(sys_pwritev,sys_pwritev,compat_sys_pwritev_wrapper)
 SYSCALL(sys_rt_tgsigqueueinfo,sys_rt_tgsigqueueinfo,compat_sys_rt_tgsigqueueinfo_wrapper) /* 330 */
-SYSCALL(sys_perf_counter_open,sys_perf_counter_open,sys_perf_counter_open_wrapper)
+SYSCALL(sys_perf_event_open,sys_perf_event_open,sys_perf_event_open_wrapper)

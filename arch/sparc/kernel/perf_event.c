@@ -1,8 +1,8 @@
-/* Performance counter support for sparc64.
+/* Performance event support for sparc64.
  *
  * Copyright (C) 2009 David S. Miller <davem@davemloft.net>
  *
- * This code is based almost entirely upon the x86 perf counter
+ * This code is based almost entirely upon the x86 perf event
  * code, which is:
  *
  *  Copyright (C) 2008 Thomas Gleixner <tglx@linutronix.de>
@@ -12,7 +12,7 @@
  *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
  */
 
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/kprobes.h>
 #include <linux/kernel.h>
 #include <linux/kdebug.h>
@@ -46,19 +46,19 @@
  * normal code.
  */
 
-#define MAX_HWCOUNTERS			2
+#define MAX_HWEVENTS			2
 #define MAX_PERIOD			((1UL << 32) - 1)
 
 #define PIC_UPPER_INDEX			0
 #define PIC_LOWER_INDEX			1
 
-struct cpu_hw_counters {
-	struct perf_counter	*counters[MAX_HWCOUNTERS];
-	unsigned long		used_mask[BITS_TO_LONGS(MAX_HWCOUNTERS)];
-	unsigned long		active_mask[BITS_TO_LONGS(MAX_HWCOUNTERS)];
+struct cpu_hw_events {
+	struct perf_event	*events[MAX_HWEVENTS];
+	unsigned long		used_mask[BITS_TO_LONGS(MAX_HWEVENTS)];
+	unsigned long		active_mask[BITS_TO_LONGS(MAX_HWEVENTS)];
 	int enabled;
 };
-DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters) = { .enabled = 1, };
+DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = { .enabled = 1, };
 
 struct perf_event_map {
 	u16	encoding;
@@ -87,9 +87,9 @@ static const struct perf_event_map ultra3i_perfmon_event_map[] = {
 	[PERF_COUNT_HW_CACHE_MISSES] = { 0x0009, PIC_UPPER },
 };
 
-static const struct perf_event_map *ultra3i_event_map(int event)
+static const struct perf_event_map *ultra3i_event_map(int event_id)
 {
-	return &ultra3i_perfmon_event_map[event];
+	return &ultra3i_perfmon_event_map[event_id];
 }
 
 static const struct sparc_pmu ultra3i_pmu = {
@@ -111,9 +111,9 @@ static const struct perf_event_map niagara2_perfmon_event_map[] = {
 	[PERF_COUNT_HW_BRANCH_MISSES] = { 0x0202, PIC_UPPER | PIC_LOWER },
 };
 
-static const struct perf_event_map *niagara2_event_map(int event)
+static const struct perf_event_map *niagara2_event_map(int event_id)
 {
-	return &niagara2_perfmon_event_map[event];
+	return &niagara2_perfmon_event_map[event_id];
 }
 
 static const struct sparc_pmu niagara2_pmu = {
@@ -130,13 +130,13 @@ static const struct sparc_pmu niagara2_pmu = {
 
 static const struct sparc_pmu *sparc_pmu __read_mostly;
 
-static u64 event_encoding(u64 event, int idx)
+static u64 event_encoding(u64 event_id, int idx)
 {
 	if (idx == PIC_UPPER_INDEX)
-		event <<= sparc_pmu->upper_shift;
+		event_id <<= sparc_pmu->upper_shift;
 	else
-		event <<= sparc_pmu->lower_shift;
-	return event;
+		event_id <<= sparc_pmu->lower_shift;
+	return event_id;
 }
 
 static u64 mask_for_index(int idx)
@@ -151,7 +151,7 @@ static u64 nop_for_index(int idx)
 			      sparc_pmu->lower_nop, idx);
 }
 
-static inline void sparc_pmu_enable_counter(struct hw_perf_counter *hwc,
+static inline void sparc_pmu_enable_event(struct hw_perf_event *hwc,
 					    int idx)
 {
 	u64 val, mask = mask_for_index(idx);
@@ -160,7 +160,7 @@ static inline void sparc_pmu_enable_counter(struct hw_perf_counter *hwc,
 	pcr_ops->write((val & ~mask) | hwc->config);
 }
 
-static inline void sparc_pmu_disable_counter(struct hw_perf_counter *hwc,
+static inline void sparc_pmu_disable_event(struct hw_perf_event *hwc,
 					     int idx)
 {
 	u64 mask = mask_for_index(idx);
@@ -172,7 +172,7 @@ static inline void sparc_pmu_disable_counter(struct hw_perf_counter *hwc,
 
 void hw_perf_enable(void)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 val;
 	int i;
 
@@ -184,9 +184,9 @@ void hw_perf_enable(void)
 
 	val = pcr_ops->read();
 
-	for (i = 0; i < MAX_HWCOUNTERS; i++) {
-		struct perf_counter *cp = cpuc->counters[i];
-		struct hw_perf_counter *hwc;
+	for (i = 0; i < MAX_HWEVENTS; i++) {
+		struct perf_event *cp = cpuc->events[i];
+		struct hw_perf_event *hwc;
 
 		if (!cp)
 			continue;
@@ -199,7 +199,7 @@ void hw_perf_enable(void)
 
 void hw_perf_disable(void)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 val;
 
 	if (!cpuc->enabled)
@@ -241,8 +241,8 @@ static void write_pmc(int idx, u64 val)
 	write_pic(pic);
 }
 
-static int sparc_perf_counter_set_period(struct perf_counter *counter,
-					 struct hw_perf_counter *hwc, int idx)
+static int sparc_perf_event_set_period(struct perf_event *event,
+					 struct hw_perf_event *hwc, int idx)
 {
 	s64 left = atomic64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
@@ -268,33 +268,33 @@ static int sparc_perf_counter_set_period(struct perf_counter *counter,
 
 	write_pmc(idx, (u64)(-left) & 0xffffffff);
 
-	perf_counter_update_userpage(counter);
+	perf_event_update_userpage(event);
 
 	return ret;
 }
 
-static int sparc_pmu_enable(struct perf_counter *counter)
+static int sparc_pmu_enable(struct perf_event *event)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-	struct hw_perf_counter *hwc = &counter->hw;
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
 	if (test_and_set_bit(idx, cpuc->used_mask))
 		return -EAGAIN;
 
-	sparc_pmu_disable_counter(hwc, idx);
+	sparc_pmu_disable_event(hwc, idx);
 
-	cpuc->counters[idx] = counter;
+	cpuc->events[idx] = event;
 	set_bit(idx, cpuc->active_mask);
 
-	sparc_perf_counter_set_period(counter, hwc, idx);
-	sparc_pmu_enable_counter(hwc, idx);
-	perf_counter_update_userpage(counter);
+	sparc_perf_event_set_period(event, hwc, idx);
+	sparc_pmu_enable_event(hwc, idx);
+	perf_event_update_userpage(event);
 	return 0;
 }
 
-static u64 sparc_perf_counter_update(struct perf_counter *counter,
-				     struct hw_perf_counter *hwc, int idx)
+static u64 sparc_perf_event_update(struct perf_event *event,
+				     struct hw_perf_event *hwc, int idx)
 {
 	int shift = 64 - 32;
 	u64 prev_raw_count, new_raw_count;
@@ -311,79 +311,79 @@ again:
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
 	delta >>= shift;
 
-	atomic64_add(delta, &counter->count);
+	atomic64_add(delta, &event->count);
 	atomic64_sub(delta, &hwc->period_left);
 
 	return new_raw_count;
 }
 
-static void sparc_pmu_disable(struct perf_counter *counter)
+static void sparc_pmu_disable(struct perf_event *event)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-	struct hw_perf_counter *hwc = &counter->hw;
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
 	clear_bit(idx, cpuc->active_mask);
-	sparc_pmu_disable_counter(hwc, idx);
+	sparc_pmu_disable_event(hwc, idx);
 
 	barrier();
 
-	sparc_perf_counter_update(counter, hwc, idx);
-	cpuc->counters[idx] = NULL;
+	sparc_perf_event_update(event, hwc, idx);
+	cpuc->events[idx] = NULL;
 	clear_bit(idx, cpuc->used_mask);
 
-	perf_counter_update_userpage(counter);
+	perf_event_update_userpage(event);
 }
 
-static void sparc_pmu_read(struct perf_counter *counter)
+static void sparc_pmu_read(struct perf_event *event)
 {
-	struct hw_perf_counter *hwc = &counter->hw;
-	sparc_perf_counter_update(counter, hwc, hwc->idx);
+	struct hw_perf_event *hwc = &event->hw;
+	sparc_perf_event_update(event, hwc, hwc->idx);
 }
 
-static void sparc_pmu_unthrottle(struct perf_counter *counter)
+static void sparc_pmu_unthrottle(struct perf_event *event)
 {
-	struct hw_perf_counter *hwc = &counter->hw;
-	sparc_pmu_enable_counter(hwc, hwc->idx);
+	struct hw_perf_event *hwc = &event->hw;
+	sparc_pmu_enable_event(hwc, hwc->idx);
 }
 
-static atomic_t active_counters = ATOMIC_INIT(0);
+static atomic_t active_events = ATOMIC_INIT(0);
 static DEFINE_MUTEX(pmc_grab_mutex);
 
-void perf_counter_grab_pmc(void)
+void perf_event_grab_pmc(void)
 {
-	if (atomic_inc_not_zero(&active_counters))
+	if (atomic_inc_not_zero(&active_events))
 		return;
 
 	mutex_lock(&pmc_grab_mutex);
-	if (atomic_read(&active_counters) == 0) {
+	if (atomic_read(&active_events) == 0) {
 		if (atomic_read(&nmi_active) > 0) {
 			on_each_cpu(stop_nmi_watchdog, NULL, 1);
 			BUG_ON(atomic_read(&nmi_active) != 0);
 		}
-		atomic_inc(&active_counters);
+		atomic_inc(&active_events);
 	}
 	mutex_unlock(&pmc_grab_mutex);
 }
 
-void perf_counter_release_pmc(void)
+void perf_event_release_pmc(void)
 {
-	if (atomic_dec_and_mutex_lock(&active_counters, &pmc_grab_mutex)) {
+	if (atomic_dec_and_mutex_lock(&active_events, &pmc_grab_mutex)) {
 		if (atomic_read(&nmi_active) == 0)
 			on_each_cpu(start_nmi_watchdog, NULL, 1);
 		mutex_unlock(&pmc_grab_mutex);
 	}
 }
 
-static void hw_perf_counter_destroy(struct perf_counter *counter)
+static void hw_perf_event_destroy(struct perf_event *event)
 {
-	perf_counter_release_pmc();
+	perf_event_release_pmc();
 }
 
-static int __hw_perf_counter_init(struct perf_counter *counter)
+static int __hw_perf_event_init(struct perf_event *event)
 {
-	struct perf_counter_attr *attr = &counter->attr;
-	struct hw_perf_counter *hwc = &counter->hw;
+	struct perf_event_attr *attr = &event->attr;
+	struct hw_perf_event *hwc = &event->hw;
 	const struct perf_event_map *pmap;
 	u64 enc;
 
@@ -396,8 +396,8 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	if (attr->config >= sparc_pmu->max_events)
 		return -EINVAL;
 
-	perf_counter_grab_pmc();
-	counter->destroy = hw_perf_counter_destroy;
+	perf_event_grab_pmc();
+	event->destroy = hw_perf_event_destroy;
 
 	/* We save the enable bits in the config_base.  So to
 	 * turn off sampling just write 'config', and to enable
@@ -439,16 +439,16 @@ static const struct pmu pmu = {
 	.unthrottle	= sparc_pmu_unthrottle,
 };
 
-const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
+const struct pmu *hw_perf_event_init(struct perf_event *event)
 {
-	int err = __hw_perf_counter_init(counter);
+	int err = __hw_perf_event_init(event);
 
 	if (err)
 		return ERR_PTR(err);
 	return &pmu;
 }
 
-void perf_counter_print_debug(void)
+void perf_event_print_debug(void)
 {
 	unsigned long flags;
 	u64 pcr, pic;
@@ -471,16 +471,16 @@ void perf_counter_print_debug(void)
 	local_irq_restore(flags);
 }
 
-static int __kprobes perf_counter_nmi_handler(struct notifier_block *self,
+static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 					      unsigned long cmd, void *__args)
 {
 	struct die_args *args = __args;
 	struct perf_sample_data data;
-	struct cpu_hw_counters *cpuc;
+	struct cpu_hw_events *cpuc;
 	struct pt_regs *regs;
 	int idx;
 
-	if (!atomic_read(&active_counters))
+	if (!atomic_read(&active_events))
 		return NOTIFY_DONE;
 
 	switch (cmd) {
@@ -495,32 +495,32 @@ static int __kprobes perf_counter_nmi_handler(struct notifier_block *self,
 
 	data.addr = 0;
 
-	cpuc = &__get_cpu_var(cpu_hw_counters);
-	for (idx = 0; idx < MAX_HWCOUNTERS; idx++) {
-		struct perf_counter *counter = cpuc->counters[idx];
-		struct hw_perf_counter *hwc;
+	cpuc = &__get_cpu_var(cpu_hw_events);
+	for (idx = 0; idx < MAX_HWEVENTS; idx++) {
+		struct perf_event *event = cpuc->events[idx];
+		struct hw_perf_event *hwc;
 		u64 val;
 
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
-		hwc = &counter->hw;
-		val = sparc_perf_counter_update(counter, hwc, idx);
+		hwc = &event->hw;
+		val = sparc_perf_event_update(event, hwc, idx);
 		if (val & (1ULL << 31))
 			continue;
 
-		data.period = counter->hw.last_period;
-		if (!sparc_perf_counter_set_period(counter, hwc, idx))
+		data.period = event->hw.last_period;
+		if (!sparc_perf_event_set_period(event, hwc, idx))
 			continue;
 
-		if (perf_counter_overflow(counter, 1, &data, regs))
-			sparc_pmu_disable_counter(hwc, idx);
+		if (perf_event_overflow(event, 1, &data, regs))
+			sparc_pmu_disable_event(hwc, idx);
 	}
 
 	return NOTIFY_STOP;
 }
 
-static __read_mostly struct notifier_block perf_counter_nmi_notifier = {
-	.notifier_call		= perf_counter_nmi_handler,
+static __read_mostly struct notifier_block perf_event_nmi_notifier = {
+	.notifier_call		= perf_event_nmi_handler,
 };
 
 static bool __init supported_pmu(void)
@@ -536,9 +536,9 @@ static bool __init supported_pmu(void)
 	return false;
 }
 
-void __init init_hw_perf_counters(void)
+void __init init_hw_perf_events(void)
 {
-	pr_info("Performance counters: ");
+	pr_info("Performance events: ");
 
 	if (!supported_pmu()) {
 		pr_cont("No support for PMU type '%s'\n", sparc_pmu_type);
@@ -547,10 +547,10 @@ void __init init_hw_perf_counters(void)
 
 	pr_cont("Supported PMU type is '%s'\n", sparc_pmu_type);
 
-	/* All sparc64 PMUs currently have 2 counters.  But this simple
-	 * driver only supports one active counter at a time.
+	/* All sparc64 PMUs currently have 2 events.  But this simple
+	 * driver only supports one active event at a time.
 	 */
-	perf_max_counters = 1;
+	perf_max_events = 1;
 
-	register_die_notifier(&perf_counter_nmi_notifier);
+	register_die_notifier(&perf_event_nmi_notifier);
 }

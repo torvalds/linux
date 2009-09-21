@@ -20,7 +20,7 @@
 #include <linux/kprobes.h>
 
 #include <asm/apic.h>
-#include <asm/perf_counter.h>
+#include <asm/perf_event.h>
 
 struct nmi_watchdog_ctlblk {
 	unsigned int cccr_msr;

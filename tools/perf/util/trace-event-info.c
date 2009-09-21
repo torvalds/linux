@@ -480,12 +480,12 @@ out:
 }
 
 static struct tracepoint_path *
-get_tracepoints_path(struct perf_counter_attr *pattrs, int nb_counters)
+get_tracepoints_path(struct perf_event_attr *pattrs, int nb_events)
 {
 	struct tracepoint_path path, *ppath = &path;
 	int i;
 
-	for (i = 0; i < nb_counters; i++) {
+	for (i = 0; i < nb_events; i++) {
 		if (pattrs[i].type != PERF_TYPE_TRACEPOINT)
 			continue;
 		ppath->next = tracepoint_id_to_path(pattrs[i].config);
@@ -496,7 +496,7 @@ get_tracepoints_path(struct perf_counter_attr *pattrs, int nb_counters)
 
 	return path.next;
 }
-void read_tracing_data(struct perf_counter_attr *pattrs, int nb_counters)
+void read_tracing_data(struct perf_event_attr *pattrs, int nb_events)
 {
 	char buf[BUFSIZ];
 	struct tracepoint_path *tps;
@@ -530,7 +530,7 @@ void read_tracing_data(struct perf_counter_attr *pattrs, int nb_counters)
 	page_size = getpagesize();
 	write_or_die(&page_size, 4);
 
-	tps = get_tracepoints_path(pattrs, nb_counters);
+	tps = get_tracepoints_path(pattrs, nb_events);
 
 	read_header_files();
 	read_ftrace_files(tps);

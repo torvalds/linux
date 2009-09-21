@@ -1573,7 +1573,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		more_data += sizeof(u64);
 	}
 
-	dump_printf("%p [%p]: PERF_EVENT_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
+	dump_printf("%p [%p]: PERF_RECORD_SAMPLE (IP, %d): %d/%d: %p period: %Ld\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->header.misc,
@@ -1589,9 +1589,9 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		return -1;
 	}
 
-	cpumode = event->header.misc & PERF_EVENT_MISC_CPUMODE_MASK;
+	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	if (cpumode == PERF_EVENT_MISC_KERNEL) {
+	if (cpumode == PERF_RECORD_MISC_KERNEL) {
 		show = SHOW_KERNEL;
 		level = 'k';
 
@@ -1599,7 +1599,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 		dump_printf(" ...... dso: %s\n", dso->name);
 
-	} else if (cpumode == PERF_EVENT_MISC_USER) {
+	} else if (cpumode == PERF_RECORD_MISC_USER) {
 
 		show = SHOW_USER;
 		level = '.';
@@ -1626,23 +1626,23 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 	nr_events++;
 	switch (event->header.type) {
-	case PERF_EVENT_MMAP:
+	case PERF_RECORD_MMAP:
 		return 0;
-	case PERF_EVENT_LOST:
+	case PERF_RECORD_LOST:
 		nr_lost_chunks++;
 		nr_lost_events += event->lost.lost;
 		return 0;
 
-	case PERF_EVENT_COMM:
+	case PERF_RECORD_COMM:
 		return process_comm_event(event, offset, head);
 
-	case PERF_EVENT_EXIT ... PERF_EVENT_READ:
+	case PERF_RECORD_EXIT ... PERF_RECORD_READ:
 		return 0;
 
-	case PERF_EVENT_SAMPLE:
+	case PERF_RECORD_SAMPLE:
 		return process_sample_event(event, offset, head);
 
-	case PERF_EVENT_MAX:
+	case PERF_RECORD_MAX:
 	default:
 		return -1;
 	}

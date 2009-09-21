@@ -1,12 +1,12 @@
 #ifndef _PERF_HEADER_H
 #define _PERF_HEADER_H
 
-#include "../../../include/linux/perf_counter.h"
+#include "../../../include/linux/perf_event.h"
 #include <sys/types.h>
 #include "types.h"
 
 struct perf_header_attr {
-	struct perf_counter_attr attr;
+	struct perf_event_attr attr;
 	int ids, size;
 	u64 *id;
 	off_t id_offset;
@@ -34,11 +34,11 @@ char *perf_header__find_event(u64 id);
 
 
 struct perf_header_attr *
-perf_header_attr__new(struct perf_counter_attr *attr);
+perf_header_attr__new(struct perf_event_attr *attr);
 void perf_header_attr__add_id(struct perf_header_attr *self, u64 id);
 
 u64 perf_header__sample_type(struct perf_header *header);
-struct perf_counter_attr *
+struct perf_event_attr *
 perf_header__find_attr(u64 id, struct perf_header *header);
 
 

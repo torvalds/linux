@@ -915,17 +915,17 @@ config AIO
           by some high performance threaded applications. Disabling
           this option saves about 7k.
 
-config HAVE_PERF_COUNTERS
+config HAVE_PERF_EVENTS
 	bool
 	help
 	  See tools/perf/design.txt for details.
 
 menu "Performance Counters"
 
-config PERF_COUNTERS
+config PERF_EVENTS
 	bool "Kernel Performance Counters"
 	default y if PROFILING
-	depends on HAVE_PERF_COUNTERS
+	depends on HAVE_PERF_EVENTS
 	select ANON_INODES
 	help
 	  Enable kernel support for performance counter hardware.
@@ -947,7 +947,7 @@ config PERF_COUNTERS
 
 config EVENT_PROFILE
 	bool "Tracepoint profiling sources"
-	depends on PERF_COUNTERS && EVENT_TRACING
+	depends on PERF_EVENTS && EVENT_TRACING
 	default y
 	help
 	 Allow the use of tracepoints as software performance counters.

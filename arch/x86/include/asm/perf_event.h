@@ -1,8 +1,8 @@
-#ifndef _ASM_X86_PERF_COUNTER_H
-#define _ASM_X86_PERF_COUNTER_H
+#ifndef _ASM_X86_PERF_EVENT_H
+#define _ASM_X86_PERF_EVENT_H
 
 /*
- * Performance counter hw details:
+ * Performance event hw details:
  */
 
 #define X86_PMC_MAX_GENERIC					8
@@ -43,7 +43,7 @@
 union cpuid10_eax {
 	struct {
 		unsigned int version_id:8;
-		unsigned int num_counters:8;
+		unsigned int num_events:8;
 		unsigned int bit_width:8;
 		unsigned int mask_length:8;
 	} split;
@@ -52,7 +52,7 @@ union cpuid10_eax {
 
 union cpuid10_edx {
 	struct {
-		unsigned int num_counters_fixed:4;
+		unsigned int num_events_fixed:4;
 		unsigned int reserved:28;
 	} split;
 	unsigned int full;
@@ -60,7 +60,7 @@ union cpuid10_edx {
 
 
 /*
- * Fixed-purpose performance counters:
+ * Fixed-purpose performance events:
  */
 
 /*
@@ -87,22 +87,22 @@ union cpuid10_edx {
 /*
  * We model BTS tracing as another fixed-mode PMC.
  *
- * We choose a value in the middle of the fixed counter range, since lower
- * values are used by actual fixed counters and higher values are used
+ * We choose a value in the middle of the fixed event range, since lower
+ * values are used by actual fixed events and higher values are used
  * to indicate other overflow conditions in the PERF_GLOBAL_STATUS msr.
  */
 #define X86_PMC_IDX_FIXED_BTS				(X86_PMC_IDX_FIXED + 16)
 
 
-#ifdef CONFIG_PERF_COUNTERS
-extern void init_hw_perf_counters(void);
-extern void perf_counters_lapic_init(void);
+#ifdef CONFIG_PERF_EVENTS
+extern void init_hw_perf_events(void);
+extern void perf_events_lapic_init(void);
 
-#define PERF_COUNTER_INDEX_OFFSET			0
+#define PERF_EVENT_INDEX_OFFSET			0
 
 #else
-static inline void init_hw_perf_counters(void)		{ }
-static inline void perf_counters_lapic_init(void)	{ }
+static inline void init_hw_perf_events(void)		{ }
+static inline void perf_events_lapic_init(void)	{ }
 #endif
 
-#endif /* _ASM_X86_PERF_COUNTER_H */
+#endif /* _ASM_X86_PERF_EVENT_H */

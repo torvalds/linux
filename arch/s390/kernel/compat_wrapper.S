@@ -1832,11 +1832,11 @@ compat_sys_rt_tgsigqueueinfo_wrapper:
 	llgtr	%r5,%r5			# struct compat_siginfo *
 	jg	compat_sys_rt_tgsigqueueinfo_wrapper # branch to system call
 
-	.globl	sys_perf_counter_open_wrapper
-sys_perf_counter_open_wrapper:
-	llgtr	%r2,%r2			# const struct perf_counter_attr *
+	.globl	sys_perf_event_open_wrapper
+sys_perf_event_open_wrapper:
+	llgtr	%r2,%r2			# const struct perf_event_attr *
 	lgfr	%r3,%r3			# pid_t
 	lgfr	%r4,%r4			# int
 	lgfr	%r5,%r5			# int
 	llgfr	%r6,%r6			# unsigned long
-	jg	sys_perf_counter_open	# branch to system call
+	jg	sys_perf_event_open	# branch to system call

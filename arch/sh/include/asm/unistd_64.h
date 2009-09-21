@@ -384,7 +384,7 @@
 #define __NR_preadv		361
 #define __NR_pwritev		362
 #define __NR_rt_tgsigqueueinfo	363
-#define __NR_perf_counter_open	364
+#define __NR_perf_event_open	364
 
 #ifdef __KERNEL__
 

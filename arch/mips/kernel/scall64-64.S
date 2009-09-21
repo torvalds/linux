@@ -418,6 +418,6 @@ sys_call_table:
 	PTR	sys_preadv
 	PTR	sys_pwritev			/* 5390 */
 	PTR	sys_rt_tgsigqueueinfo
-	PTR	sys_perf_counter_open
+	PTR	sys_perf_event_open
 	PTR	sys_accept4
 	.size	sys_call_table,.-sys_call_table
