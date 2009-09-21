@@ -1230,6 +1230,7 @@ acpi_add_single_object(struct acpi_device **child,
 {
 	int result = 0;
 	struct acpi_device *device = NULL;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
 
 	if (!child)
@@ -1355,9 +1356,16 @@ acpi_add_single_object(struct acpi_device **child,
 	}
 
 end:
-	if (!result)
+	if (!result) {
+		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			"Adding %s [%s] parent %s\n", dev_name(&device->dev),
+			 (char *) buffer.pointer,
+			 device->parent ? dev_name(&device->parent->dev) :
+					  "(null)"));
+		kfree(buffer.pointer);
 		*child = device;
-	else
+	} else
 		acpi_device_release(&device->dev);
 
 	return result;
