@@ -483,7 +483,7 @@ static void channel_dma_init(struct channel_info *channel)
 		  fpga + block_count_reg);
 	iowrite32(channel->group_count, fpga + group_count_reg);
 	/* FIXME: Hardcoded groups per int. Get it from sysfs? */
-	iowrite32(1, fpga + groups_per_int_reg);
+	iowrite32(16, fpga + groups_per_int_reg);
 
 	/* Unlock PCI address? Not defined in the data sheet, but used
 	 * in the reference code by Redrapids.
