@@ -104,7 +104,6 @@ static noinline int record_root_in_trans(struct btrfs_trans_handle *trans,
 {
 	if (root->ref_cows && root->last_trans < trans->transid) {
 		WARN_ON(root == root->fs_info->extent_root);
-		WARN_ON(root->root_item.refs == 0);
 		WARN_ON(root->commit_root != root->node);
 
 		radix_tree_tag_set(&root->fs_info->fs_roots_radix,
@@ -1078,8 +1077,13 @@ int btrfs_clean_old_snapshots(struct btrfs_root *root)
 
 	while (!list_empty(&list)) {
 		root = list_entry(list.next, struct btrfs_root, root_list);
-		list_del_init(&root->root_list);
-		btrfs_drop_snapshot(root, 0);
+		list_del(&root->root_list);
+
+		if (btrfs_header_backref_rev(root->node) <
+		    BTRFS_MIXED_BACKREF_REV)
+			btrfs_drop_snapshot(root, 0);
+		else
+			btrfs_drop_snapshot(root, 1);
 	}
 	return 0;
 }

@@ -94,17 +94,23 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 		goto out;
 
 	BUG_ON(ret == 0);
-	l = path->nodes[0];
-	BUG_ON(path->slots[0] == 0);
-	slot = path->slots[0] - 1;
-	btrfs_item_key_to_cpu(l, &found_key, slot);
-	if (found_key.objectid != objectid) {
+	if (path->slots[0] == 0) {
 		ret = 1;
 		goto out;
 	}
-	read_extent_buffer(l, item, btrfs_item_ptr_offset(l, slot),
-			   sizeof(*item));
-	memcpy(key, &found_key, sizeof(found_key));
+	l = path->nodes[0];
+	slot = path->slots[0] - 1;
+	btrfs_item_key_to_cpu(l, &found_key, slot);
+	if (found_key.objectid != objectid ||
+	    found_key.type != BTRFS_ROOT_ITEM_KEY) {
+		ret = 1;
+		goto out;
+	}
+	if (item)
+		read_extent_buffer(l, item, btrfs_item_ptr_offset(l, slot),
+				   sizeof(*item));
+	if (key)
+		memcpy(key, &found_key, sizeof(found_key));
 	ret = 0;
 out:
 	btrfs_free_path(path);
@@ -247,6 +253,59 @@ next:
 err:
 	btrfs_free_path(path);
 	return ret;
+}
+
+int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
+{
+	struct extent_buffer *leaf;
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	int err = 0;
+	int ret;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	key.objectid = BTRFS_ORPHAN_OBJECTID;
+	key.type = BTRFS_ORPHAN_ITEM_KEY;
+	key.offset = 0;
+
+	while (1) {
+		ret = btrfs_search_slot(NULL, tree_root, &key, path, 0, 0);
+		if (ret < 0) {
+			err = ret;
+			break;
+		}
+
+		leaf = path->nodes[0];
+		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(tree_root, path);
+			if (ret < 0)
+				err = ret;
+			if (ret != 0)
+				break;
+			leaf = path->nodes[0];
+		}
+
+		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+		btrfs_release_path(tree_root, path);
+
+		if (key.objectid != BTRFS_ORPHAN_OBJECTID ||
+		    key.type != BTRFS_ORPHAN_ITEM_KEY)
+			break;
+
+		ret = btrfs_find_dead_roots(tree_root, key.offset);
+		if (ret) {
+			err = ret;
+			break;
+		}
+
+		key.offset++;
+	}
+
+	btrfs_free_path(path);
+	return err;
 }
 
 /* drop the root item for 'key' from 'root' */

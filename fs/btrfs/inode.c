@@ -3089,6 +3089,11 @@ void btrfs_delete_inode(struct inode *inode)
 	}
 	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 
+	if (inode->i_nlink > 0) {
+		BUG_ON(btrfs_root_refs(&root->root_item) != 0);
+		goto no_delete;
+	}
+
 	btrfs_i_size_write(inode, 0);
 	trans = btrfs_join_transaction(root, 1);
 
@@ -3225,10 +3230,12 @@ static void inode_tree_add(struct inode *inode)
 	struct btrfs_inode *entry;
 	struct rb_node **p;
 	struct rb_node *parent;
-
 again:
 	p = &root->inode_tree.rb_node;
 	parent = NULL;
+
+	if (hlist_unhashed(&inode->i_hash))
+		return;
 
 	spin_lock(&root->inode_lock);
 	while (*p) {
@@ -3256,13 +3263,87 @@ again:
 static void inode_tree_del(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int empty = 0;
 
 	spin_lock(&root->inode_lock);
 	if (!RB_EMPTY_NODE(&BTRFS_I(inode)->rb_node)) {
 		rb_erase(&BTRFS_I(inode)->rb_node, &root->inode_tree);
 		RB_CLEAR_NODE(&BTRFS_I(inode)->rb_node);
+		empty = RB_EMPTY_ROOT(&root->inode_tree);
 	}
 	spin_unlock(&root->inode_lock);
+
+	if (empty && btrfs_root_refs(&root->root_item) == 0) {
+		synchronize_srcu(&root->fs_info->subvol_srcu);
+		spin_lock(&root->inode_lock);
+		empty = RB_EMPTY_ROOT(&root->inode_tree);
+		spin_unlock(&root->inode_lock);
+		if (empty)
+			btrfs_add_dead_root(root);
+	}
+}
+
+int btrfs_invalidate_inodes(struct btrfs_root *root)
+{
+	struct rb_node *node;
+	struct rb_node *prev;
+	struct btrfs_inode *entry;
+	struct inode *inode;
+	u64 objectid = 0;
+
+	WARN_ON(btrfs_root_refs(&root->root_item) != 0);
+
+	spin_lock(&root->inode_lock);
+again:
+	node = root->inode_tree.rb_node;
+	prev = NULL;
+	while (node) {
+		prev = node;
+		entry = rb_entry(node, struct btrfs_inode, rb_node);
+
+		if (objectid < entry->vfs_inode.i_ino)
+			node = node->rb_left;
+		else if (objectid > entry->vfs_inode.i_ino)
+			node = node->rb_right;
+		else
+			break;
+	}
+	if (!node) {
+		while (prev) {
+			entry = rb_entry(prev, struct btrfs_inode, rb_node);
+			if (objectid <= entry->vfs_inode.i_ino) {
+				node = prev;
+				break;
+			}
+			prev = rb_next(prev);
+		}
+	}
+	while (node) {
+		entry = rb_entry(node, struct btrfs_inode, rb_node);
+		objectid = entry->vfs_inode.i_ino + 1;
+		inode = igrab(&entry->vfs_inode);
+		if (inode) {
+			spin_unlock(&root->inode_lock);
+			if (atomic_read(&inode->i_count) > 1)
+				d_prune_aliases(inode);
+			/*
+			 * btrfs_drop_inode will remove it from
+			 * the inode cache when its usage count
+			 * hits zero.
+			 */
+			iput(inode);
+			cond_resched();
+			spin_lock(&root->inode_lock);
+			goto again;
+		}
+
+		if (cond_resched_lock(&root->inode_lock))
+			goto again;
+
+		node = rb_next(node);
+	}
+	spin_unlock(&root->inode_lock);
+	return 0;
 }
 
 static noinline void init_btrfs_i(struct inode *inode)
@@ -3379,7 +3460,10 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_root *sub_root = root;
 	struct btrfs_key location;
+	int index;
 	int ret;
+
+	dentry->d_op = &btrfs_dentry_operations;
 
 	if (dentry->d_name.len > BTRFS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -3399,6 +3483,7 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 
 	BUG_ON(location.type != BTRFS_ROOT_ITEM_KEY);
 
+	index = srcu_read_lock(&root->fs_info->subvol_srcu);
 	ret = fixup_tree_root_location(root, dir, dentry,
 				       &location, &sub_root);
 	if (ret < 0) {
@@ -3409,7 +3494,22 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 	} else {
 		inode = btrfs_iget(dir->i_sb, &location, sub_root);
 	}
+	srcu_read_unlock(&root->fs_info->subvol_srcu, index);
+
 	return inode;
+}
+
+static int btrfs_dentry_delete(struct dentry *dentry)
+{
+	struct btrfs_root *root;
+
+	if (!dentry->d_inode)
+		return 0;
+
+	root = BTRFS_I(dentry->d_inode)->root;
+	if (btrfs_root_refs(&root->root_item) == 0)
+		return 1;
+	return 0;
 }
 
 static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
@@ -4773,11 +4873,11 @@ out:
  * create a new subvolume directory/inode (helper for the ioctl).
  */
 int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *new_root, struct dentry *dentry,
+			     struct btrfs_root *new_root,
 			     u64 new_dirid, u64 alloc_hint)
 {
 	struct inode *inode;
-	int error;
+	int err;
 	u64 index = 0;
 
 	inode = btrfs_new_inode(trans, new_root, NULL, "..", 2, new_dirid,
@@ -4790,11 +4890,10 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 	inode->i_nlink = 1;
 	btrfs_i_size_write(inode, 0);
 
-	error = btrfs_update_inode(trans, new_root, inode);
-	if (error)
-		return error;
+	err = btrfs_update_inode(trans, new_root, inode);
+	BUG_ON(err);
 
-	d_instantiate(dentry, inode);
+	iput(inode);
 	return 0;
 }
 
@@ -4870,6 +4969,16 @@ void btrfs_destroy_inode(struct inode *inode)
 	inode_tree_del(inode);
 	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
+}
+
+void btrfs_drop_inode(struct inode *inode)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
+	if (inode->i_nlink > 0 && btrfs_root_refs(&root->root_item) == 0)
+		generic_delete_inode(inode);
+	else
+		generic_drop_inode(inode);
 }
 
 static void init_once(void *foo)
@@ -4973,6 +5082,10 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	    old_inode->i_size > BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT)
 		filemap_flush(old_inode->i_mapping);
 
+	/* close the racy window with snapshot create/destroy ioctl */
+	if (old_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
+		down_read(&root->fs_info->subvol_sem);
+
 	trans = btrfs_start_transaction(root, 1);
 
 	if (dest != root)
@@ -5062,6 +5175,8 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	btrfs_end_transaction_throttle(trans, root);
 
+	if (old_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
+		up_read(&root->fs_info->subvol_sem);
 	return ret;
 }
 
@@ -5420,6 +5535,7 @@ static struct inode_operations btrfs_dir_ro_inode_operations = {
 	.lookup		= btrfs_lookup,
 	.permission	= btrfs_permission,
 };
+
 static struct file_operations btrfs_dir_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
@@ -5505,4 +5621,8 @@ static struct inode_operations btrfs_symlink_inode_operations = {
 	.getxattr	= btrfs_getxattr,
 	.listxattr	= btrfs_listxattr,
 	.removexattr	= btrfs_removexattr,
+};
+
+struct dentry_operations btrfs_dentry_operations = {
+	.d_delete	= btrfs_dentry_delete,
 };

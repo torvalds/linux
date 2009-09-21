@@ -1378,8 +1378,10 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 
 	err = bdi_register(bdi, NULL, "btrfs-%d",
 				atomic_inc_return(&btrfs_bdi_num));
-	if (err)
+	if (err) {
+		bdi_destroy(bdi);
 		return err;
+	}
 
 	bdi->ra_pages	= default_backing_dev_info.ra_pages;
 	bdi->unplug_io_fn	= btrfs_unplug_io_fn;
@@ -1469,9 +1471,12 @@ static int cleaner_kthread(void *arg)
 			break;
 
 		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
-		mutex_lock(&root->fs_info->cleaner_mutex);
-		btrfs_clean_old_snapshots(root);
-		mutex_unlock(&root->fs_info->cleaner_mutex);
+
+		if (!(root->fs_info->sb->s_flags & MS_RDONLY) &&
+		    mutex_trylock(&root->fs_info->cleaner_mutex)) {
+			btrfs_clean_old_snapshots(root);
+			mutex_unlock(&root->fs_info->cleaner_mutex);
+		}
 
 		if (freezing(current)) {
 			refrigerator();
@@ -1576,7 +1581,26 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		err = -ENOMEM;
 		goto fail;
 	}
-	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
+
+	ret = init_srcu_struct(&fs_info->subvol_srcu);
+	if (ret) {
+		err = ret;
+		goto fail;
+	}
+
+	ret = setup_bdi(fs_info, &fs_info->bdi);
+	if (ret) {
+		err = ret;
+		goto fail_srcu;
+	}
+
+	fs_info->btree_inode = new_inode(sb);
+	if (!fs_info->btree_inode) {
+		err = -ENOMEM;
+		goto fail_bdi;
+	}
+
+	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->hashers);
@@ -1586,6 +1610,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->delalloc_lock);
 	spin_lock_init(&fs_info->new_trans_lock);
 	spin_lock_init(&fs_info->ref_cache_lock);
+	spin_lock_init(&fs_info->fs_roots_radix_lock);
 
 	init_completion(&fs_info->kobj_unregister);
 	fs_info->tree_root = tree_root;
@@ -1604,11 +1629,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->sb = sb;
 	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;
-	if (setup_bdi(fs_info, &fs_info->bdi))
-		goto fail_bdi;
-	fs_info->btree_inode = new_inode(sb);
-	fs_info->btree_inode->i_ino = 1;
-	fs_info->btree_inode->i_nlink = 1;
 	fs_info->metadata_ratio = 8;
 
 	fs_info->thread_pool_size = min_t(unsigned long,
@@ -1620,6 +1640,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
 
+	fs_info->btree_inode->i_ino = BTRFS_BTREE_INODE_OBJECTID;
+	fs_info->btree_inode->i_nlink = 1;
 	/*
 	 * we set the i_size on the btree inode to the max possible int.
 	 * the real end of the address space is determined by all of
@@ -1638,6 +1660,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	BTRFS_I(fs_info->btree_inode)->io_tree.ops = &btree_extent_io_ops;
 
+	BTRFS_I(fs_info->btree_inode)->root = tree_root;
+	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
+	       sizeof(struct btrfs_key));
+	BTRFS_I(fs_info->btree_inode)->dummy_inode = 1;
+
 	spin_lock_init(&fs_info->block_group_cache_lock);
 	fs_info->block_group_cache_tree.rb_node = NULL;
 
@@ -1648,21 +1675,16 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->pinned_extents = &fs_info->freed_extents[0];
 	fs_info->do_barriers = 1;
 
-	BTRFS_I(fs_info->btree_inode)->root = tree_root;
-	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
-	       sizeof(struct btrfs_key));
-	insert_inode_hash(fs_info->btree_inode);
 
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->ordered_operations_mutex);
 	mutex_init(&fs_info->tree_log_mutex);
-	mutex_init(&fs_info->drop_mutex);
 	mutex_init(&fs_info->chunk_mutex);
 	mutex_init(&fs_info->transaction_kthread_mutex);
 	mutex_init(&fs_info->cleaner_mutex);
 	mutex_init(&fs_info->volume_mutex);
-	mutex_init(&fs_info->tree_reloc_mutex);
 	init_rwsem(&fs_info->extent_commit_sem);
+	init_rwsem(&fs_info->subvol_sem);
 
 	btrfs_init_free_cluster(&fs_info->meta_alloc_cluster);
 	btrfs_init_free_cluster(&fs_info->data_alloc_cluster);
@@ -1941,6 +1963,9 @@ printk("thread pool is %d\n", fs_info->thread_pool_size);
 		}
 	}
 
+	ret = btrfs_find_orphan_roots(tree_root);
+	BUG_ON(ret);
+
 	if (!(sb->s_flags & MS_RDONLY)) {
 		ret = btrfs_recover_relocation(tree_root);
 		BUG_ON(ret);
@@ -2000,6 +2025,8 @@ fail_iput:
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 fail_bdi:
 	bdi_destroy(&fs_info->bdi);
+fail_srcu:
+	cleanup_srcu_struct(&fs_info->subvol_srcu);
 fail:
 	kfree(extent_root);
 	kfree(tree_root);
@@ -2263,6 +2290,10 @@ int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	radix_tree_delete(&fs_info->fs_roots_radix,
 			  (unsigned long)root->root_key.objectid);
 	spin_unlock(&fs_info->fs_roots_radix_lock);
+
+	if (btrfs_root_refs(&root->root_item) == 0)
+		synchronize_srcu(&fs_info->subvol_srcu);
+
 	free_fs_root(root);
 	return 0;
 }
@@ -2285,6 +2316,20 @@ static int del_fs_roots(struct btrfs_fs_info *fs_info)
 	int ret;
 	struct btrfs_root *gang[8];
 	int i;
+
+	while (!list_empty(&fs_info->dead_roots)) {
+		gang[0] = list_entry(fs_info->dead_roots.next,
+				     struct btrfs_root, root_list);
+		list_del(&gang[0]->root_list);
+
+		if (gang[0]->in_radix) {
+			btrfs_free_fs_root(fs_info, gang[0]);
+		} else {
+			free_extent_buffer(gang[0]->node);
+			free_extent_buffer(gang[0]->commit_root);
+			kfree(gang[0]);
+		}
+	}
 
 	while (1) {
 		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
@@ -2315,9 +2360,6 @@ int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
 		root_objectid = gang[ret - 1]->root_key.objectid + 1;
 		for (i = 0; i < ret; i++) {
 			root_objectid = gang[i]->root_key.objectid;
-			ret = btrfs_find_dead_roots(fs_info->tree_root,
-						    root_objectid);
-			BUG_ON(ret);
 			btrfs_orphan_cleanup(gang[i]);
 		}
 		root_objectid++;
@@ -2405,6 +2447,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 
 	bdi_destroy(&fs_info->bdi);
+	cleanup_srcu_struct(&fs_info->subvol_srcu);
 
 	kfree(fs_info->extent_root);
 	kfree(fs_info->tree_root);

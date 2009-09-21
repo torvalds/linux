@@ -3203,6 +3203,7 @@ static int check_extent_flags(u64 flags)
 	return 0;
 }
 
+
 static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 {
 	struct rb_root blocks = RB_ROOT;
@@ -3219,6 +3220,9 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+
+	rc->extents_found = 0;
+	rc->extents_skipped = 0;
 
 	rc->search_start = rc->block_group->key.objectid;
 	clear_extent_bits(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY,
@@ -3475,14 +3479,15 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	btrfs_wait_ordered_extents(fs_info->tree_root, 0);
 
 	while (1) {
-		mutex_lock(&fs_info->cleaner_mutex);
-		btrfs_clean_old_snapshots(fs_info->tree_root);
-		mutex_unlock(&fs_info->cleaner_mutex);
-
 		rc->extents_found = 0;
 		rc->extents_skipped = 0;
 
+		mutex_lock(&fs_info->cleaner_mutex);
+
+		btrfs_clean_old_snapshots(fs_info->tree_root);
 		ret = relocate_block_group(rc);
+
+		mutex_unlock(&fs_info->cleaner_mutex);
 		if (ret < 0) {
 			err = ret;
 			break;
@@ -3528,6 +3533,26 @@ out:
 	btrfs_put_block_group(rc->block_group);
 	kfree(rc);
 	return err;
+}
+
+static noinline_for_stack int mark_garbage_root(struct btrfs_root *root)
+{
+	struct btrfs_trans_handle *trans;
+	int ret;
+
+	trans = btrfs_start_transaction(root->fs_info->tree_root, 1);
+
+	memset(&root->root_item.drop_progress, 0,
+		sizeof(root->root_item.drop_progress));
+	root->root_item.drop_level = 0;
+	btrfs_set_root_refs(&root->root_item, 0);
+	ret = btrfs_update_root(trans, root->fs_info->tree_root,
+				&root->root_key, &root->root_item);
+	BUG_ON(ret);
+
+	ret = btrfs_end_transaction(trans, root->fs_info->tree_root);
+	BUG_ON(ret);
+	return 0;
 }
 
 /*
@@ -3589,8 +3614,12 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 			fs_root = read_fs_root(root->fs_info,
 					       reloc_root->root_key.offset);
 			if (IS_ERR(fs_root)) {
-				err = PTR_ERR(fs_root);
-				goto out;
+				ret = PTR_ERR(fs_root);
+				if (ret != -ENOENT) {
+					err = ret;
+					goto out;
+				}
+				mark_garbage_root(reloc_root);
 			}
 		}
 

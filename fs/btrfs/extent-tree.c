@@ -5463,9 +5463,24 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref)
 	ret = btrfs_del_root(trans, tree_root, &root->root_key);
 	BUG_ON(ret);
 
-	free_extent_buffer(root->node);
-	free_extent_buffer(root->commit_root);
-	kfree(root);
+	if (root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID) {
+		ret = btrfs_find_last_root(tree_root, root->root_key.objectid,
+					   NULL, NULL);
+		BUG_ON(ret < 0);
+		if (ret > 0) {
+			ret = btrfs_del_orphan_item(trans, tree_root,
+						    root->root_key.objectid);
+			BUG_ON(ret);
+		}
+	}
+
+	if (root->in_radix) {
+		btrfs_free_fs_root(tree_root->fs_info, root);
+	} else {
+		free_extent_buffer(root->node);
+		free_extent_buffer(root->commit_root);
+		kfree(root);
+	}
 out:
 	btrfs_end_transaction(trans, tree_root);
 	kfree(wc);

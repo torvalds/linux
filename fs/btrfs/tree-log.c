@@ -2841,7 +2841,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 		if (!parent || !parent->d_inode || sb != parent->d_inode->i_sb)
 			break;
 
-		if (parent == sb->s_root)
+		if (IS_ROOT(parent))
 			break;
 
 		parent = parent->d_parent;
@@ -2880,6 +2880,12 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		goto end_no_trans;
 	}
 
+	if (root != BTRFS_I(inode)->root ||
+	    btrfs_root_refs(&root->root_item) == 0) {
+		ret = 1;
+		goto end_no_trans;
+	}
+
 	ret = check_parent_dirs_for_sync(trans, inode, parent,
 					 sb, last_committed);
 	if (ret)
@@ -2907,12 +2913,15 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 			break;
 
 		inode = parent->d_inode;
+		if (root != BTRFS_I(inode)->root)
+			break;
+
 		if (BTRFS_I(inode)->generation >
 		    root->fs_info->last_trans_committed) {
 			ret = btrfs_log_inode(trans, root, inode, inode_only);
 			BUG_ON(ret);
 		}
-		if (parent == sb->s_root)
+		if (IS_ROOT(parent))
 			break;
 
 		parent = parent->d_parent;
