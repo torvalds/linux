@@ -1171,29 +1171,27 @@ static void acpi_device_set_id(struct acpi_device *device, int type)
 	kfree(info);
 }
 
-static int acpi_device_set_context(struct acpi_device *device, int type)
+static int acpi_device_set_context(struct acpi_device *device)
 {
-	acpi_status status = AE_OK;
-	int result = 0;
+	acpi_status status;
+
 	/*
 	 * Context
 	 * -------
 	 * Attach this 'struct acpi_device' to the ACPI object.  This makes
-	 * resolutions from handle->device very efficient.  Note that we need
-	 * to be careful with fixed-feature devices as they all attach to the
-	 * root object.
+	 * resolutions from handle->device very efficient.  Fixed hardware
+	 * devices have no handles, so we skip them.
 	 */
-	if (type != ACPI_BUS_TYPE_POWER_BUTTON &&
-	    type != ACPI_BUS_TYPE_SLEEP_BUTTON) {
-		status = acpi_attach_data(device->handle,
-					  acpi_bus_data_handler, device);
+	if (!device->handle)
+		return 0;
 
-		if (ACPI_FAILURE(status)) {
-			printk(KERN_ERR PREFIX "Error attaching device data\n");
-			result = -ENODEV;
-		}
-	}
-	return result;
+	status = acpi_attach_data(device->handle,
+				  acpi_bus_data_handler, device);
+	if (ACPI_SUCCESS(status))
+		return 0;
+
+	printk(KERN_ERR PREFIX "Error attaching device data\n");
+	return -ENODEV;
 }
 
 static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
@@ -1338,7 +1336,7 @@ acpi_add_single_object(struct acpi_device **child,
 			goto end;
 	}
 
-	if ((result = acpi_device_set_context(device, type)))
+	if ((result = acpi_device_set_context(device)))
 		goto end;
 
 	result = acpi_device_register(device);
