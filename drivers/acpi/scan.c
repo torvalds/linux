@@ -1650,10 +1650,10 @@ int __init acpi_scan_init(void)
 	/*
 	 * Enumerate devices in the ACPI namespace.
 	 */
-	result = acpi_bus_scan_fixed();
+	result = acpi_bus_scan(acpi_root->handle, &ops);
 
 	if (!result)
-		result = acpi_bus_scan(acpi_root->handle, &ops);
+		result = acpi_bus_scan_fixed();
 
 	if (result)
 		acpi_device_unregister(acpi_root, ACPI_BUS_REMOVAL_NORMAL);
