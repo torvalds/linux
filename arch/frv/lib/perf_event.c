@@ -1,4 +1,4 @@
-/* Performance counter handling
+/* Performance event handling
  *
  * Copyright (C) 2009 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,11 +9,11 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 
 /*
- * mark the performance counter as pending
+ * mark the performance event as pending
  */
-void set_perf_counter_pending(void)
+void set_perf_event_pending(void)
 {
 }

@@ -55,7 +55,7 @@ struct compat_timeval;
 struct robust_list_head;
 struct getcpu_cache;
 struct old_linux_dirent;
-struct perf_counter_attr;
+struct perf_event_attr;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -877,7 +877,7 @@ asmlinkage long sys_ppoll(struct pollfd __user *, unsigned int,
 int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
 
 
-asmlinkage long sys_perf_counter_open(
-		struct perf_counter_attr __user *attr_uptr,
+asmlinkage long sys_perf_event_open(
+		struct perf_event_attr __user *attr_uptr,
 		pid_t pid, int cpu, int group_fd, unsigned long flags);
 #endif

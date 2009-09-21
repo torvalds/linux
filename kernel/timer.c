@@ -37,7 +37,7 @@
 #include <linux/delay.h>
 #include <linux/tick.h>
 #include <linux/kallsyms.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/sched.h>
 
 #include <asm/uaccess.h>
@@ -1187,7 +1187,7 @@ static void run_timer_softirq(struct softirq_action *h)
 {
 	struct tvec_base *base = __get_cpu_var(tvec_bases);
 
-	perf_counter_do_pending();
+	perf_event_do_pending();
 
 	hrtimer_run_pending();
 

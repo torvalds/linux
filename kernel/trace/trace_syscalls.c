@@ -2,7 +2,7 @@
 #include <trace/events/syscalls.h>
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <asm/syscall.h>
 
 #include "trace_output.h"
@@ -433,7 +433,7 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	rec->nr = syscall_nr;
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args,
 			       (unsigned long *)&rec->args);
-	perf_tpcounter_event(sys_data->enter_id, 0, 1, rec, size);
+	perf_tp_event(sys_data->enter_id, 0, 1, rec, size);
 
 end:
 	local_irq_restore(flags);
@@ -532,7 +532,7 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	rec->nr = syscall_nr;
 	rec->ret = syscall_get_return_value(current, regs);
 
-	perf_tpcounter_event(sys_data->exit_id, 0, 1, rec, size);
+	perf_tp_event(sys_data->exit_id, 0, 1, rec, size);
 
 end:
 	local_irq_restore(flags);

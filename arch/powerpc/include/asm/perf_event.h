@@ -1,5 +1,5 @@
 /*
- * Performance counter support - PowerPC-specific definitions.
+ * Performance event support - PowerPC-specific definitions.
  *
  * Copyright 2008-2009 Paul Mackerras, IBM Corporation.
  *
@@ -12,9 +12,9 @@
 
 #include <asm/hw_irq.h>
 
-#define MAX_HWCOUNTERS		8
+#define MAX_HWEVENTS		8
 #define MAX_EVENT_ALTERNATIVES	8
-#define MAX_LIMITED_HWCOUNTERS	2
+#define MAX_LIMITED_HWEVENTS	2
 
 /*
  * This struct provides the constants and functions needed to
@@ -22,18 +22,18 @@
  */
 struct power_pmu {
 	const char	*name;
-	int		n_counter;
+	int		n_event;
 	int		max_alternatives;
 	unsigned long	add_fields;
 	unsigned long	test_adder;
 	int		(*compute_mmcr)(u64 events[], int n_ev,
 				unsigned int hwc[], unsigned long mmcr[]);
-	int		(*get_constraint)(u64 event, unsigned long *mskp,
+	int		(*get_constraint)(u64 event_id, unsigned long *mskp,
 				unsigned long *valp);
-	int		(*get_alternatives)(u64 event, unsigned int flags,
+	int		(*get_alternatives)(u64 event_id, unsigned int flags,
 				u64 alt[]);
 	void		(*disable_pmc)(unsigned int pmc, unsigned long mmcr[]);
-	int		(*limited_pmc_event)(u64 event);
+	int		(*limited_pmc_event)(u64 event_id);
 	u32		flags;
 	int		n_generic;
 	int		*generic_events;
@@ -61,10 +61,10 @@ struct pt_regs;
 extern unsigned long perf_misc_flags(struct pt_regs *regs);
 extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
 
-#define PERF_COUNTER_INDEX_OFFSET	1
+#define PERF_EVENT_INDEX_OFFSET	1
 
 /*
- * Only override the default definitions in include/linux/perf_counter.h
+ * Only override the default definitions in include/linux/perf_event.h
  * if we have hardware PMU support.
  */
 #ifdef CONFIG_PPC_PERF_CTRS
@@ -73,14 +73,14 @@ extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
 
 /*
  * The power_pmu.get_constraint function returns a 32/64-bit value and
- * a 32/64-bit mask that express the constraints between this event and
+ * a 32/64-bit mask that express the constraints between this event_id and
  * other events.
  *
  * The value and mask are divided up into (non-overlapping) bitfields
  * of three different types:
  *
  * Select field: this expresses the constraint that some set of bits
- * in MMCR* needs to be set to a specific value for this event.  For a
+ * in MMCR* needs to be set to a specific value for this event_id.  For a
  * select field, the mask contains 1s in every bit of the field, and
  * the value contains a unique value for each possible setting of the
  * MMCR* bits.  The constraint checking code will ensure that two events
@@ -102,9 +102,9 @@ extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
  * possible.)  For N classes, the field is N+1 bits wide, and each class
  * is assigned one bit from the least-significant N bits.  The mask has
  * only the most-significant bit set, and the value has only the bit
- * for the event's class set.  The test_adder has the least significant
+ * for the event_id's class set.  The test_adder has the least significant
  * bit set in the field.
  *
- * If an event is not subject to the constraint expressed by a particular
+ * If an event_id is not subject to the constraint expressed by a particular
  * field, then it will have 0 in both the mask and value for that field.
  */

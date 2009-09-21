@@ -1,5 +1,5 @@
 /*
- * Performance counter x86 architecture code
+ * Performance events x86 architecture code
  *
  *  Copyright (C) 2008 Thomas Gleixner <tglx@linutronix.de>
  *  Copyright (C) 2008-2009 Red Hat, Inc., Ingo Molnar
@@ -11,7 +11,7 @@
  *  For licencing details see kernel-base/COPYING
  */
 
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/capability.h>
 #include <linux/notifier.h>
 #include <linux/hardirq.h>
@@ -27,10 +27,10 @@
 #include <asm/stacktrace.h>
 #include <asm/nmi.h>
 
-static u64 perf_counter_mask __read_mostly;
+static u64 perf_event_mask __read_mostly;
 
-/* The maximal number of PEBS counters: */
-#define MAX_PEBS_COUNTERS	4
+/* The maximal number of PEBS events: */
+#define MAX_PEBS_EVENTS	4
 
 /* The size of a BTS record in bytes: */
 #define BTS_RECORD_SIZE		24
@@ -65,11 +65,11 @@ struct debug_store {
 	u64	pebs_index;
 	u64	pebs_absolute_maximum;
 	u64	pebs_interrupt_threshold;
-	u64	pebs_counter_reset[MAX_PEBS_COUNTERS];
+	u64	pebs_event_reset[MAX_PEBS_EVENTS];
 };
 
-struct cpu_hw_counters {
-	struct perf_counter	*counters[X86_PMC_IDX_MAX];
+struct cpu_hw_events {
+	struct perf_event	*events[X86_PMC_IDX_MAX];
 	unsigned long		used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long		active_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long		interrupts;
@@ -86,17 +86,17 @@ struct x86_pmu {
 	int		(*handle_irq)(struct pt_regs *);
 	void		(*disable_all)(void);
 	void		(*enable_all)(void);
-	void		(*enable)(struct hw_perf_counter *, int);
-	void		(*disable)(struct hw_perf_counter *, int);
+	void		(*enable)(struct hw_perf_event *, int);
+	void		(*disable)(struct hw_perf_event *, int);
 	unsigned	eventsel;
 	unsigned	perfctr;
 	u64		(*event_map)(int);
 	u64		(*raw_event)(u64);
 	int		max_events;
-	int		num_counters;
-	int		num_counters_fixed;
-	int		counter_bits;
-	u64		counter_mask;
+	int		num_events;
+	int		num_events_fixed;
+	int		event_bits;
+	u64		event_mask;
 	int		apic;
 	u64		max_period;
 	u64		intel_ctrl;
@@ -106,7 +106,7 @@ struct x86_pmu {
 
 static struct x86_pmu x86_pmu __read_mostly;
 
-static DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters) = {
+static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = {
 	.enabled = 1,
 };
 
@@ -124,35 +124,35 @@ static const u64 p6_perfmon_event_map[] =
   [PERF_COUNT_HW_BUS_CYCLES]		= 0x0062,
 };
 
-static u64 p6_pmu_event_map(int event)
+static u64 p6_pmu_event_map(int hw_event)
 {
-	return p6_perfmon_event_map[event];
+	return p6_perfmon_event_map[hw_event];
 }
 
 /*
- * Counter setting that is specified not to count anything.
+ * Event setting that is specified not to count anything.
  * We use this to effectively disable a counter.
  *
  * L2_RQSTS with 0 MESI unit mask.
  */
-#define P6_NOP_COUNTER			0x0000002EULL
+#define P6_NOP_EVENT			0x0000002EULL
 
-static u64 p6_pmu_raw_event(u64 event)
+static u64 p6_pmu_raw_event(u64 hw_event)
 {
 #define P6_EVNTSEL_EVENT_MASK		0x000000FFULL
 #define P6_EVNTSEL_UNIT_MASK		0x0000FF00ULL
 #define P6_EVNTSEL_EDGE_MASK		0x00040000ULL
 #define P6_EVNTSEL_INV_MASK		0x00800000ULL
-#define P6_EVNTSEL_COUNTER_MASK		0xFF000000ULL
+#define P6_EVNTSEL_REG_MASK		0xFF000000ULL
 
 #define P6_EVNTSEL_MASK			\
 	(P6_EVNTSEL_EVENT_MASK |	\
 	 P6_EVNTSEL_UNIT_MASK  |	\
 	 P6_EVNTSEL_EDGE_MASK  |	\
 	 P6_EVNTSEL_INV_MASK   |	\
-	 P6_EVNTSEL_COUNTER_MASK)
+	 P6_EVNTSEL_REG_MASK)
 
-	return event & P6_EVNTSEL_MASK;
+	return hw_event & P6_EVNTSEL_MASK;
 }
 
 
@@ -170,16 +170,16 @@ static const u64 intel_perfmon_event_map[] =
   [PERF_COUNT_HW_BUS_CYCLES]		= 0x013c,
 };
 
-static u64 intel_pmu_event_map(int event)
+static u64 intel_pmu_event_map(int hw_event)
 {
-	return intel_perfmon_event_map[event];
+	return intel_perfmon_event_map[hw_event];
 }
 
 /*
- * Generalized hw caching related event table, filled
+ * Generalized hw caching related hw_event table, filled
  * in on a per model basis. A value of 0 means
- * 'not supported', -1 means 'event makes no sense on
- * this CPU', any other value means the raw event
+ * 'not supported', -1 means 'hw_event makes no sense on
+ * this CPU', any other value means the raw hw_event
  * ID.
  */
 
@@ -463,22 +463,22 @@ static const u64 atom_hw_cache_event_ids
  },
 };
 
-static u64 intel_pmu_raw_event(u64 event)
+static u64 intel_pmu_raw_event(u64 hw_event)
 {
 #define CORE_EVNTSEL_EVENT_MASK		0x000000FFULL
 #define CORE_EVNTSEL_UNIT_MASK		0x0000FF00ULL
 #define CORE_EVNTSEL_EDGE_MASK		0x00040000ULL
 #define CORE_EVNTSEL_INV_MASK		0x00800000ULL
-#define CORE_EVNTSEL_COUNTER_MASK	0xFF000000ULL
+#define CORE_EVNTSEL_REG_MASK	0xFF000000ULL
 
 #define CORE_EVNTSEL_MASK		\
 	(CORE_EVNTSEL_EVENT_MASK |	\
 	 CORE_EVNTSEL_UNIT_MASK  |	\
 	 CORE_EVNTSEL_EDGE_MASK  |	\
 	 CORE_EVNTSEL_INV_MASK  |	\
-	 CORE_EVNTSEL_COUNTER_MASK)
+	 CORE_EVNTSEL_REG_MASK)
 
-	return event & CORE_EVNTSEL_MASK;
+	return hw_event & CORE_EVNTSEL_MASK;
 }
 
 static const u64 amd_hw_cache_event_ids
@@ -585,39 +585,39 @@ static const u64 amd_perfmon_event_map[] =
   [PERF_COUNT_HW_BRANCH_MISSES]		= 0x00c5,
 };
 
-static u64 amd_pmu_event_map(int event)
+static u64 amd_pmu_event_map(int hw_event)
 {
-	return amd_perfmon_event_map[event];
+	return amd_perfmon_event_map[hw_event];
 }
 
-static u64 amd_pmu_raw_event(u64 event)
+static u64 amd_pmu_raw_event(u64 hw_event)
 {
 #define K7_EVNTSEL_EVENT_MASK	0x7000000FFULL
 #define K7_EVNTSEL_UNIT_MASK	0x00000FF00ULL
 #define K7_EVNTSEL_EDGE_MASK	0x000040000ULL
 #define K7_EVNTSEL_INV_MASK	0x000800000ULL
-#define K7_EVNTSEL_COUNTER_MASK	0x0FF000000ULL
+#define K7_EVNTSEL_REG_MASK	0x0FF000000ULL
 
 #define K7_EVNTSEL_MASK			\
 	(K7_EVNTSEL_EVENT_MASK |	\
 	 K7_EVNTSEL_UNIT_MASK  |	\
 	 K7_EVNTSEL_EDGE_MASK  |	\
 	 K7_EVNTSEL_INV_MASK   |	\
-	 K7_EVNTSEL_COUNTER_MASK)
+	 K7_EVNTSEL_REG_MASK)
 
-	return event & K7_EVNTSEL_MASK;
+	return hw_event & K7_EVNTSEL_MASK;
 }
 
 /*
- * Propagate counter elapsed time into the generic counter.
- * Can only be executed on the CPU where the counter is active.
+ * Propagate event elapsed time into the generic event.
+ * Can only be executed on the CPU where the event is active.
  * Returns the delta events processed.
  */
 static u64
-x86_perf_counter_update(struct perf_counter *counter,
-			struct hw_perf_counter *hwc, int idx)
+x86_perf_event_update(struct perf_event *event,
+			struct hw_perf_event *hwc, int idx)
 {
-	int shift = 64 - x86_pmu.counter_bits;
+	int shift = 64 - x86_pmu.event_bits;
 	u64 prev_raw_count, new_raw_count;
 	s64 delta;
 
@@ -625,15 +625,15 @@ x86_perf_counter_update(struct perf_counter *counter,
 		return 0;
 
 	/*
-	 * Careful: an NMI might modify the previous counter value.
+	 * Careful: an NMI might modify the previous event value.
 	 *
 	 * Our tactic to handle this is to first atomically read and
 	 * exchange a new raw count - then add that new-prev delta
-	 * count to the generic counter atomically:
+	 * count to the generic event atomically:
 	 */
 again:
 	prev_raw_count = atomic64_read(&hwc->prev_count);
-	rdmsrl(hwc->counter_base + idx, new_raw_count);
+	rdmsrl(hwc->event_base + idx, new_raw_count);
 
 	if (atomic64_cmpxchg(&hwc->prev_count, prev_raw_count,
 					new_raw_count) != prev_raw_count)
@@ -642,7 +642,7 @@ again:
 	/*
 	 * Now we have the new raw value and have updated the prev
 	 * timestamp already. We can now calculate the elapsed delta
-	 * (counter-)time and add that to the generic counter.
+	 * (event-)time and add that to the generic event.
 	 *
 	 * Careful, not all hw sign-extends above the physical width
 	 * of the count.
@@ -650,13 +650,13 @@ again:
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
 	delta >>= shift;
 
-	atomic64_add(delta, &counter->count);
+	atomic64_add(delta, &event->count);
 	atomic64_sub(delta, &hwc->period_left);
 
 	return new_raw_count;
 }
 
-static atomic_t active_counters;
+static atomic_t active_events;
 static DEFINE_MUTEX(pmc_reserve_mutex);
 
 static bool reserve_pmc_hardware(void)
@@ -667,12 +667,12 @@ static bool reserve_pmc_hardware(void)
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		disable_lapic_nmi_watchdog();
 
-	for (i = 0; i < x86_pmu.num_counters; i++) {
+	for (i = 0; i < x86_pmu.num_events; i++) {
 		if (!reserve_perfctr_nmi(x86_pmu.perfctr + i))
 			goto perfctr_fail;
 	}
 
-	for (i = 0; i < x86_pmu.num_counters; i++) {
+	for (i = 0; i < x86_pmu.num_events; i++) {
 		if (!reserve_evntsel_nmi(x86_pmu.eventsel + i))
 			goto eventsel_fail;
 	}
@@ -685,7 +685,7 @@ eventsel_fail:
 	for (i--; i >= 0; i--)
 		release_evntsel_nmi(x86_pmu.eventsel + i);
 
-	i = x86_pmu.num_counters;
+	i = x86_pmu.num_events;
 
 perfctr_fail:
 	for (i--; i >= 0; i--)
@@ -703,7 +703,7 @@ static void release_pmc_hardware(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 	int i;
 
-	for (i = 0; i < x86_pmu.num_counters; i++) {
+	for (i = 0; i < x86_pmu.num_events; i++) {
 		release_perfctr_nmi(x86_pmu.perfctr + i);
 		release_evntsel_nmi(x86_pmu.eventsel + i);
 	}
@@ -720,7 +720,7 @@ static inline bool bts_available(void)
 
 static inline void init_debug_store_on_cpu(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_counters, cpu).ds;
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
 
 	if (!ds)
 		return;
@@ -732,7 +732,7 @@ static inline void init_debug_store_on_cpu(int cpu)
 
 static inline void fini_debug_store_on_cpu(int cpu)
 {
-	if (!per_cpu(cpu_hw_counters, cpu).ds)
+	if (!per_cpu(cpu_hw_events, cpu).ds)
 		return;
 
 	wrmsr_on_cpu(cpu, MSR_IA32_DS_AREA, 0, 0);
@@ -751,12 +751,12 @@ static void release_bts_hardware(void)
 		fini_debug_store_on_cpu(cpu);
 
 	for_each_possible_cpu(cpu) {
-		struct debug_store *ds = per_cpu(cpu_hw_counters, cpu).ds;
+		struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
 
 		if (!ds)
 			continue;
 
-		per_cpu(cpu_hw_counters, cpu).ds = NULL;
+		per_cpu(cpu_hw_events, cpu).ds = NULL;
 
 		kfree((void *)(unsigned long)ds->bts_buffer_base);
 		kfree(ds);
@@ -796,7 +796,7 @@ static int reserve_bts_hardware(void)
 		ds->bts_interrupt_threshold =
 			ds->bts_absolute_maximum - BTS_OVFL_TH;
 
-		per_cpu(cpu_hw_counters, cpu).ds = ds;
+		per_cpu(cpu_hw_events, cpu).ds = ds;
 		err = 0;
 	}
 
@@ -812,9 +812,9 @@ static int reserve_bts_hardware(void)
 	return err;
 }
 
-static void hw_perf_counter_destroy(struct perf_counter *counter)
+static void hw_perf_event_destroy(struct perf_event *event)
 {
-	if (atomic_dec_and_mutex_lock(&active_counters, &pmc_reserve_mutex)) {
+	if (atomic_dec_and_mutex_lock(&active_events, &pmc_reserve_mutex)) {
 		release_pmc_hardware();
 		release_bts_hardware();
 		mutex_unlock(&pmc_reserve_mutex);
@@ -827,7 +827,7 @@ static inline int x86_pmu_initialized(void)
 }
 
 static inline int
-set_ext_hw_attr(struct hw_perf_counter *hwc, struct perf_counter_attr *attr)
+set_ext_hw_attr(struct hw_perf_event *hwc, struct perf_event_attr *attr)
 {
 	unsigned int cache_type, cache_op, cache_result;
 	u64 config, val;
@@ -880,7 +880,7 @@ static void intel_pmu_enable_bts(u64 config)
 
 static void intel_pmu_disable_bts(void)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	unsigned long debugctlmsr;
 
 	if (!cpuc->ds)
@@ -898,10 +898,10 @@ static void intel_pmu_disable_bts(void)
 /*
  * Setup the hardware configuration for a given attr_type
  */
-static int __hw_perf_counter_init(struct perf_counter *counter)
+static int __hw_perf_event_init(struct perf_event *event)
 {
-	struct perf_counter_attr *attr = &counter->attr;
-	struct hw_perf_counter *hwc = &counter->hw;
+	struct perf_event_attr *attr = &event->attr;
+	struct hw_perf_event *hwc = &event->hw;
 	u64 config;
 	int err;
 
@@ -909,22 +909,22 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		return -ENODEV;
 
 	err = 0;
-	if (!atomic_inc_not_zero(&active_counters)) {
+	if (!atomic_inc_not_zero(&active_events)) {
 		mutex_lock(&pmc_reserve_mutex);
-		if (atomic_read(&active_counters) == 0) {
+		if (atomic_read(&active_events) == 0) {
 			if (!reserve_pmc_hardware())
 				err = -EBUSY;
 			else
 				err = reserve_bts_hardware();
 		}
 		if (!err)
-			atomic_inc(&active_counters);
+			atomic_inc(&active_events);
 		mutex_unlock(&pmc_reserve_mutex);
 	}
 	if (err)
 		return err;
 
-	counter->destroy = hw_perf_counter_destroy;
+	event->destroy = hw_perf_event_destroy;
 
 	/*
 	 * Generate PMC IRQs:
@@ -948,15 +948,15 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		/*
 		 * If we have a PMU initialized but no APIC
 		 * interrupts, we cannot sample hardware
-		 * counters (user-space has to fall back and
-		 * sample via a hrtimer based software counter):
+		 * events (user-space has to fall back and
+		 * sample via a hrtimer based software event):
 		 */
 		if (!x86_pmu.apic)
 			return -EOPNOTSUPP;
 	}
 
 	/*
-	 * Raw event type provide the config in the event structure
+	 * Raw hw_event type provide the config in the hw_event structure
 	 */
 	if (attr->type == PERF_TYPE_RAW) {
 		hwc->config |= x86_pmu.raw_event(attr->config);
@@ -1001,7 +1001,7 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 
 static void p6_pmu_disable_all(void)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 val;
 
 	if (!cpuc->enabled)
@@ -1018,7 +1018,7 @@ static void p6_pmu_disable_all(void)
 
 static void intel_pmu_disable_all(void)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
 	if (!cpuc->enabled)
 		return;
@@ -1034,7 +1034,7 @@ static void intel_pmu_disable_all(void)
 
 static void amd_pmu_disable_all(void)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int idx;
 
 	if (!cpuc->enabled)
@@ -1043,12 +1043,12 @@ static void amd_pmu_disable_all(void)
 	cpuc->enabled = 0;
 	/*
 	 * ensure we write the disable before we start disabling the
-	 * counters proper, so that amd_pmu_enable_counter() does the
+	 * events proper, so that amd_pmu_enable_event() does the
 	 * right thing.
 	 */
 	barrier();
 
-	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+	for (idx = 0; idx < x86_pmu.num_events; idx++) {
 		u64 val;
 
 		if (!test_bit(idx, cpuc->active_mask))
@@ -1070,7 +1070,7 @@ void hw_perf_disable(void)
 
 static void p6_pmu_enable_all(void)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	unsigned long val;
 
 	if (cpuc->enabled)
@@ -1087,7 +1087,7 @@ static void p6_pmu_enable_all(void)
 
 static void intel_pmu_enable_all(void)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
 	if (cpuc->enabled)
 		return;
@@ -1098,19 +1098,19 @@ static void intel_pmu_enable_all(void)
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, x86_pmu.intel_ctrl);
 
 	if (test_bit(X86_PMC_IDX_FIXED_BTS, cpuc->active_mask)) {
-		struct perf_counter *counter =
-			cpuc->counters[X86_PMC_IDX_FIXED_BTS];
+		struct perf_event *event =
+			cpuc->events[X86_PMC_IDX_FIXED_BTS];
 
-		if (WARN_ON_ONCE(!counter))
+		if (WARN_ON_ONCE(!event))
 			return;
 
-		intel_pmu_enable_bts(counter->hw.config);
+		intel_pmu_enable_bts(event->hw.config);
 	}
 }
 
 static void amd_pmu_enable_all(void)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int idx;
 
 	if (cpuc->enabled)
@@ -1119,14 +1119,14 @@ static void amd_pmu_enable_all(void)
 	cpuc->enabled = 1;
 	barrier();
 
-	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
-		struct perf_counter *counter = cpuc->counters[idx];
+	for (idx = 0; idx < x86_pmu.num_events; idx++) {
+		struct perf_event *event = cpuc->events[idx];
 		u64 val;
 
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
 
-		val = counter->hw.config;
+		val = event->hw.config;
 		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
 		wrmsrl(MSR_K7_EVNTSEL0 + idx, val);
 	}
@@ -1153,19 +1153,19 @@ static inline void intel_pmu_ack_status(u64 ack)
 	wrmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, ack);
 }
 
-static inline void x86_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
+static inline void x86_pmu_enable_event(struct hw_perf_event *hwc, int idx)
 {
 	(void)checking_wrmsrl(hwc->config_base + idx,
 			      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE);
 }
 
-static inline void x86_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
+static inline void x86_pmu_disable_event(struct hw_perf_event *hwc, int idx)
 {
 	(void)checking_wrmsrl(hwc->config_base + idx, hwc->config);
 }
 
 static inline void
-intel_pmu_disable_fixed(struct hw_perf_counter *hwc, int __idx)
+intel_pmu_disable_fixed(struct hw_perf_event *hwc, int __idx)
 {
 	int idx = __idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, mask;
@@ -1178,10 +1178,10 @@ intel_pmu_disable_fixed(struct hw_perf_counter *hwc, int __idx)
 }
 
 static inline void
-p6_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
+p6_pmu_disable_event(struct hw_perf_event *hwc, int idx)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-	u64 val = P6_NOP_COUNTER;
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	u64 val = P6_NOP_EVENT;
 
 	if (cpuc->enabled)
 		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
@@ -1190,7 +1190,7 @@ p6_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
 }
 
 static inline void
-intel_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
+intel_pmu_disable_event(struct hw_perf_event *hwc, int idx)
 {
 	if (unlikely(idx == X86_PMC_IDX_FIXED_BTS)) {
 		intel_pmu_disable_bts();
@@ -1202,24 +1202,24 @@ intel_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
 		return;
 	}
 
-	x86_pmu_disable_counter(hwc, idx);
+	x86_pmu_disable_event(hwc, idx);
 }
 
 static inline void
-amd_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
+amd_pmu_disable_event(struct hw_perf_event *hwc, int idx)
 {
-	x86_pmu_disable_counter(hwc, idx);
+	x86_pmu_disable_event(hwc, idx);
 }
 
 static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
 
 /*
  * Set the next IRQ period, based on the hwc->period_left value.
- * To be called with the counter disabled in hw:
+ * To be called with the event disabled in hw:
  */
 static int
-x86_perf_counter_set_period(struct perf_counter *counter,
-			     struct hw_perf_counter *hwc, int idx)
+x86_perf_event_set_period(struct perf_event *event,
+			     struct hw_perf_event *hwc, int idx)
 {
 	s64 left = atomic64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
@@ -1245,7 +1245,7 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 		ret = 1;
 	}
 	/*
-	 * Quirk: certain CPUs dont like it if just 1 event is left:
+	 * Quirk: certain CPUs dont like it if just 1 hw_event is left:
 	 */
 	if (unlikely(left < 2))
 		left = 2;
@@ -1256,21 +1256,21 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 	per_cpu(pmc_prev_left[idx], smp_processor_id()) = left;
 
 	/*
-	 * The hw counter starts counting from this counter offset,
+	 * The hw event starts counting from this event offset,
 	 * mark it to be able to extra future deltas:
 	 */
 	atomic64_set(&hwc->prev_count, (u64)-left);
 
-	err = checking_wrmsrl(hwc->counter_base + idx,
-			     (u64)(-left) & x86_pmu.counter_mask);
+	err = checking_wrmsrl(hwc->event_base + idx,
+			     (u64)(-left) & x86_pmu.event_mask);
 
-	perf_counter_update_userpage(counter);
+	perf_event_update_userpage(event);
 
 	return ret;
 }
 
 static inline void
-intel_pmu_enable_fixed(struct hw_perf_counter *hwc, int __idx)
+intel_pmu_enable_fixed(struct hw_perf_event *hwc, int __idx)
 {
 	int idx = __idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, bits, mask;
@@ -1295,9 +1295,9 @@ intel_pmu_enable_fixed(struct hw_perf_counter *hwc, int __idx)
 	err = checking_wrmsrl(hwc->config_base, ctrl_val);
 }
 
-static void p6_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
+static void p6_pmu_enable_event(struct hw_perf_event *hwc, int idx)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 val;
 
 	val = hwc->config;
@@ -1308,10 +1308,10 @@ static void p6_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 }
 
 
-static void intel_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
+static void intel_pmu_enable_event(struct hw_perf_event *hwc, int idx)
 {
 	if (unlikely(idx == X86_PMC_IDX_FIXED_BTS)) {
-		if (!__get_cpu_var(cpu_hw_counters).enabled)
+		if (!__get_cpu_var(cpu_hw_events).enabled)
 			return;
 
 		intel_pmu_enable_bts(hwc->config);
@@ -1323,134 +1323,134 @@ static void intel_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 		return;
 	}
 
-	x86_pmu_enable_counter(hwc, idx);
+	x86_pmu_enable_event(hwc, idx);
 }
 
-static void amd_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
+static void amd_pmu_enable_event(struct hw_perf_event *hwc, int idx)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
 	if (cpuc->enabled)
-		x86_pmu_enable_counter(hwc, idx);
+		x86_pmu_enable_event(hwc, idx);
 }
 
 static int
-fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
+fixed_mode_idx(struct perf_event *event, struct hw_perf_event *hwc)
 {
-	unsigned int event;
+	unsigned int hw_event;
 
-	event = hwc->config & ARCH_PERFMON_EVENT_MASK;
+	hw_event = hwc->config & ARCH_PERFMON_EVENT_MASK;
 
-	if (unlikely((event ==
+	if (unlikely((hw_event ==
 		      x86_pmu.event_map(PERF_COUNT_HW_BRANCH_INSTRUCTIONS)) &&
 		     (hwc->sample_period == 1)))
 		return X86_PMC_IDX_FIXED_BTS;
 
-	if (!x86_pmu.num_counters_fixed)
+	if (!x86_pmu.num_events_fixed)
 		return -1;
 
-	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_INSTRUCTIONS)))
+	if (unlikely(hw_event == x86_pmu.event_map(PERF_COUNT_HW_INSTRUCTIONS)))
 		return X86_PMC_IDX_FIXED_INSTRUCTIONS;
-	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_CPU_CYCLES)))
+	if (unlikely(hw_event == x86_pmu.event_map(PERF_COUNT_HW_CPU_CYCLES)))
 		return X86_PMC_IDX_FIXED_CPU_CYCLES;
-	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_BUS_CYCLES)))
+	if (unlikely(hw_event == x86_pmu.event_map(PERF_COUNT_HW_BUS_CYCLES)))
 		return X86_PMC_IDX_FIXED_BUS_CYCLES;
 
 	return -1;
 }
 
 /*
- * Find a PMC slot for the freshly enabled / scheduled in counter:
+ * Find a PMC slot for the freshly enabled / scheduled in event:
  */
-static int x86_pmu_enable(struct perf_counter *counter)
+static int x86_pmu_enable(struct perf_event *event)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-	struct hw_perf_counter *hwc = &counter->hw;
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct hw_perf_event *hwc = &event->hw;
 	int idx;
 
-	idx = fixed_mode_idx(counter, hwc);
+	idx = fixed_mode_idx(event, hwc);
 	if (idx == X86_PMC_IDX_FIXED_BTS) {
 		/* BTS is already occupied. */
 		if (test_and_set_bit(idx, cpuc->used_mask))
 			return -EAGAIN;
 
 		hwc->config_base	= 0;
-		hwc->counter_base	= 0;
+		hwc->event_base	= 0;
 		hwc->idx		= idx;
 	} else if (idx >= 0) {
 		/*
-		 * Try to get the fixed counter, if that is already taken
-		 * then try to get a generic counter:
+		 * Try to get the fixed event, if that is already taken
+		 * then try to get a generic event:
 		 */
 		if (test_and_set_bit(idx, cpuc->used_mask))
 			goto try_generic;
 
 		hwc->config_base = MSR_ARCH_PERFMON_FIXED_CTR_CTRL;
 		/*
-		 * We set it so that counter_base + idx in wrmsr/rdmsr maps to
+		 * We set it so that event_base + idx in wrmsr/rdmsr maps to
 		 * MSR_ARCH_PERFMON_FIXED_CTR0 ... CTR2:
 		 */
-		hwc->counter_base =
+		hwc->event_base =
 			MSR_ARCH_PERFMON_FIXED_CTR0 - X86_PMC_IDX_FIXED;
 		hwc->idx = idx;
 	} else {
 		idx = hwc->idx;
-		/* Try to get the previous generic counter again */
+		/* Try to get the previous generic event again */
 		if (test_and_set_bit(idx, cpuc->used_mask)) {
 try_generic:
 			idx = find_first_zero_bit(cpuc->used_mask,
-						  x86_pmu.num_counters);
-			if (idx == x86_pmu.num_counters)
+						  x86_pmu.num_events);
+			if (idx == x86_pmu.num_events)
 				return -EAGAIN;
 
 			set_bit(idx, cpuc->used_mask);
 			hwc->idx = idx;
 		}
 		hwc->config_base  = x86_pmu.eventsel;
-		hwc->counter_base = x86_pmu.perfctr;
+		hwc->event_base = x86_pmu.perfctr;
 	}
 
-	perf_counters_lapic_init();
+	perf_events_lapic_init();
 
 	x86_pmu.disable(hwc, idx);
 
-	cpuc->counters[idx] = counter;
+	cpuc->events[idx] = event;
 	set_bit(idx, cpuc->active_mask);
 
-	x86_perf_counter_set_period(counter, hwc, idx);
+	x86_perf_event_set_period(event, hwc, idx);
 	x86_pmu.enable(hwc, idx);
 
-	perf_counter_update_userpage(counter);
+	perf_event_update_userpage(event);
 
 	return 0;
 }
 
-static void x86_pmu_unthrottle(struct perf_counter *counter)
+static void x86_pmu_unthrottle(struct perf_event *event)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-	struct hw_perf_counter *hwc = &counter->hw;
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct hw_perf_event *hwc = &event->hw;
 
 	if (WARN_ON_ONCE(hwc->idx >= X86_PMC_IDX_MAX ||
-				cpuc->counters[hwc->idx] != counter))
+				cpuc->events[hwc->idx] != event))
 		return;
 
 	x86_pmu.enable(hwc, hwc->idx);
 }
 
-void perf_counter_print_debug(void)
+void perf_event_print_debug(void)
 {
 	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, prev_left, fixed;
-	struct cpu_hw_counters *cpuc;
+	struct cpu_hw_events *cpuc;
 	unsigned long flags;
 	int cpu, idx;
 
-	if (!x86_pmu.num_counters)
+	if (!x86_pmu.num_events)
 		return;
 
 	local_irq_save(flags);
 
 	cpu = smp_processor_id();
-	cpuc = &per_cpu(cpu_hw_counters, cpu);
+	cpuc = &per_cpu(cpu_hw_events, cpu);
 
 	if (x86_pmu.version >= 2) {
 		rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
@@ -1466,7 +1466,7 @@ void perf_counter_print_debug(void)
 	}
 	pr_info("CPU#%d: used:       %016llx\n", cpu, *(u64 *)cpuc->used_mask);
 
-	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+	for (idx = 0; idx < x86_pmu.num_events; idx++) {
 		rdmsrl(x86_pmu.eventsel + idx, pmc_ctrl);
 		rdmsrl(x86_pmu.perfctr  + idx, pmc_count);
 
@@ -1479,7 +1479,7 @@ void perf_counter_print_debug(void)
 		pr_info("CPU#%d:   gen-PMC%d left:  %016llx\n",
 			cpu, idx, prev_left);
 	}
-	for (idx = 0; idx < x86_pmu.num_counters_fixed; idx++) {
+	for (idx = 0; idx < x86_pmu.num_events_fixed; idx++) {
 		rdmsrl(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, pmc_count);
 
 		pr_info("CPU#%d: fixed-PMC%d count: %016llx\n",
@@ -1488,7 +1488,7 @@ void perf_counter_print_debug(void)
 	local_irq_restore(flags);
 }
 
-static void intel_pmu_drain_bts_buffer(struct cpu_hw_counters *cpuc)
+static void intel_pmu_drain_bts_buffer(struct cpu_hw_events *cpuc)
 {
 	struct debug_store *ds = cpuc->ds;
 	struct bts_record {
@@ -1496,14 +1496,14 @@ static void intel_pmu_drain_bts_buffer(struct cpu_hw_counters *cpuc)
 		u64	to;
 		u64	flags;
 	};
-	struct perf_counter *counter = cpuc->counters[X86_PMC_IDX_FIXED_BTS];
+	struct perf_event *event = cpuc->events[X86_PMC_IDX_FIXED_BTS];
 	struct bts_record *at, *top;
 	struct perf_output_handle handle;
 	struct perf_event_header header;
 	struct perf_sample_data data;
 	struct pt_regs regs;
 
-	if (!counter)
+	if (!event)
 		return;
 
 	if (!ds)
@@ -1518,7 +1518,7 @@ static void intel_pmu_drain_bts_buffer(struct cpu_hw_counters *cpuc)
 	ds->bts_index = ds->bts_buffer_base;
 
 
-	data.period	= counter->hw.last_period;
+	data.period	= event->hw.last_period;
 	data.addr	= 0;
 	regs.ip		= 0;
 
@@ -1527,9 +1527,9 @@ static void intel_pmu_drain_bts_buffer(struct cpu_hw_counters *cpuc)
 	 * We will overwrite the from and to address before we output
 	 * the sample.
 	 */
-	perf_prepare_sample(&header, &data, counter, &regs);
+	perf_prepare_sample(&header, &data, event, &regs);
 
-	if (perf_output_begin(&handle, counter,
+	if (perf_output_begin(&handle, event,
 			      header.size * (top - at), 1, 1))
 		return;
 
@@ -1537,20 +1537,20 @@ static void intel_pmu_drain_bts_buffer(struct cpu_hw_counters *cpuc)
 		data.ip		= at->from;
 		data.addr	= at->to;
 
-		perf_output_sample(&handle, &header, &data, counter);
+		perf_output_sample(&handle, &header, &data, event);
 	}
 
 	perf_output_end(&handle);
 
 	/* There's new data available. */
-	counter->hw.interrupts++;
-	counter->pending_kill = POLL_IN;
+	event->hw.interrupts++;
+	event->pending_kill = POLL_IN;
 }
 
-static void x86_pmu_disable(struct perf_counter *counter)
+static void x86_pmu_disable(struct perf_event *event)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-	struct hw_perf_counter *hwc = &counter->hw;
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
 	/*
@@ -1562,63 +1562,63 @@ static void x86_pmu_disable(struct perf_counter *counter)
 
 	/*
 	 * Make sure the cleared pointer becomes visible before we
-	 * (potentially) free the counter:
+	 * (potentially) free the event:
 	 */
 	barrier();
 
 	/*
-	 * Drain the remaining delta count out of a counter
+	 * Drain the remaining delta count out of a event
 	 * that we are disabling:
 	 */
-	x86_perf_counter_update(counter, hwc, idx);
+	x86_perf_event_update(event, hwc, idx);
 
 	/* Drain the remaining BTS records. */
 	if (unlikely(idx == X86_PMC_IDX_FIXED_BTS))
 		intel_pmu_drain_bts_buffer(cpuc);
 
-	cpuc->counters[idx] = NULL;
+	cpuc->events[idx] = NULL;
 	clear_bit(idx, cpuc->used_mask);
 
-	perf_counter_update_userpage(counter);
+	perf_event_update_userpage(event);
 }
 
 /*
- * Save and restart an expired counter. Called by NMI contexts,
- * so it has to be careful about preempting normal counter ops:
+ * Save and restart an expired event. Called by NMI contexts,
+ * so it has to be careful about preempting normal event ops:
  */
-static int intel_pmu_save_and_restart(struct perf_counter *counter)
+static int intel_pmu_save_and_restart(struct perf_event *event)
 {
-	struct hw_perf_counter *hwc = &counter->hw;
+	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 	int ret;
 
-	x86_perf_counter_update(counter, hwc, idx);
-	ret = x86_perf_counter_set_period(counter, hwc, idx);
+	x86_perf_event_update(event, hwc, idx);
+	ret = x86_perf_event_set_period(event, hwc, idx);
 
-	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
-		intel_pmu_enable_counter(hwc, idx);
+	if (event->state == PERF_EVENT_STATE_ACTIVE)
+		intel_pmu_enable_event(hwc, idx);
 
 	return ret;
 }
 
 static void intel_pmu_reset(void)
 {
-	struct debug_store *ds = __get_cpu_var(cpu_hw_counters).ds;
+	struct debug_store *ds = __get_cpu_var(cpu_hw_events).ds;
 	unsigned long flags;
 	int idx;
 
-	if (!x86_pmu.num_counters)
+	if (!x86_pmu.num_events)
 		return;
 
 	local_irq_save(flags);
 
 	printk("clearing PMU state on CPU#%d\n", smp_processor_id());
 
-	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+	for (idx = 0; idx < x86_pmu.num_events; idx++) {
 		checking_wrmsrl(x86_pmu.eventsel + idx, 0ull);
 		checking_wrmsrl(x86_pmu.perfctr  + idx, 0ull);
 	}
-	for (idx = 0; idx < x86_pmu.num_counters_fixed; idx++) {
+	for (idx = 0; idx < x86_pmu.num_events_fixed; idx++) {
 		checking_wrmsrl(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, 0ull);
 	}
 	if (ds)
@@ -1630,38 +1630,38 @@ static void intel_pmu_reset(void)
 static int p6_pmu_handle_irq(struct pt_regs *regs)
 {
 	struct perf_sample_data data;
-	struct cpu_hw_counters *cpuc;
-	struct perf_counter *counter;
-	struct hw_perf_counter *hwc;
+	struct cpu_hw_events *cpuc;
+	struct perf_event *event;
+	struct hw_perf_event *hwc;
 	int idx, handled = 0;
 	u64 val;
 
 	data.addr = 0;
 
-	cpuc = &__get_cpu_var(cpu_hw_counters);
+	cpuc = &__get_cpu_var(cpu_hw_events);
 
-	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+	for (idx = 0; idx < x86_pmu.num_events; idx++) {
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
 
-		counter = cpuc->counters[idx];
-		hwc = &counter->hw;
+		event = cpuc->events[idx];
+		hwc = &event->hw;
 
-		val = x86_perf_counter_update(counter, hwc, idx);
-		if (val & (1ULL << (x86_pmu.counter_bits - 1)))
+		val = x86_perf_event_update(event, hwc, idx);
+		if (val & (1ULL << (x86_pmu.event_bits - 1)))
 			continue;
 
 		/*
-		 * counter overflow
+		 * event overflow
 		 */
 		handled		= 1;
-		data.period	= counter->hw.last_period;
+		data.period	= event->hw.last_period;
 
-		if (!x86_perf_counter_set_period(counter, hwc, idx))
+		if (!x86_perf_event_set_period(event, hwc, idx))
 			continue;
 
-		if (perf_counter_overflow(counter, 1, &data, regs))
-			p6_pmu_disable_counter(hwc, idx);
+		if (perf_event_overflow(event, 1, &data, regs))
+			p6_pmu_disable_event(hwc, idx);
 	}
 
 	if (handled)
@@ -1677,13 +1677,13 @@ static int p6_pmu_handle_irq(struct pt_regs *regs)
 static int intel_pmu_handle_irq(struct pt_regs *regs)
 {
 	struct perf_sample_data data;
-	struct cpu_hw_counters *cpuc;
+	struct cpu_hw_events *cpuc;
 	int bit, loops;
 	u64 ack, status;
 
 	data.addr = 0;
 
-	cpuc = &__get_cpu_var(cpu_hw_counters);
+	cpuc = &__get_cpu_var(cpu_hw_events);
 
 	perf_disable();
 	intel_pmu_drain_bts_buffer(cpuc);
@@ -1696,8 +1696,8 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	loops = 0;
 again:
 	if (++loops > 100) {
-		WARN_ONCE(1, "perfcounters: irq loop stuck!\n");
-		perf_counter_print_debug();
+		WARN_ONCE(1, "perfevents: irq loop stuck!\n");
+		perf_event_print_debug();
 		intel_pmu_reset();
 		perf_enable();
 		return 1;
@@ -1706,19 +1706,19 @@ again:
 	inc_irq_stat(apic_perf_irqs);
 	ack = status;
 	for_each_bit(bit, (unsigned long *)&status, X86_PMC_IDX_MAX) {
-		struct perf_counter *counter = cpuc->counters[bit];
+		struct perf_event *event = cpuc->events[bit];
 
 		clear_bit(bit, (unsigned long *) &status);
 		if (!test_bit(bit, cpuc->active_mask))
 			continue;
 
-		if (!intel_pmu_save_and_restart(counter))
+		if (!intel_pmu_save_and_restart(event))
 			continue;
 
-		data.period = counter->hw.last_period;
+		data.period = event->hw.last_period;
 
-		if (perf_counter_overflow(counter, 1, &data, regs))
-			intel_pmu_disable_counter(&counter->hw, bit);
+		if (perf_event_overflow(event, 1, &data, regs))
+			intel_pmu_disable_event(&event->hw, bit);
 	}
 
 	intel_pmu_ack_status(ack);
@@ -1738,38 +1738,38 @@ again:
 static int amd_pmu_handle_irq(struct pt_regs *regs)
 {
 	struct perf_sample_data data;
-	struct cpu_hw_counters *cpuc;
-	struct perf_counter *counter;
-	struct hw_perf_counter *hwc;
+	struct cpu_hw_events *cpuc;
+	struct perf_event *event;
+	struct hw_perf_event *hwc;
 	int idx, handled = 0;
 	u64 val;
 
 	data.addr = 0;
 
-	cpuc = &__get_cpu_var(cpu_hw_counters);
+	cpuc = &__get_cpu_var(cpu_hw_events);
 
-	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+	for (idx = 0; idx < x86_pmu.num_events; idx++) {
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
 
-		counter = cpuc->counters[idx];
-		hwc = &counter->hw;
+		event = cpuc->events[idx];
+		hwc = &event->hw;
 
-		val = x86_perf_counter_update(counter, hwc, idx);
-		if (val & (1ULL << (x86_pmu.counter_bits - 1)))
+		val = x86_perf_event_update(event, hwc, idx);
+		if (val & (1ULL << (x86_pmu.event_bits - 1)))
 			continue;
 
 		/*
-		 * counter overflow
+		 * event overflow
 		 */
 		handled		= 1;
-		data.period	= counter->hw.last_period;
+		data.period	= event->hw.last_period;
 
-		if (!x86_perf_counter_set_period(counter, hwc, idx))
+		if (!x86_perf_event_set_period(event, hwc, idx))
 			continue;
 
-		if (perf_counter_overflow(counter, 1, &data, regs))
-			amd_pmu_disable_counter(hwc, idx);
+		if (perf_event_overflow(event, 1, &data, regs))
+			amd_pmu_disable_event(hwc, idx);
 	}
 
 	if (handled)
@@ -1783,18 +1783,18 @@ void smp_perf_pending_interrupt(struct pt_regs *regs)
 	irq_enter();
 	ack_APIC_irq();
 	inc_irq_stat(apic_pending_irqs);
-	perf_counter_do_pending();
+	perf_event_do_pending();
 	irq_exit();
 }
 
-void set_perf_counter_pending(void)
+void set_perf_event_pending(void)
 {
 #ifdef CONFIG_X86_LOCAL_APIC
 	apic->send_IPI_self(LOCAL_PENDING_VECTOR);
 #endif
 }
 
-void perf_counters_lapic_init(void)
+void perf_events_lapic_init(void)
 {
 #ifdef CONFIG_X86_LOCAL_APIC
 	if (!x86_pmu.apic || !x86_pmu_initialized())
@@ -1808,13 +1808,13 @@ void perf_counters_lapic_init(void)
 }
 
 static int __kprobes
-perf_counter_nmi_handler(struct notifier_block *self,
+perf_event_nmi_handler(struct notifier_block *self,
 			 unsigned long cmd, void *__args)
 {
 	struct die_args *args = __args;
 	struct pt_regs *regs;
 
-	if (!atomic_read(&active_counters))
+	if (!atomic_read(&active_events))
 		return NOTIFY_DONE;
 
 	switch (cmd) {
@@ -1833,7 +1833,7 @@ perf_counter_nmi_handler(struct notifier_block *self,
 #endif
 	/*
 	 * Can't rely on the handled return value to say it was our NMI, two
-	 * counters could trigger 'simultaneously' raising two back-to-back NMIs.
+	 * events could trigger 'simultaneously' raising two back-to-back NMIs.
 	 *
 	 * If the first NMI handles both, the latter will be empty and daze
 	 * the CPU.
@@ -1843,8 +1843,8 @@ perf_counter_nmi_handler(struct notifier_block *self,
 	return NOTIFY_STOP;
 }
 
-static __read_mostly struct notifier_block perf_counter_nmi_notifier = {
-	.notifier_call		= perf_counter_nmi_handler,
+static __read_mostly struct notifier_block perf_event_nmi_notifier = {
+	.notifier_call		= perf_event_nmi_handler,
 	.next			= NULL,
 	.priority		= 1
 };
@@ -1854,8 +1854,8 @@ static struct x86_pmu p6_pmu = {
 	.handle_irq		= p6_pmu_handle_irq,
 	.disable_all		= p6_pmu_disable_all,
 	.enable_all		= p6_pmu_enable_all,
-	.enable			= p6_pmu_enable_counter,
-	.disable		= p6_pmu_disable_counter,
+	.enable			= p6_pmu_enable_event,
+	.disable		= p6_pmu_disable_event,
 	.eventsel		= MSR_P6_EVNTSEL0,
 	.perfctr		= MSR_P6_PERFCTR0,
 	.event_map		= p6_pmu_event_map,
@@ -1864,16 +1864,16 @@ static struct x86_pmu p6_pmu = {
 	.apic			= 1,
 	.max_period		= (1ULL << 31) - 1,
 	.version		= 0,
-	.num_counters		= 2,
+	.num_events		= 2,
 	/*
-	 * Counters have 40 bits implemented. However they are designed such
+	 * Events have 40 bits implemented. However they are designed such
 	 * that bits [32-39] are sign extensions of bit 31. As such the
-	 * effective width of a counter for P6-like PMU is 32 bits only.
+	 * effective width of a event for P6-like PMU is 32 bits only.
 	 *
 	 * See IA-32 Intel Architecture Software developer manual Vol 3B
 	 */
-	.counter_bits		= 32,
-	.counter_mask		= (1ULL << 32) - 1,
+	.event_bits		= 32,
+	.event_mask		= (1ULL << 32) - 1,
 };
 
 static struct x86_pmu intel_pmu = {
@@ -1881,8 +1881,8 @@ static struct x86_pmu intel_pmu = {
 	.handle_irq		= intel_pmu_handle_irq,
 	.disable_all		= intel_pmu_disable_all,
 	.enable_all		= intel_pmu_enable_all,
-	.enable			= intel_pmu_enable_counter,
-	.disable		= intel_pmu_disable_counter,
+	.enable			= intel_pmu_enable_event,
+	.disable		= intel_pmu_disable_event,
 	.eventsel		= MSR_ARCH_PERFMON_EVENTSEL0,
 	.perfctr		= MSR_ARCH_PERFMON_PERFCTR0,
 	.event_map		= intel_pmu_event_map,
@@ -1892,7 +1892,7 @@ static struct x86_pmu intel_pmu = {
 	/*
 	 * Intel PMCs cannot be accessed sanely above 32 bit width,
 	 * so we install an artificial 1<<31 period regardless of
-	 * the generic counter period:
+	 * the generic event period:
 	 */
 	.max_period		= (1ULL << 31) - 1,
 	.enable_bts		= intel_pmu_enable_bts,
@@ -1904,16 +1904,16 @@ static struct x86_pmu amd_pmu = {
 	.handle_irq		= amd_pmu_handle_irq,
 	.disable_all		= amd_pmu_disable_all,
 	.enable_all		= amd_pmu_enable_all,
-	.enable			= amd_pmu_enable_counter,
-	.disable		= amd_pmu_disable_counter,
+	.enable			= amd_pmu_enable_event,
+	.disable		= amd_pmu_disable_event,
 	.eventsel		= MSR_K7_EVNTSEL0,
 	.perfctr		= MSR_K7_PERFCTR0,
 	.event_map		= amd_pmu_event_map,
 	.raw_event		= amd_pmu_raw_event,
 	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
-	.num_counters		= 4,
-	.counter_bits		= 48,
-	.counter_mask		= (1ULL << 48) - 1,
+	.num_events		= 4,
+	.event_bits		= 48,
+	.event_mask		= (1ULL << 48) - 1,
 	.apic			= 1,
 	/* use highest bit to detect overflow */
 	.max_period		= (1ULL << 47) - 1,
@@ -1970,7 +1970,7 @@ static int intel_pmu_init(void)
 
 	/*
 	 * Check whether the Architectural PerfMon supports
-	 * Branch Misses Retired Event or not.
+	 * Branch Misses Retired hw_event or not.
 	 */
 	cpuid(10, &eax.full, &ebx, &unused, &edx.full);
 	if (eax.split.mask_length <= ARCH_PERFMON_BRANCH_MISSES_RETIRED)
@@ -1982,15 +1982,15 @@ static int intel_pmu_init(void)
 
 	x86_pmu				= intel_pmu;
 	x86_pmu.version			= version;
-	x86_pmu.num_counters		= eax.split.num_counters;
-	x86_pmu.counter_bits		= eax.split.bit_width;
-	x86_pmu.counter_mask		= (1ULL << eax.split.bit_width) - 1;
+	x86_pmu.num_events		= eax.split.num_events;
+	x86_pmu.event_bits		= eax.split.bit_width;
+	x86_pmu.event_mask		= (1ULL << eax.split.bit_width) - 1;
 
 	/*
-	 * Quirk: v2 perfmon does not report fixed-purpose counters, so
-	 * assume at least 3 counters:
+	 * Quirk: v2 perfmon does not report fixed-purpose events, so
+	 * assume at least 3 events:
 	 */
-	x86_pmu.num_counters_fixed	= max((int)edx.split.num_counters_fixed, 3);
+	x86_pmu.num_events_fixed	= max((int)edx.split.num_events_fixed, 3);
 
 	/*
 	 * Install the hw-cache-events table:
@@ -2037,11 +2037,11 @@ static int amd_pmu_init(void)
 	return 0;
 }
 
-void __init init_hw_perf_counters(void)
+void __init init_hw_perf_events(void)
 {
 	int err;
 
-	pr_info("Performance Counters: ");
+	pr_info("Performance Events: ");
 
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_INTEL:
@@ -2054,45 +2054,45 @@ void __init init_hw_perf_counters(void)
 		return;
 	}
 	if (err != 0) {
-		pr_cont("no PMU driver, software counters only.\n");
+		pr_cont("no PMU driver, software events only.\n");
 		return;
 	}
 
 	pr_cont("%s PMU driver.\n", x86_pmu.name);
 
-	if (x86_pmu.num_counters > X86_PMC_MAX_GENERIC) {
-		WARN(1, KERN_ERR "hw perf counters %d > max(%d), clipping!",
-		     x86_pmu.num_counters, X86_PMC_MAX_GENERIC);
-		x86_pmu.num_counters = X86_PMC_MAX_GENERIC;
+	if (x86_pmu.num_events > X86_PMC_MAX_GENERIC) {
+		WARN(1, KERN_ERR "hw perf events %d > max(%d), clipping!",
+		     x86_pmu.num_events, X86_PMC_MAX_GENERIC);
+		x86_pmu.num_events = X86_PMC_MAX_GENERIC;
 	}
-	perf_counter_mask = (1 << x86_pmu.num_counters) - 1;
-	perf_max_counters = x86_pmu.num_counters;
+	perf_event_mask = (1 << x86_pmu.num_events) - 1;
+	perf_max_events = x86_pmu.num_events;
 
-	if (x86_pmu.num_counters_fixed > X86_PMC_MAX_FIXED) {
-		WARN(1, KERN_ERR "hw perf counters fixed %d > max(%d), clipping!",
-		     x86_pmu.num_counters_fixed, X86_PMC_MAX_FIXED);
-		x86_pmu.num_counters_fixed = X86_PMC_MAX_FIXED;
+	if (x86_pmu.num_events_fixed > X86_PMC_MAX_FIXED) {
+		WARN(1, KERN_ERR "hw perf events fixed %d > max(%d), clipping!",
+		     x86_pmu.num_events_fixed, X86_PMC_MAX_FIXED);
+		x86_pmu.num_events_fixed = X86_PMC_MAX_FIXED;
 	}
 
-	perf_counter_mask |=
-		((1LL << x86_pmu.num_counters_fixed)-1) << X86_PMC_IDX_FIXED;
-	x86_pmu.intel_ctrl = perf_counter_mask;
+	perf_event_mask |=
+		((1LL << x86_pmu.num_events_fixed)-1) << X86_PMC_IDX_FIXED;
+	x86_pmu.intel_ctrl = perf_event_mask;
 
-	perf_counters_lapic_init();
-	register_die_notifier(&perf_counter_nmi_notifier);
+	perf_events_lapic_init();
+	register_die_notifier(&perf_event_nmi_notifier);
 
-	pr_info("... version:                 %d\n",     x86_pmu.version);
-	pr_info("... bit width:               %d\n",     x86_pmu.counter_bits);
-	pr_info("... generic counters:        %d\n",     x86_pmu.num_counters);
-	pr_info("... value mask:              %016Lx\n", x86_pmu.counter_mask);
-	pr_info("... max period:              %016Lx\n", x86_pmu.max_period);
-	pr_info("... fixed-purpose counters:  %d\n",     x86_pmu.num_counters_fixed);
-	pr_info("... counter mask:            %016Lx\n", perf_counter_mask);
+	pr_info("... version:                %d\n",     x86_pmu.version);
+	pr_info("... bit width:              %d\n",     x86_pmu.event_bits);
+	pr_info("... generic registers:      %d\n",     x86_pmu.num_events);
+	pr_info("... value mask:             %016Lx\n", x86_pmu.event_mask);
+	pr_info("... max period:             %016Lx\n", x86_pmu.max_period);
+	pr_info("... fixed-purpose events:   %d\n",     x86_pmu.num_events_fixed);
+	pr_info("... event mask:             %016Lx\n", perf_event_mask);
 }
 
-static inline void x86_pmu_read(struct perf_counter *counter)
+static inline void x86_pmu_read(struct perf_event *event)
 {
-	x86_perf_counter_update(counter, &counter->hw, counter->hw.idx);
+	x86_perf_event_update(event, &event->hw, event->hw.idx);
 }
 
 static const struct pmu pmu = {
@@ -2102,14 +2102,14 @@ static const struct pmu pmu = {
 	.unthrottle	= x86_pmu_unthrottle,
 };
 
-const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
+const struct pmu *hw_perf_event_init(struct perf_event *event)
 {
 	int err;
 
-	err = __hw_perf_counter_init(counter);
+	err = __hw_perf_event_init(event);
 	if (err) {
-		if (counter->destroy)
-			counter->destroy(counter);
+		if (event->destroy)
+			event->destroy(event);
 		return ERR_PTR(err);
 	}
 
@@ -2292,7 +2292,7 @@ struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 	return entry;
 }
 
-void hw_perf_counter_setup_online(int cpu)
+void hw_perf_event_setup_online(int cpu)
 {
 	init_debug_store_on_cpu(cpu);
 }

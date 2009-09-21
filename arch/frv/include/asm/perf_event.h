@@ -1,4 +1,4 @@
-/* FRV performance counter support
+/* FRV performance event support
  *
  * Copyright (C) 2009 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,9 +9,9 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
-#ifndef _ASM_PERF_COUNTER_H
-#define _ASM_PERF_COUNTER_H
+#ifndef _ASM_PERF_EVENT_H
+#define _ASM_PERF_EVENT_H
 
-#define PERF_COUNTER_INDEX_OFFSET	0
+#define PERF_EVENT_INDEX_OFFSET	0
 
-#endif /* _ASM_PERF_COUNTER_H */
+#endif /* _ASM_PERF_EVENT_H */

@@ -33,7 +33,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
 #include <linux/key.h>
@@ -923,7 +923,7 @@ void set_task_comm(struct task_struct *tsk, char *buf)
 	task_lock(tsk);
 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
 	task_unlock(tsk);
-	perf_counter_comm(tsk);
+	perf_event_comm(tsk);
 }
 
 int flush_old_exec(struct linux_binprm * bprm)
@@ -997,7 +997,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	 * security domain:
 	 */
 	if (!get_dumpable(current->mm))
-		perf_counter_exit_task(current);
+		perf_event_exit_task(current);
 
 	/* An exec changes our domain. We are no longer part of the thread
 	   group */

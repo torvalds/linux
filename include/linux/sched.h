@@ -100,7 +100,7 @@ struct robust_list_head;
 struct bio;
 struct fs_struct;
 struct bts_context;
-struct perf_counter_context;
+struct perf_event_context;
 
 /*
  * List of flags we want to share for kernel threads,
@@ -701,7 +701,7 @@ struct user_struct {
 #endif
 #endif
 
-#ifdef CONFIG_PERF_COUNTERS
+#ifdef CONFIG_PERF_EVENTS
 	atomic_long_t locked_vm;
 #endif
 };
@@ -1451,10 +1451,10 @@ struct task_struct {
 	struct list_head pi_state_list;
 	struct futex_pi_state *pi_state_cache;
 #endif
-#ifdef CONFIG_PERF_COUNTERS
-	struct perf_counter_context *perf_counter_ctxp;
-	struct mutex perf_counter_mutex;
-	struct list_head perf_counter_list;
+#ifdef CONFIG_PERF_EVENTS
+	struct perf_event_context *perf_event_ctxp;
+	struct mutex perf_event_mutex;
+	struct list_head perf_event_list;
 #endif
 #ifdef CONFIG_NUMA
 	struct mempolicy *mempolicy;	/* Protected by alloc_lock */

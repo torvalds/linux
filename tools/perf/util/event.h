@@ -1,5 +1,5 @@
-#ifndef __PERF_EVENT_H
-#define __PERF_EVENT_H
+#ifndef __PERF_RECORD_H
+#define __PERF_RECORD_H
 #include "../perf.h"
 #include "util.h"
 #include <linux/list.h>

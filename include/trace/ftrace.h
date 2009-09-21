@@ -378,7 +378,7 @@ static inline int ftrace_get_offsets_##call(				\
 #ifdef CONFIG_EVENT_PROFILE
 
 /*
- * Generate the functions needed for tracepoint perf_counter support.
+ * Generate the functions needed for tracepoint perf_event support.
  *
  * NOTE: The insertion profile callback (ftrace_profile_<call>) is defined later
  *
@@ -644,7 +644,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  * {
  *	struct ftrace_data_offsets_<call> __maybe_unused __data_offsets;
  *	struct ftrace_event_call *event_call = &event_<call>;
- *	extern void perf_tpcounter_event(int, u64, u64, void *, int);
+ *	extern void perf_tp_event(int, u64, u64, void *, int);
  *	struct ftrace_raw_##call *entry;
  *	u64 __addr = 0, __count = 1;
  *	unsigned long irq_flags;
@@ -690,7 +690,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  *
  *	<assign>  <- affect our values
  *
- *	perf_tpcounter_event(event_call->id, __addr, __count, entry,
+ *	perf_tp_event(event_call->id, __addr, __count, entry,
  *		     __entry_size);  <- submit them to perf counter
  *
  * }
@@ -710,7 +710,7 @@ static void ftrace_profile_##call(proto)				\
 {									\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_event_call *event_call = &event_##call;		\
-	extern void perf_tpcounter_event(int, u64, u64, void *, int);	\
+	extern void perf_tp_event(int, u64, u64, void *, int);	\
 	struct ftrace_raw_##call *entry;				\
 	u64 __addr = 0, __count = 1;					\
 	unsigned long irq_flags;					\
@@ -755,7 +755,7 @@ static void ftrace_profile_##call(proto)				\
 									\
 	{ assign; }							\
 									\
-	perf_tpcounter_event(event_call->id, __addr, __count, entry,	\
+	perf_tp_event(event_call->id, __addr, __count, entry,		\
 			     __entry_size);				\
 									\
 end:									\

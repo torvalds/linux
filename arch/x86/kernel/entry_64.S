@@ -1021,7 +1021,7 @@ apicinterrupt ERROR_APIC_VECTOR \
 apicinterrupt SPURIOUS_APIC_VECTOR \
 	spurious_interrupt smp_spurious_interrupt
 
-#ifdef CONFIG_PERF_COUNTERS
+#ifdef CONFIG_PERF_EVENTS
 apicinterrupt LOCAL_PENDING_VECTOR \
 	perf_pending_interrupt smp_perf_pending_interrupt
 #endif
