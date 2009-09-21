@@ -29,7 +29,7 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6014, PCI-6040E,
   PXI-6040E, PCI-6030E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
-  PCI-6110, PCI-6111, PCI-6220, PCI-6221, PCI-6224, PXI-6224, PCI-6225,
+  PCI-6110, PCI-6111, PCI-6220, PCI-6221, PCI-6224, PXI-6224, PCI-6225, PXI-6225,
   PCI-6229, PCI-6250, PCI-6251, PCIe-6251, PCI-6254, PCI-6259, PCIe-6259,
   PCI-6280, PCI-6281, PXI-6281, PCI-6284, PCI-6289,
   PCI-6711, PXI-6711, PCI-6713, PXI-6713,
@@ -179,6 +179,7 @@ static DEFINE_PCI_DEVICE_TABLE(ni_pci_table) = {
 	PCI_VENDOR_ID_NATINST, 0x70f2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
 	PCI_VENDOR_ID_NATINST, 0x710d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
 	PCI_VENDOR_ID_NATINST, 0x716c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
+	PCI_VENDOR_ID_NATINST, 0x716d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
 	PCI_VENDOR_ID_NATINST, 0x717f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
 	PCI_VENDOR_ID_NATINST, 0x71bc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
 	PCI_VENDOR_ID_NATINST, 0x717d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
@@ -952,6 +953,25 @@ static const struct ni_board_struct ni_boards[] = {
 	 .caldac = {caldac_none},
 	 .has_8255 = 0,
 	 },
+	{
+	 .device_id = 0x716d,
+	 .name = "pxi-6225",
+	 .n_adchan = 80,
+	 .adbits = 16,
+	 .ai_fifo_depth = 4095,
+	 .gainlkup = ai_gain_622x,
+	 .ai_speed = 4000,
+	 .n_aochan = 2,
+	 .aobits = 16,
+	 .ao_fifo_depth = 8191,
+	 .ao_range_table = &range_ni_M_622x_ao,
+	 .reg_type = ni_reg_622x,
+	 .ao_unipolar = 0,
+	 .ao_speed = 1200,
+	 .num_p0_dio_channels = 32,
+	 .caldac = {caldac_none},
+	 .has_8255 = 0,
+	},
 	{
 	 .device_id = 0x70aa,
 	 .name = "pci-6229",
