@@ -127,7 +127,9 @@ ENDPROC(cpu_v7_switch_mm)
  */
 ENTRY(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
-	str	r1, [r0], #-2048		@ linux version
+ ARM(	str	r1, [r0], #-2048	)	@ linux version
+ THUMB(	str	r1, [r0]		)	@ linux version
+ THUMB(	sub	r0, r0, #2048		)
 
 	bic	r3, r1, #0x000003f0
 	bic	r3, r3, #PTE_TYPE_MASK
@@ -232,7 +234,6 @@ __v7_setup:
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 	mov	r10, #0x1f			@ domains 0, 1 = manager
 	mcr	p15, 0, r10, c3, c0, 0		@ load domain access register
-#endif
 	/*
 	 * Memory region attributes with SCTLR.TRE=1
 	 *
@@ -265,6 +266,7 @@ __v7_setup:
 	ldr	r6, =0x40e040e0			@ NMRR
 	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
+#endif
 	adr	r5, v7_crval
 	ldmia	r5, {r5, r6}
 #ifdef CONFIG_CPU_ENDIAN_BE8
@@ -273,6 +275,7 @@ __v7_setup:
    	mrc	p15, 0, r0, c1, c0, 0		@ read control register
 	bic	r0, r0, r5			@ clear bits them
 	orr	r0, r0, r6			@ set them
+ THUMB(	orr	r0, r0, #1 << 30	)	@ Thumb exceptions
 	mov	pc, lr				@ return to head.S:__ret
 ENDPROC(__v7_setup)
 

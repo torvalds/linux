@@ -162,8 +162,9 @@ static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 		pr->power.timer_broadcast_on_state = state;
 }
 
-static void lapic_timer_propagate_broadcast(struct acpi_processor *pr)
+static void lapic_timer_propagate_broadcast(void *arg)
 {
+	struct acpi_processor *pr = (struct acpi_processor *) arg;
 	unsigned long reason;
 
 	reason = pr->power.timer_broadcast_on_state < INT_MAX ?
@@ -635,7 +636,8 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 		working++;
 	}
 
-	lapic_timer_propagate_broadcast(pr);
+	smp_call_function_single(pr->id, lapic_timer_propagate_broadcast,
+				 pr, 1);
 
 	return (working);
 }

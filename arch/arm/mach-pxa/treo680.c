@@ -409,7 +409,7 @@ err1:
 
 static void treo680_irda_shutdown(struct device *dev)
 {
-	gpio_free(GPIO_NR_TREO680_AMP_EN);
+	gpio_free(GPIO_NR_TREO680_IR_EN);
 }
 
 static struct pxaficp_platform_data treo680_ficp_info = {

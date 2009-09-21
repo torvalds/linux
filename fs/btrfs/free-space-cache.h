@@ -19,6 +19,14 @@
 #ifndef __BTRFS_FREE_SPACE_CACHE
 #define __BTRFS_FREE_SPACE_CACHE
 
+struct btrfs_free_space {
+	struct rb_node offset_index;
+	u64 offset;
+	u64 bytes;
+	unsigned long *bitmap;
+	struct list_head list;
+};
+
 int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 			 u64 bytenr, u64 size);
 int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,

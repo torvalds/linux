@@ -82,7 +82,8 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	cpuclk = clk_get(NULL, "cpu_clk");
 	if (IS_ERR(cpuclk)) {
-		printk(KERN_ERR "cpufreq: couldn't get CPU clk\n");
+		printk(KERN_ERR "cpufreq: couldn't get CPU#%d clk\n",
+		       policy->cpu);
 		return PTR_ERR(cpuclk);
 	}
 
@@ -95,22 +96,21 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->min		= policy->cpuinfo.min_freq;
 	policy->max		= policy->cpuinfo.max_freq;
 
-
 	/*
 	 * Catch the cases where the clock framework hasn't been wired up
 	 * properly to support scaling.
 	 */
 	if (unlikely(policy->min == policy->max)) {
 		printk(KERN_ERR "cpufreq: clock framework rate rounding "
-		       "not supported on this CPU.\n");
+		       "not supported on CPU#%d.\n", policy->cpu);
 
 		clk_put(cpuclk);
 		return -EINVAL;
 	}
 
-	printk(KERN_INFO "cpufreq: Frequencies - Minimum %u.%03u MHz, "
+	printk(KERN_INFO "cpufreq: CPU#%d Frequencies - Minimum %u.%03u MHz, "
 	       "Maximum %u.%03u MHz.\n",
-	       policy->min / 1000, policy->min % 1000,
+	       policy->cpu, policy->min / 1000, policy->min % 1000,
 	       policy->max / 1000, policy->max % 1000);
 
 	return 0;

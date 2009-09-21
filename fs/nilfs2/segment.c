@@ -1859,12 +1859,26 @@ static void nilfs_end_page_io(struct page *page, int err)
 	if (!page)
 		return;
 
-	if (buffer_nilfs_node(page_buffers(page)) && !PageWriteback(page))
+	if (buffer_nilfs_node(page_buffers(page)) && !PageWriteback(page)) {
 		/*
 		 * For b-tree node pages, this function may be called twice
 		 * or more because they might be split in a segment.
 		 */
+		if (PageDirty(page)) {
+			/*
+			 * For pages holding split b-tree node buffers, dirty
+			 * flag on the buffers may be cleared discretely.
+			 * In that case, the page is once redirtied for
+			 * remaining buffers, and it must be cancelled if
+			 * all the buffers get cleaned later.
+			 */
+			lock_page(page);
+			if (nilfs_page_buffers_clean(page))
+				__nilfs_clear_page_dirty(page);
+			unlock_page(page);
+		}
 		return;
+	}
 
 	__nilfs_end_page_io(page, err);
 }
@@ -2487,7 +2501,8 @@ static int nilfs_segctor_construct(struct nilfs_sc_info *sci,
 		if (test_bit(NILFS_SC_SUPER_ROOT, &sci->sc_flags) &&
 		    nilfs_discontinued(nilfs)) {
 			down_write(&nilfs->ns_sem);
-			req->sb_err = nilfs_commit_super(sbi, 0);
+			req->sb_err = nilfs_commit_super(sbi,
+					nilfs_altsb_need_update(nilfs));
 			up_write(&nilfs->ns_sem);
 		}
 	}
@@ -2675,6 +2690,7 @@ static int nilfs_segctor_thread(void *arg)
 	} else {
 		DEFINE_WAIT(wait);
 		int should_sleep = 1;
+		struct the_nilfs *nilfs;
 
 		prepare_to_wait(&sci->sc_wait_daemon, &wait,
 				TASK_INTERRUPTIBLE);
@@ -2695,6 +2711,9 @@ static int nilfs_segctor_thread(void *arg)
 		finish_wait(&sci->sc_wait_daemon, &wait);
 		timeout = ((sci->sc_state & NILFS_SEGCTOR_COMMIT) &&
 			   time_after_eq(jiffies, sci->sc_timer->expires));
+		nilfs = sci->sc_sbi->s_nilfs;
+		if (sci->sc_super->s_dirt && nilfs_sb_need_update(nilfs))
+			set_nilfs_discontinued(nilfs);
 	}
 	goto loop;
 

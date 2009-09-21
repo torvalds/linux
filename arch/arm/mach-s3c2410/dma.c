@@ -164,6 +164,17 @@ static int __init s3c2410_dma_drvinit(void)
 }
 
 arch_initcall(s3c2410_dma_drvinit);
+
+static struct sysdev_driver s3c2410a_dma_driver = {
+	.add	= s3c2410_dma_add,
+};
+
+static int __init s3c2410a_dma_drvinit(void)
+{
+	return sysdev_driver_register(&s3c2410a_sysclass, &s3c2410a_dma_driver);
+}
+
+arch_initcall(s3c2410a_dma_drvinit);
 #endif
 
 #if defined(CONFIG_CPU_S3C2442)

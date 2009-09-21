@@ -28,7 +28,6 @@
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 
-#include <linux/version.h>
 
 #include <linux/proc_fs.h>
 

@@ -36,6 +36,7 @@
 
 static DEFINE_PER_CPU(__u64, next_check) = INITIAL_JIFFIES;
 static DEFINE_PER_CPU(unsigned long, thermal_throttle_count);
+static DEFINE_PER_CPU(bool, thermal_throttle_active);
 
 static atomic_t therm_throt_en		= ATOMIC_INIT(0);
 
@@ -96,27 +97,33 @@ static int therm_throt_process(int curr)
 {
 	unsigned int cpu = smp_processor_id();
 	__u64 tmp_jiffs = get_jiffies_64();
+	bool was_throttled = __get_cpu_var(thermal_throttle_active);
+	bool is_throttled = __get_cpu_var(thermal_throttle_active) = curr;
 
-	if (curr)
+	if (is_throttled)
 		__get_cpu_var(thermal_throttle_count)++;
 
-	if (time_before64(tmp_jiffs, __get_cpu_var(next_check)))
+	if (!(was_throttled ^ is_throttled) &&
+	    time_before64(tmp_jiffs, __get_cpu_var(next_check)))
 		return 0;
 
 	__get_cpu_var(next_check) = tmp_jiffs + CHECK_INTERVAL;
 
 	/* if we just entered the thermal event */
-	if (curr) {
+	if (is_throttled) {
 		printk(KERN_CRIT "CPU%d: Temperature above threshold, "
-		       "cpu clock throttled (total events = %lu)\n", cpu,
-		       __get_cpu_var(thermal_throttle_count));
+		       "cpu clock throttled (total events = %lu)\n",
+		       cpu, __get_cpu_var(thermal_throttle_count));
 
 		add_taint(TAINT_MACHINE_CHECK);
-	} else {
-		printk(KERN_CRIT "CPU%d: Temperature/speed normal\n", cpu);
+		return 1;
+	}
+	if (was_throttled) {
+		printk(KERN_INFO "CPU%d: Temperature/speed normal\n", cpu);
+		return 1;
 	}
 
-	return 1;
+	return 0;
 }
 
 #ifdef CONFIG_SYSFS
@@ -253,15 +260,22 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 		return;
 	}
 
-	if (cpu_has(c, X86_FEATURE_TM2) && (l & MSR_IA32_MISC_ENABLE_TM2))
-		tm2 = 1;
-
 	/* Check whether a vector already exists */
 	if (h & APIC_VECTOR_MASK) {
 		printk(KERN_DEBUG
 		       "CPU%d: Thermal LVT vector (%#x) already installed\n",
 		       cpu, (h & APIC_VECTOR_MASK));
 		return;
+	}
+
+	/* early Pentium M models use different method for enabling TM2 */
+	if (cpu_has(c, X86_FEATURE_TM2)) {
+		if (c->x86 == 6 && (c->x86_model == 9 || c->x86_model == 13)) {
+			rdmsr(MSR_THERM2_CTL, l, h);
+			if (l & MSR_THERM2_CTL_TM_SELECT)
+				tm2 = 1;
+		} else if (l & MSR_IA32_MISC_ENABLE_TM2)
+			tm2 = 1;
 	}
 
 	/* We'll mask the thermal vector in the lapic till we're ready: */

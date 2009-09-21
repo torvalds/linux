@@ -6,6 +6,31 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include "module.h"
+#include "event.h"
+
+#ifdef HAVE_CPLUS_DEMANGLE
+extern char *cplus_demangle(const char *, int);
+
+static inline char *bfd_demangle(void __used *v, const char *c, int i)
+{
+	return cplus_demangle(c, i);
+}
+#else
+#ifdef NO_DEMANGLE
+static inline char *bfd_demangle(void __used *v, const char __used *c,
+				 int __used i)
+{
+	return NULL;
+}
+#else
+#include <bfd.h>
+#endif
+#endif
+
+#ifndef DMGL_PARAMS
+#define DMGL_PARAMS      (1 << 0)       /* Include function args */
+#define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
+#endif
 
 struct symbol {
 	struct rb_node	rb_node;
@@ -26,10 +51,11 @@ struct dso {
 	unsigned int	 sym_priv_size;
 	unsigned char	 adjust_symbols;
 	unsigned char	 slen_calculated;
+	unsigned char	 origin;
 	char		 name[0];
 };
 
-const char *sym_hist_filter;
+extern const char *sym_hist_filter;
 
 typedef int (*symbol_filter_t)(struct dso *self, struct symbol *sym);
 
@@ -47,8 +73,20 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 		     symbol_filter_t filter, int verbose, int modules);
 int dso__load_modules(struct dso *self, symbol_filter_t filter, int verbose);
 int dso__load(struct dso *self, symbol_filter_t filter, int verbose);
+struct dso *dsos__findnew(const char *name);
+void dsos__fprintf(FILE *fp);
 
 size_t dso__fprintf(struct dso *self, FILE *fp);
+char dso__symtab_origin(const struct dso *self);
+
+int load_kernel(void);
 
 void symbol__init(void);
+
+extern struct list_head dsos;
+extern struct dso *kernel_dso;
+extern struct dso *vdso;
+extern struct dso *hypervisor_dso;
+extern const char *vmlinux_name;
+extern int   modules;
 #endif /* _PERF_SYMBOL_ */

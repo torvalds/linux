@@ -555,6 +555,47 @@ u64 rds_ib_piggyb_ack(struct rds_ib_connection *ic)
 	return rds_ib_get_ack(ic);
 }
 
+static struct rds_header *rds_ib_get_header(struct rds_connection *conn,
+					    struct rds_ib_recv_work *recv,
+					    u32 data_len)
+{
+	struct rds_ib_connection *ic = conn->c_transport_data;
+	void *hdr_buff = &ic->i_recv_hdrs[recv - ic->i_recvs];
+	void *addr;
+	u32 misplaced_hdr_bytes;
+
+	/*
+	 * Support header at the front (RDS 3.1+) as well as header-at-end.
+	 *
+	 * Cases:
+	 * 1) header all in header buff (great!)
+	 * 2) header all in data page (copy all to header buff)
+	 * 3) header split across hdr buf + data page
+	 *    (move bit in hdr buff to end before copying other bit from data page)
+	 */
+	if (conn->c_version > RDS_PROTOCOL_3_0 || data_len == RDS_FRAG_SIZE)
+	        return hdr_buff;
+
+	if (data_len <= (RDS_FRAG_SIZE - sizeof(struct rds_header))) {
+		addr = kmap_atomic(recv->r_frag->f_page, KM_SOFTIRQ0);
+		memcpy(hdr_buff,
+		       addr + recv->r_frag->f_offset + data_len,
+		       sizeof(struct rds_header));
+		kunmap_atomic(addr, KM_SOFTIRQ0);
+		return hdr_buff;
+	}
+
+	misplaced_hdr_bytes = (sizeof(struct rds_header) - (RDS_FRAG_SIZE - data_len));
+
+	memmove(hdr_buff + misplaced_hdr_bytes, hdr_buff, misplaced_hdr_bytes);
+
+	addr = kmap_atomic(recv->r_frag->f_page, KM_SOFTIRQ0);
+	memcpy(hdr_buff, addr + recv->r_frag->f_offset + data_len,
+	       sizeof(struct rds_header) - misplaced_hdr_bytes);
+	kunmap_atomic(addr, KM_SOFTIRQ0);
+	return hdr_buff;
+}
+
 /*
  * It's kind of lame that we're copying from the posted receive pages into
  * long-lived bitmaps.  We could have posted the bitmaps and rdma written into
@@ -645,7 +686,7 @@ struct rds_ib_ack_state {
 };
 
 static void rds_ib_process_recv(struct rds_connection *conn,
-				struct rds_ib_recv_work *recv, u32 byte_len,
+				struct rds_ib_recv_work *recv, u32 data_len,
 				struct rds_ib_ack_state *state)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
@@ -655,9 +696,9 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 	/* XXX shut down the connection if port 0,0 are seen? */
 
 	rdsdebug("ic %p ibinc %p recv %p byte len %u\n", ic, ibinc, recv,
-		 byte_len);
+		 data_len);
 
-	if (byte_len < sizeof(struct rds_header)) {
+	if (data_len < sizeof(struct rds_header)) {
 		rds_ib_conn_error(conn, "incoming message "
 		       "from %pI4 didn't inclue a "
 		       "header, disconnecting and "
@@ -665,9 +706,9 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		       &conn->c_faddr);
 		return;
 	}
-	byte_len -= sizeof(struct rds_header);
+	data_len -= sizeof(struct rds_header);
 
-	ihdr = &ic->i_recv_hdrs[recv - ic->i_recvs];
+	ihdr = rds_ib_get_header(conn, recv, data_len);
 
 	/* Validate the checksum. */
 	if (!rds_message_verify_checksum(ihdr)) {
@@ -687,7 +728,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 	if (ihdr->h_credit)
 		rds_ib_send_add_credits(conn, ihdr->h_credit);
 
-	if (ihdr->h_sport == 0 && ihdr->h_dport == 0 && byte_len == 0) {
+	if (ihdr->h_sport == 0 && ihdr->h_dport == 0 && data_len == 0) {
 		/* This is an ACK-only packet. The fact that it gets
 		 * special treatment here is that historically, ACKs
 		 * were rather special beasts.

@@ -385,7 +385,8 @@ static void ks959_send_irq(struct urb *urb)
 /*
  * Called from net/core when new frame is available.
  */
-static int ks959_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t ks959_hard_xmit(struct sk_buff *skb,
+					 struct net_device *netdev)
 {
 	struct ks959_cb *kingsun;
 	unsigned int wraplen;

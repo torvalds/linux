@@ -32,14 +32,14 @@ struct fl512_private {
 #define devpriv ((struct fl512_private *) dev->private)
 
 static const struct comedi_lrange range_fl512 = { 4, {
-			BIP_RANGE(0.5),
-			BIP_RANGE(1),
-			BIP_RANGE(5),
-			BIP_RANGE(10),
-			UNI_RANGE(1),
-			UNI_RANGE(5),
-			UNI_RANGE(10),
-	}
+						      BIP_RANGE(0.5),
+						      BIP_RANGE(1),
+						      BIP_RANGE(5),
+						      BIP_RANGE(10),
+						      UNI_RANGE(1),
+						      UNI_RANGE(5),
+						      UNI_RANGE(10),
+						      }
 };
 
 static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it);
@@ -55,17 +55,20 @@ static struct comedi_driver driver_fl512 = {
 COMEDI_INITCLEANUP(driver_fl512);
 
 static int fl512_ai_insn(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data);
-static int fl512_ao_insn(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data);
+			 struct comedi_subdevice *s, struct comedi_insn *insn,
+			 unsigned int *data);
+static int fl512_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+			 struct comedi_insn *insn, unsigned int *data);
 static int fl512_ao_insn_readback(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data);
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn, unsigned int *data);
 
 /*
  * fl512_ai_insn : this is the analog input function
  */
 static int fl512_ai_insn(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+			 struct comedi_subdevice *s, struct comedi_insn *insn,
+			 unsigned int *data)
 {
 	int n;
 	unsigned int lo_byte, hi_byte;
@@ -90,7 +93,8 @@ static int fl512_ai_insn(struct comedi_device *dev,
  * fl512_ao_insn : used to write to a DA port n times
  */
 static int fl512_ao_insn(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+			 struct comedi_subdevice *s, struct comedi_insn *insn,
+			 unsigned int *data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);	/* get chan to write */
@@ -111,7 +115,8 @@ static int fl512_ao_insn(struct comedi_device *dev,
  * DA port
  */
 static int fl512_ao_insn_readback(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -130,7 +135,7 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	unsigned long iobase;
 	struct comedi_subdevice *s;	/* pointer to the subdevice:
-				   Analog in, Analog out, ( not made ->and Digital IO) */
+					   Analog in, Analog out, ( not made ->and Digital IO) */
 
 	iobase = it->options[0];
 	printk("comedi:%d fl512: 0x%04lx", dev->minor, iobase);

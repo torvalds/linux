@@ -436,9 +436,9 @@ static int mod_dso__load_module_paths(struct mod_dso *self)
 		goto out_failure;
 
 	while (!feof(file)) {
-		char *path, *name, *tmp;
+		char *name, *tmp;
 		struct module *module;
-		int line_len, len;
+		int line_len;
 
 		line_len = getline(&line, &n, file);
 		if (line_len < 0)

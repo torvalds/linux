@@ -25,6 +25,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/i2c/twl4030.h>
+#include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -90,10 +91,6 @@ static inline void __init omap3evm_init_smc911x(void)
 
 	gpio_direction_input(OMAP3EVM_ETHR_GPIO_IRQ);
 }
-
-static struct omap_uart_config omap3_evm_uart_config __initdata = {
-	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
-};
 
 static struct twl4030_hsmmc_info mmc[] = {
 	{
@@ -277,18 +274,19 @@ struct spi_board_info omap3evm_spi_board_info[] = {
 	},
 };
 
+static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
+	{ OMAP_TAG_LCD,		&omap3_evm_lcd_config },
+};
+
 static void __init omap3_evm_init_irq(void)
 {
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params);
+	omap_board_config = omap3_evm_config;
+	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
+	omap2_init_common_hw(mt46h32m32lf6_sdrc_params, NULL);
 	omap_init_irq();
 	omap_gpio_init();
 	omap3evm_init_smc911x();
 }
-
-static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
-	{ OMAP_TAG_UART,	&omap3_evm_uart_config },
-	{ OMAP_TAG_LCD,		&omap3_evm_lcd_config },
-};
 
 static struct platform_device *omap3_evm_devices[] __initdata = {
 	&omap3_evm_lcd_device,
@@ -300,13 +298,15 @@ static void __init omap3_evm_init(void)
 	omap3_evm_i2c_init();
 
 	platform_add_devices(omap3_evm_devices, ARRAY_SIZE(omap3_evm_devices));
-	omap_board_config = omap3_evm_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 
 	spi_register_board_info(omap3evm_spi_board_info,
 				ARRAY_SIZE(omap3evm_spi_board_info));
 
 	omap_serial_init();
+#ifdef CONFIG_NOP_USB_XCEIV
+	/* OMAP3EVM uses ISP1504 phy and so register nop transceiver */
+	usb_nop_xceiv_register();
+#endif
 	usb_musb_init();
 	ads7846_dev_init();
 }

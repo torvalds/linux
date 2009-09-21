@@ -156,6 +156,9 @@ static bool intel_igdng_crt_detect_hotplug(struct drm_connector *connector)
 
 	temp = adpa = I915_READ(PCH_ADPA);
 
+	adpa &= ~ADPA_DAC_ENABLE;
+	I915_WRITE(PCH_ADPA, adpa);
+
 	adpa &= ~ADPA_CRT_HOTPLUG_MASK;
 
 	adpa |= (ADPA_CRT_HOTPLUG_PERIOD_128 |
@@ -169,13 +172,14 @@ static bool intel_igdng_crt_detect_hotplug(struct drm_connector *connector)
 	DRM_DEBUG("pch crt adpa 0x%x", adpa);
 	I915_WRITE(PCH_ADPA, adpa);
 
-	/* This might not be needed as not specified in spec...*/
-	udelay(1000);
+	while ((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) != 0)
+		;
 
 	/* Check the status to see if both blue and green are on now */
 	adpa = I915_READ(PCH_ADPA);
-	if ((adpa & ADPA_CRT_HOTPLUG_MONITOR_MASK) ==
-			ADPA_CRT_HOTPLUG_MONITOR_COLOR)
+	adpa &= ADPA_CRT_HOTPLUG_MONITOR_MASK;
+	if ((adpa == ADPA_CRT_HOTPLUG_MONITOR_COLOR) ||
+		(adpa == ADPA_CRT_HOTPLUG_MONITOR_MONO))
 		ret = true;
 	else
 		ret = false;
@@ -504,6 +508,7 @@ void intel_crt_init(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 	struct intel_output *intel_output;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 i2c_reg;
 
 	intel_output = kzalloc(sizeof(struct intel_output), GFP_KERNEL);
@@ -523,8 +528,12 @@ void intel_crt_init(struct drm_device *dev)
 	/* Set up the DDC bus. */
 	if (IS_IGDNG(dev))
 		i2c_reg = PCH_GPIOA;
-	else
+	else {
 		i2c_reg = GPIOA;
+		/* Use VBT information for CRT DDC if available */
+		if (dev_priv->crt_ddc_bus != -1)
+			i2c_reg = dev_priv->crt_ddc_bus;
+	}
 	intel_output->ddc_bus = intel_i2c_create(dev, i2c_reg, "CRTDDC_A");
 	if (!intel_output->ddc_bus) {
 		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
@@ -533,6 +542,10 @@ void intel_crt_init(struct drm_device *dev)
 	}
 
 	intel_output->type = INTEL_OUTPUT_ANALOG;
+	intel_output->clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
+				   (1 << INTEL_ANALOG_CLONE_BIT) |
+				   (1 << INTEL_SDVO_LVDS_CLONE_BIT);
+	intel_output->crtc_mask = (1 << 0) | (1 << 1);
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 

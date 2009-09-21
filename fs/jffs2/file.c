@@ -56,7 +56,7 @@ const struct file_operations jffs2_file_operations =
 
 const struct inode_operations jffs2_file_inode_operations =
 {
-	.permission =	jffs2_permission,
+	.check_acl =	jffs2_check_acl,
 	.setattr =	jffs2_setattr,
 	.setxattr =	jffs2_setxattr,
 	.getxattr =	jffs2_getxattr,
@@ -99,7 +99,7 @@ static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
 	kunmap(pg);
 
 	D2(printk(KERN_DEBUG "readpage finished\n"));
-	return 0;
+	return ret;
 }
 
 int jffs2_do_readpage_unlock(struct inode *inode, struct page *pg)

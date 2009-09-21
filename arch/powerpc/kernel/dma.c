@@ -7,6 +7,8 @@
 
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-debug.h>
+#include <linux/lmb.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>
 
@@ -90,11 +92,10 @@ static void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sg,
 static int dma_direct_dma_supported(struct device *dev, u64 mask)
 {
 #ifdef CONFIG_PPC64
-	/* Could be improved to check for memory though it better be
-	 * done via some global so platforms can set the limit in case
+	/* Could be improved so platforms can set the limit in case
 	 * they have limited DMA windows
 	 */
-	return mask >= DMA_BIT_MASK(32);
+	return mask >= (lmb_end_of_DRAM() - 1);
 #else
 	return 1;
 #endif
@@ -140,7 +141,7 @@ static inline void dma_direct_sync_single_range(struct device *dev,
 }
 #endif
 
-struct dma_mapping_ops dma_direct_ops = {
+struct dma_map_ops dma_direct_ops = {
 	.alloc_coherent	= dma_direct_alloc_coherent,
 	.free_coherent	= dma_direct_free_coherent,
 	.map_sg		= dma_direct_map_sg,
@@ -156,3 +157,13 @@ struct dma_mapping_ops dma_direct_ops = {
 #endif
 };
 EXPORT_SYMBOL(dma_direct_ops);
+
+#define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
+
+static int __init dma_init(void)
+{
+       dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+
+       return 0;
+}
+fs_initcall(dma_init);

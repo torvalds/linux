@@ -65,9 +65,10 @@ void pvr2_msp3400_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 		u32 input;
 
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev msp3400 v4l2 set_stereo");
+		sp = (sid < ARRAY_SIZE(routing_schemes)) ?
+			routing_schemes[sid] : NULL;
 
-		if ((sid < ARRAY_SIZE(routing_schemes)) &&
-		    ((sp = routing_schemes[sid]) != NULL) &&
+		if ((sp != NULL) &&
 		    (hdw->input_val >= 0) &&
 		    (hdw->input_val < sp->cnt)) {
 			input = sp->def[hdw->input_val];

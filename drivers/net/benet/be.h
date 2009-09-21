@@ -28,11 +28,11 @@
 #include <linux/if_vlan.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
-#include <linux/inet_lro.h>
+#include <linux/firmware.h>
 
 #include "be_hw.h"
 
-#define DRV_VER			"2.0.348"
+#define DRV_VER			"2.101.205"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
 #define OC_NAME			"Emulex OneConnect 10Gbps NIC"
@@ -72,8 +72,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MAX_RX_POST 		BE_NAPI_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
 
-#define BE_MAX_LRO_DESCRIPTORS  16
-#define BE_MAX_FRAGS_PER_FRAME  (min((u32) 16, (u32) MAX_SKB_FRAGS))
+#define FW_VER_LEN		32
 
 struct be_dma_mem {
 	void *va;
@@ -127,7 +126,6 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 	index_inc(&q->tail, q->len);
 }
 
-
 struct be_eq_obj {
 	struct be_queue_info q;
 	char desc[32];
@@ -145,31 +143,6 @@ struct be_mcc_obj {
 	struct be_queue_info q;
 	struct be_queue_info cq;
 };
-
-struct be_ctrl_info {
-	u8 __iomem *csr;
-	u8 __iomem *db;		/* Door Bell */
-	u8 __iomem *pcicfg;	/* PCI config space */
-	int pci_func;
-
-	/* Mbox used for cmd request/response */
-	spinlock_t mbox_lock;	/* For serializing mbox cmds to BE card */
-	struct be_dma_mem mbox_mem;
-	/* Mbox mem is adjusted to align to 16 bytes. The allocated addr
-	 * is stored for freeing purpose */
-	struct be_dma_mem mbox_mem_alloced;
-
-	/* MCC Rings */
-	struct be_mcc_obj mcc_obj;
-	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
-	spinlock_t mcc_cq_lock;
-
-	/* MCC Async callback */
-	void (*async_cb)(void *adapter, bool link_up);
-	void *adapter_ctxt;
-};
-
-#include "be_cmds.h"
 
 struct be_drvr_stats {
 	u32 be_tx_reqs;		/* number of TX requests initiated */
@@ -189,8 +162,6 @@ struct be_drvr_stats {
 	u32 be_polls;		/* number of times NAPI called poll function */
 	u32 be_rx_events;	/* number of ucast rx completion events  */
 	u32 be_rx_compl;	/* number of rx completion entries processed */
-	u32 be_lro_hgram_data[8];	/* histogram of LRO data packets */
-	u32 be_lro_hgram_ack[8];	/* histogram of LRO ACKs */
 	ulong be_rx_jiffies;
 	u64 be_rx_bytes;
 	u64 be_rx_bytes_prev;
@@ -233,8 +204,6 @@ struct be_rx_obj {
 	struct be_queue_info q;
 	struct be_queue_info cq;
 	struct be_rx_page_info page_info_tbl[RX_Q_LEN];
-	struct net_lro_mgr lro_mgr;
-	struct net_lro_desc lro_desc[BE_MAX_LRO_DESCRIPTORS];
 };
 
 #define BE_NUM_MSIX_VECTORS		2	/* 1 each for Tx and Rx */
@@ -242,8 +211,19 @@ struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
 
-	/* Mbox, pci config, csr address information */
-	struct be_ctrl_info ctrl;
+	u8 __iomem *csr;
+	u8 __iomem *db;		/* Door Bell */
+	u8 __iomem *pcicfg;	/* PCI config space */
+
+	spinlock_t mbox_lock;	/* For serializing mbox cmds to BE card */
+	struct be_dma_mem mbox_mem;
+	/* Mbox mem is adjusted to align to 16 bytes. The allocated addr
+	 * is stored for freeing purpose */
+	struct be_dma_mem mbox_mem_alloced;
+
+	struct be_mcc_obj mcc_obj;
+	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
+	spinlock_t mcc_cq_lock;
 
 	struct msix_entry msix_entries[BE_NUM_MSIX_VECTORS];
 	bool msix_enabled;
@@ -271,7 +251,6 @@ struct be_adapter {
 
 	/* Ethtool knobs and info */
 	bool rx_csum; 		/* BE card must perform rx-checksumming */
-	u32 max_rx_coal;
 	char fw_ver[FW_VER_LEN];
 	u32 if_handle;		/* Used to configure filtering */
 	u32 pmac_id;		/* MAC addr handle used by BE card */
@@ -281,9 +260,14 @@ struct be_adapter {
 	bool promiscuous;
 };
 
-extern struct ethtool_ops be_ethtool_ops;
+extern const struct ethtool_ops be_ethtool_ops;
 
 #define drvr_stats(adapter)		(&adapter->stats.drvr_stats)
+
+static inline unsigned int be_pci_func(struct be_adapter *adapter)
+{
+	return PCI_FUNC(adapter->pdev->devfn);
+}
 
 #define BE_SET_NETDEV_OPS(netdev, ops)	(netdev->netdev_ops = ops)
 
@@ -375,6 +359,9 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 	return val;
 }
 
-extern void be_cq_notify(struct be_ctrl_info *ctrl, u16 qid, bool arm,
+extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
+extern void be_link_status_update(struct be_adapter *adapter, bool link_up);
+extern void netdev_stats_update(struct be_adapter *adapter);
+extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 #endif				/* BE_H */

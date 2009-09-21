@@ -52,7 +52,6 @@
 #include <mach/serial.h>
 #include <mach/psc.h>
 #include <mach/mux.h>
-#include <mach/common.h>
 
 #define SFFSDR_PHY_MASK		(0x2)
 #define SFFSDR_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */

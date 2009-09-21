@@ -171,7 +171,6 @@ int v9fs_uflags2omode(int uflags, int extended)
 
 /**
  * v9fs_blank_wstat - helper function to setup a 9P stat structure
- * @v9ses: 9P session info (for determining extended mode)
  * @wstat: structure to initialize
  *
  */
@@ -207,65 +206,72 @@ v9fs_blank_wstat(struct p9_wstat *wstat)
 
 struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 {
+	int err;
 	struct inode *inode;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "super block: %p mode: %o\n", sb, mode);
 
 	inode = new_inode(sb);
-	if (inode) {
-		inode->i_mode = mode;
-		inode->i_uid = current_fsuid();
-		inode->i_gid = current_fsgid();
-		inode->i_blocks = 0;
-		inode->i_rdev = 0;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		inode->i_mapping->a_ops = &v9fs_addr_operations;
-
-		switch (mode & S_IFMT) {
-		case S_IFIFO:
-		case S_IFBLK:
-		case S_IFCHR:
-		case S_IFSOCK:
-			if (!v9fs_extended(v9ses)) {
-				P9_DPRINTK(P9_DEBUG_ERROR,
-				      "special files without extended mode\n");
-				return ERR_PTR(-EINVAL);
-			}
-			init_special_inode(inode, inode->i_mode,
-					   inode->i_rdev);
-			break;
-		case S_IFREG:
-			inode->i_op = &v9fs_file_inode_operations;
-			inode->i_fop = &v9fs_file_operations;
-			break;
-		case S_IFLNK:
-			if (!v9fs_extended(v9ses)) {
-				P9_DPRINTK(P9_DEBUG_ERROR,
-					"extended modes used w/o 9P2000.u\n");
-				return ERR_PTR(-EINVAL);
-			}
-			inode->i_op = &v9fs_symlink_inode_operations;
-			break;
-		case S_IFDIR:
-			inc_nlink(inode);
-			if (v9fs_extended(v9ses))
-				inode->i_op = &v9fs_dir_inode_operations_ext;
-			else
-				inode->i_op = &v9fs_dir_inode_operations;
-			inode->i_fop = &v9fs_dir_operations;
-			break;
-		default:
-			P9_DPRINTK(P9_DEBUG_ERROR,
-				"BAD mode 0x%x S_IFMT 0x%x\n",
-				mode, mode & S_IFMT);
-			return ERR_PTR(-EINVAL);
-		}
-	} else {
+	if (!inode) {
 		P9_EPRINTK(KERN_WARNING, "Problem allocating inode\n");
 		return ERR_PTR(-ENOMEM);
 	}
+
+	inode->i_mode = mode;
+	inode->i_uid = current_fsuid();
+	inode->i_gid = current_fsgid();
+	inode->i_blocks = 0;
+	inode->i_rdev = 0;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mapping->a_ops = &v9fs_addr_operations;
+
+	switch (mode & S_IFMT) {
+	case S_IFIFO:
+	case S_IFBLK:
+	case S_IFCHR:
+	case S_IFSOCK:
+		if (!v9fs_extended(v9ses)) {
+			P9_DPRINTK(P9_DEBUG_ERROR,
+				   "special files without extended mode\n");
+			err = -EINVAL;
+			goto error;
+		}
+		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+		break;
+	case S_IFREG:
+		inode->i_op = &v9fs_file_inode_operations;
+		inode->i_fop = &v9fs_file_operations;
+		break;
+	case S_IFLNK:
+		if (!v9fs_extended(v9ses)) {
+			P9_DPRINTK(P9_DEBUG_ERROR,
+				   "extended modes used w/o 9P2000.u\n");
+			err = -EINVAL;
+			goto error;
+		}
+		inode->i_op = &v9fs_symlink_inode_operations;
+		break;
+	case S_IFDIR:
+		inc_nlink(inode);
+		if (v9fs_extended(v9ses))
+			inode->i_op = &v9fs_dir_inode_operations_ext;
+		else
+			inode->i_op = &v9fs_dir_inode_operations;
+		inode->i_fop = &v9fs_dir_operations;
+		break;
+	default:
+		P9_DPRINTK(P9_DEBUG_ERROR, "BAD mode 0x%x S_IFMT 0x%x\n",
+			   mode, mode & S_IFMT);
+		err = -EINVAL;
+		goto error;
+	}
+
 	return inode;
+
+error:
+	iput(inode);
+	return ERR_PTR(err);
 }
 
 /*
@@ -338,30 +344,25 @@ v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 
 	ret = NULL;
 	st = p9_client_stat(fid);
-	if (IS_ERR(st)) {
-		err = PTR_ERR(st);
-		st = NULL;
-		goto error;
-	}
+	if (IS_ERR(st))
+		return ERR_CAST(st);
 
 	umode = p9mode2unixmode(v9ses, st->mode);
 	ret = v9fs_get_inode(sb, umode);
 	if (IS_ERR(ret)) {
 		err = PTR_ERR(ret);
-		ret = NULL;
 		goto error;
 	}
 
 	v9fs_stat2inode(st, ret, sb);
 	ret->i_ino = v9fs_qid2ino(&st->qid);
+	p9stat_free(st);
 	kfree(st);
 	return ret;
 
 error:
+	p9stat_free(st);
 	kfree(st);
-	if (ret)
-		iput(ret);
-
 	return ERR_PTR(err);
 }
 
@@ -403,9 +404,9 @@ v9fs_open_created(struct inode *inode, struct file *file)
  * @v9ses: session information
  * @dir: directory that dentry is being created in
  * @dentry:  dentry that is being created
+ * @extension: 9p2000.u extension string to support devices, etc.
  * @perm: create permissions
  * @mode: open mode
- * @extension: 9p2000.u extension string to support devices, etc.
  *
  */
 static struct p9_fid *
@@ -470,7 +471,10 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 		dentry->d_op = &v9fs_dentry_operations;
 
 	d_instantiate(dentry, inode);
-	v9fs_fid_add(dentry, fid);
+	err = v9fs_fid_add(dentry, fid);
+	if (err < 0)
+		goto error;
+
 	return ofid;
 
 error:

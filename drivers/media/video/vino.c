@@ -1776,7 +1776,6 @@ static struct i2c_algo_sgi_data i2c_sgi_vino_data = {
 
 static struct i2c_adapter vino_i2c_adapter = {
 	.name			= "VINO I2C bus",
-	.id			= I2C_HW_SGI_VINO,
 	.algo			= &sgi_algo,
 	.algo_data		= &i2c_sgi_vino_data,
 	.owner 			= THIS_MODULE,

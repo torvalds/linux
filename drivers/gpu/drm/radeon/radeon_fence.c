@@ -195,7 +195,7 @@ retry:
 		r = wait_event_interruptible_timeout(rdev->fence_drv.queue,
 				radeon_fence_signaled(fence), timeout);
 		if (unlikely(r == -ERESTARTSYS)) {
-			return -ERESTART;
+			return -EBUSY;
 		}
 	} else {
 		r = wait_event_timeout(rdev->fence_drv.queue,

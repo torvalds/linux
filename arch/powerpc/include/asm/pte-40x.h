@@ -46,7 +46,7 @@
 #define	_PAGE_RW	0x040	/* software: Writes permitted */
 #define	_PAGE_DIRTY	0x080	/* software: dirty page */
 #define _PAGE_HWWRITE	0x100	/* hardware: Dirty & RW, set in exception */
-#define _PAGE_HWEXEC	0x200	/* hardware: EX permission */
+#define _PAGE_EXEC	0x200	/* hardware: EX permission */
 #define _PAGE_ACCESSED	0x400	/* software: R: page referenced */
 
 #define _PMD_PRESENT	0x400	/* PMD points to page of PTEs */

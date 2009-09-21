@@ -94,7 +94,7 @@ _base_fault_reset_work(struct work_struct *work)
 	int rc;
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (ioc->ioc_reset_in_progress)
+	if (ioc->shost_recovery)
 		goto rearm_timer;
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
@@ -117,6 +117,64 @@ _base_fault_reset_work(struct work_struct *work)
 		    &ioc->fault_reset_work,
 		    msecs_to_jiffies(FAULT_POLLING_INTERVAL));
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+}
+
+/**
+ * mpt2sas_base_start_watchdog - start the fault_reset_work_q
+ * @ioc: pointer to scsi command object
+ * Context: sleep.
+ *
+ * Return nothing.
+ */
+void
+mpt2sas_base_start_watchdog(struct MPT2SAS_ADAPTER *ioc)
+{
+	unsigned long	 flags;
+
+	if (ioc->fault_reset_work_q)
+		return;
+
+	/* initialize fault polling */
+	INIT_DELAYED_WORK(&ioc->fault_reset_work, _base_fault_reset_work);
+	snprintf(ioc->fault_reset_work_q_name,
+	    sizeof(ioc->fault_reset_work_q_name), "poll_%d_status", ioc->id);
+	ioc->fault_reset_work_q =
+		create_singlethread_workqueue(ioc->fault_reset_work_q_name);
+	if (!ioc->fault_reset_work_q) {
+		printk(MPT2SAS_ERR_FMT "%s: failed (line=%d)\n",
+		    ioc->name, __func__, __LINE__);
+			return;
+	}
+	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
+	if (ioc->fault_reset_work_q)
+		queue_delayed_work(ioc->fault_reset_work_q,
+		    &ioc->fault_reset_work,
+		    msecs_to_jiffies(FAULT_POLLING_INTERVAL));
+	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+}
+
+/**
+ * mpt2sas_base_stop_watchdog - stop the fault_reset_work_q
+ * @ioc: pointer to scsi command object
+ * Context: sleep.
+ *
+ * Return nothing.
+ */
+void
+mpt2sas_base_stop_watchdog(struct MPT2SAS_ADAPTER *ioc)
+{
+	unsigned long	 flags;
+	struct workqueue_struct *wq;
+
+	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
+	wq = ioc->fault_reset_work_q;
+	ioc->fault_reset_work_q = NULL;
+	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+	if (wq) {
+		if (!cancel_delayed_work(&ioc->fault_reset_work))
+			flush_workqueue(wq);
+		destroy_workqueue(wq);
+	}
 }
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
@@ -440,6 +498,10 @@ _base_sas_log_info(struct MPT2SAS_ADAPTER *ioc , u32 log_info)
 	if (sas_loginfo.dw.bus_type != 3 /*SAS*/)
 		return;
 
+	/* each nexus loss loginfo */
+	if (log_info == 0x31170000)
+		return;
+
 	/* eat the loginfos associated with task aborts */
 	if (ioc->ignore_loginfos && (log_info == 30050000 || log_info ==
 	    0x31140000 || log_info == 0x31130000))
@@ -625,6 +687,14 @@ _base_unmask_interrupts(struct MPT2SAS_ADAPTER *ioc)
 	ioc->mask_interrupts = 0;
 }
 
+union reply_descriptor {
+	u64 word;
+	struct {
+		u32 low;
+		u32 high;
+	} u;
+};
+
 /**
  * _base_interrupt - MPT adapter (IOC) specific interrupt handler.
  * @irq: irq number (not used)
@@ -636,47 +706,38 @@ _base_unmask_interrupts(struct MPT2SAS_ADAPTER *ioc)
 static irqreturn_t
 _base_interrupt(int irq, void *bus_id)
 {
-	union reply_descriptor {
-		u64 word;
-		struct {
-			u32 low;
-			u32 high;
-		} u;
-	};
 	union reply_descriptor rd;
-	u32 post_index, post_index_next, completed_cmds;
+	u32 completed_cmds;
 	u8 request_desript_type;
 	u16 smid;
 	u8 cb_idx;
 	u32 reply;
 	u8 VF_ID;
-	int i;
 	struct MPT2SAS_ADAPTER *ioc = bus_id;
+	Mpi2ReplyDescriptorsUnion_t *rpf;
 
 	if (ioc->mask_interrupts)
 		return IRQ_NONE;
 
-	post_index = ioc->reply_post_host_index;
-	request_desript_type = ioc->reply_post_free[post_index].
-	    Default.ReplyFlags & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
+	rpf = &ioc->reply_post_free[ioc->reply_post_host_index];
+	request_desript_type = rpf->Default.ReplyFlags
+	     & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
 	if (request_desript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
 		return IRQ_NONE;
 
 	completed_cmds = 0;
 	do {
-		rd.word = ioc->reply_post_free[post_index].Words;
+		rd.word = rpf->Words;
 		if (rd.u.low == UINT_MAX || rd.u.high == UINT_MAX)
 			goto out;
 		reply = 0;
 		cb_idx = 0xFF;
-		smid = le16_to_cpu(ioc->reply_post_free[post_index].
-		    Default.DescriptorTypeDependent1);
-		VF_ID = ioc->reply_post_free[post_index].
-		    Default.VF_ID;
+		smid = le16_to_cpu(rpf->Default.DescriptorTypeDependent1);
+		VF_ID = rpf->Default.VF_ID;
 		if (request_desript_type ==
 		    MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY) {
-			reply = le32_to_cpu(ioc->reply_post_free[post_index].
-			    AddressReply.ReplyFrameAddress);
+			reply = le32_to_cpu
+				(rpf->AddressReply.ReplyFrameAddress);
 		} else if (request_desript_type ==
 		    MPI2_RPY_DESCRIPT_FLAGS_TARGET_COMMAND_BUFFER)
 			goto next;
@@ -703,21 +764,27 @@ _base_interrupt(int irq, void *bus_id)
 			    0 : ioc->reply_free_host_index + 1;
 			ioc->reply_free[ioc->reply_free_host_index] =
 			    cpu_to_le32(reply);
+			wmb();
 			writel(ioc->reply_free_host_index,
 			    &ioc->chip->ReplyFreeHostIndex);
-			wmb();
 		}
 
  next:
-		post_index_next = (post_index == (ioc->reply_post_queue_depth -
-		    1)) ? 0 : post_index + 1;
+
+		rpf->Words = ULLONG_MAX;
+		ioc->reply_post_host_index = (ioc->reply_post_host_index ==
+		    (ioc->reply_post_queue_depth - 1)) ? 0 :
+		    ioc->reply_post_host_index + 1;
 		request_desript_type =
-		    ioc->reply_post_free[post_index_next].Default.ReplyFlags
-		    & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
+		    ioc->reply_post_free[ioc->reply_post_host_index].Default.
+		    ReplyFlags & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
 		completed_cmds++;
 		if (request_desript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
 			goto out;
-		post_index = post_index_next;
+		if (!ioc->reply_post_host_index)
+			rpf = ioc->reply_post_free;
+		else
+			rpf++;
 	} while (1);
 
  out:
@@ -725,19 +792,8 @@ _base_interrupt(int irq, void *bus_id)
 	if (!completed_cmds)
 		return IRQ_NONE;
 
-	/* reply post descriptor handling */
-	post_index_next = ioc->reply_post_host_index;
-	for (i = 0 ; i < completed_cmds; i++) {
-		post_index = post_index_next;
-		/* poison the reply post descriptor */
-		ioc->reply_post_free[post_index_next].Words = ULLONG_MAX;
-		post_index_next = (post_index ==
-		    (ioc->reply_post_queue_depth - 1))
-		    ? 0 : post_index + 1;
-	}
-	ioc->reply_post_host_index = post_index_next;
-	writel(post_index_next, &ioc->chip->ReplyPostHostIndex);
 	wmb();
+	writel(ioc->reply_post_host_index, &ioc->chip->ReplyPostHostIndex);
 	return IRQ_HANDLED;
 }
 
@@ -1109,7 +1165,6 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 		}
 	}
 
-	pci_set_drvdata(pdev, ioc->shost);
 	_base_mask_interrupts(ioc);
 	r = _base_enable_msix(ioc);
 	if (r)
@@ -1132,7 +1187,6 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	ioc->pci_irq = -1;
 	pci_release_selected_regions(ioc->pdev, ioc->bars);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return r;
 }
 
@@ -1482,6 +1536,8 @@ _base_display_ioc_capabilities(struct MPT2SAS_ADAPTER *ioc)
 	   (ioc->bios_pg3.BiosVersion & 0x0000FF00) >> 8,
 	    ioc->bios_pg3.BiosVersion & 0x000000FF);
 
+	_base_display_dell_branding(ioc);
+
 	printk(MPT2SAS_INFO_FMT "Protocol=(", ioc->name);
 
 	if (ioc->facts.ProtocolFlags & MPI2_IOCFACTS_PROTOCOL_SCSI_INITIATOR) {
@@ -1493,8 +1549,6 @@ _base_display_ioc_capabilities(struct MPT2SAS_ADAPTER *ioc)
 		printk("%sTarget", i ? "," : "");
 		i++;
 	}
-
-	_base_display_dell_branding(ioc);
 
 	i = 0;
 	printk("), ");
@@ -1567,6 +1621,9 @@ _base_static_config_pages(struct MPT2SAS_ADAPTER *ioc)
 	u32 iounit_pg1_flags;
 
 	mpt2sas_config_get_manufacturing_pg0(ioc, &mpi_reply, &ioc->manu_pg0);
+	if (ioc->ir_firmware)
+		mpt2sas_config_get_manufacturing_pg10(ioc, &mpi_reply,
+		    &ioc->manu_pg10);
 	mpt2sas_config_get_bios_pg2(ioc, &mpi_reply, &ioc->bios_pg2);
 	mpt2sas_config_get_bios_pg3(ioc, &mpi_reply, &ioc->bios_pg3);
 	mpt2sas_config_get_ioc_pg8(ioc, &mpi_reply, &ioc->ioc_pg8);
@@ -1587,7 +1644,7 @@ _base_static_config_pages(struct MPT2SAS_ADAPTER *ioc)
 		iounit_pg1_flags |=
 		    MPI2_IOUNITPAGE1_DISABLE_TASK_SET_FULL_HANDLING;
 	ioc->iounit_pg1.Flags = cpu_to_le32(iounit_pg1_flags);
-	mpt2sas_config_set_iounit_pg1(ioc, &mpi_reply, ioc->iounit_pg1);
+	mpt2sas_config_set_iounit_pg1(ioc, &mpi_reply, &ioc->iounit_pg1);
 }
 
 /**
@@ -3191,7 +3248,6 @@ mpt2sas_base_free_resources(struct MPT2SAS_ADAPTER *ioc)
 	ioc->chip_phys = 0;
 	pci_release_selected_regions(ioc->pdev, ioc->bars);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return;
 }
 
@@ -3205,7 +3261,6 @@ int
 mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 {
 	int r, i;
-	unsigned long	 flags;
 
 	dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n", ioc->name,
 	    __func__));
@@ -3214,6 +3269,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	if (r)
 		return r;
 
+	pci_set_drvdata(ioc->pdev, ioc->shost);
 	r = _base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
 	if (r)
 		goto out_free_resources;
@@ -3244,13 +3300,11 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	ioc->tm_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
 	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 	mutex_init(&ioc->tm_cmds.mutex);
-	init_completion(&ioc->tm_cmds.done);
 
 	/* config page internal command bits */
 	ioc->config_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
 	ioc->config_cmds.status = MPT2_CMD_NOT_USED;
 	mutex_init(&ioc->config_cmds.mutex);
-	init_completion(&ioc->config_cmds.done);
 
 	/* ctl module internal command bits */
 	ioc->ctl_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
@@ -3288,23 +3342,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	if (r)
 		goto out_free_resources;
 
-	/* initialize fault polling */
-	INIT_DELAYED_WORK(&ioc->fault_reset_work, _base_fault_reset_work);
-	snprintf(ioc->fault_reset_work_q_name,
-	    sizeof(ioc->fault_reset_work_q_name), "poll_%d_status", ioc->id);
-	ioc->fault_reset_work_q =
-		create_singlethread_workqueue(ioc->fault_reset_work_q_name);
-	if (!ioc->fault_reset_work_q) {
-		printk(MPT2SAS_ERR_FMT "%s: failed (line=%d)\n",
-		    ioc->name, __func__, __LINE__);
-			goto out_free_resources;
-	}
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (ioc->fault_reset_work_q)
-		queue_delayed_work(ioc->fault_reset_work_q,
-		    &ioc->fault_reset_work,
-		    msecs_to_jiffies(FAULT_POLLING_INTERVAL));
-	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+	mpt2sas_base_start_watchdog(ioc);
 	return 0;
 
  out_free_resources:
@@ -3312,6 +3350,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	ioc->remove_host = 1;
 	mpt2sas_base_free_resources(ioc);
 	_base_release_memory_pools(ioc);
+	pci_set_drvdata(ioc->pdev, NULL);
 	kfree(ioc->tm_cmds.reply);
 	kfree(ioc->transport_cmds.reply);
 	kfree(ioc->config_cmds.reply);
@@ -3337,22 +3376,14 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 void
 mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc)
 {
-	unsigned long	 flags;
-	struct workqueue_struct *wq;
 
 	dexitprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n", ioc->name,
 	    __func__));
 
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	wq = ioc->fault_reset_work_q;
-	ioc->fault_reset_work_q = NULL;
-	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
-	if (!cancel_delayed_work(&ioc->fault_reset_work))
-		flush_workqueue(wq);
-	destroy_workqueue(wq);
-
+	mpt2sas_base_stop_watchdog(ioc);
 	mpt2sas_base_free_resources(ioc);
 	_base_release_memory_pools(ioc);
+	pci_set_drvdata(ioc->pdev, NULL);
 	kfree(ioc->pfacts);
 	kfree(ioc->ctl_cmds.reply);
 	kfree(ioc->base_cmds.reply);
@@ -3397,6 +3428,7 @@ _base_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 		if (ioc->config_cmds.status & MPT2_CMD_PENDING) {
 			ioc->config_cmds.status |= MPT2_CMD_RESET;
 			mpt2sas_base_free_smid(ioc, ioc->config_cmds.smid);
+			ioc->config_cmds.smid = USHORT_MAX;
 			complete(&ioc->config_cmds.done);
 		}
 		break;
@@ -3465,20 +3497,13 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 	    __func__));
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (ioc->ioc_reset_in_progress) {
+	if (ioc->shost_recovery) {
 		spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 		printk(MPT2SAS_ERR_FMT "%s: busy\n",
 		    ioc->name, __func__);
 		return -EBUSY;
 	}
-	ioc->ioc_reset_in_progress = 1;
 	ioc->shost_recovery = 1;
-	if (ioc->shost->shost_state == SHOST_RUNNING) {
-		/* set back to SHOST_RUNNING in mpt2sas_scsih.c */
-		scsi_host_set_state(ioc->shost, SHOST_RECOVERY);
-		printk(MPT2SAS_INFO_FMT "putting controller into "
-		    "SHOST_RECOVERY\n", ioc->name);
-	}
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
 	_base_reset_handler(ioc, MPT2_IOC_PRE_RESET);
@@ -3498,7 +3523,10 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 	    ioc->name, __func__, ((r == 0) ? "SUCCESS" : "FAILED")));
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	ioc->ioc_reset_in_progress = 0;
+	ioc->shost_recovery = 0;
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+
+	if (!r)
+		_base_reset_handler(ioc, MPT2_IOC_RUNNING);
 	return r;
 }

@@ -25,7 +25,9 @@ extern const struct ath9k_percal_data adc_dc_cal_multi_sample;
 extern const struct ath9k_percal_data adc_dc_cal_single_sample;
 extern const struct ath9k_percal_data adc_init_dc_cal;
 
-#define AR_PHY_CCA_MAX_GOOD_VALUE      		-85
+#define AR_PHY_CCA_MAX_AR5416_GOOD_VALUE	-85
+#define AR_PHY_CCA_MAX_AR9280_GOOD_VALUE	-112
+#define AR_PHY_CCA_MAX_AR9285_GOOD_VALUE	-118
 #define AR_PHY_CCA_MAX_HIGH_VALUE      		-62
 #define AR_PHY_CCA_MIN_BAD_VALUE       		-140
 #define AR_PHY_CCA_FILTERWINDOW_LENGTH_INIT     3
@@ -106,6 +108,13 @@ struct ath9k_nfcal_hist {
 	u8 currIndex;
 	int16_t privNF;
 	u8 invalidNFcount;
+};
+
+#define MAX_PACAL_SKIPCOUNT 8
+struct ath9k_pacal_info{
+	int32_t prev_offset;	/* Previous value of PA offset value */
+	int8_t max_skipcount;	/* Max No. of times PACAL can be skipped */
+	int8_t skipcount;	/* No. of times the PACAL to be skipped */
 };
 
 bool ath9k_hw_reset_calvalid(struct ath_hw *ah);

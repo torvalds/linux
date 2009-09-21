@@ -95,6 +95,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(SUPERIAL_VENDOR_ID, SUPERIAL_PRODUCT_ID) },
 	{ USB_DEVICE(HP_VENDOR_ID, HP_LD220_PRODUCT_ID) },
 	{ USB_DEVICE(CRESSI_VENDOR_ID, CRESSI_EDY_PRODUCT_ID) },
+	{ USB_DEVICE(SONY_VENDOR_ID, SONY_QN3USB_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
 
@@ -690,8 +691,7 @@ static void pl2303_close(struct usb_serial_port *port)
 
 }
 
-static int pl2303_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
@@ -712,8 +712,6 @@ static int pl2303_open(struct tty_struct *tty,
 	/* Setup termios */
 	if (tty)
 		pl2303_set_termios(tty, port, &tmp_termios);
-
-	/* FIXME: need to assert RTS and DTR if CRTSCTS off */
 
 	dbg("%s - submitting read urb", __func__);
 	port->read_urb->dev = serial->dev;

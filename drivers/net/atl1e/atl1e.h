@@ -377,9 +377,18 @@ struct atl1e_hw {
  */
 struct atl1e_tx_buffer {
 	struct sk_buff *skb;
+	u16 flags;
+#define ATL1E_TX_PCIMAP_SINGLE		0x0001
+#define ATL1E_TX_PCIMAP_PAGE		0x0002
+#define ATL1E_TX_PCIMAP_TYPE_MASK	0x0003
 	u16 length;
 	dma_addr_t dma;
 };
+
+#define ATL1E_SET_PCIMAP_TYPE(tx_buff, type) do {		\
+	((tx_buff)->flags) &= ~ATL1E_TX_PCIMAP_TYPE_MASK;	\
+	((tx_buff)->flags) |= (type);				\
+	} while (0)
 
 struct atl1e_rx_page {
 	dma_addr_t	dma;    /* receive rage DMA address */

@@ -1,0 +1,32 @@
+config HYPERV
+	tristate "Microsoft Hyper-V client drivers"
+	depends on X86 && m
+	default n
+	help
+	  Select this option to run Linux as a Hyper-V client operating
+	  system.
+
+if HYPERV
+
+config HYPERV_STORAGE
+	tristate "Microsoft Hyper-V virtual storage driver"
+	depends on SCSI
+	default HYPERV
+	help
+	 Select this option to enable the Hyper-V virtual storage driver.
+
+config HYPERV_BLOCK
+	tristate "Microsoft Hyper-V virtual block driver"
+	depends on BLOCK && SCSI
+	default HYPERV
+	help
+	  Select this option to enable the Hyper-V virtual block driver.
+
+config HYPERV_NET
+	tristate "Microsoft Hyper-V virtual network driver"
+	depends on NET
+	default HYPERV
+	help
+	  Select this option to enable the Hyper-V virtual network driver.
+
+endif

@@ -488,8 +488,9 @@ static struct power_pmu ppc970_pmu = {
 
 static int init_ppc970_pmu(void)
 {
-	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970")
-	    && strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970MP"))
+	if (!cur_cpu_spec->oprofile_cpu_type ||
+	    (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970")
+	     && strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970MP")))
 		return -ENODEV;
 
 	return register_power_pmu(&ppc970_pmu);

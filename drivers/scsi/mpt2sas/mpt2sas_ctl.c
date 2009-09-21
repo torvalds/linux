@@ -1963,7 +1963,6 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg)
 {
 	enum block_state state;
 	long ret = -EINVAL;
-	unsigned long flags;
 
 	state = (file->f_flags & O_NONBLOCK) ? NON_BLOCKING :
 	    BLOCKING;
@@ -1989,13 +1988,8 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg)
 		    !ioc)
 			return -ENODEV;
 
-		spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-		if (ioc->shost_recovery) {
-			spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock,
-			    flags);
+		if (ioc->shost_recovery)
 			return -EAGAIN;
-		}
-		spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
 		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_command)) {
 			uarg = arg;
@@ -2098,7 +2092,6 @@ _ctl_compat_mpt_command(struct file *file, unsigned cmd, unsigned long arg)
 	struct mpt2_ioctl_command karg;
 	struct MPT2SAS_ADAPTER *ioc;
 	enum block_state state;
-	unsigned long flags;
 
 	if (_IOC_SIZE(cmd) != sizeof(struct mpt2_ioctl_command32))
 		return -EINVAL;
@@ -2113,13 +2106,8 @@ _ctl_compat_mpt_command(struct file *file, unsigned cmd, unsigned long arg)
 	if (_ctl_verify_adapter(karg32.hdr.ioc_number, &ioc) == -1 || !ioc)
 		return -ENODEV;
 
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (ioc->shost_recovery) {
-		spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock,
-		    flags);
+	if (ioc->shost_recovery)
 		return -EAGAIN;
-	}
-	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
 	memset(&karg, 0, sizeof(struct mpt2_ioctl_command));
 	karg.hdr.ioc_number = karg32.hdr.ioc_number;

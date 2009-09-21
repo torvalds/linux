@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.16';
+my $V = '0.17';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -27,6 +27,7 @@ my $email_git = 1;
 my $email_git_penguin_chiefs = 0;
 my $email_git_min_signatures = 1;
 my $email_git_max_maintainers = 5;
+my $email_git_min_percent = 5;
 my $email_git_since = "1-year-ago";
 my $output_multiline = 1;
 my $output_separator = ", ";
@@ -65,6 +66,7 @@ if (!GetOptions(
 		'git-chief-penguins!' => \$email_git_penguin_chiefs,
 		'git-min-signatures=i' => \$email_git_min_signatures,
 		'git-max-maintainers=i' => \$email_git_max_maintainers,
+		'git-min-percent=i' => \$email_git_min_percent,
 		'git-since=s' => \$email_git_since,
 		'm!' => \$email_maintainer,
 		'n!' => \$email_usename,
@@ -132,6 +134,10 @@ while (<MAINT>) {
 	    $value =~ s@\.@\\\.@g;       ##Convert . to \.
 	    $value =~ s/\*/\.\*/g;       ##Convert * to .*
 	    $value =~ s/\?/\./g;         ##Convert ? to .
+	    ##if pattern is a directory and it lacks a trailing slash, add one
+	    if ((-d $value)) {
+		$value =~ s@([^/])$@$1/@;
+	    }
 	}
 	push(@typevalue, "$type:$value");
     } elsif (!/^(\s)*$/) {
@@ -146,8 +152,10 @@ close(MAINT);
 my @files = ();
 
 foreach my $file (@ARGV) {
-    next if ((-d $file));
-    if (!(-f $file)) {
+    ##if $file is a directory and it lacks a trailing slash, add one
+    if ((-d $file)) {
+	$file =~ s@([^/])$@$1/@;
+    } elsif (!(-f $file)) {
 	die "$P: file '${file}' not found\n";
     }
     if ($from_filename) {
@@ -292,7 +300,7 @@ sub file_match_pattern {
 sub usage {
     print <<EOT;
 usage: $P [options] patchfile
-       $P [options] -f file
+       $P [options] -f file|directory
 version: $V
 
 MAINTAINER field selection options:
@@ -301,6 +309,7 @@ MAINTAINER field selection options:
     --git-chief-penguins => include ${penguin_chiefs}
     --git-min-signatures => number of signatures required (default: 1)
     --git-max-maintainers => maximum maintainers to add (default: 5)
+    --git-min-percent => minimum percentage of commits required (default: 5)
     --git-since => git history to use (default: 1-year-ago)
     --m => include maintainer(s) if any
     --n => include name 'Full Name <addr\@domain.tld>'
@@ -322,6 +331,15 @@ Other options:
   --version => show version
   --help => show this help information
 
+Notes:
+  Using "-f directory" may give unexpected results:
+
+  Used with "--git", git signators for _all_ files in and below
+     directory are examined as git recurses directories.
+     Any specified X: (exclude) pattern matches are _not_ ignored.
+  Used with "--nogit", directory is used as a pattern match,
+     no individual file within the directory or subdirectory
+     is matched.
 EOT
 }
 
@@ -482,6 +500,7 @@ sub recent_git_signoffs {
     my $output = "";
     my $count = 0;
     my @lines = ();
+    my $total_sign_offs;
 
     if (which("git") eq "") {
 	warn("$P: git not found.  Add --nogit to options?\n");
@@ -505,17 +524,26 @@ sub recent_git_signoffs {
     $output =~ s/^\s*//gm;
 
     @lines = split("\n", $output);
+
+    $total_sign_offs = 0;
+    foreach my $line (@lines) {
+	if ($line =~ m/([0-9]+)\s+(.*)/) {
+	    $total_sign_offs += $1;
+	} else {
+	    die("$P: Unexpected git output: ${line}\n");
+	}
+    }
+
     foreach my $line (@lines) {
 	if ($line =~ m/([0-9]+)\s+(.*)/) {
 	    my $sign_offs = $1;
 	    $line = $2;
 	    $count++;
 	    if ($sign_offs < $email_git_min_signatures ||
-	        $count > $email_git_max_maintainers) {
+	        $count > $email_git_max_maintainers ||
+		$sign_offs * 100 / $total_sign_offs < $email_git_min_percent) {
 		last;
 	    }
-	} else {
-	    die("$P: Unexpected git output: ${line}\n");
 	}
 	if ($line =~ m/(.+)<(.+)>/) {
 	    my $git_name = $1;

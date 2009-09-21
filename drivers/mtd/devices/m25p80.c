@@ -736,7 +736,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 			flash->partitioned = 1;
 			return add_mtd_partitions(&flash->mtd, parts, nr_parts);
 		}
-	} else if (data->nr_parts)
+	} else if (data && data->nr_parts)
 		dev_warn(&spi->dev, "ignoring %d default partitions on %s\n",
 				data->nr_parts, data->name);
 

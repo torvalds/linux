@@ -41,9 +41,6 @@
 #define TS72XX_OPTIONS2_TS9420_BOOT	0x02
 
 
-#define TS72XX_NOR_PHYS_BASE		0x60000000
-#define TS72XX_NOR2_PHYS_BASE		0x62000000
-
 #define TS72XX_NAND1_DATA_PHYS_BASE	0x60000000
 #define TS72XX_NAND2_DATA_PHYS_BASE	0x70000000
 #define TS72XX_NAND_DATA_VIRT_BASE	0xfebfc000
@@ -70,7 +67,6 @@
 
 
 #ifndef __ASSEMBLY__
-#include <linux/io.h>
 
 static inline int board_is_ts7200(void)
 {

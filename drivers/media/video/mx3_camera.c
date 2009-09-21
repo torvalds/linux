@@ -332,7 +332,10 @@ static enum pixel_fmt fourcc_to_ipu_pix(__u32 fourcc)
 	}
 }
 
-/* Called with .vb_lock held */
+/*
+ * Called with .vb_lock mutex held and
+ * under spinlock_irqsave(&mx3_cam->lock, ...)
+ */
 static void mx3_videobuf_queue(struct videobuf_queue *vq,
 			       struct videobuf_buffer *vb)
 {
@@ -346,7 +349,8 @@ static void mx3_videobuf_queue(struct videobuf_queue *vq,
 	struct idmac_video_param *video = &ichan->params.video;
 	const struct soc_camera_data_format *data_fmt = icd->current_fmt;
 	dma_cookie_t cookie;
-	unsigned long flags;
+
+	BUG_ON(!irqs_disabled());
 
 	/* This is the configuration of one sg-element */
 	video->out_pixel_fmt	= fourcc_to_ipu_pix(data_fmt->fourcc);
@@ -359,8 +363,6 @@ static void mx3_videobuf_queue(struct videobuf_queue *vq,
 	memset((void *)vb->baddr, 0xaa, vb->bsize);
 #endif
 
-	spin_lock_irqsave(&mx3_cam->lock, flags);
-
 	list_add_tail(&vb->queue, &mx3_cam->capture);
 
 	if (!mx3_cam->active) {
@@ -370,24 +372,23 @@ static void mx3_videobuf_queue(struct videobuf_queue *vq,
 		vb->state = VIDEOBUF_QUEUED;
 	}
 
-	spin_unlock_irqrestore(&mx3_cam->lock, flags);
+	spin_unlock_irq(&mx3_cam->lock);
 
 	cookie = txd->tx_submit(txd);
 	dev_dbg(&icd->dev, "Submitted cookie %d DMA 0x%08x\n", cookie, sg_dma_address(&buf->sg));
+
+	spin_lock_irq(&mx3_cam->lock);
+
 	if (cookie >= 0)
 		return;
 
 	/* Submit error */
 	vb->state = VIDEOBUF_PREPARED;
 
-	spin_lock_irqsave(&mx3_cam->lock, flags);
-
 	list_del_init(&vb->queue);
 
 	if (mx3_cam->active == buf)
 		mx3_cam->active = NULL;
-
-	spin_unlock_irqrestore(&mx3_cam->lock, flags);
 }
 
 /* Called with .vb_lock held */

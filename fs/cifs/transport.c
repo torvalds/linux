@@ -119,20 +119,19 @@ AllocOplockQEntry(struct inode *pinode, __u16 fid, struct cifsTconInfo *tcon)
 		temp->pinode = pinode;
 		temp->tcon = tcon;
 		temp->netfid = fid;
-		spin_lock(&GlobalMid_Lock);
-		list_add_tail(&temp->qhead, &GlobalOplock_Q);
-		spin_unlock(&GlobalMid_Lock);
+		spin_lock(&cifs_oplock_lock);
+		list_add_tail(&temp->qhead, &cifs_oplock_list);
+		spin_unlock(&cifs_oplock_lock);
 	}
 	return temp;
-
 }
 
 void DeleteOplockQEntry(struct oplock_q_entry *oplockEntry)
 {
-	spin_lock(&GlobalMid_Lock);
+	spin_lock(&cifs_oplock_lock);
     /* should we check if list empty first? */
 	list_del(&oplockEntry->qhead);
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&cifs_oplock_lock);
 	kmem_cache_free(cifs_oplock_cachep, oplockEntry);
 }
 
@@ -144,14 +143,14 @@ void DeleteTconOplockQEntries(struct cifsTconInfo *tcon)
 	if (tcon == NULL)
 		return;
 
-	spin_lock(&GlobalMid_Lock);
-	list_for_each_entry(temp, &GlobalOplock_Q, qhead) {
+	spin_lock(&cifs_oplock_lock);
+	list_for_each_entry(temp, &cifs_oplock_list, qhead) {
 		if ((temp->tcon) && (temp->tcon == tcon)) {
 			list_del(&temp->qhead);
 			kmem_cache_free(cifs_oplock_cachep, temp);
 		}
 	}
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&cifs_oplock_lock);
 }
 
 static int

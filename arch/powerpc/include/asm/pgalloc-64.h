@@ -118,11 +118,11 @@ static inline void pgtable_free(pgtable_free_t pgf)
 		kmem_cache_free(pgtable_cache[cachenum], p);
 }
 
-#define __pmd_free_tlb(tlb, pmd) 	\
+#define __pmd_free_tlb(tlb, pmd,addr)		      \
 	pgtable_free_tlb(tlb, pgtable_free_cache(pmd, \
 		PMD_CACHE_NUM, PMD_TABLE_SIZE-1))
 #ifndef CONFIG_PPC_64K_PAGES
-#define __pud_free_tlb(tlb, pud)	\
+#define __pud_free_tlb(tlb, pud, addr)		      \
 	pgtable_free_tlb(tlb, pgtable_free_cache(pud, \
 		PUD_CACHE_NUM, PUD_TABLE_SIZE-1))
 #endif /* CONFIG_PPC_64K_PAGES */

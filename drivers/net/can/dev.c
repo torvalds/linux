@@ -315,12 +315,28 @@ void can_get_echo_skb(struct net_device *dev, int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	if ((dev->flags & IFF_ECHO) && priv->echo_skb[idx]) {
+	if (priv->echo_skb[idx]) {
 		netif_rx(priv->echo_skb[idx]);
 		priv->echo_skb[idx] = NULL;
 	}
 }
 EXPORT_SYMBOL_GPL(can_get_echo_skb);
+
+/*
+  * Remove the skb from the stack and free it.
+  *
+  * The function is typically called when TX failed.
+  */
+void can_free_echo_skb(struct net_device *dev, int idx)
+{
+	struct can_priv *priv = netdev_priv(dev);
+
+	if (priv->echo_skb[idx]) {
+		kfree_skb(priv->echo_skb[idx]);
+		priv->echo_skb[idx] = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(can_free_echo_skb);
 
 /*
  * CAN device restart for bus-off recovery
@@ -357,7 +373,6 @@ void can_restart(unsigned long data)
 
 	netif_rx(skb);
 
-	dev->last_rx = jiffies;
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
 
@@ -611,11 +626,18 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int can_newlink(struct net_device *dev,
+		       struct nlattr *tb[], struct nlattr *data[])
+{
+	return -EOPNOTSUPP;
+}
+
 static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.kind		= "can",
 	.maxtype	= IFLA_CAN_MAX,
 	.policy		= can_policy,
 	.setup		= can_setup,
+	.newlink	= can_newlink,
 	.changelink	= can_changelink,
 	.fill_info	= can_fill_info,
 	.fill_xstats	= can_fill_xstats,

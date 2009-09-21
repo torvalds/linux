@@ -135,8 +135,6 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 #endif
 
 #ifndef __ASSEMBLY__
-#include <asm-generic/pgtable.h>
-
 /*
  * Macro to mark a page protection value as "uncacheable".
  */
@@ -154,6 +152,7 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 	    ? (__pgprot((pgprot_val(prot) & _CACHEMASK040) | _PAGE_NOCACHE_S))	\
 	    : (prot)))
 
+#include <asm-generic/pgtable.h>
 #endif /* !__ASSEMBLY__ */
 
 /*

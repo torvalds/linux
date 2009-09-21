@@ -180,14 +180,9 @@ static struct completion irq_event;
 static int twl4030_irq_thread(void *data)
 {
 	long irq = (long)data;
-	struct irq_desc *desc = irq_to_desc(irq);
 	static unsigned i2c_errors;
 	static const unsigned max_i2c_errors = 100;
 
-	if (!desc) {
-		pr_err("twl4030: Invalid IRQ: %ld\n", irq);
-		return -EINVAL;
-	}
 
 	current->flags |= PF_NOFREEZE;
 
@@ -240,7 +235,7 @@ static int twl4030_irq_thread(void *data)
 		}
 		local_irq_enable();
 
-		desc->chip->unmask(irq);
+		enable_irq(irq);
 	}
 
 	return 0;
@@ -255,25 +250,13 @@ static int twl4030_irq_thread(void *data)
  * thread.  All we do here is acknowledge and mask the interrupt and wakeup
  * the kernel thread.
  */
-static void handle_twl4030_pih(unsigned int irq, struct irq_desc *desc)
+static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 {
 	/* Acknowledge, clear *AND* mask the interrupt... */
-	desc->chip->ack(irq);
-	complete(&irq_event);
+	disable_irq_nosync(irq);
+	complete(devid);
+	return IRQ_HANDLED;
 }
-
-static struct task_struct *start_twl4030_irq_thread(long irq)
-{
-	struct task_struct *thread;
-
-	init_completion(&irq_event);
-	thread = kthread_run(twl4030_irq_thread, (void *)irq, "twl4030-irq");
-	if (!thread)
-		pr_err("twl4030: could not create irq %ld thread!\n", irq);
-
-	return thread;
-}
-
 /*----------------------------------------------------------------------*/
 
 /*
@@ -441,7 +424,7 @@ static void twl4030_sih_do_edge(struct work_struct *work)
 	/* see what work we have */
 	spin_lock_irq(&sih_agent_lock);
 	edge_change = agent->edge_change;
-	agent->edge_change = 0;;
+	agent->edge_change = 0;
 	sih = edge_change ? agent->sih : NULL;
 	spin_unlock_irq(&sih_agent_lock);
 	if (!sih)
@@ -734,18 +717,28 @@ int twl_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	}
 
 	/* install an irq handler to demultiplex the TWL4030 interrupt */
-	task = start_twl4030_irq_thread(irq_num);
-	if (!task) {
-		pr_err("twl4030: irq thread FAIL\n");
-		status = -ESRCH;
-		goto fail;
+
+
+	init_completion(&irq_event);
+
+	status = request_irq(irq_num, handle_twl4030_pih, IRQF_DISABLED,
+				"TWL4030-PIH", &irq_event);
+	if (status < 0) {
+		pr_err("twl4030: could not claim irq%d: %d\n", irq_num, status);
+		goto fail_rqirq;
 	}
 
-	set_irq_data(irq_num, task);
-	set_irq_chained_handler(irq_num, handle_twl4030_pih);
-
+	task = kthread_run(twl4030_irq_thread, (void *)irq_num, "twl4030-irq");
+	if (IS_ERR(task)) {
+		pr_err("twl4030: could not create irq %d thread!\n", irq_num);
+		status = PTR_ERR(task);
+		goto fail_kthread;
+	}
 	return status;
-
+fail_kthread:
+	free_irq(irq_num, &irq_event);
+fail_rqirq:
+	/* clean up twl4030_sih_setup */
 fail:
 	for (i = irq_base; i < irq_end; i++)
 		set_irq_chip_and_handler(i, NULL, NULL);

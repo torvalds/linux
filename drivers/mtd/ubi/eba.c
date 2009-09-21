@@ -1254,6 +1254,7 @@ out_free:
 		if (!ubi->volumes[i])
 			continue;
 		kfree(ubi->volumes[i]->eba_tbl);
+		ubi->volumes[i]->eba_tbl = NULL;
 	}
 	return err;
 }

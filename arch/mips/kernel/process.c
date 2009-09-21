@@ -115,7 +115,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
-	long childksp;
+	unsigned long childksp;
 	p->set_child_tid = p->clear_child_tid = NULL;
 
 	childksp = (unsigned long)task_stack_page(p) + THREAD_SIZE - 32;
@@ -132,6 +132,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	/* set up new TSS. */
 	childregs = (struct pt_regs *) childksp - 1;
+	/*  Put the stack after the struct pt_regs.  */
+	childksp = (unsigned long) childregs;
 	*childregs = *regs;
 	childregs->regs[7] = 0;	/* Clear error flag */
 

@@ -101,7 +101,7 @@ int cap_settime(struct timespec *ts, struct timezone *tz)
 }
 
 /**
- * cap_ptrace_may_access - Determine whether the current process may access
+ * cap_ptrace_access_check - Determine whether the current process may access
  *			   another
  * @child: The process to be accessed
  * @mode: The mode of attachment.
@@ -109,7 +109,7 @@ int cap_settime(struct timespec *ts, struct timezone *tz)
  * Determine whether a process may access another, returning 0 if permission
  * granted, -ve if denied.
  */
-int cap_ptrace_may_access(struct task_struct *child, unsigned int mode)
+int cap_ptrace_access_check(struct task_struct *child, unsigned int mode)
 {
 	int ret = 0;
 
@@ -983,4 +983,34 @@ int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 			SECURITY_CAP_NOAUDIT) == 0)
 		cap_sys_admin = 1;
 	return __vm_enough_memory(mm, pages, cap_sys_admin);
+}
+
+/*
+ * cap_file_mmap - check if able to map given addr
+ * @file: unused
+ * @reqprot: unused
+ * @prot: unused
+ * @flags: unused
+ * @addr: address attempting to be mapped
+ * @addr_only: unused
+ *
+ * If the process is attempting to map memory below mmap_min_addr they need
+ * CAP_SYS_RAWIO.  The other parameters to this function are unused by the
+ * capability security module.  Returns 0 if this mapping should be allowed
+ * -EPERM if not.
+ */
+int cap_file_mmap(struct file *file, unsigned long reqprot,
+		  unsigned long prot, unsigned long flags,
+		  unsigned long addr, unsigned long addr_only)
+{
+	int ret = 0;
+
+	if (addr < dac_mmap_min_addr) {
+		ret = cap_capable(current, current_cred(), CAP_SYS_RAWIO,
+				  SECURITY_CAP_AUDIT);
+		/* set PF_SUPERPRIV if it turns out we allow the low mmap */
+		if (ret == 0)
+			current->flags |= PF_SUPERPRIV;
+	}
+	return ret;
 }

@@ -272,17 +272,18 @@ static ssize_t ipl_type_show(struct kobject *kobj, struct kobj_attribute *attr,
 static struct kobj_attribute sys_ipl_type_attr = __ATTR_RO(ipl_type);
 
 /* VM IPL PARM routines */
-static void reipl_get_ascii_vmparm(char *dest,
+size_t reipl_get_ascii_vmparm(char *dest, size_t size,
 				   const struct ipl_parameter_block *ipb)
 {
 	int i;
-	int len = 0;
+	size_t len;
 	char has_lowercase = 0;
 
+	len = 0;
 	if ((ipb->ipl_info.ccw.vm_flags & DIAG308_VM_FLAGS_VP_VALID) &&
 	    (ipb->ipl_info.ccw.vm_parm_len > 0)) {
 
-		len = ipb->ipl_info.ccw.vm_parm_len;
+		len = min_t(size_t, size - 1, ipb->ipl_info.ccw.vm_parm_len);
 		memcpy(dest, ipb->ipl_info.ccw.vm_parm, len);
 		/* If at least one character is lowercase, we assume mixed
 		 * case; otherwise we convert everything to lowercase.
@@ -299,14 +300,20 @@ static void reipl_get_ascii_vmparm(char *dest,
 		EBCASC(dest, len);
 	}
 	dest[len] = 0;
+
+	return len;
 }
 
-void get_ipl_vmparm(char *dest)
+size_t append_ipl_vmparm(char *dest, size_t size)
 {
+	size_t rc;
+
+	rc = 0;
 	if (diag308_set_works && (ipl_block.hdr.pbt == DIAG308_IPL_TYPE_CCW))
-		reipl_get_ascii_vmparm(dest, &ipl_block);
+		rc = reipl_get_ascii_vmparm(dest, size, &ipl_block);
 	else
 		dest[0] = 0;
+	return rc;
 }
 
 static ssize_t ipl_vm_parm_show(struct kobject *kobj,
@@ -314,9 +321,64 @@ static ssize_t ipl_vm_parm_show(struct kobject *kobj,
 {
 	char parm[DIAG308_VMPARM_SIZE + 1] = {};
 
-	get_ipl_vmparm(parm);
+	append_ipl_vmparm(parm, sizeof(parm));
 	return sprintf(page, "%s\n", parm);
 }
+
+static size_t scpdata_length(const char* buf, size_t count)
+{
+	while (count) {
+		if (buf[count - 1] != '\0' && buf[count - 1] != ' ')
+			break;
+		count--;
+	}
+	return count;
+}
+
+size_t reipl_append_ascii_scpdata(char *dest, size_t size,
+				  const struct ipl_parameter_block *ipb)
+{
+	size_t count;
+	size_t i;
+	int has_lowercase;
+
+	count = min(size - 1, scpdata_length(ipb->ipl_info.fcp.scp_data,
+					     ipb->ipl_info.fcp.scp_data_len));
+	if (!count)
+		goto out;
+
+	has_lowercase = 0;
+	for (i = 0; i < count; i++) {
+		if (!isascii(ipb->ipl_info.fcp.scp_data[i])) {
+			count = 0;
+			goto out;
+		}
+		if (!has_lowercase && islower(ipb->ipl_info.fcp.scp_data[i]))
+			has_lowercase = 1;
+	}
+
+	if (has_lowercase)
+		memcpy(dest, ipb->ipl_info.fcp.scp_data, count);
+	else
+		for (i = 0; i < count; i++)
+			dest[i] = tolower(ipb->ipl_info.fcp.scp_data[i]);
+out:
+	dest[count] = '\0';
+	return count;
+}
+
+size_t append_ipl_scpdata(char *dest, size_t len)
+{
+	size_t rc;
+
+	rc = 0;
+	if (ipl_block.hdr.pbt == DIAG308_IPL_TYPE_FCP)
+		rc = reipl_append_ascii_scpdata(dest, len, &ipl_block);
+	else
+		dest[0] = 0;
+	return rc;
+}
+
 
 static struct kobj_attribute sys_ipl_vm_parm_attr =
 	__ATTR(parm, S_IRUGO, ipl_vm_parm_show, NULL);
@@ -553,7 +615,7 @@ static ssize_t reipl_generic_vmparm_show(struct ipl_parameter_block *ipb,
 {
 	char vmparm[DIAG308_VMPARM_SIZE + 1] = {};
 
-	reipl_get_ascii_vmparm(vmparm, ipb);
+	reipl_get_ascii_vmparm(vmparm, sizeof(vmparm), ipb);
 	return sprintf(page, "%s\n", vmparm);
 }
 
@@ -626,6 +688,59 @@ static struct kobj_attribute sys_reipl_ccw_vmparm_attr =
 
 /* FCP reipl device attributes */
 
+static ssize_t reipl_fcp_scpdata_read(struct kobject *kobj,
+				      struct bin_attribute *attr,
+				      char *buf, loff_t off, size_t count)
+{
+	size_t size = reipl_block_fcp->ipl_info.fcp.scp_data_len;
+	void *scp_data = reipl_block_fcp->ipl_info.fcp.scp_data;
+
+	return memory_read_from_buffer(buf, count, &off, scp_data, size);
+}
+
+static ssize_t reipl_fcp_scpdata_write(struct kobject *kobj,
+				       struct bin_attribute *attr,
+				       char *buf, loff_t off, size_t count)
+{
+	size_t padding;
+	size_t scpdata_len;
+
+	if (off < 0)
+		return -EINVAL;
+
+	if (off >= DIAG308_SCPDATA_SIZE)
+		return -ENOSPC;
+
+	if (count > DIAG308_SCPDATA_SIZE - off)
+		count = DIAG308_SCPDATA_SIZE - off;
+
+	memcpy(reipl_block_fcp->ipl_info.fcp.scp_data, buf + off, count);
+	scpdata_len = off + count;
+
+	if (scpdata_len % 8) {
+		padding = 8 - (scpdata_len % 8);
+		memset(reipl_block_fcp->ipl_info.fcp.scp_data + scpdata_len,
+		       0, padding);
+		scpdata_len += padding;
+	}
+
+	reipl_block_fcp->ipl_info.fcp.scp_data_len = scpdata_len;
+	reipl_block_fcp->hdr.len = IPL_PARM_BLK_FCP_LEN + scpdata_len;
+	reipl_block_fcp->hdr.blk0_len = IPL_PARM_BLK0_FCP_LEN + scpdata_len;
+
+	return count;
+}
+
+static struct bin_attribute sys_reipl_fcp_scp_data_attr = {
+	.attr = {
+		.name = "scp_data",
+		.mode = S_IRUGO | S_IWUSR,
+	},
+	.size = PAGE_SIZE,
+	.read = reipl_fcp_scpdata_read,
+	.write = reipl_fcp_scpdata_write,
+};
+
 DEFINE_IPL_ATTR_RW(reipl_fcp, wwpn, "0x%016llx\n", "%016llx\n",
 		   reipl_block_fcp->ipl_info.fcp.wwpn);
 DEFINE_IPL_ATTR_RW(reipl_fcp, lun, "0x%016llx\n", "%016llx\n",
@@ -647,7 +762,6 @@ static struct attribute *reipl_fcp_attrs[] = {
 };
 
 static struct attribute_group reipl_fcp_attr_group = {
-	.name  = IPL_FCP_STR,
 	.attrs = reipl_fcp_attrs,
 };
 
@@ -895,6 +1009,7 @@ static struct kobj_attribute reipl_type_attr =
 	__ATTR(reipl_type, 0644, reipl_type_show, reipl_type_store);
 
 static struct kset *reipl_kset;
+static struct kset *reipl_fcp_kset;
 
 static void get_ipl_string(char *dst, struct ipl_parameter_block *ipb,
 			   const enum ipl_method m)
@@ -906,7 +1021,7 @@ static void get_ipl_string(char *dst, struct ipl_parameter_block *ipb,
 
 	reipl_get_ascii_loadparm(loadparm, ipb);
 	reipl_get_ascii_nss_name(nss_name, ipb);
-	reipl_get_ascii_vmparm(vmparm, ipb);
+	reipl_get_ascii_vmparm(vmparm, sizeof(vmparm), ipb);
 
 	switch (m) {
 	case REIPL_METHOD_CCW_VM:
@@ -1076,23 +1191,44 @@ static int __init reipl_fcp_init(void)
 	int rc;
 
 	if (!diag308_set_works) {
-		if (ipl_info.type == IPL_TYPE_FCP)
+		if (ipl_info.type == IPL_TYPE_FCP) {
 			make_attrs_ro(reipl_fcp_attrs);
-		else
+			sys_reipl_fcp_scp_data_attr.attr.mode = S_IRUGO;
+		} else
 			return 0;
 	}
 
 	reipl_block_fcp = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!reipl_block_fcp)
 		return -ENOMEM;
-	rc = sysfs_create_group(&reipl_kset->kobj, &reipl_fcp_attr_group);
+
+	/* sysfs: create fcp kset for mixing attr group and bin attrs */
+	reipl_fcp_kset = kset_create_and_add(IPL_FCP_STR, NULL,
+					     &reipl_kset->kobj);
+	if (!reipl_kset) {
+		free_page((unsigned long) reipl_block_fcp);
+		return -ENOMEM;
+	}
+
+	rc = sysfs_create_group(&reipl_fcp_kset->kobj, &reipl_fcp_attr_group);
 	if (rc) {
-		free_page((unsigned long)reipl_block_fcp);
+		kset_unregister(reipl_fcp_kset);
+		free_page((unsigned long) reipl_block_fcp);
 		return rc;
 	}
-	if (ipl_info.type == IPL_TYPE_FCP) {
+
+	rc = sysfs_create_bin_file(&reipl_fcp_kset->kobj,
+				   &sys_reipl_fcp_scp_data_attr);
+	if (rc) {
+		sysfs_remove_group(&reipl_fcp_kset->kobj, &reipl_fcp_attr_group);
+		kset_unregister(reipl_fcp_kset);
+		free_page((unsigned long) reipl_block_fcp);
+		return rc;
+	}
+
+	if (ipl_info.type == IPL_TYPE_FCP)
 		memcpy(reipl_block_fcp, IPL_PARMBLOCK_START, PAGE_SIZE);
-	} else {
+	else {
 		reipl_block_fcp->hdr.len = IPL_PARM_BLK_FCP_LEN;
 		reipl_block_fcp->hdr.version = IPL_PARM_BLOCK_VERSION;
 		reipl_block_fcp->hdr.blk0_len = IPL_PARM_BLK0_FCP_LEN;

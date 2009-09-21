@@ -4,6 +4,15 @@
 
 #include <linux/mm.h>
 
+#ifdef CONFIG_PPC_BOOK3E
+extern void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address);
+#else /* CONFIG_PPC_BOOK3E */
+static inline void tlb_flush_pgtable(struct mmu_gather *tlb,
+				     unsigned long address)
+{
+}
+#endif /* !CONFIG_PPC_BOOK3E */
+
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	free_page((unsigned long)pte);
@@ -19,7 +28,12 @@ typedef struct pgtable_free {
 	unsigned long val;
 } pgtable_free_t;
 
-#define PGF_CACHENUM_MASK	0x7
+/* This needs to be big enough to allow for MMU_PAGE_COUNT + 2 to be stored
+ * and small enough to fit in the low bits of any naturally aligned page
+ * table cache entry. Arbitrarily set to 0x1f, that should give us some
+ * room to grow
+ */
+#define PGF_CACHENUM_MASK	0x1f
 
 static inline pgtable_free_t pgtable_free_cache(void *p, int cachenum,
 						unsigned long mask)
@@ -35,19 +49,27 @@ static inline pgtable_free_t pgtable_free_cache(void *p, int cachenum,
 #include <asm/pgalloc-32.h>
 #endif
 
-extern void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf);
-
 #ifdef CONFIG_SMP
-#define __pte_free_tlb(tlb,ptepage)	\
-do { \
-	pgtable_page_dtor(ptepage); \
-	pgtable_free_tlb(tlb, pgtable_free_cache(page_address(ptepage), \
-		PTE_NONCACHE_NUM, PTE_TABLE_SIZE-1)); \
-} while (0)
-#else
-#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, (pte))
-#endif
+extern void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf);
+extern void pte_free_finish(void);
+#else /* CONFIG_SMP */
+static inline void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf)
+{
+	pgtable_free(pgf);
+}
+static inline void pte_free_finish(void) { }
+#endif /* !CONFIG_SMP */
 
+static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *ptepage,
+				  unsigned long address)
+{
+	pgtable_free_t pgf = pgtable_free_cache(page_address(ptepage),
+						PTE_NONCACHE_NUM,
+						PTE_TABLE_SIZE-1);
+	tlb_flush_pgtable(tlb, address);
+	pgtable_page_dtor(ptepage);
+	pgtable_free_tlb(tlb, pgf);
+}
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PGALLOC_H */

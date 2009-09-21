@@ -157,7 +157,7 @@ shmem_acl_init(struct inode *inode, struct inode *dir)
 /**
  * shmem_check_acl  -  check_acl() callback for generic_permission()
  */
-static int
+int
 shmem_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl = shmem_get_acl(inode, ACL_TYPE_ACCESS);
@@ -168,13 +168,4 @@ shmem_check_acl(struct inode *inode, int mask)
 		return error;
 	}
 	return -EAGAIN;
-}
-
-/**
- * shmem_permission  -  permission() inode operation
- */
-int
-shmem_permission(struct inode *inode, int mask)
-{
-	return generic_permission(inode, mask, shmem_check_acl);
 }

@@ -1,6 +1,4 @@
 /*
- *  net/dccp/ccids/ccid3.h
- *
  *  Copyright (c) 2005-7 The University of Waikato, Hamilton, New Zealand.
  *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *
@@ -75,8 +73,8 @@ enum ccid3_hc_tx_states {
 	TFRC_SSTATE_TERM,
 };
 
-/** struct ccid3_hc_tx_sock - CCID3 sender half-connection socket
- *
+/**
+ * struct ccid3_hc_tx_sock - CCID3 sender half-connection socket
  * @ccid3hctx_x - Current sending rate in 64 * bytes per second
  * @ccid3hctx_x_recv - Receive rate    in 64 * bytes per second
  * @ccid3hctx_x_calc - Calculated rate in bytes per second
@@ -119,9 +117,9 @@ struct ccid3_hc_tx_sock {
 
 static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
 {
-    struct ccid3_hc_tx_sock *hctx = ccid_priv(dccp_sk(sk)->dccps_hc_tx_ccid);
-    BUG_ON(hctx == NULL);
-    return hctx;
+	struct ccid3_hc_tx_sock *hctx = ccid_priv(dccp_sk(sk)->dccps_hc_tx_ccid);
+	BUG_ON(hctx == NULL);
+	return hctx;
 }
 
 /* TFRC receiver states */
@@ -131,22 +129,22 @@ enum ccid3_hc_rx_states {
 	TFRC_RSTATE_TERM    = 127,
 };
 
-/** struct ccid3_hc_rx_sock - CCID3 receiver half-connection socket
- *
- *  @ccid3hcrx_x_recv  -  Receiver estimate of send rate (RFC 3448 4.3)
- *  @ccid3hcrx_rtt  -  Receiver estimate of rtt (non-standard)
- *  @ccid3hcrx_p  -  Current loss event rate (RFC 3448 5.4)
- *  @ccid3hcrx_last_counter  -  Tracks window counter (RFC 4342, 8.1)
- *  @ccid3hcrx_state  -  Receiver state, one of %ccid3_hc_rx_states
- *  @ccid3hcrx_bytes_recv  -  Total sum of DCCP payload bytes
- *  @ccid3hcrx_x_recv  -  Receiver estimate of send rate (RFC 3448, sec. 4.3)
- *  @ccid3hcrx_rtt  -  Receiver estimate of RTT
- *  @ccid3hcrx_tstamp_last_feedback  -  Time at which last feedback was sent
- *  @ccid3hcrx_tstamp_last_ack  -  Time at which last feedback was sent
- *  @ccid3hcrx_hist  -  Packet history (loss detection + RTT sampling)
- *  @ccid3hcrx_li_hist  -  Loss Interval database
- *  @ccid3hcrx_s  -  Received packet size in bytes
- *  @ccid3hcrx_pinv  -  Inverse of Loss Event Rate (RFC 4342, sec. 8.5)
+/**
+ * struct ccid3_hc_rx_sock - CCID3 receiver half-connection socket
+ * @ccid3hcrx_x_recv  -  Receiver estimate of send rate (RFC 3448 4.3)
+ * @ccid3hcrx_rtt  -  Receiver estimate of rtt (non-standard)
+ * @ccid3hcrx_p  -  Current loss event rate (RFC 3448 5.4)
+ * @ccid3hcrx_last_counter  -  Tracks window counter (RFC 4342, 8.1)
+ * @ccid3hcrx_state  -  Receiver state, one of %ccid3_hc_rx_states
+ * @ccid3hcrx_bytes_recv  -  Total sum of DCCP payload bytes
+ * @ccid3hcrx_x_recv  -  Receiver estimate of send rate (RFC 3448, sec. 4.3)
+ * @ccid3hcrx_rtt  -  Receiver estimate of RTT
+ * @ccid3hcrx_tstamp_last_feedback  -  Time at which last feedback was sent
+ * @ccid3hcrx_tstamp_last_ack  -  Time at which last feedback was sent
+ * @ccid3hcrx_hist  -  Packet history (loss detection + RTT sampling)
+ * @ccid3hcrx_li_hist  -  Loss Interval database
+ * @ccid3hcrx_s  -  Received packet size in bytes
+ * @ccid3hcrx_pinv  -  Inverse of Loss Event Rate (RFC 4342, sec. 8.5)
  */
 struct ccid3_hc_rx_sock {
 	u8				ccid3hcrx_last_counter:4;
@@ -163,9 +161,9 @@ struct ccid3_hc_rx_sock {
 
 static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
 {
-    struct ccid3_hc_rx_sock *hcrx = ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
-    BUG_ON(hcrx == NULL);
-    return hcrx;
+	struct ccid3_hc_rx_sock *hcrx = ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
+	BUG_ON(hcrx == NULL);
+	return hcrx;
 }
 
 #endif /* _DCCP_CCID3_H_ */

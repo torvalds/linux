@@ -502,12 +502,40 @@ static int add_detailed_info(struct drm_connector *connector,
 		struct detailed_non_pixel *data = &timing->data.other_data;
 		struct drm_display_mode *newmode;
 
-		/* EDID up to and including 1.2 may put monitor info here */
-		if (edid->version == 1 && edid->revision < 3)
-			continue;
+		/* X server check is version 1.1 or higher */
+		if (edid->version == 1 && edid->revision >= 1 &&
+		    !timing->pixel_clock) {
+			/* Other timing or info */
+			switch (data->type) {
+			case EDID_DETAIL_MONITOR_SERIAL:
+				break;
+			case EDID_DETAIL_MONITOR_STRING:
+				break;
+			case EDID_DETAIL_MONITOR_RANGE:
+				/* Get monitor range data */
+				break;
+			case EDID_DETAIL_MONITOR_NAME:
+				break;
+			case EDID_DETAIL_MONITOR_CPDATA:
+				break;
+			case EDID_DETAIL_STD_MODES:
+				/* Five modes per detailed section */
+				for (j = 0; j < 5; i++) {
+					struct std_timing *std;
+					struct drm_display_mode *newmode;
 
-		/* Detailed mode timing */
-		if (timing->pixel_clock) {
+					std = &data->data.timings[j];
+					newmode = drm_mode_std(dev, std);
+					if (newmode) {
+						drm_mode_probed_add(connector, newmode);
+						modes++;
+					}
+				}
+				break;
+			default:
+				break;
+			}
+		} else {
 			newmode = drm_mode_detailed(dev, edid, timing, quirks);
 			if (!newmode)
 				continue;
@@ -518,38 +546,6 @@ static int add_detailed_info(struct drm_connector *connector,
 			drm_mode_probed_add(connector, newmode);
 
 			modes++;
-			continue;
-		}
-
-		/* Other timing or info */
-		switch (data->type) {
-		case EDID_DETAIL_MONITOR_SERIAL:
-			break;
-		case EDID_DETAIL_MONITOR_STRING:
-			break;
-		case EDID_DETAIL_MONITOR_RANGE:
-			/* Get monitor range data */
-			break;
-		case EDID_DETAIL_MONITOR_NAME:
-			break;
-		case EDID_DETAIL_MONITOR_CPDATA:
-			break;
-		case EDID_DETAIL_STD_MODES:
-			/* Five modes per detailed section */
-			for (j = 0; j < 5; i++) {
-				struct std_timing *std;
-				struct drm_display_mode *newmode;
-
-				std = &data->data.timings[j];
-				newmode = drm_mode_std(dev, std);
-				if (newmode) {
-					drm_mode_probed_add(connector, newmode);
-					modes++;
-				}
-			}
-			break;
-		default:
-			break;
 		}
 	}
 

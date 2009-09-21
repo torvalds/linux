@@ -20,6 +20,8 @@ struct clockdomain;
 struct clkops {
 	int			(*enable)(struct clk *);
 	void			(*disable)(struct clk *);
+	void			(*find_idlest)(struct clk *, void __iomem **, u8 *);
+	void			(*find_companion)(struct clk *, void __iomem **, u8 *);
 };
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \

@@ -20,6 +20,7 @@
 #include <linux/ramfs.h>
 #include <linux/pagevec.h>
 #include <linux/mman.h>
+#include <linux/sched.h>
 
 #include <asm/uaccess.h>
 #include "internal.h"

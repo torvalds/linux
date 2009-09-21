@@ -1,7 +1,4 @@
 /*
- *  arch/mips/pci/ops-emma2rh.c
- *      This file defines the PCI operation for EMMA2RH.
- *
  *  Copyright (C) NEC Electronics Corporation 2004-2006
  *
  *  This file is based on the arch/mips/pci/ops-vr41xx.c

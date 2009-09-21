@@ -1395,6 +1395,7 @@
 #define TV_V_CHROMA_42		0x684a8
 
 /* Display Port */
+#define DP_A				0x64000 /* eDP */
 #define DP_B				0x64100
 #define DP_C				0x64200
 #define DP_D				0x64300
@@ -1437,13 +1438,22 @@
 /* Mystic DPCD version 1.1 special mode */
 #define   DP_ENHANCED_FRAMING		(1 << 18)
 
+/* eDP */
+#define   DP_PLL_FREQ_270MHZ		(0 << 16)
+#define   DP_PLL_FREQ_160MHZ		(1 << 16)
+#define   DP_PLL_FREQ_MASK		(3 << 16)
+
 /** locked once port is enabled */
 #define   DP_PORT_REVERSAL		(1 << 15)
+
+/* eDP */
+#define   DP_PLL_ENABLE			(1 << 14)
 
 /** sends the clock on lane 15 of the PEG for debug */
 #define   DP_CLOCK_OUTPUT_ENABLE	(1 << 13)
 
 #define   DP_SCRAMBLING_DISABLE		(1 << 12)
+#define   DP_SCRAMBLING_DISABLE_IGDNG	(1 << 7)
 
 /** limit RGB values to avoid confusing TVs */
 #define   DP_COLOR_RANGE_16_235		(1 << 8)
@@ -1463,6 +1473,13 @@
  * is 20 bytes in each direction, hence the 5 fixed
  * data registers
  */
+#define DPA_AUX_CH_CTL			0x64010
+#define DPA_AUX_CH_DATA1		0x64014
+#define DPA_AUX_CH_DATA2		0x64018
+#define DPA_AUX_CH_DATA3		0x6401c
+#define DPA_AUX_CH_DATA4		0x64020
+#define DPA_AUX_CH_DATA5		0x64024
+
 #define DPB_AUX_CH_CTL			0x64110
 #define DPB_AUX_CH_DATA1		0x64114
 #define DPB_AUX_CH_DATA2		0x64118
@@ -1618,7 +1635,7 @@
 #define I830_FIFO_LINE_SIZE	32
 #define I945_FIFO_SIZE		127 /* 945 & 965 */
 #define I915_FIFO_SIZE		95
-#define I855GM_FIFO_SIZE	255
+#define I855GM_FIFO_SIZE	127 /* In cachelines */
 #define I830_FIFO_SIZE		95
 #define I915_MAX_WM		0x3f
 
@@ -1848,6 +1865,8 @@
 #define PFA_CTL_1               0x68080
 #define PFB_CTL_1               0x68880
 #define  PF_ENABLE              (1<<31)
+#define PFA_WIN_SZ		0x68074
+#define PFB_WIN_SZ		0x68874
 
 /* legacy palette */
 #define LGC_PALETTE_A           0x4a000
@@ -2207,5 +2226,29 @@
 #define  EDP_PANEL		(1 << 30)
 #define PCH_PP_OFF_DELAYS	0xc720c
 #define PCH_PP_DIVISOR		0xc7210
+
+#define PCH_DP_B		0xe4100
+#define PCH_DPB_AUX_CH_CTL	0xe4110
+#define PCH_DPB_AUX_CH_DATA1	0xe4114
+#define PCH_DPB_AUX_CH_DATA2	0xe4118
+#define PCH_DPB_AUX_CH_DATA3	0xe411c
+#define PCH_DPB_AUX_CH_DATA4	0xe4120
+#define PCH_DPB_AUX_CH_DATA5	0xe4124
+
+#define PCH_DP_C		0xe4200
+#define PCH_DPC_AUX_CH_CTL	0xe4210
+#define PCH_DPC_AUX_CH_DATA1	0xe4214
+#define PCH_DPC_AUX_CH_DATA2	0xe4218
+#define PCH_DPC_AUX_CH_DATA3	0xe421c
+#define PCH_DPC_AUX_CH_DATA4	0xe4220
+#define PCH_DPC_AUX_CH_DATA5	0xe4224
+
+#define PCH_DP_D		0xe4300
+#define PCH_DPD_AUX_CH_CTL	0xe4310
+#define PCH_DPD_AUX_CH_DATA1	0xe4314
+#define PCH_DPD_AUX_CH_DATA2	0xe4318
+#define PCH_DPD_AUX_CH_DATA3	0xe431c
+#define PCH_DPD_AUX_CH_DATA4	0xe4320
+#define PCH_DPD_AUX_CH_DATA5	0xe4324
 
 #endif /* _I915_REG_H_ */

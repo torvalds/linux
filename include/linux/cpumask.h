@@ -43,10 +43,10 @@
  * int cpu_isset(cpu, mask)		true iff bit 'cpu' set in mask
  * int cpu_test_and_set(cpu, mask)	test and set bit 'cpu' in mask
  *
- * void cpus_and(dst, src1, src2)	dst = src1 & src2  [intersection]
+ * int cpus_and(dst, src1, src2)	dst = src1 & src2  [intersection]
  * void cpus_or(dst, src1, src2)	dst = src1 | src2  [union]
  * void cpus_xor(dst, src1, src2)	dst = src1 ^ src2
- * void cpus_andnot(dst, src1, src2)	dst = src1 & ~src2
+ * int cpus_andnot(dst, src1, src2)	dst = src1 & ~src2
  * void cpus_complement(dst, src)	dst = ~src
  *
  * int cpus_equal(mask1, mask2)		Does mask1 == mask2?
@@ -179,10 +179,10 @@ static inline int __cpu_test_and_set(int cpu, cpumask_t *addr)
 }
 
 #define cpus_and(dst, src1, src2) __cpus_and(&(dst), &(src1), &(src2), NR_CPUS)
-static inline void __cpus_and(cpumask_t *dstp, const cpumask_t *src1p,
+static inline int __cpus_and(cpumask_t *dstp, const cpumask_t *src1p,
 					const cpumask_t *src2p, int nbits)
 {
-	bitmap_and(dstp->bits, src1p->bits, src2p->bits, nbits);
+	return bitmap_and(dstp->bits, src1p->bits, src2p->bits, nbits);
 }
 
 #define cpus_or(dst, src1, src2) __cpus_or(&(dst), &(src1), &(src2), NR_CPUS)
@@ -201,10 +201,10 @@ static inline void __cpus_xor(cpumask_t *dstp, const cpumask_t *src1p,
 
 #define cpus_andnot(dst, src1, src2) \
 				__cpus_andnot(&(dst), &(src1), &(src2), NR_CPUS)
-static inline void __cpus_andnot(cpumask_t *dstp, const cpumask_t *src1p,
+static inline int __cpus_andnot(cpumask_t *dstp, const cpumask_t *src1p,
 					const cpumask_t *src2p, int nbits)
 {
-	bitmap_andnot(dstp->bits, src1p->bits, src2p->bits, nbits);
+	return bitmap_andnot(dstp->bits, src1p->bits, src2p->bits, nbits);
 }
 
 #define cpus_complement(dst, src) __cpus_complement(&(dst), &(src), NR_CPUS)
@@ -738,11 +738,11 @@ static inline void cpumask_clear(struct cpumask *dstp)
  * @src1p: the first input
  * @src2p: the second input
  */
-static inline void cpumask_and(struct cpumask *dstp,
+static inline int cpumask_and(struct cpumask *dstp,
 			       const struct cpumask *src1p,
 			       const struct cpumask *src2p)
 {
-	bitmap_and(cpumask_bits(dstp), cpumask_bits(src1p),
+	return bitmap_and(cpumask_bits(dstp), cpumask_bits(src1p),
 				       cpumask_bits(src2p), nr_cpumask_bits);
 }
 
@@ -779,11 +779,11 @@ static inline void cpumask_xor(struct cpumask *dstp,
  * @src1p: the first input
  * @src2p: the second input
  */
-static inline void cpumask_andnot(struct cpumask *dstp,
+static inline int cpumask_andnot(struct cpumask *dstp,
 				  const struct cpumask *src1p,
 				  const struct cpumask *src2p)
 {
-	bitmap_andnot(cpumask_bits(dstp), cpumask_bits(src1p),
+	return bitmap_andnot(cpumask_bits(dstp), cpumask_bits(src1p),
 					  cpumask_bits(src2p), nr_cpumask_bits);
 }
 

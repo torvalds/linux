@@ -1346,7 +1346,7 @@ done:
 	return status;
 }
 
-static struct ethtool_ops gelic_ether_ethtool_ops = {
+static const struct ethtool_ops gelic_ether_ethtool_ops = {
 	.get_drvinfo	= gelic_net_get_drvinfo,
 	.get_settings	= gelic_ether_get_settings,
 	.get_link	= ethtool_op_get_link,

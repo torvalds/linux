@@ -982,12 +982,15 @@
 #       define RS400_TMDS2_PLLRST           (1 << 1)
 
 #define RADEON_GEN_INT_CNTL                 0x0040
+#	define RADEON_CRTC_VBLANK_MASK		(1 << 0)
+#	define RADEON_CRTC2_VBLANK_MASK		(1 << 9)
 #	define RADEON_SW_INT_ENABLE		(1 << 25)
 #define RADEON_GEN_INT_STATUS               0x0044
-#       define RADEON_VSYNC_INT_AK          (1 <<  2)
-#       define RADEON_VSYNC_INT             (1 <<  2)
-#       define RADEON_VSYNC2_INT_AK         (1 <<  6)
-#       define RADEON_VSYNC2_INT            (1 <<  6)
+#	define AVIVO_DISPLAY_INT_STATUS		(1 << 0)
+#	define RADEON_CRTC_VBLANK_STAT		(1 << 0)
+#	define RADEON_CRTC_VBLANK_STAT_ACK	(1 << 0)
+#	define RADEON_CRTC2_VBLANK_STAT		(1 << 9)
+#	define RADEON_CRTC2_VBLANK_STAT_ACK	(1 << 9)
 #	define RADEON_SW_INT_FIRE		(1 << 26)
 #	define RADEON_SW_INT_TEST		(1 << 25)
 #	define RADEON_SW_INT_TEST_ACK		(1 << 25)
@@ -2334,6 +2337,9 @@
 #       define RADEON_RE_WIDTH_SHIFT        0
 #       define RADEON_RE_HEIGHT_SHIFT       16
 
+#define RADEON_RB3D_ZPASS_DATA 0x3290
+#define RADEON_RB3D_ZPASS_ADDR 0x3294
+
 #define RADEON_SE_CNTL                      0x1c4c
 #       define RADEON_FFACE_CULL_CW          (0 <<  0)
 #       define RADEON_FFACE_CULL_CCW         (1 <<  0)
@@ -3567,5 +3573,7 @@
 #define RADEON_SCRATCH_REG3		0x15ec
 #define RADEON_SCRATCH_REG4		0x15f0
 #define RADEON_SCRATCH_REG5		0x15f4
+
+#define RV530_GB_PIPE_SELECT2           0x4124
 
 #endif

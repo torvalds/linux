@@ -49,6 +49,11 @@ struct nfs_clone_mount {
 #define NFS_MAX_SECFLAVORS	(12)
 
 /*
+ * Value used if the user did not specify a port value.
+ */
+#define NFS_UNSPEC_PORT		(-1)
+
+/*
  * In-kernel mount arguments
  */
 struct nfs_parsed_mount_data {
@@ -63,6 +68,7 @@ struct nfs_parsed_mount_data {
 	unsigned int		auth_flavor_len;
 	rpc_authflavor_t	auth_flavors[1];
 	char			*client_address;
+	unsigned int		version;
 	unsigned int		minorversion;
 	char			*fscache_uniq;
 
@@ -71,7 +77,7 @@ struct nfs_parsed_mount_data {
 		size_t			addrlen;
 		char			*hostname;
 		u32			version;
-		unsigned short		port;
+		int			port;
 		unsigned short		protocol;
 	} mount_server;
 
@@ -80,7 +86,7 @@ struct nfs_parsed_mount_data {
 		size_t			addrlen;
 		char			*hostname;
 		char			*export_path;
-		unsigned short		port;
+		int			port;
 		unsigned short		protocol;
 	} nfs_server;
 
@@ -102,6 +108,7 @@ struct nfs_mount_request {
 };
 
 extern int nfs_mount(struct nfs_mount_request *info);
+extern void nfs_umount(const struct nfs_mount_request *info);
 
 /* client.c */
 extern struct rpc_program nfs_program;
@@ -213,7 +220,6 @@ void nfs_zap_acl_cache(struct inode *inode);
 extern int nfs_wait_bit_killable(void *word);
 
 /* super.c */
-void nfs_parse_ip_address(char *, size_t, struct sockaddr *, size_t *);
 extern struct file_system_type nfs_xdev_fs_type;
 #ifdef CONFIG_NFS_V4
 extern struct file_system_type nfs4_xdev_fs_type;
@@ -248,6 +254,12 @@ extern void nfs_read_prepare(struct rpc_task *task, void *calldata);
 
 /* write.c */
 extern void nfs_write_prepare(struct rpc_task *task, void *calldata);
+#ifdef CONFIG_MIGRATION
+extern int nfs_migrate_page(struct address_space *,
+		struct page *, struct page *);
+#else
+#define nfs_migrate_page NULL
+#endif
 
 /* nfs4proc.c */
 extern int _nfs4_call_sync(struct nfs_server *server,
@@ -367,25 +379,4 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
 {
 	return ((unsigned long)len + (unsigned long)base +
 		PAGE_SIZE - 1) >> PAGE_SHIFT;
-}
-
-#define IPV6_SCOPE_DELIMITER	'%'
-
-/*
- * Set the port number in an address.  Be agnostic about the address
- * family.
- */
-static inline void nfs_set_port(struct sockaddr *sap, unsigned short port)
-{
-	struct sockaddr_in *ap = (struct sockaddr_in *)sap;
-	struct sockaddr_in6 *ap6 = (struct sockaddr_in6 *)sap;
-
-	switch (sap->sa_family) {
-	case AF_INET:
-		ap->sin_port = htons(port);
-		break;
-	case AF_INET6:
-		ap6->sin6_port = htons(port);
-		break;
-	}
 }

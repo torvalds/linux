@@ -549,6 +549,10 @@ void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
 	swprev = !!(rfkill->state & RFKILL_BLOCK_SW);
 	hwprev = !!(rfkill->state & RFKILL_BLOCK_HW);
 	__rfkill_set_sw_state(rfkill, sw);
+	if (hw)
+		rfkill->state |= RFKILL_BLOCK_HW;
+	else
+		rfkill->state &= ~RFKILL_BLOCK_HW;
 
 	spin_unlock_irqrestore(&rfkill->lock, flags);
 
@@ -585,11 +589,13 @@ static const char *rfkill_get_type_str(enum rfkill_type type)
 		return "wimax";
 	case RFKILL_TYPE_WWAN:
 		return "wwan";
+	case RFKILL_TYPE_GPS:
+		return "gps";
 	default:
 		BUG();
 	}
 
-	BUILD_BUG_ON(NUM_RFKILL_TYPES != RFKILL_TYPE_WWAN + 1);
+	BUILD_BUG_ON(NUM_RFKILL_TYPES != RFKILL_TYPE_GPS + 1);
 }
 
 static ssize_t rfkill_type_show(struct device *dev,
@@ -648,15 +654,26 @@ static ssize_t rfkill_state_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	/*
-	 * The intention was that userspace can only take control over
-	 * a given device when/if rfkill-input doesn't control it due
-	 * to user_claim. Since user_claim is currently unsupported,
-	 * we never support changing the state from userspace -- this
-	 * can be implemented again later.
-	 */
+	struct rfkill *rfkill = to_rfkill(dev);
+	unsigned long state;
+	int err;
 
-	return -EPERM;
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	err = strict_strtoul(buf, 0, &state);
+	if (err)
+		return err;
+
+	if (state != RFKILL_USER_STATE_SOFT_BLOCKED &&
+	    state != RFKILL_USER_STATE_UNBLOCKED)
+		return -EINVAL;
+
+	mutex_lock(&rfkill_global_mutex);
+	rfkill_set_block(rfkill, state == RFKILL_USER_STATE_SOFT_BLOCKED);
+	mutex_unlock(&rfkill_global_mutex);
+
+	return err ?: count;
 }
 
 static ssize_t rfkill_claim_show(struct device *dev,
@@ -1076,10 +1093,16 @@ static ssize_t rfkill_fop_write(struct file *file, const char __user *buf,
 	struct rfkill_event ev;
 
 	/* we don't need the 'hard' variable but accept it */
-	if (count < sizeof(ev) - 1)
+	if (count < RFKILL_EVENT_SIZE_V1 - 1)
 		return -EINVAL;
 
-	if (copy_from_user(&ev, buf, sizeof(ev) - 1))
+	/*
+	 * Copy as much data as we can accept into our 'ev' buffer,
+	 * but tell userspace how much we've copied so it can determine
+	 * our API version even in a write() call, if it cares.
+	 */
+	count = min(count, sizeof(ev));
+	if (copy_from_user(&ev, buf, count))
 		return -EFAULT;
 
 	if (ev.op != RFKILL_OP_CHANGE && ev.op != RFKILL_OP_CHANGE_ALL)

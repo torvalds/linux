@@ -57,11 +57,9 @@ static int chan_index;
  * @initialized: whether the channel is initialized
  * @inuse: whether the channel is in use
  * @lock: protects multiple elements within this structure
+ * @client: client instance
  * @vdev: virtio dev associated with this channel
  * @vq: virtio queue associated with this channel
- * @tagpool: accounting for tag ids (and request slots)
- * @reqs: array of request slots
- * @max_tag: current number of request_slots allocated
  * @sg: scatter gather list which is used to pack a request (protected?)
  *
  * We keep all per-channel information in a structure.
@@ -92,7 +90,7 @@ static unsigned int rest_of_page(void *data)
 
 /**
  * p9_virtio_close - reclaim resources of a channel
- * @trans: transport state
+ * @client: client instance
  *
  * This reclaims a channel by freeing its resources and
  * reseting its inuse flag.
@@ -181,9 +179,8 @@ static int p9_virtio_cancel(struct p9_client *client, struct p9_req_t *req)
 
 /**
  * p9_virtio_request - issue a request
- * @t: transport state
- * @tc: &p9_fcall request to transmit
- * @rc: &p9_fcall to put reponse into
+ * @client: client instance issuing the request
+ * @req: request to be issued
  *
  */
 

@@ -1119,8 +1119,8 @@ static int xc2028_sleep(struct dvb_frontend *fe)
 	struct xc2028_data *priv = fe->tuner_priv;
 	int rc = 0;
 
-	/* Avoid firmware reload on slow devices */
-	if (no_poweroff)
+	/* Avoid firmware reload on slow devices or if PM disabled */
+	if (no_poweroff || priv->ctrl.disable_power_mgmt)
 		return 0;
 
 	tuner_dbg("Putting xc2028/3028 into poweroff mode.\n");

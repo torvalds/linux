@@ -40,7 +40,7 @@ OPTIONS
 -a::
         system-wide collection
 
--S::
+-c::
         scale counter values
 
 EXAMPLES

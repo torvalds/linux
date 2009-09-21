@@ -542,6 +542,7 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		}
 	}
 	qh->qh_state = QH_STATE_LINKED;
+	qh->xacterrs = 0;
 	qh_get (qh);
 
 	/* update per-qh bandwidth for usbfs */

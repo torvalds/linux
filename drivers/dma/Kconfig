@@ -4,7 +4,7 @@
 
 menuconfig DMADEVICES
 	bool "DMA Engine support"
-	depends on !HIGHMEM64G && HAS_DMA
+	depends on HAS_DMA
 	help
 	  DMA engines can do asynchronous data transfers without
 	  involving the host CPU.  Currently, this framework can be
@@ -45,6 +45,14 @@ config DW_DMAC
 	help
 	  Support the Synopsys DesignWare AHB DMA controller.  This
 	  can be integrated in chips such as the Atmel AT32ap7000.
+
+config AT_HDMAC
+	tristate "Atmel AHB DMA support"
+	depends on ARCH_AT91SAM9RL
+	select DMA_ENGINE
+	help
+	  Support the Atmel AHB DMA controller.  This can be integrated in
+	  chips such as the Atmel AT91SAM9RL.
 
 config FSL_DMA
 	tristate "Freescale Elo and Elo Plus DMA support"
@@ -108,7 +116,7 @@ config NET_DMA
 
 config ASYNC_TX_DMA
 	bool "Async_tx: Offload support for the async_tx api"
-	depends on DMA_ENGINE
+	depends on DMA_ENGINE && !HIGHMEM64G
 	help
 	  This allows the async_tx api to take advantage of offload engines for
 	  memcpy, memset, xor, and raid6 p+q operations.  If your platform has

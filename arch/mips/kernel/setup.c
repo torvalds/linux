@@ -441,7 +441,7 @@ static void __init bootmem_init(void)
  * initialization hook for anything else was introduced.
  */
 
-static int usermem __initdata = 0;
+static int usermem __initdata;
 
 static int __init early_parse_mem(char *p)
 {

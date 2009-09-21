@@ -219,8 +219,10 @@ typedef struct drm_i915_private {
 	unsigned int lvds_vbt:1;
 	unsigned int int_crt_support:1;
 	unsigned int lvds_use_ssc:1;
+	unsigned int edp_support:1;
 	int lvds_ssc_freq;
 
+	int crt_ddc_bus; /* -1 = unknown, else GPIO to use for CRT DDC */
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
@@ -229,6 +231,8 @@ typedef struct drm_i915_private {
 
 	spinlock_t error_lock;
 	struct drm_i915_error_state *first_error;
+	struct work_struct error_work;
+	struct workqueue_struct *wq;
 
 	/* Register state */
 	u8 saveLBB;
@@ -381,6 +385,9 @@ typedef struct drm_i915_private {
 		 */
 		struct list_head inactive_list;
 
+		/** LRU list of objects with fence regs on them. */
+		struct list_head fence_list;
+
 		/**
 		 * List of breadcrumbs associated with GPU requests currently
 		 * outstanding.
@@ -447,6 +454,9 @@ struct drm_i915_gem_object {
 
 	/** This object's place on the active/flushing/inactive lists */
 	struct list_head list;
+
+	/** This object's place on the fenced object LRU */
+	struct list_head fence_list;
 
 	/**
 	 * This is set if the object is on the active or flushing lists
@@ -888,6 +898,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 						      IS_I915GM(dev)))
 #define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
 #define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
+#define SUPPORTS_EDP(dev)		(IS_IGDNG_M(dev))
 #define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
 /* dsparb controlled by hw only */
 #define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IGDNG(dev))

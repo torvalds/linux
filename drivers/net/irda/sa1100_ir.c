@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
@@ -667,7 +666,7 @@ static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 			sa1100_irda_set_speed(si, speed);
 		}
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (!IS_FIR(si)) {
@@ -715,7 +714,7 @@ static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int
@@ -881,9 +880,6 @@ static const struct net_device_ops sa1100_irda_netdev_ops = {
 	.ndo_stop		= sa1100_irda_stop,
 	.ndo_start_xmit		= sa1100_irda_hard_xmit,
 	.ndo_do_ioctl		= sa1100_irda_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= eth_mac_addr,
 };
 
 static int sa1100_irda_probe(struct platform_device *pdev)

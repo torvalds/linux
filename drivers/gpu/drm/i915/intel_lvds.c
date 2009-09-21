@@ -780,6 +780,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
 	},
 	{
 		.callback = intel_no_lvds_dmi_callback,
+		.ident = "AOpen Mini PC MP915",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
+			DMI_MATCH(DMI_BOARD_NAME, "i915GMx-F"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
 		.ident = "Aopen i945GTt-VFA",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "AO00001JW"),
@@ -884,6 +892,10 @@ void intel_lvds_init(struct drm_device *dev)
 	if (IS_IGDNG(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
 			return;
+		if (dev_priv->edp_support) {
+			DRM_DEBUG("disable LVDS for eDP support\n");
+			return;
+		}
 		gpio = PCH_GPIOC;
 	}
 
@@ -904,6 +916,8 @@ void intel_lvds_init(struct drm_device *dev)
 	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
 	intel_output->type = INTEL_OUTPUT_LVDS;
 
+	intel_output->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
+	intel_output->crtc_mask = (1 << 1);
 	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;

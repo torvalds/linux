@@ -99,47 +99,47 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 	return &buf[*idx - len];
 }
 
-#define IP_VS_DBG_BUF(level, msg...)			\
-    do {						\
-	    char ip_vs_dbg_buf[160];			\
-	    int ip_vs_dbg_idx = 0;			\
-	    if (level <= ip_vs_get_debug_level())	\
-		    printk(KERN_DEBUG "IPVS: " msg);	\
-    } while (0)
-#define IP_VS_ERR_BUF(msg...)				\
-    do {						\
-	    char ip_vs_dbg_buf[160];			\
-	    int ip_vs_dbg_idx = 0;			\
-	    printk(KERN_ERR "IPVS: " msg);		\
-    } while (0)
+#define IP_VS_DBG_BUF(level, msg, ...)					\
+	do {								\
+		char ip_vs_dbg_buf[160];				\
+		int ip_vs_dbg_idx = 0;					\
+		if (level <= ip_vs_get_debug_level())			\
+			printk(KERN_DEBUG pr_fmt(msg), ##__VA_ARGS__);	\
+	} while (0)
+#define IP_VS_ERR_BUF(msg...)						\
+	do {								\
+		char ip_vs_dbg_buf[160];				\
+		int ip_vs_dbg_idx = 0;					\
+		pr_err(msg);						\
+	} while (0)
 
 /* Only use from within IP_VS_DBG_BUF() or IP_VS_ERR_BUF macros */
-#define IP_VS_DBG_ADDR(af, addr)			\
-    ip_vs_dbg_addr(af, ip_vs_dbg_buf,			\
-		   sizeof(ip_vs_dbg_buf), addr,		\
-		   &ip_vs_dbg_idx)
+#define IP_VS_DBG_ADDR(af, addr)					\
+	ip_vs_dbg_addr(af, ip_vs_dbg_buf,				\
+		       sizeof(ip_vs_dbg_buf), addr,			\
+		       &ip_vs_dbg_idx)
 
-#define IP_VS_DBG(level, msg...)			\
-    do {						\
-	    if (level <= ip_vs_get_debug_level())	\
-		    printk(KERN_DEBUG "IPVS: " msg);	\
-    } while (0)
-#define IP_VS_DBG_RL(msg...)				\
-    do {						\
-	    if (net_ratelimit())			\
-		    printk(KERN_DEBUG "IPVS: " msg);	\
-    } while (0)
-#define IP_VS_DBG_PKT(level, pp, skb, ofs, msg)		\
-    do {						\
-	    if (level <= ip_vs_get_debug_level())	\
-		pp->debug_packet(pp, skb, ofs, msg);	\
-    } while (0)
-#define IP_VS_DBG_RL_PKT(level, pp, skb, ofs, msg)	\
-    do {						\
-	    if (level <= ip_vs_get_debug_level() &&	\
-		net_ratelimit())			\
-		pp->debug_packet(pp, skb, ofs, msg);	\
-    } while (0)
+#define IP_VS_DBG(level, msg, ...)					\
+	do {								\
+		if (level <= ip_vs_get_debug_level())			\
+			printk(KERN_DEBUG pr_fmt(msg), ##__VA_ARGS__);	\
+	} while (0)
+#define IP_VS_DBG_RL(msg, ...)						\
+	do {								\
+		if (net_ratelimit())					\
+			printk(KERN_DEBUG pr_fmt(msg), ##__VA_ARGS__);	\
+	} while (0)
+#define IP_VS_DBG_PKT(level, pp, skb, ofs, msg)				\
+	do {								\
+		if (level <= ip_vs_get_debug_level())			\
+			pp->debug_packet(pp, skb, ofs, msg);		\
+	} while (0)
+#define IP_VS_DBG_RL_PKT(level, pp, skb, ofs, msg)			\
+	do {								\
+		if (level <= ip_vs_get_debug_level() &&			\
+		    net_ratelimit())					\
+			pp->debug_packet(pp, skb, ofs, msg);		\
+	} while (0)
 #else	/* NO DEBUGGING at ALL */
 #define IP_VS_DBG_BUF(level, msg...)  do {} while (0)
 #define IP_VS_ERR_BUF(msg...)  do {} while (0)
@@ -150,29 +150,27 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 #endif
 
 #define IP_VS_BUG() BUG()
-#define IP_VS_ERR(msg...) printk(KERN_ERR "IPVS: " msg)
-#define IP_VS_INFO(msg...) printk(KERN_INFO "IPVS: " msg)
-#define IP_VS_WARNING(msg...) \
-	printk(KERN_WARNING "IPVS: " msg)
-#define IP_VS_ERR_RL(msg...)				\
-    do {						\
-	    if (net_ratelimit())			\
-		    printk(KERN_ERR "IPVS: " msg);	\
-    } while (0)
+#define IP_VS_ERR_RL(msg, ...)						\
+	do {								\
+		if (net_ratelimit())					\
+			pr_err(msg, ##__VA_ARGS__);			\
+	} while (0)
 
 #ifdef CONFIG_IP_VS_DEBUG
 #define EnterFunction(level)						\
-    do {								\
-	    if (level <= ip_vs_get_debug_level())			\
-		    printk(KERN_DEBUG "Enter: %s, %s line %i\n",	\
-			   __func__, __FILE__, __LINE__);		\
-    } while (0)
-#define LeaveFunction(level)                                            \
-    do {                                                                \
-	    if (level <= ip_vs_get_debug_level())                       \
-			printk(KERN_DEBUG "Leave: %s, %s line %i\n",    \
-			       __func__, __FILE__, __LINE__);       \
-    } while (0)
+	do {								\
+		if (level <= ip_vs_get_debug_level())			\
+			printk(KERN_DEBUG				\
+			       pr_fmt("Enter: %s, %s line %i\n"),	\
+			       __func__, __FILE__, __LINE__);		\
+	} while (0)
+#define LeaveFunction(level)						\
+	do {								\
+		if (level <= ip_vs_get_debug_level())			\
+			printk(KERN_DEBUG				\
+			       pr_fmt("Leave: %s, %s line %i\n"),	\
+			       __func__, __FILE__, __LINE__);		\
+	} while (0)
 #else
 #define EnterFunction(level)   do {} while (0)
 #define LeaveFunction(level)   do {} while (0)
@@ -740,7 +738,8 @@ extern void ip_vs_protocol_cleanup(void);
 extern void ip_vs_protocol_timeout_change(int flags);
 extern int *ip_vs_create_timeout_table(int *table, int size);
 extern int
-ip_vs_set_state_timeout(int *table, int num, char **names, char *name, int to);
+ip_vs_set_state_timeout(int *table, int num, const char *const *names,
+			const char *name, int to);
 extern void
 ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp, const struct sk_buff *skb,
 			  int offset, const char *msg);

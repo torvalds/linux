@@ -212,7 +212,7 @@ cifs_unix_basic_to_fattr(struct cifs_fattr *fattr, FILE_UNIX_BASIC_INFO *info,
  * junction to the new submount (ie to setup the fake directory
  * which represents a DFS referral).
  */
-void
+static void
 cifs_create_dfs_fattr(struct cifs_fattr *fattr, struct super_block *sb)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -388,7 +388,7 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 }
 
 /* Fill a cifs_fattr struct with info from FILE_ALL_INFO */
-void
+static void
 cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 		       struct cifs_sb_info *cifs_sb, bool adjust_tz)
 {
@@ -513,9 +513,12 @@ int cifs_get_inode_info(struct inode **pinode,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (rc1) {
-				/* BB EOPNOSUPP disable SERVER_INUM? */
 				cFYI(1, ("GetSrvInodeNum rc %d", rc1));
 				fattr.cf_uniqueid = iunique(sb, ROOT_I);
+				/* disable serverino if call not supported */
+				if (rc1 == -EINVAL)
+					cifs_sb->mnt_cifs_flags &=
+							~CIFS_MOUNT_SERVER_INUM;
 			}
 		} else {
 			fattr.cf_uniqueid = iunique(sb, ROOT_I);
@@ -797,7 +800,7 @@ set_via_filehandle:
 	if (open_file == NULL)
 		CIFSSMBClose(xid, pTcon, netfid);
 	else
-		atomic_dec(&open_file->wrtPending);
+		cifsFileInfo_put(open_file);
 out:
 	return rc;
 }
@@ -1632,7 +1635,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 		__u32 npid = open_file->pid;
 		rc = CIFSSMBSetFileSize(xid, pTcon, attrs->ia_size, nfid,
 					npid, false);
-		atomic_dec(&open_file->wrtPending);
+		cifsFileInfo_put(open_file);
 		cFYI(1, ("SetFSize for attrs rc = %d", rc));
 		if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			unsigned int bytes_written;
@@ -1787,7 +1790,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		u16 nfid = open_file->netfid;
 		u32 npid = open_file->pid;
 		rc = CIFSSMBUnixSetFileInfo(xid, pTcon, args, nfid, npid);
-		atomic_dec(&open_file->wrtPending);
+		cifsFileInfo_put(open_file);
 	} else {
 		rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, args,
 				    cifs_sb->local_nls,

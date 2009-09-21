@@ -49,9 +49,7 @@ static const struct pci_device_id prism54_id_tbl[] = {
 
 	/* 3COM 3CRWE154G72 Wireless LAN adapter */
 	{
-	 0x10b7, 0x6001,
-	 PCI_ANY_ID, PCI_ANY_ID,
-	 0, 0, 0
+	 PCI_VDEVICE(3COM, 0x6001), 0
 	},
 
 	/* Intersil PRISM Indigo Wireless LAN adapter */

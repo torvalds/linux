@@ -90,7 +90,7 @@ static void multipath_end_request(struct bio *bio, int error)
 
 	if (uptodate)
 		multipath_end_bh_io(mp_bh, 0);
-	else if (!bio_rw_ahead(bio)) {
+	else if (!bio_rw_flagged(bio, BIO_RW_AHEAD)) {
 		/*
 		 * oops, IO error:
 		 */
@@ -144,7 +144,7 @@ static int multipath_make_request (struct request_queue *q, struct bio * bio)
 	const int rw = bio_data_dir(bio);
 	int cpu;
 
-	if (unlikely(bio_barrier(bio))) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
@@ -313,6 +313,7 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			set_bit(In_sync, &rdev->flags);
 			rcu_assign_pointer(p->rdev, rdev);
 			err = 0;
+			md_integrity_add_rdev(rdev, mddev);
 			break;
 		}
 
@@ -345,7 +346,9 @@ static int multipath_remove_disk(mddev_t *mddev, int number)
 			/* lost the race, try later */
 			err = -EBUSY;
 			p->rdev = rdev;
+			goto abort;
 		}
+		md_integrity_register(mddev);
 	}
 abort:
 
@@ -519,7 +522,7 @@ static int multipath_run (mddev_t *mddev)
 	mddev->queue->unplug_fn = multipath_unplug;
 	mddev->queue->backing_dev_info.congested_fn = multipath_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
-
+	md_integrity_register(mddev);
 	return 0;
 
 out_free_conf:

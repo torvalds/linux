@@ -109,12 +109,9 @@ inline void iscsi_conn_queue_work(struct iscsi_conn *conn)
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_queue_work);
 
-void
-iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
+static void __iscsi_update_cmdsn(struct iscsi_session *session,
+				 uint32_t exp_cmdsn, uint32_t max_cmdsn)
 {
-	uint32_t max_cmdsn = be32_to_cpu(hdr->max_cmdsn);
-	uint32_t exp_cmdsn = be32_to_cpu(hdr->exp_cmdsn);
-
 	/*
 	 * standard specifies this check for when to update expected and
 	 * max sequence numbers
@@ -137,6 +134,12 @@ iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
 		    !list_empty(&session->leadconn->mgmtqueue))
 			iscsi_conn_queue_work(session->leadconn);
 	}
+}
+
+void iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
+{
+	__iscsi_update_cmdsn(session, be32_to_cpu(hdr->exp_cmdsn),
+			     be32_to_cpu(hdr->max_cmdsn));
 }
 EXPORT_SYMBOL_GPL(iscsi_update_cmdsn);
 
@@ -301,8 +304,6 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 	hdr->flags = ISCSI_ATTR_SIMPLE;
 	int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
 	memcpy(task->lun, hdr->lun, sizeof(task->lun));
-	hdr->cmdsn = task->cmdsn = cpu_to_be32(session->cmdsn);
-	session->cmdsn++;
 	hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
 	cmd_len = sc->cmd_len;
 	if (cmd_len < ISCSI_CDB_SIZE)
@@ -388,6 +389,8 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 		return -EIO;
 
 	task->state = ISCSI_TASK_RUNNING;
+	hdr->cmdsn = task->cmdsn = cpu_to_be32(session->cmdsn);
+	session->cmdsn++;
 
 	conn->scsicmd_pdus_cnt++;
 	ISCSI_DBG_SESSION(session, "iscsi prep [%s cid %d sc %p cdb 0x%x "
@@ -498,6 +501,31 @@ static void iscsi_complete_task(struct iscsi_task *task, int state)
 	/* release get from queueing */
 	__iscsi_put_task(task);
 }
+
+/**
+ * iscsi_complete_scsi_task - finish scsi task normally
+ * @task: iscsi task for scsi cmd
+ * @exp_cmdsn: expected cmd sn in cpu format
+ * @max_cmdsn: max cmd sn in cpu format
+ *
+ * This is used when drivers do not need or cannot perform
+ * lower level pdu processing.
+ *
+ * Called with session lock
+ */
+void iscsi_complete_scsi_task(struct iscsi_task *task,
+			      uint32_t exp_cmdsn, uint32_t max_cmdsn)
+{
+	struct iscsi_conn *conn = task->conn;
+
+	ISCSI_DBG_SESSION(conn->session, "[itt 0x%x]\n", task->itt);
+
+	conn->last_recv = jiffies;
+	__iscsi_update_cmdsn(conn->session, exp_cmdsn, max_cmdsn);
+	iscsi_complete_task(task, ISCSI_TASK_COMPLETED);
+}
+EXPORT_SYMBOL_GPL(iscsi_complete_scsi_task);
+
 
 /*
  * session lock must be held and if not called for a task that is
@@ -857,27 +885,102 @@ static void iscsi_send_nopout(struct iscsi_conn *conn, struct iscsi_nopin *rhdr)
 	}
 }
 
+static int iscsi_nop_out_rsp(struct iscsi_task *task,
+			     struct iscsi_nopin *nop, char *data, int datalen)
+{
+	struct iscsi_conn *conn = task->conn;
+	int rc = 0;
+
+	if (conn->ping_task != task) {
+		/*
+		 * If this is not in response to one of our
+		 * nops then it must be from userspace.
+		 */
+		if (iscsi_recv_pdu(conn->cls_conn, (struct iscsi_hdr *)nop,
+				   data, datalen))
+			rc = ISCSI_ERR_CONN_FAILED;
+	} else
+		mod_timer(&conn->transport_timer, jiffies + conn->recv_timeout);
+	iscsi_complete_task(task, ISCSI_TASK_COMPLETED);
+	return rc;
+}
+
 static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			       char *data, int datalen)
 {
 	struct iscsi_reject *reject = (struct iscsi_reject *)hdr;
 	struct iscsi_hdr rejected_pdu;
+	int opcode, rc = 0;
 
 	conn->exp_statsn = be32_to_cpu(reject->statsn) + 1;
 
-	if (reject->reason == ISCSI_REASON_DATA_DIGEST_ERROR) {
-		if (ntoh24(reject->dlength) > datalen)
-			return ISCSI_ERR_PROTO;
-
-		if (ntoh24(reject->dlength) >= sizeof(struct iscsi_hdr)) {
-			memcpy(&rejected_pdu, data, sizeof(struct iscsi_hdr));
-			iscsi_conn_printk(KERN_ERR, conn,
-					  "pdu (op 0x%x) rejected "
-					  "due to DataDigest error.\n",
-					  rejected_pdu.opcode);
-		}
+	if (ntoh24(reject->dlength) > datalen ||
+	    ntoh24(reject->dlength) < sizeof(struct iscsi_hdr)) {
+		iscsi_conn_printk(KERN_ERR, conn, "Cannot handle rejected "
+				  "pdu. Invalid data length (pdu dlength "
+				  "%u, datalen %d\n", ntoh24(reject->dlength),
+				  datalen);
+		return ISCSI_ERR_PROTO;
 	}
-	return 0;
+	memcpy(&rejected_pdu, data, sizeof(struct iscsi_hdr));
+	opcode = rejected_pdu.opcode & ISCSI_OPCODE_MASK;
+
+	switch (reject->reason) {
+	case ISCSI_REASON_DATA_DIGEST_ERROR:
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "pdu (op 0x%x itt 0x%x) rejected "
+				  "due to DataDigest error.\n",
+				  rejected_pdu.itt, opcode);
+		break;
+	case ISCSI_REASON_IMM_CMD_REJECT:
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "pdu (op 0x%x itt 0x%x) rejected. Too many "
+				  "immediate commands.\n",
+				  rejected_pdu.itt, opcode);
+		/*
+		 * We only send one TMF at a time so if the target could not
+		 * handle it, then it should get fixed (RFC mandates that
+		 * a target can handle one immediate TMF per conn).
+		 *
+		 * For nops-outs, we could have sent more than one if
+		 * the target is sending us lots of nop-ins
+		 */
+		if (opcode != ISCSI_OP_NOOP_OUT)
+			return 0;
+
+		 if (rejected_pdu.itt == cpu_to_be32(ISCSI_RESERVED_TAG))
+			/*
+			 * nop-out in response to target's nop-out rejected.
+			 * Just resend.
+			 */
+			iscsi_send_nopout(conn,
+					  (struct iscsi_nopin*)&rejected_pdu);
+		else {
+			struct iscsi_task *task;
+			/*
+			 * Our nop as ping got dropped. We know the target
+			 * and transport are ok so just clean up
+			 */
+			task = iscsi_itt_to_task(conn, rejected_pdu.itt);
+			if (!task) {
+				iscsi_conn_printk(KERN_ERR, conn,
+						 "Invalid pdu reject. Could "
+						 "not lookup rejected task.\n");
+				rc = ISCSI_ERR_BAD_ITT;
+			} else
+				rc = iscsi_nop_out_rsp(task,
+					(struct iscsi_nopin*)&rejected_pdu,
+					NULL, 0);
+		}
+		break;
+	default:
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "pdu (op 0x%x itt 0x%x) rejected. Reason "
+				  "code 0x%x\n", rejected_pdu.itt,
+				  rejected_pdu.opcode, reject->reason);
+		break;
+	}
+	return rc;
 }
 
 /**
@@ -1038,15 +1141,8 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		}
 		conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 
-		if (conn->ping_task != task)
-			/*
-			 * If this is not in response to one of our
-			 * nops then it must be from userspace.
-			 */
-			goto recv_pdu;
-
-		mod_timer(&conn->transport_timer, jiffies + conn->recv_timeout);
-		iscsi_complete_task(task, ISCSI_TASK_COMPLETED);
+		rc = iscsi_nop_out_rsp(task, (struct iscsi_nopin*)hdr,
+				       data, datalen);
 		break;
 	default:
 		rc = ISCSI_ERR_BAD_OPCODE;
@@ -1212,6 +1308,9 @@ static int iscsi_xmit_task(struct iscsi_conn *conn)
 	struct iscsi_task *task = conn->task;
 	int rc;
 
+	if (test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx))
+		return -ENODATA;
+
 	__iscsi_get_task(task);
 	spin_unlock_bh(&conn->session->lock);
 	rc = conn->session->tt->xmit_task(task);
@@ -1261,7 +1360,7 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 	int rc = 0;
 
 	spin_lock_bh(&conn->session->lock);
-	if (unlikely(conn->suspend_tx)) {
+	if (test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx)) {
 		ISCSI_DBG_SESSION(conn->session, "Tx suspended!\n");
 		spin_unlock_bh(&conn->session->lock);
 		return -ENODATA;
@@ -1270,7 +1369,7 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 	if (conn->task) {
 		rc = iscsi_xmit_task(conn);
 	        if (rc)
-		        goto again;
+		        goto done;
 	}
 
 	/*
@@ -1290,7 +1389,7 @@ check_mgmt:
 		}
 		rc = iscsi_xmit_task(conn);
 		if (rc)
-			goto again;
+			goto done;
 	}
 
 	/* process pending command queue */
@@ -1311,14 +1410,14 @@ check_mgmt:
 				list_add_tail(&conn->task->running,
 					      &conn->cmdqueue);
 				conn->task = NULL;
-				goto again;
+				goto done;
 			} else
 				fail_scsi_task(conn->task, DID_ABORT);
 			continue;
 		}
 		rc = iscsi_xmit_task(conn);
 		if (rc)
-			goto again;
+			goto done;
 		/*
 		 * we could continuously get new task requests so
 		 * we need to check the mgmt queue for nops that need to
@@ -1344,16 +1443,14 @@ check_mgmt:
 		conn->task->state = ISCSI_TASK_RUNNING;
 		rc = iscsi_xmit_task(conn);
 		if (rc)
-			goto again;
+			goto done;
 		if (!list_empty(&conn->mgmtqueue))
 			goto check_mgmt;
 	}
 	spin_unlock_bh(&conn->session->lock);
 	return -ENODATA;
 
-again:
-	if (unlikely(conn->suspend_tx))
-		rc = -ENODATA;
+done:
 	spin_unlock_bh(&conn->session->lock);
 	return rc;
 }
@@ -1474,6 +1571,12 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 		goto fault;
 	}
 
+	if (test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx)) {
+		reason = FAILURE_SESSION_IN_RECOVERY;
+		sc->result = DID_REQUEUE;
+		goto fault;
+	}
+
 	if (iscsi_check_cmdsn_window_closed(conn)) {
 		reason = FAILURE_WINDOW_CLOSED;
 		goto reject;
@@ -1497,6 +1600,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 			}
 		}
 		if (session->tt->xmit_task(task)) {
+			session->cmdsn--;
 			reason = FAILURE_SESSION_NOT_READY;
 			goto prepd_reject;
 		}
@@ -1712,6 +1816,33 @@ static void fail_scsi_tasks(struct iscsi_conn *conn, unsigned lun,
 	}
 }
 
+/**
+ * iscsi_suspend_queue - suspend iscsi_queuecommand
+ * @conn: iscsi conn to stop queueing IO on
+ *
+ * This grabs the session lock to make sure no one is in
+ * xmit_task/queuecommand, and then sets suspend to prevent
+ * new commands from being queued. This only needs to be called
+ * by offload drivers that need to sync a path like ep disconnect
+ * with the iscsi_queuecommand/xmit_task. To start IO again libiscsi
+ * will call iscsi_start_tx and iscsi_unblock_session when in FFP.
+ */
+void iscsi_suspend_queue(struct iscsi_conn *conn)
+{
+	spin_lock_bh(&conn->session->lock);
+	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
+	spin_unlock_bh(&conn->session->lock);
+}
+EXPORT_SYMBOL_GPL(iscsi_suspend_queue);
+
+/**
+ * iscsi_suspend_tx - suspend iscsi_data_xmit
+ * @conn: iscsi conn tp stop processing IO on.
+ *
+ * This function sets the suspend bit to prevent iscsi_data_xmit
+ * from sending new IO, and if work is queued on the xmit thread
+ * it will wait for it to be completed.
+ */
 void iscsi_suspend_tx(struct iscsi_conn *conn)
 {
 	struct Scsi_Host *shost = conn->session->host;
@@ -1974,10 +2105,10 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 		 * good and have never sent us a successful tmf response
 		 * then sent more data for the cmd.
 		 */
-		spin_lock(&session->lock);
+		spin_lock_bh(&session->lock);
 		fail_scsi_task(task, DID_ABORT);
 		conn->tmf_state = TMF_INITIAL;
-		spin_unlock(&session->lock);
+		spin_unlock_bh(&session->lock);
 		iscsi_start_tx(conn);
 		goto success_unlocked;
 	case TMF_TIMEDOUT:

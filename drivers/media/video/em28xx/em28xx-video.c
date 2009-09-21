@@ -124,7 +124,7 @@ static struct em28xx_fmt format[] = {
 
 /* supported controls */
 /* Common to all boards */
-static struct v4l2_queryctrl em28xx_qctrl[] = {
+static struct v4l2_queryctrl ac97_qctrl[] = {
 	{
 		.id = V4L2_CID_AUDIO_VOLUME,
 		.type = V4L2_CTRL_TYPE_INTEGER,
@@ -133,7 +133,7 @@ static struct v4l2_queryctrl em28xx_qctrl[] = {
 		.maximum = 0x1f,
 		.step = 0x1,
 		.default_value = 0x1f,
-		.flags = 0,
+		.flags = V4L2_CTRL_FLAG_SLIDER,
 	}, {
 		.id = V4L2_CID_AUDIO_MUTE,
 		.type = V4L2_CTRL_TYPE_BOOLEAN,
@@ -194,15 +194,24 @@ static void em28xx_copy_video(struct em28xx *dev,
 	startread = p;
 	remain = len;
 
-	/* Interlaces frame */
-	if (buf->top_field)
+	if (dev->progressive)
 		fieldstart = outp;
-	else
-		fieldstart = outp + bytesperline;
+	else {
+		/* Interlaces two half frames */
+		if (buf->top_field)
+			fieldstart = outp;
+		else
+			fieldstart = outp + bytesperline;
+	}
 
 	linesdone = dma_q->pos / bytesperline;
 	currlinedone = dma_q->pos % bytesperline;
-	offset = linesdone * bytesperline * 2 + currlinedone;
+
+	if (dev->progressive)
+		offset = linesdone * bytesperline + currlinedone;
+	else
+		offset = linesdone * bytesperline * 2 + currlinedone;
+
 	startwrite = fieldstart + offset;
 	lencopy = bytesperline - currlinedone;
 	lencopy = lencopy > remain ? remain : lencopy;
@@ -376,7 +385,7 @@ static inline int em28xx_isoc_copy(struct em28xx *dev, struct urb *urb)
 			em28xx_isocdbg("Video frame %d, length=%i, %s\n", p[2],
 				       len, (p[2] & 1) ? "odd" : "even");
 
-			if (!(p[2] & 1)) {
+			if (dev->progressive || !(p[2] & 1)) {
 				if (buf != NULL)
 					buffer_filled(dev, dma_q, buf);
 				get_next_buf(dma_q, &buf);
@@ -600,10 +609,29 @@ static void res_free(struct em28xx_fh *fh)
 }
 
 /*
- * em28xx_get_ctrl()
- * return the current saturation, brightness or contrast, mute state
+ * ac97_queryctrl()
+ * return the ac97 supported controls
  */
-static int em28xx_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
+static int ac97_queryctrl(struct v4l2_queryctrl *qc)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ac97_qctrl); i++) {
+		if (qc->id && qc->id == ac97_qctrl[i].id) {
+			memcpy(qc, &(ac97_qctrl[i]), sizeof(*qc));
+			return 0;
+		}
+	}
+
+	/* Control is not ac97 related */
+	return 1;
+}
+
+/*
+ * ac97_get_ctrl()
+ * return the current values for ac97 mute and volume
+ */
+static int ac97_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
 {
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -613,29 +641,41 @@ static int em28xx_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
 		ctrl->value = dev->volume;
 		return 0;
 	default:
-		return -EINVAL;
+		/* Control is not ac97 related */
+		return 1;
 	}
 }
 
 /*
- * em28xx_set_ctrl()
- * mute or set new saturation, brightness or contrast
+ * ac97_set_ctrl()
+ * set values for ac97 mute and volume
  */
-static int em28xx_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
+static int ac97_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ac97_qctrl); i++)
+		if (ctrl->id == ac97_qctrl[i].id)
+			goto handle;
+
+	/* Announce that hasn't handle it */
+	return 1;
+
+handle:
+	if (ctrl->value < ac97_qctrl[i].minimum ||
+	    ctrl->value > ac97_qctrl[i].maximum)
+		return -ERANGE;
+
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		if (ctrl->value != dev->mute) {
-			dev->mute = ctrl->value;
-			return em28xx_audio_analog_set(dev);
-		}
-		return 0;
+		dev->mute = ctrl->value;
+		break;
 	case V4L2_CID_AUDIO_VOLUME:
 		dev->volume = ctrl->value;
-		return em28xx_audio_analog_set(dev);
-	default:
-		return -EINVAL;
+		break;
 	}
+
+	return em28xx_audio_analog_set(dev);
 }
 
 static int check_dev(struct em28xx *dev)
@@ -657,8 +697,8 @@ static void get_scale(struct em28xx *dev,
 			unsigned int width, unsigned int height,
 			unsigned int *hscale, unsigned int *vscale)
 {
-	unsigned int          maxw   = norm_maxw(dev);
-	unsigned int          maxh   = norm_maxh(dev);
+	unsigned int          maxw = norm_maxw(dev);
+	unsigned int          maxh = norm_maxh(dev);
 
 	*hscale = (((unsigned long)maxw) << 12) / width - 4096L;
 	if (*hscale >= 0x4000)
@@ -689,7 +729,10 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	/* FIXME: TOP? NONE? BOTTOM? ALTENATE? */
-	f->fmt.pix.field = dev->interlaced ?
+	if (dev->progressive)
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+	else
+		f->fmt.pix.field = dev->interlaced ?
 			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
 
 	mutex_unlock(&dev->lock);
@@ -726,11 +769,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	if (dev->board.is_27xx) {
-		/* FIXME: This is the only supported fmt */
-		width  = 640;
-		height = 480;
-	} else if (dev->board.is_em2800) {
+	if (dev->board.is_em2800) {
 		/* the em2800 can only scale down to 50% */
 		height = height > (3 * maxh / 4) ? maxh : maxh / 2;
 		width = width > (3 * maxw / 4) ? maxw : maxw / 2;
@@ -757,7 +796,11 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = (dev->width * fmt->depth + 7) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	if (dev->progressive)
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+	else
+		f->fmt.pix.field = dev->interlaced ?
+			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
 
 	return 0;
 }
@@ -766,12 +809,6 @@ static int em28xx_set_video_format(struct em28xx *dev, unsigned int fourcc,
 				   unsigned width, unsigned height)
 {
 	struct em28xx_fmt     *fmt;
-
-	/* FIXME: This is the only supported fmt */
-	if (dev->board.is_27xx) {
-		width  = 640;
-		height = 480;
-	}
 
 	fmt = format_by_fourcc(fourcc);
 	if (!fmt)
@@ -856,6 +893,41 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	return 0;
 }
 
+static int vidioc_g_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *p)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+	int rc = 0;
+
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (dev->board.is_webcam)
+		rc = v4l2_device_call_until_err(&dev->v4l2_dev, 0,
+						video, g_parm, p);
+	else
+		v4l2_video_std_frame_period(dev->norm,
+						 &p->parm.capture.timeperframe);
+
+	return rc;
+}
+
+static int vidioc_s_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *p)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+
+	if (!dev->board.is_webcam)
+		return -EINVAL;
+
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	return v4l2_device_call_until_err(&dev->v4l2_dev, 0, video, s_parm, p);
+}
+
 static const char *iname[] = {
 	[EM28XX_VMUX_COMPOSITE1] = "Composite1",
 	[EM28XX_VMUX_COMPOSITE2] = "Composite2",
@@ -933,6 +1005,9 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	struct em28xx_fh   *fh    = priv;
 	struct em28xx      *dev   = fh->dev;
 
+	if (!dev->audio_mode.has_audio)
+		return -EINVAL;
+
 	switch (a->index) {
 	case EM28XX_AMUX_VIDEO:
 		strcpy(a->name, "Television");
@@ -974,6 +1049,9 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	struct em28xx      *dev = fh->dev;
 
 
+	if (!dev->audio_mode.has_audio)
+		return -EINVAL;
+
 	if (a->index >= MAX_EM28XX_INPUT)
 		return -EINVAL;
 	if (0 == INPUT(a->index)->type)
@@ -997,7 +1075,6 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 	int                   id  = qc->id;
-	int                   i;
 	int                   rc;
 
 	rc = check_dev(dev);
@@ -1008,15 +1085,14 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 
 	qc->id = id;
 
-	if (!dev->board.has_msp34xx) {
-		for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
-			if (qc->id && qc->id == em28xx_qctrl[i].id) {
-				memcpy(qc, &(em28xx_qctrl[i]), sizeof(*qc));
-				return 0;
-			}
-		}
+	/* enumberate AC97 controls */
+	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
+		rc = ac97_queryctrl(qc);
+		if (!rc)
+			return 0;
 	}
 
+	/* enumberate V4L2 device controls */
 	mutex_lock(&dev->lock);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, queryctrl, qc);
 	mutex_unlock(&dev->lock);
@@ -1041,14 +1117,16 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 
 	mutex_lock(&dev->lock);
 
-	if (dev->board.has_msp34xx)
+	/* Set an AC97 control */
+	if (dev->audio_mode.ac97 != EM28XX_NO_AC97)
+		rc = ac97_get_ctrl(dev, ctrl);
+	else
+		rc = 1;
+
+	/* It were not an AC97 control. Sends it to the v4l2 dev interface */
+	if (rc == 1) {
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_ctrl, ctrl);
-	else {
-		rc = em28xx_get_ctrl(dev, ctrl);
-		if (rc < 0) {
-			v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_ctrl, ctrl);
-			rc = 0;
-		}
+		rc = 0;
 	}
 
 	mutex_unlock(&dev->lock);
@@ -1060,7 +1138,6 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	u8                    i;
 	int                   rc;
 
 	rc = check_dev(dev);
@@ -1069,28 +1146,31 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 	mutex_lock(&dev->lock);
 
-	if (dev->board.has_msp34xx)
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
-	else {
+	/* Set an AC97 control */
+	if (dev->audio_mode.ac97 != EM28XX_NO_AC97)
+		rc = ac97_set_ctrl(dev, ctrl);
+	else
 		rc = 1;
-		for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
-			if (ctrl->id == em28xx_qctrl[i].id) {
-				if (ctrl->value < em28xx_qctrl[i].minimum ||
-				    ctrl->value > em28xx_qctrl[i].maximum) {
-					rc = -ERANGE;
-					break;
-				}
 
-				rc = em28xx_set_ctrl(dev, ctrl);
-				break;
-			}
-		}
-	}
-
-	/* Control not found - try to send it to the attached devices */
+	/* It isn't an AC97 control. Sends it to the v4l2 dev interface */
 	if (rc == 1) {
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
-		rc = 0;
+
+		/*
+		 * In the case of non-AC97 volume controls, we still need
+		 * to do some setups at em28xx, in order to mute/unmute
+		 * and to adjust audio volume. However, the value ranges
+		 * should be checked by the corresponding V4L subdriver.
+		 */
+		switch (ctrl->id) {
+		case V4L2_CID_AUDIO_MUTE:
+			dev->mute = ctrl->value;
+			rc = em28xx_audio_analog_set(dev);
+			break;
+		case V4L2_CID_AUDIO_VOLUME:
+			dev->volume = ctrl->value;
+			rc = em28xx_audio_analog_set(dev);
+		}
 	}
 
 	mutex_unlock(&dev->lock);
@@ -1234,8 +1314,9 @@ static int vidioc_g_register(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
 		return 0;
 	case V4L2_CHIP_MATCH_I2C_ADDR:
-		/* Not supported yet */
-		return -EINVAL;
+		/* TODO: is this correct? */
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
+		return 0;
 	default:
 		if (!v4l2_chip_match_host(&reg->match))
 			return -EINVAL;
@@ -1286,8 +1367,9 @@ static int vidioc_s_register(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
 		return 0;
 	case V4L2_CHIP_MATCH_I2C_ADDR:
-		/* Not supported yet */
-		return -EINVAL;
+		/* TODO: is this correct? */
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
+		return 0;
 	default:
 		if (!v4l2_chip_match_host(&reg->match))
 			return -EINVAL;
@@ -1390,8 +1472,10 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	cap->capabilities =
 			V4L2_CAP_SLICED_VBI_CAPTURE |
 			V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_AUDIO |
 			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+
+	if (dev->audio_mode.has_audio)
+		cap->capabilities |= V4L2_CAP_AUDIO;
 
 	if (dev->tuner_type != TUNER_ABSENT)
 		cap->capabilities |= V4L2_CAP_TUNER;
@@ -1613,9 +1697,9 @@ static int radio_queryctrl(struct file *file, void *priv,
 		qc->id >= V4L2_CID_LASTP1)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
-		if (qc->id && qc->id == em28xx_qctrl[i].id) {
-			memcpy(qc, &(em28xx_qctrl[i]), sizeof(*qc));
+	for (i = 0; i < ARRAY_SIZE(ac97_qctrl); i++) {
+		if (qc->id && qc->id == ac97_qctrl[i].id) {
+			memcpy(qc, &(ac97_qctrl[i]), sizeof(*qc));
 			return 0;
 		}
 	}
@@ -1634,6 +1718,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	struct em28xx *dev;
 	enum v4l2_buf_type fh_type;
 	struct em28xx_fh *fh;
+	enum v4l2_field field;
 
 	dev = em28xx_get_device(minor, &fh_type, &radio);
 
@@ -1675,8 +1760,13 @@ static int em28xx_v4l2_open(struct file *filp)
 
 	dev->users++;
 
+	if (dev->progressive)
+		field = V4L2_FIELD_NONE;
+	else
+		field = V4L2_FIELD_INTERLACED;
+
 	videobuf_queue_vmalloc_init(&fh->vb_vidq, &em28xx_video_qops,
-			NULL, &dev->slock, fh->type, V4L2_FIELD_INTERLACED,
+			NULL, &dev->slock, fh->type, field,
 			sizeof(struct em28xx_buffer), fh);
 
 	mutex_unlock(&dev->lock);
@@ -1895,6 +1985,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_qbuf                = vidioc_qbuf,
 	.vidioc_dqbuf               = vidioc_dqbuf,
 	.vidioc_s_std               = vidioc_s_std,
+	.vidioc_g_parm		    = vidioc_g_parm,
+	.vidioc_s_parm		    = vidioc_s_parm,
 	.vidioc_enum_input          = vidioc_enum_input,
 	.vidioc_g_input             = vidioc_g_input,
 	.vidioc_s_input             = vidioc_s_input,

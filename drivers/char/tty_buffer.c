@@ -462,6 +462,19 @@ static void flush_to_ldisc(struct work_struct *work)
 }
 
 /**
+ *	tty_flush_to_ldisc
+ *	@tty: tty to push
+ *
+ *	Push the terminal flip buffers to the line discipline.
+ *
+ *	Must not be called from IRQ context.
+ */
+void tty_flush_to_ldisc(struct tty_struct *tty)
+{
+	flush_to_ldisc(&tty->buf.work.work);
+}
+
+/**
  *	tty_flip_buffer_push	-	terminal
  *	@tty: tty to push
  *

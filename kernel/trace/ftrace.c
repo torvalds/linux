@@ -1016,71 +1016,35 @@ static int
 __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {
 	unsigned long ftrace_addr;
-	unsigned long ip, fl;
+	unsigned long flag = 0UL;
 
 	ftrace_addr = (unsigned long)FTRACE_ADDR;
 
-	ip = rec->ip;
-
 	/*
-	 * If this record is not to be traced and
-	 * it is not enabled then do nothing.
+	 * If this record is not to be traced or we want to disable it,
+	 * then disable it.
 	 *
-	 * If this record is not to be traced and
-	 * it is enabled then disable it.
+	 * If we want to enable it and filtering is off, then enable it.
 	 *
+	 * If we want to enable it and filtering is on, enable it only if
+	 * it's filtered
 	 */
-	if (rec->flags & FTRACE_FL_NOTRACE) {
-		if (rec->flags & FTRACE_FL_ENABLED)
-			rec->flags &= ~FTRACE_FL_ENABLED;
-		else
-			return 0;
-
-	} else if (ftrace_filtered && enable) {
-		/*
-		 * Filtering is on:
-		 */
-
-		fl = rec->flags & (FTRACE_FL_FILTER | FTRACE_FL_ENABLED);
-
-		/* Record is filtered and enabled, do nothing */
-		if (fl == (FTRACE_FL_FILTER | FTRACE_FL_ENABLED))
-			return 0;
-
-		/* Record is not filtered or enabled, do nothing */
-		if (!fl)
-			return 0;
-
-		/* Record is not filtered but enabled, disable it */
-		if (fl == FTRACE_FL_ENABLED)
-			rec->flags &= ~FTRACE_FL_ENABLED;
-		else
-		/* Otherwise record is filtered but not enabled, enable it */
-			rec->flags |= FTRACE_FL_ENABLED;
-	} else {
-		/* Disable or not filtered */
-
-		if (enable) {
-			/* if record is enabled, do nothing */
-			if (rec->flags & FTRACE_FL_ENABLED)
-				return 0;
-
-			rec->flags |= FTRACE_FL_ENABLED;
-
-		} else {
-
-			/* if record is not enabled, do nothing */
-			if (!(rec->flags & FTRACE_FL_ENABLED))
-				return 0;
-
-			rec->flags &= ~FTRACE_FL_ENABLED;
-		}
+	if (enable && !(rec->flags & FTRACE_FL_NOTRACE)) {
+		if (!ftrace_filtered || (rec->flags & FTRACE_FL_FILTER))
+			flag = FTRACE_FL_ENABLED;
 	}
 
-	if (rec->flags & FTRACE_FL_ENABLED)
+	/* If the state of this record hasn't changed, then do nothing */
+	if ((rec->flags & FTRACE_FL_ENABLED) == flag)
+		return 0;
+
+	if (flag) {
+		rec->flags |= FTRACE_FL_ENABLED;
 		return ftrace_make_call(rec, ftrace_addr);
-	else
-		return ftrace_make_nop(NULL, rec, ftrace_addr);
+	}
+
+	rec->flags &= ~FTRACE_FL_ENABLED;
+	return ftrace_make_nop(NULL, rec, ftrace_addr);
 }
 
 static void ftrace_replace_code(int enable)
@@ -1359,11 +1323,10 @@ static int __init ftrace_dyn_table_alloc(unsigned long num_to_init)
 
 enum {
 	FTRACE_ITER_FILTER	= (1 << 0),
-	FTRACE_ITER_CONT	= (1 << 1),
-	FTRACE_ITER_NOTRACE	= (1 << 2),
-	FTRACE_ITER_FAILURES	= (1 << 3),
-	FTRACE_ITER_PRINTALL	= (1 << 4),
-	FTRACE_ITER_HASH	= (1 << 5),
+	FTRACE_ITER_NOTRACE	= (1 << 1),
+	FTRACE_ITER_FAILURES	= (1 << 2),
+	FTRACE_ITER_PRINTALL	= (1 << 3),
+	FTRACE_ITER_HASH	= (1 << 4),
 };
 
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
@@ -1373,9 +1336,7 @@ struct ftrace_iterator {
 	int			hidx;
 	int			idx;
 	unsigned		flags;
-	unsigned char		buffer[FTRACE_BUFF_MAX+1];
-	unsigned		buffer_idx;
-	unsigned		filtered;
+	struct trace_parser	parser;
 };
 
 static void *
@@ -1438,18 +1399,13 @@ static int t_hash_show(struct seq_file *m, void *v)
 {
 	struct ftrace_func_probe *rec;
 	struct hlist_node *hnd = v;
-	char str[KSYM_SYMBOL_LEN];
 
 	rec = hlist_entry(hnd, struct ftrace_func_probe, node);
 
 	if (rec->ops->print)
 		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
 
-	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-	seq_printf(m, "%s:", str);
-
-	kallsyms_lookup((unsigned long)rec->ops->func, NULL, NULL, NULL, str);
-	seq_printf(m, "%s", str);
+	seq_printf(m, "%ps:%ps", (void *)rec->ip, (void *)rec->ops->func);
 
 	if (rec->data)
 		seq_printf(m, ":%p", rec->data);
@@ -1547,7 +1503,6 @@ static int t_show(struct seq_file *m, void *v)
 {
 	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec = v;
-	char str[KSYM_SYMBOL_LEN];
 
 	if (iter->flags & FTRACE_ITER_HASH)
 		return t_hash_show(m, v);
@@ -1560,9 +1515,7 @@ static int t_show(struct seq_file *m, void *v)
 	if (!rec)
 		return 0;
 
-	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-
-	seq_printf(m, "%s\n", str);
+	seq_printf(m, "%ps\n", (void *)rec->ip);
 
 	return 0;
 }
@@ -1599,17 +1552,6 @@ ftrace_avail_open(struct inode *inode, struct file *file)
 	}
 
 	return ret;
-}
-
-int ftrace_avail_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct ftrace_iterator *iter = m->private;
-
-	seq_release(inode, file);
-	kfree(iter);
-
-	return 0;
 }
 
 static int
@@ -1660,9 +1602,14 @@ ftrace_regex_open(struct inode *inode, struct file *file, int enable)
 	if (!iter)
 		return -ENOMEM;
 
+	if (trace_parser_get_init(&iter->parser, FTRACE_BUFF_MAX)) {
+		kfree(iter);
+		return -ENOMEM;
+	}
+
 	mutex_lock(&ftrace_regex_lock);
 	if ((file->f_mode & FMODE_WRITE) &&
-	    !(file->f_flags & O_APPEND))
+	    (file->f_flags & O_TRUNC))
 		ftrace_filter_reset(enable);
 
 	if (file->f_mode & FMODE_READ) {
@@ -2115,9 +2062,9 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	int i, len = 0;
 	char *search;
 
-	if (glob && (strcmp(glob, "*") || !strlen(glob)))
+	if (glob && (strcmp(glob, "*") == 0 || !strlen(glob)))
 		glob = NULL;
-	else {
+	else if (glob) {
 		int not;
 
 		type = ftrace_setup_glob(glob, strlen(glob), &search, &not);
@@ -2252,9 +2199,8 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos, int enable)
 {
 	struct ftrace_iterator *iter;
-	char ch;
-	size_t read = 0;
-	ssize_t ret;
+	struct trace_parser *parser;
+	ssize_t ret, read;
 
 	if (!cnt || cnt < 0)
 		return 0;
@@ -2267,68 +2213,23 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 	} else
 		iter = file->private_data;
 
-	if (!*ppos) {
-		iter->flags &= ~FTRACE_ITER_CONT;
-		iter->buffer_idx = 0;
-	}
+	parser = &iter->parser;
+	read = trace_get_user(parser, ubuf, cnt, ppos);
 
-	ret = get_user(ch, ubuf++);
-	if (ret)
-		goto out;
-	read++;
-	cnt--;
-
-	if (!(iter->flags & ~FTRACE_ITER_CONT)) {
-		/* skip white space */
-		while (cnt && isspace(ch)) {
-			ret = get_user(ch, ubuf++);
-			if (ret)
-				goto out;
-			read++;
-			cnt--;
-		}
-
-		if (isspace(ch)) {
-			file->f_pos += read;
-			ret = read;
-			goto out;
-		}
-
-		iter->buffer_idx = 0;
-	}
-
-	while (cnt && !isspace(ch)) {
-		if (iter->buffer_idx < FTRACE_BUFF_MAX)
-			iter->buffer[iter->buffer_idx++] = ch;
-		else {
-			ret = -EINVAL;
-			goto out;
-		}
-		ret = get_user(ch, ubuf++);
+	if (trace_parser_loaded(parser) &&
+	    !trace_parser_cont(parser)) {
+		ret = ftrace_process_regex(parser->buffer,
+					   parser->idx, enable);
 		if (ret)
 			goto out;
-		read++;
-		cnt--;
+
+		trace_parser_clear(parser);
 	}
-
-	if (isspace(ch)) {
-		iter->filtered++;
-		iter->buffer[iter->buffer_idx] = 0;
-		ret = ftrace_process_regex(iter->buffer,
-					   iter->buffer_idx, enable);
-		if (ret)
-			goto out;
-		iter->buffer_idx = 0;
-	} else
-		iter->flags |= FTRACE_ITER_CONT;
-
-
-	file->f_pos += read;
 
 	ret = read;
- out:
-	mutex_unlock(&ftrace_regex_lock);
 
+	mutex_unlock(&ftrace_regex_lock);
+out:
 	return ret;
 }
 
@@ -2433,6 +2334,7 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 {
 	struct seq_file *m = (struct seq_file *)file->private_data;
 	struct ftrace_iterator *iter;
+	struct trace_parser *parser;
 
 	mutex_lock(&ftrace_regex_lock);
 	if (file->f_mode & FMODE_READ) {
@@ -2442,10 +2344,10 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 	} else
 		iter = file->private_data;
 
-	if (iter->buffer_idx) {
-		iter->filtered++;
-		iter->buffer[iter->buffer_idx] = 0;
-		ftrace_match_records(iter->buffer, iter->buffer_idx, enable);
+	parser = &iter->parser;
+	if (trace_parser_loaded(parser)) {
+		parser->buffer[parser->idx] = 0;
+		ftrace_match_records(parser->buffer, parser->idx, enable);
 	}
 
 	mutex_lock(&ftrace_lock);
@@ -2453,7 +2355,9 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
 	mutex_unlock(&ftrace_lock);
 
+	trace_parser_put(parser);
 	kfree(iter);
+
 	mutex_unlock(&ftrace_regex_lock);
 	return 0;
 }
@@ -2474,14 +2378,14 @@ static const struct file_operations ftrace_avail_fops = {
 	.open = ftrace_avail_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = ftrace_avail_release,
+	.release = seq_release_private,
 };
 
 static const struct file_operations ftrace_failures_fops = {
 	.open = ftrace_failures_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = ftrace_avail_release,
+	.release = seq_release_private,
 };
 
 static const struct file_operations ftrace_filter_fops = {
@@ -2543,7 +2447,6 @@ static void g_stop(struct seq_file *m, void *p)
 static int g_show(struct seq_file *m, void *v)
 {
 	unsigned long *ptr = v;
-	char str[KSYM_SYMBOL_LEN];
 
 	if (!ptr)
 		return 0;
@@ -2553,9 +2456,7 @@ static int g_show(struct seq_file *m, void *v)
 		return 0;
 	}
 
-	kallsyms_lookup(*ptr, NULL, NULL, NULL, str);
-
-	seq_printf(m, "%s\n", str);
+	seq_printf(m, "%ps\n", (void *)*ptr);
 
 	return 0;
 }
@@ -2577,7 +2478,7 @@ ftrace_graph_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&graph_lock);
 	if ((file->f_mode & FMODE_WRITE) &&
-	    !(file->f_flags & O_APPEND)) {
+	    (file->f_flags & O_TRUNC)) {
 		ftrace_graph_count = 0;
 		memset(ftrace_graph_funcs, 0, sizeof(ftrace_graph_funcs));
 	}
@@ -2593,6 +2494,14 @@ ftrace_graph_open(struct inode *inode, struct file *file)
 	mutex_unlock(&graph_lock);
 
 	return ret;
+}
+
+static int
+ftrace_graph_release(struct inode *inode, struct file *file)
+{
+	if (file->f_mode & FMODE_READ)
+		seq_release(inode, file);
+	return 0;
 }
 
 static int
@@ -2650,12 +2559,10 @@ static ssize_t
 ftrace_graph_write(struct file *file, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos)
 {
-	unsigned char buffer[FTRACE_BUFF_MAX+1];
+	struct trace_parser parser;
 	unsigned long *array;
 	size_t read = 0;
 	ssize_t ret;
-	int index = 0;
-	char ch;
 
 	if (!cnt || cnt < 0)
 		return 0;
@@ -2673,60 +2580,36 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 	} else
 		array = file->private_data;
 
-	ret = get_user(ch, ubuf++);
-	if (ret)
+	if (trace_parser_get_init(&parser, FTRACE_BUFF_MAX)) {
+		ret = -ENOMEM;
 		goto out;
-	read++;
-	cnt--;
+	}
 
-	/* skip white space */
-	while (cnt && isspace(ch)) {
-		ret = get_user(ch, ubuf++);
+	read = trace_get_user(&parser, ubuf, cnt, ppos);
+
+	if (trace_parser_loaded((&parser))) {
+		parser.buffer[parser.idx] = 0;
+
+		/* we allow only one expression at a time */
+		ret = ftrace_set_func(array, &ftrace_graph_count,
+					parser.buffer);
 		if (ret)
 			goto out;
-		read++;
-		cnt--;
 	}
-
-	if (isspace(ch)) {
-		*ppos += read;
-		ret = read;
-		goto out;
-	}
-
-	while (cnt && !isspace(ch)) {
-		if (index < FTRACE_BUFF_MAX)
-			buffer[index++] = ch;
-		else {
-			ret = -EINVAL;
-			goto out;
-		}
-		ret = get_user(ch, ubuf++);
-		if (ret)
-			goto out;
-		read++;
-		cnt--;
-	}
-	buffer[index] = 0;
-
-	/* we allow only one expression at a time */
-	ret = ftrace_set_func(array, &ftrace_graph_count, buffer);
-	if (ret)
-		goto out;
-
-	file->f_pos += read;
 
 	ret = read;
  out:
+	trace_parser_put(&parser);
 	mutex_unlock(&graph_lock);
 
 	return ret;
 }
 
 static const struct file_operations ftrace_graph_fops = {
-	.open = ftrace_graph_open,
-	.read = seq_read,
-	.write = ftrace_graph_write,
+	.open		= ftrace_graph_open,
+	.read		= seq_read,
+	.write		= ftrace_graph_write,
+	.release	= ftrace_graph_release,
 };
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 

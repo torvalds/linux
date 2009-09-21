@@ -144,7 +144,7 @@ static char * __init lookup_psp_var_map(u8 num)
 {
 	int i;
 
-	for (i = 0; i < sizeof(psp_var_map); i++)
+	for (i = 0; i < ARRAY_SIZE(psp_var_map); i++)
 		if (psp_var_map[i].num == num)
 			return psp_var_map[i].value;
 

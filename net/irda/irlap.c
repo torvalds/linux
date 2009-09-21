@@ -63,7 +63,7 @@ static void irlap_init_qos_capabilities(struct irlap_cb *self,
 					struct qos_info *qos_user);
 
 #ifdef CONFIG_IRDA_DEBUG
-static char *lap_reasons[] = {
+static const char *const lap_reasons[] = {
 	"ERROR, NOT USED",
 	"LAP_DISC_INDICATION",
 	"LAP_NO_RESPONSE",

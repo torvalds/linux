@@ -1,6 +1,4 @@
 /*
- *	linux/arch/mips/dec/kn01-berr.c
- *
  *	Bus error event handling code for DECstation/DECsystem 3100
  *	and 2100 (KN01) systems equipped with parity error detection
  *	logic.

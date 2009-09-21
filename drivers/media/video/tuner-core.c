@@ -819,8 +819,8 @@ static int tuner_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 
 		fe_tuner_ops->get_frequency(&t->fe, &abs_freq);
 		f->frequency = (V4L2_TUNER_RADIO == t->mode) ?
-			(abs_freq * 2 + 125/2) / 125 :
-			(abs_freq + 62500/2) / 62500;
+			DIV_ROUND_CLOSEST(abs_freq * 2, 125) :
+			DIV_ROUND_CLOSEST(abs_freq, 62500);
 		return 0;
 	}
 	f->frequency = (V4L2_TUNER_RADIO == t->mode) ?

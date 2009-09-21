@@ -713,12 +713,26 @@ static void cx23885_dev_checkrevision(struct cx23885_dev *dev)
 		dev->hwrevision = 0xa1;
 		break;
 	case 0x02:
-		/* CX23885-13Z */
+		/* CX23885-13Z/14Z */
 		dev->hwrevision = 0xb0;
 		break;
 	case 0x03:
-		/* CX23888-22Z */
-		dev->hwrevision = 0xc0;
+		if (dev->pci->device == 0x8880) {
+			/* CX23888-21Z/22Z */
+			dev->hwrevision = 0xc0;
+		} else {
+			/* CX23885-14Z */
+			dev->hwrevision = 0xa4;
+		}
+		break;
+	case 0x04:
+		if (dev->pci->device == 0x8880) {
+			/* CX23888-31Z */
+			dev->hwrevision = 0xd0;
+		} else {
+			/* CX23885-15Z, CX23888-31Z */
+			dev->hwrevision = 0xa5;
+		}
 		break;
 	case 0x0e:
 		/* CX23887-15Z */
@@ -756,6 +770,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 
 	/* Configure the internal memory */
 	if (dev->pci->device == 0x8880) {
+		/* Could be 887 or 888, assume a default */
 		dev->bridge = CX23885_BRIDGE_887;
 		/* Apply a sensible clock frequency for the PCIe bridge */
 		dev->clk_freq = 25000000;
@@ -867,6 +882,14 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		__func__, dev->tuner_type, dev->tuner_addr);
 	dprintk(1, "%s() radio_type = 0x%x radio_addr = 0x%x\n",
 		__func__, dev->radio_type, dev->radio_addr);
+
+	/* The cx23417 encoder has GPIO's that need to be initialised
+	 * before DVB, so that demodulators and tuners are out of
+	 * reset before DVB uses them.
+	 */
+	if ((cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER) ||
+		(cx23885_boards[dev->board].portc == CX23885_MPEG_ENCODER))
+			cx23885_mc417_init(dev);
 
 	/* init hardware */
 	cx23885_reset(dev);
@@ -1250,6 +1273,7 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	switch (dev->bridge) {
 	case CX23885_BRIDGE_885:
 	case CX23885_BRIDGE_887:
+	case CX23885_BRIDGE_888:
 		/* enable irqs */
 		dprintk(1, "%s() enabling TS int's and DMA\n", __func__);
 		cx_set(port->reg_ts_int_msk,  port->ts_int_msk_val);

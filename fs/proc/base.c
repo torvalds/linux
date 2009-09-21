@@ -234,23 +234,20 @@ static int check_mem_permission(struct task_struct *task)
 
 struct mm_struct *mm_for_maps(struct task_struct *task)
 {
-	struct mm_struct *mm = get_task_mm(task);
-	if (!mm)
+	struct mm_struct *mm;
+
+	if (mutex_lock_killable(&task->cred_guard_mutex))
 		return NULL;
-	down_read(&mm->mmap_sem);
-	task_lock(task);
-	if (task->mm != mm)
-		goto out;
-	if (task->mm != current->mm &&
-	    __ptrace_may_access(task, PTRACE_MODE_READ) < 0)
-		goto out;
-	task_unlock(task);
+
+	mm = get_task_mm(task);
+	if (mm && mm != current->mm &&
+			!ptrace_may_access(task, PTRACE_MODE_READ)) {
+		mmput(mm);
+		mm = NULL;
+	}
+	mutex_unlock(&task->cred_guard_mutex);
+
 	return mm;
-out:
-	task_unlock(task);
-	up_read(&mm->mmap_sem);
-	mmput(mm);
-	return NULL;
 }
 
 static int proc_pid_cmdline(struct task_struct *task, char * buffer)
@@ -1006,12 +1003,7 @@ static ssize_t oom_adjust_read(struct file *file, char __user *buf,
 
 	if (!task)
 		return -ESRCH;
-	task_lock(task);
-	if (task->mm)
-		oom_adjust = task->mm->oom_adj;
-	else
-		oom_adjust = OOM_DISABLE;
-	task_unlock(task);
+	oom_adjust = task->oomkilladj;
 	put_task_struct(task);
 
 	len = snprintf(buffer, sizeof(buffer), "%i\n", oom_adjust);
@@ -1040,19 +1032,11 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 	task = get_proc_task(file->f_path.dentry->d_inode);
 	if (!task)
 		return -ESRCH;
-	task_lock(task);
-	if (!task->mm) {
-		task_unlock(task);
-		put_task_struct(task);
-		return -EINVAL;
-	}
-	if (oom_adjust < task->mm->oom_adj && !capable(CAP_SYS_RESOURCE)) {
-		task_unlock(task);
+	if (oom_adjust < task->oomkilladj && !capable(CAP_SYS_RESOURCE)) {
 		put_task_struct(task);
 		return -EACCES;
 	}
-	task->mm->oom_adj = oom_adjust;
-	task_unlock(task);
+	task->oomkilladj = oom_adjust;
 	put_task_struct(task);
 	if (end - buffer == 0)
 		return -EIO;

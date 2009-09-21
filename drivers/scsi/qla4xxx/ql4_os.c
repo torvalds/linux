@@ -66,6 +66,7 @@ static int qla4xxx_sess_get_param(struct iscsi_cls_session *sess,
 static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 				  enum iscsi_host_param param, char *buf);
 static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session);
+static enum blk_eh_timer_return qla4xxx_eh_cmd_timed_out(struct scsi_cmnd *sc);
 
 /*
  * SCSI host template entry points
@@ -89,6 +90,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.eh_device_reset_handler = qla4xxx_eh_device_reset,
 	.eh_target_reset_handler = qla4xxx_eh_target_reset,
 	.eh_host_reset_handler	= qla4xxx_eh_host_reset,
+	.eh_timed_out		= qla4xxx_eh_cmd_timed_out,
 
 	.slave_configure	= qla4xxx_slave_configure,
 	.slave_alloc		= qla4xxx_slave_alloc,
@@ -123,6 +125,21 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 };
 
 static struct scsi_transport_template *qla4xxx_scsi_transport;
+
+static enum blk_eh_timer_return qla4xxx_eh_cmd_timed_out(struct scsi_cmnd *sc)
+{
+	struct iscsi_cls_session *session;
+	struct ddb_entry *ddb_entry;
+
+	session = starget_to_session(scsi_target(sc->device));
+	ddb_entry = session->dd_data;
+
+	/* if we are not logged in then the LLD is going to clean up the cmd */
+	if (atomic_read(&ddb_entry->state) != DDB_STATE_ONLINE)
+		return BLK_EH_RESET_TIMER;
+	else
+		return BLK_EH_NOT_HANDLED;
+}
 
 static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session)
 {
@@ -904,18 +921,17 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha,
 	/* Flush any pending ddb changed AENs */
 	qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
 
+	qla4xxx_flush_active_srbs(ha);
+
 	/* Reset the firmware.	If successful, function
 	 * returns with ISP interrupts enabled.
 	 */
-	if (status == QLA_SUCCESS) {
-		DEBUG2(printk("scsi%ld: %s - Performing soft reset..\n",
-			      ha->host_no, __func__));
-		qla4xxx_flush_active_srbs(ha);
-		if (ql4xxx_lock_drvr_wait(ha) == QLA_SUCCESS)
-			status = qla4xxx_soft_reset(ha);
-		else
-			status = QLA_ERROR;
-	}
+	DEBUG2(printk("scsi%ld: %s - Performing soft reset..\n",
+		      ha->host_no, __func__));
+	if (ql4xxx_lock_drvr_wait(ha) == QLA_SUCCESS)
+		status = qla4xxx_soft_reset(ha);
+	else
+		status = QLA_ERROR;
 
 	/* Flush any pending ddb changed AENs */
 	qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
@@ -1527,11 +1543,9 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 {
 	struct scsi_qla_host *ha = to_qla_host(cmd->device->host);
 	struct ddb_entry *ddb_entry = cmd->device->hostdata;
-	struct srb *sp;
 	int ret = FAILED, stat;
 
-	sp = (struct srb *) cmd->SCp.ptr;
-	if (!sp || !ddb_entry)
+	if (!ddb_entry)
 		return ret;
 
 	dev_info(&ha->pdev->dev,
@@ -1644,7 +1658,7 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	ha = (struct scsi_qla_host *) cmd->device->host->hostdata;
 
 	dev_info(&ha->pdev->dev,
-		   "scsi(%ld:%d:%d:%d): ADAPTER RESET ISSUED.\n", ha->host_no,
+		   "scsi(%ld:%d:%d:%d): HOST RESET ISSUED.\n", ha->host_no,
 		   cmd->device->channel, cmd->device->id, cmd->device->lun);
 
 	if (qla4xxx_wait_for_hba_online(ha) != QLA_SUCCESS) {

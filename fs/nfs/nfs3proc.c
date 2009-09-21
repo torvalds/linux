@@ -299,7 +299,6 @@ static void nfs3_free_createdata(struct nfs3_createdata *data)
 
 /*
  * Create a regular file.
- * For now, we don't implement O_EXCL.
  */
 static int
 nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,

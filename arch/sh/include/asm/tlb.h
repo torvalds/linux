@@ -91,9 +91,9 @@ tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
 }
 
 #define tlb_remove_page(tlb,page)	free_page_and_swap_cache(page)
-#define pte_free_tlb(tlb, ptep)		pte_free((tlb)->mm, ptep)
-#define pmd_free_tlb(tlb, pmdp)		pmd_free((tlb)->mm, pmdp)
-#define pud_free_tlb(tlb, pudp)		pud_free((tlb)->mm, pudp)
+#define pte_free_tlb(tlb, ptep, addr)	pte_free((tlb)->mm, ptep)
+#define pmd_free_tlb(tlb, pmdp, addr)	pmd_free((tlb)->mm, pmdp)
+#define pud_free_tlb(tlb, pudp, addr)	pud_free((tlb)->mm, pudp)
 
 #define tlb_migrate_finish(mm)		do { } while (0)
 

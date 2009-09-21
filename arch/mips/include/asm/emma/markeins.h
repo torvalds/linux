@@ -1,7 +1,4 @@
 /*
- *  include/asm-mips/emma2rh/markeins.h
- *      This file is EMMA2RH board depended header.
- *
  *  Copyright (C) NEC Electronics Corporation 2005-2006
  *
  *  This file based on include/asm-mips/ddb5xxx/ddb5xxx.h

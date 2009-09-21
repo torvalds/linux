@@ -809,6 +809,11 @@ found_version:
 		 nop
 
 got_prop:
+#ifdef CONFIG_SPARC_LEON
+	        /* no cpu-type check is needed, it is a SPARC-LEON */
+		ba sun4c_continue_boot
+		 nop
+#endif
 		set	cputypval, %o2
 		ldub	[%o2 + 0x4], %l1
 

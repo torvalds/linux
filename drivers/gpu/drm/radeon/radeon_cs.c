@@ -127,17 +127,23 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 				       sizeof(struct drm_radeon_cs_chunk))) {
 			return -EFAULT;
 		}
+		p->chunks[i].length_dw = user_chunk.length_dw;
+		p->chunks[i].kdata = NULL;
 		p->chunks[i].chunk_id = user_chunk.chunk_id;
+
 		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_RELOCS) {
 			p->chunk_relocs_idx = i;
 		}
 		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_IB) {
 			p->chunk_ib_idx = i;
+			/* zero length IB isn't useful */
+			if (p->chunks[i].length_dw == 0)
+				return -EINVAL;
 		}
+
 		p->chunks[i].length_dw = user_chunk.length_dw;
 		cdata = (uint32_t *)(unsigned long)user_chunk.chunk_data;
 
-		p->chunks[i].kdata = NULL;
 		size = p->chunks[i].length_dw * sizeof(uint32_t);
 		p->chunks[i].kdata = kzalloc(size, GFP_KERNEL);
 		if (p->chunks[i].kdata == NULL) {

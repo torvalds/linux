@@ -244,7 +244,7 @@ int pps_register_cdev(struct pps_device *pps)
 	}
 	pps->dev = device_create(pps_class, pps->info.dev, pps->devno, NULL,
 							"pps%d", pps->id);
-	if (err)
+	if (IS_ERR(pps->dev))
 		goto del_cdev;
 	dev_set_drvdata(pps->dev, pps);
 

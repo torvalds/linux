@@ -167,7 +167,7 @@ static int dib0070_tune_digital(struct dvb_frontend *fe, struct dvb_frontend_par
 					break;
 				case BAND_SBAND:
 					LO4_SET_VCO_HFDIV(lo4, 0, 0);
-					LO4_SET_CTRIM(lo4, 1);;
+					LO4_SET_CTRIM(lo4, 1);
 					c = 1;
 					break;
 				case BAND_UHF:

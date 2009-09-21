@@ -774,7 +774,7 @@ static int dn_rt_bug(struct sk_buff *skb)
 
 	kfree_skb(skb);
 
-	return NET_RX_BAD;
+	return NET_RX_DROP;
 }
 
 static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)

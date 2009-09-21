@@ -15,12 +15,13 @@
 #define KEY_COL(k)		(((k) >> 16) & 0xff)
 #define KEY_VAL(k)		((k) & 0xffff)
 
+#define MATRIX_SCAN_CODE(row, col, row_shift)	(((row) << (row_shift)) + (col))
+
 /**
  * struct matrix_keymap_data - keymap for matrix keyboards
  * @keymap: pointer to array of uint32 values encoded with KEY() macro
  *	representing keymap
  * @keymap_size: number of entries (initialized) in this keymap
- * @max_keymap_size: maximum size of keymap supported by the device
  *
  * This structure is supposed to be used by platform code to supply
  * keymaps to drivers that implement matrix-like keypads/keyboards.
@@ -28,14 +29,13 @@
 struct matrix_keymap_data {
 	const uint32_t *keymap;
 	unsigned int	keymap_size;
-	unsigned int	max_keymap_size;
 };
 
 /**
  * struct matrix_keypad_platform_data - platform-dependent keypad data
  * @keymap_data: pointer to &matrix_keymap_data
- * @row_gpios: array of gpio numbers reporesenting rows
- * @col_gpios: array of gpio numbers reporesenting colums
+ * @row_gpios: pointer to array of gpio numbers representing rows
+ * @col_gpios: pointer to array of gpio numbers reporesenting colums
  * @num_row_gpios: actual number of row gpios used by device
  * @num_col_gpios: actual number of col gpios used by device
  * @col_scan_delay_us: delay, measured in microseconds, that is
@@ -48,8 +48,9 @@ struct matrix_keymap_data {
 struct matrix_keypad_platform_data {
 	const struct matrix_keymap_data *keymap_data;
 
-	unsigned int	row_gpios[MATRIX_MAX_ROWS];
-	unsigned int	col_gpios[MATRIX_MAX_COLS];
+	const unsigned int *row_gpios;
+	const unsigned int *col_gpios;
+
 	unsigned int	num_row_gpios;
 	unsigned int	num_col_gpios;
 
@@ -61,5 +62,37 @@ struct matrix_keypad_platform_data {
 	bool		active_low;
 	bool		wakeup;
 };
+
+/**
+ * matrix_keypad_build_keymap - convert platform keymap into matrix keymap
+ * @keymap_data: keymap supplied by the platform code
+ * @row_shift: number of bits to shift row value by to advance to the next
+ * line in the keymap
+ * @keymap: expanded version of keymap that is suitable for use by
+ * matrix keyboad driver
+ * @keybit: pointer to bitmap of keys supported by input device
+ *
+ * This function converts platform keymap (encoded with KEY() macro) into
+ * an array of keycodes that is suitable for using in a standard matrix
+ * keyboard driver that uses row and col as indices.
+ */
+static inline void
+matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
+			   unsigned int row_shift,
+			   unsigned short *keymap, unsigned long *keybit)
+{
+	int i;
+
+	for (i = 0; i < keymap_data->keymap_size; i++) {
+		unsigned int key = keymap_data->keymap[i];
+		unsigned int row = KEY_ROW(key);
+		unsigned int col = KEY_COL(key);
+		unsigned short code = KEY_VAL(key);
+
+		keymap[MATRIX_SCAN_CODE(row, col, row_shift)] = code;
+		__set_bit(code, keybit);
+	}
+	__clear_bit(KEY_RESERVED, keybit);
+}
 
 #endif /* _MATRIX_KEYPAD_H */

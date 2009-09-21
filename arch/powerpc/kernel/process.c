@@ -284,13 +284,12 @@ int set_dabr(unsigned long dabr)
 		return ppc_md.set_dabr(dabr);
 
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
-#if defined(CONFIG_PPC64) || defined(CONFIG_6xx)
+#if defined(CONFIG_BOOKE)
+	mtspr(SPRN_DAC1, dabr);
+#elif defined(CONFIG_PPC_BOOK3S)
 	mtspr(SPRN_DABR, dabr);
 #endif
 
-#if defined(CONFIG_BOOKE)
-	mtspr(SPRN_DAC1, dabr);
-#endif
 
 	return 0;
 }
@@ -372,14 +371,15 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 #endif /* CONFIG_SMP */
 
-	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
-		set_dabr(new->thread.dabr);
-
 #if defined(CONFIG_BOOKE)
 	/* If new thread DAC (HW breakpoint) is the same then leave it */
 	if (new->thread.dabr)
 		set_dabr(new->thread.dabr);
+#else
+	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
+		set_dabr(new->thread.dabr);
 #endif
+
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
@@ -664,6 +664,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		sp_vsid |= SLB_VSID_KERNEL | llp;
 		p->thread.ksp_vsid = sp_vsid;
 	}
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 	/*
 	 * The PPC64 ABI makes use of a TOC to contain function 
@@ -671,6 +672,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * to the TOC entry.  The first entry is a pointer to the actual
 	 * function.
  	 */
+#ifdef CONFIG_PPC64
 	kregs->nip = *((unsigned long *)ret_from_fork);
 #else
 	kregs->nip = (unsigned long)ret_from_fork;

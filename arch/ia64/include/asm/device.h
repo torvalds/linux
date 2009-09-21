@@ -15,4 +15,7 @@ struct dev_archdata {
 #endif
 };
 
+struct pdev_archdata {
+};
+
 #endif /* _ASM_IA64_DEVICE_H */

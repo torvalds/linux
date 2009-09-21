@@ -209,6 +209,7 @@ int nilfs_btnode_prepare_change_key(struct address_space *btnc,
 		 * We cannot call radix_tree_preload for the kernels older
 		 * than 2.6.23, because it is not exported for modules.
 		 */
+retry:
 		err = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
 		if (err)
 			goto failed_unlock;
@@ -219,7 +220,6 @@ int nilfs_btnode_prepare_change_key(struct address_space *btnc,
 				       (unsigned long long)oldkey,
 				       (unsigned long long)newkey);
 
-retry:
 		spin_lock_irq(&btnc->tree_lock);
 		err = radix_tree_insert(&btnc->page_tree, newkey, obh->b_page);
 		spin_unlock_irq(&btnc->tree_lock);

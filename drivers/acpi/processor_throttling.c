@@ -62,7 +62,8 @@ struct throttling_tstate {
 #define THROTTLING_POSTCHANGE      (2)
 
 static int acpi_processor_get_throttling(struct acpi_processor *pr);
-int acpi_processor_set_throttling(struct acpi_processor *pr, int state);
+int acpi_processor_set_throttling(struct acpi_processor *pr,
+						int state, bool force);
 
 static int acpi_processor_update_tsd_coord(void)
 {
@@ -361,7 +362,7 @@ int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
 		 */
 		target_state = throttling_limit;
 	}
-	return acpi_processor_set_throttling(pr, target_state);
+	return acpi_processor_set_throttling(pr, target_state, false);
 }
 
 /*
@@ -839,10 +840,10 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 	if (ret >= 0) {
 		state = acpi_get_throttling_state(pr, value);
 		if (state == -1) {
-			ACPI_WARNING((AE_INFO,
-				"Invalid throttling state, reset"));
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				"Invalid throttling state, reset\n"));
 			state = 0;
-			ret = acpi_processor_set_throttling(pr, state);
+			ret = acpi_processor_set_throttling(pr, state, true);
 			if (ret)
 				return ret;
 		}
@@ -915,7 +916,7 @@ static int acpi_processor_get_fadt_info(struct acpi_processor *pr)
 }
 
 static int acpi_processor_set_throttling_fadt(struct acpi_processor *pr,
-					      int state)
+					      int state, bool force)
 {
 	u32 value = 0;
 	u32 duty_mask = 0;
@@ -930,7 +931,7 @@ static int acpi_processor_set_throttling_fadt(struct acpi_processor *pr,
 	if (!pr->flags.throttling)
 		return -ENODEV;
 
-	if (state == pr->throttling.state)
+	if (!force && (state == pr->throttling.state))
 		return 0;
 
 	if (state < pr->throttling_platform_limit)
@@ -988,7 +989,7 @@ static int acpi_processor_set_throttling_fadt(struct acpi_processor *pr,
 }
 
 static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
-					     int state)
+					     int state, bool force)
 {
 	int ret;
 	acpi_integer value;
@@ -1002,7 +1003,7 @@ static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 	if (!pr->flags.throttling)
 		return -ENODEV;
 
-	if (state == pr->throttling.state)
+	if (!force && (state == pr->throttling.state))
 		return 0;
 
 	if (state < pr->throttling_platform_limit)
@@ -1018,7 +1019,8 @@ static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 	return 0;
 }
 
-int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
+int acpi_processor_set_throttling(struct acpi_processor *pr,
+						int state, bool force)
 {
 	cpumask_var_t saved_mask;
 	int ret = 0;
@@ -1070,7 +1072,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 		/* FIXME: use work_on_cpu() */
 		set_cpus_allowed_ptr(current, cpumask_of(pr->id));
 		ret = p_throttling->acpi_processor_set_throttling(pr,
-						t_state.target_state);
+						t_state.target_state, force);
 	} else {
 		/*
 		 * When the T-state coordination is SW_ALL or HW_ALL,
@@ -1103,7 +1105,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 			set_cpus_allowed_ptr(current, cpumask_of(i));
 			ret = match_pr->throttling.
 				acpi_processor_set_throttling(
-				match_pr, t_state.target_state);
+				match_pr, t_state.target_state, force);
 		}
 	}
 	/*
@@ -1201,7 +1203,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Disabling throttling (was T%d)\n",
 				  pr->throttling.state));
-		result = acpi_processor_set_throttling(pr, 0);
+		result = acpi_processor_set_throttling(pr, 0, false);
 		if (result)
 			goto end;
 	}
@@ -1307,7 +1309,7 @@ static ssize_t acpi_processor_write_throttling(struct file *file,
 	if (strcmp(tmpbuf, charp) != 0)
 		return -EINVAL;
 
-	result = acpi_processor_set_throttling(pr, state_val);
+	result = acpi_processor_set_throttling(pr, state_val, false);
 	if (result)
 		return result;
 

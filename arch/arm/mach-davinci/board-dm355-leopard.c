@@ -36,7 +36,6 @@
 #include <mach/serial.h>
 #include <mach/nand.h>
 #include <mach/mmc.h>
-#include <mach/common.h>
 
 #define DAVINCI_ASYNC_EMIF_CONTROL_BASE		0x01e10000
 #define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE	0x02000000

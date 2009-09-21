@@ -180,7 +180,7 @@ extern inline void pte_free(struct mm_struct *mm, struct page *ptepage)
 	__free_page(ptepage);
 }
 
-#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, (pte))
+#define __pte_free_tlb(tlb, pte, addr)	pte_free((tlb)->mm, (pte))
 
 #define pmd_populate(mm, pmd, pte)	(pmd_val(*(pmd)) = page_address(pte))
 
@@ -193,7 +193,7 @@ extern inline void pte_free(struct mm_struct *mm, struct page *ptepage)
  */
 #define pmd_alloc_one(mm, address)	({ BUG(); ((pmd_t *)2); })
 /*#define pmd_free(mm, x)			do { } while (0)*/
-#define __pmd_free_tlb(tlb, x)		do { } while (0)
+#define __pmd_free_tlb(tlb, x, addr)	do { } while (0)
 #define pgd_populate(mm, pmd, pte)	BUG()
 
 extern int do_check_pgt_cache(int, int);

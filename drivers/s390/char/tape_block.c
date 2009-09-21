@@ -302,8 +302,6 @@ tapeblock_revalidate_disk(struct gendisk *disk)
 	if (!device->blk_data.medium_changed)
 		return 0;
 
-	dev_info(&device->cdev->dev, "Determining the size of the recorded "
-		"area...\n");
 	rc = tape_mtop(device, MTFSFM, 1);
 	if (rc)
 		return rc;
@@ -312,6 +310,8 @@ tapeblock_revalidate_disk(struct gendisk *disk)
 	if (rc < 0)
 		return rc;
 
+	pr_info("%s: Determining the size of the recorded area...\n",
+		dev_name(&device->cdev->dev));
 	DBF_LH(3, "Image file ends at %d\n", rc);
 	nr_of_blks = rc;
 
@@ -330,8 +330,8 @@ tapeblock_revalidate_disk(struct gendisk *disk)
 	device->bof = rc;
 	nr_of_blks -= rc;
 
-	dev_info(&device->cdev->dev, "The size of the recorded area is %i "
-		"blocks\n", nr_of_blks);
+	pr_info("%s: The size of the recorded area is %i blocks\n",
+		dev_name(&device->cdev->dev), nr_of_blks);
 	set_capacity(device->blk_data.disk,
 		nr_of_blks*(TAPEBLOCK_HSEC_SIZE/512));
 
@@ -366,8 +366,8 @@ tapeblock_open(struct block_device *bdev, fmode_t mode)
 
 	if (device->required_tapemarks) {
 		DBF_EVENT(2, "TBLOCK: missing tapemarks\n");
-		dev_warn(&device->cdev->dev, "Opening the tape failed because"
-			" of missing end-of-file marks\n");
+		pr_warning("%s: Opening the tape failed because of missing "
+			   "end-of-file marks\n", dev_name(&device->cdev->dev));
 		rc = -EPERM;
 		goto put_device;
 	}

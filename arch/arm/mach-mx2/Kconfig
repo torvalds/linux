@@ -53,6 +53,34 @@ config MACH_PCM970_BASEBOARD
 
 endchoice
 
+config MACH_EUKREA_CPUIMX27
+	bool "Eukrea CPUIMX27 module"
+	depends on MACH_MX27
+	help
+	  Include support for Eukrea CPUIMX27 platform. This includes
+	  specific configurations for the module and its peripherals.
+
+config MACH_EUKREA_CPUIMX27_USESDHC2
+	bool "CPUIMX27 integrates SDHC2 module"
+	depends on MACH_EUKREA_CPUIMX27
+	help
+	  This adds support for the internal SDHC2 used on CPUIMX27 used
+	  for wifi or eMMC.
+
+choice
+	prompt "Baseboard"
+	depends on MACH_EUKREA_CPUIMX27
+	default MACH_EUKREA_MBIMX27_BASEBOARD
+
+config MACH_EUKREA_MBIMX27_BASEBOARD
+	prompt "Eukrea MBIMX27 development board"
+	bool
+	help
+	  This adds board specific devices that can be found on Eukrea's
+	  MBIMX27 evaluation board.
+
+endchoice
+
 config MACH_MX27_3DS
 	bool "MX27PDK platform"
 	depends on MACH_MX27
@@ -66,5 +94,12 @@ config MACH_MX27LITE
 	help
 	  Include support for MX27 LITEKIT platform. This includes specific
 	  configurations for the board and its peripherals.
+
+config MACH_PCA100
+	bool "Phytec phyCARD-s (pca100)"
+	depends on MACH_MX27
+	help
+	  Include support for phyCARD-s (aka pca100) platform. This
+	  includes specific configurations for the module and its peripherals.
 
 endif

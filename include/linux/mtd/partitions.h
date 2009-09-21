@@ -1,7 +1,7 @@
 /*
  * MTD partitioning layer definitions
  *
- * (C) 2000 Nicolas Pitre <nico@cam.org>
+ * (C) 2000 Nicolas Pitre <nico@fluxnic.net>
  *
  * This code is GPL
  */
@@ -46,6 +46,8 @@ struct mtd_partition {
 #define MTDPART_OFS_APPEND	(-1)
 #define MTDPART_SIZ_FULL	(0)
 
+
+struct mtd_info;
 
 int add_mtd_partitions(struct mtd_info *, const struct mtd_partition *, int);
 int del_mtd_partitions(struct mtd_info *);

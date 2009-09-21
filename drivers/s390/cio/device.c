@@ -307,8 +307,11 @@ int ccw_device_is_orphan(struct ccw_device *cdev)
 
 static void ccw_device_unregister(struct ccw_device *cdev)
 {
-	if (test_and_clear_bit(1, &cdev->private->registered))
+	if (test_and_clear_bit(1, &cdev->private->registered)) {
 		device_del(&cdev->dev);
+		/* Release reference from device_initialize(). */
+		put_device(&cdev->dev);
+	}
 }
 
 static void ccw_device_remove_orphan_cb(struct work_struct *work)
@@ -319,7 +322,6 @@ static void ccw_device_remove_orphan_cb(struct work_struct *work)
 	priv = container_of(work, struct ccw_device_private, kick_work);
 	cdev = priv->cdev;
 	ccw_device_unregister(cdev);
-	put_device(&cdev->dev);
 	/* Release cdev reference for workqueue processing. */
 	put_device(&cdev->dev);
 }
@@ -333,15 +335,15 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 	 * Forced offline in disconnected state means
 	 * 'throw away device'.
 	 */
-	/* Get cdev reference for workqueue processing. */
-	if (!get_device(&cdev->dev))
-		return;
 	if (ccw_device_is_orphan(cdev)) {
 		/*
 		 * Deregister ccw device.
 		 * Unfortunately, we cannot do this directly from the
 		 * attribute method.
 		 */
+		/* Get cdev reference for workqueue processing. */
+		if (!get_device(&cdev->dev))
+			return;
 		spin_lock_irqsave(cdev->ccwlock, flags);
 		cdev->private->state = DEV_STATE_NOT_OPER;
 		spin_unlock_irqrestore(cdev->ccwlock, flags);
@@ -380,30 +382,34 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 	}
 	cdev->online = 0;
 	spin_lock_irq(cdev->ccwlock);
-	ret = ccw_device_offline(cdev);
-	if (ret == -ENODEV) {
-		if (cdev->private->state != DEV_STATE_NOT_OPER) {
-			cdev->private->state = DEV_STATE_OFFLINE;
-			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
-		}
+	/* Wait until a final state or DISCONNECTED is reached */
+	while (!dev_fsm_final_state(cdev) &&
+	       cdev->private->state != DEV_STATE_DISCONNECTED) {
 		spin_unlock_irq(cdev->ccwlock);
-		/* Give up reference from ccw_device_set_online(). */
-		put_device(&cdev->dev);
-		return ret;
+		wait_event(cdev->private->wait_q, (dev_fsm_final_state(cdev) ||
+			   cdev->private->state == DEV_STATE_DISCONNECTED));
+		spin_lock_irq(cdev->ccwlock);
 	}
+	ret = ccw_device_offline(cdev);
+	if (ret)
+		goto error;
 	spin_unlock_irq(cdev->ccwlock);
-	if (ret == 0) {
-		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
-		/* Give up reference from ccw_device_set_online(). */
-		put_device(&cdev->dev);
-	} else {
-		CIO_MSG_EVENT(0, "ccw_device_offline returned %d, "
-			      "device 0.%x.%04x\n",
-			      ret, cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno);
-		cdev->online = 1;
-	}
-	return ret;
+	wait_event(cdev->private->wait_q, (dev_fsm_final_state(cdev) ||
+		   cdev->private->state == DEV_STATE_DISCONNECTED));
+	/* Give up reference from ccw_device_set_online(). */
+	put_device(&cdev->dev);
+	return 0;
+
+error:
+	CIO_MSG_EVENT(0, "ccw_device_offline returned %d, device 0.%x.%04x\n",
+		      ret, cdev->private->dev_id.ssid,
+		      cdev->private->dev_id.devno);
+	cdev->private->state = DEV_STATE_OFFLINE;
+	dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
+	spin_unlock_irq(cdev->ccwlock);
+	/* Give up reference from ccw_device_set_online(). */
+	put_device(&cdev->dev);
+	return -ENODEV;
 }
 
 /**
@@ -421,6 +427,7 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 int ccw_device_set_online(struct ccw_device *cdev)
 {
 	int ret;
+	int ret2;
 
 	if (!cdev)
 		return -ENODEV;
@@ -444,28 +451,53 @@ int ccw_device_set_online(struct ccw_device *cdev)
 		put_device(&cdev->dev);
 		return ret;
 	}
-	if (cdev->private->state != DEV_STATE_ONLINE) {
+	spin_lock_irq(cdev->ccwlock);
+	/* Check if online processing was successful */
+	if ((cdev->private->state != DEV_STATE_ONLINE) &&
+	    (cdev->private->state != DEV_STATE_W4SENSE)) {
+		spin_unlock_irq(cdev->ccwlock);
 		/* Give up online reference since onlining failed. */
 		put_device(&cdev->dev);
 		return -ENODEV;
 	}
-	if (!cdev->drv->set_online || cdev->drv->set_online(cdev) == 0) {
-		cdev->online = 1;
-		return 0;
-	}
-	spin_lock_irq(cdev->ccwlock);
-	ret = ccw_device_offline(cdev);
 	spin_unlock_irq(cdev->ccwlock);
-	if (ret == 0)
-		wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
-	else
-		CIO_MSG_EVENT(0, "ccw_device_offline returned %d, "
-			      "device 0.%x.%04x\n",
-			      ret, cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno);
+	if (cdev->drv->set_online)
+		ret = cdev->drv->set_online(cdev);
+	if (ret)
+		goto rollback;
+	cdev->online = 1;
+	return 0;
+
+rollback:
+	spin_lock_irq(cdev->ccwlock);
+	/* Wait until a final state or DISCONNECTED is reached */
+	while (!dev_fsm_final_state(cdev) &&
+	       cdev->private->state != DEV_STATE_DISCONNECTED) {
+		spin_unlock_irq(cdev->ccwlock);
+		wait_event(cdev->private->wait_q, (dev_fsm_final_state(cdev) ||
+			   cdev->private->state == DEV_STATE_DISCONNECTED));
+		spin_lock_irq(cdev->ccwlock);
+	}
+	ret2 = ccw_device_offline(cdev);
+	if (ret2)
+		goto error;
+	spin_unlock_irq(cdev->ccwlock);
+	wait_event(cdev->private->wait_q, (dev_fsm_final_state(cdev) ||
+		   cdev->private->state == DEV_STATE_DISCONNECTED));
 	/* Give up online reference since onlining failed. */
 	put_device(&cdev->dev);
-	return (ret == 0) ? -ENODEV : ret;
+	return ret;
+
+error:
+	CIO_MSG_EVENT(0, "rollback ccw_device_offline returned %d, "
+		      "device 0.%x.%04x\n",
+		      ret2, cdev->private->dev_id.ssid,
+		      cdev->private->dev_id.devno);
+	cdev->private->state = DEV_STATE_OFFLINE;
+	spin_unlock_irq(cdev->ccwlock);
+	/* Give up online reference since onlining failed. */
+	put_device(&cdev->dev);
+	return ret;
 }
 
 static int online_store_handle_offline(struct ccw_device *cdev)
@@ -624,7 +656,7 @@ static struct attribute_group ccwdev_attr_group = {
 	.attrs = ccwdev_attrs,
 };
 
-static struct attribute_group *ccwdev_attr_groups[] = {
+static const struct attribute_group *ccwdev_attr_groups[] = {
 	&ccwdev_attr_group,
 	NULL,
 };
@@ -637,8 +669,12 @@ static int ccw_device_register(struct ccw_device *cdev)
 	int ret;
 
 	dev->bus = &ccw_bus_type;
-
-	if ((ret = device_add(dev)))
+	ret = dev_set_name(&cdev->dev, "0.%x.%04x", cdev->private->dev_id.ssid,
+			   cdev->private->dev_id.devno);
+	if (ret)
+		return ret;
+	ret = device_add(dev);
+	if (ret)
 		return ret;
 
 	set_bit(1, &cdev->private->registered);
@@ -772,10 +808,8 @@ static struct ccw_device * io_subchannel_create_ccwdev(struct subchannel *sch)
 	cdev = io_subchannel_allocate_dev(sch);
 	if (!IS_ERR(cdev)) {
 		ret = io_subchannel_initialize_dev(sch, cdev);
-		if (ret) {
-			kfree(cdev);
+		if (ret)
 			cdev = ERR_PTR(ret);
-		}
 	}
 	return cdev;
 }
@@ -1026,9 +1060,6 @@ static void ccw_device_call_sch_unregister(struct work_struct *work)
 		return;
 	sch = to_subchannel(cdev->dev.parent);
 	css_sch_device_unregister(sch);
-	/* Reset intparm to zeroes. */
-	sch->config.intparm = 0;
-	cio_commit_config(sch);
 	/* Release cdev reference for workqueue processing.*/
 	put_device(&cdev->dev);
 	/* Release subchannel reference for local processing. */
@@ -1037,6 +1068,9 @@ static void ccw_device_call_sch_unregister(struct work_struct *work)
 
 void ccw_device_schedule_sch_unregister(struct ccw_device *cdev)
 {
+	/* Get cdev reference for workqueue processing. */
+	if (!get_device(&cdev->dev))
+		return;
 	PREPARE_WORK(&cdev->private->kick_work,
 		     ccw_device_call_sch_unregister);
 	queue_work(slow_path_wq, &cdev->private->kick_work);
@@ -1057,9 +1091,6 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 		/* Device did not respond in time. */
 	case DEV_STATE_NOT_OPER:
 		cdev->private->flags.recog_done = 1;
-		/* Remove device found not operational. */
-		if (!get_device(&cdev->dev))
-			break;
 		ccw_device_schedule_sch_unregister(cdev);
 		if (atomic_dec_and_test(&ccw_device_init_count))
 			wake_up(&ccw_device_init_wq);
@@ -1096,13 +1127,6 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	INIT_LIST_HEAD(&priv->cmb_list);
 	init_waitqueue_head(&priv->wait_q);
 	init_timer(&priv->timer);
-
-	/* Set an initial name for the device. */
-	if (cio_is_console(sch->schid))
-		cdev->dev.init_name = cio_get_console_cdev_name(sch);
-	else
-		dev_set_name(&cdev->dev, "0.%x.%04x",
-			     sch->schid.ssid, sch->schib.pmcw.dev);
 
 	/* Increase counter of devices currently in recognition. */
 	atomic_inc(&ccw_device_init_count);
@@ -1173,8 +1197,8 @@ static void io_subchannel_irq(struct subchannel *sch)
 
 	cdev = sch_get_cdev(sch);
 
-	CIO_TRACE_EVENT(3, "IRQ");
-	CIO_TRACE_EVENT(3, dev_name(&sch->dev));
+	CIO_TRACE_EVENT(6, "IRQ");
+	CIO_TRACE_EVENT(6, dev_name(&sch->dev));
 	if (cdev)
 		dev_fsm_event(cdev, DEV_EVENT_INTERRUPT);
 }
@@ -1212,9 +1236,6 @@ static void io_subchannel_do_unreg(struct work_struct *work)
 
 	sch = container_of(work, struct subchannel, work);
 	css_sch_device_unregister(sch);
-	/* Reset intparm to zeroes. */
-	sch->config.intparm = 0;
-	cio_commit_config(sch);
 	put_device(&sch->dev);
 }
 
@@ -1336,7 +1357,6 @@ io_subchannel_remove (struct subchannel *sch)
 	cdev->private->state = DEV_STATE_NOT_OPER;
 	spin_unlock_irqrestore(cdev->ccwlock, flags);
 	ccw_device_unregister(cdev);
-	put_device(&cdev->dev);
 	kfree(sch->private);
 	sysfs_remove_group(&sch->dev.kobj, &io_subchannel_attr_group);
 	return 0;
@@ -1573,8 +1593,6 @@ static int purge_fn(struct device *dev, void *data)
 	spin_unlock_irq(cdev->ccwlock);
 	if (!unreg)
 		goto out;
-	if (!get_device(&cdev->dev))
-		goto out;
 	CIO_MSG_EVENT(3, "ccw: purging 0.%x.%04x\n", priv->dev_id.ssid,
 		      priv->dev_id.devno);
 	ccw_device_schedule_sch_unregister(cdev);
@@ -1690,10 +1708,6 @@ static int io_subchannel_sch_event(struct subchannel *sch, int slow)
 		spin_unlock_irqrestore(sch->lock, flags);
 		css_sch_device_unregister(sch);
 		spin_lock_irqsave(sch->lock, flags);
-
-		/* Reset intparm to zeroes. */
-		sch->config.intparm = 0;
-		cio_commit_config(sch);
 		break;
 	case REPROBE:
 		ccw_device_trigger_reprobe(cdev);
@@ -1714,7 +1728,6 @@ static int io_subchannel_sch_event(struct subchannel *sch, int slow)
 
 #ifdef CONFIG_CCW_CONSOLE
 static struct ccw_device console_cdev;
-static char console_cdev_name[10] = "0.x.xxxx";
 static struct ccw_device_private console_private;
 static int console_cdev_in_use;
 
@@ -1798,13 +1811,6 @@ int ccw_device_force_console(void)
 	return ccw_device_pm_restore(&console_cdev.dev);
 }
 EXPORT_SYMBOL_GPL(ccw_device_force_console);
-
-const char *cio_get_console_cdev_name(struct subchannel *sch)
-{
-	snprintf(console_cdev_name, 10, "0.%x.%04x",
-		 sch->schid.ssid, sch->schib.pmcw.dev);
-	return (const char *)console_cdev_name;
-}
 #endif
 
 /*
@@ -2022,7 +2028,9 @@ static void __ccw_device_pm_restore(struct ccw_device *cdev)
 	spin_unlock_irq(sch->lock);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Couldn't start recognition for device "
-			      "%s (ret=%d)\n", dev_name(&cdev->dev), ret);
+			      "0.%x.%04x (ret=%d)\n",
+			      cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno, ret);
 		spin_lock_irq(sch->lock);
 		cdev->private->state = DEV_STATE_DISCONNECTED;
 		spin_unlock_irq(sch->lock);
@@ -2085,8 +2093,9 @@ static int ccw_device_pm_restore(struct device *dev)
 	}
 	/* check if the device id has changed */
 	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {
-		CIO_MSG_EVENT(0, "resume: sch %s: failed (devno changed from "
-			      "%04x to %04x)\n", dev_name(&sch->dev),
+		CIO_MSG_EVENT(0, "resume: sch 0.%x.%04x: failed (devno "
+			      "changed from %04x to %04x)\n",
+			      sch->schid.ssid, sch->schid.sch_no,
 			      cdev->private->dev_id.devno,
 			      sch->schib.pmcw.dev);
 		goto out_unreg_unlock;
@@ -2119,8 +2128,9 @@ static int ccw_device_pm_restore(struct device *dev)
 	if (cm_enabled) {
 		ret = ccw_set_cmf(cdev, 1);
 		if (ret) {
-			CIO_MSG_EVENT(2, "resume: cdev %s: cmf failed "
-				      "(rc=%d)\n", dev_name(&cdev->dev), ret);
+			CIO_MSG_EVENT(2, "resume: cdev 0.%x.%04x: cmf failed "
+				      "(rc=%d)\n", cdev->private->dev_id.ssid,
+				      cdev->private->dev_id.devno, ret);
 			ret = 0;
 		}
 	}

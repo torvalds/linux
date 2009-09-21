@@ -14,10 +14,10 @@
 #include <asm/page.h>
 #include <asm/processor.h>
 
-#ifdef CONFIG_MMU
 unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
 EXPORT_SYMBOL(shm_align_mask);
 
+#ifdef CONFIG_MMU
 /*
  * To avoid cache aliases, we map the shared page with same color.
  */

@@ -64,7 +64,7 @@ static struct v4l2_pix_format hdcs1x00_mode[] = {
 	{
 		HDCS_1X00_DEF_WIDTH,
 		HDCS_1X00_DEF_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
+		V4L2_PIX_FMT_SGRBG8,
 		V4L2_FIELD_NONE,
 		.sizeimage =
 			HDCS_1X00_DEF_WIDTH * HDCS_1X00_DEF_HEIGHT,
@@ -80,7 +80,7 @@ static struct v4l2_pix_format hdcs1020_mode[] = {
 	{
 		HDCS_1020_DEF_WIDTH,
 		HDCS_1020_DEF_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
+		V4L2_PIX_FMT_SGRBG8,
 		V4L2_FIELD_NONE,
 		.sizeimage =
 			HDCS_1020_DEF_WIDTH * HDCS_1020_DEF_HEIGHT,
@@ -131,9 +131,11 @@ static int hdcs_reg_write_seq(struct sd *sd, u8 reg, u8 *vals, u8 len)
 		     (reg + len > 0xff)))
 		return -EINVAL;
 
-	for (i = 0; i < len; i++, reg++) {
-		regs[2*i] = reg;
-		regs[2*i+1] = vals[i];
+	for (i = 0; i < len; i++) {
+		regs[2 * i] = reg;
+		regs[2 * i + 1] = vals[i];
+		/* All addresses are shifted left one bit as bit 0 toggles r/w */
+		reg += 2;
 	}
 
 	return stv06xx_write_sensor_bytes(sd, regs, len);
@@ -174,7 +176,9 @@ static int hdcs_set_state(struct sd *sd, enum hdcs_power_state state)
 	}
 
 	ret = stv06xx_write_sensor(sd, HDCS_REG_CONTROL(sd), val);
-	if (ret < 0)
+
+	/* Update the state if the write succeeded */
+	if (!ret)
 		hdcs->state = state;
 
 	return ret;

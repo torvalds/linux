@@ -114,8 +114,7 @@ void usb_serial_generic_deregister(void)
 #endif
 }
 
-int usb_serial_generic_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+int usb_serial_generic_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	int result = 0;

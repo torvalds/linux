@@ -264,19 +264,6 @@ static void __init tnetd7300_init_clocks(void)
 	iounmap(bootcr);
 }
 
-static int tnetd7200_get_clock(int base, struct tnetd7200_clock *clock,
-	u32 *bootcr, u32 bus_clock)
-{
-	int divisor = ((readl(&clock->prediv) & 0x1f) + 1) *
-		((readl(&clock->postdiv) & 0x1f) + 1);
-
-	if (*bootcr & BOOT_PLL_BYPASS)
-		return base / divisor;
-
-	return base * ((readl(&clock->mul) & 0xf) + 1) / divisor;
-}
-
-
 static void tnetd7200_set_clock(int base, struct tnetd7200_clock *clock,
 	int prediv, int postdiv, int postdiv2, int mul, u32 frequency)
 {

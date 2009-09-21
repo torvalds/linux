@@ -246,7 +246,8 @@ static char mca_irqmap[] = { 12, 9, 3, 4, 5, 10, 11, 15 };
 static int eexp_open(struct net_device *dev);
 static int eexp_close(struct net_device *dev);
 static void eexp_timeout(struct net_device *dev);
-static int eexp_xmit(struct sk_buff *buf, struct net_device *dev);
+static netdev_tx_t eexp_xmit(struct sk_buff *buf,
+			     struct net_device *dev);
 
 static irqreturn_t eexp_irq(int irq, void *dev_addr);
 static void eexp_set_multicast(struct net_device *dev);
@@ -650,7 +651,7 @@ static void eexp_timeout(struct net_device *dev)
  * Called to transmit a packet, or to allow us to right ourselves
  * if the kernel thinks we've died.
  */
-static int eexp_xmit(struct sk_buff *buf, struct net_device *dev)
+static netdev_tx_t eexp_xmit(struct sk_buff *buf, struct net_device *dev)
 {
 	short length = buf->len;
 #ifdef CONFIG_SMP
@@ -664,7 +665,7 @@ static int eexp_xmit(struct sk_buff *buf, struct net_device *dev)
 
 	if (buf->len < ETH_ZLEN) {
 		if (skb_padto(buf, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 
@@ -691,7 +692,7 @@ static int eexp_xmit(struct sk_buff *buf, struct net_device *dev)
 	spin_unlock_irqrestore(&lp->lock, flags);
 #endif
 	enable_irq(dev->irq);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -1474,13 +1475,13 @@ static void eexp_hw_init586(struct net_device *dev)
 	outw(0x0000, ioaddr + 0x800c);
 	outw(0x0000, ioaddr + 0x800e);
 
-	for (i = 0; i < (sizeof(start_code)); i+=32) {
+	for (i = 0; i < ARRAY_SIZE(start_code) * 2; i+=32) {
 		int j;
 		outw(i, ioaddr + SM_PTR);
-		for (j = 0; j < 16; j+=2)
+		for (j = 0; j < 16 && (i+j)/2 < ARRAY_SIZE(start_code); j+=2)
 			outw(start_code[(i+j)/2],
 			     ioaddr+0x4000+j);
-		for (j = 0; j < 16; j+=2)
+		for (j = 0; j < 16 && (i+j+16)/2 < ARRAY_SIZE(start_code); j+=2)
 			outw(start_code[(i+j+16)/2],
 			     ioaddr+0x8000+j);
 	}

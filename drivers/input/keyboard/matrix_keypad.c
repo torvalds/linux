@@ -27,6 +27,7 @@ struct matrix_keypad {
 	const struct matrix_keypad_platform_data *pdata;
 	struct input_dev *input_dev;
 	unsigned short *keycodes;
+	unsigned int row_shift;
 
 	uint32_t last_key_state[MATRIX_MAX_COLS];
 	struct delayed_work work;
@@ -136,7 +137,7 @@ static void matrix_keypad_scan(struct work_struct *work)
 			if ((bits_changed & (1 << row)) == 0)
 				continue;
 
-			code = (row << 4) + col;
+			code = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
 			input_event(input_dev, EV_MSC, MSC_SCAN, code);
 			input_report_key(input_dev,
 					 keypad->keycodes[code],
@@ -317,7 +318,7 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 	struct matrix_keypad *keypad;
 	struct input_dev *input_dev;
 	unsigned short *keycodes;
-	int i;
+	unsigned int row_shift;
 	int err;
 
 	pdata = pdev->dev.platform_data;
@@ -332,14 +333,11 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (!keymap_data->max_keymap_size) {
-		dev_err(&pdev->dev, "invalid keymap data supplied\n");
-		return -EINVAL;
-	}
+	row_shift = get_count_order(pdata->num_col_gpios);
 
 	keypad = kzalloc(sizeof(struct matrix_keypad), GFP_KERNEL);
-	keycodes = kzalloc(keymap_data->max_keymap_size *
-				sizeof(keypad->keycodes),
+	keycodes = kzalloc((pdata->num_row_gpios << row_shift) *
+				sizeof(*keycodes),
 			   GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!keypad || !keycodes || !input_dev) {
@@ -350,6 +348,7 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 	keypad->input_dev = input_dev;
 	keypad->pdata = pdata;
 	keypad->keycodes = keycodes;
+	keypad->row_shift = row_shift;
 	keypad->stopped = true;
 	INIT_DELAYED_WORK(&keypad->work, matrix_keypad_scan);
 	spin_lock_init(&keypad->lock);
@@ -363,18 +362,10 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 
 	input_dev->keycode	= keycodes;
 	input_dev->keycodesize	= sizeof(*keycodes);
-	input_dev->keycodemax	= keymap_data->max_keymap_size;
+	input_dev->keycodemax	= pdata->num_row_gpios << row_shift;
 
-	for (i = 0; i < keymap_data->keymap_size; i++) {
-		unsigned int key = keymap_data->keymap[i];
-		unsigned int row = KEY_ROW(key);
-		unsigned int col = KEY_COL(key);
-		unsigned short code = KEY_VAL(key);
-
-		keycodes[(row << 4) + col] = code;
-		__set_bit(code, input_dev->keybit);
-	}
-	__clear_bit(KEY_RESERVED, input_dev->keybit);
+	matrix_keypad_build_keymap(keymap_data, row_shift,
+				   input_dev->keycode, input_dev->keybit);
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 	input_set_drvdata(input_dev, keypad);

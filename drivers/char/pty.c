@@ -109,27 +109,21 @@ static int pty_space(struct tty_struct *to)
  *	the other side of the pty/tty pair.
  */
 
-static int pty_write(struct tty_struct *tty, const unsigned char *buf,
-								int count)
+static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 {
 	struct tty_struct *to = tty->link;
-	int c;
 
 	if (tty->stopped)
 		return 0;
 
-	/* This isn't locked but our 8K is quite sloppy so no
-	   big deal */
-
-	c = pty_space(to);
-	if (c > count)
-		c = count;
 	if (c > 0) {
 		/* Stuff the data into the input queue of the other end */
 		c = tty_insert_flip_string(to, buf, c);
 		/* And shovel */
-		tty_flip_buffer_push(to);
-		tty_wakeup(tty);
+		if (c) {
+			tty_flip_buffer_push(to);
+			tty_wakeup(tty);
+		}
 	}
 	return c;
 }
@@ -144,6 +138,8 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf,
 
 static int pty_write_room(struct tty_struct *tty)
 {
+	if (tty->stopped)
+		return 0;
 	return pty_space(tty->link);
 }
 

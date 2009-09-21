@@ -510,7 +510,7 @@ static struct db_chip db_chips[] __initdata = {
 	}
 };
 
-static void u300_init_check_chip(void)
+static void __init u300_init_check_chip(void)
 {
 
 	u16 val;

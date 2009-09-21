@@ -1250,8 +1250,8 @@ static void nfs4_state_manager(struct nfs_client *clp)
 				continue;
 		}
 		/* Initialize or reset the session */
-		if (nfs4_has_session(clp) &&
-		   test_and_clear_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state)) {
+		if (test_and_clear_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state)
+		   && nfs4_has_session(clp)) {
 			if (clp->cl_cons_state == NFS_CS_SESSION_INITING)
 				status = nfs4_initialize_session(clp);
 			else

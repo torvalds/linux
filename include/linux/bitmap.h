@@ -94,13 +94,13 @@ extern void __bitmap_shift_right(unsigned long *dst,
                         const unsigned long *src, int shift, int bits);
 extern void __bitmap_shift_left(unsigned long *dst,
                         const unsigned long *src, int shift, int bits);
-extern void __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
+extern int __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, int bits);
 extern void __bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, int bits);
 extern void __bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, int bits);
-extern void __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
+extern int __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, int bits);
 extern int __bitmap_intersects(const unsigned long *bitmap1,
 			const unsigned long *bitmap2, int bits);
@@ -171,13 +171,12 @@ static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
 	}
 }
 
-static inline void bitmap_and(unsigned long *dst, const unsigned long *src1,
+static inline int bitmap_and(unsigned long *dst, const unsigned long *src1,
 			const unsigned long *src2, int nbits)
 {
 	if (small_const_nbits(nbits))
-		*dst = *src1 & *src2;
-	else
-		__bitmap_and(dst, src1, src2, nbits);
+		return (*dst = *src1 & *src2) != 0;
+	return __bitmap_and(dst, src1, src2, nbits);
 }
 
 static inline void bitmap_or(unsigned long *dst, const unsigned long *src1,
@@ -198,13 +197,12 @@ static inline void bitmap_xor(unsigned long *dst, const unsigned long *src1,
 		__bitmap_xor(dst, src1, src2, nbits);
 }
 
-static inline void bitmap_andnot(unsigned long *dst, const unsigned long *src1,
+static inline int bitmap_andnot(unsigned long *dst, const unsigned long *src1,
 			const unsigned long *src2, int nbits)
 {
 	if (small_const_nbits(nbits))
-		*dst = *src1 & ~(*src2);
-	else
-		__bitmap_andnot(dst, src1, src2, nbits);
+		return (*dst = *src1 & ~(*src2)) != 0;
+	return __bitmap_andnot(dst, src1, src2, nbits);
 }
 
 static inline void bitmap_complement(unsigned long *dst, const unsigned long *src,

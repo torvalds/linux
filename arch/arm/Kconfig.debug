@@ -8,6 +8,7 @@ source "lib/Kconfig.debug"
 # n, but then RMK will have to kill you ;).
 config FRAME_POINTER
 	bool
+	depends on !THUMB2_KERNEL
 	default y if !ARM_UNWIND
 	help
 	  If you say N here, the resulting kernel will be slightly smaller and

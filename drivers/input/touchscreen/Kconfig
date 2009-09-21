@@ -366,11 +366,11 @@ config TOUCHSCREEN_WM97XX_ATMEL
 	  be called atmel-wm97xx.
 
 config TOUCHSCREEN_WM97XX_MAINSTONE
-	tristate "WM97xx Mainstone accelerated touch"
+	tristate "WM97xx Mainstone/Palm accelerated touch"
 	depends on TOUCHSCREEN_WM97XX && ARCH_PXA
 	help
 	  Say Y here for support for streaming mode with WM97xx touchscreens
-	  on Mainstone systems.
+	  on Mainstone, Palm Tungsten T5, TX and LifeDrive systems.
 
 	  If unsure, say N.
 
@@ -406,6 +406,7 @@ config TOUCHSCREEN_USB_COMPOSITE
 	  - IRTOUCHSYSTEMS/UNITOP
 	  - IdealTEK URTC1000
 	  - GoTop Super_Q2/GogoPen/PenPower tablets
+	  - JASTEC USB Touch Controller/DigiTech DTR-02U
 
 	  Have a look at <http://linux.chapter7.ch/touchkit/> for
 	  a usage description and the required user-space stuff.
@@ -468,6 +469,16 @@ config TOUCHSCREEN_USB_GOTOP
 	bool "GoTop Super_Q2/GogoPen/PenPower tablet device support" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
+config TOUCHSCREEN_USB_JASTEC
+	default y
+	bool "JASTEC/DigiTech DTR-02U USB touch controller device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_E2I
+	default y
+	bool "e2i Touchscreen controller (e.g. from Mimo 740)"
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
 config TOUCHSCREEN_TOUCHIT213
 	tristate "Sahara TouchIT-213 touchscreen"
 	select SERIO
@@ -492,10 +503,20 @@ config TOUCHSCREEN_TSC2007
 
 config TOUCHSCREEN_W90X900
 	tristate "W90P910 touchscreen driver"
+	depends on HAVE_CLK
 	help
 	  Say Y here if you have a W90P910 based touchscreen.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_ts.
 
+config TOUCHSCREEN_PCAP
+	tristate "Motorola PCAP touchscreen"
+	depends on EZX_PCAP
+	help
+	  Say Y here if you have a Motorola EZX telephone and
+	  want to enable support for the built-in touchscreen.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcap_ts.
 endif

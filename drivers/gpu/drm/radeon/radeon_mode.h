@@ -36,6 +36,9 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
+#include "radeon_fixed.h"
+
+struct radeon_device;
 
 #define to_radeon_crtc(x) container_of(x, struct radeon_crtc, base)
 #define to_radeon_connector(x) container_of(x, struct radeon_connector, base)
@@ -124,6 +127,7 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_PREFER_LOW_POST_DIV  (1 << 8)
 #define RADEON_PLL_PREFER_HIGH_POST_DIV (1 << 9)
 #define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
+#define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
 
 struct radeon_pll {
 	uint16_t reference_freq;
@@ -170,6 +174,18 @@ struct radeon_mode_info {
 	struct atom_context *atom_context;
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
+	struct radeon_crtc *crtcs[2];
+};
+
+struct radeon_native_mode {
+	/* preferred mode */
+	uint32_t panel_xres, panel_yres;
+	uint32_t hoverplus, hsync_width;
+	uint32_t hblank;
+	uint32_t voverplus, vsync_width;
+	uint32_t vblank;
+	uint32_t dotclock;
+	uint32_t flags;
 };
 
 struct radeon_crtc {
@@ -185,19 +201,13 @@ struct radeon_crtc {
 	uint64_t cursor_addr;
 	int cursor_width;
 	int cursor_height;
-};
-
-#define RADEON_USE_RMX 1
-
-struct radeon_native_mode {
-	/* preferred mode */
-	uint32_t panel_xres, panel_yres;
-	uint32_t hoverplus, hsync_width;
-	uint32_t hblank;
-	uint32_t voverplus, vsync_width;
-	uint32_t vblank;
-	uint32_t dotclock;
-	uint32_t flags;
+	uint32_t legacy_display_base_addr;
+	uint32_t legacy_cursor_offset;
+	enum radeon_rmx_type rmx_type;
+	uint32_t devices;
+	fixed20_12 vsc;
+	fixed20_12 hsc;
+	struct radeon_native_mode native_mode;
 };
 
 struct radeon_encoder_primary_dac {
@@ -383,16 +393,9 @@ void radeon_enc_destroy(struct drm_encoder *encoder);
 void radeon_copy_fb(struct drm_device *dev, struct drm_gem_object *dst_obj);
 void radeon_combios_asic_init(struct drm_device *dev);
 extern int radeon_static_clocks_init(struct drm_device *dev);
-void radeon_init_disp_bw_legacy(struct drm_device *dev,
-				struct drm_display_mode *mode1,
-				uint32_t pixel_bytes1,
-				struct drm_display_mode *mode2,
-				uint32_t pixel_bytes2);
-void radeon_init_disp_bw_avivo(struct drm_device *dev,
-			       struct drm_display_mode *mode1,
-			       uint32_t pixel_bytes1,
-			       struct drm_display_mode *mode2,
-			       uint32_t pixel_bytes2);
-void radeon_init_disp_bandwidth(struct drm_device *dev);
+bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
+					struct drm_display_mode *mode,
+					struct drm_display_mode *adjusted_mode);
+void atom_rv515_force_tv_scaler(struct radeon_device *rdev);
 
 #endif

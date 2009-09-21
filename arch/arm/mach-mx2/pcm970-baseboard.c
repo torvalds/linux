@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/can/platform/sja1000.h>
 
 #include <asm/mach/arch.h>
 
@@ -125,38 +126,94 @@ static struct imxmmc_platform_data sdhc_pdata = {
 	.exit = pcm970_sdhc2_exit,
 };
 
-/*
- * Connected is a portrait Sharp-QVGA display
- * of type: LQ035Q7DH06
- */
+static struct imx_fb_videomode pcm970_modes[] = {
+	{
+		.mode = {
+			.name		= "Sharp-LQ035Q7",
+			.refresh	= 60,
+			.xres		= 240,
+			.yres		= 320,
+			.pixclock	= 188679, /* in ps (5.3MHz) */
+			.hsync_len	= 7,
+			.left_margin	= 5,
+			.right_margin	= 16,
+			.vsync_len	= 1,
+			.upper_margin	= 7,
+			.lower_margin	= 9,
+		},
+		/*
+		 * - HSYNC active high
+		 * - VSYNC active high
+		 * - clk notenabled while idle
+		 * - clock not inverted
+		 * - data not inverted
+		 * - data enable low active
+		 * - enable sharp mode
+		 */
+		.pcr		= 0xF00080C0,
+		.bpp		= 16,
+	}, {
+		.mode = {
+			.name		= "TX090",
+			.refresh	= 60,
+			.xres		= 240,
+			.yres		= 320,
+			.pixclock	= 38255,
+			.left_margin	= 144,
+			.right_margin	= 0,
+			.upper_margin	= 7,
+			.lower_margin	= 40,
+			.hsync_len	= 96,
+			.vsync_len	= 1,
+		},
+		/*
+		 * - HSYNC active low (1 << 22)
+		 * - VSYNC active low (1 << 23)
+		 * - clk notenabled while idle
+		 * - clock not inverted
+		 * - data not inverted
+		 * - data enable low active
+		 * - enable sharp mode
+		 */
+		.pcr = 0xF0008080 | (1<<22) | (1<<23) | (1<<19),
+		.bpp = 32,
+	},
+};
+
 static struct imx_fb_platform_data pcm038_fb_data = {
-	.pixclock	= 188679, /* in ps (5.3MHz) */
-	.xres		= 240,
-	.yres		= 320,
+	.mode = pcm970_modes,
+	.num_modes = ARRAY_SIZE(pcm970_modes),
 
-	.bpp		= 16,
-	.hsync_len	= 7,
-	.left_margin	= 5,
-	.right_margin	= 16,
-
-	.vsync_len	= 1,
-	.upper_margin	= 7,
-	.lower_margin	= 9,
-	.fixed_screen_cpu = 0,
-
-	/*
-	 * - HSYNC active high
-	 * - VSYNC active high
-	 * - clk notenabled while idle
-	 * - clock not inverted
-	 * - data not inverted
-	 * - data enable low active
-	 * - enable sharp mode
-	 */
-	.pcr		= 0xFA0080C0,
 	.pwmr		= 0x00A903FF,
 	.lscr1		= 0x00120300,
 	.dmacr		= 0x00020010,
+};
+
+static struct resource pcm970_sja1000_resources[] = {
+	{
+		.start   = CS4_BASE_ADDR,
+		.end     = CS4_BASE_ADDR + 0x100 - 1,
+		.flags   = IORESOURCE_MEM,
+	}, {
+		.start   = IRQ_GPIOE(19),
+		.end     = IRQ_GPIOE(19),
+		.flags   = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
+	},
+};
+
+struct sja1000_platform_data pcm970_sja1000_platform_data = {
+	.clock		= 16000000 / 2,
+	.ocr		= 0x40 | 0x18,
+	.cdr		= 0x40,
+};
+
+static struct platform_device pcm970_sja1000 = {
+	.name = "sja1000_platform",
+	.dev = {
+		.platform_data = &pcm970_sja1000_platform_data,
+	},
+	.resource = pcm970_sja1000_resources,
+	.num_resources = ARRAY_SIZE(pcm970_sja1000_resources),
 };
 
 /*
@@ -172,4 +229,5 @@ void __init pcm970_baseboard_init(void)
 
 	mxc_register_device(&mxc_fb_device, &pcm038_fb_data);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);
+	platform_device_register(&pcm970_sja1000);
 }
