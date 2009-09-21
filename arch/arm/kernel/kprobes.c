@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/module.h>
+#include <linux/stop_machine.h>
 #include <linux/stringify.h>
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
@@ -83,10 +84,24 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 	flush_insns(p->addr, 1);
 }
 
+/*
+ * The actual disarming is done here on each CPU and synchronized using
+ * stop_machine. This synchronization is necessary on SMP to avoid removing
+ * a probe between the moment the 'Undefined Instruction' exception is raised
+ * and the moment the exception handler reads the faulting instruction from
+ * memory.
+ */
+int __kprobes __arch_disarm_kprobe(void *p)
+{
+	struct kprobe *kp = p;
+	*kp->addr = kp->opcode;
+	flush_insns(kp->addr, 1);
+	return 0;
+}
+
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
-	*p->addr = p->opcode;
-	flush_insns(p->addr, 1);
+	stop_machine(__arch_disarm_kprobe, p, &cpu_online_map);
 }
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
