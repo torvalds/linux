@@ -868,6 +868,16 @@ static int af9015_read_config(struct usb_device *udev)
 				af9015_config.ir_table_size =
 				  ARRAY_SIZE(af9015_ir_table_avermedia);
 				break;
+			case USB_VID_MSI_2:
+				af9015_properties[i].rc_key_map =
+				  af9015_rc_keys_msi_digivox_iii;
+				af9015_properties[i].rc_key_map_size =
+				  ARRAY_SIZE(af9015_rc_keys_msi_digivox_iii);
+				af9015_config.ir_table =
+				  af9015_ir_table_msi_digivox_iii;
+				af9015_config.ir_table_size =
+				  ARRAY_SIZE(af9015_ir_table_msi_digivox_iii);
+				break;
 			}
 		}
 	}
