@@ -692,7 +692,8 @@ ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 		/* pass */;
 	else
 		return NULL;
-	for (i = 0; i < num_descs; i++) {
+	i = 0;
+	do {
 		size_t copy = min_t(size_t, len, 1 << ioat->xfercap_log);
 
 		desc = ioat2_get_ring_ent(ioat, idx + i);
@@ -707,7 +708,7 @@ ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 		dst += copy;
 		src += copy;
 		dump_desc_dbg(ioat, desc);
-	}
+	} while (++i < num_descs);
 
 	desc->txd.flags = flags;
 	desc->len = total_len;
