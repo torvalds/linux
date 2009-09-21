@@ -111,7 +111,7 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 		panic("CPU%u: processor failed to boot\n", cpu);
 }
 
-void __init platform_request_ipi(irq_handler_t handler)
+void __init platform_request_ipi(void *handler)
 {
 	int ret;
 

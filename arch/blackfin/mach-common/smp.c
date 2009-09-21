@@ -441,7 +441,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	platform_prepare_cpus(max_cpus);
 	ipi_queue_init();
-	platform_request_ipi(&ipi_handler);
+	platform_request_ipi(ipi_handler);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
