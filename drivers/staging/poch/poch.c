@@ -245,6 +245,11 @@ struct poch_dev {
 	struct device *dev;
 };
 
+static int synth_rx;
+module_param(synth_rx, bool, 0600);
+MODULE_PARM_DESC(synth_rx,
+		"Synthesize received values using a counter. Default: No");
+
 static dev_t poch_first_dev;
 static struct class *poch_cls;
 static DEFINE_IDR(poch_ids);
@@ -827,9 +832,11 @@ static int poch_open(struct inode *inode, struct file *filp)
 			  fpga + FPGA_TX_CTL_REG);
 	} else {
 		/* Flush RX FIFO and output data to cardbus. */
-		iowrite32(FPGA_RX_CTL_CONT_CAP
-			  | FPGA_RX_CTL_FIFO_FLUSH,
-			  fpga + FPGA_RX_CTL_REG);
+		u32 ctl_val = FPGA_RX_CTL_CONT_CAP | FPGA_RX_CTL_FIFO_FLUSH;
+		if (synth_rx)
+			ctl_val |= FPGA_RX_CTL_SYNTH_DATA;
+
+		iowrite32(ctl_val, fpga + FPGA_RX_CTL_REG);
 	}
 
 	atomic_inc(&channel->inited);
