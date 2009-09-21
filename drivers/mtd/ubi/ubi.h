@@ -579,7 +579,8 @@ void ubi_do_get_volume_info(struct ubi_device *ubi, struct ubi_volume *vol,
 	for (rb = rb_first(root),                                            \
 	     pos = (rb ? container_of(rb, typeof(*pos), member) : NULL);     \
 	     rb;                                                             \
-	     rb = rb_next(rb), pos = container_of(rb, typeof(*pos), member))
+	     rb = rb_next(rb),                                               \
+	     pos = (rb ? container_of(rb, typeof(*pos), member) : NULL))
 
 /**
  * ubi_zalloc_vid_hdr - allocate a volume identifier header object.
