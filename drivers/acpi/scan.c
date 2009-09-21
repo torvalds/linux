@@ -185,7 +185,7 @@ static ssize_t
 acpi_device_hid_show(struct device *dev, struct device_attribute *attr, char *buf) {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
-	return sprintf(buf, "%s\n", acpi_dev->pnp.hardware_id);
+	return sprintf(buf, "%s\n", acpi_device_hid(acpi_dev));
 }
 static DEVICE_ATTR(hid, 0444, acpi_device_hid_show, NULL);
 
@@ -501,7 +501,7 @@ static int acpi_device_register(struct acpi_device *device)
 	 * If failed, create one and link it into acpi_bus_id_list
 	 */
 	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node) {
-		if(!strcmp(acpi_device_bus_id->bus_id, device->flags.hardware_id? device->pnp.hardware_id : "device")) {
+		if (!strcmp(acpi_device_bus_id->bus_id, device->flags.hardware_id ? acpi_device_hid(device) : "device")) {
 			acpi_device_bus_id->instance_no ++;
 			found = 1;
 			kfree(new_bus_id);
@@ -510,7 +510,7 @@ static int acpi_device_register(struct acpi_device *device)
 	}
 	if (!found) {
 		acpi_device_bus_id = new_bus_id;
-		strcpy(acpi_device_bus_id->bus_id, device->flags.hardware_id ? device->pnp.hardware_id : "device");
+		strcpy(acpi_device_bus_id->bus_id, device->flags.hardware_id ? acpi_device_hid(device) : "device");
 		acpi_device_bus_id->instance_no = 0;
 		list_add_tail(&acpi_device_bus_id->node, &acpi_bus_id_list);
 	}
