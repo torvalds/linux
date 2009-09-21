@@ -460,8 +460,8 @@ config I2C_PNX
 	  will be called i2c-pnx.
 
 config I2C_PXA
-	tristate "Intel PXA2XX I2C adapter (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && ARCH_PXA
+	tristate "Intel PXA2XX I2C adapter"
+	depends on ARCH_PXA || ARCH_MMP
 	help
 	  If you have devices in the PXA I2C bus, say yes to this option.
 	  This driver can also be built as a module.  If so, the module

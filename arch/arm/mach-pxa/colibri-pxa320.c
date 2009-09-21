@@ -164,15 +164,48 @@ static inline void __init colibri_pxa320_init_ac97(void)
 static inline void colibri_pxa320_init_ac97(void) {}
 #endif
 
+/*
+ * The following configuration is verified to work with the Toradex Orchid
+ * carrier board
+ */
+static mfp_cfg_t colibri_pxa320_uart_pin_config[] __initdata = {
+	/* UART 1 configuration (may be set by bootloader) */
+	GPIO99_UART1_CTS,
+	GPIO104_UART1_RTS,
+	GPIO97_UART1_RXD,
+	GPIO98_UART1_TXD,
+	GPIO101_UART1_DTR,
+	GPIO103_UART1_DSR,
+	GPIO100_UART1_DCD,
+	GPIO102_UART1_RI,
+
+	/* UART 2 configuration */
+	GPIO109_UART2_CTS,
+	GPIO112_UART2_RTS,
+	GPIO110_UART2_RXD,
+	GPIO111_UART2_TXD,
+
+	/* UART 3 configuration */
+	GPIO30_UART3_RXD,
+	GPIO31_UART3_TXD,
+};
+
+static void __init colibri_pxa320_init_uart(void)
+{
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa320_uart_pin_config));
+}
+
 void __init colibri_pxa320_init(void)
 {
 	colibri_pxa320_init_eth();
 	colibri_pxa320_init_ohci();
+	colibri_pxa3xx_init_nand();
 	colibri_pxa320_init_lcd();
 	colibri_pxa3xx_init_lcd(mfp_to_gpio(GPIO49_GPIO));
 	colibri_pxa320_init_ac97();
 	colibri_pxa3xx_init_mmc(ARRAY_AND_SIZE(colibri_pxa320_mmc_pin_config),
 				mfp_to_gpio(MFP_PIN_GPIO28));
+	colibri_pxa320_init_uart();
 }
 
 MACHINE_START(COLIBRI320, "Toradex Colibri PXA320")
