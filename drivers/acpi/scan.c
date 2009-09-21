@@ -22,6 +22,8 @@ extern struct acpi_device *acpi_root;
 #define ACPI_BUS_HID			"LNXSYBUS"
 #define ACPI_BUS_DEVICE_NAME		"System Bus"
 
+#define ACPI_IS_ROOT_DEVICE(device)    (!(device)->parent)
+
 static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
 DEFINE_MUTEX(acpi_device_lock);
@@ -955,10 +957,12 @@ static void acpi_device_get_busid(struct acpi_device *device)
 	 * The device's Bus ID is simply the object name.
 	 * TBD: Shouldn't this value be unique (within the ACPI namespace)?
 	 */
-	switch (device->device_type) {
-	case ACPI_BUS_TYPE_SYSTEM:
+	if (ACPI_IS_ROOT_DEVICE(device)) {
 		strcpy(device->pnp.bus_id, "ACPI");
-		break;
+		return;
+	}
+
+	switch (device->device_type) {
 	case ACPI_BUS_TYPE_POWER_BUTTON:
 		strcpy(device->pnp.bus_id, "PWRF");
 		break;
@@ -1093,6 +1097,11 @@ static void acpi_device_set_id(struct acpi_device *device)
 
 	switch (device->device_type) {
 	case ACPI_BUS_TYPE_DEVICE:
+		if (ACPI_IS_ROOT_DEVICE(device)) {
+			hid = ACPI_SYSTEM_HID;
+			break;
+		}
+
 		status = acpi_get_object_info(device->handle, &info);
 		if (ACPI_FAILURE(status)) {
 			printk(KERN_ERR PREFIX "%s: Error reading device info\n", __func__);
@@ -1128,9 +1137,6 @@ static void acpi_device_set_id(struct acpi_device *device)
 		break;
 	case ACPI_BUS_TYPE_PROCESSOR:
 		hid = ACPI_PROCESSOR_OBJECT_HID;
-		break;
-	case ACPI_BUS_TYPE_SYSTEM:
-		hid = ACPI_SYSTEM_HID;
 		break;
 	case ACPI_BUS_TYPE_THERMAL:
 		hid = ACPI_THERMAL_HID;
@@ -1643,7 +1649,7 @@ int __init acpi_scan_init(void)
 	 * Create the root device in the bus's device tree
 	 */
 	result = acpi_add_single_object(&acpi_root, ACPI_ROOT_OBJECT,
-					ACPI_BUS_TYPE_SYSTEM, &ops);
+					ACPI_BUS_TYPE_DEVICE, &ops);
 	if (result)
 		goto Done;
 
