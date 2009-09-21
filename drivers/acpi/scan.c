@@ -378,15 +378,13 @@ static acpi_status acpi_device_notify_fixed(void *data)
 static int acpi_device_install_notify_handler(struct acpi_device *device)
 {
 	acpi_status status;
-	char *hid;
 
-	hid = acpi_device_hid(device);
-	if (!strcmp(hid, ACPI_BUTTON_HID_POWERF))
+	if (device->device_type == ACPI_BUS_TYPE_POWER_BUTTON)
 		status =
 		    acpi_install_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
 						     acpi_device_notify_fixed,
 						     device);
-	else if (!strcmp(hid, ACPI_BUTTON_HID_SLEEPF))
+	else if (device->device_type == ACPI_BUS_TYPE_SLEEP_BUTTON)
 		status =
 		    acpi_install_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
 						     acpi_device_notify_fixed,
@@ -404,10 +402,10 @@ static int acpi_device_install_notify_handler(struct acpi_device *device)
 
 static void acpi_device_remove_notify_handler(struct acpi_device *device)
 {
-	if (!strcmp(acpi_device_hid(device), ACPI_BUTTON_HID_POWERF))
+	if (device->device_type == ACPI_BUS_TYPE_POWER_BUTTON)
 		acpi_remove_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
 						acpi_device_notify_fixed);
-	else if (!strcmp(acpi_device_hid(device), ACPI_BUTTON_HID_SLEEPF))
+	else if (device->device_type == ACPI_BUS_TYPE_SLEEP_BUTTON)
 		acpi_remove_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
 						acpi_device_notify_fixed);
 	else
