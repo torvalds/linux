@@ -543,7 +543,7 @@ struct perf_pending_entry {
  */
 struct perf_counter {
 #ifdef CONFIG_PERF_COUNTERS
-	struct list_head		list_entry;
+	struct list_head		group_entry;
 	struct list_head		event_entry;
 	struct list_head		sibling_list;
 	int				nr_siblings;
@@ -649,7 +649,7 @@ struct perf_counter_context {
 	 */
 	struct mutex			mutex;
 
-	struct list_head		counter_list;
+	struct list_head		group_list;
 	struct list_head		event_list;
 	int				nr_counters;
 	int				nr_active;
