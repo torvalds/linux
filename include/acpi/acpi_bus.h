@@ -142,7 +142,6 @@ struct acpi_device_status {
 struct acpi_device_flags {
 	u32 dynamic_status:1;
 	u32 hardware_id:1;
-	u32 compatible_ids:1;
 	u32 bus_address:1;
 	u32 unique_id:1;
 	u32 removable:1;
@@ -153,7 +152,7 @@ struct acpi_device_flags {
 	u32 performance_manageable:1;
 	u32 wake_capable:1;	/* Wakeup(_PRW) supported? */
 	u32 force_power_state:1;
-	u32 reserved:19;
+	u32 reserved:20;
 };
 
 /* File System */

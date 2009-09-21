@@ -47,7 +47,7 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 	int count;
 	struct acpi_hardware_id *id;
 
-	if (!acpi_dev->flags.hardware_id && !acpi_dev->flags.compatible_ids)
+	if (!acpi_dev->flags.hardware_id)
 		return -ENODEV;
 
 	len = snprintf(modalias, size, "acpi:");
@@ -209,7 +209,7 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 			goto end;
 	}
 
-	if (dev->flags.hardware_id || dev->flags.compatible_ids) {
+	if (dev->flags.hardware_id) {
 		result = device_create_file(&dev->dev, &dev_attr_modalias);
 		if (result)
 			goto end;
@@ -239,7 +239,7 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 	if (ACPI_SUCCESS(status))
 		device_remove_file(&dev->dev, &dev_attr_eject);
 
-	if (dev->flags.hardware_id || dev->flags.compatible_ids)
+	if (dev->flags.hardware_id)
 		device_remove_file(&dev->dev, &dev_attr_modalias);
 
 	if (dev->flags.hardware_id)
@@ -876,11 +876,6 @@ static int acpi_bus_get_flags(struct acpi_device *device)
 	if (ACPI_SUCCESS(status))
 		device->flags.dynamic_status = 1;
 
-	/* Presence of _CID indicates 'compatible_ids' */
-	status = acpi_get_handle(device->handle, "_CID", &temp);
-	if (ACPI_SUCCESS(status))
-		device->flags.compatible_ids = 1;
-
 	/* Presence of _RMV indicates 'removable' */
 	status = acpi_get_handle(device->handle, "_RMV", &temp);
 	if (ACPI_SUCCESS(status))
@@ -1125,10 +1120,8 @@ static void acpi_device_set_id(struct acpi_device *device)
 	if (cid_list)
 		for (i = 0; i < cid_list->count; i++)
 			acpi_add_id(device, cid_list->ids[i].string);
-	if (cid_add) {
+	if (cid_add)
 		acpi_add_id(device, cid_add);
-		device->flags.compatible_ids = 1;
-	}
 
 	kfree(info);
 }
