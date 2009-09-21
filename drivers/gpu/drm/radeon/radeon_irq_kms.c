@@ -28,7 +28,6 @@
 #include "drmP.h"
 #include "radeon_drm.h"
 #include "radeon_reg.h"
-#include "radeon_microcode.h"
 #include "radeon.h"
 #include "atom.h"
 

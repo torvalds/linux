@@ -37,11 +37,14 @@
 #include <linux/console.h>
 #include "drm_crtc_helper.h"
 
-static unsigned int i915_modeset = -1;
+static int i915_modeset = -1;
 module_param_named(modeset, i915_modeset, int, 0400);
 
 unsigned int i915_fbpercrtc = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
+
+unsigned int i915_powersave = 1;
+module_param_named(powersave, i915_powersave, int, 0400);
 
 static struct drm_driver driver;
 
@@ -188,8 +191,8 @@ static struct drm_driver driver = {
 	.master_create = i915_master_create,
 	.master_destroy = i915_master_destroy,
 #if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = i915_gem_debugfs_init,
-	.debugfs_cleanup = i915_gem_debugfs_cleanup,
+	.debugfs_init = i915_debugfs_init,
+	.debugfs_cleanup = i915_debugfs_cleanup,
 #endif
 	.gem_init_object = i915_gem_init_object,
 	.gem_free_object = i915_gem_free_object,

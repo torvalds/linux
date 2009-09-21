@@ -355,8 +355,14 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 	}
 
 	driver = find_section(bdb, BDB_DRIVER_FEATURES);
-	if (driver && driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
+	if (!driver)
+		return;
+
+	if (driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
 		dev_priv->edp_support = 1;
+
+	if (driver->dual_frequency)
+		dev_priv->render_reclock_avail = true;
 }
 
 /**

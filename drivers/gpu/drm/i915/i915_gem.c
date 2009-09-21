@@ -29,6 +29,7 @@
 #include "drm.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "intel_drv.h"
 #include <linux/swap.h>
 #include <linux/pci.h>
 
@@ -111,7 +112,8 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_create *args = data;
 	struct drm_gem_object *obj;
-	int handle, ret;
+	int ret;
+	u32 handle;
 
 	args->size = roundup(args->size, PAGE_SIZE);
 
@@ -981,6 +983,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_set_domain *args = data;
 	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj_priv;
 	uint32_t read_domains = args->read_domains;
 	uint32_t write_domain = args->write_domain;
 	int ret;
@@ -1004,15 +1007,17 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
 		return -EBADF;
+	obj_priv = obj->driver_private;
 
 	mutex_lock(&dev->struct_mutex);
+
+	intel_mark_busy(dev, obj);
+
 #if WATCH_BUF
 	DRM_INFO("set_domain_ioctl %p(%zd), %08x %08x\n",
 		 obj, obj->size, read_domains, write_domain);
 #endif
 	if (read_domains & I915_GEM_DOMAIN_GTT) {
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
-
 		ret = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
 
 		/* Update the LRU on the fence for the CPU access that's
@@ -2776,6 +2781,8 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 	BUG_ON(obj->pending_read_domains & I915_GEM_DOMAIN_CPU);
 	BUG_ON(obj->pending_write_domain == I915_GEM_DOMAIN_CPU);
 
+	intel_mark_busy(dev, obj);
+
 #if WATCH_BUF
 	DRM_INFO("%s: object %p read %08x -> %08x write %08x -> %08x\n",
 		 __func__, obj,
@@ -4093,7 +4100,6 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 
 	/* Set up the kernel mapping for the ring. */
 	ring->Size = obj->size;
-	ring->tail_mask = obj->size - 1;
 
 	ring->map.offset = dev->agp->base + obj_priv->gtt_offset;
 	ring->map.size = obj->size;

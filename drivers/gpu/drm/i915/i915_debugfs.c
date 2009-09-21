@@ -158,16 +158,37 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	seq_printf(m, "Interrupt enable:    %08x\n",
-		   I915_READ(IER));
-	seq_printf(m, "Interrupt identity:  %08x\n",
-		   I915_READ(IIR));
-	seq_printf(m, "Interrupt mask:      %08x\n",
-		   I915_READ(IMR));
-	seq_printf(m, "Pipe A stat:         %08x\n",
-		   I915_READ(PIPEASTAT));
-	seq_printf(m, "Pipe B stat:         %08x\n",
-		   I915_READ(PIPEBSTAT));
+	if (!IS_IGDNG(dev)) {
+		seq_printf(m, "Interrupt enable:    %08x\n",
+			   I915_READ(IER));
+		seq_printf(m, "Interrupt identity:  %08x\n",
+			   I915_READ(IIR));
+		seq_printf(m, "Interrupt mask:      %08x\n",
+			   I915_READ(IMR));
+		seq_printf(m, "Pipe A stat:         %08x\n",
+			   I915_READ(PIPEASTAT));
+		seq_printf(m, "Pipe B stat:         %08x\n",
+			   I915_READ(PIPEBSTAT));
+	} else {
+		seq_printf(m, "North Display Interrupt enable:		%08x\n",
+			   I915_READ(DEIER));
+		seq_printf(m, "North Display Interrupt identity:	%08x\n",
+			   I915_READ(DEIIR));
+		seq_printf(m, "North Display Interrupt mask:		%08x\n",
+			   I915_READ(DEIMR));
+		seq_printf(m, "South Display Interrupt enable:		%08x\n",
+			   I915_READ(SDEIER));
+		seq_printf(m, "South Display Interrupt identity:	%08x\n",
+			   I915_READ(SDEIIR));
+		seq_printf(m, "South Display Interrupt mask:		%08x\n",
+			   I915_READ(SDEIMR));
+		seq_printf(m, "Graphics Interrupt enable:		%08x\n",
+			   I915_READ(GTIER));
+		seq_printf(m, "Graphics Interrupt identity:		%08x\n",
+			   I915_READ(GTIIR));
+		seq_printf(m, "Graphics Interrupt mask:		%08x\n",
+			   I915_READ(GTIMR));
+	}
 	seq_printf(m, "Interrupts received: %d\n",
 		   atomic_read(&dev_priv->irq_received));
 	if (dev_priv->hw_status_page != NULL) {
@@ -312,15 +333,13 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	unsigned int head, tail, mask;
+	unsigned int head, tail;
 
 	head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
 	tail = I915_READ(PRB0_TAIL) & TAIL_ADDR;
-	mask = dev_priv->ring.tail_mask;
 
 	seq_printf(m, "RingHead :  %08x\n", head);
 	seq_printf(m, "RingTail :  %08x\n", tail);
-	seq_printf(m, "RingMask :  %08x\n", mask);
 	seq_printf(m, "RingSize :  %08lx\n", dev_priv->ring.Size);
 	seq_printf(m, "Acthd :     %08x\n", I915_READ(IS_I965G(dev) ? ACTHD_I965 : ACTHD));
 
@@ -363,7 +382,37 @@ out:
 	return 0;
 }
 
-static struct drm_info_list i915_gem_debugfs_list[] = {
+static int i915_registers_info(struct seq_file *m, void *data) {
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	uint32_t reg;
+
+#define DUMP_RANGE(start, end) \
+	for (reg=start; reg < end; reg += 4) \
+	seq_printf(m, "%08x\t%08x\n", reg, I915_READ(reg));
+
+	DUMP_RANGE(0x00000, 0x00fff);   /* VGA registers */
+	DUMP_RANGE(0x02000, 0x02fff);   /* instruction, memory, interrupt control registers */
+	DUMP_RANGE(0x03000, 0x031ff);   /* FENCE and PPGTT control registers */
+	DUMP_RANGE(0x03200, 0x03fff);   /* frame buffer compression registers */
+	DUMP_RANGE(0x05000, 0x05fff);   /* I/O control registers */
+	DUMP_RANGE(0x06000, 0x06fff);   /* clock control registers */
+	DUMP_RANGE(0x07000, 0x07fff);   /* 3D internal debug registers */
+	DUMP_RANGE(0x07400, 0x088ff);   /* GPE debug registers */
+	DUMP_RANGE(0x0a000, 0x0afff);   /* display palette registers */
+	DUMP_RANGE(0x10000, 0x13fff);   /* MMIO MCHBAR */
+	DUMP_RANGE(0x30000, 0x3ffff);   /* overlay registers */
+	DUMP_RANGE(0x60000, 0x6ffff);   /* display engine pipeline registers */
+	DUMP_RANGE(0x70000, 0x72fff);   /* display and cursor registers */
+	DUMP_RANGE(0x73000, 0x73fff);   /* performance counters */
+
+	return 0;
+}
+
+
+static struct drm_info_list i915_debugfs_list[] = {
+	{"i915_regs", i915_registers_info, 0},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
@@ -377,19 +426,19 @@ static struct drm_info_list i915_gem_debugfs_list[] = {
 	{"i915_batchbuffers", i915_batchbuffer_info, 0},
 	{"i915_error_state", i915_error_state, 0},
 };
-#define I915_GEM_DEBUGFS_ENTRIES ARRAY_SIZE(i915_gem_debugfs_list)
+#define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
-int i915_gem_debugfs_init(struct drm_minor *minor)
+int i915_debugfs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(i915_gem_debugfs_list,
-					I915_GEM_DEBUGFS_ENTRIES,
+	return drm_debugfs_create_files(i915_debugfs_list,
+					I915_DEBUGFS_ENTRIES,
 					minor->debugfs_root, minor);
 }
 
-void i915_gem_debugfs_cleanup(struct drm_minor *minor)
+void i915_debugfs_cleanup(struct drm_minor *minor)
 {
-	drm_debugfs_remove_files(i915_gem_debugfs_list,
-				 I915_GEM_DEBUGFS_ENTRIES, minor);
+	drm_debugfs_remove_files(i915_debugfs_list,
+				 I915_DEBUGFS_ENTRIES, minor);
 }
 
 #endif /* CONFIG_DEBUG_FS */

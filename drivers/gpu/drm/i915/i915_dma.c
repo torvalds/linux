@@ -29,11 +29,11 @@
 #include "drmP.h"
 #include "drm.h"
 #include "drm_crtc_helper.h"
+#include "drm_fb_helper.h"
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
-
-#define I915_DRV	"i915_drv"
+#include <linux/vgaarb.h>
 
 /* Really want an OS-independent resettable timer.  Would like to have
  * this loop run for (eg) 3 sec, but have the timer reset every time
@@ -80,6 +80,34 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 	return -EBUSY;
 }
 
+/* As a ringbuffer is only allowed to wrap between instructions, fill
+ * the tail with NOOPs.
+ */
+int i915_wrap_ring(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	volatile unsigned int *virt;
+	int rem;
+
+	rem = dev_priv->ring.Size - dev_priv->ring.tail;
+	if (dev_priv->ring.space < rem) {
+		int ret = i915_wait_ring(dev, rem, __func__);
+		if (ret)
+			return ret;
+	}
+	dev_priv->ring.space -= rem;
+
+	virt = (unsigned int *)
+		(dev_priv->ring.virtual_start + dev_priv->ring.tail);
+	rem /= 4;
+	while (rem--)
+		*virt++ = MI_NOOP;
+
+	dev_priv->ring.tail = 0;
+
+	return 0;
+}
+
 /**
  * Sets up the hardware status page for devices that need a physical address
  * in the register.
@@ -101,7 +129,7 @@ static int i915_init_phys_hws(struct drm_device *dev)
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 
 	I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
-	DRM_DEBUG_DRIVER(I915_DRV, "Enabled hardware status page\n");
+	DRM_DEBUG_DRIVER("Enabled hardware status page\n");
 	return 0;
 }
 
@@ -187,8 +215,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 		master_priv->sarea_priv = (drm_i915_sarea_t *)
 			((u8 *)master_priv->sarea->handle + init->sarea_priv_offset);
 	} else {
-		DRM_DEBUG_DRIVER(I915_DRV,
-				"sarea not found assuming DRI2 userspace\n");
+		DRM_DEBUG_DRIVER("sarea not found assuming DRI2 userspace\n");
 	}
 
 	if (init->ring_size != 0) {
@@ -200,7 +227,6 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 		}
 
 		dev_priv->ring.Size = init->ring_size;
-		dev_priv->ring.tail_mask = dev_priv->ring.Size - 1;
 
 		dev_priv->ring.map.offset = init->ring_start;
 		dev_priv->ring.map.size = init->ring_size;
@@ -238,7 +264,7 @@ static int i915_dma_resume(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
-	DRM_DEBUG_DRIVER(I915_DRV, "%s\n", __func__);
+	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	if (dev_priv->ring.map.handle == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
@@ -251,14 +277,14 @@ static int i915_dma_resume(struct drm_device * dev)
 		DRM_ERROR("Can not find hardware status page\n");
 		return -EINVAL;
 	}
-	DRM_DEBUG_DRIVER(I915_DRV, "hw status page @ %p\n",
+	DRM_DEBUG_DRIVER("hw status page @ %p\n",
 				dev_priv->hw_status_page);
 
 	if (dev_priv->status_gfx_addr != 0)
 		I915_WRITE(HWS_PGA, dev_priv->status_gfx_addr);
 	else
 		I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
-	DRM_DEBUG_DRIVER(I915_DRV, "Enabled hardware status page\n");
+	DRM_DEBUG_DRIVER("Enabled hardware status page\n");
 
 	return 0;
 }
@@ -552,7 +578,7 @@ static int i915_dispatch_flip(struct drm_device * dev)
 	if (!master_priv->sarea_priv)
 		return -EINVAL;
 
-	DRM_DEBUG_DRIVER(I915_DRV, "%s: page=%d pfCurrentPage=%d\n",
+	DRM_DEBUG_DRIVER("%s: page=%d pfCurrentPage=%d\n",
 			  __func__,
 			 dev_priv->current_page,
 			 master_priv->sarea_priv->pf_current_page);
@@ -633,8 +659,7 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_DRIVER(I915_DRV,
-			"i915 batchbuffer, start %x used %d cliprects %d\n",
+	DRM_DEBUG_DRIVER("i915 batchbuffer, start %x used %d cliprects %d\n",
 			batch->start, batch->used, batch->num_cliprects);
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
@@ -681,8 +706,7 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	void *batch_data;
 	int ret;
 
-	DRM_DEBUG_DRIVER(I915_DRV,
-			"i915 cmdbuffer, buf %p sz %d cliprects %d\n",
+	DRM_DEBUG_DRIVER("i915 cmdbuffer, buf %p sz %d cliprects %d\n",
 			cmdbuf->buf, cmdbuf->sz, cmdbuf->num_cliprects);
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
@@ -735,7 +759,7 @@ static int i915_flip_bufs(struct drm_device *dev, void *data,
 {
 	int ret;
 
-	DRM_DEBUG_DRIVER(I915_DRV, "%s\n", __func__);
+	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -778,7 +802,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev_priv->num_fence_regs - dev_priv->fence_reg_start;
 		break;
 	default:
-		DRM_DEBUG_DRIVER(I915_DRV, "Unknown parameter %d\n",
+		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 					param->param);
 		return -EINVAL;
 	}
@@ -819,7 +843,7 @@ static int i915_setparam(struct drm_device *dev, void *data,
 		dev_priv->fence_reg_start = param->value;
 		break;
 	default:
-		DRM_DEBUG_DRIVER(I915_DRV, "unknown parameter %d\n",
+		DRM_DEBUG_DRIVER("unknown parameter %d\n",
 					param->param);
 		return -EINVAL;
 	}
@@ -846,7 +870,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	DRM_DEBUG("set status page addr 0x%08x\n", (u32)hws->addr);
+	DRM_DEBUG_DRIVER("set status page addr 0x%08x\n", (u32)hws->addr);
 
 	dev_priv->status_gfx_addr = hws->addr & (0x1ffff<<12);
 
@@ -868,10 +892,22 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 	I915_WRITE(HWS_PGA, dev_priv->status_gfx_addr);
-	DRM_DEBUG_DRIVER(I915_DRV, "load hws HWS_PGA with gfx mem 0x%x\n",
+	DRM_DEBUG_DRIVER("load hws HWS_PGA with gfx mem 0x%x\n",
 				dev_priv->status_gfx_addr);
-	DRM_DEBUG_DRIVER(I915_DRV, "load hws at %p\n",
+	DRM_DEBUG_DRIVER("load hws at %p\n",
 				dev_priv->hw_status_page);
+	return 0;
+}
+
+static int i915_get_bridge_dev(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
+	if (!dev_priv->bridge_dev) {
+		DRM_ERROR("bridge device not found\n");
+		return -1;
+	}
 	return 0;
 }
 
@@ -888,20 +924,13 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
 			  uint32_t *preallocated_size)
 {
-	struct pci_dev *bridge_dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	u16 tmp = 0;
 	unsigned long overhead;
 	unsigned long stolen;
 
-	bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
-	if (!bridge_dev) {
-		DRM_ERROR("bridge device not found\n");
-		return -1;
-	}
-
 	/* Get the fb aperture size and "stolen" memory amount. */
-	pci_read_config_word(bridge_dev, INTEL_GMCH_CTRL, &tmp);
-	pci_dev_put(bridge_dev);
+	pci_read_config_word(dev_priv->bridge_dev, INTEL_GMCH_CTRL, &tmp);
 
 	*aperture_size = 1024 * 1024;
 	*preallocated_size = 1024 * 1024;
@@ -984,6 +1013,19 @@ static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
 	return 0;
 }
 
+/* true = enable decode, false = disable decoder */
+static unsigned int i915_vga_set_decode(void *cookie, bool state)
+{
+	struct drm_device *dev = cookie;
+
+	intel_modeset_vga_set_state(dev, state);
+	if (state)
+		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
+		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+	else
+		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+}
+
 static int i915_load_modeset_init(struct drm_device *dev,
 				  unsigned long prealloc_size,
 				  unsigned long agp_size)
@@ -1028,6 +1070,11 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	ret = intel_init_bios(dev);
 	if (ret)
 		DRM_INFO("failed to find VBIOS tables\n");
+
+	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
+	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
+	if (ret)
+		goto destroy_ringbuffer;
 
 	ret = drm_irq_install(dev);
 	if (ret)
@@ -1153,11 +1200,16 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	base = drm_get_resource_start(dev, mmio_bar);
 	size = drm_get_resource_len(dev, mmio_bar);
 
+	if (i915_get_bridge_dev(dev)) {
+		ret = -EIO;
+		goto free_priv;
+	}
+
 	dev_priv->regs = ioremap(base, size);
 	if (!dev_priv->regs) {
 		DRM_ERROR("failed to map registers\n");
 		ret = -EIO;
-		goto free_priv;
+		goto put_bridge;
 	}
 
         dev_priv->mm.gtt_mapping =
@@ -1269,6 +1321,8 @@ out_iomapfree:
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 out_rmmap:
 	iounmap(dev_priv->regs);
+put_bridge:
+	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
 	kfree(dev_priv);
 	return ret;
@@ -1289,6 +1343,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		drm_irq_uninstall(dev);
+		vga_client_register(dev->pdev, NULL, NULL, NULL);
 	}
 
 	if (dev->pdev->msi_enabled)
@@ -1312,6 +1367,7 @@ int i915_driver_unload(struct drm_device *dev)
 		i915_gem_lastclose(dev);
 	}
 
+	pci_dev_put(dev_priv->bridge_dev);
 	kfree(dev->dev_private);
 
 	return 0;
@@ -1321,7 +1377,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_i915_file_private *i915_file_priv;
 
-	DRM_DEBUG_DRIVER(I915_DRV, "\n");
+	DRM_DEBUG_DRIVER("\n");
 	i915_file_priv = (struct drm_i915_file_private *)
 	    kmalloc(sizeof(*i915_file_priv), GFP_KERNEL);
 
@@ -1352,7 +1408,7 @@ void i915_driver_lastclose(struct drm_device * dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (!dev_priv || drm_core_check_feature(dev, DRIVER_MODESET)) {
-		intelfb_restore();
+		drm_fb_helper_restore();
 		return;
 	}
 
