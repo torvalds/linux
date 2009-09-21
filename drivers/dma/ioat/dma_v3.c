@@ -448,7 +448,8 @@ ioat3_prep_memset_lock(struct dma_chan *c, dma_addr_t dest, int value,
 		/* pass */;
 	else
 		return NULL;
-	for (i = 0; i < num_descs; i++) {
+	i = 0;
+	do {
 		size_t xfer_size = min_t(size_t, len, 1 << ioat->xfercap_log);
 
 		desc = ioat2_get_ring_ent(ioat, idx + i);
@@ -463,7 +464,7 @@ ioat3_prep_memset_lock(struct dma_chan *c, dma_addr_t dest, int value,
 		len -= xfer_size;
 		dest += xfer_size;
 		dump_desc_dbg(ioat, desc);
-	}
+	} while (++i < num_descs);
 
 	desc->txd.flags = flags;
 	desc->len = total_len;
@@ -518,7 +519,8 @@ __ioat3_prep_xor_lock(struct dma_chan *c, enum sum_check_flags *result,
 		/* pass */;
 	else
 		return NULL;
-	for (i = 0; i < num_descs; i += 1 + with_ext) {
+	i = 0;
+	do {
 		struct ioat_raw_descriptor *descs[2];
 		size_t xfer_size = min_t(size_t, len, 1 << ioat->xfercap_log);
 		int s;
@@ -546,7 +548,7 @@ __ioat3_prep_xor_lock(struct dma_chan *c, enum sum_check_flags *result,
 		len -= xfer_size;
 		offset += xfer_size;
 		dump_desc_dbg(ioat, desc);
-	}
+	} while ((i += 1 + with_ext) < num_descs);
 
 	/* last xor descriptor carries the unmap parameters and fence bit */
 	desc->txd.flags = flags;
@@ -664,7 +666,8 @@ __ioat3_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 		/* pass */;
 	else
 		return NULL;
-	for (i = 0; i < num_descs; i += 1 + with_ext) {
+	i = 0;
+	do {
 		struct ioat_raw_descriptor *descs[2];
 		size_t xfer_size = min_t(size_t, len, 1 << ioat->xfercap_log);
 
@@ -703,7 +706,7 @@ __ioat3_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 
 		len -= xfer_size;
 		offset += xfer_size;
-	}
+	} while ((i += 1 + with_ext) < num_descs);
 
 	/* last pq descriptor carries the unmap parameters and fence bit */
 	desc->txd.flags = flags;
