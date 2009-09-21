@@ -662,6 +662,33 @@ EXPORT_SYMBOL(acpi_bus_unregister_driver);
 /* --------------------------------------------------------------------------
                                  Device Enumeration
    -------------------------------------------------------------------------- */
+static struct acpi_device *acpi_bus_get_parent(acpi_handle handle)
+{
+	acpi_status status;
+	int ret;
+	struct acpi_device *device;
+
+	/*
+	 * Fixed hardware devices do not appear in the namespace and do not
+	 * have handles, but we fabricate acpi_devices for them, so we have
+	 * to deal with them specially.
+	 */
+	if (handle == NULL)
+		return acpi_root;
+
+	do {
+		status = acpi_get_parent(handle, &handle);
+		if (status == AE_NULL_ENTRY)
+			return NULL;
+		if (ACPI_FAILURE(status))
+			return acpi_root;
+
+		ret = acpi_bus_get_device(handle, &device);
+		if (ret == 0)
+			return device;
+	} while (1);
+}
+
 acpi_status
 acpi_bus_get_ejd(acpi_handle handle, acpi_handle *ejd)
 {
@@ -1217,10 +1244,9 @@ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
 	return 0;
 }
 
-static int
-acpi_add_single_object(struct acpi_device **child,
-		       struct acpi_device *parent, acpi_handle handle, int type,
-			struct acpi_bus_ops *ops)
+static int acpi_add_single_object(struct acpi_device **child,
+				  acpi_handle handle, int type,
+				  struct acpi_bus_ops *ops)
 {
 	int result;
 	struct acpi_device *device;
@@ -1234,7 +1260,7 @@ acpi_add_single_object(struct acpi_device **child,
 
 	device->device_type = type;
 	device->handle = handle;
-	device->parent = parent;
+	device->parent = acpi_bus_get_parent(handle);
 	device->bus_ops = *ops; /* workround for not call .start */
 
 	acpi_device_get_busid(device);
@@ -1434,8 +1460,8 @@ static int acpi_bus_scan(struct acpi_device *start, struct acpi_bus_ops *ops)
 		}
 
 		if (ops->acpi_op_add)
-			status = acpi_add_single_object(&child, parent,
-				chandle, type, ops);
+			status = acpi_add_single_object(&child, chandle, type,
+							ops);
 		else
 			status = acpi_bus_get_device(chandle, &child);
 
@@ -1488,7 +1514,7 @@ acpi_bus_add(struct acpi_device **child,
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_add = 1;
 
-	result = acpi_add_single_object(child, parent, handle, type, &ops);
+	result = acpi_add_single_object(child, handle, type, &ops);
 	if (!result)
 		result = acpi_bus_scan(*child, &ops);
 
@@ -1584,15 +1610,13 @@ static int acpi_bus_scan_fixed(void)
 	 * Enumerate all fixed-feature devices.
 	 */
 	if ((acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON) == 0) {
-		result = acpi_add_single_object(&device, acpi_root,
-						NULL,
+		result = acpi_add_single_object(&device, NULL,
 						ACPI_BUS_TYPE_POWER_BUTTON,
 						&ops);
 	}
 
 	if ((acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON) == 0) {
-		result = acpi_add_single_object(&device, acpi_root,
-						NULL,
+		result = acpi_add_single_object(&device, NULL,
 						ACPI_BUS_TYPE_SLEEP_BUTTON,
 						&ops);
 	}
@@ -1618,7 +1642,7 @@ int __init acpi_scan_init(void)
 	/*
 	 * Create the root device in the bus's device tree
 	 */
-	result = acpi_add_single_object(&acpi_root, NULL, ACPI_ROOT_OBJECT,
+	result = acpi_add_single_object(&acpi_root, ACPI_ROOT_OBJECT,
 					ACPI_BUS_TYPE_SYSTEM, &ops);
 	if (result)
 		goto Done;
