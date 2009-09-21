@@ -301,7 +301,7 @@ static int da9034_set_ldo12_voltage(struct regulator_dev *rdev,
 	}
 
 	val = (min_uV - info->min_uV + info->step_uV - 1) / info->step_uV;
-	val = (val > 7 && val < 20) ? 8 : val - 12;
+	val = (val >= 20) ? val - 12 : ((val > 7) ? 8 : val);
 	val <<= info->vol_shift;
 	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
 
