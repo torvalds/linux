@@ -1299,7 +1299,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 
 	tvnorm = &bttv_tvnorms[norm];
 
-	if (!memcmp(&bttv_tvnorms[btv->tvnorm].cropcap, &tvnorm->cropcap,
+	if (memcmp(&bttv_tvnorms[btv->tvnorm].cropcap, &tvnorm->cropcap,
 		    sizeof (tvnorm->cropcap))) {
 		bttv_crop_reset(&btv->crop[0], norm);
 		btv->crop[1] = btv->crop[0]; /* current = default */
