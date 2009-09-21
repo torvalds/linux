@@ -7,12 +7,6 @@
  * include/linux for final version.
  *
  */
-struct poch_cbuf_header {
-	__s32 group_size_bytes;
-	__s32 group_count;
-	__s32 group_offsets[0];
-};
-
 struct poch_counters {
 	__u32 fifo_empty;
 	__u32 fifo_overflow;
