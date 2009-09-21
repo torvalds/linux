@@ -1155,6 +1155,16 @@ static void acpi_device_set_id(struct acpi_device *device)
 		break;
 	}
 
+	/*
+	 * We build acpi_devices for some objects that don't have _HID or _CID,
+	 * e.g., PCI bridges and slots.  Drivers can't bind to these objects,
+	 * but we do use them indirectly by traversing the acpi_device tree.
+	 * This generic ID isn't useful for driver binding, but it provides
+	 * the useful property that "every acpi_device has an ID."
+	 */
+	if (!hid && !cid_list && !cid_add)
+		hid = "device";
+
 	if (hid) {
 		device->pnp.hardware_id = ACPI_ALLOCATE_ZEROED(strlen (hid) + 1);
 		if (device->pnp.hardware_id) {
