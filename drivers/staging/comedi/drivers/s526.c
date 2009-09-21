@@ -375,7 +375,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (thisboard->have_dio) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = 2;
+		s->n_chan = 8;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = s526_dio_insn_bits;
@@ -949,7 +949,7 @@ static int s526_dio_insn_bits(struct comedi_device *dev,
 	data[1] = inw(ADDR_REG(REG_DIO)) & 0xFF;	/*  low 8 bits are the data */
 	/* or we could just return the software copy of the output values if
 	 * it was a purely digital output subdevice */
-	/* data[1]=s->state; */
+	/* data[1]=s->state & 0xFF; */
 
 	return 2;
 }
@@ -959,28 +959,33 @@ static int s526_dio_insn_config(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
-	short value;
+	int group, mask;
 
 	printk("S526 DIO insn_config\n");
-
-	if (insn->n != 1)
-		return -EINVAL;
-
-	value = inw(ADDR_REG(REG_DIO));
 
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
 	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
 
-	if (data[0] == COMEDI_OUTPUT) {
-		value |= 1 << (chan + 10);	/*  bit 10/11 set the group 1/2's mode */
-		s->io_bits |= (0xF << chan);
-	} else {
-		value &= ~(1 << (chan + 10));	/*  1 is output, 0 is input. */
-		s->io_bits &= ~(0xF << chan);
+	group = chan >> 2;
+	mask = 0xF << (group << 2);
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->state |= 1 << (group + 10);  // bit 10/11 set the group 1/2's mode
+		s->io_bits |= mask;
+		break;
+	case INSN_CONFIG_DIO_INPUT:
+		s->state &= ~(1 << (group + 10));// 1 is output, 0 is input.
+		s->io_bits &= ~mask;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+	default:
+		return -EINVAL;
 	}
-	outw(value, ADDR_REG(REG_DIO));
+	outw(s->state, ADDR_REG(REG_DIO));
 
 	return 1;
 }
