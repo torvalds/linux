@@ -262,7 +262,8 @@ struct acpi_device_wakeup {
 /* Device */
 
 struct acpi_device {
-	acpi_handle handle;
+	int device_type;
+	acpi_handle handle;		/* no handle for fixed hardware */
 	struct acpi_device *parent;
 	struct list_head children;
 	struct list_head node;
