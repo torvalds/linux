@@ -916,7 +916,7 @@ static int acpi_bus_get_flags(struct acpi_device *device)
 	return 0;
 }
 
-static void acpi_device_get_busid(struct acpi_device *device, int type)
+static void acpi_device_get_busid(struct acpi_device *device)
 {
 	char bus_id[5] = { '?', 0 };
 	struct acpi_buffer buffer = { sizeof(bus_id), bus_id };
@@ -928,7 +928,7 @@ static void acpi_device_get_busid(struct acpi_device *device, int type)
 	 * The device's Bus ID is simply the object name.
 	 * TBD: Shouldn't this value be unique (within the ACPI namespace)?
 	 */
-	switch (type) {
+	switch (device->device_type) {
 	case ACPI_BUS_TYPE_SYSTEM:
 		strcpy(device->pnp.bus_id, "ACPI");
 		break;
@@ -1055,7 +1055,7 @@ acpi_add_cid(
 	return cid;
 }
 
-static void acpi_device_set_id(struct acpi_device *device, int type)
+static void acpi_device_set_id(struct acpi_device *device)
 {
 	struct acpi_device_info *info = NULL;
 	char *hid = NULL;
@@ -1064,7 +1064,7 @@ static void acpi_device_set_id(struct acpi_device *device, int type)
 	char *cid_add = NULL;
 	acpi_status status;
 
-	switch (type) {
+	switch (device->device_type) {
 	case ACPI_BUS_TYPE_DEVICE:
 		status = acpi_get_object_info(device->handle, &info);
 		if (ACPI_FAILURE(status)) {
@@ -1122,7 +1122,7 @@ static void acpi_device_set_id(struct acpi_device *device, int type)
 	 * Fix for the system root bus device -- the only root-level device.
 	 */
 	if (((acpi_handle)device->parent == ACPI_ROOT_OBJECT) &&
-	     (type == ACPI_BUS_TYPE_DEVICE)) {
+	     (device->device_type == ACPI_BUS_TYPE_DEVICE)) {
 		hid = ACPI_BUS_HID;
 		strcpy(device->pnp.device_name, ACPI_BUS_DEVICE_NAME);
 		strcpy(device->pnp.device_class, ACPI_BUS_CLASS);
@@ -1241,7 +1241,7 @@ acpi_add_single_object(struct acpi_device **child,
 	device->parent = parent;
 	device->bus_ops = *ops; /* workround for not call .start */
 
-	acpi_device_get_busid(device, type);
+	acpi_device_get_busid(device);
 
 	/*
 	 * Flags
@@ -1304,7 +1304,7 @@ acpi_add_single_object(struct acpi_device **child,
 	 * Hardware ID, Unique ID, & Bus Address
 	 * -------------------------------------
 	 */
-	acpi_device_set_id(device, type);
+	acpi_device_set_id(device);
 
 	/*
 	 * Power Management
