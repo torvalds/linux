@@ -42,6 +42,11 @@
 #include <linux/writeback.h>
 #include <linux/pagevec.h>
 #include <linux/swap.h>
+#include <linux/security.h>
+#include <linux/fsnotify.h>
+#include <linux/quotaops.h>
+#include <linux/namei.h>
+#include <linux/mount.h>
 
 struct ocfs2_cow_context {
 	struct inode *inode;
@@ -4142,6 +4147,167 @@ out:
 		if (error)
 			iput(new_orphan_inode);
 	}
+
+	return error;
+}
+
+/*
+ * Below here are the bits used by OCFS2_IOC_REFLINK() to fake
+ * sys_reflink().  This will go away when vfs_reflink() exists in
+ * fs/namei.c.
+ */
+
+/* copied from may_create in VFS. */
+static inline int ocfs2_may_create(struct inode *dir, struct dentry *child)
+{
+	if (child->d_inode)
+		return -EEXIST;
+	if (IS_DEADDIR(dir))
+		return -ENOENT;
+	return inode_permission(dir, MAY_WRITE | MAY_EXEC);
+}
+
+/* copied from user_path_parent. */
+static int ocfs2_user_path_parent(const char __user *path,
+				  struct nameidata *nd, char **name)
+{
+	char *s = getname(path);
+	int error;
+
+	if (IS_ERR(s))
+		return PTR_ERR(s);
+
+	error = path_lookup(s, LOOKUP_PARENT, nd);
+	if (error)
+		putname(s);
+	else
+		*name = s;
+
+	return error;
+}
+
+/**
+ * ocfs2_vfs_reflink - Create a reference-counted link
+ *
+ * @old_dentry:        source dentry + inode
+ * @dir:       directory to create the target
+ * @new_dentry:        target dentry
+ * @preserve:  if true, preserve all file attributes
+ */
+int ocfs2_vfs_reflink(struct dentry *old_dentry, struct inode *dir,
+		      struct dentry *new_dentry, bool preserve)
+{
+	struct inode *inode = old_dentry->d_inode;
+	int error;
+
+	if (!inode)
+		return -ENOENT;
+
+	error = ocfs2_may_create(dir, new_dentry);
+	if (error)
+		return error;
+
+	if (dir->i_sb != inode->i_sb)
+		return -EXDEV;
+
+	/*
+	 * A reflink to an append-only or immutable file cannot be created.
+	 */
+	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
+		return -EPERM;
+
+	/* Only regular files can be reflinked. */
+	if (!S_ISREG(inode->i_mode))
+		return -EPERM;
+
+	/*
+	 * If the caller wants to preserve ownership, they require the
+	 * rights to do so.
+	 */
+	if (preserve) {
+		if ((current_fsuid() != inode->i_uid) && !capable(CAP_CHOWN))
+			return -EPERM;
+		if (!in_group_p(inode->i_gid) && !capable(CAP_CHOWN))
+			return -EPERM;
+	}
+
+	/*
+	 * If the caller is modifying any aspect of the attributes, they
+	 * are not creating a snapshot.  They need read permission on the
+	 * file.
+	 */
+	if (!preserve) {
+		error = inode_permission(inode, MAY_READ);
+		if (error)
+			return error;
+	}
+
+	mutex_lock(&inode->i_mutex);
+	vfs_dq_init(dir);
+	error = ocfs2_reflink(old_dentry, dir, new_dentry, preserve);
+	mutex_unlock(&inode->i_mutex);
+	if (!error)
+		fsnotify_create(dir, new_dentry);
+	return error;
+}
+/*
+ * Most codes are copied from sys_linkat.
+ */
+int ocfs2_reflink_ioctl(struct inode *inode,
+			const char __user *oldname,
+			const char __user *newname,
+			bool preserve)
+{
+	struct dentry *new_dentry;
+	struct nameidata nd;
+	struct path old_path;
+	int error;
+	char *to = NULL;
+
+	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb)))
+		return -EOPNOTSUPP;
+
+	error = user_path_at(AT_FDCWD, oldname, 0, &old_path);
+	if (error) {
+		mlog_errno(error);
+		return error;
+	}
+
+	error = ocfs2_user_path_parent(newname, &nd, &to);
+	if (error) {
+		mlog_errno(error);
+		goto out;
+	}
+
+	error = -EXDEV;
+	if (old_path.mnt != nd.path.mnt)
+		goto out_release;
+	new_dentry = lookup_create(&nd, 0);
+	error = PTR_ERR(new_dentry);
+	if (IS_ERR(new_dentry)) {
+		mlog_errno(error);
+		goto out_unlock;
+	}
+
+	error = mnt_want_write(nd.path.mnt);
+	if (error) {
+		mlog_errno(error);
+		goto out_dput;
+	}
+
+	error = ocfs2_vfs_reflink(old_path.dentry,
+				  nd.path.dentry->d_inode,
+				  new_dentry, preserve);
+	mnt_drop_write(nd.path.mnt);
+out_dput:
+	dput(new_dentry);
+out_unlock:
+	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
+out_release:
+	path_put(&nd.path);
+	putname(to);
+out:
+	path_put(&old_path);
 
 	return error;
 }

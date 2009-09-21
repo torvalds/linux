@@ -301,6 +301,15 @@ struct ocfs2_new_group_input {
 #define OCFS2_IOC_GROUP_ADD	_IOW('o', 2,struct ocfs2_new_group_input)
 #define OCFS2_IOC_GROUP_ADD64	_IOW('o', 3,struct ocfs2_new_group_input)
 
+/* Used to pass 2 file names to reflink. */
+struct reflink_arguments {
+	__u64 old_path;
+	__u64 new_path;
+	__u64 preserve;
+};
+#define OCFS2_IOC_REFLINK	_IOW('o', 4, struct reflink_arguments)
+
+
 /*
  * Journal Flags (ocfs2_dinode.id1.journal1.i_flags)
  */
