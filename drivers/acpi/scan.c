@@ -1387,7 +1387,7 @@ end:
 	return result;
 }
 
-static int acpi_bus_scan(struct acpi_device *start, struct acpi_bus_ops *ops)
+static int acpi_bus_scan(acpi_handle handle, struct acpi_bus_ops *ops)
 {
 	acpi_status status = AE_OK;
 	struct acpi_device *parent = NULL;
@@ -1396,13 +1396,16 @@ static int acpi_bus_scan(struct acpi_device *start, struct acpi_bus_ops *ops)
 	acpi_handle chandle = NULL;
 	acpi_object_type type = 0;
 	u32 level = 1;
+	int ret;
 
-
-	if (!start)
-		return -EINVAL;
-
-	parent = start;
-	phandle = start->handle;
+	/*
+	 * We must have an acpi_device for the starting node already, and
+	 * we scan its children.
+	 */
+	phandle = handle;
+	ret = acpi_bus_get_device(phandle, &parent);
+	if (ret)
+		return ret;
 
 	/*
 	 * Parse through the ACPI namespace, identify all 'devices', and
@@ -1516,7 +1519,7 @@ acpi_bus_add(struct acpi_device **child,
 
 	result = acpi_add_single_object(child, handle, type, &ops);
 	if (!result)
-		result = acpi_bus_scan(*child, &ops);
+		result = acpi_bus_scan((*child)->handle, &ops);
 
 	return result;
 }
@@ -1527,16 +1530,13 @@ int acpi_bus_start(struct acpi_device *device)
 	int result;
 	struct acpi_bus_ops ops;
 
-
-	if (!device)
-		return -EINVAL;
+	memset(&ops, 0, sizeof(ops));
+	ops.acpi_op_start = 1;
 
 	result = acpi_start_single_object(device);
-	if (!result) {
-		memset(&ops, 0, sizeof(ops));
-		ops.acpi_op_start = 1;
-		result = acpi_bus_scan(device, &ops);
-	}
+	if (!result)
+		result = acpi_bus_scan(device->handle, &ops);
+
 	return result;
 }
 EXPORT_SYMBOL(acpi_bus_start);
@@ -1653,7 +1653,7 @@ int __init acpi_scan_init(void)
 	result = acpi_bus_scan_fixed();
 
 	if (!result)
-		result = acpi_bus_scan(acpi_root, &ops);
+		result = acpi_bus_scan(acpi_root->handle, &ops);
 
 	if (result)
 		acpi_device_unregister(acpi_root, ACPI_BUS_REMOVAL_NORMAL);
