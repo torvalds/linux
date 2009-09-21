@@ -170,6 +170,19 @@ static struct em28xx_reg_seq pinnacle_hybrid_pro_digital[] = {
 	{	-1,		-1,	-1,		-1},
 };
 
+/* eb1a:2868 Reddo DVB-C USB TV Box
+   GPIO4 - CU1216L NIM
+   Other GPIOs seems to be don't care. */
+static struct em28xx_reg_seq reddo_dvb_c_usb_box[] = {
+	{EM28XX_R08_GPIO,	0xfe,	0xff,		10},
+	{EM28XX_R08_GPIO,	0xde,	0xff,		10},
+	{EM28XX_R08_GPIO,	0xfe,	0xff,		10},
+	{EM28XX_R08_GPIO,	0xff,	0xff,		10},
+	{EM28XX_R08_GPIO,	0x7f,	0xff,		10},
+	{EM28XX_R08_GPIO,	0x6f,	0xff,		10},
+	{EM28XX_R08_GPIO,	0xff,	0xff,		10},
+	{-1,			-1,	-1,		-1},
+};
 
 /* Callback for the most boards */
 static struct em28xx_reg_seq default_tuner_gpio[] = {
@@ -1566,6 +1579,14 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = evga_indtube_analog,
 		} },
 	},
+	/* eb1a:2868 Empia EM2870 + Philips CU1216L NIM (Philips TDA10023 +
+	   Infineon TUA6034) */
+	[EM2870_BOARD_REDDO_DVB_C_USB_BOX] = {
+		.name          = "Reddo DVB-C USB TV Box",
+		.tuner_type    = TUNER_ABSENT,
+		.has_dvb       = 1,
+		.dvb_gpio      = reddo_dvb_c_usb_box,
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1592,6 +1613,8 @@ struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0xeb1a, 0x2881),
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2883),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2868),
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0xe300),
 			.driver_info = EM2861_BOARD_KWORLD_PVRTV_300U },
@@ -1696,6 +1719,7 @@ static struct em28xx_hash_table em28xx_eeprom_hash[] = {
 	{0x166a0441, EM2880_BOARD_EMPIRE_DUAL_TV, TUNER_XC2028},
 	{0xcee44a99, EM2882_BOARD_EVGA_INDTUBE, TUNER_XC2028},
 	{0xb8846b20, EM2881_BOARD_PINNACLE_HYBRID_PRO, TUNER_XC2028},
+	{0x63f653bd, EM2870_BOARD_REDDO_DVB_C_USB_BOX, TUNER_ABSENT},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
@@ -2348,55 +2372,55 @@ void em28xx_card_setup(struct em28xx *dev)
 
 	/* request some modules */
 	if (dev->board.has_msp34xx)
-		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			"msp3400", "msp3400", msp3400_addrs);
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"msp3400", "msp3400", 0, msp3400_addrs);
 
 	if (dev->board.decoder == EM28XX_SAA711X)
-		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			"saa7115", "saa7115_auto", saa711x_addrs);
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"saa7115", "saa7115_auto", 0, saa711x_addrs);
 
 	if (dev->board.decoder == EM28XX_TVP5150)
-		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			"tvp5150", "tvp5150", tvp5150_addrs);
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"tvp5150", "tvp5150", 0, tvp5150_addrs);
 
 	if (dev->em28xx_sensor == EM28XX_MT9V011) {
 		struct v4l2_subdev *sd;
 
-		sd = v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
-			 &dev->i2c_adap, "mt9v011", "mt9v011", mt9v011_addrs);
+		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
+			 &dev->i2c_adap, "mt9v011", "mt9v011", 0, mt9v011_addrs);
 		v4l2_subdev_call(sd, core, s_config, 0, &dev->sensor_xtal);
 	}
 
 
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			"tvaudio", "tvaudio", dev->board.tvaudio_addr);
+			"tvaudio", "tvaudio", dev->board.tvaudio_addr, NULL);
 
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		int has_demod = (dev->tda9887_conf & TDA9887_PRESENT);
 
 		if (dev->board.radio.type)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-				"tuner", "tuner", dev->board.radio_addr);
+				"tuner", "tuner", dev->board.radio_addr, NULL);
 
 		if (has_demod)
-			v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+			v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_adap, "tuner", "tuner",
-				v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (dev->tuner_addr == 0) {
 			enum v4l2_i2c_tuner_type type =
 				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 			struct v4l2_subdev *sd;
 
-			sd = v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_adap, "tuner", "tuner",
-				v4l2_i2c_tuner_addrs(type));
+				0, v4l2_i2c_tuner_addrs(type));
 
 			if (sd)
 				dev->tuner_addr = v4l2_i2c_subdev_addr(sd);
 		} else {
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-				"tuner", "tuner", dev->tuner_addr);
+				"tuner", "tuner", dev->tuner_addr, NULL);
 		}
 	}
 
@@ -2570,7 +2594,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	 * Default format, used for tvp5150 or saa711x output formats
 	 */
 	dev->vinmode = 0x10;
-	dev->vinctl  = 0x11;
+	dev->vinctl  = EM28XX_VINCTRL_INTERLACED |
+		       EM28XX_VINCTRL_CCIR656_ENABLE;
 
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
@@ -2589,6 +2614,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vidq.queued);
+	INIT_LIST_HEAD(&dev->vbiq.active);
+	INIT_LIST_HEAD(&dev->vbiq.queued);
 
 
 	if (dev->board.has_msp34xx) {

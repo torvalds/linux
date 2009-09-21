@@ -67,6 +67,17 @@ enum tda18271_i2c_gate {
 	TDA18271_GATE_DIGITAL,
 };
 
+enum tda18271_output_options {
+	/* slave tuner output & loop thru & xtal oscillator always on */
+	TDA18271_OUTPUT_LT_XT_ON = 0,
+
+	/* slave tuner output loop thru off */
+	TDA18271_OUTPUT_LT_OFF = 1,
+
+	/* xtal oscillator off */
+	TDA18271_OUTPUT_XT_OFF = 2,
+};
+
 struct tda18271_config {
 	/* override default if freq / std settings (optional) */
 	struct tda18271_std_map *std_map;
@@ -76,6 +87,9 @@ struct tda18271_config {
 
 	/* use i2c gate provided by analog or digital demod */
 	enum tda18271_i2c_gate gate;
+
+	/* output options that can be disabled */
+	enum tda18271_output_options output_opt;
 
 	/* force rf tracking filter calibration on startup */
 	unsigned int rf_cal_on_startup:1;

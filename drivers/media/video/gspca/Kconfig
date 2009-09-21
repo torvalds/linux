@@ -19,6 +19,7 @@ if USB_GSPCA && VIDEO_V4L2
 
 source "drivers/media/video/gspca/m5602/Kconfig"
 source "drivers/media/video/gspca/stv06xx/Kconfig"
+source "drivers/media/video/gspca/gl860/Kconfig"
 
 config USB_GSPCA_CONEX
 	tristate "Conexant Camera Driver"
