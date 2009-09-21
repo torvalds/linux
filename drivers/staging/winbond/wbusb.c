@@ -51,10 +51,26 @@ static struct ieee80211_supported_band wbsoft_band_2GHz = {
 	.n_bitrates	= ARRAY_SIZE(wbsoft_rates),
 };
 
+static void hal_set_beacon_period(struct hw_data *pHwData, u16 beacon_period)
+{
+	u32 tmp;
+
+	if (pHwData->SurpriseRemove)
+		return;
+
+	pHwData->BeaconPeriod = beacon_period;
+	tmp = pHwData->BeaconPeriod << 16;
+	tmp |= pHwData->ProbeDelay;
+	Wb35Reg_Write(pHwData, 0x0848, tmp);
+}
+
 static int wbsoft_add_interface(struct ieee80211_hw *dev,
 				struct ieee80211_if_init_conf *conf)
 {
-	printk("wbsoft_add interface called\n");
+	struct wbsoft_priv *priv = dev->priv;
+
+	hal_set_beacon_period(&priv->sHwData, conf->vif->bss_conf.beacon_int);
+
 	return 0;
 }
 
@@ -136,19 +152,6 @@ static void hal_set_radio_mode(struct hw_data *pHwData, unsigned char radio_off)
 		reg->M24_MacControl |= 0x00000040;
 	}
 	Wb35Reg_Write(pHwData, 0x0824, reg->M24_MacControl);
-}
-
-static void hal_set_beacon_period(struct hw_data *pHwData, u16 beacon_period)
-{
-	u32 tmp;
-
-	if (pHwData->SurpriseRemove)
-		return;
-
-	pHwData->BeaconPeriod = beacon_period;
-	tmp = pHwData->BeaconPeriod << 16;
-	tmp |= pHwData->ProbeDelay;
-	Wb35Reg_Write(pHwData, 0x0848, tmp);
 }
 
 static void
@@ -244,7 +247,6 @@ static void hal_set_accept_beacon(struct hw_data *pHwData, u8 enable)
 static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 {
 	struct wbsoft_priv *priv = dev->priv;
-	struct ieee80211_conf *conf = &dev->conf;
 	ChanInfo ch;
 
 	printk("wbsoft_config called\n");
@@ -254,7 +256,6 @@ static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 	ch.ChanNo = 1;
 
 	hal_set_current_channel(&priv->sHwData, ch);
-	hal_set_beacon_period(&priv->sHwData, conf->beacon_int);
 	hal_set_accept_broadcast(&priv->sHwData, 1);
 	hal_set_accept_promiscuous(&priv->sHwData, 1);
 	hal_set_accept_multicast(&priv->sHwData, 1);
