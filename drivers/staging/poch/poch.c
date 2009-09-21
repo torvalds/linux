@@ -201,6 +201,8 @@ struct channel_info {
 	struct page *header_pg;
 	unsigned long header_size;
 
+	/* Last group consumed by user space. */
+	unsigned int consumed;
 	/* Last group indicated as 'complete' to user space. */
 	unsigned int transfer;
 
@@ -589,6 +591,7 @@ static int poch_channel_init(struct channel_info *channel,
 	if (ret != 0)
 		goto out;
 
+	channel->consumed = 0;
 	channel->transfer = 0;
 
 	/* Allocate memory to hold group information. */
@@ -1033,6 +1036,51 @@ static int poch_ioctl(struct inode *inode, struct file *filp,
 			break;
 		}
 		break;
+	case POCH_IOC_CONSUME:
+	{
+		int available;
+		int nfetch;
+		unsigned int from;
+		unsigned int count;
+		unsigned int i, j;
+		struct poch_consume consume;
+		struct poch_consume *uconsume;
+
+		uconsume = argp;
+		ret = copy_from_user(&consume, uconsume, sizeof(consume));
+		if (ret)
+			return ret;
+
+		spin_lock_irq(&channel->group_offsets_lock);
+
+		channel->consumed += consume.nflush;
+		channel->consumed %= channel->group_count;
+
+		available = channel->transfer - channel->consumed;
+		if (available < 0)
+			available += channel->group_count;
+
+		from = channel->consumed;
+
+		spin_unlock_irq(&channel->group_offsets_lock);
+
+		nfetch = consume.nfetch;
+		count = min(available, nfetch);
+
+		for (i = 0; i < count; i++) {
+			j = (from + i) % channel->group_count;
+			ret = put_user(channel->groups[j].user_offset,
+				       &consume.offsets[i]);
+			if (ret)
+				return -EFAULT;
+		}
+
+		ret = put_user(count, &uconsume->nfetch);
+		if (ret)
+			return -EFAULT;
+
+		break;
+	}
 	case POCH_IOC_GET_COUNTERS:
 		if (!access_ok(VERIFY_WRITE, argp, sizeof(struct poch_counters)))
 			return -EFAULT;
@@ -1108,11 +1156,17 @@ static void poch_irq_dma(struct channel_info *channel)
 	for (i = 0; i < groups_done; i++) {
 		j = (prev_transfer + i) % channel->group_count;
 		group_offsets[j] = groups[j].user_offset;
+
+		channel->transfer += 1;
+		channel->transfer %= channel->group_count;
+
+		if (channel->transfer == channel->consumed) {
+			channel->consumed += 1;
+			channel->consumed %= channel->group_count;
+		}
 	}
 
 	spin_unlock(&channel->group_offsets_lock);
-
-	channel->transfer = curr_transfer;
 
 	wake_up_interruptible(&channel->wq);
 }
