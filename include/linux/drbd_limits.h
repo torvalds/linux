@@ -70,11 +70,11 @@
   /* I don't think that a tcp send buffer of more than 10M is usefull */
 #define DRBD_SNDBUF_SIZE_MIN  0
 #define DRBD_SNDBUF_SIZE_MAX  (10<<20)
-#define DRBD_SNDBUF_SIZE_DEF  (2*65535)
+#define DRBD_SNDBUF_SIZE_DEF  0
 
 #define DRBD_RCVBUF_SIZE_MIN  0
 #define DRBD_RCVBUF_SIZE_MAX  (10<<20)
-#define DRBD_RCVBUF_SIZE_DEF  (2*65535)
+#define DRBD_RCVBUF_SIZE_DEF  0
 
   /* @4k PageSize -> 128kB - 512MB */
 #define DRBD_MAX_BUFFERS_MIN  32
