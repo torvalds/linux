@@ -1755,7 +1755,6 @@ extern cputime_t task_gtime(struct task_struct *p);
 
 #define RCU_READ_UNLOCK_BLOCKED (1 << 0) /* blocked while in RCU read-side. */
 #define RCU_READ_UNLOCK_NEED_QS (1 << 1) /* RCU core needs CPU response. */
-#define RCU_READ_UNLOCK_GOT_QS  (1 << 2) /* CPU has responded to RCU core. */
 
 static inline void rcu_copy_process(struct task_struct *p)
 {
