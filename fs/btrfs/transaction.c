@@ -779,23 +779,13 @@ static noinline int finish_pending_snapshot(struct btrfs_fs_info *fs_info,
 	ret = btrfs_update_inode(trans, parent_root, parent_inode);
 	BUG_ON(ret);
 
-	/* add the backref first */
 	ret = btrfs_add_root_ref(trans, parent_root->fs_info->tree_root,
 				 pending->root_key.objectid,
-				 BTRFS_ROOT_BACKREF_KEY,
 				 parent_root->root_key.objectid,
 				 parent_inode->i_ino, index, pending->name,
 				 namelen);
 
 	BUG_ON(ret);
-
-	/* now add the forward ref */
-	ret = btrfs_add_root_ref(trans, parent_root->fs_info->tree_root,
-				 parent_root->root_key.objectid,
-				 BTRFS_ROOT_REF_KEY,
-				 pending->root_key.objectid,
-				 parent_inode->i_ino, index, pending->name,
-				 namelen);
 
 	inode = btrfs_lookup_dentry(parent_inode, pending->dentry);
 	d_instantiate(pending->dentry, inode);

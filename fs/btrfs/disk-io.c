@@ -41,6 +41,7 @@
 
 static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
+static void free_fs_root(struct btrfs_root *root);
 
 static atomic_t btrfs_bdi_num = ATOMIC_INIT(0);
 
@@ -951,14 +952,16 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 		     root, fs_info, objectid);
 	ret = btrfs_find_last_root(tree_root, objectid,
 				   &root->root_item, &root->root_key);
+	if (ret > 0)
+		return -ENOENT;
 	BUG_ON(ret);
 
 	generation = btrfs_root_generation(&root->root_item);
 	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
 				     blocksize, generation);
-	root->commit_root = btrfs_root_node(root);
 	BUG_ON(!root->node);
+	root->commit_root = btrfs_root_node(root);
 	return 0;
 }
 
@@ -1176,39 +1179,66 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 		return fs_info->dev_root;
 	if (location->objectid == BTRFS_CSUM_TREE_OBJECTID)
 		return fs_info->csum_root;
-
+again:
+	spin_lock(&fs_info->fs_roots_radix_lock);
 	root = radix_tree_lookup(&fs_info->fs_roots_radix,
 				 (unsigned long)location->objectid);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
 	if (root)
 		return root;
+
+	ret = btrfs_find_orphan_item(fs_info->tree_root, location->objectid);
+	if (ret == 0)
+		ret = -ENOENT;
+	if (ret < 0)
+		return ERR_PTR(ret);
 
 	root = btrfs_read_fs_root_no_radix(fs_info->tree_root, location);
 	if (IS_ERR(root))
 		return root;
 
+	WARN_ON(btrfs_root_refs(&root->root_item) == 0);
 	set_anon_super(&root->anon_super, NULL);
 
+	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	if (ret)
+		goto fail;
+
+	spin_lock(&fs_info->fs_roots_radix_lock);
 	ret = radix_tree_insert(&fs_info->fs_roots_radix,
 				(unsigned long)root->root_key.objectid,
 				root);
+	if (ret == 0)
+		root->in_radix = 1;
+	spin_unlock(&fs_info->fs_roots_radix_lock);
+	radix_tree_preload_end();
 	if (ret) {
-		free_extent_buffer(root->node);
-		kfree(root);
-		return ERR_PTR(ret);
+		if (ret == -EEXIST) {
+			free_fs_root(root);
+			goto again;
+		}
+		goto fail;
 	}
-	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
-		ret = btrfs_find_dead_roots(fs_info->tree_root,
-					    root->root_key.objectid);
-		BUG_ON(ret);
+
+	ret = btrfs_find_dead_roots(fs_info->tree_root,
+				    root->root_key.objectid);
+	WARN_ON(ret);
+
+	if (!(fs_info->sb->s_flags & MS_RDONLY))
 		btrfs_orphan_cleanup(root);
-	}
+
 	return root;
+fail:
+	free_fs_root(root);
+	return ERR_PTR(ret);
 }
 
 struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 				      struct btrfs_key *location,
 				      const char *name, int namelen)
 {
+	return btrfs_read_fs_root_no_name(fs_info, location);
+#if 0
 	struct btrfs_root *root;
 	int ret;
 
@@ -1225,7 +1255,7 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 		kfree(root);
 		return ERR_PTR(ret);
 	}
-#if 0
+
 	ret = btrfs_sysfs_add_root(root);
 	if (ret) {
 		free_extent_buffer(root->node);
@@ -1233,9 +1263,9 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 		kfree(root);
 		return ERR_PTR(ret);
 	}
-#endif
 	root->in_sysfs = 1;
 	return root;
+#endif
 }
 
 static int btrfs_congested_fn(void *congested_data, int bdi_bits)
@@ -2229,20 +2259,25 @@ int write_ctree_super(struct btrfs_trans_handle *trans,
 
 int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 {
-	WARN_ON(!RB_EMPTY_ROOT(&root->inode_tree));
+	spin_lock(&fs_info->fs_roots_radix_lock);
 	radix_tree_delete(&fs_info->fs_roots_radix,
 			  (unsigned long)root->root_key.objectid);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
+	free_fs_root(root);
+	return 0;
+}
+
+static void free_fs_root(struct btrfs_root *root)
+{
+	WARN_ON(!RB_EMPTY_ROOT(&root->inode_tree));
 	if (root->anon_super.s_dev) {
 		down_write(&root->anon_super.s_umount);
 		kill_anon_super(&root->anon_super);
 	}
-	if (root->node)
-		free_extent_buffer(root->node);
-	if (root->commit_root)
-		free_extent_buffer(root->commit_root);
+	free_extent_buffer(root->node);
+	free_extent_buffer(root->commit_root);
 	kfree(root->name);
 	kfree(root);
-	return 0;
 }
 
 static int del_fs_roots(struct btrfs_fs_info *fs_info)
