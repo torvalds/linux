@@ -612,7 +612,7 @@ static int reiserfs_mark_dquot_dirty(struct dquot *);
 static int reiserfs_write_info(struct super_block *, int);
 static int reiserfs_quota_on(struct super_block *, int, int, char *, int);
 
-static struct dquot_operations reiserfs_quota_operations = {
+static const struct dquot_operations reiserfs_quota_operations = {
 	.initialize = dquot_initialize,
 	.drop = dquot_drop,
 	.alloc_space = dquot_alloc_space,

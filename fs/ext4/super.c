@@ -964,7 +964,7 @@ static ssize_t ext4_quota_read(struct super_block *sb, int type, char *data,
 static ssize_t ext4_quota_write(struct super_block *sb, int type,
 				const char *data, size_t len, loff_t off);
 
-static struct dquot_operations ext4_quota_operations = {
+static const struct dquot_operations ext4_quota_operations = {
 	.initialize	= dquot_initialize,
 	.drop		= dquot_drop,
 	.alloc_space	= dquot_alloc_space,

@@ -1839,7 +1839,7 @@ EXPORT_SYMBOL(dquot_commit_info);
 /*
  * Definitions of diskquota operations.
  */
-struct dquot_operations dquot_operations = {
+const struct dquot_operations dquot_operations = {
 	.initialize	= dquot_initialize,
 	.drop		= dquot_drop,
 	.alloc_space	= dquot_alloc_space,
