@@ -176,7 +176,6 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	int i;
 	int write = !!(flags & GUP_FLAGS_WRITE);
 	int force = !!(flags & GUP_FLAGS_FORCE);
-	int ignore = !!(flags & GUP_FLAGS_IGNORE_VMA_PERMISSIONS);
 
 	/* calculate required read or write permissions.
 	 * - if 'force' is set, we only require the "MAY" flags.
@@ -190,8 +189,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			goto finish_or_fault;
 
 		/* protect what we can, including chardevs */
-		if (vma->vm_flags & (VM_IO | VM_PFNMAP) ||
-		    (!ignore && !(vm_flags & vma->vm_flags)))
+		if ((vma->vm_flags & (VM_IO | VM_PFNMAP)) ||
+		    !(vm_flags & vma->vm_flags))
 			goto finish_or_fault;
 
 		if (pages) {
@@ -209,7 +208,6 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 finish_or_fault:
 	return i ? : -EFAULT;
 }
-
 
 /*
  * get a list of pages in an address range belonging to the specified process
