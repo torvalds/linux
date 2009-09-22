@@ -923,8 +923,7 @@ int viafb_get_pixclock(int hres, int vres, int vmode_refresh);
 int viafb_get_refresh(int hres, int vres, u32 float_refresh);
 void viafb_update_device_setting(int hres, int vres, int bpp,
 			   int vmode_refresh, int flag);
-void viafb_get_mmio_info(unsigned long *mmio_base,
-	unsigned long *mmio_len);
+void viafb_get_mmio_info(unsigned long *mmio_base, u32 *mmio_len);
 
 void viafb_set_iga_path(void);
 void viafb_set_primary_address(u32 addr);

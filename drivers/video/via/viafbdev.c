@@ -69,8 +69,6 @@ static void viafb_setup_fixinfo(struct fb_fix_screeninfo *fix,
 
 	fix->smem_start = viaparinfo->fbmem;
 	fix->smem_len = viaparinfo->fbmem_free;
-	fix->mmio_start = viaparinfo->mmio_base;
-	fix->mmio_len = viaparinfo->mmio_len;
 
 	fix->type = FB_TYPE_PACKED_PIXELS;
 	fix->type_aux = 0;
@@ -2004,9 +2002,10 @@ static int __devinit via_pci_probe(void)
 		return -ENOMEM;
 	}
 
-	viafb_get_mmio_info(&viaparinfo->mmio_base, &viaparinfo->mmio_len);
-	viaparinfo->io_virt = ioremap_nocache(viaparinfo->mmio_base,
-		viaparinfo->mmio_len);
+	viafb_get_mmio_info(&viafbinfo->fix.mmio_start,
+		&viafbinfo->fix.mmio_len);
+	viaparinfo->io_virt = ioremap_nocache(viafbinfo->fix.mmio_start,
+		viafbinfo->fix.mmio_len);
 	if (!viaparinfo->io_virt) {
 		printk(KERN_WARNING "ioremap failed: hardware acceleration disabled\n");
 		viafb_accel = 0;

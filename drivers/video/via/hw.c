@@ -2496,8 +2496,7 @@ void viafb_crt_enable(void)
 	viafb_write_reg_mask(CR36, VIACR, 0x0, BIT5 + BIT4);
 }
 
-void viafb_get_mmio_info(unsigned long *mmio_base,
-	unsigned long *mmio_len)
+void viafb_get_mmio_info(unsigned long *mmio_base, u32 *mmio_len)
 {
 	struct pci_dev *pdev = NULL;
 	u32 vendor, device;
