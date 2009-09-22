@@ -282,24 +282,18 @@ void finish_atomic_sections (struct pt_regs *regs)
 {
 	int __user *up0 = (int __user *)regs->p0;
 
-	if (regs->pc < ATOMIC_SEQS_START || regs->pc >= ATOMIC_SEQS_END)
-		return;
-
 	switch (regs->pc) {
 	case ATOMIC_XCHG32 + 2:
 		put_user(regs->r1, up0);
-		regs->pc += 2;
+		regs->pc = ATOMIC_XCHG32 + 4;
 		break;
 
 	case ATOMIC_CAS32 + 2:
 	case ATOMIC_CAS32 + 4:
 		if (regs->r0 == regs->r1)
+	case ATOMIC_CAS32 + 6:
 			put_user(regs->r2, up0);
 		regs->pc = ATOMIC_CAS32 + 8;
-		break;
-	case ATOMIC_CAS32 + 6:
-		put_user(regs->r2, up0);
-		regs->pc += 2;
 		break;
 
 	case ATOMIC_ADD32 + 2:

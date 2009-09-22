@@ -2,6 +2,9 @@
  *	PCI Class, Vendor and Device IDs
  *
  *	Please keep sorted.
+ *
+ *	Do not add new entries to this file unless the definitions
+ *	are shared between multiple drivers.
  */
 
 /* Device classes and subclasses */
@@ -881,6 +884,7 @@
 #define PCI_DEVICE_ID_APPLE_SH_SUNGEM   0x0051
 #define PCI_DEVICE_ID_APPLE_U3L_AGP	0x0058
 #define PCI_DEVICE_ID_APPLE_U3H_AGP	0x0059
+#define PCI_DEVICE_ID_APPLE_U4_PCIE	0x005b
 #define PCI_DEVICE_ID_APPLE_IPID2_AGP	0x0066
 #define PCI_DEVICE_ID_APPLE_IPID2_ATA	0x0069
 #define PCI_DEVICE_ID_APPLE_IPID2_FW	0x006a
@@ -1525,6 +1529,8 @@
 #define PCI_DEVICE_ID_ARTOP_ATP860R	0x0007
 #define PCI_DEVICE_ID_ARTOP_ATP865	0x0008
 #define PCI_DEVICE_ID_ARTOP_ATP865R	0x0009
+#define PCI_DEVICE_ID_ARTOP_ATP867A	0x000A
+#define PCI_DEVICE_ID_ARTOP_ATP867B	0x000B
 #define PCI_DEVICE_ID_ARTOP_AEC7610	0x8002
 #define PCI_DEVICE_ID_ARTOP_AEC7612UW	0x8010
 #define PCI_DEVICE_ID_ARTOP_AEC7612U	0x8020

@@ -57,6 +57,7 @@ typedef enum {
 #include <linux/random.h>
 #include <linux/wait.h>
 #include <linux/fcntl.h>	/* For O_CLOEXEC and O_NONBLOCK */
+#include <linux/kmemcheck.h>
 
 struct poll_table_struct;
 struct pipe_inode_info;
@@ -127,7 +128,11 @@ enum sock_shutdown_cmd {
  */
 struct socket {
 	socket_state		state;
+
+	kmemcheck_bitfield_begin(type);
 	short			type;
+	kmemcheck_bitfield_end(type);
+
 	unsigned long		flags;
 	/*
 	 * Please keep fasync_list & wait fields in the same cache line

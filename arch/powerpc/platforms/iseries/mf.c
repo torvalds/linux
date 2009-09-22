@@ -872,7 +872,7 @@ static int proc_mf_dump_cmdline(char *page, char **start, off_t off,
 		count = 256 - off;
 
 	dma_addr = iseries_hv_map(page, off + count, DMA_FROM_DEVICE);
-	if (dma_mapping_error(NULL, dma_addr))
+	if (dma_addr == DMA_ERROR_CODE)
 		return -ENOMEM;
 	memset(page, 0, off + count);
 	memset(&vsp_cmd, 0, sizeof(vsp_cmd));

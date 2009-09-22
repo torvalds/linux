@@ -24,8 +24,8 @@ config IWM_DEBUG
 	  To see the list of debug modules and levels, see iwm/debug.h
 
 	  For example, if you want the full MLME debug output:
-	  echo 0xff > /debug/iwm/phyN/debug/mlme
+	  echo 0xff > /sys/kernel/debug/iwm/phyN/debug/mlme
 
 	  Or, if you want the full debug, for all modules:
-	  echo 0xff > /debug/iwm/phyN/debug/level
-	  echo 0xff > /debug/iwm/phyN/debug/modules
+	  echo 0xff > /sys/kernel/debug/iwm/phyN/debug/level
+	  echo 0xff > /sys/kernel/debug/iwm/phyN/debug/modules

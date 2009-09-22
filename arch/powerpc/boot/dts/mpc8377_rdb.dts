@@ -174,7 +174,7 @@
 				interrupts = <42 0x8>;
 				interrupt-parent = <&ipic>;
 				/* Filled in by U-Boot */
-				clock-frequency = <0>;
+				clock-frequency = <111111111>;
 			};
 		};
 

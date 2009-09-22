@@ -16,7 +16,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * File: whdr.h
+ * File: rxtx.h
  *
  * Purpose:
  *
@@ -26,20 +26,12 @@
  *
  */
 
-
 #ifndef __RXTX_H__
 #define __RXTX_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WCMD_H__)
 #include "wcmd.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 

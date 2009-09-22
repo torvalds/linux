@@ -572,7 +572,7 @@ static struct attribute_group cciss_dev_attr_group = {
 	.attrs = cciss_dev_attrs,
 };
 
-static struct attribute_group *cciss_dev_attr_groups[] = {
+static const struct attribute_group *cciss_dev_attr_groups[] = {
 	&cciss_dev_attr_group,
 	NULL
 };

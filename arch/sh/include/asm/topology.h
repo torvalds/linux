@@ -15,14 +15,14 @@
 	.cache_nice_tries	= 2,			\
 	.busy_idx		= 3,			\
 	.idle_idx		= 2,			\
-	.newidle_idx		= 2,			\
-	.wake_idx		= 1,			\
-	.forkexec_idx		= 1,			\
+	.newidle_idx		= 0,			\
+	.wake_idx		= 0,			\
+	.forkexec_idx		= 0,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_FORK	\
 				| SD_BALANCE_EXEC	\
-				| SD_SERIALIZE		\
-				| SD_WAKE_BALANCE,	\
+				| SD_BALANCE_NEWIDLE	\
+				| SD_SERIALIZE,		\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
 	.nr_balance_failed	= 0,			\

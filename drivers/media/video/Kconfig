@@ -203,9 +203,9 @@ config VIDEO_CS53L32A
 	  module will be called cs53l32a.
 
 config VIDEO_M52790
-       tristate "Mitsubishi M52790 A/V switch"
-       depends on VIDEO_V4L2 && I2C
-       ---help---
+	tristate "Mitsubishi M52790 A/V switch"
+	depends on VIDEO_V4L2 && I2C
+	---help---
 	 Support for the Mitsubishi M52790 A/V switch.
 
 	 To compile this driver as a module, choose M here: the

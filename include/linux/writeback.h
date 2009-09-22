@@ -50,7 +50,6 @@ struct writeback_control {
 	unsigned encountered_congestion:1; /* An output: a queue is full */
 	unsigned for_kupdate:1;		/* A kupdate writeback */
 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
-	unsigned for_writepages:1;	/* This is a writepages() call */
 	unsigned range_cyclic:1;	/* range_start is cyclic */
 	unsigned more_io:1;		/* more io to be dispatched */
 	/*
@@ -69,8 +68,8 @@ struct writeback_control {
  */	
 struct bdi_writeback;
 int inode_wait(void *);
-long writeback_inodes_sb(struct super_block *);
-long sync_inodes_sb(struct super_block *);
+void writeback_inodes_sb(struct super_block *);
+void sync_inodes_sb(struct super_block *);
 void writeback_inodes_wbc(struct writeback_control *wbc);
 long wb_do_writeback(struct bdi_writeback *wb, int force_wait);
 void wakeup_flusher_threads(long nr_pages);

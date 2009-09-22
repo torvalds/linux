@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/quicklist.h>
 
-DEFINE_PER_CPU(struct quicklist, quicklist)[CONFIG_NR_QUICK];
+DEFINE_PER_CPU(struct quicklist [CONFIG_NR_QUICK], quicklist);
 
 #define FRACTION_OF_NODE_MEM	16
 

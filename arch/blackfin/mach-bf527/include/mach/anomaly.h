@@ -7,7 +7,7 @@
  */
 
 /* This file should be up to date with:
- *  - Revision C, 03/13/2009; ADSP-BF526 Blackfin Processor Anomaly List
+ *  - Revision D, 08/14/2009; ADSP-BF526 Blackfin Processor Anomaly List
  *  - Revision F, 03/03/2009; ADSP-BF527 Blackfin Processor Anomaly List
  */
 
@@ -176,7 +176,7 @@
 #define ANOMALY_05000443 (1)
 /* The WURESET Bit in the SYSCR Register is not Functional */
 #define ANOMALY_05000445 (1)
-/* USB DMA Short Packet Data Corruption */
+/* USB DMA Mode 1 Short Packet Data Corruption */
 #define ANOMALY_05000450 (1)
 /* BCODE_QUICKBOOT, BCODE_ALLBOOT, and BCODE_FULLBOOT Settings in SYSCR Register Not Functional */
 #define ANOMALY_05000451 (1)
@@ -186,12 +186,20 @@
 #define ANOMALY_05000456 (1)
 /* Host DMA Port Responds to Certain Bus Activity Without HOST_CE Assertion */
 #define ANOMALY_05000457 (1)
+/* USB DMA Mode 1 Failure When Multiple USB DMA Channels Are Concurrently Enabled */
+#define ANOMALY_05000460 (1)
 /* False Hardware Error when RETI Points to Invalid Memory */
 #define ANOMALY_05000461 (1)
+/* Synchronization Problem at Startup May Cause SPORT Transmit Channels to Misalign */
+#define ANOMALY_05000462 (1)
 /* USB Rx DMA hang */
 #define ANOMALY_05000465 (1)
+/* TxPktRdy Bit Not Set for Transmit Endpoint When Core and DMA Access USB Endpoint FIFOs Simultaneously */
+#define ANOMALY_05000466 (1)
 /* Possible RX data corruption when control & data EP FIFOs are accessed via the core */
 #define ANOMALY_05000467 (1)
+/* PLL Latches Incorrect Settings During Reset */
+#define ANOMALY_05000469 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000099 (0)
@@ -238,6 +246,7 @@
 #define ANOMALY_05000362 (1)
 #define ANOMALY_05000363 (0)
 #define ANOMALY_05000400 (0)
+#define ANOMALY_05000402 (0)
 #define ANOMALY_05000412 (0)
 #define ANOMALY_05000447 (0)
 #define ANOMALY_05000448 (0)

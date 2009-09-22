@@ -52,8 +52,10 @@
 #include <linux/kvm_host.h>
 #endif
 
+#ifdef CONFIG_PPC32
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 #include "head_booke.h"
+#endif
 #endif
 
 #if defined(CONFIG_FSL_BOOKE)
@@ -140,6 +142,20 @@ int main(void)
 					    context.high_slices_psize));
 	DEFINE(MMUPSIZEDEFSIZE, sizeof(struct mmu_psize_def));
 #endif /* CONFIG_PPC_MM_SLICES */
+
+#ifdef CONFIG_PPC_BOOK3E
+	DEFINE(PACAPGD, offsetof(struct paca_struct, pgd));
+	DEFINE(PACA_KERNELPGD, offsetof(struct paca_struct, kernel_pgd));
+	DEFINE(PACA_EXGEN, offsetof(struct paca_struct, exgen));
+	DEFINE(PACA_EXTLB, offsetof(struct paca_struct, extlb));
+	DEFINE(PACA_EXMC, offsetof(struct paca_struct, exmc));
+	DEFINE(PACA_EXCRIT, offsetof(struct paca_struct, excrit));
+	DEFINE(PACA_EXDBG, offsetof(struct paca_struct, exdbg));
+	DEFINE(PACA_MC_STACK, offsetof(struct paca_struct, mc_kstack));
+	DEFINE(PACA_CRIT_STACK, offsetof(struct paca_struct, crit_kstack));
+	DEFINE(PACA_DBG_STACK, offsetof(struct paca_struct, dbg_kstack));
+#endif /* CONFIG_PPC_BOOK3E */
+
 #ifdef CONFIG_PPC_STD_MMU_64
 	DEFINE(PACASTABREAL, offsetof(struct paca_struct, stab_real));
 	DEFINE(PACASTABVIRT, offsetof(struct paca_struct, stab_addr));
@@ -262,6 +278,7 @@ int main(void)
 	DEFINE(_SRR1, STACK_FRAME_OVERHEAD+sizeof(struct pt_regs)+8);
 #endif /* CONFIG_PPC64 */
 
+#if defined(CONFIG_PPC32)
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 	DEFINE(EXC_LVL_SIZE, STACK_EXC_LVL_FRAME_SIZE);
 	DEFINE(MAS0, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, mas0));
@@ -280,7 +297,7 @@ int main(void)
 	DEFINE(_DSRR1, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, dsrr1));
 	DEFINE(SAVED_KSP_LIMIT, STACK_INT_FRAME_SIZE+offsetof(struct exception_regs, saved_ksp_limit));
 #endif
-
+#endif
 	DEFINE(CLONE_VM, CLONE_VM);
 	DEFINE(CLONE_UNTRACED, CLONE_UNTRACED);
 

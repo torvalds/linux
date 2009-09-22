@@ -264,7 +264,6 @@ static int usbpn_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	switch (cmd) {
 	case SIOCPNGAUTOCONF:
 		req->ifr_phonet_autoconf.device = PN_DEV_PC;
-		printk(KERN_CRIT"device is PN_DEV_PC\n");
 		return 0;
 	}
 	return -ENOIOCTLCMD;

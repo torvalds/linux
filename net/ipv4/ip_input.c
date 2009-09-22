@@ -202,7 +202,7 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 	{
 		int protocol = ip_hdr(skb)->protocol;
 		int hash, raw;
-		struct net_protocol *ipprot;
+		const struct net_protocol *ipprot;
 
 	resubmit:
 		raw = raw_local_deliver(skb, protocol);

@@ -84,13 +84,10 @@ SECTIONS
 
 	_end = . ;
 
-	/* Sections to be discarded */
-	/DISCARD/ : {
-		EXIT_DATA
-		*(.exitcall.exit)
-	}
-
 	/* Debugging sections.	*/
 	STABS_DEBUG
 	DWARF_DEBUG
+
+	/* Sections to be discarded */
+	DISCARDS
 }

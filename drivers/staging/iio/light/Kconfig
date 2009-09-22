@@ -1,0 +1,13 @@
+#
+# Light sensors
+#
+comment "Light sensors"
+
+config TSL2561
+       tristate "TAOS TSL2561 light-to-digital convertor"
+       depends on I2C
+       help
+	Say yes bere to build support for the TAOS light to digital
+	convertor.  This chip has two light sensors. One is broadband
+	including infrared whilst the other measures only infrared.
+	Provides direct access via sysfs.

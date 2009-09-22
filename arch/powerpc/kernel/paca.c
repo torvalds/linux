@@ -13,6 +13,7 @@
 #include <asm/lppaca.h>
 #include <asm/paca.h>
 #include <asm/sections.h>
+#include <asm/pgtable.h>
 
 /* This symbol is provided by the linker - let it fill in the paca
  * field correctly */
@@ -87,6 +88,8 @@ void __init initialise_pacas(void)
 
 #ifdef CONFIG_PPC_BOOK3S
 		new_paca->lppaca_ptr = &lppaca[cpu];
+#else
+		new_paca->kernel_pgd = swapper_pg_dir;
 #endif
 		new_paca->lock_token = 0x8000;
 		new_paca->paca_index = cpu;

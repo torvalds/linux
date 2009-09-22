@@ -923,8 +923,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.width = dev->width;
 	f->fmt.pix.height = dev->height;
-	f->fmt.pix.pixelformat = dev->format->fourcc;;
-	f->fmt.pix.bytesperline = (dev->width * dev->format->depth + 7) >> 3;;
+	f->fmt.pix.pixelformat = dev->format->fourcc;
+	f->fmt.pix.bytesperline = (dev->width * dev->format->depth + 7) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * dev->height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 

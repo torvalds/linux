@@ -2159,7 +2159,7 @@ static struct attribute_group netiucv_drv_attr_group = {
 	.attrs = netiucv_drv_attrs,
 };
 
-static struct attribute_group *netiucv_drv_attr_groups[] = {
+static const struct attribute_group *netiucv_drv_attr_groups[] = {
 	&netiucv_drv_attr_group,
 	NULL,
 };

@@ -490,7 +490,6 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	int ret;
 
 	cafe_smbus_enable_irq(cam);
-	adap->id = I2C_HW_SMBUS_CAFE;
 	adap->owner = THIS_MODULE;
 	adap->algo = &cafe_smbus_algo;
 	strcpy(adap->name, "cafe_ccic");

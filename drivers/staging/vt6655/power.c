@@ -16,9 +16,10 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: power.c
  *
- * Purpose: Handles 802.11 power managment  functions
+ * Purpose: Handles 802.11 power management  functions
  *
  * Author: Lyndon Chen
  *
@@ -36,44 +37,14 @@
  *
  */
 
-
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__TBIT_H__)
-#include "tbit.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WMGR_H__)
 #include "wmgr.h"
-#endif
-#if !defined(__POWER_H__)
 #include "power.h"
-#endif
-#if !defined(__WCMD_H__)
 #include "wcmd.h"
-#endif
-#if !defined(__TBIT_H__)
-#include "tbit.h"
-#endif
-#if !defined(__UMEM_H__)
-#include "umem.h"
-#endif
-#if !defined(__RXTX_H__)
 #include "rxtx.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-
-
-
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -154,7 +125,7 @@ PSvEnablePowerSaving(
         PSbSendNullPacket(pDevice);
     }
     pDevice->bPWBitOn = TRUE;
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
     return;
 }
 
@@ -261,7 +232,7 @@ PSbConsiderPowerDown(
 
     // no Tx, no Rx isr, now go to Doze
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_GO2DOZE);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
     return TRUE;
 }
 
@@ -305,10 +276,10 @@ PSvSendPSPOLL(
     pTxPacket->cbPayloadLen = 0;
     // send the frame
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
     }
     else {
-//        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n");
+//        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n");
     };
 
     return;
@@ -389,12 +360,12 @@ PSbSendNullPacket(
     pTxPacket->cbPayloadLen = 0;
     // send the frame
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
         return FALSE;
     }
     else {
 
-//            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n");
+//            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n");
     }
 
 

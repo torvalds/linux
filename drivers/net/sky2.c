@@ -65,8 +65,8 @@
 #define RX_DEF_PENDING		RX_MAX_PENDING
 
 /* This is the worst case number of transmit list elements for a single skb:
-   VLAN + TSO + CKSUM + Data + skb_frags * DMA */
-#define MAX_SKB_TX_LE	(4 + (sizeof(dma_addr_t)/sizeof(u32))*MAX_SKB_FRAGS)
+   VLAN:GSO + CKSUM + Data + skb_frags * DMA */
+#define MAX_SKB_TX_LE	(2 + (sizeof(dma_addr_t)/sizeof(u32))*(MAX_SKB_FRAGS+1))
 #define TX_MIN_PENDING		(MAX_SKB_TX_LE+1)
 #define TX_MAX_PENDING		4096
 #define TX_DEF_PENDING		127
@@ -1567,11 +1567,13 @@ static unsigned tx_le_req(const struct sk_buff *skb)
 {
 	unsigned count;
 
-	count = sizeof(dma_addr_t) / sizeof(u32);
-	count += skb_shinfo(skb)->nr_frags * count;
+	count = (skb_shinfo(skb)->nr_frags + 1)
+		* (sizeof(dma_addr_t) / sizeof(u32));
 
 	if (skb_is_gso(skb))
 		++count;
+	else if (sizeof(dma_addr_t) == sizeof(u32))
+		++count;	/* possible vlan */
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		++count;
@@ -4548,16 +4550,18 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	if (hw->ports > 1) {
 		struct net_device *dev1;
 
+		err = -ENOMEM;
 		dev1 = sky2_init_netdev(hw, 1, using_dac, wol_default);
-		if (!dev1)
-			dev_warn(&pdev->dev, "allocation for second device failed\n");
-		else if ((err = register_netdev(dev1))) {
+		if (dev1 && (err = register_netdev(dev1)) == 0)
+			sky2_show_addr(dev1);
+		else {
 			dev_warn(&pdev->dev,
 				 "register of second port failed (%d)\n", err);
 			hw->dev[1] = NULL;
-			free_netdev(dev1);
-		} else
-			sky2_show_addr(dev1);
+			hw->ports = 1;
+			if (dev1)
+				free_netdev(dev1);
+		}
 	}
 
 	setup_timer(&hw->watchdog_timer, sky2_watchdog, (unsigned long) hw);

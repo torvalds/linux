@@ -423,6 +423,7 @@ static struct ads7846_platform_data spitz_ads7846_info = {
 	.vref_delay_usecs	= 100,
 	.x_plate_ohms		= 419,
 	.y_plate_ohms		= 486,
+	.pressure_max		= 1024,
 	.gpio_pendown		= SPITZ_GPIO_TP_INT,
 	.wait_for_sync		= spitz_wait_for_hsync,
 };

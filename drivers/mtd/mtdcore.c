@@ -217,7 +217,7 @@ struct attribute_group mtd_group = {
 	.attrs		= mtd_attrs,
 };
 
-struct attribute_group *mtd_groups[] = {
+const struct attribute_group *mtd_groups[] = {
 	&mtd_group,
 	NULL,
 };

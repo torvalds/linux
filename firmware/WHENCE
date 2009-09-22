@@ -596,6 +596,7 @@ Found in hex form in kernel source.
 Driver: PCMCIA_PCNET - NE2000 compatible PCMCIA adapter
 
 File: cis/LA-PCM.cis
+      cis/PCMLM28.cis
 
 Licence: GPL
 
@@ -616,6 +617,17 @@ Originally developed by the pcmcia-cs project
 Driver: PCMCIA_3C574 - 3Com PCMCIA adapter
 
 File: cis/3CCFEM556.cis
+
+Licence: GPL
+
+Originally developed by the pcmcia-cs project
+
+--------------------------------------------------------------------------
+
+Driver: SERIAL_8250_CS - Serial PCMCIA adapter
+
+File: cis/MT5634ZLX.cis
+      cis/RS-COM-2P.cis
 
 Licence: GPL
 

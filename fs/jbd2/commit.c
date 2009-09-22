@@ -220,7 +220,6 @@ static int journal_submit_inode_data_buffers(struct address_space *mapping)
 		.nr_to_write = mapping->nrpages * 2,
 		.range_start = 0,
 		.range_end = i_size_read(mapping->host),
-		.for_writepages = 1,
 	};
 
 	ret = generic_writepages(mapping, &wbc);

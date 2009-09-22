@@ -81,7 +81,7 @@ struct Qdisc
 struct Qdisc_class_ops
 {
 	/* Child qdisc manipulation */
-	unsigned int		(*select_queue)(struct Qdisc *, struct tcmsg *);
+	struct netdev_queue *	(*select_queue)(struct Qdisc *, struct tcmsg *);
 	int			(*graft)(struct Qdisc *, unsigned long cl,
 					struct Qdisc *, struct Qdisc **);
 	struct Qdisc *		(*leaf)(struct Qdisc *, unsigned long cl);

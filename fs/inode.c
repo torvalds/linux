@@ -182,9 +182,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	if (sb->s_bdev) {
 		struct backing_dev_info *bdi;
 
-		bdi = sb->s_bdev->bd_inode_backing_dev_info;
-		if (!bdi)
-			bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
+		bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
 		mapping->backing_dev_info = bdi;
 	}
 	inode->i_private = NULL;

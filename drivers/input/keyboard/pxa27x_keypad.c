@@ -8,7 +8,7 @@
  *
  * Based on a previous implementations by Kevin O'Connor
  * <kevin_at_koconnor.net> and Alex Osborne <bobofdoom@gmail.com> and
- * on some suggestions by Nicolas Pitre <nico@cam.org>.
+ * on some suggestions by Nicolas Pitre <nico@fluxnic.net>.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

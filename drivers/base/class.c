@@ -488,6 +488,93 @@ void class_interface_unregister(struct class_interface *class_intf)
 	class_put(parent);
 }
 
+struct class_compat {
+	struct kobject *kobj;
+};
+
+/**
+ * class_compat_register - register a compatibility class
+ * @name: the name of the class
+ *
+ * Compatibility class are meant as a temporary user-space compatibility
+ * workaround when converting a family of class devices to a bus devices.
+ */
+struct class_compat *class_compat_register(const char *name)
+{
+	struct class_compat *cls;
+
+	cls = kmalloc(sizeof(struct class_compat), GFP_KERNEL);
+	if (!cls)
+		return NULL;
+	cls->kobj = kobject_create_and_add(name, &class_kset->kobj);
+	if (!cls->kobj) {
+		kfree(cls);
+		return NULL;
+	}
+	return cls;
+}
+EXPORT_SYMBOL_GPL(class_compat_register);
+
+/**
+ * class_compat_unregister - unregister a compatibility class
+ * @cls: the class to unregister
+ */
+void class_compat_unregister(struct class_compat *cls)
+{
+	kobject_put(cls->kobj);
+	kfree(cls);
+}
+EXPORT_SYMBOL_GPL(class_compat_unregister);
+
+/**
+ * class_compat_create_link - create a compatibility class device link to
+ *			      a bus device
+ * @cls: the compatibility class
+ * @dev: the target bus device
+ * @device_link: an optional device to which a "device" link should be created
+ */
+int class_compat_create_link(struct class_compat *cls, struct device *dev,
+			     struct device *device_link)
+{
+	int error;
+
+	error = sysfs_create_link(cls->kobj, &dev->kobj, dev_name(dev));
+	if (error)
+		return error;
+
+	/*
+	 * Optionally add a "device" link (typically to the parent), as a
+	 * class device would have one and we want to provide as much
+	 * backwards compatibility as possible.
+	 */
+	if (device_link) {
+		error = sysfs_create_link(&dev->kobj, &device_link->kobj,
+					  "device");
+		if (error)
+			sysfs_remove_link(cls->kobj, dev_name(dev));
+	}
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(class_compat_create_link);
+
+/**
+ * class_compat_remove_link - remove a compatibility class device link to
+ *			      a bus device
+ * @cls: the compatibility class
+ * @dev: the target bus device
+ * @device_link: an optional device to which a "device" link was previously
+ * 		 created
+ */
+void class_compat_remove_link(struct class_compat *cls, struct device *dev,
+			      struct device *device_link)
+{
+	if (device_link)
+		sysfs_remove_link(&dev->kobj, "device");
+	sysfs_remove_link(cls->kobj, dev_name(dev));
+}
+EXPORT_SYMBOL_GPL(class_compat_remove_link);
+
 int __init classes_init(void)
 {
 	class_kset = kset_create_and_add("class", NULL, NULL);

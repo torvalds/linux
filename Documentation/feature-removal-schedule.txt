@@ -428,16 +428,6 @@ Who:	Johannes Berg <johannes@sipsolutions.net>
 
 ----------------------------
 
-What:	CONFIG_X86_OLD_MCE
-When:	2.6.32
-Why:	Remove the old legacy 32bit machine check code. This has been
-	superseded by the newer machine check code from the 64bit port,
-	but the old version has been kept around for easier testing. Note this
-	doesn't impact the old P5 and WinChip machine check handlers.
-Who:	Andi Kleen <andi@firstfloor.org>
-
-----------------------------
-
 What:	lock_policy_rwsem_* and unlock_policy_rwsem_* will not be
 	exported interface anymore.
 When:	2.6.33

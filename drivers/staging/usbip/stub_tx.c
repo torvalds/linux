@@ -66,7 +66,7 @@ void stub_complete(struct urb *urb)
 	struct stub_device *sdev = priv->sdev;
 	unsigned long flags;
 
-	dbg_stub_tx("complete! status %d\n", urb->status);
+	usbip_dbg_stub_tx("complete! status %d\n", urb->status);
 
 
 	switch (urb->status) {
@@ -74,20 +74,22 @@ void stub_complete(struct urb *urb)
 		/* OK */
 		break;
 	case -ENOENT:
-		uinfo("stopped by a call of usb_kill_urb() because of"
+		usbip_uinfo("stopped by a call of usb_kill_urb() because of"
 					"cleaning up a virtual connection\n");
 		return;
 	case -ECONNRESET:
-		uinfo("unlinked by a call of usb_unlink_urb()\n");
+		usbip_uinfo("unlinked by a call of usb_unlink_urb()\n");
 		break;
 	case -EPIPE:
-		uinfo("endpoint %d is stalled\n", usb_pipeendpoint(urb->pipe));
+		usbip_uinfo("endpoint %d is stalled\n",
+						usb_pipeendpoint(urb->pipe));
 		break;
 	case -ESHUTDOWN:
-		uinfo("device removed?\n");
+		usbip_uinfo("device removed?\n");
 		break;
 	default:
-		uinfo("urb completion with non-zero status %d\n", urb->status);
+		usbip_uinfo("urb completion with non-zero status %d\n",
+							urb->status);
 	}
 
 	/* link a urb to the queue of tx. */
@@ -181,7 +183,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		memset(&msg, 0, sizeof(msg));
 		memset(&iov, 0, sizeof(iov));
 
-		dbg_stub_tx("setup txdata urb %p\n", urb);
+		usbip_dbg_stub_tx("setup txdata urb %p\n", urb);
 
 
 		/* 1. setup usbip_header */
@@ -227,7 +229,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		}
 
 		kfree(iso_buffer);
-		dbg_stub_tx("send txdata\n");
+		usbip_dbg_stub_tx("send txdata\n");
 
 		total_size += txsize;
 	}
@@ -287,7 +289,7 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 		memset(&msg, 0, sizeof(msg));
 		memset(&iov, 0, sizeof(iov));
 
-		dbg_stub_tx("setup ret unlink %lu\n", unlink->seqnum);
+		usbip_dbg_stub_tx("setup ret unlink %lu\n", unlink->seqnum);
 
 		/* 1. setup usbip_header */
 		setup_ret_unlink_pdu(&pdu_header, unlink);
@@ -308,7 +310,7 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 		}
 
 
-		dbg_stub_tx("send txdata\n");
+		usbip_dbg_stub_tx("send txdata\n");
 
 		total_size += txsize;
 	}
@@ -336,11 +338,11 @@ void stub_tx_loop(struct usbip_task *ut)
 
 	while (1) {
 		if (signal_pending(current)) {
-			dbg_stub_tx("signal catched\n");
+			usbip_dbg_stub_tx("signal catched\n");
 			break;
 		}
 
-		if (usbip_event_happend(ud))
+		if (usbip_event_happened(ud))
 			break;
 
 		/*
