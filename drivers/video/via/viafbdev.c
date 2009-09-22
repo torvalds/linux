@@ -95,11 +95,8 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	struct fb_info *info)
 {
 	int vmode_index, htotal, vtotal;
-	struct viafb_par *ppar;
+	struct viafb_par *ppar = info->par;
 	u32 long_refresh;
-	struct viafb_par *p_viafb_par;
-	ppar = info->par;
-
 
 	DEBUG_MSG(KERN_INFO "viafb_check_var!\n");
 	/* Sanity check */
@@ -144,22 +141,17 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	/* Adjust var according to our driver's own table */
 	viafb_fill_var_timing_info(var, viafb_refresh, vmode_index);
 
-	/* This is indeed a patch for VT3353 */
-	if (!info->par)
-		return -1;
-	p_viafb_par = (struct viafb_par *)info->par;
-	if (p_viafb_par->chip_info->gfx_chip_name == UNICHROME_VX800)
-		var->accel_flags = 0;
-
 	return 0;
 }
 
 static int viafb_set_par(struct fb_info *info)
 {
+	struct viafb_par *viapar = info->par;
 	int vmode_index;
 	int vmode_index1 = 0;
 	DEBUG_MSG(KERN_INFO "viafb_set_par!\n");
 
+	viapar->depth = fb_get_color_depth(&info->var, &info->fix);
 	viafb_update_device_setting(info->var.xres, info->var.yres,
 			      info->var.bits_per_pixel, viafb_refresh, 0);
 
@@ -190,9 +182,6 @@ static int viafb_set_par(struct fb_info *info)
 		viafb_bpp = info->var.bits_per_pixel;
 		/* Update viafb_accel, it is necessary to our 2D accelerate */
 		viafb_accel = info->var.accel_flags;
-
-		if (viafb_accel)
-			viafb_set_2d_color_depth(info->var.bits_per_pixel);
 	}
 
 	return 0;
@@ -777,10 +766,11 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 static void viafb_fillrect(struct fb_info *info,
 	const struct fb_fillrect *rect)
 {
-	u32 col = 0, rop = 0;
-	int pitch;
+	struct viafb_par *viapar = info->par;
+	u32 fg_color;
+	u8 rop;
 
-	if (!viafb_accel) {
+	if (!viapar->shared->hw_bitblt) {
 		cfb_fillrect(info, rect);
 		return;
 	}
@@ -788,67 +778,30 @@ static void viafb_fillrect(struct fb_info *info,
 	if (!rect->width || !rect->height)
 		return;
 
-	switch (rect->rop) {
-	case ROP_XOR:
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR)
+		fg_color = ((u32 *)info->pseudo_palette)[rect->color];
+	else
+		fg_color = rect->color;
+
+	if (rect->rop == ROP_XOR)
 		rop = 0x5A;
-		break;
-	case ROP_COPY:
-	default:
+	else
 		rop = 0xF0;
-		break;
-	}
 
-	switch (info->var.bits_per_pixel) {
-	case 8:
-		col = rect->color;
-		break;
-	case 16:
-		col = ((u32 *) (info->pseudo_palette))[rect->color];
-		break;
-	case 32:
-		col = ((u32 *) (info->pseudo_palette))[rect->color];
-		break;
-	}
-
-	/* BitBlt Source Address */
-	writel(0x0, viaparinfo->io_virt + VIA_REG_SRCPOS);
-	/* Source Base Address */
-	writel(0x0, viaparinfo->io_virt + VIA_REG_SRCBASE);
-	/* Destination Base Address */
-	writel((info->fix.smem_start - viafbinfo->fix.smem_start) >> 3,
-		   viaparinfo->io_virt + VIA_REG_DSTBASE);
-	/* Pitch */
-	pitch = (info->var.xres_virtual + 7) & ~7;
-	writel(VIA_PITCH_ENABLE |
-		   (((pitch *
-		      info->var.bits_per_pixel >> 3) >> 3) |
-		      (((pitch * info->
-		      var.bits_per_pixel >> 3) >> 3) << 16)),
-		      viaparinfo->io_virt + VIA_REG_PITCH);
-	/* BitBlt Destination Address */
-	writel(((rect->dy << 16) | rect->dx),
-		viaparinfo->io_virt + VIA_REG_DSTPOS);
-	/* Dimension: width & height */
-	writel((((rect->height - 1) << 16) | (rect->width - 1)),
-		viaparinfo->io_virt + VIA_REG_DIMENSION);
-	/* Forground color or Destination color */
-	writel(col, viaparinfo->io_virt + VIA_REG_FGCOLOR);
-	/* GE Command */
-	writel((0x01 | 0x2000 | (rop << 24)),
-		viaparinfo->io_virt + VIA_REG_GECMD);
-
+	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: fillrect\n");
+	if (viapar->shared->hw_bitblt(viapar->io_virt, VIA_BITBLT_FILL,
+		rect->width, rect->height, info->var.bits_per_pixel,
+		viapar->vram_addr, info->fix.line_length, rect->dx, rect->dy,
+		NULL, 0, 0, 0, 0, fg_color, 0, rop))
+		cfb_fillrect(info, rect);
 }
 
 static void viafb_copyarea(struct fb_info *info,
 	const struct fb_copyarea *area)
 {
-	u32 dy = area->dy, sy = area->sy, direction = 0x0;
-	u32 sx = area->sx, dx = area->dx, width = area->width;
-	int pitch;
+	struct viafb_par *viapar = info->par;
 
-	DEBUG_MSG(KERN_INFO "viafb_copyarea!!\n");
-
-	if (!viafb_accel) {
+	if (!viapar->shared->hw_bitblt) {
 		cfb_copyarea(info, area);
 		return;
 	}
@@ -856,113 +809,48 @@ static void viafb_copyarea(struct fb_info *info,
 	if (!area->width || !area->height)
 		return;
 
-	if (sy < dy) {
-		dy += area->height - 1;
-		sy += area->height - 1;
-		direction |= 0x4000;
-	}
-
-	if (sx < dx) {
-		dx += width - 1;
-		sx += width - 1;
-		direction |= 0x8000;
-	}
-
-	/* Source Base Address */
-	writel((info->fix.smem_start - viafbinfo->fix.smem_start) >> 3,
-		   viaparinfo->io_virt + VIA_REG_SRCBASE);
-	/* Destination Base Address */
-	writel((info->fix.smem_start - viafbinfo->fix.smem_start) >> 3,
-		   viaparinfo->io_virt + VIA_REG_DSTBASE);
-	/* Pitch */
-	pitch = (info->var.xres_virtual + 7) & ~7;
-	/* VIA_PITCH_ENABLE can be omitted now. */
-	writel(VIA_PITCH_ENABLE |
-		   (((pitch *
-		      info->var.bits_per_pixel >> 3) >> 3) | (((pitch *
-								info->var.
-								bits_per_pixel
-								>> 3) >> 3)
-							      << 16)),
-				viaparinfo->io_virt + VIA_REG_PITCH);
-	/* BitBlt Source Address */
-	writel(((sy << 16) | sx), viaparinfo->io_virt + VIA_REG_SRCPOS);
-	/* BitBlt Destination Address */
-	writel(((dy << 16) | dx), viaparinfo->io_virt + VIA_REG_DSTPOS);
-	/* Dimension: width & height */
-	writel((((area->height - 1) << 16) | (area->width - 1)),
-		   viaparinfo->io_virt + VIA_REG_DIMENSION);
-	/* GE Command */
-	writel((0x01 | direction | (0xCC << 24)),
-		viaparinfo->io_virt + VIA_REG_GECMD);
-
+	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: copyarea\n");
+	if (viapar->shared->hw_bitblt(viapar->io_virt, VIA_BITBLT_COLOR,
+		area->width, area->height, info->var.bits_per_pixel,
+		viapar->vram_addr, info->fix.line_length, area->dx, area->dy,
+		NULL, viapar->vram_addr, info->fix.line_length,
+		area->sx, area->sy, 0, 0, 0))
+		cfb_copyarea(info, area);
 }
 
 static void viafb_imageblit(struct fb_info *info,
 	const struct fb_image *image)
 {
-	u32 size, bg_col = 0, fg_col = 0, *udata;
-	int i;
-	int pitch;
+	struct viafb_par *viapar = info->par;
+	u32 fg_color = 0, bg_color = 0;
+	u8 op;
 
-	if (!viafb_accel) {
+	if (!viapar->shared->hw_bitblt ||
+		(image->depth != 1 && image->depth != viapar->depth)) {
 		cfb_imageblit(info, image);
 		return;
 	}
 
-	udata = (u32 *) image->data;
+	if (image->depth == 1) {
+		op = VIA_BITBLT_MONO;
+		if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
+			fg_color =
+				((u32 *)info->pseudo_palette)[image->fg_color];
+			bg_color =
+				((u32 *)info->pseudo_palette)[image->bg_color];
+		} else {
+			fg_color = image->fg_color;
+			bg_color = image->bg_color;
+		}
+	} else
+		op = VIA_BITBLT_COLOR;
 
-	switch (info->var.bits_per_pixel) {
-	case 8:
-		bg_col = image->bg_color;
-		fg_col = image->fg_color;
-		break;
-	case 16:
-		bg_col = ((u32 *) (info->pseudo_palette))[image->bg_color];
-		fg_col = ((u32 *) (info->pseudo_palette))[image->fg_color];
-		break;
-	case 32:
-		bg_col = ((u32 *) (info->pseudo_palette))[image->bg_color];
-		fg_col = ((u32 *) (info->pseudo_palette))[image->fg_color];
-		break;
-	}
-	size = image->width * image->height;
-
-	/* Source Base Address */
-	writel(0x0, viaparinfo->io_virt + VIA_REG_SRCBASE);
-	/* Destination Base Address */
-	writel((info->fix.smem_start - viafbinfo->fix.smem_start) >> 3,
-		   viaparinfo->io_virt + VIA_REG_DSTBASE);
-	/* Pitch */
-	pitch = (info->var.xres_virtual + 7) & ~7;
-	writel(VIA_PITCH_ENABLE |
-		   (((pitch *
-		      info->var.bits_per_pixel >> 3) >> 3) | (((pitch *
-								info->var.
-								bits_per_pixel
-								>> 3) >> 3)
-							      << 16)),
-				viaparinfo->io_virt + VIA_REG_PITCH);
-	/* BitBlt Source Address */
-	writel(0x0, viaparinfo->io_virt + VIA_REG_SRCPOS);
-	/* BitBlt Destination Address */
-	writel(((image->dy << 16) | image->dx),
-		viaparinfo->io_virt + VIA_REG_DSTPOS);
-	/* Dimension: width & height */
-	writel((((image->height - 1) << 16) | (image->width - 1)),
-		   viaparinfo->io_virt + VIA_REG_DIMENSION);
-	/* fb color */
-	writel(fg_col, viaparinfo->io_virt + VIA_REG_FGCOLOR);
-	/* bg color */
-	writel(bg_col, viaparinfo->io_virt + VIA_REG_BGCOLOR);
-	/* GE Command */
-	writel(0xCC020142, viaparinfo->io_virt + VIA_REG_GECMD);
-
-	for (i = 0; i < size / 4; i++) {
-		writel(*udata, viaparinfo->io_virt + VIA_MMIO_BLTBASE);
-		udata++;
-	}
-
+	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: imageblit\n");
+	if (viapar->shared->hw_bitblt(viapar->io_virt, op,
+		image->width, image->height, info->var.bits_per_pixel,
+		viapar->vram_addr, info->fix.line_length, image->dx, image->dy,
+		(u32 *)image->data, 0, 0, 0, 0, fg_color, bg_color, 0))
+		cfb_imageblit(info, image);
 }
 
 static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
@@ -1961,6 +1849,7 @@ static int __devinit via_pci_probe(void)
 
 	viaparinfo = (struct viafb_par *)viafbinfo->par;
 	viaparinfo->shared = viafbinfo->par + viafb_par_length;
+	viaparinfo->vram_addr = 0;
 	viaparinfo->tmds_setting_info = &viaparinfo->shared->tmds_setting_info;
 	viaparinfo->lvds_setting_info = &viaparinfo->shared->lvds_setting_info;
 	viaparinfo->lvds_setting_info2 =
@@ -2007,7 +1896,7 @@ static int __devinit via_pci_probe(void)
 
 	viafbinfo->pseudo_palette = pseudo_pal;
 	if (viafb_accel) {
-		viafb_init_accel();
+		viafb_init_accel(viaparinfo->shared);
 		viafb_init_2d_engine();
 		viafb_hw_cursor_init();
 	}
@@ -2110,6 +1999,7 @@ static int __devinit via_pci_probe(void)
 		}
 		viaparinfo1 = viafbinfo1->par;
 		memcpy(viaparinfo1, viaparinfo, viafb_par_length);
+		viaparinfo1->vram_addr = viafb_second_offset;
 		viaparinfo1->memsize = viaparinfo->memsize -
 			viafb_second_offset;
 		viaparinfo->memsize = viafb_second_offset;
@@ -2157,12 +2047,16 @@ static int __devinit via_pci_probe(void)
 		viafb_check_var(&default_var, viafbinfo1);
 		viafbinfo1->var = default_var;
 		viafb_update_fix(viafbinfo1);
+		viaparinfo1->depth = fb_get_color_depth(&viafbinfo1->var,
+			&viafbinfo1->fix);
 	}
 
 	viafb_setup_fixinfo(&viafbinfo->fix, viaparinfo);
 	viafb_check_var(&default_var, viafbinfo);
 	viafbinfo->var = default_var;
 	viafb_update_fix(viafbinfo);
+	viaparinfo->depth = fb_get_color_depth(&viafbinfo->var,
+		&viafbinfo->fix);
 	default_var.activate = FB_ACTIVATE_NOW;
 	fb_alloc_cmap(&viafbinfo->cmap, 256, 0);
 

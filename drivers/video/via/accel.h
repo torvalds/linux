@@ -159,9 +159,12 @@
 
 #define MAXLOOP                 0xFFFFFF
 
-void viafb_init_accel(void);
+#define VIA_BITBLT_COLOR	1
+#define VIA_BITBLT_MONO		2
+#define VIA_BITBLT_FILL		3
+
+void viafb_init_accel(struct viafb_shared *shared);
 void viafb_init_2d_engine(void);
-void set_2d_color_depth(int);
 void viafb_hw_cursor_init(void);
 void viafb_show_hw_cursor(struct fb_info *info, int Status); int
 viafb_wait_engine_idle(void); void viafb_set_2d_color_depth(int bpp);

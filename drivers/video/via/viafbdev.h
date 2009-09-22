@@ -49,9 +49,17 @@ struct viafb_shared {
 	struct lvds_setting_information lvds_setting_info;
 	struct lvds_setting_information lvds_setting_info2;
 	struct chip_information chip_info;
+
+	/* hardware acceleration stuff */
+	int (*hw_bitblt)(void __iomem *engine, u8 op, u32 width, u32 height,
+		u8 dst_bpp, u32 dst_addr, u32 dst_pitch, u32 dst_x, u32 dst_y,
+		u32 *src_mem, u32 src_addr, u32 src_pitch, u32 src_x, u32 src_y,
+		u32 fg_color, u32 bg_color, u8 fill_rop);
 };
 
 struct viafb_par {
+	u8 depth;
+	u32 vram_addr;
 	void __iomem *io_virt;	/*iospace virtual memory address */
 	unsigned int fbmem;	/*framebuffer physical memory address */
 	unsigned int memsize;	/*size of fbmem */
