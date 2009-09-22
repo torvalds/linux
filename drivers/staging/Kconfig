@@ -123,6 +123,8 @@ source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
+source "drivers/staging/ramzswap/Kconfig"
+
 source "drivers/staging/strip/Kconfig"
 
 source "drivers/staging/arlan/Kconfig"
