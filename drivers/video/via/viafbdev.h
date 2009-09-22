@@ -38,13 +38,6 @@
 #define VERSION_MINOR       4
 
 struct viafb_par {
-	int bpp;
-	int hres;
-	int vres;
-	int linelength;
-	u32 xoffset;
-	u32 yoffset;
-
 	void __iomem *fbmem_virt;	/*framebuffer virtual memory address */
 	void __iomem *io_virt;	/*iospace virtual memory address */
 	unsigned int fbmem;	/*framebuffer physical memory address */

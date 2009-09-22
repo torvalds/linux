@@ -34,7 +34,7 @@ void viafb_init_accel(void)
 
 void viafb_init_2d_engine(void)
 {
-	u32 dwVQStartAddr, dwVQEndAddr;
+	u32 dwVQStartAddr, dwVQEndAddr, linesize;
 	u32 dwVQLen, dwVQStartL, dwVQEndL, dwVQStartEndH;
 
 	/* init 2D engine regs to reset 2D engine */
@@ -191,17 +191,14 @@ void viafb_init_2d_engine(void)
 		}
 	}
 
-	viafb_set_2d_color_depth(viaparinfo->bpp);
+	viafb_set_2d_color_depth(viafbinfo->var.bits_per_pixel);
 
 	writel(0x0, viaparinfo->io_virt + VIA_REG_SRCBASE);
 	writel(0x0, viaparinfo->io_virt + VIA_REG_DSTBASE);
 
-	writel(VIA_PITCH_ENABLE |
-		   (((viaparinfo->hres *
-		      viaparinfo->bpp >> 3) >> 3) | (((viaparinfo->hres *
-						   viaparinfo->
-						   bpp >> 3) >> 3) << 16)),
-					viaparinfo->io_virt + VIA_REG_PITCH);
+	linesize = viafbinfo->var.xres * viafbinfo->var.bits_per_pixel >> 3;
+	writel(VIA_PITCH_ENABLE | (linesize >> 3) | ((linesize >> 3) << 16),
+		viaparinfo->io_virt + VIA_REG_PITCH);
 }
 
 void viafb_set_2d_color_depth(int bpp)

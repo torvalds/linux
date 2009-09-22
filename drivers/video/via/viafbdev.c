@@ -100,20 +100,16 @@ static const struct viafb_modeinfo viafb_modentry[] = {
 
 static struct fb_ops viafb_ops;
 
-static int viafb_update_fix(struct fb_fix_screeninfo *fix, struct fb_info *info)
+
+static void viafb_update_fix(struct fb_info *info)
 {
-	struct viafb_par *ppar;
-	ppar = info->par;
+	u32 bpp = info->var.bits_per_pixel;
 
-	DEBUG_MSG(KERN_INFO "viafb_update_fix!\n");
-
-	fix->visual =
-	    ppar->bpp == 8 ? FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
-	fix->line_length = ppar->linelength;
-
-	return 0;
+	info->fix.visual =
+		bpp == 8 ? FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
+	info->fix.line_length =
+		((info->var.xres_virtual + 7) & ~7) * bpp / 8;
 }
-
 
 static void viafb_setup_fixinfo(struct fb_fix_screeninfo *fix,
 	struct viafb_par *viaparinfo)
@@ -145,19 +141,6 @@ static int viafb_release(struct fb_info *info, int user)
 {
 	DEBUG_MSG(KERN_INFO "viafb_release!\n");
 	return 0;
-}
-
-static void viafb_update_viafb_par(struct fb_info *info)
-{
-	struct viafb_par *ppar;
-
-	ppar = info->par;
-	ppar->bpp = info->var.bits_per_pixel;
-	ppar->linelength = ((info->var.xres_virtual + 7) & ~7) * ppar->bpp / 8;
-	ppar->hres = info->var.xres;
-	ppar->vres = info->var.yres;
-	ppar->xoffset = info->var.xoffset;
-	ppar->yoffset = info->var.yoffset;
 }
 
 static int viafb_check_var(struct fb_var_screeninfo *var,
@@ -255,12 +238,7 @@ static int viafb_set_par(struct fb_info *info)
 		/*We should set memory offset according virtual_x */
 		/*Fix me:put this function into viafb_setmode */
 		viafb_memory_pitch_patch(info);
-
-		/* Update ***fb_par information */
-		viafb_update_viafb_par(info);
-
-		/* Update other fixed information */
-		viafb_update_fix(&info->fix, info);
+		viafb_update_fix(info);
 		viafb_bpp = info->var.bits_per_pixel;
 		/* Update viafb_accel, it is necessary to our 2D accelerate */
 		viafb_accel = info->var.accel_flags;
@@ -2323,15 +2301,13 @@ static int __devinit via_pci_probe(void)
 		viafb_setup_fixinfo(&viafbinfo1->fix, viaparinfo1);
 		viafb_check_var(&default_var, viafbinfo1);
 		viafbinfo1->var = default_var;
-		viafb_update_viafb_par(viafbinfo);
-		viafb_update_fix(&viafbinfo1->fix, viafbinfo1);
+		viafb_update_fix(viafbinfo1);
 	}
 
 	viafb_setup_fixinfo(&viafbinfo->fix, viaparinfo);
 	viafb_check_var(&default_var, viafbinfo);
 	viafbinfo->var = default_var;
-	viafb_update_viafb_par(viafbinfo);
-	viafb_update_fix(&viafbinfo->fix, viafbinfo);
+	viafb_update_fix(viafbinfo);
 	default_var.activate = FB_ACTIVATE_NOW;
 	fb_alloc_cmap(&viafbinfo->cmap, 256, 0);
 
