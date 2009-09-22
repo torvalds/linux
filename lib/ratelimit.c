@@ -7,14 +7,11 @@
  * parameter. Now every user can use their own standalone ratelimit_state.
  *
  * This file is released under the GPLv2.
- *
  */
 
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
-
-static DEFINE_SPINLOCK(ratelimit_lock);
 
 /*
  * __ratelimit - rate limiting
@@ -26,11 +23,12 @@ static DEFINE_SPINLOCK(ratelimit_lock);
 int __ratelimit(struct ratelimit_state *rs)
 {
 	unsigned long flags;
+	int ret;
 
 	if (!rs->interval)
 		return 1;
 
-	spin_lock_irqsave(&ratelimit_lock, flags);
+	spin_lock_irqsave(&rs->lock, flags);
 	if (!rs->begin)
 		rs->begin = jiffies;
 
@@ -38,20 +36,19 @@ int __ratelimit(struct ratelimit_state *rs)
 		if (rs->missed)
 			printk(KERN_WARNING "%s: %d callbacks suppressed\n",
 				__func__, rs->missed);
-		rs->begin = 0;
+		rs->begin   = 0;
 		rs->printed = 0;
-		rs->missed = 0;
+		rs->missed  = 0;
 	}
-	if (rs->burst && rs->burst > rs->printed)
-		goto print;
+	if (rs->burst && rs->burst > rs->printed) {
+		rs->printed++;
+		ret = 1;
+	} else {
+		rs->missed++;
+		ret = 0;
+	}
+	spin_unlock_irqrestore(&rs->lock, flags);
 
-	rs->missed++;
-	spin_unlock_irqrestore(&ratelimit_lock, flags);
-	return 0;
-
-print:
-	rs->printed++;
-	spin_unlock_irqrestore(&ratelimit_lock, flags);
-	return 1;
+	return ret;
 }
 EXPORT_SYMBOL(__ratelimit);
