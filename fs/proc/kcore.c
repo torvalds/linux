@@ -606,6 +606,10 @@ static int __init proc_kcore_init(void)
 {
 	proc_root_kcore = proc_create("kcore", S_IRUSR, NULL,
 				      &proc_kcore_operations);
+	if (!proc_root_kcore) {
+		printk(KERN_ERR "couldn't create /proc/kcore\n");
+		return 0; /* Always returns 0. */
+	}
 	/* Store text area if it's special */
 	proc_kcore_text_init();
 	/* Store vmalloc area */
@@ -615,7 +619,6 @@ static int __init proc_kcore_init(void)
 	/* Store direct-map area from physical memory map */
 	kcore_update_ram();
 	hotplug_memory_notifier(kcore_callback, 0);
-	/* Other special area, area-for-module etc is arch specific. */
 
 	return 0;
 }
