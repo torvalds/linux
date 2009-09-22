@@ -131,6 +131,9 @@ enum {
 	V4L2_IDENT_SAA6752HS = 6752,
 	V4L2_IDENT_SAA6752HS_AC3 = 6753,
 
+	/* modules tef6862: just ident 6862 */
+	V4L2_IDENT_TEF6862 = 6862,
+
 	/* module adv7170: just ident 7170 */
 	V4L2_IDENT_ADV7170 = 7170,
 
