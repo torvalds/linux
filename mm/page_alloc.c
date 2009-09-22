@@ -1143,10 +1143,20 @@ again:
 
 		/* Allocate more to the pcp list if necessary */
 		if (unlikely(&page->lru == &pcp->list)) {
+			int get_one_page = 0;
+
 			pcp->count += rmqueue_bulk(zone, 0,
 					pcp->batch, &pcp->list,
 					migratetype, cold);
-			page = list_entry(pcp->list.next, struct page, lru);
+			list_for_each_entry(page, &pcp->list, lru) {
+				if (get_pageblock_migratetype(page) !=
+					    MIGRATE_ISOLATE) {
+					get_one_page = 1;
+					break;
+				}
+			}
+			if (!get_one_page)
+				goto failed;
 		}
 
 		list_del(&page->lru);
