@@ -327,6 +327,10 @@ struct beiscsi_hba {
 	struct be_ctrl_info ctrl;
 };
 
+struct beiscsi_session {
+	struct pci_pool *bhs_pool;
+};
+
 /**
  * struct beiscsi_conn - iscsi connection structure
  */
@@ -338,6 +342,7 @@ struct beiscsi_conn {
 	struct beiscsi_endpoint *ep;
 	unsigned short login_in_progress;
 	struct sgl_handle *plogin_sgl_handle;
+	struct beiscsi_session *beiscsi_sess;
 };
 
 /* This structure is used by the chip */

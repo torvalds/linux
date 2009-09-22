@@ -44,9 +44,10 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 	struct Scsi_Host *shost;
 	struct beiscsi_endpoint *beiscsi_ep;
 	struct iscsi_cls_session *cls_session;
-	struct iscsi_session *sess;
 	struct beiscsi_hba *phba;
 	struct iscsi_task *task;
+	struct iscsi_session *sess;
+	struct beiscsi_session *beiscsi_sess;
 	struct beiscsi_io_task *io_task;
 	unsigned int max_size, num_cmd;
 	dma_addr_t bus_add;
@@ -73,7 +74,8 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 
 	 cls_session = iscsi_session_setup(&beiscsi_iscsi_transport,
 					   shost, cmds_max,
-					   sizeof(struct beiscsi_io_task),
+					   sizeof(*beiscsi_sess),
+					   sizeof(*io_task),
 					   initial_cmdsn, ISCSI_MAX_TARGET);
 	if (!cls_session)
 		return NULL;
