@@ -20,13 +20,10 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/io.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
-
-#include <asm/io.h>
-#include <asm/dma.h>
-#include <mach/hardware.h>
 
 #include <plat/regs-spi.h>
 #include <mach/spi.h>
