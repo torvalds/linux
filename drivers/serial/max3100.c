@@ -925,3 +925,4 @@ module_exit(max3100_exit);
 MODULE_DESCRIPTION("MAX3100 driver");
 MODULE_AUTHOR("Christian Pellegrin <chripell@evolware.org>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:max3100");

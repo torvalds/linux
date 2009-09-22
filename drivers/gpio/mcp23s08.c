@@ -433,3 +433,4 @@ static void __exit mcp23s08_exit(void)
 module_exit(mcp23s08_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:mcp23s08");

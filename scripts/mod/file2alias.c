@@ -657,11 +657,11 @@ static int do_i2c_entry(const char *filename, struct i2c_device_id *id,
 	return 1;
 }
 
-/* Looks like: S */
+/* Looks like: spi:S */
 static int do_spi_entry(const char *filename, struct spi_device_id *id,
 			char *alias)
 {
-	sprintf(alias, "%s", id->name);
+	sprintf(alias, SPI_MODULE_PREFIX "%s", id->name);
 
 	return 1;
 }

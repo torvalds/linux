@@ -139,4 +139,4 @@ module_exit(lis302dl_exit);
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("lis3lv02d SPI glue layer");
 MODULE_LICENSE("GPL");
-
+MODULE_ALIAS("spi:" DRV_NAME);
