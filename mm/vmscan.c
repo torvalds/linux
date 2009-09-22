@@ -1072,6 +1072,8 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		unsigned long nr_active;
 		unsigned int count[NR_LRU_LISTS] = { 0, };
 		int mode = lumpy_reclaim ? ISOLATE_BOTH : ISOLATE_INACTIVE;
+		unsigned long nr_anon;
+		unsigned long nr_file;
 
 		nr_taken = sc->isolate_pages(sc->swap_cluster_max,
 			     &page_list, &nr_scan, sc->order, mode,
@@ -1102,6 +1104,10 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		__mod_zone_page_state(zone, NR_INACTIVE_ANON,
 						-count[LRU_INACTIVE_ANON]);
 
+		nr_anon = count[LRU_ACTIVE_ANON] + count[LRU_INACTIVE_ANON];
+		nr_file = count[LRU_ACTIVE_FILE] + count[LRU_INACTIVE_FILE];
+		__mod_zone_page_state(zone, NR_ISOLATED_ANON, nr_anon);
+		__mod_zone_page_state(zone, NR_ISOLATED_FILE, nr_file);
 
 		reclaim_stat->recent_scanned[0] += count[LRU_INACTIVE_ANON];
 		reclaim_stat->recent_scanned[0] += count[LRU_ACTIVE_ANON];
@@ -1169,6 +1175,9 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 				spin_lock_irq(&zone->lru_lock);
 			}
 		}
+		__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
+		__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
+
   	} while (nr_scanned < max_scan);
 
 done:
@@ -1279,6 +1288,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
 	else
 		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -nr_taken);
+	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, nr_taken);
 	spin_unlock_irq(&zone->lru_lock);
 
 	while (!list_empty(&l_hold)) {
@@ -1329,7 +1339,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 						LRU_ACTIVE + file * LRU_FILE);
 	move_active_pages_to_lru(zone, &l_inactive,
 						LRU_BASE   + file * LRU_FILE);
-
+	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
 	spin_unlock_irq(&zone->lru_lock);
 }
 
