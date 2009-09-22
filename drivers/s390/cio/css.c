@@ -971,7 +971,7 @@ out_bus:
 out:
 	crw_unregister_handler(CRW_RSC_CSS);
 	chsc_free_sei_area();
-	kfree(slow_subchannel_set);
+	idset_free(slow_subchannel_set);
 	pr_alert("The CSS device driver initialization failed with "
 		 "errno=%d\n", ret);
 	return ret;
@@ -993,7 +993,7 @@ static void __init css_bus_cleanup(void)
 	bus_unregister(&css_bus_type);
 	crw_unregister_handler(CRW_RSC_CSS);
 	chsc_free_sei_area();
-	kfree(slow_subchannel_set);
+	idset_free(slow_subchannel_set);
 	isc_unregister(IO_SCH_ISC);
 }
 
