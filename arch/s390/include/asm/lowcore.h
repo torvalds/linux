@@ -195,6 +195,8 @@ union save_area {
 #define LC_ORDER 1
 #endif
 
+#define LC_PAGES (1UL << LC_ORDER)
+
 struct _lowcore
 {
 #ifndef __s390x__
