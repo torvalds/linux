@@ -192,11 +192,10 @@
 #define F_QUEUE_MAP_CPU (1<<14)	/* queue map mirrors smp_processor_id() */
 
 /* Thread control flag bits */
-#define T_TERMINATE   (1<<0)
-#define T_STOP        (1<<1)	/* Stop run */
-#define T_RUN         (1<<2)	/* Start run */
-#define T_REMDEVALL   (1<<3)	/* Remove all devs */
-#define T_REMDEV      (1<<4)	/* Remove one dev */
+#define T_STOP        (1<<0)	/* Stop run */
+#define T_RUN         (1<<1)	/* Start run */
+#define T_REMDEVALL   (1<<2)	/* Remove all devs */
+#define T_REMDEV      (1<<3)	/* Remove one dev */
 
 /* If lock -- can be removed after some work */
 #define   if_lock(t)           spin_lock(&(t->if_lock));
