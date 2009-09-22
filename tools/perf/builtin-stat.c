@@ -338,14 +338,24 @@ static void nsec_printout(int counter, double avg)
 
 static void abs_printout(int counter, double avg)
 {
+	double total, ratio = 0.0;
+
 	fprintf(stderr, " %14.0f  %-24s", avg, event_name(counter));
 
 	if (MATCH_EVENT(HARDWARE, HW_INSTRUCTIONS, counter)) {
-		fprintf(stderr, " # %10.3f IPC  ",
-				avg / avg_stats(&runtime_cycles_stats));
+		total = avg_stats(&runtime_cycles_stats);
+
+		if (total)
+			ratio = avg / total;
+
+		fprintf(stderr, " # %10.3f IPC  ", ratio);
 	} else {
-		fprintf(stderr, " # %10.3f M/sec",
-				1000.0 * avg / avg_stats(&runtime_nsecs_stats));
+		total = avg_stats(&runtime_nsecs_stats);
+
+		if (total)
+			ratio = 1000.0 * avg / total;
+
+		fprintf(stderr, " # %10.3f M/sec", ratio);
 	}
 }
 
