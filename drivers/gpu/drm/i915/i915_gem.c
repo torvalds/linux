@@ -1200,26 +1200,21 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	mutex_lock(&dev->struct_mutex);
 	if (!obj_priv->gtt_space) {
 		ret = i915_gem_object_bind_to_gtt(obj, 0);
-		if (ret) {
-			mutex_unlock(&dev->struct_mutex);
-			return VM_FAULT_SIGBUS;
-		}
+		if (ret)
+			goto unlock;
+
 		list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 
 		ret = i915_gem_object_set_to_gtt_domain(obj, write);
-		if (ret) {
-			mutex_unlock(&dev->struct_mutex);
-			return VM_FAULT_SIGBUS;
-		}
+		if (ret)
+			goto unlock;
 	}
 
 	/* Need a new fence register? */
 	if (obj_priv->tiling_mode != I915_TILING_NONE) {
 		ret = i915_gem_object_get_fence_reg(obj);
-		if (ret) {
-			mutex_unlock(&dev->struct_mutex);
-			return VM_FAULT_SIGBUS;
-		}
+		if (ret)
+			goto unlock;
 	}
 
 	pfn = ((dev->agp->base + obj_priv->gtt_offset) >> PAGE_SHIFT) +
@@ -1227,18 +1222,18 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Finally, remap it using the new GTT offset */
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
-
+unlock:
 	mutex_unlock(&dev->struct_mutex);
 
 	switch (ret) {
+	case 0:
+	case -ERESTARTSYS:
+		return VM_FAULT_NOPAGE;
 	case -ENOMEM:
 	case -EAGAIN:
 		return VM_FAULT_OOM;
-	case -EFAULT:
-	case -EINVAL:
-		return VM_FAULT_SIGBUS;
 	default:
-		return VM_FAULT_NOPAGE;
+		return VM_FAULT_SIGBUS;
 	}
 }
 
