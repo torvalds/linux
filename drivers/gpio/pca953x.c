@@ -40,6 +40,7 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "pca9557", 8, },
 
 	{ "max7310", 8, },
+	{ "max7315", 8, },
 	{ "pca6107", 8, },
 	{ "tca6408", 8, },
 	{ "tca6416", 16, },
