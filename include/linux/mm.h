@@ -702,17 +702,8 @@ extern void pagefault_out_of_memory(void);
 
 extern void show_free_areas(void);
 
-#ifdef CONFIG_SHMEM
-extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
-#else
-static inline int shmem_lock(struct file *file, int lock,
-			    struct user_struct *user)
-{
-	return 0;
-}
-#endif
+int shmem_lock(struct file *file, int lock, struct user_struct *user);
 struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags);
-
 int shmem_zero_setup(struct vm_area_struct *);
 
 #ifndef CONFIG_MMU
