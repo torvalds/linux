@@ -2337,7 +2337,7 @@ static int __mpage_da_writepage(struct page *page,
 		/*
 		 * Rest of the page in the page_vec
 		 * redirty then and skip then. We will
-		 * try to to write them again after
+		 * try to write them again after
 		 * starting a new transaction
 		 */
 		redirty_page_for_writepage(wbc, page);

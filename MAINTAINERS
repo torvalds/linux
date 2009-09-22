@@ -2958,7 +2958,7 @@ F:	scripts/Makefile.*
 KERNEL JANITORS
 L:	kernel-janitors@vger.kernel.org
 W:	http://www.kerneljanitors.org/
-S:	Odd fixes
+S:	Maintained
 
 KERNEL NFSD, SUNRPC, AND LOCKD SERVERS
 M:	"J. Bruce Fields" <bfields@fieldses.org>

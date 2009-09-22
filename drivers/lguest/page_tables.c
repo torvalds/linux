@@ -894,7 +894,7 @@ void guest_set_pte(struct lg_cpu *cpu,
  * tells us they've changed.  When the Guest tries to use the new entry it will
  * fault and demand_page() will fix it up.
  *
- * So with that in mind here's our code to to update a (top-level) PGD entry:
+ * So with that in mind here's our code to update a (top-level) PGD entry:
  */
 void guest_set_pgd(struct lguest *lg, unsigned long gpgdir, u32 idx)
 {

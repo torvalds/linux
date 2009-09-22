@@ -25,7 +25,7 @@ KBUILD_CFLAGS	+=$(call cc-option,-marm,)
 # Select a platform tht is kept up-to-date
 KBUILD_DEFCONFIG := versatile_defconfig
 
-# defines filename extension depending memory manement type.
+# defines filename extension depending memory management type.
 ifeq ($(CONFIG_MMU),)
 MMUEXT		:= -nommu
 endif
