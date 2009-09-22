@@ -564,7 +564,6 @@ static int set_fb_var(struct fb_info *fbi,
 		var->xoffset = var->xres_virtual - var->xres;
 	if (var->yres + var->yoffset > var->yres_virtual)
 		var->yoffset = var->yres_virtual - var->yres;
-	line_size = var->xres * bpp / 8;
 
 	if (plane->color_mode == OMAPFB_COLOR_RGB444) {
 		var->red.offset	  = 8; var->red.length	 = 4;
@@ -1723,8 +1722,8 @@ static int omapfb_do_probe(struct platform_device *pdev,
 
 	pr_info("omapfb: configured for panel %s\n", fbdev->panel->name);
 
-	def_vxres = def_vxres ? : fbdev->panel->x_res;
-	def_vyres = def_vyres ? : fbdev->panel->y_res;
+	def_vxres = def_vxres ? def_vxres : fbdev->panel->x_res;
+	def_vyres = def_vyres ? def_vyres : fbdev->panel->y_res;
 
 	init_state++;
 
