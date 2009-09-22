@@ -801,23 +801,6 @@ asmlinkage long sys32_write(unsigned int fd, char __user * buf, size_t count)
 	return sys_write(fd, buf, count);
 }
 
-asmlinkage long sys32_clone(void)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-	unsigned long clone_flags;
-	unsigned long newsp;
-	int __user *parent_tidptr, *child_tidptr;
-
-	clone_flags = regs->gprs[3] & 0xffffffffUL;
-	newsp = regs->orig_gpr2 & 0x7fffffffUL;
-	parent_tidptr = compat_ptr(regs->gprs[4]);
-	child_tidptr = compat_ptr(regs->gprs[5]);
-	if (!newsp)
-		newsp = regs->gprs[15];
-	return do_fork(clone_flags, newsp, regs, 0,
-		       parent_tidptr, child_tidptr);
-}
-
 /*
  * 31 bit emulation wrapper functions for sys_fadvise64/fadvise64_64.
  * These need to rewrite the advise values for POSIX_FADV_{DONTNEED,NOREUSE}

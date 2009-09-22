@@ -222,7 +222,6 @@ unsigned long old32_mmap(struct mmap_arg_struct_emu31 __user *arg);
 long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg);
 long sys32_read(unsigned int fd, char __user * buf, size_t count);
 long sys32_write(unsigned int fd, char __user * buf, size_t count);
-long sys32_clone(void);
 long sys32_fadvise64(int fd, loff_t offset, size_t len, int advise);
 long sys32_fadvise64_64(struct fadvise64_64_args __user *args);
 long sys32_sigaction(int sig, const struct old_sigaction32 __user *act,

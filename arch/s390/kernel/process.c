@@ -230,17 +230,11 @@ SYSCALL_DEFINE0(fork)
 	return do_fork(SIGCHLD, regs->gprs[15], regs, 0, NULL, NULL);
 }
 
-SYSCALL_DEFINE0(clone)
+SYSCALL_DEFINE4(clone, unsigned long, newsp, unsigned long, clone_flags,
+		int __user *, parent_tidptr, int __user *, child_tidptr)
 {
 	struct pt_regs *regs = task_pt_regs(current);
-	unsigned long clone_flags;
-	unsigned long newsp;
-	int __user *parent_tidptr, *child_tidptr;
 
-	clone_flags = regs->gprs[3];
-	newsp = regs->orig_gpr2;
-	parent_tidptr = (int __user *) regs->gprs[4];
-	child_tidptr = (int __user *) regs->gprs[5];
 	if (!newsp)
 		newsp = regs->gprs[15];
 	return do_fork(clone_flags, newsp, regs, 0,

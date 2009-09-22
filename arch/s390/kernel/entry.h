@@ -42,7 +42,8 @@ long sys_s390_fadvise64_64(struct fadvise64_64_args __user *args);
 long sys_s390_fallocate(int fd, int mode, loff_t offset, u32 len_high,
 			u32 len_low);
 long sys_fork(void);
-long sys_clone(void);
+long sys_clone(unsigned long newsp, unsigned long clone_flags,
+	       int __user *parent_tidptr, int __user *child_tidptr);
 long sys_vfork(void);
 void execve_tail(void);
 long sys_execve(void);

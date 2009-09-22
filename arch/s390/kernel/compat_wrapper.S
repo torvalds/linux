@@ -1840,3 +1840,11 @@ sys_perf_event_open_wrapper:
 	lgfr	%r5,%r5			# int
 	llgfr	%r6,%r6			# unsigned long
 	jg	sys_perf_event_open	# branch to system call
+
+	.globl	sys_clone_wrapper
+sys_clone_wrapper:
+	llgfr	%r2,%r2			# unsigned long
+	llgfr	%r3,%r3			# unsigned long
+	llgtr	%r4,%r4			# int *
+	llgtr	%r5,%r5			# int *
+	jg	sys_clone		# branch to system call
