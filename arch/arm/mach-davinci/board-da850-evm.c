@@ -23,6 +23,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/regulator/machine.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -251,6 +252,153 @@ static void __init da850_evm_init_nor(void)
 	iounmap(aemif_addr);
 }
 
+/* TPS65070 voltage regulator support */
+
+/* 3.3V */
+struct regulator_consumer_supply tps65070_dcdc1_consumers[] = {
+	{
+		.supply = "usb0_vdda33",
+	},
+	{
+		.supply = "usb1_vdda33",
+	},
+};
+
+/* 3.3V or 1.8V */
+struct regulator_consumer_supply tps65070_dcdc2_consumers[] = {
+	{
+		.supply = "dvdd3318_a",
+	},
+	{
+		.supply = "dvdd3318_b",
+	},
+	{
+		.supply = "dvdd3318_c",
+	},
+};
+
+/* 1.2V */
+struct regulator_consumer_supply tps65070_dcdc3_consumers[] = {
+	{
+		.supply = "cvdd",
+	},
+};
+
+/* 1.8V LDO */
+struct regulator_consumer_supply tps65070_ldo1_consumers[] = {
+	{
+		.supply = "sata_vddr",
+	},
+	{
+		.supply = "usb0_vdda18",
+	},
+	{
+		.supply = "usb1_vdda18",
+	},
+	{
+		.supply = "ddr_dvdd18",
+	},
+};
+
+/* 1.2V LDO */
+struct regulator_consumer_supply tps65070_ldo2_consumers[] = {
+	{
+		.supply = "sata_vdd",
+	},
+	{
+		.supply = "pll0_vdda",
+	},
+	{
+		.supply = "pll1_vdda",
+	},
+	{
+		.supply = "usbs_cvdd",
+	},
+	{
+		.supply = "vddarnwa1",
+	},
+};
+
+struct regulator_init_data tps65070_regulator_data[] = {
+	/* dcdc1 */
+	{
+		.constraints = {
+			.min_uV = 3150000,
+			.max_uV = 3450000,
+			.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
+				REGULATOR_CHANGE_STATUS),
+			.boot_on = 1,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(tps65070_dcdc1_consumers),
+		.consumer_supplies = tps65070_dcdc1_consumers,
+	},
+
+	/* dcdc2 */
+	{
+		.constraints = {
+			.min_uV = 1710000,
+			.max_uV = 3450000,
+			.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
+				REGULATOR_CHANGE_STATUS),
+			.boot_on = 1,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(tps65070_dcdc2_consumers),
+		.consumer_supplies = tps65070_dcdc2_consumers,
+	},
+
+	/* dcdc3 */
+	{
+		.constraints = {
+			.min_uV = 950000,
+			.max_uV = 1320000,
+			.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
+				REGULATOR_CHANGE_STATUS),
+			.boot_on = 1,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(tps65070_dcdc3_consumers),
+		.consumer_supplies = tps65070_dcdc3_consumers,
+	},
+
+	/* ldo1 */
+	{
+		.constraints = {
+			.min_uV = 1710000,
+			.max_uV = 1890000,
+			.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
+				REGULATOR_CHANGE_STATUS),
+			.boot_on = 1,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(tps65070_ldo1_consumers),
+		.consumer_supplies = tps65070_ldo1_consumers,
+	},
+
+	/* ldo2 */
+	{
+		.constraints = {
+			.min_uV = 1140000,
+			.max_uV = 1320000,
+			.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
+				REGULATOR_CHANGE_STATUS),
+			.boot_on = 1,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(tps65070_ldo2_consumers),
+		.consumer_supplies = tps65070_ldo2_consumers,
+	},
+};
+
+static struct i2c_board_info __initdata da850evm_tps65070_info[] = {
+	{
+		I2C_BOARD_INFO("tps6507x", 0x48),
+		.platform_data = &tps65070_regulator_data[0],
+	},
+};
+
+static int __init pmic_tps65070_init(void)
+{
+	return i2c_register_board_info(1, da850evm_tps65070_info,
+					ARRAY_SIZE(da850evm_tps65070_info));
+}
+
 #if defined(CONFIG_MTD_PHYSMAP) || \
     defined(CONFIG_MTD_PHYSMAP_MODULE)
 #define HAS_NOR 1
@@ -274,6 +422,11 @@ static __init void da850_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int ret;
+
+	ret = pmic_tps65070_init();
+	if (ret)
+		pr_warning("da850_evm_init: TPS65070 PMIC init failed: %d\n",
+				ret);
 
 	ret = da8xx_pinmux_setup(da850_nand_pins);
 	if (ret)
