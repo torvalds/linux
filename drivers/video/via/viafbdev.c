@@ -2134,12 +2134,16 @@ static int __devinit via_pci_probe(void)
 
 	if (!viaparinfo->fbmem_virt) {
 		printk(KERN_INFO "ioremap failed\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	viafb_get_mmio_info(&viaparinfo->mmio_base, &viaparinfo->mmio_len);
 	viaparinfo->io_virt = ioremap_nocache(viaparinfo->mmio_base,
 		viaparinfo->mmio_len);
+	if (!viaparinfo->io_virt) {
+		printk(KERN_WARNING "ioremap failed: hardware acceleration disabled\n");
+		viafb_accel = 0;
+	}
 
 	viafbinfo->node = 0;
 	viafbinfo->fbops = &viafb_ops;
