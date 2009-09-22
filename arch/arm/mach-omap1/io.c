@@ -39,14 +39,14 @@ static struct map_desc omap_io_desc[] __initdata = {
 #if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
 static struct map_desc omap730_io_desc[] __initdata = {
 	{
-		.virtual	= OMAP730_DSP_BASE,
-		.pfn		= __phys_to_pfn(OMAP730_DSP_START),
-		.length		= OMAP730_DSP_SIZE,
+		.virtual	= OMAP7XX_DSP_BASE,
+		.pfn		= __phys_to_pfn(OMAP7XX_DSP_START),
+		.length		= OMAP7XX_DSP_SIZE,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= OMAP730_DSPREG_BASE,
-		.pfn		= __phys_to_pfn(OMAP730_DSPREG_START),
-		.length		= OMAP730_DSPREG_SIZE,
+		.virtual	= OMAP7XX_DSPREG_BASE,
+		.pfn		= __phys_to_pfn(OMAP7XX_DSPREG_START),
+		.length		= OMAP7XX_DSPREG_SIZE,
 		.type		= MT_DEVICE
 	}
 };

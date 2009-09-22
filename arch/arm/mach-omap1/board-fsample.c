@@ -309,7 +309,7 @@ static void __init omap_fsample_map_io(void)
 	/*
 	 * Hold GSM Reset until needed
 	 */
-	omap_writew(omap_readw(OMAP730_DSP_M_CTL) & ~1, OMAP730_DSP_M_CTL);
+	omap_writew(omap_readw(OMAP7XX_DSP_M_CTL) & ~1, OMAP7XX_DSP_M_CTL);
 
 	/*
 	 * UARTs -> done automagically by 8250 driver
@@ -320,21 +320,21 @@ static void __init omap_fsample_map_io(void)
 	 */
 
 	/* Flash: CS0 timings setup */
-	omap_writel(0x0000fff3, OMAP730_FLASH_CFG_0);
-	omap_writel(0x00000088, OMAP730_FLASH_ACFG_0);
+	omap_writel(0x0000fff3, OMAP7XX_FLASH_CFG_0);
+	omap_writel(0x00000088, OMAP7XX_FLASH_ACFG_0);
 
 	/*
 	 * Ethernet support through the debug board
 	 * CS1 timings setup
 	 */
-	omap_writel(0x0000fff3, OMAP730_FLASH_CFG_1);
-	omap_writel(0x00000000, OMAP730_FLASH_ACFG_1);
+	omap_writel(0x0000fff3, OMAP7XX_FLASH_CFG_1);
+	omap_writel(0x00000000, OMAP7XX_FLASH_ACFG_1);
 
 	/*
 	 * Configure MPU_EXT_NIRQ IO in IO_CONF9 register,
 	 * It is used as the Ethernet controller interrupt
 	 */
-	omap_writel(omap_readl(OMAP730_IO_CONF_9) & 0x1FFFFFFF, OMAP730_IO_CONF_9);
+	omap_writel(omap_readl(OMAP7XX_IO_CONF_9) & 0x1FFFFFFF, OMAP7XX_IO_CONF_9);
 }
 
 MACHINE_START(OMAP_FSAMPLE, "OMAP730 F-Sample")

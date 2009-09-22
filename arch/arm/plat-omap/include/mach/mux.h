@@ -51,13 +51,13 @@
 					.pu_pd_reg = PU_PD_SEL_##reg, \
 					.pu_pd_val = status,
 
-#define MUX_REG_730(reg, mode_offset, mode) .mux_reg_name = "OMAP730_IO_CONF_"#reg, \
-					.mux_reg = OMAP730_IO_CONF_##reg, \
+#define MUX_REG_730(reg, mode_offset, mode) .mux_reg_name = "OMAP7XX_IO_CONF_"#reg, \
+					.mux_reg = OMAP7XX_IO_CONF_##reg, \
 					.mask_offset = mode_offset, \
 					.mask = mode,
 
-#define PULL_REG_730(reg, bit, status)	.pull_name = "OMAP730_IO_CONF_"#reg, \
-					.pull_reg = OMAP730_IO_CONF_##reg, \
+#define PULL_REG_730(reg, bit, status)	.pull_name = "OMAP7XX_IO_CONF_"#reg, \
+					.pull_reg = OMAP7XX_IO_CONF_##reg, \
 					.pull_bit = bit, \
 					.pull_val = status,
 
@@ -75,11 +75,11 @@
 					.pu_pd_val = status,
 
 #define MUX_REG_730(reg, mode_offset, mode) \
-					.mux_reg = OMAP730_IO_CONF_##reg, \
+					.mux_reg = OMAP7XX_IO_CONF_##reg, \
 					.mask_offset = mode_offset, \
 					.mask = mode,
 
-#define PULL_REG_730(reg, bit, status)	.pull_reg = OMAP730_IO_CONF_##reg, \
+#define PULL_REG_730(reg, bit, status)	.pull_reg = OMAP7XX_IO_CONF_##reg, \
 					.pull_bit = bit, \
 					.pull_val = status,
 
@@ -99,7 +99,7 @@
 
 /*
  * OMAP730/850 has a slightly different config for the pin mux.
- * - config regs are the OMAP730_IO_CONF_x regs (see omap730.h) regs and
+ * - config regs are the OMAP7XX_IO_CONF_x regs (see omap730.h) regs and
  *   not the FUNC_MUX_CTRL_x regs from hardware.h
  * - for pull-up/down, only has one enable bit which is is in the same register
  *   as mux config
