@@ -44,6 +44,7 @@
 MODULE_AUTHOR("Jett Chen <jett_chen@ralinktech.com>");
 MODULE_DESCRIPTION("RT2860/RT3090 Wireless Lan Linux Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("rt3090sta");
 
 //
 // Function declarations

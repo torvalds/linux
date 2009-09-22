@@ -15,7 +15,6 @@ obj-$(CONFIG_POCH)		+= poch/
 obj-$(CONFIG_OTUS)		+= otus/
 obj-$(CONFIG_RT2860)		+= rt2860/
 obj-$(CONFIG_RT2870)		+= rt2870/
-obj-$(CONFIG_RT3090)		+= rt3090/
 obj-$(CONFIG_COMEDI)		+= comedi/
 obj-$(CONFIG_ASUS_OLED)		+= asus_oled/
 obj-$(CONFIG_PANEL)		+= panel/
