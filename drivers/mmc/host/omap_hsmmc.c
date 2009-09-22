@@ -162,6 +162,7 @@ struct mmc_omap_host {
 	int			response_busy;
 	int			context_loss;
 	int			dpm_state;
+	int			vdd;
 
 	struct	omap_mmc_platform_data	*pdata;
 };
@@ -1038,10 +1039,12 @@ static void omap_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		case MMC_POWER_OFF:
 			mmc_slot(host).set_power(host->dev, host->slot_id,
 						 0, 0);
+			host->vdd = 0;
 			break;
 		case MMC_POWER_UP:
 			mmc_slot(host).set_power(host->dev, host->slot_id,
 						 1, ios->vdd);
+			host->vdd = ios->vdd;
 			break;
 		case MMC_POWER_ON:
 			do_send_init_stream = 1;
@@ -1179,19 +1182,20 @@ static void omap_hsmmc_init(struct mmc_omap_host *host)
 
 /*
  * Dynamic power saving handling, FSM:
- *   ENABLED -> DISABLED -> OFF
+ *   ENABLED -> DISABLED -> OFF / REGSLEEP
  *     ^___________|          |
  *     |______________________|
  *
  * ENABLED:   mmc host is fully functional
  * DISABLED:  fclk is off
  * OFF:       fclk is off,voltage regulator is off
+ * REGSLEEP:  fclk is off,voltage regulator is asleep
  *
  * Transition handlers return the timeout for the next state transition
  * or negative error.
  */
 
-enum {ENABLED = 0, DISABLED, OFF};
+enum {ENABLED = 0, DISABLED, REGSLEEP, OFF};
 
 /* Handler for [ENABLED -> DISABLED] transition */
 static int omap_mmc_enabled_to_disabled(struct mmc_omap_host *host)
@@ -1228,8 +1232,12 @@ static int omap_mmc_disabled_to_off(struct mmc_omap_host *host)
 	     mmc_slot(host).get_cover_state(host->dev, host->slot_id))) {
 		mmc_power_save_host(host->mmc);
 		new_state = OFF;
-	} else
-		new_state = DISABLED;
+	} else {
+		if (mmc_slot(host).set_sleep)
+			mmc_slot(host).set_sleep(host->dev, host->slot_id,
+						 1, 0, 0);
+		new_state = REGSLEEP;
+	}
 
 	OMAP_HSMMC_WRITE(host->base, ISE, 0);
 	OMAP_HSMMC_WRITE(host->base, IE, 0);
@@ -1286,6 +1294,44 @@ static int omap_mmc_off_to_enabled(struct mmc_omap_host *host)
 	return 0;
 }
 
+/* Handler for [REGSLEEP -> ENABLED] transition */
+static int omap_mmc_regsleep_to_enabled(struct mmc_omap_host *host)
+{
+	unsigned long timeout;
+
+	dev_dbg(mmc_dev(host->mmc), "REGSLEEP -> ENABLED\n");
+
+	clk_enable(host->fclk);
+	clk_enable(host->iclk);
+
+	if (clk_enable(host->dbclk))
+		dev_dbg(mmc_dev(host->mmc),
+			"Enabling debounce clk failed\n");
+
+	omap_mmc_restore_ctx(host);
+
+	/*
+	 * We turned off interrupts and bus power.  Interrupts
+	 * are turned on by 'mmc_omap_start_command()' so we
+	 * just need to turn on the bus power here.
+	 */
+	OMAP_HSMMC_WRITE(host->base, HCTL,
+			 OMAP_HSMMC_READ(host->base, HCTL) | SDBP);
+
+	timeout = jiffies + msecs_to_jiffies(MMC_TIMEOUT_MS);
+	while ((OMAP_HSMMC_READ(host->base, HCTL) & SDBP) != SDBP &&
+	       time_before(jiffies, timeout))
+		;
+
+	if (mmc_slot(host).set_sleep)
+		mmc_slot(host).set_sleep(host->dev, host->slot_id,
+					 0, host->vdd, 0);
+
+	host->dpm_state = ENABLED;
+
+	return 0;
+}
+
 /*
  * Bring MMC host to ENABLED from any other PM state.
  */
@@ -1296,6 +1342,8 @@ static int omap_mmc_enable(struct mmc_host *mmc)
 	switch (host->dpm_state) {
 	case DISABLED:
 		return omap_mmc_disabled_to_enabled(host);
+	case REGSLEEP:
+		return omap_mmc_regsleep_to_enabled(host);
 	case OFF:
 		return omap_mmc_off_to_enabled(host);
 	default:
@@ -1393,7 +1441,8 @@ static int mmc_regs_show(struct seq_file *s, void *data)
 			host->dpm_state, mmc->nesting_cnt,
 			host->context_loss, context_loss);
 
-	if (host->suspended || host->dpm_state == OFF) {
+	if (host->suspended || host->dpm_state == OFF ||
+	    host->dpm_state == REGSLEEP) {
 		seq_printf(s, "host suspended, can't read registers\n");
 		return 0;
 	}
