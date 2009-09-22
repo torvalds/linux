@@ -189,6 +189,12 @@ union save_area {
 #define SAVE_AREA_BASE SAVE_AREA_BASE_S390X
 #endif
 
+#ifndef __s390x__
+#define LC_ORDER 0
+#else
+#define LC_ORDER 1
+#endif
+
 struct _lowcore
 {
 #ifndef __s390x__

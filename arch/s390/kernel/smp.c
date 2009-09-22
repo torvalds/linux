@@ -475,10 +475,8 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 {
 	unsigned long async_stack, panic_stack;
 	struct _lowcore *lowcore;
-	int lc_order;
 
-	lc_order = sizeof(long) == 8 ? 1 : 0;
-	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, lc_order);
+	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
 	if (!lowcore)
 		return -ENOMEM;
 	async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
@@ -509,16 +507,14 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 out:
 	free_page(panic_stack);
 	free_pages(async_stack, ASYNC_ORDER);
-	free_pages((unsigned long) lowcore, lc_order);
+	free_pages((unsigned long) lowcore, LC_ORDER);
 	return -ENOMEM;
 }
 
 static void smp_free_lowcore(int cpu)
 {
 	struct _lowcore *lowcore;
-	int lc_order;
 
-	lc_order = sizeof(long) == 8 ? 1 : 0;
 	lowcore = lowcore_ptr[cpu];
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE)
@@ -528,7 +524,7 @@ static void smp_free_lowcore(int cpu)
 #endif
 	free_page(lowcore->panic_stack - PAGE_SIZE);
 	free_pages(lowcore->async_stack - ASYNC_SIZE, ASYNC_ORDER);
-	free_pages((unsigned long) lowcore, lc_order);
+	free_pages((unsigned long) lowcore, LC_ORDER);
 	lowcore_ptr[cpu] = NULL;
 }
 
@@ -664,7 +660,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	unsigned long async_stack, panic_stack;
 	struct _lowcore *lowcore;
 	unsigned int cpu;
-	int lc_order;
 
 	smp_detect_cpus();
 
@@ -674,8 +669,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	print_cpu_info();
 
 	/* Reallocate current lowcore, but keep its contents. */
-	lc_order = sizeof(long) == 8 ? 1 : 0;
-	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, lc_order);
+	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
 	panic_stack = __get_free_page(GFP_KERNEL);
 	async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
 	BUG_ON(!lowcore || !panic_stack || !async_stack);
