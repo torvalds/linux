@@ -107,6 +107,8 @@ static void free_kclist_ents(struct list_head *head)
  */
 static void __kcore_update_ram(struct list_head *list)
 {
+	int nphdr;
+	size_t size;
 	struct kcore_list *tmp, *pos;
 	LIST_HEAD(garbage);
 
@@ -121,6 +123,7 @@ static void __kcore_update_ram(struct list_head *list)
 	} else
 		list_splice(list, &garbage);
 	kcore_need_update = 0;
+	proc_root_kcore->size = get_kcore_size(&nphdr, &size);
 	write_unlock(&kclist_lock);
 
 	free_kclist_ents(&garbage);
@@ -429,7 +432,8 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 	unsigned long start;
 
 	read_lock(&kclist_lock);
-	proc_root_kcore->size = size = get_kcore_size(&nphdr, &elf_buflen);
+	size = get_kcore_size(&nphdr, &elf_buflen);
+
 	if (buflen == 0 || *fpos >= size) {
 		read_unlock(&kclist_lock);
 		return 0;
