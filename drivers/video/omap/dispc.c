@@ -858,8 +858,11 @@ EXPORT_SYMBOL(omap_dispc_free_irq);
 
 static irqreturn_t omap_dispc_irq_handler(int irq, void *dev)
 {
-	u32 stat = dispc_read_reg(DISPC_IRQSTATUS);
+	u32 stat;
 
+	enable_lcd_clocks(1);
+
+	stat = dispc_read_reg(DISPC_IRQSTATUS);
 	if (stat & DISPC_IRQ_FRAMEMASK)
 		complete(&dispc.frame_done);
 
@@ -874,6 +877,8 @@ static irqreturn_t omap_dispc_irq_handler(int irq, void *dev)
 		dispc.irq_callback(dispc.irq_callback_data);
 
 	dispc_write_reg(DISPC_IRQSTATUS, stat);
+
+	enable_lcd_clocks(0);
 
 	return IRQ_HANDLED;
 }
@@ -913,18 +918,13 @@ static void put_dss_clocks(void)
 
 static void enable_lcd_clocks(int enable)
 {
-	if (enable)
-		clk_enable(dispc.dss1_fck);
-	else
-		clk_disable(dispc.dss1_fck);
-}
-
-static void enable_interface_clocks(int enable)
-{
-	if (enable)
+	if (enable) {
 		clk_enable(dispc.dss_ick);
-	else
+		clk_enable(dispc.dss1_fck);
+	} else {
+		clk_disable(dispc.dss1_fck);
 		clk_disable(dispc.dss_ick);
+	}
 }
 
 static void enable_digit_clocks(int enable)
@@ -1365,7 +1365,6 @@ static int omap_dispc_init(struct omapfb_device *fbdev, int ext_mode,
 	if ((r = get_dss_clocks()) < 0)
 		goto fail0;
 
-	enable_interface_clocks(1);
 	enable_lcd_clocks(1);
 
 #ifdef CONFIG_FB_OMAP_BOOTLOADER_INIT
@@ -1469,7 +1468,6 @@ fail2:
 	free_irq(INT_24XX_DSS_IRQ, fbdev);
 fail1:
 	enable_lcd_clocks(0);
-	enable_interface_clocks(0);
 	put_dss_clocks();
 fail0:
 	iounmap(dispc.base);
@@ -1487,7 +1485,6 @@ static void omap_dispc_cleanup(void)
 	cleanup_fbmem();
 	free_palette_ram();
 	free_irq(INT_24XX_DSS_IRQ, dispc.fbdev);
-	enable_interface_clocks(0);
 	put_dss_clocks();
 	iounmap(dispc.base);
 }
