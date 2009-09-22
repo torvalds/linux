@@ -27,7 +27,7 @@
 #define __NO_VERSION__
 #include "comedi.h"
 #include <linux/smp_lock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "comedi_compat32.h"
 
@@ -186,8 +186,8 @@ static int compat_rangeinfo(struct file *file, unsigned long arg)
 }
 
 /* Copy 32-bit cmd structure to native cmd structure. */
-static int get_compat_cmd(struct comedi_cmd __user * cmd,
-			  struct comedi32_cmd_struct __user * cmd32)
+static int get_compat_cmd(struct comedi_cmd __user *cmd,
+			  struct comedi32_cmd_struct __user *cmd32)
 {
 	int err;
 	union {
@@ -237,8 +237,8 @@ static int get_compat_cmd(struct comedi_cmd __user * cmd,
 }
 
 /* Copy native cmd structure to 32-bit cmd structure. */
-static int put_compat_cmd(struct comedi32_cmd_struct __user * cmd32,
-			  struct comedi_cmd __user * cmd)
+static int put_compat_cmd(struct comedi32_cmd_struct __user *cmd32,
+			  struct comedi_cmd __user *cmd)
 {
 	int err;
 	unsigned int temp;
@@ -328,8 +328,8 @@ static int compat_cmdtest(struct file *file, unsigned long arg)
 }
 
 /* Copy 32-bit insn structure to native insn structure. */
-static int get_compat_insn(struct comedi_insn __user * insn,
-			   struct comedi32_insn_struct __user * insn32)
+static int get_compat_insn(struct comedi_insn __user *insn,
+			   struct comedi32_insn_struct __user *insn32)
 {
 	int err;
 	union {
@@ -372,9 +372,9 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 	insnlist32 = compat_ptr(arg);
 
 	/* Get 32-bit insnlist structure.  */
-	if (!access_ok(VERIFY_READ, insnlist32, sizeof(*insnlist32))) {
+	if (!access_ok(VERIFY_READ, insnlist32, sizeof(*insnlist32)))
 		return -EFAULT;
-	}
+
 	err = 0;
 	err |= __get_user(n_insns, &insnlist32->n_insns);
 	err |= __get_user(uptr, &insnlist32->insns);
@@ -387,9 +387,9 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 					     insn[n_insns]));
 
 	/* Set native insnlist structure. */
-	if (!access_ok(VERIFY_WRITE, &s->insnlist, sizeof(s->insnlist))) {
+	if (!access_ok(VERIFY_WRITE, &s->insnlist, sizeof(s->insnlist)))
 		return -EFAULT;
-	}
+
 	err |= __put_user(n_insns, &s->insnlist.n_insns);
 	err |= __put_user(&s->insn[0], &s->insnlist.insns);
 	if (err)
