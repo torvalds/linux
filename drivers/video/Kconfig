@@ -2128,6 +2128,17 @@ config FB_MB862XX_LIME
 	---help---
 	  Framebuffer support for Fujitsu Lime GDC on host CPU bus.
 
+config FB_EP93XX
+	tristate "EP93XX frame buffer support"
+	depends on FB && ARCH_EP93XX
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Framebuffer driver for the Cirrus Logic EP93XX series of processors.
+	  This driver is also available as a module. The module will be called
+	  ep93xx-fb.
+
 config FB_PRE_INIT_FB
 	bool "Don't reinitialize, use bootloader's GDC/Display configuration"
 	depends on FB_MB862XX_LIME
