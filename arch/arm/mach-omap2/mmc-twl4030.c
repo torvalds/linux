@@ -198,6 +198,18 @@ static int twl_mmc_resume(struct device *dev, int slot)
 #define twl_mmc_resume	NULL
 #endif
 
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
+
+static int twl4030_mmc_get_context_loss(struct device *dev)
+{
+	/* FIXME: PM DPS not implemented yet */
+	return 0;
+}
+
+#else
+#define twl4030_mmc_get_context_loss NULL
+#endif
+
 static int twl_mmc1_set_power(struct device *dev, int slot, int power_on,
 				int vdd)
 {
@@ -389,6 +401,9 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 				mmc->slots[0].card_detect = twl_mmc_card_detect;
 		} else
 			mmc->slots[0].switch_pin = -EINVAL;
+
+		mmc->get_context_loss_count =
+				twl4030_mmc_get_context_loss;
 
 		/* write protect normally uses an OMAP gpio */
 		if (gpio_is_valid(c->gpio_wp)) {
