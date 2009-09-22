@@ -31,7 +31,6 @@
 #include "chp.h"
 
 int css_init_done = 0;
-static int need_reprobe = 0;
 int max_ssid;
 
 struct channel_subsystem *channel_subsystems[__MAX_CSSID + 1];
@@ -315,12 +314,18 @@ int css_probe_device(struct subchannel_id schid)
 	int ret;
 	struct subchannel *sch;
 
-	sch = css_alloc_subchannel(schid);
-	if (IS_ERR(sch))
-		return PTR_ERR(sch);
+	if (cio_is_console(schid))
+		sch = cio_get_console_subchannel();
+	else {
+		sch = css_alloc_subchannel(schid);
+		if (IS_ERR(sch))
+			return PTR_ERR(sch);
+	}
 	ret = css_register_subchannel(sch);
-	if (ret)
-		put_device(&sch->dev);
+	if (ret) {
+		if (!cio_is_console(schid))
+			put_device(&sch->dev);
+	}
 	return ret;
 }
 
@@ -510,76 +515,48 @@ void css_schedule_eval_all(void)
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
+static int __unset_registered(struct device *dev, void *data)
+{
+	struct idset *set = data;
+	struct subchannel *sch = to_subchannel(dev);
+
+	idset_sch_del(set, sch->schid);
+	return 0;
+}
+
+void css_schedule_eval_all_unreg(void)
+{
+	unsigned long flags;
+	struct idset *unreg_set;
+
+	/* Find unregistered subchannels. */
+	unreg_set = idset_sch_new();
+	if (!unreg_set) {
+		/* Fallback. */
+		css_schedule_eval_all();
+		return;
+	}
+	idset_fill(unreg_set);
+	bus_for_each_dev(&css_bus_type, NULL, unreg_set, __unset_registered);
+	/* Apply to slow_subchannel_set. */
+	spin_lock_irqsave(&slow_subchannel_lock, flags);
+	idset_add_set(slow_subchannel_set, unreg_set);
+	atomic_set(&css_eval_scheduled, 1);
+	queue_work(slow_path_wq, &slow_path_work);
+	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
+	idset_free(unreg_set);
+}
+
 void css_wait_for_slow_path(void)
 {
 	flush_workqueue(slow_path_wq);
 }
 
-/* Reprobe subchannel if unregistered. */
-static int reprobe_subchannel(struct subchannel_id schid, void *data)
-{
-	int ret;
-
-	CIO_MSG_EVENT(6, "cio: reprobe 0.%x.%04x\n",
-		      schid.ssid, schid.sch_no);
-	if (need_reprobe)
-		return -EAGAIN;
-
-	ret = css_probe_device(schid);
-	switch (ret) {
-	case 0:
-		break;
-	case -ENXIO:
-	case -ENOMEM:
-	case -EIO:
-		/* These should abort looping */
-		break;
-	default:
-		ret = 0;
-	}
-
-	return ret;
-}
-
-static void reprobe_after_idle(struct work_struct *unused)
-{
-	/* Make sure initial subchannel scan is done. */
-	wait_event(ccw_device_init_wq,
-		   atomic_read(&ccw_device_init_count) == 0);
-	if (need_reprobe)
-		css_schedule_reprobe();
-}
-
-static DECLARE_WORK(reprobe_idle_work, reprobe_after_idle);
-
-/* Work function used to reprobe all unregistered subchannels. */
-static void reprobe_all(struct work_struct *unused)
-{
-	int ret;
-
-	CIO_MSG_EVENT(4, "reprobe start\n");
-
-	/* Make sure initial subchannel scan is done. */
-	if (atomic_read(&ccw_device_init_count) != 0) {
-		queue_work(ccw_device_work, &reprobe_idle_work);
-		return;
-	}
-	need_reprobe = 0;
-	ret = for_each_subchannel_staged(NULL, reprobe_subchannel, NULL);
-
-	CIO_MSG_EVENT(4, "reprobe done (rc=%d, need_reprobe=%d)\n", ret,
-		      need_reprobe);
-}
-
-static DECLARE_WORK(css_reprobe_work, reprobe_all);
-
 /* Schedule reprobing of all unregistered subchannels. */
 void css_schedule_reprobe(void)
 {
-	need_reprobe = 1;
-	queue_work(slow_path_wq, &css_reprobe_work);
+	css_schedule_eval_all_unreg();
 }
-
 EXPORT_SYMBOL_GPL(css_schedule_reprobe);
 
 /*
@@ -613,48 +590,6 @@ static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 	 * or gone.
 	 */
 	css_evaluate_subchannel(mchk_schid, 0);
-}
-
-static int __init setup_subchannel(struct subchannel_id schid, void *data)
-{
-	struct subchannel *sch;
-	int ret;
-
-	if (cio_is_console(schid))
-		sch = cio_get_console_subchannel();
-	else {
-		sch = css_alloc_subchannel(schid);
-		if (IS_ERR(sch))
-			ret = PTR_ERR(sch);
-		else
-			ret = 0;
-		switch (ret) {
-		case 0:
-			break;
-		case -ENOMEM:
-			panic("Out of memory in init_channel_subsystem\n");
-		/* -ENXIO: no more subchannels. */
-		case -ENXIO:
-			return ret;
-		/* -EIO: this subchannel set not supported. */
-		case -EIO:
-			return ret;
-		default:
-			return 0;
-		}
-	}
-	/*
-	 * We register ALL valid subchannels in ioinfo, even those
-	 * that have been present before init_channel_subsystem.
-	 * These subchannels can't have been registered yet (kmalloc
-	 * not working) so we do it now. This is true e.g. for the
-	 * console subchannel.
-	 */
-	if (css_register_subchannel(sch)) {
-		if (!cio_is_console(schid))
-			put_device(&sch->dev);
-	}
-	return 0;
 }
 
 static void __init
@@ -1028,11 +963,10 @@ static int css_settle(struct device_driver *drv, void *unused)
  */
 static int __init channel_subsystem_init_sync(void)
 {
-	/* Allocate and register subchannels. */
-	for_each_subchannel(setup_subchannel, NULL);
+	/* Start initial subchannel evaluation. */
+	css_schedule_eval_all();
 	/* Wait for the evaluation of subchannels to finish. */
 	wait_event(css_eval_wq, atomic_read(&css_eval_scheduled) == 0);
-
 	/* Wait for the subchannel type specific initialization to finish */
 	return bus_for_each_drv(&css_bus_type, NULL, NULL, css_settle);
 }

@@ -120,3 +120,13 @@ int idset_is_empty(struct idset *set)
 		return 1;
 	return 0;
 }
+
+void idset_add_set(struct idset *to, struct idset *from)
+{
+	unsigned long i, len;
+
+	len = min(__BITOPS_WORDS(to->num_ssid * to->num_id),
+		  __BITOPS_WORDS(from->num_ssid * from->num_id));
+	for (i = 0; i < len ; i++)
+		to->bitmap[i] |= from->bitmap[i];
+}
