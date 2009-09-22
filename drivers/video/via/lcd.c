@@ -952,13 +952,10 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 	int video_index = plvds_setting_info->lcd_panel_size;
 	int set_iga = plvds_setting_info->iga_path;
 	int mode_bpp = plvds_setting_info->bpp;
-	int viafb_load_reg_num = 0;
-	int reg_value = 0;
 	int set_hres, set_vres;
 	int panel_hres, panel_vres;
 	u32 pll_D_N;
 	int offset;
-	struct io_register *reg = NULL;
 	struct display_timing mode_crt_reg, panel_crt_reg;
 	struct crt_mode_table *panel_crt_table = NULL;
 	struct VideoModeTable *vmode_tbl = NULL;
@@ -1038,16 +1035,11 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 		}
 
 		/* Offset for simultaneous */
-		reg_value = offset;
-		viafb_load_reg_num = offset_reg.iga2_offset_reg.reg_num;
-		reg = offset_reg.iga2_offset_reg.reg;
-		viafb_load_reg(reg_value, viafb_load_reg_num, reg, VIACR);
+		viafb_set_secondary_pitch(offset << 3);
 		DEBUG_MSG(KERN_INFO "viafb_load_reg!!\n");
 		viafb_load_fetch_count_reg(set_hres, 4, IGA2);
 		/* Fetch count for simultaneous */
 	} else {		/* SAMM */
-		/* Offset for IGA2 only */
-		viafb_load_offset_reg(set_hres, mode_bpp / 8, set_iga);
 		/* Fetch count for IGA2 only */
 		viafb_load_fetch_count_reg(set_hres, mode_bpp / 8, set_iga);
 

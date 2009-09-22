@@ -175,9 +175,6 @@ static int viafb_set_par(struct fb_info *info)
 			info->var.bits_per_pixel, vmode_index1,
 			viafb_second_xres, viafb_second_yres, viafb_bpp1);
 
-		/*We should set memory offset according virtual_x */
-		/*Fix me:put this function into viafb_setmode */
-		viafb_memory_pitch_patch(info);
 		viafb_update_fix(info);
 		viafb_bpp = info->var.bits_per_pixel;
 		/* Update viafb_accel, it is necessary to our 2D accelerate */
