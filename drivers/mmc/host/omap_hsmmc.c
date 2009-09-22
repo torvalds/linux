@@ -1314,7 +1314,6 @@ clk_en_err:
 #endif
 
 static struct platform_driver omap_mmc_driver = {
-	.probe		= omap_mmc_probe,
 	.remove		= omap_mmc_remove,
 	.suspend	= omap_mmc_suspend,
 	.resume		= omap_mmc_resume,
@@ -1327,7 +1326,7 @@ static struct platform_driver omap_mmc_driver = {
 static int __init omap_mmc_init(void)
 {
 	/* Register the MMC driver */
-	return platform_driver_register(&omap_mmc_driver);
+	return platform_driver_probe(&omap_mmc_driver, omap_mmc_probe);
 }
 
 static void __exit omap_mmc_cleanup(void)
