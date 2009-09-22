@@ -432,7 +432,7 @@ static const struct address_space_operations def_mdt_aops = {
 	.sync_page		= block_sync_page,
 };
 
-static struct inode_operations def_mdt_iops;
+static const struct inode_operations def_mdt_iops;
 static struct file_operations def_mdt_fops;
 
 /*

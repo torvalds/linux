@@ -333,7 +333,7 @@ struct file_operations omfs_file_operations = {
 	.splice_read = generic_file_splice_read,
 };
 
-struct inode_operations omfs_file_inops = {
+const struct inode_operations omfs_file_inops = {
 	.truncate = omfs_truncate
 };
 

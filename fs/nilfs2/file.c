@@ -151,7 +151,7 @@ struct file_operations nilfs_file_operations = {
 	.splice_read	= generic_file_splice_read,
 };
 
-struct inode_operations nilfs_file_inode_operations = {
+const struct inode_operations nilfs_file_inode_operations = {
 	.truncate	= nilfs_truncate,
 	.setattr	= nilfs_setattr,
 	.permission     = nilfs_permission,

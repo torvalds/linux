@@ -123,7 +123,7 @@ static void wake_up_inode(struct inode *inode)
 int inode_init_always(struct super_block *sb, struct inode *inode)
 {
 	static const struct address_space_operations empty_aops;
-	static struct inode_operations empty_iops;
+	static const struct inode_operations empty_iops;
 	static const struct file_operations empty_fops;
 	struct address_space *const mapping = &inode->i_data;
 

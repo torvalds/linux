@@ -119,7 +119,7 @@ spufs_new_file(struct super_block *sb, struct dentry *dentry,
 		const struct file_operations *fops, int mode,
 		size_t size, struct spu_context *ctx)
 {
-	static struct inode_operations spufs_file_iops = {
+	static const struct inode_operations spufs_file_iops = {
 		.setattr = spufs_setattr,
 	};
 	struct inode *inode;

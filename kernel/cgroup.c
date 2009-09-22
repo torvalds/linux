@@ -596,7 +596,7 @@ void cgroup_unlock(void)
 static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cgrp);
-static struct inode_operations cgroup_dir_inode_operations;
+static const struct inode_operations cgroup_dir_inode_operations;
 static struct file_operations proc_cgroupstats_operations;
 
 static struct backing_dev_info cgroup_backing_dev_info = {
@@ -1711,7 +1711,7 @@ static struct file_operations cgroup_file_operations = {
 	.release = cgroup_file_release,
 };
 
-static struct inode_operations cgroup_dir_inode_operations = {
+static const struct inode_operations cgroup_dir_inode_operations = {
 	.lookup = simple_lookup,
 	.mkdir = cgroup_mkdir,
 	.rmdir = cgroup_rmdir,
