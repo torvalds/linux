@@ -70,11 +70,7 @@ struct viafb_par {
 	int video_on_lcd;
 
 };
-struct viafb_modeinfo {
-	u32 xres;
-	u32 yres;
-	int mode_index;
-};
+
 extern unsigned int viafb_second_virtual_yres;
 extern unsigned int viafb_second_virtual_xres;
 extern unsigned int viafb_second_offset;
