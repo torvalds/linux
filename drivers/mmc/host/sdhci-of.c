@@ -172,19 +172,13 @@ static unsigned int esdhc_get_min_clock(struct sdhci_host *host)
 	return of_host->clock / 256 / 16;
 }
 
-static unsigned int esdhc_get_timeout_clock(struct sdhci_host *host)
-{
-	struct sdhci_of_host *of_host = sdhci_priv(host);
-
-	return of_host->clock / 1000;
-}
-
 static struct sdhci_of_data sdhci_esdhc = {
 	.quirks = SDHCI_QUIRK_FORCE_BLK_SZ_2048 |
 		  SDHCI_QUIRK_BROKEN_CARD_DETECTION |
 		  SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
 		  SDHCI_QUIRK_NO_BUSY_IRQ |
 		  SDHCI_QUIRK_NONSTANDARD_CLOCK |
+		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		  SDHCI_QUIRK_PIO_NEEDS_DELAY |
 		  SDHCI_QUIRK_RESTORE_IRQS_AFTER_RESET |
 		  SDHCI_QUIRK_NO_CARD_NO_RESET,
@@ -199,7 +193,6 @@ static struct sdhci_of_data sdhci_esdhc = {
 		.enable_dma = esdhc_enable_dma,
 		.get_max_clock = esdhc_get_max_clock,
 		.get_min_clock = esdhc_get_min_clock,
-		.get_timeout_clock = esdhc_get_timeout_clock,
 	},
 };
 
