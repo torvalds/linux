@@ -54,9 +54,6 @@
 #include "../macmodes.h"
 #endif
 
-/* always compile support for 32MB... It cost almost nothing */
-#define CONFIG_FB_MATROX_32MB
-
 #ifdef MATROXFB_DEBUG
 
 #define DEBUG
@@ -464,9 +461,7 @@ struct matrox_fb_info {
 		int		nopciretry;
 		int		noinit;
 		int		sgram;
-#ifdef CONFIG_FB_MATROX_32MB
 		int		support32MB;
-#endif
 
 		int		accelerator;
 		int		text_type_aux;

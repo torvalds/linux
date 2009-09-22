@@ -310,9 +310,7 @@ static void matrox_pan_var(struct matrox_fb_info *minfo,
 {
 	unsigned int pos;
 	unsigned short p0, p1, p2;
-#ifdef CONFIG_FB_MATROX_32MB
 	unsigned int p3;
-#endif
 	int vbl;
 	unsigned long flags;
 
@@ -330,9 +328,7 @@ static void matrox_pan_var(struct matrox_fb_info *minfo,
 	p0 = minfo->hw.CRTC[0x0D] = pos & 0xFF;
 	p1 = minfo->hw.CRTC[0x0C] = (pos & 0xFF00) >> 8;
 	p2 = minfo->hw.CRTCEXT[0] = (minfo->hw.CRTCEXT[0] & 0xB0) | ((pos >> 16) & 0x0F) | ((pos >> 14) & 0x40);
-#ifdef CONFIG_FB_MATROX_32MB
 	p3 = minfo->hw.CRTCEXT[8] = pos >> 21;
-#endif
 
 	/* FB_ACTIVATE_VBL and we can acquire interrupts? Honor FB_ACTIVATE_VBL then... */
 	vbl = (var->activate & FB_ACTIVATE_VBL) && (matroxfb_enable_irq(minfo, 0) == 0);
@@ -342,10 +338,8 @@ static void matrox_pan_var(struct matrox_fb_info *minfo,
 	matroxfb_DAC_lock_irqsave(flags);
 	mga_setr(M_CRTC_INDEX, 0x0D, p0);
 	mga_setr(M_CRTC_INDEX, 0x0C, p1);
-#ifdef CONFIG_FB_MATROX_32MB
 	if (minfo->devflags.support32MB)
 		mga_setr(M_EXTVGA_INDEX, 0x08, p3);
-#endif
 	if (vbl) {
 		minfo->crtc1.panpos = p2;
 	} else {
@@ -1360,13 +1354,9 @@ static struct video_board vbMystique		= {0x0800000, 0x0800000, FB_ACCEL_MATROX_M
 #ifdef CONFIG_FB_MATROX_G
 static struct video_board vbG100		= {0x0800000, 0x0800000, FB_ACCEL_MATROX_MGAG100,	&matrox_G100};
 static struct video_board vbG200		= {0x1000000, 0x1000000, FB_ACCEL_MATROX_MGAG200,	&matrox_G100};
-#ifdef CONFIG_FB_MATROX_32MB
 /* from doc it looks like that accelerator can draw only to low 16MB :-( Direct accesses & displaying are OK for
    whole 32MB */
 static struct video_board vbG400		= {0x2000000, 0x1000000, FB_ACCEL_MATROX_MGAG400,	&matrox_G100};
-#else
-static struct video_board vbG400		= {0x2000000, 0x1000000, FB_ACCEL_MATROX_MGAG400,	&matrox_G100};
-#endif
 #endif
 
 #define DEVF_VIDEO64BIT		0x0001
@@ -1646,9 +1636,7 @@ static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
 		minfo->devflags.textmode = 1;
 		minfo->devflags.text_type_aux = FB_AUX_TEXT_MGA_STEP8;
 	}
-#ifdef CONFIG_FB_MATROX_32MB
 	minfo->devflags.support32MB = (b->flags & DEVF_SUPPORT32MB) != 0;
-#endif
 	minfo->devflags.precise_width = !(b->flags & DEVF_ANY_VXRES);
 	minfo->devflags.crtc2 = (b->flags & DEVF_CRTC2) != 0;
 	minfo->devflags.maven_capable = (b->flags & DEVF_MAVEN_CAPABLE) != 0;

@@ -1080,10 +1080,8 @@ static void MGAG100_restore(struct matrox_fb_info *minfo)
 
 	DAC1064_restore_1(minfo);
 	matroxfb_vgaHWrestore(minfo);
-#ifdef CONFIG_FB_MATROX_32MB
 	if (minfo->devflags.support32MB)
 		mga_setr(M_EXTVGA_INDEX, 8, hw->CRTCEXT[8]);
-#endif
 	minfo->crtc1.panpos = -1;
 	for (i = 0; i < 6; i++)
 		mga_setr(M_EXTVGA_INDEX, i, hw->CRTCEXT[i]);
