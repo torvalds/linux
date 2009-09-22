@@ -1368,8 +1368,8 @@ static void f10_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 
 	pvt->dram_IntlvEn[dram] = (low_base >> 8) & 0x7;
 
-	pvt->dram_base[dram] = (((((u64) high_base & 0x000000FF) << 32) |
-				((u64) low_base & 0xFFFF0000))) << 8;
+	pvt->dram_base[dram] = (((u64)high_base & 0x000000FF) << 40) |
+			       (((u64)low_base  & 0xFFFF0000) << 24);
 
 	low_offset = K8_DRAM_LIMIT_LOW + (dram << 3);
 	high_offset = F10_DRAM_LIMIT_HIGH + (dram << 3);
@@ -1390,9 +1390,9 @@ static void f10_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 	 * Extract address values and form a LIMIT address. Limit is the HIGHEST
 	 * memory location of the region, so low 24 bits need to be all ones.
 	 */
-	low_limit |= 0x0000FFFF;
-	pvt->dram_limit[dram] =
-		((((u64) high_limit << 32) + (u64) low_limit) << 8) | (0xFF);
+	pvt->dram_limit[dram] = (((u64)high_limit & 0x000000FF) << 40) |
+				(((u64) low_limit & 0xFFFF0000) << 24) |
+				0x00FFFFFF;
 }
 
 static void f10_read_dram_ctl_register(struct amd64_pvt *pvt)
