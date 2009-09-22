@@ -32,7 +32,7 @@
 
 int css_init_done = 0;
 static int need_reprobe = 0;
-static int max_ssid = 0;
+int max_ssid;
 
 struct channel_subsystem *channel_subsystems[__MAX_CSSID + 1];
 
@@ -879,6 +879,18 @@ static int __init css_bus_init(void)
 	if (ret)
 		goto out;
 
+	/* Try to enable MSS. */
+	ret = chsc_enable_facility(CHSC_SDA_OC_MSS);
+	switch (ret) {
+	case 0: /* Success. */
+		max_ssid = __MAX_SSID;
+		break;
+	case -ENOMEM:
+		goto out;
+	default:
+		max_ssid = 0;
+	}
+
 	ret = slow_subchannel_init();
 	if (ret)
 		goto out;
@@ -890,17 +902,6 @@ static int __init css_bus_init(void)
 	if ((ret = bus_register(&css_bus_type)))
 		goto out;
 
-	/* Try to enable MSS. */
-	ret = chsc_enable_facility(CHSC_SDA_OC_MSS);
-	switch (ret) {
-	case 0: /* Success. */
-		max_ssid = __MAX_SSID;
-		break;
-	case -ENOMEM:
-		goto out_bus;
-	default:
-		max_ssid = 0;
-	}
 	/* Setup css structure. */
 	for (i = 0; i <= __MAX_CSSID; i++) {
 		struct channel_subsystem *css;
@@ -966,7 +967,6 @@ out_unregister:
 					   &dev_attr_cm_enable);
 		device_unregister(&css->device);
 	}
-out_bus:
 	bus_unregister(&css_bus_type);
 out:
 	crw_unregister_handler(CRW_RSC_CSS);

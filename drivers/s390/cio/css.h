@@ -111,6 +111,7 @@ extern void css_sch_device_unregister(struct subchannel *);
 extern int css_probe_device(struct subchannel_id);
 extern struct subchannel *get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
+extern int max_ssid;
 int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 			       int (*fn_unknown)(struct subchannel_id,
 			       void *), void *data);

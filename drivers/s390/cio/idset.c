@@ -78,7 +78,7 @@ static inline int idset_get_first(struct idset *set, int *ssid, int *id)
 
 struct idset *idset_sch_new(void)
 {
-	return idset_new(__MAX_SSID + 1, __MAX_SUBCHANNEL + 1);
+	return idset_new(max_ssid + 1, __MAX_SUBCHANNEL + 1);
 }
 
 void idset_sch_add(struct idset *set, struct subchannel_id schid)
