@@ -24,6 +24,7 @@
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/mmu_context.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/aio.h>
@@ -34,7 +35,6 @@
 
 #include <asm/kmap_types.h>
 #include <asm/uaccess.h>
-#include <asm/mmu_context.h>
 
 #if DEBUG > 1
 #define dprintk		printk
@@ -592,51 +592,6 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 
 	rcu_read_unlock();
 	return ret;
-}
-
-/*
- * use_mm
- *	Makes the calling kernel thread take on the specified
- *	mm context.
- *	Called by the retry thread execute retries within the
- *	iocb issuer's mm context, so that copy_from/to_user
- *	operations work seamlessly for aio.
- *	(Note: this routine is intended to be called only
- *	from a kernel thread context)
- */
-static void use_mm(struct mm_struct *mm)
-{
-	struct mm_struct *active_mm;
-	struct task_struct *tsk = current;
-
-	task_lock(tsk);
-	active_mm = tsk->active_mm;
-	atomic_inc(&mm->mm_count);
-	tsk->mm = mm;
-	tsk->active_mm = mm;
-	switch_mm(active_mm, mm, tsk);
-	task_unlock(tsk);
-
-	mmdrop(active_mm);
-}
-
-/*
- * unuse_mm
- *	Reverses the effect of use_mm, i.e. releases the
- *	specified mm context which was earlier taken on
- *	by the calling kernel thread
- *	(Note: this routine is intended to be called only
- *	from a kernel thread context)
- */
-static void unuse_mm(struct mm_struct *mm)
-{
-	struct task_struct *tsk = current;
-
-	task_lock(tsk);
-	tsk->mm = NULL;
-	/* active_mm is still 'mm' */
-	enter_lazy_tlb(mm, tsk);
-	task_unlock(tsk);
 }
 
 /*
