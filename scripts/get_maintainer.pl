@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.18beta2';
+my $V = '0.19';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -37,6 +37,7 @@ my $web = 0;
 my $subsystem = 0;
 my $status = 0;
 my $from_filename = 0;
+my $pattern_depth = 0;
 my $version = 0;
 my $help = 0;
 
@@ -80,6 +81,7 @@ if (!GetOptions(
 		'status!' => \$status,
 		'scm!' => \$scm,
 		'web!' => \$web,
+		'pattern-depth=i' => \$pattern_depth,
 		'f|file' => \$from_filename,
 		'v|version' => \$version,
 		'h|help' => \$help,
@@ -226,9 +228,13 @@ foreach my $file (@files) {
 		my $value = $2;
 		if ($type eq 'F') {
 		    if (file_match_pattern($file, $value)) {
-			my $pattern_depth = ($value =~ tr@/@@);
-			$pattern_depth++ if (!(substr($value,-1,1) eq "/"));
-			$hash{$tvi} = $pattern_depth;
+			my $value_pd = ($value =~ tr@/@@);
+			my $file_pd = ($file  =~ tr@/@@);
+			$value_pd++ if (substr($value,-1,1) ne "/");
+			if ($pattern_depth == 0 ||
+			    (($file_pd - $value_pd) < $pattern_depth)) {
+			    $hash{$tvi} = $value_pd;
+			}
 		    }
 		}
 	    }
@@ -345,12 +351,13 @@ Output type options:
   --separator [, ] => separator for multiple entries on 1 line
   --multiline => print 1 entry per line
 
-Default options:
-  [--email --git --m --n --l --multiline]
-
 Other options:
+  --pattern-depth => Number of pattern directory traversals (default: 0 (all))
   --version => show version
   --help => show this help information
+
+Default options:
+  [--email --git --m --n --l --multiline --pattern-depth=0]
 
 Notes:
   Using "-f directory" may give unexpected results:
