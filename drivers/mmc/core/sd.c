@@ -603,6 +603,14 @@ static void mmc_sd_resume(struct mmc_host *host)
 
 }
 
+static void mmc_sd_power_restore(struct mmc_host *host)
+{
+	host->card->state &= ~MMC_STATE_HIGHSPEED;
+	mmc_claim_host(host);
+	mmc_sd_init_card(host, host->ocr, host->card);
+	mmc_release_host(host);
+}
+
 #ifdef CONFIG_MMC_UNSAFE_RESUME
 
 static const struct mmc_bus_ops mmc_sd_ops = {
@@ -610,6 +618,7 @@ static const struct mmc_bus_ops mmc_sd_ops = {
 	.detect = mmc_sd_detect,
 	.suspend = mmc_sd_suspend,
 	.resume = mmc_sd_resume,
+	.power_restore = mmc_sd_power_restore,
 };
 
 static void mmc_sd_attach_bus_ops(struct mmc_host *host)
@@ -624,6 +633,7 @@ static const struct mmc_bus_ops mmc_sd_ops = {
 	.detect = mmc_sd_detect,
 	.suspend = NULL,
 	.resume = NULL,
+	.power_restore = mmc_sd_power_restore,
 };
 
 static const struct mmc_bus_ops mmc_sd_ops_unsafe = {
@@ -631,6 +641,7 @@ static const struct mmc_bus_ops mmc_sd_ops_unsafe = {
 	.detect = mmc_sd_detect,
 	.suspend = mmc_sd_suspend,
 	.resume = mmc_sd_resume,
+	.power_restore = mmc_sd_power_restore,
 };
 
 static void mmc_sd_attach_bus_ops(struct mmc_host *host)
