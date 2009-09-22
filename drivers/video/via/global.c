@@ -51,7 +51,6 @@ unsigned int viafb_second_yres = 480;
 unsigned int viafb_second_virtual_xres;
 unsigned int viafb_second_virtual_yres;
 int viafb_lcd_panel_id = LCD_PANEL_ID_MAXIMUM + 1;
-struct fb_cursor viacursor;
 struct fb_info *viafbinfo;
 struct fb_info *viafbinfo1;
 struct viafb_par *viaparinfo;

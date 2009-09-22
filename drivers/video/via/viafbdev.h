@@ -51,6 +51,7 @@ struct viafb_shared {
 	struct chip_information chip_info;
 
 	/* hardware acceleration stuff */
+	u32 cursor_vram_addr;
 	int (*hw_bitblt)(void __iomem *engine, u8 op, u32 width, u32 height,
 		u8 dst_bpp, u32 dst_addr, u32 dst_pitch, u32 dst_x, u32 dst_y,
 		u32 *src_mem, u32 src_addr, u32 src_pitch, u32 src_x, u32 src_y,
@@ -65,7 +66,6 @@ struct viafb_par {
 	unsigned int memsize;	/*size of fbmem */
 	u32 fbmem_free;		/* Free FB memory */
 	u32 fbmem_used;		/* Use FB memory size */
-	u32 cursor_start;	/* Cursor Start Address */
 	u32 VQ_start;		/* Virtual Queue Start Address */
 	u32 VQ_end;		/* Virtual Queue End Address */
 	u32 iga_path;

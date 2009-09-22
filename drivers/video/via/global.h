@@ -77,7 +77,6 @@ extern int viafb_hotplug_Yres;
 extern int viafb_hotplug_bpp;
 extern int viafb_hotplug_refresh;
 extern int viafb_primary_dev;
-extern struct fb_cursor viacursor;
 
 extern unsigned int viafb_second_xres;
 extern unsigned int viafb_second_yres;

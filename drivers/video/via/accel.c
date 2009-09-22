@@ -331,7 +331,7 @@ void viafb_init_accel(struct viafb_shared *shared)
 	}
 
 	viaparinfo->fbmem_free -= CURSOR_SIZE;
-	viaparinfo->cursor_start = viaparinfo->fbmem_free;
+	shared->cursor_vram_addr = viaparinfo->fbmem_free;
 	viaparinfo->fbmem_used += CURSOR_SIZE;
 
 	/* Reverse 8*1024 memory space for cursor image */
@@ -487,7 +487,7 @@ void viafb_init_2d_engine(void)
 void viafb_hw_cursor_init(void)
 {
 	/* Set Cursor Image Base Address */
-	writel(viaparinfo->cursor_start,
+	writel(viaparinfo->shared->cursor_vram_addr,
 		viaparinfo->io_virt + VIA_REG_CURSOR_MODE);
 	writel(0x0, viaparinfo->io_virt + VIA_REG_CURSOR_POS);
 	writel(0x0, viaparinfo->io_virt + VIA_REG_CURSOR_ORG);

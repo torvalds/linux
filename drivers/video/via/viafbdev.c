@@ -25,7 +25,6 @@
 
 #include "global.h"
 
-static int MAX_CURS = 32;
 static struct fb_var_screeninfo default_var;
 static char *viafb_name = "Via";
 static u32 pseudo_pal[17];
@@ -856,150 +855,99 @@ static void viafb_imageblit(struct fb_info *info,
 
 static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
-	u32 temp, xx, yy, bg_col = 0, fg_col = 0;
-	int i, j = 0;
-	static int hw_cursor;
-	struct viafb_par *p_viafb_par;
+	struct viafb_par *viapar = info->par;
+	u32 temp, xx, yy, bg_color = 0, fg_color = 0,
+		chip_name = viapar->shared->chip_info.gfx_chip_name;
+	int i, j = 0, cur_size = 64;
 
-	if (viafb_accel)
-		hw_cursor = 1;
-
-	if (!viafb_accel) {
-		if (hw_cursor) {
-			viafb_show_hw_cursor(info, HW_Cursor_OFF);
-			hw_cursor = 0;
-		}
-		return -ENODEV;
-	}
-
-	if ((((struct viafb_par *)(info->par))->iga_path == IGA2)
-	    && (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266))
+	if (info->flags & FBINFO_HWACCEL_DISABLED || info != viafbinfo)
 		return -ENODEV;
 
-	/* When duoview and using lcd , use soft cursor */
-	if (viafb_LCD_ON || (!viafb_SAMM_ON &&
-		viafb_LCD2_ON + viafb_DVI_ON + viafb_CRT_ON == 2))
+	if (chip_name == UNICHROME_CLE266 && viapar->iga_path == IGA2)
 		return -ENODEV;
 
 	viafb_show_hw_cursor(info, HW_Cursor_OFF);
-	viacursor = *cursor;
 
 	if (cursor->set & FB_CUR_SETHOT) {
-		viacursor.hot = cursor->hot;
-		temp = ((viacursor.hot.x) << 16) + viacursor.hot.y;
-		writel(temp, viaparinfo->io_virt + VIA_REG_CURSOR_ORG);
+		temp = (cursor->hot.x << 16) + cursor->hot.y;
+		writel(temp, viapar->io_virt + VIA_REG_CURSOR_ORG);
 	}
 
 	if (cursor->set & FB_CUR_SETPOS) {
-		viacursor.image.dx = cursor->image.dx;
-		viacursor.image.dy = cursor->image.dy;
 		yy = cursor->image.dy - info->var.yoffset;
 		xx = cursor->image.dx - info->var.xoffset;
 		temp = yy & 0xFFFF;
 		temp |= (xx << 16);
-		writel(temp, viaparinfo->io_virt + VIA_REG_CURSOR_POS);
+		writel(temp, viapar->io_virt + VIA_REG_CURSOR_POS);
+	}
+
+	if (cursor->image.width <= 32 && cursor->image.height <= 32)
+		cur_size = 32;
+	else if (cursor->image.width <= 64 && cursor->image.height <= 64)
+		cur_size = 64;
+	else {
+		printk(KERN_WARNING "viafb_cursor: The cursor is too large "
+			"%dx%d", cursor->image.width, cursor->image.height);
+		return -ENXIO;
 	}
 
 	if (cursor->set & FB_CUR_SETSIZE) {
-		temp = readl(viaparinfo->io_virt + VIA_REG_CURSOR_MODE);
-
-		if ((cursor->image.width <= 32)
-		    && (cursor->image.height <= 32)) {
-			MAX_CURS = 32;
+		temp = readl(viapar->io_virt + VIA_REG_CURSOR_MODE);
+		if (cur_size == 32)
 			temp |= 0x2;
-		} else if ((cursor->image.width <= 64)
-			   && (cursor->image.height <= 64)) {
-			MAX_CURS = 64;
-			temp &= 0xFFFFFFFD;
-		} else {
-			DEBUG_MSG(KERN_INFO
-			"The cursor image is biger than 64x64 bits...\n");
-			return -ENXIO;
-		}
-		writel(temp, viaparinfo->io_virt + VIA_REG_CURSOR_MODE);
+		else
+			temp &= ~0x2;
 
-		viacursor.image.height = cursor->image.height;
-		viacursor.image.width = cursor->image.width;
+		writel(temp, viapar->io_virt + VIA_REG_CURSOR_MODE);
 	}
 
 	if (cursor->set & FB_CUR_SETCMAP) {
-		viacursor.image.fg_color = cursor->image.fg_color;
-		viacursor.image.bg_color = cursor->image.bg_color;
-
-		switch (info->var.bits_per_pixel) {
-		case 8:
-		case 16:
-		case 32:
-			bg_col =
-			    (0xFF << 24) |
-			    (((info->cmap.red)[viacursor.image.bg_color] &
-			    0xFF00) << 8) |
-			    ((info->cmap.green)[viacursor.image.bg_color] &
-			    0xFF00) |
-			    (((info->cmap.blue)[viacursor.image.bg_color] &
-			    0xFF00) >> 8);
-			fg_col =
-			    (0xFF << 24) |
-			    (((info->cmap.red)[viacursor.image.fg_color] &
-			    0xFF00) << 8) |
-			    ((info->cmap.green)[viacursor.image.fg_color] &
-			    0xFF00) |
-			    (((info->cmap.blue)[viacursor.image.fg_color] &
-			    0xFF00) >> 8);
-			break;
-		default:
-			return 0;
+		fg_color = cursor->image.fg_color;
+		bg_color = cursor->image.bg_color;
+		if (chip_name == UNICHROME_CX700 ||
+			chip_name == UNICHROME_VX800) {
+			fg_color =
+				((info->cmap.red[fg_color] & 0xFFC0) << 14) |
+				((info->cmap.green[fg_color] & 0xFFC0) << 4) |
+				((info->cmap.blue[fg_color] & 0xFFC0) >> 6);
+			bg_color =
+				((info->cmap.red[bg_color] & 0xFFC0) << 14) |
+				((info->cmap.green[bg_color] & 0xFFC0) << 4) |
+				((info->cmap.blue[bg_color] & 0xFFC0) >> 6);
+		} else {
+			fg_color =
+				((info->cmap.red[fg_color] & 0xFF00) << 8) |
+				(info->cmap.green[fg_color] & 0xFF00) |
+				((info->cmap.blue[fg_color] & 0xFF00) >> 8);
+			bg_color =
+				((info->cmap.red[bg_color] & 0xFF00) << 8) |
+				(info->cmap.green[bg_color] & 0xFF00) |
+				((info->cmap.blue[bg_color] & 0xFF00) >> 8);
 		}
 
-		/* This is indeed a patch for VT3324/VT3353 */
-		if (!info->par)
-			return 0;
-		p_viafb_par = (struct viafb_par *)info->par;
-
-		if ((p_viafb_par->chip_info->gfx_chip_name ==
-			UNICHROME_CX700) ||
-			((p_viafb_par->chip_info->gfx_chip_name ==
-			UNICHROME_VX800))) {
-			bg_col =
-			    (((info->cmap.red)[viacursor.image.bg_color] &
-			    0xFFC0) << 14) |
-			    (((info->cmap.green)[viacursor.image.bg_color] &
-			    0xFFC0) << 4) |
-			    (((info->cmap.blue)[viacursor.image.bg_color] &
-			    0xFFC0) >> 6);
-			fg_col =
-			    (((info->cmap.red)[viacursor.image.fg_color] &
-			    0xFFC0) << 14) |
-			    (((info->cmap.green)[viacursor.image.fg_color] &
-			    0xFFC0) << 4) |
-			    (((info->cmap.blue)[viacursor.image.fg_color] &
-			    0xFFC0) >> 6);
-		}
-
-		writel(bg_col, viaparinfo->io_virt + VIA_REG_CURSOR_BG);
-		writel(fg_col, viaparinfo->io_virt + VIA_REG_CURSOR_FG);
+		writel(bg_color, viapar->io_virt + VIA_REG_CURSOR_BG);
+		writel(fg_color, viapar->io_virt + VIA_REG_CURSOR_FG);
 	}
 
 	if (cursor->set & FB_CUR_SETSHAPE) {
 		struct {
-			u8 data[CURSOR_SIZE / 8];
-			u32 bak[CURSOR_SIZE / 32];
+			u8 data[CURSOR_SIZE];
+			u32 bak[CURSOR_SIZE / 4];
 		} *cr_data = kzalloc(sizeof(*cr_data), GFP_ATOMIC);
-		int size =
-		    ((viacursor.image.width + 7) >> 3) *
-		    viacursor.image.height;
+		int size = ((cursor->image.width + 7) >> 3) *
+			cursor->image.height;
 
-		if (cr_data == NULL)
-			goto out;
+		if (!cr_data)
+			return -ENOMEM;
 
-		if (MAX_CURS == 32) {
-			for (i = 0; i < (CURSOR_SIZE / 32); i++) {
+		if (cur_size == 32) {
+			for (i = 0; i < (CURSOR_SIZE / 4); i++) {
 				cr_data->bak[i] = 0x0;
 				cr_data->bak[i + 1] = 0xFFFFFFFF;
 				i += 1;
 			}
-		} else if (MAX_CURS == 64) {
-			for (i = 0; i < (CURSOR_SIZE / 32); i++) {
+		} else {
+			for (i = 0; i < (CURSOR_SIZE / 4); i++) {
 				cr_data->bak[i] = 0x0;
 				cr_data->bak[i + 1] = 0x0;
 				cr_data->bak[i + 2] = 0xFFFFFFFF;
@@ -1008,27 +956,27 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 			}
 		}
 
-		switch (viacursor.rop) {
+		switch (cursor->rop) {
 		case ROP_XOR:
 			for (i = 0; i < size; i++)
-				cr_data->data[i] = viacursor.mask[i];
+				cr_data->data[i] = cursor->mask[i];
 			break;
 		case ROP_COPY:
 
 			for (i = 0; i < size; i++)
-				cr_data->data[i] = viacursor.mask[i];
+				cr_data->data[i] = cursor->mask[i];
 			break;
 		default:
 			break;
 		}
 
-		if (MAX_CURS == 32) {
+		if (cur_size == 32) {
 			for (i = 0; i < size; i++) {
 				cr_data->bak[j] = (u32) cr_data->data[i];
 				cr_data->bak[j + 1] = ~cr_data->bak[j];
 				j += 2;
 			}
-		} else if (MAX_CURS == 64) {
+		} else {
 			for (i = 0; i < size; i++) {
 				cr_data->bak[j] = (u32) cr_data->data[i];
 				cr_data->bak[j + 1] = 0x0;
@@ -1038,14 +986,12 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 			}
 		}
 
-		memcpy(viafbinfo->screen_base +
-		       ((struct viafb_par *)(info->par))->cursor_start,
-		       cr_data->bak, CURSOR_SIZE);
-out:
+		memcpy_toio(viafbinfo->screen_base + viapar->shared->
+			cursor_vram_addr, cr_data->bak, CURSOR_SIZE);
 		kfree(cr_data);
 	}
 
-	if (viacursor.enable)
+	if (cursor->enable)
 		viafb_show_hw_cursor(info, HW_Cursor_ON);
 
 	return 0;
@@ -2052,8 +1998,6 @@ static int __devinit via_pci_probe(void)
 		viaparinfo->fbmem_free = viaparinfo->memsize;
 		viaparinfo->fbmem_used = 0;
 		if (viafb_accel) {
-			viaparinfo1->cursor_start =
-			    viaparinfo->cursor_start - viafb_second_offset;
 			viaparinfo1->VQ_start = viaparinfo->VQ_start -
 				viafb_second_offset;
 			viaparinfo1->VQ_end = viaparinfo->VQ_end -
