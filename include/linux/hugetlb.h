@@ -185,7 +185,8 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 #define HSTATE_NAME_LEN 32
 /* Defines one hugetlb page size */
 struct hstate {
-	int hugetlb_next_nid;
+	int next_nid_to_alloc;
+	int next_nid_to_free;
 	unsigned int order;
 	unsigned long mask;
 	unsigned long max_huge_pages;
