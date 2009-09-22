@@ -168,20 +168,20 @@ unsigned int kobjsize(const void *objp)
 }
 
 int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		     unsigned long start, int nr_pages, int flags,
+		     unsigned long start, int nr_pages, int foll_flags,
 		     struct page **pages, struct vm_area_struct **vmas)
 {
 	struct vm_area_struct *vma;
 	unsigned long vm_flags;
 	int i;
-	int write = !!(flags & GUP_FLAGS_WRITE);
-	int force = !!(flags & GUP_FLAGS_FORCE);
 
 	/* calculate required read or write permissions.
-	 * - if 'force' is set, we only require the "MAY" flags.
+	 * If FOLL_FORCE is set, we only require the "MAY" flags.
 	 */
-	vm_flags  = write ? (VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
-	vm_flags &= force ? (VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
+	vm_flags  = (foll_flags & FOLL_WRITE) ?
+			(VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
+	vm_flags &= (foll_flags & FOLL_FORCE) ?
+			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
 
 	for (i = 0; i < nr_pages; i++) {
 		vma = find_vma(mm, start);
@@ -223,9 +223,9 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	int flags = 0;
 
 	if (write)
-		flags |= GUP_FLAGS_WRITE;
+		flags |= FOLL_WRITE;
 	if (force)
-		flags |= GUP_FLAGS_FORCE;
+		flags |= FOLL_FORCE;
 
 	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
 }

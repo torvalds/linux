@@ -166,9 +166,9 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 	VM_BUG_ON(end   > vma->vm_end);
 	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
 
-	gup_flags = 0;
+	gup_flags = FOLL_TOUCH | FOLL_GET;
 	if (vma->vm_flags & VM_WRITE)
-		gup_flags = GUP_FLAGS_WRITE;
+		gup_flags |= FOLL_WRITE;
 
 	while (nr_pages > 0) {
 		int i;

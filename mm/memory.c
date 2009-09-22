@@ -1209,27 +1209,29 @@ no_page_table:
 }
 
 int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		     unsigned long start, int nr_pages, int flags,
+		     unsigned long start, int nr_pages, unsigned int gup_flags,
 		     struct page **pages, struct vm_area_struct **vmas)
 {
 	int i;
-	unsigned int vm_flags = 0;
-	int write = !!(flags & GUP_FLAGS_WRITE);
-	int force = !!(flags & GUP_FLAGS_FORCE);
+	unsigned long vm_flags;
 
 	if (nr_pages <= 0)
 		return 0;
+
+	VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
+
 	/* 
 	 * Require read or write permissions.
-	 * If 'force' is set, we only require the "MAY" flags.
+	 * If FOLL_FORCE is set, we only require the "MAY" flags.
 	 */
-	vm_flags  = write ? (VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
-	vm_flags &= force ? (VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
+	vm_flags  = (gup_flags & FOLL_WRITE) ?
+			(VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
+	vm_flags &= (gup_flags & FOLL_FORCE) ?
+			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
 	i = 0;
 
 	do {
 		struct vm_area_struct *vma;
-		unsigned int foll_flags;
 
 		vma = find_extend_vma(mm, start);
 		if (!vma && in_gate_area(tsk, start)) {
@@ -1241,7 +1243,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			pte_t *pte;
 
 			/* user gate pages are read-only */
-			if (write)
+			if (gup_flags & FOLL_WRITE)
 				return i ? : -EFAULT;
 			if (pg > TASK_SIZE)
 				pgd = pgd_offset_k(pg);
@@ -1278,22 +1280,15 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		    !(vm_flags & vma->vm_flags))
 			return i ? : -EFAULT;
 
-		foll_flags = FOLL_TOUCH;
-		if (pages)
-			foll_flags |= FOLL_GET;
-		if (flags & GUP_FLAGS_DUMP)
-			foll_flags |= FOLL_DUMP;
-		if (write)
-			foll_flags |= FOLL_WRITE;
-
 		if (is_vm_hugetlb_page(vma)) {
 			i = follow_hugetlb_page(mm, vma, pages, vmas,
-					&start, &nr_pages, i, foll_flags);
+					&start, &nr_pages, i, gup_flags);
 			continue;
 		}
 
 		do {
 			struct page *page;
+			unsigned int foll_flags = gup_flags;
 
 			/*
 			 * If we have a pending SIGKILL, don't keep faulting
@@ -1301,9 +1296,6 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			 */
 			if (unlikely(fatal_signal_pending(current)))
 				return i ? i : -ERESTARTSYS;
-
-			if (write)
-				foll_flags |= FOLL_WRITE;
 
 			cond_resched();
 			while (!(page = follow_page(vma, start, foll_flags))) {
@@ -1415,12 +1407,14 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		unsigned long start, int nr_pages, int write, int force,
 		struct page **pages, struct vm_area_struct **vmas)
 {
-	int flags = 0;
+	int flags = FOLL_TOUCH;
 
+	if (pages)
+		flags |= FOLL_GET;
 	if (write)
-		flags |= GUP_FLAGS_WRITE;
+		flags |= FOLL_WRITE;
 	if (force)
-		flags |= GUP_FLAGS_FORCE;
+		flags |= FOLL_FORCE;
 
 	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
 }
@@ -1447,7 +1441,7 @@ struct page *get_dump_page(unsigned long addr)
 	struct page *page;
 
 	if (__get_user_pages(current, current->mm, addr, 1,
-			GUP_FLAGS_FORCE | GUP_FLAGS_DUMP, &page, &vma) < 1)
+			FOLL_FORCE | FOLL_DUMP | FOLL_GET, &page, &vma) < 1)
 		return NULL;
 	if (page == ZERO_PAGE(0)) {
 		page_cache_release(page);
