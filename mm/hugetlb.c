@@ -687,7 +687,7 @@ static int hstate_next_node_to_free(struct hstate *h)
  * balanced over allowed nodes.
  * Called with hugetlb_lock locked.
  */
-static int free_pool_huge_page(struct hstate *h)
+static int free_pool_huge_page(struct hstate *h, bool acct_surplus)
 {
 	int start_nid;
 	int next_nid;
@@ -697,13 +697,22 @@ static int free_pool_huge_page(struct hstate *h)
 	next_nid = start_nid;
 
 	do {
-		if (!list_empty(&h->hugepage_freelists[next_nid])) {
+		/*
+		 * If we're returning unused surplus pages, only examine
+		 * nodes with surplus pages.
+		 */
+		if ((!acct_surplus || h->surplus_huge_pages_node[next_nid]) &&
+		    !list_empty(&h->hugepage_freelists[next_nid])) {
 			struct page *page =
 				list_entry(h->hugepage_freelists[next_nid].next,
 					  struct page, lru);
 			list_del(&page->lru);
 			h->free_huge_pages--;
 			h->free_huge_pages_node[next_nid]--;
+			if (acct_surplus) {
+				h->surplus_huge_pages--;
+				h->surplus_huge_pages_node[next_nid]--;
+			}
 			update_and_free_page(h, page);
 			ret = 1;
 		}
@@ -884,21 +893,12 @@ free:
  * When releasing a hugetlb pool reservation, any surplus pages that were
  * allocated to satisfy the reservation must be explicitly freed if they were
  * never used.
+ * Called with hugetlb_lock held.
  */
 static void return_unused_surplus_pages(struct hstate *h,
 					unsigned long unused_resv_pages)
 {
-	static int nid = -1;
-	struct page *page;
 	unsigned long nr_pages;
-
-	/*
-	 * We want to release as many surplus pages as possible, spread
-	 * evenly across all nodes. Iterate across all nodes until we
-	 * can no longer free unreserved surplus pages. This occurs when
-	 * the nodes with surplus pages have no free pages.
-	 */
-	unsigned long remaining_iterations = nr_online_nodes;
 
 	/* Uncommit the reservation */
 	h->resv_huge_pages -= unused_resv_pages;
@@ -909,26 +909,17 @@ static void return_unused_surplus_pages(struct hstate *h,
 
 	nr_pages = min(unused_resv_pages, h->surplus_huge_pages);
 
-	while (remaining_iterations-- && nr_pages) {
-		nid = next_node(nid, node_online_map);
-		if (nid == MAX_NUMNODES)
-			nid = first_node(node_online_map);
-
-		if (!h->surplus_huge_pages_node[nid])
-			continue;
-
-		if (!list_empty(&h->hugepage_freelists[nid])) {
-			page = list_entry(h->hugepage_freelists[nid].next,
-					  struct page, lru);
-			list_del(&page->lru);
-			update_and_free_page(h, page);
-			h->free_huge_pages--;
-			h->free_huge_pages_node[nid]--;
-			h->surplus_huge_pages--;
-			h->surplus_huge_pages_node[nid]--;
-			nr_pages--;
-			remaining_iterations = nr_online_nodes;
-		}
+	/*
+	 * We want to release as many surplus pages as possible, spread
+	 * evenly across all nodes. Iterate across all nodes until we
+	 * can no longer free unreserved surplus pages. This occurs when
+	 * the nodes with surplus pages have no free pages.
+	 * free_pool_huge_page() will balance the the frees across the
+	 * on-line nodes for us and will handle the hstate accounting.
+	 */
+	while (nr_pages--) {
+		if (!free_pool_huge_page(h, 1))
+			break;
 	}
 }
 
@@ -1268,7 +1259,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count)
 	min_count = max(count, min_count);
 	try_to_free_low(h, min_count);
 	while (min_count < persistent_huge_pages(h)) {
-		if (!free_pool_huge_page(h))
+		if (!free_pool_huge_page(h, 0))
 			break;
 	}
 	while (count < persistent_huge_pages(h)) {
