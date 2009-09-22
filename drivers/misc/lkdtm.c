@@ -283,7 +283,7 @@ static int __init lkdtm_module_init(void)
 
 	switch (cpoint) {
 	case INT_HARDWARE_ENTRY:
-		lkdtm.kp.symbol_name = "__do_IRQ";
+		lkdtm.kp.symbol_name = "do_IRQ";
 		lkdtm.entry = (kprobe_opcode_t*) jp_do_irq;
 		break;
 	case INT_HW_IRQ_EN:
