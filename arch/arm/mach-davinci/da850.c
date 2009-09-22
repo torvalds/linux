@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/cpufreq.h>
 
 #include <asm/mach/map.h>
 
@@ -26,6 +27,7 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
+#include <mach/cpufreq.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -40,6 +42,11 @@
 #define DA850_REF_FREQ		24000000
 
 #define CFGCHIP3_ASYNC3_CLKSRC	BIT(4)
+#define CFGCHIP0_PLL_MASTER_LOCK	BIT(4)
+
+static int da850_set_armrate(struct clk *clk, unsigned long rate);
+static int da850_round_armrate(struct clk *clk, unsigned long rate);
+static int da850_set_pll0rate(struct clk *clk, unsigned long armrate);
 
 static struct pll_data pll0_data = {
 	.num		= 1,
@@ -57,6 +64,7 @@ static struct clk pll0_clk = {
 	.parent		= &ref_clk,
 	.pll_data	= &pll0_data,
 	.flags		= CLK_PLL,
+	.set_rate	= da850_set_pll0rate,
 };
 
 static struct clk pll0_aux_clk = {
@@ -283,6 +291,8 @@ static struct clk arm_clk = {
 	.parent		= &pll0_sysclk6,
 	.lpsc		= DA8XX_LPSC0_ARM,
 	.flags		= ALWAYS_ENABLED,
+	.set_rate	= da850_set_armrate,
+	.round_rate	= da850_round_armrate,
 };
 
 static struct clk rmii_clk = {
@@ -819,6 +829,149 @@ static void da850_set_async3_src(int pllnum)
 		v &= ~CFGCHIP3_ASYNC3_CLKSRC;
 	__raw_writel(v, DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP3_REG));
 }
+
+#ifdef CONFIG_CPU_FREQ
+/*
+ * Notes:
+ * According to the TRM, minimum PLLM results in maximum power savings.
+ * The OPP definitions below should keep the PLLM as low as possible.
+ *
+ * The output of the PLLM must be between 400 to 600 MHz.
+ * This rules out prediv of anything but divide-by-one for 24Mhz OSC input.
+ */
+struct da850_opp {
+	unsigned int	freq;	/* in KHz */
+	unsigned int	prediv;
+	unsigned int	mult;
+	unsigned int	postdiv;
+};
+
+static const struct da850_opp da850_opp_300 = {
+	.freq		= 300000,
+	.prediv		= 1,
+	.mult		= 25,
+	.postdiv	= 2,
+};
+
+static const struct da850_opp da850_opp_200 = {
+	.freq		= 200000,
+	.prediv		= 1,
+	.mult		= 25,
+	.postdiv	= 3,
+};
+
+static const struct da850_opp da850_opp_96 = {
+	.freq		= 96000,
+	.prediv		= 1,
+	.mult		= 20,
+	.postdiv	= 5,
+};
+
+#define OPP(freq) 		\
+	{				\
+		.index = (unsigned int) &da850_opp_##freq,	\
+		.frequency = freq * 1000, \
+	}
+
+static struct cpufreq_frequency_table da850_freq_table[] = {
+	OPP(300),
+	OPP(200),
+	OPP(96),
+	{
+		.index		= 0,
+		.frequency	= CPUFREQ_TABLE_END,
+	},
+};
+
+static struct davinci_cpufreq_config cpufreq_info = {
+	.freq_table = &da850_freq_table[0],
+};
+
+static struct platform_device da850_cpufreq_device = {
+	.name			= "cpufreq-davinci",
+	.dev = {
+		.platform_data	= &cpufreq_info,
+	},
+};
+
+int __init da850_register_cpufreq(void)
+{
+	return platform_device_register(&da850_cpufreq_device);
+}
+
+static int da850_round_armrate(struct clk *clk, unsigned long rate)
+{
+	int i, ret = 0, diff;
+	unsigned int best = (unsigned int) -1;
+
+	rate /= 1000; /* convert to kHz */
+
+	for (i = 0; da850_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		diff = da850_freq_table[i].frequency - rate;
+		if (diff < 0)
+			diff = -diff;
+
+		if (diff < best) {
+			best = diff;
+			ret = da850_freq_table[i].frequency;
+		}
+	}
+
+	return ret * 1000;
+}
+
+static int da850_set_armrate(struct clk *clk, unsigned long index)
+{
+	struct clk *pllclk = &pll0_clk;
+
+	return clk_set_rate(pllclk, index);
+}
+
+static int da850_set_pll0rate(struct clk *clk, unsigned long index)
+{
+	unsigned int prediv, mult, postdiv;
+	struct da850_opp *opp;
+	struct pll_data *pll = clk->pll_data;
+	unsigned int v;
+	int ret;
+
+	opp = (struct da850_opp *) da850_freq_table[index].index;
+	prediv = opp->prediv;
+	mult = opp->mult;
+	postdiv = opp->postdiv;
+
+	/* Unlock writing to PLL registers */
+	v = __raw_readl(DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP0_REG));
+	v &= ~CFGCHIP0_PLL_MASTER_LOCK;
+	__raw_writel(v, DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP0_REG));
+
+	ret = davinci_set_pllrate(pll, prediv, mult, postdiv);
+	if (WARN_ON(ret))
+		return ret;
+
+	return 0;
+}
+#else
+int __init da850_register_cpufreq(void)
+{
+	return 0;
+}
+
+static int da850_set_armrate(struct clk *clk, unsigned long rate)
+{
+	return -EINVAL;
+}
+
+static int da850_set_pll0rate(struct clk *clk, unsigned long armrate)
+{
+	return -EINVAL;
+}
+
+static int da850_round_armrate(struct clk *clk, unsigned long rate)
+{
+	return clk->rate;
+}
+#endif
 
 static struct davinci_soc_info davinci_soc_info_da850 = {
 	.io_desc		= da850_io_desc,
