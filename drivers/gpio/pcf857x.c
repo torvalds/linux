@@ -20,10 +20,9 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
-
-#include <asm/gpio.h>
 
 
 static const struct i2c_device_id pcf857x_id[] = {

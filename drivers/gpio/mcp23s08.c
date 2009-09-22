@@ -6,11 +6,9 @@
 #include <linux/device.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
-
+#include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mcp23s08.h>
-
-#include <asm/gpio.h>
 
 
 /* Registers are all 8 bits wide.
