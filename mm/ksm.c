@@ -1263,7 +1263,7 @@ static void ksm_do_scan(unsigned int scan_npages)
 
 static int ksm_scan_thread(void *nothing)
 {
-	set_user_nice(current, 0);
+	set_user_nice(current, 5);
 
 	while (!kthread_should_stop()) {
 		if (ksm_run & KSM_RUN_MERGE) {
