@@ -1922,31 +1922,25 @@ EXPORT_SYMBOL(__alloc_pages_nodemask);
  */
 unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
 {
-	struct page * page;
+	struct page *page;
+
+	/*
+	 * __get_free_pages() returns a 32-bit address, which cannot represent
+	 * a highmem page
+	 */
+	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
+
 	page = alloc_pages(gfp_mask, order);
 	if (!page)
 		return 0;
 	return (unsigned long) page_address(page);
 }
-
 EXPORT_SYMBOL(__get_free_pages);
 
 unsigned long get_zeroed_page(gfp_t gfp_mask)
 {
-	struct page * page;
-
-	/*
-	 * get_zeroed_page() returns a 32-bit address, which cannot represent
-	 * a highmem page
-	 */
-	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
-
-	page = alloc_pages(gfp_mask | __GFP_ZERO, 0);
-	if (page)
-		return (unsigned long) page_address(page);
-	return 0;
+	return __get_free_pages(gfp_mask | __GFP_ZERO, 0);
 }
-
 EXPORT_SYMBOL(get_zeroed_page);
 
 void __pagevec_free(struct pagevec *pvec)
