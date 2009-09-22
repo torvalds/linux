@@ -418,9 +418,9 @@ static int __exit s3c24xx_spi_remove(struct platform_device *dev)
 
 #ifdef CONFIG_PM
 
-static int s3c24xx_spi_suspend(struct platform_device *pdev, pm_message_t msg)
+static int s3c24xx_spi_suspend(struct device *dev)
 {
-	struct s3c24xx_spi *hw = platform_get_drvdata(pdev);
+	struct s3c24xx_spi *hw = platform_get_drvdata(to_platform_device(dev));
 
 	if (hw->pdata && hw->pdata->gpio_setup)
 		hw->pdata->gpio_setup(hw->pdata, 0);
@@ -429,27 +429,31 @@ static int s3c24xx_spi_suspend(struct platform_device *pdev, pm_message_t msg)
 	return 0;
 }
 
-static int s3c24xx_spi_resume(struct platform_device *pdev)
+static int s3c24xx_spi_resume(struct device *dev)
 {
-	struct s3c24xx_spi *hw = platform_get_drvdata(pdev);
+	struct s3c24xx_spi *hw = platform_get_drvdata(to_platform_device(dev));
 
 	s3c24xx_spi_initialsetup(hw);
 	return 0;
 }
 
+static struct dev_pm_ops s3c24xx_spi_pmops = {
+	.suspend	= s3c24xx_spi_suspend,
+	.resume		= s3c24xx_spi_resume,
+};
+
+#define S3C24XX_SPI_PMOPS &s3c24xx_spi_pmops
 #else
-#define s3c24xx_spi_suspend NULL
-#define s3c24xx_spi_resume  NULL
-#endif
+#define S3C24XX_SPI_PMOPS NULL
+#endif /* CONFIG_PM */
 
 MODULE_ALIAS("platform:s3c2410-spi");
 static struct platform_driver s3c24xx_spi_driver = {
 	.remove		= __exit_p(s3c24xx_spi_remove),
-	.suspend	= s3c24xx_spi_suspend,
-	.resume		= s3c24xx_spi_resume,
 	.driver		= {
 		.name	= "s3c2410-spi",
 		.owner	= THIS_MODULE,
+		.pm	= S3C24XX_SPI_PMOPS,
 	},
 };
 
