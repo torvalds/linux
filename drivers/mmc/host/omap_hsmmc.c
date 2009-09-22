@@ -70,6 +70,8 @@
 #define DTO_MASK		0x000F0000
 #define DTO_SHIFT		16
 #define INT_EN_MASK		0x307F0033
+#define BWR_ENABLE		(1 << 4)
+#define BRR_ENABLE		(1 << 5)
 #define INIT_STREAM		(1 << 1)
 #define DP_SELECT		(1 << 21)
 #define DDIR			(1 << 4)
@@ -241,7 +243,12 @@ mmc_omap_start_command(struct mmc_omap_host *host, struct mmc_command *cmd,
 	 */
 	OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
 	OMAP_HSMMC_WRITE(host->base, ISE, INT_EN_MASK);
-	OMAP_HSMMC_WRITE(host->base, IE, INT_EN_MASK);
+
+	if (host->use_dma)
+		OMAP_HSMMC_WRITE(host->base, IE,
+				 INT_EN_MASK & ~(BRR_ENABLE | BWR_ENABLE));
+	else
+		OMAP_HSMMC_WRITE(host->base, IE, INT_EN_MASK);
 
 	host->response_busy = 0;
 	if (cmd->flags & MMC_RSP_PRESENT) {
