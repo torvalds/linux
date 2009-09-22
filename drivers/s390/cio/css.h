@@ -75,6 +75,7 @@ struct chp_link;
  * @freeze: callback for freezing during hibernation snapshotting
  * @thaw: undo work done in @freeze
  * @restore: callback for restoring after hibernation
+ * @settle: wait for asynchronous work to finish
  * @name: name of the device driver
  */
 struct css_driver {
@@ -92,6 +93,7 @@ struct css_driver {
 	int (*freeze)(struct subchannel *);
 	int (*thaw) (struct subchannel *);
 	int (*restore)(struct subchannel *);
+	void (*settle)(void);
 	const char *name;
 };
 

@@ -1013,6 +1013,15 @@ static int __init channel_subsystem_init(void)
 }
 subsys_initcall(channel_subsystem_init);
 
+static int css_settle(struct device_driver *drv, void *unused)
+{
+	struct css_driver *cssdrv = to_cssdriver(drv);
+
+	if (cssdrv->settle)
+		cssdrv->settle();
+	return 0;
+}
+
 /*
  * Wait for the initialization of devices to finish, to make sure we are
  * done with our setup if the search for the root device starts.
@@ -1024,12 +1033,8 @@ static int __init channel_subsystem_init_sync(void)
 	/* Wait for the evaluation of subchannels to finish. */
 	wait_event(css_eval_wq, atomic_read(&css_eval_scheduled) == 0);
 
-	/* Wait for the initialization of ccw devices to finish. */
-	wait_event(ccw_device_init_wq,
-		   atomic_read(&ccw_device_init_count) == 0);
-	flush_workqueue(ccw_device_work);
-
-	return 0;
+	/* Wait for the subchannel type specific initialization to finish */
+	return bus_for_each_drv(&css_bus_type, NULL, NULL, css_settle);
 }
 subsys_initcall_sync(channel_subsystem_init_sync);
 
