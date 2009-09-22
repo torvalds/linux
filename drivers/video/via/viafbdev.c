@@ -1821,11 +1821,29 @@ static void viafb_remove_proc(struct proc_dir_entry *viafb_entry)
 	remove_proc_entry("viafb", NULL);
 }
 
+static void parse_mode(const char *str, u32 *xres, u32 *yres)
+{
+	char *ptr;
+
+	*xres = simple_strtoul(str, &ptr, 10);
+	if (ptr[0] != 'x')
+		goto out_default;
+
+	*yres = simple_strtoul(&ptr[1], &ptr, 10);
+	if (ptr[0])
+		goto out_default;
+
+	return;
+
+out_default:
+	printk(KERN_WARNING "viafb received invalid mode string: %s\n", str);
+	*xres = 640;
+	*yres = 480;
+}
+
 static int __devinit via_pci_probe(void)
 {
-	unsigned long default_xres, default_yres;
-	char *tmpc, *tmpm;
-	char *tmpc_sec, *tmpm_sec;
+	u32 default_xres, default_yres;
 	int vmode_index;
 	u32 viafb_par_length;
 
@@ -1902,26 +1920,14 @@ static int __devinit via_pci_probe(void)
 			viafb_second_size * 1024 * 1024;
 	}
 
-	tmpm = viafb_mode;
-	tmpc = strsep(&tmpm, "x");
-	strict_strtoul(tmpc, 0, &default_xres);
-	strict_strtoul(tmpm, 0, &default_yres);
-
+	parse_mode(viafb_mode, &default_xres, &default_yres);
 	vmode_index = viafb_get_mode_index(default_xres, default_yres);
 	DEBUG_MSG(KERN_INFO "0->index=%d\n", vmode_index);
 
 	if (viafb_SAMM_ON == 1) {
-		if (strcmp(viafb_mode, viafb_mode1)) {
-			tmpm_sec = viafb_mode1;
-			tmpc_sec = strsep(&tmpm_sec, "x");
-			strict_strtoul(tmpc_sec, 0,
-				(unsigned long *)&viafb_second_xres);
-			strict_strtoul(tmpm_sec, 0,
-				(unsigned long *)&viafb_second_yres);
-		} else {
-			viafb_second_xres = default_xres;
-			viafb_second_yres = default_yres;
-		}
+		parse_mode(viafb_mode1, &viafb_second_xres,
+			&viafb_second_yres);
+
 		if (0 == viafb_second_virtual_xres) {
 			switch (viafb_second_xres) {
 			case 1400:
