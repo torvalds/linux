@@ -82,6 +82,7 @@ enum kcore_type {
 	KCORE_TEXT,
 	KCORE_VMALLOC,
 	KCORE_RAM,
+	KCORE_VMEMMAP,
 	KCORE_OTHER,
 };
 

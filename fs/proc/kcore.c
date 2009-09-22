@@ -103,7 +103,7 @@ static void free_kclist_ents(struct list_head *head)
 	}
 }
 /*
- * Replace all KCORE_RAM information with passed list.
+ * Replace all KCORE_RAM/KCORE_VMEMMAP information with passed list.
  */
 static void __kcore_update_ram(struct list_head *list)
 {
@@ -113,7 +113,8 @@ static void __kcore_update_ram(struct list_head *list)
 	write_lock(&kclist_lock);
 	if (kcore_need_update) {
 		list_for_each_entry_safe(pos, tmp, &kclist_head, list) {
-			if (pos->type == KCORE_RAM)
+			if (pos->type == KCORE_RAM
+				|| pos->type == KCORE_VMEMMAP)
 				list_move(&pos->list, &garbage);
 		}
 		list_splice_tail(list, &kclist_head);
@@ -151,6 +152,47 @@ static int kcore_update_ram(void)
 
 #else /* !CONFIG_HIGHMEM */
 
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+/* calculate vmemmap's address from given system ram pfn and register it */
+int get_sparsemem_vmemmap_info(struct kcore_list *ent, struct list_head *head)
+{
+	unsigned long pfn = __pa(ent->addr) >> PAGE_SHIFT;
+	unsigned long nr_pages = ent->size >> PAGE_SHIFT;
+	unsigned long start, end;
+	struct kcore_list *vmm, *tmp;
+
+
+	start = ((unsigned long)pfn_to_page(pfn)) & PAGE_MASK;
+	end = ((unsigned long)pfn_to_page(pfn + nr_pages)) - 1;
+	end = ALIGN(end, PAGE_SIZE);
+	/* overlap check (because we have to align page */
+	list_for_each_entry(tmp, head, list) {
+		if (tmp->type != KCORE_VMEMMAP)
+			continue;
+		if (start < tmp->addr + tmp->size)
+			if (end > tmp->addr)
+				end = tmp->addr;
+	}
+	if (start < end) {
+		vmm = kmalloc(sizeof(*vmm), GFP_KERNEL);
+		if (!vmm)
+			return 0;
+		vmm->addr = start;
+		vmm->size = end - start;
+		vmm->type = KCORE_VMEMMAP;
+		list_add_tail(&vmm->list, head);
+	}
+	return 1;
+
+}
+#else
+int get_sparsemem_vmemmap_info(struct kcore_list *ent, struct list_head *head)
+{
+	return 1;
+}
+
+#endif
+
 static int
 kclist_add_private(unsigned long pfn, unsigned long nr_pages, void *arg)
 {
@@ -181,6 +223,12 @@ kclist_add_private(unsigned long pfn, unsigned long nr_pages, void *arg)
 
 	ent->type = KCORE_RAM;
 	list_add_tail(&ent->list, head);
+
+	if (!get_sparsemem_vmemmap_info(ent, head)) {
+		list_del(&ent->list);
+		goto free_out;
+	}
+
 	return 0;
 free_out:
 	kfree(ent);
