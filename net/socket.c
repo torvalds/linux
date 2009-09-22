@@ -86,6 +86,7 @@
 #include <linux/audit.h>
 #include <linux/wireless.h>
 #include <linux/nsproxy.h>
+#include <linux/magic.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -234,8 +235,6 @@ int move_addr_to_user(struct sockaddr *kaddr, int klen, void __user *uaddr,
 	 */
 	return __put_user(klen, ulen);
 }
-
-#define SOCKFS_MAGIC 0x534F434B
 
 static struct kmem_cache *sock_inode_cachep __read_mostly;
 

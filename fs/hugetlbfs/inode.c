@@ -31,11 +31,9 @@
 #include <linux/statfs.h>
 #include <linux/security.h>
 #include <linux/ima.h>
+#include <linux/magic.h>
 
 #include <asm/uaccess.h>
-
-/* some random number */
-#define HUGETLBFS_MAGIC	0x958458f6
 
 static const struct super_operations hugetlbfs_ops;
 static const struct address_space_operations hugetlbfs_aops;
