@@ -396,7 +396,7 @@ static int sdhci_pci_enable_dma(struct sdhci_host *host)
 
 	if (((pdev->class & 0xFFFF00) == (PCI_CLASS_SYSTEM_SDHCI << 8)) &&
 		((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA) &&
-		(host->flags & SDHCI_USE_DMA)) {
+		(host->flags & SDHCI_USE_SDMA)) {
 		dev_warn(&pdev->dev, "Will use DMA mode even though HW "
 			"doesn't fully claim to support it.\n");
 	}

@@ -655,7 +655,7 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 	count = sdhci_calc_timeout(host, data);
 	sdhci_writeb(host, count, SDHCI_TIMEOUT_CONTROL);
 
-	if (host->flags & SDHCI_USE_DMA)
+	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA))
 		host->flags |= SDHCI_REQ_USE_DMA;
 
 	/*
@@ -1600,7 +1600,7 @@ int sdhci_resume_host(struct sdhci_host *host)
 {
 	int ret;
 
-	if (host->flags & SDHCI_USE_DMA) {
+	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
 		if (host->ops->enable_dma)
 			host->ops->enable_dma(host);
 	}
@@ -1681,23 +1681,20 @@ int sdhci_add_host(struct sdhci_host *host)
 	caps = sdhci_readl(host, SDHCI_CAPABILITIES);
 
 	if (host->quirks & SDHCI_QUIRK_FORCE_DMA)
-		host->flags |= SDHCI_USE_DMA;
-	else if (!(caps & SDHCI_CAN_DO_DMA))
-		DBG("Controller doesn't have DMA capability\n");
+		host->flags |= SDHCI_USE_SDMA;
+	else if (!(caps & SDHCI_CAN_DO_SDMA))
+		DBG("Controller doesn't have SDMA capability\n");
 	else
-		host->flags |= SDHCI_USE_DMA;
+		host->flags |= SDHCI_USE_SDMA;
 
 	if ((host->quirks & SDHCI_QUIRK_BROKEN_DMA) &&
-		(host->flags & SDHCI_USE_DMA)) {
+		(host->flags & SDHCI_USE_SDMA)) {
 		DBG("Disabling DMA as it is marked broken\n");
-		host->flags &= ~SDHCI_USE_DMA;
+		host->flags &= ~SDHCI_USE_SDMA;
 	}
 
-	if (host->flags & SDHCI_USE_DMA) {
-		if ((host->version >= SDHCI_SPEC_200) &&
-				(caps & SDHCI_CAN_DO_ADMA2))
-			host->flags |= SDHCI_USE_ADMA;
-	}
+	if ((host->version >= SDHCI_SPEC_200) && (caps & SDHCI_CAN_DO_ADMA2))
+		host->flags |= SDHCI_USE_ADMA;
 
 	if ((host->quirks & SDHCI_QUIRK_BROKEN_ADMA) &&
 		(host->flags & SDHCI_USE_ADMA)) {
@@ -1705,13 +1702,14 @@ int sdhci_add_host(struct sdhci_host *host)
 		host->flags &= ~SDHCI_USE_ADMA;
 	}
 
-	if (host->flags & SDHCI_USE_DMA) {
+	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
 		if (host->ops->enable_dma) {
 			if (host->ops->enable_dma(host)) {
 				printk(KERN_WARNING "%s: No suitable DMA "
 					"available. Falling back to PIO.\n",
 					mmc_hostname(mmc));
-				host->flags &= ~(SDHCI_USE_DMA | SDHCI_USE_ADMA);
+				host->flags &=
+					~(SDHCI_USE_SDMA | SDHCI_USE_ADMA);
 			}
 		}
 	}
@@ -1739,7 +1737,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	 * mask, but PIO does not need the hw shim so we set a new
 	 * mask here in that case.
 	 */
-	if (!(host->flags & SDHCI_USE_DMA)) {
+	if (!(host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA))) {
 		host->dma_mask = DMA_BIT_MASK(64);
 		mmc_dev(host->mmc)->dma_mask = &host->dma_mask;
 	}
@@ -1816,7 +1814,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	 */
 	if (host->flags & SDHCI_USE_ADMA)
 		mmc->max_hw_segs = 128;
-	else if (host->flags & SDHCI_USE_DMA)
+	else if (host->flags & SDHCI_USE_SDMA)
 		mmc->max_hw_segs = 1;
 	else /* PIO */
 		mmc->max_hw_segs = 128;
@@ -1899,10 +1897,10 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	mmc_add_host(mmc);
 
-	printk(KERN_INFO "%s: SDHCI controller on %s [%s] using %s%s\n",
+	printk(KERN_INFO "%s: SDHCI controller on %s [%s] using %s\n",
 		mmc_hostname(mmc), host->hw_name, dev_name(mmc_dev(mmc)),
-		(host->flags & SDHCI_USE_ADMA)?"A":"",
-		(host->flags & SDHCI_USE_DMA)?"DMA":"PIO");
+		(host->flags & SDHCI_USE_ADMA) ? "ADMA" :
+		(host->flags & SDHCI_USE_SDMA) ? "DMA" : "PIO");
 
 	sdhci_enable_card_detection(host);
 

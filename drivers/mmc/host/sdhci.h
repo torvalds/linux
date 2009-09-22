@@ -143,7 +143,7 @@
 #define  SDHCI_CAN_DO_ADMA2	0x00080000
 #define  SDHCI_CAN_DO_ADMA1	0x00100000
 #define  SDHCI_CAN_DO_HISPD	0x00200000
-#define  SDHCI_CAN_DO_DMA	0x00400000
+#define  SDHCI_CAN_DO_SDMA	0x00400000
 #define  SDHCI_CAN_VDD_330	0x01000000
 #define  SDHCI_CAN_VDD_300	0x02000000
 #define  SDHCI_CAN_VDD_180	0x04000000
@@ -252,7 +252,7 @@ struct sdhci_host {
 	spinlock_t		lock;		/* Mutex */
 
 	int			flags;		/* Host attributes */
-#define SDHCI_USE_DMA		(1<<0)		/* Host is DMA capable */
+#define SDHCI_USE_SDMA		(1<<0)		/* Host is SDMA capable */
 #define SDHCI_USE_ADMA		(1<<1)		/* Host is ADMA capable */
 #define SDHCI_REQ_USE_DMA	(1<<2)		/* Use DMA for this req. */
 #define SDHCI_DEVICE_DEAD	(1<<3)		/* Device unresponsive */
