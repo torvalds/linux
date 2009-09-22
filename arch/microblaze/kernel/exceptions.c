@@ -116,7 +116,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		if (user_mode(regs)) {
 			pr_debug(KERN_WARNING "Divide by zero exception " \
 							"in user mode\n");
-			_exception(SIGILL, regs, ILL_ILLOPC, addr);
+			_exception(SIGILL, regs, FPE_INTDIV, addr);
 			return;
 		}
 		printk(KERN_WARNING "Divide by zero exception " \
