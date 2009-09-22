@@ -481,12 +481,7 @@ static int viafb_pan_display(struct fb_var_screeninfo *var,
 	    var->bits_per_pixel / 16;
 
 	DEBUG_MSG(KERN_INFO "\nviafb_pan_display,offset =%d ", offset);
-
-	viafb_write_reg_mask(0x48, 0x3d4, ((offset >> 24) & 0x3), 0x3);
-	viafb_write_reg_mask(0x34, 0x3d4, ((offset >> 16) & 0xff), 0xff);
-	viafb_write_reg_mask(0x0c, 0x3d4, ((offset >> 8) & 0xff), 0xff);
-	viafb_write_reg_mask(0x0d, 0x3d4, (offset & 0xff), 0xff);
-
+	viafb_set_primary_address(offset);
 	return 0;
 }
 
@@ -1353,7 +1348,8 @@ static void viafb_set_device(struct device_t active_dev)
 		viafb_SAMM_ON = active_dev.samm;
 	viafb_primary_dev = active_dev.primary_dev;
 
-	viafb_set_start_addr();
+	viafb_set_primary_address(0);
+	viafb_set_secondary_address(viafb_SAMM_ON ? viafb_second_offset : 0);
 	viafb_set_iga_path();
 }
 
@@ -1537,7 +1533,8 @@ static int apply_device_setting(struct viafb_ioctl_setting setting_info,
 			if (viafb_SAMM_ON)
 				viafb_primary_dev = setting_info.primary_device;
 
-			viafb_set_start_addr();
+			viafb_set_primary_address(0);
+			viafb_set_secondary_address(viafb_SAMM_ON ? viafb_second_offset : 0);
 			viafb_set_iga_path();
 		}
 		need_set_mode = 1;
@@ -2275,6 +2272,8 @@ static int __devinit via_pci_probe(void)
 				viafb_second_offset;
 		}
 
+		viaparinfo->iga_path = IGA1;
+		viaparinfo1->iga_path = IGA2;
 		memcpy(viafbinfo1, viafbinfo, sizeof(struct fb_info));
 		viafbinfo1->screen_base = viafbinfo->screen_base +
 			viafb_second_offset;
