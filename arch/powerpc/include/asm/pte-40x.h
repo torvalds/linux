@@ -43,6 +43,7 @@
 #define	_PAGE_NO_CACHE	0x004	/* I: caching is inhibited */
 #define	_PAGE_WRITETHRU	0x008	/* W: caching is write-through */
 #define	_PAGE_USER	0x010	/* matches one of the zone permission bits */
+#define	_PAGE_SPECIAL	0x020	/* software: Special page */
 #define	_PAGE_RW	0x040	/* software: Writes permitted */
 #define	_PAGE_DIRTY	0x080	/* software: dirty page */
 #define _PAGE_HWWRITE	0x100	/* hardware: Dirty & RW, set in exception */

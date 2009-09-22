@@ -25,9 +25,6 @@
 #ifndef _PAGE_WRITETHRU
 #define _PAGE_WRITETHRU	0
 #endif
-#ifndef _PAGE_SPECIAL
-#define _PAGE_SPECIAL	0
-#endif
 #ifndef _PAGE_4K_PFN
 #define _PAGE_4K_PFN		0
 #endif
@@ -179,7 +176,5 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 #define HAVE_PAGE_AGP
 
 /* Advertise support for _PAGE_SPECIAL */
-#ifdef _PAGE_SPECIAL
 #define __HAVE_ARCH_PTE_SPECIAL
-#endif
 
