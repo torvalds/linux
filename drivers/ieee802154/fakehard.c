@@ -356,7 +356,15 @@ static int __devinit ieee802154fake_probe(struct platform_device *pdev)
 			dev->addr_len);
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	phy->channels_supported[0] = (1 << 27) - 1;
+	/*
+	 * For now we'd like to emulate 2.4 GHz-only device,
+	 * both O-QPSK and CSS
+	 */
+	/* 2.4 GHz O-QPSK 802.15.4-2003 */
+	phy->channels_supported[0] |= 0x7FFF800;
+	/* 2.4 GHz CSS 802.15.4a-2007 */
+	phy->channels_supported[3] |= 0x3fff;
+
 	phy->transmit_power = 0xbf;
 
 	dev->netdev_ops = &fake_ops;
