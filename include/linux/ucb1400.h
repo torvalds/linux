@@ -26,6 +26,7 @@
 #include <sound/ac97_codec.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 
 /*
  * UCB1400 AC-link registers
@@ -82,6 +83,17 @@
 #define UCB_ID			0x7e
 #define UCB_ID_1400             0x4304
 
+struct ucb1400_gpio_data {
+	int gpio_offset;
+	int (*gpio_setup)(struct device *dev, int ngpio);
+	int (*gpio_teardown)(struct device *dev, int ngpio);
+};
+
+struct ucb1400_gpio {
+	struct gpio_chip	gc;
+	struct snd_ac97		*ac97;
+};
+
 struct ucb1400_ts {
 	struct input_dev	*ts_idev;
 	struct task_struct	*ts_task;
@@ -95,6 +107,7 @@ struct ucb1400_ts {
 
 struct ucb1400 {
 	struct platform_device	*ucb1400_ts;
+	struct platform_device	*ucb1400_gpio;
 };
 
 static inline u16 ucb1400_reg_read(struct snd_ac97 *ac97, u16 reg)
@@ -146,5 +159,11 @@ static inline void ucb1400_adc_disable(struct snd_ac97 *ac97)
 
 unsigned int ucb1400_adc_read(struct snd_ac97 *ac97, u16 adc_channel,
 			      int adcsync);
+
+#ifdef CONFIG_GPIO_UCB1400
+void __init ucb1400_gpio_set_data(struct ucb1400_gpio_data *data);
+#else
+static inline void ucb1400_gpio_set_data(struct ucb1400_gpio_data *data) {}
+#endif
 
 #endif
