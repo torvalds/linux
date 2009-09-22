@@ -2016,8 +2016,11 @@ static struct page *hugetlbfs_pagecache_page(struct hstate *h,
 	return find_lock_page(mapping, idx);
 }
 
-/* Return whether there is a pagecache page to back given address within VMA */
-static bool hugetlbfs_backed(struct hstate *h,
+/*
+ * Return whether there is a pagecache page to back given address within VMA.
+ * Caller follow_hugetlb_page() holds page_table_lock so we cannot lock_page.
+ */
+static bool hugetlbfs_pagecache_present(struct hstate *h,
 			struct vm_area_struct *vma, unsigned long address)
 {
 	struct address_space *mapping;
@@ -2254,10 +2257,13 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 		/*
 		 * When coredumping, it suits get_dump_page if we just return
-		 * an error if there's a hole and no huge pagecache to back it.
+		 * an error where there's an empty slot with no huge pagecache
+		 * to back it.  This way, we avoid allocating a hugepage, and
+		 * the sparse dumpfile avoids allocating disk blocks, but its
+		 * huge holes still show up with zeroes where they need to be.
 		 */
-		if (absent &&
-		    ((flags & FOLL_DUMP) && !hugetlbfs_backed(h, vma, vaddr))) {
+		if (absent && (flags & FOLL_DUMP) &&
+		    !hugetlbfs_pagecache_present(h, vma, vaddr)) {
 			remainder = 0;
 			break;
 		}
