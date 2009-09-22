@@ -233,6 +233,7 @@ S:	Supported
 F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
 F:	include/linux/acpi.h
+F:	include/acpi/
 
 ACPI BATTERY DRIVERS
 M:	Alexey Starikovskiy <astarikovskiy@suse.de>
