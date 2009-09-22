@@ -28,6 +28,20 @@
 #include <plat/regs-spi.h>
 #include <mach/spi.h>
 
+/**
+ * s3c24xx_spi_devstate - per device data
+ * @hz: Last frequency calculated for @sppre field.
+ * @mode: Last mode setting for the @spcon field.
+ * @spcon: Value to write to the SPCON register.
+ * @sppre: Value to write to the SPPRE register.
+ */
+struct s3c24xx_spi_devstate {
+	unsigned int	hz;
+	unsigned int	mode;
+	u8		spcon;
+	u8		sppre;
+};
+
 struct s3c24xx_spi {
 	/* bitbang has to be first */
 	struct spi_bitbang	 bitbang;
@@ -68,43 +82,31 @@ static void s3c24xx_spi_gpiocs(struct s3c2410_spi_info *spi, int cs, int pol)
 
 static void s3c24xx_spi_chipsel(struct spi_device *spi, int value)
 {
+	struct s3c24xx_spi_devstate *cs = spi->controller_state;
 	struct s3c24xx_spi *hw = to_hw(spi);
 	unsigned int cspol = spi->mode & SPI_CS_HIGH ? 1 : 0;
-	unsigned int spcon;
+
+	/* change the chipselect state and the state of the spi engine clock */
 
 	switch (value) {
 	case BITBANG_CS_INACTIVE:
 		hw->set_cs(hw->pdata, spi->chip_select, cspol^1);
+		writeb(cs->spcon, hw->regs + S3C2410_SPCON);
 		break;
 
 	case BITBANG_CS_ACTIVE:
-		spcon = readb(hw->regs + S3C2410_SPCON);
-
-		if (spi->mode & SPI_CPHA)
-			spcon |= S3C2410_SPCON_CPHA_FMTB;
-		else
-			spcon &= ~S3C2410_SPCON_CPHA_FMTB;
-
-		if (spi->mode & SPI_CPOL)
-			spcon |= S3C2410_SPCON_CPOL_HIGH;
-		else
-			spcon &= ~S3C2410_SPCON_CPOL_HIGH;
-
-		spcon |= S3C2410_SPCON_ENSCK;
-
-		/* write new configration */
-
-		writeb(spcon, hw->regs + S3C2410_SPCON);
+		writeb(cs->spcon | S3C2410_SPCON_ENSCK,
+		       hw->regs + S3C2410_SPCON);
 		hw->set_cs(hw->pdata, spi->chip_select, cspol);
-
 		break;
 	}
 }
 
-static int s3c24xx_spi_setupxfer(struct spi_device *spi,
-				 struct spi_transfer *t)
+static int s3c24xx_spi_update_state(struct spi_device *spi,
+				    struct spi_transfer *t)
 {
 	struct s3c24xx_spi *hw = to_hw(spi);
+	struct s3c24xx_spi_devstate *cs = spi->controller_state;
 	unsigned int bpw;
 	unsigned int hz;
 	unsigned int div;
@@ -124,17 +126,73 @@ static int s3c24xx_spi_setupxfer(struct spi_device *spi,
 		return -EINVAL;
 	}
 
-	clk = clk_get_rate(hw->clk);
-	div = DIV_ROUND_UP(clk, hz * 2) - 1;
+	if (spi->mode != cs->mode) {
+		u8 spcon = SPCON_DEFAULT;
 
-	if (div > 255)
-		div = 255;
+		if (spi->mode & SPI_CPHA)
+			spcon |= S3C2410_SPCON_CPHA_FMTB;
 
-	dev_dbg(&spi->dev, "setting pre-scaler to %d (wanted %d, got %ld)\n",
-		div, hz, clk / (2 * (div + 1)));
+		if (spi->mode & SPI_CPOL)
+			spcon |= S3C2410_SPCON_CPOL_HIGH;
 
+		cs->mode = spi->mode;
+		cs->spcon = spcon;
+	}
 
-	writeb(div, hw->regs + S3C2410_SPPRE);
+	if (cs->hz != hz) {
+		clk = clk_get_rate(hw->clk);
+		div = DIV_ROUND_UP(clk, hz * 2) - 1;
+
+		if (div > 255)
+			div = 255;
+
+		dev_dbg(&spi->dev, "pre-scaler=%d (wanted %d, got %ld)\n",
+			div, hz, clk / (2 * (div + 1)));
+
+		cs->hz = hz;
+		cs->sppre = div;
+	}
+
+	return 0;
+}
+
+static int s3c24xx_spi_setupxfer(struct spi_device *spi,
+				 struct spi_transfer *t)
+{
+	struct s3c24xx_spi_devstate *cs = spi->controller_state;
+	struct s3c24xx_spi *hw = to_hw(spi);
+	int ret;
+
+	ret = s3c24xx_spi_update_state(spi, t);
+	if (!ret)
+		writeb(cs->sppre, hw->regs + S3C2410_SPPRE);
+
+	return ret;
+}
+
+static int s3c24xx_spi_setup(struct spi_device *spi)
+{
+	struct s3c24xx_spi_devstate *cs = spi->controller_state;
+	struct s3c24xx_spi *hw = to_hw(spi);
+	int ret;
+
+	/* allocate settings on the first call */
+	if (!cs) {
+		cs = kzalloc(sizeof(struct s3c24xx_spi_devstate), GFP_KERNEL);
+		if (!cs) {
+			dev_err(&spi->dev, "no memory for controller state\n");
+			return -ENOMEM;
+		}
+
+		cs->spcon = SPCON_DEFAULT;
+		cs->hz = -1;
+		spi->controller_state = cs;
+	}
+
+	/* initialise the state from the device */
+	ret = s3c24xx_spi_update_state(spi, NULL);
+	if (ret)
+		return ret;
 
 	spin_lock(&hw->bitbang.lock);
 	if (!hw->bitbang.busy) {
@@ -146,17 +204,9 @@ static int s3c24xx_spi_setupxfer(struct spi_device *spi,
 	return 0;
 }
 
-static int s3c24xx_spi_setup(struct spi_device *spi)
+static void s3c24xx_spi_cleanup(struct spi_device *spi)
 {
-	int ret;
-
-	ret = s3c24xx_spi_setupxfer(spi, NULL);
-	if (ret < 0) {
-		dev_err(&spi->dev, "setupxfer returned %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	kfree(spi->controller_state);
 }
 
 static inline unsigned int hw_txbyte(struct s3c24xx_spi *hw, int count)
@@ -286,7 +336,9 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 	hw->bitbang.setup_transfer = s3c24xx_spi_setupxfer;
 	hw->bitbang.chipselect     = s3c24xx_spi_chipsel;
 	hw->bitbang.txrx_bufs      = s3c24xx_spi_txrx;
-	hw->bitbang.master->setup  = s3c24xx_spi_setup;
+
+	hw->master->setup  = s3c24xx_spi_setup;
+	hw->master->cleanup = s3c24xx_spi_cleanup;
 
 	dev_dbg(hw->dev, "bitbang at %p\n", &hw->bitbang);
 
