@@ -40,11 +40,29 @@ static ssize_t name ## _show(struct device *dev,			\
 
 MASTER_SHOW(current_channel, "%d");
 MASTER_SHOW(current_page, "%d");
-MASTER_SHOW(channels_supported, "%#x");
 MASTER_SHOW_COMPLEX(transmit_power, "%d +- %d dB",
 	((signed char) (phy->transmit_power << 2)) >> 2,
 	(phy->transmit_power >> 6) ? (phy->transmit_power >> 6) * 3 : 1 );
 MASTER_SHOW(cca_mode, "%d");
+
+static ssize_t channels_supported_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct wpan_phy *phy = container_of(dev, struct wpan_phy, dev);
+	int ret;
+	int i, len = 0;
+
+	mutex_lock(&phy->pib_lock);
+	for (i = 0; i < 32; i++) {
+		ret = snprintf(buf + len, PAGE_SIZE - len,
+				"%#09x\n", phy->channels_supported[i]);
+		if (ret < 0)
+			break;
+		len += ret;
+	}
+	mutex_unlock(&phy->pib_lock);
+	return len;
+}
 
 static struct device_attribute pmib_attrs[] = {
 	__ATTR_RO(current_channel),

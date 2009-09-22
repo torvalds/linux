@@ -34,7 +34,7 @@ struct wpan_phy {
 	 */
 	u8 current_channel;
 	u8 current_page;
-	u32 channels_supported;
+	u32 channels_supported[32];
 	u8 transmit_power;
 	u8 cca_mode;
 
