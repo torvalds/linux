@@ -1416,8 +1416,7 @@ int __ksm_enter(struct mm_struct *mm)
 	return 0;
 }
 
-void __ksm_exit(struct mm_struct *mm,
-		struct mmu_gather **tlbp, unsigned long end)
+void __ksm_exit(struct mm_struct *mm)
 {
 	struct mm_slot *mm_slot;
 	int easy_to_free = 0;
@@ -1450,10 +1449,8 @@ void __ksm_exit(struct mm_struct *mm,
 		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
 		mmdrop(mm);
 	} else if (mm_slot) {
-		tlb_finish_mmu(*tlbp, 0, end);
 		down_write(&mm->mmap_sem);
 		up_write(&mm->mmap_sem);
-		*tlbp = tlb_gather_mmu(mm, 1);
 	}
 }
 

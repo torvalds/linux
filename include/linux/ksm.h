@@ -18,8 +18,7 @@ struct mmu_gather;
 int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 		unsigned long end, int advice, unsigned long *vm_flags);
 int __ksm_enter(struct mm_struct *mm);
-void __ksm_exit(struct mm_struct *mm,
-		struct mmu_gather **tlbp, unsigned long end);
+void __ksm_exit(struct mm_struct *mm);
 
 static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 {
@@ -41,11 +40,10 @@ static inline bool ksm_test_exit(struct mm_struct *mm)
 	return atomic_read(&mm->mm_users) == 0;
 }
 
-static inline void ksm_exit(struct mm_struct *mm,
-			    struct mmu_gather **tlbp, unsigned long end)
+static inline void ksm_exit(struct mm_struct *mm)
 {
 	if (test_bit(MMF_VM_MERGEABLE, &mm->flags))
-		__ksm_exit(mm, tlbp, end);
+		__ksm_exit(mm);
 }
 
 /*
@@ -86,8 +84,7 @@ static inline bool ksm_test_exit(struct mm_struct *mm)
 	return 0;
 }
 
-static inline void ksm_exit(struct mm_struct *mm,
-			    struct mmu_gather **tlbp, unsigned long end)
+static inline void ksm_exit(struct mm_struct *mm)
 {
 }
 
