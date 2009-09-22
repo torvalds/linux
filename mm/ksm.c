@@ -152,7 +152,7 @@ static struct kmem_cache *mm_slot_cache;
 /* The number of nodes in the stable tree */
 static unsigned long ksm_pages_shared;
 
-/* The number of page slots sharing those nodes */
+/* The number of page slots additionally sharing those nodes */
 static unsigned long ksm_pages_sharing;
 
 /* Limit on the number of unswappable pages used */
@@ -382,6 +382,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 						&next_item->node,
 						&root_stable_tree);
 				next_item->address |= NODE_FLAG;
+				ksm_pages_sharing--;
 			} else {
 				rb_erase(&rmap_item->node, &root_stable_tree);
 				ksm_pages_shared--;
@@ -395,10 +396,10 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 				BUG_ON(next_item->prev != rmap_item);
 				next_item->prev = rmap_item->prev;
 			}
+			ksm_pages_sharing--;
 		}
 
 		rmap_item->next = NULL;
-		ksm_pages_sharing--;
 
 	} else if (rmap_item->address & NODE_FLAG) {
 		unsigned char age;
@@ -786,8 +787,6 @@ static int try_to_merge_two_pages(struct mm_struct *mm1, unsigned long addr1,
 		 */
 		if (err)
 			break_cow(mm1, addr1);
-		else
-			ksm_pages_sharing += 2;
 	}
 
 	put_page(kpage);
@@ -815,9 +814,6 @@ static int try_to_merge_with_ksm_page(struct mm_struct *mm1,
 
 	err = try_to_merge_one_page(vma, page1, kpage);
 	up_read(&mm1->mmap_sem);
-
-	if (!err)
-		ksm_pages_sharing++;
 
 	return err;
 }
@@ -928,13 +924,12 @@ static struct rmap_item *stable_tree_insert(struct page *page,
 		}
 	}
 
-	ksm_pages_shared++;
-
 	rmap_item->address |= NODE_FLAG | STABLE_FLAG;
 	rmap_item->next = NULL;
 	rb_link_node(&rmap_item->node, parent, new);
 	rb_insert_color(&rmap_item->node, &root_stable_tree);
 
+	ksm_pages_shared++;
 	return rmap_item;
 }
 
@@ -1019,6 +1014,8 @@ static void stable_tree_append(struct rmap_item *rmap_item,
 
 	tree_rmap_item->next = rmap_item;
 	rmap_item->address |= STABLE_FLAG;
+
+	ksm_pages_sharing++;
 }
 
 /*
@@ -1043,10 +1040,9 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 	/* We first start with searching the page inside the stable tree */
 	tree_rmap_item = stable_tree_search(page, page2, rmap_item);
 	if (tree_rmap_item) {
-		if (page == page2[0]) {			/* forked */
-			ksm_pages_sharing++;
+		if (page == page2[0])			/* forked */
 			err = 0;
-		} else
+		else
 			err = try_to_merge_with_ksm_page(rmap_item->mm,
 							 rmap_item->address,
 							 page, page2[0]);
@@ -1107,7 +1103,6 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 				break_cow(tree_rmap_item->mm,
 						tree_rmap_item->address);
 				break_cow(rmap_item->mm, rmap_item->address);
-				ksm_pages_sharing -= 2;
 			}
 		}
 
@@ -1475,8 +1470,7 @@ KSM_ATTR_RO(pages_shared);
 static ssize_t pages_sharing_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n",
-			ksm_pages_sharing - ksm_pages_shared);
+	return sprintf(buf, "%lu\n", ksm_pages_sharing);
 }
 KSM_ATTR_RO(pages_sharing);
 
