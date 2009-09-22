@@ -276,7 +276,7 @@ static struct attribute_group mmc_std_attr_group = {
 	.attrs = mmc_std_attrs,
 };
 
-static struct attribute_group *mmc_attr_groups[] = {
+static const struct attribute_group *mmc_attr_groups[] = {
 	&mmc_std_attr_group,
 	NULL,
 };

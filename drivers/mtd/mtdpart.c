@@ -1,7 +1,7 @@
 /*
  * Simple MTD partitioning layer
  *
- * (C) 2000 Nicolas Pitre <nico@cam.org>
+ * (C) 2000 Nicolas Pitre <nico@fluxnic.net>
  *
  * This code is GPL
  *

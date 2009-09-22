@@ -286,7 +286,7 @@ __test_and_clear_bit(int nr, volatile void * addr)
 {
 	__u32 *p = (__u32 *) addr + (nr >> 5);
 	__u32 m = 1 << (nr & 31);
-	int oldbitset = *p & m;
+	int oldbitset = (*p & m) != 0;
 
 	*p &= ~m;
 	return oldbitset;

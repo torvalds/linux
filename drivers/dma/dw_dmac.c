@@ -1399,8 +1399,9 @@ static void dw_shutdown(struct platform_device *pdev)
 	clk_disable(dw->clk);
 }
 
-static int dw_suspend_late(struct platform_device *pdev, pm_message_t mesg)
+static int dw_suspend_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
 	dw_dma_off(platform_get_drvdata(pdev));
@@ -1408,23 +1409,27 @@ static int dw_suspend_late(struct platform_device *pdev, pm_message_t mesg)
 	return 0;
 }
 
-static int dw_resume_early(struct platform_device *pdev)
+static int dw_resume_noirq(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
 	clk_enable(dw->clk);
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
 	return 0;
-
 }
+
+static struct dev_pm_ops dw_dev_pm_ops = {
+	.suspend_noirq = dw_suspend_noirq,
+	.resume_noirq = dw_resume_noirq,
+};
 
 static struct platform_driver dw_driver = {
 	.remove		= __exit_p(dw_remove),
 	.shutdown	= dw_shutdown,
-	.suspend_late	= dw_suspend_late,
-	.resume_early	= dw_resume_early,
 	.driver = {
 		.name	= "dw_dmac",
+		.pm	= &dw_dev_pm_ops,
 	},
 };
 

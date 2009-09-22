@@ -105,13 +105,13 @@ static int qe_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	struct qe_gpio_chip *qe_gc = to_qe_gpio_chip(mm_gc);
 	unsigned long flags;
 
+	qe_gpio_set(gc, gpio, val);
+
 	spin_lock_irqsave(&qe_gc->lock, flags);
 
 	__par_io_config_pin(mm_gc->regs, gpio, QE_PIO_DIR_OUT, 0, 0, 0);
 
 	spin_unlock_irqrestore(&qe_gc->lock, flags);
-
-	qe_gpio_set(gc, gpio, val);
 
 	return 0;
 }

@@ -114,7 +114,6 @@ static void sg_dwiter_write_slow(struct sg_mapping_iter *miter, uint32_t data)
 		if (!left)
 			return;
 		addr += len;
-		flush_kernel_dcache_page(miter->page);
 	} while (sg_dwiter_next(miter));
 }
 
@@ -142,9 +141,6 @@ void cb710_sg_dwiter_write_next_block(struct sg_mapping_iter *miter, uint32_t da
 			return;
 	} else
 		sg_dwiter_write_slow(miter, data);
-
-	if (miter->length == miter->consumed)
-		flush_kernel_dcache_page(miter->page);
 }
 EXPORT_SYMBOL_GPL(cb710_sg_dwiter_write_next_block);
 

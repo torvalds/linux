@@ -772,7 +772,7 @@ static void btree_invalidatepage(struct page *page, unsigned long offset)
 	}
 }
 
-static struct address_space_operations btree_aops = {
+static const struct address_space_operations btree_aops = {
 	.readpage	= btree_readpage,
 	.writepage	= btree_writepage,
 	.writepages	= btree_writepages,
@@ -1352,6 +1352,7 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 {
 	int err;
 
+	bdi->name = "btrfs";
 	bdi->capabilities = BDI_CAP_MAP_COPY;
 	err = bdi_init(bdi);
 	if (err)
@@ -1599,6 +1600,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
+	sb->s_bdi = &fs_info->bdi;
 
 	/*
 	 * we set the i_size on the btree inode to the max possible int.
@@ -1639,6 +1641,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->cleaner_mutex);
 	mutex_init(&fs_info->volume_mutex);
 	mutex_init(&fs_info->tree_reloc_mutex);
+	init_rwsem(&fs_info->extent_commit_sem);
 
 	btrfs_init_free_cluster(&fs_info->meta_alloc_cluster);
 	btrfs_init_free_cluster(&fs_info->data_alloc_cluster);
@@ -1799,6 +1802,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 					   btrfs_super_chunk_root(disk_super),
 					   blocksize, generation);
 	BUG_ON(!chunk_root->node);
+	if (!test_bit(EXTENT_BUFFER_UPTODATE, &chunk_root->node->bflags)) {
+		printk(KERN_WARNING "btrfs: failed to read chunk root on %s\n",
+		       sb->s_id);
+		goto fail_chunk_root;
+	}
 	btrfs_set_root_node(&chunk_root->root_item, chunk_root->node);
 	chunk_root->commit_root = btrfs_root_node(chunk_root);
 
@@ -1826,6 +1834,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 					  blocksize, generation);
 	if (!tree_root->node)
 		goto fail_chunk_root;
+	if (!test_bit(EXTENT_BUFFER_UPTODATE, &tree_root->node->bflags)) {
+		printk(KERN_WARNING "btrfs: failed to read tree root on %s\n",
+		       sb->s_id);
+		goto fail_tree_root;
+	}
 	btrfs_set_root_node(&tree_root->root_item, tree_root->node);
 	tree_root->commit_root = btrfs_root_node(tree_root);
 
@@ -2322,6 +2335,9 @@ int close_ctree(struct btrfs_root *root)
 			printk(KERN_ERR "btrfs: commit super ret %d\n", ret);
 	}
 
+	fs_info->closing = 2;
+	smp_mb();
+
 	if (fs_info->delalloc_bytes) {
 		printk(KERN_INFO "btrfs: at unmount delalloc count %llu\n",
 		       (unsigned long long)fs_info->delalloc_bytes);
@@ -2343,6 +2359,7 @@ int close_ctree(struct btrfs_root *root)
 	free_extent_buffer(root->fs_info->csum_root->commit_root);
 
 	btrfs_free_block_groups(root->fs_info);
+	btrfs_free_pinned_extents(root->fs_info);
 
 	del_fs_roots(fs_info);
 

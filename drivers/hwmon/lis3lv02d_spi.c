@@ -66,17 +66,16 @@ static int __devinit lis302dl_spi_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	lis3_dev.bus_priv = spi;
-	lis3_dev.init = lis3_spi_init;
-	lis3_dev.read = lis3_spi_read;
-	lis3_dev.write = lis3_spi_write;
-	lis3_dev.irq = spi->irq;
-	lis3_dev.ac = lis3lv02d_axis_normal;
-	lis3_dev.pdata = spi->dev.platform_data;
+	lis3_dev.bus_priv	= spi;
+	lis3_dev.init		= lis3_spi_init;
+	lis3_dev.read		= lis3_spi_read;
+	lis3_dev.write		= lis3_spi_write;
+	lis3_dev.irq		= spi->irq;
+	lis3_dev.ac		= lis3lv02d_axis_normal;
+	lis3_dev.pdata		= spi->dev.platform_data;
 	spi_set_drvdata(spi, &lis3_dev);
 
-	ret = lis3lv02d_init_device(&lis3_dev);
-	return ret;
+	return lis3lv02d_init_device(&lis3_dev);
 }
 
 static int __devexit lis302dl_spi_remove(struct spi_device *spi)
@@ -87,6 +86,32 @@ static int __devexit lis302dl_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int lis3lv02d_spi_suspend(struct spi_device *spi, pm_message_t mesg)
+{
+	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
+
+	if (!lis3->pdata->wakeup_flags)
+		lis3lv02d_poweroff(&lis3_dev);
+
+	return 0;
+}
+
+static int lis3lv02d_spi_resume(struct spi_device *spi)
+{
+	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
+
+	if (!lis3->pdata->wakeup_flags)
+		lis3lv02d_poweron(lis3);
+
+	return 0;
+}
+
+#else
+#define lis3lv02d_spi_suspend	NULL
+#define lis3lv02d_spi_resume	NULL
+#endif
+
 static struct spi_driver lis302dl_spi_driver = {
 	.driver	 = {
 		.name   = DRV_NAME,
@@ -94,6 +119,8 @@ static struct spi_driver lis302dl_spi_driver = {
 	},
 	.probe	= lis302dl_spi_probe,
 	.remove	= __devexit_p(lis302dl_spi_remove),
+	.suspend = lis3lv02d_spi_suspend,
+	.resume  = lis3lv02d_spi_resume,
 };
 
 static int __init lis302dl_init(void)

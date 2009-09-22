@@ -81,8 +81,15 @@
 #define MSR_IA32_MC0_ADDR		0x00000402
 #define MSR_IA32_MC0_MISC		0x00000403
 
+#define MSR_IA32_MCx_CTL(x)		(MSR_IA32_MC0_CTL + 4*(x))
+#define MSR_IA32_MCx_STATUS(x)		(MSR_IA32_MC0_STATUS + 4*(x))
+#define MSR_IA32_MCx_ADDR(x)		(MSR_IA32_MC0_ADDR + 4*(x))
+#define MSR_IA32_MCx_MISC(x)		(MSR_IA32_MC0_MISC + 4*(x))
+
 /* These are consecutive and not in the normal 4er MCE bank block */
 #define MSR_IA32_MC0_CTL2		0x00000280
+#define MSR_IA32_MCx_CTL2(x)		(MSR_IA32_MC0_CTL2 + (x))
+
 #define CMCI_EN			(1ULL << 30)
 #define CMCI_THRESHOLD_MASK		0xffffULL
 
@@ -215,6 +222,10 @@
 
 #define THERM_STATUS_PROCHOT		(1 << 0)
 
+#define MSR_THERM2_CTL			0x0000019d
+
+#define MSR_THERM2_CTL_TM_SELECT	(1ULL << 16)
+
 #define MSR_IA32_MISC_ENABLE		0x000001a0
 
 /* MISC_ENABLE bits: architectural */
@@ -245,10 +256,6 @@
 #define MSR_IA32_MISC_ENABLE_DCU_PREF_DISABLE	(1ULL << 37)
 #define MSR_IA32_MISC_ENABLE_TURBO_DISABLE	(1ULL << 38)
 #define MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE	(1ULL << 39)
-
-/* Intel Model 6 */
-#define MSR_P6_EVNTSEL0			0x00000186
-#define MSR_P6_EVNTSEL1			0x00000187
 
 /* P4/Xeon+ specific */
 #define MSR_IA32_MCG_EAX		0x00000180
@@ -378,6 +385,7 @@
 /* AMD-V MSRs */
 
 #define MSR_VM_CR                       0xc0010114
+#define MSR_VM_IGNNE                    0xc0010115
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
 #endif /* _ASM_X86_MSR_INDEX_H */

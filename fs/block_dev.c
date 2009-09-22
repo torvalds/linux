@@ -420,7 +420,6 @@ static void bdev_destroy_inode(struct inode *inode)
 {
 	struct bdev_inode *bdi = BDEV_I(inode);
 
-	bdi->bdev.bd_inode_backing_dev_info = NULL;
 	kmem_cache_free(bdev_cachep, bdi);
 }
 
@@ -563,6 +562,16 @@ struct block_device *bdget(dev_t dev)
 }
 
 EXPORT_SYMBOL(bdget);
+
+/**
+ * bdgrab -- Grab a reference to an already referenced block device
+ * @bdev:	Block device to grab a reference to.
+ */
+struct block_device *bdgrab(struct block_device *bdev)
+{
+	atomic_inc(&bdev->bd_inode->i_count);
+	return bdev;
+}
 
 long nr_blockdev_pages(void)
 {
@@ -1105,7 +1114,7 @@ EXPORT_SYMBOL(revalidate_disk);
 int check_disk_change(struct block_device *bdev)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	struct block_device_operations * bdops = disk->fops;
+	const struct block_device_operations *bdops = disk->fops;
 
 	if (!bdops->media_changed)
 		return 0;
@@ -1395,6 +1404,33 @@ static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 }
 
 /*
+ * Write data to the block device.  Only intended for the block device itself
+ * and the raw driver which basically is a fake block device.
+ *
+ * Does not take i_mutex for the write and thus is not for general purpose
+ * use.
+ */
+ssize_t blkdev_aio_write(struct kiocb *iocb, const struct iovec *iov,
+			 unsigned long nr_segs, loff_t pos)
+{
+	struct file *file = iocb->ki_filp;
+	ssize_t ret;
+
+	BUG_ON(iocb->ki_pos != pos);
+
+	ret = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
+	if (ret > 0 || ret == -EIOCBQUEUED) {
+		ssize_t err;
+
+		err = generic_write_sync(file, pos, ret);
+		if (err < 0 && ret > 0)
+			ret = err;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(blkdev_aio_write);
+
+/*
  * Try to release a page associated with block device when the system
  * is under memory pressure.
  */
@@ -1426,7 +1462,7 @@ const struct file_operations def_blk_fops = {
 	.read		= do_sync_read,
 	.write		= do_sync_write,
   	.aio_read	= generic_file_aio_read,
-  	.aio_write	= generic_file_aio_write_nolock,
+	.aio_write	= blkdev_aio_write,
 	.mmap		= generic_file_mmap,
 	.fsync		= block_fsync,
 	.unlocked_ioctl	= block_ioctl,

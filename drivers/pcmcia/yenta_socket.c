@@ -622,11 +622,12 @@ static int yenta_search_res(struct yenta_socket *socket, struct resource *res,
 
 static int yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type, int addr_start, int addr_end)
 {
-	struct resource *root, *res;
+	struct pci_dev *dev = socket->dev;
+	struct resource *res;
 	struct pci_bus_region region;
 	unsigned mask;
 
-	res = socket->dev->resource + PCI_BRIDGE_RESOURCES + nr;
+	res = dev->resource + PCI_BRIDGE_RESOURCES + nr;
 	/* Already allocated? */
 	if (res->parent)
 		return 0;
@@ -636,17 +637,16 @@ static int yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type
 	if (type & IORESOURCE_IO)
 		mask = ~3;
 
-	res->name = socket->dev->subordinate->name;
+	res->name = dev->subordinate->name;
 	res->flags = type;
 
 	region.start = config_readl(socket, addr_start) & mask;
 	region.end = config_readl(socket, addr_end) | ~mask;
 	if (region.start && region.end > region.start && !override_bios) {
-		pcibios_bus_to_resource(socket->dev, res, &region);
-		root = pci_find_parent_resource(socket->dev, res);
-		if (root && (request_resource(root, res) == 0))
+		pcibios_bus_to_resource(dev, res, &region);
+		if (pci_claim_resource(dev, PCI_BRIDGE_RESOURCES + nr) == 0)
 			return 0;
-		dev_printk(KERN_INFO, &socket->dev->dev,
+		dev_printk(KERN_INFO, &dev->dev,
 			   "Preassigned resource %d busy or not available, "
 			   "reconfiguring...\n",
 			   nr);
@@ -672,7 +672,7 @@ static int yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type
 			return 1;
 	}
 
-	dev_printk(KERN_INFO, &socket->dev->dev,
+	dev_printk(KERN_INFO, &dev->dev,
 		   "no resource of type %x available, trying to continue...\n",
 		   type);
 	res->start = res->end = res->flags = 0;
@@ -717,7 +717,7 @@ static void yenta_free_resources(struct yenta_socket *socket)
 /*
  * Close it down - release our resources and go home..
  */
-static void yenta_close(struct pci_dev *dev)
+static void __devexit yenta_close(struct pci_dev *dev)
 {
 	struct yenta_socket *sock = pci_get_drvdata(dev);
 

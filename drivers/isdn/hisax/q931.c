@@ -140,7 +140,7 @@ struct MessageType {
 	}
 };
 
-#define MTSIZE sizeof(mtlist)/sizeof(struct MessageType)
+#define MTSIZE ARRAY_SIZE(mtlist)
 
 static
 struct MessageType mt_n0[] =
@@ -157,7 +157,7 @@ struct MessageType mt_n0[] =
 	{MT_N0_CLO_ACK, "CLOse ACKnowledge"}
 };
 
-#define MT_N0_LEN (sizeof(mt_n0) / sizeof(struct MessageType))
+#define MT_N0_LEN ARRAY_SIZE(mt_n0)
 
 static
 struct MessageType mt_n1[] =
@@ -194,7 +194,7 @@ struct MessageType mt_n1[] =
 	{MT_N1_STAT, "STATus"}
 };
 
-#define MT_N1_LEN (sizeof(mt_n1) / sizeof(struct MessageType))
+#define MT_N1_LEN ARRAY_SIZE(mt_n1)
 
 
 static int
@@ -438,7 +438,7 @@ struct CauseValue {
 	},
 };
 
-#define CVSIZE sizeof(cvlist)/sizeof(struct CauseValue)
+#define CVSIZE ARRAY_SIZE(cvlist)
 
 static
 int
@@ -516,7 +516,7 @@ struct MessageType cause_1tr6[] =
 	{CAUSE_UserInfoDiscarded, "User Info Discarded"}
 };
 
-static int cause_1tr6_len = (sizeof(cause_1tr6) / sizeof(struct MessageType));
+static int cause_1tr6_len = ARRAY_SIZE(cause_1tr6);
 
 static int
 prcause_1tr6(char *dest, u_char * p)
@@ -865,7 +865,7 @@ struct DTag { /* Display tags */
 	{ 0x96, "Redirection name" },
 	{ 0x9e, "Text" },
 };
-#define DTAGSIZE sizeof(dtaglist)/sizeof(struct DTag)
+#define DTAGSIZE ARRAY_SIZE(dtaglist)
 
 static int
 disptext_ni1(char *dest, u_char * p)
@@ -1074,7 +1074,7 @@ struct InformationElement {
 };
 
 
-#define IESIZE sizeof(ielist)/sizeof(struct InformationElement)
+#define IESIZE ARRAY_SIZE(ielist)
 
 static
 struct InformationElement ielist_ni1[] = {
@@ -1102,7 +1102,7 @@ struct InformationElement ielist_ni1[] = {
 };
 
 
-#define IESIZE_NI1 sizeof(ielist_ni1)/sizeof(struct InformationElement)
+#define IESIZE_NI1 ARRAY_SIZE(ielist_ni1)
 
 static
 struct InformationElement ielist_ni1_cs5[] = {
@@ -1110,14 +1110,14 @@ struct InformationElement ielist_ni1_cs5[] = {
 	{ 0x2a, "Display text", disptext_ni1 },
 };
 
-#define IESIZE_NI1_CS5 sizeof(ielist_ni1_cs5)/sizeof(struct InformationElement)
+#define IESIZE_NI1_CS5 ARRAY_SIZE(ielist_ni1_cs5)
 
 static
 struct InformationElement ielist_ni1_cs6[] = {
 	{ 0x7b, "Call appearance", general_ni1 },
 };
 
-#define IESIZE_NI1_CS6 sizeof(ielist_ni1_cs6)/sizeof(struct InformationElement)
+#define IESIZE_NI1_CS6 ARRAY_SIZE(ielist_ni1_cs6)
 
 static struct InformationElement we_0[] =
 {
@@ -1133,7 +1133,7 @@ static struct InformationElement we_0[] =
 	{WE0_userInfo, "User Info", general}
 };
 
-#define WE_0_LEN (sizeof(we_0) / sizeof(struct InformationElement))
+#define WE_0_LEN ARRAY_SIZE(we_0)
 
 static struct InformationElement we_6[] =
 {
@@ -1145,7 +1145,7 @@ static struct InformationElement we_6[] =
 	{WE6_statusCalled, "Status Called", general},
 	{WE6_addTransAttr, "Additional Transmission Attributes", general}
 };
-#define WE_6_LEN (sizeof(we_6) / sizeof(struct InformationElement))
+#define WE_6_LEN ARRAY_SIZE(we_6)
 
 int
 QuickHex(char *txt, u_char * p, int cnt)

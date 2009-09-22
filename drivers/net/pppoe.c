@@ -1063,6 +1063,7 @@ static void *pppoe_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	else {
 		int hash = hash_item(po->pppoe_pa.sid, po->pppoe_pa.remote);
 
+		po = NULL;
 		while (++hash < PPPOE_HASH_SIZE) {
 			po = pn->hash_table[hash];
 			if (po)
@@ -1184,17 +1185,17 @@ static int __init pppoe_init(void)
 {
 	int err;
 
-	err = proto_register(&pppoe_sk_proto, 0);
+	err = register_pernet_gen_device(&pppoe_net_id, &pppoe_net_ops);
 	if (err)
 		goto out;
+
+	err = proto_register(&pppoe_sk_proto, 0);
+	if (err)
+		goto out_unregister_net_ops;
 
 	err = register_pppox_proto(PX_PROTO_OE, &pppoe_proto);
 	if (err)
 		goto out_unregister_pppoe_proto;
-
-	err = register_pernet_gen_device(&pppoe_net_id, &pppoe_net_ops);
-	if (err)
-		goto out_unregister_pppox_proto;
 
 	dev_add_pack(&pppoes_ptype);
 	dev_add_pack(&pppoed_ptype);
@@ -1202,22 +1203,22 @@ static int __init pppoe_init(void)
 
 	return 0;
 
-out_unregister_pppox_proto:
-	unregister_pppox_proto(PX_PROTO_OE);
 out_unregister_pppoe_proto:
 	proto_unregister(&pppoe_sk_proto);
+out_unregister_net_ops:
+	unregister_pernet_gen_device(pppoe_net_id, &pppoe_net_ops);
 out:
 	return err;
 }
 
 static void __exit pppoe_exit(void)
 {
-	unregister_pppox_proto(PX_PROTO_OE);
-	dev_remove_pack(&pppoes_ptype);
-	dev_remove_pack(&pppoed_ptype);
 	unregister_netdevice_notifier(&pppoe_notifier);
-	unregister_pernet_gen_device(pppoe_net_id, &pppoe_net_ops);
+	dev_remove_pack(&pppoed_ptype);
+	dev_remove_pack(&pppoes_ptype);
+	unregister_pppox_proto(PX_PROTO_OE);
 	proto_unregister(&pppoe_sk_proto);
+	unregister_pernet_gen_device(pppoe_net_id, &pppoe_net_ops);
 }
 
 module_init(pppoe_init);

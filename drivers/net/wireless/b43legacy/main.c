@@ -1252,7 +1252,7 @@ static void b43legacy_update_templates(struct b43legacy_wl *wl)
 	wl->current_beacon = beacon;
 	wl->beacon0_uploaded = 0;
 	wl->beacon1_uploaded = 0;
-	queue_work(wl->hw->workqueue, &wl->beacon_update_trigger);
+	ieee80211_queue_work(wl->hw, &wl->beacon_update_trigger);
 }
 
 static void b43legacy_set_beacon_int(struct b43legacy_wldev *dev,
@@ -2300,7 +2300,7 @@ out_requeue:
 		delay = msecs_to_jiffies(50);
 	else
 		delay = round_jiffies_relative(HZ * 15);
-	queue_delayed_work(wl->hw->workqueue, &dev->periodic_work, delay);
+	ieee80211_queue_delayed_work(wl->hw, &dev->periodic_work, delay);
 out:
 	mutex_unlock(&wl->mutex);
 }
@@ -2311,7 +2311,7 @@ static void b43legacy_periodic_tasks_setup(struct b43legacy_wldev *dev)
 
 	dev->periodic_state = 0;
 	INIT_DELAYED_WORK(work, b43legacy_periodic_work_handler);
-	queue_delayed_work(dev->wl->hw->workqueue, work, 0);
+	ieee80211_queue_delayed_work(dev->wl->hw, work, 0);
 }
 
 /* Validate access to the chip (SHM) */
@@ -2689,8 +2689,8 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	/* Antennas for RX and management frame TX. */
 	b43legacy_mgmtframe_txantenna(dev, antenna_tx);
 
-	if (!!conf->radio_enabled != phy->radio_on) {
-		if (conf->radio_enabled) {
+	if (wl->radio_enabled != phy->radio_on) {
+		if (wl->radio_enabled) {
 			b43legacy_radio_turn_on(dev);
 			b43legacyinfo(dev->wl, "Radio turned on by software\n");
 			if (!dev->radio_hw_enable)
@@ -2836,9 +2836,7 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 
 static void b43legacy_op_configure_filter(struct ieee80211_hw *hw,
 					  unsigned int changed,
-					  unsigned int *fflags,
-					  int mc_count,
-					  struct dev_addr_list *mc_list)
+					  unsigned int *fflags,u64 multicast)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev = wl->current_dev;
@@ -3108,15 +3106,19 @@ static void b43legacy_imcfglo_timeouts_workaround(struct b43legacy_wldev *dev)
 	    bus->pcicore.dev->id.revision <= 5) {
 		/* IMCFGLO timeouts workaround. */
 		tmp = ssb_read32(dev->dev, SSB_IMCFGLO);
-		tmp &= ~SSB_IMCFGLO_REQTO;
-		tmp &= ~SSB_IMCFGLO_SERTO;
 		switch (bus->bustype) {
 		case SSB_BUSTYPE_PCI:
 		case SSB_BUSTYPE_PCMCIA:
+			tmp &= ~SSB_IMCFGLO_REQTO;
+			tmp &= ~SSB_IMCFGLO_SERTO;
 			tmp |= 0x32;
 			break;
 		case SSB_BUSTYPE_SSB:
+			tmp &= ~SSB_IMCFGLO_REQTO;
+			tmp &= ~SSB_IMCFGLO_SERTO;
 			tmp |= 0x53;
+			break;
+		default:
 			break;
 		}
 		ssb_write32(dev->dev, SSB_IMCFGLO, tmp);
@@ -3441,6 +3443,7 @@ static int b43legacy_op_start(struct ieee80211_hw *hw)
 	wl->beacon0_uploaded = 0;
 	wl->beacon1_uploaded = 0;
 	wl->beacon_templates_virgin = 1;
+	wl->radio_enabled = 1;
 
 	mutex_lock(&wl->mutex);
 
@@ -3479,6 +3482,7 @@ static void b43legacy_op_stop(struct ieee80211_hw *hw)
 	if (b43legacy_status(dev) >= B43legacy_STAT_STARTED)
 		b43legacy_wireless_core_stop(dev);
 	b43legacy_wireless_core_exit(dev);
+	wl->radio_enabled = 0;
 	mutex_unlock(&wl->mutex);
 }
 
@@ -3620,6 +3624,7 @@ static int b43legacy_wireless_core_attach(struct b43legacy_wldev *dev)
 		have_bphy = 1;
 
 	dev->phy.gmode = (have_gphy || have_bphy);
+	dev->phy.radio_on = 1;
 	tmp = dev->phy.gmode ? B43legacy_TMSLOW_GMODE : 0;
 	b43legacy_wireless_core_reset(dev, tmp);
 
@@ -3882,7 +3887,7 @@ void b43legacy_controller_restart(struct b43legacy_wldev *dev,
 	if (b43legacy_status(dev) < B43legacy_STAT_INITIALIZED)
 		return;
 	b43legacyinfo(dev->wl, "Controller RESET (%s) ...\n", reason);
-	queue_work(dev->wl->hw->workqueue, &dev->restart_work);
+	ieee80211_queue_work(dev->wl->hw, &dev->restart_work);
 }
 
 #ifdef CONFIG_PM

@@ -42,7 +42,7 @@ static void led_turn_on(struct work_struct *work)
 	mutex_lock(&priv->conf_mutex);
 	switch (led->ledpin) {
 	case LED_PIN_GPIO0:
-		rtl818x_iowrite8(priv, &priv->map->GPIO, 0x01);
+		rtl818x_iowrite8(priv, &priv->map->GPIO0, 0x01);
 		rtl818x_iowrite8(priv, &priv->map->GP_ENABLE, 0x00);
 		break;
 	case LED_PIN_LED0:
@@ -80,7 +80,7 @@ static void led_turn_off(struct work_struct *work)
 	mutex_lock(&priv->conf_mutex);
 	switch (led->ledpin) {
 	case LED_PIN_GPIO0:
-		rtl818x_iowrite8(priv, &priv->map->GPIO, 0x01);
+		rtl818x_iowrite8(priv, &priv->map->GPIO0, 0x01);
 		rtl818x_iowrite8(priv, &priv->map->GP_ENABLE, 0x01);
 		break;
 	case LED_PIN_LED0:
@@ -108,11 +108,11 @@ static void rtl8187_led_brightness_set(struct led_classdev *led_dev,
 	struct rtl8187_priv *priv = hw->priv;
 
 	if (brightness == LED_OFF) {
-		queue_delayed_work(hw->workqueue, &priv->led_off, 0);
+		ieee80211_queue_delayed_work(hw, &priv->led_off, 0);
 		/* The LED is off for 1/20 sec so that it just blinks. */
-		queue_delayed_work(hw->workqueue, &priv->led_on, HZ / 20);
+		ieee80211_queue_delayed_work(hw, &priv->led_on, HZ / 20);
 	} else
-		queue_delayed_work(hw->workqueue, &priv->led_on, 0);
+		ieee80211_queue_delayed_work(hw, &priv->led_on, 0);
 }
 
 static int rtl8187_register_led(struct ieee80211_hw *dev,
@@ -193,7 +193,7 @@ void rtl8187_leds_init(struct ieee80211_hw *dev, u16 custid)
 	err = rtl8187_register_led(dev, &priv->led_rx, name,
 			 ieee80211_get_rx_led_name(dev), ledpin);
 	if (!err) {
-		queue_delayed_work(dev->workqueue, &priv->led_on, 0);
+		ieee80211_queue_delayed_work(dev, &priv->led_on, 0);
 		return;
 	}
 	/* registration of RX LED failed - unregister TX */
@@ -208,11 +208,12 @@ void rtl8187_leds_exit(struct ieee80211_hw *dev)
 {
 	struct rtl8187_priv *priv = dev->priv;
 
-	rtl8187_unregister_led(&priv->led_tx);
 	/* turn the LED off before exiting */
-	queue_delayed_work(dev->workqueue, &priv->led_off, 0);
+	ieee80211_queue_delayed_work(dev, &priv->led_off, 0);
 	cancel_delayed_work_sync(&priv->led_off);
+	cancel_delayed_work_sync(&priv->led_on);
 	rtl8187_unregister_led(&priv->led_rx);
+	rtl8187_unregister_led(&priv->led_tx);
 }
 #endif /* def CONFIG_RTL8187_LED */
 

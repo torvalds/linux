@@ -28,7 +28,7 @@ comment "Miscellaneous USB options"
 	depends on USB
 
 config USB_DEVICEFS
-	bool "USB device filesystem (DEPRECATED)" if EMBEDDED
+	bool "USB device filesystem (DEPRECATED)"
 	depends on USB
 	---help---
 	  If you say Y here (and to "/proc file system support" in the "File

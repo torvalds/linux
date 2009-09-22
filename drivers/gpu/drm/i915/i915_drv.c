@@ -35,12 +35,16 @@
 
 #include "drm_pciids.h"
 #include <linux/console.h>
+#include "drm_crtc_helper.h"
 
-static unsigned int i915_modeset = -1;
+static int i915_modeset = -1;
 module_param_named(modeset, i915_modeset, int, 0400);
 
 unsigned int i915_fbpercrtc = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
+
+unsigned int i915_powersave = 1;
+module_param_named(powersave, i915_powersave, int, 0400);
 
 static struct drm_driver driver;
 
@@ -57,8 +61,8 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (!dev || !dev_priv) {
-		printk(KERN_ERR "dev: %p, dev_priv: %p\n", dev, dev_priv);
-		printk(KERN_ERR "DRM not initialized, aborting suspend.\n");
+		DRM_ERROR("dev: %p, dev_priv: %p\n", dev, dev_priv);
+		DRM_ERROR("DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
 	}
 
@@ -114,6 +118,10 @@ static int i915_resume(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 
 		drm_irq_install(dev);
+	}
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		/* Resume the modeset for every activated CRTC */
+		drm_helper_resume_force_mode(dev);
 	}
 
 	return ret;
@@ -183,8 +191,8 @@ static struct drm_driver driver = {
 	.master_create = i915_master_create,
 	.master_destroy = i915_master_destroy,
 #if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = i915_gem_debugfs_init,
-	.debugfs_cleanup = i915_gem_debugfs_cleanup,
+	.debugfs_init = i915_debugfs_init,
+	.debugfs_cleanup = i915_debugfs_cleanup,
 #endif
 	.gem_init_object = i915_gem_init_object,
 	.gem_free_object = i915_gem_free_object,

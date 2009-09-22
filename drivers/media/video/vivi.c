@@ -343,6 +343,53 @@ static struct bar_std bars[] = {
 #define TO_U(r, g, b) \
 	(((-9714 * r - 19070 * g + 28784 * b + 32768) >> 16) + 128)
 
+/* precalculate color bar values to speed up rendering */
+static void precalculate_bars(struct vivi_fh *fh)
+{
+	struct vivi_dev *dev = fh->dev;
+	unsigned char r, g, b;
+	int k, is_yuv;
+
+	fh->input = dev->input;
+
+	for (k = 0; k < 8; k++) {
+		r = bars[fh->input].bar[k][0];
+		g = bars[fh->input].bar[k][1];
+		b = bars[fh->input].bar[k][2];
+		is_yuv = 0;
+
+		switch (fh->fmt->fourcc) {
+		case V4L2_PIX_FMT_YUYV:
+		case V4L2_PIX_FMT_UYVY:
+			is_yuv = 1;
+			break;
+		case V4L2_PIX_FMT_RGB565:
+		case V4L2_PIX_FMT_RGB565X:
+			r >>= 3;
+			g >>= 2;
+			b >>= 3;
+			break;
+		case V4L2_PIX_FMT_RGB555:
+		case V4L2_PIX_FMT_RGB555X:
+			r >>= 3;
+			g >>= 3;
+			b >>= 3;
+			break;
+		}
+
+		if (is_yuv) {
+			fh->bars[k][0] = TO_Y(r, g, b);	/* Luma */
+			fh->bars[k][1] = TO_U(r, g, b);	/* Cb */
+			fh->bars[k][2] = TO_V(r, g, b);	/* Cr */
+		} else {
+			fh->bars[k][0] = r;
+			fh->bars[k][1] = g;
+			fh->bars[k][2] = b;
+		}
+	}
+
+}
+
 #define TSTAMP_MIN_Y	24
 #define TSTAMP_MAX_Y	(TSTAMP_MIN_Y + 15)
 #define TSTAMP_INPUT_X	10
@@ -755,6 +802,8 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	buf->vb.height = fh->height;
 	buf->vb.field  = field;
 
+	precalculate_bars(fh);
+
 	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		rc = videobuf_iolock(vq, &buf->vb, NULL);
 		if (rc < 0)
@@ -893,53 +942,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-/* precalculate color bar values to speed up rendering */
-static void precalculate_bars(struct vivi_fh *fh)
-{
-	struct vivi_dev *dev = fh->dev;
-	unsigned char r, g, b;
-	int k, is_yuv;
-
-	fh->input = dev->input;
-
-	for (k = 0; k < 8; k++) {
-		r = bars[fh->input].bar[k][0];
-		g = bars[fh->input].bar[k][1];
-		b = bars[fh->input].bar[k][2];
-		is_yuv = 0;
-
-		switch (fh->fmt->fourcc) {
-		case V4L2_PIX_FMT_YUYV:
-		case V4L2_PIX_FMT_UYVY:
-			is_yuv = 1;
-			break;
-		case V4L2_PIX_FMT_RGB565:
-		case V4L2_PIX_FMT_RGB565X:
-			r >>= 3;
-			g >>= 2;
-			b >>= 3;
-			break;
-		case V4L2_PIX_FMT_RGB555:
-		case V4L2_PIX_FMT_RGB555X:
-			r >>= 3;
-			g >>= 3;
-			b >>= 3;
-			break;
-		}
-
-		if (is_yuv) {
-			fh->bars[k][0] = TO_Y(r, g, b);	/* Luma */
-			fh->bars[k][1] = TO_U(r, g, b);	/* Cb */
-			fh->bars[k][2] = TO_V(r, g, b);	/* Cr */
-		} else {
-			fh->bars[k][0] = r;
-			fh->bars[k][1] = g;
-			fh->bars[k][2] = b;
-		}
-	}
-
-}
-
 /*FIXME: This seems to be generic enough to be at videodev2 */
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
@@ -964,8 +966,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	fh->height        = f->fmt.pix.height;
 	fh->vb_vidq.field = f->fmt.pix.field;
 	fh->type          = f->type;
-
-	precalculate_bars(fh);
 
 	ret = 0;
 out:
@@ -1357,6 +1357,7 @@ static int __init vivi_create_instance(int inst)
 		goto unreg_dev;
 
 	*vfd = vivi_template;
+	vfd->debug = debug;
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
 	if (ret < 0)

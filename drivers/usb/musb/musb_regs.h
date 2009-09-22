@@ -323,6 +323,7 @@ static inline void  musb_write_rxfifoadd(void __iomem *mbase, u16 c_off)
 
 static inline u8 musb_read_configdata(void __iomem *mbase)
 {
+	musb_writeb(mbase, MUSB_INDEX, 0);
 	return musb_readb(mbase, 0x10 + MUSB_CONFIGDATA);
 }
 

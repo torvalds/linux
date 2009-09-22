@@ -100,7 +100,7 @@ static void pnx8xxx_mctrl_check(struct pnx8xxx_port *sport)
 	if (changed & TIOCM_CTS)
 		uart_handle_cts_change(&sport->port, status & TIOCM_CTS);
 
-	wake_up_interruptible(&sport->port.info->delta_msr_wait);
+	wake_up_interruptible(&sport->port.state->port.delta_msr_wait);
 }
 
 /*
@@ -112,7 +112,7 @@ static void pnx8xxx_timeout(unsigned long data)
 	struct pnx8xxx_port *sport = (struct pnx8xxx_port *)data;
 	unsigned long flags;
 
-	if (sport->port.info) {
+	if (sport->port.state) {
 		spin_lock_irqsave(&sport->port.lock, flags);
 		pnx8xxx_mctrl_check(sport);
 		spin_unlock_irqrestore(&sport->port.lock, flags);
@@ -181,7 +181,7 @@ static void pnx8xxx_enable_ms(struct uart_port *port)
 
 static void pnx8xxx_rx_chars(struct pnx8xxx_port *sport)
 {
-	struct tty_struct *tty = sport->port.info->port.tty;
+	struct tty_struct *tty = sport->port.state->port.tty;
 	unsigned int status, ch, flg;
 
 	status = FIFO_TO_SM(serial_in(sport, PNX8XXX_FIFO)) |
@@ -243,7 +243,7 @@ static void pnx8xxx_rx_chars(struct pnx8xxx_port *sport)
 
 static void pnx8xxx_tx_chars(struct pnx8xxx_port *sport)
 {
-	struct circ_buf *xmit = &sport->port.info->xmit;
+	struct circ_buf *xmit = &sport->port.state->xmit;
 
 	if (sport->port.x_char) {
 		serial_out(sport, PNX8XXX_FIFO, sport->port.x_char);

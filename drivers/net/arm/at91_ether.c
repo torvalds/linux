@@ -834,7 +834,7 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				we free and return(0) or don't free and return 1 */
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -1228,7 +1228,6 @@ static int at91ether_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver at91ether_driver = {
-	.probe		= at91ether_probe,
 	.remove		= __devexit_p(at91ether_remove),
 	.suspend	= at91ether_suspend,
 	.resume		= at91ether_resume,
@@ -1240,7 +1239,7 @@ static struct platform_driver at91ether_driver = {
 
 static int __init at91ether_init(void)
 {
-	return platform_driver_register(&at91ether_driver);
+	return platform_driver_probe(&at91ether_driver, at91ether_probe);
 }
 
 static void __exit at91ether_exit(void)

@@ -134,8 +134,10 @@ int phy_scan_fixups(struct phy_device *phydev)
 
 			err = fixup->run(phydev);
 
-			if (err < 0)
+			if (err < 0) {
+				mutex_unlock(&phy_fixup_lock);
 				return err;
+			}
 		}
 	}
 	mutex_unlock(&phy_fixup_lock);

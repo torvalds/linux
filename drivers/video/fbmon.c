@@ -256,8 +256,8 @@ static void fix_edid(unsigned char *edid, int fix)
 
 static int edid_checksum(unsigned char *edid)
 {
-	unsigned char i, csum = 0, all_null = 0;
-	int err = 0, fix = check_edid(edid);
+	unsigned char csum = 0, all_null = 0;
+	int i, err = 0, fix = check_edid(edid);
 
 	if (fix)
 		fix_edid(edid, fix);

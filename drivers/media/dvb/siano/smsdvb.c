@@ -325,12 +325,24 @@ static int smsdvb_sendrequest_and_wait(struct smsdvb_client_t *client,
 						0 : -ETIME;
 }
 
+static inline int led_feedback(struct smsdvb_client_t *client)
+{
+	if (client->fe_status & FE_HAS_LOCK)
+		return sms_board_led_feedback(client->coredev,
+			(client->sms_stat_dvb.ReceptionData.BER
+			== 0) ? SMS_LED_HI : SMS_LED_LO);
+	else
+		return sms_board_led_feedback(client->coredev, SMS_LED_OFF);
+}
+
 static int smsdvb_read_status(struct dvb_frontend *fe, fe_status_t *stat)
 {
 	struct smsdvb_client_t *client;
 	client = container_of(fe, struct smsdvb_client_t, frontend);
 
 	*stat = client->fe_status;
+
+	led_feedback(client);
 
 	return 0;
 }
@@ -341,6 +353,8 @@ static int smsdvb_read_ber(struct dvb_frontend *fe, u32 *ber)
 	client = container_of(fe, struct smsdvb_client_t, frontend);
 
 	*ber = client->sms_stat_dvb.ReceptionData.BER;
+
+	led_feedback(client);
 
 	return 0;
 }
@@ -359,6 +373,8 @@ static int smsdvb_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 				(client->sms_stat_dvb.ReceptionData.InBandPwr
 				+ 95) * 3 / 2;
 
+	led_feedback(client);
+
 	return 0;
 }
 
@@ -369,6 +385,8 @@ static int smsdvb_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 	*snr = client->sms_stat_dvb.ReceptionData.SNR;
 
+	led_feedback(client);
+
 	return 0;
 }
 
@@ -378,6 +396,8 @@ static int smsdvb_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	client = container_of(fe, struct smsdvb_client_t, frontend);
 
 	*ucblocks = client->sms_stat_dvb.ReceptionData.ErrorTSPackets;
+
+	led_feedback(client);
 
 	return 0;
 }
@@ -404,6 +424,8 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 		u32		Data[3];
 	} Msg;
 
+	int ret;
+
 	client->fe_status = FE_HAS_SIGNAL;
 	client->event_fe_state = -1;
 	client->event_unc_state = -1;
@@ -425,6 +447,23 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 	case BANDWIDTH_6_MHZ: Msg.Data[1] = BW_6_MHZ; break;
 	case BANDWIDTH_AUTO: return -EOPNOTSUPP;
 	default: return -EINVAL;
+	}
+	/* Disable LNA, if any. An error is returned if no LNA is present */
+	ret = sms_board_lna_control(client->coredev, 0);
+	if (ret == 0) {
+		fe_status_t status;
+
+		/* tune with LNA off at first */
+		ret = smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
+						  &client->tune_done);
+
+		smsdvb_read_status(fe, &status);
+
+		if (status & FE_HAS_LOCK)
+			return ret;
+
+		/* previous tune didnt lock - enable LNA and tune again */
+		sms_board_lna_control(client->coredev, 1);
 	}
 
 	return smsdvb_sendrequest_and_wait(client, &Msg, sizeof(Msg),
@@ -451,6 +490,8 @@ static int smsdvb_init(struct dvb_frontend *fe)
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
 
+	sms_board_power(client->coredev, 1);
+
 	sms_board_dvb3_event(client, DVB3_EVENT_INIT);
 	return 0;
 }
@@ -459,6 +500,9 @@ static int smsdvb_sleep(struct dvb_frontend *fe)
 {
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
+
+	sms_board_led_feedback(client->coredev, SMS_LED_OFF);
+	sms_board_power(client->coredev, 0);
 
 	sms_board_dvb3_event(client, DVB3_EVENT_SLEEP);
 

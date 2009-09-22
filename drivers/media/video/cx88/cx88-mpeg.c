@@ -116,6 +116,10 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 			udelay(100);
 			break;
 		case CX88_BOARD_HAUPPAUGE_HVR1300:
+			/* Enable MPEG parallel IO and video signal pins */
+			cx_write(MO_PINMUX_IO, 0x88);
+			cx_write(TS_SOP_STAT, 0);
+			cx_write(TS_VALERR_CNTRL, 0);
 			break;
 		case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 			/* Enable MPEG parallel IO and video signal pins */
@@ -866,7 +870,7 @@ static struct pci_driver cx8802_pci_driver = {
 	.remove   = __devexit_p(cx8802_remove),
 };
 
-static int cx8802_init(void)
+static int __init cx8802_init(void)
 {
 	printk(KERN_INFO "cx88/2: cx2388x MPEG-TS Driver Manager version %d.%d.%d loaded\n",
 	       (CX88_VERSION_CODE >> 16) & 0xff,
@@ -879,7 +883,7 @@ static int cx8802_init(void)
 	return pci_register_driver(&cx8802_pci_driver);
 }
 
-static void cx8802_fini(void)
+static void __exit cx8802_fini(void)
 {
 	pci_unregister_driver(&cx8802_pci_driver);
 }

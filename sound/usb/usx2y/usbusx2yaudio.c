@@ -296,9 +296,10 @@ static void usX2Y_error_urb_status(struct usX2Ydev *usX2Y,
 static void usX2Y_error_sequence(struct usX2Ydev *usX2Y,
 				 struct snd_usX2Y_substream *subs, struct urb *urb)
 {
-	snd_printk(KERN_ERR "Sequence Error!(hcd_frame=%i ep=%i%s;wait=%i,frame=%i).\n"
-		   KERN_ERR "Most propably some urb of usb-frame %i is still missing.\n"
-		   KERN_ERR "Cause could be too long delays in usb-hcd interrupt handling.\n",
+	snd_printk(KERN_ERR
+"Sequence Error!(hcd_frame=%i ep=%i%s;wait=%i,frame=%i).\n"
+"Most propably some urb of usb-frame %i is still missing.\n"
+"Cause could be too long delays in usb-hcd interrupt handling.\n",
 		   usb_get_current_frame_number(usX2Y->chip.dev),
 		   subs->endpoint, usb_pipein(urb->pipe) ? "in" : "out",
 		   usX2Y->wait_iso_frame, urb->start_frame, usX2Y->wait_iso_frame);

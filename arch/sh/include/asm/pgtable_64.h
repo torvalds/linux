@@ -60,6 +60,9 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
 /* To find an entry in a kernel PGD. */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
+#define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+#define __pmd_offset(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
+
 /*
  * PMD level access routines. Same notes as above.
  */
@@ -79,6 +82,8 @@ static __inline__ void pmd_set(pmd_t *pmdp,pte_t *ptep)
 /* PMD to PTE dereferencing */
 #define pte_index(address) \
 		((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+
+#define __pte_offset(address)	pte_index(address)
 
 #define pte_offset_kernel(dir, addr) \
 		((pte_t *) ((pmd_val(*(dir))) & PAGE_MASK) + pte_index((addr)))

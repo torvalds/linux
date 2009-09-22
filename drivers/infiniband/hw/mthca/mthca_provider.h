@@ -113,6 +113,7 @@ struct mthca_eq {
 	int                    nent;
 	struct mthca_buf_list *page_list;
 	struct mthca_mr        mr;
+	char		       irq_name[IB_DEVICE_NAME_MAX];
 };
 
 struct mthca_av;

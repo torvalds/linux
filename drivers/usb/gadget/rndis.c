@@ -442,6 +442,8 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 
 	case OID_802_3_MAC_OPTIONS:
 		pr_debug("%s: OID_802_3_MAC_OPTIONS\n", __func__);
+		*outbuf = cpu_to_le32(0);
+		retval = 0;
 		break;
 
 	/* ieee802.3 statistics OIDs (table 4-4) */

@@ -628,8 +628,8 @@ static void mdio_write (struct net_device *dev, int phy_id, int location,
 static void rtl8139_start_thread(struct rtl8139_private *tp);
 static void rtl8139_tx_timeout (struct net_device *dev);
 static void rtl8139_init_ring (struct net_device *dev);
-static int rtl8139_start_xmit (struct sk_buff *skb,
-			       struct net_device *dev);
+static netdev_tx_t rtl8139_start_xmit (struct sk_buff *skb,
+				       struct net_device *dev);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void rtl8139_poll_controller(struct net_device *dev);
 #endif
@@ -908,6 +908,7 @@ static const struct net_device_ops rtl8139_netdev_ops = {
 	.ndo_open		= rtl8139_open,
 	.ndo_stop		= rtl8139_close,
 	.ndo_get_stats		= rtl8139_get_stats,
+	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= rtl8139_set_mac_address,
 	.ndo_start_xmit		= rtl8139_start_xmit,
@@ -1686,7 +1687,8 @@ static void rtl8139_tx_timeout (struct net_device *dev)
 	}
 }
 
-static int rtl8139_start_xmit (struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t rtl8139_start_xmit (struct sk_buff *skb,
+					     struct net_device *dev)
 {
 	struct rtl8139_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -1706,7 +1708,7 @@ static int rtl8139_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	} else {
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	spin_lock_irqsave(&tp->lock, flags);
@@ -1731,7 +1733,7 @@ static int rtl8139_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		pr_debug("%s: Queued Tx packet size %u to slot %d.\n",
 			dev->name, len, entry);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

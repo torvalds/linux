@@ -41,9 +41,9 @@ void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 	struct ttm_mem_reg *old_mem = &bo->mem;
 
 	if (old_mem->mm_node) {
-		spin_lock(&bo->bdev->lru_lock);
+		spin_lock(&bo->glob->lru_lock);
 		drm_mm_put_block(old_mem->mm_node);
-		spin_unlock(&bo->bdev->lru_lock);
+		spin_unlock(&bo->glob->lru_lock);
 	}
 	old_mem->mm_node = NULL;
 }
@@ -136,7 +136,8 @@ static int ttm_copy_io_page(void *dst, void *src, unsigned long page)
 }
 
 static int ttm_copy_io_ttm_page(struct ttm_tt *ttm, void *src,
-				unsigned long page)
+				unsigned long page,
+				pgprot_t prot)
 {
 	struct page *d = ttm_tt_get_page(ttm, page);
 	void *dst;
@@ -145,17 +146,35 @@ static int ttm_copy_io_ttm_page(struct ttm_tt *ttm, void *src,
 		return -ENOMEM;
 
 	src = (void *)((unsigned long)src + (page << PAGE_SHIFT));
-	dst = kmap(d);
+
+#ifdef CONFIG_X86
+	dst = kmap_atomic_prot(d, KM_USER0, prot);
+#else
+	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
+		dst = vmap(&d, 1, 0, prot);
+	else
+		dst = kmap(d);
+#endif
 	if (!dst)
 		return -ENOMEM;
 
 	memcpy_fromio(dst, src, PAGE_SIZE);
-	kunmap(d);
+
+#ifdef CONFIG_X86
+	kunmap_atomic(dst, KM_USER0);
+#else
+	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
+		vunmap(dst);
+	else
+		kunmap(d);
+#endif
+
 	return 0;
 }
 
 static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
-				unsigned long page)
+				unsigned long page,
+				pgprot_t prot)
 {
 	struct page *s = ttm_tt_get_page(ttm, page);
 	void *src;
@@ -164,12 +183,28 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 		return -ENOMEM;
 
 	dst = (void *)((unsigned long)dst + (page << PAGE_SHIFT));
-	src = kmap(s);
+#ifdef CONFIG_X86
+	src = kmap_atomic_prot(s, KM_USER0, prot);
+#else
+	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
+		src = vmap(&s, 1, 0, prot);
+	else
+		src = kmap(s);
+#endif
 	if (!src)
 		return -ENOMEM;
 
 	memcpy_toio(dst, src, PAGE_SIZE);
-	kunmap(s);
+
+#ifdef CONFIG_X86
+	kunmap_atomic(src, KM_USER0);
+#else
+	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
+		vunmap(src);
+	else
+		kunmap(s);
+#endif
+
 	return 0;
 }
 
@@ -214,11 +249,17 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 
 	for (i = 0; i < new_mem->num_pages; ++i) {
 		page = i * dir + add;
-		if (old_iomap == NULL)
-			ret = ttm_copy_ttm_io_page(ttm, new_iomap, page);
-		else if (new_iomap == NULL)
-			ret = ttm_copy_io_ttm_page(ttm, old_iomap, page);
-		else
+		if (old_iomap == NULL) {
+			pgprot_t prot = ttm_io_prot(old_mem->placement,
+						    PAGE_KERNEL);
+			ret = ttm_copy_ttm_io_page(ttm, new_iomap, page,
+						   prot);
+		} else if (new_iomap == NULL) {
+			pgprot_t prot = ttm_io_prot(new_mem->placement,
+						    PAGE_KERNEL);
+			ret = ttm_copy_io_ttm_page(ttm, old_iomap, page,
+						   prot);
+		} else
 			ret = ttm_copy_io_page(new_iomap, old_iomap, page);
 		if (ret)
 			goto out1;
@@ -509,8 +550,8 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	if (evict) {
 		ret = ttm_bo_wait(bo, false, false, false);
 		spin_unlock(&bo->lock);
-		driver->sync_obj_unref(&bo->sync_obj);
-
+		if (tmp_obj)
+			driver->sync_obj_unref(&tmp_obj);
 		if (ret)
 			return ret;
 
@@ -532,6 +573,8 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 
 		set_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
 		spin_unlock(&bo->lock);
+		if (tmp_obj)
+			driver->sync_obj_unref(&tmp_obj);
 
 		ret = ttm_buffer_object_transfer(bo, &ghost_obj);
 		if (ret)

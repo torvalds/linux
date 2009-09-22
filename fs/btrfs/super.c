@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
 #include <linux/mount.h>
 #include <linux/mpage.h>
@@ -52,7 +51,7 @@
 #include "export.h"
 #include "compression.h"
 
-static struct super_operations btrfs_super_ops;
+static const struct super_operations btrfs_super_ops;
 
 static void btrfs_put_super(struct super_block *sb)
 {
@@ -676,7 +675,7 @@ static int btrfs_unfreeze(struct super_block *sb)
 	return 0;
 }
 
-static struct super_operations btrfs_super_ops = {
+static const struct super_operations btrfs_super_ops = {
 	.delete_inode	= btrfs_delete_inode,
 	.put_super	= btrfs_put_super,
 	.sync_fs	= btrfs_sync_fs,

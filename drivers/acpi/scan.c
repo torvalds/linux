@@ -781,6 +781,7 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	kfree(buffer.pointer);
 
 	device->wakeup.flags.valid = 1;
+	device->wakeup.prepare_count = 0;
 	/* Call _PSW/_DSW object to disable its ability to wake the sleeping
 	 * system for the ACPI device with the _PRW object.
 	 * The _PSW object is depreciated in ACPI 3.0 and is replaced by _DSW.

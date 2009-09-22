@@ -17,7 +17,7 @@
  *
  * 2001 Sep 08:
  *	Completely revisited, many important fixes
- *	Nicolas Pitre <nico@cam.org>
+ *	Nicolas Pitre <nico@fluxnic.net>
  */
 
 #include <linux/linkage.h>

@@ -250,7 +250,7 @@ static DEFINE_PXA3_CKEN(pxa3xx_mmc2, MMC2, 19500000, 0);
 static struct clk_lookup pxa3xx_clkregs[] = {
 	INIT_CLKREG(&clk_pxa3xx_pout, NULL, "CLK_POUT"),
 	/* Power I2C clock is always on */
-	INIT_CLKREG(&clk_dummy, "pxa2xx-i2c.1", NULL),
+	INIT_CLKREG(&clk_dummy, "pxa3xx-pwri2c.1", NULL),
 	INIT_CLKREG(&clk_pxa3xx_lcd, "pxa2xx-fb", NULL),
 	INIT_CLKREG(&clk_pxa3xx_camera, NULL, "CAMCLK"),
 	INIT_CLKREG(&clk_pxa3xx_ac97, NULL, "AC97CLK"),

@@ -55,6 +55,7 @@
 #include <net/checksum.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
+#include <trace/events/skb.h>
 
 /*
  *	Is a socket 'connection oriented' ?
@@ -283,6 +284,8 @@ int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
 	struct sk_buff *frag_iter;
+
+	trace_skb_copy_datagram_iovec(skb, len);
 
 	/* Copy header. */
 	if (copy > 0) {
@@ -712,7 +715,7 @@ unsigned int datagram_poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk;
 	unsigned int mask;
 
-	poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk->sk_sleep, wait);
 	mask = 0;
 
 	/* exceptional events? */

@@ -48,7 +48,6 @@ extern unsigned int pcibios_assign_all_busses(void);
 #else
 #define pcibios_assign_all_busses()	0
 #endif
-#define pcibios_scan_all_fns(a, b)	0
 
 extern unsigned long pci_mem_start;
 #define PCIBIOS_MIN_IO		0x1000
@@ -91,7 +90,7 @@ extern void pci_iommu_alloc(void);
 
 #define PCI_DMA_BUS_IS_PHYS (dma_ops->is_phys)
 
-#if defined(CONFIG_X86_64) || defined(CONFIG_DMA_API_DEBUG)
+#if defined(CONFIG_X86_64) || defined(CONFIG_DMAR) || defined(CONFIG_DMA_API_DEBUG)
 
 #define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)       \
 	        dma_addr_t ADDR_NAME;

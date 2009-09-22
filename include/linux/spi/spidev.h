@@ -40,6 +40,8 @@
 #define SPI_LSB_FIRST		0x08
 #define SPI_3WIRE		0x10
 #define SPI_LOOP		0x20
+#define SPI_NO_CS		0x40
+#define SPI_READY		0x80
 
 /*---------------------------------------------------------------------------*/
 

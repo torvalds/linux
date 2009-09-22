@@ -84,12 +84,15 @@ typedef int (*dm_merge_fn) (struct dm_target *ti, struct bvec_merge_data *bvm,
 
 typedef int (*iterate_devices_callout_fn) (struct dm_target *ti,
 					   struct dm_dev *dev,
-					   sector_t physical_start,
+					   sector_t start, sector_t len,
 					   void *data);
 
 typedef int (*dm_iterate_devices_fn) (struct dm_target *ti,
 				      iterate_devices_callout_fn fn,
 				      void *data);
+
+typedef void (*dm_io_hints_fn) (struct dm_target *ti,
+				struct queue_limits *limits);
 
 /*
  * Returns:
@@ -104,7 +107,7 @@ void dm_error(const char *message);
  * Combine device limits.
  */
 int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
-			 sector_t start, void *data);
+			 sector_t start, sector_t len, void *data);
 
 struct dm_dev {
 	struct block_device *bdev;
@@ -151,6 +154,7 @@ struct target_type {
 	dm_merge_fn merge;
 	dm_busy_fn busy;
 	dm_iterate_devices_fn iterate_devices;
+	dm_io_hints_fn io_hints;
 
 	/* For internal device-mapper use. */
 	struct list_head list;

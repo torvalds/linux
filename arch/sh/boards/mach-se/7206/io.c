@@ -50,7 +50,7 @@ unsigned char se7206_inb_p(unsigned long port)
 
 unsigned short se7206_inw(unsigned long port)
 {
-	return *port2adr(port);;
+	return *port2adr(port);
 }
 
 void se7206_outb(unsigned char value, unsigned long port)

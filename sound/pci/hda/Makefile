@@ -13,6 +13,7 @@ snd-hda-codec-analog-objs :=	patch_analog.o
 snd-hda-codec-idt-objs :=	patch_sigmatel.o
 snd-hda-codec-si3054-objs :=	patch_si3054.o
 snd-hda-codec-atihdmi-objs :=	patch_atihdmi.o
+snd-hda-codec-cirrus-objs :=	patch_cirrus.o
 snd-hda-codec-ca0110-objs :=	patch_ca0110.o
 snd-hda-codec-conexant-objs :=	patch_conexant.o
 snd-hda-codec-via-objs :=	patch_via.o
@@ -40,6 +41,9 @@ obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-si3054.o
 endif
 ifdef CONFIG_SND_HDA_CODEC_ATIHDMI
 obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-atihdmi.o
+endif
+ifdef CONFIG_SND_HDA_CODEC_CIRRUS
+obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-cirrus.o
 endif
 ifdef CONFIG_SND_HDA_CODEC_CA0110
 obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-codec-ca0110.o

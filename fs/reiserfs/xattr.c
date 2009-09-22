@@ -46,7 +46,6 @@
 #include <linux/reiserfs_acl.h>
 #include <asm/uaccess.h>
 #include <net/checksum.h>
-#include <linux/smp_lock.h>
 #include <linux/stat.h>
 #include <linux/quotaops.h>
 

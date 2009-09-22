@@ -393,8 +393,10 @@ static void set_fb_fix(struct fb_info *fbi)
 
 	rg = &plane->fbdev->mem_desc.region[plane->idx];
 	fbi->screen_base	= rg->vaddr;
+	mutex_lock(&fbi->mm_lock);
 	fix->smem_start		= rg->paddr;
 	fix->smem_len		= rg->size;
+	mutex_unlock(&fbi->mm_lock);
 
 	fix->type = FB_TYPE_PACKED_PIXELS;
 	bpp = var->bits_per_pixel;
@@ -886,8 +888,10 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 				 * plane memory is dealloce'd, the other
 				 * screen parameters in var / fix are invalid.
 				 */
+				mutex_lock(&fbi->mm_lock);
 				fbi->fix.smem_start = 0;
 				fbi->fix.smem_len = 0;
+				mutex_unlock(&fbi->mm_lock);
 			}
 		}
 	}
@@ -1250,7 +1254,7 @@ static struct fb_ops omapfb_ops = {
 static ssize_t omapfb_show_caps_num(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct omapfb_device *fbdev = (struct omapfb_device *)dev->driver_data;
+	struct omapfb_device *fbdev = dev_get_drvdata(dev);
 	int plane;
 	size_t size;
 	struct omapfb_caps caps;
@@ -1270,7 +1274,7 @@ static ssize_t omapfb_show_caps_num(struct device *dev,
 static ssize_t omapfb_show_caps_text(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	struct omapfb_device *fbdev = (struct omapfb_device *)dev->driver_data;
+	struct omapfb_device *fbdev = dev_get_drvdata(dev);
 	int i;
 	struct omapfb_caps caps;
 	int plane;
@@ -1317,7 +1321,7 @@ static DEVICE_ATTR(caps_text, 0444, omapfb_show_caps_text, NULL);
 static ssize_t omapfb_show_panel_name(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	struct omapfb_device *fbdev = (struct omapfb_device *)dev->driver_data;
+	struct omapfb_device *fbdev = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", fbdev->panel->name);
 }
@@ -1326,7 +1330,7 @@ static ssize_t omapfb_show_bklight_level(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct omapfb_device *fbdev = (struct omapfb_device *)dev->driver_data;
+	struct omapfb_device *fbdev = dev_get_drvdata(dev);
 	int r;
 
 	if (fbdev->panel->get_bklight_level) {
@@ -1341,7 +1345,7 @@ static ssize_t omapfb_store_bklight_level(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t size)
 {
-	struct omapfb_device *fbdev = (struct omapfb_device *)dev->driver_data;
+	struct omapfb_device *fbdev = dev_get_drvdata(dev);
 	int r;
 
 	if (fbdev->panel->set_bklight_level) {
@@ -1360,7 +1364,7 @@ static ssize_t omapfb_store_bklight_level(struct device *dev,
 static ssize_t omapfb_show_bklight_max(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
-	struct omapfb_device *fbdev = (struct omapfb_device *)dev->driver_data;
+	struct omapfb_device *fbdev = dev_get_drvdata(dev);
 	int r;
 
 	if (fbdev->panel->get_bklight_level) {
@@ -1393,7 +1397,7 @@ static struct attribute_group panel_attr_grp = {
 static ssize_t omapfb_show_ctrl_name(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	struct omapfb_device *fbdev = (struct omapfb_device *)dev->driver_data;
+	struct omapfb_device *fbdev = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", fbdev->ctrl->name);
 }

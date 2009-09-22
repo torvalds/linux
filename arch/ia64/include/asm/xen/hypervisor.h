@@ -33,6 +33,7 @@
 #ifndef _ASM_IA64_XEN_HYPERVISOR_H
 #define _ASM_IA64_XEN_HYPERVISOR_H
 
+#include <linux/err.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/version.h>	/* to compile feature.c */
 #include <xen/features.h>		/* to comiple xen-netfront.c */

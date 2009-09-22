@@ -778,7 +778,7 @@ static u32 kaweth_get_link(struct net_device *dev)
 	return kaweth->linkstate;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo	= kaweth_get_drvinfo,
 	.get_link	= kaweth_get_link
 };
@@ -803,7 +803,8 @@ static void kaweth_usb_transmit_complete(struct urb *urb)
 /****************************************************************
  *     kaweth_start_xmit
  ****************************************************************/
-static int kaweth_start_xmit(struct sk_buff *skb, struct net_device *net)
+static netdev_tx_t kaweth_start_xmit(struct sk_buff *skb,
+					   struct net_device *net)
 {
 	struct kaweth_device *kaweth = netdev_priv(net);
 	__le16 *private_header;
@@ -829,7 +830,7 @@ static int kaweth_start_xmit(struct sk_buff *skb, struct net_device *net)
 			kaweth->stats.tx_errors++;
 			netif_start_queue(net);
 			spin_unlock_irq(&kaweth->device_lock);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 	}
 
@@ -864,7 +865,7 @@ skip:
 
 	spin_unlock_irq(&kaweth->device_lock);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /****************************************************************
@@ -999,6 +1000,9 @@ static const struct net_device_ops kaweth_netdev_ops = {
 	.ndo_tx_timeout =		kaweth_tx_timeout,
 	.ndo_set_multicast_list =	kaweth_set_rx_mode,
 	.ndo_get_stats =		kaweth_netdev_stats,
+	.ndo_change_mtu =		eth_change_mtu,
+	.ndo_set_mac_address =		eth_mac_addr,
+	.ndo_validate_addr =		eth_validate_addr,
 };
 
 static int kaweth_probe(

@@ -469,6 +469,7 @@ extern void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
 				      int nonagle);
 extern int tcp_may_send_now(struct sock *sk);
 extern int tcp_retransmit_skb(struct sock *, struct sk_buff *);
+extern void tcp_retransmit_timer(struct sock *sk);
 extern void tcp_xmit_retransmit_queue(struct sock *);
 extern void tcp_simple_retransmit(struct sock *);
 extern int tcp_trim_head(struct sock *, struct sk_buff *, u32);
@@ -520,6 +521,17 @@ extern void tcp_initialize_rcv_mss(struct sock *sk);
 extern int tcp_mtu_to_mss(struct sock *sk, int pmtu);
 extern int tcp_mss_to_mtu(struct sock *sk, int mss);
 extern void tcp_mtup_init(struct sock *sk);
+
+static inline void tcp_bound_rto(const struct sock *sk)
+{
+	if (inet_csk(sk)->icsk_rto > TCP_RTO_MAX)
+		inet_csk(sk)->icsk_rto = TCP_RTO_MAX;
+}
+
+static inline u32 __tcp_set_rto(const struct tcp_sock *tp)
+{
+	return (tp->srtt >> 3) + tp->rttvar;
+}
 
 static inline void __tcp_fast_path_on(struct tcp_sock *tp, u32 snd_wnd)
 {
@@ -781,6 +793,13 @@ static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 	return tp->packets_out - tcp_left_out(tp) + tp->retrans_out;
 }
 
+#define TCP_INFINITE_SSTHRESH	0x7fffffff
+
+static inline bool tcp_in_initial_slowstart(const struct tcp_sock *tp)
+{
+	return tp->snd_ssthresh >= TCP_INFINITE_SSTHRESH;
+}
+
 /* If cwnd > ssthresh, we may raise ssthresh to be half-way to cwnd.
  * The exception is rate halving phase, when cwnd is decreasing towards
  * ssthresh.
@@ -1007,6 +1026,11 @@ static inline int keepalive_time_when(const struct tcp_sock *tp)
 	return tp->keepalive_time ? : sysctl_tcp_keepalive_time;
 }
 
+static inline int keepalive_probes(const struct tcp_sock *tp)
+{
+	return tp->keepalive_probes ? : sysctl_tcp_keepalive_probes;
+}
+
 static inline int tcp_fin_time(const struct sock *sk)
 {
 	int fin_timeout = tcp_sk(sk)->linger2 ? : sysctl_tcp_fin_timeout;
@@ -1169,7 +1193,7 @@ extern int			tcp_v4_md5_do_del(struct sock *sk,
 #define tcp_twsk_md5_key(twsk)	NULL
 #endif
 
-extern struct tcp_md5sig_pool	**tcp_alloc_md5sig_pool(void);
+extern struct tcp_md5sig_pool	**tcp_alloc_md5sig_pool(struct sock *);
 extern void			tcp_free_md5sig_pool(void);
 
 extern struct tcp_md5sig_pool	*__tcp_get_md5sig_pool(int cpu);
@@ -1234,6 +1258,29 @@ static inline struct sk_buff *tcp_write_queue_prev(struct sock *sk, struct sk_bu
 
 #define tcp_for_write_queue_from_safe(skb, tmp, sk)			\
 	skb_queue_walk_from_safe(&(sk)->sk_write_queue, skb, tmp)
+
+/* This function calculates a "timeout" which is equivalent to the timeout of a
+ * TCP connection after "boundary" unsucessful, exponentially backed-off
+ * retransmissions with an initial RTO of TCP_RTO_MIN.
+ */
+static inline bool retransmits_timed_out(const struct sock *sk,
+					 unsigned int boundary)
+{
+	unsigned int timeout, linear_backoff_thresh;
+
+	if (!inet_csk(sk)->icsk_retransmits)
+		return false;
+
+	linear_backoff_thresh = ilog2(TCP_RTO_MAX/TCP_RTO_MIN);
+
+	if (boundary <= linear_backoff_thresh)
+		timeout = ((2 << boundary) - 1) * TCP_RTO_MIN;
+	else
+		timeout = ((2 << linear_backoff_thresh) - 1) * TCP_RTO_MIN +
+			  (boundary - linear_backoff_thresh) * TCP_RTO_MAX;
+
+	return (tcp_time_stamp - tcp_sk(sk)->retrans_stamp) >= timeout;
+}
 
 static inline struct sk_buff *tcp_send_head(struct sock *sk)
 {
@@ -1425,6 +1472,11 @@ struct tcp_request_sock_ops {
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key	*(*md5_lookup) (struct sock *sk,
 						struct request_sock *req);
+	int			(*calc_md5_hash) (char *location,
+						  struct tcp_md5sig_key *md5,
+						  struct sock *sk,
+						  struct request_sock *req,
+						  struct sk_buff *skb);
 #endif
 };
 

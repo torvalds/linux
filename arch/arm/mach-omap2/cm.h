@@ -17,11 +17,11 @@
 #include "prcm-common.h"
 
 #define OMAP2420_CM_REGADDR(module, reg)				\
-			IO_ADDRESS(OMAP2420_CM_BASE + (module) + (reg))
+			OMAP2_IO_ADDRESS(OMAP2420_CM_BASE + (module) + (reg))
 #define OMAP2430_CM_REGADDR(module, reg)				\
-			IO_ADDRESS(OMAP2430_CM_BASE + (module) + (reg))
+			OMAP2_IO_ADDRESS(OMAP2430_CM_BASE + (module) + (reg))
 #define OMAP34XX_CM_REGADDR(module, reg)				\
-			IO_ADDRESS(OMAP3430_CM_BASE + (module) + (reg))
+			OMAP2_IO_ADDRESS(OMAP3430_CM_BASE + (module) + (reg))
 
 /*
  * Architecture-specific global CM registers
@@ -29,9 +29,9 @@
  * These registers appear once per CM module.
  */
 
-#define OMAP3430_CM_REVISION		OMAP_CM_REGADDR(OCP_MOD, 0x0000)
-#define OMAP3430_CM_SYSCONFIG		OMAP_CM_REGADDR(OCP_MOD, 0x0010)
-#define OMAP3430_CM_POLCTRL		OMAP_CM_REGADDR(OCP_MOD, 0x009c)
+#define OMAP3430_CM_REVISION		OMAP34XX_CM_REGADDR(OCP_MOD, 0x0000)
+#define OMAP3430_CM_SYSCONFIG		OMAP34XX_CM_REGADDR(OCP_MOD, 0x0010)
+#define OMAP3430_CM_POLCTRL		OMAP34XX_CM_REGADDR(OCP_MOD, 0x009c)
 
 #define OMAP3_CM_CLKOUT_CTRL_OFFSET	0x0070
 #define OMAP3430_CM_CLKOUT_CTRL		OMAP_CM_REGADDR(OMAP3430_CCR_MOD, 0x0070)
@@ -97,6 +97,10 @@
 extern u32 cm_read_mod_reg(s16 module, u16 idx);
 extern void cm_write_mod_reg(u32 val, s16 module, u16 idx);
 extern u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
+
+extern int omap2_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id,
+				      u8 idlest_shift);
+extern int omap4_cm_wait_module_ready(u32 prcm_mod, u8 prcm_dev_offs);
 
 static inline u32 cm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
 {

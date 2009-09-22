@@ -81,7 +81,7 @@
 struct gen_estimator
 {
 	struct list_head	list;
-	struct gnet_stats_basic	*bstats;
+	struct gnet_stats_basic_packed	*bstats;
 	struct gnet_stats_rate_est	*rate_est;
 	spinlock_t		*stats_lock;
 	int			ewma_log;
@@ -165,7 +165,7 @@ static void gen_add_node(struct gen_estimator *est)
 }
 
 static
-struct gen_estimator *gen_find_node(const struct gnet_stats_basic *bstats,
+struct gen_estimator *gen_find_node(const struct gnet_stats_basic_packed *bstats,
 				    const struct gnet_stats_rate_est *rate_est)
 {
 	struct rb_node *p = est_root.rb_node;
@@ -202,7 +202,7 @@ struct gen_estimator *gen_find_node(const struct gnet_stats_basic *bstats,
  *
  * NOTE: Called under rtnl_mutex
  */
-int gen_new_estimator(struct gnet_stats_basic *bstats,
+int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 		      struct gnet_stats_rate_est *rate_est,
 		      spinlock_t *stats_lock,
 		      struct nlattr *opt)
@@ -262,7 +262,7 @@ static void __gen_kill_estimator(struct rcu_head *head)
  *
  * NOTE: Called under rtnl_mutex
  */
-void gen_kill_estimator(struct gnet_stats_basic *bstats,
+void gen_kill_estimator(struct gnet_stats_basic_packed *bstats,
 			struct gnet_stats_rate_est *rate_est)
 {
 	struct gen_estimator *e;
@@ -292,7 +292,7 @@ EXPORT_SYMBOL(gen_kill_estimator);
  *
  * Returns 0 on success or a negative error code.
  */
-int gen_replace_estimator(struct gnet_stats_basic *bstats,
+int gen_replace_estimator(struct gnet_stats_basic_packed *bstats,
 			  struct gnet_stats_rate_est *rate_est,
 			  spinlock_t *stats_lock, struct nlattr *opt)
 {
@@ -308,7 +308,7 @@ EXPORT_SYMBOL(gen_replace_estimator);
  *
  * Returns true if estimator is active, and false if not.
  */
-bool gen_estimator_active(const struct gnet_stats_basic *bstats,
+bool gen_estimator_active(const struct gnet_stats_basic_packed *bstats,
 			  const struct gnet_stats_rate_est *rate_est)
 {
 	ASSERT_RTNL();

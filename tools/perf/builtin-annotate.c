@@ -10,85 +10,37 @@
 #include "util/util.h"
 
 #include "util/color.h"
-#include "util/list.h"
+#include <linux/list.h>
 #include "util/cache.h"
-#include "util/rbtree.h"
+#include <linux/rbtree.h>
 #include "util/symbol.h"
 #include "util/string.h"
 
 #include "perf.h"
+#include "util/debug.h"
 
 #include "util/parse-options.h"
 #include "util/parse-events.h"
-
-#define SHOW_KERNEL	1
-#define SHOW_USER	2
-#define SHOW_HV		4
-
-#define MIN_GREEN		0.5
-#define MIN_RED		5.0
-
+#include "util/thread.h"
 
 static char		const *input_name = "perf.data";
-static char		*vmlinux = "vmlinux";
 
 static char		default_sort_order[] = "comm,symbol";
 static char		*sort_order = default_sort_order;
 
+static int		force;
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
-static int		dump_trace = 0;
-#define dprintf(x...)	do { if (dump_trace) printf(x); } while (0)
-
-static int		verbose;
+static int		full_paths;
 
 static int		print_line;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
 
-struct ip_event {
-	struct perf_event_header header;
-	u64 ip;
-	u32 pid, tid;
-};
-
-struct mmap_event {
-	struct perf_event_header header;
-	u32 pid, tid;
-	u64 start;
-	u64 len;
-	u64 pgoff;
-	char filename[PATH_MAX];
-};
-
-struct comm_event {
-	struct perf_event_header header;
-	u32 pid, tid;
-	char comm[16];
-};
-
-struct fork_event {
-	struct perf_event_header header;
-	u32 pid, ppid;
-};
-
-struct period_event {
-	struct perf_event_header header;
-	u64 time;
-	u64 id;
-	u64 sample_period;
-};
-
-typedef union event_union {
-	struct perf_event_header	header;
-	struct ip_event			ip;
-	struct mmap_event		mmap;
-	struct comm_event		comm;
-	struct fork_event		fork;
-	struct period_event		period;
-} event_t;
+static struct rb_root	threads;
+static struct thread	*last_match;
 
 
 struct sym_ext {
@@ -96,323 +48,6 @@ struct sym_ext {
 	double		percent;
 	char		*path;
 };
-
-static LIST_HEAD(dsos);
-static struct dso *kernel_dso;
-static struct dso *vdso;
-
-
-static void dsos__add(struct dso *dso)
-{
-	list_add_tail(&dso->node, &dsos);
-}
-
-static struct dso *dsos__find(const char *name)
-{
-	struct dso *pos;
-
-	list_for_each_entry(pos, &dsos, node)
-		if (strcmp(pos->name, name) == 0)
-			return pos;
-	return NULL;
-}
-
-static struct dso *dsos__findnew(const char *name)
-{
-	struct dso *dso = dsos__find(name);
-	int nr;
-
-	if (dso)
-		return dso;
-
-	dso = dso__new(name, 0);
-	if (!dso)
-		goto out_delete_dso;
-
-	nr = dso__load(dso, NULL, verbose);
-	if (nr < 0) {
-		if (verbose)
-			fprintf(stderr, "Failed to open: %s\n", name);
-		goto out_delete_dso;
-	}
-	if (!nr && verbose) {
-		fprintf(stderr,
-		"No symbols found in: %s, maybe install a debug package?\n",
-				name);
-	}
-
-	dsos__add(dso);
-
-	return dso;
-
-out_delete_dso:
-	dso__delete(dso);
-	return NULL;
-}
-
-static void dsos__fprintf(FILE *fp)
-{
-	struct dso *pos;
-
-	list_for_each_entry(pos, &dsos, node)
-		dso__fprintf(pos, fp);
-}
-
-static struct symbol *vdso__find_symbol(struct dso *dso, u64 ip)
-{
-	return dso__find_symbol(kernel_dso, ip);
-}
-
-static int load_kernel(void)
-{
-	int err;
-
-	kernel_dso = dso__new("[kernel]", 0);
-	if (!kernel_dso)
-		return -1;
-
-	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose);
-	if (err) {
-		dso__delete(kernel_dso);
-		kernel_dso = NULL;
-	} else
-		dsos__add(kernel_dso);
-
-	vdso = dso__new("[vdso]", 0);
-	if (!vdso)
-		return -1;
-
-	vdso->find_symbol = vdso__find_symbol;
-
-	dsos__add(vdso);
-
-	return err;
-}
-
-struct map {
-	struct list_head node;
-	u64	 start;
-	u64	 end;
-	u64	 pgoff;
-	u64	 (*map_ip)(struct map *, u64);
-	struct dso	 *dso;
-};
-
-static u64 map__map_ip(struct map *map, u64 ip)
-{
-	return ip - map->start + map->pgoff;
-}
-
-static u64 vdso__map_ip(struct map *map, u64 ip)
-{
-	return ip;
-}
-
-static struct map *map__new(struct mmap_event *event)
-{
-	struct map *self = malloc(sizeof(*self));
-
-	if (self != NULL) {
-		const char *filename = event->filename;
-
-		self->start = event->start;
-		self->end   = event->start + event->len;
-		self->pgoff = event->pgoff;
-
-		self->dso = dsos__findnew(filename);
-		if (self->dso == NULL)
-			goto out_delete;
-
-		if (self->dso == vdso)
-			self->map_ip = vdso__map_ip;
-		else
-			self->map_ip = map__map_ip;
-	}
-	return self;
-out_delete:
-	free(self);
-	return NULL;
-}
-
-static struct map *map__clone(struct map *self)
-{
-	struct map *map = malloc(sizeof(*self));
-
-	if (!map)
-		return NULL;
-
-	memcpy(map, self, sizeof(*self));
-
-	return map;
-}
-
-static int map__overlap(struct map *l, struct map *r)
-{
-	if (l->start > r->start) {
-		struct map *t = l;
-		l = r;
-		r = t;
-	}
-
-	if (l->end > r->start)
-		return 1;
-
-	return 0;
-}
-
-static size_t map__fprintf(struct map *self, FILE *fp)
-{
-	return fprintf(fp, " %Lx-%Lx %Lx %s\n",
-		       self->start, self->end, self->pgoff, self->dso->name);
-}
-
-
-struct thread {
-	struct rb_node	 rb_node;
-	struct list_head maps;
-	pid_t		 pid;
-	char		 *comm;
-};
-
-static struct thread *thread__new(pid_t pid)
-{
-	struct thread *self = malloc(sizeof(*self));
-
-	if (self != NULL) {
-		self->pid = pid;
-		self->comm = malloc(32);
-		if (self->comm)
-			snprintf(self->comm, 32, ":%d", self->pid);
-		INIT_LIST_HEAD(&self->maps);
-	}
-
-	return self;
-}
-
-static int thread__set_comm(struct thread *self, const char *comm)
-{
-	if (self->comm)
-		free(self->comm);
-	self->comm = strdup(comm);
-	return self->comm ? 0 : -ENOMEM;
-}
-
-static size_t thread__fprintf(struct thread *self, FILE *fp)
-{
-	struct map *pos;
-	size_t ret = fprintf(fp, "Thread %d %s\n", self->pid, self->comm);
-
-	list_for_each_entry(pos, &self->maps, node)
-		ret += map__fprintf(pos, fp);
-
-	return ret;
-}
-
-
-static struct rb_root threads;
-static struct thread *last_match;
-
-static struct thread *threads__findnew(pid_t pid)
-{
-	struct rb_node **p = &threads.rb_node;
-	struct rb_node *parent = NULL;
-	struct thread *th;
-
-	/*
-	 * Font-end cache - PID lookups come in blocks,
-	 * so most of the time we dont have to look up
-	 * the full rbtree:
-	 */
-	if (last_match && last_match->pid == pid)
-		return last_match;
-
-	while (*p != NULL) {
-		parent = *p;
-		th = rb_entry(parent, struct thread, rb_node);
-
-		if (th->pid == pid) {
-			last_match = th;
-			return th;
-		}
-
-		if (pid < th->pid)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	th = thread__new(pid);
-	if (th != NULL) {
-		rb_link_node(&th->rb_node, parent, p);
-		rb_insert_color(&th->rb_node, &threads);
-		last_match = th;
-	}
-
-	return th;
-}
-
-static void thread__insert_map(struct thread *self, struct map *map)
-{
-	struct map *pos, *tmp;
-
-	list_for_each_entry_safe(pos, tmp, &self->maps, node) {
-		if (map__overlap(pos, map)) {
-			list_del_init(&pos->node);
-			/* XXX leaks dsos */
-			free(pos);
-		}
-	}
-
-	list_add_tail(&map->node, &self->maps);
-}
-
-static int thread__fork(struct thread *self, struct thread *parent)
-{
-	struct map *map;
-
-	if (self->comm)
-		free(self->comm);
-	self->comm = strdup(parent->comm);
-	if (!self->comm)
-		return -ENOMEM;
-
-	list_for_each_entry(map, &parent->maps, node) {
-		struct map *new = map__clone(map);
-		if (!new)
-			return -ENOMEM;
-		thread__insert_map(self, new);
-	}
-
-	return 0;
-}
-
-static struct map *thread__find_map(struct thread *self, u64 ip)
-{
-	struct map *pos;
-
-	if (self == NULL)
-		return NULL;
-
-	list_for_each_entry(pos, &self->maps, node)
-		if (ip >= pos->start && ip <= pos->end)
-			return pos;
-
-	return NULL;
-}
-
-static size_t threads__fprintf(FILE *fp)
-{
-	size_t ret = 0;
-	struct rb_node *nd;
-
-	for (nd = rb_first(&threads); nd; nd = rb_next(nd)) {
-		struct thread *pos = rb_entry(nd, struct thread, rb_node);
-
-		ret += thread__fprintf(pos, fp);
-	}
-
-	return ret;
-}
 
 /*
  * histogram, sorted on item, collects counts
@@ -440,7 +75,7 @@ struct hist_entry {
 struct sort_entry {
 	struct list_head list;
 
-	char *header;
+	const char *header;
 
 	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
 	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
@@ -584,7 +219,7 @@ static struct sort_entry sort_sym = {
 static int sort__need_collapse = 0;
 
 struct sort_dimension {
-	char			*name;
+	const char		*name;
 	struct sort_entry	*entry;
 	int			taken;
 };
@@ -600,7 +235,7 @@ static LIST_HEAD(hist_entry__sort_list);
 
 static int sort_dimension__add(char *tok)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
 		struct sort_dimension *sd = &sort_dimensions[i];
@@ -837,17 +472,6 @@ static void output__resort(void)
 	}
 }
 
-static void register_idle_thread(void)
-{
-	struct thread *thread = threads__findnew(0);
-
-	if (thread == NULL ||
-			thread__set_comm(thread, "[idle]")) {
-		fprintf(stderr, "problem inserting idle task.\n");
-		exit(-1);
-	}
-}
-
 static unsigned long total = 0,
 		     total_mmap = 0,
 		     total_comm = 0,
@@ -855,23 +479,25 @@ static unsigned long total = 0,
 		     total_unknown = 0;
 
 static int
-process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
+process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
 	int show = 0;
 	struct dso *dso = NULL;
-	struct thread *thread = threads__findnew(event->ip.pid);
+	struct thread *thread;
 	u64 ip = event->ip.ip;
 	struct map *map = NULL;
 
-	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
+	thread = threads__findnew(event->ip.pid, &threads, &last_match);
+
+	dump_printf("%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->header.misc,
 		event->ip.pid,
 		(void *)(long)ip);
 
-	dprintf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
 	if (thread == NULL) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
@@ -879,15 +505,15 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 		return -1;
 	}
 
-	if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
+	if (event->header.misc & PERF_RECORD_MISC_KERNEL) {
 		show = SHOW_KERNEL;
 		level = 'k';
 
 		dso = kernel_dso;
 
-		dprintf(" ...... dso: %s\n", dso->name);
+		dump_printf(" ...... dso: %s\n", dso->name);
 
-	} else if (event->header.misc & PERF_EVENT_MISC_USER) {
+	} else if (event->header.misc & PERF_RECORD_MISC_USER) {
 
 		show = SHOW_USER;
 		level = '.';
@@ -906,12 +532,12 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 			if ((long long)ip < 0)
 				dso = kernel_dso;
 		}
-		dprintf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
+		dump_printf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
 
 	} else {
 		show = SHOW_HV;
 		level = 'H';
-		dprintf(" ...... dso: [hypervisor]\n");
+		dump_printf(" ...... dso: [hypervisor]\n");
 	}
 
 	if (show & show_mask) {
@@ -934,10 +560,12 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread = threads__findnew(event->mmap.pid);
-	struct map *map = map__new(&event->mmap);
+	struct thread *thread;
+	struct map *map = map__new(&event->mmap, NULL, 0);
 
-	dprintf("%p [%p]: PERF_EVENT_MMAP %d: [%p(%p) @ %p]: %s\n",
+	thread = threads__findnew(event->mmap.pid, &threads, &last_match);
+
+	dump_printf("%p [%p]: PERF_RECORD_MMAP %d: [%p(%p) @ %p]: %s\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->mmap.pid,
@@ -947,7 +575,7 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 		event->mmap.filename);
 
 	if (thread == NULL || map == NULL) {
-		dprintf("problem processing PERF_EVENT_MMAP, skipping event.\n");
+		dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
 		return 0;
 	}
 
@@ -960,16 +588,17 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread = threads__findnew(event->comm.pid);
+	struct thread *thread;
 
-	dprintf("%p [%p]: PERF_EVENT_COMM: %s:%d\n",
+	thread = threads__findnew(event->comm.pid, &threads, &last_match);
+	dump_printf("%p [%p]: PERF_RECORD_COMM: %s:%d\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->comm.comm, event->comm.pid);
 
 	if (thread == NULL ||
 	    thread__set_comm(thread, event->comm.comm)) {
-		dprintf("problem processing PERF_EVENT_COMM, skipping event.\n");
+		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
 		return -1;
 	}
 	total_comm++;
@@ -980,16 +609,25 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread = threads__findnew(event->fork.pid);
-	struct thread *parent = threads__findnew(event->fork.ppid);
+	struct thread *thread;
+	struct thread *parent;
 
-	dprintf("%p [%p]: PERF_EVENT_FORK: %d:%d\n",
+	thread = threads__findnew(event->fork.pid, &threads, &last_match);
+	parent = threads__findnew(event->fork.ppid, &threads, &last_match);
+	dump_printf("%p [%p]: PERF_RECORD_FORK: %d:%d\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->fork.pid, event->fork.ppid);
 
+	/*
+	 * A thread clone will have the same PID for both
+	 * parent and child.
+	 */
+	if (thread == parent)
+		return 0;
+
 	if (!thread || !parent || thread__fork(thread, parent)) {
-		dprintf("problem processing PERF_EVENT_FORK, skipping event.\n");
+		dump_printf("problem processing PERF_RECORD_FORK, skipping event.\n");
 		return -1;
 	}
 	total_fork++;
@@ -998,42 +636,26 @@ process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-process_period_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	dprintf("%p [%p]: PERF_EVENT_PERIOD: time:%Ld, id:%Ld: period:%Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->period.time,
-		event->period.id,
-		event->period.sample_period);
-
-	return 0;
-}
-
-static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW)
-		return process_overflow_event(event, offset, head);
-
 	switch (event->header.type) {
-	case PERF_EVENT_MMAP:
+	case PERF_RECORD_SAMPLE:
+		return process_sample_event(event, offset, head);
+
+	case PERF_RECORD_MMAP:
 		return process_mmap_event(event, offset, head);
 
-	case PERF_EVENT_COMM:
+	case PERF_RECORD_COMM:
 		return process_comm_event(event, offset, head);
 
-	case PERF_EVENT_FORK:
+	case PERF_RECORD_FORK:
 		return process_fork_event(event, offset, head);
-
-	case PERF_EVENT_PERIOD:
-		return process_period_event(event, offset, head);
 	/*
 	 * We dont process them right now but they are fine:
 	 */
 
-	case PERF_EVENT_THROTTLE:
-	case PERF_EVENT_UNTHROTTLE:
+	case PERF_RECORD_THROTTLE:
+	case PERF_RECORD_UNTHROTTLE:
 		return 0;
 
 	default:
@@ -1041,24 +663,6 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	}
 
 	return 0;
-}
-
-static char *get_color(double percent)
-{
-	char *color = PERF_COLOR_NORMAL;
-
-	/*
-	 * We color high-overhead entries in red, mid-overhead
-	 * entries in green - and keep the low overhead places
-	 * normal:
-	 */
-	if (percent >= MIN_RED)
-		color = PERF_COLOR_RED;
-	else {
-		if (percent > MIN_GREEN)
-			color = PERF_COLOR_GREEN;
-	}
-	return color;
 }
 
 static int
@@ -1069,7 +673,7 @@ parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
 	static const char *prev_color;
 	unsigned int offset;
 	size_t line_len;
-	u64 line_ip;
+	s64 line_ip;
 	int ret;
 	char *c;
 
@@ -1109,7 +713,7 @@ parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
 		const char *path = NULL;
 		unsigned int hits = 0;
 		double percent = 0.0;
-		char *color;
+		const char *color;
 		struct sym_ext *sym_ext = sym->priv;
 
 		offset = line_ip - start;
@@ -1122,7 +726,7 @@ parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
 		} else if (sym->hist_sum)
 			percent = 100.0 * hits / sym->hist_sum;
 
-		color = get_color(percent);
+		color = get_percent_color(percent);
 
 		/*
 		 * Also color the filename and line if needed, with
@@ -1191,7 +795,7 @@ static void free_source_line(struct symbol *sym, int len)
 
 /* Get the filename:line for the colored entries */
 static void
-get_source_line(struct symbol *sym, u64 start, int len, char *filename)
+get_source_line(struct symbol *sym, u64 start, int len, const char *filename)
 {
 	int i;
 	char cmd[PATH_MAX * 2];
@@ -1237,7 +841,7 @@ get_source_line(struct symbol *sym, u64 start, int len, char *filename)
 	}
 }
 
-static void print_summary(char *filename)
+static void print_summary(const char *filename)
 {
 	struct sym_ext *sym_ext;
 	struct rb_node *node;
@@ -1253,12 +857,12 @@ static void print_summary(char *filename)
 	node = rb_first(&root_sym_ext);
 	while (node) {
 		double percent;
-		char *color;
+		const char *color;
 		char *path;
 
 		sym_ext = rb_entry(node, struct sym_ext, node);
 		percent = sym_ext->percent;
-		color = get_color(percent);
+		color = get_percent_color(percent);
 		path = sym_ext->path;
 
 		color_fprintf(stdout, color, " %7.2f %s", percent, path);
@@ -1268,19 +872,25 @@ static void print_summary(char *filename)
 
 static void annotate_sym(struct dso *dso, struct symbol *sym)
 {
-	char *filename = dso->name;
+	const char *filename = dso->name, *d_filename;
 	u64 start, end, len;
 	char command[PATH_MAX*2];
 	FILE *file;
 
 	if (!filename)
 		return;
-	if (dso == kernel_dso)
-		filename = vmlinux;
+	if (sym->module)
+		filename = sym->module->path;
+	else if (dso == kernel_dso)
+		filename = vmlinux_name;
 
 	start = sym->obj_start;
 	if (!start)
 		start = sym->start;
+	if (full_paths)
+		d_filename = filename;
+	else
+		d_filename = basename(filename);
 
 	end = start + sym->end - sym->start + 1;
 	len = sym->end - sym->start;
@@ -1291,13 +901,14 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 	}
 
 	printf("\n\n------------------------------------------------\n");
-	printf(" Percent |	Source code & Disassembly of %s\n", filename);
+	printf(" Percent |	Source code & Disassembly of %s\n", d_filename);
 	printf("------------------------------------------------\n");
 
 	if (verbose >= 2)
 		printf("annotating [%p] %30s : [%p] %30s\n", dso, dso->name, sym, sym->name);
 
-	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s", (u64)start, (u64)end, filename);
+	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s|grep -v %s",
+			(u64)start, (u64)end, filename, filename);
 
 	if (verbose >= 3)
 		printf("doing: %s\n", command);
@@ -1343,12 +954,12 @@ static int __cmd_annotate(void)
 	int ret, rc = EXIT_FAILURE;
 	unsigned long offset = 0;
 	unsigned long head = 0;
-	struct stat stat;
+	struct stat input_stat;
 	event_t *event;
 	uint32_t size;
 	char *buf;
 
-	register_idle_thread();
+	register_idle_thread(&threads, &last_match);
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
@@ -1356,13 +967,18 @@ static int __cmd_annotate(void)
 		exit(-1);
 	}
 
-	ret = fstat(input, &stat);
+	ret = fstat(input, &input_stat);
 	if (ret < 0) {
 		perror("failed to stat file");
 		exit(-1);
 	}
 
-	if (!stat.st_size) {
+	if (!force && input_stat.st_uid && (input_stat.st_uid != geteuid())) {
+		fprintf(stderr, "file: %s not owned by current user or root\n", input_name);
+		exit(-1);
+	}
+
+	if (!input_stat.st_size) {
 		fprintf(stderr, "zero-sized file, nothing to do!\n");
 		exit(0);
 	}
@@ -1389,10 +1005,10 @@ more:
 
 	if (head + event->header.size >= page_size * mmap_window) {
 		unsigned long shift = page_size * (head / page_size);
-		int ret;
+		int munmap_ret;
 
-		ret = munmap(buf, page_size * mmap_window);
-		assert(ret == 0);
+		munmap_ret = munmap(buf, page_size * mmap_window);
+		assert(munmap_ret == 0);
 
 		offset += shift;
 		head -= shift;
@@ -1401,14 +1017,14 @@ more:
 
 	size = event->header.size;
 
-	dprintf("%p [%p]: event: %d\n",
+	dump_printf("%p [%p]: event: %d\n",
 			(void *)(offset + head),
 			(void *)(long)event->header.size,
 			event->header.type);
 
 	if (!size || process_event(event, offset, head) < 0) {
 
-		dprintf("%p [%p]: skipping unknown header type: %d\n",
+		dump_printf("%p [%p]: skipping unknown header type: %d\n",
 			(void *)(offset + head),
 			(void *)(long)(event->header.size),
 			event->header.type);
@@ -1428,23 +1044,23 @@ more:
 
 	head += size;
 
-	if (offset + head < stat.st_size)
+	if (offset + head < (unsigned long)input_stat.st_size)
 		goto more;
 
 	rc = EXIT_SUCCESS;
 	close(input);
 
-	dprintf("      IP events: %10ld\n", total);
-	dprintf("    mmap events: %10ld\n", total_mmap);
-	dprintf("    comm events: %10ld\n", total_comm);
-	dprintf("    fork events: %10ld\n", total_fork);
-	dprintf(" unknown events: %10ld\n", total_unknown);
+	dump_printf("      IP events: %10ld\n", total);
+	dump_printf("    mmap events: %10ld\n", total_mmap);
+	dump_printf("    comm events: %10ld\n", total_comm);
+	dump_printf("    fork events: %10ld\n", total_fork);
+	dump_printf(" unknown events: %10ld\n", total_unknown);
 
 	if (dump_trace)
 		return 0;
 
 	if (verbose >= 3)
-		threads__fprintf(stdout);
+		threads__fprintf(stdout, &threads);
 
 	if (verbose >= 2)
 		dsos__fprintf(stdout);
@@ -1467,13 +1083,18 @@ static const struct option options[] = {
 		    "input file name"),
 	OPT_STRING('s', "symbol", &sym_hist_filter, "symbol",
 		    "symbol to annotate"),
+	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
+	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
+	OPT_BOOLEAN('m', "modules", &modules,
+		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
 	OPT_BOOLEAN('l', "print-line", &print_line,
 		    "print matching source lines (may be slow)"),
+	OPT_BOOLEAN('P', "full-paths", &full_paths,
+		    "Don't shorten the displayed pathnames"),
 	OPT_END()
 };
 
@@ -1492,7 +1113,7 @@ static void setup_sorting(void)
 	free(str);
 }
 
-int cmd_annotate(int argc, const char **argv, const char *prefix)
+int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
 	symbol__init();
 

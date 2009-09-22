@@ -179,7 +179,7 @@ static inline u64 gfs2_bit_search(const __le64 *ptr, u64 mask, u8 state)
  * always aligned to a 64 bit boundary.
  *
  * The size of the buffer is in bytes, but is it assumed that it is
- * always ok to to read a complete multiple of 64 bits at the end
+ * always ok to read a complete multiple of 64 bits at the end
  * of the block in case the end is no aligned to a natural boundary.
  *
  * Return: the block number (bitmap buffer scope) that was found
@@ -285,27 +285,19 @@ void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd)
 	}
 
 	tmp = rgd->rd_data - rgd->rd_free - rgd->rd_dinodes;
-	if (count[1] + count[2] != tmp) {
+	if (count[1] != tmp) {
 		if (gfs2_consist_rgrpd(rgd))
 			fs_err(sdp, "used data mismatch:  %u != %u\n",
 			       count[1], tmp);
 		return;
 	}
 
-	if (count[3] != rgd->rd_dinodes) {
+	if (count[2] + count[3] != rgd->rd_dinodes) {
 		if (gfs2_consist_rgrpd(rgd))
 			fs_err(sdp, "used metadata mismatch:  %u != %u\n",
-			       count[3], rgd->rd_dinodes);
+			       count[2] + count[3], rgd->rd_dinodes);
 		return;
 	}
-
-	if (count[2] > count[3]) {
-		if (gfs2_consist_rgrpd(rgd))
-			fs_err(sdp, "unlinked inodes > inodes:  %u\n",
-			       count[2]);
-		return;
-	}
-
 }
 
 static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
@@ -865,7 +857,8 @@ static void gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 					goto start_new_extent;
 				if ((start + nr_sects) != blk) {
 					rv = blkdev_issue_discard(bdev, start,
-							    nr_sects, GFP_NOFS);
+							    nr_sects, GFP_NOFS,
+							    DISCARD_FL_BARRIER);
 					if (rv)
 						goto fail;
 					nr_sects = 0;
@@ -879,7 +872,8 @@ start_new_extent:
 		}
 	}
 	if (nr_sects) {
-		rv = blkdev_issue_discard(bdev, start, nr_sects, GFP_NOFS);
+		rv = blkdev_issue_discard(bdev, start, nr_sects, GFP_NOFS,
+					 DISCARD_FL_BARRIER);
 		if (rv)
 			goto fail;
 	}
@@ -961,7 +955,8 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
  * Returns: The inode, if one has been found
  */
 
-static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
+static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked,
+				     u64 skip)
 {
 	struct inode *inode;
 	u32 goal = 0, block;
@@ -984,6 +979,8 @@ static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
 		no_addr = block + rgd->rd_data0;
 		goal++;
 		if (*last_unlinked != NO_BLOCK && no_addr <= *last_unlinked)
+			continue;
+		if (no_addr == skip)
 			continue;
 		*last_unlinked = no_addr;
 		inode = gfs2_inode_lookup(rgd->rd_sbd->sd_vfs, DT_UNKNOWN,
@@ -1104,7 +1101,7 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			if (try_rgrp_fit(rgd, al))
 				goto out;
 			if (rgd->rd_flags & GFS2_RDF_CHECK)
-				inode = try_rgrp_unlink(rgd, last_unlinked);
+				inode = try_rgrp_unlink(rgd, last_unlinked, ip->i_no_addr);
 			if (!rg_locked)
 				gfs2_glock_dq_uninit(&al->al_rgd_gh);
 			if (inode)
@@ -1138,7 +1135,7 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			if (try_rgrp_fit(rgd, al))
 				goto out;
 			if (rgd->rd_flags & GFS2_RDF_CHECK)
-				inode = try_rgrp_unlink(rgd, last_unlinked);
+				inode = try_rgrp_unlink(rgd, last_unlinked, ip->i_no_addr);
 			if (!rg_locked)
 				gfs2_glock_dq_uninit(&al->al_rgd_gh);
 			if (inode)
@@ -1261,7 +1258,7 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
  * Returns: The block type (GFS2_BLKST_*)
  */
 
-unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block)
+static unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block)
 {
 	struct gfs2_bitmap *bi = NULL;
 	u32 length, rgrp_block, buf_block;
@@ -1464,6 +1461,16 @@ int gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 	return 0;
 }
 
+static void gfs2_rgrp_error(struct gfs2_rgrpd *rgd)
+{
+	struct gfs2_sbd *sdp = rgd->rd_sbd;
+	fs_warn(sdp, "rgrp %llu has an error, marking it readonly until umount\n",
+		(unsigned long long)rgd->rd_addr);
+	fs_warn(sdp, "umount on all nodes and run fsck.gfs2 to fix the error\n");
+	gfs2_rgrp_dump(NULL, rgd->rd_gl);
+	rgd->rd_flags |= GFS2_RDF_ERROR;
+}
+
 /**
  * gfs2_alloc_block - Allocate one or more blocks
  * @ip: the inode to allocate the block for
@@ -1525,22 +1532,20 @@ int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
 	return 0;
 
 rgrp_error:
-	fs_warn(sdp, "rgrp %llu has an error, marking it readonly until umount\n",
-	        (unsigned long long)rgd->rd_addr);
-	fs_warn(sdp, "umount on all nodes and run fsck.gfs2 to fix the error\n");
-	gfs2_rgrp_dump(NULL, rgd->rd_gl);
-	rgd->rd_flags |= GFS2_RDF_ERROR;
+	gfs2_rgrp_error(rgd);
 	return -EIO;
 }
 
 /**
  * gfs2_alloc_di - Allocate a dinode
  * @dip: the directory that the inode is going in
+ * @bn: the block number which is allocated
+ * @generation: the generation number of the inode
  *
- * Returns: the block allocated
+ * Returns: 0 on success or error
  */
 
-u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
+int gfs2_alloc_di(struct gfs2_inode *dip, u64 *bn, u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_alloc *al = dip->i_alloc;
@@ -1551,16 +1556,21 @@ u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
 
 	blk = rgblk_search(rgd, rgd->rd_last_alloc,
 			   GFS2_BLKST_FREE, GFS2_BLKST_DINODE, &n);
-	BUG_ON(blk == BFITNOENT);
+
+	/* Since all blocks are reserved in advance, this shouldn't happen */
+	if (blk == BFITNOENT)
+		goto rgrp_error;
 
 	rgd->rd_last_alloc = blk;
-
 	block = rgd->rd_data0 + blk;
+	if (rgd->rd_free == 0)
+		goto rgrp_error;
 
-	gfs2_assert_withdraw(sdp, rgd->rd_free);
 	rgd->rd_free--;
 	rgd->rd_dinodes++;
 	*generation = rgd->rd_igeneration++;
+	if (*generation == 0)
+		*generation = rgd->rd_igeneration++;
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
 	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
@@ -1573,7 +1583,12 @@ u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
 	rgd->rd_free_clone--;
 	spin_unlock(&sdp->sd_rindex_spin);
 	trace_gfs2_block_alloc(dip, block, 1, GFS2_BLKST_DINODE);
-	return block;
+	*bn = block;
+	return 0;
+
+rgrp_error:
+	gfs2_rgrp_error(rgd);
+	return -EIO;
 }
 
 /**
@@ -1678,6 +1693,46 @@ void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
 	trace_gfs2_block_alloc(ip, ip->i_no_addr, 1, GFS2_BLKST_FREE);
 	gfs2_quota_change(ip, -1, ip->i_inode.i_uid, ip->i_inode.i_gid);
 	gfs2_meta_wipe(ip, ip->i_no_addr, 1);
+}
+
+/**
+ * gfs2_check_blk_type - Check the type of a block
+ * @sdp: The superblock
+ * @no_addr: The block number to check
+ * @type: The block type we are looking for
+ *
+ * Returns: 0 if the block type matches the expected type
+ *          -ESTALE if it doesn't match
+ *          or -ve errno if something went wrong while checking
+ */
+
+int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr, unsigned int type)
+{
+	struct gfs2_rgrpd *rgd;
+	struct gfs2_holder ri_gh, rgd_gh;
+	int error;
+
+	error = gfs2_rindex_hold(sdp, &ri_gh);
+	if (error)
+		goto fail;
+
+	error = -EINVAL;
+	rgd = gfs2_blk2rgrpd(sdp, no_addr);
+	if (!rgd)
+		goto fail_rindex;
+
+	error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_SHARED, 0, &rgd_gh);
+	if (error)
+		goto fail_rindex;
+
+	if (gfs2_get_block_type(rgd, no_addr) != type)
+		error = -ESTALE;
+
+	gfs2_glock_dq_uninit(&rgd_gh);
+fail_rindex:
+	gfs2_glock_dq_uninit(&ri_gh);
+fail:
+	return error;
 }
 
 /**

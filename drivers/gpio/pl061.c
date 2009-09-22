@@ -109,6 +109,16 @@ static void pl061_set_value(struct gpio_chip *gc, unsigned offset, int value)
 	writeb(!!value << offset, chip->base + (1 << (offset + 2)));
 }
 
+static int pl061_to_irq(struct gpio_chip *gc, unsigned offset)
+{
+	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+
+	if (chip->irq_base == (unsigned) -1)
+		return -EINVAL;
+
+	return chip->irq_base + offset;
+}
+
 /*
  * PL061 GPIO IRQ
  */
@@ -200,7 +210,7 @@ static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 	desc->chip->ack(irq);
 	list_for_each(ptr, chip_list) {
 		unsigned long pending;
-		int gpio;
+		int offset;
 
 		chip = list_entry(ptr, struct pl061_gpio, list);
 		pending = readb(chip->base + GPIOMIS);
@@ -209,8 +219,8 @@ static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 		if (pending == 0)
 			continue;
 
-		for_each_bit(gpio, &pending, PL061_GPIO_NR)
-			generic_handle_irq(gpio_to_irq(gpio));
+		for_each_bit(offset, &pending, PL061_GPIO_NR)
+			generic_handle_irq(pl061_to_irq(&chip->gc, offset));
 	}
 	desc->chip->unmask(irq);
 }
@@ -221,7 +231,7 @@ static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
 	struct pl061_gpio *chip;
 	struct list_head *chip_list;
 	int ret, irq, i;
-	static unsigned long init_irq[BITS_TO_LONGS(NR_IRQS)];
+	static DECLARE_BITMAP(init_irq, NR_IRQS);
 
 	pdata = dev->dev.platform_data;
 	if (pdata == NULL)
@@ -251,6 +261,7 @@ static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
 	chip->gc.direction_output = pl061_direction_output;
 	chip->gc.get = pl061_get_value;
 	chip->gc.set = pl061_set_value;
+	chip->gc.to_irq = pl061_to_irq;
 	chip->gc.base = pdata->gpio_base;
 	chip->gc.ngpio = PL061_GPIO_NR;
 	chip->gc.label = dev_name(&dev->dev);
@@ -280,6 +291,7 @@ static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
 	if (!test_and_set_bit(irq, init_irq)) { /* list initialized? */
 		chip_list = kmalloc(sizeof(*chip_list), GFP_KERNEL);
 		if (chip_list == NULL) {
+			clear_bit(irq, init_irq);
 			ret = -ENOMEM;
 			goto iounmap;
 		}

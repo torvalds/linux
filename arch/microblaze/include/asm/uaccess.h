@@ -189,7 +189,7 @@ extern long strnlen_user(const char *src, long count);
 
 #define __put_user(x, ptr)						\
 ({									\
-	__typeof__(*(ptr)) __gu_val = x;				\
+	__typeof__(*(ptr)) volatile __gu_val = (x);			\
 	long __gu_err = 0;						\
 	switch (sizeof(__gu_val)) {					\
 	case 1:								\

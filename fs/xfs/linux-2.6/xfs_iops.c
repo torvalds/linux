@@ -43,7 +43,6 @@
 #include "xfs_error.h"
 #include "xfs_itable.h"
 #include "xfs_rw.h"
-#include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
@@ -485,14 +484,6 @@ xfs_vn_put_link(
 }
 
 STATIC int
-xfs_vn_permission(
-	struct inode		*inode,
-	int			mask)
-{
-	return generic_permission(inode, mask, xfs_check_acl);
-}
-
-STATIC int
 xfs_vn_getattr(
 	struct vfsmount		*mnt,
 	struct dentry		*dentry,
@@ -680,8 +671,8 @@ xfs_vn_fiemap(
 	else
 		bm.bmv_length = BTOBB(length);
 
-	/* our formatter will tell xfs_getbmap when to stop. */
-	bm.bmv_count = MAXEXTNUM;
+	/* We add one because in getbmap world count includes the header */
+	bm.bmv_count = fieinfo->fi_extents_max + 1;
 	bm.bmv_iflags = BMV_IF_PREALLOC;
 	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR)
 		bm.bmv_iflags |= BMV_IF_ATTRFORK;
@@ -696,7 +687,7 @@ xfs_vn_fiemap(
 }
 
 static const struct inode_operations xfs_inode_operations = {
-	.permission		= xfs_vn_permission,
+	.check_acl		= xfs_check_acl,
 	.truncate		= xfs_vn_truncate,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
@@ -724,7 +715,7 @@ static const struct inode_operations xfs_dir_inode_operations = {
 	.rmdir			= xfs_vn_unlink,
 	.mknod			= xfs_vn_mknod,
 	.rename			= xfs_vn_rename,
-	.permission		= xfs_vn_permission,
+	.check_acl		= xfs_check_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -749,7 +740,7 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 	.rmdir			= xfs_vn_unlink,
 	.mknod			= xfs_vn_mknod,
 	.rename			= xfs_vn_rename,
-	.permission		= xfs_vn_permission,
+	.check_acl		= xfs_check_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,
@@ -762,7 +753,7 @@ static const struct inode_operations xfs_symlink_inode_operations = {
 	.readlink		= generic_readlink,
 	.follow_link		= xfs_vn_follow_link,
 	.put_link		= xfs_vn_put_link,
-	.permission		= xfs_vn_permission,
+	.check_acl		= xfs_check_acl,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
 	.setxattr		= generic_setxattr,

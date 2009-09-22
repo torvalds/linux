@@ -95,14 +95,14 @@ void init_smtc_stats(void);
 
 /* Global SMTC Status */
 
-unsigned int smtc_status = 0;
+unsigned int smtc_status;
 
 /* Boot command line configuration overrides */
 
 static int vpe0limit;
-static int ipibuffers = 0;
-static int nostlb = 0;
-static int asidmask = 0;
+static int ipibuffers;
+static int nostlb;
+static int asidmask;
 unsigned long smtc_asid_mask = 0xff;
 
 static int __init vpe0tcs(char *str)
@@ -151,7 +151,7 @@ __setup("asidmask=", asidmask_set);
 
 #ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
 
-static int hang_trig = 0;
+static int hang_trig;
 
 static int __init hangtrig_enable(char *s)
 {
@@ -465,11 +465,8 @@ void smtc_prepare_cpus(int cpus)
 	smtc_configure_tlb();
 
 	for (tc = 0, vpe = 0 ; (vpe < nvpe) && (tc < ntc) ; vpe++) {
-		/*
-		 * Set the MVP bits.
-		 */
-		settc(tc);
-		write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() | VPECONF0_MVP);
+		if (tcpervpe[vpe] == 0)
+			continue;
 		if (vpe != 0)
 			printk(", ");
 		printk("VPE %d: TC", vpe);
@@ -487,6 +484,12 @@ void smtc_prepare_cpus(int cpus)
 			tc++;
 		}
 		if (vpe != 0) {
+			/*
+			 * Allow this VPE to control others.
+			 */
+			write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() |
+					      VPECONF0_MVP);
+
 			/*
 			 * Clear any stale software interrupts from VPE's Cause
 			 */

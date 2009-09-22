@@ -73,8 +73,8 @@ static int major;
 static const int minor = 1;	/* fixed for now  */
 
 #ifdef CONFIG_MIPS_APSP_KSPD
- static struct kspd_notifications kspd_events;
-static int kspd_events_reqd = 0;
+static struct kspd_notifications kspd_events;
+static int kspd_events_reqd;
 #endif
 
 /* grab the likely amount of memory we will need. */
@@ -155,10 +155,9 @@ struct {
 };
 
 static void release_progmem(void *ptr);
-extern void save_gp_address(unsigned int secbase, unsigned int rel);
 
 /* get the vpe associated with this minor */
-struct vpe *get_vpe(int minor)
+static struct vpe *get_vpe(int minor)
 {
 	struct vpe *v;
 
@@ -174,7 +173,7 @@ struct vpe *get_vpe(int minor)
 }
 
 /* get the vpe associated with this minor */
-struct tc *get_tc(int index)
+static struct tc *get_tc(int index)
 {
 	struct tc *t;
 
@@ -186,20 +185,8 @@ struct tc *get_tc(int index)
 	return NULL;
 }
 
-struct tc *get_tc_unused(void)
-{
-	struct tc *t;
-
-	list_for_each_entry(t, &vpecontrol.tc_list, list) {
-		if (t->state == TC_STATE_UNUSED)
-			return t;
-	}
-
-	return NULL;
-}
-
 /* allocate a vpe and associate it with this minor (or index) */
-struct vpe *alloc_vpe(int minor)
+static struct vpe *alloc_vpe(int minor)
 {
 	struct vpe *v;
 
@@ -216,7 +203,7 @@ struct vpe *alloc_vpe(int minor)
 }
 
 /* allocate a tc. At startup only tc0 is running, all other can be halted. */
-struct tc *alloc_tc(int index)
+static struct tc *alloc_tc(int index)
 {
 	struct tc *tc;
 
@@ -232,7 +219,7 @@ out:
 }
 
 /* clean up and free everything */
-void release_vpe(struct vpe *v)
+static void release_vpe(struct vpe *v)
 {
 	list_del(&v->list);
 	if (v->load_addr)
@@ -240,7 +227,7 @@ void release_vpe(struct vpe *v)
 	kfree(v);
 }
 
-void dump_mtregs(void)
+static void dump_mtregs(void)
 {
 	unsigned long val;
 
@@ -327,7 +314,8 @@ static void layout_sections(struct module *mod, const Elf_Ehdr * hdr,
 			    || (s->sh_flags & masks[m][1])
 			    || s->sh_entsize != ~0UL)
 				continue;
-			s->sh_entsize = get_offset(&mod->core_size, s);
+			s->sh_entsize =
+				get_offset((unsigned long *)&mod->core_size, s);
 		}
 
 		if (m == 0)
@@ -461,16 +449,15 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 {
 	unsigned long insnlo = *location;
 	Elf32_Addr val, vallo;
+	struct mips_hi16 *l, *next;
 
 	/* Sign extend the addend we extract from the lo insn.  */
 	vallo = ((insnlo & 0xffff) ^ 0x8000) - 0x8000;
 
 	if (mips_hi16_list != NULL) {
-		struct mips_hi16 *l;
 
 		l = mips_hi16_list;
 		while (l != NULL) {
-			struct mips_hi16 *next;
 			unsigned long insn;
 
 			/*
@@ -480,7 +467,7 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 				printk(KERN_DEBUG "VPE loader: "
 				       "apply_r_mips_lo16/hi16: \t"
 				       "inconsistent value information\n");
-				return -ENOEXEC;
+				goto out_free;
 			}
 
 			/*
@@ -518,6 +505,16 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 	*location = insnlo;
 
 	return 0;
+
+out_free:
+	while (l != NULL) {
+		next = l->next;
+		kfree(l);
+		l = next;
+	}
+	mips_hi16_list = NULL;
+
+	return -ENOEXEC;
 }
 
 static int (*reloc_handlers[]) (struct module *me, uint32_t *location,
@@ -541,7 +538,7 @@ static char *rstrs[] = {
 	[R_MIPS_PC16] = "MIPS_PC16"
 };
 
-int apply_relocations(Elf32_Shdr *sechdrs,
+static int apply_relocations(Elf32_Shdr *sechdrs,
 		      const char *strtab,
 		      unsigned int symindex,
 		      unsigned int relsec,
@@ -586,7 +583,7 @@ int apply_relocations(Elf32_Shdr *sechdrs,
 	return 0;
 }
 
-void save_gp_address(unsigned int secbase, unsigned int rel)
+static inline void save_gp_address(unsigned int secbase, unsigned int rel)
 {
 	gp_addr = secbase + rel;
 	gp_offs = gp_addr - (secbase & 0xffff0000);
@@ -1387,7 +1384,7 @@ static ssize_t store_ntcs(struct device *dev, struct device_attribute *attr,
 	return len;
 
 out_einval:
-	return -EINVAL;;
+	return -EINVAL;
 }
 
 static struct device_attribute vpe_class_attributes[] = {

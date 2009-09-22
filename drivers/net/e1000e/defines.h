@@ -238,6 +238,7 @@
 #define E1000_STATUS_SPEED_100  0x00000040      /* Speed 100Mb/s */
 #define E1000_STATUS_SPEED_1000 0x00000080      /* Speed 1000Mb/s */
 #define E1000_STATUS_LAN_INIT_DONE 0x00000200   /* Lan Init Completion by NVM */
+#define E1000_STATUS_PHYRA      0x00000400      /* PHY Reset Asserted */
 #define E1000_STATUS_GIO_MASTER_ENABLE 0x00080000 /* Status of Master requests. */
 
 /* Constants used to interpret the masked PCI-X bus speed. */
@@ -574,6 +575,8 @@
 #define PHY_1000T_CTRL   0x09 /* 1000Base-T Control Reg */
 #define PHY_1000T_STATUS 0x0A /* 1000Base-T Status Reg */
 #define PHY_EXT_STATUS   0x0F /* Extended Status Reg */
+
+#define PHY_CONTROL_LB   0x4000 /* PHY Loopback bit */
 
 /* NVM Control */
 #define E1000_EECD_SK        0x00000001 /* NVM Clock */

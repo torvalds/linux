@@ -260,6 +260,8 @@ struct cifsTconInfo {
 	atomic_t num_closes;
 	atomic_t num_deletes;
 	atomic_t num_mkdirs;
+	atomic_t num_posixopens;
+	atomic_t num_posixmkdirs;
 	atomic_t num_rmdirs;
 	atomic_t num_renames;
 	atomic_t num_t2renames;
@@ -349,10 +351,23 @@ struct cifsFileInfo {
 	bool closePend:1;	/* file is marked to close */
 	bool invalidHandle:1;	/* file closed via session abend */
 	bool messageMode:1;	/* for pipes: message vs byte mode */
-	atomic_t wrtPending;   /* handle in use - defer close */
+	atomic_t count;		/* reference count */
 	struct mutex fh_mutex; /* prevents reopen race after dead ses*/
 	struct cifs_search_info srch_inf;
 };
+
+/* Take a reference on the file private data */
+static inline void cifsFileInfo_get(struct cifsFileInfo *cifs_file)
+{
+	atomic_inc(&cifs_file->count);
+}
+
+/* Release a reference on the file private data */
+static inline void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
+{
+	if (atomic_dec_and_test(&cifs_file->count))
+		kfree(cifs_file);
+}
 
 /*
  * One of these for each file inode
@@ -364,13 +379,13 @@ struct cifsInodeInfo {
 	struct list_head openFileList;
 	int write_behind_rc;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
-	atomic_t inUse;	 /* num concurrent users (local openers cifs) of file*/
 	unsigned long time;	/* jiffies of last update/check of inode */
 	bool clientCanCacheRead:1;	/* read oplock */
 	bool clientCanCacheAll:1;	/* read and writebehind oplock */
 	bool oplockPending:1;
 	bool delete_pending:1;		/* DELETE_ON_CLOSE is set */
 	u64  server_eof;		/* current file size on server */
+	u64  uniqueid;			/* server inode number */
 	struct inode vfs_inode;
 };
 
@@ -470,6 +485,32 @@ struct dfs_info3_param {
 	int ref_flag;
 	char *path_name;
 	char *node_name;
+};
+
+/*
+ * common struct for holding inode info when searching for or updating an
+ * inode with new info
+ */
+
+#define CIFS_FATTR_DFS_REFERRAL		0x1
+#define CIFS_FATTR_DELETE_PENDING	0x2
+#define CIFS_FATTR_NEED_REVAL		0x4
+
+struct cifs_fattr {
+	u32		cf_flags;
+	u32		cf_cifsattrs;
+	u64		cf_uniqueid;
+	u64		cf_eof;
+	u64		cf_bytes;
+	uid_t		cf_uid;
+	gid_t		cf_gid;
+	umode_t		cf_mode;
+	dev_t		cf_rdev;
+	unsigned int	cf_nlink;
+	unsigned int	cf_dtype;
+	struct timespec	cf_atime;
+	struct timespec	cf_mtime;
+	struct timespec	cf_ctime;
 };
 
 static inline void free_dfs_info_param(struct dfs_info3_param *param)
@@ -628,7 +669,11 @@ GLOBAL_EXTERN rwlock_t		cifs_tcp_ses_lock;
  */
 GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;
 
-GLOBAL_EXTERN struct list_head GlobalOplock_Q;
+/* Global list of oplocks */
+GLOBAL_EXTERN struct list_head cifs_oplock_list;
+
+/* Protects the cifs_oplock_list */
+GLOBAL_EXTERN spinlock_t cifs_oplock_lock;
 
 /* Outstanding dir notify requests */
 GLOBAL_EXTERN struct list_head GlobalDnotifyReqList;

@@ -35,7 +35,7 @@ man7dir=$(mandir)/man7
 # DESTDIR=
 
 ASCIIDOC=asciidoc
-ASCIIDOC_EXTRA =
+ASCIIDOC_EXTRA = --unsafe
 MANPAGE_XSL = manpage-normal.xsl
 XMLTO_EXTRA =
 INSTALL?=install

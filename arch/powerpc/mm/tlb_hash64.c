@@ -33,11 +33,6 @@
 
 DEFINE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
 
-/* This is declared as we are using the more or less generic
- * arch/powerpc/include/asm/tlb.h file -- tgall
- */
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
 /*
  * A linux PTE was changed and the corresponding hash table entry
  * neesd to be flushed. This function will either perform the flush
@@ -72,7 +67,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	 */
 	if (huge) {
 #ifdef CONFIG_HUGETLB_PAGE
-		psize = get_slice_psize(mm, addr);;
+		psize = get_slice_psize(mm, addr);
 #else
 		BUG();
 		psize = pte_pagesize_index(mm, addr, pte); /* shutup gcc */
@@ -152,6 +147,21 @@ void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 	else
 		flush_hash_range(i, local);
 	batch->index = 0;
+}
+
+void tlb_flush(struct mmu_gather *tlb)
+{
+	struct ppc64_tlb_batch *tlbbatch = &__get_cpu_var(ppc64_tlb_batch);
+
+	/* If there's a TLB batch pending, then we must flush it because the
+	 * pages are going to be freed and we really don't want to have a CPU
+	 * access a freed page because it has a stale TLB
+	 */
+	if (tlbbatch->index)
+		__flush_tlb_pending(tlbbatch);
+
+	/* Push out batch of freed page tables */
+	pte_free_finish();
 }
 
 /**

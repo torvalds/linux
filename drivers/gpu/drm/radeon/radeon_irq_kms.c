@@ -28,63 +28,8 @@
 #include "drmP.h"
 #include "radeon_drm.h"
 #include "radeon_reg.h"
-#include "radeon_microcode.h"
 #include "radeon.h"
 #include "atom.h"
-
-static inline uint32_t r100_irq_ack(struct radeon_device *rdev)
-{
-	uint32_t irqs = RREG32(RADEON_GEN_INT_STATUS);
-	uint32_t irq_mask = RADEON_SW_INT_TEST;
-
-	if (irqs) {
-		WREG32(RADEON_GEN_INT_STATUS, irqs);
-	}
-	return irqs & irq_mask;
-}
-
-int r100_irq_set(struct radeon_device *rdev)
-{
-	uint32_t tmp = 0;
-
-	if (rdev->irq.sw_int) {
-		tmp |= RADEON_SW_INT_ENABLE;
-	}
-	/* Todo go through CRTC and enable vblank int or not */
-	WREG32(RADEON_GEN_INT_CNTL, tmp);
-	return 0;
-}
-
-int r100_irq_process(struct radeon_device *rdev)
-{
-	uint32_t status;
-
-	status = r100_irq_ack(rdev);
-	if (!status) {
-		return IRQ_NONE;
-	}
-	while (status) {
-		/* SW interrupt */
-		if (status & RADEON_SW_INT_TEST) {
-			radeon_fence_process(rdev);
-		}
-		status = r100_irq_ack(rdev);
-	}
-	return IRQ_HANDLED;
-}
-
-int rs600_irq_set(struct radeon_device *rdev)
-{
-	uint32_t tmp = 0;
-
-	if (rdev->irq.sw_int) {
-		tmp |= RADEON_SW_INT_ENABLE;
-	}
-	WREG32(RADEON_GEN_INT_CNTL, tmp);
-	/* Todo go through CRTC and enable vblank int or not */
-	WREG32(R500_DxMODE_INT_MASK, 0);
-	return 0;
-}
 
 irqreturn_t radeon_driver_irq_handler_kms(DRM_IRQ_ARGS)
 {

@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 
 #include <linux/usb.h>
 #include <linux/mm.h>
@@ -1049,8 +1050,8 @@ static int stk_setup_format(struct stk_camera *dev)
 		depth = 1;
 	else
 		depth = 2;
-	while (stk_sizes[i].m != dev->vsettings.mode
-			&& i < ARRAY_SIZE(stk_sizes))
+	while (i < ARRAY_SIZE(stk_sizes) &&
+			stk_sizes[i].m != dev->vsettings.mode)
 		i++;
 	if (i == ARRAY_SIZE(stk_sizes)) {
 		STK_ERROR("Something is broken in %s\n", __func__);
@@ -1399,7 +1400,6 @@ static int stk_camera_probe(struct usb_interface *interface,
 	}
 
 	stk_create_sysfs_files(&dev->vdev);
-	usb_autopm_enable(dev->interface);
 
 	return 0;
 

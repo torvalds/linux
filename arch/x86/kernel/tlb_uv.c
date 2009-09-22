@@ -640,13 +640,13 @@ static int __init uv_ptc_init(void)
 	if (!is_uv_system())
 		return 0;
 
-	proc_uv_ptc = create_proc_entry(UV_PTC_BASENAME, 0444, NULL);
+	proc_uv_ptc = proc_create(UV_PTC_BASENAME, 0444, NULL,
+				  &proc_uv_ptc_operations);
 	if (!proc_uv_ptc) {
 		printk(KERN_ERR "unable to create %s proc entry\n",
 		       UV_PTC_BASENAME);
 		return -EINVAL;
 	}
-	proc_uv_ptc->proc_fops = &proc_uv_ptc_operations;
 	return 0;
 }
 
@@ -744,6 +744,7 @@ uv_activation_descriptor_init(int node, int pnode)
 		 * note that base_dest_nodeid is actually a nasid.
 		 */
 		ad2->header.base_dest_nodeid = uv_partition_base_pnode << 1;
+		ad2->header.dest_subnodeid = 0x10; /* the LB */
 		ad2->header.command = UV_NET_ENDPOINT_INTD;
 		ad2->header.int_both = 1;
 		/*

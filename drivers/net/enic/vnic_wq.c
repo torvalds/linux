@@ -112,7 +112,8 @@ int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 	return 0;
 }
 
-void vnic_wq_init(struct vnic_wq *wq, unsigned int cq_index,
+void vnic_wq_init_start(struct vnic_wq *wq, unsigned int cq_index,
+	unsigned int fetch_index, unsigned int posted_index,
 	unsigned int error_interrupt_enable,
 	unsigned int error_interrupt_offset)
 {
@@ -121,12 +122,25 @@ void vnic_wq_init(struct vnic_wq *wq, unsigned int cq_index,
 	paddr = (u64)wq->ring.base_addr | VNIC_PADDR_TARGET;
 	writeq(paddr, &wq->ctrl->ring_base);
 	iowrite32(wq->ring.desc_count, &wq->ctrl->ring_size);
-	iowrite32(0, &wq->ctrl->fetch_index);
-	iowrite32(0, &wq->ctrl->posted_index);
+	iowrite32(fetch_index, &wq->ctrl->fetch_index);
+	iowrite32(posted_index, &wq->ctrl->posted_index);
 	iowrite32(cq_index, &wq->ctrl->cq_index);
 	iowrite32(error_interrupt_enable, &wq->ctrl->error_interrupt_enable);
 	iowrite32(error_interrupt_offset, &wq->ctrl->error_interrupt_offset);
 	iowrite32(0, &wq->ctrl->error_status);
+
+	wq->to_use = wq->to_clean =
+		&wq->bufs[fetch_index / VNIC_WQ_BUF_BLK_ENTRIES]
+			[fetch_index % VNIC_WQ_BUF_BLK_ENTRIES];
+}
+
+void vnic_wq_init(struct vnic_wq *wq, unsigned int cq_index,
+	unsigned int error_interrupt_enable,
+	unsigned int error_interrupt_offset)
+{
+	vnic_wq_init_start(wq, cq_index, 0, 0,
+		error_interrupt_enable,
+		error_interrupt_offset);
 }
 
 unsigned int vnic_wq_error_status(struct vnic_wq *wq)

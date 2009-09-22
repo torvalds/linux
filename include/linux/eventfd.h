@@ -8,10 +8,8 @@
 #ifndef _LINUX_EVENTFD_H
 #define _LINUX_EVENTFD_H
 
-#ifdef CONFIG_EVENTFD
-
-/* For O_CLOEXEC and O_NONBLOCK */
 #include <linux/fcntl.h>
+#include <linux/file.h>
 
 /*
  * CAREFUL: Check include/asm-generic/fcntl.h when defining
@@ -27,16 +25,37 @@
 #define EFD_SHARED_FCNTL_FLAGS (O_CLOEXEC | O_NONBLOCK)
 #define EFD_FLAGS_SET (EFD_SHARED_FCNTL_FLAGS | EFD_SEMAPHORE)
 
+#ifdef CONFIG_EVENTFD
+
+struct eventfd_ctx *eventfd_ctx_get(struct eventfd_ctx *ctx);
+void eventfd_ctx_put(struct eventfd_ctx *ctx);
 struct file *eventfd_fget(int fd);
-int eventfd_signal(struct file *file, int n);
+struct eventfd_ctx *eventfd_ctx_fdget(int fd);
+struct eventfd_ctx *eventfd_ctx_fileget(struct file *file);
+int eventfd_signal(struct eventfd_ctx *ctx, int n);
 
 #else /* CONFIG_EVENTFD */
 
-#define eventfd_fget(fd) ERR_PTR(-ENOSYS)
-static inline int eventfd_signal(struct file *file, int n)
-{ return 0; }
+/*
+ * Ugly ugly ugly error layer to support modules that uses eventfd but
+ * pretend to work in !CONFIG_EVENTFD configurations. Namely, AIO.
+ */
+static inline struct eventfd_ctx *eventfd_ctx_fdget(int fd)
+{
+	return ERR_PTR(-ENOSYS);
+}
 
-#endif /* CONFIG_EVENTFD */
+static inline int eventfd_signal(struct eventfd_ctx *ctx, int n)
+{
+	return -ENOSYS;
+}
+
+static inline void eventfd_ctx_put(struct eventfd_ctx *ctx)
+{
+
+}
+
+#endif
 
 #endif /* _LINUX_EVENTFD_H */
 

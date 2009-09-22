@@ -54,10 +54,23 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		flags |= RADEON_IS_PCI;
 	}
 
+	/* radeon_device_init should report only fatal error
+	 * like memory allocation failure or iomapping failure,
+	 * or memory manager initialization failure, it must
+	 * properly initialize the GPU MC controller and permit
+	 * VRAM allocation
+	 */
 	r = radeon_device_init(rdev, dev, dev->pdev, flags);
 	if (r) {
-		DRM_ERROR("Failed to initialize radeon, disabling IOCTL\n");
-		radeon_device_fini(rdev);
+		DRM_ERROR("Fatal error while trying to initialize radeon.\n");
+		return r;
+	}
+	/* Again modeset_init should fail only on fatal error
+	 * otherwise it should provide enough functionalities
+	 * for shadowfb to run
+	 */
+	r = radeon_modeset_init(rdev);
+	if (r) {
 		return r;
 	}
 	return 0;
@@ -67,6 +80,9 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
+	if (rdev == NULL)
+		return 0;
+	radeon_modeset_fini(rdev);
 	radeon_device_fini(rdev);
 	kfree(rdev);
 	dev->dev_private = NULL;
@@ -92,6 +108,12 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_NUM_GB_PIPES:
 		value = rdev->num_gb_pipes;
+		break;
+	case RADEON_INFO_NUM_Z_PIPES:
+		value = rdev->num_z_pipes;
+		break;
+	case RADEON_INFO_ACCEL_WORKING:
+		value = rdev->accel_working;
 		break;
 	default:
 		DRM_DEBUG("Invalid request %d\n", info->request);
@@ -139,19 +161,42 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
  */
 u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc)
 {
-	/* FIXME: implement */
-	return 0;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc > 1) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
+
+	return radeon_get_vblank_counter(rdev, crtc);
 }
 
 int radeon_enable_vblank_kms(struct drm_device *dev, int crtc)
 {
-	/* FIXME: implement */
-	return 0;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc > 1) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
+
+	rdev->irq.crtc_vblank_int[crtc] = true;
+
+	return radeon_irq_set(rdev);
 }
 
 void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 {
-	/* FIXME: implement */
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (crtc < 0 || crtc > 1) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return;
+	}
+
+	rdev->irq.crtc_vblank_int[crtc] = false;
+
+	radeon_irq_set(rdev);
 }
 
 
@@ -291,5 +336,8 @@ struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF(DRM_RADEON_GEM_WAIT_IDLE, radeon_gem_wait_idle_ioctl, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_RADEON_CS, radeon_cs_ioctl, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_RADEON_INFO, radeon_info_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_RADEON_GEM_SET_TILING, radeon_gem_set_tiling_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_RADEON_GEM_GET_TILING, radeon_gem_get_tiling_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_RADEON_GEM_BUSY, radeon_gem_busy_ioctl, DRM_AUTH),
 };
 int radeon_max_kms_ioctl = DRM_ARRAY_SIZE(radeon_ioctls_kms);

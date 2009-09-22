@@ -2137,7 +2137,7 @@ static void nv_gear_backoff_reseed(struct net_device *dev)
  * nv_start_xmit: dev->hard_start_xmit function
  * Called with netif_tx_lock held.
  */
-static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 tx_flags = 0;
@@ -2257,7 +2257,8 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
+					   struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u32 tx_flags = 0;
@@ -3514,11 +3515,13 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 	nv_msi_workaround(np);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-	napi_schedule(&np->napi);
-
-	/* Disable furthur irq's
-	   (msix not enabled with napi) */
-	writel(0, base + NvRegIrqMask);
+	if (napi_schedule_prep(&np->napi)) {
+		/*
+		 * Disable further irq's (msix not enabled with napi)
+		 */
+		writel(0, base + NvRegIrqMask);
+		__napi_schedule(&np->napi);
+	}
 
 #else
 	do
@@ -3615,12 +3618,13 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 	nv_msi_workaround(np);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-	napi_schedule(&np->napi);
-
-	/* Disable furthur irq's
-	   (msix not enabled with napi) */
-	writel(0, base + NvRegIrqMask);
-
+	if (napi_schedule_prep(&np->napi)) {
+		/*
+		 * Disable further irq's (msix not enabled with napi)
+		 */
+		writel(0, base + NvRegIrqMask);
+		__napi_schedule(&np->napi);
+	}
 #else
 	do
 	{

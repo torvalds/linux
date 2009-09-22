@@ -23,7 +23,8 @@ interface.
 Using sysfs
 ~~~~~~~~~~~
 
-sysfs is always compiled in. You can access it by doing:
+sysfs is always compiled in if CONFIG_SYSFS is defined. You can access
+it by doing:
 
     mount -t sysfs sysfs /sys 
 

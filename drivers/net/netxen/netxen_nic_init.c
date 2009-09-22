@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2003 - 2009 NetXen, Inc.
+ * Copyright (C) 2009 - QLogic Corporation.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -20,19 +21,12 @@
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.
  *
- * Contact Information:
- *    info@netxen.com
- * NetXen Inc,
- * 18922 Forge Drive
- * Cupertino, CA 95014-0701
- *
  */
 
 #include <linux/netdevice.h>
 #include <linux/delay.h>
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
-#include "netxen_nic_phan_reg.h"
 
 struct crb_addr_pair {
 	u32 addr;
@@ -214,6 +208,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	adapter->tx_ring = tx_ring;
 
 	tx_ring->num_desc = adapter->num_txd;
+	tx_ring->txq = netdev_get_tx_queue(netdev, 0);
 
 	cmd_buf_arr = vmalloc(TX_BUFF_RINGSIZE(tx_ring));
 	if (cmd_buf_arr == NULL) {
@@ -246,9 +241,14 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 				rds_ring->skb_size =
 					NX_CT_DEFAULT_RX_BUF_LEN;
 			} else {
-				rds_ring->dma_size = RX_DMA_MAP_LEN;
+				if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+					rds_ring->dma_size =
+						NX_P3_RX_BUF_MAX_LEN;
+				else
+					rds_ring->dma_size =
+						NX_P2_RX_BUF_MAX_LEN;
 				rds_ring->skb_size =
-					MAX_RX_BUFFER_LENGTH;
+					rds_ring->dma_size + NET_IP_ALIGN;
 			}
 			break;
 
@@ -260,14 +260,18 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 			else
 				rds_ring->dma_size =
 					NX_P2_RX_JUMBO_BUF_MAX_LEN;
+
+			if (adapter->capabilities & NX_CAP0_HW_LRO)
+				rds_ring->dma_size += NX_LRO_BUFFER_EXTRA;
+
 			rds_ring->skb_size =
 				rds_ring->dma_size + NET_IP_ALIGN;
 			break;
 
 		case RCV_RING_LRO:
 			rds_ring->num_desc = adapter->num_lro_rxd;
-			rds_ring->dma_size = RX_LRO_DMA_MAP_LEN;
-			rds_ring->skb_size = MAX_RX_LRO_BUFFER_LENGTH;
+			rds_ring->dma_size = NX_RX_LRO_BUFFER_LENGTH;
+			rds_ring->skb_size = rds_ring->dma_size + NET_IP_ALIGN;
 			break;
 
 		}
@@ -314,48 +318,6 @@ err_out:
 	return -ENOMEM;
 }
 
-void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
-{
-	adapter->macaddr_set = netxen_p2_nic_set_mac_addr;
-	adapter->set_multi = netxen_p2_nic_set_multi;
-
-	switch (adapter->ahw.port_type) {
-	case NETXEN_NIC_GBE:
-		adapter->enable_phy_interrupts =
-		    netxen_niu_gbe_enable_phy_interrupts;
-		adapter->disable_phy_interrupts =
-		    netxen_niu_gbe_disable_phy_interrupts;
-		adapter->set_mtu = netxen_nic_set_mtu_gb;
-		adapter->set_promisc = netxen_niu_set_promiscuous_mode;
-		adapter->phy_read = netxen_niu_gbe_phy_read;
-		adapter->phy_write = netxen_niu_gbe_phy_write;
-		adapter->init_port = netxen_niu_gbe_init_port;
-		adapter->stop_port = netxen_niu_disable_gbe_port;
-		break;
-
-	case NETXEN_NIC_XGBE:
-		adapter->enable_phy_interrupts =
-		    netxen_niu_xgbe_enable_phy_interrupts;
-		adapter->disable_phy_interrupts =
-		    netxen_niu_xgbe_disable_phy_interrupts;
-		adapter->set_mtu = netxen_nic_set_mtu_xgb;
-		adapter->init_port = netxen_niu_xg_init_port;
-		adapter->set_promisc = netxen_niu_xg_set_promiscuous_mode;
-		adapter->stop_port = netxen_niu_disable_xg_port;
-		break;
-
-	default:
-		break;
-	}
-
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		adapter->set_mtu = nx_fw_cmd_set_mtu;
-		adapter->set_promisc = netxen_p3_nic_set_promisc;
-		adapter->macaddr_set = netxen_p3_nic_set_mac_addr;
-		adapter->set_multi = netxen_p3_nic_set_multi;
-	}
-}
-
 /*
  * netxen_decode_crb_addr(0 - utility to translate from internal Phantom CRB
  * address to external PCI CRB address.
@@ -383,37 +345,7 @@ static u32 netxen_decode_crb_addr(u32 addr)
 		return (pci_base + offset);
 }
 
-static long rom_max_timeout = 100;
-static long rom_lock_timeout = 10000;
-
-static int rom_lock(struct netxen_adapter *adapter)
-{
-	int iter;
-	u32 done = 0;
-	int timeout = 0;
-
-	while (!done) {
-		/* acquire semaphore2 from PCI HW block */
-		done = NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM2_LOCK));
-		if (done == 1)
-			break;
-		if (timeout >= rom_lock_timeout)
-			return -EIO;
-
-		timeout++;
-		/*
-		 * Yield CPU
-		 */
-		if (!in_atomic())
-			schedule();
-		else {
-			for (iter = 0; iter < 20; iter++)
-				cpu_relax();	/*This a nop instr on i386 */
-		}
-	}
-	NXWR32(adapter, NETXEN_ROM_LOCK_ID, ROM_LOCK_DRIVER);
-	return 0;
-}
+#define NETXEN_MAX_ROM_WAIT_USEC	100
 
 static int netxen_wait_rom_done(struct netxen_adapter *adapter)
 {
@@ -425,20 +357,14 @@ static int netxen_wait_rom_done(struct netxen_adapter *adapter)
 	while (done == 0) {
 		done = NXRD32(adapter, NETXEN_ROMUSB_GLB_STATUS);
 		done &= 2;
-		timeout++;
-		if (timeout >= rom_max_timeout) {
-			printk("Timeout reached  waiting for rom done");
+		if (++timeout >= NETXEN_MAX_ROM_WAIT_USEC) {
+			dev_err(&adapter->pdev->dev,
+				"Timeout reached  waiting for rom done");
 			return -EIO;
 		}
+		udelay(1);
 	}
 	return 0;
-}
-
-static void netxen_rom_unlock(struct netxen_adapter *adapter)
-{
-	/* release semaphore2 */
-	NXRD32(adapter, NETXEN_PCIE_REG(PCIE_SEM2_UNLOCK));
-
 }
 
 static int do_rom_fast_read(struct netxen_adapter *adapter,
@@ -485,7 +411,7 @@ netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
 {
 	int ret;
 
-	ret = rom_lock(adapter);
+	ret = netxen_rom_lock(adapter);
 	if (ret < 0)
 		return ret;
 
@@ -499,7 +425,7 @@ int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
 {
 	int ret;
 
-	if (rom_lock(adapter) != 0)
+	if (netxen_rom_lock(adapter) != 0)
 		return -EIO;
 
 	ret = do_rom_fast_read(adapter, addr, valp);
@@ -520,7 +446,7 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 	u32 off;
 
 	/* resetall */
-	rom_lock(adapter);
+	netxen_rom_lock(adapter);
 	NXWR32(adapter, NETXEN_ROMUSB_GLB_SW_RESET, 0xffffffff);
 	netxen_rom_unlock(adapter);
 
@@ -684,11 +610,84 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 }
 
 int
+netxen_need_fw_reset(struct netxen_adapter *adapter)
+{
+	u32 count, old_count;
+	u32 val, version, major, minor, build;
+	int i, timeout;
+	u8 fw_type;
+
+	/* NX2031 firmware doesn't support heartbit */
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return 1;
+
+	/* last attempt had failed */
+	if (NXRD32(adapter, CRB_CMDPEG_STATE) == PHAN_INITIALIZE_FAILED)
+		return 1;
+
+	old_count = count = NXRD32(adapter, NETXEN_PEG_ALIVE_COUNTER);
+
+	for (i = 0; i < 10; i++) {
+
+		timeout = msleep_interruptible(200);
+		if (timeout) {
+			NXWR32(adapter, CRB_CMDPEG_STATE,
+					PHAN_INITIALIZE_FAILED);
+			return -EINTR;
+		}
+
+		count = NXRD32(adapter, NETXEN_PEG_ALIVE_COUNTER);
+		if (count != old_count)
+			break;
+	}
+
+	/* firmware is dead */
+	if (count == old_count)
+		return 1;
+
+	/* check if we have got newer or different file firmware */
+	if (adapter->fw) {
+
+		const struct firmware *fw = adapter->fw;
+
+		val = cpu_to_le32(*(u32 *)&fw->data[NX_FW_VERSION_OFFSET]);
+		version = NETXEN_DECODE_VERSION(val);
+
+		major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
+		minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
+		build = NXRD32(adapter, NETXEN_FW_VERSION_SUB);
+
+		if (version > NETXEN_VERSION_CODE(major, minor, build))
+			return 1;
+
+		if (version == NETXEN_VERSION_CODE(major, minor, build)) {
+
+			val = NXRD32(adapter, NETXEN_MIU_MN_CONTROL);
+			fw_type = (val & 0x4) ?
+				NX_P3_CT_ROMIMAGE : NX_P3_MN_ROMIMAGE;
+
+			if (adapter->fw_type != fw_type)
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
+static char *fw_name[] = {
+	"nxromimg.bin", "nx3fwct.bin", "nx3fwmn.bin", "flash",
+};
+
+int
 netxen_load_firmware(struct netxen_adapter *adapter)
 {
 	u64 *ptr64;
 	u32 i, flashaddr, size;
 	const struct firmware *fw = adapter->fw;
+	struct pci_dev *pdev = adapter->pdev;
+
+	dev_info(&pdev->dev, "loading firmware from %s\n",
+			fw_name[adapter->fw_type]);
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
 		NXWR32(adapter, NETXEN_ROMUSB_GLB_CAS_RST, 1);
@@ -723,21 +722,28 @@ netxen_load_firmware(struct netxen_adapter *adapter)
 			flashaddr += 8;
 		}
 	} else {
-		u32 data;
+		u64 data;
+		u32 hi, lo;
 
-		size = (NETXEN_IMAGE_START - NETXEN_BOOTLD_START) / 4;
+		size = (NETXEN_IMAGE_START - NETXEN_BOOTLD_START) / 8;
 		flashaddr = NETXEN_BOOTLD_START;
 
 		for (i = 0; i < size; i++) {
 			if (netxen_rom_fast_read(adapter,
-					flashaddr, (int *)&data) != 0)
+					flashaddr, &lo) != 0)
 				return -EIO;
+			if (netxen_rom_fast_read(adapter,
+					flashaddr + 4, &hi) != 0)
+				return -EIO;
+
+			/* hi, lo are already in host endian byteorder */
+			data = (((u64)hi << 32) | lo);
 
 			if (adapter->pci_mem_write(adapter,
-						flashaddr, &data, 4))
+						flashaddr, &data, 8))
 				return -EIO;
 
-			flashaddr += 4;
+			flashaddr += 8;
 		}
 	}
 	msleep(1);
@@ -756,7 +762,7 @@ static int
 netxen_validate_firmware(struct netxen_adapter *adapter, const char *fwname)
 {
 	__le32 val;
-	u32 major, minor, build, ver, min_ver, bios;
+	u32 ver, min_ver, bios;
 	struct pci_dev *pdev = adapter->pdev;
 	const struct firmware *fw = adapter->fw;
 
@@ -768,21 +774,18 @@ netxen_validate_firmware(struct netxen_adapter *adapter, const char *fwname)
 		return -EINVAL;
 
 	val = cpu_to_le32(*(u32 *)&fw->data[NX_FW_VERSION_OFFSET]);
-	major = (__force u32)val & 0xff;
-	minor = ((__force u32)val >> 8) & 0xff;
-	build = (__force u32)val >> 16;
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		min_ver = NETXEN_VERSION_CODE(4, 0, 216);
 	else
 		min_ver = NETXEN_VERSION_CODE(3, 4, 216);
 
-	ver = NETXEN_VERSION_CODE(major, minor, build);
+	ver = NETXEN_DECODE_VERSION(val);
 
-	if ((major > _NETXEN_NIC_LINUX_MAJOR) || (ver < min_ver)) {
+	if ((_major(ver) > _NETXEN_NIC_LINUX_MAJOR) || (ver < min_ver)) {
 		dev_err(&pdev->dev,
 				"%s: firmware version %d.%d.%d unsupported\n",
-				fwname, major, minor, build);
+				fwname, _major(ver), _minor(ver), _build(ver));
 		return -EINVAL;
 	}
 
@@ -798,54 +801,60 @@ netxen_validate_firmware(struct netxen_adapter *adapter, const char *fwname)
 	if (netxen_rom_fast_read(adapter,
 			NX_FW_VERSION_OFFSET, (int *)&val))
 		return -EIO;
-	major = (__force u32)val & 0xff;
-	minor = ((__force u32)val >> 8) & 0xff;
-	build = (__force u32)val >> 16;
-	if (NETXEN_VERSION_CODE(major, minor, build) > ver)
+	val = NETXEN_DECODE_VERSION(val);
+	if (val > ver) {
+		dev_info(&pdev->dev, "%s: firmware is older than flash\n",
+				fwname);
 		return -EINVAL;
+	}
 
 	NXWR32(adapter, NETXEN_CAM_RAM(0x1fc), NETXEN_BDINFO_MAGIC);
 	return 0;
 }
 
-static char *fw_name[] = { "nxromimg.bin", "nx3fwct.bin", "nx3fwmn.bin" };
+static int
+netxen_p3_has_mn(struct netxen_adapter *adapter)
+{
+	u32 capability, flashed_ver;
+	capability = 0;
+
+	netxen_rom_fast_read(adapter,
+			NX_FW_VERSION_OFFSET, (int *)&flashed_ver);
+	flashed_ver = NETXEN_DECODE_VERSION(flashed_ver);
+
+	if (flashed_ver >= NETXEN_VERSION_CODE(4, 0, 220)) {
+
+		capability = NXRD32(adapter, NX_PEG_TUNE_CAPABILITY);
+		if (capability & NX_PEG_TUNE_MN_PRESENT)
+			return 1;
+	}
+	return 0;
+}
 
 void netxen_request_firmware(struct netxen_adapter *adapter)
 {
-	u32 capability, flashed_ver;
-	int fw_type;
+	u8 fw_type;
 	struct pci_dev *pdev = adapter->pdev;
 	int rc = 0;
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		fw_type = NX_P2_MN_ROMIMAGE;
 		goto request_fw;
-	} else {
-		fw_type = NX_P3_CT_ROMIMAGE;
-		goto request_fw;
 	}
 
-request_mn:
-	capability = 0;
-
-	netxen_rom_fast_read(adapter,
-			NX_FW_VERSION_OFFSET, (int *)&flashed_ver);
-	if (flashed_ver >= NETXEN_VERSION_CODE(4, 0, 220)) {
-		capability = NXRD32(adapter, NX_PEG_TUNE_CAPABILITY);
-		if (capability & NX_PEG_TUNE_MN_PRESENT) {
-			fw_type = NX_P3_MN_ROMIMAGE;
-			goto request_fw;
-		}
-	}
+	fw_type = netxen_p3_has_mn(adapter) ?
+		NX_P3_MN_ROMIMAGE : NX_P3_CT_ROMIMAGE;
 
 request_fw:
 	rc = request_firmware(&adapter->fw, fw_name[fw_type], &pdev->dev);
 	if (rc != 0) {
-		if (fw_type == NX_P3_CT_ROMIMAGE) {
+		if (fw_type == NX_P3_MN_ROMIMAGE) {
 			msleep(1);
-			goto request_mn;
+			fw_type = NX_P3_CT_ROMIMAGE;
+			goto request_fw;
 		}
 
+		fw_type = NX_FLASH_ROMIMAGE;
 		adapter->fw = NULL;
 		goto done;
 	}
@@ -854,21 +863,19 @@ request_fw:
 	if (rc != 0) {
 		release_firmware(adapter->fw);
 
-		if (fw_type == NX_P3_CT_ROMIMAGE) {
+		if (fw_type == NX_P3_MN_ROMIMAGE) {
 			msleep(1);
-			goto request_mn;
+			fw_type = NX_P3_CT_ROMIMAGE;
+			goto request_fw;
 		}
 
+		fw_type = NX_FLASH_ROMIMAGE;
 		adapter->fw = NULL;
 		goto done;
 	}
 
 done:
-	if (adapter->fw)
-		dev_info(&pdev->dev, "loading firmware from file %s\n",
-				fw_name[fw_type]);
-	else
-		dev_info(&pdev->dev, "loading firmware from flash\n");
+	adapter->fw_type = fw_type;
 }
 
 
@@ -877,21 +884,23 @@ netxen_release_firmware(struct netxen_adapter *adapter)
 {
 	if (adapter->fw)
 		release_firmware(adapter->fw);
+	adapter->fw = NULL;
 }
 
-int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
+int netxen_init_dummy_dma(struct netxen_adapter *adapter)
 {
-	uint64_t addr;
-	uint32_t hi;
-	uint32_t lo;
+	u64 addr;
+	u32 hi, lo;
 
-	adapter->dummy_dma.addr =
-	    pci_alloc_consistent(adapter->pdev,
+	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return 0;
+
+	adapter->dummy_dma.addr = pci_alloc_consistent(adapter->pdev,
 				 NETXEN_HOST_DUMMY_DMA_SIZE,
 				 &adapter->dummy_dma.phys_addr);
 	if (adapter->dummy_dma.addr == NULL) {
-		printk("%s: ERROR: Could not allocate dummy DMA memory\n",
-		       __func__);
+		dev_err(&adapter->pdev->dev,
+			"ERROR: Could not allocate dummy DMA memory\n");
 		return -ENOMEM;
 	}
 
@@ -902,29 +911,41 @@ int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
 	NXWR32(adapter, CRB_HOST_DUMMY_BUF_ADDR_HI, hi);
 	NXWR32(adapter, CRB_HOST_DUMMY_BUF_ADDR_LO, lo);
 
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		uint32_t temp = 0;
-		NXWR32(adapter, CRB_HOST_DUMMY_BUF, temp);
-	}
-
 	return 0;
 }
 
-void netxen_free_adapter_offload(struct netxen_adapter *adapter)
+/*
+ * NetXen DMA watchdog control:
+ *
+ *	Bit 0		: enabled => R/O: 1 watchdog active, 0 inactive
+ *	Bit 1		: disable_request => 1 req disable dma watchdog
+ *	Bit 2		: enable_request =>  1 req enable dma watchdog
+ *	Bit 3-31	: unused
+ */
+void netxen_free_dummy_dma(struct netxen_adapter *adapter)
 {
 	int i = 100;
+	u32 ctrl;
+
+	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return;
 
 	if (!adapter->dummy_dma.addr)
 		return;
 
-	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-		do {
-			if (dma_watchdog_shutdown_request(adapter) == 1)
-				break;
+	ctrl = NXRD32(adapter, NETXEN_DMA_WATCHDOG_CTRL);
+	if ((ctrl & 0x1) != 0) {
+		NXWR32(adapter, NETXEN_DMA_WATCHDOG_CTRL, (ctrl | 0x2));
+
+		while ((ctrl & 0x1) != 0) {
+
 			msleep(50);
-			if (dma_watchdog_shutdown_poll_result(adapter) == 1)
+
+			ctrl = NXRD32(adapter, NETXEN_DMA_WATCHDOG_CTRL);
+
+			if (--i == 0)
 				break;
-		} while (--i);
+		};
 	}
 
 	if (i) {
@@ -933,10 +954,8 @@ void netxen_free_adapter_offload(struct netxen_adapter *adapter)
 			    adapter->dummy_dma.addr,
 			    adapter->dummy_dma.phys_addr);
 		adapter->dummy_dma.addr = NULL;
-	} else {
-		printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
-				adapter->netdev->name);
-	}
+	} else
+		dev_err(&adapter->pdev->dev, "dma_watchdog_shutdown failed\n");
 }
 
 int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
@@ -1008,10 +1027,6 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 	NXWR32(adapter, CRB_NIC_MSI_MODE_HOST, MSI_MODE_MULTIFUNC);
 	NXWR32(adapter, CRB_MPORT_MODE, MPORT_MULTI_FUNCTION_MODE);
 	NXWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
-
-	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222)) {
-		adapter->capabilities = NXRD32(adapter, CRB_FW_CAPABILITIES_1);
-	}
 
 	return err;
 }
@@ -1148,19 +1163,30 @@ no_skb:
 
 static struct netxen_rx_buffer *
 netxen_process_rcv(struct netxen_adapter *adapter,
-		int ring, int index, int length, int cksum, int pkt_offset,
-		struct nx_host_sds_ring *sds_ring)
+		struct nx_host_sds_ring *sds_ring,
+		int ring, u64 sts_data0)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 	struct netxen_rx_buffer *buffer;
 	struct sk_buff *skb;
-	struct nx_host_rds_ring *rds_ring = &recv_ctx->rds_rings[ring];
+	struct nx_host_rds_ring *rds_ring;
+	int index, length, cksum, pkt_offset;
 
-	if (unlikely(index > rds_ring->num_desc))
+	if (unlikely(ring >= adapter->max_rds_rings))
+		return NULL;
+
+	rds_ring = &recv_ctx->rds_rings[ring];
+
+	index = netxen_get_sts_refhandle(sts_data0);
+	if (unlikely(index >= rds_ring->num_desc))
 		return NULL;
 
 	buffer = &rds_ring->rx_buf_arr[index];
+
+	length = netxen_get_sts_totallength(sts_data0);
+	cksum  = netxen_get_sts_status(sts_data0);
+	pkt_offset = netxen_get_sts_pkt_offset(sts_data0);
 
 	skb = netxen_process_rxbuf(adapter, rds_ring, index, cksum);
 	if (!skb)
@@ -1175,11 +1201,88 @@ netxen_process_rcv(struct netxen_adapter *adapter,
 	if (pkt_offset)
 		skb_pull(skb, pkt_offset);
 
+	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	napi_gro_receive(&sds_ring->napi, skb);
 
-	adapter->stats.no_rcv++;
+	adapter->stats.rx_pkts++;
+	adapter->stats.rxbytes += length;
+
+	return buffer;
+}
+
+#define TCP_HDR_SIZE            20
+#define TCP_TS_OPTION_SIZE      12
+#define TCP_TS_HDR_SIZE         (TCP_HDR_SIZE + TCP_TS_OPTION_SIZE)
+
+static struct netxen_rx_buffer *
+netxen_process_lro(struct netxen_adapter *adapter,
+		struct nx_host_sds_ring *sds_ring,
+		int ring, u64 sts_data0, u64 sts_data1)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+	struct netxen_rx_buffer *buffer;
+	struct sk_buff *skb;
+	struct nx_host_rds_ring *rds_ring;
+	struct iphdr *iph;
+	struct tcphdr *th;
+	bool push, timestamp;
+	int l2_hdr_offset, l4_hdr_offset;
+	int index;
+	u16 lro_length, length, data_offset;
+	u32 seq_number;
+
+	if (unlikely(ring > adapter->max_rds_rings))
+		return NULL;
+
+	rds_ring = &recv_ctx->rds_rings[ring];
+
+	index = netxen_get_lro_sts_refhandle(sts_data0);
+	if (unlikely(index > rds_ring->num_desc))
+		return NULL;
+
+	buffer = &rds_ring->rx_buf_arr[index];
+
+	timestamp = netxen_get_lro_sts_timestamp(sts_data0);
+	lro_length = netxen_get_lro_sts_length(sts_data0);
+	l2_hdr_offset = netxen_get_lro_sts_l2_hdr_offset(sts_data0);
+	l4_hdr_offset = netxen_get_lro_sts_l4_hdr_offset(sts_data0);
+	push = netxen_get_lro_sts_push_flag(sts_data0);
+	seq_number = netxen_get_lro_sts_seq_number(sts_data1);
+
+	skb = netxen_process_rxbuf(adapter, rds_ring, index, STATUS_CKSUM_OK);
+	if (!skb)
+		return buffer;
+
+	if (timestamp)
+		data_offset = l4_hdr_offset + TCP_TS_HDR_SIZE;
+	else
+		data_offset = l4_hdr_offset + TCP_HDR_SIZE;
+
+	skb_put(skb, lro_length + data_offset);
+
+	skb->truesize = skb->len + sizeof(struct sk_buff) + skb_headroom(skb);
+
+	skb_pull(skb, l2_hdr_offset);
+	skb->protocol = eth_type_trans(skb, netdev);
+
+	iph = (struct iphdr *)skb->data;
+	th = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+
+	length = (iph->ihl << 2) + (th->doff << 2) + lro_length;
+	iph->tot_len = htons(length);
+	iph->check = 0;
+	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
+	th->psh = push;
+	th->seq = htonl(seq_number);
+
+	length = skb->len;
+
+	netif_receive_skb(skb);
+
+	adapter->stats.lro_pkts++;
 	adapter->stats.rxbytes += length;
 
 	return buffer;
@@ -1201,27 +1304,33 @@ netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max)
 	u32 consumer = sds_ring->consumer;
 
 	int count = 0;
-	u64 sts_data;
-	int opcode, ring, index, length, cksum, pkt_offset, desc_cnt;
+	u64 sts_data0, sts_data1;
+	int opcode, ring = 0, desc_cnt;
 
 	while (count < max) {
 		desc = &sds_ring->desc_head[consumer];
-		sts_data = le64_to_cpu(desc->status_desc_data[0]);
+		sts_data0 = le64_to_cpu(desc->status_desc_data[0]);
 
-		if (!(sts_data & STATUS_OWNER_HOST))
+		if (!(sts_data0 & STATUS_OWNER_HOST))
 			break;
 
-		desc_cnt = netxen_get_sts_desc_cnt(sts_data);
-		ring   = netxen_get_sts_type(sts_data);
+		desc_cnt = netxen_get_sts_desc_cnt(sts_data0);
 
-		if (ring > RCV_RING_JUMBO)
-			goto skip;
-
-		opcode = netxen_get_sts_opcode(sts_data);
+		opcode = netxen_get_sts_opcode(sts_data0);
 
 		switch (opcode) {
 		case NETXEN_NIC_RXPKT_DESC:
 		case NETXEN_OLD_RXPKT_DESC:
+		case NETXEN_NIC_SYN_OFFLOAD:
+			ring = netxen_get_sts_type(sts_data0);
+			rxbuf = netxen_process_rcv(adapter, sds_ring,
+					ring, sts_data0);
+			break;
+		case NETXEN_NIC_LRO_DESC:
+			ring = netxen_get_lro_sts_type(sts_data0);
+			sts_data1 = le64_to_cpu(desc->status_desc_data[1]);
+			rxbuf = netxen_process_lro(adapter, sds_ring,
+					ring, sts_data0, sts_data1);
 			break;
 		case NETXEN_NIC_RESPONSE_DESC:
 			netxen_handle_fw_message(desc_cnt, consumer, sds_ring);
@@ -1230,14 +1339,6 @@ netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max)
 		}
 
 		WARN_ON(desc_cnt > 1);
-
-		index  = netxen_get_sts_refhandle(sts_data);
-		length = netxen_get_sts_totallength(sts_data);
-		cksum  = netxen_get_sts_status(sts_data);
-		pkt_offset = netxen_get_sts_pkt_offset(sts_data);
-
-		rxbuf = netxen_process_rcv(adapter, ring, index,
-				length, cksum, pkt_offset, sds_ring);
 
 		if (rxbuf)
 			list_add_tail(&rxbuf->list, &sds_ring->free_list[ring]);
@@ -1273,7 +1374,7 @@ skip:
 
 	if (count) {
 		sds_ring->consumer = consumer;
-		NXWR32(adapter, sds_ring->crb_sts_consumer, consumer);
+		NXWRIO(adapter, sds_ring->crb_sts_consumer, consumer);
 	}
 
 	return count;
@@ -1327,10 +1428,12 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 		smp_mb();
 
 		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev)) {
-			netif_tx_lock(netdev);
-			if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH)
+			__netif_tx_lock(tx_ring->txq, smp_processor_id());
+			if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH) {
 				netif_wake_queue(netdev);
-			netif_tx_unlock(netdev);
+				adapter->tx_timeo_cnt = 0;
+			}
+			__netif_tx_unlock(tx_ring->txq);
 		}
 	}
 	/*
@@ -1391,10 +1494,10 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 
 	if (count) {
 		rds_ring->producer = producer;
-		NXWR32(adapter, rds_ring->crb_rcv_producer,
+		NXWRIO(adapter, rds_ring->crb_rcv_producer,
 				(producer-1) & (rds_ring->num_desc-1));
 
-		if (adapter->fw_major < 4) {
+		if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 			/*
 			 * Write a doorbell msg to tell phanmon of change in
 			 * receive ring producer
@@ -1407,9 +1510,10 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 					      (rds_ring->num_desc - 1)));
 			netxen_set_msg_ctxid(msg, adapter->portnum);
 			netxen_set_msg_opcode(msg, NETXEN_RCV_PRODUCER(ringid));
-			writel(msg,
-			       DB_NORMALIZE(adapter,
+			read_lock(&adapter->adapter_lock);
+			writel(msg, DB_NORMALIZE(adapter,
 					    NETXEN_RCV_PRODUCER_OFFSET));
+			read_unlock(&adapter->adapter_lock);
 		}
 	}
 }
@@ -1451,7 +1555,7 @@ netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 
 	if (count) {
 		rds_ring->producer = producer;
-		NXWR32(adapter, rds_ring->crb_rcv_producer,
+		NXWRIO(adapter, rds_ring->crb_rcv_producer,
 				(producer - 1) & (rds_ring->num_desc - 1));
 	}
 	spin_unlock(&rds_ring->lock);

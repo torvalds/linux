@@ -105,23 +105,16 @@ static inline uint32_t __pure bfin_revid(void)
 	/* Always use CHIPID, to work around ANOMALY_05000234 */
 	uint32_t revid = (bfin_read_CHIPID() & CHIPID_VERSION) >> 28;
 
-#ifdef CONFIG_BF52x
-	/* ANOMALY_05000357
+#ifdef _BOOTROM_GET_DXE_ADDRESS_TWI
+	/*
+	 * ANOMALY_05000364
 	 * Incorrect Revision Number in DSPID Register
 	 */
-	if (revid == 0)
-		switch (bfin_read16(_BOOTROM_GET_DXE_ADDRESS_TWI)) {
-		case 0x0010:
-			revid = 0;
-			break;
-		case 0x2796:
-			revid = 1;
-			break;
-		default:
-			revid = 0xFFFF;
-			break;
-		}
+	if (ANOMALY_05000364 &&
+	    bfin_read16(_BOOTROM_GET_DXE_ADDRESS_TWI) == 0x2796)
+		revid = 1;
 #endif
+
 	return revid;
 }
 

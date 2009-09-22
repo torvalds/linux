@@ -38,14 +38,12 @@
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
 #include <linux/workqueue.h>
-#include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/io.h>
-#include <linux/delay.h>
 
 /*
  * This macro is used to define some register default values.

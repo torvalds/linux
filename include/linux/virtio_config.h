@@ -79,8 +79,7 @@
  *	the dev->feature bits if it wants.
  */
 typedef void vq_callback_t(struct virtqueue *);
-struct virtio_config_ops
-{
+struct virtio_config_ops {
 	void (*get)(struct virtio_device *vdev, unsigned offset,
 		    void *buf, unsigned len);
 	void (*set)(struct virtio_device *vdev, unsigned offset,

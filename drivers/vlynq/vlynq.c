@@ -76,7 +76,7 @@ struct vlynq_regs {
 	u32 int_device[8];
 };
 
-#ifdef VLYNQ_DEBUG
+#ifdef CONFIG_VLYNQ_DEBUG
 static void vlynq_dump_regs(struct vlynq_device *dev)
 {
 	int i;

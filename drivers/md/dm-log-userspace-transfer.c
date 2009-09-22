@@ -108,7 +108,7 @@ static int fill_pkg(struct cn_msg *msg, struct dm_ulog_request *tfr)
 				*(pkg->data_size) = 0;
 		} else if (tfr->data_size > *(pkg->data_size)) {
 			DMERR("Insufficient space to receive package [%u] "
-			      "(%u vs %lu)", tfr->request_type,
+			      "(%u vs %zu)", tfr->request_type,
 			      tfr->data_size, *(pkg->data_size));
 
 			*(pkg->data_size) = 0;
@@ -147,7 +147,8 @@ static void cn_ulog_callback(void *data)
 
 /**
  * dm_consult_userspace
- * @uuid: log's uuid (must be DM_UUID_LEN in size)
+ * @uuid: log's universal unique identifier (must be DM_UUID_LEN in size)
+ * @luid: log's local unique identifier
  * @request_type:  found in include/linux/dm-log-userspace.h
  * @data: data to tx to the server
  * @data_size: size of data in bytes
@@ -163,7 +164,7 @@ static void cn_ulog_callback(void *data)
  *
  * Returns: 0 on success, -EXXX on failure
  **/
-int dm_consult_userspace(const char *uuid, int request_type,
+int dm_consult_userspace(const char *uuid, uint64_t luid, int request_type,
 			 char *data, size_t data_size,
 			 char *rdata, size_t *rdata_size)
 {
@@ -190,6 +191,7 @@ resend:
 
 	memset(tfr, 0, DM_ULOG_PREALLOCED_SIZE - overhead_size);
 	memcpy(tfr->uuid, uuid, DM_UUID_LEN);
+	tfr->luid = luid;
 	tfr->seq = dm_ulog_seq++;
 
 	/*

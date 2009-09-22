@@ -38,7 +38,7 @@
 
 static unsigned long oscr_freq;
 static unsigned long sa1100wdt_users;
-static int pre_margin;
+static unsigned int pre_margin;
 static int boot_status;
 
 /*
@@ -84,6 +84,7 @@ static const struct watchdog_info ident = {
 	.options	= WDIOF_CARDRESET | WDIOF_SETTIMEOUT
 				| WDIOF_KEEPALIVEPING,
 	.identity	= "SA1100/PXA255 Watchdog",
+	.firmware_version	= 1,
 };
 
 static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
@@ -118,7 +119,7 @@ static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
 		if (ret)
 			break;
 
-		if (time <= 0 || time > 255) {
+		if (time <= 0 || (oscr_freq * (long long)time >= 0xffffffff)) {
 			ret = -EINVAL;
 			break;
 		}

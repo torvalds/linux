@@ -15,16 +15,17 @@
 asflags-$(CONFIG_FULLDEBUG) := -DDEBUGGER_COMPATIBLE_CACHE=1
 
 obj-$(CONFIG_COLDFIRE)	+= clk.o dma.o entry.o vectors.o
-obj-$(CONFIG_M5206)	+= timers.o
-obj-$(CONFIG_M5206e)	+= timers.o
-obj-$(CONFIG_M520x)	+= pit.o
-obj-$(CONFIG_M523x)	+= pit.o dma_timer.o
-obj-$(CONFIG_M5249)	+= timers.o
-obj-$(CONFIG_M527x)	+= pit.o
+obj-$(CONFIG_M5206)	+= timers.o intc.o
+obj-$(CONFIG_M5206e)	+= timers.o intc.o
+obj-$(CONFIG_M520x)	+= pit.o intc-simr.o
+obj-$(CONFIG_M523x)	+= pit.o dma_timer.o intc-2.o
+obj-$(CONFIG_M5249)	+= timers.o intc.o
+obj-$(CONFIG_M527x)	+= pit.o intc-2.o
 obj-$(CONFIG_M5272)	+= timers.o
-obj-$(CONFIG_M528x)	+= pit.o
-obj-$(CONFIG_M5307)	+= timers.o
-obj-$(CONFIG_M532x)	+= timers.o
-obj-$(CONFIG_M5407)	+= timers.o
+obj-$(CONFIG_M528x)	+= pit.o intc-2.o
+obj-$(CONFIG_M5307)	+= timers.o intc.o
+obj-$(CONFIG_M532x)	+= timers.o intc-simr.o
+obj-$(CONFIG_M5407)	+= timers.o intc.o
 
+obj-y			+= pinmux.o gpio.o
 extra-y := head.o

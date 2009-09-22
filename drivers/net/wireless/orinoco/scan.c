@@ -5,147 +5,166 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/etherdevice.h>
+#include <linux/ieee80211.h>
+#include <net/cfg80211.h>
 
 #include "hermes.h"
 #include "orinoco.h"
+#include "main.h"
 
 #include "scan.h"
 
-#define ORINOCO_MAX_BSS_COUNT	64
+#define ZERO_DBM_OFFSET 0x95
+#define MAX_SIGNAL_LEVEL 0x8A
+#define MIN_SIGNAL_LEVEL 0x2F
 
-#define PRIV_BSS	((struct bss_element *)priv->bss_xbss_data)
-#define PRIV_XBSS	((struct xbss_element *)priv->bss_xbss_data)
+#define SIGNAL_TO_DBM(x)					\
+	(clamp_t(s32, (x), MIN_SIGNAL_LEVEL, MAX_SIGNAL_LEVEL)	\
+	 - ZERO_DBM_OFFSET)
+#define SIGNAL_TO_MBM(x) (SIGNAL_TO_DBM(x) * 100)
 
-int orinoco_bss_data_allocate(struct orinoco_private *priv)
+static int symbol_build_supp_rates(u8 *buf, const __le16 *rates)
 {
-	if (priv->bss_xbss_data)
-		return 0;
+	int i;
+	u8 rate;
 
-	if (priv->has_ext_scan)
-		priv->bss_xbss_data = kzalloc(ORINOCO_MAX_BSS_COUNT *
-					      sizeof(struct xbss_element),
-					      GFP_KERNEL);
-	else
-		priv->bss_xbss_data = kzalloc(ORINOCO_MAX_BSS_COUNT *
-					      sizeof(struct bss_element),
-					      GFP_KERNEL);
-
-	if (!priv->bss_xbss_data) {
-		printk(KERN_WARNING "Out of memory allocating beacons");
-		return -ENOMEM;
+	buf[0] = WLAN_EID_SUPP_RATES;
+	for (i = 0; i < 5; i++) {
+		rate = le16_to_cpu(rates[i]);
+		/* NULL terminated */
+		if (rate == 0x0)
+			break;
+		buf[i + 2] = rate;
 	}
-	return 0;
+	buf[1] = i;
+
+	return i + 2;
 }
 
-void orinoco_bss_data_free(struct orinoco_private *priv)
-{
-	kfree(priv->bss_xbss_data);
-	priv->bss_xbss_data = NULL;
-}
-
-void orinoco_bss_data_init(struct orinoco_private *priv)
+static int prism_build_supp_rates(u8 *buf, const u8 *rates)
 {
 	int i;
 
-	INIT_LIST_HEAD(&priv->bss_free_list);
-	INIT_LIST_HEAD(&priv->bss_list);
-	if (priv->has_ext_scan)
-		for (i = 0; i < ORINOCO_MAX_BSS_COUNT; i++)
-			list_add_tail(&(PRIV_XBSS[i].list),
-				      &priv->bss_free_list);
-	else
-		for (i = 0; i < ORINOCO_MAX_BSS_COUNT; i++)
-			list_add_tail(&(PRIV_BSS[i].list),
-				      &priv->bss_free_list);
-
-}
-
-void orinoco_clear_scan_results(struct orinoco_private *priv,
-				unsigned long scan_age)
-{
-	if (priv->has_ext_scan) {
-		struct xbss_element *bss;
-		struct xbss_element *tmp_bss;
-
-		/* Blow away current list of scan results */
-		list_for_each_entry_safe(bss, tmp_bss, &priv->bss_list, list) {
-			if (!scan_age ||
-			    time_after(jiffies, bss->last_scanned + scan_age)) {
-				list_move_tail(&bss->list,
-					       &priv->bss_free_list);
-				/* Don't blow away ->list, just BSS data */
-				memset(&bss->bss, 0, sizeof(bss->bss));
-				bss->last_scanned = 0;
-			}
-		}
-	} else {
-		struct bss_element *bss;
-		struct bss_element *tmp_bss;
-
-		/* Blow away current list of scan results */
-		list_for_each_entry_safe(bss, tmp_bss, &priv->bss_list, list) {
-			if (!scan_age ||
-			    time_after(jiffies, bss->last_scanned + scan_age)) {
-				list_move_tail(&bss->list,
-					       &priv->bss_free_list);
-				/* Don't blow away ->list, just BSS data */
-				memset(&bss->bss, 0, sizeof(bss->bss));
-				bss->last_scanned = 0;
-			}
-		}
+	buf[0] = WLAN_EID_SUPP_RATES;
+	for (i = 0; i < 8; i++) {
+		/* NULL terminated */
+		if (rates[i] == 0x0)
+			break;
+		buf[i + 2] = rates[i];
 	}
+	buf[1] = i;
+
+	/* We might still have another 2 rates, which need to go in
+	 * extended supported rates */
+	if (i == 8 && rates[i] > 0) {
+		buf[10] = WLAN_EID_EXT_SUPP_RATES;
+		for (; i < 10; i++) {
+			/* NULL terminated */
+			if (rates[i] == 0x0)
+				break;
+			buf[i + 2] = rates[i];
+		}
+		buf[11] = i - 8;
+	}
+
+	return (i < 8) ? i + 2 : i + 4;
 }
 
-void orinoco_add_ext_scan_result(struct orinoco_private *priv,
-				 struct agere_ext_scan_info *atom)
+static void orinoco_add_hostscan_result(struct orinoco_private *priv,
+					const union hermes_scan_info *bss)
 {
-	struct xbss_element *bss = NULL;
-	int found = 0;
+	struct wiphy *wiphy = priv_to_wiphy(priv);
+	struct ieee80211_channel *channel;
+	u8 *ie;
+	u8 ie_buf[46];
+	u64 timestamp;
+	s32 signal;
+	u16 capability;
+	u16 beacon_interval;
+	int ie_len;
+	int freq;
+	int len;
 
-	/* Try to update an existing bss first */
-	list_for_each_entry(bss, &priv->bss_list, list) {
-		if (compare_ether_addr(bss->bss.bssid, atom->bssid))
-			continue;
-		/* ESSID lengths */
-		if (bss->bss.data[1] != atom->data[1])
-			continue;
-		if (memcmp(&bss->bss.data[2], &atom->data[2],
-			   atom->data[1]))
-			continue;
-		found = 1;
+	len = le16_to_cpu(bss->a.essid_len);
+
+	/* Reconstruct SSID and bitrate IEs to pass up */
+	ie_buf[0] = WLAN_EID_SSID;
+	ie_buf[1] = len;
+	memcpy(&ie_buf[2], bss->a.essid, len);
+
+	ie = ie_buf + len + 2;
+	ie_len = ie_buf[1] + 2;
+	switch (priv->firmware_type) {
+	case FIRMWARE_TYPE_SYMBOL:
+		ie_len += symbol_build_supp_rates(ie, bss->s.rates);
+		break;
+
+	case FIRMWARE_TYPE_INTERSIL:
+		ie_len += prism_build_supp_rates(ie, bss->p.rates);
+		break;
+
+	case FIRMWARE_TYPE_AGERE:
+	default:
 		break;
 	}
 
-	/* Grab a bss off the free list */
-	if (!found && !list_empty(&priv->bss_free_list)) {
-		bss = list_entry(priv->bss_free_list.next,
-				 struct xbss_element, list);
-		list_del(priv->bss_free_list.next);
+	freq = ieee80211_dsss_chan_to_freq(le16_to_cpu(bss->a.channel));
+	channel = ieee80211_get_channel(wiphy, freq);
+	timestamp = 0;
+	capability = le16_to_cpu(bss->a.capabilities);
+	beacon_interval = le16_to_cpu(bss->a.beacon_interv);
+	signal = SIGNAL_TO_MBM(le16_to_cpu(bss->a.level));
 
-		list_add_tail(&bss->list, &priv->bss_list);
-	}
-
-	if (bss) {
-		/* Always update the BSS to get latest beacon info */
-		memcpy(&bss->bss, atom, sizeof(bss->bss));
-		bss->last_scanned = jiffies;
-	}
+	cfg80211_inform_bss(wiphy, channel, bss->a.bssid, timestamp,
+			    capability, beacon_interval, ie_buf, ie_len,
+			    signal, GFP_KERNEL);
 }
 
-int orinoco_process_scan_results(struct orinoco_private *priv,
-				 unsigned char *buf,
-				 int len)
+void orinoco_add_extscan_result(struct orinoco_private *priv,
+				struct agere_ext_scan_info *bss,
+				size_t len)
 {
-	int			offset;		/* In the scan data */
-	union hermes_scan_info *atom;
-	int			atom_len;
+	struct wiphy *wiphy = priv_to_wiphy(priv);
+	struct ieee80211_channel *channel;
+	u8 *ie;
+	u64 timestamp;
+	s32 signal;
+	u16 capability;
+	u16 beacon_interval;
+	size_t ie_len;
+	int chan, freq;
+
+	ie_len = len - sizeof(*bss);
+	ie = orinoco_get_ie(bss->data, ie_len, WLAN_EID_DS_PARAMS);
+	chan = ie ? ie[2] : 0;
+	freq = ieee80211_dsss_chan_to_freq(chan);
+	channel = ieee80211_get_channel(wiphy, freq);
+
+	timestamp = le64_to_cpu(bss->timestamp);
+	capability = le16_to_cpu(bss->capabilities);
+	beacon_interval = le16_to_cpu(bss->beacon_interval);
+	ie = bss->data;
+	signal = SIGNAL_TO_MBM(bss->level);
+
+	cfg80211_inform_bss(wiphy, channel, bss->bssid, timestamp,
+			    capability, beacon_interval, ie, ie_len,
+			    signal, GFP_KERNEL);
+}
+
+void orinoco_add_hostscan_results(struct orinoco_private *priv,
+				  unsigned char *buf,
+				  size_t len)
+{
+	int offset;		/* In the scan data */
+	size_t atom_len;
+	bool abort = false;
 
 	switch (priv->firmware_type) {
 	case FIRMWARE_TYPE_AGERE:
 		atom_len = sizeof(struct agere_scan_apinfo);
 		offset = 0;
 		break;
+
 	case FIRMWARE_TYPE_SYMBOL:
 		/* Lack of documentation necessitates this hack.
 		 * Different firmwares have 68 or 76 byte long atoms.
@@ -163,6 +182,7 @@ int orinoco_process_scan_results(struct orinoco_private *priv,
 			atom_len = 68;
 		offset = 0;
 		break;
+
 	case FIRMWARE_TYPE_INTERSIL:
 		offset = 4;
 		if (priv->has_hostscan) {
@@ -170,64 +190,41 @@ int orinoco_process_scan_results(struct orinoco_private *priv,
 			/* Sanity check for atom_len */
 			if (atom_len < sizeof(struct prism2_scan_apinfo)) {
 				printk(KERN_ERR "%s: Invalid atom_len in scan "
-				       "data: %d\n", priv->ndev->name,
+				       "data: %zu\n", priv->ndev->name,
 				       atom_len);
-				return -EIO;
+				abort = true;
+				goto scan_abort;
 			}
 		} else
 			atom_len = offsetof(struct prism2_scan_apinfo, atim);
 		break;
+
 	default:
-		return -EOPNOTSUPP;
+		abort = true;
+		goto scan_abort;
 	}
 
 	/* Check that we got an whole number of atoms */
 	if ((len - offset) % atom_len) {
-		printk(KERN_ERR "%s: Unexpected scan data length %d, "
-		       "atom_len %d, offset %d\n", priv->ndev->name, len,
+		printk(KERN_ERR "%s: Unexpected scan data length %zu, "
+		       "atom_len %zu, offset %d\n", priv->ndev->name, len,
 		       atom_len, offset);
-		return -EIO;
+		abort = true;
+		goto scan_abort;
 	}
 
-	orinoco_clear_scan_results(priv, msecs_to_jiffies(15000));
-
-	/* Read the entries one by one */
+	/* Process the entries one by one */
 	for (; offset + atom_len <= len; offset += atom_len) {
-		int found = 0;
-		struct bss_element *bss = NULL;
+		union hermes_scan_info *atom;
 
-		/* Get next atom */
 		atom = (union hermes_scan_info *) (buf + offset);
 
-		/* Try to update an existing bss first */
-		list_for_each_entry(bss, &priv->bss_list, list) {
-			if (compare_ether_addr(bss->bss.a.bssid, atom->a.bssid))
-				continue;
-			if (le16_to_cpu(bss->bss.a.essid_len) !=
-			      le16_to_cpu(atom->a.essid_len))
-				continue;
-			if (memcmp(bss->bss.a.essid, atom->a.essid,
-			      le16_to_cpu(atom->a.essid_len)))
-				continue;
-			found = 1;
-			break;
-		}
-
-		/* Grab a bss off the free list */
-		if (!found && !list_empty(&priv->bss_free_list)) {
-			bss = list_entry(priv->bss_free_list.next,
-					 struct bss_element, list);
-			list_del(priv->bss_free_list.next);
-
-			list_add_tail(&bss->list, &priv->bss_list);
-		}
-
-		if (bss) {
-			/* Always update the BSS to get latest beacon info */
-			memcpy(&bss->bss, atom, sizeof(bss->bss));
-			bss->last_scanned = jiffies;
-		}
+		orinoco_add_hostscan_result(priv, atom);
 	}
 
-	return 0;
+ scan_abort:
+	if (priv->scan_request) {
+		cfg80211_scan_done(priv->scan_request, abort);
+		priv->scan_request = NULL;
+	}
 }

@@ -210,13 +210,11 @@ static void sg_put_dev(Sg_device *sdp);
 static int sg_allow_access(struct file *filp, unsigned char *cmd)
 {
 	struct sg_fd *sfp = (struct sg_fd *)filp->private_data;
-	struct request_queue *q = sfp->parentdp->device->request_queue;
 
 	if (sfp->parentdp->device->type == TYPE_SCANNER)
 		return 0;
 
-	return blk_verify_command(&q->cmd_filter,
-				  cmd, filp->f_mode & FMODE_WRITE);
+	return blk_verify_command(cmd, filp->f_mode & FMODE_WRITE);
 }
 
 static int
@@ -621,7 +619,7 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 		if (strcmp(current->comm, cmd) && printk_ratelimit()) {
 			printk(KERN_WARNING
 			       "sg_write: data in/out %d/%d bytes for SCSI command 0x%x--"
-			       "guessing data in;\n" KERN_WARNING "   "
+			       "guessing data in;\n   "
 			       "program %s not setting count and/or reply_len properly\n",
 			       old_hdr.reply_len - (int)SZ_SG_HEADER,
 			       input_size, (unsigned int) cmnd[0],
@@ -1658,6 +1656,10 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 		md->nr_entries = req_schp->k_use_sg;
 		md->offset = 0;
 		md->null_mapped = hp->dxferp ? 0 : 1;
+		if (dxfer_dir == SG_DXFER_TO_FROM_DEV)
+			md->from_user = 1;
+		else
+			md->from_user = 0;
 	}
 
 	if (iov_count) {
@@ -1809,7 +1811,7 @@ retry:
 	return 0;
 out:
 	for (i = 0; i < k; i++)
-		__free_pages(schp->pages[k], order);
+		__free_pages(schp->pages[i], order);
 
 	if (--order >= 0)
 		goto retry;

@@ -68,7 +68,9 @@ MODULE_PARM_DESC(extra, "Enable extra LEDs and keys on IBM RapidAcces, EzKey and
  * are loadable via a userland utility.
  */
 
-static const unsigned short atkbd_set2_keycode[512] = {
+#define ATKBD_KEYMAP_SIZE	512
+
+static const unsigned short atkbd_set2_keycode[ATKBD_KEYMAP_SIZE] = {
 
 #ifdef CONFIG_KEYBOARD_ATKBD_HP_KEYCODES
 
@@ -99,7 +101,7 @@ static const unsigned short atkbd_set2_keycode[512] = {
 #endif
 };
 
-static const unsigned short atkbd_set3_keycode[512] = {
+static const unsigned short atkbd_set3_keycode[ATKBD_KEYMAP_SIZE] = {
 
 	  0,  0,  0,  0,  0,  0,  0, 59,  1,138,128,129,130, 15, 41, 60,
 	131, 29, 42, 86, 58, 16,  2, 61,133, 56, 44, 31, 30, 17,  3, 62,
@@ -200,8 +202,8 @@ struct atkbd {
 	char phys[32];
 
 	unsigned short id;
-	unsigned short keycode[512];
-	DECLARE_BITMAP(force_release_mask, 512);
+	unsigned short keycode[ATKBD_KEYMAP_SIZE];
+	DECLARE_BITMAP(force_release_mask, ATKBD_KEYMAP_SIZE);
 	unsigned char set;
 	unsigned char translated;
 	unsigned char extra;
@@ -227,7 +229,7 @@ struct atkbd {
 };
 
 /*
- * System-specific ketymap fixup routine
+ * System-specific keymap fixup routine
  */
 static void (*atkbd_platform_fixup)(struct atkbd *, const void *data);
 static void *atkbd_platform_fixup_data;
@@ -253,6 +255,7 @@ static struct device_attribute atkbd_attr_##_name =				\
 	__ATTR(_name, S_IWUSR | S_IRUGO, atkbd_do_show_##_name, atkbd_do_set_##_name);
 
 ATKBD_DEFINE_ATTR(extra);
+ATKBD_DEFINE_ATTR(force_release);
 ATKBD_DEFINE_ATTR(scroll);
 ATKBD_DEFINE_ATTR(set);
 ATKBD_DEFINE_ATTR(softrepeat);
@@ -272,6 +275,7 @@ ATKBD_DEFINE_RO_ATTR(err_count);
 
 static struct attribute *atkbd_attributes[] = {
 	&atkbd_attr_extra.attr,
+	&atkbd_attr_force_release.attr,
 	&atkbd_attr_scroll.attr,
 	&atkbd_attr_set.attr,
 	&atkbd_attr_softrepeat.attr,
@@ -880,6 +884,14 @@ static unsigned int atkbd_hp_zv6100_forced_release_keys[] = {
 };
 
 /*
+ * Perform fixup for HP (Compaq) Presario R4000 R4100 R4200 that don't generate
+ * release for their volume buttons
+ */
+static unsigned int atkbd_hp_r4000_forced_release_keys[] = {
+	0xae, 0xb0, -1U
+};
+
+/*
  * Samsung NC10,NC20 with Fn+F? key release not working
  */
 static unsigned int atkbd_samsung_forced_release_keys[] = {
@@ -895,10 +907,24 @@ static unsigned int atkbd_amilo_pa1510_forced_release_keys[] = {
 };
 
 /*
+ * Amilo Pi 3525 key release for Fn+Volume keys not working
+ */
+static unsigned int atkbd_amilo_pi3525_forced_release_keys[] = {
+	0x20, 0xa0, 0x2e, 0xae, 0x30, 0xb0, -1U
+};
+
+/*
  * Amilo Xi 3650 key release for light touch bar not working
  */
 static unsigned int atkbd_amilo_xi3650_forced_release_keys[] = {
 	0x67, 0xed, 0x90, 0xa2, 0x99, 0xa4, 0xae, 0xb0, -1U
+};
+
+/*
+ * Soltech TA12 system with broken key release on volume keys and mute key
+ */
+static unsigned int atkdb_soltech_ta12_forced_release_keys[] = {
+	0xa0, 0xae, 0xb0, -1U
 };
 
 /*
@@ -912,7 +938,7 @@ static void atkbd_set_keycode_table(struct atkbd *atkbd)
 	int i, j;
 
 	memset(atkbd->keycode, 0, sizeof(atkbd->keycode));
-	bitmap_zero(atkbd->force_release_mask, 512);
+	bitmap_zero(atkbd->force_release_mask, ATKBD_KEYMAP_SIZE);
 
 	if (atkbd->translated) {
 		for (i = 0; i < 128; i++) {
@@ -1019,7 +1045,7 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 	input_dev->keycodesize = sizeof(unsigned short);
 	input_dev->keycodemax = ARRAY_SIZE(atkbd_set2_keycode);
 
-	for (i = 0; i < 512; i++)
+	for (i = 0; i < ATKBD_KEYMAP_SIZE; i++)
 		if (atkbd->keycode[i] && atkbd->keycode[i] < ATKBD_SPECIAL)
 			__set_bit(atkbd->keycode[i], input_dev->keybit);
 }
@@ -1287,6 +1313,33 @@ static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t coun
 	return count;
 }
 
+static ssize_t atkbd_show_force_release(struct atkbd *atkbd, char *buf)
+{
+	size_t len = bitmap_scnlistprintf(buf, PAGE_SIZE - 2,
+			atkbd->force_release_mask, ATKBD_KEYMAP_SIZE);
+
+	buf[len++] = '\n';
+	buf[len] = '\0';
+
+	return len;
+}
+
+static ssize_t atkbd_set_force_release(struct atkbd *atkbd,
+					const char *buf, size_t count)
+{
+	/* 64 bytes on stack should be acceptable */
+	DECLARE_BITMAP(new_mask, ATKBD_KEYMAP_SIZE);
+	int err;
+
+	err = bitmap_parselist(buf, new_mask, ATKBD_KEYMAP_SIZE);
+	if (err)
+		return err;
+
+	memcpy(atkbd->force_release_mask, new_mask, sizeof(atkbd->force_release_mask));
+	return count;
+}
+
+
 static ssize_t atkbd_show_scroll(struct atkbd *atkbd, char *buf)
 {
 	return sprintf(buf, "%d\n", atkbd->scroll ? 1 : 0);
@@ -1523,6 +1576,33 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_hp_zv6100_forced_release_keys,
 	},
 	{
+		.ident = "HP Presario R4000",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4000"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_hp_r4000_forced_release_keys,
+	},
+	{
+		.ident = "HP Presario R4100",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4100"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_hp_r4000_forced_release_keys,
+	},
+	{
+		.ident = "HP Presario R4200",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4200"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_hp_r4000_forced_release_keys,
+	},
+	{
 		.ident = "Inventec Symphony",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "INVENTEC"),
@@ -1568,6 +1648,15 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_amilo_pa1510_forced_release_keys,
 	},
 	{
+		.ident = "Fujitsu Amilo Pi 3525",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pi 3525"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_amilo_pi3525_forced_release_keys,
+	},
+	{
 		.ident = "Fujitsu Amilo Xi 3650",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
@@ -1575,6 +1664,15 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		},
 		.callback = atkbd_setup_forced_release,
 		.driver_data = atkbd_amilo_xi3650_forced_release_keys,
+	},
+	{
+		.ident = "Soltech Corporation TA12",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Soltech Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TA12"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkdb_soltech_ta12_forced_release_keys,
 	},
 	{ }
 };

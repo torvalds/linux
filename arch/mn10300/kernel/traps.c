@@ -17,7 +17,6 @@
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
@@ -136,8 +135,7 @@ void show_trace(unsigned long *sp)
 	unsigned long *stack, addr, module_start, module_end;
 	int i;
 
-	printk(KERN_EMERG "\n"
-	       KERN_EMERG "Call Trace:");
+	printk(KERN_EMERG "\nCall Trace:");
 
 	stack = sp;
 	i = 0;
@@ -153,7 +151,7 @@ void show_trace(unsigned long *sp)
 			printk("\n");
 #else
 			if ((i % 6) == 0)
-				printk("\n" KERN_EMERG "  ");
+				printk(KERN_EMERG "  ");
 			printk("[<%08lx>] ", addr);
 			i++;
 #endif
@@ -180,7 +178,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		if (((long) stack & (THREAD_SIZE - 1)) == 0)
 			break;
 		if ((i % 8) == 0)
-			printk("\n" KERN_EMERG "  ");
+			printk(KERN_EMERG "  ");
 		printk("%08lx ", *stack++);
 	}
 
@@ -264,8 +262,7 @@ void show_registers(struct pt_regs *regs)
 		show_stack(current, (unsigned long *) sp);
 
 #if 0
-		printk(KERN_EMERG "\n"
-		       KERN_EMERG "Code: ");
+		printk(KERN_EMERG "\nCode: ");
 		if (regs->pc < PAGE_OFFSET)
 			goto bad;
 
@@ -311,16 +308,14 @@ void die(const char *str, struct pt_regs *regs, enum exception_code code)
 {
 	console_verbose();
 	spin_lock_irq(&die_lock);
-	printk(KERN_EMERG "\n"
-	       KERN_EMERG "%s: %04x\n",
+	printk(KERN_EMERG "\n%s: %04x\n",
 	       str, code & 0xffff);
 	show_registers(regs);
 
 	if (regs->pc >= 0x02000000 && regs->pc < 0x04000000 &&
 	    (regs->epsw & (EPSW_IM | EPSW_IE)) != (EPSW_IM | EPSW_IE)) {
 		printk(KERN_EMERG "Exception in usermode interrupt handler\n");
-		printk(KERN_EMERG "\n"
-		       KERN_EMERG "  Please connect to kernel debugger !!\n");
+		printk(KERN_EMERG "\nPlease connect to kernel debugger !!\n");
 		asm volatile ("0: bra 0b");
 	}
 
@@ -429,9 +424,8 @@ asmlinkage void io_bus_error(u32 bcberr, u32 bcbear, struct pt_regs *regs)
 {
 	console_verbose();
 
-	printk(KERN_EMERG "\n"
-	       KERN_EMERG "Asynchronous I/O Bus Error\n"
-	       KERN_EMERG "==========================\n");
+	printk(KERN_EMERG "Asynchronous I/O Bus Error\n");
+	printk(KERN_EMERG "==========================\n");
 
 	if (bcberr & BCBERR_BEME)
 		printk(KERN_EMERG "- Multiple recorded errors\n");

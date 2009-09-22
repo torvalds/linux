@@ -52,6 +52,7 @@
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
@@ -1607,10 +1608,9 @@ static int hdlcdev_attach(struct net_device *dev, unsigned short encoding,
  *
  * skb  socket buffer containing HDLC frame
  * dev  pointer to network device structure
- *
- * returns 0 if success, otherwise error code
  */
-static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t hdlcdev_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	SLMP_INFO *info = dev_to_port(dev);
 	unsigned long flags;
@@ -1641,7 +1641,7 @@ static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	 	tx_start(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /**

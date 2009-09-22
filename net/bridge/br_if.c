@@ -256,12 +256,17 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->path_cost = port_cost(dev);
 	p->priority = 0x8000 >> BR_PORT_BITS;
 	p->port_no = index;
+	p->flags = 0;
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
 	br_stp_port_timer_init(p);
 
 	return p;
 }
+
+static struct device_type br_type = {
+	.name	= "bridge",
+};
 
 int br_add_bridge(struct net *net, const char *name)
 {
@@ -278,6 +283,8 @@ int br_add_bridge(struct net *net, const char *name)
 		if (ret < 0)
 			goto out_free;
 	}
+
+	SET_NETDEV_DEVTYPE(dev, &br_type);
 
 	ret = register_netdevice(dev);
 	if (ret)
@@ -424,7 +431,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 err2:
 	br_fdb_delete_by_port(br, p, 1);
 err1:
-	kobject_del(&p->kobj);
+	kobject_put(&p->kobj);
 err0:
 	dev_set_promiscuity(dev, -1);
 put_back:

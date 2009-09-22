@@ -108,6 +108,7 @@ static char *ocfs2_lock_type_strings[] = {
 	[OCFS2_LOCK_TYPE_OPEN] = "Open",
 	[OCFS2_LOCK_TYPE_FLOCK] = "Flock",
 	[OCFS2_LOCK_TYPE_QINFO] = "Quota",
+	[OCFS2_LOCK_TYPE_NFS_SYNC] = "NFSSync",
 	[OCFS2_LOCK_TYPE_ORPHAN_SCAN] = "OrphanScan",
 };
 

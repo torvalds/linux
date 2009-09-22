@@ -171,6 +171,7 @@ static ssize_t write(struct file *file, const char __user *userbuf,
 	if (count > 0)
 		*off = offs + count;
 
+	kfree(temp);
 	return count;
 }
 

@@ -375,7 +375,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	struct fuse_req *req;
 	struct fuse_req *forget_req;
-	struct fuse_open_in inarg;
+	struct fuse_create_in inarg;
 	struct fuse_open_out outopen;
 	struct fuse_entry_out outentry;
 	struct fuse_file *ff;
@@ -399,15 +399,20 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	if (!ff)
 		goto out_put_request;
 
+	if (!fc->dont_mask)
+		mode &= ~current_umask();
+
 	flags &= ~O_NOCTTY;
 	memset(&inarg, 0, sizeof(inarg));
 	memset(&outentry, 0, sizeof(outentry));
 	inarg.flags = flags;
 	inarg.mode = mode;
+	inarg.umask = current_umask();
 	req->in.h.opcode = FUSE_CREATE;
 	req->in.h.nodeid = get_node_id(dir);
 	req->in.numargs = 2;
-	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].size = fc->minor < 12 ? sizeof(struct fuse_open_in) :
+						sizeof(inarg);
 	req->in.args[0].value = &inarg;
 	req->in.args[1].size = entry->d_name.len + 1;
 	req->in.args[1].value = entry->d_name.name;
@@ -546,12 +551,17 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, int mode,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
+	if (!fc->dont_mask)
+		mode &= ~current_umask();
+
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.mode = mode;
 	inarg.rdev = new_encode_dev(rdev);
+	inarg.umask = current_umask();
 	req->in.h.opcode = FUSE_MKNOD;
 	req->in.numargs = 2;
-	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].size = fc->minor < 12 ? FUSE_COMPAT_MKNOD_IN_SIZE :
+						sizeof(inarg);
 	req->in.args[0].value = &inarg;
 	req->in.args[1].size = entry->d_name.len + 1;
 	req->in.args[1].value = entry->d_name.name;
@@ -578,8 +588,12 @@ static int fuse_mkdir(struct inode *dir, struct dentry *entry, int mode)
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
+	if (!fc->dont_mask)
+		mode &= ~current_umask();
+
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.mode = mode;
+	inarg.umask = current_umask();
 	req->in.h.opcode = FUSE_MKDIR;
 	req->in.numargs = 2;
 	req->in.args[0].size = sizeof(inarg);
@@ -842,6 +856,43 @@ int fuse_update_attributes(struct inode *inode, struct kstat *stat,
 	if (refreshed != NULL)
 		*refreshed = r;
 
+	return err;
+}
+
+int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
+			     struct qstr *name)
+{
+	int err = -ENOTDIR;
+	struct inode *parent;
+	struct dentry *dir;
+	struct dentry *entry;
+
+	parent = ilookup5(sb, parent_nodeid, fuse_inode_eq, &parent_nodeid);
+	if (!parent)
+		return -ENOENT;
+
+	mutex_lock(&parent->i_mutex);
+	if (!S_ISDIR(parent->i_mode))
+		goto unlock;
+
+	err = -ENOENT;
+	dir = d_find_alias(parent);
+	if (!dir)
+		goto unlock;
+
+	entry = d_lookup(dir, name);
+	dput(dir);
+	if (!entry)
+		goto unlock;
+
+	fuse_invalidate_attr(parent);
+	fuse_invalidate_entry(entry);
+	dput(entry);
+	err = 0;
+
+ unlock:
+	mutex_unlock(&parent->i_mutex);
+	iput(parent);
 	return err;
 }
 

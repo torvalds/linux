@@ -311,7 +311,7 @@ EXPORT_SYMBOL_GPL(pci_destroy_slot);
 #include <linux/pci_hotplug.h>
 /**
  * pci_hp_create_link - create symbolic link to the hotplug driver module.
- * @slot: struct pci_slot
+ * @pci_slot: struct pci_slot
  *
  * Helper function for pci_hotplug_core.c to create symbolic link to
  * the hotplug driver module.
@@ -334,7 +334,7 @@ EXPORT_SYMBOL_GPL(pci_hp_create_module_link);
 
 /**
  * pci_hp_remove_link - remove symbolic link to the hotplug driver module.
- * @slot: struct pci_slot
+ * @pci_slot: struct pci_slot
  *
  * Helper function for pci_hotplug_core.c to remove symbolic link to
  * the hotplug driver module.

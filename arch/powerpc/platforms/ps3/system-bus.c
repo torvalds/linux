@@ -27,7 +27,7 @@
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
 #include <asm/firmware.h>
-#include <asm/iommu.h>
+#include <asm/cell-regs.h>
 
 #include "platform.h"
 
@@ -284,7 +284,6 @@ static int ps3_sb_free_mmio_region(struct ps3_mmio_region *r)
 	int result;
 
 	dump_mmio_region(r);
-;
 	result = lv1_unmap_device_mmio_region(r->dev->bus_id, r->dev->dev_id,
 		r->lpar_addr);
 
@@ -695,7 +694,7 @@ static int ps3_dma_supported(struct device *_dev, u64 mask)
 	return mask >= DMA_BIT_MASK(32);
 }
 
-static struct dma_mapping_ops ps3_sb_dma_ops = {
+static struct dma_map_ops ps3_sb_dma_ops = {
 	.alloc_coherent = ps3_alloc_coherent,
 	.free_coherent = ps3_free_coherent,
 	.map_sg = ps3_sb_map_sg,
@@ -705,7 +704,7 @@ static struct dma_mapping_ops ps3_sb_dma_ops = {
 	.unmap_page = ps3_unmap_page,
 };
 
-static struct dma_mapping_ops ps3_ioc0_dma_ops = {
+static struct dma_map_ops ps3_ioc0_dma_ops = {
 	.alloc_coherent = ps3_alloc_coherent,
 	.free_coherent = ps3_free_coherent,
 	.map_sg = ps3_ioc0_map_sg,

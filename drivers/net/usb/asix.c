@@ -731,7 +731,7 @@ static int asix_ioctl (struct net_device *net, struct ifreq *rq, int cmd)
 /* We need to override some ethtool_ops so we require our
    own structure so we don't interfere with other usbnet
    devices that may be connected at the same time. */
-static struct ethtool_ops ax88172_ethtool_ops = {
+static const struct ethtool_ops ax88172_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
 	.get_link		= asix_get_link,
 	.get_msglevel		= usbnet_get_msglevel,
@@ -873,7 +873,7 @@ out:
 	return ret;
 }
 
-static struct ethtool_ops ax88772_ethtool_ops = {
+static const struct ethtool_ops ax88772_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
 	.get_link		= asix_get_link,
 	.get_msglevel		= usbnet_get_msglevel,

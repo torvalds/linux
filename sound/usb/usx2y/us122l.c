@@ -514,7 +514,6 @@ static int usx2y_create_card(struct usb_device *device, struct snd_card **cardp)
 		US122L(card)->chip.dev->bus->busnum,
 		US122L(card)->chip.dev->devnum
 		);
-	snd_card_set_dev(card, &device->dev);
 	*cardp = card;
 	return 0;
 }
@@ -531,6 +530,7 @@ static int us122l_usb_probe(struct usb_interface *intf,
 	if (err < 0)
 		return err;
 
+	snd_card_set_dev(card, &intf->dev);
 	if (!us122l_create_card(card)) {
 		snd_card_free(card);
 		return -EINVAL;

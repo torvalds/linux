@@ -11,12 +11,18 @@ config NOP_TRACER
 
 config HAVE_FTRACE_NMI_ENTER
 	bool
+	help
+	  See Documentation/trace/ftrace-implementation.txt
 
 config HAVE_FUNCTION_TRACER
 	bool
+	help
+	  See Documentation/trace/ftrace-implementation.txt
 
 config HAVE_FUNCTION_GRAPH_TRACER
 	bool
+	help
+	  See Documentation/trace/ftrace-implementation.txt
 
 config HAVE_FUNCTION_GRAPH_FP_TEST
 	bool
@@ -28,21 +34,25 @@ config HAVE_FUNCTION_GRAPH_FP_TEST
 config HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	bool
 	help
-	 This gets selected when the arch tests the function_trace_stop
-	 variable at the mcount call site. Otherwise, this variable
-	 is tested by the called function.
+	  See Documentation/trace/ftrace-implementation.txt
 
 config HAVE_DYNAMIC_FTRACE
 	bool
+	help
+	  See Documentation/trace/ftrace-implementation.txt
 
 config HAVE_FTRACE_MCOUNT_RECORD
 	bool
+	help
+	  See Documentation/trace/ftrace-implementation.txt
 
 config HAVE_HW_BRANCH_TRACER
 	bool
 
-config HAVE_FTRACE_SYSCALLS
+config HAVE_SYSCALL_TRACEPOINTS
 	bool
+	help
+	  See Documentation/trace/ftrace-implementation.txt
 
 config TRACER_MAX_TRACE
 	bool
@@ -60,15 +70,20 @@ config EVENT_TRACING
 	bool
 
 config CONTEXT_SWITCH_TRACER
-	select MARKERS
 	bool
+
+config RING_BUFFER_ALLOW_SWAP
+	bool
+	help
+	 Allow the use of ring_buffer_swap_cpu.
+	 Adds a very slight overhead to tracing when enabled.
 
 # All tracer options should select GENERIC_TRACER. For those options that are
 # enabled by all tracers (context switch and event tracer) they select TRACING.
 # This allows those options to appear when no other tracer is selected. But the
 # options do not appear when something else selects it. We need the two options
 # GENERIC_TRACER and TRACING to avoid circular dependencies to accomplish the
-# hidding of the automatic options options.
+# hidding of the automatic options.
 
 config TRACING
 	bool
@@ -147,6 +162,7 @@ config IRQSOFF_TRACER
 	select TRACE_IRQFLAGS
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
+	select RING_BUFFER_ALLOW_SWAP
 	help
 	  This option measures the time spent in irqs-off critical
 	  sections, with microsecond accuracy.
@@ -168,6 +184,7 @@ config PREEMPT_TRACER
 	depends on PREEMPT
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
+	select RING_BUFFER_ALLOW_SWAP
 	help
 	  This option measures the time spent in preemption off critical
 	  sections, with microsecond accuracy.
@@ -211,7 +228,7 @@ config ENABLE_DEFAULT_TRACERS
 
 config FTRACE_SYSCALLS
 	bool "Trace syscalls"
-	depends on HAVE_FTRACE_SYSCALLS
+	depends on HAVE_SYSCALL_TRACEPOINTS
 	select GENERIC_TRACER
 	select KALLSYMS
 	help
@@ -226,13 +243,13 @@ config BOOT_TRACER
 	  the timings of the initcalls and traces key events and the identity
 	  of tasks that can cause boot delays, such as context-switches.
 
-	  Its aim is to be parsed by the /scripts/bootgraph.pl tool to
+	  Its aim is to be parsed by the scripts/bootgraph.pl tool to
 	  produce pretty graphics about boot inefficiencies, giving a visual
 	  representation of the delays during initcalls - but the raw
 	  /debug/tracing/trace text output is readable too.
 
-	  You must pass in ftrace=initcall to the kernel command line
-	  to enable this on bootup.
+	  You must pass in initcall_debug and ftrace=initcall to the kernel
+	  command line to enable this on bootup.
 
 config TRACE_BRANCH_PROFILING
 	bool
@@ -461,6 +478,18 @@ config FTRACE_STARTUP_TEST
 	  a series of tests are made to verify that the tracer is
 	  functioning properly. It will do tests on all the configured
 	  tracers of ftrace.
+
+config EVENT_TRACE_TEST_SYSCALLS
+	bool "Run selftest on syscall events"
+	depends on FTRACE_STARTUP_TEST
+	help
+	 This option will also enable testing every syscall event.
+	 It only enables the event and disables it and runs various loads
+	 with the event enabled. This adds a bit more time for kernel boot
+	 up since it runs this on every system call defined.
+
+	 TBD - enable a way to actually call the syscalls as we test their
+	       events
 
 config MMIOTRACE
 	bool "Memory mapped IO tracing"

@@ -1174,23 +1174,34 @@ static struct platform_driver cmos_platform_driver = {
 	}
 };
 
+#ifdef CONFIG_PNP
+static bool pnp_driver_registered;
+#endif
+static bool platform_driver_registered;
+
 static int __init cmos_init(void)
 {
 	int retval = 0;
 
 #ifdef	CONFIG_PNP
-	pnp_register_driver(&cmos_pnp_driver);
+	retval = pnp_register_driver(&cmos_pnp_driver);
+	if (retval == 0)
+		pnp_driver_registered = true;
 #endif
 
-	if (!cmos_rtc.dev)
+	if (!cmos_rtc.dev) {
 		retval = platform_driver_probe(&cmos_platform_driver,
 					       cmos_platform_probe);
+		if (retval == 0)
+			platform_driver_registered = true;
+	}
 
 	if (retval == 0)
 		return 0;
 
 #ifdef	CONFIG_PNP
-	pnp_unregister_driver(&cmos_pnp_driver);
+	if (pnp_driver_registered)
+		pnp_unregister_driver(&cmos_pnp_driver);
 #endif
 	return retval;
 }
@@ -1199,9 +1210,11 @@ module_init(cmos_init);
 static void __exit cmos_exit(void)
 {
 #ifdef	CONFIG_PNP
-	pnp_unregister_driver(&cmos_pnp_driver);
+	if (pnp_driver_registered)
+		pnp_unregister_driver(&cmos_pnp_driver);
 #endif
-	platform_driver_unregister(&cmos_platform_driver);
+	if (platform_driver_registered)
+		platform_driver_unregister(&cmos_platform_driver);
 }
 module_exit(cmos_exit);
 

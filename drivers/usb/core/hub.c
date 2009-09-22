@@ -450,10 +450,10 @@ hub_clear_tt_buffer (struct usb_device *hdev, u16 devinfo, u16 tt)
  * talking to TTs must queue control transfers (not just bulk and iso), so
  * both can talk to the same hub concurrently.
  */
-static void hub_tt_kevent (struct work_struct *work)
+static void hub_tt_work(struct work_struct *work)
 {
 	struct usb_hub		*hub =
-		container_of(work, struct usb_hub, tt.kevent);
+		container_of(work, struct usb_hub, tt.clear_work);
 	unsigned long		flags;
 	int			limit = 100;
 
@@ -462,6 +462,7 @@ static void hub_tt_kevent (struct work_struct *work)
 		struct list_head	*next;
 		struct usb_tt_clear	*clear;
 		struct usb_device	*hdev = hub->hdev;
+		const struct hc_driver	*drv;
 		int			status;
 
 		next = hub->tt.clear_list.next;
@@ -471,21 +472,25 @@ static void hub_tt_kevent (struct work_struct *work)
 		/* drop lock so HCD can concurrently report other TT errors */
 		spin_unlock_irqrestore (&hub->tt.lock, flags);
 		status = hub_clear_tt_buffer (hdev, clear->devinfo, clear->tt);
-		spin_lock_irqsave (&hub->tt.lock, flags);
-
 		if (status)
 			dev_err (&hdev->dev,
 				"clear tt %d (%04x) error %d\n",
 				clear->tt, clear->devinfo, status);
+
+		/* Tell the HCD, even if the operation failed */
+		drv = clear->hcd->driver;
+		if (drv->clear_tt_buffer_complete)
+			(drv->clear_tt_buffer_complete)(clear->hcd, clear->ep);
+
 		kfree(clear);
+		spin_lock_irqsave(&hub->tt.lock, flags);
 	}
 	spin_unlock_irqrestore (&hub->tt.lock, flags);
 }
 
 /**
- * usb_hub_tt_clear_buffer - clear control/bulk TT state in high speed hub
- * @udev: the device whose split transaction failed
- * @pipe: identifies the endpoint of the failed transaction
+ * usb_hub_clear_tt_buffer - clear control/bulk TT state in high speed hub
+ * @urb: an URB associated with the failed or incomplete split transaction
  *
  * High speed HCDs use this to tell the hub driver that some split control or
  * bulk transaction failed in a way that requires clearing internal state of
@@ -495,8 +500,10 @@ static void hub_tt_kevent (struct work_struct *work)
  * It may not be possible for that hub to handle additional full (or low)
  * speed transactions until that state is fully cleared out.
  */
-void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
+int usb_hub_clear_tt_buffer(struct urb *urb)
 {
+	struct usb_device	*udev = urb->dev;
+	int			pipe = urb->pipe;
 	struct usb_tt		*tt = udev->tt;
 	unsigned long		flags;
 	struct usb_tt_clear	*clear;
@@ -508,7 +515,7 @@ void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
 	if ((clear = kmalloc (sizeof *clear, GFP_ATOMIC)) == NULL) {
 		dev_err (&udev->dev, "can't save CLEAR_TT_BUFFER state\n");
 		/* FIXME recover somehow ... RESET_TT? */
-		return;
+		return -ENOMEM;
 	}
 
 	/* info that CLEAR_TT_BUFFER needs */
@@ -520,14 +527,19 @@ void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
 			: (USB_ENDPOINT_XFER_BULK << 11);
 	if (usb_pipein (pipe))
 		clear->devinfo |= 1 << 15;
-	
+
+	/* info for completion callback */
+	clear->hcd = bus_to_hcd(udev->bus);
+	clear->ep = urb->ep;
+
 	/* tell keventd to clear state for this TT */
 	spin_lock_irqsave (&tt->lock, flags);
 	list_add_tail (&clear->clear_list, &tt->clear_list);
-	schedule_work (&tt->kevent);
+	schedule_work(&tt->clear_work);
 	spin_unlock_irqrestore (&tt->lock, flags);
+	return 0;
 }
-EXPORT_SYMBOL_GPL(usb_hub_tt_clear_buffer);
+EXPORT_SYMBOL_GPL(usb_hub_clear_tt_buffer);
 
 /* If do_delay is false, return the number of milliseconds the caller
  * needs to delay.
@@ -818,7 +830,7 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 	if (hub->has_indicators)
 		cancel_delayed_work_sync(&hub->leds);
 	if (hub->tt.hub)
-		cancel_work_sync(&hub->tt.kevent);
+		cancel_work_sync(&hub->tt.clear_work);
 }
 
 /* caller has locked the hub device */
@@ -935,7 +947,7 @@ static int hub_configure(struct usb_hub *hub,
 
 	spin_lock_init (&hub->tt.lock);
 	INIT_LIST_HEAD (&hub->tt.clear_list);
-	INIT_WORK (&hub->tt.kevent, hub_tt_kevent);
+	INIT_WORK(&hub->tt.clear_work, hub_tt_work);
 	switch (hdev->descriptor.bDeviceProtocol) {
 		case 0:
 			break;

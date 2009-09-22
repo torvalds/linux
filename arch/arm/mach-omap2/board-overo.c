@@ -44,6 +44,7 @@
 #include <mach/gpmc.h>
 #include <mach/hardware.h>
 #include <mach/nand.h>
+#include <mach/mux.h>
 #include <mach/usb.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
@@ -51,6 +52,7 @@
 
 #define OVERO_GPIO_BT_XGATE	15
 #define OVERO_GPIO_W2W_NRESET	16
+#define OVERO_GPIO_PENDOWN	114
 #define OVERO_GPIO_BT_NRESET	164
 #define OVERO_GPIO_USBH_CPEN	168
 #define OVERO_GPIO_USBH_NRESET	183
@@ -146,7 +148,7 @@ static struct platform_device overo_smsc911x_device = {
 	.name		= "smsc911x",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(overo_smsc911x_resources),
-	.resource	= &overo_smsc911x_resources,
+	.resource	= overo_smsc911x_resources,
 	.dev		= {
 		.platform_data = &overo_smsc911x_config,
 	},
@@ -269,9 +271,6 @@ static void __init overo_flash_init(void)
 			printk(KERN_ERR "Unable to register NAND device\n");
 	}
 }
-static struct omap_uart_config overo_uart_config __initdata = {
-	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
-};
 
 static struct twl4030_hsmmc_info mmc[] = {
 	{
@@ -358,13 +357,6 @@ static int __init overo_i2c_init(void)
 	return 0;
 }
 
-static void __init overo_init_irq(void)
-{
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params);
-	omap_init_irq();
-	omap_gpio_init();
-}
-
 static struct platform_device overo_lcd_device = {
 	.name		= "overo_lcd",
 	.id		= -1,
@@ -375,9 +367,18 @@ static struct omap_lcd_config overo_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel overo_config[] __initdata = {
-	{ OMAP_TAG_UART,	&overo_uart_config },
 	{ OMAP_TAG_LCD,		&overo_lcd_config },
 };
+
+static void __init overo_init_irq(void)
+{
+	omap_board_config = overo_config;
+	omap_board_config_size = ARRAY_SIZE(overo_config);
+	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
+			     mt46h32m32lf6_sdrc_params);
+	omap_init_irq();
+	omap_gpio_init();
+}
 
 static struct platform_device *overo_devices[] __initdata = {
 	&overo_lcd_device,
@@ -387,13 +388,15 @@ static void __init overo_init(void)
 {
 	overo_i2c_init();
 	platform_add_devices(overo_devices, ARRAY_SIZE(overo_devices));
-	omap_board_config = overo_config;
-	omap_board_config_size = ARRAY_SIZE(overo_config);
 	omap_serial_init();
 	overo_flash_init();
 	usb_musb_init();
 	overo_ads7846_init();
 	overo_init_smsc911x();
+
+	/* Ensure SDRC pins are mux'd for self-refresh */
+	omap_cfg_reg(H16_34XX_SDRC_CKE0);
+	omap_cfg_reg(H17_34XX_SDRC_CKE1);
 
 	if ((gpio_request(OVERO_GPIO_W2W_NRESET,
 			  "OVERO_GPIO_W2W_NRESET") == 0) &&

@@ -278,7 +278,7 @@ static int cb710_mmc_receive(struct cb710_slot *slot, struct mmc_data *data)
 	if (unlikely(data->blksz & 15 && (data->blocks != 1 || data->blksz != 8)))
 		return -EINVAL;
 
-	sg_miter_start(&miter, data->sg, data->sg_len, 0);
+	sg_miter_start(&miter, data->sg, data->sg_len, SG_MITER_TO_SG);
 
 	cb710_modify_port_8(slot, CB710_MMC_CONFIG2_PORT,
 		15, CB710_MMC_C2_READ_PIO_SIZE_MASK);
@@ -307,7 +307,7 @@ static int cb710_mmc_receive(struct cb710_slot *slot, struct mmc_data *data)
 			goto out;
 	}
 out:
-	cb710_sg_miter_stop_writing(&miter);
+	sg_miter_stop(&miter);
 	return err;
 }
 
@@ -322,7 +322,7 @@ static int cb710_mmc_send(struct cb710_slot *slot, struct mmc_data *data)
 	if (unlikely(data->blocks > 1 && data->blksz & 15))
 		return -EINVAL;
 
-	sg_miter_start(&miter, data->sg, data->sg_len, 0);
+	sg_miter_start(&miter, data->sg, data->sg_len, SG_MITER_FROM_SG);
 
 	cb710_modify_port_8(slot, CB710_MMC_CONFIG2_PORT,
 		0, CB710_MMC_C2_READ_PIO_SIZE_MASK);

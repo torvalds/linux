@@ -291,7 +291,7 @@ static void fc_scsi_scan_rport(struct work_struct *work);
 #define FC_STARGET_NUM_ATTRS 	3
 #define FC_RPORT_NUM_ATTRS	10
 #define FC_VPORT_NUM_ATTRS	9
-#define FC_HOST_NUM_ATTRS	21
+#define FC_HOST_NUM_ATTRS	22
 
 struct fc_internal {
 	struct scsi_transport_template t;
@@ -3432,7 +3432,7 @@ fc_bsg_jobdone(struct fc_bsg_job *job)
 
 /**
  * fc_bsg_softirq_done - softirq done routine for destroying the bsg requests
- * @req:        BSG request that holds the job to be destroyed
+ * @rq:        BSG request that holds the job to be destroyed
  */
 static void fc_bsg_softirq_done(struct request *rq)
 {
@@ -3670,13 +3670,14 @@ static void
 fc_bsg_goose_queue(struct fc_rport *rport)
 {
 	int flagset;
+	unsigned long flags;
 
 	if (!rport->rqst_q)
 		return;
 
 	get_device(&rport->dev);
 
-	spin_lock(rport->rqst_q->queue_lock);
+	spin_lock_irqsave(rport->rqst_q->queue_lock, flags);
 	flagset = test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags) &&
 		  !test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags);
 	if (flagset)
@@ -3684,7 +3685,7 @@ fc_bsg_goose_queue(struct fc_rport *rport)
 	__blk_run_queue(rport->rqst_q);
 	if (flagset)
 		queue_flag_clear(QUEUE_FLAG_REENTER, rport->rqst_q);
-	spin_unlock(rport->rqst_q->queue_lock);
+	spin_unlock_irqrestore(rport->rqst_q->queue_lock, flags);
 
 	put_device(&rport->dev);
 }

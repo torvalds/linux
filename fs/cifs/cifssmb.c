@@ -100,6 +100,128 @@ static void mark_open_files_invalid(struct cifsTconInfo *pTcon)
 	   to this tcon */
 }
 
+/* reconnect the socket, tcon, and smb session if needed */
+static int
+cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
+{
+	int rc = 0;
+	struct cifsSesInfo *ses;
+	struct TCP_Server_Info *server;
+	struct nls_table *nls_codepage;
+
+	/*
+	 * SMBs NegProt, SessSetup, uLogoff do not have tcon yet so check for
+	 * tcp and smb session status done differently for those three - in the
+	 * calling routine
+	 */
+	if (!tcon)
+		return 0;
+
+	ses = tcon->ses;
+	server = ses->server;
+
+	/*
+	 * only tree disconnect, open, and write, (and ulogoff which does not
+	 * have tcon) are allowed as we start force umount
+	 */
+	if (tcon->tidStatus == CifsExiting) {
+		if (smb_command != SMB_COM_WRITE_ANDX &&
+		    smb_command != SMB_COM_OPEN_ANDX &&
+		    smb_command != SMB_COM_TREE_DISCONNECT) {
+			cFYI(1, ("can not send cmd %d while umounting",
+				smb_command));
+			return -ENODEV;
+		}
+	}
+
+	if (ses->status == CifsExiting)
+		return -EIO;
+
+	/*
+	 * Give demultiplex thread up to 10 seconds to reconnect, should be
+	 * greater than cifs socket timeout which is 7 seconds
+	 */
+	while (server->tcpStatus == CifsNeedReconnect) {
+		wait_event_interruptible_timeout(server->response_q,
+			(server->tcpStatus == CifsGood), 10 * HZ);
+
+		/* is TCP session is reestablished now ?*/
+		if (server->tcpStatus != CifsNeedReconnect)
+			break;
+
+		/*
+		 * on "soft" mounts we wait once. Hard mounts keep
+		 * retrying until process is killed or server comes
+		 * back on-line
+		 */
+		if (!tcon->retry || ses->status == CifsExiting) {
+			cFYI(1, ("gave up waiting on reconnect in smb_init"));
+			return -EHOSTDOWN;
+		}
+	}
+
+	if (!ses->need_reconnect && !tcon->need_reconnect)
+		return 0;
+
+	nls_codepage = load_nls_default();
+
+	/*
+	 * need to prevent multiple threads trying to simultaneously
+	 * reconnect the same SMB session
+	 */
+	down(&ses->sesSem);
+	if (ses->need_reconnect)
+		rc = cifs_setup_session(0, ses, nls_codepage);
+
+	/* do we need to reconnect tcon? */
+	if (rc || !tcon->need_reconnect) {
+		up(&ses->sesSem);
+		goto out;
+	}
+
+	mark_open_files_invalid(tcon);
+	rc = CIFSTCon(0, ses, tcon->treeName, tcon, nls_codepage);
+	up(&ses->sesSem);
+	cFYI(1, ("reconnect tcon rc = %d", rc));
+
+	if (rc)
+		goto out;
+
+	/*
+	 * FIXME: check if wsize needs updated due to negotiated smb buffer
+	 * 	  size shrinking
+	 */
+	atomic_inc(&tconInfoReconnectCount);
+
+	/* tell server Unix caps we support */
+	if (ses->capabilities & CAP_UNIX)
+		reset_cifs_unix_caps(0, tcon, NULL, NULL);
+
+	/*
+	 * Removed call to reopen open files here. It is safer (and faster) to
+	 * reopen files one at a time as needed in read and write.
+	 *
+	 * FIXME: what about file locks? don't we need to reclaim them ASAP?
+	 */
+
+out:
+	/*
+	 * Check if handle based operation so we know whether we can continue
+	 * or not without returning to caller to reset file handle
+	 */
+	switch (smb_command) {
+	case SMB_COM_READ_ANDX:
+	case SMB_COM_WRITE_ANDX:
+	case SMB_COM_CLOSE:
+	case SMB_COM_FIND_CLOSE2:
+	case SMB_COM_LOCKING_ANDX:
+		rc = -EAGAIN;
+	}
+
+	unload_nls(nls_codepage);
+	return rc;
+}
+
 /* Allocate and return pointer to an SMB request buffer, and set basic
    SMB information in the SMB header.  If the return code is zero, this
    function must have filled in request_buf pointer */
@@ -109,101 +231,7 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 {
 	int rc = 0;
 
-	/* SMBs NegProt, SessSetup, uLogoff do not have tcon yet so
-	   check for tcp and smb session status done differently
-	   for those three - in the calling routine */
-	if (tcon) {
-		if (tcon->tidStatus == CifsExiting) {
-			/* only tree disconnect, open, and write,
-			(and ulogoff which does not have tcon)
-			are allowed as we start force umount */
-			if ((smb_command != SMB_COM_WRITE_ANDX) &&
-			   (smb_command != SMB_COM_OPEN_ANDX) &&
-			   (smb_command != SMB_COM_TREE_DISCONNECT)) {
-				cFYI(1, ("can not send cmd %d while umounting",
-					smb_command));
-				return -ENODEV;
-			}
-		}
-		if ((tcon->ses) && (tcon->ses->status != CifsExiting) &&
-				  (tcon->ses->server)) {
-			struct nls_table *nls_codepage;
-				/* Give Demultiplex thread up to 10 seconds to
-				   reconnect, should be greater than cifs socket
-				   timeout which is 7 seconds */
-			while (tcon->ses->server->tcpStatus ==
-							 CifsNeedReconnect) {
-				wait_event_interruptible_timeout(tcon->ses->server->response_q,
-					(tcon->ses->server->tcpStatus ==
-							CifsGood), 10 * HZ);
-				if (tcon->ses->server->tcpStatus ==
-							CifsNeedReconnect) {
-					/* on "soft" mounts we wait once */
-					if (!tcon->retry ||
-					   (tcon->ses->status == CifsExiting)) {
-						cFYI(1, ("gave up waiting on "
-						      "reconnect in smb_init"));
-						return -EHOSTDOWN;
-					} /* else "hard" mount - keep retrying
-					     until process is killed or server
-					     comes back on-line */
-				} else /* TCP session is reestablished now */
-					break;
-			}
-
-			nls_codepage = load_nls_default();
-		/* need to prevent multiple threads trying to
-		simultaneously reconnect the same SMB session */
-			down(&tcon->ses->sesSem);
-			if (tcon->ses->need_reconnect)
-				rc = cifs_setup_session(0, tcon->ses,
-							nls_codepage);
-			if (!rc && (tcon->need_reconnect)) {
-				mark_open_files_invalid(tcon);
-				rc = CIFSTCon(0, tcon->ses, tcon->treeName,
-					      tcon, nls_codepage);
-				up(&tcon->ses->sesSem);
-				/* BB FIXME add code to check if wsize needs
-				   update due to negotiated smb buffer size
-				   shrinking */
-				if (rc == 0) {
-					atomic_inc(&tconInfoReconnectCount);
-					/* tell server Unix caps we support */
-					if (tcon->ses->capabilities & CAP_UNIX)
-						reset_cifs_unix_caps(
-						0 /* no xid */,
-						tcon,
-						NULL /* we do not know sb */,
-						NULL /* no vol info */);
-				}
-
-				cFYI(1, ("reconnect tcon rc = %d", rc));
-				/* Removed call to reopen open files here.
-				   It is safer (and faster) to reopen files
-				   one at a time as needed in read and write */
-
-				/* Check if handle based operation so we
-				   know whether we can continue or not without
-				   returning to caller to reset file handle */
-				switch (smb_command) {
-					case SMB_COM_READ_ANDX:
-					case SMB_COM_WRITE_ANDX:
-					case SMB_COM_CLOSE:
-					case SMB_COM_FIND_CLOSE2:
-					case SMB_COM_LOCKING_ANDX: {
-						unload_nls(nls_codepage);
-						return -EAGAIN;
-					}
-				}
-			} else {
-				up(&tcon->ses->sesSem);
-			}
-			unload_nls(nls_codepage);
-
-		} else {
-			return -EIO;
-		}
-	}
+	rc = cifs_reconnect_tcon(tcon, smb_command);
 	if (rc)
 		return rc;
 
@@ -256,101 +284,7 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 {
 	int rc = 0;
 
-	/* SMBs NegProt, SessSetup, uLogoff do not have tcon yet so
-	   check for tcp and smb session status done differently
-	   for those three - in the calling routine */
-	if (tcon) {
-		if (tcon->tidStatus == CifsExiting) {
-			/* only tree disconnect, open, and write,
-			  (and ulogoff which does not have tcon)
-			  are allowed as we start force umount */
-			if ((smb_command != SMB_COM_WRITE_ANDX) &&
-			   (smb_command != SMB_COM_OPEN_ANDX) &&
-			   (smb_command != SMB_COM_TREE_DISCONNECT)) {
-				cFYI(1, ("can not send cmd %d while umounting",
-					smb_command));
-				return -ENODEV;
-			}
-		}
-
-		if ((tcon->ses) && (tcon->ses->status != CifsExiting) &&
-				  (tcon->ses->server)) {
-			struct nls_table *nls_codepage;
-				/* Give Demultiplex thread up to 10 seconds to
-				   reconnect, should be greater than cifs socket
-				   timeout which is 7 seconds */
-			while (tcon->ses->server->tcpStatus ==
-							CifsNeedReconnect) {
-				wait_event_interruptible_timeout(tcon->ses->server->response_q,
-					(tcon->ses->server->tcpStatus ==
-							CifsGood), 10 * HZ);
-				if (tcon->ses->server->tcpStatus ==
-						CifsNeedReconnect) {
-					/* on "soft" mounts we wait once */
-					if (!tcon->retry ||
-					   (tcon->ses->status == CifsExiting)) {
-						cFYI(1, ("gave up waiting on "
-						      "reconnect in smb_init"));
-						return -EHOSTDOWN;
-					} /* else "hard" mount - keep retrying
-					     until process is killed or server
-					     comes on-line */
-				} else /* TCP session is reestablished now */
-					break;
-			}
-			nls_codepage = load_nls_default();
-		/* need to prevent multiple threads trying to
-		simultaneously reconnect the same SMB session */
-			down(&tcon->ses->sesSem);
-			if (tcon->ses->need_reconnect)
-				rc = cifs_setup_session(0, tcon->ses,
-							nls_codepage);
-			if (!rc && (tcon->need_reconnect)) {
-				mark_open_files_invalid(tcon);
-				rc = CIFSTCon(0, tcon->ses, tcon->treeName,
-					      tcon, nls_codepage);
-				up(&tcon->ses->sesSem);
-				/* BB FIXME add code to check if wsize needs
-				update due to negotiated smb buffer size
-				shrinking */
-				if (rc == 0) {
-					atomic_inc(&tconInfoReconnectCount);
-					/* tell server Unix caps we support */
-					if (tcon->ses->capabilities & CAP_UNIX)
-						reset_cifs_unix_caps(
-						0 /* no xid */,
-						tcon,
-						NULL /* do not know sb */,
-						NULL /* no vol info */);
-				}
-
-				cFYI(1, ("reconnect tcon rc = %d", rc));
-				/* Removed call to reopen open files here.
-				   It is safer (and faster) to reopen files
-				   one at a time as needed in read and write */
-
-				/* Check if handle based operation so we
-				   know whether we can continue or not without
-				   returning to caller to reset file handle */
-				switch (smb_command) {
-					case SMB_COM_READ_ANDX:
-					case SMB_COM_WRITE_ANDX:
-					case SMB_COM_CLOSE:
-					case SMB_COM_FIND_CLOSE2:
-					case SMB_COM_LOCKING_ANDX: {
-						unload_nls(nls_codepage);
-						return -EAGAIN;
-					}
-				}
-			} else {
-				up(&tcon->ses->sesSem);
-			}
-			unload_nls(nls_codepage);
-
-		} else {
-			return -EIO;
-		}
-	}
+	rc = cifs_reconnect_tcon(tcon, smb_command);
 	if (rc)
 		return rc;
 
@@ -1113,7 +1047,10 @@ PsxCreat:
 psx_create_err:
 	cifs_buf_release(pSMB);
 
-	cifs_stats_inc(&tcon->num_mkdirs);
+	if (posix_flags & SMB_O_DIRECTORY)
+		cifs_stats_inc(&tcon->num_posixmkdirs);
+	else
+		cifs_stats_inc(&tcon->num_posixopens);
 
 	if (rc == -EAGAIN)
 		goto PsxCreat;
@@ -3958,6 +3895,10 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		if (is_unicode) {
 			__le16 *tmp = kmalloc(strlen(searchName)*2 + 2,
 						GFP_KERNEL);
+			if (tmp == NULL) {
+				rc = -ENOMEM;
+				goto parse_DFS_referrals_exit;
+			}
 			cifsConvertToUCS((__le16 *) tmp, searchName,
 					PATH_MAX, nls_codepage, remap);
 			node->path_consumed = cifs_ucs2_bytes(tmp,
@@ -5074,10 +5015,114 @@ SetAttrLgcyRetry:
 }
 #endif /* temporarily unneeded SetAttr legacy function */
 
+static void
+cifs_fill_unix_set_info(FILE_UNIX_BASIC_INFO *data_offset,
+			const struct cifs_unix_set_info_args *args)
+{
+	u64 mode = args->mode;
+
+	/*
+	 * Samba server ignores set of file size to zero due to bugs in some
+	 * older clients, but we should be precise - we use SetFileSize to
+	 * set file size and do not want to truncate file size to zero
+	 * accidently as happened on one Samba server beta by putting
+	 * zero instead of -1 here
+	 */
+	data_offset->EndOfFile = cpu_to_le64(NO_CHANGE_64);
+	data_offset->NumOfBytes = cpu_to_le64(NO_CHANGE_64);
+	data_offset->LastStatusChange = cpu_to_le64(args->ctime);
+	data_offset->LastAccessTime = cpu_to_le64(args->atime);
+	data_offset->LastModificationTime = cpu_to_le64(args->mtime);
+	data_offset->Uid = cpu_to_le64(args->uid);
+	data_offset->Gid = cpu_to_le64(args->gid);
+	/* better to leave device as zero when it is  */
+	data_offset->DevMajor = cpu_to_le64(MAJOR(args->device));
+	data_offset->DevMinor = cpu_to_le64(MINOR(args->device));
+	data_offset->Permissions = cpu_to_le64(mode);
+
+	if (S_ISREG(mode))
+		data_offset->Type = cpu_to_le32(UNIX_FILE);
+	else if (S_ISDIR(mode))
+		data_offset->Type = cpu_to_le32(UNIX_DIR);
+	else if (S_ISLNK(mode))
+		data_offset->Type = cpu_to_le32(UNIX_SYMLINK);
+	else if (S_ISCHR(mode))
+		data_offset->Type = cpu_to_le32(UNIX_CHARDEV);
+	else if (S_ISBLK(mode))
+		data_offset->Type = cpu_to_le32(UNIX_BLOCKDEV);
+	else if (S_ISFIFO(mode))
+		data_offset->Type = cpu_to_le32(UNIX_FIFO);
+	else if (S_ISSOCK(mode))
+		data_offset->Type = cpu_to_le32(UNIX_SOCKET);
+}
+
 int
-CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *tcon, char *fileName,
-		   const struct cifs_unix_set_info_args *args,
-		   const struct nls_table *nls_codepage, int remap)
+CIFSSMBUnixSetFileInfo(const int xid, struct cifsTconInfo *tcon,
+		       const struct cifs_unix_set_info_args *args,
+		       u16 fid, u32 pid_of_opener)
+{
+	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
+	FILE_UNIX_BASIC_INFO *data_offset;
+	int rc = 0;
+	u16 params, param_offset, offset, byte_count, count;
+
+	cFYI(1, ("Set Unix Info (via SetFileInfo)"));
+	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
+
+	if (rc)
+		return rc;
+
+	pSMB->hdr.Pid = cpu_to_le16((__u16)pid_of_opener);
+	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid_of_opener >> 16));
+
+	params = 6;
+	pSMB->MaxSetupCount = 0;
+	pSMB->Reserved = 0;
+	pSMB->Flags = 0;
+	pSMB->Timeout = 0;
+	pSMB->Reserved2 = 0;
+	param_offset = offsetof(struct smb_com_transaction2_sfi_req, Fid) - 4;
+	offset = param_offset + params;
+
+	data_offset = (FILE_UNIX_BASIC_INFO *)
+				((char *)(&pSMB->hdr.Protocol) + offset);
+	count = sizeof(FILE_UNIX_BASIC_INFO);
+
+	pSMB->MaxParameterCount = cpu_to_le16(2);
+	/* BB find max SMB PDU from sess */
+	pSMB->MaxDataCount = cpu_to_le16(1000);
+	pSMB->SetupCount = 1;
+	pSMB->Reserved3 = 0;
+	pSMB->SubCommand = cpu_to_le16(TRANS2_SET_FILE_INFORMATION);
+	byte_count = 3 /* pad */  + params + count;
+	pSMB->DataCount = cpu_to_le16(count);
+	pSMB->ParameterCount = cpu_to_le16(params);
+	pSMB->TotalDataCount = pSMB->DataCount;
+	pSMB->TotalParameterCount = pSMB->ParameterCount;
+	pSMB->ParameterOffset = cpu_to_le16(param_offset);
+	pSMB->DataOffset = cpu_to_le16(offset);
+	pSMB->Fid = fid;
+	pSMB->InformationLevel = cpu_to_le16(SMB_SET_FILE_UNIX_BASIC);
+	pSMB->Reserved4 = 0;
+	pSMB->hdr.smb_buf_length += byte_count;
+	pSMB->ByteCount = cpu_to_le16(byte_count);
+
+	cifs_fill_unix_set_info(data_offset, args);
+
+	rc = SendReceiveNoRsp(xid, tcon->ses, (struct smb_hdr *) pSMB, 0);
+	if (rc)
+		cFYI(1, ("Send error in Set Time (SetFileInfo) = %d", rc));
+
+	/* Note: On -EAGAIN error only caller can retry on handle based calls
+		since file handle passed in no longer valid */
+
+	return rc;
+}
+
+int
+CIFSSMBUnixSetPathInfo(const int xid, struct cifsTconInfo *tcon, char *fileName,
+		       const struct cifs_unix_set_info_args *args,
+		       const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -5086,7 +5131,6 @@ CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *tcon, char *fileName,
 	int bytes_returned = 0;
 	FILE_UNIX_BASIC_INFO *data_offset;
 	__u16 params, param_offset, offset, count, byte_count;
-	__u64 mode = args->mode;
 
 	cFYI(1, ("In SetUID/GID/Mode"));
 setPermsRetry:
@@ -5137,38 +5181,8 @@ setPermsRetry:
 	pSMB->InformationLevel = cpu_to_le16(SMB_SET_FILE_UNIX_BASIC);
 	pSMB->Reserved4 = 0;
 	pSMB->hdr.smb_buf_length += byte_count;
-	/* Samba server ignores set of file size to zero due to bugs in some
-	older clients, but we should be precise - we use SetFileSize to
-	set file size and do not want to truncate file size to zero
-	accidently as happened on one Samba server beta by putting
-	zero instead of -1 here */
-	data_offset->EndOfFile = cpu_to_le64(NO_CHANGE_64);
-	data_offset->NumOfBytes = cpu_to_le64(NO_CHANGE_64);
-	data_offset->LastStatusChange = cpu_to_le64(args->ctime);
-	data_offset->LastAccessTime = cpu_to_le64(args->atime);
-	data_offset->LastModificationTime = cpu_to_le64(args->mtime);
-	data_offset->Uid = cpu_to_le64(args->uid);
-	data_offset->Gid = cpu_to_le64(args->gid);
-	/* better to leave device as zero when it is  */
-	data_offset->DevMajor = cpu_to_le64(MAJOR(args->device));
-	data_offset->DevMinor = cpu_to_le64(MINOR(args->device));
-	data_offset->Permissions = cpu_to_le64(mode);
 
-	if (S_ISREG(mode))
-		data_offset->Type = cpu_to_le32(UNIX_FILE);
-	else if (S_ISDIR(mode))
-		data_offset->Type = cpu_to_le32(UNIX_DIR);
-	else if (S_ISLNK(mode))
-		data_offset->Type = cpu_to_le32(UNIX_SYMLINK);
-	else if (S_ISCHR(mode))
-		data_offset->Type = cpu_to_le32(UNIX_CHARDEV);
-	else if (S_ISBLK(mode))
-		data_offset->Type = cpu_to_le32(UNIX_BLOCKDEV);
-	else if (S_ISFIFO(mode))
-		data_offset->Type = cpu_to_le32(UNIX_FIFO);
-	else if (S_ISSOCK(mode))
-		data_offset->Type = cpu_to_le32(UNIX_SOCKET);
-
+	cifs_fill_unix_set_info(data_offset, args);
 
 	pSMB->ByteCount = cpu_to_le16(byte_count);
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,

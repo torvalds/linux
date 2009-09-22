@@ -10,7 +10,7 @@
 #include <linux/bootmem.h>		/* max_low_pfn			*/
 #include <linux/kprobes.h>		/* __kprobes, ...		*/
 #include <linux/mmiotrace.h>		/* kmmio_handler, ...		*/
-#include <linux/perf_counter.h>		/* perf_swcounter_event		*/
+#include <linux/perf_event.h>		/* perf_sw_event		*/
 
 #include <asm/traps.h>			/* dotraplinkage, ...		*/
 #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
@@ -285,26 +285,25 @@ check_v8086_mode(struct pt_regs *regs, unsigned long address,
 		tsk->thread.screen_bitmap |= 1 << bit;
 }
 
+static bool low_pfn(unsigned long pfn)
+{
+	return pfn < max_low_pfn;
+}
+
 static void dump_pagetable(unsigned long address)
 {
-	__typeof__(pte_val(__pte(0))) page;
-
-	page = read_cr3();
-	page = ((__typeof__(page) *) __va(page))[address >> PGDIR_SHIFT];
+	pgd_t *base = __va(read_cr3());
+	pgd_t *pgd = &base[pgd_index(address)];
+	pmd_t *pmd;
+	pte_t *pte;
 
 #ifdef CONFIG_X86_PAE
-	printk("*pdpt = %016Lx ", page);
-	if ((page >> PAGE_SHIFT) < max_low_pfn
-	    && page & _PAGE_PRESENT) {
-		page &= PAGE_MASK;
-		page = ((__typeof__(page) *) __va(page))[(address >> PMD_SHIFT)
-							& (PTRS_PER_PMD - 1)];
-		printk(KERN_CONT "*pde = %016Lx ", page);
-		page &= ~_PAGE_NX;
-	}
-#else
-	printk("*pde = %08lx ", page);
+	printk("*pdpt = %016Lx ", pgd_val(*pgd));
+	if (!low_pfn(pgd_val(*pgd) >> PAGE_SHIFT) || !pgd_present(*pgd))
+		goto out;
 #endif
+	pmd = pmd_offset(pud_offset(pgd, address), address);
+	printk(KERN_CONT "*pde = %0*Lx ", sizeof(*pmd) * 2, (u64)pmd_val(*pmd));
 
 	/*
 	 * We must not directly access the pte in the highpte
@@ -312,16 +311,12 @@ static void dump_pagetable(unsigned long address)
 	 * And let's rather not kmap-atomic the pte, just in case
 	 * it's allocated already:
 	 */
-	if ((page >> PAGE_SHIFT) < max_low_pfn
-	    && (page & _PAGE_PRESENT)
-	    && !(page & _PAGE_PSE)) {
+	if (!low_pfn(pmd_pfn(*pmd)) || !pmd_present(*pmd) || pmd_large(*pmd))
+		goto out;
 
-		page &= PAGE_MASK;
-		page = ((__typeof__(page) *) __va(page))[(address >> PAGE_SHIFT)
-							& (PTRS_PER_PTE - 1)];
-		printk("*pte = %0*Lx ", sizeof(page)*2, (u64)page);
-	}
-
+	pte = pte_offset_kernel(pmd, address);
+	printk("*pte = %0*Lx ", sizeof(*pte) * 2, (u64)pte_val(*pte));
+out:
 	printk("\n");
 }
 
@@ -426,10 +421,11 @@ static noinline int vmalloc_fault(unsigned long address)
 }
 
 static const char errata93_warning[] =
-KERN_ERR "******* Your BIOS seems to not contain a fix for K8 errata #93\n"
-KERN_ERR "******* Working around it, but it may cause SEGVs or burn power.\n"
-KERN_ERR "******* Please consider a BIOS update.\n"
-KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
+KERN_ERR 
+"******* Your BIOS seems to not contain a fix for K8 errata #93\n"
+"******* Working around it, but it may cause SEGVs or burn power.\n"
+"******* Please consider a BIOS update.\n"
+"******* Disabling USB legacy in the BIOS may also help.\n";
 
 /*
  * No vm86 mode in 64-bit mode:
@@ -449,16 +445,12 @@ static int bad_address(void *p)
 
 static void dump_pagetable(unsigned long address)
 {
-	pgd_t *pgd;
+	pgd_t *base = __va(read_cr3() & PHYSICAL_PAGE_MASK);
+	pgd_t *pgd = base + pgd_index(address);
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
-	pgd = (pgd_t *)read_cr3();
-
-	pgd = __va((unsigned long)pgd & PHYSICAL_PAGE_MASK);
-
-	pgd += pgd_index(address);
 	if (bad_address(pgd))
 		goto bad;
 
@@ -696,7 +688,7 @@ show_signal_msg(struct pt_regs *regs, unsigned long error_code,
 	if (!printk_ratelimit())
 		return;
 
-	printk(KERN_CONT "%s%s[%d]: segfault at %lx ip %p sp %p error %lx",
+	printk("%s%s[%d]: segfault at %lx ip %p sp %p error %lx",
 		task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
 		tsk->comm, task_pid_nr(tsk), address,
 		(void *)regs->ip, (void *)regs->sp, error_code);
@@ -1025,7 +1017,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	if (unlikely(error_code & PF_RSVD))
 		pgtable_bad(regs, error_code, address);
 
-	perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
 
 	/*
 	 * If we're in an interrupt, have no user context or are running
@@ -1122,11 +1114,11 @@ good_area:
 
 	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
-		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
 				     regs, address);
 	} else {
 		tsk->min_flt++;
-		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
 				     regs, address);
 	}
 

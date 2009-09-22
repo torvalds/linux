@@ -119,6 +119,7 @@ static int twl_mmc_late_init(struct device *dev)
 				if (i != 0)
 					break;
 				ret = PTR_ERR(reg);
+				hsmmc[i].vcc = NULL;
 				goto err;
 			}
 			hsmmc[i].vcc = reg;
@@ -165,8 +166,13 @@ done:
 static void twl_mmc_cleanup(struct device *dev)
 {
 	struct omap_mmc_platform_data *mmc = dev->platform_data;
+	int i;
 
 	gpio_free(mmc->slots[0].switch_pin);
+	for(i = 0; i < ARRAY_SIZE(hsmmc); i++) {
+		regulator_put(hsmmc[i].vcc);
+		regulator_put(hsmmc[i].vcc_aux);
+	}
 }
 
 #ifdef CONFIG_PM

@@ -4097,7 +4097,8 @@ static int e1000_maybe_stop_tx(struct net_device *netdev, int size)
 }
 
 #define TXD_USE_COUNT(S, X) (((S) >> (X)) + 1 )
-static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
+				    struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_ring *tx_ring = adapter->tx_ring;
@@ -4345,8 +4346,6 @@ static int e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr,
 		data->phy_id = adapter->hw.phy.addr;
 		break;
 	case SIOCGMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
 		switch (data->reg_num & 0x1F) {
 		case MII_BMCR:
 			data->val_out = adapter->phy_regs.bmcr;
@@ -4538,8 +4537,7 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		/* Allow time for pending master requests to run */
 		e1000e_disable_pcie_master(&adapter->hw);
 
-		if ((adapter->flags2 & FLAG2_HAS_PHY_WAKEUP) &&
-		    !(hw->mac.ops.check_mng_mode(hw))) {
+		if (adapter->flags2 & FLAG2_HAS_PHY_WAKEUP) {
 			/* enable wakeup by the PHY */
 			retval = e1000_init_phy_wakeup(adapter, wufc);
 			if (retval)
@@ -4557,7 +4555,8 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	*enable_wake = !!wufc;
 
 	/* make sure adapter isn't asleep if manageability is enabled */
-	if (adapter->flags & FLAG_MNG_PT_ENABLED)
+	if ((adapter->flags & FLAG_MNG_PT_ENABLED) ||
+	    (hw->mac.ops.check_mng_mode(hw)))
 		*enable_wake = true;
 
 	if (adapter->hw.phy.type == e1000_phy_igp_3)
@@ -4670,14 +4669,6 @@ static int e1000_resume(struct pci_dev *pdev)
 		return err;
 	}
 
-	/* AER (Advanced Error Reporting) hooks */
-	err = pci_enable_pcie_error_reporting(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "pci_enable_pcie_error_reporting failed "
-		                    "0x%x\n", err);
-		/* non-fatal, continue */
-	}
-
 	pci_set_master(pdev);
 
 	pci_enable_wake(pdev, PCI_D3hot, 0);
@@ -4784,6 +4775,9 @@ static pci_ers_result_t e1000_io_error_detected(struct pci_dev *pdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
 
 	if (netif_running(netdev))
 		e1000e_down(adapter);
@@ -4986,6 +4980,14 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	                                  e1000e_driver_name);
 	if (err)
 		goto err_pci_reg;
+
+	/* AER (Advanced Error Reporting) hooks */
+	err = pci_enable_pcie_error_reporting(pdev);
+	if (err) {
+		dev_err(&pdev->dev, "pci_enable_pcie_error_reporting failed "
+		        "0x%x\n", err);
+		/* non-fatal, continue */
+	}
 
 	pci_set_master(pdev);
 	/* PCI config space info */

@@ -49,6 +49,7 @@
 #include <asm/sclp.h>
 #include <asm/cputime.h>
 #include <asm/vdso.h>
+#include <asm/cpu.h>
 #include "entry.h"
 
 static struct task_struct *current_set[NR_CPUS];
@@ -70,6 +71,23 @@ static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
 static void smp_ext_bitcall(int, ec_bit_sig);
 
+static int cpu_stopped(int cpu)
+{
+	__u32 status;
+
+	switch (signal_processor_ps(&status, 0, cpu, sigp_sense)) {
+	case sigp_order_code_accepted:
+	case sigp_status_stored:
+		/* Check for stopped and check stop state */
+		if (status & 0x50)
+			return 1;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 void smp_send_stop(void)
 {
 	int cpu, rc;
@@ -86,7 +104,7 @@ void smp_send_stop(void)
 			rc = signal_processor(cpu, sigp_stop);
 		} while (rc == sigp_busy);
 
-		while (!smp_cpu_not_running(cpu))
+		while (!cpu_stopped(cpu))
 			cpu_relax();
 	}
 }
@@ -269,19 +287,6 @@ static inline void smp_get_save_area(unsigned int cpu, unsigned int phy_cpu) { }
 
 #endif /* CONFIG_ZFCPDUMP */
 
-static int cpu_stopped(int cpu)
-{
-	__u32 status;
-
-	/* Check for stopped state */
-	if (signal_processor_ps(&status, 0, cpu, sigp_sense) ==
-	    sigp_status_stored) {
-		if (status & 0x40)
-			return 1;
-	}
-	return 0;
-}
-
 static int cpu_known(int cpu_id)
 {
 	int cpu;
@@ -300,7 +305,7 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 	logical_cpu = cpumask_first(&avail);
 	if (logical_cpu >= nr_cpu_ids)
 		return 0;
-	for (cpu_id = 0; cpu_id <= 65535; cpu_id++) {
+	for (cpu_id = 0; cpu_id <= MAX_CPU_ADDRESS; cpu_id++) {
 		if (cpu_known(cpu_id))
 			continue;
 		__cpu_logical_map[logical_cpu] = cpu_id;
@@ -379,7 +384,7 @@ static void __init smp_detect_cpus(void)
 	/* Use sigp detection algorithm if sclp doesn't work. */
 	if (sclp_get_cpu_info(info)) {
 		smp_use_sigp_detection = 1;
-		for (cpu = 0; cpu <= 65535; cpu++) {
+		for (cpu = 0; cpu <= MAX_CPU_ADDRESS; cpu++) {
 			if (cpu == boot_cpu_addr)
 				continue;
 			__cpu_logical_map[CPU_INIT_NO] = cpu;
@@ -635,7 +640,7 @@ int __cpu_disable(void)
 void __cpu_die(unsigned int cpu)
 {
 	/* Wait until target cpu is down */
-	while (!smp_cpu_not_running(cpu))
+	while (!cpu_stopped(cpu))
 		cpu_relax();
 	smp_free_lowcore(cpu);
 	pr_info("Processor %d stopped\n", cpu);
@@ -687,13 +692,14 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE)
 		lowcore->extended_save_area_addr = (u32) save_area;
-#else
-	if (vdso_alloc_per_cpu(smp_processor_id(), lowcore))
-		BUG();
 #endif
 	set_prefix((u32)(unsigned long) lowcore);
 	local_mcck_enable();
 	local_irq_enable();
+#ifdef CONFIG_64BIT
+	if (vdso_alloc_per_cpu(smp_processor_id(), &S390_lowcore))
+		BUG();
+#endif
 	for_each_possible_cpu(cpu)
 		if (cpu != smp_processor_id())
 			smp_create_idle(cpu);

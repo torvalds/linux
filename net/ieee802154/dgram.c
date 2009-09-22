@@ -26,9 +26,9 @@
 #include <linux/if_arp.h>
 #include <linux/list.h>
 #include <net/sock.h>
-#include <net/ieee802154/af_ieee802154.h>
-#include <net/ieee802154/mac_def.h>
-#include <net/ieee802154/netdevice.h>
+#include <net/af_ieee802154.h>
+#include <net/ieee802154.h>
+#include <net/ieee802154_netdev.h>
 
 #include <asm/ioctls.h>
 
@@ -40,16 +40,17 @@ static DEFINE_RWLOCK(dgram_lock);
 struct dgram_sock {
 	struct sock sk;
 
-	int bound;
 	struct ieee802154_addr src_addr;
 	struct ieee802154_addr dst_addr;
+
+	unsigned bound:1;
+	unsigned want_ack:1;
 };
 
 static inline struct dgram_sock *dgram_sk(const struct sock *sk)
 {
 	return container_of(sk, struct dgram_sock, sk);
 }
-
 
 static void dgram_hash(struct sock *sk)
 {
@@ -73,6 +74,7 @@ static int dgram_init(struct sock *sk)
 
 	ro->dst_addr.addr_type = IEEE802154_ADDR_LONG;
 	ro->dst_addr.pan_id = 0xffff;
+	ro->want_ack = 1;
 	memset(&ro->dst_addr.hwaddr, 0xff, sizeof(ro->dst_addr.hwaddr));
 	return 0;
 }
@@ -86,18 +88,18 @@ static int dgram_bind(struct sock *sk, struct sockaddr *uaddr, int len)
 {
 	struct sockaddr_ieee802154 *addr = (struct sockaddr_ieee802154 *)uaddr;
 	struct dgram_sock *ro = dgram_sk(sk);
-	int err = 0;
+	int err = -EINVAL;
 	struct net_device *dev;
+
+	lock_sock(sk);
 
 	ro->bound = 0;
 
 	if (len < sizeof(*addr))
-		return -EINVAL;
+		goto out;
 
 	if (addr->family != AF_IEEE802154)
-		return -EINVAL;
-
-	lock_sock(sk);
+		goto out;
 
 	dev = ieee802154_get_dev(sock_net(sk), &addr->addr);
 	if (!dev) {
@@ -113,6 +115,7 @@ static int dgram_bind(struct sock *sk, struct sockaddr *uaddr, int len)
 	memcpy(&ro->src_addr, &addr->addr, sizeof(struct ieee802154_addr));
 
 	ro->bound = 1;
+	err = 0;
 out_put:
 	dev_put(dev);
 out:
@@ -235,7 +238,10 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	skb_reset_network_header(skb);
 
-	mac_cb(skb)->flags = IEEE802154_FC_TYPE_DATA | MAC_CB_FLAG_ACKREQ;
+	mac_cb(skb)->flags = IEEE802154_FC_TYPE_DATA;
+	if (ro->want_ack)
+		mac_cb(skb)->flags |= MAC_CB_FLAG_ACKREQ;
+
 	mac_cb(skb)->seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
 	err = dev_hard_header(skb, dev, ETH_P_IEEE802154, &ro->dst_addr,
 			ro->bound ? &ro->src_addr : NULL, size);
@@ -377,6 +383,64 @@ int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 	return ret;
 }
 
+static int dgram_getsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int __user *optlen)
+{
+	struct dgram_sock *ro = dgram_sk(sk);
+
+	int val, len;
+
+	if (level != SOL_IEEE802154)
+		return -EOPNOTSUPP;
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	len = min_t(unsigned int, len, sizeof(int));
+
+	switch (optname) {
+	case WPAN_WANTACK:
+		val = ro->want_ack;
+		break;
+	default:
+		return -ENOPROTOOPT;
+	}
+
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+	return 0;
+}
+
+static int dgram_setsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int optlen)
+{
+	struct dgram_sock *ro = dgram_sk(sk);
+	int val;
+	int err = 0;
+
+	if (optlen < sizeof(int))
+		return -EINVAL;
+
+	if (get_user(val, (int __user *)optval))
+		return -EFAULT;
+
+	lock_sock(sk);
+
+	switch (optname) {
+	case WPAN_WANTACK:
+		ro->want_ack = !!val;
+		break;
+	default:
+		err = -ENOPROTOOPT;
+		break;
+	}
+
+	release_sock(sk);
+	return err;
+}
+
 struct proto ieee802154_dgram_prot = {
 	.name		= "IEEE-802.15.4-MAC",
 	.owner		= THIS_MODULE,
@@ -391,5 +455,7 @@ struct proto ieee802154_dgram_prot = {
 	.connect	= dgram_connect,
 	.disconnect	= dgram_disconnect,
 	.ioctl		= dgram_ioctl,
+	.getsockopt	= dgram_getsockopt,
+	.setsockopt	= dgram_setsockopt,
 };
 

@@ -285,7 +285,7 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio,
 	if (!error)
 		return 0; /* I/O complete */
 
-	if ((error == -EWOULDBLOCK) && bio_rw_ahead(bio))
+	if ((error == -EWOULDBLOCK) && bio_rw_flagged(bio, BIO_RW_AHEAD))
 		return error;
 
 	if (error == -EOPNOTSUPP)
@@ -320,17 +320,28 @@ static int stripe_iterate_devices(struct dm_target *ti,
 	int ret = 0;
 	unsigned i = 0;
 
-	do
+	do {
 		ret = fn(ti, sc->stripe[i].dev,
-			 sc->stripe[i].physical_start, data);
-	while (!ret && ++i < sc->stripes);
+			 sc->stripe[i].physical_start,
+			 sc->stripe_width, data);
+	} while (!ret && ++i < sc->stripes);
 
 	return ret;
 }
 
+static void stripe_io_hints(struct dm_target *ti,
+			    struct queue_limits *limits)
+{
+	struct stripe_c *sc = ti->private;
+	unsigned chunk_size = (sc->chunk_mask + 1) << 9;
+
+	blk_limits_io_min(limits, chunk_size);
+	blk_limits_io_opt(limits, chunk_size * sc->stripes);
+}
+
 static struct target_type stripe_target = {
 	.name   = "striped",
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.module = THIS_MODULE,
 	.ctr    = stripe_ctr,
 	.dtr    = stripe_dtr,
@@ -338,6 +349,7 @@ static struct target_type stripe_target = {
 	.end_io = stripe_end_io,
 	.status = stripe_status,
 	.iterate_devices = stripe_iterate_devices,
+	.io_hints = stripe_io_hints,
 };
 
 int __init dm_stripe_init(void)

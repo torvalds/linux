@@ -2,8 +2,8 @@
  *  pci-vr41xx.h, Include file for PCI Control Unit of the NEC VR4100 series.
  *
  *  Copyright (C) 2002  MontaVista Software Inc.
- *    Author: Yoichi Yuasa <yyuasa@mvista.com or source@mvista.com>
- *  Copyright (C) 2004-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *    Author: Yoichi Yuasa <source@mvista.com>
+ *  Copyright (C) 2004-2005  Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

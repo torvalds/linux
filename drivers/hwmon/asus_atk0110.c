@@ -593,7 +593,11 @@ static int atk_add_sensor(struct atk_data *data, union acpi_object *obj)
 	sensor->data = data;
 	sensor->id = flags->integer.value;
 	sensor->limit1 = limit1->integer.value;
-	sensor->limit2 = limit2->integer.value;
+	if (data->old_interface)
+		sensor->limit2 = limit2->integer.value;
+	else
+		/* The upper limit is expressed as delta from lower limit */
+		sensor->limit2 = sensor->limit1 + limit2->integer.value;
 
 	snprintf(sensor->input_attr_name, ATTR_NAME_SIZE,
 			"%s%d_input", base_name, start + *num);

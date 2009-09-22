@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/usb/iowarrior.h>
 
@@ -726,7 +727,7 @@ static const struct file_operations iowarrior_fops = {
 	.poll = iowarrior_poll,
 };
 
-static char *iowarrior_nodename(struct device *dev)
+static char *iowarrior_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
 }
@@ -737,7 +738,7 @@ static char *iowarrior_nodename(struct device *dev)
  */
 static struct usb_class_driver iowarrior_class = {
 	.name = "iowarrior%d",
-	.nodename = iowarrior_nodename,
+	.devnode = iowarrior_devnode,
 	.fops = &iowarrior_fops,
 	.minor_base = IOWARRIOR_MINOR_BASE,
 };

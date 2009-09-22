@@ -20,7 +20,7 @@
  * Papers:  http://www.rdrop.com/users/paulmck/RCU
  *
  * For detailed explanation of Read-Copy Update mechanism see -
- * 		Documentation/RCU
+ *		Documentation/RCU
  *
  */
 #include <linux/types.h>
@@ -43,6 +43,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+#define RCU_TREE_NONCORE
 #include "rcutree.h"
 
 static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
@@ -76,8 +77,12 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 
 static int show_rcudata(struct seq_file *m, void *unused)
 {
-	seq_puts(m, "rcu:\n");
-	PRINT_RCU_DATA(rcu_data, print_one_rcu_data, m);
+#ifdef CONFIG_TREE_PREEMPT_RCU
+	seq_puts(m, "rcu_preempt:\n");
+	PRINT_RCU_DATA(rcu_preempt_data, print_one_rcu_data, m);
+#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+	seq_puts(m, "rcu_sched:\n");
+	PRINT_RCU_DATA(rcu_sched_data, print_one_rcu_data, m);
 	seq_puts(m, "rcu_bh:\n");
 	PRINT_RCU_DATA(rcu_bh_data, print_one_rcu_data, m);
 	return 0;
@@ -102,7 +107,7 @@ static void print_one_rcu_data_csv(struct seq_file *m, struct rcu_data *rdp)
 		return;
 	seq_printf(m, "%d,%s,%ld,%ld,%d,%ld,%d",
 		   rdp->cpu,
-		   cpu_is_offline(rdp->cpu) ? "\"Y\"" : "\"N\"",
+		   cpu_is_offline(rdp->cpu) ? "\"N\"" : "\"Y\"",
 		   rdp->completed, rdp->gpnum,
 		   rdp->passed_quiesc, rdp->passed_quiesc_completed,
 		   rdp->qs_pending);
@@ -124,8 +129,12 @@ static int show_rcudata_csv(struct seq_file *m, void *unused)
 	seq_puts(m, "\"dt\",\"dt nesting\",\"dn\",\"df\",");
 #endif /* #ifdef CONFIG_NO_HZ */
 	seq_puts(m, "\"of\",\"ri\",\"ql\",\"b\"\n");
-	seq_puts(m, "\"rcu:\"\n");
-	PRINT_RCU_DATA(rcu_data, print_one_rcu_data_csv, m);
+#ifdef CONFIG_TREE_PREEMPT_RCU
+	seq_puts(m, "\"rcu_preempt:\"\n");
+	PRINT_RCU_DATA(rcu_preempt_data, print_one_rcu_data_csv, m);
+#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+	seq_puts(m, "\"rcu_sched:\"\n");
+	PRINT_RCU_DATA(rcu_sched_data, print_one_rcu_data_csv, m);
 	seq_puts(m, "\"rcu_bh:\"\n");
 	PRINT_RCU_DATA(rcu_bh_data, print_one_rcu_data_csv, m);
 	return 0;
@@ -171,8 +180,12 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 
 static int show_rcuhier(struct seq_file *m, void *unused)
 {
-	seq_puts(m, "rcu:\n");
-	print_one_rcu_state(m, &rcu_state);
+#ifdef CONFIG_TREE_PREEMPT_RCU
+	seq_puts(m, "rcu_preempt:\n");
+	print_one_rcu_state(m, &rcu_preempt_state);
+#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+	seq_puts(m, "rcu_sched:\n");
+	print_one_rcu_state(m, &rcu_sched_state);
 	seq_puts(m, "rcu_bh:\n");
 	print_one_rcu_state(m, &rcu_bh_state);
 	return 0;
@@ -193,8 +206,12 @@ static struct file_operations rcuhier_fops = {
 
 static int show_rcugp(struct seq_file *m, void *unused)
 {
-	seq_printf(m, "rcu: completed=%ld  gpnum=%ld\n",
-		   rcu_state.completed, rcu_state.gpnum);
+#ifdef CONFIG_TREE_PREEMPT_RCU
+	seq_printf(m, "rcu_preempt: completed=%ld  gpnum=%ld\n",
+		   rcu_preempt_state.completed, rcu_preempt_state.gpnum);
+#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+	seq_printf(m, "rcu_sched: completed=%ld  gpnum=%ld\n",
+		   rcu_sched_state.completed, rcu_sched_state.gpnum);
 	seq_printf(m, "rcu_bh: completed=%ld  gpnum=%ld\n",
 		   rcu_bh_state.completed, rcu_bh_state.gpnum);
 	return 0;
@@ -243,8 +260,12 @@ static void print_rcu_pendings(struct seq_file *m, struct rcu_state *rsp)
 
 static int show_rcu_pending(struct seq_file *m, void *unused)
 {
-	seq_puts(m, "rcu:\n");
-	print_rcu_pendings(m, &rcu_state);
+#ifdef CONFIG_TREE_PREEMPT_RCU
+	seq_puts(m, "rcu_preempt:\n");
+	print_rcu_pendings(m, &rcu_preempt_state);
+#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+	seq_puts(m, "rcu_sched:\n");
+	print_rcu_pendings(m, &rcu_sched_state);
 	seq_puts(m, "rcu_bh:\n");
 	print_rcu_pendings(m, &rcu_bh_state);
 	return 0;
@@ -264,62 +285,47 @@ static struct file_operations rcu_pending_fops = {
 };
 
 static struct dentry *rcudir;
-static struct dentry *datadir;
-static struct dentry *datadir_csv;
-static struct dentry *gpdir;
-static struct dentry *hierdir;
-static struct dentry *rcu_pendingdir;
 
 static int __init rcuclassic_trace_init(void)
 {
+	struct dentry *retval;
+
 	rcudir = debugfs_create_dir("rcu", NULL);
 	if (!rcudir)
-		goto out;
+		goto free_out;
 
-	datadir = debugfs_create_file("rcudata", 0444, rcudir,
+	retval = debugfs_create_file("rcudata", 0444, rcudir,
 						NULL, &rcudata_fops);
-	if (!datadir)
+	if (!retval)
 		goto free_out;
 
-	datadir_csv = debugfs_create_file("rcudata.csv", 0444, rcudir,
+	retval = debugfs_create_file("rcudata.csv", 0444, rcudir,
 						NULL, &rcudata_csv_fops);
-	if (!datadir_csv)
+	if (!retval)
 		goto free_out;
 
-	gpdir = debugfs_create_file("rcugp", 0444, rcudir, NULL, &rcugp_fops);
-	if (!gpdir)
+	retval = debugfs_create_file("rcugp", 0444, rcudir, NULL, &rcugp_fops);
+	if (!retval)
 		goto free_out;
 
-	hierdir = debugfs_create_file("rcuhier", 0444, rcudir,
+	retval = debugfs_create_file("rcuhier", 0444, rcudir,
 						NULL, &rcuhier_fops);
-	if (!hierdir)
+	if (!retval)
 		goto free_out;
 
-	rcu_pendingdir = debugfs_create_file("rcu_pending", 0444, rcudir,
+	retval = debugfs_create_file("rcu_pending", 0444, rcudir,
 						NULL, &rcu_pending_fops);
-	if (!rcu_pendingdir)
+	if (!retval)
 		goto free_out;
 	return 0;
 free_out:
-	if (datadir)
-		debugfs_remove(datadir);
-	if (datadir_csv)
-		debugfs_remove(datadir_csv);
-	if (gpdir)
-		debugfs_remove(gpdir);
-	debugfs_remove(rcudir);
-out:
+	debugfs_remove_recursive(rcudir);
 	return 1;
 }
 
 static void __exit rcuclassic_trace_cleanup(void)
 {
-	debugfs_remove(datadir);
-	debugfs_remove(datadir_csv);
-	debugfs_remove(gpdir);
-	debugfs_remove(hierdir);
-	debugfs_remove(rcu_pendingdir);
-	debugfs_remove(rcudir);
+	debugfs_remove_recursive(rcudir);
 }
 
 

@@ -5,7 +5,7 @@
  * Copyright IBM Corp. 1999, 2009
  */
 
-#define KMSG_COMPONENT "dasd"
+#define KMSG_COMPONENT "dasd-fba"
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
@@ -152,8 +152,8 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	block->base = device;
 
 	/* Read Device Characteristics */
-	rc = dasd_generic_read_dev_chars(device, "FBA ", &private->rdc_data,
-					 32);
+	rc = dasd_generic_read_dev_chars(device, DASD_FBA_MAGIC,
+					 &private->rdc_data, 32);
 	if (rc) {
 		DBF_EVENT(DBF_WARNING, "Read device characteristics returned "
 			  "error %d for device: %s",
@@ -241,7 +241,7 @@ static void dasd_fba_handle_unsolicited_interrupt(struct dasd_device *device,
 	/* check for unsolicited interrupts */
 	DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 		    "unsolicited interrupt received");
-	device->discipline->dump_sense_dbf(device, NULL, irb, "unsolicited");
+	device->discipline->dump_sense_dbf(device, irb, "unsolicited");
 	dasd_schedule_device_bh(device);
 	return;
 };
@@ -305,8 +305,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 		datasize += (count - 1)*sizeof(struct LO_fba_data);
 	}
 	/* Allocate the ccw request. */
-	cqr = dasd_smalloc_request(dasd_fba_discipline.name,
-				   cplength, datasize, memdev);
+	cqr = dasd_smalloc_request(DASD_FBA_MAGIC, cplength, datasize, memdev);
 	if (IS_ERR(cqr))
 		return cqr;
 	ccw = cqr->cpaddr;
@@ -444,17 +443,20 @@ dasd_fba_fill_info(struct dasd_device * device,
 }
 
 static void
-dasd_fba_dump_sense_dbf(struct dasd_device *device, struct dasd_ccw_req *req,
-			 struct irb *irb, char *reason)
+dasd_fba_dump_sense_dbf(struct dasd_device *device, struct irb *irb,
+			char *reason)
 {
-	int sl;
-	if (irb->esw.esw0.erw.cons) {
-		for (sl = 0; sl < 4; sl++) {
-			DBF_DEV_EVENT(DBF_EMERG, device,
-				      "%s: %08x %08x %08x %08x",
-				      reason, irb->ecw[8 * 0], irb->ecw[8 * 1],
-				      irb->ecw[8 * 2], irb->ecw[8 * 3]);
-		}
+	u64 *sense;
+
+	sense = (u64 *) dasd_get_sense(irb);
+	if (sense) {
+		DBF_DEV_EVENT(DBF_EMERG, device,
+			      "%s: %s %02x%02x%02x %016llx %016llx %016llx "
+			      "%016llx", reason,
+			      scsw_is_tm(&irb->scsw) ? "t" : "c",
+			      scsw_cc(&irb->scsw), scsw_cstat(&irb->scsw),
+			      scsw_dstat(&irb->scsw), sense[0], sense[1],
+			      sense[2], sense[3]);
 	} else {
 		DBF_DEV_EVENT(DBF_EMERG, device, "%s",
 			      "SORRY - NO VALID SENSE AVAILABLE\n");

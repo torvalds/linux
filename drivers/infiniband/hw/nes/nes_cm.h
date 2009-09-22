@@ -410,8 +410,6 @@ struct nes_cm_ops {
 int schedule_nes_timer(struct nes_cm_node *, struct sk_buff *,
 		enum nes_timer_type, int, int);
 
-int nes_cm_disconn(struct nes_qp *);
-
 int nes_accept(struct iw_cm_id *, struct iw_cm_conn_param *);
 int nes_reject(struct iw_cm_id *, const void *, u8);
 int nes_connect(struct iw_cm_id *, struct iw_cm_conn_param *);

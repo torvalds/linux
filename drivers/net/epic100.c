@@ -298,7 +298,8 @@ static void epic_restart(struct net_device *dev);
 static void epic_timer(unsigned long data);
 static void epic_tx_timeout(struct net_device *dev);
 static void epic_init_ring(struct net_device *dev);
-static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t epic_start_xmit(struct sk_buff *skb,
+				   struct net_device *dev);
 static int epic_rx(struct net_device *dev, int budget);
 static int epic_poll(struct napi_struct *napi, int budget);
 static irqreturn_t epic_interrupt(int irq, void *dev_instance);
@@ -338,8 +339,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 #ifndef MODULE
 	static int printed_version;
 	if (!printed_version++)
-		printk (KERN_INFO "%s" KERN_INFO "%s",
-			version, version2);
+		printk(KERN_INFO "%s%s", version, version2);
 #endif
 
 	card_idx++;
@@ -962,7 +962,7 @@ static void epic_init_ring(struct net_device *dev)
 	return;
 }
 
-static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct epic_private *ep = netdev_priv(dev);
 	int entry, free_count;
@@ -970,7 +970,7 @@ static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
 	if (skb_padto(skb, ETH_ZLEN))
-		return 0;
+		return NETDEV_TX_OK;
 
 	/* Caution: the write order is important here, set the field with the
 	   "ownership" bit last. */
@@ -1014,7 +1014,7 @@ static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			   dev->name, (int)skb->len, entry, ctrl_word,
 			   (int)inl(dev->base_addr + TxSTAT));
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void epic_tx_error(struct net_device *dev, struct epic_private *ep,
@@ -1600,7 +1600,7 @@ static int __init epic_init (void)
 {
 /* when a module, this is printed whether or not devices are found in probe */
 #ifdef MODULE
-	printk (KERN_INFO "%s" KERN_INFO "%s",
+	printk (KERN_INFO "%s%s",
 		version, version2);
 #endif
 

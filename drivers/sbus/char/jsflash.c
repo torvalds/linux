@@ -452,7 +452,7 @@ static const struct file_operations jsf_fops = {
 
 static struct miscdevice jsf_dev = { JSF_MINOR, "jsflash", &jsf_fops };
 
-static struct block_device_operations jsfd_fops = {
+static const struct block_device_operations jsfd_fops = {
 	.owner =	THIS_MODULE,
 };
 

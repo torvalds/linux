@@ -1568,7 +1568,7 @@ xfs_mod_sb(xfs_trans_t *tp, __int64_t fields)
  *
  * The m_sb_lock must be held when this routine is called.
  */
-int
+STATIC int
 xfs_mod_incore_sb_unlocked(
 	xfs_mount_t	*mp,
 	xfs_sb_field_t	field,

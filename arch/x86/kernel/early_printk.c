@@ -624,7 +624,7 @@ try_next_port:
 		return -1;
 	}
 
-	loop = 10;
+	loop = 100000;
 	/* Reset the EHCI controller */
 	cmd = readl(&ehci_regs->command);
 	cmd |= CMD_RESET;

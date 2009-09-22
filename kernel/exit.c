@@ -12,7 +12,6 @@
 #include <linux/completion.h>
 #include <linux/personality.h>
 #include <linux/tty.h>
-#include <linux/mnt_namespace.h>
 #include <linux/iocontext.h>
 #include <linux/key.h>
 #include <linux/security.h>
@@ -48,7 +47,7 @@
 #include <linux/tracehook.h>
 #include <linux/fs_struct.h>
 #include <linux/init_task.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <trace/events/sched.h>
 
 #include <asm/uaccess.h>
@@ -155,8 +154,8 @@ static void delayed_put_task_struct(struct rcu_head *rhp)
 {
 	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
 
-#ifdef CONFIG_PERF_COUNTERS
-	WARN_ON_ONCE(tsk->perf_counter_ctxp);
+#ifdef CONFIG_PERF_EVENTS
+	WARN_ON_ONCE(tsk->perf_event_ctxp);
 #endif
 	trace_sched_process_free(tsk);
 	put_task_struct(tsk);
@@ -902,6 +901,8 @@ NORET_TYPE void do_exit(long code)
 
 	tracehook_report_exit(&code);
 
+	validate_creds_for_do_exit(tsk);
+
 	/*
 	 * We're taking recursive faults here in do_exit. Safest is to just
 	 * leave this task alone and wait for reboot.
@@ -980,7 +981,7 @@ NORET_TYPE void do_exit(long code)
 	 * Flush inherited counters to the parent - before the parent
 	 * gets woken up by child-exit notifications.
 	 */
-	perf_counter_exit_task(tsk);
+	perf_event_exit_task(tsk);
 
 	exit_notify(tsk, group_dead);
 #ifdef CONFIG_NUMA
@@ -1010,7 +1011,10 @@ NORET_TYPE void do_exit(long code)
 	if (tsk->splice_pipe)
 		__free_pipe_info(tsk->splice_pipe);
 
+	validate_creds_for_do_exit(tsk);
+
 	preempt_disable();
+	exit_rcu();
 	/* causes final put_task_struct in finish_task_switch(). */
 	tsk->state = TASK_DEAD;
 	schedule();

@@ -277,31 +277,6 @@ config THINKPAD_ACPI_UNSAFE_LEDS
 	  Say N here, unless you are building a kernel for your own
 	  use, and need to control the important firmware LEDs.
 
-config THINKPAD_ACPI_DOCK
-	bool "Legacy Docking Station Support"
-	depends on THINKPAD_ACPI
-	depends on ACPI_DOCK=n
-	default n
-	---help---
-	  Allows the thinkpad_acpi driver to handle docking station events.
-	  This support was made obsolete by the generic ACPI docking station
-	  support (CONFIG_ACPI_DOCK).  It will allow locking and removing the
-	  laptop from the docking station, but will not properly connect PCI
-	  devices.
-
-	  If you are not sure, say N here.
-
-config THINKPAD_ACPI_BAY
-	bool "Legacy Removable Bay Support"
-	depends on THINKPAD_ACPI
-	default y
-	---help---
-	  Allows the thinkpad_acpi driver to handle removable bays.  It will
-	  electrically disable the device in the bay, and also generate
-	  notifications when the bay lever is ejected or inserted.
-
-	  If you are not sure, say Y here.
-
 config THINKPAD_ACPI_VIDEO
 	bool "Video output control support"
 	depends on THINKPAD_ACPI

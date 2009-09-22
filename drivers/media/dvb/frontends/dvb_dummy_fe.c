@@ -117,7 +117,7 @@ struct dvb_frontend* dvb_dummy_fe_ofdm_attach(void)
 	struct dvb_dummy_fe_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* create dvb_frontend */
@@ -137,7 +137,7 @@ struct dvb_frontend *dvb_dummy_fe_qpsk_attach(void)
 	struct dvb_dummy_fe_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* create dvb_frontend */
@@ -157,7 +157,7 @@ struct dvb_frontend *dvb_dummy_fe_qam_attach(void)
 	struct dvb_dummy_fe_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct dvb_dummy_fe_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* create dvb_frontend */

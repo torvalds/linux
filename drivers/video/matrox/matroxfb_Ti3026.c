@@ -651,9 +651,9 @@ static void Ti3026_restore(WPMINFO2) {
 	dprintk(KERN_DEBUG "3026DACregs ");
 	for (i = 0; i < 21; i++) {
 		dprintk("R%02X=%02X ", DACseq[i], hw->DACreg[i]);
-		if ((i & 0x7) == 0x7) dprintk("\n" KERN_DEBUG "continuing... ");
+		if ((i & 0x7) == 0x7) dprintk(KERN_DEBUG "continuing... ");
 	}
-	dprintk("\n" KERN_DEBUG "DACclk ");
+	dprintk(KERN_DEBUG "DACclk ");
 	for (i = 0; i < 6; i++)
 		dprintk("C%02X=%02X ", i, hw->DACclk[i]);
 	dprintk("\n");

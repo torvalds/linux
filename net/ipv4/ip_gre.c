@@ -662,7 +662,7 @@ drop_nolock:
 	return(0);
 }
 
-static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct net_device_stats *stats = &tunnel->dev->stats;
@@ -735,10 +735,10 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	tos = tiph->tos;
-	if (tos&1) {
+	if (tos == 1) {
+		tos = 0;
 		if (skb->protocol == htons(ETH_P_IP))
 			tos = old_iph->tos;
-		tos &= ~1;
 	}
 
 	{
@@ -821,7 +821,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			stats->tx_dropped++;
 			dev_kfree_skb(skb);
 			tunnel->recursion--;
-			return 0;
+			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
 			skb_set_owner_w(new_skb, skb->sk);
@@ -889,7 +889,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	IPTUNNEL_XMIT();
 	tunnel->recursion--;
-	return 0;
+	return NETDEV_TX_OK;
 
 tx_error_icmp:
 	dst_link_failure(skb);
@@ -898,7 +898,7 @@ tx_error:
 	stats->tx_errors++;
 	dev_kfree_skb(skb);
 	tunnel->recursion--;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int ipgre_tunnel_bind_dev(struct net_device *dev)
@@ -951,7 +951,7 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 			addend += 4;
 	}
 	dev->needed_headroom = addend + hlen;
-	mtu -= dev->hard_header_len - addend;
+	mtu -= dev->hard_header_len + addend;
 
 	if (mtu < 68)
 		mtu = 68;
@@ -1288,7 +1288,7 @@ static void ipgre_fb_tunnel_init(struct net_device *dev)
 }
 
 
-static struct net_protocol ipgre_protocol = {
+static const struct net_protocol ipgre_protocol = {
 	.handler	=	ipgre_rcv,
 	.err_handler	=	ipgre_err,
 	.netns_ok	=	1,

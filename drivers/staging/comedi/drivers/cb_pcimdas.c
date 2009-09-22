@@ -103,29 +103,31 @@ struct cb_pcimdas_board {
 
 static const struct cb_pcimdas_board cb_pcimdas_boards[] = {
 	{
-	.name = "PCIM-DAS1602/16",
-	.device_id = 0x56,
-	.ai_se_chans = 16,
-	.ai_diff_chans = 8,
-	.ai_bits = 16,
-	.ai_speed = 10000,	/* ?? */
-	.ao_nchan = 2,
-	.ao_bits = 12,
-	.has_ao_fifo = 0,	/* ?? */
-	.ao_scan_speed = 10000,
-			/* ?? */
-	.fifo_size = 1024,
-	.dio_bits = 24,
-	.has_dio = 1,
+	 .name = "PCIM-DAS1602/16",
+	 .device_id = 0x56,
+	 .ai_se_chans = 16,
+	 .ai_diff_chans = 8,
+	 .ai_bits = 16,
+	 .ai_speed = 10000,	/* ?? */
+	 .ao_nchan = 2,
+	 .ao_bits = 12,
+	 .has_ao_fifo = 0,	/* ?? */
+	 .ao_scan_speed = 10000,
+	 /* ?? */
+	 .fifo_size = 1024,
+	 .dio_bits = 24,
+	 .has_dio = 1,
 /*	.ranges = &cb_pcimdas_ranges, */
-		},
+	 },
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
 static DEFINE_PCI_DEVICE_TABLE(cb_pcimdas_pci_table) = {
-	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0056, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0}
+	{
+	PCI_VENDOR_ID_COMPUTERBOARDS, 0x0056, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{
+	0}
 };
 
 MODULE_DEVICE_TABLE(pci, cb_pcimdas_pci_table);
@@ -176,7 +178,8 @@ struct cb_pcimdas_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int cb_pcimdas_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int cb_pcimdas_attach(struct comedi_device *dev,
+			     struct comedi_devconfig *it);
 static int cb_pcimdas_detach(struct comedi_device *dev);
 static struct comedi_driver driver_cb_pcimdas = {
 	.driver_name = "cb_pcimdas",
@@ -185,12 +188,15 @@ static struct comedi_driver driver_cb_pcimdas = {
 	.detach = cb_pcimdas_detach,
 };
 
-static int cb_pcimdas_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int cb_pcimdas_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int cb_pcimdas_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
+static int cb_pcimdas_ao_winsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
+static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -198,7 +204,8 @@ static int cb_pcimdas_ao_rinsn(struct comedi_device *dev, struct comedi_subdevic
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int cb_pcimdas_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int cb_pcimdas_attach(struct comedi_device *dev,
+			     struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	struct pci_dev *pcidev;
@@ -219,22 +226,21 @@ static int cb_pcimdas_attach(struct comedi_device *dev, struct comedi_devconfig 
 	printk("\n");
 
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	     pcidev != NULL;
+	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
 		/*  loop through cards supported by this driver */
 		for (index = 0; index < N_BOARDS; index++) {
 			if (cb_pcimdas_boards[index].device_id !=
-				pcidev->device)
+			    pcidev->device)
 				continue;
 			/*  was a particular bus/slot requested? */
 			if (it->options[0] || it->options[1]) {
 				/*  are we on the wrong bus/slot? */
 				if (pcidev->bus->number != it->options[0] ||
-					PCI_SLOT(pcidev->devfn) !=
-					it->options[1]) {
+				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
 					continue;
 				}
 			}
@@ -245,13 +251,13 @@ static int cb_pcimdas_attach(struct comedi_device *dev, struct comedi_devconfig 
 	}
 
 	printk("No supported ComputerBoards/MeasurementComputing card found on "
-		"requested position\n");
+	       "requested position\n");
 	return -EIO;
 
-      found:
+found:
 
 	printk("Found %s on bus %i, slot %i\n", cb_pcimdas_boards[index].name,
-		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+	       pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
 	/*  Warn about non-tested features */
 	switch (thisboard->device_id) {
@@ -259,7 +265,7 @@ static int cb_pcimdas_attach(struct comedi_device *dev, struct comedi_devconfig 
 		break;
 	default:
 		printk("THIS CARD IS UNSUPPORTED.\n"
-			"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
+		       "PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
 	};
 
 	if (comedi_pci_enable(pcidev, "cb_pcimdas")) {
@@ -373,8 +379,9 @@ static int cb_pcimdas_detach(struct comedi_device *dev)
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
-static int cb_pcimdas_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int n, i;
 	unsigned int d;
@@ -438,8 +445,9 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev, struct comedi_subdevic
 	return n;
 }
 
-static int cb_pcimdas_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int cb_pcimdas_ao_winsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -466,8 +474,9 @@ static int cb_pcimdas_ao_winsn(struct comedi_device *dev, struct comedi_subdevic
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int cb_pcimdas_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);

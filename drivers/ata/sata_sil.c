@@ -532,7 +532,7 @@ static irqreturn_t sil_interrupt(int irq, void *dev_instance)
 		struct ata_port *ap = host->ports[i];
 		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_no].bmdma2);
 
-		if (unlikely(!ap || ap->flags & ATA_FLAG_DISABLED))
+		if (unlikely(ap->flags & ATA_FLAG_DISABLED))
 			continue;
 
 		/* turn off SATA_IRQ if not supported */
@@ -565,6 +565,19 @@ static void sil_freeze(struct ata_port *ap)
 	tmp |= SIL_MASK_IDE0_INT << ap->port_no;
 	writel(tmp, mmio_base + SIL_SYSCFG);
 	readl(mmio_base + SIL_SYSCFG);	/* flush */
+
+	/* Ensure DMA_ENABLE is off.
+	 *
+	 * This is because the controller will not give us access to the
+	 * taskfile registers while a DMA is in progress
+	 */
+	iowrite8(ioread8(ap->ioaddr.bmdma_addr) & ~SIL_DMA_ENABLE,
+		 ap->ioaddr.bmdma_addr);
+
+	/* According to ata_bmdma_stop, an HDMA transition requires
+	 * on PIO cycle. But we can't read a taskfile register.
+	 */
+	ioread8(ap->ioaddr.bmdma_addr);
 }
 
 static void sil_thaw(struct ata_port *ap)

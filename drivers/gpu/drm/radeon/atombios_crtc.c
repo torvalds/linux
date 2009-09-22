@@ -31,6 +31,151 @@
 #include "atom.h"
 #include "atom-bits.h"
 
+/* evil but including atombios.h is much worse */
+bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
+				SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing,
+				int32_t *pixel_clock);
+static void atombios_overscan_setup(struct drm_crtc *crtc,
+				    struct drm_display_mode *mode,
+				    struct drm_display_mode *adjusted_mode)
+{
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	SET_CRTC_OVERSCAN_PS_ALLOCATION args;
+	int index = GetIndexIntoMasterTable(COMMAND, SetCRTC_OverScan);
+	int a1, a2;
+
+	memset(&args, 0, sizeof(args));
+
+	args.usOverscanRight = 0;
+	args.usOverscanLeft = 0;
+	args.usOverscanBottom = 0;
+	args.usOverscanTop = 0;
+	args.ucCRTC = radeon_crtc->crtc_id;
+
+	switch (radeon_crtc->rmx_type) {
+	case RMX_CENTER:
+		args.usOverscanTop = (adjusted_mode->crtc_vdisplay - mode->crtc_vdisplay) / 2;
+		args.usOverscanBottom = (adjusted_mode->crtc_vdisplay - mode->crtc_vdisplay) / 2;
+		args.usOverscanLeft = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;
+		args.usOverscanRight = (adjusted_mode->crtc_hdisplay - mode->crtc_hdisplay) / 2;
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+		break;
+	case RMX_ASPECT:
+		a1 = mode->crtc_vdisplay * adjusted_mode->crtc_hdisplay;
+		a2 = adjusted_mode->crtc_vdisplay * mode->crtc_hdisplay;
+
+		if (a1 > a2) {
+			args.usOverscanLeft = (adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2;
+			args.usOverscanRight = (adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2;
+		} else if (a2 > a1) {
+			args.usOverscanLeft = (adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2;
+			args.usOverscanRight = (adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2;
+		}
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+		break;
+	case RMX_FULL:
+	default:
+		args.usOverscanRight = 0;
+		args.usOverscanLeft = 0;
+		args.usOverscanBottom = 0;
+		args.usOverscanTop = 0;
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+		break;
+	}
+}
+
+static void atombios_scaler_setup(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	ENABLE_SCALER_PS_ALLOCATION args;
+	int index = GetIndexIntoMasterTable(COMMAND, EnableScaler);
+
+	/* fixme - fill in enc_priv for atom dac */
+	enum radeon_tv_std tv_std = TV_STD_NTSC;
+	bool is_tv = false, is_cv = false;
+	struct drm_encoder *encoder;
+
+	if (!ASIC_IS_AVIVO(rdev) && radeon_crtc->crtc_id)
+		return;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		/* find tv std */
+		if (encoder->crtc == crtc) {
+			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+			if (radeon_encoder->active_device & ATOM_DEVICE_TV_SUPPORT) {
+				struct radeon_encoder_atom_dac *tv_dac = radeon_encoder->enc_priv;
+				tv_std = tv_dac->tv_std;
+				is_tv = true;
+			}
+		}
+	}
+
+	memset(&args, 0, sizeof(args));
+
+	args.ucScaler = radeon_crtc->crtc_id;
+
+	if (is_tv) {
+		switch (tv_std) {
+		case TV_STD_NTSC:
+		default:
+			args.ucTVStandard = ATOM_TV_NTSC;
+			break;
+		case TV_STD_PAL:
+			args.ucTVStandard = ATOM_TV_PAL;
+			break;
+		case TV_STD_PAL_M:
+			args.ucTVStandard = ATOM_TV_PALM;
+			break;
+		case TV_STD_PAL_60:
+			args.ucTVStandard = ATOM_TV_PAL60;
+			break;
+		case TV_STD_NTSC_J:
+			args.ucTVStandard = ATOM_TV_NTSCJ;
+			break;
+		case TV_STD_SCART_PAL:
+			args.ucTVStandard = ATOM_TV_PAL; /* ??? */
+			break;
+		case TV_STD_SECAM:
+			args.ucTVStandard = ATOM_TV_SECAM;
+			break;
+		case TV_STD_PAL_CN:
+			args.ucTVStandard = ATOM_TV_PALCN;
+			break;
+		}
+		args.ucEnable = SCALER_ENABLE_MULTITAP_MODE;
+	} else if (is_cv) {
+		args.ucTVStandard = ATOM_TV_CV;
+		args.ucEnable = SCALER_ENABLE_MULTITAP_MODE;
+	} else {
+		switch (radeon_crtc->rmx_type) {
+		case RMX_FULL:
+			args.ucEnable = ATOM_SCALER_EXPANSION;
+			break;
+		case RMX_CENTER:
+			args.ucEnable = ATOM_SCALER_CENTER;
+			break;
+		case RMX_ASPECT:
+			args.ucEnable = ATOM_SCALER_EXPANSION;
+			break;
+		default:
+			if (ASIC_IS_AVIVO(rdev))
+				args.ucEnable = ATOM_SCALER_DISABLE;
+			else
+				args.ucEnable = ATOM_SCALER_CENTER;
+			break;
+		}
+	}
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	if ((is_tv || is_cv)
+	    && rdev->family >= CHIP_RV515 && rdev->family <= CHIP_R580) {
+		atom_rv515_force_tv_scaler(rdev, radeon_crtc);
+	}
+}
+
 static void atombios_lock_crtc(struct drm_crtc *crtc, int lock)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
@@ -203,6 +348,12 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	if (ASIC_IS_AVIVO(rdev)) {
 		uint32_t ss_cntl;
 
+		if ((rdev->family == CHIP_RS600) ||
+		    (rdev->family == CHIP_RS690) ||
+		    (rdev->family == CHIP_RS740))
+			pll_flags |= (RADEON_PLL_USE_FRAC_FB_DIV |
+				      RADEON_PLL_PREFER_CLOSEST_LOWER);
+
 		if (ASIC_IS_DCE32(rdev) && mode->clock > 200000)	/* range limits??? */
 			pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 		else
@@ -238,6 +389,7 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 					pll_flags |= RADEON_PLL_USE_REF_DIV;
 			}
 			radeon_encoder = to_radeon_encoder(encoder);
+			break;
 		}
 	}
 
@@ -321,7 +473,7 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_gem_object *obj;
 	struct drm_radeon_gem_object *obj_priv;
 	uint64_t fb_location;
-	uint32_t fb_format, fb_pitch_pixels;
+	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 
 	if (!crtc->fb)
 		return -EINVAL;
@@ -336,6 +488,11 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	switch (crtc->fb->bits_per_pixel) {
+	case 8:
+		fb_format =
+		    AVIVO_D1GRPH_CONTROL_DEPTH_8BPP |
+		    AVIVO_D1GRPH_CONTROL_8BPP_INDEXED;
+		break;
 	case 15:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_16BPP |
@@ -358,7 +515,14 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		return -EINVAL;
 	}
 
-	/* TODO tiling */
+	radeon_object_get_tiling_flags(obj->driver_private,
+				       &tiling_flags, NULL);
+	if (tiling_flags & RADEON_TILING_MACRO)
+		fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
+
+	if (tiling_flags & RADEON_TILING_MICRO)
+		fb_format |= AVIVO_D1GRPH_TILED;
+
 	if (radeon_crtc->crtc_id == 0)
 		WREG32(AVIVO_D1VGA_CONTROL, 0);
 	else
@@ -412,42 +576,68 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *encoder;
 	SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION crtc_timing;
+	int need_tv_timings = 0;
+	bool ret;
 
 	/* TODO color tiling */
 	memset(&crtc_timing, 0, sizeof(crtc_timing));
 
-	/* TODO tv */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		/* find tv std */
+		if (encoder->crtc == crtc) {
+			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 
+			if (radeon_encoder->active_device & ATOM_DEVICE_TV_SUPPORT) {
+				struct radeon_encoder_atom_dac *tv_dac = radeon_encoder->enc_priv;
+				if (tv_dac) {
+					if (tv_dac->tv_std == TV_STD_NTSC ||
+					    tv_dac->tv_std == TV_STD_NTSC_J ||
+					    tv_dac->tv_std == TV_STD_PAL_M)
+						need_tv_timings = 1;
+					else
+						need_tv_timings = 2;
+					break;
+				}
+			}
+		}
 	}
 
 	crtc_timing.ucCRTC = radeon_crtc->crtc_id;
-	crtc_timing.usH_Total = adjusted_mode->crtc_htotal;
-	crtc_timing.usH_Disp = adjusted_mode->crtc_hdisplay;
-	crtc_timing.usH_SyncStart = adjusted_mode->crtc_hsync_start;
-	crtc_timing.usH_SyncWidth =
-	    adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
+	if (need_tv_timings) {
+		ret = radeon_atom_get_tv_timings(rdev, need_tv_timings - 1,
+						 &crtc_timing, &adjusted_mode->clock);
+		if (ret == false)
+			need_tv_timings = 0;
+	}
 
-	crtc_timing.usV_Total = adjusted_mode->crtc_vtotal;
-	crtc_timing.usV_Disp = adjusted_mode->crtc_vdisplay;
-	crtc_timing.usV_SyncStart = adjusted_mode->crtc_vsync_start;
-	crtc_timing.usV_SyncWidth =
-	    adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
+	if (!need_tv_timings) {
+		crtc_timing.usH_Total = adjusted_mode->crtc_htotal;
+		crtc_timing.usH_Disp = adjusted_mode->crtc_hdisplay;
+		crtc_timing.usH_SyncStart = adjusted_mode->crtc_hsync_start;
+		crtc_timing.usH_SyncWidth =
+			adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
-		crtc_timing.susModeMiscInfo.usAccess |= ATOM_VSYNC_POLARITY;
+		crtc_timing.usV_Total = adjusted_mode->crtc_vtotal;
+		crtc_timing.usV_Disp = adjusted_mode->crtc_vdisplay;
+		crtc_timing.usV_SyncStart = adjusted_mode->crtc_vsync_start;
+		crtc_timing.usV_SyncWidth =
+			adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
-		crtc_timing.susModeMiscInfo.usAccess |= ATOM_HSYNC_POLARITY;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
+			crtc_timing.susModeMiscInfo.usAccess |= ATOM_VSYNC_POLARITY;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_CSYNC)
-		crtc_timing.susModeMiscInfo.usAccess |= ATOM_COMPOSITESYNC;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
+			crtc_timing.susModeMiscInfo.usAccess |= ATOM_HSYNC_POLARITY;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
-		crtc_timing.susModeMiscInfo.usAccess |= ATOM_INTERLACE;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_CSYNC)
+			crtc_timing.susModeMiscInfo.usAccess |= ATOM_COMPOSITESYNC;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		crtc_timing.susModeMiscInfo.usAccess |= ATOM_DOUBLE_CLOCK_MODE;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+			crtc_timing.susModeMiscInfo.usAccess |= ATOM_INTERLACE;
+
+		if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+			crtc_timing.susModeMiscInfo.usAccess |= ATOM_DOUBLE_CLOCK_MODE;
+	}
 
 	atombios_crtc_set_pll(crtc, adjusted_mode);
 	atombios_crtc_set_timing(crtc, &crtc_timing);
@@ -509,6 +699,9 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 		radeon_crtc_set_base(crtc, x, y, old_fb);
 		radeon_legacy_atom_set_surface(crtc);
 	}
+	atombios_overscan_setup(crtc, mode, adjusted_mode);
+	atombios_scaler_setup(crtc);
+	radeon_bandwidth_update(rdev);
 	return 0;
 }
 
@@ -516,6 +709,8 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 				     struct drm_display_mode *mode,
 				     struct drm_display_mode *adjusted_mode)
 {
+	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
+		return false;
 	return true;
 }
 
@@ -547,149 +742,4 @@ void radeon_atombios_init_crtc(struct drm_device *dev,
 		radeon_crtc->crtc_offset =
 		    AVIVO_D2CRTC_H_TOTAL - AVIVO_D1CRTC_H_TOTAL;
 	drm_crtc_helper_add(&radeon_crtc->base, &atombios_helper_funcs);
-}
-
-void radeon_init_disp_bw_avivo(struct drm_device *dev,
-			       struct drm_display_mode *mode1,
-			       uint32_t pixel_bytes1,
-			       struct drm_display_mode *mode2,
-			       uint32_t pixel_bytes2)
-{
-	struct radeon_device *rdev = dev->dev_private;
-	fixed20_12 min_mem_eff;
-	fixed20_12 peak_disp_bw, mem_bw, pix_clk, pix_clk2, temp_ff;
-	fixed20_12 sclk_ff, mclk_ff;
-	uint32_t dc_lb_memory_split, temp;
-
-	min_mem_eff.full = rfixed_const_8(0);
-	if (rdev->disp_priority == 2) {
-		uint32_t mc_init_misc_lat_timer = 0;
-		if (rdev->family == CHIP_RV515)
-			mc_init_misc_lat_timer =
-			    RREG32_MC(RV515_MC_INIT_MISC_LAT_TIMER);
-		else if (rdev->family == CHIP_RS690)
-			mc_init_misc_lat_timer =
-			    RREG32_MC(RS690_MC_INIT_MISC_LAT_TIMER);
-
-		mc_init_misc_lat_timer &=
-		    ~(R300_MC_DISP1R_INIT_LAT_MASK <<
-		      R300_MC_DISP1R_INIT_LAT_SHIFT);
-		mc_init_misc_lat_timer &=
-		    ~(R300_MC_DISP0R_INIT_LAT_MASK <<
-		      R300_MC_DISP0R_INIT_LAT_SHIFT);
-
-		if (mode2)
-			mc_init_misc_lat_timer |=
-			    (1 << R300_MC_DISP1R_INIT_LAT_SHIFT);
-		if (mode1)
-			mc_init_misc_lat_timer |=
-			    (1 << R300_MC_DISP0R_INIT_LAT_SHIFT);
-
-		if (rdev->family == CHIP_RV515)
-			WREG32_MC(RV515_MC_INIT_MISC_LAT_TIMER,
-				  mc_init_misc_lat_timer);
-		else if (rdev->family == CHIP_RS690)
-			WREG32_MC(RS690_MC_INIT_MISC_LAT_TIMER,
-				  mc_init_misc_lat_timer);
-	}
-
-	/*
-	 * determine is there is enough bw for current mode
-	 */
-	temp_ff.full = rfixed_const(100);
-	mclk_ff.full = rfixed_const(rdev->clock.default_mclk);
-	mclk_ff.full = rfixed_div(mclk_ff, temp_ff);
-	sclk_ff.full = rfixed_const(rdev->clock.default_sclk);
-	sclk_ff.full = rfixed_div(sclk_ff, temp_ff);
-
-	temp = (rdev->mc.vram_width / 8) * (rdev->mc.vram_is_ddr ? 2 : 1);
-	temp_ff.full = rfixed_const(temp);
-	mem_bw.full = rfixed_mul(mclk_ff, temp_ff);
-	mem_bw.full = rfixed_mul(mem_bw, min_mem_eff);
-
-	pix_clk.full = 0;
-	pix_clk2.full = 0;
-	peak_disp_bw.full = 0;
-	if (mode1) {
-		temp_ff.full = rfixed_const(1000);
-		pix_clk.full = rfixed_const(mode1->clock);	/* convert to fixed point */
-		pix_clk.full = rfixed_div(pix_clk, temp_ff);
-		temp_ff.full = rfixed_const(pixel_bytes1);
-		peak_disp_bw.full += rfixed_mul(pix_clk, temp_ff);
-	}
-	if (mode2) {
-		temp_ff.full = rfixed_const(1000);
-		pix_clk2.full = rfixed_const(mode2->clock);	/* convert to fixed point */
-		pix_clk2.full = rfixed_div(pix_clk2, temp_ff);
-		temp_ff.full = rfixed_const(pixel_bytes2);
-		peak_disp_bw.full += rfixed_mul(pix_clk2, temp_ff);
-	}
-
-	if (peak_disp_bw.full >= mem_bw.full) {
-		DRM_ERROR
-		    ("You may not have enough display bandwidth for current mode\n"
-		     "If you have flickering problem, try to lower resolution, refresh rate, or color depth\n");
-		printk("peak disp bw %d, mem_bw %d\n",
-		       rfixed_trunc(peak_disp_bw), rfixed_trunc(mem_bw));
-	}
-
-	/*
-	 * Line Buffer Setup
-	 * There is a single line buffer shared by both display controllers.
-	 * DC_LB_MEMORY_SPLIT controls how that line buffer is shared between the display
-	 * controllers.  The paritioning can either be done manually or via one of four
-	 * preset allocations specified in bits 1:0:
-	 * 0 - line buffer is divided in half and shared between each display controller
-	 * 1 - D1 gets 3/4 of the line buffer, D2 gets 1/4
-	 * 2 - D1 gets the whole buffer
-	 * 3 - D1 gets 1/4 of the line buffer, D2 gets 3/4
-	 * Setting bit 2 of DC_LB_MEMORY_SPLIT controls switches to manual allocation mode.
-	 * In manual allocation mode, D1 always starts at 0, D1 end/2 is specified in bits
-	 * 14:4; D2 allocation follows D1.
-	 */
-
-	/* is auto or manual better ? */
-	dc_lb_memory_split =
-	    RREG32(AVIVO_DC_LB_MEMORY_SPLIT) & ~AVIVO_DC_LB_MEMORY_SPLIT_MASK;
-	dc_lb_memory_split &= ~AVIVO_DC_LB_MEMORY_SPLIT_SHIFT_MODE;
-#if 1
-	/* auto */
-	if (mode1 && mode2) {
-		if (mode1->hdisplay > mode2->hdisplay) {
-			if (mode1->hdisplay > 2560)
-				dc_lb_memory_split |=
-				    AVIVO_DC_LB_MEMORY_SPLIT_D1_3Q_D2_1Q;
-			else
-				dc_lb_memory_split |=
-				    AVIVO_DC_LB_MEMORY_SPLIT_D1HALF_D2HALF;
-		} else if (mode2->hdisplay > mode1->hdisplay) {
-			if (mode2->hdisplay > 2560)
-				dc_lb_memory_split |=
-				    AVIVO_DC_LB_MEMORY_SPLIT_D1_1Q_D2_3Q;
-			else
-				dc_lb_memory_split |=
-				    AVIVO_DC_LB_MEMORY_SPLIT_D1HALF_D2HALF;
-		} else
-			dc_lb_memory_split |=
-			    AVIVO_DC_LB_MEMORY_SPLIT_D1HALF_D2HALF;
-	} else if (mode1) {
-		dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_D1_ONLY;
-	} else if (mode2) {
-		dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_D1_1Q_D2_3Q;
-	}
-#else
-	/* manual */
-	dc_lb_memory_split |= AVIVO_DC_LB_MEMORY_SPLIT_SHIFT_MODE;
-	dc_lb_memory_split &=
-	    ~(AVIVO_DC_LB_DISP1_END_ADR_MASK <<
-	      AVIVO_DC_LB_DISP1_END_ADR_SHIFT);
-	if (mode1) {
-		dc_lb_memory_split |=
-		    ((((mode1->hdisplay / 2) + 64) & AVIVO_DC_LB_DISP1_END_ADR_MASK)
-		     << AVIVO_DC_LB_DISP1_END_ADR_SHIFT);
-	} else if (mode2) {
-		dc_lb_memory_split |= (0 << AVIVO_DC_LB_DISP1_END_ADR_SHIFT);
-	}
-#endif
-	WREG32(AVIVO_DC_LB_MEMORY_SPLIT, dc_lb_memory_split);
 }

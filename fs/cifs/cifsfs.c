@@ -50,7 +50,7 @@
 #define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of SMB PDUs */
 
 #ifdef CONFIG_CIFS_QUOTA
-static struct quotactl_ops cifs_quotactl_ops;
+static const struct quotactl_ops cifs_quotactl_ops;
 #endif /* QUOTA */
 
 int cifsFYI = 0;
@@ -308,7 +308,6 @@ cifs_alloc_inode(struct super_block *sb)
 	if (!cifs_inode)
 		return NULL;
 	cifs_inode->cifsAttrs = 0x20;	/* default */
-	atomic_set(&cifs_inode->inUse, 0);
 	cifs_inode->time = 0;
 	cifs_inode->write_behind_rc = 0;
 	/* Until the file is open and we have gotten oplock
@@ -362,13 +361,10 @@ cifs_show_address(struct seq_file *s, struct TCP_Server_Info *server)
 static int
 cifs_show_options(struct seq_file *s, struct vfsmount *m)
 {
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *tcon;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(m->mnt_sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
 
-	cifs_sb = CIFS_SB(m->mnt_sb);
-	tcon = cifs_sb->tcon;
-
-	seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
+	seq_printf(s, ",unc=%s", tcon->treeName);
 	if (tcon->ses->userName)
 		seq_printf(s, ",username=%s", tcon->ses->userName);
 	if (tcon->ses->domainName)
@@ -377,10 +373,14 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 	seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
 		seq_printf(s, ",forceuid");
+	else
+		seq_printf(s, ",noforceuid");
 
 	seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
 		seq_printf(s, ",forcegid");
+	else
+		seq_printf(s, ",noforcegid");
 
 	cifs_show_address(s, tcon->ses->server);
 
@@ -517,7 +517,7 @@ int cifs_xstate_get(struct super_block *sb, struct fs_quota_stat *qstats)
 	return rc;
 }
 
-static struct quotactl_ops cifs_quotactl_ops = {
+static const struct quotactl_ops cifs_quotactl_ops = {
 	.set_xquota	= cifs_xquota_set,
 	.get_xquota	= cifs_xquota_get,
 	.set_xstate	= cifs_xstate_set,
@@ -986,19 +986,19 @@ static int cifs_oplock_thread(void *dummyarg)
 		if (try_to_freeze())
 			continue;
 
-		spin_lock(&GlobalMid_Lock);
-		if (list_empty(&GlobalOplock_Q)) {
-			spin_unlock(&GlobalMid_Lock);
+		spin_lock(&cifs_oplock_lock);
+		if (list_empty(&cifs_oplock_list)) {
+			spin_unlock(&cifs_oplock_lock);
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(39*HZ);
 		} else {
-			oplock_item = list_entry(GlobalOplock_Q.next,
+			oplock_item = list_entry(cifs_oplock_list.next,
 						struct oplock_q_entry, qhead);
 			cFYI(1, ("found oplock item to write out"));
 			pTcon = oplock_item->tcon;
 			inode = oplock_item->pinode;
 			netfid = oplock_item->netfid;
-			spin_unlock(&GlobalMid_Lock);
+			spin_unlock(&cifs_oplock_lock);
 			DeleteOplockQEntry(oplock_item);
 			/* can not grab inode sem here since it would
 				deadlock when oplock received on delete
@@ -1055,7 +1055,7 @@ init_cifs(void)
 	int rc = 0;
 	cifs_proc_init();
 	INIT_LIST_HEAD(&cifs_tcp_ses_list);
-	INIT_LIST_HEAD(&GlobalOplock_Q);
+	INIT_LIST_HEAD(&cifs_oplock_list);
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	INIT_LIST_HEAD(&GlobalDnotifyReqList);
 	INIT_LIST_HEAD(&GlobalDnotifyRsp_Q);
@@ -1084,6 +1084,7 @@ init_cifs(void)
 	rwlock_init(&GlobalSMBSeslock);
 	rwlock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&GlobalMid_Lock);
+	spin_lock_init(&cifs_oplock_lock);
 
 	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;

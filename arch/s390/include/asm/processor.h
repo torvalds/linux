@@ -14,7 +14,7 @@
 #define __ASM_S390_PROCESSOR_H
 
 #include <linux/linkage.h>
-#include <asm/cpuid.h>
+#include <asm/cpu.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/setup.h>
@@ -26,7 +26,7 @@
  */
 #define current_text_addr() ({ void *pc; asm("basr %0,0" : "=a" (pc)); pc; })
 
-static inline void get_cpu_id(cpuid_t *ptr)
+static inline void get_cpu_id(struct cpuid *ptr)
 {
 	asm volatile("stidp 0(%1)" : "=m" (*ptr) : "a" (ptr));
 }

@@ -222,7 +222,7 @@ static int __init sh7705_devices_setup(void)
 	return platform_add_devices(sh7705_devices,
 				    ARRAY_SIZE(sh7705_devices));
 }
-__initcall(sh7705_devices_setup);
+arch_initcall(sh7705_devices_setup);
 
 static struct platform_device *sh7705_early_devices[] __initdata = {
 	&tmu0_device,

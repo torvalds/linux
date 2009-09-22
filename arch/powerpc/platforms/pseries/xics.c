@@ -190,10 +190,10 @@ static void xics_unmask_irq(unsigned int virq)
 	int call_status;
 	int server;
 
-	pr_debug("xics: unmask virq %d\n", virq);
+	pr_devel("xics: unmask virq %d\n", virq);
 
 	irq = (unsigned int)irq_map[virq].hwirq;
-	pr_debug(" -> map to hwirq 0x%x\n", irq);
+	pr_devel(" -> map to hwirq 0x%x\n", irq);
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return;
 
@@ -252,7 +252,7 @@ static void xics_mask_irq(unsigned int virq)
 {
 	unsigned int irq;
 
-	pr_debug("xics: mask virq %d\n", virq);
+	pr_devel("xics: mask virq %d\n", virq);
 
 	irq = (unsigned int)irq_map[virq].hwirq;
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
@@ -414,7 +414,7 @@ static int xics_host_match(struct irq_host *h, struct device_node *node)
 static int xics_host_map(struct irq_host *h, unsigned int virq,
 			 irq_hw_number_t hw)
 {
-	pr_debug("xics: map virq %d, hwirq 0x%lx\n", virq, hw);
+	pr_devel("xics: map virq %d, hwirq 0x%lx\n", virq, hw);
 
 	/* Insert the interrupt mapping into the radix tree for fast lookup */
 	irq_radix_revmap_insert(xics_host, virq, hw);

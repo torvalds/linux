@@ -60,7 +60,7 @@ static int synaptics_mode_cmd(struct psmouse *psmouse, unsigned char mode)
 	return 0;
 }
 
-int synaptics_detect(struct psmouse *psmouse, int set_properties)
+int synaptics_detect(struct psmouse *psmouse, bool set_properties)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param[4];
@@ -556,38 +556,38 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 {
 	int i;
 
-	set_bit(EV_ABS, dev->evbit);
+	__set_bit(EV_ABS, dev->evbit);
 	input_set_abs_params(dev, ABS_X, XMIN_NOMINAL, XMAX_NOMINAL, 0, 0);
 	input_set_abs_params(dev, ABS_Y, YMIN_NOMINAL, YMAX_NOMINAL, 0, 0);
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
-	set_bit(ABS_TOOL_WIDTH, dev->absbit);
+	__set_bit(ABS_TOOL_WIDTH, dev->absbit);
 
-	set_bit(EV_KEY, dev->evbit);
-	set_bit(BTN_TOUCH, dev->keybit);
-	set_bit(BTN_TOOL_FINGER, dev->keybit);
-	set_bit(BTN_LEFT, dev->keybit);
-	set_bit(BTN_RIGHT, dev->keybit);
+	__set_bit(EV_KEY, dev->evbit);
+	__set_bit(BTN_TOUCH, dev->keybit);
+	__set_bit(BTN_TOOL_FINGER, dev->keybit);
+	__set_bit(BTN_LEFT, dev->keybit);
+	__set_bit(BTN_RIGHT, dev->keybit);
 
 	if (SYN_CAP_MULTIFINGER(priv->capabilities)) {
-		set_bit(BTN_TOOL_DOUBLETAP, dev->keybit);
-		set_bit(BTN_TOOL_TRIPLETAP, dev->keybit);
+		__set_bit(BTN_TOOL_DOUBLETAP, dev->keybit);
+		__set_bit(BTN_TOOL_TRIPLETAP, dev->keybit);
 	}
 
 	if (SYN_CAP_MIDDLE_BUTTON(priv->capabilities))
-		set_bit(BTN_MIDDLE, dev->keybit);
+		__set_bit(BTN_MIDDLE, dev->keybit);
 
 	if (SYN_CAP_FOUR_BUTTON(priv->capabilities) ||
 	    SYN_CAP_MIDDLE_BUTTON(priv->capabilities)) {
-		set_bit(BTN_FORWARD, dev->keybit);
-		set_bit(BTN_BACK, dev->keybit);
+		__set_bit(BTN_FORWARD, dev->keybit);
+		__set_bit(BTN_BACK, dev->keybit);
 	}
 
 	for (i = 0; i < SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap); i++)
-		set_bit(BTN_0 + i, dev->keybit);
+		__set_bit(BTN_0 + i, dev->keybit);
 
-	clear_bit(EV_REL, dev->evbit);
-	clear_bit(REL_X, dev->relbit);
-	clear_bit(REL_Y, dev->relbit);
+	__clear_bit(EV_REL, dev->evbit);
+	__clear_bit(REL_X, dev->relbit);
+	__clear_bit(REL_Y, dev->relbit);
 
 	dev->absres[ABS_X] = priv->x_res;
 	dev->absres[ABS_Y] = priv->y_res;

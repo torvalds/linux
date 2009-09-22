@@ -1,7 +1,7 @@
 /*
  * 	connector.c
  *
- * 2004-2005 Copyright (c) Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+ * 2004+ Copyright (c) Evgeniy Polyakov <zbr@ioremap.net>
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,7 +33,7 @@
 #include <net/sock.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
+MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
 MODULE_DESCRIPTION("Generic userspace <-> kernelspace connector.");
 
 static u32 cn_idx = CN_IDX_CONNECTOR;
@@ -269,7 +269,8 @@ static void cn_notify(struct cb_id *id, u32 notify_event)
  *
  * May sleep.
  */
-int cn_add_callback(struct cb_id *id, char *name, void (*callback)(void *))
+int cn_add_callback(struct cb_id *id, char *name,
+		    void (*callback)(struct cn_msg *))
 {
 	int err;
 	struct cn_dev *dev = &cdev;
@@ -351,9 +352,8 @@ static int cn_ctl_msg_equals(struct cn_ctl_msg *m1, struct cn_ctl_msg *m2)
  *
  * Used for notification of a request's processing.
  */
-static void cn_callback(void *data)
+static void cn_callback(struct cn_msg *msg)
 {
-	struct cn_msg *msg = data;
 	struct cn_ctl_msg *ctl;
 	struct cn_ctl_entry *ent;
 	u32 size;

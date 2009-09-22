@@ -32,7 +32,7 @@
 #define AGP8X_MODE		(1 << AGP8X_MODE_BIT)
 
 static unsigned long
-parisc_agp_mask_memory(struct agp_bridge_data *bridge, unsigned long addr,
+parisc_agp_mask_memory(struct agp_bridge_data *bridge, dma_addr_t addr,
 		       int type);
 
 static struct _parisc_agp_info {
@@ -189,17 +189,9 @@ parisc_agp_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 }
 
 static unsigned long
-parisc_agp_mask_memory(struct agp_bridge_data *bridge, unsigned long addr,
+parisc_agp_mask_memory(struct agp_bridge_data *bridge, dma_addr_t addr,
 		       int type)
 {
-	return SBA_PDIR_VALID_BIT | addr;
-}
-
-static unsigned long
-parisc_agp_page_mask_memory(struct agp_bridge_data *bridge, struct page *page,
-			    int type)
-{
-	unsigned long addr = phys_to_gart(page_to_phys(page));
 	return SBA_PDIR_VALID_BIT | addr;
 }
 
@@ -225,7 +217,7 @@ static const struct agp_bridge_driver parisc_agp_driver = {
 	.configure		= parisc_agp_configure,
 	.fetch_size		= parisc_agp_fetch_size,
 	.tlb_flush		= parisc_agp_tlbflush,
-	.mask_memory		= parisc_agp_mask_memory,
+	.mask_memory		= parisc_agp_page_mask_memory,
 	.masks			= parisc_agp_masks,
 	.agp_enable		= parisc_agp_enable,
 	.cache_flush		= global_cache_flush,

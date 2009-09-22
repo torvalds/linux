@@ -367,7 +367,8 @@ int sm501_unit_power(struct device *dev, unsigned int unit, unsigned int to)
 		break;
 
 	default:
-		return -1;
+		gate = -1;
+		goto already;
 	}
 
 	writel(mode, sm->regs + SM501_POWER_MODE_CONTROL);

@@ -59,7 +59,7 @@ static int rio_open (struct net_device *dev);
 static void rio_timer (unsigned long data);
 static void rio_tx_timeout (struct net_device *dev);
 static void alloc_list (struct net_device *dev);
-static int start_xmit (struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t start_xmit (struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t rio_interrupt (int irq, void *dev_instance);
 static void rio_free_tx (struct net_device *dev, int irq);
 static void tx_error (struct net_device *dev, int tx_status);
@@ -268,8 +268,9 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk(KERN_INFO "tx_coalesce:\t%d packets\n",
 				tx_coalesce);
 	if (np->coalesce)
-		printk(KERN_INFO "rx_coalesce:\t%d packets\n"
-		       KERN_INFO "rx_timeout: \t%d ns\n",
+		printk(KERN_INFO
+		       "rx_coalesce:\t%d packets\n"
+		       "rx_timeout: \t%d ns\n",
 				np->rx_coalesce, np->rx_timeout*640);
 	if (np->vlan)
 		printk(KERN_INFO "vlan(id):\t%d\n", np->vlan);
@@ -599,7 +600,7 @@ alloc_list (struct net_device *dev)
 	return;
 }
 
-static int
+static netdev_tx_t
 start_xmit (struct sk_buff *skb, struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
@@ -1522,9 +1523,9 @@ mii_get_media (struct net_device *dev)
 			printk (KERN_INFO "Operating at 10 Mbps, ");
 		}
 		if (bmcr & MII_BMCR_DUPLEX_MODE) {
-			printk ("Full duplex\n");
+			printk (KERN_CONT "Full duplex\n");
 		} else {
-			printk ("Half duplex\n");
+			printk (KERN_CONT "Half duplex\n");
 		}
 	}
 	if (np->tx_flow)
@@ -1614,9 +1615,9 @@ mii_set_media (struct net_device *dev)
 		}
 		if (np->full_duplex) {
 			bmcr |= MII_BMCR_DUPLEX_MODE;
-			printk ("Full duplex\n");
+			printk (KERN_CONT "Full duplex\n");
 		} else {
-			printk ("Half duplex\n");
+			printk (KERN_CONT "Half duplex\n");
 		}
 #if 0
 		/* Set 1000BaseT Master/Slave setting */
@@ -1669,9 +1670,9 @@ mii_get_media_pcs (struct net_device *dev)
 		__u16 bmcr = mii_read (dev, phy_addr, PCS_BMCR);
 		printk (KERN_INFO "Operating at 1000 Mbps, ");
 		if (bmcr & MII_BMCR_DUPLEX_MODE) {
-			printk ("Full duplex\n");
+			printk (KERN_CONT "Full duplex\n");
 		} else {
-			printk ("Half duplex\n");
+			printk (KERN_CONT "Half duplex\n");
 		}
 	}
 	if (np->tx_flow)

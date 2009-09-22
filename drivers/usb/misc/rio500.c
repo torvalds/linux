@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/random.h>
 #include <linux/poll.h>

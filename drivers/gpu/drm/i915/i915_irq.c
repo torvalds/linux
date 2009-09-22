@@ -26,6 +26,7 @@
  *
  */
 
+#include <linux/sysrq.h>
 #include "drmP.h"
 #include "drm.h"
 #include "i915_drm.h"
@@ -41,9 +42,10 @@
  * we leave them always unmasked in IMR and then control enabling them through
  * PIPESTAT alone.
  */
-#define I915_INTERRUPT_ENABLE_FIX (I915_ASLE_INTERRUPT | \
-				   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |  \
-				   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT)
+#define I915_INTERRUPT_ENABLE_FIX (I915_ASLE_INTERRUPT |		 \
+				   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT | \
+				   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT | \
+				   I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
 
 /** Interrupts that we mask and unmask at runtime. */
 #define I915_INTERRUPT_ENABLE_VAR (I915_USER_INTERRUPT)
@@ -188,7 +190,7 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	low_frame = pipe ? PIPEBFRAMEPIXEL : PIPEAFRAMEPIXEL;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_ERROR("trying to get vblank count for disabled pipe %d\n", pipe);
+		DRM_DEBUG("trying to get vblank count for disabled pipe %d\n", pipe);
 		return 0;
 	}
 
@@ -217,7 +219,7 @@ u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 	int reg = pipe ? PIPEB_FRMCOUNT_GM45 : PIPEA_FRMCOUNT_GM45;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_ERROR("trying to get vblank count for disabled pipe %d\n", pipe);
+		DRM_DEBUG("trying to get vblank count for disabled pipe %d\n", pipe);
 		return 0;
 	}
 
@@ -288,6 +290,201 @@ irqreturn_t igdng_irq_handler(struct drm_device *dev)
 	return ret;
 }
 
+/**
+ * i915_error_work_func - do process context error handling work
+ * @work: work struct
+ *
+ * Fire an error uevent so userspace can see that a hang or error
+ * was detected.
+ */
+static void i915_error_work_func(struct work_struct *work)
+{
+	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
+						    error_work);
+	struct drm_device *dev = dev_priv->dev;
+	char *event_string = "ERROR=1";
+	char *envp[] = { event_string, NULL };
+
+	DRM_DEBUG("generating error event\n");
+
+	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, envp);
+}
+
+/**
+ * i915_capture_error_state - capture an error record for later analysis
+ * @dev: drm device
+ *
+ * Should be called when an error is detected (either a hang or an error
+ * interrupt) to capture error state from the time of the error.  Fills
+ * out a structure which becomes available in debugfs for user level tools
+ * to pick up.
+ */
+static void i915_capture_error_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_error_state *error;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->error_lock, flags);
+	if (dev_priv->first_error)
+		goto out;
+
+	error = kmalloc(sizeof(*error), GFP_ATOMIC);
+	if (!error) {
+		DRM_DEBUG("out ot memory, not capturing error state\n");
+		goto out;
+	}
+
+	error->eir = I915_READ(EIR);
+	error->pgtbl_er = I915_READ(PGTBL_ER);
+	error->pipeastat = I915_READ(PIPEASTAT);
+	error->pipebstat = I915_READ(PIPEBSTAT);
+	error->instpm = I915_READ(INSTPM);
+	if (!IS_I965G(dev)) {
+		error->ipeir = I915_READ(IPEIR);
+		error->ipehr = I915_READ(IPEHR);
+		error->instdone = I915_READ(INSTDONE);
+		error->acthd = I915_READ(ACTHD);
+	} else {
+		error->ipeir = I915_READ(IPEIR_I965);
+		error->ipehr = I915_READ(IPEHR_I965);
+		error->instdone = I915_READ(INSTDONE_I965);
+		error->instps = I915_READ(INSTPS);
+		error->instdone1 = I915_READ(INSTDONE1);
+		error->acthd = I915_READ(ACTHD_I965);
+	}
+
+	do_gettimeofday(&error->time);
+
+	dev_priv->first_error = error;
+
+out:
+	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
+}
+
+/**
+ * i915_handle_error - handle an error interrupt
+ * @dev: drm device
+ *
+ * Do some basic checking of regsiter state at error interrupt time and
+ * dump it to the syslog.  Also call i915_capture_error_state() to make
+ * sure we get a record and make it available in debugfs.  Fire a uevent
+ * so userspace knows something bad happened (should trigger collection
+ * of a ring dump etc.).
+ */
+static void i915_handle_error(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 eir = I915_READ(EIR);
+	u32 pipea_stats = I915_READ(PIPEASTAT);
+	u32 pipeb_stats = I915_READ(PIPEBSTAT);
+
+	i915_capture_error_state(dev);
+
+	printk(KERN_ERR "render error detected, EIR: 0x%08x\n",
+	       eir);
+
+	if (IS_G4X(dev)) {
+		if (eir & (GM45_ERROR_MEM_PRIV | GM45_ERROR_CP_PRIV)) {
+			u32 ipeir = I915_READ(IPEIR_I965);
+
+			printk(KERN_ERR "  IPEIR: 0x%08x\n",
+			       I915_READ(IPEIR_I965));
+			printk(KERN_ERR "  IPEHR: 0x%08x\n",
+			       I915_READ(IPEHR_I965));
+			printk(KERN_ERR "  INSTDONE: 0x%08x\n",
+			       I915_READ(INSTDONE_I965));
+			printk(KERN_ERR "  INSTPS: 0x%08x\n",
+			       I915_READ(INSTPS));
+			printk(KERN_ERR "  INSTDONE1: 0x%08x\n",
+			       I915_READ(INSTDONE1));
+			printk(KERN_ERR "  ACTHD: 0x%08x\n",
+			       I915_READ(ACTHD_I965));
+			I915_WRITE(IPEIR_I965, ipeir);
+			(void)I915_READ(IPEIR_I965);
+		}
+		if (eir & GM45_ERROR_PAGE_TABLE) {
+			u32 pgtbl_err = I915_READ(PGTBL_ER);
+			printk(KERN_ERR "page table error\n");
+			printk(KERN_ERR "  PGTBL_ER: 0x%08x\n",
+			       pgtbl_err);
+			I915_WRITE(PGTBL_ER, pgtbl_err);
+			(void)I915_READ(PGTBL_ER);
+		}
+	}
+
+	if (IS_I9XX(dev)) {
+		if (eir & I915_ERROR_PAGE_TABLE) {
+			u32 pgtbl_err = I915_READ(PGTBL_ER);
+			printk(KERN_ERR "page table error\n");
+			printk(KERN_ERR "  PGTBL_ER: 0x%08x\n",
+			       pgtbl_err);
+			I915_WRITE(PGTBL_ER, pgtbl_err);
+			(void)I915_READ(PGTBL_ER);
+		}
+	}
+
+	if (eir & I915_ERROR_MEMORY_REFRESH) {
+		printk(KERN_ERR "memory refresh error\n");
+		printk(KERN_ERR "PIPEASTAT: 0x%08x\n",
+		       pipea_stats);
+		printk(KERN_ERR "PIPEBSTAT: 0x%08x\n",
+		       pipeb_stats);
+		/* pipestat has already been acked */
+	}
+	if (eir & I915_ERROR_INSTRUCTION) {
+		printk(KERN_ERR "instruction error\n");
+		printk(KERN_ERR "  INSTPM: 0x%08x\n",
+		       I915_READ(INSTPM));
+		if (!IS_I965G(dev)) {
+			u32 ipeir = I915_READ(IPEIR);
+
+			printk(KERN_ERR "  IPEIR: 0x%08x\n",
+			       I915_READ(IPEIR));
+			printk(KERN_ERR "  IPEHR: 0x%08x\n",
+			       I915_READ(IPEHR));
+			printk(KERN_ERR "  INSTDONE: 0x%08x\n",
+			       I915_READ(INSTDONE));
+			printk(KERN_ERR "  ACTHD: 0x%08x\n",
+			       I915_READ(ACTHD));
+			I915_WRITE(IPEIR, ipeir);
+			(void)I915_READ(IPEIR);
+		} else {
+			u32 ipeir = I915_READ(IPEIR_I965);
+
+			printk(KERN_ERR "  IPEIR: 0x%08x\n",
+			       I915_READ(IPEIR_I965));
+			printk(KERN_ERR "  IPEHR: 0x%08x\n",
+			       I915_READ(IPEHR_I965));
+			printk(KERN_ERR "  INSTDONE: 0x%08x\n",
+			       I915_READ(INSTDONE_I965));
+			printk(KERN_ERR "  INSTPS: 0x%08x\n",
+			       I915_READ(INSTPS));
+			printk(KERN_ERR "  INSTDONE1: 0x%08x\n",
+			       I915_READ(INSTDONE1));
+			printk(KERN_ERR "  ACTHD: 0x%08x\n",
+			       I915_READ(ACTHD_I965));
+			I915_WRITE(IPEIR_I965, ipeir);
+			(void)I915_READ(IPEIR_I965);
+		}
+	}
+
+	I915_WRITE(EIR, eir);
+	(void)I915_READ(EIR);
+	eir = I915_READ(EIR);
+	if (eir) {
+		/*
+		 * some errors might have become stuck,
+		 * mask them.
+		 */
+		DRM_ERROR("EIR stuck: 0x%08x, masking\n", eir);
+		I915_WRITE(EMR, I915_READ(EMR) | eir);
+		I915_WRITE(IIR, I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
+	}
+
+	queue_work(dev_priv->wq, &dev_priv->error_work);
+}
+
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -329,15 +526,22 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		pipea_stats = I915_READ(PIPEASTAT);
 		pipeb_stats = I915_READ(PIPEBSTAT);
 
+		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
+			i915_handle_error(dev);
+
 		/*
 		 * Clear the PIPE(A|B)STAT regs before the IIR
 		 */
 		if (pipea_stats & 0x8000ffff) {
+			if (pipea_stats &  PIPE_FIFO_UNDERRUN_STATUS)
+				DRM_DEBUG("pipe a underrun\n");
 			I915_WRITE(PIPEASTAT, pipea_stats);
 			irq_received = 1;
 		}
 
 		if (pipeb_stats & 0x8000ffff) {
+			if (pipeb_stats &  PIPE_FIFO_UNDERRUN_STATUS)
+				DRM_DEBUG("pipe b underrun\n");
 			I915_WRITE(PIPEBSTAT, pipeb_stats);
 			irq_received = 1;
 		}
@@ -356,10 +560,32 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 			DRM_DEBUG("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
 			if (hotplug_status & dev_priv->hotplug_supported_mask)
-				schedule_work(&dev_priv->hotplug_work);
+				queue_work(dev_priv->wq,
+					   &dev_priv->hotplug_work);
 
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
+
+			/* EOS interrupts occurs */
+			if (IS_IGD(dev) &&
+				(hotplug_status & CRT_EOS_INT_STATUS)) {
+				u32 temp;
+
+				DRM_DEBUG("EOS interrupt occurs\n");
+				/* status is already cleared */
+				temp = I915_READ(ADPA);
+				temp &= ~ADPA_DAC_ENABLE;
+				I915_WRITE(ADPA, temp);
+
+				temp = I915_READ(PORT_HOTPLUG_EN);
+				temp &= ~CRT_EOS_INT_EN;
+				I915_WRITE(PORT_HOTPLUG_EN, temp);
+
+				temp = I915_READ(PORT_HOTPLUG_STAT);
+				if (temp & CRT_EOS_INT_STATUS)
+					I915_WRITE(PORT_HOTPLUG_STAT,
+						CRT_EOS_INT_STATUS);
+			}
 		}
 
 		I915_WRITE(IIR, iir);
@@ -709,6 +935,7 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 	atomic_set(&dev_priv->irq_received, 0);
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
+	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
 
 	if (IS_IGDNG(dev)) {
 		igdng_irq_preinstall(dev);
@@ -732,6 +959,7 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 enable_mask = I915_INTERRUPT_ENABLE_FIX | I915_INTERRUPT_ENABLE_VAR;
+	u32 error_mask;
 
 	DRM_INIT_WAITQUEUE(&dev_priv->irq_queue);
 
@@ -767,6 +995,21 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 		/* and unmask in IMR */
 		i915_enable_irq(dev_priv, I915_DISPLAY_PORT_INTERRUPT);
 	}
+
+	/*
+	 * Enable some error detection, note the instruction error mask
+	 * bit is reserved, so we leave it masked.
+	 */
+	if (IS_G4X(dev)) {
+		error_mask = ~(GM45_ERROR_PAGE_TABLE |
+			       GM45_ERROR_MEM_PRIV |
+			       GM45_ERROR_CP_PRIV |
+			       I915_ERROR_MEMORY_REFRESH);
+	} else {
+		error_mask = ~(I915_ERROR_PAGE_TABLE |
+			       I915_ERROR_MEMORY_REFRESH);
+	}
+	I915_WRITE(EMR, error_mask);
 
 	/* Disable pipe interrupt enables, clear pending pipe status */
 	I915_WRITE(PIPEASTAT, I915_READ(PIPEASTAT) & 0x8000ffff);

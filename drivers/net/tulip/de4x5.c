@@ -895,7 +895,8 @@ static struct {
 ** Public Functions
 */
 static int     de4x5_open(struct net_device *dev);
-static int     de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t de4x5_queue_pkt(struct sk_buff *skb,
+					 struct net_device *dev);
 static irqreturn_t de4x5_interrupt(int irq, void *dev_id);
 static int     de4x5_close(struct net_device *dev);
 static struct  net_device_stats *de4x5_get_stats(struct net_device *dev);
@@ -1456,18 +1457,16 @@ de4x5_sw_reset(struct net_device *dev)
 /*
 ** Writes a socket buffer address to the next available transmit descriptor.
 */
-static int
+static netdev_tx_t
 de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 {
     struct de4x5_private *lp = netdev_priv(dev);
     u_long iobase = dev->base_addr;
-    int status = NETDEV_TX_OK;
     u_long flags = 0;
 
     netif_stop_queue(dev);
-    if (!lp->tx_enable) {                   /* Cannot send for now */
+    if (!lp->tx_enable)                   /* Cannot send for now */
 	return NETDEV_TX_LOCKED;
-    }
 
     /*
     ** Clean out the TX ring asynchronously to interrupts - sometimes the
@@ -1521,7 +1520,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 
     lp->cache.lock = 0;
 
-    return status;
+    return NETDEV_TX_OK;
 }
 
 /*
@@ -5059,7 +5058,7 @@ mii_get_phy(struct net_device *dev)
 	if ((id == 0) || (id == 65535)) continue;  /* Valid ID? */
 	for (j=0; j<limit; j++) {                  /* Search PHY table */
 	    if (id != phy_info[j].id) continue;    /* ID match? */
-	    for (k=0; lp->phy[k].id && (k < DE4X5_MAX_PHY); k++);
+	    for (k=0; k < DE4X5_MAX_PHY && lp->phy[k].id; k++);
 	    if (k < DE4X5_MAX_PHY) {
 		memcpy((char *)&lp->phy[k],
 		       (char *)&phy_info[j], sizeof(struct phy_table));
@@ -5072,7 +5071,7 @@ mii_get_phy(struct net_device *dev)
 	    break;
 	}
 	if ((j == limit) && (i < DE4X5_MAX_MII)) {
-	    for (k=0; lp->phy[k].id && (k < DE4X5_MAX_PHY); k++);
+	    for (k=0; k < DE4X5_MAX_PHY && lp->phy[k].id; k++);
 	    lp->phy[k].addr = i;
 	    lp->phy[k].id = id;
 	    lp->phy[k].spd.reg = GENERIC_REG;      /* ANLPA register         */
@@ -5091,7 +5090,7 @@ mii_get_phy(struct net_device *dev)
   purgatory:
     lp->active = 0;
     if (lp->phy[0].id) {                           /* Reset the PHY devices */
-	for (k=0; lp->phy[k].id && (k < DE4X5_MAX_PHY); k++) { /*For each PHY*/
+	for (k=0; k < DE4X5_MAX_PHY && lp->phy[k].id; k++) { /*For each PHY*/
 	    mii_wr(MII_CR_RST, MII_CR, lp->phy[k].addr, DE4X5_MII);
 	    while (mii_rd(MII_CR, lp->phy[k].addr, DE4X5_MII) & MII_CR_RST);
 

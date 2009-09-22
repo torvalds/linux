@@ -126,6 +126,19 @@ config HW_RANDOM_OMAP
 
  	  If unsure, say Y.
 
+config HW_RANDOM_OCTEON
+	tristate "Octeon Random Number Generator support"
+	depends on HW_RANDOM && CPU_CAVIUM_OCTEON
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Octeon processors.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called octeon-rng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_PASEMI
 	tristate "PA Semi HW Random Number Generator support"
 	depends on HW_RANDOM && PPC_PASEMI

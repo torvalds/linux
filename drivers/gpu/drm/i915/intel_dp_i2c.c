@@ -29,6 +29,7 @@
 #include <linux/sched.h>
 #include <linux/i2c.h>
 #include "intel_dp.h"
+#include "drmP.h"
 
 /* Run a single AUX_CH I2C transaction, writing/reading data as necessary */
 
@@ -84,7 +85,7 @@ i2c_algo_dp_aux_transaction(struct i2c_adapter *adapter, int mode,
 					   msg, msg_bytes,
 					   reply, reply_bytes);
 		if (ret < 0) {
-			printk(KERN_ERR "aux_ch failed %d\n", ret);
+			DRM_DEBUG("aux_ch failed %d\n", ret);
 			return ret;
 		}
 		switch (reply[0] & AUX_I2C_REPLY_MASK) {
@@ -94,14 +95,14 @@ i2c_algo_dp_aux_transaction(struct i2c_adapter *adapter, int mode,
 			}
 			return reply_bytes - 1;
 		case AUX_I2C_REPLY_NACK:
-			printk(KERN_ERR "aux_ch nack\n");
+			DRM_DEBUG("aux_ch nack\n");
 			return -EREMOTEIO;
 		case AUX_I2C_REPLY_DEFER:
-			printk(KERN_ERR "aux_ch defer\n");
+			DRM_DEBUG("aux_ch defer\n");
 			udelay(100);
 			break;
 		default:
-			printk(KERN_ERR "aux_ch invalid reply 0x%02x\n", reply[0]);
+			DRM_ERROR("aux_ch invalid reply 0x%02x\n", reply[0]);
 			return -EREMOTEIO;
 		}
 	}
@@ -223,7 +224,7 @@ i2c_algo_dp_aux_xfer(struct i2c_adapter *adapter,
 	if (ret >= 0)
 		ret = num;
 	i2c_algo_dp_aux_stop(adapter, reading);
-	printk(KERN_ERR "dp_aux_xfer return %d\n", ret);
+	DRM_DEBUG("dp_aux_xfer return %d\n", ret);
 	return ret;
 }
 

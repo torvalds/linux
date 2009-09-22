@@ -40,7 +40,7 @@ static struct platform_device iic_device = {
 };
 
 static struct r8a66597_platdata r8a66597_data = {
-	/* This set zero to all members */
+	.on_chip = 1,
 };
 
 static struct resource usb_host_resources[] = {
@@ -318,7 +318,7 @@ static int __init sh7366_devices_setup(void)
 	return platform_add_devices(sh7366_devices,
 				    ARRAY_SIZE(sh7366_devices));
 }
-__initcall(sh7366_devices_setup);
+arch_initcall(sh7366_devices_setup);
 
 static struct platform_device *sh7366_early_devices[] __initdata = {
 	&cmt_device,

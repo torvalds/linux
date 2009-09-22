@@ -24,8 +24,9 @@
 #include <linux/sysrq.h>
 #include <linux/kbd_kern.h>
 #include <linux/proc_fs.h>
+#include <linux/nmi.h>
 #include <linux/quotaops.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/suspend.h>
@@ -35,7 +36,6 @@
 #include <linux/spinlock.h>
 #include <linux/vt_kern.h>
 #include <linux/workqueue.h>
-#include <linux/kexec.h>
 #include <linux/hrtimer.h>
 #include <linux/oom.h>
 
@@ -124,9 +124,12 @@ static struct sysrq_key_op sysrq_unraw_op = {
 static void sysrq_handle_crash(int key, struct tty_struct *tty)
 {
 	char *killer = NULL;
+
+	panic_on_oops = 1;	/* force panic */
+	wmb();
 	*killer = 1;
 }
-static struct sysrq_key_op sysrq_crashdump_op = {
+static struct sysrq_key_op sysrq_crash_op = {
 	.handler	= sysrq_handle_crash,
 	.help_msg	= "Crash",
 	.action_msg	= "Trigger a crash",
@@ -220,12 +223,20 @@ static DECLARE_WORK(sysrq_showallcpus, sysrq_showregs_othercpus);
 
 static void sysrq_handle_showallcpus(int key, struct tty_struct *tty)
 {
-	struct pt_regs *regs = get_irq_regs();
-	if (regs) {
-		printk(KERN_INFO "CPU%d:\n", smp_processor_id());
-		show_regs(regs);
+	/*
+	 * Fall back to the workqueue based printing if the
+	 * backtrace printing did not succeed or the
+	 * architecture has no support for it:
+	 */
+	if (!trigger_all_cpu_backtrace()) {
+		struct pt_regs *regs = get_irq_regs();
+
+		if (regs) {
+			printk(KERN_INFO "CPU%d:\n", smp_processor_id());
+			show_regs(regs);
+		}
+		schedule_work(&sysrq_showallcpus);
 	}
-	schedule_work(&sysrq_showallcpus);
 }
 
 static struct sysrq_key_op sysrq_showallcpus_op = {
@@ -241,7 +252,7 @@ static void sysrq_handle_showregs(int key, struct tty_struct *tty)
 	struct pt_regs *regs = get_irq_regs();
 	if (regs)
 		show_regs(regs);
-	perf_counter_print_debug();
+	perf_event_print_debug();
 }
 static struct sysrq_key_op sysrq_showregs_op = {
 	.handler	= sysrq_handle_showregs,
@@ -401,7 +412,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	 */
 	NULL,				/* a */
 	&sysrq_reboot_op,		/* b */
-	&sysrq_crashdump_op,		/* c & ibm_emac driver debug */
+	&sysrq_crash_op,		/* c & ibm_emac driver debug */
 	&sysrq_showlocks_op,		/* d */
 	&sysrq_term_op,			/* e */
 	&sysrq_moom_op,			/* f */

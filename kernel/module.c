@@ -47,6 +47,7 @@
 #include <linux/rculist.h>
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
+#include <asm/mmu_context.h>
 #include <linux/license.h>
 #include <asm/sections.h>
 #include <linux/tracepoint.h>
@@ -54,6 +55,11 @@
 #include <linux/async.h>
 #include <linux/percpu.h>
 #include <linux/kmemleak.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/module.h>
+
+EXPORT_TRACEPOINT_SYMBOL(module_get);
 
 #if 0
 #define DEBUGP printk
@@ -364,7 +370,7 @@ EXPORT_SYMBOL_GPL(find_module);
 
 #ifdef CONFIG_SMP
 
-#ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
+#ifndef CONFIG_HAVE_LEGACY_PER_CPU_AREA
 
 static void *percpu_modalloc(unsigned long size, unsigned long align,
 			     const char *name)
@@ -389,7 +395,7 @@ static void percpu_modfree(void *freeme)
 	free_percpu(freeme);
 }
 
-#else /* ... !CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+#else /* ... CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 /* Number of blocks used and allocated. */
 static unsigned int pcpu_num_used, pcpu_num_allocated;
@@ -535,7 +541,7 @@ static int percpu_modinit(void)
 }
 __initcall(percpu_modinit);
 
-#endif /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+#endif /* CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 static unsigned int find_pcpusec(Elf_Ehdr *hdr,
 				 Elf_Shdr *sechdrs,
@@ -909,16 +915,18 @@ void __symbol_put(const char *symbol)
 }
 EXPORT_SYMBOL(__symbol_put);
 
+/* Note this assumes addr is a function, which it currently always is. */
 void symbol_put_addr(void *addr)
 {
 	struct module *modaddr;
+	unsigned long a = (unsigned long)dereference_function_descriptor(addr);
 
-	if (core_kernel_text((unsigned long)addr))
+	if (core_kernel_text(a))
 		return;
 
 	/* module_text_address is safe here: we're supposed to have reference
 	 * to module from symbol_get, so it can't go away. */
-	modaddr = __module_text_address((unsigned long)addr);
+	modaddr = __module_text_address(a);
 	BUG_ON(!modaddr);
 	module_put(modaddr);
 }
@@ -940,6 +948,8 @@ void module_put(struct module *module)
 	if (module) {
 		unsigned int cpu = get_cpu();
 		local_dec(__module_ref_addr(module, cpu));
+		trace_module_put(module, _RET_IP_,
+				 local_read(__module_ref_addr(module, cpu)));
 		/* Maybe they're waiting for us to drop reference? */
 		if (unlikely(!module_is_live(module)))
 			wake_up_process(module->waiter);
@@ -1068,7 +1078,8 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 {
 	const unsigned long *crc;
 
-	if (!find_symbol("module_layout", NULL, &crc, true, false))
+	if (!find_symbol(MODULE_SYMBOL_PREFIX "module_layout", NULL,
+			 &crc, true, false))
 		BUG();
 	return check_version(sechdrs, versindex, "module_layout", mod, crc);
 }
@@ -1270,6 +1281,10 @@ static void add_notes_attrs(struct module *mod, unsigned int nsect,
 	unsigned int notes, loaded, i;
 	struct module_notes_attrs *notes_attrs;
 	struct bin_attribute *nattr;
+
+	/* failed to create section attributes, so can't create notes */
+	if (!mod->sect_attrs)
+		return;
 
 	/* Count notes sections and allocate structures.  */
 	notes = 0;
@@ -1490,6 +1505,8 @@ static int __unlink_module(void *_mod)
 /* Free a module, remove from lists, etc (must hold module_mutex). */
 static void free_module(struct module *mod)
 {
+	trace_module_free(mod);
+
 	/* Delete from various lists */
 	stop_machine(__unlink_module, mod, NULL);
 	remove_notes_attrs(mod);
@@ -1519,6 +1536,10 @@ static void free_module(struct module *mod)
 
 	/* Finally, free the core (containing the module structure) */
 	module_free(mod, mod->module_core);
+
+#ifdef CONFIG_MPU
+	update_protections(current->mm);
+#endif
 }
 
 void *__symbol_get(const char *symbol)
@@ -2221,10 +2242,6 @@ static noinline struct module *load_module(void __user *umod,
 				  sizeof(*mod->ctors), &mod->num_ctors);
 #endif
 
-#ifdef CONFIG_MARKERS
-	mod->markers = section_objs(hdr, sechdrs, secstrings, "__markers",
-				    sizeof(*mod->markers), &mod->num_markers);
-#endif
 #ifdef CONFIG_TRACEPOINTS
 	mod->tracepoints = section_objs(hdr, sechdrs, secstrings,
 					"__tracepoints",
@@ -2357,6 +2374,8 @@ static noinline struct module *load_module(void __user *umod,
 	/* Get rid of temporary copy */
 	vfree(hdr);
 
+	trace_module_load(mod);
+
 	/* Done! */
 	return mod;
 
@@ -2451,9 +2470,9 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 		return ret;
 	}
 	if (ret > 0) {
-		printk(KERN_WARNING "%s: '%s'->init suspiciously returned %d, "
-				    "it should follow 0/-E convention\n"
-		       KERN_WARNING "%s: loading module anyway...\n",
+		printk(KERN_WARNING
+"%s: '%s'->init suspiciously returned %d, it should follow 0/-E convention\n"
+"%s: loading module anyway...\n",
 		       __func__, mod->name, ret,
 		       __func__);
 		dump_stack();
@@ -2938,20 +2957,6 @@ void module_layout(struct module *mod,
 {
 }
 EXPORT_SYMBOL(module_layout);
-#endif
-
-#ifdef CONFIG_MARKERS
-void module_update_markers(void)
-{
-	struct module *mod;
-
-	mutex_lock(&module_mutex);
-	list_for_each_entry(mod, &modules, list)
-		if (!mod->taints)
-			marker_update_probe_range(mod->markers,
-				mod->markers + mod->num_markers);
-	mutex_unlock(&module_mutex);
-}
 #endif
 
 #ifdef CONFIG_TRACEPOINTS

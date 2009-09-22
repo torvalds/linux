@@ -100,16 +100,16 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 {
 	struct resource *res = &dev->resource[resource];
 	struct resource *root;
-	char *dtype = resource < PCI_BRIDGE_RESOURCES ? "device" : "bridge";
 	int err;
 
 	root = pci_find_parent_resource(dev, res);
 
 	err = -EINVAL;
 	if (root != NULL)
-		err = insert_resource(root, res);
+		err = request_resource(root, res);
 
 	if (err) {
+		const char *dtype = resource < PCI_BRIDGE_RESOURCES ? "device" : "bridge";
 		dev_err(&dev->dev, "BAR %d: %s of %s %pR\n",
 			resource,
 			root ? "address space collision on" :
@@ -119,6 +119,7 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 
 	return err;
 }
+EXPORT_SYMBOL(pci_claim_resource);
 
 #ifdef CONFIG_PCI_QUIRKS
 void pci_disable_bridge_window(struct pci_dev *dev)
@@ -144,7 +145,7 @@ static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
 
 	size = resource_size(res);
 	min = (res->flags & IORESOURCE_IO) ? PCIBIOS_MIN_IO : PCIBIOS_MIN_MEM;
-	align = resource_alignment(res);
+	align = pci_resource_alignment(dev, res);
 
 	/* First, try exact prefetching match.. */
 	ret = pci_bus_alloc_resource(bus, res, size, align, min,
@@ -178,7 +179,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	struct pci_bus *bus;
 	int ret;
 
-	align = resource_alignment(res);
+	align = pci_resource_alignment(dev, res);
 	if (!align) {
 		dev_info(&dev->dev, "BAR %d: can't allocate resource (bogus "
 			"alignment) %pR flags %#lx\n",
@@ -259,7 +260,7 @@ void pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)
 		if (!(r->flags) || r->parent)
 			continue;
 
-		r_align = resource_alignment(r);
+		r_align = pci_resource_alignment(dev, r);
 		if (!r_align) {
 			dev_warn(&dev->dev, "BAR %d: bogus alignment "
 				"%pR flags %#lx\n",
@@ -271,7 +272,7 @@ void pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)
 			struct resource_list *ln = list->next;
 
 			if (ln)
-				align = resource_alignment(ln->res);
+				align = pci_resource_alignment(ln->dev, ln->res);
 
 			if (r_align > align) {
 				tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);

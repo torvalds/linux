@@ -26,7 +26,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	/* make quiescing visible to timers everywhere */
 	mb();
 
-	flush_workqueue(local->hw.workqueue);
+	flush_workqueue(local->workqueue);
 
 	/* Don't try to run timers while suspended. */
 	del_timer_sync(&local->sta_cleanup);
@@ -54,15 +54,6 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	}
 
 	rcu_read_unlock();
-
-	/* flush again, in case driver queued work */
-	flush_workqueue(local->hw.workqueue);
-
-	/* stop hardware - this must stop RX */
-	if (local->open_count) {
-		ieee80211_led_radio(local, false);
-		drv_stop(local);
-	}
 
 	/* remove STAs */
 	spin_lock_irqsave(&local->sta_lock, flags);
@@ -105,13 +96,23 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 		if (!netif_running(sdata->dev))
 			continue;
 
+		/* disable beaconing */
+		ieee80211_bss_info_change_notify(sdata,
+			BSS_CHANGED_BEACON_ENABLED);
+
 		conf.vif = &sdata->vif;
 		conf.type = sdata->vif.type;
 		conf.mac_addr = sdata->dev->dev_addr;
 		drv_remove_interface(local, &conf);
 	}
 
+	/* stop hardware - this must stop RX */
+	if (local->open_count)
+		ieee80211_stop_device(local);
+
 	local->suspended = true;
+	/* need suspended to be visible before quiescing is false */
+	barrier();
 	local->quiescing = false;
 
 	return 0;

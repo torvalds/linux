@@ -13,6 +13,8 @@
 #ifndef __ASM_ARCH_SERIAL_H
 #define __ASM_ARCH_SERIAL_H
 
+#include <linux/init.h>
+
 #if defined(CONFIG_ARCH_OMAP1)
 /* OMAP1 serial ports */
 #define OMAP_UART1_BASE		0xfffb0000
@@ -53,12 +55,14 @@
 			})
 
 #ifndef __ASSEMBLER__
+extern void __init omap_serial_early_init(void);
 extern void omap_serial_init(void);
 extern int omap_uart_can_sleep(void);
 extern void omap_uart_check_wakeup(void);
 extern void omap_uart_prepare_suspend(void);
 extern void omap_uart_prepare_idle(int num);
 extern void omap_uart_resume_idle(int num);
+extern void omap_uart_enable_irqs(int enable);
 #endif
 
 #endif

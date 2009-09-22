@@ -472,7 +472,8 @@ static int __init init_tcic(void)
     init_timer(&poll_timer);
 
     /* Build interrupt mask */
-    printk(", %d sockets\n" KERN_INFO "  irq list (", sockets);
+    printk(KERN_CONT ", %d sockets\n", sockets);
+    printk(KERN_INFO "  irq list (");
     if (irq_list_count == 0)
 	mask = irq_mask;
     else

@@ -79,7 +79,8 @@ int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 	/*
 	 * Don't merge file system requests and discard requests
 	 */
-	if (bio_discard(bio) != bio_discard(rq->bio))
+	if (bio_rw_flagged(bio, BIO_RW_DISCARD) !=
+	    bio_rw_flagged(rq->bio, BIO_RW_DISCARD))
 		return 0;
 
 	/*

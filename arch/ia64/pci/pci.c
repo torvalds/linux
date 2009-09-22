@@ -537,7 +537,7 @@ pcibios_align_resource (void *data, struct resource *res,
 /*
  * PCI BIOS setup, always defaults to SAL interface
  */
-char * __devinit
+char * __init
 pcibios_setup (char *str)
 {
 	return str;

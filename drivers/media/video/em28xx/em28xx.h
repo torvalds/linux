@@ -107,6 +107,9 @@
 #define EM2860_BOARD_TERRATEC_AV350		  68
 #define EM2882_BOARD_KWORLD_ATSC_315U		  69
 #define EM2882_BOARD_EVGA_INDTUBE		  70
+#define EM2820_BOARD_SILVERCREST_WEBCAM           71
+#define EM2861_BOARD_GADMEI_UTV330PLUS           72
+#define EM2870_BOARD_REDDO_DVB_C_USB_BOX          73
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -212,7 +215,8 @@ struct em28xx_usb_isoc_ctl {
 	int				tmp_buf_len;
 
 		/* Stores already requested buffers */
-	struct em28xx_buffer    	*buf;
+	struct em28xx_buffer    	*vid_buf;
+	struct em28xx_buffer    	*vbi_buf;
 
 		/* Stores the number of received fields */
 	int				nfields;
@@ -357,9 +361,16 @@ struct em28xx_input {
 #define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
 
 enum em28xx_decoder {
-	EM28XX_NODECODER,
+	EM28XX_NODECODER = 0,
 	EM28XX_TVP5150,
 	EM28XX_SAA711X,
+};
+
+enum em28xx_sensor {
+	EM28XX_NOSENSOR = 0,
+	EM28XX_MT9V011,
+	EM28XX_MT9M001,
+	EM28XX_MT9M111,
 };
 
 enum em28xx_adecoder {
@@ -388,7 +399,9 @@ struct em28xx_board {
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 	unsigned int has_snapshot_button:1;
+	unsigned int is_webcam:1;
 	unsigned int valid:1;
+	unsigned int has_ir_i2c:1;
 
 	unsigned char xclk, i2c_speed;
 	unsigned char radio_addr;
@@ -399,7 +412,7 @@ struct em28xx_board {
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 	struct em28xx_input	  radio;
-	IR_KEYTAB_TYPE            *ir_codes;
+	struct ir_scancode_table  *ir_codes;
 };
 
 struct em28xx_eeprom {
@@ -432,6 +445,10 @@ enum em28xx_dev_state {
 #define EM28XX_AUDIO   0x10
 #define EM28XX_DVB     0x20
 
+/* em28xx resource types (used for res_get/res_lock etc */
+#define EM28XX_RESOURCE_VIDEO 0x01
+#define EM28XX_RESOURCE_VBI   0x02
+
 struct em28xx_audio {
 	char name[50];
 	char *transfer_buffer[EM28XX_AUDIO_BUFS];
@@ -452,10 +469,11 @@ struct em28xx;
 
 struct em28xx_fh {
 	struct em28xx *dev;
-	unsigned int  stream_on:1;	/* Locks streams */
 	int           radio;
+	unsigned int  resources;
 
 	struct videobuf_queue        vb_vidq;
+	struct videobuf_queue        vb_vbiq;
 
 	enum v4l2_buf_type           type;
 };
@@ -471,7 +489,17 @@ struct em28xx {
 	struct v4l2_device v4l2_dev;
 	struct em28xx_board board;
 
-	unsigned int stream_on:1;	/* Locks streams */
+	/* Webcam specific fields */
+	enum em28xx_sensor em28xx_sensor;
+	int sensor_xres, sensor_yres;
+	int sensor_xtal;
+
+	/* Allows progressive (e. g. non-interlaced) mode */
+	int progressive;
+
+	/* Vinmode/Vinctl used at the driver */
+	int vinmode, vinctl;
+
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
 
@@ -522,6 +550,12 @@ struct em28xx {
 	enum em28xx_dev_state state;
 	enum em28xx_io_method io;
 
+	/* vbi related state tracking */
+	int capture_type;
+	int vbi_read;
+	unsigned char cur_field;
+
+
 	struct work_struct         request_module_wk;
 
 	/* locks */
@@ -533,10 +567,14 @@ struct em28xx {
 	struct video_device *vbi_dev;
 	struct video_device *radio_dev;
 
+	/* resources in use */
+	unsigned int resources;
+
 	unsigned char eedata[256];
 
 	/* Isoc control struct */
 	struct em28xx_dmaqueue vidq;
+	struct em28xx_dmaqueue vbiq;
 	struct em28xx_usb_isoc_ctl isoc_ctl;
 	spinlock_t slock;
 
@@ -575,6 +613,10 @@ struct em28xx {
 	struct delayed_work sbutton_query_work;
 
 	struct em28xx_dvb *dvb;
+
+	/* I2C keyboard data */
+	struct i2c_board_info info;
+	struct IR_i2c_init_data init_data;
 };
 
 struct em28xx_ops {
@@ -613,6 +655,7 @@ int em28xx_audio_setup(struct em28xx *dev);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev);
 int em28xx_capture_start(struct em28xx *dev, int start);
+int em28xx_vbi_supported(struct em28xx *dev);
 int em28xx_set_outfmt(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
@@ -659,6 +702,9 @@ void em28xx_deregister_snapshot_button(struct em28xx *dev);
 
 int em28xx_ir_init(struct em28xx *dev);
 int em28xx_ir_fini(struct em28xx *dev);
+
+/* Provided by em28xx-vbi.c */
+extern struct videobuf_queue_ops em28xx_vbi_qops;
 
 /* printk macros */
 
@@ -751,17 +797,23 @@ static inline int em28xx_gamma_set(struct em28xx *dev, s32 val)
 /*FIXME: maxw should be dependent of alt mode */
 static inline unsigned int norm_maxw(struct em28xx *dev)
 {
+	if (dev->board.is_webcam)
+		return dev->sensor_xres;
+
 	if (dev->board.max_range_640_480)
 		return 640;
-	else
-		return 720;
+
+	return 720;
 }
 
 static inline unsigned int norm_maxh(struct em28xx *dev)
 {
+	if (dev->board.is_webcam)
+		return dev->sensor_yres;
+
 	if (dev->board.max_range_640_480)
 		return 480;
-	else
-		return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
+
+	return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
 }
 #endif

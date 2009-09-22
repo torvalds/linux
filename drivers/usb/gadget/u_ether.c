@@ -181,7 +181,7 @@ static void eth_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *p)
  *   - ... probably more ethtool ops
  */
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = eth_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 };
@@ -465,7 +465,8 @@ static inline int is_promisc(u16 cdc_filter)
 	return cdc_filter & USB_CDC_PACKET_TYPE_PROMISCUOUS;
 }
 
-static int eth_start_xmit(struct sk_buff *skb, struct net_device *net)
+static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
+					struct net_device *net)
 {
 	struct eth_dev		*dev = netdev_priv(net);
 	int			length = skb->len;
@@ -487,7 +488,7 @@ static int eth_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	if (!in) {
 		dev_kfree_skb_any(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* apply outgoing CDC or RNDIS filters */
@@ -506,7 +507,7 @@ static int eth_start_xmit(struct sk_buff *skb, struct net_device *net)
 				type = USB_CDC_PACKET_TYPE_ALL_MULTICAST;
 			if (!(cdc_filter & type)) {
 				dev_kfree_skb_any(skb);
-				return 0;
+				return NETDEV_TX_OK;
 			}
 		}
 		/* ignores USB_CDC_PACKET_TYPE_DIRECTED */
@@ -586,7 +587,7 @@ drop:
 		list_add(&req->list, &dev->tx_reqs);
 		spin_unlock_irqrestore(&dev->req_lock, flags);
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*-------------------------------------------------------------------------*/

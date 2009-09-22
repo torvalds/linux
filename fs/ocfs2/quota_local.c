@@ -20,6 +20,7 @@
 #include "sysfile.h"
 #include "dlmglue.h"
 #include "quota.h"
+#include "uptodate.h"
 
 /* Number of local quota structures per block */
 static inline unsigned int ol_quota_entries_per_block(struct super_block *sb)
@@ -100,7 +101,8 @@ static int ocfs2_modify_bh(struct inode *inode, struct buffer_head *bh,
 	handle_t *handle;
 	int status;
 
-	handle = ocfs2_start_trans(OCFS2_SB(sb), 1);
+	handle = ocfs2_start_trans(OCFS2_SB(sb),
+				   OCFS2_QUOTA_BLOCK_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
@@ -610,7 +612,8 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 			goto out_bh;
 		/* Mark quota file as clean if we are recovering quota file of
 		 * some other node. */
-		handle = ocfs2_start_trans(osb, 1);
+		handle = ocfs2_start_trans(osb,
+					   OCFS2_LOCAL_QINFO_WRITE_CREDITS);
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
 			mlog_errno(status);
@@ -940,7 +943,7 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 	struct ocfs2_local_disk_chunk *dchunk;
 	int status;
 	handle_t *handle;
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh = NULL, *dbh = NULL;
 	u64 p_blkno;
 
 	/* We are protected by dqio_sem so no locking needed */
@@ -964,32 +967,35 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 		mlog_errno(status);
 		goto out;
 	}
-
-	down_read(&OCFS2_I(lqinode)->ip_alloc_sem);
-	status = ocfs2_extent_map_get_blocks(lqinode, oinfo->dqi_blocks,
-					     &p_blkno, NULL, NULL);
-	up_read(&OCFS2_I(lqinode)->ip_alloc_sem);
-	if (status < 0) {
-		mlog_errno(status);
-		goto out;
-	}
-	bh = sb_getblk(sb, p_blkno);
-	if (!bh) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto out;
-	}
-	dchunk = (struct ocfs2_local_disk_chunk *)bh->b_data;
-
-	handle = ocfs2_start_trans(OCFS2_SB(sb), 2);
+	/* Local quota info and two new blocks we initialize */
+	handle = ocfs2_start_trans(OCFS2_SB(sb),
+			OCFS2_LOCAL_QINFO_WRITE_CREDITS +
+			2 * OCFS2_QUOTA_BLOCK_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
 		goto out;
 	}
 
+	/* Initialize chunk header */
+	down_read(&OCFS2_I(lqinode)->ip_alloc_sem);
+	status = ocfs2_extent_map_get_blocks(lqinode, oinfo->dqi_blocks,
+					     &p_blkno, NULL, NULL);
+	up_read(&OCFS2_I(lqinode)->ip_alloc_sem);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out_trans;
+	}
+	bh = sb_getblk(sb, p_blkno);
+	if (!bh) {
+		status = -ENOMEM;
+		mlog_errno(status);
+		goto out_trans;
+	}
+	dchunk = (struct ocfs2_local_disk_chunk *)bh->b_data;
+	ocfs2_set_new_buffer_uptodate(lqinode, bh);
 	status = ocfs2_journal_access_dq(handle, lqinode, bh,
-					 OCFS2_JOURNAL_ACCESS_WRITE);
+					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_trans;
@@ -999,7 +1005,6 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 	memset(dchunk->dqc_bitmap, 0,
 	       sb->s_blocksize - sizeof(struct ocfs2_local_disk_chunk) -
 	       OCFS2_QBLK_RESERVED_SPACE);
-	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 	status = ocfs2_journal_dirty(handle, bh);
 	if (status < 0) {
@@ -1007,6 +1012,38 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 		goto out_trans;
 	}
 
+	/* Initialize new block with structures */
+	down_read(&OCFS2_I(lqinode)->ip_alloc_sem);
+	status = ocfs2_extent_map_get_blocks(lqinode, oinfo->dqi_blocks + 1,
+					     &p_blkno, NULL, NULL);
+	up_read(&OCFS2_I(lqinode)->ip_alloc_sem);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out_trans;
+	}
+	dbh = sb_getblk(sb, p_blkno);
+	if (!dbh) {
+		status = -ENOMEM;
+		mlog_errno(status);
+		goto out_trans;
+	}
+	ocfs2_set_new_buffer_uptodate(lqinode, dbh);
+	status = ocfs2_journal_access_dq(handle, lqinode, dbh,
+					 OCFS2_JOURNAL_ACCESS_CREATE);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out_trans;
+	}
+	lock_buffer(dbh);
+	memset(dbh->b_data, 0, sb->s_blocksize - OCFS2_QBLK_RESERVED_SPACE);
+	unlock_buffer(dbh);
+	status = ocfs2_journal_dirty(handle, dbh);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out_trans;
+	}
+
+	/* Update local quotafile info */
 	oinfo->dqi_blocks += 2;
 	oinfo->dqi_chunks++;
 	status = ocfs2_local_write_info(sb, type);
@@ -1031,6 +1068,7 @@ out_trans:
 	ocfs2_commit_trans(OCFS2_SB(sb), handle);
 out:
 	brelse(bh);
+	brelse(dbh);
 	kmem_cache_free(ocfs2_qf_chunk_cachep, chunk);
 	return ERR_PTR(status);
 }
@@ -1048,6 +1086,8 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 	struct ocfs2_local_disk_chunk *dchunk;
 	int epb = ol_quota_entries_per_block(sb);
 	unsigned int chunk_blocks;
+	struct buffer_head *bh;
+	u64 p_blkno;
 	int status;
 	handle_t *handle;
 
@@ -1075,12 +1115,49 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 		mlog_errno(status);
 		goto out;
 	}
-	handle = ocfs2_start_trans(OCFS2_SB(sb), 2);
+
+	/* Get buffer from the just added block */
+	down_read(&OCFS2_I(lqinode)->ip_alloc_sem);
+	status = ocfs2_extent_map_get_blocks(lqinode, oinfo->dqi_blocks,
+					     &p_blkno, NULL, NULL);
+	up_read(&OCFS2_I(lqinode)->ip_alloc_sem);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out;
+	}
+	bh = sb_getblk(sb, p_blkno);
+	if (!bh) {
+		status = -ENOMEM;
+		mlog_errno(status);
+		goto out;
+	}
+	ocfs2_set_new_buffer_uptodate(lqinode, bh);
+
+	/* Local quota info, chunk header and the new block we initialize */
+	handle = ocfs2_start_trans(OCFS2_SB(sb),
+			OCFS2_LOCAL_QINFO_WRITE_CREDITS +
+			2 * OCFS2_QUOTA_BLOCK_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
 		goto out;
 	}
+	/* Zero created block */
+	status = ocfs2_journal_access_dq(handle, lqinode, bh,
+				 OCFS2_JOURNAL_ACCESS_CREATE);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out_trans;
+	}
+	lock_buffer(bh);
+	memset(bh->b_data, 0, sb->s_blocksize);
+	unlock_buffer(bh);
+	status = ocfs2_journal_dirty(handle, bh);
+	if (status < 0) {
+		mlog_errno(status);
+		goto out_trans;
+	}
+	/* Update chunk header */
 	status = ocfs2_journal_access_dq(handle, lqinode, chunk->qc_headerbh,
 				 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
@@ -1097,6 +1174,7 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 		mlog_errno(status);
 		goto out_trans;
 	}
+	/* Update file header */
 	oinfo->dqi_blocks++;
 	status = ocfs2_local_write_info(sb, type);
 	if (status < 0) {

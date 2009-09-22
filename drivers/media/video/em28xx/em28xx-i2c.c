@@ -459,7 +459,6 @@ static struct i2c_algorithm em28xx_algo = {
 static struct i2c_adapter em28xx_adap_template = {
 	.owner = THIS_MODULE,
 	.name = "em28xx",
-	.id = I2C_HW_B_EM28XX,
 	.algo = &em28xx_algo,
 };
 
@@ -483,7 +482,7 @@ static char *i2c_devs[128] = {
 	[0xa0 >> 1] = "eeprom",
 	[0xb0 >> 1] = "tda9874",
 	[0xb8 >> 1] = "tvp5150a",
-	[0xba >> 1] = "tvp5150a",
+	[0xba >> 1] = "webcam sensor or tvp5150a",
 	[0xc0 >> 1] = "tuner (analog)",
 	[0xc2 >> 1] = "tuner (analog)",
 	[0xc4 >> 1] = "tuner (analog)",

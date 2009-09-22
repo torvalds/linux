@@ -161,7 +161,8 @@ static int discard_swap(struct swap_info_struct *si)
 		}
 
 		err = blkdev_issue_discard(si->bdev, start_block,
-						nr_blocks, GFP_KERNEL);
+						nr_blocks, GFP_KERNEL,
+						DISCARD_FL_BARRIER);
 		if (err)
 			break;
 
@@ -200,7 +201,8 @@ static void discard_swap_cluster(struct swap_info_struct *si,
 			start_block <<= PAGE_SHIFT - 9;
 			nr_blocks <<= PAGE_SHIFT - 9;
 			if (blkdev_issue_discard(si->bdev, start_block,
-							nr_blocks, GFP_NOIO))
+							nr_blocks, GFP_NOIO,
+							DISCARD_FL_BARRIER))
 				break;
 		}
 
@@ -753,7 +755,7 @@ int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
 
 		if (!bdev) {
 			if (bdev_p)
-				*bdev_p = bdget(sis->bdev->bd_dev);
+				*bdev_p = bdgrab(sis->bdev);
 
 			spin_unlock(&swap_lock);
 			return i;
@@ -765,7 +767,7 @@ int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
 					struct swap_extent, list);
 			if (se->start_block == offset) {
 				if (bdev_p)
-					*bdev_p = bdget(sis->bdev->bd_dev);
+					*bdev_p = bdgrab(sis->bdev);
 
 				spin_unlock(&swap_lock);
 				bdput(bdev);
@@ -1573,9 +1575,9 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	p->flags &= ~SWP_WRITEOK;
 	spin_unlock(&swap_lock);
 
-	current->flags |= PF_SWAPOFF;
+	current->flags |= PF_OOM_ORIGIN;
 	err = try_to_unuse(type);
-	current->flags &= ~PF_SWAPOFF;
+	current->flags &= ~PF_OOM_ORIGIN;
 
 	if (err) {
 		/* re-insert swap space back into swap_list */

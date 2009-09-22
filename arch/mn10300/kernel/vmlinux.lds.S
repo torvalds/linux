@@ -61,7 +61,7 @@ SECTIONS
 	_edata = .;		/* End of data section */
   }
 
-  .data.init_task : { INIT_TASK(THREAD_SIZE); }
+  .data.init_task : { INIT_TASK_DATA(THREAD_SIZE); }
 
   /* might get freed after init */
   . = ALIGN(PAGE_SIZE);
@@ -107,7 +107,7 @@ SECTIONS
   __init_end = .;
   /* freed after init ends here */
 
-  BSS(4)
+  BSS_SECTION(0, PAGE_SIZE, 4)
 
   _end = . ;
 
@@ -115,12 +115,10 @@ SECTIONS
   . = ALIGN(PAGE_SIZE);
   pg0 = .;
 
-  /* Sections to be discarded */
-  /DISCARD/ : {
-	EXIT_CALL
-	}
-
   STABS_DEBUG
 
   DWARF_DEBUG
+
+  /* Sections to be discarded */
+  DISCARDS
 }

@@ -41,6 +41,8 @@ obj-y                   += of_device_common.o
 obj-y                   += of_device_$(BITS).o
 obj-$(CONFIG_SPARC64)   += prom_irqtrans.o
 
+obj-$(CONFIG_SPARC_LEON)+= leon_kernel.o
+
 obj-$(CONFIG_SPARC64)   += reboot.o
 obj-$(CONFIG_SPARC64)   += sysfs.o
 obj-$(CONFIG_SPARC64)   += iommu.o
@@ -61,7 +63,7 @@ obj-$(CONFIG_SPARC64_SMP) += cpumap.o
 obj-$(CONFIG_SPARC32)     += devres.o
 devres-y                  := ../../../kernel/irq/devres.o
 
-obj-$(CONFIG_SPARC32)     += dma.o
+obj-y                     += dma.o
 
 obj-$(CONFIG_SPARC32_PCI) += pcic.o
 
@@ -101,3 +103,6 @@ obj-$(CONFIG_SUN_LDOMS) += ldc.o vio.o viohs.o ds.o
 obj-$(CONFIG_AUDIT)     += audit.o
 audit--$(CONFIG_AUDIT)  := compat_audit.o
 obj-$(CONFIG_COMPAT)    += $(audit--y)
+
+pc--$(CONFIG_PERF_EVENTS) := perf_event.o
+obj-$(CONFIG_SPARC64)	+= $(pc--y)

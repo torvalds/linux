@@ -1361,6 +1361,7 @@ SCTP_STATIC void sctp_close(struct sock *sk, long timeout)
 
 	sctp_lock_sock(sk);
 	sk->sk_shutdown = SHUTDOWN_MASK;
+	sk->sk_state = SCTP_SS_CLOSING;
 
 	ep = sctp_sk(sk)->ep;
 
@@ -1813,20 +1814,22 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		sctp_set_owner_w(chunk);
 
 		chunk->transport = chunk_tp;
-
-		/* Send it to the lower layers.  Note:  all chunks
-		 * must either fail or succeed.   The lower layer
-		 * works that way today.  Keep it that way or this
-		 * breaks.
-		 */
-		err = sctp_primitive_SEND(asoc, chunk);
-		/* Did the lower layer accept the chunk? */
-		if (err)
-			sctp_chunk_free(chunk);
-		SCTP_DEBUG_PRINTK("We sent primitively.\n");
 	}
 
-	sctp_datamsg_put(datamsg);
+	/* Send it to the lower layers.  Note:  all chunks
+	 * must either fail or succeed.   The lower layer
+	 * works that way today.  Keep it that way or this
+	 * breaks.
+	 */
+	err = sctp_primitive_SEND(asoc, datamsg);
+	/* Did the lower layer accept the chunk? */
+	if (err)
+		sctp_datamsg_free(datamsg);
+	else
+		sctp_datamsg_put(datamsg);
+
+	SCTP_DEBUG_PRINTK("We sent primitively.\n");
+
 	if (err)
 		goto out_free;
 	else
@@ -2240,7 +2243,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 			sctp_assoc_sync_pmtu(asoc);
 		} else if (asoc) {
 			asoc->pathmtu = params->spp_pathmtu;
-			sctp_frag_point(sp, params->spp_pathmtu);
+			sctp_frag_point(asoc, params->spp_pathmtu);
 		} else {
 			sp->pathmtu = params->spp_pathmtu;
 		}
@@ -2877,15 +2880,10 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, int optl
 			val -= sizeof(struct sctphdr) +
 					sizeof(struct sctp_data_chunk);
 		}
-
-		asoc->frag_point = val;
+		asoc->user_frag = val;
+		asoc->frag_point = sctp_frag_point(asoc, asoc->pathmtu);
 	} else {
 		sp->user_frag = val;
-
-		/* Update the frag_point of the existing associations. */
-		list_for_each_entry(asoc, &(sp->ep->asocs), asocs) {
-			asoc->frag_point = sctp_frag_point(sp, asoc->pathmtu);
-		}
 	}
 
 	return 0;
@@ -6652,21 +6650,6 @@ static void sctp_wait_for_close(struct sock *sk, long timeout)
 	finish_wait(sk->sk_sleep, &wait);
 }
 
-static void sctp_sock_rfree_frag(struct sk_buff *skb)
-{
-	struct sk_buff *frag;
-
-	if (!skb->data_len)
-		goto done;
-
-	/* Don't forget the fragments. */
-	skb_walk_frags(skb, frag)
-		sctp_sock_rfree_frag(frag);
-
-done:
-	sctp_sock_rfree(skb);
-}
-
 static void sctp_skb_set_owner_r_frag(struct sk_buff *skb, struct sock *sk)
 {
 	struct sk_buff *frag;
@@ -6776,7 +6759,6 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	sctp_skb_for_each(skb, &oldsk->sk_receive_queue, tmp) {
 		event = sctp_skb2event(skb);
 		if (event->asoc == assoc) {
-			sctp_sock_rfree_frag(skb);
 			__skb_unlink(skb, &oldsk->sk_receive_queue);
 			__skb_queue_tail(&newsk->sk_receive_queue, skb);
 			sctp_skb_set_owner_r_frag(skb, newsk);
@@ -6807,7 +6789,6 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 		sctp_skb_for_each(skb, &oldsp->pd_lobby, tmp) {
 			event = sctp_skb2event(skb);
 			if (event->asoc == assoc) {
-				sctp_sock_rfree_frag(skb);
 				__skb_unlink(skb, &oldsp->pd_lobby);
 				__skb_queue_tail(queue, skb);
 				sctp_skb_set_owner_r_frag(skb, newsk);
@@ -6822,15 +6803,11 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 
 	}
 
-	sctp_skb_for_each(skb, &assoc->ulpq.reasm, tmp) {
-		sctp_sock_rfree_frag(skb);
+	sctp_skb_for_each(skb, &assoc->ulpq.reasm, tmp)
 		sctp_skb_set_owner_r_frag(skb, newsk);
-	}
 
-	sctp_skb_for_each(skb, &assoc->ulpq.lobby, tmp) {
-		sctp_sock_rfree_frag(skb);
+	sctp_skb_for_each(skb, &assoc->ulpq.lobby, tmp)
 		sctp_skb_set_owner_r_frag(skb, newsk);
-	}
 
 	/* Set the type of socket to indicate that it is peeled off from the
 	 * original UDP-style socket or created with the accept() call on a

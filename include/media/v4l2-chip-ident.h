@@ -60,6 +60,10 @@ enum {
 	V4L2_IDENT_OV7670 = 250,
 	V4L2_IDENT_OV7720 = 251,
 	V4L2_IDENT_OV7725 = 252,
+	V4L2_IDENT_OV7660 = 253,
+	V4L2_IDENT_OV9650 = 254,
+	V4L2_IDENT_OV9655 = 255,
+	V4L2_IDENT_SOI968 = 256,
 
 	/* module saa7146: reserved range 300-309 */
 	V4L2_IDENT_SAA7146 = 300,
@@ -131,6 +135,9 @@ enum {
 	/* module adv7175: just ident 7175 */
 	V4L2_IDENT_ADV7175 = 7175,
 
+	/* module adv7180: just ident 7180 */
+	V4L2_IDENT_ADV7180 = 7180,
+
 	/* module saa7185: just ident 7185 */
 	V4L2_IDENT_SAA7185 = 7185,
 
@@ -155,8 +162,14 @@ enum {
 	/* module cafe_ccic, just ident 8801 */
 	V4L2_IDENT_CAFE = 8801,
 
+	/* module mt9v011, just ident 8243 */
+	V4L2_IDENT_MT9V011 = 8243,
+
 	/* module tw9910: just ident 9910 */
 	V4L2_IDENT_TW9910 = 9910,
+
+	/* module sn9c20x: just ident 10000 */
+	V4L2_IDENT_SN9C20X = 10000,
 
 	/* module msp3400: reserved range 34000-34999 and 44000-44999 */
 	V4L2_IDENT_MSPX4XX  = 34000, /* generic MSPX4XX identifier, only
@@ -234,6 +247,11 @@ enum {
 	V4L2_IDENT_MT9V022IX7ATC	= 45010, /* No way to detect "normal" I77ATx */
 	V4L2_IDENT_MT9V022IX7ATM	= 45015, /* and "lead free" IA7ATx chips */
 	V4L2_IDENT_MT9T031		= 45020,
+	V4L2_IDENT_MT9V111		= 45031,
+	V4L2_IDENT_MT9V112		= 45032,
+
+	/* HV7131R CMOS sensor: just ident 46000 */
+	V4L2_IDENT_HV7131R		= 46000,
 
 	/* module cs53132a: just ident 53132 */
 	V4L2_IDENT_CS53l32A = 53132,

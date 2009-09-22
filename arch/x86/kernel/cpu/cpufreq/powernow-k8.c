@@ -299,7 +299,7 @@ static int transition_pstate(struct powernow_k8_data *data, u32 pstate)
 static int transition_fid_vid(struct powernow_k8_data *data,
 		u32 reqfid, u32 reqvid)
 {
-	if (core_voltage_pre_transition(data, reqvid))
+	if (core_voltage_pre_transition(data, reqvid, reqfid))
 		return 1;
 
 	if (core_frequency_transition(data, reqfid))
@@ -327,17 +327,20 @@ static int transition_fid_vid(struct powernow_k8_data *data,
 
 /* Phase 1 - core voltage transition ... setup voltage */
 static int core_voltage_pre_transition(struct powernow_k8_data *data,
-		u32 reqvid)
+		u32 reqvid, u32 reqfid)
 {
 	u32 rvosteps = data->rvo;
 	u32 savefid = data->currfid;
-	u32 maxvid, lo;
+	u32 maxvid, lo, rvomult = 1;
 
 	dprintk("ph1 (cpu%d): start, currfid 0x%x, currvid 0x%x, "
 		"reqvid 0x%x, rvo 0x%x\n",
 		smp_processor_id(),
 		data->currfid, data->currvid, reqvid, data->rvo);
 
+	if ((savefid < LO_FID_TABLE_TOP) && (reqfid < LO_FID_TABLE_TOP))
+		rvomult = 2;
+	rvosteps *= rvomult;
 	rdmsr(MSR_FIDVID_STATUS, lo, maxvid);
 	maxvid = 0x1f & (maxvid >> 16);
 	dprintk("ph1 maxvid=0x%x\n", maxvid);
@@ -351,7 +354,8 @@ static int core_voltage_pre_transition(struct powernow_k8_data *data,
 			return 1;
 	}
 
-	while ((rvosteps > 0) && ((data->rvo + data->currvid) > reqvid)) {
+	while ((rvosteps > 0) &&
+			((rvomult * data->rvo + data->currvid) > reqvid)) {
 		if (data->currvid == maxvid) {
 			rvosteps = 0;
 		} else {
@@ -384,13 +388,6 @@ static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid)
 	u32 vcoreqfid, vcocurrfid, vcofiddiff;
 	u32 fid_interval, savevid = data->currvid;
 
-	if ((reqfid < HI_FID_TABLE_BOTTOM) &&
-	    (data->currfid < HI_FID_TABLE_BOTTOM)) {
-		printk(KERN_ERR PFX "ph2: illegal lo-lo transition "
-				"0x%x 0x%x\n", reqfid, data->currfid);
-		return 1;
-	}
-
 	if (data->currfid == reqfid) {
 		printk(KERN_ERR PFX "ph2 null fid transition 0x%x\n",
 				data->currfid);
@@ -406,6 +403,9 @@ static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid)
 	vcocurrfid = convert_fid_to_vco_fid(data->currfid);
 	vcofiddiff = vcocurrfid > vcoreqfid ? vcocurrfid - vcoreqfid
 	    : vcoreqfid - vcocurrfid;
+
+	if ((reqfid <= LO_FID_TABLE_TOP) && (data->currfid <= LO_FID_TABLE_TOP))
+		vcofiddiff = 0;
 
 	while (vcofiddiff > 2) {
 		(data->currfid & 1) ? (fid_interval = 1) : (fid_interval = 2);
@@ -605,9 +605,10 @@ static int check_pst_table(struct powernow_k8_data *data, struct pst_s *pst,
 	return 0;
 }
 
-static void invalidate_entry(struct powernow_k8_data *data, unsigned int entry)
+static void invalidate_entry(struct cpufreq_frequency_table *powernow_table,
+		unsigned int entry)
 {
-	data->powernow_table[entry].frequency = CPUFREQ_ENTRY_INVALID;
+	powernow_table[entry].frequency = CPUFREQ_ENTRY_INVALID;
 }
 
 static void print_basics(struct powernow_k8_data *data)
@@ -854,6 +855,10 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 		goto err_out;
 	}
 
+	/* fill in data */
+	data->numps = data->acpi_data.state_count;
+	powernow_k8_acpi_pst_values(data, 0);
+
 	if (cpu_family == CPU_HW_PSTATE)
 		ret_val = fill_powernow_table_pstate(data, powernow_table);
 	else
@@ -866,11 +871,8 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 	powernow_table[data->acpi_data.state_count].index = 0;
 	data->powernow_table = powernow_table;
 
-	/* fill in data */
-	data->numps = data->acpi_data.state_count;
 	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)
 		print_basics(data);
-	powernow_k8_acpi_pst_values(data, 0);
 
 	/* notify BIOS that we exist */
 	acpi_processor_notify_smm(THIS_MODULE);
@@ -914,13 +916,13 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data,
 					"bad value %d.\n", i, index);
 			printk(KERN_ERR PFX "Please report to BIOS "
 					"manufacturer\n");
-			invalidate_entry(data, i);
+			invalidate_entry(powernow_table, i);
 			continue;
 		}
 		rdmsr(MSR_PSTATE_DEF_BASE + index, lo, hi);
 		if (!(hi & HW_PSTATE_VALID_MASK)) {
 			dprintk("invalid pstate %d, ignoring\n", index);
-			invalidate_entry(data, i);
+			invalidate_entry(powernow_table, i);
 			continue;
 		}
 
@@ -941,7 +943,6 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 		struct cpufreq_frequency_table *powernow_table)
 {
 	int i;
-	int cntlofreq = 0;
 
 	for (i = 0; i < data->acpi_data.state_count; i++) {
 		u32 fid;
@@ -970,7 +971,7 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 		/* verify frequency is OK */
 		if ((freq > (MAX_FREQ * 1000)) || (freq < (MIN_FREQ * 1000))) {
 			dprintk("invalid freq %u kHz, ignoring\n", freq);
-			invalidate_entry(data, i);
+			invalidate_entry(powernow_table, i);
 			continue;
 		}
 
@@ -978,29 +979,8 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 		 * BIOSs are using "off" to indicate invalid */
 		if (vid == VID_OFF) {
 			dprintk("invalid vid %u, ignoring\n", vid);
-			invalidate_entry(data, i);
+			invalidate_entry(powernow_table, i);
 			continue;
-		}
-
-		/* verify only 1 entry from the lo frequency table */
-		if (fid < HI_FID_TABLE_BOTTOM) {
-			if (cntlofreq) {
-				/* if both entries are the same,
-				 * ignore this one ... */
-				if ((freq != powernow_table[cntlofreq].frequency) ||
-				    (index != powernow_table[cntlofreq].index)) {
-					printk(KERN_ERR PFX
-						"Too many lo freq table "
-						"entries\n");
-					return 1;
-				}
-
-				dprintk("double low frequency table entry, "
-						"ignoring it.\n");
-				invalidate_entry(data, i);
-				continue;
-			} else
-				cntlofreq = i;
 		}
 
 		if (freq != (data->acpi_data.states[i].core_frequency * 1000)) {
@@ -1009,7 +989,7 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 				(unsigned int)
 				(data->acpi_data.states[i].core_frequency
 				 * 1000));
-			invalidate_entry(data, i);
+			invalidate_entry(powernow_table, i);
 			continue;
 		}
 	}
@@ -1079,14 +1059,6 @@ static int transition_frequency_fidvid(struct powernow_k8_data *data,
 		dprintk("target matches current values (fid 0x%x, vid 0x%x)\n",
 			fid, vid);
 		return 0;
-	}
-
-	if ((fid < HI_FID_TABLE_BOTTOM) &&
-	    (data->currfid < HI_FID_TABLE_BOTTOM)) {
-		printk(KERN_ERR PFX
-		       "ignoring illegal change in lo freq table-%x to 0x%x\n",
-		       data->currfid, fid);
-		return 1;
 	}
 
 	dprintk("cpu %d, changing to fid 0x%x, vid 0x%x\n",
@@ -1267,7 +1239,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	static const char ACPI_PSS_BIOS_BUG_MSG[] =
 		KERN_ERR FW_BUG PFX "No compatible ACPI _PSS objects found.\n"
-		KERN_ERR FW_BUG PFX "Try again with latest BIOS.\n";
+		FW_BUG PFX "Try again with latest BIOS.\n";
 	struct powernow_k8_data *data;
 	struct init_on_cpu init_on_cpu;
 	int rc;

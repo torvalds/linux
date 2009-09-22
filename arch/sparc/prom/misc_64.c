@@ -88,7 +88,7 @@ void prom_cmdline(void)
 /* Drop into the prom, but completely terminate the program.
  * No chance of continuing.
  */
-void prom_halt(void)
+void notrace prom_halt(void)
 {
 #ifdef CONFIG_SUN_LDOMS
 	if (ldom_domaining_enabled)

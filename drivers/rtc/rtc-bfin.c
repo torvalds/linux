@@ -1,8 +1,8 @@
 /*
  * Blackfin On-Chip Real Time Clock Driver
- *  Supports BF52[257]/BF53[123]/BF53[467]/BF54[24789]
+ *  Supports BF51x/BF52x/BF53[123]/BF53[467]/BF54x
  *
- * Copyright 2004-2008 Analog Devices Inc.
+ * Copyright 2004-2009 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
@@ -363,7 +363,7 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 	struct bfin_rtc *rtc;
 	struct device *dev = &pdev->dev;
 	int ret = 0;
-	unsigned long timeout;
+	unsigned long timeout = jiffies + HZ;
 
 	dev_dbg_stamp(dev);
 
@@ -374,32 +374,32 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rtc);
 	device_init_wakeup(dev, 1);
 
+	/* Register our RTC with the RTC framework */
+	rtc->rtc_dev = rtc_device_register(pdev->name, dev, &bfin_rtc_ops,
+						THIS_MODULE);
+	if (unlikely(IS_ERR(rtc->rtc_dev))) {
+		ret = PTR_ERR(rtc->rtc_dev);
+		goto err;
+	}
+
 	/* Grab the IRQ and init the hardware */
 	ret = request_irq(IRQ_RTC, bfin_rtc_interrupt, IRQF_SHARED, pdev->name, dev);
 	if (unlikely(ret))
-		goto err;
+		goto err_reg;
 	/* sometimes the bootloader touched things, but the write complete was not
 	 * enabled, so let's just do a quick timeout here since the IRQ will not fire ...
 	 */
-	timeout = jiffies + HZ;
 	while (bfin_read_RTC_ISTAT() & RTC_ISTAT_WRITE_PENDING)
 		if (time_after(jiffies, timeout))
 			break;
 	bfin_rtc_reset(dev, RTC_ISTAT_WRITE_COMPLETE);
 	bfin_write_RTC_SWCNT(0);
 
-	/* Register our RTC with the RTC framework */
-	rtc->rtc_dev = rtc_device_register(pdev->name, dev, &bfin_rtc_ops, THIS_MODULE);
-	if (unlikely(IS_ERR(rtc->rtc_dev))) {
-		ret = PTR_ERR(rtc->rtc_dev);
-		goto err_irq;
-	}
-
 	return 0;
 
- err_irq:
-	free_irq(IRQ_RTC, dev);
- err:
+err_reg:
+	rtc_device_unregister(rtc->rtc_dev);
+err:
 	kfree(rtc);
 	return ret;
 }

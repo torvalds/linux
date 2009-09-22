@@ -3,7 +3,7 @@
  *		devices like TTY. It interfaces between a raw TTY and the
  *		kernel's AX.25 protocol layers.
  *
- * Authors:	Andreas Könsgen <ajk@iehk.rwth-aachen.de>
+ * Authors:	Andreas Könsgen <ajk@comnets.uni-bremen.de>
  *              Ralf Baechle DL5RB <ralf@linux-mips.org>
  *
  * Quite a lot of stuff "stolen" by Joerg Reuter from slip.c, written by
@@ -242,7 +242,7 @@ out_drop:
 
 /* Encapsulate an IP datagram and kick it into a TTY queue. */
 
-static int sp_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t sp_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sixpack *sp = netdev_priv(dev);
 
@@ -255,7 +255,7 @@ static int sp_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int sp_open_dev(struct net_device *dev)

@@ -16,50 +16,57 @@
 #include <linux/kdev_t.h>
 #include <linux/err.h>
 
+#include "drm_sysfs.h"
 #include "drm_core.h"
 #include "drmP.h"
 
 #define to_drm_minor(d) container_of(d, struct drm_minor, kdev)
 #define to_drm_connector(d) container_of(d, struct drm_connector, kdev)
 
+static struct device_type drm_sysfs_device_minor = {
+	.name = "drm_minor"
+};
+
 /**
- * drm_sysfs_suspend - DRM class suspend hook
+ * drm_class_suspend - DRM class suspend hook
  * @dev: Linux device to suspend
  * @state: power state to enter
  *
  * Just figures out what the actual struct drm_device associated with
  * @dev is and calls its suspend hook, if present.
  */
-static int drm_sysfs_suspend(struct device *dev, pm_message_t state)
+static int drm_class_suspend(struct device *dev, pm_message_t state)
 {
-	struct drm_minor *drm_minor = to_drm_minor(dev);
-	struct drm_device *drm_dev = drm_minor->dev;
+	if (dev->type == &drm_sysfs_device_minor) {
+		struct drm_minor *drm_minor = to_drm_minor(dev);
+		struct drm_device *drm_dev = drm_minor->dev;
 
-	if (drm_minor->type == DRM_MINOR_LEGACY &&
-	    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
-	    drm_dev->driver->suspend)
-		return drm_dev->driver->suspend(drm_dev, state);
-
+		if (drm_minor->type == DRM_MINOR_LEGACY &&
+		    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
+		    drm_dev->driver->suspend)
+			return drm_dev->driver->suspend(drm_dev, state);
+	}
 	return 0;
 }
 
 /**
- * drm_sysfs_resume - DRM class resume hook
+ * drm_class_resume - DRM class resume hook
  * @dev: Linux device to resume
  *
  * Just figures out what the actual struct drm_device associated with
  * @dev is and calls its resume hook, if present.
  */
-static int drm_sysfs_resume(struct device *dev)
+static int drm_class_resume(struct device *dev)
 {
-	struct drm_minor *drm_minor = to_drm_minor(dev);
-	struct drm_device *drm_dev = drm_minor->dev;
+	if (dev->type == &drm_sysfs_device_minor) {
+		struct drm_minor *drm_minor = to_drm_minor(dev);
+		struct drm_device *drm_dev = drm_minor->dev;
 
-	if (drm_minor->type == DRM_MINOR_LEGACY &&
-	    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
-	    drm_dev->driver->resume)
-		return drm_dev->driver->resume(drm_dev);
-
+		if (drm_minor->type == DRM_MINOR_LEGACY &&
+		    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
+		    drm_dev->driver->resume)
+			return drm_dev->driver->resume(drm_dev);
+	}
 	return 0;
 }
 
@@ -70,7 +77,7 @@ static ssize_t version_show(struct class *dev, char *buf)
 		       CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
 }
 
-static char *drm_nodename(struct device *dev)
+static char *drm_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
 }
@@ -99,14 +106,14 @@ struct class *drm_sysfs_create(struct module *owner, char *name)
 		goto err_out;
 	}
 
-	class->suspend = drm_sysfs_suspend;
-	class->resume = drm_sysfs_resume;
+	class->suspend = drm_class_suspend;
+	class->resume = drm_class_resume;
 
 	err = class_create_file(class, &class_attr_version);
 	if (err)
 		goto err_out_class;
 
-	class->nodename = drm_nodename;
+	class->devnode = drm_devnode;
 
 	return class;
 
@@ -247,6 +254,7 @@ static ssize_t subconnector_show(struct device *device,
 		case DRM_MODE_CONNECTOR_Composite:
 		case DRM_MODE_CONNECTOR_SVIDEO:
 		case DRM_MODE_CONNECTOR_Component:
+		case DRM_MODE_CONNECTOR_TV:
 			prop = dev->mode_config.tv_subconnector_property;
 			is_tv = 1;
 			break;
@@ -287,6 +295,7 @@ static ssize_t select_subconnector_show(struct device *device,
 		case DRM_MODE_CONNECTOR_Composite:
 		case DRM_MODE_CONNECTOR_SVIDEO:
 		case DRM_MODE_CONNECTOR_Component:
+		case DRM_MODE_CONNECTOR_TV:
 			prop = dev->mode_config.tv_select_subconnector_property;
 			is_tv = 1;
 			break;
@@ -385,6 +394,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 		case DRM_MODE_CONNECTOR_Composite:
 		case DRM_MODE_CONNECTOR_SVIDEO:
 		case DRM_MODE_CONNECTOR_Component:
+		case DRM_MODE_CONNECTOR_TV:
 			for (i = 0; i < ARRAY_SIZE(connector_attrs_opt1); i++) {
 				ret = device_create_file(&connector->kdev, &connector_attrs_opt1[i]);
 				if (ret)
@@ -480,6 +490,7 @@ int drm_sysfs_device_add(struct drm_minor *minor)
 	minor->kdev.class = drm_class;
 	minor->kdev.release = drm_sysfs_device_release;
 	minor->kdev.devt = minor->device;
+	minor->kdev.type = &drm_sysfs_device_minor;
 	if (minor->type == DRM_MINOR_CONTROL)
 		minor_str = "controlD%d";
         else if (minor->type == DRM_MINOR_RENDER)
@@ -512,3 +523,27 @@ void drm_sysfs_device_remove(struct drm_minor *minor)
 {
 	device_unregister(&minor->kdev);
 }
+
+
+/**
+ * drm_class_device_register - Register a struct device in the drm class.
+ *
+ * @dev: pointer to struct device to register.
+ *
+ * @dev should have all relevant members pre-filled with the exception
+ * of the class member. In particular, the device_type member must
+ * be set.
+ */
+
+int drm_class_device_register(struct device *dev)
+{
+	dev->class = drm_class;
+	return device_register(dev);
+}
+EXPORT_SYMBOL_GPL(drm_class_device_register);
+
+void drm_class_device_unregister(struct device *dev)
+{
+	return device_unregister(dev);
+}
+EXPORT_SYMBOL_GPL(drm_class_device_unregister);

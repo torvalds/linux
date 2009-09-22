@@ -152,8 +152,8 @@ static inline int is_active(const struct usb_interface *f)
 extern const char *usbcore_name;
 
 /* sysfs stuff */
-extern struct attribute_group *usb_device_groups[];
-extern struct attribute_group *usb_interface_groups[];
+extern const struct attribute_group *usb_device_groups[];
+extern const struct attribute_group *usb_interface_groups[];
 
 /* usbfs stuff */
 extern struct mutex usbfs_mutex;

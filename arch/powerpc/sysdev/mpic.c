@@ -230,14 +230,16 @@ static inline u32 _mpic_irq_read(struct mpic *mpic, unsigned int src_no, unsigne
 {
 	unsigned int	isu = src_no >> mpic->isu_shift;
 	unsigned int	idx = src_no & mpic->isu_mask;
+	unsigned int	val;
 
+	val = _mpic_read(mpic->reg_type, &mpic->isus[isu],
+			 reg + (idx * MPIC_INFO(IRQ_STRIDE)));
 #ifdef CONFIG_MPIC_BROKEN_REGREAD
 	if (reg == 0)
-		return mpic->isu_reg0_shadow[idx];
-	else
+		val = (val & (MPIC_VECPRI_MASK | MPIC_VECPRI_ACTIVITY)) |
+			mpic->isu_reg0_shadow[src_no];
 #endif
-		return _mpic_read(mpic->reg_type, &mpic->isus[isu],
-				  reg + (idx * MPIC_INFO(IRQ_STRIDE)));
+	return val;
 }
 
 static inline void _mpic_irq_write(struct mpic *mpic, unsigned int src_no,
@@ -251,7 +253,8 @@ static inline void _mpic_irq_write(struct mpic *mpic, unsigned int src_no,
 
 #ifdef CONFIG_MPIC_BROKEN_REGREAD
 	if (reg == 0)
-		mpic->isu_reg0_shadow[idx] = value;
+		mpic->isu_reg0_shadow[src_no] =
+			value & ~(MPIC_VECPRI_MASK | MPIC_VECPRI_ACTIVITY);
 #endif
 }
 
@@ -508,9 +511,8 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 	printk(KERN_INFO "mpic: Setting up HT PICs workarounds for U3/U4\n");
 
 	/* Allocate fixups array */
-	mpic->fixups = alloc_bootmem(128 * sizeof(struct mpic_irq_fixup));
+	mpic->fixups = kzalloc(128 * sizeof(*mpic->fixups), GFP_KERNEL);
 	BUG_ON(mpic->fixups == NULL);
-	memset(mpic->fixups, 0, 128 * sizeof(struct mpic_irq_fixup));
 
 	/* Init spinlock */
 	spin_lock_init(&mpic->fixup_lock);
@@ -1109,9 +1111,8 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 			psize /= 4;
 			bits = intvec_top + 1;
 			mapsize = BITS_TO_LONGS(bits) * sizeof(unsigned long);
-			mpic->protected = alloc_bootmem(mapsize);
+			mpic->protected = kzalloc(mapsize, GFP_KERNEL);
 			BUG_ON(mpic->protected == NULL);
-			memset(mpic->protected, 0, mapsize);
 			for (i = 0; i < psize; i++) {
 				if (psrc[i] > intvec_top)
 					continue;
@@ -1353,7 +1354,8 @@ void __init mpic_init(struct mpic *mpic)
 
 #ifdef CONFIG_PM
 	/* allocate memory to save mpic state */
-	mpic->save_data = alloc_bootmem(mpic->num_sources * sizeof(struct mpic_irq_save));
+	mpic->save_data = kmalloc(mpic->num_sources * sizeof(*mpic->save_data),
+				  GFP_KERNEL);
 	BUG_ON(mpic->save_data == NULL);
 #endif
 }

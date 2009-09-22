@@ -1776,7 +1776,6 @@ static struct i2c_algo_sgi_data i2c_sgi_vino_data = {
 
 static struct i2c_adapter vino_i2c_adapter = {
 	.name			= "VINO I2C bus",
-	.id			= I2C_HW_SGI_VINO,
 	.algo			= &sgi_algo,
 	.algo_data		= &i2c_sgi_vino_data,
 	.owner 			= THIS_MODULE,
@@ -4334,11 +4333,11 @@ static int __init vino_module_init(void)
 	vino_init_stage++;
 
 	vino_drvdata->decoder =
-		v4l2_i2c_new_probed_subdev_addr(&vino_drvdata->v4l2_dev,
-			&vino_i2c_adapter, "saa7191", "saa7191", 0x45);
+		v4l2_i2c_new_subdev(&vino_drvdata->v4l2_dev, &vino_i2c_adapter,
+			       "saa7191", "saa7191", 0, I2C_ADDRS(0x45));
 	vino_drvdata->camera =
-		v4l2_i2c_new_probed_subdev_addr(&vino_drvdata->v4l2_dev,
-			&vino_i2c_adapter, "indycam", "indycam", 0x2b);
+		v4l2_i2c_new_subdev(&vino_drvdata->v4l2_dev, &vino_i2c_adapter,
+			       "indycam", "indycam", 0, I2C_ADDRS(0x2b));
 
 	dprintk("init complete!\n");
 

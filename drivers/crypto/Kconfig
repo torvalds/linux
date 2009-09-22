@@ -13,7 +13,6 @@ if CRYPTO_HW
 config CRYPTO_DEV_PADLOCK
 	tristate "Support for VIA PadLock ACE"
 	depends on X86 && !UML
-	select CRYPTO_ALGAPI
 	help
 	  Some VIA processors come with an integrated crypto engine
 	  (so called VIA PadLock ACE, Advanced Cryptography Engine)
@@ -39,6 +38,7 @@ config CRYPTO_DEV_PADLOCK_AES
 config CRYPTO_DEV_PADLOCK_SHA
 	tristate "PadLock driver for SHA1 and SHA256 algorithms"
 	depends on CRYPTO_DEV_PADLOCK
+	select CRYPTO_HASH
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
 	help
@@ -156,6 +156,19 @@ config S390_PRNG
 	  and uses triple-DES to generate secure random numbers like the
 	  ANSI X9.17 standard. The PRNG is usable via the char device
 	  /dev/prandom.
+
+config CRYPTO_DEV_MV_CESA
+	tristate "Marvell's Cryptographic Engine"
+	depends on PLAT_ORION
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES
+	select CRYPTO_BLKCIPHER2
+	help
+	  This driver allows you to utilize the Cryptographic Engines and
+	  Security Accelerator (CESA) which can be found on the Marvell Orion
+	  and Kirkwood SoCs, such as QNAP's TS-209.
+
+	  Currently the driver supports AES in ECB and CBC mode without DMA.
 
 config CRYPTO_DEV_HIFN_795X
 	tristate "Driver HIFN 795x crypto accelerator chips"

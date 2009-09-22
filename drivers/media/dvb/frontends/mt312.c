@@ -85,7 +85,7 @@ static int mt312_read(struct mt312_state *state, const enum mt312_reg_addr reg,
 		int i;
 		dprintk("R(%d):", reg & 0x7f);
 		for (i = 0; i < count; i++)
-			printk(" %02x", buf[i]);
+			printk(KERN_CONT " %02x", buf[i]);
 		printk("\n");
 	}
 
@@ -103,7 +103,7 @@ static int mt312_write(struct mt312_state *state, const enum mt312_reg_addr reg,
 		int i;
 		dprintk("W(%d):", reg & 0x7f);
 		for (i = 0; i < count; i++)
-			printk(" %02x", src[i]);
+			printk(KERN_CONT " %02x", src[i]);
 		printk("\n");
 	}
 
@@ -744,7 +744,8 @@ static struct dvb_frontend_ops mt312_ops = {
 		.type = FE_QPSK,
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
-		.frequency_stepsize = (MT312_PLL_CLK / 1000) / 128, /* FIXME: adjust freq to real used xtal */
+		/* FIXME: adjust freq to real used xtal */
+		.frequency_stepsize = (MT312_PLL_CLK / 1000) / 128,
 		.symbol_rate_min = MT312_SYS_CLK / 128, /* FIXME as above */
 		.symbol_rate_max = MT312_SYS_CLK / 2,
 		.caps =
@@ -782,7 +783,7 @@ struct dvb_frontend *mt312_attach(const struct mt312_config *config,
 	struct mt312_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct mt312_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct mt312_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 

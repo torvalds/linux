@@ -142,7 +142,7 @@ static struct lock_class_key af_family_slock_keys[AF_MAX];
  * strings build-time, so that runtime initialization of socket
  * locks is fast):
  */
-static const char *af_family_key_strings[AF_MAX+1] = {
+static const char *const af_family_key_strings[AF_MAX+1] = {
   "sk_lock-AF_UNSPEC", "sk_lock-AF_UNIX"     , "sk_lock-AF_INET"     ,
   "sk_lock-AF_AX25"  , "sk_lock-AF_IPX"      , "sk_lock-AF_APPLETALK",
   "sk_lock-AF_NETROM", "sk_lock-AF_BRIDGE"   , "sk_lock-AF_ATMPVC"   ,
@@ -158,7 +158,7 @@ static const char *af_family_key_strings[AF_MAX+1] = {
   "sk_lock-AF_IEEE802154",
   "sk_lock-AF_MAX"
 };
-static const char *af_family_slock_key_strings[AF_MAX+1] = {
+static const char *const af_family_slock_key_strings[AF_MAX+1] = {
   "slock-AF_UNSPEC", "slock-AF_UNIX"     , "slock-AF_INET"     ,
   "slock-AF_AX25"  , "slock-AF_IPX"      , "slock-AF_APPLETALK",
   "slock-AF_NETROM", "slock-AF_BRIDGE"   , "slock-AF_ATMPVC"   ,
@@ -174,7 +174,7 @@ static const char *af_family_slock_key_strings[AF_MAX+1] = {
   "slock-AF_IEEE802154",
   "slock-AF_MAX"
 };
-static const char *af_family_clock_key_strings[AF_MAX+1] = {
+static const char *const af_family_clock_key_strings[AF_MAX+1] = {
   "clock-AF_UNSPEC", "clock-AF_UNIX"     , "clock-AF_INET"     ,
   "clock-AF_AX25"  , "clock-AF_IPX"      , "clock-AF_APPLETALK",
   "clock-AF_NETROM", "clock-AF_BRIDGE"   , "clock-AF_ATMPVC"   ,
@@ -482,6 +482,8 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 		sk->sk_reuse = valbool;
 		break;
 	case SO_TYPE:
+	case SO_PROTOCOL:
+	case SO_DOMAIN:
 	case SO_ERROR:
 		ret = -ENOPROTOOPT;
 		break;
@@ -631,7 +633,7 @@ set_rcvbuf:
 
 	case SO_TIMESTAMPING:
 		if (val & ~SOF_TIMESTAMPING_MASK) {
-			ret = EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		sock_valbool_flag(sk, SOCK_TIMESTAMPING_TX_HARDWARE,
@@ -762,6 +764,14 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case SO_TYPE:
 		v.val = sk->sk_type;
+		break;
+
+	case SO_PROTOCOL:
+		v.val = sk->sk_protocol;
+		break;
+
+	case SO_DOMAIN:
+		v.val = sk->sk_family;
 		break;
 
 	case SO_ERROR:
@@ -919,13 +929,19 @@ static inline void sock_lock_init(struct sock *sk)
 			af_family_keys + sk->sk_family);
 }
 
+/*
+ * Copy all fields from osk to nsk but nsk->sk_refcnt must not change yet,
+ * even temporarly, because of RCU lookups. sk_node should also be left as is.
+ */
 static void sock_copy(struct sock *nsk, const struct sock *osk)
 {
 #ifdef CONFIG_SECURITY_NETWORK
 	void *sptr = nsk->sk_security;
 #endif
-
-	memcpy(nsk, osk, osk->sk_prot->obj_size);
+	BUILD_BUG_ON(offsetof(struct sock, sk_copy_start) !=
+		     sizeof(osk->sk_node) + sizeof(osk->sk_refcnt));
+	memcpy(&nsk->sk_copy_start, &osk->sk_copy_start,
+	       osk->sk_prot->obj_size - offsetof(struct sock, sk_copy_start));
 #ifdef CONFIG_SECURITY_NETWORK
 	nsk->sk_security = sptr;
 	security_sk_clone(osk, nsk);
@@ -939,8 +955,23 @@ static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
 	struct kmem_cache *slab;
 
 	slab = prot->slab;
-	if (slab != NULL)
-		sk = kmem_cache_alloc(slab, priority);
+	if (slab != NULL) {
+		sk = kmem_cache_alloc(slab, priority & ~__GFP_ZERO);
+		if (!sk)
+			return sk;
+		if (priority & __GFP_ZERO) {
+			/*
+			 * caches using SLAB_DESTROY_BY_RCU should let
+			 * sk_node.next un-modified. Special care is taken
+			 * when initializing object to zero.
+			 */
+			if (offsetof(struct sock, sk_node.next) != 0)
+				memset(sk, 0, offsetof(struct sock, sk_node.next));
+			memset(&sk->sk_node.pprev, 0,
+			       prot->obj_size - offsetof(struct sock,
+							 sk_node.pprev));
+		}
+	}
 	else
 		sk = kmalloc(prot->obj_size, priority);
 
@@ -1004,6 +1035,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		sk->sk_prot = sk->sk_prot_creator = prot;
 		sock_lock_init(sk);
 		sock_net_set(sk, get_net(net));
+		atomic_set(&sk->sk_wmem_alloc, 1);
 	}
 
 	return sk;
@@ -1125,6 +1157,11 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 
 		newsk->sk_err	   = 0;
 		newsk->sk_priority = 0;
+		/*
+		 * Before updating sk_refcnt, we must commit prior changes to memory
+		 * (Documentation/RCU/rculist_nulls.txt for details)
+		 */
+		smp_wmb();
 		atomic_set(&newsk->sk_refcnt, 2);
 
 		/*
@@ -1169,12 +1206,12 @@ EXPORT_SYMBOL_GPL(sk_setup_caps);
 
 void __init sk_init(void)
 {
-	if (num_physpages <= 4096) {
+	if (totalram_pages <= 4096) {
 		sysctl_wmem_max = 32767;
 		sysctl_rmem_max = 32767;
 		sysctl_wmem_default = 32767;
 		sysctl_rmem_default = 32767;
-	} else if (num_physpages >= 131072) {
+	} else if (totalram_pages >= 131072) {
 		sysctl_wmem_max = 131071;
 		sysctl_rmem_max = 131071;
 	}
@@ -1715,7 +1752,7 @@ EXPORT_SYMBOL(sock_no_sendpage);
 static void sock_def_wakeup(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+	if (sk_has_sleeper(sk))
 		wake_up_interruptible_all(sk->sk_sleep);
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -1723,7 +1760,7 @@ static void sock_def_wakeup(struct sock *sk)
 static void sock_def_error_report(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+	if (sk_has_sleeper(sk))
 		wake_up_interruptible_poll(sk->sk_sleep, POLLERR);
 	sk_wake_async(sk, SOCK_WAKE_IO, POLL_ERR);
 	read_unlock(&sk->sk_callback_lock);
@@ -1732,7 +1769,7 @@ static void sock_def_error_report(struct sock *sk)
 static void sock_def_readable(struct sock *sk, int len)
 {
 	read_lock(&sk->sk_callback_lock);
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+	if (sk_has_sleeper(sk))
 		wake_up_interruptible_sync_poll(sk->sk_sleep, POLLIN |
 						POLLRDNORM | POLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
@@ -1747,7 +1784,7 @@ static void sock_def_write_space(struct sock *sk)
 	 * progress.  --DaveM
 	 */
 	if ((atomic_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf) {
-		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+		if (sk_has_sleeper(sk))
 			wake_up_interruptible_sync_poll(sk->sk_sleep, POLLOUT |
 						POLLWRNORM | POLLWRBAND);
 
@@ -1840,8 +1877,12 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	sk->sk_stamp = ktime_set(-1L, 0);
 
+	/*
+	 * Before updating sk_refcnt, we must commit prior changes to memory
+	 * (Documentation/RCU/rculist_nulls.txt for details)
+	 */
+	smp_wmb();
 	atomic_set(&sk->sk_refcnt, 1);
-	atomic_set(&sk->sk_wmem_alloc, 1);
 	atomic_set(&sk->sk_drops, 0);
 }
 EXPORT_SYMBOL(sock_init_data);

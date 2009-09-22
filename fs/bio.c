@@ -238,7 +238,7 @@ void bio_free(struct bio *bio, struct bio_set *bs)
 		bvec_free_bs(bs, bio->bi_io_vec, BIO_POOL_IDX(bio));
 
 	if (bio_integrity(bio))
-		bio_integrity_free(bio);
+		bio_integrity_free(bio, bs);
 
 	/*
 	 * If we have front padding, adjust the bio pointer before freeing
@@ -341,7 +341,7 @@ struct bio *bio_alloc(gfp_t gfp_mask, int nr_iovecs)
 static void bio_kmalloc_destructor(struct bio *bio)
 {
 	if (bio_integrity(bio))
-		bio_integrity_free(bio);
+		bio_integrity_free(bio, fs_bio_set);
 	kfree(bio);
 }
 
@@ -472,7 +472,7 @@ struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
 	if (bio_integrity(bio)) {
 		int ret;
 
-		ret = bio_integrity_clone(b, bio, gfp_mask);
+		ret = bio_integrity_clone(b, bio, gfp_mask, fs_bio_set);
 
 		if (ret < 0) {
 			bio_put(b);
@@ -705,14 +705,13 @@ static struct bio_map_data *bio_alloc_map_data(int nr_segs, int iov_count,
 }
 
 static int __bio_copy_iov(struct bio *bio, struct bio_vec *iovecs,
-			  struct sg_iovec *iov, int iov_count, int uncopy,
-			  int do_free_page)
+			  struct sg_iovec *iov, int iov_count,
+			  int to_user, int from_user, int do_free_page)
 {
 	int ret = 0, i;
 	struct bio_vec *bvec;
 	int iov_idx = 0;
 	unsigned int iov_off = 0;
-	int read = bio_data_dir(bio) == READ;
 
 	__bio_for_each_segment(bvec, bio, i, 0) {
 		char *bv_addr = page_address(bvec->bv_page);
@@ -727,12 +726,13 @@ static int __bio_copy_iov(struct bio *bio, struct bio_vec *iovecs,
 			iov_addr = iov[iov_idx].iov_base + iov_off;
 
 			if (!ret) {
-				if (!read && !uncopy)
-					ret = copy_from_user(bv_addr, iov_addr,
-							     bytes);
-				if (read && uncopy)
+				if (to_user)
 					ret = copy_to_user(iov_addr, bv_addr,
 							   bytes);
+
+				if (from_user)
+					ret = copy_from_user(bv_addr, iov_addr,
+							     bytes);
 
 				if (ret)
 					ret = -EFAULT;
@@ -770,7 +770,8 @@ int bio_uncopy_user(struct bio *bio)
 
 	if (!bio_flagged(bio, BIO_NULL_MAPPED))
 		ret = __bio_copy_iov(bio, bmd->iovecs, bmd->sgvecs,
-				     bmd->nr_sgvecs, 1, bmd->is_our_pages);
+				     bmd->nr_sgvecs, bio_data_dir(bio) == READ,
+				     0, bmd->is_our_pages);
 	bio_free_map_data(bmd);
 	bio_put(bio);
 	return ret;
@@ -875,8 +876,9 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	/*
 	 * success
 	 */
-	if (!write_to_vm && (!map_data || !map_data->null_mapped)) {
-		ret = __bio_copy_iov(bio, bio->bi_io_vec, iov, iov_count, 0, 0);
+	if ((!write_to_vm && (!map_data || !map_data->null_mapped)) ||
+	    (map_data && map_data->from_user)) {
+		ret = __bio_copy_iov(bio, bio->bi_io_vec, iov, iov_count, 0, 1, 0);
 		if (ret)
 			goto cleanup;
 	}
@@ -1539,6 +1541,7 @@ void bioset_free(struct bio_set *bs)
 	if (bs->bio_pool)
 		mempool_destroy(bs->bio_pool);
 
+	bioset_integrity_free(bs);
 	biovec_free_pools(bs);
 	bio_put_slab(bs);
 
@@ -1579,6 +1582,9 @@ struct bio_set *bioset_create(unsigned int pool_size, unsigned int front_pad)
 	if (!bs->bio_pool)
 		goto bad;
 
+	if (bioset_integrity_create(bs, pool_size))
+		goto bad;
+
 	if (!biovec_create_pools(bs, pool_size))
 		return bs;
 
@@ -1616,6 +1622,7 @@ static int __init init_bio(void)
 	if (!bio_slabs)
 		panic("bio: can't allocate bios\n");
 
+	bio_integrity_init();
 	biovec_init_slabs();
 
 	fs_bio_set = bioset_create(BIO_POOL_SIZE, 0);

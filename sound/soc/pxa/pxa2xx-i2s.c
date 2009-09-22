@@ -167,6 +167,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	BUG_ON(IS_ERR(clk_i2s));
 	clk_enable(clk_i2s);
+	dai->private_data = dai;
 	pxa_i2s_wait();
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -255,7 +256,10 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream,
 	if ((SACR1 & (SACR1_DREC | SACR1_DRPL)) == (SACR1_DREC | SACR1_DRPL)) {
 		SACR0 &= ~SACR0_ENB;
 		pxa_i2s_wait();
-		clk_disable(clk_i2s);
+		if (dai->private_data != NULL) {
+			clk_disable(clk_i2s);
+			dai->private_data = NULL;
+		}
 	}
 }
 
@@ -336,6 +340,7 @@ static int pxa2xx_i2s_probe(struct platform_device *dev)
 		return PTR_ERR(clk_i2s);
 
 	pxa_i2s_dai.dev = &dev->dev;
+	pxa_i2s_dai.private_data = NULL;
 	ret = snd_soc_register_dai(&pxa_i2s_dai);
 	if (ret != 0)
 		clk_put(clk_i2s);

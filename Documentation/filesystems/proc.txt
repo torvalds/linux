@@ -375,6 +375,19 @@ of memory currently marked as referenced or accessed.
 This file is only present if the CONFIG_MMU kernel configuration option is
 enabled.
 
+The /proc/PID/clear_refs is used to reset the PG_Referenced and ACCESSED/YOUNG
+bits on both physical and virtual pages associated with a process.
+To clear the bits for all the pages associated with the process
+    > echo 1 > /proc/PID/clear_refs
+
+To clear the bits for the anonymous pages associated with the process
+    > echo 2 > /proc/PID/clear_refs
+
+To clear the bits for the file mapped pages associated with the process
+    > echo 3 > /proc/PID/clear_refs
+Any other value written to /proc/PID/clear_refs will have no effect.
+
+
 1.2 Kernel data
 ---------------
 
@@ -1032,9 +1045,9 @@ Various pieces   of  information about  kernel activity  are  available in the
 since the system first booted.  For a quick look, simply cat the file:
 
   > cat /proc/stat
-  cpu  2255 34 2290 22625563 6290 127 456 0
-  cpu0 1132 34 1441 11311718 3675 127 438 0
-  cpu1 1123 0 849 11313845 2614 0 18 0
+  cpu  2255 34 2290 22625563 6290 127 456 0 0
+  cpu0 1132 34 1441 11311718 3675 127 438 0 0
+  cpu1 1123 0 849 11313845 2614 0 18 0 0
   intr 114930548 113199788 3 0 5 263 0 4 [... lots more numbers ...]
   ctxt 1990473
   btime 1062191376
@@ -1056,6 +1069,7 @@ second).  The meanings of the columns are as follows, from left to right:
 - irq: servicing interrupts
 - softirq: servicing softirqs
 - steal: involuntary wait
+- guest: running a guest
 
 The "intr" line gives counts of interrupts  serviced since boot time, for each
 of the  possible system interrupts.   The first  column  is the  total of  all
@@ -1167,13 +1181,11 @@ CHAPTER 3: PER-PROCESS PARAMETERS
 3.1 /proc/<pid>/oom_adj - Adjust the oom-killer score
 ------------------------------------------------------
 
-This file can be used to adjust the score used to select which processes should
-be killed in an out-of-memory situation.  The oom_adj value is a characteristic
-of the task's mm, so all threads that share an mm with pid will have the same
-oom_adj value.  A high value will increase the likelihood of this process being
-killed by the oom-killer.  Valid values are in the range -16 to +15 as
-explained below and a special value of -17, which disables oom-killing
-altogether for threads sharing pid's mm.
+This file can be used to adjust the score used to select which processes
+should be killed in an  out-of-memory  situation.  Giving it a high score will
+increase the likelihood of this process being killed by the oom-killer.  Valid
+values are in the range -16 to +15, plus the special value -17, which disables
+oom-killing altogether for this process.
 
 The process to be killed in an out-of-memory situation is selected among all others
 based on its badness score. This value equals the original memory size of the process
@@ -1187,16 +1199,13 @@ the parent's score if they do not share the same memory. Thus forking servers
 are the prime candidates to be killed. Having only one 'hungry' child will make
 parent less preferable than the child.
 
-/proc/<pid>/oom_adj cannot be changed for kthreads since they are immune from
-oom-killing already.
-
 /proc/<pid>/oom_score shows process' current badness score.
 
 The following heuristics are then applied:
  * if the task was reniced, its score doubles
  * superuser or direct hardware access tasks (CAP_SYS_ADMIN, CAP_SYS_RESOURCE
  	or CAP_SYS_RAWIO) have their score divided by 4
- * if oom condition happened in one cpuset and checked task does not belong
+ * if oom condition happened in one cpuset and checked process does not belong
  	to it, its score is divided by 8
  * the resulting score is multiplied by two to the power of oom_adj, i.e.
 	points <<= oom_adj when it is positive and

@@ -41,11 +41,12 @@ static int ixpdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ixpdev_priv *ip = netdev_priv(dev);
 	struct ixpdev_tx_desc *desc;
 	int entry;
+	unsigned long flags;
 
 	if (unlikely(skb->len > PAGE_SIZE)) {
 		/* @@@ Count drops.  */
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	entry = tx_pointer;
@@ -63,13 +64,13 @@ static int ixpdev_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	local_irq_disable();
+	local_irq_save(flags);
 	ip->tx_queue_entries++;
 	if (ip->tx_queue_entries == TX_BUF_COUNT_PER_CHAN)
 		netif_stop_queue(dev);
-	local_irq_enable();
+	local_irq_restore(flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

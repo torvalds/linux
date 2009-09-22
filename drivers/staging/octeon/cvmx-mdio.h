@@ -421,7 +421,7 @@ static inline int cvmx_mdio_45_read(int bus_id, int phy_id, int device,
 	do {
 		cvmx_wait(1000);
 		smi_rd.u64 = cvmx_read_csr(CVMX_SMIX_RD_DAT(bus_id));
-	} while (smi_rd.s.pending && timeout--);
+	} while (smi_rd.s.pending && --timeout);
 
 	if (timeout <= 0) {
 		cvmx_dprintf("cvmx_mdio_45_read: bus_id %d phy_id %2d "

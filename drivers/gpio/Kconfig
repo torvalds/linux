@@ -79,6 +79,12 @@ config GPIO_XILINX
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
+config GPIO_VR41XX
+	tristate "NEC VR4100 series General-purpose I/O Uint support"
+	depends on CPU_VR41XX
+	help
+	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
+
 comment "I2C GPIO expanders:"
 
 config GPIO_MAX732X
@@ -148,6 +154,13 @@ config GPIO_TWL4030
 	help
 	  Say yes here to access the GPIO signals of various multi-function
 	  power management chips from Texas Instruments.
+
+config GPIO_WM831X
+	tristate "WM831x GPIOs"
+	depends on MFD_WM831X
+	help
+	  Say yes here to access the GPIO signals of WM831x power management
+	  chips from Wolfson Microelectronics.
 
 comment "PCI GPIO expanders:"
 

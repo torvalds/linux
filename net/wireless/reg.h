@@ -30,10 +30,26 @@ int set_regdom(const struct ieee80211_regdomain *rd);
  * non-radar 5 GHz channels.
  *
  * Drivers do not need to call this, cfg80211 will do it for after a scan
- * on a newly found BSS.
+ * on a newly found BSS. If you cannot make use of this feature you can
+ * set the wiphy->disable_beacon_hints to true.
  */
 int regulatory_hint_found_beacon(struct wiphy *wiphy,
 					struct ieee80211_channel *beacon_chan,
 					gfp_t gfp);
+
+/**
+ * regulatory_hint_11d - hints a country IE as a regulatory domain
+ * @wiphy: the wireless device giving the hint (used only for reporting
+ *	conflicts)
+ * @country_ie: pointer to the country IE
+ * @country_ie_len: length of the country IE
+ *
+ * We will intersect the rd with the what CRDA tells us should apply
+ * for the alpha2 this country IE belongs to, this prevents APs from
+ * sending us incorrect or outdated information against a country.
+ */
+void regulatory_hint_11d(struct wiphy *wiphy,
+			 u8 *country_ie,
+			 u8 country_ie_len);
 
 #endif  /* __NET_WIRELESS_REG_H */

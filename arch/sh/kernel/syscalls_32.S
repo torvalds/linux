@@ -139,7 +139,7 @@ ENTRY(sys_call_table)
 	.long sys_clone		/* 120 */
 	.long sys_setdomainname
 	.long sys_newuname
-	.long sys_ni_syscall	/* sys_modify_ldt */
+	.long sys_cacheflush	/* x86: sys_modify_ldt */
 	.long sys_adjtimex
 	.long sys_mprotect		/* 125 */
 	.long sys_sigprocmask
@@ -352,4 +352,4 @@ ENTRY(sys_call_table)
 	.long sys_preadv
 	.long sys_pwritev
 	.long sys_rt_tgsigqueueinfo	/* 335 */
-	.long sys_perf_counter_open
+	.long sys_perf_event_open

@@ -190,14 +190,13 @@ static void iommu_full(struct device *dev, size_t size, int dir)
 static inline int
 need_iommu(struct device *dev, unsigned long addr, size_t size)
 {
-	return force_iommu ||
-		!is_buffer_dma_capable(*dev->dma_mask, addr, size);
+	return force_iommu || !dma_capable(dev, addr, size);
 }
 
 static inline int
 nonforced_iommu(struct device *dev, unsigned long addr, size_t size)
 {
-	return !is_buffer_dma_capable(*dev->dma_mask, addr, size);
+	return !dma_capable(dev, addr, size);
 }
 
 /* Map a single continuous physical area into the IOMMU.
@@ -675,7 +674,7 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
  nommu:
 	/* Should not happen anymore */
 	printk(KERN_WARNING "PCI-DMA: More than 4GB of RAM and no IOMMU\n"
-	       KERN_WARNING "falling back to iommu=soft.\n");
+	       "falling back to iommu=soft.\n");
 	return -1;
 }
 

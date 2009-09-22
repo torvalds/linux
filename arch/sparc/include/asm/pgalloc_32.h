@@ -44,8 +44,8 @@ BTFIXUPDEF_CALL(pmd_t *, pmd_alloc_one, struct mm_struct *, unsigned long)
 BTFIXUPDEF_CALL(void, free_pmd_fast, pmd_t *)
 #define free_pmd_fast(pmd)	BTFIXUP_CALL(free_pmd_fast)(pmd)
 
-#define pmd_free(mm, pmd)	free_pmd_fast(pmd)
-#define __pmd_free_tlb(tlb, pmd) pmd_free((tlb)->mm, pmd)
+#define pmd_free(mm, pmd)		free_pmd_fast(pmd)
+#define __pmd_free_tlb(tlb, pmd, addr)	pmd_free((tlb)->mm, pmd)
 
 BTFIXUPDEF_CALL(void, pmd_populate, pmd_t *, struct page *)
 #define pmd_populate(MM, PMD, PTE)        BTFIXUP_CALL(pmd_populate)(PMD, PTE)
@@ -62,7 +62,7 @@ BTFIXUPDEF_CALL(void, free_pte_fast, pte_t *)
 #define pte_free_kernel(mm, pte)	BTFIXUP_CALL(free_pte_fast)(pte)
 
 BTFIXUPDEF_CALL(void, pte_free, pgtable_t )
-#define pte_free(mm, pte)	BTFIXUP_CALL(pte_free)(pte)
-#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, pte)
+#define pte_free(mm, pte)		BTFIXUP_CALL(pte_free)(pte)
+#define __pte_free_tlb(tlb, pte, addr)	pte_free((tlb)->mm, pte)
 
 #endif /* _SPARC_PGALLOC_H */

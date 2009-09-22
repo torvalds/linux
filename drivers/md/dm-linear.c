@@ -139,7 +139,7 @@ static int linear_iterate_devices(struct dm_target *ti,
 {
 	struct linear_c *lc = ti->private;
 
-	return fn(ti, lc->dev, lc->start, data);
+	return fn(ti, lc->dev, lc->start, ti->len, data);
 }
 
 static struct target_type linear_target = {

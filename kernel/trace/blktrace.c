@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
+#include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
 
@@ -64,13 +65,15 @@ static void trace_note(struct blk_trace *bt, pid_t pid, int action,
 {
 	struct blk_io_trace *t;
 	struct ring_buffer_event *event = NULL;
+	struct ring_buffer *buffer = NULL;
 	int pc = 0;
 	int cpu = smp_processor_id();
 	bool blk_tracer = blk_tracer_enabled;
 
 	if (blk_tracer) {
+		buffer = blk_tr->buffer;
 		pc = preempt_count();
-		event = trace_buffer_lock_reserve(blk_tr, TRACE_BLK,
+		event = trace_buffer_lock_reserve(buffer, TRACE_BLK,
 						  sizeof(*t) + len,
 						  0, pc);
 		if (!event)
@@ -95,7 +98,7 @@ record_it:
 		memcpy((void *) t + sizeof(*t), data, len);
 
 		if (blk_tracer)
-			trace_buffer_unlock_commit(blk_tr, event, 0, pc);
+			trace_buffer_unlock_commit(buffer, event, 0, pc);
 	}
 }
 
@@ -178,6 +181,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 {
 	struct task_struct *tsk = current;
 	struct ring_buffer_event *event = NULL;
+	struct ring_buffer *buffer = NULL;
 	struct blk_io_trace *t;
 	unsigned long flags = 0;
 	unsigned long *sequence;
@@ -203,8 +207,9 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	if (blk_tracer) {
 		tracing_record_cmdline(current);
 
+		buffer = blk_tr->buffer;
 		pc = preempt_count();
-		event = trace_buffer_lock_reserve(blk_tr, TRACE_BLK,
+		event = trace_buffer_lock_reserve(buffer, TRACE_BLK,
 						  sizeof(*t) + pdu_len,
 						  0, pc);
 		if (!event)
@@ -251,7 +256,7 @@ record_it:
 			memcpy((void *) t + sizeof(*t), pdu_data, pdu_len);
 
 		if (blk_tracer) {
-			trace_buffer_unlock_commit(blk_tr, event, 0, pc);
+			trace_buffer_unlock_commit(buffer, event, 0, pc);
 			return;
 		}
 	}
@@ -266,8 +271,8 @@ static void blk_trace_free(struct blk_trace *bt)
 {
 	debugfs_remove(bt->msg_file);
 	debugfs_remove(bt->dropped_file);
-	debugfs_remove(bt->dir);
 	relay_close(bt->rchan);
+	debugfs_remove(bt->dir);
 	free_percpu(bt->sequence);
 	free_percpu(bt->msg_data);
 	kfree(bt);
@@ -377,18 +382,8 @@ static int blk_subbuf_start_callback(struct rchan_buf *buf, void *subbuf,
 
 static int blk_remove_buf_file_callback(struct dentry *dentry)
 {
-	struct dentry *parent = dentry->d_parent;
 	debugfs_remove(dentry);
 
-	/*
-	* this will fail for all but the last file, but that is ok. what we
-	* care about is the top level buts->name directory going away, when
-	* the last trace file is gone. Then we don't have to rmdir() that
-	* manually on trace stop, so it nicely solves the issue with
-	* force killing of running traces.
-	*/
-
-	debugfs_remove(parent);
 	return 0;
 }
 

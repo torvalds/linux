@@ -2707,13 +2707,14 @@ static const struct net_device_ops gelic_wl_netdevice_ops = {
 	.ndo_set_multicast_list = gelic_net_set_multi,
 	.ndo_change_mtu = gelic_net_change_mtu,
 	.ndo_tx_timeout = gelic_net_tx_timeout,
+	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = gelic_net_poll_controller,
 #endif
 };
 
-static struct ethtool_ops gelic_wl_ethtool_ops = {
+static const struct ethtool_ops gelic_wl_ethtool_ops = {
 	.get_drvinfo	= gelic_net_get_drvinfo,
 	.get_link	= gelic_wl_get_link,
 	.get_tx_csum	= ethtool_op_get_tx_csum,

@@ -53,7 +53,7 @@
 #include <linux/posix-timers.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -479,7 +479,8 @@ static int __init iSeries_tb_recal(void)
 		unsigned long tb_ticks = tb - iSeries_recal_tb;
 		unsigned long titan_usec = (titan - iSeries_recal_titan) >> 12;
 		unsigned long new_tb_ticks_per_sec   = (tb_ticks * USEC_PER_SEC)/titan_usec;
-		unsigned long new_tb_ticks_per_jiffy = (new_tb_ticks_per_sec+(HZ/2))/HZ;
+		unsigned long new_tb_ticks_per_jiffy =
+			DIV_ROUND_CLOSEST(new_tb_ticks_per_sec, HZ);
 		long tick_diff = new_tb_ticks_per_jiffy - tb_ticks_per_jiffy;
 		char sign = '+';		
 		/* make sure tb_ticks_per_sec and tb_ticks_per_jiffy are consistent */
@@ -526,25 +527,25 @@ void __init iSeries_time_init_early(void)
 }
 #endif /* CONFIG_PPC_ISERIES */
 
-#if defined(CONFIG_PERF_COUNTERS) && defined(CONFIG_PPC32)
-DEFINE_PER_CPU(u8, perf_counter_pending);
+#if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_PPC32)
+DEFINE_PER_CPU(u8, perf_event_pending);
 
-void set_perf_counter_pending(void)
+void set_perf_event_pending(void)
 {
-	get_cpu_var(perf_counter_pending) = 1;
+	get_cpu_var(perf_event_pending) = 1;
 	set_dec(1);
-	put_cpu_var(perf_counter_pending);
+	put_cpu_var(perf_event_pending);
 }
 
-#define test_perf_counter_pending()	__get_cpu_var(perf_counter_pending)
-#define clear_perf_counter_pending()	__get_cpu_var(perf_counter_pending) = 0
+#define test_perf_event_pending()	__get_cpu_var(perf_event_pending)
+#define clear_perf_event_pending()	__get_cpu_var(perf_event_pending) = 0
 
-#else  /* CONFIG_PERF_COUNTERS && CONFIG_PPC32 */
+#else  /* CONFIG_PERF_EVENTS && CONFIG_PPC32 */
 
-#define test_perf_counter_pending()	0
-#define clear_perf_counter_pending()
+#define test_perf_event_pending()	0
+#define clear_perf_event_pending()
 
-#endif /* CONFIG_PERF_COUNTERS && CONFIG_PPC32 */
+#endif /* CONFIG_PERF_EVENTS && CONFIG_PPC32 */
 
 /*
  * For iSeries shared processors, we have to let the hypervisor
@@ -572,9 +573,9 @@ void timer_interrupt(struct pt_regs * regs)
 	set_dec(DECREMENTER_MAX);
 
 #ifdef CONFIG_PPC32
-	if (test_perf_counter_pending()) {
-		clear_perf_counter_pending();
-		perf_counter_do_pending();
+	if (test_perf_event_pending()) {
+		clear_perf_event_pending();
+		perf_event_do_pending();
 	}
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
 		do_IRQ(regs);
@@ -726,6 +727,18 @@ static int __init get_freq(char *name, int cells, unsigned long *val)
 	return found;
 }
 
+/* should become __cpuinit when secondary_cpu_time_init also is */
+void start_cpu_decrementer(void)
+{
+#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+	/* Clear any pending timer interrupts */
+	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
+
+	/* Enable decrementer interrupt */
+	mtspr(SPRN_TCR, TCR_DIE);
+#endif /* defined(CONFIG_BOOKE) || defined(CONFIG_40x) */
+}
+
 void __init generic_calibrate_decr(void)
 {
 	ppc_tb_freq = DEFAULT_TB_FREQ;		/* hardcoded default */
@@ -745,14 +758,6 @@ void __init generic_calibrate_decr(void)
 		printk(KERN_ERR "WARNING: Estimating processor frequency "
 				"(not found)\n");
 	}
-
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
-	/* Clear any pending timer interrupts */
-	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
-
-	/* Enable decrementer interrupt */
-	mtspr(SPRN_TCR, TCR_DIE);
-#endif
 }
 
 int update_persistent_clock(struct timespec now)
@@ -769,11 +774,12 @@ int update_persistent_clock(struct timespec now)
 	return ppc_md.set_rtc_time(&tm);
 }
 
-unsigned long read_persistent_clock(void)
+void read_persistent_clock(struct timespec *ts)
 {
 	struct rtc_time tm;
 	static int first = 1;
 
+	ts->tv_nsec = 0;
 	/* XXX this is a litle fragile but will work okay in the short term */
 	if (first) {
 		first = 0;
@@ -781,14 +787,18 @@ unsigned long read_persistent_clock(void)
 			timezone_offset = ppc_md.time_init();
 
 		/* get_boot_time() isn't guaranteed to be safe to call late */
-		if (ppc_md.get_boot_time)
-			return ppc_md.get_boot_time() -timezone_offset;
+		if (ppc_md.get_boot_time) {
+			ts->tv_sec = ppc_md.get_boot_time() - timezone_offset;
+			return;
+		}
 	}
-	if (!ppc_md.get_rtc_time)
-		return 0;
+	if (!ppc_md.get_rtc_time) {
+		ts->tv_sec = 0;
+		return;
+	}
 	ppc_md.get_rtc_time(&tm);
-	return mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
-		      tm.tm_hour, tm.tm_min, tm.tm_sec);
+	ts->tv_sec = mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+			    tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 
 /* clocksource code */
@@ -913,6 +923,11 @@ static void __init init_decrementer_clockevent(void)
 
 void secondary_cpu_time_init(void)
 {
+	/* Start the decrementer on CPUs that have manual control
+	 * such as BookE
+	 */
+	start_cpu_decrementer();
+
 	/* FIME: Should make unrelatred change to move snapshot_timebase
 	 * call here ! */
 	register_decrementer_clockevent(smp_processor_id());
@@ -1015,6 +1030,11 @@ void __init time_init(void)
 	vdso_data->tb_to_xs = tb_to_xs;
 
 	write_sequnlock_irqrestore(&xtime_lock, flags);
+
+	/* Start the decrementer on CPUs that have manual control
+	 * such as BookE
+	 */
+	start_cpu_decrementer();
 
 	/* Register the clocksource, if we're not running on iSeries */
 	if (!firmware_has_feature(FW_FEATURE_ISERIES))

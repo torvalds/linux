@@ -134,7 +134,7 @@ static int fat_file_release(struct inode *inode, struct file *filp)
 	if ((filp->f_mode & FMODE_WRITE) &&
 	     MSDOS_SB(inode->i_sb)->options.flush) {
 		fat_flush_inodes(inode->i_sb, inode, NULL);
-		congestion_wait(WRITE, HZ/10);
+		congestion_wait(BLK_RW_ASYNC, HZ/10);
 	}
 	return 0;
 }
@@ -176,8 +176,26 @@ static int fat_cont_expand(struct inode *inode, loff_t size)
 
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
-	if (IS_SYNC(inode))
-		err = sync_page_range_nolock(inode, mapping, start, count);
+	if (IS_SYNC(inode)) {
+		int err2;
+
+		/*
+		 * Opencode syncing since we don't have a file open to use
+		 * standard fsync path.
+		 */
+		err = filemap_fdatawrite_range(mapping, start,
+					       start + count - 1);
+		err2 = sync_mapping_buffers(mapping);
+		if (!err)
+			err = err2;
+		err2 = write_inode_now(inode, 1);
+		if (!err)
+			err = err2;
+		if (!err) {
+			err =  filemap_fdatawait_range(mapping, start,
+						       start + count - 1);
+		}
+	}
 out:
 	return err;
 }

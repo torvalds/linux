@@ -152,24 +152,15 @@ css_alloc_subchannel(struct subchannel_id schid)
 }
 
 static void
-css_free_subchannel(struct subchannel *sch)
-{
-	if (sch) {
-		/* Reset intparm to zeroes. */
-		sch->config.intparm = 0;
-		cio_commit_config(sch);
-		kfree(sch->lock);
-		kfree(sch);
-	}
-}
-
-static void
 css_subchannel_release(struct device *dev)
 {
 	struct subchannel *sch;
 
 	sch = to_subchannel(dev);
 	if (!cio_is_console(sch->schid)) {
+		/* Reset intparm to zeroes. */
+		sch->config.intparm = 0;
+		cio_commit_config(sch);
 		kfree(sch->lock);
 		kfree(sch);
 	}
@@ -180,6 +171,8 @@ static int css_sch_device_register(struct subchannel *sch)
 	int ret;
 
 	mutex_lock(&sch->reg_mutex);
+	dev_set_name(&sch->dev, "0.%x.%04x", sch->schid.ssid,
+		     sch->schid.sch_no);
 	ret = device_register(&sch->dev);
 	mutex_unlock(&sch->reg_mutex);
 	return ret;
@@ -273,7 +266,7 @@ static struct attribute_group subch_attr_group = {
 	.attrs = subch_attrs,
 };
 
-static struct attribute_group *default_subch_attr_groups[] = {
+static const struct attribute_group *default_subch_attr_groups[] = {
 	&subch_attr_group,
 	NULL,
 };
@@ -327,7 +320,7 @@ int css_probe_device(struct subchannel_id schid)
 		return PTR_ERR(sch);
 	ret = css_register_subchannel(sch);
 	if (ret)
-		css_free_subchannel(sch);
+		put_device(&sch->dev);
 	return ret;
 }
 
@@ -644,7 +637,10 @@ __init_channel_subsystem(struct subchannel_id schid, void *data)
 	 * not working) so we do it now. This is true e.g. for the
 	 * console subchannel.
 	 */
-	css_register_subchannel(sch);
+	if (css_register_subchannel(sch)) {
+		if (!cio_is_console(schid))
+			put_device(&sch->dev);
+	}
 	return 0;
 }
 
@@ -661,8 +657,8 @@ css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 		css->global_pgid.pgid_high.cpu_addr = 0;
 #endif
 	}
-	css->global_pgid.cpu_id = ((cpuid_t *) __LC_CPUID)->ident;
-	css->global_pgid.cpu_model = ((cpuid_t *) __LC_CPUID)->machine;
+	css->global_pgid.cpu_id = S390_lowcore.cpu_id.ident;
+	css->global_pgid.cpu_model = S390_lowcore.cpu_id.machine;
 	css->global_pgid.tod_high = tod_high;
 
 }
@@ -920,8 +916,10 @@ init_channel_subsystem (void)
 				goto out_device;
 		}
 		ret = device_register(&css->pseudo_subchannel->dev);
-		if (ret)
+		if (ret) {
+			put_device(&css->pseudo_subchannel->dev);
 			goto out_file;
+		}
 	}
 	ret = register_reboot_notifier(&css_reboot_notifier);
 	if (ret)

@@ -29,12 +29,14 @@
  *Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef STATIC
+#ifdef STATIC
+#define PREBOOT
+#else
 #include <linux/decompress/unlzma.h>
+#include <linux/slab.h>
 #endif /* STATIC */
 
 #include <linux/decompress/mm.h>
-#include <linux/slab.h>
 
 #define	MIN(a, b) (((a) < (b)) ? (a) : (b))
 
@@ -543,9 +545,7 @@ STATIC inline int INIT unlzma(unsigned char *buf, int in_len,
 	int ret = -1;
 
 	set_error_fn(error_fn);
-	if (!flush)
-		in_len -= 4; /* Uncompressed size hack active in pre-boot
-				environment */
+
 	if (buf)
 		inbuf = buf;
 	else
@@ -645,4 +645,15 @@ exit_0:
 	return ret;
 }
 
-#define decompress unlzma
+#ifdef PREBOOT
+STATIC int INIT decompress(unsigned char *buf, int in_len,
+			      int(*fill)(void*, unsigned int),
+			      int(*flush)(void*, unsigned int),
+			      unsigned char *output,
+			      int *posp,
+			      void(*error_fn)(char *x)
+	)
+{
+	return unlzma(buf, in_len - 4, fill, flush, output, posp, error_fn);
+}
+#endif

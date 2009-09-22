@@ -19,6 +19,7 @@
 #include <asm/cacheflush.h>
 #include <asm/dma.h>
 #include <asm/uaccess.h>
+#include <asm/early_printk.h>
 
 /*
  * To make sure we work around 05000119 - we always check DMA_DONE bit,
@@ -146,8 +147,8 @@ EXPORT_SYMBOL(request_dma);
 
 int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data)
 {
-	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
-	       && channel < MAX_DMA_CHANNELS));
+	BUG_ON(channel >= MAX_DMA_CHANNELS ||
+			dma_ch[channel].chan_status == DMA_CHANNEL_FREE);
 
 	if (callback != NULL) {
 		int ret;
@@ -181,8 +182,8 @@ static void clear_dma_buffer(unsigned int channel)
 void free_dma(unsigned int channel)
 {
 	pr_debug("freedma() : BEGIN \n");
-	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
-	       && channel < MAX_DMA_CHANNELS));
+	BUG_ON(channel >= MAX_DMA_CHANNELS ||
+			dma_ch[channel].chan_status == DMA_CHANNEL_FREE);
 
 	/* Halt the DMA */
 	disable_dma(channel);
@@ -236,6 +237,7 @@ void blackfin_dma_resume(void)
  */
 void __init blackfin_dma_early_init(void)
 {
+	early_shadow_stamp();
 	bfin_write_MDMA_S0_CONFIG(0);
 	bfin_write_MDMA_S1_CONFIG(0);
 }
@@ -246,6 +248,8 @@ void __init early_dma_memcpy(void *pdst, const void *psrc, size_t size)
 	unsigned long src = (unsigned long)psrc;
 	struct dma_register *dst_ch, *src_ch;
 
+	early_shadow_stamp();
+
 	/* We assume that everything is 4 byte aligned, so include
 	 * a basic sanity check
 	 */
@@ -253,31 +257,30 @@ void __init early_dma_memcpy(void *pdst, const void *psrc, size_t size)
 	BUG_ON(src % 4);
 	BUG_ON(size % 4);
 
+	src_ch = 0;
+	/* Find an avalible memDMA channel */
+	while (1) {
+		if (src_ch == (struct dma_register *)MDMA_S0_NEXT_DESC_PTR) {
+			dst_ch = (struct dma_register *)MDMA_D1_NEXT_DESC_PTR;
+			src_ch = (struct dma_register *)MDMA_S1_NEXT_DESC_PTR;
+		} else {
+			dst_ch = (struct dma_register *)MDMA_D0_NEXT_DESC_PTR;
+			src_ch = (struct dma_register *)MDMA_S0_NEXT_DESC_PTR;
+		}
+
+		if (!bfin_read16(&src_ch->cfg))
+			break;
+		else if (bfin_read16(&dst_ch->irq_status) & DMA_DONE) {
+			bfin_write16(&src_ch->cfg, 0);
+			break;
+		}
+	}
+
 	/* Force a sync in case a previous config reset on this channel
 	 * occurred.  This is needed so subsequent writes to DMA registers
 	 * are not spuriously lost/corrupted.
 	 */
 	__builtin_bfin_ssync();
-
-	src_ch = 0;
-	/* Find an avalible memDMA channel */
-	while (1) {
-		if (!src_ch || src_ch == (struct dma_register *)MDMA_S1_NEXT_DESC_PTR) {
-			dst_ch = (struct dma_register *)MDMA_D0_NEXT_DESC_PTR;
-			src_ch = (struct dma_register *)MDMA_S0_NEXT_DESC_PTR;
-		} else {
-			dst_ch = (struct dma_register *)MDMA_D1_NEXT_DESC_PTR;
-			src_ch = (struct dma_register *)MDMA_S1_NEXT_DESC_PTR;
-		}
-
-		if (!bfin_read16(&src_ch->cfg)) {
-			break;
-		} else {
-			if (bfin_read16(&src_ch->irq_status) & DMA_DONE)
-				bfin_write16(&src_ch->cfg, 0);
-		}
-
-	}
 
 	/* Destination */
 	bfin_write32(&dst_ch->start_addr, dst);
@@ -301,6 +304,8 @@ void __init early_dma_memcpy(void *pdst, const void *psrc, size_t size)
 
 void __init early_dma_memcpy_done(void)
 {
+	early_shadow_stamp();
+
 	while ((bfin_read_MDMA_S0_CONFIG() && !(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE)) ||
 	       (bfin_read_MDMA_S1_CONFIG() && !(bfin_read_MDMA_D1_IRQ_STATUS() & DMA_DONE)))
 		continue;

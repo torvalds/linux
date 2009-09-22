@@ -71,7 +71,6 @@ struct iuu_private {
 	spinlock_t lock;	/* store irq state */
 	wait_queue_head_t delta_msr_wait;
 	u8 line_status;
-	u8 termios_initialized;
 	int tiostatus;		/* store IUART SIGNAL for tiocmget call */
 	u8 reset;		/* if 1 reset is needed */
 	int poll;		/* number of poll */
@@ -1018,14 +1017,24 @@ static void iuu_close(struct usb_serial_port *port)
 	}
 }
 
-static int iuu_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void iuu_init_termios(struct tty_struct *tty)
+{
+	*(tty->termios) = tty_std_termios;
+	tty->termios->c_cflag = CLOCAL | CREAD | CS8 | B9600
+				| TIOCM_CTS | CSTOPB | PARENB;
+	tty->termios->c_ispeed = 9600;
+	tty->termios->c_ospeed = 9600;
+	tty->termios->c_lflag = 0;
+	tty->termios->c_oflag = 0;
+	tty->termios->c_iflag = 0;
+}
+
+static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	u8 *buf;
 	int result;
 	u32 actual;
-	unsigned long flags;
 	struct iuu_private *priv = usb_get_serial_port_data(port);
 
 	dbg("%s -  port %d", __func__, port->number);
@@ -1064,21 +1073,7 @@ static int iuu_open(struct tty_struct *tty,
 			  port->bulk_in_buffer, 512,
 			  NULL, NULL);
 
-	/* set the termios structure */
-	spin_lock_irqsave(&priv->lock, flags);
-	if (tty && !priv->termios_initialized) {
-		*(tty->termios) = tty_std_termios;
-		tty->termios->c_cflag = CLOCAL | CREAD | CS8 | B9600
-					| TIOCM_CTS | CSTOPB | PARENB;
-		tty->termios->c_ispeed = 9600;
-		tty->termios->c_ospeed = 9600;
-		tty->termios->c_lflag = 0;
-		tty->termios->c_oflag = 0;
-		tty->termios->c_iflag = 0;
-		priv->termios_initialized = 1;
-		priv->poll = 0;
-	 }
-	spin_unlock_irqrestore(&priv->lock, flags);
+	priv->poll = 0;
 
 	/* initialize writebuf */
 #define FISH(a, b, c, d) do { \
@@ -1201,6 +1196,7 @@ static struct usb_serial_driver iuu_device = {
 	.tiocmget = iuu_tiocmget,
 	.tiocmset = iuu_tiocmset,
 	.set_termios = iuu_set_termios,
+	.init_termios = iuu_init_termios,
 	.attach = iuu_startup,
 	.release = iuu_release,
 };

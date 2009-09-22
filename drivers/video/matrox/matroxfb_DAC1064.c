@@ -454,9 +454,9 @@ static void DAC1064_restore_2(WPMINFO2) {
 	dprintk(KERN_DEBUG "DAC1064regs ");
 	for (i = 0; i < sizeof(MGA1064_DAC_regs); i++) {
 		dprintk("R%02X=%02X ", MGA1064_DAC_regs[i], ACCESS_FBINFO(hw).DACreg[i]);
-		if ((i & 0x7) == 0x7) dprintk("\n" KERN_DEBUG "continuing... ");
+		if ((i & 0x7) == 0x7) dprintk(KERN_DEBUG "continuing... ");
 	}
-	dprintk("\n" KERN_DEBUG "DAC1064clk ");
+	dprintk(KERN_DEBUG "DAC1064clk ");
 	for (i = 0; i < 6; i++)
 		dprintk("C%02X=%02X ", i, ACCESS_FBINFO(hw).DACclk[i]);
 	dprintk("\n");

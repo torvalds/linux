@@ -125,6 +125,7 @@ struct iso_resource {
 	int generation;
 	u64 channels;
 	s32 bandwidth;
+	__be32 transaction_data[2];
 	struct iso_resource_event *e_alloc, *e_dealloc;
 };
 
@@ -1049,7 +1050,8 @@ static void iso_resource_work(struct work_struct *work)
 			r->channels, &channel, &bandwidth,
 			todo == ISO_RES_ALLOC ||
 			todo == ISO_RES_REALLOC ||
-			todo == ISO_RES_ALLOC_ONCE);
+			todo == ISO_RES_ALLOC_ONCE,
+			r->transaction_data);
 	/*
 	 * Is this generation outdated already?  As long as this resource sticks
 	 * in the idr, it will be scheduled again for a newer generation or at

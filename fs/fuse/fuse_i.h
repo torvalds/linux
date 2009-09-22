@@ -25,12 +25,6 @@
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
 
-/** Maximum number of outstanding background requests */
-#define FUSE_MAX_BACKGROUND 12
-
-/** Congestion starts at 75% of maximum */
-#define FUSE_CONGESTION_THRESHOLD (FUSE_MAX_BACKGROUND * 75 / 100)
-
 /** Bias for fi->writectr, meaning new writepages must not be sent */
 #define FUSE_NOWRITE INT_MIN
 
@@ -38,7 +32,7 @@
 #define FUSE_NAME_MAX 1024
 
 /** Number of dentries for each connection in the control filesystem */
-#define FUSE_CTL_NUM_DENTRIES 3
+#define FUSE_CTL_NUM_DENTRIES 5
 
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
@@ -54,6 +48,10 @@ extern struct list_head fuse_conn_list;
 
 /** Global mutex protecting fuse_conn_list and the control filesystem */
 extern struct mutex fuse_mutex;
+
+/** Module parameters */
+extern unsigned max_user_bgreq;
+extern unsigned max_user_congthresh;
 
 /** FUSE inode */
 struct fuse_inode {
@@ -349,6 +347,12 @@ struct fuse_conn {
 	/** rbtree of fuse_files waiting for poll events indexed by ph */
 	struct rb_root polled_files;
 
+	/** Maximum number of outstanding background requests */
+	unsigned max_background;
+
+	/** Number of background requests at which congestion starts */
+	unsigned congestion_threshold;
+
 	/** Number of requests currently in the background */
 	unsigned num_background;
 
@@ -446,6 +450,9 @@ struct fuse_conn {
 	/** Do multi-page cached writes */
 	unsigned big_writes:1;
 
+	/** Don't apply umask to creation modes */
+	unsigned dont_mask:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
@@ -481,6 +488,12 @@ struct fuse_conn {
 
 	/** Called on final put */
 	void (*release)(struct fuse_conn *);
+
+	/** Super block for this connection. */
+	struct super_block *sb;
+
+	/** Read/write semaphore to hold when accessing sb. */
+	struct rw_semaphore killsb;
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
@@ -507,6 +520,11 @@ static inline u64 get_node_id(struct inode *inode)
 extern const struct file_operations fuse_dev_operations;
 
 extern const struct dentry_operations fuse_dentry_operations;
+
+/**
+ * Inode to nodeid comparison.
+ */
+int fuse_inode_eq(struct inode *inode, void *_nodeidp);
 
 /**
  * Get a filled in inode
@@ -707,6 +725,19 @@ void fuse_set_nowrite(struct inode *inode);
 void fuse_release_nowrite(struct inode *inode);
 
 u64 fuse_get_attr_version(struct fuse_conn *fc);
+
+/**
+ * File-system tells the kernel to invalidate cache for the given node id.
+ */
+int fuse_reverse_inval_inode(struct super_block *sb, u64 nodeid,
+			     loff_t offset, loff_t len);
+
+/**
+ * File-system tells the kernel to invalidate parent attributes and
+ * the dentry matching parent/name.
+ */
+int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
+			     struct qstr *name);
 
 int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 		 bool isdir);

@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/major.h>
 #include <linux/fs.h>
@@ -204,7 +205,7 @@ static int cciss_compat_ioctl(struct block_device *, fmode_t,
 			      unsigned, unsigned long);
 #endif
 
-static struct block_device_operations cciss_fops = {
+static const struct block_device_operations cciss_fops = {
 	.owner = THIS_MODULE,
 	.open = cciss_open,
 	.release = cciss_release,
@@ -226,8 +227,18 @@ static inline void addQ(struct hlist_head *list, CommandList_struct *c)
 
 static inline void removeQ(CommandList_struct *c)
 {
-	if (WARN_ON(hlist_unhashed(&c->list)))
+	/*
+	 * After kexec/dump some commands might still
+	 * be in flight, which the firmware will try
+	 * to complete. Resetting the firmware doesn't work
+	 * with old fw revisions, so we have to mark
+	 * them off as 'stale' to prevent the driver from
+	 * falling over.
+	 */
+	if (WARN_ON(hlist_unhashed(&c->list))) {
+		c->cmd_type = CMD_MSG_STALE;
 		return;
+	}
 
 	hlist_del_init(&c->list);
 }
@@ -561,7 +572,7 @@ static struct attribute_group cciss_dev_attr_group = {
 	.attrs = cciss_dev_attrs,
 };
 
-static struct attribute_group *cciss_dev_attr_groups[] = {
+static const struct attribute_group *cciss_dev_attr_groups[] = {
 	&cciss_dev_attr_group,
 	NULL
 };
@@ -3878,7 +3889,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	int j = 0;
 	int rc;
 	int dac, return_code;
-	InquiryData_struct *inq_buff = NULL;
+	InquiryData_struct *inq_buff;
 
 	if (reset_devices) {
 		/* Reset the controller with a PCI power-cycle */
@@ -4018,6 +4029,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 		printk(KERN_WARNING "cciss: unable to determine firmware"
 			" version of controller\n");
 	}
+	kfree(inq_buff);
 
 	cciss_procinit(i);
 
@@ -4034,7 +4046,6 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	return 1;
 
 clean4:
-	kfree(inq_buff);
 	kfree(hba[i]->cmd_pool_bits);
 	if (hba[i]->cmd_pool)
 		pci_free_consistent(hba[i]->pdev,
@@ -4246,7 +4257,8 @@ static void fail_all_cmds(unsigned long ctlr)
 	while (!hlist_empty(&h->cmpQ)) {
 		c = hlist_entry(h->cmpQ.first, CommandList_struct, list);
 		removeQ(c);
-		c->err_info->CommandStatus = CMD_HARDWARE_ERR;
+		if (c->cmd_type != CMD_MSG_STALE)
+			c->err_info->CommandStatus = CMD_HARDWARE_ERR;
 		if (c->cmd_type == CMD_RWREQ) {
 			complete_command(h, c, 0);
 		} else if (c->cmd_type == CMD_IOCTL_PEND)

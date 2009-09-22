@@ -1144,7 +1144,7 @@ static struct attribute_group input_dev_caps_attr_group = {
 	.attrs	= input_dev_caps_attrs,
 };
 
-static struct attribute_group *input_dev_attr_groups[] = {
+static const struct attribute_group *input_dev_attr_groups[] = {
 	&input_dev_attr_group,
 	&input_dev_id_attr_group,
 	&input_dev_caps_attr_group,
@@ -1265,14 +1265,14 @@ static struct device_type input_dev_type = {
 	.uevent		= input_dev_uevent,
 };
 
-static char *input_nodename(struct device *dev)
+static char *input_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "input/%s", dev_name(dev));
 }
 
 struct class input_class = {
 	.name		= "input",
-	.nodename	= input_nodename,
+	.devnode	= input_devnode,
 };
 EXPORT_SYMBOL_GPL(input_class);
 

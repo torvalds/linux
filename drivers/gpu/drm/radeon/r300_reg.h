@@ -27,7 +27,9 @@
 #ifndef _R300_REG_H_
 #define _R300_REG_H_
 
-
+#define R300_SURF_TILE_MACRO (1<<16)
+#define R300_SURF_TILE_MICRO (2<<16)
+#define R300_SURF_TILE_BOTH (3<<16)
 
 
 #define R300_MC_INIT_MISC_LAT_TIMER	0x180

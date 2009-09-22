@@ -36,16 +36,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
-
-#define I915_LVDS "i915_lvds"
-
-/*
- * the following four scaling options are defined.
- * #define DRM_MODE_SCALE_NON_GPU	0
- * #define DRM_MODE_SCALE_FULLSCREEN	1
- * #define DRM_MODE_SCALE_NO_SCALE	2
- * #define DRM_MODE_SCALE_ASPECT	3
- */
+#include <linux/acpi.h>
 
 /* Private structure for the integrated LVDS support */
 struct intel_lvds_priv {
@@ -252,14 +243,14 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 
 	/* Should never happen!! */
 	if (!IS_I965G(dev) && intel_crtc->pipe == 0) {
-		printk(KERN_ERR "Can't support LVDS on pipe A\n");
+		DRM_ERROR("Can't support LVDS on pipe A\n");
 		return false;
 	}
 
 	/* Should never happen!! */
 	list_for_each_entry(tmp_encoder, &dev->mode_config.encoder_list, head) {
 		if (tmp_encoder != encoder && tmp_encoder->crtc == encoder->crtc) {
-			printk(KERN_ERR "Can't enable LVDS and another "
+			DRM_ERROR("Can't enable LVDS and another "
 			       "encoder on the same pipe\n");
 			return false;
 		}
@@ -335,7 +326,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	I915_WRITE(BCLRPAT_B, 0);
 
 	switch (lvds_priv->fitting_mode) {
-	case DRM_MODE_SCALE_NO_SCALE:
+	case DRM_MODE_SCALE_CENTER:
 		/*
 		 * For centered modes, we have to calculate border widths &
 		 * heights and modify the values programmed into the CRTC.
@@ -671,9 +662,8 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				connector->encoder) {
 		struct drm_crtc *crtc = connector->encoder->crtc;
 		struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
-		if (value == DRM_MODE_SCALE_NON_GPU) {
-			DRM_DEBUG_KMS(I915_LVDS,
-					"non_GPU property is unsupported\n");
+		if (value == DRM_MODE_SCALE_NONE) {
+			DRM_DEBUG_KMS("no scaling not supported\n");
 			return 0;
 		}
 		if (lvds_priv->fitting_mode == value) {
@@ -730,8 +720,7 @@ static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
 
 static int __init intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
 {
-	DRM_DEBUG_KMS(I915_LVDS,
-		      "Skipping LVDS initialization for %s\n", id->ident);
+	DRM_DEBUG_KMS("Skipping LVDS initialization for %s\n", id->ident);
 	return 1;
 }
 
@@ -779,6 +768,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
 	},
 	{
 		.callback = intel_no_lvds_dmi_callback,
+		.ident = "AOpen Mini PC MP915",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
+			DMI_MATCH(DMI_BOARD_NAME, "i915GMx-F"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
 		.ident = "Aopen i945GTt-VFA",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "AO00001JW"),
@@ -787,6 +784,65 @@ static const struct dmi_system_id intel_no_lvds[] = {
 
 	{ }	/* terminating entry */
 };
+
+#ifdef CONFIG_ACPI
+/*
+ * check_lid_device -- check whether @handle is an ACPI LID device.
+ * @handle: ACPI device handle
+ * @level : depth in the ACPI namespace tree
+ * @context: the number of LID device when we find the device
+ * @rv: a return value to fill if desired (Not use)
+ */
+static acpi_status
+check_lid_device(acpi_handle handle, u32 level, void *context,
+			void **return_value)
+{
+	struct acpi_device *acpi_dev;
+	int *lid_present = context;
+
+	acpi_dev = NULL;
+	/* Get the acpi device for device handle */
+	if (acpi_bus_get_device(handle, &acpi_dev) || !acpi_dev) {
+		/* If there is no ACPI device for handle, return */
+		return AE_OK;
+	}
+
+	if (!strncmp(acpi_device_hid(acpi_dev), "PNP0C0D", 7))
+		*lid_present = 1;
+
+	return AE_OK;
+}
+
+/**
+ * check whether there exists the ACPI LID device by enumerating the ACPI
+ * device tree.
+ */
+static int intel_lid_present(void)
+{
+	int lid_present = 0;
+
+	if (acpi_disabled) {
+		/* If ACPI is disabled, there is no ACPI device tree to
+		 * check, so assume the LID device would have been present.
+		 */
+		return 1;
+	}
+
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+				ACPI_UINT32_MAX,
+				check_lid_device, &lid_present, NULL);
+
+	return lid_present;
+}
+#else
+static int intel_lid_present(void)
+{
+	/* In the absence of ACPI built in, assume that the LID device would
+	 * have been present.
+	 */
+	return 1;
+}
+#endif
 
 /**
  * intel_lvds_init - setup LVDS connectors on this device
@@ -811,9 +867,23 @@ void intel_lvds_init(struct drm_device *dev)
 	if (dmi_check_system(intel_no_lvds))
 		return;
 
+	/* Assume that any device without an ACPI LID device also doesn't
+	 * have an integrated LVDS.  We would be better off parsing the BIOS
+	 * to get a reliable indicator, but that code isn't written yet.
+	 *
+	 * In the case of all-in-one desktops using LVDS that we've seen,
+	 * they're using SDVO LVDS.
+	 */
+	if (!intel_lid_present())
+		return;
+
 	if (IS_IGDNG(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
 			return;
+		if (dev_priv->edp_support) {
+			DRM_DEBUG("disable LVDS for eDP support\n");
+			return;
+		}
 		gpio = PCH_GPIOC;
 	}
 
@@ -834,6 +904,8 @@ void intel_lvds_init(struct drm_device *dev)
 	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
 	intel_output->type = INTEL_OUTPUT_LVDS;
 
+	intel_output->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
+	intel_output->crtc_mask = (1 << 1);
 	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
@@ -943,7 +1015,7 @@ out:
 	return;
 
 failed:
-	DRM_DEBUG_KMS(I915_LVDS, "No LVDS modes found, disabling.\n");
+	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
 	if (intel_output->ddc_bus)
 		intel_i2c_destroy(intel_output->ddc_bus);
 	drm_connector_cleanup(connector);

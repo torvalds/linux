@@ -542,6 +542,7 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		}
 	}
 	qh->qh_state = QH_STATE_LINKED;
+	qh->xacterrs = 0;
 	qh_get (qh);
 
 	/* update per-qh bandwidth for usbfs */
@@ -1619,11 +1620,14 @@ itd_complete (
 				desc->status = -EPROTO;
 
 			/* HC need not update length with this error */
-			if (!(t & EHCI_ISOC_BABBLE))
-				desc->actual_length = EHCI_ITD_LENGTH (t);
+			if (!(t & EHCI_ISOC_BABBLE)) {
+				desc->actual_length = EHCI_ITD_LENGTH(t);
+				urb->actual_length += desc->actual_length;
+			}
 		} else if (likely ((t & EHCI_ISOC_ACTIVE) == 0)) {
 			desc->status = 0;
-			desc->actual_length = EHCI_ITD_LENGTH (t);
+			desc->actual_length = EHCI_ITD_LENGTH(t);
+			urb->actual_length += desc->actual_length;
 		} else {
 			/* URB was too late */
 			desc->status = -EXDEV;
@@ -2014,7 +2018,8 @@ sitd_complete (
 			desc->status = -EPROTO;
 	} else {
 		desc->status = 0;
-		desc->actual_length = desc->length - SITD_LENGTH (t);
+		desc->actual_length = desc->length - SITD_LENGTH(t);
+		urb->actual_length += desc->actual_length;
 	}
 	stream->depth -= stream->interval << 3;
 

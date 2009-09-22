@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 
 #include <mach/common.h>
 #include <mach/prcm.h>
@@ -27,6 +28,8 @@
 
 static void __iomem *prm_base;
 static void __iomem *cm_base;
+
+#define MAX_MODULE_ENABLE_WAIT		100000
 
 u32 omap_prcm_get_reset_sources(void)
 {
@@ -119,6 +122,46 @@ u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
 	return v;
 }
 EXPORT_SYMBOL(cm_rmw_mod_reg_bits);
+
+/**
+ * omap2_cm_wait_idlest - wait for IDLEST bit to indicate module readiness
+ * @reg: physical address of module IDLEST register
+ * @mask: value to mask against to determine if the module is active
+ * @name: name of the clock (for printk)
+ *
+ * Returns 1 if the module indicated readiness in time, or 0 if it
+ * failed to enable in roughly MAX_MODULE_ENABLE_WAIT microseconds.
+ */
+int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, const char *name)
+{
+	int i = 0;
+	int ena = 0;
+
+	/*
+	 * 24xx uses 0 to indicate not ready, and 1 to indicate ready.
+	 * 34xx reverses this, just to keep us on our toes
+	 */
+	if (cpu_is_omap24xx())
+		ena = mask;
+	else if (cpu_is_omap34xx())
+		ena = 0;
+	else
+		BUG();
+
+	/* Wait for lock */
+	while (((__raw_readl(reg) & mask) != ena) &&
+	       (i++ < MAX_MODULE_ENABLE_WAIT))
+		udelay(1);
+
+	if (i < MAX_MODULE_ENABLE_WAIT)
+		pr_debug("cm: Module associated with clock %s ready after %d "
+			 "loops\n", name, i);
+	else
+		pr_err("cm: Module associated with clock %s didn't enable in "
+		       "%d tries\n", name, MAX_MODULE_ENABLE_WAIT);
+
+	return (i < MAX_MODULE_ENABLE_WAIT) ? 1 : 0;
+};
 
 void __init omap2_set_globals_prcm(struct omap_globals *omap2_globals)
 {

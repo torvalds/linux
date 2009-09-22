@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
@@ -205,9 +204,6 @@ static const struct net_device_ops au1k_irda_netdev_ops = {
 	.ndo_start_xmit		= au1k_irda_hard_xmit,
 	.ndo_tx_timeout		= au1k_tx_timeout,
 	.ndo_do_ioctl		= au1k_irda_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= eth_mac_addr,
 };
 
 static int au1k_irda_net_init(struct net_device *dev)
@@ -502,7 +498,7 @@ static int au1k_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 			aup->newspeed = 0;
 		}
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	ptxd = aup->tx_ring[aup->tx_head];
@@ -555,7 +551,7 @@ static int au1k_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb(skb);
 	aup->tx_head = (aup->tx_head + 1) & (NUM_IR_DESC - 1);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

@@ -516,8 +516,6 @@ static void hvc_set_winsz(struct work_struct *work)
 	struct winsize ws;
 
 	hp = container_of(work, struct hvc_struct, tty_resize);
-	if (!hp)
-		return;
 
 	spin_lock_irqsave(&hp->lock, hvc_flags);
 	if (!hp->tty) {
@@ -552,7 +550,7 @@ static int hvc_chars_in_buffer(struct tty_struct *tty)
 	struct hvc_struct *hp = tty->driver_data;
 
 	if (!hp)
-		return -1;
+		return 0;
 	return hp->n_outbuf;
 }
 

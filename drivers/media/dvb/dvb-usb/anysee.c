@@ -203,11 +203,11 @@ static struct i2c_algorithm anysee_i2c_algo = {
 
 static int anysee_mt352_demod_init(struct dvb_frontend *fe)
 {
-	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x28 };
-	static u8 reset []         = { RESET,      0x80 };
-	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
-	static u8 agc_cfg []       = { AGC_TARGET, 0x28, 0x20 };
-	static u8 gpp_ctl_cfg []   = { GPP_CTL,    0x33 };
+	static u8 clock_config[]   = { CLOCK_CTL,  0x38, 0x28 };
+	static u8 reset[]          = { RESET,      0x80 };
+	static u8 adc_ctl_1_cfg[]  = { ADC_CTL_1,  0x40 };
+	static u8 agc_cfg[]        = { AGC_TARGET, 0x28, 0x20 };
+	static u8 gpp_ctl_cfg[]    = { GPP_CTL,    0x33 };
 	static u8 capt_range_cfg[] = { CAPT_RANGE, 0x32 };
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
@@ -389,8 +389,8 @@ static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*state = REMOTE_NO_KEY_PRESSED;
 
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (keymap[i].custom == ircode[0] &&
-		    keymap[i].data == ircode[1]) {
+		if (rc5_custom(&keymap[i]) == ircode[0] &&
+		    rc5_data(&keymap[i]) == ircode[1]) {
 			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 			return 0;
@@ -400,50 +400,50 @@ static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 }
 
 static struct dvb_usb_rc_key anysee_rc_keys[] = {
-	{ 0x01, 0x00, KEY_0 },
-	{ 0x01, 0x01, KEY_1 },
-	{ 0x01, 0x02, KEY_2 },
-	{ 0x01, 0x03, KEY_3 },
-	{ 0x01, 0x04, KEY_4 },
-	{ 0x01, 0x05, KEY_5 },
-	{ 0x01, 0x06, KEY_6 },
-	{ 0x01, 0x07, KEY_7 },
-	{ 0x01, 0x08, KEY_8 },
-	{ 0x01, 0x09, KEY_9 },
-	{ 0x01, 0x0a, KEY_POWER },
-	{ 0x01, 0x0b, KEY_DOCUMENTS },    /* * */
-	{ 0x01, 0x19, KEY_FAVORITES },
-	{ 0x01, 0x20, KEY_SLEEP },
-	{ 0x01, 0x21, KEY_MODE },         /* 4:3 / 16:9 select */
-	{ 0x01, 0x22, KEY_ZOOM },
-	{ 0x01, 0x47, KEY_TEXT },
-	{ 0x01, 0x16, KEY_TV },           /* TV / radio select */
-	{ 0x01, 0x1e, KEY_LANGUAGE },     /* Second Audio Program */
-	{ 0x01, 0x1a, KEY_SUBTITLE },
-	{ 0x01, 0x1b, KEY_CAMERA },       /* screenshot */
-	{ 0x01, 0x42, KEY_MUTE },
-	{ 0x01, 0x0e, KEY_MENU },
-	{ 0x01, 0x0f, KEY_EPG },
-	{ 0x01, 0x17, KEY_INFO },
-	{ 0x01, 0x10, KEY_EXIT },
-	{ 0x01, 0x13, KEY_VOLUMEUP },
-	{ 0x01, 0x12, KEY_VOLUMEDOWN },
-	{ 0x01, 0x11, KEY_CHANNELUP },
-	{ 0x01, 0x14, KEY_CHANNELDOWN },
-	{ 0x01, 0x15, KEY_OK },
-	{ 0x01, 0x1d, KEY_RED },
-	{ 0x01, 0x1f, KEY_GREEN },
-	{ 0x01, 0x1c, KEY_YELLOW },
-	{ 0x01, 0x44, KEY_BLUE },
-	{ 0x01, 0x0c, KEY_SHUFFLE },      /* snapshot */
-	{ 0x01, 0x48, KEY_STOP },
-	{ 0x01, 0x50, KEY_PLAY },
-	{ 0x01, 0x51, KEY_PAUSE },
-	{ 0x01, 0x49, KEY_RECORD },
-	{ 0x01, 0x18, KEY_PREVIOUS },     /* |<< */
-	{ 0x01, 0x0d, KEY_NEXT },         /* >>| */
-	{ 0x01, 0x24, KEY_PROG1 },        /* F1 */
-	{ 0x01, 0x25, KEY_PROG2 },        /* F2 */
+	{ 0x0100, KEY_0 },
+	{ 0x0101, KEY_1 },
+	{ 0x0102, KEY_2 },
+	{ 0x0103, KEY_3 },
+	{ 0x0104, KEY_4 },
+	{ 0x0105, KEY_5 },
+	{ 0x0106, KEY_6 },
+	{ 0x0107, KEY_7 },
+	{ 0x0108, KEY_8 },
+	{ 0x0109, KEY_9 },
+	{ 0x010a, KEY_POWER },
+	{ 0x010b, KEY_DOCUMENTS },    /* * */
+	{ 0x0119, KEY_FAVORITES },
+	{ 0x0120, KEY_SLEEP },
+	{ 0x0121, KEY_MODE },         /* 4:3 / 16:9 select */
+	{ 0x0122, KEY_ZOOM },
+	{ 0x0147, KEY_TEXT },
+	{ 0x0116, KEY_TV },           /* TV / radio select */
+	{ 0x011e, KEY_LANGUAGE },     /* Second Audio Program */
+	{ 0x011a, KEY_SUBTITLE },
+	{ 0x011b, KEY_CAMERA },       /* screenshot */
+	{ 0x0142, KEY_MUTE },
+	{ 0x010e, KEY_MENU },
+	{ 0x010f, KEY_EPG },
+	{ 0x0117, KEY_INFO },
+	{ 0x0110, KEY_EXIT },
+	{ 0x0113, KEY_VOLUMEUP },
+	{ 0x0112, KEY_VOLUMEDOWN },
+	{ 0x0111, KEY_CHANNELUP },
+	{ 0x0114, KEY_CHANNELDOWN },
+	{ 0x0115, KEY_OK },
+	{ 0x011d, KEY_RED },
+	{ 0x011f, KEY_GREEN },
+	{ 0x011c, KEY_YELLOW },
+	{ 0x0144, KEY_BLUE },
+	{ 0x010c, KEY_SHUFFLE },      /* snapshot */
+	{ 0x0148, KEY_STOP },
+	{ 0x0150, KEY_PLAY },
+	{ 0x0151, KEY_PAUSE },
+	{ 0x0149, KEY_RECORD },
+	{ 0x0118, KEY_PREVIOUS },     /* |<< */
+	{ 0x010d, KEY_NEXT },         /* >>| */
+	{ 0x0124, KEY_PROG1 },        /* F1 */
+	{ 0x0125, KEY_PROG2 },        /* F2 */
 };
 
 /* DVB USB Driver stuff */
@@ -485,7 +485,7 @@ static int anysee_probe(struct usb_interface *intf,
 	return ret;
 }
 
-static struct usb_device_id anysee_table [] = {
+static struct usb_device_id anysee_table[] = {
 	{ USB_DEVICE(USB_VID_CYPRESS, USB_PID_ANYSEE) },
 	{ USB_DEVICE(USB_VID_AMT,     USB_PID_ANYSEE) },
 	{ }		/* Terminating entry */
@@ -511,7 +511,7 @@ static struct dvb_usb_device_properties anysee_properties = {
 				.endpoint = 0x82,
 				.u = {
 					.bulk = {
-						.buffersize = 512,
+						.buffersize = (16*512),
 					}
 				}
 			},

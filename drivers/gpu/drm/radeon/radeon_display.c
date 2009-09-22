@@ -158,9 +158,6 @@ static void radeon_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
-	if (radeon_crtc->mode_set.mode) {
-		drm_mode_destroy(crtc->dev, radeon_crtc->mode_set.mode);
-	}
 	drm_crtc_cleanup(crtc);
 	kfree(radeon_crtc);
 }
@@ -187,10 +184,13 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 
 	drm_mode_crtc_set_gamma_size(&radeon_crtc->base, 256);
 	radeon_crtc->crtc_id = index;
+	rdev->mode_info.crtcs[index] = radeon_crtc;
 
+#if 0
 	radeon_crtc->mode_set.crtc = &radeon_crtc->base;
 	radeon_crtc->mode_set.connectors = (struct drm_connector **)(radeon_crtc + 1);
 	radeon_crtc->mode_set.num_connectors = 0;
+#endif
 
 	for (i = 0; i < 256; i++) {
 		radeon_crtc->lut_r[i] = i << 2;
@@ -312,7 +312,7 @@ static void radeon_print_display_setup(struct drm_device *dev)
 	}
 }
 
-bool radeon_setup_enc_conn(struct drm_device *dev)
+static bool radeon_setup_enc_conn(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *drm_connector;
@@ -346,9 +346,13 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 
 	if (!radeon_connector->ddc_bus)
 		return -1;
-	radeon_i2c_do_lock(radeon_connector, 1);
-	edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
-	radeon_i2c_do_lock(radeon_connector, 0);
+	if (!radeon_connector->edid) {
+		radeon_i2c_do_lock(radeon_connector, 1);
+		edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
+		radeon_i2c_do_lock(radeon_connector, 0);
+	} else
+		edid = radeon_connector->edid;
+
 	if (edid) {
 		/* update digital bits here */
 		if (edid->input & DRM_EDID_INPUT_DIGITAL)
@@ -361,7 +365,7 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 		return ret;
 	}
 	drm_mode_connector_update_edid_property(&radeon_connector->base, NULL);
-	return -1;
+	return 0;
 }
 
 static int radeon_ddc_dump(struct drm_connector *connector)
@@ -491,7 +495,11 @@ void radeon_compute_pll(struct radeon_pll *pll,
 					tmp += (uint64_t)pll->reference_freq * 1000 * frac_feedback_div;
 					current_freq = radeon_div(tmp, ref_div * post_div);
 
-					error = abs(current_freq - freq);
+					if (flags & RADEON_PLL_PREFER_CLOSEST_LOWER) {
+						error = freq - current_freq;
+						error = error < 0 ? 0xffffffff : error;
+					} else
+						error = abs(current_freq - freq);
 					vco_diff = abs(vco - best_vco);
 
 					if ((best_vco == 0 && error < best_error) ||
@@ -615,6 +623,83 @@ static const struct drm_mode_config_funcs radeon_mode_funcs = {
 	.fb_changed = radeonfb_probe,
 };
 
+struct drm_prop_enum_list {
+	int type;
+	char *name;
+};
+
+static struct drm_prop_enum_list radeon_tmds_pll_enum_list[] =
+{	{ 0, "driver" },
+	{ 1, "bios" },
+};
+
+static struct drm_prop_enum_list radeon_tv_std_enum_list[] =
+{	{ TV_STD_NTSC, "ntsc" },
+	{ TV_STD_PAL, "pal" },
+	{ TV_STD_PAL_M, "pal-m" },
+	{ TV_STD_PAL_60, "pal-60" },
+	{ TV_STD_NTSC_J, "ntsc-j" },
+	{ TV_STD_SCART_PAL, "scart-pal" },
+	{ TV_STD_PAL_CN, "pal-cn" },
+	{ TV_STD_SECAM, "secam" },
+};
+
+int radeon_modeset_create_props(struct radeon_device *rdev)
+{
+	int i, sz;
+
+	if (rdev->is_atom_bios) {
+		rdev->mode_info.coherent_mode_property =
+			drm_property_create(rdev->ddev,
+					    DRM_MODE_PROP_RANGE,
+					    "coherent", 2);
+		if (!rdev->mode_info.coherent_mode_property)
+			return -ENOMEM;
+
+		rdev->mode_info.coherent_mode_property->values[0] = 0;
+		rdev->mode_info.coherent_mode_property->values[0] = 1;
+	}
+
+	if (!ASIC_IS_AVIVO(rdev)) {
+		sz = ARRAY_SIZE(radeon_tmds_pll_enum_list);
+		rdev->mode_info.tmds_pll_property =
+			drm_property_create(rdev->ddev,
+					    DRM_MODE_PROP_ENUM,
+					    "tmds_pll", sz);
+		for (i = 0; i < sz; i++) {
+			drm_property_add_enum(rdev->mode_info.tmds_pll_property,
+					      i,
+					      radeon_tmds_pll_enum_list[i].type,
+					      radeon_tmds_pll_enum_list[i].name);
+		}
+	}
+
+	rdev->mode_info.load_detect_property =
+		drm_property_create(rdev->ddev,
+				    DRM_MODE_PROP_RANGE,
+				    "load detection", 2);
+	if (!rdev->mode_info.load_detect_property)
+		return -ENOMEM;
+	rdev->mode_info.load_detect_property->values[0] = 0;
+	rdev->mode_info.load_detect_property->values[0] = 1;
+
+	drm_mode_create_scaling_mode_property(rdev->ddev);
+
+	sz = ARRAY_SIZE(radeon_tv_std_enum_list);
+	rdev->mode_info.tv_std_property =
+		drm_property_create(rdev->ddev,
+				    DRM_MODE_PROP_ENUM,
+				    "tv standard", sz);
+	for (i = 0; i < sz; i++) {
+		drm_property_add_enum(rdev->mode_info.tv_std_property,
+				      i,
+				      radeon_tv_std_enum_list[i].type,
+				      radeon_tv_std_enum_list[i].name);
+	}
+
+	return 0;
+}
+
 int radeon_modeset_init(struct radeon_device *rdev)
 {
 	int num_crtc = 2, i;
@@ -635,6 +720,10 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 	rdev->ddev->mode_config.fb_base = rdev->mc.aper_base;
 
+	ret = radeon_modeset_create_props(rdev);
+	if (ret) {
+		return ret;
+	}
 	/* allocate crtcs - TODO single crtc */
 	for (i = 0; i < num_crtc; i++) {
 		radeon_crtc_init(rdev->ddev, i);
@@ -657,36 +746,50 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 	}
 }
 
-void radeon_init_disp_bandwidth(struct drm_device *dev)
+bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
 {
-	struct radeon_device *rdev = dev->dev_private;
-	struct drm_display_mode *modes[2];
-	int pixel_bytes[2];
-	struct drm_crtc *crtc;
+	struct drm_device *dev = crtc->dev;
+	struct drm_encoder *encoder;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct radeon_encoder *radeon_encoder;
+	bool first = true;
 
-	pixel_bytes[0] = pixel_bytes[1] = 0;
-	modes[0] = modes[1] = NULL;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-
-		if (crtc->enabled && crtc->fb) {
-			modes[radeon_crtc->crtc_id] = &crtc->mode;
-			pixel_bytes[radeon_crtc->crtc_id] = crtc->fb->bits_per_pixel / 8;
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		radeon_encoder = to_radeon_encoder(encoder);
+		if (encoder->crtc != crtc)
+			continue;
+		if (first) {
+			radeon_crtc->rmx_type = radeon_encoder->rmx_type;
+			memcpy(&radeon_crtc->native_mode,
+				&radeon_encoder->native_mode,
+				sizeof(struct radeon_native_mode));
+			first = false;
+		} else {
+			if (radeon_crtc->rmx_type != radeon_encoder->rmx_type) {
+				/* WARNING: Right now this can't happen but
+				 * in the future we need to check that scaling
+				 * are consistent accross different encoder
+				 * (ie all encoder can work with the same
+				 *  scaling).
+				 */
+				DRM_ERROR("Scaling not consistent accross encoder.\n");
+				return false;
+			}
 		}
 	}
-
-	if (ASIC_IS_AVIVO(rdev)) {
-		radeon_init_disp_bw_avivo(dev,
-					  modes[0],
-					  pixel_bytes[0],
-					  modes[1],
-					  pixel_bytes[1]);
+	if (radeon_crtc->rmx_type != RMX_OFF) {
+		fixed20_12 a, b;
+		a.full = rfixed_const(crtc->mode.vdisplay);
+		b.full = rfixed_const(radeon_crtc->native_mode.panel_xres);
+		radeon_crtc->vsc.full = rfixed_div(a, b);
+		a.full = rfixed_const(crtc->mode.hdisplay);
+		b.full = rfixed_const(radeon_crtc->native_mode.panel_yres);
+		radeon_crtc->hsc.full = rfixed_div(a, b);
 	} else {
-		radeon_init_disp_bw_legacy(dev,
-					   modes[0],
-					   pixel_bytes[0],
-					   modes[1],
-					   pixel_bytes[1]);
+		radeon_crtc->vsc.full = rfixed_const(1);
+		radeon_crtc->hsc.full = rfixed_const(1);
 	}
+	return true;
 }

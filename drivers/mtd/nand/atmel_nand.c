@@ -534,7 +534,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 							 &num_partitions);
 
 	if ((!partitions) || (num_partitions == 0)) {
-		printk(KERN_ERR "atmel_nand: No parititions defined, or unsupported device.\n");
+		printk(KERN_ERR "atmel_nand: No partitions defined, or unsupported device.\n");
 		res = ENXIO;
 		goto err_no_partitions;
 	}

@@ -38,6 +38,7 @@
 #include <linux/buffer_head.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/stat.h>
 #include <linux/vfs.h>
 #include <linux/mount.h>

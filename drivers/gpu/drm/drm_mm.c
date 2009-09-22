@@ -44,6 +44,7 @@
 #include "drmP.h"
 #include "drm_mm.h"
 #include <linux/slab.h>
+#include <linux/seq_file.h>
 
 #define MM_UNUSED_TARGET 4
 
@@ -370,3 +371,23 @@ void drm_mm_takedown(struct drm_mm * mm)
 	BUG_ON(mm->num_unused != 0);
 }
 EXPORT_SYMBOL(drm_mm_takedown);
+
+#if defined(CONFIG_DEBUG_FS)
+int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm)
+{
+	struct drm_mm_node *entry;
+	int total_used = 0, total_free = 0, total = 0;
+
+	list_for_each_entry(entry, &mm->ml_entry, ml_entry) {
+		seq_printf(m, "0x%08lx-0x%08lx: 0x%08lx: %s\n", entry->start, entry->start + entry->size, entry->size, entry->free ? "free" : "used");
+		total += entry->size;
+		if (entry->free)
+			total_free += entry->size;
+		else
+			total_used += entry->size;
+	}
+	seq_printf(m, "total: %d, used %d free %d\n", total, total_free, total_used);
+	return 0;
+}
+EXPORT_SYMBOL(drm_mm_dump_table);
+#endif

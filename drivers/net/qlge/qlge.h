@@ -1287,12 +1287,11 @@ struct rx_ring {
 	u32 sbq_free_cnt;	/* free buffer desc cnt */
 
 	/* Misc. handler elements. */
-	u32 type;		/* Type of queue, tx, rx, or default. */
+	u32 type;		/* Type of queue, tx, rx. */
 	u32 irq;		/* Which vector this ring is assigned. */
 	u32 cpu;		/* Which CPU this should run on. */
 	char name[IFNAMSIZ + 5];
 	struct napi_struct napi;
-	struct delayed_work rx_work;
 	u8 reserved;
 	struct ql_adapter *qdev;
 };
@@ -1366,6 +1365,7 @@ struct nic_stats {
 struct intr_context {
 	struct ql_adapter *qdev;
 	u32 intr;
+	u32 irq_mask;		/* Mask of which rings the vector services. */
 	u32 hooked;
 	u32 intr_en_mask;	/* value/mask used to enable this intr */
 	u32 intr_dis_mask;	/* value/mask used to disable this intr */
@@ -1486,13 +1486,11 @@ struct ql_adapter {
 	struct intr_context intr_context[MAX_RX_RINGS];
 
 	int tx_ring_count;	/* One per online CPU. */
-	u32 rss_ring_first_cq_id;/* index of first inbound (rss) rx_ring */
-	u32 rss_ring_count;	/* One per online CPU.  */
+	u32 rss_ring_count;	/* One per irq vector.  */
 	/*
 	 * rx_ring_count =
-	 *  one default queue +
 	 *  (CPU count * outbound completion rx_ring) +
-	 *  (CPU count * inbound (RSS) completion rx_ring)
+	 *  (irq_vector_cnt * inbound (RSS) completion rx_ring)
 	 */
 	int rx_ring_count;
 	int ring_mem_size;
@@ -1519,7 +1517,6 @@ struct ql_adapter {
 	union flash_params flash;
 
 	struct net_device_stats stats;
-	struct workqueue_struct *q_workqueue;
 	struct workqueue_struct *workqueue;
 	struct delayed_work asic_reset_work;
 	struct delayed_work mpi_reset_work;
@@ -1607,6 +1604,8 @@ int ql_mb_get_fw_state(struct ql_adapter *qdev);
 int ql_cam_route_initialize(struct ql_adapter *qdev);
 int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data);
 int ql_mb_about_fw(struct ql_adapter *qdev);
+void ql_link_on(struct ql_adapter *qdev);
+void ql_link_off(struct ql_adapter *qdev);
 
 #if 1
 #define QL_ALL_DUMP

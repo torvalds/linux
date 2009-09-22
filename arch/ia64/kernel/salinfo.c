@@ -192,7 +192,7 @@ struct salinfo_platform_oemdata_parms {
 static void
 salinfo_work_to_do(struct salinfo_data *data)
 {
-	down_trylock(&data->mutex);
+	(void)(down_trylock(&data->mutex) ?: 0);
 	up(&data->mutex);
 }
 

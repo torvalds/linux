@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
 #include "../pci.h"
@@ -247,11 +246,6 @@ static int board_added(struct slot *p_slot)
 		goto err_exit;
 	}
 
-	/*
-	 * Some PCI Express root ports require fixup after hot-plug operation.
-	 */
-	if (pcie_mch_quirk)
-		pci_fixup_device(pci_fixup_final, ctrl->pci_dev);
 	if (PWR_LED(ctrl))
   		p_slot->hpc_ops->green_led_on(p_slot);
 

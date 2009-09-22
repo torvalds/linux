@@ -10,17 +10,13 @@
 #define _ASM_MICROBLAZE_IRQ_H
 
 #define NR_IRQS 32
+#include <asm-generic/irq.h>
 
 #include <linux/interrupt.h>
 
 extern unsigned int nr_irq;
 
 #define NO_IRQ (-1)
-
-static inline int irq_canonicalize(int irq)
-{
-	return irq;
-}
 
 struct pt_regs;
 extern void do_IRQ(struct pt_regs *regs);

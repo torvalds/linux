@@ -547,17 +547,18 @@ static void lance_tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t lance_start_xmit (struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 	volatile struct lance_init_block *ib = lp->init_block;
 	int entry, skblen;
-	int status = 0;
+	int status = NETDEV_TX_OK;
 	unsigned long flags;
 
 	if (skb_padto(skb, ETH_ZLEN))
-		return 0;
+		return NETDEV_TX_OK;
 	skblen = max_t(unsigned, skb->len, ETH_ZLEN);
 
 	local_irq_save(flags);
@@ -569,16 +570,8 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 #ifdef DEBUG_DRIVER
 	/* dump the packet */
-	{
-		int i;
-
-		for (i = 0; i < 64; i++) {
-			if ((i % 16) == 0)
-				printk("\n" KERN_DEBUG);
-			printk ("%2.2x ", skb->data [i]);
-		}
-		printk("\n");
-	}
+	print_hex_dump(KERN_DEBUG, "skb->data: ", DUMP_PREFIX_NONE,
+		       16, 1, skb->data, 64, true);
 #endif
 	entry = lp->tx_new & lp->tx_ring_mod_mask;
 	ib->btx_ring [entry].length = (-skblen) | 0xf000;

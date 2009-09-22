@@ -1,9 +1,19 @@
 /*
- * Copyright (c) 2006, Intel Corporation.
+ * Copyright © 2006-2009, Intel Corporation.
  *
- * This file is released under the GPLv2.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * Copyright (C) 2006-2008 Intel Corporation
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+ * Place - Suite 330, Boston, MA 02111-1307 USA.
+ *
  * Author: Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
  */
 
@@ -123,7 +133,15 @@ move_left:
 	/* Insert the new_iova into domain rbtree by holding writer lock */
 	/* Add new node and rebalance tree. */
 	{
-		struct rb_node **entry = &((prev)), *parent = NULL;
+		struct rb_node **entry, *parent = NULL;
+
+		/* If we have 'prev', it's a valid place to start the
+		   insertion. Otherwise, start from the root. */
+		if (prev)
+			entry = &prev;
+		else
+			entry = &iovad->rbroot.rb_node;
+
 		/* Figure out where to put new node */
 		while (*entry) {
 			struct iova *this = container_of(*entry,

@@ -68,6 +68,10 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	unsigned long flags;
 	struct resource *root;
 	int max_root_bus_resources = PCI_BUS_NUM_RESOURCES;
+	u64 start, end;
+
+	if (bus_has_transparent_bridge(info->bus))
+		max_root_bus_resources -= 3;
 
 	status = resource_to_addr(acpi_res, &addr);
 	if (!ACPI_SUCCESS(status))
@@ -84,24 +88,23 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	} else
 		return AE_OK;
 
-	res = &info->res[info->res_num];
-	res->name = info->name;
-	res->flags = flags;
-	res->start = addr.minimum + addr.translation_offset;
-	res->end = res->start + addr.address_length - 1;
-	res->child = NULL;
-
-	if (bus_has_transparent_bridge(info->bus))
-		max_root_bus_resources -= 3;
+	start = addr.minimum + addr.translation_offset;
+	end = start + addr.address_length - 1;
 	if (info->res_num >= max_root_bus_resources) {
 		printk(KERN_WARNING "PCI: Failed to allocate 0x%lx-0x%lx "
 			"from %s for %s due to _CRS returning more than "
-			"%d resource descriptors\n", (unsigned long) res->start,
-			(unsigned long) res->end, root->name, info->name,
+			"%d resource descriptors\n", (unsigned long) start,
+			(unsigned long) end, root->name, info->name,
 			max_root_bus_resources);
-		info->res_num++;
 		return AE_OK;
 	}
+
+	res = &info->res[info->res_num];
+	res->name = info->name;
+	res->flags = flags;
+	res->start = start;
+	res->end = end;
+	res->child = NULL;
 
 	if (insert_resource(root, res)) {
 		printk(KERN_ERR "PCI: Failed to allocate 0x%lx-0x%lx "
@@ -112,23 +115,6 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 		info->res_num++;
 	}
 	return AE_OK;
-}
-
-static void
-adjust_transparent_bridge_resources(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		int i;
-		u16 class = dev->class >> 8;
-
-		if (class == PCI_CLASS_BRIDGE_PCI && dev->transparent) {
-			for(i = 3; i < PCI_BUS_NUM_RESOURCES; i++)
-				dev->subordinate->resource[i] =
-						dev->bus->resource[i - 3];
-		}
-	}
 }
 
 static void
@@ -158,8 +144,6 @@ get_current_resources(struct acpi_device *device, int busnum,
 	info.res_num = 0;
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, setup_resource,
 				&info);
-	if (info.res_num)
-		adjust_transparent_bridge_resources(bus);
 
 	return;
 
@@ -222,8 +206,15 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 		 */
 		memcpy(bus->sysdata, sd, sizeof(*sd));
 		kfree(sd);
-	} else
-		bus = pci_scan_bus_parented(NULL, busnum, &pci_root_ops, sd);
+	} else {
+		bus = pci_create_bus(NULL, busnum, &pci_root_ops, sd);
+		if (bus) {
+			if (pci_probe & PCI_USE__CRS)
+				get_current_resources(device, busnum, domain,
+							bus);
+			bus->subordinate = pci_scan_child_bus(bus);
+		}
+	}
 
 	if (!bus)
 		kfree(sd);
@@ -238,8 +229,6 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 #endif
 	}
 
-	if (bus && (pci_probe & PCI_USE__CRS))
-		get_current_resources(device, busnum, domain, bus);
 	return bus;
 }
 

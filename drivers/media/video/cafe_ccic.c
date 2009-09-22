@@ -490,7 +490,6 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	int ret;
 
 	cafe_smbus_enable_irq(cam);
-	adap->id = I2C_HW_SMBUS_CAFE;
 	adap->owner = THIS_MODULE;
 	adap->algo = &cafe_smbus_algo;
 	strcpy(adap->name, "cafe_ccic");
@@ -1956,7 +1955,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 
 	cam->sensor_addr = 0x42;
 	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, &cam->i2c_adapter,
-			"ov7670", "ov7670", cam->sensor_addr);
+			"ov7670", "ov7670", cam->sensor_addr, NULL);
 	if (cam->sensor == NULL) {
 		ret = -ENODEV;
 		goto out_smbus;

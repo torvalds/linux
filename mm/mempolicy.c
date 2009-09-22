@@ -191,25 +191,27 @@ static int mpol_new_bind(struct mempolicy *pol, const nodemask_t *nodes)
  * Must be called holding task's alloc_lock to protect task's mems_allowed
  * and mempolicy.  May also be called holding the mmap_semaphore for write.
  */
-static int mpol_set_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
+static int mpol_set_nodemask(struct mempolicy *pol,
+		     const nodemask_t *nodes, struct nodemask_scratch *nsc)
 {
-	nodemask_t cpuset_context_nmask;
 	int ret;
 
 	/* if mode is MPOL_DEFAULT, pol is NULL. This is right. */
 	if (pol == NULL)
 		return 0;
+	/* Check N_HIGH_MEMORY */
+	nodes_and(nsc->mask1,
+		  cpuset_current_mems_allowed, node_states[N_HIGH_MEMORY]);
 
 	VM_BUG_ON(!nodes);
 	if (pol->mode == MPOL_PREFERRED && nodes_empty(*nodes))
 		nodes = NULL;	/* explicit local allocation */
 	else {
 		if (pol->flags & MPOL_F_RELATIVE_NODES)
-			mpol_relative_nodemask(&cpuset_context_nmask, nodes,
-					       &cpuset_current_mems_allowed);
+			mpol_relative_nodemask(&nsc->mask2, nodes,&nsc->mask1);
 		else
-			nodes_and(cpuset_context_nmask, *nodes,
-				  cpuset_current_mems_allowed);
+			nodes_and(nsc->mask2, *nodes, nsc->mask1);
+
 		if (mpol_store_user_nodemask(pol))
 			pol->w.user_nodemask = *nodes;
 		else
@@ -217,8 +219,10 @@ static int mpol_set_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
 						cpuset_current_mems_allowed;
 	}
 
-	ret = mpol_ops[pol->mode].create(pol,
-				nodes ? &cpuset_context_nmask : NULL);
+	if (nodes)
+		ret = mpol_ops[pol->mode].create(pol, &nsc->mask2);
+	else
+		ret = mpol_ops[pol->mode].create(pol, NULL);
 	return ret;
 }
 
@@ -620,12 +624,17 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 {
 	struct mempolicy *new, *old;
 	struct mm_struct *mm = current->mm;
+	NODEMASK_SCRATCH(scratch);
 	int ret;
 
-	new = mpol_new(mode, flags, nodes);
-	if (IS_ERR(new))
-		return PTR_ERR(new);
+	if (!scratch)
+		return -ENOMEM;
 
+	new = mpol_new(mode, flags, nodes);
+	if (IS_ERR(new)) {
+		ret = PTR_ERR(new);
+		goto out;
+	}
 	/*
 	 * prevent changing our mempolicy while show_numa_maps()
 	 * is using it.
@@ -635,13 +644,13 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 	if (mm)
 		down_write(&mm->mmap_sem);
 	task_lock(current);
-	ret = mpol_set_nodemask(new, nodes);
+	ret = mpol_set_nodemask(new, nodes, scratch);
 	if (ret) {
 		task_unlock(current);
 		if (mm)
 			up_write(&mm->mmap_sem);
 		mpol_put(new);
-		return ret;
+		goto out;
 	}
 	old = current->mempolicy;
 	current->mempolicy = new;
@@ -654,7 +663,10 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 		up_write(&mm->mmap_sem);
 
 	mpol_put(old);
-	return 0;
+	ret = 0;
+out:
+	NODEMASK_SCRATCH_FREE(scratch);
+	return ret;
 }
 
 /*
@@ -1014,12 +1026,20 @@ static long do_mbind(unsigned long start, unsigned long len,
 		if (err)
 			return err;
 	}
-	down_write(&mm->mmap_sem);
-	task_lock(current);
-	err = mpol_set_nodemask(new, nmask);
-	task_unlock(current);
+	{
+		NODEMASK_SCRATCH(scratch);
+		if (scratch) {
+			down_write(&mm->mmap_sem);
+			task_lock(current);
+			err = mpol_set_nodemask(new, nmask, scratch);
+			task_unlock(current);
+			if (err)
+				up_write(&mm->mmap_sem);
+		} else
+			err = -ENOMEM;
+		NODEMASK_SCRATCH_FREE(scratch);
+	}
 	if (err) {
-		up_write(&mm->mmap_sem);
 		mpol_put(new);
 		return err;
 	}
@@ -1891,6 +1911,7 @@ restart:
  * Install non-NULL @mpol in inode's shared policy rb-tree.
  * On entry, the current task has a reference on a non-NULL @mpol.
  * This must be released on exit.
+ * This is called at get_inode() calls and we can use GFP_KERNEL.
  */
 void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 {
@@ -1902,19 +1923,24 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 	if (mpol) {
 		struct vm_area_struct pvma;
 		struct mempolicy *new;
+		NODEMASK_SCRATCH(scratch);
 
+		if (!scratch)
+			return;
 		/* contextualize the tmpfs mount point mempolicy */
 		new = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_nodemask);
 		if (IS_ERR(new)) {
 			mpol_put(mpol);	/* drop our ref on sb mpol */
+			NODEMASK_SCRATCH_FREE(scratch);
 			return;		/* no valid nodemask intersection */
 		}
 
 		task_lock(current);
-		ret = mpol_set_nodemask(new, &mpol->w.user_nodemask);
+		ret = mpol_set_nodemask(new, &mpol->w.user_nodemask, scratch);
 		task_unlock(current);
 		mpol_put(mpol);	/* drop our ref on sb mpol */
 		if (ret) {
+			NODEMASK_SCRATCH_FREE(scratch);
 			mpol_put(new);
 			return;
 		}
@@ -1924,6 +1950,7 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 		pvma.vm_end = TASK_SIZE;	/* policy covers entire file */
 		mpol_set_shared_policy(sp, &pvma, new); /* adds ref */
 		mpol_put(new);			/* drop initial ref */
+		NODEMASK_SCRATCH_FREE(scratch);
 	}
 }
 
@@ -2140,13 +2167,18 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
 		err = 1;
 	else {
 		int ret;
-
-		task_lock(current);
-		ret = mpol_set_nodemask(new, &nodes);
-		task_unlock(current);
-		if (ret)
+		NODEMASK_SCRATCH(scratch);
+		if (scratch) {
+			task_lock(current);
+			ret = mpol_set_nodemask(new, &nodes, scratch);
+			task_unlock(current);
+		} else
+			ret = -ENOMEM;
+		NODEMASK_SCRATCH_FREE(scratch);
+		if (ret) {
 			err = 1;
-		else if (no_context) {
+			mpol_put(new);
+		} else if (no_context) {
 			/* save for contextualization */
 			new->w.user_nodemask = nodes;
 		}

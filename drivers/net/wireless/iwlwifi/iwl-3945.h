@@ -111,9 +111,6 @@ enum iwl3945_antenna {
 #define IWL_TX_FIFO_HCCA_2	6
 #define IWL_TX_FIFO_NONE	7
 
-/* Minimum number of queues. MAX_NUM is defined in hw specific files */
-#define IWL_MIN_NUM_QUEUES	4
-
 #define IEEE80211_DATA_LEN              2304
 #define IEEE80211_4ADDR_LEN             30
 #define IEEE80211_HLEN                  (IEEE80211_4ADDR_LEN)
@@ -257,10 +254,11 @@ extern int iwl3945_hw_tx_queue_init(struct iwl_priv *priv,
 				struct iwl_tx_queue *txq);
 extern unsigned int iwl3945_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl3945_frame *frame, u8 rate);
-void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv, struct iwl_cmd *cmd,
-				     struct ieee80211_tx_info *info,
-				     struct ieee80211_hdr *hdr,
-				     int sta_id, int tx_id);
+void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
+				  struct iwl_device_cmd *cmd,
+				  struct ieee80211_tx_info *info,
+				  struct ieee80211_hdr *hdr,
+				  int sta_id, int tx_id);
 extern int iwl3945_hw_reg_send_txpower(struct iwl_priv *priv);
 extern int iwl3945_hw_reg_set_txpower(struct iwl_priv *priv, s8 power);
 extern void iwl3945_hw_rx_statistics(struct iwl_priv *priv,

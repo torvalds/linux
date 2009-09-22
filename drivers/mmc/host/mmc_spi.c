@@ -1313,6 +1313,12 @@ static int mmc_spi_probe(struct spi_device *spi)
 	struct mmc_spi_host	*host;
 	int			status;
 
+	/* We rely on full duplex transfers, mostly to reduce
+	 * per-transfer overheads (by making fewer transfers).
+	 */
+	if (spi->master->flags & SPI_MASTER_HALF_DUPLEX)
+		return -EINVAL;
+
 	/* MMC and SD specs only seem to care that sampling is on the
 	 * rising edge ... meaning SPI modes 0 or 3.  So either SPI mode
 	 * should be legit.  We'll use mode 0 since the steady state is 0,

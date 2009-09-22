@@ -40,7 +40,7 @@ mmu_hash_lock:
  * The address is in r4, and r3 contains an access flag:
  * _PAGE_RW (0x400) if a write.
  * r9 contains the SRR1 value, from which we use the MSR_PR bit.
- * SPRG3 contains the physical address of the current task's thread.
+ * SPRG_THREAD contains the physical address of the current task's thread.
  *
  * Returns to the caller if the access is illegal or there is no
  * mapping for the address.  Otherwise it places an appropriate PTE
@@ -68,7 +68,7 @@ _GLOBAL(hash_page)
 	/* Get PTE (linux-style) and check access */
 	lis	r0,KERNELBASE@h		/* check if kernel address */
 	cmplw	0,r4,r0
-	mfspr	r8,SPRN_SPRG3		/* current task's THREAD (phys) */
+	mfspr	r8,SPRN_SPRG_THREAD	/* current task's THREAD (phys) */
 	ori	r3,r3,_PAGE_USER|_PAGE_PRESENT /* test low addresses as user */
 	lwz	r5,PGDIR(r8)		/* virt page-table root */
 	blt+	112f			/* assume user more likely */

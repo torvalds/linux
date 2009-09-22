@@ -668,21 +668,9 @@ static struct xfrm_state *__xfrm_state_lookup(struct net *net, xfrm_address_t *d
 	hlist_for_each_entry(x, entry, net->xfrm.state_byspi+h, byspi) {
 		if (x->props.family != family ||
 		    x->id.spi       != spi ||
-		    x->id.proto     != proto)
+		    x->id.proto     != proto ||
+		    xfrm_addr_cmp(&x->id.daddr, daddr, family))
 			continue;
-
-		switch (family) {
-		case AF_INET:
-			if (x->id.daddr.a4 != daddr->a4)
-				continue;
-			break;
-		case AF_INET6:
-			if (!ipv6_addr_equal((struct in6_addr *)daddr,
-					     (struct in6_addr *)
-					     x->id.daddr.a6))
-				continue;
-			break;
-		}
 
 		xfrm_state_hold(x);
 		return x;
@@ -699,25 +687,10 @@ static struct xfrm_state *__xfrm_state_lookup_byaddr(struct net *net, xfrm_addre
 
 	hlist_for_each_entry(x, entry, net->xfrm.state_bysrc+h, bysrc) {
 		if (x->props.family != family ||
-		    x->id.proto     != proto)
+		    x->id.proto     != proto ||
+		    xfrm_addr_cmp(&x->id.daddr, daddr, family) ||
+		    xfrm_addr_cmp(&x->props.saddr, saddr, family))
 			continue;
-
-		switch (family) {
-		case AF_INET:
-			if (x->id.daddr.a4 != daddr->a4 ||
-			    x->props.saddr.a4 != saddr->a4)
-				continue;
-			break;
-		case AF_INET6:
-			if (!ipv6_addr_equal((struct in6_addr *)daddr,
-					     (struct in6_addr *)
-					     x->id.daddr.a6) ||
-			    !ipv6_addr_equal((struct in6_addr *)saddr,
-					     (struct in6_addr *)
-					     x->props.saddr.a6))
-				continue;
-			break;
-		}
 
 		xfrm_state_hold(x);
 		return x;
@@ -1001,24 +974,10 @@ static struct xfrm_state *__find_acq_core(struct net *net, unsigned short family
 		    x->props.family != family ||
 		    x->km.state     != XFRM_STATE_ACQ ||
 		    x->id.spi       != 0 ||
-		    x->id.proto	    != proto)
+		    x->id.proto	    != proto ||
+		    xfrm_addr_cmp(&x->id.daddr, daddr, family) ||
+		    xfrm_addr_cmp(&x->props.saddr, saddr, family))
 			continue;
-
-		switch (family) {
-		case AF_INET:
-			if (x->id.daddr.a4    != daddr->a4 ||
-			    x->props.saddr.a4 != saddr->a4)
-				continue;
-			break;
-		case AF_INET6:
-			if (!ipv6_addr_equal((struct in6_addr *)x->id.daddr.a6,
-					     (struct in6_addr *)daddr) ||
-			    !ipv6_addr_equal((struct in6_addr *)
-					     x->props.saddr.a6,
-					     (struct in6_addr *)saddr))
-				continue;
-			break;
-		}
 
 		xfrm_state_hold(x);
 		return x;

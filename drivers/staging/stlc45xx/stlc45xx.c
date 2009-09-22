@@ -1429,7 +1429,8 @@ static int stlc45xx_rx_data(struct stlc45xx *stlc, struct sk_buff *skb)
 	stlc45xx_debug(DEBUG_RX, "rx data 0x%p %d B", skb->data, skb->len);
 	stlc45xx_dump(DEBUG_RX_CONTENT, skb->data, skb->len);
 
-	ieee80211_rx(stlc->hw, skb, &status);
+	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
+	ieee80211_rx(stlc->hw, skb);
 
 	return 0;
 }
@@ -2235,24 +2236,6 @@ static void stlc45xx_op_remove_interface(struct ieee80211_hw *hw,
 	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
 }
 
-static int stlc45xx_op_config_interface(struct ieee80211_hw *hw,
-					struct ieee80211_vif *vif,
-					struct ieee80211_if_conf *conf)
-{
-	struct stlc45xx *stlc = hw->priv;
-
-	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
-
-	mutex_lock(&stlc->mutex);
-
-	memcpy(stlc->bssid, conf->bssid, ETH_ALEN);
-	stlc45xx_tx_setup(stlc);
-
-	mutex_unlock(&stlc->mutex);
-
-	return 0;
-}
-
 static int stlc45xx_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct stlc45xx *stlc = hw->priv;
@@ -2294,6 +2277,14 @@ static void stlc45xx_op_bss_info_changed(struct ieee80211_hw *hw,
 					 u32 changed)
 {
 	struct stlc45xx *stlc = hw->priv;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+	mutex_lock(&stlc->mutex);
+
+	memcpy(stlc->bssid, info->bssid, ETH_ALEN);
+	stlc45xx_tx_setup(stlc);
+
+	mutex_unlock(&stlc->mutex);
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		stlc->associated = info->assoc;
@@ -2357,7 +2348,6 @@ static const struct ieee80211_ops stlc45xx_ops = {
 	.add_interface = stlc45xx_op_add_interface,
 	.remove_interface = stlc45xx_op_remove_interface,
 	.config = stlc45xx_op_config,
-	.config_interface = stlc45xx_op_config_interface,
 	.configure_filter = stlc45xx_op_configure_filter,
 	.tx = stlc45xx_op_tx,
 	.bss_info_changed = stlc45xx_op_bss_info_changed,

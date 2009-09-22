@@ -288,7 +288,7 @@ typedef u32 acpi_physical_address;
 /*
  * Some compilers complain about unused variables. Sometimes we don't want to
  * use all the variables (for example, _acpi_module_name). This allows us
- * to to tell the compiler in a per-variable manner that a variable
+ * to tell the compiler in a per-variable manner that a variable
  * is unused
  */
 #ifndef ACPI_UNUSED_VAR

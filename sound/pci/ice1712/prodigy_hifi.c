@@ -1077,7 +1077,7 @@ static int __devinit prodigy_hifi_init(struct snd_ice1712 *ice)
 /*
  * initialize the chip
  */
-static int __devinit prodigy_hd2_init(struct snd_ice1712 *ice)
+static void ak4396_init(struct snd_ice1712 *ice)
 {
 	static unsigned short ak4396_inits[] = {
 		AK4396_CTRL1,	   0x87,   /* I2S Normal Mode, 24 bit */
@@ -1087,8 +1087,36 @@ static int __devinit prodigy_hd2_init(struct snd_ice1712 *ice)
 		AK4396_RCH_ATT,	 0x00,
 	};
 
-	struct prodigy_hifi_spec *spec;
 	unsigned int i;
+
+	/* initialize ak4396 codec */
+	/* reset codec */
+	ak4396_write(ice, AK4396_CTRL1, 0x86);
+	msleep(100);
+	ak4396_write(ice, AK4396_CTRL1, 0x87);
+
+	for (i = 0; i < ARRAY_SIZE(ak4396_inits); i += 2)
+		ak4396_write(ice, ak4396_inits[i], ak4396_inits[i+1]);
+}
+
+#ifdef CONFIG_PM
+static int __devinit prodigy_hd2_resume(struct snd_ice1712 *ice)
+{
+	/* initialize ak4396 codec and restore previous mixer volumes */
+	struct prodigy_hifi_spec *spec = ice->spec;
+	int i;
+	mutex_lock(&ice->gpio_mutex);
+	ak4396_init(ice);
+	for (i = 0; i < 2; i++)
+		ak4396_write(ice, AK4396_LCH_ATT + i, spec->vol[i] & 0xff);
+	mutex_unlock(&ice->gpio_mutex);
+	return 0;
+}
+#endif
+
+static int __devinit prodigy_hd2_init(struct snd_ice1712 *ice)
+{
+	struct prodigy_hifi_spec *spec;
 
 	ice->vt1720 = 0;
 	ice->vt1724 = 1;
@@ -1112,14 +1140,12 @@ static int __devinit prodigy_hd2_init(struct snd_ice1712 *ice)
 		return -ENOMEM;
 	ice->spec = spec;
 
-	/* initialize ak4396 codec */
-	/* reset codec */
-	ak4396_write(ice, AK4396_CTRL1, 0x86);
-	msleep(100);
-	ak4396_write(ice, AK4396_CTRL1, 0x87);
-			
-	for (i = 0; i < ARRAY_SIZE(ak4396_inits); i += 2)
-		ak4396_write(ice, ak4396_inits[i], ak4396_inits[i+1]);
+#ifdef CONFIG_PM
+	ice->pm_resume = &prodigy_hd2_resume;
+	ice->pm_suspend_enabled = 1;
+#endif
+
+	ak4396_init(ice);
 
 	return 0;
 }

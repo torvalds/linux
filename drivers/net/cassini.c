@@ -2918,7 +2918,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 	return 0;
 }
 
-static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct cas *cp = netdev_priv(dev);
 
@@ -2928,7 +2928,7 @@ static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	static int ring;
 
 	if (skb_padto(skb, cp->min_frame_size))
-		return 0;
+		return NETDEV_TX_OK;
 
 	/* XXX: we need some higher-level QoS hooks to steer packets to
 	 *      individual queues.
@@ -2936,7 +2936,7 @@ static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (cas_xmit_tx_ringN(cp, ring++ & N_TX_RINGS_MASK, skb))
 		return NETDEV_TX_BUSY;
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void cas_init_tx_dma(struct cas *cp)
@@ -4875,10 +4875,6 @@ static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-		if (!capable(CAP_NET_ADMIN)) {
-			rc = -EPERM;
-			break;
-		}
 		spin_lock_irqsave(&cp->lock, flags);
 		cas_mif_poll(cp, 0);
 		rc = cas_phy_write(cp, data->reg_num & 0x1f, data->val_in);

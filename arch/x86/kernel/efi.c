@@ -42,6 +42,7 @@
 #include <asm/time.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/x86_init.h>
 
 #define EFI_DEBUG	1
 #define PFX 		"EFI: "
@@ -354,7 +355,7 @@ void __init efi_init(void)
 	 */
 	c16 = tmp = early_ioremap(efi.systab->fw_vendor, 2);
 	if (c16) {
-		for (i = 0; i < sizeof(vendor) && *c16; ++i)
+		for (i = 0; i < sizeof(vendor) - 1 && *c16; ++i)
 			vendor[i] = *c16++;
 		vendor[i] = '\0';
 	} else
@@ -453,6 +454,9 @@ void __init efi_init(void)
 	if (add_efi_memmap)
 		do_add_efi_memmap();
 
+	x86_platform.get_wallclock = efi_get_time;
+	x86_platform.set_wallclock = efi_set_rtc_mmss;
+
 	/* Setup for EFI runtime service */
 	reboot_type = BOOT_EFI;
 
@@ -512,7 +516,7 @@ void __init efi_enter_virtual_mode(void)
 			&& end_pfn <= max_pfn_mapped))
 			va = __va(md->phys_addr);
 		else
-			va = efi_ioremap(md->phys_addr, size);
+			va = efi_ioremap(md->phys_addr, size, md->type);
 
 		md->virt_addr = (u64) (unsigned long) va;
 

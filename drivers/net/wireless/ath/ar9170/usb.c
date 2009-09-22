@@ -598,11 +598,15 @@ static int ar9170_usb_request_firmware(struct ar9170_usb *aru)
 
 	err = request_firmware(&aru->init_values, "ar9170-1.fw",
 			       &aru->udev->dev);
+	if (err) {
+		dev_err(&aru->udev->dev, "file with init values not found.\n");
+		return err;
+	}
 
 	err = request_firmware(&aru->firmware, "ar9170-2.fw", &aru->udev->dev);
 	if (err) {
 		release_firmware(aru->init_values);
-		dev_err(&aru->udev->dev, "file with init values not found.\n");
+		dev_err(&aru->udev->dev, "firmware file not found.\n");
 		return err;
 	}
 
@@ -779,7 +783,7 @@ static int ar9170_usb_probe(struct usb_interface *intf,
 	aru->req_one_stage_fw = ar9170_requires_one_stage(id);
 
 	usb_set_intfdata(intf, aru);
-	SET_IEEE80211_DEV(ar->hw, &udev->dev);
+	SET_IEEE80211_DEV(ar->hw, &intf->dev);
 
 	init_usb_anchor(&aru->rx_submitted);
 	init_usb_anchor(&aru->tx_pending);

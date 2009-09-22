@@ -136,9 +136,9 @@ static int tda8261_set_state(struct dvb_frontend *fe,
 
 		if (frequency < 1450000)
 			buf[3] = 0x00;
-		if (frequency < 2000000)
+		else if (frequency < 2000000)
 			buf[3] = 0x40;
-		if (frequency < 2150000)
+		else if (frequency < 2150000)
 			buf[3] = 0x80;
 
 		/* Set params */

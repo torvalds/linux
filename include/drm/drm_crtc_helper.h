@@ -79,6 +79,8 @@ struct drm_encoder_helper_funcs {
 	/* detect for DAC style encoders */
 	enum drm_connector_status (*detect)(struct drm_encoder *encoder,
 					    struct drm_connector *connector);
+	/* disable encoder when not in use - more explicit than dpms off */
+	void (*disable)(struct drm_encoder *encoder);
 };
 
 struct drm_connector_helper_funcs {
@@ -98,6 +100,7 @@ extern bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 				     int x, int y,
 				     struct drm_framebuffer *old_fb);
 extern bool drm_helper_crtc_in_use(struct drm_crtc *crtc);
+extern bool drm_helper_encoder_in_use(struct drm_encoder *encoder);
 
 extern void drm_helper_connector_dpms(struct drm_connector *connector, int mode);
 

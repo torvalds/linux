@@ -91,16 +91,16 @@ int channel2irq(unsigned int channel)
 		ret_irq = IRQ_SPI1;
 		break;
 	case CH_UART0_RX:
-		ret_irq = IRQ_UART_RX;
+		ret_irq = IRQ_UART0_RX;
 		break;
 	case CH_UART0_TX:
-		ret_irq = IRQ_UART_TX;
+		ret_irq = IRQ_UART0_TX;
 		break;
 	case CH_UART1_RX:
-		ret_irq = IRQ_UART_RX;
+		ret_irq = IRQ_UART1_RX;
 		break;
 	case CH_UART1_TX:
-		ret_irq = IRQ_UART_TX;
+		ret_irq = IRQ_UART1_TX;
 		break;
 	case CH_EPPI0:
 		ret_irq = IRQ_EPPI0;

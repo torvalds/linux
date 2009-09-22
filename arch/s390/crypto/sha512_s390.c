@@ -13,7 +13,10 @@
  *
  */
 #include <crypto/internal/hash.h>
+#include <crypto/sha.h>
+#include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 
 #include "sha.h"
@@ -37,12 +40,42 @@ static int sha512_init(struct shash_desc *desc)
 	return 0;
 }
 
+static int sha512_export(struct shash_desc *desc, void *out)
+{
+	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
+	struct sha512_state *octx = out;
+
+	octx->count[0] = sctx->count;
+	octx->count[1] = 0;
+	memcpy(octx->state, sctx->state, sizeof(octx->state));
+	memcpy(octx->buf, sctx->buf, sizeof(octx->buf));
+	return 0;
+}
+
+static int sha512_import(struct shash_desc *desc, const void *in)
+{
+	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
+	const struct sha512_state *ictx = in;
+
+	if (unlikely(ictx->count[1]))
+		return -ERANGE;
+	sctx->count = ictx->count[0];
+
+	memcpy(sctx->state, ictx->state, sizeof(ictx->state));
+	memcpy(sctx->buf, ictx->buf, sizeof(ictx->buf));
+	sctx->func = KIMD_SHA_512;
+	return 0;
+}
+
 static struct shash_alg sha512_alg = {
 	.digestsize	=	SHA512_DIGEST_SIZE,
 	.init		=	sha512_init,
 	.update		=	s390_sha_update,
 	.final		=	s390_sha_final,
+	.export		=	sha512_export,
+	.import		=	sha512_import,
 	.descsize	=	sizeof(struct s390_sha_ctx),
+	.statesize	=	sizeof(struct sha512_state),
 	.base		=	{
 		.cra_name	=	"sha512",
 		.cra_driver_name=	"sha512-s390",
@@ -78,7 +111,10 @@ static struct shash_alg sha384_alg = {
 	.init		=	sha384_init,
 	.update		=	s390_sha_update,
 	.final		=	s390_sha_final,
+	.export		=	sha512_export,
+	.import		=	sha512_import,
 	.descsize	=	sizeof(struct s390_sha_ctx),
+	.statesize	=	sizeof(struct sha512_state),
 	.base		=	{
 		.cra_name	=	"sha384",
 		.cra_driver_name=	"sha384-s390",

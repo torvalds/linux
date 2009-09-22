@@ -1437,6 +1437,35 @@ intel_tv_detect_type (struct drm_crtc *crtc, struct intel_output *intel_output)
 	return type;
 }
 
+/*
+ * Here we set accurate tv format according to connector type
+ * i.e Component TV should not be assigned by NTSC or PAL
+ */
+static void intel_tv_find_better_format(struct drm_connector *connector)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_tv_priv *tv_priv = intel_output->dev_priv;
+	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_output);
+	int i;
+
+	if ((tv_priv->type == DRM_MODE_CONNECTOR_Component) ==
+		tv_mode->component_only)
+		return;
+
+
+	for (i = 0; i < sizeof(tv_modes) / sizeof(*tv_modes); i++) {
+		tv_mode = tv_modes + i;
+
+		if ((tv_priv->type == DRM_MODE_CONNECTOR_Component) ==
+			tv_mode->component_only)
+			break;
+	}
+
+	tv_priv->tv_format = tv_mode->name;
+	drm_connector_property_set_value(connector,
+		connector->dev->mode_config.tv_mode_property, i);
+}
+
 /**
  * Detect the TV connection.
  *
@@ -1473,6 +1502,7 @@ intel_tv_detect(struct drm_connector *connector)
 	if (type < 0)
 		return connector_status_disconnected;
 
+	intel_tv_find_better_format(connector);
 	return connector_status_connected;
 }
 
@@ -1489,6 +1519,27 @@ static struct input_res {
 	{"1280x720", 1280, 720},
 	{"1920x1080", 1920, 1080},
 };
+
+/*
+ * Chose preferred mode  according to line number of TV format
+ */
+static void
+intel_tv_chose_preferred_modes(struct drm_connector *connector,
+			       struct drm_display_mode *mode_ptr)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_output);
+
+	if (tv_mode->nbr_end < 480 && mode_ptr->vdisplay == 480)
+		mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
+	else if (tv_mode->nbr_end > 480) {
+		if (tv_mode->progressive == true && tv_mode->nbr_end < 720) {
+			if (mode_ptr->vdisplay == 720)
+				mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
+		} else if (mode_ptr->vdisplay == 1080)
+				mode_ptr->type |= DRM_MODE_TYPE_PREFERRED;
+	}
+}
 
 /**
  * Stub get_modes function.
@@ -1544,6 +1595,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 		mode_ptr->clock = (int) tmp;
 
 		mode_ptr->type = DRM_MODE_TYPE_DRIVER;
+		intel_tv_chose_preferred_modes(connector, mode_ptr);
 		drm_mode_probed_add(connector, mode_ptr);
 		count++;
 	}
@@ -1696,6 +1748,7 @@ intel_tv_init(struct drm_device *dev)
 	if (!intel_output) {
 		return;
 	}
+
 	connector = &intel_output->base;
 
 	drm_connector_init(dev, connector, &intel_tv_connector_funcs,
@@ -1707,6 +1760,8 @@ intel_tv_init(struct drm_device *dev)
 	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
 	tv_priv = (struct intel_tv_priv *)(intel_output + 1);
 	intel_output->type = INTEL_OUTPUT_TVOUT;
+	intel_output->crtc_mask = (1 << 0) | (1 << 1);
+	intel_output->clone_mask = (1 << INTEL_TV_CLONE_BIT);
 	intel_output->enc.possible_crtcs = ((1 << 0) | (1 << 1));
 	intel_output->enc.possible_clones = (1 << INTEL_OUTPUT_TVOUT);
 	intel_output->dev_priv = tv_priv;

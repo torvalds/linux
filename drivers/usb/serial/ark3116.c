@@ -35,11 +35,6 @@ static struct usb_device_id id_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-struct ark3116_private {
-	spinlock_t lock;
-	u8 termios_initialized;
-};
-
 static inline void ARK3116_SND(struct usb_serial *serial, int seq,
 			       __u8 request, __u8 requesttype,
 			       __u16 value, __u16 index)
@@ -82,22 +77,11 @@ static inline void ARK3116_RCV_QUIET(struct usb_serial *serial,
 static int ark3116_attach(struct usb_serial *serial)
 {
 	char *buf;
-	struct ark3116_private *priv;
-	int i;
-
-	for (i = 0; i < serial->num_ports; ++i) {
-		priv = kzalloc(sizeof(struct ark3116_private), GFP_KERNEL);
-		if (!priv)
-			goto cleanup;
-		spin_lock_init(&priv->lock);
-
-		usb_set_serial_port_data(serial->port[i], priv);
-	}
 
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf) {
 		dbg("error kmalloc -> out of mem?");
-		goto cleanup;
+		return -ENOMEM;
 	}
 
 	/* 3 */
@@ -149,13 +133,16 @@ static int ark3116_attach(struct usb_serial *serial)
 
 	kfree(buf);
 	return 0;
+}
 
-cleanup:
-	for (--i; i >= 0; --i) {
-		kfree(usb_get_serial_port_data(serial->port[i]));
-		usb_set_serial_port_data(serial->port[i], NULL);
-	}
-	return -ENOMEM;
+static void ark3116_init_termios(struct tty_struct *tty)
+{
+	struct ktermios *termios = tty->termios;
+	*termios = tty_std_termios;
+	termios->c_cflag = B9600 | CS8
+				      | CREAD | HUPCL | CLOCAL;
+	termios->c_ispeed = 9600;
+	termios->c_ospeed = 9600;
 }
 
 static void ark3116_set_termios(struct tty_struct *tty,
@@ -163,10 +150,8 @@ static void ark3116_set_termios(struct tty_struct *tty,
 				struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
-	struct ark3116_private *priv = usb_get_serial_port_data(port);
 	struct ktermios *termios = tty->termios;
 	unsigned int cflag = termios->c_cflag;
-	unsigned long flags;
 	int baud;
 	int ark3116_baud;
 	char *buf;
@@ -176,16 +161,6 @@ static void ark3116_set_termios(struct tty_struct *tty,
 
 	dbg("%s - port %d", __func__, port->number);
 
-	spin_lock_irqsave(&priv->lock, flags);
-	if (!priv->termios_initialized) {
-		*termios = tty_std_termios;
-		termios->c_cflag = B9600 | CS8
-					      | CREAD | HUPCL | CLOCAL;
-		termios->c_ispeed = 9600;
-		termios->c_ospeed = 9600;
-		priv->termios_initialized = 1;
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	cflag = termios->c_cflag;
 	termios->c_cflag &= ~(CMSPAR|CRTSCTS);
@@ -318,8 +293,7 @@ static void ark3116_set_termios(struct tty_struct *tty,
 	return;
 }
 
-static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port,
-					struct file *filp)
+static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
@@ -334,7 +308,7 @@ static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port,
 		return -ENOMEM;
 	}
 
-	result = usb_serial_generic_open(tty, port, filp);
+	result = usb_serial_generic_open(tty, port);
 	if (result)
 		goto err_out;
 
@@ -455,6 +429,7 @@ static struct usb_serial_driver ark3116_device = {
 	.num_ports =		1,
 	.attach =		ark3116_attach,
 	.set_termios =		ark3116_set_termios,
+	.init_termios =		ark3116_init_termios,
 	.ioctl =		ark3116_ioctl,
 	.tiocmget =		ark3116_tiocmget,
 	.open =			ark3116_open,

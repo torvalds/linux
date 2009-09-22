@@ -997,7 +997,7 @@ static int reiserfs_async_progress_wait(struct super_block *s)
 	DEFINE_WAIT(wait);
 	struct reiserfs_journal *j = SB_JOURNAL(s);
 	if (atomic_read(&j->j_async_throttle))
-		congestion_wait(WRITE, HZ / 10);
+		congestion_wait(BLK_RW_ASYNC, HZ / 10);
 	return 0;
 }
 

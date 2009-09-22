@@ -38,10 +38,6 @@ CPPFLAGS_vmlinux.lds += -m32
 #  Actual linking is done with "make image".
 LDFLAGS_vmlinux = -r
 
-# Default target
-all: zImage
-
-
 else
 #####
 # sparc64
@@ -91,6 +87,9 @@ endif
 
 boot := arch/sparc/boot
 
+# Default target
+all: zImage
+
 image zImage tftpboot.img vmlinux.aout: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
@@ -109,8 +108,9 @@ define archhelp
 endef
 else
 define archhelp
-  echo  '* vmlinux       - Standard sparc64 kernel'
-  echo  '  vmlinux.aout  - a.out kernel for sparc64'
+  echo  '* vmlinux      - standard sparc64 kernel'
+  echo  '* zImage       - stripped and compressed sparc64 kernel ($(boot)/zImage)'
+  echo  '  vmlinux.aout - a.out kernel for sparc64'
   echo  '  tftpboot.img - image prepared for tftp'
 endef
 endif

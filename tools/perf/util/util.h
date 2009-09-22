@@ -39,10 +39,6 @@
 /* Approximation of the length of the decimal representation of this type. */
 #define decimal_length(x)	((int)(sizeof(x) * 2.56 + 0.5) + 1)
 
-#if !defined(__APPLE__) && !defined(__FreeBSD__)  && !defined(__USLC__) && !defined(_M_UNIX)
-#define _XOPEN_SOURCE 600 /* glibc2 and AIX 5.3L need 500, OpenBSD needs 600 for S_ISLNK() */
-#define _XOPEN_SOURCE_EXTENDED 1 /* AIX 5.3L needs this */
-#endif
 #define _ALL_SOURCE 1
 #define _GNU_SOURCE 1
 #define _BSD_SOURCE 1
@@ -50,6 +46,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -67,7 +64,6 @@
 #include <assert.h>
 #include <regex.h>
 #include <utime.h>
-#ifndef __MINGW32__
 #include <sys/wait.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
@@ -81,20 +77,8 @@
 #include <netdb.h>
 #include <pwd.h>
 #include <inttypes.h>
-#if defined(__CYGWIN__)
-#undef _XOPEN_SOURCE
-#include <grp.h>
-#define _XOPEN_SOURCE 600
-#include "compat/cygwin.h"
-#else
-#undef _ALL_SOURCE /* AIX 5.3L defines a struct list with _ALL_SOURCE. */
-#include <grp.h>
-#define _ALL_SOURCE 1
-#endif
-#else 	/* __MINGW32__ */
-/* pull in Windows compatibility stuff */
-#include "compat/mingw.h"
-#endif	/* __MINGW32__ */
+#include "../../../include/linux/magic.h"
+
 
 #ifndef NO_ICONV
 #include <iconv.h>
@@ -323,6 +307,7 @@ static inline int has_extension(const char *filename, const char *ext)
 #undef isspace
 #undef isdigit
 #undef isalpha
+#undef isprint
 #undef isalnum
 #undef tolower
 #undef toupper

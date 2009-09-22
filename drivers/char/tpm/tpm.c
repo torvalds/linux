@@ -26,7 +26,6 @@
 #include <linux/poll.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 
 #include "tpm.h"
 

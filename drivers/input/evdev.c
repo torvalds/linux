@@ -608,8 +608,7 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 						    p, compat_mode);
 
 			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGNAME(0)))
-				return str_to_user(dev_name(&evdev->dev),
-						   _IOC_SIZE(cmd), p);
+				return str_to_user(dev->name, _IOC_SIZE(cmd), p);
 
 			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGPHYS(0)))
 				return str_to_user(dev->phys, _IOC_SIZE(cmd), p);

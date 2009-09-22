@@ -127,12 +127,84 @@ static const u8 iwl_eeprom_band_5[] = {	/* 5725-5825MHz */
 	145, 149, 153, 157, 161, 165
 };
 
-static const u8 iwl_eeprom_band_6[] = {       /* 2.4 FAT channel */
+static const u8 iwl_eeprom_band_6[] = {       /* 2.4 ht40 channel */
 	1, 2, 3, 4, 5, 6, 7
 };
 
-static const u8 iwl_eeprom_band_7[] = {       /* 5.2 FAT channel */
+static const u8 iwl_eeprom_band_7[] = {       /* 5.2 ht40 channel */
 	36, 44, 52, 60, 100, 108, 116, 124, 132, 149, 157
+};
+
+/**
+ * struct iwl_txpwr_section: eeprom section information
+ * @offset: indirect address into eeprom image
+ * @count: number of "struct iwl_eeprom_enhanced_txpwr" in this section
+ * @band: band type for the section
+ * @is_common - true: common section, false: channel section
+ * @is_cck - true: cck section, false: not cck section
+ * @is_ht_40 - true: all channel in the section are HT40 channel,
+ * 	       false: legacy or HT 20 MHz
+ *	       ignore if it is common section
+ * @iwl_eeprom_section_channel: channel array in the section,
+ *	       ignore if common section
+ */
+struct iwl_txpwr_section {
+	u32 offset;
+	u8 count;
+	enum ieee80211_band band;
+	bool is_common;
+	bool is_cck;
+	bool is_ht40;
+	u8 iwl_eeprom_section_channel[EEPROM_MAX_TXPOWER_SECTION_ELEMENTS];
+};
+
+/**
+ * section 1 - 3 are regulatory tx power apply to all channels based on
+ *    modulation: CCK, OFDM
+ *    Band: 2.4GHz, 5.2GHz
+ * section 4 - 10 are regulatory tx power apply to specified channels
+ *    For example:
+ *	1L - Channel 1 Legacy
+ *	1HT - Channel 1 HT
+ *	(1,+1) - Channel 1 HT40 "_above_"
+ *
+ * Section 1: all CCK channels
+ * Section 2: all 2.4 GHz OFDM (Legacy, HT and HT40) channels
+ * Section 3: all 5.2 GHz OFDM (Legacy, HT and HT40) channels
+ * Section 4: 2.4 GHz 20MHz channels: 1L, 1HT, 2L, 2HT, 10L, 10HT, 11L, 11HT
+ * Section 5: 2.4 GHz 40MHz channels: (1,+1) (2,+1) (6,+1) (7,+1) (9,+1)
+ * Section 6: 5.2 GHz 20MHz channels: 36L, 64L, 100L, 36HT, 64HT, 100HT
+ * Section 7: 5.2 GHz 40MHz channels: (36,+1) (60,+1) (100,+1)
+ * Section 8: 2.4 GHz channel: 13L, 13HT
+ * Section 9: 2.4 GHz channel: 140L, 140HT
+ * Section 10: 2.4 GHz 40MHz channels: (132,+1)  (44,+1)
+ *
+ */
+static const struct iwl_txpwr_section enhinfo[] = {
+	{ EEPROM_LB_CCK_20_COMMON, 1, IEEE80211_BAND_2GHZ, true, true, false },
+	{ EEPROM_LB_OFDM_COMMON, 3, IEEE80211_BAND_2GHZ, true, false, false },
+	{ EEPROM_HB_OFDM_COMMON, 3, IEEE80211_BAND_5GHZ, true, false, false },
+	{ EEPROM_LB_OFDM_20_BAND, 8, IEEE80211_BAND_2GHZ,
+		false, false, false,
+		{1, 1, 2, 2, 10, 10, 11, 11 } },
+	{ EEPROM_LB_OFDM_HT40_BAND, 5, IEEE80211_BAND_2GHZ,
+		false, false, true,
+		{ 1, 2, 6, 7, 9 } },
+	{ EEPROM_HB_OFDM_20_BAND, 6, IEEE80211_BAND_5GHZ,
+		false, false, false,
+		{ 36, 64, 100, 36, 64, 100 } },
+	{ EEPROM_HB_OFDM_HT40_BAND, 3, IEEE80211_BAND_5GHZ,
+		false, false, true,
+		{ 36, 60, 100 } },
+	{ EEPROM_LB_OFDM_20_CHANNEL_13, 2, IEEE80211_BAND_2GHZ,
+		false, false, false,
+		{ 13, 13 } },
+	{ EEPROM_HB_OFDM_20_CHANNEL_140, 2, IEEE80211_BAND_5GHZ,
+		false, false, false,
+		{ 140, 140 } },
+	{ EEPROM_HB_OFDM_HT40_BAND_1, 2, IEEE80211_BAND_5GHZ,
+		false, false, true,
+		{ 132, 44 } },
 };
 
 /******************************************************************************
@@ -152,6 +224,19 @@ int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwlcore_eeprom_verify_signature);
 
+static void iwl_set_otp_access(struct iwl_priv *priv, enum iwl_access_mode mode)
+{
+	u32 otpgp;
+
+	otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
+	if (mode == IWL_OTP_ACCESS_ABSOLUTE)
+		iwl_clear_bit(priv, CSR_OTP_GP_REG,
+				CSR_OTP_GP_REG_OTP_ACCESS_MODE);
+	else
+		iwl_set_bit(priv, CSR_OTP_GP_REG,
+				CSR_OTP_GP_REG_OTP_ACCESS_MODE);
+}
+
 static int iwlcore_get_nvm_type(struct iwl_priv *priv)
 {
 	u32 otpgp;
@@ -159,6 +244,9 @@ static int iwlcore_get_nvm_type(struct iwl_priv *priv)
 
 	/* OTP only valid for CP/PP and after */
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	case CSR_HW_REV_TYPE_NONE:
+		IWL_ERR(priv, "Unknown hardware type\n");
+		return -ENOENT;
 	case CSR_HW_REV_TYPE_3945:
 	case CSR_HW_REV_TYPE_4965:
 	case CSR_HW_REV_TYPE_5300:
@@ -249,6 +337,124 @@ static int iwl_init_otp_access(struct iwl_priv *priv)
 	return ret;
 }
 
+static int iwl_read_otp_word(struct iwl_priv *priv, u16 addr, u16 *eeprom_data)
+{
+	int ret = 0;
+	u32 r;
+	u32 otpgp;
+
+	_iwl_write32(priv, CSR_EEPROM_REG,
+		     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+	ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
+				  CSR_EEPROM_REG_READ_VALID_MSK,
+				  IWL_EEPROM_ACCESS_TIMEOUT);
+	if (ret < 0) {
+		IWL_ERR(priv, "Time out reading OTP[%d]\n", addr);
+		return ret;
+	}
+	r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
+	/* check for ECC errors: */
+	otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
+	if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
+		/* stop in this case */
+		/* set the uncorrectable OTP ECC bit for acknowledgement */
+		iwl_set_bit(priv, CSR_OTP_GP_REG,
+			CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
+		IWL_ERR(priv, "Uncorrectable OTP ECC error, abort OTP read\n");
+		return -EINVAL;
+	}
+	if (otpgp & CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK) {
+		/* continue in this case */
+		/* set the correctable OTP ECC bit for acknowledgement */
+		iwl_set_bit(priv, CSR_OTP_GP_REG,
+				CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK);
+		IWL_ERR(priv, "Correctable OTP ECC error, continue read\n");
+	}
+	*eeprom_data = le16_to_cpu((__force __le16)(r >> 16));
+	return 0;
+}
+
+/*
+ * iwl_is_otp_empty: check for empty OTP
+ */
+static bool iwl_is_otp_empty(struct iwl_priv *priv)
+{
+	u16 next_link_addr = 0, link_value;
+	bool is_empty = false;
+
+	/* locate the beginning of OTP link list */
+	if (!iwl_read_otp_word(priv, next_link_addr, &link_value)) {
+		if (!link_value) {
+			IWL_ERR(priv, "OTP is empty\n");
+			is_empty = true;
+		}
+	} else {
+		IWL_ERR(priv, "Unable to read first block of OTP list.\n");
+		is_empty = true;
+	}
+
+	return is_empty;
+}
+
+
+/*
+ * iwl_find_otp_image: find EEPROM image in OTP
+ *   finding the OTP block that contains the EEPROM image.
+ *   the last valid block on the link list (the block _before_ the last block)
+ *   is the block we should read and used to configure the device.
+ *   If all the available OTP blocks are full, the last block will be the block
+ *   we should read and used to configure the device.
+ *   only perform this operation if shadow RAM is disabled
+ */
+static int iwl_find_otp_image(struct iwl_priv *priv,
+					u16 *validblockaddr)
+{
+	u16 next_link_addr = 0, link_value = 0, valid_addr;
+	int ret = 0;
+	int usedblocks = 0;
+
+	/* set addressing mode to absolute to traverse the link list */
+	iwl_set_otp_access(priv, IWL_OTP_ACCESS_ABSOLUTE);
+
+	/* checking for empty OTP or error */
+	if (iwl_is_otp_empty(priv))
+		return -EINVAL;
+
+	/*
+	 * start traverse link list
+	 * until reach the max number of OTP blocks
+	 * different devices have different number of OTP blocks
+	 */
+	do {
+		/* save current valid block address
+		 * check for more block on the link list
+		 */
+		valid_addr = next_link_addr;
+		next_link_addr = link_value;
+		IWL_DEBUG_INFO(priv, "OTP blocks %d addr 0x%x\n",
+			       usedblocks, next_link_addr);
+		if (iwl_read_otp_word(priv, next_link_addr, &link_value))
+			return -EINVAL;
+		if (!link_value) {
+			/*
+			 * reach the end of link list,
+			 * set address point to the starting address
+			 * of the image
+			 */
+			goto done;
+		}
+		/* more in the link list, continue */
+		usedblocks++;
+	} while (usedblocks < priv->cfg->max_ll_items);
+	/* OTP full, use last block */
+	IWL_DEBUG_INFO(priv, "OTP is full, use last block\n");
+done:
+	*validblockaddr = valid_addr;
+	/* skip first 2 bytes (link list pointer) */
+	*validblockaddr += 2;
+	return ret;
+}
+
 /**
  * iwl_eeprom_init - read EEPROM contents
  *
@@ -263,14 +469,14 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 	int sz;
 	int ret;
 	u16 addr;
-	u32 otpgp;
+	u16 validblockaddr = 0;
+	u16 cache_addr = 0;
 
 	priv->nvm_device_type = iwlcore_get_nvm_type(priv);
-
+	if (priv->nvm_device_type == -ENOENT)
+		return -ENOENT;
 	/* allocate eeprom */
-	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
-		priv->cfg->eeprom_size =
-			OTP_BLOCK_SIZE * OTP_LOWER_BLOCKS_TOTAL;
+	IWL_DEBUG_INFO(priv, "NVM size = %d\n", priv->cfg->eeprom_size);
 	sz = priv->cfg->eeprom_size;
 	priv->eeprom = kzalloc(sz, GFP_KERNEL);
 	if (!priv->eeprom) {
@@ -298,46 +504,31 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 		if (ret) {
 			IWL_ERR(priv, "Failed to initialize OTP access.\n");
 			ret = -ENOENT;
-			goto err;
+			goto done;
 		}
 		_iwl_write32(priv, CSR_EEPROM_GP,
 			     iwl_read32(priv, CSR_EEPROM_GP) &
 			     ~CSR_EEPROM_GP_IF_OWNER_MSK);
-		/* clear */
-		_iwl_write32(priv, CSR_OTP_GP_REG,
-			     iwl_read32(priv, CSR_OTP_GP_REG) |
+
+		iwl_set_bit(priv, CSR_OTP_GP_REG,
 			     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
 			     CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
-
-		for (addr = 0; addr < sz; addr += sizeof(u16)) {
-			u32 r;
-
-			_iwl_write32(priv, CSR_EEPROM_REG,
-				     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
-
-			ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
-						  CSR_EEPROM_REG_READ_VALID_MSK,
-						  IWL_EEPROM_ACCESS_TIMEOUT);
-			if (ret < 0) {
-				IWL_ERR(priv, "Time out reading OTP[%d]\n", addr);
+		/* traversing the linked list if no shadow ram supported */
+		if (!priv->cfg->shadow_ram_support) {
+			if (iwl_find_otp_image(priv, &validblockaddr)) {
+				ret = -ENOENT;
 				goto done;
 			}
-			r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
-			/* check for ECC errors: */
-			otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
-			if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
-				/* stop in this case */
-				IWL_ERR(priv, "Uncorrectable OTP ECC error, Abort OTP read\n");
+		}
+		for (addr = validblockaddr; addr < validblockaddr + sz;
+		     addr += sizeof(u16)) {
+			u16 eeprom_data;
+
+			ret = iwl_read_otp_word(priv, addr, &eeprom_data);
+			if (ret)
 				goto done;
-			}
-			if (otpgp & CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK) {
-				/* continue in this case */
-				_iwl_write32(priv, CSR_OTP_GP_REG,
-					     iwl_read32(priv, CSR_OTP_GP_REG) |
-					     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK);
-				IWL_ERR(priv, "Correctable OTP ECC error, continue read\n");
-			}
-			e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
+			e[cache_addr / 2] = eeprom_data;
+			cache_addr += sizeof(u16);
 		}
 	} else {
 		/* eeprom is an array of 16bit values */
@@ -458,13 +649,13 @@ static void iwl_init_band_reference(const struct iwl_priv *priv,
 				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_5;
 		break;
-	case 6:		/* 2.4GHz FAT channels */
+	case 6:		/* 2.4GHz ht40 channels */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_6);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_6;
 		break;
-	case 7:		/* 5 GHz FAT channels */
+	case 7:		/* 5 GHz ht40 channels */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_7);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_eeprom_query_addr(priv, offset);
@@ -480,14 +671,14 @@ static void iwl_init_band_reference(const struct iwl_priv *priv,
 			    ? # x " " : "")
 
 /**
- * iwl_set_fat_chan_info - Copy fat channel info into driver's priv.
+ * iwl_mod_ht40_chan_info - Copy ht40 channel info into driver's priv.
  *
  * Does not set up a command, or touch hardware.
  */
-static int iwl_set_fat_chan_info(struct iwl_priv *priv,
+static int iwl_mod_ht40_chan_info(struct iwl_priv *priv,
 			      enum ieee80211_band band, u16 channel,
 			      const struct iwl_eeprom_channel *eeprom_ch,
-			      u8 fat_extension_channel)
+			      u8 clear_ht40_extension_channel)
 {
 	struct iwl_channel_info *ch_info;
 
@@ -497,7 +688,7 @@ static int iwl_set_fat_chan_info(struct iwl_priv *priv,
 	if (!is_channel_valid(ch_info))
 		return -1;
 
-	IWL_DEBUG_INFO(priv, "FAT Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
+	IWL_DEBUG_INFO(priv, "HT40 Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
 			" Ad-Hoc %ssupported\n",
 			ch_info->channel,
 			is_channel_a_band(ch_info) ?
@@ -513,16 +704,188 @@ static int iwl_set_fat_chan_info(struct iwl_priv *priv,
 			 && !(eeprom_ch->flags & EEPROM_CHANNEL_RADAR)) ?
 			"" : "not ");
 
-	ch_info->fat_eeprom = *eeprom_ch;
-	ch_info->fat_max_power_avg = eeprom_ch->max_power_avg;
-	ch_info->fat_curr_txpow = eeprom_ch->max_power_avg;
-	ch_info->fat_min_power = 0;
-	ch_info->fat_scan_power = eeprom_ch->max_power_avg;
-	ch_info->fat_flags = eeprom_ch->flags;
-	ch_info->fat_extension_channel = fat_extension_channel;
+	ch_info->ht40_eeprom = *eeprom_ch;
+	ch_info->ht40_max_power_avg = eeprom_ch->max_power_avg;
+	ch_info->ht40_curr_txpow = eeprom_ch->max_power_avg;
+	ch_info->ht40_min_power = 0;
+	ch_info->ht40_scan_power = eeprom_ch->max_power_avg;
+	ch_info->ht40_flags = eeprom_ch->flags;
+	ch_info->ht40_extension_channel &= ~clear_ht40_extension_channel;
 
 	return 0;
 }
+
+/**
+ * iwl_get_max_txpower_avg - get the highest tx power from all chains.
+ *     find the highest tx power from all chains for the channel
+ */
+static s8 iwl_get_max_txpower_avg(struct iwl_priv *priv,
+		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower, int element)
+{
+	s8 max_txpower_avg = 0; /* (dBm) */
+
+	IWL_DEBUG_INFO(priv, "%d - "
+			"chain_a: %d dB chain_b: %d dB "
+			"chain_c: %d dB mimo2: %d dB mimo3: %d dB\n",
+			element,
+			enhanced_txpower[element].chain_a_max >> 1,
+			enhanced_txpower[element].chain_b_max >> 1,
+			enhanced_txpower[element].chain_c_max >> 1,
+			enhanced_txpower[element].mimo2_max >> 1,
+			enhanced_txpower[element].mimo3_max >> 1);
+	/* Take the highest tx power from any valid chains */
+	if ((priv->cfg->valid_tx_ant & ANT_A) &&
+	    (enhanced_txpower[element].chain_a_max > max_txpower_avg))
+		max_txpower_avg = enhanced_txpower[element].chain_a_max;
+	if ((priv->cfg->valid_tx_ant & ANT_B) &&
+	    (enhanced_txpower[element].chain_b_max > max_txpower_avg))
+		max_txpower_avg = enhanced_txpower[element].chain_b_max;
+	if ((priv->cfg->valid_tx_ant & ANT_C) &&
+	    (enhanced_txpower[element].chain_c_max > max_txpower_avg))
+		max_txpower_avg = enhanced_txpower[element].chain_c_max;
+	if (((priv->cfg->valid_tx_ant == ANT_AB) |
+	    (priv->cfg->valid_tx_ant == ANT_BC) |
+	    (priv->cfg->valid_tx_ant == ANT_AC)) &&
+	    (enhanced_txpower[element].mimo2_max > max_txpower_avg))
+		max_txpower_avg =  enhanced_txpower[element].mimo2_max;
+	if ((priv->cfg->valid_tx_ant == ANT_ABC) &&
+	    (enhanced_txpower[element].mimo3_max > max_txpower_avg))
+		max_txpower_avg = enhanced_txpower[element].mimo3_max;
+
+	/* max. tx power in EEPROM is in 1/2 dBm format
+	 * convert from 1/2 dBm to dBm
+	 */
+	return max_txpower_avg >> 1;
+}
+
+/**
+ * iwl_update_common_txpower: update channel tx power
+ *     update tx power per band based on EEPROM enhanced tx power info.
+ */
+static s8 iwl_update_common_txpower(struct iwl_priv *priv,
+		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower,
+		int section, int element)
+{
+	struct iwl_channel_info *ch_info;
+	int ch;
+	bool is_ht40 = false;
+	s8 max_txpower_avg; /* (dBm) */
+
+	/* it is common section, contain all type (Legacy, HT and HT40)
+	 * based on the element in the section to determine
+	 * is it HT 40 or not
+	 */
+	if (element == EEPROM_TXPOWER_COMMON_HT40_INDEX)
+		is_ht40 = true;
+	max_txpower_avg =
+		iwl_get_max_txpower_avg(priv, enhanced_txpower, element);
+	ch_info = priv->channel_info;
+
+	for (ch = 0; ch < priv->channel_count; ch++) {
+		/* find matching band and update tx power if needed */
+		if ((ch_info->band == enhinfo[section].band) &&
+		    (ch_info->max_power_avg < max_txpower_avg) && (!is_ht40)) {
+			/* Update regulatory-based run-time data */
+			ch_info->max_power_avg = ch_info->curr_txpow =
+			    max_txpower_avg;
+			ch_info->scan_power = max_txpower_avg;
+		}
+		if ((ch_info->band == enhinfo[section].band) && is_ht40 &&
+		    ch_info->ht40_max_power_avg &&
+		    (ch_info->ht40_max_power_avg < max_txpower_avg)) {
+			/* Update regulatory-based run-time data */
+			ch_info->ht40_max_power_avg = max_txpower_avg;
+			ch_info->ht40_curr_txpow = max_txpower_avg;
+			ch_info->ht40_scan_power = max_txpower_avg;
+		}
+		ch_info++;
+	}
+	return max_txpower_avg;
+}
+
+/**
+ * iwl_update_channel_txpower: update channel tx power
+ *      update channel tx power based on EEPROM enhanced tx power info.
+ */
+static s8 iwl_update_channel_txpower(struct iwl_priv *priv,
+		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower,
+		int section, int element)
+{
+	struct iwl_channel_info *ch_info;
+	int ch;
+	u8 channel;
+	s8 max_txpower_avg; /* (dBm) */
+
+	channel = enhinfo[section].iwl_eeprom_section_channel[element];
+	max_txpower_avg =
+		iwl_get_max_txpower_avg(priv, enhanced_txpower, element);
+
+	ch_info = priv->channel_info;
+	for (ch = 0; ch < priv->channel_count; ch++) {
+		/* find matching channel and update tx power if needed */
+		if (ch_info->channel == channel) {
+			if ((ch_info->max_power_avg < max_txpower_avg) &&
+			    (!enhinfo[section].is_ht40)) {
+				/* Update regulatory-based run-time data */
+				ch_info->max_power_avg = max_txpower_avg;
+				ch_info->curr_txpow = max_txpower_avg;
+				ch_info->scan_power = max_txpower_avg;
+			}
+			if ((enhinfo[section].is_ht40) &&
+			    (ch_info->ht40_max_power_avg) &&
+			    (ch_info->ht40_max_power_avg < max_txpower_avg)) {
+				/* Update regulatory-based run-time data */
+				ch_info->ht40_max_power_avg = max_txpower_avg;
+				ch_info->ht40_curr_txpow = max_txpower_avg;
+				ch_info->ht40_scan_power = max_txpower_avg;
+			}
+			break;
+		}
+		ch_info++;
+	}
+	return max_txpower_avg;
+}
+
+/**
+ * iwlcore_eeprom_enhanced_txpower: process enhanced tx power info
+ */
+void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv)
+{
+	int eeprom_section_count = 0;
+	int section, element;
+	struct iwl_eeprom_enhanced_txpwr *enhanced_txpower;
+	u32 offset;
+	s8 max_txpower_avg; /* (dBm) */
+
+	/* Loop through all the sections
+	 * adjust bands and channel's max tx power
+	 * Set the tx_power_user_lmt to the highest power
+	 * supported by any channels and chains
+	 */
+	for (section = 0; section < ARRAY_SIZE(enhinfo); section++) {
+		eeprom_section_count = enhinfo[section].count;
+		offset = enhinfo[section].offset;
+		enhanced_txpower = (struct iwl_eeprom_enhanced_txpwr *)
+				iwl_eeprom_query_addr(priv, offset);
+
+		for (element = 0; element < eeprom_section_count; element++) {
+			if (enhinfo[section].is_common)
+				max_txpower_avg =
+					iwl_update_common_txpower(priv,
+					enhanced_txpower, section, element);
+			else
+				max_txpower_avg =
+					iwl_update_channel_txpower(priv,
+					enhanced_txpower, section, element);
+
+			/* Update the tx_power_user_lmt to the highest power
+			 * supported by any channel */
+			if (max_txpower_avg > priv->tx_power_user_lmt)
+				priv->tx_power_user_lmt = max_txpower_avg;
+		}
+	}
+}
+EXPORT_SYMBOL(iwlcore_eeprom_enhanced_txpower);
 
 #define CHECK_AND_PRINT_I(x) ((eeprom_ch_info[ch].flags & EEPROM_CHANNEL_##x) \
 			    ? # x " " : "")
@@ -585,11 +948,10 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			/* Copy the run-time flags so they are there even on
 			 * invalid channels */
 			ch_info->flags = eeprom_ch_info[ch].flags;
-			/* First write that fat is not enabled, and then enable
+			/* First write that ht40 is not enabled, and then enable
 			 * one by one */
-			ch_info->fat_extension_channel =
-				(IEEE80211_CHAN_NO_HT40PLUS |
-				 IEEE80211_CHAN_NO_HT40MINUS);
+			ch_info->ht40_extension_channel =
+					IEEE80211_CHAN_NO_HT40;
 
 			if (!(is_channel_valid(ch_info))) {
 				IWL_DEBUG_INFO(priv, "Ch. %d Flags %x [%sGHz] - "
@@ -638,17 +1000,16 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 		}
 	}
 
-	/* Check if we do have FAT channels */
+	/* Check if we do have HT40 channels */
 	if (priv->cfg->ops->lib->eeprom_ops.regulatory_bands[5] ==
-	    EEPROM_REGULATORY_BAND_NO_FAT &&
+	    EEPROM_REGULATORY_BAND_NO_HT40 &&
 	    priv->cfg->ops->lib->eeprom_ops.regulatory_bands[6] ==
-	    EEPROM_REGULATORY_BAND_NO_FAT)
+	    EEPROM_REGULATORY_BAND_NO_HT40)
 		return 0;
 
-	/* Two additional EEPROM bands for 2.4 and 5 GHz FAT channels */
+	/* Two additional EEPROM bands for 2.4 and 5 GHz HT40 channels */
 	for (band = 6; band <= 7; band++) {
 		enum ieee80211_band ieeeband;
-		u8 fat_extension_chan;
 
 		iwl_init_band_reference(priv, band, &eeprom_ch_count,
 					&eeprom_ch_info, &eeprom_ch_index);
@@ -659,30 +1020,27 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 
 		/* Loop through each band adding each of the channels */
 		for (ch = 0; ch < eeprom_ch_count; ch++) {
-
-			if ((band == 6) &&
-				((eeprom_ch_index[ch] == 5) ||
-				 (eeprom_ch_index[ch] == 6) ||
-				 (eeprom_ch_index[ch] == 7)))
-				/* both are allowed: above and below */
-				fat_extension_chan = 0;
-			else
-				fat_extension_chan =
-					IEEE80211_CHAN_NO_HT40MINUS;
-
 			/* Set up driver's info for lower half */
-			iwl_set_fat_chan_info(priv, ieeeband,
+			iwl_mod_ht40_chan_info(priv, ieeeband,
 						eeprom_ch_index[ch],
-						&(eeprom_ch_info[ch]),
-						fat_extension_chan);
+						&eeprom_ch_info[ch],
+						IEEE80211_CHAN_NO_HT40PLUS);
 
 			/* Set up driver's info for upper half */
-			iwl_set_fat_chan_info(priv, ieeeband,
-						(eeprom_ch_index[ch] + 4),
-						&(eeprom_ch_info[ch]),
-						IEEE80211_CHAN_NO_HT40PLUS);
+			iwl_mod_ht40_chan_info(priv, ieeeband,
+						eeprom_ch_index[ch] + 4,
+						&eeprom_ch_info[ch],
+						IEEE80211_CHAN_NO_HT40MINUS);
 		}
 	}
+
+	/* for newer device (6000 series and up)
+	 * EEPROM contain enhanced tx power information
+	 * driver need to process addition information
+	 * to determine the max channel tx power limits
+	 */
+	if (priv->cfg->ops->lib->eeprom_ops.update_enhanced_txpower)
+		priv->cfg->ops->lib->eeprom_ops.update_enhanced_txpower(priv);
 
 	return 0;
 }

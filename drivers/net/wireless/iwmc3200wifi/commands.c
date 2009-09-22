@@ -70,14 +70,27 @@ static int iwm_send_lmac_ptrough_cmd(struct iwm_priv *iwm,
 int iwm_send_wifi_if_cmd(struct iwm_priv *iwm, void *payload, u16 payload_size,
 			 bool resp)
 {
+	struct iwm_umac_wifi_if *hdr = (struct iwm_umac_wifi_if *)payload;
 	struct iwm_udma_wifi_cmd udma_cmd = UDMA_UMAC_INIT;
 	struct iwm_umac_cmd umac_cmd;
+	int ret;
+	u8 oid = hdr->oid;
 
 	umac_cmd.id = UMAC_CMD_OPCODE_WIFI_IF_WRAPPER;
 	umac_cmd.resp = resp;
 
-	return iwm_hal_send_umac_cmd(iwm, &udma_cmd, &umac_cmd,
-				     payload, payload_size);
+	ret = iwm_hal_send_umac_cmd(iwm, &udma_cmd, &umac_cmd,
+				    payload, payload_size);
+
+	if (resp) {
+		ret = wait_event_interruptible_timeout(iwm->wifi_ntfy_queue,
+				   test_and_clear_bit(oid, &iwm->wifi_ntfy[0]),
+				   3 * HZ);
+
+		return ret ? 0 : -EBUSY;
+	}
+
+	return ret;
 }
 
 static struct coex_event iwm_sta_xor_prio_tbl[COEX_EVENTS_NUM] =
@@ -106,7 +119,7 @@ static struct coex_event iwm_sta_cm_prio_tbl[COEX_EVENTS_NUM] =
 	{4, 3, 0, COEX_UNASSOC_MANUAL_SCAN_FLAGS},
 	{3, 3, 0, COEX_UNASSOC_AUTO_SCAN_FLAGS},
 	{5, 5, 0, COEX_CALIBRATION_FLAGS},
-	{4, 4, 0, COEX_PERIODIC_CALIBRATION_FLAGS},
+	{3, 3, 0, COEX_PERIODIC_CALIBRATION_FLAGS},
 	{5, 4, 0, COEX_CONNECTION_ESTAB_FLAGS},
 	{4, 4, 0, COEX_ASSOCIATED_IDLE_FLAGS},
 	{4, 4, 0, COEX_ASSOC_MANUAL_SCAN_FLAGS},
@@ -220,6 +233,7 @@ int iwm_store_rxiq_calib_result(struct iwm_priv *iwm)
 	eeprom_rxiq = iwm_eeprom_access(iwm, IWM_EEPROM_CALIB_RXIQ);
 	if (IS_ERR(eeprom_rxiq)) {
 		IWM_ERR(iwm, "Couldn't access EEPROM RX IQ entry\n");
+		kfree(rxiq);
 		return PTR_ERR(eeprom_rxiq);
 	}
 
@@ -331,8 +345,7 @@ int iwm_umac_set_config_var(struct iwm_priv *iwm, u16 key,
 	return ret;
 }
 
-int iwm_send_umac_config(struct iwm_priv *iwm,
-			 __le32 reset_flags)
+int iwm_send_umac_config(struct iwm_priv *iwm, __le32 reset_flags)
 {
 	int ret;
 
@@ -356,6 +369,12 @@ int iwm_send_umac_config(struct iwm_priv *iwm,
 
 	ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
 				      CFG_CTS_TO_SELF, iwm->conf.cts_to_self);
+	if (ret < 0)
+		return ret;
+
+	ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
+				      CFG_WIRELESS_MODE,
+				      iwm->conf.wireless_mode);
 	if (ret < 0)
 		return ret;
 
@@ -401,7 +420,7 @@ int iwm_send_umac_config(struct iwm_priv *iwm,
 		return ret;
 
 	ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
-				      CFG_PM_CTRL_FLAGS, 0x30001);
+				      CFG_PM_CTRL_FLAGS, 0x1);
 	if (ret < 0)
 		return ret;
 
@@ -461,8 +480,10 @@ static int iwm_target_read(struct iwm_priv *iwm, __le32 address,
 	target_cmd.eop = 1;
 
 	ret = iwm_hal_send_target_cmd(iwm, &target_cmd, NULL);
-	if (ret < 0)
+	if (ret < 0) {
 		IWM_ERR(iwm, "Couldn't send READ command\n");
+		return ret;
+	}
 
 	/* When succeding, the send_target routine returns the seq number */
 	seq_num = ret;
@@ -482,7 +503,7 @@ static int iwm_target_read(struct iwm_priv *iwm, __le32 address,
 
 	kfree(cmd);
 
-	return ret;
+	return 0;
 }
 
 int iwm_read_mac(struct iwm_priv *iwm, u8 *mac)
@@ -492,7 +513,7 @@ int iwm_read_mac(struct iwm_priv *iwm, u8 *mac)
 
 	ret = iwm_target_read(iwm, cpu_to_le32(WICO_MAC_ADDRESS_ADDR),
 			      mac_align, sizeof(mac_align));
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	if (is_valid_ether_addr(mac_align))
@@ -504,22 +525,6 @@ int iwm_read_mac(struct iwm_priv *iwm, u8 *mac)
 	}
 
 	return 0;
-}
-
-int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx)
-{
-	struct iwm_umac_tx_key_id tx_key_id;
-
-	if (!iwm->default_key || !iwm->default_key->in_use)
-		return -EINVAL;
-
-	tx_key_id.hdr.oid = UMAC_WIFI_IF_CMD_GLOBAL_TX_KEY_ID;
-	tx_key_id.hdr.buf_size = cpu_to_le16(sizeof(struct iwm_umac_tx_key_id) -
-					     sizeof(struct iwm_umac_wifi_if));
-
-	tx_key_id.key_idx = key_idx;
-
-	return iwm_send_wifi_if_cmd(iwm, &tx_key_id, sizeof(tx_key_id), 1);
 }
 
 static int iwm_check_profile(struct iwm_priv *iwm)
@@ -555,10 +560,35 @@ static int iwm_check_profile(struct iwm_priv *iwm)
 	return 0;
 }
 
-int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
-		struct iwm_key *key)
+int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx)
 {
+	struct iwm_umac_tx_key_id tx_key_id;
 	int ret;
+
+	ret = iwm_check_profile(iwm);
+	if (ret < 0)
+		return ret;
+
+	/* UMAC only allows to set default key for WEP and auth type is
+	 * NOT 802.1X or RSNA. */
+	if ((iwm->umac_profile->sec.ucast_cipher != UMAC_CIPHER_TYPE_WEP_40 &&
+	     iwm->umac_profile->sec.ucast_cipher != UMAC_CIPHER_TYPE_WEP_104) ||
+	    iwm->umac_profile->sec.auth_type == UMAC_AUTH_TYPE_8021X ||
+	    iwm->umac_profile->sec.auth_type == UMAC_AUTH_TYPE_RSNA_PSK)
+		return 0;
+
+	tx_key_id.hdr.oid = UMAC_WIFI_IF_CMD_GLOBAL_TX_KEY_ID;
+	tx_key_id.hdr.buf_size = cpu_to_le16(sizeof(struct iwm_umac_tx_key_id) -
+					     sizeof(struct iwm_umac_wifi_if));
+
+	tx_key_id.key_idx = key_idx;
+
+	return iwm_send_wifi_if_cmd(iwm, &tx_key_id, sizeof(tx_key_id), 1);
+}
+
+int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key)
+{
+	int ret = 0;
 	u8 cmd[64], *sta_addr, *key_data, key_len;
 	s8 key_idx;
 	u16 cmd_size = 0;
@@ -568,15 +598,6 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 	struct iwm_umac_key_tkip *tkip = (struct iwm_umac_key_tkip *)cmd;
 	struct iwm_umac_key_ccmp *ccmp = (struct iwm_umac_key_ccmp *)cmd;
 
-	if (set_tx_key)
-		iwm->default_key = key;
-
-	/*
-	 * We check if our current profile is valid.
-	 * If not, we dont push the key, we just cache them,
-	 * so that with the next siwsessid call, the keys
-	 * will be actually pushed.
-	 */
 	if (!remove) {
 		ret = iwm_check_profile(iwm);
 		if (ret < 0)
@@ -589,8 +610,9 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 	key_idx = key->hdr.key_idx;
 
 	if (!remove) {
-		IWM_DBG_WEXT(iwm, DBG, "key_idx:%d set tx key:%d\n",
-			     key_idx, set_tx_key);
+		u8 auth_type = iwm->umac_profile->sec.auth_type;
+
+		IWM_DBG_WEXT(iwm, DBG, "key_idx:%d\n", key_idx);
 		IWM_DBG_WEXT(iwm, DBG, "key_len:%d\n", key_len);
 		IWM_DBG_WEXT(iwm, DBG, "MAC:%pM, idx:%d, multicast:%d\n",
 		       key_hdr->mac, key_hdr->key_idx, key_hdr->multicast);
@@ -602,8 +624,8 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			     iwm->umac_profile->sec.auth_type,
 			     iwm->umac_profile->sec.flags);
 
-		switch (key->alg) {
-		case UMAC_CIPHER_TYPE_WEP_40:
+		switch (key->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
 			wep40->hdr.oid = UMAC_WIFI_IF_CMD_ADD_WEP40_KEY;
 			wep40->hdr.buf_size =
 				cpu_to_le16(sizeof(struct iwm_umac_key_wep40) -
@@ -612,12 +634,14 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			memcpy(&wep40->key_hdr, key_hdr,
 			       sizeof(struct iwm_umac_key_hdr));
 			memcpy(wep40->key, key_data, key_len);
-			wep40->static_key = 1;
+			wep40->static_key =
+				!!((auth_type != UMAC_AUTH_TYPE_8021X) &&
+				   (auth_type != UMAC_AUTH_TYPE_RSNA_PSK));
 
 			cmd_size = sizeof(struct iwm_umac_key_wep40);
 			break;
 
-		case UMAC_CIPHER_TYPE_WEP_104:
+		case WLAN_CIPHER_SUITE_WEP104:
 			wep104->hdr.oid = UMAC_WIFI_IF_CMD_ADD_WEP104_KEY;
 			wep104->hdr.buf_size =
 				cpu_to_le16(sizeof(struct iwm_umac_key_wep104) -
@@ -626,12 +650,14 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			memcpy(&wep104->key_hdr, key_hdr,
 			       sizeof(struct iwm_umac_key_hdr));
 			memcpy(wep104->key, key_data, key_len);
-			wep104->static_key = 1;
+			wep104->static_key =
+				!!((auth_type != UMAC_AUTH_TYPE_8021X) &&
+				   (auth_type != UMAC_AUTH_TYPE_RSNA_PSK));
 
 			cmd_size = sizeof(struct iwm_umac_key_wep104);
 			break;
 
-		case UMAC_CIPHER_TYPE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP:
 			key_hdr->key_idx++;
 			ccmp->hdr.oid = UMAC_WIFI_IF_CMD_ADD_CCMP_KEY;
 			ccmp->hdr.buf_size =
@@ -643,13 +669,13 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 
 			memcpy(ccmp->key, key_data, key_len);
 
-			if (key->flags & IW_ENCODE_EXT_RX_SEQ_VALID)
-				memcpy(ccmp->iv_count, key->rx_seq, 6);
+			if (key->seq_len)
+				memcpy(ccmp->iv_count, key->seq, key->seq_len);
 
 			cmd_size = sizeof(struct iwm_umac_key_ccmp);
 			break;
 
-		case UMAC_CIPHER_TYPE_TKIP:
+		case WLAN_CIPHER_SUITE_TKIP:
 			key_hdr->key_idx++;
 			tkip->hdr.oid = UMAC_WIFI_IF_CMD_ADD_TKIP_KEY;
 			tkip->hdr.buf_size =
@@ -666,8 +692,8 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			       key_data + IWM_TKIP_KEY_SIZE + IWM_TKIP_MIC_SIZE,
 			       IWM_TKIP_MIC_SIZE);
 
-			if (key->flags & IW_ENCODE_EXT_RX_SEQ_VALID)
-				memcpy(ccmp->iv_count, key->rx_seq, 6);
+			if (key->seq_len)
+				memcpy(ccmp->iv_count, key->seq, key->seq_len);
 
 			cmd_size = sizeof(struct iwm_umac_key_tkip);
 			break;
@@ -676,8 +702,8 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			return -ENOTSUPP;
 		}
 
-		if ((key->alg == UMAC_CIPHER_TYPE_CCMP) ||
-		    (key->alg == UMAC_CIPHER_TYPE_TKIP))
+		if ((key->cipher == WLAN_CIPHER_SUITE_TKIP) ||
+		    (key->cipher == WLAN_CIPHER_SUITE_CCMP))
 			/*
 			 * UGLY_UGLY_UGLY
 			 * Copied HACK from the MWG driver.
@@ -688,22 +714,10 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			schedule_timeout_interruptible(usecs_to_jiffies(300));
 
 		ret =  iwm_send_wifi_if_cmd(iwm, cmd, cmd_size, 1);
-		if (ret < 0)
-			goto err;
-
-		/*
-		 * We need a default key only if it is set and
-		 * if we're doing WEP.
-		 */
-		if (iwm->default_key == key &&
-			((key->alg == UMAC_CIPHER_TYPE_WEP_40) ||
-			 (key->alg == UMAC_CIPHER_TYPE_WEP_104))) {
-			ret = iwm_set_tx_key(iwm, key_idx);
-			if (ret < 0)
-				goto err;
-		}
 	} else {
 		struct iwm_umac_key_remove key_remove;
+
+		IWM_DBG_WEXT(iwm, ERR, "Removing key_idx:%d\n", key_idx);
 
 		key_remove.hdr.oid = UMAC_WIFI_IF_CMD_REMOVE_KEY;
 		key_remove.hdr.buf_size =
@@ -715,23 +729,19 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 		ret =  iwm_send_wifi_if_cmd(iwm, &key_remove,
 					    sizeof(struct iwm_umac_key_remove),
 					    1);
-		if (ret < 0)
+		if (ret)
 			return ret;
 
-		iwm->keys[key_idx].in_use = 0;
+		iwm->keys[key_idx].key_len = 0;
 	}
 
-	return 0;
-
- err:
-	kfree(key);
 	return ret;
 }
 
 
 int iwm_send_mlme_profile(struct iwm_priv *iwm)
 {
-	int ret, i;
+	int ret;
 	struct iwm_umac_profile profile;
 
 	memcpy(&profile, iwm->umac_profile, sizeof(profile));
@@ -741,45 +751,19 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 					   sizeof(struct iwm_umac_wifi_if));
 
 	ret = iwm_send_wifi_if_cmd(iwm, &profile, sizeof(profile), 1);
-	if (ret < 0) {
+	if (ret) {
 		IWM_ERR(iwm, "Send profile command failed\n");
 		return ret;
 	}
 
-	/* Wait for the profile to be active */
-	ret = wait_event_interruptible_timeout(iwm->mlme_queue,
-					       iwm->umac_profile_active == 1,
-					       3 * HZ);
-	if (!ret)
-		return -EBUSY;
-
-
-	for (i = 0; i < IWM_NUM_KEYS; i++)
-		if (iwm->keys[i].in_use) {
-			int default_key = 0;
-			struct iwm_key *key = &iwm->keys[i];
-
-			if (key == iwm->default_key)
-				default_key = 1;
-
-			/* Wait for the profile before sending the keys */
-			wait_event_interruptible_timeout(iwm->mlme_queue,
-			     (test_bit(IWM_STATUS_ASSOCIATING, &iwm->status) ||
-			      test_bit(IWM_STATUS_ASSOCIATED, &iwm->status)),
-							 3 * HZ);
-
-			ret = iwm_set_key(iwm, 0, default_key, key);
-			if (ret < 0)
-				return ret;
-		}
-
+	set_bit(IWM_STATUS_SME_CONNECTING, &iwm->status);
 	return 0;
 }
 
 int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 {
-	int ret;
 	struct iwm_umac_invalidate_profile invalid;
+	int ret;
 
 	invalid.hdr.oid = UMAC_WIFI_IF_CMD_INVALIDATE_PROFILE;
 	invalid.hdr.buf_size =
@@ -789,16 +773,13 @@ int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 	invalid.reason = WLAN_REASON_UNSPECIFIED;
 
 	ret = iwm_send_wifi_if_cmd(iwm, &invalid, sizeof(invalid), 1);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = wait_event_interruptible_timeout(iwm->mlme_queue,
-				 (iwm->umac_profile_active == 0),
-					       2 * HZ);
-	if (!ret)
-		return -EBUSY;
+				(iwm->umac_profile_active == 0), 2 * HZ);
 
-	return 0;
+	return ret ? 0 : -EBUSY;
 }
 
 int iwm_send_umac_stats_req(struct iwm_priv *iwm, u32 flags)
@@ -881,7 +862,7 @@ int iwm_scan_ssids(struct iwm_priv *iwm, struct cfg80211_ssid *ssids,
 	}
 
 	ret = iwm_send_wifi_if_cmd(iwm, &req, sizeof(req), 0);
-	if (ret < 0) {
+	if (ret) {
 		IWM_ERR(iwm, "Couldn't send scan request\n");
 		return ret;
 	}
