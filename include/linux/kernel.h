@@ -146,7 +146,7 @@ extern int _cond_resched(void);
 #define might_sleep_if(cond) do { if (cond) might_sleep(); } while (0)
 
 #define abs(x) ({				\
-		int __x = (x);			\
+		long __x = (x);			\
 		(__x < 0) ? -__x : __x;		\
 	})
 
