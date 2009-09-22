@@ -143,6 +143,8 @@ rtc attributes without requiring the use of ioctls. All dates and times
 are in the RTC's timezone, rather than in system time.
 
 date:  	   	 RTC-provided date
+hctosys:   	 1 if the RTC provided the system time at boot via the
+		 CONFIG_RTC_HCTOSYS kernel option, 0 otherwise
 max_user_freq:	 The maximum interrupt rate an unprivileged user may request
 		 from this RTC.
 name:		 The name of the RTC corresponding to this sysfs directory
