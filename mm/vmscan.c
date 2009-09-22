@@ -286,6 +286,11 @@ static inline int page_mapping_inuse(struct page *page)
 
 static inline int is_page_cache_freeable(struct page *page)
 {
+	/*
+	 * A freeable page cache page is referenced only by the caller
+	 * that isolated the page, the page cache radix tree and
+	 * optional buffer heads at page->private.
+	 */
 	return page_count(page) - page_has_private(page) == 2;
 }
 
