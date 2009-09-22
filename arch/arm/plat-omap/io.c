@@ -33,7 +33,7 @@ void __iomem *omap_ioremap(unsigned long p, size_t size, unsigned int type)
 		if (BETWEEN(p, OMAP1_IO_PHYS, OMAP1_IO_SIZE))
 			return XLATE(p, OMAP1_IO_PHYS, OMAP1_IO_VIRT);
 	}
-	if (cpu_is_omap730()) {
+	if (cpu_is_omap7xx()) {
 		if (BETWEEN(p, OMAP730_DSP_BASE, OMAP730_DSP_SIZE))
 			return XLATE(p, OMAP730_DSP_BASE, OMAP730_DSP_START);
 

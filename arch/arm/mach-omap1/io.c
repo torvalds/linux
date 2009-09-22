@@ -36,7 +36,7 @@ static struct map_desc omap_io_desc[] __initdata = {
 	}
 };
 
-#ifdef CONFIG_ARCH_OMAP730
+#if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
 static struct map_desc omap730_io_desc[] __initdata = {
 	{
 		.virtual	= OMAP730_DSP_BASE,
@@ -47,22 +47,6 @@ static struct map_desc omap730_io_desc[] __initdata = {
 		.virtual	= OMAP730_DSPREG_BASE,
 		.pfn		= __phys_to_pfn(OMAP730_DSPREG_START),
 		.length		= OMAP730_DSPREG_SIZE,
-		.type		= MT_DEVICE
-	}
-};
-#endif
-
-#ifdef CONFIG_ARCH_OMAP850
-static struct map_desc omap850_io_desc[] __initdata = {
-	{
-		.virtual	= OMAP850_DSP_BASE,
-		.pfn		= __phys_to_pfn(OMAP850_DSP_START),
-		.length		= OMAP850_DSP_SIZE,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= OMAP850_DSPREG_BASE,
-		.pfn		= __phys_to_pfn(OMAP850_DSPREG_START),
-		.length		= OMAP850_DSPREG_SIZE,
 		.type		= MT_DEVICE
 	}
 };
@@ -120,18 +104,11 @@ void __init omap1_map_common_io(void)
 	 */
 	omap_check_revision();
 
-#ifdef CONFIG_ARCH_OMAP730
-	if (cpu_is_omap730()) {
+#if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
+	if (cpu_is_omap7xx()) {
 		iotable_init(omap730_io_desc, ARRAY_SIZE(omap730_io_desc));
 	}
 #endif
-
-#ifdef CONFIG_ARCH_OMAP850
-	if (cpu_is_omap850()) {
-		iotable_init(omap850_io_desc, ARRAY_SIZE(omap850_io_desc));
-	}
-#endif
-
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap15xx()) {
 		iotable_init(omap1510_io_desc, ARRAY_SIZE(omap1510_io_desc));
