@@ -24,6 +24,12 @@
 #include <asm/i387.h>
 #include "padlock.h"
 
+#ifdef CONFIG_64BIT
+#define STACK_ALIGN 16
+#else
+#define STACK_ALIGN 4
+#endif
+
 struct padlock_sha_desc {
 	struct shash_desc fallback;
 };
@@ -64,7 +70,9 @@ static int padlock_sha1_finup(struct shash_desc *desc, const u8 *in,
 	/* We can't store directly to *out as it may be unaligned. */
 	/* BTW Don't reduce the buffer size below 128 Bytes!
 	 *     PadLock microcode needs it that big. */
-	char result[128] __attribute__ ((aligned(PADLOCK_ALIGNMENT)));
+	char buf[128 + PADLOCK_ALIGNMENT - STACK_ALIGN] __attribute__
+		((aligned(STACK_ALIGN)));
+	char *result = PTR_ALIGN(&buf[0], PADLOCK_ALIGNMENT);
 	struct padlock_sha_desc *dctx = shash_desc_ctx(desc);
 	struct sha1_state state;
 	unsigned int space;
@@ -128,7 +136,9 @@ static int padlock_sha256_finup(struct shash_desc *desc, const u8 *in,
 	/* We can't store directly to *out as it may be unaligned. */
 	/* BTW Don't reduce the buffer size below 128 Bytes!
 	 *     PadLock microcode needs it that big. */
-	char result[128] __attribute__ ((aligned(PADLOCK_ALIGNMENT)));
+	char buf[128 + PADLOCK_ALIGNMENT - STACK_ALIGN] __attribute__
+		((aligned(STACK_ALIGN)));
+	char *result = PTR_ALIGN(&buf[0], PADLOCK_ALIGNMENT);
 	struct padlock_sha_desc *dctx = shash_desc_ctx(desc);
 	struct sha256_state state;
 	unsigned int space;
