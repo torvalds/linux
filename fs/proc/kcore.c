@@ -21,6 +21,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/list.h>
+#include <asm/sections.h>
 
 #define CORE_STR "CORE"
 
@@ -374,10 +375,26 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 
 static struct kcore_list kcore_vmalloc;
 
+#ifdef CONFIG_ARCH_PROC_KCORE_TEXT
+static struct kcore_list kcore_text;
+/*
+ * If defined, special segment is used for mapping kernel text instead of
+ * direct-map area. We need to create special TEXT section.
+ */
+static void __init proc_kcore_text_init(void)
+{
+	kclist_add(&kcore_text, _stext, _end - _stext, KCORE_TEXT);
+}
+#else
+static void __init proc_kcore_text_init(void)
+{
+}
+#endif
+
 static int __init proc_kcore_init(void)
 {
 	proc_root_kcore = proc_create("kcore", S_IRUSR, NULL, &proc_kcore_operations);
-
+	proc_kcore_text_init();
 	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START,
 		VMALLOC_END - VMALLOC_START, KCORE_VMALLOC);
 	return 0;

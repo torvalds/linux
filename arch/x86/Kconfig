@@ -1204,6 +1204,10 @@ config ARCH_DISCONTIGMEM_DEFAULT
 	def_bool y
 	depends on NUMA && X86_32
 
+config ARCH_PROC_KCORE_TEXT
+	def_bool y
+	depends on X86_64 && PROC_KCORE
+
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 	depends on X86_64
