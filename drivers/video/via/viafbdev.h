@@ -37,6 +37,20 @@
 #define VERSION_OS          0	/* 0: for 32 bits OS, 1: for 64 bits OS */
 #define VERSION_MINOR       4
 
+struct viafb_shared {
+	struct proc_dir_entry *proc_entry;	/*viafb proc entry */
+
+	/* I2C stuff */
+	struct via_i2c_stuff i2c_stuff;
+
+	/* All the information will be needed to set engine */
+	struct tmds_setting_information tmds_setting_info;
+	struct crt_setting_information crt_setting_info;
+	struct lvds_setting_information lvds_setting_info;
+	struct lvds_setting_information lvds_setting_info2;
+	struct chip_information chip_info;
+};
+
 struct viafb_par {
 	void __iomem *io_virt;	/*iospace virtual memory address */
 	unsigned int fbmem;	/*framebuffer physical memory address */
@@ -47,12 +61,11 @@ struct viafb_par {
 	u32 VQ_start;		/* Virtual Queue Start Address */
 	u32 VQ_end;		/* Virtual Queue End Address */
 	u32 iga_path;
-	struct proc_dir_entry *proc_entry;	/*viafb proc entry */
 
-	/* I2C stuff */
-	struct via_i2c_stuff i2c_stuff;
+	struct viafb_shared *shared;
 
 	/* All the information will be needed to set engine */
+	/* depreciated, use the ones in shared directly */
 	struct tmds_setting_information *tmds_setting_info;
 	struct crt_setting_information *crt_setting_info;
 	struct lvds_setting_information *lvds_setting_info;

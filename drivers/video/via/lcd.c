@@ -207,13 +207,13 @@ static bool lvds_identify_integratedlvds(void)
 
 int viafb_lvds_trasmitter_identify(void)
 {
-	viaparinfo->i2c_stuff.i2c_port = I2CPORTINDEX;
+	viaparinfo->shared->i2c_stuff.i2c_port = I2CPORTINDEX;
 	if (viafb_lvds_identify_vt1636()) {
 		viaparinfo->chip_info->lvds_chip_info.i2c_port = I2CPORTINDEX;
 		DEBUG_MSG(KERN_INFO
 			  "Found VIA VT1636 LVDS on port i2c 0x31 \n");
 	} else {
-		viaparinfo->i2c_stuff.i2c_port = GPIOPORTINDEX;
+		viaparinfo->shared->i2c_stuff.i2c_port = GPIOPORTINDEX;
 		if (viafb_lvds_identify_vt1636()) {
 			viaparinfo->chip_info->lvds_chip_info.i2c_port =
 				GPIOPORTINDEX;
@@ -470,7 +470,7 @@ static int lvds_register_read(int index)
 {
 	u8 data;
 
-	viaparinfo->i2c_stuff.i2c_port = GPIOPORTINDEX;
+	viaparinfo->shared->i2c_stuff.i2c_port = GPIOPORTINDEX;
 	viafb_i2c_readbyte((u8) viaparinfo->chip_info->
 	    lvds_chip_info.lvds_chip_slave_addr,
 			(u8) index, &data);

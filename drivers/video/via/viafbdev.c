@@ -1943,40 +1943,30 @@ static int __devinit via_pci_probe(void)
 	char *tmpc, *tmpm;
 	char *tmpc_sec, *tmpm_sec;
 	int vmode_index;
-	u32 tmds_length, lvds_length, crt_length, chip_length, viafb_par_length;
+	u32 viafb_par_length;
 
 	DEBUG_MSG(KERN_INFO "VIAFB PCI Probe!!\n");
 
 	viafb_par_length = ALIGN(sizeof(struct viafb_par), BITS_PER_LONG/8);
-	tmds_length = ALIGN(sizeof(struct tmds_setting_information),
-		BITS_PER_LONG/8);
-	lvds_length = ALIGN(sizeof(struct lvds_setting_information),
-		BITS_PER_LONG/8);
-	crt_length = ALIGN(sizeof(struct lvds_setting_information),
-		BITS_PER_LONG/8);
-	chip_length = ALIGN(sizeof(struct chip_information), BITS_PER_LONG/8);
 
 	/* Allocate fb_info and ***_par here, also including some other needed
 	 * variables
 	*/
-	viafbinfo = framebuffer_alloc(viafb_par_length + 2 * lvds_length +
-	tmds_length + crt_length + chip_length, NULL);
+	viafbinfo = framebuffer_alloc(viafb_par_length +
+		ALIGN(sizeof(struct viafb_shared), BITS_PER_LONG/8), NULL);
 	if (!viafbinfo) {
 		printk(KERN_ERR"Could not allocate memory for viafb_info.\n");
 		return -ENODEV;
 	}
 
 	viaparinfo = (struct viafb_par *)viafbinfo->par;
-	viaparinfo->tmds_setting_info = (struct tmds_setting_information *)
-		((unsigned long)viaparinfo + viafb_par_length);
-	viaparinfo->lvds_setting_info = (struct lvds_setting_information *)
-		((unsigned long)viaparinfo->tmds_setting_info + tmds_length);
-	viaparinfo->lvds_setting_info2 = (struct lvds_setting_information *)
-		((unsigned long)viaparinfo->lvds_setting_info + lvds_length);
-	viaparinfo->crt_setting_info = (struct crt_setting_information *)
-		((unsigned long)viaparinfo->lvds_setting_info2 + lvds_length);
-	viaparinfo->chip_info = (struct chip_information *)
-		((unsigned long)viaparinfo->crt_setting_info + crt_length);
+	viaparinfo->shared = viafbinfo->par + viafb_par_length;
+	viaparinfo->tmds_setting_info = &viaparinfo->shared->tmds_setting_info;
+	viaparinfo->lvds_setting_info = &viaparinfo->shared->lvds_setting_info;
+	viaparinfo->lvds_setting_info2 =
+		&viaparinfo->shared->lvds_setting_info2;
+	viaparinfo->crt_setting_info = &viaparinfo->shared->crt_setting_info;
+	viaparinfo->chip_info = &viaparinfo->shared->chip_info;
 
 	if (viafb_dual_fb)
 		viafb_SAMM_ON = 1;
@@ -2142,6 +2132,7 @@ static int __devinit via_pci_probe(void)
 		viaparinfo->iga_path = IGA1;
 		viaparinfo1->iga_path = IGA2;
 		memcpy(viafbinfo1, viafbinfo, sizeof(struct fb_info));
+		viafbinfo1->par = viaparinfo1;
 		viafbinfo1->screen_base = viafbinfo->screen_base +
 			viafb_second_offset;
 
@@ -2193,7 +2184,7 @@ static int __devinit via_pci_probe(void)
 		  viafbinfo->node, viafbinfo->fix.id, default_var.xres,
 		  default_var.yres, default_var.bits_per_pixel);
 
-	viafb_init_proc(&viaparinfo->proc_entry);
+	viafb_init_proc(&viaparinfo->shared->proc_entry);
 	viafb_init_dac(IGA2);
 	return 0;
 }
@@ -2214,7 +2205,7 @@ static void __devexit via_pci_remove(void)
 	if (viafb_dual_fb)
 		framebuffer_release(viafbinfo1);
 
-	viafb_remove_proc(viaparinfo->proc_entry);
+	viafb_remove_proc(viaparinfo->shared->proc_entry);
 }
 
 #ifndef MODULE
