@@ -465,39 +465,6 @@ out:
 	return rc;
 }
 
-
-#ifdef CONFIG_MODULES
-
-asmlinkage long
-sys32_init_module(void __user *umod, unsigned long len,
-		const char __user *uargs)
-{
-	return sys_init_module(umod, len, uargs);
-}
-
-asmlinkage long
-sys32_delete_module(const char __user *name_user, unsigned int flags)
-{
-	return sys_delete_module(name_user, flags);
-}
-
-#else /* CONFIG_MODULES */
-
-asmlinkage long
-sys32_init_module(void __user *umod, unsigned long len,
-		const char __user *uargs)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long
-sys32_delete_module(const char __user *name_user, unsigned int flags)
-{
-	return -ENOSYS;
-}
-
-#endif  /* CONFIG_MODULES */
-
 asmlinkage long sys32_pread64(unsigned int fd, char __user *ubuf,
 				size_t count, u32 poshi, u32 poslo)
 {

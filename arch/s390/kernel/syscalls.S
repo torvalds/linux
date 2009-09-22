@@ -136,8 +136,8 @@ SYSCALL(sys_adjtimex,sys_adjtimex,compat_sys_adjtimex_wrapper)
 SYSCALL(sys_mprotect,sys_mprotect,sys32_mprotect_wrapper)	/* 125 */
 SYSCALL(sys_sigprocmask,sys_sigprocmask,compat_sys_sigprocmask_wrapper)
 NI_SYSCALL							/* old "create module" */
-SYSCALL(sys_init_module,sys_init_module,sys32_init_module_wrapper)
-SYSCALL(sys_delete_module,sys_delete_module,sys32_delete_module_wrapper)
+SYSCALL(sys_init_module,sys_init_module,sys_init_module_wrapper)
+SYSCALL(sys_delete_module,sys_delete_module,sys_delete_module_wrapper)
 NI_SYSCALL							/* 130: old get_kernel_syms */
 SYSCALL(sys_quotactl,sys_quotactl,sys32_quotactl_wrapper)
 SYSCALL(sys_getpgid,sys_getpgid,sys32_getpgid_wrapper)
