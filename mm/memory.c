@@ -1260,17 +1260,19 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		    !(vm_flags & vma->vm_flags))
 			return i ? : -EFAULT;
 
-		if (is_vm_hugetlb_page(vma)) {
-			i = follow_hugetlb_page(mm, vma, pages, vmas,
-						&start, &nr_pages, i, write);
-			continue;
-		}
-
 		foll_flags = FOLL_TOUCH;
 		if (pages)
 			foll_flags |= FOLL_GET;
 		if (flags & GUP_FLAGS_DUMP)
 			foll_flags |= FOLL_DUMP;
+		if (write)
+			foll_flags |= FOLL_WRITE;
+
+		if (is_vm_hugetlb_page(vma)) {
+			i = follow_hugetlb_page(mm, vma, pages, vmas,
+					&start, &nr_pages, i, foll_flags);
+			continue;
+		}
 
 		do {
 			struct page *page;
