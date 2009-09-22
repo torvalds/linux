@@ -31,10 +31,32 @@ struct flex_array {
 	};
 };
 
-#define FLEX_ARRAY_INIT(size, total) { { {\
-	.element_size = (size),		\
-	.total_nr_elements = (total),	\
-} } }
+/* Number of bytes left in base struct flex_array, excluding metadata */
+#define FLEX_ARRAY_BASE_BYTES_LEFT					\
+	(FLEX_ARRAY_BASE_SIZE - offsetof(struct flex_array, parts))
+
+/* Number of pointers in base to struct flex_array_part pages */
+#define FLEX_ARRAY_NR_BASE_PTRS						\
+	(FLEX_ARRAY_BASE_BYTES_LEFT / sizeof(struct flex_array_part *))
+
+/* Number of elements of size that fit in struct flex_array_part */
+#define FLEX_ARRAY_ELEMENTS_PER_PART(size)				\
+	(FLEX_ARRAY_PART_SIZE / size)
+
+/*
+ * Defines a statically allocated flex array and ensures its parameters are
+ * valid.
+ */
+#define DEFINE_FLEX_ARRAY(__arrayname, __element_size, __total)		\
+	struct flex_array __arrayname = { { {				\
+		.element_size = (__element_size),			\
+		.total_nr_elements = (__total),				\
+	} } };								\
+	static inline void __arrayname##_invalid_parameter(void)	\
+	{								\
+		BUILD_BUG_ON((__total) > FLEX_ARRAY_NR_BASE_PTRS *	\
+			FLEX_ARRAY_ELEMENTS_PER_PART(__element_size));	\
+	}
 
 struct flex_array *flex_array_alloc(int element_size, unsigned int total,
 		gfp_t flags);
