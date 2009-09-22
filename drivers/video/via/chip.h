@@ -68,6 +68,9 @@
 #define     UNICHROME_VX800         11
 #define     UNICHROME_VX800_DID     0x1122
 
+#define     UNICHROME_VX855         12
+#define     UNICHROME_VX855_DID     0x5122
+
 /**************************************************/
 /* Definition TMDS Trasmitter Information         */
 /**************************************************/

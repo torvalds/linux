@@ -324,6 +324,17 @@ is reserved, so it may have problem to set 1600x1200 on IGA2. */
 /* location: {CR94,0,6} */
 #define VX800_IGA2_DISPLAY_QUEUE_EXPIRE_NUM     128
 
+/* For VT3409 */
+#define VX855_IGA1_FIFO_MAX_DEPTH               400
+#define VX855_IGA1_FIFO_THRESHOLD               320
+#define VX855_IGA1_FIFO_HIGH_THRESHOLD          320
+#define VX855_IGA1_DISPLAY_QUEUE_EXPIRE_NUM     160
+
+#define VX855_IGA2_FIFO_MAX_DEPTH               200
+#define VX855_IGA2_FIFO_THRESHOLD               160
+#define VX855_IGA2_FIFO_HIGH_THRESHOLD          160
+#define VX855_IGA2_DISPLAY_QUEUE_EXPIRE_NUM     320
+
 #define IGA1_FIFO_DEPTH_SELECT_REG_NUM          1
 #define IGA1_FIFO_THRESHOLD_REG_NUM             2
 #define IGA1_FIFO_HIGH_THRESHOLD_REG_NUM        2
@@ -688,6 +699,7 @@ struct pll_map {
 	u32 cle266_pll;
 	u32 k800_pll;
 	u32 cx700_pll;
+	u32 vx855_pll;
 };
 
 struct rgbLUT {
@@ -832,6 +844,8 @@ struct iga2_crtc_timing {
 #define P4M900_FUNCTION3    0x3364
 /* VT3353 chipset*/
 #define VX800_FUNCTION3     0x3353
+/* VT3409 chipset*/
+#define VX855_FUNCTION3     0x3409
 
 #define NUM_TOTAL_PLL_TABLE ARRAY_SIZE(pll_value)
 

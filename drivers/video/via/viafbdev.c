@@ -914,7 +914,8 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		fg_color = cursor->image.fg_color;
 		bg_color = cursor->image.bg_color;
 		if (chip_name == UNICHROME_CX700 ||
-			chip_name == UNICHROME_VX800) {
+			chip_name == UNICHROME_VX800 ||
+			chip_name == UNICHROME_VX855) {
 			fg_color =
 				((info->cmap.red[fg_color] & 0xFFC0) << 14) |
 				((info->cmap.green[fg_color] & 0xFFC0) << 4) |
