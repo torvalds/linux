@@ -1848,3 +1848,10 @@ sys_clone_wrapper:
 	llgtr	%r4,%r4			# int *
 	llgtr	%r5,%r5			# int *
 	jg	sys_clone		# branch to system call
+
+	.globl	sys32_execve_wrapper
+sys32_execve_wrapper:
+	llgtr	%r2,%r2			# char *
+	llgtr	%r3,%r3			# compat_uptr_t *
+	llgtr	%r4,%r4			# compat_uptr_t *
+	jg	sys32_execve		# branch to system call

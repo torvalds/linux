@@ -443,31 +443,26 @@ sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo)
  * sys32_execve() executes a new program after the asm stub has set
  * things up for us.  This should basically do what I want it to.
  */
-asmlinkage long sys32_execve(void)
+asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
+			     compat_uptr_t __user *envp)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	char *filename;
-	unsigned long result;
-	int rc;
+	long rc;
 
-	filename = getname(compat_ptr(regs->orig_gpr2));
-	if (IS_ERR(filename)) {
-		result = PTR_ERR(filename);
-                goto out;
-	}
-	rc = compat_do_execve(filename, compat_ptr(regs->gprs[3]),
-			      compat_ptr(regs->gprs[4]), regs);
-	if (rc) {
-		result = rc;
-		goto out_putname;
-	}
+	filename = getname(name);
+	rc = PTR_ERR(filename);
+	if (IS_ERR(filename))
+		return rc;
+	rc = compat_do_execve(filename, argv, envp, regs);
+	if (rc)
+		goto out;
 	current->thread.fp_regs.fpc=0;
 	asm volatile("sfpc %0,0" : : "d" (0));
-	result = regs->gprs[2];
-out_putname:
-        putname(filename);
+	rc = regs->gprs[2];
 out:
-	return result;
+	putname(filename);
+	return rc;
 }
 
 

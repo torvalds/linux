@@ -32,6 +32,7 @@
 #include <linux/elfcore.h>
 #include <linux/kernel_stat.h>
 #include <linux/syscalls.h>
+#include <linux/compat.h>
 #include <asm/compat.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -268,30 +269,25 @@ asmlinkage void execve_tail(void)
 /*
  * sys_execve() executes a new program.
  */
-SYSCALL_DEFINE0(execve)
+SYSCALL_DEFINE3(execve, char __user *, name, char __user * __user *, argv,
+		char __user * __user *, envp)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	char *filename;
-	unsigned long result;
-	int rc;
+	long rc;
 
-	filename = getname((char __user *) regs->orig_gpr2);
-	if (IS_ERR(filename)) {
-		result = PTR_ERR(filename);
+	filename = getname(name);
+	rc = PTR_ERR(filename);
+	if (IS_ERR(filename))
+		return rc;
+	rc = do_execve(filename, argv, envp, regs);
+	if (rc)
 		goto out;
-	}
-	rc = do_execve(filename, (char __user * __user *) regs->gprs[3],
-		       (char __user * __user *) regs->gprs[4], regs);
-	if (rc) {
-		result = rc;
-		goto out_putname;
-	}
 	execve_tail();
-	result = regs->gprs[2];
-out_putname:
-	putname(filename);
+	rc = regs->gprs[2];
 out:
-	return result;
+	putname(filename);
+	return rc;
 }
 
 /*
