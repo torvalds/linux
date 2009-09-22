@@ -2041,6 +2041,17 @@ config FB_SH7760
 	  and 8, 15 or 16 bpp color; 90 degrees clockwise display rotation for
 	  panels <= 320 pixel horizontal resolution.
 
+config FB_DA8XX
+	tristate "DA8xx/OMAP-L1xx Framebuffer support"
+	depends on FB && ARCH_DAVINCI_DA8XX
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  This is the frame buffer device driver for the TI LCD controller
+	  found on DA8xx/OMAP-L1xx SoCs.
+	  If unsure, say N.
+
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
 	depends on FB
