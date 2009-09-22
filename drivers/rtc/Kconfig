@@ -820,4 +820,11 @@ config RTC_DRV_STMP
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-stmp3xxx.
 
+config RTC_DRV_PCAP
+	tristate "PCAP RTC"
+	depends on EZX_PCAP
+	help
+	  If you say Y here you will get support for the RTC found on
+	  the PCAP2 ASIC used on some Motorola phones.
+
 endif # RTC_CLASS
