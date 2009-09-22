@@ -46,7 +46,6 @@ int viafb_hotplug_refresh = 60;
 unsigned int viafb_second_offset;
 int viafb_second_size;
 int viafb_primary_dev = None_Device;
-void __iomem *viafb_FB_MM;
 unsigned int viafb_second_xres = 640;
 unsigned int viafb_second_yres = 480;
 unsigned int viafb_second_virtual_xres;

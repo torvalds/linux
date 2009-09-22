@@ -38,7 +38,6 @@
 #define VERSION_MINOR       4
 
 struct viafb_par {
-	void __iomem *fbmem_virt;	/*framebuffer virtual memory address */
 	void __iomem *io_virt;	/*iospace virtual memory address */
 	unsigned int fbmem;	/*framebuffer physical memory address */
 	unsigned int memsize;	/*size of fbmem */

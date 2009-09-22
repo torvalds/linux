@@ -832,8 +832,7 @@ static void viafb_fillrect(struct fb_info *info,
 	/* Source Base Address */
 	writel(0x0, viaparinfo->io_virt + VIA_REG_SRCBASE);
 	/* Destination Base Address */
-	writel(((unsigned long) (info->screen_base) -
-		   (unsigned long) viafb_FB_MM) >> 3,
+	writel((info->fix.smem_start - viafbinfo->fix.smem_start) >> 3,
 		   viaparinfo->io_virt + VIA_REG_DSTBASE);
 	/* Pitch */
 	pitch = (info->var.xres_virtual + 7) & ~7;
@@ -887,12 +886,10 @@ static void viafb_copyarea(struct fb_info *info,
 	}
 
 	/* Source Base Address */
-	writel(((unsigned long) (info->screen_base) -
-		   (unsigned long) viafb_FB_MM) >> 3,
+	writel((info->fix.smem_start - viafbinfo->fix.smem_start) >> 3,
 		   viaparinfo->io_virt + VIA_REG_SRCBASE);
 	/* Destination Base Address */
-	writel(((unsigned long) (info->screen_base) -
-		   (unsigned long) viafb_FB_MM) >> 3,
+	writel((info->fix.smem_start - viafbinfo->fix.smem_start) >> 3,
 		   viaparinfo->io_virt + VIA_REG_DSTBASE);
 	/* Pitch */
 	pitch = (info->var.xres_virtual + 7) & ~7;
@@ -951,8 +948,7 @@ static void viafb_imageblit(struct fb_info *info,
 	/* Source Base Address */
 	writel(0x0, viaparinfo->io_virt + VIA_REG_SRCBASE);
 	/* Destination Base Address */
-	writel(((unsigned long) (info->screen_base) -
-		   (unsigned long) viafb_FB_MM) >> 3,
+	writel((info->fix.smem_start - viafbinfo->fix.smem_start) >> 3,
 		   viaparinfo->io_virt + VIA_REG_DSTBASE);
 	/* Pitch */
 	pitch = (info->var.xres_virtual + 7) & ~7;
@@ -1170,7 +1166,7 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 			}
 		}
 
-		memcpy(((struct viafb_par *)(info->par))->fbmem_virt +
+		memcpy(viafbinfo->screen_base +
 		       ((struct viafb_par *)(info->par))->cursor_start,
 		       cr_data->bak, CURSOR_SIZE);
 out:
@@ -2073,11 +2069,9 @@ static int __devinit via_pci_probe(void)
 	viafb_get_fb_info(&viaparinfo->fbmem, &viaparinfo->memsize);
 	viaparinfo->fbmem_free = viaparinfo->memsize;
 	viaparinfo->fbmem_used = 0;
-	viaparinfo->fbmem_virt = ioremap_nocache(viaparinfo->fbmem,
+	viafbinfo->screen_base = ioremap_nocache(viaparinfo->fbmem,
 		viaparinfo->memsize);
-	viafbinfo->screen_base = (char *)viaparinfo->fbmem_virt;
-
-	if (!viaparinfo->fbmem_virt) {
+	if (!viafbinfo->screen_base) {
 		printk(KERN_INFO "ioremap failed\n");
 		return -ENOMEM;
 	}
@@ -2110,7 +2104,6 @@ static int __devinit via_pci_probe(void)
 			viafb_second_size * 1024 * 1024;
 	}
 
-	viafb_FB_MM = viaparinfo->fbmem_virt;
 	tmpm = viafb_mode;
 	tmpc = strsep(&tmpm, "x");
 	strict_strtoul(tmpc, 0, &default_xres);
@@ -2203,8 +2196,6 @@ static int __devinit via_pci_probe(void)
 		viaparinfo1->memsize = viaparinfo->memsize -
 			viafb_second_offset;
 		viaparinfo->memsize = viafb_second_offset;
-		viaparinfo1->fbmem_virt = viaparinfo->fbmem_virt +
-			viafb_second_offset;
 		viaparinfo1->fbmem = viaparinfo->fbmem + viafb_second_offset;
 
 		viaparinfo1->fbmem_used = viaparinfo->fbmem_used;
@@ -2226,8 +2217,6 @@ static int __devinit via_pci_probe(void)
 		memcpy(viafbinfo1, viafbinfo, sizeof(struct fb_info));
 		viafbinfo1->screen_base = viafbinfo->screen_base +
 			viafb_second_offset;
-		viafbinfo1->fix.smem_start = viaparinfo1->fbmem;
-		viafbinfo1->fix.smem_len = viaparinfo1->fbmem_free;
 
 		default_var.xres = viafb_second_xres;
 		default_var.yres = viafb_second_yres;
@@ -2289,7 +2278,7 @@ static void __devexit via_pci_remove(void)
 	unregister_framebuffer(viafbinfo);
 	if (viafb_dual_fb)
 		unregister_framebuffer(viafbinfo1);
-	iounmap((void *)viaparinfo->fbmem_virt);
+	iounmap((void *)viafbinfo->screen_base);
 	iounmap(viaparinfo->io_virt);
 
 	viafb_delete_i2c_buss(viaparinfo);
