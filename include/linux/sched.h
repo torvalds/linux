@@ -140,6 +140,10 @@ extern int nr_processes(void);
 extern unsigned long nr_running(void);
 extern unsigned long nr_uninterruptible(void);
 extern unsigned long nr_iowait(void);
+extern unsigned long nr_iowait_cpu(void);
+extern unsigned long this_cpu_load(void);
+
+
 extern void calc_global_load(void);
 extern u64 cpu_nr_migrations(int cpu);
 
