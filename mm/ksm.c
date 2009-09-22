@@ -150,10 +150,10 @@ static struct kmem_cache *rmap_item_cache;
 static struct kmem_cache *mm_slot_cache;
 
 /* The number of nodes in the stable tree */
-static unsigned long ksm_kernel_pages_allocated;
+static unsigned long ksm_pages_shared;
 
 /* The number of page slots sharing those nodes */
-static unsigned long ksm_pages_shared;
+static unsigned long ksm_pages_sharing;
 
 /* Limit on the number of unswappable pages used */
 static unsigned long ksm_max_kernel_pages;
@@ -384,7 +384,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 				next_item->address |= NODE_FLAG;
 			} else {
 				rb_erase(&rmap_item->node, &root_stable_tree);
-				ksm_kernel_pages_allocated--;
+				ksm_pages_shared--;
 			}
 		} else {
 			struct rmap_item *prev_item = rmap_item->prev;
@@ -398,7 +398,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		}
 
 		rmap_item->next = NULL;
-		ksm_pages_shared--;
+		ksm_pages_sharing--;
 
 	} else if (rmap_item->address & NODE_FLAG) {
 		unsigned char age;
@@ -748,7 +748,7 @@ static int try_to_merge_two_pages(struct mm_struct *mm1, unsigned long addr1,
 	 * is the number of kernel pages that we hold.
 	 */
 	if (ksm_max_kernel_pages &&
-	    ksm_max_kernel_pages <= ksm_kernel_pages_allocated)
+	    ksm_max_kernel_pages <= ksm_pages_shared)
 		return err;
 
 	kpage = alloc_page(GFP_HIGHUSER);
@@ -787,7 +787,7 @@ static int try_to_merge_two_pages(struct mm_struct *mm1, unsigned long addr1,
 		if (err)
 			break_cow(mm1, addr1);
 		else
-			ksm_pages_shared += 2;
+			ksm_pages_sharing += 2;
 	}
 
 	put_page(kpage);
@@ -817,7 +817,7 @@ static int try_to_merge_with_ksm_page(struct mm_struct *mm1,
 	up_read(&mm1->mmap_sem);
 
 	if (!err)
-		ksm_pages_shared++;
+		ksm_pages_sharing++;
 
 	return err;
 }
@@ -928,7 +928,7 @@ static struct rmap_item *stable_tree_insert(struct page *page,
 		}
 	}
 
-	ksm_kernel_pages_allocated++;
+	ksm_pages_shared++;
 
 	rmap_item->address |= NODE_FLAG | STABLE_FLAG;
 	rmap_item->next = NULL;
@@ -1044,7 +1044,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 	tree_rmap_item = stable_tree_search(page, page2, rmap_item);
 	if (tree_rmap_item) {
 		if (page == page2[0]) {			/* forked */
-			ksm_pages_shared++;
+			ksm_pages_sharing++;
 			err = 0;
 		} else
 			err = try_to_merge_with_ksm_page(rmap_item->mm,
@@ -1107,7 +1107,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 				break_cow(tree_rmap_item->mm,
 						tree_rmap_item->address);
 				break_cow(rmap_item->mm, rmap_item->address);
-				ksm_pages_shared -= 2;
+				ksm_pages_sharing -= 2;
 			}
 		}
 
@@ -1423,7 +1423,7 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
 	/*
 	 * KSM_RUN_MERGE sets ksmd running, and 0 stops it running.
 	 * KSM_RUN_UNMERGE stops it running and unmerges all rmap_items,
-	 * breaking COW to free the kernel_pages_allocated (but leaves
+	 * breaking COW to free the unswappable pages_shared (but leaves
 	 * mm_slots on the list for when ksmd may be set running again).
 	 */
 
@@ -1441,22 +1441,6 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
 	return count;
 }
 KSM_ATTR(run);
-
-static ssize_t pages_shared_show(struct kobject *kobj,
-				 struct kobj_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%lu\n",
-			ksm_pages_shared - ksm_kernel_pages_allocated);
-}
-KSM_ATTR_RO(pages_shared);
-
-static ssize_t kernel_pages_allocated_show(struct kobject *kobj,
-					   struct kobj_attribute *attr,
-					   char *buf)
-{
-	return sprintf(buf, "%lu\n", ksm_kernel_pages_allocated);
-}
-KSM_ATTR_RO(kernel_pages_allocated);
 
 static ssize_t max_kernel_pages_store(struct kobject *kobj,
 				      struct kobj_attribute *attr,
@@ -1481,13 +1465,28 @@ static ssize_t max_kernel_pages_show(struct kobject *kobj,
 }
 KSM_ATTR(max_kernel_pages);
 
+static ssize_t pages_shared_show(struct kobject *kobj,
+				 struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", ksm_pages_shared);
+}
+KSM_ATTR_RO(pages_shared);
+
+static ssize_t pages_sharing_show(struct kobject *kobj,
+				  struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n",
+			ksm_pages_sharing - ksm_pages_shared);
+}
+KSM_ATTR_RO(pages_sharing);
+
 static struct attribute *ksm_attrs[] = {
 	&sleep_millisecs_attr.attr,
 	&pages_to_scan_attr.attr,
 	&run_attr.attr,
-	&pages_shared_attr.attr,
-	&kernel_pages_allocated_attr.attr,
 	&max_kernel_pages_attr.attr,
+	&pages_shared_attr.attr,
+	&pages_sharing_attr.attr,
 	NULL,
 };
 
