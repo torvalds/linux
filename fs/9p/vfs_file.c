@@ -32,6 +32,7 @@
 #include <linux/string.h>
 #include <linux/inet.h>
 #include <linux/list.h>
+#include <linux/pagemap.h>
 #include <asm/uaccess.h>
 #include <linux/idr.h>
 #include <net/9p/9p.h>
@@ -210,6 +211,7 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	struct p9_client *clnt;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	int origin = *offset;
+	unsigned long pg_start, pg_end;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "data %p count %d offset %x\n", data,
 		(int)count, (int)*offset);
@@ -225,7 +227,7 @@ v9fs_file_write(struct file *filp, const char __user * data,
 		if (count < rsize)
 			rsize = count;
 
-		n = p9_client_write(fid, NULL, data+total, *offset+total,
+		n = p9_client_write(fid, NULL, data+total, origin+total,
 									rsize);
 		if (n <= 0)
 			break;
@@ -234,13 +236,12 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	} while (count > 0);
 
 	if (total > 0) {
-		invalidate_inode_pages2_range(inode->i_mapping, origin,
-								origin+total);
+		pg_start = origin >> PAGE_CACHE_SHIFT;
+		pg_end = (origin + total - 1) >> PAGE_CACHE_SHIFT;
+		invalidate_inode_pages2_range(inode->i_mapping, pg_start,
+								pg_end);
 		*offset += total;
-	}
-
-	if (*offset > i_size_read(inode)) {
-		i_size_write(inode, *offset);
+		i_size_write(inode, i_size_read(inode) + total);
 		inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
 	}
 
