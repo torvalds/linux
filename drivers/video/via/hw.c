@@ -2271,11 +2271,8 @@ int viafb_setmode(int vmode_index, int hor_res, int ver_res, int video_bpp,
 		break;
 
 	case UNICHROME_CX700:
-		viafb_write_regx(CX700_ModeXregs, NUM_TOTAL_CX700_ModeXregs);
-
 	case UNICHROME_VX800:
-		viafb_write_regx(VX800_ModeXregs, NUM_TOTAL_VX800_ModeXregs);
-
+		viafb_write_regx(CX700_ModeXregs, NUM_TOTAL_CX700_ModeXregs);
 		break;
 	}
 

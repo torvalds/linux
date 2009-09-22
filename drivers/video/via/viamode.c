@@ -329,67 +329,6 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CRD2, 0xFF, 0xFF}	/* TMDS/LVDS control register.         */
 };
 
-/* For VT3353: Common Setting for Video Mode */
-struct io_reg VX800_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
-{VIASR, SR15, 0x02, 0x02},
-{VIASR, SR16, 0xBF, 0x08},
-{VIASR, SR17, 0xFF, 0x1F},
-{VIASR, SR18, 0xFF, 0x4E},
-{VIASR, SR1A, 0xFB, 0x08},
-{VIASR, SR1B, 0xFF, 0xF0},
-{VIASR, SR1E, 0xFF, 0x01},
-{VIASR, SR2A, 0xFF, 0x00},
-{VIASR, SR2D, 0xFF, 0xFF},	/* VCK and LCK PLL power on.           */
-{VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                        */
-{VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                          */
-{VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High                */
-{VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
-{VIACR, CR32, 0xFF, 0x00},
-{VIACR, CR33, 0xFF, 0x00},
-{VIACR, CR34, 0xFF, 0x00},
-{VIACR, CR35, 0xFF, 0x00},
-{VIACR, CR36, 0x08, 0x00},
-{VIACR, CR47, 0xC8, 0x00},	/* Clear VCK Plus. */
-{VIACR, CR62, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR63, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR64, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CRA3, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR69, 0xFF, 0x00},
-{VIACR, CR6A, 0xFF, 0x40},
-{VIACR, CR6B, 0xFF, 0x00},
-{VIACR, CR6C, 0xFF, 0x00},
-{VIACR, CR7A, 0xFF, 0x01},	/* LCD Scaling Parameter 1             */
-{VIACR, CR7B, 0xFF, 0x02},	/* LCD Scaling Parameter 2             */
-{VIACR, CR7C, 0xFF, 0x03},	/* LCD Scaling Parameter 3             */
-{VIACR, CR7D, 0xFF, 0x04},	/* LCD Scaling Parameter 4             */
-{VIACR, CR7E, 0xFF, 0x07},	/* LCD Scaling Parameter 5             */
-{VIACR, CR7F, 0xFF, 0x0A},	/* LCD Scaling Parameter 6             */
-{VIACR, CR80, 0xFF, 0x0D},	/* LCD Scaling Parameter 7             */
-{VIACR, CR81, 0xFF, 0x13},	/* LCD Scaling Parameter 8             */
-{VIACR, CR82, 0xFF, 0x16},	/* LCD Scaling Parameter 9             */
-{VIACR, CR83, 0xFF, 0x19},	/* LCD Scaling Parameter 10            */
-{VIACR, CR84, 0xFF, 0x1C},	/* LCD Scaling Parameter 11            */
-{VIACR, CR85, 0xFF, 0x1D},	/* LCD Scaling Parameter 12            */
-{VIACR, CR86, 0xFF, 0x1E},	/* LCD Scaling Parameter 13            */
-{VIACR, CR87, 0xFF, 0x1F},	/* LCD Scaling Parameter 14            */
-{VIACR, CR88, 0xFF, 0x40},	/* LCD Panel Type                      */
-{VIACR, CR89, 0xFF, 0x00},	/* LCD Timing Control 0                */
-{VIACR, CR8A, 0xFF, 0x88},	/* LCD Timing Control 1                */
-{VIACR, CRD4, 0xFF, 0x81},	/* Second power sequence control       */
-{VIACR, CR8B, 0xFF, 0x5D},	/* LCD Power Sequence Control 0        */
-{VIACR, CR8C, 0xFF, 0x2B},	/* LCD Power Sequence Control 1        */
-{VIACR, CR8D, 0xFF, 0x6F},	/* LCD Power Sequence Control 2        */
-{VIACR, CR8E, 0xFF, 0x2B},	/* LCD Power Sequence Control 3        */
-{VIACR, CR8F, 0xFF, 0x01},	/* LCD Power Sequence Control 4        */
-{VIACR, CR90, 0xFF, 0x01},	/* LCD Power Sequence Control 5        */
-{VIACR, CR91, 0xFF, 0x80},	/* 24/12 bit LVDS Data off             */
-{VIACR, CR96, 0xFF, 0x00},
-{VIACR, CR97, 0xFF, 0x00},
-{VIACR, CR99, 0xFF, 0x00},
-{VIACR, CR9B, 0xFF, 0x00},
-{VIACR, CRD2, 0xFF, 0xFF}	/* TMDS/LVDS control register.         */
-};
-
 /* Video Mode Table */
 /* Common Setting for Video Mode */
 struct io_reg CLE266_ModeXregs[] = { {VIASR, SR1E, 0xF0, 0x00},

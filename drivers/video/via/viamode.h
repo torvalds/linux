@@ -56,7 +56,6 @@ struct res_map_refresh {
 #define NUM_TOTAL_CN700_ModeXregs ARRAY_SIZE(CN700_ModeXregs)
 #define NUM_TOTAL_KM400_ModeXregs ARRAY_SIZE(KM400_ModeXregs)
 #define NUM_TOTAL_CX700_ModeXregs ARRAY_SIZE(CX700_ModeXregs)
-#define NUM_TOTAL_VX800_ModeXregs ARRAY_SIZE(VX800_ModeXregs)
 #define NUM_TOTAL_CLE266_ModeXregs ARRAY_SIZE(CLE266_ModeXregs)
 #define NUM_TOTAL_PATCH_MODE ARRAY_SIZE(res_patch_table)
 #define NUM_TOTAL_MODETABLE ARRAY_SIZE(CLE266Modes)
