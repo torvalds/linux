@@ -372,9 +372,14 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 	return acc;
 }
 
+static struct kcore_list kcore_vmalloc;
+
 static int __init proc_kcore_init(void)
 {
 	proc_root_kcore = proc_create("kcore", S_IRUSR, NULL, &proc_kcore_operations);
+
+	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START,
+		VMALLOC_END - VMALLOC_START, KCORE_VMALLOC);
 	return 0;
 }
 module_init(proc_kcore_init);

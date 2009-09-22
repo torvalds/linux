@@ -243,7 +243,6 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 #endif
 
 #ifdef CONFIG_PROC_KCORE
-static struct kcore_list kcore_vmem;
 
 static int __init setup_kcore(void)
 {
@@ -270,9 +269,6 @@ static int __init setup_kcore(void)
 
 		kclist_add(kcore_mem, __va(base), size, KCORE_RAM);
 	}
-
-	kclist_add(&kcore_vmem, (void *)VMALLOC_START,
-		VMALLOC_END-VMALLOC_START, KCORE_VMALLOC);
 
 	return 0;
 }
