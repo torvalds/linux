@@ -184,26 +184,33 @@ fail:
     
 =====================================================================*/
 
-/*
- * Since there is only one interrupt available to CardBus
- * devices, all devices downstream of this device must
- * be using this IRQ.
- */
-static void cardbus_assign_irqs(struct pci_bus *bus, int irq)
+static void cardbus_config_irq_and_cls(struct pci_bus *bus, int irq)
 {
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		u8 irq_pin;
 
+		/*
+		 * Since there is only one interrupt available to
+		 * CardBus devices, all devices downstream of this
+		 * device must be using this IRQ.
+		 */
 		pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &irq_pin);
 		if (irq_pin) {
 			dev->irq = irq;
 			pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
 		}
 
+		/*
+		 * Some controllers transfer very slowly with 0 CLS.
+		 * Configure it.  This may fail as CLS configuration
+		 * is mandatory only for MWI.
+		 */
+		pci_set_cacheline_size(dev);
+
 		if (dev->subordinate)
-			cardbus_assign_irqs(dev->subordinate, irq);
+			cardbus_config_irq_and_cls(dev->subordinate, irq);
 	}
 }
 
@@ -228,7 +235,7 @@ int __ref cb_alloc(struct pcmcia_socket * s)
 	 */
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
-	cardbus_assign_irqs(bus, s->pci_irq);
+	cardbus_config_irq_and_cls(bus, s->pci_irq);
 
 	/* socket specific tune function */
 	if (s->tune_bridge)

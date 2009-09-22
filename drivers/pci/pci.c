@@ -1875,23 +1875,6 @@ void pci_clear_master(struct pci_dev *dev)
 	__pci_set_master(dev, false);
 }
 
-#ifdef PCI_DISABLE_MWI
-int pci_set_mwi(struct pci_dev *dev)
-{
-	return 0;
-}
-
-int pci_try_set_mwi(struct pci_dev *dev)
-{
-	return 0;
-}
-
-void pci_clear_mwi(struct pci_dev *dev)
-{
-}
-
-#else
-
 /**
  * pci_set_cacheline_size - ensure the CACHE_LINE_SIZE register is programmed
  * @dev: the PCI device for which MWI is to be enabled
@@ -1902,13 +1885,12 @@ void pci_clear_mwi(struct pci_dev *dev)
  *
  * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
  */
-static int
-pci_set_cacheline_size(struct pci_dev *dev)
+int pci_set_cacheline_size(struct pci_dev *dev)
 {
 	u8 cacheline_size;
 
 	if (!pci_cache_line_size)
-		return -EINVAL;		/* The system doesn't support MWI. */
+		return -EINVAL;
 
 	/* Validate current setting: the PCI_CACHE_LINE_SIZE must be
 	   equal to or multiple of the right value. */
@@ -1929,6 +1911,24 @@ pci_set_cacheline_size(struct pci_dev *dev)
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(pci_set_cacheline_size);
+
+#ifdef PCI_DISABLE_MWI
+int pci_set_mwi(struct pci_dev *dev)
+{
+	return 0;
+}
+
+int pci_try_set_mwi(struct pci_dev *dev)
+{
+	return 0;
+}
+
+void pci_clear_mwi(struct pci_dev *dev)
+{
+}
+
+#else
 
 /**
  * pci_set_mwi - enables memory-write-invalidate PCI transaction
