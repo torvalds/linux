@@ -211,6 +211,7 @@ foreach my $file (@files) {
 	    if ($type eq 'X') {
 		if (file_match_pattern($file, $value)) {
 		    $exclude = 1;
+		    last;
 		}
 	    }
 	}
@@ -218,17 +219,23 @@ foreach my $file (@files) {
 
     if (!$exclude) {
 	my $tvi = 0;
+	my %hash;
 	foreach my $line (@typevalue) {
 	    if ($line =~ m/^(\C):\s*(.*)/) {
 		my $type = $1;
 		my $value = $2;
 		if ($type eq 'F') {
 		    if (file_match_pattern($file, $value)) {
-			add_categories($tvi);
+			my $pattern_depth = ($value =~ tr@/@@);
+			$pattern_depth++ if (!(substr($value,-1,1) eq "/"));
+			$hash{$tvi} = $pattern_depth;
 		    }
 		}
 	    }
 	    $tvi++;
+	}
+	foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
+	    add_categories($line);
 	}
     }
 
