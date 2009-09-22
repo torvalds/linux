@@ -37,6 +37,8 @@ static inline void __put_page(struct page *page)
 	atomic_dec(&page->_count);
 }
 
+extern unsigned long highest_memmap_pfn;
+
 /*
  * in mm/vmscan.c:
  */
@@ -46,7 +48,6 @@ extern void putback_lru_page(struct page *page);
 /*
  * in mm/page_alloc.c
  */
-extern unsigned long highest_memmap_pfn;
 extern void __free_pages_bootmem(struct page *page, unsigned int order);
 extern void prep_compound_page(struct page *page, unsigned long order);
 
