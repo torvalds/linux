@@ -1081,3 +1081,10 @@ void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 	*start = rp->start - offset;
 	*end = rp->end - offset;
 }
+
+static int __init pcibios_init(void)
+{
+	pci_dfl_cache_line_size = 64 >> 2;
+	return 0;
+}
+subsys_initcall(pcibios_init);
