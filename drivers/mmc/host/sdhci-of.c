@@ -48,6 +48,8 @@ struct sdhci_of_host {
 #define ESDHC_CLOCK_HCKEN	0x00000002
 #define ESDHC_CLOCK_IPGEN	0x00000001
 
+#define ESDHC_HOST_CONTROL_RES	0x05
+
 static u32 esdhc_readl(struct sdhci_host *host, int reg)
 {
 	return in_be32(host->ioaddr + reg);
@@ -108,6 +110,10 @@ static void esdhc_writeb(struct sdhci_host *host, u8 val, int reg)
 {
 	int base = reg & ~0x3;
 	int shift = (reg & 0x3) * 8;
+
+	/* Prevent SDHCI core from writing reserved bits (e.g. HISPD). */
+	if (reg == SDHCI_HOST_CONTROL)
+		val &= ~ESDHC_HOST_CONTROL_RES;
 
 	clrsetbits_be32(host->ioaddr + base , 0xff << shift, val << shift);
 }
