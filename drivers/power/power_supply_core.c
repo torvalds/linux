@@ -41,23 +41,40 @@ static int __power_supply_changed_work(struct device *dev, void *data)
 
 static void power_supply_changed_work(struct work_struct *work)
 {
+	unsigned long flags;
 	struct power_supply *psy = container_of(work, struct power_supply,
 						changed_work);
 
 	dev_dbg(psy->dev, "%s\n", __func__);
 
-	class_for_each_device(power_supply_class, NULL, psy,
-			      __power_supply_changed_work);
+	spin_lock_irqsave(&psy->changed_lock, flags);
+	if (psy->changed) {
+		psy->changed = false;
+		spin_unlock_irqrestore(&psy->changed_lock, flags);
 
-	power_supply_update_leds(psy);
+		class_for_each_device(power_supply_class, NULL, psy,
+				      __power_supply_changed_work);
 
-	kobject_uevent(&psy->dev->kobj, KOBJ_CHANGE);
+		power_supply_update_leds(psy);
+
+		kobject_uevent(&psy->dev->kobj, KOBJ_CHANGE);
+		spin_lock_irqsave(&psy->changed_lock, flags);
+	}
+	if (!psy->changed)
+		wake_unlock(&psy->work_wake_lock);
+	spin_unlock_irqrestore(&psy->changed_lock, flags);
 }
 
 void power_supply_changed(struct power_supply *psy)
 {
+	unsigned long flags;
+
 	dev_dbg(psy->dev, "%s\n", __func__);
 
+	spin_lock_irqsave(&psy->changed_lock, flags);
+	psy->changed = true;
+	wake_lock(&psy->work_wake_lock);
+	spin_unlock_irqrestore(&psy->changed_lock, flags);
 	schedule_work(&psy->changed_work);
 }
 EXPORT_SYMBOL_GPL(power_supply_changed);
@@ -197,6 +214,9 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	if (rc)
 		goto device_add_failed;
 
+	spin_lock_init(&psy->changed_lock);
+	wake_lock_init(&psy->work_wake_lock, WAKE_LOCK_SUSPEND, "power-supply");
+
 	rc = power_supply_create_triggers(psy);
 	if (rc)
 		goto create_triggers_failed;
@@ -206,6 +226,7 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	goto success;
 
 create_triggers_failed:
+	wake_lock_destroy(&psy->work_wake_lock);
 	device_del(dev);
 kobject_set_name_failed:
 device_add_failed:
@@ -220,6 +241,7 @@ void power_supply_unregister(struct power_supply *psy)
 	cancel_work_sync(&psy->changed_work);
 	sysfs_remove_link(&psy->dev->kobj, "powers");
 	power_supply_remove_triggers(psy);
+	wake_lock_destroy(&psy->work_wake_lock);
 	device_unregister(psy->dev);
 }
 EXPORT_SYMBOL_GPL(power_supply_unregister);
