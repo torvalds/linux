@@ -116,13 +116,6 @@ config SPI_GPIO
 	  GPIO operations, you should be able to leverage that for better
 	  speed with a custom version of this driver; see the source code.
 
-config SPI_IMX
-	tristate "Freescale iMX SPI controller"
-	depends on ARCH_MX1 && EXPERIMENTAL
-	help
-	  This enables using the Freescale iMX SPI controller in master
-	  mode.
-
 config SPI_LM70_LLP
 	tristate "Parallel port adapter for LM70 eval board (DEVELOPMENT)"
 	depends on PARPORT && EXPERIMENTAL
