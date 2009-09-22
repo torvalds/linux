@@ -92,6 +92,12 @@ static int __add_to_swap_cache(struct page *page, swp_entry_t entry)
 	spin_unlock_irq(&swapper_space.tree_lock);
 
 	if (unlikely(error)) {
+		/*
+		 * Only the context which have set SWAP_HAS_CACHE flag
+		 * would call add_to_swap_cache().
+		 * So add_to_swap_cache() doesn't returns -EEXIST.
+		 */
+		VM_BUG_ON(error == -EEXIST);
 		set_page_private(page, 0UL);
 		ClearPageSwapCache(page);
 		page_cache_release(page);
@@ -146,38 +152,34 @@ int add_to_swap(struct page *page)
 	VM_BUG_ON(!PageLocked(page));
 	VM_BUG_ON(!PageUptodate(page));
 
-	for (;;) {
-		entry = get_swap_page();
-		if (!entry.val)
-			return 0;
+	entry = get_swap_page();
+	if (!entry.val)
+		return 0;
 
-		/*
-		 * Radix-tree node allocations from PF_MEMALLOC contexts could
-		 * completely exhaust the page allocator. __GFP_NOMEMALLOC
-		 * stops emergency reserves from being allocated.
-		 *
-		 * TODO: this could cause a theoretical memory reclaim
-		 * deadlock in the swap out path.
-		 */
-		/*
-		 * Add it to the swap cache and mark it dirty
-		 */
-		err = add_to_swap_cache(page, entry,
-				__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
+	/*
+	 * Radix-tree node allocations from PF_MEMALLOC contexts could
+	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
+	 * stops emergency reserves from being allocated.
+	 *
+	 * TODO: this could cause a theoretical memory reclaim
+	 * deadlock in the swap out path.
+	 */
+	/*
+	 * Add it to the swap cache and mark it dirty
+	 */
+	err = add_to_swap_cache(page, entry,
+			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
 
-		switch (err) {
-		case 0:				/* Success */
-			SetPageDirty(page);
-			return 1;
-		case -EEXIST:
-			/* Raced with "speculative" read_swap_cache_async */
-			swapcache_free(entry, NULL);
-			continue;
-		default:
-			/* -ENOMEM radix-tree allocation failure */
-			swapcache_free(entry, NULL);
-			return 0;
-		}
+	if (!err) {	/* Success */
+		SetPageDirty(page);
+		return 1;
+	} else {	/* -ENOMEM radix-tree allocation failure */
+		/*
+		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+		 * clear SWAP_HAS_CACHE flag.
+		 */
+		swapcache_free(entry, NULL);
+		return 0;
 	}
 }
 
@@ -318,14 +320,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			break;
 		}
 
-		/*
-		 * Associate the page with swap entry in the swap cache.
-		 * May fail (-EEXIST) if there is already a page associated
-		 * with this entry in the swap cache: added by a racing
-		 * read_swap_cache_async, or add_to_swap or shmem_writepage
-		 * re-using the just freed swap entry for an existing page.
-		 * May fail (-ENOMEM) if radix-tree node allocation failed.
-		 */
+		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
 		__set_page_locked(new_page);
 		SetPageSwapBacked(new_page);
 		err = __add_to_swap_cache(new_page, entry);
@@ -341,6 +336,10 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		radix_tree_preload_end();
 		ClearPageSwapBacked(new_page);
 		__clear_page_locked(new_page);
+		/*
+		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+		 * clear SWAP_HAS_CACHE flag.
+		 */
 		swapcache_free(entry, NULL);
 	} while (err != -ENOMEM);
 
