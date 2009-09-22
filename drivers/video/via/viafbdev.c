@@ -1857,7 +1857,8 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	 * variables
 	*/
 	viafbinfo = framebuffer_alloc(viafb_par_length +
-		ALIGN(sizeof(struct viafb_shared), BITS_PER_LONG/8), NULL);
+		ALIGN(sizeof(struct viafb_shared), BITS_PER_LONG/8),
+		&pdev->dev);
 	if (!viafbinfo) {
 		printk(KERN_ERR"Could not allocate memory for viafb_info.\n");
 		return -ENODEV;
@@ -1982,7 +1983,7 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	default_var.vsync_len = 4;
 
 	if (viafb_dual_fb) {
-		viafbinfo1 = framebuffer_alloc(viafb_par_length, NULL);
+		viafbinfo1 = framebuffer_alloc(viafb_par_length, &pdev->dev);
 		if (!viafbinfo1) {
 			printk(KERN_ERR
 			"allocate the second framebuffer struct error\n");
