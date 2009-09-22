@@ -109,6 +109,8 @@
 #define OMAP_MMC1_DEVID		0
 #define OMAP_MMC2_DEVID		1
 #define OMAP_MMC3_DEVID		2
+#define OMAP_MMC4_DEVID		3
+#define OMAP_MMC5_DEVID		4
 
 #define MMC_TIMEOUT_MS		20
 #define OMAP_MMC_MASTER_CLOCK	96000000
@@ -1757,6 +1759,14 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	case OMAP_MMC3_DEVID:
 		host->dma_line_tx = OMAP34XX_DMA_MMC3_TX;
 		host->dma_line_rx = OMAP34XX_DMA_MMC3_RX;
+		break;
+	case OMAP_MMC4_DEVID:
+		host->dma_line_tx = OMAP44XX_DMA_MMC4_TX;
+		host->dma_line_rx = OMAP44XX_DMA_MMC4_RX;
+		break;
+	case OMAP_MMC5_DEVID:
+		host->dma_line_tx = OMAP44XX_DMA_MMC5_TX;
+		host->dma_line_rx = OMAP44XX_DMA_MMC5_RX;
 		break;
 	default:
 		dev_err(mmc_dev(host->mmc), "Invalid MMC id\n");

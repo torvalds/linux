@@ -397,7 +397,7 @@ static inline void omap_init_sha1_md5(void) { }
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_ARCH_OMAP3
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 
 #define MMCHS_SYSCONFIG			0x0010
 #define MMCHS_SYSCONFIG_SWRESET		(1 << 1)
@@ -424,8 +424,8 @@ static struct platform_device dummy_pdev = {
  **/
 static void __init omap_hsmmc_reset(void)
 {
-	u32 i, nr_controllers = cpu_is_omap34xx() ? OMAP34XX_NR_MMC :
-		OMAP24XX_NR_MMC;
+	u32 i, nr_controllers = cpu_is_omap44xx() ? OMAP44XX_NR_MMC :
+		(cpu_is_omap34xx() ? OMAP34XX_NR_MMC : OMAP24XX_NR_MMC);
 
 	for (i = 0; i < nr_controllers; i++) {
 		u32 v, base = 0;
@@ -442,7 +442,20 @@ static void __init omap_hsmmc_reset(void)
 		case 2:
 			base = OMAP3_MMC3_BASE;
 			break;
+		case 3:
+			if (!cpu_is_omap44xx())
+				return;
+			base = OMAP4_MMC4_BASE;
+			break;
+		case 4:
+			if (!cpu_is_omap44xx())
+				return;
+			base = OMAP4_MMC5_BASE;
+			break;
 		}
+
+		if (cpu_is_omap44xx())
+			base += OMAP4_MMC_REG_OFFSET;
 
 		dummy_pdev.id = i;
 		dev_set_name(&dummy_pdev.dev, "mmci-omap-hs.%d", i);
@@ -581,10 +594,22 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 			irq = INT_24XX_MMC2_IRQ;
 			break;
 		case 2:
-			if (!cpu_is_omap34xx())
+			if (!cpu_is_omap44xx() && !cpu_is_omap34xx())
 				return;
 			base = OMAP3_MMC3_BASE;
 			irq = INT_34XX_MMC3_IRQ;
+			break;
+		case 3:
+			if (!cpu_is_omap44xx())
+				return;
+			base = OMAP4_MMC4_BASE + OMAP4_MMC_REG_OFFSET;
+			irq = INT_44XX_MMC4_IRQ;
+			break;
+		case 4:
+			if (!cpu_is_omap44xx())
+				return;
+			base = OMAP4_MMC5_BASE + OMAP4_MMC_REG_OFFSET;
+			irq = INT_44XX_MMC5_IRQ;
 			break;
 		default:
 			continue;
@@ -593,8 +618,15 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 		if (cpu_is_omap2420()) {
 			size = OMAP2420_MMC_SIZE;
 			name = "mmci-omap";
+		} else if (cpu_is_omap44xx()) {
+			if (i < 3) {
+				base += OMAP4_MMC_REG_OFFSET;
+				irq += IRQ_GIC_START;
+			}
+			size = OMAP4_HSMMC_SIZE;
+			name = "mmci-omap-hs";
 		} else {
-			size = HSMMC_SIZE;
+			size = OMAP3_HSMMC_SIZE;
 			name = "mmci-omap-hs";
 		}
 		omap_mmc_add(name, i, base, size, irq, mmc_data[i]);
