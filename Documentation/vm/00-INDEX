@@ -6,6 +6,8 @@ balance
 	- various information on memory balancing.
 hugetlbpage.txt
 	- a brief summary of hugetlbpage support in the Linux kernel.
+ksm.txt
+	- how to use the Kernel Samepage Merging feature.
 locking
 	- info on how locking and synchronization is done in the Linux vm code.
 numa
