@@ -32,7 +32,7 @@ struct lis3lv02d_platform_data {
 #define LIS3_IRQ2_DATA_READY	(4 << 3)
 #define LIS3_IRQ2_CLICK		(7 << 3)
 #define LIS3_IRQ_OPEN_DRAIN	(1 << 6)
-#define LIS3_IRQ_ACTIVE_HIGH	(1 << 7)
+#define LIS3_IRQ_ACTIVE_LOW	(1 << 7)
 	unsigned char irq_cfg;
 };
 
