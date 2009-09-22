@@ -163,18 +163,18 @@ static unsigned long ksm_pages_unshared;
 static unsigned long ksm_rmap_items;
 
 /* Limit on the number of unswappable pages used */
-static unsigned long ksm_max_kernel_pages;
+static unsigned long ksm_max_kernel_pages = 2000;
 
 /* Number of pages ksmd should scan in one batch */
-static unsigned int ksm_thread_pages_to_scan;
+static unsigned int ksm_thread_pages_to_scan = 200;
 
 /* Milliseconds ksmd should sleep between batches */
-static unsigned int ksm_thread_sleep_millisecs;
+static unsigned int ksm_thread_sleep_millisecs = 20;
 
 #define KSM_RUN_STOP	0
 #define KSM_RUN_MERGE	1
 #define KSM_RUN_UNMERGE	2
-static unsigned int ksm_run;
+static unsigned int ksm_run = KSM_RUN_MERGE;
 
 static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
 static DEFINE_MUTEX(ksm_thread_mutex);
@@ -506,6 +506,10 @@ static int unmerge_ksm_pages(struct vm_area_struct *vma,
 	return err;
 }
 
+#ifdef CONFIG_SYSFS
+/*
+ * Only called through the sysfs control interface:
+ */
 static int unmerge_and_remove_all_rmap_items(void)
 {
 	struct mm_slot *mm_slot;
@@ -563,6 +567,7 @@ error:
 	spin_unlock(&ksm_mmlist_lock);
 	return err;
 }
+#endif /* CONFIG_SYSFS */
 
 static u32 calc_checksum(struct page *page)
 {
@@ -1454,6 +1459,11 @@ void __ksm_exit(struct mm_struct *mm)
 	}
 }
 
+#ifdef CONFIG_SYSFS
+/*
+ * This all compiles without CONFIG_SYSFS, but is a waste of space.
+ */
+
 #define KSM_ATTR_RO(_name) \
 	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
 #define KSM_ATTR(_name) \
@@ -1636,6 +1646,7 @@ static struct attribute_group ksm_attr_group = {
 	.attrs = ksm_attrs,
 	.name = "ksm",
 };
+#endif /* CONFIG_SYSFS */
 
 static int __init ksm_init(void)
 {
@@ -1657,16 +1668,17 @@ static int __init ksm_init(void)
 		goto out_free2;
 	}
 
+#ifdef CONFIG_SYSFS
 	err = sysfs_create_group(mm_kobj, &ksm_attr_group);
 	if (err) {
 		printk(KERN_ERR "ksm: register sysfs failed\n");
-		goto out_free3;
+		kthread_stop(ksm_thread);
+		goto out_free2;
 	}
+#endif /* CONFIG_SYSFS */
 
 	return 0;
 
-out_free3:
-	kthread_stop(ksm_thread);
 out_free2:
 	mm_slots_hash_free();
 out_free1:
