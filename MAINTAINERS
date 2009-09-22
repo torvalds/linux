@@ -5640,6 +5640,12 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/wd7000.c
 
+WINBOND CIR DRIVER
+P:	David Härdeman
+M:	david@hardeman.nu
+S:	Maintained
+F:	drivers/input/misc/winbond-cir.c
+
 WIMAX STACK
 M:	Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
 M:	linux-wimax@intel.com
