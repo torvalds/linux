@@ -184,7 +184,7 @@ static int vmap_page_range(unsigned long start, unsigned long end,
 	return ret;
 }
 
-static inline int is_vmalloc_or_module_addr(const void *x)
+int is_vmalloc_or_module_addr(const void *x)
 {
 	/*
 	 * ARM, x86-64 and sparc64 put modules in a special place,

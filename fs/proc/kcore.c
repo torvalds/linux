@@ -490,7 +490,7 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 		if (m == NULL) {
 			if (clear_user(buffer, tsz))
 				return -EFAULT;
-		} else if (is_vmalloc_addr((void *)start)) {
+		} else if (is_vmalloc_or_module_addr((void *)start)) {
 			char * elf_buf;
 
 			elf_buf = kzalloc(tsz, GFP_KERNEL);
@@ -586,6 +586,22 @@ static void __init proc_kcore_text_init(void)
 }
 #endif
 
+#if defined(CONFIG_MODULES) && defined(MODULES_VADDR)
+/*
+ * MODULES_VADDR has no intersection with VMALLOC_ADDR.
+ */
+struct kcore_list kcore_modules;
+static void __init add_modules_range(void)
+{
+	kclist_add(&kcore_modules, (void *)MODULES_VADDR,
+			MODULES_END - MODULES_VADDR, KCORE_VMALLOC);
+}
+#else
+static void __init add_modules_range(void)
+{
+}
+#endif
+
 static int __init proc_kcore_init(void)
 {
 	proc_root_kcore = proc_create("kcore", S_IRUSR, NULL,
@@ -595,6 +611,7 @@ static int __init proc_kcore_init(void)
 	/* Store vmalloc area */
 	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START,
 		VMALLOC_END - VMALLOC_START, KCORE_VMALLOC);
+	add_modules_range();
 	/* Store direct-map area from physical memory map */
 	kcore_update_ram();
 	hotplug_memory_notifier(kcore_callback, 0);
