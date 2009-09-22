@@ -14,7 +14,7 @@
 
 #define MAX_HWEVENTS		8
 #define MAX_EVENT_ALTERNATIVES	8
-#define MAX_LIMITED_HWEVENTS	2
+#define MAX_LIMITED_HWCOUNTERS	2
 
 /*
  * This struct provides the constants and functions needed to
@@ -22,7 +22,7 @@
  */
 struct power_pmu {
 	const char	*name;
-	int		n_event;
+	int		n_counter;
 	int		max_alternatives;
 	unsigned long	add_fields;
 	unsigned long	test_adder;
