@@ -1114,7 +1114,7 @@ EXPORT_SYMBOL(revalidate_disk);
 int check_disk_change(struct block_device *bdev)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	struct block_device_operations * bdops = disk->fops;
+	const struct block_device_operations *bdops = disk->fops;
 
 	if (!bdops->media_changed)
 		return 0;

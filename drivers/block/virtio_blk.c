@@ -243,7 +243,7 @@ static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 	return 0;
 }
 
-static struct block_device_operations virtblk_fops = {
+static const struct block_device_operations virtblk_fops = {
 	.locked_ioctl = virtblk_ioctl,
 	.owner  = THIS_MODULE,
 	.getgeo = virtblk_getgeo,
