@@ -971,7 +971,7 @@ static unsigned long isolate_pages_global(unsigned long nr,
 	if (file)
 		lru += LRU_FILE;
 	return isolate_lru_pages(nr, &z->lru[lru].list, dst, scanned, order,
-								mode, !!file);
+								mode, file);
 }
 
 /*
@@ -1209,7 +1209,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 			lru = page_lru(page);
 			add_page_to_lru_list(zone, page, lru);
 			if (is_active_lru(lru)) {
-				int file = !!is_file_lru(lru);
+				int file = is_file_lru(lru);
 				reclaim_stat->recent_rotated[file]++;
 			}
 			if (!pagevec_add(&pvec, page)) {
@@ -1319,7 +1319,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	if (scanning_global_lru(sc)) {
 		zone->pages_scanned += pgscanned;
 	}
-	reclaim_stat->recent_scanned[!!file] += nr_taken;
+	reclaim_stat->recent_scanned[file] += nr_taken;
 
 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
 	if (file)
@@ -1372,7 +1372,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	 * helps balance scan pressure between file and anonymous pages in
 	 * get_scan_ratio.
 	 */
-	reclaim_stat->recent_rotated[!!file] += nr_rotated;
+	reclaim_stat->recent_rotated[file] += nr_rotated;
 
 	move_active_pages_to_lru(zone, &l_active,
 						LRU_ACTIVE + file * LRU_FILE);

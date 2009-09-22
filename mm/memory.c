@@ -599,7 +599,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	if (page) {
 		get_page(page);
 		page_dup_rmap(page);
-		rss[!!PageAnon(page)]++;
+		rss[PageAnon(page)]++;
 	}
 
 out_set_pte:
