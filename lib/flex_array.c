@@ -207,6 +207,32 @@ int flex_array_put(struct flex_array *fa, unsigned int element_nr, void *src,
 }
 
 /**
+ * flex_array_clear - clear element in array at @element_nr
+ * @element_nr:	index of the position to clear.
+ *
+ * Locking must be provided by the caller.
+ */
+int flex_array_clear(struct flex_array *fa, unsigned int element_nr)
+{
+	int part_nr = fa_element_to_part_nr(fa, element_nr);
+	struct flex_array_part *part;
+	void *dst;
+
+	if (element_nr >= fa->total_nr_elements)
+		return -ENOSPC;
+	if (elements_fit_in_base(fa))
+		part = (struct flex_array_part *)&fa->parts[0];
+	else {
+		part = fa->parts[part_nr];
+		if (!part)
+			return -EINVAL;
+	}
+	dst = &part->elements[index_inside_part(fa, element_nr)];
+	memset(dst, 0, fa->element_size);
+	return 0;
+}
+
+/**
  * flex_array_prealloc - guarantee that array space exists
  * @start:	index of first array element for which space is allocated
  * @end:	index of last (inclusive) element for which space is allocated
