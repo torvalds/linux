@@ -24,6 +24,7 @@
 #include <linux/sysdev.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
+#include <linux/amba/mmci.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>
@@ -34,7 +35,6 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/mmc.h>
 #include <asm/mach/time.h>
 
 #include <mach/hardware.h>

@@ -161,7 +161,7 @@ struct mmci_host {
 	unsigned int		mclk;
 	unsigned int		cclk;
 	u32			pwr;
-	struct mmc_platform_data *plat;
+	struct mmci_platform_data *plat;
 
 	u8			hw_designer;
 	u8			hw_revision:4;

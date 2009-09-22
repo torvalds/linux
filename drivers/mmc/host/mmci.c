@@ -22,12 +22,12 @@
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
 #include <linux/gpio.h>
+#include <linux/amba/mmci.h>
 
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <asm/mach/mmc.h>
 
 #include "mmci.h"
 
@@ -537,7 +537,7 @@ static void mmci_check_status(unsigned long data)
 
 static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 {
-	struct mmc_platform_data *plat = dev->dev.platform_data;
+	struct mmci_platform_data *plat = dev->dev.platform_data;
 	struct mmci_host *host;
 	struct mmc_host *mmc;
 	int ret;

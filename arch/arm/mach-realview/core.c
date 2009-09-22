@@ -30,6 +30,7 @@
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 #include <linux/ata_platform.h>
+#include <linux/amba/mmci.h>
 
 #include <asm/clkdev.h>
 #include <asm/system.h>
@@ -44,7 +45,6 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-#include <asm/mach/mmc.h>
 
 #include <asm/hardware/gic.h>
 
@@ -237,14 +237,14 @@ static unsigned int realview_mmc_status(struct device *dev)
 	return readl(REALVIEW_SYSMCI) & mask;
 }
 
-struct mmc_platform_data realview_mmc0_plat_data = {
+struct mmci_platform_data realview_mmc0_plat_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= realview_mmc_status,
 	.gpio_wp	= 17,
 	.gpio_cd	= 16,
 };
 
-struct mmc_platform_data realview_mmc1_plat_data = {
+struct mmci_platform_data realview_mmc1_plat_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= realview_mmc_status,
 	.gpio_wp	= 19,
