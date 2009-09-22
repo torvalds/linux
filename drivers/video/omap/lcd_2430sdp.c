@@ -39,13 +39,17 @@
 static unsigned backlight_gpio;
 static unsigned enable_gpio;
 
-#define LCD_PANEL_BACKLIGHT_GPIO	91
-#define LCD_PANEL_ENABLE_GPIO		154
 #define LCD_PIXCLOCK_MAX		5400 /* freq 5.4 MHz */
 #define PM_RECEIVER             TWL4030_MODULE_PM_RECEIVER
 #define ENABLE_VAUX2_DEDICATED  0x09
 #define ENABLE_VAUX2_DEV_GRP    0x20
+#define ENABLE_VAUX3_DEDICATED	0x03
+#define ENABLE_VAUX3_DEV_GRP	0x20
 
+#define ENABLE_VPLL2_DEDICATED          0x05
+#define ENABLE_VPLL2_DEV_GRP            0xE0
+#define TWL4030_VPLL2_DEV_GRP           0x33
+#define TWL4030_VPLL2_DEDICATED         0x36
 
 #define t2_out(c, r, v) twl4030_i2c_write_u8(c, r, v)
 
@@ -146,7 +150,7 @@ struct lcd_panel sdp2430_panel = {
 
 	.init		= sdp2430_panel_init,
 	.cleanup	= sdp2430_panel_cleanup,
-	.enable	= sdp2430_panel_enable,
+	.enable		= sdp2430_panel_enable,
 	.disable	= sdp2430_panel_disable,
 	.get_caps	= sdp2430_panel_get_caps,
 };
@@ -176,7 +180,7 @@ static int sdp2430_panel_resume(struct platform_device *pdev)
 struct platform_driver sdp2430_panel_driver = {
 	.probe		= sdp2430_panel_probe,
 	.remove		= sdp2430_panel_remove,
-	.suspend		= sdp2430_panel_suspend,
+	.suspend	= sdp2430_panel_suspend,
 	.resume		= sdp2430_panel_resume,
 	.driver		= {
 		.name	= "sdp2430_lcd",
