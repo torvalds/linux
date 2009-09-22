@@ -95,6 +95,7 @@ enum af9015_ir_mode {
 	AF9015_IR_MODE_HID,
 	AF9015_IR_MODE_RLC,
 	AF9015_IR_MODE_RC6,
+	AF9015_IR_MODE_POLLING, /* just guess */
 };
 
 struct af9015_state {

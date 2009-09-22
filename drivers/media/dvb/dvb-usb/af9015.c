@@ -730,7 +730,7 @@ static int af9015_read_config(struct usb_device *udev)
 		goto error;
 	deb_info("%s: IR mode:%d\n", __func__, val);
 	for (i = 0; i < af9015_properties_count; i++) {
-		if (val == AF9015_IR_MODE_DISABLED || val == 0x04) {
+		if (val == AF9015_IR_MODE_DISABLED) {
 			af9015_properties[i].rc_key_map = NULL;
 			af9015_properties[i].rc_key_map_size  = 0;
 		} else if (dvb_usb_af9015_remote) {
