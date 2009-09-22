@@ -67,9 +67,6 @@ struct lcd_ctrl_config {
 	/* Mono 8-bit Mode: 1=D0-D7 or 0=D0-D3 */
 	unsigned char mono_8bit_mode;
 
-	/* Invert pixel clock */
-	unsigned char invert_pxl_clock;
-
 	/* Invert line clock */
 	unsigned char invert_line_clock;
 
