@@ -84,7 +84,7 @@ HAS_AUTO_CH_SELECT_ENHANCE=n
 HAS_BG_FT_SUPPORT=n
 
 #Support Antenna Diversity
-HAS_ANTENNA_DIVERSITY_SUPPORT=y
+HAS_ANTENNA_DIVERSITY_SUPPORT=n
 #################################################
 
 WFLAGS := -DAGGREGATION_SUPPORT -DPIGGYBACK_SUPPORT -DWMM_SUPPORT  -DLINUX -Wall -Wstrict-prototypes -Wno-trigraphs -Wpointer-sign
