@@ -1278,10 +1278,6 @@ static void move_active_pages_to_lru(struct zone *zone,
 		VM_BUG_ON(PageLRU(page));
 		SetPageLRU(page);
 
-		VM_BUG_ON(!PageActive(page));
-		if (!is_active_lru(lru))
-			ClearPageActive(page);	/* we are de-activating */
-
 		list_move(&page->lru, &zone->lru[lru].list);
 		mem_cgroup_add_lru_list(page, lru);
 		pgmoved++;
@@ -1363,6 +1359,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 			}
 		}
 
+		ClearPageActive(page);	/* we are de-activating */
 		list_add(&page->lru, &l_inactive);
 	}
 
