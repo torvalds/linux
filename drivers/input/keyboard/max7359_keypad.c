@@ -58,12 +58,8 @@ struct max7359_keypad {
 	/* matrix key code map */
 	unsigned short keycodes[MAX7359_MAX_KEY_NUM];
 
-	struct work_struct work;
-
 	struct input_dev *input_dev;
 	struct i2c_client *client;
-
-	u32 irq;
 };
 
 static int max7359_write_reg(struct i2c_client *client, u8 reg, u8 val)
@@ -106,10 +102,10 @@ static void max7359_build_keycode(struct max7359_keypad *keypad,
 	__clear_bit(KEY_RESERVED, input_dev->keybit);
 }
 
-static void max7359_worker(struct work_struct *work)
+/* runs in an IRQ thread -- can (and will!) sleep */
+static irqreturn_t max7359_interrupt(int irq, void *dev_id)
 {
-	struct max7359_keypad *keypad =
-			container_of(work, struct max7359_keypad, work);
+	struct max7359_keypad *keypad = dev_id;
 	struct input_dev *input_dev = keypad->input_dev;
 	int val, row, col, release, code;
 
@@ -120,24 +116,12 @@ static void max7359_worker(struct work_struct *work)
 
 	code = MATRIX_SCAN_CODE(row, col, MAX7359_ROW_SHIFT);
 
+	dev_dbg(&keypad->client->dev,
+		"key[%d:%d] %s\n", row, col, release ? "release" : "press");
+
 	input_event(input_dev, EV_MSC, MSC_SCAN, code);
 	input_report_key(input_dev, keypad->keycodes[code], !release);
 	input_sync(input_dev);
-
-	enable_irq(keypad->irq);
-
-	dev_dbg(&keypad->client->dev, "key[%d:%d] %s\n", row, col,
-					(release ? "release" : "press"));
-}
-
-static irqreturn_t max7359_interrupt(int irq, void *dev_id)
-{
-	struct max7359_keypad *keypad = dev_id;
-
-	if (!work_pending(&keypad->work)) {
-		disable_irq_nosync(keypad->irq);
-		schedule_work(&keypad->work);
-	}
 
 	return IRQ_HANDLED;
 }
@@ -226,8 +210,6 @@ static int __devinit max7359_probe(struct i2c_client *client,
 
 	keypad->client = client;
 	keypad->input_dev = input_dev;
-	keypad->irq = client->irq;
-	INIT_WORK(&keypad->work, max7359_worker);
 
 	input_dev->name = client->name;
 	input_dev->id.bustype = BUS_I2C;
@@ -245,8 +227,9 @@ static int __devinit max7359_probe(struct i2c_client *client,
 
 	max7359_build_keycode(keypad, keymap_data);
 
-	error = request_irq(keypad->irq, max7359_interrupt,
-			    IRQF_TRIGGER_LOW, client->name, keypad);
+	error = request_threaded_irq(client->irq, NULL, max7359_interrupt,
+				     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				     client->name, keypad);
 	if (error) {
 		dev_err(&client->dev, "failed to register interrupt\n");
 		goto failed_free_mem;
@@ -268,7 +251,7 @@ static int __devinit max7359_probe(struct i2c_client *client,
 	return 0;
 
 failed_free_irq:
-	free_irq(keypad->irq, keypad);
+	free_irq(client->irq, keypad);
 failed_free_mem:
 	input_free_device(input_dev);
 	kfree(keypad);
@@ -279,9 +262,8 @@ static int __devexit max7359_remove(struct i2c_client *client)
 {
 	struct max7359_keypad *keypad = i2c_get_clientdata(client);
 
-	cancel_work_sync(&keypad->work);
+	free_irq(client->irq, keypad);
 	input_unregister_device(keypad->input_dev);
-	free_irq(keypad->irq, keypad);
 	i2c_set_clientdata(client, NULL);
 	kfree(keypad);
 
@@ -291,22 +273,18 @@ static int __devexit max7359_remove(struct i2c_client *client)
 #ifdef CONFIG_PM
 static int max7359_suspend(struct i2c_client *client, pm_message_t mesg)
 {
-	struct max7359_keypad *keypad = i2c_get_clientdata(client);
-
 	max7359_fall_deepsleep(client);
 
 	if (device_may_wakeup(&client->dev))
-		enable_irq_wake(keypad->irq);
+		enable_irq_wake(client->irq);
 
 	return 0;
 }
 
 static int max7359_resume(struct i2c_client *client)
 {
-	struct max7359_keypad *keypad = i2c_get_clientdata(client);
-
 	if (device_may_wakeup(&client->dev))
-		disable_irq_wake(keypad->irq);
+		disable_irq_wake(client->irq);
 
 	/* Restore the default setting */
 	max7359_take_catnap(client);
