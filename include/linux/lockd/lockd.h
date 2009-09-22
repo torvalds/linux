@@ -395,7 +395,7 @@ static inline int nlm_compare_locks(const struct file_lock *fl1,
 	     &&(fl1->fl_type  == fl2->fl_type || fl2->fl_type == F_UNLCK);
 }
 
-extern struct lock_manager_operations nlmsvc_lock_operations;
+extern const struct lock_manager_operations nlmsvc_lock_operations;
 
 #endif /* __KERNEL__ */
 
