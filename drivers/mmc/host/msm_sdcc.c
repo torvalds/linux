@@ -584,6 +584,67 @@ static void msmsdcc_do_cmdirq(struct msmsdcc_host *host, uint32_t status)
 		msmsdcc_start_data(host, cmd->data);
 }
 
+static void
+msmsdcc_handle_irq_data(struct msmsdcc_host *host, u32 status,
+			void __iomem *base)
+{
+	struct mmc_data *data = host->curr.data;
+
+	if (!data)
+		return;
+
+	/* Check for data errors */
+	if (status & (MCI_DATACRCFAIL | MCI_DATATIMEOUT |
+		      MCI_TXUNDERRUN | MCI_RXOVERRUN)) {
+		msmsdcc_data_err(host, data, status);
+		host->curr.data_xfered = 0;
+		if (host->dma.sg)
+			msm_dmov_stop_cmd(host->dma.channel,
+					  &host->dma.hdr, 0);
+		else {
+			msmsdcc_stop_data(host);
+			if (!data->stop)
+				msmsdcc_request_end(host, data->mrq);
+			else
+				msmsdcc_start_command(host, data->stop, 0);
+		}
+	}
+
+	/* Check for data done */
+	if (!host->curr.got_dataend && (status & MCI_DATAEND))
+		host->curr.got_dataend = 1;
+
+	if (!host->curr.got_datablkend && (status & MCI_DATABLOCKEND))
+		host->curr.got_datablkend = 1;
+
+	/*
+	 * If DMA is still in progress, we complete via the completion handler
+	 */
+	if (host->curr.got_dataend && host->curr.got_datablkend &&
+	    !host->dma.busy) {
+		/*
+		 * There appears to be an issue in the controller where
+		 * if you request a small block transfer (< fifo size),
+		 * you may get your DATAEND/DATABLKEND irq without the
+		 * PIO data irq.
+		 *
+		 * Check to see if there is still data to be read,
+		 * and simulate a PIO irq.
+		 */
+		if (readl(base + MMCISTATUS) & MCI_RXDATAAVLBL)
+			msmsdcc_pio_irq(1, host);
+
+		msmsdcc_stop_data(host);
+		if (!data->error)
+			host->curr.data_xfered = host->curr.xfer_size;
+
+		if (!data->stop)
+			msmsdcc_request_end(host, data->mrq);
+		else
+			msmsdcc_start_command(host, data->stop, 0);
+	}
+}
+
 static irqreturn_t
 msmsdcc_irq(int irq, void *dev_id)
 {
@@ -596,79 +657,12 @@ msmsdcc_irq(int irq, void *dev_id)
 	spin_lock(&host->lock);
 
 	do {
-		struct mmc_data *data;
 		status = readl(base + MMCISTATUS);
 
-		status &= (readl(base + MMCIMASK0) |
-					      MCI_DATABLOCKENDMASK);
+		status &= (readl(base + MMCIMASK0) | MCI_DATABLOCKENDMASK);
 		writel(status, base + MMCICLEAR);
 
-		data = host->curr.data;
-		if (data) {
-			/* Check for data errors */
-			if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|
-				      MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
-				msmsdcc_data_err(host, data, status);
-				host->curr.data_xfered = 0;
-				if (host->dma.sg)
-					msm_dmov_stop_cmd(host->dma.channel,
-							  &host->dma.hdr, 0);
-				else {
-					msmsdcc_stop_data(host);
-					if (!data->stop)
-						msmsdcc_request_end(host,
-								    data->mrq);
-					else
-						msmsdcc_start_command(host,
-								     data->stop,
-								     0);
-				}
-			}
-
-			/* Check for data done */
-			if (!host->curr.got_dataend && (status & MCI_DATAEND))
-				host->curr.got_dataend = 1;
-
-			if (!host->curr.got_datablkend &&
-			    (status & MCI_DATABLOCKEND)) {
-				host->curr.got_datablkend = 1;
-			}
-
-			if (host->curr.got_dataend &&
-			    host->curr.got_datablkend) {
-				/*
-				 * If DMA is still in progress, we complete
-				 * via the completion handler
-				 */
-				if (!host->dma.busy) {
-					/*
-					 * There appears to be an issue in the
-					 * controller where if you request a
-					 * small block transfer (< fifo size),
-					 * you may get your DATAEND/DATABLKEND
-					 * irq without the PIO data irq.
-					 *
-					 * Check to see if theres still data
-					 * to be read, and simulate a PIO irq.
-					 */
-					if (readl(base + MMCISTATUS) &
-							       MCI_RXDATAAVLBL)
-						msmsdcc_pio_irq(1, host);
-
-					msmsdcc_stop_data(host);
-					if (!data->error)
-						host->curr.data_xfered =
-							host->curr.xfer_size;
-
-					if (!data->stop)
-						msmsdcc_request_end(host,
-								    data->mrq);
-					else
-						msmsdcc_start_command(host,
-							      data->stop, 0);
-				}
-			}
-		}
+		msmsdcc_handle_irq_data(host, status, base);
 
 		if (status & (MCI_CMDSENT | MCI_CMDRESPEND | MCI_CMDCRCFAIL |
 			      MCI_CMDTIMEOUT) && host->curr.cmd) {
