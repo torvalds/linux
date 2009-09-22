@@ -175,6 +175,7 @@ struct mmci_host {
 	struct scatterlist	*sg_ptr;
 	unsigned int		sg_off;
 	unsigned int		size;
+	struct regulator	*vcc;
 };
 
 static inline void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
