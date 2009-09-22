@@ -509,6 +509,17 @@ config RTC_DRV_M48T59
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-m48t59".
 
+config RTC_MXC
+	tristate "Freescale MXC Real Time Clock"
+	depends on ARCH_MXC
+	depends on RTC_CLASS
+	help
+	   If you say yes here you get support for the Freescale MXC
+	   RTC module.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-mxc".
+
 config RTC_DRV_BQ4802
 	tristate "TI BQ4802"
 	help
