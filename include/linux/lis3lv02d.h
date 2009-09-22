@@ -34,6 +34,15 @@ struct lis3lv02d_platform_data {
 #define LIS3_IRQ_OPEN_DRAIN	(1 << 6)
 #define LIS3_IRQ_ACTIVE_LOW	(1 << 7)
 	unsigned char irq_cfg;
+
+#define LIS3_WAKEUP_X_LO	(1 << 0)
+#define LIS3_WAKEUP_X_HI	(1 << 1)
+#define LIS3_WAKEUP_Y_LO	(1 << 2)
+#define LIS3_WAKEUP_Y_HI	(1 << 3)
+#define LIS3_WAKEUP_Z_LO	(1 << 4)
+#define LIS3_WAKEUP_Z_HI	(1 << 5)
+	unsigned char wakeup_flags;
+	unsigned char wakeup_thresh;
 };
 
 #endif /* __LIS3LV02D_H_ */
