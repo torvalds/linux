@@ -89,36 +89,36 @@ struct futex_pi_state {
 	union futex_key key;
 };
 
-/*
- * We use this hashed waitqueue instead of a normal wait_queue_t, so
+/**
+ * struct futex_q - The hashed futex queue entry, one per waiting task
+ * @task:		the task waiting on the futex
+ * @lock_ptr:		the hash bucket lock
+ * @key:		the key the futex is hashed on
+ * @pi_state:		optional priority inheritance state
+ * @rt_waiter:		rt_waiter storage for use with requeue_pi
+ * @requeue_pi_key:	the requeue_pi target futex key
+ * @bitset:		bitset for the optional bitmasked wakeup
+ *
+ * We use this hashed waitqueue, instead of a normal wait_queue_t, so
  * we can wake only the relevant ones (hashed queues may be shared).
  *
  * A futex_q has a woken state, just like tasks have TASK_RUNNING.
  * It is considered woken when plist_node_empty(&q->list) || q->lock_ptr == 0.
  * The order of wakup is always to make the first condition true, then
- * wake up q->waiter, then make the second condition true.
+ * the second.
+ *
+ * PI futexes are typically woken before they are removed from the hash list via
+ * the rt_mutex code. See unqueue_me_pi().
  */
 struct futex_q {
 	struct plist_node list;
-	/* Waiter reference */
+
 	struct task_struct *task;
-
-	/* Which hash list lock to use: */
 	spinlock_t *lock_ptr;
-
-	/* Key which the futex is hashed on: */
 	union futex_key key;
-
-	/* Optional priority inheritance state: */
 	struct futex_pi_state *pi_state;
-
-	/* rt_waiter storage for requeue_pi: */
 	struct rt_mutex_waiter *rt_waiter;
-
-	/* The expected requeue pi target futex key: */
 	union futex_key *requeue_pi_key;
-
-	/* Bitset for the optional bitmasked wakeup */
 	u32 bitset;
 };
 
