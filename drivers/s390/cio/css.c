@@ -601,8 +601,7 @@ static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 	css_evaluate_subchannel(mchk_schid, 0);
 }
 
-static int __init
-__init_channel_subsystem(struct subchannel_id schid, void *data)
+static int __init setup_subchannel(struct subchannel_id schid, void *data)
 {
 	struct subchannel *sch;
 	int ret;
@@ -854,14 +853,13 @@ static struct notifier_block css_power_notifier = {
  * The struct subchannel's are created during probing (except for the
  * static console subchannel).
  */
-static int __init
-init_channel_subsystem (void)
+static int __init css_bus_init(void)
 {
 	int ret, i;
 
 	ret = chsc_determine_css_characteristics();
 	if (ret == -ENOMEM)
-		goto out; /* No need to continue. */
+		goto out;
 
 	ret = chsc_alloc_sei_area();
 	if (ret)
@@ -934,7 +932,6 @@ init_channel_subsystem (void)
 	/* Enable default isc for I/O subchannels. */
 	isc_register(IO_SCH_ISC);
 
-	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;
 out_file:
 	if (css_chsc_characteristics.secm)
@@ -965,6 +962,60 @@ out:
 		 "errno=%d\n", ret);
 	return ret;
 }
+
+static void __init css_bus_cleanup(void)
+{
+	struct channel_subsystem *css;
+	int i;
+
+	for (i = 0; i <= __MAX_CSSID; i++) {
+		css = channel_subsystems[i];
+		device_unregister(&css->pseudo_subchannel->dev);
+		css->pseudo_subchannel = NULL;
+		if (css_chsc_characteristics.secm)
+			device_remove_file(&css->device, &dev_attr_cm_enable);
+		device_unregister(&css->device);
+	}
+	bus_unregister(&css_bus_type);
+	crw_unregister_handler(CRW_RSC_CSS);
+	chsc_free_sei_area();
+	kfree(slow_subchannel_set);
+	isc_unregister(IO_SCH_ISC);
+}
+
+static int __init channel_subsystem_init(void)
+{
+	int ret;
+
+	ret = css_bus_init();
+	if (ret)
+		return ret;
+
+	ret = io_subchannel_init();
+	if (ret)
+		css_bus_cleanup();
+
+	return ret;
+}
+subsys_initcall(channel_subsystem_init);
+
+/*
+ * Wait for the initialization of devices to finish, to make sure we are
+ * done with our setup if the search for the root device starts.
+ */
+static int __init channel_subsystem_init_sync(void)
+{
+	/* Allocate and register subchannels. */
+	for_each_subchannel(setup_subchannel, NULL);
+
+	/* Wait for the initialization of ccw devices to finish. */
+	wait_event(ccw_device_init_wq,
+		   atomic_read(&ccw_device_init_count) == 0);
+	flush_workqueue(ccw_device_work);
+
+	return 0;
+}
+subsys_initcall_sync(channel_subsystem_init_sync);
 
 int sch_is_pseudo_sch(struct subchannel *sch)
 {
@@ -1134,8 +1185,6 @@ void css_driver_unregister(struct css_driver *cdrv)
 	driver_unregister(&cdrv->drv);
 }
 EXPORT_SYMBOL_GPL(css_driver_unregister);
-
-subsys_initcall(init_channel_subsystem);
 
 MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(css_bus_type);
