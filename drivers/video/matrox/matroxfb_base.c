@@ -379,9 +379,7 @@ static void matroxfb_remove(WPMINFO int dummy) {
 	mga_iounmap(ACCESS_FBINFO(video.vbase));
 	release_mem_region(ACCESS_FBINFO(video.base), ACCESS_FBINFO(video.len_maximum));
 	release_mem_region(ACCESS_FBINFO(mmio.base), 16384);
-#ifdef CONFIG_FB_MATROX_MULTIHEAD
 	kfree(minfo);
-#endif
 }
 
 	/*
@@ -644,9 +642,7 @@ static int matroxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			      unsigned blue, unsigned transp,
 			      struct fb_info *fb_info)
 {
-#ifdef CONFIG_FB_MATROX_MULTIHEAD
 	struct matrox_fb_info* minfo = container_of(fb_info, struct matrox_fb_info, fbcon);
-#endif
 
 	DBG(__func__)
 
@@ -2011,9 +2007,6 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 	struct matrox_fb_info* minfo;
 	int err;
 	u_int32_t cmd;
-#ifndef CONFIG_FB_MATROX_MULTIHEAD
-	static int registered = 0;
-#endif
 	DBG(__func__)
 
 	svid = pdev->subsystem_vendor;
@@ -2037,15 +2030,9 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 		return -1;
 	}
 
-#ifdef CONFIG_FB_MATROX_MULTIHEAD
 	minfo = kmalloc(sizeof(*minfo), GFP_KERNEL);
 	if (!minfo)
 		return -1;
-#else
-	if (registered)	/* singlehead driver... */
-		return -1;
-	minfo = &matroxfb_global_mxinfo;
-#endif
 	memset(MINFO, 0, sizeof(*MINFO));
 
 	ACCESS_FBINFO(pcidev) = pdev;
@@ -2090,15 +2077,10 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 
 	err = initMatrox2(PMINFO b);
 	if (!err) {
-#ifndef CONFIG_FB_MATROX_MULTIHEAD
-		registered = 1;
-#endif
 		matroxfb_register_device(MINFO);
 		return 0;
 	}
-#ifdef CONFIG_FB_MATROX_MULTIHEAD
 	kfree(minfo);
-#endif
 	return -1;
 }
 
@@ -2510,13 +2492,8 @@ module_param(inv24, int, 0);
 MODULE_PARM_DESC(inv24, "Inverts clock polarity for 24bpp and loop frequency > 100MHz (default=do not invert polarity)");
 module_param(inverse, int, 0);
 MODULE_PARM_DESC(inverse, "Inverse (0 or 1) (default=0)");
-#ifdef CONFIG_FB_MATROX_MULTIHEAD
 module_param(dev, int, 0);
 MODULE_PARM_DESC(dev, "Multihead support, attach to device ID (0..N) (default=all working)");
-#else
-module_param(dev, int, 0);
-MODULE_PARM_DESC(dev, "Multihead support, attach to device ID (0..N) (default=first working)");
-#endif
 module_param(vesa, int, 0);
 MODULE_PARM_DESC(vesa, "Startup videomode (0x000-0x1FF) (default=0x101)");
 module_param(xres, int, 0);

@@ -784,10 +784,6 @@ EXPORT_SYMBOL(matroxfb_DAC_in);
 EXPORT_SYMBOL(matroxfb_DAC_out);
 EXPORT_SYMBOL(matroxfb_var2my);
 EXPORT_SYMBOL(matroxfb_PLL_calcclock);
-#ifndef CONFIG_FB_MATROX_MULTIHEAD
-struct matrox_fb_info matroxfb_global_mxinfo;
-EXPORT_SYMBOL(matroxfb_global_mxinfo);
-#endif
 EXPORT_SYMBOL(matroxfb_vgaHWinit);		/* DAC1064, Ti3026 */
 EXPORT_SYMBOL(matroxfb_vgaHWrestore);		/* DAC1064, Ti3026 */
 EXPORT_SYMBOL(matroxfb_read_pins);

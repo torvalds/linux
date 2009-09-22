@@ -524,7 +524,6 @@ struct matrox_fb_info {
 
 #define info2minfo(info) container_of(info, struct matrox_fb_info, fbcon)
 
-#ifdef CONFIG_FB_MATROX_MULTIHEAD
 #define ACCESS_FBINFO2(info, x) (info->x)
 #define ACCESS_FBINFO(x) ACCESS_FBINFO2(minfo,x)
 
@@ -538,25 +537,6 @@ struct matrox_fb_info {
 #define PMINFO   PMINFO2 ,
 
 #define MINFO_FROM(x)	   struct matrox_fb_info* minfo = x
-#else
-
-extern struct matrox_fb_info matroxfb_global_mxinfo;
-
-#define ACCESS_FBINFO(x) (matroxfb_global_mxinfo.x)
-#define ACCESS_FBINFO2(info, x) (matroxfb_global_mxinfo.x)
-
-#define MINFO (&matroxfb_global_mxinfo)
-
-#define WPMINFO2 void
-#define WPMINFO
-#define CPMINFO2 void
-#define CPMINFO
-#define PMINFO2
-#define PMINFO
-
-#define MINFO_FROM(x)
-
-#endif
 
 #define MINFO_FROM_INFO(x) MINFO_FROM(info2minfo(x))
 
