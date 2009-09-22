@@ -53,7 +53,7 @@ extern int omfs_is_bad(struct omfs_sb_info *sbi, struct omfs_header *header,
 /* file.c */
 extern struct file_operations omfs_file_operations;
 extern struct inode_operations omfs_file_inops;
-extern struct address_space_operations omfs_aops;
+extern const struct address_space_operations omfs_aops;
 extern void omfs_make_empty_table(struct buffer_head *bh, int offset);
 extern int omfs_shrink_inode(struct inode *inode);
 

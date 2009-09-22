@@ -60,8 +60,8 @@ static struct inode_operations btrfs_symlink_inode_operations;
 static struct inode_operations btrfs_dir_ro_inode_operations;
 static struct inode_operations btrfs_special_inode_operations;
 static struct inode_operations btrfs_file_inode_operations;
-static struct address_space_operations btrfs_aops;
-static struct address_space_operations btrfs_symlink_aops;
+static const struct address_space_operations btrfs_aops;
+static const struct address_space_operations btrfs_symlink_aops;
 static struct file_operations btrfs_dir_file_operations;
 static struct extent_io_ops btrfs_extent_io_ops;
 
@@ -5259,7 +5259,7 @@ static struct extent_io_ops btrfs_extent_io_ops = {
  *
  * For now we're avoiding this by dropping bmap.
  */
-static struct address_space_operations btrfs_aops = {
+static const struct address_space_operations btrfs_aops = {
 	.readpage	= btrfs_readpage,
 	.writepage	= btrfs_writepage,
 	.writepages	= btrfs_writepages,
@@ -5271,7 +5271,7 @@ static struct address_space_operations btrfs_aops = {
 	.set_page_dirty	= btrfs_set_page_dirty,
 };
 
-static struct address_space_operations btrfs_symlink_aops = {
+static const struct address_space_operations btrfs_symlink_aops = {
 	.readpage	= btrfs_readpage,
 	.writepage	= btrfs_writepage,
 	.invalidatepage = btrfs_invalidatepage,

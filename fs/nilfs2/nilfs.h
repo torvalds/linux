@@ -297,7 +297,7 @@ void nilfs_clear_gcdat_inode(struct the_nilfs *);
 extern struct file_operations nilfs_dir_operations;
 extern struct inode_operations nilfs_file_inode_operations;
 extern struct file_operations nilfs_file_operations;
-extern struct address_space_operations nilfs_aops;
+extern const struct address_space_operations nilfs_aops;
 extern struct inode_operations nilfs_dir_inode_operations;
 extern struct inode_operations nilfs_special_inode_operations;
 extern struct inode_operations nilfs_symlink_inode_operations;
