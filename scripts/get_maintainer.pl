@@ -105,6 +105,10 @@ if ($#ARGV < 0) {
     die "$P: argument missing: patchfile or -f file please\n";
 }
 
+if ($output_separator ne ", ") {
+    $output_multiline = 0;
+}
+
 my $selections = $email + $scm + $status + $subsystem + $web;
 if ($selections == 0) {
     usage();
@@ -376,6 +380,7 @@ MAINTAINER field selection options:
 
 Output type options:
   --separator [, ] => separator for multiple entries on 1 line
+    using --separator also sets --nomultiline if --separator is not [, ]
   --multiline => print 1 entry per line
 
 Other options:
