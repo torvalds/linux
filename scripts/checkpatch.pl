@@ -1547,8 +1547,9 @@ sub process {
 				    $s =~ /^\s*#\s*?/ ||
 				    $s =~ /^\s*$Ident\s*:/) {
 					$continuation = ($s =~ /^.*?\\\n/) ? 1 : 0;
-					$s =~ s/^.*?\n//;
-					$cond_lines++;
+					if ($s =~ s/^.*?\n//) {
+						$cond_lines++;
+					}
 				}
 			}
 
