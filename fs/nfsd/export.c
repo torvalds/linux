@@ -1341,6 +1341,8 @@ exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	if (rv)
 		goto out;
 	rv = check_nfsd_access(exp, rqstp);
+	if (rv)
+		fh_put(fhp);
 out:
 	exp_put(exp);
 	return rv;

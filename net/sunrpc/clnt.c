@@ -288,6 +288,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		.srcaddr = args->saddress,
 		.dstaddr = args->address,
 		.addrlen = args->addrsize,
+		.bc_xprt = args->bc_xprt,
 	};
 	char servername[48];
 
