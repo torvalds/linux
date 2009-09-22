@@ -252,6 +252,7 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
 
 #define GUP_FLAGS_WRITE		0x01
 #define GUP_FLAGS_FORCE		0x02
+#define GUP_FLAGS_DUMP		0x04
 
 int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		     unsigned long start, int len, int flags,
