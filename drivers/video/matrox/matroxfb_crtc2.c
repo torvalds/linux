@@ -65,7 +65,7 @@ static void matroxfb_dh_restore(struct matroxfb_dh_fb_info* m2info,
 		unsigned int pos) {
 	u_int32_t tmp;
 	u_int32_t datactl;
-	MINFO_FROM(m2info->primary_dev);
+	struct matrox_fb_info *minfo = m2info->primary_dev;
 
 	switch (mode) {
 		case 15:
@@ -157,7 +157,7 @@ static void matroxfb_dh_restore(struct matroxfb_dh_fb_info* m2info,
 }
 
 static void matroxfb_dh_disable(struct matroxfb_dh_fb_info* m2info) {
-	MINFO_FROM(m2info->primary_dev);
+	struct matrox_fb_info *minfo = m2info->primary_dev;
 
 	mga_outl(0x3C10, 0x00000004);	/* disable CRTC2, CRTC1->DAC1, PLL as clock source */
 	minfo->hw.crtc2.ctl = 0x00000004;
@@ -168,7 +168,7 @@ static void matroxfb_dh_pan_var(struct matroxfb_dh_fb_info* m2info,
 	unsigned int pos;
 	unsigned int linelen;
 	unsigned int pixelsize;
-	MINFO_FROM(m2info->primary_dev);
+	struct matrox_fb_info *minfo = m2info->primary_dev;
 
 	m2info->fbcon.var.xoffset = var->xoffset;
 	m2info->fbcon.var.yoffset = var->yoffset;
@@ -260,7 +260,7 @@ static int matroxfb_dh_decode_var(struct matroxfb_dh_fb_info* m2info,
 
 static int matroxfb_dh_open(struct fb_info* info, int user) {
 #define m2info (container_of(info, struct matroxfb_dh_fb_info, fbcon))
-	MINFO_FROM(m2info->primary_dev);
+	struct matrox_fb_info *minfo = m2info->primary_dev;
 
 	if (minfo) {
 		int err;
@@ -280,7 +280,7 @@ static int matroxfb_dh_open(struct fb_info* info, int user) {
 static int matroxfb_dh_release(struct fb_info* info, int user) {
 #define m2info (container_of(info, struct matroxfb_dh_fb_info, fbcon))
 	int err = 0;
-	MINFO_FROM(m2info->primary_dev);
+	struct matrox_fb_info *minfo = m2info->primary_dev;
 
 	if (minfo) {
 		err = minfo->fbops.fb_release(&minfo->fbcon, user);
@@ -326,7 +326,7 @@ static int matroxfb_dh_set_par(struct fb_info* info) {
 	int mode;
 	int err;
 	struct fb_var_screeninfo* var = &info->var;
-	MINFO_FROM(m2info->primary_dev);
+	struct matrox_fb_info *minfo = m2info->primary_dev;
 
 	if ((err = matroxfb_dh_decode_var(m2info, var, &visual, &cmap_len, &mode)) != 0)
 		return err;
@@ -399,7 +399,7 @@ static int matroxfb_dh_pan_display(struct fb_var_screeninfo* var, struct fb_info
 }
 
 static int matroxfb_dh_get_vblank(const struct matroxfb_dh_fb_info* m2info, struct fb_vblank* vblank) {
-	MINFO_FROM(m2info->primary_dev);
+	struct matrox_fb_info *minfo = m2info->primary_dev;
 
 	matroxfb_enable_irq(minfo, 0);
 	memset(vblank, 0, sizeof(*vblank));
@@ -423,7 +423,7 @@ static int matroxfb_dh_ioctl(struct fb_info *info,
 		unsigned long arg)
 {
 #define m2info (container_of(info, struct matroxfb_dh_fb_info, fbcon))
-	MINFO_FROM(m2info->primary_dev);
+	struct matrox_fb_info *minfo = m2info->primary_dev;
 
 	DBG(__func__)
 

@@ -524,10 +524,6 @@ struct matrox_fb_info {
 
 #define info2minfo(info) container_of(info, struct matrox_fb_info, fbcon)
 
-#define MINFO_FROM(x)	   struct matrox_fb_info* minfo = x
-
-#define MINFO_FROM_INFO(x) MINFO_FROM(info2minfo(x))
-
 struct matrox_switch {
 	int	(*preinit)(struct matrox_fb_info *minfo);
 	void	(*reset)(struct matrox_fb_info *minfo);

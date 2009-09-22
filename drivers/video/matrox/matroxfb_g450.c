@@ -161,7 +161,7 @@ static int g450_query_ctrl(void* md, struct v4l2_queryctrl *p) {
 
 static int g450_set_ctrl(void* md, struct v4l2_control *p) {
 	int i;
-	MINFO_FROM(md);
+	struct matrox_fb_info *minfo = md;
 	
 	i = get_ctrl_id(p->id);
 	if (i < 0) return -EINVAL;
@@ -215,7 +215,7 @@ static int g450_set_ctrl(void* md, struct v4l2_control *p) {
 
 static int g450_get_ctrl(void* md, struct v4l2_control *p) {
 	int i;
-	MINFO_FROM(md);
+	struct matrox_fb_info *minfo = md;
 	
 	i = get_ctrl_id(p->id);
 	if (i < 0) return -EINVAL;
@@ -518,7 +518,7 @@ static void cve2_init_TV(struct matrox_fb_info *minfo,
 }
 
 static int matroxfb_g450_compute(void* md, struct my_timming* mt) {
-	MINFO_FROM(md);
+	struct matrox_fb_info *minfo = md;
 
 	dprintk(KERN_DEBUG "Computing, mode=%u\n", minfo->outputs[1].mode);
 
@@ -556,7 +556,7 @@ static int matroxfb_g450_compute(void* md, struct my_timming* mt) {
 }
 
 static int matroxfb_g450_program(void* md) {
-	MINFO_FROM(md);
+	struct matrox_fb_info *minfo = md;
 	
 	if (minfo->outputs[1].mode != MATROXFB_OUTPUT_MODE_MONITOR) {
 		cve2_init_TV(minfo, &minfo->hw.maven);
@@ -575,7 +575,7 @@ static int matroxfb_g450_verify_mode(void* md, u_int32_t arg) {
 }
 
 static int g450_dvi_compute(void* md, struct my_timming* mt) {
-	MINFO_FROM(md);
+	struct matrox_fb_info *minfo = md;
 
 	if (mt->mnp < 0) {
 		mt->mnp = matroxfb_g450_setclk(minfo, mt->pixclock, (mt->crtc == MATROXFB_SRC_CRTC1) ? M_PIXEL_PLL_C : M_VIDEO_PLL);

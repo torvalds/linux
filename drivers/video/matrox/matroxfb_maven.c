@@ -458,7 +458,7 @@ static void maven_init_TVdata(const struct maven_data* md, struct mavenregs* dat
 		0x00,	/* 3E written multiple times */
 		0x00,	/* never written */
 	}, MATROXFB_OUTPUT_MODE_NTSC, 525, 60 };
-	MINFO_FROM(md->primary_head);
+	struct matrox_fb_info *minfo = md->primary_head;
 
 	if (minfo->outputs[1].mode == MATROXFB_OUTPUT_MODE_PAL)
 		*data = palregs;
@@ -741,7 +741,7 @@ static inline int maven_compute_timming(struct maven_data* md,
 		struct mavenregs* m) {
 	unsigned int tmpi;
 	unsigned int a, bv, c;
-	MINFO_FROM(md->primary_head);
+	struct matrox_fb_info *minfo = md->primary_head;
 
 	m->mode = minfo->outputs[1].mode;
 	if (m->mode != MATROXFB_OUTPUT_MODE_MONITOR) {
@@ -1184,7 +1184,9 @@ static struct matrox_altout maven_altout = {
 
 static int maven_init_client(struct i2c_client* clnt) {
 	struct maven_data* md = i2c_get_clientdata(clnt);
-	MINFO_FROM(container_of(clnt->adapter, struct i2c_bit_adapter, adapter)->minfo);
+	struct matrox_fb_info *minfo = container_of(clnt->adapter,
+						    struct i2c_bit_adapter,
+						    adapter)->minfo;
 
 	md->primary_head = minfo;
 	md->client = clnt;
@@ -1218,7 +1220,7 @@ static int maven_shutdown_client(struct i2c_client* clnt) {
 	struct maven_data* md = i2c_get_clientdata(clnt);
 
 	if (md->primary_head) {
-		MINFO_FROM(md->primary_head);
+		struct matrox_fb_info *minfo = md->primary_head;
 
 		down_write(&minfo->altout.lock);
 		minfo->outputs[1].src = MATROXFB_SRC_NONE;

@@ -275,7 +275,7 @@ static void matrox_accel_bmove_lin(struct matrox_fb_info *minfo, int vxres,
 }
 
 static void matroxfb_cfb4_copyarea(struct fb_info* info, const struct fb_copyarea* area) {
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	if ((area->sx | area->dx | area->width) & 1)
 		cfb_copyarea(info, area);
@@ -284,7 +284,7 @@ static void matroxfb_cfb4_copyarea(struct fb_info* info, const struct fb_copyare
 }
 
 static void matroxfb_copyarea(struct fb_info* info, const struct fb_copyarea* area) {
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	matrox_accel_bmove(minfo, minfo->fbcon.var.xres_virtual, area->sy, area->sx, area->dy, area->dx, area->height, area->width);
 }
@@ -309,7 +309,7 @@ static void matroxfb_accel_clear(struct matrox_fb_info *minfo, u_int32_t color,
 }
 
 static void matroxfb_fillrect(struct fb_info* info, const struct fb_fillrect* rect) {
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	switch (rect->rop) {
 		case ROP_COPY:
@@ -376,7 +376,7 @@ static void matroxfb_cfb4_clear(struct matrox_fb_info *minfo, u_int32_t bgx,
 }
 
 static void matroxfb_cfb4_fillrect(struct fb_info* info, const struct fb_fillrect* rect) {
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	switch (rect->rop) {
 		case ROP_COPY:
@@ -478,7 +478,7 @@ static void matroxfb_1bpp_imageblit(struct matrox_fb_info *minfo, u_int32_t fgx,
 
 
 static void matroxfb_imageblit(struct fb_info* info, const struct fb_image* image) {
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	DBG_HEAVY(__func__);
 

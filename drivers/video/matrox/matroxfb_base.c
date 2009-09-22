@@ -204,8 +204,7 @@ static irqreturn_t matrox_irq(int irq, void *dev_id)
 {
 	u_int32_t status;
 	int handled = 0;
-
-	MINFO_FROM(dev_id);
+	struct matrox_fb_info *minfo = dev_id;
 
 	status = mga_inl(M_STATUS);
 
@@ -396,7 +395,7 @@ static void matroxfb_remove(struct matrox_fb_info *minfo, int dummy)
 
 static int matroxfb_open(struct fb_info *info, int user)
 {
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	DBG_LOOP(__func__)
 
@@ -412,7 +411,7 @@ static int matroxfb_open(struct fb_info *info, int user)
 
 static int matroxfb_release(struct fb_info *info, int user)
 {
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	DBG_LOOP(__func__)
 
@@ -429,7 +428,7 @@ static int matroxfb_release(struct fb_info *info, int user)
 
 static int matroxfb_pan_display(struct fb_var_screeninfo *var,
 		struct fb_info* info) {
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	DBG(__func__)
 
@@ -749,7 +748,7 @@ static int matroxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	int visual;
 	int cmap_len;
 	unsigned int ydstorg;
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	if (minfo->dead) {
 		return -ENXIO;
@@ -766,7 +765,7 @@ static int matroxfb_set_par(struct fb_info *info)
 	int cmap_len;
 	unsigned int ydstorg;
 	struct fb_var_screeninfo *var;
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	DBG(__func__)
 
@@ -890,7 +889,7 @@ static int matroxfb_ioctl(struct fb_info *info,
 			  unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	DBG(__func__)
 
@@ -1189,7 +1188,7 @@ static int matroxfb_blank(int blank, struct fb_info *info)
 	int seq;
 	int crtc;
 	CRITFLAGS
-	MINFO_FROM_INFO(info);
+	struct matrox_fb_info *minfo = info2minfo(info);
 
 	DBG(__func__)
 
