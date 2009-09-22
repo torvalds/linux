@@ -1009,7 +1009,8 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		return -ENODEV;
 
 	/* When duoview and using lcd , use soft cursor */
-	if (viafb_LCD_ON || ((struct viafb_par *)(info->par))->duoview)
+	if (viafb_LCD_ON || (!viafb_SAMM_ON &&
+		viafb_LCD2_ON + viafb_DVI_ON + viafb_CRT_ON == 2))
 		return -ENODEV;
 
 	viafb_show_hw_cursor(info, HW_Cursor_OFF);
@@ -1379,18 +1380,6 @@ static int get_primary_device(void)
 	return primary_device;
 }
 
-static u8 is_duoview(void)
-{
-	if (0 == viafb_SAMM_ON) {
-		if (viafb_LCD_ON + viafb_LCD2_ON +
-			viafb_DVI_ON + viafb_CRT_ON == 2)
-			return true;
-		return false;
-	} else {
-		return false;
-	}
-}
-
 static void apply_second_mode_setting(struct fb_var_screeninfo
 	*sec_var)
 {
@@ -1498,8 +1487,6 @@ static int apply_device_setting(struct viafb_ioctl_setting setting_info,
 		}
 		need_set_mode = 1;
 	}
-
-	viaparinfo->duoview = is_duoview();
 
 	if (!need_set_mode) {
 		;
@@ -1621,7 +1608,6 @@ static void parse_active_dev(void)
 		viafb_CRT_ON = STATE_ON;
 		viafb_SAMM_ON = STATE_OFF;
 	}
-	viaparinfo->duoview = is_duoview();
 }
 
 static void parse_video_dev(void)
