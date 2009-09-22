@@ -302,6 +302,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 			goto err;
 		}
 		card = oldcard;
+		return 0;
 	}
 
 	/*
@@ -399,62 +400,65 @@ static void mmc_sdio_detect(struct mmc_host *host)
  * Therefore all registered functions must have drivers with suspend
  * and resume methods.  Failing that we simply remove the whole card.
  */
-static void mmc_sdio_suspend(struct mmc_host *host)
+static int mmc_sdio_suspend(struct mmc_host *host)
 {
-	int i;
+	int i, err = 0;
 
-	/* make sure all registered functions can suspend/resume */
 	for (i = 0; i < host->card->sdio_funcs; i++) {
 		struct sdio_func *func = host->card->sdio_func[i];
 		if (func && sdio_func_present(func) && func->dev.driver) {
 			const struct dev_pm_ops *pmops = func->dev.driver->pm;
 			if (!pmops || !pmops->suspend || !pmops->resume) {
-				/* just remove the entire card in that case */
-				mmc_sdio_remove(host);
-				mmc_claim_host(host);
-				mmc_detach_bus(host);
-				mmc_release_host(host);
-				return;
-			}
+				/* force removal of entire card in that case */
+				err = -ENOSYS;
+			} else
+				err = pmops->suspend(&func->dev);
+			if (err)
+				break;
 		}
 	}
-
-	/* now suspend them */
-	for (i = 0; i < host->card->sdio_funcs; i++) {
-		struct sdio_func *func = host->card->sdio_func[i];
-		if (func && sdio_func_present(func) && func->dev.driver) {
-			const struct dev_pm_ops *pmops = func->dev.driver->pm;
-			pmops->suspend(&func->dev);
-		}
-	}
-}
-
-static void mmc_sdio_resume(struct mmc_host *host)
-{
-	int i, err;
-
-	BUG_ON(!host);
-	BUG_ON(!host->card);
-
-	mmc_claim_host(host);
-	err = mmc_sdio_init_card(host, host->ocr, host->card);
-	mmc_release_host(host);
-	if (err) {
-		mmc_sdio_remove(host);
-		mmc_claim_host(host);
-		mmc_detach_bus(host);
-		mmc_release_host(host);
-		return;
-	}
-
-	/* resume all functions */
-	for (i = 0; i < host->card->sdio_funcs; i++) {
+	while (err && --i >= 0) {
 		struct sdio_func *func = host->card->sdio_func[i];
 		if (func && sdio_func_present(func) && func->dev.driver) {
 			const struct dev_pm_ops *pmops = func->dev.driver->pm;
 			pmops->resume(&func->dev);
 		}
 	}
+
+	return err;
+}
+
+static int mmc_sdio_resume(struct mmc_host *host)
+{
+	int i, err;
+
+	BUG_ON(!host);
+	BUG_ON(!host->card);
+
+	/* Basic card reinitialization. */
+	mmc_claim_host(host);
+	err = mmc_sdio_init_card(host, host->ocr, host->card);
+	mmc_release_host(host);
+
+	/*
+	 * If the card looked to be the same as before suspending, then
+	 * we proceed to resume all card functions.  If one of them returns
+	 * an error then we simply return that error to the core and the
+	 * card will be redetected as new.  It is the responsibility of
+	 * the function driver to perform further tests with the extra
+	 * knowledge it has of the card to confirm the card is indeed the
+	 * same as before suspending (same MAC address for network cards,
+	 * etc.) and return an error otherwise.
+	 */
+	for (i = 0; !err && i < host->card->sdio_funcs; i++) {
+		struct sdio_func *func = host->card->sdio_func[i];
+		if (func && sdio_func_present(func) && func->dev.driver) {
+			const struct dev_pm_ops *pmops = func->dev.driver->pm;
+			err = pmops->resume(&func->dev);
+		}
+	}
+
+	return err;
 }
 
 static const struct mmc_bus_ops mmc_sdio_ops = {

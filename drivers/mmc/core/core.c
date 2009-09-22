@@ -1236,6 +1236,8 @@ EXPORT_SYMBOL(mmc_card_can_sleep);
  */
 int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 {
+	int err = 0;
+
 	if (host->caps & MMC_CAP_DISABLE)
 		cancel_delayed_work(&host->disable);
 	cancel_delayed_work(&host->detect);
@@ -1244,21 +1246,26 @@ int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
 		if (host->bus_ops->suspend)
-			host->bus_ops->suspend(host);
-		if (!host->bus_ops->resume) {
+			err = host->bus_ops->suspend(host);
+		if (err == -ENOSYS || !host->bus_ops->resume) {
+			/*
+			 * We simply "remove" the card in this case.
+			 * It will be redetected on resume.
+			 */
 			if (host->bus_ops->remove)
 				host->bus_ops->remove(host);
-
 			mmc_claim_host(host);
 			mmc_detach_bus(host);
 			mmc_release_host(host);
+			err = 0;
 		}
 	}
 	mmc_bus_put(host);
 
-	mmc_power_off(host);
+	if (!err)
+		mmc_power_off(host);
 
-	return 0;
+	return err;
 }
 
 EXPORT_SYMBOL(mmc_suspend_host);
@@ -1269,12 +1276,26 @@ EXPORT_SYMBOL(mmc_suspend_host);
  */
 int mmc_resume_host(struct mmc_host *host)
 {
+	int err = 0;
+
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
 		mmc_power_up(host);
 		mmc_select_voltage(host, host->ocr);
 		BUG_ON(!host->bus_ops->resume);
-		host->bus_ops->resume(host);
+		err = host->bus_ops->resume(host);
+		if (err) {
+			printk(KERN_WARNING "%s: error %d during resume "
+					    "(card was removed?)\n",
+					    mmc_hostname(host), err);
+			if (host->bus_ops->remove)
+				host->bus_ops->remove(host);
+			mmc_claim_host(host);
+			mmc_detach_bus(host);
+			mmc_release_host(host);
+			/* no need to bother upper layers */
+			err = 0;
+		}
 	}
 	mmc_bus_put(host);
 
@@ -1284,7 +1305,7 @@ int mmc_resume_host(struct mmc_host *host)
 	 */
 	mmc_detect_change(host, 1);
 
-	return 0;
+	return err;
 }
 
 EXPORT_SYMBOL(mmc_resume_host);

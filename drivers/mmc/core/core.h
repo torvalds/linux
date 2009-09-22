@@ -20,8 +20,8 @@ struct mmc_bus_ops {
 	int (*sleep)(struct mmc_host *);
 	void (*remove)(struct mmc_host *);
 	void (*detect)(struct mmc_host *);
-	void (*suspend)(struct mmc_host *);
-	void (*resume)(struct mmc_host *);
+	int (*suspend)(struct mmc_host *);
+	int (*resume)(struct mmc_host *);
 	void (*power_save)(struct mmc_host *);
 	void (*power_restore)(struct mmc_host *);
 };

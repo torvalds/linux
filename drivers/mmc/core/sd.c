@@ -564,7 +564,7 @@ static void mmc_sd_detect(struct mmc_host *host)
 /*
  * Suspend callback from host.
  */
-static void mmc_sd_suspend(struct mmc_host *host)
+static int mmc_sd_suspend(struct mmc_host *host)
 {
 	BUG_ON(!host);
 	BUG_ON(!host->card);
@@ -574,6 +574,8 @@ static void mmc_sd_suspend(struct mmc_host *host)
 		mmc_deselect_cards(host);
 	host->card->state &= ~MMC_STATE_HIGHSPEED;
 	mmc_release_host(host);
+
+	return 0;
 }
 
 /*
@@ -582,7 +584,7 @@ static void mmc_sd_suspend(struct mmc_host *host)
  * This function tries to determine if the same card is still present
  * and, if so, restore all state to it.
  */
-static void mmc_sd_resume(struct mmc_host *host)
+static int mmc_sd_resume(struct mmc_host *host)
 {
 	int err;
 
@@ -593,14 +595,7 @@ static void mmc_sd_resume(struct mmc_host *host)
 	err = mmc_sd_init_card(host, host->ocr, host->card);
 	mmc_release_host(host);
 
-	if (err) {
-		mmc_sd_remove(host);
-
-		mmc_claim_host(host);
-		mmc_detach_bus(host);
-		mmc_release_host(host);
-	}
-
+	return err;
 }
 
 static void mmc_sd_power_restore(struct mmc_host *host)
