@@ -965,7 +965,7 @@ static int ocfs2_quota_off(struct super_block *sb, int type, int remount)
 	return vfs_quota_disable(sb, type, DQUOT_LIMITS_ENABLED);
 }
 
-static struct quotactl_ops ocfs2_quotactl_ops = {
+static const struct quotactl_ops ocfs2_quotactl_ops = {
 	.quota_on	= ocfs2_quota_on,
 	.quota_off	= ocfs2_quota_off,
 	.quota_sync	= vfs_quota_sync,

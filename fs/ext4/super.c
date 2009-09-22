@@ -985,7 +985,7 @@ static const struct dquot_operations ext4_quota_operations = {
 	.destroy_dquot	= dquot_destroy,
 };
 
-static struct quotactl_ops ext4_qctl_operations = {
+static const struct quotactl_ops ext4_qctl_operations = {
 	.quota_on	= ext4_quota_on,
 	.quota_off	= vfs_quota_off,
 	.quota_sync	= vfs_quota_sync,

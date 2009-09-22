@@ -136,7 +136,7 @@ static inline int sb_any_quota_active(struct super_block *sb)
  * Operations supported for diskquotas.
  */
 extern const struct dquot_operations dquot_operations;
-extern struct quotactl_ops vfs_quotactl_ops;
+extern const struct quotactl_ops vfs_quotactl_ops;
 
 #define sb_dquot_ops (&dquot_operations)
 #define sb_quotactl_ops (&vfs_quotactl_ops)

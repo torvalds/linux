@@ -629,7 +629,7 @@ static const struct dquot_operations reiserfs_quota_operations = {
 	.destroy_dquot	= dquot_destroy,
 };
 
-static struct quotactl_ops reiserfs_qctl_operations = {
+static const struct quotactl_ops reiserfs_qctl_operations = {
 	.quota_on = reiserfs_quota_on,
 	.quota_off = vfs_quota_off,
 	.quota_sync = vfs_quota_sync,
