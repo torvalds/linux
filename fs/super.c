@@ -54,7 +54,7 @@ DEFINE_SPINLOCK(sb_lock);
 static struct super_block *alloc_super(struct file_system_type *type)
 {
 	struct super_block *s = kzalloc(sizeof(struct super_block),  GFP_USER);
-	static struct super_operations default_op;
+	static const struct super_operations default_op;
 
 	if (s) {
 		if (security_sb_alloc(s)) {

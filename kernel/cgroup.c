@@ -961,7 +961,7 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	return ret;
 }
 
-static struct super_operations cgroup_ops = {
+static const struct super_operations cgroup_ops = {
 	.statfs = simple_statfs,
 	.drop_inode = generic_delete_inode,
 	.show_options = cgroup_show_options,

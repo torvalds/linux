@@ -773,7 +773,7 @@ static int
 spufs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct spufs_sb_info *info;
-	static struct super_operations s_ops = {
+	static const struct super_operations s_ops = {
 		.alloc_inode = spufs_alloc_inode,
 		.destroy_inode = spufs_destroy_inode,
 		.statfs = simple_statfs,

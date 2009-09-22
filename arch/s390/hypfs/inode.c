@@ -41,7 +41,7 @@ struct hypfs_sb_info {
 
 static const struct file_operations hypfs_file_ops;
 static struct file_system_type hypfs_type;
-static struct super_operations hypfs_s_ops;
+static const struct super_operations hypfs_s_ops;
 
 /* start of list of all dentries, which have to be deleted on update */
 static struct dentry *hypfs_last_dentry;
@@ -472,7 +472,7 @@ static struct file_system_type hypfs_type = {
 	.kill_sb	= hypfs_kill_super
 };
 
-static struct super_operations hypfs_s_ops = {
+static const struct super_operations hypfs_s_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= hypfs_drop_inode,
 	.show_options	= hypfs_show_options,
