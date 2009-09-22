@@ -155,6 +155,12 @@ static unsigned long ksm_pages_shared;
 /* The number of page slots additionally sharing those nodes */
 static unsigned long ksm_pages_sharing;
 
+/* The number of nodes in the unstable tree */
+static unsigned long ksm_pages_unshared;
+
+/* The number of rmap_items in use: to calculate pages_volatile */
+static unsigned long ksm_rmap_items;
+
 /* Limit on the number of unswappable pages used */
 static unsigned long ksm_max_kernel_pages;
 
@@ -204,11 +210,17 @@ static void __init ksm_slab_free(void)
 
 static inline struct rmap_item *alloc_rmap_item(void)
 {
-	return kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
+	struct rmap_item *rmap_item;
+
+	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
+	if (rmap_item)
+		ksm_rmap_items++;
+	return rmap_item;
 }
 
 static inline void free_rmap_item(struct rmap_item *rmap_item)
 {
+	ksm_rmap_items--;
 	rmap_item->mm = NULL;	/* debug safety */
 	kmem_cache_free(rmap_item_cache, rmap_item);
 }
@@ -419,6 +431,7 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
 		BUG_ON(age > 2);
 		if (!age)
 			rb_erase(&rmap_item->node, &root_unstable_tree);
+		ksm_pages_unshared--;
 	}
 
 	rmap_item->address &= PAGE_MASK;
@@ -995,6 +1008,7 @@ static struct rmap_item *unstable_tree_search_insert(struct page *page,
 	rb_link_node(&rmap_item->node, parent, new);
 	rb_insert_color(&rmap_item->node, &root_unstable_tree);
 
+	ksm_pages_unshared++;
 	return NULL;
 }
 
@@ -1091,6 +1105,8 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 		if (!err) {
 			rb_erase(&tree_rmap_item->node, &root_unstable_tree);
 			tree_rmap_item->address &= ~NODE_FLAG;
+			ksm_pages_unshared--;
+
 			/*
 			 * If we fail to insert the page into the stable tree,
 			 * we will have 2 virtual addresses that are pointing
@@ -1474,6 +1490,37 @@ static ssize_t pages_sharing_show(struct kobject *kobj,
 }
 KSM_ATTR_RO(pages_sharing);
 
+static ssize_t pages_unshared_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", ksm_pages_unshared);
+}
+KSM_ATTR_RO(pages_unshared);
+
+static ssize_t pages_volatile_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	long ksm_pages_volatile;
+
+	ksm_pages_volatile = ksm_rmap_items - ksm_pages_shared
+				- ksm_pages_sharing - ksm_pages_unshared;
+	/*
+	 * It was not worth any locking to calculate that statistic,
+	 * but it might therefore sometimes be negative: conceal that.
+	 */
+	if (ksm_pages_volatile < 0)
+		ksm_pages_volatile = 0;
+	return sprintf(buf, "%ld\n", ksm_pages_volatile);
+}
+KSM_ATTR_RO(pages_volatile);
+
+static ssize_t full_scans_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", ksm_scan.seqnr);
+}
+KSM_ATTR_RO(full_scans);
+
 static struct attribute *ksm_attrs[] = {
 	&sleep_millisecs_attr.attr,
 	&pages_to_scan_attr.attr,
@@ -1481,6 +1528,9 @@ static struct attribute *ksm_attrs[] = {
 	&max_kernel_pages_attr.attr,
 	&pages_shared_attr.attr,
 	&pages_sharing_attr.attr,
+	&pages_unshared_attr.attr,
+	&pages_volatile_attr.attr,
+	&full_scans_attr.attr,
 	NULL,
 };
 
