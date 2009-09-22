@@ -2561,12 +2561,12 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 
 	if (ftrace_graph_count >= FTRACE_GRAPH_MAX_FUNCS) {
 		ret = -EBUSY;
-		goto out;
+		goto out_unlock;
 	}
 
 	if (trace_parser_get_init(&parser, FTRACE_BUFF_MAX)) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_unlock;
 	}
 
 	read = trace_get_user(&parser, ubuf, cnt, ppos);
@@ -2578,12 +2578,14 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 		ret = ftrace_set_func(ftrace_graph_funcs, &ftrace_graph_count,
 					parser.buffer);
 		if (ret)
-			goto out;
+			goto out_free;
 	}
 
 	ret = read;
- out:
+
+out_free:
 	trace_parser_put(&parser);
+out_unlock:
 	mutex_unlock(&graph_lock);
 
 	return ret;
