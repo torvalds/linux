@@ -43,7 +43,6 @@
 #include <mach/dma.h>
 #include <mach/htc_pwrsink.h>
 
-
 #include "msm_sdcc.h"
 
 #define DRIVER_NAME "msm-sdcc"
@@ -57,8 +56,6 @@ static unsigned int msmsdcc_sdioirq;
 
 #define PIO_SPINMAX 30
 #define CMD_SPINMAX 20
-
-
 
 static void
 msmsdcc_start_command(struct msmsdcc_host *host, struct mmc_command *cmd,
@@ -98,16 +95,17 @@ msmsdcc_stop_data(struct msmsdcc_host *host)
 
 uint32_t msmsdcc_fifo_addr(struct msmsdcc_host *host)
 {
-	if (host->pdev_id == 1)
+	switch (host->pdev_id) {
+	case 1:
 		return MSM_SDC1_PHYS + MMCIFIFO;
-	else if (host->pdev_id == 2)
+	case 2:
 		return MSM_SDC2_PHYS + MMCIFIFO;
-	else if (host->pdev_id == 3)
+	case 3:
 		return MSM_SDC3_PHYS + MMCIFIFO;
-	else if (host->pdev_id == 4)
+	case 4:
 		return MSM_SDC4_PHYS + MMCIFIFO;
-	else
-		BUG();
+	}
+	BUG();
 	return 0;
 }
 
@@ -156,8 +154,8 @@ msmsdcc_dma_complete_func(struct msm_dmov_cmd *cmd,
 		struct scatterlist *sg = host->dma.sg;
 		int i;
 
-		for (i = 0; i < host->dma.num_ents; i++, sg++)
-			flush_dcache_page(sg_page(sg));
+		for (i = 0; i < host->dma.num_ents; i++)
+			flush_dcache_page(sg_page(sg++));
 	}
 
 	host->dma.sg = NULL;
@@ -222,15 +220,20 @@ static int msmsdcc_config_dma(struct msmsdcc_host *host, struct mmc_data *data)
 
 	nc = host->dma.nc;
 
-	if (host->pdev_id == 1)
+	switch (host->pdev_id) {
+	case 1:
 		crci = MSMSDCC_CRCI_SDC1;
-	else if (host->pdev_id == 2)
+		break;
+	case 2:
 		crci = MSMSDCC_CRCI_SDC2;
-	else if (host->pdev_id == 3)
+		break;
+	case 3:
 		crci = MSMSDCC_CRCI_SDC3;
-	else if (host->pdev_id == 4)
+		break;
+	case 4:
 		crci = MSMSDCC_CRCI_SDC4;
-	else {
+		break;
+	default:
 		host->dma.sg = NULL;
 		host->dma.num_ents = 0;
 		return -ENOENT;
@@ -244,7 +247,7 @@ static int msmsdcc_config_dma(struct msmsdcc_host *host, struct mmc_data *data)
 	host->curr.user_pages = 0;
 
 	n = dma_map_sg(mmc_dev(host->mmc), host->dma.sg,
-			host->dma.num_ents, host->dma.dir);
+		       host->dma.num_ents, host->dma.dir);
 
 	if (n != host->dma.num_ents) {
 		pr_err("%s: Unable to map in all sg elements\n",
@@ -318,7 +321,7 @@ msmsdcc_start_data(struct msmsdcc_host *host, struct mmc_data *data)
 	memset(&host->pio, 0, sizeof(host->pio));
 
 	clks = (unsigned long long)data->timeout_ns * host->clk_rate;
-	do_div(clks, 1000000000UL);
+	do_div(clks, NSEC_PER_SEC);
 	timeout = data->timeout_clks + (unsigned int)clks;
 	writel(timeout, base + MMCIDATATIMER);
 
@@ -371,9 +374,9 @@ msmsdcc_start_command(struct msmsdcc_host *host, struct mmc_command *cmd, u32 c)
 		c |= MCI_CPSM_RESPONSE;
 	}
 
-	if ((((cmd->opcode == 17) || (cmd->opcode == 18))  ||
-	     ((cmd->opcode == 24) || (cmd->opcode == 25))) ||
-	      (cmd->opcode == 53))
+	if (cmd->opcode == 17 || cmd->opcode == 18 ||
+	    cmd->opcode == 24 || cmd->opcode == 25 ||
+	    cmd->opcode == 53)
 		c |= MCI_CSPM_DATCMD;
 
 	if (cmd == cmd->mrq->stop)
