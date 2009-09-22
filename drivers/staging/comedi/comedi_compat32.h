@@ -28,7 +28,9 @@
 #define _COMEDI_COMPAT32_H
 
 #include <linux/compat.h>
-#include <linux/fs.h>		/* For HAVE_COMPAT_IOCTL and HAVE_UNLOCKED_IOCTL */
+
+/* For HAVE_COMPAT_IOCTL and HAVE_UNLOCKED_IOCTL */
+#include <linux/fs.h>
 
 #ifdef CONFIG_COMPAT
 
