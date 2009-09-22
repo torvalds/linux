@@ -37,6 +37,7 @@ config ARCH_DAVINCI_DA850
 	bool "DA850/OMAP-L138 based system"
 	select CP_INTC
 	select ARCH_DAVINCI_DA8XX
+	select ARCH_HAS_CPUFREQ
 
 config ARCH_DAVINCI_DA8XX
 	bool
