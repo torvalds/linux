@@ -79,7 +79,7 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	/*
 	 * swapoff can easily use up all memory, so kill those first.
 	 */
-	if (p->flags & PF_SWAPOFF)
+	if (p->flags & PF_OOM_ORIGIN)
 		return ULONG_MAX;
 
 	/*

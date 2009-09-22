@@ -1557,7 +1557,9 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (ksm_run != flags) {
 		ksm_run = flags;
 		if (flags & KSM_RUN_UNMERGE) {
+			current->flags |= PF_OOM_ORIGIN;
 			err = unmerge_and_remove_all_rmap_items();
+			current->flags &= ~PF_OOM_ORIGIN;
 			if (err) {
 				ksm_run = KSM_RUN_STOP;
 				count = err;
