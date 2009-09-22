@@ -391,7 +391,6 @@ struct beiscsi_io_task {
 	unsigned short cid;
 	unsigned short header_len;
 
-	unsigned int alloc_size;
 	struct be_cmd_bhs *cmd_bhs;
 	struct be_bus_address bhs_pa;
 	unsigned short bhs_len;

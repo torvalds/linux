@@ -2880,7 +2880,16 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	struct hwi_wrb_context *pwrb_context;
 	struct hwi_controller *phwi_ctrlr;
 	itt_t itt;
+	struct beiscsi_session *beiscsi_sess = beiscsi_conn->beiscsi_sess;
+	dma_addr_t paddr;
 
+	io_task->cmd_bhs = pci_pool_alloc(beiscsi_sess->bhs_pool,
+					  GFP_KERNEL, &paddr);
+
+	if (!io_task->cmd_bhs)
+		return -ENOMEM;
+
+	io_task->bhs_pa.u.a64.address = paddr;
 	io_task->pwrb_handle = alloc_wrb_handle(phba,
 						beiscsi_conn->beiscsi_conn_cid,
 						task->itt);
@@ -2894,17 +2903,9 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 		spin_lock(&phba->io_sgl_lock);
 		io_task->psgl_handle = alloc_io_sgl_handle(phba);
 		spin_unlock(&phba->io_sgl_lock);
-		if (!io_task->psgl_handle) {
-			phwi_ctrlr = phba->phwi_ctrlr;
-			pwrb_context = &phwi_ctrlr->wrb_context
-					[beiscsi_conn->beiscsi_conn_cid];
-			free_wrb_handle(phba, pwrb_context,
-						io_task->pwrb_handle);
-			io_task->pwrb_handle = NULL;
-			SE_DEBUG(DBG_LVL_1,
-				 "Alloc of SGL_ICD Failed \n");
-			return -ENOMEM;
-		}
+		if (!io_task->psgl_handle)
+			goto free_hndls;
+
 	} else {
 		io_task->scsi_cmnd = NULL;
 		if ((task->hdr->opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGIN) {
@@ -2913,18 +2914,9 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 				io_task->psgl_handle = (struct sgl_handle *)
 						alloc_mgmt_sgl_handle(phba);
 				spin_unlock(&phba->mgmt_sgl_lock);
-				if (!io_task->psgl_handle) {
-					phwi_ctrlr = phba->phwi_ctrlr;
-					pwrb_context =
-					&phwi_ctrlr->wrb_context
-					[beiscsi_conn->beiscsi_conn_cid];
-					free_wrb_handle(phba, pwrb_context,
-							io_task->pwrb_handle);
-					io_task->pwrb_handle = NULL;
-					SE_DEBUG(DBG_LVL_1, "Alloc of "
-						"MGMT_SGL_ICD Failed \n");
-					return -ENOMEM;
-				}
+				if (!io_task->psgl_handle)
+					goto free_hndls;
+
 				beiscsi_conn->login_in_progress = 1;
 				beiscsi_conn->plogin_sgl_handle =
 							io_task->psgl_handle;
@@ -2936,23 +2928,24 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 			spin_lock(&phba->mgmt_sgl_lock);
 			io_task->psgl_handle = alloc_mgmt_sgl_handle(phba);
 			spin_unlock(&phba->mgmt_sgl_lock);
-			if (!io_task->psgl_handle) {
-				phwi_ctrlr = phba->phwi_ctrlr;
-				pwrb_context = &phwi_ctrlr->wrb_context
-					[beiscsi_conn->beiscsi_conn_cid];
-				free_wrb_handle(phba, pwrb_context,
-							io_task->pwrb_handle);
-				io_task->pwrb_handle = NULL;
-				SE_DEBUG(DBG_LVL_1, "Alloc of "
-					 "MGMT_SGL_ICD Failed \n");
-				return -ENOMEM;
-			}
+			if (!io_task->psgl_handle)
+				goto free_hndls;
 		}
 	}
 	itt = (itt_t) cpu_to_be32(((unsigned int)task->itt << 16) |
 			(unsigned int)(io_task->psgl_handle->sgl_index));
 	io_task->cmd_bhs->iscsi_hdr.itt = itt;
 	return 0;
+
+free_hndls:
+	phwi_ctrlr = phba->phwi_ctrlr;
+	pwrb_context = &phwi_ctrlr->wrb_context[beiscsi_conn->beiscsi_conn_cid];
+	free_wrb_handle(phba, pwrb_context, io_task->pwrb_handle);
+	io_task->pwrb_handle = NULL;
+	pci_pool_free(beiscsi_sess->bhs_pool, io_task->cmd_bhs,
+		      io_task->bhs_pa.u.a64.address);
+	SE_DEBUG(DBG_LVL_1, "Alloc of SGL_ICD Failed \n");
+	return -ENOMEM;
 }
 
 static void beiscsi_cleanup_task(struct iscsi_task *task)
@@ -2961,6 +2954,7 @@ static void beiscsi_cleanup_task(struct iscsi_task *task)
 	struct iscsi_conn *conn = task->conn;
 	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
 	struct beiscsi_hba *phba = beiscsi_conn->phba;
+	struct beiscsi_session *beiscsi_sess = beiscsi_conn->beiscsi_sess;
 	struct hwi_wrb_context *pwrb_context;
 	struct hwi_controller *phwi_ctrlr;
 
@@ -2969,6 +2963,11 @@ static void beiscsi_cleanup_task(struct iscsi_task *task)
 	if (io_task->pwrb_handle) {
 		free_wrb_handle(phba, pwrb_context, io_task->pwrb_handle);
 		io_task->pwrb_handle = NULL;
+	}
+
+	if (io_task->cmd_bhs) {
+		pci_pool_free(beiscsi_sess->bhs_pool, io_task->cmd_bhs,
+			      io_task->bhs_pa.u.a64.address);
 	}
 
 	if (task->sc) {
@@ -3003,7 +3002,6 @@ static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 	unsigned int doorbell = 0;
 
 	pwrb = io_task->pwrb_handle->pwrb;
-
 	io_task->cmd_bhs->iscsi_hdr.exp_statsn = 0;
 	io_task->bhs_len = sizeof(struct be_cmd_bhs);
 
@@ -3020,7 +3018,6 @@ static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 			      &io_task->cmd_bhs->iscsi_data_pdu, 1);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb, INI_WR_CMD);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, dsp, pwrb, 1);
-
 	} else {
 		SE_DEBUG(DBG_LVL_4, "READ Command \t");
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb, INI_RD_CMD);

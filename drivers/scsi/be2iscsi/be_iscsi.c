@@ -45,14 +45,9 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 	struct beiscsi_endpoint *beiscsi_ep;
 	struct iscsi_cls_session *cls_session;
 	struct beiscsi_hba *phba;
-	struct iscsi_task *task;
 	struct iscsi_session *sess;
 	struct beiscsi_session *beiscsi_sess;
 	struct beiscsi_io_task *io_task;
-	unsigned int max_size, num_cmd;
-	dma_addr_t bus_add;
-	u64 pa_addr;
-	void *vaddr;
 
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_session_create\n");
 
@@ -80,20 +75,18 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 	if (!cls_session)
 		return NULL;
 	sess = cls_session->dd_data;
-	max_size = ALIGN(sizeof(struct be_cmd_bhs), 64) * sess->cmds_max;
-	vaddr = pci_alloc_consistent(phba->pcidev, max_size, &bus_add);
-	pa_addr = (__u64) bus_add;
+	beiscsi_sess = sess->dd_data;
+	beiscsi_sess->bhs_pool =  pci_pool_create("beiscsi_bhs_pool",
+						   phba->pcidev,
+						   sizeof(struct be_cmd_bhs),
+						   64, 0);
+	if (!beiscsi_sess->bhs_pool)
+		goto destroy_sess;
 
-	for (num_cmd = 0; num_cmd < sess->cmds_max; num_cmd++) {
-		task = sess->cmds[num_cmd];
-		io_task = task->dd_data;
-		io_task->cmd_bhs = vaddr;
-		io_task->bhs_pa.u.a64.address = pa_addr;
-		io_task->alloc_size = max_size;
-		vaddr += ALIGN(sizeof(struct be_cmd_bhs), 64);
-		pa_addr += ALIGN(sizeof(struct be_cmd_bhs), 64);
-	}
 	return cls_session;
+destroy_sess:
+	iscsi_session_teardown(cls_session);
+	return NULL;
 }
 
 /**
@@ -105,18 +98,10 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
  */
 void beiscsi_session_destroy(struct iscsi_cls_session *cls_session)
 {
-	struct iscsi_task *task;
-	struct beiscsi_io_task *io_task;
 	struct iscsi_session *sess = cls_session->dd_data;
-	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
-	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	struct beiscsi_session *beiscsi_sess = sess->dd_data;
 
-	task = sess->cmds[0];
-	io_task = task->dd_data;
-	pci_free_consistent(phba->pcidev,
-			    io_task->alloc_size,
-			    io_task->cmd_bhs,
-			    io_task->bhs_pa.u.a64.address);
+	pci_pool_destroy(beiscsi_sess->bhs_pool);
 	iscsi_session_teardown(cls_session);
 }
 
@@ -133,6 +118,8 @@ beiscsi_conn_create(struct iscsi_cls_session *cls_session, u32 cid)
 	struct iscsi_cls_conn *cls_conn;
 	struct beiscsi_conn *beiscsi_conn;
 	struct iscsi_conn *conn;
+	struct iscsi_session *sess;
+	struct beiscsi_session *beiscsi_sess;
 
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_conn_create ,cid"
 		 "from iscsi layer=%d\n", cid);
@@ -148,6 +135,9 @@ beiscsi_conn_create(struct iscsi_cls_session *cls_session, u32 cid)
 	beiscsi_conn->ep = NULL;
 	beiscsi_conn->phba = phba;
 	beiscsi_conn->conn = conn;
+	sess = cls_session->dd_data;
+	beiscsi_sess = sess->dd_data;
+	beiscsi_conn->beiscsi_sess = beiscsi_sess;
 	return cls_conn;
 }
 
