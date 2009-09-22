@@ -1266,6 +1266,49 @@ NDIS_STATUS	RTMPSetProfileParameters(
 				DBGPRINT(RT_DEBUG_TRACE, ("%s::(NetworkType=%d)\n", __func__, pAd->StaCfg.BssType));
 			}
 		}
+#ifdef RTMP_MAC_PCI
+		//NewPCIePS
+		if(RTMPGetKeyParameter("NewPCIePS", tmpbuf, 10, pBuffer, TRUE))
+		{
+			UCHAR temp_buffer = (UCHAR) simple_strtol(tmpbuf, 0, 10);
+			if(temp_buffer>0)
+				pAd->StaCfg.PSControl.field.EnableNewPS=TRUE;
+				else
+					pAd->StaCfg.PSControl.field.EnableNewPS=FALSE;
+			DBGPRINT(RT_DEBUG_TRACE, ("NewPCIePS=%d\n", pAd->StaCfg.PSControl.field.EnableNewPS));
+		}
+#endif // RTMP_MAC_PCI //
+#ifdef RT3090
+		//PCIePowerLevel
+
+		if(RTMPGetKeyParameter("PCIePowerLevel", tmpbuf, 10, pBuffer, TRUE))
+		{
+			pAd->StaCfg.PSControl.field.rt30xxPowerMode = (UCHAR) simple_strtol(tmpbuf, 0, 10);
+			DBGPRINT(RT_DEBUG_TRACE, ("PCIePowerLevel=%d\n", pAd->StaCfg.PSControl.field.rt30xxPowerMode));
+		}
+		//FollowHostASPM
+		if(RTMPGetKeyParameter("FollowHostASPM", tmpbuf, 10, pBuffer, TRUE))
+		{
+			UCHAR temp_buffer = (UCHAR) simple_strtol(tmpbuf, 0, 10);
+
+			if(temp_buffer>0)
+				pAd->StaCfg.PSControl.field.rt30xxFollowHostASPM=TRUE;
+				else
+					pAd->StaCfg.PSControl.field.rt30xxFollowHostASPM=FALSE;
+			DBGPRINT(RT_DEBUG_TRACE, ("rt30xxFollowHostASPM=%d\n", pAd->StaCfg.PSControl.field.rt30xxFollowHostASPM));
+		}
+		//ForceTestASPM
+		if(RTMPGetKeyParameter("ForceTestASPM", tmpbuf, 10, pBuffer, TRUE))
+		{
+			UCHAR temp_buffer = (UCHAR) simple_strtol(tmpbuf, 0, 10);
+
+			if(temp_buffer>0)
+				pAd->StaCfg.PSControl.field.rt30xxForceASPMTest=TRUE;
+				else
+					pAd->StaCfg.PSControl.field.rt30xxForceASPMTest=FALSE;
+			DBGPRINT(RT_DEBUG_TRACE, ("rt30xxForceASPM=%d\n", pAd->StaCfg.PSControl.field.rt30xxForceASPMTest));
+		}
+#endif // RT3090 //
 		//Channel
 		if(RTMPGetKeyParameter("Channel", tmpbuf, 10, pBuffer, TRUE))
 		{

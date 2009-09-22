@@ -397,7 +397,7 @@ NDIS_STATUS MlmeInit(
 
 		{
 #ifdef RTMP_PCI_SUPPORT
-	        if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+	        if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 	        {
 	            // only PCIe cards need these two timers
 	    		RTMPInitTimer(pAd, &pAd->Mlme.PsPollTimer, GET_TIMER_FUNCTION(PsPollWakeExec), pAd, FALSE);
@@ -569,7 +569,8 @@ VOID MlmeHalt(
 
 
 #ifdef RTMP_MAC_PCI
-	    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+	    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE)
+			&&(pAd->StaCfg.PSControl.field.EnableNewPS == TRUE))
 	    {
 	   	    RTMPCancelTimer(&pAd->Mlme.PsPollTimer,		&Cancelled);
 		    RTMPCancelTimer(&pAd->Mlme.RadioOnOffTimer,		&Cancelled);
@@ -678,6 +679,7 @@ VOID MlmePeriodicExec(
 {
 	ULONG			TxTotalCnt;
 	PRTMP_ADAPTER	pAd = (RTMP_ADAPTER *)FunctionContext;
+	SHORT	realavgrssi;
 
 #ifdef RTMP_MAC_PCI
 	{
@@ -691,7 +693,27 @@ VOID MlmePeriodicExec(
 			UINT32				data = 0;
 
 			// Read GPIO pin2 as Hardware controlled radio state
+#ifndef RT3090
 			RTMP_IO_READ32(pAd, GPIO_CTRL_CFG, &data);
+#endif // RT3090 //
+//KH(PCIE PS):Added based on Jane<--
+#ifdef RT3090
+// Read GPIO pin2 as Hardware controlled radio state
+// We need to Read GPIO if HW said so no mater what advance power saving
+if ((pAd->OpMode == OPMODE_STA) && (IDLE_ON(pAd))
+	&& (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF))
+	&& (pAd->StaCfg.PSControl.field.EnablePSinIdle == TRUE))
+	{
+	// Want to make sure device goes to L0 state before reading register.
+	RTMPPCIeLinkCtrlValueRestore(pAd, 0);
+	RTMP_IO_FORCE_READ32(pAd, GPIO_CTRL_CFG, &data);
+	RTMPPCIeLinkCtrlSetting(pAd, 3);
+	}
+else
+	RTMP_IO_FORCE_READ32(pAd, GPIO_CTRL_CFG, &data);
+#endif // RT3090 //
+//KH(PCIE PS):Added based on Jane-->
+
 			if (data & 0x04)
 			{
 				pAd->StaCfg.bHwRadio = TRUE;
@@ -1187,6 +1209,60 @@ VOID STAMlmePeriodicExec(
 		 }
 	}
 #endif
+#ifdef PCIE_PS_SUPPORT
+// don't perform idle-power-save mechanism within 3 min after driver initialization.
+// This can make rebooter test more robust
+if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
+	{
+	if ((pAd->OpMode == OPMODE_STA) && (IDLE_ON(pAd))
+		&& (pAd->Mlme.SyncMachine.CurrState == SYNC_IDLE)
+		&& (pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE)
+		&& (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF)))
+		{
+		if (IS_RT3090(pAd)|| IS_RT3572(pAd) || IS_RT3390(pAd))
+			{
+			if (pAd->StaCfg.PSControl.field.EnableNewPS == TRUE)
+	{
+				DBGPRINT(RT_DEBUG_TRACE, ("%s::%d\n",__FUNCTION__,__LINE__));
+
+				RT28xxPciAsicRadioOff(pAd, GUI_IDLE_POWER_SAVE, 0);
+				}
+			else
+				{
+				DBGPRINT(RT_DEBUG_TRACE, ("%s::%d\n",__FUNCTION__,__LINE__));
+				AsicSendCommandToMcu(pAd, 0x30, PowerSafeCID, 0xff, 0x2);
+				// Wait command success
+				AsicCheckCommanOk(pAd, PowerSafeCID);
+				RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF);
+				DBGPRINT(RT_DEBUG_TRACE, ("PSM - rt30xx Issue Sleep command)\n"));
+				}
+			}
+		else if (pAd->Mlme.OneSecPeriodicRound > 180)
+                {
+			if (pAd->StaCfg.PSControl.field.EnableNewPS == TRUE)
+				{
+				DBGPRINT(RT_DEBUG_TRACE, ("%s::%d\n",__FUNCTION__,__LINE__));
+				RT28xxPciAsicRadioOff(pAd, GUI_IDLE_POWER_SAVE, 0);
+				 }
+				else
+				{
+				DBGPRINT(RT_DEBUG_TRACE, ("%s::%d\n",__FUNCTION__,__LINE__));
+				AsicSendCommandToMcu(pAd, 0x30, PowerSafeCID, 0xff, 0x02);
+				// Wait command success
+				AsicCheckCommanOk(pAd, PowerSafeCID);
+				RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF);
+				DBGPRINT(RT_DEBUG_TRACE, ("PSM -  rt28xx Issue Sleep command)\n"));
+				}
+		 }
+	}
+	else
+		{
+		DBGPRINT(RT_DEBUG_TRACE,("STAMlmePeriodicExec MMCHK - CommonCfg.Ssid[%d]=%c%c%c%c... MlmeAux.Ssid[%d]=%c%c%c%c...\n",
+			pAd->CommonCfg.SsidLen, pAd->CommonCfg.Ssid[0], pAd->CommonCfg.Ssid[1], pAd->CommonCfg.Ssid[2], pAd->CommonCfg.Ssid[3],
+			pAd->MlmeAux.SsidLen, pAd->MlmeAux.Ssid[0], pAd->MlmeAux.Ssid[1], pAd->MlmeAux.Ssid[2], pAd->MlmeAux.Ssid[3]));
+		}
+	}
+#endif // PCIE_PS_SUPPORT //
 
     if (pAd->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_DISABLE)
     {
@@ -1274,10 +1350,6 @@ VOID STAMlmePeriodicExec(
 		if (CQI_IS_DEAD(pAd->Mlme.ChannelQuality))
 			{
 			DBGPRINT(RT_DEBUG_TRACE, ("MMCHK - No BEACON. Dead CQI. Auto Recovery attempt #%ld\n", pAd->RalinkCounters.BadCQIAutoRecoveryCount));
-
-			if ((pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE) &&
-				(pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2))
-				pAd->StaCfg.bLostAp = TRUE;
 
 			// Lost AP, send disconnect & link down event
 			LinkDown(pAd, FALSE);
@@ -2240,10 +2312,6 @@ VOID MlmeDynamicTxRateSwitching(
 		}
 
 		pEntry->LastTxOkCount = TxSuccess;
-#ifdef RT2860
-		pNextTxRate = (PRTMP_TX_RATE_SWITCH) &pTable[(pEntry->CurrTxRateIndex+1)*5];
-#endif // RT2860 //
-#if defined(RT2870) || defined(RT3070)
 		{
 			UCHAR tmpTxRate;
 
@@ -2261,7 +2329,6 @@ VOID MlmeDynamicTxRateSwitching(
 
 			pNextTxRate = (PRTMP_TX_RATE_SWITCH) &pTable[(tmpTxRate+1)*5];
 		}
-#endif // RT2870 //
 		if (bTxRateChanged && pNextTxRate)
 		{
 			MlmeSetTxRate(pAd, pEntry, pNextTxRate);
@@ -3805,14 +3872,6 @@ VOID BssTableSsidSort(
 				DBGPRINT(RT_DEBUG_TRACE,("STA is in N-only Mode, this AP don't have Ht capability in Beacon.\n"));
 				continue;
 	}
-#ifdef RT2860
-			if ((pAd->CommonCfg.PhyMode == PHY_11GN_MIXED) &&
-				((pInBss->SupRateLen + pInBss->ExtRateLen) < 12))
-	{
-				DBGPRINT(RT_DEBUG_TRACE,("STA is in GN-only Mode, this AP is in B mode.\n"));
-				continue;
-	}
-#endif // RT2860 //
 			// New for WPA2
 			// Check the Authmode first
 			if (pAd->StaCfg.AuthMode >= Ndis802_11AuthModeWPA)
@@ -3921,14 +3980,7 @@ VOID BssTableSsidSort(
 				DBGPRINT(RT_DEBUG_TRACE,("STA is in N-only Mode, this AP don't have Ht capability in Beacon.\n"));
 				continue;
 			}
-#ifdef RT2860
-			if ((pAd->CommonCfg.PhyMode == PHY_11GN_MIXED) &&
-				((pInBss->SupRateLen + pInBss->ExtRateLen) < 12))
-			{
-				DBGPRINT(RT_DEBUG_TRACE,("STA is in GN-only Mode, this AP is in B mode.\n"));
-				continue;
-			}
-#endif // RT2860 //
+
 			// New for WPA2
 			// Check the Authmode first
 			if (pAd->StaCfg.AuthMode >= Ndis802_11AuthModeWPA)
@@ -5495,6 +5547,9 @@ VOID AsicEvaluateRxAnt(
 #ifdef RT30xx
 				|| (pAd->EepromAccess)
 #endif // RT30xx //
+#ifdef RT3090
+							|| (pAd->bPCIclkOff == TRUE)
+#endif // RT3090 //
 				)
 			return;
 
@@ -5583,6 +5638,9 @@ VOID AsicRxAntEvalTimeout(
 #ifdef RT30xx
 							|| (pAd->EepromAccess)
 #endif // RT30xx //
+#ifdef RT3090
+							|| (pAd->bPCIclkOff == TRUE)
+#endif // RT3090 //
 							)
 		return;
 

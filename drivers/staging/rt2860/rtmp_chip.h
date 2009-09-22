@@ -49,6 +49,9 @@
 #ifdef RT3070
 #include "chip/rt3070.h"
 #endif // RT3070 //
+#ifdef RT3090
+#include "chip/rt3090.h"
+#endif // RT3090 //
 
 // We will have a cost down version which mac version is 0x3090xxxx
 //

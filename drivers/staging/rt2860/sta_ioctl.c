@@ -160,6 +160,12 @@ INT Set_PSMode_Proc(
     IN  PRTMP_ADAPTER   pAdapter,
     IN  PSTRING          arg);
 
+#ifdef RT3090
+INT Set_PCIePSLevel_Proc(
+IN  PRTMP_ADAPTER   pAdapter,
+IN  PUCHAR          arg);
+#endif // RT3090 //
+
 INT Set_Wpa_Support(
     IN	PRTMP_ADAPTER	pAd,
 	IN	PSTRING			arg);
@@ -515,6 +521,7 @@ rt_ioctl_giwname(struct net_device *dev,
 {
 	strncpy(name, "Ralink STA", IFNAMSIZ);
 	// RT2870 2.1.0.0 uses "RT2870 Wireless"
+	// RT3090 2.1.0.0 uses "RT2860 Wireless"
 	return 0;
 }
 

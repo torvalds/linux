@@ -913,6 +913,20 @@ typedef enum _ABGBAND_STATE_ {
 	A_BAND,
 } ABGBAND_STATE;
 
+#ifdef RTMP_MAC_PCI
+// Power save method control
+typedef	union	_PS_CONTROL	{
+	struct	{
+		ULONG		EnablePSinIdle:1;			// Enable radio off when not connect to AP. radio on only when sitesurvey,
+		ULONG		EnableNewPS:1;		// Enable new  Chip power save fucntion . New method can only be applied in chip version after 2872. and PCIe.
+		ULONG		rt30xxPowerMode:2;			// Power Level Mode for rt30xx chip
+		ULONG		rt30xxFollowHostASPM:1;			// Card Follows Host's setting for rt30xx chip.
+		ULONG		rt30xxForceASPMTest:1;			// Force enable L1 for rt30xx chip. This has higher priority than rt30xxFollowHostASPM Mode.
+		ULONG		rsv:26;			// Radio Measurement Enable
+	}	field;
+	ULONG			word;
+}	PS_CONTROL, *PPS_CONTROL;
+#endif // RTMP_MAC_PCI //
 
 /***************************************************************************
   *	structure for MLME state machine
@@ -1542,7 +1556,6 @@ typedef struct _STA_ADMIN_CONFIG {
     UCHAR               WpaSupplicantUP;
 	UCHAR				WpaSupplicantScanCount;
 	BOOLEAN				bRSN_IE_FromWpaSupplicant;
-	BOOLEAN				bLostAp;
 
     CHAR                dev_name[16];
     USHORT              OriDevType;
@@ -1557,6 +1570,10 @@ typedef struct _STA_ADMIN_CONFIG {
 
 #ifdef RTMP_MAC_PCI
     UCHAR       BBPR3;
+	// PS Control has 2 meanings for advanced power save function.
+	// 1. EnablePSinIdle : When no connection, always radio off except need to do site survey.
+	// 2. EnableNewPS  : will save more current in sleep or radio off mode.
+	PS_CONTROL				PSControl;
 #endif // RTMP_MAC_PCI //
 
 
@@ -1815,8 +1832,16 @@ struct _RTMP_ADAPTER
     USHORT		            HostLnkCtrlConfiguration;
     USHORT                  HostLnkCtrlOffset;
 	USHORT		            PCIePowerSaveLevel;
+	ULONG				Rt3xxHostLinkCtrl;	// USed for 3090F chip
+	ULONG				Rt3xxRalinkLinkCtrl;	// USed for 3090F chip
+	USHORT				DeviceID;           // Read from PCI config
+	ULONG				AccessBBPFailCount;
    	BOOLEAN					bPCIclkOff;						// flag that indicate if the PICE power status in Configuration SPace..
 	BOOLEAN					bPCIclkOffDisableTx;			//
+
+	BOOLEAN					brt30xxBanMcuCmd;	//when = 0xff means all commands are ok to set .
+	BOOLEAN					b3090ESpecialChip;	//3090E special chip that write EEPROM 0x24=0x9280.
+	ULONG					CheckDmaBusyCount;  // Check Interrupt Status Register Count.
 
 	UINT					int_enable_reg;
 	UINT					int_disable_mask;
@@ -1923,6 +1948,9 @@ struct _RTMP_ADAPTER
 #ifdef RTMP_MAC_PCI
 	RTMP_RX_RING            RxRing;
 	NDIS_SPIN_LOCK          RxRingLock;                 // Rx Ring spinlock
+#ifdef RT3090
+	NDIS_SPIN_LOCK          McuCmdLock;              //MCU Command Queue spinlock
+#endif // RT3090 //
 #endif // RTMP_MAC_PCI //
 #ifdef RTMP_MAC_USB
 	RX_CONTEXT				RxContext[RX_RING_SIZE];  // 1 for redundant multiple IRP bulk in.
@@ -2179,8 +2207,6 @@ struct _RTMP_ADAPTER
 	//BOOLEAN		bDisablescanning;		//defined in RT2870 USB
 	BOOLEAN		bStaFifoTest;
 	BOOLEAN		bProtectionTest;
-	BOOLEAN		bHCCATest;
-	BOOLEAN		bGenOneHCCA;
 	BOOLEAN		bBroadComHT;
 	//+++Following add from RT2870 USB.
 	ULONG		BulkOutReq;
@@ -2333,6 +2359,7 @@ typedef struct _TX_BLK_
 	UCHAR				HeaderBuf[128];				// TempBuffer for TX_INFO + TX_WI + 802.11 Header + padding + AMSDU SubHeader + LLC/SNAP
 	//RT2870 2.1.0.0 uses only 80 bytes
 	//RT3070 2.1.1.0 uses only 96 bytes
+	//RT3090 2.1.0.0 uses only 96 bytes
 	UCHAR				MpduHeaderLen;				// 802.11 header length NOT including the padding
 	UCHAR				HdrPadLen;					// recording Header Padding Length;
 	UCHAR				apidx;						// The interface associated to this packet
@@ -2874,10 +2901,6 @@ VOID WpaStaPairwiseKeySetting(
 
 VOID WpaStaGroupKeySetting(
 	IN	PRTMP_ADAPTER	pAd);
-
-VOID    WpaSendEapolStart(
-	IN	PRTMP_ADAPTER	pAdapter,
-	IN  PUCHAR          pBssid);
 
 NDIS_STATUS RTMPCloneNdisPacket(
 	IN  PRTMP_ADAPTER   pAd,
@@ -3685,9 +3708,6 @@ VOID ScanNextChannel(
 ULONG MakeIbssBeacon(
 	IN  PRTMP_ADAPTER   pAd);
 
-VOID InitChannelRelatedValue(
-	IN  PRTMP_ADAPTER   pAd);
-
 BOOLEAN MlmeScanReqSanity(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  VOID *Msg,
@@ -4063,6 +4083,10 @@ VOID RT30xxReverseRFSleepModeSetup(
 VOID NICInitRT3070RFRegisters(
 	IN RTMP_ADAPTER *pAd);
 #endif // RT3070 //
+#ifdef RT3090
+VOID NICInitRT3090RFRegisters(
+	IN RTMP_ADAPTER *pAd);
+#endif // RT3090 //
 
 VOID RT30xxHaltAction(
 	IN PRTMP_ADAPTER	pAd);
@@ -5239,7 +5263,6 @@ BOOLEAN RT28xxPciAsicRadioOn(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR     Level);
 
-#ifdef RTMP_PCI_SUPPORT
 VOID RTMPInitPCIeLinkCtrlValue(
 	IN	PRTMP_ADAPTER	pAd);
 
@@ -5254,6 +5277,9 @@ VOID RTMPPCIeLinkCtrlSetting(
 	IN	PRTMP_ADAPTER	pAd,
 	IN 	USHORT		Max);
 
+VOID RTMPrt3xSetPCIePowerLinkCtrl(
+	IN	PRTMP_ADAPTER	pAd);
+
 VOID PsPollWakeExec(
 	IN PVOID SystemSpecific1,
 	IN PVOID FunctionContext,
@@ -5265,7 +5291,6 @@ VOID  RadioOnExec(
 	IN PVOID FunctionContext,
 	IN PVOID SystemSpecific2,
 	IN PVOID SystemSpecific3);
-#endif // RTMP_PCI_SUPPORT //
 
 VOID RT28xxPciStaAsicForceWakeup(
 	IN	PRTMP_ADAPTER	pAd,

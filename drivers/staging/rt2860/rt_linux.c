@@ -284,6 +284,9 @@ VOID	RTMPFreeAdapter(
 
 #ifdef RTMP_MAC_PCI
 	NdisFreeSpinLock(&pAd->RxRingLock);
+#ifdef RT3090
+NdisFreeSpinLock(&pAd->McuCmdLock);
+#endif // RT3090 //
 #endif // RTMP_MAC_PCI //
 
 	for (index =0 ; index < NUM_OF_TX_RING; index++)

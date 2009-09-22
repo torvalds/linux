@@ -590,6 +590,12 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int 
 		*_pV = 0;													\
 }
 
+#define RTMP_IO_FORCE_READ32(_A, _R, _pV)							\
+{																	\
+	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
+	(*_pV = readl((void *)((_A)->CSRBaseAddress + (_R))));			\
+}
+
 #define RTMP_IO_READ8(_A, _R, _pV)								\
 {																\
 	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));			\
@@ -605,7 +611,12 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int 
     }                                                               \
 }
 
-
+#define RTMP_IO_FORCE_WRITE32(_A, _R, _V)												\
+{																				\
+	UINT	Val;																\
+	Val = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0));			\
+	writel(_V, (void *)((_A)->CSRBaseAddress + (_R)));								\
+}
 
 #if defined(RALINK_2880) || defined(RALINK_3052)
 #define RTMP_IO_WRITE8(_A, _R, _V)            \

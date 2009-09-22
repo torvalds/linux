@@ -59,10 +59,10 @@ BUILD_TIMER_FUNCTION(DisassocTimeout);
 BUILD_TIMER_FUNCTION(LinkDownExec);
 BUILD_TIMER_FUNCTION(StaQuickResponeForRateUpExec);
 BUILD_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
-#ifdef RTMP_PCI_SUPPORT
+#ifdef RTMP_MAC_PCI
 BUILD_TIMER_FUNCTION(PsPollWakeExec);
 BUILD_TIMER_FUNCTION(RadioOnExec);
-#endif // RTMP_PCI_SUPPORT //
+#endif // RTMP_MAC_PCI //
 #ifdef RTMP_MAC_USB
 BUILD_TIMER_FUNCTION(RtmpUsbStaAsicForceWakeupTimeout);
 #endif // RTMP_MAC_USB //

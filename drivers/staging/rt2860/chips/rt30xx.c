@@ -101,7 +101,13 @@ VOID RT30xxSetRxAnt(
 	if (Ant == 0)
 	{
 		// Main antenna
+#ifdef RTMP_MAC_PCI
+		RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
+		x |= (EESK);
+		RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
+#else
 		AsicSendCommandToMcu(pAd, 0x73, 0xFF, 0x1, 0x0);
+#endif // RTMP_MAC_PCI //
 
 		RTMP_IO_READ32(pAd, GPIO_CTRL_CFG, &Value);
 		Value &= ~(0x0808);
@@ -111,7 +117,13 @@ VOID RT30xxSetRxAnt(
 	else
 	{
 		// Aux antenna
+#ifdef RTMP_MAC_PCI
+		RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
+		x &= ~(EESK);
+		RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
+#else
 		AsicSendCommandToMcu(pAd, 0x73, 0xFF, 0x0, 0x0);
+#endif // RTMP_MAC_PCI //
 		RTMP_IO_READ32(pAd, GPIO_CTRL_CFG, &Value);
 		Value &= ~(0x0808);
 		Value |= 0x08;

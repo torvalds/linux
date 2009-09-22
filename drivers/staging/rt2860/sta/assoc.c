@@ -464,18 +464,6 @@ VOID MlmeAssocReqAction(
 						break;
 					}
 				}
-#ifdef RT2860
-				/*
-					When AuthMode is WPA2-Enterprise and AP reboot or STA lost AP,
-					AP would not do PMK cache with STA after STA re-connect to AP again.
-					In this case, driver doesn't need to send PMKID to AP and WpaSupplicant.
-				*/
-				if ((pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2) &&
-					(NdisEqualMemory(pAd->MlmeAux.Bssid, pAd->CommonCfg.LastBssid, MAC_ADDR_LEN)))
-				{
-					FoundPMK = FALSE;
-				}
-#endif // RT2860 //
 				if (FoundPMK)
 				{
 					// Set PMK number

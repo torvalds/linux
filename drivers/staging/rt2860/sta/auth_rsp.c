@@ -137,10 +137,6 @@ VOID PeerDeauthAction(
 			if (pAd->CommonCfg.bWirelessEvent)
 				RTMPSendWirelessEvent(pAd, IW_DEAUTH_EVENT_FLAG, pAd->MacTab.Content[BSSID_WCID].Addr, BSS0, 0);
 
-			if ((pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE) &&
-				(pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2))
-				pAd->StaCfg.bLostAp = TRUE;
-
             LinkDown(pAd, TRUE);
         }
     }

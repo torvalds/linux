@@ -808,6 +808,28 @@ VOID AsicSwitchChannel(
 
 		RTMP_IO_WRITE32(pAd, TX_PIN_CFG, TxPinCfg);
 
+#if defined(RT3090) || defined(RT3390)
+		// PCIe PHY Transmit attenuation adjustment
+		if (IS_RT3090A(pAd) || IS_RT3390(pAd))
+		{
+			TX_ATTENUATION_CTRL_STRUC TxAttenuationCtrl = {0};
+
+			RTMP_IO_READ32(pAd, PCIE_PHY_TX_ATTENUATION_CTRL, &TxAttenuationCtrl.word);
+
+			if (Channel == 14) // Channel #14
+			{
+				TxAttenuationCtrl.field.PCIE_PHY_TX_ATTEN_EN = 1; // Enable PCIe PHY Tx attenuation
+				TxAttenuationCtrl.field.PCIE_PHY_TX_ATTEN_VALUE = 4; // 9/16 full drive level
+			}
+			else // Channel #1~#13
+			{
+				TxAttenuationCtrl.field.PCIE_PHY_TX_ATTEN_EN = 0; // Disable PCIe PHY Tx attenuation
+				TxAttenuationCtrl.field.PCIE_PHY_TX_ATTEN_VALUE = 0; // n/a
+			}
+
+			RTMP_IO_WRITE32(pAd, PCIE_PHY_TX_ATTENUATION_CTRL, TxAttenuationCtrl.word);
+		}
+#endif
 	}
 	else
 	{
@@ -2477,6 +2499,13 @@ VOID AsicTurnOnRFClk(
 	UCHAR			index;
 	RTMP_RF_REGS	*RFRegTable;
 
+#ifdef PCIE_PS_SUPPORT
+	// The RF programming sequence is difference between 3xxx and 2xxx
+	if ((IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd)))
+	{
+		return;
+	}
+#endif // PCIE_PS_SUPPORT //
 
 	RFRegTable = RF2850RegTable;
 

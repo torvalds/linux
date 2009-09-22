@@ -347,13 +347,6 @@ typedef	enum	_WpaMixPairCipher
 	WPA_TKIPAES_WPA2_TKIPAES	= 0x0F,
 }	WPA_MIX_PAIR_CIPHER;
 
-// 802.1x authentication format
-typedef	struct	_IEEE8021X_FRAME	{
-	UCHAR	Version;					// 1.0
-	UCHAR	Type;						// 0 = EAP Packet
-	USHORT	Length;
-}	IEEE8021X_FRAME, *PIEEE8021X_FRAME;
-
 typedef struct PACKED _RSN_IE_HEADER_STRUCT	{
 	UCHAR		Eid;
 	UCHAR		Length;

@@ -38,9 +38,7 @@
 
 #define RT28XX_PUT_DEVICE(dev_p)
 
-#ifndef SA_SHIRQ
 #define SA_SHIRQ IRQF_SHARED
-#endif
 
 #ifdef PCI_MSI_SUPPORT
 #define RTMP_MSI_ENABLE(_pAd) \

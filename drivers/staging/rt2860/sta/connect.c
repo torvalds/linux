@@ -1125,6 +1125,26 @@ VOID LinkUp(
 
 	COPY_HTSETTINGS_FROM_MLME_AUX_TO_ACTIVE_CFG(pAd);
 
+#ifdef RTMP_MAC_PCI
+	// Before power save before link up function, We will force use 1R.
+	// So after link up, check Rx antenna # again.
+	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
+	if(pAd->Antenna.field.RxPath == 3)
+	{
+		Value |= (0x10);
+	}
+	else if(pAd->Antenna.field.RxPath == 2)
+	{
+		Value |= (0x8);
+	}
+	else if(pAd->Antenna.field.RxPath == 1)
+	{
+		Value |= (0x0);
+	}
+	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
+	pAd->StaCfg.BBPR3 = Value;
+#endif // RTMP_MAC_PCI //
+
 	if (BssType == BSS_ADHOC)
 	{
 		OPSTATUS_SET_FLAG(pAd, fOP_STATUS_ADHOC_ON);
@@ -1133,8 +1153,6 @@ VOID LinkUp(
 
 		if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED)
 			AdhocTurnOnQos(pAd);
-
-		InitChannelRelatedValue(pAd);
 
 		DBGPRINT(RT_DEBUG_TRACE, ("!!!Adhoc LINK UP !!! \n" ));
 	}
@@ -1146,7 +1164,6 @@ VOID LinkUp(
 		DBGPRINT(RT_DEBUG_TRACE, ("!!!Infra LINK UP !!! \n" ));
 	}
 
-#if defined(RT2870) || defined(RT3070)
 	// 3*3
 	// reset Tx beamforming bit
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &Value);
@@ -1171,6 +1188,9 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 		Value &= (~0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
+#ifdef RTMP_MAC_PCI
+            pAd->StaCfg.BBPR3 = Value;
+#endif // RTMP_MAC_PCI //
 
 		RTMP_IO_READ32(pAd, TX_BAND_CFG, &Data);
 		Data &= 0xfffffffe;
@@ -1205,6 +1225,9 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 	    Value |= (0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
+#ifdef RTMP_MAC_PCI
+            pAd->StaCfg.BBPR3 = Value;
+#endif // RTMP_MAC_PCI //
 
 		if (pAd->MACVersion == 0x28600100)
 		{
@@ -1234,6 +1257,9 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 		Value &= (~0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
+#ifdef RTMP_MAC_PCI
+            pAd->StaCfg.BBPR3 = Value;
+#endif // RTMP_MAC_PCI //
 
 		if (pAd->MACVersion == 0x28600100)
 		{
@@ -1247,7 +1273,6 @@ VOID LinkUp(
     }
 
 	RTMPSetAGCInitValue(pAd, pAd->CommonCfg.BBPCurrentBW);
-#endif // RT2870 //
 
 	//
 	// Save BBP_R66 value, it will be used in RTUSBResumeMsduTransmission
@@ -1752,21 +1777,6 @@ VOID LinkUp(
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
 
 	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
-
-#ifdef RT2860
-	/*
-		When AuthMode is WPA2-Enterprise and AP reboot or STA lost AP,
-		WpaSupplicant would not send EapolStart to AP after STA re-connect to AP again.
-		In this case, driver would send EapolStart to AP.
-	*/
-	if ((pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2) &&
-		(NdisEqualMemory(pAd->CommonCfg.Bssid, pAd->CommonCfg.LastBssid, MAC_ADDR_LEN)) &&
-		(pAd->StaCfg.bLostAp == TRUE))
-	{
-		WpaSendEapolStart(pAd, pAd->CommonCfg.Bssid);
-	}
-#endif // RT2860 //
-	pAd->StaCfg.bLostAp = FALSE;
 }
 
 /*
@@ -1820,7 +1830,7 @@ VOID LinkDown(
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_AGGREGATION_INUSED);
 
 #ifdef RTMP_MAC_PCI
-    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
     {
 	    BOOLEAN Cancelled;
         pAd->Mlme.bPsPollTimerRunning = FALSE;
@@ -1840,6 +1850,10 @@ VOID LinkDown(
 	    RTMP_IO_WRITE32(pAd, AUTO_WAKEUP_CFG, AutoWakeupCfg.word);
         OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
     }
+
+#ifdef RTMP_MAC_PCI
+	pAd->bPCIclkOff = FALSE;
+#endif // RTMP_MAC_PCI //
 
 	if (ADHOC_ON(pAd))		// Adhoc mode link down
 	{
@@ -2520,139 +2534,3 @@ ULONG MakeIbssBeacon(
 					FrameLen, SupRateLen, ExtRateLen, pAd->CommonCfg.Channel, pAd->CommonCfg.PhyMode));
 	return FrameLen;
 }
-
-VOID InitChannelRelatedValue(
-	IN PRTMP_ADAPTER pAd)
-{
-#ifdef RT2860
-	UCHAR	Value = 0;
-	UINT32	Data = 0;
-
-#ifdef RTMP_MAC_PCI
-	// In power save , We will force use 1R.
-	// So after link up, check Rx antenna # again.
-	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
-	if(pAd->Antenna.field.RxPath == 3)
-	{
-		Value |= (0x10);
-	}
-	else if(pAd->Antenna.field.RxPath == 2)
-	{
-		Value |= (0x8);
-	}
-	else if(pAd->Antenna.field.RxPath == 1)
-	{
-		Value |= (0x0);
-	}
-	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
-	pAd->StaCfg.BBPR3 = Value;
-#endif // RTMP_MAC_PCI //
-
-	pAd->CommonCfg.CentralChannel = pAd->MlmeAux.CentralChannel;
-	pAd->CommonCfg.Channel = pAd->MlmeAux.Channel;
-	// Change to AP channel
-    if ((pAd->CommonCfg.CentralChannel > pAd->CommonCfg.Channel) && (pAd->MlmeAux.HtCapability.HtCapInfo.ChannelWidth == BW_40))
-	{
-		// Must using 40MHz.
-		pAd->CommonCfg.BBPCurrentBW = BW_40;
-		AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
-		AsicLockChannel(pAd, pAd->CommonCfg.CentralChannel);
-
-		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &Value);
-		Value &= (~0x18);
-		Value |= 0x10;
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, Value);
-
-		//  RX : control channel at lower
-		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
-		Value &= (~0x20);
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
-#ifdef RTMP_MAC_PCI
-        pAd->StaCfg.BBPR3 = Value;
-#endif // RTMP_MAC_PCI //
-
-		RTMP_IO_READ32(pAd, TX_BAND_CFG, &Data);
-		Data &= 0xfffffffe;
-		RTMP_IO_WRITE32(pAd, TX_BAND_CFG, Data);
-
-		if (pAd->MACVersion == 0x28600100)
-		{
-			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x1A);
-			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x0A);
-			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x16);
-            DBGPRINT(RT_DEBUG_TRACE, ("!!!rt2860C !!! \n" ));
-		}
-
-		DBGPRINT(RT_DEBUG_TRACE, ("!!!40MHz Lower !!! Control Channel at Below. Central = %d \n", pAd->CommonCfg.CentralChannel ));
-	}
-	else if ((pAd->CommonCfg.CentralChannel < pAd->CommonCfg.Channel) && (pAd->MlmeAux.HtCapability.HtCapInfo.ChannelWidth == BW_40))
-    {
-	    // Must using 40MHz.
-		pAd->CommonCfg.BBPCurrentBW = BW_40;
-		AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
-	    AsicLockChannel(pAd, pAd->CommonCfg.CentralChannel);
-
-		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &Value);
-		Value &= (~0x18);
-		Value |= 0x10;
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, Value);
-
-		RTMP_IO_READ32(pAd, TX_BAND_CFG, &Data);
-		Data |= 0x1;
-		RTMP_IO_WRITE32(pAd, TX_BAND_CFG, Data);
-
-		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
-	    Value |= (0x20);
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
-#ifdef RTMP_MAC_PCI
-        pAd->StaCfg.BBPR3 = Value;
-#endif // RTMP_MAC_PCI //
-
-		if (pAd->MACVersion == 0x28600100)
-		{
-			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x1A);
-			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x0A);
-			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x16);
-			    DBGPRINT(RT_DEBUG_TRACE, ("!!!rt2860C !!! \n" ));
-		}
-
-	    DBGPRINT(RT_DEBUG_TRACE, ("!!! 40MHz Upper !!! Control Channel at UpperCentral = %d \n", pAd->CommonCfg.CentralChannel ));
-    }
-    else
-    {
-	    pAd->CommonCfg.BBPCurrentBW = BW_20;
-		pAd->CommonCfg.CentralChannel = pAd->CommonCfg.Channel;
-		AsicSwitchChannel(pAd, pAd->CommonCfg.Channel, FALSE);
-		AsicLockChannel(pAd, pAd->CommonCfg.Channel);
-
-		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &Value);
-		Value &= (~0x18);
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, Value);
-
-		RTMP_IO_READ32(pAd, TX_BAND_CFG, &Data);
-		Data &= 0xfffffffe;
-		RTMP_IO_WRITE32(pAd, TX_BAND_CFG, Data);
-
-		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
-		Value &= (~0x20);
-		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
-#ifdef RTMP_MAC_PCI
-        pAd->StaCfg.BBPR3 = Value;
-#endif // RTMP_MAC_PCI //
-
-		if (pAd->MACVersion == 0x28600100)
-		{
-			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R69, 0x16);
-			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R70, 0x08);
-			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R73, 0x11);
-			DBGPRINT(RT_DEBUG_TRACE, ("!!!rt2860C !!! \n" ));
-		}
-
-	    DBGPRINT(RT_DEBUG_TRACE, ("!!! 20MHz !!! \n" ));
-	}
-
-	RTMPSetAGCInitValue(pAd, pAd->CommonCfg.BBPCurrentBW);
-#endif // RT2860 //
-}
-
-

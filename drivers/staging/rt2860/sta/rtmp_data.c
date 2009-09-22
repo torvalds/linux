@@ -1208,7 +1208,6 @@ NDIS_STATUS RTMPFreeTXDRequest(
 		case QID_AC_BE:
 		case QID_AC_VI:
 		case QID_AC_VO:
-		case QID_HCCA:
 			if (pAd->TxRing[QueIdx].TxSwFreeIdx > pAd->TxRing[QueIdx].TxCpuIdx)
 				FreeNumber = pAd->TxRing[QueIdx].TxSwFreeIdx - pAd->TxRing[QueIdx].TxCpuIdx - 1;
 			else

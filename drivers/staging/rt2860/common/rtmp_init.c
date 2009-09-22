@@ -191,6 +191,9 @@ NDIS_STATUS	RTMPAllocAdapterBlock(
 		NdisAllocateSpinLock(&pAd->MgmtRingLock);
 #ifdef RTMP_MAC_PCI
 		NdisAllocateSpinLock(&pAd->RxRingLock);
+#ifdef RT3090
+	NdisAllocateSpinLock(&pAd->McuCmdLock);
+#endif // RT3090 //
 #endif // RTMP_MAC_PCI //
 
 		for (index =0 ; index < NUM_OF_TX_RING; index++)
@@ -1238,13 +1241,42 @@ VOID	NICInitAsicFromEEPROM(
 		{
 			RTMPSetLED(pAd, LED_RADIO_ON);
 #ifdef RTMP_MAC_PCI
+#ifdef RT3090
+			AsicSendCommandToMcu(pAd, 0x30, PowerRadioOffCID, 0xff, 0x02);
+			AsicCheckCommanOk(pAd, PowerRadioOffCID);
+#endif // RT3090 //
+#ifndef RT3090
 			AsicSendCommandToMcu(pAd, 0x30, 0xff, 0xff, 0x02);
+#endif // RT3090 //
 			AsicSendCommandToMcu(pAd, 0x31, PowerWakeCID, 0x00, 0x00);
 			// 2-1. wait command ok.
 			AsicCheckCommanOk(pAd, PowerWakeCID);
 #endif // RTMP_MAC_PCI //
 		}
 	}
+
+#ifdef RTMP_MAC_PCI
+#ifdef RT30xx
+		if (IS_RT3090(pAd)|| IS_RT3572(pAd) || IS_RT3390(pAd))
+		{
+			RTMP_CHIP_OP *pChipOps = &pAd->chipOps;
+			if (pChipOps->AsicReverseRfFromSleepMode)
+				pChipOps->AsicReverseRfFromSleepMode(pAd);
+		}
+		// 3090 MCU Wakeup command needs more time to be stable.
+		// Before stable, don't issue other MCU command to prevent from firmware error.
+
+		if ((IS_RT3090(pAd)|| IS_RT3572(pAd) || IS_RT3390(pAd)) && IS_VERSION_AFTER_F(pAd)
+			&& (pAd->StaCfg.PSControl.field.rt30xxPowerMode == 3)
+			&& (pAd->StaCfg.PSControl.field.EnableNewPS == TRUE))
+		{
+			DBGPRINT(RT_DEBUG_TRACE,("%s::%d,release Mcu Lock\n",__FUNCTION__,__LINE__));
+			RTMP_SEM_LOCK(&pAd->McuCmdLock);
+			pAd->brt30xxBanMcuCmd = FALSE;
+			RTMP_SEM_UNLOCK(&pAd->McuCmdLock);
+		}
+#endif // RT30xx //
+#endif // RTMP_MAC_PCI //
 
 	// Turn off patching for cardbus controller
 	if (NicConfig2.field.CardbusAcceleration == 1)
@@ -1443,11 +1475,6 @@ retry:
 	RTMP_IO_WRITE32(pAd, TX_BASE_PTR3, Value);
 	DBGPRINT(RT_DEBUG_TRACE, ("--> TX_BASE_PTR3 : 0x%x\n", Value));
 
-	// Write HCCA base address register
-	  Value = RTMP_GetPhysicalAddressLow(pAd->TxRing[QID_HCCA].Cell[0].AllocPa);
-	  RTMP_IO_WRITE32(pAd, TX_BASE_PTR4, Value);
-	DBGPRINT(RT_DEBUG_TRACE, ("--> TX_BASE_PTR4 : 0x%x\n", Value));
-
 	// Write MGMT_BASE_CSR register
 	Value = RTMP_GetPhysicalAddressLow(pAd->MgmtRing.Cell[0].AllocPa);
 	RTMP_IO_WRITE32(pAd, TX_BASE_PTR5, Value);
@@ -1641,7 +1668,7 @@ NDIS_STATUS	NICInitializeAsic(
 	for(Index=0; Index<NUM_MAC_REG_PARMS; Index++)
 	{
 #ifdef RT30xx
-		if ((MACRegTable[Index].Register == TX_SW_CFG0) && (IS_RT3070(pAd) || IS_RT3071(pAd) || IS_RT3572(pAd)))
+		if ((MACRegTable[Index].Register == TX_SW_CFG0) && (IS_RT3070(pAd) || IS_RT3071(pAd) || IS_RT3572(pAd) || IS_RT3090(pAd) ||  IS_RT3390(pAd)))
 		{
 			MACRegTable[Index].Value = 0x00000400;
 		}
@@ -1713,6 +1740,11 @@ NDIS_STATUS	NICInitializeAsic(
 	// PCI and USB are not the same because PCI driver needs to wait for PCI bus ready
 	RTMP_IO_WRITE32(pAd, H2M_BBP_AGENT, 0);	// initialize BBP R/W access agent
 	RTMP_IO_WRITE32(pAd, H2M_MAILBOX_CSR, 0);
+#ifdef RT3090
+	//2008/11/28:KH add to fix the dead rf frequency offset bug<--
+	AsicSendCommandToMcu(pAd, 0x72, 0, 0, 0);
+	//2008/11/28:KH add to fix the dead rf frequency offset bug-->
+#endif // RT3090 //
 	RTMPusecDelay(1000);
 
 	// Read BBP register, make sure BBP is up and running before write new data
@@ -2588,6 +2620,8 @@ VOID	UserCfgInit(
 	pAd->LedIndicatorStrength = 0;
 	pAd->RLnkCtrlOffset = 0;
 	pAd->HostLnkCtrlOffset = 0;
+	pAd->StaCfg.PSControl.field.EnableNewPS=TRUE;
+	pAd->CheckDmaBusyCount = 0;
 #endif // RTMP_MAC_PCI //
 
 	pAd->bAutoTxAgcA = FALSE;			// Default is OFF
@@ -2600,8 +2634,6 @@ VOID	UserCfgInit(
 	pAd->bForcePrintRX = FALSE;
 	pAd->bStaFifoTest = FALSE;
 	pAd->bProtectionTest = FALSE;
-	pAd->bHCCATest = FALSE;
-	pAd->bGenOneHCCA = FALSE;
 	pAd->CommonCfg.Dsifs = 10;      // in units of usec
 	pAd->CommonCfg.TxPower = 100; //mW
 	pAd->CommonCfg.TxPowerPercentage = 0xffffffff; // AUTO
@@ -2720,6 +2752,15 @@ VOID	UserCfgInit(
 		pAd->StaCfg.DesiredTransmitSetting.field.MCS = MCS_AUTO;
 	}
 
+#ifdef PCIE_PS_SUPPORT
+pAd->brt30xxBanMcuCmd = FALSE;
+pAd->b3090ESpecialChip = FALSE;
+//KH Debug:the following must be removed
+pAd->StaCfg.PSControl.field.rt30xxPowerMode=3;
+pAd->StaCfg.PSControl.field.rt30xxForceASPMTest=0;
+pAd->StaCfg.PSControl.field.rt30xxFollowHostASPM=1;
+#endif // PCIE_PS_SUPPORT //
+
 	// global variables mXXXX used in MAC protocol state machines
 	OPSTATUS_SET_FLAG(pAd, fOP_STATUS_RECEIVE_DTIM);
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_ADHOC_ON);
@@ -2757,6 +2798,9 @@ VOID	UserCfgInit(
 			pAd->StaCfg.LastScanTime -= (10 * OS_HZ);
 
 		NdisZeroMemory(pAd->nickname, IW_ESSID_MAX_SIZE+1);
+#ifdef RTMP_MAC_PCI
+		sprintf((PSTRING) pAd->nickname, "RT2860STA");
+#endif // RTMP_MAC_PCI //
 #ifdef RTMP_MAC_USB
 			sprintf((PSTRING) pAd->nickname, "RT2870STA");
 #endif // RTMP_MAC_USB //
@@ -2766,7 +2810,6 @@ VOID	UserCfgInit(
 		pAd->StaCfg.WpaSupplicantUP = WPA_SUPPLICANT_DISABLE;
 		pAd->StaCfg.bRSN_IE_FromWpaSupplicant = FALSE;
 		pAd->StaCfg.WpaSupplicantUP = WPA_SUPPLICANT_ENABLE;
-		pAd->StaCfg.bLostAp = FALSE;
 
 		NdisZeroMemory(pAd->StaCfg.ReplayCounter, 8);
 
@@ -3272,7 +3315,7 @@ int rt28xx_init(
 	// NICLoadFirmware will hang forever when interface is up again.
 	// RT2860 PCI
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE) &&
-		OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+		OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 	{
 		AUTO_WAKEUP_STRUC AutoWakeupCfg;
 			AsicForceWakeup(pAd, TRUE);
@@ -3307,6 +3350,16 @@ int rt28xx_init(
 	DBGPRINT(RT_DEBUG_TRACE, ("MAC_CSR0  [ Ver:Rev=0x%08x]\n", pAd->MACVersion));
 
 #ifdef RTMP_MAC_PCI
+#ifdef PCIE_PS_SUPPORT
+	/*Iverson patch PCIE L1 issue to make sure that driver can be read,write ,BBP and RF register  at pcie L.1 level */
+	if ((IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd))&&OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
+	{
+		RTMP_IO_READ32(pAd, AUX_CTRL, &MacCsr0);
+		MacCsr0 |= 0x402;
+		RTMP_IO_WRITE32(pAd, AUX_CTRL, MacCsr0);
+		DBGPRINT(RT_DEBUG_TRACE, ("AUX_CTRL = 0x%x\n", MacCsr0));
+	}
+#endif // PCIE_PS_SUPPORT //
 
 	// To fix driver disable/enable hang issue when radio off
 	RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0x2);

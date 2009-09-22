@@ -432,19 +432,6 @@ VOID ScanNextChannel(
 		}
 
 		{
-#ifdef RT2860
-			/*
-				If all peer Ad-hoc clients leave, driver would do LinkDown and LinkUp.
-				In LinkUp, CommonCfg.Ssid would copy SSID from MlmeAux.
-				To prevent SSID is zero or wrong in Beacon, need to recover MlmeAux.SSID here.
-			*/
-			if (ADHOC_ON(pAd))
-			{
-				NdisZeroMemory(pAd->MlmeAux.Ssid, MAX_LEN_OF_SSID);
-				pAd->MlmeAux.SsidLen = pAd->CommonCfg.SsidLen;
-				NdisMoveMemory(pAd->MlmeAux.Ssid, pAd->CommonCfg.Ssid, pAd->CommonCfg.SsidLen);
-			}
-#endif // RT2860 //
 			//
 			// To prevent data lost.
 			// Send an NULL data with turned PSM bit on to current associated AP before SCAN progress.

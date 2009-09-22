@@ -195,12 +195,22 @@ VOID MlmeScanReqAction(
 	pAd->StaCfg.ScanCnt++;
 
 #ifdef RTMP_MAC_PCI
-    if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)) &&
+    if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE)) &&
         (IDLE_ON(pAd)) &&
 		(pAd->StaCfg.bRadio == TRUE) &&
 		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF)))
 	{
+	        if (pAd->StaCfg.PSControl.field.EnableNewPS == FALSE)
+		{
+			AsicSendCommandToMcu(pAd, 0x31, PowerWakeCID, 0x00, 0x02);
+			AsicCheckCommanOk(pAd, PowerWakeCID);
+			RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF);
+			DBGPRINT(RT_DEBUG_TRACE, ("PSM - Issue Wake up command \n"));
+		}
+		else
+		{
 		RT28xxPciAsicRadioOn(pAd, GUI_IDLE_POWER_SAVE);
+	}
 	}
 #endif // RTMP_MAC_PCI //
 
@@ -303,7 +313,7 @@ VOID MlmeJoinReqAction(
 	DBGPRINT(RT_DEBUG_TRACE, ("SYNC - MlmeJoinReqAction(BSS #%ld)\n", pInfo->BssIdx));
 
 #ifdef RTMP_MAC_PCI
-    if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)) &&
+    if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE)) &&
         (IDLE_ON(pAd)) &&
 		(pAd->StaCfg.bRadio == TRUE) &&
 		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF)))
@@ -338,9 +348,7 @@ VOID MlmeJoinReqAction(
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &BBPValue);
 	BBPValue &= (~0x18);
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, BBPValue);
-#ifdef RT2860
-	pAd->CommonCfg.BBPCurrentBW = BW_20;
-#endif // RT2860 //
+
 	DBGPRINT(RT_DEBUG_TRACE, ("SYNC - BBP R4 to 20MHz.l\n"));
 
 	// switch channel and waiting for beacon timer
@@ -898,8 +906,6 @@ VOID PeerBeaconAtJoinAction(
 			else  //Used the default TX Power Percentage.
 				pAd->CommonCfg.TxPowerPercentage = pAd->CommonCfg.TxPowerDefault;
 
-			InitChannelRelatedValue(pAd);
-
 			pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 			Status = MLME_SUCCESS;
 			MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_JOIN_CONF, 2, &Status);
@@ -1317,7 +1323,7 @@ VOID PeerBeacon(
 				if (MessageToMe)
 				{
 #ifdef RTMP_MAC_PCI
-					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 					{
 						// Restore to correct BBP R3 value
 						if (pAd->Antenna.field.RxPath > 1)
@@ -1336,7 +1342,7 @@ VOID PeerBeacon(
 				else if (BcastFlag && (DtimCount == 0) && OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_RECEIVE_DTIM))
 				{
 #ifdef RTMP_MAC_PCI
-					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 					{
 						if (pAd->Antenna.field.RxPath > 1)
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
@@ -1356,7 +1362,7 @@ VOID PeerBeacon(
 					// TODO: consider scheduled HCCA. might not be proper to use traditional DTIM-based power-saving scheme
 					// can we cheat here (i.e. just check MGMT & AC_BE) for better performance?
 #ifdef RTMP_MAC_PCI
-					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 					{
 						if (pAd->Antenna.field.RxPath > 1)
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);

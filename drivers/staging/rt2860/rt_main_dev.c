@@ -226,9 +226,9 @@ int rt28xx_close(IN PNET_DEV dev)
 		return 0; // close ok
 
 	{
-#ifdef RTMP_PCI_SUPPORT
+#ifdef RTMP_MAC_PCI
 		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_CLOSE);
-#endif // RTMP_PCI_SUPPORT //
+#endif // RTMP_MAC_PCI //
 
 		// If dirver doesn't wake up firmware here,
 		// NICLoadFirmware will hang forever when interface is up again.
@@ -320,6 +320,10 @@ int rt28xx_close(IN PNET_DEV dev)
 
 
 			brc=RT28xxPciAsicRadioOff(pAd, RTMP_HALT, 0);
+
+//In  solution 3 of 3090F, the bPCIclkOff will be set to TRUE after calling RT28xxPciAsicRadioOff
+			pAd->bPCIclkOff = FALSE;
+
 			if (brc==FALSE)
 	{
 				DBGPRINT(RT_DEBUG_ERROR,("%s call RT28xxPciAsicRadioOff fail !!\n", __func__));
@@ -400,11 +404,6 @@ int rt28xx_open(IN PNET_DEV dev)
 		return -1;
 	}
 
-#ifdef RTMP_PCI_SUPPORT
-        RTMPInitPCIeLinkCtrlValue(pAd);
-#endif // RTMP_PCI_SUPPORT //
-
-
 	if (net_dev->priv_flags == INT_MAIN)
 	{
 		if (pAd->OpMode == OPMODE_STA)
@@ -449,7 +448,9 @@ int rt28xx_open(IN PNET_DEV dev)
 //	RTMP_IO_WRITE32(pAd, XIFS_TIME_CFG, reg);
 
 	}
-
+#ifdef RTMP_MAC_PCI
+        RTMPInitPCIeLinkCtrlValue(pAd);
+#endif // RTMP_MAC_PCI //
 
 	return (retval);
 

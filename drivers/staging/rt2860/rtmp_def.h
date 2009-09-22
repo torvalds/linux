@@ -221,6 +221,11 @@
 #define fRTMP_PS_GO_TO_SLEEP_NOW         0x00000008
 #define fRTMP_PS_TOGGLE_L1		0x00000010	// Use Toggle L1 mechanism for rt28xx PCIe
 
+#ifdef RT3090
+#define WAKE_MCU_CMD				0x31
+#define SLEEP_MCU_CMD					0x30
+#define RFOFF_MCU_CMD				0x35
+#endif // RT3090 //
 
 #define CCKSETPROTECT		0x1
 #define OFDMSETPROTECT		0x2

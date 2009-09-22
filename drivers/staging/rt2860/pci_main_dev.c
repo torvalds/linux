@@ -38,6 +38,13 @@
 #include "rt_config.h"
 #include <linux/pci.h>
 
+// Following information will be show when you run 'modinfo'
+// *** If you have a solution for the bug in current version of driver, please mail to me.
+// Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. ***
+MODULE_AUTHOR("Jett Chen <jett_chen@ralinktech.com>");
+MODULE_DESCRIPTION("RT2860/RT3090 Wireless Lan Linux Driver");
+MODULE_LICENSE("GPL");
+
 //
 // Function declarations
 //
@@ -63,6 +70,7 @@ static int rt2860_resume(struct pci_dev *pci_dev);
 //
 static struct pci_device_id rt2860_pci_tbl[] __devinitdata =
 {
+#ifdef RT2860
 	{PCI_DEVICE(NIC_PCI_VENDOR_ID, NIC2860_PCI_DEVICE_ID)},		//RT28602.4G
 	{PCI_DEVICE(NIC_PCI_VENDOR_ID, NIC2860_PCIe_DEVICE_ID)},
 	{PCI_DEVICE(NIC_PCI_VENDOR_ID, NIC2760_PCI_DEVICE_ID)},
@@ -75,11 +83,21 @@ static struct pci_device_id rt2860_pci_tbl[] __devinitdata =
 	{PCI_DEVICE(EDIMAX_PCI_VENDOR_ID, 0x7738)},
 	{PCI_DEVICE(EDIMAX_PCI_VENDOR_ID, 0x7748)},
 	{PCI_DEVICE(EDIMAX_PCI_VENDOR_ID, 0x7768)},
+#endif
+#ifdef RT3090
+	{PCI_DEVICE(NIC_PCI_VENDOR_ID, NIC3090_PCIe_DEVICE_ID)},
+	{PCI_DEVICE(NIC_PCI_VENDOR_ID, NIC3091_PCIe_DEVICE_ID)},
+	{PCI_DEVICE(NIC_PCI_VENDOR_ID, NIC3092_PCIe_DEVICE_ID)},
+#endif // RT3090 //
+#ifdef RT3390
+	{PCI_DEVICE(NIC_PCI_VENDOR_ID, NIC3390_PCIe_DEVICE_ID)},
+	{PCI_DEVICE(NIC_PCI_VENDOR_ID, NIC3391_PCIe_DEVICE_ID)},
+	{PCI_DEVICE(NIC_PCI_VENDOR_ID, NIC3392_PCIe_DEVICE_ID)},
+#endif // RT3390 //
     {0,}		// terminate list
 };
 
 MODULE_DEVICE_TABLE(pci, rt2860_pci_tbl);
-MODULE_LICENSE("GPL");
 #ifdef MODULE_VERSION
 MODULE_VERSION(STA_DRIVER_VERSION);
 #endif
@@ -363,9 +381,6 @@ static INT __devinit   rt2860_probe(
 	pAd->StaCfg.OriDevType = net_dev->type;
 	RTMPInitPCIeDevice(pci_dev, pAd);
 
-#ifdef KTHREAD_SUPPORT
-#endif // KTHREAD_SUPPORT //
-
 	DBGPRINT(RT_DEBUG_TRACE, ("<=== rt2860_probe\n"));
 
 	return 0; // probe ok
@@ -478,11 +493,17 @@ BOOLEAN RT28XXChipsetCheck(
 	pci_read_config_word(pci_dev, PCI_DEVICE_ID, &device_id);
 	device_id = le2cpu16(device_id);
 	pObj->DeviceID = device_id;
-	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE);
 	if (
+#ifdef RT2860
 		(device_id == NIC2860_PCIe_DEVICE_ID) ||
 		(device_id == NIC2790_PCIe_DEVICE_ID) ||
 		(device_id == VEN_AWT_PCIe_DEVICE_ID) ||
+#endif
+#ifdef RT3090
+		(device_id == NIC3090_PCIe_DEVICE_ID) ||
+		(device_id == NIC3091_PCIe_DEVICE_ID) ||
+		(device_id == NIC3092_PCIe_DEVICE_ID) ||
+#endif // RT3090 //
 		 0)
 	{
 		UINT32 MacCsr0 = 0, Index= 0;
@@ -500,7 +521,7 @@ BOOLEAN RT28XXChipsetCheck(
 		// MAC version at offset 0x1000 is 0x2872XXXX/0x2870XXXX(PCIe, USB, SDIO).
 		if ((MacCsr0&0xffff0000) != 0x28600000)
 		{
-			OPSTATUS_SET_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE);
+			OPSTATUS_SET_FLAG(pAd, fOP_STATUS_PCIE_DEVICE);
 		}
 	}
 }
@@ -511,24 +532,26 @@ VOID RTMPInitPCIeLinkCtrlValue(
 {
     INT     pos;
     USHORT	reg16, data2, PCIePowerSaveLevel, Configuration;
+	UINT32 MacValue;
     BOOLEAN	bFindIntel = FALSE;
 	POS_COOKIE pObj;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 		return;
 
     DBGPRINT(RT_DEBUG_TRACE, ("%s.===>\n", __func__));
 	// Init EEPROM, and save settings
-	if (!IS_RT3090(pAd))
+	if (!(IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd)))
 	{
 		RT28xx_EEPROM_READ16(pAd, 0x22, PCIePowerSaveLevel);
 		pAd->PCIePowerSaveLevel = PCIePowerSaveLevel & 0xff;
 
+		pAd->LnkCtrlBitMask = 0;
 		if ((PCIePowerSaveLevel&0xff) == 0xff)
 		{
-			OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE);
+			OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_PCIE_DEVICE);
 			DBGPRINT(RT_DEBUG_TRACE, ("====> PCIePowerSaveLevel = 0x%x.\n", PCIePowerSaveLevel));
 			return;
 		}
@@ -563,40 +586,108 @@ VOID RTMPInitPCIeLinkCtrlValue(
 				pAd->LnkCtrlBitMask = 0x103;
 				break;
 		}
+			RT28xx_EEPROM_READ16(pAd, 0x24, data2);
+			if ((PCIePowerSaveLevel&0xff) != 0xff)
+			{
+				PCIePowerSaveLevel &= 0x3;
+
+				if( !(((data2&0xff00) == 0x9200) && ((data2&0x80) !=0)) )
+				{
+					if (PCIePowerSaveLevel > 1 )
+						PCIePowerSaveLevel = 1;
+				}
+
+				DBGPRINT(RT_DEBUG_TRACE, ("====> rt28xx Write 0x83 Command = 0x%x.\n", PCIePowerSaveLevel));
+					       printk("\n\n\n%s:%d\n",__FUNCTION__,__LINE__);
+
+				AsicSendCommandToMcu(pAd, 0x83, 0xff, (UCHAR)PCIePowerSaveLevel, 0x00);
+			}
 		DBGPRINT(RT_DEBUG_TRACE, ("====> LnkCtrlBitMask = 0x%x.\n", pAd->LnkCtrlBitMask));
 	}
 	}
-	else if (IS_RT3090(pAd))
+	else if (IS_RT3090(pAd) || IS_RT3572(pAd) || IS_RT3390(pAd))
 	{
-		// 1. read setting from inf file.
-		// .....
-		USHORT	PCIePowerSetting = 0;
-		/* code from windows, default value of rt30xxPowerMode = 0
-		PCIePowerSetting = pAd->StaCfg.PSControl.field.rt30xxPowerMode;
-		*/
-		DBGPRINT(RT_DEBUG_TRACE, ("====> rt30xx Read PowerLevelMode =  0x%x.\n", PCIePowerSetting));
-		// 2. Check EnableNewPS
-		/*
-		if (pAd->StaCfg.PSControl.field.EnableNewPS == FALSE)
-			PCIePowerSetting = 1;
-		*/
+		UCHAR	LinkCtrlSetting = 0;
 
-		if ((pAd->MACVersion&0xffff) <= 0x0211)
+		// Check 3090E special setting chip.
+			RT28xx_EEPROM_READ16(pAd, 0x24, data2);
+		if ((data2 == 0x9280) && ((pAd->MACVersion&0xffff) == 0x0211))
 		{
-			// Chip Version E only allow 1
-			PCIePowerSetting = 1;
-			DBGPRINT(RT_DEBUG_TRACE, ("====> rt30xx Write 0x83 Command = 0x%x.\n", PCIePowerSetting));
-			AsicSendCommandToMcu(pAd, 0x83, 0xff, (UCHAR)PCIePowerSetting, 0x00);
+			pAd->b3090ESpecialChip = TRUE;
+			DBGPRINT_RAW(RT_DEBUG_ERROR,("Special 3090E chip \n"));
+		}
+
+		RTMP_IO_READ32(pAd, AUX_CTRL, &MacValue);
+		//enable WAKE_PCIE function, which forces to enable PCIE clock when mpu interrupt asserting.
+		//Force PCIE 125MHz CLK to toggle
+		MacValue |= 0x402;
+		RTMP_IO_WRITE32(pAd, AUX_CTRL, MacValue);
+		DBGPRINT_RAW(RT_DEBUG_ERROR,(" AUX_CTRL = 0x%32x\n", MacValue));
+
+
+
+		// for RT30xx F and after, PCIe infterface, and for power solution 3
+		if ((IS_VERSION_AFTER_F(pAd))
+			&& (pAd->StaCfg.PSControl.field.rt30xxPowerMode >= 2)
+			&& (pAd->StaCfg.PSControl.field.rt30xxPowerMode <= 3))
+		{
+			RTMP_IO_READ32(pAd, AUX_CTRL, &MacValue);
+			DBGPRINT_RAW(RT_DEBUG_ERROR,(" Read AUX_CTRL = 0x%x\n", MacValue));
+			// turn on bit 12.
+			//enable 32KHz clock mode for power saving
+			MacValue |= 0x1000;
+			if (MacValue != 0xffffffff)
+			{
+				RTMP_IO_WRITE32(pAd, AUX_CTRL, MacValue);
+				DBGPRINT_RAW(RT_DEBUG_ERROR,(" Write AUX_CTRL = 0x%x\n", MacValue));
+				// 1. if use PCIePowerSetting is 2 or 3, need to program OSC_CTRL to 0x3ff11.
+				MacValue = 0x3ff11;
+				RTMP_IO_WRITE32(pAd, OSC_CTRL, MacValue);
+				DBGPRINT_RAW(RT_DEBUG_ERROR,(" OSC_CTRL = 0x%x\n", MacValue));
+				// 2. Write PCI register Clk ref bit
+				RTMPrt3xSetPCIePowerLinkCtrl(pAd);
+			}
+			else
+			{
+				// Error read Aux_Ctrl value.  Force to use solution 1
+				DBGPRINT(RT_DEBUG_ERROR,(" Error Value in AUX_CTRL = 0x%x\n", MacValue));
+				pAd->StaCfg.PSControl.field.rt30xxPowerMode = 1;
+				DBGPRINT(RT_DEBUG_ERROR,(" Force to use power solution1 \n"));
+			}
+		}
+		// 1. read setting from inf file.
+
+		PCIePowerSaveLevel = (USHORT)pAd->StaCfg.PSControl.field.rt30xxPowerMode;
+		DBGPRINT(RT_DEBUG_ERROR, ("====> rt30xx Read PowerLevelMode =  0x%x.\n", PCIePowerSaveLevel));
+		// 2. Check EnableNewPS.
+		if (pAd->StaCfg.PSControl.field.EnableNewPS == FALSE)
+			PCIePowerSaveLevel = 1;
+
+		if (IS_VERSION_BEFORE_F(pAd) && (pAd->b3090ESpecialChip == FALSE))
+		{
+			// Chip Version E only allow 1, So force set 1.
+			PCIePowerSaveLevel &= 0x1;
+			pAd->PCIePowerSaveLevel = (USHORT)PCIePowerSaveLevel;
+			DBGPRINT(RT_DEBUG_TRACE, ("====> rt30xx E Write 0x83 Command = 0x%x.\n", PCIePowerSaveLevel));
+
+			AsicSendCommandToMcu(pAd, 0x83, 0xff, (UCHAR)PCIePowerSaveLevel, 0x00);
 		}
 		else
 		{
-			// Chip Version F only allow 1 or 2
-			if ((PCIePowerSetting > 2) || (PCIePowerSetting == 0))
-				PCIePowerSetting = 1;
-			DBGPRINT(RT_DEBUG_TRACE, ("====> rt30xx Write 0x83 Command = 0x%x.\n", PCIePowerSetting));
-			AsicSendCommandToMcu(pAd, 0x83, 0xff, (UCHAR)PCIePowerSetting, 0x00);
+			// Chip Version F and after only allow 1 or 2 or 3. This might be modified after new chip version come out.
+			if (!((PCIePowerSaveLevel == 1) || (PCIePowerSaveLevel == 3)))
+				PCIePowerSaveLevel = 1;
+			DBGPRINT(RT_DEBUG_ERROR, ("====> rt30xx F Write 0x83 Command = 0x%x.\n", PCIePowerSaveLevel));
+			pAd->PCIePowerSaveLevel = (USHORT)PCIePowerSaveLevel;
+			// for 3090F , we need to add high-byte arg for 0x83 command to indicate the link control setting in
+			// PCI Configuration Space. Because firmware can't read PCI Configuration Space
+			if ((pAd->Rt3xxRalinkLinkCtrl & 0x2) && (pAd->Rt3xxHostLinkCtrl & 0x2))
+			{
+				LinkCtrlSetting = 1;
+			}
+			DBGPRINT(RT_DEBUG_TRACE, ("====> rt30xxF LinkCtrlSetting = 0x%x.\n", LinkCtrlSetting));
+			AsicSendCommandToMcu(pAd, 0x83, 0xff, (UCHAR)PCIePowerSaveLevel, LinkCtrlSetting);
 		}
-
 	}
 
     // Find Ralink PCIe Device's Express Capability Offset
@@ -613,6 +704,7 @@ VOID RTMPInitPCIeLinkCtrlValue(
         pAd->RLnkCtrlConfiguration = (Configuration & 0x103);
         Configuration &= 0xfefc;
         Configuration |= (0x0);
+#ifdef RT2860
 		if ((pObj->DeviceID == NIC2860_PCIe_DEVICE_ID)
 			||(pObj->DeviceID == NIC2790_PCIe_DEVICE_ID))
 		{
@@ -621,6 +713,7 @@ VOID RTMPInitPCIeLinkCtrlValue(
 			DBGPRINT(RT_DEBUG_TRACE, ("Write (Ralink PCIe Link Control Register)  offset 0x%x = 0x%x\n",
                                     pos + PCI_EXP_LNKCTL, Configuration));
 		}
+#endif // RT2860 //
 
         RTMPFindHostPCIDev(pAd);
         if (pObj->parent_pci_dev)
@@ -630,7 +723,10 @@ VOID RTMPInitPCIeLinkCtrlValue(
 		pci_read_config_word(pObj->parent_pci_dev, PCI_VENDOR_ID, &vendor_id);
 		vendor_id = le2cpu16(vendor_id);
 		if (vendor_id == PCIBUS_INTEL_VENDOR)
+                 {
 			bFindIntel = TRUE;
+                        RTMP_SET_PSFLAG(pAd, fRTMP_PS_TOGGLE_L1);
+                 }
 
 		// Find PCI-to-PCI Bridge Express Capability Offset
 		pos = pci_find_capability(pObj->parent_pci_dev, PCI_CAP_ID_EXP);
@@ -650,10 +746,20 @@ VOID RTMPInitPCIeLinkCtrlValue(
 
 			switch (pObj->DeviceID)
 			{
+#ifdef RT2860
 				case NIC2860_PCIe_DEVICE_ID:
 				case NIC2790_PCIe_DEVICE_ID:
 					bChange = TRUE;
 					break;
+#endif // RT2860 //
+#ifdef RT3090
+				case NIC3090_PCIe_DEVICE_ID:
+				case NIC3091_PCIe_DEVICE_ID:
+				case NIC3092_PCIe_DEVICE_ID:
+					if (bFindIntel == FALSE)
+					bChange = TRUE;
+					break;
+#endif // RT3090 //
 				default:
 					break;
 			}
@@ -686,6 +792,11 @@ VOID RTMPInitPCIeLinkCtrlValue(
 		// Doesn't switch L0, L1, So set PCIePowerSaveLevel to 0xff
 		pAd->PCIePowerSaveLevel = 0xff;
 		if ((pAd->RLnkCtrlOffset != 0)
+#ifdef RT3090
+			&& ((pObj->DeviceID == NIC3090_PCIe_DEVICE_ID)
+				||(pObj->DeviceID == NIC3091_PCIe_DEVICE_ID)
+				||(pObj->DeviceID == NIC3092_PCIe_DEVICE_ID))
+#endif // RT3090 //
 		)
 		{
 			pci_read_config_word(pObj->pci_dev, pAd->RLnkCtrlOffset, &reg16);
@@ -714,7 +825,7 @@ VOID RTMPFindHostPCIDev(
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 		return;
 
     DBGPRINT(RT_DEBUG_TRACE, ("%s.===>\n", __func__));
@@ -761,12 +872,27 @@ VOID RTMPPCIeLinkCtrlValueRestore(
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 		return;
 
+#ifdef RT2860
 	if (!((pObj->DeviceID == NIC2860_PCIe_DEVICE_ID)
 		||(pObj->DeviceID == NIC2790_PCIe_DEVICE_ID)))
 		return;
+#endif // RT2860 //
+	// Check PSControl Configuration
+	if (pAd->StaCfg.PSControl.field.EnableNewPS == FALSE)
+		return TRUE;
+
+	//3090 will not execute the following codes.
+	// Check interface : If not PCIe interface, return.
+
+#ifdef RT3090
+	if ((pObj->DeviceID == NIC3090_PCIe_DEVICE_ID)
+		||(pObj->DeviceID == NIC3091_PCIe_DEVICE_ID)
+		||(pObj->DeviceID == NIC3092_PCIe_DEVICE_ID))
+		return;
+#endif // RT3090 //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("%s.===>\n", __func__));
 	PCIePowerSaveLevel = pAd->PCIePowerSaveLevel;
@@ -840,12 +966,32 @@ VOID RTMPPCIeLinkCtrlSetting(
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+	if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_PCIE_DEVICE))
 		return;
 
+#ifdef RT2860
 	if (!((pObj->DeviceID == NIC2860_PCIe_DEVICE_ID)
 		||(pObj->DeviceID == NIC2790_PCIe_DEVICE_ID)))
 		return;
+#endif // RT2860 //
+	// Check PSControl Configuration
+	if (pAd->StaCfg.PSControl.field.EnableNewPS == FALSE)
+		return TRUE;
+
+	// Check interface : If not PCIe interface, return.
+	//Block 3090 to enter the following function
+
+#ifdef RT3090
+	if ((pObj->DeviceID == NIC3090_PCIe_DEVICE_ID)
+		||(pObj->DeviceID == NIC3091_PCIe_DEVICE_ID)
+		||(pObj->DeviceID == NIC3092_PCIe_DEVICE_ID))
+		return;
+#endif // RT3090 //
+	if (!RTMP_TEST_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP))
+	{
+		DBGPRINT(RT_DEBUG_INFO, ("RTMPPCIePowerLinkCtrl return on fRTMP_PS_CAN_GO_SLEEP flag\n"));
+		return;
+	}
 
 	DBGPRINT(RT_DEBUG_TRACE,("%s===>\n", __func__));
 	PCIePowerSaveLevel = pAd->PCIePowerSaveLevel;
@@ -856,6 +1002,35 @@ VOID RTMPPCIeLinkCtrlSetting(
 	}
 	PCIePowerSaveLevel = PCIePowerSaveLevel>>6;
 
+    // Skip non-exist deice right away
+	if (pObj->parent_pci_dev && (pAd->HostLnkCtrlOffset != 0))
+	{
+        PCI_REG_READ_WORD(pObj->parent_pci_dev, pAd->HostLnkCtrlOffset, Configuration);
+		switch (PCIePowerSaveLevel)
+		{
+			case 0:
+				// Set b0 and b1 of LinkControl (both 2892 and PCIe bridge) to 00
+				Configuration &= 0xfefc;
+				break;
+			case 1:
+				// Set b0 and b1 of LinkControl (both 2892 and PCIe bridge) to 01
+				Configuration &= 0xfefc;
+				Configuration |= 0x1;
+				break;
+			case 2:
+				//  Set b0 and b1 of LinkControl (both 2892 and PCIe bridge) to 11
+				Configuration &= 0xfefc;
+				Configuration |= 0x3;
+				break;
+			case 3:
+				// Set b0 and b1 of LinkControl (both 2892 and PCIe bridge) to 11 and bit 8 of LinkControl of 2892 to 1
+				Configuration &= 0xfefc;
+				Configuration |= 0x103;
+				break;
+		}
+        PCI_REG_WIRTE_WORD(pObj->parent_pci_dev, pAd->HostLnkCtrlOffset, Configuration);
+		DBGPRINT(RT_DEBUG_TRACE, ("Write PCI host offset 0x%x = 0x%x\n", pAd->HostLnkCtrlOffset, Configuration));
+	}
 
 	if (pObj->pci_dev && (pAd->RLnkCtrlOffset != 0))
 	{
@@ -864,10 +1039,149 @@ VOID RTMPPCIeLinkCtrlSetting(
 			PCIePowerSaveLevel = Max;
 
         PCI_REG_READ_WORD(pObj->pci_dev, pAd->RLnkCtrlOffset, Configuration);
-		Configuration |= 0x100;
+		switch (PCIePowerSaveLevel)
+		{
+			case 0:
+				// No PCI power safe
+				// Set b0 and b1 of LinkControl (both 2892 and PCIe bridge) to 00 .
+				Configuration &= 0xfefc;
+				break;
+			case 1:
+				//  L0
+				// Set b0 and b1 of LinkControl (both 2892 and PCIe bridge) to 01 .
+				Configuration &= 0xfefc;
+				Configuration |= 0x1;
+				break;
+			case 2:
+				// L0 and L1
+				//  Set b0 and b1 of LinkControl (both 2892 and PCIe bridge) to 11
+				Configuration &= 0xfefc;
+				Configuration |= 0x3;
+				break;
+			case 3:
+				// L0 , L1 and clock management.
+				// Set b0 and b1 of LinkControl (both 2892 and PCIe bridge) to 11 and bit 8 of LinkControl of 2892 to 1
+				Configuration &= 0xfefc;
+				Configuration |= 0x103;
+		              pAd->bPCIclkOff = TRUE;
+				break;
+		}
         PCI_REG_WIRTE_WORD(pObj->pci_dev, pAd->RLnkCtrlOffset, Configuration);
 		DBGPRINT(RT_DEBUG_TRACE, ("Write Ralink device : offset 0x%x = 0x%x\n", pAd->RLnkCtrlOffset, Configuration));
 	}
 
 	DBGPRINT(RT_DEBUG_TRACE,("RTMPPCIePowerLinkCtrl <==============\n"));
+}
+
+/*
+	========================================================================
+
+	Routine Description:
+		1. Write a PCI register for rt30xx power solution 3
+
+	========================================================================
+*/
+VOID RTMPrt3xSetPCIePowerLinkCtrl(
+	IN	PRTMP_ADAPTER	pAd)
+{
+
+	ULONG	HostConfiguration;
+	ULONG	Configuration;
+	ULONG	Vendor;
+	ULONG	offset;
+	POS_COOKIE	pObj;
+	INT     pos;
+	USHORT	reg16;
+
+	pObj = (POS_COOKIE) pAd->OS_Cookie;
+
+	DBGPRINT(RT_DEBUG_INFO, ("RTMPrt3xSetPCIePowerLinkCtrl.===> %x\n", pAd->StaCfg.PSControl.word));
+
+	// Check PSControl Configuration
+	if (pAd->StaCfg.PSControl.field.EnableNewPS == FALSE)
+		return;
+	RTMPFindHostPCIDev(pAd);
+        if (pObj->parent_pci_dev)
+        {
+		USHORT  vendor_id;
+		// Find PCI-to-PCI Bridge Express Capability Offset
+		pos = pci_find_capability(pObj->parent_pci_dev, PCI_CAP_ID_EXP);
+
+		if (pos != 0)
+		{
+			pAd->HostLnkCtrlOffset = pos + PCI_EXP_LNKCTL;
+		}
+	// If configurared to turn on L1.
+	HostConfiguration = 0;
+		if (pAd->StaCfg.PSControl.field.rt30xxForceASPMTest == 1)
+		{
+						DBGPRINT(RT_DEBUG_TRACE, ("Enter,PSM : Force ASPM \n"));
+
+			// Skip non-exist deice right away
+			if ((pAd->HostLnkCtrlOffset != 0))
+			{
+			 PCI_REG_READ_WORD(pObj->parent_pci_dev, pAd->HostLnkCtrlOffset, HostConfiguration);
+				// Prepare Configuration to write to Host
+				HostConfiguration |= 0x3;
+				PCI_REG_WIRTE_WORD(pObj->parent_pci_dev, pAd->HostLnkCtrlOffset, HostConfiguration);
+				pAd->Rt3xxHostLinkCtrl = HostConfiguration;
+				// Because in rt30xxForceASPMTest Mode, Force turn on L0s, L1.
+				// Fix HostConfiguration bit0:1 = 0x3 for later use.
+				HostConfiguration = 0x3;
+				DBGPRINT(RT_DEBUG_TRACE, ("PSM : Force ASPM : Host device L1/L0s Value =  0x%x\n", HostConfiguration));
+			}
+		}
+		else if (pAd->StaCfg.PSControl.field.rt30xxFollowHostASPM == 1)
+		{
+
+			// Skip non-exist deice right away
+			if ((pAd->HostLnkCtrlOffset != 0))
+			{
+			 PCI_REG_READ_WORD(pObj->parent_pci_dev, pAd->HostLnkCtrlOffset, HostConfiguration);
+				pAd->Rt3xxHostLinkCtrl = HostConfiguration;
+				HostConfiguration &= 0x3;
+				DBGPRINT(RT_DEBUG_TRACE, ("PSM : Follow Host ASPM : Host device L1/L0s Value =  0x%x\n", HostConfiguration));
+			}
+		}
+        }
+	// Prepare to write Ralink setting.
+	// Find Ralink PCIe Device's Express Capability Offset
+	pos = pci_find_capability(pObj->pci_dev, PCI_CAP_ID_EXP);
+
+    if (pos != 0)
+    {
+        // Ralink PCIe Device's Link Control Register Offset
+       pAd->RLnkCtrlOffset = pos + PCI_EXP_LNKCTL;
+	pci_read_config_word(pObj->pci_dev, pAd->RLnkCtrlOffset, &reg16);
+        Configuration = le2cpu16(reg16);
+	DBGPRINT(RT_DEBUG_TRACE, ("Read (Ralink PCIe Link Control Register) offset 0x%x = 0x%x\n",
+			                                    pAd->RLnkCtrlOffset, Configuration));
+		Configuration |= 0x100;
+		if ((pAd->StaCfg.PSControl.field.rt30xxFollowHostASPM == 1)
+			|| (pAd->StaCfg.PSControl.field.rt30xxForceASPMTest == 1))
+		{
+			switch(HostConfiguration)
+			{
+				case 0:
+					Configuration &= 0xffffffc;
+					break;
+				case 1:
+					Configuration &= 0xffffffc;
+					Configuration |= 0x1;
+					break;
+				case 2:
+					Configuration &= 0xffffffc;
+					Configuration |= 0x2;
+					break;
+				case 3:
+					Configuration |= 0x3;
+					break;
+			}
+		}
+		reg16 = cpu2le16(Configuration);
+		pci_write_config_word(pObj->pci_dev, pAd->RLnkCtrlOffset, reg16);
+		pAd->Rt3xxRalinkLinkCtrl = Configuration;
+		DBGPRINT(RT_DEBUG_TRACE, ("PSM :Write Ralink device L1/L0s Value =  0x%x\n", Configuration));
+	}
+	DBGPRINT(RT_DEBUG_INFO,("PSM :RTMPrt3xSetPCIePowerLinkCtrl <==============\n"));
 }

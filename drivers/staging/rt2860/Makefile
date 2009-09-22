@@ -3,6 +3,7 @@ obj-$(CONFIG_RT2860)	+= rt2860sta.o
 # TODO: all of these should be removed
 EXTRA_CFLAGS += -DLINUX -DAGGREGATION_SUPPORT -DPIGGYBACK_SUPPORT -DWMM_SUPPORT
 EXTRA_CFLAGS += -DRTMP_MAC_PCI -DRTMP_PCI_SUPPORT -DRT2860
+EXTRA_CFLAGS += -DRTMP_RF_RW_SUPPORT -DRTMP_EFUSE_SUPPORT -DRT30xx -DRT3090
 EXTRA_CFLAGS += -DDBG
 
 rt2860sta-objs :=	\
@@ -46,4 +47,8 @@ rt2860sta-objs :=	\
 	common/cmm_mac_pci.o	\
 	common/cmm_data_pci.o	\
 	common/ee_prom.o	\
-	common/rtmp_mcu.o
+	common/rtmp_mcu.o	\
+	common/ee_efuse.o	\
+	chips/rt30xx.o		\
+	common/rt_rf.o		\
+	chips/rt3090.o

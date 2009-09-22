@@ -638,9 +638,6 @@ BOOLEAN	RTMPHandleTxRingDmaDoneInterrupt(
 	if (TxRingBitmap.field.Ac0DmaDone)
 		bReschedule = RTMPFreeTXDUponTxDmaDone(pAd, QID_AC_BE);
 
-	if (TxRingBitmap.field.HccaDmaDone)
-		bReschedule |= RTMPFreeTXDUponTxDmaDone(pAd, QID_HCCA);
-
 	if (TxRingBitmap.field.Ac3DmaDone)
 		bReschedule |= RTMPFreeTXDUponTxDmaDone(pAd, QID_AC_VO);
 
@@ -791,7 +788,6 @@ VOID	RTMPHandleRxCoherentInterrupt(
 	RTMPRingCleanUp(pAd, QID_AC_BK);
 	RTMPRingCleanUp(pAd, QID_AC_VI);
 	RTMPRingCleanUp(pAd, QID_AC_VO);
-	RTMPRingCleanUp(pAd, QID_HCCA);
 	RTMPRingCleanUp(pAd, QID_MGMT);
 	RTMPRingCleanUp(pAd, QID_RX);
 
@@ -1147,7 +1143,5 @@ VOID RTMPWriteTxDescriptor(
 	pTxD->QSEL= (QueueSEL);
 	//RT2860c??  fixed using EDCA queue for test...  We doubt Queue1 has problem.  2006-09-26 Jan
 	//pTxD->QSEL= FIFO_EDCA;
-	if (pAd->bGenOneHCCA == TRUE)
-		pTxD->QSEL= FIFO_HCCA;
 	pTxD->DMADONE = 0;
 }

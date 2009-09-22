@@ -43,7 +43,7 @@
 
 // New 8k byte firmware size for RT3071/RT3072
 #define FIRMWAREIMAGE_MAX_LENGTH	0x2000
-#define FIRMWAREIMAGE_LENGTH			(sizeof (FirmwareImage) / sizeof(UCHAR))
+#define FIRMWAREIMAGE_LENGTH			(sizeof (FirmwareImage_3090) / sizeof(UCHAR))
 #define FIRMWARE_MAJOR_VERSION		0
 
 #define FIRMWAREIMAGEV1_LENGTH		0x1000
@@ -335,8 +335,8 @@ NDIS_STATUS RtmpAsicLoadFirmware(
 	UINT32			MacReg = 0;
 	UINT32			Version = (pAd->MACVersion >> 16);
 
-	pFirmwareImage = FirmwareImage;
-	FileLength = sizeof(FirmwareImage);
+	pFirmwareImage = FirmwareImage_3090;
+	FileLength = sizeof(*pFirmwareImage);
 
 	// New 8k byte firmware size for RT3071/RT3072
 	//DBGPRINT(RT_DEBUG_TRACE, ("Usb Chip\n"));
@@ -347,7 +347,7 @@ NDIS_STATUS RtmpAsicLoadFirmware(
 #ifdef RTMP_MAC_PCI
 		if ((Version == 0x2860) || IS_RT3090(pAd)||IS_RT3390(pAd))
 		{
-			pFirmwareImage = FirmwareImage;
+			pFirmwareImage = FirmwareImage_3090;
 			FileLength = FIRMWAREIMAGE_LENGTH;
 		}
 #endif // RTMP_MAC_PCI //
