@@ -20,6 +20,7 @@
 #define __LINUX_SPI_H
 
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 
 /*
  * INTERFACES between SPI master-side drivers and SPI infrastructure.
@@ -86,7 +87,7 @@ struct spi_device {
 	int			irq;
 	void			*controller_state;
 	void			*controller_data;
-	char			modalias[32];
+	char			modalias[SPI_NAME_SIZE];
 
 	/*
 	 * likely need more hooks for more protocol options affecting how
@@ -145,6 +146,7 @@ struct spi_message;
 
 /**
  * struct spi_driver - Host side "protocol" driver
+ * @id_table: List of SPI devices supported by this driver
  * @probe: Binds this driver to the spi device.  Drivers can verify
  *	that the device is actually present, and may need to configure
  *	characteristics (such as bits_per_word) which weren't needed for
@@ -170,6 +172,7 @@ struct spi_message;
  * MMC, RTC, filesystem character device nodes, and hardware monitoring.
  */
 struct spi_driver {
+	const struct spi_device_id *id_table;
 	int			(*probe)(struct spi_device *spi);
 	int			(*remove)(struct spi_device *spi);
 	void			(*shutdown)(struct spi_device *spi);
@@ -734,7 +737,7 @@ struct spi_board_info {
 	 * controller_data goes to spi_device.controller_data,
 	 * irq is copied too
 	 */
-	char		modalias[32];
+	char		modalias[SPI_NAME_SIZE];
 	const void	*platform_data;
 	void		*controller_data;
 	int		irq;
@@ -801,5 +804,8 @@ spi_unregister_device(struct spi_device *spi)
 	if (spi)
 		device_unregister(&spi->dev);
 }
+
+extern const struct spi_device_id *
+spi_get_device_id(const struct spi_device *sdev);
 
 #endif /* __LINUX_SPI_H */
