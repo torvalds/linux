@@ -17,10 +17,10 @@
 
 #if defined(CONFIG_ARCH_OMAP1)
 
-#if defined(CONFIG_ARCH_OMAP730) && \
+#if (defined(CONFIG_ARCH_OMAP730)||defined(CONFIG_ARCH_OMAP850)) && \
 	(defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX))
-#error "FIXME: OMAP730 doesn't support multiple-OMAP"
-#elif defined(CONFIG_ARCH_OMAP730)
+#error "FIXME: OMAP7XX doesn't support multiple-OMAP"
+#elif defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 #define INT_IH2_IRQ		INT_730_IH2_IRQ
 #elif defined(CONFIG_ARCH_OMAP15XX)
 #define INT_IH2_IRQ		INT_1510_IH2_IRQ
