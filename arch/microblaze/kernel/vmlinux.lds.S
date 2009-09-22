@@ -12,15 +12,15 @@ OUTPUT_FORMAT("elf32-microblaze", "elf32-microblaze", "elf32-microblaze")
 OUTPUT_ARCH(microblaze)
 ENTRY(_start)
 
-#include <asm-generic/vmlinux.lds.h>
 #include <asm/page.h>
+#include <asm-generic/vmlinux.lds.h>
 #include <asm/thread_info.h>
 
 jiffies = jiffies_64 + 4;
 
 SECTIONS {
 	. = CONFIG_KERNEL_START;
-	.text : {
+	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		_text = . ;
 		_stext = . ;
 		*(.text .text.*)
@@ -35,9 +35,12 @@ SECTIONS {
 	}
 
 	. = ALIGN (4) ;
-	_fdt_start = . ; /* place for fdt blob */
-	. = . + 0x4000;
-	_fdt_end = . ;
+	__fdt_blob : AT(ADDR(__fdt_blob) - LOAD_OFFSET) {
+		_fdt_start = . ;		/* place for fdt blob */
+		*(__fdt_blob) ;			/* Any link-placed DTB */
+	        . = _fdt_start + 0x4000;	/* Pad up to 16kbyte */
+		_fdt_end = . ;
+	}
 
 	. = ALIGN(16);
 	RODATA
@@ -47,7 +50,7 @@ SECTIONS {
 	 * sdata2 section can go anywhere, but must be word aligned
 	 * and SDA2_BASE must point to the middle of it
 	 */
-	.sdata2 : {
+	.sdata2 : AT(ADDR(.sdata2) - LOAD_OFFSET) {
 		_ssrw = .;
 		. = ALIGN(4096); /* page aligned when MMU used - origin 0x8 */
 		*(.sdata2)
@@ -68,12 +71,12 @@ SECTIONS {
 
 	/* Under the microblaze ABI, .sdata and .sbss must be contiguous */
 	. = ALIGN(8);
-	.sdata : {
+	.sdata : AT(ADDR(.sdata) - LOAD_OFFSET) {
 		_ssro = .;
 		*(.sdata)
 	}
 
-	.sbss :	{
+	.sbss :	AT(ADDR(.sbss) - LOAD_OFFSET) {
 		_ssbss = .;
 		*(.sbss)
 		_esbss = .;
@@ -86,26 +89,26 @@ SECTIONS {
 
 	INIT_TEXT_SECTION(PAGE_SIZE)
 
-	.init.data : {
+	.init.data : AT(ADDR(.init.data) - LOAD_OFFSET) {
 		INIT_DATA
 	}
 
 	. = ALIGN(4);
-	.init.ivt : {
+	.init.ivt : AT(ADDR(.init.ivt) - LOAD_OFFSET) {
 		__ivt_start = .;
 		*(.init.ivt)
 		__ivt_end = .;
 	}
 
-	.init.setup : {
+	.init.setup : AT(ADDR(.init.setup) - LOAD_OFFSET) {
 		INIT_SETUP(0)
 	}
 
-	.initcall.init : {
+	.initcall.init : AT(ADDR(.initcall.init) - LOAD_OFFSET ) {
 		INIT_CALLS
 	}
 
-	.con_initcall.init : {
+	.con_initcall.init : AT(ADDR(.con_initcall.init) - LOAD_OFFSET) {
 		CON_INITCALL
 	}
 
@@ -113,7 +116,7 @@ SECTIONS {
 
 	__init_end_before_initramfs = .;
 
-	.init.ramfs ALIGN(4096) : {
+	.init.ramfs ALIGN(4096) : AT(ADDR(.init.ramfs) - LOAD_OFFSET) {
 		__initramfs_start = .;
 		*(.init.ramfs)
 		__initramfs_end = .;
@@ -129,7 +132,8 @@ SECTIONS {
 	}
 	__init_end = .;
 
-	.bss ALIGN (4096) : { /* page aligned when MMU used */
+	.bss ALIGN (4096) : AT(ADDR(.bss) - LOAD_OFFSET) {
+		/* page aligned when MMU used */
 		__bss_start = . ;
 			*(.bss*)
 			*(COMMON)
