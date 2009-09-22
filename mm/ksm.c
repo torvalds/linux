@@ -1280,21 +1280,27 @@ static void ksm_do_scan(unsigned int scan_npages)
 	}
 }
 
+static int ksmd_should_run(void)
+{
+	return (ksm_run & KSM_RUN_MERGE) && !list_empty(&ksm_mm_head.mm_list);
+}
+
 static int ksm_scan_thread(void *nothing)
 {
 	set_user_nice(current, 5);
 
 	while (!kthread_should_stop()) {
-		if (ksm_run & KSM_RUN_MERGE) {
-			mutex_lock(&ksm_thread_mutex);
+		mutex_lock(&ksm_thread_mutex);
+		if (ksmd_should_run())
 			ksm_do_scan(ksm_thread_pages_to_scan);
-			mutex_unlock(&ksm_thread_mutex);
+		mutex_unlock(&ksm_thread_mutex);
+
+		if (ksmd_should_run()) {
 			schedule_timeout_interruptible(
 				msecs_to_jiffies(ksm_thread_sleep_millisecs));
 		} else {
 			wait_event_interruptible(ksm_thread_wait,
-					(ksm_run & KSM_RUN_MERGE) ||
-					kthread_should_stop());
+				ksmd_should_run() || kthread_should_stop());
 		}
 	}
 	return 0;
@@ -1339,9 +1345,15 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 
 int __ksm_enter(struct mm_struct *mm)
 {
-	struct mm_slot *mm_slot = alloc_mm_slot();
+	struct mm_slot *mm_slot;
+	int needs_wakeup;
+
+	mm_slot = alloc_mm_slot();
 	if (!mm_slot)
 		return -ENOMEM;
+
+	/* Check ksm_run too?  Would need tighter locking */
+	needs_wakeup = list_empty(&ksm_mm_head.mm_list);
 
 	spin_lock(&ksm_mmlist_lock);
 	insert_to_mm_slots_hash(mm, mm_slot);
@@ -1354,6 +1366,10 @@ int __ksm_enter(struct mm_struct *mm)
 	spin_unlock(&ksm_mmlist_lock);
 
 	set_bit(MMF_VM_MERGEABLE, &mm->flags);
+
+	if (needs_wakeup)
+		wake_up_interruptible(&ksm_thread_wait);
+
 	return 0;
 }
 
