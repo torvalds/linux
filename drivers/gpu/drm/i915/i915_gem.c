@@ -1431,6 +1431,14 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 
 	obj_priv = obj->driver_private;
 
+	if (obj_priv->madv != I915_MADV_WILLNEED) {
+		DRM_ERROR("Attempting to mmap a purgeable buffer\n");
+		drm_gem_object_unreference(obj);
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
+
 	if (!obj_priv->mmap_offset) {
 		ret = i915_gem_create_mmap_offset(obj);
 		if (ret) {
