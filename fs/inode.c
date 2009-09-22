@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/backing-dev.h>
 #include <linux/wait.h>
+#include <linux/rwsem.h>
 #include <linux/hash.h>
 #include <linux/swap.h>
 #include <linux/security.h>
@@ -87,14 +88,18 @@ static struct hlist_head *inode_hashtable __read_mostly;
 DEFINE_SPINLOCK(inode_lock);
 
 /*
- * iprune_mutex provides exclusion between the kswapd or try_to_free_pages
+ * iprune_sem provides exclusion between the kswapd or try_to_free_pages
  * icache shrinking path, and the umount path.  Without this exclusion,
  * by the time prune_icache calls iput for the inode whose pages it has
  * been invalidating, or by the time it calls clear_inode & destroy_inode
  * from its final dispose_list, the struct super_block they refer to
  * (for inode->i_sb->s_op) may already have been freed and reused.
+ *
+ * We make this an rwsem because the fastpath is icache shrinking. In
+ * some cases a filesystem may be doing a significant amount of work in
+ * its inode reclaim code, so this should improve parallelism.
  */
-static DEFINE_MUTEX(iprune_mutex);
+static DECLARE_RWSEM(iprune_sem);
 
 /*
  * Statistics gathering..
@@ -381,7 +386,7 @@ static int invalidate_list(struct list_head *head, struct list_head *dispose)
 		/*
 		 * We can reschedule here without worrying about the list's
 		 * consistency because the per-sb list of inodes must not
-		 * change during umount anymore, and because iprune_mutex keeps
+		 * change during umount anymore, and because iprune_sem keeps
 		 * shrink_icache_memory() away.
 		 */
 		cond_resched_lock(&inode_lock);
@@ -420,7 +425,7 @@ int invalidate_inodes(struct super_block *sb)
 	int busy;
 	LIST_HEAD(throw_away);
 
-	mutex_lock(&iprune_mutex);
+	down_write(&iprune_sem);
 	spin_lock(&inode_lock);
 	inotify_unmount_inodes(&sb->s_inodes);
 	fsnotify_unmount_inodes(&sb->s_inodes);
@@ -428,7 +433,7 @@ int invalidate_inodes(struct super_block *sb)
 	spin_unlock(&inode_lock);
 
 	dispose_list(&throw_away);
-	mutex_unlock(&iprune_mutex);
+	up_write(&iprune_sem);
 
 	return busy;
 }
@@ -467,7 +472,7 @@ static void prune_icache(int nr_to_scan)
 	int nr_scanned;
 	unsigned long reap = 0;
 
-	mutex_lock(&iprune_mutex);
+	down_read(&iprune_sem);
 	spin_lock(&inode_lock);
 	for (nr_scanned = 0; nr_scanned < nr_to_scan; nr_scanned++) {
 		struct inode *inode;
@@ -509,7 +514,7 @@ static void prune_icache(int nr_to_scan)
 	spin_unlock(&inode_lock);
 
 	dispose_list(&freeable);
-	mutex_unlock(&iprune_mutex);
+	up_read(&iprune_sem);
 }
 
 /*
