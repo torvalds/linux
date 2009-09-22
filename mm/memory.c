@@ -108,7 +108,7 @@ static int __init disable_randmaps(char *s)
 }
 __setup("norandmaps", disable_randmaps);
 
-static unsigned long zero_pfn __read_mostly;
+unsigned long zero_pfn __read_mostly;
 
 /*
  * CONFIG_MMU architectures set up ZERO_PAGE in their paging_init()
@@ -455,6 +455,20 @@ static inline int is_cow_mapping(unsigned int flags)
 	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
 }
 
+#ifndef is_zero_pfn
+static inline int is_zero_pfn(unsigned long pfn)
+{
+	return pfn == zero_pfn;
+}
+#endif
+
+#ifndef my_zero_pfn
+static inline unsigned long my_zero_pfn(unsigned long addr)
+{
+	return zero_pfn;
+}
+#endif
+
 /*
  * vm_normal_page -- This function gets the "struct page" associated with a pte.
  *
@@ -512,7 +526,7 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
 			goto check_pfn;
 		if (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP))
 			return NULL;
-		if (pfn != zero_pfn)
+		if (!is_zero_pfn(pfn))
 			print_bad_pte(vma, addr, pte, NULL);
 		return NULL;
 	}
@@ -534,6 +548,8 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
 		}
 	}
 
+	if (is_zero_pfn(pfn))
+		return NULL;
 check_pfn:
 	if (unlikely(pfn > highest_memmap_pfn)) {
 		print_bad_pte(vma, addr, pte, NULL);
@@ -1161,7 +1177,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 	page = vm_normal_page(vma, address, pte);
 	if (unlikely(!page)) {
 		if ((flags & FOLL_DUMP) ||
-		    pte_pfn(pte) != zero_pfn)
+		    !is_zero_pfn(pte_pfn(pte)))
 			goto bad_page;
 		page = pte_page(pte);
 	}
@@ -1443,10 +1459,6 @@ struct page *get_dump_page(unsigned long addr)
 	if (__get_user_pages(current, current->mm, addr, 1,
 			FOLL_FORCE | FOLL_DUMP | FOLL_GET, &page, &vma) < 1)
 		return NULL;
-	if (page == ZERO_PAGE(0)) {
-		page_cache_release(page);
-		return NULL;
-	}
 	flush_cache_page(vma, addr, page_to_pfn(page));
 	return page;
 }
@@ -1629,7 +1641,8 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
 	 * If we don't have pte special, then we have to use the pfn_valid()
 	 * based VM_MIXEDMAP scheme (see vm_normal_page), and thus we *must*
 	 * refcount the page if pfn_valid is true (hence insert_page rather
-	 * than insert_pfn).
+	 * than insert_pfn).  If a zero_pfn were inserted into a VM_MIXEDMAP
+	 * without pte special, it would there be refcounted as a normal page.
 	 */
 	if (!HAVE_PTE_SPECIAL && pfn_valid(pfn)) {
 		struct page *page;
@@ -2097,7 +2110,7 @@ gotten:
 	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
 
-	if (pte_pfn(orig_pte) == zero_pfn) {
+	if (is_zero_pfn(pte_pfn(orig_pte))) {
 		new_page = alloc_zeroed_user_highpage_movable(vma, address);
 		if (!new_page)
 			goto oom;
@@ -2658,8 +2671,9 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	spinlock_t *ptl;
 	pte_t entry;
 
-	if (HAVE_PTE_SPECIAL && !(flags & FAULT_FLAG_WRITE)) {
-		entry = pte_mkspecial(pfn_pte(zero_pfn, vma->vm_page_prot));
+	if (!(flags & FAULT_FLAG_WRITE)) {
+		entry = pte_mkspecial(pfn_pte(my_zero_pfn(address),
+						vma->vm_page_prot));
 		ptl = pte_lockptr(mm, pmd);
 		spin_lock(ptl);
 		if (!pte_none(*page_table))
