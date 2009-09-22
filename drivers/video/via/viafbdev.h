@@ -61,12 +61,6 @@ struct viafb_par {
 	struct lvds_setting_information *lvds_setting_info;
 	struct lvds_setting_information *lvds_setting_info2;
 	struct chip_information *chip_info;
-
-	/* some information related to video playing */
-	int video_on_crt;
-	int video_on_dvi;
-	int video_on_lcd;
-
 };
 
 extern unsigned int viafb_second_virtual_yres;

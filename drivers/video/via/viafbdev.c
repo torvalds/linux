@@ -36,9 +36,6 @@ static char *viafb_mode1 = "640x480";
 /* Added for specifying active devices.*/
 char *viafb_active_dev = "";
 
-/* Added for specifying video on devices.*/
-char *viafb_video_dev = "";
-
 /*Added for specify lcd output port*/
 char *viafb_lcd_port = "";
 char *viafb_dvi_port = "";
@@ -50,8 +47,6 @@ static void apply_second_mode_setting(struct fb_var_screeninfo
 	*sec_var);
 static void retrieve_device_setting(struct viafb_ioctl_setting
 	*setting_info);
-static void viafb_set_video_device(u32 video_dev_info);
-static void viafb_get_video_device(u32 *video_dev_info);
 
 static struct fb_ops viafb_ops;
 
@@ -488,7 +483,6 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 
 	u32 __user *argp = (u32 __user *) arg;
 	u32 gpu32;
-	u32 video_dev_info = 0;
 
 	DEBUG_MSG(KERN_INFO "viafb_ioctl: 0x%X !!\n", cmd);
 	memset(&u, 0, sizeof(u));
@@ -718,15 +712,6 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 	case VIAFB_GET_GAMMA_SUPPORT_STATE:
 		viafb_get_gamma_support_state(viafb_bpp, &state_info);
 		if (put_user(state_info, argp))
-			return -EFAULT;
-		break;
-	case VIAFB_SET_VIDEO_DEVICE:
-		get_user(video_dev_info, argp);
-		viafb_set_video_device(video_dev_info);
-		break;
-	case VIAFB_GET_VIDEO_DEVICE:
-		viafb_get_video_device(&video_dev_info);
-		if (put_user(video_dev_info, argp))
 			return -EFAULT;
 		break;
 	case VIAFB_SYNC_SURFACE:
@@ -1309,32 +1294,6 @@ static void viafb_set_device(struct device_t active_dev)
 	viafb_set_iga_path();
 }
 
-static void viafb_set_video_device(u32 video_dev_info)
-{
-	viaparinfo->video_on_crt = STATE_OFF;
-	viaparinfo->video_on_dvi = STATE_OFF;
-	viaparinfo->video_on_lcd = STATE_OFF;
-
-	/* Check available device to enable: */
-	if ((video_dev_info & CRT_Device) == CRT_Device)
-		viaparinfo->video_on_crt = STATE_ON;
-	else if ((video_dev_info & DVI_Device) == DVI_Device)
-		viaparinfo->video_on_dvi = STATE_ON;
-	else if ((video_dev_info & LCD_Device) == LCD_Device)
-		viaparinfo->video_on_lcd = STATE_ON;
-}
-
-static void viafb_get_video_device(u32 *video_dev_info)
-{
-	*video_dev_info = None_Device;
-	if (viaparinfo->video_on_crt == STATE_ON)
-		*video_dev_info |= CRT_Device;
-	else if (viaparinfo->video_on_dvi == STATE_ON)
-		*video_dev_info |= DVI_Device;
-	else if (viaparinfo->video_on_lcd == STATE_ON)
-		*video_dev_info |= LCD_Device;
-}
-
 static int get_primary_device(void)
 {
 	int primary_device = 0;
@@ -1506,18 +1465,6 @@ static void retrieve_device_setting(struct viafb_ioctl_setting
 		setting_info->device_status |= LCD_Device;
 	if (viafb_LCD2_ON == 1)
 		setting_info->device_status |= LCD2_Device;
-	if ((viaparinfo->video_on_crt == 1) && (viafb_CRT_ON == 1)) {
-		setting_info->video_device_status =
-			viaparinfo->crt_setting_info->iga_path;
-	} else if ((viaparinfo->video_on_dvi == 1) && (viafb_DVI_ON == 1)) {
-		setting_info->video_device_status =
-			viaparinfo->tmds_setting_info->iga_path;
-	} else if ((viaparinfo->video_on_lcd == 1) && (viafb_LCD_ON == 1)) {
-		setting_info->video_device_status =
-			viaparinfo->lvds_setting_info->iga_path;
-	} else {
-		setting_info->video_device_status = 0;
-	}
 
 	setting_info->samm_status = viafb_SAMM_ON;
 	setting_info->primary_device = get_primary_device();
@@ -1603,24 +1550,6 @@ static void parse_active_dev(void)
 	} else {
 		viafb_CRT_ON = STATE_ON;
 		viafb_SAMM_ON = STATE_OFF;
-	}
-}
-
-static void parse_video_dev(void)
-{
-	viaparinfo->video_on_crt = STATE_OFF;
-	viaparinfo->video_on_dvi = STATE_OFF;
-	viaparinfo->video_on_lcd = STATE_OFF;
-
-	if (!strncmp(viafb_video_dev, "CRT", 3)) {
-		/* Video on CRT */
-		viaparinfo->video_on_crt = STATE_ON;
-	} else if (!strncmp(viafb_video_dev, "DVI", 3)) {
-		/* Video on DVI */
-		viaparinfo->video_on_dvi = STATE_ON;
-	} else if (!strncmp(viafb_video_dev, "LCD", 3)) {
-		/* Video on LCD */
-		viaparinfo->video_on_lcd = STATE_ON;
 	}
 }
 
@@ -2054,7 +1983,6 @@ static int __devinit via_pci_probe(void)
 	if (viafb_dual_fb)
 		viafb_SAMM_ON = 1;
 	parse_active_dev();
-	parse_video_dev();
 	parse_lcd_port();
 	parse_dvi_port();
 
@@ -2354,8 +2282,6 @@ static int __init viafb_setup(char *options)
 		else if (!strncmp(this_opt, "viafb_lcd_mode=", 15))
 			strict_strtoul(this_opt + 15, 0,
 				(unsigned long *)&viafb_lcd_mode);
-		else if (!strncmp(this_opt, "viafb_video_dev=", 16))
-			viafb_video_dev = kstrdup(this_opt + 16, GFP_KERNEL);
 		else if (!strncmp(this_opt, "viafb_lcd_port=", 15))
 			viafb_lcd_port = kstrdup(this_opt + 15, GFP_KERNEL);
 		else if (!strncmp(this_opt, "viafb_dvi_port=", 15))
@@ -2475,9 +2401,6 @@ MODULE_PARM_DESC(viafb_bus_width,
 module_param(viafb_lcd_mode, int, 0);
 MODULE_PARM_DESC(viafb_lcd_mode,
 	"Set Flat Panel mode(Default=OPENLDI)");
-
-module_param(viafb_video_dev, charp, 0);
-MODULE_PARM_DESC(viafb_video_dev, "Specify video devices.");
 
 module_param(viafb_lcd_port, charp, 0);
 MODULE_PARM_DESC(viafb_lcd_port, "Specify LCD output port.");
