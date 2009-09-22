@@ -21,22 +21,6 @@
 
 #include "global.h"
 
-static const struct pci_device_id_info pciidlist[] = {
-	{PCI_VIA_VENDOR_ID, UNICHROME_CLE266_DID, UNICHROME_CLE266},
-	{PCI_VIA_VENDOR_ID, UNICHROME_PM800_DID, UNICHROME_PM800},
-	{PCI_VIA_VENDOR_ID, UNICHROME_K400_DID, UNICHROME_K400},
-	{PCI_VIA_VENDOR_ID, UNICHROME_K800_DID, UNICHROME_K800},
-	{PCI_VIA_VENDOR_ID, UNICHROME_CN700_DID, UNICHROME_CN700},
-	{PCI_VIA_VENDOR_ID, UNICHROME_P4M890_DID, UNICHROME_P4M890},
-	{PCI_VIA_VENDOR_ID, UNICHROME_K8M890_DID, UNICHROME_K8M890},
-	{PCI_VIA_VENDOR_ID, UNICHROME_CX700_DID, UNICHROME_CX700},
-	{PCI_VIA_VENDOR_ID, UNICHROME_P4M900_DID, UNICHROME_P4M900},
-	{PCI_VIA_VENDOR_ID, UNICHROME_CN750_DID, UNICHROME_CN750},
-	{PCI_VIA_VENDOR_ID, UNICHROME_VX800_DID, UNICHROME_VX800},
-	{PCI_VIA_VENDOR_ID, UNICHROME_VX855_DID, UNICHROME_VX855},
-	{0, 0, 0}
-};
-
 static struct pll_map pll_value[] = {
 	{CLK_25_175M, CLE266_PLL_25_175M, K800_PLL_25_175M,
 	 CX700_25_175M, VX855_25_175M},
@@ -542,7 +526,8 @@ static void set_dvi_output_path(int set_iga, int output_interface);
 static void set_lcd_output_path(int set_iga, int output_interface);
 static int search_mode_setting(int ModeInfoIndex);
 static void load_fix_bit_crtc_reg(void);
-static void init_gfx_chip_info(void);
+static void init_gfx_chip_info(struct pci_dev *pdev,
+				const struct pci_device_id *pdi);
 static void init_tmds_chip_info(void);
 static void init_lvds_chip_info(void);
 static void device_screen_off(void);
@@ -552,7 +537,6 @@ static void device_off(void);
 static void device_on(void);
 static void enable_second_display_channel(void);
 static void disable_second_display_channel(void);
-static int get_fb_size_from_pci(void);
 
 void viafb_write_reg(u8 index, u16 io_port, u8 data)
 {
@@ -1937,9 +1921,10 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 
 }
 
-void viafb_init_chip_info(void)
+void viafb_init_chip_info(struct pci_dev *pdev,
+			  const struct pci_device_id *pdi)
 {
-	init_gfx_chip_info();
+	init_gfx_chip_info(pdev, pdi);
 	init_tmds_chip_info();
 	init_lvds_chip_info();
 
@@ -2012,24 +1997,12 @@ void viafb_update_device_setting(int hres, int vres,
 	}
 }
 
-static void init_gfx_chip_info(void)
+static void init_gfx_chip_info(struct pci_dev *pdev,
+			       const struct pci_device_id *pdi)
 {
-	struct pci_dev *pdev = NULL;
-	u32 i;
 	u8 tmp;
 
-	/* Indentify GFX Chip Name */
-	for (i = 0; pciidlist[i].vendor != 0; i++) {
-		pdev = pci_get_device(pciidlist[i].vendor,
-			pciidlist[i].device, 0);
-		if (pdev)
-			break;
-	}
-
-	if (!pciidlist[i].vendor)
-		return ;
-
-	viaparinfo->chip_info->gfx_chip_name = pciidlist[i].chip_index;
+	viaparinfo->chip_info->gfx_chip_name = pdi->driver_data;
 
 	/* Check revision of CLE266 Chip */
 	if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266) {
@@ -2060,8 +2033,6 @@ static void init_gfx_chip_info(void)
 				CX700_REVISION_700;
 		}
 	}
-
-	pci_dev_put(pdev);
 }
 
 static void init_tmds_chip_info(void)
@@ -2554,37 +2525,6 @@ void viafb_crt_enable(void)
 	viafb_write_reg_mask(CR36, VIACR, 0x0, BIT5 + BIT4);
 }
 
-void viafb_get_mmio_info(unsigned long *mmio_base, u32 *mmio_len)
-{
-	struct pci_dev *pdev = NULL;
-	u32 vendor, device;
-	u32 i;
-
-	for (i = 0; pciidlist[i].vendor != 0; i++)
-		if (viaparinfo->chip_info->gfx_chip_name ==
-			pciidlist[i].chip_index)
-			break;
-
-	if (!pciidlist[i].vendor)
-		return ;
-
-	vendor = pciidlist[i].vendor;
-	device = pciidlist[i].device;
-
-	pdev = pci_get_device(vendor, device, NULL);
-
-	if (!pdev) {
-		*mmio_base = 0;
-		*mmio_len = 0;
-		return ;
-	}
-
-	*mmio_base = pci_resource_start(pdev, 1);
-	*mmio_len = pci_resource_len(pdev, 1);
-
-	pci_dev_put(pdev);
-}
-
 static void enable_second_display_channel(void)
 {
 	/* to enable second display channel. */
@@ -2601,44 +2541,7 @@ static void disable_second_display_channel(void)
 	viafb_write_reg_mask(CR6A, VIACR, BIT6, BIT6);
 }
 
-void viafb_get_fb_info(unsigned int *fb_base, unsigned int *fb_len)
-{
-	struct pci_dev *pdev = NULL;
-	u32 vendor, device;
-	u32 i;
-
-	for (i = 0; pciidlist[i].vendor != 0; i++)
-		if (viaparinfo->chip_info->gfx_chip_name ==
-			pciidlist[i].chip_index)
-			break;
-
-	if (!pciidlist[i].vendor)
-		return ;
-
-	vendor = pciidlist[i].vendor;
-	device = pciidlist[i].device;
-
-	pdev = pci_get_device(vendor, device, NULL);
-
-	if (!pdev) {
-		*fb_base = viafb_read_reg(VIASR, SR30) << 24;
-		*fb_len = viafb_get_memsize();
-		DEBUG_MSG(KERN_INFO "Get FB info from SR30!\n");
-		DEBUG_MSG(KERN_INFO "fb_base = %08x\n", *fb_base);
-		DEBUG_MSG(KERN_INFO "fb_len = %08x\n", *fb_len);
-		return ;
-	}
-
-	*fb_base = (unsigned int)pci_resource_start(pdev, 0);
-	*fb_len = get_fb_size_from_pci();
-	DEBUG_MSG(KERN_INFO "Get FB info from PCI system!\n");
-	DEBUG_MSG(KERN_INFO "fb_base = %08x\n", *fb_base);
-	DEBUG_MSG(KERN_INFO "fb_len = %08x\n", *fb_len);
-
-	pci_dev_put(pdev);
-}
-
-static int get_fb_size_from_pci(void)
+int viafb_get_fb_size_from_pci(void)
 {
 	unsigned long configid, deviceid, FBSize = 0;
 	int VideoMemSize;
