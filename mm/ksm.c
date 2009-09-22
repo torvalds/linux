@@ -32,7 +32,6 @@
 #include <linux/mmu_notifier.h>
 #include <linux/ksm.h>
 
-#include <asm/tlb.h>
 #include <asm/tlbflush.h>
 
 /*
@@ -282,6 +281,19 @@ static void insert_to_mm_slots_hash(struct mm_struct *mm,
 static inline int in_stable_tree(struct rmap_item *rmap_item)
 {
 	return rmap_item->address & STABLE_FLAG;
+}
+
+/*
+ * ksmd, and unmerge_and_remove_all_rmap_items(), must not touch an mm's
+ * page tables after it has passed through ksm_exit() - which, if necessary,
+ * takes mmap_sem briefly to serialize against them.  ksm_exit() does not set
+ * a special flag: they can just back out as soon as mm_users goes to zero.
+ * ksm_test_exit() is used throughout to make this test for exit: in some
+ * places for correctness, in some places just to avoid unnecessary work.
+ */
+static inline bool ksm_test_exit(struct mm_struct *mm)
+{
+	return atomic_read(&mm->mm_users) == 0;
 }
 
 /*

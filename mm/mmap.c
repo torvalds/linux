@@ -27,7 +27,6 @@
 #include <linux/mount.h>
 #include <linux/mempolicy.h>
 #include <linux/rmap.h>
-#include <linux/ksm.h>
 #include <linux/mmu_notifier.h>
 #include <linux/perf_event.h>
 
