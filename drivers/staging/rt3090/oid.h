@@ -679,18 +679,6 @@ typedef struct _NDIS_802_11_CAPABILITY
 #define RT_PRIV_IOCTL							(SIOCIWFIRSTPRIV + 0x01) // Sync. with AP for wsc upnp daemon
 #define RTPRIV_IOCTL_SET							(SIOCIWFIRSTPRIV + 0x02)
 
-#ifdef DBG
-#define RTPRIV_IOCTL_BBP                            (SIOCIWFIRSTPRIV + 0x03)
-#define RTPRIV_IOCTL_MAC                            (SIOCIWFIRSTPRIV + 0x05)
-
-#ifdef RTMP_RF_RW_SUPPORT
-// TODO: shiang, Need to reassign the oid number. ArchTeam use (SIOCIWFIRSTPRIV + 0x19) for this oid
-#define RTPRIV_IOCTL_RF                             (SIOCIWFIRSTPRIV + 0x13)  // edit by johnli, fix read rf register problem
-#endif // RTMP_RF_RW_SUPPORT //
-
-#define RTPRIV_IOCTL_E2P                            (SIOCIWFIRSTPRIV + 0x07)
-#endif // DBG //
-
 #ifdef RALINK_ATE
 #ifdef RALINK_28xx_QA
 #define RTPRIV_IOCTL_ATE							(SIOCIWFIRSTPRIV + 0x08)
