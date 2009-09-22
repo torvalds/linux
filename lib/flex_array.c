@@ -113,6 +113,8 @@ struct flex_array *flex_array_alloc(int element_size, unsigned int total,
 		return NULL;
 	ret->element_size = element_size;
 	ret->total_nr_elements = total;
+	if (elements_fit_in_base(ret) && !(flags & __GFP_ZERO))
+		memset(ret->parts[0], FLEX_ARRAY_FREE, bytes_left_in_base());
 	return ret;
 }
 
@@ -159,15 +161,12 @@ __fa_get_part(struct flex_array *fa, int part_nr, gfp_t flags)
 {
 	struct flex_array_part *part = fa->parts[part_nr];
 	if (!part) {
-		/*
-		 * This leaves the part pages uninitialized
-		 * and with potentially random data, just
-		 * as if the user had kmalloc()'d the whole.
-		 * __GFP_ZERO can be used to zero it.
-		 */
-		part = kmalloc(FLEX_ARRAY_PART_SIZE, flags);
+		part = kmalloc(sizeof(struct flex_array_part), flags);
 		if (!part)
 			return NULL;
+		if (!(flags & __GFP_ZERO))
+			memset(part, FLEX_ARRAY_FREE,
+				sizeof(struct flex_array_part));
 		fa->parts[part_nr] = part;
 	}
 	return part;
@@ -228,7 +227,7 @@ int flex_array_clear(struct flex_array *fa, unsigned int element_nr)
 			return -EINVAL;
 	}
 	dst = &part->elements[index_inside_part(fa, element_nr)];
-	memset(dst, 0, fa->element_size);
+	memset(dst, FLEX_ARRAY_FREE, fa->element_size);
 	return 0;
 }
 
