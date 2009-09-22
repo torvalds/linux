@@ -1,5 +1,5 @@
 # Support ATE function
-HAS_ATE=y
+HAS_ATE=n
 
 # Support 28xx QA ATE function
 HAS_28xx_QA=n
