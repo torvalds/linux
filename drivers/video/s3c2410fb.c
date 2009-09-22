@@ -369,7 +369,9 @@ static void s3c2410fb_activate_var(struct fb_info *info)
 	void __iomem *regs = fbi->io;
 	int type = fbi->regs.lcdcon1 & S3C2410_LCDCON1_TFT;
 	struct fb_var_screeninfo *var = &info->var;
-	int clkdiv = s3c2410fb_calc_pixclk(fbi, var->pixclock) / 2;
+	int clkdiv;
+
+	clkdiv = DIV_ROUND_UP(s3c2410fb_calc_pixclk(fbi, var->pixclock), 2);
 
 	dprintk("%s: var->xres  = %d\n", __func__, var->xres);
 	dprintk("%s: var->yres  = %d\n", __func__, var->yres);
