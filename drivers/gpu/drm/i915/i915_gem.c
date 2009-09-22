@@ -1470,6 +1470,7 @@ i915_gem_object_put_pages(struct drm_gem_object *obj)
 	int i;
 
 	BUG_ON(obj_priv->pages_refcount == 0);
+	BUG_ON(obj_priv->madv == __I915_MADV_PURGED);
 
 	if (--obj_priv->pages_refcount != 0)
 		return;
@@ -1534,11 +1535,14 @@ i915_gem_object_move_to_flushing(struct drm_gem_object *obj)
 static void
 i915_gem_object_truncate(struct drm_gem_object *obj)
 {
-    struct inode *inode;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct inode *inode;
 
-    inode = obj->filp->f_path.dentry->d_inode;
-    if (inode->i_op->truncate)
-	    inode->i_op->truncate (inode);
+	inode = obj->filp->f_path.dentry->d_inode;
+	if (inode->i_op->truncate)
+		inode->i_op->truncate (inode);
+
+	obj_priv->madv = __I915_MADV_PURGED;
 }
 
 static inline int
@@ -2559,7 +2563,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	if (dev_priv->mm.suspended)
 		return -EBUSY;
 
-	if (obj_priv->madv == I915_MADV_DONTNEED) {
+	if (obj_priv->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to bind a purgeable object\n");
 		return -EINVAL;
 	}
@@ -3928,8 +3932,8 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	}
 	obj_priv = obj->driver_private;
 
-	if (obj_priv->madv == I915_MADV_DONTNEED) {
-		DRM_ERROR("Attempting to pin a I915_MADV_DONTNEED buffer\n");
+	if (obj_priv->madv != I915_MADV_WILLNEED) {
+		DRM_ERROR("Attempting to pin a purgeable buffer\n");
 		drm_gem_object_unreference(obj);
 		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
@@ -4081,13 +4085,15 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	obj_priv->madv = args->madv;
-	args->retained = obj_priv->gtt_space != NULL;
+	if (obj_priv->madv != __I915_MADV_PURGED)
+		obj_priv->madv = args->madv;
 
 	/* if the object is no longer bound, discard its backing storage */
 	if (i915_gem_object_is_purgeable(obj_priv) &&
 	    obj_priv->gtt_space == NULL)
 		i915_gem_object_truncate(obj);
+
+	args->retained = obj_priv->madv != __I915_MADV_PURGED;
 
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
