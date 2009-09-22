@@ -683,7 +683,7 @@ static int lockres_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static struct seq_operations debug_lockres_ops = {
+static const struct seq_operations debug_lockres_ops = {
 	.start =	lockres_seq_start,
 	.stop =		lockres_seq_stop,
 	.next =		lockres_seq_next,

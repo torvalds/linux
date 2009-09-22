@@ -2314,7 +2314,7 @@ static int cgroup_tasks_show(struct seq_file *s, void *v)
 	return seq_printf(s, "%d\n", *(int *)v);
 }
 
-static struct seq_operations cgroup_tasks_seq_operations = {
+static const struct seq_operations cgroup_tasks_seq_operations = {
 	.start = cgroup_tasks_start,
 	.stop = cgroup_tasks_stop,
 	.next = cgroup_tasks_next,

@@ -60,7 +60,7 @@ extern spinlock_t		nfsd_drc_lock;
 extern unsigned int		nfsd_drc_max_mem;
 extern unsigned int		nfsd_drc_mem_used;
 
-extern struct seq_operations nfs_exports_op;
+extern const struct seq_operations nfs_exports_op;
 
 /*
  * Function prototypes.

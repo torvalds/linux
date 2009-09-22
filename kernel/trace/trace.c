@@ -1949,7 +1949,7 @@ static int s_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations tracer_seq_ops = {
+static const struct seq_operations tracer_seq_ops = {
 	.start		= s_start,
 	.next		= s_next,
 	.stop		= s_stop,
@@ -2163,7 +2163,7 @@ static int t_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations show_traces_seq_ops = {
+static const struct seq_operations show_traces_seq_ops = {
 	.start		= t_start,
 	.next		= t_next,
 	.stop		= t_stop,

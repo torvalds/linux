@@ -363,7 +363,7 @@ static void cciss_seq_stop(struct seq_file *seq, void *v)
 	h->busy_configuring = 0;
 }
 
-static struct seq_operations cciss_seq_ops = {
+static const struct seq_operations cciss_seq_ops = {
 	.start = cciss_seq_start,
 	.show  = cciss_seq_show,
 	.next  = cciss_seq_next,
