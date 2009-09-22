@@ -33,7 +33,11 @@
 #define DAC1064_OPT_MDIV2	0x00
 #define DAC1064_OPT_RESERVED	0x10
 
-static void DAC1064_calcclock(CPMINFO unsigned int freq, unsigned int fmax, unsigned int* in, unsigned int* feed, unsigned int* post) {
+static void DAC1064_calcclock(const struct matrox_fb_info *minfo,
+			      unsigned int freq, unsigned int fmax,
+			      unsigned int *in, unsigned int *feed,
+			      unsigned int *post)
+{
 	unsigned int fvco;
 	unsigned int p;
 
@@ -41,7 +45,7 @@ static void DAC1064_calcclock(CPMINFO unsigned int freq, unsigned int fmax, unsi
 	
 	/* only for devices older than G450 */
 
-	fvco = PLL_calcclock(PMINFO freq, fmax, in, feed, &p);
+	fvco = PLL_calcclock(minfo, freq, fmax, in, feed, &p);
 	
 	p = (1 << p) - 1;
 	if (fvco <= 100000)
@@ -80,18 +84,21 @@ static const unsigned char MGA1064_DAC[] = {
 		0x00,
 		0x00, 0x00, 0xFF, 0xFF};
 
-static void DAC1064_setpclk(WPMINFO unsigned long fout) {
+static void DAC1064_setpclk(struct matrox_fb_info *minfo, unsigned long fout)
+{
 	unsigned int m, n, p;
 
 	DBG(__func__)
 
-	DAC1064_calcclock(PMINFO fout, minfo->max_pixel_clock, &m, &n, &p);
+	DAC1064_calcclock(minfo, fout, minfo->max_pixel_clock, &m, &n, &p);
 	minfo->hw.DACclk[0] = m;
 	minfo->hw.DACclk[1] = n;
 	minfo->hw.DACclk[2] = p;
 }
 
-static void DAC1064_setmclk(WPMINFO int oscinfo, unsigned long fmem) {
+static void DAC1064_setmclk(struct matrox_fb_info *minfo, int oscinfo,
+			    unsigned long fmem)
+{
 	u_int32_t mx;
 	struct matrox_hw_state *hw = &minfo->hw;
 
@@ -99,9 +106,9 @@ static void DAC1064_setmclk(WPMINFO int oscinfo, unsigned long fmem) {
 
 	if (minfo->devflags.noinit) {
 		/* read MCLK and give up... */
-		hw->DACclk[3] = inDAC1064(PMINFO DAC1064_XSYSPLLM);
-		hw->DACclk[4] = inDAC1064(PMINFO DAC1064_XSYSPLLN);
-		hw->DACclk[5] = inDAC1064(PMINFO DAC1064_XSYSPLLP);
+		hw->DACclk[3] = inDAC1064(minfo, DAC1064_XSYSPLLM);
+		hw->DACclk[4] = inDAC1064(minfo, DAC1064_XSYSPLLN);
+		hw->DACclk[5] = inDAC1064(minfo, DAC1064_XSYSPLLP);
 		return;
 	}
 	mx = hw->MXoptionReg | 0x00000004;
@@ -131,12 +138,12 @@ static void DAC1064_setmclk(WPMINFO int oscinfo, unsigned long fmem) {
 		   perfect... */
 		/* (bit 2 of PCI_OPTION_REG must be 0... and bits 0,1 must not
 		   select PLL... because of PLL can be stopped at this time) */
-		DAC1064_calcclock(PMINFO fmem, minfo->max_pixel_clock, &m, &n, &p);
-		outDAC1064(PMINFO DAC1064_XSYSPLLM, hw->DACclk[3] = m);
-		outDAC1064(PMINFO DAC1064_XSYSPLLN, hw->DACclk[4] = n);
-		outDAC1064(PMINFO DAC1064_XSYSPLLP, hw->DACclk[5] = p);
+		DAC1064_calcclock(minfo, fmem, minfo->max_pixel_clock, &m, &n, &p);
+		outDAC1064(minfo, DAC1064_XSYSPLLM, hw->DACclk[3] = m);
+		outDAC1064(minfo, DAC1064_XSYSPLLN, hw->DACclk[4] = n);
+		outDAC1064(minfo, DAC1064_XSYSPLLP, hw->DACclk[5] = p);
 		for (clk = 65536; clk; --clk) {
-			if (inDAC1064(PMINFO DAC1064_XSYSPLLSTAT) & 0x40)
+			if (inDAC1064(minfo, DAC1064_XSYSPLLSTAT) & 0x40)
 				break;
 		}
 		if (!clk)
@@ -154,7 +161,8 @@ static void DAC1064_setmclk(WPMINFO int oscinfo, unsigned long fmem) {
 }
 
 #ifdef CONFIG_FB_MATROX_G
-static void g450_set_plls(WPMINFO2) {
+static void g450_set_plls(struct matrox_fb_info *minfo)
+{
 	u_int32_t c2_ctl;
 	unsigned int pxc;
 	struct matrox_hw_state *hw = &minfo->hw;
@@ -184,16 +192,16 @@ static void g450_set_plls(WPMINFO2) {
 		c2_ctl |=  0x0006;	/* Use video PLL */
 		hw->DACreg[POS1064_XPWRCTRL] |= 0x02;
 		
-		outDAC1064(PMINFO M1064_XPWRCTRL, hw->DACreg[POS1064_XPWRCTRL]);
-		matroxfb_g450_setpll_cond(PMINFO videomnp, M_VIDEO_PLL);
+		outDAC1064(minfo, M1064_XPWRCTRL, hw->DACreg[POS1064_XPWRCTRL]);
+		matroxfb_g450_setpll_cond(minfo, videomnp, M_VIDEO_PLL);
 	}
 
 	hw->DACreg[POS1064_XPIXCLKCTRL] &= ~M1064_XPIXCLKCTRL_PLL_UP;
 	if (pixelmnp >= 0) {
 		hw->DACreg[POS1064_XPIXCLKCTRL] |= M1064_XPIXCLKCTRL_PLL_UP;
 		
-		outDAC1064(PMINFO M1064_XPIXCLKCTRL, hw->DACreg[POS1064_XPIXCLKCTRL]);
-		matroxfb_g450_setpll_cond(PMINFO pixelmnp, M_PIXEL_PLL_C);
+		outDAC1064(minfo, M1064_XPIXCLKCTRL, hw->DACreg[POS1064_XPIXCLKCTRL]);
+		matroxfb_g450_setpll_cond(minfo, pixelmnp, M_PIXEL_PLL_C);
 	}
 	if (c2_ctl != hw->crtc2.ctl) {
 		hw->crtc2.ctl = c2_ctl;
@@ -245,7 +253,8 @@ static void g450_set_plls(WPMINFO2) {
 }
 #endif
 
-void DAC1064_global_init(WPMINFO2) {
+void DAC1064_global_init(struct matrox_fb_info *minfo)
+{
 	struct matrox_hw_state *hw = &minfo->hw;
 
 	hw->DACreg[POS1064_XMISCCTRL] &= M1064_XMISCCTRL_DAC_WIDTHMASK;
@@ -299,7 +308,7 @@ void DAC1064_global_init(WPMINFO2) {
 				break;
 		}
 		/* Now set timming related variables... */
-		g450_set_plls(PMINFO2);
+		g450_set_plls(minfo);
 	} else
 #endif
 	{
@@ -318,24 +327,26 @@ void DAC1064_global_init(WPMINFO2) {
 	}
 }
 
-void DAC1064_global_restore(WPMINFO2) {
+void DAC1064_global_restore(struct matrox_fb_info *minfo)
+{
 	struct matrox_hw_state *hw = &minfo->hw;
 
-	outDAC1064(PMINFO M1064_XPIXCLKCTRL, hw->DACreg[POS1064_XPIXCLKCTRL]);
-	outDAC1064(PMINFO M1064_XMISCCTRL, hw->DACreg[POS1064_XMISCCTRL]);
+	outDAC1064(minfo, M1064_XPIXCLKCTRL, hw->DACreg[POS1064_XPIXCLKCTRL]);
+	outDAC1064(minfo, M1064_XMISCCTRL, hw->DACreg[POS1064_XMISCCTRL]);
 	if (minfo->devflags.accelerator == FB_ACCEL_MATROX_MGAG400) {
-		outDAC1064(PMINFO 0x20, 0x04);
-		outDAC1064(PMINFO 0x1F, minfo->devflags.dfp_type);
+		outDAC1064(minfo, 0x20, 0x04);
+		outDAC1064(minfo, 0x1F, minfo->devflags.dfp_type);
 		if (minfo->devflags.g450dac) {
-			outDAC1064(PMINFO M1064_XSYNCCTRL, 0xCC);
-			outDAC1064(PMINFO M1064_XPWRCTRL, hw->DACreg[POS1064_XPWRCTRL]);
-			outDAC1064(PMINFO M1064_XPANMODE, hw->DACreg[POS1064_XPANMODE]);
-			outDAC1064(PMINFO M1064_XOUTPUTCONN, hw->DACreg[POS1064_XOUTPUTCONN]);
+			outDAC1064(minfo, M1064_XSYNCCTRL, 0xCC);
+			outDAC1064(minfo, M1064_XPWRCTRL, hw->DACreg[POS1064_XPWRCTRL]);
+			outDAC1064(minfo, M1064_XPANMODE, hw->DACreg[POS1064_XPANMODE]);
+			outDAC1064(minfo, M1064_XOUTPUTCONN, hw->DACreg[POS1064_XOUTPUTCONN]);
 		}
 	}
 }
 
-static int DAC1064_init_1(WPMINFO struct my_timming* m) {
+static int DAC1064_init_1(struct matrox_fb_info *minfo, struct my_timming *m)
+{
 	struct matrox_hw_state *hw = &minfo->hw;
 
 	DBG(__func__)
@@ -367,11 +378,12 @@ static int DAC1064_init_1(WPMINFO struct my_timming* m) {
 	hw->DACreg[POS1064_XCURADDL] = 0;
 	hw->DACreg[POS1064_XCURADDH] = 0;
 
-	DAC1064_global_init(PMINFO2);
+	DAC1064_global_init(minfo);
 	return 0;
 }
 
-static int DAC1064_init_2(WPMINFO struct my_timming* m) {
+static int DAC1064_init_2(struct matrox_fb_info *minfo, struct my_timming *m)
+{
 	struct matrox_hw_state *hw = &minfo->hw;
 
 	DBG(__func__)
@@ -413,7 +425,8 @@ static int DAC1064_init_2(WPMINFO struct my_timming* m) {
 	return 0;
 }
 
-static void DAC1064_restore_1(WPMINFO2) {
+static void DAC1064_restore_1(struct matrox_fb_info *minfo)
+{
 	struct matrox_hw_state *hw = &minfo->hw;
 
 	CRITFLAGS
@@ -422,28 +435,29 @@ static void DAC1064_restore_1(WPMINFO2) {
 
 	CRITBEGIN
 
-	if ((inDAC1064(PMINFO DAC1064_XSYSPLLM) != hw->DACclk[3]) ||
-	    (inDAC1064(PMINFO DAC1064_XSYSPLLN) != hw->DACclk[4]) ||
-	    (inDAC1064(PMINFO DAC1064_XSYSPLLP) != hw->DACclk[5])) {
-		outDAC1064(PMINFO DAC1064_XSYSPLLM, hw->DACclk[3]);
-		outDAC1064(PMINFO DAC1064_XSYSPLLN, hw->DACclk[4]);
-		outDAC1064(PMINFO DAC1064_XSYSPLLP, hw->DACclk[5]);
+	if ((inDAC1064(minfo, DAC1064_XSYSPLLM) != hw->DACclk[3]) ||
+	    (inDAC1064(minfo, DAC1064_XSYSPLLN) != hw->DACclk[4]) ||
+	    (inDAC1064(minfo, DAC1064_XSYSPLLP) != hw->DACclk[5])) {
+		outDAC1064(minfo, DAC1064_XSYSPLLM, hw->DACclk[3]);
+		outDAC1064(minfo, DAC1064_XSYSPLLN, hw->DACclk[4]);
+		outDAC1064(minfo, DAC1064_XSYSPLLP, hw->DACclk[5]);
 	}
 	{
 		unsigned int i;
 
 		for (i = 0; i < sizeof(MGA1064_DAC_regs); i++) {
 			if ((i != POS1064_XPIXCLKCTRL) && (i != POS1064_XMISCCTRL))
-				outDAC1064(PMINFO MGA1064_DAC_regs[i], hw->DACreg[i]);
+				outDAC1064(minfo, MGA1064_DAC_regs[i], hw->DACreg[i]);
 		}
 	}
 
-	DAC1064_global_restore(PMINFO2);
+	DAC1064_global_restore(minfo);
 
 	CRITEND
 };
 
-static void DAC1064_restore_2(WPMINFO2) {
+static void DAC1064_restore_2(struct matrox_fb_info *minfo)
+{
 #ifdef DEBUG
 	unsigned int i;
 #endif
@@ -470,14 +484,14 @@ static int m1064_compute(void* out, struct my_timming* m) {
 		int tmout;
 		CRITFLAGS
 
-		DAC1064_setpclk(PMINFO m->pixclock);
+		DAC1064_setpclk(minfo, m->pixclock);
 
 		CRITBEGIN
 
 		for (i = 0; i < 3; i++)
-			outDAC1064(PMINFO M1064_XPIXPLLCM + i, minfo->hw.DACclk[i]);
+			outDAC1064(minfo, M1064_XPIXPLLCM + i, minfo->hw.DACclk[i]);
 		for (tmout = 500000; tmout; tmout--) {
-			if (inDAC1064(PMINFO M1064_XPIXPLLSTAT) & 0x40)
+			if (inDAC1064(minfo, M1064_XPIXPLLSTAT) & 0x40)
 				break;
 			udelay(10);
 		};
@@ -500,9 +514,9 @@ static struct matrox_altout m1064 = {
 static int g450_compute(void* out, struct my_timming* m) {
 #define minfo ((struct matrox_fb_info*)out)
 	if (m->mnp < 0) {
-		m->mnp = matroxfb_g450_setclk(PMINFO m->pixclock, (m->crtc == MATROXFB_SRC_CRTC1) ? M_PIXEL_PLL_C : M_VIDEO_PLL);
+		m->mnp = matroxfb_g450_setclk(minfo, m->pixclock, (m->crtc == MATROXFB_SRC_CRTC1) ? M_PIXEL_PLL_C : M_VIDEO_PLL);
 		if (m->mnp >= 0) {
-			m->pixclock = g450_mnp2f(PMINFO m->mnp);
+			m->pixclock = g450_mnp2f(minfo, m->mnp);
 		}
 	}
 #undef minfo
@@ -518,13 +532,14 @@ static struct matrox_altout g450out = {
 #endif /* NEED_DAC1064 */
 
 #ifdef CONFIG_FB_MATROX_MYSTIQUE
-static int MGA1064_init(WPMINFO struct my_timming* m) {
+static int MGA1064_init(struct matrox_fb_info *minfo, struct my_timming *m)
+{
 	struct matrox_hw_state *hw = &minfo->hw;
 
 	DBG(__func__)
 
-	if (DAC1064_init_1(PMINFO m)) return 1;
-	if (matroxfb_vgaHWinit(PMINFO m)) return 1;
+	if (DAC1064_init_1(minfo, m)) return 1;
+	if (matroxfb_vgaHWinit(minfo, m)) return 1;
 
 	hw->MiscOutReg = 0xCB;
 	if (m->sync & FB_SYNC_HOR_HIGH_ACT)
@@ -534,20 +549,21 @@ static int MGA1064_init(WPMINFO struct my_timming* m) {
 	if (m->sync & FB_SYNC_COMP_HIGH_ACT) /* should be only FB_SYNC_COMP */
 		hw->CRTCEXT[3] |= 0x40;
 
-	if (DAC1064_init_2(PMINFO m)) return 1;
+	if (DAC1064_init_2(minfo, m)) return 1;
 	return 0;
 }
 #endif
 
 #ifdef CONFIG_FB_MATROX_G
-static int MGAG100_init(WPMINFO struct my_timming* m) {
+static int MGAG100_init(struct matrox_fb_info *minfo, struct my_timming *m)
+{
 	struct matrox_hw_state *hw = &minfo->hw;
 
 	DBG(__func__)
 
-	if (DAC1064_init_1(PMINFO m)) return 1;
+	if (DAC1064_init_1(minfo, m)) return 1;
 	hw->MXoptionReg &= ~0x2000;
-	if (matroxfb_vgaHWinit(PMINFO m)) return 1;
+	if (matroxfb_vgaHWinit(minfo, m)) return 1;
 
 	hw->MiscOutReg = 0xEF;
 	if (m->sync & FB_SYNC_HOR_HIGH_ACT)
@@ -557,13 +573,14 @@ static int MGAG100_init(WPMINFO struct my_timming* m) {
 	if (m->sync & FB_SYNC_COMP_HIGH_ACT) /* should be only FB_SYNC_COMP */
 		hw->CRTCEXT[3] |= 0x40;
 
-	if (DAC1064_init_2(PMINFO m)) return 1;
+	if (DAC1064_init_2(minfo, m)) return 1;
 	return 0;
 }
 #endif	/* G */
 
 #ifdef CONFIG_FB_MATROX_MYSTIQUE
-static void MGA1064_ramdac_init(WPMINFO2) {
+static void MGA1064_ramdac_init(struct matrox_fb_info *minfo)
+{
 
 	DBG(__func__)
 
@@ -577,7 +594,7 @@ static void MGA1064_ramdac_init(WPMINFO2) {
 	minfo->features.pll.post_shift_max = 3;
 	minfo->features.DAC1064.xvrefctrl = DAC1064_XVREFCTRL_EXTERNAL;
 	/* maybe cmdline MCLK= ?, doc says gclk=44MHz, mclk=66MHz... it was 55/83 with old values */
-	DAC1064_setmclk(PMINFO DAC1064_OPT_MDIV2 | DAC1064_OPT_GDIV3 | DAC1064_OPT_SCLK_PLL, 133333);
+	DAC1064_setmclk(minfo, DAC1064_OPT_MDIV2 | DAC1064_OPT_GDIV3 | DAC1064_OPT_SCLK_PLL, 133333);
 }
 #endif
 
@@ -589,23 +606,25 @@ static int x7AF4 = 0x10;	/* flags, maybe 0x10 = SDRAM, 0x00 = SGRAM??? */
 static int def50 = 0;	/* reg50, & 0x0F, & 0x3000 (only 0x0000, 0x1000, 0x2000 (0x3000 disallowed and treated as 0) */
 #endif
 
-static void MGAG100_progPixClock(CPMINFO int flags, int m, int n, int p) {
+static void MGAG100_progPixClock(const struct matrox_fb_info *minfo, int flags,
+				 int m, int n, int p)
+{
 	int reg;
 	int selClk;
 	int clk;
 
 	DBG(__func__)
 
-	outDAC1064(PMINFO M1064_XPIXCLKCTRL, inDAC1064(PMINFO M1064_XPIXCLKCTRL) | M1064_XPIXCLKCTRL_DIS |
+	outDAC1064(minfo, M1064_XPIXCLKCTRL, inDAC1064(minfo, M1064_XPIXCLKCTRL) | M1064_XPIXCLKCTRL_DIS |
 		   M1064_XPIXCLKCTRL_PLL_UP);
 	switch (flags & 3) {
 		case 0:		reg = M1064_XPIXPLLAM; break;
 		case 1:		reg = M1064_XPIXPLLBM; break;
 		default:	reg = M1064_XPIXPLLCM; break;
 	}
-	outDAC1064(PMINFO reg++, m);
-	outDAC1064(PMINFO reg++, n);
-	outDAC1064(PMINFO reg, p);
+	outDAC1064(minfo, reg++, m);
+	outDAC1064(minfo, reg++, n);
+	outDAC1064(minfo, reg, p);
 	selClk = mga_inb(M_MISC_REG_READ) & ~0xC;
 	/* there should be flags & 0x03 & case 0/1/else */
 	/* and we should first select source and after that we should wait for PLL */
@@ -617,34 +636,37 @@ static void MGAG100_progPixClock(CPMINFO int flags, int m, int n, int p) {
 	}
 	mga_outb(M_MISC_REG, selClk);
 	for (clk = 500000; clk; clk--) {
-		if (inDAC1064(PMINFO M1064_XPIXPLLSTAT) & 0x40)
+		if (inDAC1064(minfo, M1064_XPIXPLLSTAT) & 0x40)
 			break;
 		udelay(10);
 	};
 	if (!clk)
 		printk(KERN_ERR "matroxfb: Pixel PLL%c not locked after usual time\n", (reg-M1064_XPIXPLLAM-2)/4 + 'A');
-	selClk = inDAC1064(PMINFO M1064_XPIXCLKCTRL) & ~M1064_XPIXCLKCTRL_SRC_MASK;
+	selClk = inDAC1064(minfo, M1064_XPIXCLKCTRL) & ~M1064_XPIXCLKCTRL_SRC_MASK;
 	switch (flags & 0x0C) {
 		case 0x00:	selClk |= M1064_XPIXCLKCTRL_SRC_PCI; break;
 		case 0x04:	selClk |= M1064_XPIXCLKCTRL_SRC_PLL; break;
 		default:	selClk |= M1064_XPIXCLKCTRL_SRC_EXT; break;
 	}
-	outDAC1064(PMINFO M1064_XPIXCLKCTRL, selClk);
-	outDAC1064(PMINFO M1064_XPIXCLKCTRL, inDAC1064(PMINFO M1064_XPIXCLKCTRL) & ~M1064_XPIXCLKCTRL_DIS);
+	outDAC1064(minfo, M1064_XPIXCLKCTRL, selClk);
+	outDAC1064(minfo, M1064_XPIXCLKCTRL, inDAC1064(minfo, M1064_XPIXCLKCTRL) & ~M1064_XPIXCLKCTRL_DIS);
 }
 
-static void MGAG100_setPixClock(CPMINFO int flags, int freq) {
+static void MGAG100_setPixClock(const struct matrox_fb_info *minfo, int flags,
+				int freq)
+{
 	unsigned int m, n, p;
 
 	DBG(__func__)
 
-	DAC1064_calcclock(PMINFO freq, minfo->max_pixel_clock, &m, &n, &p);
-	MGAG100_progPixClock(PMINFO flags, m, n, p);
+	DAC1064_calcclock(minfo, freq, minfo->max_pixel_clock, &m, &n, &p);
+	MGAG100_progPixClock(minfo, flags, m, n, p);
 }
 #endif
 
 #ifdef CONFIG_FB_MATROX_MYSTIQUE
-static int MGA1064_preinit(WPMINFO2) {
+static int MGA1064_preinit(struct matrox_fb_info *minfo)
+{
 	static const int vxres_mystique[] = { 512,        640, 768,  800,  832,  960,
 					     1024, 1152, 1280,      1600, 1664, 1920,
 					     2048,    0};
@@ -681,16 +703,18 @@ static int MGA1064_preinit(WPMINFO2) {
 	return 0;
 }
 
-static void MGA1064_reset(WPMINFO2) {
+static void MGA1064_reset(struct matrox_fb_info *minfo)
+{
 
 	DBG(__func__);
 
-	MGA1064_ramdac_init(PMINFO2);
+	MGA1064_ramdac_init(minfo);
 }
 #endif
 
 #ifdef CONFIG_FB_MATROX_G
-static void g450_mclk_init(WPMINFO2) {
+static void g450_mclk_init(struct matrox_fb_info *minfo)
+{
 	/* switch all clocks to PCI source */
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, minfo->hw.MXoptionReg | 4);
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION3_REG, minfo->values.reg.opt3 & ~0x00300C03);
@@ -699,17 +723,17 @@ static void g450_mclk_init(WPMINFO2) {
 	if (((minfo->values.reg.opt3 & 0x000003) == 0x000003) ||
 	    ((minfo->values.reg.opt3 & 0x000C00) == 0x000C00) ||
 	    ((minfo->values.reg.opt3 & 0x300000) == 0x300000)) {
-		matroxfb_g450_setclk(PMINFO minfo->values.pll.video, M_VIDEO_PLL);
+		matroxfb_g450_setclk(minfo, minfo->values.pll.video, M_VIDEO_PLL);
 	} else {
 		unsigned long flags;
 		unsigned int pwr;
 		
 		matroxfb_DAC_lock_irqsave(flags);
-		pwr = inDAC1064(PMINFO M1064_XPWRCTRL) & ~0x02;
-		outDAC1064(PMINFO M1064_XPWRCTRL, pwr);
+		pwr = inDAC1064(minfo, M1064_XPWRCTRL) & ~0x02;
+		outDAC1064(minfo, M1064_XPWRCTRL, pwr);
 		matroxfb_DAC_unlock_irqrestore(flags);
 	}
-	matroxfb_g450_setclk(PMINFO minfo->values.pll.system, M_SYSTEM_PLL);
+	matroxfb_g450_setclk(minfo, minfo->values.pll.system, M_SYSTEM_PLL);
 	
 	/* switch clocks to their real PLL source(s) */
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, minfo->hw.MXoptionReg | 4);
@@ -718,7 +742,8 @@ static void g450_mclk_init(WPMINFO2) {
 
 }
 
-static void g450_memory_init(WPMINFO2) {
+static void g450_memory_init(struct matrox_fb_info *minfo)
+{
 	/* disable memory refresh */
 	minfo->hw.MXoptionReg &= ~0x001F8000;
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, minfo->hw.MXoptionReg);
@@ -760,7 +785,8 @@ static void g450_memory_init(WPMINFO2) {
 	
 }
 
-static void g450_preinit(WPMINFO2) {
+static void g450_preinit(struct matrox_fb_info *minfo)
+{
 	u_int32_t c2ctl;
 	u_int8_t curctl;
 	u_int8_t c1ctl;
@@ -783,24 +809,24 @@ static void g450_preinit(WPMINFO2) {
 	c2ctl = mga_inl(M_C2CTL);
 	mga_outl(M_C2CTL, c2ctl & ~1);
 	/* stop cursor */
-	curctl = inDAC1064(PMINFO M1064_XCURCTRL);
-	outDAC1064(PMINFO M1064_XCURCTRL, 0);
+	curctl = inDAC1064(minfo, M1064_XCURCTRL);
+	outDAC1064(minfo, M1064_XCURCTRL, 0);
 	/* stop crtc1 */
 	c1ctl = mga_readr(M_SEQ_INDEX, 1);
 	mga_setr(M_SEQ_INDEX, 1, c1ctl | 0x20);
 
-	g450_mclk_init(PMINFO2);
-	g450_memory_init(PMINFO2);
+	g450_mclk_init(minfo);
+	g450_memory_init(minfo);
 	
 	/* set legacy VGA clock sources for DOSEmu or VMware... */
-	matroxfb_g450_setclk(PMINFO 25175, M_PIXEL_PLL_A);
-	matroxfb_g450_setclk(PMINFO 28322, M_PIXEL_PLL_B);
+	matroxfb_g450_setclk(minfo, 25175, M_PIXEL_PLL_A);
+	matroxfb_g450_setclk(minfo, 28322, M_PIXEL_PLL_B);
 
 	/* restore crtc1 */
 	mga_setr(M_SEQ_INDEX, 1, c1ctl);
 	
 	/* restore cursor */
-	outDAC1064(PMINFO M1064_XCURCTRL, curctl);
+	outDAC1064(minfo, M1064_XCURCTRL, curctl);
 
 	/* restore crtc2 */
 	mga_outl(M_C2CTL, c2ctl);
@@ -808,7 +834,8 @@ static void g450_preinit(WPMINFO2) {
 	return;
 }
 
-static int MGAG100_preinit(WPMINFO2) {
+static int MGAG100_preinit(struct matrox_fb_info *minfo)
+{
 	static const int vxres_g100[] = {  512,        640, 768,  800,  832,  960,
                                           1024, 1152, 1280,      1600, 1664, 1920,
                                           2048, 0};
@@ -862,7 +889,7 @@ static int MGAG100_preinit(WPMINFO2) {
 	if (minfo->devflags.noinit)
 		return 0;
 	if (minfo->devflags.g450dac) {
-		g450_preinit(PMINFO2);
+		g450_preinit(minfo);
 		return 0;
 	}
 	hw->MXoptionReg &= 0xC0000100;
@@ -874,7 +901,7 @@ static int MGAG100_preinit(WPMINFO2) {
 	if (minfo->devflags.nopciretry)
 		hw->MXoptionReg |=  0x20000000;
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, hw->MXoptionReg);
-	DAC1064_setmclk(PMINFO DAC1064_OPT_MDIV2 | DAC1064_OPT_GDIV3 | DAC1064_OPT_SCLK_PCI, 133333);
+	DAC1064_setmclk(minfo, DAC1064_OPT_MDIV2 | DAC1064_OPT_GDIV3 | DAC1064_OPT_SCLK_PCI, 133333);
 
 	if (minfo->devflags.accelerator == FB_ACCEL_MATROX_MGAG100) {
 		pci_read_config_dword(minfo->pcidev, PCI_OPTION2_REG, &reg50);
@@ -952,7 +979,8 @@ static int MGAG100_preinit(WPMINFO2) {
 	return 0;
 }
 
-static void MGAG100_reset(WPMINFO2) {
+static void MGAG100_reset(struct matrox_fb_info *minfo)
+{
 	u_int8_t b;
 	struct matrox_hw_state *hw = &minfo->hw;
 
@@ -981,35 +1009,36 @@ static void MGAG100_reset(WPMINFO2) {
 	}
 	if (minfo->devflags.g450dac) {
 		/* either leave MCLK as is... or they were set in preinit */
-		hw->DACclk[3] = inDAC1064(PMINFO DAC1064_XSYSPLLM);
-		hw->DACclk[4] = inDAC1064(PMINFO DAC1064_XSYSPLLN);
-		hw->DACclk[5] = inDAC1064(PMINFO DAC1064_XSYSPLLP);
+		hw->DACclk[3] = inDAC1064(minfo, DAC1064_XSYSPLLM);
+		hw->DACclk[4] = inDAC1064(minfo, DAC1064_XSYSPLLN);
+		hw->DACclk[5] = inDAC1064(minfo, DAC1064_XSYSPLLP);
 	} else {
-		DAC1064_setmclk(PMINFO DAC1064_OPT_RESERVED | DAC1064_OPT_MDIV2 | DAC1064_OPT_GDIV1 | DAC1064_OPT_SCLK_PLL, 133333);
+		DAC1064_setmclk(minfo, DAC1064_OPT_RESERVED | DAC1064_OPT_MDIV2 | DAC1064_OPT_GDIV1 | DAC1064_OPT_SCLK_PLL, 133333);
 	}
 	if (minfo->devflags.accelerator == FB_ACCEL_MATROX_MGAG400) {
 		if (minfo->devflags.dfp_type == -1) {
-			minfo->devflags.dfp_type = inDAC1064(PMINFO 0x1F);
+			minfo->devflags.dfp_type = inDAC1064(minfo, 0x1F);
 		}
 	}
 	if (minfo->devflags.noinit)
 		return;
 	if (minfo->devflags.g450dac) {
 	} else {
-		MGAG100_setPixClock(PMINFO 4, 25175);
-		MGAG100_setPixClock(PMINFO 5, 28322);
+		MGAG100_setPixClock(minfo, 4, 25175);
+		MGAG100_setPixClock(minfo, 5, 28322);
 		if (x7AF4 & 0x10) {
-			b = inDAC1064(PMINFO M1064_XGENIODATA) & ~1;
-			outDAC1064(PMINFO M1064_XGENIODATA, b);
-			b = inDAC1064(PMINFO M1064_XGENIOCTRL) | 1;
-			outDAC1064(PMINFO M1064_XGENIOCTRL, b);
+			b = inDAC1064(minfo, M1064_XGENIODATA) & ~1;
+			outDAC1064(minfo, M1064_XGENIODATA, b);
+			b = inDAC1064(minfo, M1064_XGENIOCTRL) | 1;
+			outDAC1064(minfo, M1064_XGENIOCTRL, b);
 		}
 	}
 }
 #endif
 
 #ifdef CONFIG_FB_MATROX_MYSTIQUE
-static void MGA1064_restore(WPMINFO2) {
+static void MGA1064_restore(struct matrox_fb_info *minfo)
+{
 	int i;
 	struct matrox_hw_state *hw = &minfo->hw;
 
@@ -1025,17 +1054,18 @@ static void MGA1064_restore(WPMINFO2) {
 
 	CRITEND
 
-	DAC1064_restore_1(PMINFO2);
-	matroxfb_vgaHWrestore(PMINFO2);
+	DAC1064_restore_1(minfo);
+	matroxfb_vgaHWrestore(minfo);
 	minfo->crtc1.panpos = -1;
 	for (i = 0; i < 6; i++)
 		mga_setr(M_EXTVGA_INDEX, i, hw->CRTCEXT[i]);
-	DAC1064_restore_2(PMINFO2);
+	DAC1064_restore_2(minfo);
 }
 #endif
 
 #ifdef CONFIG_FB_MATROX_G
-static void MGAG100_restore(WPMINFO2) {
+static void MGAG100_restore(struct matrox_fb_info *minfo)
+{
 	int i;
 	struct matrox_hw_state *hw = &minfo->hw;
 
@@ -1048,8 +1078,8 @@ static void MGAG100_restore(WPMINFO2) {
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, hw->MXoptionReg);
 	CRITEND
 
-	DAC1064_restore_1(PMINFO2);
-	matroxfb_vgaHWrestore(PMINFO2);
+	DAC1064_restore_1(minfo);
+	matroxfb_vgaHWrestore(minfo);
 #ifdef CONFIG_FB_MATROX_32MB
 	if (minfo->devflags.support32MB)
 		mga_setr(M_EXTVGA_INDEX, 8, hw->CRTCEXT[8]);
@@ -1057,7 +1087,7 @@ static void MGAG100_restore(WPMINFO2) {
 	minfo->crtc1.panpos = -1;
 	for (i = 0; i < 6; i++)
 		mga_setr(M_EXTVGA_INDEX, i, hw->CRTCEXT[i]);
-	DAC1064_restore_2(PMINFO2);
+	DAC1064_restore_2(minfo);
 }
 #endif
 

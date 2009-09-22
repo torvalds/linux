@@ -41,7 +41,7 @@ static int matroxfb_read_gpio(struct matrox_fb_info* minfo) {
 	int v;
 
 	matroxfb_DAC_lock_irqsave(flags);
-	v = matroxfb_DAC_in(PMINFO DAC_XGENIODATA);
+	v = matroxfb_DAC_in(minfo, DAC_XGENIODATA);
 	matroxfb_DAC_unlock_irqrestore(flags);
 	return v;
 }
@@ -51,10 +51,10 @@ static void matroxfb_set_gpio(struct matrox_fb_info* minfo, int mask, int val) {
 	int v;
 
 	matroxfb_DAC_lock_irqsave(flags);
-	v = (matroxfb_DAC_in(PMINFO DAC_XGENIOCTRL) & mask) | val;
-	matroxfb_DAC_out(PMINFO DAC_XGENIOCTRL, v);
+	v = (matroxfb_DAC_in(minfo, DAC_XGENIOCTRL) & mask) | val;
+	matroxfb_DAC_out(minfo, DAC_XGENIOCTRL, v);
 	/* We must reset GENIODATA very often... XFree plays with this register */
-	matroxfb_DAC_out(PMINFO DAC_XGENIODATA, 0x00);
+	matroxfb_DAC_out(minfo, DAC_XGENIODATA, 0x00);
 	matroxfb_DAC_unlock_irqrestore(flags);
 }
 
@@ -149,8 +149,8 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 		return NULL;
 
 	matroxfb_DAC_lock_irqsave(flags);
-	matroxfb_DAC_out(PMINFO DAC_XGENIODATA, 0xFF);
-	matroxfb_DAC_out(PMINFO DAC_XGENIOCTRL, 0x00);
+	matroxfb_DAC_out(minfo, DAC_XGENIODATA, 0xFF);
+	matroxfb_DAC_out(minfo, DAC_XGENIOCTRL, 0x00);
 	matroxfb_DAC_unlock_irqrestore(flags);
 
 	switch (minfo->chip) {

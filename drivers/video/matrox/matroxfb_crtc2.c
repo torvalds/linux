@@ -369,8 +369,8 @@ static int matroxfb_dh_set_par(struct fb_info* info) {
 		} else {
 			matroxfb_dh_disable(m2info);
 		}
-		DAC1064_global_init(PMINFO2);
-		DAC1064_global_restore(PMINFO2);
+		DAC1064_global_init(minfo);
+		DAC1064_global_restore(minfo);
 		down_read(&minfo->altout.lock);
 		for (out = 0; out < MATROXFB_MAX_OUTPUTS; out++) {
 			if (minfo->outputs[out].src == MATROXFB_SRC_CRTC2 &&
@@ -401,7 +401,7 @@ static int matroxfb_dh_pan_display(struct fb_var_screeninfo* var, struct fb_info
 static int matroxfb_dh_get_vblank(const struct matroxfb_dh_fb_info* m2info, struct fb_vblank* vblank) {
 	MINFO_FROM(m2info->primary_dev);
 
-	matroxfb_enable_irq(PMINFO 0);
+	matroxfb_enable_irq(minfo, 0);
 	memset(vblank, 0, sizeof(*vblank));
 	vblank->flags = FB_VBLANK_HAVE_VCOUNT | FB_VBLANK_HAVE_VBLANK;
 	/* mask out reserved bits + field number (odd/even) */
@@ -449,7 +449,7 @@ static int matroxfb_dh_ioctl(struct fb_info *info,
 
 				if (crt != 0)
 					return -ENODEV;
-				return matroxfb_wait_for_sync(PMINFO 1);
+				return matroxfb_wait_for_sync(minfo, 1);
 			}
 		case MATROXFB_SET_OUTPUT_MODE:
 		case MATROXFB_GET_OUTPUT_MODE:
@@ -595,7 +595,9 @@ static struct fb_var_screeninfo matroxfb_dh_defined = {
 		0, {0,0,0,0,0}
 };
 
-static int matroxfb_dh_regit(CPMINFO struct matroxfb_dh_fb_info* m2info) {
+static int matroxfb_dh_regit(const struct matrox_fb_info *minfo,
+			     struct matroxfb_dh_fb_info *m2info)
+{
 #define minfo (m2info->primary_dev)
 	void* oldcrtc2;
 
@@ -649,7 +651,7 @@ static int matroxfb_dh_regit(CPMINFO struct matroxfb_dh_fb_info* m2info) {
 
 static int matroxfb_dh_registerfb(struct matroxfb_dh_fb_info* m2info) {
 #define minfo (m2info->primary_dev)
-	if (matroxfb_dh_regit(PMINFO m2info)) {
+	if (matroxfb_dh_regit(minfo, m2info)) {
 		printk(KERN_ERR "matroxfb_crtc2: secondary head failed to register\n");
 		return -1;
 	}

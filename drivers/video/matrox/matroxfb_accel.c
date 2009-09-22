@@ -107,7 +107,8 @@ static void matroxfb_imageblit(struct fb_info* info, const struct fb_image* imag
 static void matroxfb_cfb4_fillrect(struct fb_info* info, const struct fb_fillrect* rect);
 static void matroxfb_cfb4_copyarea(struct fb_info* info, const struct fb_copyarea* area);
 
-void matrox_cfbX_init(WPMINFO2) {
+void matrox_cfbX_init(struct matrox_fb_info *minfo)
+{
 	u_int32_t maccess;
 	u_int32_t mpitch;
 	u_int32_t mopmode;
@@ -195,7 +196,9 @@ void matrox_cfbX_init(WPMINFO2) {
 
 EXPORT_SYMBOL(matrox_cfbX_init);
 
-static void matrox_accel_bmove(WPMINFO int vxres, int sy, int sx, int dy, int dx, int height, int width) {
+static void matrox_accel_bmove(struct matrox_fb_info *minfo, int vxres, int sy,
+			       int sx, int dy, int dx, int height, int width)
+{
 	int start, end;
 	CRITFLAGS
 
@@ -231,7 +234,10 @@ static void matrox_accel_bmove(WPMINFO int vxres, int sy, int sx, int dy, int dx
 	CRITEND
 }
 
-static void matrox_accel_bmove_lin(WPMINFO int vxres, int sy, int sx, int dy, int dx, int height, int width) {
+static void matrox_accel_bmove_lin(struct matrox_fb_info *minfo, int vxres,
+				   int sy, int sx, int dy, int dx, int height,
+				   int width)
+{
 	int start, end;
 	CRITFLAGS
 
@@ -274,17 +280,18 @@ static void matroxfb_cfb4_copyarea(struct fb_info* info, const struct fb_copyare
 	if ((area->sx | area->dx | area->width) & 1)
 		cfb_copyarea(info, area);
 	else
-		matrox_accel_bmove_lin(PMINFO minfo->fbcon.var.xres_virtual >> 1, area->sy, area->sx >> 1, area->dy, area->dx >> 1, area->height, area->width >> 1);
+		matrox_accel_bmove_lin(minfo, minfo->fbcon.var.xres_virtual >> 1, area->sy, area->sx >> 1, area->dy, area->dx >> 1, area->height, area->width >> 1);
 }
 
 static void matroxfb_copyarea(struct fb_info* info, const struct fb_copyarea* area) {
 	MINFO_FROM_INFO(info);
 
-	matrox_accel_bmove(PMINFO minfo->fbcon.var.xres_virtual, area->sy, area->sx, area->dy, area->dx, area->height, area->width);
+	matrox_accel_bmove(minfo, minfo->fbcon.var.xres_virtual, area->sy, area->sx, area->dy, area->dx, area->height, area->width);
 }
 
-static void matroxfb_accel_clear(WPMINFO u_int32_t color, int sy, int sx, int height,
-		int width) {
+static void matroxfb_accel_clear(struct matrox_fb_info *minfo, u_int32_t color,
+				 int sy, int sx, int height, int width)
+{
 	CRITFLAGS
 
 	DBG(__func__)
@@ -306,12 +313,14 @@ static void matroxfb_fillrect(struct fb_info* info, const struct fb_fillrect* re
 
 	switch (rect->rop) {
 		case ROP_COPY:
-			matroxfb_accel_clear(PMINFO ((u_int32_t*)info->pseudo_palette)[rect->color], rect->dy, rect->dx, rect->height, rect->width);
+			matroxfb_accel_clear(minfo, ((u_int32_t *)info->pseudo_palette)[rect->color], rect->dy, rect->dx, rect->height, rect->width);
 			break;
 	}
 }
 
-static void matroxfb_cfb4_clear(WPMINFO u_int32_t bgx, int sy, int sx, int height, int width) {
+static void matroxfb_cfb4_clear(struct matrox_fb_info *minfo, u_int32_t bgx,
+				int sy, int sx, int height, int width)
+{
 	int whattodo;
 	CRITFLAGS
 
@@ -371,13 +380,15 @@ static void matroxfb_cfb4_fillrect(struct fb_info* info, const struct fb_fillrec
 
 	switch (rect->rop) {
 		case ROP_COPY:
-			matroxfb_cfb4_clear(PMINFO ((u_int32_t*)info->pseudo_palette)[rect->color], rect->dy, rect->dx, rect->height, rect->width);
+			matroxfb_cfb4_clear(minfo, ((u_int32_t *)info->pseudo_palette)[rect->color], rect->dy, rect->dx, rect->height, rect->width);
 			break;
 	}
 }
 
-static void matroxfb_1bpp_imageblit(WPMINFO u_int32_t fgx, u_int32_t bgx,
-		const u_int8_t* chardata, int width, int height, int yy, int xx) {
+static void matroxfb_1bpp_imageblit(struct matrox_fb_info *minfo, u_int32_t fgx,
+				    u_int32_t bgx, const u_int8_t *chardata,
+				    int width, int height, int yy, int xx)
+{
 	u_int32_t step;
 	u_int32_t ydstlen;
 	u_int32_t xlen;
@@ -476,7 +487,7 @@ static void matroxfb_imageblit(struct fb_info* info, const struct fb_image* imag
 
 		fgx = ((u_int32_t*)info->pseudo_palette)[image->fg_color];
 		bgx = ((u_int32_t*)info->pseudo_palette)[image->bg_color];
-		matroxfb_1bpp_imageblit(PMINFO fgx, bgx, image->data, image->width, image->height, image->dy, image->dx);
+		matroxfb_1bpp_imageblit(minfo, fgx, bgx, image->data, image->width, image->height, image->dy, image->dx);
 	} else {
 		/* Danger! image->depth is useless: logo painting code always
 		   passes framebuffer color depth here, although logo data are

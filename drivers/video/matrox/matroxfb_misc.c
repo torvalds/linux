@@ -89,13 +89,15 @@
 #include <linux/interrupt.h>
 #include <linux/matroxfb.h>
 
-void matroxfb_DAC_out(CPMINFO int reg, int val) {
+void matroxfb_DAC_out(const struct matrox_fb_info *minfo, int reg, int val)
+{
 	DBG_REG(__func__)
 	mga_outb(M_RAMDAC_BASE+M_X_INDEX, reg);
 	mga_outb(M_RAMDAC_BASE+M_X_DATAREG, val);
 }
 
-int matroxfb_DAC_in(CPMINFO int reg) {
+int matroxfb_DAC_in(const struct matrox_fb_info *minfo, int reg)
+{
 	DBG_REG(__func__)
 	mga_outb(M_RAMDAC_BASE+M_X_INDEX, reg);
 	return mga_inb(M_RAMDAC_BASE+M_X_DATAREG);
@@ -184,7 +186,8 @@ int matroxfb_PLL_calcclock(const struct matrox_pll_features* pll, unsigned int f
 	return bestvco;
 }
 
-int matroxfb_vgaHWinit(WPMINFO struct my_timming* m) {
+int matroxfb_vgaHWinit(struct matrox_fb_info *minfo, struct my_timming *m)
+{
 	unsigned int hd, hs, he, hbe, ht;
 	unsigned int vd, vs, ve, vt, lc;
 	unsigned int wd;
@@ -331,7 +334,8 @@ int matroxfb_vgaHWinit(WPMINFO struct my_timming* m) {
 	return 0;
 };
 
-void matroxfb_vgaHWrestore(WPMINFO2) {
+void matroxfb_vgaHWrestore(struct matrox_fb_info *minfo)
+{
 	int i;
 	struct matrox_hw_state * const hw = &minfo->hw;
 	CRITFLAGS
@@ -522,7 +526,9 @@ static void parse_bios(unsigned char __iomem* vbios, struct matrox_bios* bd) {
 #endif
 }
 
-static int parse_pins1(WPMINFO const struct matrox_bios* bd) {
+static int parse_pins1(struct matrox_fb_info *minfo,
+		       const struct matrox_bios *bd)
+{
 	unsigned int maxdac;
 
 	switch (bd->pins[22]) {
@@ -542,7 +548,8 @@ static int parse_pins1(WPMINFO const struct matrox_bios* bd) {
 	return 0;
 }
 
-static void default_pins1(WPMINFO2) {
+static void default_pins1(struct matrox_fb_info *minfo)
+{
 	/* Millennium */
 	minfo->limits.pixel.vcomax	= 220000;
 	minfo->values.pll.system	=  50000;
@@ -550,7 +557,9 @@ static void default_pins1(WPMINFO2) {
 	minfo->values.reg.mctlwtst	= 0x00030101;
 }
 
-static int parse_pins2(WPMINFO const struct matrox_bios* bd) {
+static int parse_pins2(struct matrox_fb_info *minfo,
+		       const struct matrox_bios *bd)
+{
 	minfo->limits.pixel.vcomax	=
 	minfo->limits.system.vcomax	= (bd->pins[41] == 0xFF) ? 230000 : ((bd->pins[41] + 100) * 1000);
 	minfo->values.reg.mctlwtst	= ((bd->pins[51] & 0x01) ? 0x00000001 : 0) |
@@ -562,7 +571,8 @@ static int parse_pins2(WPMINFO const struct matrox_bios* bd) {
 	return 0;
 }
 
-static void default_pins2(WPMINFO2) {
+static void default_pins2(struct matrox_fb_info *minfo)
+{
 	/* Millennium II, Mystique */
 	minfo->limits.pixel.vcomax	=
 	minfo->limits.system.vcomax	= 230000;
@@ -571,7 +581,9 @@ static void default_pins2(WPMINFO2) {
 	minfo->features.pll.ref_freq	=  14318;
 }
 
-static int parse_pins3(WPMINFO const struct matrox_bios* bd) {
+static int parse_pins3(struct matrox_fb_info *minfo,
+		       const struct matrox_bios *bd)
+{
 	minfo->limits.pixel.vcomax	=
 	minfo->limits.system.vcomax	= (bd->pins[36] == 0xFF) ? 230000			: ((bd->pins[36] + 100) * 1000);
 	minfo->values.reg.mctlwtst	= get_unaligned_le32(bd->pins + 48) == 0xFFFFFFFF ?
@@ -587,7 +599,8 @@ static int parse_pins3(WPMINFO const struct matrox_bios* bd) {
 	return 0;
 }
 
-static void default_pins3(WPMINFO2) {
+static void default_pins3(struct matrox_fb_info *minfo)
+{
 	/* G100, G200 */
 	minfo->limits.pixel.vcomax	=
 	minfo->limits.system.vcomax	= 230000;
@@ -598,7 +611,9 @@ static void default_pins3(WPMINFO2) {
 	minfo->features.pll.ref_freq	=  27000;
 }
 
-static int parse_pins4(WPMINFO const struct matrox_bios* bd) {
+static int parse_pins4(struct matrox_fb_info *minfo,
+		       const struct matrox_bios *bd)
+{
 	minfo->limits.pixel.vcomax	= (bd->pins[ 39] == 0xFF) ? 230000			: bd->pins[ 39] * 4000;
 	minfo->limits.system.vcomax	= (bd->pins[ 38] == 0xFF) ? minfo->limits.pixel.vcomax	: bd->pins[ 38] * 4000;
 	minfo->values.reg.mctlwtst	= get_unaligned_le32(bd->pins + 71);
@@ -615,7 +630,8 @@ static int parse_pins4(WPMINFO const struct matrox_bios* bd) {
 	return 0;
 }
 
-static void default_pins4(WPMINFO2) {
+static void default_pins4(struct matrox_fb_info *minfo)
+{
 	/* G400 */
 	minfo->limits.pixel.vcomax	=
 	minfo->limits.system.vcomax	= 252000;
@@ -627,7 +643,9 @@ static void default_pins4(WPMINFO2) {
 	minfo->features.pll.ref_freq	= 27000;
 }
 
-static int parse_pins5(WPMINFO const struct matrox_bios* bd) {
+static int parse_pins5(struct matrox_fb_info *minfo,
+		       const struct matrox_bios *bd)
+{
 	unsigned int mult;
 	
 	mult = bd->pins[4]?8000:6000;
@@ -662,7 +680,8 @@ static int parse_pins5(WPMINFO const struct matrox_bios* bd) {
 	return 0;
 }
 
-static void default_pins5(WPMINFO2) {
+static void default_pins5(struct matrox_fb_info *minfo)
+{
 	/* Mine 16MB G450 with SDRAM DDR */
 	minfo->limits.pixel.vcomax	=
 	minfo->limits.system.vcomax	=
@@ -686,20 +705,22 @@ static void default_pins5(WPMINFO2) {
 	minfo->values.reg.maccess	= 0x00004000;
 }
 
-static int matroxfb_set_limits(WPMINFO const struct matrox_bios* bd) {
+static int matroxfb_set_limits(struct matrox_fb_info *minfo,
+			       const struct matrox_bios *bd)
+{
 	unsigned int pins_version;
 	static const unsigned int pinslen[] = { 64, 64, 64, 128, 128 };
 
 	switch (minfo->chip) {
-		case MGA_2064:	default_pins1(PMINFO2); break;
+		case MGA_2064:	default_pins1(minfo); break;
 		case MGA_2164:
 		case MGA_1064:
-		case MGA_1164:	default_pins2(PMINFO2); break;
+		case MGA_1164:	default_pins2(minfo); break;
 		case MGA_G100:
-		case MGA_G200:	default_pins3(PMINFO2); break;
-		case MGA_G400:	default_pins4(PMINFO2); break;
+		case MGA_G200:	default_pins3(minfo); break;
+		case MGA_G400:	default_pins4(minfo); break;
 		case MGA_G450:
-		case MGA_G550:	default_pins5(PMINFO2); break;
+		case MGA_G550:	default_pins5(minfo); break;
 	}
 	if (!bd->bios_valid) {
 		printk(KERN_INFO "matroxfb: Your Matrox device does not have BIOS\n");
@@ -724,22 +745,23 @@ static int matroxfb_set_limits(WPMINFO const struct matrox_bios* bd) {
 	}
 	switch (pins_version) {
 		case 1:
-			return parse_pins1(PMINFO bd);
+			return parse_pins1(minfo, bd);
 		case 2:
-			return parse_pins2(PMINFO bd);
+			return parse_pins2(minfo, bd);
 		case 3:
-			return parse_pins3(PMINFO bd);
+			return parse_pins3(minfo, bd);
 		case 4:
-			return parse_pins4(PMINFO bd);
+			return parse_pins4(minfo, bd);
 		case 5:
-			return parse_pins5(PMINFO bd);
+			return parse_pins5(minfo, bd);
 		default:
 			printk(KERN_DEBUG "matroxfb: Powerup info version %u is not yet supported\n", pins_version);
 			return -1;
 	}
 }
 
-void matroxfb_read_pins(WPMINFO2) {
+void matroxfb_read_pins(struct matrox_fb_info *minfo)
+{
 	u32 opt;
 	u32 biosbase;
 	u32 fbbase;
@@ -775,7 +797,7 @@ void matroxfb_read_pins(WPMINFO2) {
 		}
 	}
 #endif
-	matroxfb_set_limits(PMINFO &minfo->bios);
+	matroxfb_set_limits(minfo, &minfo->bios);
 	printk(KERN_INFO "PInS memtype = %u\n",
 	       (minfo->values.reg.opt & 0x1C00) >> 10);
 }

@@ -154,7 +154,8 @@ static struct fb_var_screeninfo vesafb_defined = {
 
 
 /* --------------------------------------------------------------------- */
-static void update_crtc2(WPMINFO unsigned int pos) {
+static void update_crtc2(struct matrox_fb_info *minfo, unsigned int pos)
+{
 	struct matroxfb_dh_fb_info *info = minfo->crtc2.info;
 
 	/* Make sure that displays are compatible */
@@ -177,7 +178,8 @@ static void update_crtc2(WPMINFO unsigned int pos) {
 	}
 }
 
-static void matroxfb_crtc1_panpos(WPMINFO2) {
+static void matroxfb_crtc1_panpos(struct matrox_fb_info *minfo)
+{
 	if (minfo->crtc1.panpos >= 0) {
 		unsigned long flags;
 		int panpos;
@@ -210,7 +212,7 @@ static irqreturn_t matrox_irq(int irq, void *dev_id)
 	if (status & 0x20) {
 		mga_outl(M_ICLEAR, 0x20);
 		minfo->crtc1.vsync.cnt++;
-		matroxfb_crtc1_panpos(PMINFO2);
+		matroxfb_crtc1_panpos(minfo);
 		wake_up_interruptible(&minfo->crtc1.vsync.wait);
 		handled = 1;
 	}
@@ -223,7 +225,8 @@ static irqreturn_t matrox_irq(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-int matroxfb_enable_irq(WPMINFO int reenable) {
+int matroxfb_enable_irq(struct matrox_fb_info *minfo, int reenable)
+{
 	u_int32_t bm;
 
 	if (minfo->devflags.accelerator == FB_ACCEL_MATROX_MGAG400)
@@ -252,10 +255,11 @@ int matroxfb_enable_irq(WPMINFO int reenable) {
 	return 0;
 }
 
-static void matroxfb_disable_irq(WPMINFO2) {
+static void matroxfb_disable_irq(struct matrox_fb_info *minfo)
+{
 	if (test_and_clear_bit(0, &minfo->irq_flags)) {
 		/* Flush pending pan-at-vbl request... */
-		matroxfb_crtc1_panpos(PMINFO2);
+		matroxfb_crtc1_panpos(minfo);
 		if (minfo->devflags.accelerator == FB_ACCEL_MATROX_MGAG400)
 			mga_outl(M_IEN, mga_inl(M_IEN) & ~0x220);
 		else
@@ -264,7 +268,8 @@ static void matroxfb_disable_irq(WPMINFO2) {
 	}
 }
 
-int matroxfb_wait_for_sync(WPMINFO u_int32_t crtc) {
+int matroxfb_wait_for_sync(struct matrox_fb_info *minfo, u_int32_t crtc)
+{
 	struct matrox_vsync *vs;
 	unsigned int cnt;
 	int ret;
@@ -282,7 +287,7 @@ int matroxfb_wait_for_sync(WPMINFO u_int32_t crtc) {
 		default:
 			return -ENODEV;
 	}
-	ret = matroxfb_enable_irq(PMINFO 0);
+	ret = matroxfb_enable_irq(minfo, 0);
 	if (ret) {
 		return ret;
 	}
@@ -293,7 +298,7 @@ int matroxfb_wait_for_sync(WPMINFO u_int32_t crtc) {
 		return ret;
 	}
 	if (ret == 0) {
-		matroxfb_enable_irq(PMINFO 1);
+		matroxfb_enable_irq(minfo, 1);
 		return -ETIMEDOUT;
 	}
 	return 0;
@@ -301,7 +306,9 @@ int matroxfb_wait_for_sync(WPMINFO u_int32_t crtc) {
 
 /* --------------------------------------------------------------------- */
 
-static void matrox_pan_var(WPMINFO struct fb_var_screeninfo *var) {
+static void matrox_pan_var(struct matrox_fb_info *minfo,
+			   struct fb_var_screeninfo *var)
+{
 	unsigned int pos;
 	unsigned short p0, p1, p2;
 #ifdef CONFIG_FB_MATROX_32MB
@@ -329,7 +336,7 @@ static void matrox_pan_var(WPMINFO struct fb_var_screeninfo *var) {
 #endif
 
 	/* FB_ACTIVATE_VBL and we can acquire interrupts? Honor FB_ACTIVATE_VBL then... */
-	vbl = (var->activate & FB_ACTIVATE_VBL) && (matroxfb_enable_irq(PMINFO 0) == 0);
+	vbl = (var->activate & FB_ACTIVATE_VBL) && (matroxfb_enable_irq(minfo, 0) == 0);
 
 	CRITBEGIN
 
@@ -349,12 +356,13 @@ static void matrox_pan_var(WPMINFO struct fb_var_screeninfo *var) {
 	}
 	matroxfb_DAC_unlock_irqrestore(flags);
 
-	update_crtc2(PMINFO pos);
+	update_crtc2(minfo, pos);
 
 	CRITEND
 }
 
-static void matroxfb_remove(WPMINFO int dummy) {
+static void matroxfb_remove(struct matrox_fb_info *minfo, int dummy)
+{
 	/* Currently we are holding big kernel lock on all dead & usecount updates.
 	 * Destroy everything after all users release it. Especially do not unregister
 	 * framebuffer and iounmap memory, neither fbmem nor fbcon-cfb* does not check
@@ -370,7 +378,7 @@ static void matroxfb_remove(WPMINFO int dummy) {
 	}
 	matroxfb_unregister_device(minfo);
 	unregister_framebuffer(&minfo->fbcon);
-	matroxfb_g450_shutdown(PMINFO2);
+	matroxfb_g450_shutdown(minfo);
 #ifdef CONFIG_MTRR
 	if (minfo->mtrr.vram_valid)
 		mtrr_del(minfo->mtrr.vram, minfo->video.base, minfo->video.len);
@@ -410,11 +418,11 @@ static int matroxfb_release(struct fb_info *info, int user)
 
 	if (user) {
 		if (0 == --minfo->userusecount) {
-			matroxfb_disable_irq(PMINFO2);
+			matroxfb_disable_irq(minfo);
 		}
 	}
 	if (!(--minfo->usecount) && minfo->dead) {
-		matroxfb_remove(PMINFO 0);
+		matroxfb_remove(minfo, 0);
 	}
 	return(0);
 }
@@ -425,11 +433,13 @@ static int matroxfb_pan_display(struct fb_var_screeninfo *var,
 
 	DBG(__func__)
 
-	matrox_pan_var(PMINFO var);
+	matrox_pan_var(minfo, var);
 	return 0;
 }
 
-static int matroxfb_get_final_bppShift(CPMINFO int bpp) {
+static int matroxfb_get_final_bppShift(const struct matrox_fb_info *minfo,
+				       int bpp)
+{
 	int bppshft2;
 
 	DBG(__func__)
@@ -445,7 +455,9 @@ static int matroxfb_get_final_bppShift(CPMINFO int bpp) {
 	return bppshft2;
 }
 
-static int matroxfb_test_and_set_rounding(CPMINFO int xres, int bpp) {
+static int matroxfb_test_and_set_rounding(const struct matrox_fb_info *minfo,
+					  int xres, int bpp)
+{
 	int over;
 	int rounding;
 
@@ -476,7 +488,9 @@ static int matroxfb_test_and_set_rounding(CPMINFO int xres, int bpp) {
 	return xres;
 }
 
-static int matroxfb_pitch_adjust(CPMINFO int xres, int bpp) {
+static int matroxfb_pitch_adjust(const struct matrox_fb_info *minfo, int xres,
+				 int bpp)
+{
 	const int* width;
 	int xres_new;
 
@@ -488,14 +502,14 @@ static int matroxfb_pitch_adjust(CPMINFO int xres, int bpp) {
 
 	if (minfo->devflags.precise_width) {
 		while (*width) {
-			if ((*width >= xres) && (matroxfb_test_and_set_rounding(PMINFO *width, bpp) == *width)) {
+			if ((*width >= xres) && (matroxfb_test_and_set_rounding(minfo, *width, bpp) == *width)) {
 				break;
 			}
 			width++;
 		}
 		xres_new = *width;
 	} else {
-		xres_new = matroxfb_test_and_set_rounding(PMINFO xres, bpp);
+		xres_new = matroxfb_test_and_set_rounding(minfo, xres, bpp);
 	}
 	return xres_new;
 }
@@ -522,7 +536,10 @@ static int matroxfb_get_cmap_len(struct fb_var_screeninfo *var) {
 	return 16;	/* return something reasonable... or panic()? */
 }
 
-static int matroxfb_decode_var(CPMINFO struct fb_var_screeninfo *var, int *visual, int *video_cmap_len, unsigned int* ydstorg) {
+static int matroxfb_decode_var(const struct matrox_fb_info *minfo,
+			       struct fb_var_screeninfo *var, int *visual,
+			       int *video_cmap_len, unsigned int* ydstorg)
+{
 	struct RGBT {
 		unsigned char bpp;
 		struct {
@@ -564,7 +581,7 @@ static int matroxfb_decode_var(CPMINFO struct fb_var_screeninfo *var, int *visua
 	if (var->xres_virtual < var->xres)
 		var->xres_virtual = var->xres;
 
-	var->xres_virtual = matroxfb_pitch_adjust(PMINFO var->xres_virtual, bpp);
+	var->xres_virtual = matroxfb_pitch_adjust(minfo, var->xres_virtual, bpp);
 	memlen = var->xres_virtual * bpp * var->yres_virtual / 8;
 	if (memlen > vramlen) {
 		var->yres_virtual = vramlen * 8 / (var->xres_virtual * bpp);
@@ -700,7 +717,7 @@ static int matroxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-static void matroxfb_init_fix(WPMINFO2)
+static void matroxfb_init_fix(struct matrox_fb_info *minfo)
 {
 	struct fb_fix_screeninfo *fix = &minfo->fbcon.fix;
 	DBG(__func__)
@@ -715,7 +732,7 @@ static void matroxfb_init_fix(WPMINFO2)
 	fix->accel = minfo->devflags.accelerator;
 }
 
-static void matroxfb_update_fix(WPMINFO2)
+static void matroxfb_update_fix(struct matrox_fb_info *minfo)
 {
 	struct fb_fix_screeninfo *fix = &minfo->fbcon.fix;
 	DBG(__func__)
@@ -737,7 +754,7 @@ static int matroxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	if (minfo->dead) {
 		return -ENXIO;
 	}
-	if ((err = matroxfb_decode_var(PMINFO var, &visual, &cmap_len, &ydstorg)) != 0)
+	if ((err = matroxfb_decode_var(minfo, var, &visual, &cmap_len, &ydstorg)) != 0)
 		return err;
 	return 0;
 }
@@ -758,10 +775,10 @@ static int matroxfb_set_par(struct fb_info *info)
 	}
 
 	var = &info->var;
-	if ((err = matroxfb_decode_var(PMINFO var, &visual, &cmap_len, &ydstorg)) != 0)
+	if ((err = matroxfb_decode_var(minfo, var, &visual, &cmap_len, &ydstorg)) != 0)
 		return err;
 	minfo->fbcon.screen_base = vaddr_va(minfo->video.vbase) + ydstorg;
-	matroxfb_update_fix(PMINFO2);
+	matroxfb_update_fix(minfo);
 	minfo->fbcon.fix.visual = visual;
 	minfo->fbcon.fix.type = FB_TYPE_PACKED_PIXELS;
 	minfo->fbcon.fix.type_aux = 0;
@@ -777,7 +794,7 @@ static int matroxfb_set_par(struct fb_info *info)
 			minfo->curr.ydstorg.pixels = ydstorg;
 		else
 			minfo->curr.ydstorg.pixels = (ydstorg * 8) / var->bits_per_pixel;
-		minfo->curr.final_bppShift = matroxfb_get_final_bppShift(PMINFO var->bits_per_pixel);
+		minfo->curr.final_bppShift = matroxfb_get_final_bppShift(minfo, var->bits_per_pixel);
 		{	struct my_timming mt;
 			struct matrox_hw_state* hw;
 			int out;
@@ -805,7 +822,7 @@ static int matroxfb_set_par(struct fb_info *info)
 			up_read(&minfo->altout.lock);
 			minfo->crtc1.pixclock = mt.pixclock;
 			minfo->crtc1.mnp = mt.mnp;
-			minfo->hw_switch->init(PMINFO &mt);
+			minfo->hw_switch->init(minfo, &mt);
 			pos = (var->yoffset * var->xres_virtual + var->xoffset) * minfo->curr.final_bppShift / 32;
 			pos += minfo->curr.ydstorg.chunks;
 
@@ -813,8 +830,8 @@ static int matroxfb_set_par(struct fb_info *info)
 			hw->CRTC[0x0C] = (pos & 0xFF00) >> 8;
 			hw->CRTCEXT[0] = (hw->CRTCEXT[0] & 0xF0) | ((pos >> 16) & 0x0F) | ((pos >> 14) & 0x40);
 			hw->CRTCEXT[8] = pos >> 21;
-			minfo->hw_switch->restore(PMINFO2);
-			update_crtc2(PMINFO pos);
+			minfo->hw_switch->restore(minfo);
+			update_crtc2(minfo, pos);
 			down_read(&minfo->altout.lock);
 			for (out = 0; out < MATROXFB_MAX_OUTPUTS; out++) {
 				if (minfo->outputs[out].src == MATROXFB_SRC_CRTC1 &&
@@ -829,18 +846,19 @@ static int matroxfb_set_par(struct fb_info *info)
 				}
 			}
 			up_read(&minfo->altout.lock);
-			matrox_cfbX_init(PMINFO2);
+			matrox_cfbX_init(minfo);
 		}
 	}
 	minfo->initialized = 1;
 	return 0;
 }
 
-static int matroxfb_get_vblank(WPMINFO struct fb_vblank *vblank)
+static int matroxfb_get_vblank(struct matrox_fb_info *minfo,
+			       struct fb_vblank *vblank)
 {
 	unsigned int sts1;
 
-	matroxfb_enable_irq(PMINFO 0);
+	matroxfb_enable_irq(minfo, 0);
 	memset(vblank, 0, sizeof(*vblank));
 	vblank->flags = FB_VBLANK_HAVE_VCOUNT | FB_VBLANK_HAVE_VSYNC |
 			FB_VBLANK_HAVE_VBLANK | FB_VBLANK_HAVE_HBLANK;
@@ -886,7 +904,7 @@ static int matroxfb_ioctl(struct fb_info *info,
 				struct fb_vblank vblank;
 				int err;
 
-				err = matroxfb_get_vblank(PMINFO &vblank);
+				err = matroxfb_get_vblank(minfo, &vblank);
 				if (err)
 					return err;
 				if (copy_to_user(argp, &vblank, sizeof(vblank)))
@@ -900,7 +918,7 @@ static int matroxfb_ioctl(struct fb_info *info,
 				if (get_user(crt, (u_int32_t __user *)arg))
 					return -EFAULT;
 
-				return matroxfb_wait_for_sync(PMINFO crt);
+				return matroxfb_wait_for_sync(minfo, crt);
 			}
 		case MATROXFB_SET_OUTPUT_MODE:
 			{
@@ -1277,7 +1295,9 @@ static char outputs[8];			/* "matrox:outputs:xxx" */
 static char videomode[64];		/* "matrox:mode:xxxxx" or "matrox:xxxxx" */
 #endif
 
-static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSize){
+static int matroxfb_getmemory(struct matrox_fb_info *minfo,
+			      unsigned int maxSize, unsigned int *realSize)
+{
 	vaddr_t vm;
 	unsigned int offs;
 	unsigned int offs2;
@@ -1554,7 +1574,8 @@ static struct fb_videomode defaultmode = {
 
 static int hotplug = 0;
 
-static void setDefaultOutputs(WPMINFO2) {
+static void setDefaultOutputs(struct matrox_fb_info *minfo)
+{
 	unsigned int i;
 	const char* ptr;
 
@@ -1587,7 +1608,8 @@ static void setDefaultOutputs(WPMINFO2) {
 	outputs[0] = 0;
 }
 
-static int initMatrox2(WPMINFO struct board* b){
+static int initMatrox2(struct matrox_fb_info *minfo, struct board *b)
+{
 	unsigned long ctrlptr_phys = 0;
 	unsigned long video_base_phys = 0;
 	unsigned int memsize;
@@ -1636,7 +1658,7 @@ static int initMatrox2(WPMINFO struct board* b){
 	minfo->devflags.g450dac = (b->flags & DEVF_G450DAC) != 0;
 	minfo->devflags.textstep = minfo->devflags.vgastep * minfo->devflags.textmode;
 	minfo->devflags.textvram = 65536 / minfo->devflags.textmode;
-	setDefaultOutputs(PMINFO2);
+	setDefaultOutputs(minfo);
 	if (b->flags & DEVF_PANELLINK_CAPABLE) {
 		minfo->outputs[2].data = minfo;
 		minfo->outputs[2].output = &panellink_output;
@@ -1719,13 +1741,13 @@ static int initMatrox2(WPMINFO struct board* b){
 	}
 
 	err = -ENXIO;
-	matroxfb_read_pins(PMINFO2);
-	if (minfo->hw_switch->preinit(PMINFO2)) {
+	matroxfb_read_pins(minfo);
+	if (minfo->hw_switch->preinit(minfo)) {
 		goto failVideoIO;
 	}
 
 	err = -ENOMEM;
-	if (!matroxfb_getmemory(PMINFO memsize, &minfo->video.len) || !minfo->video.len) {
+	if (!matroxfb_getmemory(minfo, memsize, &minfo->video.len) || !minfo->video.len) {
 		printk(KERN_ERR "matroxfb: cannot determine memory size\n");
 		goto failVideoIO;
 	}
@@ -1745,8 +1767,8 @@ static int initMatrox2(WPMINFO struct board* b){
 
 	if (!minfo->devflags.novga)
 		request_region(0x3C0, 32, "matrox");
-	matroxfb_g450_connect(PMINFO2);
-	minfo->hw_switch->reset(PMINFO2);
+	matroxfb_g450_connect(minfo);
+	minfo->hw_switch->reset(minfo);
 
 	minfo->fbcon.monspecs.hfmin = 0;
 	minfo->fbcon.monspecs.hfmax = fh;
@@ -1870,7 +1892,7 @@ static int initMatrox2(WPMINFO struct board* b){
 		vesafb_defined.yres_virtual = 65536; /* large enough to be INF, but small enough
 							to yres_virtual * xres_virtual < 2^32 */
 	}
-	matroxfb_init_fix(PMINFO2);
+	matroxfb_init_fix(minfo);
 	minfo->fbcon.screen_base = vaddr_va(minfo->video.vbase);
 	/* Normalize values (namely yres_virtual) */
 	matroxfb_check_var(&vesafb_defined, &minfo->fbcon);
@@ -1910,7 +1932,7 @@ static int initMatrox2(WPMINFO struct board* b){
 
 	return 0;
 failVideoIO:;
-	matroxfb_g450_shutdown(PMINFO2);
+	matroxfb_g450_shutdown(minfo);
 	mga_iounmap(minfo->video.vbase);
 failCtrlIO:;
 	mga_iounmap(minfo->mmio.vbase);
@@ -2075,7 +2097,7 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 	init_waitqueue_head(&minfo->crtc2.vsync.wait);
 	minfo->crtc1.panpos = -1;
 
-	err = initMatrox2(PMINFO b);
+	err = initMatrox2(minfo, b);
 	if (!err) {
 		matroxfb_register_device(minfo);
 		return 0;
@@ -2088,7 +2110,7 @@ static void pci_remove_matrox(struct pci_dev* pdev) {
 	struct matrox_fb_info* minfo;
 
 	minfo = pci_get_drvdata(pdev);
-	matroxfb_remove(PMINFO 1);
+	matroxfb_remove(minfo, 1);
 }
 
 static struct pci_device_id matroxfb_devices[] = {

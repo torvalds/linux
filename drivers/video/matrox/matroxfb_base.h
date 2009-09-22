@@ -524,22 +524,15 @@ struct matrox_fb_info {
 
 #define info2minfo(info) container_of(info, struct matrox_fb_info, fbcon)
 
-#define WPMINFO2 struct matrox_fb_info* minfo
-#define WPMINFO  WPMINFO2 ,
-#define CPMINFO2 const struct matrox_fb_info* minfo
-#define CPMINFO	 CPMINFO2 ,
-#define PMINFO2  minfo
-#define PMINFO   PMINFO2 ,
-
 #define MINFO_FROM(x)	   struct matrox_fb_info* minfo = x
 
 #define MINFO_FROM_INFO(x) MINFO_FROM(info2minfo(x))
 
 struct matrox_switch {
-	int	(*preinit)(WPMINFO2);
-	void	(*reset)(WPMINFO2);
-	int	(*init)(WPMINFO struct my_timming*);
-	void	(*restore)(WPMINFO2);
+	int	(*preinit)(struct matrox_fb_info *minfo);
+	void	(*reset)(struct matrox_fb_info *minfo);
+	int	(*init)(struct matrox_fb_info *minfo, struct my_timming*);
+	void	(*restore)(struct matrox_fb_info *minfo);
 };
 
 struct matroxfb_driver {
@@ -729,11 +722,12 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv);
 #define matroxfb_DAC_unlock()                 spin_unlock(&minfo->lock.DAC)
 #define matroxfb_DAC_lock_irqsave(flags)      spin_lock_irqsave(&minfo->lock.DAC, flags)
 #define matroxfb_DAC_unlock_irqrestore(flags) spin_unlock_irqrestore(&minfo->lock.DAC, flags)
-extern void matroxfb_DAC_out(CPMINFO int reg, int val);
-extern int matroxfb_DAC_in(CPMINFO int reg);
+extern void matroxfb_DAC_out(const struct matrox_fb_info *minfo, int reg,
+			     int val);
+extern int matroxfb_DAC_in(const struct matrox_fb_info *minfo, int reg);
 extern void matroxfb_var2my(struct fb_var_screeninfo* fvsi, struct my_timming* mt);
-extern int matroxfb_wait_for_sync(WPMINFO u_int32_t crtc);
-extern int matroxfb_enable_irq(WPMINFO int reenable);
+extern int matroxfb_wait_for_sync(struct matrox_fb_info *minfo, u_int32_t crtc);
+extern int matroxfb_enable_irq(struct matrox_fb_info *minfo, int reenable);
 
 #ifdef MATROXFB_USE_SPINLOCKS
 #define CRITBEGIN  spin_lock_irqsave(&minfo->lock.accel, critflags);
