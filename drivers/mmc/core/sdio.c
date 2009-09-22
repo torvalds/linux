@@ -275,13 +275,6 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 		ocr &= ~0x7F;
 	}
 
-	if (ocr & MMC_VDD_165_195) {
-		printk(KERN_WARNING "%s: SDIO card claims to support the "
-		       "incompletely defined 'low voltage range'. This "
-		       "will be ignored.\n", mmc_hostname(host));
-		ocr &= ~MMC_VDD_165_195;
-	}
-
 	host->ocr = mmc_select_voltage(host, ocr);
 
 	/*
