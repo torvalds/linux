@@ -180,6 +180,12 @@ config GPIO_BT8XX
 
 	  If unsure, say N.
 
+config GPIO_LANGWELL
+	bool "Intel Moorestown Platform Langwell GPIO support"
+	depends on PCI
+	help
+	  Say Y here to support Intel Moorestown platform GPIO.
+
 comment "SPI GPIO expanders:"
 
 config GPIO_MAX7301
