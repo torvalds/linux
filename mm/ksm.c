@@ -1268,6 +1268,14 @@ static void ksm_do_scan(unsigned int scan_npages)
 			return;
 		if (!PageKsm(page) || !in_stable_tree(rmap_item))
 			cmp_and_merge_page(page, rmap_item);
+		else if (page_mapcount(page) == 1) {
+			/*
+			 * Replace now-unshared ksm page by ordinary page.
+			 */
+			break_cow(rmap_item->mm, rmap_item->address);
+			remove_rmap_item_from_tree(rmap_item);
+			rmap_item->oldchecksum = calc_checksum(page);
+		}
 		put_page(page);
 	}
 }
