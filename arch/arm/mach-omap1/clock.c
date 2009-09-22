@@ -69,7 +69,7 @@ struct omap_clk {
 	}
 
 #define CK_310	(1 << 0)
-#define CK_730	(1 << 1)
+#define CK_7XX	(1 << 1)
 #define CK_1510	(1 << 2)
 #define CK_16XX	(1 << 3)
 
@@ -97,7 +97,7 @@ static struct omap_clk omap_clks[] = {
 	CLK(NULL,	"dspxor_ck",	&dspxor_ck,	CK_16XX | CK_1510 | CK_310),
 	CLK(NULL,	"dsptim_ck",	&dsptim_ck,	CK_16XX | CK_1510 | CK_310),
 	/* CK_GEN3 clocks */
-	CLK(NULL,	"tc_ck",	&tc_ck.clk,	CK_16XX | CK_1510 | CK_310 | CK_730),
+	CLK(NULL,	"tc_ck",	&tc_ck.clk,	CK_16XX | CK_1510 | CK_310 | CK_7XX),
 	CLK(NULL,	"tipb_ck",	&tipb_ck,	CK_1510 | CK_310),
 	CLK(NULL,	"l3_ocpi_ck",	&l3_ocpi_ck,	CK_16XX),
 	CLK(NULL,	"tc1_ck",	&tc1_ck,	CK_16XX),
@@ -108,7 +108,7 @@ static struct omap_clk omap_clks[] = {
 	CLK(NULL,	"lb_ck",	&lb_ck.clk,	CK_1510 | CK_310),
 	CLK(NULL,	"rhea1_ck",	&rhea1_ck,	CK_16XX),
 	CLK(NULL,	"rhea2_ck",	&rhea2_ck,	CK_16XX),
-	CLK(NULL,	"lcd_ck",	&lcd_ck_16xx,	CK_16XX | CK_730),
+	CLK(NULL,	"lcd_ck",	&lcd_ck_16xx,	CK_16XX | CK_7XX),
 	CLK(NULL,	"lcd_ck",	&lcd_ck_1510.clk, CK_1510 | CK_310),
 	/* ULPD clocks */
 	CLK(NULL,	"uart1_ck",	&uart1_1510,	CK_1510 | CK_310),
@@ -784,7 +784,7 @@ int __init omap1_clk_init(void)
 	if (cpu_is_omap1510())
 		cpu_mask |= CK_1510;
 	if (cpu_is_omap7xx())
-		cpu_mask |= CK_730;
+		cpu_mask |= CK_7XX;
 	if (cpu_is_omap310())
 		cpu_mask |= CK_310;
 

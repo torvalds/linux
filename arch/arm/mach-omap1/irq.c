@@ -138,7 +138,7 @@ static void omap_irq_set_cfg(int irq, int fiq, int priority, int trigger)
 }
 
 #if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
-static struct omap_irq_bank omap730_irq_banks[] = {
+static struct omap_irq_bank omap7xx_irq_banks[] = {
 	{ .base_reg = OMAP_IH1_BASE,		.trigger_map = 0xb3f8e22f },
 	{ .base_reg = OMAP_IH2_BASE,		.trigger_map = 0xfdb9c1f2 },
 	{ .base_reg = OMAP_IH2_BASE + 0x100,	.trigger_map = 0x800040f3 },
@@ -180,8 +180,8 @@ void __init omap_init_irq(void)
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 	if (cpu_is_omap7xx()) {
-		irq_banks = omap730_irq_banks;
-		irq_bank_count = ARRAY_SIZE(omap730_irq_banks);
+		irq_banks = omap7xx_irq_banks;
+		irq_bank_count = ARRAY_SIZE(omap7xx_irq_banks);
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP15XX

@@ -36,27 +36,27 @@
 static struct omap_mux_cfg arch_mux_cfg;
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-static struct pin_config __initdata_or_module omap730_pins[] = {
-MUX_CFG_730("E2_730_KBR0",        12,   21,    0,   20,   1, 0)
-MUX_CFG_730("J7_730_KBR1",        12,   25,    0,   24,   1, 0)
-MUX_CFG_730("E1_730_KBR2",        12,   29,    0,   28,   1, 0)
-MUX_CFG_730("F3_730_KBR3",        13,    1,    0,    0,   1, 0)
-MUX_CFG_730("D2_730_KBR4",        13,    5,    0,    4,   1, 0)
-MUX_CFG_730("C2_730_KBC0",        13,    9,    0,    8,   1, 0)
-MUX_CFG_730("D3_730_KBC1",        13,   13,    0,   12,   1, 0)
-MUX_CFG_730("E4_730_KBC2",        13,   17,    0,   16,   1, 0)
-MUX_CFG_730("F4_730_KBC3",        13,   21,    0,   20,   1, 0)
-MUX_CFG_730("E3_730_KBC4",        13,   25,    0,   24,   1, 0)
+static struct pin_config __initdata_or_module omap7xx_pins[] = {
+MUX_CFG_7XX("E2_7XX_KBR0",        12,   21,    0,   20,   1, 0)
+MUX_CFG_7XX("J7_7XX_KBR1",        12,   25,    0,   24,   1, 0)
+MUX_CFG_7XX("E1_7XX_KBR2",        12,   29,    0,   28,   1, 0)
+MUX_CFG_7XX("F3_7XX_KBR3",        13,    1,    0,    0,   1, 0)
+MUX_CFG_7XX("D2_7XX_KBR4",        13,    5,    0,    4,   1, 0)
+MUX_CFG_7XX("C2_7XX_KBC0",        13,    9,    0,    8,   1, 0)
+MUX_CFG_7XX("D3_7XX_KBC1",        13,   13,    0,   12,   1, 0)
+MUX_CFG_7XX("E4_7XX_KBC2",        13,   17,    0,   16,   1, 0)
+MUX_CFG_7XX("F4_7XX_KBC3",        13,   21,    0,   20,   1, 0)
+MUX_CFG_7XX("E3_7XX_KBC4",        13,   25,    0,   24,   1, 0)
 
-MUX_CFG_730("AA17_730_USB_DM",     2,   21,    0,   20,   0, 0)
-MUX_CFG_730("W16_730_USB_PU_EN",   2,   25,    0,   24,   0, 0)
-MUX_CFG_730("W17_730_USB_VBUSI",   2,   29,    0,   28,   0, 0)
+MUX_CFG_7XX("AA17_7XX_USB_DM",     2,   21,    0,   20,   0, 0)
+MUX_CFG_7XX("W16_7XX_USB_PU_EN",   2,   25,    0,   24,   0, 0)
+MUX_CFG_7XX("W17_7XX_USB_VBUSI",   2,   29,    0,   28,   0, 0)
 };
-#define OMAP730_PINS_SZ		ARRAY_SIZE(omap730_pins)
+#define OMAP7XX_PINS_SZ		ARRAY_SIZE(omap7xx_pins)
 #else
-#define omap730_pins		NULL
-#define OMAP730_PINS_SZ		0
-#endif	/* CONFIG_ARCH_OMAP730 */
+#define omap7xx_pins		NULL
+#define OMAP7XX_PINS_SZ		0
+#endif	/* CONFIG_ARCH_OMAP730 || CONFIG_ARCH_OMAP850 */
 
 #if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX)
 static struct pin_config __initdata_or_module omap1xxx_pins[] = {
@@ -431,8 +431,8 @@ int __init_or_module omap1_cfg_reg(const struct pin_config *cfg)
 int __init omap1_mux_init(void)
 {
 	if (cpu_is_omap7xx()) {
-		arch_mux_cfg.pins	= omap730_pins;
-		arch_mux_cfg.size	= OMAP730_PINS_SZ;
+		arch_mux_cfg.pins	= omap7xx_pins;
+		arch_mux_cfg.size	= OMAP7XX_PINS_SZ;
 		arch_mux_cfg.cfg_reg	= omap1_cfg_reg;
 	}
 
