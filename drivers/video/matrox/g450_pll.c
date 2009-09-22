@@ -30,7 +30,7 @@ static unsigned int g450_mnp2vco(CPMINFO unsigned int mnp) {
 
 	m = ((mnp >> 16) & 0x0FF) + 1;
 	n = ((mnp >>  7) & 0x1FE) + 4;
-	return (ACCESS_FBINFO(features).pll.ref_freq * n + (m >> 1)) / m;
+	return (minfo->features.pll.ref_freq * n + (m >> 1)) / m;
 }
 
 unsigned int g450_mnp2f(CPMINFO unsigned int mnp) {
@@ -90,7 +90,7 @@ static unsigned int g450_nextpll(CPMINFO const struct matrox_pll_limits* pi, uns
 		} else {
 			m--;
 		}
-        	n = ((tvco * (m+1) + ACCESS_FBINFO(features).pll.ref_freq) / (ACCESS_FBINFO(features).pll.ref_freq * 2)) - 2;
+		n = ((tvco * (m+1) + minfo->features.pll.ref_freq) / (minfo->features.pll.ref_freq * 2)) - 2;
 	} while (n < 0x03 || n > 0x7A);
 	return (m << 16) | (n << 8) | p;
 }
@@ -333,7 +333,7 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 				matroxfb_DAC_out(PMINFO M1064_XPIXCLKCTRL, tmp);
 				/* DVI PLL preferred for frequencies up to
 				   panel link max, standard PLL otherwise */
-				if (fout >= MINFO->max_pixel_clock_panellink)
+				if (fout >= minfo->max_pixel_clock_panellink)
 					tmp = 0;
 				else tmp =
 					M1064_XDVICLKCTRL_DVIDATAPATHSEL |
@@ -363,20 +363,20 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 				}
 				mga_outb(M_MISC_REG, misc);
 			}
-			pi = &ACCESS_FBINFO(limits.pixel);
-			ci = &ACCESS_FBINFO(cache.pixel);
+			pi = &minfo->limits.pixel;
+			ci = &minfo->cache.pixel;
 			break;
 		case M_SYSTEM_PLL:
 			{
 				u_int32_t opt;
 
-				pci_read_config_dword(ACCESS_FBINFO(pcidev), PCI_OPTION_REG, &opt);
+				pci_read_config_dword(minfo->pcidev, PCI_OPTION_REG, &opt);
 				if (!(opt & 0x20)) {
-					pci_write_config_dword(ACCESS_FBINFO(pcidev), PCI_OPTION_REG, opt | 0x20);
+					pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, opt | 0x20);
 				}
 			}
-			pi = &ACCESS_FBINFO(limits.system);
-			ci = &ACCESS_FBINFO(cache.system);
+			pi = &minfo->limits.system;
+			ci = &minfo->cache.system;
 			break;
 		case M_VIDEO_PLL:
 			{
@@ -395,8 +395,8 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 				pixel_vco = g450_mnp2vco(PMINFO mnp);
 				matroxfb_DAC_unlock_irqrestore(flags);
 			}
-			pi = &ACCESS_FBINFO(limits.video);
-			ci = &ACCESS_FBINFO(cache.video);
+			pi = &minfo->limits.video;
+			ci = &minfo->cache.video;
 			break;
 		default:
 			return -EINVAL;
@@ -475,7 +475,7 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 			mnp = g450_findworkingpll(PMINFO pll, mnparray, mnpcount);
 			g450_addcache(ci, mnparray[0], mnp);
 		}
-		updatehwstate_clk(&ACCESS_FBINFO(hw), mnp, pll);
+		updatehwstate_clk(&minfo->hw, mnp, pll);
 		matroxfb_DAC_unlock_irqrestore(flags);
 		return mnp;
 	}

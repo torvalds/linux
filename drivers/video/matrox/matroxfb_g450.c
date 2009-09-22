@@ -81,7 +81,7 @@ static int get_ctrl_id(__u32 v4l2_id) {
 }
 
 static inline int* get_ctrl_ptr(WPMINFO unsigned int idx) {
-	return (int*)((char*)MINFO + g450_controls[idx].control);
+	return (int*)((char*)minfo + g450_controls[idx].control);
 }
 
 static void tvo_fill_defaults(WPMINFO2) {
@@ -124,8 +124,8 @@ static void cve2_set_reg10(WPMINFO int reg, int val) {
 }
 
 static void g450_compute_bwlevel(CPMINFO int *bl, int *wl) {
-	const int b = ACCESS_FBINFO(altout.tvo_params.brightness) + BLMIN;
-	const int c = ACCESS_FBINFO(altout.tvo_params.contrast);
+	const int b = minfo->altout.tvo_params.brightness + BLMIN;
+	const int c = minfo->altout.tvo_params.contrast;
 
 	*bl = max(b - c, BLMIN);
 	*wl = min(b + c, WLMAX);
@@ -509,31 +509,31 @@ static void cve2_init_TV(WPMINFO const struct mavenregs* m) {
 static int matroxfb_g450_compute(void* md, struct my_timming* mt) {
 	MINFO_FROM(md);
 
-	dprintk(KERN_DEBUG "Computing, mode=%u\n", ACCESS_FBINFO(outputs[1]).mode);
+	dprintk(KERN_DEBUG "Computing, mode=%u\n", minfo->outputs[1].mode);
 
 	if (mt->crtc == MATROXFB_SRC_CRTC2 &&
-	    ACCESS_FBINFO(outputs[1]).mode != MATROXFB_OUTPUT_MODE_MONITOR) {
+	    minfo->outputs[1].mode != MATROXFB_OUTPUT_MODE_MONITOR) {
 		const struct output_desc* outd;
 
-		cve2_init_TVdata(ACCESS_FBINFO(outputs[1]).mode, &ACCESS_FBINFO(hw).maven, &outd);
+		cve2_init_TVdata(minfo->outputs[1].mode, &minfo->hw.maven, &outd);
 		{
 			int blacklevel, whitelevel;
 			g450_compute_bwlevel(PMINFO &blacklevel, &whitelevel);
-			ACCESS_FBINFO(hw).maven.regs[0x0E] = blacklevel >> 2;
-			ACCESS_FBINFO(hw).maven.regs[0x0F] = blacklevel & 3;
-			ACCESS_FBINFO(hw).maven.regs[0x1E] = whitelevel >> 2;
-			ACCESS_FBINFO(hw).maven.regs[0x1F] = whitelevel & 3;
+			minfo->hw.maven.regs[0x0E] = blacklevel >> 2;
+			minfo->hw.maven.regs[0x0F] = blacklevel & 3;
+			minfo->hw.maven.regs[0x1E] = whitelevel >> 2;
+			minfo->hw.maven.regs[0x1F] = whitelevel & 3;
 
-			ACCESS_FBINFO(hw).maven.regs[0x20] =
-			ACCESS_FBINFO(hw).maven.regs[0x22] = ACCESS_FBINFO(altout.tvo_params.saturation);
+			minfo->hw.maven.regs[0x20] =
+			minfo->hw.maven.regs[0x22] = minfo->altout.tvo_params.saturation;
 
-			ACCESS_FBINFO(hw).maven.regs[0x25] = ACCESS_FBINFO(altout.tvo_params.hue);
+			minfo->hw.maven.regs[0x25] = minfo->altout.tvo_params.hue;
 
-			if (ACCESS_FBINFO(altout.tvo_params.testout)) {
-				ACCESS_FBINFO(hw).maven.regs[0x05] |= 0x02;
+			if (minfo->altout.tvo_params.testout) {
+				minfo->hw.maven.regs[0x05] |= 0x02;
 			}
 		}
-		computeRegs(PMINFO &ACCESS_FBINFO(hw).maven, mt, outd);
+		computeRegs(PMINFO &minfo->hw.maven, mt, outd);
 	} else if (mt->mnp < 0) {
 		/* We must program clocks before CRTC2, otherwise interlaced mode
 		   startup may fail */
@@ -547,8 +547,8 @@ static int matroxfb_g450_compute(void* md, struct my_timming* mt) {
 static int matroxfb_g450_program(void* md) {
 	MINFO_FROM(md);
 	
-	if (ACCESS_FBINFO(outputs[1]).mode != MATROXFB_OUTPUT_MODE_MONITOR) {
-		cve2_init_TV(PMINFO &ACCESS_FBINFO(hw).maven);
+	if (minfo->outputs[1].mode != MATROXFB_OUTPUT_MODE_MONITOR) {
+		cve2_init_TV(PMINFO &minfo->hw.maven);
 	}
 	return 0;
 }
@@ -589,33 +589,33 @@ static struct matrox_altout matroxfb_g450_dvi = {
 };
 
 void matroxfb_g450_connect(WPMINFO2) {
-	if (ACCESS_FBINFO(devflags.g450dac)) {
-		down_write(&ACCESS_FBINFO(altout.lock));
+	if (minfo->devflags.g450dac) {
+		down_write(&minfo->altout.lock);
 		tvo_fill_defaults(PMINFO2);
-		ACCESS_FBINFO(outputs[1]).src = ACCESS_FBINFO(outputs[1]).default_src;
-		ACCESS_FBINFO(outputs[1]).data = MINFO;
-		ACCESS_FBINFO(outputs[1]).output = &matroxfb_g450_altout;
-		ACCESS_FBINFO(outputs[1]).mode = MATROXFB_OUTPUT_MODE_MONITOR;
-		ACCESS_FBINFO(outputs[2]).src = ACCESS_FBINFO(outputs[2]).default_src;
-		ACCESS_FBINFO(outputs[2]).data = MINFO;
-		ACCESS_FBINFO(outputs[2]).output = &matroxfb_g450_dvi;
-		ACCESS_FBINFO(outputs[2]).mode = MATROXFB_OUTPUT_MODE_MONITOR;
-		up_write(&ACCESS_FBINFO(altout.lock));
+		minfo->outputs[1].src = minfo->outputs[1].default_src;
+		minfo->outputs[1].data = minfo;
+		minfo->outputs[1].output = &matroxfb_g450_altout;
+		minfo->outputs[1].mode = MATROXFB_OUTPUT_MODE_MONITOR;
+		minfo->outputs[2].src = minfo->outputs[2].default_src;
+		minfo->outputs[2].data = minfo;
+		minfo->outputs[2].output = &matroxfb_g450_dvi;
+		minfo->outputs[2].mode = MATROXFB_OUTPUT_MODE_MONITOR;
+		up_write(&minfo->altout.lock);
 	}
 }
 
 void matroxfb_g450_shutdown(WPMINFO2) {
-	if (ACCESS_FBINFO(devflags.g450dac)) {
-		down_write(&ACCESS_FBINFO(altout.lock));
-		ACCESS_FBINFO(outputs[1]).src = MATROXFB_SRC_NONE;
-		ACCESS_FBINFO(outputs[1]).output = NULL;
-		ACCESS_FBINFO(outputs[1]).data = NULL;
-		ACCESS_FBINFO(outputs[1]).mode = MATROXFB_OUTPUT_MODE_MONITOR;
-		ACCESS_FBINFO(outputs[2]).src = MATROXFB_SRC_NONE;
-		ACCESS_FBINFO(outputs[2]).output = NULL;
-		ACCESS_FBINFO(outputs[2]).data = NULL;
-		ACCESS_FBINFO(outputs[2]).mode = MATROXFB_OUTPUT_MODE_MONITOR;
-		up_write(&ACCESS_FBINFO(altout.lock));
+	if (minfo->devflags.g450dac) {
+		down_write(&minfo->altout.lock);
+		minfo->outputs[1].src = MATROXFB_SRC_NONE;
+		minfo->outputs[1].output = NULL;
+		minfo->outputs[1].data = NULL;
+		minfo->outputs[1].mode = MATROXFB_OUTPUT_MODE_MONITOR;
+		minfo->outputs[2].src = MATROXFB_SRC_NONE;
+		minfo->outputs[2].output = NULL;
+		minfo->outputs[2].data = NULL;
+		minfo->outputs[2].mode = MATROXFB_OUTPUT_MODE_MONITOR;
+		up_write(&minfo->altout.lock);
 	}
 }
 

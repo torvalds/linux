@@ -8,7 +8,7 @@ int matroxfb_PLL_calcclock(const struct matrox_pll_features* pll, unsigned int f
 	unsigned int* in, unsigned int* feed, unsigned int* post);
 static inline int PLL_calcclock(CPMINFO unsigned int freq, unsigned int fmax,
 		unsigned int* in, unsigned int* feed, unsigned int* post) {
-	return matroxfb_PLL_calcclock(&ACCESS_FBINFO(features.pll), freq, fmax, in, feed, post);
+	return matroxfb_PLL_calcclock(&minfo->features.pll, freq, fmax, in, feed, post);
 }
 
 int matroxfb_vgaHWinit(WPMINFO struct my_timming* m);

@@ -524,11 +524,6 @@ struct matrox_fb_info {
 
 #define info2minfo(info) container_of(info, struct matrox_fb_info, fbcon)
 
-#define ACCESS_FBINFO2(info, x) (info->x)
-#define ACCESS_FBINFO(x) ACCESS_FBINFO2(minfo,x)
-
-#define MINFO minfo
-
 #define WPMINFO2 struct matrox_fb_info* minfo
 #define WPMINFO  WPMINFO2 ,
 #define CPMINFO2 const struct matrox_fb_info* minfo
@@ -707,11 +702,11 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv);
 #endif
 #endif
 
-#define mga_inb(addr)		mga_readb(ACCESS_FBINFO(mmio.vbase), (addr))
-#define mga_inl(addr)		mga_readl(ACCESS_FBINFO(mmio.vbase), (addr))
-#define mga_outb(addr,val)	mga_writeb(ACCESS_FBINFO(mmio.vbase), (addr), (val))
-#define mga_outw(addr,val)	mga_writew(ACCESS_FBINFO(mmio.vbase), (addr), (val))
-#define mga_outl(addr,val)	mga_writel(ACCESS_FBINFO(mmio.vbase), (addr), (val))
+#define mga_inb(addr)		mga_readb(minfo->mmio.vbase, (addr))
+#define mga_inl(addr)		mga_readl(minfo->mmio.vbase, (addr))
+#define mga_outb(addr,val)	mga_writeb(minfo->mmio.vbase, (addr), (val))
+#define mga_outw(addr,val)	mga_writew(minfo->mmio.vbase, (addr), (val))
+#define mga_outl(addr,val)	mga_writel(minfo->mmio.vbase, (addr), (val))
 #define mga_readr(port,idx)	(mga_outb((port),(idx)), mga_inb((port)+1))
 #define mga_setr(addr,port,val)	mga_outw(addr, ((val)<<8) | (port))
 
@@ -730,10 +725,10 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv);
 #define isMilleniumII(x) (0)
 #endif
 
-#define matroxfb_DAC_lock()                   spin_lock(&ACCESS_FBINFO(lock.DAC))
-#define matroxfb_DAC_unlock()                 spin_unlock(&ACCESS_FBINFO(lock.DAC))
-#define matroxfb_DAC_lock_irqsave(flags)      spin_lock_irqsave(&ACCESS_FBINFO(lock.DAC),flags)
-#define matroxfb_DAC_unlock_irqrestore(flags) spin_unlock_irqrestore(&ACCESS_FBINFO(lock.DAC),flags)
+#define matroxfb_DAC_lock()                   spin_lock(&minfo->lock.DAC)
+#define matroxfb_DAC_unlock()                 spin_unlock(&minfo->lock.DAC)
+#define matroxfb_DAC_lock_irqsave(flags)      spin_lock_irqsave(&minfo->lock.DAC, flags)
+#define matroxfb_DAC_unlock_irqrestore(flags) spin_unlock_irqrestore(&minfo->lock.DAC, flags)
 extern void matroxfb_DAC_out(CPMINFO int reg, int val);
 extern int matroxfb_DAC_in(CPMINFO int reg);
 extern void matroxfb_var2my(struct fb_var_screeninfo* fvsi, struct my_timming* mt);
@@ -741,8 +736,8 @@ extern int matroxfb_wait_for_sync(WPMINFO u_int32_t crtc);
 extern int matroxfb_enable_irq(WPMINFO int reenable);
 
 #ifdef MATROXFB_USE_SPINLOCKS
-#define CRITBEGIN  spin_lock_irqsave(&ACCESS_FBINFO(lock.accel), critflags);
-#define CRITEND	   spin_unlock_irqrestore(&ACCESS_FBINFO(lock.accel), critflags);
+#define CRITBEGIN  spin_lock_irqsave(&minfo->lock.accel, critflags);
+#define CRITEND	   spin_unlock_irqrestore(&minfo->lock.accel, critflags);
 #define CRITFLAGS  unsigned long critflags;
 #else
 #define CRITBEGIN

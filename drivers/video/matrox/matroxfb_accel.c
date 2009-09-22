@@ -81,7 +81,7 @@
 #include "matroxfb_Ti3026.h"
 #include "matroxfb_misc.h"
 
-#define curr_ydstorg(x)	ACCESS_FBINFO2(x, curr.ydstorg.pixels)
+#define curr_ydstorg(x)	((x)->curr.ydstorg.pixels)
 
 #define mga_ydstlen(y,l) mga_outl(M_YDSTLEN | M_EXEC, ((y) << 16) | (l))
 
@@ -115,59 +115,59 @@ void matrox_cfbX_init(WPMINFO2) {
 
 	DBG(__func__)
 
-	mpitch = ACCESS_FBINFO(fbcon).var.xres_virtual;
+	mpitch = minfo->fbcon.var.xres_virtual;
 
-	ACCESS_FBINFO(fbops).fb_copyarea = cfb_copyarea;
-	ACCESS_FBINFO(fbops).fb_fillrect = cfb_fillrect;
-	ACCESS_FBINFO(fbops).fb_imageblit = cfb_imageblit;
-	ACCESS_FBINFO(fbops).fb_cursor = NULL;
+	minfo->fbops.fb_copyarea = cfb_copyarea;
+	minfo->fbops.fb_fillrect = cfb_fillrect;
+	minfo->fbops.fb_imageblit = cfb_imageblit;
+	minfo->fbops.fb_cursor = NULL;
 
-	accel = (ACCESS_FBINFO(fbcon).var.accel_flags & FB_ACCELF_TEXT) == FB_ACCELF_TEXT;
+	accel = (minfo->fbcon.var.accel_flags & FB_ACCELF_TEXT) == FB_ACCELF_TEXT;
 
-	switch (ACCESS_FBINFO(fbcon).var.bits_per_pixel) {
+	switch (minfo->fbcon.var.bits_per_pixel) {
 		case 4:		maccess = 0x00000000;	/* accelerate as 8bpp video */
 				mpitch = (mpitch >> 1) | 0x8000; /* disable linearization */
 				mopmode = M_OPMODE_4BPP;
-				matrox_cfb4_pal(ACCESS_FBINFO(cmap));
+				matrox_cfb4_pal(minfo->cmap);
 				if (accel && !(mpitch & 1)) {
-					ACCESS_FBINFO(fbops).fb_copyarea = matroxfb_cfb4_copyarea;
-					ACCESS_FBINFO(fbops).fb_fillrect = matroxfb_cfb4_fillrect;
+					minfo->fbops.fb_copyarea = matroxfb_cfb4_copyarea;
+					minfo->fbops.fb_fillrect = matroxfb_cfb4_fillrect;
 				}
 				break;
 		case 8:		maccess = 0x00000000;
 				mopmode = M_OPMODE_8BPP;
-				matrox_cfb8_pal(ACCESS_FBINFO(cmap));
+				matrox_cfb8_pal(minfo->cmap);
 				if (accel) {
-					ACCESS_FBINFO(fbops).fb_copyarea = matroxfb_copyarea;
-					ACCESS_FBINFO(fbops).fb_fillrect = matroxfb_fillrect;
-					ACCESS_FBINFO(fbops).fb_imageblit = matroxfb_imageblit;
+					minfo->fbops.fb_copyarea = matroxfb_copyarea;
+					minfo->fbops.fb_fillrect = matroxfb_fillrect;
+					minfo->fbops.fb_imageblit = matroxfb_imageblit;
 				}
 				break;
-		case 16:	if (ACCESS_FBINFO(fbcon).var.green.length == 5)
+		case 16:	if (minfo->fbcon.var.green.length == 5)
 					maccess = 0xC0000001;
 				else
 					maccess = 0x40000001;
 				mopmode = M_OPMODE_16BPP;
 				if (accel) {
-					ACCESS_FBINFO(fbops).fb_copyarea = matroxfb_copyarea;
-					ACCESS_FBINFO(fbops).fb_fillrect = matroxfb_fillrect;
-					ACCESS_FBINFO(fbops).fb_imageblit = matroxfb_imageblit;
+					minfo->fbops.fb_copyarea = matroxfb_copyarea;
+					minfo->fbops.fb_fillrect = matroxfb_fillrect;
+					minfo->fbops.fb_imageblit = matroxfb_imageblit;
 				}
 				break;
 		case 24:	maccess = 0x00000003;
 				mopmode = M_OPMODE_24BPP;
 				if (accel) {
-					ACCESS_FBINFO(fbops).fb_copyarea = matroxfb_copyarea;
-					ACCESS_FBINFO(fbops).fb_fillrect = matroxfb_fillrect;
-					ACCESS_FBINFO(fbops).fb_imageblit = matroxfb_imageblit;
+					minfo->fbops.fb_copyarea = matroxfb_copyarea;
+					minfo->fbops.fb_fillrect = matroxfb_fillrect;
+					minfo->fbops.fb_imageblit = matroxfb_imageblit;
 				}
 				break;
 		case 32:	maccess = 0x00000002;
 				mopmode = M_OPMODE_32BPP;
 				if (accel) {
-					ACCESS_FBINFO(fbops).fb_copyarea = matroxfb_copyarea;
-					ACCESS_FBINFO(fbops).fb_fillrect = matroxfb_fillrect;
-					ACCESS_FBINFO(fbops).fb_imageblit = matroxfb_imageblit;
+					minfo->fbops.fb_copyarea = matroxfb_copyarea;
+					minfo->fbops.fb_fillrect = matroxfb_fillrect;
+					minfo->fbops.fb_imageblit = matroxfb_imageblit;
 				}
 				break;
 		default:	maccess = 0x00000000;
@@ -176,10 +176,10 @@ void matrox_cfbX_init(WPMINFO2) {
 	}
 	mga_fifo(8);
 	mga_outl(M_PITCH, mpitch);
-	mga_outl(M_YDSTORG, curr_ydstorg(MINFO));
-	if (ACCESS_FBINFO(capable.plnwt))
+	mga_outl(M_YDSTORG, curr_ydstorg(minfo));
+	if (minfo->capable.plnwt)
 		mga_outl(M_PLNWT, -1);
-	if (ACCESS_FBINFO(capable.srcorg)) {
+	if (minfo->capable.srcorg) {
 		mga_outl(M_SRCORG, 0);
 		mga_outl(M_DSTORG, 0);
 	}
@@ -188,9 +188,9 @@ void matrox_cfbX_init(WPMINFO2) {
 	mga_outl(M_YTOP, 0);
 	mga_outl(M_YBOT, 0x01FFFFFF);
 	mga_outl(M_MACCESS, maccess);
-	ACCESS_FBINFO(accel.m_dwg_rect) = M_DWG_TRAP | M_DWG_SOLID | M_DWG_ARZERO | M_DWG_SGNZERO | M_DWG_SHIFTZERO;
-	if (isMilleniumII(MINFO)) ACCESS_FBINFO(accel.m_dwg_rect) |= M_DWG_TRANSC;
-	ACCESS_FBINFO(accel.m_opmode) = mopmode;
+	minfo->accel.m_dwg_rect = M_DWG_TRAP | M_DWG_SOLID | M_DWG_ARZERO | M_DWG_SGNZERO | M_DWG_SHIFTZERO;
+	if (isMilleniumII(minfo)) minfo->accel.m_dwg_rect |= M_DWG_TRANSC;
+	minfo->accel.m_opmode = mopmode;
 }
 
 EXPORT_SYMBOL(matrox_cfbX_init);
@@ -209,7 +209,7 @@ static void matrox_accel_bmove(WPMINFO int vxres, int sy, int sx, int dy, int dx
 			 M_DWG_BFCOL | M_DWG_REPLACE);
 		mga_outl(M_AR5, vxres);
 		width--;
-		start = sy*vxres+sx+curr_ydstorg(MINFO);
+		start = sy*vxres+sx+curr_ydstorg(minfo);
 		end = start+width;
 	} else {
 		mga_fifo(3);
@@ -217,7 +217,7 @@ static void matrox_accel_bmove(WPMINFO int vxres, int sy, int sx, int dy, int dx
 		mga_outl(M_SGN, 5);
 		mga_outl(M_AR5, -vxres);
 		width--;
-		end = (sy+height-1)*vxres+sx+curr_ydstorg(MINFO);
+		end = (sy+height-1)*vxres+sx+curr_ydstorg(minfo);
 		start = end+width;
 		dy += height-1;
 	}
@@ -245,7 +245,7 @@ static void matrox_accel_bmove_lin(WPMINFO int vxres, int sy, int sx, int dy, in
 			M_DWG_BFCOL | M_DWG_REPLACE);
 		mga_outl(M_AR5, vxres);
 		width--;
-		start = sy*vxres+sx+curr_ydstorg(MINFO);
+		start = sy*vxres+sx+curr_ydstorg(minfo);
 		end = start+width;
 	} else {
 		mga_fifo(3);
@@ -253,7 +253,7 @@ static void matrox_accel_bmove_lin(WPMINFO int vxres, int sy, int sx, int dy, in
 		mga_outl(M_SGN, 5);
 		mga_outl(M_AR5, -vxres);
 		width--;
-		end = (sy+height-1)*vxres+sx+curr_ydstorg(MINFO);
+		end = (sy+height-1)*vxres+sx+curr_ydstorg(minfo);
 		start = end+width;
 		dy += height-1;
 	}
@@ -274,13 +274,13 @@ static void matroxfb_cfb4_copyarea(struct fb_info* info, const struct fb_copyare
 	if ((area->sx | area->dx | area->width) & 1)
 		cfb_copyarea(info, area);
 	else
-		matrox_accel_bmove_lin(PMINFO ACCESS_FBINFO(fbcon.var.xres_virtual) >> 1, area->sy, area->sx >> 1, area->dy, area->dx >> 1, area->height, area->width >> 1);
+		matrox_accel_bmove_lin(PMINFO minfo->fbcon.var.xres_virtual >> 1, area->sy, area->sx >> 1, area->dy, area->dx >> 1, area->height, area->width >> 1);
 }
 
 static void matroxfb_copyarea(struct fb_info* info, const struct fb_copyarea* area) {
 	MINFO_FROM_INFO(info);
 
-	matrox_accel_bmove(PMINFO ACCESS_FBINFO(fbcon.var.xres_virtual), area->sy, area->sx, area->dy, area->dx, area->height, area->width);
+	matrox_accel_bmove(PMINFO minfo->fbcon.var.xres_virtual, area->sy, area->sx, area->dy, area->dx, area->height, area->width);
 }
 
 static void matroxfb_accel_clear(WPMINFO u_int32_t color, int sy, int sx, int height,
@@ -292,7 +292,7 @@ static void matroxfb_accel_clear(WPMINFO u_int32_t color, int sy, int sx, int he
 	CRITBEGIN
 
 	mga_fifo(5);
-	mga_outl(M_DWGCTL, ACCESS_FBINFO(accel.m_dwg_rect) | M_DWG_REPLACE);
+	mga_outl(M_DWGCTL, minfo->accel.m_dwg_rect | M_DWG_REPLACE);
 	mga_outl(M_FCOL, color);
 	mga_outl(M_FXBNDRY, ((sx + width) << 16) | sx);
 	mga_ydstlen(sy, height);
@@ -333,16 +333,16 @@ static void matroxfb_cfb4_clear(WPMINFO u_int32_t bgx, int sy, int sx, int heigh
 	sx >>= 1;
 	if (width) {
 		mga_fifo(5);
-		mga_outl(M_DWGCTL, ACCESS_FBINFO(accel.m_dwg_rect) | M_DWG_REPLACE2);
+		mga_outl(M_DWGCTL, minfo->accel.m_dwg_rect | M_DWG_REPLACE2);
 		mga_outl(M_FCOL, bgx);
 		mga_outl(M_FXBNDRY, ((sx + width) << 16) | sx);
-		mga_outl(M_YDST, sy * ACCESS_FBINFO(fbcon).var.xres_virtual >> 6);
+		mga_outl(M_YDST, sy * minfo->fbcon.var.xres_virtual >> 6);
 		mga_outl(M_LEN | M_EXEC, height);
 		WaitTillIdle();
 	}
 	if (whattodo) {
-		u_int32_t step = ACCESS_FBINFO(fbcon).var.xres_virtual >> 1;
-		vaddr_t vbase = ACCESS_FBINFO(video.vbase);
+		u_int32_t step = minfo->fbcon.var.xres_virtual >> 1;
+		vaddr_t vbase = minfo->video.vbase;
 		if (whattodo & 1) {
 			unsigned int uaddr = sy * step + sx - 1;
 			u_int32_t loop;
@@ -412,7 +412,7 @@ static void matroxfb_1bpp_imageblit(WPMINFO u_int32_t fgx, u_int32_t bgx,
 	mga_outl(M_FCOL, fgx);
 	mga_outl(M_BCOL, bgx);
 	fxbndry = ((xx + width - 1) << 16) | xx;
-	mmio = ACCESS_FBINFO(mmio.vbase);
+	mmio = minfo->mmio.vbase;
 
 	mga_fifo(6);
 	mga_writel(mmio, M_FXBNDRY, fxbndry);
