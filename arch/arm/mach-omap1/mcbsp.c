@@ -79,7 +79,7 @@ static struct omap_mcbsp_ops omap1_mcbsp_ops = {
 	.free		= omap1_mcbsp_free,
 };
 
-#ifdef CONFIG_ARCH_OMAP730
+#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 static struct omap_mcbsp_platform_data omap730_mcbsp_pdata[] = {
 	{
 		.phys_base	= OMAP730_MCBSP1_BASE,
@@ -172,7 +172,7 @@ static struct omap_mcbsp_platform_data omap16xx_mcbsp_pdata[] = {
 
 int __init omap1_mcbsp_init(void)
 {
-	if (cpu_is_omap730())
+	if (cpu_is_omap7xx())
 		omap_mcbsp_count = OMAP730_MCBSP_PDATA_SZ;
 	if (cpu_is_omap15xx())
 		omap_mcbsp_count = OMAP15XX_MCBSP_PDATA_SZ;
@@ -184,7 +184,7 @@ int __init omap1_mcbsp_init(void)
 	if (!mcbsp_ptr)
 		return -ENOMEM;
 
-	if (cpu_is_omap730())
+	if (cpu_is_omap7xx())
 		omap_mcbsp_register_board_cfg(omap730_mcbsp_pdata,
 						OMAP730_MCBSP_PDATA_SZ);
 
