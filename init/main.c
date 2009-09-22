@@ -668,12 +668,12 @@ asmlinkage void __init start_kernel(void)
 #endif
 	thread_info_cache_init();
 	cred_init();
-	fork_init(num_physpages);
+	fork_init(totalram_pages);
 	proc_caches_init();
 	buffer_init();
 	key_init();
 	security_init();
-	vfs_caches_init(num_physpages);
+	vfs_caches_init(totalram_pages);
 	radix_tree_init();
 	signals_init();
 	/* rootfs populating might need page-writeback */

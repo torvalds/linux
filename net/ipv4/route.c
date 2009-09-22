@@ -3414,7 +3414,7 @@ int __init ip_rt_init(void)
 		alloc_large_system_hash("IP route cache",
 					sizeof(struct rt_hash_bucket),
 					rhash_entries,
-					(num_physpages >= 128 * 1024) ?
+					(totalram_pages >= 128 * 1024) ?
 					15 : 17,
 					0,
 					&rt_hash_log,

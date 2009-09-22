@@ -96,11 +96,7 @@ static struct balloon_stats balloon_stats;
 /* We increase/decrease in batches which fit in a page */
 static unsigned long frame_list[PAGE_SIZE / sizeof(unsigned long)];
 
-/* VM /proc information for memory */
-extern unsigned long totalram_pages;
-
 #ifdef CONFIG_HIGHMEM
-extern unsigned long totalhigh_pages;
 #define inc_totalhigh_pages() (totalhigh_pages++)
 #define dec_totalhigh_pages() (totalhigh_pages--)
 #else
