@@ -409,10 +409,14 @@ static void css_evaluate_subchannel(struct subchannel_id schid, int slow)
 
 static struct idset *slow_subchannel_set;
 static spinlock_t slow_subchannel_lock;
+static wait_queue_head_t css_eval_wq;
+static atomic_t css_eval_scheduled;
 
 static int __init slow_subchannel_init(void)
 {
 	spin_lock_init(&slow_subchannel_lock);
+	atomic_set(&css_eval_scheduled, 0);
+	init_waitqueue_head(&css_eval_wq);
 	slow_subchannel_set = idset_sch_new();
 	if (!slow_subchannel_set) {
 		CIO_MSG_EVENT(0, "could not allocate slow subchannel set\n");
@@ -468,9 +472,17 @@ static int slow_eval_unknown_fn(struct subchannel_id schid, void *data)
 
 static void css_slow_path_func(struct work_struct *unused)
 {
+	unsigned long flags;
+
 	CIO_TRACE_EVENT(4, "slowpath");
 	for_each_subchannel_staged(slow_eval_known_fn, slow_eval_unknown_fn,
 				   NULL);
+	spin_lock_irqsave(&slow_subchannel_lock, flags);
+	if (idset_is_empty(slow_subchannel_set)) {
+		atomic_set(&css_eval_scheduled, 0);
+		wake_up(&css_eval_wq);
+	}
+	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
 static DECLARE_WORK(slow_path_work, css_slow_path_func);
@@ -482,6 +494,7 @@ void css_schedule_eval(struct subchannel_id schid)
 
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_sch_add(slow_subchannel_set, schid);
+	atomic_set(&css_eval_scheduled, 1);
 	queue_work(slow_path_wq, &slow_path_work);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
@@ -492,6 +505,7 @@ void css_schedule_eval_all(void)
 
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_fill(slow_subchannel_set);
+	atomic_set(&css_eval_scheduled, 1);
 	queue_work(slow_path_wq, &slow_path_work);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
@@ -1007,6 +1021,8 @@ static int __init channel_subsystem_init_sync(void)
 {
 	/* Allocate and register subchannels. */
 	for_each_subchannel(setup_subchannel, NULL);
+	/* Wait for the evaluation of subchannels to finish. */
+	wait_event(css_eval_wq, atomic_read(&css_eval_scheduled) == 0);
 
 	/* Wait for the initialization of ccw devices to finish. */
 	wait_event(ccw_device_init_wq,

@@ -110,3 +110,13 @@ int idset_sch_get_first(struct idset *set, struct subchannel_id *schid)
 	}
 	return rc;
 }
+
+int idset_is_empty(struct idset *set)
+{
+	int bitnum;
+
+	bitnum = find_first_bit(set->bitmap, set->num_ssid * set->num_id);
+	if (bitnum >= set->num_ssid * set->num_id)
+		return 1;
+	return 0;
+}
