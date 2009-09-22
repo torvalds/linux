@@ -42,6 +42,7 @@ struct thermal_state {
 
 	u64			next_check;
 	unsigned long		throttle_count;
+	unsigned long		last_throttle_count;
 };
 
 static DEFINE_PER_CPU(struct thermal_state, thermal_state);
@@ -120,11 +121,12 @@ static int therm_throt_process(bool is_throttled)
 	if (is_throttled)
 		state->throttle_count++;
 
-	if (!(was_throttled ^ is_throttled) &&
-			time_before64(now, state->next_check))
+	if (time_before64(now, state->next_check) &&
+			state->throttle_count != state->last_throttle_count)
 		return 0;
 
 	state->next_check = now + CHECK_INTERVAL;
+	state->last_throttle_count = state->throttle_count;
 
 	/* if we just entered the thermal event */
 	if (is_throttled) {
