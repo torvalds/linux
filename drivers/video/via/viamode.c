@@ -100,12 +100,8 @@ struct io_reg CN400_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0xFF, 0x00},
-{VIACR, CR34, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
 {VIACR, CR36, 0x08, 0x00},
-{VIACR, CR62, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR63, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR64, 0xFF, 0x00},	/* Secondary Display Starting Address  */
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFF, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
@@ -159,16 +155,12 @@ struct io_reg CN700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIASR, CR30, 0xFF, 0x04},
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0x7F, 0x00},
-{VIACR, CR34, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
 {VIACR, CR36, 0xFF, 0x31},
 {VIACR, CR41, 0xFF, 0x80},
 {VIACR, CR42, 0xFF, 0x00},
 {VIACR, CR55, 0x80, 0x00},
 {VIACR, CR5D, 0x80, 0x00},	/*Horizontal Retrace Start bit[11] should be 0*/
-{VIACR, CR62, 0xFF, 0x00},	/* Secondary Display Starting Address */
-{VIACR, CR63, 0xFF, 0x00},	/* Secondary Display Starting Address */
-{VIACR, CR64, 0xFF, 0x00},	/* Secondary Display Starting Address */
 {VIACR, CR68, 0xFF, 0x67},	/* Default FIFO For IGA2 */
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFD, 0x40},
@@ -233,9 +225,6 @@ struct io_reg KM400_ModeXregs[] = {
 	{VIACR, CR55, 0x80, 0x00},
 	{VIACR, CR5D, 0x80, 0x00},
 	{VIACR, CR36, 0xFF, 0x01},	/* Power Mangement 3                  */
-	{VIACR, CR62, 0xFF, 0x00},	/* Secondary Display Starting Address */
-	{VIACR, CR63, 0xFF, 0x00},	/* Secondary Display Starting Address */
-	{VIACR, CR64, 0xFF, 0x00},	/* Secondary Display Starting Address */
 	{VIACR, CR68, 0xFF, 0x67},	/* Default FIFO For IGA2              */
 	{VIACR, CR6A, 0x20, 0x20},	/* Extended FIFO On                   */
 	{VIACR, CR7A, 0xFF, 0x01},	/* LCD Scaling Parameter 1            */
@@ -285,14 +274,9 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0xFF, 0x00},
-{VIACR, CR34, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
 {VIACR, CR36, 0x08, 0x00},
 {VIACR, CR47, 0xC8, 0x00},	/* Clear VCK Plus. */
-{VIACR, CR62, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR63, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CR64, 0xFF, 0x00},	/* Secondary Display Starting Address  */
-{VIACR, CRA3, 0xFF, 0x00},	/* Secondary Display Starting Address  */
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFF, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
@@ -340,7 +324,6 @@ struct io_reg CLE266_ModeXregs[] = { {VIASR, SR1E, 0xF0, 0x00},
 {VIASR, SR1A, 0xFB, 0x08},
 
 {VIACR, CR32, 0xFF, 0x00},
-{VIACR, CR34, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
 {VIACR, CR36, 0x08, 0x00},
 {VIACR, CR6A, 0xFF, 0x80},
