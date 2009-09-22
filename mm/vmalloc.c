@@ -168,11 +168,9 @@ static int vmap_page_range_noflush(unsigned long start, unsigned long end,
 		next = pgd_addr_end(addr, end);
 		err = vmap_pud_range(pgd, addr, next, prot, pages, &nr);
 		if (err)
-			break;
+			return err;
 	} while (pgd++, addr = next, addr != end);
 
-	if (unlikely(err))
-		return err;
 	return nr;
 }
 
