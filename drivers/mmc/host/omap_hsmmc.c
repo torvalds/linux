@@ -1390,6 +1390,9 @@ static int __init omap_mmc_probe(struct platform_device *pdev)
 	else if (pdata->slots[host->slot_id].wires >= 4)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
+	if (pdata->slots[host->slot_id].nonremovable)
+		mmc->caps |= MMC_CAP_NONREMOVABLE;
+
 	omap_hsmmc_init(host);
 
 	/* Select DMA lines */
