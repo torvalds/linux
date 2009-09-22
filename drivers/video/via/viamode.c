@@ -309,8 +309,7 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR96, 0xFF, 0x00},
 {VIACR, CR97, 0xFF, 0x00},
 {VIACR, CR99, 0xFF, 0x00},
-{VIACR, CR9B, 0xFF, 0x00},
-{VIACR, CRD2, 0xFF, 0xFF}	/* TMDS/LVDS control register.         */
+{VIACR, CR9B, 0xFF, 0x00}
 };
 
 /* Video Mode Table */
