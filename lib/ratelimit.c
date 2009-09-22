@@ -9,7 +9,7 @@
  * This file is released under the GPLv2.
  */
 
-#include <linux/kernel.h>
+#include <linux/ratelimit.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
 
