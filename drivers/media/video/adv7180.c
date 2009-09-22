@@ -229,7 +229,7 @@ static const struct v4l2_subdev_ops adv7180_ops = {
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 
-static int adv7180_probe(struct i2c_client *client,
+static __devinit int adv7180_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct adv7180_state *state;
@@ -267,7 +267,7 @@ static int adv7180_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int adv7180_remove(struct i2c_client *client)
+static __devexit int adv7180_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
@@ -289,7 +289,7 @@ static struct i2c_driver adv7180_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= adv7180_probe,
-	.remove		= adv7180_remove,
+	.remove		= __devexit_p(adv7180_remove),
 	.id_table	= adv7180_id,
 };
 
