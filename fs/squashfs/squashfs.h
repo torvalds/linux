@@ -70,6 +70,10 @@ extern struct inode *squashfs_iget(struct super_block *, long long,
 				unsigned int);
 extern int squashfs_read_inode(struct inode *, long long);
 
+/* zlib_wrapper.c */
+extern int squashfs_zlib_uncompress(struct squashfs_sb_info *, void **,
+				struct buffer_head **, int, int, int, int, int);
+
 /*
  * Inodes and files operations
  */
