@@ -23,7 +23,7 @@
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  *                                                                       *
  *************************************************************************
-*/
+ */
 
 #ifndef __SPECTRUM_H__
 #define __SPECTRUM_H__
@@ -31,112 +31,10 @@
 #include "rtmp_type.h"
 #include "spectrum_def.h"
 
-typedef struct PACKED _TPC_REPORT_INFO
-{
-	UINT8 TxPwr;
-	UINT8 LinkMargin;
-} TPC_REPORT_INFO, *PTPC_REPORT_INFO;
 
-typedef struct PACKED _CH_SW_ANN_INFO
-{
-	UINT8 ChSwMode;
-	UINT8 Channel;
-	UINT8 ChSwCnt;
-} CH_SW_ANN_INFO, *PCH_SW_ANN_INFO;
-
-typedef union PACKED _MEASURE_REQ_MODE
-{
-	struct PACKED
-	{
-		UINT8 Rev0:1;
-		UINT8 Enable:1;
-		UINT8 Request:1;
-		UINT8 Report:1;
-		UINT8 Rev1:4;
-	} field;
-	UINT8 word;
-} MEASURE_REQ_MODE, *PMEASURE_REQ_MODE;
-
-typedef struct PACKED _MEASURE_REQ
-{
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
-} MEASURE_REQ, *PMEASURE_REQ;
-
-typedef struct PACKED _MEASURE_REQ_INFO
-{
-	UINT8 Token;
-	MEASURE_REQ_MODE ReqMode;
-	UINT8 ReqType;
-	MEASURE_REQ MeasureReq;
-} MEASURE_REQ_INFO, *PMEASURE_REQ_INFO;
-
-typedef union PACKED _MEASURE_BASIC_REPORT_MAP
-{
-	struct PACKED
-	{
-		UINT8 BSS:1;
-		UINT8 OfdmPreamble:1;
-		UINT8 UnidentifiedSignal:1;
-		UINT8 Radar:1;
-		UINT8 Unmeasure:1;
-		UINT8 Rev:3;
-	} field;
-	UINT8 word;
-} MEASURE_BASIC_REPORT_MAP, *PMEASURE_BASIC_REPORT_MAP;
-
-typedef struct PACKED _MEASURE_BASIC_REPORT
-{
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
-	MEASURE_BASIC_REPORT_MAP Map;
-} MEASURE_BASIC_REPORT, *PMEASURE_BASIC_REPORT;
-
-typedef struct PACKED _MEASURE_CCA_REPORT
-{
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
-	UINT8 CCA_Busy_Fraction;
-} MEASURE_CCA_REPORT, *PMEASURE_CCA_REPORT;
-
-typedef struct PACKED _MEASURE_RPI_REPORT
-{
-	UINT8 ChNum;
-	UINT64 MeasureStartTime;
-	UINT16 MeasureDuration;
-	UINT8 RPI_Density[8];
-} MEASURE_RPI_REPORT, *PMEASURE_RPI_REPORT;
-
-typedef union PACKED _MEASURE_REPORT_MODE
-{
-	struct PACKED
-	{
-		UINT8 Late:1;
-		UINT8 Incapable:1;
-		UINT8 Refused:1;
-		UINT8 Rev:5;
-	} field;
-	UINT8 word;
-} MEASURE_REPORT_MODE, *PMEASURE_REPORT_MODE;
-
-typedef struct PACKED _MEASURE_REPORT_INFO
-{
-	UINT8 Token;
-	MEASURE_REPORT_MODE ReportMode;
-	UINT8 ReportType;
-	UINT8 Octect[0];
-} MEASURE_REPORT_INFO, *PMEASURE_REPORT_INFO;
-
-typedef struct PACKED _QUIET_INFO
-{
-	UINT8 QuietCnt;
-	UINT8 QuietPeriod;
-	UINT8 QuietDuration;
-	UINT8 QuietOffset;
-} QUIET_INFO, *PQUIET_INFO;
+CHAR RTMP_GetTxPwr(
+	IN PRTMP_ADAPTER pAd,
+	IN HTTRANSMIT_SETTING HTTxMode);
 
 /*
 	==========================================================================
@@ -150,14 +48,17 @@ typedef struct PACKED _QUIET_INFO
 	Return	: None.
 	==========================================================================
  */
-VOID EnqueueMeasurementReq(
+VOID MakeMeasurementReqFrame(
 	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR pDA,
+	OUT PUCHAR pOutBuffer,
+	OUT PULONG pFrameLen,
+	IN UINT8 TotalLen,
+	IN UINT8 Category,
+	IN UINT8 Action,
 	IN UINT8 MeasureToken,
 	IN UINT8 MeasureReqMode,
 	IN UINT8 MeasureReqType,
-	IN UINT8 MeasureCh,
-	IN UINT16 MeasureDuration);
+	IN UINT8 NumOfRepetitions);
 
 /*
 	==========================================================================
@@ -264,17 +165,54 @@ VOID PeerSpectrumAction(
  */
 INT Set_MeasureReq_Proc(
 	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			arg);
+	IN	PSTRING			arg);
 
 INT Set_TpcReq_Proc(
 	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			arg);
+	IN	PSTRING			arg);
+
+INT Set_PwrConstraint(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	PSTRING			arg);
+
 
 VOID MeasureReqTabInit(
 	IN PRTMP_ADAPTER pAd);
 
 VOID MeasureReqTabExit(
 	IN PRTMP_ADAPTER pAd);
+
+PMEASURE_REQ_ENTRY MeasureReqLookUp(
+	IN PRTMP_ADAPTER	pAd,
+	IN UINT8			DialogToken);
+
+PMEASURE_REQ_ENTRY MeasureReqInsert(
+	IN PRTMP_ADAPTER	pAd,
+	IN UINT8			DialogToken);
+
+VOID MeasureReqDelete(
+	IN PRTMP_ADAPTER	pAd,
+	IN UINT8			DialogToken);
+
+VOID InsertChannelRepIE(
+	IN PRTMP_ADAPTER pAd,
+	OUT PUCHAR pFrameBuf,
+	OUT PULONG pFrameLen,
+	IN PSTRING pCountry,
+	IN UINT8 RegulatoryClass);
+
+VOID InsertTpcReportIE(
+	IN PRTMP_ADAPTER pAd,
+	OUT PUCHAR pFrameBuf,
+	OUT PULONG pFrameLen,
+	IN UINT8 TxPwr,
+	IN UINT8 LinkMargin);
+
+VOID InsertDialogToken(
+	IN PRTMP_ADAPTER pAd,
+	OUT PUCHAR pFrameBuf,
+	OUT PULONG pFrameLen,
+	IN UINT8 DialogToken);
 
 VOID TpcReqTabInit(
 	IN PRTMP_ADAPTER pAd);
@@ -288,5 +226,10 @@ VOID NotifyChSwAnnToPeerAPs(
 	IN PUCHAR pTA,
 	IN UINT8 ChSwMode,
 	IN UINT8 Channel);
+
+VOID RguClass_BuildBcnChList(
+	IN PRTMP_ADAPTER pAd,
+	OUT PUCHAR pBuf,
+	OUT	PULONG pBufLen);
 #endif // __SPECTRUM_H__ //
 

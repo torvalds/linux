@@ -67,7 +67,6 @@
 // Key Descriptor Version of Key Information
 #define	DESC_TYPE_TKIP				1
 #define	DESC_TYPE_AES				2
-#define DESC_TYPE_MESH				3
 
 #define LEN_MSG1_2WAY               0x7f
 #define MAX_LEN_OF_EAP_HS           256
@@ -90,10 +89,16 @@
 #define TKIP_AP_RXMICK_OFFSET		(TKIP_AP_TXMICK_OFFSET+LEN_TKIP_TXMICK)
 #define TKIP_GTK_LENGTH				((LEN_TKIP_EK)+(LEN_TKIP_RXMICK)+(LEN_TKIP_TXMICK))
 #define LEN_PTK						((LEN_EAP_KEY)+(LEN_TKIP_KEY))
+#define MIN_LEN_OF_GTK				5
+#define LEN_PMK						32
+#define LEN_PMK_NAME				16
+#define LEN_NONCE					32
 
 // RSN IE Length definition
-#define MAX_LEN_OF_RSNIE         	90
+#define MAX_LEN_OF_RSNIE		255
 #define MIN_LEN_OF_RSNIE         	8
+
+#define KEY_LIFETIME				3600
 
 //EAP Packet Type
 #define	EAPPacket		0
@@ -119,6 +124,29 @@
 #define PEER_MSG3_RETRY_TIMER_CTR           10
 #define GROUP_MSG1_RETRY_TIMER_CTR          20
 
+//#ifdef CONFIG_AP_SUPPORT
+// WPA mechanism retry timer interval
+#define PEER_MSG1_RETRY_EXEC_INTV           1000			// 1 sec
+#define PEER_MSG3_RETRY_EXEC_INTV           3000			// 3 sec
+#define GROUP_KEY_UPDATE_EXEC_INTV          1000				// 1 sec
+#define PEER_GROUP_KEY_UPDATE_INIV			2000				// 2 sec
+
+#define ENQUEUE_EAPOL_START_TIMER			200					// 200 ms
+
+// group rekey interval
+#define TIME_REKEY                          0
+#define PKT_REKEY                           1
+#define DISABLE_REKEY                       2
+#define MAX_REKEY                           2
+
+#define MAX_REKEY_INTER                     0x3ffffff
+//#endif // CONFIG_AP_SUPPORT //
+
+#define GROUP_SUITE					0
+#define PAIRWISE_SUITE				1
+#define AKM_SUITE					2
+#define PMKID_LIST					3
+
 
 #define EAPOL_START_DISABLE					0
 #define EAPOL_START_PSK						1
@@ -129,8 +157,30 @@
 #define MIX_CIPHER_WPA2_TKIP_ON(x)      (((x) & 0x02) != 0)
 #define MIX_CIPHER_WPA2_AES_ON(x)       (((x) & 0x01) != 0)
 
+#ifndef ROUND_UP
 #define ROUND_UP(__x, __y) \
 	(((ULONG)((__x)+((__y)-1))) & ((ULONG)~((__y)-1)))
+#endif
+
+#define	SET_UINT16_TO_ARRARY(_V, _LEN)		\
+{											\
+	_V[0] = (_LEN & 0xFF00) >> 8;			\
+	_V[1] = (_LEN & 0xFF);					\
+}
+
+#define	INC_UINT16_TO_ARRARY(_V, _LEN)			\
+{												\
+	UINT16	var_len;							\
+												\
+	var_len = (_V[0]<<8) | (_V[1]);				\
+	var_len += _LEN;							\
+												\
+	_V[0] = (var_len & 0xFF00) >> 8;			\
+	_V[1] = (var_len & 0xFF);					\
+}
+
+#define	CONV_ARRARY_TO_UINT16(_V)	((_V[0]<<8) | (_V[1]))
+
 
 #define	ADD_ONE_To_64BIT_VAR(_V)		\
 {										\
@@ -297,6 +347,13 @@ typedef	enum	_WpaMixPairCipher
 	WPA_TKIPAES_WPA2_TKIPAES	= 0x0F,
 }	WPA_MIX_PAIR_CIPHER;
 
+// 802.1x authentication format
+typedef	struct	_IEEE8021X_FRAME	{
+	UCHAR	Version;					// 1.0
+	UCHAR	Type;						// 0 = EAP Packet
+	USHORT	Length;
+}	IEEE8021X_FRAME, *PIEEE8021X_FRAME;
+
 typedef struct PACKED _RSN_IE_HEADER_STRUCT	{
 	UCHAR		Eid;
 	UCHAR		Length;
@@ -323,5 +380,48 @@ typedef struct	PACKED _RSN_CAPABILITY	{
 	USHORT		NoPairwise:1;
 	USHORT		PreAuth:1;
 }	RSN_CAPABILITY, *PRSN_CAPABILITY;
+
+
+/*========================================
+	The prototype is defined in cmm_wpa.c
+  ========================================*/
+BOOLEAN WpaMsgTypeSubst(
+	IN  UCHAR   EAPType,
+	OUT INT		*MsgType);
+
+VOID    PRF(
+	IN  UCHAR   *key,
+	IN  INT     key_len,
+	IN  UCHAR   *prefix,
+	IN  INT     prefix_len,
+	IN  UCHAR   *data,
+	IN  INT     data_len,
+	OUT UCHAR   *output,
+	IN  INT     len);
+
+int PasswordHash(
+	char *password,
+	unsigned char *ssid,
+	int ssidlength,
+	unsigned char *output);
+
+PUINT8	GetSuiteFromRSNIE(
+		IN	PUINT8	rsnie,
+		IN	UINT	rsnie_len,
+		IN	UINT8	type,
+		OUT	UINT8	*count);
+
+VOID WpaShowAllsuite(
+	IN	PUINT8	rsnie,
+	IN	UINT	rsnie_len);
+
+VOID RTMPInsertRSNIE(
+	IN PUCHAR pFrameBuf,
+	OUT PULONG pFrameLen,
+	IN PUINT8 rsnie_ptr,
+	IN UINT8  rsnie_len,
+	IN PUINT8 pmkid_ptr,
+	IN UINT8  pmkid_len);
+
 
 #endif

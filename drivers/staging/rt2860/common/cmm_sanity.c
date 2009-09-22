@@ -283,8 +283,8 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     OUT USHORT *LengthVIE,
     OUT	PNDIS_802_11_VARIABLE_IEs pVIE)
 {
-    CHAR				*Ptr;
-	CHAR 				TimLen;
+    UCHAR				*Ptr;
+	UCHAR				TimLen;
     PFRAME_802_11		pFrame;
     PEID_STRUCT         pEid;
     UCHAR				SubType;
@@ -529,10 +529,9 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
             case IE_TIM:
                 if(INFRA_ON(pAd) && SubType == SUBTYPE_BEACON)
                 {
-                    GetTimBit((PUCHAR)pEid, pAd->StaActive.Aid, &TimLen, pBcastFlag, pDtimCount, pDtimPeriod, pMessageToMe);
+                    GetTimBit((PCHAR)pEid, pAd->StaActive.Aid, &TimLen, pBcastFlag, pDtimCount, pDtimPeriod, pMessageToMe);
                 }
                 break;
-
             case IE_CHANNEL_SWITCH_ANNOUNCEMENT:
                 if(pEid->Len == 3)
                 {
@@ -545,6 +544,26 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
             // Wifi WMM use the same IE vale, need to parse that too
             // case IE_WPA:
             case IE_VENDOR_SPECIFIC:
+                // Check Broadcom/Atheros 802.11n OUI version, for HT Capability IE.
+                // This HT IE is before IEEE draft set HT IE value.2006-09-28 by Jan.
+                /*if (NdisEqualMemory(pEid->Octet, BROADCOM_OUI, 3) && (pEid->Len >= 4))
+                {
+			if ((pEid->Octet[3] == OUI_BROADCOM_HT) && (pEid->Len >= 30))
+			{
+				{
+					NdisMoveMemory(pHtCapability, &pEid->Octet[4], sizeof(HT_CAPABILITY_IE));
+					*pHtCapabilityLen = SIZE_HT_CAP_IE;	// Nnow we only support 26 bytes.
+				}
+			}
+			if ((pEid->Octet[3] == OUI_BROADCOM_HT) && (pEid->Len >= 26))
+			{
+				{
+					NdisMoveMemory(AddHtInfo, &pEid->Octet[4], sizeof(ADD_HT_INFO_IE));
+					*AddHtInfoLen = SIZE_ADD_HT_INFO_IE;	// Nnow we only support 26 bytes.
+				}
+			}
+                }
+				*/
                 // Check the OUI version, filter out non-standard usage
                 if (NdisEqualMemory(pEid->Octet, RALINK_OUI, 3) && (pEid->Len == 7))
                 {
@@ -638,6 +657,8 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
                     pEdcaParm->Cwmax[QID_AC_VO] = CW_MAX_IN_BITS-1;
                     pEdcaParm->Txop[QID_AC_VO]  = 48;   // AC_VO: 48*32us ~= 1.5ms
                 }
+
+
                 break;
 
             case IE_EXT_SUPP_RATES:
@@ -718,7 +739,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 
 	if (Sanity != 0x7)
 	{
-		DBGPRINT(RT_DEBUG_WARN, ("PeerBeaconAndProbeRspSanity - missing field, Sanity=0x%02x\n", Sanity));
+		DBGPRINT(RT_DEBUG_LOUD, ("PeerBeaconAndProbeRspSanity - missing field, Sanity=0x%02x\n", Sanity));
 		return FALSE;
 	}
 	else
@@ -755,8 +776,6 @@ BOOLEAN MlmeScanReqSanity(
 
 	if ((*pBssType == BSS_INFRA || *pBssType == BSS_ADHOC || *pBssType == BSS_ANY)
 		&& (*pScanType == SCAN_ACTIVE || *pScanType == SCAN_PASSIVE
-		|| *pScanType == SCAN_CISCO_PASSIVE || *pScanType == SCAN_CISCO_ACTIVE
-		|| *pScanType == SCAN_CISCO_CHANNEL_LOAD || *pScanType == SCAN_CISCO_NOISE
 		))
 	{
 		return TRUE;
@@ -837,8 +856,7 @@ BOOLEAN PeerAuthSanity(
     NdisMoveMemory(pSeq,    &pFrame->Octet[2], 2);
     NdisMoveMemory(pStatus, &pFrame->Octet[4], 2);
 
-    if ((*pAlg == Ndis802_11AuthModeOpen)
-      )
+    if (*pAlg == AUTH_MODE_OPEN)
     {
         if (*pSeq == 1 || *pSeq == 2)
         {
@@ -850,7 +868,7 @@ BOOLEAN PeerAuthSanity(
             return FALSE;
         }
     }
-    else if (*pAlg == Ndis802_11AuthModeShared)
+    else if (*pAlg == AUTH_MODE_KEY)
     {
         if (*pSeq == 1 || *pSeq == 4)
         {
@@ -897,7 +915,7 @@ BOOLEAN MlmeAuthReqSanity(
     *pTimeout = pInfo->Timeout;
     *pAlg = pInfo->Alg;
 
-    if (((*pAlg == Ndis802_11AuthModeShared) ||(*pAlg == Ndis802_11AuthModeOpen)
+    if (((*pAlg == AUTH_MODE_KEY) ||(*pAlg == AUTH_MODE_OPEN)
      	) &&
         ((*pAddr & 0x01) == 0))
     {
@@ -1051,4 +1069,197 @@ NDIS_802_11_NETWORK_TYPE NetworkTypeInUseSanity(
     }
 
 	return NetWorkType;
+}
+
+/*
+    ==========================================================================
+    Description:
+        Check the validity of the received EAPoL frame
+    Return:
+        TRUE if all parameters are OK,
+        FALSE otherwise
+    ==========================================================================
+ */
+BOOLEAN PeerWpaMessageSanity(
+    IN	PRTMP_ADAPTER		pAd,
+    IN	PEAPOL_PACKET		pMsg,
+    IN	ULONG				MsgLen,
+    IN	UCHAR				MsgType,
+    IN	MAC_TABLE_ENTRY		*pEntry)
+{
+	UCHAR			mic[LEN_KEY_DESC_MIC], digest[80], KEYDATA[MAX_LEN_OF_RSNIE];
+	BOOLEAN			bReplayDiff = FALSE;
+	BOOLEAN			bWPA2 = FALSE;
+	KEY_INFO		EapolKeyInfo;
+	UCHAR			GroupKeyIndex = 0;
+
+
+	NdisZeroMemory(mic, sizeof(mic));
+	NdisZeroMemory(digest, sizeof(digest));
+	NdisZeroMemory(KEYDATA, sizeof(KEYDATA));
+	NdisZeroMemory((PUCHAR)&EapolKeyInfo, sizeof(EapolKeyInfo));
+
+	NdisMoveMemory((PUCHAR)&EapolKeyInfo, (PUCHAR)&pMsg->KeyDesc.KeyInfo, sizeof(KEY_INFO));
+
+	*((USHORT *)&EapolKeyInfo) = cpu2le16(*((USHORT *)&EapolKeyInfo));
+
+	// Choose WPA2 or not
+	if ((pEntry->AuthMode == Ndis802_11AuthModeWPA2) || (pEntry->AuthMode == Ndis802_11AuthModeWPA2PSK))
+		bWPA2 = TRUE;
+
+	// 0. Check MsgType
+	if ((MsgType > EAPOL_GROUP_MSG_2) || (MsgType < EAPOL_PAIR_MSG_1))
+	{
+		DBGPRINT(RT_DEBUG_ERROR, ("The message type is invalid(%d)! \n", MsgType));
+		return FALSE;
+	}
+
+	// 1. Replay counter check
+	if (MsgType == EAPOL_PAIR_MSG_1 || MsgType == EAPOL_PAIR_MSG_3 || MsgType == EAPOL_GROUP_MSG_1)	// For supplicant
+    {
+	// First validate replay counter, only accept message with larger replay counter.
+		// Let equal pass, some AP start with all zero replay counter
+		UCHAR	ZeroReplay[LEN_KEY_DESC_REPLAY];
+
+        NdisZeroMemory(ZeroReplay, LEN_KEY_DESC_REPLAY);
+		if ((RTMPCompareMemory(pMsg->KeyDesc.ReplayCounter, pEntry->R_Counter, LEN_KEY_DESC_REPLAY) != 1) &&
+			(RTMPCompareMemory(pMsg->KeyDesc.ReplayCounter, ZeroReplay, LEN_KEY_DESC_REPLAY) != 0))
+	{
+			bReplayDiff = TRUE;
+	}
+	}
+	else if (MsgType == EAPOL_PAIR_MSG_2 || MsgType == EAPOL_PAIR_MSG_4 || MsgType == EAPOL_GROUP_MSG_2)	// For authenticator
+	{
+		// check Replay Counter coresponds to MSG from authenticator, otherwise discard
+	if (!NdisEqualMemory(pMsg->KeyDesc.ReplayCounter, pEntry->R_Counter, LEN_KEY_DESC_REPLAY))
+	{
+			bReplayDiff = TRUE;
+	}
+	}
+
+	// Replay Counter different condition
+	if (bReplayDiff)
+	{
+		// send wireless event - for replay counter different
+		if (pAd->CommonCfg.bWirelessEvent)
+			RTMPSendWirelessEvent(pAd, IW_REPLAY_COUNTER_DIFF_EVENT_FLAG, pEntry->Addr, pEntry->apidx, 0);
+
+		if (MsgType < EAPOL_GROUP_MSG_1)
+		{
+		DBGPRINT(RT_DEBUG_ERROR, ("Replay Counter Different in pairwise msg %d of 4-way handshake!\n", MsgType));
+		}
+		else
+		{
+			DBGPRINT(RT_DEBUG_ERROR, ("Replay Counter Different in group msg %d of 2-way handshake!\n", (MsgType - EAPOL_PAIR_MSG_4)));
+		}
+
+		hex_dump("Receive replay counter ", pMsg->KeyDesc.ReplayCounter, LEN_KEY_DESC_REPLAY);
+		hex_dump("Current replay counter ", pEntry->R_Counter, LEN_KEY_DESC_REPLAY);
+        return FALSE;
+	}
+
+	// 2. Verify MIC except Pairwise Msg1
+	if (MsgType != EAPOL_PAIR_MSG_1)
+	{
+		UCHAR			rcvd_mic[LEN_KEY_DESC_MIC];
+
+		// Record the received MIC for check later
+		NdisMoveMemory(rcvd_mic, pMsg->KeyDesc.KeyMic, LEN_KEY_DESC_MIC);
+		NdisZeroMemory(pMsg->KeyDesc.KeyMic, LEN_KEY_DESC_MIC);
+
+        if (EapolKeyInfo.KeyDescVer == DESC_TYPE_TKIP)	// TKIP
+        {
+            HMAC_MD5(pEntry->PTK, LEN_EAP_MICK, (PUCHAR)pMsg, MsgLen, mic, MD5_DIGEST_SIZE);
+        }
+        else if (EapolKeyInfo.KeyDescVer == DESC_TYPE_AES)	// AES
+        {
+            HMAC_SHA1(pEntry->PTK, LEN_EAP_MICK, (PUCHAR)pMsg, MsgLen, digest, SHA1_DIGEST_SIZE);
+            NdisMoveMemory(mic, digest, LEN_KEY_DESC_MIC);
+        }
+
+        if (!NdisEqualMemory(rcvd_mic, mic, LEN_KEY_DESC_MIC))
+        {
+			// send wireless event - for MIC different
+			if (pAd->CommonCfg.bWirelessEvent)
+				RTMPSendWirelessEvent(pAd, IW_MIC_DIFF_EVENT_FLAG, pEntry->Addr, pEntry->apidx, 0);
+
+			if (MsgType < EAPOL_GROUP_MSG_1)
+			{
+		DBGPRINT(RT_DEBUG_ERROR, ("MIC Different in pairwise msg %d of 4-way handshake!\n", MsgType));
+			}
+			else
+			{
+				DBGPRINT(RT_DEBUG_ERROR, ("MIC Different in group msg %d of 2-way handshake!\n", (MsgType - EAPOL_PAIR_MSG_4)));
+			}
+
+			hex_dump("Received MIC", rcvd_mic, LEN_KEY_DESC_MIC);
+			hex_dump("Desired  MIC", mic, LEN_KEY_DESC_MIC);
+
+			return FALSE;
+        }
+	}
+
+	// 1. Decrypt the Key Data field if GTK is included.
+	// 2. Extract the context of the Key Data field if it exist.
+	// The field in pairwise_msg_2_WPA1(WPA2) & pairwise_msg_3_WPA1 is clear.
+	// The field in group_msg_1_WPA1(WPA2) & pairwise_msg_3_WPA2 is encrypted.
+	if (CONV_ARRARY_TO_UINT16(pMsg->KeyDesc.KeyDataLen) > 0)
+	{
+		// Decrypt this field
+		if ((MsgType == EAPOL_PAIR_MSG_3 && bWPA2) || (MsgType == EAPOL_GROUP_MSG_1))
+		{
+			if(
+				(EapolKeyInfo.KeyDescVer == DESC_TYPE_AES))
+			{
+				// AES
+				AES_GTK_KEY_UNWRAP(&pEntry->PTK[16], KEYDATA,
+									CONV_ARRARY_TO_UINT16(pMsg->KeyDesc.KeyDataLen),
+									pMsg->KeyDesc.KeyData);
+			}
+			else
+			{
+				INT	i;
+				UCHAR   Key[32];
+				// Decrypt TKIP GTK
+				// Construct 32 bytes RC4 Key
+				NdisMoveMemory(Key, pMsg->KeyDesc.KeyIv, 16);
+				NdisMoveMemory(&Key[16], &pEntry->PTK[16], 16);
+				ARCFOUR_INIT(&pAd->PrivateInfo.WEPCONTEXT, Key, 32);
+				//discard first 256 bytes
+				for(i = 0; i < 256; i++)
+					ARCFOUR_BYTE(&pAd->PrivateInfo.WEPCONTEXT);
+				// Decrypt GTK. Becareful, there is no ICV to check the result is correct or not
+				ARCFOUR_DECRYPT(&pAd->PrivateInfo.WEPCONTEXT, KEYDATA,
+								pMsg->KeyDesc.KeyData,
+								CONV_ARRARY_TO_UINT16(pMsg->KeyDesc.KeyDataLen));
+			}
+
+			if (!bWPA2 && (MsgType == EAPOL_GROUP_MSG_1))
+				GroupKeyIndex = EapolKeyInfo.KeyIndex;
+
+		}
+		else if ((MsgType == EAPOL_PAIR_MSG_2) || (MsgType == EAPOL_PAIR_MSG_3 && !bWPA2))
+		{
+			NdisMoveMemory(KEYDATA, pMsg->KeyDesc.KeyData, CONV_ARRARY_TO_UINT16(pMsg->KeyDesc.KeyDataLen));
+		}
+		else
+		{
+
+			return TRUE;
+		}
+
+		// Parse Key Data field to
+		// 1. verify RSN IE for pairwise_msg_2_WPA1(WPA2) ,pairwise_msg_3_WPA1(WPA2)
+		// 2. verify KDE format for pairwise_msg_3_WPA2, group_msg_1_WPA2
+		// 3. update shared key for pairwise_msg_3_WPA2, group_msg_1_WPA1(WPA2)
+		if (!RTMPParseEapolKeyData(pAd, KEYDATA,
+								  CONV_ARRARY_TO_UINT16(pMsg->KeyDesc.KeyDataLen),
+								  GroupKeyIndex, MsgType, bWPA2, pEntry))
+		{
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+
 }

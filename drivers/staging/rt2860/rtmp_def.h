@@ -41,6 +41,15 @@
 
 #include "oid.h"
 
+#undef AP_WSC_INCLUDED
+#undef STA_WSC_INCLUDED
+#undef WSC_INCLUDED
+
+
+
+#if defined(AP_WSC_INCLUDED) || defined(STA_WSC_INCLUDED)
+#define WSC_INCLUDED
+#endif
 //
 //  Debug information verbosity: lower values indicate higher urgency
 //
@@ -54,47 +63,20 @@
 #define NIC_TAG             ((ULONG)'0682')
 #define NIC_DBG_STRING      ("**RT28xx**")
 
+#ifdef RTMP_MAC_USB
+#define TX_RING_SIZE            8 // 1
+#define PRIO_RING_SIZE          8
+#define MGMT_RING_SIZE		32 // PRIO_RING_SIZE
+#define RX_RING_SIZE            8
+#define MAX_TX_PROCESS          4
+#define LOCAL_TXBUF_SIZE        2048
+#endif // RTMP_MAC_USB //
+
+//#define PACKED
+
 #define RALINK_2883_VERSION		((UINT32)0x28830300)
 #define RALINK_2880E_VERSION	((UINT32)0x28720200)
 #define RALINK_3070_VERSION		((UINT32)0x30700200)
-
-//
-// NDIS version in use by the NIC driver.
-// The high byte is the major version. The low byte is the minor version.
-//
-#ifdef  NDIS51_MINIPORT
-#define NIC_DRIVER_VERSION      0x0501
-#else
-#define NIC_DRIVER_VERSION      0x0500
-#endif
-
-//
-// NDIS media type, current is ethernet, change if native wireless supported
-//
-#define NIC_MEDIA_TYPE          NdisMedium802_3
-#define NIC_PCI_HDR_LENGTH      0xe2
-#define NIC_MAX_PACKET_SIZE     2304
-#define NIC_HEADER_SIZE         14
-#define MAX_MAP_REGISTERS_NEEDED 32
-#define MIN_MAP_REGISTERS_NEEDED 2   //Todo: should consider fragment issue.
-
-//
-// interface type, we use PCI
-//
-#define NIC_INTERFACE_TYPE      NdisInterfacePci
-#define NIC_INTERRUPT_MODE      NdisInterruptLevelSensitive
-
-//
-// buffer size passed in NdisMQueryAdapterResources
-// We should only need three adapter resources (IO, interrupt and memory),
-// Some devices get extra resources, so have room for 10 resources
-//                    UF_SIZE   (sizeof(NDIS_RESOURCE_LIST) + (10*sizeof(CM_PARTIAL_RESOURCE_DESCRIPTOR)))
-
-
-#define NIC_RESOURCE_B//
-// IO space length
-//
-#define NIC_MAP_IOSPACE_LENGTH  sizeof(CSR_STRUC)
 
 #define MAX_RX_PKT_LEN	1520
 
@@ -102,7 +84,7 @@
 // Entry number for each DMA descriptor ring
 //
 
-#ifdef RT2860
+#ifdef RTMP_MAC_PCI
 #define TX_RING_SIZE            64 //64
 #define MGMT_RING_SIZE          128
 #define RX_RING_SIZE            128 //64
@@ -110,15 +92,7 @@
 #define MAX_DMA_DONE_PROCESS    TX_RING_SIZE
 #define MAX_TX_DONE_PROCESS     TX_RING_SIZE //8
 #define LOCAL_TXBUF_SIZE        2
-#endif
-#ifdef RT2870
-#define TX_RING_SIZE            8 // 1
-#define PRIO_RING_SIZE          8
-#define MGMT_RING_SIZE       32 // PRIO_RING_SIZE
-#define RX_RING_SIZE            8
-#define MAX_TX_PROCESS          4
-#define LOCAL_TXBUF_SIZE        2048
-#endif // RT2870 //
+#endif // RTMP_MAC_PCI //
 
 #define MAX_RX_PROCESS          128 //64 //32
 #define NUM_OF_LOCAL_TXBUF      2
@@ -143,16 +117,43 @@
 #define MAX_RX_PROCESS_CNT	(RX_RING_SIZE)
 
 
+/*
+	WMM Note: If memory of your system is not much, please reduce the definition;
+	or when you do WMM test, the queue for low priority AC will be full, i.e.
+	TX_RING_SIZE + MAX_PACKETS_IN_QUEUE packets for the AC will be buffered in
+	WLAN, maybe no any packet buffer can be got in Ethernet driver.
+
+	Sometimes no packet buffer can be got in Ethernet driver, the system will
+	send flow control packet to the sender to slow down its sending rate.
+	So no WMM can be saw in the air.
+*/
+
+/*
+	Need to use 64 in vxworks for test case WMM A5-T07
+	Two dnlink (10Mbps) from a WMM station to a non-WMM station.
+	If use 256, queue is not enough.
+	And in rt_main_end.c, clConfig.clNum = RX_RING_SIZE * 3; is changed to
+	clConfig.clNum = RX_RING_SIZE * 4;
+*/
+// TODO: For VxWorks the size is 256. Shall we cahnge the value as 256 for all OS?????
 #define MAX_PACKETS_IN_QUEUE				(512) //(512)    // to pass WMM A5-WPAPSK
+
 #define MAX_PACKETS_IN_MCAST_PS_QUEUE		32
 #define MAX_PACKETS_IN_PS_QUEUE				128	//32
 #define WMM_NUM_OF_AC                       4  /* AC0, AC1, AC2, and AC3 */
 
+
+#ifdef RTMP_EFUSE_SUPPORT
+//2008/09/11:KH add to support efuse<--
 #define MAX_EEPROM_BIN_FILE_SIZE					1024
+#define EFUSE_BUFFER_PATH						"/tmp/RT30xxEEPROM.bin"
+//2008/09/11:KH add to support efuse-->
+#endif // RTMP_EFUSE_SUPPORT //
 
 // RxFilter
 #define STANORMAL	 0x17f97
 #define APNORMAL	 0x15f97
+#define PSPXLINK	 0x17f93
 //
 //  RTMP_ADAPTER flags
 //
@@ -203,9 +204,9 @@
 #define fOP_STATUS_TX_AMSDU_INUSED			0x00002000
 #define fOP_STATUS_MAX_RETRY_ENABLED		0x00004000
 #define fOP_STATUS_WAKEUP_NOW               0x00008000
-#define fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE       0x00020000
+#define fOP_STATUS_PCIE_DEVICE       0x00020000
+#define fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE fOP_STATUS_PCIE_DEVICE
 
-#ifdef RT2860
 //
 //  RTMP_ADAPTER PSFlags : related to advanced power save.
 //
@@ -218,7 +219,8 @@
 // Indicate driver should IMMEDIATELY fo to sleep after receiving AP's beacon in which  doesn't indicate unicate nor multicast packets for me
 //. This flag is used ONLY in RTMPHandleRxDoneInterrupt routine.
 #define fRTMP_PS_GO_TO_SLEEP_NOW         0x00000008
-#endif
+#define fRTMP_PS_TOGGLE_L1		0x00000010	// Use Toggle L1 mechanism for rt28xx PCIe
+
 
 #define CCKSETPROTECT		0x1
 #define OFDMSETPROTECT		0x2
@@ -266,6 +268,7 @@
 #define fRX_FILTER_ACCEPT_MULTICAST         NDIS_PACKET_TYPE_MULTICAST
 #define fRX_FILTER_ACCEPT_BROADCAST         NDIS_PACKET_TYPE_BROADCAST
 #define fRX_FILTER_ACCEPT_ALL_MULTICAST     NDIS_PACKET_TYPE_ALL_MULTICAST
+#define fRX_FILTER_ACCEPT_PROMISCUOUS       NDIS_PACKET_TYPE_PROMISCUOUS
 
 //
 // Error code section
@@ -321,17 +324,15 @@
 #define MAX_APCLI_NUM				0
 
 #define MAX_MBSSID_NUM				1
-#if defined(RT2860) || defined(RT30xx)
 #ifdef MBSS_SUPPORT
 #undef	MAX_MBSSID_NUM
 #define MAX_MBSSID_NUM				(8 - MAX_MESH_NUM - MAX_APCLI_NUM)
 #endif // MBSS_SUPPORT //
-#endif
 
 /* sanity check for apidx */
 #define MBSS_MR_APIDX_SANITY_CHECK(apidx) \
     { if (apidx > MAX_MBSSID_NUM) { \
-          printk("%s> Error! apidx = %d > MAX_MBSSID_NUM!\n", __func__, apidx); \
+          DBGPRINT(RT_DEBUG_ERROR, ("%s> Error! apidx = %d > MAX_MBSSID_NUM!\n", __func__, apidx)); \
 	  apidx = MAIN_MBSSID; } }
 
 #define VALID_WCID(_wcid)	((_wcid) > 0 && (_wcid) < MAX_LEN_OF_MAC_TABLE )
@@ -397,6 +398,7 @@
 #define HASH_TABLE_SIZE                 256
 #define MAX_VIE_LEN                     1024   // New for WPA cipher suite variable IE sizes.
 #define MAX_SUPPORT_MCS             32
+#define MAX_NUM_OF_BBP_LATCH             140
 
 //============================================================
 // ASIC WCID Table definition.
@@ -515,6 +517,9 @@
 #define MLME_QOS_UNSPECIFY                32
 #define MLME_REQUEST_DECLINED             37
 #define MLME_REQUEST_WITH_INVALID_PARAM   38
+#define MLME_INVALID_GROUP_CIPHER	  41
+#define MLME_INVALID_PAIRWISE_CIPHER	  42
+#define MLME_INVALID_AKMP			  43
 #define MLME_DLS_NOT_ALLOW_IN_QBSS        48
 #define MLME_DEST_STA_NOT_IN_QBSS         49
 #define MLME_DEST_STA_IS_NOT_A_QSTA       50
@@ -569,6 +574,7 @@
 // For 802.11n D3.03
 //#define IE_NEW_EXT_CHA_OFFSET             62    // 802.11n d1. New extension channel offset elemet
 #define IE_SECONDARY_CH_OFFSET		62	// 802.11n D3.03	Secondary Channel Offset element
+#define IE_WAPI							68		// WAPI information element
 #define IE_2040_BSS_COEXIST               72    // 802.11n D3.0.3
 #define IE_2040_BSS_INTOLERANT_REPORT     73    // 802.11n D3.03
 #define IE_OVERLAPBSS_SCAN_PARM           74    // 802.11n D3.03
@@ -605,17 +611,22 @@
 #define SYNC_STATE_MACHINE              4
 #define MLME_CNTL_STATE_MACHINE         5
 #define WPA_PSK_STATE_MACHINE           6
-#define LEAP_STATE_MACHINE              7
+//#define LEAP_STATE_MACHINE              7
 #define AIRONET_STATE_MACHINE           8
 #define ACTION_STATE_MACHINE           9
 
 // AP MLME state machines
 #define AP_ASSOC_STATE_MACHINE          11
 #define AP_AUTH_STATE_MACHINE           12
-#define AP_AUTH_RSP_STATE_MACHINE       13
 #define AP_SYNC_STATE_MACHINE           14
 #define AP_CNTL_STATE_MACHINE           15
-#define AP_WPA_STATE_MACHINE            16
+#define WSC_STATE_MACHINE            17
+#define WSC_UPNP_STATE_MACHINE		    18
+
+
+#define WPA_STATE_MACHINE			23
+
+
 
 //
 // STA's CONTROL/CONNECT state machine: states, events, total function #
@@ -630,9 +641,9 @@
 #define CNTL_WAIT_AUTH2                 7
 #define CNTL_WAIT_OID_LIST_SCAN         8
 #define CNTL_WAIT_OID_DISASSOC          9
-#ifdef RT2870
+#ifdef RTMP_MAC_USB
 #define CNTL_WAIT_SCAN_FOR_CONNECT      10
-#endif // RT2870 //
+#endif // RTMP_MAC_USB //
 
 #define MT2_ASSOC_CONF                  34
 #define MT2_AUTH_CONF                   35
@@ -646,6 +657,7 @@
 #define MT2_GET_CONF                    43
 #define MT2_SET_CONF                    44
 #define MT2_RESET_CONF                  45
+#define MT2_FT_OTD_CONF					46
 #define MT2_MLME_ROAMING_REQ            52
 
 #define CNTL_FUNC_SIZE                  1
@@ -691,8 +703,11 @@
 #define MT2_PEER_BA_CATE             3
 #define MT2_PEER_PUBLIC_CATE             4
 #define MT2_PEER_RM_CATE             5
+/* "FT_CATEGORY_BSS_TRANSITION equal to 6" is defined file of "dot11r_ft.h" */
 #define MT2_PEER_HT_CATE             7	//	7.4.7
 #define MAX_PEER_CATE_MSG                   7
+
+
 #define MT2_MLME_ADD_BA_CATE             8
 #define MT2_MLME_ORI_DELBA_CATE             9
 #define MT2_MLME_REC_DELBA_CATE             10
@@ -822,35 +837,8 @@
 #define DLS_FUNC_SIZE					(MAX_DLS_STATE * MAX_DLS_MSG)
 
 //
-// STA's WPA-PSK State machine: states, events, total function #
+// WSC State machine: states, events, total function #
 //
-#define WPA_PSK_IDLE					0
-#define MAX_WPA_PSK_STATE				1
-
-#define WPA_MACHINE_BASE                0
-#define MT2_EAPPacket                   0
-#define MT2_EAPOLStart                  1
-#define MT2_EAPOLLogoff                 2
-#define MT2_EAPOLKey                    3
-#define MT2_EAPOLASFAlert               4
-#define MAX_WPA_PSK_MSG                 5
-
-#define	WPA_PSK_FUNC_SIZE				(MAX_WPA_PSK_STATE * MAX_WPA_PSK_MSG)
-
-//
-// STA's CISCO-AIRONET State machine: states, events, total function #
-//
-#define AIRONET_IDLE					0
-#define	AIRONET_SCANNING				1
-#define MAX_AIRONET_STATE				2
-
-#define AIRONET_MACHINE_BASE		    0
-#define MT2_AIRONET_MSG				    0
-#define MT2_AIRONET_SCAN_REQ		    1
-#define MT2_AIRONET_SCAN_DONE		    2
-#define MAX_AIRONET_MSG				    3
-
-#define	AIRONET_FUNC_SIZE				(MAX_AIRONET_STATE * MAX_AIRONET_MSG)
 
 //
 // AP's CONTROL/CONNECT state machine: states, events, total function #
@@ -882,23 +870,12 @@
 #define AP_AUTH_MACHINE_BASE            0
 #define APMT2_MLME_DEAUTH_REQ           0
 #define APMT2_CLS2ERR                   1
-#define AP_MAX_AUTH_MSG                 2
+#define APMT2_PEER_DEAUTH               2
+#define APMT2_PEER_AUTH_REQ				3
+#define APMT2_PEER_AUTH_CONFIRM			4
+#define AP_MAX_AUTH_MSG                 5
 
 #define AP_AUTH_FUNC_SIZE               (AP_MAX_AUTH_STATE * AP_MAX_AUTH_MSG)
-
-//
-// AP's AUTH-RSP state machine: states, events, total function #
-//
-#define AP_AUTH_RSP_IDLE                0
-#define AP_MAX_AUTH_RSP_STATE           1
-
-#define AP_AUTH_RSP_MACHINE_BASE        0
-#define APMT2_AUTH_CHALLENGE_TIMEOUT    0
-#define APMT2_PEER_AUTH_ODD             1
-#define APMT2_PEER_DEAUTH               2
-#define AP_MAX_AUTH_RSP_MSG             3
-
-#define AP_AUTH_RSP_FUNC_SIZE           (AP_MAX_AUTH_RSP_STATE * AP_MAX_AUTH_RSP_MSG)
 
 //
 // AP's SYNC state machine: states, events, total function #
@@ -919,20 +896,22 @@
 #define AP_SYNC_FUNC_SIZE               (AP_MAX_SYNC_STATE * AP_MAX_SYNC_MSG)
 
 //
-// AP's WPA state machine: states, events, total function #
+// Common WPA state machine: states, events, total function #
 //
-#define AP_WPA_PTK                      0
-#define AP_MAX_WPA_PTK_STATE            1
+#define WPA_PTK                      0
+#define MAX_WPA_PTK_STATE            1
 
-#define AP_WPA_MACHINE_BASE             0
-#define APMT2_EAPPacket                 0
-#define APMT2_EAPOLStart                1
-#define APMT2_EAPOLLogoff               2
-#define APMT2_EAPOLKey                  3
-#define APMT2_EAPOLASFAlert             4
-#define AP_MAX_WPA_MSG                  5
+#define WPA_MACHINE_BASE             0
+#define MT2_EAPPacket                0
+#define MT2_EAPOLStart               1
+#define MT2_EAPOLLogoff              2
+#define MT2_EAPOLKey                 3
+#define MT2_EAPOLASFAlert            4
+#define MAX_WPA_MSG                  5
 
-#define AP_WPA_FUNC_SIZE                (AP_MAX_WPA_PTK_STATE * AP_MAX_WPA_MSG)
+#define WPA_FUNC_SIZE                (MAX_WPA_PTK_STATE * MAX_WPA_MSG)
+
+
 
 // =============================================================================
 
@@ -1178,12 +1157,16 @@
 #define REGION_4_A_BAND                   4       // 149, 153, 157, 161, 165
 #define REGION_5_A_BAND                   5       // 149, 153, 157, 161
 #define REGION_6_A_BAND                   6       // 36, 40, 44, 48
-#define REGION_7_A_BAND                   7       // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165
+#define REGION_7_A_BAND                   7       // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165, 169, 173
 #define REGION_8_A_BAND                   8       // 52, 56, 60, 64
 #define REGION_9_A_BAND                   9       // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 132, 136, 140, 149, 153, 157, 161, 165
 #define REGION_10_A_BAND                  10	  // 36, 40, 44, 48, 149, 153, 157, 161, 165
 #define REGION_11_A_BAND                  11	  // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 149, 153, 157, 161
-#define REGION_MAXIMUM_A_BAND             11
+#define REGION_12_A_BAND                  12       // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
+#define REGION_13_A_BAND                  13       // 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161
+#define REGION_14_A_BAND                  14       // 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149, 153, 157, 161, 165
+#define REGION_15_A_BAND                  15       // 149, 153, 157, 161, 165, 169, 173
+#define REGION_MAXIMUM_A_BAND             15
 
 // pTxD->CipherAlg
 #define CIPHER_NONE                 0
@@ -1196,15 +1179,6 @@
 #define CIPHER_TKIP_NO_MIC          7       // MIC appended by driver: not a valid value in hardware key table
 #define CIPHER_SMS4					8
 
-// value domain of pAd->RfIcType
-#define RFIC_2820                   1       // 2.4G 2T3R
-#define RFIC_2850                   2       // 2.4G/5G 2T3R
-#define RFIC_2720                   3       // 2.4G 1T2R
-#define RFIC_2750                   4       // 2.4G/5G 1T2R
-#define RFIC_3020                   5       // 2.4G 1T1R
-#define RFIC_2020                   6       // 2.4G B/G
-#define RFIC_3021                   7       // 2.4G 1T2R
-#define RFIC_3022                   8       // 2.4G 2T2R
 
 // LED Status.
 #define LED_LINK_DOWN               0
@@ -1219,7 +1193,8 @@
 // value domain of pAd->LedCntl.LedMode and E2PROM
 #define LED_MODE_DEFAULT            0
 #define LED_MODE_TWO_LED			1
-#define LED_MODE_SIGNAL_STREGTH		8  // EEPROM define =8
+//#define LED_MODE_SIGNAL_STREGTH		8  // EEPROM define =8
+#define LED_MODE_SIGNAL_STREGTH		0x40 // EEPROM define = 64
 
 // RC4 init value, used fro WEP & TKIP
 #define PPPINITFCS32                0xffffffff   /* Initial FCS value */
@@ -1305,7 +1280,12 @@
 #define INT_APCLI                   0x0400
 #define INT_MESH                   	0x0500
 
-// Use bitmap to allow coexist of ATE_TXFRAME and ATE_RXFRAME(i.e.,to support LoopBack mode)
+#define INF_MAIN_DEV_NAME		"wlan"
+#define INF_MBSSID_DEV_NAME		"ra"
+#define INF_WDS_DEV_NAME		"wds"
+#define INF_APCLI_DEV_NAME		"apcli"
+#define INF_MESH_DEV_NAME		"mesh"
+
 
 // WEP Key TYPE
 #define WEP_HEXADECIMAL_TYPE    0
@@ -1380,7 +1360,7 @@
 #define	MAX_NUM_OF_INIT_DLS_ENTRY   1
 #define	MAX_NUM_OF_DLS_ENTRY        MAX_NUMBER_OF_DLS_ENTRY
 
-//Block ACK , rt2860, kathy
+//Block ACK, kathy
 #define MAX_TX_REORDERBUF		64
 #define MAX_RX_REORDERBUF		64
 #define DEFAULT_TX_TIMEOUT		30
@@ -1392,29 +1372,13 @@
 #define IW_ESSID_MAX_SIZE   		32
 #endif
 
-#ifdef MCAST_RATE_SPECIFIC
-#define MCAST_DISABLE	0
-#define MCAST_CCK		1
-#define MCAST_OFDM		2
-#define MCAST_HTMIX		3
-#endif // MCAST_RATE_SPECIFIC //
-
-#ifdef RT2860
-// For AsicRadioOff/AsicRadioOn/AsicForceWakeup function
-// This is to indicate from where to call this function.
-#define DOT11POWERSAVE		0	// TO do .11 power save sleep
-#define GUIRADIO_OFF		1	// To perform Radio OFf command from GUI
-#define RTMP_HALT			2	// Called from Halt handler.
-#define GUI_IDLE_POWER_SAVE	3	// Call to sleep before link up with AP
-#define FROM_TX				4	// Force wake up from Tx packet.
-#endif
-#ifdef RT2870
 // For AsicRadioOff/AsicRadioOn function
 #define DOT11POWERSAVE		0
 #define GUIRADIO_OFF		1
 #define RTMP_HALT		    2
 #define GUI_IDLE_POWER_SAVE		3
-#endif
+// --
+
 
 // definition for WpaSupport flag
 #define WPA_SUPPLICANT_DISABLE				0
@@ -1457,6 +1421,41 @@
 #define be2cpu32(x) SWAP32((x))
 #define cpu2be16(x) SWAP16((x))
 #define be2cpu16(x) SWAP16((x))
+
+
+#define ABS(_x, _y) ((_x) > (_y)) ? ((_x) -(_y)) : ((_y) -(_x))
+
+
+#define A2Dec(_X, _p)				\
+{									\
+	UCHAR *p;						\
+	_X = 0;							\
+	p = _p;							\
+	while (((*p >= '0') && (*p <= '9')))		\
+	{												\
+		if ((*p >= '0') && (*p <= '9'))		\
+			_X = _X * 10 + *p - 48;					\
+		p++;										\
+	}												\
+}
+
+
+#define A2Hex(_X, _p)				\
+do{									\
+	char *__p;						\
+	(_X) = 0;							\
+	__p = (char *)(_p);							\
+	while (((*__p >= 'a') && (*__p <= 'f')) || ((*__p >= 'A') && (*__p <= 'F')) || ((*__p >= '0') && (*__p <= '9')))		\
+	{												\
+		if ((*__p >= 'a') && (*__p <= 'f'))				\
+			(_X) = (_X) * 16 + *__p - 87;					\
+		else if ((*__p >= 'A') && (*__p <= 'F'))		\
+			(_X) = (_X) * 16 + *__p - 55;					\
+		else if ((*__p >= '0') && (*__p <= '9'))		\
+			(_X) = (_X) * 16 + *__p - 48;					\
+		__p++;										\
+	}												\
+}while(0)
 
 #endif  // __RTMP_DEF_H__
 

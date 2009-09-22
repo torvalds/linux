@@ -149,7 +149,7 @@ VOID AssocTimeout(IN PVOID SystemSpecific1,
 		return;
 
 	MlmeEnqueue(pAd, ASSOC_STATE_MACHINE, MT2_ASSOC_TIMEOUT, 0, NULL);
-	RT28XX_MLME_HANDLER(pAd);
+	RTMP_MLME_HANDLER(pAd);
 }
 
 /*
@@ -177,7 +177,7 @@ VOID ReassocTimeout(IN PVOID SystemSpecific1,
 		return;
 
 	MlmeEnqueue(pAd, ASSOC_STATE_MACHINE, MT2_REASSOC_TIMEOUT, 0, NULL);
-	RT28XX_MLME_HANDLER(pAd);
+	RTMP_MLME_HANDLER(pAd);
 }
 
 /*
@@ -205,7 +205,7 @@ VOID DisassocTimeout(IN PVOID SystemSpecific1,
 		return;
 
 	MlmeEnqueue(pAd, ASSOC_STATE_MACHINE, MT2_DISASSOC_TIMEOUT, 0, NULL);
-	RT28XX_MLME_HANDLER(pAd);
+	RTMP_MLME_HANDLER(pAd);
 }
 
 /*
@@ -236,7 +236,6 @@ VOID MlmeAssocReqAction(
 {
 	UCHAR			ApAddr[6];
 	HEADER_802_11	AssocHdr;
-	UCHAR			Ccx2Len = 5;
 	UCHAR			WmeIe[9] = {IE_VENDOR_SPECIFIC, 0x07, 0x00, 0x50, 0xf2, 0x02, 0x00, 0x01, 0x00};
 	USHORT			ListenIntv;
 	ULONG			Timeout;
@@ -247,13 +246,6 @@ VOID MlmeAssocReqAction(
 	ULONG			FrameLen = 0;
 	ULONG			tmp;
 	USHORT			VarIesOffset;
-	UCHAR			CkipFlag;
-	UCHAR			CkipNegotiationBuffer[CKIP_NEGOTIATION_LENGTH];
-	UCHAR			AironetCkipIe = IE_AIRONET_CKIP;
-	UCHAR			AironetCkipLen = CKIP_NEGOTIATION_LENGTH;
-	UCHAR			AironetIPAddressIE = IE_AIRONET_IPADDRESS;
-	UCHAR			AironetIPAddressLen = AIRONET_IPADDRESS_LENGTH;
-	UCHAR			AironetIPAddressBuffer[AIRONET_IPADDRESS_LENGTH] = {0x00, 0x40, 0x96, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00};
 	USHORT			Status;
 
 	// Block all authentication request durning WPA block period
@@ -454,7 +446,8 @@ VOID MlmeAssocReqAction(
 				RSNIe = IE_WPA2;
 			}
 
-			if (pAd->StaCfg.WpaSupplicantUP != 1)
+			if ((pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_ENABLE) &&
+				(pAd->StaCfg.bRSN_IE_FromWpaSupplicant == FALSE))
             RTMPMakeRSNIE(pAd, pAd->StaCfg.AuthMode, pAd->StaCfg.WepStatus, BSS0);
 
             // Check for WPA PMK cache list
@@ -471,7 +464,18 @@ VOID MlmeAssocReqAction(
 						break;
 					}
 				}
-
+#ifdef RT2860
+				/*
+					When AuthMode is WPA2-Enterprise and AP reboot or STA lost AP,
+					AP would not do PMK cache with STA after STA re-connect to AP again.
+					In this case, driver doesn't need to send PMKID to AP and WpaSupplicant.
+				*/
+				if ((pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2) &&
+					(NdisEqualMemory(pAd->MlmeAux.Bssid, pAd->CommonCfg.LastBssid, MAC_ADDR_LEN)))
+				{
+					FoundPMK = FALSE;
+				}
+#endif // RT2860 //
 				if (FoundPMK)
 				{
 					// Set PMK number
@@ -481,7 +485,8 @@ VOID MlmeAssocReqAction(
 				}
 			}
 
-			if (pAd->StaCfg.WpaSupplicantUP == 1)
+			if ((pAd->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE) &&
+				(pAd->StaCfg.bRSN_IE_FromWpaSupplicant == TRUE))
 			{
 				MakeOutgoingFrame(pOutBuffer + FrameLen,    		&tmp,
 		                        	pAd->StaCfg.RSNIE_Len,			pAd->StaCfg.RSN_IE,
@@ -498,7 +503,8 @@ VOID MlmeAssocReqAction(
 
 			FrameLen += tmp;
 
-			if (pAd->StaCfg.WpaSupplicantUP != 1)
+			if ((pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_ENABLE) ||
+				(pAd->StaCfg.bRSN_IE_FromWpaSupplicant == FALSE))
 			{
 	            // Append Variable IE
 	            NdisMoveMemory(pAd->StaCfg.ReqVarIEs + VarIesOffset, &RSNIe, 1);
@@ -511,53 +517,6 @@ VOID MlmeAssocReqAction(
 
 			// Set Variable IEs Length
 			pAd->StaCfg.ReqVarIELen = VarIesOffset;
-		}
-
-		// We have update that at PeerBeaconAtJoinRequest()
-		CkipFlag = pAd->StaCfg.CkipFlag;
-		if (CkipFlag != 0)
-		{
-			NdisZeroMemory(CkipNegotiationBuffer, CKIP_NEGOTIATION_LENGTH);
-			CkipNegotiationBuffer[2] = 0x66;
-			// Make it try KP & MIC, since we have to follow the result from AssocRsp
-			CkipNegotiationBuffer[8] = 0x18;
-			CkipNegotiationBuffer[CKIP_NEGOTIATION_LENGTH - 1] = 0x22;
-			CkipFlag = 0x18;
-
-			MakeOutgoingFrame(pOutBuffer + FrameLen, 	&tmp,
-						1,						  		&AironetCkipIe,
-						1,						  		&AironetCkipLen,
-						AironetCkipLen, 		  		CkipNegotiationBuffer,
-						END_OF_ARGS);
-			FrameLen += tmp;
-		}
-
-		// Add CCX v2 request if CCX2 admin state is on
-		if (pAd->StaCfg.CCXControl.field.Enable == 1)
-		{
-
-			//
-			// Add AironetIPAddressIE for Cisco CCX 2.X
-			// Add CCX Version
-			//
-			MakeOutgoingFrame(pOutBuffer + FrameLen, &tmp,
-						1,							&AironetIPAddressIE,
-						1,							&AironetIPAddressLen,
-						AironetIPAddressLen,		AironetIPAddressBuffer,
-						1,							&Ccx2Ie,
-						1,							&Ccx2Len,
-						Ccx2Len,				    Ccx2IeInfo,
-						END_OF_ARGS);
-			FrameLen += tmp;
-
-			// Add by James 03/06/27
-			// Set Variable IEs Length
-			pAd->StaCfg.ReqVarIELen = VarIesOffset;
-			pAd->StaCfg.AssocInfo.RequestIELength = VarIesOffset;
-
-			// OffsetResponseIEs follow ReqVarIE
-			pAd->StaCfg.AssocInfo.OffsetResponseIEs = sizeof(NDIS_802_11_ASSOCIATION_INFORMATION) + pAd->StaCfg.ReqVarIELen;
-			// End Add by James
 		}
 
 
@@ -600,7 +559,6 @@ VOID MlmeReassocReqAction(
 {
 	UCHAR			ApAddr[6];
 	HEADER_802_11	ReassocHdr;
-	UCHAR			Ccx2Len = 5;
 	UCHAR			WmeIe[9] = {IE_VENDOR_SPECIFIC, 0x07, 0x00, 0x50, 0xf2, 0x02, 0x00, 0x01, 0x00};
 	USHORT			CapabilityInfo, ListenIntv;
 	ULONG			Timeout;
@@ -749,20 +707,6 @@ VOID MlmeReassocReqAction(
 			FrameLen += TmpLen;
 		}
 
-		// Add CCX v2 request if CCX2 admin state is on
-		if (pAd->StaCfg.CCXControl.field.Enable == 1)
-		{
-			//
-			// Add CCX Version
-			//
-			MakeOutgoingFrame(pOutBuffer + FrameLen, &tmp,
-						1,							&Ccx2Ie,
-						1,							&Ccx2Len,
-						Ccx2Len,				    Ccx2IeInfo,
-						END_OF_ARGS);
-			FrameLen += tmp;
-		}
-
 		MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 		MlmeFreeMemory(pAd, pOutBuffer);
 
@@ -800,8 +744,9 @@ VOID MlmeDisassocReqAction(
 	ULONG                 FrameLen = 0;
 	NDIS_STATUS           NStatus;
 	BOOLEAN               TimerCancelled;
-	ULONG                 Timeout = 0;
+	ULONG                 Timeout = 500;
 	USHORT                Status;
+
 
 	// skip sanity check
 	pDisassocReq = (PMLME_DISASSOC_REQ_STRUCT)(Elem->Msg);
@@ -845,11 +790,9 @@ VOID MlmeDisassocReqAction(
 	RTMPSetTimer(&pAd->MlmeAux.DisassocTimer, Timeout); /* in mSec */
 	pAd->Mlme.AssocMachine.CurrState = DISASSOC_WAIT_RSP;
 
-    {
-        union iwreq_data    wrqu;
-        memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
-        wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
-    }
+
+	RtmpOSWrielessEventSend(pAd, SIOCGIWAP, -1, NULL, NULL, 0);
+
 }
 
 /*
@@ -876,7 +819,7 @@ VOID PeerAssocRspAction(
 	EDCA_PARM     EdcaParm;
 	HT_CAPABILITY_IE		HtCapability;
 	ADD_HT_INFO_IE		AddHtInfo;	// AP might use this additional ht info IE
-	UCHAR			HtCapabilityLen;
+	UCHAR			HtCapabilityLen = 0;
 	UCHAR			AddHtInfoLen;
 	UCHAR			NewExtChannelOffset = 0xff;
 
@@ -889,24 +832,10 @@ VOID PeerAssocRspAction(
 			DBGPRINT(RT_DEBUG_TRACE, ("PeerAssocRspAction():ASSOC - receive ASSOC_RSP to me (status=%d)\n", Status));
 			DBGPRINT(RT_DEBUG_TRACE, ("PeerAssocRspAction():MacTable [%d].AMsduSize = %d. ClientStatusFlags = 0x%lx \n",Elem->Wcid, pAd->MacTab.Content[BSSID_WCID].AMsduSize, pAd->MacTab.Content[BSSID_WCID].ClientStatusFlags));
 			RTMPCancelTimer(&pAd->MlmeAux.AssocTimer, &TimerCancelled);
+
+
 			if(Status == MLME_SUCCESS)
 			{
-#ifdef RT2860
-				// go to procedure listed on page 376
-				AssocPostProc(pAd, Addr2, CapabilityInfo, Aid, SupRate, SupRateLen, ExtRate, ExtRateLen,
-					&EdcaParm, &HtCapability, HtCapabilityLen, &AddHtInfo);
-
-                {
-                    union iwreq_data    wrqu;
-                    wext_notify_event_assoc(pAd);
-
-                    memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
-                    memcpy(wrqu.ap_addr.sa_data, pAd->MlmeAux.Bssid, MAC_ADDR_LEN);
-                    wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
-
-                }
-#endif
-#ifdef RT2870
 				UCHAR			MaxSupportedRateIn500Kbps = 0;
 				UCHAR			idx;
 
@@ -926,23 +855,14 @@ VOID PeerAssocRspAction(
 				AssocPostProc(pAd, Addr2, CapabilityInfo, Aid, SupRate, SupRateLen, ExtRate, ExtRateLen,
 					&EdcaParm, &HtCapability, HtCapabilityLen, &AddHtInfo);
 
-				StaAddMacTableEntry(pAd, &pAd->MacTab.Content[BSSID_WCID], MaxSupportedRateIn500Kbps, &HtCapability, HtCapabilityLen, CapabilityInfo);
-#endif
-				pAd->StaCfg.CkipFlag = CkipFlag;
-				if (CkipFlag & 0x18)
-				{
-					NdisZeroMemory(pAd->StaCfg.TxSEQ, 4);
-					NdisZeroMemory(pAd->StaCfg.RxSEQ, 4);
-					NdisZeroMemory(pAd->StaCfg.CKIPMIC, 4);
-					pAd->StaCfg.GIV[0] = RandomByte(pAd);
-					pAd->StaCfg.GIV[1] = RandomByte(pAd);
-					pAd->StaCfg.GIV[2] = RandomByte(pAd);
-					pAd->StaCfg.bCkipOn = TRUE;
-					DBGPRINT(RT_DEBUG_TRACE, ("<CCX> pAd->StaCfg.CkipFlag = 0x%02x\n", pAd->StaCfg.CkipFlag));
-				}
-			}
-			else
-			{
+				StaAddMacTableEntry(pAd,
+									&pAd->MacTab.Content[BSSID_WCID],
+									MaxSupportedRateIn500Kbps,
+									&HtCapability,
+									HtCapabilityLen,
+									&AddHtInfo,
+									AddHtInfoLen,
+									CapabilityInfo);
 			}
 			pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
 			MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_ASSOC_CONF, 2, &Status);
@@ -998,25 +918,19 @@ VOID PeerReassocRspAction(
 				AssocPostProc(pAd, Addr2, CapabilityInfo, Aid, SupRate, SupRateLen, ExtRate, ExtRateLen,
 					 &EdcaParm, &HtCapability, HtCapabilityLen, &AddHtInfo);
 
+
                 {
-                    union iwreq_data    wrqu;
                     wext_notify_event_assoc(pAd);
-
-                    memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
-                    memcpy(wrqu.ap_addr.sa_data, pAd->MlmeAux.Bssid, MAC_ADDR_LEN);
-                    wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
-
+                    RtmpOSWrielessEventSend(pAd, SIOCGIWAP, -1, &pAd->MlmeAux.Bssid[0], NULL, 0);
                 }
 
 			}
 
-			{
 				// CkipFlag is no use for reassociate
 				pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
 				MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_REASSOC_CONF, 2, &Status);
 			}
 		}
-	}
 	else
 	{
 		DBGPRINT(RT_DEBUG_TRACE, ("ASSOC - PeerReassocRspAction() sanity check fail\n"));
@@ -1123,6 +1037,10 @@ VOID AssocPostProc(
 
 			pVIE = pAd->ScanTab.BssEntry[Idx].VarIEs;
 			len	 = pAd->ScanTab.BssEntry[Idx].VarIELen;
+			//KH need to check again
+			// Don't allow to go to sleep mode if authmode is WPA-related.
+			//This can make Authentication process more smoothly.
+			RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 
 			while (len > 0)
 			{
@@ -1147,6 +1065,8 @@ VOID AssocPostProc(
 				pVIE += (pEid->Len + 2);
 				len  -= (pEid->Len + 2);
 			}
+
+
 		}
 
 		if (pAd->MacTab.Content[BSSID_WCID].RSNIE_Len == 0)
@@ -1190,19 +1110,12 @@ VOID PeerDisassocAction(
 				RTMPSendWirelessEvent(pAd, IW_DISASSOC_EVENT_FLAG, pAd->MacTab.Content[BSSID_WCID].Addr, BSS0, 0);
 			}
 
-			//
-			// Get Current System time and Turn on AdjacentAPReport
-			//
-			NdisGetSystemUpTime(&pAd->StaCfg.CCXAdjacentAPLinkDownTime);
-			pAd->StaCfg.CCXAdjacentAPReportFlag = TRUE;
+
 			LinkDown(pAd, TRUE);
 			pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
 
-            {
-                union iwreq_data    wrqu;
-                memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
-                wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
-            }
+
+			RtmpOSWrielessEventSend(pAd, SIOCGIWAP, -1, NULL, NULL, 0);
 		}
 	}
 	else
@@ -1359,143 +1272,16 @@ VOID Cls3errAction(
 	COPY_MAC_ADDR(pAd->StaCfg.DisassocSta, pAddr);
 }
 
- /*
-	 ==========================================================================
-	 Description:
-		 Switch between WEP and CKIP upon new association up.
-	 Parameters:
-
-	 IRQL = DISPATCH_LEVEL
-
-	 ==========================================================================
-  */
-VOID SwitchBetweenWepAndCkip(
-	IN PRTMP_ADAPTER pAd)
-{
-	int            i;
-	SHAREDKEY_MODE_STRUC  csr1;
-
-	// if KP is required. change the CipherAlg in hardware shard key table from WEP
-	// to CKIP. else remain as WEP
-	if (pAd->StaCfg.bCkipOn && (pAd->StaCfg.CkipFlag & 0x10))
-	{
-		// modify hardware key table so that MAC use correct algorithm to decrypt RX
-		RTMP_IO_READ32(pAd, SHARED_KEY_MODE_BASE, &csr1.word);
-		if (csr1.field.Bss0Key0CipherAlg == CIPHER_WEP64)
-			csr1.field.Bss0Key0CipherAlg = CIPHER_CKIP64;
-		else if (csr1.field.Bss0Key0CipherAlg == CIPHER_WEP128)
-			csr1.field.Bss0Key0CipherAlg = CIPHER_CKIP128;
-
-		if (csr1.field.Bss0Key1CipherAlg == CIPHER_WEP64)
-			csr1.field.Bss0Key1CipherAlg = CIPHER_CKIP64;
-		else if (csr1.field.Bss0Key1CipherAlg == CIPHER_WEP128)
-			csr1.field.Bss0Key1CipherAlg = CIPHER_CKIP128;
-
-		if (csr1.field.Bss0Key2CipherAlg == CIPHER_WEP64)
-			csr1.field.Bss0Key2CipherAlg = CIPHER_CKIP64;
-		else if (csr1.field.Bss0Key2CipherAlg == CIPHER_WEP128)
-			csr1.field.Bss0Key2CipherAlg = CIPHER_CKIP128;
-
-		if (csr1.field.Bss0Key3CipherAlg == CIPHER_WEP64)
-			csr1.field.Bss0Key3CipherAlg = CIPHER_CKIP64;
-		else if (csr1.field.Bss0Key3CipherAlg == CIPHER_WEP128)
-			csr1.field.Bss0Key3CipherAlg = CIPHER_CKIP128;
-		RTMP_IO_WRITE32(pAd, SHARED_KEY_MODE_BASE, csr1.word);
-		DBGPRINT(RT_DEBUG_TRACE, ("SwitchBetweenWepAndCkip: modify BSS0 cipher to %s\n", CipherName[csr1.field.Bss0Key0CipherAlg]));
-
-		// modify software key table so that driver can specify correct algorithm in TXD upon TX
-		for (i=0; i<SHARE_KEY_NUM; i++)
-		{
-			if (pAd->SharedKey[BSS0][i].CipherAlg == CIPHER_WEP64)
-				pAd->SharedKey[BSS0][i].CipherAlg = CIPHER_CKIP64;
-			else if (pAd->SharedKey[BSS0][i].CipherAlg == CIPHER_WEP128)
-				pAd->SharedKey[BSS0][i].CipherAlg = CIPHER_CKIP128;
-		}
-	}
-
-	// else if KP NOT inused. change the CipherAlg in hardware shard key table from CKIP
-	// to WEP.
-	else
-	{
-		// modify hardware key table so that MAC use correct algorithm to decrypt RX
-		RTMP_IO_READ32(pAd, SHARED_KEY_MODE_BASE, &csr1.word);
-		if (csr1.field.Bss0Key0CipherAlg == CIPHER_CKIP64)
-			csr1.field.Bss0Key0CipherAlg = CIPHER_WEP64;
-		else if (csr1.field.Bss0Key0CipherAlg == CIPHER_CKIP128)
-			csr1.field.Bss0Key0CipherAlg = CIPHER_WEP128;
-
-		if (csr1.field.Bss0Key1CipherAlg == CIPHER_CKIP64)
-			csr1.field.Bss0Key1CipherAlg = CIPHER_WEP64;
-		else if (csr1.field.Bss0Key1CipherAlg == CIPHER_CKIP128)
-			csr1.field.Bss0Key1CipherAlg = CIPHER_WEP128;
-
-		if (csr1.field.Bss0Key2CipherAlg == CIPHER_CKIP64)
-			csr1.field.Bss0Key2CipherAlg = CIPHER_WEP64;
-		else if (csr1.field.Bss0Key2CipherAlg == CIPHER_CKIP128)
-			csr1.field.Bss0Key2CipherAlg = CIPHER_WEP128;
-
-		if (csr1.field.Bss0Key3CipherAlg == CIPHER_CKIP64)
-			csr1.field.Bss0Key3CipherAlg = CIPHER_WEP64;
-		else if (csr1.field.Bss0Key3CipherAlg == CIPHER_CKIP128)
-			csr1.field.Bss0Key3CipherAlg = CIPHER_WEP128;
-
-		// modify software key table so that driver can specify correct algorithm in TXD upon TX
-		for (i=0; i<SHARE_KEY_NUM; i++)
-		{
-			if (pAd->SharedKey[BSS0][i].CipherAlg == CIPHER_CKIP64)
-				pAd->SharedKey[BSS0][i].CipherAlg = CIPHER_WEP64;
-			else if (pAd->SharedKey[BSS0][i].CipherAlg == CIPHER_CKIP128)
-				pAd->SharedKey[BSS0][i].CipherAlg = CIPHER_WEP128;
-		}
-
-		//
-		// On WPA-NONE, must update CipherAlg.
-		// Because the OID_802_11_WEP_STATUS was been set after OID_802_11_ADD_KEY
-		// and CipherAlg will be CIPHER_NONE by Windows ZeroConfig.
-		// So we need to update CipherAlg after connect.
-		//
-		if (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPANone)
-		{
-			for (i = 0; i < SHARE_KEY_NUM; i++)
-			{
-				if (pAd->SharedKey[BSS0][i].KeyLen != 0)
-				{
-					if (pAd->StaCfg.WepStatus == Ndis802_11Encryption2Enabled)
-					{
-						pAd->SharedKey[BSS0][i].CipherAlg = CIPHER_TKIP;
-					}
-					else if (pAd->StaCfg.WepStatus == Ndis802_11Encryption3Enabled)
-					{
-						pAd->SharedKey[BSS0][i].CipherAlg = CIPHER_AES;
-					}
-				}
-				else
-				{
-					pAd->SharedKey[BSS0][i].CipherAlg = CIPHER_NONE;
-				}
-			}
-
-			csr1.field.Bss0Key0CipherAlg = pAd->SharedKey[BSS0][0].CipherAlg;
-			csr1.field.Bss0Key1CipherAlg = pAd->SharedKey[BSS0][1].CipherAlg;
-			csr1.field.Bss0Key2CipherAlg = pAd->SharedKey[BSS0][2].CipherAlg;
-			csr1.field.Bss0Key3CipherAlg = pAd->SharedKey[BSS0][3].CipherAlg;
-		}
-		RTMP_IO_WRITE32(pAd, SHARED_KEY_MODE_BASE, csr1.word);
-		DBGPRINT(RT_DEBUG_TRACE, ("SwitchBetweenWepAndCkip: modify BSS0 cipher to %s\n", CipherName[csr1.field.Bss0Key0CipherAlg]));
-	}
-}
 
 int wext_notify_event_assoc(
 	IN  RTMP_ADAPTER *pAd)
 {
-    union iwreq_data    wrqu;
     char custom[IW_CUSTOM_MAX] = {0};
 
     if (pAd->StaCfg.ReqVarIELen <= IW_CUSTOM_MAX)
     {
-        wrqu.data.length = pAd->StaCfg.ReqVarIELen;
-        memcpy(custom, pAd->StaCfg.ReqVarIEs, pAd->StaCfg.ReqVarIELen);
-        wireless_send_event(pAd->net_dev, IWEVASSOCREQIE, &wrqu, custom);
+		NdisMoveMemory(custom, pAd->StaCfg.ReqVarIEs, pAd->StaCfg.ReqVarIELen);
+		RtmpOSWrielessEventSend(pAd, IWEVASSOCREQIE, -1, NULL, custom, pAd->StaCfg.ReqVarIELen);
     }
     else
         DBGPRINT(RT_DEBUG_TRACE, ("pAd->StaCfg.ReqVarIELen > MAX_CUSTOM_LEN\n"));
@@ -1504,13 +1290,15 @@ int wext_notify_event_assoc(
 
 }
 
-#ifdef RT2870
+
 BOOLEAN StaAddMacTableEntry(
 	IN  PRTMP_ADAPTER		pAd,
 	IN  PMAC_TABLE_ENTRY	pEntry,
 	IN  UCHAR				MaxSupportedRateIn500Kbps,
 	IN  HT_CAPABILITY_IE	*pHtCapability,
 	IN  UCHAR				HtCapabilityLen,
+	IN  ADD_HT_INFO_IE		*pAddHtInfo,
+	IN  UCHAR				AddHtInfoLen,
 	IN  USHORT        		CapabilityInfo)
 {
 	UCHAR            MaxSupportedRate = RATE_11;
@@ -1586,6 +1374,7 @@ BOOLEAN StaAddMacTableEntry(
 		CLIENT_STATUS_CLEAR_FLAG(pEntry, fCLIENT_STATUS_PIGGYBACK_CAPABLE);
 	}
 
+	NdisZeroMemory(&pEntry->HTCapability, sizeof(pEntry->HTCapability));
 	// If this Entry supports 802.11n, upgrade to HT rate.
 	if ((HtCapabilityLen != 0) && (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED))
 	{
@@ -1605,7 +1394,9 @@ BOOLEAN StaAddMacTableEntry(
 			pAd->CommonCfg.AddHTInfo.AddHtInfo2.NonGfPresent = 1;
 		}
 
-		if ((pHtCapability->HtCapInfo.ChannelWidth) && (pAd->CommonCfg.DesiredHtPhy.ChannelWidth))
+		if ((pHtCapability->HtCapInfo.ChannelWidth) &&
+			(pAd->CommonCfg.DesiredHtPhy.ChannelWidth) &&
+			((pAd->StaCfg.BssType == BSS_INFRA) || ((pAd->StaCfg.BssType == BSS_ADHOC) && (pAddHtInfo->AddHtInfo.ExtChanOffset == pAd->CommonCfg.AddHTInfo.AddHtInfo.ExtChanOffset))))
 		{
 			pEntry->MaxHTPhyMode.field.BW= BW_40;
 			pEntry->MaxHTPhyMode.field.ShortGI = ((pAd->CommonCfg.DesiredHtPhy.ShortGIfor40)&(pHtCapability->HtCapInfo.ShortGIfor40));
@@ -1677,13 +1468,12 @@ BOOLEAN StaAddMacTableEntry(
 			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_RDG_CAPABLE);
 		if (pHtCapability->ExtHtCapInfo.MCSFeedback == 0x03)
 			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_MCSFEEDBACK_CAPABLE);
+		NdisMoveMemory(&pEntry->HTCapability, pHtCapability, HtCapabilityLen);
 	}
 	else
 	{
 		pAd->MacTab.fAnyStationIsLegacy = TRUE;
 	}
-
-	NdisMoveMemory(&pEntry->HTCapability, pHtCapability, sizeof(HT_CAPABILITY_IE));
 
 	pEntry->HTPhyMode.word = pEntry->MaxHTPhyMode.word;
 	pEntry->CurrTxRate = pEntry->MaxSupportedRate;
@@ -1726,4 +1516,3 @@ BOOLEAN StaAddMacTableEntry(
     }
 	return TRUE;
 }
-#endif /* RT2870 */

@@ -36,6 +36,9 @@
 	Paul Lin    06-25-2004  created
 */
 
+#ifdef RTMP_MAC_USB
+
+
 #include "../rt_config.h"
 
 
@@ -55,7 +58,7 @@
 	========================================================================
 */
 
-NTSTATUS	RTUSBFirmwareRun(
+static NTSTATUS	RTUSBFirmwareRun(
 	IN	PRTMP_ADAPTER	pAd)
 {
 	NTSTATUS	Status;
@@ -110,48 +113,16 @@ NTSTATUS RTUSBFirmwareWrite(
 	Status = RTUSBWriteMACRegister(pAd, 0x701c, 0xffffffff);
 	Status = RTUSBFirmwareRun(pAd);
 
+	//2008/11/28:KH add to fix the dead rf frequency offset bug<--
 	RTMPusecDelay(10000);
 	RTUSBWriteMACRegister(pAd,H2M_MAILBOX_CSR,0);
-	AsicSendCommandToMcu(pAd, 0x72, 0x00, 0x00, 0x00);//reset rf by MCU supported by new firmware
+	AsicSendCommandToMcu(pAd, 0x72, 0x00, 0x00, 0x00); //reset rf by MCU supported by new firmware
+	//2008/11/28:KH add to fix the dead rf frequency offset bug-->
 
 	return Status;
 }
 
 
-/*
-	========================================================================
-
-	Routine Description: Get current firmware operation mode (Return Value)
-
-	Arguments:
-
-	Return Value:
-		0 or 1 = Downloaded by host driver
-		others = Driver doesn't download firmware
-
-	IRQL =
-
-	Note:
-
-	========================================================================
-*/
-NTSTATUS	RTUSBFirmwareOpmode(
-	IN	PRTMP_ADAPTER	pAd,
-	OUT	PUINT32			pValue)
-{
-	NTSTATUS	Status;
-
-	Status = RTUSB_VendorRequest(
-		pAd,
-		(USBD_TRANSFER_DIRECTION_IN | USBD_SHORT_TRANSFER_OK),
-		DEVICE_VENDOR_REQUEST_IN,
-		0x1,
-		0x11,
-		0,
-		pValue,
-		4);
-	return Status;
-}
 NTSTATUS	RTUSBVenderReset(
 	IN	PRTMP_ADAPTER	pAd)
 {
@@ -312,7 +283,7 @@ NTSTATUS	RTUSBReadMACRegister(
 	IN	USHORT			Offset,
 	OUT	PUINT32			pValue)
 {
-	NTSTATUS	Status;
+	NTSTATUS	Status = 0;
 	UINT32		localVal;
 
 	Status = RTUSB_VendorRequest(
@@ -368,7 +339,6 @@ NTSTATUS	RTUSBWriteMACRegister(
 
 
 
-#if 1
 /*
 	========================================================================
 
@@ -402,10 +372,9 @@ NTSTATUS	RTUSBReadBBPRegister(
 		if (!(BbpCsr.field.Busy == BUSY))
 			break;
 		}
-		printk("RTUSBReadBBPRegister(BBP_CSR_CFG_1):retry count=%d!\n", i);
+		DBGPRINT(RT_DEBUG_TRACE, ("RTUSBReadBBPRegister(BBP_CSR_CFG_1):retry count=%d!\n", i));
 		i++;
-	}
-	while ((i < RETRY_LIMIT) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)));
+	}while ((i < RETRY_LIMIT) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)));
 
 	if ((i == RETRY_LIMIT) || (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
 	{
@@ -438,10 +407,9 @@ NTSTATUS	RTUSBReadBBPRegister(
 			break;
 		}
 		}
-		printk("RTUSBReadBBPRegister(BBP_CSR_CFG_2):retry count=%d!\n", i);
+		DBGPRINT(RT_DEBUG_TRACE, ("RTUSBReadBBPRegister(BBP_CSR_CFG_2):retry count=%d!\n", i));
 		i++;
-	}
-	while ((i < RETRY_LIMIT) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)));
+	}while ((i < RETRY_LIMIT) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)));
 
 	if ((i == RETRY_LIMIT) || (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
 	{
@@ -456,67 +424,8 @@ NTSTATUS	RTUSBReadBBPRegister(
 
 	return STATUS_SUCCESS;
 }
-#else
-/*
-	========================================================================
 
-	Routine Description: Read 8-bit BBP register via firmware
 
-	Arguments:
-
-	Return Value:
-
-	IRQL =
-
-	Note:
-
-	========================================================================
-*/
-NTSTATUS	RTUSBReadBBPRegister(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			Id,
-	IN	PUCHAR			pValue)
-{
-	BBP_CSR_CFG_STRUC	BbpCsr;
-	int					i, k;
-	for (i=0; i<MAX_BUSY_COUNT; i++)
-	{
-		RTUSBReadMACRegister(pAd, H2M_BBP_AGENT, &BbpCsr.word);
-		if (BbpCsr.field.Busy == BUSY)
-		{
-			continue;
-		}
-		BbpCsr.word = 0;
-		BbpCsr.field.fRead = 1;
-		BbpCsr.field.BBP_RW_MODE = 1;
-		BbpCsr.field.Busy = 1;
-		BbpCsr.field.RegNum = Id;
-		RTUSBWriteMACRegister(pAd, H2M_BBP_AGENT, BbpCsr.word);
-		AsicSendCommandToMcu(pAd, 0x80, 0xff, 0x0, 0x0);
-		for (k=0; k<MAX_BUSY_COUNT; k++)
-		{
-			RTUSBReadMACRegister(pAd, H2M_BBP_AGENT, &BbpCsr.word);
-			if (BbpCsr.field.Busy == IDLE)
-				break;
-		}
-		if ((BbpCsr.field.Busy == IDLE) &&
-			(BbpCsr.field.RegNum == Id))
-		{
-			*pValue = (UCHAR)BbpCsr.field.Value;
-			break;
-		}
-	}
-	if (BbpCsr.field.Busy == BUSY)
-	{
-		DBGPRINT_ERR(("BBP read R%d=0x%x fail\n", Id, BbpCsr.word));
-		*pValue = pAd->BbpWriteLatch[Id];
-		return STATUS_UNSUCCESSFUL;
-	}
-	return STATUS_SUCCESS;
-}
-#endif
-
-#if 1
 /*
 	========================================================================
 
@@ -549,7 +458,7 @@ NTSTATUS	RTUSBWriteBBPRegister(
 		if (!(BbpCsr.field.Busy == BUSY))
 			break;
 		}
-		printk("RTUSBWriteBBPRegister(BBP_CSR_CFG):retry count=%d!\n", i);
+		DBGPRINT(RT_DEBUG_TRACE, ("RTUSBWriteBBPRegister(BBP_CSR_CFG):retry count=%d!\n", i));
 		i++;
 	}
 	while ((i < RETRY_LIMIT) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)));
@@ -572,55 +481,6 @@ NTSTATUS	RTUSBWriteBBPRegister(
 
 	return STATUS_SUCCESS;
 }
-#else
-/*
-	========================================================================
-
-	Routine Description: Write 8-bit BBP register via firmware
-
-	Arguments:
-
-	Return Value:
-
-	IRQL =
-
-	Note:
-
-	========================================================================
-*/
-
-NTSTATUS	RTUSBWriteBBPRegister(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			Id,
-	IN	UCHAR			Value)
-
-{
-	BBP_CSR_CFG_STRUC	BbpCsr;
-	int					BusyCnt;
-	for (BusyCnt=0; BusyCnt<MAX_BUSY_COUNT; BusyCnt++)
-	{
-		RTMP_IO_READ32(pAd, H2M_BBP_AGENT, &BbpCsr.word);
-		if (BbpCsr.field.Busy == BUSY)
-			continue;
-		BbpCsr.word = 0;
-		BbpCsr.field.fRead = 0;
-		BbpCsr.field.BBP_RW_MODE = 1;
-		BbpCsr.field.Busy = 1;
-		BbpCsr.field.Value = Value;
-		BbpCsr.field.RegNum = Id;
-		RTMP_IO_WRITE32(pAd, H2M_BBP_AGENT, BbpCsr.word);
-		AsicSendCommandToMcu(pAd, 0x80, 0xff, 0x0, 0x0);
-		pAd->BbpWriteLatch[Id] = Value;
-		break;
-	}
-	if (BusyCnt == MAX_BUSY_COUNT)
-	{
-		DBGPRINT_ERR(("BBP write R%d=0x%x fail\n", Id, BbpCsr.word));
-		return STATUS_UNSUCCESSFUL;
-	}
-	return STATUS_SUCCESS;
-}
-#endif
 /*
 	========================================================================
 
@@ -653,7 +513,7 @@ NTSTATUS	RTUSBWriteRFRegister(
 		if (!(PhyCsr4.field.Busy))
 			break;
 		}
-		printk("RTUSBWriteRFRegister(RF_CSR_CFG0):retry count=%d!\n", i);
+		DBGPRINT(RT_DEBUG_TRACE, ("RTUSBWriteRFRegister(RF_CSR_CFG0):retry count=%d!\n", i));
 		i++;
 	}
 	while ((i < RETRY_LIMIT) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)));
@@ -669,114 +529,6 @@ NTSTATUS	RTUSBWriteRFRegister(
 	return STATUS_SUCCESS;
 }
 
-/*
-	========================================================================
-
-	Routine Description: Write RT30xx RF register through MAC
-
-	Arguments:
-
-	Return Value:
-
-	IRQL =
-
-	Note:
-
-	========================================================================
-*/
-NTSTATUS RT30xxWriteRFRegister(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			RegID,
-	IN	UCHAR			Value)
-{
-	RF_CSR_CFG_STRUC	rfcsr;
-	UINT				i = 0;
-
-	do
-	{
-		RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
-
-		if (!rfcsr.field.RF_CSR_KICK)
-			break;
-		i++;
-	}
-	while ((i < RETRY_LIMIT) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)));
-
-	if ((i == RETRY_LIMIT) || (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
-	{
-		DBGPRINT_RAW(RT_DEBUG_ERROR, ("Retry count exhausted or device removed!!!\n"));
-		return STATUS_UNSUCCESSFUL;
-	}
-
-	rfcsr.field.RF_CSR_WR = 1;
-	rfcsr.field.RF_CSR_KICK = 1;
-	rfcsr.field.TESTCSR_RFACC_REGNUM = RegID;
-	rfcsr.field.RF_CSR_DATA = Value;
-
-	RTMP_IO_WRITE32(pAd, RF_CSR_CFG, rfcsr.word);
-
-	return STATUS_SUCCESS;
-}
-
-
-/*
-	========================================================================
-
-	Routine Description: Read RT30xx RF register through MAC
-
-	Arguments:
-
-	Return Value:
-
-	IRQL =
-
-	Note:
-
-	========================================================================
-*/
-NTSTATUS RT30xxReadRFRegister(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR			RegID,
-	IN	PUCHAR			pValue)
-{
-	RF_CSR_CFG_STRUC	rfcsr;
-	UINT				i=0, k=0;
-
-	for (i=0; i<MAX_BUSY_COUNT; i++)
-	{
-		RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
-
-		if (rfcsr.field.RF_CSR_KICK == BUSY)
-		{
-			continue;
-		}
-		rfcsr.word = 0;
-		rfcsr.field.RF_CSR_WR = 0;
-		rfcsr.field.RF_CSR_KICK = 1;
-		rfcsr.field.TESTCSR_RFACC_REGNUM = RegID;
-		RTMP_IO_WRITE32(pAd, RF_CSR_CFG, rfcsr.word);
-		for (k=0; k<MAX_BUSY_COUNT; k++)
-		{
-			RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
-
-			if (rfcsr.field.RF_CSR_KICK == IDLE)
-				break;
-		}
-		if ((rfcsr.field.RF_CSR_KICK == IDLE) &&
-			(rfcsr.field.TESTCSR_RFACC_REGNUM == RegID))
-		{
-			*pValue = (UCHAR)rfcsr.field.RF_CSR_DATA;
-			break;
-		}
-	}
-	if (rfcsr.field.RF_CSR_KICK == BUSY)
-	{
-		DBGPRINT_ERR(("RF read R%d=0x%x fail, i[%d], k[%d]\n", RegID, rfcsr.word,i,k));
-		return STATUS_UNSUCCESSFUL;
-	}
-
-	return STATUS_SUCCESS;
-}
 
 /*
 	========================================================================
@@ -801,10 +553,6 @@ NTSTATUS	RTUSBReadEEPROM(
 {
 	NTSTATUS	Status = STATUS_SUCCESS;
 
-	if(pAd->bUseEfuse)
-		Status =eFuseRead(pAd, Offset, pData, length);
-	else
-	{
 	Status = RTUSB_VendorRequest(
 		pAd,
 		(USBD_TRANSFER_DIRECTION_IN | USBD_SHORT_TRANSFER_OK),
@@ -814,7 +562,6 @@ NTSTATUS	RTUSBReadEEPROM(
 		Offset,
 		pData,
 		length);
-	}
 
 	return Status;
 }
@@ -842,10 +589,6 @@ NTSTATUS	RTUSBWriteEEPROM(
 {
 	NTSTATUS	Status = STATUS_SUCCESS;
 
-	if(pAd->bUseEfuse)
-		Status = eFuseWrite(pAd, Offset, pData, length);
-	else
-	{
 	Status = RTUSB_VendorRequest(
 		pAd,
 		USBD_TRANSFER_DIRECTION_OUT,
@@ -855,9 +598,36 @@ NTSTATUS	RTUSBWriteEEPROM(
 		Offset,
 		pData,
 		length);
-	}
 
 	return Status;
+}
+
+
+NTSTATUS RTUSBReadEEPROM16(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	USHORT			offset,
+	OUT	PUSHORT			pData)
+{
+	NTSTATUS status;
+	USHORT  localData;
+
+	status = RTUSBReadEEPROM(pAd, offset, (PUCHAR)(&localData), 2);
+	if (status == STATUS_SUCCESS)
+		*pData = le2cpu16(localData);
+
+	return status;
+
+}
+
+NTSTATUS RTUSBWriteEEPROM16(
+	IN RTMP_ADAPTER *pAd,
+	IN USHORT offset,
+	IN USHORT value)
+{
+	USHORT tmpVal;
+
+	tmpVal = cpu2le16(value);
+	return RTUSBWriteEEPROM(pAd, offset, (PUCHAR)&(tmpVal), 2);
 }
 
 /*
@@ -943,7 +713,7 @@ VOID	RTUSBInitializeCmdQ(
 	cmdq->head = NULL;
 	cmdq->tail = NULL;
 	cmdq->size = 0;
-	cmdq->CmdQState = RT2870_THREAD_INITED;
+	cmdq->CmdQState = RTMP_TASK_STAT_INITED;
 }
 
 /*
@@ -970,19 +740,26 @@ NDIS_STATUS	RTUSBEnqueueCmdFromNdis(
 {
 	NDIS_STATUS	status;
 	PCmdQElmt	cmdqelmt = NULL;
-	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+	RTMP_OS_TASK	*pTask = &pAd->cmdQTask;
 
-	if (pid_nr(pObj->RTUSBCmdThr_pid) > 0)
+#ifdef KTHREAD_SUPPORT
+	if (pTask->kthread_task == NULL)
+#else
+	CHECK_PID_LEGALITY(pTask->taskPID)
+	{
+	}
+	else
+#endif
 		return (NDIS_STATUS_RESOURCES);
 
-	status = RTMPAllocateMemory((PVOID *)&cmdqelmt, sizeof(CmdQElmt));
+	status = os_alloc_mem(pAd, (PUCHAR *)(&cmdqelmt), sizeof(CmdQElmt));
 	if ((status != NDIS_STATUS_SUCCESS) || (cmdqelmt == NULL))
 		return (NDIS_STATUS_RESOURCES);
 
 		cmdqelmt->buffer = NULL;
 		if (pInformationBuffer != NULL)
 		{
-			status = RTMPAllocateMemory((PVOID *)&cmdqelmt->buffer, InformationBufferLength);
+			status = os_alloc_mem(pAd, (PUCHAR *)&cmdqelmt->buffer, InformationBufferLength);
 			if ((status != NDIS_STATUS_SUCCESS) || (cmdqelmt->buffer == NULL))
 			{
 				kfree(cmdqelmt);
@@ -1005,7 +782,7 @@ NDIS_STATUS	RTUSBEnqueueCmdFromNdis(
 		cmdqelmt->SetOperation = FALSE;
 
 	NdisAcquireSpinLock(&pAd->CmdQLock);
-	if (pAd->CmdQ.CmdQState & RT2870_THREAD_CAN_DO_INSERT)
+	if (pAd->CmdQ.CmdQState & RTMP_TASK_CAN_DO_INSERT)
 	{
 		EnqueueCmd((&pAd->CmdQ), cmdqelmt);
 		status = NDIS_STATUS_SUCCESS;
@@ -1019,8 +796,8 @@ NDIS_STATUS	RTUSBEnqueueCmdFromNdis(
 	if (status == NDIS_STATUS_FAILURE)
 	{
 		if (cmdqelmt->buffer)
-			NdisFreeMemory(cmdqelmt->buffer, cmdqelmt->bufferlength, 0);
-		NdisFreeMemory(cmdqelmt, sizeof(CmdQElmt), 0);
+			os_free_mem(pAd, cmdqelmt->buffer);
+		os_free_mem(pAd, cmdqelmt);
 	}
 	else
 	RTUSBCMDUp(pAd);
@@ -1054,17 +831,17 @@ NDIS_STATUS RTUSBEnqueueInternalCmd(
 	PCmdQElmt	cmdqelmt = NULL;
 
 
-	status = RTMPAllocateMemory((PVOID *)&cmdqelmt, sizeof(CmdQElmt));
+	status = os_alloc_mem(pAd, (PUCHAR *)&cmdqelmt, sizeof(CmdQElmt));
 	if ((status != NDIS_STATUS_SUCCESS) || (cmdqelmt == NULL))
 		return (NDIS_STATUS_RESOURCES);
 	NdisZeroMemory(cmdqelmt, sizeof(CmdQElmt));
 
 	if(InformationBufferLength > 0)
 	{
-		status = RTMPAllocateMemory((PVOID *)&cmdqelmt->buffer, InformationBufferLength);
+		status = os_alloc_mem(pAd, (PUCHAR *)&cmdqelmt->buffer, InformationBufferLength);
 		if ((status != NDIS_STATUS_SUCCESS) || (cmdqelmt->buffer == NULL))
 		{
-			NdisFreeMemory(cmdqelmt, sizeof(CmdQElmt), 0);
+			os_free_mem(pAd, cmdqelmt);
 			return (NDIS_STATUS_RESOURCES);
 		}
 		else
@@ -1085,7 +862,7 @@ NDIS_STATUS RTUSBEnqueueInternalCmd(
 	if (cmdqelmt != NULL)
 	{
 		NdisAcquireSpinLock(&pAd->CmdQLock);
-		if (pAd->CmdQ.CmdQState & RT2870_THREAD_CAN_DO_INSERT)
+		if (pAd->CmdQ.CmdQState & RTMP_TASK_CAN_DO_INSERT)
 		{
 			EnqueueCmd((&pAd->CmdQ), cmdqelmt);
 			status = NDIS_STATUS_SUCCESS;
@@ -1099,8 +876,8 @@ NDIS_STATUS RTUSBEnqueueInternalCmd(
 		if (status == NDIS_STATUS_FAILURE)
 		{
 			if (cmdqelmt->buffer)
-				NdisFreeMemory(cmdqelmt->buffer, cmdqelmt->bufferlength, 0);
-			NdisFreeMemory(cmdqelmt, sizeof(CmdQElmt), 0);
+				os_free_mem(pAd, cmdqelmt->buffer);
+			os_free_mem(pAd, cmdqelmt);
 		}
 		else
 		RTUSBCMDUp(pAd);
@@ -1185,7 +962,7 @@ NTSTATUS    RTUSB_VendorRequest(
 	IN	PVOID			TransferBuffer,
 	IN	UINT32			TransferBufferLength)
 {
-	int				ret;
+	int				ret = 0;
 	POS_COOKIE		pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))
@@ -1206,7 +983,18 @@ NTSTATUS    RTUSB_VendorRequest(
 		int retryCount = 0;
 		void	*tmpBuf = TransferBuffer;
 
-		// Acquire Control token
+		ret = down_interruptible(&(pAd->UsbVendorReq_semaphore));
+		if (pAd->UsbVendorReqBuf)
+		{
+			ASSERT(TransferBufferLength <MAX_PARAM_BUFFER_SIZE);
+
+			tmpBuf = (void *)pAd->UsbVendorReqBuf;
+			NdisZeroMemory(pAd->UsbVendorReqBuf, TransferBufferLength);
+
+			if (RequestType == DEVICE_VENDOR_REQUEST_OUT)
+			 NdisMoveMemory(tmpBuf, TransferBuffer, TransferBufferLength);
+		}
+
 		do {
 		if( RequestType == DEVICE_VENDOR_REQUEST_OUT)
 			ret=usb_control_msg(pObj->pUsb_Dev, usb_sndctrlpipe( pObj->pUsb_Dev, 0 ), Request, RequestType, Value,Index, tmpBuf, TransferBufferLength, CONTROL_TIMEOUT_JIFFIES);
@@ -1220,13 +1008,16 @@ NTSTATUS    RTUSB_VendorRequest(
 
 			retryCount++;
 			if (ret < 0) {
-				printk("#\n");
+				DBGPRINT(RT_DEBUG_OFF, ("#\n"));
 				RTMPusecDelay(5000);
 			}
 		} while((ret < 0) && (retryCount < MAX_RETRY_COUNT));
 
+		if ((pAd->UsbVendorReqBuf) && (RequestType == DEVICE_VENDOR_REQUEST_IN))
+			NdisMoveMemory(TransferBuffer, tmpBuf, TransferBufferLength);
+		up(&(pAd->UsbVendorReq_semaphore));
+
         if (ret < 0) {
-//			DBGPRINT(RT_DEBUG_ERROR, ("USBVendorRequest failed ret=%d \n",ret));
 			DBGPRINT(RT_DEBUG_ERROR, ("RTUSB_VendorRequest failed(%d),TxFlags=0x%x, ReqType=%s, Req=0x%x, Index=0x%x\n",
 						ret, TransferFlags, (RequestType == DEVICE_VENDOR_REQUEST_OUT ? "OUT" : "IN"), Request, Index));
 			if (Request == 0x2)
@@ -1235,8 +1026,14 @@ NTSTATUS    RTUSB_VendorRequest(
 			if ((TransferBuffer!= NULL) && (TransferBufferLength > 0))
 				hex_dump("Failed TransferBuffer value", TransferBuffer, TransferBufferLength);
         }
+
+
 	}
-	return ret;
+
+	if (ret != -1)
+		return STATUS_SUCCESS;
+	else
+		return STATUS_UNSUCCESSFUL;
 }
 
 /*
@@ -1275,7 +1072,7 @@ VOID CMDHandler(
 	NTSTATUS		ntStatus;
 //	unsigned long	IrqFlags;
 
-	while (pAd->CmdQ.size > 0)
+	while (pAd && pAd->CmdQ.size > 0)
 	{
 		NdisStatus = NDIS_STATUS_SUCCESS;
 
@@ -1410,8 +1207,6 @@ VOID CMDHandler(
 
 								//NdisReleaseSpinLock(&pAd->BulkOutLock[pAd->bulkResetPipeid]);
 								RTMP_INT_UNLOCK(&pAd->BulkOutLock[pAd->bulkResetPipeid], IrqFlags);
-/*-----------------------------------------------------------------------------------------------*/
-/*-----------------------------------------------------------------------------------------------*/
 								{
 								RTUSBInitHTTxDesc(pAd, pHTTXContext, pAd->bulkResetPipeid, pHTTXContext->BulkOutSize, (usb_complete_t)RTUSBBulkOutDataPacketComplete);
 
@@ -1522,8 +1317,7 @@ VOID CMDHandler(
 					// All transfers must be aborted or cancelled before attempting to reset the pipe.
 					{
 						UINT32		MACValue;
-/*-----------------------------------------------------------------------------------------------*/
-/*-----------------------------------------------------------------------------------------------*/
+
 						{
 						//while ((atomic_read(&pAd->PendingRx) > 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
 						if((pAd->PendingRx > 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
@@ -1612,6 +1406,8 @@ VOID CMDHandler(
 								}
 								else
 								{	// success
+									//DBGPRINT(RT_DEBUG_TRACE, ("BIDone, Pend=%d,BIIdx=%d,BIRIdx=%d!\n",
+									//							pAd->PendingRx, pAd->NextRxBulkInIndex, pAd->NextRxBulkInReadIndex));
 									DBGPRINT_RAW(RT_DEBUG_TRACE, ("CMDTHREAD_RESET_BULK_IN: Submit Rx URB Done, status=%d!\n", pUrb->status));
 									ASSERT((pRxContext->InUse == pRxContext->IRPPending));
 								}
@@ -1722,6 +1518,40 @@ VOID CMDHandler(
 						}
 					}
 					break;
+
+//Benson modified for USB interface, avoid in interrupt when write key, 20080724 -->
+				case RT_CMD_SET_KEY_TABLE: //General call for AsicAddPairwiseKeyEntry()
+					{
+						RT_ADD_PAIRWISE_KEY_ENTRY KeyInfo;
+						KeyInfo  = *((PRT_ADD_PAIRWISE_KEY_ENTRY)(pData));
+						AsicAddPairwiseKeyEntry(pAd,
+												KeyInfo.MacAddr,
+												(UCHAR)KeyInfo.MacTabMatchWCID,
+												&KeyInfo.CipherKey);
+					}
+					break;
+
+				case RT_CMD_SET_RX_WCID_TABLE: //General call for RTMPAddWcidAttributeEntry()
+					{
+						PMAC_TABLE_ENTRY pEntry ;
+						UCHAR KeyIdx = 0;
+						UCHAR CipherAlg = CIPHER_NONE;
+						UCHAR ApIdx = BSS0;
+
+						pEntry = (PMAC_TABLE_ENTRY)(pData);
+
+
+
+						RTMPAddWcidAttributeEntry(
+										  pAd,
+										  ApIdx,
+										  KeyIdx,
+										  CipherAlg,
+													pEntry);
+					}
+					break;
+//Benson modified for USB interface, avoid in interrupt when write key, 20080724 <--
+
 				case CMDTHREAD_SET_CLIENT_MAC_ENTRY:
 					{
 						MAC_TABLE_ENTRY *pEntry;
@@ -1731,7 +1561,7 @@ VOID CMDHandler(
 							AsicRemovePairwiseKeyEntry(pAd, pEntry->apidx, (UCHAR)pEntry->Aid);
 							if ((pEntry->AuthMode <= Ndis802_11AuthModeAutoSwitch) && (pEntry->WepStatus == Ndis802_11Encryption1Enabled))
 							{
-								UINT32 uIV = 0;
+								UINT32 uIV = 1;
 								PUCHAR  ptr;
 
 								ptr = (PUCHAR) &uIV;
@@ -1741,7 +1571,7 @@ VOID CMDHandler(
 							}
 							else if (pEntry->AuthMode == Ndis802_11AuthModeWPANone)
 							{
-								UINT32 uIV = 0;
+								UINT32 uIV = 1;
 								PUCHAR  ptr;
 
 								ptr = (PUCHAR) &uIV;
@@ -1763,15 +1593,19 @@ VOID CMDHandler(
 						}
 
 						AsicUpdateRxWCIDTable(pAd, pEntry->Aid, pEntry->Addr);
-						printk("UpdateRxWCIDTable(): Aid=%d, Addr=%02x:%02x:%02x:%02x:%02x:%02x!\n", pEntry->Aid,
-								pEntry->Addr[0], pEntry->Addr[1], pEntry->Addr[2], pEntry->Addr[3], pEntry->Addr[4], pEntry->Addr[5]);
+						DBGPRINT(RT_DEBUG_TRACE, ("UpdateRxWCIDTable(): Aid=%d, Addr=%02x:%02x:%02x:%02x:%02x:%02x!\n", pEntry->Aid,
+								pEntry->Addr[0], pEntry->Addr[1], pEntry->Addr[2], pEntry->Addr[3], pEntry->Addr[4], pEntry->Addr[5]));
 					}
 					break;
+
+// add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
 				case CMDTHREAD_UPDATE_PROTECT:
 					{
 						AsicUpdateProtect(pAd, 0, (ALLN_SETPROTECT), TRUE, 0);
 					}
 					break;
+// end johnli
+
 				case OID_802_11_ADD_WEP:
 					{
 						UINT	i;
@@ -1852,6 +1686,25 @@ VOID CMDHandler(
 
 				case CMDTHREAD_802_11_COUNTER_MEASURE:
 					break;
+
+				case CMDTHREAD_SET_GROUP_KEY:
+						WpaStaGroupKeySetting(pAd);
+					break;
+
+				case CMDTHREAD_SET_PAIRWISE_KEY:
+						WpaStaPairwiseKeySetting(pAd);
+					break;
+
+				case CMDTHREAD_SET_PSM_BIT:
+					{
+						USHORT *pPsm = (USHORT *)pData;
+						MlmeSetPsmBit(pAd, *pPsm);
+					}
+					break;
+				case CMDTHREAD_FORCE_WAKE_UP:
+						AsicForceWakeup(pAd, TRUE);
+					break;
+
 				default:
 					DBGPRINT(RT_DEBUG_ERROR, ("--> Control Thread !! ERROR !! Unknown(cmdqelmt->command=0x%x) !! \n", cmdqelmt->command));
 					break;
@@ -1861,18 +1714,16 @@ VOID CMDHandler(
 		if (cmdqelmt->CmdFromNdis == TRUE)
 		{
 				if (cmdqelmt->buffer != NULL)
-					NdisFreeMemory(cmdqelmt->buffer, cmdqelmt->bufferlength, 0);
-
-			NdisFreeMemory(cmdqelmt, sizeof(CmdQElmt), 0);
+				os_free_mem(pAd, cmdqelmt->buffer);
+			os_free_mem(pAd, cmdqelmt);
 		}
 		else
 		{
 			if ((cmdqelmt->buffer != NULL) && (cmdqelmt->bufferlength != 0))
-				NdisFreeMemory(cmdqelmt->buffer, cmdqelmt->bufferlength, 0);
-            {
-				NdisFreeMemory(cmdqelmt, sizeof(CmdQElmt), 0);
-			}
+				os_free_mem(pAd, cmdqelmt->buffer);
+			os_free_mem(pAd, cmdqelmt);
 		}
 	}	/* end of while */
 }
 
+#endif // RTMP_MAC_USB //

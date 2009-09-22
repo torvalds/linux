@@ -33,8 +33,6 @@
 	Revision History:
 	Who 		When			What
 	--------	----------		----------------------------------------------
-	John		      Aug/17/04		major modification for RT2561/2661
-	Jan Lee	      Mar/17/06		major modification for RT2860 New Ring Design
 */
 #include "../rt_config.h"
 
@@ -64,6 +62,7 @@ VOID STARxEAPOLFrameIndicate(
 				int     idx = 0;
 
 				DBGPRINT_RAW(RT_DEBUG_TRACE, ("Receive EAP-SUCCESS Packet\n"));
+				//pAd->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 				STA_PORT_SECURED(pAd);
 
                 if (pAd->StaCfg.IEEE8021x_required_keys == FALSE)
@@ -74,7 +73,7 @@ VOID STARxEAPOLFrameIndicate(
 
                     if (pAd->StaCfg.DesireSharedKey[idx].KeyLen > 0)
     				{
-#ifdef RT2860
+#ifdef RTMP_MAC_PCI
 						MAC_TABLE_ENTRY *pEntry = &pAd->MacTab.Content[BSSID_WCID];
 
 						// Set key material and cipherAlg to Asic
@@ -88,8 +87,8 @@ VOID STARxEAPOLFrameIndicate(
 
                         pAd->IndicateMediaState = NdisMediaStateConnected;
                         pAd->ExtraInfo = GENERAL_LINK_UP;
-#endif
-#ifdef RT2870
+#endif // RTMP_MAC_PCI //
+#ifdef RTMP_MAC_USB
 						union
 						{
 							char buf[sizeof(NDIS_802_11_WEP)+MAX_LEN_OF_KEY- 1];
@@ -113,7 +112,7 @@ VOID STARxEAPOLFrameIndicate(
 						pAd->ExtraInfo = GENERAL_LINK_UP;
 						// need to enqueue cmd to thread
 						RTUSBEnqueueCmdFromNdis(pAd, OID_802_11_ADD_WEP, TRUE, &WepKey, sizeof(WepKey.keyinfo) + len - 1);
-#endif // RT2870 //
+#endif // RTMP_MAC_USB //
 						// For Preventing ShardKey Table is cleared by remove key procedure.
     					pAd->SharedKey[BSS0][idx].CipherAlg = CipherAlg;
 						pAd->SharedKey[BSS0][idx].KeyLen = pAd->StaCfg.DesireSharedKey[idx].KeyLen;
@@ -156,6 +155,7 @@ VOID STARxDataFrameAnnounce(
 	// non-EAP frame
 	if (!RTMPCheckWPAframe(pAd, pEntry, pRxBlk->pData, pRxBlk->DataSize, FromWhichBSSID))
 	{
+
 		{
 			// drop all non-EAP DATA frame before
 			// this client's Port-Access-Control is secured
@@ -309,13 +309,13 @@ VOID STAHandleRxDataFrame(
 		if (pAd->CommonCfg.bAPSDCapable && pAd->CommonCfg.APEdcaParm.bAPSDCapable && (pHeader->FC.SubType & 0x08))
 		{
 			UCHAR *pData;
-			DBGPRINT(RT_DEBUG_TRACE,("bAPSDCapable\n"));
+			DBGPRINT(RT_DEBUG_INFO,("bAPSDCapable\n"));
 
 			// Qos bit 4
 			pData = (PUCHAR)pHeader + LENGTH_802_11;
 			if ((*pData >> 4) & 0x01)
 			{
-				DBGPRINT(RT_DEBUG_TRACE,("RxDone- Rcv EOSP frame, driver may fall into sleep\n"));
+				DBGPRINT(RT_DEBUG_INFO,("RxDone- Rcv EOSP frame, driver may fall into sleep\n"));
 				pAd->CommonCfg.bInServicePeriod = FALSE;
 
 				// Force driver to fall into sleep mode when rcv EOSP frame
@@ -332,7 +332,7 @@ VOID STAHandleRxDataFrame(
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_RECEIVE_DTIM) && (TbttNumToNextWakeUp > NextDtim))
 						TbttNumToNextWakeUp = NextDtim;
 
-					MlmeSetPsmBit(pAd, PWR_SAVE);
+					RTMP_SET_PSM_BIT(pAd, PWR_SAVE);
 					// if WMM-APSD is failed, try to disable following line
 					AsicSleepThenAutoWakeup(pAd, TbttNumToNextWakeUp);
 				}
@@ -442,6 +442,23 @@ VOID STAHandleRxDataFrame(
 	}
 	pRxBlk->UserPriority = UserPriority;
 
+	/* check if need to resend PS Poll when received packet with MoreData = 1 */
+	if ((pAd->StaCfg.Psm == PWR_SAVE) && (pHeader->FC.MoreData == 1))
+	{
+		if ((((UserPriority == 0) || (UserPriority == 3)) &&
+			pAd->CommonCfg.bAPSDAC_BE == 0) ||
+			(((UserPriority == 1) || (UserPriority == 2)) &&
+			pAd->CommonCfg.bAPSDAC_BK == 0) ||
+			(((UserPriority == 4) || (UserPriority == 5)) &&
+			pAd->CommonCfg.bAPSDAC_VI == 0) ||
+			(((UserPriority == 6) || (UserPriority == 7)) &&
+			pAd->CommonCfg.bAPSDAC_VO == 0))
+		{
+			/* non-UAPSD delivery-enabled AC */
+			RTMP_PS_POLL_ENQUEUE(pAd);
+		}
+	}
+
 	// 3. Order bit: A-Ralink or HTC+
 	if (pHeader->FC.Order)
 	{
@@ -451,7 +468,7 @@ VOID STAHandleRxDataFrame(
 			RX_BLK_SET_FLAG(pRxBlk, fRX_ARALINK);
 		}
 		else
-#endif
+#endif // AGGREGATION_SUPPORT //
 		{
 			RX_BLK_SET_FLAG(pRxBlk, fRX_HTC);
 			// skip HTC contorl field
@@ -574,27 +591,31 @@ VOID STAHandleRxMgmtFrame(
 	do
 	{
 
+
+		/* check if need to resend PS Poll when received packet with MoreData = 1 */
+		if ((pAd->StaCfg.Psm == PWR_SAVE) && (pHeader->FC.MoreData == 1))
+		{
+			/* for UAPSD, all management frames will be VO priority */
+			if (pAd->CommonCfg.bAPSDAC_VO == 0)
+			{
+				/* non-UAPSD delivery-enabled AC */
+				RTMP_PS_POLL_ENQUEUE(pAd);
+			}
+		}
+
+		/* TODO: if MoreData == 0, station can go to sleep */
+
+
 		// We should collect RSSI not only U2M data but also my beacon
-		if (pAd->RxAnt.EvaluatePeriod == 0 &&
-		    pHeader->FC.SubType == SUBTYPE_BEACON &&
-		    MAC_ADDR_EQUAL(&pAd->CommonCfg.Bssid, &pHeader->Addr2)) {
+		if ((pHeader->FC.SubType == SUBTYPE_BEACON) && (MAC_ADDR_EQUAL(&pAd->CommonCfg.Bssid, &pHeader->Addr2))
+			&& (pAd->RxAnt.EvaluatePeriod == 0))
+		{
 			Update_Rssi_Sample(pAd, &pAd->StaCfg.RssiSample, pRxWI);
 
 			pAd->StaCfg.LastSNR0 = (UCHAR)(pRxWI->SNR0);
 			pAd->StaCfg.LastSNR1 = (UCHAR)(pRxWI->SNR1);
 		}
 
-#ifdef RT2870
-		// collect rssi information for antenna diversity
-		if (pAd->NicConfig2.field.AntDiversity)
-		{
-			if ((pRxD->U2M) || ((pHeader->FC.SubType == SUBTYPE_BEACON) && (MAC_ADDR_EQUAL(&pAd->CommonCfg.Bssid, &pHeader->Addr2))))
-			{
-					COLLECT_RX_ANTENNA_AVERAGE_RSSI(pAd, ConvertToRssi(pAd, (UCHAR)pRxWI->RSSI0, RSSI_0), 0); //Note: RSSI2 not used on RT73
-					pAd->StaCfg.NumOfAvgRssiSample ++;
-			}
-		}
-#endif
 
 		// First check the size, it MUST not exceed the mlme queue size
 		if (pRxWI->MPDUtotalByteCount > MGMT_DMA_BUFFER_SIZE)
@@ -683,14 +704,14 @@ BOOLEAN STARxDoneInterruptHandle(
 			break;
 		}
 
-#ifdef RT2860
+#ifdef RTMP_MAC_PCI
 		if (RxProcessed++ > MAX_RX_PROCESS_CNT)
 		{
 			// need to reschedule rx handle
 			bReschedule = TRUE;
 			break;
 		}
-#endif
+#endif // RTMP_MAC_PCI //
 
 		RxProcessed ++; // test
 
@@ -725,6 +746,7 @@ BOOLEAN STARxDoneInterruptHandle(
 
 		// Increase Total receive byte counter after real data received no mater any error or not
 		pAd->RalinkCounters.ReceivedByteCount +=  pRxWI->MPDUtotalByteCount;
+		pAd->RalinkCounters.OneSecReceivedByteCount +=  pRxWI->MPDUtotalByteCount;
 		pAd->RalinkCounters.RxCount ++;
 
 		INC_COUNTER64(pAd->WlanCounters.ReceivedFragmentCount);
@@ -737,7 +759,8 @@ BOOLEAN STARxDoneInterruptHandle(
             send_monitor_packets(pAd, &RxCell);
 			break;
 		}
-		/* RT2870 invokes STARxDoneInterruptHandle() in rtusb_bulk.c */
+
+		/* STARxDoneInterruptHandle() is called in rtusb_bulk.c */
 
 		// Check for all RxD errors
 		Status = RTMPCheckRxError(pAd, pHeader, pRxWI, pRxD);
@@ -780,15 +803,6 @@ BOOLEAN STARxDoneInterruptHandle(
 		}
 	}
 
-#ifdef RT2860
-	// fRTMP_PS_GO_TO_SLEEP_NOW is set if receiving beacon.
-	if (RTMP_TEST_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW) && (INFRA_ON(pAd)))
-	{
-		RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
-		AsicSleepThenAutoWakeup(pAd, pAd->ThisTbttNumToNextWakeUp);
-		bReschedule = FALSE;
-	}
-#endif
 	return bReschedule;
 }
 
@@ -806,12 +820,7 @@ BOOLEAN STARxDoneInterruptHandle(
 VOID	RTMPHandleTwakeupInterrupt(
 	IN PRTMP_ADAPTER pAd)
 {
-#ifdef RT2860
-	AsicForceWakeup(pAd, DOT11POWERSAVE);
-#endif
-#ifdef RT2870
 	AsicForceWakeup(pAd, FALSE);
-#endif
 }
 
 /*
@@ -914,6 +923,7 @@ NDIS_STATUS STASendPacket(
 	UINT			SrcBufLen;
 	UINT			AllowFragSize;
 	UCHAR			NumberOfFrag;
+	UCHAR			RTSRequired;
 	UCHAR			QueIdx, UserPriority;
 	MAC_TABLE_ENTRY *pEntry = NULL;
 	unsigned int 	IrqFlags;
@@ -1052,7 +1062,14 @@ NDIS_STATUS STASendPacket(
 	//	   If multiple fragment required, RTS is required only for the first fragment
 	//	   if the fragment size large than RTS threshold
 	//     For RT28xx, Let ASIC send RTS/CTS
-	RTMP_SET_PACKET_RTS(pPacket, 0);
+//	RTMP_SET_PACKET_RTS(pPacket, 0);
+	if (NumberOfFrag > 1)
+		RTSRequired = (pAd->CommonCfg.FragmentThreshold > pAd->CommonCfg.RtsThreshold) ? 1 : 0;
+	else
+		RTSRequired = (PacketInfo.TotalPacketLength > pAd->CommonCfg.RtsThreshold) ? 1 : 0;
+
+	// Save RTS requirement to Ndis packet reserved field
+	RTMP_SET_PACKET_RTS(pPacket, RTSRequired);
 	RTMP_SET_PACKET_TXRATE(pPacket, pAd->CommonCfg.TxRate);
 
 	//
@@ -1060,13 +1077,8 @@ NDIS_STATUS STASendPacket(
 	//
 	UserPriority = 0;
 	QueIdx		 = QID_AC_BE;
-#ifdef RT2860
-	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED))
-#endif
-#ifdef RT2870
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) &&
 		CLIENT_STATUS_TEST_FLAG(pEntry, fCLIENT_STATUS_WMM_CAPABLE))
-#endif
 	{
 		USHORT Protocol;
 		UCHAR  LlcSnapLen = 0, Byte0, Byte1;
@@ -1102,6 +1114,11 @@ NDIS_STATUS STASendPacket(
 
 			// TODO: have to check ACM bit. apply TSPEC if ACM is ON
 			// TODO: downgrade UP & QueIdx before passing ACM
+			/*
+				Under WMM ACM control, we dont need to check the bit;
+				Or when a TSPEC is built for VO but we will change to issue
+				BA session for BE here, so we will not use BA to send VO packets.
+			*/
 			if (pAd->CommonCfg.APEdcaParm.bACM[QueIdx])
 			{
 				UserPriority = 0;
@@ -1125,18 +1142,14 @@ NDIS_STATUS STASendPacket(
 	}
 	else
 	{
-		InsertTailQueue(&pAd->TxSwQueue[QueIdx], PACKET_TO_QUEUE_ENTRY(pPacket));
+		InsertTailQueueAc(pAd, pEntry, &pAd->TxSwQueue[QueIdx], PACKET_TO_QUEUE_ENTRY(pPacket));
 	}
 	RTMP_IRQ_UNLOCK(&pAd->irq_lock, IrqFlags);
 
     if ((pAd->CommonCfg.BACapability.field.AutoBA == TRUE)&&
-#ifdef RT2860
-        (pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE))
-#endif
-#ifdef RT2870
         IS_HT_STA(pEntry))
-#endif
 	{
+	    //PMAC_TABLE_ENTRY pMacEntry = &pAd->MacTab.Content[BSSID_WCID];
 		if (((pEntry->TXBAbitmap & (1<<UserPriority)) == 0) &&
             ((pEntry->BADeclineBitmap & (1<<UserPriority)) == 0) &&
             (pEntry->PortSecured == WPA_802_1X_PORT_SECURED)
@@ -1145,10 +1158,10 @@ NDIS_STATUS STASendPacket(
 			 // 2. It is OPEN or AES mode,
 			 // then BA session can be bulit.
 			 && ((pEntry->ValidAsCLI && pAd->MlmeAux.APRalinkIe != 0x0) ||
-			 	 (pEntry->WepStatus == Ndis802_11WEPDisabled || pEntry->WepStatus == Ndis802_11Encryption3Enabled))
+				 (pEntry->WepStatus != Ndis802_11WEPEnabled && pEntry->WepStatus != Ndis802_11Encryption2Enabled))
 			)
 		{
-			BAOriSessionSetUp(pAd, pEntry, 0, 0, 10, FALSE);
+			BAOriSessionSetUp(pAd, pEntry, UserPriority, 0, 10, FALSE);
 		}
 	}
 
@@ -1179,27 +1192,15 @@ NDIS_STATUS STASendPacket(
 
 	========================================================================
 */
-
-#ifdef RT2870
-/*
-	Actually, this function used to check if the TxHardware Queue still has frame need to send.
-	If no frame need to send, go to sleep, else, still wake up.
-*/
-#endif
+#ifdef RTMP_MAC_PCI
 NDIS_STATUS RTMPFreeTXDRequest(
 	IN		PRTMP_ADAPTER	pAd,
 	IN		UCHAR			QueIdx,
 	IN		UCHAR			NumberRequired,
 	IN		PUCHAR			FreeNumberIs)
 {
-#ifdef RT2860
 	ULONG		FreeNumber = 0;
-#endif
 	NDIS_STATUS 	Status = NDIS_STATUS_FAILURE;
-#ifdef RT2870
-	unsigned long   IrqFlags;
-	HT_TX_CONTEXT	*pHTTXContext;
-#endif
 
 	switch (QueIdx)
 	{
@@ -1208,7 +1209,6 @@ NDIS_STATUS RTMPFreeTXDRequest(
 		case QID_AC_VI:
 		case QID_AC_VO:
 		case QID_HCCA:
-#ifdef RT2860
 			if (pAd->TxRing[QueIdx].TxSwFreeIdx > pAd->TxRing[QueIdx].TxCpuIdx)
 				FreeNumber = pAd->TxRing[QueIdx].TxSwFreeIdx - pAd->TxRing[QueIdx].TxCpuIdx - 1;
 			else
@@ -1216,8 +1216,49 @@ NDIS_STATUS RTMPFreeTXDRequest(
 
 			if (FreeNumber >= NumberRequired)
 				Status = NDIS_STATUS_SUCCESS;
-#endif
-#ifdef RT2870
+			break;
+
+		case QID_MGMT:
+			if (pAd->MgmtRing.TxSwFreeIdx > pAd->MgmtRing.TxCpuIdx)
+				FreeNumber = pAd->MgmtRing.TxSwFreeIdx - pAd->MgmtRing.TxCpuIdx - 1;
+			else
+				FreeNumber = pAd->MgmtRing.TxSwFreeIdx + MGMT_RING_SIZE - pAd->MgmtRing.TxCpuIdx - 1;
+
+			if (FreeNumber >= NumberRequired)
+				Status = NDIS_STATUS_SUCCESS;
+			break;
+
+		default:
+			DBGPRINT(RT_DEBUG_ERROR,("RTMPFreeTXDRequest::Invalid QueIdx(=%d)\n", QueIdx));
+			break;
+	}
+	*FreeNumberIs = (UCHAR)FreeNumber;
+
+	return (Status);
+}
+#endif // RTMP_MAC_PCI //
+#ifdef RTMP_MAC_USB
+/*
+	Actually, this function used to check if the TxHardware Queue still has frame need to send.
+	If no frame need to send, go to sleep, else, still wake up.
+*/
+NDIS_STATUS RTMPFreeTXDRequest(
+	IN		PRTMP_ADAPTER	pAd,
+	IN		UCHAR			QueIdx,
+	IN		UCHAR			NumberRequired,
+	IN		PUCHAR			FreeNumberIs)
+{
+	//ULONG		FreeNumber = 0;
+	NDIS_STATUS	Status = NDIS_STATUS_FAILURE;
+	unsigned long   IrqFlags;
+	HT_TX_CONTEXT	*pHTTXContext;
+
+	switch (QueIdx)
+	{
+		case QID_AC_BK:
+		case QID_AC_BE:
+		case QID_AC_VI:
+		case QID_AC_VO:
 			{
 				pHTTXContext = &pAd->TxContext[QueIdx];
 				RTMP_IRQ_LOCK(&pAd->TxContextQueueLock[QueIdx], IrqFlags);
@@ -1232,39 +1273,21 @@ NDIS_STATUS RTMPFreeTXDRequest(
 				}
 				RTMP_IRQ_UNLOCK(&pAd->TxContextQueueLock[QueIdx], IrqFlags);
 			}
-#endif
 			break;
-
 		case QID_MGMT:
-#ifdef RT2860
-			if (pAd->MgmtRing.TxSwFreeIdx > pAd->MgmtRing.TxCpuIdx)
-				FreeNumber = pAd->MgmtRing.TxSwFreeIdx - pAd->MgmtRing.TxCpuIdx - 1;
-			else
-				FreeNumber = pAd->MgmtRing.TxSwFreeIdx + MGMT_RING_SIZE - pAd->MgmtRing.TxCpuIdx - 1;
-
-			if (FreeNumber >= NumberRequired)
-				Status = NDIS_STATUS_SUCCESS;
-#endif
-#ifdef RT2870
 			if (pAd->MgmtRing.TxSwFreeIdx != MGMT_RING_SIZE)
 				Status = NDIS_STATUS_FAILURE;
 			else
 				Status = NDIS_STATUS_SUCCESS;
-#endif
 			break;
-
 		default:
 			DBGPRINT(RT_DEBUG_ERROR,("RTMPFreeTXDRequest::Invalid QueIdx(=%d)\n", QueIdx));
 			break;
 	}
-#ifdef RT2860
-	*FreeNumberIs = (UCHAR)FreeNumber;
-#endif
 
 	return (Status);
 }
-
-
+#endif // RTMP_MAC_USB //
 
 VOID RTMPSendDisassociationFrame(
 	IN	PRTMP_ADAPTER	pAd)
@@ -1527,6 +1550,9 @@ VOID STABuildCache802_11Header(
     pMacEntry->TxSeq[pTxBlk->UserPriority] = (pMacEntry->TxSeq[pTxBlk->UserPriority]+1) & MAXSEQ;
 
 	{
+		// Check if the frame can be sent through DLS direct link interface
+		// If packet can be sent through DLS, then force aggregation disable. (Hard to determine peer STA's capability)
+
 		// The addr3 of normal packet send from DS is Dest Mac address.
 		if (ADHOC_ON(pAd))
 			COPY_MAC_ADDR(pHeader80211->Addr3, pAd->CommonCfg.Bssid);
@@ -1580,13 +1606,13 @@ static inline PUCHAR STA_Build_ARalink_Frame_Header(
 
 	// padding at front of LLC header. LLC header should at 4-bytes aligment.
 	pTxBlk->HdrPadLen = (ULONG)pHeaderBufPtr;
-	pHeaderBufPtr = (PCHAR)ROUND_UP(pHeaderBufPtr, 4);
+	pHeaderBufPtr = (PUCHAR)ROUND_UP(pHeaderBufPtr, 4);
 	pTxBlk->HdrPadLen = (ULONG)(pHeaderBufPtr - pTxBlk->HdrPadLen);
 
 	// For RA Aggregation,
 	// put the 2nd MSDU length(extra 2-byte field) after QOS_CONTROL in little endian format
 	pQEntry = pTxBlk->TxPacketList.Head;
-	pNextPacket = QUEUE_ENTRY_TO_PKT(pQEntry);
+	pNextPacket = QUEUE_ENTRY_TO_PACKET(pQEntry);
 	nextBufLen = GET_OS_PKT_LEN(pNextPacket);
 	if (RTMP_GET_PACKET_VLAN(pNextPacket))
 		nextBufLen -= LENGTH_802_1Q;
@@ -1641,7 +1667,7 @@ static inline PUCHAR STA_Build_AMSDU_Frame_Header(
 	// @@@ MpduHeaderLen excluding padding @@@
 	//
 	pTxBlk->HdrPadLen = (ULONG)pHeaderBufPtr;
-	pHeaderBufPtr = (PCHAR) ROUND_UP(pHeaderBufPtr, 4);
+	pHeaderBufPtr = (PUCHAR) ROUND_UP(pHeaderBufPtr, 4);
 	pTxBlk->HdrPadLen = (ULONG)(pHeaderBufPtr - pTxBlk->HdrPadLen);
 
 	return pHeaderBufPtr;
@@ -1743,7 +1769,7 @@ VOID STA_AMPDU_Frame_Tx(
 		// @@@ MpduHeaderLen excluding padding @@@
 		//
 		pTxBlk->HdrPadLen = (ULONG)pHeaderBufPtr;
-		pHeaderBufPtr = (PCHAR) ROUND_UP(pHeaderBufPtr, 4);
+		pHeaderBufPtr = (PUCHAR) ROUND_UP(pHeaderBufPtr, 4);
 		pTxBlk->HdrPadLen = (ULONG)(pHeaderBufPtr - pTxBlk->HdrPadLen);
 
 		{
@@ -1790,9 +1816,7 @@ VOID STA_AMPDU_Frame_Tx(
 		//
 		// Kick out Tx
 		//
-#ifdef RT2860
 		if (!RTMP_TEST_PSFLAG(pAd, fRTMP_PS_DISABLE_TX))
-#endif
 			HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 
 		pAd->RalinkCounters.KickTxCount++;
@@ -1923,9 +1947,7 @@ VOID STA_AMSDU_Frame_Tx(
 	//
 	// Kick out Tx
 	//
-#ifdef RT2860
 	if (!RTMP_TEST_PSFLAG(pAd, fRTMP_PS_DISABLE_TX))
-#endif
 		HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 }
 
@@ -1991,7 +2013,7 @@ VOID STA_Legacy_Frame_Tx(
 		//
 		// build QOS Control bytes
 		//
-		*pHeaderBufPtr = (pTxBlk->UserPriority & 0x0F);
+		*(pHeaderBufPtr) = ((pTxBlk->UserPriority & 0x0F) | (pAd->CommonCfg.AckPolicy[pTxBlk->QueIdx]<<5));
 		*(pHeaderBufPtr+1) = 0;
 		pHeaderBufPtr +=2;
 		pTxBlk->MpduHeaderLen += 2;
@@ -1999,7 +2021,7 @@ VOID STA_Legacy_Frame_Tx(
 
 	// The remaining content of MPDU header should locate at 4-octets aligment
 	pTxBlk->HdrPadLen = (ULONG)pHeaderBufPtr;
-	pHeaderBufPtr = (PCHAR) ROUND_UP(pHeaderBufPtr, 4);
+	pHeaderBufPtr = (PUCHAR) ROUND_UP(pHeaderBufPtr, 4);
 	pTxBlk->HdrPadLen = (ULONG)(pHeaderBufPtr - pTxBlk->HdrPadLen);
 
 	{
@@ -2045,9 +2067,7 @@ VOID STA_Legacy_Frame_Tx(
 	//
 	// Kick out Tx
 	//
-#ifdef RT2860
 	if (!RTMP_TEST_PSFLAG(pAd, fRTMP_PS_DISABLE_TX))
-#endif
 		HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 }
 
@@ -2158,9 +2178,7 @@ VOID STA_ARalink_Frame_Tx(
 	//
 	// Kick out Tx
 	//
-#ifdef RT2860
 	if (!RTMP_TEST_PSFLAG(pAd, fRTMP_PS_DISABLE_TX))
-#endif
 		HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 
 }
@@ -2181,6 +2199,7 @@ VOID STA_Fragment_Frame_Tx(
 	UINT 			NextMpduSize;
 	BOOLEAN			bVLANPkt;
 	PQUEUE_ENTRY	pQEntry;
+	HTTRANSMIT_SETTING	*pTransmit;
 
 
 	ASSERT(pTxBlk);
@@ -2243,7 +2262,7 @@ VOID STA_Fragment_Frame_Tx(
 	// LLC header should locate at 4-octets aligment
 	//
 	pTxBlk->HdrPadLen = (ULONG)pHeaderBufPtr;
-	pHeaderBufPtr = (PCHAR) ROUND_UP(pHeaderBufPtr, 4);
+	pHeaderBufPtr = (PUCHAR) ROUND_UP(pHeaderBufPtr, 4);
 	pTxBlk->HdrPadLen = (ULONG)(pHeaderBufPtr - pTxBlk->HdrPadLen);
 
 
@@ -2276,6 +2295,7 @@ VOID STA_Fragment_Frame_Tx(
 	//	MAC ASIC will only perform IV/EIV/ICV insertion but no TKIP MIC
 	if (pTxBlk->CipherAlg == CIPHER_TKIP)
 	{
+		RTMPCalculateMICValue(pAd, pTxBlk->pPacket, pTxBlk->pExtraLlcSnapEncap, pTxBlk->pKey, 0);
 
 		// NOTE: DON'T refer the skb->len directly after following copy. Becasue the length is not adjust
 		//			to correct lenght, refer to pTxBlk->SrcBufLen for the packet length in following progress.
@@ -2301,8 +2321,20 @@ VOID STA_Fragment_Frame_Tx(
 	else
 		EncryptionOverhead = 0;
 
+	pTransmit = pTxBlk->pTransmit;
+	// Decide the TX rate
+	if (pTransmit->field.MODE == MODE_CCK)
+		pTxBlk->TxRate = pTransmit->field.MCS;
+	else if (pTransmit->field.MODE == MODE_OFDM)
+		pTxBlk->TxRate = pTransmit->field.MCS + RATE_FIRST_OFDM_RATE;
+	else
+		pTxBlk->TxRate = RATE_6_5;
+
 	// decide how much time an ACK/CTS frame will consume in the air
+	if (pTxBlk->TxRate <= RATE_LAST_OFDM_RATE)
 	AckDuration = RTMPCalcDuration(pAd, pAd->CommonCfg.ExpectedACKRate[pTxBlk->TxRate], 14);
+	else
+		AckDuration = RTMPCalcDuration(pAd, RATE_6_5, 14);
 
 	// Init the total payload length of this frame.
 	SrcRemainingBytes = pTxBlk->SrcBufLen;
@@ -2365,6 +2397,7 @@ VOID STA_Fragment_Frame_Tx(
 	//
 	// Kick out Tx
 	//
+	if (!RTMP_TEST_PSFLAG(pAd, fRTMP_PS_DISABLE_TX))
 	HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 }
 
@@ -2428,13 +2461,13 @@ NDIS_STATUS STAHardTransmit(
 	// not to change PSM bit, just send this frame out?
 	if ((pAd->StaCfg.Psm == PWR_SAVE) && OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 	{
-	    DBGPRINT_RAW(RT_DEBUG_TRACE, ("AsicForceWakeup At HardTx\n"));
-#ifdef RT2860
-		AsicForceWakeup(pAd, FROM_TX);
-#endif
-#ifdef RT2870
+	    DBGPRINT_RAW(RT_DEBUG_INFO, ("AsicForceWakeup At HardTx\n"));
+#ifdef RTMP_MAC_PCI
 		AsicForceWakeup(pAd, TRUE);
-#endif
+#endif // RTMP_MAC_PCI //
+#ifdef RTMP_MAC_USB
+		RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_FORCE_WAKE_UP, NULL, 0);
+#endif // RTMP_MAC_USB //
 	}
 
 	// It should not change PSM bit, when APSD turn on.
@@ -2444,7 +2477,7 @@ NDIS_STATUS STAHardTransmit(
 	{
 		if ((pAd->StaCfg.Psm == PWR_SAVE) &&
             (pAd->StaCfg.WindowsPowerMode == Ndis802_11PowerModeFast_PSP))
-			MlmeSetPsmBit(pAd, PWR_ACTIVE);
+			RTMP_SET_PSM_BIT(pAd, PWR_ACTIVE);
 	}
 
 	switch (pTxBlk->TxFrameType)

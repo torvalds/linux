@@ -43,6 +43,33 @@
 #define WIDTH_RD_CHECK 1
 
 
+
+/*************************************************************************
+  *
+  *	DFS Radar related definitions.
+  *
+  ************************************************************************/
+//#define CARRIER_DETECT_TASK_NUM	6
+//#define RADAR_DETECT_TASK_NUM	7
+
+// McuRadarState && McuCarrierState for 2880-SW-MCU
+#define FREE_FOR_TX				0
+#define WAIT_CTS_BEING_SENT		1
+#define DO_DETECTION			2
+
+// McuRadarEvent
+#define RADAR_EVENT_CTS_SENT			0x01 // Host signal MCU that CTS has been sent
+#define RADAR_EVENT_CTS_CARRIER_SENT	0x02 // Host signal MCU that CTS has been sent (Carrier)
+#define RADAR_EVENT_RADAR_DETECTING		0x04 // Radar detection is on going, carrier detection hold back
+#define RADAR_EVENT_CARRIER_DETECTING	0x08 // Carrier detection is on going, radar detection hold back
+#define RADAR_EVENT_WIDTH_RADAR			0x10 // BBP == 2 radar detected
+#define RADAR_EVENT_CTS_KICKED			0x20 // Radar detection need to sent double CTS, first CTS sent
+
+// McuRadarCmd
+#define DETECTION_STOP			0
+#define RADAR_DETECTION			1
+#define CARRIER_DETECTION		2
+
 VOID BbpRadarDetectionStart(
 	IN PRTMP_ADAPTER pAd);
 
@@ -77,12 +104,13 @@ ULONG RTMPReadRadarDuration(
 VOID RTMPCleanRadarDuration(
 	IN PRTMP_ADAPTER	pAd);
 
+
 INT Set_ChMovingTime_Proc(
 	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR arg);
+	IN PSTRING arg);
 
 INT Set_LongPulseRadarTh_Proc(
 	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR arg);
+	IN PSTRING arg);
 
 

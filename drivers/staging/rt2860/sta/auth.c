@@ -108,7 +108,7 @@ VOID AuthTimeout(
 
 
     MlmeEnqueue(pAd, AUTH_STATE_MACHINE, MT2_AUTH_TIMEOUT, 0, NULL);
-    RT28XX_MLME_HANDLER(pAd);
+    RTMP_MLME_HANDLER(pAd);
 }
 
 
@@ -124,59 +124,12 @@ VOID MlmeAuthReqAction(
     IN PRTMP_ADAPTER pAd,
     IN MLME_QUEUE_ELEM *Elem)
 {
-    UCHAR              Addr[6];
-    USHORT             Alg, Seq, Status;
-    ULONG              Timeout;
-    HEADER_802_11      AuthHdr;
-    BOOLEAN            TimerCancelled;
-    NDIS_STATUS        NStatus;
-    PUCHAR             pOutBuffer = NULL;
-    ULONG              FrameLen = 0;
-
-	// Block all authentication request durning WPA block period
-	if (pAd->StaCfg.bBlockAssoc == TRUE)
-	{
-        DBGPRINT(RT_DEBUG_TRACE, ("AUTH - Block Auth request durning WPA block period!\n"));
-        pAd->Mlme.AuthMachine.CurrState = AUTH_REQ_IDLE;
-        Status = MLME_STATE_MACHINE_REJECT;
-        MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_AUTH_CONF, 2, &Status);
-	}
-    else if(MlmeAuthReqSanity(pAd, Elem->Msg, Elem->MsgLen, Addr, &Timeout, &Alg))
-    {
-        // reset timer
-        RTMPCancelTimer(&pAd->MlmeAux.AuthTimer, &TimerCancelled);
-        COPY_MAC_ADDR(pAd->MlmeAux.Bssid, Addr);
-        pAd->MlmeAux.Alg  = Alg;
-        Seq = 1;
-        Status = MLME_SUCCESS;
-
-        NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);  //Get an unused nonpaged memory
-        if(NStatus != NDIS_STATUS_SUCCESS)
-        {
-            DBGPRINT(RT_DEBUG_TRACE, ("AUTH - MlmeAuthReqAction(Alg:%d) allocate memory failed\n", Alg));
-            pAd->Mlme.AuthMachine.CurrState = AUTH_REQ_IDLE;
-            Status = MLME_FAIL_NO_RESOURCE;
-            MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_AUTH_CONF, 2, &Status);
-            return;
-        }
-
-        DBGPRINT(RT_DEBUG_TRACE, ("AUTH - Send AUTH request seq#1 (Alg=%d)...\n", Alg));
-        MgtMacHeaderInit(pAd, &AuthHdr, SUBTYPE_AUTH, 0, Addr, pAd->MlmeAux.Bssid);
-        MakeOutgoingFrame(pOutBuffer,           &FrameLen,
-                          sizeof(HEADER_802_11),&AuthHdr,
-                          2,                    &Alg,
-                          2,                    &Seq,
-                          2,                    &Status,
-                          END_OF_ARGS);
-        MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
-    	MlmeFreeMemory(pAd, pOutBuffer);
-
-        RTMPSetTimer(&pAd->MlmeAux.AuthTimer, Timeout);
+	if (AUTH_ReqSend(pAd, Elem, &pAd->MlmeAux.AuthTimer, "AUTH", 1, NULL, 0))
         pAd->Mlme.AuthMachine.CurrState = AUTH_WAIT_SEQ2;
-    }
     else
     {
-        DBGPRINT_ERR(("AUTH - MlmeAuthReqAction() sanity check failed\n"));
+		USHORT Status;
+
         pAd->Mlme.AuthMachine.CurrState = AUTH_REQ_IDLE;
         Status = MLME_INVALID_FORMAT;
         MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_AUTH_CONF, 2, &Status);
@@ -207,7 +160,7 @@ VOID PeerAuthRspAtSeq2Action(
     ULONG         FrameLen = 0;
     USHORT        Status2;
 
-    if (PeerAuthSanity(pAd, Elem->Msg, Elem->MsgLen, Addr2, &Alg, &Seq, &Status, ChlgText))
+    if (PeerAuthSanity(pAd, Elem->Msg, Elem->MsgLen, Addr2, &Alg, &Seq, &Status, (PCHAR)ChlgText))
     {
         if (MAC_ADDR_EQUAL(pAd->MlmeAux.Bssid, Addr2) && Seq == 2)
         {
@@ -217,8 +170,7 @@ VOID PeerAuthRspAtSeq2Action(
             if (Status == MLME_SUCCESS)
             {
                 // Authentication Mode "LEAP" has allow for CCX 1.X
-                if ((pAd->MlmeAux.Alg == Ndis802_11AuthModeOpen)
-				)
+                if (pAd->MlmeAux.Alg == Ndis802_11AuthModeOpen)
                 {
                     pAd->Mlme.AuthMachine.CurrState = AUTH_REQ_IDLE;
                     MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_AUTH_CONF, 2, &Status);
@@ -455,6 +407,84 @@ VOID Cls2errAction(
 
     pAd->StaCfg.DeauthReason = Reason;
     COPY_MAC_ADDR(pAd->StaCfg.DeauthSta, pAddr);
+}
+
+BOOLEAN	AUTH_ReqSend(
+	IN  PRTMP_ADAPTER		pAd,
+	IN  PMLME_QUEUE_ELEM	pElem,
+	IN  PRALINK_TIMER_STRUCT pAuthTimer,
+	IN  PSTRING				pSMName,
+	IN  USHORT				SeqNo,
+	IN  PUCHAR				pNewElement,
+	IN  ULONG				ElementLen)
+{
+	USHORT             Alg, Seq, Status;
+	UCHAR              Addr[6];
+    ULONG              Timeout;
+    HEADER_802_11      AuthHdr;
+    BOOLEAN            TimerCancelled;
+    NDIS_STATUS        NStatus;
+    PUCHAR             pOutBuffer = NULL;
+    ULONG              FrameLen = 0, tmp = 0;
+
+	// Block all authentication request durning WPA block period
+	if (pAd->StaCfg.bBlockAssoc == TRUE)
+	{
+        DBGPRINT(RT_DEBUG_TRACE, ("%s - Block Auth request durning WPA block period!\n", pSMName));
+        pAd->Mlme.AuthMachine.CurrState = AUTH_REQ_IDLE;
+        Status = MLME_STATE_MACHINE_REJECT;
+        MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_AUTH_CONF, 2, &Status);
+	}
+    else if(MlmeAuthReqSanity(pAd, pElem->Msg, pElem->MsgLen, Addr, &Timeout, &Alg))
+    {
+	/* reset timer */
+		RTMPCancelTimer(pAuthTimer, &TimerCancelled);
+
+        COPY_MAC_ADDR(pAd->MlmeAux.Bssid, Addr);
+        pAd->MlmeAux.Alg  = Alg;
+        Seq = SeqNo;
+        Status = MLME_SUCCESS;
+
+        NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);  //Get an unused nonpaged memory
+        if(NStatus != NDIS_STATUS_SUCCESS)
+        {
+            DBGPRINT(RT_DEBUG_TRACE, ("%s - MlmeAuthReqAction(Alg:%d) allocate memory failed\n", pSMName, Alg));
+            pAd->Mlme.AuthMachine.CurrState = AUTH_REQ_IDLE;
+            Status = MLME_FAIL_NO_RESOURCE;
+            MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_AUTH_CONF, 2, &Status);
+            return FALSE;
+        }
+
+        DBGPRINT(RT_DEBUG_TRACE, ("%s - Send AUTH request seq#1 (Alg=%d)...\n", pSMName, Alg));
+        MgtMacHeaderInit(pAd, &AuthHdr, SUBTYPE_AUTH, 0, Addr, pAd->MlmeAux.Bssid);
+        MakeOutgoingFrame(pOutBuffer,           &FrameLen,
+                          sizeof(HEADER_802_11),&AuthHdr,
+                          2,                    &Alg,
+                          2,                    &Seq,
+                          2,                    &Status,
+                          END_OF_ARGS);
+
+		if (pNewElement && ElementLen)
+		{
+			MakeOutgoingFrame(pOutBuffer+FrameLen,	&tmp,
+							  ElementLen,			pNewElement,
+				  END_OF_ARGS);
+			FrameLen += tmp;
+		}
+
+        MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
+	MlmeFreeMemory(pAd, pOutBuffer);
+
+		RTMPSetTimer(pAuthTimer, Timeout);
+		return TRUE;
+    }
+    else
+    {
+        DBGPRINT_ERR(("%s - MlmeAuthReqAction() sanity check failed\n", pSMName));
+		return FALSE;
+    }
+
+	return TRUE;
 }
 
 

@@ -25,7 +25,7 @@
  *************************************************************************
 
 	Module Name:
-	sync.c
+	cmm_sync.c
 
 	Abstract:
 
@@ -64,11 +64,16 @@ UCHAR A_BAND_REGION_3_CHANNEL_LIST[]={52, 56, 60, 64, 149, 153, 157, 161};
 UCHAR A_BAND_REGION_4_CHANNEL_LIST[]={149, 153, 157, 161, 165};
 UCHAR A_BAND_REGION_5_CHANNEL_LIST[]={149, 153, 157, 161};
 UCHAR A_BAND_REGION_6_CHANNEL_LIST[]={36, 40, 44, 48};
-UCHAR A_BAND_REGION_7_CHANNEL_LIST[]={36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165};
+UCHAR A_BAND_REGION_7_CHANNEL_LIST[]={36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165, 169, 173};
 UCHAR A_BAND_REGION_8_CHANNEL_LIST[]={52, 56, 60, 64};
 UCHAR A_BAND_REGION_9_CHANNEL_LIST[]={36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 132, 136, 140, 149, 153, 157, 161, 165};
 UCHAR A_BAND_REGION_10_CHANNEL_LIST[]={36, 40, 44, 48, 149, 153, 157, 161, 165};
 UCHAR A_BAND_REGION_11_CHANNEL_LIST[]={36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 149, 153, 157, 161};
+UCHAR A_BAND_REGION_12_CHANNEL_LIST[]={36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140};
+UCHAR A_BAND_REGION_13_CHANNEL_LIST[]={52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161};
+UCHAR A_BAND_REGION_14_CHANNEL_LIST[]={36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 136, 140, 149, 153, 157, 161, 165};
+UCHAR A_BAND_REGION_15_CHANNEL_LIST[]={149, 153, 157, 161, 165, 169, 173};
+
 
 //BaSizeArray follows the 802.11n definition as MaxRxFactor.  2^(13+factor) bytes. When factor =0, it's about Ba buffer size =8.
 UCHAR BaSizeArray[4] = {8,16,32,64};
@@ -200,7 +205,22 @@ VOID BuildChannelList(
 				num = sizeof(A_BAND_REGION_11_CHANNEL_LIST)/sizeof(UCHAR);
 				pChannelList = A_BAND_REGION_11_CHANNEL_LIST;
 				break;
-
+			case REGION_12_A_BAND:
+				num = sizeof(A_BAND_REGION_12_CHANNEL_LIST)/sizeof(UCHAR);
+				pChannelList = A_BAND_REGION_12_CHANNEL_LIST;
+				break;
+			case REGION_13_A_BAND:
+				num = sizeof(A_BAND_REGION_13_CHANNEL_LIST)/sizeof(UCHAR);
+				pChannelList = A_BAND_REGION_13_CHANNEL_LIST;
+				break;
+			case REGION_14_A_BAND:
+				num = sizeof(A_BAND_REGION_14_CHANNEL_LIST)/sizeof(UCHAR);
+				pChannelList = A_BAND_REGION_14_CHANNEL_LIST;
+				break;
+			case REGION_15_A_BAND:
+				num = sizeof(A_BAND_REGION_15_CHANNEL_LIST)/sizeof(UCHAR);
+				pChannelList = A_BAND_REGION_15_CHANNEL_LIST;
+				break;
 			default:            // Error. should never happen
 				DBGPRINT(RT_DEBUG_WARN,("countryregion=%d not support", pAd->CommonCfg.CountryRegionForABand));
 				break;
@@ -383,8 +403,11 @@ VOID ScanNextChannel(
 	PHEADER_802_11  pHdr80211;
 	UINT			ScanTimeIn5gChannel = SHORT_CHANNEL_TIME;
 
+	{
 	if (MONITOR_ON(pAd))
 		return;
+	}
+
 
 	if (pAd->MlmeAux.Channel == 0)
 	{
@@ -409,6 +432,19 @@ VOID ScanNextChannel(
 		}
 
 		{
+#ifdef RT2860
+			/*
+				If all peer Ad-hoc clients leave, driver would do LinkDown and LinkUp.
+				In LinkUp, CommonCfg.Ssid would copy SSID from MlmeAux.
+				To prevent SSID is zero or wrong in Beacon, need to recover MlmeAux.SSID here.
+			*/
+			if (ADHOC_ON(pAd))
+			{
+				NdisZeroMemory(pAd->MlmeAux.Ssid, MAX_LEN_OF_SSID);
+				pAd->MlmeAux.SsidLen = pAd->CommonCfg.SsidLen;
+				NdisMoveMemory(pAd->MlmeAux.Ssid, pAd->CommonCfg.Ssid, pAd->CommonCfg.SsidLen);
+			}
+#endif // RT2860 //
 			//
 			// To prevent data lost.
 			// Send an NULL data with turned PSM bit on to current associated AP before SCAN progress.
@@ -438,29 +474,26 @@ VOID ScanNextChannel(
 			MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_SCAN_CONF, 2, &Status);
 		}
 
+
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
 	}
-#ifdef RT2870
+#ifdef RTMP_MAC_USB
 	else if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST) && (pAd->OpMode == OPMODE_STA))
 	{
 		pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 		MlmeCntlConfirm(pAd, MT2_SCAN_CONF, MLME_FAIL_NO_RESOURCE);
 	}
-#endif // RT2870 //
+#endif // RTMP_MAC_USB //
 	else
 	{
 		{
 		// BBP and RF are not accessible in PS mode, we has to wake them up first
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
-#ifdef RT2860
-				AsicForceWakeup(pAd, FROM_TX);
-#endif
-#ifdef RT2870
 			AsicForceWakeup(pAd, TRUE);
-#endif
+
 			// leave PSM during scanning. otherwise we may lost ProbeRsp & BEACON
 			if (pAd->StaCfg.Psm == PWR_SAVE)
-				MlmeSetPsmBit(pAd, PWR_ACTIVE);
+				RTMP_SET_PSM_BIT(pAd, PWR_ACTIVE);
 		}
 
 		AsicSwitchChannel(pAd, pAd->MlmeAux.Channel, TRUE);
@@ -487,16 +520,6 @@ VOID ScanNextChannel(
 		// Chnage the channel scan time for CISCO stuff based on its IAPP announcement
 		if (ScanType == FAST_SCAN_ACTIVE)
 			RTMPSetTimer(&pAd->MlmeAux.ScanTimer, FAST_ACTIVE_SCAN_TIME);
-		else if (((ScanType == SCAN_CISCO_ACTIVE) ||
-				(ScanType == SCAN_CISCO_PASSIVE) ||
-				(ScanType == SCAN_CISCO_CHANNEL_LOAD) ||
-				(ScanType == SCAN_CISCO_NOISE)) && (pAd->OpMode == OPMODE_STA))
-		{
-			if (pAd->StaCfg.CCXScanTime < 25)
-				RTMPSetTimer(&pAd->MlmeAux.ScanTimer, pAd->StaCfg.CCXScanTime * 2);
-			else
-				RTMPSetTimer(&pAd->MlmeAux.ScanTimer, pAd->StaCfg.CCXScanTime);
-		}
 		else // must be SCAN_PASSIVE or SCAN_ACTIVE
 		{
 			if ((pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED)
@@ -512,8 +535,9 @@ VOID ScanNextChannel(
 				RTMPSetTimer(&pAd->MlmeAux.ScanTimer, MAX_CHANNEL_TIME);
 		}
 
-		if ((ScanType == SCAN_ACTIVE) || (ScanType == FAST_SCAN_ACTIVE) ||
-			(ScanType == SCAN_CISCO_ACTIVE))
+		if ((ScanType == SCAN_ACTIVE)
+			|| (ScanType == FAST_SCAN_ACTIVE)
+			)
 		{
 			NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);  //Get an unused nonpaged memory
 			if (NStatus != NDIS_STATUS_SUCCESS)

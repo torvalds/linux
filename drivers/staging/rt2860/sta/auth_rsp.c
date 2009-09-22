@@ -123,19 +123,23 @@ VOID PeerDeauthAction(
 
     if (PeerDeauthSanity(pAd, Elem->Msg, Elem->MsgLen, Addr2, &Reason))
     {
-        if (INFRA_ON(pAd) && MAC_ADDR_EQUAL(Addr2, pAd->CommonCfg.Bssid))
+        if (INFRA_ON(pAd)
+			&& MAC_ADDR_EQUAL(Addr2, pAd->CommonCfg.Bssid)
+			)
         {
             DBGPRINT(RT_DEBUG_TRACE,("AUTH_RSP - receive DE-AUTH from our AP (Reason=%d)\n", Reason));
 
-            {
-                union iwreq_data    wrqu;
-                memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
-                wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
-            }
+
+		RtmpOSWrielessEventSend(pAd, SIOCGIWAP, -1, NULL, NULL, 0);
+
 
 			// send wireless event - for deauthentication
 			if (pAd->CommonCfg.bWirelessEvent)
 				RTMPSendWirelessEvent(pAd, IW_DEAUTH_EVENT_FLAG, pAd->MacTab.Content[BSSID_WCID].Addr, BSS0, 0);
+
+			if ((pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE) &&
+				(pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2))
+				pAd->StaCfg.bLostAp = TRUE;
 
             LinkDown(pAd, TRUE);
         }

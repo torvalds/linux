@@ -40,21 +40,23 @@
 #ifndef __AP_H__
 #define __AP_H__
 
-// ap_mlme.c
+// ap_wpa.c
+VOID WpaStateMachineInit(
+    IN  PRTMP_ADAPTER   pAd,
+    IN  STATE_MACHINE *Sm,
+    OUT STATE_MACHINE_FUNC Trans[]);
 
-#ifdef RT2870
+#ifdef RTMP_MAC_USB
 VOID BeaconUpdateExec(
     IN PVOID SystemSpecific1,
     IN PVOID FunctionContext,
     IN PVOID SystemSpecific2,
     IN PVOID SystemSpecific3);
-#endif // RT2870 //
+#endif // RTMP_MAC_USB //
 
 VOID RTMPSetPiggyBack(
 	IN PRTMP_ADAPTER	pAd,
 	IN BOOLEAN			bPiggyBack);
-
-// ap.c
 
 VOID MacTableReset(
     IN  PRTMP_ADAPTER   pAd);

@@ -150,7 +150,9 @@ VOID MlmeADDBAAction(
 		MakeOutgoingFrame(pOutBuffer,		   &FrameLen,
 		              sizeof(FRAME_ADDBA_REQ), &Frame,
 		              END_OF_ARGS);
-		MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
+
+		MiniportMMRequest(pAd, (MGMT_USE_QUEUE_FLAG | MapUserPriorityToAccessCategory[pInfo->TID]), pOutBuffer, FrameLen);
+
 		MlmeFreeMemory(pAd, pOutBuffer);
 
 		DBGPRINT(RT_DEBUG_TRACE, ("BA - Send ADDBA request. StartSeq = %x,  FrameLen = %ld. BufSize = %d\n", Frame.BaStartSeq.field.StartSeq, FrameLen, Frame.BaParm.BufSize));
@@ -527,9 +529,13 @@ VOID SendRefreshBAR(
 			MakeOutgoingFrame(pOutBuffer,				&FrameLen,
 							  sizeof(FRAME_BAR),	  &FrameBar,
 							  END_OF_ARGS);
+			//if (!(CLIENT_STATUS_TEST_FLAG(pEntry, fCLIENT_STATUS_RALINK_CHIPSET)))
+			if (1)	// Now we always send BAR.
+			{
+				//MiniportMMRequestUnlock(pAd, 0, pOutBuffer, FrameLen);
+				MiniportMMRequest(pAd, (MGMT_USE_QUEUE_FLAG | MapUserPriorityToAccessCategory[TID]), pOutBuffer, FrameLen);
 
-			MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
-
+			}
 			MlmeFreeMemory(pAd, pOutBuffer);
 		}
 	}

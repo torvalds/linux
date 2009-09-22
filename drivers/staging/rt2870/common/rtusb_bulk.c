@@ -1,4 +1,4 @@
- /*
+/*
  *************************************************************************
  * Ralink Tech Inc.
  * 5F., No.36, Taiyuan St., Jhubei City,
@@ -36,6 +36,9 @@
 	Paul Lin	06-25-2004	created
 
 */
+
+#ifdef RTMP_MAC_USB
+
 
 #include "../rt_config.h"
 // Match total 6 bulkout endpoint to corresponding queue.
@@ -317,11 +320,13 @@ VOID	RTUSBBulkOutDataPacket(
 			break;
 		}
 
-		//PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
 		if (pTxInfo->QSEL != FIFO_EDCA)
 		{
-			printk("%s(): ====> pTxInfo->QueueSel(%d)!= FIFO_EDCA!!!!\n", __func__, pTxInfo->QSEL);
-			printk("\tCWPos=%ld, NBPos=%ld, ENBPos=%ld, bCopy=%d!\n", pHTTXContext->CurWritePosition, pHTTXContext->NextBulkOutPosition, pHTTXContext->ENextBulkOutPosition, pHTTXContext->bCopySavePad);
+			DBGPRINT(RT_DEBUG_ERROR, ("%s(): ====> pTxInfo->QueueSel(%d)!= FIFO_EDCA!!!!\n",
+										__FUNCTION__, pTxInfo->QSEL));
+			DBGPRINT(RT_DEBUG_ERROR, ("\tCWPos=%ld, NBPos=%ld, ENBPos=%ld, bCopy=%d!\n",
+										pHTTXContext->CurWritePosition, pHTTXContext->NextBulkOutPosition,
+										pHTTXContext->ENextBulkOutPosition, pHTTXContext->bCopySavePad));
 			hex_dump("Wrong QSel Pkt:", (PUCHAR)&pWirelessPkt[TmpBulkEndPos], (pHTTXContext->CurWritePosition - pHTTXContext->NextBulkOutPosition));
 		}
 
@@ -350,7 +355,7 @@ VOID	RTUSBBulkOutDataPacket(
 		pLastTxInfo = pTxInfo;
 
 		// Make sure we use EDCA QUEUE.
-		pTxInfo->QSEL = FIFO_EDCA;  //PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
+		pTxInfo->QSEL = FIFO_EDCA;
 		ThisBulkSize += (pTxInfo->USBDMATxPktLen+4);
 		TmpBulkEndPos += (pTxInfo->USBDMATxPktLen+4);
 
@@ -366,8 +371,11 @@ VOID	RTUSBBulkOutDataPacket(
 			bTxQLastRound = TRUE;
 			pHTTXContext->ENextBulkOutPosition = 8;
 
+
 			break;
 		}
+
+
 	}while (TRUE);
 
 	// adjust the pTxInfo->USBDMANextVLD value of last pTxInfo.
@@ -481,11 +489,9 @@ VOID RTUSBBulkOutDataPacketComplete(purbb_t pUrb, struct pt_regs *pt_regs)
 				pObj->ac3_dma_done_task.data = (unsigned long)pUrb;
 				tasklet_hi_schedule(&pObj->ac3_dma_done_task);
 				break;
-		case 4:
-				pObj->hcca_dma_done_task.data = (unsigned long)pUrb;
-				tasklet_hi_schedule(&pObj->hcca_dma_done_task);
-				break;
 	}
+
+
 }
 
 
@@ -933,7 +939,7 @@ VOID	RTUSBKickBulkOut(
 		}
 
 		// 5. Mlme frame is next
-		else if ((RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_MLME)) &&
+		else if ((RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_MLME)) ||
 				 (pAd->MgmtRing.TxSwFreeIdx < MGMT_RING_SIZE))
 		{
 			RTUSBBulkOutMLMEPacket(pAd, pAd->MgmtRing.TxDmaIdx);
@@ -974,16 +980,6 @@ VOID	RTUSBKickBulkOut(
 				))
 			{
 				RTUSBBulkOutDataPacket(pAd, 3, pAd->NextBulkOutIndex[3]);
-			}
-		}
-
-		//PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
-		if (RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NORMAL_5))
-		{
-			if (((!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS)) ||
-				(!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED))
-				))
-			{
 			}
 		}
 
@@ -1231,3 +1227,4 @@ VOID	RTUSBCancelPendingBulkOutIRP(
 	}
 }
 
+#endif // RTMP_MAC_USB //

@@ -37,45 +37,8 @@
 */
 #include "../rt_config.h"
 
-#ifdef RT2860
-#define AC0_DEF_TXOP		0
-#define AC1_DEF_TXOP		0
-#define AC2_DEF_TXOP		94
-#define AC3_DEF_TXOP		47
 
-VOID	AdhocTurnOnQos(
-	IN  PRTMP_ADAPTER pAd)
-{
-	// Turn on QOs if use HT rate.
-	if (pAd->CommonCfg.APEdcaParm.bValid == FALSE)
-	{
-		pAd->CommonCfg.APEdcaParm.bValid = TRUE;
-		pAd->CommonCfg.APEdcaParm.Aifsn[0] = 3;
-		pAd->CommonCfg.APEdcaParm.Aifsn[1] = 7;
-		pAd->CommonCfg.APEdcaParm.Aifsn[2] = 1;
-		pAd->CommonCfg.APEdcaParm.Aifsn[3] = 1;
-
-		pAd->CommonCfg.APEdcaParm.Cwmin[0] = 4;
-		pAd->CommonCfg.APEdcaParm.Cwmin[1] = 4;
-		pAd->CommonCfg.APEdcaParm.Cwmin[2] = 3;
-		pAd->CommonCfg.APEdcaParm.Cwmin[3] = 2;
-
-		pAd->CommonCfg.APEdcaParm.Cwmax[0] = 10;
-		pAd->CommonCfg.APEdcaParm.Cwmax[1] = 6;
-		pAd->CommonCfg.APEdcaParm.Cwmax[2] = 4;
-		pAd->CommonCfg.APEdcaParm.Cwmax[3] = 3;
-
-		pAd->CommonCfg.APEdcaParm.Txop[0]  = 0;
-		pAd->CommonCfg.APEdcaParm.Txop[1]  = 0;
-		pAd->CommonCfg.APEdcaParm.Txop[2]  = AC2_DEF_TXOP;
-		pAd->CommonCfg.APEdcaParm.Txop[3]  = AC3_DEF_TXOP;
-	}
-	AsicSetEdcaParm(pAd, &pAd->CommonCfg.APEdcaParm);
-}
-#endif /* RT2860 */
-#ifdef RT2870
 #define ADHOC_ENTRY_BEACON_LOST_TIME	(2*OS_HZ)	// 2 sec
-#endif
 
 /*
 	==========================================================================
@@ -160,7 +123,7 @@ VOID BeaconTimeout(
 	}
 
 	MlmeEnqueue(pAd, SYNC_STATE_MACHINE, MT2_BEACON_TIMEOUT, 0, NULL);
-	RT28XX_MLME_HANDLER(pAd);
+	RTMP_MLME_HANDLER(pAd);
 }
 
 /*
@@ -188,8 +151,8 @@ VOID ScanTimeout(
 
 	if (MlmeEnqueue(pAd, SYNC_STATE_MACHINE, MT2_SCAN_TIMEOUT, 0, NULL))
 	{
-		RT28XX_MLME_HANDLER(pAd);
-	}
+	RTMP_MLME_HANDLER(pAd);
+}
 	else
 	{
 		// To prevent SyncMachine.CurrState is SCAN_LISTEN forever.
@@ -231,7 +194,7 @@ VOID MlmeScanReqAction(
 	// Increase the scan retry counters.
 	pAd->StaCfg.ScanCnt++;
 
-#ifdef RT2860
+#ifdef RTMP_MAC_PCI
     if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)) &&
         (IDLE_ON(pAd)) &&
 		(pAd->StaCfg.bRadio == TRUE) &&
@@ -239,30 +202,22 @@ VOID MlmeScanReqAction(
 	{
 		RT28xxPciAsicRadioOn(pAd, GUI_IDLE_POWER_SAVE);
 	}
-#endif
+#endif // RTMP_MAC_PCI //
 
 	// first check the parameter sanity
 	if (MlmeScanReqSanity(pAd,
 						  Elem->Msg,
 						  Elem->MsgLen,
 						  &BssType,
-						  Ssid,
+						  (PCHAR)Ssid,
 						  &SsidLen,
 						  &ScanType))
 	{
 
 		// Check for channel load and noise hist request
 		// Suspend MSDU only at scan request, not the last two mentioned
-		if ((ScanType == SCAN_CISCO_NOISE) || (ScanType == SCAN_CISCO_CHANNEL_LOAD))
-		{
-			if (pAd->StaCfg.CCXScanChannel != pAd->CommonCfg.Channel)
-				RTMPSuspendMsduTransmission(pAd);			// Suspend MSDU transmission here
-		}
-		else
-		{
 			// Suspend MSDU transmission here
 			RTMPSuspendMsduTransmission(pAd);
-		}
 
 		//
 		// To prevent data lost.
@@ -303,11 +258,6 @@ VOID MlmeScanReqAction(
 
 		// start from the first channel
 		pAd->MlmeAux.Channel = FirstChannel(pAd);
-
-		// Change the scan channel when dealing with CCX beacon report
-		if ((ScanType == SCAN_CISCO_PASSIVE) || (ScanType == SCAN_CISCO_ACTIVE) ||
-			(ScanType == SCAN_CISCO_CHANNEL_LOAD) || (ScanType == SCAN_CISCO_NOISE))
-			pAd->MlmeAux.Channel = pAd->StaCfg.CCXScanChannel;
 
 		// Let BBP register at 20MHz to do scan
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &BBPValue);
@@ -352,7 +302,7 @@ VOID MlmeJoinReqAction(
 
 	DBGPRINT(RT_DEBUG_TRACE, ("SYNC - MlmeJoinReqAction(BSS #%ld)\n", pInfo->BssIdx));
 
-#ifdef RT2860
+#ifdef RTMP_MAC_PCI
     if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)) &&
         (IDLE_ON(pAd)) &&
 		(pAd->StaCfg.bRadio == TRUE) &&
@@ -360,7 +310,7 @@ VOID MlmeJoinReqAction(
 	{
 		RT28xxPciAsicRadioOn(pAd, GUI_IDLE_POWER_SAVE);
 	}
-#endif
+#endif // RTMP_MAC_PCI //
 
 	// reset all the timers
 	RTMPCancelTimer(&pAd->MlmeAux.ScanTimer, &TimerCancelled);
@@ -374,6 +324,7 @@ VOID MlmeJoinReqAction(
 	// If AP's SSID is not hidden, it is OK for updating ssid to MlmeAux again.
 	if (pBss->Hidden == 0)
 	{
+		RTMPZeroMemory(pAd->MlmeAux.Ssid, MAX_LEN_OF_SSID);
 		NdisMoveMemory(pAd->MlmeAux.Ssid, pBss->Ssid, pBss->SsidLen);
 		pAd->MlmeAux.SsidLen = pBss->SsidLen;
 	}
@@ -382,10 +333,14 @@ VOID MlmeJoinReqAction(
 	pAd->MlmeAux.Channel = pBss->Channel;
 	pAd->MlmeAux.CentralChannel = pBss->CentralChannel;
 
+
 	// Let BBP register at 20MHz to do scan
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R4, &BBPValue);
 	BBPValue &= (~0x18);
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, BBPValue);
+#ifdef RT2860
+	pAd->CommonCfg.BBPCurrentBW = BW_20;
+#endif // RT2860 //
 	DBGPRINT(RT_DEBUG_TRACE, ("SYNC - BBP R4 to 20MHz.l\n"));
 
 	// switch channel and waiting for beacon timer
@@ -494,7 +449,7 @@ VOID MlmeStartReqAction(
 	TimeStamp.u.LowPart  = 0;
 	TimeStamp.u.HighPart = 0;
 
-	if (MlmeStartReqSanity(pAd, Elem->Msg, Elem->MsgLen, Ssid, &SsidLen))
+	if (MlmeStartReqSanity(pAd, Elem->Msg, Elem->MsgLen, (PCHAR)Ssid, &SsidLen))
 	{
 		// reset all the timers
 		RTMPCancelTimer(&pAd->MlmeAux.ScanTimer, &TimerCancelled);
@@ -541,6 +496,7 @@ VOID MlmeStartReqAction(
 		{
 			pAd->MlmeAux.HtCapabilityLen = 0;
 			pAd->StaActive.SupportedPhyInfo.bHtEnable = FALSE;
+			NdisZeroMemory(&pAd->StaActive.SupportedPhyInfo.MCSSet[0], 16);
 		}
 		// temporarily not support QOS in IBSS
 		NdisZeroMemory(&pAd->MlmeAux.APEdcaParm, sizeof(EDCA_PARM));
@@ -601,6 +557,8 @@ VOID PeerBeaconAtScanAction(
 	UCHAR			AddHtInfoLen;
 	UCHAR			NewExtChannelOffset = 0xff;
 
+
+	// NdisFillMemory(Ssid, MAX_LEN_OF_SSID, 0x00);
 	pFrame = (PFRAME_802_11) Elem->Msg;
 	// Init Variable IE structure
 	pVIE = (PNDIS_802_11_VARIABLE_IEs) VarIE;
@@ -615,7 +573,7 @@ VOID PeerBeaconAtScanAction(
 								Elem->Channel,
 								Addr2,
 								Bssid,
-								Ssid,
+								(PCHAR)Ssid,
 								&SsidLen,
 								&BssType,
 								&BeaconPeriod,
@@ -661,24 +619,7 @@ VOID PeerBeaconAtScanAction(
 		if ((HtCapabilityLen > 0) || (PreNHtCapabilityLen > 0))
 			HtCapabilityLen = SIZE_HT_CAP_IE;
 
-		if ((pAd->StaCfg.CCXReqType != MSRN_TYPE_UNUSED) && (Channel == pAd->StaCfg.CCXScanChannel))
-		{
-			Idx = BssTableSetEntry(pAd, &pAd->StaCfg.CCXBssTab, Bssid, Ssid, SsidLen, BssType, BeaconPeriod,
-						 &CfParm, AtimWin, CapabilityInfo, SupRate, SupRateLen,ExtRate, ExtRateLen, &HtCapability,
-						 &AddHtInfo, HtCapabilityLen, AddHtInfoLen, NewExtChannelOffset, Channel, Rssi, TimeStamp, CkipFlag,
-						 &EdcaParm, &QosCapability, &QbssLoad, LenVIE, pVIE);
-			if (Idx != BSS_NOT_FOUND)
-			{
-				NdisMoveMemory(pAd->StaCfg.CCXBssTab.BssEntry[Idx].PTSF, &Elem->Msg[24], 4);
-				NdisMoveMemory(&pAd->StaCfg.CCXBssTab.BssEntry[Idx].TTSF[0], &Elem->TimeStamp.u.LowPart, 4);
-				NdisMoveMemory(&pAd->StaCfg.CCXBssTab.BssEntry[Idx].TTSF[4], &Elem->TimeStamp.u.LowPart, 4);
-				if (pAd->StaCfg.CCXReqType == MSRN_TYPE_BEACON_REQ)
-					AironetAddBeaconReport(pAd, Idx, Elem);
-			}
-		}
-		else
-		{
-			Idx = BssTableSetEntry(pAd, &pAd->ScanTab, Bssid, Ssid, SsidLen, BssType, BeaconPeriod,
+		Idx = BssTableSetEntry(pAd, &pAd->ScanTab, Bssid, (PCHAR)Ssid, SsidLen, BssType, BeaconPeriod,
 						  &CfParm, AtimWin, CapabilityInfo, SupRate, SupRateLen, ExtRate, ExtRateLen,  &HtCapability,
 						 &AddHtInfo, HtCapabilityLen, AddHtInfoLen, NewExtChannelOffset, Channel, Rssi, TimeStamp, CkipFlag,
 						 &EdcaParm, &QosCapability, &QbssLoad, LenVIE, pVIE);
@@ -689,7 +630,7 @@ VOID PeerBeaconAtScanAction(
 				NdisMoveMemory(&pAd->ScanTab.BssEntry[Idx].TTSF[0], &Elem->TimeStamp.u.LowPart, 4);
 				NdisMoveMemory(&pAd->ScanTab.BssEntry[Idx].TTSF[4], &Elem->TimeStamp.u.LowPart, 4);
 			}
-		}
+
 	}
 	// sanity check fail, ignored
 }
@@ -731,6 +672,7 @@ VOID PeerBeaconAtJoinAction(
 	UCHAR			AddHtInfoLen;
 	UCHAR			NewExtChannelOffset = 0xff;
 	UCHAR			CentralChannel;
+	BOOLEAN			bAllowNrate = FALSE;
 
 	// Init Variable IE structure
 	pVIE = (PNDIS_802_11_VARIABLE_IEs) VarIE;
@@ -745,7 +687,7 @@ VOID PeerBeaconAtJoinAction(
 								Elem->Channel,
 								Addr2,
 								Bssid,
-								Ssid,
+								(PCHAR)Ssid,
 								&SsidLen,
 								&BssType,
 								&BeaconPeriod,
@@ -818,7 +760,23 @@ VOID PeerBeaconAtJoinAction(
 			{
 				Idx = BssSsidTableSearch(&pAd->ScanTab, Bssid, pAd->MlmeAux.Ssid, pAd->MlmeAux.SsidLen, Channel);
 
+				if (Idx == BSS_NOT_FOUND)
+				{
+					CHAR Rssi = 0;
+					Rssi = RTMPMaxRssi(pAd, ConvertToRssi(pAd, Elem->Rssi0, RSSI_0), ConvertToRssi(pAd, Elem->Rssi1, RSSI_1), ConvertToRssi(pAd, Elem->Rssi2, RSSI_2));
+					Idx = BssTableSetEntry(pAd, &pAd->ScanTab, Bssid, (CHAR *) Ssid, SsidLen, BssType, BeaconPeriod,
+										&Cf, AtimWin, CapabilityInfo, SupRate, SupRateLen, ExtRate, ExtRateLen,  &HtCapability,
+										&AddHtInfo, HtCapabilityLen, AddHtInfoLen, NewExtChannelOffset, Channel, Rssi, TimeStamp, CkipFlag,
+										&EdcaParm, &QosCapability, &QbssLoad, LenVIE, pVIE);
 				if (Idx != BSS_NOT_FOUND)
+				{
+						NdisMoveMemory(pAd->ScanTab.BssEntry[Idx].PTSF, &Elem->Msg[24], 4);
+						NdisMoveMemory(&pAd->ScanTab.BssEntry[Idx].TTSF[0], &Elem->TimeStamp.u.LowPart, 4);
+						NdisMoveMemory(&pAd->ScanTab.BssEntry[Idx].TTSF[4], &Elem->TimeStamp.u.LowPart, 4);
+						CapabilityInfo = pAd->ScanTab.BssEntry[Idx].CapabilityInfo;
+					}
+				}
+				else
 				{
 					//
 					// Multiple SSID case, used correct CapabilityInfo
@@ -847,13 +805,21 @@ VOID PeerBeaconAtJoinAction(
 
             NdisZeroMemory(pAd->StaActive.SupportedPhyInfo.MCSSet, 16);
 
+
+			if (((pAd->StaCfg.WepStatus != Ndis802_11WEPEnabled) && (pAd->StaCfg.WepStatus != Ndis802_11Encryption2Enabled))
+				|| (pAd->CommonCfg.HT_DisallowTKIP == FALSE))
+			{
+				bAllowNrate = TRUE;
+			}
+
 			pAd->MlmeAux.NewExtChannelOffset = NewExtChannelOffset;
 			pAd->MlmeAux.HtCapabilityLen = HtCapabilityLen;
 
+			RTMPZeroMemory(&pAd->MlmeAux.HtCapability, SIZE_HT_CAP_IE);
 			// filter out un-supported ht rates
-			if (((HtCapabilityLen > 0) || (PreNHtCapabilityLen > 0)) && (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED))
+			if (((HtCapabilityLen > 0) || (PreNHtCapabilityLen > 0)) &&
+				((pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED) && (bAllowNrate)))
 			{
-				RTMPZeroMemory(&pAd->MlmeAux.HtCapability, SIZE_HT_CAP_IE);
    				RTMPMoveMemory(&pAd->MlmeAux.AddHtInfo, &AddHtInfo, SIZE_ADD_HT_INFO_IE);
 
 				// StaActive.SupportedHtPhy.MCSSet stores Peer AP's 11n Rx capability
@@ -897,7 +863,9 @@ VOID PeerBeaconAtJoinAction(
 					pAd->MlmeAux.CentralChannel = pAd->MlmeAux.Channel;
 
 				pAd->StaActive.SupportedPhyInfo.bHtEnable = FALSE;
+				pAd->MlmeAux.NewExtChannelOffset = 0xff;
 				RTMPZeroMemory(&pAd->MlmeAux.HtCapability, SIZE_HT_CAP_IE);
+				pAd->MlmeAux.HtCapabilityLen = 0;
 				RTMPZeroMemory(&pAd->MlmeAux.AddHtInfo, SIZE_ADD_HT_INFO_IE);
 			}
 
@@ -929,6 +897,8 @@ VOID PeerBeaconAtJoinAction(
 			}
 			else  //Used the default TX Power Percentage.
 				pAd->CommonCfg.TxPowerPercentage = pAd->CommonCfg.TxPowerDefault;
+
+			InitChannelRelatedValue(pAd);
 
 			pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 			Status = MLME_SUCCESS;
@@ -1116,8 +1086,6 @@ VOID PeerBeacon(
 			// Add the safeguard against the mismatch of adhoc wep status
 			if (pAd->StaCfg.WepStatus != pAd->ScanTab.BssEntry[Bssidx].WepStatus)
 			{
-				DBGPRINT(RT_DEBUG_TRACE, ("SYNC - Not matched wep status %d %d\n", pAd->StaCfg.WepStatus, pAd->ScanTab.BssEntry[Bssidx].WepStatus));
-				DBGPRINT(RT_DEBUG_TRACE, ("bssid=%s\n", pAd->ScanTab.BssEntry[Bssidx].Bssid));
 				return;
 			}
 
@@ -1181,200 +1149,8 @@ VOID PeerBeacon(
 				pAd->CommonCfg.TxPowerPercentage = pAd->CommonCfg.TxPowerDefault;
 			}
 
-#ifdef RT2860
-			// at least one 11b peer joined. downgrade the MaxTxRate to 11Mbps
-			// after last 11b peer left for several seconds, we'll auto switch back to 11G rate
-			// in MlmePeriodicExec()
-#endif
 			if (ADHOC_ON(pAd) && (CAP_IS_IBSS_ON(CapabilityInfo)))
 			{
-#ifdef RT2860
-				BOOLEAN	bRestart;
-                BOOLEAN	bnRestart;
-
-				bRestart = FALSE;
-                bnRestart = FALSE;
-
-				do
-				{
-					if ((SupRateLen+ExtRateLen <= 4) && (pAd->CommonCfg.MaxTxRate > RATE_11))
-					{
-						if (pAd->StaCfg.AdhocBOnlyJoined == FALSE)
-						{
-							DBGPRINT(RT_DEBUG_TRACE, ("SYNC - 11b peer joined. down-grade to 11b TX rates \n"));
-							bRestart = TRUE;
-							NdisMoveMemory(pAd->StaActive.SupRate, SupRate, MAX_LEN_OF_SUPPORTED_RATES);
-							pAd->StaActive.SupRateLen = SupRateLen;
-							NdisMoveMemory(pAd->StaActive.ExtRate, ExtRate, MAX_LEN_OF_SUPPORTED_RATES);
-							pAd->StaActive.ExtRateLen = ExtRateLen;
-							pAd->StaCfg.AdhocBOnlyJoined = TRUE;
-							pAd->StaActive.SupportedPhyInfo.bHtEnable = FALSE;
-							AsicSetEdcaParm(pAd, NULL);
-						}
-
-						// this timestamp is for MlmePeriodicExec() to check if all 11B peers have left
-						pAd->StaCfg.Last11bBeaconRxTime = Now;
-						break;
-					}
-
-					// Update Ht Phy.
-					if ((pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED))
-					{
-						if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED) &&
-							!pAd->StaCfg.AdhocBGJoined &&
-							!pAd->StaCfg.AdhocBOnlyJoined)
-							AdhocTurnOnQos(pAd);
-
-						// Handle rate switch issue when Adhoc mode
-						if ((SupRateLen+ExtRateLen >= 8) && (HtCapability.MCSSet[0] == 0) && (HtCapability.MCSSet[1] == 0))
-						{
-							if (pAd->StaCfg.AdhocBGJoined == FALSE)
-							{
-								DBGPRINT(RT_DEBUG_TRACE, ("SYNC - 11g peer joined. down-grade to 11g TX rates \n"));
-								bRestart = TRUE;
-								NdisMoveMemory(pAd->StaActive.SupRate, SupRate, MAX_LEN_OF_SUPPORTED_RATES);
-								pAd->StaActive.SupRateLen = SupRateLen;
-								NdisMoveMemory(pAd->StaActive.ExtRate, ExtRate, MAX_LEN_OF_SUPPORTED_RATES);
-								pAd->StaActive.ExtRateLen = ExtRateLen;
-								pAd->StaCfg.AdhocBGJoined = TRUE;
-								pAd->StaActive.SupportedPhyInfo.bHtEnable = FALSE;
-								AsicSetEdcaParm(pAd, NULL);
-							}
-
-							// this timestamp is for MlmePeriodicExec() to check if all 11g peers have left
-							pAd->StaCfg.Last11gBeaconRxTime = Now;
-							break;
-						}
-						else if (!pAd->StaCfg.AdhocBGJoined &&
-								 !pAd->StaCfg.AdhocBOnlyJoined &&
-								 (pAd->CommonCfg.RegTransmitSetting.field.BW == BW_40) &&
-								 (HtCapability.HtCapInfo.ChannelWidth == BW_20))
-						{
-							if (pAd->StaCfg.Adhoc20NJoined == FALSE)
-							{
-								pAd->CommonCfg.CentralChannel = pAd->CommonCfg.Channel;
-
-								pAd->StaCfg.Adhoc20NJoined = TRUE;
-								NdisMoveMemory(&pAd->MlmeAux.HtCapability, &HtCapability, SIZE_HT_CAP_IE);
-								if (AddHtInfoLen != 0)
-									NdisMoveMemory(&pAd->MlmeAux.AddHtInfo, &AddHtInfo, AddHtInfoLen);
-								NdisMoveMemory(pAd->StaActive.SupportedPhyInfo.MCSSet, HtCapability.MCSSet, 16);
-
-								RTMPCheckHt(pAd, Elem->Wcid, &pAd->MlmeAux.HtCapability, &pAd->MlmeAux.AddHtInfo);
-								COPY_HTSETTINGS_FROM_MLME_AUX_TO_ACTIVE_CFG(pAd);
-								pAd->StaActive.SupportedPhyInfo.bHtEnable = TRUE;
-								bRestart = TRUE;
-								bnRestart = TRUE;
-							}
-							// this timestamp is for MlmePeriodicExec() to check if all 20MHz N peers have left
-							pAd->StaCfg.Last20NBeaconRxTime = Now;
-						}
-
-					}
-					else
-					{
-						RTMPZeroMemory(&pAd->MlmeAux.HtCapability, SIZE_HT_CAP_IE);
-						RTMPZeroMemory(&pAd->MlmeAux.AddHtInfo, SIZE_ADD_HT_INFO_IE);
-					}
-				}while (FALSE);
-
-				// If peer Adhoc is legacy mode, I don't need to call MlmeUpdateHtTxRates no matter I support HT or not
-				if ((bRestart == TRUE) && (bnRestart == FALSE))
-				{
-					MlmeUpdateTxRates(pAd, FALSE, 0);
-					MakeIbssBeacon(pAd);        // re-build BEACON frame
-					AsicEnableIbssSync(pAd);    // copy to on-chip memory
-				}
-				else if ((bRestart == TRUE) && (bnRestart == TRUE))
-				{
-					MlmeUpdateTxRates(pAd, FALSE, BSS0);
-					MlmeUpdateHtTxRates(pAd, BSS0);
-					MakeIbssBeacon(pAd);        // re-build BEACON frame
-					AsicEnableIbssSync(pAd);    // copy to on-chip memory
-				}
-
-				// At least another peer in this IBSS, declare MediaState as CONNECTED
-				if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED))
-				{
-					OPSTATUS_SET_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED);
-
-					pAd->IndicateMediaState = NdisMediaStateConnected;
-					RTMP_IndicateMediaState(pAd);
-	                pAd->ExtraInfo = GENERAL_LINK_UP;
-					AsicSetBssid(pAd, pAd->CommonCfg.Bssid);
-
-					// 2003/03/12 - john
-					// Make sure this entry in "ScanTab" table, thus complies to Microsoft's policy that
-					// "site survey" result should always include the current connected network.
-					//
-					Bssidx = BssTableSearch(&pAd->ScanTab, Bssid, Channel);
-					if (Bssidx == BSS_NOT_FOUND)
-					{
-						Bssidx = BssTableSetEntry(pAd, &pAd->ScanTab, Bssid, Ssid, SsidLen, BssType, BeaconPeriod,
-									&CfParm, AtimWin, CapabilityInfo, SupRate, SupRateLen, ExtRate, ExtRateLen, &HtCapability,
-									&AddHtInfo, HtCapabilityLen, AddHtInfoLen, NewExtChannelOffset, Channel, RealRssi, TimeStamp, 0,
-									&EdcaParm, &QosCapability, &QbssLoad, LenVIE, pVIE);
-					}
-					DBGPRINT(RT_DEBUG_TRACE, ("ADHOC  fOP_STATUS_MEDIA_STATE_CONNECTED.\n"));
-				}
-
-				// Ad-hoc mode is using MAC address as BA session. So we need to continuously find newly joined adhoc station by receiving beacon.
-				// To prevent always check this, we use wcid == RESERVED_WCID to recognize it as newly joined adhoc station.
-				if (ADHOC_ON(pAd) && (Elem->Wcid == RESERVED_WCID))
-				{
-					UCHAR	idx;
-					MAC_TABLE_ENTRY *pEntry;
-
-					// look up the existing table
-					pEntry = MacTableLookup(pAd, Addr2);
-					if (pEntry == NULL)
-					{
-						// Another adhoc joining, add to our MAC table.
-						pEntry = MacTableInsertEntry(pAd, Addr2, BSS0, FALSE);
-						if (pEntry)
-						{
-							pEntry->Sst = SST_ASSOC;
-							idx = pAd->StaCfg.DefaultKeyId;
-							// After InsertEntry, Write to ASIC on-chip table.
-							RT28XX_STA_SECURITY_INFO_ADD(pAd, BSS0, idx, pEntry);
-							DBGPRINT(RT_DEBUG_TRACE, ("ADHOC %x:%x:%x:%x:%x:%x  join in.Entry=%d\n", Addr2[0],Addr2[1],Addr2[2],Addr2[3],Addr2[4],Addr2[5], pEntry->Aid));
-
-							pEntry->HTPhyMode.word = pAd->StaCfg.HTPhyMode.word;
-	                        if (HtCapabilityLen <= 0)
-	                        {
-	                            pEntry->HTPhyMode.field.STBC = 0;
-	                            pEntry->HTPhyMode.field.BW = 0;
-	                            pEntry->HTPhyMode.field.ShortGI = 0;
-	                            if ((SupRateLen+ExtRateLen <= 4) && (pAd->CommonCfg.Channel <= 14))
-	        					{
-	        						pEntry->HTPhyMode.field.MODE = MODE_CCK;
-	        					}
-	        					else
-	        					{
-	        						pEntry->HTPhyMode.field.MODE = MODE_OFDM;
-	        					}
-								MlmeUpdateTxRates(pAd, FALSE, 0);
-	                        }
-							else
-							{
-								MlmeUpdateTxRates(pAd, FALSE, 0);
-								MlmeUpdateHtTxRates(pAd, BSS0);
-							}
-
-	                        {
-	                            union iwreq_data    wrqu;
-	                            wext_notify_event_assoc(pAd);
-
-	                            memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
-	                            memcpy(wrqu.ap_addr.sa_data, pAd->MlmeAux.Bssid, MAC_ADDR_LEN);
-	                            wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
-
-	                        }
-						}
-					}
-				}
-#endif /* RT2860 */
-#ifdef RT2870
 				UCHAR			MaxSupportedRateIn500Kbps = 0;
 				UCHAR			idx;
 				MAC_TABLE_ENTRY *pEntry;
@@ -1404,7 +1180,14 @@ VOID PeerBeacon(
 						// Another adhoc joining, add to our MAC table.
 						pEntry = MacTableInsertEntry(pAd, Addr2, BSS0, FALSE);
 
-					if (StaAddMacTableEntry(pAd, pEntry, MaxSupportedRateIn500Kbps, &HtCapability, HtCapabilityLen, CapabilityInfo) == FALSE)
+					if (StaAddMacTableEntry(pAd,
+											pEntry,
+											MaxSupportedRateIn500Kbps,
+											&HtCapability,
+											HtCapabilityLen,
+											&AddHtInfo,
+											AddHtInfoLen,
+											CapabilityInfo) == FALSE)
 					{
 						DBGPRINT(RT_DEBUG_TRACE, ("ADHOC - Add Entry failed.\n"));
 						return;
@@ -1414,7 +1197,7 @@ VOID PeerBeacon(
 						(Elem->Wcid == RESERVED_WCID))
 					{
 						idx = pAd->StaCfg.DefaultKeyId;
-						RT28XX_STA_SECURITY_INFO_ADD(pAd, BSS0, idx, pEntry);
+						RTMP_STA_SECURITY_INFO_ADD(pAd, BSS0, idx, pEntry);
 					}
 				}
 
@@ -1445,7 +1228,6 @@ VOID PeerBeacon(
 					}
 					DBGPRINT(RT_DEBUG_TRACE, ("ADHOC  fOP_STATUS_MEDIA_STATE_CONNECTED.\n"));
 				}
-#endif /* RT2870 */
 			}
 
 			if (INFRA_ON(pAd))
@@ -1534,28 +1316,32 @@ VOID PeerBeacon(
 				//  5. otherwise, put PHY back to sleep to save battery.
 				if (MessageToMe)
 				{
-#ifdef RT2860
+#ifdef RTMP_MAC_PCI
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 					{
+						// Restore to correct BBP R3 value
+						if (pAd->Antenna.field.RxPath > 1)
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
+						// Turn clk to 80Mhz.
 					}
-#endif
+#endif // RTMP_MAC_PCI //
 					if (pAd->CommonCfg.bAPSDCapable && pAd->CommonCfg.APEdcaParm.bAPSDCapable &&
 						pAd->CommonCfg.bAPSDAC_BE && pAd->CommonCfg.bAPSDAC_BK && pAd->CommonCfg.bAPSDAC_VI && pAd->CommonCfg.bAPSDAC_VO)
 					{
 						pAd->CommonCfg.bNeedSendTriggerFrame = TRUE;
 					}
 					else
-						RT28XX_PS_POLL_ENQUEUE(pAd);
+						RTMP_PS_POLL_ENQUEUE(pAd);
 				}
 				else if (BcastFlag && (DtimCount == 0) && OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_RECEIVE_DTIM))
 				{
-#ifdef RT2860
+#ifdef RTMP_MAC_PCI
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 					{
+						if (pAd->Antenna.field.RxPath > 1)
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
 					}
-#endif
+#endif // RTMP_MAC_PCI //
 				}
 				else if ((pAd->TxSwQueue[QID_AC_BK].Number != 0)													||
 						(pAd->TxSwQueue[QID_AC_BE].Number != 0)														||
@@ -1569,12 +1355,42 @@ VOID PeerBeacon(
 				{
 					// TODO: consider scheduled HCCA. might not be proper to use traditional DTIM-based power-saving scheme
 					// can we cheat here (i.e. just check MGMT & AC_BE) for better performance?
-#ifdef RT2860
+#ifdef RTMP_MAC_PCI
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 					{
+						if (pAd->Antenna.field.RxPath > 1)
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
 					}
-#endif
+#endif // RTMP_MAC_PCI //
+				}
+				else
+				{
+					if ((pAd->CommonCfg.bACMAPSDTr[QID_AC_VO]) ||
+						(pAd->CommonCfg.bACMAPSDTr[QID_AC_VI]) ||
+						(pAd->CommonCfg.bACMAPSDTr[QID_AC_BK]) ||
+						(pAd->CommonCfg.bACMAPSDTr[QID_AC_BE]))
+					{
+						/*
+							WMM Spec v1.0 3.6.2.4,
+							The WMM STA shall remain awake until it receives a
+							QoS Data or Null frame addressed to it, with the
+							EOSP subfield in QoS Control field set to 1.
+
+							So we can not sleep here or we will suffer a case:
+
+							PS Management Frame -->
+							Trigger frame -->
+							Beacon (TIM=0) (Beacon is closer to Trig frame) -->
+							Station goes to sleep -->
+							AP delivery queued UAPSD packets -->
+							Station can NOT receive the reply
+
+							Maybe we need a timeout timer to avoid that we do
+							NOT receive the EOSP frame.
+
+							We can not use More Data to check if SP is ended
+							due to MaxSPLength.
+						*/
 				}
 				else
 				{
@@ -1589,14 +1405,10 @@ VOID PeerBeacon(
 
 					if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 					{
-#ifdef RT2860
 						// Set a flag to go to sleep . Then after parse this RxDoneInterrupt, will go to sleep mode.
-						RTMP_SET_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
 						pAd->ThisTbttNumToNextWakeUp = TbttNumToNextWakeUp;
-#endif
-#ifdef RT2870
-						AsicSleepThenAutoWakeup(pAd, TbttNumToNextWakeUp);
-#endif
+		                                        AsicSleepThenAutoWakeup(pAd, pAd->ThisTbttNumToNextWakeUp);
+						}
 					}
 				}
 			}
@@ -1825,6 +1637,8 @@ VOID InvalidStateWhenStart(
 VOID EnqueuePsPoll(
 	IN PRTMP_ADAPTER pAd)
 {
+
+
 	if (pAd->StaCfg.WindowsPowerMode == Ndis802_11PowerModeLegacy_PSP)
     	pAd->PsPollFrame.FC.PwrMgmt = PWR_SAVE;
 	MiniportMMRequest(pAd, 0, (PUCHAR)&pAd->PsPollFrame, sizeof(PSPOLL_FRAME));

@@ -36,6 +36,10 @@
 	Jan            03-25-2006    created
 
 */
+
+#ifdef RTMP_MAC_USB
+
+
 #include "../rt_config.h"
 
 extern  UCHAR Phy11BGNextRateUpward[]; // defined in mlme.c
@@ -68,6 +72,26 @@ VOID REPORT_AMSDU_FRAMES_TO_LLC(
 	}
 }
 
+
+/*
+	========================================================================
+
+	Routine	Description:
+		This subroutine will scan through releative ring descriptor to find
+		out avaliable free ring descriptor and compare with request size.
+
+	Arguments:
+		pAd	Pointer	to our adapter
+		RingType	Selected Ring
+
+	Return Value:
+		NDIS_STATUS_FAILURE		Not enough free descriptor
+		NDIS_STATUS_SUCCESS		Enough free descriptor
+
+	Note:
+
+	========================================================================
+*/
 NDIS_STATUS	RTUSBFreeDescriptorRequest(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			BulkOutPipeId,
@@ -193,6 +217,36 @@ VOID	RTUSBRejectPendingPackets(
 
 }
 
+
+/*
+	========================================================================
+
+	Routine	Description:
+		Calculates the duration which is required to transmit out frames
+	with given size and specified rate.
+
+	Arguments:
+		pTxD		Pointer to transmit descriptor
+		Ack			Setting for Ack requirement bit
+		Fragment	Setting for Fragment bit
+		RetryMode	Setting for retry mode
+		Ifs			Setting for IFS gap
+		Rate		Setting for transmit rate
+		Service		Setting for service
+		Length		Frame length
+		TxPreamble  Short or Long preamble when using CCK rates
+		QueIdx - 0-3, according to 802.11e/d4.4 June/2003
+
+	Return Value:
+		None
+
+	IRQL = PASSIVE_LEVEL
+	IRQL = DISPATCH_LEVEL
+
+	========================================================================
+*/
+
+
 VOID RTMPWriteTxInfo(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PTXINFO_STRUC 	pTxInfo,
@@ -214,3 +268,4 @@ VOID RTMPWriteTxInfo(
 	pTxInfo->rsv2 = 0;
 }
 
+#endif // RTMP_MAC_USB //
