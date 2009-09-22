@@ -1031,6 +1031,7 @@ int __weak alloc_bootmem_huge_page(struct hstate *h)
 				NODE_DATA(h->next_nid_to_alloc),
 				huge_page_size(h), huge_page_size(h), 0);
 
+		hstate_next_node_to_alloc(h);
 		if (addr) {
 			/*
 			 * Use the beginning of the huge page to store the
@@ -1040,7 +1041,6 @@ int __weak alloc_bootmem_huge_page(struct hstate *h)
 			m = addr;
 			goto found;
 		}
-		hstate_next_node_to_alloc(h);
 		nr_nodes--;
 	}
 	return 0;
