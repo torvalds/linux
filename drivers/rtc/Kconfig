@@ -810,4 +810,14 @@ config RTC_DRV_COH901331
 	  will be called "rtc-coh901331".
 
 
+config RTC_DRV_STMP
+	tristate "Freescale STMP3xxx RTC"
+	depends on ARCH_STMP3XXX
+	help
+	  If you say yes here you will get support for the onboard
+	  STMP3xxx RTC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-stmp3xxx.
+
 endif # RTC_CLASS
