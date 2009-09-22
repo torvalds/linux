@@ -7,6 +7,10 @@ config FB_OMAP
 	help
           Frame buffer driver for OMAP based boards.
 
+config FB_OMAP_LCD_VGA
+        bool "Use LCD in VGA mode"
+	        depends on MACH_OMAP_3430SDP || MACH_OMAP_LDP
+
 choice
 	depends on FB_OMAP && MACH_OVERO
 	prompt "Screen resolution"
