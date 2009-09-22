@@ -108,7 +108,8 @@ swsusp_arch_resume:
 #ifdef CONFIG_SMP
 	/* Save boot cpu number */
 	brasl	%r14,smp_get_phys_cpu_id
-	lgr	%r10,%r2
+	larl	%r1,saved_cpu_id
+	st	%r2,0(%r1)
 #endif
 	/* Deactivate DAT */
 	stnsm	__SF_EMPTY(%r15),0xfb
@@ -135,6 +136,29 @@ swsusp_arch_resume:
 	jnz	0b
 2:
 	ptlb				/* flush tlb */
+
+	/* Reset System */
+	larl	%r1,restart_entry
+	larl	%r2,restart_psw
+	og	%r1,0(%r2)
+	stg	%r1,0(%r0)
+	larl	%r1,saved_pgm_check_psw
+	mvc	0(16,%r1),__LC_PGM_NEW_PSW(%r0)
+	larl	%r1,new_pgm_check_psw
+	epsw	%r2,%r3
+	stm	%r2,%r3,0(%r1)
+	mvc	__LC_PGM_NEW_PSW(16,%r0),0(%r1)
+	lghi	%r0,0
+	diag	%r0,%r0,0x308
+restart_entry:
+	lhi	%r1,1
+	sigp	%r1,%r0,0x12
+	sam64
+	larl	%r1,new_pgm_check_psw
+	lpswe	0(%r1)
+pgm_check_entry:
+	larl	%r1,saved_pgm_check_psw
+	mvc	__LC_PGM_NEW_PSW(16,%r0),0(%r1)
 
 	/* Restore registers */
 	lghi	%r13,0x1000		/* %r1 = pointer to save arae */
@@ -171,7 +195,8 @@ swsusp_arch_resume:
 
 #ifdef CONFIG_SMP
 	/* Switch CPUs */
-	lgr	%r2,%r10		/* get cpu id */
+	larl	%r1,saved_cpu_id
+	llgf	%r2,0(%r1)
 	llgf	%r3,0x318(%r13)
 	brasl	%r14,smp_switch_boot_cpu_in_resume
 #endif
@@ -189,3 +214,16 @@ swsusp_arch_resume:
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)
 	lghi	%r2,0
 	br	%r14
+
+	.section .data.nosave,"aw",@progbits
+	.align	8
+restart_psw:
+	.long	0x00080000,0x80000000
+new_pgm_check_psw:
+	.quad	0,pgm_check_entry
+saved_pgm_check_psw:
+	.quad	0,0
+#ifdef CONFIG_SMP
+saved_cpu_id:
+	.long	0
+#endif
