@@ -397,6 +397,11 @@ static __init void da850_evm_init(void)
 	ret = da8xx_register_rtc();
 	if (ret)
 		pr_warning("da850_evm_init: rtc setup failed: %d\n", ret);
+
+	ret = da850_register_cpufreq();
+	if (ret)
+		pr_warning("da850_evm_init: cpufreq registration failed: %d\n",
+				ret);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
