@@ -152,6 +152,36 @@ while (<MAINT>) {
 }
 close(MAINT);
 
+my %mailmap;
+
+open(MAILMAP, "<${lk_path}.mailmap") || warn "$P: Can't open .mailmap\n";
+while (<MAILMAP>) {
+    my $line = $_;
+
+    next if ($line =~ m/^\s*#/);
+    next if ($line =~ m/^\s*$/);
+
+    my ($name, $address) = parse_email($line);
+    $line = format_email($name, $address);
+
+    next if ($line =~ m/^\s*$/);
+
+    if (exists($mailmap{$name})) {
+	my $obj = $mailmap{$name};
+	push(@$obj, $address);
+    } else {
+	my @arr = ($address);
+	$mailmap{$name} = \@arr;
+    }
+}
+close(MAILMAP);
+
+foreach my $name (sort {$mailmap{$a} <=> $mailmap{$b}} keys %mailmap) {
+    my $obj = $mailmap{$name};
+    foreach my $address (@$obj) {
+    }
+}
+
 ## use the filenames on the command line or find the filenames in the patchfiles
 
 my @files = ();
@@ -403,12 +433,12 @@ sub parse_email {
     my $name = "";
     my $address = "";
 
-    if ($formatted_email =~ /^([^<]+)<(.*\@.*)>$/) {
+    if ($formatted_email =~ /^([^<]+)<(.*\@.*)>.*$/) {
 	$name = $1;
 	$address = $2;
-    } elsif ($formatted_email =~ /^<(.*\@.*)>$/) {
+    } elsif ($formatted_email =~ /^\s*<(.*\@.*)>.*$/) {
 	$address = $1;
-    } elsif ($formatted_email =~ /^(.*\@.*)$/) {
+    } elsif ($formatted_email =~ /^\s*(.*\@.*)$/) {
 	$address = $1;
     }
 
@@ -557,6 +587,29 @@ sub which {
     return "";
 }
 
+sub mailmap {
+    my @lines = @_;
+    my %hash;
+
+    foreach my $line (@lines) {
+	my ($name, $address) = parse_email($line);
+	if (!exists($hash{$name})) {
+	    $hash{$name} = $address;
+	}
+	if (exists($mailmap{$name})) {
+	    my $obj = $mailmap{$name};
+	    foreach my $map_address (@$obj) {
+		if (($map_address eq $address) &&
+		    ($map_address ne $hash{$name})) {
+		    $line = format_email($name, $hash{$name});
+		}
+	    }
+	}
+    }
+
+    return @lines;
+}
+
 sub recent_git_signoffs {
     my ($file) = @_;
 
@@ -592,9 +645,10 @@ sub recent_git_signoffs {
     # cut -f2- -d":"
     s/.*:\s*(.+)\s*/$1/ for (@lines);
 
+    $total_sign_offs = @lines;
+
     @lines = mailmap(@lines);
 
-    $total_sign_offs = @lines;
     @lines = sort(@lines);
     # uniq -c
     foreach my $line (@lines) {
@@ -655,12 +709,12 @@ sub git_assign_blame {
 	    my $diff_start = $2;
 	    my $diff_length = $3;
 	    next if (!("$file" eq "$diff_file"));
-	    $cmd = "git blame -l -L $diff_start,+$diff_length $file\n";
+	    $cmd = "git blame -l -L $diff_start,+$diff_length $file";
 	    @commits = save_commits($cmd, @commits);
 	}
     } else {
 	if (-f $file) {
-	    $cmd = "git blame -l $file\n";
+	    $cmd = "git blame -l $file";
 	    @commits = save_commits($cmd, @commits);
 	}
     }
@@ -678,11 +732,15 @@ sub git_assign_blame {
 	if (!$email_git_penguin_chiefs) {
 	    @lines = grep(!/${penguin_chiefs}/i, @lines);
 	}
+
 	# cut -f2- -d":"
 	s/.*:\s*(.+)\s*/$1/ for (@lines);
 
-	$hash{$_}++ for @lines;
 	$total_sign_offs += @lines;
+
+	@lines = mailmap(@lines);
+
+	$hash{$_}++ for @lines;
     }
 
     $count = 0;
