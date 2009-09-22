@@ -560,7 +560,7 @@ nilfs_fh_to_parent(struct super_block *sb, struct fid *fid, int fh_len,
 				    nilfs_nfs_get_inode);
 }
 
-static struct export_operations nilfs_export_ops = {
+static const struct export_operations nilfs_export_ops = {
 	.fh_to_dentry = nilfs_fh_to_dentry,
 	.fh_to_parent = nilfs_fh_to_parent,
 	.get_parent = nilfs_get_parent,
