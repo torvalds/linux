@@ -102,6 +102,9 @@ swsusp_arch_resume:
 	aghi	%r15,-STACK_FRAME_OVERHEAD
 	stg	%r1,__SF_BACKCHAIN(%r15)
 
+	/* Make all free pages stable */
+	lghi	%r2,1
+	brasl	%r14,arch_set_page_states
 #ifdef CONFIG_SMP
 	/* Save boot cpu number */
 	brasl	%r14,smp_get_phys_cpu_id
@@ -177,6 +180,10 @@ swsusp_arch_resume:
 
 	/* Activate DAT */
 	stosm	__SF_EMPTY(%r15),0x04
+
+	/* Make all free pages unstable */
+	lghi	%r2,0
+	brasl	%r14,arch_set_page_states
 
 	/* Return 0 */
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)
