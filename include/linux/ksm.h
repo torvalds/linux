@@ -12,11 +12,14 @@
 #include <linux/sched.h>
 #include <linux/vmstat.h>
 
+struct mmu_gather;
+
 #ifdef CONFIG_KSM
 int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 		unsigned long end, int advice, unsigned long *vm_flags);
 int __ksm_enter(struct mm_struct *mm);
-void __ksm_exit(struct mm_struct *mm);
+void __ksm_exit(struct mm_struct *mm,
+		struct mmu_gather **tlbp, unsigned long end);
 
 static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 {
@@ -25,10 +28,24 @@ static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 	return 0;
 }
 
-static inline void ksm_exit(struct mm_struct *mm)
+/*
+ * For KSM to handle OOM without deadlock when it's breaking COW in a
+ * likely victim of the OOM killer, exit_mmap() has to serialize with
+ * ksm_exit() after freeing mm's pages but before freeing its page tables.
+ * That leaves a window in which KSM might refault pages which have just
+ * been finally unmapped: guard against that with ksm_test_exit(), and
+ * use it after getting mmap_sem in ksm.c, to check if mm is exiting.
+ */
+static inline bool ksm_test_exit(struct mm_struct *mm)
+{
+	return atomic_read(&mm->mm_users) == 0;
+}
+
+static inline void ksm_exit(struct mm_struct *mm,
+			    struct mmu_gather **tlbp, unsigned long end)
 {
 	if (test_bit(MMF_VM_MERGEABLE, &mm->flags))
-		__ksm_exit(mm);
+		__ksm_exit(mm, tlbp, end);
 }
 
 /*
@@ -64,7 +81,13 @@ static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 	return 0;
 }
 
-static inline void ksm_exit(struct mm_struct *mm)
+static inline bool ksm_test_exit(struct mm_struct *mm)
+{
+	return 0;
+}
+
+static inline void ksm_exit(struct mm_struct *mm,
+			    struct mmu_gather **tlbp, unsigned long end)
 {
 }
 

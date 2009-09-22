@@ -27,6 +27,7 @@
 #include <linux/mount.h>
 #include <linux/mempolicy.h>
 #include <linux/rmap.h>
+#include <linux/ksm.h>
 #include <linux/mmu_notifier.h>
 #include <linux/perf_event.h>
 
@@ -2111,6 +2112,14 @@ void exit_mmap(struct mm_struct *mm)
 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
 	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
+
+	/*
+	 * For KSM to handle OOM without deadlock when it's breaking COW in a
+	 * likely victim of the OOM killer, we must serialize with ksm_exit()
+	 * after freeing mm's pages but before freeing its page tables.
+	 */
+	ksm_exit(mm, &tlb, end);
+
 	free_pgtables(tlb, vma, FIRST_USER_ADDRESS, 0);
 	tlb_finish_mmu(tlb, 0, end);
 
