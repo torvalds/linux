@@ -185,6 +185,8 @@ driver returns ENOIOCTLCMD.  Some common examples:
 	hardware in the irq_set_freq function.  If it isn't, return -EINVAL.  If
 	you cannot actually change the frequency, do not define irq_set_freq.
 
+    *	RTC_PIE_ON, RTC_PIE_OFF: the irq_set_state function will be called.
+
 If all else fails, check out the rtc-test.c driver!
 
 
