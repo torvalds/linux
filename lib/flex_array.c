@@ -291,3 +291,43 @@ void *flex_array_get(struct flex_array *fa, unsigned int element_nr)
 	}
 	return &part->elements[index_inside_part(fa, element_nr)];
 }
+
+static int part_is_free(struct flex_array_part *part)
+{
+	int i;
+
+	for (i = 0; i < sizeof(struct flex_array_part); i++)
+		if (part->elements[i] != FLEX_ARRAY_FREE)
+			return 0;
+	return 1;
+}
+
+/**
+ * flex_array_shrink - free unused second-level pages
+ *
+ * Frees all second-level pages that consist solely of unused
+ * elements.  Returns the number of pages freed.
+ *
+ * Locking must be provided by the caller.
+ */
+int flex_array_shrink(struct flex_array *fa)
+{
+	struct flex_array_part *part;
+	int max_part = nr_base_part_ptrs();
+	int part_nr;
+	int ret = 0;
+
+	if (elements_fit_in_base(fa))
+		return ret;
+	for (part_nr = 0; part_nr < max_part; part_nr++) {
+		part = fa->parts[part_nr];
+		if (!part)
+			continue;
+		if (part_is_free(part)) {
+			fa->parts[part_nr] = NULL;
+			kfree(part);
+			ret++;
+		}
+	}
+	return ret;
+}

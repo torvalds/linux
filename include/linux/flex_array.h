@@ -46,5 +46,6 @@ int flex_array_put(struct flex_array *fa, unsigned int element_nr, void *src,
 		gfp_t flags);
 int flex_array_clear(struct flex_array *fa, unsigned int element_nr);
 void *flex_array_get(struct flex_array *fa, unsigned int element_nr);
+int flex_array_shrink(struct flex_array *fa);
 
 #endif /* _FLEX_ARRAY_H */
