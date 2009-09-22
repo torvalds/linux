@@ -32,7 +32,6 @@ int viafb_lcd_dsp_method = LCD_EXPANDSION;
 int viafb_lcd_mode = LCD_OPENLDI;
 int viafb_bpp = 32;
 int viafb_bpp1 = 32;
-int viafb_accel = 1;
 int viafb_CRT_ON = 1;
 int viafb_DVI_ON;
 int viafb_LCD_ON ;

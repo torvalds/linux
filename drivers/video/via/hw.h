@@ -855,7 +855,6 @@ extern int viafb_dual_fb;
 extern int viafb_LCD2_ON;
 extern int viafb_LCD_ON;
 extern int viafb_DVI_ON;
-extern int viafb_accel;
 extern int viafb_hotplug;
 
 void viafb_write_reg_mask(u8 index, int io_port, u8 data, u8 mask);

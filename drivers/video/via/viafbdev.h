@@ -51,7 +51,9 @@ struct viafb_shared {
 	struct chip_information chip_info;
 
 	/* hardware acceleration stuff */
+	void __iomem *engine_mmio;
 	u32 cursor_vram_addr;
+	u32 vq_vram_addr;	/* virtual queue address in video ram */
 	int (*hw_bitblt)(void __iomem *engine, u8 op, u32 width, u32 height,
 		u8 dst_bpp, u32 dst_addr, u32 dst_pitch, u32 dst_x, u32 dst_y,
 		u32 *src_mem, u32 src_addr, u32 src_pitch, u32 src_x, u32 src_y,
@@ -61,13 +63,11 @@ struct viafb_shared {
 struct viafb_par {
 	u8 depth;
 	u32 vram_addr;
-	void __iomem *io_virt;	/*iospace virtual memory address */
+
 	unsigned int fbmem;	/*framebuffer physical memory address */
 	unsigned int memsize;	/*size of fbmem */
 	u32 fbmem_free;		/* Free FB memory */
 	u32 fbmem_used;		/* Use FB memory size */
-	u32 VQ_start;		/* Virtual Queue Start Address */
-	u32 VQ_end;		/* Virtual Queue End Address */
 	u32 iga_path;
 
 	struct viafb_shared *shared;
@@ -90,7 +90,6 @@ extern int viafb_dual_fb;
 extern int viafb_LCD2_ON;
 extern int viafb_LCD_ON;
 extern int viafb_DVI_ON;
-extern int viafb_accel;
 extern int viafb_hotplug;
 extern int viafb_memsize;
 

@@ -33,6 +33,8 @@ static u32 pseudo_pal[17];
 static char *viafb_mode = "640x480";
 static char *viafb_mode1 = "640x480";
 
+static int viafb_accel = 1;
+
 /* Added for specifying active devices.*/
 char *viafb_active_dev = "";
 
@@ -140,6 +142,9 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 
 	/* Adjust var according to our driver's own table */
 	viafb_fill_var_timing_info(var, viafb_refresh, vmode_index);
+	if (info->var.accel_flags & FB_ACCELF_TEXT &&
+		!ppar->shared->engine_mmio)
+		info->var.accel_flags = 0;
 
 	return 0;
 }
@@ -177,8 +182,10 @@ static int viafb_set_par(struct fb_info *info)
 
 		viafb_update_fix(info);
 		viafb_bpp = info->var.bits_per_pixel;
-		/* Update viafb_accel, it is necessary to our 2D accelerate */
-		viafb_accel = info->var.accel_flags;
+		if (info->var.accel_flags & FB_ACCELF_TEXT)
+			info->flags &= ~FBINFO_HWACCEL_DISABLED;
+		else
+			info->flags |= FBINFO_HWACCEL_DISABLED;
 	}
 
 	return 0;
@@ -764,10 +771,11 @@ static void viafb_fillrect(struct fb_info *info,
 	const struct fb_fillrect *rect)
 {
 	struct viafb_par *viapar = info->par;
+	struct viafb_shared *shared = viapar->shared;
 	u32 fg_color;
 	u8 rop;
 
-	if (!viapar->shared->hw_bitblt) {
+	if (info->flags & FBINFO_HWACCEL_DISABLED || !shared->hw_bitblt) {
 		cfb_fillrect(info, rect);
 		return;
 	}
@@ -786,7 +794,7 @@ static void viafb_fillrect(struct fb_info *info,
 		rop = 0xF0;
 
 	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: fillrect\n");
-	if (viapar->shared->hw_bitblt(viapar->io_virt, VIA_BITBLT_FILL,
+	if (shared->hw_bitblt(shared->engine_mmio, VIA_BITBLT_FILL,
 		rect->width, rect->height, info->var.bits_per_pixel,
 		viapar->vram_addr, info->fix.line_length, rect->dx, rect->dy,
 		NULL, 0, 0, 0, 0, fg_color, 0, rop))
@@ -797,8 +805,9 @@ static void viafb_copyarea(struct fb_info *info,
 	const struct fb_copyarea *area)
 {
 	struct viafb_par *viapar = info->par;
+	struct viafb_shared *shared = viapar->shared;
 
-	if (!viapar->shared->hw_bitblt) {
+	if (info->flags & FBINFO_HWACCEL_DISABLED || !shared->hw_bitblt) {
 		cfb_copyarea(info, area);
 		return;
 	}
@@ -807,7 +816,7 @@ static void viafb_copyarea(struct fb_info *info,
 		return;
 
 	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: copyarea\n");
-	if (viapar->shared->hw_bitblt(viapar->io_virt, VIA_BITBLT_COLOR,
+	if (shared->hw_bitblt(shared->engine_mmio, VIA_BITBLT_COLOR,
 		area->width, area->height, info->var.bits_per_pixel,
 		viapar->vram_addr, info->fix.line_length, area->dx, area->dy,
 		NULL, viapar->vram_addr, info->fix.line_length,
@@ -819,10 +828,11 @@ static void viafb_imageblit(struct fb_info *info,
 	const struct fb_image *image)
 {
 	struct viafb_par *viapar = info->par;
+	struct viafb_shared *shared = viapar->shared;
 	u32 fg_color = 0, bg_color = 0;
 	u8 op;
 
-	if (!viapar->shared->hw_bitblt ||
+	if (info->flags & FBINFO_HWACCEL_DISABLED || !shared->hw_bitblt ||
 		(image->depth != 1 && image->depth != viapar->depth)) {
 		cfb_imageblit(info, image);
 		return;
@@ -843,7 +853,7 @@ static void viafb_imageblit(struct fb_info *info,
 		op = VIA_BITBLT_COLOR;
 
 	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: imageblit\n");
-	if (viapar->shared->hw_bitblt(viapar->io_virt, op,
+	if (shared->hw_bitblt(shared->engine_mmio, op,
 		image->width, image->height, info->var.bits_per_pixel,
 		viapar->vram_addr, info->fix.line_length, image->dx, image->dy,
 		(u32 *)image->data, 0, 0, 0, 0, fg_color, bg_color, 0))
@@ -853,6 +863,7 @@ static void viafb_imageblit(struct fb_info *info,
 static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
 	struct viafb_par *viapar = info->par;
+	void __iomem *engine = viapar->shared->engine_mmio;
 	u32 temp, xx, yy, bg_color = 0, fg_color = 0,
 		chip_name = viapar->shared->chip_info.gfx_chip_name;
 	int i, j = 0, cur_size = 64;
@@ -867,7 +878,7 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 	if (cursor->set & FB_CUR_SETHOT) {
 		temp = (cursor->hot.x << 16) + cursor->hot.y;
-		writel(temp, viapar->io_virt + VIA_REG_CURSOR_ORG);
+		writel(temp, engine + VIA_REG_CURSOR_ORG);
 	}
 
 	if (cursor->set & FB_CUR_SETPOS) {
@@ -875,7 +886,7 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		xx = cursor->image.dx - info->var.xoffset;
 		temp = yy & 0xFFFF;
 		temp |= (xx << 16);
-		writel(temp, viapar->io_virt + VIA_REG_CURSOR_POS);
+		writel(temp, engine + VIA_REG_CURSOR_POS);
 	}
 
 	if (cursor->image.width <= 32 && cursor->image.height <= 32)
@@ -889,13 +900,13 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	}
 
 	if (cursor->set & FB_CUR_SETSIZE) {
-		temp = readl(viapar->io_virt + VIA_REG_CURSOR_MODE);
+		temp = readl(engine + VIA_REG_CURSOR_MODE);
 		if (cur_size == 32)
 			temp |= 0x2;
 		else
 			temp &= ~0x2;
 
-		writel(temp, viapar->io_virt + VIA_REG_CURSOR_MODE);
+		writel(temp, engine + VIA_REG_CURSOR_MODE);
 	}
 
 	if (cursor->set & FB_CUR_SETCMAP) {
@@ -922,8 +933,8 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 				((info->cmap.blue[bg_color] & 0xFF00) >> 8);
 		}
 
-		writel(bg_color, viapar->io_virt + VIA_REG_CURSOR_BG);
-		writel(fg_color, viapar->io_virt + VIA_REG_CURSOR_FG);
+		writel(bg_color, engine + VIA_REG_CURSOR_BG);
+		writel(fg_color, engine + VIA_REG_CURSOR_FG);
 	}
 
 	if (cursor->set & FB_CUR_SETSHAPE) {
@@ -996,8 +1007,8 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 static int viafb_sync(struct fb_info *info)
 {
-	if (viafb_accel)
-		viafb_wait_engine_idle();
+	if (!(info->flags & FBINFO_HWACCEL_DISABLED))
+		viafb_wait_engine_idle(info);
 	return 0;
 }
 
@@ -1867,22 +1878,18 @@ static int __devinit via_pci_probe(void)
 
 	viafb_get_mmio_info(&viafbinfo->fix.mmio_start,
 		&viafbinfo->fix.mmio_len);
-	viaparinfo->io_virt = ioremap_nocache(viafbinfo->fix.mmio_start,
-		viafbinfo->fix.mmio_len);
-	if (!viaparinfo->io_virt) {
-		printk(KERN_WARNING "ioremap failed: hardware acceleration disabled\n");
-		viafb_accel = 0;
-	}
-
 	viafbinfo->node = 0;
 	viafbinfo->fbops = &viafb_ops;
 	viafbinfo->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
 
 	viafbinfo->pseudo_palette = pseudo_pal;
-	if (viafb_accel) {
-		viafb_init_accel(viaparinfo->shared);
-		viafb_init_2d_engine();
-		viafb_hw_cursor_init();
+	if (viafb_accel && !viafb_init_engine(viafbinfo)) {
+		viafbinfo->flags |= FBINFO_HWACCEL_COPYAREA |
+			FBINFO_HWACCEL_FILLRECT |  FBINFO_HWACCEL_IMAGEBLIT;
+		default_var.accel_flags = FB_ACCELF_TEXT;
+	} else {
+		viafbinfo->flags |= FBINFO_HWACCEL_DISABLED;
+		default_var.accel_flags = 0;
 	}
 
 	if (viafb_second_size && (viafb_second_size < 8)) {
@@ -1963,15 +1970,6 @@ static int __devinit via_pci_probe(void)
 	default_var.lower_margin = 4;
 	default_var.hsync_len = default_var.left_margin;
 	default_var.vsync_len = 4;
-	default_var.accel_flags = 0;
-
-	if (viafb_accel) {
-		viafbinfo->flags |=
-		    (FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT |
-		     FBINFO_HWACCEL_IMAGEBLIT);
-		default_var.accel_flags |= FB_ACCELF_TEXT;
-	} else
-		viafbinfo->flags |= FBINFO_HWACCEL_DISABLED;
 
 	if (viafb_dual_fb) {
 		viafbinfo1 = framebuffer_alloc(viafb_par_length, NULL);
@@ -1994,12 +1992,6 @@ static int __devinit via_pci_probe(void)
 			viaparinfo1->fbmem_used;
 		viaparinfo->fbmem_free = viaparinfo->memsize;
 		viaparinfo->fbmem_used = 0;
-		if (viafb_accel) {
-			viaparinfo1->VQ_start = viaparinfo->VQ_start -
-				viafb_second_offset;
-			viaparinfo1->VQ_end = viaparinfo->VQ_end -
-				viafb_second_offset;
-		}
 
 		viaparinfo->iga_path = IGA1;
 		viaparinfo1->iga_path = IGA2;
@@ -2073,7 +2065,7 @@ static void __devexit via_pci_remove(void)
 	if (viafb_dual_fb)
 		unregister_framebuffer(viafbinfo1);
 	iounmap((void *)viafbinfo->screen_base);
-	iounmap(viaparinfo->io_virt);
+	iounmap(viaparinfo->shared->engine_mmio);
 
 	viafb_delete_i2c_buss(viaparinfo);
 
@@ -2235,7 +2227,7 @@ MODULE_PARM_DESC(viafb_SAMM_ON,
 
 module_param(viafb_accel, int, 0);
 MODULE_PARM_DESC(viafb_accel,
-	"Set 2D Hardware Acceleration.(Default = OFF)");
+	"Set 2D Hardware Acceleration: 0 = OFF, 1 = ON (default)");
 
 module_param(viafb_active_dev, charp, 0);
 MODULE_PARM_DESC(viafb_active_dev, "Specify active devices.");

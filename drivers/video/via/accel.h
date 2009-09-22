@@ -163,10 +163,8 @@
 #define VIA_BITBLT_MONO		2
 #define VIA_BITBLT_FILL		3
 
-void viafb_init_accel(struct viafb_shared *shared);
-void viafb_init_2d_engine(void);
-void viafb_hw_cursor_init(void);
-void viafb_show_hw_cursor(struct fb_info *info, int Status); int
-viafb_wait_engine_idle(void); void viafb_set_2d_color_depth(int bpp);
+int viafb_init_engine(struct fb_info *info);
+void viafb_show_hw_cursor(struct fb_info *info, int Status);
+void viafb_wait_engine_idle(struct fb_info *info);
 
 #endif /* __ACCEL_H__ */
