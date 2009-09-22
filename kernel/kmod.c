@@ -143,6 +143,7 @@ struct subprocess_info {
 static int ____call_usermodehelper(void *data)
 {
 	struct subprocess_info *sub_info = data;
+	enum umh_wait wait = sub_info->wait;
 	int retval;
 
 	BUG_ON(atomic_read(&sub_info->cred->usage) != 1);
@@ -184,10 +185,14 @@ static int ____call_usermodehelper(void *data)
 	 */
 	set_user_nice(current, 0);
 
+	if (wait == UMH_WAIT_EXEC)
+		complete(sub_info->complete);
+
 	retval = kernel_execve(sub_info->path, sub_info->argv, sub_info->envp);
 
 	/* Exec failed? */
-	sub_info->retval = retval;
+	if (wait != UMH_WAIT_EXEC)
+		sub_info->retval = retval;
 	do_exit(0);
 }
 
@@ -266,16 +271,14 @@ static void __call_usermodehelper(struct work_struct *work)
 
 	switch (wait) {
 	case UMH_NO_WAIT:
+	case UMH_WAIT_EXEC:
 		break;
 
 	case UMH_WAIT_PROC:
 		if (pid > 0)
 			break;
 		sub_info->retval = pid;
-		/* FALLTHROUGH */
-
-	case UMH_WAIT_EXEC:
-		complete(sub_info->complete);
+		break;
 	}
 }
 
