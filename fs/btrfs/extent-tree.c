@@ -6756,22 +6756,16 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 
 	/*
 	 * if this is the last block group we have in this space, we can't
-	 * relocate it.
+	 * relocate it unless we're able to allocate a new chunk below.
+	 *
+	 * Otherwise, we need to make sure we have room in the space to handle
+	 * all of the extents from this block group.  If we can, we're good
 	 */
-	if (space_info->total_bytes == block_group->key.offset) {
-		ret = -1;
-		spin_unlock(&space_info->lock);
-		goto out;
-	}
-
-	/*
-	 * need to make sure we have room in the space to handle all of the
-	 * extents from this block group.  If we can, we're good
-	 */
-	if (space_info->bytes_used + space_info->bytes_reserved +
+	if ((space_info->total_bytes != block_group->key.offset) &&
+	   (space_info->bytes_used + space_info->bytes_reserved +
 	    space_info->bytes_pinned + space_info->bytes_readonly +
 	    btrfs_block_group_used(&block_group->item) <
-	    space_info->total_bytes) {
+	    space_info->total_bytes)) {
 		spin_unlock(&space_info->lock);
 		goto out;
 	}
