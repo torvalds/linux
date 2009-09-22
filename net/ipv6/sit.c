@@ -161,6 +161,21 @@ static void ipip6_tunnel_link(struct sit_net *sitn, struct ip_tunnel *t)
 	write_unlock_bh(&ipip6_lock);
 }
 
+static void ipip6_tunnel_clone_6rd(struct ip_tunnel *t, struct sit_net *sitn)
+{
+#ifdef CONFIG_IPV6_SIT_6RD
+	if (t->dev == sitn->fb_tunnel_dev) {
+		ipv6_addr_set(&t->ip6rd.prefix, htonl(0x20020000), 0, 0, 0);
+		t->ip6rd.relay_prefix = 0;
+		t->ip6rd.prefixlen = 16;
+		t->ip6rd.relay_prefixlen = 0;
+	} else {
+		struct ip_tunnel *t0 = netdev_priv(sitn->fb_tunnel_dev);
+		memcpy(&t->ip6rd, &t0->ip6rd, sizeof(t->ip6rd));
+	}
+#endif
+}
+
 static struct ip_tunnel * ipip6_tunnel_locate(struct net *net,
 		struct ip_tunnel_parm *parms, int create)
 {
@@ -212,6 +227,8 @@ static struct ip_tunnel * ipip6_tunnel_locate(struct net *net,
 		goto failed_free;
 
 	dev_hold(dev);
+
+	ipip6_tunnel_clone_6rd(t, sitn);
 
 	ipip6_tunnel_link(sitn, nt);
 	return nt;
@@ -532,17 +549,41 @@ out:
 	return 0;
 }
 
-/* Returns the embedded IPv4 address if the IPv6 address
-   comes from 6to4 (RFC 3056) addr space */
-
-static inline __be32 try_6to4(struct in6_addr *v6dst)
+/*
+ * Returns the embedded IPv4 address if the IPv6 address
+ * comes from 6rd / 6to4 (RFC 3056) addr space.
+ */
+static inline
+__be32 try_6rd(struct in6_addr *v6dst, struct ip_tunnel *tunnel)
 {
 	__be32 dst = 0;
 
+#ifdef CONFIG_IPV6_SIT_6RD
+	if (ipv6_prefix_equal(v6dst, &tunnel->ip6rd.prefix,
+			      tunnel->ip6rd.prefixlen)) {
+		unsigned pbw0, pbi0;
+		int pbi1;
+		u32 d;
+
+		pbw0 = tunnel->ip6rd.prefixlen >> 5;
+		pbi0 = tunnel->ip6rd.prefixlen & 0x1f;
+
+		d = (ntohl(tunnel->ip6rd.prefix.s6_addr32[pbw0]) << pbi0) >>
+		    tunnel->ip6rd.relay_prefixlen;
+
+		pbi1 = pbi0 - tunnel->ip6rd.relay_prefixlen;
+		if (pbi1 > 0)
+			d |= ntohl(tunnel->ip6rd.prefix.s6_addr32[pbw0 + 1]) >>
+			     (32 - pbi1);
+
+		dst = tunnel->ip6rd.relay_prefix | htonl(d);
+	}
+#else
 	if (v6dst->s6_addr16[0] == htons(0x2002)) {
 		/* 6to4 v6 addr has 16 bits prefix, 32 v4addr, 16 SLA, ... */
 		memcpy(&dst, &v6dst->s6_addr16[1], 4);
 	}
+#endif
 	return dst;
 }
 
@@ -596,7 +637,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	}
 
 	if (!dst)
-		dst = try_6to4(&iph6->daddr);
+		dst = try_6rd(&iph6->daddr, tunnel);
 
 	if (!dst) {
 		struct neighbour *neigh = NULL;
@@ -786,9 +827,15 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct ip_tunnel *t;
 	struct net *net = dev_net(dev);
 	struct sit_net *sitn = net_generic(net, sit_net_id);
+#ifdef CONFIG_IPV6_SIT_6RD
+	struct ip_tunnel_6rd ip6rd;
+#endif
 
 	switch (cmd) {
 	case SIOCGETTUNNEL:
+#ifdef CONFIG_IPV6_SIT_6RD
+	case SIOCGET6RD:
+#endif
 		t = NULL;
 		if (dev == sitn->fb_tunnel_dev) {
 			if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p))) {
@@ -799,9 +846,25 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 		}
 		if (t == NULL)
 			t = netdev_priv(dev);
-		memcpy(&p, &t->parms, sizeof(p));
-		if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
-			err = -EFAULT;
+
+		err = -EFAULT;
+		if (cmd == SIOCGETTUNNEL) {
+			memcpy(&p, &t->parms, sizeof(p));
+			if (copy_to_user(ifr->ifr_ifru.ifru_data, &p,
+					 sizeof(p)))
+				goto done;
+#ifdef CONFIG_IPV6_SIT_6RD
+		} else {
+			ipv6_addr_copy(&ip6rd.prefix, &t->ip6rd.prefix);
+			ip6rd.relay_prefix = t->ip6rd.relay_prefix;
+			ip6rd.prefixlen = t->ip6rd.prefixlen;
+			ip6rd.relay_prefixlen = t->ip6rd.relay_prefixlen;
+			if (copy_to_user(ifr->ifr_ifru.ifru_data, &ip6rd,
+					 sizeof(ip6rd)))
+				goto done;
+#endif
+		}
+		err = 0;
 		break;
 
 	case SIOCADDTUNNEL:
@@ -921,6 +984,51 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 		}
 		netdev_state_change(dev);
 		break;
+
+#ifdef CONFIG_IPV6_SIT_6RD
+	case SIOCADD6RD:
+	case SIOCCHG6RD:
+	case SIOCDEL6RD:
+		err = -EPERM;
+		if (!capable(CAP_NET_ADMIN))
+			goto done;
+
+		err = -EFAULT;
+		if (copy_from_user(&ip6rd, ifr->ifr_ifru.ifru_data,
+				   sizeof(ip6rd)))
+			goto done;
+
+		t = netdev_priv(dev);
+
+		if (cmd != SIOCDEL6RD) {
+			struct in6_addr prefix;
+			__be32 relay_prefix;
+
+			err = -EINVAL;
+			if (ip6rd.relay_prefixlen > 32 ||
+			    ip6rd.prefixlen + (32 - ip6rd.relay_prefixlen) > 64)
+				goto done;
+
+			ipv6_addr_prefix(&prefix, &ip6rd.prefix,
+					 ip6rd.prefixlen);
+			if (!ipv6_addr_equal(&prefix, &ip6rd.prefix))
+				goto done;
+			relay_prefix = ip6rd.relay_prefix &
+				       htonl(0xffffffffUL <<
+					     (32 - ip6rd.relay_prefixlen));
+			if (relay_prefix != ip6rd.relay_prefix)
+				goto done;
+
+			ipv6_addr_copy(&t->ip6rd.prefix, &prefix);
+			t->ip6rd.relay_prefix = relay_prefix;
+			t->ip6rd.prefixlen = ip6rd.prefixlen;
+			t->ip6rd.relay_prefixlen = ip6rd.relay_prefixlen;
+		} else
+			ipip6_tunnel_clone_6rd(t, sitn);
+
+		err = 0;
+		break;
+#endif
 
 	default:
 		err = -EINVAL;

@@ -7,6 +7,15 @@
 /* Keep error state on tunnel for 30 sec */
 #define IPTUNNEL_ERR_TIMEO	(30*HZ)
 
+/* 6rd prefix/relay information */
+struct ip_tunnel_6rd_parm
+{
+	struct in6_addr		prefix;
+	__be32			relay_prefix;
+	u16			prefixlen;
+	u16			relay_prefixlen;
+};
+
 struct ip_tunnel
 {
 	struct ip_tunnel	*next;
@@ -23,6 +32,10 @@ struct ip_tunnel
 
 	struct ip_tunnel_parm	parms;
 
+	/* for SIT */
+#ifdef CONFIG_IPV6_SIT_6RD
+	struct ip_tunnel_6rd_parm	ip6rd;
+#endif
 	struct ip_tunnel_prl_entry	*prl;		/* potential router list */
 	unsigned int			prl_count;	/* # of entries in PRL */
 };
