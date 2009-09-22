@@ -337,6 +337,7 @@ int viafb_init_engine(struct fb_info *info)
 		viapar->shared->hw_bitblt = hw_bitblt_1;
 		break;
 	case UNICHROME_VX800:
+	case UNICHROME_VX855:
 		viapar->shared->hw_bitblt = hw_bitblt_2;
 		break;
 	default:
