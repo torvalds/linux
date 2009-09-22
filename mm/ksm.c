@@ -4,11 +4,12 @@
  * This code enables dynamic sharing of identical pages found in different
  * memory areas, even if they are not shared by fork()
  *
- * Copyright (C) 2008 Red Hat, Inc.
+ * Copyright (C) 2008-2009 Red Hat, Inc.
  * Authors:
  *	Izik Eidus
  *	Andrea Arcangeli
  *	Chris Wright
+ *	Hugh Dickins
  *
  * This work is licensed under the terms of the GNU GPL, version 2.
  */
