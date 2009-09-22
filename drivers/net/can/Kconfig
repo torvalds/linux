@@ -89,6 +89,12 @@ config CAN_KVASER_PCI
 	  This driver is for the the PCIcanx and PCIcan cards (1, 2 or
 	  4 channel) from Kvaser (http://www.kvaser.com).
 
+config CAN_AT91
+	tristate "Atmel AT91 onchip CAN controller"
+	depends on CAN && CAN_DEV && ARCH_AT91SAM9263
+	---help---
+	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263.
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN
