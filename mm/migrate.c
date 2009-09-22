@@ -68,7 +68,7 @@ int putback_lru_pages(struct list_head *l)
 	list_for_each_entry_safe(page, page2, l, lru) {
 		list_del(&page->lru);
 		dec_zone_page_state(page, NR_ISOLATED_ANON +
-				    !!page_is_file_cache(page));
+				page_is_file_cache(page));
 		putback_lru_page(page);
 		count++;
 	}
@@ -701,7 +701,7 @@ unlock:
  		 */
  		list_del(&page->lru);
 		dec_zone_page_state(page, NR_ISOLATED_ANON +
-				    !!page_is_file_cache(page));
+				page_is_file_cache(page));
 		putback_lru_page(page);
 	}
 
@@ -751,7 +751,7 @@ int migrate_pages(struct list_head *from,
 	local_irq_save(flags);
 	list_for_each_entry(page, from, lru)
 		__inc_zone_page_state(page, NR_ISOLATED_ANON +
-				      !!page_is_file_cache(page));
+				page_is_file_cache(page));
 	local_irq_restore(flags);
 
 	if (!swapwrite)

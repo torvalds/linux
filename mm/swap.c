@@ -189,7 +189,7 @@ void activate_page(struct page *page)
 		add_page_to_lru_list(zone, page, lru);
 		__count_vm_event(PGACTIVATE);
 
-		update_page_reclaim_stat(zone, page, !!file, 1);
+		update_page_reclaim_stat(zone, page, file, 1);
 	}
 	spin_unlock_irq(&zone->lru_lock);
 }

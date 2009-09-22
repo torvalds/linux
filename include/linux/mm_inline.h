@@ -5,7 +5,7 @@
  * page_is_file_cache - should the page be on a file LRU or anon LRU?
  * @page: the page to test
  *
- * Returns LRU_FILE if @page is page cache page backed by a regular filesystem,
+ * Returns 1 if @page is page cache page backed by a regular filesystem,
  * or 0 if @page is anonymous, tmpfs or otherwise ram or swap backed.
  * Used by functions that manipulate the LRU lists, to sort a page
  * onto the right LRU list.
@@ -16,11 +16,7 @@
  */
 static inline int page_is_file_cache(struct page *page)
 {
-	if (PageSwapBacked(page))
-		return 0;
-
-	/* The page is page cache backed by a normal filesystem. */
-	return LRU_FILE;
+	return !PageSwapBacked(page);
 }
 
 static inline void

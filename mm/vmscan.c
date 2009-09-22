@@ -821,7 +821,7 @@ int __isolate_lru_page(struct page *page, int mode, int file)
 	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode))
 		return ret;
 
-	if (mode != ISOLATE_BOTH && (!page_is_file_cache(page) != !file))
+	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
 		return ret;
 
 	/*
