@@ -313,22 +313,22 @@ if ($email || $email_list) {
 }
 
 if ($scm) {
-    @scm = sort_and_uniq(@scm);
+    @scm = uniq(@scm);
     output(@scm);
 }
 
 if ($status) {
-    @status = sort_and_uniq(@status);
+    @status = uniq(@status);
     output(@status);
 }
 
 if ($subsystem) {
-    @subsystem = sort_and_uniq(@subsystem);
+    @subsystem = uniq(@subsystem);
     output(@subsystem);
 }
 
 if ($web) {
-    @web = sort_and_uniq(@web);
+    @web = uniq(@web);
     output(@web);
 }
 
@@ -442,7 +442,7 @@ sub parse_email {
 	$address = $2;
     } elsif ($formatted_email =~ /^\s*<(.+\@\S*)>.*$/) {
 	$address = $1;
-    } elsif ($formatted_email =~ /^(.+\@\S*)$/) {
+    } elsif ($formatted_email =~ /^(.+\@\S*).*$/) {
 	$address = $1;
     }
 
@@ -485,12 +485,46 @@ sub format_email {
     return $formatted_email;
 }
 
+sub find_starting_index {
+
+    my ($index) = @_;
+
+    while ($index > 0) {
+	my $tv = $typevalue[$index];
+	if (!($tv =~ m/^(\C):\s*(.*)/)) {
+	    last;
+	}
+	$index--;
+    }
+
+    return $index;
+}
+
+sub find_ending_index {
+    my ($index) = @_;
+
+    while ($index < @typevalue) {
+	my $tv = $typevalue[$index];
+	if (!($tv =~ m/^(\C):\s*(.*)/)) {
+	    last;
+	}
+	$index++;
+    }
+
+    return $index;
+}
+
 sub add_categories {
     my ($index) = @_;
 
-    $index = $index - 1;
-    while ($index >= 0) {
-	my $tv = $typevalue[$index];
+    my $i;
+    my $start = find_starting_index($index);
+    my $end = find_ending_index($index);
+
+    push(@subsystem, $typevalue[$start]);
+
+    for ($i = $start + 1; $i < $end; $i++) {
+	my $tv = $typevalue[$i];
 	if ($tv =~ m/^(\C):\s*(.*)/) {
 	    my $ptype = $1;
 	    my $pvalue = $2;
@@ -513,11 +547,12 @@ sub add_categories {
 	    } elsif ($ptype eq "M") {
 		my ($name, $address) = parse_email($pvalue);
 		if ($name eq "") {
-		    if ($index >= 0) {
-			my $tv = $typevalue[$index - 1];
+		    if ($i > 0) {
+			my $tv = $typevalue[$i - 1];
 			if ($tv =~ m/^(\C):\s*(.*)/) {
 			    if ($1 eq "P") {
 				$name = $2;
+				$pvalue = format_email($name, $address);
 			    }
 			}
 		    }
@@ -532,11 +567,6 @@ sub add_categories {
 	    } elsif ($ptype eq "S") {
 		push(@status, $pvalue);
 	    }
-
-	    $index--;
-	} else {
-	    push(@subsystem,$tv);
-	    $index = -1;
 	}
     }
 }
@@ -559,6 +589,10 @@ sub push_email_address {
 
     my ($name, $address) = parse_email($line);
 
+    if ($address eq "") {
+	return 0;
+    }
+
     if (!$email_remove_duplicates) {
 	push(@email_to, format_email($name, $address));
     } elsif (!email_inuse($name, $address)) {
@@ -566,6 +600,8 @@ sub push_email_address {
 	$email_hash_name{$name}++;
 	$email_hash_address{$address}++;
     }
+
+    return 1;
 }
 
 sub push_email_addresses {
@@ -581,7 +617,9 @@ sub push_email_addresses {
 	    push_email_address($entry);
 	}
     } else {
-	warn("Invalid MAINTAINERS address: '" . $address . "'\n");
+	if (!push_email_address($address)) {
+	    warn("Invalid MAINTAINERS address: '" . $address . "'\n");
+	}
     }
 }
 
