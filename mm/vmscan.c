@@ -148,8 +148,8 @@ static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
 	return &zone->reclaim_stat;
 }
 
-static unsigned long zone_nr_pages(struct zone *zone, struct scan_control *sc,
-				   enum lru_list lru)
+static unsigned long zone_nr_lru_pages(struct zone *zone,
+				struct scan_control *sc, enum lru_list lru)
 {
 	if (!scanning_global_lru(sc))
 		return mem_cgroup_zone_nr_pages(sc->mem_cgroup, zone, lru);
@@ -1489,10 +1489,10 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 	unsigned long ap, fp;
 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
 
-	anon  = zone_nr_pages(zone, sc, LRU_ACTIVE_ANON) +
-		zone_nr_pages(zone, sc, LRU_INACTIVE_ANON);
-	file  = zone_nr_pages(zone, sc, LRU_ACTIVE_FILE) +
-		zone_nr_pages(zone, sc, LRU_INACTIVE_FILE);
+	anon  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_ANON) +
+		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_ANON);
+	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
+		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_FILE);
 
 	if (scanning_global_lru(sc)) {
 		free  = zone_page_state(zone, NR_FREE_PAGES);
@@ -1600,7 +1600,7 @@ static void shrink_zone(int priority, struct zone *zone,
 		int file = is_file_lru(l);
 		unsigned long scan;
 
-		scan = zone_nr_pages(zone, sc, l);
+		scan = zone_nr_lru_pages(zone, sc, l);
 		if (priority || noswap) {
 			scan >>= priority;
 			scan = (scan * percent[file]) / 100;
