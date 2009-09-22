@@ -187,12 +187,14 @@ Regular chown, chgrp, and chmod commands (with right permissions) could be
 used to change the file attributes on hugetlbfs.
 
 Also, it is important to note that no such mount command is required if the
-applications are going to use only shmat/shmget system calls.  Users who
-wish to use hugetlb page via shared memory segment should be a member of
-a supplementary group and system admin needs to configure that gid into
-/proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
-applications to use any combination of mmaps and shm* calls, though the
-mount of filesystem will be required for using mmap calls.
+applications are going to use only shmat/shmget system calls or mmap with
+MAP_HUGETLB.  Users who wish to use hugetlb page via shared memory segment
+should be a member of a supplementary group and system admin needs to
+configure that gid into /proc/sys/vm/hugetlb_shm_group.  It is possible for
+same or different applications to use any combination of mmaps and shm*
+calls, though the mount of filesystem will be required for using mmap calls
+without MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
+map_hugetlb.c.
 
 *******************************************************************
 
