@@ -86,6 +86,9 @@ struct omap_mmc_platform_data {
 		/* nonremovable e.g. eMMC */
 		unsigned nonremovable:1;
 
+		/* Try to sleep or power off when possible */
+		unsigned power_saving:1;
+
 		int switch_pin;			/* gpio (card detect) */
 		int gpio_wp;			/* gpio (write protect) */
 
