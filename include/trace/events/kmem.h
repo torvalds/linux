@@ -225,6 +225,80 @@ TRACE_EVENT(kmem_cache_free,
 
 	TP_printk("call_site=%lx ptr=%p", __entry->call_site, __entry->ptr)
 );
+
+TRACE_EVENT(mm_page_free_direct,
+
+	TP_PROTO(struct page *page, unsigned int order),
+
+	TP_ARGS(page, order),
+
+	TP_STRUCT__entry(
+		__field(	struct page *,	page		)
+		__field(	unsigned int,	order		)
+	),
+
+	TP_fast_assign(
+		__entry->page		= page;
+		__entry->order		= order;
+	),
+
+	TP_printk("page=%p pfn=%lu order=%d",
+			__entry->page,
+			page_to_pfn(__entry->page),
+			__entry->order)
+);
+
+TRACE_EVENT(mm_pagevec_free,
+
+	TP_PROTO(struct page *page, int cold),
+
+	TP_ARGS(page, cold),
+
+	TP_STRUCT__entry(
+		__field(	struct page *,	page		)
+		__field(	int,		cold		)
+	),
+
+	TP_fast_assign(
+		__entry->page		= page;
+		__entry->cold		= cold;
+	),
+
+	TP_printk("page=%p pfn=%lu order=0 cold=%d",
+			__entry->page,
+			page_to_pfn(__entry->page),
+			__entry->cold)
+);
+
+TRACE_EVENT(mm_page_alloc,
+
+	TP_PROTO(struct page *page, unsigned int order,
+			gfp_t gfp_flags, int migratetype),
+
+	TP_ARGS(page, order, gfp_flags, migratetype),
+
+	TP_STRUCT__entry(
+		__field(	struct page *,	page		)
+		__field(	unsigned int,	order		)
+		__field(	gfp_t,		gfp_flags	)
+		__field(	int,		migratetype	)
+	),
+
+	TP_fast_assign(
+		__entry->page		= page;
+		__entry->order		= order;
+		__entry->gfp_flags	= gfp_flags;
+		__entry->migratetype	= migratetype;
+	),
+
+	TP_printk("page=%p pfn=%lu order=%d migratetype=%d gfp_flags=%s",
+		__entry->page,
+		page_to_pfn(__entry->page),
+		__entry->order,
+		__entry->migratetype,
+		show_gfp_flags(__entry->gfp_flags))
+);
+
 #endif /* _TRACE_KMEM_H */
 
 /* This part must be outside protection */
