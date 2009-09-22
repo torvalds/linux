@@ -872,10 +872,10 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 	} else
 		inode->i_rdev = 0;
 
-	inode->i_size = stat->length;
+	i_size_write(inode, stat->length);
 
 	/* not real number of blocks, but 512 byte ones ... */
-	inode->i_blocks = (inode->i_size + 512 - 1) >> 9;
+	inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
 }
 
 /**

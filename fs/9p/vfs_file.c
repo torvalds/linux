@@ -72,7 +72,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 			return err;
 		}
 		if (omode & P9_OTRUNC) {
-			inode->i_size = 0;
+			i_size_write(inode, 0);
 			inode->i_blocks = 0;
 		}
 		if ((file->f_flags & O_APPEND) && (!v9fs_extended(v9ses)))
@@ -239,9 +239,9 @@ v9fs_file_write(struct file *filp, const char __user * data,
 		*offset += total;
 	}
 
-	if (*offset > inode->i_size) {
-		inode->i_size = *offset;
-		inode->i_blocks = (inode->i_size + 512 - 1) >> 9;
+	if (*offset > i_size_read(inode)) {
+		i_size_write(inode, *offset);
+		inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
 	}
 
 	if (n < 0)
