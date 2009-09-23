@@ -1112,8 +1112,6 @@ static struct pid *task_pid_type(struct task_struct *task, enum pid_type type)
 
 static int eligible_child(struct wait_opts *wo, struct task_struct *p)
 {
-	int err;
-
 	if (wo->wo_type < PIDTYPE_MAX) {
 		if (task_pid_type(p, wo->wo_type) != wo->wo_pid)
 			return 0;
@@ -1127,10 +1125,6 @@ static int eligible_child(struct wait_opts *wo, struct task_struct *p)
 	if (((p->exit_signal != SIGCHLD) ^ !!(wo->wo_flags & __WCLONE))
 	    && !(wo->wo_flags & __WALL))
 		return 0;
-
-	err = security_task_wait(p);
-	if (err)
-		return err;
 
 	return 1;
 }
@@ -1492,6 +1486,7 @@ static int wait_consider_task(struct wait_opts *wo, struct task_struct *parent,
 	if (!ret)
 		return ret;
 
+	ret = security_task_wait(p);
 	if (unlikely(ret < 0)) {
 		/*
 		 * If we have not yet seen any eligible child,
