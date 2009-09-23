@@ -895,6 +895,13 @@ F:	drivers/dma/
 F:	include/linux/dmaengine.h
 F:	include/linux/async_tx.h
 
+AT24 EEPROM DRIVER
+M:	Wolfram Sang <w.sang@pengutronix.de>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	drivers/misc/eeprom/at24.c
+F:	include/linux/i2c/at24.h
+
 ATA OVER ETHERNET (AOE) DRIVER
 M:	"Ed L. Cashin" <ecashin@coraid.com>
 W:	http://www.coraid.com/support/linux
@@ -3963,6 +3970,15 @@ M:	Riku Voipio <riku.voipio@iki.fi>
 S:	Maintained
 F:	drivers/leds/leds-pca9532.c
 F:	include/linux/leds-pca9532.h
+
+PCA9564/PCA9665 I2C BUS DRIVER
+M:	Wolfram Sang <w.sang@pengutronix.de>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	drivers/i2c/algos/i2c-algo-pca.c
+F:	drivers/i2c/busses/i2c-pca-*
+F:	include/linux/i2c-algo-pca.h
+F:	include/linux/i2c-pca-platform.h
 
 PCI ERROR RECOVERY
 M:	Linas Vepstas <linas@austin.ibm.com>

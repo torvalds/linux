@@ -27,6 +27,7 @@
 
 static const struct i2c_device_id pcf857x_id[] = {
 	{ "pcf8574", 8 },
+	{ "pcf8574a", 8 },
 	{ "pca8574", 8 },
 	{ "pca9670", 8 },
 	{ "pca9672", 8 },
