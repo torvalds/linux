@@ -101,7 +101,7 @@ int cap_settime(struct timespec *ts, struct timezone *tz)
 }
 
 /**
- * cap_ptrace_may_access - Determine whether the current process may access
+ * cap_ptrace_access_check - Determine whether the current process may access
  *			   another
  * @child: The process to be accessed
  * @mode: The mode of attachment.
@@ -109,7 +109,7 @@ int cap_settime(struct timespec *ts, struct timezone *tz)
  * Determine whether a process may access another, returning 0 if permission
  * granted, -ve if denied.
  */
-int cap_ptrace_may_access(struct task_struct *child, unsigned int mode)
+int cap_ptrace_access_check(struct task_struct *child, unsigned int mode)
 {
 	int ret = 0;
 

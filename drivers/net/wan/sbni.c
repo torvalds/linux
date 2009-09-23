@@ -114,7 +114,8 @@ static int  sbni_pci_probe( struct net_device  * );
 static struct net_device  *sbni_probe1(struct net_device *, unsigned long, int);
 static int  sbni_open( struct net_device * );
 static int  sbni_close( struct net_device * );
-static int  sbni_start_xmit( struct sk_buff *, struct net_device * );
+static netdev_tx_t sbni_start_xmit(struct sk_buff *,
+					 struct net_device * );
 static int  sbni_ioctl( struct net_device *, struct ifreq *, int );
 static void  set_multicast_list( struct net_device * );
 
@@ -444,7 +445,7 @@ sbni_probe1( struct net_device  *dev,  unsigned long  ioaddr,  int  irq )
 
 #ifdef CONFIG_SBNI_MULTILINE
 
-static int
+static netdev_tx_t
 sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 {
 	struct net_device  *p;
@@ -463,7 +464,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 			prepare_to_send( skb, p );
 			spin_unlock( &nl->lock );
 			netif_start_queue( dev );
-			return  0;
+			return NETDEV_TX_OK;
 		}
 	}
 
@@ -472,7 +473,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 
 #else	/* CONFIG_SBNI_MULTILINE */
 
-static int
+static netdev_tx_t
 sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 {
 	struct net_local  *nl  = netdev_priv(dev);
@@ -483,7 +484,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 	prepare_to_send( skb, dev );
 
 	spin_unlock( &nl->lock );
-	return  0;
+	return NETDEV_TX_OK;
 }
 
 #endif	/* CONFIG_SBNI_MULTILINE */

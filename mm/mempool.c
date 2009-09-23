@@ -308,13 +308,6 @@ void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data)
 }
 EXPORT_SYMBOL(mempool_kmalloc);
 
-void *mempool_kzalloc(gfp_t gfp_mask, void *pool_data)
-{
-	size_t size = (size_t)pool_data;
-	return kzalloc(size, gfp_mask);
-}
-EXPORT_SYMBOL(mempool_kzalloc);
-
 void mempool_kfree(void *element, void *pool_data)
 {
 	kfree(element);

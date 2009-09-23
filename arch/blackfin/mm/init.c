@@ -33,6 +33,7 @@
 #include <asm/bfin-global.h>
 #include <asm/pda.h>
 #include <asm/cplbinit.h>
+#include <asm/early_printk.h>
 #include "blackfin_sram.h"
 
 /*
@@ -112,6 +113,8 @@ void __init paging_init(void)
 asmlinkage void __init init_pda(void)
 {
 	unsigned int cpu = raw_smp_processor_id();
+
+	early_shadow_stamp();
 
 	/* Initialize the PDA fields holding references to other parts
 	   of the memory. The content of such memory is still

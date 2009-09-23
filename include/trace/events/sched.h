@@ -344,6 +344,134 @@ TRACE_EVENT(sched_signal_send,
 		  __entry->sig, __entry->comm, __entry->pid)
 );
 
+/*
+ * XXX the below sched_stat tracepoints only apply to SCHED_OTHER/BATCH/IDLE
+ *     adding sched_stat support to SCHED_FIFO/RR would be welcome.
+ */
+
+/*
+ * Tracepoint for accounting wait time (time the task is runnable
+ * but not actually running due to scheduler contention).
+ */
+TRACE_EVENT(sched_stat_wait,
+
+	TP_PROTO(struct task_struct *tsk, u64 delay),
+
+	TP_ARGS(tsk, delay),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,	pid			)
+		__field( u64,	delay			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid	= tsk->pid;
+		__entry->delay	= delay;
+	)
+	TP_perf_assign(
+		__perf_count(delay);
+	),
+
+	TP_printk("task: %s:%d wait: %Lu [ns]",
+			__entry->comm, __entry->pid,
+			(unsigned long long)__entry->delay)
+);
+
+/*
+ * Tracepoint for accounting runtime (time the task is executing
+ * on a CPU).
+ */
+TRACE_EVENT(sched_stat_runtime,
+
+	TP_PROTO(struct task_struct *tsk, u64 runtime, u64 vruntime),
+
+	TP_ARGS(tsk, runtime, vruntime),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,	pid			)
+		__field( u64,	runtime			)
+		__field( u64,	vruntime			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid		= tsk->pid;
+		__entry->runtime	= runtime;
+		__entry->vruntime	= vruntime;
+	)
+	TP_perf_assign(
+		__perf_count(runtime);
+	),
+
+	TP_printk("task: %s:%d runtime: %Lu [ns], vruntime: %Lu [ns]",
+			__entry->comm, __entry->pid,
+			(unsigned long long)__entry->runtime,
+			(unsigned long long)__entry->vruntime)
+);
+
+/*
+ * Tracepoint for accounting sleep time (time the task is not runnable,
+ * including iowait, see below).
+ */
+TRACE_EVENT(sched_stat_sleep,
+
+	TP_PROTO(struct task_struct *tsk, u64 delay),
+
+	TP_ARGS(tsk, delay),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,	pid			)
+		__field( u64,	delay			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid	= tsk->pid;
+		__entry->delay	= delay;
+	)
+	TP_perf_assign(
+		__perf_count(delay);
+	),
+
+	TP_printk("task: %s:%d sleep: %Lu [ns]",
+			__entry->comm, __entry->pid,
+			(unsigned long long)__entry->delay)
+);
+
+/*
+ * Tracepoint for accounting iowait time (time the task is not runnable
+ * due to waiting on IO to complete).
+ */
+TRACE_EVENT(sched_stat_iowait,
+
+	TP_PROTO(struct task_struct *tsk, u64 delay),
+
+	TP_ARGS(tsk, delay),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,	pid			)
+		__field( u64,	delay			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid	= tsk->pid;
+		__entry->delay	= delay;
+	)
+	TP_perf_assign(
+		__perf_count(delay);
+	),
+
+	TP_printk("task: %s:%d iowait: %Lu [ns]",
+			__entry->comm, __entry->pid,
+			(unsigned long long)__entry->delay)
+);
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */

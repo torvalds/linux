@@ -74,6 +74,7 @@
 #define INTEL_LVDS_CLONE_BIT 14
 #define INTEL_DVO_TMDS_CLONE_BIT 15
 #define INTEL_DVO_LVDS_CLONE_BIT 16
+#define INTEL_EDP_CLONE_BIT 17
 
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
@@ -116,9 +117,9 @@ struct intel_crtc {
 	uint32_t cursor_addr;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	int dpms_mode;
-	struct intel_framebuffer *fbdev_fb;
-	/* a mode_set for fbdev users on this crtc */
-	struct drm_mode_set mode_set;
+	bool busy; /* is scanout buffer being updated frequently? */
+	struct timer_list idle_timer;
+	bool lowfreq_avail;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -137,6 +138,7 @@ extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
 extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
+extern void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj);
 extern void intel_lvds_init(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int dp_reg);
 void
@@ -177,4 +179,5 @@ extern int intel_framebuffer_create(struct drm_device *dev,
 				    struct drm_mode_fb_cmd *mode_cmd,
 				    struct drm_framebuffer **fb,
 				    struct drm_gem_object *obj);
+
 #endif /* __INTEL_DRV_H__ */

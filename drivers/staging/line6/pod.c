@@ -123,7 +123,7 @@ static void pod_mark_batch_all_dirty(struct usb_line6_pod *pod)
 {
 	int i;
 
-	for (i = POD_CONTROL_SIZE; i--;)
+	for (i = 0; i < POD_CONTROL_SIZE; i++)
 		set_bit(i, pod->param_dirty);
 }
 
@@ -579,8 +579,8 @@ static ssize_t pod_set_dump(struct device *dev, struct device_attribute *attr,
 
 	if (count != sizeof(pod->prog_data)) {
 		dev_err(pod->line6.ifcdev,
-						"data block must be exactly %d bytes\n",
-						(int)sizeof(pod->prog_data));
+			"data block must be exactly %d bytes\n",
+			sizeof(pod->prog_data));
 		return -EINVAL;
 	}
 
@@ -692,7 +692,7 @@ static ssize_t pod_set_dump_buf(struct device *dev,
 	if (count != sizeof(pod->prog_data)) {
 		dev_err(pod->line6.ifcdev,
 						"data block must be exactly %d bytes\n",
-						(int)sizeof(pod->prog_data));
+						sizeof(pod->prog_data));
 		return -EINVAL;
 	}
 

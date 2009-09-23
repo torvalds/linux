@@ -67,6 +67,7 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 	dma_addr_t src, dst;
 	unsigned short src_bidx, dst_bidx;
 	unsigned int data_type;
+	unsigned short acnt;
 	unsigned int count;
 
 	period_size = snd_pcm_lib_period_bytes(substream);
@@ -91,11 +92,12 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		dst_bidx = data_type;
 	}
 
+	acnt = prtd->params->acnt;
 	edma_set_src(lch, src, INCR, W8BIT);
 	edma_set_dest(lch, dst, INCR, W8BIT);
 	edma_set_src_index(lch, src_bidx, 0);
 	edma_set_dest_index(lch, dst_bidx, 0);
-	edma_set_transfer_params(lch, data_type, count, 1, 0, ASYNC);
+	edma_set_transfer_params(lch, acnt, count, 1, 0, ASYNC);
 
 	prtd->period++;
 	if (unlikely(prtd->period >= runtime->periods))
@@ -143,7 +145,7 @@ static int davinci_pcm_dma_request(struct snd_pcm_substream *substream)
 	prtd->master_lch = ret;
 
 	/* Request parameter RAM reload slot */
-	ret = edma_alloc_slot(EDMA_SLOT_ANY);
+	ret = edma_alloc_slot(EDMA_CTLR(prtd->master_lch), EDMA_SLOT_ANY);
 	if (ret < 0) {
 		edma_free_channel(prtd->master_lch);
 		return ret;
@@ -160,8 +162,8 @@ static int davinci_pcm_dma_request(struct snd_pcm_substream *substream)
 	 * so davinci_pcm_enqueue_dma() takes less time in IRQ.
 	 */
 	edma_read_slot(prtd->slave_lch, &p_ram);
-	p_ram.opt |= TCINTEN | EDMA_TCC(prtd->master_lch);
-	p_ram.link_bcntrld = prtd->slave_lch << 5;
+	p_ram.opt |= TCINTEN | EDMA_TCC(EDMA_CHAN_SLOT(prtd->master_lch));
+	p_ram.link_bcntrld = EDMA_CHAN_SLOT(prtd->slave_lch) << 5;
 	edma_write_slot(prtd->slave_lch, &p_ram);
 
 	return 0;
@@ -206,6 +208,7 @@ static int davinci_pcm_prepare(struct snd_pcm_substream *substream)
 	/* Copy self-linked parameter RAM entry into master channel */
 	edma_read_slot(prtd->slave_lch, &temp);
 	edma_write_slot(prtd->master_lch, &temp);
+	davinci_pcm_enqueue_dma(substream);
 
 	return 0;
 }
@@ -243,6 +246,11 @@ static int davinci_pcm_open(struct snd_pcm_substream *substream)
 	int ret = 0;
 
 	snd_soc_set_runtime_hwparams(substream, &davinci_pcm_hardware);
+	/* ensure that buffer size is a multiple of period size */
+	ret = snd_pcm_hw_constraint_integer(runtime,
+						SNDRV_PCM_HW_PARAM_PERIODS);
+	if (ret < 0)
+		return ret;
 
 	prtd = kzalloc(sizeof(struct davinci_runtime_data), GFP_KERNEL);
 	if (prtd == NULL)

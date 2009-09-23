@@ -716,8 +716,10 @@ static int mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *vp, int phy_id, int location, int value);
 static void vortex_timer(unsigned long arg);
 static void rx_oom_timer(unsigned long arg);
-static int vortex_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static int boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t vortex_start_xmit(struct sk_buff *skb,
+				     struct net_device *dev);
+static netdev_tx_t boomerang_start_xmit(struct sk_buff *skb,
+					struct net_device *dev);
 static int vortex_rx(struct net_device *dev);
 static int boomerang_rx(struct net_device *dev);
 static irqreturn_t vortex_interrupt(int irq, void *dev_id);
@@ -2035,7 +2037,7 @@ vortex_error(struct net_device *dev, int status)
 	}
 }
 
-static int
+static netdev_tx_t
 vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vortex_private *vp = netdev_priv(dev);
@@ -2087,10 +2089,10 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			iowrite8(0x00, ioaddr + TxStatus); /* Pop the status stack. */
 		}
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
-static int
+static netdev_tx_t
 boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vortex_private *vp = netdev_priv(dev);
@@ -2177,7 +2179,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	iowrite16(DownUnstall, ioaddr + EL3_CMD);
 	spin_unlock_irqrestore(&vp->lock, flags);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up

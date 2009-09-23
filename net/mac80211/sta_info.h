@@ -30,7 +30,6 @@
  * @WLAN_STA_ASSOC_AP: We're associated to that station, it is an AP.
  * @WLAN_STA_WME: Station is a QoS-STA.
  * @WLAN_STA_WDS: Station is one of our WDS peers.
- * @WLAN_STA_PSPOLL: Station has just PS-polled us.
  * @WLAN_STA_CLEAR_PS_FILT: Clear PS filter in hardware (using the
  *	IEEE80211_TX_CTL_CLEAR_PS_FILT control flag) when the next
  *	frame to this station is transmitted.
@@ -47,7 +46,6 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_ASSOC_AP	= 1<<5,
 	WLAN_STA_WME		= 1<<6,
 	WLAN_STA_WDS		= 1<<7,
-	WLAN_STA_PSPOLL		= 1<<8,
 	WLAN_STA_CLEAR_PS_FILT	= 1<<9,
 	WLAN_STA_MFP		= 1<<10,
 	WLAN_STA_SUSPEND	= 1<<11
@@ -308,6 +306,23 @@ struct sta_info {
 		struct dentry *inactive_ms;
 		struct dentry *last_seq_ctrl;
 		struct dentry *agg_status;
+		struct dentry *aid;
+		struct dentry *dev;
+		struct dentry *rx_packets;
+		struct dentry *tx_packets;
+		struct dentry *rx_bytes;
+		struct dentry *tx_bytes;
+		struct dentry *rx_duplicates;
+		struct dentry *rx_fragments;
+		struct dentry *rx_dropped;
+		struct dentry *tx_fragments;
+		struct dentry *tx_filtered;
+		struct dentry *tx_retry_failed;
+		struct dentry *tx_retry_count;
+		struct dentry *last_signal;
+		struct dentry *last_qual;
+		struct dentry *last_noise;
+		struct dentry *wep_weak_iv_count;
 		bool add_has_run;
 	} debugfs;
 #endif
@@ -339,17 +354,6 @@ static inline void clear_sta_flags(struct sta_info *sta, const u32 flags)
 
 	spin_lock_irqsave(&sta->flaglock, irqfl);
 	sta->flags &= ~flags;
-	spin_unlock_irqrestore(&sta->flaglock, irqfl);
-}
-
-static inline void set_and_clear_sta_flags(struct sta_info *sta,
-					   const u32 set, const u32 clear)
-{
-	unsigned long irqfl;
-
-	spin_lock_irqsave(&sta->flaglock, irqfl);
-	sta->flags |= set;
-	sta->flags &= ~clear;
 	spin_unlock_irqrestore(&sta->flaglock, irqfl);
 }
 

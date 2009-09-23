@@ -843,14 +843,14 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
 		/* Disable all GPEs within this register */
 
-		status = acpi_write(0x00, &this_register->enable_address);
+		status = acpi_hw_write(0x00, &this_register->enable_address);
 		if (ACPI_FAILURE(status)) {
 			goto error_exit;
 		}
 
 		/* Clear any pending GPE events within this register */
 
-		status = acpi_write(0xFF, &this_register->status_address);
+		status = acpi_hw_write(0xFF, &this_register->status_address);
 		if (ACPI_FAILURE(status)) {
 			goto error_exit;
 		}

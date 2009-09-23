@@ -47,6 +47,7 @@
 #include <linux/rculist.h>
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
+#include <asm/mmu_context.h>
 #include <linux/license.h>
 #include <asm/sections.h>
 #include <linux/tracepoint.h>
@@ -369,7 +370,7 @@ EXPORT_SYMBOL_GPL(find_module);
 
 #ifdef CONFIG_SMP
 
-#ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
+#ifndef CONFIG_HAVE_LEGACY_PER_CPU_AREA
 
 static void *percpu_modalloc(unsigned long size, unsigned long align,
 			     const char *name)
@@ -394,7 +395,7 @@ static void percpu_modfree(void *freeme)
 	free_percpu(freeme);
 }
 
-#else /* ... !CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+#else /* ... CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 /* Number of blocks used and allocated. */
 static unsigned int pcpu_num_used, pcpu_num_allocated;
@@ -540,7 +541,7 @@ static int percpu_modinit(void)
 }
 __initcall(percpu_modinit);
 
-#endif /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+#endif /* CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 static unsigned int find_pcpusec(Elf_Ehdr *hdr,
 				 Elf_Shdr *sechdrs,
@@ -1535,6 +1536,10 @@ static void free_module(struct module *mod)
 
 	/* Finally, free the core (containing the module structure) */
 	module_free(mod, mod->module_core);
+
+#ifdef CONFIG_MPU
+	update_protections(current->mm);
+#endif
 }
 
 void *__symbol_get(const char *symbol)
@@ -2237,10 +2242,6 @@ static noinline struct module *load_module(void __user *umod,
 				  sizeof(*mod->ctors), &mod->num_ctors);
 #endif
 
-#ifdef CONFIG_MARKERS
-	mod->markers = section_objs(hdr, sechdrs, secstrings, "__markers",
-				    sizeof(*mod->markers), &mod->num_markers);
-#endif
 #ifdef CONFIG_TRACEPOINTS
 	mod->tracepoints = section_objs(hdr, sechdrs, secstrings,
 					"__tracepoints",
@@ -2956,20 +2957,6 @@ void module_layout(struct module *mod,
 {
 }
 EXPORT_SYMBOL(module_layout);
-#endif
-
-#ifdef CONFIG_MARKERS
-void module_update_markers(void)
-{
-	struct module *mod;
-
-	mutex_lock(&module_mutex);
-	list_for_each_entry(mod, &modules, list)
-		if (!mod->taints)
-			marker_update_probe_range(mod->markers,
-				mod->markers + mod->num_markers);
-	mutex_unlock(&module_mutex);
-}
 #endif
 
 #ifdef CONFIG_TRACEPOINTS

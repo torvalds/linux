@@ -103,6 +103,10 @@ extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);
 extern int gpmc_cs_set_reserved(int cs, int reserved);
 extern int gpmc_cs_reserved(int cs);
+extern int gpmc_prefetch_enable(int cs, int dma_mode,
+					unsigned int u32_count, int is_write);
+extern void gpmc_prefetch_reset(void);
+extern int gpmc_prefetch_status(void);
 extern void __init gpmc_init(void);
 
 #endif

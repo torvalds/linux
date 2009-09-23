@@ -1,22 +1,3 @@
-#if 0
-
-#define TRACE_TXT(text) \
-	{ \
-	  if(dtlk_trace) \
-	  { \
-	    console_print(text); \
-	    console_print("\n"); \
-	  } \
-	}
-
-#define TRACE_CHR(chr) \
-	{ \
-	  if(dtlk_trace) \
-	    console_print(chr); \
-	} \
-
-#endif
-
 #define DTLK_MINOR	0
 #define DTLK_IO_EXTENT	0x02
 

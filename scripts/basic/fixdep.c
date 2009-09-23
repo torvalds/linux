@@ -16,8 +16,7 @@
  * tells make when to remake a file.
  *
  * To use this list as-is however has the drawback that virtually
- * every file in the kernel includes <linux/config.h> which then again
- * includes <linux/autoconf.h>
+ * every file in the kernel includes <linux/autoconf.h>.
  *
  * If the user re-runs make *config, linux/autoconf.h will be
  * regenerated.  make notices that and will rebuild every file which
@@ -126,7 +125,6 @@ char *depfile;
 char *cmdline;
 
 void usage(void)
-
 {
 	fprintf(stderr, "Usage: fixdep <depfile> <target> <cmdline>\n");
 	exit(1);

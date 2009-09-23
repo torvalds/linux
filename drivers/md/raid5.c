@@ -3606,7 +3606,7 @@ static int make_request(struct request_queue *q, struct bio * bi)
 	const int rw = bio_data_dir(bi);
 	int cpu, remaining;
 
-	if (unlikely(bio_barrier(bi))) {
+	if (unlikely(bio_rw_flagged(bi, BIO_RW_BARRIER))) {
 		bio_endio(bi, -EOPNOTSUPP);
 		return 0;
 	}

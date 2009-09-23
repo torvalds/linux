@@ -1,8 +1,6 @@
 #ifndef _DCCP_LI_HIST_
 #define _DCCP_LI_HIST_
 /*
- *  net/dccp/ccids/lib/loss_interval.h
- *
  *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005-7 The University of Waikato, Hamilton, New Zealand.
  *  Copyright (c) 2005-7 Ian McDonald <ian.mcdonald@jandi.co.nz>

@@ -113,12 +113,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 		goto failed;
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	ieee = netdev_priv(dev);
-#else
-	ieee = (struct ieee80211_device *)dev->priv;
-#endif
-
 	memset(ieee, 0, sizeof(struct ieee80211_device)+sizeof_priv);
 	ieee->dev = dev;
 
@@ -166,12 +161,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	ieee80211_softmac_init(ieee);
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13))
 	ieee->pHTInfo = (RT_HIGH_THROUGHPUT*)kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
-#else
-	ieee->pHTInfo = (RT_HIGH_THROUGHPUT*)kmalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
-	memset(ieee->pHTInfo,0,sizeof(RT_HIGH_THROUGHPUT));
-#endif
 	if (ieee->pHTInfo == NULL)
 	{
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for HTInfo\n");
@@ -180,13 +170,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	HTUpdateDefaultSetting(ieee);
 	HTInitializeHTInfo(ieee); //may move to other place.
 	TSInitialize(ieee);
-#if 0
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
- 	INIT_WORK(&ieee->ht_onAssRsp, (void(*)(void*)) HTOnAssocRsp_wq);
-#else
-	INIT_WORK(&ieee->ht_onAssRsp, (void(*)(void*)) HTOnAssocRsp_wq, ieee);
-#endif
-#endif
+
 	for (i = 0; i < IEEE_IBSS_MAC_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&ieee->ibss_mac_hash[i]);
 
@@ -205,22 +189,15 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
  failed:
 	if (dev)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 		free_netdev(dev);
-#else
-		kfree(dev);
-#endif
+
 	return NULL;
 }
 
 
 void free_ieee80211(struct net_device *dev)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	struct ieee80211_device *ieee = netdev_priv(dev);
-#else
-	struct ieee80211_device *ieee = (struct ieee80211_device *)dev->priv;
-#endif
 	int i;
 	//struct list_head *p, *q;
 //	del_timer_sync(&ieee->SwBwTimer);
@@ -241,11 +218,7 @@ void free_ieee80211(struct net_device *dev)
 		if (crypt) {
 			if (crypt->ops) {
 				crypt->ops->deinit(crypt->priv);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 				module_put(crypt->ops->owner);
-#else
-				__MOD_DEC_USE_COUNT(crypt->ops->owner);
-#endif
 			}
 			kfree(crypt);
 			ieee->crypt[i] = NULL;
@@ -253,20 +226,7 @@ void free_ieee80211(struct net_device *dev)
 	}
 
 	ieee80211_networks_free(ieee);
-#if 0
-	for (i = 0; i < IEEE_IBSS_MAC_HASH_SIZE; i++) {
-		list_for_each_safe(p, q, &ieee->ibss_mac_hash[i]) {
-			kfree(list_entry(p, struct ieee_ibss_seq, list));
-			list_del(p);
-		}
-	}
-
-#endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	free_netdev(dev);
-#else
-	kfree(dev);
-#endif
 }
 
 #ifdef CONFIG_IEEE80211_DEBUG
@@ -304,7 +264,7 @@ static int store_debug_level(struct file *file, const char *buffer,
 			     unsigned long count, void *data)
 {
 	char buf[] = "0x00000000";
-	unsigned long len = min(sizeof(buf) - 1, (u32)count);
+	unsigned long len = min(sizeof(buf) - 1, count);
 	char *p = (char *)buf;
 	unsigned long val;
 
@@ -327,16 +287,13 @@ static int store_debug_level(struct file *file, const char *buffer,
 	return strnlen(buf, count);
 }
 
-static int __init ieee80211_init(void)
+int __init ieee80211_debug_init(void)
 {
 	struct proc_dir_entry *e;
 
 	ieee80211_debug_level = debug;
-#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-	ieee80211_proc = create_proc_entry(DRV_NAME, S_IFDIR, proc_net);
-#else
+
 	ieee80211_proc = create_proc_entry(DRV_NAME, S_IFDIR, init_net.proc_net);
-#endif
 	if (ieee80211_proc == NULL) {
 		IEEE80211_ERROR("Unable to create " DRV_NAME
 				" proc directory\n");
@@ -345,11 +302,7 @@ static int __init ieee80211_init(void)
 	e = create_proc_entry("debug_level", S_IFREG | S_IRUGO | S_IWUSR,
 			      ieee80211_proc);
 	if (!e) {
-#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-		remove_proc_entry(DRV_NAME, proc_net);
-#else
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
-#endif
 		ieee80211_proc = NULL;
 		return -EIO;
 	}
@@ -360,34 +313,16 @@ static int __init ieee80211_init(void)
 	return 0;
 }
 
-static void __exit ieee80211_exit(void)
+void __exit ieee80211_debug_exit(void)
 {
 	if (ieee80211_proc) {
 		remove_proc_entry("debug_level", ieee80211_proc);
-#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-		remove_proc_entry(DRV_NAME, proc_net);
-#else
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
-#endif
 		ieee80211_proc = NULL;
 	}
 }
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 #include <linux/moduleparam.h>
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
-
-
-module_exit(ieee80211_exit);
-module_init(ieee80211_init);
-#endif
-#endif
-
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
-EXPORT_SYMBOL(alloc_ieee80211);
-EXPORT_SYMBOL(free_ieee80211);
-#else
-EXPORT_SYMBOL_NOVERS(alloc_ieee80211);
-EXPORT_SYMBOL_NOVERS(free_ieee80211);
 #endif

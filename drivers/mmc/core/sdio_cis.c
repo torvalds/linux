@@ -40,7 +40,7 @@ static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 			nr_strings++;
 	}
 
-	if (buf[i-1] != '\0') {
+	if (nr_strings < 4) {
 		printk(KERN_WARNING "SDIO: ignoring broken CISTPL_VERS_1\n");
 		return 0;
 	}

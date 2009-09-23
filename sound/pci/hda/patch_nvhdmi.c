@@ -377,6 +377,7 @@ static int patch_nvhdmi_2ch(struct hda_codec *codec)
  */
 static struct hda_codec_preset snd_hda_preset_nvhdmi[] = {
 	{ .id = 0x10de0002, .name = "MCP78 HDMI", .patch = patch_nvhdmi_8ch },
+	{ .id = 0x10de0003, .name = "MCP78 HDMI", .patch = patch_nvhdmi_8ch },
 	{ .id = 0x10de0006, .name = "MCP78 HDMI", .patch = patch_nvhdmi_8ch },
 	{ .id = 0x10de0007, .name = "MCP7A HDMI", .patch = patch_nvhdmi_8ch },
 	{ .id = 0x10de0067, .name = "MCP67 HDMI", .patch = patch_nvhdmi_2ch },
@@ -385,6 +386,7 @@ static struct hda_codec_preset snd_hda_preset_nvhdmi[] = {
 };
 
 MODULE_ALIAS("snd-hda-codec-id:10de0002");
+MODULE_ALIAS("snd-hda-codec-id:10de0003");
 MODULE_ALIAS("snd-hda-codec-id:10de0006");
 MODULE_ALIAS("snd-hda-codec-id:10de0007");
 MODULE_ALIAS("snd-hda-codec-id:10de0067");

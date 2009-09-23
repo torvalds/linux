@@ -375,7 +375,7 @@ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
 	return error;
 }
 
-static struct block_device_operations brd_fops = {
+static const struct block_device_operations brd_fops = {
 	.owner =		THIS_MODULE,
 	.locked_ioctl =		brd_ioctl,
 #ifdef CONFIG_BLK_DEV_XIP

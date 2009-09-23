@@ -94,6 +94,16 @@ struct sd {
 #endif
 };
 
+struct i2c_reg_u8 {
+	u8 reg;
+	u8 val;
+};
+
+struct i2c_reg_u16 {
+	u8 reg;
+	u16 val;
+};
+
 static int sd_setbrightness(struct gspca_dev *gspca_dev, s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, s32 *val);
 static int sd_setcontrast(struct gspca_dev *gspca_dev, s32 val);
@@ -403,7 +413,7 @@ static const struct v4l2_pix_format sxga_mode[] = {
 		.priv = 3 | MODE_RAW | MODE_SXGA},
 };
 
-static const int hsv_red_x[] = {
+static const s16 hsv_red_x[] = {
 	41,  44,  46,  48,  50,  52,  54,  56,
 	58,  60,  62,  64,  66,  68,  70,  72,
 	74,  76,  78,  80,  81,  83,  85,  87,
@@ -451,7 +461,7 @@ static const int hsv_red_x[] = {
 	24,  26,  28,  30,  33,  35,  37,  39, 41
 };
 
-static const int hsv_red_y[] = {
+static const s16 hsv_red_y[] = {
 	82,  80,  78,  76,  74,  73,  71,  69,
 	67,  65,  63,  61,  58,  56,  54,  52,
 	50,  48,  46,  44,  41,  39,  37,  35,
@@ -499,7 +509,7 @@ static const int hsv_red_y[] = {
 	96, 94, 92, 91, 89, 87, 85, 84, 82
 };
 
-static const int hsv_green_x[] = {
+static const s16 hsv_green_x[] = {
 	-124, -124, -125, -125, -125, -125, -125, -125,
 	-125, -126, -126, -125, -125, -125, -125, -125,
 	-125, -124, -124, -124, -123, -123, -122, -122,
@@ -547,7 +557,7 @@ static const int hsv_green_x[] = {
 	-120, -120, -121, -122, -122, -123, -123, -124, -124
 };
 
-static const int hsv_green_y[] = {
+static const s16 hsv_green_y[] = {
 	-100, -99, -98, -97, -95, -94, -93, -91,
 	-90, -89, -87, -86, -84, -83, -81, -80,
 	-78, -76, -75, -73, -71, -70, -68, -66,
@@ -595,7 +605,7 @@ static const int hsv_green_y[] = {
 	-109, -108, -107, -106, -105, -104, -103, -102, -100
 };
 
-static const int hsv_blue_x[] = {
+static const s16 hsv_blue_x[] = {
 	112, 113, 114, 114, 115, 116, 117, 117,
 	118, 118, 119, 119, 120, 120, 120, 121,
 	121, 121, 122, 122, 122, 122, 122, 122,
@@ -643,7 +653,7 @@ static const int hsv_blue_x[] = {
 	104, 105, 106, 107, 108, 109, 110, 111, 112
 };
 
-static const int hsv_blue_y[] = {
+static const s16 hsv_blue_y[] = {
 	-11, -13, -15, -17, -19, -21, -23, -25,
 	-27, -29, -31, -33, -35, -37, -39, -41,
 	-43, -45, -46, -48, -50, -52, -54, -55,
@@ -792,21 +802,21 @@ static u8 hv7131r_gain[] = {
 	0x78 /* 8x */
 };
 
-static u8 soi968_init[][2] = {
+static struct i2c_reg_u8 soi968_init[] = {
 	{0x12, 0x80}, {0x0c, 0x00}, {0x0f, 0x1f},
 	{0x11, 0x80}, {0x38, 0x52}, {0x1e, 0x00},
 	{0x33, 0x08}, {0x35, 0x8c}, {0x36, 0x0c},
 	{0x37, 0x04}, {0x45, 0x04}, {0x47, 0xff},
 	{0x3e, 0x00}, {0x3f, 0x00}, {0x3b, 0x20},
 	{0x3a, 0x96}, {0x3d, 0x0a}, {0x14, 0x8e},
-	{0x13, 0x8a}, {0x12, 0x40}, {0x17, 0x13},
+	{0x13, 0x8b}, {0x12, 0x40}, {0x17, 0x13},
 	{0x18, 0x63}, {0x19, 0x01}, {0x1a, 0x79},
 	{0x32, 0x24}, {0x03, 0x00}, {0x11, 0x40},
 	{0x2a, 0x10}, {0x2b, 0xe0}, {0x10, 0x32},
 	{0x00, 0x00}, {0x01, 0x80}, {0x02, 0x80},
 };
 
-static u8 ov7660_init[][2] = {
+static struct i2c_reg_u8 ov7660_init[] = {
 	{0x0e, 0x80}, {0x0d, 0x08}, {0x0f, 0xc3},
 	{0x04, 0xc3}, {0x10, 0x40}, {0x11, 0x40},
 	{0x12, 0x05}, {0x13, 0xba}, {0x14, 0x2a},
@@ -815,7 +825,7 @@ static u8 ov7660_init[][2] = {
 	{0x2e, 0x0b}, {0x01, 0x78}, {0x02, 0x50},
 };
 
-static u8 ov7670_init[][2] = {
+static struct i2c_reg_u8 ov7670_init[] = {
 	{0x12, 0x80}, {0x11, 0x80}, {0x3a, 0x04}, {0x12, 0x01},
 	{0x32, 0xb6}, {0x03, 0x0a}, {0x0c, 0x00}, {0x3e, 0x00},
 	{0x70, 0x3a}, {0x71, 0x35}, {0x72, 0x11}, {0x73, 0xf0},
@@ -872,7 +882,7 @@ static u8 ov7670_init[][2] = {
 	{0x93, 0x00},
 };
 
-static u8 ov9650_init[][2] = {
+static struct i2c_reg_u8 ov9650_init[] = {
 	{0x12, 0x80}, {0x00, 0x00}, {0x01, 0x78},
 	{0x02, 0x78}, {0x03, 0x36}, {0x04, 0x03},
 	{0x05, 0x00}, {0x06, 0x00}, {0x08, 0x00},
@@ -902,7 +912,7 @@ static u8 ov9650_init[][2] = {
 	{0xaa, 0x92}, {0xab, 0x0a},
 };
 
-static u8 ov9655_init[][2] = {
+static struct i2c_reg_u8 ov9655_init[] = {
 	{0x12, 0x80}, {0x12, 0x01}, {0x0d, 0x00}, {0x0e, 0x61},
 	{0x11, 0x80}, {0x13, 0xba}, {0x14, 0x2e}, {0x16, 0x24},
 	{0x1e, 0x04}, {0x1e, 0x04}, {0x1e, 0x04}, {0x27, 0x08},
@@ -939,7 +949,7 @@ static u8 ov9655_init[][2] = {
 	{0x00, 0x03}, {0x00, 0x0a}, {0x00, 0x10}, {0x00, 0x13},
 };
 
-static u16 mt9v112_init[][2] = {
+static struct i2c_reg_u16 mt9v112_init[] = {
 	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0020},
 	{0x34, 0xc019}, {0x0a, 0x0011}, {0x0b, 0x000b},
 	{0x20, 0x0703}, {0x35, 0x2022}, {0xf0, 0x0001},
@@ -958,7 +968,7 @@ static u16 mt9v112_init[][2] = {
 	{0x2c, 0x00ae}, {0x2d, 0x00ae}, {0x2e, 0x00ae},
 };
 
-static u16 mt9v111_init[][2] = {
+static struct i2c_reg_u16 mt9v111_init[] = {
 	{0x01, 0x0004}, {0x0d, 0x0001}, {0x0d, 0x0000},
 	{0x01, 0x0001}, {0x02, 0x0016}, {0x03, 0x01e1},
 	{0x04, 0x0281}, {0x05, 0x0004}, {0x07, 0x3002},
@@ -985,7 +995,7 @@ static u16 mt9v111_init[][2] = {
 	{0x0e, 0x0008},	{0x06, 0x002d},	{0x05, 0x0004},
 };
 
-static u16 mt9v011_init[][2] = {
+static struct i2c_reg_u16 mt9v011_init[] = {
 	{0x07, 0x0002},	{0x0d, 0x0001},	{0x0d, 0x0000},
 	{0x01, 0x0008},	{0x02, 0x0016},	{0x03, 0x01e1},
 	{0x04, 0x0281},	{0x05, 0x0083},	{0x06, 0x0006},
@@ -1012,7 +1022,7 @@ static u16 mt9v011_init[][2] = {
 	{0x06, 0x0029},	{0x05, 0x0009},
 };
 
-static u16 mt9m001_init[][2] = {
+static struct i2c_reg_u16 mt9m001_init[] = {
 	{0x0d, 0x0001}, {0x0d, 0x0000}, {0x01, 0x000e},
 	{0x02, 0x0014}, {0x03, 0x03c1}, {0x04, 0x0501},
 	{0x05, 0x0083}, {0x06, 0x0006}, {0x0d, 0x0002},
@@ -1025,14 +1035,14 @@ static u16 mt9m001_init[][2] = {
 	{0x2e, 0x0029}, {0x07, 0x0002},
 };
 
-static u16 mt9m111_init[][2] = {
-	{0xf0, 0x0000}, {0x0d, 0x0008}, {0x0d, 0x0009},
-	{0x0d, 0x0008}, {0xf0, 0x0001}, {0x3a, 0x4300},
-	{0x9b, 0x4300}, {0xa1, 0x0280}, {0xa4, 0x0200},
-	{0x06, 0x308e}, {0xf0, 0x0000},
+static struct i2c_reg_u16 mt9m111_init[] = {
+	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
+	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
+	{0x06, 0x708e}, {0xf0, 0x0002}, {0x2e, 0x0a1e},
+	{0xf0, 0x0000},
 };
 
-static u8 hv7131r_init[][2] = {
+static struct i2c_reg_u8 hv7131r_init[] = {
 	{0x02, 0x08}, {0x02, 0x00}, {0x01, 0x08},
 	{0x02, 0x00}, {0x20, 0x00}, {0x21, 0xd0},
 	{0x22, 0x00}, {0x23, 0x09}, {0x01, 0x08},
@@ -1043,7 +1053,7 @@ static u8 hv7131r_init[][2] = {
 	{0x23, 0x09}, {0x01, 0x08},
 };
 
-int reg_r(struct gspca_dev *gspca_dev, u16 reg, u16 length)
+static int reg_r(struct gspca_dev *gspca_dev, u16 reg, u16 length)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int result;
@@ -1062,7 +1072,8 @@ int reg_r(struct gspca_dev *gspca_dev, u16 reg, u16 length)
 	return 0;
 }
 
-int reg_w(struct gspca_dev *gspca_dev, u16 reg, const u8 *buffer, int length)
+static int reg_w(struct gspca_dev *gspca_dev, u16 reg,
+		 const u8 *buffer, int length)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int result;
@@ -1082,13 +1093,13 @@ int reg_w(struct gspca_dev *gspca_dev, u16 reg, const u8 *buffer, int length)
 	return 0;
 }
 
-int reg_w1(struct gspca_dev *gspca_dev, u16 reg, const u8 value)
+static int reg_w1(struct gspca_dev *gspca_dev, u16 reg, const u8 value)
 {
 	u8 data[1] = {value};
 	return reg_w(gspca_dev, reg, data, 1);
 }
 
-int i2c_w(struct gspca_dev *gspca_dev, const u8 *buffer)
+static int i2c_w(struct gspca_dev *gspca_dev, const u8 *buffer)
 {
 	int i;
 	reg_w(gspca_dev, 0x10c0, buffer, 8);
@@ -1096,15 +1107,15 @@ int i2c_w(struct gspca_dev *gspca_dev, const u8 *buffer)
 		reg_r(gspca_dev, 0x10c0, 1);
 		if (gspca_dev->usb_buf[0] & 0x04) {
 			if (gspca_dev->usb_buf[0] & 0x08)
-				return -1;
+				return -EIO;
 			return 0;
 		}
 		msleep(1);
 	}
-	return -1;
+	return -EIO;
 }
 
-int i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
+static int i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -1126,7 +1137,7 @@ int i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 	return i2c_w(gspca_dev, row);
 }
 
-int i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
+static int i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
@@ -1152,7 +1163,7 @@ int i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
 
-	row[0] = 0x81 | 0x10;
+	row[0] = 0x81 | (1 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = 0;
@@ -1160,14 +1171,15 @@ int i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 	row[5] = 0;
 	row[6] = 0;
 	row[7] = 0x10;
-	reg_w(gspca_dev, 0x10c0, row, 8);
-	msleep(1);
-	row[0] = 0x81 | (2 << 4) | 0x02;
+	if (i2c_w(gspca_dev, row) < 0)
+		return -EIO;
+	row[0] = 0x81 | (1 << 4) | 0x02;
 	row[2] = 0;
-	reg_w(gspca_dev, 0x10c0, row, 8);
-	msleep(1);
-	reg_r(gspca_dev, 0x10c2, 5);
-	*val = gspca_dev->usb_buf[3];
+	if (i2c_w(gspca_dev, row) < 0)
+		return -EIO;
+	if (reg_r(gspca_dev, 0x10c2, 5) < 0)
+		return -EIO;
+	*val = gspca_dev->usb_buf[4];
 	return 0;
 }
 
@@ -1176,7 +1188,7 @@ int i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
 
-	row[0] = 0x81 | 0x10;
+	row[0] = 0x81 | (1 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = 0;
@@ -1184,14 +1196,15 @@ int i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 	row[5] = 0;
 	row[6] = 0;
 	row[7] = 0x10;
-	reg_w(gspca_dev, 0x10c0, row, 8);
-	msleep(1);
-	row[0] = 0x81 | (3 << 4) | 0x02;
+	if (i2c_w(gspca_dev, row) < 0)
+		return -EIO;
+	row[0] = 0x81 | (2 << 4) | 0x02;
 	row[2] = 0;
-	reg_w(gspca_dev, 0x10c0, row, 8);
-	msleep(1);
-	reg_r(gspca_dev, 0x10c2, 5);
-	*val = (gspca_dev->usb_buf[2] << 8) | gspca_dev->usb_buf[3];
+	if (i2c_w(gspca_dev, row) < 0)
+		return -EIO;
+	if (reg_r(gspca_dev, 0x10c2, 5) < 0)
+		return -EIO;
+	*val = (gspca_dev->usb_buf[3] << 8) | gspca_dev->usb_buf[4];
 	return 0;
 }
 
@@ -1201,8 +1214,8 @@ static int ov9650_init_sensor(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	for (i = 0; i < ARRAY_SIZE(ov9650_init); i++) {
-		if (i2c_w1(gspca_dev, ov9650_init[i][0],
-				ov9650_init[i][1]) < 0) {
+		if (i2c_w1(gspca_dev, ov9650_init[i].reg,
+				ov9650_init[i].val) < 0) {
 			err("OV9650 sensor initialization failed");
 			return -ENODEV;
 		}
@@ -1218,8 +1231,8 @@ static int ov9655_init_sensor(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	for (i = 0; i < ARRAY_SIZE(ov9655_init); i++) {
-		if (i2c_w1(gspca_dev, ov9655_init[i][0],
-				ov9655_init[i][1]) < 0) {
+		if (i2c_w1(gspca_dev, ov9655_init[i].reg,
+				ov9655_init[i].val) < 0) {
 			err("OV9655 sensor initialization failed");
 			return -ENODEV;
 		}
@@ -1237,14 +1250,14 @@ static int soi968_init_sensor(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	for (i = 0; i < ARRAY_SIZE(soi968_init); i++) {
-		if (i2c_w1(gspca_dev, soi968_init[i][0],
-				soi968_init[i][1]) < 0) {
+		if (i2c_w1(gspca_dev, soi968_init[i].reg,
+				soi968_init[i].val) < 0) {
 			err("SOI968 sensor initialization failed");
 			return -ENODEV;
 		}
 	}
 	/* disable hflip and vflip */
-	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX);
+	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX) | (1 << EXPOSURE_IDX);
 	sd->hstart = 60;
 	sd->vstart = 11;
 	return 0;
@@ -1256,8 +1269,8 @@ static int ov7660_init_sensor(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	for (i = 0; i < ARRAY_SIZE(ov7660_init); i++) {
-		if (i2c_w1(gspca_dev, ov7660_init[i][0],
-				ov7660_init[i][1]) < 0) {
+		if (i2c_w1(gspca_dev, ov7660_init[i].reg,
+				ov7660_init[i].val) < 0) {
 			err("OV7660 sensor initialization failed");
 			return -ENODEV;
 		}
@@ -1275,8 +1288,8 @@ static int ov7670_init_sensor(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	for (i = 0; i < ARRAY_SIZE(ov7670_init); i++) {
-		if (i2c_w1(gspca_dev, ov7670_init[i][0],
-				ov7670_init[i][1]) < 0) {
+		if (i2c_w1(gspca_dev, ov7670_init[i].reg,
+				ov7670_init[i].val) < 0) {
 			err("OV7670 sensor initialization failed");
 			return -ENODEV;
 		}
@@ -1299,8 +1312,8 @@ static int mt9v_init_sensor(struct gspca_dev *gspca_dev)
 	ret = i2c_r2(gspca_dev, 0xff, &value);
 	if ((ret == 0) && (value == 0x8243)) {
 		for (i = 0; i < ARRAY_SIZE(mt9v011_init); i++) {
-			if (i2c_w2(gspca_dev, mt9v011_init[i][0],
-					mt9v011_init[i][1]) < 0) {
+			if (i2c_w2(gspca_dev, mt9v011_init[i].reg,
+					mt9v011_init[i].val) < 0) {
 				err("MT9V011 sensor initialization failed");
 				return -ENODEV;
 			}
@@ -1317,8 +1330,8 @@ static int mt9v_init_sensor(struct gspca_dev *gspca_dev)
 	ret = i2c_r2(gspca_dev, 0xff, &value);
 	if ((ret == 0) && (value == 0x823a)) {
 		for (i = 0; i < ARRAY_SIZE(mt9v111_init); i++) {
-			if (i2c_w2(gspca_dev, mt9v111_init[i][0],
-					mt9v111_init[i][1]) < 0) {
+			if (i2c_w2(gspca_dev, mt9v111_init[i].reg,
+					mt9v111_init[i].val) < 0) {
 				err("MT9V111 sensor initialization failed");
 				return -ENODEV;
 			}
@@ -1339,8 +1352,8 @@ static int mt9v_init_sensor(struct gspca_dev *gspca_dev)
 	ret = i2c_r2(gspca_dev, 0x00, &value);
 	if ((ret == 0) && (value == 0x1229)) {
 		for (i = 0; i < ARRAY_SIZE(mt9v112_init); i++) {
-			if (i2c_w2(gspca_dev, mt9v112_init[i][0],
-					mt9v112_init[i][1]) < 0) {
+			if (i2c_w2(gspca_dev, mt9v112_init[i].reg,
+					mt9v112_init[i].val) < 0) {
 				err("MT9V112 sensor initialization failed");
 				return -ENODEV;
 			}
@@ -1360,12 +1373,13 @@ static int mt9m111_init_sensor(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
 	for (i = 0; i < ARRAY_SIZE(mt9m111_init); i++) {
-		if (i2c_w2(gspca_dev, mt9m111_init[i][0],
-				mt9m111_init[i][1]) < 0) {
+		if (i2c_w2(gspca_dev, mt9m111_init[i].reg,
+				mt9m111_init[i].val) < 0) {
 			err("MT9M111 sensor initialization failed");
 			return -ENODEV;
 		}
 	}
+	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
 	sd->hstart = 0;
 	sd->vstart = 2;
 	return 0;
@@ -1376,8 +1390,8 @@ static int mt9m001_init_sensor(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
 	for (i = 0; i < ARRAY_SIZE(mt9m001_init); i++) {
-		if (i2c_w2(gspca_dev, mt9m001_init[i][0],
-				mt9m001_init[i][1]) < 0) {
+		if (i2c_w2(gspca_dev, mt9m001_init[i].reg,
+				mt9m001_init[i].val) < 0) {
 			err("MT9M001 sensor initialization failed");
 			return -ENODEV;
 		}
@@ -1395,8 +1409,8 @@ static int hv7131r_init_sensor(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	for (i = 0; i < ARRAY_SIZE(hv7131r_init); i++) {
-		if (i2c_w1(gspca_dev, hv7131r_init[i][0],
-				hv7131r_init[i][1]) < 0) {
+		if (i2c_w1(gspca_dev, hv7131r_init[i].reg,
+				hv7131r_init[i].val) < 0) {
 			err("HV7131R Sensor initialization failed");
 			return -ENODEV;
 		}
@@ -1620,7 +1634,6 @@ static int set_exposure(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_OV7660:
 	case SENSOR_OV7670:
-	case SENSOR_SOI968:
 	case SENSOR_OV9655:
 	case SENSOR_OV9650:
 		exp[0] |= (3 << 4);
@@ -1629,7 +1642,6 @@ static int set_exposure(struct gspca_dev *gspca_dev)
 		exp[4] = sd->exposure >> 8;
 		break;
 	case SENSOR_MT9M001:
-	case SENSOR_MT9M111:
 	case SENSOR_MT9V112:
 	case SENSOR_MT9V111:
 	case SENSOR_MT9V011:
@@ -1645,6 +1657,8 @@ static int set_exposure(struct gspca_dev *gspca_dev)
 		exp[4] = ((sd->exposure * 0xffffff) / 0xffff) >> 8;
 		exp[5] = ((sd->exposure * 0xffffff) / 0xffff) & 0xff;
 		break;
+	default:
+		return 0;
 	}
 	i2c_w(gspca_dev, exp);
 	return 0;
@@ -1671,7 +1685,6 @@ static int set_gain(struct gspca_dev *gspca_dev)
 		gain[4] = micron1_gain[sd->gain] & 0xff;
 		break;
 	case SENSOR_MT9V112:
-	case SENSOR_MT9M111:
 		gain[0] |= (3 << 4);
 		gain[2] = 0x2f;
 		gain[3] = micron1_gain[sd->gain] >> 8;
@@ -1688,6 +1701,8 @@ static int set_gain(struct gspca_dev *gspca_dev)
 		gain[2] = 0x30;
 		gain[3] = hv7131r_gain[sd->gain];
 		break;
+	default:
+		return 0;
 	}
 	i2c_w(gspca_dev, gain);
 	return 0;
@@ -1990,7 +2005,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->i2c_addr = id->driver_info & 0xff;
 
 	switch (sd->sensor) {
+	case SENSOR_MT9M111:
 	case SENSOR_OV9650:
+	case SENSOR_SOI968:
 		cam->cam_mode = sxga_mode;
 		cam->nmodes = ARRAY_SIZE(sxga_mode);
 		break;
@@ -2106,6 +2123,25 @@ static void configure_sensor_output(struct gspca_dev *gspca_dev, int mode)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 value;
 	switch (sd->sensor) {
+	case SENSOR_SOI968:
+		if (mode & MODE_SXGA) {
+			i2c_w1(gspca_dev, 0x17, 0x1d);
+			i2c_w1(gspca_dev, 0x18, 0xbd);
+			i2c_w1(gspca_dev, 0x19, 0x01);
+			i2c_w1(gspca_dev, 0x1a, 0x81);
+			i2c_w1(gspca_dev, 0x12, 0x00);
+			sd->hstart = 140;
+			sd->vstart = 19;
+		} else {
+			i2c_w1(gspca_dev, 0x17, 0x13);
+			i2c_w1(gspca_dev, 0x18, 0x63);
+			i2c_w1(gspca_dev, 0x19, 0x01);
+			i2c_w1(gspca_dev, 0x1a, 0x79);
+			i2c_w1(gspca_dev, 0x12, 0x40);
+			sd->hstart = 60;
+			sd->vstart = 11;
+		}
+		break;
 	case SENSOR_OV9650:
 		if (mode & MODE_SXGA) {
 			i2c_w1(gspca_dev, 0x17, 0x1b);
@@ -2121,6 +2157,17 @@ static void configure_sensor_output(struct gspca_dev *gspca_dev, int mode)
 			i2c_w1(gspca_dev, 0x1a, 0x3c);
 			i2c_r1(gspca_dev, 0x12, &value);
 			i2c_w1(gspca_dev, 0x12, (value & 0x7) | 0x40);
+		}
+		break;
+	case SENSOR_MT9M111:
+		if (mode & MODE_SXGA) {
+			i2c_w2(gspca_dev, 0xf0, 0x0002);
+			i2c_w2(gspca_dev, 0xc8, 0x970b);
+			i2c_w2(gspca_dev, 0xf0, 0x0000);
+		} else {
+			i2c_w2(gspca_dev, 0xf0, 0x0002);
+			i2c_w2(gspca_dev, 0xc8, 0x8000);
+			i2c_w2(gspca_dev, 0xf0, 0x0000);
 		}
 		break;
 	}
@@ -2211,15 +2258,10 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	kfree(sd->jpeg_hdr);
 }
 
-static void do_autoexposure(struct gspca_dev *gspca_dev)
+static void do_autoexposure(struct gspca_dev *gspca_dev, u16 avg_lum)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int avg_lum, new_exp;
-
-	if (!sd->auto_exposure)
-		return;
-
-	avg_lum = atomic_read(&sd->avg_lum);
+	s16 new_exp;
 
 	/*
 	 * some hardcoded values are present
@@ -2264,6 +2306,39 @@ static void do_autoexposure(struct gspca_dev *gspca_dev)
 		else
 			sd->exposure_step += 2;
 	}
+}
+
+static void do_autogain(struct gspca_dev *gspca_dev, u16 avg_lum)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (avg_lum < MIN_AVG_LUM) {
+		if (sd->gain + 1 <= 28) {
+			sd->gain++;
+			set_gain(gspca_dev);
+		}
+	}
+	if (avg_lum > MAX_AVG_LUM) {
+		if (sd->gain - 1 >= 0) {
+			sd->gain--;
+			set_gain(gspca_dev);
+		}
+	}
+}
+
+static void sd_dqcallback(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int avg_lum;
+
+	if (!sd->auto_exposure)
+		return;
+
+	avg_lum = atomic_read(&sd->avg_lum);
+	if (sd->sensor == SENSOR_SOI968)
+		do_autogain(gspca_dev, avg_lum);
+	else
+		do_autoexposure(gspca_dev, avg_lum);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -2333,7 +2408,7 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
-	.dq_callback = do_autoexposure,
+	.dq_callback = sd_dqcallback,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.set_register = sd_dbg_s_register,
 	.get_register = sd_dbg_g_register,

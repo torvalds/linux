@@ -49,7 +49,6 @@ static struct vfsmount *shm_mnt;
 #include <linux/backing-dev.h>
 #include <linux/shmem_fs.h>
 #include <linux/writeback.h>
-#include <linux/vfs.h>
 #include <linux/blkdev.h>
 #include <linux/security.h>
 #include <linux/swapops.h>
@@ -1097,6 +1096,10 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	shmem_swp_unmap(entry);
 unlock:
 	spin_unlock(&info->lock);
+	/*
+	 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+	 * clear SWAP_HAS_CACHE flag.
+	 */
 	swapcache_free(swap, NULL);
 redirty:
 	set_page_dirty(page);
@@ -2298,8 +2301,7 @@ static void shmem_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
-static int shmem_fill_super(struct super_block *sb,
-			    void *data, int silent)
+int shmem_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
 	struct dentry *root;
@@ -2307,17 +2309,14 @@ static int shmem_fill_super(struct super_block *sb,
 	int err = -ENOMEM;
 
 	/* Round up to L1_CACHE_BYTES to resist false sharing */
-	sbinfo = kmalloc(max((int)sizeof(struct shmem_sb_info),
+	sbinfo = kzalloc(max((int)sizeof(struct shmem_sb_info),
 				L1_CACHE_BYTES), GFP_KERNEL);
 	if (!sbinfo)
 		return -ENOMEM;
 
-	sbinfo->max_blocks = 0;
-	sbinfo->max_inodes = 0;
 	sbinfo->mode = S_IRWXUGO | S_ISVTX;
 	sbinfo->uid = current_fsuid();
 	sbinfo->gid = current_fsgid();
-	sbinfo->mpol = NULL;
 	sb->s_fs_info = sbinfo;
 
 #ifdef CONFIG_TMPFS
@@ -2446,7 +2445,7 @@ static const struct inode_operations shmem_inode_operations = {
 	.getxattr	= generic_getxattr,
 	.listxattr	= generic_listxattr,
 	.removexattr	= generic_removexattr,
-	.permission	= shmem_permission,
+	.check_acl	= shmem_check_acl,
 #endif
 
 };
@@ -2469,7 +2468,7 @@ static const struct inode_operations shmem_dir_inode_operations = {
 	.getxattr	= generic_getxattr,
 	.listxattr	= generic_listxattr,
 	.removexattr	= generic_removexattr,
-	.permission	= shmem_permission,
+	.check_acl	= shmem_check_acl,
 #endif
 };
 
@@ -2480,7 +2479,7 @@ static const struct inode_operations shmem_special_inode_operations = {
 	.getxattr	= generic_getxattr,
 	.listxattr	= generic_listxattr,
 	.removexattr	= generic_removexattr,
-	.permission	= shmem_permission,
+	.check_acl	= shmem_check_acl,
 #endif
 };
 
@@ -2519,7 +2518,7 @@ static struct file_system_type tmpfs_fs_type = {
 	.kill_sb	= kill_litter_super,
 };
 
-static int __init init_tmpfs(void)
+int __init init_tmpfs(void)
 {
 	int error;
 
@@ -2576,7 +2575,7 @@ static struct file_system_type tmpfs_fs_type = {
 	.kill_sb	= kill_litter_super,
 };
 
-static int __init init_tmpfs(void)
+int __init init_tmpfs(void)
 {
 	BUG_ON(register_filesystem(&tmpfs_fs_type) != 0);
 
@@ -2587,6 +2586,11 @@ static int __init init_tmpfs(void)
 }
 
 int shmem_unuse(swp_entry_t entry, struct page *page)
+{
+	return 0;
+}
+
+int shmem_lock(struct file *file, int lock, struct user_struct *user)
 {
 	return 0;
 }
@@ -2687,5 +2691,3 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 	vma->vm_ops = &shmem_vm_ops;
 	return 0;
 }
-
-module_init(init_tmpfs)

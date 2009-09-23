@@ -23,8 +23,8 @@ SECTIONS {
 		_stext = . ;
 		*(.text .text.*)
 		*(.fixup)
-
-		*(.exitcall.exit)
+               EXIT_TEXT
+               EXIT_CALL
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
@@ -162,4 +162,6 @@ SECTIONS {
 	}
 	. = ALIGN(4096);
 	_end = .;
+
+	DISCARDS
 }

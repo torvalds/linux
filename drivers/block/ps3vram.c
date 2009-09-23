@@ -13,8 +13,8 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include <asm/cell-regs.h>
 #include <asm/firmware.h>
-#include <asm/iommu.h>
 #include <asm/lv1call.h>
 #include <asm/ps3.h>
 #include <asm/ps3gpu.h>
@@ -88,7 +88,7 @@ struct ps3vram_priv {
 static int ps3vram_major;
 
 
-static struct block_device_operations ps3vram_fops = {
+static const struct block_device_operations ps3vram_fops = {
 	.owner		= THIS_MODULE,
 };
 

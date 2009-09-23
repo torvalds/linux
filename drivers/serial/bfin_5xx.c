@@ -42,6 +42,10 @@
 # undef CONFIG_EARLY_PRINTK
 #endif
 
+#ifdef CONFIG_SERIAL_BFIN_MODULE
+# undef CONFIG_EARLY_PRINTK
+#endif
+
 /* UART name and device definitions */
 #define BFIN_SERIAL_NAME	"ttyBF"
 #define BFIN_SERIAL_MAJOR	204
@@ -140,7 +144,7 @@ static void bfin_serial_stop_tx(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 #ifdef CONFIG_SERIAL_BFIN_DMA
-	struct circ_buf *xmit = &uart->port.info->xmit;
+	struct circ_buf *xmit = &uart->port.state->xmit;
 #endif
 
 	while (!(UART_GET_LSR(uart) & TEMT))
@@ -167,7 +171,7 @@ static void bfin_serial_stop_tx(struct uart_port *port)
 static void bfin_serial_start_tx(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
-	struct tty_struct *tty = uart->port.info->port.tty;
+	struct tty_struct *tty = uart->port.state->port.tty;
 
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
 	if (uart->scts && !(bfin_serial_get_mctrl(&uart->port) & TIOCM_CTS)) {
@@ -239,10 +243,10 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 			return;
 		}
 
-	if (!uart->port.info || !uart->port.info->port.tty)
+	if (!uart->port.state || !uart->port.state->port.tty)
 		return;
 #endif
-	tty = uart->port.info->port.tty;
+	tty = uart->port.state->port.tty;
 
 	if (ANOMALY_05000363) {
 		/* The BF533 (and BF561) family of processors have a nice anomaly
@@ -327,7 +331,7 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 
 static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 {
-	struct circ_buf *xmit = &uart->port.info->xmit;
+	struct circ_buf *xmit = &uart->port.state->xmit;
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&uart->port)) {
 #ifdef CONFIG_BF54x
@@ -394,7 +398,7 @@ static irqreturn_t bfin_serial_tx_int(int irq, void *dev_id)
 #ifdef CONFIG_SERIAL_BFIN_DMA
 static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 {
-	struct circ_buf *xmit = &uart->port.info->xmit;
+	struct circ_buf *xmit = &uart->port.state->xmit;
 
 	uart->tx_done = 0;
 
@@ -432,7 +436,7 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 
 static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 {
-	struct tty_struct *tty = uart->port.info->port.tty;
+	struct tty_struct *tty = uart->port.state->port.tty;
 	int i, flg, status;
 
 	status = UART_GET_LSR(uart);
@@ -525,7 +529,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
-	struct circ_buf *xmit = &uart->port.info->xmit;
+	struct circ_buf *xmit = &uart->port.state->xmit;
 
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
 	if (uart->scts && !(bfin_serial_get_mctrl(&uart->port)&TIOCM_CTS)) {
@@ -961,10 +965,10 @@ static void bfin_serial_set_ldisc(struct uart_port *port)
 	int line = port->line;
 	unsigned short val;
 
-	if (line >= port->info->port.tty->driver->num)
+	if (line >= port->state->port.tty->driver->num)
 		return;
 
-	switch (port->info->port.tty->termios->c_line) {
+	switch (port->state->port.tty->termios->c_line) {
 	case N_IRDA:
 		val = UART_GET_GCTL(&bfin_serial_ports[line]);
 		val |= (IREN | RPOLC);

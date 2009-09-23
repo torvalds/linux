@@ -38,6 +38,7 @@
 #include <linux/pci.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <linux/dmi.h>
 
 #include "internal.h"
 
@@ -141,7 +142,7 @@ int acpi_bus_get_status(struct acpi_device *device)
 EXPORT_SYMBOL(acpi_bus_get_status);
 
 void acpi_bus_private_data_handler(acpi_handle handle,
-				   u32 function, void *context)
+				   void *context)
 {
 	return;
 }

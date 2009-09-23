@@ -5,6 +5,7 @@
 #define _TRACE_SKB_H
 
 #include <linux/skbuff.h>
+#include <linux/netdevice.h>
 #include <linux/tracepoint.h>
 
 /*
@@ -32,6 +33,25 @@ TRACE_EVENT(kfree_skb,
 
 	TP_printk("skbaddr=%p protocol=%u location=%p",
 		__entry->skbaddr, __entry->protocol, __entry->location)
+);
+
+TRACE_EVENT(skb_copy_datagram_iovec,
+
+	TP_PROTO(const struct sk_buff *skb, int len),
+
+	TP_ARGS(skb, len),
+
+	TP_STRUCT__entry(
+		__field(	const void *,		skbaddr		)
+		__field(	int,			len		)
+	),
+
+	TP_fast_assign(
+		__entry->skbaddr = skb;
+		__entry->len = len;
+	),
+
+	TP_printk("skbaddr=%p len=%d", __entry->skbaddr, __entry->len)
 );
 
 #endif /* _TRACE_SKB_H */

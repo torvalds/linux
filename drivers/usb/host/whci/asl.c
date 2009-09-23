@@ -227,11 +227,21 @@ void scan_async_work(struct work_struct *work)
 	/*
 	 * Now that the ASL is updated, complete the removal of any
 	 * removed qsets.
+	 *
+	 * If the qset was to be reset, do so and reinsert it into the
+	 * ASL if it has pending transfers.
 	 */
 	spin_lock_irq(&whc->lock);
 
 	list_for_each_entry_safe(qset, t, &whc->async_removed_list, list_node) {
 		qset_remove_complete(whc, qset);
+		if (qset->reset) {
+			qset_reset(whc, qset);
+			if (!list_empty(&qset->stds)) {
+				asl_qset_insert_begin(whc, qset);
+				queue_work(whc->workqueue, &whc->async_work);
+			}
+		}
 	}
 
 	spin_unlock_irq(&whc->lock);
@@ -267,7 +277,7 @@ int asl_urb_enqueue(struct whc *whc, struct urb *urb, gfp_t mem_flags)
 	else
 		err = qset_add_urb(whc, qset, urb, GFP_ATOMIC);
 	if (!err) {
-		if (!qset->in_sw_list)
+		if (!qset->in_sw_list && !qset->remove)
 			asl_qset_insert_begin(whc, qset);
 	} else
 		usb_hcd_unlink_urb_from_ep(&whc->wusbhc.usb_hcd, urb);

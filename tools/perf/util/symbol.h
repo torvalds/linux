@@ -6,6 +6,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include "module.h"
+#include "event.h"
 
 #ifdef HAVE_CPLUS_DEMANGLE
 extern char *cplus_demangle(const char *, int);
@@ -54,7 +55,7 @@ struct dso {
 	char		 name[0];
 };
 
-const char *sym_hist_filter;
+extern const char *sym_hist_filter;
 
 typedef int (*symbol_filter_t)(struct dso *self, struct symbol *sym);
 
@@ -72,9 +73,20 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 		     symbol_filter_t filter, int verbose, int modules);
 int dso__load_modules(struct dso *self, symbol_filter_t filter, int verbose);
 int dso__load(struct dso *self, symbol_filter_t filter, int verbose);
+struct dso *dsos__findnew(const char *name);
+void dsos__fprintf(FILE *fp);
 
 size_t dso__fprintf(struct dso *self, FILE *fp);
 char dso__symtab_origin(const struct dso *self);
 
+int load_kernel(void);
+
 void symbol__init(void);
+
+extern struct list_head dsos;
+extern struct dso *kernel_dso;
+extern struct dso *vdso;
+extern struct dso *hypervisor_dso;
+extern const char *vmlinux_name;
+extern int   modules;
 #endif /* _PERF_SYMBOL_ */

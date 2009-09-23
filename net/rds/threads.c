@@ -68,6 +68,7 @@
  *	(TCP, IB/RDMA) to provide the necessary synchronisation.
  */
 struct workqueue_struct *rds_wq;
+EXPORT_SYMBOL_GPL(rds_wq);
 
 void rds_connect_complete(struct rds_connection *conn)
 {
@@ -89,6 +90,7 @@ void rds_connect_complete(struct rds_connection *conn)
 	queue_delayed_work(rds_wq, &conn->c_send_w, 0);
 	queue_delayed_work(rds_wq, &conn->c_recv_w, 0);
 }
+EXPORT_SYMBOL_GPL(rds_connect_complete);
 
 /*
  * This random exponential backoff is relied on to eventually resolve racing

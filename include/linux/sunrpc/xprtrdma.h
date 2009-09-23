@@ -41,11 +41,6 @@
 #define _LINUX_SUNRPC_XPRTRDMA_H
 
 /*
- * RPC transport identifier for RDMA
- */
-#define XPRT_TRANSPORT_RDMA	256
-
-/*
  * rpcbind (v3+) RDMA netid.
  */
 #define RPCBIND_NETID_RDMA	"rdma"

@@ -37,7 +37,7 @@
 #include "mlx4_en.h"
 
 void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
-			     int is_tx, int rss, int qpn, int cqn, int srqn,
+			     int is_tx, int rss, int qpn, int cqn,
 			     struct mlx4_qp_context *context)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -46,11 +46,12 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	context->flags = cpu_to_be32(7 << 16 | rss << 13);
 	context->pd = cpu_to_be32(mdev->priv_pdn);
 	context->mtu_msgmax = 0xff;
-	context->rq_size_stride = 0;
+	if (!is_tx && !rss)
+		context->rq_size_stride = ilog2(size) << 3 | (ilog2(stride) - 4);
 	if (is_tx)
 		context->sq_size_stride = ilog2(size) << 3 | (ilog2(stride) - 4);
 	else
-		context->sq_size_stride = 1;
+		context->sq_size_stride = ilog2(TXBB_SIZE) - 4;
 	context->usr_page = cpu_to_be32(mdev->priv_uar.index);
 	context->local_qpn = cpu_to_be32(qpn);
 	context->pri_path.ackto = 1 & 0x07;
@@ -59,8 +60,6 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	context->cqn_send = cpu_to_be32(cqn);
 	context->cqn_recv = cpu_to_be32(cqn);
 	context->db_rec_addr = cpu_to_be64(priv->res.db.dma << 2);
-	if (!rss)
-		context->srqn = cpu_to_be32(MLX4_EN_USE_SRQ | srqn);
 }
 
 

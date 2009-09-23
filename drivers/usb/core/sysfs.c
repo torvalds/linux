@@ -573,7 +573,7 @@ static struct attribute_group dev_string_attr_grp = {
 	.is_visible =	dev_string_attrs_are_visible,
 };
 
-struct attribute_group *usb_device_groups[] = {
+const struct attribute_group *usb_device_groups[] = {
 	&dev_attr_grp,
 	&dev_string_attr_grp,
 	NULL
@@ -799,7 +799,7 @@ static struct attribute_group intf_assoc_attr_grp = {
 	.is_visible =	intf_assoc_attrs_are_visible,
 };
 
-struct attribute_group *usb_interface_groups[] = {
+const struct attribute_group *usb_interface_groups[] = {
 	&intf_attr_grp,
 	&intf_assoc_attr_grp,
 	NULL

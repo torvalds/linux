@@ -417,22 +417,22 @@ int nand_calculate_ecc(struct mtd_info *mtd, const unsigned char *buf,
 EXPORT_SYMBOL(nand_calculate_ecc);
 
 /**
- * nand_correct_data - [NAND Interface] Detect and correct bit error(s)
- * @mtd:	MTD block structure
+ * __nand_correct_data - [NAND Interface] Detect and correct bit error(s)
  * @buf:	raw data read from the chip
  * @read_ecc:	ECC from the chip
  * @calc_ecc:	the ECC calculated from raw data
+ * @eccsize:	data bytes per ecc step (256 or 512)
  *
- * Detect and correct a 1 bit error for 256/512 byte block
+ * Detect and correct a 1 bit error for eccsize byte block
  */
-int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
-		      unsigned char *read_ecc, unsigned char *calc_ecc)
+int __nand_correct_data(unsigned char *buf,
+			unsigned char *read_ecc, unsigned char *calc_ecc,
+			unsigned int eccsize)
 {
 	unsigned char b0, b1, b2, bit_addr;
 	unsigned int byte_addr;
 	/* 256 or 512 bytes/ecc  */
-	const uint32_t eccsize_mult =
-			(((struct nand_chip *)mtd->priv)->ecc.size) >> 8;
+	const uint32_t eccsize_mult = eccsize >> 8;
 
 	/*
 	 * b0 to b2 indicate which bit is faulty (if any)
@@ -494,6 +494,23 @@ int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
 
 	printk(KERN_ERR "uncorrectable error : ");
 	return -1;
+}
+EXPORT_SYMBOL(__nand_correct_data);
+
+/**
+ * nand_correct_data - [NAND Interface] Detect and correct bit error(s)
+ * @mtd:	MTD block structure
+ * @buf:	raw data read from the chip
+ * @read_ecc:	ECC from the chip
+ * @calc_ecc:	the ECC calculated from raw data
+ *
+ * Detect and correct a 1 bit error for 256/512 byte block
+ */
+int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
+		      unsigned char *read_ecc, unsigned char *calc_ecc)
+{
+	return __nand_correct_data(buf, read_ecc, calc_ecc,
+				   ((struct nand_chip *)mtd->priv)->ecc.size);
 }
 EXPORT_SYMBOL(nand_correct_data);
 

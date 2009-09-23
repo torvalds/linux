@@ -693,7 +693,10 @@ static int hpc_get_max_lnk_speed(struct slot *slot, enum pci_bus_speed *value)
 
 	switch (lnk_cap & 0x000F) {
 	case 1:
-		lnk_speed = PCIE_2PT5GB;
+		lnk_speed = PCIE_2_5GB;
+		break;
+	case 2:
+		lnk_speed = PCIE_5_0GB;
 		break;
 	default:
 		lnk_speed = PCIE_LNK_SPEED_UNKNOWN;
@@ -772,7 +775,10 @@ static int hpc_get_cur_lnk_speed(struct slot *slot, enum pci_bus_speed *value)
 
 	switch (lnk_status & PCI_EXP_LNKSTA_CLS) {
 	case 1:
-		lnk_speed = PCIE_2PT5GB;
+		lnk_speed = PCIE_2_5GB;
+		break;
+	case 2:
+		lnk_speed = PCIE_5_0GB;
 		break;
 	default:
 		lnk_speed = PCIE_LNK_SPEED_UNKNOWN;

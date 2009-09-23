@@ -8,7 +8,7 @@
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "tape"
+#define KMSG_COMPONENT "tape_3590"
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -38,8 +38,6 @@ EXPORT_SYMBOL(TAPE_DBF_AREA);
  * - Special Intercept:		 BRA
  * - Read Alternate:		 implemented
  *******************************************************************/
-
-#define KMSG_COMPONENT "tape"
 
 static const char *tape_3590_msg[TAPE_3590_MAX_MSG] = {
 	[0x00] = "",

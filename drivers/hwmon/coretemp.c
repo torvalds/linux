@@ -185,7 +185,7 @@ static int __devinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *
 		}
 	}
 
-	if (ismobile) {
+	if (ismobile || c->x86_model == 0x1c) {
 
 		err = rdmsr_safe_on_cpu(id, 0xee, &eax, &edx);
 		if (err) {
@@ -417,7 +417,7 @@ static int __init coretemp_init(void)
 		if ((c->cpuid_level < 0) || (c->x86 != 0x6) ||
 		    !((c->x86_model == 0xe) || (c->x86_model == 0xf) ||
 			(c->x86_model == 0x16) || (c->x86_model == 0x17) ||
-			(c->x86_model == 0x1A))) {
+			(c->x86_model == 0x1A) || (c->x86_model == 0x1c))) {
 
 			/* supported CPU not found, but report the unknown
 			   family 6 CPU */

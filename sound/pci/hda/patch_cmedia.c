@@ -635,7 +635,8 @@ static int patch_cmi9880(struct hda_codec *codec)
 							cmi9880_models,
 							cmi9880_cfg_tbl);
 	if (spec->board_config < 0) {
-		snd_printdd(KERN_INFO "hda_codec: Unknown model for CMI9880\n");
+		snd_printdd(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+			    codec->chip_name);
 		spec->board_config = CMI_AUTO; /* try everything */
 	}
 

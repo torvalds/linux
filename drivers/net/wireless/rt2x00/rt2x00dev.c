@@ -40,8 +40,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 * Don't enable the radio twice.
 	 * And check if the hardware button has been disabled.
 	 */
-	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    test_bit(DEVICE_STATE_DISABLED_RADIO_HW, &rt2x00dev->flags))
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return 0;
 
 	/*
@@ -119,20 +118,11 @@ void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 		rt2x00link_start_tuner(rt2x00dev);
 }
 
-static void rt2x00lib_packetfilter_scheduled(struct work_struct *work)
-{
-	struct rt2x00_dev *rt2x00dev =
-	    container_of(work, struct rt2x00_dev, filter_work);
-
-	rt2x00dev->ops->lib->config_filter(rt2x00dev, rt2x00dev->packet_filter);
-}
-
 static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 					  struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	struct ieee80211_bss_conf conf;
 	int delayed_flags;
 
 	/*
@@ -142,7 +132,6 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	 */
 	spin_lock(&intf->lock);
 
-	memcpy(&conf, &vif->bss_conf, sizeof(conf));
 	delayed_flags = intf->delayed_flags;
 	intf->delayed_flags = 0;
 
@@ -159,12 +148,6 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 
 	if (delayed_flags & DELAYED_UPDATE_BEACON)
 		rt2x00queue_update_beacon(rt2x00dev, vif, true);
-
-	if (delayed_flags & DELAYED_CONFIG_ERP)
-		rt2x00lib_config_erp(rt2x00dev, intf, &conf);
-
-	if (delayed_flags & DELAYED_LED_ASSOC)
-		rt2x00leds_led_assoc(rt2x00dev, !!rt2x00dev->intf_associated);
 }
 
 static void rt2x00lib_intf_scheduled(struct work_struct *work)
@@ -187,7 +170,6 @@ static void rt2x00lib_intf_scheduled(struct work_struct *work)
 static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 				      struct ieee80211_vif *vif)
 {
-	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 
 	if (vif->type != NL80211_IFTYPE_AP &&
@@ -195,12 +177,6 @@ static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 	    vif->type != NL80211_IFTYPE_MESH_POINT &&
 	    vif->type != NL80211_IFTYPE_WDS)
 		return;
-
-	/*
-	 * Clean up the beacon skb.
-	 */
-	rt2x00queue_free_skb(rt2x00dev, intf->beacon->skb);
-	intf->beacon->skb = NULL;
 
 	spin_lock(&intf->lock);
 	intf->delayed_flags |= DELAYED_UPDATE_BEACON;
@@ -216,7 +192,7 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 						   rt2x00lib_beacondone_iter,
 						   rt2x00dev);
 
-	queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->intf_work);
+	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->intf_work);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
 
@@ -228,7 +204,9 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 	unsigned int header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
-	u8 rate_idx, rate_flags;
+	u8 rate_idx, rate_flags, retry_rates;
+	unsigned int i;
+	bool success;
 
 	/*
 	 * Unmap the skb.
@@ -239,7 +217,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * Remove L2 padding which was added during
 	 */
 	if (test_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags))
-		rt2x00queue_payload_align(entry->skb, true, header_length);
+		rt2x00queue_remove_l2pad(entry->skb, header_length);
 
 	/*
 	 * If the IV/EIV data was stripped from the frame before it was
@@ -257,40 +235,54 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry->skb);
 
 	/*
+	 * Determine if the frame has been successfully transmitted.
+	 */
+	success =
+	    test_bit(TXDONE_SUCCESS, &txdesc->flags) ||
+	    test_bit(TXDONE_UNKNOWN, &txdesc->flags) ||
+	    test_bit(TXDONE_FALLBACK, &txdesc->flags);
+
+	/*
 	 * Update TX statistics.
 	 */
-	rt2x00dev->link.qual.tx_success +=
-	    test_bit(TXDONE_SUCCESS, &txdesc->flags) ||
-	    test_bit(TXDONE_UNKNOWN, &txdesc->flags);
-	rt2x00dev->link.qual.tx_failed +=
-	    test_bit(TXDONE_FAILURE, &txdesc->flags);
+	rt2x00dev->link.qual.tx_success += success;
+	rt2x00dev->link.qual.tx_failed += !success;
 
 	rate_idx = skbdesc->tx_rate_idx;
 	rate_flags = skbdesc->tx_rate_flags;
+	retry_rates = test_bit(TXDONE_FALLBACK, &txdesc->flags) ?
+	    (txdesc->retry + 1) : 1;
 
 	/*
 	 * Initialize TX status
 	 */
 	memset(&tx_info->status, 0, sizeof(tx_info->status));
 	tx_info->status.ack_signal = 0;
-	tx_info->status.rates[0].idx = rate_idx;
-	tx_info->status.rates[0].flags = rate_flags;
-	tx_info->status.rates[0].count = txdesc->retry + 1;
-	tx_info->status.rates[1].idx = -1; /* terminate */
+
+	/*
+	 * Frame was send with retries, hardware tried
+	 * different rates to send out the frame, at each
+	 * retry it lowered the rate 1 step.
+	 */
+	for (i = 0; i < retry_rates && i < IEEE80211_TX_MAX_RATES; i++) {
+		tx_info->status.rates[i].idx = rate_idx - i;
+		tx_info->status.rates[i].flags = rate_flags;
+		tx_info->status.rates[i].count = 1;
+	}
+	if (i < (IEEE80211_TX_MAX_RATES - 1))
+		tx_info->status.rates[i].idx = -1; /* terminate */
 
 	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
-		if (test_bit(TXDONE_SUCCESS, &txdesc->flags) ||
-				test_bit(TXDONE_UNKNOWN, &txdesc->flags))
+		if (success)
 			tx_info->flags |= IEEE80211_TX_STAT_ACK;
-		else if (test_bit(TXDONE_FAILURE, &txdesc->flags))
+		else
 			rt2x00dev->low_level_stats.dot11ACKFailureCount++;
 	}
 
 	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
-		if (test_bit(TXDONE_SUCCESS, &txdesc->flags) ||
-				test_bit(TXDONE_UNKNOWN, &txdesc->flags))
+		if (success)
 			rt2x00dev->low_level_stats.dot11RTSSuccessCount++;
-		else if (test_bit(TXDONE_FAILURE, &txdesc->flags))
+		else
 			rt2x00dev->low_level_stats.dot11RTSFailureCount++;
 	}
 
@@ -372,7 +364,6 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	struct sk_buff *skb;
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
 	unsigned int header_length;
-	bool l2pad;
 	int rate_idx;
 	/*
 	 * Allocate a new sk_buffer. If no new buffer available, drop the
@@ -401,7 +392,6 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 * aligned on a 4 byte boundary.
 	 */
 	header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
-	l2pad = !!(rxdesc.dev_flags & RXDONE_L2PAD);
 
 	/*
 	 * Hardware might have stripped the IV/EIV/ICV data,
@@ -411,10 +401,12 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 */
 	if ((rxdesc.dev_flags & RXDONE_CRYPTO_IV) &&
 	    (rxdesc.flags & RX_FLAG_IV_STRIPPED))
-		rt2x00crypto_rx_insert_iv(entry->skb, l2pad, header_length,
+		rt2x00crypto_rx_insert_iv(entry->skb, header_length,
 					  &rxdesc);
+	else if (rxdesc.dev_flags & RXDONE_L2PAD)
+		rt2x00queue_remove_l2pad(entry->skb, header_length);
 	else
-		rt2x00queue_payload_align(entry->skb, l2pad, header_length);
+		rt2x00queue_align_payload(entry->skb, header_length);
 
 	/*
 	 * Check if the frame was received using HT. In that case,
@@ -449,7 +441,8 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 * mac80211 will clean up the skb structure.
 	 */
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
-	ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb, rx_status);
+	memcpy(IEEE80211_SKB_RXCB(entry->skb), rx_status, sizeof(*rx_status));
+	ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb);
 
 	/*
 	 * Replace the skb with the freshly allocated one.
@@ -785,6 +778,13 @@ int rt2x00lib_start(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->intf_sta_count = 0;
 	rt2x00dev->intf_associated = 0;
 
+	/* Enable the radio */
+	retval = rt2x00lib_enable_radio(rt2x00dev);
+	if (retval) {
+		rt2x00queue_uninitialize(rt2x00dev);
+		return retval;
+	}
+
 	set_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags);
 
 	return 0;
@@ -847,7 +847,6 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	 * Initialize configuration work.
 	 */
 	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
-	INIT_WORK(&rt2x00dev->filter_work, rt2x00lib_packetfilter_scheduled);
 
 	/*
 	 * Allocate queue array.
@@ -870,7 +869,6 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00link_register(rt2x00dev);
 	rt2x00leds_register(rt2x00dev);
-	rt2x00rfkill_allocate(rt2x00dev);
 	rt2x00debug_register(rt2x00dev);
 
 	set_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
@@ -894,6 +892,11 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00lib_disable_radio(rt2x00dev);
 
 	/*
+	 * Stop all work.
+	 */
+	cancel_work_sync(&rt2x00dev->intf_work);
+
+	/*
 	 * Uninitialize device.
 	 */
 	rt2x00lib_uninitialize(rt2x00dev);
@@ -902,7 +905,6 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	 * Free extra components
 	 */
 	rt2x00debug_deregister(rt2x00dev);
-	rt2x00rfkill_free(rt2x00dev);
 	rt2x00leds_unregister(rt2x00dev);
 
 	/*

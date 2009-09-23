@@ -475,7 +475,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 	pos = ((loff_t) bio->bi_sector << 9) + lo->lo_offset;
 
 	if (bio_rw(bio) == WRITE) {
-		int barrier = bio_barrier(bio);
+		bool barrier = bio_rw_flagged(bio, BIO_RW_BARRIER);
 		struct file *file = lo->lo_backing_file;
 
 		if (barrier) {
@@ -1438,7 +1438,7 @@ out_unlocked:
 	return 0;
 }
 
-static struct block_device_operations lo_fops = {
+static const struct block_device_operations lo_fops = {
 	.owner =	THIS_MODULE,
 	.open =		lo_open,
 	.release =	lo_release,

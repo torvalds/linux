@@ -297,7 +297,6 @@ static int gfar_probe(struct of_device *ofdev,
 	u32 tempval;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
-	DECLARE_MAC_BUF(mac);
 	int err = 0;
 	int len_devname;
 
@@ -491,7 +490,7 @@ static int gfar_remove(struct of_device *ofdev)
 
 	dev_set_drvdata(&ofdev->dev, NULL);
 
-	unregister_netdev(dev);
+	unregister_netdev(priv->ndev);
 	iounmap(priv->regs);
 	free_netdev(priv->ndev);
 

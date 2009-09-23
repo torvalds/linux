@@ -29,7 +29,6 @@
 #include <linux/poll.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
-#include <linux/marker.h>
 
 #include <asm/io.h>
 #include <asm/time.h>
@@ -38,6 +37,7 @@
 #include <asm/uaccess.h>
 
 #include "spufs.h"
+#include "sputrace.h"
 
 #define SPUFS_MMAP_4K (PAGE_SIZE == 0x1000)
 

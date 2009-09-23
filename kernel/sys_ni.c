@@ -177,4 +177,4 @@ cond_syscall(sys_eventfd);
 cond_syscall(sys_eventfd2);
 
 /* performance counters: */
-cond_syscall(sys_perf_counter_open);
+cond_syscall(sys_perf_event_open);

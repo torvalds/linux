@@ -20,12 +20,14 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/i2c.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include <sound/uda1380.h>
 
 #include <mach/magician.h>
 #include <asm/mach-types.h>
@@ -188,7 +190,7 @@ static int magician_playback_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 1, 1);
+	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 1, 0, 1, width);
 	if (ret < 0)
 		return ret;
 
@@ -447,34 +449,47 @@ static struct snd_soc_card snd_soc_card_magician = {
 	.platform = &pxa2xx_soc_platform,
 };
 
-/* magician audio private data */
-static struct uda1380_setup_data magician_uda1380_setup = {
-	.i2c_address = 0x18,
-	.dac_clk = UDA1380_DAC_CLK_WSPLL,
-};
-
 /* magician audio subsystem */
 static struct snd_soc_device magician_snd_devdata = {
 	.card = &snd_soc_card_magician,
 	.codec_dev = &soc_codec_dev_uda1380,
-	.codec_data = &magician_uda1380_setup,
 };
 
 static struct platform_device *magician_snd_device;
 
+/*
+ * FIXME: move into magician board file once merged into the pxa tree
+ */
+static struct uda1380_platform_data uda1380_info = {
+	.gpio_power = EGPIO_MAGICIAN_CODEC_POWER,
+	.gpio_reset = EGPIO_MAGICIAN_CODEC_RESET,
+	.dac_clk    = UDA1380_DAC_CLK_WSPLL,
+};
+
+static struct i2c_board_info i2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("uda1380", 0x18),
+		.platform_data = &uda1380_info,
+	},
+};
+
 static int __init magician_init(void)
 {
 	int ret;
+	struct i2c_adapter *adapter;
+	struct i2c_client *client;
 
 	if (!machine_is_magician())
 		return -ENODEV;
 
-	ret = gpio_request(EGPIO_MAGICIAN_CODEC_POWER, "CODEC_POWER");
-	if (ret)
-		goto err_request_power;
-	ret = gpio_request(EGPIO_MAGICIAN_CODEC_RESET, "CODEC_RESET");
-	if (ret)
-		goto err_request_reset;
+	adapter = i2c_get_adapter(0);
+	if (!adapter)
+		return -ENODEV;
+	client = i2c_new_device(adapter, i2c_board_info);
+	i2c_put_adapter(adapter);
+	if (!client)
+		return -ENODEV;
+
 	ret = gpio_request(EGPIO_MAGICIAN_SPK_POWER, "SPK_POWER");
 	if (ret)
 		goto err_request_spk;
@@ -491,13 +506,7 @@ static int __init magician_init(void)
 	if (ret)
 		goto err_request_in_sel1;
 
-	gpio_set_value(EGPIO_MAGICIAN_CODEC_POWER, 1);
 	gpio_set_value(EGPIO_MAGICIAN_IN_SEL0, 0);
-
-	/* we may need to have the clock running here - pH5 */
-	gpio_set_value(EGPIO_MAGICIAN_CODEC_RESET, 1);
-	udelay(5);
-	gpio_set_value(EGPIO_MAGICIAN_CODEC_RESET, 0);
 
 	magician_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!magician_snd_device) {
@@ -526,10 +535,6 @@ err_request_mic:
 err_request_ep:
 	gpio_free(EGPIO_MAGICIAN_SPK_POWER);
 err_request_spk:
-	gpio_free(EGPIO_MAGICIAN_CODEC_RESET);
-err_request_reset:
-	gpio_free(EGPIO_MAGICIAN_CODEC_POWER);
-err_request_power:
 	return ret;
 }
 
@@ -540,15 +545,12 @@ static void __exit magician_exit(void)
 	gpio_set_value(EGPIO_MAGICIAN_SPK_POWER, 0);
 	gpio_set_value(EGPIO_MAGICIAN_EP_POWER, 0);
 	gpio_set_value(EGPIO_MAGICIAN_MIC_POWER, 0);
-	gpio_set_value(EGPIO_MAGICIAN_CODEC_POWER, 0);
 
 	gpio_free(EGPIO_MAGICIAN_IN_SEL1);
 	gpio_free(EGPIO_MAGICIAN_IN_SEL0);
 	gpio_free(EGPIO_MAGICIAN_MIC_POWER);
 	gpio_free(EGPIO_MAGICIAN_EP_POWER);
 	gpio_free(EGPIO_MAGICIAN_SPK_POWER);
-	gpio_free(EGPIO_MAGICIAN_CODEC_RESET);
-	gpio_free(EGPIO_MAGICIAN_CODEC_POWER);
 }
 
 module_init(magician_init);

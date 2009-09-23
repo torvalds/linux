@@ -209,5 +209,7 @@ struct sockaddr_tipc {
 #define TIPC_SRC_DROPPABLE	128	/* Default: 0 (resend congested msg) */
 #define TIPC_DEST_DROPPABLE	129	/* Default: based on socket type */
 #define TIPC_CONN_TIMEOUT	130	/* Default: 8000 (ms)  */
+#define TIPC_NODE_RECVQ_DEPTH	131	/* Default: none (read only) */
+#define TIPC_SOCK_RECVQ_DEPTH	132	/* Default: none (read only) */
 
 #endif

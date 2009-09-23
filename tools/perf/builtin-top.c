@@ -27,6 +27,8 @@
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 
+#include "util/debug.h"
+
 #include <assert.h>
 #include <fcntl.h>
 
@@ -68,8 +70,6 @@ static int			group				=  0;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			= 16;
 static int			freq				=  0;
-static int			verbose				=  0;
-static char			*vmlinux			=  NULL;
 
 static int			delay_secs			=  2;
 static int			zero;
@@ -122,7 +122,8 @@ static void parse_source(struct sym_entry *syme)
 	struct module *module;
 	struct section *section = NULL;
 	FILE *file;
-	char command[PATH_MAX*2], *path = vmlinux;
+	char command[PATH_MAX*2];
+	const char *path = vmlinux_name;
 	u64 start, end, len;
 
 	if (!syme)
@@ -338,8 +339,6 @@ static void show_details(struct sym_entry *syme)
 		printf("%d lines not displayed, maybe increase display entries [e]\n", more);
 }
 
-struct dso			*kernel_dso;
-
 /*
  * Symbols will be added here in record_ip and will get out
  * after decayed.
@@ -484,16 +483,23 @@ static void print_sym_table(void)
 	if (nr_counters == 1)
 		printf("             samples    pcnt");
 	else
-		printf("  weight     samples    pcnt");
+		printf("   weight    samples    pcnt");
 
-	printf("         RIP          kernel function\n"
-	       	       "  ______     _______   _____   ________________   _______________\n\n"
-	);
+	if (verbose)
+		printf("         RIP       ");
+	printf("   kernel function\n");
+	printf("   %s    _______   _____",
+	       nr_counters == 1 ? "      " : "______");
+	if (verbose)
+		printf("   ________________");
+	printf("   _______________\n\n");
 
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
-		struct sym_entry *syme = rb_entry(nd, struct sym_entry, rb_node);
-		struct symbol *sym = (struct symbol *)(syme + 1);
+		struct symbol *sym;
 		double pcnt;
+
+		syme = rb_entry(nd, struct sym_entry, rb_node);
+		sym = (struct symbol *)(syme + 1);
 
 		if (++printed > print_entries || (int)syme->snap_count < count_filter)
 			continue;
@@ -507,7 +513,9 @@ static void print_sym_table(void)
 			printf("%9.1f %10ld - ", syme->weight, syme->snap_count);
 
 		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
-		printf(" - %016llx : %s", sym->start, sym->name);
+		if (verbose)
+			printf(" - %016llx", sym->start);
+		printf(" : %s", sym->name);
 		if (sym->module)
 			printf("\t[%s]", sym->module->name);
 		printf("\n");
@@ -613,7 +621,7 @@ static void print_mapped_keys(void)
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", count_filter);
 
-	if (vmlinux) {
+	if (vmlinux_name) {
 		fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
 		fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
 		fprintf(stdout, "\t[S]     stop annotation.\n");
@@ -642,7 +650,9 @@ static int key_mapped(int c)
 		case 'F':
 		case 's':
 		case 'S':
-			return vmlinux ? 1 : 0;
+			return vmlinux_name ? 1 : 0;
+		default:
+			break;
 	}
 
 	return 0;
@@ -727,6 +737,8 @@ static void handle_keypress(int c)
 			break;
 		case 'z':
 			zero = ~zero;
+			break;
+		default:
 			break;
 	}
 }
@@ -816,13 +828,13 @@ static int parse_symbols(void)
 {
 	struct rb_node *node;
 	struct symbol  *sym;
-	int modules = vmlinux ? 1 : 0;
+	int use_modules = vmlinux_name ? 1 : 0;
 
 	kernel_dso = dso__new("[kernel]", sizeof(struct sym_entry));
 	if (kernel_dso == NULL)
 		return -1;
 
-	if (dso__load_kernel(kernel_dso, vmlinux, symbol_filter, verbose, modules) <= 0)
+	if (dso__load_kernel(kernel_dso, vmlinux_name, symbol_filter, verbose, use_modules) <= 0)
 		goto out_delete_dso;
 
 	node = rb_first(&kernel_dso->syms);
@@ -889,7 +901,7 @@ struct mmap_data {
 
 static unsigned int mmap_read_head(struct mmap_data *md)
 {
-	struct perf_counter_mmap_page *pc = md->base;
+	struct perf_event_mmap_page *pc = md->base;
 	int head;
 
 	head = pc->data_head;
@@ -937,26 +949,6 @@ static void mmap_read_counter(struct mmap_data *md)
 	last_read = this_read;
 
 	for (; old != head;) {
-		struct ip_event {
-			struct perf_event_header header;
-			u64 ip;
-			u32 pid, target_pid;
-		};
-		struct mmap_event {
-			struct perf_event_header header;
-			u32 pid, target_pid;
-			u64 start;
-			u64 len;
-			u64 pgoff;
-			char filename[PATH_MAX];
-		};
-
-		typedef union event_union {
-			struct perf_event_header header;
-			struct ip_event ip;
-			struct mmap_event mmap;
-		} event_t;
-
 		event_t *event = (event_t *)&data[old & md->mask];
 
 		event_t event_copy;
@@ -985,9 +977,9 @@ static void mmap_read_counter(struct mmap_data *md)
 
 		old += size;
 
-		if (event->header.type == PERF_EVENT_SAMPLE) {
+		if (event->header.type == PERF_RECORD_SAMPLE) {
 			int user =
-	(event->header.misc & PERF_EVENT_MISC_CPUMODE_MASK) == PERF_EVENT_MISC_USER;
+	(event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK) == PERF_RECORD_MISC_USER;
 			process_event(event->ip.ip, md->counter, user);
 		}
 	}
@@ -1013,7 +1005,7 @@ int group_fd;
 
 static void start_counter(int i, int counter)
 {
-	struct perf_counter_attr *attr;
+	struct perf_event_attr *attr;
 	int cpu;
 
 	cpu = profile_cpu;
@@ -1027,7 +1019,7 @@ static void start_counter(int i, int counter)
 	attr->inherit		= (cpu < 0) && inherit;
 
 try_again:
-	fd[i][counter] = sys_perf_counter_open(attr, target_pid, cpu, group_fd, 0);
+	fd[i][counter] = sys_perf_event_open(attr, target_pid, cpu, group_fd, 0);
 
 	if (fd[i][counter] < 0) {
 		int err = errno;
@@ -1052,7 +1044,7 @@ try_again:
 		printf("\n");
 		error("perfcounter syscall returned with %d (%s)\n",
 			fd[i][counter], strerror(err));
-		die("No CONFIG_PERF_COUNTERS=y kernel support configured?\n");
+		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 		exit(-1);
 	}
 	assert(fd[i][counter] >= 0);
@@ -1138,7 +1130,7 @@ static const struct option options[] = {
 			    "system-wide collection from all CPUs"),
 	OPT_INTEGER('C', "CPU", &profile_cpu,
 		    "CPU to profile on"),
-	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
+	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,

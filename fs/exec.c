@@ -33,7 +33,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
 #include <linux/key.h>
@@ -845,6 +845,9 @@ static int de_thread(struct task_struct *tsk)
 	sig->notify_count = 0;
 
 no_thread_group:
+	if (current->mm)
+		setmax_mm_hiwater_rss(&sig->maxrss, current->mm);
+
 	exit_itimers(sig);
 	flush_itimer_signals();
 
@@ -923,7 +926,7 @@ void set_task_comm(struct task_struct *tsk, char *buf)
 	task_lock(tsk);
 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
 	task_unlock(tsk);
-	perf_counter_comm(tsk);
+	perf_event_comm(tsk);
 }
 
 int flush_old_exec(struct linux_binprm * bprm)
@@ -997,7 +1000,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	 * security domain:
 	 */
 	if (!get_dumpable(current->mm))
-		perf_counter_exit_task(current);
+		perf_event_exit_task(current);
 
 	/* An exec changes our domain. We are no longer part of the thread
 	   group */
@@ -1353,6 +1356,8 @@ int do_execve(char * filename,
 	retval = search_binary_handler(bprm,regs);
 	if (retval < 0)
 		goto out;
+
+	current->stack_start = current->mm->start_stack;
 
 	/* execve succeeded */
 	current->fs->in_exec = 0;

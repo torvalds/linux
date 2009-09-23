@@ -28,7 +28,7 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/ptrace.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 
 #include "trace.h"
 #include "trace_output.h"
@@ -1176,7 +1176,7 @@ static __kprobes int kprobe_profile_func(struct kprobe *kp,
 		entry->ip = (unsigned long)kp->addr;
 		for (i = 0; i < tp->nr_args; i++)
 			entry->args[i] = call_fetch(&tp->args[i].fetch, regs);
-		perf_tpcounter_event(call->id, entry->ip, 1, entry, size);
+		perf_tp_event(call->id, entry->ip, 1, entry, size);
 	} while (0);
 	return 0;
 }
@@ -1213,7 +1213,7 @@ static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
 		entry->ret_ip = (unsigned long)ri->ret_addr;
 		for (i = 0; i < tp->nr_args; i++)
 			entry->args[i] = call_fetch(&tp->args[i].fetch, regs);
-		perf_tpcounter_event(call->id, entry->ret_ip, 1, entry, size);
+		perf_tp_event(call->id, entry->ret_ip, 1, entry, size);
 	} while (0);
 	return 0;
 }
@@ -1222,10 +1222,8 @@ static int probe_profile_enable(struct ftrace_event_call *call)
 {
 	struct trace_probe *tp = (struct trace_probe *)call->data;
 
-	if (atomic_inc_return(&call->profile_count))
-		return 0;
-
 	tp->flags |= TP_FLAG_PROFILE;
+
 	if (probe_is_return(tp))
 		return enable_kretprobe(&tp->rp);
 	else
@@ -1236,10 +1234,9 @@ static void probe_profile_disable(struct ftrace_event_call *call)
 {
 	struct trace_probe *tp = (struct trace_probe *)call->data;
 
-	if (atomic_add_negative(-1, &call->profile_count))
-		tp->flags &= ~TP_FLAG_PROFILE;
+	tp->flags &= ~TP_FLAG_PROFILE;
 
-	if (!(tp->flags & (TP_FLAG_TRACE | TP_FLAG_PROFILE))) {
+	if (!(tp->flags & TP_FLAG_TRACE)) {
 		if (probe_is_return(tp))
 			disable_kretprobe(&tp->rp);
 		else

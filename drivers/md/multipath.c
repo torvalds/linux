@@ -90,7 +90,7 @@ static void multipath_end_request(struct bio *bio, int error)
 
 	if (uptodate)
 		multipath_end_bh_io(mp_bh, 0);
-	else if (!bio_rw_ahead(bio)) {
+	else if (!bio_rw_flagged(bio, BIO_RW_AHEAD)) {
 		/*
 		 * oops, IO error:
 		 */
@@ -144,12 +144,13 @@ static int multipath_make_request (struct request_queue *q, struct bio * bio)
 	const int rw = bio_data_dir(bio);
 	int cpu;
 
-	if (unlikely(bio_barrier(bio))) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
 
 	mp_bh = mempool_alloc(conf->pool, GFP_NOIO);
+	memset(mp_bh, 0, sizeof(*mp_bh));
 
 	mp_bh->master_bio = bio;
 	mp_bh->mddev = mddev;
@@ -493,7 +494,7 @@ static int multipath_run (mddev_t *mddev)
 	}
 	mddev->degraded = conf->raid_disks - conf->working_disks;
 
-	conf->pool = mempool_create_kzalloc_pool(NR_RESERVED_BUFS,
+	conf->pool = mempool_create_kmalloc_pool(NR_RESERVED_BUFS,
 						 sizeof(struct multipath_bh));
 	if (conf->pool == NULL) {
 		printk(KERN_ERR 

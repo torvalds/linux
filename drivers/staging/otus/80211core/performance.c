@@ -27,9 +27,9 @@
 #ifdef ZM_ENABLE_PERFORMANCE_EVALUATION
 
 #define ZM_TP_SIZE 50
-struct zsSummary zm_summary;
-struct zsVariation zm_var;
-struct zsThroughput zm_tp;
+static struct zsSummary zm_summary;
+static struct zsVariation zm_var;
+static struct zsThroughput zm_tp;
 
 void zfiPerformanceInit(zdev_t* dev)
 {

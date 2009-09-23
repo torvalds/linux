@@ -448,7 +448,7 @@ static int raid0_make_request(struct request_queue *q, struct bio *bio)
 	const int rw = bio_data_dir(bio);
 	int cpu;
 
-	if (unlikely(bio_barrier(bio))) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}

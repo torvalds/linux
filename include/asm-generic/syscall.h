@@ -1,7 +1,7 @@
 /*
  * Access to user system call parameters and results
  *
- * Copyright (C) 2008 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2008-2009 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -32,9 +32,13 @@ struct pt_regs;
  * If @task is not executing a system call, i.e. it's blocked
  * inside the kernel for a fault or signal, returns -1.
  *
+ * Note this returns int even on 64-bit machines.  Only 32 bits of
+ * system call number can be meaningful.  If the actual arch value
+ * is 64 bits, this truncates to 32 bits so 0xffffffff means -1.
+ *
  * It's only valid to call this when @task is known to be blocked.
  */
-long syscall_get_nr(struct task_struct *task, struct pt_regs *regs);
+int syscall_get_nr(struct task_struct *task, struct pt_regs *regs);
 
 /**
  * syscall_rollback - roll back registers after an aborted system call

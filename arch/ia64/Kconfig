@@ -89,6 +89,9 @@ config GENERIC_TIME_VSYSCALL
 	bool
 	default y
 
+config HAVE_LEGACY_PER_CPU_AREA
+	def_bool y
+
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
 
@@ -111,6 +114,10 @@ config SCHED_OMIT_FRAME_POINTER
 config IA64_UNCACHED_ALLOCATOR
 	bool
 	select GENERIC_ALLOCATOR
+
+config ARCH_USES_PG_UNCACHED
+	def_bool y
+	depends on IA64_UNCACHED_ALLOCATOR
 
 config AUDIT_ARCH
 	bool
@@ -492,6 +499,10 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 config HAVE_ARCH_NODEDATA_EXTENSION
 	def_bool y
 	depends on NUMA
+
+config ARCH_PROC_KCORE_TEXT
+	def_bool y
+	depends on PROC_KCORE
 
 config IA32_SUPPORT
 	bool "Support for Linux/x86 binaries"

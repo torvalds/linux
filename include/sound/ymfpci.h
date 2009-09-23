@@ -331,6 +331,7 @@ struct snd_ymfpci {
 	struct snd_ac97 *ac97;
 	struct snd_rawmidi *rawmidi;
 	struct snd_timer *timer;
+	unsigned int timer_ticks;
 
 	struct pci_dev *pci;
 	struct snd_card *card;

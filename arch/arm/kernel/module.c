@@ -102,6 +102,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 		unsigned long loc;
 		Elf32_Sym *sym;
 		s32 offset;
+		u32 upper, lower, sign, j1, j2;
 
 		offset = ELF32_R_SYM(rel->r_info);
 		if (offset < 0 || offset > (symsec->sh_size / sizeof(Elf32_Sym))) {
@@ -182,6 +183,58 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			*(u32 *)loc &= 0xfff0f000;
 			*(u32 *)loc |= ((offset & 0xf000) << 4) |
 					(offset & 0x0fff);
+			break;
+
+		case R_ARM_THM_CALL:
+		case R_ARM_THM_JUMP24:
+			upper = *(u16 *)loc;
+			lower = *(u16 *)(loc + 2);
+
+			/*
+			 * 25 bit signed address range (Thumb-2 BL and B.W
+			 * instructions):
+			 *   S:I1:I2:imm10:imm11:0
+			 * where:
+			 *   S     = upper[10]   = offset[24]
+			 *   I1    = ~(J1 ^ S)   = offset[23]
+			 *   I2    = ~(J2 ^ S)   = offset[22]
+			 *   imm10 = upper[9:0]  = offset[21:12]
+			 *   imm11 = lower[10:0] = offset[11:1]
+			 *   J1    = lower[13]
+			 *   J2    = lower[11]
+			 */
+			sign = (upper >> 10) & 1;
+			j1 = (lower >> 13) & 1;
+			j2 = (lower >> 11) & 1;
+			offset = (sign << 24) | ((~(j1 ^ sign) & 1) << 23) |
+				((~(j2 ^ sign) & 1) << 22) |
+				((upper & 0x03ff) << 12) |
+				((lower & 0x07ff) << 1);
+			if (offset & 0x01000000)
+				offset -= 0x02000000;
+			offset += sym->st_value - loc;
+
+			/* only Thumb addresses allowed (no interworking) */
+			if (!(offset & 1) ||
+			    offset <= (s32)0xff000000 ||
+			    offset >= (s32)0x01000000) {
+				printk(KERN_ERR
+				       "%s: relocation out of range, section "
+				       "%d reloc %d sym '%s'\n", module->name,
+				       relindex, i, strtab + sym->st_name);
+				return -ENOEXEC;
+			}
+
+			sign = (offset >> 24) & 1;
+			j1 = sign ^ (~(offset >> 23) & 1);
+			j2 = sign ^ (~(offset >> 22) & 1);
+			*(u16 *)loc = (u16)((upper & 0xf800) | (sign << 10) |
+					    ((offset >> 12) & 0x03ff));
+			*(u16 *)(loc + 2) = (u16)((lower & 0xd000) |
+						  (j1 << 13) | (j2 << 11) |
+						  ((offset >> 1) & 0x07ff));
+			upper = *(u16 *)loc;
+			lower = *(u16 *)(loc + 2);
 			break;
 
 		default:

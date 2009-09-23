@@ -475,7 +475,7 @@ static void __cpuinit probe_tlb(unsigned long config)
 	c->tlbsize = ((reg >> 25) & 0x3f) + 1;
 }
 
-static int __cpuinitdata ntlb = 0;
+static int __cpuinitdata ntlb;
 static int __init set_ntlb(char *str)
 {
 	get_option(&str, &ntlb);

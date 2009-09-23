@@ -596,10 +596,11 @@ void cgroup_unlock(void)
 static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cgrp);
-static struct inode_operations cgroup_dir_inode_operations;
+static const struct inode_operations cgroup_dir_inode_operations;
 static struct file_operations proc_cgroupstats_operations;
 
 static struct backing_dev_info cgroup_backing_dev_info = {
+	.name		= "cgroup",
 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 };
 
@@ -960,7 +961,7 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	return ret;
 }
 
-static struct super_operations cgroup_ops = {
+static const struct super_operations cgroup_ops = {
 	.statfs = simple_statfs,
 	.drop_inode = generic_delete_inode,
 	.show_options = cgroup_show_options,
@@ -1710,7 +1711,7 @@ static struct file_operations cgroup_file_operations = {
 	.release = cgroup_file_release,
 };
 
-static struct inode_operations cgroup_dir_inode_operations = {
+static const struct inode_operations cgroup_dir_inode_operations = {
 	.lookup = simple_lookup,
 	.mkdir = cgroup_mkdir,
 	.rmdir = cgroup_rmdir,
@@ -2313,7 +2314,7 @@ static int cgroup_tasks_show(struct seq_file *s, void *v)
 	return seq_printf(s, "%d\n", *(int *)v);
 }
 
-static struct seq_operations cgroup_tasks_seq_operations = {
+static const struct seq_operations cgroup_tasks_seq_operations = {
 	.start = cgroup_tasks_start,
 	.stop = cgroup_tasks_stop,
 	.next = cgroup_tasks_next,

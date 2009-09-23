@@ -232,7 +232,7 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	for (try = 0; try < 5; try++) {
 		/* Load the send data into the aux channel data registers */
 		for (i = 0; i < send_bytes; i += 4) {
-			uint32_t    d = pack_aux(send + i, send_bytes - i);;
+			uint32_t    d = pack_aux(send + i, send_bytes - i);
 	
 			I915_WRITE(ch_data + i, d);
 		}
@@ -1263,7 +1263,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 	if (IS_eDP(intel_output)) {
 		intel_output->crtc_mask = (1 << 1);
-		intel_output->clone_mask = (1 << INTEL_OUTPUT_EDP);
+		intel_output->clone_mask = (1 << INTEL_EDP_CLONE_BIT);
 	} else
 		intel_output->crtc_mask = (1 << 0) | (1 << 1);
 	connector->interlace_allowed = true;

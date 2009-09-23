@@ -94,7 +94,6 @@ static struct resource *shmedia_find_resource(struct resource *root,
 static void __iomem *shmedia_alloc_io(unsigned long phys, unsigned long size,
 				      const char *name, unsigned long flags)
 {
-	static int printed_full;
 	struct xresource *xres;
 	struct resource *res;
 	char *tack;
@@ -108,11 +107,8 @@ static void __iomem *shmedia_alloc_io(unsigned long phys, unsigned long size,
 		tack = xres->xname;
 		res = &xres->xres;
 	} else {
-		if (!printed_full) {
-			printk(KERN_NOTICE "%s: done with statics, "
+		printk_once(KERN_NOTICE "%s: done with statics, "
 			       "switching to kmalloc\n", __func__);
-			printed_full = 1;
-		}
 		tlen = strlen(name);
 		tack = kmalloc(sizeof(struct resource) + tlen + 1, GFP_KERNEL);
 		if (!tack)

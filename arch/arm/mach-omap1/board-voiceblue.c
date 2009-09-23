@@ -140,12 +140,7 @@ static struct omap_usb_config voiceblue_usb_config __initdata = {
 	.pins[2]	= 6,
 };
 
-static struct omap_uart_config voiceblue_uart_config __initdata = {
-	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
-};
-
 static struct omap_board_config_kernel voiceblue_config[] = {
-	{ OMAP_TAG_UART, &voiceblue_uart_config },
 };
 
 static void __init voiceblue_init_irq(void)

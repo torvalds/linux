@@ -106,6 +106,7 @@ struct connection {
 #define CF_CONNECT_PENDING 3
 #define CF_INIT_PENDING 4
 #define CF_IS_OTHERCON 5
+#define CF_CLOSE 6
 	struct list_head writequeue;  /* List of outgoing writequeue_entries */
 	spinlock_t writequeue_lock;
 	int (*rx_action) (struct connection *);	/* What to do when active */
@@ -299,6 +300,8 @@ static void lowcomms_write_space(struct sock *sk)
 
 static inline void lowcomms_connect_sock(struct connection *con)
 {
+	if (test_bit(CF_CLOSE, &con->flags))
+		return;
 	if (!test_and_set_bit(CF_CONNECT_PENDING, &con->flags))
 		queue_work(send_workqueue, &con->swork);
 }
@@ -926,10 +929,8 @@ static void tcp_connect_to_sock(struct connection *con)
 		goto out_err;
 
 	memset(&saddr, 0, sizeof(saddr));
-	if (dlm_nodeid_to_addr(con->nodeid, &saddr)) {
-		sock_release(sock);
+	if (dlm_nodeid_to_addr(con->nodeid, &saddr))
 		goto out_err;
-	}
 
 	sock->sk->sk_user_data = con;
 	con->rx_action = receive_from_sock;
@@ -1284,7 +1285,6 @@ out:
 static void send_to_sock(struct connection *con)
 {
 	int ret = 0;
-	ssize_t(*sendpage) (struct socket *, struct page *, int, size_t, int);
 	const int msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL;
 	struct writequeue_entry *e;
 	int len, offset;
@@ -1292,8 +1292,6 @@ static void send_to_sock(struct connection *con)
 	mutex_lock(&con->sock_mutex);
 	if (con->sock == NULL)
 		goto out_connect;
-
-	sendpage = con->sock->ops->sendpage;
 
 	spin_lock(&con->writequeue_lock);
 	for (;;) {
@@ -1309,8 +1307,8 @@ static void send_to_sock(struct connection *con)
 
 		ret = 0;
 		if (len) {
-			ret = sendpage(con->sock, e->page, offset, len,
-				       msg_flags);
+			ret = kernel_sendpage(con->sock, e->page, offset, len,
+					      msg_flags);
 			if (ret == -EAGAIN || ret == 0) {
 				cond_resched();
 				goto out;
@@ -1370,6 +1368,13 @@ int dlm_lowcomms_close(int nodeid)
 	log_print("closing connection to node %d", nodeid);
 	con = nodeid2con(nodeid, 0);
 	if (con) {
+		clear_bit(CF_CONNECT_PENDING, &con->flags);
+		clear_bit(CF_WRITE_PENDING, &con->flags);
+		set_bit(CF_CLOSE, &con->flags);
+		if (cancel_work_sync(&con->swork))
+			log_print("canceled swork for node %d", nodeid);
+		if (cancel_work_sync(&con->rwork))
+			log_print("canceled rwork for node %d", nodeid);
 		clean_one_writequeue(con);
 		close_connection(con, true);
 	}
@@ -1395,9 +1400,10 @@ static void process_send_sockets(struct work_struct *work)
 
 	if (test_and_clear_bit(CF_CONNECT_PENDING, &con->flags)) {
 		con->connect_action(con);
+		set_bit(CF_WRITE_PENDING, &con->flags);
 	}
-	clear_bit(CF_WRITE_PENDING, &con->flags);
-	send_to_sock(con);
+	if (test_and_clear_bit(CF_WRITE_PENDING, &con->flags))
+		send_to_sock(con);
 }
 
 

@@ -47,7 +47,7 @@ MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 6, 0)
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 7, 0)
 
 #ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
@@ -486,6 +486,7 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 	}
 	PDEBUG(D_STREAM, "use alt %d ep 0x%02x",
 			i, ep->desc.bEndpointAddress);
+	gspca_dev->alt = i;		/* memorize the current alt setting */
 	if (gspca_dev->nbalt > 1) {
 		ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, i);
 		if (ret < 0) {
@@ -493,7 +494,6 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 			return NULL;
 		}
 	}
-	gspca_dev->alt = i;		/* memorize the current alt setting */
 	return ep;
 }
 
@@ -512,7 +512,10 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 	if (!gspca_dev->cam.bulk) {		/* isoc */
 
 		/* See paragraph 5.9 / table 5-11 of the usb 2.0 spec. */
-		psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
+		if (gspca_dev->pkt_size == 0)
+			psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
+		else
+			psize = gspca_dev->pkt_size;
 		npkt = gspca_dev->cam.npkt;
 		if (npkt == 0)
 			npkt = 32;		/* default value */
@@ -597,13 +600,18 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 	/* set the higher alternate setting and
 	 * loop until urb submit succeeds */
 	gspca_dev->alt = gspca_dev->nbalt;
+	if (gspca_dev->sd_desc->isoc_init) {
+		ret = gspca_dev->sd_desc->isoc_init(gspca_dev);
+		if (ret < 0)
+			goto out;
+	}
+	ep = get_ep(gspca_dev);
+	if (ep == NULL) {
+		ret = -EIO;
+		goto out;
+	}
 	for (;;) {
 		PDEBUG(D_STREAM, "init transfer alt %d", gspca_dev->alt);
-		ep = get_ep(gspca_dev);
-		if (ep == NULL) {
-			ret = -EIO;
-			goto out;
-		}
 		ret = create_urbs(gspca_dev, ep);
 		if (ret < 0)
 			goto out;
@@ -628,21 +636,32 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		/* submit the URBs */
 		for (n = 0; n < gspca_dev->nurbs; n++) {
 			ret = usb_submit_urb(gspca_dev->urb[n], GFP_KERNEL);
-			if (ret < 0) {
-				PDEBUG(D_ERR|D_STREAM,
-					"usb_submit_urb [%d] err %d", n, ret);
-				gspca_dev->streaming = 0;
-				destroy_urbs(gspca_dev);
-				if (ret == -ENOSPC) {
-					msleep(20);	/* wait for kill
-							 * complete */
-					break;	/* try the previous alt */
-				}
-				goto out;
-			}
+			if (ret < 0)
+				break;
 		}
 		if (ret >= 0)
 			break;
+		PDEBUG(D_ERR|D_STREAM,
+			"usb_submit_urb alt %d err %d", gspca_dev->alt, ret);
+		gspca_dev->streaming = 0;
+		destroy_urbs(gspca_dev);
+		if (ret != -ENOSPC)
+			goto out;
+
+		/* the bandwidth is not wide enough
+		 * negociate or try a lower alternate setting */
+		msleep(20);	/* wait for kill complete */
+		if (gspca_dev->sd_desc->isoc_nego) {
+			ret = gspca_dev->sd_desc->isoc_nego(gspca_dev);
+			if (ret < 0)
+				goto out;
+		} else {
+			ep = get_ep(gspca_dev);
+			if (ep == NULL) {
+				ret = -EIO;
+				goto out;
+			}
+		}
 	}
 out:
 	mutex_unlock(&gspca_dev->usb_lock);
@@ -1473,12 +1492,6 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 	return 0;
 }
 
-static int vidioc_s_std(struct file *filp, void *priv,
-			v4l2_std_id *parm)
-{
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 static int vidiocgmbuf(struct file *file, void *priv,
 			struct video_mbuf *mbuf)
@@ -1949,7 +1962,6 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_s_jpegcomp	= vidioc_s_jpegcomp,
 	.vidioc_g_parm		= vidioc_g_parm,
 	.vidioc_s_parm		= vidioc_s_parm,
-	.vidioc_s_std		= vidioc_s_std,
 	.vidioc_enum_framesizes = vidioc_enum_framesizes,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register	= vidioc_g_register,

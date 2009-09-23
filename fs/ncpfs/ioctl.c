@@ -442,7 +442,7 @@ static int __ncp_ioctl(struct inode *inode, struct file *filp,
 			if (dentry) {
 				struct inode* s_inode = dentry->d_inode;
 				
-				if (inode) {
+				if (s_inode) {
 					NCP_FINFO(s_inode)->volNumber = vnum;
 					NCP_FINFO(s_inode)->dirEntNum = de;
 					NCP_FINFO(s_inode)->DosDirNum = dosde;

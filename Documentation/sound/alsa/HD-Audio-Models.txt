@@ -114,8 +114,8 @@ ALC662/663/272
   samsung-nc10	Samsung NC10 mini notebook
   auto		auto-config reading BIOS (default)
 
-ALC882/885
-==========
+ALC882/883/885/888/889
+======================
   3stack-dig	3-jack with SPDIF I/O
   6stack-dig	6-jack digital with SPDIF I/O
   arima		Arima W820Di1
@@ -127,12 +127,8 @@ ALC882/885
   mbp3		Macbook Pro rev3
   imac24	iMac 24'' with jack detection
   w2jc		ASUS W2JC
-  auto		auto-config reading BIOS (default)
-
-ALC883/888
-==========
-  3stack-dig	3-jack with SPDIF I/O
-  6stack-dig	6-jack digital with SPDIF I/O
+  3stack-2ch-dig	3-jack with SPDIF I/O (ALC883)
+  alc883-6stack-dig	6-jack digital with SPDIF I/O (ALC883)
   3stack-6ch    3-jack 6-channel
   3stack-6ch-dig 3-jack 6-channel with SPDIF I/O
   6stack-dig-demo  6-jack digital for Intel demo board
@@ -140,6 +136,7 @@ ALC883/888
   acer-aspire	Acer Aspire 9810
   acer-aspire-4930g Acer Aspire 4930G
   acer-aspire-6530g Acer Aspire 6530G
+  acer-aspire-7730g Acer Aspire 7730G
   acer-aspire-8930g Acer Aspire 8930G
   medion	Medion Laptops
   medion-md2	Medion MD2
@@ -155,10 +152,13 @@ ALC883/888
   3stack-hp	HP machines with 3stack (Lucknow, Samba boards)
   6stack-dell	Dell machines with 6stack (Inspiron 530)
   mitac		Mitac 8252D
+  clevo-m540r	Clevo M540R (6ch + digital)
   clevo-m720	Clevo M720 laptop series
   fujitsu-pi2515 Fujitsu AMILO Pi2515
   fujitsu-xa3530 Fujitsu AMILO XA3530
   3stack-6ch-intel Intel DG33* boards
+  intel-alc889a	Intel IbexPeak with ALC889A
+  intel-x58	Intel DX58 with ALC889
   asus-p5q	ASUS P5Q-EM boards
   mb31		MacBook 3,1
   sony-vaio-tt  Sony VAIO TT
@@ -229,7 +229,7 @@ AD1984
 ======
   basic		default configuration
   thinkpad	Lenovo Thinkpad T61/X61
-  dell		Dell T3400
+  dell_desktop	Dell T3400
 
 AD1986A
 =======
@@ -258,6 +258,7 @@ Conexant 5045
   laptop-micsense   Laptop with Mic sense (old model fujitsu)
   laptop-hpmicsense Laptop with HP and Mic senses
   benq		Benq R55E
+  laptop-hp530	HP 530 laptop
   test		for testing/debugging purpose, almost all controls
 		can be adjusted.  Appearing only when compiled with
 		$CONFIG_SND_DEBUG=y
@@ -278,9 +279,16 @@ Conexant 5051
   hp-dv6736	HP dv6736
   lenovo-x200	Lenovo X200 laptop
 
+Conexant 5066
+=============
+  laptop	Basic Laptop config (default)
+  dell-laptop	Dell laptops
+  olpc-xo-1_5	OLPC XO 1.5
+
 STAC9200
 ========
   ref		Reference board
+  oqo		OQO Model 2
   dell-d21	Dell (unknown)
   dell-d22	Dell (unknown)
   dell-d23	Dell (unknown)
@@ -368,20 +376,27 @@ STAC92HD73*
 ===========
   ref		Reference board
   no-jd		BIOS setup but without jack-detection
+  intel		Intel DG45* mobos
   dell-m6-amic	Dell desktops/laptops with analog mics
   dell-m6-dmic	Dell desktops/laptops with digital mics
   dell-m6	Dell desktops/laptops with both type of mics
   dell-eq	Dell desktops/laptops
+  alienware	Alienware M17x
   auto		BIOS setup (default)
 
 STAC92HD83*
 ===========
   ref		Reference board
-  mic-ref	Reference board with power managment for ports
+  mic-ref	Reference board with power management for ports
   dell-s14	Dell laptop
   auto		BIOS setup (default)
 
 STAC9872
 ========
   vaio		VAIO laptop without SPDIF
+  auto		BIOS setup (default)
+
+Cirrus Logic CS4206/4207
+========================
+  mbp55		MacBook Pro 5,5
   auto		BIOS setup (default)

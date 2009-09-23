@@ -331,6 +331,7 @@ void __init vmem_map_init(void)
 	unsigned long start, end;
 	int i;
 
+	spin_lock_init(&init_mm.context.list_lock);
 	INIT_LIST_HEAD(&init_mm.context.crst_list);
 	INIT_LIST_HEAD(&init_mm.context.pgtable_list);
 	init_mm.context.noexec = 0;

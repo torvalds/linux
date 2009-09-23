@@ -66,6 +66,8 @@
 #include <asm/apic.h>
 
 #define __apicdebuginit(type) static type __init
+#define for_each_irq_pin(entry, head) \
+	for (entry = head; entry; entry = entry->next)
 
 /*
  *      Is the SiS APIC rmw bug present ?
@@ -85,11 +87,19 @@ int nr_ioapic_registers[MAX_IO_APICS];
 struct mpc_ioapic mp_ioapics[MAX_IO_APICS];
 int nr_ioapics;
 
+/* IO APIC gsi routing info */
+struct mp_ioapic_gsi  mp_gsi_routing[MAX_IO_APICS];
+
 /* MP IRQ source entries */
 struct mpc_intsrc mp_irqs[MAX_IRQ_SOURCES];
 
 /* # of MP IRQ source entries */
 int mp_irq_entries;
+
+/* Number of legacy interrupts */
+static int nr_legacy_irqs __read_mostly = NR_IRQS_LEGACY;
+/* GSI interrupts */
+static int nr_irqs_gsi = NR_IRQS_LEGACY;
 
 #if defined (CONFIG_MCA) || defined (CONFIG_EISA)
 int mp_bus_id_to_type[MAX_MP_BUSSES];
@@ -116,15 +126,6 @@ static int __init parse_noapic(char *str)
 }
 early_param("noapic", parse_noapic);
 
-struct irq_pin_list;
-
-/*
- * This is performance-critical, we want to do it O(1)
- *
- * the indexing order of this array favors 1:1 mappings
- * between pins and IRQs.
- */
-
 struct irq_pin_list {
 	int apic, pin;
 	struct irq_pin_list *next;
@@ -139,6 +140,11 @@ static struct irq_pin_list *get_one_free_irq_2_pin(int node)
 	return pin;
 }
 
+/*
+ * This is performance-critical, we want to do it O(1)
+ *
+ * Most irqs are mapped 1:1 with pins.
+ */
 struct irq_cfg {
 	struct irq_pin_list *irq_2_pin;
 	cpumask_var_t domain;
@@ -172,6 +178,12 @@ static struct irq_cfg irq_cfgx[NR_IRQS] = {
 	[15] = { .vector = IRQ15_VECTOR, },
 };
 
+void __init io_apic_disable_legacy(void)
+{
+	nr_legacy_irqs = 0;
+	nr_irqs_gsi = 0;
+}
+
 int __init arch_early_irq_init(void)
 {
 	struct irq_cfg *cfg;
@@ -189,7 +201,7 @@ int __init arch_early_irq_init(void)
 		desc->chip_data = &cfg[i];
 		zalloc_cpumask_var_node(&cfg[i].domain, GFP_NOWAIT, node);
 		zalloc_cpumask_var_node(&cfg[i].old_domain, GFP_NOWAIT, node);
-		if (i < NR_IRQS_LEGACY)
+		if (i < nr_legacy_irqs)
 			cpumask_setall(cfg[i].domain);
 	}
 
@@ -414,13 +426,10 @@ static bool io_apic_level_ack_pending(struct irq_cfg *cfg)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ioapic_lock, flags);
-	entry = cfg->irq_2_pin;
-	for (;;) {
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		unsigned int reg;
 		int pin;
 
-		if (!entry)
-			break;
 		pin = entry->pin;
 		reg = io_apic_read(entry->apic, 0x10 + pin*2);
 		/* Is the remote IRR bit set? */
@@ -428,9 +437,6 @@ static bool io_apic_level_ack_pending(struct irq_cfg *cfg)
 			spin_unlock_irqrestore(&ioapic_lock, flags);
 			return true;
 		}
-		if (!entry->next)
-			break;
-		entry = entry->next;
 	}
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 
@@ -498,72 +504,68 @@ static void ioapic_mask_entry(int apic, int pin)
  * shared ISA-space IRQs, so we have to support them. We are super
  * fast in the common case, and fast for shared ISA-space IRQs.
  */
-static void add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
+static int
+add_pin_to_irq_node_nopanic(struct irq_cfg *cfg, int node, int apic, int pin)
 {
-	struct irq_pin_list *entry;
+	struct irq_pin_list **last, *entry;
 
-	entry = cfg->irq_2_pin;
-	if (!entry) {
-		entry = get_one_free_irq_2_pin(node);
-		if (!entry) {
-			printk(KERN_ERR "can not alloc irq_2_pin to add %d - %d\n",
-					apic, pin);
-			return;
-		}
-		cfg->irq_2_pin = entry;
-		entry->apic = apic;
-		entry->pin = pin;
-		return;
-	}
-
-	while (entry->next) {
-		/* not again, please */
+	/* don't allow duplicates */
+	last = &cfg->irq_2_pin;
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		if (entry->apic == apic && entry->pin == pin)
-			return;
-
-		entry = entry->next;
+			return 0;
+		last = &entry->next;
 	}
 
-	entry->next = get_one_free_irq_2_pin(node);
-	entry = entry->next;
+	entry = get_one_free_irq_2_pin(node);
+	if (!entry) {
+		printk(KERN_ERR "can not alloc irq_pin_list (%d,%d,%d)\n",
+				node, apic, pin);
+		return -ENOMEM;
+	}
 	entry->apic = apic;
 	entry->pin = pin;
+
+	*last = entry;
+	return 0;
+}
+
+static void add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
+{
+	if (add_pin_to_irq_node_nopanic(cfg, node, apic, pin))
+		panic("IO-APIC: failed to add irq-pin. Can not proceed\n");
 }
 
 /*
  * Reroute an IRQ to a different pin.
  */
 static void __init replace_pin_at_irq_node(struct irq_cfg *cfg, int node,
-				      int oldapic, int oldpin,
-				      int newapic, int newpin)
+					   int oldapic, int oldpin,
+					   int newapic, int newpin)
 {
-	struct irq_pin_list *entry = cfg->irq_2_pin;
-	int replaced = 0;
+	struct irq_pin_list *entry;
 
-	while (entry) {
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		if (entry->apic == oldapic && entry->pin == oldpin) {
 			entry->apic = newapic;
 			entry->pin = newpin;
-			replaced = 1;
 			/* every one is different, right? */
-			break;
+			return;
 		}
-		entry = entry->next;
 	}
 
-	/* why? call replace before add? */
-	if (!replaced)
-		add_pin_to_irq_node(cfg, node, newapic, newpin);
+	/* old apic/pin didn't exist, so just add new ones */
+	add_pin_to_irq_node(cfg, node, newapic, newpin);
 }
 
-static inline void io_apic_modify_irq(struct irq_cfg *cfg,
-				int mask_and, int mask_or,
-				void (*final)(struct irq_pin_list *entry))
+static void io_apic_modify_irq(struct irq_cfg *cfg,
+			       int mask_and, int mask_or,
+			       void (*final)(struct irq_pin_list *entry))
 {
 	int pin;
 	struct irq_pin_list *entry;
 
-	for (entry = cfg->irq_2_pin; entry != NULL; entry = entry->next) {
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		unsigned int reg;
 		pin = entry->pin;
 		reg = io_apic_read(entry->apic, 0x10 + pin * 2);
@@ -580,7 +582,6 @@ static void __unmask_IO_APIC_irq(struct irq_cfg *cfg)
 	io_apic_modify_irq(cfg, ~IO_APIC_REDIR_MASKED, 0, NULL);
 }
 
-#ifdef CONFIG_X86_64
 static void io_apic_sync(struct irq_pin_list *entry)
 {
 	/*
@@ -596,11 +597,6 @@ static void __mask_IO_APIC_irq(struct irq_cfg *cfg)
 {
 	io_apic_modify_irq(cfg, ~0, IO_APIC_REDIR_MASKED, &io_apic_sync);
 }
-#else /* CONFIG_X86_32 */
-static void __mask_IO_APIC_irq(struct irq_cfg *cfg)
-{
-	io_apic_modify_irq(cfg, ~0, IO_APIC_REDIR_MASKED, NULL);
-}
 
 static void __mask_and_edge_IO_APIC_irq(struct irq_cfg *cfg)
 {
@@ -613,7 +609,6 @@ static void __unmask_and_level_IO_APIC_irq(struct irq_cfg *cfg)
 	io_apic_modify_irq(cfg, ~IO_APIC_REDIR_MASKED,
 			IO_APIC_REDIR_LEVEL_TRIGGER, NULL);
 }
-#endif /* CONFIG_X86_32 */
 
 static void mask_IO_APIC_irq_desc(struct irq_desc *desc)
 {
@@ -883,7 +878,7 @@ static int __init find_isa_irq_apic(int irq, int type)
  */
 static int EISA_ELCR(unsigned int irq)
 {
-	if (irq < NR_IRQS_LEGACY) {
+	if (irq < nr_legacy_irqs) {
 		unsigned int port = 0x4d0 + (irq >> 3);
 		return (inb(port) >> (irq & 7)) & 1;
 	}
@@ -1480,7 +1475,7 @@ static void setup_IO_APIC_irq(int apic_id, int pin, unsigned int irq, struct irq
 	}
 
 	ioapic_register_intr(irq, desc, trigger);
-	if (irq < NR_IRQS_LEGACY)
+	if (irq < nr_legacy_irqs)
 		disable_8259A_irq(irq);
 
 	ioapic_write_entry(apic_id, pin, entry);
@@ -1702,12 +1697,8 @@ __apicdebuginit(void) print_IO_APIC(void)
 		if (!entry)
 			continue;
 		printk(KERN_DEBUG "IRQ%d ", irq);
-		for (;;) {
+		for_each_irq_pin(entry, cfg->irq_2_pin)
 			printk("-> %d:%d", entry->apic, entry->pin);
-			if (!entry->next)
-				break;
-			entry = entry->next;
-		}
 		printk("\n");
 	}
 
@@ -1851,7 +1842,7 @@ __apicdebuginit(void) print_PIC(void)
 	unsigned int v;
 	unsigned long flags;
 
-	if (apic_verbosity == APIC_QUIET)
+	if (apic_verbosity == APIC_QUIET || !nr_legacy_irqs)
 		return;
 
 	printk(KERN_DEBUG "\nprinting PIC contents\n");
@@ -1883,7 +1874,7 @@ __apicdebuginit(int) print_all_ICs(void)
 	print_PIC();
 
 	/* don't print out if apic is not there */
-	if (!cpu_has_apic || disable_apic)
+	if (!cpu_has_apic && !apic_from_smp_config())
 		return 0;
 
 	print_all_local_APICs();
@@ -1914,6 +1905,10 @@ void __init enable_IO_APIC(void)
 		spin_unlock_irqrestore(&ioapic_lock, flags);
 		nr_ioapic_registers[apic] = reg_01.bits.entries+1;
 	}
+
+	if (!nr_legacy_irqs)
+		return;
+
 	for(apic = 0; apic < nr_ioapics; apic++) {
 		int pin;
 		/* See if any of the pins is in ExtINT mode */
@@ -1968,6 +1963,9 @@ void disable_IO_APIC(void)
 	 */
 	clear_IO_APIC();
 
+	if (!nr_legacy_irqs)
+		return;
+
 	/*
 	 * If the i8259 is routed through an IOAPIC
 	 * Put that IOAPIC in virtual wire mode
@@ -2001,7 +1999,7 @@ void disable_IO_APIC(void)
 	/*
 	 * Use virtual wire A mode when interrupt remapping is enabled.
 	 */
-	if (cpu_has_apic)
+	if (cpu_has_apic || apic_from_smp_config())
 		disconnect_bsp_APIC(!intr_remapping_enabled &&
 				ioapic_i8259.pin != -1);
 }
@@ -2014,7 +2012,7 @@ void disable_IO_APIC(void)
  * by Matt Domsch <Matt_Domsch@dell.com>  Tue Dec 21 12:25:05 CST 1999
  */
 
-static void __init setup_ioapic_ids_from_mpc(void)
+void __init setup_ioapic_ids_from_mpc(void)
 {
 	union IO_APIC_reg_00 reg_00;
 	physid_mask_t phys_id_present_map;
@@ -2023,9 +2021,8 @@ static void __init setup_ioapic_ids_from_mpc(void)
 	unsigned char old_id;
 	unsigned long flags;
 
-	if (x86_quirks->setup_ioapic_ids && x86_quirks->setup_ioapic_ids())
+	if (acpi_ioapic)
 		return;
-
 	/*
 	 * Don't check I/O APIC IDs for xAPIC systems.  They have
 	 * no meaning without the serial APIC bus.
@@ -2199,7 +2196,7 @@ static unsigned int startup_ioapic_irq(unsigned int irq)
 	struct irq_cfg *cfg;
 
 	spin_lock_irqsave(&ioapic_lock, flags);
-	if (irq < NR_IRQS_LEGACY) {
+	if (irq < nr_legacy_irqs) {
 		disable_8259A_irq(irq);
 		if (i8259A_irq_pending(irq))
 			was_pending = 1;
@@ -2211,7 +2208,6 @@ static unsigned int startup_ioapic_irq(unsigned int irq)
 	return was_pending;
 }
 
-#ifdef CONFIG_X86_64
 static int ioapic_retrigger_irq(unsigned int irq)
 {
 
@@ -2224,14 +2220,6 @@ static int ioapic_retrigger_irq(unsigned int irq)
 
 	return 1;
 }
-#else
-static int ioapic_retrigger_irq(unsigned int irq)
-{
-	apic->send_IPI_self(irq_cfg(irq)->vector);
-
-	return 1;
-}
-#endif
 
 /*
  * Level and edge triggered IO-APIC interrupts need different handling,
@@ -2269,12 +2257,8 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
 	struct irq_pin_list *entry;
 	u8 vector = cfg->vector;
 
-	entry = cfg->irq_2_pin;
-	for (;;) {
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		unsigned int reg;
-
-		if (!entry)
-			break;
 
 		apic = entry->apic;
 		pin = entry->pin;
@@ -2288,9 +2272,6 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
 		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
 		reg |= vector;
 		io_apic_modify(apic, 0x10 + pin*2, reg);
-		if (!entry->next)
-			break;
-		entry = entry->next;
 	}
 }
 
@@ -2515,11 +2496,8 @@ atomic_t irq_mis_count;
 static void ack_apic_level(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-
-#ifdef CONFIG_X86_32
 	unsigned long v;
 	int i;
-#endif
 	struct irq_cfg *cfg;
 	int do_unmask_irq = 0;
 
@@ -2532,31 +2510,28 @@ static void ack_apic_level(unsigned int irq)
 	}
 #endif
 
-#ifdef CONFIG_X86_32
 	/*
-	* It appears there is an erratum which affects at least version 0x11
-	* of I/O APIC (that's the 82093AA and cores integrated into various
-	* chipsets).  Under certain conditions a level-triggered interrupt is
-	* erroneously delivered as edge-triggered one but the respective IRR
-	* bit gets set nevertheless.  As a result the I/O unit expects an EOI
-	* message but it will never arrive and further interrupts are blocked
-	* from the source.  The exact reason is so far unknown, but the
-	* phenomenon was observed when two consecutive interrupt requests
-	* from a given source get delivered to the same CPU and the source is
-	* temporarily disabled in between.
-	*
-	* A workaround is to simulate an EOI message manually.  We achieve it
-	* by setting the trigger mode to edge and then to level when the edge
-	* trigger mode gets detected in the TMR of a local APIC for a
-	* level-triggered interrupt.  We mask the source for the time of the
-	* operation to prevent an edge-triggered interrupt escaping meanwhile.
-	* The idea is from Manfred Spraul.  --macro
-	*/
+	 * It appears there is an erratum which affects at least version 0x11
+	 * of I/O APIC (that's the 82093AA and cores integrated into various
+	 * chipsets).  Under certain conditions a level-triggered interrupt is
+	 * erroneously delivered as edge-triggered one but the respective IRR
+	 * bit gets set nevertheless.  As a result the I/O unit expects an EOI
+	 * message but it will never arrive and further interrupts are blocked
+	 * from the source.  The exact reason is so far unknown, but the
+	 * phenomenon was observed when two consecutive interrupt requests
+	 * from a given source get delivered to the same CPU and the source is
+	 * temporarily disabled in between.
+	 *
+	 * A workaround is to simulate an EOI message manually.  We achieve it
+	 * by setting the trigger mode to edge and then to level when the edge
+	 * trigger mode gets detected in the TMR of a local APIC for a
+	 * level-triggered interrupt.  We mask the source for the time of the
+	 * operation to prevent an edge-triggered interrupt escaping meanwhile.
+	 * The idea is from Manfred Spraul.  --macro
+	 */
 	cfg = desc->chip_data;
 	i = cfg->vector;
-
 	v = apic_read(APIC_TMR + ((i & ~0x1f) >> 1));
-#endif
 
 	/*
 	 * We must acknowledge the irq before we move it or the acknowledge will
@@ -2598,7 +2573,7 @@ static void ack_apic_level(unsigned int irq)
 		unmask_IO_APIC_irq_desc(desc);
 	}
 
-#ifdef CONFIG_X86_32
+	/* Tail end of version 0x11 I/O APIC bug workaround */
 	if (!(v & (1 << (i & 0x1f)))) {
 		atomic_inc(&irq_mis_count);
 		spin_lock(&ioapic_lock);
@@ -2606,26 +2581,15 @@ static void ack_apic_level(unsigned int irq)
 		__unmask_and_level_IO_APIC_irq(cfg);
 		spin_unlock(&ioapic_lock);
 	}
-#endif
 }
 
 #ifdef CONFIG_INTR_REMAP
 static void __eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg)
 {
-	int apic, pin;
 	struct irq_pin_list *entry;
 
-	entry = cfg->irq_2_pin;
-	for (;;) {
-
-		if (!entry)
-			break;
-
-		apic = entry->apic;
-		pin = entry->pin;
-		io_apic_eoi(apic, pin);
-		entry = entry->next;
-	}
+	for_each_irq_pin(entry, cfg->irq_2_pin)
+		io_apic_eoi(entry->apic, entry->pin);
 }
 
 static void
@@ -2710,7 +2674,7 @@ static inline void init_IO_APIC_traps(void)
 			 * so default to an old-fashioned 8259
 			 * interrupt if we can..
 			 */
-			if (irq < NR_IRQS_LEGACY)
+			if (irq < nr_legacy_irqs)
 				make_8259A_irq(irq);
 			else
 				/* Strange. Oh, well.. */
@@ -3046,7 +3010,7 @@ out:
  * the I/O APIC in all cases now.  No actual device should request
  * it anyway.  --macro
  */
-#define PIC_IRQS	(1 << PIC_CASCADE_IR)
+#define PIC_IRQS	(1UL << PIC_CASCADE_IR)
 
 void __init setup_IO_APIC(void)
 {
@@ -3054,21 +3018,19 @@ void __init setup_IO_APIC(void)
 	/*
 	 * calling enable_IO_APIC() is moved to setup_local_APIC for BP
 	 */
-
-	io_apic_irqs = ~PIC_IRQS;
+	io_apic_irqs = nr_legacy_irqs ? ~PIC_IRQS : ~0UL;
 
 	apic_printk(APIC_VERBOSE, "ENABLING IO-APIC IRQs\n");
 	/*
          * Set up IO-APIC IRQ routing.
          */
-#ifdef CONFIG_X86_32
-	if (!acpi_ioapic)
-		setup_ioapic_ids_from_mpc();
-#endif
+	x86_init.mpparse.setup_ioapic_ids();
+
 	sync_Arb_IDs();
 	setup_IO_APIC_irqs();
 	init_IO_APIC_traps();
-	check_timer();
+	if (nr_legacy_irqs)
+		check_timer();
 }
 
 /*
@@ -3169,7 +3131,6 @@ static int __init ioapic_init_sysfs(void)
 
 device_initcall(ioapic_init_sysfs);
 
-static int nr_irqs_gsi = NR_IRQS_LEGACY;
 /*
  * Dynamic irq allocate and deallocation
  */
@@ -3241,8 +3202,7 @@ void destroy_irq(unsigned int irq)
 	cfg = desc->chip_data;
 	dynamic_irq_cleanup(irq);
 	/* connect back irq_cfg */
-	if (desc)
-		desc->chip_data = cfg;
+	desc->chip_data = cfg;
 
 	free_irte(irq);
 	spin_lock_irqsave(&vector_lock, flags);
@@ -3910,9 +3870,13 @@ static int __io_apic_set_pci_routing(struct device *dev, int irq,
 	/*
 	 * IRQs < 16 are already in the irq_2_pin[] map
 	 */
-	if (irq >= NR_IRQS_LEGACY) {
+	if (irq >= nr_legacy_irqs) {
 		cfg = desc->chip_data;
-		add_pin_to_irq_node(cfg, node, ioapic, pin);
+		if (add_pin_to_irq_node_nopanic(cfg, node, ioapic, pin)) {
+			printk(KERN_INFO "can not add pin %d for irq %d\n",
+				pin, irq);
+			return 0;
+		}
 	}
 
 	setup_IO_APIC_irq(ioapic, pin, irq, desc, trigger, polarity);
@@ -3941,11 +3905,28 @@ int io_apic_set_pci_routing(struct device *dev, int irq,
 	return __io_apic_set_pci_routing(dev, irq, irq_attr);
 }
 
-/* --------------------------------------------------------------------------
-                          ACPI-based IOAPIC Configuration
-   -------------------------------------------------------------------------- */
+u8 __init io_apic_unique_id(u8 id)
+{
+#ifdef CONFIG_X86_32
+	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
+	    !APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
+		return io_apic_get_unique_id(nr_ioapics, id);
+	else
+		return id;
+#else
+	int i;
+	DECLARE_BITMAP(used, 256);
 
-#ifdef CONFIG_ACPI
+	bitmap_zero(used, 256);
+	for (i = 0; i < nr_ioapics; i++) {
+		struct mpc_ioapic *ia = &mp_ioapics[i];
+		__set_bit(ia->apicid, used);
+	}
+	if (!test_bit(id, used))
+		return id;
+	return find_first_zero_bit(used, 256);
+#endif
+}
 
 #ifdef CONFIG_X86_32
 int __init io_apic_get_unique_id(int ioapic, int apic_id)
@@ -4054,8 +4035,6 @@ int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity)
 	return 0;
 }
 
-#endif /* CONFIG_ACPI */
-
 /*
  * This function currently is only a helper for the i386 smp boot process where
  * we need to reprogram the ioredtbls to cater for the cpus which have come online
@@ -4109,7 +4088,7 @@ void __init setup_ioapic_dest(void)
 
 static struct resource *ioapic_resources;
 
-static struct resource * __init ioapic_setup_resources(void)
+static struct resource * __init ioapic_setup_resources(int nr_ioapics)
 {
 	unsigned long n;
 	struct resource *res;
@@ -4125,15 +4104,13 @@ static struct resource * __init ioapic_setup_resources(void)
 	mem = alloc_bootmem(n);
 	res = (void *)mem;
 
-	if (mem != NULL) {
-		mem += sizeof(struct resource) * nr_ioapics;
+	mem += sizeof(struct resource) * nr_ioapics;
 
-		for (i = 0; i < nr_ioapics; i++) {
-			res[i].name = mem;
-			res[i].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-			sprintf(mem,  "IOAPIC %u", i);
-			mem += IOAPIC_RESOURCE_NAME_SIZE;
-		}
+	for (i = 0; i < nr_ioapics; i++) {
+		res[i].name = mem;
+		res[i].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+		sprintf(mem,  "IOAPIC %u", i);
+		mem += IOAPIC_RESOURCE_NAME_SIZE;
 	}
 
 	ioapic_resources = res;
@@ -4147,7 +4124,7 @@ void __init ioapic_init_mappings(void)
 	struct resource *ioapic_res;
 	int i;
 
-	ioapic_res = ioapic_setup_resources();
+	ioapic_res = ioapic_setup_resources(nr_ioapics);
 	for (i = 0; i < nr_ioapics; i++) {
 		if (smp_found_config) {
 			ioapic_phys = mp_ioapics[i].apicaddr;
@@ -4176,11 +4153,9 @@ fake_ioapic_page:
 			    __fix_to_virt(idx), ioapic_phys);
 		idx++;
 
-		if (ioapic_res != NULL) {
-			ioapic_res->start = ioapic_phys;
-			ioapic_res->end = ioapic_phys + (4 * 1024) - 1;
-			ioapic_res++;
-		}
+		ioapic_res->start = ioapic_phys;
+		ioapic_res->end = ioapic_phys + (4 * 1024) - 1;
+		ioapic_res++;
 	}
 }
 
@@ -4200,4 +4175,77 @@ void __init ioapic_insert_resources(void)
 		insert_resource(&iomem_resource, r);
 		r++;
 	}
+}
+
+int mp_find_ioapic(int gsi)
+{
+	int i = 0;
+
+	/* Find the IOAPIC that manages this GSI. */
+	for (i = 0; i < nr_ioapics; i++) {
+		if ((gsi >= mp_gsi_routing[i].gsi_base)
+		    && (gsi <= mp_gsi_routing[i].gsi_end))
+			return i;
+	}
+
+	printk(KERN_ERR "ERROR: Unable to locate IOAPIC for GSI %d\n", gsi);
+	return -1;
+}
+
+int mp_find_ioapic_pin(int ioapic, int gsi)
+{
+	if (WARN_ON(ioapic == -1))
+		return -1;
+	if (WARN_ON(gsi > mp_gsi_routing[ioapic].gsi_end))
+		return -1;
+
+	return gsi - mp_gsi_routing[ioapic].gsi_base;
+}
+
+static int bad_ioapic(unsigned long address)
+{
+	if (nr_ioapics >= MAX_IO_APICS) {
+		printk(KERN_WARNING "WARING: Max # of I/O APICs (%d) exceeded "
+		       "(found %d), skipping\n", MAX_IO_APICS, nr_ioapics);
+		return 1;
+	}
+	if (!address) {
+		printk(KERN_WARNING "WARNING: Bogus (zero) I/O APIC address"
+		       " found in table, skipping!\n");
+		return 1;
+	}
+	return 0;
+}
+
+void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
+{
+	int idx = 0;
+
+	if (bad_ioapic(address))
+		return;
+
+	idx = nr_ioapics;
+
+	mp_ioapics[idx].type = MP_IOAPIC;
+	mp_ioapics[idx].flags = MPC_APIC_USABLE;
+	mp_ioapics[idx].apicaddr = address;
+
+	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
+	mp_ioapics[idx].apicid = io_apic_unique_id(id);
+	mp_ioapics[idx].apicver = io_apic_get_version(idx);
+
+	/*
+	 * Build basic GSI lookup table to facilitate gsi->io_apic lookups
+	 * and to prevent reprogramming of IOAPIC pins (PCI GSIs).
+	 */
+	mp_gsi_routing[idx].gsi_base = gsi_base;
+	mp_gsi_routing[idx].gsi_end = gsi_base +
+	    io_apic_get_redir_entries(idx);
+
+	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, version %d, address 0x%x, "
+	       "GSI %d-%d\n", idx, mp_ioapics[idx].apicid,
+	       mp_ioapics[idx].apicver, mp_ioapics[idx].apicaddr,
+	       mp_gsi_routing[idx].gsi_base, mp_gsi_routing[idx].gsi_end);
+
+	nr_ioapics++;
 }
