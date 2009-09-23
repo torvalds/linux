@@ -325,16 +325,6 @@ static int putreg(struct task_struct *child,
 		return set_flags(child, value);
 
 #ifdef CONFIG_X86_64
-	/*
-	 * Orig_ax is really just a flag with small positive and
-	 * negative values, so make sure to always sign-extend it
-	 * from 32 bits so that it works correctly regardless of
-	 * whether we come from a 32-bit environment or not.
-	 */
-	case offsetof(struct user_regs_struct, orig_ax):
-		value = (long) (s32) value;
-		break;
-
 	case offsetof(struct user_regs_struct,fs_base):
 		if (value >= TASK_SIZE_OF(child))
 			return -EIO;
@@ -1121,16 +1111,9 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 	R32(esi, si);
 	R32(ebp, bp);
 	R32(eax, ax);
+	R32(orig_eax, orig_ax);
 	R32(eip, ip);
 	R32(esp, sp);
-
-	case offsetof(struct user32, regs.orig_eax):
-		/*
-		 * Sign-extend the value so that orig_eax = -1
-		 * causes (long)orig_ax < 0 tests to fire correctly.
-		 */
-		regs->orig_ax = (long) (s32) value;
-		break;
 
 	case offsetof(struct user32, regs.eflags):
 		return set_flags(child, value);
