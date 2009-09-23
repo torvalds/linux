@@ -70,6 +70,7 @@ enum mem_cgroup_stat_index {
 	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
 	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
 	MEM_CGROUP_STAT_EVENTS,	/* sum of pagein + pageout for internal use */
+	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
 
 	MEM_CGROUP_STAT_NSTATS,
 };
@@ -478,11 +479,24 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
 	return mz;
 }
 
+static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
+					 bool charge)
+{
+	int val = (charge) ? 1 : -1;
+	struct mem_cgroup_stat *stat = &mem->stat;
+	struct mem_cgroup_stat_cpu *cpustat;
+	int cpu = get_cpu();
+
+	cpustat = &stat->cpustat[cpu];
+	__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_SWAPOUT, val);
+	put_cpu();
+}
+
 static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
 					 struct page_cgroup *pc,
 					 bool charge)
 {
-	int val = (charge)? 1 : -1;
+	int val = (charge) ? 1 : -1;
 	struct mem_cgroup_stat *stat = &mem->stat;
 	struct mem_cgroup_stat_cpu *cpustat;
 	int cpu = get_cpu();
@@ -1285,9 +1299,11 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 	VM_BUG_ON(css_is_removed(&mem->css));
 
 	while (1) {
-		int ret;
+		int ret = 0;
 		unsigned long flags = 0;
 
+		if (mem_cgroup_is_root(mem))
+			goto done;
 		ret = res_counter_charge(&mem->res, PAGE_SIZE, &fail_res,
 						&soft_fail_res);
 		if (likely(!ret)) {
@@ -1347,6 +1363,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 		if (mem_cgroup_soft_limit_check(mem_over_soft_limit))
 			mem_cgroup_update_tree(mem_over_soft_limit, page);
 	}
+done:
 	return 0;
 nomem:
 	css_put(&mem->css);
@@ -1419,9 +1436,12 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 	lock_page_cgroup(pc);
 	if (unlikely(PageCgroupUsed(pc))) {
 		unlock_page_cgroup(pc);
-		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
-		if (do_swap_account)
-			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+		if (!mem_cgroup_is_root(mem)) {
+			res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+			if (do_swap_account)
+				res_counter_uncharge(&mem->memsw, PAGE_SIZE,
+							NULL);
+		}
 		css_put(&mem->css);
 		return;
 	}
@@ -1498,7 +1518,8 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 	if (pc->mem_cgroup != from)
 		goto out;
 
-	res_counter_uncharge(&from->res, PAGE_SIZE, NULL);
+	if (!mem_cgroup_is_root(from))
+		res_counter_uncharge(&from->res, PAGE_SIZE, NULL);
 	mem_cgroup_charge_statistics(from, pc, false);
 
 	page = pc->page;
@@ -1517,7 +1538,7 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 						1);
 	}
 
-	if (do_swap_account)
+	if (do_swap_account && !mem_cgroup_is_root(from))
 		res_counter_uncharge(&from->memsw, PAGE_SIZE, NULL);
 	css_put(&from->css);
 
@@ -1588,9 +1609,11 @@ uncharge:
 	/* drop extra refcnt by try_charge() */
 	css_put(&parent->css);
 	/* uncharge if move fails */
-	res_counter_uncharge(&parent->res, PAGE_SIZE, NULL);
-	if (do_swap_account)
-		res_counter_uncharge(&parent->memsw, PAGE_SIZE, NULL);
+	if (!mem_cgroup_is_root(parent)) {
+		res_counter_uncharge(&parent->res, PAGE_SIZE, NULL);
+		if (do_swap_account)
+			res_counter_uncharge(&parent->memsw, PAGE_SIZE, NULL);
+	}
 	return ret;
 }
 
@@ -1779,7 +1802,10 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
 			 * This recorded memcg can be obsolete one. So, avoid
 			 * calling css_tryget
 			 */
-			res_counter_uncharge(&memcg->memsw, PAGE_SIZE, NULL);
+			if (!mem_cgroup_is_root(memcg))
+				res_counter_uncharge(&memcg->memsw, PAGE_SIZE,
+							NULL);
+			mem_cgroup_swap_statistics(memcg, false);
 			mem_cgroup_put(memcg);
 		}
 		rcu_read_unlock();
@@ -1804,9 +1830,11 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
 		return;
 	if (!mem)
 		return;
-	res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
-	if (do_swap_account)
-		res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+	if (!mem_cgroup_is_root(mem)) {
+		res_counter_uncharge(&mem->res, PAGE_SIZE, NULL);
+		if (do_swap_account)
+			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+	}
 	css_put(&mem->css);
 }
 
@@ -1859,9 +1887,14 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 		break;
 	}
 
-	res_counter_uncharge(&mem->res, PAGE_SIZE, &soft_limit_excess);
-	if (do_swap_account && (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
-		res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+	if (!mem_cgroup_is_root(mem)) {
+		res_counter_uncharge(&mem->res, PAGE_SIZE, &soft_limit_excess);
+		if (do_swap_account &&
+				(ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
+			res_counter_uncharge(&mem->memsw, PAGE_SIZE, NULL);
+	}
+	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
+		mem_cgroup_swap_statistics(mem, true);
 	mem_cgroup_charge_statistics(mem, pc, false);
 
 	ClearPageCgroupUsed(pc);
@@ -1952,7 +1985,9 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
 		 * We uncharge this because swap is freed.
 		 * This memcg can be obsolete one. We avoid calling css_tryget
 		 */
-		res_counter_uncharge(&memcg->memsw, PAGE_SIZE, NULL);
+		if (!mem_cgroup_is_root(memcg))
+			res_counter_uncharge(&memcg->memsw, PAGE_SIZE, NULL);
+		mem_cgroup_swap_statistics(memcg, false);
 		mem_cgroup_put(memcg);
 	}
 	rcu_read_unlock();
@@ -2464,20 +2499,64 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
 	return retval;
 }
 
+struct mem_cgroup_idx_data {
+	s64 val;
+	enum mem_cgroup_stat_index idx;
+};
+
+static int
+mem_cgroup_get_idx_stat(struct mem_cgroup *mem, void *data)
+{
+	struct mem_cgroup_idx_data *d = data;
+	d->val += mem_cgroup_read_stat(&mem->stat, d->idx);
+	return 0;
+}
+
+static void
+mem_cgroup_get_recursive_idx_stat(struct mem_cgroup *mem,
+				enum mem_cgroup_stat_index idx, s64 *val)
+{
+	struct mem_cgroup_idx_data d;
+	d.idx = idx;
+	d.val = 0;
+	mem_cgroup_walk_tree(mem, &d, mem_cgroup_get_idx_stat);
+	*val = d.val;
+}
+
 static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
 {
 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-	u64 val = 0;
+	u64 idx_val, val;
 	int type, name;
 
 	type = MEMFILE_TYPE(cft->private);
 	name = MEMFILE_ATTR(cft->private);
 	switch (type) {
 	case _MEM:
-		val = res_counter_read_u64(&mem->res, name);
+		if (name == RES_USAGE && mem_cgroup_is_root(mem)) {
+			mem_cgroup_get_recursive_idx_stat(mem,
+				MEM_CGROUP_STAT_CACHE, &idx_val);
+			val = idx_val;
+			mem_cgroup_get_recursive_idx_stat(mem,
+				MEM_CGROUP_STAT_RSS, &idx_val);
+			val += idx_val;
+			val <<= PAGE_SHIFT;
+		} else
+			val = res_counter_read_u64(&mem->res, name);
 		break;
 	case _MEMSWAP:
-		val = res_counter_read_u64(&mem->memsw, name);
+		if (name == RES_USAGE && mem_cgroup_is_root(mem)) {
+			mem_cgroup_get_recursive_idx_stat(mem,
+				MEM_CGROUP_STAT_CACHE, &idx_val);
+			val = idx_val;
+			mem_cgroup_get_recursive_idx_stat(mem,
+				MEM_CGROUP_STAT_RSS, &idx_val);
+			val += idx_val;
+			mem_cgroup_get_recursive_idx_stat(mem,
+				MEM_CGROUP_STAT_SWAPOUT, &idx_val);
+			val <<= PAGE_SHIFT;
+		} else
+			val = res_counter_read_u64(&mem->memsw, name);
 		break;
 	default:
 		BUG();
