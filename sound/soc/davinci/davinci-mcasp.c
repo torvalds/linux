@@ -512,34 +512,49 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 				       int channel_size)
 {
 	u32 fmt = 0;
+	u32 mask, rotate;
 
 	switch (channel_size) {
 	case DAVINCI_AUDIO_WORD_8:
 		fmt = 0x03;
+		rotate = 6;
+		mask = 0x000000ff;
 		break;
 
 	case DAVINCI_AUDIO_WORD_12:
 		fmt = 0x05;
+		rotate = 5;
+		mask = 0x00000fff;
 		break;
 
 	case DAVINCI_AUDIO_WORD_16:
 		fmt = 0x07;
+		rotate = 4;
+		mask = 0x0000ffff;
 		break;
 
 	case DAVINCI_AUDIO_WORD_20:
 		fmt = 0x09;
+		rotate = 3;
+		mask = 0x000fffff;
 		break;
 
 	case DAVINCI_AUDIO_WORD_24:
 		fmt = 0x0B;
+		rotate = 2;
+		mask = 0x00ffffff;
 		break;
 
 	case DAVINCI_AUDIO_WORD_28:
 		fmt = 0x0D;
+		rotate = 1;
+		mask = 0x0fffffff;
 		break;
 
 	case DAVINCI_AUDIO_WORD_32:
 		fmt = 0x0F;
+		rotate = 0;
+		mask = 0xffffffff;
 		break;
 
 	default:
@@ -550,6 +565,13 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 					RXSSZ(fmt), RXSSZ(0x0F));
 	mcasp_mod_bits(dev->base + DAVINCI_MCASP_TXFMT_REG,
 					TXSSZ(fmt), TXSSZ(0x0F));
+	mcasp_mod_bits(dev->base + DAVINCI_MCASP_TXFMT_REG, TXROT(rotate),
+							TXROT(7));
+	mcasp_mod_bits(dev->base + DAVINCI_MCASP_RXFMT_REG, RXROT(rotate),
+							RXROT(7));
+	mcasp_set_reg(dev->base + DAVINCI_MCASP_TXMASK_REG, mask);
+	mcasp_set_reg(dev->base + DAVINCI_MCASP_RXMASK_REG, mask);
+
 	return 0;
 }
 
@@ -638,7 +660,6 @@ static void davinci_hw_param(struct davinci_audio_dev *dev, int stream)
 			printk(KERN_ERR "playback tdm slot %d not supported\n",
 				dev->tdm_slots);
 
-		mcasp_set_reg(dev->base + DAVINCI_MCASP_TXMASK_REG, 0xFFFFFFFF);
 		mcasp_clr_bits(dev->base + DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
 	} else {
 		/* bit stream is MSB first with no delay */
@@ -655,7 +676,6 @@ static void davinci_hw_param(struct davinci_audio_dev *dev, int stream)
 			printk(KERN_ERR "capture tdm slot %d not supported\n",
 				dev->tdm_slots);
 
-		mcasp_set_reg(dev->base + DAVINCI_MCASP_RXMASK_REG, 0xFFFFFFFF);
 		mcasp_clr_bits(dev->base + DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
 	}
 }
