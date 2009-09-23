@@ -96,6 +96,7 @@ int fsl_deep_sleep(void)
 {
 	return deep_sleeping;
 }
+EXPORT_SYMBOL(fsl_deep_sleep);
 
 static int mpc83xx_change_state(void)
 {

@@ -90,6 +90,10 @@ struct mpc8xx_pcmcia_ops {
  * lead to a deep sleep (i.e. power removed from the core,
  * instead of just the clock).
  */
+#if defined(CONFIG_PPC_83xx) && defined(CONFIG_SUSPEND)
 int fsl_deep_sleep(void);
+#else
+static inline int fsl_deep_sleep(void) { return 0; }
+#endif
 
 #endif /* _FSL_DEVICE_H_ */
