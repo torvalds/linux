@@ -552,6 +552,9 @@ static unsigned int tower_poll (struct file *file, poll_table *wait)
 
 	dev = file->private_data;
 
+	if (!dev->udev)
+		return POLLERR | POLLHUP;
+
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
 
@@ -1025,6 +1028,9 @@ static void tower_disconnect (struct usb_interface *interface)
 		tower_delete (dev);
 	} else {
 		dev->udev = NULL;
+		/* wake up pollers */
+		wake_up_interruptible_all(&dev->read_wait);
+		wake_up_interruptible_all(&dev->write_wait);
 		mutex_unlock(&dev->lock);
 	}
 

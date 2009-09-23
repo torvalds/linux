@@ -2107,12 +2107,12 @@ S:	Supported
 F:	arch/powerpc/sysdev/qe_lib/
 F:	arch/powerpc/include/asm/*qe.h
 
-FREESCALE HIGHSPEED USB DEVICE DRIVER
+FREESCALE USB PERIPHERIAL DRIVERS
 M:	Li Yang <leoli@freescale.com>
 L:	linux-usb@vger.kernel.org
 L:	linuxppc-dev@ozlabs.org
 S:	Maintained
-F:	drivers/usb/gadget/fsl_usb2_udc.c
+F:	drivers/usb/gadget/fsl*
 
 FREESCALE QUICC ENGINE UCC ETHERNET DRIVER
 M:	Li Yang <leoli@freescale.com>

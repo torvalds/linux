@@ -195,7 +195,7 @@ struct usb_interface {
 
 	struct device dev;		/* interface specific device info */
 	struct device *usb_dev;
-	int pm_usage_cnt;		/* usage counter for autosuspend */
+	atomic_t pm_usage_cnt;		/* usage counter for autosuspend */
 	struct work_struct reset_ws;	/* for resets in atomic context */
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
@@ -551,13 +551,13 @@ extern void usb_autopm_put_interface_async(struct usb_interface *intf);
 
 static inline void usb_autopm_enable(struct usb_interface *intf)
 {
-	intf->pm_usage_cnt = 0;
+	atomic_set(&intf->pm_usage_cnt, 0);
 	usb_autopm_set_interface(intf);
 }
 
 static inline void usb_autopm_disable(struct usb_interface *intf)
 {
-	intf->pm_usage_cnt = 1;
+	atomic_set(&intf->pm_usage_cnt, 1);
 	usb_autopm_set_interface(intf);
 }
 
@@ -1036,9 +1036,10 @@ typedef void (*usb_complete_t)(struct urb *);
  * @transfer_flags: A variety of flags may be used to affect how URB
  *	submission, unlinking, or operation are handled.  Different
  *	kinds of URB can use different flags.
- * @transfer_buffer:  This identifies the buffer to (or from) which
- * 	the I/O request will be performed (unless URB_NO_TRANSFER_DMA_MAP
- *	is set).  This buffer must be suitable for DMA; allocate it with
+ * @transfer_buffer:  This identifies the buffer to (or from) which the I/O
+ *	request will be performed unless URB_NO_TRANSFER_DMA_MAP is set
+ *	(however, do not leave garbage in transfer_buffer even then).
+ *	This buffer must be suitable for DMA; allocate it with
  *	kmalloc() or equivalent.  For transfers to "in" endpoints, contents
  *	of this buffer will be modified.  This buffer is used for the data
  *	stage of control transfers.
@@ -1104,9 +1105,15 @@ typedef void (*usb_complete_t)(struct urb *);
  * allocate a DMA buffer with usb_buffer_alloc() or call usb_buffer_map().
  * When these transfer flags are provided, host controller drivers will
  * attempt to use the dma addresses found in the transfer_dma and/or
- * setup_dma fields rather than determining a dma address themselves.  (Note
- * that transfer_buffer and setup_packet must still be set because not all
- * host controllers use DMA, nor do virtual root hubs).
+ * setup_dma fields rather than determining a dma address themselves.
+ *
+ * Note that transfer_buffer must still be set if the controller
+ * does not support DMA (as indicated by bus.uses_dma) and when talking
+ * to root hub. If you have to trasfer between highmem zone and the device
+ * on such controller, create a bounce buffer or bail out with an error.
+ * If transfer_buffer cannot be set (is in highmem) and the controller is DMA
+ * capable, assign NULL to it, so that usbmon knows not to use the value.
+ * The setup_packet must always be set, so it cannot be located in highmem.
  *
  * Initialization:
  *

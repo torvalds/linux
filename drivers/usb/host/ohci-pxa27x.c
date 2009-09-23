@@ -177,9 +177,13 @@ static inline void pxa27x_setup_hc(struct pxa27x_ohci *ohci,
 
 	if (inf->flags & NO_OC_PROTECTION)
 		uhcrhda |= UHCRHDA_NOCP;
+	else
+		uhcrhda &= ~UHCRHDA_NOCP;
 
 	if (inf->flags & OC_MODE_PERPORT)
 		uhcrhda |= UHCRHDA_OCPM;
+	else
+		uhcrhda &= ~UHCRHDA_OCPM;
 
 	if (inf->power_on_delay) {
 		uhcrhda &= ~UHCRHDA_POTPGT(0xff);

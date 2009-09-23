@@ -413,8 +413,13 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 		} else {
 			snprintf(dev->devpath, sizeof dev->devpath,
 				"%s.%d", parent->devpath, port1);
-			dev->route = parent->route +
-				(port1 << ((parent->level - 1)*4));
+			/* Route string assumes hubs have less than 16 ports */
+			if (port1 < 15)
+				dev->route = parent->route +
+					(port1 << ((parent->level - 1)*4));
+			else
+				dev->route = parent->route +
+					(15 << ((parent->level - 1)*4));
 		}
 
 		dev->dev.parent = &parent->dev;
@@ -914,11 +919,11 @@ int usb_buffer_map_sg(const struct usb_device *dev, int is_in,
 			|| !(bus = dev->bus)
 			|| !(controller = bus->controller)
 			|| !controller->dma_mask)
-		return -1;
+		return -EINVAL;
 
 	/* FIXME generic api broken like pci, can't report errors */
 	return dma_map_sg(controller, sg, nents,
-			is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+			is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE) ? : -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(usb_buffer_map_sg);
 
