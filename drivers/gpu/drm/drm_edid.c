@@ -528,6 +528,7 @@ bad_std_timing(u8 a, u8 b)
  */
 struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 				      struct std_timing *t,
+				      int revision,
 				      int timing_level)
 {
 	struct drm_display_mode *mode;
@@ -546,9 +547,12 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 	/* vrefresh_rate = vfreq + 60 */
 	vrefresh_rate = vfreq + 60;
 	/* the vdisplay is calculated based on the aspect ratio */
-	if (aspect_ratio == 0)
-		vsize = (hsize * 10) / 16;
-	else if (aspect_ratio == 1)
+	if (aspect_ratio == 0) {
+		if (revision < 3)
+			vsize = hsize;
+		else
+			vsize = (hsize * 10) / 16;
+	} else if (aspect_ratio == 1)
 		vsize = (hsize * 3) / 4;
 	else if (aspect_ratio == 2)
 		vsize = (hsize * 4) / 5;
@@ -797,7 +801,7 @@ static int add_standard_modes(struct drm_connector *connector, struct edid *edid
 			continue;
 
 		newmode = drm_mode_std(dev, &edid->standard_timings[i],
-					timing_level);
+				       edid->revision, timing_level);
 		if (newmode) {
 			drm_mode_probed_add(connector, newmode);
 			modes++;
@@ -853,6 +857,7 @@ static int add_detailed_info(struct drm_connector *connector,
 
 					std = &data->data.timings[j];
 					newmode = drm_mode_std(dev, std,
+							       edid->revision,
 							       timing_level);
 					if (newmode) {
 						drm_mode_probed_add(connector, newmode);
@@ -981,7 +986,9 @@ static int add_detailed_info_eedid(struct drm_connector *connector,
 				struct drm_display_mode *newmode;
 
 				std = &data->data.timings[j];
-				newmode = drm_mode_std(dev, std, timing_level);
+				newmode = drm_mode_std(dev, std,
+						       edid->revision,
+						       timing_level);
 				if (newmode) {
 					drm_mode_probed_add(connector, newmode);
 					modes++;
