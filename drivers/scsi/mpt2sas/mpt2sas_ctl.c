@@ -1256,18 +1256,15 @@ _ctl_diag_capability(struct MPT2SAS_ADAPTER *ioc, u8 buffer_type)
 }
 
 /**
- * _ctl_diag_register - application register with driver
- * @arg - user space buffer containing ioctl content
- * @state - NON_BLOCKING or BLOCKING
+ * _ctl_diag_register_2 - wrapper for registering diag buffer support
+ * @ioc: per adapter object
+ * @diag_register: the diag_register struct passed in from user space
  *
- * This will allow the driver to setup any required buffers that will be
- * needed by firmware to communicate with the driver.
  */
 static long
-_ctl_diag_register(void __user *arg, enum block_state state)
+_ctl_diag_register_2(struct MPT2SAS_ADAPTER *ioc,
+    struct mpt2_diag_register *diag_register)
 {
-	struct mpt2_diag_register karg;
-	struct MPT2SAS_ADAPTER *ioc;
 	int rc, i;
 	void *request_data = NULL;
 	dma_addr_t request_data_dma;
@@ -1280,18 +1277,17 @@ _ctl_diag_register(void __user *arg, enum block_state state)
 	u16 ioc_status;
 	u8 issue_reset = 0;
 
-	if (copy_from_user(&karg, arg, sizeof(karg))) {
-		printk(KERN_ERR "failure at %s:%d/%s()!\n",
-		    __FILE__, __LINE__, __func__);
-		return -EFAULT;
-	}
-	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
-		return -ENODEV;
-
 	dctlprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n", ioc->name,
 	    __func__));
 
-	buffer_type = karg.buffer_type;
+	if (ioc->ctl_cmds.status != MPT2_CMD_NOT_USED) {
+		printk(MPT2SAS_ERR_FMT "%s: ctl_cmd in use\n",
+		    ioc->name, __func__);
+		rc = -EAGAIN;
+		goto out;
+	}
+
+	buffer_type = diag_register->buffer_type;
 	if (!_ctl_diag_capability(ioc, buffer_type)) {
 		printk(MPT2SAS_ERR_FMT "%s: doesn't have capability for "
 		    "buffer_type(0x%02x)\n", ioc->name, __func__, buffer_type);
@@ -1306,22 +1302,10 @@ _ctl_diag_register(void __user *arg, enum block_state state)
 		return -EINVAL;
 	}
 
-	if (karg.requested_buffer_size % 4)  {
+	if (diag_register->requested_buffer_size % 4)  {
 		printk(MPT2SAS_ERR_FMT "%s: the requested_buffer_size "
 		    "is not 4 byte aligned\n", ioc->name, __func__);
 		return -EINVAL;
-	}
-
-	if (state == NON_BLOCKING && !mutex_trylock(&ioc->ctl_cmds.mutex))
-		return -EAGAIN;
-	else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex))
-		return -ERESTARTSYS;
-
-	if (ioc->ctl_cmds.status != MPT2_CMD_NOT_USED) {
-		printk(MPT2SAS_ERR_FMT "%s: ctl_cmd in use\n",
-		    ioc->name, __func__);
-		rc = -EAGAIN;
-		goto out;
 	}
 
 	smid = mpt2sas_base_get_smid(ioc, ioc->ctl_cb_idx);
@@ -1339,12 +1323,12 @@ _ctl_diag_register(void __user *arg, enum block_state state)
 	ioc->ctl_cmds.smid = smid;
 
 	request_data = ioc->diag_buffer[buffer_type];
-	request_data_sz = karg.requested_buffer_size;
-	ioc->unique_id[buffer_type] = karg.unique_id;
+	request_data_sz = diag_register->requested_buffer_size;
+	ioc->unique_id[buffer_type] = diag_register->unique_id;
 	ioc->diag_buffer_status[buffer_type] = 0;
-	memcpy(ioc->product_specific[buffer_type], karg.product_specific,
-	    MPT2_PRODUCT_SPECIFIC_DWORDS);
-	ioc->diagnostic_flags[buffer_type] = karg.diagnostic_flags;
+	memcpy(ioc->product_specific[buffer_type],
+	    diag_register->product_specific, MPT2_PRODUCT_SPECIFIC_DWORDS);
+	ioc->diagnostic_flags[buffer_type] = diag_register->diagnostic_flags;
 
 	if (request_data) {
 		request_data_dma = ioc->diag_buffer_dma[buffer_type];
@@ -1374,8 +1358,8 @@ _ctl_diag_register(void __user *arg, enum block_state state)
 	}
 
 	mpi_request->Function = MPI2_FUNCTION_DIAG_BUFFER_POST;
-	mpi_request->BufferType = karg.buffer_type;
-	mpi_request->Flags = cpu_to_le32(karg.diagnostic_flags);
+	mpi_request->BufferType = diag_register->buffer_type;
+	mpi_request->Flags = cpu_to_le32(diag_register->diagnostic_flags);
 	mpi_request->BufferAddress = cpu_to_le64(request_data_dma);
 	mpi_request->BufferLength = cpu_to_le32(request_data_sz);
 	mpi_request->VF_ID = 0; /* TODO */
@@ -1439,6 +1423,73 @@ _ctl_diag_register(void __user *arg, enum block_state state)
 		    request_data, request_data_dma);
 
 	ioc->ctl_cmds.status = MPT2_CMD_NOT_USED;
+	return rc;
+}
+
+/**
+ * mpt2sas_enable_diag_buffer - enabling diag_buffers support driver load time
+ * @ioc: per adapter object
+ * @bits_to_register: bitwise field where trace is bit 0, and snapshot is bit 1
+ *
+ * This is called when command line option diag_buffer_enable is enabled
+ * at driver load time.
+ */
+void
+mpt2sas_enable_diag_buffer(struct MPT2SAS_ADAPTER *ioc, u8 bits_to_register)
+{
+	struct mpt2_diag_register diag_register;
+
+	memset(&diag_register, 0, sizeof(struct mpt2_diag_register));
+
+	if (bits_to_register & 1) {
+		printk(MPT2SAS_INFO_FMT "registering trace buffer support\n",
+		    ioc->name);
+		diag_register.buffer_type = MPI2_DIAG_BUF_TYPE_TRACE;
+		/* register for 1MB buffers  */
+		diag_register.requested_buffer_size = (1024 * 1024);
+		diag_register.unique_id = 0x7075900;
+		_ctl_diag_register_2(ioc,  &diag_register);
+	}
+
+	if (bits_to_register & 2) {
+		printk(MPT2SAS_INFO_FMT "registering snapshot buffer support\n",
+		    ioc->name);
+		diag_register.buffer_type = MPI2_DIAG_BUF_TYPE_SNAPSHOT;
+		/* register for 2MB buffers  */
+		diag_register.requested_buffer_size = 2 * (1024 * 1024);
+		diag_register.unique_id = 0x7075901;
+		_ctl_diag_register_2(ioc,  &diag_register);
+	}
+}
+
+/**
+ * _ctl_diag_register - application register with driver
+ * @arg - user space buffer containing ioctl content
+ * @state - NON_BLOCKING or BLOCKING
+ *
+ * This will allow the driver to setup any required buffers that will be
+ * needed by firmware to communicate with the driver.
+ */
+static long
+_ctl_diag_register(void __user *arg, enum block_state state)
+{
+	struct mpt2_diag_register karg;
+	struct MPT2SAS_ADAPTER *ioc;
+	long rc;
+
+	if (copy_from_user(&karg, arg, sizeof(karg))) {
+		printk(KERN_ERR "failure at %s:%d/%s()!\n",
+		    __FILE__, __LINE__, __func__);
+		return -EFAULT;
+	}
+	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
+		return -ENODEV;
+
+	if (state == NON_BLOCKING && !mutex_trylock(&ioc->ctl_cmds.mutex))
+		return -EAGAIN;
+	else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex))
+		return -ERESTARTSYS;
+	rc = _ctl_diag_register_2(ioc, &karg);
 	mutex_unlock(&ioc->ctl_cmds.mutex);
 	return rc;
 }

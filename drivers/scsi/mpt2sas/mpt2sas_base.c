@@ -77,6 +77,17 @@ static int msix_disable = -1;
 module_param(msix_disable, int, 0);
 MODULE_PARM_DESC(msix_disable, " disable msix routed interrupts (default=0)");
 
+/* diag_buffer_enable is bitwise
+ * bit 0 set = MPI2_DIAG_BUF_TYPE_TRACE(1)
+ * bit 1 set = MPI2_DIAG_BUF_TYPE_SNAPSHOT(2)
+ *
+ * Either bit can be set, or both
+ */
+static int diag_buffer_enable;
+module_param(diag_buffer_enable, int, 0);
+MODULE_PARM_DESC(diag_buffer_enable, " enable diag buffer at driver load "
+    "time (TRACE=1/SNAP=2/default=0)");
+
 int mpt2sas_fwfault_debug;
 MODULE_PARM_DESC(mpt2sas_fwfault_debug, " enable detection of firmware fault "
     "and halt firmware - (default=0)");
@@ -3588,6 +3599,8 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		goto out_free_resources;
 
 	mpt2sas_base_start_watchdog(ioc);
+	if (diag_buffer_enable != 0)
+		mpt2sas_enable_diag_buffer(ioc, diag_buffer_enable);
 	return 0;
 
  out_free_resources:

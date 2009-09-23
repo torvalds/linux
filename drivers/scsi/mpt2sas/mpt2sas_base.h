@@ -886,6 +886,9 @@ u8 mpt2sas_ctl_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 void mpt2sas_ctl_add_to_event_log(struct MPT2SAS_ADAPTER *ioc,
     Mpi2EventNotificationReply_t *mpi_reply);
 
+void mpt2sas_enable_diag_buffer(struct MPT2SAS_ADAPTER *ioc,
+	u8 bits_to_regsiter);
+
 /* transport shared API */
 u8 mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
     u32 reply);
