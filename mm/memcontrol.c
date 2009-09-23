@@ -1134,6 +1134,13 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 	}
 
 	pc->mem_cgroup = mem;
+	/*
+	 * We access a page_cgroup asynchronously without lock_page_cgroup().
+	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
+	 * is accessed after testing USED bit. To make pc->mem_cgroup visible
+	 * before USED bit, we need memory barrier here.
+	 * See mem_cgroup_add_lru_list(), etc.
+ 	 */
 	smp_wmb();
 	switch (ctype) {
 	case MEM_CGROUP_CHARGE_TYPE_CACHE:
