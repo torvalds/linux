@@ -1107,8 +1107,33 @@ _scsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 	struct Scsi_Host *shost = sdev->host;
 	int max_depth;
 	int tag_type;
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+	struct MPT2SAS_DEVICE *sas_device_priv_data;
+	struct MPT2SAS_TARGET *sas_target_priv_data;
+	struct _sas_device *sas_device;
+	unsigned long flags;
 
 	max_depth = shost->can_queue;
+
+	/* limit max device queue for SATA to 32 */
+	sas_device_priv_data = sdev->hostdata;
+	if (!sas_device_priv_data)
+		goto not_sata;
+	sas_target_priv_data = sas_device_priv_data->sas_target;
+	if (!sas_target_priv_data)
+		goto not_sata;
+	if ((sas_target_priv_data->flags & MPT_TARGET_FLAGS_VOLUME))
+		goto not_sata;
+	spin_lock_irqsave(&ioc->sas_device_lock, flags);
+	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
+	   sas_device_priv_data->sas_target->sas_address);
+	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+	if (sas_device && sas_device->device_info &
+	    MPI2_SAS_DEVICE_INFO_SATA_DEVICE)
+		max_depth = MPT2SAS_SATA_QUEUE_DEPTH;
+
+ not_sata:
+
 	if (!sdev->tagged_supported)
 		max_depth = 1;
 	if (qdepth > max_depth)
