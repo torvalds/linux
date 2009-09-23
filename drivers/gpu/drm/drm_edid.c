@@ -847,8 +847,7 @@ static int add_detailed_info(struct drm_connector *connector,
 			case EDID_DETAIL_MONITOR_CPDATA:
 				break;
 			case EDID_DETAIL_STD_MODES:
-				/* Five modes per detailed section */
-				for (j = 0; j < 5; i++) {
+				for (j = 0; j < 6; i++) {
 					struct std_timing *std;
 					struct drm_display_mode *newmode;
 
