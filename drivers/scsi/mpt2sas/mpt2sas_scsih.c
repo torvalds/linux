@@ -317,6 +317,47 @@ _scsih_is_boot_device(u64 sas_address, u64 device_name,
 }
 
 /**
+ * _scsih_get_sas_address - set the sas_address for given device handle
+ * @handle: device handle
+ * @sas_address: sas address
+ *
+ * Returns 0 success, non-zero when failure
+ */
+static int
+_scsih_get_sas_address(struct MPT2SAS_ADAPTER *ioc, u16 handle,
+    u64 *sas_address)
+{
+	Mpi2SasDevicePage0_t sas_device_pg0;
+	Mpi2ConfigReply_t mpi_reply;
+	u32 ioc_status;
+
+	if (handle <= ioc->sas_hba.num_phys) {
+		*sas_address = ioc->sas_hba.sas_address;
+		return 0;
+	} else
+		*sas_address = 0;
+
+	if ((mpt2sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
+	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle))) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		return -ENXIO;
+	}
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		printk(MPT2SAS_ERR_FMT "handle(0x%04x), ioc_status(0x%04x)"
+		    "\nfailure at %s:%d/%s()!\n", ioc->name, handle, ioc_status,
+		     __FILE__, __LINE__, __func__);
+		return -EIO;
+	}
+
+	*sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
+	return 0;
+}
+
+/**
  * _scsih_determine_boot_device - determine boot device.
  * @ioc: per adapter object
  * @device: either sas_device or raid_device object
@@ -510,8 +551,6 @@ _scsih_sas_device_add(struct MPT2SAS_ADAPTER *ioc,
     struct _sas_device *sas_device)
 {
 	unsigned long flags;
-	u16 handle, parent_handle;
-	u64 sas_address;
 
 	dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: handle"
 	    "(0x%04x), sas_addr(0x%016llx)\n", ioc->name, __func__,
@@ -521,10 +560,8 @@ _scsih_sas_device_add(struct MPT2SAS_ADAPTER *ioc,
 	list_add_tail(&sas_device->list, &ioc->sas_device_list);
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
-	handle = sas_device->handle;
-	parent_handle = sas_device->parent_handle;
-	sas_address = sas_device->sas_address;
-	if (!mpt2sas_transport_port_add(ioc, handle, parent_handle))
+	if (!mpt2sas_transport_port_add(ioc, sas_device->handle,
+	     sas_device->sas_address_parent))
 		_scsih_sas_device_remove(ioc, sas_device);
 }
 
@@ -550,31 +587,6 @@ _scsih_sas_device_init_add(struct MPT2SAS_ADAPTER *ioc,
 	list_add_tail(&sas_device->list, &ioc->sas_device_init_list);
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 	_scsih_determine_boot_device(ioc, sas_device, 0);
-}
-
-/**
- * mpt2sas_scsih_expander_find_by_handle - expander device search
- * @ioc: per adapter object
- * @handle: expander handle (assigned by firmware)
- * Context: Calling function should acquire ioc->sas_device_lock
- *
- * This searches for expander device based on handle, then returns the
- * sas_node object.
- */
-struct _sas_node *
-mpt2sas_scsih_expander_find_by_handle(struct MPT2SAS_ADAPTER *ioc, u16 handle)
-{
-	struct _sas_node *sas_expander, *r;
-
-	r = NULL;
-	list_for_each_entry(sas_expander, &ioc->sas_expander_list, list) {
-		if (sas_expander->handle != handle)
-			continue;
-		r = sas_expander;
-		goto out;
-	}
- out:
-	return r;
 }
 
 /**
@@ -696,6 +708,31 @@ _scsih_raid_device_remove(struct MPT2SAS_ADAPTER *ioc,
 	memset(raid_device, 0, sizeof(struct _raid_device));
 	kfree(raid_device);
 	spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
+}
+
+/**
+ * mpt2sas_scsih_expander_find_by_handle - expander device search
+ * @ioc: per adapter object
+ * @handle: expander handle (assigned by firmware)
+ * Context: Calling function should acquire ioc->sas_device_lock
+ *
+ * This searches for expander device based on handle, then returns the
+ * sas_node object.
+ */
+struct _sas_node *
+mpt2sas_scsih_expander_find_by_handle(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+{
+	struct _sas_node *sas_expander, *r;
+
+	r = NULL;
+	list_for_each_entry(sas_expander, &ioc->sas_expander_list, list) {
+		if (sas_expander->handle != handle)
+			continue;
+		r = sas_expander;
+		goto out;
+	}
+ out:
+	return r;
 }
 
 /**
@@ -3344,7 +3381,6 @@ _scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 /**
  * _scsih_sas_host_refresh - refreshing sas host object contents
  * @ioc: per adapter object
- * @update: update link information
  * Context: user
  *
  * During port enable, fw will send topology events for every device. Its
@@ -3354,13 +3390,14 @@ _scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
  * Return nothing.
  */
 static void
-_scsih_sas_host_refresh(struct MPT2SAS_ADAPTER *ioc, u8 update)
+_scsih_sas_host_refresh(struct MPT2SAS_ADAPTER *ioc)
 {
 	u16 sz;
 	u16 ioc_status;
 	int i;
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasIOUnitPage0_t *sas_iounit_pg0 = NULL;
+	u16 attached_handle;
 
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT
 	    "updating handles for sas_host(0x%016llx)\n",
@@ -3374,27 +3411,24 @@ _scsih_sas_host_refresh(struct MPT2SAS_ADAPTER *ioc, u8 update)
 		    ioc->name, __FILE__, __LINE__, __func__);
 		return;
 	}
-	if (!(mpt2sas_config_get_sas_iounit_pg0(ioc, &mpi_reply,
-	    sas_iounit_pg0, sz))) {
-		ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
-		    MPI2_IOCSTATUS_MASK;
-		if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
-			goto out;
-		for (i = 0; i < ioc->sas_hba.num_phys ; i++) {
-			ioc->sas_hba.phy[i].handle =
-			    le16_to_cpu(sas_iounit_pg0->PhyData[i].
-				ControllerDevHandle);
-			if (update)
-				mpt2sas_transport_update_links(
-				    ioc,
-				    ioc->sas_hba.phy[i].handle,
-				    le16_to_cpu(sas_iounit_pg0->PhyData[i].
-				    AttachedDevHandle), i,
-				    sas_iounit_pg0->PhyData[i].
-				    NegotiatedLinkRate >> 4);
-		}
-	}
 
+	if ((mpt2sas_config_get_sas_iounit_pg0(ioc, &mpi_reply,
+	    sas_iounit_pg0, sz)) != 0)
+		goto out;
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
+		goto out;
+	for (i = 0; i < ioc->sas_hba.num_phys ; i++) {
+		if (i == 0)
+			ioc->sas_hba.handle = le16_to_cpu(sas_iounit_pg0->
+			    PhyData[0].ControllerDevHandle);
+		ioc->sas_hba.phy[i].handle = ioc->sas_hba.handle;
+		attached_handle = le16_to_cpu(sas_iounit_pg0->PhyData[i].
+		    AttachedDevHandle);
+		mpt2sas_transport_update_links(ioc, ioc->sas_hba.sas_address,
+		    attached_handle, i, sas_iounit_pg0->PhyData[i].
+		    NegotiatedLinkRate >> 4);
+	}
  out:
 	kfree(sas_iounit_pg0);
 }
@@ -3507,19 +3541,21 @@ _scsih_sas_host_add(struct MPT2SAS_ADAPTER *ioc)
 			    ioc->name, __FILE__, __LINE__, __func__);
 			goto out;
 		}
-		ioc->sas_hba.phy[i].handle =
-		    le16_to_cpu(sas_iounit_pg0->PhyData[i].ControllerDevHandle);
+
+		if (i == 0)
+			ioc->sas_hba.handle = le16_to_cpu(sas_iounit_pg0->
+			    PhyData[0].ControllerDevHandle);
+		ioc->sas_hba.phy[i].handle = ioc->sas_hba.handle;
 		ioc->sas_hba.phy[i].phy_id = i;
 		mpt2sas_transport_add_host_phy(ioc, &ioc->sas_hba.phy[i],
 		    phy_pg0, ioc->sas_hba.parent_dev);
 	}
 	if ((mpt2sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
-	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, ioc->sas_hba.phy[0].handle))) {
+	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, ioc->sas_hba.handle))) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
 		goto out;
 	}
-	ioc->sas_hba.handle = le16_to_cpu(sas_device_pg0.DevHandle);
 	ioc->sas_hba.enclosure_handle =
 	    le16_to_cpu(sas_device_pg0.EnclosureHandle);
 	ioc->sas_hba.sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
@@ -3562,7 +3598,7 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	Mpi2SasEnclosurePage0_t enclosure_pg0;
 	u32 ioc_status;
 	u16 parent_handle;
-	__le64 sas_address;
+	__le64 sas_address, sas_address_parent = 0;
 	int i;
 	unsigned long flags;
 	struct _sas_port *mpt2sas_port = NULL;
@@ -3591,10 +3627,16 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 
 	/* handle out of order topology events */
 	parent_handle = le16_to_cpu(expander_pg0.ParentDevHandle);
-	if (parent_handle >= ioc->sas_hba.num_phys) {
+	if (_scsih_get_sas_address(ioc, parent_handle, &sas_address_parent)
+	    != 0) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		return -1;
+	}
+	if (sas_address_parent != ioc->sas_hba.sas_address) {
 		spin_lock_irqsave(&ioc->sas_node_lock, flags);
-		sas_expander = mpt2sas_scsih_expander_find_by_handle(ioc,
-		    parent_handle);
+		sas_expander = mpt2sas_scsih_expander_find_by_sas_address(ioc,
+		    sas_address_parent);
 		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 		if (!sas_expander) {
 			rc = _scsih_expander_add(ioc, parent_handle);
@@ -3622,14 +3664,12 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 
 	sas_expander->handle = handle;
 	sas_expander->num_phys = expander_pg0.NumPhys;
-	sas_expander->parent_handle = parent_handle;
-	sas_expander->enclosure_handle =
-	    le16_to_cpu(expander_pg0.EnclosureHandle);
+	sas_expander->sas_address_parent = sas_address_parent;
 	sas_expander->sas_address = sas_address;
 
 	printk(MPT2SAS_INFO_FMT "expander_add: handle(0x%04x),"
 	    " parent(0x%04x), sas_addr(0x%016llx), phys(%d)\n", ioc->name,
-	    handle, sas_expander->parent_handle, (unsigned long long)
+	    handle, parent_handle, (unsigned long long)
 	    sas_expander->sas_address, sas_expander->num_phys);
 
 	if (!sas_expander->num_phys)
@@ -3645,7 +3685,7 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 
 	INIT_LIST_HEAD(&sas_expander->sas_port_list);
 	mpt2sas_port = mpt2sas_transport_port_add(ioc, handle,
-	    sas_expander->parent_handle);
+	    sas_address_parent);
 	if (!mpt2sas_port) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
@@ -3691,7 +3731,7 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 
 	if (mpt2sas_port)
 		mpt2sas_transport_port_remove(ioc, sas_expander->sas_address,
-		    sas_expander->parent_handle);
+		    sas_address_parent);
 	kfree(sas_expander);
 	return rc;
 }
@@ -3699,12 +3739,12 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 /**
  * _scsih_expander_remove - removing expander object
  * @ioc: per adapter object
- * @handle: expander handle
+ * @sas_address: expander sas_address
  *
  * Return nothing.
  */
 static void
-_scsih_expander_remove(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+_scsih_expander_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address)
 {
 	struct _sas_node *sas_expander;
 	unsigned long flags;
@@ -3713,7 +3753,8 @@ _scsih_expander_remove(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 		return;
 
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
-	sas_expander = mpt2sas_scsih_expander_find_by_handle(ioc, handle);
+	sas_expander = mpt2sas_scsih_expander_find_by_sas_address(ioc,
+	    sas_address);
 	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 	_scsih_expander_node_remove(ioc, sas_expander);
 }
@@ -3805,8 +3846,11 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 	}
 
 	sas_device->handle = handle;
-	sas_device->parent_handle =
-	    le16_to_cpu(sas_device_pg0.ParentDevHandle);
+	if (_scsih_get_sas_address(ioc, le16_to_cpu
+		(sas_device_pg0.ParentDevHandle),
+		&sas_device->sas_address_parent) != 0)
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
 	sas_device->enclosure_handle =
 	    le16_to_cpu(sas_device_pg0.EnclosureHandle);
 	sas_device->slot =
@@ -3836,43 +3880,39 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 /**
  * _scsih_remove_device -  removing sas device object
  * @ioc: per adapter object
- * @handle: sas device handle
+ * @sas_device: the sas_device object
  *
  * Return nothing.
  */
 static void
-_scsih_remove_device(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+_scsih_remove_device(struct MPT2SAS_ADAPTER *ioc, struct _sas_device
+    *sas_device)
 {
 	struct MPT2SAS_TARGET *sas_target_priv_data;
-	struct _sas_device *sas_device;
-	unsigned long flags;
 	Mpi2SasIoUnitControlReply_t mpi_reply;
 	Mpi2SasIoUnitControlRequest_t mpi_request;
-	u16 device_handle;
+	u16 device_handle, handle;
 
-	/* lookup sas_device */
-	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = _scsih_sas_device_find_by_handle(ioc, handle);
-	if (!sas_device) {
-		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+	if (!sas_device)
 		return;
-	}
 
-	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter: handle"
-	    "(0x%04x)\n", ioc->name, __func__, handle));
+	handle = sas_device->handle;
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter: handle(0x%04x),"
+	    " sas_addr(0x%016llx)\n", ioc->name, __func__, handle,
+	    (unsigned long long) sas_device->sas_address));
 
 	if (sas_device->starget && sas_device->starget->hostdata) {
 		sas_target_priv_data = sas_device->starget->hostdata;
 		sas_target_priv_data->deleted = 1;
 	}
-	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
-	if (ioc->remove_host)
+	if (ioc->remove_host || ioc->shost_recovery || !handle)
 		goto out;
 
 	if ((sas_device->state & MPTSAS_STATE_TR_COMPLETE)) {
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "\tskip "
-		   "target_reset handle(0x%04x)\n", ioc->name, handle));
+		   "target_reset handle(0x%04x)\n", ioc->name,
+		   handle));
 		goto skip_tr;
 	}
 
@@ -3925,10 +3965,10 @@ _scsih_remove_device(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	_scsih_ublock_io_device(ioc, handle);
 
 	mpt2sas_transport_port_remove(ioc, sas_device->sas_address,
-	    sas_device->parent_handle);
+	    sas_device->sas_address_parent);
 
 	printk(MPT2SAS_INFO_FMT "removing handle(0x%04x), sas_addr"
-	    "(0x%016llx)\n", ioc->name, sas_device->handle,
+	    "(0x%016llx)\n", ioc->name, handle,
 	    (unsigned long long) sas_device->sas_address);
 	_scsih_sas_device_remove(ioc, sas_device);
 
@@ -4031,8 +4071,10 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 	u16 reason_code;
 	u8 phy_number;
 	struct _sas_node *sas_expander;
+	struct _sas_device *sas_device;
+	u64 sas_address;
 	unsigned long flags;
-	u8 link_rate_;
+	u8 link_rate;
 	Mpi2EventDataSasTopologyChangeList_t *event_data = fw_event->event_data;
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
@@ -4040,10 +4082,13 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 		_scsih_sas_topology_change_event_debug(ioc, event_data);
 #endif
 
+	if (ioc->shost_recovery)
+		return;
+
 	if (!ioc->sas_hba.num_phys)
 		_scsih_sas_host_add(ioc);
 	else
-		_scsih_sas_host_refresh(ioc, 0);
+		_scsih_sas_host_refresh(ioc);
 
 	if (fw_event->ignore) {
 		dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "ignoring expander "
@@ -4057,6 +4102,17 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 	if (event_data->ExpStatus == MPI2_EVENT_SAS_TOPO_ES_ADDED)
 		if (_scsih_expander_add(ioc, parent_handle) != 0)
 			return;
+
+	spin_lock_irqsave(&ioc->sas_node_lock, flags);
+	sas_expander = mpt2sas_scsih_expander_find_by_handle(ioc,
+	    parent_handle);
+	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	if (sas_expander)
+		sas_address = sas_expander->sas_address;
+	else if (parent_handle < ioc->sas_hba.num_phys)
+		sas_address = ioc->sas_hba.sas_address;
+	else
+		return;
 
 	/* handle siblings events */
 	for (i = 0; i < event_data->NumEntries; i++) {
@@ -4077,48 +4133,40 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 		handle = le16_to_cpu(event_data->PHY[i].AttachedDevHandle);
 		if (!handle)
 			continue;
-		link_rate_ = event_data->PHY[i].LinkRate >> 4;
+		link_rate = event_data->PHY[i].LinkRate >> 4;
 		switch (reason_code) {
 		case MPI2_EVENT_SAS_TOPO_RC_PHY_CHANGED:
 		case MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED:
-			if (!parent_handle) {
-				if (phy_number < ioc->sas_hba.num_phys)
-					mpt2sas_transport_update_links(
-					ioc,
-					ioc->sas_hba.phy[phy_number].handle,
-					handle, phy_number, link_rate_);
-			} else {
-				spin_lock_irqsave(&ioc->sas_node_lock, flags);
-				sas_expander =
-				    mpt2sas_scsih_expander_find_by_handle(ioc,
-					parent_handle);
-				spin_unlock_irqrestore(&ioc->sas_node_lock,
-				    flags);
-				if (sas_expander) {
-					if (phy_number < sas_expander->num_phys)
-						mpt2sas_transport_update_links(
-						ioc,
-						sas_expander->
-						phy[phy_number].handle,
-						handle, phy_number,
-						link_rate_);
-				}
-			}
+
+			mpt2sas_transport_update_links(ioc, sas_address,
+			    handle, phy_number, link_rate);
+
+			if (link_rate < MPI2_SAS_NEG_LINK_RATE_1_5)
+				break;
 			if (reason_code == MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED) {
-				if (link_rate_ < MPI2_SAS_NEG_LINK_RATE_1_5)
-					break;
 				_scsih_add_device(ioc, handle, phy_number, 0);
 			}
 			break;
 		case MPI2_EVENT_SAS_TOPO_RC_TARG_NOT_RESPONDING:
-			_scsih_remove_device(ioc, handle);
+
+			spin_lock_irqsave(&ioc->sas_device_lock, flags);
+			sas_device = _scsih_sas_device_find_by_handle(ioc,
+			    handle);
+			if (!sas_device) {
+				spin_unlock_irqrestore(&ioc->sas_device_lock,
+				    flags);
+				break;
+			}
+			spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+			_scsih_remove_device(ioc, sas_device);
 			break;
 		}
 	}
 
 	/* handle expander removal */
-	if (event_data->ExpStatus == MPI2_EVENT_SAS_TOPO_ES_NOT_RESPONDING)
-		_scsih_expander_remove(ioc, parent_handle);
+	if (event_data->ExpStatus == MPI2_EVENT_SAS_TOPO_ES_NOT_RESPONDING &&
+	    sas_expander)
+		_scsih_expander_remove(ioc, sas_address);
 
 }
 
@@ -4570,7 +4618,7 @@ _scsih_sas_pd_delete(struct MPT2SAS_ADAPTER *ioc,
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 	if (!sas_device)
 		return;
-	_scsih_remove_device(ioc, handle);
+	_scsih_remove_device(ioc, sas_device);
 }
 
 /**
@@ -4591,6 +4639,8 @@ _scsih_sas_pd_add(struct MPT2SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasDevicePage0_t sas_device_pg0;
 	u32 ioc_status;
+	u64 sas_address;
+	u16 parent_handle;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	sas_device = _scsih_sas_device_find_by_handle(ioc, handle);
@@ -4615,9 +4665,10 @@ _scsih_sas_pd_add(struct MPT2SAS_ADAPTER *ioc,
 		return;
 	}
 
-	mpt2sas_transport_update_links(ioc,
-	    le16_to_cpu(sas_device_pg0.ParentDevHandle),
-	    handle, sas_device_pg0.PhyNum, MPI2_SAS_NEG_LINK_RATE_1_5);
+	parent_handle = le16_to_cpu(sas_device_pg0.ParentDevHandle);
+	if (!_scsih_get_sas_address(ioc, parent_handle, &sas_address))
+		mpt2sas_transport_update_links(ioc, sas_address, handle,
+		    sas_device_pg0.PhyNum, MPI2_SAS_NEG_LINK_RATE_1_5);
 
 	_scsih_add_device(ioc, handle, 0, 1);
 }
@@ -4857,7 +4908,7 @@ static void
 _scsih_sas_ir_physical_disk_event(struct MPT2SAS_ADAPTER *ioc,
     struct fw_event_work *fw_event)
 {
-	u16 handle;
+	u16 handle, parent_handle;
 	u32 state;
 	struct _sas_device *sas_device;
 	unsigned long flags;
@@ -4865,6 +4916,7 @@ _scsih_sas_ir_physical_disk_event(struct MPT2SAS_ADAPTER *ioc,
 	Mpi2SasDevicePage0_t sas_device_pg0;
 	u32 ioc_status;
 	Mpi2EventDataIrPhysicalDisk_t *event_data = fw_event->event_data;
+	u64 sas_address;
 
 	if (event_data->ReasonCode != MPI2_EVENT_IR_PHYSDISK_RC_STATE_CHANGED)
 		return;
@@ -4906,9 +4958,10 @@ _scsih_sas_ir_physical_disk_event(struct MPT2SAS_ADAPTER *ioc,
 			return;
 		}
 
-		mpt2sas_transport_update_links(ioc,
-		    le16_to_cpu(sas_device_pg0.ParentDevHandle),
-		    handle, sas_device_pg0.PhyNum, MPI2_SAS_NEG_LINK_RATE_1_5);
+		parent_handle = le16_to_cpu(sas_device_pg0.ParentDevHandle);
+		if (!_scsih_get_sas_address(ioc, parent_handle, &sas_address))
+			mpt2sas_transport_update_links(ioc, sas_address, handle,
+			    sas_device_pg0.PhyNum, MPI2_SAS_NEG_LINK_RATE_1_5);
 
 		_scsih_add_device(ioc, handle, 0, 1);
 
@@ -5252,18 +5305,23 @@ _scsih_mark_responding_expander(struct MPT2SAS_ADAPTER *ioc, u64 sas_address,
 {
 	struct _sas_node *sas_expander;
 	unsigned long flags;
+	int i;
 
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	list_for_each_entry(sas_expander, &ioc->sas_expander_list, list) {
-		if (sas_expander->sas_address == sas_address) {
-			sas_expander->responding = 1;
-			if (sas_expander->handle != handle) {
-				printk(KERN_INFO "old handle(0x%04x)\n",
-				    sas_expander->handle);
-				sas_expander->handle = handle;
-			}
+		if (sas_expander->sas_address != sas_address)
+			continue;
+		sas_expander->responding = 1;
+		if (sas_expander->handle == handle)
 			goto out;
-		}
+		printk(KERN_INFO "\texpander(0x%016llx): handle changed"
+		    " from(0x%04x) to (0x%04x)!!!\n",
+		    (unsigned long long)sas_expander->sas_address,
+		    sas_expander->handle, handle);
+		sas_expander->handle = handle;
+		for (i = 0 ; i < sas_expander->num_phys ; i++)
+			sas_expander->phy[i].handle = handle;
+		goto out;
 	}
  out:
 	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
@@ -5340,7 +5398,9 @@ _scsih_remove_unresponding_devices(struct MPT2SAS_ADAPTER *ioc)
 			    (unsigned long long)
 			    sas_device->enclosure_logical_id,
 			    sas_device->slot);
-		_scsih_remove_device(ioc, sas_device->handle);
+		/* invalidate the device handle */
+		sas_device->handle = 0;
+		_scsih_remove_device(ioc, sas_device);
 	}
 
 	list_for_each_entry_safe(raid_device, raid_device_next,
@@ -5366,7 +5426,7 @@ _scsih_remove_unresponding_devices(struct MPT2SAS_ADAPTER *ioc)
 			sas_expander->responding = 0;
 			continue;
 		}
-		_scsih_expander_remove(ioc, sas_expander->handle);
+		_scsih_expander_remove(ioc, sas_expander->sas_address);
 		goto retry_expander_search;
 	}
 }
@@ -5406,7 +5466,7 @@ mpt2sas_scsih_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 	case MPT2_IOC_DONE_RESET:
 		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
 		    "MPT2_IOC_DONE_RESET\n", ioc->name, __func__));
-		_scsih_sas_host_refresh(ioc, 0);
+		_scsih_sas_host_refresh(ioc);
 		_scsih_search_responding_sas_devices(ioc);
 		_scsih_search_responding_raid_devices(ioc);
 		_scsih_search_responding_expanders(ioc);
@@ -5646,7 +5706,7 @@ _scsih_expander_node_remove(struct MPT2SAS_ADAPTER *ioc,
 			spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 			if (!sas_device)
 				continue;
-			_scsih_remove_device(ioc, sas_device->handle);
+			_scsih_remove_device(ioc, sas_device);
 			if (ioc->shost_recovery)
 				return;
 			goto retry_device_search;
@@ -5669,7 +5729,8 @@ _scsih_expander_node_remove(struct MPT2SAS_ADAPTER *ioc,
 			spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 			if (!expander_sibling)
 				continue;
-			_scsih_expander_remove(ioc, expander_sibling->handle);
+			_scsih_expander_remove(ioc,
+			    expander_sibling->sas_address);
 			if (ioc->shost_recovery)
 				return;
 			goto retry_expander_search;
@@ -5677,7 +5738,7 @@ _scsih_expander_node_remove(struct MPT2SAS_ADAPTER *ioc,
 	}
 
 	mpt2sas_transport_port_remove(ioc, sas_expander->sas_address,
-	    sas_expander->parent_handle);
+	    sas_expander->sas_address_parent);
 
 	printk(MPT2SAS_INFO_FMT "expander_remove: handle"
 	   "(0x%04x), sas_addr(0x%016llx)\n", ioc->name,
@@ -5726,7 +5787,7 @@ _scsih_remove(struct pci_dev *pdev)
 			    mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
 			   mpt2sas_port->remote_identify.sas_address);
 			if (sas_device) {
-				_scsih_remove_device(ioc, sas_device->handle);
+				_scsih_remove_device(ioc, sas_device);
 				goto retry_again;
 			}
 		} else {
@@ -5735,7 +5796,7 @@ _scsih_remove(struct pci_dev *pdev)
 			    mpt2sas_port->remote_identify.sas_address);
 			if (expander_sibling) {
 				_scsih_expander_remove(ioc,
-				    expander_sibling->handle);
+				    expander_sibling->sas_address);
 				goto retry_again;
 			}
 		}
@@ -5770,7 +5831,8 @@ _scsih_probe_boot_devices(struct MPT2SAS_ADAPTER *ioc)
 	void *device;
 	struct _sas_device *sas_device;
 	struct _raid_device *raid_device;
-	u16 handle, parent_handle;
+	u16 handle;
+	u64 sas_address_parent;
 	u64 sas_address;
 	unsigned long flags;
 	int rc;
@@ -5799,17 +5861,17 @@ _scsih_probe_boot_devices(struct MPT2SAS_ADAPTER *ioc)
 	} else {
 		sas_device = device;
 		handle = sas_device->handle;
-		parent_handle = sas_device->parent_handle;
+		sas_address_parent = sas_device->sas_address_parent;
 		sas_address = sas_device->sas_address;
 		spin_lock_irqsave(&ioc->sas_device_lock, flags);
 		list_move_tail(&sas_device->list, &ioc->sas_device_list);
 		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 		if (!mpt2sas_transport_port_add(ioc, sas_device->handle,
-		    sas_device->parent_handle)) {
+		    sas_device->sas_address_parent)) {
 			_scsih_sas_device_remove(ioc, sas_device);
 		} else if (!sas_device->starget) {
 			mpt2sas_transport_port_remove(ioc, sas_address,
-			    parent_handle);
+			    sas_address_parent);
 			_scsih_sas_device_remove(ioc, sas_device);
 		}
 	}
@@ -5849,8 +5911,6 @@ _scsih_probe_sas(struct MPT2SAS_ADAPTER *ioc)
 {
 	struct _sas_device *sas_device, *next;
 	unsigned long flags;
-	u16 handle, parent_handle;
-	u64 sas_address;
 
 	/* SAS Device List */
 	list_for_each_entry_safe(sas_device, next, &ioc->sas_device_init_list,
@@ -5859,14 +5919,13 @@ _scsih_probe_sas(struct MPT2SAS_ADAPTER *ioc)
 		list_move_tail(&sas_device->list, &ioc->sas_device_list);
 		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
-		handle = sas_device->handle;
-		parent_handle = sas_device->parent_handle;
-		sas_address = sas_device->sas_address;
-		if (!mpt2sas_transport_port_add(ioc, handle, parent_handle)) {
+		if (!mpt2sas_transport_port_add(ioc, sas_device->handle,
+		    sas_device->sas_address_parent)) {
 			_scsih_sas_device_remove(ioc, sas_device);
 		} else if (!sas_device->starget) {
-			mpt2sas_transport_port_remove(ioc, sas_address,
-			    parent_handle);
+			mpt2sas_transport_port_remove(ioc,
+			    sas_device->sas_address,
+			    sas_device->sas_address_parent);
 			_scsih_sas_device_remove(ioc, sas_device);
 		}
 	}

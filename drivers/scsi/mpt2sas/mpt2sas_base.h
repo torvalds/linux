@@ -278,7 +278,7 @@ struct _internal_cmd {
  * @sas_address: device sas address
  * @device_name: retrieved from the SAS IDENTIFY frame.
  * @handle: device handle
- * @parent_handle: handle to parent device
+ * @sas_address_parent: sas address of parent expander or sas host
  * @enclosure_handle: enclosure handle
  * @enclosure_logical_id: enclosure logical identifier
  * @volume_handle: volume handle (valid when hidden raid member)
@@ -296,7 +296,7 @@ struct _sas_device {
 	u64	sas_address;
 	u64	device_name;
 	u16	handle;
-	u16	parent_handle;
+	u64	sas_address_parent;
 	u16	enclosure_handle;
 	u64	enclosure_logical_id;
 	u16	volume_handle;
@@ -352,8 +352,6 @@ struct _boot_device {
 /**
  * struct _sas_port - wide/narrow sas port information
  * @port_list: list of ports belonging to expander
- * @handle: device handle for this port
- * @sas_address: sas address of this port
  * @num_phys: number of phys belonging to this port
  * @remote_identify: attached device identification
  * @rphy: sas transport rphy object
@@ -362,8 +360,6 @@ struct _boot_device {
  */
 struct _sas_port {
 	struct list_head port_list;
-	u16	handle;
-	u64	sas_address;
 	u8	num_phys;
 	struct sas_identify remote_identify;
 	struct sas_rphy *rphy;
@@ -398,7 +394,7 @@ struct _sas_phy {
  * @num_phys: number phys belonging to this sas_host/expander
  * @sas_address: sas address of this sas_host/expander
  * @handle: handle for this sas_host/expander
- * @parent_handle: parent handle
+ * @sas_address_parent: sas address of parent expander or sas host
  * @enclosure_handle: handle for this a member of an enclosure
  * @device_info: bitwise defining capabilities of this sas_host/expander
  * @responding: used in _scsih_expander_device_mark_responding
@@ -411,7 +407,7 @@ struct _sas_node {
 	u8	num_phys;
 	u64	sas_address;
 	u16	handle;
-	u16	parent_handle;
+	u64	sas_address_parent;
 	u16	enclosure_handle;
 	u64	enclosure_logical_id;
 	u8	responding;
@@ -890,15 +886,15 @@ void mpt2sas_ctl_add_to_event_log(struct MPT2SAS_ADAPTER *ioc,
 u8 mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
     u32 reply);
 struct _sas_port *mpt2sas_transport_port_add(struct MPT2SAS_ADAPTER *ioc,
-    u16 handle, u16 parent_handle);
+     u16 handle, u64 sas_address);
 void mpt2sas_transport_port_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address,
-    u16 parent_handle);
+     u64 sas_address_parent);
 int mpt2sas_transport_add_host_phy(struct MPT2SAS_ADAPTER *ioc, struct _sas_phy
     *mpt2sas_phy, Mpi2SasPhyPage0_t phy_pg0, struct device *parent_dev);
 int mpt2sas_transport_add_expander_phy(struct MPT2SAS_ADAPTER *ioc, struct _sas_phy
     *mpt2sas_phy, Mpi2ExpanderPage1_t expander_pg1, struct device *parent_dev);
-void mpt2sas_transport_update_links(struct MPT2SAS_ADAPTER *ioc, u16 handle,
-   u16 attached_handle, u8 phy_number, u8 link_rate);
+void mpt2sas_transport_update_links(struct MPT2SAS_ADAPTER *ioc,
+     u64 sas_address, u16 handle, u8 phy_number, u8 link_rate);
 extern struct sas_function_template mpt2sas_transport_functions;
 extern struct scsi_transport_template *mpt2sas_transport_template;
 extern int scsi_internal_device_block(struct scsi_device *sdev);
