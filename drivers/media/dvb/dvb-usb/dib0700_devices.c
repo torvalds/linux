@@ -1176,6 +1176,7 @@ static struct dib0070_config dib7770p_dib0070_config = {
 	 .clock_khz = 12000,
 	 .clock_pad_drive = 0,
 	 .flip_chip = 1,
+	 .charge_pump = 2,
 };
 
 static int dib7070_set_param_override(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
