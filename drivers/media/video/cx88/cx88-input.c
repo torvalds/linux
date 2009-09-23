@@ -315,7 +315,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_TEVII_S460:
 	case CX88_BOARD_TEVII_S420:
-		ir_codes = &ir_codes_dm1105_nec_table;
+		ir_codes = &ir_codes_tevii_nec_table;
 		ir_type = IR_TYPE_PD;
 		ir->sampling = 0xff00; /* address */
 		break;
