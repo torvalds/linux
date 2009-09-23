@@ -1226,11 +1226,6 @@ static void ath9k_rfkill_poll_state(struct ieee80211_hw *hw)
 	bool blocked = !!ath_is_rfkill_set(sc);
 
 	wiphy_rfkill_set_hw_state(hw->wiphy, blocked);
-
-	if (blocked)
-		ath_radio_disable(sc);
-	else
-		ath_radio_enable(sc);
 }
 
 static void ath_start_rfkill_poll(struct ath_softc *sc)
@@ -1260,6 +1255,7 @@ void ath_detach(struct ath_softc *sc)
 	DPRINTF(sc, ATH_DBG_CONFIG, "Detach ATH hw\n");
 
 	ath_deinit_leds(sc);
+	wiphy_rfkill_stop_polling(sc->hw->wiphy);
 
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
@@ -2165,8 +2161,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		ath9k_hw_phy_disable(sc->sc_ah);
 	} else
 		sc->rx.rxlink = NULL;
-
-	wiphy_rfkill_stop_polling(sc->hw->wiphy);
 
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(sc->sc_ah);
