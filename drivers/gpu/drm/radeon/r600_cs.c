@@ -57,7 +57,7 @@ int r600_cs_packet_parse(struct radeon_cs_parser *p,
 			  idx, ib_chunk->length_dw);
 		return -EINVAL;
 	}
-	header = ib_chunk->kdata[idx];
+	header = radeon_get_ib_value(p, idx);
 	pkt->idx = idx;
 	pkt->type = CP_PACKET_GET_TYPE(header);
 	pkt->count = CP_PACKET_GET_COUNT(header);
@@ -98,7 +98,6 @@ int r600_cs_packet_parse(struct radeon_cs_parser *p,
 static int r600_cs_packet_next_reloc_mm(struct radeon_cs_parser *p,
 					struct radeon_cs_reloc **cs_reloc)
 {
-	struct radeon_cs_chunk *ib_chunk;
 	struct radeon_cs_chunk *relocs_chunk;
 	struct radeon_cs_packet p3reloc;
 	unsigned idx;
@@ -109,7 +108,6 @@ static int r600_cs_packet_next_reloc_mm(struct radeon_cs_parser *p,
 		return -EINVAL;
 	}
 	*cs_reloc = NULL;
-	ib_chunk = &p->chunks[p->chunk_ib_idx];
 	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
 	r = r600_cs_packet_parse(p, &p3reloc, p->idx);
 	if (r) {
@@ -121,7 +119,7 @@ static int r600_cs_packet_next_reloc_mm(struct radeon_cs_parser *p,
 			  p3reloc.idx);
 		return -EINVAL;
 	}
-	idx = ib_chunk->kdata[p3reloc.idx + 1];
+	idx = radeon_get_ib_value(p, p3reloc.idx + 1);
 	if (idx >= relocs_chunk->length_dw) {
 		DRM_ERROR("Relocs at %d after relocations chunk end %d !\n",
 			  idx, relocs_chunk->length_dw);
@@ -146,7 +144,6 @@ static int r600_cs_packet_next_reloc_mm(struct radeon_cs_parser *p,
 static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 					struct radeon_cs_reloc **cs_reloc)
 {
-	struct radeon_cs_chunk *ib_chunk;
 	struct radeon_cs_chunk *relocs_chunk;
 	struct radeon_cs_packet p3reloc;
 	unsigned idx;
@@ -157,7 +154,6 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 		return -EINVAL;
 	}
 	*cs_reloc = NULL;
-	ib_chunk = &p->chunks[p->chunk_ib_idx];
 	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
 	r = r600_cs_packet_parse(p, &p3reloc, p->idx);
 	if (r) {
@@ -169,7 +165,7 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 			  p3reloc.idx);
 		return -EINVAL;
 	}
-	idx = ib_chunk->kdata[p3reloc.idx + 1];
+	idx = radeon_get_ib_value(p, p3reloc.idx + 1);
 	if (idx >= relocs_chunk->length_dw) {
 		DRM_ERROR("Relocs at %d after relocations chunk end %d !\n",
 			  idx, relocs_chunk->length_dw);
@@ -218,7 +214,6 @@ static int r600_cs_parse_packet0(struct radeon_cs_parser *p,
 static int r600_packet3_check(struct radeon_cs_parser *p,
 				struct radeon_cs_packet *pkt)
 {
-	struct radeon_cs_chunk *ib_chunk;
 	struct radeon_cs_reloc *reloc;
 	volatile u32 *ib;
 	unsigned idx;
@@ -227,8 +222,8 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 	int r;
 
 	ib = p->ib->ptr;
-	ib_chunk = &p->chunks[p->chunk_ib_idx];
 	idx = pkt->idx + 1;
+
 	switch (pkt->opcode) {
 	case PACKET3_START_3D_CMDBUF:
 		if (p->family >= CHIP_RV770 || pkt->count) {
@@ -281,7 +276,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		/* bit 4 is reg (0) or mem (1) */
-		if (ib_chunk->kdata[idx+0] & 0x10) {
+		if (radeon_get_ib_value(p, idx) & 0x10) {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				DRM_ERROR("bad WAIT_REG_MEM\n");
@@ -297,8 +292,8 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		/* 0xffffffff/0x0 is flush all cache flag */
-		if (ib_chunk->kdata[idx+1] != 0xffffffff ||
-		    ib_chunk->kdata[idx+2] != 0) {
+		if (radeon_get_ib_value(p, idx + 1) != 0xffffffff ||
+		    radeon_get_ib_value(p, idx + 2) != 0) {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				DRM_ERROR("bad SURFACE_SYNC\n");
@@ -639,9 +634,14 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 	 * uncached). */
 	ib_chunk = &parser.chunks[parser.chunk_ib_idx];
 	parser.ib->length_dw = ib_chunk->length_dw;
-	memcpy((void *)parser.ib->ptr, ib_chunk->kdata, ib_chunk->length_dw*4);
 	*l = parser.ib->length_dw;
 	r = r600_cs_parse(&parser);
+	if (r) {
+		DRM_ERROR("Invalid command stream !\n");
+		r600_cs_parser_fini(&parser, r);
+		return r;
+	}
+	r = radeon_cs_finish_pages(&parser);
 	if (r) {
 		DRM_ERROR("Invalid command stream !\n");
 		r600_cs_parser_fini(&parser, r);
