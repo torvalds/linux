@@ -123,7 +123,6 @@ static struct bfin5xx_spi_chip mmc_spi_chip_info = {
 	.ctl_reg = 0x1000,		/* CPOL=0,CPHA=0,Sandisk 1G work */
 	.enable_dma = 0,		/* if 1 - block!!! */
 	.bits_per_word = 8,
-	.cs_change_per_word = 0,
 };
 #endif
 
