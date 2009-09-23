@@ -408,6 +408,26 @@ You can attach the current shell task by echoing 0:
 
 # echo 0 > tasks
 
+2.3 Mounting hierarchies by name
+--------------------------------
+
+Passing the name=<x> option when mounting a cgroups hierarchy
+associates the given name with the hierarchy.  This can be used when
+mounting a pre-existing hierarchy, in order to refer to it by name
+rather than by its set of active subsystems.  Each hierarchy is either
+nameless, or has a unique name.
+
+The name should match [\w.-]+
+
+When passing a name=<x> option for a new hierarchy, you need to
+specify subsystems manually; the legacy behaviour of mounting all
+subsystems when none are explicitly specified is not supported when
+you give a subsystem a name.
+
+The name of the subsystem appears as part of the hierarchy description
+in /proc/mounts and /proc/<pid>/cgroups.
+
+
 3. Kernel API
 =============
 
