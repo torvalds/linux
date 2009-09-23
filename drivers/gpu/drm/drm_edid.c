@@ -502,6 +502,19 @@ static struct drm_display_mode *drm_find_dmt(struct drm_device *dev,
 	}
 	return mode;
 }
+
+/*
+ * 0 is reserved.  The spec says 0x01 fill for unused timings.  Some old
+ * monitors fill with ascii space (0x20) instead.
+ */
+static int
+bad_std_timing(u8 a, u8 b)
+{
+	return (a == 0x00 && b == 0x00) ||
+	       (a == 0x01 && b == 0x01) ||
+	       (a == 0x20 && b == 0x20);
+}
+
 /**
  * drm_mode_std - convert standard mode info (width, height, refresh) into mode
  * @t: standard timing params
@@ -524,6 +537,9 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 		>> EDID_TIMING_ASPECT_SHIFT;
 	unsigned vfreq = (t->vfreq_aspect & EDID_TIMING_VFREQ_MASK)
 		>> EDID_TIMING_VFREQ_SHIFT;
+
+	if (bad_std_timing(t->hsize, t->vfreq_aspect))
+		return NULL;
 
 	/* According to the EDID spec, the hdisplay = hsize * 8 + 248 */
 	hsize = t->hsize * 8 + 248;
