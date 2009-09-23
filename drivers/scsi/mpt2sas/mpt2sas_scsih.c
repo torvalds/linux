@@ -2885,7 +2885,7 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	}
 
 	/* see if we are busy with task managment stuff */
-	if (sas_target_priv_data->tm_busy)
+	if (sas_device_priv_data->block || sas_target_priv_data->tm_busy)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	else if (ioc->shost_recovery || ioc->ioc_link_reset_in_progress)
 		return SCSI_MLQUEUE_HOST_BUSY;
@@ -3351,10 +3351,9 @@ _scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 
 	case MPI2_IOCSTATUS_SCSI_IOC_TERMINATED:
 		if (sas_device_priv_data->block) {
-			scmd->result = (DID_BUS_BUSY << 16);
-			break;
+			scmd->result = DID_TRANSPORT_DISRUPTED << 16;
+			goto out;
 		}
-
 	case MPI2_IOCSTATUS_SCSI_TASK_TERMINATED:
 	case MPI2_IOCSTATUS_SCSI_EXT_TERMINATED:
 		scmd->result = DID_RESET << 16;
