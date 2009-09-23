@@ -141,15 +141,36 @@ enum {
 	CGRP_WAIT_ON_RMDIR,
 };
 
+/* which pidlist file are we talking about? */
+enum cgroup_filetype {
+	CGROUP_FILE_PROCS,
+	CGROUP_FILE_TASKS,
+};
+
+/*
+ * A pidlist is a list of pids that virtually represents the contents of one
+ * of the cgroup files ("procs" or "tasks"). We keep a list of such pidlists,
+ * a pair (one each for procs, tasks) for each pid namespace that's relevant
+ * to the cgroup.
+ */
 struct cgroup_pidlist {
-	/* protects the other fields */
-	struct rw_semaphore mutex;
+	/*
+	 * used to find which pidlist is wanted. doesn't change as long as
+	 * this particular list stays in the list.
+	 */
+	struct { enum cgroup_filetype type; struct pid_namespace *ns; } key;
 	/* array of xids */
 	pid_t *list;
 	/* how many elements the above list has */
 	int length;
 	/* how many files are using the current array */
 	int use_count;
+	/* each of these stored in a list by its cgroup */
+	struct list_head links;
+	/* pointer to the cgroup we belong to, for list removal purposes */
+	struct cgroup *owner;
+	/* protects the other fields */
+	struct rw_semaphore mutex;
 };
 
 struct cgroup {
@@ -190,9 +211,12 @@ struct cgroup {
 	 */
 	struct list_head release_list;
 
-	/* we will have two separate pidlists, one for pids (the tasks file)
-	 * and one for tgids (the procs file). */
-	struct cgroup_pidlist tasks, procs;
+	/*
+	 * list of pidlists, up to two for each namespace (one for procs, one
+	 * for tasks); created on demand.
+	 */
+	struct list_head pidlists;
+	struct mutex pidlist_mutex;
 
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;

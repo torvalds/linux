@@ -776,6 +776,12 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 		 */
 		deactivate_super(cgrp->root->sb);
 
+		/*
+		 * if we're getting rid of the cgroup, refcount should ensure
+		 * that there are no pidlists left.
+		 */
+		BUG_ON(!list_empty(&cgrp->pidlists));
+
 		call_rcu(&cgrp->rcu_head, free_cgroup_rcu);
 	}
 	iput(inode);
@@ -1121,8 +1127,8 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 	INIT_LIST_HEAD(&cgrp->children);
 	INIT_LIST_HEAD(&cgrp->css_sets);
 	INIT_LIST_HEAD(&cgrp->release_list);
-	init_rwsem(&(cgrp->tasks.mutex));
-	init_rwsem(&(cgrp->procs.mutex));
+	INIT_LIST_HEAD(&cgrp->pidlists);
+	mutex_init(&cgrp->pidlist_mutex);
 }
 
 static void init_cgroup_root(struct cgroupfs_root *root)
@@ -2396,9 +2402,59 @@ static int cmppid(const void *a, const void *b)
 }
 
 /*
+ * find the appropriate pidlist for our purpose (given procs vs tasks)
+ * returns with the lock on that pidlist already held, and takes care
+ * of the use count, or returns NULL with no locks held if we're out of
+ * memory.
+ */
+static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
+						  enum cgroup_filetype type)
+{
+	struct cgroup_pidlist *l;
+	/* don't need task_nsproxy() if we're looking at ourself */
+	struct pid_namespace *ns = get_pid_ns(current->nsproxy->pid_ns);
+	/*
+	 * We can't drop the pidlist_mutex before taking the l->mutex in case
+	 * the last ref-holder is trying to remove l from the list at the same
+	 * time. Holding the pidlist_mutex precludes somebody taking whichever
+	 * list we find out from under us - compare release_pid_array().
+	 */
+	mutex_lock(&cgrp->pidlist_mutex);
+	list_for_each_entry(l, &cgrp->pidlists, links) {
+		if (l->key.type == type && l->key.ns == ns) {
+			/* found a matching list - drop the extra refcount */
+			put_pid_ns(ns);
+			/* make sure l doesn't vanish out from under us */
+			down_write(&l->mutex);
+			mutex_unlock(&cgrp->pidlist_mutex);
+			l->use_count++;
+			return l;
+		}
+	}
+	/* entry not found; create a new one */
+	l = kmalloc(sizeof(struct cgroup_pidlist), GFP_KERNEL);
+	if (!l) {
+		mutex_unlock(&cgrp->pidlist_mutex);
+		put_pid_ns(ns);
+		return l;
+	}
+	init_rwsem(&l->mutex);
+	down_write(&l->mutex);
+	l->key.type = type;
+	l->key.ns = ns;
+	l->use_count = 0; /* don't increment here */
+	l->list = NULL;
+	l->owner = cgrp;
+	list_add(&l->links, &cgrp->pidlists);
+	mutex_unlock(&cgrp->pidlist_mutex);
+	return l;
+}
+
+/*
  * Load a cgroup's pidarray with either procs' tgids or tasks' pids
  */
-static int pidlist_array_load(struct cgroup *cgrp, bool procs)
+static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
+			      struct cgroup_pidlist **lp)
 {
 	pid_t *array;
 	int length;
@@ -2423,7 +2479,10 @@ static int pidlist_array_load(struct cgroup *cgrp, bool procs)
 		if (unlikely(n == length))
 			break;
 		/* get tgid or pid for procs or tasks file respectively */
-		pid = (procs ? task_tgid_vnr(tsk) : task_pid_vnr(tsk));
+		if (type == CGROUP_FILE_PROCS)
+			pid = task_tgid_vnr(tsk);
+		else
+			pid = task_pid_vnr(tsk);
 		if (pid > 0) /* make sure to only use valid results */
 			array[n++] = pid;
 	}
@@ -2431,19 +2490,20 @@ static int pidlist_array_load(struct cgroup *cgrp, bool procs)
 	length = n;
 	/* now sort & (if procs) strip out duplicates */
 	sort(array, length, sizeof(pid_t), cmppid, NULL);
-	if (procs) {
+	if (type == CGROUP_FILE_PROCS)
 		length = pidlist_uniq(&array, length);
-		l = &(cgrp->procs);
-	} else {
-		l = &(cgrp->tasks);
+	l = cgroup_pidlist_find(cgrp, type);
+	if (!l) {
+		kfree(array);
+		return -ENOMEM;
 	}
-	/* store array in cgroup, freeing old if necessary */
-	down_write(&l->mutex);
+	/* store array, freeing old if necessary - lock already held */
 	kfree(l->list);
 	l->list = array;
 	l->length = length;
 	l->use_count++;
 	up_write(&l->mutex);
+	*lp = l;
 	return 0;
 }
 
@@ -2586,13 +2646,26 @@ static const struct seq_operations cgroup_pidlist_seq_operations = {
 
 static void cgroup_release_pid_array(struct cgroup_pidlist *l)
 {
+	/*
+	 * the case where we're the last user of this particular pidlist will
+	 * have us remove it from the cgroup's list, which entails taking the
+	 * mutex. since in pidlist_find the pidlist->lock depends on cgroup->
+	 * pidlist_mutex, we have to take pidlist_mutex first.
+	 */
+	mutex_lock(&l->owner->pidlist_mutex);
 	down_write(&l->mutex);
 	BUG_ON(!l->use_count);
 	if (!--l->use_count) {
+		/* we're the last user if refcount is 0; remove and free */
+		list_del(&l->links);
+		mutex_unlock(&l->owner->pidlist_mutex);
 		kfree(l->list);
-		l->list = NULL;
-		l->length = 0;
+		put_pid_ns(l->key.ns);
+		up_write(&l->mutex);
+		kfree(l);
+		return;
 	}
+	mutex_unlock(&l->owner->pidlist_mutex);
 	up_write(&l->mutex);
 }
 
@@ -2623,10 +2696,10 @@ static const struct file_operations cgroup_pidlist_operations = {
  * in the cgroup.
  */
 /* helper function for the two below it */
-static int cgroup_pidlist_open(struct file *file, bool procs)
+static int cgroup_pidlist_open(struct file *file, enum cgroup_filetype type)
 {
 	struct cgroup *cgrp = __d_cgrp(file->f_dentry->d_parent);
-	struct cgroup_pidlist *l = (procs ? &cgrp->procs : &cgrp->tasks);
+	struct cgroup_pidlist *l;
 	int retval;
 
 	/* Nothing to do for write-only files */
@@ -2634,7 +2707,7 @@ static int cgroup_pidlist_open(struct file *file, bool procs)
 		return 0;
 
 	/* have the array populated */
-	retval = pidlist_array_load(cgrp, procs);
+	retval = pidlist_array_load(cgrp, type, &l);
 	if (retval)
 		return retval;
 	/* configure file information */
@@ -2650,11 +2723,11 @@ static int cgroup_pidlist_open(struct file *file, bool procs)
 }
 static int cgroup_tasks_open(struct inode *unused, struct file *file)
 {
-	return cgroup_pidlist_open(file, false);
+	return cgroup_pidlist_open(file, CGROUP_FILE_TASKS);
 }
 static int cgroup_procs_open(struct inode *unused, struct file *file)
 {
-	return cgroup_pidlist_open(file, true);
+	return cgroup_pidlist_open(file, CGROUP_FILE_PROCS);
 }
 
 static u64 cgroup_read_notify_on_release(struct cgroup *cgrp,
