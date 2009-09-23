@@ -690,7 +690,7 @@ static ssize_t read_zero(struct file * file, char __user * buf,
 
 		if (chunk > PAGE_SIZE)
 			chunk = PAGE_SIZE;	/* Just for latency reasons */
-		unwritten = clear_user(buf, chunk);
+		unwritten = __clear_user(buf, chunk);
 		written += chunk - unwritten;
 		if (unwritten)
 			break;
