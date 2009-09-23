@@ -865,6 +865,12 @@ config SOC_CAMERA_OV772X
 	help
 	  This is a ov772x camera driver
 
+config SOC_CAMERA_OV9640
+	tristate "ov9640 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov9640 camera driver
+
 config MX1_VIDEO
 	bool
 
