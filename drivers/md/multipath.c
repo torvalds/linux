@@ -199,6 +199,9 @@ static int multipath_congested(void *data, int bits)
 	multipath_conf_t *conf = mddev->private;
 	int i, ret = 0;
 
+	if (mddev_congested(mddev, bits))
+		return 1;
+
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks ; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);

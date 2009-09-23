@@ -631,6 +631,8 @@ static int raid10_congested(void *data, int bits)
 	conf_t *conf = mddev->private;
 	int i, ret = 0;
 
+	if (mddev_congested(mddev, bits))
+		return 1;
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks && ret == 0; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);

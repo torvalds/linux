@@ -44,6 +44,9 @@ static int raid0_congested(void *data, int bits)
 	mdk_rdev_t **devlist = conf->devlist;
 	int i, ret = 0;
 
+	if (mddev_congested(mddev, bits))
+		return 1;
+
 	for (i = 0; i < mddev->raid_disks && !ret ; i++) {
 		struct request_queue *q = bdev_get_queue(devlist[i]->bdev);
 

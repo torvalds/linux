@@ -3332,6 +3332,9 @@ static int raid5_congested(void *data, int bits)
 	/* No difference between reads and writes.  Just check
 	 * how busy the stripe_cache is
 	 */
+
+	if (mddev_congested(mddev, bits))
+		return 1;
 	if (conf->inactive_blocked)
 		return 1;
 	if (conf->quiesce)

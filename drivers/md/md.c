@@ -262,6 +262,12 @@ static void mddev_resume(mddev_t *mddev)
 	mddev->pers->quiesce(mddev, 0);
 }
 
+int mddev_congested(mddev_t *mddev, int bits)
+{
+	return mddev->suspended;
+}
+EXPORT_SYMBOL(mddev_congested);
+
 
 static inline mddev_t *mddev_get(mddev_t *mddev)
 {
