@@ -1111,13 +1111,16 @@ static struct pid *task_pid_type(struct task_struct *task, enum pid_type type)
 	return pid;
 }
 
+static inline int eligible_pid(struct wait_opts *wo, struct task_struct *p)
+{
+	return	wo->wo_type == PIDTYPE_MAX ||
+		task_pid_type(p, wo->wo_type) == wo->wo_pid;
+}
+
 static int eligible_child(struct wait_opts *wo, struct task_struct *p)
 {
-	if (wo->wo_type < PIDTYPE_MAX) {
-		if (task_pid_type(p, wo->wo_type) != wo->wo_pid)
-			return 0;
-	}
-
+	if (!eligible_pid(wo, p))
+		return 0;
 	/* Wait for all children (clone and not) if __WALL is set;
 	 * otherwise, wait for clone children *only* if __WCLONE is
 	 * set; otherwise, wait for non-clone children *only*.  (Note:
@@ -1578,7 +1581,7 @@ static int child_wait_callback(wait_queue_t *wait, unsigned mode,
 						child_wait);
 	struct task_struct *p = key;
 
-	if (!eligible_child(wo, p))
+	if (!eligible_pid(wo, p))
 		return 0;
 
 	if ((wo->wo_flags & __WNOTHREAD) && wait->private != p->parent)
