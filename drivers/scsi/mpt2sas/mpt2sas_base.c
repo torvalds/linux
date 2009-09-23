@@ -1328,12 +1328,13 @@ mpt2sas_base_get_sense_buffer(struct MPT2SAS_ADAPTER *ioc, u16 smid)
  * @ioc: per adapter object
  * @smid: system request message index
  *
- * Returns phys pointer to sense buffer.
+ * Returns phys pointer to the low 32bit address of the sense buffer.
  */
-dma_addr_t
+__le32
 mpt2sas_base_get_sense_buffer_dma(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 {
-	return ioc->sense_dma + ((smid - 1) * SCSI_SENSE_BUFFERSIZE);
+	return cpu_to_le32(ioc->sense_dma +
+			((smid - 1) * SCSI_SENSE_BUFFERSIZE));
 }
 
 /**

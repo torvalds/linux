@@ -2939,7 +2939,7 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	mpi_request->MsgFlags = MPI2_SCSIIO_MSGFLAGS_SYSTEM_SENSE_ADDR;
 	mpi_request->SenseBufferLength = SCSI_SENSE_BUFFERSIZE;
 	mpi_request->SenseBufferLowAddress =
-	    (u32)mpt2sas_base_get_sense_buffer_dma(ioc, smid);
+	    mpt2sas_base_get_sense_buffer_dma(ioc, smid);
 	mpi_request->SGLOffset0 = offsetof(Mpi2SCSIIORequest_t, SGL) / 4;
 	mpi_request->SGLFlags = cpu_to_le16(MPI2_SCSIIO_SGLFLAGS_TYPE_MPI +
 	    MPI2_SCSIIO_SGLFLAGS_SYSTEM_ADDR);

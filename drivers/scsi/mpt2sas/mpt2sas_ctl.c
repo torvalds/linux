@@ -740,7 +740,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		Mpi2SCSIIORequest_t *scsiio_request =
 		    (Mpi2SCSIIORequest_t *)mpi_request;
 		scsiio_request->SenseBufferLowAddress =
-		    (u32)mpt2sas_base_get_sense_buffer_dma(ioc, smid);
+		    mpt2sas_base_get_sense_buffer_dma(ioc, smid);
 		priv_sense = mpt2sas_base_get_sense_buffer(ioc, smid);
 		memset(priv_sense, 0, SCSI_SENSE_BUFFERSIZE);
 		mpt2sas_base_put_smid_scsi_io(ioc, smid,
