@@ -79,15 +79,21 @@ struct rcu_dynticks {
  * Definition for node within the RCU grace-period-detection hierarchy.
  */
 struct rcu_node {
-	spinlock_t lock;
+	spinlock_t lock;	/* Root rcu_node's lock protects some */
+				/*  rcu_state fields as well as following. */
 	long	gpnum;		/* Current grace period for this node. */
 				/*  This will either be equal to or one */
 				/*  behind the root rcu_node's gpnum. */
 	unsigned long qsmask;	/* CPUs or groups that need to switch in */
 				/*  order for current grace period to proceed.*/
+				/*  In leaf rcu_node, each bit corresponds to */
+				/*  an rcu_data structure, otherwise, each */
+				/*  bit corresponds to a child rcu_node */
+				/*  structure. */
 	unsigned long qsmaskinit;
 				/* Per-GP initialization for qsmask. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
+				/*  Only one bit will be set in this mask. */
 	int	grplo;		/* lowest-numbered CPU or group here. */
 	int	grphi;		/* highest-numbered CPU or group here. */
 	u8	grpnum;		/* CPU/group number for next level up. */
@@ -95,6 +101,9 @@ struct rcu_node {
 	struct rcu_node *parent;
 	struct list_head blocked_tasks[2];
 				/* Tasks blocked in RCU read-side critsect. */
+				/*  Grace period number (->gpnum) x blocked */
+				/*  by tasks on the (x & 0x1) element of the */
+				/*  blocked_tasks[] array. */
 } ____cacheline_internodealigned_in_smp;
 
 /* Index values for nxttail array in struct rcu_data. */
@@ -126,19 +135,22 @@ struct rcu_data {
 	 * Any of the partitions might be empty, in which case the
 	 * pointer to that partition will be equal to the pointer for
 	 * the following partition.  When the list is empty, all of
-	 * the nxttail elements point to nxtlist, which is NULL.
+	 * the nxttail elements point to the ->nxtlist pointer itself,
+	 * which in that case is NULL.
 	 *
-	 * [*nxttail[RCU_NEXT_READY_TAIL], NULL = *nxttail[RCU_NEXT_TAIL]):
-	 *	Entries that might have arrived after current GP ended
-	 * [*nxttail[RCU_WAIT_TAIL], *nxttail[RCU_NEXT_READY_TAIL]):
-	 *	Entries known to have arrived before current GP ended
-	 * [*nxttail[RCU_DONE_TAIL], *nxttail[RCU_WAIT_TAIL]):
-	 *	Entries that batch # <= ->completed - 1: waiting for current GP
 	 * [nxtlist, *nxttail[RCU_DONE_TAIL]):
 	 *	Entries that batch # <= ->completed
 	 *	The grace period for these entries has completed, and
 	 *	the other grace-period-completed entries may be moved
 	 *	here temporarily in rcu_process_callbacks().
+	 * [*nxttail[RCU_DONE_TAIL], *nxttail[RCU_WAIT_TAIL]):
+	 *	Entries that batch # <= ->completed - 1: waiting for current GP
+	 * [*nxttail[RCU_WAIT_TAIL], *nxttail[RCU_NEXT_READY_TAIL]):
+	 *	Entries known to have arrived before current GP ended
+	 * [*nxttail[RCU_NEXT_READY_TAIL], *nxttail[RCU_NEXT_TAIL]):
+	 *	Entries that might have arrived after current GP ended
+	 *	Note that the value of *nxttail[RCU_NEXT_TAIL] will
+	 *	always be NULL, as this is the end of the list.
 	 */
 	struct rcu_head *nxtlist;
 	struct rcu_head **nxttail[RCU_NEXT_SIZE];
@@ -216,6 +228,9 @@ struct rcu_state {
 						/* Force QS state. */
 	long	gpnum;				/* Current gp number. */
 	long	completed;			/* # of last completed gp. */
+
+	/* End  of fields guarded by root rcu_node's lock. */
+
 	spinlock_t onofflock;			/* exclude on/offline and */
 						/*  starting new GP. */
 	spinlock_t fqslock;			/* Only one task forcing */

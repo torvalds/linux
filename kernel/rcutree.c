@@ -81,24 +81,29 @@ DEFINE_PER_CPU(struct rcu_data, rcu_sched_data);
 struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh_state);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
-extern long rcu_batches_completed_sched(void);
-static struct rcu_node *rcu_get_root(struct rcu_state *rsp);
-static void cpu_quiet_msk(unsigned long mask, struct rcu_state *rsp,
-			  struct rcu_node *rnp, unsigned long flags);
-static void cpu_quiet_msk_finish(struct rcu_state *rsp, unsigned long flags);
+/* Forward declarations for rcutree_plugin.h */
+static inline void rcu_bootup_announce(void);
+long rcu_batches_completed(void);
+static void rcu_preempt_note_context_switch(int cpu);
+static int rcu_preempted_readers(struct rcu_node *rnp);
+#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
+static void rcu_print_task_stall(struct rcu_node *rnp);
+#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
-static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp);
+static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
+				      struct rcu_node *rnp,
+				      struct rcu_data *rdp);
+static void rcu_preempt_offline_cpu(int cpu);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
-static void __rcu_process_callbacks(struct rcu_state *rsp,
-				    struct rcu_data *rdp);
-static void __call_rcu(struct rcu_head *head,
-		       void (*func)(struct rcu_head *rcu),
-		       struct rcu_state *rsp);
-static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp);
-static void __cpuinit rcu_init_percpu_data(int cpu, struct rcu_state *rsp,
-					   int preemptable);
+static void rcu_preempt_check_callbacks(int cpu);
+static void rcu_preempt_process_callbacks(void);
+void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
+static int rcu_preempt_pending(int cpu);
+static int rcu_preempt_needs_cpu(int cpu);
+static void __cpuinit rcu_preempt_init_percpu_data(int cpu);
+static void __init __rcu_init_preempt(void);
 
-#include "rcutree_plugin.h"
 
 /*
  * Return true if an RCU grace period is in progress.  The ACCESS_ONCE()s
@@ -377,7 +382,7 @@ static long dyntick_recall_completed(struct rcu_state *rsp)
 /*
  * Snapshot the specified CPU's dynticks counter so that we can later
  * credit them with an implicit quiescent state.  Return 1 if this CPU
- * is already in a quiescent state courtesy of dynticks idle mode.
+ * is in dynticks idle mode, which is an extended quiescent state.
  */
 static int dyntick_save_progress_counter(struct rcu_data *rdp)
 {
@@ -624,9 +629,15 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	note_new_gpnum(rsp, rdp);
 
 	/*
-	 * Because we are first, we know that all our callbacks will
-	 * be covered by this upcoming grace period, even the ones
-	 * that were registered arbitrarily recently.
+	 * Because this CPU just now started the new grace period, we know
+	 * that all of its callbacks will be covered by this upcoming grace
+	 * period, even the ones that were registered arbitrarily recently.
+	 * Therefore, advance all outstanding callbacks to RCU_WAIT_TAIL.
+	 *
+	 * Other CPUs cannot be sure exactly when the grace period started.
+	 * Therefore, their recently registered callbacks must pass through
+	 * an additional RCU_NEXT_READY stage, so that they will be handled
+	 * by the next RCU grace period.
 	 */
 	rdp->nxttail[RCU_NEXT_READY_TAIL] = rdp->nxttail[RCU_NEXT_TAIL];
 	rdp->nxttail[RCU_WAIT_TAIL] = rdp->nxttail[RCU_NEXT_TAIL];
@@ -886,7 +897,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 
 	/*
 	 * Move callbacks from the outgoing CPU to the running CPU.
-	 * Note that the outgoing CPU is now quiscent, so it is now
+	 * Note that the outgoing CPU is now quiescent, so it is now
 	 * (uncharacteristically) safe to access its rcu_data structure.
 	 * Note also that we must carefully retain the order of the
 	 * outgoing CPU's callbacks in order for rcu_barrier() to work
@@ -1577,25 +1588,6 @@ do { \
 	} \
 } while (0)
 
-#ifdef CONFIG_TREE_PREEMPT_RCU
-
-void __init __rcu_init_preempt(void)
-{
-	int i;			/* All used by RCU_INIT_FLAVOR(). */
-	int j;
-	struct rcu_node *rnp;
-
-	RCU_INIT_FLAVOR(&rcu_preempt_state, rcu_preempt_data);
-}
-
-#else /* #ifdef CONFIG_TREE_PREEMPT_RCU */
-
-void __init __rcu_init_preempt(void)
-{
-}
-
-#endif /* #else #ifdef CONFIG_TREE_PREEMPT_RCU */
-
 void __init __rcu_init(void)
 {
 	int i;			/* All used by RCU_INIT_FLAVOR(). */
@@ -1611,6 +1603,8 @@ void __init __rcu_init(void)
 	__rcu_init_preempt();
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }
+
+#include "rcutree_plugin.h"
 
 module_param(blimit, int, 0);
 module_param(qhimark, int, 0);

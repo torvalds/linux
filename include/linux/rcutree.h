@@ -90,10 +90,6 @@ extern long rcu_batches_completed(void);
 extern long rcu_batches_completed_bh(void);
 extern long rcu_batches_completed_sched(void);
 
-static inline void rcu_init_sched(void)
-{
-}
-
 #ifdef CONFIG_NO_HZ
 void rcu_enter_nohz(void);
 void rcu_exit_nohz(void);
@@ -106,7 +102,7 @@ static inline void rcu_exit_nohz(void)
 }
 #endif /* CONFIG_NO_HZ */
 
-/* A context switch is a grace period for rcutree. */
+/* A context switch is a grace period for RCU-sched and RCU-bh. */
 static inline int rcu_blocking_is_gp(void)
 {
 	return num_online_cpus() == 1;

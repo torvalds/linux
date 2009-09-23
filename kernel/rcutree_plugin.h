@@ -419,6 +419,18 @@ static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
 }
 
 /*
+ * Initialize preemptable RCU's state structures.
+ */
+static void __init __rcu_init_preempt(void)
+{
+	int i;			/* All used by RCU_INIT_FLAVOR(). */
+	int j;
+	struct rcu_node *rnp;
+
+	RCU_INIT_FLAVOR(&rcu_preempt_state, rcu_preempt_data);
+}
+
+/*
  * Check for a task exiting while in a preemptable-RCU read-side
  * critical section, clean up if so.  No need to issue warnings,
  * as debug_check_no_locks_held() already does this if lockdep
@@ -518,7 +530,7 @@ static void rcu_preempt_offline_cpu(int cpu)
  * Because preemptable RCU does not exist, it never has any callbacks
  * to check.
  */
-void rcu_preempt_check_callbacks(int cpu)
+static void rcu_preempt_check_callbacks(int cpu)
 {
 }
 
@@ -526,7 +538,7 @@ void rcu_preempt_check_callbacks(int cpu)
  * Because preemptable RCU does not exist, it never has any callbacks
  * to process.
  */
-void rcu_preempt_process_callbacks(void)
+static void rcu_preempt_process_callbacks(void)
 {
 }
 
@@ -560,6 +572,13 @@ static int rcu_preempt_needs_cpu(int cpu)
  * data to initialize.
  */
 static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
+{
+}
+
+/*
+ * Because preemptable RCU does not exist, it need not be initialized.
+ */
+static void __init __rcu_init_preempt(void)
 {
 }
 
