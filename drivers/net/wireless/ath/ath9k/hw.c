@@ -842,7 +842,7 @@ static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
 
 static void ath9k_hw_init_mode_gain_regs(struct ath_hw *ah)
 {
-	if (AR_SREV_9287_11(ah))
+	if (AR_SREV_9287_11_OR_LATER(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 		ar9287Modes_rx_gain_9287_1_1,
 		ARRAY_SIZE(ar9287Modes_rx_gain_9287_1_1), 6);
@@ -853,7 +853,7 @@ static void ath9k_hw_init_mode_gain_regs(struct ath_hw *ah)
 	else if (AR_SREV_9280_20(ah))
 		ath9k_hw_init_rxgain_ini(ah);
 
-	if (AR_SREV_9287_11(ah)) {
+	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 		ar9287Modes_tx_gain_9287_1_1,
 		ARRAY_SIZE(ar9287Modes_tx_gain_9287_1_1), 6);
