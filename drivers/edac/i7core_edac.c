@@ -778,105 +778,59 @@ static ssize_t i7core_inject_eccmask_show(struct mem_ctl_info *mci,
  *   23:16 and 31:24). Flipping bits in two symbol pairs will cause an
  *   uncorrectable error to be injected.
  */
-static ssize_t i7core_inject_addrmatch_store(struct mem_ctl_info *mci,
-					const char *data, size_t count)
-{
-	struct i7core_pvt *pvt = mci->pvt_info;
-	char *cmd, *val;
-	long value;
-	int rc;
 
-	if (pvt->inject.enable)
-		disable_inject(mci);
-
-	do {
-		cmd = strsep((char **) &data, ":");
-		if (!cmd)
-			break;
-		val = strsep((char **) &data, " \n\t");
-		if (!val)
-			return cmd - data;
-
-		if (!strcasecmp(val, "any"))
-			value = -1;
-		else {
-			rc = strict_strtol(val, 10, &value);
-			if ((rc < 0) || (value < 0))
-				return cmd - data;
-		}
-
-		if (!strcasecmp(cmd, "channel")) {
-			if (value < 3)
-				pvt->inject.channel = value;
-			else
-				return cmd - data;
-		} else if (!strcasecmp(cmd, "dimm")) {
-			if (value < 3)
-				pvt->inject.dimm = value;
-			else
-				return cmd - data;
-		} else if (!strcasecmp(cmd, "rank")) {
-			if (value < 4)
-				pvt->inject.rank = value;
-			else
-				return cmd - data;
-		} else if (!strcasecmp(cmd, "bank")) {
-			if (value < 32)
-				pvt->inject.bank = value;
-			else
-				return cmd - data;
-		} else if (!strcasecmp(cmd, "page")) {
-			if (value <= 0xffff)
-				pvt->inject.page = value;
-			else
-				return cmd - data;
-		} else if (!strcasecmp(cmd, "col") ||
-			   !strcasecmp(cmd, "column")) {
-			if (value <= 0x3fff)
-				pvt->inject.col = value;
-			else
-				return cmd - data;
-		}
-	} while (1);
-
-	return count;
+#define DECLARE_ADDR_MATCH(param, limit)			\
+static ssize_t i7core_inject_store_##param(			\
+		struct mem_ctl_info *mci,			\
+		const char *data, size_t count)			\
+{								\
+	struct i7core_pvt *pvt = mci->pvt_info;			\
+	long value;						\
+	int rc;							\
+								\
+	if (pvt->inject.enable)					\
+		disable_inject(mci);				\
+								\
+	if (!strcasecmp(data, "any"))				\
+		value = -1;					\
+	else {							\
+		rc = strict_strtoul(data, 10, &value);		\
+		if ((rc < 0) || (value >= limit))		\
+			return -EIO;				\
+	}							\
+								\
+	pvt->inject.param = value;				\
+								\
+	return count;						\
+}								\
+								\
+static ssize_t i7core_inject_show_##param(			\
+		struct mem_ctl_info *mci,			\
+		char *data)					\
+{								\
+	struct i7core_pvt *pvt = mci->pvt_info;			\
+	if (pvt->inject.param < 0)				\
+		return sprintf(data, "any\n");			\
+	else							\
+		return sprintf(data, "%d\n", pvt->inject.param);\
 }
 
-static ssize_t i7core_inject_addrmatch_show(struct mem_ctl_info *mci,
-					      char *data)
-{
-	struct i7core_pvt *pvt = mci->pvt_info;
-	char channel[4], dimm[4], bank[4], rank[4], page[7], col[7];
+#define ATTR_ADDR_MATCH(param)					\
+	{							\
+		.attr = {					\
+			.name = #param,				\
+			.mode = (S_IRUGO | S_IWUSR)		\
+		},						\
+		.show  = i7core_inject_show_##param,		\
+		.store = i7core_inject_store_##param,		\
+	}
 
-	if (pvt->inject.channel < 0)
-		sprintf(channel, "any");
-	else
-		sprintf(channel, "%d", pvt->inject.channel);
-	if (pvt->inject.dimm < 0)
-		sprintf(dimm, "any");
-	else
-		sprintf(dimm, "%d", pvt->inject.dimm);
-	if (pvt->inject.bank < 0)
-		sprintf(bank, "any");
-	else
-		sprintf(bank, "%d", pvt->inject.bank);
-	if (pvt->inject.rank < 0)
-		sprintf(rank, "any");
-	else
-		sprintf(rank, "%d", pvt->inject.rank);
-	if (pvt->inject.page < 0)
-		sprintf(page, "any");
-	else
-		sprintf(page, "0x%04x", pvt->inject.page);
-	if (pvt->inject.col < 0)
-		sprintf(col, "any");
-	else
-		sprintf(col, "0x%04x", pvt->inject.col);
-
-	return sprintf(data, "channel: %s\ndimm: %s\nbank: %s\n"
-			     "rank: %s\npage: %s\ncolumn: %s\n",
-		       channel, dimm, bank, rank, page, col);
-}
+DECLARE_ADDR_MATCH(channel, 3);
+DECLARE_ADDR_MATCH(dimm, 3);
+DECLARE_ADDR_MATCH(rank, 4);
+DECLARE_ADDR_MATCH(bank, 32);
+DECLARE_ADDR_MATCH(page, 0x10000);
+DECLARE_ADDR_MATCH(col, 0x4000);
 
 static int write_and_test(struct pci_dev *dev, int where, u32 val)
 {
@@ -1079,7 +1033,25 @@ static ssize_t i7core_ce_regs_show(struct mem_ctl_info *mci, char *data)
 /*
  * Sysfs struct
  */
-static struct mcidev_sysfs_attribute i7core_inj_attrs[] = {
+
+
+static struct mcidev_sysfs_attribute i7core_addrmatch_attrs[] = {
+	ATTR_ADDR_MATCH(channel),
+	ATTR_ADDR_MATCH(dimm),
+	ATTR_ADDR_MATCH(rank),
+	ATTR_ADDR_MATCH(bank),
+	ATTR_ADDR_MATCH(page),
+	ATTR_ADDR_MATCH(col),
+	{ .attr = { .name = NULL } }
+};
+
+
+static struct mcidev_sysfs_group i7core_inject_addrmatch = {
+	.name  = "inject_addrmatch",
+	.mcidev_attr = i7core_addrmatch_attrs,
+};
+
+static struct mcidev_sysfs_attribute i7core_sysfs_attrs[] = {
 	{
 		.attr = {
 			.name = "inject_section",
@@ -1102,12 +1074,7 @@ static struct mcidev_sysfs_attribute i7core_inj_attrs[] = {
 		.show  = i7core_inject_eccmask_show,
 		.store = i7core_inject_eccmask_store,
 	}, {
-		.attr = {
-			.name = "inject_addrmatch",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show  = i7core_inject_addrmatch_show,
-		.store = i7core_inject_addrmatch_store,
+		.grp = &i7core_inject_addrmatch,
 	}, {
 		.attr = {
 			.name = "inject_enable",
@@ -1750,7 +1717,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 				  i7core_dev->socket);
 	mci->dev_name = pci_name(i7core_dev->pdev[0]);
 	mci->ctl_page_to_phys = NULL;
-	mci->mc_driver_sysfs_attributes = i7core_inj_attrs;
+	mci->mc_driver_sysfs_attributes = i7core_sysfs_attrs;
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = i7core_check_error;
 
