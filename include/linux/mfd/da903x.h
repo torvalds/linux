@@ -1,7 +1,7 @@
 #ifndef __LINUX_PMIC_DA903X_H
 #define __LINUX_PMIC_DA903X_H
 
-/* Unified sub device IDs for DA9030/DA9034 */
+/* Unified sub device IDs for DA9030/DA9034/DA9035 */
 enum {
 	DA9030_ID_LED_1,
 	DA9030_ID_LED_2,
@@ -57,6 +57,8 @@ enum {
 	DA9034_ID_LDO13,
 	DA9034_ID_LDO14,
 	DA9034_ID_LDO15,
+
+	DA9035_ID_BUCK3,
 };
 
 /*
