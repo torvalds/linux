@@ -3,6 +3,7 @@
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/virtio.h>
+#include <linux/virtio_ids.h>
 #include <linux/virtio_blk.h>
 #include <linux/scatterlist.h>
 
@@ -91,15 +92,26 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 		return false;
 
 	vbr->req = req;
-	if (blk_fs_request(vbr->req)) {
+	switch (req->cmd_type) {
+	case REQ_TYPE_FS:
 		vbr->out_hdr.type = 0;
 		vbr->out_hdr.sector = blk_rq_pos(vbr->req);
 		vbr->out_hdr.ioprio = req_get_ioprio(vbr->req);
-	} else if (blk_pc_request(vbr->req)) {
+		break;
+	case REQ_TYPE_BLOCK_PC:
 		vbr->out_hdr.type = VIRTIO_BLK_T_SCSI_CMD;
 		vbr->out_hdr.sector = 0;
 		vbr->out_hdr.ioprio = req_get_ioprio(vbr->req);
-	} else {
+		break;
+	case REQ_TYPE_LINUX_BLOCK:
+		if (req->cmd[0] == REQ_LB_OP_FLUSH) {
+			vbr->out_hdr.type = VIRTIO_BLK_T_FLUSH;
+			vbr->out_hdr.sector = 0;
+			vbr->out_hdr.ioprio = req_get_ioprio(vbr->req);
+			break;
+		}
+		/*FALLTHRU*/
+	default:
 		/* We don't put anything else in the queue. */
 		BUG();
 	}
@@ -139,7 +151,7 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 		}
 	}
 
-	if (vblk->vq->vq_ops->add_buf(vblk->vq, vblk->sg, out, in, vbr)) {
+	if (vblk->vq->vq_ops->add_buf(vblk->vq, vblk->sg, out, in, vbr) < 0) {
 		mempool_free(vbr, vblk->pool);
 		return false;
 	}
@@ -197,6 +209,12 @@ out_kfree:
 	kfree(opaque);
 out:
 	return err;
+}
+
+static void virtblk_prepare_flush(struct request_queue *q, struct request *req)
+{
+	req->cmd_type = REQ_TYPE_LINUX_BLOCK;
+	req->cmd[0] = REQ_LB_OP_FLUSH;
 }
 
 static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
@@ -337,7 +355,10 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	index++;
 
 	/* If barriers are supported, tell block layer that queue is ordered */
-	if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER))
+	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH))
+		blk_queue_ordered(vblk->disk->queue, QUEUE_ORDERED_DRAIN_FLUSH,
+				  virtblk_prepare_flush);
+	else if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER))
 		blk_queue_ordered(vblk->disk->queue, QUEUE_ORDERED_TAG, NULL);
 
 	/* If disk is read-only in the host, the guest should obey */
@@ -424,7 +445,7 @@ static struct virtio_device_id id_table[] = {
 static unsigned int features[] = {
 	VIRTIO_BLK_F_BARRIER, VIRTIO_BLK_F_SEG_MAX, VIRTIO_BLK_F_SIZE_MAX,
 	VIRTIO_BLK_F_GEOMETRY, VIRTIO_BLK_F_RO, VIRTIO_BLK_F_BLK_SIZE,
-	VIRTIO_BLK_F_SCSI, VIRTIO_BLK_F_IDENTIFY
+	VIRTIO_BLK_F_SCSI, VIRTIO_BLK_F_IDENTIFY, VIRTIO_BLK_F_FLUSH
 };
 
 /*

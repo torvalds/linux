@@ -1135,11 +1135,6 @@ static struct notifier_block paniced = {
 /* Setting up memory is fairly easy. */
 static __init char *lguest_memory_setup(void)
 {
-	/* We do this here and not earlier because lockcheck used to barf if we
-	 * did it before start_kernel().  I think we fixed that, so it'd be
-	 * nice to move it back to lguest_init.  Patch welcome... */
-	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
-
 	/*
 	 *The Linux bootloader header contains an "e820" memory map: the
 	 * Launcher populated the first entry with our memory limit.
@@ -1364,9 +1359,12 @@ __init void lguest_init(void)
 
 	/*
 	 * If we don't initialize the lock dependency checker now, it crashes
-	 * paravirt_disable_iospace.
+	 * atomic_notifier_chain_register, then paravirt_disable_iospace.
 	 */
 	lockdep_init();
+
+	/* Hook in our special panic hypercall code. */
+	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
 
 	/*
 	 * The IDE code spends about 3 seconds probing for disks: if we reserve
