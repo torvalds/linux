@@ -615,8 +615,9 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
  * gfs2_adjust_quota - adjust record of current block usage
  * @ip: The quota inode
  * @loc: Offset of the entry in the quota file
- * @change: The amount of change to record
+ * @change: The amount of usage change to record
  * @qd: The quota data
+ * @fdq: The updated limits to record
  *
  * This function was mostly borrowed from gfs2_block_truncate_page which was
  * in turn mostly borrowed from ext3
@@ -625,19 +626,21 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
  */
 
 static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
-			     s64 change, struct gfs2_quota_data *qd)
+			     s64 change, struct gfs2_quota_data *qd,
+			     struct fs_disk_quota *fdq)
 {
 	struct inode *inode = &ip->i_inode;
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long index = loc >> PAGE_CACHE_SHIFT;
 	unsigned offset = loc & (PAGE_CACHE_SIZE - 1);
 	unsigned blocksize, iblock, pos;
-	struct buffer_head *bh;
+	struct buffer_head *bh, *dibh;
 	struct page *page;
 	void *kaddr;
 	struct gfs2_quota *qp;
 	s64 value;
 	int err = -EIO;
+	u64 size;
 
 	if (gfs2_is_stuffed(ip))
 		gfs2_unstuff_dinode(ip, NULL);
@@ -683,9 +686,34 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	value = (s64)be64_to_cpu(qp->qu_value) + change;
 	qp->qu_value = cpu_to_be64(value);
 	qd->qd_qb.qb_value = qp->qu_value;
+	if (fdq) {
+		if (fdq->d_fieldmask & FS_DQ_BSOFT) {
+			qp->qu_warn = cpu_to_be64(fdq->d_blk_softlimit);
+			qd->qd_qb.qb_warn = qp->qu_warn;
+		}
+		if (fdq->d_fieldmask & FS_DQ_BHARD) {
+			qp->qu_limit = cpu_to_be64(fdq->d_blk_hardlimit);
+			qd->qd_qb.qb_limit = qp->qu_limit;
+		}
+	}
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_USER0);
-	err = 0;
+
+	err = gfs2_meta_inode_buffer(ip, &dibh);
+	if (err)
+		goto unlock;
+
+	size = loc + sizeof(struct gfs2_quota);
+	if (size > inode->i_size) {
+		ip->i_disksize = size;
+		i_size_write(inode, size);
+	}
+	inode->i_mtime = inode->i_atime = CURRENT_TIME;
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_dinode_out(ip, dibh->b_data);
+	brelse(dibh);
+	mark_inode_dirty(inode);
+
 unlock:
 	unlock_page(page);
 	page_cache_release(page);
@@ -713,6 +741,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		return -ENOMEM;
 
 	sort(qda, num_qd, sizeof(struct gfs2_quota_data *), sort_qd, NULL);
+	mutex_lock_nested(&ip->i_inode.i_mutex, I_MUTEX_QUOTA);
 	for (qx = 0; qx < num_qd; qx++) {
 		error = gfs2_glock_nq_init(qda[qx]->qd_gl, LM_ST_EXCLUSIVE,
 					   GL_NOCACHE, &ghs[qx]);
@@ -768,8 +797,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	for (x = 0; x < num_qd; x++) {
 		qd = qda[x];
 		offset = qd2offset(qd);
-		error = gfs2_adjust_quota(ip, offset, qd->qd_change_sync,
-					  (struct gfs2_quota_data *)qd);
+		error = gfs2_adjust_quota(ip, offset, qd->qd_change_sync, qd, NULL);
 		if (error)
 			goto out_end_trans;
 
@@ -789,9 +817,35 @@ out_gunlock:
 out:
 	while (qx--)
 		gfs2_glock_dq_uninit(&ghs[qx]);
+	mutex_unlock(&ip->i_inode.i_mutex);
 	kfree(ghs);
 	gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
 	return error;
+}
+
+static int update_qd(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd)
+{
+	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
+	struct gfs2_quota q;
+	struct gfs2_quota_lvb *qlvb;
+	loff_t pos;
+	int error;
+
+	memset(&q, 0, sizeof(struct gfs2_quota));
+	pos = qd2offset(qd);
+	error = gfs2_internal_read(ip, NULL, (char *)&q, &pos, sizeof(q));
+	if (error < 0)
+		return error;
+
+	qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
+	qlvb->qb_magic = cpu_to_be32(GFS2_MAGIC);
+	qlvb->__pad = 0;
+	qlvb->qb_limit = q.qu_limit;
+	qlvb->qb_warn = q.qu_warn;
+	qlvb->qb_value = q.qu_value;
+	qd->qd_qb = *qlvb;
+
+	return 0;
 }
 
 static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
@@ -800,9 +854,7 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
 	struct gfs2_holder i_gh;
-	struct gfs2_quota q;
 	int error;
-	struct gfs2_quota_lvb *qlvb;
 
 restart:
 	error = gfs2_glock_nq_init(qd->qd_gl, LM_ST_SHARED, 0, q_gh);
@@ -812,7 +864,6 @@ restart:
 	qd->qd_qb = *(struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
 
 	if (force_refresh || qd->qd_qb.qb_magic != cpu_to_be32(GFS2_MAGIC)) {
-		loff_t pos;
 		gfs2_glock_dq_uninit(q_gh);
 		error = gfs2_glock_nq_init(qd->qd_gl, LM_ST_EXCLUSIVE,
 					   GL_NOCACHE, q_gh);
@@ -823,25 +874,11 @@ restart:
 		if (error)
 			goto fail;
 
-		memset(&q, 0, sizeof(struct gfs2_quota));
-		pos = qd2offset(qd);
-		error = gfs2_internal_read(ip, NULL, (char *)&q, &pos, sizeof(q));
-		if (error < 0)
+		error = update_qd(sdp, qd);
+		if (error)
 			goto fail_gunlock;
-		if ((error < sizeof(q)) && force_refresh) {
-			error = -ENOENT;
-			goto fail_gunlock;
-		}
+
 		gfs2_glock_dq_uninit(&i_gh);
-
-		qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
-		qlvb->qb_magic = cpu_to_be32(GFS2_MAGIC);
-		qlvb->__pad = 0;
-		qlvb->qb_limit = q.qu_limit;
-		qlvb->qb_warn = q.qu_warn;
-		qlvb->qb_value = q.qu_value;
-		qd->qd_qb = *qlvb;
-
 		gfs2_glock_dq_uninit(q_gh);
 		force_refresh = 0;
 		goto restart;
@@ -1409,9 +1446,118 @@ out:
 	return error;
 }
 
+/* GFS2 only supports a subset of the XFS fields */
+#define GFS2_FIELDMASK (FS_DQ_BSOFT|FS_DQ_BHARD)
+
+static int gfs2_xquota_set(struct super_block *sb, int type, qid_t id,
+			   struct fs_disk_quota *fdq)
+{
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
+	struct gfs2_quota_data *qd;
+	struct gfs2_holder q_gh, i_gh;
+	unsigned int data_blocks, ind_blocks;
+	unsigned int blocks = 0;
+	int alloc_required;
+	struct gfs2_alloc *al;
+	loff_t offset;
+	int error;
+
+	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
+		return -ESRCH; /* Crazy XFS error code */
+
+	switch(type) {
+	case USRQUOTA:
+		type = QUOTA_USER;
+		if (fdq->d_flags != XFS_USER_QUOTA)
+			return -EINVAL;
+		break;
+	case GRPQUOTA:
+		type = QUOTA_GROUP;
+		if (fdq->d_flags != XFS_GROUP_QUOTA)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (fdq->d_fieldmask & ~GFS2_FIELDMASK)
+		return -EINVAL;
+	if (fdq->d_id != id)
+		return -EINVAL;
+
+	error = qd_get(sdp, type, id, &qd);
+	if (error)
+		return error;
+
+	mutex_lock(&ip->i_inode.i_mutex);
+	error = gfs2_glock_nq_init(qd->qd_gl, LM_ST_EXCLUSIVE, 0, &q_gh);
+	if (error)
+		goto out_put;
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
+	if (error)
+		goto out_q;
+
+	/* Check for existing entry, if none then alloc new blocks */
+	error = update_qd(sdp, qd);
+	if (error)
+		goto out_i;
+
+	/* If nothing has changed, this is a no-op */
+	if ((fdq->d_fieldmask & FS_DQ_BSOFT) &&
+	    (fdq->d_blk_softlimit == be64_to_cpu(qd->qd_qb.qb_warn)))
+		fdq->d_fieldmask ^= FS_DQ_BSOFT;
+	if ((fdq->d_fieldmask & FS_DQ_BHARD) &&
+	    (fdq->d_blk_hardlimit == be64_to_cpu(qd->qd_qb.qb_limit)))
+		fdq->d_fieldmask ^= FS_DQ_BHARD;
+	if (fdq->d_fieldmask == 0)
+		goto out_i;
+
+	offset = qd2offset(qd);
+	error = gfs2_write_alloc_required(ip, offset, sizeof(struct gfs2_quota),
+					  &alloc_required);
+	if (error)
+		goto out_i;
+	if (alloc_required) {
+		al = gfs2_alloc_get(ip);
+		if (al == NULL)
+			goto out_i;
+		gfs2_write_calc_reserv(ip, sizeof(struct gfs2_quota),
+				       &data_blocks, &ind_blocks);
+		blocks = al->al_requested = 1 + data_blocks + ind_blocks;
+		error = gfs2_inplace_reserve(ip);
+		if (error)
+			goto out_alloc;
+	}
+
+	error = gfs2_trans_begin(sdp, blocks + RES_DINODE + 1, 0);
+	if (error)
+		goto out_release;
+
+	/* Apply changes */
+	error = gfs2_adjust_quota(ip, offset, 0, qd, fdq);
+
+	gfs2_trans_end(sdp);
+out_release:
+	if (alloc_required) {
+		gfs2_inplace_release(ip);
+out_alloc:
+		gfs2_alloc_put(ip);
+	}
+out_i:
+	gfs2_glock_dq_uninit(&i_gh);
+out_q:
+	gfs2_glock_dq_uninit(&q_gh);
+out_put:
+	mutex_unlock(&ip->i_inode.i_mutex);
+	qd_put(qd);
+	return error;
+}
+
 const struct quotactl_ops gfs2_quotactl_ops = {
 	.quota_sync     = gfs2_quota_sync,
 	.get_xstate     = gfs2_quota_get_xstate,
 	.get_xquota	= gfs2_xquota_get,
+	.set_xquota	= gfs2_xquota_set,
 };
 
