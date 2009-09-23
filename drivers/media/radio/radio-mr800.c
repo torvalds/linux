@@ -136,7 +136,6 @@ struct amradio_device {
 	struct mutex lock;	/* buffer locking */
 	int curfreq;
 	int stereo;
-	int users;
 	int muted;
 };
 
@@ -493,26 +492,6 @@ static int usb_amradio_open(struct file *file)
 	}
 
 	file->private_data = radio;
-	radio->users = 1;
-	radio->muted = 1;
-
-	retval = amradio_set_mute(radio, AMRADIO_START);
-	if (retval < 0) {
-		amradio_dev_warn(&radio->videodev.dev,
-			"radio did not start up properly\n");
-		radio->users = 0;
-		goto unlock;
-	}
-
-	retval = amradio_set_stereo(radio, WANT_STEREO);
-	if (retval < 0)
-		amradio_dev_warn(&radio->videodev.dev,
-			"set stereo failed\n");
-
-	retval = amradio_setfreq(radio, radio->curfreq);
-	if (retval < 0)
-		amradio_dev_warn(&radio->videodev.dev,
-			"set frequency failed\n");
 
 unlock:
 	mutex_unlock(&radio->lock);
@@ -527,19 +506,9 @@ static int usb_amradio_close(struct file *file)
 
 	mutex_lock(&radio->lock);
 
-	if (!radio->usbdev) {
+	if (!radio->usbdev)
 		retval = -EIO;
-		goto unlock;
-	}
 
-	radio->users = 0;
-
-	retval = amradio_set_mute(radio, AMRADIO_STOP);
-	if (retval < 0)
-		amradio_dev_warn(&radio->videodev.dev,
-			"amradio_stop failed\n");
-
-unlock:
 	mutex_unlock(&radio->lock);
 	return retval;
 }
@@ -670,10 +639,10 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	radio->videodev.ioctl_ops = &usb_amradio_ioctl_ops;
 	radio->videodev.release = usb_amradio_video_device_release;
 
-	radio->users = 0;
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = 95.16 * FREQ_MUL;
 	radio->stereo = -1;
+	radio->muted = 1;
 
 	mutex_init(&radio->lock);
 
