@@ -133,6 +133,13 @@ config EDAC_I3000
 	  Support for error detection and correction on the Intel
 	  3000 and 3010 server chipsets.
 
+config EDAC_I3200
+	tristate "Intel 3200"
+	depends on EDAC_MM_EDAC && PCI && X86 && EXPERIMENTAL
+	help
+	  Support for error detection and correction on the Intel
+	  3200 and 3210 server chipsets.
+
 config EDAC_X38
 	tristate "Intel X38"
 	depends on EDAC_MM_EDAC && PCI && X86
