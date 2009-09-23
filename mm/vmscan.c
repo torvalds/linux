@@ -1836,11 +1836,45 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 
+unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+						gfp_t gfp_mask, bool noswap,
+						unsigned int swappiness,
+						struct zone *zone, int nid)
+{
+	struct scan_control sc = {
+		.may_writepage = !laptop_mode,
+		.may_unmap = 1,
+		.may_swap = !noswap,
+		.swap_cluster_max = SWAP_CLUSTER_MAX,
+		.swappiness = swappiness,
+		.order = 0,
+		.mem_cgroup = mem,
+		.isolate_pages = mem_cgroup_isolate_pages,
+	};
+	nodemask_t nm  = nodemask_of_node(nid);
+
+	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+	sc.nodemask = &nm;
+	sc.nr_reclaimed = 0;
+	sc.nr_scanned = 0;
+	/*
+	 * NOTE: Although we can get the priority field, using it
+	 * here is not a good idea, since it limits the pages we can scan.
+	 * if we don't reclaim here, the shrink_zone from balance_pgdat
+	 * will pick up pages from other mem cgroup's as well. We hack
+	 * the priority and make it zero.
+	 */
+	shrink_zone(0, zone, &sc);
+	return sc.nr_reclaimed;
+}
+
 unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 					   gfp_t gfp_mask,
 					   bool noswap,
 					   unsigned int swappiness)
 {
+	struct zonelist *zonelist;
 	struct scan_control sc = {
 		.may_writepage = !laptop_mode,
 		.may_unmap = 1,
@@ -1852,7 +1886,6 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
 		.isolate_pages = mem_cgroup_isolate_pages,
 		.nodemask = NULL, /* we don't care the placement */
 	};
-	struct zonelist *zonelist;
 
 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
@@ -1974,6 +2007,7 @@ loop_again:
 		for (i = 0; i <= end_zone; i++) {
 			struct zone *zone = pgdat->node_zones + i;
 			int nr_slab;
+			int nid, zid;
 
 			if (!populated_zone(zone))
 				continue;
@@ -1988,6 +2022,15 @@ loop_again:
 			temp_priority[i] = priority;
 			sc.nr_scanned = 0;
 			note_zone_scanning_priority(zone, priority);
+
+			nid = pgdat->node_id;
+			zid = zone_idx(zone);
+			/*
+			 * Call soft limit reclaim before calling shrink_zone.
+			 * For now we ignore the return value
+			 */
+			mem_cgroup_soft_limit_reclaim(zone, order, sc.gfp_mask,
+							nid, zid);
 			/*
 			 * We put equal pressure on every zone, unless one
 			 * zone has way too many pages free already.
