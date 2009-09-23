@@ -81,29 +81,6 @@ DEFINE_PER_CPU(struct rcu_data, rcu_sched_data);
 struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh_state);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
-/* Forward declarations for rcutree_plugin.h */
-static inline void rcu_bootup_announce(void);
-long rcu_batches_completed(void);
-static void rcu_preempt_note_context_switch(int cpu);
-static int rcu_preempted_readers(struct rcu_node *rnp);
-#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
-static void rcu_print_task_stall(struct rcu_node *rnp);
-#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
-static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
-#ifdef CONFIG_HOTPLUG_CPU
-static void rcu_preempt_offline_tasks(struct rcu_state *rsp,
-				      struct rcu_node *rnp,
-				      struct rcu_data *rdp);
-static void rcu_preempt_offline_cpu(int cpu);
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
-static void rcu_preempt_check_callbacks(int cpu);
-static void rcu_preempt_process_callbacks(void);
-void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
-static int rcu_preempt_pending(int cpu);
-static int rcu_preempt_needs_cpu(int cpu);
-static void __cpuinit rcu_preempt_init_percpu_data(int cpu);
-static void __init __rcu_init_preempt(void);
-
 
 /*
  * Return true if an RCU grace period is in progress.  The ACCESS_ONCE()s
