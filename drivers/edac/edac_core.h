@@ -341,12 +341,22 @@ struct csrow_info {
 	struct channel_info *channels;
 };
 
+struct mcidev_sysfs_group {
+	const char *name;
+	struct mcidev_sysfs_attribute *mcidev_attr;
+	struct kobject kobj;
+};
+
+
 /* mcidev_sysfs_attribute structure
  *	used for driver sysfs attributes and in mem_ctl_info
  * 	sysfs top level entries
  */
 struct mcidev_sysfs_attribute {
-        struct attribute attr;
+	struct attribute attr;
+
+	struct mcidev_sysfs_group *grp;
+
         ssize_t (*show)(struct mem_ctl_info *,char *);
         ssize_t (*store)(struct mem_ctl_info *, const char *,size_t);
 };
