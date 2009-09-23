@@ -3352,7 +3352,7 @@ i915_dispatch_gem_execbuffer(struct drm_device *dev,
 	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
 	exec_len = (uint32_t) exec->batch_len;
 
-	trace_i915_gem_request_submit(dev, dev_priv->mm.next_gem_seqno);
+	trace_i915_gem_request_submit(dev, dev_priv->mm.next_gem_seqno + 1);
 
 	count = nbox ? nbox : 1;
 
