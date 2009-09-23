@@ -2,7 +2,7 @@
  * An rtc driver for the Dallas DS1511
  *
  * Copyright (C) 2006 Atsushi Nemoto <anemo@mba.ocn.ne.jp>
- * Copyright (C) 2007 Andrew Sharp <andy.sharp@onstor.com>
+ * Copyright (C) 2007 Andrew Sharp <andy.sharp@lsi.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -636,7 +636,7 @@ ds1511_rtc_exit(void)
 module_init(ds1511_rtc_init);
 module_exit(ds1511_rtc_exit);
 
-MODULE_AUTHOR("Andrew Sharp <andy.sharp@onstor.com>");
+MODULE_AUTHOR("Andrew Sharp <andy.sharp@lsi.com>");
 MODULE_DESCRIPTION("Dallas DS1511 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
