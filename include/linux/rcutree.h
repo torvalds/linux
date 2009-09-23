@@ -85,7 +85,6 @@ static inline void synchronize_rcu_bh_expedited(void)
 
 extern void __rcu_init(void);
 extern void rcu_check_callbacks(int cpu, int user);
-extern void rcu_restart_cpu(int cpu);
 
 extern long rcu_batches_completed(void);
 extern long rcu_batches_completed_bh(void);

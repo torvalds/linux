@@ -150,6 +150,16 @@ void __rcu_read_lock(void)
 }
 EXPORT_SYMBOL_GPL(__rcu_read_lock);
 
+/*
+ * Check for preempted RCU readers blocking the current grace period
+ * for the specified rcu_node structure.  If the caller needs a reliable
+ * answer, it must hold the rcu_node's ->lock.
+ */
+static int rcu_preempted_readers(struct rcu_node *rnp)
+{
+	return !list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]);
+}
+
 static void rcu_read_unlock_special(struct task_struct *t)
 {
 	int empty;
@@ -196,7 +206,7 @@ static void rcu_read_unlock_special(struct task_struct *t)
 				break;
 			spin_unlock(&rnp->lock);  /* irqs remain disabled. */
 		}
-		empty = list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]);
+		empty = !rcu_preempted_readers(rnp);
 		list_del_init(&t->rcu_node_entry);
 		t->rcu_blocked_node = NULL;
 
@@ -207,7 +217,7 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		 * drop rnp->lock and restore irq.
 		 */
 		if (!empty && rnp->qsmask == 0 &&
-		    list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1])) {
+		    !rcu_preempted_readers(rnp)) {
 			struct rcu_node *rnp_p;
 
 			if (rnp->parent == NULL) {
@@ -257,12 +267,12 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 {
 	unsigned long flags;
 	struct list_head *lp;
-	int phase = rnp->gpnum & 0x1;
+	int phase;
 	struct task_struct *t;
 
-	if (!list_empty(&rnp->blocked_tasks[phase])) {
+	if (rcu_preempted_readers(rnp)) {
 		spin_lock_irqsave(&rnp->lock, flags);
-		phase = rnp->gpnum & 0x1; /* re-read under lock. */
+		phase = rnp->gpnum & 0x1;
 		lp = &rnp->blocked_tasks[phase];
 		list_for_each_entry(t, lp, rcu_node_entry)
 			printk(" P%d", t->pid);
@@ -281,18 +291,8 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
  */
 static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 {
-	WARN_ON_ONCE(!list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]));
+	WARN_ON_ONCE(rcu_preempted_readers(rnp));
 	WARN_ON_ONCE(rnp->qsmask);
-}
-
-/*
- * Check for preempted RCU readers for the specified rcu_node structure.
- * If the caller needs a reliable answer, it must hold the rcu_node's
- * >lock.
- */
-static int rcu_preempted_readers(struct rcu_node *rnp)
-{
-	return !list_empty(&rnp->blocked_tasks[rnp->gpnum & 0x1]);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -461,6 +461,15 @@ static void rcu_preempt_note_context_switch(int cpu)
 {
 }
 
+/*
+ * Because preemptable RCU does not exist, there are never any preempted
+ * RCU readers.
+ */
+static int rcu_preempted_readers(struct rcu_node *rnp)
+{
+	return 0;
+}
+
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 
 /*
@@ -481,15 +490,6 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 {
 	WARN_ON_ONCE(rnp->qsmask);
-}
-
-/*
- * Because preemptable RCU does not exist, there are never any preempted
- * RCU readers.
- */
-static int rcu_preempted_readers(struct rcu_node *rnp)
-{
-	return 0;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

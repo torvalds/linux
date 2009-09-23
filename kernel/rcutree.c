@@ -101,6 +101,16 @@ static void __cpuinit rcu_init_percpu_data(int cpu, struct rcu_state *rsp,
 #include "rcutree_plugin.h"
 
 /*
+ * Return true if an RCU grace period is in progress.  The ACCESS_ONCE()s
+ * permit this function to be invoked without holding the root rcu_node
+ * structure's ->lock, but of course results can be subject to change.
+ */
+static int rcu_gp_in_progress(struct rcu_state *rsp)
+{
+	return ACCESS_ONCE(rsp->completed) != ACCESS_ONCE(rsp->gpnum);
+}
+
+/*
  * Note a quiescent state.  Because we do not need to know
  * how many quiescent states passed, just if there was at least
  * one since the start of the grace period, this just sets a flag.
@@ -173,9 +183,7 @@ cpu_has_callbacks_ready_to_invoke(struct rcu_data *rdp)
 static int
 cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
 {
-	/* ACCESS_ONCE() because we are accessing outside of lock. */
-	return *rdp->nxttail[RCU_DONE_TAIL] &&
-	       ACCESS_ONCE(rsp->completed) == ACCESS_ONCE(rsp->gpnum);
+	return *rdp->nxttail[RCU_DONE_TAIL] && !rcu_gp_in_progress(rsp);
 }
 
 /*
@@ -482,7 +490,7 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 
 	spin_lock_irqsave(&rnp->lock, flags);
 	delta = jiffies - rsp->jiffies_stall;
-	if (delta < RCU_STALL_RAT_DELAY || rsp->gpnum == rsp->completed) {
+	if (delta < RCU_STALL_RAT_DELAY || !rcu_gp_in_progress(rsp)) {
 		spin_unlock_irqrestore(&rnp->lock, flags);
 		return;
 	}
@@ -537,8 +545,7 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 		/* We haven't checked in, so go dump stack. */
 		print_cpu_stall(rsp);
 
-	} else if (rsp->gpnum != rsp->completed &&
-		   delta >= RCU_STALL_RAT_DELAY) {
+	} else if (rcu_gp_in_progress(rsp) && delta >= RCU_STALL_RAT_DELAY) {
 
 		/* They had two time units to dump stack, so complain. */
 		print_other_cpu_stall(rsp);
@@ -703,9 +710,9 @@ rcu_process_gp_end(struct rcu_state *rsp, struct rcu_data *rdp)
  * hold rnp->lock, as required by rcu_start_gp(), which will release it.
  */
 static void cpu_quiet_msk_finish(struct rcu_state *rsp, unsigned long flags)
-	__releases(rnp->lock)
+	__releases(rcu_get_root(rsp)->lock)
 {
-	WARN_ON_ONCE(rsp->completed == rsp->gpnum);
+	WARN_ON_ONCE(!rcu_gp_in_progress(rsp));
 	rsp->completed = rsp->gpnum;
 	rcu_process_gp_end(rsp, rsp->rda[smp_processor_id()]);
 	rcu_start_gp(rsp, flags);  /* releases root node's rnp->lock. */
@@ -1092,7 +1099,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 	struct rcu_node *rnp = rcu_get_root(rsp);
 	u8 signaled;
 
-	if (ACCESS_ONCE(rsp->completed) == ACCESS_ONCE(rsp->gpnum))
+	if (!rcu_gp_in_progress(rsp))
 		return;  /* No grace period in progress, nothing to force. */
 	if (!spin_trylock_irqsave(&rsp->fqslock, flags)) {
 		rsp->n_force_qs_lh++; /* Inexact, can lose counts.  Tough! */
@@ -1251,7 +1258,7 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	rdp->nxttail[RCU_NEXT_TAIL] = &head->next;
 
 	/* Start a new grace period if one not already started. */
-	if (ACCESS_ONCE(rsp->completed) == ACCESS_ONCE(rsp->gpnum)) {
+	if (!rcu_gp_in_progress(rsp)) {
 		unsigned long nestflag;
 		struct rcu_node *rnp_root = rcu_get_root(rsp);
 
@@ -1331,7 +1338,7 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 	}
 
 	/* Has an RCU GP gone long enough to send resched IPIs &c? */
-	if (ACCESS_ONCE(rsp->completed) != ACCESS_ONCE(rsp->gpnum) &&
+	if (rcu_gp_in_progress(rsp) &&
 	    ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0)) {
 		rdp->n_rp_need_fqs++;
 		return 1;
