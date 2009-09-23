@@ -78,15 +78,16 @@ module_param(msix_disable, int, 0);
 MODULE_PARM_DESC(msix_disable, " disable msix routed interrupts (default=0)");
 
 /* diag_buffer_enable is bitwise
- * bit 0 set = MPI2_DIAG_BUF_TYPE_TRACE(1)
- * bit 1 set = MPI2_DIAG_BUF_TYPE_SNAPSHOT(2)
+ * bit 0 set = TRACE
+ * bit 1 set = SNAPSHOT
+ * bit 2 set = EXTENDED
  *
  * Either bit can be set, or both
  */
 static int diag_buffer_enable;
 module_param(diag_buffer_enable, int, 0);
-MODULE_PARM_DESC(diag_buffer_enable, " enable diag buffer at driver load "
-    "time (TRACE=1/SNAP=2/default=0)");
+MODULE_PARM_DESC(diag_buffer_enable, " post diag buffers "
+    "(TRACE=1/SNAPSHOT=2/EXTENDED=4/default=0)");
 
 int mpt2sas_fwfault_debug;
 MODULE_PARM_DESC(mpt2sas_fwfault_debug, " enable detection of firmware fault "
@@ -1761,6 +1762,12 @@ _base_display_ioc_capabilities(struct MPT2SAS_ADAPTER *ioc)
 	if (ioc->facts.IOCCapabilities &
 	    MPI2_IOCFACTS_CAPABILITY_DIAG_TRACE_BUFFER) {
 		printk("%sDiag Trace Buffer", i ? "," : "");
+		i++;
+	}
+
+	if (ioc->facts.IOCCapabilities &
+	    MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER) {
+		printk(KERN_INFO "%sDiag Extended Buffer", i ? "," : "");
 		i++;
 	}
 

@@ -1230,7 +1230,7 @@ _ctl_btdh_mapping(void __user *arg)
 /**
  * _ctl_diag_capability - return diag buffer capability
  * @ioc: per adapter object
- * @buffer_type: specifies either TRACE or SNAPSHOT
+ * @buffer_type: specifies either TRACE, SNAPSHOT, or EXTENDED
  *
  * returns 1 when diag buffer support is enabled in firmware
  */
@@ -1250,6 +1250,10 @@ _ctl_diag_capability(struct MPT2SAS_ADAPTER *ioc, u8 buffer_type)
 		    MPI2_IOCFACTS_CAPABILITY_SNAPSHOT_BUFFER)
 			rc = 1;
 		break;
+	case MPI2_DIAG_BUF_TYPE_EXTENDED:
+		if (ioc->facts.IOCCapabilities &
+		    MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER)
+			rc = 1;
 	}
 
 	return rc;
@@ -1460,6 +1464,16 @@ mpt2sas_enable_diag_buffer(struct MPT2SAS_ADAPTER *ioc, u8 bits_to_register)
 		diag_register.unique_id = 0x7075901;
 		_ctl_diag_register_2(ioc,  &diag_register);
 	}
+
+	if (bits_to_register & 4) {
+		printk(MPT2SAS_INFO_FMT "registering extended buffer support\n",
+		    ioc->name);
+		diag_register.buffer_type = MPI2_DIAG_BUF_TYPE_EXTENDED;
+		/* register for 2MB buffers  */
+		diag_register.requested_buffer_size = 2 * (1024 * 1024);
+		diag_register.unique_id = 0x7075901;
+		_ctl_diag_register_2(ioc,  &diag_register);
+	}
 }
 
 /**
@@ -1652,7 +1666,7 @@ _ctl_diag_query(void __user *arg)
 /**
  * _ctl_send_release - Diag Release Message
  * @ioc: per adapter object
- * @buffer_type - specifies either TRACE or SNAPSHOT
+ * @buffer_type - specifies either TRACE, SNAPSHOT, or EXTENDED
  * @issue_reset - specifies whether host reset is required.
  *
  */

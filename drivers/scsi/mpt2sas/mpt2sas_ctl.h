@@ -313,7 +313,7 @@ struct mpt2_ioctl_btdh_mapping {
  * struct mpt2_diag_register - application register with driver
  * @hdr - generic header
  * @reserved -
- * @buffer_type - specifies either TRACE or SNAPSHOT
+ * @buffer_type - specifies either TRACE, SNAPSHOT, or EXTENDED
  * @application_flags - misc flags
  * @diagnostic_flags - specifies flags affecting command processing
  * @product_specific - product specific information
@@ -352,7 +352,7 @@ struct mpt2_diag_unregister {
  * struct mpt2_diag_query - query relevant info associated with diag buffers
  * @hdr - generic header
  * @reserved -
- * @buffer_type - specifies either TRACE or SNAPSHOT
+ * @buffer_type - specifies either TRACE, SNAPSHOT, or EXTENDED
  * @application_flags - misc flags
  * @diagnostic_flags - specifies flags affecting command processing
  * @product_specific - product specific information
