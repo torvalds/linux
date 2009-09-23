@@ -147,7 +147,7 @@ _base_fault_reset_work(struct work_struct *work)
 
 /**
  * mpt2sas_base_start_watchdog - start the fault_reset_work_q
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * Context: sleep.
  *
  * Return nothing.
@@ -181,7 +181,7 @@ mpt2sas_base_start_watchdog(struct MPT2SAS_ADAPTER *ioc)
 
 /**
  * mpt2sas_base_stop_watchdog - stop the fault_reset_work_q
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * Context: sleep.
  *
  * Return nothing.
@@ -251,7 +251,7 @@ mpt2sas_halt_firmware(struct MPT2SAS_ADAPTER *ioc)
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 /**
  * _base_sas_ioc_info - verbose translation of the ioc status
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  * @request_hdr: request mf
  *
@@ -465,7 +465,7 @@ _base_sas_ioc_info(struct MPT2SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 
 /**
  * _base_display_event_data - verbose translation of firmware asyn events
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  *
  * Return nothing.
@@ -545,7 +545,7 @@ _base_display_event_data(struct MPT2SAS_ADAPTER *ioc,
 
 /**
  * _base_sas_log_info - verbose translation of firmware log info
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @log_info: log info
  *
  * Return nothing.
@@ -598,7 +598,7 @@ _base_sas_log_info(struct MPT2SAS_ADAPTER *ioc , u32 log_info)
 
 /**
  * _base_display_reply_info -
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @smid: system request message index
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
@@ -627,7 +627,7 @@ _base_display_reply_info(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 /**
  * mpt2sas_base_done - base internal command completion routine
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @smid: system request message index
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
@@ -660,7 +660,7 @@ mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 
 /**
  * _base_async_event - main callback handler for firmware asyn events
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
@@ -741,7 +741,7 @@ _base_get_cb_idx(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 
 /**
  * _base_mask_interrupts - disable interrupts
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  *
  * Disabling ResetIRQ, Reply and Doorbell Interrupts
  *
@@ -761,7 +761,7 @@ _base_mask_interrupts(struct MPT2SAS_ADAPTER *ioc)
 
 /**
  * _base_unmask_interrupts - enable interrupts
- * @ioc: pointer to scsi command object
+ * @ioc: per adapter object
  *
  * Enabling only Reply Interrupts
  *
