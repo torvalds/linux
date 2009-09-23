@@ -44,9 +44,6 @@ MODULE_LICENSE("GPL");
 #define QUEUE_RUNNING	0
 #define QUEUE_STOPPED	1
 
-/* Value to send if no TX value is supplied */
-#define SPI_IDLE_TXVAL 0x0000
-
 struct driver_data {
 	/* Driver model hookup */
 	struct platform_device *pdev;
@@ -581,7 +578,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 			udelay(previous->delay_usecs);
 	}
 
-	/* Setup the transfer state based on the type of transfer */
+	/* Flush any existing transfers that may be sitting in the hardware */
 	if (bfin_spi_flush(drv_data) == 0) {
 		dev_err(&drv_data->pdev->dev, "pump_transfers: flush failed\n");
 		message->status = -EIO;
@@ -661,7 +658,6 @@ static void bfin_spi_pump_transfers(unsigned long data)
 		"transfer: drv_data->write is %p, chip->write is %p\n",
 		drv_data->write, chip->write);
 
-	/* speed and width has been set on per message */
 	message->state = RUNNING_STATE;
 	dma_config = 0;
 
@@ -966,7 +962,7 @@ static u16 ssel[][MAX_SPI_SSEL] = {
 	P_SPI2_SSEL6, P_SPI2_SSEL7},
 };
 
-/* first setup for new devices */
+/* setup for devices (may be called multiple times -- not just first setup) */
 static int bfin_spi_setup(struct spi_device *spi)
 {
 	struct bfin5xx_spi_chip *chip_info;
