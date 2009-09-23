@@ -157,6 +157,7 @@ static int __devinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *
 	/* The 100C is default for both mobile and non mobile CPUs */
 
 	int tjmax = 100000;
+	int tjmax_ee = 85000;
 	int usemsr_ee = 1;
 	int err;
 	u32 eax, edx;
@@ -175,6 +176,7 @@ static int __devinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *
 	}
 
 	if ((c->x86_model > 0xe) && (usemsr_ee)) {
+		u8 platform_id;
 
 		/* Now we can detect the mobile CPU using Intel provided table
 		   http://softwarecommunity.intel.com/Wiki/Mobility/720.htm
@@ -187,8 +189,24 @@ static int __devinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *
 				 "Unable to access MSR 0x17, assuming desktop"
 				 " CPU\n");
 			usemsr_ee = 0;
-		} else if (!(eax & 0x10000000)) {
+		} else if (c->x86_model < 0x17 && !(eax & 0x10000000)) {
+			/* Trust bit 28 up to Penryn, I could not find any
+			   documentation on that; if you happen to know
+			   someone at Intel please ask */
 			usemsr_ee = 0;
+		} else {
+			/* Platform ID bits 52:50 (EDX starts at bit 32) */
+			platform_id = (edx >> 18) & 0x7;
+
+			/* Mobile Penryn CPU seems to be platform ID 7 or 5
+			  (guesswork) */
+			if ((c->x86_model == 0x17) &&
+			    ((platform_id == 5) || (platform_id == 7))) {
+				/* If MSR EE bit is set, set it to 90 degrees C,
+				   otherwise 105 degrees C */
+				tjmax_ee = 90000;
+				tjmax = 105000;
+			}
 		}
 	}
 
@@ -200,7 +218,7 @@ static int __devinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *
 				 "Unable to access MSR 0xEE, for Tjmax, left"
 				 " at default");
 		} else if (eax & 0x40000000) {
-			tjmax = 85000;
+			tjmax = tjmax_ee;
 		}
 	/* if we dont use msr EE it means we are desktop CPU (with exeception
 	   of Atom) */
@@ -422,7 +440,9 @@ static int __init coretemp_init(void)
 	for_each_online_cpu(i) {
 		struct cpuinfo_x86 *c = &cpu_data(i);
 
-		/* check if family 6, models 0xe, 0xf, 0x16, 0x17, 0x1A, 0x1c */
+		/* check if family 6, models 0xe (Pentium M DC),
+		  0xf (Core 2 DC 65nm), 0x16 (Core 2 SC 65nm),
+		  0x17 (Penryn 45nm), 0x1a (Nehalem), 0x1c (Atom) */
 		if ((c->cpuid_level < 0) || (c->x86 != 0x6) ||
 		    !((c->x86_model == 0xe) || (c->x86_model == 0xf) ||
 			(c->x86_model == 0x16) || (c->x86_model == 0x17) ||
