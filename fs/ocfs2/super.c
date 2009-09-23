@@ -69,6 +69,7 @@
 #include "ver.h"
 #include "xattr.h"
 #include "quota.h"
+#include "refcounttree.h"
 
 #include "buffer_head_io.h"
 
@@ -1668,8 +1669,6 @@ static void ocfs2_inode_init_once(void *data)
 	spin_lock_init(&oi->ip_lock);
 	ocfs2_extent_map_init(&oi->vfs_inode);
 	INIT_LIST_HEAD(&oi->ip_io_markers);
-	oi->ip_created_trans = 0;
-	oi->ip_last_trans = 0;
 	oi->ip_dir_start_lookup = 0;
 
 	init_rwsem(&oi->ip_alloc_sem);
@@ -1683,7 +1682,8 @@ static void ocfs2_inode_init_once(void *data)
 	ocfs2_lock_res_init_once(&oi->ip_inode_lockres);
 	ocfs2_lock_res_init_once(&oi->ip_open_lockres);
 
-	ocfs2_metadata_cache_init(&oi->vfs_inode);
+	ocfs2_metadata_cache_init(INODE_CACHE(&oi->vfs_inode),
+				  &ocfs2_inode_caching_ops);
 
 	inode_init_once(&oi->vfs_inode);
 }
@@ -1858,6 +1858,8 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 	ocfs2_journal_shutdown(osb);
 
 	ocfs2_sync_blockdev(sb);
+
+	ocfs2_purge_refcount_trees(osb);
 
 	/* No cluster connection means we've failed during mount, so skip
 	 * all the steps which depended on that to complete. */
@@ -2064,6 +2066,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		mlog_errno(status);
 		goto bail;
 	}
+
+	osb->osb_rf_lock_tree = RB_ROOT;
 
 	osb->s_feature_compat =
 		le32_to_cpu(OCFS2_RAW_SB(di)->s_feature_compat);
@@ -2490,7 +2494,8 @@ void __ocfs2_abort(struct super_block* sb,
 	/* Force a panic(). This stinks, but it's better than letting
 	 * things continue without having a proper hard readonly
 	 * here. */
-	OCFS2_SB(sb)->s_mount_opt |= OCFS2_MOUNT_ERRORS_PANIC;
+	if (!ocfs2_mount_local(OCFS2_SB(sb)))
+		OCFS2_SB(sb)->s_mount_opt |= OCFS2_MOUNT_ERRORS_PANIC;
 	ocfs2_handle_error(sb);
 }
 
