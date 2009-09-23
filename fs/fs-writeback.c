@@ -750,29 +750,32 @@ static long wb_writeback(struct bdi_writeback *wb,
 		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
 
 		/*
-		 * If we ran out of stuff to write, bail unless more_io got set
+		 * If we consumed everything, see if we have more
 		 */
-		if (wbc.nr_to_write > 0) {
-			if (wbc.more_io) {
-				if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
-					continue;
-				/*
-				 * Nothing written. Wait for some inode to
-				 * become available for writeback. Otherwise
-				 * we'll just busyloop.
-				 */
-				spin_lock(&inode_lock);
-				if (!list_empty(&wb->b_more_io))  {
-					inode = list_entry(
-							wb->b_more_io.prev,
-							struct inode, i_list);
-					inode_wait_for_writeback(inode);
-				}
-				spin_unlock(&inode_lock);
-				continue;
-			}
+		if (wbc.nr_to_write <= 0)
+			continue;
+		/*
+		 * Didn't write everything and we don't have more IO, bail
+		 */
+		if (!wbc.more_io)
 			break;
+		/*
+		 * Did we write something? Try for more
+		 */
+		if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
+			continue;
+		/*
+		 * Nothing written. Wait for some inode to
+		 * become available for writeback. Otherwise
+		 * we'll just busyloop.
+		 */
+		spin_lock(&inode_lock);
+		if (!list_empty(&wb->b_more_io))  {
+			inode = list_entry(wb->b_more_io.prev,
+						struct inode, i_list);
+			inode_wait_for_writeback(inode);
 		}
+		spin_unlock(&inode_lock);
 	}
 
 	return wrote;
