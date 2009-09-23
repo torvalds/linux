@@ -1,3 +1,4 @@
+
 LED handling under Linux
 ========================
 
@@ -5,10 +6,10 @@ If you're reading this and thinking about keyboard leds, these are
 handled by the input subsystem and the led class is *not* needed.
 
 In its simplest form, the LED class just allows control of LEDs from
-userspace. LEDs appear in /sys/class/leds/. The brightness file will
-set the brightness of the LED (taking a value 0-255). Most LEDs don't
-have hardware brightness support so will just be turned on for non-zero
-brightness settings.
+userspace. LEDs appear in /sys/class/leds/. The maximum brightness of the
+LED is defined in max_brightness file. The brightness file will set the brightness
+of the LED (taking a value 0-max_brightness). Most LEDs don't have hardware
+brightness support so will just be turned on for non-zero brightness settings.
 
 The class also introduces the optional concept of an LED trigger. A trigger
 is a kernel based source of led events. Triggers can either be simple or

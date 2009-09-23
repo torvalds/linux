@@ -5069,6 +5069,11 @@ T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.2.x/tomoyo-lsm/patches
 S:	Maintained
 F:	security/tomoyo/
 
+TOPSTAR LAPTOP EXTRAS DRIVER
+M:	Herton Ronaldo Krzesinski <herton@mandriva.com.br>
+S:	Maintained
+F:	drivers/platform/x86/topstar-laptop.c
+
 TOSHIBA ACPI EXTRAS DRIVER
 S:	Orphan
 F:	drivers/platform/x86/toshiba_acpi.c

@@ -88,7 +88,8 @@ acpi_ns_report_error(const char *module_name,
 
 		/* There is a non-ascii character in the name */
 
-		ACPI_MOVE_32_TO_32(&bad_name, internal_name);
+		ACPI_MOVE_32_TO_32(&bad_name,
+				   ACPI_CAST_PTR(u32, internal_name));
 		acpi_os_printf("[0x%4.4X] (NON-ASCII)", bad_name);
 	} else {
 		/* Convert path to external format */
@@ -836,7 +837,7 @@ acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
 	acpi_status status;
 	char *internal_path;
 
-	ACPI_FUNCTION_TRACE_PTR(ns_get_node, pathname);
+	ACPI_FUNCTION_TRACE_PTR(ns_get_node, ACPI_CAST_PTR(char, pathname));
 
 	if (!pathname) {
 		*return_node = prefix_node;
