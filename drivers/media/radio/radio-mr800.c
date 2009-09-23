@@ -235,6 +235,7 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 	if (retval < 0 || size != BUFFER_LENGTH)
 		goto out_err;
 
+	radio->curfreq = freq;
 	goto out;
 
 out_err:
@@ -371,13 +372,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
 	struct amradio_device *radio = file->private_data;
-	int retval = 0;
 
-	radio->curfreq = f->frequency;
-
-	retval = amradio_setfreq(radio, radio->curfreq);
-
-	return retval;
+	return amradio_setfreq(radio, f->frequency);
 }
 
 /* vidioc_g_frequency - get tuner radio frequency */
