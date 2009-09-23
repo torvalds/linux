@@ -262,6 +262,145 @@ static struct platform_device bfin_sir2_device = {
 #endif
 #endif
 
+#if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
+#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
+static struct resource bfin_sport0_uart_resources[] = {
+	{
+		.start = SPORT0_TCR1,
+		.end = SPORT0_MRCS3+4,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_SPORT0_RX,
+		.end = IRQ_SPORT0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_SPORT0_ERROR,
+		.end = IRQ_SPORT0_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+unsigned short bfin_sport0_peripherals[] = {
+	P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
+	P_SPORT0_DRPRI, P_SPORT0_RSCLK, P_SPORT0_DRSEC, P_SPORT0_DTSEC, 0
+};
+
+static struct platform_device bfin_sport0_uart_device = {
+	.name = "bfin-sport-uart",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sport0_uart_resources),
+	.resource = bfin_sport0_uart_resources,
+	.dev = {
+		.platform_data = &bfin_sport0_peripherals, /* Passed to driver */
+	},
+};
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
+static struct resource bfin_sport1_uart_resources[] = {
+	{
+		.start = SPORT1_TCR1,
+		.end = SPORT1_MRCS3+4,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_SPORT1_RX,
+		.end = IRQ_SPORT1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_SPORT1_ERROR,
+		.end = IRQ_SPORT1_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+unsigned short bfin_sport1_peripherals[] = {
+	P_SPORT1_TFS, P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS,
+	P_SPORT1_DRPRI, P_SPORT1_RSCLK, P_SPORT1_DRSEC, P_SPORT1_DTSEC, 0
+};
+
+static struct platform_device bfin_sport1_uart_device = {
+	.name = "bfin-sport-uart",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_sport1_uart_resources),
+	.resource = bfin_sport1_uart_resources,
+	.dev = {
+		.platform_data = &bfin_sport1_peripherals, /* Passed to driver */
+	},
+};
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT2_UART
+static struct resource bfin_sport2_uart_resources[] = {
+	{
+		.start = SPORT2_TCR1,
+		.end = SPORT2_MRCS3+4,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_SPORT2_RX,
+		.end = IRQ_SPORT2_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_SPORT2_ERROR,
+		.end = IRQ_SPORT2_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+unsigned short bfin_sport2_peripherals[] = {
+	P_SPORT2_TFS, P_SPORT2_DTPRI, P_SPORT2_TSCLK, P_SPORT2_RFS,
+	P_SPORT2_DRPRI, P_SPORT2_RSCLK, P_SPORT2_DRSEC, P_SPORT2_DTSEC, 0
+};
+
+static struct platform_device bfin_sport2_uart_device = {
+	.name = "bfin-sport-uart",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(bfin_sport2_uart_resources),
+	.resource = bfin_sport2_uart_resources,
+	.dev = {
+		.platform_data = &bfin_sport2_peripherals, /* Passed to driver */
+	},
+};
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT3_UART
+static struct resource bfin_sport3_uart_resources[] = {
+	{
+		.start = SPORT3_TCR1,
+		.end = SPORT3_MRCS3+4,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_SPORT3_RX,
+		.end = IRQ_SPORT3_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_SPORT3_ERROR,
+		.end = IRQ_SPORT3_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+unsigned short bfin_sport3_peripherals[] = {
+	P_SPORT3_TFS, P_SPORT3_DTPRI, P_SPORT3_TSCLK, P_SPORT3_RFS,
+	P_SPORT3_DRPRI, P_SPORT3_RSCLK, P_SPORT3_DRSEC, P_SPORT3_DTSEC, 0
+};
+
+static struct platform_device bfin_sport3_uart_device = {
+	.name = "bfin-sport-uart",
+	.id = 3,
+	.num_resources = ARRAY_SIZE(bfin_sport3_uart_resources),
+	.resource = bfin_sport3_uart_resources,
+	.dev = {
+		.platform_data = &bfin_sport3_peripherals, /* Passed to driver */
+	},
+};
+#endif
+#endif
+
 #if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
 unsigned short bfin_can_peripherals[] = {
 	P_CAN0_RX, P_CAN0_TX, 0
@@ -764,6 +903,21 @@ static struct platform_device *cm_bf538_devices[] __initdata = {
 #endif
 #ifdef CONFIG_BFIN_SIR2
 	&bfin_sir2_device,
+#endif
+#endif
+
+#if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
+#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
+	&bfin_sport0_uart_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
+	&bfin_sport1_uart_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT2_UART
+	&bfin_sport2_uart_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT3_UART
+	&bfin_sport3_uart_device,
 #endif
 #endif
 
