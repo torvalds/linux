@@ -320,7 +320,7 @@ static bool inode_dirtied_after(struct inode *inode, unsigned long t)
 	 * For inodes being constantly redirtied, dirtied_when can get stuck.
 	 * It _appears_ to be in the future, but is actually in distant past.
 	 * This test is necessary to prevent such wrapped-around relative times
-	 * from permanently stopping the whole pdflush writeback.
+	 * from permanently stopping the whole bdi writeback.
 	 */
 	ret = ret && time_before_eq(inode->dirtied_when, jiffies);
 #endif
@@ -1084,9 +1084,6 @@ EXPORT_SYMBOL(__mark_inode_dirty);
  *
  * If older_than_this is non-NULL, then only write out inodes which
  * had their first dirtying at a time earlier than *older_than_this.
- *
- * If we're a pdlfush thread, then implement pdflush collision avoidance
- * against the entire list.
  *
  * If `bdi' is non-zero then we're being asked to writeback a specific queue.
  * This function assumes that the blockdev superblock's inodes are backed by
