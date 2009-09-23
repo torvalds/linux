@@ -737,7 +737,7 @@ r600_blit_copy(struct drm_device *dev,
 
 			/* dst */
 			set_render_target(dev_priv, COLOR_8_8_8_8,
-					  dst_x + cur_size, h,
+					  (dst_x + cur_size) / 4, h,
 					  dst_gpu_addr);
 
 			/* scissors */

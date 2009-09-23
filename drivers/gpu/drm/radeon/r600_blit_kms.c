@@ -774,7 +774,7 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 
 			/* dst 23 */
 			set_render_target(rdev, COLOR_8_8_8_8,
-					  dst_x + cur_size, h,
+					  (dst_x + cur_size) / 4, h,
 					  dst_gpu_addr);
 
 			/* scissors 12  */
