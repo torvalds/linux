@@ -2756,7 +2756,8 @@ static bool handle_stripe5(struct stripe_head *sh)
 	rcu_read_lock();
 	for (i=disks; i--; ) {
 		mdk_rdev_t *rdev;
-		struct r5dev *dev = &sh->dev[i];
+
+		dev = &sh->dev[i];
 		clear_bit(R5_Insync, &dev->flags);
 
 		pr_debug("check %d: state 0x%lx toread %p read %p write %p "
@@ -3880,7 +3881,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 	INIT_LIST_HEAD(&stripes);
 	for (i = 0; i < reshape_sectors; i += STRIPE_SECTORS) {
 		int j;
-		int skipped = 0;
+		int skipped_disk = 0;
 		sh = get_active_stripe(conf, stripe_addr+i, 0, 0, 1);
 		set_bit(STRIPE_EXPANDING, &sh->state);
 		atomic_inc(&conf->reshape_stripes);
@@ -3896,14 +3897,14 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 				continue;
 			s = compute_blocknr(sh, j, 0);
 			if (s < raid5_size(mddev, 0, 0)) {
-				skipped = 1;
+				skipped_disk = 1;
 				continue;
 			}
 			memset(page_address(sh->dev[j].page), 0, STRIPE_SIZE);
 			set_bit(R5_Expanded, &sh->dev[j].flags);
 			set_bit(R5_UPTODATE, &sh->dev[j].flags);
 		}
-		if (!skipped) {
+		if (!skipped_disk) {
 			set_bit(STRIPE_EXPAND_READY, &sh->state);
 			set_bit(STRIPE_HANDLE, &sh->state);
 		}
