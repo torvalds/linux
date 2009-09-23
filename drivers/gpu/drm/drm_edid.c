@@ -560,7 +560,8 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 		vsize = (hsize * 9) / 16;
 	/* HDTV hack */
 	if (hsize == 1360 && vsize == 765 && vrefresh_rate == 60) {
-		mode = drm_cvt_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
+		mode = drm_cvt_mode(dev, hsize, vsize, vrefresh_rate, 0, 0,
+				    false);
 		mode->hdisplay = 1366;
 		mode->vsync_start = mode->vsync_start - 1;
 		mode->vsync_end = mode->vsync_end - 1;
@@ -579,7 +580,8 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 		mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
 		break;
 	case LEVEL_CVT:
-		mode = drm_cvt_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
+		mode = drm_cvt_mode(dev, hsize, vsize, vrefresh_rate, 0, 0,
+				    false);
 		break;
 	}
 	return mode;

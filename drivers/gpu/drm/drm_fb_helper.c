@@ -40,6 +40,196 @@ MODULE_LICENSE("GPL and additional rights");
 
 static LIST_HEAD(kernel_fb_helper_list);
 
+int drm_fb_helper_add_connector(struct drm_connector *connector)
+{
+	connector->fb_helper_private = kzalloc(sizeof(struct drm_fb_helper_connector), GFP_KERNEL);
+	if (!connector->fb_helper_private)
+		return -ENOMEM;
+
+	return 0;
+
+}
+EXPORT_SYMBOL(drm_fb_helper_add_connector);
+
+static int my_atoi(const char *name)
+{
+	int val = 0;
+
+	for (;; name++) {
+		switch (*name) {
+		case '0' ... '9':
+			val = 10*val+(*name-'0');
+			break;
+		default:
+			return val;
+		}
+	}
+}
+
+/**
+ * drm_fb_helper_connector_parse_command_line - parse command line for connector
+ * @connector - connector to parse line for
+ * @mode_option - per connector mode option
+ *
+ * This parses the connector specific then generic command lines for
+ * modes and options to configure the connector.
+ *
+ * This uses the same parameters as the fb modedb.c, except for extra
+ *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
+ *
+ * enable/enable Digital/disable bit at the end
+ */
+static bool drm_fb_helper_connector_parse_command_line(struct drm_connector *connector,
+						       const char *mode_option)
+{
+	const char *name;
+	unsigned int namelen;
+	int res_specified = 0, bpp_specified = 0, refresh_specified = 0;
+	unsigned int xres = 0, yres = 0, bpp = 32, refresh = 0;
+	int yres_specified = 0, cvt = 0, rb = 0, interlace = 0, margins = 0;
+	int i;
+	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
+	struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
+	struct drm_fb_helper_cmdline_mode *cmdline_mode = &fb_help_conn->cmdline_mode;
+
+	if (!mode_option)
+		mode_option = fb_mode_option;
+
+	if (!mode_option) {
+		cmdline_mode->specified = false;
+		return false;
+	}
+
+	name = mode_option;
+	namelen = strlen(name);
+	for (i = namelen-1; i >= 0; i--) {
+		switch (name[i]) {
+		case '@':
+			namelen = i;
+			if (!refresh_specified && !bpp_specified &&
+			    !yres_specified) {
+				refresh = my_atoi(&name[i+1]);
+				refresh_specified = 1;
+				if (cvt || rb)
+					cvt = 0;
+			} else
+				goto done;
+			break;
+		case '-':
+			namelen = i;
+			if (!bpp_specified && !yres_specified) {
+				bpp = my_atoi(&name[i+1]);
+				bpp_specified = 1;
+				if (cvt || rb)
+					cvt = 0;
+			} else
+				goto done;
+			break;
+		case 'x':
+			if (!yres_specified) {
+				yres = my_atoi(&name[i+1]);
+				yres_specified = 1;
+			} else
+				goto done;
+		case '0' ... '9':
+			break;
+		case 'M':
+			if (!yres_specified)
+				cvt = 1;
+			break;
+		case 'R':
+			if (!cvt)
+				rb = 1;
+			break;
+		case 'm':
+			if (!cvt)
+				margins = 1;
+			break;
+		case 'i':
+			if (!cvt)
+				interlace = 1;
+			break;
+		case 'e':
+			force = DRM_FORCE_ON;
+			break;
+		case 'D':
+			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) ||
+			    (connector->connector_type != DRM_MODE_CONNECTOR_HDMIB))
+				force = DRM_FORCE_ON;
+			else
+				force = DRM_FORCE_ON_DIGITAL;
+			break;
+		case 'd':
+			force = DRM_FORCE_OFF;
+			break;
+		default:
+			goto done;
+		}
+	}
+	if (i < 0 && yres_specified) {
+		xres = my_atoi(name);
+		res_specified = 1;
+	}
+done:
+
+	DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
+		drm_get_connector_name(connector), xres, yres,
+		(refresh) ? refresh : 60, (rb) ? " reduced blanking" :
+		"", (margins) ? " with margins" : "", (interlace) ?
+		" interlaced" : "");
+
+	if (force) {
+		const char *s;
+		switch (force) {
+		case DRM_FORCE_OFF: s = "OFF"; break;
+		case DRM_FORCE_ON_DIGITAL: s = "ON - dig"; break;
+		default:
+		case DRM_FORCE_ON: s = "ON"; break;
+		}
+
+		DRM_INFO("forcing %s connector %s\n",
+			 drm_get_connector_name(connector), s);
+		connector->force = force;
+	}
+
+	if (res_specified) {
+		cmdline_mode->specified = true;
+		cmdline_mode->xres = xres;
+		cmdline_mode->yres = yres;
+	}
+
+	if (refresh_specified) {
+		cmdline_mode->refresh_specified = true;
+		cmdline_mode->refresh = refresh;
+	}
+
+	if (bpp_specified) {
+		cmdline_mode->bpp_specified = true;
+		cmdline_mode->bpp = bpp;
+	}
+	cmdline_mode->rb = rb ? true : false;
+	cmdline_mode->cvt = cvt  ? true : false;
+	cmdline_mode->interlace = interlace ? true : false;
+
+	return true;
+}
+
+int drm_fb_helper_parse_command_line(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		char *option = NULL;
+
+		/* do something on return - turn off connector maybe */
+		if (fb_get_options(drm_get_connector_name(connector), &option))
+			continue;
+
+		drm_fb_helper_connector_parse_command_line(connector, option);
+	}
+	return 0;
+}
+
 bool drm_fb_helper_force_kernel_mode(void)
 {
 	int i = 0;
@@ -484,6 +674,8 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 						   uint32_t fb_height,
 						   uint32_t surface_width,
 						   uint32_t surface_height,
+						   uint32_t surface_depth,
+						   uint32_t surface_bpp,
 						   struct drm_framebuffer **fb_ptr))
 {
 	struct drm_crtc *crtc;
@@ -497,8 +689,37 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	struct drm_mode_set *modeset = NULL;
 	struct drm_fb_helper *fb_helper;
+	uint32_t surface_depth = 24, surface_bpp = 32;
 
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
+		struct drm_fb_helper_cmdline_mode *cmdline_mode = &fb_help_conn->cmdline_mode;
+
+		if (cmdline_mode->bpp_specified) {
+			switch (cmdline_mode->bpp) {
+			case 8:
+				surface_depth = surface_bpp = 8;
+				break;
+			case 15:
+				surface_depth = 15;
+				surface_bpp = 16;
+				break;
+			case 16:
+				surface_depth = surface_bpp = 16;
+				break;
+			case 24:
+				surface_depth = surface_bpp = 24;
+				break;
+			case 32:
+				surface_depth = 24;
+				surface_bpp = 32;
+				break;
+			}
+			break;
+		}
+	}
+
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (drm_helper_crtc_in_use(crtc)) {
 			if (crtc->desired_mode) {
@@ -527,7 +748,8 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	/* do we have an fb already? */
 	if (list_empty(&dev->mode_config.fb_kernel_list)) {
 		ret = (*fb_create)(dev, fb_width, fb_height, surface_width,
-				   surface_height, &fb);
+				   surface_height, surface_depth, surface_bpp,
+				   &fb);
 		if (ret)
 			return -EINVAL;
 		new_fb = 1;
