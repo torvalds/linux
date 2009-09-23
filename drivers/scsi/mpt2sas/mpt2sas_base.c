@@ -57,6 +57,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/sort.h>
 #include <linux/io.h>
+#include <linux/time.h>
 
 #include "mpt2sas_base.h"
 
@@ -2946,6 +2947,7 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	Mpi2IOCInitRequest_t mpi_request;
 	Mpi2IOCInitReply_t mpi_reply;
 	int r;
+	struct timeval current_time;
 
 	dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n", ioc->name,
 	    __func__));
@@ -2995,6 +2997,13 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	mpi_request.ReplyDescriptorPostQueueAddress =
 	    cpu_to_le32(ioc->reply_post_free_dma);
 #endif
+
+	/* This time stamp specifies number of milliseconds
+	 * since epoch ~ midnight January 1, 1970.
+	 */
+	do_gettimeofday(&current_time);
+	mpi_request.TimeStamp = (current_time.tv_sec * 1000) +
+	    (current_time.tv_usec >> 3);
 
 	if (ioc->logging_level & MPT_DEBUG_INIT) {
 		u32 *mfp;
