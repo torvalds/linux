@@ -114,7 +114,6 @@ struct chip_data {
 	u8 width;		/* 0 or 1 */
 	u8 enable_dma;
 	u8 bits_per_word;	/* 8 or 16 */
-	u8 cs_change_per_word;
 	u16 cs_chg_udelay;	/* Some devices require > 255usec delay */
 	u32 cs_gpio;
 	u16 idle_tx_val;
@@ -309,24 +308,6 @@ static void bfin_spi_u8_writer(struct driver_data *drv_data)
 	}
 }
 
-static void bfin_spi_u8_cs_chg_writer(struct driver_data *drv_data)
-{
-	struct chip_data *chip = drv_data->cur_chip;
-
-	/* clear RXS (we check for RXS inside the loop) */
-	bfin_spi_dummy_read(drv_data);
-
-	while (drv_data->tx < drv_data->tx_end) {
-		bfin_spi_cs_active(drv_data, chip);
-		write_TDBR(drv_data, (*(u8 *) (drv_data->tx++)));
-		/* make sure transfer finished before deactiving CS */
-		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
-			cpu_relax();
-		bfin_spi_dummy_read(drv_data);
-		bfin_spi_cs_deactive(drv_data, chip);
-	}
-}
-
 static void bfin_spi_u8_reader(struct driver_data *drv_data)
 {
 	u16 tx_val = drv_data->cur_chip->idle_tx_val;
@@ -342,24 +323,6 @@ static void bfin_spi_u8_reader(struct driver_data *drv_data)
 	}
 }
 
-static void bfin_spi_u8_cs_chg_reader(struct driver_data *drv_data)
-{
-	struct chip_data *chip = drv_data->cur_chip;
-	u16 tx_val = chip->idle_tx_val;
-
-	/* discard old RX data and clear RXS */
-	bfin_spi_dummy_read(drv_data);
-
-	while (drv_data->rx < drv_data->rx_end) {
-		bfin_spi_cs_active(drv_data, chip);
-		write_TDBR(drv_data, tx_val);
-		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
-			cpu_relax();
-		*(u8 *) (drv_data->rx++) = read_RDBR(drv_data);
-		bfin_spi_cs_deactive(drv_data, chip);
-	}
-}
-
 static void bfin_spi_u8_duplex(struct driver_data *drv_data)
 {
 	/* discard old RX data and clear RXS */
@@ -370,23 +333,6 @@ static void bfin_spi_u8_duplex(struct driver_data *drv_data)
 		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
 			cpu_relax();
 		*(u8 *) (drv_data->rx++) = read_RDBR(drv_data);
-	}
-}
-
-static void bfin_spi_u8_cs_chg_duplex(struct driver_data *drv_data)
-{
-	struct chip_data *chip = drv_data->cur_chip;
-
-	/* discard old RX data and clear RXS */
-	bfin_spi_dummy_read(drv_data);
-
-	while (drv_data->rx < drv_data->rx_end) {
-		bfin_spi_cs_active(drv_data, chip);
-		write_TDBR(drv_data, (*(u8 *) (drv_data->tx++)));
-		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
-			cpu_relax();
-		*(u8 *) (drv_data->rx++) = read_RDBR(drv_data);
-		bfin_spi_cs_deactive(drv_data, chip);
 	}
 }
 
@@ -407,25 +353,6 @@ static void bfin_spi_u16_writer(struct driver_data *drv_data)
 	}
 }
 
-static void bfin_spi_u16_cs_chg_writer(struct driver_data *drv_data)
-{
-	struct chip_data *chip = drv_data->cur_chip;
-
-	/* clear RXS (we check for RXS inside the loop) */
-	bfin_spi_dummy_read(drv_data);
-
-	while (drv_data->tx < drv_data->tx_end) {
-		bfin_spi_cs_active(drv_data, chip);
-		write_TDBR(drv_data, (*(u16 *) (drv_data->tx)));
-		drv_data->tx += 2;
-		/* make sure transfer finished before deactiving CS */
-		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
-			cpu_relax();
-		bfin_spi_dummy_read(drv_data);
-		bfin_spi_cs_deactive(drv_data, chip);
-	}
-}
-
 static void bfin_spi_u16_reader(struct driver_data *drv_data)
 {
 	u16 tx_val = drv_data->cur_chip->idle_tx_val;
@@ -442,25 +369,6 @@ static void bfin_spi_u16_reader(struct driver_data *drv_data)
 	}
 }
 
-static void bfin_spi_u16_cs_chg_reader(struct driver_data *drv_data)
-{
-	struct chip_data *chip = drv_data->cur_chip;
-	u16 tx_val = chip->idle_tx_val;
-
-	/* discard old RX data and clear RXS */
-	bfin_spi_dummy_read(drv_data);
-
-	while (drv_data->rx < drv_data->rx_end) {
-		bfin_spi_cs_active(drv_data, chip);
-		write_TDBR(drv_data, tx_val);
-		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
-			cpu_relax();
-		*(u16 *) (drv_data->rx) = read_RDBR(drv_data);
-		drv_data->rx += 2;
-		bfin_spi_cs_deactive(drv_data, chip);
-	}
-}
-
 static void bfin_spi_u16_duplex(struct driver_data *drv_data)
 {
 	/* discard old RX data and clear RXS */
@@ -473,25 +381,6 @@ static void bfin_spi_u16_duplex(struct driver_data *drv_data)
 			cpu_relax();
 		*(u16 *) (drv_data->rx) = read_RDBR(drv_data);
 		drv_data->rx += 2;
-	}
-}
-
-static void bfin_spi_u16_cs_chg_duplex(struct driver_data *drv_data)
-{
-	struct chip_data *chip = drv_data->cur_chip;
-
-	/* discard old RX data and clear RXS */
-	bfin_spi_dummy_read(drv_data);
-
-	while (drv_data->rx < drv_data->rx_end) {
-		bfin_spi_cs_active(drv_data, chip);
-		write_TDBR(drv_data, (*(u16 *) (drv_data->tx)));
-		drv_data->tx += 2;
-		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
-			cpu_relax();
-		*(u16 *) (drv_data->rx) = read_RDBR(drv_data);
-		drv_data->rx += 2;
-		bfin_spi_cs_deactive(drv_data, chip);
 	}
 }
 
@@ -773,23 +662,17 @@ static void bfin_spi_pump_transfers(unsigned long data)
 	case 8:
 		drv_data->n_bytes = 1;
 		width = CFG_SPI_WORDSIZE8;
-		drv_data->read = chip->cs_change_per_word ?
-			bfin_spi_u8_cs_chg_reader : bfin_spi_u8_reader;
-		drv_data->write = chip->cs_change_per_word ?
-			bfin_spi_u8_cs_chg_writer : bfin_spi_u8_writer;
-		drv_data->duplex = chip->cs_change_per_word ?
-			bfin_spi_u8_cs_chg_duplex : bfin_spi_u8_duplex;
+		drv_data->read = bfin_spi_u8_reader;
+		drv_data->write = bfin_spi_u8_writer;
+		drv_data->duplex = bfin_spi_u8_duplex;
 		break;
 
 	case 16:
 		drv_data->n_bytes = 2;
 		width = CFG_SPI_WORDSIZE16;
-		drv_data->read = chip->cs_change_per_word ?
-			bfin_spi_u16_cs_chg_reader : bfin_spi_u16_reader;
-		drv_data->write = chip->cs_change_per_word ?
-			bfin_spi_u16_cs_chg_writer : bfin_spi_u16_writer;
-		drv_data->duplex = chip->cs_change_per_word ?
-			bfin_spi_u16_cs_chg_duplex : bfin_spi_u16_duplex;
+		drv_data->read = bfin_spi_u16_reader;
+		drv_data->write = bfin_spi_u16_writer;
+		drv_data->duplex = bfin_spi_u16_duplex;
 		break;
 
 	default:
@@ -1164,7 +1047,6 @@ static int bfin_spi_setup(struct spi_device *spi)
 		    && drv_data->master_info->enable_dma;
 		chip->ctl_reg = chip_info->ctl_reg;
 		chip->bits_per_word = chip_info->bits_per_word;
-		chip->cs_change_per_word = chip_info->cs_change_per_word;
 		chip->cs_chg_udelay = chip_info->cs_chg_udelay;
 		chip->cs_gpio = chip_info->cs_gpio;
 		chip->idle_tx_val = chip_info->idle_tx_val;
@@ -1193,23 +1075,17 @@ static int bfin_spi_setup(struct spi_device *spi)
 	case 8:
 		chip->n_bytes = 1;
 		chip->width = CFG_SPI_WORDSIZE8;
-		chip->read = chip->cs_change_per_word ?
-			bfin_spi_u8_cs_chg_reader : bfin_spi_u8_reader;
-		chip->write = chip->cs_change_per_word ?
-			bfin_spi_u8_cs_chg_writer : bfin_spi_u8_writer;
-		chip->duplex = chip->cs_change_per_word ?
-			bfin_spi_u8_cs_chg_duplex : bfin_spi_u8_duplex;
+		chip->read = bfin_spi_u8_reader;
+		chip->write = bfin_spi_u8_writer;
+		chip->duplex = bfin_spi_u8_duplex;
 		break;
 
 	case 16:
 		chip->n_bytes = 2;
 		chip->width = CFG_SPI_WORDSIZE16;
-		chip->read = chip->cs_change_per_word ?
-			bfin_spi_u16_cs_chg_reader : bfin_spi_u16_reader;
-		chip->write = chip->cs_change_per_word ?
-			bfin_spi_u16_cs_chg_writer : bfin_spi_u16_writer;
-		chip->duplex = chip->cs_change_per_word ?
-			bfin_spi_u16_cs_chg_duplex : bfin_spi_u16_duplex;
+		chip->read = bfin_spi_u16_reader;
+		chip->write = bfin_spi_u16_writer;
+		chip->duplex = bfin_spi_u16_duplex;
 		break;
 
 	default:
