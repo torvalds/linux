@@ -179,6 +179,9 @@ The reclaim algorithm has not been modified for cgroups, except that
 pages that are selected for reclaiming come from the per cgroup LRU
 list.
 
+NOTE: Reclaim does not work for the root cgroup, since we cannot set any
+limits on the root cgroup.
+
 2. Locking
 
 The memory controller uses the following hierarchy
@@ -210,6 +213,7 @@ We can alter the memory limit:
 NOTE: We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
 mega or gigabytes.
 NOTE: We can write "-1" to reset the *.limit_in_bytes(unlimited).
+NOTE: We cannot set limits on the root cgroup any more.
 
 # cat /cgroups/0/memory.limit_in_bytes
 4194304

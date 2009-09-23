@@ -43,6 +43,7 @@
 
 struct cgroup_subsys mem_cgroup_subsys __read_mostly;
 #define MEM_CGROUP_RECLAIM_RETRIES	5
+struct mem_cgroup *root_mem_cgroup __read_mostly;
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
@@ -200,13 +201,8 @@ enum charge_type {
 #define PCGF_CACHE	(1UL << PCG_CACHE)
 #define PCGF_USED	(1UL << PCG_USED)
 #define PCGF_LOCK	(1UL << PCG_LOCK)
-static const unsigned long
-pcg_default_flags[NR_CHARGE_TYPE] = {
-	PCGF_CACHE | PCGF_USED | PCGF_LOCK, /* File Cache */
-	PCGF_USED | PCGF_LOCK, /* Anon */
-	PCGF_CACHE | PCGF_USED | PCGF_LOCK, /* Shmem */
-	0, /* FORCE */
-};
+/* Not used, but added here for completeness */
+#define PCGF_ACCT	(1UL << PCG_ACCT)
 
 /* for encoding cft->private value on file */
 #define _MEM			(0)
@@ -354,6 +350,11 @@ static int mem_cgroup_walk_tree(struct mem_cgroup *root, void *data,
 	return ret;
 }
 
+static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
+{
+	return (mem == root_mem_cgroup);
+}
+
 /*
  * Following LRU functions are allowed to be used without PCG_LOCK.
  * Operations are called by routine of global LRU independently from memcg.
@@ -371,22 +372,24 @@ static int mem_cgroup_walk_tree(struct mem_cgroup *root, void *data,
 void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
 {
 	struct page_cgroup *pc;
-	struct mem_cgroup *mem;
 	struct mem_cgroup_per_zone *mz;
 
 	if (mem_cgroup_disabled())
 		return;
 	pc = lookup_page_cgroup(page);
 	/* can happen while we handle swapcache. */
-	if (list_empty(&pc->lru) || !pc->mem_cgroup)
+	if (!TestClearPageCgroupAcctLRU(pc))
 		return;
+	VM_BUG_ON(!pc->mem_cgroup);
 	/*
 	 * We don't check PCG_USED bit. It's cleared when the "page" is finally
 	 * removed from global LRU.
 	 */
 	mz = page_cgroup_zoneinfo(pc);
-	mem = pc->mem_cgroup;
 	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
+	if (mem_cgroup_is_root(pc->mem_cgroup))
+		return;
+	VM_BUG_ON(list_empty(&pc->lru));
 	list_del_init(&pc->lru);
 	return;
 }
@@ -410,8 +413,8 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
 	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
 	 */
 	smp_rmb();
-	/* unused page is not rotated. */
-	if (!PageCgroupUsed(pc))
+	/* unused or root page is not rotated. */
+	if (!PageCgroupUsed(pc) || mem_cgroup_is_root(pc->mem_cgroup))
 		return;
 	mz = page_cgroup_zoneinfo(pc);
 	list_move(&pc->lru, &mz->lists[lru]);
@@ -425,6 +428,7 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
 	if (mem_cgroup_disabled())
 		return;
 	pc = lookup_page_cgroup(page);
+	VM_BUG_ON(PageCgroupAcctLRU(pc));
 	/*
 	 * Used bit is set without atomic ops but after smp_wmb().
 	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
@@ -435,6 +439,9 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
 
 	mz = page_cgroup_zoneinfo(pc);
 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
+	SetPageCgroupAcctLRU(pc);
+	if (mem_cgroup_is_root(pc->mem_cgroup))
+		return;
 	list_add(&pc->lru, &mz->lists[lru]);
 }
 
@@ -469,7 +476,7 @@ static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
 
 	spin_lock_irqsave(&zone->lru_lock, flags);
 	/* link when the page is linked to LRU but page_cgroup isn't */
-	if (PageLRU(page) && list_empty(&pc->lru))
+	if (PageLRU(page) && !PageCgroupAcctLRU(pc))
 		mem_cgroup_add_lru_list(page, page_lru(page));
 	spin_unlock_irqrestore(&zone->lru_lock, flags);
 }
@@ -1125,9 +1132,22 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 		css_put(&mem->css);
 		return;
 	}
+
 	pc->mem_cgroup = mem;
 	smp_wmb();
-	pc->flags = pcg_default_flags[ctype];
+	switch (ctype) {
+	case MEM_CGROUP_CHARGE_TYPE_CACHE:
+	case MEM_CGROUP_CHARGE_TYPE_SHMEM:
+		SetPageCgroupCache(pc);
+		SetPageCgroupUsed(pc);
+		break;
+	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
+		ClearPageCgroupCache(pc);
+		SetPageCgroupUsed(pc);
+		break;
+	default:
+		break;
+	}
 
 	mem_cgroup_charge_statistics(mem, pc, true);
 
@@ -2083,6 +2103,10 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
 	name = MEMFILE_ATTR(cft->private);
 	switch (name) {
 	case RES_LIMIT:
+		if (mem_cgroup_is_root(memcg)) { /* Can't set limit on root */
+			ret = -EINVAL;
+			break;
+		}
 		/* This function does all necessary parse...reuse it */
 		ret = res_counter_memparse_write_strategy(buffer, &val);
 		if (ret)
@@ -2549,6 +2573,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	if (cont->parent == NULL) {
 		enable_swap_cgroup();
 		parent = NULL;
+		root_mem_cgroup = mem;
 	} else {
 		parent = mem_cgroup_from_cont(cont->parent);
 		mem->use_hierarchy = parent->use_hierarchy;
@@ -2577,6 +2602,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	return &mem->css;
 free_out:
 	__mem_cgroup_free(mem);
+	root_mem_cgroup = NULL;
 	return ERR_PTR(error);
 }
 
