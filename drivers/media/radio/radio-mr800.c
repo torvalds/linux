@@ -574,9 +574,12 @@ static int usb_amradio_suspend(struct usb_interface *intf, pm_message_t message)
 
 	mutex_lock(&radio->lock);
 
-	retval = amradio_set_mute(radio, AMRADIO_STOP);
-	if (retval < 0)
-		dev_warn(&intf->dev, "amradio_stop failed\n");
+	if (!radio->muted && radio->initialized) {
+		retval = amradio_set_mute(radio, AMRADIO_STOP);
+		if (retval < 0)
+			dev_warn(&intf->dev, "amradio_stop failed\n");
+		radio->muted = 0;
+	}
 
 	dev_info(&intf->dev, "going into suspend..\n");
 
@@ -592,10 +595,30 @@ static int usb_amradio_resume(struct usb_interface *intf)
 
 	mutex_lock(&radio->lock);
 
-	retval = amradio_set_mute(radio, AMRADIO_START);
-	if (retval < 0)
-		dev_warn(&intf->dev, "amradio_start failed\n");
+	if (unlikely(!radio->initialized))
+		goto unlock;
 
+	if (radio->stereo)
+		retval = amradio_set_stereo(radio, WANT_STEREO);
+	else
+		retval = amradio_set_stereo(radio, WANT_MONO);
+
+	if (retval < 0)
+		amradio_dev_warn(&radio->videodev.dev, "set stereo failed\n");
+
+	retval = amradio_setfreq(radio, radio->curfreq);
+	if (retval < 0)
+		amradio_dev_warn(&radio->videodev.dev,
+			"set frequency failed\n");
+
+	if (!radio->muted) {
+		retval = amradio_set_mute(radio, AMRADIO_START);
+		if (retval < 0)
+			dev_warn(&radio->videodev.dev,
+				"amradio_start failed\n");
+	}
+
+unlock:
 	dev_info(&intf->dev, "coming out of suspend..\n");
 
 	mutex_unlock(&radio->lock);
