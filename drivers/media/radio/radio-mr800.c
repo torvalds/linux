@@ -252,12 +252,13 @@ static int amradio_set_stereo(struct amradio_device *radio, char argument)
 	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
 		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
 
-	if (retval < 0 || size != BUFFER_LENGTH) {
-		radio->stereo = -1;
+	if (retval < 0 || size != BUFFER_LENGTH)
 		return retval;
-	}
 
-	radio->stereo = 1;
+	if (argument == WANT_STEREO)
+		radio->stereo = 1;
+	else
+		radio->stereo = 0;
 
 	return retval;
 }
