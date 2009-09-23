@@ -141,6 +141,17 @@ enum {
 	CGRP_WAIT_ON_RMDIR,
 };
 
+struct cgroup_pidlist {
+	/* protects the other fields */
+	struct rw_semaphore mutex;
+	/* array of xids */
+	pid_t *list;
+	/* how many elements the above list has */
+	int length;
+	/* how many files are using the current array */
+	int use_count;
+};
+
 struct cgroup {
 	unsigned long flags;		/* "unsigned long" so bitops work */
 
@@ -179,14 +190,9 @@ struct cgroup {
 	 */
 	struct list_head release_list;
 
-	/* pids_mutex protects the fields below */
-	struct rw_semaphore pids_mutex;
-	/* Array of process ids in the cgroup */
-	pid_t *tasks_pids;
-	/* How many files are using the current tasks_pids array */
-	int pids_use_count;
-	/* Length of the current tasks_pids array */
-	int pids_length;
+	/* we will have two separate pidlists, one for pids (the tasks file)
+	 * and one for tgids (the procs file). */
+	struct cgroup_pidlist tasks, procs;
 
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
