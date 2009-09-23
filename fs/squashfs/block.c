@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/buffer_head.h>
-#include <linux/zlib.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"

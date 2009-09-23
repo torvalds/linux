@@ -35,7 +35,6 @@
 #include <linux/pagemap.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/zlib.h>
 #include <linux/magic.h>
 
 #include "squashfs_fs.h"
@@ -87,12 +86,9 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	msblk = sb->s_fs_info;
 
-	msblk->stream.workspace = kmalloc(zlib_inflate_workspacesize(),
-		GFP_KERNEL);
-	if (msblk->stream.workspace == NULL) {
-		ERROR("Failed to allocate zlib workspace\n");
+	msblk->stream = squashfs_zlib_init();
+	if (msblk->stream == NULL)
 		goto failure;
-	}
 
 	sblk = kzalloc(sizeof(*sblk), GFP_KERNEL);
 	if (sblk == NULL) {
@@ -292,17 +288,17 @@ failed_mount:
 	squashfs_cache_delete(msblk->block_cache);
 	squashfs_cache_delete(msblk->fragment_cache);
 	squashfs_cache_delete(msblk->read_page);
+	squashfs_zlib_free(msblk->stream);
 	kfree(msblk->inode_lookup_table);
 	kfree(msblk->fragment_index);
 	kfree(msblk->id_table);
-	kfree(msblk->stream.workspace);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
 	kfree(sblk);
 	return err;
 
 failure:
-	kfree(msblk->stream.workspace);
+	squashfs_zlib_free(msblk->stream);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
 	return -ENOMEM;
@@ -346,10 +342,10 @@ static void squashfs_put_super(struct super_block *sb)
 		squashfs_cache_delete(sbi->block_cache);
 		squashfs_cache_delete(sbi->fragment_cache);
 		squashfs_cache_delete(sbi->read_page);
+		squashfs_zlib_free(sbi->stream);
 		kfree(sbi->id_table);
 		kfree(sbi->fragment_index);
 		kfree(sbi->meta_index);
-		kfree(sbi->stream.workspace);
 		kfree(sb->s_fs_info);
 		sb->s_fs_info = NULL;
 	}
