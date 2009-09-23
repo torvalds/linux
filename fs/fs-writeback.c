@@ -41,8 +41,9 @@ struct wb_writeback_args {
 	long nr_pages;
 	struct super_block *sb;
 	enum writeback_sync_modes sync_mode;
-	int for_kupdate;
-	int range_cyclic;
+	int for_kupdate:1;
+	int range_cyclic:1;
+	int for_background:1;
 };
 
 /*
@@ -256,6 +257,15 @@ void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages)
 		.nr_pages	= nr_pages,
 		.range_cyclic	= 1,
 	};
+
+	/*
+	 * We treat @nr_pages=0 as the special case to do background writeback,
+	 * ie. to sync pages until the background dirty threshold is reached.
+	 */
+	if (!nr_pages) {
+		args.nr_pages = LONG_MAX;
+		args.for_background = 1;
+	}
 
 	bdi_alloc_queue_work(bdi, &args);
 }
@@ -720,20 +730,16 @@ static long wb_writeback(struct bdi_writeback *wb,
 
 	for (;;) {
 		/*
-		 * Don't flush anything for non-integrity writeback where
-		 * no nr_pages was given
+		 * Stop writeback when nr_pages has been consumed
 		 */
-		if (!args->for_kupdate && args->nr_pages <= 0 &&
-		     args->sync_mode == WB_SYNC_NONE)
+		if (args->nr_pages <= 0)
 			break;
 
 		/*
-		 * If no specific pages were given and this is just a
-		 * periodic background writeout and we are below the
-		 * background dirty threshold, don't do anything
+		 * For background writeout, stop when we are below the
+		 * background dirty threshold
 		 */
-		if (args->for_kupdate && args->nr_pages <= 0 &&
-		    !over_bground_thresh())
+		if (args->for_background && !over_bground_thresh())
 			break;
 
 		wbc.more_io = 0;

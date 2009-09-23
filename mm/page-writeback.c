@@ -593,10 +593,10 @@ static void balance_dirty_pages(struct address_space *mapping,
 	 * background_thresh, to keep the amount of dirty memory low.
 	 */
 	if ((laptop_mode && pages_written) ||
-	    (!laptop_mode && ((nr_writeback = global_page_state(NR_FILE_DIRTY)
-					  + global_page_state(NR_UNSTABLE_NFS))
+	    (!laptop_mode && ((global_page_state(NR_FILE_DIRTY)
+			       + global_page_state(NR_UNSTABLE_NFS))
 					  > background_thresh)))
-		bdi_start_writeback(bdi, nr_writeback);
+		bdi_start_writeback(bdi, 0);
 }
 
 void set_page_dirty_balance(struct page *page, int page_mkwrite)
