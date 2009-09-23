@@ -896,6 +896,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 			printk(MPT2SAS_INFO_FMT "issue target reset: handle "
 			    "= (0x%04x)\n", ioc->name,
 			    mpi_request->FunctionDependent1);
+			mpt2sas_halt_firmware(ioc);
 			mutex_lock(&ioc->tm_cmds.mutex);
 			mpt2sas_scsih_issue_tm(ioc,
 			    mpi_request->FunctionDependent1, 0,
@@ -2474,6 +2475,43 @@ _ctl_logging_level_store(struct device *cdev, struct device_attribute *attr,
 static DEVICE_ATTR(logging_level, S_IRUGO | S_IWUSR,
     _ctl_logging_level_show, _ctl_logging_level_store);
 
+/* device attributes */
+/*
+ * _ctl_fwfault_debug_show - show/store fwfault_debug
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * mpt2sas_fwfault_debug is command line option
+ * A sysfs 'read/write' shost attribute.
+ */
+static ssize_t
+_ctl_fwfault_debug_show(struct device *cdev,
+    struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", ioc->fwfault_debug);
+}
+static ssize_t
+_ctl_fwfault_debug_store(struct device *cdev,
+    struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+	int val = 0;
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	ioc->fwfault_debug = val;
+	printk(MPT2SAS_INFO_FMT "fwfault_debug=%d\n", ioc->name,
+	    ioc->fwfault_debug);
+	return strlen(buf);
+}
+static DEVICE_ATTR(fwfault_debug, S_IRUGO | S_IWUSR,
+    _ctl_fwfault_debug_show, _ctl_fwfault_debug_store);
+
 struct device_attribute *mpt2sas_host_attrs[] = {
 	&dev_attr_version_fw,
 	&dev_attr_version_bios,
@@ -2487,12 +2525,11 @@ struct device_attribute *mpt2sas_host_attrs[] = {
 	&dev_attr_io_delay,
 	&dev_attr_device_delay,
 	&dev_attr_logging_level,
+	&dev_attr_fwfault_debug,
 	&dev_attr_fw_queue_depth,
 	&dev_attr_host_sas_address,
 	NULL,
 };
-
-/* device attributes */
 
 /**
  * _ctl_device_sas_address_show - sas address

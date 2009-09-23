@@ -466,6 +466,7 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @chip_phys: physical addrss prior to mapping
  * @pio_chip: I/O mapped register space
  * @logging_level: see mpt2sas_debug.h
+ * @fwfault_debug: debuging FW timeouts
  * @ir_firmware: IR firmware present
  * @bars: bitmask of BAR's that must be configured
  * @mask_interrupts: ignore interrupt
@@ -587,6 +588,7 @@ struct MPT2SAS_ADAPTER {
 	unsigned long	chip_phys;
 	unsigned long	pio_chip;
 	int		logging_level;
+	int		fwfault_debug;
 	u8		ir_firmware;
 	int		bars;
 	u8		mask_interrupts;
@@ -802,6 +804,8 @@ int mpt2sas_base_sas_iounit_control(struct MPT2SAS_ADAPTER *ioc,
 int mpt2sas_base_scsi_enclosure_processor(struct MPT2SAS_ADAPTER *ioc,
     Mpi2SepReply_t *mpi_reply, Mpi2SepRequest_t *mpi_request);
 void mpt2sas_base_validate_event_type(struct MPT2SAS_ADAPTER *ioc, u32 *event_type);
+
+void mpt2sas_halt_firmware(struct MPT2SAS_ADAPTER *ioc);
 
 /* scsih shared API */
 u8 mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,

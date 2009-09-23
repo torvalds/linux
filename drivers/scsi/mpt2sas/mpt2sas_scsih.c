@@ -1929,6 +1929,8 @@ _scsih_abort(struct scsi_cmnd *scmd)
 		goto out;
 	}
 
+	mpt2sas_halt_firmware(ioc);
+
 	mutex_lock(&ioc->tm_cmds.mutex);
 	handle = sas_device_priv_data->sas_target->handle;
 	mpt2sas_scsih_issue_tm(ioc, handle, sas_device_priv_data->lun,

@@ -77,6 +77,32 @@ static int msix_disable = -1;
 module_param(msix_disable, int, 0);
 MODULE_PARM_DESC(msix_disable, " disable msix routed interrupts (default=0)");
 
+int mpt2sas_fwfault_debug;
+MODULE_PARM_DESC(mpt2sas_fwfault_debug, " enable detection of firmware fault "
+    "and halt firmware - (default=0)");
+
+/**
+ * _scsih_set_fwfault_debug - global setting of ioc->fwfault_debug.
+ *
+ */
+static int
+_scsih_set_fwfault_debug(const char *val, struct kernel_param *kp)
+{
+	int ret = param_set_int(val, kp);
+	struct MPT2SAS_ADAPTER *ioc;
+
+	if (ret)
+		return ret;
+
+	printk(KERN_INFO "setting logging_level(0x%08x)\n",
+				mpt2sas_fwfault_debug);
+	list_for_each_entry(ioc, &mpt2sas_ioc_list, list)
+		ioc->fwfault_debug = mpt2sas_fwfault_debug;
+	return 0;
+}
+module_param_call(mpt2sas_fwfault_debug, _scsih_set_fwfault_debug,
+    param_get_int, &mpt2sas_fwfault_debug, 0644);
+
 /**
  * _base_fault_reset_work - workq handling ioc fault conditions
  * @work: input argument, used to derive ioc
@@ -175,6 +201,51 @@ mpt2sas_base_stop_watchdog(struct MPT2SAS_ADAPTER *ioc)
 			flush_workqueue(wq);
 		destroy_workqueue(wq);
 	}
+}
+
+/**
+ * mpt2sas_base_fault_info - verbose translation of firmware FAULT code
+ * @ioc: per adapter object
+ * @fault_code: fault code
+ *
+ * Return nothing.
+ */
+void
+mpt2sas_base_fault_info(struct MPT2SAS_ADAPTER *ioc , u16 fault_code)
+{
+	printk(MPT2SAS_ERR_FMT "fault_state(0x%04x)!\n",
+	    ioc->name, fault_code);
+}
+
+/**
+ * mpt2sas_halt_firmware - halt's mpt controller firmware
+ * @ioc: per adapter object
+ *
+ * For debugging timeout related issues.  Writing 0xCOFFEE00
+ * to the doorbell register will halt controller firmware. With
+ * the purpose to stop both driver and firmware, the enduser can
+ * obtain a ring buffer from controller UART.
+ */
+void
+mpt2sas_halt_firmware(struct MPT2SAS_ADAPTER *ioc)
+{
+	u32 doorbell;
+
+	if (!ioc->fwfault_debug)
+		return;
+
+	dump_stack();
+
+	doorbell = readl(&ioc->chip->Doorbell);
+	if ((doorbell & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT)
+		mpt2sas_base_fault_info(ioc , doorbell);
+	else {
+		writel(0xC0FFEE00, &ioc->chip->Doorbell);
+		printk(MPT2SAS_ERR_FMT "Firmware is halted due to command "
+		    "timeout\n", ioc->name);
+	}
+
+	panic("panic in %s\n", __func__);
 }
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
@@ -523,20 +594,6 @@ _base_sas_log_info(struct MPT2SAS_ADAPTER *ioc , u32 log_info)
 	    "code(0x%02x), sub_code(0x%04x)\n", ioc->name, log_info,
 	     originator_str, sas_loginfo.dw.code,
 	     sas_loginfo.dw.subcode);
-}
-
-/**
- * mpt2sas_base_fault_info - verbose translation of firmware FAULT code
- * @ioc: pointer to scsi command object
- * @fault_code: fault code
- *
- * Return nothing.
- */
-void
-mpt2sas_base_fault_info(struct MPT2SAS_ADAPTER *ioc , u16 fault_code)
-{
-	printk(MPT2SAS_ERR_FMT "fault_state(0x%04x)!\n",
-	    ioc->name, fault_code);
 }
 
 /**
@@ -3683,6 +3740,9 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 
 	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: enter\n", ioc->name,
 	    __func__));
+
+	if (mpt2sas_fwfault_debug)
+		mpt2sas_halt_firmware(ioc);
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
 	if (ioc->shost_recovery) {
