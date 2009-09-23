@@ -531,3 +531,18 @@ static int __init ezkit_init(void)
 }
 
 arch_initcall(ezkit_init);
+
+static struct platform_device *ezkit_early_devices[] __initdata = {
+#if defined(CONFIG_SERIAL_BFIN_CONSOLE) || defined(CONFIG_EARLY_PRINTK)
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
+#endif
+};
+
+void __init native_machine_early_platform_add_devices(void)
+{
+	printk(KERN_INFO "register early platform devices\n");
+	early_platform_add_devices(ezkit_early_devices,
+		ARRAY_SIZE(ezkit_early_devices));
+}

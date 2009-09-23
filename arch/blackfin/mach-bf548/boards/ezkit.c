@@ -1390,3 +1390,42 @@ static int __init ezkit_init(void)
 }
 
 arch_initcall(ezkit_init);
+
+static struct platform_device *ezkit_early_devices[] __initdata = {
+#if defined(CONFIG_SERIAL_BFIN_CONSOLE) || defined(CONFIG_EARLY_PRINTK)
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	&bfin_uart1_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART2
+	&bfin_uart2_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART3
+	&bfin_uart3_device,
+#endif
+#endif
+
+#if defined(CONFIG_SERIAL_BFIN_SPORT_CONSOLE)
+#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
+	&bfin_sport0_uart_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
+	&bfin_sport1_uart_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT2_UART
+	&bfin_sport2_uart_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT3_UART
+	&bfin_sport3_uart_device,
+#endif
+#endif
+};
+
+void __init native_machine_early_platform_add_devices(void)
+{
+	printk(KERN_INFO "register early platform devices\n");
+	early_platform_add_devices(ezkit_early_devices,
+		ARRAY_SIZE(ezkit_early_devices));
+}

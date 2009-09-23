@@ -571,6 +571,24 @@ static int __init pnav_init(void)
 
 arch_initcall(pnav_init);
 
+static struct platform_device *stamp_early_devices[] __initdata = {
+#if defined(CONFIG_SERIAL_BFIN_CONSOLE) || defined(CONFIG_EARLY_PRINTK)
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	&bfin_uart1_device,
+#endif
+#endif
+};
+
+void __init native_machine_early_platform_add_devices(void)
+{
+	printk(KERN_INFO "register early platform devices\n");
+	early_platform_add_devices(stamp_early_devices,
+		ARRAY_SIZE(stamp_early_devices));
+}
+
 void bfin_get_ether_addr(char *addr)
 {
 	random_ether_addr(addr);
