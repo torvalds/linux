@@ -2612,7 +2612,8 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
 static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 				struct cgroup *cont,
 				struct cgroup *old_cont,
-				struct task_struct *p)
+				struct task_struct *p,
+				bool threadgroup)
 {
 	mutex_lock(&memcg_tasklist);
 	/*
