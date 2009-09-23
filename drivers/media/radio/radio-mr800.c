@@ -689,30 +689,29 @@ static int usb_amradio_probe(struct usb_interface *intf,
 {
 	struct amradio_device *radio;
 	struct v4l2_device *v4l2_dev;
-	int retval;
+	int retval = 0;
 
 	radio = kzalloc(sizeof(struct amradio_device), GFP_KERNEL);
 
 	if (!radio) {
 		dev_err(&intf->dev, "kmalloc for amradio_device failed\n");
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err;
 	}
 
 	radio->buffer = kmalloc(BUFFER_LENGTH, GFP_KERNEL);
 
 	if (!radio->buffer) {
 		dev_err(&intf->dev, "kmalloc for radio->buffer failed\n");
-		kfree(radio);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_nobuf;
 	}
 
 	v4l2_dev = &radio->v4l2_dev;
 	retval = v4l2_device_register(&intf->dev, v4l2_dev);
 	if (retval < 0) {
 		dev_err(&intf->dev, "couldn't register v4l2_device\n");
-		kfree(radio->buffer);
-		kfree(radio);
-		return retval;
+		goto err_v4l2;
 	}
 
 	strlcpy(radio->videodev.name, v4l2_dev->name,
@@ -736,14 +735,20 @@ static int usb_amradio_probe(struct usb_interface *intf,
 					radio_nr);
 	if (retval < 0) {
 		dev_err(&intf->dev, "could not register video device\n");
-		v4l2_device_unregister(v4l2_dev);
-		kfree(radio->buffer);
-		kfree(radio);
-		return -EIO;
+		goto err_vdev;
 	}
 
 	usb_set_intfdata(intf, radio);
 	return 0;
+
+err_vdev:
+	v4l2_device_unregister(v4l2_dev);
+err_v4l2:
+	kfree(radio->buffer);
+err_nobuf:
+	kfree(radio);
+err:
+	return retval;
 }
 
 static int __init amradio_init(void)
