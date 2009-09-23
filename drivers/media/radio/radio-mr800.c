@@ -141,6 +141,8 @@ struct amradio_device {
 	int muted;
 };
 
+#define vdev_to_amradio(r) container_of(r, struct amradio_device, videodev)
+
 /* USB Device ID List */
 static struct usb_device_id usb_amradio_device_table[] = {
 	{USB_DEVICE_AND_INTERFACE_INFO(USB_AMRADIO_VENDOR, USB_AMRADIO_PRODUCT,
@@ -280,7 +282,7 @@ static void usb_amradio_disconnect(struct usb_interface *intf)
 static int vidioc_querycap(struct file *file, void *priv,
 					struct v4l2_capability *v)
 {
-	struct amradio_device *radio = video_drvdata(file);
+	struct amradio_device *radio = file->private_data;
 
 	strlcpy(v->driver, "radio-mr800", sizeof(v->driver));
 	strlcpy(v->card, "AverMedia MR 800 USB FM Radio", sizeof(v->card));
@@ -294,7 +296,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
-	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	struct amradio_device *radio = file->private_data;
 	int retval;
 
 	mutex_lock(&radio->lock);
@@ -345,7 +347,7 @@ unlock:
 static int vidioc_s_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
-	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	struct amradio_device *radio = file->private_data;
 	int retval;
 
 	mutex_lock(&radio->lock);
@@ -388,7 +390,7 @@ unlock:
 static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	struct amradio_device *radio = file->private_data;
 	int retval;
 
 	mutex_lock(&radio->lock);
@@ -415,7 +417,7 @@ unlock:
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	struct amradio_device *radio = file->private_data;
 	int retval = 0;
 
 	mutex_lock(&radio->lock);
@@ -450,7 +452,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 static int vidioc_g_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	struct amradio_device *radio = file->private_data;
 	int retval = -EINVAL;
 
 	mutex_lock(&radio->lock);
@@ -477,7 +479,7 @@ unlock:
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	struct amradio_device *radio = file->private_data;
 	int retval = -EINVAL;
 
 	mutex_lock(&radio->lock);
@@ -550,7 +552,7 @@ static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 /* open device - amradio_start() and amradio_setfreq() */
 static int usb_amradio_open(struct file *file)
 {
-	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	struct amradio_device *radio = vdev_to_amradio(video_devdata(file));
 	int retval = 0;
 
 	mutex_lock(&radio->lock);
@@ -560,6 +562,7 @@ static int usb_amradio_open(struct file *file)
 		goto unlock;
 	}
 
+	file->private_data = radio;
 	radio->users = 1;
 	radio->muted = 1;
 
@@ -589,7 +592,7 @@ unlock:
 /*close device */
 static int usb_amradio_close(struct file *file)
 {
-	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	struct amradio_device *radio = file->private_data;
 	int retval = 0;
 
 	mutex_lock(&radio->lock);
@@ -674,7 +677,7 @@ static const struct v4l2_ioctl_ops usb_amradio_ioctl_ops = {
 
 static void usb_amradio_video_device_release(struct video_device *videodev)
 {
-	struct amradio_device *radio = video_get_drvdata(videodev);
+	struct amradio_device *radio = vdev_to_amradio(videodev);
 
 	v4l2_device_unregister(&radio->v4l2_dev);
 
