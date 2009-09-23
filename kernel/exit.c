@@ -1581,6 +1581,9 @@ static int child_wait_callback(wait_queue_t *wait, unsigned mode,
 	if (!eligible_child(wo, p))
 		return 0;
 
+	if ((wo->wo_flags & __WNOTHREAD) && wait->private != p->parent)
+		return 0;
+
 	return default_wake_function(wait, mode, sync, key);
 }
 
