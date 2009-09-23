@@ -442,11 +442,13 @@ static int __init coretemp_init(void)
 
 		/* check if family 6, models 0xe (Pentium M DC),
 		  0xf (Core 2 DC 65nm), 0x16 (Core 2 SC 65nm),
-		  0x17 (Penryn 45nm), 0x1a (Nehalem), 0x1c (Atom) */
+		  0x17 (Penryn 45nm), 0x1a (Nehalem), 0x1c (Atom),
+		  0x1e (Lynnfield) */
 		if ((c->cpuid_level < 0) || (c->x86 != 0x6) ||
 		    !((c->x86_model == 0xe) || (c->x86_model == 0xf) ||
 			(c->x86_model == 0x16) || (c->x86_model == 0x17) ||
-			(c->x86_model == 0x1A) || (c->x86_model == 0x1c))) {
+			(c->x86_model == 0x1a) || (c->x86_model == 0x1c) ||
+			(c->x86_model == 0x1e))) {
 
 			/* supported CPU not found, but report the unknown
 			   family 6 CPU */
