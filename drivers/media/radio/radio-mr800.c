@@ -85,6 +85,9 @@ MODULE_LICENSE("GPL");
 #define amradio_dev_warn(dev, fmt, arg...)				\
 		dev_warn(dev, MR800_DRIVER_NAME " - " fmt, ##arg)
 
+#define amradio_dev_err(dev, fmt, arg...) \
+		dev_err(dev, MR800_DRIVER_NAME " - " fmt, ##arg)
+
 /* Probably USB_TIMEOUT should be modified in module parameter */
 #define BUFFER_LENGTH 8
 #define USB_TIMEOUT 500
@@ -137,6 +140,7 @@ struct amradio_device {
 	int curfreq;
 	int stereo;
 	int muted;
+	int initialized;
 };
 
 #define vdev_to_amradio(r) container_of(r, struct amradio_device, videodev)
@@ -478,6 +482,31 @@ static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 	return 0;
 }
 
+static int usb_amradio_init(struct amradio_device *radio)
+{
+	int retval;
+
+	retval = amradio_set_mute(radio, AMRADIO_STOP);
+	if (retval < 0) {
+		amradio_dev_warn(&radio->videodev.dev, "amradio_stop failed\n");
+		goto out_err;
+	}
+
+	retval = amradio_set_stereo(radio, WANT_STEREO);
+	if (retval < 0) {
+		amradio_dev_warn(&radio->videodev.dev, "set stereo failed\n");
+		goto out_err;
+	}
+
+	radio->initialized = 1;
+	goto out;
+
+out_err:
+	amradio_dev_err(&radio->videodev.dev, "initialization failed\n");
+out:
+	return retval;
+}
+
 /* open device - amradio_start() and amradio_setfreq() */
 static int usb_amradio_open(struct file *file)
 {
@@ -492,6 +521,9 @@ static int usb_amradio_open(struct file *file)
 	}
 
 	file->private_data = radio;
+
+	if (unlikely(!radio->initialized))
+		retval = usb_amradio_init(radio);
 
 unlock:
 	mutex_unlock(&radio->lock);
@@ -641,8 +673,6 @@ static int usb_amradio_probe(struct usb_interface *intf,
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = 95.16 * FREQ_MUL;
-	radio->stereo = -1;
-	radio->muted = 1;
 
 	mutex_init(&radio->lock);
 
