@@ -1901,7 +1901,7 @@ config DMAR_DEFAULT_ON
 config DMAR_BROKEN_GFX_WA
 	def_bool n
 	prompt "Workaround broken graphics drivers (going away soon)"
-	depends on DMAR
+	depends on DMAR && BROKEN
 	---help---
 	  Current Graphics drivers tend to use physical address
 	  for DMA and avoid using DMA APIs. Setting this config
