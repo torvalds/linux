@@ -41,6 +41,7 @@
 #include "v9fs.h"
 #include "v9fs_vfs.h"
 #include "fid.h"
+#include "cache.h"
 
 static const struct file_operations v9fs_cached_file_operations;
 
@@ -86,6 +87,10 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		/* enable cached file options */
 		if(file->f_op == &v9fs_file_operations)
 			file->f_op = &v9fs_cached_file_operations;
+
+#ifdef CONFIG_9P_FSCACHE
+		v9fs_cache_inode_set_cookie(inode, file);
+#endif
 	}
 
 	return 0;
@@ -238,8 +243,9 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	if (total > 0) {
 		pg_start = origin >> PAGE_CACHE_SHIFT;
 		pg_end = (origin + total - 1) >> PAGE_CACHE_SHIFT;
-		invalidate_inode_pages2_range(inode->i_mapping, pg_start,
-								pg_end);
+		if (inode->i_mapping && inode->i_mapping->nrpages)
+			invalidate_inode_pages2_range(inode->i_mapping,
+						      pg_start, pg_end);
 		*offset += total;
 		i_size_write(inode, i_size_read(inode) + total);
 		inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
