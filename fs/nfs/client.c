@@ -970,6 +970,7 @@ static void nfs_server_copy_userdata(struct nfs_server *target, struct nfs_serve
 	target->acdirmin = source->acdirmin;
 	target->acdirmax = source->acdirmax;
 	target->caps = source->caps;
+	target->options = source->options;
 }
 
 /*
