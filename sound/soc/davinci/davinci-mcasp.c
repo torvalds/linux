@@ -378,17 +378,17 @@ static void mcasp_start_tx(struct davinci_audio_dev *dev)
 
 static void davinci_mcasp_start(struct davinci_audio_dev *dev, int stream)
 {
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (dev->txnumevt)	/* enable FIFO */
+			mcasp_set_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
+								FIFO_ENABLE);
 		mcasp_start_tx(dev);
-	else
+	} else {
+		if (dev->rxnumevt)	/* enable FIFO */
+			mcasp_set_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
+								FIFO_ENABLE);
 		mcasp_start_rx(dev);
-
-	/* enable FIFO */
-	if (dev->txnumevt)
-		mcasp_set_bits(dev->base + DAVINCI_MCASP_WFIFOCTL, FIFO_ENABLE);
-
-	if (dev->rxnumevt)
-		mcasp_set_bits(dev->base + DAVINCI_MCASP_RFIFOCTL, FIFO_ENABLE);
+	}
 }
 
 static void mcasp_stop_rx(struct davinci_audio_dev *dev)
@@ -405,17 +405,17 @@ static void mcasp_stop_tx(struct davinci_audio_dev *dev)
 
 static void davinci_mcasp_stop(struct davinci_audio_dev *dev, int stream)
 {
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (dev->txnumevt)	/* disable FIFO */
+			mcasp_clr_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
+								FIFO_ENABLE);
 		mcasp_stop_tx(dev);
-	else
+	} else {
+		if (dev->rxnumevt)	/* disable FIFO */
+			mcasp_clr_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
+								FIFO_ENABLE);
 		mcasp_stop_rx(dev);
-
-	/* disable FIFO */
-	if (dev->txnumevt)
-		mcasp_clr_bits(dev->base + DAVINCI_MCASP_WFIFOCTL, FIFO_ENABLE);
-
-	if (dev->rxnumevt)
-		mcasp_clr_bits(dev->base + DAVINCI_MCASP_RFIFOCTL, FIFO_ENABLE);
+	}
 }
 
 static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
