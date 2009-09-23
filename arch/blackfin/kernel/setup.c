@@ -792,9 +792,16 @@ static inline int __init get_mem_size(void)
 	BUG();
 }
 
+__attribute__((weak))
+void __init native_machine_early_platform_add_devices(void)
+{
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	unsigned long sclk, cclk;
+
+	native_machine_early_platform_add_devices();
 
 	enable_shadow_console();
 
