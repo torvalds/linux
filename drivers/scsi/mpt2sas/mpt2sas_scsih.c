@@ -4279,6 +4279,12 @@ _scsih_sas_device_status_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 	case MPI2_EVENT_SAS_DEV_STAT_RC_ASYNC_NOTIFICATION:
 		reason_str = "internal async notification";
 		break;
+	case MPI2_EVENT_SAS_DEV_STAT_RC_EXPANDER_REDUCED_FUNCTIONALITY:
+		reason_str = "expander reduced functionality";
+		break;
+	case MPI2_EVENT_SAS_DEV_STAT_RC_CMP_EXPANDER_REDUCED_FUNCTIONALITY:
+		reason_str = "expander reduced functionality complete";
+		break;
 	default:
 		reason_str = "unknown reason";
 		break;
@@ -5062,10 +5068,16 @@ _scsih_sas_ir_operation_status_event_debug(struct MPT2SAS_ADAPTER *ioc,
 	case MPI2_EVENT_IR_RAIDOP_CONSISTENCY_CHECK:
 		reason_str = "consistency check";
 		break;
-	default:
-		reason_str = "unknown reason";
+	case MPI2_EVENT_IR_RAIDOP_BACKGROUND_INIT:
+		reason_str = "background init";
+		break;
+	case MPI2_EVENT_IR_RAIDOP_MAKE_DATA_CONSISTENT:
+		reason_str = "make data consistent";
 		break;
 	}
+
+	if (!reason_str)
+		return;
 
 	printk(MPT2SAS_INFO_FMT "raid operational status: (%s)"
 	    "\thandle(0x%04x), percent complete(%d)\n",
