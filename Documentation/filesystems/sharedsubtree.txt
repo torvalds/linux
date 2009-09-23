@@ -4,7 +4,7 @@ Shared Subtrees
 Contents:
 	1) Overview
 	2) Features
-	3) smount command
+	3) Setting mount states
 	4) Use-case
 	5) Detailed semantics
 	6) Quiz
@@ -135,10 +135,15 @@ replicas continue to be exactly same.
 	Binding a unbindable mount is a invalid operation.
 
 
-3) smount command
+3) Setting mount states
 
-	Modern mount(8) command is aware of shared subtree features,
-	so use it instead of the 'smount' command. [source code removed]
+	The mount command (util-linux package) can be used to set mount
+	states:
+
+	mount --make-shared mountpoint
+	mount --make-slave mountpoint
+	mount --make-private mountpoint
+	mount --make-unbindable mountpoint
 
 
 4) Use cases
@@ -209,7 +214,7 @@ replicas continue to be exactly same.
 		mount --rbind / /view/v3
 		mount --rbind / /view/v4
 
-		and if /usr has a versioning filesystem mounted, than that
+		and if /usr has a versioning filesystem mounted, then that
 		mount appears at /view/v1/usr, /view/v2/usr, /view/v3/usr and
 		/view/v4/usr too
 
@@ -249,7 +254,7 @@ replicas continue to be exactly same.
 
 		For example:
 			mount --make-shared /mnt
-			mount --bin /mnt /tmp
+			mount --bind /mnt /tmp
 
 		The mount at /mnt and that at /tmp are both shared and belong
 		to the same peer group. Anything mounted or unmounted under
