@@ -753,8 +753,8 @@ static long wb_writeback(struct bdi_writeback *wb,
 		/*
 		 * If we ran out of stuff to write, bail unless more_io got set
 		 */
-		if (wbc.nr_to_write > 0 || wbc.pages_skipped > 0) {
-			if (wbc.more_io && !wbc.for_kupdate) {
+		if (wbc.nr_to_write > 0) {
+			if (wbc.more_io) {
 				if (wbc.nr_to_write < MAX_WRITEBACK_PAGES)
 					continue;
 				/*
