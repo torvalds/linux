@@ -2047,7 +2047,7 @@ static int run(mddev_t *mddev)
 	conf->last_used = j;
 
 
-	mddev->thread = md_register_thread(raid1d, mddev, "%s_raid1");
+	mddev->thread = md_register_thread(raid1d, mddev, NULL);
 	if (!mddev->thread) {
 		printk(KERN_ERR
 		       "raid1: couldn't allocate thread for %s\n",

@@ -4448,7 +4448,7 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 		printk(KERN_INFO "raid5: allocated %dkB for %s\n",
 			memory, mdname(mddev));
 
-	conf->thread = md_register_thread(raid5d, mddev, "%s_raid5");
+	conf->thread = md_register_thread(raid5d, mddev, NULL);
 	if (!conf->thread) {
 		printk(KERN_ERR
 		       "raid5: couldn't allocate thread for %s\n",
@@ -4614,7 +4614,7 @@ static int run(mddev_t *mddev)
 		set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
 		set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 		mddev->sync_thread = md_register_thread(md_do_sync, mddev,
-							"%s_reshape");
+							"reshape");
 	}
 
 	/* read-ahead size must cover two whole stripes, which is
@@ -5032,7 +5032,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 	set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
 	set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 	mddev->sync_thread = md_register_thread(md_do_sync, mddev,
-						"%s_reshape");
+						"reshape");
 	if (!mddev->sync_thread) {
 		mddev->recovery = 0;
 		spin_lock_irq(&conf->device_lock);

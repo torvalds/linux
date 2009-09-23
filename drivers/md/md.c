@@ -4218,7 +4218,7 @@ static int do_md_run(mddev_t * mddev)
 			set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 			mddev->sync_thread = md_register_thread(md_do_sync,
 								mddev,
-								"%s_resync");
+								"resync");
 			if (!mddev->sync_thread) {
 				printk(KERN_ERR "%s: could not start resync"
 				       " thread...\n",
@@ -5631,7 +5631,10 @@ mdk_thread_t *md_register_thread(void (*run) (mddev_t *), mddev_t *mddev,
 	thread->run = run;
 	thread->mddev = mddev;
 	thread->timeout = MAX_SCHEDULE_TIMEOUT;
-	thread->tsk = kthread_run(md_thread, thread, name, mdname(thread->mddev));
+	thread->tsk = kthread_run(md_thread, thread,
+				  "%s_%s",
+				  mdname(thread->mddev),
+				  name ?: mddev->pers->name);
 	if (IS_ERR(thread->tsk)) {
 		kfree(thread);
 		return NULL;
@@ -6745,7 +6748,7 @@ void md_check_recovery(mddev_t *mddev)
 			}
 			mddev->sync_thread = md_register_thread(md_do_sync,
 								mddev,
-								"%s_resync");
+								"resync");
 			if (!mddev->sync_thread) {
 				printk(KERN_ERR "%s: could not start resync"
 					" thread...\n", 
