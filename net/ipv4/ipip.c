@@ -402,11 +402,6 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	__be32 dst = tiph->daddr;
 	int    mtu;
 
-	if (tunnel->recursion++) {
-		stats->collisions++;
-		goto tx_error;
-	}
-
 	if (skb->protocol != htons(ETH_P_IP))
 		goto tx_error;
 
@@ -485,7 +480,6 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			ip_rt_put(rt);
 			stats->tx_dropped++;
 			dev_kfree_skb(skb);
-			tunnel->recursion--;
 			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
@@ -523,7 +517,6 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	nf_reset(skb);
 
 	IPTUNNEL_XMIT();
-	tunnel->recursion--;
 	return NETDEV_TX_OK;
 
 tx_error_icmp:
@@ -531,7 +524,6 @@ tx_error_icmp:
 tx_error:
 	stats->tx_errors++;
 	dev_kfree_skb(skb);
-	tunnel->recursion--;
 	return NETDEV_TX_OK;
 }
 
