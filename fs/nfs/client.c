@@ -648,8 +648,6 @@ static int nfs_start_lockd(struct nfs_server *server)
 		.hostname	= clp->cl_hostname,
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrlen	= clp->cl_addrlen,
-		.protocol	= server->flags & NFS_MOUNT_TCP ?
-						IPPROTO_TCP : IPPROTO_UDP,
 		.nfs_version	= clp->rpc_ops->version,
 		.noresvport	= server->flags & NFS_MOUNT_NORESVPORT ?
 					1 : 0,
@@ -659,6 +657,14 @@ static int nfs_start_lockd(struct nfs_server *server)
 		return 0;
 	if (server->flags & NFS_MOUNT_NONLM)
 		return 0;
+
+	switch (clp->cl_proto) {
+		default:
+			nlm_init.protocol = IPPROTO_TCP;
+			break;
+		case XPRT_TRANSPORT_UDP:
+			nlm_init.protocol = IPPROTO_UDP;
+	}
 
 	host = nlmclnt_init(&nlm_init);
 	if (IS_ERR(host))
@@ -787,7 +793,7 @@ static int nfs_init_server(struct nfs_server *server,
 	dprintk("--> nfs_init_server()\n");
 
 #ifdef CONFIG_NFS_V3
-	if (data->flags & NFS_MOUNT_VER3)
+	if (data->version == 3)
 		cl_init.rpc_ops = &nfs_v3_clientops;
 #endif
 

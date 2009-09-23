@@ -1430,10 +1430,13 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 	int status;
 
 	if (args->mount_server.version == 0) {
-		if (args->flags & NFS_MOUNT_VER3)
-			args->mount_server.version = NFS_MNT3_VERSION;
-		else
-			args->mount_server.version = NFS_MNT_VERSION;
+		switch (args->version) {
+			default:
+				args->mount_server.version = NFS_MNT3_VERSION;
+				break;
+			case 2:
+				args->mount_server.version = NFS_MNT_VERSION;
+		}
 	}
 	request.version = args->mount_server.version;
 
@@ -1778,7 +1781,7 @@ static int nfs_validate_mount_data(void *options,
 	}
 
 #ifndef CONFIG_NFS_V3
-	if (args->flags & NFS_MOUNT_VER3)
+	if (args->version == 3)
 		goto out_v3_not_compiled;
 #endif /* !CONFIG_NFS_V3 */
 
@@ -1936,7 +1939,7 @@ static void nfs_fill_super(struct super_block *sb,
 	if (data->bsize)
 		sb->s_blocksize = nfs_block_size(data->bsize, &sb->s_blocksize_bits);
 
-	if (server->flags & NFS_MOUNT_VER3) {
+	if (server->nfs_client->rpc_ops->version == 3) {
 		/* The VFS shouldn't apply the umask to mode bits. We will do
 		 * so ourselves when necessary.
 		 */
@@ -1960,7 +1963,7 @@ static void nfs_clone_super(struct super_block *sb,
 	sb->s_blocksize = old_sb->s_blocksize;
 	sb->s_maxbytes = old_sb->s_maxbytes;
 
-	if (server->flags & NFS_MOUNT_VER3) {
+	if (server->nfs_client->rpc_ops->version == 3) {
 		/* The VFS shouldn't apply the umask to mode bits. We will do
 		 * so ourselves when necessary.
 		 */
