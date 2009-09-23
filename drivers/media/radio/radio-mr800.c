@@ -186,8 +186,10 @@ static int amradio_set_mute(struct amradio_device *radio, char argument)
 	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
 		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
 
-	if (retval < 0 || size != BUFFER_LENGTH)
+	if (retval < 0 || size != BUFFER_LENGTH) {
+		amradio_dev_warn(&radio->videodev.dev, "set mute failed\n");
 		return retval;
+	}
 
 	radio->muted = argument;
 
@@ -216,7 +218,7 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
 
 	if (retval < 0 || size != BUFFER_LENGTH)
-		return retval;
+		goto out_err;
 
 	/* frequency is calculated from freq_send and placed in first 2 bytes */
 	radio->buffer[0] = (freq_send >> 8) & 0xff;
@@ -230,6 +232,14 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
 		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
 
+	if (retval < 0 || size != BUFFER_LENGTH)
+		goto out_err;
+
+	goto out;
+
+out_err:
+	amradio_dev_warn(&radio->videodev.dev, "set frequency failed\n");
+out:
 	return retval;
 }
 
@@ -252,8 +262,10 @@ static int amradio_set_stereo(struct amradio_device *radio, char argument)
 	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
 		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
 
-	if (retval < 0 || size != BUFFER_LENGTH)
+	if (retval < 0 || size != BUFFER_LENGTH) {
+		amradio_dev_warn(&radio->videodev.dev, "set stereo failed\n");
 		return retval;
+	}
 
 	if (argument == WANT_STEREO)
 		radio->stereo = 1;
@@ -314,9 +326,6 @@ static int vidioc_g_tuner(struct file *file, void *priv,
  * amradio_set_stereo shouldn't be here
  */
 	retval = amradio_set_stereo(radio, WANT_STEREO);
-	if (retval < 0)
-		amradio_dev_warn(&radio->videodev.dev,
-			"set stereo failed\n");
 
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
@@ -348,15 +357,9 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	switch (v->audmode) {
 	case V4L2_TUNER_MODE_MONO:
 		retval = amradio_set_stereo(radio, WANT_MONO);
-		if (retval < 0)
-			amradio_dev_warn(&radio->videodev.dev,
-				"set mono failed\n");
 		break;
 	case V4L2_TUNER_MODE_STEREO:
 		retval = amradio_set_stereo(radio, WANT_STEREO);
-		if (retval < 0)
-			amradio_dev_warn(&radio->videodev.dev,
-				"set stereo failed\n");
 		break;
 	}
 
@@ -373,9 +376,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	radio->curfreq = f->frequency;
 
 	retval = amradio_setfreq(radio, radio->curfreq);
-	if (retval < 0)
-		amradio_dev_warn(&radio->videodev.dev,
-			"set frequency failed\n");
 
 	return retval;
 }
@@ -428,19 +428,11 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		if (ctrl->value) {
+		if (ctrl->value)
 			retval = amradio_set_mute(radio, AMRADIO_STOP);
-			if (retval < 0) {
-				amradio_dev_warn(&radio->videodev.dev,
-					"amradio_stop failed\n");
-			}
-		} else {
+		else
 			retval = amradio_set_mute(radio, AMRADIO_START);
-			if (retval < 0) {
-				amradio_dev_warn(&radio->videodev.dev,
-					"amradio_start failed\n");
-			}
-		}
+
 		break;
 	}
 
@@ -488,16 +480,12 @@ static int usb_amradio_init(struct amradio_device *radio)
 	int retval;
 
 	retval = amradio_set_mute(radio, AMRADIO_STOP);
-	if (retval < 0) {
-		amradio_dev_warn(&radio->videodev.dev, "amradio_stop failed\n");
+	if (retval)
 		goto out_err;
-	}
 
 	retval = amradio_set_stereo(radio, WANT_STEREO);
-	if (retval < 0) {
-		amradio_dev_warn(&radio->videodev.dev, "set stereo failed\n");
+	if (retval)
 		goto out_err;
-	}
 
 	radio->initialized = 1;
 	goto out;
@@ -570,14 +558,11 @@ unlock:
 static int usb_amradio_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct amradio_device *radio = usb_get_intfdata(intf);
-	int retval;
 
 	mutex_lock(&radio->lock);
 
 	if (!radio->muted && radio->initialized) {
-		retval = amradio_set_mute(radio, AMRADIO_STOP);
-		if (retval < 0)
-			dev_warn(&intf->dev, "amradio_stop failed\n");
+		amradio_set_mute(radio, AMRADIO_STOP);
 		radio->muted = 0;
 	}
 
@@ -591,7 +576,6 @@ static int usb_amradio_suspend(struct usb_interface *intf, pm_message_t message)
 static int usb_amradio_resume(struct usb_interface *intf)
 {
 	struct amradio_device *radio = usb_get_intfdata(intf);
-	int retval;
 
 	mutex_lock(&radio->lock);
 
@@ -599,24 +583,14 @@ static int usb_amradio_resume(struct usb_interface *intf)
 		goto unlock;
 
 	if (radio->stereo)
-		retval = amradio_set_stereo(radio, WANT_STEREO);
+		amradio_set_stereo(radio, WANT_STEREO);
 	else
-		retval = amradio_set_stereo(radio, WANT_MONO);
+		amradio_set_stereo(radio, WANT_MONO);
 
-	if (retval < 0)
-		amradio_dev_warn(&radio->videodev.dev, "set stereo failed\n");
+	amradio_setfreq(radio, radio->curfreq);
 
-	retval = amradio_setfreq(radio, radio->curfreq);
-	if (retval < 0)
-		amradio_dev_warn(&radio->videodev.dev,
-			"set frequency failed\n");
-
-	if (!radio->muted) {
-		retval = amradio_set_mute(radio, AMRADIO_START);
-		if (retval < 0)
-			dev_warn(&radio->videodev.dev,
-				"amradio_start failed\n");
-	}
+	if (!radio->muted)
+		amradio_set_mute(radio, AMRADIO_START);
 
 unlock:
 	dev_info(&intf->dev, "coming out of suspend..\n");
