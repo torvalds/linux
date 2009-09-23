@@ -1799,36 +1799,37 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
  	lock_kernel();
 	ispipe = format_corename(corename, signr);
 	unlock_kernel();
-	/*
-	 * Don't bother to check the RLIMIT_CORE value if core_pattern points
-	 * to a pipe.  Since we're not writing directly to the filesystem
-	 * RLIMIT_CORE doesn't really apply, as no actual core file will be
-	 * created unless the pipe reader choses to write out the core file
-	 * at which point file size limits and permissions will be imposed
-	 * as it does with any other process
-	 */
+
 	if ((!ispipe) && (core_limit < binfmt->min_coredump))
 		goto fail_unlock;
 
  	if (ispipe) {
+		if (core_limit == 0) {
+			/*
+			 * Normally core limits are irrelevant to pipes, since
+			 * we're not writing to the file system, but we use
+			 * core_limit of 0 here as a speacial value. Any
+			 * non-zero limit gets set to RLIM_INFINITY below, but
+			 * a limit of 0 skips the dump.  This is a consistent
+			 * way to catch recursive crashes.  We can still crash
+			 * if the core_pattern binary sets RLIM_CORE =  !0
+			 * but it runs as root, and can do lots of stupid things
+			 * Note that we use task_tgid_vnr here to grab the pid
+			 * of the process group leader.  That way we get the
+			 * right pid if a thread in a multi-threaded
+			 * core_pattern process dies.
+			 */
+			printk(KERN_WARNING
+				"Process %d(%s) has RLIMIT_CORE set to 0\n",
+				task_tgid_vnr(current), current->comm);
+			printk(KERN_WARNING "Aborting core\n");
+			goto fail_unlock;
+		}
+
 		helper_argv = argv_split(GFP_KERNEL, corename+1, &helper_argc);
 		if (!helper_argv) {
 			printk(KERN_WARNING "%s failed to allocate memory\n",
 			       __func__);
-			goto fail_unlock;
-		}
-		/* Terminate the string before the first option */
-		delimit = strchr(corename, ' ');
-		if (delimit)
-			*delimit = '\0';
-		delimit = strrchr(helper_argv[0], '/');
-		if (delimit)
-			delimit++;
-		else
-			delimit = helper_argv[0];
-		if (!strcmp(delimit, current->comm)) {
-			printk(KERN_NOTICE "Recursive core dump detected, "
-					"aborting\n");
 			goto fail_unlock;
 		}
 
