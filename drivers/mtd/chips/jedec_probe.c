@@ -155,6 +155,7 @@
 #define M50LPW080       0x002F
 #define M50FLW080A	0x0080
 #define M50FLW080B	0x0081
+#define PSD4256G6V	0x00e9
 
 /* SST */
 #define SST29EE020	0x0010
@@ -206,6 +207,7 @@ enum uaddr {
 	MTD_UADDR_0x0555_0x02AA,
 	MTD_UADDR_0x0555_0x0AAA,
 	MTD_UADDR_0x5555_0x2AAA,
+	MTD_UADDR_0x0AAA_0x0554,
 	MTD_UADDR_0x0AAA_0x0555,
 	MTD_UADDR_0xAAAA_0x5555,
 	MTD_UADDR_DONT_CARE,		/* Requires an arbitrary address */
@@ -248,6 +250,11 @@ static const struct unlock_addr  unlock_addrs[] = {
 	[MTD_UADDR_0x5555_0x2AAA] = {
 		.addr1 = 0x5555,
 		.addr2 = 0x2aaa
+	},
+
+	[MTD_UADDR_0x0AAA_0x0554] = {
+		.addr1 = 0x0AAA,
+		.addr2 = 0x0554
 	},
 
 	[MTD_UADDR_0x0AAA_0x0555] = {
@@ -1742,6 +1749,18 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x1000,16),
 			ERASEINFO(0x10000,13),
 			ERASEINFO(0x1000,16),
+		}
+	}, {
+		.mfr_id		= 0xff00 | MANUFACTURER_ST,
+		.dev_id		= 0xff00 | PSD4256G6V,
+		.name		= "ST PSD4256G6V",
+		.devtypes	= CFI_DEVICETYPE_X16,
+		.uaddr		= MTD_UADDR_0x0AAA_0x0554,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 1,
+		.regions	= {
+			ERASEINFO(0x10000,16),
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_TOSHIBA,
