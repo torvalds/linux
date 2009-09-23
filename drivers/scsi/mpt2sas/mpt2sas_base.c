@@ -3545,11 +3545,11 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		return r;
 
 	pci_set_drvdata(ioc->pdev, ioc->shost);
-	r = _base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
+	r = _base_get_ioc_facts(ioc, CAN_SLEEP);
 	if (r)
 		goto out_free_resources;
 
-	r = _base_get_ioc_facts(ioc, CAN_SLEEP);
+	r = _base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
 	if (r)
 		goto out_free_resources;
 
