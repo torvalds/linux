@@ -1109,13 +1109,13 @@ static void usbtmc_disconnect(struct usb_interface *intf)
 	kref_put(&data->kref, usbtmc_delete);
 }
 
-static int usbtmc_suspend (struct usb_interface *intf, pm_message_t message)
+static int usbtmc_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	/* this driver does not have pending URBs */
 	return 0;
 }
 
-static int usbtmc_resume (struct usb_interface *intf)
+static int usbtmc_resume(struct usb_interface *intf)
 {
 	return 0;
 }
