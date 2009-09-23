@@ -19,7 +19,7 @@
 #include <asm/bfin-global.h>
 
 static spinlock_t dma_page_lock;
-static unsigned int *dma_page;
+static unsigned long *dma_page;
 static unsigned int dma_pages;
 static unsigned long dma_base;
 static unsigned long dma_size;
@@ -30,7 +30,7 @@ void dma_alloc_init(unsigned long start, unsigned long end)
 	spin_lock_init(&dma_page_lock);
 	dma_initialized = 0;
 
-	dma_page = (unsigned int *)__get_free_page(GFP_KERNEL);
+	dma_page = (unsigned long *)__get_free_page(GFP_KERNEL);
 	memset(dma_page, 0, PAGE_SIZE);
 	dma_base = PAGE_ALIGN(start);
 	dma_size = PAGE_ALIGN(end) - PAGE_ALIGN(start);
@@ -58,10 +58,11 @@ static unsigned long __alloc_dma_pages(unsigned int pages)
 	spin_lock_irqsave(&dma_page_lock, flags);
 
 	for (i = 0; i < dma_pages;) {
-		if (dma_page[i++] == 0) {
+		if (test_bit(i++, dma_page) == 0) {
 			if (++count == pages) {
 				while (count--)
-					dma_page[--i] = 1;
+					__set_bit(--i, dma_page);
+
 				ret = dma_base + (i << PAGE_SHIFT);
 				break;
 			}
@@ -84,9 +85,9 @@ static void __free_dma_pages(unsigned long addr, unsigned int pages)
 	}
 
 	spin_lock_irqsave(&dma_page_lock, flags);
-	for (i = page; i < page + pages; i++) {
-		dma_page[i] = 0;
-	}
+	for (i = page; i < page + pages; i++)
+		__clear_bit(i, dma_page);
+
 	spin_unlock_irqrestore(&dma_page_lock, flags);
 }
 
