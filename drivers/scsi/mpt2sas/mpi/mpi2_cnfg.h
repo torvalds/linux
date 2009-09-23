@@ -348,6 +348,14 @@ typedef struct _MPI2_CONFIG_REPLY
 #define MPI2_MFGPAGE_DEVID_SAS2108_3                (0x0077)
 #define MPI2_MFGPAGE_DEVID_SAS2116_1                (0x0064)
 #define MPI2_MFGPAGE_DEVID_SAS2116_2                (0x0065)
+#define MPI2_MFGPAGE_DEVID_SAS2208_1                (0x0080)
+#define MPI2_MFGPAGE_DEVID_SAS2208_2                (0x0081)
+#define MPI2_MFGPAGE_DEVID_SAS2208_3                (0x0082)
+#define MPI2_MFGPAGE_DEVID_SAS2208_4                (0x0083)
+#define MPI2_MFGPAGE_DEVID_SAS2208_5                (0x0084)
+#define MPI2_MFGPAGE_DEVID_SAS2208_6                (0x0085)
+#define MPI2_MFGPAGE_DEVID_SAS2208_7                (0x0086)
+#define MPI2_MFGPAGE_DEVID_SAS2208_8                (0x0087)
 
 
 /* Manufacturing Page 0 */
