@@ -240,6 +240,8 @@ struct mm_struct {
 
 	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
 
+	struct linux_binfmt *binfmt;
+
 	cpumask_t cpu_vm_mask;
 
 	/* Architecture-specific MM context */

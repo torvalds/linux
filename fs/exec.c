@@ -1397,10 +1397,12 @@ out_ret:
 
 void set_binfmt(struct linux_binfmt *new)
 {
-	if (current->binfmt)
-		module_put(current->binfmt->module);
+	struct mm_struct *mm = current->mm;
 
-	current->binfmt = new;
+	if (mm->binfmt)
+		module_put(mm->binfmt->module);
+
+	mm->binfmt = new;
 	if (new)
 		__module_get(new->module);
 }
@@ -1770,7 +1772,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 
 	audit_core_dumps(signr);
 
-	binfmt = current->binfmt;
+	binfmt = mm->binfmt;
 	if (!binfmt || !binfmt->core_dump)
 		goto fail;
 
