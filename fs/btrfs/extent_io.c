@@ -495,11 +495,11 @@ again:
 	if (cached_state) {
 		cached = *cached_state;
 		*cached_state = NULL;
-		if (cached->tree && cached->start == start) {
+		cached_state = NULL;
+		if (cached && cached->tree && cached->start == start) {
 			atomic_dec(&cached->refs);
 			state = cached;
-			last_end = state->end;
-			goto found;
+			goto hit_next;
 		}
 		free_extent_state(cached);
 	}
@@ -547,8 +547,6 @@ hit_next:
 			if (last_end == (u64)-1)
 				goto out;
 			start = last_end + 1;
-		} else {
-			start = state->start;
 		}
 		goto search_again;
 	}
@@ -566,16 +564,18 @@ hit_next:
 
 		if (wake)
 			wake_up(&state->wq);
+
 		set |= clear_state_bit(tree, prealloc, bits,
 				       wake, delete);
 		prealloc = NULL;
 		goto out;
 	}
-found:
+
 	if (state->end < end && prealloc && !need_resched())
 		next_node = rb_next(&state->rb_node);
 	else
 		next_node = NULL;
+
 	set |= clear_state_bit(tree, state, bits, wake, delete);
 	if (last_end == (u64)-1)
 		goto out;
@@ -712,6 +712,7 @@ static int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int err = 0;
 	u64 last_start;
 	u64 last_end;
+
 again:
 	if (!prealloc && (mask & __GFP_WAIT)) {
 		prealloc = alloc_extent_state(mask);
@@ -756,6 +757,7 @@ hit_next:
 			err = -EEXIST;
 			goto out;
 		}
+
 		set_state_bits(tree, state, bits);
 		cache_state(state, cached_state);
 		merge_state(tree, state);
@@ -809,8 +811,6 @@ hit_next:
 			if (last_end == (u64)-1)
 				goto out;
 			start = last_end + 1;
-		} else {
-			start = state->start;
 		}
 		goto search_again;
 	}
