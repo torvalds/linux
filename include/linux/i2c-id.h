@@ -28,17 +28,6 @@
    identify a legacy client. If you don't need them, just don't set them. */
 
 /*
- * ---- Driver types -----------------------------------------------------
- */
-
-#define I2C_DRIVERID_MSP3400	 1
-#define I2C_DRIVERID_TUNER	 2
-#define I2C_DRIVERID_TDA7432	27	/* Stereo sound processor	*/
-#define I2C_DRIVERID_TVAUDIO    29      /* Generic TV sound driver      */
-#define I2C_DRIVERID_SAA711X	73	/* saa711x video encoders	*/
-#define I2C_DRIVERID_INFRARED	75	/* I2C InfraRed on Video boards */
-
-/*
  * ---- Adapter types ----------------------------------------------------
  */
 

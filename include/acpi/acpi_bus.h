@@ -30,8 +30,6 @@
 
 #include <acpi/acpi.h>
 
-#define PREFIX			"ACPI: "
-
 /* TBD: Make dynamic */
 #define ACPI_MAX_HANDLES	10
 struct acpi_handle_list {
@@ -89,7 +87,6 @@ struct acpi_device;
 typedef int (*acpi_op_add) (struct acpi_device * device);
 typedef int (*acpi_op_remove) (struct acpi_device * device, int type);
 typedef int (*acpi_op_start) (struct acpi_device * device);
-typedef int (*acpi_op_stop) (struct acpi_device * device, int type);
 typedef int (*acpi_op_suspend) (struct acpi_device * device,
 				pm_message_t state);
 typedef int (*acpi_op_resume) (struct acpi_device * device);
@@ -106,7 +103,6 @@ struct acpi_device_ops {
 	acpi_op_add add;
 	acpi_op_remove remove;
 	acpi_op_start start;
-	acpi_op_stop stop;
 	acpi_op_suspend suspend;
 	acpi_op_resume resume;
 	acpi_op_bind bind;
@@ -173,17 +169,15 @@ struct acpi_device_dir {
 
 typedef char acpi_bus_id[8];
 typedef unsigned long acpi_bus_address;
-typedef char acpi_hardware_id[15];
-typedef char acpi_unique_id[9];
 typedef char acpi_device_name[40];
 typedef char acpi_device_class[20];
 
 struct acpi_device_pnp {
 	acpi_bus_id bus_id;	/* Object name */
 	acpi_bus_address bus_address;	/* _ADR */
-	acpi_hardware_id hardware_id;	/* _HID */
-	struct acpi_compatible_id_list *cid_list;	/* _CIDs */
-	acpi_unique_id unique_id;	/* _UID */
+	char *hardware_id;	/* _HID */
+	struct acpica_device_id_list *cid_list;	/* _CIDs */
+	char *unique_id;	/* _UID */
 	acpi_device_name device_name;	/* Driver-determined */
 	acpi_device_class device_class;	/*        "          */
 };
@@ -314,7 +308,7 @@ struct acpi_bus_event {
 
 extern struct kobject *acpi_kobj;
 extern int acpi_bus_generate_netlink_event(const char*, const char*, u8, int);
-void acpi_bus_private_data_handler(acpi_handle, u32, void *);
+void acpi_bus_private_data_handler(acpi_handle, void *);
 int acpi_bus_get_private_data(acpi_handle, void **);
 extern int acpi_notifier_call_chain(struct acpi_device *, u32, u32);
 extern int register_acpi_notifier(struct notifier_block *);
@@ -327,7 +321,7 @@ extern void unregister_acpi_bus_notifier(struct notifier_block *nb);
  */
 
 int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
-void acpi_bus_data_handler(acpi_handle handle, u32 function, void *context);
+void acpi_bus_data_handler(acpi_handle handle, void *context);
 int acpi_bus_get_status(struct acpi_device *device);
 int acpi_bus_get_power(acpi_handle handle, int *state);
 int acpi_bus_set_power(acpi_handle handle, int state);
@@ -356,7 +350,6 @@ void acpi_remove_dir(struct acpi_device *);
 /*
  * Bind physical devices with ACPI devices
  */
-#include <linux/device.h>
 struct acpi_bus_type {
 	struct list_head list;
 	struct bus_type *bus;

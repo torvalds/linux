@@ -1731,7 +1731,7 @@ static int __init pxa2xx_spi_init(void)
 {
 	return platform_driver_probe(&driver, pxa2xx_spi_probe);
 }
-module_init(pxa2xx_spi_init);
+subsys_initcall(pxa2xx_spi_init);
 
 static void __exit pxa2xx_spi_exit(void)
 {

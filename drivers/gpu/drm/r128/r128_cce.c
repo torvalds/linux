@@ -29,6 +29,9 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
+#include <linux/firmware.h>
+#include <linux/platform_device.h>
+
 #include "drmP.h"
 #include "drm.h"
 #include "r128_drm.h"
@@ -36,50 +39,9 @@
 
 #define R128_FIFO_DEBUG		0
 
-/* CCE microcode (from ATI) */
-static u32 r128_cce_microcode[] = {
-	0, 276838400, 0, 268449792, 2, 142, 2, 145, 0, 1076765731, 0,
-	1617039951, 0, 774592877, 0, 1987540286, 0, 2307490946U, 0,
-	599558925, 0, 589505315, 0, 596487092, 0, 589505315, 1,
-	11544576, 1, 206848, 1, 311296, 1, 198656, 2, 912273422, 11,
-	262144, 0, 0, 1, 33559837, 1, 7438, 1, 14809, 1, 6615, 12, 28,
-	1, 6614, 12, 28, 2, 23, 11, 18874368, 0, 16790922, 1, 409600, 9,
-	30, 1, 147854772, 16, 420483072, 3, 8192, 0, 10240, 1, 198656,
-	1, 15630, 1, 51200, 10, 34858, 9, 42, 1, 33559823, 2, 10276, 1,
-	15717, 1, 15718, 2, 43, 1, 15936948, 1, 570480831, 1, 14715071,
-	12, 322123831, 1, 33953125, 12, 55, 1, 33559908, 1, 15718, 2,
-	46, 4, 2099258, 1, 526336, 1, 442623, 4, 4194365, 1, 509952, 1,
-	459007, 3, 0, 12, 92, 2, 46, 12, 176, 1, 15734, 1, 206848, 1,
-	18432, 1, 133120, 1, 100670734, 1, 149504, 1, 165888, 1,
-	15975928, 1, 1048576, 6, 3145806, 1, 15715, 16, 2150645232U, 2,
-	268449859, 2, 10307, 12, 176, 1, 15734, 1, 15735, 1, 15630, 1,
-	15631, 1, 5253120, 6, 3145810, 16, 2150645232U, 1, 15864, 2, 82,
-	1, 343310, 1, 1064207, 2, 3145813, 1, 15728, 1, 7817, 1, 15729,
-	3, 15730, 12, 92, 2, 98, 1, 16168, 1, 16167, 1, 16002, 1, 16008,
-	1, 15974, 1, 15975, 1, 15990, 1, 15976, 1, 15977, 1, 15980, 0,
-	15981, 1, 10240, 1, 5253120, 1, 15720, 1, 198656, 6, 110, 1,
-	180224, 1, 103824738, 2, 112, 2, 3145839, 0, 536885440, 1,
-	114880, 14, 125, 12, 206975, 1, 33559995, 12, 198784, 0,
-	33570236, 1, 15803, 0, 15804, 3, 294912, 1, 294912, 3, 442370,
-	1, 11544576, 0, 811612160, 1, 12593152, 1, 11536384, 1,
-	14024704, 7, 310382726, 0, 10240, 1, 14796, 1, 14797, 1, 14793,
-	1, 14794, 0, 14795, 1, 268679168, 1, 9437184, 1, 268449792, 1,
-	198656, 1, 9452827, 1, 1075854602, 1, 1075854603, 1, 557056, 1,
-	114880, 14, 159, 12, 198784, 1, 1109409213, 12, 198783, 1,
-	1107312059, 12, 198784, 1, 1109409212, 2, 162, 1, 1075854781, 1,
-	1073757627, 1, 1075854780, 1, 540672, 1, 10485760, 6, 3145894,
-	16, 274741248, 9, 168, 3, 4194304, 3, 4209949, 0, 0, 0, 256, 14,
-	174, 1, 114857, 1, 33560007, 12, 176, 0, 10240, 1, 114858, 1,
-	33560018, 1, 114857, 3, 33560007, 1, 16008, 1, 114874, 1,
-	33560360, 1, 114875, 1, 33560154, 0, 15963, 0, 256, 0, 4096, 1,
-	409611, 9, 188, 0, 10240, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
+#define FIRMWARE_NAME		"r128/r128_cce.bin"
+
+MODULE_FIRMWARE(FIRMWARE_NAME);
 
 static int R128_READ_PLL(struct drm_device * dev, int addr)
 {
@@ -176,20 +138,50 @@ static int r128_do_wait_for_idle(drm_r128_private_t * dev_priv)
  */
 
 /* Load the microcode for the CCE */
-static void r128_cce_load_microcode(drm_r128_private_t * dev_priv)
+static int r128_cce_load_microcode(drm_r128_private_t *dev_priv)
 {
-	int i;
+	struct platform_device *pdev;
+	const struct firmware *fw;
+	const __be32 *fw_data;
+	int rc, i;
 
 	DRM_DEBUG("\n");
 
+	pdev = platform_device_register_simple("r128_cce", 0, NULL, 0);
+	if (IS_ERR(pdev)) {
+		printk(KERN_ERR "r128_cce: Failed to register firmware\n");
+		return PTR_ERR(pdev);
+	}
+	rc = request_firmware(&fw, FIRMWARE_NAME, &pdev->dev);
+	platform_device_unregister(pdev);
+	if (rc) {
+		printk(KERN_ERR "r128_cce: Failed to load firmware \"%s\"\n",
+		       FIRMWARE_NAME);
+		return rc;
+	}
+
+	if (fw->size != 256 * 8) {
+		printk(KERN_ERR
+		       "r128_cce: Bogus length %zu in firmware \"%s\"\n",
+		       fw->size, FIRMWARE_NAME);
+		rc = -EINVAL;
+		goto out_release;
+	}
+
 	r128_do_wait_for_idle(dev_priv);
 
+	fw_data = (const __be32 *)fw->data;
 	R128_WRITE(R128_PM4_MICROCODE_ADDR, 0);
 	for (i = 0; i < 256; i++) {
-		R128_WRITE(R128_PM4_MICROCODE_DATAH, r128_cce_microcode[i * 2]);
+		R128_WRITE(R128_PM4_MICROCODE_DATAH,
+			   be32_to_cpup(&fw_data[i * 2]));
 		R128_WRITE(R128_PM4_MICROCODE_DATAL,
-			   r128_cce_microcode[i * 2 + 1]);
+			   be32_to_cpup(&fw_data[i * 2 + 1]));
 	}
+
+out_release:
+	release_firmware(fw);
+	return rc;
 }
 
 /* Flush any pending commands to the CCE.  This should only be used just
@@ -350,8 +342,14 @@ static void r128_cce_init_ring_buffer(struct drm_device * dev,
 static int r128_do_init_cce(struct drm_device * dev, drm_r128_init_t * init)
 {
 	drm_r128_private_t *dev_priv;
+	int rc;
 
 	DRM_DEBUG("\n");
+
+	if (dev->dev_private) {
+		DRM_DEBUG("called when already initialized\n");
+		return -EINVAL;
+	}
 
 	dev_priv = kzalloc(sizeof(drm_r128_private_t), GFP_KERNEL);
 	if (dev_priv == NULL)
@@ -575,13 +573,18 @@ static int r128_do_init_cce(struct drm_device * dev, drm_r128_init_t * init)
 #endif
 
 	r128_cce_init_ring_buffer(dev, dev_priv);
-	r128_cce_load_microcode(dev_priv);
+	rc = r128_cce_load_microcode(dev_priv);
 
 	dev->dev_private = (void *)dev_priv;
 
 	r128_do_engine_reset(dev);
 
-	return 0;
+	if (rc) {
+		DRM_ERROR("Failed to load firmware!\n");
+		r128_do_cleanup_cce(dev);
+	}
+
+	return rc;
 }
 
 int r128_do_cleanup_cce(struct drm_device * dev)
@@ -649,6 +652,8 @@ int r128_cce_start(struct drm_device *dev, void *data, struct drm_file *file_pri
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
+
 	if (dev_priv->cce_running || dev_priv->cce_mode == R128_PM4_NONPM4) {
 		DRM_DEBUG("while CCE running\n");
 		return 0;
@@ -670,6 +675,8 @@ int r128_cce_stop(struct drm_device *dev, void *data, struct drm_file *file_priv
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
+
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	/* Flush any pending CCE commands.  This ensures any outstanding
 	 * commands are exectuted by the engine before we turn it off.
@@ -708,10 +715,7 @@ int r128_cce_reset(struct drm_device *dev, void *data, struct drm_file *file_pri
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	if (!dev_priv) {
-		DRM_DEBUG("called before init done\n");
-		return -EINVAL;
-	}
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	r128_do_cce_reset(dev_priv);
 
@@ -728,6 +732,8 @@ int r128_cce_idle(struct drm_device *dev, void *data, struct drm_file *file_priv
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
+	DEV_INIT_TEST_WITH_RETURN(dev_priv);
+
 	if (dev_priv->cce_running) {
 		r128_do_cce_flush(dev_priv);
 	}
@@ -740,6 +746,8 @@ int r128_engine_reset(struct drm_device *dev, void *data, struct drm_file *file_
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
+
+	DEV_INIT_TEST_WITH_RETURN(dev->dev_private);
 
 	return r128_do_engine_reset(dev);
 }

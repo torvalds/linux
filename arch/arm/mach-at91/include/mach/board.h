@@ -37,6 +37,7 @@
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
+#include <linux/atmel-mci.h>
 #include <sound/atmel-ac97c.h>
 
  /* USB Device */
@@ -64,6 +65,7 @@ struct at91_cf_data {
 extern void __init at91_add_device_cf(struct at91_cf_data *data);
 
  /* MMC / SD */
+  /* at91_mci platform config */
 struct at91_mmc_data {
 	u8		det_pin;	/* card detect IRQ */
 	unsigned	slot_b:1;	/* uses Slot B */
@@ -72,6 +74,9 @@ struct at91_mmc_data {
 	u8		vcc_pin;	/* power switching (high == on) */
 };
 extern void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data);
+
+  /* atmel-mci platform config */
+extern void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data);
 
  /* Ethernet (EMAC & MACB) */
 struct at91_eth_data {

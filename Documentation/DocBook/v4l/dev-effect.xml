@@ -1,0 +1,25 @@
+  <title>Effect Devices Interface</title>
+
+  <note>
+    <title>Suspended</title>
+
+    <para>This interface has been be suspended from the V4L2 API
+implemented in Linux 2.6 until we have more experience with effect
+device interfaces.</para>
+  </note>
+
+  <para>A V4L2 video effect device can do image effects, filtering, or
+combine two or more images or image streams. For example video
+transitions or wipes. Applications send data to be processed and
+receive the result data either with &func-read; and &func-write;
+functions, or through the streaming I/O mechanism.</para>
+
+  <para>[to do]</para>
+
+  <!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+  -->

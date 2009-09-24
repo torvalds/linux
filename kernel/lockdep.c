@@ -578,6 +578,9 @@ static int static_obj(void *obj)
 	if ((addr >= start) && (addr < end))
 		return 1;
 
+	if (arch_is_kernel_data(addr))
+		return 1;
+
 #ifdef CONFIG_SMP
 	/*
 	 * percpu var?

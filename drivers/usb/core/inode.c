@@ -48,7 +48,6 @@
 #define USBFS_DEFAULT_BUSMODE (S_IXUGO | S_IRUGO)
 #define USBFS_DEFAULT_LISTMODE S_IRUGO
 
-static struct super_operations usbfs_ops;
 static const struct file_operations default_file_operations;
 static struct vfsmount *usbfs_mount;
 static int usbfs_mount_count;	/* = 0 */
@@ -449,7 +448,7 @@ static const struct file_operations default_file_operations = {
 	.llseek =	default_file_lseek,
 };
 
-static struct super_operations usbfs_ops = {
+static const struct super_operations usbfs_ops = {
 	.statfs =	simple_statfs,
 	.drop_inode =	generic_delete_inode,
 	.remount_fs =	remount,

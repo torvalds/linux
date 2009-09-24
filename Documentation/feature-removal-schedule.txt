@@ -354,14 +354,6 @@ Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
 
 ---------------------------
 
-What:	fscher and fscpos drivers
-When:	June 2009
-Why:	Deprecated by the new fschmd driver.
-Who:	Hans de Goede <hdegoede@redhat.com>
-	Jean Delvare <khali@linux-fr.org>
-
----------------------------
-
 What:	sysfs ui for changing p4-clockmod parameters
 When:	September 2009
 Why:	See commits 129f8ae9b1b5be94517da76009ea956e89104ce8 and

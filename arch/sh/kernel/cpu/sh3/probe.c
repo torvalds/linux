@@ -107,5 +107,7 @@ int __uses_jump_to_uncached detect_cpu_and_cache_system(void)
 	boot_cpu_data.dcache.flags |= SH_CACHE_COMBINED;
 	boot_cpu_data.icache = boot_cpu_data.dcache;
 
+	boot_cpu_data.family = CPU_FAMILY_SH3;
+
 	return 0;
 }

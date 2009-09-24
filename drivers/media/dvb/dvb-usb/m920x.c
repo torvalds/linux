@@ -337,6 +337,8 @@ static int m920x_firmware_download(struct usb_device *udev, const struct firmwar
 	int i, pass, ret = 0;
 
 	buff = kmalloc(65536, GFP_KERNEL);
+	if (buff == NULL)
+		return -ENOMEM;
 
 	if ((ret = m920x_read(udev, M9206_FILTER, 0x0, 0x8000, read, 4)) != 0)
 		goto done;

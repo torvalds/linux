@@ -53,7 +53,7 @@
 #include <linux/posix-timers.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -192,6 +192,8 @@ u64 __cputime_clockt_factor;
 EXPORT_SYMBOL(__cputime_clockt_factor);
 DEFINE_PER_CPU(unsigned long, cputime_last_delta);
 DEFINE_PER_CPU(unsigned long, cputime_scaled_last_delta);
+
+cputime_t cputime_one_jiffy;
 
 static void calc_cputime_factors(void)
 {
@@ -501,6 +503,7 @@ static int __init iSeries_tb_recal(void)
 				tb_to_xs = divres.result_low;
 				vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
 				vdso_data->tb_to_xs = tb_to_xs;
+				setup_cputime_one_jiffy();
 			}
 			else {
 				printk( "Titan recalibrate: FAILED (difference > 4 percent)\n"
@@ -527,25 +530,25 @@ void __init iSeries_time_init_early(void)
 }
 #endif /* CONFIG_PPC_ISERIES */
 
-#if defined(CONFIG_PERF_COUNTERS) && defined(CONFIG_PPC32)
-DEFINE_PER_CPU(u8, perf_counter_pending);
+#if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_PPC32)
+DEFINE_PER_CPU(u8, perf_event_pending);
 
-void set_perf_counter_pending(void)
+void set_perf_event_pending(void)
 {
-	get_cpu_var(perf_counter_pending) = 1;
+	get_cpu_var(perf_event_pending) = 1;
 	set_dec(1);
-	put_cpu_var(perf_counter_pending);
+	put_cpu_var(perf_event_pending);
 }
 
-#define test_perf_counter_pending()	__get_cpu_var(perf_counter_pending)
-#define clear_perf_counter_pending()	__get_cpu_var(perf_counter_pending) = 0
+#define test_perf_event_pending()	__get_cpu_var(perf_event_pending)
+#define clear_perf_event_pending()	__get_cpu_var(perf_event_pending) = 0
 
-#else  /* CONFIG_PERF_COUNTERS && CONFIG_PPC32 */
+#else  /* CONFIG_PERF_EVENTS && CONFIG_PPC32 */
 
-#define test_perf_counter_pending()	0
-#define clear_perf_counter_pending()
+#define test_perf_event_pending()	0
+#define clear_perf_event_pending()
 
-#endif /* CONFIG_PERF_COUNTERS && CONFIG_PPC32 */
+#endif /* CONFIG_PERF_EVENTS && CONFIG_PPC32 */
 
 /*
  * For iSeries shared processors, we have to let the hypervisor
@@ -573,9 +576,9 @@ void timer_interrupt(struct pt_regs * regs)
 	set_dec(DECREMENTER_MAX);
 
 #ifdef CONFIG_PPC32
-	if (test_perf_counter_pending()) {
-		clear_perf_counter_pending();
-		perf_counter_do_pending();
+	if (test_perf_event_pending()) {
+		clear_perf_event_pending();
+		perf_event_do_pending();
 	}
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
 		do_IRQ(regs);
@@ -774,11 +777,12 @@ int update_persistent_clock(struct timespec now)
 	return ppc_md.set_rtc_time(&tm);
 }
 
-unsigned long read_persistent_clock(void)
+void read_persistent_clock(struct timespec *ts)
 {
 	struct rtc_time tm;
 	static int first = 1;
 
+	ts->tv_nsec = 0;
 	/* XXX this is a litle fragile but will work okay in the short term */
 	if (first) {
 		first = 0;
@@ -786,14 +790,18 @@ unsigned long read_persistent_clock(void)
 			timezone_offset = ppc_md.time_init();
 
 		/* get_boot_time() isn't guaranteed to be safe to call late */
-		if (ppc_md.get_boot_time)
-			return ppc_md.get_boot_time() -timezone_offset;
+		if (ppc_md.get_boot_time) {
+			ts->tv_sec = ppc_md.get_boot_time() - timezone_offset;
+			return;
+		}
 	}
-	if (!ppc_md.get_rtc_time)
-		return 0;
+	if (!ppc_md.get_rtc_time) {
+		ts->tv_sec = 0;
+		return;
+	}
 	ppc_md.get_rtc_time(&tm);
-	return mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
-		      tm.tm_hour, tm.tm_min, tm.tm_sec);
+	ts->tv_sec = mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+			    tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 
 /* clocksource code */
@@ -955,6 +963,7 @@ void __init time_init(void)
 	tb_ticks_per_usec = ppc_tb_freq / 1000000;
 	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
 	calc_cputime_factors();
+	setup_cputime_one_jiffy();
 
 	/*
 	 * Calculate the length of each tick in ns.  It will not be

@@ -25,7 +25,7 @@ config SPARC
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select RTC_CLASS
 	select RTC_DRV_M48T59
-	select HAVE_PERF_COUNTERS
+	select HAVE_PERF_EVENTS
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 
@@ -47,7 +47,7 @@ config SPARC64
 	select RTC_DRV_BQ4802
 	select RTC_DRV_SUN4V
 	select RTC_DRV_STARFIRE
-	select HAVE_PERF_COUNTERS
+	select HAVE_PERF_EVENTS
 
 config ARCH_DEFCONFIG
 	string

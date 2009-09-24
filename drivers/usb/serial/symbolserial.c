@@ -124,8 +124,7 @@ exit:
 	spin_unlock(&priv->lock);
 }
 
-static int symbol_open(struct tty_struct *tty, struct usb_serial_port *port,
-			struct file *filp)
+static int symbol_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct symbol_private *priv = usb_get_serial_data(port->serial);
 	unsigned long flags;

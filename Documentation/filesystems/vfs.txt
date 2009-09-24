@@ -536,6 +536,7 @@ struct address_space_operations {
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
 	int (*launder_page) (struct page *);
+	int (*error_remove_page) (struct mapping *mapping, struct page *page);
 };
 
   writepage: called by the VM to write a dirty page to backing store.
@@ -693,6 +694,12 @@ struct address_space_operations {
   launder_page: Called before freeing a page - it writes back the dirty page. To
   	prevent redirtying the page, it is kept locked during the whole
 	operation.
+
+  error_remove_page: normally set to generic_error_remove_page if truncation
+	is ok for this address space. Used for memory failure handling.
+	Setting this implies you deal with pages going away under you,
+	unless you have them locked or reference counts increased.
+
 
 The File Object
 ===============

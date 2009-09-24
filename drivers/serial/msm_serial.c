@@ -88,7 +88,7 @@ static void msm_enable_ms(struct uart_port *port)
 
 static void handle_rx(struct uart_port *port)
 {
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	unsigned int sr;
 
 	/*
@@ -136,7 +136,7 @@ static void handle_rx(struct uart_port *port)
 
 static void handle_tx(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 	struct msm_port *msm_port = UART_TO_MSM(port);
 	int sent_tx;
 
@@ -169,7 +169,7 @@ static void handle_delta_cts(struct uart_port *port)
 {
 	msm_write(port, UART_CR_CMD_RESET_CTS, UART_CR);
 	port->icount.cts++;
-	wake_up_interruptible(&port->info->delta_msr_wait);
+	wake_up_interruptible(&port->state->port.delta_msr_wait);
 }
 
 static irqreturn_t msm_irq(int irq, void *dev_id)

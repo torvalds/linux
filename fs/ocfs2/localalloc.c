@@ -297,8 +297,8 @@ void ocfs2_shutdown_local_alloc(struct ocfs2_super *osb)
 	}
 	memcpy(alloc_copy, alloc, bh->b_size);
 
-	status = ocfs2_journal_access_di(handle, local_alloc_inode, bh,
-					 OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_di(handle, INODE_CACHE(local_alloc_inode),
+					 bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_commit;
@@ -392,7 +392,7 @@ int ocfs2_begin_local_alloc_recovery(struct ocfs2_super *osb,
 	ocfs2_clear_local_alloc(alloc);
 
 	ocfs2_compute_meta_ecc(osb->sb, alloc_bh->b_data, &alloc->i_check);
-	status = ocfs2_write_block(osb, alloc_bh, inode);
+	status = ocfs2_write_block(osb, alloc_bh, INODE_CACHE(inode));
 	if (status < 0)
 		mlog_errno(status);
 
@@ -678,7 +678,8 @@ int ocfs2_claim_local_alloc_bits(struct ocfs2_super *osb,
 	 * delete bits from it! */
 	*num_bits = bits_wanted;
 
-	status = ocfs2_journal_access_di(handle, local_alloc_inode,
+	status = ocfs2_journal_access_di(handle,
+					 INODE_CACHE(local_alloc_inode),
 					 osb->local_alloc_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
@@ -1156,7 +1157,8 @@ static int ocfs2_local_alloc_slide_window(struct ocfs2_super *osb,
 	}
 	memcpy(alloc_copy, alloc, osb->local_alloc_bh->b_size);
 
-	status = ocfs2_journal_access_di(handle, local_alloc_inode,
+	status = ocfs2_journal_access_di(handle,
+					 INODE_CACHE(local_alloc_inode),
 					 osb->local_alloc_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {

@@ -18,6 +18,5 @@ EXPORT_SYMBOL(init_task);
  * If this is not aligned on a 8k boundry, then you should change code
  * in etrap.S which assumes it.
  */
-union thread_union init_thread_union
-	__attribute__((section (".data.init_task")))
-	= { INIT_THREAD_INFO(init_task) };
+union thread_union init_thread_union __init_task_data =
+	{ INIT_THREAD_INFO(init_task) };

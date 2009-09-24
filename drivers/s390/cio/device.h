@@ -74,6 +74,7 @@ dev_fsm_final_state(struct ccw_device *cdev)
 extern struct workqueue_struct *ccw_device_work;
 extern wait_queue_head_t ccw_device_init_wq;
 extern atomic_t ccw_device_init_count;
+int __init io_subchannel_init(void);
 
 void io_subchannel_recog_done(struct ccw_device *cdev);
 void io_subchannel_init_config(struct subchannel *sch);

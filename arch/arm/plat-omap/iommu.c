@@ -351,16 +351,14 @@ EXPORT_SYMBOL_GPL(flush_iotlb_all);
 
 #if defined(CONFIG_OMAP_IOMMU_DEBUG_MODULE)
 
-ssize_t iommu_dump_ctx(struct iommu *obj, char *buf)
+ssize_t iommu_dump_ctx(struct iommu *obj, char *buf, ssize_t bytes)
 {
-	ssize_t bytes;
-
 	if (!obj || !buf)
 		return -EINVAL;
 
 	clk_enable(obj->clk);
 
-	bytes = arch_iommu->dump_ctx(obj, buf);
+	bytes = arch_iommu->dump_ctx(obj, buf, bytes);
 
 	clk_disable(obj->clk);
 
@@ -368,7 +366,7 @@ ssize_t iommu_dump_ctx(struct iommu *obj, char *buf)
 }
 EXPORT_SYMBOL_GPL(iommu_dump_ctx);
 
-static int __dump_tlb_entries(struct iommu *obj, struct cr_regs *crs)
+static int __dump_tlb_entries(struct iommu *obj, struct cr_regs *crs, int num)
 {
 	int i;
 	struct iotlb_lock saved, l;
@@ -379,7 +377,7 @@ static int __dump_tlb_entries(struct iommu *obj, struct cr_regs *crs)
 	iotlb_lock_get(obj, &saved);
 	memcpy(&l, &saved, sizeof(saved));
 
-	for (i = 0; i < obj->nr_tlb_entries; i++) {
+	for (i = 0; i < num; i++) {
 		struct cr_regs tmp;
 
 		iotlb_lock_get(obj, &l);
@@ -402,18 +400,21 @@ static int __dump_tlb_entries(struct iommu *obj, struct cr_regs *crs)
  * @obj:	target iommu
  * @buf:	output buffer
  **/
-size_t dump_tlb_entries(struct iommu *obj, char *buf)
+size_t dump_tlb_entries(struct iommu *obj, char *buf, ssize_t bytes)
 {
-	int i, n;
+	int i, num;
 	struct cr_regs *cr;
 	char *p = buf;
 
-	cr = kcalloc(obj->nr_tlb_entries, sizeof(*cr), GFP_KERNEL);
+	num = bytes / sizeof(*cr);
+	num = min(obj->nr_tlb_entries, num);
+
+	cr = kcalloc(num, sizeof(*cr), GFP_KERNEL);
 	if (!cr)
 		return 0;
 
-	n = __dump_tlb_entries(obj, cr);
-	for (i = 0; i < n; i++)
+	num = __dump_tlb_entries(obj, cr, num);
+	for (i = 0; i < num; i++)
 		p += iotlb_dump_cr(obj, cr + i, p);
 	kfree(cr);
 

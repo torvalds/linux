@@ -42,6 +42,7 @@
 #include <signal.h>
 #include "linux/lguest_launcher.h"
 #include "linux/virtio_config.h"
+#include <linux/virtio_ids.h>
 #include "linux/virtio_net.h"
 #include "linux/virtio_blk.h"
 #include "linux/virtio_console.h"
@@ -132,6 +133,9 @@ struct device {
 
 	/* Is it operational */
 	bool running;
+
+	/* Does Guest want an intrrupt on empty? */
+	bool irq_on_empty;
 
 	/* Device-specific data. */
 	void *priv;
@@ -623,10 +627,13 @@ static void trigger_irq(struct virtqueue *vq)
 		return;
 	vq->pending_used = 0;
 
-	/* If they don't want an interrupt, don't send one, unless empty. */
-	if ((vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
-	    && lg_last_avail(vq) != vq->vring.avail->idx)
-		return;
+	/* If they don't want an interrupt, don't send one... */
+	if (vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT) {
+		/* ... unless they've asked us to force one on empty. */
+		if (!vq->dev->irq_on_empty
+		    || lg_last_avail(vq) != vq->vring.avail->idx)
+			return;
+	}
 
 	/* Send the Guest an interrupt tell them we used something up. */
 	if (write(lguest_fd, buf, sizeof(buf)) != 0)
@@ -1042,6 +1049,15 @@ static void create_thread(struct virtqueue *vq)
 	close(vq->eventfd);
 }
 
+static bool accepted_feature(struct device *dev, unsigned int bit)
+{
+	const u8 *features = get_feature_bits(dev) + dev->feature_len;
+
+	if (dev->feature_len < bit / CHAR_BIT)
+		return false;
+	return features[bit / CHAR_BIT] & (1 << (bit % CHAR_BIT));
+}
+
 static void start_device(struct device *dev)
 {
 	unsigned int i;
@@ -1054,6 +1070,8 @@ static void start_device(struct device *dev)
 	for (i = 0; i < dev->feature_len; i++)
 		verbose(" %02x", get_feature_bits(dev)
 			[dev->feature_len+i]);
+
+	dev->irq_on_empty = accepted_feature(dev, VIRTIO_F_NOTIFY_ON_EMPTY);
 
 	for (vq = dev->vq; vq; vq = vq->next) {
 		if (vq->service)

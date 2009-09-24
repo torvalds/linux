@@ -1,0 +1,213 @@
+<refentry id="vidioc-g-enc-index">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_G_ENC_INDEX</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_G_ENC_INDEX</refname>
+    <refpurpose>Get meta data about a compressed video stream</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_enc_idx *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_G_ENC_INDEX</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <note>
+      <title>Experimental</title>
+
+      <para>This is an <link linkend="experimental">experimental</link>
+interface and may change in the future.</para>
+    </note>
+
+    <para>The <constant>VIDIOC_G_ENC_INDEX</constant> ioctl provides
+meta data about a compressed video stream the same or another
+application currently reads from the driver, which is useful for
+random access into the stream without decoding it.</para>
+
+    <para>To read the data applications must call
+<constant>VIDIOC_G_ENC_INDEX</constant> with a pointer to a
+&v4l2-enc-idx;. On success the driver fills the
+<structfield>entry</structfield> array, stores the number of elements
+written in the <structfield>entries</structfield> field, and
+initializes the <structfield>entries_cap</structfield> field.</para>
+
+    <para>Each element of the <structfield>entry</structfield> array
+contains meta data about one picture. A
+<constant>VIDIOC_G_ENC_INDEX</constant> call reads up to
+<constant>V4L2_ENC_IDX_ENTRIES</constant> entries from a driver
+buffer, which can hold up to <structfield>entries_cap</structfield>
+entries. This number can be lower or higher than
+<constant>V4L2_ENC_IDX_ENTRIES</constant>, but not zero. When the
+application fails to read the meta data in time the oldest entries
+will be lost. When the buffer is empty or no capturing/encoding is in
+progress, <structfield>entries</structfield> will be zero.</para>
+
+    <para>Currently this ioctl is only defined for MPEG-2 program
+streams and video elementary streams.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-enc-idx">
+      <title>struct <structname>v4l2_enc_idx</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>entries</structfield></entry>
+	    <entry>The number of entries the driver stored in the
+<structfield>entry</structfield> array.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>entries_cap</structfield></entry>
+	    <entry>The number of entries the driver can
+buffer. Must be greater than zero.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry spanname="hspan">Reserved for future extensions.
+Drivers must set the array to zero.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-enc-idx-entry;</entry>
+	    <entry><structfield>entry</structfield>[<constant>V4L2_ENC_IDX_ENTRIES</constant>]</entry>
+	    <entry>Meta data about a compressed video stream. Each
+element of the array corresponds to one picture, sorted in ascending
+order by their <structfield>offset</structfield>.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="v4l2-enc-idx-entry">
+      <title>struct <structname>v4l2_enc_idx_entry</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u64</entry>
+	    <entry><structfield>offset</structfield></entry>
+	    <entry>The offset in bytes from the beginning of the
+compressed video stream to the beginning of this picture, that is a
+<wordasword>PES packet header</wordasword> as defined in <xref
+	    linkend="mpeg2part1" /> or a <wordasword>picture
+header</wordasword> as defined in <xref linkend="mpeg2part2" />. When
+the encoder is stopped, the driver resets the offset to zero.</entry>
+	  </row>
+	  <row>
+	    <entry>__u64</entry>
+	    <entry><structfield>pts</structfield></entry>
+	    <entry>The 33 bit <wordasword>Presentation Time
+Stamp</wordasword> of this picture as defined in <xref
+		linkend="mpeg2part1" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>length</structfield></entry>
+	    <entry>The length of this picture in bytes.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+	    <entry>Flags containing the coding type of this picture, see <xref
+		linkend="enc-idx-flags" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[2]</entry>
+	    <entry>Reserved for future extensions.
+Drivers must set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="enc-idx-flags">
+      <title>Index Entry Flags</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_ENC_IDX_FRAME_I</constant></entry>
+	    <entry>0x00</entry>
+	    <entry>This is an Intra-coded picture.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_ENC_IDX_FRAME_P</constant></entry>
+	    <entry>0x01</entry>
+	    <entry>This is a Predictive-coded picture.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_ENC_IDX_FRAME_B</constant></entry>
+	    <entry>0x02</entry>
+	    <entry>This is a Bidirectionally predictive-coded
+picture.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_ENC_IDX_FRAME_MASK</constant></entry>
+	    <entry>0x0F</entry>
+	    <entry><wordasword>AND</wordasword> the flags field with
+this mask to obtain the picture coding type.</entry>
+	  </row>
+       </tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The driver does not support this ioctl.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

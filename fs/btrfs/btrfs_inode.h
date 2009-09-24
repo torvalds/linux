@@ -138,6 +138,7 @@ struct btrfs_inode {
 	 * of these.
 	 */
 	unsigned ordered_data_close:1;
+	unsigned dummy_inode:1;
 
 	struct inode vfs_inode;
 };

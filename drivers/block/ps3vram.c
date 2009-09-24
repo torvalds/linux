@@ -88,7 +88,7 @@ struct ps3vram_priv {
 static int ps3vram_major;
 
 
-static struct block_device_operations ps3vram_fops = {
+static const struct block_device_operations ps3vram_fops = {
 	.owner		= THIS_MODULE,
 };
 

@@ -54,6 +54,10 @@ static int alt = EM28XX_PINOUT;
 module_param(alt, int, 0644);
 MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
+static unsigned int disable_vbi;
+module_param(disable_vbi, int, 0644);
+MODULE_PARM_DESC(disable_vbi, "disable vbi support");
+
 /* FIXME */
 #define em28xx_isocdbg(fmt, arg...) do {\
 	if (core_debug) \
@@ -648,9 +652,24 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 	return rc;
 }
 
+int em28xx_vbi_supported(struct em28xx *dev)
+{
+	/* Modprobe option to manually disable */
+	if (disable_vbi == 1)
+		return 0;
+
+	if (dev->chip_id == CHIP_ID_EM2860 ||
+	    dev->chip_id == CHIP_ID_EM2883)
+		return 1;
+
+	/* Version of em28xx that does not support VBI */
+	return 0;
+}
+
 int em28xx_set_outfmt(struct em28xx *dev)
 {
 	int ret;
+	u8 vinctrl;
 
 	ret = em28xx_write_reg_bits(dev, EM28XX_R27_OUTFMT,
 				dev->format->reg | 0x20, 0xff);
@@ -661,7 +680,16 @@ int em28xx_set_outfmt(struct em28xx *dev)
 	if (ret < 0)
 		return ret;
 
-	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, dev->vinctl);
+	vinctrl = dev->vinctl;
+	if (em28xx_vbi_supported(dev) == 1) {
+		vinctrl |= EM28XX_VINCTRL_VBI_RAW;
+		em28xx_write_reg(dev, EM28XX_R34_VBI_START_H, 0x00);
+		em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
+		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, 0xb4);
+		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, 0x0c);
+	}
+
+	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, vinctrl);
 }
 
 static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
@@ -732,7 +760,14 @@ int em28xx_resolution_set(struct em28xx *dev)
 
 
 	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
-	em28xx_capture_area_set(dev, 0, 0, width >> 2, height >> 2);
+
+	/* If we don't set the start position to 4 in VBI mode, we end up
+	   with line 21 being YUYV encoded instead of being in 8-bit
+	   greyscale */
+	if (em28xx_vbi_supported(dev) == 1)
+		em28xx_capture_area_set(dev, 0, 4, width >> 2, height >> 2);
+	else
+		em28xx_capture_area_set(dev, 0, 0, width >> 2, height >> 2);
 
 	return em28xx_scaler_set(dev, dev->hscale, dev->vscale);
 }
@@ -844,8 +879,7 @@ EXPORT_SYMBOL_GPL(em28xx_set_mode);
  */
 static void em28xx_irq_callback(struct urb *urb)
 {
-	struct em28xx_dmaqueue  *dma_q = urb->context;
-	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
+	struct em28xx *dev = urb->context;
 	int rc, i;
 
 	switch (urb->status) {
@@ -930,6 +964,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb))
 {
 	struct em28xx_dmaqueue *dma_q = &dev->vidq;
+	struct em28xx_dmaqueue *vbi_dma_q = &dev->vbiq;
 	int i;
 	int sb_size, pipe;
 	struct urb *urb;
@@ -959,7 +994,8 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 	}
 
 	dev->isoc_ctl.max_pkt_size = max_pkt_size;
-	dev->isoc_ctl.buf = NULL;
+	dev->isoc_ctl.vid_buf = NULL;
+	dev->isoc_ctl.vbi_buf = NULL;
 
 	sb_size = max_packets * dev->isoc_ctl.max_pkt_size;
 
@@ -994,7 +1030,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 
 		usb_fill_int_urb(urb, dev->udev, pipe,
 				 dev->isoc_ctl.transfer_buffer[i], sb_size,
-				 em28xx_irq_callback, dma_q, 1);
+				 em28xx_irq_callback, dev, 1);
 
 		urb->number_of_packets = max_packets;
 		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
@@ -1009,6 +1045,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 	}
 
 	init_waitqueue_head(&dma_q->wq);
+	init_waitqueue_head(&vbi_dma_q->wq);
 
 	em28xx_capture_start(dev, 1);
 
@@ -1094,7 +1131,7 @@ struct em28xx *em28xx_get_device(int minor,
 	list_for_each_entry(h, &em28xx_devlist, devlist) {
 		if (h->vdev->minor == minor)
 			dev = h;
-		if (h->vbi_dev->minor == minor) {
+		if (h->vbi_dev && h->vbi_dev->minor == minor) {
 			dev = h;
 			*fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
 		}

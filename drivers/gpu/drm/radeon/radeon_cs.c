@@ -145,7 +145,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		cdata = (uint32_t *)(unsigned long)user_chunk.chunk_data;
 
 		size = p->chunks[i].length_dw * sizeof(uint32_t);
-		p->chunks[i].kdata = kzalloc(size, GFP_KERNEL);
+		p->chunks[i].kdata = kmalloc(size, GFP_KERNEL);
 		if (p->chunks[i].kdata == NULL) {
 			return -ENOMEM;
 		}
@@ -185,6 +185,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 			mutex_unlock(&parser->rdev->ddev->struct_mutex);
 		}
 	}
+	kfree(parser->track);
 	kfree(parser->relocs);
 	kfree(parser->relocs_ptr);
 	for (i = 0; i < parser->nchunks; i++) {

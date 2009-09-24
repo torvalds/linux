@@ -259,7 +259,7 @@ static int ltc4215_probe(struct i2c_client *client,
 	mutex_init(&data->update_lock);
 
 	/* Initialize the LTC4215 chip */
-	/* TODO */
+	i2c_smbus_write_byte_data(client, LTC4215_FAULT, 0x00);
 
 	/* Register sysfs hooks */
 	ret = sysfs_create_group(&client->dev.kobj, &ltc4215_group);

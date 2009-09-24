@@ -78,14 +78,6 @@ struct pv_init_ops {
 	 */
 	unsigned (*patch)(u8 type, u16 clobber, void *insnbuf,
 			  unsigned long addr, unsigned len);
-
-	/* Basic arch-specific setup */
-	void (*arch_setup)(void);
-	char *(*memory_setup)(void);
-	void (*post_allocator_init)(void);
-
-	/* Print a banner to identify the environment */
-	void (*banner)(void);
 };
 
 
@@ -96,12 +88,6 @@ struct pv_lazy_ops {
 };
 
 struct pv_time_ops {
-	void (*time_init)(void);
-
-	/* Set and set time of day */
-	unsigned long (*get_wallclock)(void);
-	int (*set_wallclock)(unsigned long);
-
 	unsigned long long (*sched_clock)(void);
 	unsigned long (*get_tsc_khz)(void);
 };
@@ -203,8 +189,6 @@ struct pv_cpu_ops {
 };
 
 struct pv_irq_ops {
-	void (*init_IRQ)(void);
-
 	/*
 	 * Get/set interrupt state.  save_fl and restore_fl are only
 	 * expected to use X86_EFLAGS_IF; all other bits
@@ -229,9 +213,6 @@ struct pv_irq_ops {
 
 struct pv_apic_ops {
 #ifdef CONFIG_X86_LOCAL_APIC
-	void (*setup_boot_clock)(void);
-	void (*setup_secondary_clock)(void);
-
 	void (*startup_ipi_hook)(int phys_apicid,
 				 unsigned long start_eip,
 				 unsigned long start_esp);
@@ -239,15 +220,6 @@ struct pv_apic_ops {
 };
 
 struct pv_mmu_ops {
-	/*
-	 * Called before/after init_mm pagetable setup. setup_start
-	 * may reset %cr3, and may pre-install parts of the pagetable;
-	 * pagetable setup is expected to preserve any existing
-	 * mapping.
-	 */
-	void (*pagetable_setup_start)(pgd_t *pgd_base);
-	void (*pagetable_setup_done)(pgd_t *pgd_base);
-
 	unsigned long (*read_cr2)(void);
 	void (*write_cr2)(unsigned long);
 

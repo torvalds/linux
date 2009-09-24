@@ -2,7 +2,7 @@
 #include <trace/events/syscalls.h>
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <asm/syscall.h>
 
 #include "trace_output.h"
@@ -384,10 +384,13 @@ static int sys_prof_refcount_exit;
 
 static void prof_syscall_enter(struct pt_regs *regs, long id)
 {
-	struct syscall_trace_enter *rec;
 	struct syscall_metadata *sys_data;
+	struct syscall_trace_enter *rec;
+	unsigned long flags;
+	char *raw_data;
 	int syscall_nr;
 	int size;
+	int cpu;
 
 	syscall_nr = syscall_get_nr(current, regs);
 	if (!test_bit(syscall_nr, enabled_prof_enter_syscalls))
@@ -402,20 +405,38 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	size = ALIGN(size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
 
-	do {
-		char raw_data[size];
+	if (WARN_ONCE(size > FTRACE_MAX_PROFILE_SIZE,
+		      "profile buffer not large enough"))
+		return;
 
-		/* zero the dead bytes from align to not leak stack to user */
-		*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
+	/* Protect the per cpu buffer, begin the rcu read side */
+	local_irq_save(flags);
 
-		rec = (struct syscall_trace_enter *) raw_data;
-		tracing_generic_entry_update(&rec->ent, 0, 0);
-		rec->ent.type = sys_data->enter_id;
-		rec->nr = syscall_nr;
-		syscall_get_arguments(current, regs, 0, sys_data->nb_args,
-				       (unsigned long *)&rec->args);
-		perf_tpcounter_event(sys_data->enter_id, 0, 1, rec, size);
-	} while(0);
+	cpu = smp_processor_id();
+
+	if (in_nmi())
+		raw_data = rcu_dereference(trace_profile_buf_nmi);
+	else
+		raw_data = rcu_dereference(trace_profile_buf);
+
+	if (!raw_data)
+		goto end;
+
+	raw_data = per_cpu_ptr(raw_data, cpu);
+
+	/* zero the dead bytes from align to not leak stack to user */
+	*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
+
+	rec = (struct syscall_trace_enter *) raw_data;
+	tracing_generic_entry_update(&rec->ent, 0, 0);
+	rec->ent.type = sys_data->enter_id;
+	rec->nr = syscall_nr;
+	syscall_get_arguments(current, regs, 0, sys_data->nb_args,
+			       (unsigned long *)&rec->args);
+	perf_tp_event(sys_data->enter_id, 0, 1, rec, size);
+
+end:
+	local_irq_restore(flags);
 }
 
 int reg_prof_syscall_enter(char *name)
@@ -460,8 +481,12 @@ void unreg_prof_syscall_enter(char *name)
 static void prof_syscall_exit(struct pt_regs *regs, long ret)
 {
 	struct syscall_metadata *sys_data;
-	struct syscall_trace_exit rec;
+	struct syscall_trace_exit *rec;
+	unsigned long flags;
 	int syscall_nr;
+	char *raw_data;
+	int size;
+	int cpu;
 
 	syscall_nr = syscall_get_nr(current, regs);
 	if (!test_bit(syscall_nr, enabled_prof_exit_syscalls))
@@ -471,12 +496,46 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	if (!sys_data)
 		return;
 
-	tracing_generic_entry_update(&rec.ent, 0, 0);
-	rec.ent.type = sys_data->exit_id;
-	rec.nr = syscall_nr;
-	rec.ret = syscall_get_return_value(current, regs);
+	/* We can probably do that at build time */
+	size = ALIGN(sizeof(*rec) + sizeof(u32), sizeof(u64));
+	size -= sizeof(u32);
 
-	perf_tpcounter_event(sys_data->exit_id, 0, 1, &rec, sizeof(rec));
+	/*
+	 * Impossible, but be paranoid with the future
+	 * How to put this check outside runtime?
+	 */
+	if (WARN_ONCE(size > FTRACE_MAX_PROFILE_SIZE,
+		"exit event has grown above profile buffer size"))
+		return;
+
+	/* Protect the per cpu buffer, begin the rcu read side */
+	local_irq_save(flags);
+	cpu = smp_processor_id();
+
+	if (in_nmi())
+		raw_data = rcu_dereference(trace_profile_buf_nmi);
+	else
+		raw_data = rcu_dereference(trace_profile_buf);
+
+	if (!raw_data)
+		goto end;
+
+	raw_data = per_cpu_ptr(raw_data, cpu);
+
+	/* zero the dead bytes from align to not leak stack to user */
+	*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
+
+	rec = (struct syscall_trace_exit *)raw_data;
+
+	tracing_generic_entry_update(&rec->ent, 0, 0);
+	rec->ent.type = sys_data->exit_id;
+	rec->nr = syscall_nr;
+	rec->ret = syscall_get_return_value(current, regs);
+
+	perf_tp_event(sys_data->exit_id, 0, 1, rec, size);
+
+end:
+	local_irq_restore(flags);
 }
 
 int reg_prof_syscall_exit(char *name)

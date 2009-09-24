@@ -46,6 +46,8 @@
 #define PCI_DEVICE_ID_INTEL_Q35_IG          0x29B2
 #define PCI_DEVICE_ID_INTEL_Q33_HB          0x29D0
 #define PCI_DEVICE_ID_INTEL_Q33_IG          0x29D2
+#define PCI_DEVICE_ID_INTEL_B43_HB          0x2E40
+#define PCI_DEVICE_ID_INTEL_B43_IG          0x2E42
 #define PCI_DEVICE_ID_INTEL_GM45_HB         0x2A40
 #define PCI_DEVICE_ID_INTEL_GM45_IG         0x2A42
 #define PCI_DEVICE_ID_INTEL_IGD_E_HB        0x2E00
@@ -91,6 +93,7 @@
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G41_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_B43_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_D_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_MA_HB)
@@ -804,23 +807,39 @@ static void intel_i830_setup_flush(void)
 	if (!intel_private.i8xx_page)
 		return;
 
-	/* make page uncached */
-	map_page_into_agp(intel_private.i8xx_page);
-
 	intel_private.i8xx_flush_page = kmap(intel_private.i8xx_page);
 	if (!intel_private.i8xx_flush_page)
 		intel_i830_fini_flush();
 }
 
+static void
+do_wbinvd(void *null)
+{
+	wbinvd();
+}
+
+/* The chipset_flush interface needs to get data that has already been
+ * flushed out of the CPU all the way out to main memory, because the GPU
+ * doesn't snoop those buffers.
+ *
+ * The 8xx series doesn't have the same lovely interface for flushing the
+ * chipset write buffers that the later chips do. According to the 865
+ * specs, it's 64 octwords, or 1KB.  So, to get those previous things in
+ * that buffer out, we just fill 1KB and clflush it out, on the assumption
+ * that it'll push whatever was in there out.  It appears to work.
+ */
 static void intel_i830_chipset_flush(struct agp_bridge_data *bridge)
 {
 	unsigned int *pg = intel_private.i8xx_flush_page;
-	int i;
 
-	for (i = 0; i < 256; i += 2)
-		*(pg + i) = i;
+	memset(pg, 0, 1024);
 
-	wmb();
+	if (cpu_has_clflush) {
+		clflush_cache_range(pg, 1024);
+	} else {
+		if (on_each_cpu(do_wbinvd, NULL, 1) != 0)
+			printk(KERN_ERR "Timed out waiting for cache flush.\n");
+	}
 }
 
 /* The intel i830 automatically initializes the agp aperture during POST.
@@ -1341,6 +1360,7 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 	case PCI_DEVICE_ID_INTEL_Q45_HB:
 	case PCI_DEVICE_ID_INTEL_G45_HB:
 	case PCI_DEVICE_ID_INTEL_G41_HB:
+	case PCI_DEVICE_ID_INTEL_B43_HB:
 	case PCI_DEVICE_ID_INTEL_IGDNG_D_HB:
 	case PCI_DEVICE_ID_INTEL_IGDNG_M_HB:
 	case PCI_DEVICE_ID_INTEL_IGDNG_MA_HB:
@@ -2335,6 +2355,8 @@ static const struct intel_driver_description {
 	    "Q45/Q43", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_G45_HB, PCI_DEVICE_ID_INTEL_G45_IG, 0,
 	    "G45/G43", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_B43_HB, PCI_DEVICE_ID_INTEL_B43_IG, 0,
+	    "B43", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_G41_HB, PCI_DEVICE_ID_INTEL_G41_IG, 0,
 	    "G41", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IGDNG_D_HB, PCI_DEVICE_ID_INTEL_IGDNG_D_IG, 0,
@@ -2535,6 +2557,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_Q45_HB),
 	ID(PCI_DEVICE_ID_INTEL_G45_HB),
 	ID(PCI_DEVICE_ID_INTEL_G41_HB),
+	ID(PCI_DEVICE_ID_INTEL_B43_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_D_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_M_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_MA_HB),

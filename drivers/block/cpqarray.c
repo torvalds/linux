@@ -193,7 +193,7 @@ static inline ctlr_info_t *get_host(struct gendisk *disk)
 }
 
 
-static struct block_device_operations ida_fops  = {
+static const struct block_device_operations ida_fops  = {
 	.owner		= THIS_MODULE,
 	.open		= ida_open,
 	.release	= ida_release,

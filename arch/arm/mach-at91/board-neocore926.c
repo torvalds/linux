@@ -56,7 +56,7 @@ static void __init neocore926_map_io(void)
 	/* Initialize processor: 20 MHz crystal */
 	at91sam9263_initialize(20000000);
 
-	/* DGBU on ttyS0. (Rx & Tx only) */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
 	/* USART0 on ttyS1. (Rx, Tx, RTS, CTS) */

@@ -124,7 +124,7 @@ choice
 
 config USB_GADGET_AT91
 	boolean "Atmel AT91 USB Device Port"
-	depends on ARCH_AT91 && !ARCH_AT91SAM9RL && !ARCH_AT91CAP9
+	depends on ARCH_AT91 && !ARCH_AT91SAM9RL && !ARCH_AT91CAP9 && !ARCH_AT91SAM9G45
 	select USB_GADGET_SELECTED
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a
@@ -143,7 +143,7 @@ config USB_AT91
 config USB_GADGET_ATMEL_USBA
 	boolean "Atmel USBA"
 	select USB_GADGET_DUALSPEED
-	depends on AVR32 || ARCH_AT91CAP9 || ARCH_AT91SAM9RL
+	depends on AVR32 || ARCH_AT91CAP9 || ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
 	help
 	  USBA is the integrated high-speed USB Device controller on
 	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
@@ -250,6 +250,24 @@ config USB_PXA25X_SMALL
 	default y if USB_ZERO
 	default y if USB_ETH
 	default y if USB_G_SERIAL
+
+config USB_GADGET_R8A66597
+	boolean "Renesas R8A66597 USB Peripheral Controller"
+	select USB_GADGET_DUALSPEED
+	help
+	   R8A66597 is a discrete USB host and peripheral controller chip that
+	   supports both full and high speed USB 2.0 data transfers.
+	   It has nine configurable endpoints, and endpoint zero.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "r8a66597_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_R8A66597
+	tristate
+	depends on USB_GADGET_R8A66597
+	default USB_GADGET
+	select USB_GADGET_SELECTED
 
 config USB_GADGET_PXA27X
 	boolean "PXA 27x"
@@ -359,16 +377,6 @@ config USB_M66592
 	depends on USB_GADGET_M66592
 	default USB_GADGET
 	select USB_GADGET_SELECTED
-
-config SUPERH_BUILT_IN_M66592
-	boolean "Enable SuperH built-in USB like the M66592"
-	depends on USB_GADGET_M66592 && CPU_SUBTYPE_SH7722
-	help
-	   SH7722 has USB like the M66592.
-
-	   The transfer rate is very slow when use "Ethernet Gadget".
-	   However, this problem is improved if change a value of
-	   NET_IP_ALIGN to 4.
 
 #
 # Controllers available only in discrete form (and all PCI controllers)
@@ -619,9 +627,10 @@ config USB_AUDIO
 config USB_ETH
 	tristate "Ethernet Gadget (with CDC Ethernet support)"
 	depends on NET
+	select CRC32
 	help
-	  This driver implements Ethernet style communication, in either
-	  of two ways:
+	  This driver implements Ethernet style communication, in one of
+	  several ways:
 	  
 	   - The "Communication Device Class" (CDC) Ethernet Control Model.
 	     That protocol is often avoided with pure Ethernet adapters, in
@@ -631,7 +640,11 @@ config USB_ETH
 	   - On hardware can't implement that protocol, a simple CDC subset
 	     is used, placing fewer demands on USB.
 
-	  RNDIS support is a third option, more demanding than that subset.
+	   - CDC Ethernet Emulation Model (EEM) is a newer standard that has
+	     a simpler interface that can be used by more USB hardware.
+
+	  RNDIS support is an additional option, more demanding than than
+	  subset.
 
 	  Within the USB device, this gadget driver exposes a network device
 	  "usbX", where X depends on what other networking devices you have.
@@ -663,6 +676,22 @@ config USB_ETH_RNDIS
 	   as the "driver info file".  For versions of MS-Windows older than
 	   XP, you'll need to download drivers from Microsoft's website; a URL
 	   is given in comments found in that info file.
+
+config USB_ETH_EEM
+       bool "Ethernet Emulation Model (EEM) support"
+       depends on USB_ETH
+       default n
+       help
+         CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
+         and therefore can be supported by more hardware.  Technically ECM and
+         EEM are designed for different applications.  The ECM model extends
+         the network interface to the target (e.g. a USB cable modem), and the
+         EEM model is for mobile devices to communicate with hosts using
+         ethernet over USB.  For Linux gadgets, however, the interface with
+         the host is the same (a usbX device), so the differences are minimal.
+
+         If you say "y" here, the Ethernet gadget driver will use the EEM
+         protocol rather than ECM.  If unsure, say "n".
 
 config USB_GADGETFS
 	tristate "Gadget Filesystem (EXPERIMENTAL)"

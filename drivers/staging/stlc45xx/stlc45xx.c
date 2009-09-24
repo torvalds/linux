@@ -2591,3 +2591,4 @@ module_exit(stlc45xx_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kalle.valo@nokia.com>");
+MODULE_ALIAS("spi:cx3110x");
