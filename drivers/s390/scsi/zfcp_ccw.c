@@ -192,13 +192,9 @@ static int zfcp_ccw_set_offline(struct ccw_device *ccw_device)
 
 	mutex_lock(&zfcp_data.config_mutex);
 	adapter = dev_get_drvdata(&ccw_device->dev);
-	if (!adapter)
-		goto out;
-
 	zfcp_erp_adapter_shutdown(adapter, 0, "ccsoff1", NULL);
 	zfcp_erp_wait(adapter);
 	mutex_unlock(&zfcp_data.config_mutex);
-out:
 	return 0;
 }
 
@@ -253,9 +249,13 @@ static void zfcp_ccw_shutdown(struct ccw_device *cdev)
 
 	mutex_lock(&zfcp_data.config_mutex);
 	adapter = dev_get_drvdata(&cdev->dev);
+	if (!adapter)
+		goto out;
+
 	zfcp_erp_adapter_shutdown(adapter, 0, "ccshut1", NULL);
 	zfcp_erp_wait(adapter);
 	zfcp_erp_thread_kill(adapter);
+out:
 	mutex_unlock(&zfcp_data.config_mutex);
 }
 
