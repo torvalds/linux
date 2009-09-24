@@ -477,13 +477,14 @@ static int set_forechannel_drc_size(struct nfsd4_channel_attrs *fchan)
 
 /*
  * fchan holds the client values on input, and the server values on output
+ * sv_max_mesg is the maximum payload plus one page for overhead.
  */
 static int init_forechannel_attrs(struct svc_rqst *rqstp,
 				  struct nfsd4_channel_attrs *session_fchan,
 				  struct nfsd4_channel_attrs *fchan)
 {
 	int status = 0;
-	__u32   maxcount = svc_max_payload(rqstp);
+	__u32   maxcount = nfsd_serv->sv_max_mesg;
 
 	/* headerpadsz set to zero in encode routine */
 

@@ -213,3 +213,10 @@ The following cases aren't supported yet:
   DESTROY_CLIENTID, DESTROY_SESSION, EXCHANGE_ID.
 * DESTROY_SESSION MUST be the final operation in the COMPOUND request.
 
+Nonstandard compound limitations:
+* No support for a sessions fore channel RPC compound that requires both a
+  ca_maxrequestsize request and a ca_maxresponsesize reply, so we may
+  fail to live up to the promise we made in CREATE_SESSION fore channel
+  negotiation.
+* No more than one IO operation (read, write, readdir) allowed per
+  compound.
