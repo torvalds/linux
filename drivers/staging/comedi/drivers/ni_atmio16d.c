@@ -700,29 +700,29 @@ static int atmio16d_dio_insn_config(struct comedi_device *dev,
 /*
    options[0] - I/O port
    options[1] - MIO irq
-                0 == no irq
-                N == irq N {3,4,5,6,7,9,10,11,12,14,15}
+		0 == no irq
+		N == irq N {3,4,5,6,7,9,10,11,12,14,15}
    options[2] - DIO irq
-                0 == no irq
-                N == irq N {3,4,5,6,7,9}
+		0 == no irq
+		N == irq N {3,4,5,6,7,9}
    options[3] - DMA1 channel
-                0 == no DMA
-                N == DMA N {5,6,7}
+		0 == no DMA
+		N == DMA N {5,6,7}
    options[4] - DMA2 channel
-                0 == no DMA
-                N == DMA N {5,6,7}
+		0 == no DMA
+		N == DMA N {5,6,7}
 
    options[5] - a/d mux
-   	0=differential, 1=single
+	0=differential, 1=single
    options[6] - a/d range
-   	0=bipolar10, 1=bipolar5, 2=unipolar10
+	0=bipolar10, 1=bipolar5, 2=unipolar10
 
    options[7] - dac0 range
-   	0=bipolar, 1=unipolar
+	0=bipolar, 1=unipolar
    options[8] - dac0 reference
-    0=internal, 1=external
+	0=internal, 1=external
    options[9] - dac0 coding
-   	0=2's comp, 1=straight binary
+	0=2's comp, 1=straight binary
 
    options[10] - dac1 range
    options[11] - dac1 reference
