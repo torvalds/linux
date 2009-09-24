@@ -48,9 +48,6 @@ struct virtnet_info
 	struct napi_struct napi;
 	unsigned int status;
 
-	/* The skb we couldn't send because buffers were full. */
-	struct sk_buff *last_xmit_skb;
-
 	/* If we need to free in a timer, this is it. */
 	struct timer_list xmit_free_timer;
 
@@ -120,9 +117,8 @@ static void skb_xmit_done(struct virtqueue *svq)
 	/* We were probably waiting for more output buffers. */
 	netif_wake_queue(vi->dev);
 
-	/* Make sure we re-xmit last_xmit_skb: if there are no more packets
-	 * queued, start_xmit won't be called. */
-	tasklet_schedule(&vi->tasklet);
+	if (vi->free_in_tasklet)
+		tasklet_schedule(&vi->tasklet);
 }
 
 static void receive_skb(struct net_device *dev, struct sk_buff *skb,
@@ -543,12 +539,7 @@ static void xmit_tasklet(unsigned long data)
 	struct virtnet_info *vi = (void *)data;
 
 	netif_tx_lock_bh(vi->dev);
-	if (vi->last_xmit_skb && xmit_skb(vi, vi->last_xmit_skb) >= 0) {
-		vi->svq->vq_ops->kick(vi->svq);
-		vi->last_xmit_skb = NULL;
-	}
-	if (vi->free_in_tasklet)
-		free_old_xmit_skbs(vi);
+	free_old_xmit_skbs(vi);
 	netif_tx_unlock_bh(vi->dev);
 }
 
@@ -560,28 +551,16 @@ again:
 	/* Free up any pending old buffers before queueing new ones. */
 	free_old_xmit_skbs(vi);
 
-	/* If we has a buffer left over from last time, send it now. */
-	if (unlikely(vi->last_xmit_skb) &&
-	    xmit_skb(vi, vi->last_xmit_skb) < 0)
-		goto stop_queue;
-
-	vi->last_xmit_skb = NULL;
-
 	/* Put new one in send queue and do transmit */
-	if (likely(skb)) {
-		__skb_queue_head(&vi->send, skb);
-		if (xmit_skb(vi, skb) < 0) {
-			vi->last_xmit_skb = skb;
-			skb = NULL;
-			goto stop_queue;
-		}
+	__skb_queue_head(&vi->send, skb);
+	if (likely(xmit_skb(vi, skb) >= 0)) {
+		vi->svq->vq_ops->kick(vi->svq);
+		return NETDEV_TX_OK;
 	}
-done:
-	vi->svq->vq_ops->kick(vi->svq);
-	return NETDEV_TX_OK;
 
-stop_queue:
+	/* Ring too full for this packet, remove it from queue again. */
 	pr_debug("%s: virtio not prepared to send\n", dev->name);
+	__skb_unlink(skb, &vi->send);
 	netif_stop_queue(dev);
 
 	/* Activate callback for using skbs: if this returns false it
@@ -591,12 +570,7 @@ stop_queue:
 		netif_start_queue(dev);
 		goto again;
 	}
-	if (skb) {
-		/* Drop this skb: we only queue one. */
-		vi->dev->stats.tx_dropped++;
-		kfree_skb(skb);
-	}
-	goto done;
+	return NETDEV_TX_BUSY;
 }
 
 static int virtnet_set_mac_address(struct net_device *dev, void *p)
