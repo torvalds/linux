@@ -766,7 +766,7 @@ exports one
    For injecting a memory error, there are some sysfs nodes, under
    /sys/devices/system/edac/mc/mc?/:
 
-   inject_addrmatch:
+   inject_addrmatch/*:
       Controls the error injection mask register. It is possible to specify
       several characteristics of the address to match an error code:
          dimm = the affected dimm. Numbers are relative to a channel;
@@ -781,10 +781,12 @@ exports one
 
       For example, to generate an error at rank 1 of dimm 2, for any channel,
       any bank, any page, any column:
-		echo "dimm:2 rank:1" >/sys/devices/system/edac/mc/mc0/inject_addrmatch
+		echo 2 >/sys/devices/system/edac/mc/mc0/inject_addrmatch/dimm
+		echo 1 >/sys/devices/system/edac/mc/mc0/inject_addrmatch/rank
 
 	To return to the default behaviour of matching any, you can do:
-		echo "dimm:any rank:any" >/sys/devices/system/edac/mc/mc0/inject_addrmatch
+		echo any >/sys/devices/system/edac/mc/mc0/inject_addrmatch/dimm
+		echo any >/sys/devices/system/edac/mc/mc0/inject_addrmatch/rank
 
    inject_eccmask:
        specifies what bits will have troubles,
@@ -813,7 +815,7 @@ exports one
    For example, the following code will generate an error for any write access
    at socket 0, on any DIMM/address on channel 2:
 
-   echo "channel:2" > /sys/devices/system/edac/mc/mc0/inject_addrmatch
+   echo 2 >/sys/devices/system/edac/mc/mc0/inject_addrmatch/channel
    echo 2 >/sys/devices/system/edac/mc/mc0/inject_type
    echo 64 >/sys/devices/system/edac/mc/mc0/inject_eccmask
    echo 3 >/sys/devices/system/edac/mc/mc0/inject_section
@@ -829,18 +831,23 @@ exports one
 
 3) Nehalem specific Corrected Error memory counters
 
-   Nehalem have some registers to count memory errors, reporting it on a
-   way that it is different from what EDAC API allows. Due to that, a
-   separate sysfs note were created to handle such counters.
+   Nehalem have some registers to count memory errors. The driver uses those
+   registers to report Corrected Errors on devices with Registered Dimms.
 
-   They can be read by looking at the contents of "corrected_error_counts"
-   counter. Due to hardware limits, the output is different on machines
-   with unregistered memories and machines with registered ones.
+   However, those counters don't work with Unregistered Dimms. As the chipset
+   offers some counters that also work with UDIMMS (but with a worse level of
+   granularity than the default ones), the driver exposes those registers for
+   UDIMM memories.
 
-   With unregistered memories, it outputs:
+   They can be read by looking at the contents of all_channel_counts/
 
-	$ cat /sys/devices/system/edac/mc/mc0/corrected_error_counts
-	all channels UDIMM0: 0 UDIMM1: 0 UDIMM2: 0
+   $ for i in /sys/devices/system/edac/mc/mc0/all_channel_counts/*; do echo $i; cat $i; done
+	/sys/devices/system/edac/mc/mc0/all_channel_counts/udimm0
+	0
+	/sys/devices/system/edac/mc/mc0/all_channel_counts/udimm1
+	0
+	/sys/devices/system/edac/mc/mc0/all_channel_counts/udimm2
+	0
 
    What happens here is that errors on different csrows, but at the same
    dimm number will increment the same counter.
@@ -849,21 +856,16 @@ exports one
 	csrow1: channel 0, dimm1
 	csrow2: channel 1, dimm0
 	csrow3: channel 2, dimm0
-   The hardware will increment UDIMM0 for an error at either csrow0, csrow2
-   or csrow3.
-
-   With registered memories, it outputs:
-
-	$cat /sys/devices/system/edac/mc/mc0/corrected_error_counts
-	channel 0 RDIMM0: 0 RDIMM1: 0 RDIMM2: 0
-	channel 1 RDIMM0: 0 RDIMM1: 0 RDIMM2: 0
-	channel 2 RDIMM0: 0 RDIMM1: 0 RDIMM2: 0
-
-   So, with registered memories, there's a direct map between a csrow and a
-   counter.
+   The hardware will increment udimm0 for an error at the first dimm at either
+	csrow0, csrow2  or csrow3;
+   The hardware will increment udimm1 for an error at the second dimm at either
+	csrow0, csrow2  or csrow3;
+   The hardware will increment udimm2 for an error at the third dimm at either
+	csrow0, csrow2  or csrow3;
 
 4) Standard error counters
 
    The standard error counters are generated when an mcelog error is received
-   by the driver. Since it is counted by software, it is possible that some
-   errors could be lost.
+   by the driver. Since, with udimm, this is counted by software, it is
+   possible that some errors could be lost. With rdimm's, they displays the
+   contents of the registers
