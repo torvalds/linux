@@ -26,7 +26,6 @@
 #include <linux/proc_fs.h>
 #include <linux/security.h>
 #include <linux/ctype.h>
-#include <linux/utsname.h>
 #include <linux/kmemcheck.h>
 #include <linux/smp_lock.h>
 #include <linux/fs.h>

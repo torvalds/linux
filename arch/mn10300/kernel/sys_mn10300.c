@@ -19,7 +19,6 @@
 #include <linux/stat.h>
 #include <linux/mman.h>
 #include <linux/file.h>
-#include <linux/utsname.h>
 #include <linux/tty.h>
 
 #include <asm/uaccess.h>
