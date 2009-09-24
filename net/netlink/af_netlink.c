@@ -1609,6 +1609,16 @@ int netlink_change_ngroups(struct sock *sk, unsigned int groups)
 	return err;
 }
 
+void __netlink_clear_multicast_users(struct sock *ksk, unsigned int group)
+{
+	struct sock *sk;
+	struct hlist_node *node;
+	struct netlink_table *tbl = &nl_table[ksk->sk_protocol];
+
+	sk_for_each_bound(sk, node, &tbl->mc_list)
+		netlink_update_socket_mc(nlk_sk(sk), group, 0);
+}
+
 /**
  * netlink_clear_multicast_users - kick off multicast listeners
  *
@@ -1619,15 +1629,8 @@ int netlink_change_ngroups(struct sock *sk, unsigned int groups)
  */
 void netlink_clear_multicast_users(struct sock *ksk, unsigned int group)
 {
-	struct sock *sk;
-	struct hlist_node *node;
-	struct netlink_table *tbl = &nl_table[ksk->sk_protocol];
-
 	netlink_table_grab();
-
-	sk_for_each_bound(sk, node, &tbl->mc_list)
-		netlink_update_socket_mc(nlk_sk(sk), group, 0);
-
+	__netlink_clear_multicast_users(ksk, group);
 	netlink_table_ungrab();
 }
 
