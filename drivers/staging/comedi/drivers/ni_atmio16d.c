@@ -586,9 +586,8 @@ static int atmio16d_ai_insn_read(struct comedi_device *dev,
 				/* read the data now */
 				data[i] = inw(dev->iobase + AD_FIFO_REG);
 				/* change to two's complement if need be */
-				if (devpriv->adc_coding == adc_2comp) {
+				if (devpriv->adc_coding == adc_2comp)
 					data[i] ^= 0x800;
-				}
 				break;
 			}
 			if (status & STAT_AD_OVERFLOW) {
@@ -618,10 +617,8 @@ static int atmio16d_ao_insn_read(struct comedi_device *dev,
 	printk("atmio16d_ao_insn_read\n");
 #endif
 
-	for (i = 0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
-	}
-
 	return i;
 }
 
@@ -642,15 +639,13 @@ static int atmio16d_ao_insn_write(struct comedi_device *dev,
 		d = data[i];
 		switch (chan) {
 		case 0:
-			if (devpriv->dac0_coding == dac_2comp) {
+			if (devpriv->dac0_coding == dac_2comp)
 				d ^= 0x800;
-			}
 			outw(d, dev->iobase + DAC0_REG);
 			break;
 		case 1:
-			if (devpriv->dac1_coding == dac_2comp) {
+			if (devpriv->dac1_coding == dac_2comp)
 				d ^= 0x800;
-			}
 			outw(d, dev->iobase + DAC1_REG);
 			break;
 		default:
@@ -855,11 +850,10 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 	/* 8255 subdevice */
 	s++;
-	if (boardtype->has_8255) {
+	if (boardtype->has_8255)
 		subdev_8255_init(dev, s, NULL, dev->iobase);
-	} else {
+	else
 		s->type = COMEDI_SUBD_UNUSED;
-	}
 
 /* don't yet know how to deal with counter/timers */
 #if 0
