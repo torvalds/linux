@@ -775,11 +775,12 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, flash);
 
 	/*
-	 * Atmel serial flash tend to power up
-	 * with the software protection bits set
+	 * Atmel and SST serial flash tend to power
+	 * up with the software protection bits set
 	 */
 
-	if (info->jedec_id >> 16 == 0x1f) {
+	if (info->jedec_id >> 16 == 0x1f ||
+	    info->jedec_id >> 16 == 0xbf) {
 		write_enable(flash);
 		write_sr(flash, 0);
 	}
