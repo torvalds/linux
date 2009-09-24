@@ -1142,6 +1142,9 @@ struct wiphy {
 	u32 frag_threshold;
 	u32 rts_threshold;
 
+	char fw_version[ETHTOOL_BUSINFO_LEN];
+	u32 hw_version;
+
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't
 	 * know whether it points to a wiphy your driver has registered
