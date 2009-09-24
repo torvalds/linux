@@ -1165,6 +1165,10 @@ static int __net_init icmp_sk_init(struct net *net)
 		sk->sk_sndbuf =
 			(2 * ((64 * 1024) + sizeof(struct sk_buff)));
 
+		/*
+		 * Speedup sock_wfree()
+		 */
+		sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 		inet_sk(sk)->pmtudisc = IP_PMTUDISC_DONT;
 	}
 
