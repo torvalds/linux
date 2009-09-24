@@ -94,8 +94,6 @@ static inline void sysfs_remove_device_from_node(struct sys_device *dev,
 #ifdef CONFIG_PPC64
 #include <asm/smp.h>
 
-#define topology_thread_siblings(cpu)	(per_cpu(cpu_sibling_map, cpu))
-#define topology_core_siblings(cpu)	(per_cpu(cpu_core_map, cpu))
 #define topology_thread_cpumask(cpu)	(&per_cpu(cpu_sibling_map, cpu))
 #define topology_core_cpumask(cpu)	(&per_cpu(cpu_core_map, cpu))
 #define topology_core_id(cpu)		(cpu_to_core_id(cpu))
