@@ -48,15 +48,8 @@ struct virtnet_info
 	struct napi_struct napi;
 	unsigned int status;
 
-	/* If we need to free in a timer, this is it. */
-	struct timer_list xmit_free_timer;
-
 	/* Number of input buffers, and max we've ever had. */
 	unsigned int num, max;
-
-	/* For cleaning up after transmission. */
-	struct tasklet_struct tasklet;
-	bool free_in_tasklet;
 
 	/* I like... big packets and I cannot lie! */
 	bool big_packets;
@@ -116,9 +109,6 @@ static void skb_xmit_done(struct virtqueue *svq)
 
 	/* We were probably waiting for more output buffers. */
 	netif_wake_queue(vi->dev);
-
-	if (vi->free_in_tasklet)
-		tasklet_schedule(&vi->tasklet);
 }
 
 static void receive_skb(struct net_device *dev, struct sk_buff *skb,
@@ -458,25 +448,9 @@ static void free_old_xmit_skbs(struct virtnet_info *vi)
 	}
 }
 
-/* If the virtio transport doesn't always notify us when all in-flight packets
- * are consumed, we fall back to using this function on a timer to free them. */
-static void xmit_free(unsigned long data)
-{
-	struct virtnet_info *vi = (void *)data;
-
-	netif_tx_lock(vi->dev);
-
-	free_old_xmit_skbs(vi);
-
-	if (!skb_queue_empty(&vi->send))
-		mod_timer(&vi->xmit_free_timer, jiffies + (HZ/10));
-
-	netif_tx_unlock(vi->dev);
-}
-
 static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 {
-	int num, err;
+	int num;
 	struct scatterlist sg[2+MAX_SKB_FRAGS];
 	struct virtio_net_hdr_mrg_rxbuf *mhdr = skb_vnet_hdr(skb);
 	struct virtio_net_hdr *hdr = skb_vnet_hdr(skb);
@@ -522,25 +496,7 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 		sg_set_buf(sg, hdr, sizeof(*hdr));
 
 	num = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
-
-	err = vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
-	if (err >= 0 && !vi->free_in_tasklet) {
-		/* Don't wait up for transmitted skbs to be freed. */
-		skb_orphan(skb);
-		nf_reset(skb);
-		mod_timer(&vi->xmit_free_timer, jiffies + (HZ/10));
-	}
-
-	return err;
-}
-
-static void xmit_tasklet(unsigned long data)
-{
-	struct virtnet_info *vi = (void *)data;
-
-	netif_tx_lock_bh(vi->dev);
-	free_old_xmit_skbs(vi);
-	netif_tx_unlock_bh(vi->dev);
+	return vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
 }
 
 static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -555,6 +511,9 @@ again:
 	__skb_queue_head(&vi->send, skb);
 	if (likely(xmit_skb(vi, skb) >= 0)) {
 		vi->svq->vq_ops->kick(vi->svq);
+		/* Don't wait up for transmitted skbs to be freed. */
+		skb_orphan(skb);
+		nf_reset(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -903,10 +862,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 	vi->pages = NULL;
 	INIT_DELAYED_WORK(&vi->refill, refill_work);
 
-	/* If they give us a callback when all buffers are done, we don't need
-	 * the timer. */
-	vi->free_in_tasklet = virtio_has_feature(vdev,VIRTIO_F_NOTIFY_ON_EMPTY);
-
 	/* If we can receive ANY GSO packets, we must allocate large ones. */
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO4)
 	    || virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO6)
@@ -937,11 +892,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 	/* Initialize our empty receive and send queues. */
 	skb_queue_head_init(&vi->recv);
 	skb_queue_head_init(&vi->send);
-
-	tasklet_init(&vi->tasklet, xmit_tasklet, (unsigned long)vi);
-
-	if (!vi->free_in_tasklet)
-		setup_timer(&vi->xmit_free_timer, xmit_free, (unsigned long)vi);
 
 	err = register_netdev(dev);
 	if (err) {
@@ -983,9 +933,6 @@ static void virtnet_remove(struct virtio_device *vdev)
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
 
-	if (!vi->free_in_tasklet)
-		del_timer_sync(&vi->xmit_free_timer);
-
 	/* Free our skbs in send and recv queues, if any. */
 	while ((skb = __skb_dequeue(&vi->recv)) != NULL) {
 		kfree_skb(skb);
@@ -1019,7 +966,6 @@ static unsigned int features[] = {
 	VIRTIO_NET_F_GUEST_ECN, VIRTIO_NET_F_GUEST_UFO,
 	VIRTIO_NET_F_MRG_RXBUF, VIRTIO_NET_F_STATUS, VIRTIO_NET_F_CTRL_VQ,
 	VIRTIO_NET_F_CTRL_RX, VIRTIO_NET_F_CTRL_VLAN,
-	VIRTIO_F_NOTIFY_ON_EMPTY,
 };
 
 static struct virtio_driver virtio_net = {
