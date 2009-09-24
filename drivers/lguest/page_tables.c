@@ -996,11 +996,9 @@ static unsigned long setup_pagetables(struct lguest *lg,
 	if (copy_to_user(&pgdir[0], &pgd, sizeof(pgd)) != 0)
 		return -EFAULT;
 	/*
-	 * And the third PGD entry (ie. addresses 3G-4G).
-	 *
-	 * FIXME: This assumes that PAGE_OFFSET for the Guest is 0xC0000000.
+	 * And the other PGD entry to make the linear mapping at PAGE_OFFSET
 	 */
-	if (copy_to_user(&pgdir[3], &pgd, sizeof(pgd)) != 0)
+	if (copy_to_user(&pgdir[KERNEL_PGD_BOUNDARY], &pgd, sizeof(pgd)))
 		return -EFAULT;
 #else
 	/*
