@@ -17,11 +17,6 @@ static inline int cpu_to_node(int cpu)
 
 #define parent_node(node)	(node)
 
-static inline cpumask_t node_to_cpumask(int node)
-{
-	return numa_cpumask_lookup_table[node];
-}
-
 #define cpumask_of_node(node) (&numa_cpumask_lookup_table[node])
 
 int of_node_to_nid(struct device_node *device);
