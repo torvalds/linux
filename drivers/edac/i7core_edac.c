@@ -471,7 +471,6 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow)
 	struct csrow_info *csr;
 	struct pci_dev *pdev;
 	int i, j;
-	u8 socket = pvt->i7core_dev->socket;
 	unsigned long last_page = 0;
 	enum edac_type mode;
 	enum mem_type mtype;
@@ -488,7 +487,7 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow)
 	pci_read_config_dword(pdev, MC_CHANNEL_MAPPER, &pvt->info.ch_map);
 
 	debugf0("QPI %d control=0x%08x status=0x%08x dod=0x%08x map=0x%08x\n",
-		socket, pvt->info.mc_control, pvt->info.mc_status,
+		pvt->i7core_dev->socket, pvt->info.mc_control, pvt->info.mc_status,
 		pvt->info.max_dod, pvt->info.ch_map);
 
 	if (ECC_ENABLED(pvt)) {
