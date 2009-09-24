@@ -1,4 +1,4 @@
-/* A simple network driver using virtio.
+/* A network driver using virtio.
  *
  * Copyright 2007 Rusty Russell <rusty@rustcorp.com.au> IBM Corporation
  *
@@ -73,6 +73,7 @@ struct skb_vnet_hdr {
 		struct virtio_net_hdr hdr;
 		struct virtio_net_hdr_mrg_rxbuf mhdr;
 	};
+	unsigned int num_sg;
 };
 
 static inline struct skb_vnet_hdr *skb_vnet_hdr(struct sk_buff *skb)
@@ -442,23 +443,24 @@ again:
 	return received;
 }
 
-static void free_old_xmit_skbs(struct virtnet_info *vi)
+static unsigned int free_old_xmit_skbs(struct virtnet_info *vi)
 {
 	struct sk_buff *skb;
-	unsigned int len;
+	unsigned int len, tot_sgs = 0;
 
 	while ((skb = vi->svq->vq_ops->get_buf(vi->svq, &len)) != NULL) {
 		pr_debug("Sent skb %p\n", skb);
 		__skb_unlink(skb, &vi->send);
 		vi->dev->stats.tx_bytes += skb->len;
 		vi->dev->stats.tx_packets++;
+		tot_sgs += skb_vnet_hdr(skb)->num_sg;
 		kfree_skb(skb);
 	}
+	return tot_sgs;
 }
 
 static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 {
-	int num;
 	struct scatterlist sg[2+MAX_SKB_FRAGS];
 	struct skb_vnet_hdr *hdr = skb_vnet_hdr(skb);
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
@@ -502,13 +504,14 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 	else
 		sg_set_buf(sg, &hdr->hdr, sizeof(hdr->hdr));
 
-	num = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
-	return vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
+	hdr->num_sg = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
+	return vi->svq->vq_ops->add_buf(vi->svq, sg, hdr->num_sg, 0, skb);
 }
 
 static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
+	int capacity;
 
 again:
 	/* Free up any pending old buffers before queueing new ones. */
@@ -516,27 +519,40 @@ again:
 
 	/* Put new one in send queue and do transmit */
 	__skb_queue_head(&vi->send, skb);
-	if (likely(xmit_skb(vi, skb) >= 0)) {
-		vi->svq->vq_ops->kick(vi->svq);
-		/* Don't wait up for transmitted skbs to be freed. */
-		skb_orphan(skb);
-		nf_reset(skb);
-		return NETDEV_TX_OK;
+	capacity = xmit_skb(vi, skb);
+
+	/* This can happen with OOM and indirect buffers. */
+	if (unlikely(capacity < 0)) {
+		netif_stop_queue(dev);
+		dev_warn(&dev->dev, "Unexpected full queue\n");
+		if (unlikely(!vi->svq->vq_ops->enable_cb(vi->svq))) {
+			vi->svq->vq_ops->disable_cb(vi->svq);
+			netif_start_queue(dev);
+			goto again;
+		}
+		return NETDEV_TX_BUSY;
 	}
 
-	/* Ring too full for this packet, remove it from queue again. */
-	pr_debug("%s: virtio not prepared to send\n", dev->name);
-	__skb_unlink(skb, &vi->send);
-	netif_stop_queue(dev);
+	vi->svq->vq_ops->kick(vi->svq);
+	/* Don't wait up for transmitted skbs to be freed. */
+	skb_orphan(skb);
+	nf_reset(skb);
 
-	/* Activate callback for using skbs: if this returns false it
-	 * means some were used in the meantime. */
-	if (unlikely(!vi->svq->vq_ops->enable_cb(vi->svq))) {
-		vi->svq->vq_ops->disable_cb(vi->svq);
-		netif_start_queue(dev);
-		goto again;
+	/* Apparently nice girls don't return TX_BUSY; stop the queue
+	 * before it gets out of hand.  Naturally, this wastes entries. */
+	if (capacity < 2+MAX_SKB_FRAGS) {
+		netif_stop_queue(dev);
+		if (unlikely(!vi->svq->vq_ops->enable_cb(vi->svq))) {
+			/* More just got used, free them then recheck. */
+			capacity += free_old_xmit_skbs(vi);
+			if (capacity >= 2+MAX_SKB_FRAGS) {
+				netif_start_queue(dev);
+				vi->svq->vq_ops->disable_cb(vi->svq);
+			}
+		}
 	}
-	return NETDEV_TX_BUSY;
+
+	return NETDEV_TX_OK;
 }
 
 static int virtnet_set_mac_address(struct net_device *dev, void *p)
