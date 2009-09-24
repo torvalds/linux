@@ -826,7 +826,7 @@ static int validate_mmap_request(struct file *file,
 	int ret;
 
 	/* do the simple checks first */
-	if (flags & MAP_FIXED || addr) {
+	if (flags & MAP_FIXED) {
 		printk(KERN_DEBUG
 		       "%d: Can't do fixed-address/overlay mmap of RAM\n",
 		       current->pid);
@@ -1182,9 +1182,6 @@ unsigned long do_mmap_pgoff(struct file *file,
 
 	kenter(",%lx,%lx,%lx,%lx,%lx", addr, len, prot, flags, pgoff);
 
-	if (!(flags & MAP_FIXED))
-		addr = round_hint_to_min(addr);
-
 	/* decide whether we should attempt the mapping, and if so what sort of
 	 * mapping */
 	ret = validate_mmap_request(file, addr, len, prot, flags, pgoff,
@@ -1193,6 +1190,9 @@ unsigned long do_mmap_pgoff(struct file *file,
 		kleave(" = %d [val]", ret);
 		return ret;
 	}
+
+	/* we ignore the address hint */
+	addr = 0;
 
 	/* we've determined that we can make the mapping, now translate what we
 	 * now know into VMA flags */
