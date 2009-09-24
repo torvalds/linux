@@ -1,5 +1,6 @@
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/page.h>
+#include <asm/thread_info.h>
 
 OUTPUT_FORMAT("elf64-alpha")
 OUTPUT_ARCH(alpha)
@@ -92,11 +93,6 @@ SECTIONS
 	__init_end = .;
 	/* Freed after init ends here */
 
-	/* Note 2 page alignment above.  */
-	.data.init_thread : {
-		*(.data.init_thread)
-	}
-
 	. = ALIGN(PAGE_SIZE);
 	.data.page_aligned : {
 		*(.data.page_aligned)
@@ -110,6 +106,7 @@ SECTIONS
 	_data = .;
 	/* Data */
 	.data : {
+		INIT_TASK_DATA(THREAD_SIZE)
 		DATA_DATA
 		CONSTRUCTORS
 	}
