@@ -2809,8 +2809,13 @@ int try_release_extent_state(struct extent_map_tree *map,
 	else {
 		if ((mask & GFP_NOFS) == GFP_NOFS)
 			mask = GFP_NOFS;
-		clear_extent_bit(tree, start, end, EXTENT_UPTODATE,
-				 1, 1, NULL, mask);
+		/*
+		 * at this point we can safely clear everything except the
+		 * locked bit and the nodatasum bit
+		 */
+		clear_extent_bit(tree, start, end,
+				 ~(EXTENT_LOCKED | EXTENT_NODATASUM),
+				 0, 0, NULL, mask);
 	}
 	return ret;
 }
