@@ -264,7 +264,7 @@ void smp_flush_tlb_mm(struct mm_struct *mm)
 	preempt_disable();
 	cpu_id = smp_processor_id();
 	mmc = &mm->context[cpu_id];
-	cpu_mask = mm->cpu_vm_mask;
+	cpu_mask = *mm_cpumask(mm);
 	cpu_clear(cpu_id, cpu_mask);
 
 	if (*mmc != NO_CONTEXT) {
@@ -273,7 +273,7 @@ void smp_flush_tlb_mm(struct mm_struct *mm)
 		if (mm == current->mm)
 			activate_context(mm);
 		else
-			cpu_clear(cpu_id, mm->cpu_vm_mask);
+			cpumask_clear_cpu(cpu_id, mm_cpumask(mm));
 		local_irq_restore(flags);
 	}
 	if (!cpus_empty(cpu_mask))
@@ -334,7 +334,7 @@ void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 	preempt_disable();
 	cpu_id = smp_processor_id();
 	mmc = &mm->context[cpu_id];
-	cpu_mask = mm->cpu_vm_mask;
+	cpu_mask = *mm_cpumask(mm);
 	cpu_clear(cpu_id, cpu_mask);
 
 #ifdef DEBUG_SMP
@@ -469,7 +469,7 @@ void smp_invalidate_interrupt(void)
 		if (flush_mm == current->active_mm)
 			activate_context(flush_mm);
 		else
-			cpu_clear(cpu_id, flush_mm->cpu_vm_mask);
+			cpumask_clear_cpu(cpu_id, mm_cpumask(flush_mm));
 	} else {
 		unsigned long va = flush_va;
 
