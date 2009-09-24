@@ -785,7 +785,6 @@ static struct sysfs_ops inst_grp_ops = {
 static struct kobj_type ktype_inst_grp = {
 	.release = edac_inst_grp_release,
 	.sysfs_ops = &inst_grp_ops,
-	.default_attrs = (struct attribute **)default_csrow_attr,
 };
 
 
@@ -806,13 +805,14 @@ static int edac_create_mci_instance_attributes(struct mem_ctl_info *mci,
 	while (sysfs_attrib) {
 		if (sysfs_attrib->grp) {
 			struct kobject *newkobj = &sysfs_attrib->grp->kobj;
+
 			debugf0("%s() grp %s, mci %p\n", __func__,
 				sysfs_attrib->grp->name, mci);
 
 			sysfs_attrib->grp->mci = mci;
 
 			err = kobject_init_and_add(newkobj, &ktype_inst_grp,
-						kobj,
+						&mci->edac_mci_kobj,
 						sysfs_attrib->grp->name);
 			if (err)
 				return err;
