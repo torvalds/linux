@@ -792,8 +792,9 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
 	unmap_mapping_range(mapping, holebegin, holelen, 0);
 }
 
-extern int vmtruncate(struct inode * inode, loff_t offset);
-extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
+extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
+extern int vmtruncate(struct inode *inode, loff_t offset);
+extern int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end);
 
 int truncate_inode_page(struct address_space *mapping, struct page *page);
 int generic_error_remove_page(struct address_space *mapping, struct page *page);

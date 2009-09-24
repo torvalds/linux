@@ -497,3 +497,67 @@ int invalidate_inode_pages2(struct address_space *mapping)
 	return invalidate_inode_pages2_range(mapping, 0, -1);
 }
 EXPORT_SYMBOL_GPL(invalidate_inode_pages2);
+
+/**
+ * truncate_pagecache - unmap and remove pagecache that has been truncated
+ * @inode: inode
+ * @old: old file offset
+ * @new: new file offset
+ *
+ * inode's new i_size must already be written before truncate_pagecache
+ * is called.
+ *
+ * This function should typically be called before the filesystem
+ * releases resources associated with the freed range (eg. deallocates
+ * blocks). This way, pagecache will always stay logically coherent
+ * with on-disk format, and the filesystem would not have to deal with
+ * situations such as writepage being called for a page that has already
+ * had its underlying blocks deallocated.
+ */
+void truncate_pagecache(struct inode *inode, loff_t old, loff_t new)
+{
+	if (new < old) {
+		struct address_space *mapping = inode->i_mapping;
+
+		/*
+		 * unmap_mapping_range is called twice, first simply for
+		 * efficiency so that truncate_inode_pages does fewer
+		 * single-page unmaps.  However after this first call, and
+		 * before truncate_inode_pages finishes, it is possible for
+		 * private pages to be COWed, which remain after
+		 * truncate_inode_pages finishes, hence the second
+		 * unmap_mapping_range call must be made for correctness.
+		 */
+		unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
+		truncate_inode_pages(mapping, new);
+		unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
+	}
+}
+EXPORT_SYMBOL(truncate_pagecache);
+
+/**
+ * vmtruncate - unmap mappings "freed" by truncate() syscall
+ * @inode: inode of the file used
+ * @offset: file offset to start truncating
+ *
+ * NOTE! We have to be ready to update the memory sharing
+ * between the file and the memory map for a potential last
+ * incomplete page.  Ugly, but necessary.
+ */
+int vmtruncate(struct inode *inode, loff_t offset)
+{
+	loff_t oldsize;
+	int error;
+
+	error = inode_newsize_ok(inode, offset);
+	if (error)
+		return error;
+	oldsize = inode->i_size;
+	i_size_write(inode, offset);
+	truncate_pagecache(inode, oldsize, offset);
+	if (inode->i_op->truncate)
+		inode->i_op->truncate(inode);
+
+	return error;
+}
+EXPORT_SYMBOL(vmtruncate);
