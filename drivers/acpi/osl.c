@@ -193,7 +193,7 @@ acpi_status __init acpi_os_initialize(void)
 
 static void bind_to_cpu0(struct work_struct *work)
 {
-	set_cpus_allowed(current, cpumask_of_cpu(0));
+	set_cpus_allowed_ptr(current, cpumask_of(0));
 	kfree(work);
 }
 
