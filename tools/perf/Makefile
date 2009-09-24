@@ -339,6 +339,7 @@ LIB_H += util/symbol.h
 LIB_H += util/module.h
 LIB_H += util/color.h
 LIB_H += util/values.h
+LIB_H += util/sort.h
 
 LIB_OBJS += util/abspath.o
 LIB_OBJS += util/alias.o
@@ -374,6 +375,7 @@ LIB_OBJS += util/trace-event-parse.o
 LIB_OBJS += util/trace-event-read.o
 LIB_OBJS += util/trace-event-info.o
 LIB_OBJS += util/svghelper.o
+LIB_OBJS += util/sort.o
 
 BUILTIN_OBJS += builtin-annotate.o
 BUILTIN_OBJS += builtin-help.o

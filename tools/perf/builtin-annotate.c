@@ -22,11 +22,9 @@
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 #include "util/thread.h"
+#include "util/sort.h"
 
 static char		const *input_name = "perf.data";
-
-static char		default_sort_order[] = "comm,symbol";
-static char		*sort_order = default_sort_order;
 
 static int		force;
 static int		input;
@@ -54,207 +52,6 @@ struct sym_ext {
  */
 
 static struct rb_root hist;
-
-struct hist_entry {
-	struct rb_node	 rb_node;
-
-	struct thread	 *thread;
-	struct map	 *map;
-	struct dso	 *dso;
-	struct symbol	 *sym;
-	u64	 ip;
-	char		 level;
-
-	uint32_t	 count;
-};
-
-/*
- * configurable sorting bits
- */
-
-struct sort_entry {
-	struct list_head list;
-
-	const char *header;
-
-	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
-	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
-	size_t	(*print)(FILE *fp, struct hist_entry *);
-};
-
-static int64_t cmp_null(void *l, void *r)
-{
-	if (!l && !r)
-		return 0;
-	else if (!l)
-		return -1;
-	else
-		return 1;
-}
-
-/* --sort pid */
-
-static int64_t
-sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	return right->thread->pid - left->thread->pid;
-}
-
-static size_t
-sort__thread_print(FILE *fp, struct hist_entry *self)
-{
-	return fprintf(fp, "%16s:%5d", self->thread->comm ?: "", self->thread->pid);
-}
-
-static struct sort_entry sort_thread = {
-	.header = "         Command:  Pid",
-	.cmp	= sort__thread_cmp,
-	.print	= sort__thread_print,
-};
-
-/* --sort comm */
-
-static int64_t
-sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	return right->thread->pid - left->thread->pid;
-}
-
-static int64_t
-sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
-{
-	char *comm_l = left->thread->comm;
-	char *comm_r = right->thread->comm;
-
-	if (!comm_l || !comm_r)
-		return cmp_null(comm_l, comm_r);
-
-	return strcmp(comm_l, comm_r);
-}
-
-static size_t
-sort__comm_print(FILE *fp, struct hist_entry *self)
-{
-	return fprintf(fp, "%16s", self->thread->comm);
-}
-
-static struct sort_entry sort_comm = {
-	.header		= "         Command",
-	.cmp		= sort__comm_cmp,
-	.collapse	= sort__comm_collapse,
-	.print		= sort__comm_print,
-};
-
-/* --sort dso */
-
-static int64_t
-sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	struct dso *dso_l = left->dso;
-	struct dso *dso_r = right->dso;
-
-	if (!dso_l || !dso_r)
-		return cmp_null(dso_l, dso_r);
-
-	return strcmp(dso_l->name, dso_r->name);
-}
-
-static size_t
-sort__dso_print(FILE *fp, struct hist_entry *self)
-{
-	if (self->dso)
-		return fprintf(fp, "%-25s", self->dso->name);
-
-	return fprintf(fp, "%016llx         ", (u64)self->ip);
-}
-
-static struct sort_entry sort_dso = {
-	.header = "Shared Object            ",
-	.cmp	= sort__dso_cmp,
-	.print	= sort__dso_print,
-};
-
-/* --sort symbol */
-
-static int64_t
-sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	u64 ip_l, ip_r;
-
-	if (left->sym == right->sym)
-		return 0;
-
-	ip_l = left->sym ? left->sym->start : left->ip;
-	ip_r = right->sym ? right->sym->start : right->ip;
-
-	return (int64_t)(ip_r - ip_l);
-}
-
-static size_t
-sort__sym_print(FILE *fp, struct hist_entry *self)
-{
-	size_t ret = 0;
-
-	if (verbose)
-		ret += fprintf(fp, "%#018llx  ", (u64)self->ip);
-
-	if (self->sym) {
-		ret += fprintf(fp, "[%c] %s",
-			self->dso == kernel_dso ? 'k' : '.', self->sym->name);
-	} else {
-		ret += fprintf(fp, "%#016llx", (u64)self->ip);
-	}
-
-	return ret;
-}
-
-static struct sort_entry sort_sym = {
-	.header = "Symbol",
-	.cmp	= sort__sym_cmp,
-	.print	= sort__sym_print,
-};
-
-static int sort__need_collapse = 0;
-
-struct sort_dimension {
-	const char		*name;
-	struct sort_entry	*entry;
-	int			taken;
-};
-
-static struct sort_dimension sort_dimensions[] = {
-	{ .name = "pid",	.entry = &sort_thread,	},
-	{ .name = "comm",	.entry = &sort_comm,	},
-	{ .name = "dso",	.entry = &sort_dso,	},
-	{ .name = "symbol",	.entry = &sort_sym,	},
-};
-
-static LIST_HEAD(hist_entry__sort_list);
-
-static int sort_dimension__add(char *tok)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
-		struct sort_dimension *sd = &sort_dimensions[i];
-
-		if (sd->taken)
-			continue;
-
-		if (strncasecmp(tok, sd->name, strlen(tok)))
-			continue;
-
-		if (sd->entry->collapse)
-			sort__need_collapse = 1;
-
-		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
-		sd->taken = 1;
-
-		return 0;
-	}
-
-	return -ESRCH;
-}
 
 static int64_t
 hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
@@ -1136,6 +933,12 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(annotate_usage, options);
 
 	setup_pager();
+
+	if (field_sep && *field_sep == '.') {
+		fputs("'.' is the only non valid --field-separator argument\n",
+				stderr);
+		exit(129);
+	}
 
 	return __cmd_annotate();
 }

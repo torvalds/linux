@@ -27,15 +27,13 @@
 #include "util/parse-events.h"
 
 #include "util/thread.h"
+#include "util/sort.h"
 
 static char		const *input_name = "perf.data";
 
-static char		default_sort_order[] = "comm,dso,symbol";
-static char		*sort_order = default_sort_order;
 static char		*dso_list_str, *comm_list_str, *sym_list_str,
 			*col_width_list_str;
 static struct strlist	*dso_list, *comm_list, *sym_list;
-static char		*field_sep;
 
 static int		force;
 static int		input;
@@ -52,10 +50,6 @@ static char		*pretty_printing_style = default_pretty_printing_style;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
-
-static char		default_parent_pattern[] = "^sys_|^do_page_fault";
-static char		*parent_pattern = default_parent_pattern;
-static regex_t		parent_regex;
 
 static int		exclude_other = 1;
 
@@ -80,303 +74,7 @@ struct callchain_param	callchain_param = {
 
 static u64		sample_type;
 
-static int repsep_fprintf(FILE *fp, const char *fmt, ...)
-{
-	int n;
-	va_list ap;
-
-	va_start(ap, fmt);
-	if (!field_sep)
-		n = vfprintf(fp, fmt, ap);
-	else {
-		char *bf = NULL;
-		n = vasprintf(&bf, fmt, ap);
-		if (n > 0) {
-			char *sep = bf;
-
-			while (1) {
-				sep = strchr(sep, *field_sep);
-				if (sep == NULL)
-					break;
-				*sep = '.';
-			}
-		}
-		fputs(bf, fp);
-		free(bf);
-	}
-	va_end(ap);
-	return n;
-}
-
-static unsigned int dsos__col_width,
-		    comms__col_width,
-		    threads__col_width;
-
-/*
- * histogram, sorted on item, collects counts
- */
-
 static struct rb_root hist;
-
-struct hist_entry {
-	struct rb_node		rb_node;
-
-	struct thread		*thread;
-	struct map		*map;
-	struct dso		*dso;
-	struct symbol		*sym;
-	struct symbol		*parent;
-	u64			ip;
-	char			level;
-	struct callchain_node	callchain;
-	struct rb_root		sorted_chain;
-
-	u64			count;
-};
-
-/*
- * configurable sorting bits
- */
-
-struct sort_entry {
-	struct list_head list;
-
-	const char *header;
-
-	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
-	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
-	size_t	(*print)(FILE *fp, struct hist_entry *, unsigned int width);
-	unsigned int *width;
-	bool	elide;
-};
-
-static int64_t cmp_null(void *l, void *r)
-{
-	if (!l && !r)
-		return 0;
-	else if (!l)
-		return -1;
-	else
-		return 1;
-}
-
-/* --sort pid */
-
-static int64_t
-sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	return right->thread->pid - left->thread->pid;
-}
-
-static size_t
-sort__thread_print(FILE *fp, struct hist_entry *self, unsigned int width)
-{
-	return repsep_fprintf(fp, "%*s:%5d", width - 6,
-			      self->thread->comm ?: "", self->thread->pid);
-}
-
-static struct sort_entry sort_thread = {
-	.header = "Command:  Pid",
-	.cmp	= sort__thread_cmp,
-	.print	= sort__thread_print,
-	.width	= &threads__col_width,
-};
-
-/* --sort comm */
-
-static int64_t
-sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	return right->thread->pid - left->thread->pid;
-}
-
-static int64_t
-sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
-{
-	char *comm_l = left->thread->comm;
-	char *comm_r = right->thread->comm;
-
-	if (!comm_l || !comm_r)
-		return cmp_null(comm_l, comm_r);
-
-	return strcmp(comm_l, comm_r);
-}
-
-static size_t
-sort__comm_print(FILE *fp, struct hist_entry *self, unsigned int width)
-{
-	return repsep_fprintf(fp, "%*s", width, self->thread->comm);
-}
-
-static struct sort_entry sort_comm = {
-	.header		= "Command",
-	.cmp		= sort__comm_cmp,
-	.collapse	= sort__comm_collapse,
-	.print		= sort__comm_print,
-	.width		= &comms__col_width,
-};
-
-/* --sort dso */
-
-static int64_t
-sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	struct dso *dso_l = left->dso;
-	struct dso *dso_r = right->dso;
-
-	if (!dso_l || !dso_r)
-		return cmp_null(dso_l, dso_r);
-
-	return strcmp(dso_l->name, dso_r->name);
-}
-
-static size_t
-sort__dso_print(FILE *fp, struct hist_entry *self, unsigned int width)
-{
-	if (self->dso)
-		return repsep_fprintf(fp, "%-*s", width, self->dso->name);
-
-	return repsep_fprintf(fp, "%*llx", width, (u64)self->ip);
-}
-
-static struct sort_entry sort_dso = {
-	.header = "Shared Object",
-	.cmp	= sort__dso_cmp,
-	.print	= sort__dso_print,
-	.width	= &dsos__col_width,
-};
-
-/* --sort symbol */
-
-static int64_t
-sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	u64 ip_l, ip_r;
-
-	if (left->sym == right->sym)
-		return 0;
-
-	ip_l = left->sym ? left->sym->start : left->ip;
-	ip_r = right->sym ? right->sym->start : right->ip;
-
-	return (int64_t)(ip_r - ip_l);
-}
-
-static size_t
-sort__sym_print(FILE *fp, struct hist_entry *self, unsigned int width __used)
-{
-	size_t ret = 0;
-
-	if (verbose)
-		ret += repsep_fprintf(fp, "%#018llx %c ", (u64)self->ip,
-				      dso__symtab_origin(self->dso));
-
-	ret += repsep_fprintf(fp, "[%c] ", self->level);
-	if (self->sym) {
-		ret += repsep_fprintf(fp, "%s", self->sym->name);
-
-		if (self->sym->module)
-			ret += repsep_fprintf(fp, "\t[%s]",
-					     self->sym->module->name);
-	} else {
-		ret += repsep_fprintf(fp, "%#016llx", (u64)self->ip);
-	}
-
-	return ret;
-}
-
-static struct sort_entry sort_sym = {
-	.header = "Symbol",
-	.cmp	= sort__sym_cmp,
-	.print	= sort__sym_print,
-};
-
-/* --sort parent */
-
-static int64_t
-sort__parent_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	struct symbol *sym_l = left->parent;
-	struct symbol *sym_r = right->parent;
-
-	if (!sym_l || !sym_r)
-		return cmp_null(sym_l, sym_r);
-
-	return strcmp(sym_l->name, sym_r->name);
-}
-
-static size_t
-sort__parent_print(FILE *fp, struct hist_entry *self, unsigned int width)
-{
-	return repsep_fprintf(fp, "%-*s", width,
-			      self->parent ? self->parent->name : "[other]");
-}
-
-static unsigned int parent_symbol__col_width;
-
-static struct sort_entry sort_parent = {
-	.header = "Parent symbol",
-	.cmp	= sort__parent_cmp,
-	.print	= sort__parent_print,
-	.width	= &parent_symbol__col_width,
-};
-
-static int sort__need_collapse = 0;
-static int sort__has_parent = 0;
-
-struct sort_dimension {
-	const char		*name;
-	struct sort_entry	*entry;
-	int			taken;
-};
-
-static struct sort_dimension sort_dimensions[] = {
-	{ .name = "pid",	.entry = &sort_thread,	},
-	{ .name = "comm",	.entry = &sort_comm,	},
-	{ .name = "dso",	.entry = &sort_dso,	},
-	{ .name = "symbol",	.entry = &sort_sym,	},
-	{ .name = "parent",	.entry = &sort_parent,	},
-};
-
-static LIST_HEAD(hist_entry__sort_list);
-
-static int sort_dimension__add(const char *tok)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
-		struct sort_dimension *sd = &sort_dimensions[i];
-
-		if (sd->taken)
-			continue;
-
-		if (strncasecmp(tok, sd->name, strlen(tok)))
-			continue;
-
-		if (sd->entry->collapse)
-			sort__need_collapse = 1;
-
-		if (sd->entry == &sort_parent) {
-			int ret = regcomp(&parent_regex, parent_pattern, REG_EXTENDED);
-			if (ret) {
-				char err[BUFSIZ];
-
-				regerror(ret, &parent_regex, err, sizeof(err));
-				fprintf(stderr, "Invalid regex: %s\n%s",
-					parent_pattern, err);
-				exit(-1);
-			}
-			sort__has_parent = 1;
-		}
-
-		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
-		sd->taken = 1;
-
-		return 0;
-	}
-
-	return -ESRCH;
-}
 
 static int64_t
 hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
@@ -1606,7 +1304,8 @@ setup:
 	return 0;
 }
 
-static const char * const report_usage[] = {
+//static const char * const report_usage[] = {
+const char * const report_usage[] = {
 	"perf report [<options>] <command>",
 	NULL
 };
