@@ -30,7 +30,8 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 	if (wdev->wext.keys) {
 		wdev->wext.keys->def = wdev->wext.default_key;
 		wdev->wext.keys->defmgmt = wdev->wext.default_mgmt_key;
-		wdev->wext.connect.privacy = true;
+		if (wdev->wext.default_key != -1)
+			wdev->wext.connect.privacy = true;
 	}
 
 	if (!wdev->wext.connect.ssid_len)
