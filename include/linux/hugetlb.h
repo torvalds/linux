@@ -3,14 +3,14 @@
 
 #include <linux/fs.h>
 
+struct ctl_table;
+struct user_struct;
+
 #ifdef CONFIG_HUGETLB_PAGE
 
 #include <linux/mempolicy.h>
 #include <linux/shm.h>
 #include <asm/tlbflush.h>
-
-struct ctl_table;
-struct user_struct;
 
 int PageHuge(struct page *page);
 
@@ -187,7 +187,11 @@ static inline void set_file_hugepages(struct file *file)
 
 #define is_file_hugepages(file)			0
 #define set_file_hugepages(file)		BUG()
-#define hugetlb_file_setup(name,size,acct,user,creat)	ERR_PTR(-ENOSYS)
+static inline struct file *hugetlb_file_setup(const char *name, size_t size,
+		int acctflag, struct user_struct **user, int creat_flags)
+{
+	return ERR_PTR(-ENOSYS);
+}
 
 #endif /* !CONFIG_HUGETLBFS */
 
