@@ -86,6 +86,11 @@ config RTAS_ERROR_LOGGING
 	depends on PPC_RTAS
 	default n
 
+config PPC_RTAS_DAEMON
+	bool
+	depends on PPC_RTAS
+	default n
+
 config RTAS_PROC
 	bool "Proc interface to RTAS"
 	depends on PPC_RTAS

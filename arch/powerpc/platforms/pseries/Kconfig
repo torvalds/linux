@@ -4,6 +4,7 @@ config PPC_PSERIES
 	select MPIC
 	select PPC_I8259
 	select PPC_RTAS
+	select PPC_RTAS_DAEMON
 	select RTAS_ERROR_LOGGING
 	select PPC_UDBG_16550
 	select PPC_NATIVE

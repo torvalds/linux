@@ -7,7 +7,7 @@ EXTRA_CFLAGS		+= -DDEBUG
 endif
 
 obj-y			:= lpar.o hvCall.o nvram.o reconfig.o \
-			   setup.o iommu.o ras.o rtasd.o \
+			   setup.o iommu.o ras.o \
 			   firmware.o power.o
 obj-$(CONFIG_SMP)	+= smp.o
 obj-$(CONFIG_XICS)	+= xics.o

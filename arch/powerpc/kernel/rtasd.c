@@ -39,6 +39,7 @@ static unsigned long rtas_log_start;
 static unsigned long rtas_log_size;
 
 static int surveillance_timeout = -1;
+
 static unsigned int rtas_error_log_max;
 static unsigned int rtas_error_log_buffer_max;
 
@@ -213,9 +214,11 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 		return;
 	}
 
+#ifdef CONFIG_PPC64
 	/* Write error to NVRAM */
 	if (logging_enabled && !(err_type & ERR_FLAG_BOOT))
 		nvram_write_error_log(buf, len, err_type, error_log_cnt);
+#endif /* CONFIG_PPC64 */
 
 	/*
 	 * rtas errors can occur during boot, and we do want to capture
@@ -264,7 +267,6 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 
 }
 
-
 static int rtas_log_open(struct inode * inode, struct file * file)
 {
 	return 0;
@@ -300,6 +302,7 @@ static ssize_t rtas_log_read(struct file * file, char __user * buf,
 		return -ENOMEM;
 
 	spin_lock_irqsave(&rtasd_log_lock, s);
+
 	/* if it's 0, then we know we got the last one (the one in NVRAM) */
 	while (rtas_log_size == 0) {
 		if (file->f_flags & O_NONBLOCK) {
@@ -313,7 +316,9 @@ static ssize_t rtas_log_read(struct file * file, char __user * buf,
 			error = -ENODATA;
 			goto out;
 		}
+#ifdef CONFIG_PPC64
 		nvram_clear_error_log();
+#endif /* CONFIG_PPC64 */
 
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		error = wait_event_interruptible(rtas_log_wait, rtas_log_size);
@@ -427,14 +432,11 @@ static void rtas_event_scan(struct work_struct *w)
 	put_online_cpus();
 }
 
-static void start_event_scan(void)
+#ifdef CONFIG_PPC64
+static void retreive_nvram_error_log(void)
 {
-	unsigned int err_type;
-	int rc;
-
-	printk(KERN_DEBUG "RTAS daemon started\n");
-	pr_debug("rtasd: will sleep for %d milliseconds\n",
-		 (30000 / rtas_event_scan_rate));
+	unsigned int err_type ;
+	int rc ;
 
 	/* See if we have any error stored in NVRAM */
 	memset(logdata, 0, rtas_error_log_max);
@@ -442,12 +444,26 @@ static void start_event_scan(void)
 	                          &err_type, &error_log_cnt);
 	/* We can use rtas_log_buf now */
 	logging_enabled = 1;
-
 	if (!rc) {
 		if (err_type != ERR_FLAG_ALREADY_LOGGED) {
 			pSeries_log_error(logdata, err_type | ERR_FLAG_BOOT, 0);
 		}
 	}
+}
+#else /* CONFIG_PPC64 */
+static void retreive_nvram_error_log(void)
+{
+}
+#endif /* CONFIG_PPC64 */
+
+static void start_event_scan(void)
+{
+	printk(KERN_DEBUG "RTAS daemon started\n");
+	pr_debug("rtasd: will sleep for %d milliseconds\n",
+		 (30000 / rtas_event_scan_rate));
+
+	/* Retreive errors from nvram if any */
+	retreive_nvram_error_log();
 
 	schedule_delayed_work_on(first_cpu(cpu_online_map), &event_scan_work,
 				 event_scan_delay);
@@ -457,13 +473,13 @@ static int __init rtas_init(void)
 {
 	struct proc_dir_entry *entry;
 
-	if (!machine_is(pseries))
+	if (!machine_is(pseries) && !machine_is(chrp))
 		return 0;
 
 	/* No RTAS */
 	event_scan = rtas_token("event-scan");
 	if (event_scan == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_DEBUG "rtasd: no event-scan on system\n");
+		printk(KERN_INFO "rtasd: No event-scan on system\n");
 		return -ENODEV;
 	}
 
@@ -483,7 +499,7 @@ static int __init rtas_init(void)
 		return -ENOMEM;
 	}
 
-	entry = proc_create("ppc64/rtas/error_log", S_IRUSR, NULL,
+	entry = proc_create("powerpc/rtas/error_log", S_IRUSR, NULL,
 			    &proc_rtas_log_operations);
 	if (!entry)
 		printk(KERN_ERR "Failed to create error_log proc entry\n");
@@ -492,10 +508,15 @@ static int __init rtas_init(void)
 
 	return 0;
 }
+__initcall(rtas_init);
 
 static int __init surveillance_setup(char *str)
 {
 	int i;
+
+	/* We only do surveillance on pseries */
+	if (!machine_is(pseries))
+		return 0;
 
 	if (get_option(&str,&i)) {
 		if (i >= 0 && i <= 255)
@@ -504,6 +525,7 @@ static int __init surveillance_setup(char *str)
 
 	return 1;
 }
+__setup("surveillance=", surveillance_setup);
 
 static int __init rtasmsgs_setup(char *str)
 {
@@ -514,6 +536,4 @@ static int __init rtasmsgs_setup(char *str)
 
 	return 1;
 }
-__initcall(rtas_init);
-__setup("surveillance=", surveillance_setup);
 __setup("rtasmsgs=", rtasmsgs_setup);
