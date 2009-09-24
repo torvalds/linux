@@ -1347,6 +1347,10 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 	struct pcpu_alloc_info *ai;
 	unsigned int *cpu_map;
 
+	/* this function may be called multiple times */
+	memset(group_map, 0, sizeof(group_map));
+	memset(group_cnt, 0, sizeof(group_map));
+
 	/*
 	 * Determine min_unit_size, alloc_size and max_upa such that
 	 * alloc_size is multiple of atom_size and is the smallest
