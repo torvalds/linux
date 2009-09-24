@@ -1277,6 +1277,7 @@ enum nl80211_channel_type {
  * @NL80211_BSS_SIGNAL_UNSPEC: signal strength of the probe response/beacon
  *	in unspecified units, scaled to 0..100 (u8)
  * @NL80211_BSS_STATUS: status, if this BSS is "used"
+ * @NL80211_BSS_SEEN_MS_AGO: age of this BSS entry in ms
  * @__NL80211_BSS_AFTER_LAST: internal
  * @NL80211_BSS_MAX: highest BSS attribute
  */
@@ -1291,6 +1292,7 @@ enum nl80211_bss {
 	NL80211_BSS_SIGNAL_MBM,
 	NL80211_BSS_SIGNAL_UNSPEC,
 	NL80211_BSS_STATUS,
+	NL80211_BSS_SEEN_MS_AGO,
 
 	/* keep last */
 	__NL80211_BSS_AFTER_LAST,
