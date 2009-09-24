@@ -929,6 +929,8 @@ int usb_stor_probe2(struct us_data *us)
 	result = usb_stor_acquire_resources(us);
 	if (result)
 		goto BadDevice;
+	snprintf(us->scsi_name, sizeof(us->scsi_name), "usb-storage %s",
+					dev_name(&us->pusb_intf->dev));
 	result = scsi_add_host(us_to_host(us), &us->pusb_intf->dev);
 	if (result) {
 		printk(KERN_WARNING USB_STORAGE
