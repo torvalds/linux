@@ -65,7 +65,7 @@ static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
 	struct ath_hw *ah = (struct ath_hw *) common->ah;
 
-	(void)REG_READ(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
+	common->ops->read(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
 
 	if (!ath9k_hw_wait(ah,
 			   AR_EEPROM_STATUS_DATA,
@@ -75,7 +75,7 @@ static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 		return false;
 	}
 
-	*data = MS(REG_READ(ah, AR_EEPROM_STATUS_DATA),
+	*data = MS(common->ops->read(ah, AR_EEPROM_STATUS_DATA),
 		   AR_EEPROM_STATUS_DATA_VAL);
 
 	return true;
