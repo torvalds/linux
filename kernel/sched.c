@@ -2515,22 +2515,17 @@ void sched_fork(struct task_struct *p, int clone_flags)
 	__sched_fork(p);
 
 	/*
-	 * Make sure we do not leak PI boosting priority to the child.
-	 */
-	p->prio = current->normal_prio;
-
-	/*
 	 * Revert to default priority/policy on fork if requested.
 	 */
 	if (unlikely(p->sched_reset_on_fork)) {
-		if (p->policy == SCHED_FIFO || p->policy == SCHED_RR)
+		if (p->policy == SCHED_FIFO || p->policy == SCHED_RR) {
 			p->policy = SCHED_NORMAL;
-
-		if (p->normal_prio < DEFAULT_PRIO)
-			p->prio = DEFAULT_PRIO;
+			p->normal_prio = p->static_prio;
+		}
 
 		if (PRIO_TO_NICE(p->static_prio) < 0) {
 			p->static_prio = NICE_TO_PRIO(0);
+			p->normal_prio = p->static_prio;
 			set_load_weight(p);
 		}
 
@@ -2540,6 +2535,11 @@ void sched_fork(struct task_struct *p, int clone_flags)
 		 */
 		p->sched_reset_on_fork = 0;
 	}
+
+	/*
+	 * Make sure we do not leak PI boosting priority to the child.
+	 */
+	p->prio = current->normal_prio;
 
 	if (!rt_prio(p->prio))
 		p->sched_class = &fair_sched_class;
@@ -2580,8 +2580,6 @@ void wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	rq = task_rq_lock(p, &flags);
 	BUG_ON(p->state != TASK_RUNNING);
 	update_rq_clock(rq);
-
-	p->prio = effective_prio(p);
 
 	if (!p->sched_class->task_new || !current->se.on_rq) {
 		activate_task(rq, p, 0);
