@@ -93,7 +93,6 @@ static struct irqaction irq0  = {
 
 void __init setup_default_timer_irq(void)
 {
-	irq0.mask = cpumask_of_cpu(0);
 	setup_irq(0, &irq0);
 }
 
