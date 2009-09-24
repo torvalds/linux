@@ -332,9 +332,6 @@ static inline const struct cpumask *get_cpu_mask(unsigned int cpu)
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
 } }
 
-/* cpu_mask_all is in init/main.c */
-extern cpumask_t cpu_mask_all;
-
 #endif
 
 #define CPU_MASK_NONE							\
