@@ -165,6 +165,7 @@ TRACE_EVENT(i915_gem_request_submit,
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
 			   __entry->seqno = seqno;
+			   i915_trace_irq_get(dev, seqno);
 			   ),
 
 	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)

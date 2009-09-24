@@ -1770,7 +1770,7 @@ i915_gem_retire_requests(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t seqno;
 
-	if (!dev_priv->hw_status_page)
+	if (!dev_priv->hw_status_page || list_empty(&dev_priv->mm.request_list))
 		return;
 
 	seqno = i915_get_gem_seqno(dev);
@@ -1793,6 +1793,12 @@ i915_gem_retire_requests(struct drm_device *dev)
 			kfree(request);
 		} else
 			break;
+	}
+
+	if (unlikely (dev_priv->trace_irq_seqno &&
+		      i915_seqno_passed(dev_priv->trace_irq_seqno, seqno))) {
+		i915_user_irq_put(dev);
+		dev_priv->trace_irq_seqno = 0;
 	}
 }
 
