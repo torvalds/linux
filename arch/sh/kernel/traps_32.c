@@ -678,12 +678,6 @@ uspace_segv:
 	} else {
 		se_sys += 1;
 
-		if (se_kernmode_warn)
-			printk(KERN_NOTICE "Unaligned kernel access "
-			       "on behalf of \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
-			       current->comm, current->pid, (void *)regs->pc,
-			       instruction);
-
 		if (regs->pc & 1)
 			die("unaligned program counter", regs, error_code);
 
@@ -696,6 +690,12 @@ uspace_segv:
 			set_fs(oldfs);
 			die("insn faulting in do_address_error", regs, 0);
 		}
+
+		if (se_kernmode_warn)
+			printk(KERN_NOTICE "Unaligned kernel access "
+			       "on behalf of \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
+			       current->comm, current->pid, (void *)regs->pc,
+			       instruction);
 
 		handle_unaligned_access(instruction, regs,
 					&user_mem_access, 0);
