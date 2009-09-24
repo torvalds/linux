@@ -200,7 +200,7 @@ p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 
 	req->status = REQ_STATUS_SENT;
 
-	if (chan->vq->vq_ops->add_buf(chan->vq, chan->sg, out, in, req->tc)) {
+	if (chan->vq->vq_ops->add_buf(chan->vq, chan->sg, out, in, req->tc) < 0) {
 		P9_DPRINTK(P9_DEBUG_TRANS,
 			"9p debug: virtio rpc add_buf returned failure");
 		return -EIO;
