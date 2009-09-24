@@ -27,6 +27,7 @@
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
 
+#include <acpi/button.h>
 #include <linux/dmi.h>
 #include <linux/i2c.h>
 #include "drmP.h"
@@ -295,6 +296,10 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		goto out;
 	}
 
+	/* full screen scale for now */
+	if (IS_IGDNG(dev))
+		goto out;
+
 	/* 965+ wants fuzzy fitting */
 	if (IS_I965G(dev))
 		pfit_control |= (intel_crtc->pipe << PFIT_PIPE_SHIFT) |
@@ -322,8 +327,10 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * to register description and PRM.
 	 * Change the value here to see the borders for debugging
 	 */
-	I915_WRITE(BCLRPAT_A, 0);
-	I915_WRITE(BCLRPAT_B, 0);
+	if (!IS_IGDNG(dev)) {
+		I915_WRITE(BCLRPAT_A, 0);
+		I915_WRITE(BCLRPAT_B, 0);
+	}
 
 	switch (lvds_priv->fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
@@ -572,7 +579,6 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	 * settings.
 	 */
 
-	/* No panel fitting yet, fixme */
 	if (IS_IGDNG(dev))
 		return;
 
@@ -585,15 +591,33 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	I915_WRITE(PFIT_CONTROL, lvds_priv->pfit_control);
 }
 
+/* Some lid devices report incorrect lid status, assume they're connected */
+static const struct dmi_system_id bad_lid_status[] = {
+	{
+		.ident = "Aspire One",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire one"),
+		},
+	},
+	{ }
+};
+
 /**
  * Detect the LVDS connection.
  *
- * This always returns CONNECTOR_STATUS_CONNECTED.  This connector should only have
- * been set up if the LVDS was actually connected anyway.
+ * Since LVDS doesn't have hotlug, we use the lid as a proxy.  Open means
+ * connected and closed means disconnected.  We also send hotplug events as
+ * needed, using lid status notification from the input layer.
  */
 static enum drm_connector_status intel_lvds_detect(struct drm_connector *connector)
 {
-	return connector_status_connected;
+	enum drm_connector_status status = connector_status_connected;
+
+	if (!acpi_lid_open() && !dmi_check_system(bad_lid_status))
+		status = connector_status_disconnected;
+
+	return status;
 }
 
 /**
@@ -632,6 +656,24 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
+static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
+			    void *unused)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(nb, struct drm_i915_private, lid_notifier);
+	struct drm_device *dev = dev_priv->dev;
+
+	if (acpi_lid_open() && !dev_priv->suspended) {
+		mutex_lock(&dev->mode_config.mutex);
+		drm_helper_resume_force_mode(dev);
+		mutex_unlock(&dev->mode_config.mutex);
+	}
+
+	drm_sysfs_hotplug_event(dev_priv->dev);
+
+	return NOTIFY_OK;
+}
+
 /**
  * intel_lvds_destroy - unregister and free LVDS structures
  * @connector: connector to free
@@ -641,10 +683,14 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
  */
 static void intel_lvds_destroy(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
 	struct intel_output *intel_output = to_intel_output(connector);
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (intel_output->ddc_bus)
 		intel_i2c_destroy(intel_output->ddc_bus);
+	if (dev_priv->lid_notifier.notifier_call)
+		acpi_lid_notifier_unregister(&dev_priv->lid_notifier);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
@@ -1010,6 +1056,11 @@ out:
 		pwm = I915_READ(BLC_PWM_PCH_CTL1);
 		pwm |= PWM_PCH_ENABLE;
 		I915_WRITE(BLC_PWM_PCH_CTL1, pwm);
+	}
+	dev_priv->lid_notifier.notifier_call = intel_lid_notify;
+	if (acpi_lid_notifier_register(&dev_priv->lid_notifier)) {
+		DRM_DEBUG("lid notifier registration failed\n");
+		dev_priv->lid_notifier.notifier_call = NULL;
 	}
 	drm_sysfs_connector_add(connector);
 	return;

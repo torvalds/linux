@@ -48,6 +48,11 @@ enum pipe {
 	PIPE_B,
 };
 
+enum plane {
+	PLANE_A = 0,
+	PLANE_B,
+};
+
 #define I915_NUM_PIPE	2
 
 /* Interface history:
@@ -148,6 +153,23 @@ struct drm_i915_error_state {
 	struct timeval time;
 };
 
+struct drm_i915_display_funcs {
+	void (*dpms)(struct drm_crtc *crtc, int mode);
+	bool (*fbc_enabled)(struct drm_crtc *crtc);
+	void (*enable_fbc)(struct drm_crtc *crtc, unsigned long interval);
+	void (*disable_fbc)(struct drm_device *dev);
+	int (*get_display_clock_speed)(struct drm_device *dev);
+	int (*get_fifo_size)(struct drm_device *dev, int plane);
+	void (*update_wm)(struct drm_device *dev, int planea_clock,
+			  int planeb_clock, int sr_hdisplay, int pixel_size);
+	/* clock updates for mode set */
+	/* cursor updates */
+	/* render clock increase/decrease */
+	/* display clock increase/decrease */
+	/* pll clock increase/decrease */
+	/* clock gating init */
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -198,9 +220,20 @@ typedef struct drm_i915_private {
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int vblank_pipe;
 
+	/* For hangcheck timer */
+#define DRM_I915_HANGCHECK_PERIOD 75 /* in jiffies */
+	struct timer_list hangcheck_timer;
+	int hangcheck_count;
+	uint32_t last_acthd;
+
 	bool cursor_needs_physical;
 
 	struct drm_mm vram;
+
+	unsigned long cfb_size;
+	unsigned long cfb_pitch;
+	int cfb_fence;
+	int cfb_plane;
 
 	int irq_enabled;
 
@@ -222,6 +255,8 @@ typedef struct drm_i915_private {
 	unsigned int edp_support:1;
 	int lvds_ssc_freq;
 
+	struct notifier_block lid_notifier;
+
 	int crt_ddc_bus; /* -1 = unknown, else GPIO to use for CRT DDC */
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
@@ -234,7 +269,11 @@ typedef struct drm_i915_private {
 	struct work_struct error_work;
 	struct workqueue_struct *wq;
 
+	/* Display functions */
+	struct drm_i915_display_funcs display;
+
 	/* Register state */
+	bool suspended;
 	u8 saveLBB;
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
@@ -350,6 +389,15 @@ typedef struct drm_i915_private {
 		int gtt_mtrr;
 
 		/**
+		 * Membership on list of all loaded devices, used to evict
+		 * inactive buffers under memory pressure.
+		 *
+		 * Modifications should only be done whilst holding the
+		 * shrink_list_lock spinlock.
+		 */
+		struct list_head shrink_list;
+
+		/**
 		 * List of objects currently involved in rendering from the
 		 * ringbuffer.
 		 *
@@ -432,7 +480,7 @@ typedef struct drm_i915_private {
 		 * It prevents command submission from occuring and makes
 		 * every pending request fail
 		 */
-		int wedged;
+		atomic_t wedged;
 
 		/** Bit 6 swizzling required for X tiling */
 		uint32_t bit_6_swizzle_x;
@@ -491,10 +539,7 @@ struct drm_i915_gem_object {
 	 * This is the same as gtt_space->start
 	 */
 	uint32_t gtt_offset;
-	/**
-	 * Required alignment for the object
-	 */
-	uint32_t gtt_alignment;
+
 	/**
 	 * Fake offset for use by mmap(2)
 	 */
@@ -541,6 +586,11 @@ struct drm_i915_gem_object {
 	 * in an execbuffer object list.
 	 */
 	int in_execbuffer;
+
+	/**
+	 * Advice: are the backing pages purgeable?
+	 */
+	int madv;
 };
 
 /**
@@ -585,6 +635,8 @@ extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc;
 extern unsigned int i915_powersave;
 
+extern void i915_save_display(struct drm_device *dev);
+extern void i915_restore_display(struct drm_device *dev);
 extern int i915_master_create(struct drm_device *dev, struct drm_master *master);
 extern void i915_master_destroy(struct drm_device *dev, struct drm_master *master);
 
@@ -604,8 +656,10 @@ extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 extern int i915_emit_box(struct drm_device *dev,
 			 struct drm_clip_rect *boxes,
 			 int i, int DR1, int DR4);
+extern int i965_reset(struct drm_device *dev, u8 flags);
 
 /* i915_irq.c */
+void i915_hangcheck_elapsed(unsigned long data);
 extern int i915_irq_emit(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 extern int i915_irq_wait(struct drm_device *dev, void *data,
@@ -676,6 +730,8 @@ int i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
+int i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
 int i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 int i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
@@ -695,6 +751,7 @@ int i915_gem_object_unbind(struct drm_gem_object *obj);
 void i915_gem_release_mmap(struct drm_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 uint32_t i915_get_gem_seqno(struct drm_device *dev);
+bool i915_seqno_passed(uint32_t seq1, uint32_t seq2);
 int i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
 int i915_gem_object_put_fence_reg(struct drm_gem_object *obj);
 void i915_gem_retire_requests(struct drm_device *dev);
@@ -719,6 +776,9 @@ void i915_gem_free_all_phys_object(struct drm_device *dev);
 int i915_gem_object_get_pages(struct drm_gem_object *obj);
 void i915_gem_object_put_pages(struct drm_gem_object *obj);
 void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
+
+void i915_gem_shrinker_init(void);
+void i915_gem_shrinker_exit(void);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
@@ -767,6 +827,8 @@ static inline void opregion_enable_asle(struct drm_device *dev) { return; }
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
 extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
+extern void i8xx_disable_fbc(struct drm_device *dev);
+extern void g4x_disable_fbc(struct drm_device *dev);
 
 /**
  * Lock test for when it's just for synchronization of ring access.
@@ -864,6 +926,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		       (dev)->pci_device == 0x2E12 || \
 		       (dev)->pci_device == 0x2E22 || \
 		       (dev)->pci_device == 0x2E32 || \
+		       (dev)->pci_device == 0x2E42 || \
 		       (dev)->pci_device == 0x0042 || \
 		       (dev)->pci_device == 0x0046)
 
@@ -876,6 +939,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		     (dev)->pci_device == 0x2E12 || \
 		     (dev)->pci_device == 0x2E22 || \
 		     (dev)->pci_device == 0x2E32 || \
+		     (dev)->pci_device == 0x2E42 || \
 		     IS_GM45(dev))
 
 #define IS_IGDG(dev) ((dev)->pci_device == 0xa001)
@@ -909,12 +973,13 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
 #define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
 #define SUPPORTS_EDP(dev)		(IS_IGDNG_M(dev))
-#define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
+#define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev) || IS_I965G(dev))
 /* dsparb controlled by hw only */
 #define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IGDNG(dev))
 
 #define HAS_FW_BLC(dev) (IS_I9XX(dev) || IS_G4X(dev) || IS_IGDNG(dev))
 #define HAS_PIPE_CXSR(dev) (IS_G4X(dev) || IS_IGDNG(dev))
+#define I915_HAS_FBC(dev) (IS_MOBILE(dev) && (IS_I9XX(dev) || IS_I965G(dev)))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

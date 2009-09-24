@@ -33,6 +33,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include <linux/vgaarb.h>
 
 /* Really want an OS-independent resettable timer.  Would like to have
@@ -50,14 +51,18 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 	u32 last_head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
 	int i;
 
+	trace_i915_ring_wait_begin (dev);
+
 	for (i = 0; i < 100000; i++) {
 		ring->head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
 		acthd = I915_READ(acthd_reg);
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
 			ring->space += ring->Size;
-		if (ring->space >= n)
+		if (ring->space >= n) {
+			trace_i915_ring_wait_end (dev);
 			return 0;
+		}
 
 		if (dev->primary->master) {
 			struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
@@ -77,6 +82,7 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 
 	}
 
+	trace_i915_ring_wait_end (dev);
 	return -EBUSY;
 }
 
@@ -922,7 +928,8 @@ static int i915_get_bridge_dev(struct drm_device *dev)
  * how much was set aside so we can use it for our own purposes.
  */
 static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
-			  uint32_t *preallocated_size)
+			  uint32_t *preallocated_size,
+			  uint32_t *start)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u16 tmp = 0;
@@ -1009,8 +1016,157 @@ static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
 		return -1;
 	}
 	*preallocated_size = stolen - overhead;
+	*start = overhead;
 
 	return 0;
+}
+
+#define PTE_ADDRESS_MASK		0xfffff000
+#define PTE_ADDRESS_MASK_HIGH		0x000000f0 /* i915+ */
+#define PTE_MAPPING_TYPE_UNCACHED	(0 << 1)
+#define PTE_MAPPING_TYPE_DCACHE		(1 << 1) /* i830 only */
+#define PTE_MAPPING_TYPE_CACHED		(3 << 1)
+#define PTE_MAPPING_TYPE_MASK		(3 << 1)
+#define PTE_VALID			(1 << 0)
+
+/**
+ * i915_gtt_to_phys - take a GTT address and turn it into a physical one
+ * @dev: drm device
+ * @gtt_addr: address to translate
+ *
+ * Some chip functions require allocations from stolen space but need the
+ * physical address of the memory in question.  We use this routine
+ * to get a physical address suitable for register programming from a given
+ * GTT address.
+ */
+static unsigned long i915_gtt_to_phys(struct drm_device *dev,
+				      unsigned long gtt_addr)
+{
+	unsigned long *gtt;
+	unsigned long entry, phys;
+	int gtt_bar = IS_I9XX(dev) ? 0 : 1;
+	int gtt_offset, gtt_size;
+
+	if (IS_I965G(dev)) {
+		if (IS_G4X(dev) || IS_IGDNG(dev)) {
+			gtt_offset = 2*1024*1024;
+			gtt_size = 2*1024*1024;
+		} else {
+			gtt_offset = 512*1024;
+			gtt_size = 512*1024;
+		}
+	} else {
+		gtt_bar = 3;
+		gtt_offset = 0;
+		gtt_size = pci_resource_len(dev->pdev, gtt_bar);
+	}
+
+	gtt = ioremap_wc(pci_resource_start(dev->pdev, gtt_bar) + gtt_offset,
+			 gtt_size);
+	if (!gtt) {
+		DRM_ERROR("ioremap of GTT failed\n");
+		return 0;
+	}
+
+	entry = *(volatile u32 *)(gtt + (gtt_addr / 1024));
+
+	DRM_DEBUG("GTT addr: 0x%08lx, PTE: 0x%08lx\n", gtt_addr, entry);
+
+	/* Mask out these reserved bits on this hardware. */
+	if (!IS_I9XX(dev) || IS_I915G(dev) || IS_I915GM(dev) ||
+	    IS_I945G(dev) || IS_I945GM(dev)) {
+		entry &= ~PTE_ADDRESS_MASK_HIGH;
+	}
+
+	/* If it's not a mapping type we know, then bail. */
+	if ((entry & PTE_MAPPING_TYPE_MASK) != PTE_MAPPING_TYPE_UNCACHED &&
+	    (entry & PTE_MAPPING_TYPE_MASK) != PTE_MAPPING_TYPE_CACHED)	{
+		iounmap(gtt);
+		return 0;
+	}
+
+	if (!(entry & PTE_VALID)) {
+		DRM_ERROR("bad GTT entry in stolen space\n");
+		iounmap(gtt);
+		return 0;
+	}
+
+	iounmap(gtt);
+
+	phys =(entry & PTE_ADDRESS_MASK) |
+		((uint64_t)(entry & PTE_ADDRESS_MASK_HIGH) << (32 - 4));
+
+	DRM_DEBUG("GTT addr: 0x%08lx, phys addr: 0x%08lx\n", gtt_addr, phys);
+
+	return phys;
+}
+
+static void i915_warn_stolen(struct drm_device *dev)
+{
+	DRM_ERROR("not enough stolen space for compressed buffer, disabling\n");
+	DRM_ERROR("hint: you may be able to increase stolen memory size in the BIOS to avoid this\n");
+}
+
+static void i915_setup_compression(struct drm_device *dev, int size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_mm_node *compressed_fb, *compressed_llb;
+	unsigned long cfb_base, ll_base;
+
+	/* Leave 1M for line length buffer & misc. */
+	compressed_fb = drm_mm_search_free(&dev_priv->vram, size, 4096, 0);
+	if (!compressed_fb) {
+		i915_warn_stolen(dev);
+		return;
+	}
+
+	compressed_fb = drm_mm_get_block(compressed_fb, size, 4096);
+	if (!compressed_fb) {
+		i915_warn_stolen(dev);
+		return;
+	}
+
+	cfb_base = i915_gtt_to_phys(dev, compressed_fb->start);
+	if (!cfb_base) {
+		DRM_ERROR("failed to get stolen phys addr, disabling FBC\n");
+		drm_mm_put_block(compressed_fb);
+	}
+
+	if (!IS_GM45(dev)) {
+		compressed_llb = drm_mm_search_free(&dev_priv->vram, 4096,
+						    4096, 0);
+		if (!compressed_llb) {
+			i915_warn_stolen(dev);
+			return;
+		}
+
+		compressed_llb = drm_mm_get_block(compressed_llb, 4096, 4096);
+		if (!compressed_llb) {
+			i915_warn_stolen(dev);
+			return;
+		}
+
+		ll_base = i915_gtt_to_phys(dev, compressed_llb->start);
+		if (!ll_base) {
+			DRM_ERROR("failed to get stolen phys addr, disabling FBC\n");
+			drm_mm_put_block(compressed_fb);
+			drm_mm_put_block(compressed_llb);
+		}
+	}
+
+	dev_priv->cfb_size = size;
+
+	if (IS_GM45(dev)) {
+		g4x_disable_fbc(dev);
+		I915_WRITE(DPFC_CB_BASE, compressed_fb->start);
+	} else {
+		i8xx_disable_fbc(dev);
+		I915_WRITE(FBC_CFB_BASE, cfb_base);
+		I915_WRITE(FBC_LL_BASE, ll_base);
+	}
+
+	DRM_DEBUG("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n", cfb_base,
+		  ll_base, size >> 20);
 }
 
 /* true = enable decode, false = disable decoder */
@@ -1027,6 +1183,7 @@ static unsigned int i915_vga_set_decode(void *cookie, bool state)
 }
 
 static int i915_load_modeset_init(struct drm_device *dev,
+				  unsigned long prealloc_start,
 				  unsigned long prealloc_size,
 				  unsigned long agp_size)
 {
@@ -1047,6 +1204,10 @@ static int i915_load_modeset_init(struct drm_device *dev,
 
 	/* Basic memrange allocator for stolen space (aka vram) */
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
+	DRM_INFO("set up %ldM of stolen space\n", prealloc_size / (1024*1024));
+
+	/* We're off and running w/KMS */
+	dev_priv->mm.suspended = 0;
 
 	/* Let GEM Manage from end of prealloc space to end of aperture.
 	 *
@@ -1059,9 +1220,24 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	 */
 	i915_gem_do_init(dev, prealloc_size, agp_size - 4096);
 
+	mutex_lock(&dev->struct_mutex);
 	ret = i915_gem_init_ringbuffer(dev);
+	mutex_unlock(&dev->struct_mutex);
 	if (ret)
 		goto out;
+
+	/* Try to set up FBC with a reasonable compressed buffer size */
+	if (IS_MOBILE(dev) && (IS_I9XX(dev) || IS_I965G(dev) || IS_GM45(dev)) &&
+	    i915_powersave) {
+		int cfb_size;
+
+		/* Try to get an 8M buffer... */
+		if (prealloc_size > (9*1024*1024))
+			cfb_size = 8*1024*1024;
+		else /* fall back to 7/8 of the stolen space */
+			cfb_size = prealloc_size * 7 / 8;
+		i915_setup_compression(dev, cfb_size);
+	}
 
 	/* Allow hardware batchbuffers unless told otherwise.
 	 */
@@ -1180,7 +1356,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	resource_size_t base, size;
 	int ret = 0, mmio_bar = IS_I9XX(dev) ? 0 : 1;
-	uint32_t agp_size, prealloc_size;
+	uint32_t agp_size, prealloc_size, prealloc_start;
 
 	/* i915 has 4 more counters */
 	dev->counters += 4;
@@ -1234,7 +1410,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			 "performance may suffer.\n");
 	}
 
-	ret = i915_probe_agp(dev, &agp_size, &prealloc_size);
+	ret = i915_probe_agp(dev, &agp_size, &prealloc_size, &prealloc_start);
 	if (ret)
 		goto out_iomapfree;
 
@@ -1300,8 +1476,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		return ret;
 	}
 
+	/* Start out suspended */
+	dev_priv->mm.suspended = 1;
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = i915_load_modeset_init(dev, prealloc_size, agp_size);
+		ret = i915_load_modeset_init(dev, prealloc_start,
+					     prealloc_size, agp_size);
 		if (ret < 0) {
 			DRM_ERROR("failed to init modeset\n");
 			goto out_workqueue_free;
@@ -1313,6 +1493,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!IS_IGDNG(dev))
 		intel_opregion_init(dev, 0);
 
+	setup_timer(&dev_priv->hangcheck_timer, i915_hangcheck_elapsed,
+		    (unsigned long) dev);
 	return 0;
 
 out_workqueue_free:
@@ -1333,6 +1515,7 @@ int i915_driver_unload(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	destroy_workqueue(dev_priv->wq);
+	del_timer_sync(&dev_priv->hangcheck_timer);
 
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 	if (dev_priv->mm.gtt_mtrr >= 0) {
@@ -1472,6 +1655,7 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_I915_GEM_GET_TILING, i915_gem_get_tiling, 0),
 	DRM_IOCTL_DEF(DRM_I915_GEM_GET_APERTURE, i915_gem_get_aperture_ioctl, 0),
 	DRM_IOCTL_DEF(DRM_I915_GET_PIPE_FROM_CRTC_ID, intel_get_pipe_from_crtc_id, 0),
+	DRM_IOCTL_DEF(DRM_I915_GEM_MADVISE, i915_gem_madvise_ioctl, 0),
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);

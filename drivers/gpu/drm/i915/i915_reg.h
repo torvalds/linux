@@ -86,6 +86,10 @@
 #define   I915_GC_RENDER_CLOCK_200_MHZ	(1 << 0)
 #define   I915_GC_RENDER_CLOCK_333_MHZ	(4 << 0)
 #define LBB	0xf4
+#define GDRST 0xc0
+#define  GDRST_FULL	(0<<2)
+#define  GDRST_RENDER	(1<<2)
+#define  GDRST_MEDIA	(3<<2)
 
 /* VGA stuff */
 
@@ -344,8 +348,36 @@
 #define   FBC_CTL_PLANEA	(0<<0)
 #define   FBC_CTL_PLANEB	(1<<0)
 #define FBC_FENCE_OFF		0x0321b
+#define FBC_TAG			0x03300
 
 #define FBC_LL_SIZE		(1536)
+
+/* Framebuffer compression for GM45+ */
+#define DPFC_CB_BASE		0x3200
+#define DPFC_CONTROL		0x3208
+#define   DPFC_CTL_EN		(1<<31)
+#define   DPFC_CTL_PLANEA	(0<<30)
+#define   DPFC_CTL_PLANEB	(1<<30)
+#define   DPFC_CTL_FENCE_EN	(1<<29)
+#define   DPFC_SR_EN		(1<<10)
+#define   DPFC_CTL_LIMIT_1X	(0<<6)
+#define   DPFC_CTL_LIMIT_2X	(1<<6)
+#define   DPFC_CTL_LIMIT_4X	(2<<6)
+#define DPFC_RECOMP_CTL		0x320c
+#define   DPFC_RECOMP_STALL_EN	(1<<27)
+#define   DPFC_RECOMP_STALL_WM_SHIFT (16)
+#define   DPFC_RECOMP_STALL_WM_MASK (0x07ff0000)
+#define   DPFC_RECOMP_TIMER_COUNT_SHIFT (0)
+#define   DPFC_RECOMP_TIMER_COUNT_MASK (0x0000003f)
+#define DPFC_STATUS		0x3210
+#define   DPFC_INVAL_SEG_SHIFT  (16)
+#define   DPFC_INVAL_SEG_MASK	(0x07ff0000)
+#define   DPFC_COMP_SEG_SHIFT	(0)
+#define   DPFC_COMP_SEG_MASK	(0x000003ff)
+#define DPFC_STATUS2		0x3214
+#define DPFC_FENCE_YOFF		0x3218
+#define DPFC_CHICKEN		0x3224
+#define   DPFC_HT_MODIFY	(1<<31)
 
 /*
  * GPIO regs
@@ -2000,6 +2032,8 @@
 #define  PF_ENABLE              (1<<31)
 #define PFA_WIN_SZ		0x68074
 #define PFB_WIN_SZ		0x68874
+#define PFA_WIN_POS		0x68070
+#define PFB_WIN_POS		0x68870
 
 /* legacy palette */
 #define LGC_PALETTE_A           0x4a000
