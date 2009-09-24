@@ -195,9 +195,9 @@ static int filter_pred_string(struct filter_pred *pred, void *event,
 	char *addr = (char *)(event + pred->offset);
 	int cmp, match;
 
-	cmp = strncmp(addr, pred->str_val, pred->str_len);
+	cmp = pred->regex.match(addr, &pred->regex, pred->regex.field_len);
 
-	match = (!cmp) ^ pred->not;
+	match = cmp ^ pred->not;
 
 	return match;
 }
@@ -209,9 +209,9 @@ static int filter_pred_pchar(struct filter_pred *pred, void *event,
 	char **addr = (char **)(event + pred->offset);
 	int cmp, match;
 
-	cmp = strncmp(*addr, pred->str_val, pred->str_len);
+	cmp = pred->regex.match(*addr, &pred->regex, pred->regex.field_len);
 
-	match = (!cmp) ^ pred->not;
+	match = cmp ^ pred->not;
 
 	return match;
 }
@@ -235,9 +235,9 @@ static int filter_pred_strloc(struct filter_pred *pred, void *event,
 	char *addr = (char *)(event + str_loc);
 	int cmp, match;
 
-	cmp = strncmp(addr, pred->str_val, str_len);
+	cmp = pred->regex.match(addr, &pred->regex, str_len);
 
-	match = (!cmp) ^ pred->not;
+	match = cmp ^ pred->not;
 
 	return match;
 }
@@ -245,6 +245,126 @@ static int filter_pred_strloc(struct filter_pred *pred, void *event,
 static int filter_pred_none(struct filter_pred *pred, void *event,
 			    int val1, int val2)
 {
+	return 0;
+}
+
+/* Basic regex callbacks */
+static int regex_match_full(char *str, struct regex *r, int len)
+{
+	if (strncmp(str, r->pattern, len) == 0)
+		return 1;
+	return 0;
+}
+
+static int regex_match_front(char *str, struct regex *r, int len)
+{
+	if (strncmp(str, r->pattern, len) == 0)
+		return 1;
+	return 0;
+}
+
+static int regex_match_middle(char *str, struct regex *r, int len)
+{
+	if (strstr(str, r->pattern))
+		return 1;
+	return 0;
+}
+
+static int regex_match_end(char *str, struct regex *r, int len)
+{
+	char *ptr = strstr(str, r->pattern);
+
+	if (ptr && (ptr[r->len] == 0))
+		return 1;
+	return 0;
+}
+
+enum regex_type {
+	MATCH_FULL,
+	MATCH_FRONT_ONLY,
+	MATCH_MIDDLE_ONLY,
+	MATCH_END_ONLY,
+};
+
+/*
+ * Pass in a buffer containing a regex and this function will
+ * set search to point to the search part of the buffer and
+ * return the type of search it is (see enum above).
+ * This does modify buff.
+ *
+ * Returns enum type.
+ *  search returns the pointer to use for comparison.
+ *  not returns 1 if buff started with a '!'
+ *     0 otherwise.
+ */
+static enum regex_type
+filter_parse_regex(char *buff, int len, char **search, int *not)
+{
+	int type = MATCH_FULL;
+	int i;
+
+	if (buff[0] == '!') {
+		*not = 1;
+		buff++;
+		len--;
+	} else
+		*not = 0;
+
+	*search = buff;
+
+	for (i = 0; i < len; i++) {
+		if (buff[i] == '*') {
+			if (!i) {
+				*search = buff + 1;
+				type = MATCH_END_ONLY;
+			} else {
+				if (type == MATCH_END_ONLY)
+					type = MATCH_MIDDLE_ONLY;
+				else
+					type = MATCH_FRONT_ONLY;
+				buff[i] = 0;
+				break;
+			}
+		}
+	}
+
+	return type;
+}
+
+static int filter_build_regex(struct filter_pred *pred)
+{
+	struct regex *r = &pred->regex;
+	char *search, *dup;
+	enum regex_type type;
+	int not;
+
+	type = filter_parse_regex(r->pattern, r->len, &search, &not);
+	dup = kstrdup(search, GFP_KERNEL);
+	if (!dup)
+		return -ENOMEM;
+
+	strcpy(r->pattern, dup);
+	kfree(dup);
+
+	r->len = strlen(r->pattern);
+
+	switch (type) {
+	case MATCH_FULL:
+		r->match = regex_match_full;
+		break;
+	case MATCH_FRONT_ONLY:
+		r->match = regex_match_front;
+		break;
+	case MATCH_MIDDLE_ONLY:
+		r->match = regex_match_middle;
+		break;
+	case MATCH_END_ONLY:
+		r->match = regex_match_end;
+		break;
+	}
+
+	pred->not ^= not;
+
 	return 0;
 }
 
@@ -394,7 +514,7 @@ static void filter_clear_pred(struct filter_pred *pred)
 {
 	kfree(pred->field_name);
 	pred->field_name = NULL;
-	pred->str_len = 0;
+	pred->regex.len = 0;
 }
 
 static int filter_set_pred(struct filter_pred *dest,
@@ -658,21 +778,24 @@ static int filter_add_pred(struct filter_parse_state *ps,
 	}
 
 	if (is_string_field(field)) {
-		pred->str_len = field->size;
+		ret = filter_build_regex(pred);
+		if (ret)
+			return ret;
 
-		if (field->filter_type == FILTER_STATIC_STRING)
+		if (field->filter_type == FILTER_STATIC_STRING) {
 			fn = filter_pred_string;
-		else if (field->filter_type == FILTER_DYN_STRING)
-			fn = filter_pred_strloc;
+			pred->regex.field_len = field->size;
+		} else if (field->filter_type == FILTER_DYN_STRING)
+				fn = filter_pred_strloc;
 		else {
 			fn = filter_pred_pchar;
-			pred->str_len = strlen(pred->str_val);
+			pred->regex.field_len = strlen(pred->regex.pattern);
 		}
 	} else {
 		if (field->is_signed)
-			ret = strict_strtoll(pred->str_val, 0, &val);
+			ret = strict_strtoll(pred->regex.pattern, 0, &val);
 		else
-			ret = strict_strtoull(pred->str_val, 0, &val);
+			ret = strict_strtoull(pred->regex.pattern, 0, &val);
 		if (ret) {
 			parse_error(ps, FILT_ERR_ILLEGAL_INTVAL, 0);
 			return -EINVAL;
@@ -1042,8 +1165,8 @@ static struct filter_pred *create_pred(int op, char *operand1, char *operand2)
 		return NULL;
 	}
 
-	strcpy(pred->str_val, operand2);
-	pred->str_len = strlen(operand2);
+	strcpy(pred->regex.pattern, operand2);
+	pred->regex.len = strlen(pred->regex.pattern);
 
 	pred->op = op;
 
