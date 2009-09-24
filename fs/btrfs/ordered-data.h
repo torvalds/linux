@@ -85,6 +85,9 @@ struct btrfs_ordered_extent {
 	/* extent length on disk */
 	u64 disk_len;
 
+	/* number of bytes that still need writing */
+	u64 bytes_left;
+
 	/* flags (described above) */
 	unsigned long flags;
 

@@ -259,7 +259,9 @@ static int link_free_space(struct btrfs_block_group_cache *block_group,
 
 static void recalculate_thresholds(struct btrfs_block_group_cache *block_group)
 {
-	u64 max_bytes, possible_bytes;
+	u64 max_bytes;
+	u64 bitmap_bytes;
+	u64 extent_bytes;
 
 	/*
 	 * The goal is to keep the total amount of memory used per 1gb of space
@@ -269,22 +271,27 @@ static void recalculate_thresholds(struct btrfs_block_group_cache *block_group)
 	max_bytes = MAX_CACHE_BYTES_PER_GIG *
 		(div64_u64(block_group->key.offset, 1024 * 1024 * 1024));
 
-	possible_bytes = (block_group->total_bitmaps * PAGE_CACHE_SIZE) +
-		(sizeof(struct btrfs_free_space) *
-		 block_group->extents_thresh);
+	/*
+	 * we want to account for 1 more bitmap than what we have so we can make
+	 * sure we don't go over our overall goal of MAX_CACHE_BYTES_PER_GIG as
+	 * we add more bitmaps.
+	 */
+	bitmap_bytes = (block_group->total_bitmaps + 1) * PAGE_CACHE_SIZE;
 
-	if (possible_bytes > max_bytes) {
-		int extent_bytes = max_bytes -
-			(block_group->total_bitmaps * PAGE_CACHE_SIZE);
-
-		if (extent_bytes <= 0) {
-			block_group->extents_thresh = 0;
-			return;
-		}
-
-		block_group->extents_thresh = extent_bytes /
-			(sizeof(struct btrfs_free_space));
+	if (bitmap_bytes >= max_bytes) {
+		block_group->extents_thresh = 0;
+		return;
 	}
+
+	/*
+	 * we want the extent entry threshold to always be at most 1/2 the maxw
+	 * bytes we can have, or whatever is less than that.
+	 */
+	extent_bytes = max_bytes - bitmap_bytes;
+	extent_bytes = min_t(u64, extent_bytes, div64_u64(max_bytes, 2));
+
+	block_group->extents_thresh =
+		div64_u64(extent_bytes, (sizeof(struct btrfs_free_space)));
 }
 
 static void bitmap_clear_bits(struct btrfs_block_group_cache *block_group,
@@ -403,6 +410,7 @@ static void add_new_bitmap(struct btrfs_block_group_cache *block_group,
 	BUG_ON(block_group->total_bitmaps >= max_bitmaps);
 
 	info->offset = offset_to_bitmap(block_group, offset);
+	info->bytes = 0;
 	link_free_space(block_group, info);
 	block_group->total_bitmaps++;
 
