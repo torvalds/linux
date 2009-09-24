@@ -528,8 +528,12 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 	num = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
 
 	err = vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
-	if (err >= 0 && !vi->free_in_tasklet)
+	if (err >= 0 && !vi->free_in_tasklet) {
+		/* Don't wait up for transmitted skbs to be freed. */
+		skb_orphan(skb);
+		nf_reset(skb);
 		mod_timer(&vi->xmit_free_timer, jiffies + (HZ/10));
+	}
 
 	return err;
 }
