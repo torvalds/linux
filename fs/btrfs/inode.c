@@ -5055,6 +5055,9 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	u64 root_objectid;
 	int ret;
 
+	if (new_dir->i_ino == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)
+		return -EPERM;
+
 	/* we only allow rename subvolume link between subvolumes */
 	if (old_inode->i_ino != BTRFS_FIRST_FREE_OBJECTID && root != dest)
 		return -EXDEV;
