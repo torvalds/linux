@@ -176,6 +176,9 @@ static void omap2_mbox_ack_irq(struct omap_mbox *mbox,
 	u32 bit = (irq == IRQ_TX) ? p->notfull_bit : p->newmsg_bit;
 
 	mbox_write_reg(bit, p->irqstatus);
+
+	/* Flush posted write for irq status to avoid spurious interrupts */
+	mbox_read_reg(p->irqstatus);
 }
 
 static int omap2_mbox_is_irq(struct omap_mbox *mbox,
