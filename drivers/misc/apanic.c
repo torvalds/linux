@@ -297,6 +297,7 @@ static void mtd_panic_notify_add(struct mtd_info *mtd)
 	struct panic_header *hdr = ctx->bounce;
 	size_t len;
 	int rc;
+	int    proc_entry_created = 0;
 
 	if (strcmp(mtd->name, CONFIG_APANIC_PLABEL))
 		return;
@@ -358,6 +359,7 @@ static void mtd_panic_notify_add(struct mtd_info *mtd)
 			ctx->apanic_console->write_proc = apanic_proc_write;
 			ctx->apanic_console->size = hdr->console_length;
 			ctx->apanic_console->data = (void *) 1;
+			proc_entry_created = 1;
 		}
 	}
 
@@ -372,8 +374,12 @@ static void mtd_panic_notify_add(struct mtd_info *mtd)
 			ctx->apanic_threads->write_proc = apanic_proc_write;
 			ctx->apanic_threads->size = hdr->threads_length;
 			ctx->apanic_threads->data = (void *) 2;
+			proc_entry_created = 1;
 		}
 	}
+
+	if (!proc_entry_created)
+		mtd_panic_erase();
 
 	return;
 out_err:
