@@ -61,6 +61,7 @@ struct xc5000_priv {
 	u32 bandwidth;
 	u8  video_standard;
 	u8  rf_mode;
+	u8  radio_input;
 };
 
 /* Misc Defines */
@@ -829,17 +830,32 @@ static int xc5000_set_radio_freq(struct dvb_frontend *fe,
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret = -EINVAL;
+	u8 radio_input;
 
 	dprintk(1, "%s() frequency=%d (in units of khz)\n",
 		__func__, params->frequency);
+
+	if (priv->radio_input == XC5000_RADIO_NOT_CONFIGURED) {
+		dprintk(1, "%s() radio input not configured\n", __func__);
+		return -EINVAL;
+	}
+
+	if (priv->radio_input == XC5000_RADIO_FM1)
+		radio_input = FM_Radio_INPUT1;
+	else if  (priv->radio_input == XC5000_RADIO_FM2)
+		radio_input = FM_Radio_INPUT2;
+	else {
+		dprintk(1, "%s() unknown radio input %d\n", __func__,
+			priv->radio_input);
+		return -EINVAL;
+	}
 
 	priv->freq_hz = params->frequency * 125 / 2;
 
 	priv->rf_mode = XC_RF_MODE_AIR;
 
-	ret = xc_SetTVStandard(priv,
-		XC5000_Standard[FM_Radio_INPUT1].VideoMode,
-		XC5000_Standard[FM_Radio_INPUT1].AudioMode);
+	ret = xc_SetTVStandard(priv, XC5000_Standard[radio_input].VideoMode,
+			       XC5000_Standard[radio_input].AudioMode);
 
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc5000: xc_SetTVStandard failed\n");
@@ -1057,6 +1073,9 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 		   call to xc5000_attach occurs before the digital side) */
 		priv->if_khz = cfg->if_khz;
 	}
+
+	if (priv->radio_input == 0)
+		priv->radio_input = cfg->radio_input;
 
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.
