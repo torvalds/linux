@@ -4133,18 +4133,16 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	err = btrfs_add_nondir(trans, dentry, inode, 1, index);
 
-	if (err)
+	if (err) {
 		drop_inode = 1;
-
-	btrfs_update_inode_block_group(trans, dir);
-	err = btrfs_update_inode(trans, root, inode);
-
-	if (err)
-		drop_inode = 1;
+	} else {
+		btrfs_update_inode_block_group(trans, dir);
+		err = btrfs_update_inode(trans, root, inode);
+		BUG_ON(err);
+		btrfs_log_new_name(trans, inode, NULL, dentry->d_parent);
+	}
 
 	nr = trans->blocks_used;
-
-	btrfs_log_new_name(trans, inode, NULL, dentry->d_parent);
 	btrfs_end_transaction_throttle(trans, root);
 fail:
 	if (drop_inode) {
@@ -5087,23 +5085,26 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		down_read(&root->fs_info->subvol_sem);
 
 	trans = btrfs_start_transaction(root, 1);
+	btrfs_set_trans_block_group(trans, new_dir);
 
 	if (dest != root)
 		btrfs_record_root_in_trans(trans, dest);
 
-	/*
-	 * make sure the inode gets flushed if it is replacing
-	 * something.
-	 */
-	if (new_inode && new_inode->i_size &&
-	    old_inode && S_ISREG(old_inode->i_mode)) {
-		btrfs_add_ordered_operation(trans, root, old_inode);
-	}
+	ret = btrfs_set_inode_index(new_dir, &index);
+	if (ret)
+		goto out_fail;
 
-	if (old_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID) {
+	if (unlikely(old_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		/* force full log commit if subvolume involved. */
 		root->fs_info->last_trans_log_full_commit = trans->transid;
 	} else {
+		ret = btrfs_insert_inode_ref(trans, dest,
+					     new_dentry->d_name.name,
+					     new_dentry->d_name.len,
+					     old_inode->i_ino,
+					     new_dir->i_ino, index);
+		if (ret)
+			goto out_fail;
 		/*
 		 * this is an ugly little race, but the rename is required
 		 * to make sure that if we crash, the inode is either at the
@@ -5113,8 +5114,14 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		 */
 		btrfs_pin_log_trans(root);
 	}
-
-	btrfs_set_trans_block_group(trans, new_dir);
+	/*
+	 * make sure the inode gets flushed if it is replacing
+	 * something.
+	 */
+	if (new_inode && new_inode->i_size &&
+	    old_inode && S_ISREG(old_inode->i_mode)) {
+		btrfs_add_ordered_operation(trans, root, old_inode);
+	}
 
 	old_dir->i_ctime = old_dir->i_mtime = ctime;
 	new_dir->i_ctime = new_dir->i_mtime = ctime;
@@ -5159,12 +5166,10 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			BUG_ON(ret);
 		}
 	}
-	ret = btrfs_set_inode_index(new_dir, &index);
-	BUG_ON(ret);
 
 	ret = btrfs_add_link(trans, new_dir, old_inode,
 			     new_dentry->d_name.name,
-			     new_dentry->d_name.len, 1, index);
+			     new_dentry->d_name.len, 0, index);
 	BUG_ON(ret);
 
 	if (old_inode->i_ino != BTRFS_FIRST_FREE_OBJECTID) {
@@ -5172,7 +5177,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 				   new_dentry->d_parent);
 		btrfs_end_log_trans(root);
 	}
-
+out_fail:
 	btrfs_end_transaction_throttle(trans, root);
 
 	if (old_inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
