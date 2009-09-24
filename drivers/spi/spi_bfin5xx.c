@@ -1267,14 +1267,14 @@ static int __init bfin_spi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct bfin5xx_spi_master *platform_info;
 	struct spi_master *master;
-	struct master_data *drv_data = 0;
+	struct master_data *drv_data;
 	struct resource *res;
 	int status = 0;
 
 	platform_info = dev->platform_data;
 
 	/* Allocate master with space for drv_data */
-	master = spi_alloc_master(dev, sizeof(struct master_data) + 16);
+	master = spi_alloc_master(dev, sizeof(*drv_data));
 	if (!master) {
 		dev_err(&pdev->dev, "can not alloc spi_master\n");
 		return -ENOMEM;
