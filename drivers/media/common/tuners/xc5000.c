@@ -739,14 +739,11 @@ static int xc5000_is_firmware_loaded(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int xc5000_set_analog_params(struct dvb_frontend *fe,
+static int xc5000_set_tv_freq(struct dvb_frontend *fe,
 	struct analog_parameters *params)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
-
-	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
-		xc_load_fw_and_init_tuner(fe);
 
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
 		__func__, params->frequency);
@@ -826,6 +823,67 @@ tune_channel:
 
 	return 0;
 }
+
+static int xc5000_set_radio_freq(struct dvb_frontend *fe,
+	struct analog_parameters *params)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret = -EINVAL;
+
+	dprintk(1, "%s() frequency=%d (in units of khz)\n",
+		__func__, params->frequency);
+
+	priv->freq_hz = params->frequency * 125 / 2;
+
+	priv->rf_mode = XC_RF_MODE_AIR;
+
+	ret = xc_SetTVStandard(priv,
+		XC5000_Standard[FM_Radio_INPUT1].VideoMode,
+		XC5000_Standard[FM_Radio_INPUT1].AudioMode);
+
+	if (ret != XC_RESULT_SUCCESS) {
+		printk(KERN_ERR "xc5000: xc_SetTVStandard failed\n");
+		return -EREMOTEIO;
+	}
+
+	ret = xc_SetSignalSource(priv, priv->rf_mode);
+	if (ret != XC_RESULT_SUCCESS) {
+		printk(KERN_ERR
+			"xc5000: xc_SetSignalSource(%d) failed\n",
+			priv->rf_mode);
+		return -EREMOTEIO;
+	}
+
+	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
+
+	return 0;
+}
+
+static int xc5000_set_analog_params(struct dvb_frontend *fe,
+			     struct analog_parameters *params)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret = -EINVAL;
+
+	if (priv->i2c_props.adap == NULL)
+		return -EINVAL;
+
+	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
+		xc_load_fw_and_init_tuner(fe);
+
+	switch (params->mode) {
+	case V4L2_TUNER_RADIO:
+		ret = xc5000_set_radio_freq(fe, params);
+		break;
+	case V4L2_TUNER_ANALOG_TV:
+	case V4L2_TUNER_DIGITAL_TV:
+		ret = xc5000_set_tv_freq(fe, params);
+		break;
+	}
+
+	return ret;
+}
+
 
 static int xc5000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 {
