@@ -1817,10 +1817,13 @@ static inline int set_cpus_allowed_ptr(struct task_struct *p,
 	return 0;
 }
 #endif
+
+#ifndef CONFIG_CPUMASK_OFFSTACK
 static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
 {
 	return set_cpus_allowed_ptr(p, &new_mask);
 }
+#endif
 
 /*
  * Architectures can set this to 1 if they have specified
