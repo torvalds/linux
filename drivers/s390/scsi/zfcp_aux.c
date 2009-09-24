@@ -602,7 +602,6 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	int retval = 0;
 	unsigned long flags;
 
-	cancel_work_sync(&adapter->scan_work);
 	cancel_work_sync(&adapter->stat_work);
 	zfcp_fc_wka_ports_force_offline(adapter->gs);
 	zfcp_adapter_scsi_unregister(adapter);

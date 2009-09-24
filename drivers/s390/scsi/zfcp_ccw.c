@@ -102,7 +102,11 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	adapter = dev_get_drvdata(&ccw_device->dev);
 	if (!adapter)
 		goto out;
+	mutex_unlock(&zfcp_data.config_mutex);
 
+	cancel_work_sync(&adapter->scan_work);
+
+	mutex_lock(&zfcp_data.config_mutex);
 	write_lock_irq(&zfcp_data.config_lock);
 	list_for_each_entry_safe(port, p, &adapter->port_list_head, list) {
 		list_for_each_entry_safe(unit, u, &port->unit_list_head, list) {
