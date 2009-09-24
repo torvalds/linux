@@ -336,15 +336,25 @@ static void move_expired_inodes(struct list_head *delaying_queue,
 {
 	LIST_HEAD(tmp);
 	struct list_head *pos, *node;
-	struct super_block *sb;
+	struct super_block *sb = NULL;
 	struct inode *inode;
+	int do_sb_sort = 0;
 
 	while (!list_empty(delaying_queue)) {
 		inode = list_entry(delaying_queue->prev, struct inode, i_list);
 		if (older_than_this &&
 		    inode_dirtied_after(inode, *older_than_this))
 			break;
+		if (sb && sb != inode->i_sb)
+			do_sb_sort = 1;
+		sb = inode->i_sb;
 		list_move(&inode->i_list, &tmp);
+	}
+
+	/* just one sb in list, splice to dispatch_queue and we're done */
+	if (!do_sb_sort) {
+		list_splice(&tmp, dispatch_queue);
+		return;
 	}
 
 	/* Move inodes from one superblock together */
