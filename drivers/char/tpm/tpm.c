@@ -31,7 +31,7 @@
 
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
-	TPM_BUFSIZE = 2048,
+	TPM_BUFSIZE = 4096,
 	TPM_NUM_DEVICES = 256,
 };
 
