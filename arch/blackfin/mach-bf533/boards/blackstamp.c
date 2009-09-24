@@ -1,16 +1,10 @@
 /*
- * File:         arch/blackfin/mach-bf533/blackstamp.c
- * Based on:     arch/blackfin/mach-bf533/stamp.c
- * Author:       Benjamin Matthews <bmat@lle.rochester.edu>
- *               Aidan Williams <aidan@nicta.com.au>
+ * Board Info File for the BlackStamp
  *
- * Created:      2008
- * Description:  Board Info File for the BlackStamp
- *
- * Copyright 2005 National ICT Australia (NICTA)
  * Copyright 2004-2008 Analog Devices Inc.
- *
- * Enter bugs at http://blackfin.uclinux.org/
+ *                2008 Benjamin Matthews <bmat@lle.rochester.edu>
+ *                2005 National ICT Australia (NICTA)
+ *                      Aidan Williams <aidan@nicta.com.au>
  *
  * More info about the BlackStamp at:
  * 	http://blackfin.uclinux.org/gf/project/blackstamp/

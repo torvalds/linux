@@ -1,4 +1,7 @@
-/* Changes made by Lineo Inc.    May 2001
+/*
+ * Copyright 2004-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
  *
  * Based on: include/asm-m68knommu/uaccess.h
  */

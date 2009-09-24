@@ -3,8 +3,6 @@
  *
  * Copyright 2004-2009 Analog Devices Inc.
  *
- * Enter bugs at http://blackfin.uclinux.org/
- *
  * Licensed under the GPL-2 or later.
  */
 
