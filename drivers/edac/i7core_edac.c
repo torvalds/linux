@@ -1003,38 +1003,32 @@ static ssize_t i7core_inject_enable_show(struct mem_ctl_info *mci,
 	return sprintf(data, "%d\n", pvt->inject.enable);
 }
 
-static ssize_t i7core_ce_regs_show(struct mem_ctl_info *mci, char *data)
-{
-	unsigned i, count, total = 0;
-	struct i7core_pvt *pvt = mci->pvt_info;
-
-	if (!pvt->ce_count_available) {
-		count = sprintf(data, "data unavailable\n");
-		return 0;
-	}
-	if (!pvt->is_registered) {
-		count = sprintf(data, "all channels "
-				"UDIMM0: %lu UDIMM1: %lu UDIMM2: %lu\n",
-				pvt->udimm_ce_count[0],
-				pvt->udimm_ce_count[1],
-				pvt->udimm_ce_count[2]);
-		data  += count;
-		total += count;
-	} else {
-		for (i = 0; i < NUM_CHANS; i++) {
-			count = sprintf(data, "channel %d RDIMM0: %lu "
-					"RDIMM1: %lu RDIMM2: %lu\n",
-					i,
-					pvt->rdimm_ce_count[i][0],
-					pvt->rdimm_ce_count[i][1],
-					pvt->rdimm_ce_count[i][2]);
-			data  += count;
-			total += count;
-		}
-	}
-
-	return total;
+#define DECLARE_COUNTER(param)					\
+static ssize_t i7core_show_counter_##param(			\
+		struct mem_ctl_info *mci,			\
+		char *data)					\
+{								\
+	struct i7core_pvt *pvt = mci->pvt_info;			\
+								\
+	debugf1("%s() \n", __func__);				\
+	if (!pvt->ce_count_available || (pvt->is_registered))	\
+		return sprintf(data, "data unavailable\n");	\
+	return sprintf(data, "%lu\n",				\
+			pvt->udimm_ce_count[param]);		\
 }
+
+#define ATTR_COUNTER(param)					\
+	{							\
+		.attr = {					\
+			.name = __stringify(udimm##param),	\
+			.mode = (S_IRUGO | S_IWUSR)		\
+		},						\
+		.show  = i7core_show_counter_##param		\
+	}
+
+DECLARE_COUNTER(0);
+DECLARE_COUNTER(1);
+DECLARE_COUNTER(2);
 
 /*
  * Sysfs struct
@@ -1051,10 +1045,20 @@ static struct mcidev_sysfs_attribute i7core_addrmatch_attrs[] = {
 	{ .attr = { .name = NULL } }
 };
 
-
 static struct mcidev_sysfs_group i7core_inject_addrmatch = {
 	.name  = "inject_addrmatch",
 	.mcidev_attr = i7core_addrmatch_attrs,
+};
+
+static struct mcidev_sysfs_attribute i7core_udimm_counters_attrs[] = {
+	ATTR_COUNTER(0),
+	ATTR_COUNTER(1),
+	ATTR_COUNTER(2),
+};
+
+static struct mcidev_sysfs_group i7core_udimm_counters = {
+	.name  = "all_channel_counts",
+	.mcidev_attr = i7core_udimm_counters_attrs,
 };
 
 static struct mcidev_sysfs_attribute i7core_sysfs_attrs[] = {
@@ -1088,14 +1092,8 @@ static struct mcidev_sysfs_attribute i7core_sysfs_attrs[] = {
 		},
 		.show  = i7core_inject_enable_show,
 		.store = i7core_inject_enable_store,
-	}, {
-		.attr = {
-			.name = "corrected_error_counts",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show  = i7core_ce_regs_show,
-		.store = NULL,
 	},
+	{ .attr = { .name = NULL } },	/* Reserved for udimm counters */
 	{ .attr = { .name = NULL } }
 };
 
@@ -1322,6 +1320,15 @@ static int mci_bind_devs(struct mem_ctl_info *mci,
 			PCI_FUNC(pdev->devfn) == 2)
 			pvt->is_registered = 1;
 	}
+
+	/*
+	 * Add extra nodes to count errors on udimm
+	 * For registered memory, this is not needed, since the counters
+	 * are already displayed at the standard locations
+	 */
+	if (!pvt->is_registered)
+		i7core_sysfs_attrs[ARRAY_SIZE(i7core_sysfs_attrs)-2].grp =
+			&i7core_udimm_counters;
 
 	return 0;
 
