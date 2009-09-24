@@ -1664,6 +1664,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
 	       sizeof(struct btrfs_key));
 	BTRFS_I(fs_info->btree_inode)->dummy_inode = 1;
+	insert_inode_hash(fs_info->btree_inode);
 
 	spin_lock_init(&fs_info->block_group_cache_lock);
 	fs_info->block_group_cache_tree.rb_node = NULL;
