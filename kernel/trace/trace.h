@@ -709,6 +709,13 @@ typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event,
 
 typedef int (*regex_match_func)(char *str, struct regex *r, int len);
 
+enum regex_type {
+	MATCH_FULL,
+	MATCH_FRONT_ONLY,
+	MATCH_MIDDLE_ONLY,
+	MATCH_END_ONLY,
+};
+
 struct regex {
 	char			pattern[MAX_FILTER_STR_VAL];
 	int			len;
@@ -727,6 +734,8 @@ struct filter_pred {
 	int 			pop_n;
 };
 
+extern enum regex_type
+filter_parse_regex(char *buff, int len, char **search, int *not);
 extern void print_event_filter(struct ftrace_event_call *call,
 			       struct trace_seq *s);
 extern int apply_event_filter(struct ftrace_event_call *call,

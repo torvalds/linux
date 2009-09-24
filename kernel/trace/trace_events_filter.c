@@ -279,15 +279,14 @@ static int regex_match_end(char *str, struct regex *r, int len)
 	return 0;
 }
 
-enum regex_type {
-	MATCH_FULL,
-	MATCH_FRONT_ONLY,
-	MATCH_MIDDLE_ONLY,
-	MATCH_END_ONLY,
-};
-
-/*
- * Pass in a buffer containing a regex and this function will
+/**
+ * filter_parse_regex - parse a basic regex
+ * @buff:   the raw regex
+ * @len:    length of the regex
+ * @search: will point to the beginning of the string to compare
+ * @not:    tell whether the match will have to be inverted
+ *
+ * This passes in a buffer containing a regex and this function will
  * set search to point to the search part of the buffer and
  * return the type of search it is (see enum above).
  * This does modify buff.
@@ -297,8 +296,7 @@ enum regex_type {
  *  not returns 1 if buff started with a '!'
  *     0 otherwise.
  */
-static enum regex_type
-filter_parse_regex(char *buff, int len, char **search, int *not)
+enum regex_type filter_parse_regex(char *buff, int len, char **search, int *not)
 {
 	int type = MATCH_FULL;
 	int i;
