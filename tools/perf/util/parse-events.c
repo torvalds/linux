@@ -165,33 +165,31 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
 	char id_buf[4];
-	int sys_dir_fd, fd;
+	int fd;
 	u64 id;
 	char evt_path[MAXPATHLEN];
+	char dir_path[MAXPATHLEN];
 
 	if (valid_debugfs_mount(debugfs_path))
 		return NULL;
 
 	sys_dir = opendir(debugfs_path);
 	if (!sys_dir)
-		goto cleanup;
-	sys_dir_fd = dirfd(sys_dir);
+		return NULL;
 
 	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
-		int dfd = openat(sys_dir_fd, sys_dirent.d_name,
-				 O_RDONLY|O_DIRECTORY), evt_dir_fd;
-		if (dfd == -1)
+
+		snprintf(dir_path, MAXPATHLEN, "%s/%s", debugfs_path,
+			 sys_dirent.d_name);
+		evt_dir = opendir(dir_path);
+		if (!evt_dir)
 			continue;
-		evt_dir = fdopendir(dfd);
-		if (!evt_dir) {
-			close(dfd);
-			continue;
-		}
-		evt_dir_fd = dirfd(evt_dir);
+
 		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
-			snprintf(evt_path, MAXPATHLEN, "%s/id",
+
+			snprintf(evt_path, MAXPATHLEN, "%s/%s/id", dir_path,
 				 evt_dirent.d_name);
-			fd = openat(evt_dir_fd, evt_path, O_RDONLY);
+			fd = open(evt_path, O_RDONLY);
 			if (fd < 0)
 				continue;
 			if (read(fd, id_buf, sizeof(id_buf)) < 0) {
@@ -225,7 +223,6 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 		closedir(evt_dir);
 	}
 
-cleanup:
 	closedir(sys_dir);
 	return NULL;
 }
@@ -761,28 +758,24 @@ static void print_tracepoint_events(void)
 {
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
-	int sys_dir_fd;
 	char evt_path[MAXPATHLEN];
+	char dir_path[MAXPATHLEN];
 
 	if (valid_debugfs_mount(debugfs_path))
 		return;
 
 	sys_dir = opendir(debugfs_path);
 	if (!sys_dir)
-		goto cleanup;
-	sys_dir_fd = dirfd(sys_dir);
+		return;
 
 	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
-		int dfd = openat(sys_dir_fd, sys_dirent.d_name,
-				 O_RDONLY|O_DIRECTORY), evt_dir_fd;
-		if (dfd == -1)
+
+		snprintf(dir_path, MAXPATHLEN, "%s/%s", debugfs_path,
+			 sys_dirent.d_name);
+		evt_dir = opendir(dir_path);
+		if (!evt_dir)
 			continue;
-		evt_dir = fdopendir(dfd);
-		if (!evt_dir) {
-			close(dfd);
-			continue;
-		}
-		evt_dir_fd = dirfd(evt_dir);
+
 		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent.d_name, evt_dirent.d_name);
@@ -791,8 +784,6 @@ static void print_tracepoint_events(void)
 		}
 		closedir(evt_dir);
 	}
-
-cleanup:
 	closedir(sys_dir);
 }
 
