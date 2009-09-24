@@ -257,12 +257,6 @@ W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 F:	drivers/acpi/fan.c
 
-ACPI PCI HOTPLUG DRIVER
-M:	Kristen Carlson Accardi <kristen.c.accardi@intel.com>
-L:	linux-pci@vger.kernel.org
-S:	Supported
-F:	drivers/pci/hotplug/acpi*
-
 ACPI THERMAL DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
@@ -4005,11 +3999,11 @@ F:	Documentation/PCI/
 F:	drivers/pci/
 F:	include/linux/pci*
 
-PCIE HOTPLUG DRIVER
-M:	Kristen Carlson Accardi <kristen.c.accardi@intel.com>
+PCI HOTPLUG
+M:	Jesse Barnes <jbarnes@virtuousgeek.org>
 L:	linux-pci@vger.kernel.org
 S:	Supported
-F:	drivers/pci/pcie/
+F:	drivers/pci/hotplug
 
 PCMCIA SUBSYSTEM
 P:	Linux PCMCIA Team
@@ -4672,12 +4666,6 @@ F:	drivers/serial/serial_lh7a40x.c
 F:	drivers/usb/gadget/lh7a40*
 F:	drivers/usb/host/ohci-lh7a40*
 
-SHPC HOTPLUG DRIVER
-M:	Kristen Carlson Accardi <kristen.c.accardi@intel.com>
-L:	linux-pci@vger.kernel.org
-S:	Supported
-F:	drivers/pci/hotplug/shpchp*
-
 SIMPLE FIRMWARE INTERFACE (SFI)
 P:	Len Brown
 M:	lenb@kernel.org
@@ -4688,7 +4676,6 @@ S:	Supported
 F:	arch/x86/kernel/*sfi*
 F:	drivers/sfi/
 F:	include/linux/sfi*.h
-
 
 SIMTEC EB110ATX (Chalice CATS)
 P:	Ben Dooks

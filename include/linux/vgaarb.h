@@ -1,5 +1,6 @@
 /*
- * vgaarb.c
+ * The VGA aribiter manages VGA space routing and VGA resource decode to
+ * allow multiple VGA devices to be used in a system in a safe way.
  *
  * (C) Copyright 2005 Benjamin Herrenschmidt <benh@kernel.crashing.org>
  * (C) Copyright 2007 Paulo R. Zanoni <przanoni@gmail.com>
