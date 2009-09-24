@@ -1578,6 +1578,7 @@ static void pcpu_dump_alloc_info(const char *lvl,
 int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 				  void *base_addr)
 {
+	static char cpus_buf[4096] __initdata;
 	static int smap[2], dmap[2];
 	size_t dyn_size = ai->dyn_size;
 	size_t size_sum = ai->static_size + ai->reserved_size + dyn_size;
@@ -1589,17 +1590,26 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	int *unit_map;
 	int group, unit, i;
 
+	cpumask_scnprintf(cpus_buf, sizeof(cpus_buf), cpu_possible_mask);
+
+#define PCPU_SETUP_BUG_ON(cond)	do {					\
+	if (unlikely(cond)) {						\
+		pr_emerg("PERCPU: failed to initialize, %s", #cond);	\
+		pr_emerg("PERCPU: cpu_possible_mask=%s\n", cpus_buf);	\
+		pcpu_dump_alloc_info(KERN_EMERG, ai);			\
+		BUG();							\
+	}								\
+} while (0)
+
 	/* sanity checks */
 	BUILD_BUG_ON(ARRAY_SIZE(smap) >= PCPU_DFL_MAP_ALLOC ||
 		     ARRAY_SIZE(dmap) >= PCPU_DFL_MAP_ALLOC);
-	BUG_ON(ai->nr_groups <= 0);
-	BUG_ON(!ai->static_size);
-	BUG_ON(!base_addr);
-	BUG_ON(ai->unit_size < size_sum);
-	BUG_ON(ai->unit_size & ~PAGE_MASK);
-	BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
-
-	pcpu_dump_alloc_info(KERN_DEBUG, ai);
+	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
+	PCPU_SETUP_BUG_ON(!ai->static_size);
+	PCPU_SETUP_BUG_ON(!base_addr);
+	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
+	PCPU_SETUP_BUG_ON(ai->unit_size & ~PAGE_MASK);
+	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
 
 	/* process group information and build config tables accordingly */
 	group_offsets = alloc_bootmem(ai->nr_groups * sizeof(group_offsets[0]));
@@ -1622,8 +1632,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 			if (cpu == NR_CPUS)
 				continue;
 
-			BUG_ON(cpu > nr_cpu_ids || !cpu_possible(cpu));
-			BUG_ON(unit_map[cpu] != UINT_MAX);
+			PCPU_SETUP_BUG_ON(cpu > nr_cpu_ids);
+			PCPU_SETUP_BUG_ON(!cpu_possible(cpu));
+			PCPU_SETUP_BUG_ON(unit_map[cpu] != UINT_MAX);
 
 			unit_map[cpu] = unit + i;
 			unit_off[cpu] = gi->base_offset + i * ai->unit_size;
@@ -1636,7 +1647,11 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_nr_units = unit;
 
 	for_each_possible_cpu(cpu)
-		BUG_ON(unit_map[cpu] == UINT_MAX);
+		PCPU_SETUP_BUG_ON(unit_map[cpu] == UINT_MAX);
+
+	/* we're done parsing the input, undefine BUG macro and dump config */
+#undef PCPU_SETUP_BUG_ON
+	pcpu_dump_alloc_info(KERN_INFO, ai);
 
 	pcpu_nr_groups = ai->nr_groups;
 	pcpu_group_offsets = group_offsets;
