@@ -1656,6 +1656,12 @@ out:
 static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
 				struct hrtimer_sleeper *timeout)
 {
+	/*
+	 * The task state is guaranteed to be set before another task can
+	 * wake it. set_current_state() is implemented using set_mb() and
+	 * queue_me() calls spin_unlock() upon completion, both serializing
+	 * access to the hash list and forcing another memory barrier.
+	 */
 	set_current_state(TASK_INTERRUPTIBLE);
 	queue_me(q, hb);
 
