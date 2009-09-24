@@ -5269,6 +5269,7 @@ static const struct address_space_operations btrfs_aops = {
 	.invalidatepage = btrfs_invalidatepage,
 	.releasepage	= btrfs_releasepage,
 	.set_page_dirty	= btrfs_set_page_dirty,
+	.error_remove_page = generic_error_remove_page,
 };
 
 static const struct address_space_operations btrfs_symlink_aops = {

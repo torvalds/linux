@@ -88,4 +88,6 @@
 #define PR_TASK_PERF_EVENTS_DISABLE		31
 #define PR_TASK_PERF_EVENTS_ENABLE		32
 
+#define PR_MCE_KILL	33
+
 #endif /* _LINUX_PRCTL_H */

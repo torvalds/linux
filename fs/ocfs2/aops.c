@@ -2022,4 +2022,5 @@ const struct address_space_operations ocfs2_aops = {
 	.releasepage		= ocfs2_releasepage,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate	= block_is_partially_uptodate,
+	.error_remove_page	= generic_error_remove_page,
 };

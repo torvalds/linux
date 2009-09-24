@@ -104,6 +104,10 @@
  *
  *  ->task->proc_lock
  *    ->dcache_lock		(proc_pid_lookup)
+ *
+ *  (code doesn't rely on that order, so you could switch it around)
+ *  ->tasklist_lock             (memory_failure, collect_procs_ao)
+ *    ->i_mmap_lock
  */
 
 /*

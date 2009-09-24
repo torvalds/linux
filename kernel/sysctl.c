@@ -1398,6 +1398,31 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &scan_unevictable_handler,
 	},
+#ifdef CONFIG_MEMORY_FAILURE
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "memory_failure_early_kill",
+		.data		= &sysctl_memory_failure_early_kill,
+		.maxlen		= sizeof(sysctl_memory_failure_early_kill),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "memory_failure_recovery",
+		.data		= &sysctl_memory_failure_recovery,
+		.maxlen		= sizeof(sysctl_memory_failure_recovery),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+#endif
+
 /*
  * NOTE: do not add new entries to this table unless you have read
  * Documentation/sysctl/ctl_unnumbered.txt
