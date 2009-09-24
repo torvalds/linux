@@ -345,6 +345,8 @@ struct mcidev_sysfs_group {
 	const char *name;
 	struct mcidev_sysfs_attribute *mcidev_attr;
 	struct kobject kobj;
+
+	struct mem_ctl_info *mci;	/* the parent */
 };
 
 

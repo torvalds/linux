@@ -784,9 +784,12 @@ static ssize_t i7core_inject_store_##param(			\
 		struct mem_ctl_info *mci,			\
 		const char *data, size_t count)			\
 {								\
-	struct i7core_pvt *pvt = mci->pvt_info;			\
+	struct i7core_pvt *pvt;					\
 	long value;						\
 	int rc;							\
+								\
+	debugf1("%s()\n", __func__);				\
+	pvt = mci->pvt_info;					\
 								\
 	if (pvt->inject.enable)					\
 		disable_inject(mci);				\
@@ -808,7 +811,10 @@ static ssize_t i7core_inject_show_##param(			\
 		struct mem_ctl_info *mci,			\
 		char *data)					\
 {								\
-	struct i7core_pvt *pvt = mci->pvt_info;			\
+	struct i7core_pvt *pvt;					\
+								\
+	pvt = mci->pvt_info;					\
+	debugf1("%s() pvt=%p\n", __func__, pvt);		\
 	if (pvt->inject.param < 0)				\
 		return sprintf(data, "any\n");			\
 	else							\
