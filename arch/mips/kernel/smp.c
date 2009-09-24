@@ -128,7 +128,7 @@ asmlinkage __cpuinit void start_secondary(void)
 	cpu_idle();
 }
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	mp_ops->send_ipi_mask(mask, SMP_CALL_FUNCTION);
 }

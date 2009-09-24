@@ -141,11 +141,11 @@ static void vsmp_send_ipi_single(int cpu, unsigned int action)
 	local_irq_restore(flags);
 }
 
-static void vsmp_send_ipi_mask(cpumask_t mask, unsigned int action)
+static void vsmp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 {
 	unsigned int i;
 
-	for_each_cpu_mask(i, mask)
+	for_each_cpu(i, mask)
 		vsmp_send_ipi_single(i, action);
 }
 
