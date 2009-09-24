@@ -184,7 +184,7 @@ static int pSeries_reconfig_remove_node(struct device_node *np)
 }
 
 /*
- * /proc/ppc64/ofdt - yucky binary interface for adding and removing
+ * /proc/powerpc/ofdt - yucky binary interface for adding and removing
  * OF device nodes.  Should be deprecated as soon as we get an
  * in-kernel wrapper for the RTAS ibm,configure-connector call.
  */
@@ -543,7 +543,7 @@ static const struct file_operations ofdt_fops = {
 	.write = ofdt_write
 };
 
-/* create /proc/ppc64/ofdt write-only by root */
+/* create /proc/powerpc/ofdt write-only by root */
 static int proc_ppc64_create_ofdt(void)
 {
 	struct proc_dir_entry *ent;
@@ -551,7 +551,7 @@ static int proc_ppc64_create_ofdt(void)
 	if (!machine_is(pseries))
 		return 0;
 
-	ent = proc_create("ppc64/ofdt", S_IWUSR, NULL, &ofdt_fops);
+	ent = proc_create("powerpc/ofdt", S_IWUSR, NULL, &ofdt_fops);
 	if (ent)
 		ent->size = 0;
 
