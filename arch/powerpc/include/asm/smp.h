@@ -147,7 +147,6 @@ extern struct smp_ops_t *smp_ops;
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
-#define arch_send_call_function_ipi_mask arch_send_call_function_ipi_mask
 
 /* Definitions relative to the secondary CPU spin loop
  * and entry point. Not all of them exist on both 32 and
