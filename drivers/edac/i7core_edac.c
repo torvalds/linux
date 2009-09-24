@@ -1124,6 +1124,7 @@ static struct mcidev_sysfs_attribute i7core_inj_attrs[] = {
 		.show  = i7core_ce_regs_show,
 		.store = NULL,
 	},
+	{ .attr = { .name = NULL } }
 };
 
 /****************************************************************************
@@ -1155,9 +1156,9 @@ static void i7core_put_devices(struct i7core_dev *i7core_dev)
 
 static void i7core_put_all_devices(void)
 {
-	struct i7core_dev *i7core_dev;
+	struct i7core_dev *i7core_dev, *tmp;
 
-	list_for_each_entry(i7core_dev, &i7core_edac_list, list)
+	list_for_each_entry_safe(i7core_dev, tmp, &i7core_edac_list, list)
 		i7core_put_devices(i7core_dev);
 }
 
