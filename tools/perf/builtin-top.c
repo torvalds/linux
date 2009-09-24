@@ -96,9 +96,6 @@ static int			display_weighted		= -1;
  * Symbols
  */
 
-static u64			min_ip;
-static u64			max_ip = -1ll;
-
 struct sym_entry {
 	struct rb_node		rb_node;
 	struct list_head	node;
@@ -826,8 +823,6 @@ static int symbol_filter(struct dso *self, struct symbol *sym)
 
 static int parse_symbols(void)
 {
-	struct rb_node *node;
-	struct symbol  *sym;
 	int use_modules = vmlinux_name ? 1 : 0;
 
 	kernel_dso = dso__new("[kernel]", sizeof(struct sym_entry));
@@ -836,14 +831,6 @@ static int parse_symbols(void)
 
 	if (dso__load_kernel(kernel_dso, vmlinux_name, symbol_filter, verbose, use_modules) <= 0)
 		goto out_delete_dso;
-
-	node = rb_first(&kernel_dso->syms);
-	sym = rb_entry(node, struct symbol, rb_node);
-	min_ip = sym->start;
-
-	node = rb_last(&kernel_dso->syms);
-	sym = rb_entry(node, struct symbol, rb_node);
-	max_ip = sym->end;
 
 	if (dump_symtab)
 		dso__fprintf(kernel_dso, stderr);
