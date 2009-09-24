@@ -55,7 +55,6 @@ static const struct cpumask *cpumask_of_node(int node)
 	return &node_to_cpumask_map[node];
 }
 
-#define pcibus_to_cpumask(bus)	(cpu_online_map)
 #define cpumask_of_pcibus(bus)	(cpu_online_mask)
 
 #endif /* !CONFIG_NUMA */
