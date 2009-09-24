@@ -200,8 +200,8 @@ struct atmio16d_private {
 	enum { dac_2comp, dac_straight } dac0_coding, dac1_coding;
 	const struct comedi_lrange *ao_range_type_list[2];
 	unsigned int ao_readback[2];
-	unsigned int com_reg_1_state;	/* current state of command register 1 */
-	unsigned int com_reg_2_state;	/* current state of command register 2 */
+	unsigned int com_reg_1_state; /* current state of command register 1 */
+	unsigned int com_reg_2_state; /* current state of command register 2 */
 };
 
 static void reset_counters(struct comedi_device *dev)
@@ -324,7 +324,7 @@ static int atmio16d_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique & mutually compatible */
 	/* note that mutual compatiblity is not an issue here */
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
 	    cmd->scan_begin_src != TRIG_EXT &&
@@ -436,10 +436,10 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 	} else if (cmd->convert_arg < 655360000) {
 		base_clock = CLOCK_100_KHZ;
 		timer = cmd->convert_arg / 10000;
-	} else if (cmd->convert_arg <= 0xffffffff /* 6553600000 */ ) {
+	} else if (cmd->convert_arg <= 0xffffffff /* 6553600000 */) {
 		base_clock = CLOCK_10_KHZ;
 		timer = cmd->convert_arg / 100000;
-	} else if (cmd->convert_arg <= 0xffffffff /* 65536000000 */ ) {
+	} else if (cmd->convert_arg <= 0xffffffff /* 65536000000 */) {
 		base_clock = CLOCK_1_KHZ;
 		timer = cmd->convert_arg / 1000000;
 	}
@@ -504,10 +504,10 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 		} else if (cmd->scan_begin_arg < 655360000) {
 			base_clock = CLOCK_100_KHZ;
 			timer = cmd->scan_begin_arg / 10000;
-		} else if (cmd->scan_begin_arg < 0xffffffff /* 6553600000 */ ) {
+		} else if (cmd->scan_begin_arg < 0xffffffff /* 6553600000 */) {
 			base_clock = CLOCK_10_KHZ;
 			timer = cmd->scan_begin_arg / 100000;
-		} else if (cmd->scan_begin_arg < 0xffffffff /* 65536000000 */ ) {
+		} else if (cmd->scan_begin_arg < 0xffffffff /* 65536000000 */) {
 			base_clock = CLOCK_1_KHZ;
 			timer = cmd->scan_begin_arg / 1000000;
 		}
