@@ -900,8 +900,12 @@ int ath9k_hw_init(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	int r = 0;
 
-	if (!ath9k_hw_devid_supported(ah->hw_version.devid))
+	if (!ath9k_hw_devid_supported(ah->hw_version.devid)) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unsupported device ID: 0x%0x\n",
+			  ah->hw_version.devid);
 		return -EOPNOTSUPP;
+	}
 
 	ath9k_hw_init_defaults(ah);
 	ath9k_hw_init_config(ah);
