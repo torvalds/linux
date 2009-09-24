@@ -1078,6 +1078,8 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 	struct rfkill *rfk;
 	enum rfkill_type type;
 	const char *name;
+	int result;
+	bool hwblock;
 
 	switch (nc_type) {
 	case SONY_WIFI:
@@ -1104,6 +1106,10 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 			   &sony_rfkill_ops, (void *)nc_type);
 	if (!rfk)
 		return -ENOMEM;
+
+	sony_call_snc_handle(0x124, 0x200, &result);
+	hwblock = !(result & 0x1);
+	rfkill_set_hw_state(rfk, hwblock);
 
 	err = rfkill_register(rfk);
 	if (err) {
