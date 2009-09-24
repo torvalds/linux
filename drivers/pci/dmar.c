@@ -461,7 +461,8 @@ parse_dmar_table(void)
 			break;
 		default:
 			printk(KERN_WARNING PREFIX
-				"Unknown DMAR structure type\n");
+				"Unknown DMAR structure type %d\n",
+				entry_header->type);
 			ret = 0; /* for forward compatibility */
 			break;
 		}
