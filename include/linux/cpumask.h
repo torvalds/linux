@@ -15,10 +15,6 @@
  * see bitmap_scnprintf() and bitmap_parse_user() in lib/bitmap.c.
  * For details of cpulist_scnprintf() and cpulist_parse(), see
  * bitmap_scnlistprintf() and bitmap_parselist(), also in bitmap.c.
- * For details of cpu_remap(), see bitmap_bitremap in lib/bitmap.c
- * For details of cpus_remap(), see bitmap_remap in lib/bitmap.c.
- * For details of cpus_onto(), see bitmap_onto in lib/bitmap.c.
- * For details of cpus_fold(), see bitmap_fold in lib/bitmap.c.
  *
  * . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
  * Note: The alternate operations with the suffix "_nr" are used
@@ -47,22 +43,17 @@
  * void cpus_or(dst, src1, src2)	dst = src1 | src2  [union]
  * void cpus_xor(dst, src1, src2)	dst = src1 ^ src2
  * int cpus_andnot(dst, src1, src2)	dst = src1 & ~src2
- * void cpus_complement(dst, src)	dst = ~src
  *
  * int cpus_equal(mask1, mask2)		Does mask1 == mask2?
  * int cpus_intersects(mask1, mask2)	Do mask1 and mask2 intersect?
  * int cpus_subset(mask1, mask2)	Is mask1 a subset of mask2?
  * int cpus_empty(mask)			Is mask empty (no bits sets)?
- * int cpus_full(mask)			Is mask full (all bits sets)?
  * int cpus_weight(mask)		Hamming weigh - number of set bits
- * int cpus_weight_nr(mask)		Same using nr_cpu_ids instead of NR_CPUS
  *
- * void cpus_shift_right(dst, src, n)	Shift right
  * void cpus_shift_left(dst, src, n)	Shift left
  *
  * int first_cpu(mask)			Number lowest set bit, or NR_CPUS
  * int next_cpu(cpu, mask)		Next cpu past 'cpu', or NR_CPUS
- * int next_cpu_nr(cpu, mask)		Next cpu past 'cpu', or nr_cpu_ids
  *
  * cpumask_t cpumask_of_cpu(cpu)	Return cpumask with bit 'cpu' set
  *					(can be used as an lvalue)
@@ -70,45 +61,10 @@
  * CPU_MASK_NONE			Initializer - no bits set
  * unsigned long *cpus_addr(mask)	Array of unsigned long's in mask
  *
- * CPUMASK_ALLOC kmalloc's a structure that is a composite of many cpumask_t
- * variables, and CPUMASK_PTR provides pointers to each field.
- *
- * The structure should be defined something like this:
- * struct my_cpumasks {
- *	cpumask_t mask1;
- *	cpumask_t mask2;
- * };
- *
- * Usage is then:
- *	CPUMASK_ALLOC(my_cpumasks);
- *	CPUMASK_PTR(mask1, my_cpumasks);
- *	CPUMASK_PTR(mask2, my_cpumasks);
- *
- *	--- DO NOT reference cpumask_t pointers until this check ---
- *	if (my_cpumasks == NULL)
- *		"kmalloc failed"...
- *
- * References are now pointers to the cpumask_t variables (*mask1, ...)
- *
- *if NR_CPUS > BITS_PER_LONG
- *   CPUMASK_ALLOC(m)			Declares and allocates struct m *m =
- *						kmalloc(sizeof(*m), GFP_KERNEL)
- *   CPUMASK_FREE(m)			Macro for kfree(m)
- *else
- *   CPUMASK_ALLOC(m)			Declares struct m _m, *m = &_m
- *   CPUMASK_FREE(m)			Nop
- *endif
- *   CPUMASK_PTR(v, m)			Declares cpumask_t *v = &(m->v)
- * ------------------------------------------------------------------------
- *
  * int cpumask_scnprintf(buf, len, mask) Format cpumask for printing
  * int cpumask_parse_user(ubuf, ulen, mask)	Parse ascii string as cpumask
  * int cpulist_scnprintf(buf, len, mask) Format cpumask as list for printing
  * int cpulist_parse(buf, map)		Parse ascii string as cpulist
- * int cpu_remap(oldbit, old, new)	newbit = map(old, new)(oldbit)
- * void cpus_remap(dst, src, old, new)	*dst = map(old, new)(src)
- * void cpus_onto(dst, orig, relmap)	*dst = orig relative to relmap
- * void cpus_fold(dst, orig, sz)	dst bits = orig bits mod sz
  *
  * for_each_cpu_mask(cpu, mask)		for-loop cpu over mask using NR_CPUS
  * for_each_cpu_mask_nr(cpu, mask)	for-loop cpu over mask using nr_cpu_ids
@@ -142,7 +98,6 @@
 #include <linux/bitmap.h>
 
 typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
-extern cpumask_t _unused_cpumask_arg_;
 
 #ifndef CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
 #define cpu_set(cpu, dst) __cpu_set((cpu), &(dst))
@@ -207,13 +162,6 @@ static inline int __cpus_andnot(cpumask_t *dstp, const cpumask_t *src1p,
 	return bitmap_andnot(dstp->bits, src1p->bits, src2p->bits, nbits);
 }
 
-#define cpus_complement(dst, src) __cpus_complement(&(dst), &(src), NR_CPUS)
-static inline void __cpus_complement(cpumask_t *dstp,
-					const cpumask_t *srcp, int nbits)
-{
-	bitmap_complement(dstp->bits, srcp->bits, nbits);
-}
-
 #define cpus_equal(src1, src2) __cpus_equal(&(src1), &(src2), NR_CPUS)
 static inline int __cpus_equal(const cpumask_t *src1p,
 					const cpumask_t *src2p, int nbits)
@@ -241,24 +189,10 @@ static inline int __cpus_empty(const cpumask_t *srcp, int nbits)
 	return bitmap_empty(srcp->bits, nbits);
 }
 
-#define cpus_full(cpumask) __cpus_full(&(cpumask), NR_CPUS)
-static inline int __cpus_full(const cpumask_t *srcp, int nbits)
-{
-	return bitmap_full(srcp->bits, nbits);
-}
-
 #define cpus_weight(cpumask) __cpus_weight(&(cpumask), NR_CPUS)
 static inline int __cpus_weight(const cpumask_t *srcp, int nbits)
 {
 	return bitmap_weight(srcp->bits, nbits);
-}
-
-#define cpus_shift_right(dst, src, n) \
-			__cpus_shift_right(&(dst), &(src), (n), NR_CPUS)
-static inline void __cpus_shift_right(cpumask_t *dstp,
-					const cpumask_t *srcp, int n, int nbits)
-{
-	bitmap_shift_right(dstp->bits, srcp->bits, n, nbits);
 }
 
 #define cpus_shift_left(dst, src, n) \
@@ -346,46 +280,6 @@ static inline const struct cpumask *get_cpu_mask(unsigned int cpu)
 
 #define cpus_addr(src) ((src).bits)
 
-#if NR_CPUS > BITS_PER_LONG
-#define	CPUMASK_ALLOC(m)	struct m *m = kmalloc(sizeof(*m), GFP_KERNEL)
-#define	CPUMASK_FREE(m)		kfree(m)
-#else
-#define	CPUMASK_ALLOC(m)	struct m _m, *m = &_m
-#define	CPUMASK_FREE(m)
-#endif
-#define	CPUMASK_PTR(v, m) 	cpumask_t *v = &(m->v)
-
-#define cpu_remap(oldbit, old, new) \
-		__cpu_remap((oldbit), &(old), &(new), NR_CPUS)
-static inline int __cpu_remap(int oldbit,
-		const cpumask_t *oldp, const cpumask_t *newp, int nbits)
-{
-	return bitmap_bitremap(oldbit, oldp->bits, newp->bits, nbits);
-}
-
-#define cpus_remap(dst, src, old, new) \
-		__cpus_remap(&(dst), &(src), &(old), &(new), NR_CPUS)
-static inline void __cpus_remap(cpumask_t *dstp, const cpumask_t *srcp,
-		const cpumask_t *oldp, const cpumask_t *newp, int nbits)
-{
-	bitmap_remap(dstp->bits, srcp->bits, oldp->bits, newp->bits, nbits);
-}
-
-#define cpus_onto(dst, orig, relmap) \
-		__cpus_onto(&(dst), &(orig), &(relmap), NR_CPUS)
-static inline void __cpus_onto(cpumask_t *dstp, const cpumask_t *origp,
-		const cpumask_t *relmapp, int nbits)
-{
-	bitmap_onto(dstp->bits, origp->bits, relmapp->bits, nbits);
-}
-
-#define cpus_fold(dst, orig, sz) \
-		__cpus_fold(&(dst), &(orig), sz, NR_CPUS)
-static inline void __cpus_fold(cpumask_t *dstp, const cpumask_t *origp,
-		int sz, int nbits)
-{
-	bitmap_fold(dstp->bits, origp->bits, sz, nbits);
-}
 #endif /* !CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS */
 
 #if NR_CPUS == 1
@@ -419,18 +313,14 @@ int __any_online_cpu(const cpumask_t *mask);
 #ifndef CONFIG_DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
 #if NR_CPUS <= 64
 
-#define next_cpu_nr(n, src)		next_cpu(n, src)
-#define cpus_weight_nr(cpumask)		cpus_weight(cpumask)
 #define for_each_cpu_mask_nr(cpu, mask)	for_each_cpu_mask(cpu, mask)
 
 #else /* NR_CPUS > 64 */
 
 int __next_cpu_nr(int n, const cpumask_t *srcp);
-#define next_cpu_nr(n, src)	__next_cpu_nr((n), &(src))
-#define cpus_weight_nr(cpumask)	__cpus_weight(&(cpumask), nr_cpu_ids)
 #define for_each_cpu_mask_nr(cpu, mask)			\
 	for ((cpu) = -1;				\
-		(cpu) = next_cpu_nr((cpu), (mask)),	\
+		(cpu) = __next_cpu_nr((cpu), &(mask)),	\
 		(cpu) < nr_cpu_ids; )
 
 #endif /* NR_CPUS > 64 */
