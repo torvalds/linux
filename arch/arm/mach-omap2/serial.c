@@ -579,7 +579,7 @@ static struct omap_uart_state omap_uart[OMAP_MAX_NR_PORTS] = {
 	{
 		.pdev = {
 			.name			= "serial8250",
-			.id			= 3
+			.id			= 3,
 			.dev			= {
 				.platform_data	= serial_platform_data3,
 			},
