@@ -1,5 +1,5 @@
-#ifndef CACHE_H
-#define CACHE_H
+#ifndef __PERF_CACHE_H
+#define __PERF_CACHE_H
 
 #include "util.h"
 #include "strbuf.h"
@@ -117,4 +117,4 @@ extern char *perf_pathdup(const char *fmt, ...)
 
 extern size_t strlcpy(char *dest, const char *src, size_t size);
 
-#endif /* CACHE_H */
+#endif /* __PERF_CACHE_H */

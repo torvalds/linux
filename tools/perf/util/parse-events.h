@@ -1,5 +1,5 @@
-#ifndef _PARSE_EVENTS_H
-#define _PARSE_EVENTS_H
+#ifndef __PERF_PARSE_EVENTS_H
+#define __PERF_PARSE_EVENTS_H
 /*
  * Parse symbolic events/counts passed in as options:
  */
@@ -31,4 +31,4 @@ extern char debugfs_path[];
 extern int valid_debugfs_mount(const char *debugfs);
 
 
-#endif /* _PARSE_EVENTS_H */
+#endif /* __PERF_PARSE_EVENTS_H */

@@ -1,5 +1,5 @@
-#ifndef _TRACE_EVENTS_H
-#define _TRACE_EVENTS_H
+#ifndef __PERF_TRACE_EVENTS_H
+#define __PERF_TRACE_EVENTS_H
 
 #include "parse-events.h"
 
@@ -242,4 +242,4 @@ void *raw_field_ptr(struct event *event, const char *name, void *data);
 
 void read_tracing_data(struct perf_event_attr *pattrs, int nb_events);
 
-#endif /* _TRACE_EVENTS_H */
+#endif /* __PERF_TRACE_EVENTS_H */

@@ -1,5 +1,5 @@
-#ifndef _PERF_SYMBOL_
-#define _PERF_SYMBOL_ 1
+#ifndef __PERF_SYMBOL
+#define __PERF_SYMBOL 1
 
 #include <linux/types.h>
 #include "types.h"
@@ -89,4 +89,4 @@ extern struct dso *vdso;
 extern struct dso *hypervisor_dso;
 extern const char *vmlinux_name;
 extern int   modules;
-#endif /* _PERF_SYMBOL_ */
+#endif /* __PERF_SYMBOL */

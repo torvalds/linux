@@ -1,5 +1,6 @@
 #ifndef __PERF_RECORD_H
 #define __PERF_RECORD_H
+
 #include "../perf.h"
 #include "util.h"
 #include <linux/list.h>
@@ -101,4 +102,4 @@ struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *self, FILE *fp);
 
-#endif
+#endif /* __PERF_RECORD_H */

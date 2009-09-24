@@ -1,3 +1,6 @@
+#ifndef __PERF_THREAD_H
+#define __PERF_THREAD_H
+
 #include <linux/rbtree.h>
 #include <linux/list.h>
 #include <unistd.h>
@@ -20,3 +23,5 @@ void thread__insert_map(struct thread *self, struct map *map);
 int thread__fork(struct thread *self, struct thread *parent);
 struct map *thread__find_map(struct thread *self, u64 ip);
 size_t threads__fprintf(FILE *fp, struct rb_root *threads);
+
+#endif	/* __PERF_THREAD_H */

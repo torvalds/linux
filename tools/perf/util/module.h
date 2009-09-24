@@ -1,5 +1,5 @@
-#ifndef _PERF_MODULE_
-#define _PERF_MODULE_ 1
+#ifndef __PERF_MODULE_
+#define __PERF_MODULE_ 1
 
 #include <linux/types.h>
 #include "../types.h"
@@ -50,4 +50,4 @@ size_t mod_dso__fprintf(struct mod_dso *self, FILE *fp);
 struct module *mod_dso__find_module(struct mod_dso *self, const char *name);
 int mod_dso__load_modules(struct mod_dso *dso);
 
-#endif /* _PERF_MODULE_ */
+#endif /* __PERF_MODULE_ */

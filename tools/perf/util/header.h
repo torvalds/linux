@@ -1,5 +1,5 @@
-#ifndef _PERF_HEADER_H
-#define _PERF_HEADER_H
+#ifndef __PERF_HEADER_H
+#define __PERF_HEADER_H
 
 #include "../../../include/linux/perf_event.h"
 #include <sys/types.h>
@@ -44,4 +44,4 @@ perf_header__find_attr(u64 id, struct perf_header *header);
 
 struct perf_header *perf_header__new(void);
 
-#endif /* _PERF_HEADER_H */
+#endif /* __PERF_HEADER_H */
