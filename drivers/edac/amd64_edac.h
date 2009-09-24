@@ -372,13 +372,11 @@ enum {
 
 #define SET_NB_DRAM_INJECTION_WRITE(word, bits)  \
 					(BIT(((word) & 0xF) + 20) | \
-					BIT(17) |  \
-					((bits) & 0xF))
+					BIT(17) | bits)
 
 #define SET_NB_DRAM_INJECTION_READ(word, bits)  \
 					(BIT(((word) & 0xF) + 20) | \
-					BIT(16) |  \
-					((bits) & 0xF))
+					BIT(16) |  bits)
 
 #define K8_NBCAP			0xE8
 #define K8_NBCAP_CORES			(BIT(12)|BIT(13))
