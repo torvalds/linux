@@ -68,9 +68,16 @@ struct virtnet_info
 	struct page *pages;
 };
 
-static inline void *skb_vnet_hdr(struct sk_buff *skb)
+struct skb_vnet_hdr {
+	union {
+		struct virtio_net_hdr hdr;
+		struct virtio_net_hdr_mrg_rxbuf mhdr;
+	};
+};
+
+static inline struct skb_vnet_hdr *skb_vnet_hdr(struct sk_buff *skb)
 {
-	return (struct virtio_net_hdr *)skb->cb;
+	return (struct skb_vnet_hdr *)skb->cb;
 }
 
 static void give_a_page(struct virtnet_info *vi, struct page *page)
@@ -115,7 +122,7 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 			unsigned len)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
-	struct virtio_net_hdr *hdr = skb_vnet_hdr(skb);
+	struct skb_vnet_hdr *hdr = skb_vnet_hdr(skb);
 	int err;
 	int i;
 
@@ -126,7 +133,6 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	if (vi->mergeable_rx_bufs) {
-		struct virtio_net_hdr_mrg_rxbuf *mhdr = skb_vnet_hdr(skb);
 		unsigned int copy;
 		char *p = page_address(skb_shinfo(skb)->frags[0].page);
 
@@ -134,8 +140,8 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 			len = PAGE_SIZE;
 		len -= sizeof(struct virtio_net_hdr_mrg_rxbuf);
 
-		memcpy(hdr, p, sizeof(*mhdr));
-		p += sizeof(*mhdr);
+		memcpy(&hdr->mhdr, p, sizeof(hdr->mhdr));
+		p += sizeof(hdr->mhdr);
 
 		copy = len;
 		if (copy > skb_tailroom(skb))
@@ -150,13 +156,13 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 			skb_shinfo(skb)->nr_frags--;
 		} else {
 			skb_shinfo(skb)->frags[0].page_offset +=
-				sizeof(*mhdr) + copy;
+				sizeof(hdr->mhdr) + copy;
 			skb_shinfo(skb)->frags[0].size = len;
 			skb->data_len += len;
 			skb->len += len;
 		}
 
-		while (--mhdr->num_buffers) {
+		while (--hdr->mhdr.num_buffers) {
 			struct sk_buff *nskb;
 
 			i = skb_shinfo(skb)->nr_frags;
@@ -170,7 +176,7 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 			nskb = vi->rvq->vq_ops->get_buf(vi->rvq, &len);
 			if (!nskb) {
 				pr_debug("%s: rx error: %d buffers missing\n",
-					 dev->name, mhdr->num_buffers);
+					 dev->name, hdr->mhdr.num_buffers);
 				dev->stats.rx_length_errors++;
 				goto drop;
 			}
@@ -191,7 +197,7 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 			skb->len += len;
 		}
 	} else {
-		len -= sizeof(struct virtio_net_hdr);
+		len -= sizeof(hdr->hdr);
 
 		if (len <= MAX_PACKET_LEN)
 			trim_pages(vi, skb);
@@ -209,9 +215,11 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 	dev->stats.rx_bytes += skb->len;
 	dev->stats.rx_packets++;
 
-	if (hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
+	if (hdr->hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
 		pr_debug("Needs csum!\n");
-		if (!skb_partial_csum_set(skb,hdr->csum_start,hdr->csum_offset))
+		if (!skb_partial_csum_set(skb,
+					  hdr->hdr.csum_start,
+					  hdr->hdr.csum_offset))
 			goto frame_err;
 	}
 
@@ -219,9 +227,9 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 	pr_debug("Receiving skb proto 0x%04x len %i type %i\n",
 		 ntohs(skb->protocol), skb->len, skb->pkt_type);
 
-	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
+	if (hdr->hdr.gso_type != VIRTIO_NET_HDR_GSO_NONE) {
 		pr_debug("GSO!\n");
-		switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
+		switch (hdr->hdr.gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
 		case VIRTIO_NET_HDR_GSO_TCPV4:
 			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
 			break;
@@ -234,14 +242,14 @@ static void receive_skb(struct net_device *dev, struct sk_buff *skb,
 		default:
 			if (net_ratelimit())
 				printk(KERN_WARNING "%s: bad gso type %u.\n",
-				       dev->name, hdr->gso_type);
+				       dev->name, hdr->hdr.gso_type);
 			goto frame_err;
 		}
 
-		if (hdr->gso_type & VIRTIO_NET_HDR_GSO_ECN)
+		if (hdr->hdr.gso_type & VIRTIO_NET_HDR_GSO_ECN)
 			skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
 
-		skb_shinfo(skb)->gso_size = hdr->gso_size;
+		skb_shinfo(skb)->gso_size = hdr->hdr.gso_size;
 		if (skb_shinfo(skb)->gso_size == 0) {
 			if (net_ratelimit())
 				printk(KERN_WARNING "%s: zero gso size.\n",
@@ -272,7 +280,7 @@ static bool try_fill_recv_maxbufs(struct virtnet_info *vi, gfp_t gfp)
 
 	sg_init_table(sg, 2+MAX_SKB_FRAGS);
 	for (;;) {
-		struct virtio_net_hdr *hdr;
+		struct skb_vnet_hdr *hdr;
 
 		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN + NET_IP_ALIGN);
 		if (unlikely(!skb)) {
@@ -284,7 +292,7 @@ static bool try_fill_recv_maxbufs(struct virtnet_info *vi, gfp_t gfp)
 		skb_put(skb, MAX_PACKET_LEN);
 
 		hdr = skb_vnet_hdr(skb);
-		sg_set_buf(sg, hdr, sizeof(*hdr));
+		sg_set_buf(sg, &hdr->hdr, sizeof(hdr->hdr));
 
 		if (vi->big_packets) {
 			for (i = 0; i < MAX_SKB_FRAGS; i++) {
@@ -452,8 +460,7 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 {
 	int num;
 	struct scatterlist sg[2+MAX_SKB_FRAGS];
-	struct virtio_net_hdr_mrg_rxbuf *mhdr = skb_vnet_hdr(skb);
-	struct virtio_net_hdr *hdr = skb_vnet_hdr(skb);
+	struct skb_vnet_hdr *hdr = skb_vnet_hdr(skb);
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
 
 	sg_init_table(sg, 2+MAX_SKB_FRAGS);
@@ -461,39 +468,39 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 	pr_debug("%s: xmit %p %pM\n", vi->dev->name, skb, dest);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		hdr->flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
-		hdr->csum_start = skb->csum_start - skb_headroom(skb);
-		hdr->csum_offset = skb->csum_offset;
+		hdr->hdr.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
+		hdr->hdr.csum_start = skb->csum_start - skb_headroom(skb);
+		hdr->hdr.csum_offset = skb->csum_offset;
 	} else {
-		hdr->flags = 0;
-		hdr->csum_offset = hdr->csum_start = 0;
+		hdr->hdr.flags = 0;
+		hdr->hdr.csum_offset = hdr->hdr.csum_start = 0;
 	}
 
 	if (skb_is_gso(skb)) {
-		hdr->hdr_len = skb_headlen(skb);
-		hdr->gso_size = skb_shinfo(skb)->gso_size;
+		hdr->hdr.hdr_len = skb_headlen(skb);
+		hdr->hdr.gso_size = skb_shinfo(skb)->gso_size;
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4)
-			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
+			hdr->hdr.gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
 		else if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
-			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
+			hdr->hdr.gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
 		else if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP)
-			hdr->gso_type = VIRTIO_NET_HDR_GSO_UDP;
+			hdr->hdr.gso_type = VIRTIO_NET_HDR_GSO_UDP;
 		else
 			BUG();
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCP_ECN)
-			hdr->gso_type |= VIRTIO_NET_HDR_GSO_ECN;
+			hdr->hdr.gso_type |= VIRTIO_NET_HDR_GSO_ECN;
 	} else {
-		hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
-		hdr->gso_size = hdr->hdr_len = 0;
+		hdr->hdr.gso_type = VIRTIO_NET_HDR_GSO_NONE;
+		hdr->hdr.gso_size = hdr->hdr.hdr_len = 0;
 	}
 
-	mhdr->num_buffers = 0;
+	hdr->mhdr.num_buffers = 0;
 
 	/* Encode metadata header at front. */
 	if (vi->mergeable_rx_bufs)
-		sg_set_buf(sg, mhdr, sizeof(*mhdr));
+		sg_set_buf(sg, &hdr->mhdr, sizeof(hdr->mhdr));
 	else
-		sg_set_buf(sg, hdr, sizeof(*hdr));
+		sg_set_buf(sg, &hdr->hdr, sizeof(hdr->hdr));
 
 	num = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
 	return vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
