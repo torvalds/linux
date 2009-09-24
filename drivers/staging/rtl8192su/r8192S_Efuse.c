@@ -35,7 +35,6 @@
 //
 // In the future, we will always support EFUSE!!
 //
-#ifdef RTL8192SU
 /*---------------------------Define Local Constant---------------------------*/
 #define 	_POWERON_DELAY_
 #define 	_PRE_EXECUTE_READ_CMD_
@@ -189,10 +188,6 @@ static	u16
 efuse_GetCurrentSize(struct net_device* dev);
 static u8
 efuse_CalculateWordCnts(u8 word_en);
-#if 0
-static	void
-efuse_ResetLoader(struct net_device* dev);
-#endif
 //
 // API for power on power off!!!
 //
@@ -708,12 +703,6 @@ EFUSE_ShadowUpdate(struct net_device* dev)
 	for (offset = 0; offset < 16; offset++)
 	{
 		// Offset 0x18-1F are reserved now!!!
-#ifdef RTL8192SE
-		if(priv->card_8192 == NIC_8192SE){
-			if (offset == 3)
-				continue;
-		}
-#endif
 		word_en = 0x0F;
 		base = offset * 8;
 
@@ -729,12 +718,6 @@ EFUSE_ShadowUpdate(struct net_device* dev)
 			}
 
 			// 2008/12/11 MH HW autoload fail workaround for A/BCUT.
-#ifdef RTL8192SE
-			if (first_pg == TRUE && offset == 1 && (priv->card_8192 == NIC_8192SE))
-			{
-				continue;
-			}
-#endif
 
 			if (first_pg == TRUE)
 			{
@@ -774,21 +757,6 @@ EFUSE_ShadowUpdate(struct net_device* dev)
 	// 2008/12/01 MH For Efuse HW load bug workarounf method!!!!
 	// We will force write 0x10EC into address 10&11 after all Efuse content.
 	//
-#ifdef RTL8192SE
-	if (first_pg == TRUE && (priv->card_8192 == NIC_8192SE))
-	{
-		// 2008/12/11 MH Use new method to prevent HW autoload fail.
-		u8	tmpdata[8];
-
-		memcpy(tmpdata, (&priv->EfuseMap[EFUSE_MODIFY_MAP][8]), 8);
-		efuse_PgPacketWrite(dev, 1, 0x0, tmpdata);
-#if 0
-		u1Byte	tmpdata[8] = {0xFF, 0xFF, 0xEC, 0x10, 0xFF, 0xFF, 0xFF, 0xFF};
-
-		efuse_PgPacketWrite(pAdapter, 1, 0xD, tmpdata);
-#endif
-	}
-#endif
 
 
 	// For warm reboot, we must resume Efuse clock to 500K.
@@ -1048,49 +1016,6 @@ efuse_ReadAllMap(struct net_device*	dev, u8	*Efuse)
 	efuse_PowerSwitch(dev, TRUE);
 	ReadEFuse(dev, 0, 128, Efuse);
 	efuse_PowerSwitch(dev, FALSE);
-#if 0
-	// ==> Prevent efuse read error!!!
-	RT_TRACE(COMP_INIT, "efuse_ResetLoader\n");
-	efuse_ResetLoader(dev);
-
-	// Change Efuse Clock for write action to 40MHZ
-	write_nic_byte(dev, EFUSE_CLK, 0x03);
-
-	ReadEFuse(dev, 0, 128, Efuse);
-
-	// Change Efuse Clock for write action to 500K
-	write_nic_byte(dev, EFUSE_CLK, 0x02);
-#if 0	// Error !!!!!!
-	for(offset = 0;offset<16;offset++)	// For 8192SE
-	{
-		PlatformFillMemory((PVOID)pg_data, 8, 0xff);
-		efuse_PgPacketRead(pAdapter,offset,pg_data);
-
-		PlatformMoveMemory((PVOID)&Efuse[offset*8], (PVOID)pg_data, 8);
-	}
-#endif
-
-	//
-	// Error Check and Reset Again!!!!
-	//
-	if (Efuse[0] != 0x29 || Efuse[1] != 0x81)
-	{
-		// SW autoload fail, we have to read again!!!
-		if (index ++ < 5)
-		{
-			RT_TRACE(COMP_INIT, "EFUSE R FAIL %d\n", index);
-			efuse_ReadAllMap(dev, Efuse);
-			// Wait a few time ???? Or need to do some setting ???
-			// When we reload driver, efuse will be OK!!
-		}
-	}
-	else
-	{
-		index = 0;
-	}
-
-	//efuse_PowerSwitch(pAdapter, FALSE);
-#endif
 }	// efuse_ReadAllMap
 
 
@@ -1800,43 +1725,6 @@ efuse_CalculateWordCnts(u8	word_en)
 	return word_cnts;
 }	// efuse_CalculateWordCnts
 
-
-/*-----------------------------------------------------------------------------
- * Function:	efuse_ResetLoader
- *
- * Overview:	When read Efuse Fail we must reset loader!!!!
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/22/2008 	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-#if 0
-static void efuse_ResetLoader(struct net_device* dev)
-{
-	u16	tmpU2b;
-
-	//
-	// 2008/11/22 MH Sometimes, we may read efuse fail, for preventing the condition
-	// We have to reset loader.
-	//
-	tmpU2b = read_nic_word(dev, SYS_FUNC_EN);
-	write_nic_word(dev, SYS_FUNC_EN, (tmpU2b&~(BIT12)));
-	//PlatformStallExecution(10000);	// How long should we delay!!!
-	mdelay(10);
-	write_nic_word(dev, SYS_FUNC_EN, (tmpU2b|BIT12));
-	//PlatformStallExecution(10000);	// How long should we delay!!!
-	mdelay(10);
-
-}	// efuse_ResetLoader
-#endif
-
 /*-----------------------------------------------------------------------------
  * Function:	EFUSE_ProgramMap
  *
@@ -2428,7 +2316,6 @@ void efuset_test_func_write(struct net_device* dev)
 
 
 
-#endif	// #if (HAL_CODE_BASE == RTL8192_S)
 
 
 

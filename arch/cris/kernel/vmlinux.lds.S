@@ -140,12 +140,7 @@ SECTIONS
 	_end = .;
 	__end = .;
 
-	/* Sections to be discarded */
-	/DISCARD/ : {
-		EXIT_TEXT
-		EXIT_DATA
-		*(.exitcall.exit)
-        }
-
 	dram_end = dram_start + (CONFIG_ETRAX_DRAM_SIZE - __CONFIG_ETRAX_VMEM_SIZE)*1024*1024;
+
+	DISCARDS
 }

@@ -69,7 +69,7 @@ struct threshold_bank {
 	struct threshold_block	*blocks;
 	cpumask_var_t		cpus;
 };
-static DEFINE_PER_CPU(struct threshold_bank *, threshold_banks[NR_BANKS]);
+static DEFINE_PER_CPU(struct threshold_bank * [NR_BANKS], threshold_banks);
 
 #ifdef CONFIG_SMP
 static unsigned char shared_bank[NR_BANKS] = {
@@ -489,8 +489,9 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	int i, err = 0;
 	struct threshold_bank *b = NULL;
 	char name[32];
+#ifdef CONFIG_SMP
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
-
+#endif
 
 	sprintf(name, "threshold_bank%i", bank);
 

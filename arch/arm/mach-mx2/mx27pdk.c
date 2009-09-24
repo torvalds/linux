@@ -89,7 +89,7 @@ MACHINE_START(MX27_3DS, "Freescale MX27PDK")
 	.io_pg_offst    = ((AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx27_map_io,
-	.init_irq       = mxc_init_irq,
+	.init_irq       = mx27_init_irq,
 	.init_machine   = mx27pdk_init,
 	.timer          = &mx27pdk_timer,
 MACHINE_END

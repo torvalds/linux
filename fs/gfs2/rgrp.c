@@ -179,7 +179,7 @@ static inline u64 gfs2_bit_search(const __le64 *ptr, u64 mask, u8 state)
  * always aligned to a 64 bit boundary.
  *
  * The size of the buffer is in bytes, but is it assumed that it is
- * always ok to to read a complete multiple of 64 bits at the end
+ * always ok to read a complete multiple of 64 bits at the end
  * of the block in case the end is no aligned to a natural boundary.
  *
  * Return: the block number (bitmap buffer scope) that was found
@@ -857,7 +857,8 @@ static void gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 					goto start_new_extent;
 				if ((start + nr_sects) != blk) {
 					rv = blkdev_issue_discard(bdev, start,
-							    nr_sects, GFP_NOFS);
+							    nr_sects, GFP_NOFS,
+							    DISCARD_FL_BARRIER);
 					if (rv)
 						goto fail;
 					nr_sects = 0;
@@ -871,7 +872,8 @@ start_new_extent:
 		}
 	}
 	if (nr_sects) {
-		rv = blkdev_issue_discard(bdev, start, nr_sects, GFP_NOFS);
+		rv = blkdev_issue_discard(bdev, start, nr_sects, GFP_NOFS,
+					 DISCARD_FL_BARRIER);
 		if (rv)
 			goto fail;
 	}

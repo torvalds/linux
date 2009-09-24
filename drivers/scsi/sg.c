@@ -1811,7 +1811,7 @@ retry:
 	return 0;
 out:
 	for (i = 0; i < k; i++)
-		__free_pages(schp->pages[k], order);
+		__free_pages(schp->pages[i], order);
 
 	if (--order >= 0)
 		goto retry;
@@ -2233,7 +2233,7 @@ static struct file_operations dev_fops = {
 	.open = sg_proc_open_dev,
 	.release = seq_release,
 };
-static struct seq_operations dev_seq_ops = {
+static const struct seq_operations dev_seq_ops = {
 	.start = dev_seq_start,
 	.next  = dev_seq_next,
 	.stop  = dev_seq_stop,
@@ -2246,7 +2246,7 @@ static struct file_operations devstrs_fops = {
 	.open = sg_proc_open_devstrs,
 	.release = seq_release,
 };
-static struct seq_operations devstrs_seq_ops = {
+static const struct seq_operations devstrs_seq_ops = {
 	.start = dev_seq_start,
 	.next  = dev_seq_next,
 	.stop  = dev_seq_stop,
@@ -2259,7 +2259,7 @@ static struct file_operations debug_fops = {
 	.open = sg_proc_open_debug,
 	.release = seq_release,
 };
-static struct seq_operations debug_seq_ops = {
+static const struct seq_operations debug_seq_ops = {
 	.start = dev_seq_start,
 	.next  = dev_seq_next,
 	.stop  = dev_seq_stop,

@@ -32,6 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/timer.h>
 #include <linux/gpio.h>
+#include <linux/input/eeti_ts.h>
 
 static int flip_x;
 module_param(flip_x, bool, 0644);
@@ -46,7 +47,7 @@ struct eeti_ts_priv {
 	struct input_dev *input;
 	struct work_struct work;
 	struct mutex mutex;
-	int irq;
+	int irq, irq_active_high;
 };
 
 #define EETI_TS_BITDEPTH	(11)
@@ -58,6 +59,11 @@ struct eeti_ts_priv {
 #define REPORT_BIT_HAS_PRESSURE	(1 << 6)
 #define REPORT_RES_BITS(v)	(((v) >> 1) + EETI_TS_BITDEPTH)
 
+static inline int eeti_ts_irq_active(struct eeti_ts_priv *priv)
+{
+	return gpio_get_value(irq_to_gpio(priv->irq)) == priv->irq_active_high;
+}
+
 static void eeti_ts_read(struct work_struct *work)
 {
 	char buf[6];
@@ -67,7 +73,7 @@ static void eeti_ts_read(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	while (!gpio_get_value(irq_to_gpio(priv->irq)) && --to)
+	while (eeti_ts_irq_active(priv) && --to)
 		i2c_master_recv(priv->client, buf, sizeof(buf));
 
 	if (!to) {
@@ -140,8 +146,10 @@ static void eeti_ts_close(struct input_dev *dev)
 static int __devinit eeti_ts_probe(struct i2c_client *client,
 				   const struct i2c_device_id *idp)
 {
+	struct eeti_ts_platform_data *pdata;
 	struct eeti_ts_priv *priv;
 	struct input_dev *input;
+	unsigned int irq_flags;
 	int err = -ENOMEM;
 
 	/* In contrast to what's described in the datasheet, there seems
@@ -180,6 +188,14 @@ static int __devinit eeti_ts_probe(struct i2c_client *client,
 	priv->input = input;
 	priv->irq = client->irq;
 
+	pdata = client->dev.platform_data;
+
+	if (pdata)
+		priv->irq_active_high = pdata->irq_active_high;
+
+	irq_flags = priv->irq_active_high ?
+		IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
+
 	INIT_WORK(&priv->work, eeti_ts_read);
 	i2c_set_clientdata(client, priv);
 	input_set_drvdata(input, priv);
@@ -188,7 +204,7 @@ static int __devinit eeti_ts_probe(struct i2c_client *client,
 	if (err)
 		goto err1;
 
-	err = request_irq(priv->irq, eeti_ts_isr, IRQF_TRIGGER_FALLING,
+	err = request_irq(priv->irq, eeti_ts_isr, irq_flags,
 			  client->name, priv);
 	if (err) {
 		dev_err(&client->dev, "Unable to request touchscreen IRQ.\n");

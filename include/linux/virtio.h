@@ -34,7 +34,7 @@ struct virtqueue {
  *	out_num: the number of sg readable by other side
  *	in_num: the number of sg which are writable (after readable ones)
  *	data: the token identifying the buffer.
- *      Returns 0 or an error.
+ *      Returns remaining capacity of queue (sg segments) or a negative error.
  * @kick: update after add_buf
  *	vq: the struct virtqueue
  *	After one or more add_buf calls, invoke this to kick the other side.

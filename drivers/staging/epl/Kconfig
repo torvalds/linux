@@ -1,6 +1,0 @@
-config EPL
-	tristate "openPOWERLINK protocol stack"
-	depends on NET && HIGH_RES_TIMERS && X86
-	default N
-	---help---
-	  Enable support for the openPOWERLINK network protocol stack.

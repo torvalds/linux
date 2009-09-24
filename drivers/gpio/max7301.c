@@ -339,3 +339,4 @@ module_exit(max7301_exit);
 MODULE_AUTHOR("Juergen Beisert");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MAX7301 SPI based GPIO-Expander");
+MODULE_ALIAS("spi:" DRIVER_NAME);

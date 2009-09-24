@@ -21,3 +21,6 @@
  20 -> Hauppauge WinTV-HVR1255                             [0070:2251]
  21 -> Hauppauge WinTV-HVR1210                             [0070:2291,0070:2295]
  22 -> Mygica X8506 DMB-TH                                 [14f1:8651]
+ 23 -> Magic-Pro ProHDTV Extreme 2                         [14f1:8657]
+ 24 -> Hauppauge WinTV-HVR1850                             [0070:8541]
+ 25 -> Compro VideoMate E800                               [1858:e800]

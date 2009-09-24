@@ -31,7 +31,7 @@ struct stab_entry {
 
 #define NR_STAB_CACHE_ENTRIES 8
 static DEFINE_PER_CPU(long, stab_cache_ptr);
-static DEFINE_PER_CPU(long, stab_cache[NR_STAB_CACHE_ENTRIES]);
+static DEFINE_PER_CPU(long [NR_STAB_CACHE_ENTRIES], stab_cache);
 
 /*
  * Create a segment table entry for the given esid/vsid pair.

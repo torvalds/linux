@@ -172,12 +172,21 @@ xfs_file_release(
  */
 STATIC int
 xfs_file_fsync(
-	struct file	*filp,
-	struct dentry	*dentry,
-	int		datasync)
+	struct file		*file,
+	struct dentry		*dentry,
+	int			datasync)
 {
-	xfs_iflags_clear(XFS_I(dentry->d_inode), XFS_ITRUNCATED);
-	return -xfs_fsync(XFS_I(dentry->d_inode));
+	struct inode		*inode = dentry->d_inode;
+	struct xfs_inode	*ip = XFS_I(inode);
+	int			error;
+
+	/* capture size updates in I/O completion before writing the inode. */
+	error = filemap_fdatawait(inode->i_mapping);
+	if (error)
+		return error;
+
+	xfs_iflags_clear(ip, XFS_ITRUNCATED);
+	return -xfs_fsync(ip);
 }
 
 STATIC int

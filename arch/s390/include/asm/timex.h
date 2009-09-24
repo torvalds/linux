@@ -88,6 +88,14 @@ int get_sync_clock(unsigned long long *clock);
 void init_cpu_timer(void);
 unsigned long long monotonic_clock(void);
 
+void tod_to_timeval(__u64, struct timespec *);
+
+static inline
+void stck_to_timespec(unsigned long long stck, struct timespec *ts)
+{
+	tod_to_timeval(stck - TOD_UNIX_EPOCH, ts);
+}
+
 extern u64 sched_clock_base_cc;
 
 /**

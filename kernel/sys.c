@@ -14,7 +14,7 @@
 #include <linux/prctl.h>
 #include <linux/highuid.h>
 #include <linux/fs.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/resource.h>
 #include <linux/kernel.h>
 #include <linux/kexec.h>
@@ -1338,6 +1338,7 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 	unsigned long flags;
 	cputime_t utime, stime;
 	struct task_cputime cputime;
+	unsigned long maxrss = 0;
 
 	memset((char *) r, 0, sizeof *r);
 	utime = stime = cputime_zero;
@@ -1346,6 +1347,7 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 		utime = task_utime(current);
 		stime = task_stime(current);
 		accumulate_thread_rusage(p, r);
+		maxrss = p->signal->maxrss;
 		goto out;
 	}
 
@@ -1363,6 +1365,7 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			r->ru_majflt = p->signal->cmaj_flt;
 			r->ru_inblock = p->signal->cinblock;
 			r->ru_oublock = p->signal->coublock;
+			maxrss = p->signal->cmaxrss;
 
 			if (who == RUSAGE_CHILDREN)
 				break;
@@ -1377,6 +1380,8 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			r->ru_majflt += p->signal->maj_flt;
 			r->ru_inblock += p->signal->inblock;
 			r->ru_oublock += p->signal->oublock;
+			if (maxrss < p->signal->maxrss)
+				maxrss = p->signal->maxrss;
 			t = p;
 			do {
 				accumulate_thread_rusage(t, r);
@@ -1392,6 +1397,15 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 out:
 	cputime_to_timeval(utime, &r->ru_utime);
 	cputime_to_timeval(stime, &r->ru_stime);
+
+	if (who != RUSAGE_CHILDREN) {
+		struct mm_struct *mm = get_task_mm(p);
+		if (mm) {
+			setmax_mm_hiwater_rss(&maxrss, mm);
+			mmput(mm);
+		}
+	}
+	r->ru_maxrss = maxrss * (PAGE_SIZE / 1024); /* convert pages to KBs */
 }
 
 int getrusage(struct task_struct *p, int who, struct rusage __user *ru)
@@ -1511,11 +1525,11 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		case PR_SET_TSC:
 			error = SET_TSC_CTL(arg2);
 			break;
-		case PR_TASK_PERF_COUNTERS_DISABLE:
-			error = perf_counter_task_disable();
+		case PR_TASK_PERF_EVENTS_DISABLE:
+			error = perf_event_task_disable();
 			break;
-		case PR_TASK_PERF_COUNTERS_ENABLE:
-			error = perf_counter_task_enable();
+		case PR_TASK_PERF_EVENTS_ENABLE:
+			error = perf_event_task_enable();
 			break;
 		case PR_GET_TIMERSLACK:
 			error = current->timer_slack_ns;
@@ -1528,6 +1542,28 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 				current->timer_slack_ns = arg2;
 			error = 0;
 			break;
+		case PR_MCE_KILL:
+			if (arg4 | arg5)
+				return -EINVAL;
+			switch (arg2) {
+			case 0:
+				if (arg3 != 0)
+					return -EINVAL;
+				current->flags &= ~PF_MCE_PROCESS;
+				break;
+			case 1:
+				current->flags |= PF_MCE_PROCESS;
+				if (arg3 != 0)
+					current->flags |= PF_MCE_EARLY;
+				else
+					current->flags &= ~PF_MCE_EARLY;
+				break;
+			default:
+				return -EINVAL;
+			}
+			error = 0;
+			break;
+
 		default:
 			error = -EINVAL;
 			break;

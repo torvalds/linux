@@ -110,9 +110,6 @@ static void start_adc(struct cs4297a_state *s);
 // rather than 64k as some of the games work more responsively.
 // log base 2( buff sz = 32k).
 
-//static unsigned long defaultorder = 3;
-//MODULE_PARM(defaultorder, "i");
-
 //
 // Turn on/off debugging compilation by commenting out "#define CSDEBUG"
 //

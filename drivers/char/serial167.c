@@ -171,7 +171,6 @@ static int startup(struct cyclades_port *);
 static void cy_throttle(struct tty_struct *);
 static void cy_unthrottle(struct tty_struct *);
 static void config_setup(struct cyclades_port *);
-extern void console_print(const char *);
 #ifdef CYCLOM_SHOW_STATUS
 static void show_status(int);
 #endif
@@ -245,7 +244,7 @@ void SP(char *data)
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	console_print(data);
+	printk(KERN_EMERG "%s", data);
 	local_irq_restore(flags);
 }
 
@@ -255,7 +254,7 @@ void CP(char data)
 	unsigned long flags;
 	local_irq_save(flags);
 	scrn[0] = data;
-	console_print(scrn);
+	printk(KERN_EMERG "%c", scrn);
 	local_irq_restore(flags);
 }				/* CP */
 

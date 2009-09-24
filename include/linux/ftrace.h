@@ -19,7 +19,7 @@
 extern int ftrace_enabled;
 extern int
 ftrace_enable_sysctl(struct ctl_table *table, int write,
-		     struct file *filp, void __user *buffer, size_t *lenp,
+		     void __user *buffer, size_t *lenp,
 		     loff_t *ppos);
 
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip);
@@ -94,7 +94,7 @@ static inline void ftrace_start(void) { }
 extern int stack_tracer_enabled;
 int
 stack_trace_sysctl(struct ctl_table *table, int write,
-		   struct file *file, void __user *buffer, size_t *lenp,
+		   void __user *buffer, size_t *lenp,
 		   loff_t *ppos);
 #endif
 
@@ -446,7 +446,6 @@ static inline void unpause_graph_tracing(void) { }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #ifdef CONFIG_TRACING
-#include <linux/sched.h>
 
 /* flags for current->trace */
 enum {

@@ -268,6 +268,10 @@ ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm.h \
       		  $(srctree)/include/asm-$(SRCARCH)/kvm.h),)
 unifdef-y += kvm.h
 endif
+ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm_para.h \
+		  $(srctree)/include/asm-$(SRCARCH)/kvm_para.h),)
+unifdef-y += kvm_para.h
+endif
 unifdef-y += llc.h
 unifdef-y += loop.h
 unifdef-y += lp.h

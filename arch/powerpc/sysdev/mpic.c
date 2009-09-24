@@ -230,14 +230,16 @@ static inline u32 _mpic_irq_read(struct mpic *mpic, unsigned int src_no, unsigne
 {
 	unsigned int	isu = src_no >> mpic->isu_shift;
 	unsigned int	idx = src_no & mpic->isu_mask;
+	unsigned int	val;
 
+	val = _mpic_read(mpic->reg_type, &mpic->isus[isu],
+			 reg + (idx * MPIC_INFO(IRQ_STRIDE)));
 #ifdef CONFIG_MPIC_BROKEN_REGREAD
 	if (reg == 0)
-		return mpic->isu_reg0_shadow[idx];
-	else
+		val = (val & (MPIC_VECPRI_MASK | MPIC_VECPRI_ACTIVITY)) |
+			mpic->isu_reg0_shadow[src_no];
 #endif
-		return _mpic_read(mpic->reg_type, &mpic->isus[isu],
-				  reg + (idx * MPIC_INFO(IRQ_STRIDE)));
+	return val;
 }
 
 static inline void _mpic_irq_write(struct mpic *mpic, unsigned int src_no,
@@ -251,7 +253,8 @@ static inline void _mpic_irq_write(struct mpic *mpic, unsigned int src_no,
 
 #ifdef CONFIG_MPIC_BROKEN_REGREAD
 	if (reg == 0)
-		mpic->isu_reg0_shadow[idx] = value;
+		mpic->isu_reg0_shadow[src_no] =
+			value & ~(MPIC_VECPRI_MASK | MPIC_VECPRI_ACTIVITY);
 #endif
 }
 

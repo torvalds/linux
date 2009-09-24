@@ -95,7 +95,8 @@ int clkdm_register(struct clockdomain *clkdm);
 int clkdm_unregister(struct clockdomain *clkdm);
 struct clockdomain *clkdm_lookup(const char *name);
 
-int clkdm_for_each(int (*fn)(struct clockdomain *clkdm));
+int clkdm_for_each(int (*fn)(struct clockdomain *clkdm, void *user),
+			void *user);
 struct powerdomain *clkdm_get_pwrdm(struct clockdomain *clkdm);
 
 void omap2_clkdm_allow_idle(struct clockdomain *clkdm);

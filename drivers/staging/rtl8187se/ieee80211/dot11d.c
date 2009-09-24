@@ -1,4 +1,3 @@
-#ifdef ENABLE_DOT11D
 //-----------------------------------------------------------------------------
 //	File:
 //		Dot11d.c
@@ -130,16 +129,6 @@ Dot11d_UpdateCountryIe(
 	pDot11dInfo->State = DOT11D_STATE_LEARNED;
 }
 
-void dump_chnl_map(u8 * channel_map)
-{
-	int i;
-	printk("Channel List:");
-	for(i=1; i<= MAX_CHANNEL_NUMBER; i++)
-		if(channel_map[i] > 0)
-			printk(" %d(%d)", i, channel_map[i]);
-	printk("\n");
-}
-
 u8
 DOT11D_GetMaxTxPwrInDbm(
 	struct ieee80211_device *dev,
@@ -233,14 +222,3 @@ int ToLegalChannel(
 
 	return default_chn;
 }
-
-#if 0
-EXPORT_SYMBOL(Dot11d_Init);
-EXPORT_SYMBOL(Dot11d_Reset);
-EXPORT_SYMBOL(Dot11d_UpdateCountryIe);
-EXPORT_SYMBOL(DOT11D_GetMaxTxPwrInDbm);
-EXPORT_SYMBOL(DOT11D_ScanComplete);
-EXPORT_SYMBOL(IsLegalChannel);
-EXPORT_SYMBOL(ToLegalChannel);
-#endif
-#endif

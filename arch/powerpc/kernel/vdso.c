@@ -1,3 +1,4 @@
+
 /*
  *    Copyright (C) 2004 Benjamin Herrenschmidt, IBM Corp.
  *			 <benh@kernel.crashing.org>
@@ -74,7 +75,7 @@ static int vdso_ready;
 static union {
 	struct vdso_data	data;
 	u8			page[PAGE_SIZE];
-} vdso_data_store __attribute__((__section__(".data.page_aligned")));
+} vdso_data_store __page_aligned_data;
 struct vdso_data *vdso_data = &vdso_data_store.data;
 
 /* Format of the patch table */
@@ -203,7 +204,12 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	} else {
 		vdso_pagelist = vdso64_pagelist;
 		vdso_pages = vdso64_pages;
-		vdso_base = VDSO64_MBASE;
+		/*
+		 * On 64bit we don't have a preferred map address. This
+		 * allows get_unmapped_area to find an area near other mmaps
+		 * and most likely share a SLB entry.
+		 */
+		vdso_base = 0;
 	}
 #else
 	vdso_pagelist = vdso32_pagelist;

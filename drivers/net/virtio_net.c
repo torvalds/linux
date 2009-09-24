@@ -22,6 +22,7 @@
 #include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/virtio.h>
+#include <linux/virtio_ids.h>
 #include <linux/virtio_net.h>
 #include <linux/scatterlist.h>
 #include <linux/if_vlan.h>
@@ -320,7 +321,7 @@ static bool try_fill_recv_maxbufs(struct virtnet_info *vi, gfp_t gfp)
 		skb_queue_head(&vi->recv, skb);
 
 		err = vi->rvq->vq_ops->add_buf(vi->rvq, sg, 0, num, skb);
-		if (err) {
+		if (err < 0) {
 			skb_unlink(skb, &vi->recv);
 			trim_pages(vi, skb);
 			kfree_skb(skb);
@@ -373,7 +374,7 @@ static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
 		skb_queue_head(&vi->recv, skb);
 
 		err = vi->rvq->vq_ops->add_buf(vi->rvq, sg, 0, 1, skb);
-		if (err) {
+		if (err < 0) {
 			skb_unlink(skb, &vi->recv);
 			kfree_skb(skb);
 			break;
@@ -527,7 +528,7 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 	num = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
 
 	err = vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
-	if (!err && !vi->free_in_tasklet)
+	if (err >= 0 && !vi->free_in_tasklet)
 		mod_timer(&vi->xmit_free_timer, jiffies + (HZ/10));
 
 	return err;
@@ -538,7 +539,7 @@ static void xmit_tasklet(unsigned long data)
 	struct virtnet_info *vi = (void *)data;
 
 	netif_tx_lock_bh(vi->dev);
-	if (vi->last_xmit_skb && xmit_skb(vi, vi->last_xmit_skb) == 0) {
+	if (vi->last_xmit_skb && xmit_skb(vi, vi->last_xmit_skb) >= 0) {
 		vi->svq->vq_ops->kick(vi->svq);
 		vi->last_xmit_skb = NULL;
 	}
@@ -557,7 +558,7 @@ again:
 
 	/* If we has a buffer left over from last time, send it now. */
 	if (unlikely(vi->last_xmit_skb) &&
-	    xmit_skb(vi, vi->last_xmit_skb) != 0)
+	    xmit_skb(vi, vi->last_xmit_skb) < 0)
 		goto stop_queue;
 
 	vi->last_xmit_skb = NULL;
@@ -565,7 +566,7 @@ again:
 	/* Put new one in send queue and do transmit */
 	if (likely(skb)) {
 		__skb_queue_head(&vi->send, skb);
-		if (xmit_skb(vi, skb) != 0) {
+		if (xmit_skb(vi, skb) < 0) {
 			vi->last_xmit_skb = skb;
 			skb = NULL;
 			goto stop_queue;
@@ -668,7 +669,7 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 		sg_set_buf(&sg[i + 1], sg_virt(s), s->length);
 	sg_set_buf(&sg[out + in - 1], &status, sizeof(status));
 
-	BUG_ON(vi->cvq->vq_ops->add_buf(vi->cvq, sg, out, in, vi));
+	BUG_ON(vi->cvq->vq_ops->add_buf(vi->cvq, sg, out, in, vi) < 0);
 
 	vi->cvq->vq_ops->kick(vi->cvq);
 

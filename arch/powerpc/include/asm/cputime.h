@@ -18,6 +18,9 @@
 
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
 #include <asm-generic/cputime.h>
+#ifdef __KERNEL__
+static inline void setup_cputime_one_jiffy(void) { }
+#endif
 #else
 
 #include <linux/types.h>
@@ -47,6 +50,11 @@ typedef u64 cputime64_t;
 #define cputime_to_cputime64(__ct)	(__ct)
 
 #ifdef __KERNEL__
+
+/*
+ * One jiffy in timebase units computed during initialization
+ */
+extern cputime_t cputime_one_jiffy;
 
 /*
  * Convert cputime <-> jiffies
@@ -87,6 +95,11 @@ static inline cputime_t jiffies_to_cputime(const unsigned long jif)
 	if (sec)
 		ct += (cputime_t) sec * tb_ticks_per_sec;
 	return ct;
+}
+
+static inline void setup_cputime_one_jiffy(void)
+{
+	cputime_one_jiffy = jiffies_to_cputime(1);
 }
 
 static inline cputime64_t jiffies64_to_cputime64(const u64 jif)

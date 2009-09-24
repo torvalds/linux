@@ -155,37 +155,37 @@ static void update_completion_period(void)
 }
 
 int dirty_background_ratio_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (ret == 0 && write)
 		dirty_background_bytes = 0;
 	return ret;
 }
 
 int dirty_background_bytes_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_doulongvec_minmax(table, write, filp, buffer, lenp, ppos);
+	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 	if (ret == 0 && write)
 		dirty_background_ratio = 0;
 	return ret;
 }
 
 int dirty_ratio_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos)
 {
 	int old_ratio = vm_dirty_ratio;
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
 		update_completion_period();
 		vm_dirty_bytes = 0;
@@ -195,13 +195,13 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
 
 
 int dirty_bytes_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos)
 {
 	unsigned long old_bytes = vm_dirty_bytes;
 	int ret;
 
-	ret = proc_doulongvec_minmax(table, write, filp, buffer, lenp, ppos);
+	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 	if (ret == 0 && write && vm_dirty_bytes != old_bytes) {
 		update_completion_period();
 		vm_dirty_ratio = 0;
@@ -315,7 +315,7 @@ int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 {
 	int ret = 0;
 
-	spin_lock(&bdi_lock);
+	spin_lock_bh(&bdi_lock);
 	if (min_ratio > bdi->max_ratio) {
 		ret = -EINVAL;
 	} else {
@@ -327,7 +327,7 @@ int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 			ret = -EINVAL;
 		}
 	}
-	spin_unlock(&bdi_lock);
+	spin_unlock_bh(&bdi_lock);
 
 	return ret;
 }
@@ -339,14 +339,14 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned max_ratio)
 	if (max_ratio > 100)
 		return -EINVAL;
 
-	spin_lock(&bdi_lock);
+	spin_lock_bh(&bdi_lock);
 	if (bdi->min_ratio > max_ratio) {
 		ret = -EINVAL;
 	} else {
 		bdi->max_ratio = max_ratio;
 		bdi->max_prop_frac = (PROP_FRAC_BASE * max_ratio) / 100;
 	}
-	spin_unlock(&bdi_lock);
+	spin_unlock_bh(&bdi_lock);
 
 	return ret;
 }
@@ -380,7 +380,8 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
 		struct zone *z =
 			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
 
-		x += zone_page_state(z, NR_FREE_PAGES) + zone_lru_pages(z);
+		x += zone_page_state(z, NR_FREE_PAGES) +
+		     zone_reclaimable_pages(z);
 	}
 	/*
 	 * Make sure that the number of highmem pages is never larger
@@ -404,7 +405,7 @@ unsigned long determine_dirtyable_memory(void)
 {
 	unsigned long x;
 
-	x = global_page_state(NR_FREE_PAGES) + global_lru_pages();
+	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
 
 	if (!vm_highmem_is_dirtyable)
 		x -= highmem_dirtyable_memory(x);
@@ -485,6 +486,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 	unsigned long bdi_thresh;
 	unsigned long pages_written = 0;
 	unsigned long write_chunk = sync_writeback_pages();
+	unsigned long pause = 1;
 
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 
@@ -561,7 +563,15 @@ static void balance_dirty_pages(struct address_space *mapping)
 		if (pages_written >= write_chunk)
 			break;		/* We've done our duty */
 
-		schedule_timeout(1);
+		schedule_timeout_interruptible(pause);
+
+		/*
+		 * Increase the delay for each loop, up to our previous
+		 * default of taking a 100ms nap.
+		 */
+		pause <<= 1;
+		if (pause > HZ / 10)
+			pause = HZ / 10;
 	}
 
 	if (bdi_nr_reclaimable + bdi_nr_writeback < bdi_thresh &&
@@ -582,16 +592,8 @@ static void balance_dirty_pages(struct address_space *mapping)
 	if ((laptop_mode && pages_written) ||
 	    (!laptop_mode && ((nr_writeback = global_page_state(NR_FILE_DIRTY)
 					  + global_page_state(NR_UNSTABLE_NFS))
-					  > background_thresh))) {
-		struct writeback_control wbc = {
-			.bdi		= bdi,
-			.sync_mode	= WB_SYNC_NONE,
-			.nr_to_write	= nr_writeback,
-		};
-
-
-		bdi_start_writeback(&wbc);
-	}
+					  > background_thresh)))
+		bdi_start_writeback(bdi, nr_writeback);
 }
 
 void set_page_dirty_balance(struct page *page, int page_mkwrite)
@@ -603,6 +605,8 @@ void set_page_dirty_balance(struct page *page, int page_mkwrite)
 			balance_dirty_pages_ratelimited(mapping);
 	}
 }
+
+static DEFINE_PER_CPU(unsigned long, bdp_ratelimits) = 0;
 
 /**
  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
@@ -621,7 +625,6 @@ void set_page_dirty_balance(struct page *page, int page_mkwrite)
 void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 					unsigned long nr_pages_dirtied)
 {
-	static DEFINE_PER_CPU(unsigned long, ratelimits) = 0;
 	unsigned long ratelimit;
 	unsigned long *p;
 
@@ -634,7 +637,7 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 	 * tasks in balance_dirty_pages(). Period.
 	 */
 	preempt_disable();
-	p =  &__get_cpu_var(ratelimits);
+	p =  &__get_cpu_var(bdp_ratelimits);
 	*p += nr_pages_dirtied;
 	if (unlikely(*p >= ratelimit)) {
 		*p = 0;
@@ -683,9 +686,9 @@ static DEFINE_TIMER(laptop_mode_wb_timer, laptop_timer_fn, 0, 0);
  * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
  */
 int dirty_writeback_centisecs_handler(ctl_table *table, int write,
-	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
+	void __user *buffer, size_t *length, loff_t *ppos)
 {
-	proc_dointvec(table, write, file, buffer, length, ppos);
+	proc_dointvec(table, write, buffer, length, ppos);
 	return 0;
 }
 
@@ -1019,12 +1022,10 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 
 	if (wbc->nr_to_write <= 0)
 		return 0;
-	wbc->for_writepages = 1;
 	if (mapping->a_ops->writepages)
 		ret = mapping->a_ops->writepages(mapping, wbc);
 	else
 		ret = generic_writepages(mapping, wbc);
-	wbc->for_writepages = 0;
 	return ret;
 }
 
@@ -1148,6 +1149,13 @@ int redirty_page_for_writepage(struct writeback_control *wbc, struct page *page)
 EXPORT_SYMBOL(redirty_page_for_writepage);
 
 /*
+ * Dirty a page.
+ *
+ * For pages with a mapping this should be done under the page lock
+ * for the benefit of asynchronous memory errors who prefer a consistent
+ * dirty state. This rule can be broken in some special cases,
+ * but should be better not to.
+ *
  * If the mapping doesn't provide a set_page_dirty a_op, then
  * just fall through and assume that it wants buffer_heads.
  */

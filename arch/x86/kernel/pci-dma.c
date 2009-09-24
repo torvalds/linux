@@ -225,10 +225,8 @@ static __init int iommu_setup(char *p)
 		if (!strncmp(p, "soft", 4))
 			swiotlb = 1;
 #endif
-		if (!strncmp(p, "pt", 2)) {
+		if (!strncmp(p, "pt", 2))
 			iommu_pass_through = 1;
-			return 1;
-		}
 
 		gart_parse_options(p);
 

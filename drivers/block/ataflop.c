@@ -1856,7 +1856,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static struct block_device_operations floppy_fops = {
+static const struct block_device_operations floppy_fops = {
 	.owner		= THIS_MODULE,
 	.open		= floppy_open,
 	.release	= floppy_release,

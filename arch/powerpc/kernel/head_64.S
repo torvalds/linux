@@ -36,7 +36,6 @@
 #include <asm/thread_info.h>
 #include <asm/firmware.h>
 #include <asm/page_64.h>
-#include <asm/exception.h>
 #include <asm/irqflags.h>
 
 /* The physical memory is layed out such that the secondary processor
@@ -122,10 +121,11 @@ __run_at_load:
  */
 	.globl	__secondary_hold
 __secondary_hold:
+#ifndef CONFIG_PPC_BOOK3E
 	mfmsr	r24
 	ori	r24,r24,MSR_RI
 	mtmsrd	r24			/* RI on */
-
+#endif
 	/* Grab our physical cpu number */
 	mr	r24,r3
 
@@ -144,6 +144,7 @@ __secondary_hold:
 	ld	r4,0(r4)		/* deref function descriptor */
 	mtctr	r4
 	mr	r3,r24
+	li	r4,0
 	bctr
 #else
 	BUG_OPCODE
@@ -164,21 +165,49 @@ exception_marker:
 #include "exceptions-64s.S"
 #endif
 
+_GLOBAL(generic_secondary_thread_init)
+	mr	r24,r3
+
+	/* turn on 64-bit mode */
+	bl	.enable_64b_mode
+
+	/* get a valid TOC pointer, wherever we're mapped at */
+	bl	.relative_toc
+
+#ifdef CONFIG_PPC_BOOK3E
+	/* Book3E initialization */
+	mr	r3,r24
+	bl	.book3e_secondary_thread_init
+#endif
+	b	generic_secondary_common_init
 
 /*
  * On pSeries and most other platforms, secondary processors spin
  * in the following code.
  * At entry, r3 = this processor's number (physical cpu id)
+ *
+ * On Book3E, r4 = 1 to indicate that the initial TLB entry for
+ * this core already exists (setup via some other mechanism such
+ * as SCOM before entry).
  */
 _GLOBAL(generic_secondary_smp_init)
 	mr	r24,r3
-	
+	mr	r25,r4
+
 	/* turn on 64-bit mode */
 	bl	.enable_64b_mode
 
-	/* get the TOC pointer (real address) */
+	/* get a valid TOC pointer, wherever we're mapped at */
 	bl	.relative_toc
 
+#ifdef CONFIG_PPC_BOOK3E
+	/* Book3E initialization */
+	mr	r3,r24
+	mr	r4,r25
+	bl	.book3e_secondary_core_init
+#endif
+
+generic_secondary_common_init:
 	/* Set up a paca value for this processor. Since we have the
 	 * physical cpu id in r24, we need to search the pacas to find
 	 * which logical id maps to our physical one.
@@ -196,7 +225,12 @@ _GLOBAL(generic_secondary_smp_init)
 	mr	r3,r24			/* not found, copy phys to r3	 */
 	b	.kexec_wait		/* next kernel might do better	 */
 
-2:	mtspr	SPRN_SPRG3,r13		/* Save vaddr of paca in SPRG3	 */
+2:	mtspr	SPRN_SPRG_PACA,r13	/* Save vaddr of paca in an SPRG */
+#ifdef CONFIG_PPC_BOOK3E
+	addi	r12,r13,PACA_EXTLB	/* and TLB exc frame in another  */
+	mtspr	SPRN_SPRG_TLB_EXFRAME,r12
+#endif
+
 	/* From now on, r24 is expected to be logical cpuid */
 	mr	r24,r5
 3:	HMT_LOW
@@ -232,6 +266,7 @@ _GLOBAL(generic_secondary_smp_init)
  * Turn the MMU off.
  * Assumes we're mapped EA == RA if the MMU is on.
  */
+#ifdef CONFIG_PPC_BOOK3S
 _STATIC(__mmu_off)
 	mfmsr	r3
 	andi.	r0,r3,MSR_IR|MSR_DR
@@ -243,6 +278,7 @@ _STATIC(__mmu_off)
 	sync
 	rfid
 	b	.	/* prevent speculative execution */
+#endif
 
 
 /*
@@ -280,6 +316,10 @@ _GLOBAL(__start_initialization_multiplatform)
 	mr	r31,r3
 	mr	r30,r4
 
+#ifdef CONFIG_PPC_BOOK3E
+	bl	.start_initialization_book3e
+	b	.__after_prom_start
+#else
 	/* Setup some critical 970 SPRs before switching MMU off */
 	mfspr	r0,SPRN_PVR
 	srwi	r0,r0,16
@@ -297,6 +337,7 @@ _GLOBAL(__start_initialization_multiplatform)
 	/* Switch off MMU if not already off */
 	bl	.__mmu_off
 	b	.__after_prom_start
+#endif /* CONFIG_PPC_BOOK3E */
 
 _INIT_STATIC(__boot_from_prom)
 #ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
@@ -359,10 +400,16 @@ _STATIC(__after_prom_start)
  * Note: This process overwrites the OF exception vectors.
  */
 	li	r3,0			/* target addr */
+#ifdef CONFIG_PPC_BOOK3E
+	tovirt(r3,r3)			/* on booke, we already run at PAGE_OFFSET */
+#endif
 	mr.	r4,r26			/* In some cases the loader may  */
 	beq	9f			/* have already put us at zero */
 	li	r6,0x100		/* Start offset, the first 0x100 */
 					/* bytes were copied earlier.	 */
+#ifdef CONFIG_PPC_BOOK3E
+	tovirt(r6,r6)			/* on booke, we already run at PAGE_OFFSET */
+#endif
 
 #ifdef CONFIG_CRASH_DUMP
 /*
@@ -485,7 +532,7 @@ _GLOBAL(pmac_secondary_start)
 	LOAD_REG_ADDR(r4,paca)		/* Get base vaddr of paca array	*/
 	mulli	r13,r24,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r4		/* for this processor.		*/
-	mtspr	SPRN_SPRG3,r13		/* Save vaddr of paca in SPRG3	*/
+	mtspr	SPRN_SPRG_PACA,r13	/* Save vaddr of paca in an SPRG*/
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
@@ -503,11 +550,14 @@ _GLOBAL(pmac_secondary_start)
  *   1. Processor number
  *   2. Segment table pointer (virtual address)
  * On entry the following are set:
- *   r1	= stack pointer.  vaddr for iSeries, raddr (temp stack) for pSeries
- *   r24   = cpu# (in Linux terms)
- *   r13   = paca virtual address
- *   SPRG3 = paca virtual address
+ *   r1	       = stack pointer.  vaddr for iSeries, raddr (temp stack) for pSeries
+ *   r24       = cpu# (in Linux terms)
+ *   r13       = paca virtual address
+ *   SPRG_PACA = paca virtual address
  */
+	.section ".text";
+	.align 2 ;
+
 	.globl	__secondary_start
 __secondary_start:
 	/* Set thread priority to MEDIUM */
@@ -544,7 +594,7 @@ END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	rfid
+	RFI
 	b	.	/* prevent speculative execution */
 
 /* 
@@ -565,11 +615,16 @@ _GLOBAL(start_secondary_prolog)
  */
 _GLOBAL(enable_64b_mode)
 	mfmsr	r11			/* grab the current MSR */
+#ifdef CONFIG_PPC_BOOK3E
+	oris	r11,r11,0x8000		/* CM bit set, we'll set ICM later */
+	mtmsr	r11
+#else /* CONFIG_PPC_BOOK3E */
 	li	r12,(MSR_SF | MSR_ISF)@highest
 	sldi	r12,r12,48
 	or	r11,r11,r12
 	mtmsrd	r11
 	isync
+#endif
 	blr
 
 /*
@@ -613,9 +668,11 @@ _INIT_STATIC(start_here_multiplatform)
 	bdnz	3b
 4:
 
+#ifndef CONFIG_PPC_BOOK3E
 	mfmsr	r6
 	ori	r6,r6,MSR_RI
 	mtmsrd	r6			/* RI on */
+#endif
 
 #ifdef CONFIG_RELOCATABLE
 	/* Save the physical address we're running at in kernstart_addr */
@@ -642,13 +699,13 @@ _INIT_STATIC(start_here_multiplatform)
 
 	/* Restore parameters passed from prom_init/kexec */
 	mr	r3,r31
-	bl	.early_setup		/* also sets r13 and SPRG3 */
+	bl	.early_setup		/* also sets r13 and SPRG_PACA */
 
 	LOAD_REG_ADDR(r3, .start_here_common)
 	ld	r4,PACAKMSR(r13)
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
-	rfid
+	RFI
 	b	.	/* prevent speculative execution */
 	
 	/* This is where all platforms converge execution */

@@ -53,9 +53,9 @@ int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence)
 		 * away
 		 */
 		WREG32(rdev->fence_drv.scratch_reg, fence->seq);
-	} else {
+	} else
 		radeon_fence_ring_emit(rdev, fence);
-	}
+
 	fence->emited = true;
 	fence->timeout = jiffies + ((2000 * HZ) / 1000);
 	list_del(&fence->list);
@@ -168,14 +168,44 @@ bool radeon_fence_signaled(struct radeon_fence *fence)
 	return signaled;
 }
 
-int radeon_fence_wait(struct radeon_fence *fence, bool interruptible)
+int r600_fence_wait(struct radeon_fence *fence,  bool intr, bool lazy)
+{
+	struct radeon_device *rdev;
+	int ret = 0;
+
+	rdev = fence->rdev;
+
+	__set_current_state(intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
+
+	while (1) {
+		if (radeon_fence_signaled(fence))
+			break;
+
+		if (time_after_eq(jiffies, fence->timeout)) {
+			ret = -EBUSY;
+			break;
+		}
+
+		if (lazy)
+			schedule_timeout(1);
+
+		if (intr && signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+	}
+	__set_current_state(TASK_RUNNING);
+	return ret;
+}
+
+
+int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 {
 	struct radeon_device *rdev;
 	unsigned long cur_jiffies;
 	unsigned long timeout;
 	bool expired = false;
 	int r;
-
 
 	if (fence == NULL) {
 		WARN(1, "Querying an invalid fence : %p !\n", fence);
@@ -185,13 +215,22 @@ int radeon_fence_wait(struct radeon_fence *fence, bool interruptible)
 	if (radeon_fence_signaled(fence)) {
 		return 0;
 	}
+
+	if (rdev->family >= CHIP_R600) {
+		r = r600_fence_wait(fence, intr, 0);
+		if (r == -ERESTARTSYS)
+			return -EBUSY;
+		return r;
+	}
+
 retry:
 	cur_jiffies = jiffies;
 	timeout = HZ / 100;
 	if (time_after(fence->timeout, cur_jiffies)) {
 		timeout = fence->timeout - cur_jiffies;
 	}
-	if (interruptible) {
+
+	if (intr) {
 		r = wait_event_interruptible_timeout(rdev->fence_drv.queue,
 				radeon_fence_signaled(fence), timeout);
 		if (unlikely(r == -ERESTARTSYS)) {

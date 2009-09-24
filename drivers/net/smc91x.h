@@ -28,7 +28,7 @@
  . Authors
  .	Erik Stahlman		<erik@vt.edu>
  .	Daris A Nevil		<dnevil@snmc.com>
- .	Nicolas Pitre 		<nico@cam.org>
+ .	Nicolas Pitre 		<nico@fluxnic.net>
  .
  ---------------------------------------------------------------------------*/
 #ifndef _SMC91X_H_

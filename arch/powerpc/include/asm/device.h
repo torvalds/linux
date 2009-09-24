@@ -6,7 +6,7 @@
 #ifndef _ASM_POWERPC_DEVICE_H
 #define _ASM_POWERPC_DEVICE_H
 
-struct dma_mapping_ops;
+struct dma_map_ops;
 struct device_node;
 
 struct dev_archdata {
@@ -14,8 +14,11 @@ struct dev_archdata {
 	struct device_node	*of_node;
 
 	/* DMA operations on that device */
-	struct dma_mapping_ops	*dma_ops;
+	struct dma_map_ops	*dma_ops;
 	void			*dma_data;
+#ifdef CONFIG_SWIOTLB
+	dma_addr_t		max_direct_dma_addr;
+#endif
 };
 
 static inline void dev_archdata_set_node(struct dev_archdata *ad,
@@ -29,5 +32,8 @@ dev_archdata_get_node(const struct dev_archdata *ad)
 {
 	return ad->of_node;
 }
+
+struct pdev_archdata {
+};
 
 #endif /* _ASM_POWERPC_DEVICE_H */

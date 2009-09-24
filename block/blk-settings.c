@@ -428,6 +428,25 @@ void blk_queue_io_min(struct request_queue *q, unsigned int min)
 EXPORT_SYMBOL(blk_queue_io_min);
 
 /**
+ * blk_limits_io_opt - set optimal request size for a device
+ * @limits: the queue limits
+ * @opt:  smallest I/O size in bytes
+ *
+ * Description:
+ *   Storage devices may report an optimal I/O size, which is the
+ *   device's preferred unit for sustained I/O.  This is rarely reported
+ *   for disk drives.  For RAID arrays it is usually the stripe width or
+ *   the internal track size.  A properly aligned multiple of
+ *   optimal_io_size is the preferred request size for workloads where
+ *   sustained throughput is desired.
+ */
+void blk_limits_io_opt(struct queue_limits *limits, unsigned int opt)
+{
+	limits->io_opt = opt;
+}
+EXPORT_SYMBOL(blk_limits_io_opt);
+
+/**
  * blk_queue_io_opt - set optimal request size for the queue
  * @q:	the request queue for the device
  * @opt:  optimal request size in bytes
@@ -442,7 +461,7 @@ EXPORT_SYMBOL(blk_queue_io_min);
  */
 void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 {
-	q->limits.io_opt = opt;
+	blk_limits_io_opt(&q->limits, opt);
 }
 EXPORT_SYMBOL(blk_queue_io_opt);
 

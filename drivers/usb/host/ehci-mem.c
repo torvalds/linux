@@ -75,7 +75,8 @@ static void qh_destroy(struct ehci_qh *qh)
 	}
 	if (qh->dummy)
 		ehci_qtd_free (ehci, qh->dummy);
-	dma_pool_free (ehci->qh_pool, qh, qh->qh_dma);
+	dma_pool_free(ehci->qh_pool, qh->hw, qh->qh_dma);
+	kfree(qh);
 }
 
 static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
@@ -83,12 +84,14 @@ static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 	struct ehci_qh		*qh;
 	dma_addr_t		dma;
 
-	qh = (struct ehci_qh *)
-		dma_pool_alloc (ehci->qh_pool, flags, &dma);
+	qh = kzalloc(sizeof *qh, GFP_ATOMIC);
 	if (!qh)
-		return qh;
-
-	memset (qh, 0, sizeof *qh);
+		goto done;
+	qh->hw = (struct ehci_qh_hw *)
+		dma_pool_alloc(ehci->qh_pool, flags, &dma);
+	if (!qh->hw)
+		goto fail;
+	memset(qh->hw, 0, sizeof *qh->hw);
 	qh->refcount = 1;
 	qh->ehci = ehci;
 	qh->qh_dma = dma;
@@ -99,10 +102,15 @@ static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 	qh->dummy = ehci_qtd_alloc (ehci, flags);
 	if (qh->dummy == NULL) {
 		ehci_dbg (ehci, "no dummy td\n");
-		dma_pool_free (ehci->qh_pool, qh, qh->qh_dma);
-		qh = NULL;
+		goto fail1;
 	}
+done:
 	return qh;
+fail1:
+	dma_pool_free(ehci->qh_pool, qh->hw, qh->qh_dma);
+fail:
+	kfree(qh);
+	return NULL;
 }
 
 /* to share a qh (cpu threads, or hc) */
@@ -180,7 +188,7 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 	/* QHs for control/bulk/intr transfers */
 	ehci->qh_pool = dma_pool_create ("ehci_qh",
 			ehci_to_hcd(ehci)->self.controller,
-			sizeof (struct ehci_qh),
+			sizeof(struct ehci_qh_hw),
 			32 /* byte alignment (for hw parts) */,
 			4096 /* can't cross 4K */);
 	if (!ehci->qh_pool) {

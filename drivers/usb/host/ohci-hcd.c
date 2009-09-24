@@ -34,7 +34,6 @@
 #include <linux/usb/otg.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
-#include <linux/reboot.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 

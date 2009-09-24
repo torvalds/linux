@@ -57,6 +57,11 @@
 #define GPMC_CHUNK_SHIFT	24		/* 16 MB */
 #define GPMC_SECTION_SHIFT	28		/* 128 MB */
 
+#define PREFETCH_FIFOTHRESHOLD	(0x40 << 8)
+#define CS_NUM_SHIFT		24
+#define ENABLE_PREFETCH		(0x1 << 7)
+#define DMA_MPU_MODE		2
+
 static struct resource	gpmc_mem_root;
 static struct resource	gpmc_cs_mem[GPMC_CS_NUM];
 static DEFINE_SPINLOCK(gpmc_mem_lock);
@@ -386,6 +391,63 @@ void gpmc_cs_free(int cs)
 }
 EXPORT_SYMBOL(gpmc_cs_free);
 
+/**
+ * gpmc_prefetch_enable - configures and starts prefetch transfer
+ * @cs: nand cs (chip select) number
+ * @dma_mode: dma mode enable (1) or disable (0)
+ * @u32_count: number of bytes to be transferred
+ * @is_write: prefetch read(0) or write post(1) mode
+ */
+int gpmc_prefetch_enable(int cs, int dma_mode,
+				unsigned int u32_count, int is_write)
+{
+	uint32_t prefetch_config1;
+
+	if (!(gpmc_read_reg(GPMC_PREFETCH_CONTROL))) {
+		/* Set the amount of bytes to be prefetched */
+		gpmc_write_reg(GPMC_PREFETCH_CONFIG2, u32_count);
+
+		/* Set dma/mpu mode, the prefetch read / post write and
+		 * enable the engine. Set which cs is has requested for.
+		 */
+		prefetch_config1 = ((cs << CS_NUM_SHIFT) |
+					PREFETCH_FIFOTHRESHOLD |
+					ENABLE_PREFETCH |
+					(dma_mode << DMA_MPU_MODE) |
+					(0x1 & is_write));
+		gpmc_write_reg(GPMC_PREFETCH_CONFIG1, prefetch_config1);
+	} else {
+		return -EBUSY;
+	}
+	/*  Start the prefetch engine */
+	gpmc_write_reg(GPMC_PREFETCH_CONTROL, 0x1);
+
+	return 0;
+}
+EXPORT_SYMBOL(gpmc_prefetch_enable);
+
+/**
+ * gpmc_prefetch_reset - disables and stops the prefetch engine
+ */
+void gpmc_prefetch_reset(void)
+{
+	/* Stop the PFPW engine */
+	gpmc_write_reg(GPMC_PREFETCH_CONTROL, 0x0);
+
+	/* Reset/disable the PFPW engine */
+	gpmc_write_reg(GPMC_PREFETCH_CONFIG1, 0x0);
+}
+EXPORT_SYMBOL(gpmc_prefetch_reset);
+
+/**
+ * gpmc_prefetch_status - reads prefetch status of engine
+ */
+int  gpmc_prefetch_status(void)
+{
+	return gpmc_read_reg(GPMC_PREFETCH_STATUS);
+}
+EXPORT_SYMBOL(gpmc_prefetch_status);
+
 static void __init gpmc_mem_init(void)
 {
 	int cs;
@@ -452,6 +514,5 @@ void __init gpmc_init(void)
 	l &= 0x03 << 3;
 	l |= (0x02 << 3) | (1 << 0);
 	gpmc_write_reg(GPMC_SYSCONFIG, l);
-
 	gpmc_mem_init();
 }

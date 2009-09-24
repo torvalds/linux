@@ -42,28 +42,11 @@
  *
  */
 
-
-#if !defined(__UPC_H__)
 #include "upc.h"
-#endif
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
-#include "tbit.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__SROM_H__)
 #include "srom.h"
-#endif
-
-
-
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -113,12 +96,12 @@ BYTE SROMbyReadEmbedded(DWORD_PTR dwIoBase, BYTE byContntOffset)
         // wait DONE be set
         for (wDelay = 0; wDelay < W_MAX_TIMEOUT; wDelay++) {
             VNSvInPortB(dwIoBase + MAC_REG_I2MCSR, &byWait);
-            if (BITbIsAnyBitsOn(byWait, (I2MCSR_DONE | I2MCSR_NACK)))
+            if (byWait & (I2MCSR_DONE | I2MCSR_NACK))
                 break;
             PCAvDelayByIO(CB_DELAY_LOOP_WAIT);
         }
         if ((wDelay < W_MAX_TIMEOUT) &&
-             (BITbIsBitOff(byWait, I2MCSR_NACK))) {
+             ( !(byWait & I2MCSR_NACK))) {
             break;
         }
     }
@@ -162,13 +145,13 @@ BOOL SROMbWriteEmbedded (DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byData)
         // wait DONE be set
         for (wDelay = 0; wDelay < W_MAX_TIMEOUT; wDelay++) {
             VNSvInPortB(dwIoBase + MAC_REG_I2MCSR, &byWait);
-            if (BITbIsAnyBitsOn(byWait, (I2MCSR_DONE | I2MCSR_NACK)))
+            if (byWait & (I2MCSR_DONE | I2MCSR_NACK))
                 break;
             PCAvDelayByIO(CB_DELAY_LOOP_WAIT);
         }
 
         if ((wDelay < W_MAX_TIMEOUT) &&
-             (BITbIsBitOff(byWait, I2MCSR_NACK))) {
+             ( !(byWait & I2MCSR_NACK))) {
             break;
         }
     }
@@ -244,7 +227,7 @@ BOOL SROMbIsRegBitsOn (DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits)
     BYTE    byOrgData;
 
     byOrgData = SROMbyReadEmbedded(dwIoBase, byContntOffset);
-    return BITbIsAllBitsOn(byOrgData, byTestBits);
+    return (byOrgData & byTestBits) == byTestBits;
 }
 
 
@@ -267,7 +250,7 @@ BOOL SROMbIsRegBitsOff (DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits
     BYTE    byOrgData;
 
     byOrgData = SROMbyReadEmbedded(dwIoBase, byContntOffset);
-    return BITbIsAllBitsOff(byOrgData, byTestBits);
+    return !(byOrgData & byTestBits);
 }
 
 
@@ -423,7 +406,7 @@ BOOL SROMbAutoLoad (DWORD_PTR dwIoBase)
     for (ii = 0; ii < EEP_MAX_CONTEXT_SIZE; ii++) {
         MACvTimer0MicroSDelay(dwIoBase, CB_EEPROM_READBYTE_WAIT);
         VNSvInPortB(dwIoBase + MAC_REG_I2MCSR, &byWait);
-        if (BITbIsBitOff(byWait, I2MCSR_AUTOLD))
+        if ( !(byWait & I2MCSR_AUTOLD))
             break;
     }
 

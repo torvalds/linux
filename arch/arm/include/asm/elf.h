@@ -55,6 +55,9 @@ typedef struct user_fp elf_fpregset_t;
 #define R_ARM_MOVW_ABS_NC	43
 #define R_ARM_MOVT_ABS		44
 
+#define R_ARM_THM_CALL		10
+#define R_ARM_THM_JUMP24	30
+
 /*
  * These are used to set parameters in the core dumps.
  */

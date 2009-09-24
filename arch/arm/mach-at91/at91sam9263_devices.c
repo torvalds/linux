@@ -707,9 +707,9 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices) 
  *  AC97
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_SND_AT91_AC97) || defined(CONFIG_SND_AT91_AC97_MODULE)
+#if defined(CONFIG_SND_ATMEL_AC97C) || defined(CONFIG_SND_ATMEL_AC97C_MODULE)
 static u64 ac97_dmamask = DMA_BIT_MASK(32);
-static struct atmel_ac97_data ac97_data;
+static struct ac97c_platform_data ac97_data;
 
 static struct resource ac97_resources[] = {
 	[0] = {
@@ -725,8 +725,8 @@ static struct resource ac97_resources[] = {
 };
 
 static struct platform_device at91sam9263_ac97_device = {
-	.name		= "ac97c",
-	.id		= 1,
+	.name		= "atmel_ac97c",
+	.id		= 0,
 	.dev		= {
 				.dma_mask		= &ac97_dmamask,
 				.coherent_dma_mask	= DMA_BIT_MASK(32),
@@ -736,7 +736,7 @@ static struct platform_device at91sam9263_ac97_device = {
 	.num_resources	= ARRAY_SIZE(ac97_resources),
 };
 
-void __init at91_add_device_ac97(struct atmel_ac97_data *data)
+void __init at91_add_device_ac97(struct ac97c_platform_data *data)
 {
 	if (!data)
 		return;
@@ -750,11 +750,11 @@ void __init at91_add_device_ac97(struct atmel_ac97_data *data)
 	if (data->reset_pin)
 		at91_set_gpio_output(data->reset_pin, 0);
 
-	ac97_data = *ek_data;
+	ac97_data = *data;
 	platform_device_register(&at91sam9263_ac97_device);
 }
 #else
-void __init at91_add_device_ac97(struct atmel_ac97_data *data) {}
+void __init at91_add_device_ac97(struct ac97c_platform_data *data) {}
 #endif
 
 /* --------------------------------------------------------------------

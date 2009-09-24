@@ -123,9 +123,12 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 		flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE |
 		    ACPI_NS_ERROR_IF_FOUND;
 
-		/* Mark node temporary if we are executing a method */
-
-		if (walk_state->method_node) {
+		/*
+		 * Mark node temporary if we are executing a normal control
+		 * method. (Don't mark if this is a module-level code method)
+		 */
+		if (walk_state->method_node &&
+		    !(walk_state->parse_flags & ACPI_PARSE_MODULE_LEVEL)) {
 			flags |= ACPI_NS_TEMPORARY;
 		}
 
@@ -456,9 +459,12 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 	flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE |
 	    ACPI_NS_ERROR_IF_FOUND;
 
-	/* Mark node(s) temporary if we are executing a method */
-
-	if (walk_state->method_node) {
+	/*
+	 * Mark node(s) temporary if we are executing a normal control
+	 * method. (Don't mark if this is a module-level code method)
+	 */
+	if (walk_state->method_node &&
+	    !(walk_state->parse_flags & ACPI_PARSE_MODULE_LEVEL)) {
 		flags |= ACPI_NS_TEMPORARY;
 	}
 

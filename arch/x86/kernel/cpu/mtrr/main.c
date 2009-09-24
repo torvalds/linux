@@ -58,6 +58,7 @@ unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 static DEFINE_MUTEX(mtrr_mutex);
 
 u64 size_or_mask, size_and_mask;
+static bool mtrr_aps_delayed_init;
 
 static struct mtrr_ops *mtrr_ops[X86_VENDOR_NUM];
 
@@ -163,7 +164,10 @@ static void ipi_handler(void *info)
 	if (data->smp_reg != ~0U) {
 		mtrr_if->set(data->smp_reg, data->smp_base,
 			     data->smp_size, data->smp_type);
-	} else {
+	} else if (mtrr_aps_delayed_init) {
+		/*
+		 * Initialize the MTRRs inaddition to the synchronisation.
+		 */
 		mtrr_if->set_all();
 	}
 
@@ -265,6 +269,8 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 	 */
 	if (reg != ~0U)
 		mtrr_if->set(reg, base, size, type);
+	else if (!mtrr_aps_delayed_init)
+		mtrr_if->set_all();
 
 	/* Wait for the others */
 	while (atomic_read(&data.count))
@@ -721,9 +727,7 @@ void __init mtrr_bp_init(void)
 
 void mtrr_ap_init(void)
 {
-	unsigned long flags;
-
-	if (!mtrr_if || !use_intel())
+	if (!use_intel() || mtrr_aps_delayed_init)
 		return;
 	/*
 	 * Ideally we should hold mtrr_mutex here to avoid mtrr entries
@@ -738,11 +742,7 @@ void mtrr_ap_init(void)
 	 *   2. cpu hotadd time. We let mtrr_add/del_page hold cpuhotplug
 	 *      lock to prevent mtrr entry changes
 	 */
-	local_irq_save(flags);
-
-	mtrr_if->set_all();
-
-	local_irq_restore(flags);
+	set_mtrr(~0U, 0, 0, 0);
 }
 
 /**
@@ -751,6 +751,34 @@ void mtrr_ap_init(void)
 void mtrr_save_state(void)
 {
 	smp_call_function_single(0, mtrr_save_fixed_ranges, NULL, 1);
+}
+
+void set_mtrr_aps_delayed_init(void)
+{
+	if (!use_intel())
+		return;
+
+	mtrr_aps_delayed_init = true;
+}
+
+/*
+ * MTRR initialization for all AP's
+ */
+void mtrr_aps_init(void)
+{
+	if (!use_intel())
+		return;
+
+	set_mtrr(~0U, 0, 0, 0);
+	mtrr_aps_delayed_init = false;
+}
+
+void mtrr_bp_restore(void)
+{
+	if (!use_intel())
+		return;
+
+	mtrr_if->set_all();
 }
 
 static int __init mtrr_init_finialize(void)

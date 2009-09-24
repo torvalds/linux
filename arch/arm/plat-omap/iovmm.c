@@ -199,7 +199,7 @@ static void *vmap_sg(const struct sg_table *sgt)
 		va += bytes;
 	}
 
-	flush_cache_vmap(new->addr, total);
+	flush_cache_vmap(new->addr, new->addr + total);
 	return new->addr;
 
 err_out:

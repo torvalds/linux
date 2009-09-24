@@ -16,7 +16,7 @@ extern struct tracepoint_path *tracepoint_id_to_path(u64 config);
 
 extern int			nr_counters;
 
-extern struct perf_counter_attr attrs[MAX_COUNTERS];
+extern struct perf_event_attr attrs[MAX_COUNTERS];
 
 extern const char *event_name(int ctr);
 extern const char *__event_name(int type, u64 config);

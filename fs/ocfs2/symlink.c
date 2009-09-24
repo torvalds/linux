@@ -38,7 +38,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
-#include <linux/utsname.h>
 #include <linux/namei.h>
 
 #define MLOG_MASK_PREFIX ML_NAMEI

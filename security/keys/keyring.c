@@ -1019,18 +1019,18 @@ void keyring_gc(struct key *keyring, time_t limit)
 	struct key *key;
 	int loop, keep, max;
 
-	kenter("%x", key_serial(keyring));
+	kenter("{%x,%s}", key_serial(keyring), keyring->description);
 
 	down_write(&keyring->sem);
 
 	klist = keyring->payload.subscriptions;
 	if (!klist)
-		goto just_return;
+		goto no_klist;
 
 	/* work out how many subscriptions we're keeping */
 	keep = 0;
 	for (loop = klist->nkeys - 1; loop >= 0; loop--)
-		if (!key_is_dead(klist->keys[loop], limit));
+		if (!key_is_dead(klist->keys[loop], limit))
 			keep++;
 
 	if (keep == klist->nkeys)
@@ -1041,7 +1041,7 @@ void keyring_gc(struct key *keyring, time_t limit)
 	new = kmalloc(sizeof(struct keyring_list) + max * sizeof(struct key *),
 		      GFP_KERNEL);
 	if (!new)
-		goto just_return;
+		goto nomem;
 	new->maxkeys = max;
 	new->nkeys = 0;
 	new->delkey = 0;
@@ -1081,7 +1081,21 @@ void keyring_gc(struct key *keyring, time_t limit)
 discard_new:
 	new->nkeys = keep;
 	keyring_clear_rcu_disposal(&new->rcu);
+	up_write(&keyring->sem);
+	kleave(" [discard]");
+	return;
+
 just_return:
 	up_write(&keyring->sem);
-	kleave(" [no]");
+	kleave(" [no dead]");
+	return;
+
+no_klist:
+	up_write(&keyring->sem);
+	kleave(" [no_klist]");
+	return;
+
+nomem:
+	up_write(&keyring->sem);
+	kleave(" [oom]");
 }

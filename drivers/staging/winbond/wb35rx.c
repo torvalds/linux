@@ -44,7 +44,7 @@ static void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int Pac
 	ieee80211_rx_irqsafe(hw, skb);
 }
 
-static void Wb35Rx_adjust(PDESCRIPTOR pRxDes)
+static void Wb35Rx_adjust(struct wb35_descriptor *pRxDes)
 {
 	u32 *	pRxBufferAddress;
 	u32	DecryptionMethod;
@@ -84,7 +84,7 @@ static u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
 	struct hw_data * pHwData = &priv->sHwData;
-	DESCRIPTOR	RxDes;
+	struct wb35_descriptor	RxDes;
 	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u8 *		pRxBufferAddress;
 	u16		PacketSize;

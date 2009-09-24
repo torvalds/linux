@@ -146,7 +146,7 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations ima_measurments_seqops = {
+static const struct seq_operations ima_measurments_seqops = {
 	.start = ima_measurements_start,
 	.next = ima_measurements_next,
 	.stop = ima_measurements_stop,
@@ -221,7 +221,7 @@ static int ima_ascii_measurements_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations ima_ascii_measurements_seqops = {
+static const struct seq_operations ima_ascii_measurements_seqops = {
 	.start = ima_measurements_start,
 	.next = ima_measurements_next,
 	.stop = ima_measurements_stop,

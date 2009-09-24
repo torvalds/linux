@@ -321,6 +321,24 @@ static int wm8350_bat_check_health(struct wm8350 *wm8350)
 	return POWER_SUPPLY_HEALTH_GOOD;
 }
 
+static int wm8350_bat_get_charge_type(struct wm8350 *wm8350)
+{
+	int state;
+
+	state = wm8350_reg_read(wm8350, WM8350_BATTERY_CHARGER_CONTROL_2) &
+	    WM8350_CHG_STS_MASK;
+	switch (state) {
+	case WM8350_CHG_STS_OFF:
+		return POWER_SUPPLY_CHARGE_TYPE_NONE;
+	case WM8350_CHG_STS_TRICKLE:
+		return POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
+	case WM8350_CHG_STS_FAST:
+		return POWER_SUPPLY_CHARGE_TYPE_FAST;
+	default:
+		return POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+	}
+}
+
 static int wm8350_bat_get_property(struct power_supply *psy,
 				   enum power_supply_property psp,
 				   union power_supply_propval *val)
@@ -342,6 +360,9 @@ static int wm8350_bat_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = wm8350_bat_check_health(wm8350);
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_TYPE:
+		val->intval = wm8350_bat_get_charge_type(wm8350);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -355,6 +376,7 @@ static enum power_supply_property wm8350_bat_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_CHARGE_TYPE,
 };
 
 /*********************************************************************

@@ -163,7 +163,7 @@ static void nst_seq_stop(struct seq_file *seq, void *v)
 {
 }
 
-static struct seq_operations nst_seq_ops = {
+static const struct seq_operations nst_seq_ops = {
 	.start = nst_seq_start,
 	.next = nst_seq_next,
 	.stop = nst_seq_stop,
@@ -344,7 +344,7 @@ static void sc_seq_stop(struct seq_file *seq, void *v)
 {
 }
 
-static struct seq_operations sc_seq_ops = {
+static const struct seq_operations sc_seq_ops = {
 	.start = sc_seq_start,
 	.next = sc_seq_next,
 	.stop = sc_seq_stop,

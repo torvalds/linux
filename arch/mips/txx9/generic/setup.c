@@ -782,7 +782,7 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 		return;
 	iocled->mmioaddr = ioremap(baseaddr, 1);
 	if (!iocled->mmioaddr)
-		return;
+		goto out_free;
 	iocled->chip.get = txx9_iocled_get;
 	iocled->chip.set = txx9_iocled_set;
 	iocled->chip.direction_input = txx9_iocled_dir_in;
@@ -791,13 +791,13 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 	iocled->chip.base = basenum;
 	iocled->chip.ngpio = num;
 	if (gpiochip_add(&iocled->chip))
-		return;
+		goto out_unmap;
 	if (basenum < 0)
 		basenum = iocled->chip.base;
 
 	pdev = platform_device_alloc("leds-gpio", basenum);
 	if (!pdev)
-		return;
+		goto out_gpio;
 	iocled->pdata.num_leds = num;
 	iocled->pdata.leds = iocled->leds;
 	for (i = 0; i < num; i++) {
@@ -812,7 +812,16 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 	}
 	pdev->dev.platform_data = &iocled->pdata;
 	if (platform_device_add(pdev))
-		platform_device_put(pdev);
+		goto out_pdev;
+	return;
+out_pdev:
+	platform_device_put(pdev);
+out_gpio:
+	gpio_remove(&iocled->chip);
+out_unmap:
+	iounmap(iocled->mmioaddr);
+out_free:
+	kfree(iocled);
 }
 #else /* CONFIG_LEDS_GPIO */
 void __init txx9_iocled_init(unsigned long baseaddr,
