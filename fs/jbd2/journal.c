@@ -768,7 +768,7 @@ static void jbd2_seq_history_stop(struct seq_file *seq, void *v)
 {
 }
 
-static struct seq_operations jbd2_seq_history_ops = {
+static const struct seq_operations jbd2_seq_history_ops = {
 	.start  = jbd2_seq_history_start,
 	.next   = jbd2_seq_history_next,
 	.stop   = jbd2_seq_history_stop,
@@ -872,7 +872,7 @@ static void jbd2_seq_info_stop(struct seq_file *seq, void *v)
 {
 }
 
-static struct seq_operations jbd2_seq_info_ops = {
+static const struct seq_operations jbd2_seq_info_ops = {
 	.start  = jbd2_seq_info_start,
 	.next   = jbd2_seq_info_next,
 	.stop   = jbd2_seq_info_stop,

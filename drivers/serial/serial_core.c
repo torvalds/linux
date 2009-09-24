@@ -2426,7 +2426,7 @@ struct tty_driver *uart_console_device(struct console *co, int *index)
 /**
  *	uart_add_one_port - attach a driver-defined port structure
  *	@drv: pointer to the uart low level driver structure for this port
- *	@port: uart port structure to use for this port.
+ *	@uport: uart port structure to use for this port.
  *
  *	This allows the driver to register its own uart_port structure
  *	with the core driver.  The main purpose is to allow the low
@@ -2499,7 +2499,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 /**
  *	uart_remove_one_port - detach a driver defined port structure
  *	@drv: pointer to the uart low level driver structure for this port
- *	@port: uart port structure for this port
+ *	@uport: uart port structure for this port
  *
  *	This unhooks (and hangs up) the specified port structure from the
  *	core driver.  No further calls will be made to the low-level code

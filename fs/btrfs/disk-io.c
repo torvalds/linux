@@ -772,7 +772,7 @@ static void btree_invalidatepage(struct page *page, unsigned long offset)
 	}
 }
 
-static struct address_space_operations btree_aops = {
+static const struct address_space_operations btree_aops = {
 	.readpage	= btree_readpage,
 	.writepage	= btree_writepage,
 	.writepages	= btree_writepages,

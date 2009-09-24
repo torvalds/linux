@@ -937,21 +937,21 @@ process_event(event_t *event)
 
 	switch (event->header.type) {
 
-	case PERF_EVENT_COMM:
+	case PERF_RECORD_COMM:
 		return process_comm_event(event);
-	case PERF_EVENT_FORK:
+	case PERF_RECORD_FORK:
 		return process_fork_event(event);
-	case PERF_EVENT_EXIT:
+	case PERF_RECORD_EXIT:
 		return process_exit_event(event);
-	case PERF_EVENT_SAMPLE:
+	case PERF_RECORD_SAMPLE:
 		return queue_sample_event(event);
 
 	/*
 	 * We dont process them right now but they are fine:
 	 */
-	case PERF_EVENT_MMAP:
-	case PERF_EVENT_THROTTLE:
-	case PERF_EVENT_UNTHROTTLE:
+	case PERF_RECORD_MMAP:
+	case PERF_RECORD_THROTTLE:
+	case PERF_RECORD_UNTHROTTLE:
 		return 0;
 
 	default:

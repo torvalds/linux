@@ -318,7 +318,7 @@ export PERL_PATH
 
 LIB_FILE=libperf.a
 
-LIB_H += ../../include/linux/perf_counter.h
+LIB_H += ../../include/linux/perf_event.h
 LIB_H += ../../include/linux/rbtree.h
 LIB_H += ../../include/linux/list.h
 LIB_H += util/include/linux/list.h

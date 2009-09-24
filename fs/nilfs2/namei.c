@@ -448,7 +448,7 @@ out:
 	return err;
 }
 
-struct inode_operations nilfs_dir_inode_operations = {
+const struct inode_operations nilfs_dir_inode_operations = {
 	.create		= nilfs_create,
 	.lookup		= nilfs_lookup,
 	.link		= nilfs_link,
@@ -462,12 +462,12 @@ struct inode_operations nilfs_dir_inode_operations = {
 	.permission	= nilfs_permission,
 };
 
-struct inode_operations nilfs_special_inode_operations = {
+const struct inode_operations nilfs_special_inode_operations = {
 	.setattr	= nilfs_setattr,
 	.permission	= nilfs_permission,
 };
 
-struct inode_operations nilfs_symlink_inode_operations = {
+const struct inode_operations nilfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,

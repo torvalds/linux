@@ -38,7 +38,7 @@
  *   0.3a - implemented pools of write URBs
  *   0.3  - alpha version for public testing
  *   0.2  - TIOCMGET works, so autopilot(1) can be used!
- *   0.1  - can be used to to pilot-xfer -p /dev/ttyUSB0 -l
+ *   0.1  - can be used to do pilot-xfer -p /dev/ttyUSB0 -l
  *
  *   The driver skeleton is mainly based on mct_u232.c and various other
  *   pieces of code shamelessly copied from the drivers/usb/serial/ directory.

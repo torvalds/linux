@@ -2849,7 +2849,7 @@ static int pkt_media_changed(struct gendisk *disk)
 	return attached_disk->fops->media_changed(attached_disk);
 }
 
-static struct block_device_operations pktcdvd_ops = {
+static const struct block_device_operations pktcdvd_ops = {
 	.owner =		THIS_MODULE,
 	.open =			pkt_open,
 	.release =		pkt_close,

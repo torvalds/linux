@@ -9,7 +9,7 @@
 /*
  * Create new perf.data header attribute:
  */
-struct perf_header_attr *perf_header_attr__new(struct perf_counter_attr *attr)
+struct perf_header_attr *perf_header_attr__new(struct perf_event_attr *attr)
 {
 	struct perf_header_attr *self = malloc(sizeof(*self));
 
@@ -134,7 +134,7 @@ struct perf_file_section {
 };
 
 struct perf_file_attr {
-	struct perf_counter_attr	attr;
+	struct perf_event_attr	attr;
 	struct perf_file_section	ids;
 };
 
@@ -320,7 +320,7 @@ u64 perf_header__sample_type(struct perf_header *header)
 	return type;
 }
 
-struct perf_counter_attr *
+struct perf_event_attr *
 perf_header__find_attr(u64 id, struct perf_header *header)
 {
 	int i;

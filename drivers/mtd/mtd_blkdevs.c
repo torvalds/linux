@@ -210,7 +210,7 @@ static int blktrans_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 }
 
-static struct block_device_operations mtd_blktrans_ops = {
+static const struct block_device_operations mtd_blktrans_ops = {
 	.owner		= THIS_MODULE,
 	.open		= blktrans_open,
 	.release	= blktrans_release,

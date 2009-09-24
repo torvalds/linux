@@ -648,7 +648,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 	int nid = z->zone_pgdat->node_id;
 	int zid = zone_idx(z);
 	struct mem_cgroup_per_zone *mz;
-	int lru = LRU_FILE * !!file + !!active;
+	int lru = LRU_FILE * file + active;
 	int ret;
 
 	BUG_ON(!mem_cont);

@@ -1531,7 +1531,7 @@ static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos);
 static void nfs_server_list_stop(struct seq_file *p, void *v);
 static int nfs_server_list_show(struct seq_file *m, void *v);
 
-static struct seq_operations nfs_server_list_ops = {
+static const struct seq_operations nfs_server_list_ops = {
 	.start	= nfs_server_list_start,
 	.next	= nfs_server_list_next,
 	.stop	= nfs_server_list_stop,
@@ -1552,7 +1552,7 @@ static void *nfs_volume_list_next(struct seq_file *p, void *v, loff_t *pos);
 static void nfs_volume_list_stop(struct seq_file *p, void *v);
 static int nfs_volume_list_show(struct seq_file *m, void *v);
 
-static struct seq_operations nfs_volume_list_ops = {
+static const struct seq_operations nfs_volume_list_ops = {
 	.start	= nfs_volume_list_start,
 	.next	= nfs_volume_list_next,
 	.stop	= nfs_volume_list_stop,

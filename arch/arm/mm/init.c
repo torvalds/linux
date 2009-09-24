@@ -596,8 +596,8 @@ void __init mem_init(void)
 
 	printk(KERN_NOTICE "Memory: %luKB available (%dK code, "
 		"%dK data, %dK init, %luK highmem)\n",
-		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
-		codesize >> 10, datasize >> 10, initsize >> 10,
+		nr_free_pages() << (PAGE_SHIFT-10), codesize >> 10,
+		datasize >> 10, initsize >> 10,
 		(unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
 
 	if (PAGE_SIZE >= 16384 && num_physpages <= 128) {

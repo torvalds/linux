@@ -55,7 +55,7 @@ struct compat_timeval;
 struct robust_list_head;
 struct getcpu_cache;
 struct old_linux_dirent;
-struct perf_counter_attr;
+struct perf_event_attr;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -460,8 +460,7 @@ asmlinkage long sys_mount(char __user *dev_name, char __user *dir_name,
 				void __user *data);
 asmlinkage long sys_umount(char __user *name, int flags);
 asmlinkage long sys_oldumount(char __user *name);
-asmlinkage long sys_truncate(const char __user *path,
-				unsigned long length);
+asmlinkage long sys_truncate(const char __user *path, long length);
 asmlinkage long sys_ftruncate(unsigned int fd, unsigned long length);
 asmlinkage long sys_stat(char __user *filename,
 			struct __old_kernel_stat __user *statbuf);
@@ -877,7 +876,7 @@ asmlinkage long sys_ppoll(struct pollfd __user *, unsigned int,
 int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
 
 
-asmlinkage long sys_perf_counter_open(
-		struct perf_counter_attr __user *attr_uptr,
+asmlinkage long sys_perf_event_open(
+		struct perf_event_attr __user *attr_uptr,
 		pid_t pid, int cpu, int group_fd, unsigned long flags);
 #endif

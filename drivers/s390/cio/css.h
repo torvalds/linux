@@ -75,6 +75,7 @@ struct chp_link;
  * @freeze: callback for freezing during hibernation snapshotting
  * @thaw: undo work done in @freeze
  * @restore: callback for restoring after hibernation
+ * @settle: wait for asynchronous work to finish
  * @name: name of the device driver
  */
 struct css_driver {
@@ -92,6 +93,7 @@ struct css_driver {
 	int (*freeze)(struct subchannel *);
 	int (*thaw) (struct subchannel *);
 	int (*restore)(struct subchannel *);
+	void (*settle)(void);
 	const char *name;
 };
 
@@ -109,6 +111,7 @@ extern void css_sch_device_unregister(struct subchannel *);
 extern int css_probe_device(struct subchannel_id);
 extern struct subchannel *get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
+extern int max_ssid;
 int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 			       int (*fn_unknown)(struct subchannel_id,
 			       void *), void *data);

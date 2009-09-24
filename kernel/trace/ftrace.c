@@ -1520,7 +1520,7 @@ static int t_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations show_ftrace_seq_ops = {
+static const struct seq_operations show_ftrace_seq_ops = {
 	.start = t_start,
 	.next = t_next,
 	.stop = t_stop,
@@ -2459,7 +2459,7 @@ static int g_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations ftrace_graph_seq_ops = {
+static const struct seq_operations ftrace_graph_seq_ops = {
 	.start = g_start,
 	.next = g_next,
 	.stop = g_stop,

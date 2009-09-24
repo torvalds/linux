@@ -1278,6 +1278,7 @@ static void tpacpi_destroy_rfkill(const enum tpacpi_rfk_id id)
 	tp_rfk = tpacpi_rfkill_switches[id];
 	if (tp_rfk) {
 		rfkill_unregister(tp_rfk->rfkill);
+		rfkill_destroy(tp_rfk->rfkill);
 		tpacpi_rfkill_switches[id] = NULL;
 		kfree(tp_rfk);
 	}
@@ -1601,6 +1602,196 @@ static void tpacpi_remove_driver_attributes(struct device_driver *drv)
 #endif
 }
 
+/*************************************************************************
+ * Firmware Data
+ */
+
+/*
+ * Table of recommended minimum BIOS versions
+ *
+ * Reasons for listing:
+ *    1. Stable BIOS, listed because the unknown ammount of
+ *       bugs and bad ACPI behaviour on older versions
+ *
+ *    2. BIOS or EC fw with known bugs that trigger on Linux
+ *
+ *    3. BIOS with known reduced functionality in older versions
+ *
+ *  We recommend the latest BIOS and EC version.
+ *  We only support the latest BIOS and EC fw version as a rule.
+ *
+ *  Sources: IBM ThinkPad Public Web Documents (update changelogs),
+ *  Information from users in ThinkWiki
+ *
+ *  WARNING: we use this table also to detect that the machine is
+ *  a ThinkPad in some cases, so don't remove entries lightly.
+ */
+
+#define TPV_Q(__v, __id1, __id2, __bv1, __bv2)		\
+	{ .vendor	= (__v),			\
+	  .bios		= TPID(__id1, __id2),		\
+	  .ec		= TPACPI_MATCH_ANY,		\
+	  .quirks	= TPACPI_MATCH_ANY << 16	\
+			  | (__bv1) << 8 | (__bv2) }
+
+#define TPV_Q_X(__v, __bid1, __bid2, __bv1, __bv2,	\
+		__eid1, __eid2, __ev1, __ev2)		\
+	{ .vendor	= (__v),			\
+	  .bios		= TPID(__bid1, __bid2),		\
+	  .ec		= TPID(__eid1, __eid2),		\
+	  .quirks	= (__ev1) << 24 | (__ev2) << 16 \
+			  | (__bv1) << 8 | (__bv2) }
+
+#define TPV_QI0(__id1, __id2, __bv1, __bv2) \
+	TPV_Q(PCI_VENDOR_ID_IBM, __id1, __id2, __bv1, __bv2)
+
+#define TPV_QI1(__id1, __id2, __bv1, __bv2, __ev1, __ev2) \
+	TPV_Q_X(PCI_VENDOR_ID_IBM, __id1, __id2, 	\
+		__bv1, __bv2, __id1, __id2, __ev1, __ev2)
+
+#define TPV_QI2(__bid1, __bid2, __bv1, __bv2,		\
+		__eid1, __eid2, __ev1, __ev2) 		\
+	TPV_Q_X(PCI_VENDOR_ID_IBM, __bid1, __bid2, 	\
+		__bv1, __bv2, __eid1, __eid2, __ev1, __ev2)
+
+#define TPV_QL0(__id1, __id2, __bv1, __bv2) \
+	TPV_Q(PCI_VENDOR_ID_LENOVO, __id1, __id2, __bv1, __bv2)
+
+#define TPV_QL1(__id1, __id2, __bv1, __bv2, __ev1, __ev2) \
+	TPV_Q_X(PCI_VENDOR_ID_LENOVO, __id1, __id2, 	\
+		__bv1, __bv2, __id1, __id2, __ev1, __ev2)
+
+#define TPV_QL2(__bid1, __bid2, __bv1, __bv2,		\
+		__eid1, __eid2, __ev1, __ev2) 		\
+	TPV_Q_X(PCI_VENDOR_ID_LENOVO, __bid1, __bid2, 	\
+		__bv1, __bv2, __eid1, __eid2, __ev1, __ev2)
+
+static const struct tpacpi_quirk tpacpi_bios_version_qtable[] __initconst = {
+	/*  Numeric models ------------------ */
+	/*      FW MODEL   BIOS VERS	      */
+	TPV_QI0('I', 'M',  '6', '5'),		 /* 570 */
+	TPV_QI0('I', 'U',  '2', '6'),		 /* 570E */
+	TPV_QI0('I', 'B',  '5', '4'),		 /* 600 */
+	TPV_QI0('I', 'H',  '4', '7'),		 /* 600E */
+	TPV_QI0('I', 'N',  '3', '6'),		 /* 600E */
+	TPV_QI0('I', 'T',  '5', '5'),		 /* 600X */
+	TPV_QI0('I', 'D',  '4', '8'),		 /* 770, 770E, 770ED */
+	TPV_QI0('I', 'I',  '4', '2'),		 /* 770X */
+	TPV_QI0('I', 'O',  '2', '3'),		 /* 770Z */
+
+	/* A-series ------------------------- */
+	/*      FW MODEL   BIOS VERS  EC VERS */
+	TPV_QI0('I', 'W',  '5', '9'),		 /* A20m */
+	TPV_QI0('I', 'V',  '6', '9'),		 /* A20p */
+	TPV_QI0('1', '0',  '2', '6'),		 /* A21e, A22e */
+	TPV_QI0('K', 'U',  '3', '6'),		 /* A21e */
+	TPV_QI0('K', 'X',  '3', '6'),		 /* A21m, A22m */
+	TPV_QI0('K', 'Y',  '3', '8'),		 /* A21p, A22p */
+	TPV_QI0('1', 'B',  '1', '7'),		 /* A22e */
+	TPV_QI0('1', '3',  '2', '0'),		 /* A22m */
+	TPV_QI0('1', 'E',  '7', '3'),		 /* A30/p (0) */
+	TPV_QI1('1', 'G',  '4', '1',  '1', '7'), /* A31/p (0) */
+	TPV_QI1('1', 'N',  '1', '6',  '0', '7'), /* A31/p (0) */
+
+	/* G-series ------------------------- */
+	/*      FW MODEL   BIOS VERS	      */
+	TPV_QI0('1', 'T',  'A', '6'),		 /* G40 */
+	TPV_QI0('1', 'X',  '5', '7'),		 /* G41 */
+
+	/* R-series, T-series --------------- */
+	/*      FW MODEL   BIOS VERS  EC VERS */
+	TPV_QI0('1', 'C',  'F', '0'),		 /* R30 */
+	TPV_QI0('1', 'F',  'F', '1'),		 /* R31 */
+	TPV_QI0('1', 'M',  '9', '7'),		 /* R32 */
+	TPV_QI0('1', 'O',  '6', '1'),		 /* R40 */
+	TPV_QI0('1', 'P',  '6', '5'),		 /* R40 */
+	TPV_QI0('1', 'S',  '7', '0'),		 /* R40e */
+	TPV_QI1('1', 'R',  'D', 'R',  '7', '1'), /* R50/p, R51,
+						    T40/p, T41/p, T42/p (1) */
+	TPV_QI1('1', 'V',  '7', '1',  '2', '8'), /* R50e, R51 (1) */
+	TPV_QI1('7', '8',  '7', '1',  '0', '6'), /* R51e (1) */
+	TPV_QI1('7', '6',  '6', '9',  '1', '6'), /* R52 (1) */
+	TPV_QI1('7', '0',  '6', '9',  '2', '8'), /* R52, T43 (1) */
+
+	TPV_QI0('I', 'Y',  '6', '1'),		 /* T20 */
+	TPV_QI0('K', 'Z',  '3', '4'),		 /* T21 */
+	TPV_QI0('1', '6',  '3', '2'),		 /* T22 */
+	TPV_QI1('1', 'A',  '6', '4',  '2', '3'), /* T23 (0) */
+	TPV_QI1('1', 'I',  '7', '1',  '2', '0'), /* T30 (0) */
+	TPV_QI1('1', 'Y',  '6', '5',  '2', '9'), /* T43/p (1) */
+
+	TPV_QL1('7', '9',  'E', '3',  '5', '0'), /* T60/p */
+	TPV_QL1('7', 'C',  'D', '2',  '2', '2'), /* R60, R60i */
+	TPV_QL0('7', 'E',  'D', '0'),		 /* R60e, R60i */
+
+	/*      BIOS FW    BIOS VERS  EC FW     EC VERS */
+	TPV_QI2('1', 'W',  '9', '0',  '1', 'V', '2', '8'), /* R50e (1) */
+	TPV_QL2('7', 'I',  '3', '4',  '7', '9', '5', '0'), /* T60/p wide */
+
+	/* X-series ------------------------- */
+	/*      FW MODEL   BIOS VERS  EC VERS */
+	TPV_QI0('I', 'Z',  '9', 'D'),		 /* X20, X21 */
+	TPV_QI0('1', 'D',  '7', '0'),		 /* X22, X23, X24 */
+	TPV_QI1('1', 'K',  '4', '8',  '1', '8'), /* X30 (0) */
+	TPV_QI1('1', 'Q',  '9', '7',  '2', '3'), /* X31, X32 (0) */
+	TPV_QI1('1', 'U',  'D', '3',  'B', '2'), /* X40 (0) */
+	TPV_QI1('7', '4',  '6', '4',  '2', '7'), /* X41 (0) */
+	TPV_QI1('7', '5',  '6', '0',  '2', '0'), /* X41t (0) */
+
+	TPV_QL0('7', 'B',  'D', '7'),		 /* X60/s */
+	TPV_QL0('7', 'J',  '3', '0'),		 /* X60t */
+
+	/* (0) - older versions lack DMI EC fw string and functionality */
+	/* (1) - older versions known to lack functionality */
+};
+
+#undef TPV_QL1
+#undef TPV_QL0
+#undef TPV_QI2
+#undef TPV_QI1
+#undef TPV_QI0
+#undef TPV_Q_X
+#undef TPV_Q
+
+static void __init tpacpi_check_outdated_fw(void)
+{
+	unsigned long fwvers;
+	u16 ec_version, bios_version;
+
+	fwvers = tpacpi_check_quirks(tpacpi_bios_version_qtable,
+				ARRAY_SIZE(tpacpi_bios_version_qtable));
+
+	if (!fwvers)
+		return;
+
+	bios_version = fwvers & 0xffffU;
+	ec_version = (fwvers >> 16) & 0xffffU;
+
+	/* note that unknown versions are set to 0x0000 and we use that */
+	if ((bios_version > thinkpad_id.bios_release) ||
+	    (ec_version > thinkpad_id.ec_release &&
+				ec_version != TPACPI_MATCH_ANY)) {
+		/*
+		 * The changelogs would let us track down the exact
+		 * reason, but it is just too much of a pain to track
+		 * it.  We only list BIOSes that are either really
+		 * broken, or really stable to begin with, so it is
+		 * best if the user upgrades the firmware anyway.
+		 */
+		printk(TPACPI_WARN
+			"WARNING: Outdated ThinkPad BIOS/EC firmware\n");
+		printk(TPACPI_WARN
+			"WARNING: This firmware may be missing critical bug "
+			"fixes and/or important features\n");
+	}
+}
+
+static bool __init tpacpi_is_fw_known(void)
+{
+	return tpacpi_check_quirks(tpacpi_bios_version_qtable,
+			ARRAY_SIZE(tpacpi_bios_version_qtable)) != 0;
+}
+
 /****************************************************************************
  ****************************************************************************
  *
@@ -1634,6 +1825,7 @@ static int __init thinkpad_acpi_driver_init(struct ibm_init_struct *iibm)
 			(thinkpad_id.nummodel_str) ?
 				thinkpad_id.nummodel_str : "unknown");
 
+	tpacpi_check_outdated_fw();
 	return 0;
 }
 
@@ -1731,16 +1923,42 @@ struct tp_nvram_state {
        u8 volume_level;
 };
 
+/* kthread for the hotkey poller */
 static struct task_struct *tpacpi_hotkey_task;
-static u32 hotkey_source_mask;		/* bit mask 0=ACPI,1=NVRAM */
-static int hotkey_poll_freq = 10;	/* Hz */
+
+/* Acquired while the poller kthread is running, use to sync start/stop */
 static struct mutex hotkey_thread_mutex;
+
+/*
+ * Acquire mutex to write poller control variables.
+ * Increment hotkey_config_change when changing them.
+ *
+ * See HOTKEY_CONFIG_CRITICAL_START/HOTKEY_CONFIG_CRITICAL_END
+ */
 static struct mutex hotkey_thread_data_mutex;
 static unsigned int hotkey_config_change;
+
+/*
+ * hotkey poller control variables
+ *
+ * Must be atomic or readers will also need to acquire mutex
+ */
+static u32 hotkey_source_mask;		/* bit mask 0=ACPI,1=NVRAM */
+static unsigned int hotkey_poll_freq = 10; /* Hz */
+
+#define HOTKEY_CONFIG_CRITICAL_START \
+	do { \
+		mutex_lock(&hotkey_thread_data_mutex); \
+		hotkey_config_change++; \
+	} while (0);
+#define HOTKEY_CONFIG_CRITICAL_END \
+	mutex_unlock(&hotkey_thread_data_mutex);
 
 #else /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
 #define hotkey_source_mask 0U
+#define HOTKEY_CONFIG_CRITICAL_START
+#define HOTKEY_CONFIG_CRITICAL_END
 
 #endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
@@ -1764,19 +1982,6 @@ static unsigned int hotkey_report_mode;
 static u16 *hotkey_keycode_map;
 
 static struct attribute_set *hotkey_dev_attributes;
-
-#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
-#define HOTKEY_CONFIG_CRITICAL_START \
-	do { \
-		mutex_lock(&hotkey_thread_data_mutex); \
-		hotkey_config_change++; \
-	} while (0);
-#define HOTKEY_CONFIG_CRITICAL_END \
-	mutex_unlock(&hotkey_thread_data_mutex);
-#else
-#define HOTKEY_CONFIG_CRITICAL_START
-#define HOTKEY_CONFIG_CRITICAL_END
-#endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
 /* HKEY.MHKG() return bits */
 #define TP_HOTKEY_TABLET_MASK (1 << 3)
@@ -1822,7 +2027,9 @@ static int hotkey_mask_get(void)
 		if (!acpi_evalf(hkey_handle, &m, "DHKN", "d"))
 			return -EIO;
 	}
+	HOTKEY_CONFIG_CRITICAL_START
 	hotkey_mask = m | (hotkey_source_mask & hotkey_mask);
+	HOTKEY_CONFIG_CRITICAL_END
 
 	return 0;
 }
@@ -2075,6 +2282,7 @@ static int hotkey_kthread(void *data)
 	unsigned int si, so;
 	unsigned long t;
 	unsigned int change_detector, must_reset;
+	unsigned int poll_freq;
 
 	mutex_lock(&hotkey_thread_mutex);
 
@@ -2091,12 +2299,17 @@ static int hotkey_kthread(void *data)
 	mutex_lock(&hotkey_thread_data_mutex);
 	change_detector = hotkey_config_change;
 	mask = hotkey_source_mask & hotkey_mask;
+	poll_freq = hotkey_poll_freq;
 	mutex_unlock(&hotkey_thread_data_mutex);
 	hotkey_read_nvram(&s[so], mask);
 
-	while (!kthread_should_stop() && hotkey_poll_freq) {
-		if (t == 0)
-			t = 1000/hotkey_poll_freq;
+	while (!kthread_should_stop()) {
+		if (t == 0) {
+			if (likely(poll_freq))
+				t = 1000/poll_freq;
+			else
+				t = 100;	/* should never happen... */
+		}
 		t = msleep_interruptible(t);
 		if (unlikely(kthread_should_stop()))
 			break;
@@ -2112,6 +2325,7 @@ static int hotkey_kthread(void *data)
 			change_detector = hotkey_config_change;
 		}
 		mask = hotkey_source_mask & hotkey_mask;
+		poll_freq = hotkey_poll_freq;
 		mutex_unlock(&hotkey_thread_data_mutex);
 
 		if (likely(mask)) {
@@ -2131,6 +2345,7 @@ exit:
 	return 0;
 }
 
+/* call with hotkey_mutex held */
 static void hotkey_poll_stop_sync(void)
 {
 	if (tpacpi_hotkey_task) {
@@ -2147,10 +2362,11 @@ static void hotkey_poll_stop_sync(void)
 }
 
 /* call with hotkey_mutex held */
-static void hotkey_poll_setup(int may_warn)
+static void hotkey_poll_setup(bool may_warn)
 {
-	if ((hotkey_source_mask & hotkey_mask) != 0 &&
-	    hotkey_poll_freq > 0 &&
+	u32 hotkeys_to_poll = hotkey_source_mask & hotkey_mask;
+
+	if (hotkeys_to_poll != 0 && hotkey_poll_freq > 0 &&
 	    (tpacpi_inputdev->users > 0 || hotkey_report_mode < 2)) {
 		if (!tpacpi_hotkey_task) {
 			tpacpi_hotkey_task = kthread_run(hotkey_kthread,
@@ -2164,26 +2380,37 @@ static void hotkey_poll_setup(int may_warn)
 		}
 	} else {
 		hotkey_poll_stop_sync();
-		if (may_warn &&
-		    hotkey_source_mask != 0 && hotkey_poll_freq == 0) {
+		if (may_warn && hotkeys_to_poll != 0 &&
+		    hotkey_poll_freq == 0) {
 			printk(TPACPI_NOTICE
 				"hot keys 0x%08x require polling, "
 				"which is currently disabled\n",
-				hotkey_source_mask);
+				hotkeys_to_poll);
 		}
 	}
 }
 
-static void hotkey_poll_setup_safe(int may_warn)
+static void hotkey_poll_setup_safe(bool may_warn)
 {
 	mutex_lock(&hotkey_mutex);
 	hotkey_poll_setup(may_warn);
 	mutex_unlock(&hotkey_mutex);
 }
 
+/* call with hotkey_mutex held */
+static void hotkey_poll_set_freq(unsigned int freq)
+{
+	if (!freq)
+		hotkey_poll_stop_sync();
+
+	HOTKEY_CONFIG_CRITICAL_START
+	hotkey_poll_freq = freq;
+	HOTKEY_CONFIG_CRITICAL_END
+}
+
 #else /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
-static void hotkey_poll_setup_safe(int __unused)
+static void hotkey_poll_setup_safe(bool __unused)
 {
 }
 
@@ -2201,7 +2428,7 @@ static int hotkey_inputdev_open(struct input_dev *dev)
 	case TPACPI_LIFE_EXITING:
 		return -EBUSY;
 	case TPACPI_LIFE_RUNNING:
-		hotkey_poll_setup_safe(0);
+		hotkey_poll_setup_safe(false);
 		return 0;
 	}
 
@@ -2214,7 +2441,7 @@ static void hotkey_inputdev_close(struct input_dev *dev)
 {
 	/* disable hotkey polling when possible */
 	if (tpacpi_lifecycle == TPACPI_LIFE_RUNNING)
-		hotkey_poll_setup_safe(0);
+		hotkey_poll_setup_safe(false);
 }
 
 /* sysfs hotkey enable ------------------------------------------------- */
@@ -2288,7 +2515,7 @@ static ssize_t hotkey_mask_store(struct device *dev,
 	res = hotkey_mask_set(t);
 
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
-	hotkey_poll_setup(1);
+	hotkey_poll_setup(true);
 #endif
 
 	mutex_unlock(&hotkey_mutex);
@@ -2318,6 +2545,8 @@ static ssize_t hotkey_bios_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
+	printk_deprecated_attribute("hotkey_bios_mask",
+			"This attribute is useless.");
 	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_orig_mask);
 }
 
@@ -2377,7 +2606,8 @@ static ssize_t hotkey_source_mask_store(struct device *dev,
 	hotkey_source_mask = t;
 	HOTKEY_CONFIG_CRITICAL_END
 
-	hotkey_poll_setup(1);
+	hotkey_poll_setup(true);
+	hotkey_mask_set(hotkey_mask);
 
 	mutex_unlock(&hotkey_mutex);
 
@@ -2410,9 +2640,9 @@ static ssize_t hotkey_poll_freq_store(struct device *dev,
 	if (mutex_lock_killable(&hotkey_mutex))
 		return -ERESTARTSYS;
 
-	hotkey_poll_freq = t;
+	hotkey_poll_set_freq(t);
+	hotkey_poll_setup(true);
 
-	hotkey_poll_setup(1);
 	mutex_unlock(&hotkey_mutex);
 
 	tpacpi_disclose_usertask("hotkey_poll_freq", "set to %lu\n", t);
@@ -2603,7 +2833,9 @@ static void tpacpi_send_radiosw_update(void)
 static void hotkey_exit(void)
 {
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+	mutex_lock(&hotkey_mutex);
 	hotkey_poll_stop_sync();
+	mutex_unlock(&hotkey_mutex);
 #endif
 
 	if (hotkey_dev_attributes)
@@ -2620,6 +2852,15 @@ static void hotkey_exit(void)
 			printk(TPACPI_ERR
 			       "failed to restore hot key mask "
 			       "to BIOS defaults\n");
+	}
+}
+
+static void __init hotkey_unmap(const unsigned int scancode)
+{
+	if (hotkey_keycode_map[scancode] != KEY_RESERVED) {
+		clear_bit(hotkey_keycode_map[scancode],
+			  tpacpi_inputdev->keybit);
+		hotkey_keycode_map[scancode] = KEY_RESERVED;
 	}
 }
 
@@ -2701,11 +2942,11 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
 		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
 
-		/* These either have to go through ACPI video, or
-		 * act like in the IBM ThinkPads, so don't ever
-		 * enable them by default */
-		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
-		KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
+		/* These should be enabled --only-- when ACPI video
+		 * is disabled (i.e. in "vendor" mode), and are handled
+		 * in a special way by the init code */
+		KEY_BRIGHTNESSUP,	/* 0x0F: FN+HOME (brightness up) */
+		KEY_BRIGHTNESSDOWN,	/* 0x10: FN+END (brightness down) */
 
 		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
 
@@ -2831,19 +3072,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			goto err_exit;
 	}
 
-#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
-	if (tp_features.hotkey_mask) {
-		hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK
-					& ~hotkey_all_mask;
-	} else {
-		hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK;
-	}
-
-	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
-		    "hotkey source mask 0x%08x, polling freq %d\n",
-		    hotkey_source_mask, hotkey_poll_freq);
-#endif
-
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 	if (dbg_wlswemul) {
 		tp_features.hotkey_wlsw = 1;
@@ -2944,16 +3172,30 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		       "Disabling thinkpad-acpi brightness events "
 		       "by default...\n");
 
-		/* The hotkey_reserved_mask change below is not
-		 * necessary while the keys are at KEY_RESERVED in the
-		 * default map, but better safe than sorry, leave it
-		 * here as a marker of what we have to do, especially
-		 * when we finally become able to set this at runtime
-		 * on response to X.org requests */
+		/* Disable brightness up/down on Lenovo thinkpads when
+		 * ACPI is handling them, otherwise it is plain impossible
+		 * for userspace to do something even remotely sane */
 		hotkey_reserved_mask |=
 			(1 << TP_ACPI_HOTKEYSCAN_FNHOME)
 			| (1 << TP_ACPI_HOTKEYSCAN_FNEND);
+		hotkey_unmap(TP_ACPI_HOTKEYSCAN_FNHOME);
+		hotkey_unmap(TP_ACPI_HOTKEYSCAN_FNEND);
 	}
+
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+	if (tp_features.hotkey_mask) {
+		hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK
+					& ~hotkey_all_mask
+					& ~hotkey_reserved_mask;
+	} else {
+		hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK
+					& ~hotkey_reserved_mask;
+	}
+
+	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
+		    "hotkey source mask 0x%08x, polling freq %u\n",
+		    hotkey_source_mask, hotkey_poll_freq);
+#endif
 
 	dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 			"enabling firmware HKEY event interface...\n");
@@ -2978,7 +3220,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	tpacpi_inputdev->open = &hotkey_inputdev_open;
 	tpacpi_inputdev->close = &hotkey_inputdev_close;
 
-	hotkey_poll_setup_safe(1);
+	hotkey_poll_setup_safe(true);
 	tpacpi_send_radiosw_update();
 	tpacpi_input_send_tabletsw();
 
@@ -3266,7 +3508,7 @@ static void hotkey_resume(void)
 	hotkey_tablet_mode_notify_change();
 	hotkey_wakeup_reason_notify_change();
 	hotkey_wakeup_hotunplug_complete_notify_change();
-	hotkey_poll_setup_safe(0);
+	hotkey_poll_setup_safe(false);
 }
 
 /* procfs -------------------------------------------------------------- */
@@ -3338,7 +3580,8 @@ static int hotkey_write(char *buf)
 			hotkey_enabledisable_warn(0);
 			res = -EPERM;
 		} else if (strlencmp(cmd, "reset") == 0) {
-			mask = hotkey_orig_mask;
+			mask = (hotkey_all_mask | hotkey_source_mask)
+				& ~hotkey_reserved_mask;
 		} else if (sscanf(cmd, "0x%x", &mask) == 1) {
 			/* mask set */
 		} else if (sscanf(cmd, "%x", &mask) == 1) {
@@ -5655,16 +5898,16 @@ static const struct tpacpi_quirk brightness_quirk_table[] __initconst = {
 	/* Models with ATI GPUs known to require ECNVRAM mode */
 	TPACPI_Q_IBM('1', 'Y', TPACPI_BRGHT_Q_EC),	/* T43/p ATI */
 
-	/* Models with ATI GPUs (waiting confirmation) */
-	TPACPI_Q_IBM('1', 'R', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
+	/* Models with ATI GPUs that can use ECNVRAM */
+	TPACPI_Q_IBM('1', 'R', TPACPI_BRGHT_Q_EC),
 	TPACPI_Q_IBM('1', 'Q', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
 	TPACPI_Q_IBM('7', '6', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
 	TPACPI_Q_IBM('7', '8', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
 
-	/* Models with Intel Extreme Graphics 2 (waiting confirmation) */
+	/* Models with Intel Extreme Graphics 2 */
+	TPACPI_Q_IBM('1', 'U', TPACPI_BRGHT_Q_NOEC),
 	TPACPI_Q_IBM('1', 'V', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_NOEC),
 	TPACPI_Q_IBM('1', 'W', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_NOEC),
-	TPACPI_Q_IBM('1', 'U', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_NOEC),
 
 	/* Models with Intel GMA900 */
 	TPACPI_Q_IBM('7', '0', TPACPI_BRGHT_Q_NOEC),	/* T43, R52 */
@@ -7524,9 +7767,11 @@ static int __init probe_for_thinkpad(void)
 
 	/*
 	 * Non-ancient models have better DMI tagging, but very old models
-	 * don't.
+	 * don't.  tpacpi_is_fw_known() is a cheat to help in that case.
 	 */
-	is_thinkpad = (thinkpad_id.model_str != NULL);
+	is_thinkpad = (thinkpad_id.model_str != NULL) ||
+		      (thinkpad_id.ec_model != 0) ||
+		      tpacpi_is_fw_known();
 
 	/* ec is required because many other handles are relative to it */
 	TPACPI_ACPIHANDLE_INIT(ec);
@@ -7536,13 +7781,6 @@ static int __init probe_for_thinkpad(void)
 				"Not yet supported ThinkPad detected!\n");
 		return -ENODEV;
 	}
-
-	/*
-	 * Risks a regression on very old machines, but reduces potential
-	 * false positives a damn great deal
-	 */
-	if (!is_thinkpad)
-		is_thinkpad = (thinkpad_id.vendor == PCI_VENDOR_ID_IBM);
 
 	if (!is_thinkpad && !force_load)
 		return -ENODEV;

@@ -30,6 +30,7 @@
 #include <linux/i2c-gpio.h>
 
 #include <mach/hardware.h>
+#include <mach/fb.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -681,6 +682,37 @@ void ep93xx_pwm_release_gpio(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(ep93xx_pwm_release_gpio);
 
+
+/*************************************************************************
+ * EP93xx video peripheral handling
+ *************************************************************************/
+static struct ep93xxfb_mach_info ep93xxfb_data;
+
+static struct resource ep93xx_fb_resource[] = {
+	{
+		.start		= EP93XX_RASTER_PHYS_BASE,
+		.end		= EP93XX_RASTER_PHYS_BASE + 0x800 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ep93xx_fb_device = {
+	.name			= "ep93xx-fb",
+	.id			= -1,
+	.dev			= {
+		.platform_data	= &ep93xxfb_data,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.dma_mask		= &ep93xx_fb_device.dev.coherent_dma_mask,
+	},
+	.num_resources		= ARRAY_SIZE(ep93xx_fb_resource),
+	.resource		= ep93xx_fb_resource,
+};
+
+void __init ep93xx_register_fb(struct ep93xxfb_mach_info *data)
+{
+	ep93xxfb_data = *data;
+	platform_device_register(&ep93xx_fb_device);
+}
 
 extern void ep93xx_gpio_init(void);
 

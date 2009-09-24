@@ -59,6 +59,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
+#include <linux/serial.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
@@ -609,6 +610,7 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	acm->throttle = 0;
 
 	tasklet_schedule(&acm->urb_task);
+	set_bit(ASYNCB_INITIALIZED, &acm->port.flags);
 	rv = tty_port_block_til_ready(&acm->port, tty, filp);
 done:
 	mutex_unlock(&acm->mutex);

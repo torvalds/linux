@@ -158,12 +158,12 @@ static uint64_t 	page_flags[HASH_SIZE];
 	type __min2 = (y);			\
 	__min1 < __min2 ? __min1 : __min2; })
 
-unsigned long pages2mb(unsigned long pages)
+static unsigned long pages2mb(unsigned long pages)
 {
 	return (pages * page_size) >> 20;
 }
 
-void fatal(const char *x, ...)
+static void fatal(const char *x, ...)
 {
 	va_list ap;
 
@@ -178,7 +178,7 @@ void fatal(const char *x, ...)
  * page flag names
  */
 
-char *page_flag_name(uint64_t flags)
+static char *page_flag_name(uint64_t flags)
 {
 	static char buf[65];
 	int present;
@@ -197,7 +197,7 @@ char *page_flag_name(uint64_t flags)
 	return buf;
 }
 
-char *page_flag_longname(uint64_t flags)
+static char *page_flag_longname(uint64_t flags)
 {
 	static char buf[1024];
 	int i, n;
@@ -221,7 +221,7 @@ char *page_flag_longname(uint64_t flags)
  * page list and summary
  */
 
-void show_page_range(unsigned long offset, uint64_t flags)
+static void show_page_range(unsigned long offset, uint64_t flags)
 {
 	static uint64_t      flags0;
 	static unsigned long index;
@@ -241,12 +241,12 @@ void show_page_range(unsigned long offset, uint64_t flags)
 	count  = 1;
 }
 
-void show_page(unsigned long offset, uint64_t flags)
+static void show_page(unsigned long offset, uint64_t flags)
 {
 	printf("%lu\t%s\n", offset, page_flag_name(flags));
 }
 
-void show_summary(void)
+static void show_summary(void)
 {
 	int i;
 
@@ -272,7 +272,7 @@ void show_summary(void)
  * page flag filters
  */
 
-int bit_mask_ok(uint64_t flags)
+static int bit_mask_ok(uint64_t flags)
 {
 	int i;
 
@@ -289,7 +289,7 @@ int bit_mask_ok(uint64_t flags)
 	return 1;
 }
 
-uint64_t expand_overloaded_flags(uint64_t flags)
+static uint64_t expand_overloaded_flags(uint64_t flags)
 {
 	/* SLOB/SLUB overload several page flags */
 	if (flags & BIT(SLAB)) {
@@ -308,7 +308,7 @@ uint64_t expand_overloaded_flags(uint64_t flags)
 	return flags;
 }
 
-uint64_t well_known_flags(uint64_t flags)
+static uint64_t well_known_flags(uint64_t flags)
 {
 	/* hide flags intended only for kernel hacker */
 	flags &= ~KPF_HACKERS_BITS;
@@ -325,7 +325,7 @@ uint64_t well_known_flags(uint64_t flags)
  * page frame walker
  */
 
-int hash_slot(uint64_t flags)
+static int hash_slot(uint64_t flags)
 {
 	int k = HASH_KEY(flags);
 	int i;
@@ -352,7 +352,7 @@ int hash_slot(uint64_t flags)
 	exit(EXIT_FAILURE);
 }
 
-void add_page(unsigned long offset, uint64_t flags)
+static void add_page(unsigned long offset, uint64_t flags)
 {
 	flags = expand_overloaded_flags(flags);
 
@@ -371,7 +371,7 @@ void add_page(unsigned long offset, uint64_t flags)
 	total_pages++;
 }
 
-void walk_pfn(unsigned long index, unsigned long count)
+static void walk_pfn(unsigned long index, unsigned long count)
 {
 	unsigned long batch;
 	unsigned long n;
@@ -404,7 +404,7 @@ void walk_pfn(unsigned long index, unsigned long count)
 	}
 }
 
-void walk_addr_ranges(void)
+static void walk_addr_ranges(void)
 {
 	int i;
 
@@ -428,7 +428,7 @@ void walk_addr_ranges(void)
  * user interface
  */
 
-const char *page_flag_type(uint64_t flag)
+static const char *page_flag_type(uint64_t flag)
 {
 	if (flag & KPF_HACKERS_BITS)
 		return "(r)";
@@ -437,7 +437,7 @@ const char *page_flag_type(uint64_t flag)
 	return "   ";
 }
 
-void usage(void)
+static void usage(void)
 {
 	int i, j;
 
@@ -482,7 +482,7 @@ void usage(void)
 		"(r) raw mode bits  (o) overloaded bits\n");
 }
 
-unsigned long long parse_number(const char *str)
+static unsigned long long parse_number(const char *str)
 {
 	unsigned long long n;
 
@@ -494,16 +494,16 @@ unsigned long long parse_number(const char *str)
 	return n;
 }
 
-void parse_pid(const char *str)
+static void parse_pid(const char *str)
 {
 	opt_pid = parse_number(str);
 }
 
-void parse_file(const char *name)
+static void parse_file(const char *name)
 {
 }
 
-void add_addr_range(unsigned long offset, unsigned long size)
+static void add_addr_range(unsigned long offset, unsigned long size)
 {
 	if (nr_addr_ranges >= MAX_ADDR_RANGES)
 		fatal("too much addr ranges\n");
@@ -513,7 +513,7 @@ void add_addr_range(unsigned long offset, unsigned long size)
 	nr_addr_ranges++;
 }
 
-void parse_addr_range(const char *optarg)
+static void parse_addr_range(const char *optarg)
 {
 	unsigned long offset;
 	unsigned long size;
@@ -547,7 +547,7 @@ void parse_addr_range(const char *optarg)
 	add_addr_range(offset, size);
 }
 
-void add_bits_filter(uint64_t mask, uint64_t bits)
+static void add_bits_filter(uint64_t mask, uint64_t bits)
 {
 	if (nr_bit_filters >= MAX_BIT_FILTERS)
 		fatal("too much bit filters\n");
@@ -557,7 +557,7 @@ void add_bits_filter(uint64_t mask, uint64_t bits)
 	nr_bit_filters++;
 }
 
-uint64_t parse_flag_name(const char *str, int len)
+static uint64_t parse_flag_name(const char *str, int len)
 {
 	int i;
 
@@ -577,7 +577,7 @@ uint64_t parse_flag_name(const char *str, int len)
 	return parse_number(str);
 }
 
-uint64_t parse_flag_names(const char *str, int all)
+static uint64_t parse_flag_names(const char *str, int all)
 {
 	const char *p    = str;
 	uint64_t   flags = 0;
@@ -596,7 +596,7 @@ uint64_t parse_flag_names(const char *str, int all)
 	return flags;
 }
 
-void parse_bits_mask(const char *optarg)
+static void parse_bits_mask(const char *optarg)
 {
 	uint64_t mask;
 	uint64_t bits;
@@ -621,7 +621,7 @@ void parse_bits_mask(const char *optarg)
 }
 
 
-struct option opts[] = {
+static struct option opts[] = {
 	{ "raw"       , 0, NULL, 'r' },
 	{ "pid"       , 1, NULL, 'p' },
 	{ "file"      , 1, NULL, 'f' },

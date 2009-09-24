@@ -1280,9 +1280,6 @@ static int writenote(struct memelfnote *men, struct file *file,
 #define DUMP_WRITE(addr, nr)	\
 	if ((size += (nr)) > limit || !dump_write(file, (addr), (nr))) \
 		goto end_coredump;
-#define DUMP_SEEK(off)	\
-	if (!dump_seek(file, (off))) \
-		goto end_coredump;
 
 static void fill_elf_header(struct elfhdr *elf, int segs,
 			    u16 machine, u32 flags, u8 osabi)
@@ -2016,7 +2013,8 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, un
 		goto end_coredump;
 
 	/* Align to page */
-	DUMP_SEEK(dataoff - foffset);
+	if (!dump_seek(file, dataoff - foffset))
+		goto end_coredump;
 
 	for (vma = first_vma(current, gate_vma); vma != NULL;
 			vma = next_vma(vma, gate_vma)) {
@@ -2027,33 +2025,19 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, un
 
 		for (addr = vma->vm_start; addr < end; addr += PAGE_SIZE) {
 			struct page *page;
-			struct vm_area_struct *tmp_vma;
+			int stop;
 
-			if (get_user_pages(current, current->mm, addr, 1, 0, 1,
-						&page, &tmp_vma) <= 0) {
-				DUMP_SEEK(PAGE_SIZE);
-			} else {
-				if (page == ZERO_PAGE(0)) {
-					if (!dump_seek(file, PAGE_SIZE)) {
-						page_cache_release(page);
-						goto end_coredump;
-					}
-				} else {
-					void *kaddr;
-					flush_cache_page(tmp_vma, addr,
-							 page_to_pfn(page));
-					kaddr = kmap(page);
-					if ((size += PAGE_SIZE) > limit ||
-					    !dump_write(file, kaddr,
-					    PAGE_SIZE)) {
-						kunmap(page);
-						page_cache_release(page);
-						goto end_coredump;
-					}
-					kunmap(page);
-				}
+			page = get_dump_page(addr);
+			if (page) {
+				void *kaddr = kmap(page);
+				stop = ((size += PAGE_SIZE) > limit) ||
+					!dump_write(file, kaddr, PAGE_SIZE);
+				kunmap(page);
 				page_cache_release(page);
-			}
+			} else
+				stop = !dump_seek(file, PAGE_SIZE);
+			if (stop)
+				goto end_coredump;
 		}
 	}
 
