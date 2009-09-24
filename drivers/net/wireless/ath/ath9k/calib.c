@@ -594,6 +594,7 @@ bool ath9k_hw_reset_calvalid(struct ath_hw *ah)
 
 	return false;
 }
+EXPORT_SYMBOL(ath9k_hw_reset_calvalid);
 
 void ath9k_hw_start_nfcal(struct ath_hw *ah)
 {
@@ -746,6 +747,7 @@ s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	return nf;
 }
+EXPORT_SYMBOL(ath9k_hw_getchan_noise);
 
 static void ath9k_olc_temp_compensation_9287(struct ath_hw *ah)
 {
@@ -1066,6 +1068,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	return iscaldone;
 }
+EXPORT_SYMBOL(ath9k_hw_calibrate);
 
 static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
 {

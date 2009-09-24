@@ -629,6 +629,7 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah,
 		}
 	}
 }
+EXPORT_SYMBOL(ath9k_hw_ani_monitor);
 
 void ath9k_enable_mib_counters(struct ath_hw *ah)
 {
@@ -756,6 +757,7 @@ void ath9k_hw_procmibevent(struct ath_hw *ah)
 		ath9k_ani_restart(ah);
 	}
 }
+EXPORT_SYMBOL(ath9k_hw_procmibevent);
 
 void ath9k_hw_ani_setup(struct ath_hw *ah)
 {
