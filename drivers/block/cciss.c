@@ -256,6 +256,11 @@ static inline void removeQ(CommandList_struct *c)
 
 #include "cciss_scsi.c"		/* For SCSI tape support */
 
+static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
+	"UNKNOWN"
+};
+#define RAID_UNKNOWN (sizeof(raid_label) / sizeof(raid_label[0])-1)
+
 #ifdef CONFIG_PROC_FS
 
 /*
@@ -264,10 +269,6 @@ static inline void removeQ(CommandList_struct *c)
 #define ENG_GIG 1000000000
 #define ENG_GIG_FACTOR (ENG_GIG/512)
 #define ENGAGE_SCSI	"engage scsi"
-static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
-	"UNKNOWN"
-};
-#define RAID_UNKNOWN (sizeof(raid_label) / sizeof(raid_label[0])-1)
 
 static struct proc_dir_entry *proc_cciss;
 
