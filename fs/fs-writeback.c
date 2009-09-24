@@ -540,6 +540,17 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	return ret;
 }
 
+static void unpin_sb_for_writeback(struct super_block **psb)
+{
+	struct super_block *sb = *psb;
+
+	if (sb) {
+		up_read(&sb->s_umount);
+		put_super(sb);
+		*psb = NULL;
+	}
+}
+
 /*
  * For WB_SYNC_NONE writeback, the caller does not have the sb pinned
  * before calling writeback. So make sure that we do pin it, so it doesn't
@@ -549,9 +560,18 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
  * 1 if we failed.
  */
 static int pin_sb_for_writeback(struct writeback_control *wbc,
-				   struct inode *inode)
+				struct inode *inode, struct super_block **psb)
 {
 	struct super_block *sb = inode->i_sb;
+
+	/*
+	 * If this sb is already pinned, nothing more to do. If not and
+	 * *psb is non-NULL, unpin the old one first
+	 */
+	if (sb == *psb)
+		return 0;
+	else if (*psb)
+		unpin_sb_for_writeback(psb);
 
 	/*
 	 * Caller must already hold the ref for this
@@ -566,7 +586,7 @@ static int pin_sb_for_writeback(struct writeback_control *wbc,
 	if (down_read_trylock(&sb->s_umount)) {
 		if (sb->s_root) {
 			spin_unlock(&sb_lock);
-			return 0;
+			goto pinned;
 		}
 		/*
 		 * umounted, drop rwsem again and fall through to failure
@@ -577,24 +597,15 @@ static int pin_sb_for_writeback(struct writeback_control *wbc,
 	sb->s_count--;
 	spin_unlock(&sb_lock);
 	return 1;
-}
-
-static void unpin_sb_for_writeback(struct writeback_control *wbc,
-				   struct inode *inode)
-{
-	struct super_block *sb = inode->i_sb;
-
-	if (wbc->sync_mode == WB_SYNC_ALL)
-		return;
-
-	up_read(&sb->s_umount);
-	put_super(sb);
+pinned:
+	*psb = sb;
+	return 0;
 }
 
 static void writeback_inodes_wb(struct bdi_writeback *wb,
 				struct writeback_control *wbc)
 {
-	struct super_block *sb = wbc->sb;
+	struct super_block *sb = wbc->sb, *pin_sb = NULL;
 	const int is_blkdev_sb = sb_is_blkdev_sb(sb);
 	const unsigned long start = jiffies;	/* livelock avoidance */
 
@@ -653,7 +664,7 @@ static void writeback_inodes_wb(struct bdi_writeback *wb,
 		if (inode_dirtied_after(inode, start))
 			break;
 
-		if (pin_sb_for_writeback(wbc, inode)) {
+		if (pin_sb_for_writeback(wbc, inode, &pin_sb)) {
 			requeue_io(inode);
 			continue;
 		}
@@ -662,7 +673,6 @@ static void writeback_inodes_wb(struct bdi_writeback *wb,
 		__iget(inode);
 		pages_skipped = wbc->pages_skipped;
 		writeback_single_inode(inode, wbc);
-		unpin_sb_for_writeback(wbc, inode);
 		if (wbc->pages_skipped != pages_skipped) {
 			/*
 			 * writeback is not making progress due to locked
@@ -681,6 +691,8 @@ static void writeback_inodes_wb(struct bdi_writeback *wb,
 		if (!list_empty(&wb->b_more_io))
 			wbc->more_io = 1;
 	}
+
+	unpin_sb_for_writeback(&pin_sb);
 
 	spin_unlock(&inode_lock);
 	/* Leave any unwritten inodes on b_io */
