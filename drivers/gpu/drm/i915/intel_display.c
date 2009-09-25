@@ -2082,7 +2082,7 @@ fdi_reduce_ratio(u32 *num, u32 *den)
 #define LINK_N 0x80000
 
 static void
-igdng_compute_m_n(int bytes_per_pixel, int nlanes,
+igdng_compute_m_n(int bits_per_pixel, int nlanes,
 		int pixel_clock, int link_clock,
 		struct fdi_m_n *m_n)
 {
@@ -2092,7 +2092,8 @@ igdng_compute_m_n(int bytes_per_pixel, int nlanes,
 
 	temp = (u64) DATA_N * pixel_clock;
 	temp = div_u64(temp, link_clock);
-	m_n->gmch_m = div_u64(temp * bytes_per_pixel, nlanes);
+	m_n->gmch_m = div_u64(temp * bits_per_pixel, nlanes);
+	m_n->gmch_m >>= 3; /* convert to bytes_per_pixel */
 	m_n->gmch_n = DATA_N;
 	fdi_reduce_ratio(&m_n->gmch_m, &m_n->gmch_n);
 
@@ -2766,7 +2767,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* FDI link */
 	if (IS_IGDNG(dev)) {
-		int lane, link_bw;
+		int lane, link_bw, bpp;
 		/* eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
 		if (is_edp) {
@@ -2785,7 +2786,29 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			lane = 4;
 			link_bw = 270000;
 		}
-		igdng_compute_m_n(3, lane, target_clock,
+
+		/* determine panel color depth */
+		temp = I915_READ(pipeconf_reg);
+
+		switch (temp & PIPE_BPC_MASK) {
+		case PIPE_8BPC:
+			bpp = 24;
+			break;
+		case PIPE_10BPC:
+			bpp = 30;
+			break;
+		case PIPE_6BPC:
+			bpp = 18;
+			break;
+		case PIPE_12BPC:
+			bpp = 36;
+			break;
+		default:
+			DRM_ERROR("unknown pipe bpc value\n");
+			bpp = 24;
+		}
+
+		igdng_compute_m_n(bpp, lane, target_clock,
 				  link_bw, &m_n);
 	}
 

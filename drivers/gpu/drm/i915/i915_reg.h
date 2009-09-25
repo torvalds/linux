@@ -1782,6 +1782,11 @@
 #define   PIPE_START_VBLANK_INTERRUPT_STATUS	(1UL<<2) /* 965 or later */
 #define   PIPE_VBLANK_INTERRUPT_STATUS		(1UL<<1)
 #define   PIPE_OVERLAY_UPDATED_STATUS		(1UL<<0)
+#define   PIPE_BPC_MASK 			(7 << 5) /* Ironlake */
+#define   PIPE_8BPC				(0 << 5)
+#define   PIPE_10BPC				(1 << 5)
+#define   PIPE_6BPC				(2 << 5)
+#define   PIPE_12BPC				(3 << 5)
 
 #define DSPARB			0x70030
 #define   DSPARB_CSTART_MASK	(0x7f << 7)
