@@ -968,13 +968,13 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	}
 
 	/* jump over the NOP */
-	r = r100_cs_packet_parse(p, &p3reloc, p->idx);
+	r = r100_cs_packet_parse(p, &p3reloc, p->idx + waitreloc.count + 2);
 	if (r)
 		return r;
 
 	h_idx = p->idx - 2;
-	p->idx += waitreloc.count;
-	p->idx += p3reloc.count;
+	p->idx += waitreloc.count + 2;
+	p->idx += p3reloc.count + 2;
 
 	header = radeon_get_ib_value(p, h_idx);
 	crtc_id = radeon_get_ib_value(p, h_idx + 5);
@@ -992,17 +992,16 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 
 	if (!crtc->enabled) {
 		/* if the CRTC isn't enabled - we need to nop out the wait until */
-		
 		ib[h_idx + 2] = PACKET2(0);
 		ib[h_idx + 3] = PACKET2(0);
 	} else if (crtc_id == 1) {
 		switch (reg) {
 		case AVIVO_D1MODE_VLINE_START_END:
-			header &= R300_CP_PACKET0_REG_MASK;
+			header &= ~R300_CP_PACKET0_REG_MASK;
 			header |= AVIVO_D2MODE_VLINE_START_END >> 2;
 			break;
 		case RADEON_CRTC_GUI_TRIG_VLINE:
-			header &= R300_CP_PACKET0_REG_MASK;
+			header &= ~R300_CP_PACKET0_REG_MASK;
 			header |= RADEON_CRTC2_GUI_TRIG_VLINE >> 2;
 			break;
 		default:
