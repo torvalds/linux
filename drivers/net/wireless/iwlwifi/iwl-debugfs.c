@@ -436,7 +436,7 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	if (sscanf(buf, "%d", &event_log_flag) != 1)
 		return -EFAULT;
 	if (event_log_flag == 1)
-		iwl_dump_nic_event_log(priv);
+		priv->cfg->ops->lib->dump_nic_event_log(priv);
 
 	return count;
 }
