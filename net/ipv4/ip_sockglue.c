@@ -611,6 +611,9 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		 *	Check the arguments are allowable
 		 */
 
+		if (optlen < sizeof(struct in_addr))
+			goto e_inval;
+
 		err = -EFAULT;
 		if (optlen >= sizeof(struct ip_mreqn)) {
 			if (copy_from_user(&mreq, optval, sizeof(mreq)))

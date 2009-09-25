@@ -629,13 +629,6 @@ struct b43_wl {
 	 * from the mac80211 subsystem. */
 	u16 mac80211_initially_registered_queues;
 
-	/* R/W lock for data transmission.
-	 * Transmissions on 2+ queues can run concurrently, but somebody else
-	 * might sync with TX by write_lock_irqsave()'ing. */
-	rwlock_t tx_lock;
-	/* Lock for LEDs access. */
-	spinlock_t leds_lock;
-
 	/* We can only have one operating interface (802.11 core)
 	 * at a time. General information about this interface follows.
 	 */
@@ -686,6 +679,9 @@ struct b43_wl {
 	struct work_struct tx_work;
 	/* Queue of packets to be transmitted. */
 	struct sk_buff_head tx_queue;
+
+	/* The device LEDs. */
+	struct b43_leds leds;
 };
 
 /* The type of the firmware file. */
@@ -768,13 +764,10 @@ struct b43_wldev {
 	/* The device initialization status.
 	 * Use b43_status() to query. */
 	atomic_t __init_status;
-	/* Saved init status for handling suspend. */
-	int suspend_init_status;
 
 	bool bad_frames_preempt;	/* Use "Bad Frames Preemption" (default off) */
 	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM) */
 	bool radio_hw_enable;	/* saved state of radio hardware enabled state */
-	bool suspend_in_progress;	/* TRUE, if we are in a suspend/resume cycle */
 	bool qos_enabled;		/* TRUE, if QoS is used. */
 	bool hwcrypto_enabled;		/* TRUE, if HW crypto acceleration is enabled. */
 
@@ -793,12 +786,6 @@ struct b43_wldev {
 
 	/* Various statistics about the physical device. */
 	struct b43_stats stats;
-
-	/* The device LEDs. */
-	struct b43_led led_tx;
-	struct b43_led led_rx;
-	struct b43_led led_assoc;
-	struct b43_led led_radio;
 
 	/* Reason code of the last interrupt. */
 	u32 irq_reason;
@@ -830,6 +817,10 @@ struct b43_wldev {
 	/* Debugging stuff follows. */
 #ifdef CONFIG_B43_DEBUG
 	struct b43_dfsentry *dfsentry;
+	unsigned int irq_count;
+	unsigned int irq_bit_count[32];
+	unsigned int tx_count;
+	unsigned int rx_count;
 #endif
 };
 

@@ -609,14 +609,24 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 		AR_PHY_CH1_EXT_CCA,
 		AR_PHY_CH2_EXT_CCA
 	};
-	u8 chainmask;
+	u8 chainmask, rx_chain_status;
 
+	rx_chain_status = REG_READ(ah, AR_PHY_RX_CHAINMASK);
 	if (AR_SREV_9285(ah))
 		chainmask = 0x9;
-	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah))
-		chainmask = 0x1B;
-	else
-		chainmask = 0x3F;
+	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah)) {
+		if ((rx_chain_status & 0x2) || (rx_chain_status & 0x4))
+			chainmask = 0x1B;
+		else
+			chainmask = 0x09;
+	} else {
+		if (rx_chain_status & 0x4)
+			chainmask = 0x3F;
+		else if (rx_chain_status & 0x2)
+			chainmask = 0x1B;
+		else
+			chainmask = 0x09;
+	}
 
 	h = ah->nfCalHist;
 
@@ -697,6 +707,8 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah)
 		noise_floor = AR_PHY_CCA_MAX_AR9280_GOOD_VALUE;
 	else if (AR_SREV_9285(ah))
 		noise_floor = AR_PHY_CCA_MAX_AR9285_GOOD_VALUE;
+	else if (AR_SREV_9287(ah))
+		noise_floor = AR_PHY_CCA_MAX_AR9287_GOOD_VALUE;
 	else
 		noise_floor = AR_PHY_CCA_MAX_AR5416_GOOD_VALUE;
 
@@ -924,6 +936,7 @@ static inline void ath9k_hw_9285_pa_cal(struct ath_hw *ah, bool is_reset)
 		regVal |= (1 << (19 + i));
 		REG_WRITE(ah, 0x7834, regVal);
 		udelay(1);
+		regVal = REG_READ(ah, 0x7834);
 		regVal &= (~(0x1 << (19 + i)));
 		reg_field = MS(REG_READ(ah, 0x7840), AR9285_AN_RXTXBB1_SPARE9);
 		regVal |= (reg_field << (19 + i));

@@ -85,8 +85,6 @@ static int cnic_uio_open(struct uio_info *uinfo, struct inode *inode)
 
 	cp->uio_dev = iminor(inode);
 
-	cnic_shutdown_bnx2_rx_ring(dev);
-
 	cnic_init_bnx2_tx_ring(dev);
 	cnic_init_bnx2_rx_ring(dev);
 
@@ -97,6 +95,8 @@ static int cnic_uio_close(struct uio_info *uinfo, struct inode *inode)
 {
 	struct cnic_dev *dev = uinfo->priv;
 	struct cnic_local *cp = dev->cnic_priv;
+
+	cnic_shutdown_bnx2_rx_ring(dev);
 
 	cp->uio_dev = -1;
 	return 0;
