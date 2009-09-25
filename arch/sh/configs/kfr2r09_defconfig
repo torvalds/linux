@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.31
-# Thu Sep 24 18:03:26 2009
+# Fri Sep 25 11:54:22 2009
 #
 CONFIG_SUPERH=y
 CONFIG_SUPERH32=y
@@ -506,7 +506,12 @@ CONFIG_MTD_PHYSMAP=y
 # CONFIG_MTD_DOC2001 is not set
 # CONFIG_MTD_DOC2001PLUS is not set
 # CONFIG_MTD_NAND is not set
-# CONFIG_MTD_ONENAND is not set
+CONFIG_MTD_ONENAND=y
+# CONFIG_MTD_ONENAND_VERIFY_WRITE is not set
+CONFIG_MTD_ONENAND_GENERIC=y
+# CONFIG_MTD_ONENAND_OTP is not set
+# CONFIG_MTD_ONENAND_2X_PROGRAM is not set
+# CONFIG_MTD_ONENAND_SIM is not set
 
 #
 # LPDDR flash memory drivers
