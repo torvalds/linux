@@ -3394,17 +3394,13 @@ static irqreturn_t e1000_intr(int irq, void *data)
 static int e1000_clean(struct napi_struct *napi, int budget)
 {
 	struct e1000_adapter *adapter = container_of(napi, struct e1000_adapter, napi);
-	struct net_device *poll_dev = adapter->netdev;
-	int tx_cleaned = 0, work_done = 0;
+	int tx_clean_complete = 0, work_done = 0;
 
-	adapter = netdev_priv(poll_dev);
+	tx_clean_complete = e1000_clean_tx_irq(adapter, &adapter->tx_ring[0]);
 
-	tx_cleaned = e1000_clean_tx_irq(adapter, &adapter->tx_ring[0]);
+	adapter->clean_rx(adapter, &adapter->rx_ring[0], &work_done, budget);
 
-	adapter->clean_rx(adapter, &adapter->rx_ring[0],
-	                  &work_done, budget);
-
-	if (!tx_cleaned)
+	if (!tx_clean_complete)
 		work_done = budget;
 
 	/* If budget not fully consumed, exit the polling mode */
