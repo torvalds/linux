@@ -1797,6 +1797,17 @@ static void setup_modinfo(struct module *mod, Elf_Shdr *sechdrs,
 	}
 }
 
+static void free_modinfo(struct module *mod)
+{
+	struct module_attribute *attr;
+	int i;
+
+	for (i = 0; (attr = modinfo_attrs[i]); i++) {
+		if (attr->free)
+			attr->free(mod);
+	}
+}
+
 #ifdef CONFIG_KALLSYMS
 
 /* lookup symbol in given range of kernel_symbols */
@@ -2506,6 +2517,7 @@ static noinline struct module *load_module(void __user *umod,
 	synchronize_sched();
 	module_arch_cleanup(mod);
  cleanup:
+	free_modinfo(mod);
 	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
  free_unload:
