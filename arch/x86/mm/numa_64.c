@@ -524,7 +524,8 @@ out:
 }
 #endif /* CONFIG_NUMA_EMU */
 
-void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn)
+void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
+				int acpi, int k8)
 {
 	int i;
 
@@ -547,8 +548,7 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn)
 #endif
 
 #ifdef CONFIG_K8_NUMA
-	if (!numa_off && !k8_scan_nodes(start_pfn<<PAGE_SHIFT,
-					last_pfn<<PAGE_SHIFT))
+	if (!numa_off && k8 && !k8_scan_nodes())
 		return;
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
