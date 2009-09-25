@@ -177,13 +177,136 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 	return 0;
 }
 
+/**
+ * r600_cs_packet_next_vline() - parse userspace VLINE packet
+ * @parser:		parser structure holding parsing context.
+ *
+ * Userspace sends a special sequence for VLINE waits.
+ * PACKET0 - VLINE_START_END + value
+ * PACKET3 - WAIT_REG_MEM poll vline status reg
+ * RELOC (P3) - crtc_id in reloc.
+ *
+ * This function parses this and relocates the VLINE START END
+ * and WAIT_REG_MEM packets to the correct crtc.
+ * It also detects a switched off crtc and nulls out the
+ * wait in that case.
+ */
+static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
+{
+	struct drm_mode_object *obj;
+	struct drm_crtc *crtc;
+	struct radeon_crtc *radeon_crtc;
+	struct radeon_cs_packet p3reloc, wait_reg_mem;
+	int crtc_id;
+	int r;
+	uint32_t header, h_idx, reg, wait_reg_mem_info;
+	volatile uint32_t *ib;
+
+	ib = p->ib->ptr;
+
+	/* parse the WAIT_REG_MEM */
+	r = r600_cs_packet_parse(p, &wait_reg_mem, p->idx);
+	if (r)
+		return r;
+
+	/* check its a WAIT_REG_MEM */
+	if (wait_reg_mem.type != PACKET_TYPE3 ||
+	    wait_reg_mem.opcode != PACKET3_WAIT_REG_MEM) {
+		DRM_ERROR("vline wait missing WAIT_REG_MEM segment\n");
+		r = -EINVAL;
+		return r;
+	}
+
+	wait_reg_mem_info = radeon_get_ib_value(p, wait_reg_mem.idx + 1);
+	/* bit 4 is reg (0) or mem (1) */
+	if (wait_reg_mem_info & 0x10) {
+		DRM_ERROR("vline WAIT_REG_MEM waiting on MEM rather than REG\n");
+		r = -EINVAL;
+		return r;
+	}
+	/* waiting for value to be equal */
+	if ((wait_reg_mem_info & 0x7) != 0x3) {
+		DRM_ERROR("vline WAIT_REG_MEM function not equal\n");
+		r = -EINVAL;
+		return r;
+	}
+	if ((radeon_get_ib_value(p, wait_reg_mem.idx + 2) << 2) != AVIVO_D1MODE_VLINE_STATUS) {
+		DRM_ERROR("vline WAIT_REG_MEM bad reg\n");
+		r = -EINVAL;
+		return r;
+	}
+
+	if (radeon_get_ib_value(p, wait_reg_mem.idx + 5) != AVIVO_D1MODE_VLINE_STAT) {
+		DRM_ERROR("vline WAIT_REG_MEM bad bit mask\n");
+		r = -EINVAL;
+		return r;
+	}
+
+	/* jump over the NOP */
+	r = r600_cs_packet_parse(p, &p3reloc, p->idx + wait_reg_mem.count + 2);
+	if (r)
+		return r;
+
+	h_idx = p->idx - 2;
+	p->idx += wait_reg_mem.count + 2;
+	p->idx += p3reloc.count + 2;
+
+	header = radeon_get_ib_value(p, h_idx);
+	crtc_id = radeon_get_ib_value(p, h_idx + 2 + 7 + 1);
+	reg = header >> 2;
+	mutex_lock(&p->rdev->ddev->mode_config.mutex);
+	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
+	if (!obj) {
+		DRM_ERROR("cannot find crtc %d\n", crtc_id);
+		r = -EINVAL;
+		goto out;
+	}
+	crtc = obj_to_crtc(obj);
+	radeon_crtc = to_radeon_crtc(crtc);
+	crtc_id = radeon_crtc->crtc_id;
+
+	if (!crtc->enabled) {
+		/* if the CRTC isn't enabled - we need to nop out the WAIT_REG_MEM */
+		ib[h_idx + 2] = PACKET2(0);
+		ib[h_idx + 3] = PACKET2(0);
+		ib[h_idx + 4] = PACKET2(0);
+		ib[h_idx + 5] = PACKET2(0);
+		ib[h_idx + 6] = PACKET2(0);
+		ib[h_idx + 7] = PACKET2(0);
+		ib[h_idx + 8] = PACKET2(0);
+	} else if (crtc_id == 1) {
+		switch (reg) {
+		case AVIVO_D1MODE_VLINE_START_END:
+			header &= ~R600_CP_PACKET0_REG_MASK;
+			header |= AVIVO_D2MODE_VLINE_START_END >> 2;
+			break;
+		default:
+			DRM_ERROR("unknown crtc reloc\n");
+			r = -EINVAL;
+			goto out;
+		}
+		ib[h_idx] = header;
+		ib[h_idx + 4] = AVIVO_D2MODE_VLINE_STATUS >> 2;
+	}
+out:
+	mutex_unlock(&p->rdev->ddev->mode_config.mutex);
+	return r;
+}
+
 static int r600_packet0_check(struct radeon_cs_parser *p,
 				struct radeon_cs_packet *pkt,
 				unsigned idx, unsigned reg)
 {
+	int r;
+
 	switch (reg) {
 	case AVIVO_D1MODE_VLINE_START_END:
-	case AVIVO_D2MODE_VLINE_START_END:
+		r = r600_cs_packet_parse_vline(p);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+					idx, reg);
+			return r;
+		}
 		break;
 	default:
 		printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n",
