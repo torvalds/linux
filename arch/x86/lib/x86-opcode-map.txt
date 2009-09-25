@@ -469,7 +469,7 @@ a2: CPUID
 a3: BT Ev,Gv
 a4: SHLD Ev,Gv,Ib
 a5: SHLD Ev,Gv,CL
-a6:
+a6: GrpPDLK
 a7: GrpRNG
 a8: PUSH GS (d64)
 a9: POP GS (d64)
@@ -801,6 +801,12 @@ GrpTable: Grp16
 1: prefetch T0
 2: prefetch T1
 3: prefetch T2
+EndTable
+
+GrpTable: GrpPDLK
+0: MONTMUL
+1: XSHA1
+2: XSHA2
 EndTable
 
 GrpTable: GrpRNG
