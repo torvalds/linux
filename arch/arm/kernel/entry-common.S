@@ -425,13 +425,6 @@ sys_mmap2:
 #endif
 ENDPROC(sys_mmap2)
 
-ENTRY(pabort_ifar)
-		mrc	p15, 0, r0, cr6, cr0, 2
-ENTRY(pabort_noifar)
-		mov	pc, lr
-ENDPROC(pabort_ifar)
-ENDPROC(pabort_noifar)
-
 #ifdef CONFIG_OABI_COMPAT
 
 /*
