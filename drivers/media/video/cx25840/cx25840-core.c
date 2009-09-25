@@ -685,13 +685,30 @@ static void input_change(struct i2c_client *client)
 		}
 		cx25840_write(client, 0x80b, 0x00);
 	} else if (std & V4L2_STD_PAL) {
-		/* Follow tuner change procedure for PAL */
+		/* Autodetect audio standard and audio system */
 		cx25840_write(client, 0x808, 0xff);
-		cx25840_write(client, 0x80b, 0x10);
+		/* Since system PAL-L is pretty much non-existant and
+		   not used by any public broadcast network, force
+		   6.5 MHz carrier to be interpreted as System DK,
+		   this avoids DK audio detection instability */
+	       cx25840_write(client, 0x80b, 0x00);
 	} else if (std & V4L2_STD_SECAM) {
-		/* Select autodetect for SECAM */
+		/* Autodetect audio standard and audio system */
 		cx25840_write(client, 0x808, 0xff);
-		cx25840_write(client, 0x80b, 0x10);
+		/* If only one of SECAM-DK / SECAM-L is required, then force
+		  6.5MHz carrier, else autodetect it */
+		if ((std & V4L2_STD_SECAM_DK) &&
+		    !(std & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC))) {
+			/* 6.5 MHz carrier to be interpreted as System DK */
+			cx25840_write(client, 0x80b, 0x00);
+	       } else if (!(std & V4L2_STD_SECAM_DK) &&
+			  (std & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC))) {
+			/* 6.5 MHz carrier to be interpreted as System L */
+			cx25840_write(client, 0x80b, 0x08);
+	       } else {
+			/* 6.5 MHz carrier to be autodetected */
+			cx25840_write(client, 0x80b, 0x10);
+	       }
 	}
 
 	cx25840_and_or(client, 0x810, ~0x01, 0);
