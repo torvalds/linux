@@ -410,7 +410,7 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 		pos += scnprintf(buf + pos, buf_size - pos, "0x%.4x ", ofs);
 		hex_dump_to_buffer(ptr + ofs, 16 , 16, 2, buf + pos,
 				   buf_size - pos, 0);
-		pos += strlen(buf);
+		pos += strlen(buf + pos);
 		if (buf_size - pos > 0)
 			buf[pos++] = '\n';
 	}
@@ -909,7 +909,7 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 						"0x%.4x ", ofs);
 				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
 						   buf + pos, bufsz - pos, 0);
-				pos += strlen(buf);
+				pos += strlen(buf + pos);
 				if (bufsz - pos > 0)
 					buf[pos++] = '\n';
 			}
@@ -932,7 +932,7 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 						"0x%.4x ", ofs);
 				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
 						   buf + pos, bufsz - pos, 0);
-				pos += strlen(buf);
+				pos += strlen(buf + pos);
 				if (bufsz - pos > 0)
 					buf[pos++] = '\n';
 			}
