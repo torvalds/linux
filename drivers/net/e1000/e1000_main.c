@@ -3141,6 +3141,13 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		break;
 	}
 
+	while (test_and_set_bit(__E1000_RESETTING, &adapter->flags))
+		msleep(1);
+	/* e1000_down has a dependency on max_frame_size */
+	hw->max_frame_size = max_frame;
+	if (netif_running(netdev))
+		e1000_down(adapter);
+
 	/* NOTE: netdev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
 	 * means we reserve 2 more, this pushes us to allocate from the next
 	 * larger slab size.
@@ -3169,11 +3176,16 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	     (max_frame == MAXIMUM_ETHERNET_VLAN_SIZE)))
 		adapter->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 
+	printk(KERN_INFO "e1000: %s changing MTU from %d to %d\n",
+	       netdev->name, netdev->mtu, new_mtu);
 	netdev->mtu = new_mtu;
-	hw->max_frame_size = max_frame;
 
 	if (netif_running(netdev))
-		e1000_reinit_locked(adapter);
+		e1000_up(adapter);
+	else
+		e1000_reset(adapter);
+
+	clear_bit(__E1000_RESETTING, &adapter->flags);
 
 	return 0;
 }
