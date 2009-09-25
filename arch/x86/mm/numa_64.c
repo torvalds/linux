@@ -540,8 +540,8 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
 #endif
 
 #ifdef CONFIG_ACPI_NUMA
-	if (!numa_off && !acpi_scan_nodes(start_pfn << PAGE_SHIFT,
-					  last_pfn << PAGE_SHIFT))
+	if (!numa_off && acpi && !acpi_scan_nodes(start_pfn << PAGE_SHIFT,
+						  last_pfn << PAGE_SHIFT))
 		return;
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);

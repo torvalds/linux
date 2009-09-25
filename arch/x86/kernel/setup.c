@@ -938,11 +938,12 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * Parse SRAT to discover nodes.
 	 */
-	acpi_numa_init();
+	acpi = acpi_numa_init();
 #endif
 
 #ifdef CONFIG_K8_NUMA
-	k8 = !k8_numa_init(0, max_pfn);
+	if (!acpi)
+		k8 = !k8_numa_init(0, max_pfn);
 #endif
 
 	initmem_init(0, max_pfn, acpi, k8);
