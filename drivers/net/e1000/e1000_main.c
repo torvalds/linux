@@ -4349,20 +4349,6 @@ void e1000_pcix_set_mmrbc(struct e1000_hw *hw, int mmrbc)
 	pcix_set_mmrbc(adapter->pdev, mmrbc);
 }
 
-s32 e1000_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
-{
-    struct e1000_adapter *adapter = hw->back;
-    u16 cap_offset;
-
-    cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
-    if (!cap_offset)
-        return -E1000_ERR_CONFIG;
-
-    pci_read_config_word(adapter->pdev, cap_offset + reg, value);
-
-    return E1000_SUCCESS;
-}
-
 void e1000_io_write(struct e1000_hw *hw, unsigned long port, u32 value)
 {
 	outl(value, port);
