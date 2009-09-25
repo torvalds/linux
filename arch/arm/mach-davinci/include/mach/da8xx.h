@@ -19,6 +19,7 @@
 #include <mach/emac.h>
 #include <mach/asp.h>
 #include <mach/mmc.h>
+#include <mach/usb.h>
 
 extern void __iomem *da8xx_syscfg_base;
 
@@ -78,6 +79,7 @@ void __init da850_init(void);
 int da8xx_register_edma(void);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
 int da8xx_register_watchdog(void);
+int da8xx_register_usb11(struct da8xx_ohci_root_hub *pdata);
 int da8xx_register_emac(void);
 int da8xx_register_lcdc(struct da8xx_lcdc_platform_data *pdata);
 int da8xx_register_mmcsd0(struct davinci_mmc_config *config);

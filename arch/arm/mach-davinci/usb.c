@@ -14,8 +14,10 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/cputype.h>
+#include <mach/usb.h>
 
-#define DAVINCI_USB_OTG_BASE 0x01C64000
+#define DAVINCI_USB_OTG_BASE	0x01c64000
+#define DA8XX_USB1_BASE 	0x01e25000
 
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 static struct musb_hdrc_eps_bits musb_eps[] = {
@@ -108,3 +110,36 @@ void __init setup_usb(unsigned mA, unsigned potpgt_msec)
 
 #endif  /* CONFIG_USB_MUSB_HDRC */
 
+#ifdef	CONFIG_ARCH_DAVINCI_DA8XX
+static struct resource da8xx_usb11_resources[] = {
+	[0] = {
+		.start	= DA8XX_USB1_BASE,
+		.end	= DA8XX_USB1_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DA8XX_IRQN,
+		.end	= IRQ_DA8XX_IRQN,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 da8xx_usb11_dma_mask = DMA_BIT_MASK(32);
+
+static struct platform_device da8xx_usb11_device = {
+	.name		= "ohci",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &da8xx_usb11_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(da8xx_usb11_resources),
+	.resource	= da8xx_usb11_resources,
+};
+
+int __init da8xx_register_usb11(struct da8xx_ohci_root_hub *pdata)
+{
+	da8xx_usb11_device.dev.platform_data = pdata;
+	return platform_device_register(&da8xx_usb11_device);
+}
+#endif	/* CONFIG_DAVINCI_DA8XX */

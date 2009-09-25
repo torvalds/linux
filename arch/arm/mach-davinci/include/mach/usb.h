@@ -34,4 +34,24 @@
 #define CFGCHIP2_REFFREQ_24MHZ	(2 << 0)
 #define CFGCHIP2_REFFREQ_48MHZ	(3 << 0)
 
+struct	da8xx_ohci_root_hub;
+
+typedef void (*da8xx_ocic_handler_t)(struct da8xx_ohci_root_hub *hub,
+				     unsigned port);
+
+/* Passed as the platform data to the OHCI driver */
+struct	da8xx_ohci_root_hub {
+	/* Switch the port power on/off */
+	int	(*set_power)(unsigned port, int on);
+	/* Read the port power status */
+	int	(*get_power)(unsigned port);
+	/* Read the port over-current indicator */
+	int	(*get_oci)(unsigned port);
+	/* Over-current indicator change notification (pass NULL to disable) */
+	int	(*ocic_notify)(da8xx_ocic_handler_t handler);
+
+	/* Time from power on to power good (in 2 ms units) */
+	u8	potpgt;
+};
+
 #endif	/* ifndef __ASM_ARCH_USB_H */
