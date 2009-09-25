@@ -1,4 +1,5 @@
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/thread_info.h>
 #include <asm/page.h>
 
 OUTPUT_FORMAT("elf64-alpha")
