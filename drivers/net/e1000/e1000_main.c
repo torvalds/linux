@@ -2255,7 +2255,6 @@ static bool e1000_has_link(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	bool link_active = false;
-	s32 ret_val = 0;
 
 	/* get_link_status is set on LSC (link status) interrupt or
 	 * rx sequence error interrupt.  get_link_status will stay
@@ -2265,18 +2264,18 @@ static bool e1000_has_link(struct e1000_adapter *adapter)
 	switch (hw->media_type) {
 	case e1000_media_type_copper:
 		if (hw->get_link_status) {
-			ret_val = e1000_check_for_link(hw);
+			e1000_check_for_link(hw);
 			link_active = !hw->get_link_status;
 		} else {
 			link_active = true;
 		}
 		break;
 	case e1000_media_type_fiber:
-		ret_val = e1000_check_for_link(hw);
+		e1000_check_for_link(hw);
 		link_active = !!(er32(STATUS) & E1000_STATUS_LU);
 		break;
 	case e1000_media_type_internal_serdes:
-		ret_val = e1000_check_for_link(hw);
+		e1000_check_for_link(hw);
 		link_active = hw->serdes_has_link;
 		break;
 	default:
@@ -4405,8 +4404,7 @@ static void e1000_vlan_rx_register(struct net_device *netdev,
 		ew32(RCTL, rctl);
 
 		if (adapter->mng_vlan_id != (u16)E1000_MNG_VLAN_NONE) {
-			e1000_vlan_rx_kill_vid(netdev,
-			                       adapter->mng_vlan_id);
+			e1000_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
 			adapter->mng_vlan_id = E1000_MNG_VLAN_NONE;
 		}
 	}
@@ -4679,7 +4677,7 @@ static void e1000_netpoll(struct net_device *netdev)
 /**
  * e1000_io_error_detected - called when PCI error is detected
  * @pdev: Pointer to PCI device
- * @state: The current pci conneection state
+ * @state: The current pci connection state
  *
  * This function is called after a PCI bus error affecting
  * this device has been detected.
