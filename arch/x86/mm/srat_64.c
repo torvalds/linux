@@ -468,7 +468,6 @@ void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 	for (i = 0; i < num_nodes; i++)
 		if (fake_nodes[i].start != fake_nodes[i].end)
 			node_set(i, nodes_parsed);
-	WARN_ON(!nodes_cover_memory(fake_nodes));
 }
 
 static int null_slit_node_compare(int a, int b)
