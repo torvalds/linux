@@ -201,17 +201,6 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 	struct timespec temp;
 	int rc;
 
-	/* want handles we can use to read with first
-	   in the list so we do not have to walk the
-	   list to search for one in write_begin */
-	if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
-		list_add_tail(&pCifsFile->flist,
-			      &pCifsInode->openFileList);
-	} else {
-		list_add(&pCifsFile->flist,
-			 &pCifsInode->openFileList);
-	}
-	write_unlock(&GlobalSMBSeslock);
 	if (pCifsInode->clientCanCacheRead) {
 		/* we have the inode open somewhere else
 		   no need to discard cache data */
@@ -397,6 +386,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		cFYI(1, ("cifs_open returned 0x%x", rc));
 		goto out;
 	}
+
 	pCifsFile = cifs_new_fileinfo(inode, netfid, file, file->f_path.mnt,
 					file->f_flags);
 	file->private_data = pCifsFile;
@@ -405,14 +395,8 @@ int cifs_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
-	if (pCifsInode) {
-		rc = cifs_open_inode_helper(inode, file, pCifsInode,
-					    pCifsFile, tcon,
-					    &oplock, buf, full_path, xid);
-	} else {
-		write_unlock(&GlobalSMBSeslock);
-	}
+	rc = cifs_open_inode_helper(inode, file, pCifsInode, pCifsFile, tcon,
+				    &oplock, buf, full_path, xid);
 
 	if (oplock & CIFS_CREATE_ACTION) {
 		/* time to set mode which we can not set earlier due to
