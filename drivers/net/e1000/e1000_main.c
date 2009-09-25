@@ -2733,8 +2733,9 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 			size -= 4;
 
 		buffer_info->length = size;
-		buffer_info->dma = skb_shinfo(skb)->dma_head + offset;
+		/* set time_stamp *before* dma to help avoid a possible race */
 		buffer_info->time_stamp = jiffies;
+		buffer_info->dma = skb_shinfo(skb)->dma_head + offset;
 		buffer_info->next_to_watch = i;
 
 		len -= size;
@@ -2774,8 +2775,8 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 				size -= 4;
 
 			buffer_info->length = size;
-			buffer_info->dma = map[f] + offset;
 			buffer_info->time_stamp = jiffies;
+			buffer_info->dma = map[f] + offset;
 			buffer_info->next_to_watch = i;
 
 			len -= size;
@@ -3459,7 +3460,9 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 		 * sees the new next_to_clean.
 		 */
 		smp_mb();
-		if (netif_queue_stopped(netdev)) {
+
+		if (netif_queue_stopped(netdev) &&
+		    !(test_bit(__E1000_DOWN, &adapter->flags))) {
 			netif_wake_queue(netdev);
 			++adapter->restart_queue;
 		}
@@ -3469,8 +3472,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 		/* Detect a transmit hang in hardware, this serializes the
 		 * check with the clearing of time_stamp and movement of i */
 		adapter->detect_tx_hung = false;
-		if (tx_ring->buffer_info[i].time_stamp &&
-		    time_after(jiffies, tx_ring->buffer_info[i].time_stamp +
+		if (tx_ring->buffer_info[eop].time_stamp &&
+		    time_after(jiffies, tx_ring->buffer_info[eop].time_stamp +
 		               (adapter->tx_timeout_factor * HZ))
 		    && !(er32(STATUS) & E1000_STATUS_TXOFF)) {
 
@@ -3492,7 +3495,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 				readl(hw->hw_addr + tx_ring->tdt),
 				tx_ring->next_to_use,
 				tx_ring->next_to_clean,
-				tx_ring->buffer_info[i].time_stamp,
+				tx_ring->buffer_info[eop].time_stamp,
 				eop,
 				jiffies,
 				eop_desc->upper.fields.status);
