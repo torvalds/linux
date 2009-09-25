@@ -90,8 +90,12 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_connector *con
 	int i;
 	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
 	struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
-	struct drm_fb_helper_cmdline_mode *cmdline_mode = &fb_help_conn->cmdline_mode;
+	struct drm_fb_helper_cmdline_mode *cmdline_mode;
 
+	if (!fb_help_conn)
+		return false;
+
+	cmdline_mode = &fb_help_conn->cmdline_mode;
 	if (!mode_option)
 		mode_option = fb_mode_option;
 
@@ -694,7 +698,13 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
-		struct drm_fb_helper_cmdline_mode *cmdline_mode = &fb_help_conn->cmdline_mode;
+
+		struct drm_fb_helper_cmdline_mode *cmdline_mode;
+
+		if (!fb_help_conn)
+			continue;
+		
+		cmdline_mode = &fb_help_conn->cmdline_mode;
 
 		if (cmdline_mode->bpp_specified) {
 			switch (cmdline_mode->bpp) {

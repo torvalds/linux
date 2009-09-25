@@ -279,16 +279,25 @@ static struct drm_display_mode *drm_has_preferred_mode(struct drm_connector *con
 static bool drm_has_cmdline_mode(struct drm_connector *connector)
 {
 	struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
-	struct drm_fb_helper_cmdline_mode *cmdline_mode = &fb_help_conn->cmdline_mode;
+	struct drm_fb_helper_cmdline_mode *cmdline_mode;
+
+	if (!fb_help_conn)
+		return false;
+
+	cmdline_mode = &fb_help_conn->cmdline_mode;
 	return cmdline_mode->specified;
 }
 
 static struct drm_display_mode *drm_pick_cmdline_mode(struct drm_connector *connector, int width, int height)
 {
 	struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
-	struct drm_fb_helper_cmdline_mode *cmdline_mode = &fb_help_conn->cmdline_mode;
+	struct drm_fb_helper_cmdline_mode *cmdline_mode;
 	struct drm_display_mode *mode = NULL;
 
+	if (!fb_help_conn)
+		return mode;
+
+	cmdline_mode = &fb_help_conn->cmdline_mode;
 	if (cmdline_mode->specified == false)
 		return mode;
 
