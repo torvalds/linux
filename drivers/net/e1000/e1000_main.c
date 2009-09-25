@@ -1098,6 +1098,11 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
+	set_bit(__E1000_DOWN, &adapter->flags);
+	del_timer_sync(&adapter->tx_fifo_stall_timer);
+	del_timer_sync(&adapter->watchdog_timer);
+	del_timer_sync(&adapter->phy_info_timer);
+
 	cancel_work_sync(&adapter->reset_task);
 
 	e1000_release_manageability(adapter);
@@ -2240,7 +2245,7 @@ static void e1000_82547_tx_fifo_stall(unsigned long data)
 			adapter->tx_fifo_head = 0;
 			atomic_set(&adapter->tx_fifo_stall, 0);
 			netif_wake_queue(netdev);
-		} else {
+		} else if (!test_bit(__E1000_DOWN, &adapter->flags)) {
 			mod_timer(&adapter->tx_fifo_stall_timer, jiffies + 1);
 		}
 	}
@@ -2309,8 +2314,9 @@ static void e1000_watchdog(unsigned long data)
 			ew32(TCTL, tctl);
 
 			netif_carrier_on(netdev);
-			mod_timer(&adapter->phy_info_timer,
-			          round_jiffies(jiffies + 2 * HZ));
+			if (!test_bit(__E1000_DOWN, &adapter->flags))
+				mod_timer(&adapter->phy_info_timer,
+				          round_jiffies(jiffies + 2 * HZ));
 			adapter->smartspeed = 0;
 		}
 	} else {
@@ -2320,8 +2326,10 @@ static void e1000_watchdog(unsigned long data)
 			printk(KERN_INFO "e1000: %s NIC Link is Down\n",
 			       netdev->name);
 			netif_carrier_off(netdev);
-			mod_timer(&adapter->phy_info_timer,
-			          round_jiffies(jiffies + 2 * HZ));
+
+			if (!test_bit(__E1000_DOWN, &adapter->flags))
+				mod_timer(&adapter->phy_info_timer,
+				          round_jiffies(jiffies + 2 * HZ));
 		}
 
 		e1000_smartspeed(adapter);
@@ -2361,7 +2369,9 @@ static void e1000_watchdog(unsigned long data)
 	adapter->detect_tx_hung = true;
 
 	/* Reset the timer */
-	mod_timer(&adapter->watchdog_timer, round_jiffies(jiffies + 2 * HZ));
+	if (!test_bit(__E1000_DOWN, &adapter->flags))
+		mod_timer(&adapter->watchdog_timer,
+		          round_jiffies(jiffies + 2 * HZ));
 }
 
 enum latency_range {
@@ -2977,7 +2987,9 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	if (unlikely(hw->mac_type == e1000_82547)) {
 		if (unlikely(e1000_82547_fifo_workaround(adapter, skb))) {
 			netif_stop_queue(netdev);
-			mod_timer(&adapter->tx_fifo_stall_timer, jiffies + 1);
+			if (!test_bit(__E1000_DOWN, &adapter->flags))
+				mod_timer(&adapter->tx_fifo_stall_timer,
+				          jiffies + 1);
 			return NETDEV_TX_BUSY;
 		}
 	}
