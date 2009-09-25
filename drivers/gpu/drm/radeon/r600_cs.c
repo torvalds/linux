@@ -380,7 +380,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		ib[idx+0] = idx_value + (u32)(reloc->lobj.gpu_offset & 0xffffffff);
-		ib[idx+1] = upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
+		ib[idx+1] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
 		break;
 	case PACKET3_DRAW_INDEX_AUTO:
 		if (pkt->count != 1) {
@@ -408,7 +408,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 				return -EINVAL;
 			}
 			ib[idx+1] += (u32)(reloc->lobj.gpu_offset & 0xffffffff);
-			ib[idx+2] = upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
+			ib[idx+2] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
 		}
 		break;
 	case PACKET3_SURFACE_SYNC:
@@ -439,7 +439,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 				return -EINVAL;
 			}
 			ib[idx+1] += (u32)(reloc->lobj.gpu_offset & 0xffffffff);
-			ib[idx+2] |= upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
+			ib[idx+2] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
 		}
 		break;
 	case PACKET3_EVENT_WRITE_EOP:
@@ -453,7 +453,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		ib[idx+1] += (u32)(reloc->lobj.gpu_offset & 0xffffffff);
-		ib[idx+2] |= upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
+		ib[idx+2] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
 		break;
 	case PACKET3_SET_CONFIG_REG:
 		start_reg = (idx_value << 2) + PACKET3_SET_CONFIG_REG_OFFSET;
@@ -575,7 +575,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 					return -EINVAL;
 				}
 				ib[idx+1+(i*7)+0] += (u32)((reloc->lobj.gpu_offset) & 0xffffffff);
-				ib[idx+1+(i*7)+2] |= upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
+				ib[idx+1+(i*7)+2] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
 				break;
 			case SQ_TEX_VTX_INVALID_TEXTURE:
 			case SQ_TEX_VTX_INVALID_BUFFER:
