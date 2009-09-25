@@ -814,8 +814,6 @@ twl4030_probe(struct i2c_client *client, const struct i2c_device_id *id)
 				status = -ENOMEM;
 				goto fail;
 			}
-			strlcpy(twl->client->name, id->name,
-					sizeof(twl->client->name));
 		}
 		mutex_init(&twl->xfer_lock);
 	}
