@@ -1206,7 +1206,7 @@ void writeback_inodes_sb(struct super_block *sb)
 	nr_to_write = nr_dirty + nr_unstable +
 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
 
-	bdi_writeback_all(sb, nr_to_write);
+	bdi_start_writeback(sb->s_bdi, nr_to_write);
 }
 EXPORT_SYMBOL(writeback_inodes_sb);
 
