@@ -1213,6 +1213,58 @@ static DEVICE_ATTR(primary, S_IRUGO | S_IWUSR,
 		   bonding_show_primary, bonding_store_primary);
 
 /*
+ * Show and set the primary_reselect flag.
+ */
+static ssize_t bonding_show_primary_reselect(struct device *d,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%s %d\n",
+		       pri_reselect_tbl[bond->params.primary_reselect].modename,
+		       bond->params.primary_reselect);
+}
+
+static ssize_t bonding_store_primary_reselect(struct device *d,
+					      struct device_attribute *attr,
+					      const char *buf, size_t count)
+{
+	int new_value, ret = count;
+	struct bonding *bond = to_bond(d);
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	new_value = bond_parse_parm(buf, pri_reselect_tbl);
+	if (new_value < 0)  {
+		pr_err(DRV_NAME
+		       ": %s: Ignoring invalid primary_reselect value %.*s.\n",
+		       bond->dev->name,
+		       (int) strlen(buf) - 1, buf);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	bond->params.primary_reselect = new_value;
+	pr_info(DRV_NAME ": %s: setting primary_reselect to %s (%d).\n",
+		bond->dev->name, pri_reselect_tbl[new_value].modename,
+		new_value);
+
+	read_lock(&bond->lock);
+	write_lock_bh(&bond->curr_slave_lock);
+	bond_select_active_slave(bond);
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
+out:
+	rtnl_unlock();
+	return ret;
+}
+static DEVICE_ATTR(primary_reselect, S_IRUGO | S_IWUSR,
+		   bonding_show_primary_reselect,
+		   bonding_store_primary_reselect);
+
+/*
  * Show and set the use_carrier flag.
  */
 static ssize_t bonding_show_carrier(struct device *d,
@@ -1501,6 +1553,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_num_unsol_na.attr,
 	&dev_attr_miimon.attr,
 	&dev_attr_primary.attr,
+	&dev_attr_primary_reselect.attr,
 	&dev_attr_use_carrier.attr,
 	&dev_attr_active_slave.attr,
 	&dev_attr_mii_status.attr,
