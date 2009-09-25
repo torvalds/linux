@@ -220,9 +220,11 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 	unsigned i;
 	unsigned start_reg, end_reg, reg;
 	int r;
+	u32 idx_value;
 
 	ib = p->ib->ptr;
 	idx = pkt->idx + 1;
+	idx_value = radeon_get_ib_value(p, idx);
 
 	switch (pkt->opcode) {
 	case PACKET3_START_3D_CMDBUF:
@@ -254,7 +256,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad DRAW_INDEX\n");
 			return -EINVAL;
 		}
-		ib[idx+0] += (u32)(reloc->lobj.gpu_offset & 0xffffffff);
+		ib[idx+0] = idx_value + (u32)(reloc->lobj.gpu_offset & 0xffffffff);
 		ib[idx+1] = upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
 		break;
 	case PACKET3_DRAW_INDEX_AUTO:
@@ -276,7 +278,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		/* bit 4 is reg (0) or mem (1) */
-		if (radeon_get_ib_value(p, idx) & 0x10) {
+		if (idx_value & 0x10) {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				DRM_ERROR("bad WAIT_REG_MEM\n");
@@ -331,7 +333,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		ib[idx+2] |= upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
 		break;
 	case PACKET3_SET_CONFIG_REG:
-		start_reg = (ib[idx+0] << 2) + PACKET3_SET_CONFIG_REG_OFFSET;
+		start_reg = (idx_value << 2) + PACKET3_SET_CONFIG_REG_OFFSET;
 		end_reg = 4 * pkt->count + start_reg - 4;
 		if ((start_reg < PACKET3_SET_CONFIG_REG_OFFSET) ||
 		    (start_reg >= PACKET3_SET_CONFIG_REG_END) ||
@@ -351,7 +353,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	case PACKET3_SET_CONTEXT_REG:
-		start_reg = (ib[idx+0] << 2) + PACKET3_SET_CONTEXT_REG_OFFSET;
+		start_reg = (idx_value << 2) + PACKET3_SET_CONTEXT_REG_OFFSET;
 		end_reg = 4 * pkt->count + start_reg - 4;
 		if ((start_reg < PACKET3_SET_CONTEXT_REG_OFFSET) ||
 		    (start_reg >= PACKET3_SET_CONTEXT_REG_END) ||
@@ -416,7 +418,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad SET_RESOURCE\n");
 			return -EINVAL;
 		}
-		start_reg = (ib[idx+0] << 2) + PACKET3_SET_RESOURCE_OFFSET;
+		start_reg = (idx_value << 2) + PACKET3_SET_RESOURCE_OFFSET;
 		end_reg = 4 * pkt->count + start_reg - 4;
 		if ((start_reg < PACKET3_SET_RESOURCE_OFFSET) ||
 		    (start_reg >= PACKET3_SET_RESOURCE_END) ||
@@ -425,7 +427,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		for (i = 0; i < (pkt->count / 7); i++) {
-			switch (G__SQ_VTX_CONSTANT_TYPE(ib[idx+(i*7)+6+1])) {
+			switch (G__SQ_VTX_CONSTANT_TYPE(radeon_get_ib_value(p, idx+(i*7)+6+1))) {
 			case SQ_TEX_VTX_VALID_TEXTURE:
 				/* tex base */
 				r = r600_cs_packet_next_reloc(p, &reloc);
@@ -461,7 +463,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	case PACKET3_SET_ALU_CONST:
-		start_reg = (ib[idx+0] << 2) + PACKET3_SET_ALU_CONST_OFFSET;
+		start_reg = (idx_value << 2) + PACKET3_SET_ALU_CONST_OFFSET;
 		end_reg = 4 * pkt->count + start_reg - 4;
 		if ((start_reg < PACKET3_SET_ALU_CONST_OFFSET) ||
 		    (start_reg >= PACKET3_SET_ALU_CONST_END) ||
@@ -471,7 +473,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	case PACKET3_SET_BOOL_CONST:
-		start_reg = (ib[idx+0] << 2) + PACKET3_SET_BOOL_CONST_OFFSET;
+		start_reg = (idx_value << 2) + PACKET3_SET_BOOL_CONST_OFFSET;
 		end_reg = 4 * pkt->count + start_reg - 4;
 		if ((start_reg < PACKET3_SET_BOOL_CONST_OFFSET) ||
 		    (start_reg >= PACKET3_SET_BOOL_CONST_END) ||
@@ -481,7 +483,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	case PACKET3_SET_LOOP_CONST:
-		start_reg = (ib[idx+0] << 2) + PACKET3_SET_LOOP_CONST_OFFSET;
+		start_reg = (idx_value << 2) + PACKET3_SET_LOOP_CONST_OFFSET;
 		end_reg = 4 * pkt->count + start_reg - 4;
 		if ((start_reg < PACKET3_SET_LOOP_CONST_OFFSET) ||
 		    (start_reg >= PACKET3_SET_LOOP_CONST_END) ||
@@ -491,7 +493,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	case PACKET3_SET_CTL_CONST:
-		start_reg = (ib[idx+0] << 2) + PACKET3_SET_CTL_CONST_OFFSET;
+		start_reg = (idx_value << 2) + PACKET3_SET_CTL_CONST_OFFSET;
 		end_reg = 4 * pkt->count + start_reg - 4;
 		if ((start_reg < PACKET3_SET_CTL_CONST_OFFSET) ||
 		    (start_reg >= PACKET3_SET_CTL_CONST_END) ||
@@ -505,7 +507,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("bad SET_SAMPLER\n");
 			return -EINVAL;
 		}
-		start_reg = (ib[idx+0] << 2) + PACKET3_SET_SAMPLER_OFFSET;
+		start_reg = (idx_value << 2) + PACKET3_SET_SAMPLER_OFFSET;
 		end_reg = 4 * pkt->count + start_reg - 4;
 		if ((start_reg < PACKET3_SET_SAMPLER_OFFSET) ||
 		    (start_reg >= PACKET3_SET_SAMPLER_END) ||
