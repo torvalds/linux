@@ -2523,8 +2523,8 @@ static noinline struct module *load_module(void __user *umod,
  free_unload:
 	module_unload_free(mod);
 #if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
- free_init:
 	percpu_modfree(mod->refptr);
+ free_init:
 #endif
 	module_free(mod, mod->module_init);
  free_core:
