@@ -1481,13 +1481,13 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	*data = 0;
 	if (hw->media_type == e1000_media_type_internal_serdes) {
 		int i = 0;
-		hw->serdes_link_down = true;
+		hw->serdes_has_link = false;
 
 		/* On some blade server designs, link establishment
 		 * could take as long as 2-3 minutes */
 		do {
 			e1000_check_for_link(hw);
-			if (!hw->serdes_link_down)
+			if (hw->serdes_has_link)
 				return *data;
 			msleep(20);
 		} while (i++ < 3750);

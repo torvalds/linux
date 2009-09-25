@@ -1372,7 +1372,7 @@ struct e1000_hw {
 	e1000_smart_speed	smart_speed;
 	e1000_dsp_config	dsp_config_state;
 	bool			get_link_status;
-	bool			serdes_link_down;
+	bool			serdes_has_link;
 	bool			tbi_compatibility_en;
 	bool			tbi_compatibility_on;
 	bool			laa_is_present;

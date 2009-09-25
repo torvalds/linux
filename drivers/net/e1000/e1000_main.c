@@ -2251,6 +2251,41 @@ static void e1000_82547_tx_fifo_stall(unsigned long data)
 	}
 }
 
+static bool e1000_has_link(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	bool link_active = false;
+	s32 ret_val = 0;
+
+	/* get_link_status is set on LSC (link status) interrupt or
+	 * rx sequence error interrupt.  get_link_status will stay
+	 * false until the e1000_check_for_link establishes link
+	 * for copper adapters ONLY
+	 */
+	switch (hw->media_type) {
+	case e1000_media_type_copper:
+		if (hw->get_link_status) {
+			ret_val = e1000_check_for_link(hw);
+			link_active = !hw->get_link_status;
+		} else {
+			link_active = true;
+		}
+		break;
+	case e1000_media_type_fiber:
+		ret_val = e1000_check_for_link(hw);
+		link_active = !!(er32(STATUS) & E1000_STATUS_LU);
+		break;
+	case e1000_media_type_internal_serdes:
+		ret_val = e1000_check_for_link(hw);
+		link_active = hw->serdes_has_link;
+		break;
+	default:
+		break;
+	}
+
+	return link_active;
+}
+
 /**
  * e1000_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
@@ -2263,18 +2298,15 @@ static void e1000_watchdog(unsigned long data)
 	struct e1000_tx_ring *txdr = adapter->tx_ring;
 	u32 link, tctl;
 
-	e1000_check_for_link(hw);
-
-	if ((hw->media_type == e1000_media_type_internal_serdes) &&
-	   !(er32(TXCW) & E1000_TXCW_ANE))
-		link = !hw->serdes_link_down;
-	else
-		link = er32(STATUS) & E1000_STATUS_LU;
+	link = e1000_has_link(adapter);
+	if ((netif_carrier_ok(netdev)) && link)
+		goto link_up;
 
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
 			u32 ctrl;
 			bool txb2b = true;
+			/* update snapshot of PHY registers on LSC */
 			e1000_get_speed_and_duplex(hw,
 			                           &adapter->link_speed,
 			                           &adapter->link_duplex);
@@ -2299,7 +2331,7 @@ static void e1000_watchdog(unsigned long data)
 			case SPEED_10:
 				txb2b = false;
 				netdev->tx_queue_len = 10;
-				adapter->tx_timeout_factor = 8;
+				adapter->tx_timeout_factor = 16;
 				break;
 			case SPEED_100:
 				txb2b = false;
@@ -2335,6 +2367,7 @@ static void e1000_watchdog(unsigned long data)
 		e1000_smartspeed(adapter);
 	}
 
+link_up:
 	e1000_update_stats(adapter);
 
 	hw->tx_packet_delta = adapter->stats.tpt - adapter->tpt_old;
