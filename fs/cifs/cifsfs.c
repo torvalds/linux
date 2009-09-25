@@ -1045,8 +1045,8 @@ init_cifs(void)
 	return 0;
 
  out_unregister_resolver_key:
-	unregister_key_type(&key_type_dns_resolver);
 #ifdef CONFIG_CIFS_DFS_UPCALL
+	unregister_key_type(&key_type_dns_resolver);
  out_unregister_key_type:
 #endif
 #ifdef CONFIG_CIFS_UPCALL
