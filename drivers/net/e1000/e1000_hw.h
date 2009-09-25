@@ -284,7 +284,6 @@ typedef enum {
 #define E1000_ERR_MASTER_REQUESTS_PENDING 10
 #define E1000_ERR_HOST_INTERFACE_COMMAND 11
 #define E1000_BLK_PHY_RESET   12
-#define E1000_ERR_SWFW_SYNC 13
 
 #define E1000_BYTE_SWAP_WORD(_value) ((((_value) & 0x00ff) << 8) | \
                                      (((_value) & 0xff00) >> 8))
@@ -1327,7 +1326,6 @@ struct e1000_hw {
 	e1000_ffe_config	ffe_config_state;
 	u32		asf_firmware_present;
 	u32		eeprom_semaphore_present;
-	u32             swfw_sync_present;
 	unsigned long		io_base;
 	u32		phy_id;
 	u32		phy_revision;
