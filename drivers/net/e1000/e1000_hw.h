@@ -365,7 +365,6 @@ struct e1000_host_mng_dhcp_cookie {
 #endif
 
 bool e1000_check_mng_mode(struct e1000_hw *hw);
-bool e1000_enable_tx_pkt_filtering(struct e1000_hw *hw);
 s32 e1000_read_eeprom(struct e1000_hw *hw, u16 reg, u16 words, u16 * data);
 s32 e1000_validate_eeprom_checksum(struct e1000_hw *hw);
 s32 e1000_update_eeprom_checksum(struct e1000_hw *hw);
