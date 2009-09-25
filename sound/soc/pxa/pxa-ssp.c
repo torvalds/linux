@@ -760,13 +760,13 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 		.resume = pxa_ssp_resume,
 		.playback = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		},
 		.capture = {
 			 .channels_min = 1,
-			 .channels_max = 2,
+			 .channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
@@ -780,13 +780,13 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 		.resume = pxa_ssp_resume,
 		.playback = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		},
 		.capture = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
@@ -801,13 +801,13 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 		.resume = pxa_ssp_resume,
 		.playback = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		},
 		.capture = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
@@ -822,13 +822,13 @@ struct snd_soc_dai pxa_ssp_dai[] = {
 		.resume = pxa_ssp_resume,
 		.playback = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		},
 		.capture = {
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = PXA_SSP_RATES,
 			.formats = PXA_SSP_FORMATS,
 		 },
