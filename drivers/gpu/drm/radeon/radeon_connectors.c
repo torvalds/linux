@@ -802,6 +802,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
+		radeon_connector->dac_load_detect = true;
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
@@ -814,6 +815,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
+		radeon_connector->dac_load_detect = true;
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
@@ -837,6 +839,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
+		radeon_connector->dac_load_detect = true;
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
@@ -884,6 +887,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			drm_connector_init(dev, &radeon_connector->base, &radeon_tv_connector_funcs, connector_type);
 			drm_connector_helper_add(&radeon_connector->base, &radeon_tv_connector_helper_funcs);
 		}
+		radeon_connector->dac_load_detect = true;
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
@@ -963,6 +967,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
+		radeon_connector->dac_load_detect = true;
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
@@ -975,6 +980,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
+		radeon_connector->dac_load_detect = true;
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
@@ -987,6 +993,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DVI");
 			if (!radeon_connector->ddc_bus)
 				goto failed;
+			radeon_connector->dac_load_detect = true;
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,
 						      1);
@@ -999,6 +1006,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		if (radeon_tv == 1) {
 			drm_connector_init(dev, &radeon_connector->base, &radeon_tv_connector_funcs, connector_type);
 			drm_connector_helper_add(&radeon_connector->base, &radeon_tv_connector_helper_funcs);
+			radeon_connector->dac_load_detect = true;
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,
 						      1);
