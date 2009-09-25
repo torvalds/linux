@@ -51,7 +51,7 @@ BFA_TRC_FILE(HAL, IOC);
 	 (sizeof(struct bfa_trc_mod_s) -			\
 	  BFA_TRC_MAX * sizeof(struct bfa_trc_s)))
 #define BFA_DBG_FWTRC_OFF(_fn)	(BFI_IOC_TRC_OFF + BFA_DBG_FWTRC_LEN * (_fn))
-#define bfa_ioc_stats(_ioc, _stats)	(_ioc)->stats._stats ++
+#define bfa_ioc_stats(_ioc, _stats)	((_ioc)->stats._stats++)
 
 #define BFA_FLASH_CHUNK_NO(off)         (off / BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_FLASH_OFFSET_IN_CHUNK(off)  (off % BFI_FLASH_CHUNK_SZ_WORDS)
@@ -1953,8 +1953,8 @@ bfa_ioc_error_isr(struct bfa_ioc_s *ioc)
 bfa_boolean_t
 bfa_ioc_is_disabled(struct bfa_ioc_s *ioc)
 {
-	return (bfa_fsm_cmp_state(ioc, bfa_ioc_sm_disabling)
-		|| bfa_fsm_cmp_state(ioc, bfa_ioc_sm_disabled));
+	return bfa_fsm_cmp_state(ioc, bfa_ioc_sm_disabling)
+		|| bfa_fsm_cmp_state(ioc, bfa_ioc_sm_disabled);
 }
 
 /**
@@ -1963,9 +1963,9 @@ bfa_ioc_is_disabled(struct bfa_ioc_s *ioc)
 bfa_boolean_t
 bfa_ioc_fw_mismatch(struct bfa_ioc_s *ioc)
 {
-	return (bfa_fsm_cmp_state(ioc, bfa_ioc_sm_reset)
+	return bfa_fsm_cmp_state(ioc, bfa_ioc_sm_reset)
 		|| bfa_fsm_cmp_state(ioc, bfa_ioc_sm_fwcheck)
-		|| bfa_fsm_cmp_state(ioc, bfa_ioc_sm_mismatch));
+		|| bfa_fsm_cmp_state(ioc, bfa_ioc_sm_mismatch);
 }
 
 #define bfa_ioc_state_disabled(__sm)		\

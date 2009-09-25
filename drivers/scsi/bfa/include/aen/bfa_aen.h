@@ -54,7 +54,7 @@ bfa_aen_get_max_cfg_entry(void)
 static inline s32
 bfa_aen_get_meminfo(void)
 {
-	return (sizeof(struct bfa_aen_entry_s) * bfa_aen_get_max_cfg_entry());
+	return sizeof(struct bfa_aen_entry_s) * bfa_aen_get_max_cfg_entry();
 }
 
 static inline s32

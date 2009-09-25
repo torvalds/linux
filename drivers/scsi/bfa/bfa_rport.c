@@ -677,7 +677,7 @@ bfa_rport_alloc(struct bfa_rport_mod_s *mod)
 	if (rport)
 		list_add_tail(&rport->qe, &mod->rp_active_q);
 
-	return (rport);
+	return rport;
 }
 
 static void
@@ -834,7 +834,7 @@ bfa_rport_create(struct bfa_s *bfa, void *rport_drv)
 	rp = bfa_rport_alloc(BFA_RPORT_MOD(bfa));
 
 	if (rp == NULL)
-		return (NULL);
+		return NULL;
 
 	rp->bfa = bfa;
 	rp->rport_drv = rport_drv;
@@ -843,7 +843,7 @@ bfa_rport_create(struct bfa_s *bfa, void *rport_drv)
 	bfa_assert(bfa_sm_cmp_state(rp, bfa_rport_sm_uninit));
 	bfa_sm_send_event(rp, BFA_RPORT_SM_CREATE);
 
-	return (rp);
+	return rp;
 }
 
 void

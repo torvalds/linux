@@ -72,9 +72,9 @@ static u16 bfa_fcs_port_fdmi_build_rpa_pyld(
 			struct bfa_fcs_port_fdmi_s *fdmi, u8 *pyld);
 static u16 bfa_fcs_port_fdmi_build_portattr_block(
 			struct bfa_fcs_port_fdmi_s *fdmi, u8 *pyld);
-void bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_port_fdmi_s *fdmi,
+static void bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_port_fdmi_s *fdmi,
 			struct bfa_fcs_fdmi_hba_attr_s *hba_attr);
-void bfa_fcs_fdmi_get_portattr(struct bfa_fcs_port_fdmi_s *fdmi,
+static void bfa_fcs_fdmi_get_portattr(struct bfa_fcs_port_fdmi_s *fdmi,
 			struct bfa_fcs_fdmi_port_attr_s *port_attr);
 /**
  *  fcs_fdmi_sm FCS FDMI state machine
@@ -1091,7 +1091,7 @@ bfa_fcs_port_fdmi_timeout(void *arg)
 	bfa_sm_send_event(fdmi, FDMISM_EVENT_TIMEOUT);
 }
 
-void
+static void
 bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_port_fdmi_s *fdmi,
 			 struct bfa_fcs_fdmi_hba_attr_s *hba_attr)
 {
@@ -1145,7 +1145,7 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_port_fdmi_s *fdmi,
 
 }
 
-void
+static void
 bfa_fcs_fdmi_get_portattr(struct bfa_fcs_port_fdmi_s *fdmi,
 			  struct bfa_fcs_fdmi_port_attr_s *port_attr)
 {

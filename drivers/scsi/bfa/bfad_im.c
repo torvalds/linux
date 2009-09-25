@@ -1050,7 +1050,7 @@ bfad_im_itnim_work_handler(struct work_struct *work)
 		} else {
 			printk(KERN_WARNING
 				"%s: itnim %llx is already in online state\n",
-				__FUNCTION__,
+				__func__,
 				bfa_fcs_itnim_get_pwwn(&itnim->fcs_itnim));
 		}
 

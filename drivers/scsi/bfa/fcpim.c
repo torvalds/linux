@@ -286,11 +286,10 @@ bfa_fcs_itnim_sm_online(struct bfa_fcs_itnim_s *itnim,
 		bfa_sm_set_state(itnim, bfa_fcs_itnim_sm_hcb_offline);
 		bfa_fcb_itnim_offline(itnim->itnim_drv);
 		bfa_itnim_offline(itnim->bfa_itnim);
-		if (bfa_fcs_port_is_online(itnim->rport->port) == BFA_TRUE) {
+		if (bfa_fcs_port_is_online(itnim->rport->port) == BFA_TRUE)
 			bfa_fcs_itnim_aen_post(itnim, BFA_ITNIM_AEN_DISCONNECT);
-		} else {
+		else
 			bfa_fcs_itnim_aen_post(itnim, BFA_ITNIM_AEN_OFFLINE);
-		}
 		break;
 
 	case BFA_FCS_ITNIM_SM_DELETE:
@@ -732,7 +731,7 @@ bfa_fcs_itnim_lookup(struct bfa_fcs_port_s *port, wwn_t rpwwn)
 		return NULL;
 
 	bfa_assert(rport->itnim != NULL);
-	return (rport->itnim);
+	return rport->itnim;
 }
 
 bfa_status_t

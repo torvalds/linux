@@ -43,7 +43,7 @@ bfa_fcs_cfg_base_port(struct bfa_fcs_s *fcs, struct bfa_port_cfg_s *port_cfg)
 struct bfa_fcs_port_s *
 bfa_fcs_get_base_port(struct bfa_fcs_s *fcs)
 {
-	return (&fcs->fabric.bport);
+	return &fcs->fabric.bport;
 }
 
 wwn_t
@@ -88,11 +88,10 @@ bfa_fcs_port_get_rport(struct bfa_fcs_port_s *port, wwn_t wwn, int index,
 	}
 
 	bfa_trc(fcs, i);
-	if (rport) {
+	if (rport)
 		return rport->pwwn;
-	} else {
+	else
 		return (wwn_t) 0;
-	}
 }
 
 void
@@ -198,17 +197,17 @@ bfa_fcs_lookup_port(struct bfa_fcs_s *fcs, u16 vf_id, wwn_t lpwwn)
 	vf = bfa_fcs_vf_lookup(fcs, vf_id);
 	if (vf == NULL) {
 		bfa_trc(fcs, vf_id);
-		return (NULL);
+		return NULL;
 	}
 
 	if (!lpwwn || (vf->bport.port_cfg.pwwn == lpwwn))
-		return (&vf->bport);
+		return &vf->bport;
 
 	vport = bfa_fcs_fabric_vport_lookup(vf, lpwwn);
 	if (vport)
-		return (&vport->lport);
+		return &vport->lport;
 
-	return (NULL);
+	return NULL;
 }
 
 /*

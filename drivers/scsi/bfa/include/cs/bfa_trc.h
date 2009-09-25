@@ -24,7 +24,7 @@
 #endif
 
 #ifndef BFA_TRC_TS
-#define BFA_TRC_TS(_trcm)	((_trcm)->ticks ++)
+#define BFA_TRC_TS(_trcm)	((_trcm)->ticks++)
 #endif
 
 struct bfa_trc_s {

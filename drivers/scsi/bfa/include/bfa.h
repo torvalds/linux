@@ -76,11 +76,11 @@ struct bfa_meminfo_s {
 	struct bfa_mem_elem_s meminfo[BFA_MEM_TYPE_MAX];
 };
 #define bfa_meminfo_kva(_m)	\
-	(_m)->meminfo[BFA_MEM_TYPE_KVA - 1].kva_curp
+	((_m)->meminfo[BFA_MEM_TYPE_KVA - 1].kva_curp)
 #define bfa_meminfo_dma_virt(_m)	\
-	(_m)->meminfo[BFA_MEM_TYPE_DMA - 1].kva_curp
+	((_m)->meminfo[BFA_MEM_TYPE_DMA - 1].kva_curp)
 #define bfa_meminfo_dma_phys(_m)	\
-	(_m)->meminfo[BFA_MEM_TYPE_DMA - 1].dma_curp
+	((_m)->meminfo[BFA_MEM_TYPE_DMA - 1].dma_curp)
 
 /**
  * Generic Scatter Gather Element used by driver
@@ -100,7 +100,7 @@ struct bfa_sge_s {
 /*
  * bfa stats interfaces
  */
-#define bfa_stats(_mod, _stats)	(_mod)->stats._stats ++
+#define bfa_stats(_mod, _stats)	((_mod)->stats._stats++)
 
 #define bfa_ioc_get_stats(__bfa, __ioc_stats)	\
 	bfa_ioc_fetch_stats(&(__bfa)->ioc, __ioc_stats)
@@ -136,7 +136,7 @@ void bfa_isr_enable(struct bfa_s *bfa);
 void bfa_isr_disable(struct bfa_s *bfa);
 void bfa_msix_getvecs(struct bfa_s *bfa, u32 *msix_vecs_bmap,
 			u32 *num_vecs, u32 *max_vec_bit);
-#define bfa_msix(__bfa, __vec) (__bfa)->msix.handler[__vec](__bfa, __vec)
+#define bfa_msix(__bfa, __vec) ((__bfa)->msix.handler[__vec](__bfa, __vec))
 
 void bfa_comp_deq(struct bfa_s *bfa, struct list_head *comp_q);
 void bfa_comp_process(struct bfa_s *bfa, struct list_head *comp_q);

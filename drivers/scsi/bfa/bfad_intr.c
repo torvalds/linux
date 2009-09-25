@@ -23,13 +23,12 @@ BFA_TRC_FILE(LDRV, INTR);
 /**
  *  bfa_isr BFA driver interrupt functions
  */
-irqreturn_t bfad_intx(int irq, void *dev_id);
 static int msix_disable;
 module_param(msix_disable, int, S_IRUGO | S_IWUSR);
 /**
  * Line based interrupt handler.
  */
-irqreturn_t
+static irqreturn_t
 bfad_intx(int irq, void *dev_id)
 {
 	struct bfad_s         *bfad = dev_id;

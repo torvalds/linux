@@ -199,7 +199,7 @@ bfa_fcxp_get(struct bfa_fcxp_mod_s *fm)
 	if (fcxp)
 		list_add_tail(&fcxp->qe, &fm->fcxp_active_q);
 
-	return (fcxp);
+	return fcxp;
 }
 
 static void
@@ -503,7 +503,7 @@ bfa_fcxp_alloc(void *caller, struct bfa_s *bfa, int nreq_sgles,
 
 	fcxp = bfa_fcxp_get(BFA_FCXP_MOD(bfa));
 	if (fcxp == NULL)
-		return (NULL);
+		return NULL;
 
 	bfa_trc(bfa, fcxp->fcxp_tag);
 
@@ -568,7 +568,7 @@ bfa_fcxp_alloc(void *caller, struct bfa_s *bfa, int nreq_sgles,
 		}
 	}
 
-	return (fcxp);
+	return fcxp;
 }
 
 /**
@@ -709,7 +709,7 @@ bfa_status_t
 bfa_fcxp_abort(struct bfa_fcxp_s *fcxp)
 {
 	bfa_assert(0);
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 void

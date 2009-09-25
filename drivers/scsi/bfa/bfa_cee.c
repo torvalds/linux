@@ -228,7 +228,7 @@ bfa_cee_reset_stats_isr(struct bfa_cee_s *cee, bfa_status_t status)
 u32
 bfa_cee_meminfo(void)
 {
-	return (bfa_cee_attr_meminfo() + bfa_cee_stats_meminfo());
+	return bfa_cee_attr_meminfo() + bfa_cee_stats_meminfo();
 }
 
 /**

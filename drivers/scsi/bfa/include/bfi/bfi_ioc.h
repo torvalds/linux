@@ -142,7 +142,7 @@ enum {
 	BFI_ADAPTER_UNSUPP    = 0x400000,	/*  unknown adapter type  */
 };
 
-#define BFI_ADAPTER_GETP(__prop,__adap_prop)          		\
+#define BFI_ADAPTER_GETP(__prop, __adap_prop)          		\
     (((__adap_prop) & BFI_ADAPTER_ ## __prop ## _MK) >>         \
      BFI_ADAPTER_ ## __prop ## _SH)
 #define BFI_ADAPTER_SETP(__prop, __val)         		\

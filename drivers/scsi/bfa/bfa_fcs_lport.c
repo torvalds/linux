@@ -568,11 +568,10 @@ bfa_fcs_port_offline_actions(struct bfa_fcs_port_s *port)
 
 	__port_action[port->fabric->fab_type].offline(port);
 
-	if (bfa_fcs_fabric_is_online(port->fabric) == BFA_TRUE) {
+	if (bfa_fcs_fabric_is_online(port->fabric) == BFA_TRUE)
 		bfa_fcs_port_aen_post(port, BFA_LPORT_AEN_DISCONNECT);
-	} else {
+	else
 		bfa_fcs_port_aen_post(port, BFA_LPORT_AEN_OFFLINE);
-	}
 	bfa_fcb_port_offline(port->fcs->bfad, port->port_cfg.roles,
 			port->fabric->vf_drv,
 			(port->vport == NULL) ? NULL : port->vport->vport_drv);
@@ -777,7 +776,7 @@ bfa_fcs_port_get_rport_by_pwwn(struct bfa_fcs_port_s *port, wwn_t pwwn)
 	}
 
 	bfa_trc(port->fcs, pwwn);
-	return (NULL);
+	return NULL;
 }
 
 /**
@@ -796,7 +795,7 @@ bfa_fcs_port_get_rport_by_nwwn(struct bfa_fcs_port_s *port, wwn_t nwwn)
 	}
 
 	bfa_trc(port->fcs, nwwn);
-	return (NULL);
+	return NULL;
 }
 
 /**
@@ -870,7 +869,7 @@ bfa_fcs_port_lip(struct bfa_fcs_port_s *port)
 bfa_boolean_t
 bfa_fcs_port_is_online(struct bfa_fcs_port_s *port)
 {
-	return (bfa_sm_cmp_state(port, bfa_fcs_port_sm_online));
+	return bfa_sm_cmp_state(port, bfa_fcs_port_sm_online);
 }
 
 /**

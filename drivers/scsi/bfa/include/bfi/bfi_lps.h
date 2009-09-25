@@ -55,8 +55,8 @@ struct bfi_lps_login_rsp_s {
 	u16	bb_credit;
 	u8		f_port;
 	u8		npiv_en;
-	u32	lp_pid : 24;
-	u32	auth_req : 8;
+	u32	lp_pid:24;
+	u32	auth_req:8;
 	mac_t		lp_mac;
 	mac_t		fcf_mac;
 	u8		ext_status;
