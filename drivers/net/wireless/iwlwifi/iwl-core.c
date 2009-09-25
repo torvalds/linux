@@ -948,8 +948,13 @@ EXPORT_SYMBOL(iwl_set_rxon_ht);
 #define IWL_NUM_IDLE_CHAINS_DUAL	2
 #define IWL_NUM_IDLE_CHAINS_SINGLE	1
 
-/* Determine how many receiver/antenna chains to use.
- * More provides better reception via diversity.  Fewer saves power.
+/*
+ * Determine how many receiver/antenna chains to use.
+ *
+ * More provides better reception via diversity.  Fewer saves power
+ * at the expense of throughput, but only when not in powersave to
+ * start with.
+ *
  * MIMO (dual stream) requires at least 2, but works better with 3.
  * This does not determine *which* chains to use, just how many.
  */
@@ -962,19 +967,18 @@ static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 		return IWL_NUM_RX_CHAINS_MULTIPLE;
 }
 
+/*
+ * When we are in power saving, there's no difference between
+ * using multiple chains or just a single chain, but due to the
+ * lack of SM PS we lose a lot of throughput if we use just a
+ * single chain.
+ *
+ * Therefore, use the active count here (which will use multiple
+ * chains unless connected to a legacy AP).
+ */
 static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 {
-	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
-
-	/* # Rx chains when idling and maybe trying to save power */
-
-	/*
-	 * XXX: this is incorrect!!
-	 *	we always indicate to the AP that
-	 *	our SM PS mode is "disabled"
-	 */
-
-	return is_cam ? active_cnt : IWL_NUM_IDLE_CHAINS_SINGLE;
+	return active_cnt;
 }
 
 /* up to 4 chains */
