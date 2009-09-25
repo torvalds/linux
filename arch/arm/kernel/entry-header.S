@@ -83,6 +83,8 @@
 	ldr	r0, [sp]
 	strex	r1, r2, [sp]			@ clear the exclusive monitor
 	ldmib	sp, {r1 - pc}^			@ load r1 - pc, cpsr
+#else
+	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
 #endif
 	.endm
 
