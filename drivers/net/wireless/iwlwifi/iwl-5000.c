@@ -301,14 +301,17 @@ u16 iwl5000_eeprom_calib_version(struct iwl_priv *priv)
 static void iwl5000_gain_computation(struct iwl_priv *priv,
 		u32 average_noise[NUM_RX_CHAINS],
 		u16 min_average_noise_antenna_i,
-		u32 min_average_noise)
+		u32 min_average_noise,
+		u8 default_chain)
 {
 	int i;
 	s32 delta_g;
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 
-	/* Find Gain Code for the antennas B and C */
-	for (i = 1; i < NUM_RX_CHAINS; i++) {
+	/*
+	 * Find Gain Code for the chains based on "default chain"
+	 */
+	for (i = default_chain + 1; i < NUM_RX_CHAINS; i++) {
 		if ((data->disconn_array[i])) {
 			data->delta_gain_code[i] = 0;
 			continue;
@@ -1676,6 +1679,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 struct iwl_cfg iwl5100_bg_cfg = {
@@ -1694,6 +1698,7 @@ struct iwl_cfg iwl5100_bg_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -1712,6 +1717,7 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -1730,6 +1736,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -1748,6 +1755,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -1766,6 +1774,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));

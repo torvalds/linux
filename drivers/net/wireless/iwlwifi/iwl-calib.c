@@ -643,6 +643,15 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_sensitivity_calibration);
 
+static inline u8 find_first_chain(u8 mask)
+{
+	if (mask & ANT_A)
+		return CHAIN_A;
+	if (mask & ANT_B)
+		return CHAIN_B;
+	return CHAIN_C;
+}
+
 /*
  * Accumulate 20 beacons of signal and noise statistics for each of
  *   3 receivers/antennas/rx-chains, then figure out:
@@ -675,14 +684,17 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	u8 num_tx_chains;
 	unsigned long flags;
 	struct statistics_rx_non_phy *rx_info = &(stat_resp->rx.general);
+	u8 first_chain;
 
 	if (priv->disable_chain_noise_cal)
 		return;
 
 	data = &(priv->chain_noise_data);
 
-	/* Accumulate just the first 20 beacons after the first association,
-	 *   then we're done forever. */
+	/*
+	 * Accumulate just the first "chain_noise_num_beacons" after
+	 * the first association, then we're done forever.
+	 */
 	if (data->state != IWL_CHAIN_NOISE_ACCUMULATE) {
 		if (data->state == IWL_CHAIN_NOISE_ALIVE)
 			IWL_DEBUG_CALIB(priv, "Wait for noise calib reset\n");
@@ -710,7 +722,10 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 		return;
 	}
 
-	/* Accumulate beacon statistics values across 20 beacons */
+	/*
+	 *  Accumulate beacon statistics values across
+	 * "chain_noise_num_beacons"
+	 */
 	chain_noise_a = le32_to_cpu(rx_info->beacon_silence_rssi_a) &
 				IN_BAND_FILTER;
 	chain_noise_b = le32_to_cpu(rx_info->beacon_silence_rssi_b) &
@@ -741,16 +756,19 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	IWL_DEBUG_CALIB(priv, "chain_noise: a %d b %d c %d\n",
 			chain_noise_a, chain_noise_b, chain_noise_c);
 
-	/* If this is the 20th beacon, determine:
+	/* If this is the "chain_noise_num_beacons", determine:
 	 * 1)  Disconnected antennas (using signal strengths)
 	 * 2)  Differential gain (using silence noise) to balance receivers */
-	if (data->beacon_count != CAL_NUM_OF_BEACONS)
+	if (data->beacon_count != priv->cfg->chain_noise_num_beacons)
 		return;
 
 	/* Analyze signal for disconnected antenna */
-	average_sig[0] = (data->chain_signal_a) / CAL_NUM_OF_BEACONS;
-	average_sig[1] = (data->chain_signal_b) / CAL_NUM_OF_BEACONS;
-	average_sig[2] = (data->chain_signal_c) / CAL_NUM_OF_BEACONS;
+	average_sig[0] =
+		(data->chain_signal_a) / priv->cfg->chain_noise_num_beacons;
+	average_sig[1] =
+		(data->chain_signal_b) / priv->cfg->chain_noise_num_beacons;
+	average_sig[2] =
+		(data->chain_signal_c) / priv->cfg->chain_noise_num_beacons;
 
 	if (average_sig[0] >= average_sig[1]) {
 		max_average_sig = average_sig[0];
@@ -803,13 +821,17 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 			/* there is a Tx antenna connected */
 			break;
 		if (num_tx_chains == priv->hw_params.tx_chains_num &&
-		data->disconn_array[i]) {
-			/* This is the last TX antenna and is also
-			 * disconnected connect it anyway */
-			data->disconn_array[i] = 0;
-			active_chains |= ant_msk;
-			IWL_DEBUG_CALIB(priv, "All Tx chains are disconnected W/A - "
-				"declare %d as connected\n", i);
+		    data->disconn_array[i]) {
+			/*
+			 * If all chains are disconnected
+			 * connect the first valid tx chain
+			 */
+			first_chain =
+				find_first_chain(priv->cfg->valid_tx_ant);
+			data->disconn_array[first_chain] = 0;
+			active_chains |= BIT(first_chain);
+			IWL_DEBUG_CALIB(priv, "All Tx chains are disconnected W/A - declare %d as connected\n",
+					first_chain);
 			break;
 		}
 	}
@@ -820,9 +842,12 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 			active_chains);
 
 	/* Analyze noise for rx balance */
-	average_noise[0] = ((data->chain_noise_a)/CAL_NUM_OF_BEACONS);
-	average_noise[1] = ((data->chain_noise_b)/CAL_NUM_OF_BEACONS);
-	average_noise[2] = ((data->chain_noise_c)/CAL_NUM_OF_BEACONS);
+	average_noise[0] =
+		((data->chain_noise_a) / priv->cfg->chain_noise_num_beacons);
+	average_noise[1] =
+		((data->chain_noise_b) / priv->cfg->chain_noise_num_beacons);
+	average_noise[2] =
+		((data->chain_noise_c) / priv->cfg->chain_noise_num_beacons);
 
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		if (!(data->disconn_array[i]) &&
@@ -843,7 +868,8 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 
 	if (priv->cfg->ops->utils->gain_computation)
 		priv->cfg->ops->utils->gain_computation(priv, average_noise,
-			min_average_noise_antenna_i, min_average_noise);
+				min_average_noise_antenna_i, min_average_noise,
+				find_first_chain(priv->cfg->valid_rx_ant));
 
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON
