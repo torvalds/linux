@@ -485,8 +485,7 @@ void e1000_down(struct e1000_adapter *adapter)
 	ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	/* flush and sleep below */
 
-	/* can be netif_tx_disable when NETIF_F_LLTX is removed */
-	netif_stop_queue(netdev);
+	netif_tx_disable(netdev);
 
 	/* disable transmits in the hardware */
 	tctl = er32(TCTL);
