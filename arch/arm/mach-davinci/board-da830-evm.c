@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/console.h>
+#include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
@@ -28,6 +29,7 @@
 #include <mach/gpio.h>
 #include <mach/da8xx.h>
 #include <mach/asp.h>
+#include <mach/usb.h>
 
 #define DA830_EVM_PHY_MASK		0x0
 #define DA830_EVM_MDIO_FREQUENCY	2200000	/* PHY bus frequency */
@@ -83,6 +85,127 @@ static struct davinci_i2c_platform_data da830_evm_i2c_0_pdata = {
 	.bus_freq	= 100,	/* kHz */
 	.bus_delay	= 0,	/* usec */
 };
+
+/*
+ * USB1 VBUS is controlled by GPIO1[15], over-current is reported on GPIO2[4].
+ */
+#define ON_BD_USB_DRV	GPIO_TO_PIN(1, 15)
+#define ON_BD_USB_OVC	GPIO_TO_PIN(2, 4)
+
+static const short da830_evm_usb11_pins[] = {
+	DA830_GPIO1_15, DA830_GPIO2_4,
+	-1
+};
+
+static da8xx_ocic_handler_t da830_evm_usb_ocic_handler;
+
+static int da830_evm_usb_set_power(unsigned port, int on)
+{
+	gpio_set_value(ON_BD_USB_DRV, on);
+	return 0;
+}
+
+static int da830_evm_usb_get_power(unsigned port)
+{
+	return gpio_get_value(ON_BD_USB_DRV);
+}
+
+static int da830_evm_usb_get_oci(unsigned port)
+{
+	return !gpio_get_value(ON_BD_USB_OVC);
+}
+
+static irqreturn_t da830_evm_usb_ocic_irq(int, void *);
+
+static int da830_evm_usb_ocic_notify(da8xx_ocic_handler_t handler)
+{
+	int irq 	= gpio_to_irq(ON_BD_USB_OVC);
+	int error	= 0;
+
+	if (handler != NULL) {
+		da830_evm_usb_ocic_handler = handler;
+
+		error = request_irq(irq, da830_evm_usb_ocic_irq, IRQF_DISABLED |
+				    IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				    "OHCI over-current indicator", NULL);
+		if (error)
+			printk(KERN_ERR "%s: could not request IRQ to watch "
+			       "over-current indicator changes\n", __func__);
+	} else
+		free_irq(irq, NULL);
+
+	return error;
+}
+
+static struct da8xx_ohci_root_hub da830_evm_usb11_pdata = {
+	.set_power	= da830_evm_usb_set_power,
+	.get_power	= da830_evm_usb_get_power,
+	.get_oci	= da830_evm_usb_get_oci,
+	.ocic_notify	= da830_evm_usb_ocic_notify,
+
+	/* TPS2065 switch @ 5V */
+	.potpgt		= (3 + 1) / 2,	/* 3 ms max */
+};
+
+static irqreturn_t da830_evm_usb_ocic_irq(int irq, void *dev_id)
+{
+	da830_evm_usb_ocic_handler(&da830_evm_usb11_pdata, 1);
+	return IRQ_HANDLED;
+}
+
+static __init void da830_evm_usb_init(void)
+{
+	u32 cfgchip2;
+	int ret;
+
+	/*
+	 * Set up USB clock/mode in the CFGCHIP2 register.
+	 * FYI:  CFGCHIP2 is 0x0000ef00 initially.
+	 */
+	cfgchip2 = __raw_readl(DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP2_REG));
+
+	/* USB2.0 PHY reference clock is 24 MHz */
+	cfgchip2 &= ~CFGCHIP2_REFFREQ;
+	cfgchip2 |=  CFGCHIP2_REFFREQ_24MHZ;
+
+	/*
+	 * Select internal reference clock for USB 2.0 PHY
+	 * and use it as a clock source for USB 1.1 PHY
+	 * (this is the default setting anyway).
+	 */
+	cfgchip2 &= ~CFGCHIP2_USB1PHYCLKMUX;
+	cfgchip2 |=  CFGCHIP2_USB2PHYCLKMUX;
+
+	__raw_writel(cfgchip2, DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP2_REG));
+
+	ret = da8xx_pinmux_setup(da830_evm_usb11_pins);
+	if (ret) {
+		pr_warning("%s: USB 1.1 PinMux setup failed: %d\n",
+			   __func__, ret);
+		return;
+	}
+
+	ret = gpio_request(ON_BD_USB_DRV, "ON_BD_USB_DRV");
+	if (ret) {
+		printk(KERN_ERR "%s: failed to request GPIO for USB 1.1 port "
+		       "power control: %d\n", __func__, ret);
+		return;
+	}
+	gpio_direction_output(ON_BD_USB_DRV, 0);
+
+	ret = gpio_request(ON_BD_USB_OVC, "ON_BD_USB_OVC");
+	if (ret) {
+		printk(KERN_ERR "%s: failed to request GPIO for USB 1.1 port "
+		       "over-current indicator: %d\n", __func__, ret);
+		return;
+	}
+	gpio_direction_input(ON_BD_USB_OVC);
+
+	ret = da8xx_register_usb11(&da830_evm_usb11_pdata);
+	if (ret)
+		pr_warning("%s: USB 1.1 registration failed: %d\n",
+			   __func__, ret);
+}
 
 static struct davinci_uart_config da830_evm_uart_config __initdata = {
 	.enabled_uarts = 0x7,
@@ -185,6 +308,8 @@ static __init void da830_evm_init(void)
 	if (ret)
 		pr_warning("da830_evm_init: i2c0 registration failed: %d\n",
 				ret);
+
+	da830_evm_usb_init();
 
 	soc_info->emac_pdata->phy_mask = DA830_EVM_PHY_MASK;
 	soc_info->emac_pdata->mdio_max_freq = DA830_EVM_MDIO_FREQUENCY;
