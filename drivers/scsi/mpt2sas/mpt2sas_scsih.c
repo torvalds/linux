@@ -109,6 +109,7 @@ struct sense_info {
  * @work: work object (ioc->fault_reset_work_q)
  * @ioc: per adapter object
  * @VF_ID: virtual function id
+ * @VP_ID: virtual port id
  * @host_reset_handling: handling events during host reset
  * @ignore: flag meaning this event has been marked to ignore
  * @event: firmware event MPI2_EVENT_XXX defined in mpt2_ioc.h
@@ -121,6 +122,7 @@ struct fw_event_work {
 	struct work_struct	work;
 	struct MPT2SAS_ADAPTER *ioc;
 	u8			VF_ID;
+	u8			VP_ID;
 	u8			host_reset_handling;
 	u8			ignore;
 	u16			event;
@@ -138,8 +140,10 @@ struct fw_event_work {
  * @lun: lun number
  * @cdb_length: cdb length
  * @cdb: cdb contents
- * @valid_reply: flag set for reply message
  * @timeout: timeout for this command
+ * @VF_ID: virtual function id
+ * @VP_ID: virtual port id
+ * @valid_reply: flag set for reply message
  * @sense_length: sense length
  * @ioc_status: ioc status
  * @scsi_state: scsi state
@@ -161,6 +165,8 @@ struct _scsi_io_transfer {
 	u8	cdb_length;
 	u8	cdb[32];
 	u8	timeout;
+	u8	VF_ID;
+	u8	VP_ID;
 	u8	valid_reply;
   /* the following bits are only valid when 'valid_reply = 1' */
 	u32	sense_length;
@@ -1679,7 +1685,7 @@ _scsih_response_code(struct MPT2SAS_ADAPTER *ioc, u8 response_code)
  * _scsih_tm_done - tm completion routine
  * @ioc: per adapter object
  * @smid: system request message index
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  * Context: none.
  *
@@ -1688,7 +1694,7 @@ _scsih_response_code(struct MPT2SAS_ADAPTER *ioc, u8 response_code)
  * Return nothing.
  */
 static void
-_scsih_tm_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply)
+_scsih_tm_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
 
@@ -1790,7 +1796,6 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 	u16 smid = 0;
 	u32 ioc_state;
 	unsigned long timeleft;
-	u8 VF_ID = 0;
 
 	if (ioc->tm_cmds.status != MPT2_CMD_NOT_USED) {
 		printk(MPT2SAS_INFO_FMT "%s: tm_cmd busy!!!\n",
@@ -1834,10 +1839,12 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 	mpi_request->DevHandle = cpu_to_le16(handle);
 	mpi_request->TaskType = type;
 	mpi_request->TaskMID = cpu_to_le16(smid_task);
+	mpi_request->VP_ID = 0;  /* TODO */
+	mpi_request->VF_ID = 0;
 	int_to_scsilun(lun, (struct scsi_lun *)mpi_request->LUN);
 	mpt2sas_scsih_set_tm_flag(ioc, handle);
 	init_completion(&ioc->tm_cmds.done);
-	mpt2sas_base_put_smid_hi_priority(ioc, smid, VF_ID);
+	mpt2sas_base_put_smid_hi_priority(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->tm_cmds.done, timeout*HZ);
 	mpt2sas_scsih_clear_tm_flag(ioc, handle);
 	if (!(ioc->tm_cmds.status & MPT2_CMD_COMPLETE)) {
@@ -2643,7 +2650,8 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	mpi_request->SGLOffset0 = offsetof(Mpi2SCSIIORequest_t, SGL) / 4;
 	mpi_request->SGLFlags = cpu_to_le16(MPI2_SCSIIO_SGLFLAGS_TYPE_MPI +
 	    MPI2_SCSIIO_SGLFLAGS_SYSTEM_ADDR);
-
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 	int_to_scsilun(sas_device_priv_data->lun, (struct scsi_lun *)
 	    mpi_request->LUN);
 	memcpy(mpi_request->CDB.CDB32, scmd->cmnd, scmd->cmd_len);
@@ -2658,7 +2666,7 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	}
 
 	_scsih_scsi_lookup_set(ioc, smid, scmd);
-	mpt2sas_base_put_smid_scsi_io(ioc, smid, 0,
+	mpt2sas_base_put_smid_scsi_io(ioc, smid,
 	    sas_device_priv_data->sas_target->handle);
 	return 0;
 
@@ -2954,7 +2962,7 @@ _scsih_smart_predicted_fault(struct MPT2SAS_ADAPTER *ioc, u16 handle)
  * _scsih_io_done - scsi request callback
  * @ioc: per adapter object
  * @smid: system request message index
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
  * Callback handler when using scsih_qcmd.
@@ -2962,7 +2970,7 @@ _scsih_smart_predicted_fault(struct MPT2SAS_ADAPTER *ioc, u16 handle)
  * Return nothing.
  */
 static void
-_scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply)
+_scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 {
 	Mpi2SCSIIORequest_t *mpi_request;
 	Mpi2SCSIIOReply_t *mpi_reply;
@@ -3690,7 +3698,8 @@ _scsih_remove_device(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	mpi_request.Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	mpi_request.Operation = MPI2_SAS_OP_REMOVE_DEVICE;
 	mpi_request.DevHandle = handle;
-	mpi_request.VF_ID = 0;
+	mpi_request.VF_ID = 0; /* TODO */
+	mpi_request.VP_ID = 0;
 	if ((mpt2sas_base_sas_iounit_control(ioc, &mpi_reply,
 	    &mpi_request)) != 0) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
@@ -3800,15 +3809,12 @@ _scsih_sas_topology_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 /**
  * _scsih_sas_topology_change_event - handle topology changes
  * @ioc: per adapter object
- * @VF_ID:
- * @event_data: event data payload
- * fw_event:
+ * @fw_event: The fw_event_work object
  * Context: user.
  *
  */
 static void
-_scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
-    Mpi2EventDataSasTopologyChangeList_t *event_data,
+_scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
     struct fw_event_work *fw_event)
 {
 	int i;
@@ -3818,6 +3824,7 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 	struct _sas_node *sas_expander;
 	unsigned long flags;
 	u8 link_rate_;
+	Mpi2EventDataSasTopologyChangeList_t *event_data = fw_event->event_data;
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
@@ -3971,19 +3978,19 @@ _scsih_sas_device_status_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 /**
  * _scsih_sas_device_status_change_event - handle device status change
  * @ioc: per adapter object
- * @VF_ID:
- * @event_data: event data payload
+ * @fw_event: The fw_event_work object
  * Context: user.
  *
  * Return nothing.
  */
 static void
-_scsih_sas_device_status_change_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
-    Mpi2EventDataSasDeviceStatusChange_t *event_data)
+_scsih_sas_device_status_change_event(struct MPT2SAS_ADAPTER *ioc,
+    struct fw_event_work *fw_event)
 {
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
-		_scsih_sas_device_status_change_event_debug(ioc, event_data);
+		_scsih_sas_device_status_change_event_debug(ioc,
+		     fw_event->event_data);
 #endif
 }
 
@@ -4026,34 +4033,33 @@ _scsih_sas_enclosure_dev_status_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 /**
  * _scsih_sas_enclosure_dev_status_change_event - handle enclosure events
  * @ioc: per adapter object
- * @VF_ID:
- * @event_data: event data payload
+ * @fw_event: The fw_event_work object
  * Context: user.
  *
  * Return nothing.
  */
 static void
 _scsih_sas_enclosure_dev_status_change_event(struct MPT2SAS_ADAPTER *ioc,
-    u8 VF_ID, Mpi2EventDataSasEnclDevStatusChange_t *event_data)
+    struct fw_event_work *fw_event)
 {
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
 		_scsih_sas_enclosure_dev_status_change_event_debug(ioc,
-		     event_data);
+		     fw_event->event_data);
 #endif
 }
 
 /**
  * _scsih_sas_broadcast_primative_event - handle broadcast events
  * @ioc: per adapter object
- * @event_data: event data payload
+ * @fw_event: The fw_event_work object
  * Context: user.
  *
  * Return nothing.
  */
 static void
-_scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
-    Mpi2EventDataSasBroadcastPrimitive_t *event_data)
+_scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
+    struct fw_event_work *fw_event)
 {
 	struct scsi_cmnd *scmd;
 	u16 smid, handle;
@@ -4062,11 +4068,12 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 	u32 termination_count;
 	u32 query_count;
 	Mpi2SCSITaskManagementReply_t *mpi_reply;
-
+#ifdef CONFIG_SCSI_MPT2SAS_LOGGING
+	Mpi2EventDataSasBroadcastPrimitive_t *event_data = fw_event->event_data;
+#endif
 	dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "broadcast primative: "
 	    "phy number(%d), width(%d)\n", ioc->name, event_data->PhyNum,
 	    event_data->PortWidth));
-
 	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: enter\n", ioc->name,
 	    __func__));
 
@@ -4121,15 +4128,17 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 /**
  * _scsih_sas_discovery_event - handle discovery events
  * @ioc: per adapter object
- * @event_data: event data payload
+ * @fw_event: The fw_event_work object
  * Context: user.
  *
  * Return nothing.
  */
 static void
-_scsih_sas_discovery_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
-    Mpi2EventDataSasDiscovery_t *event_data)
+_scsih_sas_discovery_event(struct MPT2SAS_ADAPTER *ioc,
+    struct fw_event_work *fw_event)
 {
+	Mpi2EventDataSasDiscovery_t *event_data = fw_event->event_data;
+
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK) {
 		printk(MPT2SAS_DEBUG_FMT "discovery event: (%s)", ioc->name,
@@ -4488,19 +4497,19 @@ _scsih_sas_ir_config_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 /**
  * _scsih_sas_ir_config_change_event - handle ir configuration change events
  * @ioc: per adapter object
- * @VF_ID:
- * @event_data: event data payload
+ * @fw_event: The fw_event_work object
  * Context: user.
  *
  * Return nothing.
  */
 static void
-_scsih_sas_ir_config_change_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
-    Mpi2EventDataIrConfigChangeList_t *event_data)
+_scsih_sas_ir_config_change_event(struct MPT2SAS_ADAPTER *ioc,
+    struct fw_event_work *fw_event)
 {
 	Mpi2EventIrConfigElement_t *element;
 	int i;
 	u8 foreign_config;
+	Mpi2EventDataIrConfigChangeList_t *event_data = fw_event->event_data;
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
@@ -4543,14 +4552,14 @@ _scsih_sas_ir_config_change_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 /**
  * _scsih_sas_ir_volume_event - IR volume event
  * @ioc: per adapter object
- * @event_data: event data payload
+ * @fw_event: The fw_event_work object
  * Context: user.
  *
  * Return nothing.
  */
 static void
-_scsih_sas_ir_volume_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
-    Mpi2EventDataIrVolume_t *event_data)
+_scsih_sas_ir_volume_event(struct MPT2SAS_ADAPTER *ioc,
+    struct fw_event_work *fw_event)
 {
 	u64 wwid;
 	unsigned long flags;
@@ -4559,6 +4568,7 @@ _scsih_sas_ir_volume_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 	u32 state;
 	int rc;
 	struct MPT2SAS_TARGET *sas_target_priv_data;
+	Mpi2EventDataIrVolume_t *event_data = fw_event->event_data;
 
 	if (event_data->ReasonCode != MPI2_EVENT_IR_VOLUME_RC_STATE_CHANGED)
 		return;
@@ -4628,14 +4638,14 @@ _scsih_sas_ir_volume_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 /**
  * _scsih_sas_ir_physical_disk_event - PD event
  * @ioc: per adapter object
- * @event_data: event data payload
+ * @fw_event: The fw_event_work object
  * Context: user.
  *
  * Return nothing.
  */
 static void
-_scsih_sas_ir_physical_disk_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
-   Mpi2EventDataIrPhysicalDisk_t *event_data)
+_scsih_sas_ir_physical_disk_event(struct MPT2SAS_ADAPTER *ioc,
+    struct fw_event_work *fw_event)
 {
 	u16 handle;
 	u32 state;
@@ -4644,6 +4654,7 @@ _scsih_sas_ir_physical_disk_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasDevicePage0_t sas_device_pg0;
 	u32 ioc_status;
+	Mpi2EventDataIrPhysicalDisk_t *event_data = fw_event->event_data;
 
 	if (event_data->ReasonCode != MPI2_EVENT_IR_PHYSDISK_RC_STATE_CHANGED)
 		return;
@@ -4743,33 +4754,33 @@ _scsih_sas_ir_operation_status_event_debug(struct MPT2SAS_ADAPTER *ioc,
 /**
  * _scsih_sas_ir_operation_status_event - handle RAID operation events
  * @ioc: per adapter object
- * @VF_ID:
- * @event_data: event data payload
+ * @fw_event: The fw_event_work object
  * Context: user.
  *
  * Return nothing.
  */
 static void
-_scsih_sas_ir_operation_status_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
-    Mpi2EventDataIrOperationStatus_t *event_data)
+_scsih_sas_ir_operation_status_event(struct MPT2SAS_ADAPTER *ioc,
+    struct fw_event_work *fw_event)
 {
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
-		_scsih_sas_ir_operation_status_event_debug(ioc, event_data);
+		_scsih_sas_ir_operation_status_event_debug(ioc,
+		     fw_event->event_data);
 #endif
 }
 
 /**
  * _scsih_task_set_full - handle task set full
  * @ioc: per adapter object
- * @event_data: event data payload
+ * @fw_event: The fw_event_work object
  * Context: user.
  *
  * Throttle back qdepth.
  */
 static void
-_scsih_task_set_full(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
-    Mpi2EventDataTaskSetFull_t *event_data)
+_scsih_task_set_full(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work
+	*fw_event)
 {
 	unsigned long flags;
 	struct _sas_device *sas_device;
@@ -4780,6 +4791,7 @@ _scsih_task_set_full(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 	u16 handle;
 	int id, channel;
 	u64 sas_address;
+	Mpi2EventDataTaskSetFull_t *event_data = fw_event->event_data;
 
 	current_depth = le16_to_cpu(event_data->CurrentDepth);
 	handle = le16_to_cpu(event_data->DevHandle);
@@ -5227,44 +5239,38 @@ _firmware_event_work(struct work_struct *work)
 
 	switch (fw_event->event) {
 	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
-		_scsih_sas_topology_change_event(ioc, fw_event->VF_ID,
-		    fw_event->event_data, fw_event);
+		_scsih_sas_topology_change_event(ioc, fw_event);
 		break;
 	case MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE:
-		_scsih_sas_device_status_change_event(ioc, fw_event->VF_ID,
-		    fw_event->event_data);
+		_scsih_sas_device_status_change_event(ioc,
+		    fw_event);
 		break;
 	case MPI2_EVENT_SAS_DISCOVERY:
-		_scsih_sas_discovery_event(ioc, fw_event->VF_ID,
-		    fw_event->event_data);
+		_scsih_sas_discovery_event(ioc,
+		    fw_event);
 		break;
 	case MPI2_EVENT_SAS_BROADCAST_PRIMITIVE:
-		_scsih_sas_broadcast_primative_event(ioc, fw_event->VF_ID,
-		    fw_event->event_data);
+		_scsih_sas_broadcast_primative_event(ioc,
+		    fw_event);
 		break;
 	case MPI2_EVENT_SAS_ENCL_DEVICE_STATUS_CHANGE:
 		_scsih_sas_enclosure_dev_status_change_event(ioc,
-		    fw_event->VF_ID, fw_event->event_data);
+		    fw_event);
 		break;
 	case MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST:
-		_scsih_sas_ir_config_change_event(ioc, fw_event->VF_ID,
-		    fw_event->event_data);
+		_scsih_sas_ir_config_change_event(ioc, fw_event);
 		break;
 	case MPI2_EVENT_IR_VOLUME:
-		_scsih_sas_ir_volume_event(ioc, fw_event->VF_ID,
-		    fw_event->event_data);
+		_scsih_sas_ir_volume_event(ioc, fw_event);
 		break;
 	case MPI2_EVENT_IR_PHYSICAL_DISK:
-		_scsih_sas_ir_physical_disk_event(ioc, fw_event->VF_ID,
-		    fw_event->event_data);
+		_scsih_sas_ir_physical_disk_event(ioc, fw_event);
 		break;
 	case MPI2_EVENT_IR_OPERATION_STATUS:
-		_scsih_sas_ir_operation_status_event(ioc, fw_event->VF_ID,
-		    fw_event->event_data);
+		_scsih_sas_ir_operation_status_event(ioc, fw_event);
 		break;
 	case MPI2_EVENT_TASK_SET_FULL:
-		_scsih_task_set_full(ioc, fw_event->VF_ID,
-		    fw_event->event_data);
+		_scsih_task_set_full(ioc, fw_event);
 		break;
 	}
 	_scsih_fw_event_free(ioc, fw_event);
@@ -5273,7 +5279,7 @@ _firmware_event_work(struct work_struct *work)
 /**
  * mpt2sas_scsih_event_callback - firmware event handler (called at ISR time)
  * @ioc: per adapter object
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  * Context: interrupt.
  *
@@ -5283,7 +5289,8 @@ _firmware_event_work(struct work_struct *work)
  * Return nothing.
  */
 void
-mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, u32 reply)
+mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
+	u32 reply)
 {
 	struct fw_event_work *fw_event;
 	Mpi2EventNotificationReply_t *mpi_reply;
@@ -5355,7 +5362,8 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, u32 reply)
 	memcpy(fw_event->event_data, mpi_reply->EventData,
 	    mpi_reply->EventDataLength*4);
 	fw_event->ioc = ioc;
-	fw_event->VF_ID = VF_ID;
+	fw_event->VF_ID = mpi_reply->VF_ID;
+	fw_event->VP_ID = mpi_reply->VP_ID;
 	fw_event->event = event;
 	_scsih_fw_event_add(ioc, fw_event);
 }

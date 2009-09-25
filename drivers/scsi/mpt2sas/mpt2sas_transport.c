@@ -212,7 +212,7 @@ _transport_set_identify(struct MPT2SAS_ADAPTER *ioc, u16 handle,
  * mpt2sas_transport_done -  internal transport layer callback handler.
  * @ioc: per adapter object
  * @smid: system request message index
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
  * Callback handler when sending internal generated transport cmds.
@@ -221,7 +221,7 @@ _transport_set_identify(struct MPT2SAS_ADAPTER *ioc, u16 handle,
  * Return nothing.
  */
 void
-mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID,
+mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
     u32 reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
@@ -369,6 +369,8 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 	memset(mpi_request, 0, sizeof(Mpi2SmpPassthroughRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SMP_PASSTHROUGH;
 	mpi_request->PhysicalPort = 0xFF;
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 	sas_address_le = (u64 *)&mpi_request->SASAddress;
 	*sas_address_le = cpu_to_le64(sas_address);
 	mpi_request->RequestDataLength = sizeof(struct rep_manu_request);
@@ -396,7 +398,7 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 	dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT "report_manufacture - "
 	    "send to sas_addr(0x%016llx)\n", ioc->name,
 	    (unsigned long long)sas_address));
-	mpt2sas_base_put_smid_default(ioc, smid, 0 /* VF_ID */);
+	mpt2sas_base_put_smid_default(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->transport_cmds.done,
 	    10*HZ);
 
@@ -1106,6 +1108,8 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	memset(mpi_request, 0, sizeof(Mpi2SmpPassthroughRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SMP_PASSTHROUGH;
 	mpi_request->PhysicalPort = 0xFF;
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 	*((u64 *)&mpi_request->SASAddress) = (rphy) ?
 	    cpu_to_le64(rphy->identify.sas_address) :
 	    cpu_to_le64(ioc->sas_hba.sas_address);
@@ -1147,7 +1151,7 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s - "
 	    "sending smp request\n", ioc->name, __func__));
 
-	mpt2sas_base_put_smid_default(ioc, smid, 0 /* VF_ID */);
+	mpt2sas_base_put_smid_default(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->transport_cmds.done,
 	    10*HZ);
 

@@ -219,7 +219,7 @@ _ctl_display_some_debug(struct MPT2SAS_ADAPTER *ioc, u16 smid,
  * mpt2sas_ctl_done - ctl module completion routine
  * @ioc: per adapter object
  * @smid: system request message index
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  * Context: none.
  *
@@ -228,7 +228,8 @@ _ctl_display_some_debug(struct MPT2SAS_ADAPTER *ioc, u16 smid,
  * Return nothing.
  */
 void
-mpt2sas_ctl_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply)
+mpt2sas_ctl_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
+	u32 reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
 
@@ -328,7 +329,7 @@ mpt2sas_ctl_add_to_event_log(struct MPT2SAS_ADAPTER *ioc,
 /**
  * mpt2sas_ctl_event_callback - firmware event handler (called at ISR time)
  * @ioc: per adapter object
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  * Context: interrupt.
  *
@@ -338,7 +339,8 @@ mpt2sas_ctl_add_to_event_log(struct MPT2SAS_ADAPTER *ioc,
  * Return nothing.
  */
 void
-mpt2sas_ctl_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, u32 reply)
+mpt2sas_ctl_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
+	u32 reply)
 {
 	Mpi2EventNotificationReply_t *mpi_reply;
 
@@ -737,7 +739,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		    (u32)mpt2sas_base_get_sense_buffer_dma(ioc, smid);
 		priv_sense = mpt2sas_base_get_sense_buffer(ioc, smid);
 		memset(priv_sense, 0, SCSI_SENSE_BUFFERSIZE);
-		mpt2sas_base_put_smid_scsi_io(ioc, smid, 0,
+		mpt2sas_base_put_smid_scsi_io(ioc, smid,
 		    le16_to_cpu(mpi_request->FunctionDependent1));
 		break;
 	}
@@ -759,8 +761,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		mutex_lock(&ioc->tm_cmds.mutex);
 		mpt2sas_scsih_set_tm_flag(ioc, le16_to_cpu(
 		    tm_request->DevHandle));
-		mpt2sas_base_put_smid_hi_priority(ioc, smid,
-		    mpi_request->VF_ID);
+		mpt2sas_base_put_smid_hi_priority(ioc, smid);
 		break;
 	}
 	case MPI2_FUNCTION_SMP_PASSTHROUGH:
@@ -781,7 +782,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 			ioc->ioc_link_reset_in_progress = 1;
 			ioc->ignore_loginfos = 1;
 		}
-		mpt2sas_base_put_smid_default(ioc, smid, mpi_request->VF_ID);
+		mpt2sas_base_put_smid_default(ioc, smid);
 		break;
 	}
 	case MPI2_FUNCTION_SAS_IO_UNIT_CONTROL:
@@ -795,11 +796,11 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 			ioc->ioc_link_reset_in_progress = 1;
 			ioc->ignore_loginfos = 1;
 		}
-		mpt2sas_base_put_smid_default(ioc, smid, mpi_request->VF_ID);
+		mpt2sas_base_put_smid_default(ioc, smid);
 		break;
 	}
 	default:
-		mpt2sas_base_put_smid_default(ioc, smid, mpi_request->VF_ID);
+		mpt2sas_base_put_smid_default(ioc, smid);
 		break;
 	}
 
@@ -1371,6 +1372,8 @@ _ctl_diag_register(void __user *arg, enum block_state state)
 	mpi_request->Flags = cpu_to_le32(karg.diagnostic_flags);
 	mpi_request->BufferAddress = cpu_to_le64(request_data_dma);
 	mpi_request->BufferLength = cpu_to_le32(request_data_sz);
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 
 	dctlprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: diag_buffer(0x%p), "
 	    "dma(0x%llx), sz(%d)\n", ioc->name, __func__, request_data,
@@ -1380,7 +1383,7 @@ _ctl_diag_register(void __user *arg, enum block_state state)
 		mpi_request->ProductSpecific[i] =
 			cpu_to_le32(ioc->product_specific[buffer_type][i]);
 
-	mpt2sas_base_put_smid_default(ioc, smid, mpi_request->VF_ID);
+	mpt2sas_base_put_smid_default(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->ctl_cmds.done,
 	    MPT2_IOCTL_DEFAULT_TIMEOUT*HZ);
 
@@ -1643,8 +1646,10 @@ _ctl_send_release(struct MPT2SAS_ADAPTER *ioc, u8 buffer_type, u8 *issue_reset)
 
 	mpi_request->Function = MPI2_FUNCTION_DIAG_RELEASE;
 	mpi_request->BufferType = buffer_type;
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 
-	mpt2sas_base_put_smid_default(ioc, smid, mpi_request->VF_ID);
+	mpt2sas_base_put_smid_default(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->ctl_cmds.done,
 	    MPT2_IOCTL_DEFAULT_TIMEOUT*HZ);
 
@@ -1902,8 +1907,10 @@ _ctl_diag_read_buffer(void __user *arg, enum block_state state)
 	for (i = 0; i < MPT2_PRODUCT_SPECIFIC_DWORDS; i++)
 		mpi_request->ProductSpecific[i] =
 			cpu_to_le32(ioc->product_specific[buffer_type][i]);
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 
-	mpt2sas_base_put_smid_default(ioc, smid, mpi_request->VF_ID);
+	mpt2sas_base_put_smid_default(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->ctl_cmds.done,
 	    MPT2_IOCTL_DEFAULT_TIMEOUT*HZ);
 
@@ -2069,6 +2076,7 @@ static long
 _ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret;
+
 	lock_kernel();
 	ret = _ctl_ioctl_main(file, cmd, (void __user *)arg);
 	unlock_kernel();
@@ -2143,6 +2151,7 @@ static long
 _ctl_ioctl_compat(struct file *file, unsigned cmd, unsigned long arg)
 {
 	long ret;
+
 	lock_kernel();
 	if (cmd == MPT2COMMAND32)
 		ret = _ctl_compat_mpt_command(file, cmd, arg);

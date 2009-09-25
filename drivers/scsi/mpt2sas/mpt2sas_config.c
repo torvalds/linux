@@ -227,7 +227,7 @@ _config_free_config_dma_memory(struct MPT2SAS_ADAPTER *ioc,
  * mpt2sas_config_done - config page completion routine
  * @ioc: per adapter object
  * @smid: system request message index
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  * Context: none.
  *
@@ -236,7 +236,8 @@ _config_free_config_dma_memory(struct MPT2SAS_ADAPTER *ioc,
  * Return nothing.
  */
 void
-mpt2sas_config_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply)
+mpt2sas_config_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
+    u32 reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
 
@@ -302,6 +303,9 @@ _config_request(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 
 	retry_count = 0;
 	memset(&mem, 0, sizeof(struct config_request));
+
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 
 	if (config_page) {
 		mpi_request->Header.PageVersion = mpi_reply->Header.PageVersion;
@@ -380,7 +384,7 @@ _config_request(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 	_config_display_some_debug(ioc, smid, "config_request", NULL);
 #endif
 	init_completion(&ioc->config_cmds.done);
-	mpt2sas_base_put_smid_default(ioc, smid, config_request->VF_ID);
+	mpt2sas_base_put_smid_default(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->config_cmds.done,
 	    timeout*HZ);
 	if (!(ioc->config_cmds.status & MPT2_CMD_COMPLETE)) {

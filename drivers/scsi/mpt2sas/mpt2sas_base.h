@@ -701,8 +701,8 @@ struct MPT2SAS_ADAPTER {
 	u32		diagnostic_flags[MPI2_DIAG_BUF_TYPE_COUNT];
 };
 
-typedef void (*MPT_CALLBACK)(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID,
-    u32 reply);
+typedef void (*MPT_CALLBACK)(struct MPT2SAS_ADAPTER *ioc, u16 smid,
+    u8 msix_index, u32 reply);
 
 
 /* base shared API */
@@ -725,17 +725,18 @@ dma_addr_t mpt2sas_base_get_sense_buffer_dma(struct MPT2SAS_ADAPTER *ioc, u16 sm
 
 u16 mpt2sas_base_get_smid(struct MPT2SAS_ADAPTER *ioc, u8 cb_idx);
 void mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid);
-void mpt2sas_base_put_smid_scsi_io(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 vf_id,
+void mpt2sas_base_put_smid_scsi_io(struct MPT2SAS_ADAPTER *ioc, u16 smid,
     u16 handle);
-void mpt2sas_base_put_smid_hi_priority(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 vf_id);
+void mpt2sas_base_put_smid_hi_priority(struct MPT2SAS_ADAPTER *ioc, u16 smid);
 void mpt2sas_base_put_smid_target_assist(struct MPT2SAS_ADAPTER *ioc, u16 smid,
-    u8 vf_id, u16 io_index);
-void mpt2sas_base_put_smid_default(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 vf_id);
+    u16 io_index);
+void mpt2sas_base_put_smid_default(struct MPT2SAS_ADAPTER *ioc, u16 smid);
 void mpt2sas_base_initialize_callback_handler(void);
 u8 mpt2sas_base_register_callback_handler(MPT_CALLBACK cb_func);
 void mpt2sas_base_release_callback_handler(u8 cb_idx);
 
-void mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply);
+void mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
+    u32 reply);
 void *mpt2sas_base_get_reply_virt_addr(struct MPT2SAS_ADAPTER *ioc, u32 phys_addr);
 
 u32 mpt2sas_base_get_iocstate(struct MPT2SAS_ADAPTER *ioc, int cooked);
@@ -760,11 +761,13 @@ struct _sas_node *mpt2sas_scsih_expander_find_by_sas_address(struct MPT2SAS_ADAP
 struct _sas_device *mpt2sas_scsih_sas_device_find_by_sas_address(
     struct MPT2SAS_ADAPTER *ioc, u64 sas_address);
 
-void mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, u32 reply);
+void mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
+    u32 reply);
 void mpt2sas_scsih_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase);
 
 /* config shared API */
-void mpt2sas_config_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply);
+void mpt2sas_config_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
+    u32 reply);
 int mpt2sas_config_get_number_hba_phys(struct MPT2SAS_ADAPTER *ioc, u8 *num_phys);
 int mpt2sas_config_get_manufacturing_pg0(struct MPT2SAS_ADAPTER *ioc,
     Mpi2ConfigReply_t *mpi_reply, Mpi2ManufacturingPage0_t *config_page);
@@ -817,14 +820,17 @@ extern struct device_attribute *mpt2sas_host_attrs[];
 extern struct device_attribute *mpt2sas_dev_attrs[];
 void mpt2sas_ctl_init(void);
 void mpt2sas_ctl_exit(void);
-void mpt2sas_ctl_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply);
+void mpt2sas_ctl_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
+    u32 reply);
 void mpt2sas_ctl_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase);
-void mpt2sas_ctl_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, u32 reply);
+void mpt2sas_ctl_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
+    u32 reply);
 void mpt2sas_ctl_add_to_event_log(struct MPT2SAS_ADAPTER *ioc,
     Mpi2EventNotificationReply_t *mpi_reply);
 
 /* transport shared API */
-void mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply);
+void mpt2sas_transport_done(struct MPT2SAS_ADAPTER *ioc, u16 smid,
+    u8 msix_index, u32 reply);
 struct _sas_port *mpt2sas_transport_port_add(struct MPT2SAS_ADAPTER *ioc,
     u16 handle, u16 parent_handle);
 void mpt2sas_transport_port_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address,

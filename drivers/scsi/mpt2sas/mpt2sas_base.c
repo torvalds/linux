@@ -543,13 +543,13 @@ mpt2sas_base_fault_info(struct MPT2SAS_ADAPTER *ioc , u16 fault_code)
  * _base_display_reply_info -
  * @ioc: pointer to scsi command object
  * @smid: system request message index
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
  * Return nothing.
  */
 static void
-_base_display_reply_info(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID,
+_base_display_reply_info(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
     u32 reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
@@ -572,13 +572,14 @@ _base_display_reply_info(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID,
  * mpt2sas_base_done - base internal command completion routine
  * @ioc: pointer to scsi command object
  * @smid: system request message index
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
  * Return nothing.
  */
 void
-mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply)
+mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
+    u32 reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
 
@@ -601,13 +602,13 @@ mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply)
 /**
  * _base_async_event - main callback handler for firmware asyn events
  * @ioc: pointer to scsi command object
- * @VF_ID: virtual function id
+ * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
  * Return nothing.
  */
 static void
-_base_async_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, u32 reply)
+_base_async_event(struct MPT2SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 {
 	Mpi2EventNotificationReply_t *mpi_reply;
 	Mpi2EventAckRequest_t *ack_request;
@@ -635,16 +636,17 @@ _base_async_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, u32 reply)
 	ack_request->Function = MPI2_FUNCTION_EVENT_ACK;
 	ack_request->Event = mpi_reply->Event;
 	ack_request->EventContext = mpi_reply->EventContext;
-	ack_request->VF_ID = VF_ID;
-	mpt2sas_base_put_smid_default(ioc, smid, VF_ID);
+	ack_request->VF_ID = 0;  /* TODO */
+	ack_request->VP_ID = 0;
+	mpt2sas_base_put_smid_default(ioc, smid);
 
  out:
 
 	/* scsih callback handler */
-	mpt2sas_scsih_event_callback(ioc, VF_ID, reply);
+	mpt2sas_scsih_event_callback(ioc, msix_index, reply);
 
 	/* ctl callback handler */
-	mpt2sas_ctl_event_callback(ioc, VF_ID, reply);
+	mpt2sas_ctl_event_callback(ioc, msix_index, reply);
 }
 
 /**
@@ -712,7 +714,7 @@ _base_interrupt(int irq, void *bus_id)
 	u16 smid;
 	u8 cb_idx;
 	u32 reply;
-	u8 VF_ID;
+	u8 msix_index;
 	struct MPT2SAS_ADAPTER *ioc = bus_id;
 	Mpi2ReplyDescriptorsUnion_t *rpf;
 
@@ -733,7 +735,7 @@ _base_interrupt(int irq, void *bus_id)
 		reply = 0;
 		cb_idx = 0xFF;
 		smid = le16_to_cpu(rpf->Default.DescriptorTypeDependent1);
-		VF_ID = rpf->Default.VF_ID;
+		msix_index = rpf->Default.MSIxIndex;
 		if (request_desript_type ==
 		    MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY) {
 			reply = le32_to_cpu
@@ -747,14 +749,14 @@ _base_interrupt(int irq, void *bus_id)
 		if (smid)
 			cb_idx = ioc->scsi_lookup[smid - 1].cb_idx;
 		if (smid && cb_idx != 0xFF) {
-			mpt_callbacks[cb_idx](ioc, smid, VF_ID, reply);
+			mpt_callbacks[cb_idx](ioc, smid, msix_index, reply);
 			if (reply)
-				_base_display_reply_info(ioc, smid, VF_ID,
+				_base_display_reply_info(ioc, smid, msix_index,
 				    reply);
 			mpt2sas_base_free_smid(ioc, smid);
 		}
 		if (!smid)
-			_base_async_event(ioc, VF_ID, reply);
+			_base_async_event(ioc, msix_index, reply);
 
 		/* reply free queue handling */
 		if (reply) {
@@ -1352,21 +1354,19 @@ static inline void _base_writeq(__u64 b, volatile void __iomem *addr,
  * mpt2sas_base_put_smid_scsi_io - send SCSI_IO request to firmware
  * @ioc: per adapter object
  * @smid: system request message index
- * @vf_id: virtual function id
  * @handle: device handle
  *
  * Return nothing.
  */
 void
-mpt2sas_base_put_smid_scsi_io(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 vf_id,
-    u16 handle)
+mpt2sas_base_put_smid_scsi_io(struct MPT2SAS_ADAPTER *ioc, u16 smid, u16 handle)
 {
 	Mpi2RequestDescriptorUnion_t descriptor;
 	u64 *request = (u64 *)&descriptor;
 
 
 	descriptor.SCSIIO.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO;
-	descriptor.SCSIIO.VF_ID = vf_id;
+	descriptor.SCSIIO.MSIxIndex = 0; /* TODO */
 	descriptor.SCSIIO.SMID = cpu_to_le16(smid);
 	descriptor.SCSIIO.DevHandle = cpu_to_le16(handle);
 	descriptor.SCSIIO.LMID = 0;
@@ -1379,20 +1379,18 @@ mpt2sas_base_put_smid_scsi_io(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 vf_id,
  * mpt2sas_base_put_smid_hi_priority - send Task Managment request to firmware
  * @ioc: per adapter object
  * @smid: system request message index
- * @vf_id: virtual function id
  *
  * Return nothing.
  */
 void
-mpt2sas_base_put_smid_hi_priority(struct MPT2SAS_ADAPTER *ioc, u16 smid,
-    u8 vf_id)
+mpt2sas_base_put_smid_hi_priority(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 {
 	Mpi2RequestDescriptorUnion_t descriptor;
 	u64 *request = (u64 *)&descriptor;
 
 	descriptor.HighPriority.RequestFlags =
 	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
-	descriptor.HighPriority.VF_ID = vf_id;
+	descriptor.HighPriority.MSIxIndex = 0; /* TODO */
 	descriptor.HighPriority.SMID = cpu_to_le16(smid);
 	descriptor.HighPriority.LMID = 0;
 	descriptor.HighPriority.Reserved1 = 0;
@@ -1404,18 +1402,17 @@ mpt2sas_base_put_smid_hi_priority(struct MPT2SAS_ADAPTER *ioc, u16 smid,
  * mpt2sas_base_put_smid_default - Default, primarily used for config pages
  * @ioc: per adapter object
  * @smid: system request message index
- * @vf_id: virtual function id
  *
  * Return nothing.
  */
 void
-mpt2sas_base_put_smid_default(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 vf_id)
+mpt2sas_base_put_smid_default(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 {
 	Mpi2RequestDescriptorUnion_t descriptor;
 	u64 *request = (u64 *)&descriptor;
 
 	descriptor.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
-	descriptor.Default.VF_ID = vf_id;
+	descriptor.Default.MSIxIndex = 0; /* TODO */
 	descriptor.Default.SMID = cpu_to_le16(smid);
 	descriptor.Default.LMID = 0;
 	descriptor.Default.DescriptorTypeDependent = 0;
@@ -1427,21 +1424,20 @@ mpt2sas_base_put_smid_default(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 vf_id)
  * mpt2sas_base_put_smid_target_assist - send Target Assist/Status to firmware
  * @ioc: per adapter object
  * @smid: system request message index
- * @vf_id: virtual function id
  * @io_index: value used to track the IO
  *
  * Return nothing.
  */
 void
 mpt2sas_base_put_smid_target_assist(struct MPT2SAS_ADAPTER *ioc, u16 smid,
-    u8 vf_id, u16 io_index)
+    u16 io_index)
 {
 	Mpi2RequestDescriptorUnion_t descriptor;
 	u64 *request = (u64 *)&descriptor;
 
 	descriptor.SCSITarget.RequestFlags =
 	    MPI2_REQ_DESCRIPT_FLAGS_SCSI_TARGET;
-	descriptor.SCSITarget.VF_ID = vf_id;
+	descriptor.SCSITarget.MSIxIndex = 0; /* TODO */
 	descriptor.SCSITarget.SMID = cpu_to_le16(smid);
 	descriptor.SCSITarget.LMID = 0;
 	descriptor.SCSITarget.IoIndex = cpu_to_le16(io_index);
@@ -2454,7 +2450,7 @@ mpt2sas_base_sas_iounit_control(struct MPT2SAS_ADAPTER *ioc,
 	if (mpi_request->Operation == MPI2_SAS_OP_PHY_HARD_RESET ||
 	    mpi_request->Operation == MPI2_SAS_OP_PHY_LINK_RESET)
 		ioc->ioc_link_reset_in_progress = 1;
-	mpt2sas_base_put_smid_default(ioc, smid, mpi_request->VF_ID);
+	mpt2sas_base_put_smid_default(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->base_cmds.done,
 	    msecs_to_jiffies(10000));
 	if ((mpi_request->Operation == MPI2_SAS_OP_PHY_HARD_RESET ||
@@ -2555,7 +2551,7 @@ mpt2sas_base_scsi_enclosure_processor(struct MPT2SAS_ADAPTER *ioc,
 	request = mpt2sas_base_get_msg_frame(ioc, smid);
 	ioc->base_cmds.smid = smid;
 	memcpy(request, mpi_request, sizeof(Mpi2SepReply_t));
-	mpt2sas_base_put_smid_default(ioc, smid, mpi_request->VF_ID);
+	mpt2sas_base_put_smid_default(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->base_cmds.done,
 	    msecs_to_jiffies(10000));
 	if (!(ioc->base_cmds.status & MPT2_CMD_COMPLETE)) {
@@ -2701,13 +2697,12 @@ _base_get_ioc_facts(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 /**
  * _base_send_ioc_init - send ioc_init to firmware
  * @ioc: per adapter object
- * @VF_ID: virtual function id
  * @sleep_flag: CAN_SLEEP or NO_SLEEP
  *
  * Returns 0 for success, non-zero for failure.
  */
 static int
-_base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, int sleep_flag)
+_base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 {
 	Mpi2IOCInitRequest_t mpi_request;
 	Mpi2IOCInitReply_t mpi_reply;
@@ -2719,7 +2714,8 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, int sleep_flag)
 	memset(&mpi_request, 0, sizeof(Mpi2IOCInitRequest_t));
 	mpi_request.Function = MPI2_FUNCTION_IOC_INIT;
 	mpi_request.WhoInit = MPI2_WHOINIT_HOST_DRIVER;
-	mpi_request.VF_ID = VF_ID;
+	mpi_request.VF_ID = 0; /* TODO */
+	mpi_request.VP_ID = 0;
 	mpi_request.MsgVersion = cpu_to_le16(MPI2_VERSION);
 	mpi_request.HeaderVersion = cpu_to_le16(MPI2_HEADER_VERSION);
 
@@ -2795,13 +2791,12 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, int sleep_flag)
 /**
  * _base_send_port_enable - send port_enable(discovery stuff) to firmware
  * @ioc: per adapter object
- * @VF_ID: virtual function id
  * @sleep_flag: CAN_SLEEP or NO_SLEEP
  *
  * Returns 0 for success, non-zero for failure.
  */
 static int
-_base_send_port_enable(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, int sleep_flag)
+_base_send_port_enable(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 {
 	Mpi2PortEnableRequest_t *mpi_request;
 	u32 ioc_state;
@@ -2829,9 +2824,10 @@ _base_send_port_enable(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, int sleep_flag)
 	ioc->base_cmds.smid = smid;
 	memset(mpi_request, 0, sizeof(Mpi2PortEnableRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_PORT_ENABLE;
-	mpi_request->VF_ID = VF_ID;
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 
-	mpt2sas_base_put_smid_default(ioc, smid, VF_ID);
+	mpt2sas_base_put_smid_default(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->base_cmds.done,
 	    300*HZ);
 	if (!(ioc->base_cmds.status & MPT2_CMD_COMPLETE)) {
@@ -2892,13 +2888,12 @@ _base_unmask_events(struct MPT2SAS_ADAPTER *ioc, u16 event)
 /**
  * _base_event_notification - send event notification
  * @ioc: per adapter object
- * @VF_ID: virtual function id
  * @sleep_flag: CAN_SLEEP or NO_SLEEP
  *
  * Returns 0 for success, non-zero for failure.
  */
 static int
-_base_event_notification(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, int sleep_flag)
+_base_event_notification(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 {
 	Mpi2EventNotificationRequest_t *mpi_request;
 	unsigned long timeleft;
@@ -2926,11 +2921,12 @@ _base_event_notification(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID, int sleep_flag)
 	ioc->base_cmds.smid = smid;
 	memset(mpi_request, 0, sizeof(Mpi2EventNotificationRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_EVENT_NOTIFICATION;
-	mpi_request->VF_ID = VF_ID;
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
 	for (i = 0; i < MPI2_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
 		mpi_request->EventMasks[i] =
 		    le32_to_cpu(ioc->event_masks[i]);
-	mpt2sas_base_put_smid_default(ioc, smid, VF_ID);
+	mpt2sas_base_put_smid_default(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->base_cmds.done, 30*HZ);
 	if (!(ioc->base_cmds.status & MPT2_CMD_COMPLETE)) {
 		printk(MPT2SAS_ERR_FMT "%s: timeout\n",
@@ -2981,7 +2977,7 @@ mpt2sas_base_validate_event_type(struct MPT2SAS_ADAPTER *ioc, u32 *event_type)
 		return;
 
 	mutex_lock(&ioc->base_cmds.mutex);
-	_base_event_notification(ioc, 0, CAN_SLEEP);
+	_base_event_notification(ioc, CAN_SLEEP);
 	mutex_unlock(&ioc->base_cmds.mutex);
 }
 
@@ -3160,14 +3156,12 @@ _base_make_ioc_ready(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 /**
  * _base_make_ioc_operational - put controller in OPERATIONAL state
  * @ioc: per adapter object
- * @VF_ID: virtual function id
  * @sleep_flag: CAN_SLEEP or NO_SLEEP
  *
  * Returns 0 for success, non-zero for failure.
  */
 static int
-_base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
-    int sleep_flag)
+_base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 {
 	int r, i;
 	unsigned long	flags;
@@ -3196,7 +3190,7 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 	for (i = 0; i < ioc->reply_post_queue_depth; i++)
 		ioc->reply_post_free[i].Words = ULLONG_MAX;
 
-	r = _base_send_ioc_init(ioc, VF_ID, sleep_flag);
+	r = _base_send_ioc_init(ioc, sleep_flag);
 	if (r)
 		return r;
 
@@ -3207,14 +3201,14 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 	writel(0, &ioc->chip->ReplyPostHostIndex);
 
 	_base_unmask_interrupts(ioc);
-	r = _base_event_notification(ioc, VF_ID, sleep_flag);
+	r = _base_event_notification(ioc, sleep_flag);
 	if (r)
 		return r;
 
 	if (sleep_flag == CAN_SLEEP)
 		_base_static_config_pages(ioc);
 
-	r = _base_send_port_enable(ioc, VF_ID, sleep_flag);
+	r = _base_send_port_enable(ioc, sleep_flag);
 	if (r)
 		return r;
 
@@ -3338,7 +3332,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		if (r)
 			goto out_free_resources;
 	}
-	r = _base_make_ioc_operational(ioc, 0, CAN_SLEEP);
+	r = _base_make_ioc_operational(ioc, CAN_SLEEP);
 	if (r)
 		goto out_free_resources;
 
@@ -3490,7 +3484,7 @@ int
 mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
     enum reset_type type)
 {
-	int r, i;
+	int r;
 	unsigned long flags;
 
 	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: enter\n", ioc->name,
@@ -3513,9 +3507,7 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 	if (r)
 		goto out;
 	_base_reset_handler(ioc, MPT2_IOC_AFTER_RESET);
-	for (i = 0 ; i < ioc->facts.NumberOfPorts; i++)
-		r = _base_make_ioc_operational(ioc, ioc->pfacts[i].VF_ID,
-		    sleep_flag);
+	r = _base_make_ioc_operational(ioc, sleep_flag);
 	if (!r)
 		_base_reset_handler(ioc, MPT2_IOC_DONE_RESET);
  out:
