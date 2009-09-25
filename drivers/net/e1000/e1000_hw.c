@@ -49,11 +49,6 @@ static s32 e1000_id_led_init(struct e1000_hw *hw);
 static void e1000_init_rx_addrs(struct e1000_hw *hw);
 static s32 e1000_phy_igp_get_info(struct e1000_hw *hw,
 				  struct e1000_phy_info *phy_info);
-static s32 e1000_read_eeprom_eerd(struct e1000_hw *hw, u16 offset, u16 words,
-				  u16 *data);
-static s32 e1000_write_eeprom_eewr(struct e1000_hw *hw, u16 offset, u16 words,
-				   u16 *data);
-static s32 e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int eerd);
 static s32 e1000_phy_m88_get_info(struct e1000_hw *hw,
 				  struct e1000_phy_info *phy_info);
 static s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active);
@@ -3339,8 +3334,6 @@ s32 e1000_init_eeprom_params(struct e1000_hw *hw)
 		eeprom->opcode_bits = 3;
 		eeprom->address_bits = 6;
 		eeprom->delay_usec = 50;
-		eeprom->use_eerd = false;
-		eeprom->use_eewr = false;
 		break;
 	case e1000_82540:
 	case e1000_82545:
@@ -3357,8 +3350,6 @@ s32 e1000_init_eeprom_params(struct e1000_hw *hw)
 			eeprom->word_size = 64;
 			eeprom->address_bits = 6;
 		}
-		eeprom->use_eerd = false;
-		eeprom->use_eewr = false;
 		break;
 	case e1000_82541:
 	case e1000_82541_rev_2:
@@ -3387,8 +3378,6 @@ s32 e1000_init_eeprom_params(struct e1000_hw *hw)
 				eeprom->address_bits = 6;
 			}
 		}
-		eeprom->use_eerd = false;
-		eeprom->use_eewr = false;
 		break;
 	default:
 		break;
@@ -3773,15 +3762,9 @@ static s32 e1000_do_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 	 * directly. In this case, we need to acquire the EEPROM so that
 	 * FW or other port software does not interrupt.
 	 */
-	if (!hw->eeprom.use_eerd) {
-		/* Prepare the EEPROM for bit-bang reading */
-		if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)
-			return -E1000_ERR_EEPROM;
-	}
-
-	/* Eerd register EEPROM access requires no eeprom aquire/release */
-	if (eeprom->use_eerd)
-		return e1000_read_eeprom_eerd(hw, offset, words, data);
+	/* Prepare the EEPROM for bit-bang reading */
+	if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)
+		return -E1000_ERR_EEPROM;
 
 	/* Set up the SPI or Microwire EEPROM for bit-bang reading.  We have
 	 * acquired the EEPROM at this point, so any returns should release it */
@@ -3834,101 +3817,6 @@ static s32 e1000_do_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 	e1000_release_eeprom(hw);
 
 	return E1000_SUCCESS;
-}
-
-/**
- * Reads a 16 bit word from the EEPROM using the EERD register.
- *
- * @hw: Struct containing variables accessed by shared code
- * offset - offset of  word in the EEPROM to read
- * data - word read from the EEPROM
- * words - number of words to read
- */
-static s32 e1000_read_eeprom_eerd(struct e1000_hw *hw, u16 offset, u16 words,
-				  u16 *data)
-{
-	u32 i, eerd = 0;
-	s32 error = 0;
-
-	for (i = 0; i < words; i++) {
-		eerd = ((offset + i) << E1000_EEPROM_RW_ADDR_SHIFT) +
-		    E1000_EEPROM_RW_REG_START;
-
-		ew32(EERD, eerd);
-		error = e1000_poll_eerd_eewr_done(hw, E1000_EEPROM_POLL_READ);
-
-		if (error) {
-			break;
-		}
-		data[i] = (er32(EERD) >> E1000_EEPROM_RW_REG_DATA);
-
-	}
-
-	return error;
-}
-
-/**
- * Writes a 16 bit word from the EEPROM using the EEWR register.
- *
- * @hw: Struct containing variables accessed by shared code
- * offset - offset of  word in the EEPROM to read
- * data - word read from the EEPROM
- * words - number of words to read
- */
-static s32 e1000_write_eeprom_eewr(struct e1000_hw *hw, u16 offset, u16 words,
-				   u16 *data)
-{
-	u32 register_value = 0;
-	u32 i = 0;
-	s32 error = 0;
-
-	for (i = 0; i < words; i++) {
-		register_value = (data[i] << E1000_EEPROM_RW_REG_DATA) |
-		    ((offset + i) << E1000_EEPROM_RW_ADDR_SHIFT) |
-		    E1000_EEPROM_RW_REG_START;
-
-		error = e1000_poll_eerd_eewr_done(hw, E1000_EEPROM_POLL_WRITE);
-		if (error) {
-			break;
-		}
-
-		ew32(EEWR, register_value);
-
-		error = e1000_poll_eerd_eewr_done(hw, E1000_EEPROM_POLL_WRITE);
-
-		if (error) {
-			break;
-		}
-	}
-
-	return error;
-}
-
-/**
- * Polls the status bit (bit 1) of the EERD to determine when the read is done.
- *
- * @hw: Struct containing variables accessed by shared code
- */
-static s32 e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int eerd)
-{
-	u32 attempts = 100000;
-	u32 i, reg = 0;
-	s32 done = E1000_ERR_EEPROM;
-
-	for (i = 0; i < attempts; i++) {
-		if (eerd == E1000_EEPROM_POLL_READ)
-			reg = er32(EERD);
-		else
-			reg = er32(EEWR);
-
-		if (reg & E1000_EEPROM_RW_REG_DONE) {
-			done = E1000_SUCCESS;
-			break;
-		}
-		udelay(5);
-	}
-
-	return done;
 }
 
 /**
@@ -4030,9 +3918,6 @@ static s32 e1000_do_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 		DEBUGOUT("\"words\" parameter out of bounds\n");
 		return -E1000_ERR_EEPROM;
 	}
-
-	if (eeprom->use_eewr)
-		return e1000_write_eeprom_eewr(hw, offset, words, data);
 
 	/* Prepare the EEPROM for writing  */
 	if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)

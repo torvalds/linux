@@ -256,8 +256,6 @@ struct e1000_eeprom_info {
 	u16 address_bits;
 	u16 delay_usec;
 	u16 page_size;
-	bool use_eerd;
-	bool use_eewr;
 };
 
 /* Flex ASF Information */
