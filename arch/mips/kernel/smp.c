@@ -137,7 +137,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
  */
 void arch_send_call_function_single_ipi(int cpu)
 {
-	mp_ops->send_ipi_mask(cpumask_of_cpu(cpu), SMP_CALL_FUNCTION);
+	mp_ops->send_ipi_mask(&cpumask_of_cpu(cpu), SMP_CALL_FUNCTION);
 }
 
 /*
