@@ -303,13 +303,11 @@ int radeon_cs_finish_pages(struct radeon_cs_parser *p)
 int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 {
 	int new_page;
-	int num_extra_pages;
 	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
 	int i;
 	int size = PAGE_SIZE;
 
-	num_extra_pages = (pg_idx - ibc->last_copied_page - 1);
-	for (i = ibc->last_copied_page + 1; i < ibc->last_copied_page + num_extra_pages; i++) {
+	for (i = ibc->last_copied_page + 1; i < pg_idx; i++) {
 		if (DRM_COPY_FROM_USER(p->ib->ptr + (i * (PAGE_SIZE/4)),
 				       ibc->user_ptr + (i * PAGE_SIZE),
 				       PAGE_SIZE)) {
