@@ -335,6 +335,16 @@ int cpus_are_in_xmon(void)
 }
 #endif
 
+static inline int unrecoverable_excp(struct pt_regs *regs)
+{
+#ifdef CONFIG_4xx
+	/* We have no MSR_RI bit on 4xx, so we simply return false */
+	return 0;
+#else
+	return ((regs->msr & MSR_RI) == 0);
+#endif
+}
+
 static int xmon_core(struct pt_regs *regs, int fromipi)
 {
 	int cmd = 0;
@@ -388,7 +398,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	bp = NULL;
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_SF)) == (MSR_IR|MSR_SF))
 		bp = at_breakpoint(regs->nip);
-	if (bp || (regs->msr & MSR_RI) == 0)
+	if (bp || unrecoverable_excp(regs))
 		fromipi = 0;
 
 	if (!fromipi) {
@@ -399,7 +409,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			       cpu, BP_NUM(bp));
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
-		if ((regs->msr & MSR_RI) == 0)
+		if (unrecoverable_excp(regs))
 			printf("WARNING: exception is not recoverable, "
 			       "can't continue\n");
 		release_output_lock();
@@ -490,7 +500,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			printf("Stopped at breakpoint %x (", BP_NUM(bp));
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
-		if ((regs->msr & MSR_RI) == 0)
+		if (unrecoverable_excp(regs))
 			printf("WARNING: exception is not recoverable, "
 			       "can't continue\n");
 		remove_bpts();
