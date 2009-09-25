@@ -683,7 +683,7 @@ S:	Maintained
 ARM/INTEL IXP4XX ARM ARCHITECTURE
 M:	Imre Kaloz <kaloz@openwrt.org>
 M:	Krzysztof Halasa <khc@pm.waw.pl>
-L:	linux-arm-kernel@lists.infradead.org
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-ixp4xx/
 
@@ -740,18 +740,22 @@ M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
 M:	Dirk Opfer <dirk@opfer-online.de>
 S:	Maintained
 
-ARM/PALMTX,PALMT5,PALMLD,PALMTE2 SUPPORT
-M:	Marek Vasut <marek.vasut@gmail.com>
+ARM/PALMTX,PALMT5,PALMLD,PALMTE2,PALMTC SUPPORT
+P:	Marek Vasut
+M:	marek.vasut@gmail.com
+L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
 
 ARM/PALM TREO 680 SUPPORT
 M:	Tomas Cech <sleep_walker@suse.cz>
+L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
 
 ARM/PALMZ72 SUPPORT
 M:	Sergey Lapin <slapin@ossfans.org>
+L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
 

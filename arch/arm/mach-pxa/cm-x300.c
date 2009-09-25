@@ -306,68 +306,21 @@ static void cm_x300_mci_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data cm_x300_mci_platform_data = {
-	.detect_delay	= 20,
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= cm_x300_mci_init,
-	.exit		= cm_x300_mci_exit,
+	.detect_delay		= 20,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.init 			= cm_x300_mci_init,
+	.exit			= cm_x300_mci_exit,
+	.gpio_card_detect	= -1,
+	.gpio_card_ro		= -1,
+	.gpio_power		= -1,
 };
 
-static int cm_x300_mci2_ro(struct device *dev)
-{
-	return gpio_get_value(GPIO85_MMC2_WP);
-}
-
-static int cm_x300_mci2_init(struct device *dev,
-			     irq_handler_t cm_x300_detect_int,
-			     void *data)
-{
-	int err;
-
-	/*
-	 * setup GPIO for CM-X300 MMC controller
-	 */
-	err = gpio_request(GPIO82_MMC2_IRQ, "mmc card detect");
-	if (err)
-		goto err_request_cd;
-	gpio_direction_input(GPIO82_MMC2_IRQ);
-
-	err = gpio_request(GPIO85_MMC2_WP, "mmc write protect");
-	if (err)
-		goto err_request_wp;
-	gpio_direction_input(GPIO85_MMC2_WP);
-
-	err = request_irq(CM_X300_MMC2_IRQ, cm_x300_detect_int,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  "MMC card detect", data);
-	if (err) {
-		printk(KERN_ERR "%s: MMC/SD/SDIO: "
-				"can't request card detect IRQ\n", __func__);
-		goto err_request_irq;
-	}
-
-	return 0;
-
-err_request_irq:
-	gpio_free(GPIO85_MMC2_WP);
-err_request_wp:
-	gpio_free(GPIO82_MMC2_IRQ);
-err_request_cd:
-	return err;
-}
-
-static void cm_x300_mci2_exit(struct device *dev, void *data)
-{
-	free_irq(CM_X300_MMC2_IRQ, data);
-	gpio_free(GPIO82_MMC2_IRQ);
-	gpio_free(GPIO85_MMC2_WP);
-}
-
 static struct pxamci_platform_data cm_x300_mci2_platform_data = {
-	.detect_delay	= 20,
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= cm_x300_mci2_init,
-	.exit		= cm_x300_mci2_exit,
-	.get_ro		= cm_x300_mci2_ro,
+	.detect_delay		= 20,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.gpio_card_detect	= GPIO82_MMC2_IRQ,
+	.gpio_card_ro		= GPIO85_MMC2_WP,
+	.gpio_power		= -1,
 };
 
 static void __init cm_x300_init_mmc(void)

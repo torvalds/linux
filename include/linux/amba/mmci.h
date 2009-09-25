@@ -1,17 +1,18 @@
 /*
- *  arch/arm/include/asm/mach/mmc.h
+ *  include/linux/amba/mmci.h
  */
-#ifndef ASMARM_MACH_MMC_H
-#define ASMARM_MACH_MMC_H
+#ifndef AMBA_MMCI_H
+#define AMBA_MMCI_H
 
 #include <linux/mmc/host.h>
 
-struct mmc_platform_data {
+struct mmci_platform_data {
 	unsigned int ocr_mask;			/* available voltages */
 	u32 (*translate_vdd)(struct device *, unsigned int);
 	unsigned int (*status)(struct device *);
 	int	gpio_wp;
 	int	gpio_cd;
+	unsigned long capabilities;
 };
 
 #endif

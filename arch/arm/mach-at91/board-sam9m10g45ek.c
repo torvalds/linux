@@ -311,6 +311,14 @@ static void __init ek_add_device_buttons(void) {}
 
 
 /*
+ * AC97
+ * reset_pin is not connected: NRST
+ */
+static struct ac97c_platform_data ek_ac97_data = {
+};
+
+
+/*
  * LEDs ... these could all be PWM-driven, for variable brightness
  */
 static struct gpio_led ek_leds[] = {
@@ -372,6 +380,8 @@ static void __init ek_board_init(void)
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* Push Buttons */
 	ek_add_device_buttons();
+	/* AC97 */
+	at91_add_device_ac97(&ek_ac97_data);
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 	at91_pwm_leds(ek_pwm_led, ARRAY_SIZE(ek_pwm_led));
