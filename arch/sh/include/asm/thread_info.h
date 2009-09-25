@@ -51,6 +51,7 @@ struct thread_info {
 	.task		= &tsk,			\
 	.exec_domain	= &default_exec_domain,	\
 	.flags		= 0,			\
+	.status		= 0,			\
 	.cpu		= 0,			\
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
@@ -117,7 +118,6 @@ extern void free_thread_info(struct thread_info *ti);
 #define TIF_SECCOMP		6	/* secure computing */
 #define TIF_NOTIFY_RESUME	7	/* callback before returning to user */
 #define TIF_SYSCALL_TRACEPOINT	8	/* for ftrace syscall instrumentation */
-#define TIF_USEDFPU		16	/* FPU was used by this task this quantum (SMP) */
 #define TIF_POLLING_NRFLAG	17	/* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_MEMDIE		18
 #define TIF_FREEZE		19	/* Freezing for suspend */
@@ -130,7 +130,6 @@ extern void free_thread_info(struct thread_info *ti);
 #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
 #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
 #define _TIF_SYSCALL_TRACEPOINT	(1 << TIF_SYSCALL_TRACEPOINT)
-#define _TIF_USEDFPU		(1 << TIF_USEDFPU)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
 #define _TIF_FREEZE		(1 << TIF_FREEZE)
 
@@ -163,6 +162,7 @@ extern void free_thread_info(struct thread_info *ti);
  * have to worry about atomic accesses.
  */
 #define TS_RESTORE_SIGMASK	0x0001	/* restore signal mask in do_signal() */
+#define TS_USEDFPU		0x0002	/* FPU used by this task this quantum */
 
 #ifndef __ASSEMBLY__
 #define HAVE_SET_RESTORE_SIGMASK	1

@@ -56,6 +56,7 @@ asmlinkage void __init sh_cpu_init(void);
 #define SR_DSP		0x00001000
 #define SR_IMASK	0x000000f0
 #define SR_FD		0x00008000
+#define SR_MD		0x40000000
 
 /*
  * DSP structure and data
@@ -136,7 +137,7 @@ struct mm_struct;
 extern void release_thread(struct task_struct *);
 
 /* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)	do { } while (0)
+void prepare_to_copy(struct task_struct *tsk);
 
 /*
  * create a kernel thread without removing it from tasklists

@@ -558,7 +558,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 					    (finsn >> 8) & 0xf);
 			tsk->thread.fpu.hard.fpscr &=
 				~(FPSCR_CAUSE_MASK | FPSCR_FLAG_MASK);
-			set_tsk_thread_flag(tsk, TIF_USEDFPU);
+			task_thread_info(tsk)->status |= TS_USEDFPU;
 		} else {
 			info.si_signo = SIGFPE;
 			info.si_errno = 0;
@@ -619,10 +619,10 @@ int do_fpu_inst(unsigned short inst, struct pt_regs *regs)
 	struct task_struct *tsk = current;
 	struct sh_fpu_soft_struct *fpu = &(tsk->thread.fpu.soft);
 
-	if (!test_tsk_thread_flag(tsk, TIF_USEDFPU)) {
+	if (!(task_thread_info(tsk)->status & TS_USEDFPU)) {
 		/* initialize once. */
 		fpu_init(fpu);
-		set_tsk_thread_flag(tsk, TIF_USEDFPU);
+		task_thread_info(tsk)->status |= TS_USEDFPU;
 	}
 
 	return fpu_emulate(inst, fpu, regs);

@@ -25,14 +25,12 @@
 
 /*
  * Save FPU registers onto task structure.
- * Assume called with FPU enabled (SR.FD=0).
  */
 void
-save_fpu(struct task_struct *tsk, struct pt_regs *regs)
+save_fpu(struct task_struct *tsk)
 {
 	unsigned long dummy;
 
-	clear_tsk_thread_flag(tsk, TIF_USEDFPU);
 	enable_fpu();
 	asm volatile("sts.l	fpul, @-%0\n\t"
 		     "sts.l	fpscr, @-%0\n\t"
@@ -60,7 +58,6 @@ save_fpu(struct task_struct *tsk, struct pt_regs *regs)
 		     : "memory");
 
 	disable_fpu();
-	release_fpu(regs);
 }
 
 static void
@@ -598,13 +595,13 @@ BUILD_TRAP_HANDLER(fpu_error)
 	struct task_struct *tsk = current;
 	TRAP_HANDLER_DECL;
 
-	save_fpu(tsk, regs);
+	__unlazy_fpu(tsk, regs);
 	if (ieee_fpe_handler(regs)) {
 		tsk->thread.fpu.hard.fpscr &=
 			~(FPSCR_CAUSE_MASK | FPSCR_FLAG_MASK);
 		grab_fpu(regs);
 		restore_fpu(tsk);
-		set_tsk_thread_flag(tsk, TIF_USEDFPU);
+		task_thread_info(tsk)->status |= TS_USEDFPU;
 		return;
 	}
 
@@ -630,5 +627,5 @@ BUILD_TRAP_HANDLER(fpu_state_restore)
 		fpu_init();
 		set_used_math();
 	}
-	set_tsk_thread_flag(tsk, TIF_USEDFPU);
+	task_thread_info(tsk)->status |= TS_USEDFPU;
 }

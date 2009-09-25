@@ -311,12 +311,12 @@ asmlinkage void __init sh_cpu_init(void)
 	if (fpu_disabled) {
 		printk("FPU Disabled\n");
 		current_cpu_data.flags &= ~CPU_HAS_FPU;
-		disable_fpu();
 	}
 
 	/* FPU initialization */
+	disable_fpu();
 	if ((current_cpu_data.flags & CPU_HAS_FPU)) {
-		clear_thread_flag(TIF_USEDFPU);
+		current_thread_info()->status &= ~TS_USEDFPU;
 		clear_used_math();
 	}
 

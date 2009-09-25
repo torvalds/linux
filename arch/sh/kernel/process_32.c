@@ -134,7 +134,10 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	regs.regs[5] = (unsigned long)fn;
 
 	regs.pc = (unsigned long)kernel_thread_helper;
-	regs.sr = (1 << 30);
+	regs.sr = SR_MD;
+#if defined(CONFIG_SH_FPU)
+	regs.sr |= SR_FD;
+#endif
 
 	/* Ok, create the new process.. */
 	pid = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
@@ -189,6 +192,15 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 }
 EXPORT_SYMBOL(dump_fpu);
 
+/*
+ * This gets called before we allocate a new thread and copy
+ * the current task into it.
+ */
+void prepare_to_copy(struct task_struct *tsk)
+{
+	unlazy_fpu(tsk, task_pt_regs(tsk));
+}
+
 asmlinkage void ret_from_fork(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
@@ -197,14 +209,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
-#if defined(CONFIG_SH_FPU) || defined(CONFIG_SH_DSP)
+#if defined(CONFIG_SH_DSP)
 	struct task_struct *tsk = current;
-#endif
-
-#if defined(CONFIG_SH_FPU)
-	unlazy_fpu(tsk, regs);
-	p->thread.fpu = tsk->thread.fpu;
-	copy_to_stopped_child_used_math(p);
 #endif
 
 #if defined(CONFIG_SH_DSP)
@@ -226,6 +232,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	} else {
 		childregs->regs[15] = (unsigned long)childregs;
 		ti->addr_limit = KERNEL_DS;
+		ti->status &= ~TS_USEDFPU;
+		p->fpu_counter = 0;
 	}
 
 	if (clone_flags & CLONE_SETTLS)
