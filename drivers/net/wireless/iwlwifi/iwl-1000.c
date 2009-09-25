@@ -189,3 +189,4 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
+MODULE_FIRMWARE(IWL1000_MODULE_FIRMWARE(IWL1000_UCODE_API_MAX));
