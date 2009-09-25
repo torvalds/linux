@@ -2416,6 +2416,11 @@ enum latency_range {
 
 /**
  * e1000_update_itr - update the dynamic ITR value based on statistics
+ * @adapter: pointer to adapter
+ * @itr_setting: current adapter->itr
+ * @packets: the number of packets during this measurement interval
+ * @bytes: the number of bytes during this measurement interval
+ *
  *      Stores a new ITR value based on packets and byte
  *      counts during the last interrupt.  The advantage of per interrupt
  *      computation is faster updates and more accurate ITR for the current
@@ -2425,10 +2430,6 @@ enum latency_range {
  *      while increasing bulk throughput.
  *      this functionality is controlled by the InterruptThrottleRate module
  *      parameter (see e1000_param.c)
- * @adapter: pointer to adapter
- * @itr_setting: current adapter->itr
- * @packets: the number of packets during this measurement interval
- * @bytes: the number of bytes during this measurement interval
  **/
 static unsigned int e1000_update_itr(struct e1000_adapter *adapter,
 				     u16 itr_setting, int packets, int bytes)
@@ -2770,8 +2771,9 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 			 * Avoid terminating buffers within evenly-aligned
 			 * dwords. */
 			if (unlikely(adapter->pcix_82544 &&
-			   !((unsigned long)(frag->page+offset+size-1) & 4) &&
-			   size > 4))
+			    !((unsigned long)(page_to_phys(frag->page) + offset
+			                      + size - 1) & 4) &&
+			    size > 4))
 				size -= 4;
 
 			buffer_info->length = size;
@@ -3042,7 +3044,8 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	}
 
 	if (likely(tso)) {
-		tx_ring->last_tx_tso = 1;
+		if (likely(hw->mac_type != e1000_82544))
+			tx_ring->last_tx_tso = 1;
 		tx_flags |= E1000_TX_FLAGS_TSO;
 	} else if (likely(e1000_tx_csum(adapter, tx_ring, skb)))
 		tx_flags |= E1000_TX_FLAGS_CSUM;
