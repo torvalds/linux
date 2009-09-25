@@ -57,11 +57,6 @@ typedef enum {
     e1000_82541_rev_2,
     e1000_82547,
     e1000_82547_rev_2,
-    e1000_82571,
-    e1000_82572,
-    e1000_82573,
-    e1000_80003es2lan,
-    e1000_ich8lan,
     e1000_num_macs
 } e1000_mac_type;
 
@@ -70,7 +65,6 @@ typedef enum {
     e1000_eeprom_spi,
     e1000_eeprom_microwire,
     e1000_eeprom_flash,
-    e1000_eeprom_ich8,
     e1000_eeprom_none, /* No NVM support */
     e1000_num_eeprom_types
 } e1000_eeprom_type;
@@ -109,7 +103,6 @@ typedef enum {
     e1000_bus_type_unknown = 0,
     e1000_bus_type_pci,
     e1000_bus_type_pcix,
-    e1000_bus_type_pci_express,
     e1000_bus_type_reserved
 } e1000_bus_type;
 
@@ -121,18 +114,12 @@ typedef enum {
     e1000_bus_speed_100,
     e1000_bus_speed_120,
     e1000_bus_speed_133,
-    e1000_bus_speed_2500,
     e1000_bus_speed_reserved
 } e1000_bus_speed;
 
 /* PCI bus widths */
 typedef enum {
     e1000_bus_width_unknown = 0,
-    /* These PCIe values should literally match the possible return values
-     * from config space */
-    e1000_bus_width_pciex_1 = 1,
-    e1000_bus_width_pciex_2 = 2,
-    e1000_bus_width_pciex_4 = 4,
     e1000_bus_width_32,
     e1000_bus_width_64,
     e1000_bus_width_reserved
@@ -224,10 +211,6 @@ typedef enum {
 typedef enum {
     e1000_phy_m88 = 0,
     e1000_phy_igp,
-    e1000_phy_igp_2,
-    e1000_phy_gg82563,
-    e1000_phy_igp_3,
-    e1000_phy_ife,
     e1000_phy_undefined = 0xFF
 } e1000_phy_type;
 
@@ -329,8 +312,6 @@ s32 e1000_phy_reset(struct e1000_hw *hw);
 s32 e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
 s32 e1000_validate_mdi_setting(struct e1000_hw *hw);
 
-void e1000_phy_powerdown_workaround(struct e1000_hw *hw);
-
 /* EEPROM Functions */
 s32 e1000_init_eeprom_params(struct e1000_hw *hw);
 
@@ -389,8 +370,6 @@ struct e1000_host_mng_dhcp_cookie{
 };
 #endif
 
-s32 e1000_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer,
-                                  u16 length);
 bool e1000_check_mng_mode(struct e1000_hw *hw);
 bool e1000_enable_tx_pkt_filtering(struct e1000_hw *hw);
 s32 e1000_read_eeprom(struct e1000_hw *hw, u16 reg, u16 words, u16 *data);
@@ -421,13 +400,10 @@ void e1000_tbi_adjust_stats(struct e1000_hw *hw, struct e1000_hw_stats *stats, u
 void e1000_get_bus_info(struct e1000_hw *hw);
 void e1000_pci_set_mwi(struct e1000_hw *hw);
 void e1000_pci_clear_mwi(struct e1000_hw *hw);
-s32 e1000_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
 void e1000_pcix_set_mmrbc(struct e1000_hw *hw, int mmrbc);
 int e1000_pcix_get_mmrbc(struct e1000_hw *hw);
 /* Port I/O is only supported on 82544 and newer */
 void e1000_io_write(struct e1000_hw *hw, unsigned long port, u32 value);
-s32 e1000_disable_pciex_master(struct e1000_hw *hw);
-s32 e1000_check_phy_reset_block(struct e1000_hw *hw);
 
 
 #define E1000_READ_REG_IO(a, reg) \
@@ -471,36 +447,7 @@ s32 e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_82546GB_QUAD_COPPER 0x1099
 #define E1000_DEV_ID_82547EI             0x1019
 #define E1000_DEV_ID_82547EI_MOBILE      0x101A
-#define E1000_DEV_ID_82571EB_COPPER      0x105E
-#define E1000_DEV_ID_82571EB_FIBER       0x105F
-#define E1000_DEV_ID_82571EB_SERDES      0x1060
-#define E1000_DEV_ID_82571EB_QUAD_COPPER 0x10A4
-#define E1000_DEV_ID_82571PT_QUAD_COPPER 0x10D5
-#define E1000_DEV_ID_82571EB_QUAD_FIBER  0x10A5
-#define E1000_DEV_ID_82571EB_QUAD_COPPER_LOWPROFILE  0x10BC
-#define E1000_DEV_ID_82571EB_SERDES_DUAL 0x10D9
-#define E1000_DEV_ID_82571EB_SERDES_QUAD 0x10DA
-#define E1000_DEV_ID_82572EI_COPPER      0x107D
-#define E1000_DEV_ID_82572EI_FIBER       0x107E
-#define E1000_DEV_ID_82572EI_SERDES      0x107F
-#define E1000_DEV_ID_82572EI             0x10B9
-#define E1000_DEV_ID_82573E              0x108B
-#define E1000_DEV_ID_82573E_IAMT         0x108C
-#define E1000_DEV_ID_82573L              0x109A
 #define E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 0x10B5
-#define E1000_DEV_ID_80003ES2LAN_COPPER_DPT     0x1096
-#define E1000_DEV_ID_80003ES2LAN_SERDES_DPT     0x1098
-#define E1000_DEV_ID_80003ES2LAN_COPPER_SPT     0x10BA
-#define E1000_DEV_ID_80003ES2LAN_SERDES_SPT     0x10BB
-
-#define E1000_DEV_ID_ICH8_IGP_M_AMT      0x1049
-#define E1000_DEV_ID_ICH8_IGP_AMT        0x104A
-#define E1000_DEV_ID_ICH8_IGP_C          0x104B
-#define E1000_DEV_ID_ICH8_IFE            0x104C
-#define E1000_DEV_ID_ICH8_IFE_GT         0x10C4
-#define E1000_DEV_ID_ICH8_IFE_G          0x10C5
-#define E1000_DEV_ID_ICH8_IGP_M          0x104D
-
 
 #define NODE_ADDRESS_SIZE 6
 #define ETH_LENGTH_OF_ADDRESS 6
@@ -567,23 +514,12 @@ s32 e1000_check_phy_reset_block(struct e1000_hw *hw);
     E1000_IMS_RXSEQ  |    \
     E1000_IMS_LSC)
 
-/* Additional interrupts need to be handled for e1000_ich8lan:
-    DSW = The FW changed the status of the DISSW bit in FWSM
-    PHYINT = The LAN connected device generates an interrupt
-    EPRST = Manageability reset event */
-#define IMS_ICH8LAN_ENABLE_MASK (\
-    E1000_IMS_DSW   | \
-    E1000_IMS_PHYINT | \
-    E1000_IMS_EPRST)
-
 /* Number of high/low register pairs in the RAR. The RAR (Receive Address
  * Registers) holds the directed and multicast addresses that we monitor. We
  * reserve one of these spots for our directed address, allowing us room for
  * E1000_RAR_ENTRIES - 1 multicast addresses.
  */
 #define E1000_RAR_ENTRIES 15
-
-#define E1000_RAR_ENTRIES_ICH8LAN  6
 
 #define MIN_NUMBER_OF_DESCRIPTORS  8
 #define MAX_NUMBER_OF_DESCRIPTORS  0xFFF8
@@ -806,10 +742,6 @@ struct e1000_data_desc {
 #define E1000_MC_TBL_SIZE          128  /* Multicast Filter Table (4096 bits) */
 #define E1000_VLAN_FILTER_TBL_SIZE 128  /* VLAN Filter Table (4096 bits) */
 
-#define E1000_NUM_UNICAST_ICH8LAN  7
-#define E1000_MC_TBL_SIZE_ICH8LAN  32
-
-
 /* Receive Address Register */
 struct e1000_rar {
     volatile __le32 low;      /* receive address low */
@@ -818,7 +750,6 @@ struct e1000_rar {
 
 /* Number of entries in the Multicast Table Array (MTA). */
 #define E1000_NUM_MTA_REGISTERS 128
-#define E1000_NUM_MTA_REGISTERS_ICH8LAN 32
 
 /* IPv4 Address Table Entry */
 struct e1000_ipv4_at_entry {
@@ -829,7 +760,6 @@ struct e1000_ipv4_at_entry {
 /* Four wakeup IP addresses are supported */
 #define E1000_WAKEUP_IP_ADDRESS_COUNT_MAX 4
 #define E1000_IP4AT_SIZE                  E1000_WAKEUP_IP_ADDRESS_COUNT_MAX
-#define E1000_IP4AT_SIZE_ICH8LAN          3
 #define E1000_IP6AT_SIZE                  1
 
 /* IPv6 Address Table Entry */
@@ -1063,7 +993,6 @@ struct e1000_ffvt_entry {
 
 #define E1000_KUMCTRLSTA 0x00034 /* MAC-PHY interface - RW */
 #define E1000_MDPHYA     0x0003C  /* PHY address - RW */
-#define E1000_MANC2H     0x05860  /* Managment Control To Host - RW */
 #define E1000_SW_FW_SYNC 0x05B5C /* Software-Firmware Synchronization - RW */
 
 #define E1000_GCR       0x05B00 /* PCI-Ex Control */
@@ -1302,7 +1231,6 @@ struct e1000_ffvt_entry {
 #define E1000_82542_RSSIR       E1000_RSSIR
 #define E1000_82542_KUMCTRLSTA E1000_KUMCTRLSTA
 #define E1000_82542_SW_FW_SYNC E1000_SW_FW_SYNC
-#define E1000_82542_MANC2H      E1000_MANC2H
 
 /* Statistics counters collected by the MAC */
 struct e1000_hw_stats {
@@ -1399,8 +1327,7 @@ struct e1000_hw {
 	e1000_ffe_config	ffe_config_state;
 	u32		asf_firmware_present;
 	u32		eeprom_semaphore_present;
-	u32		swfw_sync_present;
-	u32		swfwhw_semaphore_present;
+	u32             swfw_sync_present;
 	unsigned long		io_base;
 	u32		phy_id;
 	u32		phy_revision;
@@ -1461,10 +1388,7 @@ struct e1000_hw {
 	bool			in_ifs_mode;
 	bool			mng_reg_access_disabled;
 	bool			leave_av_bit_off;
-	bool			kmrn_lock_loss_workaround_disabled;
 	bool			bad_tx_carr_stats_fd;
-	bool			has_manc2h;
-	bool			rx_needs_kicking;
 	bool			has_smbus;
 };
 
@@ -2018,8 +1942,6 @@ struct e1000_hw {
 #define E1000_TCTL_EXT_BST_MASK  0x000003FF /* Backoff Slot Time */
 #define E1000_TCTL_EXT_GCEX_MASK 0x000FFC00 /* Gigabit Carry Extend Padding */
 
-#define DEFAULT_80003ES2LAN_TCTL_EXT_GCEX   0x00010000
-
 /* Receive Checksum Control */
 #define E1000_RXCSUM_PCSS_MASK 0x000000FF   /* Packet Checksum Start */
 #define E1000_RXCSUM_IPOFL     0x00000100   /* IPv4 checksum offload */
@@ -2289,16 +2211,10 @@ struct e1000_host_command_info {
 /* Word definitions for ID LED Settings */
 #define ID_LED_RESERVED_0000 0x0000
 #define ID_LED_RESERVED_FFFF 0xFFFF
-#define ID_LED_RESERVED_82573  0xF746
-#define ID_LED_DEFAULT_82573   0x1811
 #define ID_LED_DEFAULT       ((ID_LED_OFF1_ON2 << 12) | \
                               (ID_LED_OFF1_OFF2 << 8) | \
                               (ID_LED_DEF1_DEF2 << 4) | \
                               (ID_LED_DEF1_DEF2))
-#define ID_LED_DEFAULT_ICH8LAN  ((ID_LED_DEF1_DEF2 << 12) | \
-                                 (ID_LED_DEF1_OFF2 <<  8) | \
-                                 (ID_LED_DEF1_ON2  <<  4) | \
-                                 (ID_LED_DEF1_DEF2))
 #define ID_LED_DEF1_DEF2     0x1
 #define ID_LED_DEF1_ON2      0x2
 #define ID_LED_DEF1_OFF2     0x3
@@ -2384,11 +2300,8 @@ struct e1000_host_command_info {
 
 #define DEFAULT_82542_TIPG_IPGR2 10
 #define DEFAULT_82543_TIPG_IPGR2 6
-#define DEFAULT_80003ES2LAN_TIPG_IPGR2 7
 #define E1000_TIPG_IPGR2_SHIFT  20
 
-#define DEFAULT_80003ES2LAN_TIPG_IPGT_10_100 0x00000009
-#define DEFAULT_80003ES2LAN_TIPG_IPGT_1000   0x00000008
 #define E1000_TXDMAC_DPP 0x00000001
 
 /* Adaptive IFS defines */
@@ -2485,8 +2398,6 @@ struct e1000_host_command_info {
 /* Number of milliseconds we wait for auto-negotiation to complete */
 #define LINK_UP_TIMEOUT             500
 
-/* Number of 100 microseconds we wait for PCI Express master disable */
-#define MASTER_DISABLE_TIMEOUT      800
 /* Number of milliseconds we wait for Eeprom auto read bit done after MAC reset */
 #define AUTO_READ_DONE_TIMEOUT      10
 /* Number of milliseconds we wait for PHY configuration done after MAC reset */
@@ -2635,79 +2546,6 @@ struct e1000_host_command_info {
 #define IGP01E1000_PHY_PCS_CTRL_REG  0x00B5
 
 #define IGP01E1000_ANALOG_REGS_PAGE  0x20C0
-
-/* Bits...
- * 15-5: page
- * 4-0: register offset
- */
-#define GG82563_PAGE_SHIFT        5
-#define GG82563_REG(page, reg)    \
-        (((page) << GG82563_PAGE_SHIFT) | ((reg) & MAX_PHY_REG_ADDRESS))
-#define GG82563_MIN_ALT_REG       30
-
-/* GG82563 Specific Registers */
-#define GG82563_PHY_SPEC_CTRL           \
-        GG82563_REG(0, 16) /* PHY Specific Control */
-#define GG82563_PHY_SPEC_STATUS         \
-        GG82563_REG(0, 17) /* PHY Specific Status */
-#define GG82563_PHY_INT_ENABLE          \
-        GG82563_REG(0, 18) /* Interrupt Enable */
-#define GG82563_PHY_SPEC_STATUS_2       \
-        GG82563_REG(0, 19) /* PHY Specific Status 2 */
-#define GG82563_PHY_RX_ERR_CNTR         \
-        GG82563_REG(0, 21) /* Receive Error Counter */
-#define GG82563_PHY_PAGE_SELECT         \
-        GG82563_REG(0, 22) /* Page Select */
-#define GG82563_PHY_SPEC_CTRL_2         \
-        GG82563_REG(0, 26) /* PHY Specific Control 2 */
-#define GG82563_PHY_PAGE_SELECT_ALT     \
-        GG82563_REG(0, 29) /* Alternate Page Select */
-#define GG82563_PHY_TEST_CLK_CTRL       \
-        GG82563_REG(0, 30) /* Test Clock Control (use reg. 29 to select) */
-
-#define GG82563_PHY_MAC_SPEC_CTRL       \
-        GG82563_REG(2, 21) /* MAC Specific Control Register */
-#define GG82563_PHY_MAC_SPEC_CTRL_2     \
-        GG82563_REG(2, 26) /* MAC Specific Control 2 */
-
-#define GG82563_PHY_DSP_DISTANCE    \
-        GG82563_REG(5, 26) /* DSP Distance */
-
-/* Page 193 - Port Control Registers */
-#define GG82563_PHY_KMRN_MODE_CTRL   \
-        GG82563_REG(193, 16) /* Kumeran Mode Control */
-#define GG82563_PHY_PORT_RESET          \
-        GG82563_REG(193, 17) /* Port Reset */
-#define GG82563_PHY_REVISION_ID         \
-        GG82563_REG(193, 18) /* Revision ID */
-#define GG82563_PHY_DEVICE_ID           \
-        GG82563_REG(193, 19) /* Device ID */
-#define GG82563_PHY_PWR_MGMT_CTRL       \
-        GG82563_REG(193, 20) /* Power Management Control */
-#define GG82563_PHY_RATE_ADAPT_CTRL     \
-        GG82563_REG(193, 25) /* Rate Adaptation Control */
-
-/* Page 194 - KMRN Registers */
-#define GG82563_PHY_KMRN_FIFO_CTRL_STAT \
-        GG82563_REG(194, 16) /* FIFO's Control/Status */
-#define GG82563_PHY_KMRN_CTRL           \
-        GG82563_REG(194, 17) /* Control */
-#define GG82563_PHY_INBAND_CTRL         \
-        GG82563_REG(194, 18) /* Inband Control */
-#define GG82563_PHY_KMRN_DIAGNOSTIC     \
-        GG82563_REG(194, 19) /* Diagnostic */
-#define GG82563_PHY_ACK_TIMEOUTS        \
-        GG82563_REG(194, 20) /* Acknowledge Timeouts */
-#define GG82563_PHY_ADV_ABILITY         \
-        GG82563_REG(194, 21) /* Advertised Ability */
-#define GG82563_PHY_LINK_PARTNER_ADV_ABILITY \
-        GG82563_REG(194, 23) /* Link Partner Advertised Ability */
-#define GG82563_PHY_ADV_NEXT_PAGE       \
-        GG82563_REG(194, 24) /* Advertised Next Page */
-#define GG82563_PHY_LINK_PARTNER_ADV_NEXT_PAGE \
-        GG82563_REG(194, 25) /* Link Partner Advertised Next page */
-#define GG82563_PHY_KMRN_MISC           \
-        GG82563_REG(194, 26) /* Misc. */
 
 /* PHY Control Register */
 #define MII_CR_SPEED_SELECT_MSB 0x0040  /* bits 6,13: 10=1000, 01=100, 00=10 */
@@ -3032,114 +2870,6 @@ struct e1000_host_command_info {
 #define IGP01E1000_ANALOG_FUSE_FINE_1               0x0080
 #define IGP01E1000_ANALOG_FUSE_FINE_10              0x0500
 
-/* GG82563 PHY Specific Status Register (Page 0, Register 16 */
-#define GG82563_PSCR_DISABLE_JABBER             0x0001 /* 1=Disable Jabber */
-#define GG82563_PSCR_POLARITY_REVERSAL_DISABLE  0x0002 /* 1=Polarity Reversal Disabled */
-#define GG82563_PSCR_POWER_DOWN                 0x0004 /* 1=Power Down */
-#define GG82563_PSCR_COPPER_TRANSMITER_DISABLE  0x0008 /* 1=Transmitter Disabled */
-#define GG82563_PSCR_CROSSOVER_MODE_MASK        0x0060
-#define GG82563_PSCR_CROSSOVER_MODE_MDI         0x0000 /* 00=Manual MDI configuration */
-#define GG82563_PSCR_CROSSOVER_MODE_MDIX        0x0020 /* 01=Manual MDIX configuration */
-#define GG82563_PSCR_CROSSOVER_MODE_AUTO        0x0060 /* 11=Automatic crossover */
-#define GG82563_PSCR_ENALBE_EXTENDED_DISTANCE   0x0080 /* 1=Enable Extended Distance */
-#define GG82563_PSCR_ENERGY_DETECT_MASK         0x0300
-#define GG82563_PSCR_ENERGY_DETECT_OFF          0x0000 /* 00,01=Off */
-#define GG82563_PSCR_ENERGY_DETECT_RX           0x0200 /* 10=Sense on Rx only (Energy Detect) */
-#define GG82563_PSCR_ENERGY_DETECT_RX_TM        0x0300 /* 11=Sense and Tx NLP */
-#define GG82563_PSCR_FORCE_LINK_GOOD            0x0400 /* 1=Force Link Good */
-#define GG82563_PSCR_DOWNSHIFT_ENABLE           0x0800 /* 1=Enable Downshift */
-#define GG82563_PSCR_DOWNSHIFT_COUNTER_MASK     0x7000
-#define GG82563_PSCR_DOWNSHIFT_COUNTER_SHIFT    12
-
-/* PHY Specific Status Register (Page 0, Register 17) */
-#define GG82563_PSSR_JABBER                0x0001 /* 1=Jabber */
-#define GG82563_PSSR_POLARITY              0x0002 /* 1=Polarity Reversed */
-#define GG82563_PSSR_LINK                  0x0008 /* 1=Link is Up */
-#define GG82563_PSSR_ENERGY_DETECT         0x0010 /* 1=Sleep, 0=Active */
-#define GG82563_PSSR_DOWNSHIFT             0x0020 /* 1=Downshift */
-#define GG82563_PSSR_CROSSOVER_STATUS      0x0040 /* 1=MDIX, 0=MDI */
-#define GG82563_PSSR_RX_PAUSE_ENABLED      0x0100 /* 1=Receive Pause Enabled */
-#define GG82563_PSSR_TX_PAUSE_ENABLED      0x0200 /* 1=Transmit Pause Enabled */
-#define GG82563_PSSR_LINK_UP               0x0400 /* 1=Link Up */
-#define GG82563_PSSR_SPEED_DUPLEX_RESOLVED 0x0800 /* 1=Resolved */
-#define GG82563_PSSR_PAGE_RECEIVED         0x1000 /* 1=Page Received */
-#define GG82563_PSSR_DUPLEX                0x2000 /* 1-Full-Duplex */
-#define GG82563_PSSR_SPEED_MASK            0xC000
-#define GG82563_PSSR_SPEED_10MBPS          0x0000 /* 00=10Mbps */
-#define GG82563_PSSR_SPEED_100MBPS         0x4000 /* 01=100Mbps */
-#define GG82563_PSSR_SPEED_1000MBPS        0x8000 /* 10=1000Mbps */
-
-/* PHY Specific Status Register 2 (Page 0, Register 19) */
-#define GG82563_PSSR2_JABBER                0x0001 /* 1=Jabber */
-#define GG82563_PSSR2_POLARITY_CHANGED      0x0002 /* 1=Polarity Changed */
-#define GG82563_PSSR2_ENERGY_DETECT_CHANGED 0x0010 /* 1=Energy Detect Changed */
-#define GG82563_PSSR2_DOWNSHIFT_INTERRUPT   0x0020 /* 1=Downshift Detected */
-#define GG82563_PSSR2_MDI_CROSSOVER_CHANGE  0x0040 /* 1=Crossover Changed */
-#define GG82563_PSSR2_FALSE_CARRIER         0x0100 /* 1=False Carrier */
-#define GG82563_PSSR2_SYMBOL_ERROR          0x0200 /* 1=Symbol Error */
-#define GG82563_PSSR2_LINK_STATUS_CHANGED   0x0400 /* 1=Link Status Changed */
-#define GG82563_PSSR2_AUTO_NEG_COMPLETED    0x0800 /* 1=Auto-Neg Completed */
-#define GG82563_PSSR2_PAGE_RECEIVED         0x1000 /* 1=Page Received */
-#define GG82563_PSSR2_DUPLEX_CHANGED        0x2000 /* 1=Duplex Changed */
-#define GG82563_PSSR2_SPEED_CHANGED         0x4000 /* 1=Speed Changed */
-#define GG82563_PSSR2_AUTO_NEG_ERROR        0x8000 /* 1=Auto-Neg Error */
-
-/* PHY Specific Control Register 2 (Page 0, Register 26) */
-#define GG82563_PSCR2_10BT_POLARITY_FORCE           0x0002 /* 1=Force Negative Polarity */
-#define GG82563_PSCR2_1000MB_TEST_SELECT_MASK       0x000C
-#define GG82563_PSCR2_1000MB_TEST_SELECT_NORMAL     0x0000 /* 00,01=Normal Operation */
-#define GG82563_PSCR2_1000MB_TEST_SELECT_112NS      0x0008 /* 10=Select 112ns Sequence */
-#define GG82563_PSCR2_1000MB_TEST_SELECT_16NS       0x000C /* 11=Select 16ns Sequence */
-#define GG82563_PSCR2_REVERSE_AUTO_NEG              0x2000 /* 1=Reverse Auto-Negotiation */
-#define GG82563_PSCR2_1000BT_DISABLE                0x4000 /* 1=Disable 1000BASE-T */
-#define GG82563_PSCR2_TRANSMITER_TYPE_MASK          0x8000
-#define GG82563_PSCR2_TRANSMITTER_TYPE_CLASS_B      0x0000 /* 0=Class B */
-#define GG82563_PSCR2_TRANSMITTER_TYPE_CLASS_A      0x8000 /* 1=Class A */
-
-/* MAC Specific Control Register (Page 2, Register 21) */
-/* Tx clock speed for Link Down and 1000BASE-T for the following speeds */
-#define GG82563_MSCR_TX_CLK_MASK                    0x0007
-#define GG82563_MSCR_TX_CLK_10MBPS_2_5MHZ           0x0004
-#define GG82563_MSCR_TX_CLK_100MBPS_25MHZ           0x0005
-#define GG82563_MSCR_TX_CLK_1000MBPS_2_5MHZ         0x0006
-#define GG82563_MSCR_TX_CLK_1000MBPS_25MHZ          0x0007
-
-#define GG82563_MSCR_ASSERT_CRS_ON_TX               0x0010 /* 1=Assert */
-
-/* DSP Distance Register (Page 5, Register 26) */
-#define GG82563_DSPD_CABLE_LENGTH               0x0007 /* 0 = <50M;
-                                                          1 = 50-80M;
-                                                          2 = 80-110M;
-                                                          3 = 110-140M;
-                                                          4 = >140M */
-
-/* Kumeran Mode Control Register (Page 193, Register 16) */
-#define GG82563_KMCR_PHY_LEDS_EN                    0x0020 /* 1=PHY LEDs, 0=Kumeran Inband LEDs */
-#define GG82563_KMCR_FORCE_LINK_UP                  0x0040 /* 1=Force Link Up */
-#define GG82563_KMCR_SUPPRESS_SGMII_EPD_EXT         0x0080
-#define GG82563_KMCR_MDIO_BUS_SPEED_SELECT_MASK     0x0400
-#define GG82563_KMCR_MDIO_BUS_SPEED_SELECT          0x0400 /* 1=6.25MHz, 0=0.8MHz */
-#define GG82563_KMCR_PASS_FALSE_CARRIER             0x0800
-
-/* Power Management Control Register (Page 193, Register 20) */
-#define GG82563_PMCR_ENABLE_ELECTRICAL_IDLE         0x0001 /* 1=Enalbe SERDES Electrical Idle */
-#define GG82563_PMCR_DISABLE_PORT                   0x0002 /* 1=Disable Port */
-#define GG82563_PMCR_DISABLE_SERDES                 0x0004 /* 1=Disable SERDES */
-#define GG82563_PMCR_REVERSE_AUTO_NEG               0x0008 /* 1=Enable Reverse Auto-Negotiation */
-#define GG82563_PMCR_DISABLE_1000_NON_D0            0x0010 /* 1=Disable 1000Mbps Auto-Neg in non D0 */
-#define GG82563_PMCR_DISABLE_1000                   0x0020 /* 1=Disable 1000Mbps Auto-Neg Always */
-#define GG82563_PMCR_REVERSE_AUTO_NEG_D0A           0x0040 /* 1=Enable D0a Reverse Auto-Negotiation */
-#define GG82563_PMCR_FORCE_POWER_STATE              0x0080 /* 1=Force Power State */
-#define GG82563_PMCR_PROGRAMMED_POWER_STATE_MASK    0x0300
-#define GG82563_PMCR_PROGRAMMED_POWER_STATE_DR      0x0000 /* 00=Dr */
-#define GG82563_PMCR_PROGRAMMED_POWER_STATE_D0U     0x0100 /* 01=D0u */
-#define GG82563_PMCR_PROGRAMMED_POWER_STATE_D0A     0x0200 /* 10=D0a */
-#define GG82563_PMCR_PROGRAMMED_POWER_STATE_D3      0x0300 /* 11=D3 */
-
-/* In-Band Control Register (Page 194, Register 18) */
-#define GG82563_ICR_DIS_PADDING                     0x0010 /* Disable Padding Use */
-
-
 /* Bit definitions for valid PHY IDs. */
 /* I = Integrated
  * E = External
@@ -3154,7 +2884,6 @@ struct e1000_host_command_info {
 #define M88E1011_I_REV_4   0x04
 #define M88E1111_I_PHY_ID  0x01410CC0
 #define L1LXT971A_PHY_ID   0x001378E0
-#define GG82563_E_PHY_ID   0x01410CA0
 
 
 /* Bits...
@@ -3304,74 +3033,6 @@ struct e1000_host_command_info {
 #define ICH_FLASH_SECTOR_SIZE      4096
 #define ICH_GFPREG_BASE_MASK       0x1FFF
 #define ICH_FLASH_LINEAR_ADDR_MASK 0x00FFFFFF
-
-/* ICH8 GbE Flash Hardware Sequencing Flash Status Register bit breakdown */
-/* Offset 04h HSFSTS */
-union ich8_hws_flash_status {
-    struct ich8_hsfsts {
-#ifdef __BIG_ENDIAN
-        u16 reserved2      :6;
-        u16 fldesvalid     :1;
-        u16 flockdn        :1;
-        u16 flcdone        :1;
-        u16 flcerr         :1;
-        u16 dael           :1;
-        u16 berasesz       :2;
-        u16 flcinprog      :1;
-        u16 reserved1      :2;
-#else
-        u16 flcdone        :1;   /* bit 0 Flash Cycle Done */
-        u16 flcerr         :1;   /* bit 1 Flash Cycle Error */
-        u16 dael           :1;   /* bit 2 Direct Access error Log */
-        u16 berasesz       :2;   /* bit 4:3 Block/Sector Erase Size */
-        u16 flcinprog      :1;   /* bit 5 flash SPI cycle in Progress */
-        u16 reserved1      :2;   /* bit 13:6 Reserved */
-        u16 reserved2      :6;   /* bit 13:6 Reserved */
-        u16 fldesvalid     :1;   /* bit 14 Flash Descriptor Valid */
-        u16 flockdn        :1;   /* bit 15 Flash Configuration Lock-Down */
-#endif
-    } hsf_status;
-    u16 regval;
-};
-
-/* ICH8 GbE Flash Hardware Sequencing Flash control Register bit breakdown */
-/* Offset 06h FLCTL */
-union ich8_hws_flash_ctrl {
-    struct ich8_hsflctl {
-#ifdef __BIG_ENDIAN
-        u16 fldbcount      :2;
-        u16 flockdn        :6;
-        u16 flcgo          :1;
-        u16 flcycle        :2;
-        u16 reserved       :5;
-#else
-        u16 flcgo          :1;   /* 0 Flash Cycle Go */
-        u16 flcycle        :2;   /* 2:1 Flash Cycle */
-        u16 reserved       :5;   /* 7:3 Reserved  */
-        u16 fldbcount      :2;   /* 9:8 Flash Data Byte Count */
-        u16 flockdn        :6;   /* 15:10 Reserved */
-#endif
-    } hsf_ctrl;
-    u16 regval;
-};
-
-/* ICH8 Flash Region Access Permissions */
-union ich8_hws_flash_regacc {
-    struct ich8_flracc {
-#ifdef __BIG_ENDIAN
-        u32 gmwag          :8;
-        u32 gmrag          :8;
-        u32 grwa           :8;
-        u32 grra           :8;
-#else
-        u32 grra           :8;   /* 0:7 GbE region Read Access */
-        u32 grwa           :8;   /* 8:15 GbE region Write Access */
-        u32 gmrag          :8;   /* 23:16 GbE Master Read Access Grant  */
-        u32 gmwag          :8;   /* 31:24 GbE Master Write Access Grant */
-#endif
-    } hsf_flregacc;
-    u16 regval;
-};
 
 /* Miscellaneous PHY bit definitions. */
 #define PHY_PREAMBLE        0xFFFFFFFF
