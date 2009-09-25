@@ -1,0 +1,588 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   version="1.0"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 21000 29700"
+   id="svg2"
+   style="fill-rule:evenodd">
+  <defs
+     id="defs4" />
+  <g
+     id="Default"
+     style="visibility:visible">
+    <desc
+       id="desc180">Master slide</desc>
+  </g>
+  <path
+     d="M 11999,8601 L 11899,8301 L 12099,8301 L 11999,8601 z"
+     id="path193"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 11999,7801 L 11999,8361"
+     id="path197"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <path
+     d="M 7999,10401 L 7899,10101 L 8099,10101 L 7999,10401 z"
+     id="path209"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 7999,9601 L 7999,10161"
+     id="path213"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <path
+     d="M 11999,7801 L 11685,7840 L 11724,7644 L 11999,7801 z"
+     id="path225"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 7999,7001 L 11764,7754"
+     id="path229"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <g
+     transform="matrix(0.9895258,-0.1443562,0.1443562,0.9895258,-1244.4792,1416.5139)"
+     id="g245"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <text
+       id="text247">
+      <tspan
+         x="9139 9368 9579 9808 9986 10075 10252 10481 10659 10837 10909"
+         y="9284"
+         id="tspan249">RSDataReply</tspan>
+    </text>
+  </g>
+  <path
+     d="M 7999,9601 L 8281,9458 L 8311,9655 L 7999,9601 z"
+     id="path259"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 11999,9001 L 8236,9565"
+     id="path263"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <g
+     transform="matrix(0.9788674,0.2044961,-0.2044961,0.9788674,1620.9382,-1639.4947)"
+     id="g279"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <text
+       id="text281">
+      <tspan
+         x="8743 8972 9132 9310 9573 9801 10013 10242 10419 10597 10775 10953 11114"
+         y="7023"
+         id="tspan283">CsumRSRequest</tspan>
+    </text>
+  </g>
+  <text
+     id="text297"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="4034 4263 4440 4703 4881 5042 5219 5397 5503 5681 5842 6003 6180 6341 6519 6625 6803 6980 7158 7336 7497 7586 7692"
+       y="5707"
+       id="tspan299">w_make_resync_request()</tspan>
+  </text>
+  <text
+     id="text313"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12199 12305 12483 12644 12821 12893 13054 13232 13410 13638 13816 13905 14083 14311 14489 14667 14845 15023 15184 15272 15378"
+       y="7806"
+       id="tspan315">receive_DataRequest()</tspan>
+  </text>
+  <text
+     id="text329"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12199 12377 12483 12660 12838 13016 13194 13372 13549 13621 13799 13977 14083 14261 14438 14616 14794 14955 15133 15294 15399"
+       y="8606"
+       id="tspan331">drbd_endio_read_sec()</tspan>
+  </text>
+  <text
+     id="text345"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12191 12420 12597 12775 12953 13131 13309 13486 13664 13825 13986 14164 14426 14604 14710 14871 15049 15154 15332 15510 15616"
+       y="9007"
+       id="tspan347">w_e_end_csum_rs_req()</tspan>
+  </text>
+  <text
+     id="text361"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="4444 4550 4728 4889 5066 5138 5299 5477 5655 5883 6095 6324 6501 6590 6768 6997 7175 7352 7424 7585 7691"
+       y="9507"
+       id="tspan363">receive_RSDataReply()</tspan>
+  </text>
+  <text
+     id="text377"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="4457 4635 4741 4918 5096 5274 5452 5630 5807 5879 6057 6235 6464 6569 6641 6730 6908 7086 7247 7425 7585 7691"
+       y="10407"
+       id="tspan379">drbd_endio_write_sec()</tspan>
+  </text>
+  <text
+     id="text393"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="4647 4825 5003 5180 5358 5536 5714 5820 5997 6158 6319 6497 6658 6836 7013 7085 7263 7424 7585 7691"
+       y="10907"
+       id="tspan395">e_end_resync_block()</tspan>
+  </text>
+  <path
+     d="M 11999,11601 L 11685,11640 L 11724,11444 L 11999,11601 z"
+     id="path405"
+     style="fill:#000080;visibility:visible" />
+  <path
+     d="M 7999,10801 L 11764,11554"
+     id="path409"
+     style="fill:none;stroke:#000080;visibility:visible" />
+  <g
+     transform="matrix(0.9788674,0.2044961,-0.2044961,0.9788674,2434.7562,-1674.649)"
+     id="g425"
+     style="font-size:318px;font-weight:400;fill:#000080;visibility:visible;font-family:Helvetica embedded">
+    <text
+       id="text427">
+      <tspan
+         x="9320 9621 9726 9798 9887 10065 10277 10438"
+         y="10943"
+         id="tspan429">WriteAck</tspan>
+    </text>
+  </g>
+  <text
+     id="text443"
+     style="font-size:318px;font-weight:400;fill:#000080;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12199 12377 12555 12644 12821 13033 13105 13283 13444 13604 13816 13977 14138 14244"
+       y="11559"
+       id="tspan445">got_BlockAck()</tspan>
+  </text>
+  <text
+     id="text459"
+     style="font-size:423px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="7999 8304 8541 8778 8990 9201 9413 9650 10001 10120 10357 10594 10806 11043 11280 11398 11703 11940 12152 12364 12601 12812 12931 13049 13261 13498 13710 13947 14065 14302 14540 14658 14777 14870 15107 15225 15437 15649 15886"
+       y="4877"
+       id="tspan461">Checksum based Resync, case not in sync</tspan>
+  </text>
+  <text
+     id="text475"
+     style="font-size:423px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="6961 7266 7571 7854 8159 8299 8536 8654 8891 9010 9247 9484 9603 9840 9958 10077 10170 10407"
+       y="2806"
+       id="tspan477">DRBD-8.3 data flow</tspan>
+  </text>
+  <text
+     id="text491"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="5190 5419 5596 5774 5952 6113 6291 6468 6646 6824 6985 7146 7324 7586 7692"
+       y="7005"
+       id="tspan493">w_e_send_csum()</tspan>
+  </text>
+  <path
+     d="M 11999,17601 L 11899,17301 L 12099,17301 L 11999,17601 z"
+     id="path503"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 11999,16801 L 11999,17361"
+     id="path507"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <path
+     d="M 11999,16801 L 11685,16840 L 11724,16644 L 11999,16801 z"
+     id="path519"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 7999,16001 L 11764,16754"
+     id="path523"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <g
+     transform="matrix(0.9895258,-0.1443562,0.1443562,0.9895258,-2539.5806,1529.3491)"
+     id="g539"
+     style="font-size:318px;font-weight:400;fill:#000080;visibility:visible;font-family:Helvetica embedded">
+    <text
+       id="text541">
+      <tspan
+         x="9269 9498 9709 9798 9959 10048 10226 10437 10598 10776"
+         y="18265"
+         id="tspan543">RSIsInSync</tspan>
+    </text>
+  </g>
+  <path
+     d="M 7999,18601 L 8281,18458 L 8311,18655 L 7999,18601 z"
+     id="path553"
+     style="fill:#000080;visibility:visible" />
+  <path
+     d="M 11999,18001 L 8236,18565"
+     id="path557"
+     style="fill:none;stroke:#000080;visibility:visible" />
+  <g
+     transform="matrix(0.9788674,0.2044961,-0.2044961,0.9788674,3461.4027,-1449.3012)"
+     id="g573"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <text
+       id="text575">
+      <tspan
+         x="8743 8972 9132 9310 9573 9801 10013 10242 10419 10597 10775 10953 11114"
+         y="16023"
+         id="tspan577">CsumRSRequest</tspan>
+    </text>
+  </g>
+  <text
+     id="text591"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12199 12305 12483 12644 12821 12893 13054 13232 13410 13638 13816 13905 14083 14311 14489 14667 14845 15023 15184 15272 15378"
+       y="16806"
+       id="tspan593">receive_DataRequest()</tspan>
+  </text>
+  <text
+     id="text607"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12199 12377 12483 12660 12838 13016 13194 13372 13549 13621 13799 13977 14083 14261 14438 14616 14794 14955 15133 15294 15399"
+       y="17606"
+       id="tspan609">drbd_endio_read_sec()</tspan>
+  </text>
+  <text
+     id="text623"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12191 12420 12597 12775 12953 13131 13309 13486 13664 13825 13986 14164 14426 14604 14710 14871 15049 15154 15332 15510 15616"
+       y="18007"
+       id="tspan625">w_e_end_csum_rs_req()</tspan>
+  </text>
+  <text
+     id="text639"
+     style="font-size:318px;font-weight:400;fill:#000080;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="5735 5913 6091 6180 6357 6446 6607 6696 6874 7085 7246 7424 7585 7691"
+       y="18507"
+       id="tspan641">got_IsInSync()</tspan>
+  </text>
+  <text
+     id="text655"
+     style="font-size:423px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="7999 8304 8541 8778 8990 9201 9413 9650 10001 10120 10357 10594 10806 11043 11280 11398 11703 11940 12152 12364 12601 12812 12931 13049 13261 13498 13710 13947 14065 14159 14396 14514 14726 14937 15175"
+       y="13877"
+       id="tspan657">Checksum based Resync, case in sync</tspan>
+  </text>
+  <path
+     d="M 12000,24601 L 11900,24301 L 12100,24301 L 12000,24601 z"
+     id="path667"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 12000,23801 L 12000,24361"
+     id="path671"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <path
+     d="M 8000,26401 L 7900,26101 L 8100,26101 L 8000,26401 z"
+     id="path683"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 8000,25601 L 8000,26161"
+     id="path687"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <path
+     d="M 12000,23801 L 11686,23840 L 11725,23644 L 12000,23801 z"
+     id="path699"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 8000,23001 L 11765,23754"
+     id="path703"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <g
+     transform="matrix(0.9895258,-0.1443562,0.1443562,0.9895258,-3543.8452,1630.5143)"
+     id="g719"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <text
+       id="text721">
+      <tspan
+         x="9464 9710 9921 10150 10328 10505 10577"
+         y="25236"
+         id="tspan723">OVReply</tspan>
+    </text>
+  </g>
+  <path
+     d="M 8000,25601 L 8282,25458 L 8312,25655 L 8000,25601 z"
+     id="path733"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 12000,25001 L 8237,25565"
+     id="path737"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <g
+     transform="matrix(0.9788674,0.2044961,-0.2044961,0.9788674,4918.2801,-1381.2128)"
+     id="g753"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <text
+       id="text755">
+      <tspan
+         x="9142 9388 9599 9828 10006 10183 10361 10539 10700"
+         y="23106"
+         id="tspan757">OVRequest</tspan>
+    </text>
+  </g>
+  <text
+     id="text771"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12200 12306 12484 12645 12822 12894 13055 13233 13411 13656 13868 14097 14274 14452 14630 14808 14969 15058 15163"
+       y="23806"
+       id="tspan773">receive_OVRequest()</tspan>
+  </text>
+  <text
+     id="text787"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12200 12378 12484 12661 12839 13017 13195 13373 13550 13622 13800 13978 14084 14262 14439 14617 14795 14956 15134 15295 15400"
+       y="24606"
+       id="tspan789">drbd_endio_read_sec()</tspan>
+  </text>
+  <text
+     id="text803"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12192 12421 12598 12776 12954 13132 13310 13487 13665 13843 14004 14182 14288 14465 14643 14749"
+       y="25007"
+       id="tspan805">w_e_end_ov_req()</tspan>
+  </text>
+  <text
+     id="text819"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="5101 5207 5385 5546 5723 5795 5956 6134 6312 6557 6769 6998 7175 7353 7425 7586 7692"
+       y="25507"
+       id="tspan821">receive_OVReply()</tspan>
+  </text>
+  <text
+     id="text835"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="4492 4670 4776 4953 5131 5309 5487 5665 5842 5914 6092 6270 6376 6554 6731 6909 7087 7248 7426 7587 7692"
+       y="26407"
+       id="tspan837">drbd_endio_read_sec()</tspan>
+  </text>
+  <text
+     id="text851"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="4902 5131 5308 5486 5664 5842 6020 6197 6375 6553 6714 6892 6998 7175 7353 7425 7586 7692"
+       y="26907"
+       id="tspan853">w_e_end_ov_reply()</tspan>
+  </text>
+  <path
+     d="M 12000,27601 L 11686,27640 L 11725,27444 L 12000,27601 z"
+     id="path863"
+     style="fill:#000080;visibility:visible" />
+  <path
+     d="M 8000,26801 L 11765,27554"
+     id="path867"
+     style="fill:none;stroke:#000080;visibility:visible" />
+  <g
+     transform="matrix(0.9788674,0.2044961,-0.2044961,0.9788674,5704.1907,-1328.312)"
+     id="g883"
+     style="font-size:318px;font-weight:400;fill:#000080;visibility:visible;font-family:Helvetica embedded">
+    <text
+       id="text885">
+      <tspan
+         x="9279 9525 9736 9965 10143 10303 10481 10553"
+         y="26935"
+         id="tspan887">OVResult</tspan>
+    </text>
+  </g>
+  <text
+     id="text901"
+     style="font-size:318px;font-weight:400;fill:#000080;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="12200 12378 12556 12645 12822 13068 13280 13508 13686 13847 14025 14097 14185 14291"
+       y="27559"
+       id="tspan903">got_OVResult()</tspan>
+  </text>
+  <text
+     id="text917"
+     style="font-size:423px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="8000 8330 8567 8660 8754 8991 9228 9346 9558 9795 9935 10028 10146"
+       y="21877"
+       id="tspan919">Online verify</tspan>
+  </text>
+  <text
+     id="text933"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="4641 4870 5047 5310 5488 5649 5826 6004 6182 6343 6521 6626 6804 6982 7160 7338 7499 7587 7693"
+       y="23005"
+       id="tspan935">w_make_ov_request()</tspan>
+  </text>
+  <path
+     d="M 8000,6500 L 7900,6200 L 8100,6200 L 8000,6500 z"
+     id="path945"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 8000,5700 L 8000,6260"
+     id="path949"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <path
+     d="M 3900,5500 L 3700,5500 L 3700,11000 L 3900,11000"
+     id="path961"
+     style="fill:none;stroke:#000000;visibility:visible" />
+  <path
+     d="M 3900,14500 L 3700,14500 L 3700,18600 L 3900,18600"
+     id="path973"
+     style="fill:none;stroke:#000000;visibility:visible" />
+  <path
+     d="M 3900,22800 L 3700,22800 L 3700,26900 L 3900,26900"
+     id="path985"
+     style="fill:none;stroke:#000000;visibility:visible" />
+  <text
+     id="text1001"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="4492 4670 4776 4953 5131 5309 5487 5665 5842 5914 6092 6270 6376 6554 6731 6909 7087 7248 7426 7587 7692"
+       y="6506"
+       id="tspan1003">drbd_endio_read_sec()</tspan>
+  </text>
+  <text
+     id="text1017"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="4034 4263 4440 4703 4881 5042 5219 5397 5503 5681 5842 6003 6180 6341 6519 6625 6803 6980 7158 7336 7497 7586 7692"
+       y="14708"
+       id="tspan1019">w_make_resync_request()</tspan>
+  </text>
+  <text
+     id="text1033"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="5190 5419 5596 5774 5952 6113 6291 6468 6646 6824 6985 7146 7324 7586 7692"
+       y="16006"
+       id="tspan1035">w_e_send_csum()</tspan>
+  </text>
+  <path
+     d="M 8000,15501 L 7900,15201 L 8100,15201 L 8000,15501 z"
+     id="path1045"
+     style="fill:#008000;visibility:visible" />
+  <path
+     d="M 8000,14701 L 8000,15261"
+     id="path1049"
+     style="fill:none;stroke:#008000;visibility:visible" />
+  <text
+     id="text1065"
+     style="font-size:318px;font-weight:400;fill:#008000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="4492 4670 4776 4953 5131 5309 5487 5665 5842 5914 6092 6270 6376 6554 6731 6909 7087 7248 7426 7587 7692"
+       y="15507"
+       id="tspan1067">drbd_endio_read_sec()</tspan>
+  </text>
+  <path
+     d="M 16100,9000 L 16300,9000 L 16300,7500 L 16100,7500"
+     id="path1077"
+     style="fill:none;stroke:#000000;visibility:visible" />
+  <path
+     d="M 16100,18000 L 16300,18000 L 16300,16500 L 16100,16500"
+     id="path1089"
+     style="fill:none;stroke:#000000;visibility:visible" />
+  <path
+     d="M 16100,25000 L 16300,25000 L 16300,23500 L 16100,23500"
+     id="path1101"
+     style="fill:none;stroke:#000000;visibility:visible" />
+  <text
+     id="text1117"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="2026 2132 2293 2471 2648 2826 3004 3076 3254 3431 3503 3681 3787"
+       y="5402"
+       id="tspan1119">rs_begin_io()</tspan>
+  </text>
+  <text
+     id="text1133"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="2027 2133 2294 2472 2649 2827 3005 3077 3255 3432 3504 3682 3788"
+       y="14402"
+       id="tspan1135">rs_begin_io()</tspan>
+  </text>
+  <text
+     id="text1149"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="2026 2132 2293 2471 2648 2826 3004 3076 3254 3431 3503 3681 3787"
+       y="22602"
+       id="tspan1151">rs_begin_io()</tspan>
+  </text>
+  <text
+     id="text1165"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="1426 1532 1693 1871 2031 2209 2472 2649 2721 2899 2988 3166 3344 3416 3593 3699"
+       y="11302"
+       id="tspan1167">rs_complete_io()</tspan>
+  </text>
+  <text
+     id="text1181"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="1526 1632 1793 1971 2131 2309 2572 2749 2821 2999 3088 3266 3444 3516 3693 3799"
+       y="18931"
+       id="tspan1183">rs_complete_io()</tspan>
+  </text>
+  <text
+     id="text1197"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="1526 1632 1793 1971 2131 2309 2572 2749 2821 2999 3088 3266 3444 3516 3693 3799"
+       y="27231"
+       id="tspan1199">rs_complete_io()</tspan>
+  </text>
+  <text
+     id="text1213"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="16126 16232 16393 16571 16748 16926 17104 17176 17354 17531 17603 17781 17887"
+       y="7402"
+       id="tspan1215">rs_begin_io()</tspan>
+  </text>
+  <text
+     id="text1229"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="16127 16233 16394 16572 16749 16927 17105 17177 17355 17532 17604 17782 17888"
+       y="16331"
+       id="tspan1231">rs_begin_io()</tspan>
+  </text>
+  <text
+     id="text1245"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="16127 16233 16394 16572 16749 16927 17105 17177 17355 17532 17604 17782 17888"
+       y="23302"
+       id="tspan1247">rs_begin_io()</tspan>
+  </text>
+  <text
+     id="text1261"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="16115 16221 16382 16560 16720 16898 17161 17338 17410 17588 17677 17855 18033 18105 18282 18388"
+       y="9302"
+       id="tspan1263">rs_complete_io()</tspan>
+  </text>
+  <text
+     id="text1277"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="16115 16221 16382 16560 16720 16898 17161 17338 17410 17588 17677 17855 18033 18105 18282 18388"
+       y="18331"
+       id="tspan1279">rs_complete_io()</tspan>
+  </text>
+  <text
+     id="text1293"
+     style="font-size:318px;font-weight:400;fill:#000000;visibility:visible;font-family:Helvetica embedded">
+    <tspan
+       x="16126 16232 16393 16571 16731 16909 17172 17349 17421 17599 17688 17866 18044 18116 18293 18399"
+       y="25302"
+       id="tspan1295">rs_complete_io()</tspan>
+  </text>
+</svg>

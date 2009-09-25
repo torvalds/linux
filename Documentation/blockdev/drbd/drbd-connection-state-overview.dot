@@ -1,0 +1,85 @@
+// vim: set sw=2 sts=2 :
+digraph {
+  rankdir=BT
+  bgcolor=white
+
+  node [shape=plaintext]
+  node [fontcolor=black]
+
+  StandAlone     [ style=filled,fillcolor=gray,label=StandAlone ]
+
+  node [fontcolor=lightgray]
+
+  Unconnected    [ label=Unconnected ]
+
+  CommTrouble [ shape=record,
+    label="{communication loss|{Timeout|BrokenPipe|NetworkFailure}}" ]
+
+  node [fontcolor=gray]
+
+  subgraph cluster_try_connect {
+    label="try to connect, handshake"
+    rank=max
+    WFConnection   [ label=WFConnection ]
+    WFReportParams [ label=WFReportParams ]
+  }
+
+  TearDown       [ label=TearDown ]
+
+  Connected      [ label=Connected,style=filled,fillcolor=green,fontcolor=black ]
+
+  node [fontcolor=lightblue]
+
+  StartingSyncS  [ label=StartingSyncS ]
+  StartingSyncT  [ label=StartingSyncT ]
+
+  subgraph cluster_bitmap_exchange {
+    node [fontcolor=red]
+    fontcolor=red
+    label="new application (WRITE?) requests blocked\lwhile bitmap is exchanged"
+
+    WFBitMapT      [ label=WFBitMapT ]
+    WFSyncUUID     [ label=WFSyncUUID ]
+    WFBitMapS      [ label=WFBitMapS ]
+  }
+
+  node [fontcolor=blue]
+
+  cluster_resync [ shape=record,label="{<any>resynchronisation process running\l'concurrent' application requests allowed|{{<T>PausedSyncT\nSyncTarget}|{<S>PausedSyncS\nSyncSource}}}" ]
+
+  node [shape=box,fontcolor=black]
+
+  // drbdadm [label="drbdadm connect"]
+  // handshake [label="drbd_connect()\ndrbd_do_handshake\ndrbd_sync_handshake() etc."]
+  // comm_error [label="communication trouble"]
+
+  //
+  // edges
+  // --------------------------------------
+
+  StandAlone -> Unconnected [ label="drbdadm connect" ]
+  Unconnected -> StandAlone  [ label="drbdadm disconnect\lor serious communication trouble" ]
+  Unconnected -> WFConnection [ label="receiver thread is started" ]
+  WFConnection -> WFReportParams [ headlabel="accept()\land/or                        \lconnect()\l" ]
+
+  WFReportParams -> StandAlone [ label="during handshake\lpeers do not agree\labout something essential" ]
+  WFReportParams -> Connected [ label="data identical\lno sync needed",color=green,fontcolor=green ]
+
+    WFReportParams -> WFBitMapS
+    WFReportParams -> WFBitMapT
+    WFBitMapT -> WFSyncUUID [minlen=0.1,constraint=false]
+
+      WFBitMapS -> cluster_resync:S
+      WFSyncUUID -> cluster_resync:T
+
+  edge [color=green]
+  cluster_resync:any -> Connected [ label="resnyc done",fontcolor=green ]
+
+  edge [color=red]
+  WFReportParams -> CommTrouble
+  Connected -> CommTrouble
+  cluster_resync:any -> CommTrouble
+  edge [color=black]
+  CommTrouble -> Unconnected [label="receiver thread is stopped" ]
+
+}
