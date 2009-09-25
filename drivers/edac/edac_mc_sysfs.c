@@ -730,7 +730,7 @@ void edac_mc_unregister_sysfs_main_kobj(struct mem_ctl_info *mci)
 
 #define EDAC_DEVICE_SYMLINK	"device"
 
-#define grp_to_mci(k) (container_of(k, struct mcidev_sysfs_group, kobj)->mci)
+#define grp_to_mci(k) (container_of(k, struct mcidev_sysfs_group_kobj, kobj)->mci)
 
 /* MCI show/store functions for top most object */
 static ssize_t inst_grp_show(struct kobject *kobj, struct attribute *attr,
@@ -764,12 +764,12 @@ static ssize_t inst_grp_store(struct kobject *kobj, struct attribute *attr,
 /* No memory to release for this kobj */
 static void edac_inst_grp_release(struct kobject *kobj)
 {
-	struct mcidev_sysfs_group *grp;
+	struct mcidev_sysfs_group_kobj *grp;
 	struct mem_ctl_info *mci;
 
 	debugf1("%s()\n", __func__);
 
-	grp = container_of(kobj, struct mcidev_sysfs_group, kobj);
+	grp = container_of(kobj, struct mcidev_sysfs_group_kobj, kobj);
 	mci = grp->mci;
 
 	kobject_put(&mci->edac_mci_kobj);
@@ -804,22 +804,30 @@ static int edac_create_mci_instance_attributes(struct mem_ctl_info *mci,
 
 	while (sysfs_attrib) {
 		if (sysfs_attrib->grp) {
-			struct kobject *newkobj = &sysfs_attrib->grp->kobj;
+			struct mcidev_sysfs_group_kobj *grp_kobj;
+
+			grp_kobj = kzalloc(sizeof(*grp_kobj), GFP_KERNEL);
+			if (!grp_kobj)
+				return -ENOMEM;
+
+			list_add_tail(&grp_kobj->list, &mci->grp_kobj_list);
+
+			grp_kobj->grp = sysfs_attrib->grp;
+			grp_kobj->mci = mci;
 
 			debugf0("%s() grp %s, mci %p\n", __func__,
 				sysfs_attrib->grp->name, mci);
 
-			sysfs_attrib->grp->mci = mci;
-
-			err = kobject_init_and_add(newkobj, &ktype_inst_grp,
+			err = kobject_init_and_add(&grp_kobj->kobj,
+						&ktype_inst_grp,
 						&mci->edac_mci_kobj,
 						sysfs_attrib->grp->name);
 			if (err)
 				return err;
 
 			err = edac_create_mci_instance_attributes(mci,
-					sysfs_attrib->grp->mcidev_attr,
-					newkobj);
+					grp_kobj->grp->mcidev_attr,
+					&grp_kobj->kobj);
 
 			if (err)
 				return err;
@@ -845,25 +853,27 @@ static int edac_create_mci_instance_attributes(struct mem_ctl_info *mci,
  *	remove MC driver specific attributes at the topmost level
  *	directory of this mci instance.
  */
-static void edac_remove_mci_instance_attributes(
+static void edac_remove_mci_instance_attributes(struct mem_ctl_info *mci,
 				struct mcidev_sysfs_attribute *sysfs_attrib,
-				struct kobject *kobj)
+				struct kobject *kobj, int count)
 {
+	struct mcidev_sysfs_group_kobj *grp_kobj, *tmp;
+
 	debugf1("%s()\n", __func__);
 
-	/* loop if there are attributes and until we hit a NULL entry */
+	/*
+	 * loop if there are attributes and until we hit a NULL entry
+	 * Remove first all the atributes
+	 */
 	while (sysfs_attrib) {
 		if (sysfs_attrib->grp) {
-			struct kobject *newkobj = &sysfs_attrib->grp->kobj;
-
-			debugf0("%s() grp %s\n", __func__,
-				sysfs_attrib->grp->name);
-
-			edac_remove_mci_instance_attributes(
-				sysfs_attrib->grp->mcidev_attr, newkobj);
-
-			kobject_put(newkobj);
-		} else  if (sysfs_attrib->attr.name) {
+			list_for_each_entry(grp_kobj, &mci->grp_kobj_list,
+					    list)
+				if (grp_kobj->grp == sysfs_attrib->grp)
+					edac_remove_mci_instance_attributes(mci,
+						    grp_kobj->grp->mcidev_attr,
+						    &grp_kobj->kobj, count + 1);
+		} else if (sysfs_attrib->attr.name) {
 			debugf0("%s() file %s\n", __func__,
 				sysfs_attrib->attr.name);
 			sysfs_remove_file(kobj, &sysfs_attrib->attr);
@@ -871,6 +881,16 @@ static void edac_remove_mci_instance_attributes(
 			break;
 		sysfs_attrib++;
 	}
+
+	/*
+	 * Now that all attributes got removed, it is save to remove all groups
+	 */
+	if (!count)
+		list_for_each_entry_safe(grp_kobj, tmp, &mci->grp_kobj_list,
+					 list) {
+			debugf0("%s() grp %s\n", __func__, grp_kobj->grp->name);
+			kobject_put(&grp_kobj->kobj);
+		}
 }
 
 
@@ -890,6 +910,8 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	struct kobject *kobj_mci = &mci->edac_mci_kobj;
 
 	debugf0("%s() idx=%d\n", __func__, mci->mc_idx);
+
+	INIT_LIST_HEAD(&mci->grp_kobj_list);
 
 	/* create a symlink for the device */
 	err = sysfs_create_link(kobj_mci, &mci->dev->kobj,
@@ -940,8 +962,8 @@ fail1:
 	}
 
 	/* remove the mci instance's attributes, if any */
-	edac_remove_mci_instance_attributes(
-		mci->mc_driver_sysfs_attributes, &mci->edac_mci_kobj);
+	edac_remove_mci_instance_attributes(mci,
+		mci->mc_driver_sysfs_attributes, &mci->edac_mci_kobj, 0);
 
 	/* remove the symlink */
 	sysfs_remove_link(kobj_mci, EDAC_DEVICE_SYMLINK);
@@ -975,8 +997,9 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 	debugf0("%s()  remove_mci_instance\n", __func__);
 
 	/* remove this mci instance's attribtes */
-	edac_remove_mci_instance_attributes(mci->mc_driver_sysfs_attributes,
-					    &mci->edac_mci_kobj);
+	edac_remove_mci_instance_attributes(mci,
+					    mci->mc_driver_sysfs_attributes,
+					    &mci->edac_mci_kobj, 0);
 	debugf0("%s()  unregister this mci kobj\n", __func__);
 
 	/* unregister this instance's kobject */
