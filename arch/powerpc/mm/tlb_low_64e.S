@@ -18,7 +18,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/cputable.h>
 #include <asm/pgtable.h>
-#include <asm/reg.h>
 #include <asm/exception-64e.h>
 #include <asm/ppc-opcode.h>
 

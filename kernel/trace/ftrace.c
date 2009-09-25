@@ -3015,7 +3015,7 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 
 int
 ftrace_enable_sysctl(struct ctl_table *table, int write,
-		     struct file *file, void __user *buffer, size_t *lenp,
+		     void __user *buffer, size_t *lenp,
 		     loff_t *ppos)
 {
 	int ret;
@@ -3025,7 +3025,7 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 	mutex_lock(&ftrace_lock);
 
-	ret  = proc_dointvec(table, write, file, buffer, lenp, ppos);
+	ret  = proc_dointvec(table, write, buffer, lenp, ppos);
 
 	if (ret || !write || (last_ftrace_enabled == !!ftrace_enabled))
 		goto out;

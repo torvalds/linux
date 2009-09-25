@@ -27,6 +27,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 #include <linux/amba/pl061.h>
+#include <linux/amba/mmci.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/cnt32_to_63.h>
@@ -47,7 +48,6 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <asm/mach/mmc.h>
 
 #include "core.h"
 #include "clock.h"
@@ -369,7 +369,7 @@ unsigned int mmc_status(struct device *dev)
 	return readl(VERSATILE_SYSMCI) & mask;
 }
 
-static struct mmc_platform_data mmc0_plat_data = {
+static struct mmci_platform_data mmc0_plat_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= mmc_status,
 	.gpio_wp	= -1,

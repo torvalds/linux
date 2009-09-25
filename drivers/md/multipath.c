@@ -150,7 +150,6 @@ static int multipath_make_request (struct request_queue *q, struct bio * bio)
 	}
 
 	mp_bh = mempool_alloc(conf->pool, GFP_NOIO);
-	memset(mp_bh, 0, sizeof(*mp_bh));
 
 	mp_bh->master_bio = bio;
 	mp_bh->mddev = mddev;
@@ -198,6 +197,9 @@ static int multipath_congested(void *data, int bits)
 	mddev_t *mddev = data;
 	multipath_conf_t *conf = mddev->private;
 	int i, ret = 0;
+
+	if (mddev_congested(mddev, bits))
+		return 1;
 
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks ; i++) {
@@ -504,7 +506,7 @@ static int multipath_run (mddev_t *mddev)
 	}
 
 	{
-		mddev->thread = md_register_thread(multipathd, mddev, "%s_multipath");
+		mddev->thread = md_register_thread(multipathd, mddev, NULL);
 		if (!mddev->thread) {
 			printk(KERN_ERR "multipath: couldn't allocate thread"
 				" for %s\n", mdname(mddev));

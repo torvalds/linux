@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
+#include "i915_drv.h"
 #include "drm_crtc.h"
 
 #include "drm_crtc_helper.h"
@@ -111,8 +112,8 @@ struct intel_output {
 
 struct intel_crtc {
 	struct drm_crtc base;
-	int pipe;
-	int plane;
+	enum pipe pipe;
+	enum plane plane;
 	struct drm_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	u8 lut_r[256], lut_g[256], lut_b[256];

@@ -115,6 +115,9 @@ static const struct file_operations acpi_button_state_fops = {
 	.release = single_release,
 };
 
+static BLOCKING_NOTIFIER_HEAD(acpi_lid_notifier);
+static struct acpi_device *lid_device;
+
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
@@ -231,11 +234,38 @@ static int acpi_button_remove_fs(struct acpi_device *device)
 /* --------------------------------------------------------------------------
                                 Driver Interface
    -------------------------------------------------------------------------- */
+int acpi_lid_notifier_register(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&acpi_lid_notifier, nb);
+}
+EXPORT_SYMBOL(acpi_lid_notifier_register);
+
+int acpi_lid_notifier_unregister(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&acpi_lid_notifier, nb);
+}
+EXPORT_SYMBOL(acpi_lid_notifier_unregister);
+
+int acpi_lid_open(void)
+{
+	acpi_status status;
+	unsigned long long state;
+
+	status = acpi_evaluate_integer(lid_device->handle, "_LID", NULL,
+				       &state);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	return !!state;
+}
+EXPORT_SYMBOL(acpi_lid_open);
+
 static int acpi_lid_send_state(struct acpi_device *device)
 {
 	struct acpi_button *button = acpi_driver_data(device);
 	unsigned long long state;
 	acpi_status status;
+	int ret;
 
 	status = acpi_evaluate_integer(device->handle, "_LID", NULL, &state);
 	if (ACPI_FAILURE(status))
@@ -244,7 +274,12 @@ static int acpi_lid_send_state(struct acpi_device *device)
 	/* input layer checks if event is redundant */
 	input_report_switch(button->input, SW_LID, !state);
 	input_sync(button->input);
-	return 0;
+
+	ret = blocking_notifier_call_chain(&acpi_lid_notifier, state, device);
+	if (ret == NOTIFY_DONE)
+		ret = blocking_notifier_call_chain(&acpi_lid_notifier, state,
+						   device);
+	return ret;
 }
 
 static void acpi_button_notify(struct acpi_device *device, u32 event)
@@ -366,8 +401,14 @@ static int acpi_button_add(struct acpi_device *device)
 	error = input_register_device(input);
 	if (error)
 		goto err_remove_fs;
-	if (button->type == ACPI_BUTTON_TYPE_LID)
+	if (button->type == ACPI_BUTTON_TYPE_LID) {
 		acpi_lid_send_state(device);
+		/*
+		 * This assumes there's only one lid device, or if there are
+		 * more we only care about the last one...
+		 */
+		lid_device = device;
+	}
 
 	if (device->wakeup.flags.valid) {
 		/* Button's GPE is run-wake GPE */

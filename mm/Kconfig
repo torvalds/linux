@@ -245,6 +245,20 @@ config DEFAULT_MMAP_MIN_ADDR
 	  /proc/sys/vm/mmap_min_addr tunable.
 
 
+config MEMORY_FAILURE
+	depends on MMU
+	depends on X86_MCE
+	bool "Enable recovery from hardware memory errors"
+	help
+	  Enables code to recover from some memory failures on systems
+	  with MCA recovery. This allows a system to continue running
+	  even when some of its memory has uncorrected errors. This requires
+	  special hardware support and typically ECC memory.
+
+config HWPOISON_INJECT
+	tristate "Poison pages injector"
+	depends on MEMORY_FAILURE && DEBUG_KERNEL
+
 config NOMMU_INITIAL_TRIM_EXCESS
 	int "Turn on mmap() excess space trimming before booting"
 	depends on !MMU

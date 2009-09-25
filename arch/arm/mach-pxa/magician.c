@@ -140,15 +140,9 @@ static unsigned long magician_pin_config[] __initdata = {
  * IRDA
  */
 
-static void magician_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(GPIO83_MAGICIAN_nIR_EN, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
 static struct pxaficp_platform_data magician_ficp_info = {
-	.transceiver_cap  = IR_SIRMODE | IR_OFF,
-	.transceiver_mode = magician_irda_transceiver_mode,
+	.gpio_pwdown		= GPIO83_MAGICIAN_nIR_EN,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
 };
 
 /*
@@ -651,55 +645,24 @@ static struct platform_device bq24022 = {
 static int magician_mci_init(struct device *dev,
 				irq_handler_t detect_irq, void *data)
 {
-	int err;
-
-	err = request_irq(IRQ_MAGICIAN_SD, detect_irq,
+	return request_irq(IRQ_MAGICIAN_SD, detect_irq,
 				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
-				"MMC card detect", data);
-	if (err)
-		goto err_request_irq;
-	err = gpio_request(EGPIO_MAGICIAN_SD_POWER, "SD_POWER");
-	if (err)
-		goto err_request_power;
-	err = gpio_request(EGPIO_MAGICIAN_nSD_READONLY, "nSD_READONLY");
-	if (err)
-		goto err_request_readonly;
-
-	return 0;
-
-err_request_readonly:
-	gpio_free(EGPIO_MAGICIAN_SD_POWER);
-err_request_power:
-	free_irq(IRQ_MAGICIAN_SD, data);
-err_request_irq:
-	return err;
-}
-
-static void magician_mci_setpower(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data *pdata = dev->platform_data;
-
-	gpio_set_value(EGPIO_MAGICIAN_SD_POWER, (1 << vdd) & pdata->ocr_mask);
-}
-
-static int magician_mci_get_ro(struct device *dev)
-{
-	return (!gpio_get_value(EGPIO_MAGICIAN_nSD_READONLY));
+				"mmc card detect", data);
 }
 
 static void magician_mci_exit(struct device *dev, void *data)
 {
-	gpio_free(EGPIO_MAGICIAN_nSD_READONLY);
-	gpio_free(EGPIO_MAGICIAN_SD_POWER);
 	free_irq(IRQ_MAGICIAN_SD, data);
 }
 
 static struct pxamci_platform_data magician_mci_info = {
-	.ocr_mask = MMC_VDD_32_33|MMC_VDD_33_34,
-	.init     = magician_mci_init,
-	.get_ro   = magician_mci_get_ro,
-	.setpower = magician_mci_setpower,
-	.exit     = magician_mci_exit,
+	.ocr_mask 		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.init     		= magician_mci_init,
+	.exit     		= magician_mci_exit,
+	.gpio_card_detect	= -1,
+	.gpio_card_ro		= EGPIO_MAGICIAN_nSD_READONLY,
+	.gpio_card_ro_invert	= 1,
+	.gpio_power		= EGPIO_MAGICIAN_SD_POWER,
 };
 
 

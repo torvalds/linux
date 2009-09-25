@@ -3,14 +3,14 @@
 
 #include <linux/fs.h>
 
+struct ctl_table;
+struct user_struct;
+
 #ifdef CONFIG_HUGETLB_PAGE
 
 #include <linux/mempolicy.h>
 #include <linux/shm.h>
 #include <asm/tlbflush.h>
-
-struct ctl_table;
-struct user_struct;
 
 int PageHuge(struct page *page);
 
@@ -20,9 +20,9 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
 }
 
 void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
-int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
-int hugetlb_overcommit_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
-int hugetlb_treat_movable_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
+int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+int hugetlb_treat_movable_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
 int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
 int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
 			struct page **, struct vm_area_struct **,
@@ -187,7 +187,11 @@ static inline void set_file_hugepages(struct file *file)
 
 #define is_file_hugepages(file)			0
 #define set_file_hugepages(file)		BUG()
-#define hugetlb_file_setup(name,size,acct,user,creat)	ERR_PTR(-ENOSYS)
+static inline struct file *hugetlb_file_setup(const char *name, size_t size,
+		int acctflag, struct user_struct **user, int creat_flags)
+{
+	return ERR_PTR(-ENOSYS);
+}
 
 #endif /* !CONFIG_HUGETLBFS */
 

@@ -1542,6 +1542,28 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 				current->timer_slack_ns = arg2;
 			error = 0;
 			break;
+		case PR_MCE_KILL:
+			if (arg4 | arg5)
+				return -EINVAL;
+			switch (arg2) {
+			case 0:
+				if (arg3 != 0)
+					return -EINVAL;
+				current->flags &= ~PF_MCE_PROCESS;
+				break;
+			case 1:
+				current->flags |= PF_MCE_PROCESS;
+				if (arg3 != 0)
+					current->flags |= PF_MCE_EARLY;
+				else
+					current->flags &= ~PF_MCE_EARLY;
+				break;
+			default:
+				return -EINVAL;
+			}
+			error = 0;
+			break;
+
 		default:
 			error = -EINVAL;
 			break;

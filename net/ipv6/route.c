@@ -2524,13 +2524,13 @@ static const struct file_operations rt6_stats_seq_fops = {
 #ifdef CONFIG_SYSCTL
 
 static
-int ipv6_sysctl_rtcache_flush(ctl_table *ctl, int write, struct file * filp,
+int ipv6_sysctl_rtcache_flush(ctl_table *ctl, int write,
 			      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = current->nsproxy->net_ns;
 	int delay = net->ipv6.sysctl.flush_delay;
 	if (write) {
-		proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+		proc_dointvec(ctl, write, buffer, lenp, ppos);
 		fib6_run_gc(delay <= 0 ? ~0UL : (unsigned long)delay, net);
 		return 0;
 	} else
