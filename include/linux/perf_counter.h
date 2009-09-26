@@ -361,7 +361,7 @@ enum perf_event_type {
 	 *	struct perf_event_header	header;
 	 *	u32				pid, ppid;
 	 *	u32				tid, ptid;
-	 *	{ u64				time;     } && PERF_SAMPLE_TIME
+	 *	u64				time;
 	 * };
 	 */
 	PERF_EVENT_FORK			= 7,
