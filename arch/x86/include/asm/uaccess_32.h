@@ -187,9 +187,26 @@ __copy_from_user_inatomic_nocache(void *to, const void __user *from,
 
 unsigned long __must_check copy_to_user(void __user *to,
 					const void *from, unsigned long n);
-unsigned long __must_check copy_from_user(void *to,
+unsigned long __must_check _copy_from_user(void *to,
 					  const void __user *from,
 					  unsigned long n);
+
+static inline unsigned long __must_check copy_from_user(void *to,
+					  const void __user *from,
+					  unsigned long n)
+{
+	int sz = __compiletime_object_size(to);
+	int ret = -EFAULT;
+
+	if (likely(sz == -1 || sz >= n))
+		ret = _copy_from_user(to, from, n);
+#ifdef CONFIG_DEBUG_VM
+	else
+		WARN(1, "Buffer overflow detected!\n");
+#endif
+	return ret;
+}
+
 long __must_check strncpy_from_user(char *dst, const char __user *src,
 				    long count);
 long __must_check __strncpy_from_user(char *dst,
