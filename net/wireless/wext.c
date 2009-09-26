@@ -773,10 +773,13 @@ static int ioctl_standard_iw_point(struct iw_point *iwp, unsigned int cmd,
 			essid_compat = 1;
 		else if (IW_IS_SET(cmd) && (iwp->length != 0)) {
 			char essid[IW_ESSID_MAX_SIZE + 1];
+			unsigned int len;
+			len = iwp->length * descr->token_size;
 
-			err = copy_from_user(essid, iwp->pointer,
-					     iwp->length *
-					     descr->token_size);
+			if (len > IW_ESSID_MAX_SIZE)
+				return -EFAULT;
+
+			err = copy_from_user(essid, iwp->pointer, len);
 			if (err)
 				return -EFAULT;
 
