@@ -178,6 +178,11 @@ asmlinkage void early_printk(const char *fmt, ...)
 
 static inline void early_console_register(struct console *con, int keep_early)
 {
+	if (early_console->index != -1) {
+		printk(KERN_CRIT "ERROR: earlyprintk= %s already used\n",
+		       con->name);
+		return;
+	}
 	early_console = con;
 	if (keep_early)
 		early_console->flags &= ~CON_BOOT;
