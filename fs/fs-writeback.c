@@ -250,9 +250,11 @@ static void bdi_sync_writeback(struct backing_dev_info *bdi,
  *   completion. Caller need not hold sb s_umount semaphore.
  *
  */
-void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages)
+void bdi_start_writeback(struct backing_dev_info *bdi, struct super_block *sb,
+			 long nr_pages)
 {
 	struct wb_writeback_args args = {
+		.sb		= sb,
 		.sync_mode	= WB_SYNC_NONE,
 		.nr_pages	= nr_pages,
 		.range_cyclic	= 1,
@@ -1206,7 +1208,7 @@ void writeback_inodes_sb(struct super_block *sb)
 	nr_to_write = nr_dirty + nr_unstable +
 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
 
-	bdi_start_writeback(sb->s_bdi, nr_to_write);
+	bdi_start_writeback(sb->s_bdi, sb, nr_to_write);
 }
 EXPORT_SYMBOL(writeback_inodes_sb);
 
