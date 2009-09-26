@@ -117,7 +117,8 @@ MODULE_DEVICE_TABLE(pci, pc263_pci_table);
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.
+*/
 #ifdef CONFIG_COMEDI_PCI
 struct pc263_private {
 	/* PCI device. */
@@ -281,7 +282,8 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		ret = comedi_pci_enable(pci_dev, PC263_DRIVER_NAME);
 		if (ret < 0) {
 			printk(KERN_ERR
-			       "comedi%d: error! cannot enable PCI device and request regions!\n",
+			       "comedi%d: error! cannot enable PCI device and "
+				"request regions!\n",
 			       dev->minor);
 			return ret;
 		}
