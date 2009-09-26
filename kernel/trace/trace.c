@@ -415,7 +415,7 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 
 	/* read the non-space input */
 	while (cnt && !isspace(ch)) {
-		if (parser->idx < parser->size)
+		if (parser->idx < parser->size - 1)
 			parser->buffer[parser->idx++] = ch;
 		else {
 			ret = -EINVAL;

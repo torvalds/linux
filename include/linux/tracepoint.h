@@ -36,7 +36,7 @@ struct tracepoint {
 #ifndef DECLARE_TRACE
 
 #define TP_PROTO(args...)	args
-#define TP_ARGS(args...)		args
+#define TP_ARGS(args...)	args
 
 #ifdef CONFIG_TRACEPOINTS
 
