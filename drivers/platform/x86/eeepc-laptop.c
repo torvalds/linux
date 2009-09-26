@@ -624,7 +624,7 @@ static int notify_brn(void)
 	struct backlight_device *bd = eeepc_backlight_device;
 	if (bd) {
 		int old = bd->props.brightness;
-		bd->props.brightness = read_brightness(bd);
+		backlight_force_update(bd, BACKLIGHT_UPDATE_HOTKEY);
 		return old;
 	}
 	return -1;

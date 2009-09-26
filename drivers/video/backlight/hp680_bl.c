@@ -103,7 +103,7 @@ static struct backlight_ops hp680bl_ops = {
 	.update_status  = hp680bl_set_intensity,
 };
 
-static int __init hp680bl_probe(struct platform_device *pdev)
+static int __devinit hp680bl_probe(struct platform_device *pdev)
 {
 	struct backlight_device *bd;
 

@@ -1986,6 +1986,10 @@ acpi_video_switch_brightness(struct acpi_video_device *device, int event)
 
 	result = acpi_video_device_lcd_set_level(device, level_next);
 
+	if (!result)
+		backlight_force_update(device->backlight,
+				       BACKLIGHT_UPDATE_HOTKEY);
+
 out:
 	if (result)
 		printk(KERN_ERR PREFIX "Failed to switch the brightness\n");
