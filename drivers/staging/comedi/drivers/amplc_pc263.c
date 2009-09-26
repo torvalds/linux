@@ -292,9 +292,8 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	{
 		ret = pc263_request_region(dev->minor, iobase, PC263_IO_SIZE);
-		if (ret < 0) {
+		if (ret < 0)
 			return ret;
-		}
 	}
 	dev->iobase = iobase;
 
@@ -352,21 +351,18 @@ static int pc263_detach(struct comedi_device *dev)
 	       PC263_DRIVER_NAME);
 
 #ifdef CONFIG_COMEDI_PCI
-	if (devpriv)
+	if (devpriv) {
 #endif
-	{
 #ifdef CONFIG_COMEDI_PCI
 		if (devpriv->pci_dev) {
-			if (dev->iobase) {
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
-			}
 			pci_dev_put(devpriv->pci_dev);
 		} else
 #endif
 		{
-			if (dev->iobase) {
+			if (dev->iobase)
 				release_region(dev->iobase, PC263_IO_SIZE);
-			}
 		}
 	}
 	if (dev->board_name) {
