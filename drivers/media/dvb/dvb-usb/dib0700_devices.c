@@ -887,6 +887,37 @@ static struct dvb_usb_rc_key dib0700_rc_keys[] = {
 	{ 0x1d37, KEY_RECORD },
 	{ 0x1d3b, KEY_GOTO },
 	{ 0x1d3d, KEY_POWER },
+
+	/* Key codes for the Pixelview SBTVD remote (proto NEC) */
+	{ 0x8613, KEY_MUTE },
+	{ 0x8612, KEY_POWER },
+	{ 0x8601, KEY_1 },
+	{ 0x8602, KEY_2 },
+	{ 0x8603, KEY_3 },
+	{ 0x8604, KEY_4 },
+	{ 0x8605, KEY_5 },
+	{ 0x8606, KEY_6 },
+	{ 0x8607, KEY_7 },
+	{ 0x8608, KEY_8 },
+	{ 0x8609, KEY_9 },
+	{ 0x8600, KEY_0 },
+	{ 0x860d, KEY_CHANNELUP },
+	{ 0x8619, KEY_CHANNELDOWN },
+	{ 0x8610, KEY_VOLUMEUP },
+	{ 0x860c, KEY_VOLUMEDOWN },
+
+	{ 0x860a, KEY_CAMERA },
+	{ 0x860b, KEY_ZOOM },
+	{ 0x861b, KEY_BACKSPACE },
+	{ 0x8615, KEY_ENTER },
+
+	{ 0x861d, KEY_UP },
+	{ 0x861e, KEY_DOWN },
+	{ 0x860e, KEY_LEFT },
+	{ 0x860f, KEY_RIGHT },
+
+	{ 0x8618, KEY_RECORD },
+	{ 0x861a, KEY_STOP },
 };
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
