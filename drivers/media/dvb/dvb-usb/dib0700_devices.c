@@ -588,7 +588,6 @@ static int dib0700_rc_query_v1_20(struct dvb_usb_device *d, u32 *event,
 		return 0;
 	}
 
-	printk("IR raw %2X %2X %2X %2X %2X %2X (len %d)\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], actlen);
 
 	switch (dvb_usb_dib0700_ir_proto) {
 	case 0:
