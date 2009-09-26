@@ -558,8 +558,7 @@ static int dib0700_rc_query_legacy(struct dvb_usb_device *d, u32 *event,
 struct dib0700_rc_response {
 	u8 report_id;
 	u8 data_state;
-	u8 system_msb;
-	u8 system_lsb;
+	u16 system;
 	u8 data;
 	u8 not_data;
 };
@@ -589,37 +588,51 @@ static int dib0700_rc_query_v1_20(struct dvb_usb_device *d, u32 *event,
 		return 0;
 	}
 
-	if (actlen != sizeof(buf)) {
-		/* We didn't get back the 6 byte message we expected */
-		err("Unexpected RC response size [%d]", actlen);
-		return -1;
+	printk("IR raw %2X %2X %2X %2X %2X %2X (len %d)\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], actlen);
+
+	switch (dvb_usb_dib0700_ir_proto) {
+	case 0:
+		poll_reply.report_id  = 0;
+		poll_reply.data_state = 1;
+		poll_reply.system     = buf[2];
+		poll_reply.data       = buf[4];
+		poll_reply.not_data   = buf[5];
+
+		/* NEC protocol sends repeat code as 0 0 0 FF */
+		if ((poll_reply.system == 0x00) && (poll_reply.data == 0x00)
+		    && (poll_reply.not_data == 0xff)) {
+			poll_reply.data_state = 2;
+			break;
+		}
+		break;
+	default:
+		if (actlen != sizeof(buf)) {
+			/* We didn't get back the 6 byte message we expected */
+			err("Unexpected RC response size [%d]", actlen);
+			return -1;
+		}
+
+		poll_reply.report_id  = buf[0];
+		poll_reply.data_state = buf[1];
+		poll_reply.system     = (buf[2] << 8) | buf[3];
+		poll_reply.data       = buf[4];
+		poll_reply.not_data   = buf[5];
+
+		break;
 	}
-
-	poll_reply.report_id  = buf[0];
-	poll_reply.data_state = buf[1];
-	poll_reply.system_msb = buf[2];
-	poll_reply.system_lsb = buf[3];
-	poll_reply.data       = buf[4];
-	poll_reply.not_data   = buf[5];
-
-	/*
-	info("rid=%02x ds=%02x sm=%02x sl=%02x d=%02x nd=%02x\n",
-	     poll_reply.report_id, poll_reply.data_state,
-	     poll_reply.system_msb, poll_reply.system_lsb,
-	     poll_reply.data, poll_reply.not_data);
-	*/
 
 	if ((poll_reply.data + poll_reply.not_data) != 0xff) {
 		/* Key failed integrity check */
-		err("key failed integrity check: %02x %02x %02x %02x",
-		    poll_reply.system_msb, poll_reply.system_lsb,
+		err("key failed integrity check: %04x %02x %02x",
+		    poll_reply.system,
 		    poll_reply.data, poll_reply.not_data);
 		return -1;
 	}
 
+
 	/* Find the key in the map */
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (rc5_custom(&keymap[i]) == poll_reply.system_lsb &&
+		if (rc5_custom(&keymap[i]) == (poll_reply.system & 0xff) &&
 		    rc5_data(&keymap[i]) == poll_reply.data) {
 			*event = keymap[i].event;
 			found = 1;
@@ -628,8 +641,8 @@ static int dib0700_rc_query_v1_20(struct dvb_usb_device *d, u32 *event,
 	}
 
 	if (found == 0) {
-		err("Unknown remote controller key: %02x %02x %02x %02x",
-		    poll_reply.system_msb, poll_reply.system_lsb,
+		err("Unknown remote controller key: %04x %02x %02x",
+		    poll_reply.system,
 		    poll_reply.data, poll_reply.not_data);
 		d->last_event = 0;
 		return 0;
