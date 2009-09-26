@@ -2092,18 +2092,18 @@ static void ext4_da_block_invalidatepages(struct mpage_da_data *mpd,
 static void ext4_print_free_blocks(struct inode *inode)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-	printk(KERN_EMERG "Total free blocks count %lld\n",
-			ext4_count_free_blocks(inode->i_sb));
-	printk(KERN_EMERG "Free/Dirty block details\n");
-	printk(KERN_EMERG "free_blocks=%lld\n",
-			(long long)percpu_counter_sum(&sbi->s_freeblocks_counter));
-	printk(KERN_EMERG "dirty_blocks=%lld\n",
-			(long long)percpu_counter_sum(&sbi->s_dirtyblocks_counter));
-	printk(KERN_EMERG "Block reservation details\n");
-	printk(KERN_EMERG "i_reserved_data_blocks=%u\n",
-			EXT4_I(inode)->i_reserved_data_blocks);
-	printk(KERN_EMERG "i_reserved_meta_blocks=%u\n",
-			EXT4_I(inode)->i_reserved_meta_blocks);
+	printk(KERN_CRIT "Total free blocks count %lld\n",
+	       ext4_count_free_blocks(inode->i_sb));
+	printk(KERN_CRIT "Free/Dirty block details\n");
+	printk(KERN_CRIT "free_blocks=%lld\n",
+	       (long long) percpu_counter_sum(&sbi->s_freeblocks_counter));
+	printk(KERN_CRIT "dirty_blocks=%lld\n",
+	       (long long) percpu_counter_sum(&sbi->s_dirtyblocks_counter));
+	printk(KERN_CRIT "Block reservation details\n");
+	printk(KERN_CRIT "i_reserved_data_blocks=%u\n",
+	       EXT4_I(inode)->i_reserved_data_blocks);
+	printk(KERN_CRIT "i_reserved_meta_blocks=%u\n",
+	       EXT4_I(inode)->i_reserved_meta_blocks);
 	return;
 }
 
@@ -2189,14 +2189,14 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 		 * writepage and writepages will again try to write
 		 * the same.
 		 */
-		printk(KERN_EMERG "%s block allocation failed for inode %lu "
-				  "at logical offset %llu with max blocks "
-				  "%zd with error %d\n",
-				  __func__, mpd->inode->i_ino,
-				  (unsigned long long)next,
-				  mpd->b_size >> mpd->inode->i_blkbits, err);
-		printk(KERN_EMERG "This should not happen.!! "
-					"Data will be lost\n");
+		ext4_msg(mpd->inode->i_sb, KERN_CRIT,
+			 "delayed block allocation failed for inode %lu at "
+			 "logical offset %llu with max blocks %zd with "
+			 "error %d\n", mpd->inode->i_ino,
+			 (unsigned long long) next,
+			 mpd->b_size >> mpd->inode->i_blkbits, err);
+		printk(KERN_CRIT "This should not happen!!  "
+		       "Data will be lost\n");
 		if (err == -ENOSPC) {
 			ext4_print_free_blocks(mpd->inode);
 		}
@@ -2822,10 +2822,9 @@ retry:
 		handle = ext4_journal_start(inode, needed_blocks);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
-			printk(KERN_CRIT "%s: jbd2_start: "
+			ext4_msg(inode->i_sb, KERN_CRIT, "%s: jbd2_start: "
 			       "%ld pages, ino %lu; err %d\n", __func__,
 				wbc->nr_to_write, inode->i_ino, ret);
-			dump_stack();
 			goto out_writepages;
 		}
 
@@ -2897,9 +2896,10 @@ retry:
 		goto retry;
 	}
 	if (pages_skipped != wbc->pages_skipped)
-		printk(KERN_EMERG "This should not happen leaving %s "
-				"with nr_to_write = %ld ret = %d\n",
-				__func__, wbc->nr_to_write, ret);
+		ext4_msg(inode->i_sb, KERN_CRIT,
+			 "This should not happen leaving %s "
+			 "with nr_to_write = %ld ret = %d\n",
+			 __func__, wbc->nr_to_write, ret);
 
 	/* Update index */
 	index += pages_written;
