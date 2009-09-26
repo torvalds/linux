@@ -103,56 +103,6 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 	mempool_free(midEntry, cifs_mid_poolp);
 }
 
-struct oplock_q_entry *
-AllocOplockQEntry(struct inode *pinode, __u16 fid, struct cifsTconInfo *tcon)
-{
-	struct oplock_q_entry *temp;
-	if ((pinode == NULL) || (tcon == NULL)) {
-		cERROR(1, ("Null parms passed to AllocOplockQEntry"));
-		return NULL;
-	}
-	temp = (struct oplock_q_entry *) kmem_cache_alloc(cifs_oplock_cachep,
-						       GFP_KERNEL);
-	if (temp == NULL)
-		return temp;
-	else {
-		temp->pinode = pinode;
-		temp->tcon = tcon;
-		temp->netfid = fid;
-		spin_lock(&cifs_oplock_lock);
-		list_add_tail(&temp->qhead, &cifs_oplock_list);
-		spin_unlock(&cifs_oplock_lock);
-	}
-	return temp;
-}
-
-void DeleteOplockQEntry(struct oplock_q_entry *oplockEntry)
-{
-	spin_lock(&cifs_oplock_lock);
-    /* should we check if list empty first? */
-	list_del(&oplockEntry->qhead);
-	spin_unlock(&cifs_oplock_lock);
-	kmem_cache_free(cifs_oplock_cachep, oplockEntry);
-}
-
-
-void DeleteTconOplockQEntries(struct cifsTconInfo *tcon)
-{
-	struct oplock_q_entry *temp;
-
-	if (tcon == NULL)
-		return;
-
-	spin_lock(&cifs_oplock_lock);
-	list_for_each_entry(temp, &cifs_oplock_list, qhead) {
-		if ((temp->tcon) && (temp->tcon == tcon)) {
-			list_del(&temp->qhead);
-			kmem_cache_free(cifs_oplock_cachep, temp);
-		}
-	}
-	spin_unlock(&cifs_oplock_lock);
-}
-
 static int
 smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 {
