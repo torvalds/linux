@@ -275,7 +275,7 @@ EXPORT_SYMBOL_GPL(ir_decode_biphase);
  * saa7134 */
 
 /* decode raw bit pattern to RC5 code */
-static u32 ir_rc5_decode(unsigned int code)
+u32 ir_rc5_decode(unsigned int code)
 {
 	unsigned int org_code = code;
 	unsigned int pair;
@@ -304,6 +304,7 @@ static u32 ir_rc5_decode(unsigned int code)
 		RC5_TOGGLE(rc5), RC5_ADDR(rc5), RC5_INSTR(rc5));
 	return rc5;
 }
+EXPORT_SYMBOL_GPL(ir_rc5_decode);
 
 void ir_rc5_timer_end(unsigned long data)
 {
