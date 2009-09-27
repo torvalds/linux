@@ -1184,7 +1184,7 @@ out:
 	return ret > 0 ? EIO : ret;
 }
 
-static struct vm_operations_struct btrfs_file_vm_ops = {
+static const struct vm_operations_struct btrfs_file_vm_ops = {
 	.fault		= filemap_fault,
 	.page_mkwrite	= btrfs_page_mkwrite,
 };

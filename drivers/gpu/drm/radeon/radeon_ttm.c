@@ -530,7 +530,7 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 }
 
 static struct vm_operations_struct radeon_ttm_vm_ops;
-static struct vm_operations_struct *ttm_vm_ops = NULL;
+static const struct vm_operations_struct *ttm_vm_ops = NULL;
 
 static int radeon_ttm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {

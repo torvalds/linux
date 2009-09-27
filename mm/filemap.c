@@ -1611,7 +1611,7 @@ page_not_uptodate:
 }
 EXPORT_SYMBOL(filemap_fault);
 
-struct vm_operations_struct generic_file_vm_ops = {
+const struct vm_operations_struct generic_file_vm_ops = {
 	.fault		= filemap_fault,
 };
 

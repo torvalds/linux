@@ -935,7 +935,7 @@ static void zc0301_vm_close(struct vm_area_struct* vma)
 }
 
 
-static struct vm_operations_struct zc0301_vm_ops = {
+static const struct vm_operations_struct zc0301_vm_ops = {
 	.open = zc0301_vm_open,
 	.close = zc0301_vm_close,
 };

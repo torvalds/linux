@@ -59,7 +59,7 @@ static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl);
 static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl);
 static int nfs_setlease(struct file *file, long arg, struct file_lock **fl);
 
-static struct vm_operations_struct nfs_file_vm_ops;
+static const struct vm_operations_struct nfs_file_vm_ops;
 
 const struct file_operations nfs_file_operations = {
 	.llseek		= nfs_file_llseek,
@@ -572,7 +572,7 @@ out_unlock:
 	return VM_FAULT_SIGBUS;
 }
 
-static struct vm_operations_struct nfs_file_vm_ops = {
+static const struct vm_operations_struct nfs_file_vm_ops = {
 	.fault = filemap_fault,
 	.page_mkwrite = nfs_vm_page_mkwrite,
 };

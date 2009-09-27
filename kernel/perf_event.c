@@ -2253,7 +2253,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 	}
 }
 
-static struct vm_operations_struct perf_mmap_vmops = {
+static const struct vm_operations_struct perf_mmap_vmops = {
 	.open		= perf_mmap_open,
 	.close		= perf_mmap_close,
 	.fault		= perf_mmap_fault,
