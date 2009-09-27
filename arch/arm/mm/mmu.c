@@ -726,6 +726,8 @@ static void __init sanity_check_meminfo(void)
 			bank->size = VMALLOC_MIN - __va(bank->start);
 		}
 #else
+		bank->highmem = highmem;
+
 		/*
 		 * Check whether this memory bank would entirely overlap
 		 * the vmalloc area.
