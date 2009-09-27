@@ -98,6 +98,12 @@ extern unsigned int kobjsize(const void *objp);
 #define	VMALLOC_START	0
 #define	VMALLOC_END	0xffffffff
 
+/* provide a special get_unmapped_area for framebuffer mmaps of nommu */
+extern unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
+					  unsigned long, unsigned long,
+					  unsigned long);
+#define HAVE_ARCH_FB_UNMAPPED_AREA
+
 #include <asm-generic/pgtable.h>
 
 #endif				/* _BLACKFIN_PGTABLE_H */
