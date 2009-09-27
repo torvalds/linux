@@ -486,16 +486,18 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 				hardirq ? 'h' : softirq ? 's' : '.'))
 		return 0;
 
-	if (entry->lock_depth < 0)
-		ret = trace_seq_putc(s, '.');
+	if (entry->preempt_count)
+		ret = trace_seq_printf(s, "%x", entry->preempt_count);
 	else
-		ret = trace_seq_printf(s, "%d", entry->lock_depth);
+		ret = trace_seq_putc(s, '.');
+
 	if (!ret)
 		return 0;
 
-	if (entry->preempt_count)
-		return trace_seq_printf(s, "%x", entry->preempt_count);
-	return trace_seq_putc(s, '.');
+	if (entry->lock_depth < 0)
+		return trace_seq_putc(s, '.');
+
+	return trace_seq_printf(s, "%d", entry->lock_depth);
 }
 
 static int
