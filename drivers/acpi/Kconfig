@@ -200,6 +200,7 @@ config ACPI_PROCESSOR_AGGREGATOR
 	tristate "Processor Aggregator"
 	depends on ACPI_PROCESSOR
 	depends on EXPERIMENTAL
+	depends on X86
 	help
 	  ACPI 4.0 defines processor Aggregator, which enables OS to perform
 	  specfic processor configuration and control that applies to all
