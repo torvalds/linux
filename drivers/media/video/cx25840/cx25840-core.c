@@ -1521,12 +1521,35 @@ static const struct v4l2_subdev_ops cx25840_ops = {
 
 /* ----------------------------------------------------------------------- */
 
+static u32 get_cx2388x_ident(struct i2c_client *client)
+{
+	u32 ret;
+
+	/* Come out of digital power down */
+	cx25840_write(client, 0x000, 0);
+
+	if (cx25840_read4(client, 0x204) & 0xffff) {
+		/* IR Tx Clk Divider register exists; chip must be a CX23885 */
+		ret = V4L2_IDENT_CX23885_AV;
+	} else if (cx25840_read4(client, 0x300) & 0x0fffffff) {
+		/* DIF PLL Freq Word reg exists; chip must be a CX23888 */
+		ret = V4L2_IDENT_CX23888_AV;
+	} else {
+		/* A CX23887 A/V core has neither IR nor DIF */
+		ret = V4L2_IDENT_CX23887_AV;
+	}
+
+	/* Back into digital power down */
+	cx25840_write(client, 0x000, 2);
+	return ret;
+}
+
 static int cx25840_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
 	struct cx25840_state *state;
 	struct v4l2_subdev *sd;
-	u32 id;
+	u32 id = V4L2_IDENT_NONE;
 	u16 device_id;
 
 	/* Check if the adapter supports the needed features */
@@ -1543,17 +1566,22 @@ static int cx25840_probe(struct i2c_client *client,
 	 * 0x83 for the cx2583x and 0x84 for the cx2584x */
 	if ((device_id & 0xff00) == 0x8300) {
 		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
-	}
-	else if ((device_id & 0xff00) == 0x8400) {
+	} else if ((device_id & 0xff00) == 0x8400) {
 		id = V4L2_IDENT_CX25840 + ((device_id >> 4) & 0xf);
 	} else if (device_id == 0x0000) {
-		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
-	} else if (device_id == 0x1313) {
-		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
+		id = get_cx2388x_ident(client);
 	} else if ((device_id & 0xfff0) == 0x5A30) {
-		id = V4L2_IDENT_CX25840 + ((device_id >> 4) & 0xf);
-	}
-	else {
+		/* The CX23100 (0x5A3C = 23100) doesn't have an A/V decoder */
+		id = V4L2_IDENT_CX2310X_AV;
+	} else if ((device_id & 0xff) == (device_id >> 8)) {
+		v4l_err(client,
+			"likely a confused/unresponsive cx2388[578] A/V decoder"
+			" found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
+		v4l_err(client, "A method to reset it from the cx25840 driver"
+			" software is not known at this time\n");
+		return -ENODEV;
+	} else {
 		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
 		return -ENODEV;
 	}
@@ -1564,17 +1592,50 @@ static int cx25840_probe(struct i2c_client *client,
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &cx25840_ops);
-	/* Note: revision '(device_id & 0x0f) == 2' was never built. The
-	   marking skips from 0x1 == 22 to 0x3 == 23. */
-	v4l_info(client, "cx25%3x-2%x found @ 0x%x (%s)\n",
-		    (device_id & 0xfff0) >> 4,
-		    (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1 : (device_id & 0x0f),
-		    client->addr << 1, client->adapter->name);
+	switch (id) {
+	case V4L2_IDENT_CX23885_AV:
+		state->is_cx23885 = 1;
+		v4l_info(client, "cx23885 A/V decoder found @ 0x%x (%s)\n",
+			 client->addr << 1, client->adapter->name);
+		break;
+	case V4L2_IDENT_CX23887_AV:
+		state->is_cx23885 = 1;
+		v4l_info(client, "cx23887 A/V decoder found @ 0x%x (%s)\n",
+			 client->addr << 1, client->adapter->name);
+		break;
+	case V4L2_IDENT_CX23888_AV:
+		state->is_cx23885 = 1;
+		v4l_info(client, "cx23888 A/V decoder found @ 0x%x (%s)\n",
+			 client->addr << 1, client->adapter->name);
+		break;
+	case V4L2_IDENT_CX2310X_AV:
+		state->is_cx231xx = 1;
+		v4l_info(client, "cx%d A/V decoder found @ 0x%x (%s)\n",
+			 device_id, client->addr << 1, client->adapter->name);
+		break;
+	case V4L2_IDENT_CX25840:
+	case V4L2_IDENT_CX25841:
+	case V4L2_IDENT_CX25842:
+	case V4L2_IDENT_CX25843:
+		/* Note: revision '(device_id & 0x0f) == 2' was never built. The
+		   marking skips from 0x1 == 22 to 0x3 == 23. */
+		v4l_info(client, "cx25%3x-2%x found @ 0x%x (%s)\n",
+			 (device_id & 0xfff0) >> 4,
+			 (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1
+						: (device_id & 0x0f),
+			 client->addr << 1, client->adapter->name);
+		break;
+	case V4L2_IDENT_CX25836:
+	case V4L2_IDENT_CX25837:
+		state->is_cx25836 = 1;
+	default:
+		v4l_info(client, "cx25%3x-%x found @ 0x%x (%s)\n",
+			 (device_id & 0xfff0) >> 4, device_id & 0x0f,
+			 client->addr << 1, client->adapter->name);
+		break;
+	}
 
 	state->c = client;
-	state->is_cx25836 = ((device_id & 0xff00) == 0x8300);
-	state->is_cx23885 = (device_id == 0x0000) || (device_id == 0x1313);
-	state->is_cx231xx = (device_id == 0x5a3e);
 	state->vid_input = CX25840_COMPOSITE7;
 	state->aud_input = CX25840_AUDIO8;
 	state->audclk_freq = 48000;
