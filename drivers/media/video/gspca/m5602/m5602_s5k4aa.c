@@ -64,6 +64,13 @@ static
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "GX700"),
+			DMI_MATCH(DMI_BIOS_DATE, "12/02/2008")
+		}
+	}, {
+		.ident = "MSI GX700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "GX700"),
 			DMI_MATCH(DMI_BIOS_DATE, "07/26/2007")
 		}
 	}, {
