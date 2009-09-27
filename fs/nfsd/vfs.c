@@ -141,6 +141,40 @@ out:
 	return err;
 }
 
+static void follow_to_parent(struct path *path)
+{
+	struct dentry *dp;
+
+	while (path->dentry == path->mnt->mnt_root && follow_up(path))
+		;
+	dp = dget_parent(path->dentry);
+	dput(path->dentry);
+	path->dentry = dp;
+}
+
+static int nfsd_lookup_parent(struct svc_rqst *rqstp, struct dentry *dparent, struct svc_export **exp, struct dentry **dentryp)
+{
+	struct svc_export *exp2;
+	struct path path = {.mnt = mntget((*exp)->ex_path.mnt),
+			    .dentry = dget(dparent)};
+
+	follow_to_parent(&path);
+
+	exp2 = rqst_exp_parent(rqstp, &path);
+	if (PTR_ERR(exp2) == -ENOENT) {
+		*dentryp = dget(dparent);
+	} else if (IS_ERR(exp2)) {
+		path_put(&path);
+		return PTR_ERR(exp2);
+	} else {
+		*dentryp = dget(path.dentry);
+		exp_put(*exp);
+		*exp = exp2;
+	}
+	path_put(&path);
+	return 0;
+}
+
 __be32
 nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		   const char *name, unsigned int len,
@@ -173,31 +207,9 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			dentry = dget(dparent); /* .. == . just like at / */
 		else {
 			/* checking mountpoint crossing is very different when stepping up */
-			struct svc_export *exp2 = NULL;
-			struct dentry *dp;
-			struct path path = {.mnt = mntget(exp->ex_path.mnt),
-					    .dentry = dget(dparent)};
-
-			while (path.dentry == path.mnt->mnt_root &&
-			       follow_up(&path))
-				;
-			dp = dget_parent(path.dentry);
-			dput(path.dentry);
-			path.dentry = dp;
-
-			exp2 = rqst_exp_parent(rqstp, &path);
-			if (PTR_ERR(exp2) == -ENOENT) {
-				dentry = dget(dparent);
-			} else if (IS_ERR(exp2)) {
-				host_err = PTR_ERR(exp2);
-				path_put(&path);
+			host_err = nfsd_lookup_parent(rqstp, dparent, &exp, &dentry);
+			if (host_err)
 				goto out_nfserr;
-			} else {
-				dentry = dget(path.dentry);
-				exp_put(exp);
-				exp = exp2;
-			}
-			path_put(&path);
 		}
 	} else {
 		fh_lock(fhp);
