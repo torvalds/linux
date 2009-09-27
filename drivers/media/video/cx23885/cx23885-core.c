@@ -32,6 +32,7 @@
 
 #include "cx23885.h"
 #include "cimax2.h"
+#include "cx23888-ir.h"
 
 MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
@@ -751,6 +752,23 @@ static void cx23885_dev_checkrevision(struct cx23885_dev *dev)
 	else
 		printk(KERN_ERR "%s() Hardware revision unknown 0x%x\n",
 			__func__, dev->hwrevision);
+}
+
+/* Find the first v4l2_subdev member of the group id in hw */
+struct v4l2_subdev *cx23885_find_hw(struct cx23885_dev *dev, u32 hw)
+{
+	struct v4l2_subdev *result = NULL;
+	struct v4l2_subdev *sd;
+
+	spin_lock(&dev->v4l2_dev.lock);
+	v4l2_device_for_each_subdev(sd, &dev->v4l2_dev) {
+		if (sd->grp_id == hw) {
+			result = sd;
+			break;
+		}
+	}
+	spin_unlock(&dev->v4l2_dev.lock);
+	return result;
 }
 
 static int cx23885_dev_setup(struct cx23885_dev *dev)
@@ -1913,6 +1931,8 @@ static void __devexit cx23885_finidev(struct pci_dev *pci_dev)
 	struct cx23885_dev *dev = to_cx23885(v4l2_dev);
 
 	cx23885_shutdown(dev);
+
+	cx23888_ir_remove(dev);
 
 	pci_disable_device(pci_dev);
 

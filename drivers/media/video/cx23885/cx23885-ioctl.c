@@ -65,6 +65,17 @@ int cx23885_g_chip_ident(struct file *file, void *fh,
 				chip->revision = 0;
 			}
 			break;
+		case 2:
+			/*
+			 * The integrated IR controller on the CX23888 is
+			 * host chip 2.  It may not be used/initialized or sd_ir
+			 * may be pointing at the cx25840 subdevice for the
+			 * IR controller on the CX23885.  Thus we find it
+			 * without using the dev->sd_ir pointer.
+			 */
+			call_hw(dev, CX23885_HW_888_IR, core, g_chip_ident,
+				chip);
+			break;
 		default:
 			err = -EINVAL; /* per V4L2 spec */
 			break;
