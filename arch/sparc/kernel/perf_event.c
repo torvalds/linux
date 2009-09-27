@@ -215,8 +215,96 @@ static const struct perf_event_map *niagara2_event_map(int event_id)
 	return &niagara2_perfmon_event_map[event_id];
 }
 
+static const cache_map_t niagara2_cache_map = {
+[C(L1D)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { 0x0208, PIC_UPPER | PIC_LOWER, },
+		[C(RESULT_MISS)] = { 0x0302, PIC_UPPER | PIC_LOWER, },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)] = { 0x0210, PIC_UPPER | PIC_LOWER, },
+		[C(RESULT_MISS)] = { 0x0302, PIC_UPPER | PIC_LOWER, },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(L1I)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { 0x02ff, PIC_UPPER | PIC_LOWER, },
+		[C(RESULT_MISS)] = { 0x0301, PIC_UPPER | PIC_LOWER, },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_NONSENSE },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_NONSENSE },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(LL)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { 0x0208, PIC_UPPER | PIC_LOWER, },
+		[C(RESULT_MISS)] = { 0x0330, PIC_UPPER | PIC_LOWER, },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)] = { 0x0210, PIC_UPPER | PIC_LOWER, },
+		[C(RESULT_MISS)] = { 0x0320, PIC_UPPER | PIC_LOWER, },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(DTLB)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { 0x0b08, PIC_UPPER | PIC_LOWER, },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(ITLB)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { 0xb04, PIC_UPPER | PIC_LOWER, },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(BPU)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+};
+
 static const struct sparc_pmu niagara2_pmu = {
 	.event_map	= niagara2_event_map,
+	.cache_map	= &niagara2_cache_map,
 	.max_events	= ARRAY_SIZE(niagara2_perfmon_event_map),
 	.upper_shift	= 19,
 	.lower_shift	= 6,
