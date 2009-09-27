@@ -35,6 +35,13 @@ static
     const
 	struct dmi_system_id s5k4aa_vflip_dmi_table[] = {
 	{
+		.ident = "BRUNEINIT",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "BRUNENIT"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "BRUNENIT"),
+			DMI_MATCH(DMI_BOARD_VERSION, "00030D0000000001")
+		}
+	}, {
 		.ident = "Fujitsu-Siemens Amilo Xa 2528",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
