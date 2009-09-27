@@ -770,8 +770,9 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 	/* Retry allocations until one succeed. */
 	for (; npackets > 1; npackets /= 2) {
 		for (i = 0; i < UVC_URBS; ++i) {
+			stream->urb_size = psize * npackets;
 			stream->urb_buffer[i] = usb_buffer_alloc(
-				stream->dev->udev, psize * npackets,
+				stream->dev->udev, stream->urb_size,
 				gfp_flags | __GFP_NOWARN, &stream->urb_dma[i]);
 			if (!stream->urb_buffer[i]) {
 				uvc_free_urb_buffers(stream);
@@ -780,7 +781,6 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 		}
 
 		if (i == UVC_URBS) {
-			stream->urb_size = psize * npackets;
 			uvc_trace(UVC_TRACE_VIDEO, "Allocated %u URB buffers "
 				"of %ux%u bytes each.\n", UVC_URBS, npackets,
 				psize);
