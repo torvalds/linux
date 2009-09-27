@@ -1598,14 +1598,29 @@ static u32 get_cx2388x_ident(struct i2c_client *client)
 	/* Come out of digital power down */
 	cx25840_write(client, 0x000, 0);
 
+	/* Detecting whether the part is cx23885/7/8 is more
+	 * difficult than it needs to be. No ID register. Instead we
+	 * probe certain registers indicated in the datasheets to look
+	 * for specific defaults that differ between the silicon designs. */
+
+	/* It's either 885/7 if the IR Tx Clk Divider register exists */
 	if (cx25840_read4(client, 0x204) & 0xffff) {
-		/* IR Tx Clk Divider register exists; chip must be a CX23885 */
-		ret = V4L2_IDENT_CX23885_AV;
+		/* CX23885 returns bogus repetitive byte values for the DIF,
+		 * which doesn't exist for it. (Ex. 8a8a8a8a or 31313131) */
+		ret = cx25840_read4(client, 0x300);
+		if (((ret & 0xffff0000) >> 16) == (ret & 0xffff)) {
+			/* No DIF */
+			ret = V4L2_IDENT_CX23885_AV;
+		} else {
+			/* CX23887 has a broken DIF, but the registers
+			 * appear valid (but unsed), good enough to detect. */
+			ret = V4L2_IDENT_CX23887_AV;
+		}
 	} else if (cx25840_read4(client, 0x300) & 0x0fffffff) {
 		/* DIF PLL Freq Word reg exists; chip must be a CX23888 */
 		ret = V4L2_IDENT_CX23888_AV;
 	} else {
-		/* A CX23887 A/V core has neither IR nor DIF */
+		v4l_err(client, "Unable to detect h/w, assuming cx23887\n");
 		ret = V4L2_IDENT_CX23887_AV;
 	}
 
