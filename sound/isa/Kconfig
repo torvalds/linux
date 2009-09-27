@@ -377,10 +377,12 @@ config SND_SSCAPE
 	select SND_WSS_LIB
 	help
 	  Say Y here to include support for Ensoniq SoundScape 
-	  soundcards.
+	  and Ensoniq OEM soundcards.
 
 	  The PCM audio is supported on SoundScape Classic, Elite, PnP
-	  and VIVO cards. The MIDI support is very experimental.
+	  and VIVO cards. The supported OEM cards are SPEA Media FX and
+	  Reveal SC-600.
+	  The MIDI support is very experimental.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sscape.
