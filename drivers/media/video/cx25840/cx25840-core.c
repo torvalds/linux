@@ -259,6 +259,13 @@ static void cx23885_initialize(struct i2c_client *client)
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	struct workqueue_struct *q;
 
+	/*
+	 * Come out of digital power down
+	 * The CX23888, at least, needs this, otherwise registers aside from
+	 * 0x0-0x2 can't be read or written.
+	 */
+	cx25840_write(client, 0x000, 0);
+
 	/* Internal Reset */
 	cx25840_and_or(client, 0x102, ~0x01, 0x01);
 	cx25840_and_or(client, 0x102, ~0x01, 0x00);
@@ -269,18 +276,45 @@ static void cx23885_initialize(struct i2c_client *client)
 	/* DIF in reset? */
 	cx25840_write(client, 0x398, 0);
 
-	/* Trust the default xtal, no division */
-	/* This changes for the cx23888 products */
+	/*
+	 * Trust the default xtal, no division
+	 * '885: 28.636363... MHz
+	 * '887: 25.000000 MHz
+	 * '888: 50.000000 MHz
+	 */
 	cx25840_write(client, 0x2, 0x76);
 
-	/* Bring down the regulator for AUX clk */
+	/* Power up all the PLL's and DLL */
 	cx25840_write(client, 0x1, 0x40);
 
-	/* Sys PLL frac */
-	cx25840_write4(client, 0x11c, 0x01d1744c);
-
-	/* Sys PLL int */
-	cx25840_write4(client, 0x118, 0x00000416);
+	/* Sys PLL */
+	switch (state->id) {
+	case V4L2_IDENT_CX23888_AV:
+		/*
+		 * 50.0 MHz * (0xb + 0xe8ba26/0x2000000)/4 = 5 * 28.636363 MHz
+		 * 572.73 MHz before post divide
+		 */
+		cx25840_write4(client, 0x11c, 0x00e8ba26);
+		cx25840_write4(client, 0x118, 0x0000040b);
+		break;
+	case V4L2_IDENT_CX23887_AV:
+		/*
+		 * 25.0 MHz * (0x16 + 0x1d1744c/0x2000000)/4 = 5 * 28.636363 MHz
+		 * 572.73 MHz before post divide
+		 */
+		cx25840_write4(client, 0x11c, 0x01d1744c);
+		cx25840_write4(client, 0x118, 0x00000416);
+		break;
+	case V4L2_IDENT_CX23885_AV:
+	default:
+		/*
+		 * 28.636363 MHz * (0x14 + 0x0/0x2000000)/4 = 5 * 28.636363 MHz
+		 * 572.73 MHz before post divide
+		 */
+		cx25840_write4(client, 0x11c, 0x00000000);
+		cx25840_write4(client, 0x118, 0x00000414);
+		break;
+	}
 
 	/* Disable DIF bypass */
 	cx25840_write4(client, 0x33c, 0x00000001);
@@ -288,11 +322,15 @@ static void cx23885_initialize(struct i2c_client *client)
 	/* DIF Src phase inc */
 	cx25840_write4(client, 0x340, 0x0df7df83);
 
-	/* Vid PLL frac */
-	cx25840_write4(client, 0x10c, 0x01b6db7b);
-
-	/* Vid PLL int */
-	cx25840_write4(client, 0x108, 0x00000512);
+	/*
+	 * Vid PLL
+	 * Setup for a BT.656 pixel clock of 13.5 Mpixels/second
+	 *
+	 * 28.636363 MHz * (0xf + 0x02be2c9/0x2000000)/4 = 8 * 13.5 MHz
+	 * 432.0 MHz before post divide
+	 */
+	cx25840_write4(client, 0x10c, 0x002be2c9);
+	cx25840_write4(client, 0x108, 0x0000040f);
 
 	/* Luma */
 	cx25840_write4(client, 0x414, 0x00107d12);
@@ -300,11 +338,43 @@ static void cx23885_initialize(struct i2c_client *client)
 	/* Chroma */
 	cx25840_write4(client, 0x420, 0x3d008282);
 
-	/* Aux PLL frac */
-	cx25840_write4(client, 0x114, 0x017dbf48);
-
-	/* Aux PLL int */
-	cx25840_write4(client, 0x110, 0x000a030e);
+	/*
+	 * Aux PLL
+	 * Initial setup for audio sample clock:
+	 * 48 ksps, 16 bits/sample, x160 multiplier = 122.88 MHz
+	 * Intial I2S output/master clock(?):
+	 * 48 ksps, 16 bits/sample, x16 multiplier = 12.288 MHz
+	 */
+	switch (state->id) {
+	case V4L2_IDENT_CX23888_AV:
+		/*
+		 * 50.0 MHz * (0x7 + 0x0bedfa4/0x2000000)/3 = 122.88 MHz
+		 * 368.64 MHz before post divide
+		 * 122.88 MHz / 0xa = 12.288 MHz
+		 */
+		cx25840_write4(client, 0x114, 0x00bedfa4);
+		cx25840_write4(client, 0x110, 0x000a0307);
+		break;
+	case V4L2_IDENT_CX23887_AV:
+		/*
+		 * 25.0 MHz * (0xe + 0x17dbf48/0x2000000)/3 = 122.88 MHz
+		 * 368.64 MHz before post divide
+		 * 122.88 MHz / 0xa = 12.288 MHz
+		 */
+		cx25840_write4(client, 0x114, 0x017dbf48);
+		cx25840_write4(client, 0x110, 0x000a030e);
+		break;
+	case V4L2_IDENT_CX23885_AV:
+	default:
+		/*
+		 * 28.636363 MHz * (0xc + 0x1bf0c9e/0x2000000)/3 = 122.88 MHz
+		 * 368.64 MHz before post divide
+		 * 122.88 MHz / 0xa = 12.288 MHz
+		 */
+		cx25840_write4(client, 0x114, 0x01bf0c9e);
+		cx25840_write4(client, 0x110, 0x000a030c);
+		break;
+	};
 
 	/* ADC2 input select */
 	cx25840_write(client, 0x102, 0x10);
