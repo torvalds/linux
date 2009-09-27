@@ -494,7 +494,7 @@ void cx25840_std_setup(struct i2c_client *client)
 	}
 
 	/* DEBUG: Displays configured PLL frequency */
-	if (!state->is_cx231xx) {
+	if (!is_cx231xx(state)) {
 		pll_int = cx25840_read(client, 0x108);
 		pll_frac = cx25840_read4(client, 0x10c) & 0x1ffffff;
 		pll_post = cx25840_read(client, 0x109);
@@ -678,7 +678,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 	 * configuration in reg (for the cx23885) so we have no
 	 * need to attempt to flip bits for earlier av decoders.
 	 */
-	if (!state->is_cx23885 && !state->is_cx231xx) {
+	if (!is_cx2388x(state) && !is_cx231xx(state)) {
 		switch (aud_input) {
 		case CX25840_AUDIO_SERIAL:
 			/* do nothing, use serial audio input */
@@ -701,7 +701,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
 	cx25840_and_or(client, 0x401, ~0x6, is_composite ? 0 : 0x02);
 
-	if (!state->is_cx23885 && !state->is_cx231xx) {
+	if (!is_cx2388x(state) && !is_cx231xx(state)) {
 		/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
 		cx25840_and_or(client, 0x102, ~0x2, (reg & 0x80) == 0 ? 2 : 0);
 		/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2&CH3 */
@@ -720,12 +720,12 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 
 	state->vid_input = vid_input;
 	state->aud_input = aud_input;
-	if (!state->is_cx25836) {
+	if (!is_cx2583x(state)) {
 		cx25840_audio_set_path(client);
 		input_change(client);
 	}
 
-	if (state->is_cx23885) {
+	if (is_cx2388x(state)) {
 		/* Audio channel 1 src : Parallel 1 */
 		cx25840_write(client, 0x124, 0x03);
 
@@ -741,7 +741,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		 */
 		cx25840_write(client, 0x918, 0xa0);
 		cx25840_write(client, 0x919, 0x01);
-	} else if (state->is_cx231xx) {
+	} else if (is_cx231xx(state)) {
 		/* Audio channel 1 src : Parallel 1 */
 		cx25840_write(client, 0x124, 0x03);
 
@@ -805,7 +805,7 @@ static int set_v4lstd(struct i2c_client *client)
 	cx25840_and_or(client, 0x400, ~0xf, fmt);
 	cx25840_and_or(client, 0x403, ~0x3, pal_m);
 	cx25840_std_setup(client);
-	if (!state->is_cx25836)
+	if (!is_cx2583x(state))
 		input_change(client);
 	return 0;
 }
@@ -868,7 +868,7 @@ static int cx25840_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_MUTE:
-		if (state->is_cx25836)
+		if (is_cx2583x(state))
 			return -EINVAL;
 		return cx25840_audio_s_ctrl(sd, ctrl);
 
@@ -905,7 +905,7 @@ static int cx25840_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_TREBLE:
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_MUTE:
-		if (state->is_cx25836)
+		if (is_cx2583x(state))
 			return -EINVAL;
 		return cx25840_audio_g_ctrl(sd, ctrl);
 	default:
@@ -1209,11 +1209,11 @@ static int cx25840_load_fw(struct v4l2_subdev *sd)
 	if (!state->is_initialized) {
 		/* initialize and load firmware */
 		state->is_initialized = 1;
-		if (state->is_cx25836)
+		if (is_cx2583x(state))
 			cx25836_initialize(client);
-		else if (state->is_cx23885)
+		else if (is_cx2388x(state))
 			cx23885_initialize(client);
-		else if (state->is_cx231xx)
+		else if (is_cx231xx(state))
 			cx231xx_initialize(client);
 		else
 			cx25840_initialize(client);
@@ -1256,17 +1256,17 @@ static int cx25840_s_stream(struct v4l2_subdev *sd, int enable)
 	v4l_dbg(1, cx25840_debug, client, "%s output\n",
 			enable ? "enable" : "disable");
 	if (enable) {
-		if (state->is_cx23885 || state->is_cx231xx) {
+		if (is_cx2388x(state) || is_cx231xx(state)) {
 			u8 v = (cx25840_read(client, 0x421) | 0x0b);
 			cx25840_write(client, 0x421, v);
 		} else {
 			cx25840_write(client, 0x115,
-					state->is_cx25836 ? 0x0c : 0x8c);
+					is_cx2583x(state) ? 0x0c : 0x8c);
 			cx25840_write(client, 0x116,
-					state->is_cx25836 ? 0x04 : 0x07);
+					is_cx2583x(state) ? 0x04 : 0x07);
 		}
 	} else {
-		if (state->is_cx23885 || state->is_cx231xx) {
+		if (is_cx2388x(state) || is_cx231xx(state)) {
 			u8 v = cx25840_read(client, 0x421) & ~(0x0b);
 			cx25840_write(client, 0x421, v);
 		} else {
@@ -1292,7 +1292,7 @@ static int cx25840_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	default:
 		break;
 	}
-	if (state->is_cx25836)
+	if (is_cx2583x(state))
 		return -EINVAL;
 
 	switch (qc->id) {
@@ -1346,7 +1346,7 @@ static int cx25840_s_audio_routing(struct v4l2_subdev *sd,
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (state->is_cx25836)
+	if (is_cx2583x(state))
 		return -EINVAL;
 	return set_input(client, state->vid_input, input);
 }
@@ -1356,7 +1356,7 @@ static int cx25840_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *fr
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!state->is_cx25836)
+	if (!is_cx2583x(state))
 		input_change(client);
 	return 0;
 }
@@ -1373,7 +1373,7 @@ static int cx25840_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 		return 0;
 
 	vt->signal = vpres ? 0xffff : 0x0;
-	if (state->is_cx25836)
+	if (is_cx2583x(state))
 		return 0;
 
 	vt->capability |=
@@ -1404,7 +1404,7 @@ static int cx25840_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (state->radio || state->is_cx25836)
+	if (state->radio || is_cx2583x(state))
 		return 0;
 
 	switch (vt->audmode) {
@@ -1445,11 +1445,11 @@ static int cx25840_reset(struct v4l2_subdev *sd, u32 val)
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (state->is_cx25836)
+	if (is_cx2583x(state))
 		cx25836_initialize(client);
-	else if (state->is_cx23885)
+	else if (is_cx2388x(state))
 		cx23885_initialize(client);
-	else if (state->is_cx231xx)
+	else if (is_cx231xx(state))
 		cx231xx_initialize(client);
 	else
 		cx25840_initialize(client);
@@ -1470,7 +1470,7 @@ static int cx25840_log_status(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	log_video_status(client);
-	if (!state->is_cx25836)
+	if (!is_cx2583x(state))
 		log_audio_status(client);
 	return 0;
 }
@@ -1594,22 +1594,18 @@ static int cx25840_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(sd, client, &cx25840_ops);
 	switch (id) {
 	case V4L2_IDENT_CX23885_AV:
-		state->is_cx23885 = 1;
 		v4l_info(client, "cx23885 A/V decoder found @ 0x%x (%s)\n",
 			 client->addr << 1, client->adapter->name);
 		break;
 	case V4L2_IDENT_CX23887_AV:
-		state->is_cx23885 = 1;
 		v4l_info(client, "cx23887 A/V decoder found @ 0x%x (%s)\n",
 			 client->addr << 1, client->adapter->name);
 		break;
 	case V4L2_IDENT_CX23888_AV:
-		state->is_cx23885 = 1;
 		v4l_info(client, "cx23888 A/V decoder found @ 0x%x (%s)\n",
 			 client->addr << 1, client->adapter->name);
 		break;
 	case V4L2_IDENT_CX2310X_AV:
-		state->is_cx231xx = 1;
 		v4l_info(client, "cx%d A/V decoder found @ 0x%x (%s)\n",
 			 device_id, client->addr << 1, client->adapter->name);
 		break;
@@ -1627,7 +1623,6 @@ static int cx25840_probe(struct i2c_client *client,
 		break;
 	case V4L2_IDENT_CX25836:
 	case V4L2_IDENT_CX25837:
-		state->is_cx25836 = 1;
 	default:
 		v4l_info(client, "cx25%3x-%x found @ 0x%x (%s)\n",
 			 (device_id & 0xfff0) >> 4, device_id & 0x0f,
