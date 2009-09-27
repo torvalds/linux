@@ -91,19 +91,19 @@ struct sparc_pmu {
 	int				lower_nop;
 };
 
-static const struct perf_event_map ultra3i_perfmon_event_map[] = {
+static const struct perf_event_map ultra3_perfmon_event_map[] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = { 0x0000, PIC_UPPER | PIC_LOWER },
 	[PERF_COUNT_HW_INSTRUCTIONS] = { 0x0001, PIC_UPPER | PIC_LOWER },
 	[PERF_COUNT_HW_CACHE_REFERENCES] = { 0x0009, PIC_LOWER },
 	[PERF_COUNT_HW_CACHE_MISSES] = { 0x0009, PIC_UPPER },
 };
 
-static const struct perf_event_map *ultra3i_event_map(int event_id)
+static const struct perf_event_map *ultra3_event_map(int event_id)
 {
-	return &ultra3i_perfmon_event_map[event_id];
+	return &ultra3_perfmon_event_map[event_id];
 }
 
-static const cache_map_t ultra3i_cache_map = {
+static const cache_map_t ultra3_cache_map = {
 [C(L1D)] = {
 	[C(OP_READ)] = {
 		[C(RESULT_ACCESS)] = { 0x09, PIC_LOWER, },
@@ -190,10 +190,10 @@ static const cache_map_t ultra3i_cache_map = {
 },
 };
 
-static const struct sparc_pmu ultra3i_pmu = {
-	.event_map	= ultra3i_event_map,
-	.cache_map	= &ultra3i_cache_map,
-	.max_events	= ARRAY_SIZE(ultra3i_perfmon_event_map),
+static const struct sparc_pmu ultra3_pmu = {
+	.event_map	= ultra3_event_map,
+	.cache_map	= &ultra3_cache_map,
+	.max_events	= ARRAY_SIZE(ultra3_perfmon_event_map),
 	.upper_shift	= 11,
 	.lower_shift	= 4,
 	.event_mask	= 0x3f,
@@ -658,8 +658,11 @@ static __read_mostly struct notifier_block perf_event_nmi_notifier = {
 
 static bool __init supported_pmu(void)
 {
-	if (!strcmp(sparc_pmu_type, "ultra3i")) {
-		sparc_pmu = &ultra3i_pmu;
+	if (!strcmp(sparc_pmu_type, "ultra3") ||
+	    !strcmp(sparc_pmu_type, "ultra3+") ||
+	    !strcmp(sparc_pmu_type, "ultra3i") ||
+	    !strcmp(sparc_pmu_type, "ultra4+")) {
+		sparc_pmu = &ultra3_pmu;
 		return true;
 	}
 	if (!strcmp(sparc_pmu_type, "niagara2")) {
