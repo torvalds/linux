@@ -23,6 +23,16 @@
 
 #include <media/v4l2-common.h>
 
+/* generic v4l2_device notify callback notification values */
+#define V4L2_SUBDEV_IR_RX_NOTIFY		_IOW('v', 0, u32)
+#define V4L2_SUBDEV_IR_RX_FIFO_SERVICE_REQ	0x00000001
+#define V4L2_SUBDEV_IR_RX_END_OF_RX_DETECTED	0x00000002
+#define V4L2_SUBDEV_IR_RX_HW_FIFO_OVERRUN	0x00000004
+#define V4L2_SUBDEV_IR_RX_SW_FIFO_OVERRUN	0x00000008
+
+#define V4L2_SUBDEV_IR_TX_NOTIFY		_IOW('v', 1, u32)
+#define V4L2_SUBDEV_IR_TX_FIFO_SERVICE_REQ	0x00000001
+
 struct v4l2_device;
 struct v4l2_subdev;
 struct tuner_setup;
@@ -231,11 +241,95 @@ struct v4l2_subdev_video_ops {
 	int (*enum_frameintervals)(struct v4l2_subdev *sd, struct v4l2_frmivalenum *fival);
 };
 
+/*
+   interrupt_service_routine: Called by the bridge chip's interrupt service
+	handler, when an IR interrupt status has be raised due to this subdev,
+	so that this subdev can handle the details.  It may schedule work to be
+	performed later.  It must not sleep.  *Called from an IRQ context*.
+
+   [rt]x_g_parameters: Get the current operating parameters and state of the
+	the IR receiver or transmitter.
+
+   [rt]x_s_parameters: Set the current operating parameters and state of the
+	the IR receiver or transmitter.  It is recommended to call
+	[rt]x_g_parameters first to fill out the current state, and only change
+	the fields that need to be changed.  Upon return, the actual device
+	operating parameters and state will be returned.  Note that hardware
+	limitations may prevent the actual settings from matching the requested
+	settings - e.g. an actual carrier setting of 35,904 Hz when 36,000 Hz
+	was requested.  An exception is when the shutdown parameter is true.
+	The last used operational parameters will be returned, but the actual
+	state of the hardware be different to minimize power consumption and
+	processing when shutdown is true.
+
+   rx_read: Reads received codes or pulse width data.
+	The semantics are similar to a non-blocking read() call.
+
+   tx_write: Writes codes or pulse width data for transmission.
+	The semantics are similar to a non-blocking write() call.
+ */
+
+enum v4l2_subdev_ir_mode {
+	V4L2_SUBDEV_IR_MODE_PULSE_WIDTH, /* space & mark widths in nanosecs */
+};
+
+/* Data format of data read or written for V4L2_SUBDEV_IR_MODE_PULSE_WIDTH */
+#define V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS	0x7fffffff
+#define V4L2_SUBDEV_IR_PULSE_LEVEL_MASK		0x80000000
+#define V4L2_SUBDEV_IR_PULSE_RX_SEQ_END		0xffffffff
+
+struct v4l2_subdev_ir_parameters {
+	/* Either Rx or Tx */
+	unsigned int bytes_per_data_element; /* of data in read or write call */
+	enum v4l2_subdev_ir_mode mode;
+
+	bool enable;
+	bool interrupt_enable;
+	bool shutdown; /* true: set hardware to low/no power, false: normal */
+
+	bool modulation;           /* true: uses carrier, false: baseband */
+	u32 max_pulse_width;       /* ns,      valid only for baseband signal */
+	unsigned int carrier_freq; /* Hz,      valid only for modulated signal*/
+	unsigned int duty_cycle;   /* percent, valid only for modulated signal*/
+	bool invert;		   /* logically invert sense of mark/space */
+
+	/* Rx only */
+	u32 noise_filter_min_width;       /* ns, min time of a valid pulse */
+	unsigned int carrier_range_lower; /* Hz, valid only for modulated sig */
+	unsigned int carrier_range_upper; /* Hz, valid only for modulated sig */
+	u32 resolution;                   /* ns */
+};
+
+struct v4l2_subdev_ir_ops {
+	/* Common to receiver and transmitter */
+	int (*interrupt_service_routine)(struct v4l2_subdev *sd,
+						u32 status, bool *handled);
+
+	/* Receiver */
+	int (*rx_read)(struct v4l2_subdev *sd, u8 *buf, size_t count,
+				ssize_t *num);
+
+	int (*rx_g_parameters)(struct v4l2_subdev *sd,
+				struct v4l2_subdev_ir_parameters *params);
+	int (*rx_s_parameters)(struct v4l2_subdev *sd,
+				struct v4l2_subdev_ir_parameters *params);
+
+	/* Transmitter */
+	int (*tx_write)(struct v4l2_subdev *sd, u8 *buf, size_t count,
+				ssize_t *num);
+
+	int (*tx_g_parameters)(struct v4l2_subdev *sd,
+				struct v4l2_subdev_ir_parameters *params);
+	int (*tx_s_parameters)(struct v4l2_subdev *sd,
+				struct v4l2_subdev_ir_parameters *params);
+};
+
 struct v4l2_subdev_ops {
 	const struct v4l2_subdev_core_ops  *core;
 	const struct v4l2_subdev_tuner_ops *tuner;
 	const struct v4l2_subdev_audio_ops *audio;
 	const struct v4l2_subdev_video_ops *video;
+	const struct v4l2_subdev_ir_ops    *ir;
 };
 
 #define V4L2_SUBDEV_NAME_SIZE 32
