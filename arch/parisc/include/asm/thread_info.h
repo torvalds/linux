@@ -32,6 +32,11 @@ struct thread_info {
 #define init_thread_info        (init_thread_union.thread_info)
 #define init_stack              (init_thread_union.stack)
 
+/* how to get the thread information struct from C */
+#define current_thread_info()	((struct thread_info *)mfctl(30))
+
+#endif /* !__ASSEMBLY */
+
 /* thread information allocation */
 
 #define THREAD_SIZE_ORDER            2
@@ -39,11 +44,6 @@ struct thread_info {
  * the kernel stack */
 #define THREAD_SIZE             (PAGE_SIZE << THREAD_SIZE_ORDER)
 #define THREAD_SHIFT            (PAGE_SHIFT + THREAD_SIZE_ORDER)
-
-/* how to get the thread information struct from C */
-#define current_thread_info()	((struct thread_info *)mfctl(30))
-
-#endif /* !__ASSEMBLY */
 
 #define PREEMPT_ACTIVE_BIT	28
 #define PREEMPT_ACTIVE		(1 << PREEMPT_ACTIVE_BIT)
