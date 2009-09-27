@@ -125,6 +125,10 @@ source "drivers/staging/iio/Kconfig"
 
 source "drivers/staging/ramzswap/Kconfig"
 
+source "drivers/staging/wlags49_h2/Kconfig"
+
+source "drivers/staging/wlags49_h25/Kconfig"
+
 source "drivers/staging/strip/Kconfig"
 
 source "drivers/staging/arlan/Kconfig"
