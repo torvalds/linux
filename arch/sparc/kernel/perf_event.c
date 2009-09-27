@@ -201,6 +201,121 @@ static const struct sparc_pmu ultra3_pmu = {
 	.lower_nop	= 0x14,
 };
 
+/* Niagara1 is very limited.  The upper PIC is hard-locked to count
+ * only instructions, so it is free running which creates all kinds of
+ * problems.  Some hardware designs make one wonder if the creastor
+ * even looked at how this stuff gets used by software.
+ */
+static const struct perf_event_map niagara1_perfmon_event_map[] = {
+	[PERF_COUNT_HW_CPU_CYCLES] = { 0x00, PIC_UPPER },
+	[PERF_COUNT_HW_INSTRUCTIONS] = { 0x00, PIC_UPPER },
+	[PERF_COUNT_HW_CACHE_REFERENCES] = { 0, PIC_NONE },
+	[PERF_COUNT_HW_CACHE_MISSES] = { 0x03, PIC_LOWER },
+};
+
+static const struct perf_event_map *niagara1_event_map(int event_id)
+{
+	return &niagara1_perfmon_event_map[event_id];
+}
+
+static const cache_map_t niagara1_cache_map = {
+[C(L1D)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { 0x03, PIC_LOWER, },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { 0x03, PIC_LOWER, },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(L1I)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { 0x00, PIC_UPPER },
+		[C(RESULT_MISS)] = { 0x02, PIC_LOWER, },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_NONSENSE },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_NONSENSE },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(LL)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { 0x07, PIC_LOWER, },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { 0x07, PIC_LOWER, },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(DTLB)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { 0x05, PIC_LOWER, },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(ITLB)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { 0x04, PIC_LOWER, },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(BPU)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+};
+
+static const struct sparc_pmu niagara1_pmu = {
+	.event_map	= niagara1_event_map,
+	.cache_map	= &niagara1_cache_map,
+	.max_events	= ARRAY_SIZE(niagara1_perfmon_event_map),
+	.upper_shift	= 0,
+	.lower_shift	= 4,
+	.event_mask	= 0x7,
+	.upper_nop	= 0x0,
+	.lower_nop	= 0x0,
+};
+
 static const struct perf_event_map niagara2_perfmon_event_map[] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = { 0x02ff, PIC_UPPER | PIC_LOWER },
 	[PERF_COUNT_HW_INSTRUCTIONS] = { 0x02ff, PIC_UPPER | PIC_LOWER },
@@ -751,6 +866,10 @@ static bool __init supported_pmu(void)
 	    !strcmp(sparc_pmu_type, "ultra3i") ||
 	    !strcmp(sparc_pmu_type, "ultra4+")) {
 		sparc_pmu = &ultra3_pmu;
+		return true;
+	}
+	if (!strcmp(sparc_pmu_type, "niagara")) {
+		sparc_pmu = &niagara1_pmu;
 		return true;
 	}
 	if (!strcmp(sparc_pmu_type, "niagara2")) {
