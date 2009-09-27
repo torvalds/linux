@@ -24,6 +24,7 @@
 #include <media/v4l2-device.h>
 
 #include "cx23885.h"
+#include "cx23885-input.h"
 
 #define CX23885_IR_RX_FIFO_SERVICE_REQ		0
 #define CX23885_IR_RX_END_OF_RX_DETECTED	1
@@ -51,6 +52,9 @@ void cx23885_ir_rx_work_handler(struct work_struct *work)
 
 	if (events == 0)
 		return;
+
+	if (dev->ir_input)
+		cx23885_input_rx_work_handler(dev, events);
 }
 
 void cx23885_ir_tx_work_handler(struct work_struct *work)

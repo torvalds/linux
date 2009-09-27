@@ -34,6 +34,7 @@
 #include "cimax2.h"
 #include "cx23888-ir.h"
 #include "cx23885-ir.h"
+#include "cx23885-input.h"
 
 MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
@@ -1959,6 +1960,7 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 	 * is hooked up by the call to request_irq() above.
 	 */
 	cx23885_ir_pci_int_enable(dev);
+	cx23885_input_init(dev);
 
 	return 0;
 
@@ -1976,6 +1978,7 @@ static void __devexit cx23885_finidev(struct pci_dev *pci_dev)
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
 	struct cx23885_dev *dev = to_cx23885(v4l2_dev);
 
+	cx23885_input_fini(dev);
 	cx23885_ir_fini(dev);
 
 	cx23885_shutdown(dev);

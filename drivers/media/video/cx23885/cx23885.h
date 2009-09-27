@@ -363,6 +363,9 @@ struct cx23885_dev {
 	struct work_struct	   ir_tx_work;
 	unsigned long		   ir_tx_notifications;
 
+	struct card_ir		   *ir_input;
+	atomic_t		   ir_input_stopping;
+
 	/* V4l */
 	u32                        freq;
 	struct video_device        *video_dev;
