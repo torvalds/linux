@@ -37,6 +37,7 @@
 #include <media/cx2341x.h>
 
 #include "cx23885.h"
+#include "cx23885-ioctl.h"
 
 #define CX23885_FIRM_IMAGE_SIZE 376836
 #define CX23885_FIRM_IMAGE_NAME "v4l-cx23885-enc.fw"
@@ -318,7 +319,7 @@ static int mc417_wait_ready(struct cx23885_dev *dev)
 	}
 }
 
-static int mc417_register_write(struct cx23885_dev *dev, u16 address, u32 value)
+int mc417_register_write(struct cx23885_dev *dev, u16 address, u32 value)
 {
 	u32 regval;
 
@@ -382,7 +383,7 @@ static int mc417_register_write(struct cx23885_dev *dev, u16 address, u32 value)
 	return mc417_wait_ready(dev);
 }
 
-static int mc417_register_read(struct cx23885_dev *dev, u16 address, u32 *value)
+int mc417_register_read(struct cx23885_dev *dev, u16 address, u32 *value)
 {
 	int retval;
 	u32 regval;
@@ -1724,6 +1725,11 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_log_status	 = vidioc_log_status,
 	.vidioc_querymenu	 = vidioc_querymenu,
 	.vidioc_queryctrl	 = vidioc_queryctrl,
+	.vidioc_g_chip_ident	 = cx23885_g_chip_ident,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register	 = cx23885_g_register,
+	.vidioc_s_register	 = cx23885_s_register,
+#endif
 };
 
 static struct video_device cx23885_mpeg_template = {

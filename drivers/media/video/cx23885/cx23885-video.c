@@ -35,6 +35,7 @@
 #include "cx23885.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include "cx23885-ioctl.h"
 
 MODULE_DESCRIPTION("v4l2 driver module for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
@@ -1312,34 +1313,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		cx23885_set_freq(dev, f);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int vidioc_g_register(struct file *file, void *fh,
-				struct v4l2_dbg_register *reg)
-{
-	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
-
-	if (!v4l2_chip_match_host(&reg->match))
-		return -EINVAL;
-
-	call_all(dev, core, g_register, reg);
-
-	return 0;
-}
-
-static int vidioc_s_register(struct file *file, void *fh,
-				struct v4l2_dbg_register *reg)
-{
-	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
-
-	if (!v4l2_chip_match_host(&reg->match))
-		return -EINVAL;
-
-	call_all(dev, core, s_register, reg);
-
-	return 0;
-}
-#endif
-
 /* ----------------------------------------------------------- */
 
 static void cx23885_vid_timeout(unsigned long data)
@@ -1449,9 +1422,10 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
+	.vidioc_g_chip_ident  = cx23885_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register    = vidioc_g_register,
-	.vidioc_s_register    = vidioc_s_register,
+	.vidioc_g_register    = cx23885_g_register,
+	.vidioc_s_register    = cx23885_s_register,
 #endif
 };
 
