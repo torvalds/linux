@@ -572,6 +572,7 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 	struct tda18271_rf_tracking_filter_cal *map = priv->rf_cal_state;
 	unsigned char *regs = priv->tda18271_regs;
 	int bcal, rf, i;
+	s32 divisor, dividend;
 #define RF1 0
 #define RF2 1
 #define RF3 2
@@ -614,15 +615,17 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 			map[i].rf1   = rf_freq[RF1] / 1000;
 			break;
 		case RF2:
-			map[i].rf_a1 = (prog_cal[RF2] - prog_tab[RF2] -
-					prog_cal[RF1] + prog_tab[RF1]) /
-				(s32)((rf_freq[RF2] - rf_freq[RF1]) / 1000);
+			dividend = (s32)(prog_cal[RF2] - prog_tab[RF2]) -
+				   (s32)(prog_cal[RF1] + prog_tab[RF1]);
+			divisor = (s32)(rf_freq[RF2] - rf_freq[RF1]) / 1000;
+			map[i].rf_a1 = (dividend / divisor);
 			map[i].rf2   = rf_freq[RF2] / 1000;
 			break;
 		case RF3:
-			map[i].rf_a2 = (prog_cal[RF3] - prog_tab[RF3] -
-					prog_cal[RF2] + prog_tab[RF2]) /
-				(s32)((rf_freq[RF3] - rf_freq[RF2]) / 1000);
+			dividend = (s32)(prog_cal[RF3] - prog_tab[RF3]) -
+				   (s32)(prog_cal[RF2] + prog_tab[RF2]);
+			divisor = (s32)(rf_freq[RF3] - rf_freq[RF2]) / 1000;
+			map[i].rf_a2 = (dividend / divisor);
 			map[i].rf_b2 = prog_cal[RF2] - prog_tab[RF2];
 			map[i].rf3   = rf_freq[RF3] / 1000;
 			break;
