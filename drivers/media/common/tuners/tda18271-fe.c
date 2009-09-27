@@ -1000,12 +1000,12 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 	struct tda18271_std_map_item *map;
 	char *mode;
 	int ret;
-	u32 freq = params->frequency * 62500;
+	u32 freq = params->frequency * 125 *
+		((params->mode == V4L2_TUNER_RADIO) ? 1 : 1000) / 2;
 
 	priv->mode = TDA18271_ANALOG;
 
 	if (params->mode == V4L2_TUNER_RADIO) {
-		freq = freq / 1000;
 		map = &std_map->fm_radio;
 		mode = "fm";
 	} else if (params->std & V4L2_STD_MN) {
