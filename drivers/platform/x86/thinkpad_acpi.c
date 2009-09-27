@@ -2235,7 +2235,9 @@ static int tpacpi_hotkey_driver_mask_set(const u32 mask)
 
 	HOTKEY_CONFIG_CRITICAL_START
 	hotkey_driver_mask = mask;
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 	hotkey_source_mask |= (mask & ~hotkey_all_mask);
+#endif
 	HOTKEY_CONFIG_CRITICAL_END
 
 	rc = hotkey_mask_set((hotkey_acpi_mask | hotkey_driver_mask) &
