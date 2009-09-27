@@ -616,13 +616,13 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 		case RF2:
 			map[i].rf_a1 = (prog_cal[RF2] - prog_tab[RF2] -
 					prog_cal[RF1] + prog_tab[RF1]) /
-				((rf_freq[RF2] - rf_freq[RF1]) / 1000);
+				(s32)((rf_freq[RF2] - rf_freq[RF1]) / 1000);
 			map[i].rf2   = rf_freq[RF2] / 1000;
 			break;
 		case RF3:
 			map[i].rf_a2 = (prog_cal[RF3] - prog_tab[RF3] -
 					prog_cal[RF2] + prog_tab[RF2]) /
-				((rf_freq[RF3] - rf_freq[RF2]) / 1000);
+				(s32)((rf_freq[RF3] - rf_freq[RF2]) / 1000);
 			map[i].rf_b2 = prog_cal[RF2] - prog_tab[RF2];
 			map[i].rf3   = rf_freq[RF3] / 1000;
 			break;
