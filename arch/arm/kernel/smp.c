@@ -36,6 +36,7 @@
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
 #include <asm/localtimer.h>
+#include <asm/smp_plat.h>
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
@@ -585,12 +586,6 @@ struct tlb_args {
 	unsigned long ta_start;
 	unsigned long ta_end;
 };
-
-/* all SMP configurations have the extended CPUID registers */
-static inline int tlb_ops_need_broadcast(void)
-{
-	return ((read_cpuid_ext(CPUID_EXT_MMFR3) >> 12) & 0xf) < 2;
-}
 
 static inline void ipi_flush_tlb_all(void *ignored)
 {
