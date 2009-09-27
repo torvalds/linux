@@ -355,7 +355,13 @@ struct cx23885_dev {
 	unsigned char              radio_addr;
 	unsigned int               has_radio;
 	struct v4l2_subdev 	   *sd_cx25840;
-	struct v4l2_subdev 	   *sd_ir;
+
+	/* Infrared */
+	struct v4l2_subdev         *sd_ir;
+	struct work_struct	   ir_rx_work;
+	unsigned long		   ir_rx_notifications;
+	struct work_struct	   ir_tx_work;
+	unsigned long		   ir_tx_notifications;
 
 	/* V4l */
 	u32                        freq;
@@ -479,6 +485,8 @@ extern int cx23885_tuner_callback(void *priv, int component,
 	int command, int arg);
 extern void cx23885_card_list(struct cx23885_dev *dev);
 extern int  cx23885_ir_init(struct cx23885_dev *dev);
+extern void cx23885_ir_pci_int_enable(struct cx23885_dev *dev);
+extern void cx23885_ir_fini(struct cx23885_dev *dev);
 extern void cx23885_gpio_setup(struct cx23885_dev *dev);
 extern void cx23885_card_setup(struct cx23885_dev *dev);
 extern void cx23885_card_setup_pre_i2c(struct cx23885_dev *dev);

@@ -821,6 +821,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 		if (ret)
 			break;
 		dev->sd_ir = cx23885_find_hw(dev, CX23885_HW_888_IR);
+		dev->pci_irqmask |= PCI_MSK_IR;
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
 		request_module("ir-kbd-i2c");
@@ -828,6 +829,28 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 	}
 
 	return ret;
+}
+
+void cx23885_ir_fini(struct cx23885_dev *dev)
+{
+	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+		dev->pci_irqmask &= ~PCI_MSK_IR;
+		cx_clear(PCI_INT_MSK, PCI_MSK_IR);
+		cx23888_ir_remove(dev);
+		dev->sd_ir = NULL;
+		break;
+	}
+}
+
+void cx23885_ir_pci_int_enable(struct cx23885_dev *dev)
+{
+	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+		if (dev->sd_ir && (dev->pci_irqmask & PCI_MSK_IR))
+			cx_set(PCI_INT_MSK, PCI_MSK_IR);
+		break;
+	}
 }
 
 void cx23885_card_setup(struct cx23885_dev *dev)
