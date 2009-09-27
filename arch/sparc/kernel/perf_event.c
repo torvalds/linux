@@ -68,8 +68,19 @@ struct perf_event_map {
 #define PIC_LOWER	0x02
 };
 
+#define C(x) PERF_COUNT_HW_CACHE_##x
+
+#define CACHE_OP_UNSUPPORTED	0xfffe
+#define CACHE_OP_NONSENSE	0xffff
+
+typedef struct perf_event_map cache_map_t
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX];
+
 struct sparc_pmu {
 	const struct perf_event_map	*(*event_map)(int);
+	const cache_map_t		*cache_map;
 	int				max_events;
 	int				upper_shift;
 	int				lower_shift;
@@ -92,8 +103,96 @@ static const struct perf_event_map *ultra3i_event_map(int event_id)
 	return &ultra3i_perfmon_event_map[event_id];
 }
 
+static const cache_map_t ultra3i_cache_map = {
+[C(L1D)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { 0x09, PIC_LOWER, },
+		[C(RESULT_MISS)] = { 0x09, PIC_UPPER, },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)] = { 0x0a, PIC_LOWER },
+		[C(RESULT_MISS)] = { 0x0a, PIC_UPPER },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(L1I)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { 0x09, PIC_LOWER, },
+		[C(RESULT_MISS)] = { 0x09, PIC_UPPER, },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_NONSENSE },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_NONSENSE },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(LL)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { 0x0c, PIC_LOWER, },
+		[C(RESULT_MISS)] = { 0x0c, PIC_UPPER, },
+	},
+	[C(OP_WRITE)] = {
+		[C(RESULT_ACCESS)] = { 0x0c, PIC_LOWER },
+		[C(RESULT_MISS)] = { 0x0c, PIC_UPPER },
+	},
+	[C(OP_PREFETCH)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(DTLB)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { 0x12, PIC_UPPER, },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(ITLB)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { 0x11, PIC_UPPER, },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+[C(BPU)] = {
+	[C(OP_READ)] = {
+		[C(RESULT_ACCESS)] = { CACHE_OP_UNSUPPORTED },
+		[C(RESULT_MISS)] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = { CACHE_OP_UNSUPPORTED },
+		[ C(RESULT_MISS)   ] = { CACHE_OP_UNSUPPORTED },
+	},
+},
+};
+
 static const struct sparc_pmu ultra3i_pmu = {
 	.event_map	= ultra3i_event_map,
+	.cache_map	= &ultra3i_cache_map,
 	.max_events	= ARRAY_SIZE(ultra3i_perfmon_event_map),
 	.upper_shift	= 11,
 	.lower_shift	= 4,
@@ -375,6 +474,37 @@ void perf_event_release_pmc(void)
 	}
 }
 
+static const struct perf_event_map *sparc_map_cache_event(u64 config)
+{
+	unsigned int cache_type, cache_op, cache_result;
+	const struct perf_event_map *pmap;
+
+	if (!sparc_pmu->cache_map)
+		return ERR_PTR(-ENOENT);
+
+	cache_type = (config >>  0) & 0xff;
+	if (cache_type >= PERF_COUNT_HW_CACHE_MAX)
+		return ERR_PTR(-EINVAL);
+
+	cache_op = (config >>  8) & 0xff;
+	if (cache_op >= PERF_COUNT_HW_CACHE_OP_MAX)
+		return ERR_PTR(-EINVAL);
+
+	cache_result = (config >> 16) & 0xff;
+	if (cache_result >= PERF_COUNT_HW_CACHE_RESULT_MAX)
+		return ERR_PTR(-EINVAL);
+
+	pmap = &((*sparc_pmu->cache_map)[cache_type][cache_op][cache_result]);
+
+	if (pmap->encoding == CACHE_OP_UNSUPPORTED)
+		return ERR_PTR(-ENOENT);
+
+	if (pmap->encoding == CACHE_OP_NONSENSE)
+		return ERR_PTR(-EINVAL);
+
+	return pmap;
+}
+
 static void hw_perf_event_destroy(struct perf_event *event)
 {
 	perf_event_release_pmc();
@@ -390,11 +520,16 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (atomic_read(&nmi_active) < 0)
 		return -ENODEV;
 
-	if (attr->type != PERF_TYPE_HARDWARE)
+	if (attr->type == PERF_TYPE_HARDWARE) {
+		if (attr->config >= sparc_pmu->max_events)
+			return -EINVAL;
+		pmap = sparc_pmu->event_map(attr->config);
+	} else if (attr->type == PERF_TYPE_HW_CACHE) {
+		pmap = sparc_map_cache_event(attr->config);
+		if (IS_ERR(pmap))
+			return PTR_ERR(pmap);
+	} else
 		return -EOPNOTSUPP;
-
-	if (attr->config >= sparc_pmu->max_events)
-		return -EINVAL;
 
 	perf_event_grab_pmc();
 	event->destroy = hw_perf_event_destroy;
@@ -416,8 +551,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 		hwc->last_period = hwc->sample_period;
 		atomic64_set(&hwc->period_left, hwc->sample_period);
 	}
-
-	pmap = sparc_pmu->event_map(attr->config);
 
 	enc = pmap->encoding;
 	if (pmap->pic_mask & PIC_UPPER) {
