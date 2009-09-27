@@ -1166,7 +1166,6 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 #ifdef CONFIG_ACPI_PROCFS
 	struct proc_dir_entry *entry = NULL;
 #endif
-	unsigned int i;
 
 	if (boot_option_idle_override)
 		return 0;
