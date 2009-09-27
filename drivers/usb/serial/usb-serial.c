@@ -192,7 +192,7 @@ void usb_serial_put(struct usb_serial *serial)
  * This is the first place a new tty gets used.  Hence this is where we
  * acquire references to the usb_serial structure and the driver module,
  * where we store a pointer to the port, and where we do an autoresume.
- * All these actions are reversed in serial_release().
+ * All these actions are reversed in serial_cleanup().
  */
 static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 {
@@ -339,15 +339,16 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 }
 
 /**
- * serial_release - free resources post close/hangup
+ * serial_cleanup - free resources post close/hangup
  * @port: port to free up
  *
  * Do the resource freeing and refcount dropping for the port.
  * Avoid freeing the console.
  *
- * Called when the last tty kref is dropped.
+ * Called asynchronously after the last tty kref is dropped,
+ * and the tty layer has already done the tty_shutdown(tty);
  */
-static void serial_release(struct tty_struct *tty)
+static void serial_cleanup(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial;
@@ -360,9 +361,6 @@ static void serial_release(struct tty_struct *tty)
 		return;
 
 	dbg("%s - port %d", __func__, port->number);
-
-	/* Standard shutdown processing */
-	tty_shutdown(tty);
 
 	tty->driver_data = NULL;
 
@@ -1210,7 +1208,7 @@ static const struct tty_operations serial_ops = {
 	.chars_in_buffer =	serial_chars_in_buffer,
 	.tiocmget =		serial_tiocmget,
 	.tiocmset =		serial_tiocmset,
-	.shutdown = 		serial_release,
+	.cleanup = 		serial_cleanup,
 	.install = 		serial_install,
 	.proc_fops =		&serial_proc_fops,
 };
