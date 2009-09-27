@@ -1320,6 +1320,23 @@ rqst_exp_parent(struct svc_rqst *rqstp, struct path *path)
 	return exp;
 }
 
+static struct svc_export *find_fsidzero_export(struct svc_rqst *rqstp)
+{
+	struct svc_export *exp;
+	u32 fsidv[2];
+
+	mk_fsid(FSID_NUM, fsidv, 0, 0, 0, NULL);
+
+	exp = rqst_exp_find(rqstp, FSID_NUM, fsidv);
+	/*
+	 * We shouldn't have accepting an nfsv4 request at all if we
+	 * don't have a pseudoexport!:
+	 */
+	if (IS_ERR(exp) && PTR_ERR(exp) == -ENOENT)
+		exp = ERR_PTR(-ESERVERFAULT);
+	return exp;
+}
+
 /*
  * Called when we need the filehandle for the root of the pseudofs,
  * for a given NFSv4 client.   The root is defined to be the
@@ -1330,11 +1347,8 @@ exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 {
 	struct svc_export *exp;
 	__be32 rv;
-	u32 fsidv[2];
 
-	mk_fsid(FSID_NUM, fsidv, 0, 0, 0, NULL);
-
-	exp = rqst_exp_find(rqstp, FSID_NUM, fsidv);
+	exp = find_fsidzero_export(rqstp);
 	if (IS_ERR(exp))
 		return nfserrno(PTR_ERR(exp));
 	rv = fh_compose(fhp, exp, exp->ex_path.dentry, NULL);
