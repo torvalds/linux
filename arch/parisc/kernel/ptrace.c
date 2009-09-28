@@ -36,7 +36,8 @@
  */
 void ptrace_disable(struct task_struct *task)
 {
-	task->ptrace &= ~(PT_SINGLESTEP|PT_BLOCKSTEP);
+	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
+	clear_tsk_thread_flag(task, TIF_BLOCKSTEP);
 
 	/* make sure the trap bits are not set */
 	pa_psw(task)->r = 0;
@@ -56,8 +57,8 @@ void user_disable_single_step(struct task_struct *task)
 
 void user_enable_single_step(struct task_struct *task)
 {
-	task->ptrace &= ~PT_BLOCKSTEP;
-	task->ptrace |= PT_SINGLESTEP;
+	clear_tsk_thread_flag(task, TIF_BLOCKSTEP);
+	set_tsk_thread_flag(task, TIF_SINGLESTEP);
 
 	if (pa_psw(task)->n) {
 		struct siginfo si;
@@ -99,8 +100,8 @@ void user_enable_single_step(struct task_struct *task)
 
 void user_enable_block_step(struct task_struct *task)
 {
-	task->ptrace &= ~PT_SINGLESTEP;
-	task->ptrace |= PT_BLOCKSTEP;
+	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
+	set_tsk_thread_flag(task, TIF_BLOCKSTEP);
 
 	/* Enable taken branch trap. */
 	pa_psw(task)->r = 0;
@@ -275,7 +276,8 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 
 void do_syscall_trace_exit(struct pt_regs *regs)
 {
-	int stepping = !!(current->ptrace & (PT_SINGLESTEP|PT_BLOCKSTEP));
+	int stepping = test_thread_flag(TIF_SINGLESTEP) ||
+		test_thread_flag(TIF_BLOCKSTEP);
 
 	if (stepping || test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall_exit(regs, stepping);
