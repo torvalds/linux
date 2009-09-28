@@ -171,12 +171,12 @@ static struct s3c2410fb_mach_info h1940_fb_info __initdata = {
 	.gpdup_mask=	0xffffffff,
 };
 
-static struct platform_device s3c_device_leds = {
+static struct platform_device h1940_device_leds = {
 	.name             = "h1940-leds",
 	.id               = -1,
 };
 
-static struct platform_device s3c_device_bluetooth = {
+static struct platform_device h1940_device_bluetooth = {
 	.name             = "h1940-bt",
 	.id               = -1,
 };
@@ -188,8 +188,8 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_iis,
 	&s3c_device_usbgadget,
-	&s3c_device_leds,
-	&s3c_device_bluetooth,
+	&h1940_device_leds,
+	&h1940_device_bluetooth,
 };
 
 static void __init h1940_map_io(void)
