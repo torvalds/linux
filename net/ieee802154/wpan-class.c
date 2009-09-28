@@ -30,7 +30,7 @@ static ssize_t name ## _show(struct device *dev,			\
 	int ret;							\
 									\
 	mutex_lock(&phy->pib_lock);					\
-	ret = sprintf(buf, format_string "\n", args);			\
+	ret = snprintf(buf, PAGE_SIZE, format_string "\n", args);	\
 	mutex_unlock(&phy->pib_lock);					\
 	return ret;							\
 }
