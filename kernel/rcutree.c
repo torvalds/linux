@@ -122,6 +122,10 @@ static int blimit = 10;		/* Maximum callbacks per softirq. */
 static int qhimark = 10000;	/* If this many pending, ignore blimit. */
 static int qlowmark = 100;	/* Once only this many pending, use blimit. */
 
+module_param(blimit, int, 0);
+module_param(qhimark, int, 0);
+module_param(qlowmark, int, 0);
+
 static void force_quiescent_state(struct rcu_state *rsp, int relaxed);
 static int rcu_pending(int cpu);
 
@@ -878,8 +882,8 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 	 * indefinitely delay callbacks, you have far worse things to
 	 * be worrying about.
 	 */
-	rdp_me = rsp->rda[smp_processor_id()];
 	if (rdp->nxtlist != NULL) {
+		rdp_me = rsp->rda[smp_processor_id()];
 		*rdp_me->nxttail[RCU_NEXT_TAIL] = rdp->nxtlist;
 		rdp_me->nxttail[RCU_NEXT_TAIL] = rdp->nxttail[RCU_NEXT_TAIL];
 		rdp->nxtlist = NULL;
@@ -1575,7 +1579,3 @@ void __init __rcu_init(void)
 }
 
 #include "rcutree_plugin.h"
-
-module_param(blimit, int, 0);
-module_param(qhimark, int, 0);
-module_param(qlowmark, int, 0);
