@@ -805,7 +805,7 @@ static const struct {
 		.controls = {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Switch",
+				.name = "Analog Input Monitor Playback Switch",
 				.info = snd_ctl_boolean_mono_info,
 				.get = monitor_get,
 				.put = monitor_put,
@@ -813,7 +813,7 @@ static const struct {
 			},
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Volume",
+				.name = "Analog Input Monitor Playback Volume",
 				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
 				.info = monitor_volume_info,
@@ -830,7 +830,7 @@ static const struct {
 		.controls = {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Switch",
+				.name = "Analog Input Monitor Playback Switch",
 				.info = snd_ctl_boolean_mono_info,
 				.get = monitor_get,
 				.put = monitor_put,
@@ -838,7 +838,7 @@ static const struct {
 			},
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Volume",
+				.name = "Analog Input Monitor Playback Volume",
 				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
 				.info = monitor_volume_info,
@@ -855,7 +855,7 @@ static const struct {
 		.controls = {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Switch",
+				.name = "Analog Input Monitor Playback Switch",
 				.index = 1,
 				.info = snd_ctl_boolean_mono_info,
 				.get = monitor_get,
@@ -864,7 +864,7 @@ static const struct {
 			},
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Analog Input Monitor Volume",
+				.name = "Analog Input Monitor Playback Volume",
 				.index = 1,
 				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -882,7 +882,7 @@ static const struct {
 		.controls = {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Digital Input Monitor Switch",
+				.name = "Digital Input Monitor Playback Switch",
 				.info = snd_ctl_boolean_mono_info,
 				.get = monitor_get,
 				.put = monitor_put,
@@ -890,7 +890,7 @@ static const struct {
 			},
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-				.name = "Digital Input Monitor Volume",
+				.name = "Digital Input Monitor Playback Volume",
 				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
 				.info = monitor_volume_info,
