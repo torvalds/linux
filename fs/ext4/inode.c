@@ -1233,6 +1233,9 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 	clear_buffer_mapped(bh);
 	clear_buffer_unwritten(bh);
 
+	ext_debug("ext4_get_blocks(): inode %lu, flag %d, max_blocks %u,"
+		  "logical block %lu\n", inode->i_ino, flags, max_blocks,
+		  (unsigned long)block);
 	/*
 	 * Try to see if we can get the block without requesting a new
 	 * file system block.

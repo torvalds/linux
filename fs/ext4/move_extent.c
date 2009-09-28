@@ -322,7 +322,7 @@ mext_insert_across_blocks(handle_t *handle, struct inode *orig_inode,
 			goto out;
 
 		if (ext4_ext_insert_extent(handle, orig_inode,
-					orig_path, new_ext))
+					orig_path, new_ext, 0))
 			goto out;
 	}
 
@@ -333,7 +333,7 @@ mext_insert_across_blocks(handle_t *handle, struct inode *orig_inode,
 			goto out;
 
 		if (ext4_ext_insert_extent(handle, orig_inode,
-					   orig_path, end_ext))
+					   orig_path, end_ext, 0))
 			goto out;
 	}
 out:

@@ -128,6 +128,15 @@ struct mpage_da_data {
 	int retval;
 };
 
+typedef struct ext4_io_end {
+	struct inode		*inode;		/* file being written to */
+	unsigned int		flag;		/* sync IO or AIO */
+	int			error;		/* I/O error code */
+	ext4_lblk_t		offset;		/* offset in the file */
+	size_t			size;		/* size of the extent */
+	struct work_struct	work;		/* data work queue */
+} ext4_io_end_t;
+
 /*
  * Special inodes numbers
  */
@@ -347,7 +356,16 @@ struct ext4_new_group_data {
 	/* Call ext4_da_update_reserve_space() after successfully 
 	   allocating the blocks */
 #define EXT4_GET_BLOCKS_UPDATE_RESERVE_SPACE	0x0008
-
+	/* caller is from the direct IO path, request to creation of an
+	unitialized extents if not allocated, split the uninitialized
+	extent if blocks has been preallocated already*/
+#define EXT4_GET_BLOCKS_DIO			0x0010
+#define EXT4_GET_BLOCKS_CONVERT			0x0020
+#define EXT4_GET_BLOCKS_DIO_CREATE_EXT		(EXT4_GET_BLOCKS_DIO|\
+					 EXT4_GET_BLOCKS_CREATE_UNINIT_EXT)
+	/* Convert extent to initialized after direct IO complete */
+#define EXT4_GET_BLOCKS_DIO_CONVERT_EXT		(EXT4_GET_BLOCKS_CONVERT|\
+					 EXT4_GET_BLOCKS_DIO_CREATE_EXT)
 
 /*
  * ioctl commands
@@ -1699,6 +1717,8 @@ extern void ext4_ext_truncate(struct inode *);
 extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
 extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
+			  loff_t len);
+extern int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 			  loff_t len);
 extern int ext4_get_blocks(handle_t *handle, struct inode *inode,
 			   sector_t block, unsigned int max_blocks,
