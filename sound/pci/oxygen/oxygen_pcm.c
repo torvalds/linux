@@ -271,13 +271,16 @@ static unsigned int oxygen_rate(struct snd_pcm_hw_params *hw_params)
 	}
 }
 
-static unsigned int oxygen_i2s_mclk(struct snd_pcm_hw_params *hw_params)
+unsigned int oxygen_default_i2s_mclk(struct oxygen *chip,
+				     unsigned int channel,
+				     struct snd_pcm_hw_params *hw_params)
 {
 	if (params_rate(hw_params) <= 96000)
 		return OXYGEN_I2S_MCLK_256;
 	else
 		return OXYGEN_I2S_MCLK_128;
 }
+EXPORT_SYMBOL(oxygen_default_i2s_mclk);
 
 static unsigned int oxygen_i2s_bits(struct snd_pcm_hw_params *hw_params)
 {
@@ -354,7 +357,7 @@ static int oxygen_rec_a_hw_params(struct snd_pcm_substream *substream,
 			     OXYGEN_REC_FORMAT_A_MASK);
 	oxygen_write16_masked(chip, OXYGEN_I2S_A_FORMAT,
 			      oxygen_rate(hw_params) |
-			      oxygen_i2s_mclk(hw_params) |
+			      chip->model.get_i2s_mclk(chip, PCM_A, hw_params) |
 			      chip->model.adc_i2s_format |
 			      oxygen_i2s_bits(hw_params),
 			      OXYGEN_I2S_RATE_MASK |
@@ -390,7 +393,8 @@ static int oxygen_rec_b_hw_params(struct snd_pcm_substream *substream,
 	if (!is_ac97)
 		oxygen_write16_masked(chip, OXYGEN_I2S_B_FORMAT,
 				      oxygen_rate(hw_params) |
-				      oxygen_i2s_mclk(hw_params) |
+				      chip->model.get_i2s_mclk(chip, PCM_B,
+							       hw_params) |
 				      chip->model.adc_i2s_format |
 				      oxygen_i2s_bits(hw_params),
 				      OXYGEN_I2S_RATE_MASK |
@@ -472,7 +476,8 @@ static int oxygen_multich_hw_params(struct snd_pcm_substream *substream,
 	oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
 			      oxygen_rate(hw_params) |
 			      chip->model.dac_i2s_format |
-			      oxygen_i2s_mclk(hw_params) |
+			      chip->model.get_i2s_mclk(chip, PCM_MULTICH,
+						       hw_params) |
 			      oxygen_i2s_bits(hw_params),
 			      OXYGEN_I2S_RATE_MASK |
 			      OXYGEN_I2S_FORMAT_MASK |

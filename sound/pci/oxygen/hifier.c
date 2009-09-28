@@ -170,6 +170,7 @@ static const struct oxygen_model model_hifier = {
 	.init = hifier_init,
 	.cleanup = hifier_cleanup,
 	.resume = hifier_resume,
+	.get_i2s_mclk = oxygen_default_i2s_mclk,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_cs5340_params,
 	.update_dac_volume = update_ak4396_volume,

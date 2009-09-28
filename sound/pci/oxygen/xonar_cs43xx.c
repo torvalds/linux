@@ -321,6 +321,7 @@ static const struct oxygen_model model_xonar_d1 = {
 	.cleanup = xonar_d1_cleanup,
 	.suspend = xonar_d1_suspend,
 	.resume = xonar_d1_resume,
+	.get_i2s_mclk = oxygen_default_i2s_mclk,
 	.set_dac_params = set_cs43xx_params,
 	.set_adc_params = xonar_set_cs53x1_params,
 	.update_dac_volume = update_cs43xx_volume,
