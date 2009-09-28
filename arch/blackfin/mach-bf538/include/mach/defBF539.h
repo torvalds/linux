@@ -468,31 +468,31 @@
 /* General-Purpose Ports  (0xFFC01500 -	0xFFC015FF)	 */
 
 /* GPIO	Port C Register	Names */
-#define	GPIO_C_CNFG			0xFFC01500	/* GPIO	Pin Port C Configuration Register */
-#define	GPIO_C_D			0xFFC01510	/* GPIO	Pin Port C Data	Register */
-#define	GPIO_C_C			0xFFC01520	/* Clear GPIO Pin Port C Register */
-#define	GPIO_C_S			0xFFC01530	/* Set GPIO Pin	Port C Register */
-#define	GPIO_C_T			0xFFC01540	/* Toggle GPIO Pin Port	C Register */
-#define	GPIO_C_DIR			0xFFC01550	/* GPIO	Pin Port C Direction Register */
-#define	GPIO_C_INEN			0xFFC01560	/* GPIO	Pin Port C Input Enable	Register */
+#define PORTCIO_FER			0xFFC01500	/* GPIO	Pin Port C Configuration Register */
+#define PORTCIO				0xFFC01510	/* GPIO	Pin Port C Data	Register */
+#define PORTCIO_CLEAR			0xFFC01520	/* Clear GPIO Pin Port C Register */
+#define PORTCIO_SET			0xFFC01530	/* Set GPIO Pin	Port C Register */
+#define PORTCIO_TOGGLE			0xFFC01540	/* Toggle GPIO Pin Port	C Register */
+#define PORTCIO_DIR			0xFFC01550	/* GPIO	Pin Port C Direction Register */
+#define PORTCIO_INEN			0xFFC01560	/* GPIO	Pin Port C Input Enable	Register */
 
 /* GPIO	Port D Register	Names */
-#define	GPIO_D_CNFG			0xFFC01504	/* GPIO	Pin Port D Configuration Register */
-#define	GPIO_D_D			0xFFC01514	/* GPIO	Pin Port D Data	Register */
-#define	GPIO_D_C			0xFFC01524	/* Clear GPIO Pin Port D Register */
-#define	GPIO_D_S			0xFFC01534	/* Set GPIO Pin	Port D Register */
-#define	GPIO_D_T			0xFFC01544	/* Toggle GPIO Pin Port	D Register */
-#define	GPIO_D_DIR			0xFFC01554	/* GPIO	Pin Port D Direction Register */
-#define	GPIO_D_INEN			0xFFC01564	/* GPIO	Pin Port D Input Enable	Register */
+#define PORTDIO_FER			0xFFC01504	/* GPIO	Pin Port D Configuration Register */
+#define PORTDIO				0xFFC01514	/* GPIO	Pin Port D Data	Register */
+#define PORTDIO_CLEAR			0xFFC01524	/* Clear GPIO Pin Port D Register */
+#define PORTDIO_SET			0xFFC01534	/* Set GPIO Pin	Port D Register */
+#define PORTDIO_TOGGLE			0xFFC01544	/* Toggle GPIO Pin Port	D Register */
+#define PORTDIO_DIR			0xFFC01554	/* GPIO	Pin Port D Direction Register */
+#define PORTDIO_INEN			0xFFC01564	/* GPIO	Pin Port D Input Enable	Register */
 
 /* GPIO	Port E Register	Names */
-#define	GPIO_E_CNFG			0xFFC01508	/* GPIO	Pin Port E Configuration Register */
-#define	GPIO_E_D			0xFFC01518	/* GPIO	Pin Port E Data	Register */
-#define	GPIO_E_C			0xFFC01528	/* Clear GPIO Pin Port E Register */
-#define	GPIO_E_S			0xFFC01538	/* Set GPIO Pin	Port E Register */
-#define	GPIO_E_T			0xFFC01548	/* Toggle GPIO Pin Port	E Register */
-#define	GPIO_E_DIR			0xFFC01558	/* GPIO	Pin Port E Direction Register */
-#define	GPIO_E_INEN			0xFFC01568	/* GPIO	Pin Port E Input Enable	Register */
+#define PORTEIO_FER			0xFFC01508	/* GPIO	Pin Port E Configuration Register */
+#define PORTEIO				0xFFC01518	/* GPIO	Pin Port E Data	Register */
+#define PORTEIO_CLEAR			0xFFC01528	/* Clear GPIO Pin Port E Register */
+#define PORTEIO_SET			0xFFC01538	/* Set GPIO Pin	Port E Register */
+#define PORTEIO_TOGGLE			0xFFC01548	/* Toggle GPIO Pin Port	E Register */
+#define PORTEIO_DIR			0xFFC01558	/* GPIO	Pin Port E Direction Register */
+#define PORTEIO_INEN			0xFFC01568	/* GPIO	Pin Port E Input Enable	Register */
 
 /* DMA Controller 1 Traffic Control Registers (0xFFC01B00 - 0xFFC01BFF) */
 
