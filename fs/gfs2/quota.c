@@ -1367,8 +1367,51 @@ static int gfs2_quota_get_xstate(struct super_block *sb,
 	return 0;
 }
 
+static int gfs2_xquota_get(struct super_block *sb, int type, qid_t id,
+			   struct fs_disk_quota *fdq)
+{
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+	struct gfs2_quota_lvb *qlvb;
+	struct gfs2_quota_data *qd;
+	struct gfs2_holder q_gh;
+	int error;
+
+	memset(fdq, 0, sizeof(struct fs_disk_quota));
+
+	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
+		return -ESRCH; /* Crazy XFS error code */
+
+	if (type == USRQUOTA)
+		type = QUOTA_USER;
+	else if (type == GRPQUOTA)
+		type = QUOTA_GROUP;
+	else
+		return -EINVAL;
+
+	error = qd_get(sdp, type, id, &qd);
+	if (error)
+		return error;
+	error = do_glock(qd, FORCE, &q_gh);
+	if (error)
+		goto out;
+
+	qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
+	fdq->d_version = FS_DQUOT_VERSION;
+	fdq->d_flags = (type == QUOTA_USER) ? XFS_USER_QUOTA : XFS_GROUP_QUOTA;
+	fdq->d_id = id;
+	fdq->d_blk_hardlimit = be64_to_cpu(qlvb->qb_limit);
+	fdq->d_blk_softlimit = be64_to_cpu(qlvb->qb_warn);
+	fdq->d_bcount = be64_to_cpu(qlvb->qb_value);
+
+	gfs2_glock_dq_uninit(&q_gh);
+out:
+	qd_put(qd);
+	return error;
+}
+
 const struct quotactl_ops gfs2_quotactl_ops = {
 	.quota_sync     = gfs2_quota_sync,
 	.get_xstate     = gfs2_quota_get_xstate,
+	.get_xquota	= gfs2_xquota_get,
 };
 
