@@ -33,8 +33,8 @@
 #include "radeon.h"
 #include "radeon_mode.h"
 #include "r600d.h"
-#include "avivod.h"
 #include "atom.h"
+#include "avivod.h"
 
 #define PFP_UCODE_SIZE 576
 #define PM4_UCODE_SIZE 1792
@@ -342,7 +342,7 @@ static void r600_mc_resume(struct radeon_device *rdev)
 
 	/* we need to own VRAM, so turn off the VGA renderer here
 	 * to stop it overwriting our objects */
-	radeon_avivo_vga_render_disable(rdev);
+	rv515_vga_render_disable(rdev);
 }
 
 int r600_mc_init(struct radeon_device *rdev)

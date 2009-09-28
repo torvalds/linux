@@ -44,6 +44,24 @@
  *	- TESTING, TESTING, TESTING
  */
 
+/* Initialization path:
+ *  We expect that acceleration initialization might fail for various
+ *  reasons even thought we work hard to make it works on most
+ *  configurations. In order to still have a working userspace in such
+ *  situation the init path must succeed up to the memory controller
+ *  initialization point. Failure before this point are considered as
+ *  fatal error. Here is the init callchain :
+ *      radeon_device_init  perform common structure, mutex initialization
+ *      asic_init           setup the GPU memory layout and perform all
+ *                          one time initialization (failure in this
+ *                          function are considered fatal)
+ *      asic_startup        setup the GPU acceleration, in order to
+ *                          follow guideline the first thing this
+ *                          function should do is setting the GPU
+ *                          memory controller (only MC setup failure
+ *                          are considered as fatal)
+ */
+
 #include <asm/atomic.h>
 #include <linux/wait.h>
 #include <linux/list.h>
@@ -976,6 +994,7 @@ extern void radeon_clocks_fini(struct radeon_device *rdev);
 extern void radeon_scratch_init(struct radeon_device *rdev);
 extern void radeon_surface_init(struct radeon_device *rdev);
 extern int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data);
+extern void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
 struct r100_mc_save {
@@ -1007,6 +1026,9 @@ extern void r100_vram_init_sizes(struct radeon_device *rdev);
 extern void r100_wb_disable(struct radeon_device *rdev);
 extern void r100_wb_fini(struct radeon_device *rdev);
 extern int r100_wb_init(struct radeon_device *rdev);
+extern void r100_hdp_reset(struct radeon_device *rdev);
+extern int r100_rb2d_reset(struct radeon_device *rdev);
+extern int r100_cp_reset(struct radeon_device *rdev);
 
 /* r300,r350,rv350,rv370,rv380 */
 extern void r300_set_reg_safe(struct radeon_device *rdev);
@@ -1018,12 +1040,24 @@ extern int rv370_pcie_gart_enable(struct radeon_device *rdev);
 extern void rv370_pcie_gart_disable(struct radeon_device *rdev);
 
 /* r420,r423,rv410 */
+extern int r420_mc_init(struct radeon_device *rdev);
 extern u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg);
 extern void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 extern int r420_debugfs_pipes_info_init(struct radeon_device *rdev);
+extern void r420_pipes_init(struct radeon_device *rdev);
 
 /* rv515 */
+struct rv515_mc_save {
+	u32 d1vga_control;
+	u32 d2vga_control;
+	u32 vga_render_control;
+	u32 vga_hdp_control;
+	u32 d1crtc_control;
+	u32 d2crtc_control;
+};
 extern void rv515_bandwidth_avivo_update(struct radeon_device *rdev);
+extern void rv515_vga_render_disable(struct radeon_device *rdev);
+extern void rv515_set_safe_registers(struct radeon_device *rdev);
 
 /* rs690, rs740 */
 extern void rs690_line_buffer_adjust(struct radeon_device *rdev,

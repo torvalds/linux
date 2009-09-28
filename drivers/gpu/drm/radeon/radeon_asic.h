@@ -413,40 +413,42 @@ static struct radeon_asic rs690_asic = {
  * rv515
  */
 int rv515_init(struct radeon_device *rdev);
-void rv515_errata(struct radeon_device *rdev);
-void rv515_vram_info(struct radeon_device *rdev);
+void rv515_fini(struct radeon_device *rdev);
 int rv515_gpu_reset(struct radeon_device *rdev);
-int rv515_mc_init(struct radeon_device *rdev);
-void rv515_mc_fini(struct radeon_device *rdev);
 uint32_t rv515_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rv515_ring_start(struct radeon_device *rdev);
 uint32_t rv515_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
 void rv515_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rv515_bandwidth_update(struct radeon_device *rdev);
+int rv515_resume(struct radeon_device *rdev);
+int rv515_suspend(struct radeon_device *rdev);
 static struct radeon_asic rv515_asic = {
 	.init = &rv515_init,
-	.errata = &rv515_errata,
-	.vram_info = &rv515_vram_info,
+	.fini = &rv515_fini,
+	.suspend = &rv515_suspend,
+	.resume = &rv515_resume,
+	.errata = NULL,
+	.vram_info = NULL,
 	.gpu_reset = &rv515_gpu_reset,
-	.mc_init = &rv515_mc_init,
-	.mc_fini = &rv515_mc_fini,
-	.wb_init = &r100_wb_init,
-	.wb_fini = &r100_wb_fini,
+	.mc_init = NULL,
+	.mc_fini = NULL,
+	.wb_init = NULL,
+	.wb_fini = NULL,
 	.gart_init = &rv370_pcie_gart_init,
 	.gart_fini = &rv370_pcie_gart_fini,
-	.gart_enable = &rv370_pcie_gart_enable,
-	.gart_disable = &rv370_pcie_gart_disable,
+	.gart_enable = NULL,
+	.gart_disable = NULL,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
-	.cp_init = &r100_cp_init,
-	.cp_fini = &r100_cp_fini,
-	.cp_disable = &r100_cp_disable,
+	.cp_init = NULL,
+	.cp_fini = NULL,
+	.cp_disable = NULL,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &rv515_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = &r100_ib_test,
+	.ib_test = NULL,
 	.irq_set = &rs600_irq_set,
 	.irq_process = &rs600_irq_process,
 	.get_vblank_counter = &rs600_get_vblank_counter,
@@ -468,13 +470,14 @@ static struct radeon_asic rv515_asic = {
 /*
  * r520,rv530,rv560,rv570,r580
  */
+int r520_init(struct radeon_device *rdev);
 void r520_errata(struct radeon_device *rdev);
 void r520_vram_info(struct radeon_device *rdev);
 int r520_mc_init(struct radeon_device *rdev);
 void r520_mc_fini(struct radeon_device *rdev);
 void r520_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic r520_asic = {
-	.init = &rv515_init,
+	.init = &r520_init,
 	.errata = &r520_errata,
 	.vram_info = &r520_vram_info,
 	.gpu_reset = &rv515_gpu_reset,

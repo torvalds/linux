@@ -33,7 +33,6 @@
 void r100_hdp_reset(struct radeon_device *rdev);
 void r420_pipes_init(struct radeon_device *rdev);
 void rs600_mc_disable_clients(struct radeon_device *rdev);
-void rs600_disable_vga(struct radeon_device *rdev);
 int rv515_debugfs_pipes_info_init(struct radeon_device *rdev);
 int rv515_debugfs_ga_info_init(struct radeon_device *rdev);
 
@@ -148,7 +147,7 @@ void r520_gpu_init(struct radeon_device *rdev)
 	unsigned pipe_select_current, gb_pipe_select, tmp;
 
 	r100_hdp_reset(rdev);
-	rs600_disable_vga(rdev);
+	rv515_vga_render_disable(rdev);
 	/*
 	 * DST_PIPE_CONFIG		0x170C
 	 * GB_TILE_CONFIG		0x4018
@@ -236,4 +235,10 @@ void r520_vram_info(struct radeon_device *rdev)
 void r520_bandwidth_update(struct radeon_device *rdev)
 {
 	rv515_bandwidth_avivo_update(rdev);
+}
+
+int r520_init(struct radeon_device *rdev)
+{
+	rv515_set_safe_registers(rdev);
+	return 0;
 }
