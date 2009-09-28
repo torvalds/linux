@@ -549,19 +549,6 @@ static struct platform_device bf51x_sdh_device = {
 };
 #endif
 
-static struct resource bfin_gpios_resources = {
-	.start = 0,
-	.end   = MAX_BLACKFIN_GPIOS - 1,
-	.flags = IORESOURCE_IRQ,
-};
-
-static struct platform_device bfin_gpios_device = {
-	.name = "simple-gpio",
-	.id = -1,
-	.num_resources = 1,
-	.resource = &bfin_gpios_resources,
-};
-
 static const unsigned int cclk_vlev_datasheet[] =
 {
 	VRPAIR(VLEV_100, 400000000),
@@ -638,8 +625,6 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezbrd_flash_device,
 #endif
-
-	&bfin_gpios_device,
 };
 
 static int __init ezbrd_init(void)

@@ -277,19 +277,6 @@ static struct platform_device net2272_bfin_device = {
 };
 #endif
 
-static struct resource bfin_gpios_resources = {
-	.start = 0,
-	.end   = MAX_BLACKFIN_GPIOS - 1,
-	.flags = IORESOURCE_IRQ,
-};
-
-static struct platform_device bfin_gpios_device = {
-	.name = "simple-gpio",
-	.id = -1,
-	.num_resources = 1,
-	.resource = &bfin_gpios_resources,
-};
-
 #if defined(CONFIG_MTD_GPIO_ADDR) || defined(CONFIG_MTD_GPIO_ADDR_MODULE)
 static struct mtd_partition cm_partitions[] = {
 	{
@@ -584,8 +571,6 @@ static struct platform_device *cm_bf537u_devices[] __initdata = {
 #if defined(CONFIG_MTD_GPIO_ADDR) || defined(CONFIG_MTD_GPIO_ADDR_MODULE)
 	&cm_flash_device,
 #endif
-
-	&bfin_gpios_device,
 };
 
 static int __init cm_bf537u_init(void)
