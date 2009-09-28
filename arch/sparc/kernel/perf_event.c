@@ -713,12 +713,66 @@ static void hw_perf_event_destroy(struct perf_event *event)
 	perf_event_release_pmc();
 }
 
+static int check_excludes(struct perf_event **evts, int n_prev, int n_new)
+{
+	int eu = 0, ek = 0, eh = 0;
+	struct perf_event *event;
+	int i, n, first;
+
+	n = n_prev + n_new;
+	if (n <= 1)
+		return 0;
+
+	first = 1;
+	for (i = 0; i < n; i++) {
+		event = evts[i];
+		if (first) {
+			eu = event->attr.exclude_user;
+			ek = event->attr.exclude_kernel;
+			eh = event->attr.exclude_hv;
+			first = 0;
+		} else if (event->attr.exclude_user != eu ||
+			   event->attr.exclude_kernel != ek ||
+			   event->attr.exclude_hv != eh) {
+			return -EAGAIN;
+		}
+	}
+
+	return 0;
+}
+
+static int collect_events(struct perf_event *group, int max_count,
+			  struct perf_event *evts[], u64 *events)
+{
+	struct perf_event *event;
+	int n = 0;
+
+	if (!is_software_event(group)) {
+		if (n >= max_count)
+			return -1;
+		evts[n] = group;
+		events[n++] = group->hw.config;
+	}
+	list_for_each_entry(event, &group->sibling_list, group_entry) {
+		if (!is_software_event(event) &&
+		    event->state != PERF_EVENT_STATE_OFF) {
+			if (n >= max_count)
+				return -1;
+			evts[n] = event;
+			events[n++] = event->hw.config;
+		}
+	}
+	return n;
+}
+
 static int __hw_perf_event_init(struct perf_event *event)
 {
 	struct perf_event_attr *attr = &event->attr;
+	struct perf_event *evts[MAX_HWEVENTS];
 	struct hw_perf_event *hwc = &event->hw;
 	const struct perf_event_map *pmap;
-	u64 enc;
+	u64 enc, events[MAX_HWEVENTS];
+	int n;
 
 	if (atomic_read(&nmi_active) < 0)
 		return -ENODEV;
@@ -734,9 +788,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 	} else
 		return -EOPNOTSUPP;
 
-	perf_event_grab_pmc();
-	event->destroy = hw_perf_event_destroy;
-
 	/* We save the enable bits in the config_base.  So to
 	 * turn off sampling just write 'config', and to enable
 	 * things write 'config | config_base'.
@@ -749,13 +800,34 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (!attr->exclude_hv)
 		hwc->config_base |= sparc_pmu->hv_bit;
 
+	enc = pmap->encoding;
+
+	n = 0;
+	if (event->group_leader != event) {
+		n = collect_events(event->group_leader,
+				   perf_max_events - 1,
+				   evts, events);
+		if (n < 0)
+			return -EINVAL;
+	}
+	events[n] = enc;
+	evts[n] = event;
+
+	if (check_excludes(evts, n, 1))
+		return -EINVAL;
+
+	/* Try to do all error checking before this point, as unwinding
+	 * state after grabbing the PMC is difficult.
+	 */
+	perf_event_grab_pmc();
+	event->destroy = hw_perf_event_destroy;
+
 	if (!hwc->sample_period) {
 		hwc->sample_period = MAX_PERIOD;
 		hwc->last_period = hwc->sample_period;
 		atomic64_set(&hwc->period_left, hwc->sample_period);
 	}
 
-	enc = pmap->encoding;
 	if (pmap->pic_mask & PIC_UPPER) {
 		hwc->idx = PIC_UPPER_INDEX;
 		enc <<= sparc_pmu->upper_shift;
