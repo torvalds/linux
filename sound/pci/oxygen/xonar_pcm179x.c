@@ -265,7 +265,8 @@ static void pcm1796_registers_init(struct oxygen *chip)
 			      + gain_offset);
 		pcm1796_write(chip, i, 17, chip->dac_volume[i * 2 + 1]
 			      + gain_offset);
-		pcm1796_write(chip, i, 19, PCM1796_FLT_SHARP | PCM1796_ATS_1);
+		pcm1796_write(chip, i, 19,
+			      data->pcm1796_regs[0][19 - PCM1796_REG_BASE]);
 		pcm1796_write(chip, i, 20,
 			      data->pcm1796_regs[0][20 - PCM1796_REG_BASE]);
 		pcm1796_write(chip, i, 21, 0);
@@ -278,6 +279,8 @@ static void pcm1796_init(struct oxygen *chip)
 
 	data->pcm1796_regs[0][18 - PCM1796_REG_BASE] = PCM1796_MUTE |
 		PCM1796_DMF_DISABLED | PCM1796_FMT_24_LJUST | PCM1796_ATLD;
+	data->pcm1796_regs[0][19 - PCM1796_REG_BASE] =
+		PCM1796_FLT_SHARP | PCM1796_ATS_1;
 	data->pcm1796_regs[0][20 - PCM1796_REG_BASE] = PCM1796_OS_64;
 	pcm1796_registers_init(chip);
 	data->current_rate = 48000;
@@ -642,6 +645,67 @@ static const struct snd_kcontrol_new alt_switch = {
 	.private_value = GPIO_D2_ALT,
 };
 
+static int rolloff_info(struct snd_kcontrol *ctl,
+			struct snd_ctl_elem_info *info)
+{
+	static const char *const names[2] = {
+		"Sharp Roll-off", "Slow Roll-off"
+	};
+
+	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	info->count = 1;
+	info->value.enumerated.items = 2;
+	if (info->value.enumerated.item >= 2)
+		info->value.enumerated.item = 1;
+	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
+	return 0;
+}
+
+static int rolloff_get(struct snd_kcontrol *ctl,
+		       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	struct xonar_pcm179x *data = chip->model_data;
+
+	value->value.enumerated.item[0] =
+		(data->pcm1796_regs[0][19 - PCM1796_REG_BASE] &
+		 PCM1796_FLT_MASK) != PCM1796_FLT_SHARP;
+	return 0;
+}
+
+static int rolloff_put(struct snd_kcontrol *ctl,
+		       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	struct xonar_pcm179x *data = chip->model_data;
+	unsigned int i;
+	int changed;
+	u8 reg;
+
+	mutex_lock(&chip->mutex);
+	reg = data->pcm1796_regs[0][19 - PCM1796_REG_BASE];
+	reg &= ~PCM1796_FLT_MASK;
+	if (!value->value.enumerated.item[0])
+		reg |= PCM1796_FLT_SHARP;
+	else
+		reg |= PCM1796_FLT_SLOW;
+	changed = reg != data->pcm1796_regs[0][19 - PCM1796_REG_BASE];
+	if (changed) {
+		for (i = 0; i < data->dacs; ++i)
+			pcm1796_write(chip, i, 19, reg);
+	}
+	mutex_unlock(&chip->mutex);
+	return changed;
+}
+
+static const struct snd_kcontrol_new rolloff_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "DAC Filter Playback Enum",
+	.info = rolloff_info,
+	.get = rolloff_get,
+	.put = rolloff_put,
+};
+
 static int os_128_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 {
 	static const char *const names[2] = { "64x", "128x" };
@@ -858,11 +922,11 @@ static int xonar_st_control_filter(struct snd_kcontrol_new *template)
 	return 0;
 }
 
-static int xonar_d2_mixer_init(struct oxygen *chip)
+static int add_pcm1796_controls(struct oxygen *chip)
 {
 	int err;
 
-	err = snd_ctl_add(chip->card, snd_ctl_new1(&alt_switch, chip));
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&rolloff_control, chip));
 	if (err < 0)
 		return err;
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&os_128_control, chip));
@@ -871,9 +935,22 @@ static int xonar_d2_mixer_init(struct oxygen *chip)
 	return 0;
 }
 
+static int xonar_d2_mixer_init(struct oxygen *chip)
+{
+	int err;
+
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&alt_switch, chip));
+	if (err < 0)
+		return err;
+	err = add_pcm1796_controls(chip);
+	if (err < 0)
+		return err;
+	return 0;
+}
+
 static int xonar_hdav_mixer_init(struct oxygen *chip)
 {
-	return snd_ctl_add(chip->card, snd_ctl_new1(&os_128_control, chip));
+	return add_pcm1796_controls(chip);
 }
 
 static int xonar_st_mixer_init(struct oxygen *chip)
@@ -887,7 +964,7 @@ static int xonar_st_mixer_init(struct oxygen *chip)
 		if (err < 0)
 			return err;
 	}
-	err = snd_ctl_add(chip->card, snd_ctl_new1(&os_128_control, chip));
+	err = add_pcm1796_controls(chip);
 	if (err < 0)
 		return err;
 	return 0;

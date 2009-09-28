@@ -352,6 +352,70 @@ static void set_ak5385_params(struct oxygen *chip,
 			      value, GPIO_AK5385_DFS_MASK);
 }
 
+static int rolloff_info(struct snd_kcontrol *ctl,
+			struct snd_ctl_elem_info *info)
+{
+	static const char *const names[2] = {
+		"Sharp Roll-off", "Slow Roll-off"
+	};
+
+	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	info->count = 1;
+	info->value.enumerated.items = 2;
+	if (info->value.enumerated.item >= 2)
+		info->value.enumerated.item = 1;
+	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
+	return 0;
+}
+
+static int rolloff_get(struct snd_kcontrol *ctl,
+		       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	struct generic_data *data = chip->model_data;
+
+	value->value.enumerated.item[0] =
+		(data->ak4396_regs[0][AK4396_CONTROL_2] & AK4396_SLOW) != 0;
+	return 0;
+}
+
+static int rolloff_put(struct snd_kcontrol *ctl,
+		       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	struct generic_data *data = chip->model_data;
+	unsigned int i;
+	int changed;
+	u8 reg;
+
+	mutex_lock(&chip->mutex);
+	reg = data->ak4396_regs[0][AK4396_CONTROL_2];
+	if (value->value.enumerated.item[0])
+		reg |= AK4396_SLOW;
+	else
+		reg &= ~AK4396_SLOW;
+	changed = reg != data->ak4396_regs[0][AK4396_CONTROL_2];
+	if (changed) {
+		for (i = 0; i < 4; ++i)
+			ak4396_write(chip, i, AK4396_CONTROL_2, reg);
+	}
+	mutex_unlock(&chip->mutex);
+	return changed;
+}
+
+static const struct snd_kcontrol_new rolloff_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "DAC Filter Playback Enum",
+	.info = rolloff_info,
+	.get = rolloff_get,
+	.put = rolloff_put,
+};
+
+static int generic_mixer_init(struct oxygen *chip)
+{
+	return snd_ctl_add(chip->card, snd_ctl_new1(&rolloff_control, chip));
+}
+
 static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
 
 static const struct oxygen_model model_generic = {
@@ -359,6 +423,7 @@ static const struct oxygen_model model_generic = {
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8788",
 	.init = generic_init,
+	.mixer_init = generic_mixer_init,
 	.cleanup = generic_cleanup,
 	.resume = generic_resume,
 	.get_i2s_mclk = oxygen_default_i2s_mclk,
