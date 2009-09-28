@@ -47,7 +47,6 @@ int drm_fb_helper_add_connector(struct drm_connector *connector)
 		return -ENOMEM;
 
 	return 0;
-
 }
 EXPORT_SYMBOL(drm_fb_helper_add_connector);
 
