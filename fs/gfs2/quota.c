@@ -47,6 +47,7 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/quota.h>
 #include <linux/dqblk_xfs.h>
 
 #include "gfs2.h"
@@ -1001,7 +1002,7 @@ static int print_message(struct gfs2_quota_data *qd, char *type)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
 
-	printk(KERN_INFO "GFS2: fsid=%s: quota %s for %s %u\r\n",
+	printk(KERN_INFO "GFS2: fsid=%s: quota %s for %s %u\n",
 	       sdp->sd_fsname, type,
 	       (test_bit(QDF_USER, &qd->qd_flags)) ? "user" : "group",
 	       qd->qd_id);
@@ -1038,6 +1039,10 @@ int gfs2_quota_check(struct gfs2_inode *ip, u32 uid, u32 gid)
 
 		if (be64_to_cpu(qd->qd_qb.qb_limit) && (s64)be64_to_cpu(qd->qd_qb.qb_limit) < value) {
 			print_message(qd, "exceeded");
+			quota_send_warning(test_bit(QDF_USER, &qd->qd_flags) ?
+					   USRQUOTA : GRPQUOTA, qd->qd_id,
+					   sdp->sd_vfs->s_dev, QUOTA_NL_BHARDWARN);
+
 			error = -EDQUOT;
 			break;
 		} else if (be64_to_cpu(qd->qd_qb.qb_warn) &&
@@ -1045,6 +1050,9 @@ int gfs2_quota_check(struct gfs2_inode *ip, u32 uid, u32 gid)
 			   time_after_eq(jiffies, qd->qd_last_warn +
 					 gfs2_tune_get(sdp,
 						gt_quota_warn_period) * HZ)) {
+			quota_send_warning(test_bit(QDF_USER, &qd->qd_flags) ?
+					   USRQUOTA : GRPQUOTA, qd->qd_id,
+					   sdp->sd_vfs->s_dev, QUOTA_NL_BSOFTWARN);
 			error = print_message(qd, "warning");
 			qd->qd_last_warn = jiffies;
 		}
