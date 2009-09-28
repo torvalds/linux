@@ -216,7 +216,6 @@ static struct platform_device *at2440evb_devices[] __initdata = {
 
 static void __init at2440evb_map_io(void)
 {
-	s3c_device_sdi.name = "s3c2440-sdi";
 	s3c_device_sdi.dev.platform_data = &at2440evb_mci_pdata;
 
 	s3c24xx_init_io(at2440evb_iodesc, ARRAY_SIZE(at2440evb_iodesc));
