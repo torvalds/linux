@@ -989,7 +989,7 @@ static struct pci_driver et131x_driver = {
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
  */
-static int et131x_init_module(void)
+static int __init et131x_init_module(void)
 {
 	if (et131x_speed_set < PARM_SPEED_DUPLEX_MIN ||
 	    et131x_speed_set > PARM_SPEED_DUPLEX_MAX) {
@@ -1002,7 +1002,7 @@ static int et131x_init_module(void)
 /**
  * et131x_cleanup_module - The entry point called on driver cleanup
  */
-static void et131x_cleanup_module(void)
+static void __exit et131x_cleanup_module(void)
 {
 	pci_unregister_driver(&et131x_driver);
 }
