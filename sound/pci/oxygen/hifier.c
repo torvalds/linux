@@ -141,19 +141,11 @@ static void set_cs5340_params(struct oxygen *chip,
 
 static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
 
-static int hifier_control_filter(struct snd_kcontrol_new *template)
-{
-	if (!strcmp(template->name, "Stereo Upmixing"))
-		return 1; /* stereo only - we don't need upmixing */
-	return 0;
-}
-
 static const struct oxygen_model model_hifier = {
 	.shortname = "C-Media CMI8787",
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8788",
 	.init = hifier_init,
-	.control_filter = hifier_control_filter,
 	.cleanup = hifier_cleanup,
 	.resume = hifier_resume,
 	.set_dac_params = set_ak4396_params,

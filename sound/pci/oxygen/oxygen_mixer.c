@@ -954,6 +954,9 @@ static int add_controls(struct oxygen *chip,
 			if (err == 1)
 				continue;
 		}
+		if (!strcmp(template.name, "Stereo Upmixing") &&
+		    chip->model.dac_channels == 2)
+			continue;
 		if (!strcmp(template.name, "Master Playback Volume") &&
 		    chip->model.dac_tlv) {
 			template.tlv.p = chip->model.dac_tlv;

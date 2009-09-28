@@ -605,8 +605,6 @@ static int xonar_st_control_filter(struct snd_kcontrol_new *template)
 {
 	if (!strncmp(template->name, "CD Capture ", 11))
 		return 1; /* no CD input */
-	if (!strcmp(template->name, "Stereo Upmixing"))
-		return 1; /* stereo only - we don't need upmixing */
 	return 0;
 }
 
