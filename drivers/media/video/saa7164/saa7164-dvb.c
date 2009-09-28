@@ -68,6 +68,7 @@ static struct tda18271_config hauppauge_hvr22x0s_tuner_config = {
 	.std_map	= &hauppauge_tda18271_std_map,
 	.gate		= TDA18271_GATE_ANALOG,
 	.role		= TDA18271_SLAVE,
+	.output_opt     = TDA18271_OUTPUT_LT_OFF,
 	.rf_cal_on_startup = 1
 };
 
