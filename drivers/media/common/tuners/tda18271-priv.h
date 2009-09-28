@@ -80,10 +80,10 @@ struct tda18271_rf_tracking_filter_cal {
 	u32 rf1;
 	u32 rf2;
 	u32 rf3;
-	int rf_a1;
-	int rf_b1;
-	int rf_a2;
-	int rf_b2;
+	s32 rf_a1;
+	s32 rf_b1;
+	s32 rf_a2;
+	s32 rf_b2;
 };
 
 enum tda18271_pll {
@@ -111,9 +111,10 @@ struct tda18271_priv {
 	enum tda18271_output_options output_opt;
 
 	unsigned int config; /* interface to saa713x / tda829x */
-	unsigned int tm_rfcal;
 	unsigned int cal_initialized:1;
 	unsigned int small_i2c:1;
+
+	u8 tm_rfcal;
 
 	struct tda18271_map_layout *maps;
 	struct tda18271_std_map std;
