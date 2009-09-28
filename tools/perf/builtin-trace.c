@@ -53,16 +53,12 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	char level;
-	int show = 0;
-	struct dso *dso = NULL;
 	struct thread *thread;
 	u64 ip = event->ip.ip;
 	u64 timestamp = -1;
 	u32 cpu = -1;
 	u64 period = 1;
 	void *more_data = event->ip.__more_data;
-	int cpumode;
 
 	thread = threads__findnew(event->ip.pid, &threads, &last_match);
 
@@ -96,30 +92,6 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		eprintf("problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
-	}
-
-	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	if (cpumode == PERF_RECORD_MISC_KERNEL) {
-		show = SHOW_KERNEL;
-		level = 'k';
-
-		dso = kernel_dso;
-
-		dump_printf(" ...... dso: %s\n", dso->name);
-
-	} else if (cpumode == PERF_RECORD_MISC_USER) {
-
-		show = SHOW_USER;
-		level = '.';
-
-	} else {
-		show = SHOW_HV;
-		level = 'H';
-
-		dso = hypervisor_dso;
-
-		dump_printf(" ...... dso: [hypervisor]\n");
 	}
 
 	if (sample_type & PERF_SAMPLE_RAW) {
