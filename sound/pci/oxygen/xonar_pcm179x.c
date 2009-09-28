@@ -173,6 +173,8 @@ struct xonar_pcm179x {
 	struct xonar_generic generic;
 	unsigned int dacs;
 	u8 pcm1796_regs[4][5];
+	bool hp_active;
+	s8 hp_gain_offset;
 	u8 cs2000_fun_cfg_1;
 };
 
@@ -249,13 +251,17 @@ static void pcm1796_registers_init(struct oxygen *chip)
 {
 	struct xonar_pcm179x *data = chip->model_data;
 	unsigned int i;
+	s8 gain_offset;
 
+	gain_offset = data->hp_active ? data->hp_gain_offset : 0;
 	for (i = 0; i < data->dacs; ++i) {
 		/* set ATLD before ATL/ATR */
 		pcm1796_write(chip, i, 18,
 			      data->pcm1796_regs[0][18 - PCM1796_REG_BASE]);
-		pcm1796_write(chip, i, 16, chip->dac_volume[i * 2]);
-		pcm1796_write(chip, i, 17, chip->dac_volume[i * 2 + 1]);
+		pcm1796_write(chip, i, 16, chip->dac_volume[i * 2]
+			      + gain_offset);
+		pcm1796_write(chip, i, 17, chip->dac_volume[i * 2 + 1]
+			      + gain_offset);
 		pcm1796_write(chip, i, 19, PCM1796_FLT_SHARP | PCM1796_ATS_1);
 		pcm1796_write(chip, i, 20,
 			      data->pcm1796_regs[0][20 - PCM1796_REG_BASE]);
@@ -352,6 +358,7 @@ static void xonar_st_init_common(struct oxygen *chip)
 	data->generic.anti_pop_delay = 100;
 	data->generic.output_enable_bit = GPIO_ST_OUTPUT_ENABLE;
 	data->dacs = chip->model.private_data ? 4 : 1;
+	data->hp_gain_offset = 2*-18;
 
 	pcm1796_init(chip);
 
@@ -495,10 +502,14 @@ static void update_pcm1796_volume(struct oxygen *chip)
 {
 	struct xonar_pcm179x *data = chip->model_data;
 	unsigned int i;
+	s8 gain_offset;
 
+	gain_offset = data->hp_active ? data->hp_gain_offset : 0;
 	for (i = 0; i < data->dacs; ++i) {
-		pcm1796_write_cached(chip, i, 16, chip->dac_volume[i * 2]);
-		pcm1796_write_cached(chip, i, 17, chip->dac_volume[i * 2 + 1]);
+		pcm1796_write_cached(chip, i, 16, chip->dac_volume[i * 2]
+				     + gain_offset);
+		pcm1796_write_cached(chip, i, 17, chip->dac_volume[i * 2 + 1]
+				     + gain_offset);
 	}
 }
 
@@ -606,6 +617,7 @@ static int st_output_switch_put(struct snd_kcontrol *ctl,
 				struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
+	struct xonar_pcm179x *data = chip->model_data;
 	u16 gpio_old, gpio;
 
 	mutex_lock(&chip->mutex);
@@ -623,16 +635,83 @@ static int st_output_switch_put(struct snd_kcontrol *ctl,
 		break;
 	}
 	oxygen_write16(chip, OXYGEN_GPIO_DATA, gpio);
+	data->hp_active = gpio & GPIO_ST_HP;
+	update_pcm1796_volume(chip);
 	mutex_unlock(&chip->mutex);
 	return gpio != gpio_old;
 }
 
-static const struct snd_kcontrol_new st_output_switch = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "Analog Output",
-	.info = st_output_switch_info,
-	.get = st_output_switch_get,
-	.put = st_output_switch_put,
+static int st_hp_volume_offset_info(struct snd_kcontrol *ctl,
+				    struct snd_ctl_elem_info *info)
+{
+	static const char *const names[3] = {
+		"< 64 ohms", "64-300 ohms", "300-600 ohms"
+	};
+
+	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	info->count = 1;
+	info->value.enumerated.items = 3;
+	if (info->value.enumerated.item > 2)
+		info->value.enumerated.item = 2;
+	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
+	return 0;
+}
+
+static int st_hp_volume_offset_get(struct snd_kcontrol *ctl,
+				   struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	struct xonar_pcm179x *data = chip->model_data;
+
+	mutex_lock(&chip->mutex);
+	if (data->hp_gain_offset < 2*-6)
+		value->value.enumerated.item[0] = 0;
+	else if (data->hp_gain_offset < 0)
+		value->value.enumerated.item[0] = 1;
+	else
+		value->value.enumerated.item[0] = 2;
+	mutex_unlock(&chip->mutex);
+	return 0;
+}
+
+
+static int st_hp_volume_offset_put(struct snd_kcontrol *ctl,
+				   struct snd_ctl_elem_value *value)
+{
+	static const s8 offsets[] = { 2*-18, 2*-6, 0 };
+	struct oxygen *chip = ctl->private_data;
+	struct xonar_pcm179x *data = chip->model_data;
+	s8 offset;
+	int changed;
+
+	if (value->value.enumerated.item[0] > 2)
+		return -EINVAL;
+	offset = offsets[value->value.enumerated.item[0]];
+	mutex_lock(&chip->mutex);
+	changed = offset != data->hp_gain_offset;
+	if (changed) {
+		data->hp_gain_offset = offset;
+		update_pcm1796_volume(chip);
+	}
+	mutex_unlock(&chip->mutex);
+	return changed;
+}
+
+static const struct snd_kcontrol_new st_controls[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Analog Output",
+		.info = st_output_switch_info,
+		.get = st_output_switch_get,
+		.put = st_output_switch_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Headphones Impedance Playback Enum",
+		.info = st_hp_volume_offset_info,
+		.get = st_hp_volume_offset_get,
+		.put = st_hp_volume_offset_put,
+	},
 };
 
 static void xonar_line_mic_ac97_switch(struct oxygen *chip,
@@ -671,7 +750,16 @@ static int xonar_d2_mixer_init(struct oxygen *chip)
 
 static int xonar_st_mixer_init(struct oxygen *chip)
 {
-	return snd_ctl_add(chip->card, snd_ctl_new1(&st_output_switch, chip));
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < ARRAY_SIZE(st_controls); ++i) {
+		err = snd_ctl_add(chip->card,
+				  snd_ctl_new1(&st_controls[i], chip));
+		if (err < 0)
+			return err;
+	}
+	return 0;
 }
 
 static const struct oxygen_model model_xonar_d2 = {
