@@ -98,7 +98,7 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 
 struct generic_data {
 	u8 ak4396_regs[4][5];
-	u16 wm8785_regs[1];
+	u16 wm8785_regs[3];
 };
 
 static void ak4396_write(struct oxygen *chip, unsigned int codec,
@@ -184,6 +184,7 @@ static void wm8785_registers_init(struct oxygen *chip)
 
 	wm8785_write(chip, WM8785_R7, 0);
 	wm8785_write(chip, WM8785_R0, data->wm8785_regs[0]);
+	wm8785_write(chip, WM8785_R2, data->wm8785_regs[2]);
 }
 
 static void wm8785_init(struct oxygen *chip)
@@ -192,6 +193,7 @@ static void wm8785_init(struct oxygen *chip)
 
 	data->wm8785_regs[0] =
 		WM8785_MCR_SLAVE | WM8785_OSR_SINGLE | WM8785_FORMAT_LJUST;
+	data->wm8785_regs[2] = WM8785_HPFR | WM8785_HPFL;
 	wm8785_registers_init(chip);
 	snd_component_add(chip->card, "WM8785");
 }
@@ -334,6 +336,7 @@ static void set_wm8785_params(struct oxygen *chip,
 	if (value != data->wm8785_regs[0]) {
 		wm8785_write(chip, WM8785_R7, 0);
 		wm8785_write(chip, WM8785_R0, value);
+		wm8785_write(chip, WM8785_R2, data->wm8785_regs[2]);
 	}
 }
 
@@ -411,9 +414,73 @@ static const struct snd_kcontrol_new rolloff_control = {
 	.put = rolloff_put,
 };
 
+static int hpf_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
+{
+	static const char *const names[2] = {
+		"None", "High-pass Filter"
+	};
+
+	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	info->count = 1;
+	info->value.enumerated.items = 2;
+	if (info->value.enumerated.item >= 2)
+		info->value.enumerated.item = 1;
+	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
+	return 0;
+}
+
+static int hpf_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	struct generic_data *data = chip->model_data;
+
+	value->value.enumerated.item[0] =
+		(data->wm8785_regs[WM8785_R2] & WM8785_HPFR) != 0;
+	return 0;
+}
+
+static int hpf_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	struct generic_data *data = chip->model_data;
+	unsigned int reg;
+	int changed;
+
+	mutex_lock(&chip->mutex);
+	reg = data->wm8785_regs[WM8785_R2] & ~(WM8785_HPFR | WM8785_HPFL);
+	if (value->value.enumerated.item[0])
+		reg |= WM8785_HPFR | WM8785_HPFL;
+	changed = reg != data->wm8785_regs[WM8785_R2];
+	if (changed)
+		wm8785_write(chip, WM8785_R2, reg);
+	mutex_unlock(&chip->mutex);
+	return changed;
+}
+
+static const struct snd_kcontrol_new hpf_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "ADC Filter Capture Enum",
+	.info = hpf_info,
+	.get = hpf_get,
+	.put = hpf_put,
+};
+
 static int generic_mixer_init(struct oxygen *chip)
 {
 	return snd_ctl_add(chip->card, snd_ctl_new1(&rolloff_control, chip));
+}
+
+static int generic_wm8785_mixer_init(struct oxygen *chip)
+{
+	int err;
+
+	err = generic_mixer_init(chip);
+	if (err < 0)
+		return err;
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&hpf_control, chip));
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
@@ -423,7 +490,7 @@ static const struct oxygen_model model_generic = {
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8788",
 	.init = generic_init,
-	.mixer_init = generic_mixer_init,
+	.mixer_init = generic_wm8785_mixer_init,
 	.cleanup = generic_cleanup,
 	.resume = generic_resume,
 	.get_i2s_mclk = oxygen_default_i2s_mclk,
@@ -455,6 +522,7 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 	switch (id->driver_data) {
 	case MODEL_MERIDIAN:
 		chip->model.init = meridian_init;
+		chip->model.mixer_init = generic_mixer_init;
 		chip->model.resume = meridian_resume;
 		chip->model.set_adc_params = set_ak5385_params;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
@@ -470,6 +538,7 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		break;
 	case MODEL_CLARO_HALO:
 		chip->model.init = claro_halo_init;
+		chip->model.mixer_init = generic_mixer_init;
 		chip->model.cleanup = claro_cleanup;
 		chip->model.suspend = claro_suspend;
 		chip->model.resume = claro_resume;
