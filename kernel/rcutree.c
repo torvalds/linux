@@ -462,8 +462,6 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 	long delta;
 	unsigned long flags;
 	struct rcu_node *rnp = rcu_get_root(rsp);
-	struct rcu_node *rnp_cur = rsp->level[NUM_RCU_LVLS - 1];
-	struct rcu_node *rnp_end = &rsp->node[NUM_RCU_NODES];
 
 	/* Only let one CPU complain about others per time interval. */
 
@@ -474,18 +472,24 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 		return;
 	}
 	rsp->jiffies_stall = jiffies + RCU_SECONDS_TILL_STALL_RECHECK;
+
+	/*
+	 * Now rat on any tasks that got kicked up to the root rcu_node
+	 * due to CPU offlining.
+	 */
+	rcu_print_task_stall(rnp);
 	spin_unlock_irqrestore(&rnp->lock, flags);
 
 	/* OK, time to rat on our buddy... */
 
 	printk(KERN_ERR "INFO: RCU detected CPU stalls:");
-	for (; rnp_cur < rnp_end; rnp_cur++) {
+	rcu_for_each_leaf_node(rsp, rnp) {
 		rcu_print_task_stall(rnp);
-		if (rnp_cur->qsmask == 0)
+		if (rnp->qsmask == 0)
 			continue;
-		for (cpu = 0; cpu <= rnp_cur->grphi - rnp_cur->grplo; cpu++)
-			if (rnp_cur->qsmask & (1UL << cpu))
-				printk(" %d", rnp_cur->grplo + cpu);
+		for (cpu = 0; cpu <= rnp->grphi - rnp->grplo; cpu++)
+			if (rnp->qsmask & (1UL << cpu))
+				printk(" %d", rnp->grplo + cpu);
 	}
 	printk(" (detected by %d, t=%ld jiffies)\n",
 	       smp_processor_id(), (long)(jiffies - rsp->gp_start));
@@ -649,7 +653,7 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	 * one corresponding to this CPU, due to the fact that we have
 	 * irqs disabled.
 	 */
-	for (rnp = &rsp->node[0]; rnp < &rsp->node[NUM_RCU_NODES]; rnp++) {
+	rcu_for_each_node_breadth_first(rsp, rnp) {
 		spin_lock(&rnp->lock);	/* irqs already disabled. */
 		rcu_preempt_check_blocked_tasks(rnp);
 		rnp->qsmask = rnp->qsmaskinit;
@@ -1042,33 +1046,32 @@ static int rcu_process_dyntick(struct rcu_state *rsp, long lastcomp,
 	int cpu;
 	unsigned long flags;
 	unsigned long mask;
-	struct rcu_node *rnp_cur = rsp->level[NUM_RCU_LVLS - 1];
-	struct rcu_node *rnp_end = &rsp->node[NUM_RCU_NODES];
+	struct rcu_node *rnp;
 
-	for (; rnp_cur < rnp_end; rnp_cur++) {
+	rcu_for_each_leaf_node(rsp, rnp) {
 		mask = 0;
-		spin_lock_irqsave(&rnp_cur->lock, flags);
+		spin_lock_irqsave(&rnp->lock, flags);
 		if (rsp->completed != lastcomp) {
-			spin_unlock_irqrestore(&rnp_cur->lock, flags);
+			spin_unlock_irqrestore(&rnp->lock, flags);
 			return 1;
 		}
-		if (rnp_cur->qsmask == 0) {
-			spin_unlock_irqrestore(&rnp_cur->lock, flags);
+		if (rnp->qsmask == 0) {
+			spin_unlock_irqrestore(&rnp->lock, flags);
 			continue;
 		}
-		cpu = rnp_cur->grplo;
+		cpu = rnp->grplo;
 		bit = 1;
-		for (; cpu <= rnp_cur->grphi; cpu++, bit <<= 1) {
-			if ((rnp_cur->qsmask & bit) != 0 && f(rsp->rda[cpu]))
+		for (; cpu <= rnp->grphi; cpu++, bit <<= 1) {
+			if ((rnp->qsmask & bit) != 0 && f(rsp->rda[cpu]))
 				mask |= bit;
 		}
 		if (mask != 0 && rsp->completed == lastcomp) {
 
-			/* cpu_quiet_msk() releases rnp_cur->lock. */
-			cpu_quiet_msk(mask, rsp, rnp_cur, flags);
+			/* cpu_quiet_msk() releases rnp->lock. */
+			cpu_quiet_msk(mask, rsp, rnp, flags);
 			continue;
 		}
-		spin_unlock_irqrestore(&rnp_cur->lock, flags);
+		spin_unlock_irqrestore(&rnp->lock, flags);
 	}
 	return 0;
 }
@@ -1550,6 +1553,10 @@ static void __init rcu_init_one(struct rcu_state *rsp)
  */
 #define RCU_INIT_FLAVOR(rsp, rcu_data) \
 do { \
+	int i; \
+	int j; \
+	struct rcu_node *rnp; \
+	\
 	rcu_init_one(rsp); \
 	rnp = (rsp)->level[NUM_RCU_LVLS - 1]; \
 	j = 0; \
@@ -1564,10 +1571,6 @@ do { \
 
 void __init __rcu_init(void)
 {
-	int i;			/* All used by RCU_INIT_FLAVOR(). */
-	int j;
-	struct rcu_node *rnp;
-
 	rcu_bootup_announce();
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 	printk(KERN_INFO "RCU-based detection of stalled CPUs is enabled.\n");

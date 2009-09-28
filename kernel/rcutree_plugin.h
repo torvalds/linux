@@ -423,10 +423,6 @@ static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
  */
 static void __init __rcu_init_preempt(void)
 {
-	int i;			/* All used by RCU_INIT_FLAVOR(). */
-	int j;
-	struct rcu_node *rnp;
-
 	RCU_INIT_FLAVOR(&rcu_preempt_state, rcu_preempt_data);
 }
 

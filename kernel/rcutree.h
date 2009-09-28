@@ -106,6 +106,18 @@ struct rcu_node {
 				/*  blocked_tasks[] array. */
 } ____cacheline_internodealigned_in_smp;
 
+/*
+ * Do a full breadth-first scan of the rcu_node structures for the
+ * specified rcu_state structure.
+ */
+#define rcu_for_each_node_breadth_first(rsp, rnp) \
+	for ((rnp) = &(rsp)->node[0]; \
+	     (rnp) < &(rsp)->node[NUM_RCU_NODES]; (rnp)++)
+
+#define rcu_for_each_leaf_node(rsp, rnp) \
+	for ((rnp) = (rsp)->level[NUM_RCU_LVLS - 1]; \
+	     (rnp) < &(rsp)->node[NUM_RCU_NODES]; (rnp)++)
+
 /* Index values for nxttail array in struct rcu_data. */
 #define RCU_DONE_TAIL		0	/* Also RCU_WAIT head. */
 #define RCU_WAIT_TAIL		1	/* Also RCU_NEXT_READY head. */
