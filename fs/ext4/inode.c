@@ -37,6 +37,7 @@
 #include <linux/namei.h>
 #include <linux/uio.h>
 #include <linux/bio.h>
+#include <linux/workqueue.h>
 
 #include "ext4_jbd2.h"
 #include "xattr.h"
@@ -3356,6 +3357,8 @@ static int ext4_releasepage(struct page *page, gfp_t wait)
 }
 
 /*
+ * O_DIRECT for ext3 (or indirect map) based files
+ *
  * If the O_DIRECT write will extend the file then add this inode to the
  * orphan list.  So recovery will truncate it back to the original size
  * if the machine crashes during the write.
@@ -3364,7 +3367,7 @@ static int ext4_releasepage(struct page *page, gfp_t wait)
  * crashes then stale disk data _may_ be exposed inside the file. But current
  * VFS code falls back into buffered path in that case so we are safe.
  */
-static ssize_t ext4_direct_IO(int rw, struct kiocb *iocb,
+static ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
 			      const struct iovec *iov, loff_t offset,
 			      unsigned long nr_segs)
 {
@@ -3436,6 +3439,198 @@ static ssize_t ext4_direct_IO(int rw, struct kiocb *iocb,
 	}
 out:
 	return ret;
+}
+
+/* Maximum number of blocks we map for direct IO at once. */
+
+static int ext4_get_block_dio_write(struct inode *inode, sector_t iblock,
+		   struct buffer_head *bh_result, int create)
+{
+	handle_t *handle = NULL;
+	int ret = 0;
+	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
+	int dio_credits;
+
+	/*
+	 * DIO VFS code passes create = 0 flag for write to
+	 * the middle of file. It does this to avoid block
+	 * allocation for holes, to prevent expose stale data
+	 * out when there is parallel buffered read (which does
+	 * not hold the i_mutex lock) while direct IO write has
+	 * not completed. DIO request on holes finally falls back
+	 * to buffered IO for this reason.
+	 *
+	 * For ext4 extent based file, since we support fallocate,
+	 * new allocated extent as uninitialized, for holes, we
+	 * could fallocate blocks for holes, thus parallel
+	 * buffered IO read will zero out the page when read on
+	 * a hole while parallel DIO write to the hole has not completed.
+	 *
+	 * when we come here, we know it's a direct IO write to
+	 * to the middle of file (<i_size)
+	 * so it's safe to override the create flag from VFS.
+	 */
+	create = EXT4_GET_BLOCKS_DIO_CREATE_EXT;
+
+	if (max_blocks > DIO_MAX_BLOCKS)
+		max_blocks = DIO_MAX_BLOCKS;
+	dio_credits = ext4_chunk_trans_blocks(inode, max_blocks);
+	handle = ext4_journal_start(inode, dio_credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		goto out;
+	}
+	ret = ext4_get_blocks(handle, inode, iblock, max_blocks, bh_result,
+			      create);
+	if (ret > 0) {
+		bh_result->b_size = (ret << inode->i_blkbits);
+		ret = 0;
+	}
+	ext4_journal_stop(handle);
+out:
+	return ret;
+}
+
+#define		DIO_AIO		0x1
+
+static void ext4_free_io_end(ext4_io_end_t *io)
+{
+	kfree(io);
+}
+
+/*
+ * IO write completion for unwritten extents.
+ *
+ * check a range of space and convert unwritten extents to written.
+ */
+static void ext4_end_dio_unwritten(struct work_struct *work)
+{
+	ext4_io_end_t *io = container_of(work, ext4_io_end_t, work);
+	struct inode *inode = io->inode;
+	loff_t offset = io->offset;
+	size_t size = io->size;
+	int ret = 0;
+	int aio = io->flag & DIO_AIO;
+
+	if (aio)
+		mutex_lock(&inode->i_mutex);
+	if (offset + size <= i_size_read(inode))
+		ret = ext4_convert_unwritten_extents(inode, offset, size);
+
+	if (ret < 0)
+		printk(KERN_EMERG "%s: failed to convert unwritten"
+			"extents to written extents, error is %d\n",
+                       __func__, ret);
+
+	ext4_free_io_end(io);
+	if (aio)
+		mutex_unlock(&inode->i_mutex);
+}
+
+static ext4_io_end_t *ext4_init_io_end (struct inode *inode, unsigned int flag)
+{
+	ext4_io_end_t *io = NULL;
+
+	io = kmalloc(sizeof(*io), GFP_NOFS);
+
+	if (io) {
+		io->inode = inode;
+		io->flag = flag;
+		io->offset = 0;
+		io->size = 0;
+		io->error = 0;
+		INIT_WORK(&io->work, ext4_end_dio_unwritten);
+	}
+
+	return io;
+}
+
+static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
+			    ssize_t size, void *private)
+{
+        ext4_io_end_t *io_end = iocb->private;
+	struct workqueue_struct *wq;
+
+	/* if not hole or unwritten extents, just simple return */
+	if (!io_end || !size || !iocb->private)
+		return;
+	io_end->offset = offset;
+	io_end->size = size;
+	wq = EXT4_SB(io_end->inode->i_sb)->dio_unwritten_wq;
+
+	/* We need to convert unwritten extents to written */
+	queue_work(wq, &io_end->work);
+
+        if (is_sync_kiocb(iocb))
+		flush_workqueue(wq);
+
+	iocb->private = NULL;
+}
+/*
+ * For ext4 extent files, ext4 will do direct-io write to holes,
+ * preallocated extents, and those write extend the file, no need to
+ * fall back to buffered IO.
+ *
+ * For holes, we fallocate those blocks, mark them as unintialized
+ * If those blocks were preallocated, we mark sure they are splited, but
+ * still keep the range to write as unintialized.
+ *
+ * When end_io call back function called at the last IO complete time,
+ * those extents will be converted to written extents.
+ *
+ * If the O_DIRECT write will extend the file then add this inode to the
+ * orphan list.  So recovery will truncate it back to the original size
+ * if the machine crashes during the write.
+ *
+ */
+static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
+			      const struct iovec *iov, loff_t offset,
+			      unsigned long nr_segs)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+	ssize_t ret;
+	size_t count = iov_length(iov, nr_segs);
+
+	loff_t final_size = offset + count;
+	if (rw == WRITE && final_size <= inode->i_size) {
+		/*
+ 		 * For DIO we fallocate blocks for holes, we fallocate blocks
+ 		 * The fallocated extent for hole is marked as uninitialized
+ 		 * to prevent paralel buffered read to expose the stale data
+ 		 * before DIO complete the data IO.
+ 		 * as for previously fallocated extents, ext4 get_block
+ 		 * will just simply mark the buffer mapped but still
+ 		 * keep the extents uninitialized.
+ 		 *
+ 		 * At the end of IO, the ext4 end_io callback function
+ 		 * will convert those unwritten extents to written,
+ 		 *
+ 		 */
+		iocb->private = ext4_init_io_end(inode, !is_sync_kiocb(iocb));
+		if (!iocb->private)
+			return -ENOMEM;
+		ret = blockdev_direct_IO(rw, iocb, inode,
+					 inode->i_sb->s_bdev, iov,
+					 offset, nr_segs,
+					 ext4_get_block_dio_write,
+					 ext4_end_io_dio);
+		return ret;
+	}
+	return ext4_ind_direct_IO(rw, iocb, iov, offset, nr_segs);
+}
+
+static ssize_t ext4_direct_IO(int rw, struct kiocb *iocb,
+			      const struct iovec *iov, loff_t offset,
+			      unsigned long nr_segs)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
+		return ext4_ext_direct_IO(rw, iocb, iov, offset, nr_segs);
+
+	return ext4_ind_direct_IO(rw, iocb, iov, offset, nr_segs);
 }
 
 /*

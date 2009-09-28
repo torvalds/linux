@@ -999,6 +999,9 @@ struct ext4_sb_info {
 
 	unsigned int s_log_groups_per_flex;
 	struct flex_groups *s_flex_groups;
+
+	/* workqueue for dio unwritten */
+	struct workqueue_struct *dio_unwritten_wq;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
