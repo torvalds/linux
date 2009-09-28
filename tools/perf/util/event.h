@@ -3,7 +3,7 @@
 
 #include "../perf.h"
 #include "util.h"
-#include <linux/list.h>
+#include <linux/rbtree.h>
 
 enum {
 	SHOW_KERNEL	= 1,
@@ -79,7 +79,7 @@ typedef union event_union {
 } event_t;
 
 struct map {
-	struct list_head	node;
+	struct rb_node		rb_node;
 	u64			start;
 	u64			end;
 	u64			pgoff;

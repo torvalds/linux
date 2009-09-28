@@ -341,6 +341,7 @@ LIB_H += util/color.h
 LIB_H += util/values.h
 LIB_H += util/sort.h
 LIB_H += util/hist.h
+LIB_H += util/thread.h
 
 LIB_OBJS += util/abspath.o
 LIB_OBJS += util/alias.o
