@@ -106,13 +106,13 @@ static const match_table_t tokens = {
 
 /**
  * gfs2_mount_args - Parse mount options
- * @sdp:
- * @data:
+ * @args: The structure into which the parsed options will be written
+ * @options: The options to parse
  *
  * Return: errno
  */
 
-int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
+int gfs2_mount_args(struct gfs2_args *args, char *options)
 {
 	char *o;
 	int token;
@@ -157,7 +157,7 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 			break;
 		case Opt_debug:
 			if (args->ar_errors == GFS2_ERRORS_PANIC) {
-				fs_info(sdp, "-o debug and -o errors=panic "
+				printk(KERN_WARNING "GFS2: -o debug and -o errors=panic "
 				       "are mutually exclusive.\n");
 				return -EINVAL;
 			}
@@ -210,7 +210,7 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 		case Opt_commit:
 			rv = match_int(&tmp[0], &args->ar_commit);
 			if (rv || args->ar_commit <= 0) {
-				fs_info(sdp, "commit mount option requires a positive numeric argument\n");
+				printk(KERN_WARNING "GFS2: commit mount option requires a positive numeric argument\n");
 				return rv ? rv : -EINVAL;
 			}
 			break;
@@ -219,7 +219,7 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 			break;
 		case Opt_err_panic:
 			if (args->ar_debug) {
-				fs_info(sdp, "-o debug and -o errors=panic "
+				printk(KERN_WARNING "GFS2: -o debug and -o errors=panic "
 					"are mutually exclusive.\n");
 				return -EINVAL;
 			}
@@ -227,7 +227,7 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 			break;
 		case Opt_error:
 		default:
-			fs_info(sdp, "invalid mount option: %s\n", o);
+			printk(KERN_WARNING "GFS2: invalid mount option: %s\n", o);
 			return -EINVAL;
 		}
 	}
@@ -1062,7 +1062,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 	spin_lock(&gt->gt_spin);
 	args.ar_commit = gt->gt_log_flush_secs;
 	spin_unlock(&gt->gt_spin);
-	error = gfs2_mount_args(sdp, &args, data);
+	error = gfs2_mount_args(&args, data);
 	if (error)
 		return error;
 
