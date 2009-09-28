@@ -99,11 +99,15 @@ static int dac_mute_put(struct snd_kcontrol *ctl,
 
 static int upmix_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 {
-	static const char *const names[3] = {
-		"Front", "Front+Surround", "Front+Surround+Back"
+	static const char *const names[5] = {
+		"Front",
+		"Front+Surround",
+		"Front+Surround+Back",
+		"Front+Surround+Center/LFE",
+		"Front+Surround+Center/LFE+Back",
 	};
 	struct oxygen *chip = ctl->private_data;
-	unsigned int count = 2 + (chip->model.dac_channels == 8);
+	unsigned int count = chip->model.update_center_lfe_mix ? 5 : 3;
 
 	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	info->count = 1;
@@ -127,7 +131,7 @@ static int upmix_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 void oxygen_update_dac_routing(struct oxygen *chip)
 {
 	/* DAC 0: front, DAC 1: surround, DAC 2: center/LFE, DAC 3: back */
-	static const unsigned int reg_values[3] = {
+	static const unsigned int reg_values[5] = {
 		/* stereo -> front */
 		(0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
 		(1 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
@@ -142,6 +146,16 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 		(0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
 		(0 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
 		(2 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
+		(0 << OXYGEN_PLAY_DAC3_SOURCE_SHIFT),
+		/* stereo -> front+surround+center/LFE */
+		(0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
+		(0 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
+		(0 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
+		(3 << OXYGEN_PLAY_DAC3_SOURCE_SHIFT),
+		/* stereo -> front+surround+center/LFE+back */
+		(0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
+		(0 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
+		(0 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
 		(0 << OXYGEN_PLAY_DAC3_SOURCE_SHIFT),
 	};
 	u8 channels;
@@ -167,22 +181,23 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 			      OXYGEN_PLAY_DAC1_SOURCE_MASK |
 			      OXYGEN_PLAY_DAC2_SOURCE_MASK |
 			      OXYGEN_PLAY_DAC3_SOURCE_MASK);
+	if (chip->model.update_center_lfe_mix)
+		chip->model.update_center_lfe_mix(chip, chip->dac_routing > 2);
 }
 
 static int upmix_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
-	unsigned int count = 2 + (chip->model.dac_channels == 8);
+	unsigned int count = chip->model.update_center_lfe_mix ? 5 : 3;
 	int changed;
 
+	if (value->value.enumerated.item[0] >= count)
+		return -EINVAL;
 	mutex_lock(&chip->mutex);
 	changed = value->value.enumerated.item[0] != chip->dac_routing;
 	if (changed) {
-		chip->dac_routing = min(value->value.enumerated.item[0],
-					count - 1);
-		spin_lock_irq(&chip->reg_lock);
+		chip->dac_routing = value->value.enumerated.item[0];
 		oxygen_update_dac_routing(chip);
-		spin_unlock_irq(&chip->reg_lock);
 	}
 	mutex_unlock(&chip->mutex);
 	return changed;

@@ -84,6 +84,7 @@ struct oxygen_model {
 			       struct snd_pcm_hw_params *params);
 	void (*update_dac_volume)(struct oxygen *chip);
 	void (*update_dac_mute)(struct oxygen *chip);
+	void (*update_center_lfe_mix)(struct oxygen *chip, bool mixed);
 	void (*gpio_changed)(struct oxygen *chip);
 	void (*uart_input)(struct oxygen *chip);
 	void (*ac97_switch)(struct oxygen *chip,

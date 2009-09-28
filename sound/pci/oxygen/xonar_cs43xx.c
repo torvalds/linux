@@ -67,6 +67,7 @@ struct xonar_cs43xx {
 	struct xonar_generic generic;
 	u8 cs4398_fm;
 	u8 cs4362a_fm;
+	u8 cs4362a_fm_c;
 };
 
 static void cs4398_write(struct oxygen *chip, u8 reg, u8 value)
@@ -128,7 +129,7 @@ static void cs43xx_init(struct oxygen *chip)
 	cs4362a_write(chip, 0x04, CS4362A_RMP_DN | CS4362A_DEM_NONE);
 	cs4362a_write(chip, 0x05, 0);
 	cs4362a_write(chip, 0x06, data->cs4362a_fm);
-	cs4362a_write(chip, 0x09, data->cs4362a_fm);
+	cs4362a_write(chip, 0x09, data->cs4362a_fm_c);
 	cs4362a_write(chip, 0x0c, data->cs4362a_fm);
 	update_cs43xx_volume(chip);
 	update_cs43xx_mute(chip);
@@ -146,6 +147,7 @@ static void xonar_d1_init(struct oxygen *chip)
 	data->cs4398_fm = CS4398_FM_SINGLE | CS4398_DEM_NONE | CS4398_DIF_LJUST;
 	data->cs4362a_fm = CS4362A_FM_SINGLE |
 		CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
+	data->cs4362a_fm_c = data->cs4362a_fm;
 
 	oxygen_write16(chip, OXYGEN_2WIRE_BUS_STATUS,
 		       OXYGEN_2WIRE_LENGTH_8 |
@@ -202,23 +204,39 @@ static void set_cs43xx_params(struct oxygen *chip,
 			      struct snd_pcm_hw_params *params)
 {
 	struct xonar_cs43xx *data = chip->model_data;
+	u8 cs4398_fm, cs4362a_fm;
 
-	data->cs4398_fm = CS4398_DEM_NONE | CS4398_DIF_LJUST;
-	data->cs4362a_fm = CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
 	if (params_rate(params) <= 50000) {
-		data->cs4398_fm |= CS4398_FM_SINGLE;
-		data->cs4362a_fm |= CS4362A_FM_SINGLE;
+		cs4398_fm = CS4398_FM_SINGLE;
+		cs4362a_fm = CS4362A_FM_SINGLE;
 	} else if (params_rate(params) <= 100000) {
-		data->cs4398_fm |= CS4398_FM_DOUBLE;
-		data->cs4362a_fm |= CS4362A_FM_DOUBLE;
+		cs4398_fm = CS4398_FM_DOUBLE;
+		cs4362a_fm = CS4362A_FM_DOUBLE;
 	} else {
-		data->cs4398_fm |= CS4398_FM_QUAD;
-		data->cs4362a_fm |= CS4362A_FM_QUAD;
+		cs4398_fm = CS4398_FM_QUAD;
+		cs4362a_fm = CS4362A_FM_QUAD;
 	}
+	data->cs4398_fm = CS4398_DEM_NONE | CS4398_DIF_LJUST | cs4398_fm;
+	data->cs4362a_fm =
+		(data->cs4362a_fm & ~CS4362A_FM_MASK) | cs4362a_fm;
+	data->cs4362a_fm_c =
+		(data->cs4362a_fm_c & ~CS4362A_FM_MASK) | cs4362a_fm;
 	cs4398_write(chip, 2, data->cs4398_fm);
 	cs4362a_write(chip, 0x06, data->cs4362a_fm);
-	cs4362a_write(chip, 0x09, data->cs4362a_fm);
+	cs4362a_write(chip, 0x09, data->cs4362a_fm_c);
 	cs4362a_write(chip, 0x0c, data->cs4362a_fm);
+}
+
+static void update_cs43xx_center_lfe_mix(struct oxygen *chip, bool mixed)
+{
+	struct xonar_cs43xx *data = chip->model_data;
+
+	data->cs4362a_fm_c &= ~CS4362A_ATAPI_MASK;
+	if (mixed)
+		data->cs4362a_fm_c |= CS4362A_ATAPI_B_LR | CS4362A_ATAPI_A_LR;
+	else
+		data->cs4362a_fm_c |= CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
+	cs4362a_write(chip, 0x09, data->cs4362a_fm_c);
 }
 
 static const struct snd_kcontrol_new front_panel_switch = {
@@ -269,6 +287,7 @@ static const struct oxygen_model model_xonar_d1 = {
 	.set_adc_params = xonar_set_cs53x1_params,
 	.update_dac_volume = update_cs43xx_volume,
 	.update_dac_mute = update_cs43xx_mute,
+	.update_center_lfe_mix = update_cs43xx_center_lfe_mix,
 	.ac97_switch = xonar_d1_line_mic_ac97_switch,
 	.dac_tlv = cs4362a_db_scale,
 	.model_data_size = sizeof(struct xonar_cs43xx),

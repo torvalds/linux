@@ -435,6 +435,7 @@ static int oxygen_spdif_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
+	mutex_lock(&chip->mutex);
 	spin_lock_irq(&chip->reg_lock);
 	oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
 			    OXYGEN_SPDIF_OUT_ENABLE);
@@ -446,6 +447,7 @@ static int oxygen_spdif_hw_params(struct snd_pcm_substream *substream,
 			      OXYGEN_SPDIF_OUT_RATE_MASK);
 	oxygen_update_spdif_source(chip);
 	spin_unlock_irq(&chip->reg_lock);
+	mutex_unlock(&chip->mutex);
 	return 0;
 }
 
@@ -459,6 +461,7 @@ static int oxygen_multich_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
+	mutex_lock(&chip->mutex);
 	spin_lock_irq(&chip->reg_lock);
 	oxygen_write8_masked(chip, OXYGEN_PLAY_CHANNELS,
 			     oxygen_play_channels(hw_params),
@@ -475,12 +478,11 @@ static int oxygen_multich_hw_params(struct snd_pcm_substream *substream,
 			      OXYGEN_I2S_FORMAT_MASK |
 			      OXYGEN_I2S_MCLK_MASK |
 			      OXYGEN_I2S_BITS_MASK);
-	oxygen_update_dac_routing(chip);
 	oxygen_update_spdif_source(chip);
 	spin_unlock_irq(&chip->reg_lock);
 
-	mutex_lock(&chip->mutex);
 	chip->model.set_dac_params(chip, hw_params);
+	oxygen_update_dac_routing(chip);
 	mutex_unlock(&chip->mutex);
 	return 0;
 }
