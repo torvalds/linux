@@ -334,6 +334,7 @@ static const struct file_operations cap_fops = {
 	.release = cap_release,
 };
 
+/* no __exit here because it can be called by the init function */
 static void cap_cleanup_module(void)
 {
 	int i;
@@ -360,7 +361,7 @@ static void cap_setup_cdev(struct cap_dev *dev, int index)
 		printk(KERN_NOTICE "Error %d adding cap%d", err, index);
 }
 
-static int cap_init_module(void)
+static int __init cap_init_module(void)
 {
 	int result, i;
 	dev_t dev = 0;
