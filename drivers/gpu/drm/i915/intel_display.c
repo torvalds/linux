@@ -3095,7 +3095,6 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_gem_object *bo;
 	struct drm_i915_gem_object *obj_priv;
 	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
 	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
 	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
 	uint32_t temp = I915_READ(control);
@@ -3181,9 +3180,6 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 			i915_gem_object_unpin(intel_crtc->cursor_bo);
 		drm_gem_object_unreference(intel_crtc->cursor_bo);
 	}
-
-	if ((IS_I965G(dev) || plane == 0))
-		intel_update_fbc(crtc, &crtc->mode);
 
 	mutex_unlock(&dev->struct_mutex);
 
