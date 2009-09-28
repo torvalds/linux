@@ -1230,7 +1230,7 @@ static int yenta_dev_suspend (struct pci_dev *dev, pm_message_t state)
 	struct yenta_socket *socket = pci_get_drvdata(dev);
 	int ret;
 
-	ret = pcmcia_socket_dev_suspend(&dev->dev, state);
+	ret = pcmcia_socket_dev_suspend(&dev->dev);
 
 	if (socket) {
 		if (socket->type && socket->type->save_state)
