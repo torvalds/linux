@@ -60,7 +60,7 @@ static int bdl_pos_adj[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_only[SNDRV_CARDS];
 static int single_cmd;
-static int enable_msi;
+static int enable_msi = -1;
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 static char *patch[SNDRV_CARDS];
 #endif
@@ -2300,11 +2300,9 @@ static void __devinit check_probe_mask(struct azx *chip, int dev)
 }
 
 /*
- * white-list for enable_msi
+ * white/black-list for enable_msi
  */
-static struct snd_pci_quirk msi_white_list[] __devinitdata = {
-	SND_PCI_QUIRK(0x103c, 0x30f7, "HP Pavilion dv4t-1300", 1),
-	SND_PCI_QUIRK(0x103c, 0x3607, "HP Compa CQ40", 1),
+static struct snd_pci_quirk msi_black_list[] __devinitdata = {
 	{}
 };
 
@@ -2312,10 +2310,12 @@ static void __devinit check_msi(struct azx *chip)
 {
 	const struct snd_pci_quirk *q;
 
-	chip->msi = enable_msi;
-	if (chip->msi)
+	if (enable_msi >= 0) {
+		chip->msi = !!enable_msi;
 		return;
-	q = snd_pci_quirk_lookup(chip->pci, msi_white_list);
+	}
+	chip->msi = 1;	/* enable MSI as default */
+	q = snd_pci_quirk_lookup(chip->pci, msi_black_list);
 	if (q) {
 		printk(KERN_INFO
 		       "hda_intel: msi for device %04x:%04x set to %d\n",
