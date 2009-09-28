@@ -32,6 +32,10 @@
  * GPIO 5 <- external power present (D2X only)
  * GPIO 7 -> ALT
  * GPIO 8 -> enable output to speakers
+ *
+ * CM9780:
+ *
+ * GPO 0 -> route line-in (0) or AC97 output (1) to CS5381 input
  */
 
 /*
@@ -53,6 +57,10 @@
  * RXD <- HDMI controller
  *
  * PCM1796 front: AD1,0 <- 0,0
+ *
+ * CM9780:
+ *
+ * GPO 0 -> route line-in (0) or AC97 output (1) to CS5381 input
  *
  * no daughterboard
  * ----------------
@@ -107,6 +115,15 @@
  * PCM1792A:
  *
  * AD1,0 <- 0,0
+ * SCK <- CLK_OUT of CS2000 (ST only)
+ *
+ * CS2000:
+ *
+ * AD0 <- 0
+ *
+ * CM9780:
+ *
+ * GPO 0 -> route line-in (0) or AC97 output (1) to CS5381 input
  *
  * H6 daughterboard
  * ----------------

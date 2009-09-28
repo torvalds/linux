@@ -18,6 +18,8 @@
  */
 
 /*
+ * CMI8788:
+ *
  * SPI 0 -> 1st AK4396 (front)
  * SPI 1 -> 2nd AK4396 (surround)
  * SPI 2 -> 3rd AK4396 (center/LFE)
@@ -27,6 +29,10 @@
  * GPIO 0 -> DFS0 of AK5385
  * GPIO 1 -> DFS1 of AK5385
  * GPIO 8 -> enable headphone amplifier on HT-Omega models
+ *
+ * CM9780:
+ *
+ * GPO 0 -> route line-in (0) or AC97 output (1) to ADC input
  */
 
 #include <linux/delay.h>

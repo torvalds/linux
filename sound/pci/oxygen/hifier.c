@@ -17,6 +17,12 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+/*
+ * CMI8788:
+ *
+ * SPI 0 -> AK4396
+ */
+
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <sound/control.h>

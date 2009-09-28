@@ -41,6 +41,10 @@
  * CS4362A:
  *
  * AD0 <- 0
+ *
+ * CM9780:
+ *
+ * GPO 0 -> route line-in (0) or AC97 output (1) to CS5361 input
  */
 
 #include <linux/pci.h>
