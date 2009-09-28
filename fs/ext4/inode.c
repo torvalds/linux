@@ -3451,6 +3451,8 @@ static int ext4_get_block_dio_write(struct inode *inode, sector_t iblock,
 	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
 	int dio_credits;
 
+	ext4_debug("ext4_get_block_dio_write: inode %lu, create flag %d\n",
+		   inode->i_ino, create);
 	/*
 	 * DIO VFS code passes create = 0 flag for write to
 	 * the middle of file. It does this to avoid block
@@ -3491,55 +3493,152 @@ out:
 	return ret;
 }
 
-#define		DIO_AIO		0x1
-
 static void ext4_free_io_end(ext4_io_end_t *io)
 {
+	BUG_ON(!io);
+	iput(io->inode);
 	kfree(io);
+}
+static void dump_aio_dio_list(struct inode * inode)
+{
+#ifdef	EXT4_DEBUG
+	struct list_head *cur, *before, *after;
+	ext4_io_end_t *io, *io0, *io1;
+
+	if (list_empty(&EXT4_I(inode)->i_aio_dio_complete_list)){
+		ext4_debug("inode %lu aio dio list is empty\n", inode->i_ino);
+		return;
+	}
+
+	ext4_debug("Dump inode %lu aio_dio_completed_IO list \n", inode->i_ino);
+	list_for_each_entry(io, &EXT4_I(inode)->i_aio_dio_complete_list, list){
+		cur = &io->list;
+		before = cur->prev;
+		io0 = container_of(before, ext4_io_end_t, list);
+		after = cur->next;
+		io1 = container_of(after, ext4_io_end_t, list);
+
+		ext4_debug("io 0x%p from inode %lu,prev 0x%p,next 0x%p\n",
+			    io, inode->i_ino, io0, io1);
+	}
+#endif
 }
 
 /*
- * IO write completion for unwritten extents.
- *
  * check a range of space and convert unwritten extents to written.
  */
-static void ext4_end_dio_unwritten(struct work_struct *work)
+static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
 {
-	ext4_io_end_t *io = container_of(work, ext4_io_end_t, work);
 	struct inode *inode = io->inode;
 	loff_t offset = io->offset;
 	size_t size = io->size;
 	int ret = 0;
-	int aio = io->flag & DIO_AIO;
 
-	if (aio)
-		mutex_lock(&inode->i_mutex);
+	ext4_debug("end_aio_dio_onlock: io 0x%p from inode %lu,list->next 0x%p,"
+		   "list->prev 0x%p\n",
+	           io, inode->i_ino, io->list.next, io->list.prev);
+
+	if (list_empty(&io->list))
+		return ret;
+
+	if (io->flag != DIO_AIO_UNWRITTEN)
+		return ret;
+
 	if (offset + size <= i_size_read(inode))
 		ret = ext4_convert_unwritten_extents(inode, offset, size);
 
-	if (ret < 0)
+	if (ret < 0) {
 		printk(KERN_EMERG "%s: failed to convert unwritten"
-			"extents to written extents, error is %d\n",
-                       __func__, ret);
+			"extents to written extents, error is %d"
+			" io is still on inode %lu aio dio list\n",
+                       __func__, ret, inode->i_ino);
+		return ret;
+	}
 
-	ext4_free_io_end(io);
-	if (aio)
-		mutex_unlock(&inode->i_mutex);
+	/* clear the DIO AIO unwritten flag */
+	io->flag = 0;
+	return ret;
+}
+/*
+ * work on completed aio dio IO, to convert unwritten extents to extents
+ */
+static void ext4_end_aio_dio_work(struct work_struct *work)
+{
+	ext4_io_end_t *io  = container_of(work, ext4_io_end_t, work);
+	struct inode *inode = io->inode;
+	int ret = 0;
+
+	mutex_lock(&inode->i_mutex);
+	ret = ext4_end_aio_dio_nolock(io);
+	if (ret >= 0) {
+		if (!list_empty(&io->list))
+			list_del_init(&io->list);
+		ext4_free_io_end(io);
+	}
+	mutex_unlock(&inode->i_mutex);
+}
+/*
+ * This function is called from ext4_sync_file().
+ *
+ * When AIO DIO IO is completed, the work to convert unwritten
+ * extents to written is queued on workqueue but may not get immediately
+ * scheduled. When fsync is called, we need to ensure the
+ * conversion is complete before fsync returns.
+ * The inode keeps track of a list of completed AIO from DIO path
+ * that might needs to do the conversion. This function walks through
+ * the list and convert the related unwritten extents to written.
+ */
+int flush_aio_dio_completed_IO(struct inode *inode)
+{
+	ext4_io_end_t *io;
+	int ret = 0;
+	int ret2 = 0;
+
+	if (list_empty(&EXT4_I(inode)->i_aio_dio_complete_list))
+		return ret;
+
+	dump_aio_dio_list(inode);
+	while (!list_empty(&EXT4_I(inode)->i_aio_dio_complete_list)){
+		io = list_entry(EXT4_I(inode)->i_aio_dio_complete_list.next,
+				ext4_io_end_t, list);
+		/*
+		 * Calling ext4_end_aio_dio_nolock() to convert completed
+		 * IO to written.
+		 *
+		 * When ext4_sync_file() is called, run_queue() may already
+		 * about to flush the work corresponding to this io structure.
+		 * It will be upset if it founds the io structure related
+		 * to the work-to-be schedule is freed.
+		 *
+		 * Thus we need to keep the io structure still valid here after
+		 * convertion finished. The io structure has a flag to
+		 * avoid double converting from both fsync and background work
+		 * queue work.
+		 */
+		ret = ext4_end_aio_dio_nolock(io);
+		if (ret < 0)
+			ret2 = ret;
+		else
+			list_del_init(&io->list);
+	}
+	return (ret2 < 0) ? ret2 : 0;
 }
 
-static ext4_io_end_t *ext4_init_io_end (struct inode *inode, unsigned int flag)
+static ext4_io_end_t *ext4_init_io_end (struct inode *inode)
 {
 	ext4_io_end_t *io = NULL;
 
 	io = kmalloc(sizeof(*io), GFP_NOFS);
 
 	if (io) {
+		igrab(inode);
 		io->inode = inode;
-		io->flag = flag;
+		io->flag = 0;
 		io->offset = 0;
 		io->size = 0;
 		io->error = 0;
-		INIT_WORK(&io->work, ext4_end_dio_unwritten);
+		INIT_WORK(&io->work, ext4_end_aio_dio_work);
+		INIT_LIST_HEAD(&io->list);
 	}
 
 	return io;
@@ -3551,19 +3650,31 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
         ext4_io_end_t *io_end = iocb->private;
 	struct workqueue_struct *wq;
 
-	/* if not hole or unwritten extents, just simple return */
-	if (!io_end || !size || !iocb->private)
+	ext_debug("ext4_end_io_dio(): io_end 0x%p"
+		  "for inode %lu, iocb 0x%p, offset %llu, size %llu\n",
+ 		  iocb->private, io_end->inode->i_ino, iocb, offset,
+		  size);
+	/* if not async direct IO or dio with 0 bytes write, just return */
+	if (!io_end || !size)
 		return;
+
+	/* if not aio dio with unwritten extents, just free io and return */
+	if (io_end->flag != DIO_AIO_UNWRITTEN){
+		ext4_free_io_end(io_end);
+		iocb->private = NULL;
+		return;
+	}
+
 	io_end->offset = offset;
 	io_end->size = size;
 	wq = EXT4_SB(io_end->inode->i_sb)->dio_unwritten_wq;
 
-	/* We need to convert unwritten extents to written */
+	/* queue the work to convert unwritten extents to written */
 	queue_work(wq, &io_end->work);
 
-        if (is_sync_kiocb(iocb))
-		flush_workqueue(wq);
-
+	/* Add the io_end to per-inode completed aio dio list*/
+	list_add_tail(&io_end->list,
+		 &EXT4_I(io_end->inode)->i_aio_dio_complete_list);
 	iocb->private = NULL;
 }
 /*
@@ -3575,8 +3686,10 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
  * If those blocks were preallocated, we mark sure they are splited, but
  * still keep the range to write as unintialized.
  *
- * When end_io call back function called at the last IO complete time,
- * those extents will be converted to written extents.
+ * The unwrritten extents will be converted to written when DIO is completed.
+ * For async direct IO, since the IO may still pending when return, we
+ * set up an end_io call back function, which will do the convertion
+ * when async direct IO completed.
  *
  * If the O_DIRECT write will extend the file then add this inode to the
  * orphan list.  So recovery will truncate it back to the original size
@@ -3595,28 +3708,76 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 	loff_t final_size = offset + count;
 	if (rw == WRITE && final_size <= inode->i_size) {
 		/*
- 		 * For DIO we fallocate blocks for holes, we fallocate blocks
- 		 * The fallocated extent for hole is marked as uninitialized
+ 		 * We could direct write to holes and fallocate.
+		 *
+ 		 * Allocated blocks to fill the hole are marked as uninitialized
  		 * to prevent paralel buffered read to expose the stale data
  		 * before DIO complete the data IO.
- 		 * as for previously fallocated extents, ext4 get_block
+		 *
+ 		 * As to previously fallocated extents, ext4 get_block
  		 * will just simply mark the buffer mapped but still
  		 * keep the extents uninitialized.
  		 *
- 		 * At the end of IO, the ext4 end_io callback function
- 		 * will convert those unwritten extents to written,
- 		 *
+		 * for non AIO case, we will convert those unwritten extents
+		 * to written after return back from blockdev_direct_IO.
+		 *
+		 * for async DIO, the conversion needs to be defered when
+		 * the IO is completed. The ext4 end_io callback function
+		 * will be called to take care of the conversion work.
+		 * Here for async case, we allocate an io_end structure to
+		 * hook to the iocb.
  		 */
-		iocb->private = ext4_init_io_end(inode, !is_sync_kiocb(iocb));
-		if (!iocb->private)
-			return -ENOMEM;
+		iocb->private = NULL;
+		EXT4_I(inode)->cur_aio_dio = NULL;
+		if (!is_sync_kiocb(iocb)) {
+			iocb->private = ext4_init_io_end(inode);
+			if (!iocb->private)
+				return -ENOMEM;
+			/*
+			 * we save the io structure for current async
+			 * direct IO, so that later ext4_get_blocks()
+			 * could flag the io structure whether there
+			 * is a unwritten extents needs to be converted
+			 * when IO is completed.
+			 */
+			EXT4_I(inode)->cur_aio_dio = iocb->private;
+		}
+
 		ret = blockdev_direct_IO(rw, iocb, inode,
 					 inode->i_sb->s_bdev, iov,
 					 offset, nr_segs,
 					 ext4_get_block_dio_write,
 					 ext4_end_io_dio);
+		if (iocb->private)
+			EXT4_I(inode)->cur_aio_dio = NULL;
+		/*
+		 * The io_end structure takes a reference to the inode,
+		 * that structure needs to be destroyed and the
+		 * reference to the inode need to be dropped, when IO is
+		 * complete, even with 0 byte write, or failed.
+		 *
+		 * In the successful AIO DIO case, the io_end structure will be
+		 * desctroyed and the reference to the inode will be dropped
+		 * after the end_io call back function is called.
+		 *
+		 * In the case there is 0 byte write, or error case, since
+		 * VFS direct IO won't invoke the end_io call back function,
+		 * we need to free the end_io structure here.
+		 */
+		if (ret != -EIOCBQUEUED && ret <= 0 && iocb->private) {
+			ext4_free_io_end(iocb->private);
+			iocb->private = NULL;
+		} else if (ret > 0)
+			/*
+			 * for non AIO case, since the IO is already
+			 * completed, we could do the convertion right here
+			 */
+			ret = ext4_convert_unwritten_extents(inode,
+								offset, ret);
 		return ret;
 	}
+
+	/* for write the the end of file case, we fall back to old way */
 	return ext4_ind_direct_IO(rw, iocb, iov, offset, nr_segs);
 }
 

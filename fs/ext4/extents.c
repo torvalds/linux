@@ -3033,6 +3033,7 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 {
 	int ret = 0;
 	int err = 0;
+	ext4_io_end_t *io = EXT4_I(inode)->cur_aio_dio;
 
 	ext_debug("ext4_ext_handle_uninitialized_extents: inode %lu, logical"
 		  "block %llu, max_blocks %u, flags %d, allocated %u",
@@ -3045,6 +3046,9 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		ret = ext4_split_unwritten_extents(handle,
 						inode, path, iblock,
 						max_blocks, flags);
+		/* flag the io_end struct that we need convert when IO done */
+		if (io)
+			io->flag = DIO_AIO_UNWRITTEN;
 		goto out;
 	}
 	/* DIO end_io complete, convert the filled extent to written */
@@ -3130,6 +3134,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	int err = 0, depth, ret, cache_type;
 	unsigned int allocated = 0;
 	struct ext4_allocation_request ar;
+	ext4_io_end_t *io = EXT4_I(inode)->cur_aio_dio;
 
 	__clear_bit(BH_New, &bh_result->b_state);
 	ext_debug("blocks %u/%u requested for inode %lu\n",
@@ -3279,8 +3284,20 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	/* try to insert new extent into found leaf and return */
 	ext4_ext_store_pblock(&newex, newblock);
 	newex.ee_len = cpu_to_le16(ar.len);
-	if (flags & EXT4_GET_BLOCKS_UNINIT_EXT)  /* Mark uninitialized */
+	/* Mark uninitialized */
+	if (flags & EXT4_GET_BLOCKS_UNINIT_EXT){
 		ext4_ext_mark_uninitialized(&newex);
+		/*
+		 * io_end structure was created for every async
+		 * direct IO write to the middle of the file.
+		 * To avoid unecessary convertion for every aio dio rewrite
+		 * to the mid of file, here we flag the IO that is really
+		 * need the convertion.
+		 *
+		 */
+		if (io && flags == EXT4_GET_BLOCKS_DIO_CREATE_EXT)
+			io->flag = DIO_AIO_UNWRITTEN;
+	}
 	err = ext4_ext_insert_extent(handle, inode, path, &newex, flags);
 	if (err) {
 		/* free data blocks we just allocated */

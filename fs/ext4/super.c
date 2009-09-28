@@ -687,6 +687,8 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_allocated_meta_blocks = 0;
 	ei->i_delalloc_reserved_flag = 0;
 	spin_lock_init(&(ei->i_block_reservation_lock));
+	INIT_LIST_HEAD(&ei->i_aio_dio_complete_list);
+	ei->cur_aio_dio = NULL;
 
 	return &ei->vfs_inode;
 }
@@ -3375,11 +3377,13 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 {
 	int ret = 0;
 	tid_t target;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	trace_ext4_sync_fs(sb, wait);
-	if (jbd2_journal_start_commit(EXT4_SB(sb)->s_journal, &target)) {
+	flush_workqueue(sbi->dio_unwritten_wq);
+	if (jbd2_journal_start_commit(sbi->s_journal, &target)) {
 		if (wait)
-			jbd2_log_wait_commit(EXT4_SB(sb)->s_journal, target);
+			jbd2_log_wait_commit(sbi->s_journal, target);
 	}
 	return ret;
 }

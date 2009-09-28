@@ -127,10 +127,11 @@ struct mpage_da_data {
 	int pages_written;
 	int retval;
 };
-
+#define	DIO_AIO_UNWRITTEN	0x1
 typedef struct ext4_io_end {
+	struct list_head	list;		/* per-file finished AIO list */
 	struct inode		*inode;		/* file being written to */
-	unsigned int		flag;		/* sync IO or AIO */
+	unsigned int		flag;		/* unwritten or not */
 	int			error;		/* I/O error code */
 	ext4_lblk_t		offset;		/* offset in the file */
 	size_t			size;		/* size of the extent */
@@ -690,6 +691,11 @@ struct ext4_inode_info {
 	__u16 i_extra_isize;
 
 	spinlock_t i_block_reservation_lock;
+
+	/* completed async DIOs that might need unwritten extents handling */
+	struct list_head i_aio_dio_complete_list;
+	/* current io_end structure for async DIO write*/
+	ext4_io_end_t *cur_aio_dio;
 };
 
 /*
@@ -1419,7 +1425,7 @@ extern int ext4_block_truncate_page(handle_t *handle,
 		struct address_space *mapping, loff_t from);
 extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern qsize_t ext4_get_reserved_space(struct inode *inode);
-
+extern int flush_aio_dio_completed_IO(struct inode *inode);
 /* ioctl.c */
 extern long ext4_ioctl(struct file *, unsigned int, unsigned long);
 extern long ext4_compat_ioctl(struct file *, unsigned int, unsigned long);
