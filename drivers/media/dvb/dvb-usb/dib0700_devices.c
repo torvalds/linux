@@ -1924,6 +1924,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XPVR) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XP) },
 	{ USB_DEVICE(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD) },
+	{ USB_DEVICE(USB_VID_EVOLUTEPC, USB_PID_TVWAY_PLUS) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -2470,7 +2471,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 2,
+		.num_device_descs = 3,
 		.devices = {
 			{   "DiBcom STK807xP reference design",
 				{ &dib0700_usb_id_table[62], NULL },
@@ -2478,6 +2479,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Prolink Pixelview SBTVD",
 				{ &dib0700_usb_id_table[63], NULL },
+				{ NULL },
+			},
+			{   "EvolutePC TVWay+",
+				{ &dib0700_usb_id_table[64], NULL },
 				{ NULL },
 			},
 		},
