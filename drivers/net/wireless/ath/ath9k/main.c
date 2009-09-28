@@ -1438,17 +1438,22 @@ static void ath9k_gen_timer_start(struct ath_hw *ah,
 				  u32 timer_next,
 				  u32 timer_period)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+
 	ath9k_hw_gen_timer_start(ah, timer, timer_next, timer_period);
 
-	if ((ah->ah_sc->imask & ATH9K_INT_GENTIMER) == 0) {
+	if ((sc->imask & ATH9K_INT_GENTIMER) == 0) {
 		ath9k_hw_set_interrupts(ah, 0);
-		ah->ah_sc->imask |= ATH9K_INT_GENTIMER;
-		ath9k_hw_set_interrupts(ah, ah->ah_sc->imask);
+		sc->imask |= ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah, sc->imask);
 	}
 }
 
 static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
 	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
 
 	ath9k_hw_gen_timer_stop(ah, timer);
@@ -1456,8 +1461,8 @@ static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 	/* if no timer is enabled, turn off interrupt mask */
 	if (timer_table->timer_mask.val == 0) {
 		ath9k_hw_set_interrupts(ah, 0);
-		ah->ah_sc->imask &= ~ATH9K_INT_GENTIMER;
-		ath9k_hw_set_interrupts(ah, ah->ah_sc->imask);
+		sc->imask &= ~ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah, sc->imask);
 	}
 }
 
@@ -1554,28 +1559,32 @@ static int ath_init_btcoex_timer(struct ath_softc *sc)
 static void ath9k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
 {
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
 	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		unsigned long flags;
-		spin_lock_irqsave(&ah->ah_sc->sc_serial_rw, flags);
-		iowrite32(val, ah->ah_sc->mem + reg_offset);
-		spin_unlock_irqrestore(&ah->ah_sc->sc_serial_rw, flags);
+		spin_lock_irqsave(&sc->sc_serial_rw, flags);
+		iowrite32(val, sc->mem + reg_offset);
+		spin_unlock_irqrestore(&sc->sc_serial_rw, flags);
 	} else
-		iowrite32(val, ah->ah_sc->mem + reg_offset);
+		iowrite32(val, sc->mem + reg_offset);
 }
 
 static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 {
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
 	u32 val;
 
 	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		unsigned long flags;
-		spin_lock_irqsave(&ah->ah_sc->sc_serial_rw, flags);
-		val = ioread32(ah->ah_sc->mem + reg_offset);
-		spin_unlock_irqrestore(&ah->ah_sc->sc_serial_rw, flags);
+		spin_lock_irqsave(&sc->sc_serial_rw, flags);
+		val = ioread32(sc->mem + reg_offset);
+		spin_unlock_irqrestore(&sc->sc_serial_rw, flags);
 	} else
-		val = ioread32(ah->ah_sc->mem + reg_offset);
+		val = ioread32(sc->mem + reg_offset);
 	return val;
 }
 
@@ -1618,7 +1627,6 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 		goto bad_no_ah;
 	}
 
-	ah->ah_sc = sc;
 	ah->hw_version.devid = devid;
 	ah->hw_version.subsysid = subsysid;
 	sc->sc_ah = ah;
@@ -1628,6 +1636,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	common->bus_ops = bus_ops;
 	common->ah = ah;
 	common->hw = sc->hw;
+	common->priv = sc;
 
 	/*
 	 * Cache line size is used to size and align various

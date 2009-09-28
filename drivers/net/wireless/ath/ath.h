@@ -56,6 +56,7 @@ struct ath_bus_ops {
 
 struct ath_common {
 	void *ah;
+	void *priv;
 	struct ieee80211_hw *hw;
 	int debug_mask;
 

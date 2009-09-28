@@ -562,8 +562,8 @@ static const struct file_operations fops_xmit = {
 
 int ath9k_init_debug(struct ath_hw *ah)
 {
-	struct ath_softc *sc = ah->ah_sc;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
 	common->debug_mask = ath9k_debug;
 
@@ -620,7 +620,8 @@ err:
 
 void ath9k_exit_debug(struct ath_hw *ah)
 {
-	struct ath_softc *sc = ah->ah_sc;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
 	debugfs_remove(sc->debug.debugfs_xmit);
 	debugfs_remove(sc->debug.debugfs_wiphy);
