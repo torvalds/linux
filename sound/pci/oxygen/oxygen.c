@@ -97,8 +97,8 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 #define GPIO_CLARO_HP		0x0100
 
 struct generic_data {
-	u8 ak4396_ctl2;
-	u16 saved_wm8785_registers[2];
+	u8 ak4396_regs[4][5];
+	u16 wm8785_regs[1];
 };
 
 static void ak4396_write(struct oxygen *chip, unsigned int codec,
@@ -108,12 +108,24 @@ static void ak4396_write(struct oxygen *chip, unsigned int codec,
 	static const u8 codec_spi_map[4] = {
 		0, 1, 2, 4
 	};
+	struct generic_data *data = chip->model_data;
+
 	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
 			 OXYGEN_SPI_DATA_LENGTH_2 |
 			 OXYGEN_SPI_CLOCK_160 |
 			 (codec_spi_map[codec] << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_HI,
 			 AK4396_WRITE | (reg << 8) | value);
+	data->ak4396_regs[codec][reg] = value;
+}
+
+static void ak4396_write_cached(struct oxygen *chip, unsigned int codec,
+				u8 reg, u8 value)
+{
+	struct generic_data *data = chip->model_data;
+
+	if (value != data->ak4396_regs[codec][reg])
+		ak4396_write(chip, codec, reg, value);
 }
 
 static void wm8785_write(struct oxygen *chip, u8 reg, unsigned int value)
@@ -126,20 +138,8 @@ static void wm8785_write(struct oxygen *chip, u8 reg, unsigned int value)
 			 (3 << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_LO,
 			 (reg << 9) | value);
-	if (reg < ARRAY_SIZE(data->saved_wm8785_registers))
-		data->saved_wm8785_registers[reg] = value;
-}
-
-static void update_ak4396_volume(struct oxygen *chip)
-{
-	unsigned int i;
-
-	for (i = 0; i < 4; ++i) {
-		ak4396_write(chip, i,
-			     AK4396_LCH_ATT, chip->dac_volume[i * 2]);
-		ak4396_write(chip, i,
-			     AK4396_RCH_ATT, chip->dac_volume[i * 2 + 1]);
-	}
+	if (reg < ARRAY_SIZE(data->wm8785_regs))
+		data->wm8785_regs[reg] = value;
 }
 
 static void ak4396_registers_init(struct oxygen *chip)
@@ -148,21 +148,25 @@ static void ak4396_registers_init(struct oxygen *chip)
 	unsigned int i;
 
 	for (i = 0; i < 4; ++i) {
-		ak4396_write(chip, i,
-			     AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
-		ak4396_write(chip, i,
-			     AK4396_CONTROL_2, data->ak4396_ctl2);
-		ak4396_write(chip, i,
-			     AK4396_CONTROL_3, AK4396_PCM);
+		ak4396_write(chip, i, AK4396_CONTROL_1,
+			     AK4396_DIF_24_MSB | AK4396_RSTN);
+		ak4396_write(chip, i, AK4396_CONTROL_2,
+			     data->ak4396_regs[0][AK4396_CONTROL_2]);
+		ak4396_write(chip, i, AK4396_CONTROL_3,
+			     AK4396_PCM);
+		ak4396_write(chip, i, AK4396_LCH_ATT,
+			     chip->dac_volume[i * 2]);
+		ak4396_write(chip, i, AK4396_RCH_ATT,
+			     chip->dac_volume[i * 2 + 1]);
 	}
-	update_ak4396_volume(chip);
 }
 
 static void ak4396_init(struct oxygen *chip)
 {
 	struct generic_data *data = chip->model_data;
 
-	data->ak4396_ctl2 = AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
+	data->ak4396_regs[0][AK4396_CONTROL_2] =
+		AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	ak4396_registers_init(chip);
 	snd_component_add(chip->card, "AK4396");
 }
@@ -179,17 +183,15 @@ static void wm8785_registers_init(struct oxygen *chip)
 	struct generic_data *data = chip->model_data;
 
 	wm8785_write(chip, WM8785_R7, 0);
-	wm8785_write(chip, WM8785_R0, data->saved_wm8785_registers[0]);
-	wm8785_write(chip, WM8785_R1, data->saved_wm8785_registers[1]);
+	wm8785_write(chip, WM8785_R0, data->wm8785_regs[0]);
 }
 
 static void wm8785_init(struct oxygen *chip)
 {
 	struct generic_data *data = chip->model_data;
 
-	data->saved_wm8785_registers[0] = WM8785_MCR_SLAVE |
-		WM8785_OSR_SINGLE | WM8785_FORMAT_LJUST;
-	data->saved_wm8785_registers[1] = WM8785_WL_24;
+	data->wm8785_regs[0] =
+		WM8785_MCR_SLAVE | WM8785_OSR_SINGLE | WM8785_FORMAT_LJUST;
 	wm8785_registers_init(chip);
 	snd_component_add(chip->card, "WM8785");
 }
@@ -270,24 +272,36 @@ static void set_ak4396_params(struct oxygen *chip,
 	unsigned int i;
 	u8 value;
 
-	value = data->ak4396_ctl2 & ~AK4396_DFS_MASK;
+	value = data->ak4396_regs[0][AK4396_CONTROL_2] & ~AK4396_DFS_MASK;
 	if (params_rate(params) <= 54000)
 		value |= AK4396_DFS_NORMAL;
 	else if (params_rate(params) <= 108000)
 		value |= AK4396_DFS_DOUBLE;
 	else
 		value |= AK4396_DFS_QUAD;
-	data->ak4396_ctl2 = value;
 
 	msleep(1); /* wait for the new MCLK to become stable */
 
+	if (value != data->ak4396_regs[0][AK4396_CONTROL_2]) {
+		for (i = 0; i < 4; ++i) {
+			ak4396_write(chip, i, AK4396_CONTROL_1,
+				     AK4396_DIF_24_MSB);
+			ak4396_write(chip, i, AK4396_CONTROL_2, value);
+			ak4396_write(chip, i, AK4396_CONTROL_1,
+				     AK4396_DIF_24_MSB | AK4396_RSTN);
+		}
+	}
+}
+
+static void update_ak4396_volume(struct oxygen *chip)
+{
+	unsigned int i;
+
 	for (i = 0; i < 4; ++i) {
-		ak4396_write(chip, i,
-			     AK4396_CONTROL_1, AK4396_DIF_24_MSB);
-		ak4396_write(chip, i,
-			     AK4396_CONTROL_2, value);
-		ak4396_write(chip, i,
-			     AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
+		ak4396_write_cached(chip, i, AK4396_LCH_ATT,
+				    chip->dac_volume[i * 2]);
+		ak4396_write_cached(chip, i, AK4396_RCH_ATT,
+				    chip->dac_volume[i * 2 + 1]);
 	}
 }
 
@@ -297,20 +311,18 @@ static void update_ak4396_mute(struct oxygen *chip)
 	unsigned int i;
 	u8 value;
 
-	value = data->ak4396_ctl2 & ~AK4396_SMUTE;
+	value = data->ak4396_regs[0][AK4396_CONTROL_2] & ~AK4396_SMUTE;
 	if (chip->dac_mute)
 		value |= AK4396_SMUTE;
-	data->ak4396_ctl2 = value;
 	for (i = 0; i < 4; ++i)
-		ak4396_write(chip, i, AK4396_CONTROL_2, value);
+		ak4396_write_cached(chip, i, AK4396_CONTROL_2, value);
 }
 
 static void set_wm8785_params(struct oxygen *chip,
 			      struct snd_pcm_hw_params *params)
 {
+	struct generic_data *data = chip->model_data;
 	unsigned int value;
-
-	wm8785_write(chip, WM8785_R7, 0);
 
 	value = WM8785_MCR_SLAVE | WM8785_FORMAT_LJUST;
 	if (params_rate(params) <= 48000)
@@ -319,13 +331,10 @@ static void set_wm8785_params(struct oxygen *chip,
 		value |= WM8785_OSR_DOUBLE;
 	else
 		value |= WM8785_OSR_QUAD;
-	wm8785_write(chip, WM8785_R0, value);
-
-	if (snd_pcm_format_width(params_format(params)) <= 16)
-		value = WM8785_WL_16;
-	else
-		value = WM8785_WL_24;
-	wm8785_write(chip, WM8785_R1, value);
+	if (value != data->wm8785_regs[0]) {
+		wm8785_write(chip, WM8785_R7, 0);
+		wm8785_write(chip, WM8785_R0, value);
+	}
 }
 
 static void set_ak5385_params(struct oxygen *chip,

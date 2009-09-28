@@ -166,11 +166,13 @@
 #define I2C_DEVICE_PCM1796(i)	(0x98 + ((i) << 1))	/* 10011, ii, /W=0 */
 #define I2C_DEVICE_CS2000	0x9c			/* 100111, 0, /W=0 */
 
+#define PCM1796_REG_BASE	16
+
 
 struct xonar_pcm179x {
 	struct xonar_generic generic;
 	unsigned int dacs;
-	u8 oversampling;
+	u8 pcm1796_regs[4][5];
 	u8 cs2000_fun_cfg_1;
 };
 
@@ -204,54 +206,71 @@ static inline void pcm1796_write_i2c(struct oxygen *chip, unsigned int codec,
 static void pcm1796_write(struct oxygen *chip, unsigned int codec,
 			  u8 reg, u8 value)
 {
+	struct xonar_pcm179x *data = chip->model_data;
+
 	if ((chip->model.function_flags & OXYGEN_FUNCTION_2WIRE_SPI_MASK) ==
 	    OXYGEN_FUNCTION_SPI)
 		pcm1796_write_spi(chip, codec, reg, value);
 	else
 		pcm1796_write_i2c(chip, codec, reg, value);
+	if ((unsigned int)(reg - PCM1796_REG_BASE)
+	    < ARRAY_SIZE(data->pcm1796_regs[codec]))
+		data->pcm1796_regs[codec][reg - PCM1796_REG_BASE] = value;
+}
+
+static void pcm1796_write_cached(struct oxygen *chip, unsigned int codec,
+				 u8 reg, u8 value)
+{
+	struct xonar_pcm179x *data = chip->model_data;
+
+	if (value != data->pcm1796_regs[codec][reg - PCM1796_REG_BASE])
+		pcm1796_write(chip, codec, reg, value);
 }
 
 static void cs2000_write(struct oxygen *chip, u8 reg, u8 value)
 {
+	struct xonar_pcm179x *data = chip->model_data;
+
 	oxygen_write_i2c(chip, I2C_DEVICE_CS2000, reg, value);
+	if (reg == CS2000_FUN_CFG_1)
+		data->cs2000_fun_cfg_1 = value;
 }
 
-static void update_pcm1796_volume(struct oxygen *chip)
+static void cs2000_write_cached(struct oxygen *chip, u8 reg, u8 value)
+{
+	struct xonar_pcm179x *data = chip->model_data;
+
+	if (reg != CS2000_FUN_CFG_1 ||
+	    value != data->cs2000_fun_cfg_1)
+		cs2000_write(chip, reg, value);
+}
+
+static void pcm1796_registers_init(struct oxygen *chip)
 {
 	struct xonar_pcm179x *data = chip->model_data;
 	unsigned int i;
 
 	for (i = 0; i < data->dacs; ++i) {
+		/* set ATLD before ATL/ATR */
+		pcm1796_write(chip, i, 18,
+			      data->pcm1796_regs[0][18 - PCM1796_REG_BASE]);
 		pcm1796_write(chip, i, 16, chip->dac_volume[i * 2]);
 		pcm1796_write(chip, i, 17, chip->dac_volume[i * 2 + 1]);
+		pcm1796_write(chip, i, 19, PCM1796_FLT_SHARP | PCM1796_ATS_1);
+		pcm1796_write(chip, i, 20,
+			      data->pcm1796_regs[0][20 - PCM1796_REG_BASE]);
+		pcm1796_write(chip, i, 21, 0);
 	}
-}
-
-static void update_pcm1796_mute(struct oxygen *chip)
-{
-	struct xonar_pcm179x *data = chip->model_data;
-	unsigned int i;
-	u8 value;
-
-	value = PCM1796_DMF_DISABLED | PCM1796_FMT_24_LJUST | PCM1796_ATLD;
-	if (chip->dac_mute)
-		value |= PCM1796_MUTE;
-	for (i = 0; i < data->dacs; ++i)
-		pcm1796_write(chip, i, 18, value);
 }
 
 static void pcm1796_init(struct oxygen *chip)
 {
 	struct xonar_pcm179x *data = chip->model_data;
-	unsigned int i;
 
-	for (i = 0; i < data->dacs; ++i) {
-		pcm1796_write(chip, i, 19, PCM1796_FLT_SHARP | PCM1796_ATS_1);
-		pcm1796_write(chip, i, 20, data->oversampling);
-		pcm1796_write(chip, i, 21, 0);
-	}
-	update_pcm1796_mute(chip); /* set ATLD before ATL/ATR */
-	update_pcm1796_volume(chip);
+	data->pcm1796_regs[0][18 - PCM1796_REG_BASE] = PCM1796_MUTE |
+		PCM1796_DMF_DISABLED | PCM1796_FMT_24_LJUST | PCM1796_ATLD;
+	data->pcm1796_regs[0][20 - PCM1796_REG_BASE] = PCM1796_OS_64;
+	pcm1796_registers_init(chip);
 }
 
 static void xonar_d2_init(struct oxygen *chip)
@@ -261,7 +280,6 @@ static void xonar_d2_init(struct oxygen *chip)
 	data->generic.anti_pop_delay = 300;
 	data->generic.output_enable_bit = GPIO_D2_OUTPUT_ENABLE;
 	data->dacs = 4;
-	data->oversampling = PCM1796_OS_64;
 
 	pcm1796_init(chip);
 
@@ -304,7 +322,6 @@ static void xonar_hdav_init(struct oxygen *chip)
 	data->pcm179x.generic.ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
 	data->pcm179x.generic.ext_power_bit = GPI_EXT_POWER;
 	data->pcm179x.dacs = chip->model.private_data ? 4 : 1;
-	data->pcm179x.oversampling = PCM1796_OS_64;
 
 	pcm1796_init(chip);
 
@@ -335,7 +352,6 @@ static void xonar_st_init_common(struct oxygen *chip)
 	data->generic.anti_pop_delay = 100;
 	data->generic.output_enable_bit = GPIO_ST_OUTPUT_ENABLE;
 	data->dacs = chip->model.private_data ? 4 : 1;
-	data->oversampling = PCM1796_OS_64;
 
 	pcm1796_init(chip);
 
@@ -438,7 +454,7 @@ static void xonar_st_suspend(struct oxygen *chip)
 
 static void xonar_d2_resume(struct oxygen *chip)
 {
-	pcm1796_init(chip);
+	pcm1796_registers_init(chip);
 	xonar_enable_output(chip);
 }
 
@@ -446,14 +462,14 @@ static void xonar_hdav_resume(struct oxygen *chip)
 {
 	struct xonar_hdav *data = chip->model_data;
 
-	pcm1796_init(chip);
+	pcm1796_registers_init(chip);
 	xonar_hdmi_resume(chip, &data->hdmi);
 	xonar_enable_output(chip);
 }
 
 static void xonar_stx_resume(struct oxygen *chip)
 {
-	pcm1796_init(chip);
+	pcm1796_registers_init(chip);
 	xonar_enable_output(chip);
 }
 
@@ -468,11 +484,35 @@ static void set_pcm1796_params(struct oxygen *chip,
 {
 	struct xonar_pcm179x *data = chip->model_data;
 	unsigned int i;
+	u8 reg;
 
-	data->oversampling =
-		params_rate(params) >= 96000 ? PCM1796_OS_32 : PCM1796_OS_64;
+	reg = params_rate(params) >= 96000 ? PCM1796_OS_32 : PCM1796_OS_64;
 	for (i = 0; i < data->dacs; ++i)
-		pcm1796_write(chip, i, 20, data->oversampling);
+		pcm1796_write_cached(chip, i, 20, reg);
+}
+
+static void update_pcm1796_volume(struct oxygen *chip)
+{
+	struct xonar_pcm179x *data = chip->model_data;
+	unsigned int i;
+
+	for (i = 0; i < data->dacs; ++i) {
+		pcm1796_write_cached(chip, i, 16, chip->dac_volume[i * 2]);
+		pcm1796_write_cached(chip, i, 17, chip->dac_volume[i * 2 + 1]);
+	}
+}
+
+static void update_pcm1796_mute(struct oxygen *chip)
+{
+	struct xonar_pcm179x *data = chip->model_data;
+	unsigned int i;
+	u8 value;
+
+	value = PCM1796_DMF_DISABLED | PCM1796_FMT_24_LJUST | PCM1796_ATLD;
+	if (chip->dac_mute)
+		value |= PCM1796_MUTE;
+	for (i = 0; i < data->dacs; ++i)
+		pcm1796_write_cached(chip, i, 18, value);
 }
 
 static void set_cs2000_params(struct oxygen *chip,
@@ -489,9 +529,8 @@ static void set_cs2000_params(struct oxygen *chip,
 		[OXYGEN_RATE_176400] = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_256,
 		[OXYGEN_RATE_192000] = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_256,
 	};
-	struct xonar_pcm179x *data = chip->model_data;
 	unsigned int rate_index;
-	u8 rate_mclk;
+	u8 rate_mclk, reg;
 
 	rate_index = oxygen_read16(chip, OXYGEN_I2S_MULTICH_FORMAT)
 		& OXYGEN_I2S_RATE_MASK;
@@ -499,10 +538,10 @@ static void set_cs2000_params(struct oxygen *chip,
 	oxygen_write16_masked(chip, OXYGEN_I2S_A_FORMAT, rate_mclk,
 			      OXYGEN_I2S_RATE_MASK | OXYGEN_I2S_MCLK_MASK);
 	if ((rate_mclk & OXYGEN_I2S_MCLK_MASK) <= OXYGEN_I2S_MCLK_128)
-		data->cs2000_fun_cfg_1 = CS2000_REF_CLK_DIV_1;
+		reg = CS2000_REF_CLK_DIV_1;
 	else
-		data->cs2000_fun_cfg_1 = CS2000_REF_CLK_DIV_2;
-	cs2000_write(chip, CS2000_FUN_CFG_1, data->cs2000_fun_cfg_1);
+		reg = CS2000_REF_CLK_DIV_2;
+	cs2000_write_cached(chip, CS2000_FUN_CFG_1, reg);
 }
 
 static void set_st_params(struct oxygen *chip,
