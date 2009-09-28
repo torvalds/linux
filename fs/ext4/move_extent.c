@@ -1001,14 +1001,6 @@ mext_check_arguments(struct inode *orig_inode,
 		return -EINVAL;
 	}
 
-	/* orig and donor should be different file */
-	if (orig_inode->i_ino == donor_inode->i_ino) {
-		ext4_debug("ext4 move extent: The argument files should not "
-			"be same file [ino:orig %lu, donor %lu]\n",
-			orig_inode->i_ino, donor_inode->i_ino);
-		return -EINVAL;
-	}
-
 	/* Ext4 move extent supports only extent based file */
 	if (!(EXT4_I(orig_inode)->i_flags & EXT4_EXTENTS_FL)) {
 		ext4_debug("ext4 move extent: orig file is not extents "
@@ -1231,6 +1223,14 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 	int data_offset_in_page;
 	int block_len_in_page;
 	int uninit;
+
+	/* orig and donor should be different file */
+	if (orig_inode->i_ino == donor_inode->i_ino) {
+		ext4_debug("ext4 move extent: The argument files should not "
+			"be same file [ino:orig %lu, donor %lu]\n",
+			orig_inode->i_ino, donor_inode->i_ino);
+		return -EINVAL;
+	}
 
 	/* protect orig and donor against a truncate */
 	ret1 = mext_inode_double_lock(orig_inode, donor_inode);
