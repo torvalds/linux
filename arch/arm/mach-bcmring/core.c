@@ -31,7 +31,6 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 
-#include <linux/amba/bus.h>
 #include <mach/csp/mm_addr.h>
 #include <mach/hardware.h>
 #include <asm/clkdev.h>
