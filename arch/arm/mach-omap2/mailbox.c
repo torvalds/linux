@@ -93,7 +93,7 @@ static int omap2_mbox_startup(struct omap_mbox *mbox)
 		l = mbox_read_reg(MAILBOX_SYSSTATUS);
 		if (l & RESETDONE)
 			break;
-	} while (time_after(jiffies, timeout));
+	} while (!time_after(jiffies, timeout));
 
 	if (!(l & RESETDONE)) {
 		pr_err("Can't take mmu out of reset\n");
