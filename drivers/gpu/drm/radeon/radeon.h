@@ -1058,6 +1058,11 @@ struct rv515_mc_save {
 extern void rv515_bandwidth_avivo_update(struct radeon_device *rdev);
 extern void rv515_vga_render_disable(struct radeon_device *rdev);
 extern void rv515_set_safe_registers(struct radeon_device *rdev);
+extern void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save);
+extern void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save);
+extern void rv515_clock_startup(struct radeon_device *rdev);
+extern void rv515_debugfs(struct radeon_device *rdev);
+extern int rv515_suspend(struct radeon_device *rdev);
 
 /* rs690, rs740 */
 extern void rs690_line_buffer_adjust(struct radeon_device *rdev,

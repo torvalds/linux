@@ -38,7 +38,7 @@ int rv515_debugfs_ga_info_init(struct radeon_device *rdev);
 void rv515_gpu_init(struct radeon_device *rdev);
 int rv515_mc_wait_for_idle(struct radeon_device *rdev);
 
-static void rv515_debugfs(struct radeon_device *rdev)
+void rv515_debugfs(struct radeon_device *rdev)
 {
 	if (r100_debugfs_rbbm_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for RBBM !\n");
