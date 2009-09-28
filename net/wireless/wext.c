@@ -470,7 +470,7 @@ static iw_handler get_handler(struct net_device *dev, unsigned int cmd)
 /*
  * Get statistics out of the driver
  */
-static struct iw_statistics *get_wireless_stats(struct net_device *dev)
+struct iw_statistics *get_wireless_stats(struct net_device *dev)
 {
 	/* New location */
 	if ((dev->wireless_handlers != NULL) &&
