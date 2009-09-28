@@ -372,11 +372,12 @@ static int __devinit ieee802154fake_probe(struct platform_device *pdev)
 			goto out;
 	}
 
+	wpan_phy_set_dev(phy, &pdev->dev);
 	SET_NETDEV_DEV(dev, &phy->dev);
 
 	platform_set_drvdata(pdev, dev);
 
-	err = wpan_phy_register(&pdev->dev, phy);
+	err = wpan_phy_register(phy);
 	if (err)
 		goto out;
 

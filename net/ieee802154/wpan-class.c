@@ -168,10 +168,8 @@ struct wpan_phy *wpan_phy_alloc(size_t priv_size)
 }
 EXPORT_SYMBOL(wpan_phy_alloc);
 
-int wpan_phy_register(struct device *parent, struct wpan_phy *phy)
+int wpan_phy_register(struct wpan_phy *phy)
 {
-	phy->dev.parent = parent;
-
 	return device_add(&phy->dev);
 }
 EXPORT_SYMBOL(wpan_phy_register);
