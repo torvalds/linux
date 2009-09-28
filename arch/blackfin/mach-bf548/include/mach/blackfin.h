@@ -49,19 +49,4 @@
 
 #endif
 
-#define BFIN_UART_NR_PORTS	4
-
-#define OFFSET_DLL              0x00	/* Divisor Latch (Low-Byte)             */
-#define OFFSET_DLH              0x04	/* Divisor Latch (High-Byte)            */
-#define OFFSET_GCTL             0x08	/* Global Control Register              */
-#define OFFSET_LCR              0x0C	/* Line Control Register                */
-#define OFFSET_MCR              0x10	/* Modem Control Register               */
-#define OFFSET_LSR              0x14	/* Line Status Register                 */
-#define OFFSET_MSR              0x18	/* Modem Status Register                */
-#define OFFSET_SCR              0x1C	/* SCR Scratch Register                 */
-#define OFFSET_IER_SET          0x20	/* Set Interrupt Enable Register        */
-#define OFFSET_IER_CLEAR        0x24	/* Clear Interrupt Enable Register      */
-#define OFFSET_THR              0x28	/* Transmit Holding register            */
-#define OFFSET_RBR              0x2C	/* Receive Buffer register              */
-
 #endif

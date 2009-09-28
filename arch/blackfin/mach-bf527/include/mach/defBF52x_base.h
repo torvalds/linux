@@ -704,51 +704,6 @@
 #define IWR_ENABLE(x)	(1 << ((x)&0x1F))					/* Wakeup Enable Peripheral #x		*/
 #define IWR_DISABLE(x)	(0xFFFFFFFF ^ (1 << ((x)&0x1F))) 	/* Wakeup Disable Peripheral #x		*/
 
-
-/* ************** UART CONTROLLER MASKS *************************/
-/* UARTx_LCR Masks												*/
-#define WLS(x)		(((x)-5) & 0x03)	/* Word Length Select */
-#define STB			0x04				/* Stop Bits			*/
-#define PEN			0x08				/* Parity Enable		*/
-#define EPS			0x10				/* Even Parity Select	*/
-#define STP			0x20				/* Stick Parity			*/
-#define SB			0x40				/* Set Break			*/
-#define DLAB		0x80				/* Divisor Latch Access	*/
-
-/* UARTx_MCR Mask										*/
-#define LOOP_ENA	0x10	/* Loopback Mode Enable */
-#define LOOP_ENA_P	0x04
-
-/* UARTx_LSR Masks										*/
-#define DR			0x01	/* Data Ready				*/
-#define OE			0x02	/* Overrun Error			*/
-#define PE			0x04	/* Parity Error				*/
-#define FE			0x08	/* Framing Error			*/
-#define BI			0x10	/* Break Interrupt			*/
-#define THRE		0x20	/* THR Empty				*/
-#define TEMT		0x40	/* TSR and UART_THR Empty	*/
-
-/* UARTx_IER Masks															*/
-#define ERBFI		0x01		/* Enable Receive Buffer Full Interrupt		*/
-#define ETBEI		0x02		/* Enable Transmit Buffer Empty Interrupt	*/
-#define ELSI		0x04		/* Enable RX Status Interrupt				*/
-
-/* UARTx_IIR Masks														*/
-#define NINT		0x01		/* Pending Interrupt					*/
-#define IIR_TX_READY    0x02		/* UART_THR empty                               */
-#define IIR_RX_READY    0x04		/* Receive data ready                           */
-#define IIR_LINE_CHANGE 0x06		/* Receive line status    			*/
-#define IIR_STATUS	0x06		/* Highest Priority Pending Interrupt	*/
-
-/* UARTx_GCTL Masks													*/
-#define UCEN		0x01		/* Enable UARTx Clocks				*/
-#define IREN		0x02		/* Enable IrDA Mode					*/
-#define TPOLC		0x04		/* IrDA TX Polarity Change			*/
-#define RPOLC		0x08		/* IrDA RX Polarity Change			*/
-#define FPE			0x10		/* Force Parity Error On Transmit	*/
-#define FFE			0x20		/* Force Framing Error On Transmit	*/
-
-
 /*  ****************  GENERAL PURPOSE TIMER MASKS  **********************/
 /* TIMER_ENABLE Masks													*/
 #define TIMEN0			0x0001		/* Enable Timer 0					*/
