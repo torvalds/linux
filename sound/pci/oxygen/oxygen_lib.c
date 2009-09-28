@@ -278,7 +278,11 @@ oxygen_search_pci_id(struct oxygen *chip, const struct pci_device_id ids[])
 static void oxygen_restore_eeprom(struct oxygen *chip,
 				  const struct pci_device_id *id)
 {
-	if (oxygen_read_eeprom(chip, 0) != OXYGEN_EEPROM_ID) {
+	u16 eeprom_id;
+
+	eeprom_id = oxygen_read_eeprom(chip, 0);
+	if (eeprom_id != OXYGEN_EEPROM_ID &&
+	    (eeprom_id != 0xffff || id->subdevice != 0x8788)) {
 		/*
 		 * This function gets called only when a known card model has
 		 * been detected, i.e., we know there is a valid subsystem
