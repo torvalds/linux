@@ -307,6 +307,28 @@ static void oxygen_restore_eeprom(struct oxygen *chip,
 	}
 }
 
+static void pci_bridge_magic(void)
+{
+	struct pci_dev *pci = NULL;
+	u32 tmp;
+
+	for (;;) {
+		/* If there is any Pericom PI7C9X110 PCI-E/PCI bridge ... */
+		pci = pci_get_device(0x12d8, 0xe110, pci);
+		if (!pci)
+			break;
+		/*
+		 * ... configure its secondary internal arbiter to park to
+		 * the secondary port, instead of to the last master.
+		 */
+		if (!pci_read_config_dword(pci, 0x40, &tmp)) {
+			tmp |= 1;
+			pci_write_config_dword(pci, 0x40, tmp);
+		}
+		/* Why?  Try asking C-Media. */
+	}
+}
+
 static void oxygen_init(struct oxygen *chip)
 {
 	unsigned int i;
@@ -585,6 +607,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	snd_card_set_dev(card, &pci->dev);
 	card->private_free = oxygen_card_free;
 
+	pci_bridge_magic();
 	oxygen_init(chip);
 	chip->model.init(chip);
 
