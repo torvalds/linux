@@ -280,6 +280,7 @@ void drm_fb_helper_restore(void)
 }
 EXPORT_SYMBOL(drm_fb_helper_restore);
 
+#ifdef CONFIG_MAGIC_SYSRQ
 static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 {
 	drm_fb_helper_restore();
@@ -296,6 +297,7 @@ static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = {
 	.help_msg = "force-fb(V)",
 	.action_msg = "Restore framebuffer console",
 };
+#endif
 
 static void drm_fb_helper_on(struct fb_info *info)
 {
