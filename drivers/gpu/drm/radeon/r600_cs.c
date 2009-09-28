@@ -722,6 +722,8 @@ static void r600_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 	kfree(parser->relocs);
 	for (i = 0; i < parser->nchunks; i++) {
 		kfree(parser->chunks[i].kdata);
+		kfree(parser->chunks[i].kpage[0]);
+		kfree(parser->chunks[i].kpage[1]);
 	}
 	kfree(parser->chunks);
 	kfree(parser->chunks_array);
