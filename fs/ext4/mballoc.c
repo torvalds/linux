@@ -2712,8 +2712,6 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 
 	if (sbi->s_journal)
 		sbi->s_journal->j_commit_callback = release_blocks_on_commit;
-
-	printk(KERN_INFO "EXT4-fs: mballoc enabled\n");
 	return 0;
 }
 

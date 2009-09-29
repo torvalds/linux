@@ -136,10 +136,6 @@ static int kjournald2(void *arg)
 	journal->j_task = current;
 	wake_up(&journal->j_wait_done_commit);
 
-	printk(KERN_INFO "kjournald2 starting: pid %d, dev %s, "
-	       "commit interval %ld seconds\n", current->pid,
-	       journal->j_devname, journal->j_commit_interval / HZ);
-
 	/*
 	 * And now, wait forever for commit wakeup events.
 	 */
@@ -223,7 +219,8 @@ static int jbd2_journal_start_thread(journal_t *journal)
 {
 	struct task_struct *t;
 
-	t = kthread_run(kjournald2, journal, "kjournald2");
+	t = kthread_run(kjournald2, journal, "jbd2/%s",
+			journal->j_devname);
 	if (IS_ERR(t))
 		return PTR_ERR(t);
 
@@ -1115,7 +1112,7 @@ journal_t * jbd2_journal_init_inode (struct inode *inode)
 	while ((p = strchr(p, '/')))
 		*p = '!';
 	p = journal->j_devname + strlen(journal->j_devname);
-	sprintf(p, ":%lu", journal->j_inode->i_ino);
+	sprintf(p, "-%lu", journal->j_inode->i_ino);
 	jbd_debug(1,
 		  "journal %p: inode %s/%ld, size %Ld, bits %d, blksize %ld\n",
 		  journal, inode->i_sb->s_id, inode->i_ino,

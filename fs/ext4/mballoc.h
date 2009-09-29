@@ -84,7 +84,7 @@ extern u8 mb_enable_debug;
  * with 'ext4_mb_stats' allocator will collect stats that will be
  * shown at umount. The collecting costs though!
  */
-#define MB_DEFAULT_STATS		1
+#define MB_DEFAULT_STATS		0
 
 /*
  * files smaller than MB_DEFAULT_STREAM_THRESHOLD are served
