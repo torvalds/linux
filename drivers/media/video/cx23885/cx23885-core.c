@@ -1957,7 +1957,7 @@ static struct pci_driver cx23885_pci_driver = {
 	.resume   = NULL,
 };
 
-static int cx23885_init(void)
+static int __init cx23885_init(void)
 {
 	printk(KERN_INFO "cx23885 driver version %d.%d.%d loaded\n",
 	       (CX23885_VERSION_CODE >> 16) & 0xff,
@@ -1970,7 +1970,7 @@ static int cx23885_init(void)
 	return pci_register_driver(&cx23885_pci_driver);
 }
 
-static void cx23885_fini(void)
+static void __exit cx23885_fini(void)
 {
 	pci_unregister_driver(&cx23885_pci_driver);
 }

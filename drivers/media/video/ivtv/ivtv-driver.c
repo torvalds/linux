@@ -1361,7 +1361,7 @@ static struct pci_driver ivtv_pci_driver = {
       .remove =   ivtv_remove,
 };
 
-static int module_start(void)
+static int __init module_start(void)
 {
 	printk(KERN_INFO "ivtv: Start initialization, version %s\n", IVTV_VERSION);
 
@@ -1385,7 +1385,7 @@ static int module_start(void)
 	return 0;
 }
 
-static void module_cleanup(void)
+static void __exit module_cleanup(void)
 {
 	pci_unregister_driver(&ivtv_pci_driver);
 }
