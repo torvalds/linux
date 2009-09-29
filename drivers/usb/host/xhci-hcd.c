@@ -782,6 +782,7 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	unsigned long flags;
 	int ret;
+	u32 temp;
 	struct xhci_hcd *xhci;
 	struct xhci_td *td;
 	unsigned int ep_index;
@@ -794,6 +795,17 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	ret = usb_hcd_check_unlink_urb(hcd, urb, status);
 	if (ret || !urb->hcpriv)
 		goto done;
+	temp = xhci_readl(xhci, &xhci->op_regs->status);
+	if (temp == 0xffffffff) {
+		xhci_dbg(xhci, "HW died, freeing TD.\n");
+		td = (struct xhci_td *) urb->hcpriv;
+
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		usb_hcd_giveback_urb(xhci_to_hcd(xhci), urb, -ESHUTDOWN);
+		kfree(td);
+		return ret;
+	}
 
 	xhci_dbg(xhci, "Cancel URB %p\n", urb);
 	xhci_dbg(xhci, "Event ring:\n");
