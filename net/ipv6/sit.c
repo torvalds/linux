@@ -274,7 +274,7 @@ static int ipip6_tunnel_get_prl(struct ip_tunnel *t,
 
 	c = 0;
 	for (prl = t->prl; prl; prl = prl->next) {
-		if (c > cmax)
+		if (c >= cmax)
 			break;
 		if (kprl.addr != htonl(INADDR_ANY) && prl->addr != kprl.addr)
 			continue;
