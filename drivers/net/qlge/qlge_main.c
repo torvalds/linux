@@ -3832,11 +3832,14 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		return err;
 	}
 
+	qdev->ndev = ndev;
+	qdev->pdev = pdev;
+	pci_set_drvdata(pdev, ndev);
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (pos <= 0) {
 		dev_err(&pdev->dev, PFX "Cannot find PCI Express capability, "
 			"aborting.\n");
-		goto err_out;
+		return pos;
 	} else {
 		pci_read_config_word(pdev, pos + PCI_EXP_DEVCTL, &val16);
 		val16 &= ~PCI_EXP_DEVCTL_NOSNOOP_EN;
@@ -3849,7 +3852,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		dev_err(&pdev->dev, "PCI region request failed.\n");
-		goto err_out;
+		return err;
 	}
 
 	pci_set_master(pdev);
@@ -3867,7 +3870,6 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	pci_set_drvdata(pdev, ndev);
 	qdev->reg_base =
 	    ioremap_nocache(pci_resource_start(pdev, 1),
 			    pci_resource_len(pdev, 1));
@@ -3887,8 +3889,6 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	qdev->ndev = ndev;
-	qdev->pdev = pdev;
 	err = ql_get_board_info(qdev);
 	if (err) {
 		dev_err(&pdev->dev, "Register access failed.\n");
