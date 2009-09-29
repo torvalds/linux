@@ -1043,7 +1043,9 @@ static struct pcpu_chunk *alloc_pcpu_chunk(void)
  */
 static void *pcpu_alloc(size_t size, size_t align, bool reserved)
 {
+	static int warn_limit = 10;
 	struct pcpu_chunk *chunk;
+	const char *err;
 	int slot, off;
 
 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
@@ -1059,11 +1061,14 @@ static void *pcpu_alloc(size_t size, size_t align, bool reserved)
 	if (reserved && pcpu_reserved_chunk) {
 		chunk = pcpu_reserved_chunk;
 		if (size > chunk->contig_hint ||
-		    pcpu_extend_area_map(chunk) < 0)
+		    pcpu_extend_area_map(chunk) < 0) {
+			err = "failed to extend area map of reserved chunk";
 			goto fail_unlock;
+		}
 		off = pcpu_alloc_area(chunk, size, align);
 		if (off >= 0)
 			goto area_found;
+		err = "alloc from reserved chunk failed";
 		goto fail_unlock;
 	}
 
@@ -1080,6 +1085,7 @@ restart:
 			case 1:
 				goto restart;	/* pcpu_lock dropped, restart */
 			default:
+				err = "failed to extend area map";
 				goto fail_unlock;
 			}
 
@@ -1093,8 +1099,10 @@ restart:
 	spin_unlock_irq(&pcpu_lock);
 
 	chunk = alloc_pcpu_chunk();
-	if (!chunk)
+	if (!chunk) {
+		err = "failed to allocate new chunk";
 		goto fail_unlock_mutex;
+	}
 
 	spin_lock_irq(&pcpu_lock);
 	pcpu_chunk_relocate(chunk, -1);
@@ -1107,6 +1115,7 @@ area_found:
 	if (pcpu_populate_chunk(chunk, off, size)) {
 		spin_lock_irq(&pcpu_lock);
 		pcpu_free_area(chunk, off);
+		err = "failed to populate";
 		goto fail_unlock;
 	}
 
@@ -1119,6 +1128,13 @@ fail_unlock:
 	spin_unlock_irq(&pcpu_lock);
 fail_unlock_mutex:
 	mutex_unlock(&pcpu_alloc_mutex);
+	if (warn_limit) {
+		pr_warning("PERCPU: allocation failed, size=%zu align=%zu, "
+			   "%s\n", size, align, err);
+		dump_stack();
+		if (!--warn_limit)
+			pr_info("PERCPU: limit reached, disable warning\n");
+	}
 	return NULL;
 }
 
