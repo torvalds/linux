@@ -3118,9 +3118,22 @@ static struct notifier_block kvmclock_cpufreq_notifier_block = {
         .notifier_call  = kvmclock_cpufreq_notifier
 };
 
+static void kvm_timer_init(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		per_cpu(cpu_tsc_khz, cpu) = tsc_khz;
+	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
+		tsc_khz_ref = tsc_khz;
+		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
+					  CPUFREQ_TRANSITION_NOTIFIER);
+	}
+}
+
 int kvm_arch_init(void *opaque)
 {
-	int r, cpu;
+	int r;
 	struct kvm_x86_ops *ops = (struct kvm_x86_ops *)opaque;
 
 	if (kvm_x86_ops) {
@@ -3152,13 +3165,7 @@ int kvm_arch_init(void *opaque)
 	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
 			PT_DIRTY_MASK, PT64_NX_MASK, 0);
 
-	for_each_possible_cpu(cpu)
-		per_cpu(cpu_tsc_khz, cpu) = tsc_khz;
-	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
-		tsc_khz_ref = tsc_khz;
-		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
-					  CPUFREQ_TRANSITION_NOTIFIER);
-	}
+	kvm_timer_init();
 
 	return 0;
 
