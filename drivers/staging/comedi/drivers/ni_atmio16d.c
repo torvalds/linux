@@ -327,7 +327,7 @@ static int atmio16d_ai_cmdtest(struct comedi_device *dev,
 		return 1;
 
 	/* step 2: make sure trigger sources are unique & mutually compatible */
-	/* note that mutual compatiblity is not an issue here */
+	/* note that mutual compatibility is not an issue here */
 	if (cmd->scan_begin_src != TRIG_FOLLOW &&
 	    cmd->scan_begin_src != TRIG_EXT &&
 	    cmd->scan_begin_src != TRIG_TIMER)
