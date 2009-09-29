@@ -482,7 +482,7 @@ static __init int svm_hardware_setup(void)
 		kvm_enable_efer_bits(EFER_SVME);
 	}
 
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		r = svm_cpu_init(cpu);
 		if (r)
 			goto err;
@@ -516,7 +516,7 @@ static __exit void svm_hardware_unsetup(void)
 {
 	int cpu;
 
-	for_each_online_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		svm_cpu_uninit(cpu);
 
 	__free_pages(pfn_to_page(iopm_base >> PAGE_SHIFT), IOPM_ALLOC_ORDER);
