@@ -160,6 +160,7 @@ enum {
 	INQUIRY_EVPD				= 0x01,
 
 	ST_ADDITIONAL_MEM			= 0x200000,
+	ST_ADDITIONAL_MEM_MIN			= 0x80000,
 };
 
 struct st_sgitem {
@@ -1001,7 +1002,7 @@ static int stex_common_handshake(struct st_hba *hba)
 	h->partner_type = HMU_PARTNER_TYPE;
 	if (hba->extra_offset) {
 		h->extra_offset = cpu_to_le32(hba->extra_offset);
-		h->extra_size = cpu_to_le32(ST_ADDITIONAL_MEM);
+		h->extra_size = cpu_to_le32(hba->dma_size - hba->extra_offset);
 	} else
 		h->extra_offset = h->extra_size = 0;
 
@@ -1528,10 +1529,24 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hba->dma_mem = dma_alloc_coherent(&pdev->dev,
 		hba->dma_size, &hba->dma_handle, GFP_KERNEL);
 	if (!hba->dma_mem) {
-		err = -ENOMEM;
-		printk(KERN_ERR DRV_NAME "(%s): dma mem alloc failed\n",
-			pci_name(pdev));
-		goto out_iounmap;
+		/* Retry minimum coherent mapping for st_seq and st_vsc */
+		if (hba->cardtype == st_seq ||
+		    (hba->cardtype == st_vsc && (pdev->subsystem_device & 1))) {
+			printk(KERN_WARNING DRV_NAME
+				"(%s): allocating min buffer for controller\n",
+				pci_name(pdev));
+			hba->dma_size = hba->extra_offset
+				+ ST_ADDITIONAL_MEM_MIN;
+			hba->dma_mem = dma_alloc_coherent(&pdev->dev,
+				hba->dma_size, &hba->dma_handle, GFP_KERNEL);
+		}
+
+		if (!hba->dma_mem) {
+			err = -ENOMEM;
+			printk(KERN_ERR DRV_NAME "(%s): dma mem alloc failed\n",
+				pci_name(pdev));
+			goto out_iounmap;
+		}
 	}
 
 	hba->ccb = kcalloc(ci->rq_count, sizeof(struct st_ccb), GFP_KERNEL);
