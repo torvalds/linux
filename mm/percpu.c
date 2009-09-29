@@ -1604,7 +1604,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	unit_off = alloc_bootmem(nr_cpu_ids * sizeof(unit_off[0]));
 
 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
-		unit_map[cpu] = NR_CPUS;
+		unit_map[cpu] = UINT_MAX;
 	pcpu_first_unit_cpu = NR_CPUS;
 
 	for (group = 0, unit = 0; group < ai->nr_groups; group++, unit += i) {
@@ -1619,7 +1619,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 				continue;
 
 			BUG_ON(cpu > nr_cpu_ids || !cpu_possible(cpu));
-			BUG_ON(unit_map[cpu] != NR_CPUS);
+			BUG_ON(unit_map[cpu] != UINT_MAX);
 
 			unit_map[cpu] = unit + i;
 			unit_off[cpu] = gi->base_offset + i * ai->unit_size;
@@ -1632,7 +1632,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_nr_units = unit;
 
 	for_each_possible_cpu(cpu)
-		BUG_ON(unit_map[cpu] == NR_CPUS);
+		BUG_ON(unit_map[cpu] == UINT_MAX);
 
 	pcpu_nr_groups = ai->nr_groups;
 	pcpu_group_offsets = group_offsets;
