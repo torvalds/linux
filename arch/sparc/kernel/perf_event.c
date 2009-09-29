@@ -214,7 +214,7 @@ static const struct sparc_pmu ultra3_pmu = {
 
 /* Niagara1 is very limited.  The upper PIC is hard-locked to count
  * only instructions, so it is free running which creates all kinds of
- * problems.  Some hardware designs make one wonder if the creastor
+ * problems.  Some hardware designs make one wonder if the creator
  * even looked at how this stuff gets used by software.
  */
 static const struct perf_event_map niagara1_perfmon_event_map[] = {
