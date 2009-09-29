@@ -126,7 +126,7 @@ ENTRY(__gnu_mcount_nc)
 	cmp r0, r2
 	bne gnu_trace
 	ldmia sp!, {r0-r3, ip, lr}
-	bx ip
+	mov pc, ip
 
 gnu_trace:
 	ldr r1, [sp, #20]			@ lr of instrumented routine
@@ -135,7 +135,7 @@ gnu_trace:
 	mov lr, pc
 	mov pc, r2
 	ldmia sp!, {r0-r3, ip, lr}
-	bx ip
+	mov pc, ip
 
 ENTRY(mcount)
 	stmdb sp!, {r0-r3, lr}
