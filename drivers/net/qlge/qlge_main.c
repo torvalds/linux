@@ -3380,12 +3380,10 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 
 	ql_free_rx_buffers(qdev);
 
-	spin_lock(&qdev->hw_lock);
 	status = ql_adapter_reset(qdev);
 	if (status)
 		QPRINTK(qdev, IFDOWN, ERR, "reset(func #%d) FAILED!\n",
 			qdev->func);
-	spin_unlock(&qdev->hw_lock);
 	return status;
 }
 
