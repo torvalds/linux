@@ -3703,7 +3703,7 @@ static void ql_asic_reset_work(struct work_struct *work)
 	struct ql_adapter *qdev =
 	    container_of(work, struct ql_adapter, asic_reset_work.work);
 	int status;
-
+	rtnl_lock();
 	status = ql_adapter_down(qdev);
 	if (status)
 		goto error;
@@ -3711,12 +3711,12 @@ static void ql_asic_reset_work(struct work_struct *work)
 	status = ql_adapter_up(qdev);
 	if (status)
 		goto error;
-
+	rtnl_unlock();
 	return;
 error:
 	QPRINTK(qdev, IFUP, ALERT,
 		"Driver up/down cycle failed, closing device\n");
-	rtnl_lock();
+
 	set_bit(QL_ADAPTER_UP, &qdev->flags);
 	dev_close(qdev->ndev);
 	rtnl_unlock();
