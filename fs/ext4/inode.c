@@ -1145,6 +1145,64 @@ static int check_block_validity(struct inode *inode, const char *msg,
 }
 
 /*
+ * Return the number of dirty pages in the given inode starting at
+ * page frame idx.
+ */
+static pgoff_t ext4_num_dirty_pages(struct inode *inode, pgoff_t idx,
+				    unsigned int max_pages)
+{
+	struct address_space *mapping = inode->i_mapping;
+	pgoff_t	index;
+	struct pagevec pvec;
+	pgoff_t num = 0;
+	int i, nr_pages, done = 0;
+
+	if (max_pages == 0)
+		return 0;
+	pagevec_init(&pvec, 0);
+	while (!done) {
+		index = idx;
+		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
+					      PAGECACHE_TAG_DIRTY,
+					      (pgoff_t)PAGEVEC_SIZE);
+		if (nr_pages == 0)
+			break;
+		for (i = 0; i < nr_pages; i++) {
+			struct page *page = pvec.pages[i];
+			struct buffer_head *bh, *head;
+
+			lock_page(page);
+			if (unlikely(page->mapping != mapping) ||
+			    !PageDirty(page) ||
+			    PageWriteback(page) ||
+			    page->index != idx) {
+				done = 1;
+				unlock_page(page);
+				break;
+			}
+			head = page_buffers(page);
+			bh = head;
+			do {
+				if (!buffer_delay(bh) &&
+				    !buffer_unwritten(bh)) {
+					done = 1;
+					break;
+				}
+			} while ((bh = bh->b_this_page) != head);
+			unlock_page(page);
+			if (done)
+				break;
+			idx++;
+			num++;
+			if (num >= max_pages)
+				break;
+		}
+		pagevec_release(&pvec);
+	}
+	return num;
+}
+
+/*
  * The ext4_get_blocks() function tries to look up the requested blocks,
  * and returns if the blocks are already mapped.
  *
@@ -2743,8 +2801,10 @@ static int ext4_da_writepages(struct address_space *mapping,
 	int no_nrwrite_index_update;
 	int pages_written = 0;
 	long pages_skipped;
+	unsigned int max_pages;
 	int range_cyclic, cycled = 1, io_done = 0;
-	int needed_blocks, ret = 0, nr_to_writebump = 0;
+	int needed_blocks, ret = 0;
+	long desired_nr_to_write, nr_to_writebump = 0;
 	loff_t range_start = wbc->range_start;
 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
 
@@ -2771,16 +2831,6 @@ static int ext4_da_writepages(struct address_space *mapping,
 	if (unlikely(sbi->s_mount_flags & EXT4_MF_FS_ABORTED))
 		return -EROFS;
 
-	/*
-	 * Make sure nr_to_write is >= sbi->s_mb_stream_request
-	 * This make sure small files blocks are allocated in
-	 * single attempt. This ensure that small files
-	 * get less fragmented.
-	 */
-	if (wbc->nr_to_write < sbi->s_mb_stream_request) {
-		nr_to_writebump = sbi->s_mb_stream_request - wbc->nr_to_write;
-		wbc->nr_to_write = sbi->s_mb_stream_request;
-	}
 	if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
 		range_whole = 1;
 
@@ -2794,6 +2844,36 @@ static int ext4_da_writepages(struct address_space *mapping,
 		wbc->range_cyclic = 0;
 	} else
 		index = wbc->range_start >> PAGE_CACHE_SHIFT;
+
+	/*
+	 * This works around two forms of stupidity.  The first is in
+	 * the writeback code, which caps the maximum number of pages
+	 * written to be 1024 pages.  This is wrong on multiple
+	 * levels; different architectues have a different page size,
+	 * which changes the maximum amount of data which gets
+	 * written.  Secondly, 4 megabytes is way too small.  XFS
+	 * forces this value to be 16 megabytes by multiplying
+	 * nr_to_write parameter by four, and then relies on its
+	 * allocator to allocate larger extents to make them
+	 * contiguous.  Unfortunately this brings us to the second
+	 * stupidity, which is that ext4's mballoc code only allocates
+	 * at most 2048 blocks.  So we force contiguous writes up to
+	 * the number of dirty blocks in the inode, or
+	 * sbi->max_writeback_mb_bump whichever is smaller.
+	 */
+	max_pages = sbi->s_max_writeback_mb_bump << (20 - PAGE_CACHE_SHIFT);
+	if (!range_cyclic && range_whole)
+		desired_nr_to_write = wbc->nr_to_write * 8;
+	else
+		desired_nr_to_write = ext4_num_dirty_pages(inode, index,
+							   max_pages);
+	if (desired_nr_to_write > max_pages)
+		desired_nr_to_write = max_pages;
+
+	if (wbc->nr_to_write < desired_nr_to_write) {
+		nr_to_writebump = desired_nr_to_write - wbc->nr_to_write;
+		wbc->nr_to_write = desired_nr_to_write;
+	}
 
 	mpd.wbc = wbc;
 	mpd.inode = mapping->host;
@@ -2914,7 +2994,8 @@ retry:
 out_writepages:
 	if (!no_nrwrite_index_update)
 		wbc->no_nrwrite_index_update = 0;
-	wbc->nr_to_write -= nr_to_writebump;
+	if (wbc->nr_to_write > nr_to_writebump)
+		wbc->nr_to_write -= nr_to_writebump;
 	wbc->range_start = range_start;
 	trace_ext4_da_writepages_result(inode, wbc, ret, pages_written);
 	return ret;

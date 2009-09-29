@@ -236,6 +236,7 @@ TRACE_EVENT(ext4_da_writepages,
 		__field(	char,	for_kupdate		)
 		__field(	char,	for_reclaim		)
 		__field(	char,	range_cyclic		)
+		__field(       pgoff_t,	writeback_index		)
 	),
 
 	TP_fast_assign(
@@ -249,15 +250,17 @@ TRACE_EVENT(ext4_da_writepages,
 		__entry->for_kupdate	= wbc->for_kupdate;
 		__entry->for_reclaim	= wbc->for_reclaim;
 		__entry->range_cyclic	= wbc->range_cyclic;
+		__entry->writeback_index = inode->i_mapping->writeback_index;
 	),
 
-	TP_printk("dev %s ino %lu nr_to_write %ld pages_skipped %ld range_start %llu range_end %llu nonblocking %d for_kupdate %d for_reclaim %d range_cyclic %d",
+	TP_printk("dev %s ino %lu nr_to_write %ld pages_skipped %ld range_start %llu range_end %llu nonblocking %d for_kupdate %d for_reclaim %d range_cyclic %d writeback_index %lu",
 		  jbd2_dev_to_name(__entry->dev),
 		  (unsigned long) __entry->ino, __entry->nr_to_write,
 		  __entry->pages_skipped, __entry->range_start,
 		  __entry->range_end, __entry->nonblocking,
 		  __entry->for_kupdate, __entry->for_reclaim,
-		  __entry->range_cyclic)
+		  __entry->range_cyclic,
+		  (unsigned long) __entry->writeback_index)
 );
 
 TRACE_EVENT(ext4_da_write_pages,
@@ -309,6 +312,7 @@ TRACE_EVENT(ext4_da_writepages_result,
 		__field(	char,	encountered_congestion	)
 		__field(	char,	more_io			)	
 		__field(	char,	no_nrwrite_index_update )
+		__field(       pgoff_t,	writeback_index		)
 	),
 
 	TP_fast_assign(
@@ -320,14 +324,16 @@ TRACE_EVENT(ext4_da_writepages_result,
 		__entry->encountered_congestion	= wbc->encountered_congestion;
 		__entry->more_io	= wbc->more_io;
 		__entry->no_nrwrite_index_update = wbc->no_nrwrite_index_update;
+		__entry->writeback_index = inode->i_mapping->writeback_index;
 	),
 
-	TP_printk("dev %s ino %lu ret %d pages_written %d pages_skipped %ld congestion %d more_io %d no_nrwrite_index_update %d",
+	TP_printk("dev %s ino %lu ret %d pages_written %d pages_skipped %ld congestion %d more_io %d no_nrwrite_index_update %d writeback_index %lu",
 		  jbd2_dev_to_name(__entry->dev),
 		  (unsigned long) __entry->ino, __entry->ret,
 		  __entry->pages_written, __entry->pages_skipped,
 		  __entry->encountered_congestion, __entry->more_io,
-		  __entry->no_nrwrite_index_update)
+		  __entry->no_nrwrite_index_update,
+		  (unsigned long) __entry->writeback_index)
 );
 
 TRACE_EVENT(ext4_da_write_begin,
