@@ -296,8 +296,6 @@ static void jsm_tty_close(struct uart_port *port)
 		bd->bd_ops->assert_modem_signals(channel);
 	}
 
-	channel->ch_old_baud = 0;
-
 	/* Turn off UART interrupts for this port */
 	channel->ch_bd->bd_ops->uart_off(channel);
 

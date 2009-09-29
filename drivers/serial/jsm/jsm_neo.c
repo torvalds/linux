@@ -954,7 +954,6 @@ static void neo_param(struct jsm_channel *ch)
 		ch->ch_flags |= (CH_BAUD0);
 		ch->ch_mostat &= ~(UART_MCR_RTS | UART_MCR_DTR);
 		neo_assert_modem_signals(ch);
-		ch->ch_old_baud = 0;
 		return;
 
 	} else {
@@ -1041,7 +1040,6 @@ static void neo_param(struct jsm_channel *ch)
 	quot = ch->ch_bd->bd_dividend / baud;
 
 	if (quot != 0) {
-		ch->ch_old_baud = baud;
 		writeb(UART_LCR_DLAB, &ch->ch_neo_uart->lcr);
 		writeb((quot & 0xff), &ch->ch_neo_uart->txrx);
 		writeb((quot >> 8), &ch->ch_neo_uart->ier);

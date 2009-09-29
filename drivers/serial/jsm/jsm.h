@@ -215,8 +215,6 @@ struct jsm_channel {
 	u8		ch_stopc;	/* Stop character		*/
 	u8		ch_startc;	/* Start character		*/
 
-	u32		ch_old_baud;	/* Cache of the current baud */
-
 	u32		ch_wopen;	/* Waiting for open process cnt */
 
 	u8		ch_mostat;	/* FEP output modem status	*/
