@@ -380,7 +380,7 @@ static struct snd_kcontrol_new juli_mute_controls[] __devinitdata = {
 	 * inputs) are fed from Xilinx.
 	 *
 	 * I even checked traces on board and coded a support in driver for
-	 * an alternative possiblity - the unused I2S ICE output channels
+	 * an alternative possibility - the unused I2S ICE output channels
 	 * switched to HW-IN/SPDIF-IN and providing the monitoring signal to
 	 * the DAC - to no avail. The I2S outputs seem to be unconnected.
 	 *

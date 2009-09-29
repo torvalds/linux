@@ -988,7 +988,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_cipher;
 	}
 
-	/* Compatiblity mode for old dm-crypt cipher strings */
+	/* Compatibility mode for old dm-crypt cipher strings */
 	if (!chainmode || (strcmp(chainmode, "plain") == 0 && !ivmode)) {
 		chainmode = "cbc";
 		ivmode = "plain";

@@ -598,7 +598,7 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *a,
 		goto errout;
 
 	/* compat_mode being true specifies a call that is supposed
-	 * to add additional backward compatiblity statistic TLVs.
+	 * to add additional backward compatibility statistic TLVs.
 	 */
 	if (compat_mode) {
 		if (a->type == TCA_OLD_COMPAT)

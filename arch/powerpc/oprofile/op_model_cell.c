@@ -248,7 +248,7 @@ static int pm_rtas_activate_signals(u32 node, u32 count)
 	 * There is no debug setup required for the cycles event.
 	 * Note that only events in the same group can be used.
 	 * Otherwise, there will be conflicts in correctly routing
-	 * the signals on the debug bus.  It is the responsiblity
+	 * the signals on the debug bus.  It is the responsibility
 	 * of the OProfile user tool to check the events are in
 	 * the same group.
 	 */

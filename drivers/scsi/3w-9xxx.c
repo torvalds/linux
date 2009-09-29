@@ -732,7 +732,7 @@ static int twa_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int
 		break;
 	case TW_IOCTL_GET_COMPATIBILITY_INFO:
 		tw_ioctl->driver_command.status = 0;
-		/* Copy compatiblity struct into ioctl data buffer */
+		/* Copy compatibility struct into ioctl data buffer */
 		tw_compat_info = (TW_Compatibility_Info *)tw_ioctl->data_buffer;
 		memcpy(tw_compat_info, &tw_dev->tw_compat_info, sizeof(TW_Compatibility_Info));
 		break;
