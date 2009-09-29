@@ -984,7 +984,10 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define HAS_FW_BLC(dev) (IS_I9XX(dev) || IS_G4X(dev) || IS_IGDNG(dev))
 #define HAS_PIPE_CXSR(dev) (IS_G4X(dev) || IS_IGDNG(dev))
-#define I915_HAS_FBC(dev) (IS_MOBILE(dev) && (IS_I9XX(dev) || IS_GM45(dev)) && !IS_IGD(dev))
+#define I915_HAS_FBC(dev) (IS_MOBILE(dev) && \
+			   (IS_I9XX(dev) || IS_GM45(dev)) && \
+			   !IS_IGD(dev) && \
+			   !IS_IGDNG(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

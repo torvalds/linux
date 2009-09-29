@@ -2586,6 +2586,9 @@ static void intel_update_watermarks(struct drm_device *dev)
 	unsigned long planea_clock = 0, planeb_clock = 0, sr_clock = 0;
 	int enabled = 0, pixel_size = 0;
 
+	if (!dev_priv->display.update_wm)
+		return;
+
 	/* Get the clock config from both planes */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		intel_crtc = to_intel_crtc(crtc);
@@ -4126,7 +4129,9 @@ void intel_init_clock_gating(struct drm_device *dev)
 	 * Disable clock gating reported to work incorrectly according to the
 	 * specs, but enable as much else as we can.
 	 */
-	if (IS_G4X(dev)) {
+	if (IS_IGDNG(dev)) {
+		return;
+	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
 		I915_WRITE(RENCLK_GATE_D1, 0);
 		I915_WRITE(RENCLK_GATE_D2, VF_UNIT_CLOCK_GATE_DISABLE |
@@ -4214,7 +4219,9 @@ static void intel_init_display(struct drm_device *dev)
 			i830_get_display_clock_speed;
 
 	/* For FIFO watermark updates */
-	if (IS_G4X(dev))
+	if (IS_IGDNG(dev))
+		dev_priv->display.update_wm = NULL;
+	else if (IS_G4X(dev))
 		dev_priv->display.update_wm = g4x_update_wm;
 	else if (IS_I965G(dev))
 		dev_priv->display.update_wm = i965_update_wm;
