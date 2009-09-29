@@ -330,13 +330,14 @@ static int svm_hardware_enable(void *garbage)
 		return -EBUSY;
 
 	if (!has_svm()) {
-		printk(KERN_ERR "svm_cpu_init: err EOPNOTSUPP on %d\n", me);
+		printk(KERN_ERR "svm_hardware_enable: err EOPNOTSUPP on %d\n",
+		       me);
 		return -EINVAL;
 	}
 	svm_data = per_cpu(svm_data, me);
 
 	if (!svm_data) {
-		printk(KERN_ERR "svm_cpu_init: svm_data is NULL on %d\n",
+		printk(KERN_ERR "svm_hardware_enable: svm_data is NULL on %d\n",
 		       me);
 		return -EINVAL;
 	}
