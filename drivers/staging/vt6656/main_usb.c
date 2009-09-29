@@ -1332,7 +1332,6 @@ device_release_WPADEV(pDevice);
         free_netdev(pDevice->dev);
     }
 
-	kfree(pDevice);
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_disconnect3.. \n");
 }
 
