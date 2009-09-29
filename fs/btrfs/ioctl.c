@@ -1232,15 +1232,15 @@ static long btrfs_ioctl_trans_start(struct file *file)
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
-	int ret = 0;
+	int ret;
 
+	ret = -EPERM;
 	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	if (file->private_data) {
-		ret = -EINPROGRESS;
 		goto out;
-	}
+
+	ret = -EINPROGRESS;
+	if (file->private_data)
+		goto out;
 
 	ret = mnt_want_write(file->f_path.mnt);
 	if (ret)
@@ -1250,12 +1250,19 @@ static long btrfs_ioctl_trans_start(struct file *file)
 	root->fs_info->open_ioctl_trans++;
 	mutex_unlock(&root->fs_info->trans_mutex);
 
+	ret = -ENOMEM;
 	trans = btrfs_start_ioctl_transaction(root, 0);
-	if (trans)
-		file->private_data = trans;
-	else
-		ret = -ENOMEM;
-	/*printk(KERN_INFO "btrfs_ioctl_trans_start on %p\n", file);*/
+	if (!trans)
+		goto out_drop;
+
+	file->private_data = trans;
+	return 0;
+
+out_drop:
+	mutex_lock(&root->fs_info->trans_mutex);
+	root->fs_info->open_ioctl_trans--;
+	mutex_unlock(&root->fs_info->trans_mutex);
+	mnt_drop_write(file->f_path.mnt);
 out:
 	return ret;
 }
@@ -1271,24 +1278,20 @@ long btrfs_ioctl_trans_end(struct file *file)
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
-	int ret = 0;
 
 	trans = file->private_data;
-	if (!trans) {
-		ret = -EINVAL;
-		goto out;
-	}
-	btrfs_end_transaction(trans, root);
+	if (!trans)
+		return -EINVAL;
 	file->private_data = NULL;
+
+	btrfs_end_transaction(trans, root);
 
 	mutex_lock(&root->fs_info->trans_mutex);
 	root->fs_info->open_ioctl_trans--;
 	mutex_unlock(&root->fs_info->trans_mutex);
 
 	mnt_drop_write(file->f_path.mnt);
-
-out:
-	return ret;
+	return 0;
 }
 
 long btrfs_ioctl(struct file *file, unsigned int
