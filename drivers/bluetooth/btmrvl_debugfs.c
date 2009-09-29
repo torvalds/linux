@@ -29,7 +29,6 @@ struct btmrvl_debugfs_data {
 	struct dentry *root_dir, *config_dir, *status_dir;
 
 	/* config */
-	struct dentry *drvdbg;
 	struct dentry *psmode;
 	struct dentry *pscmd;
 	struct dentry *hsmode;
