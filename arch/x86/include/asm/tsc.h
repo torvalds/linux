@@ -48,7 +48,8 @@ static __always_inline cycles_t vget_cycles(void)
 extern void tsc_init(void);
 extern void mark_tsc_unstable(char *reason);
 extern int unsynchronized_tsc(void);
-int check_tsc_unstable(void);
+extern int check_tsc_unstable(void);
+extern unsigned long native_calibrate_tsc(void);
 
 /*
  * Boot-time check whether the TSCs are synchronized across

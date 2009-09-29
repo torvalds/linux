@@ -155,6 +155,7 @@ struct ttm_buffer_object {
 	 * Members constant at init.
 	 */
 
+	struct ttm_bo_global *glob;
 	struct ttm_bo_device *bdev;
 	unsigned long buffer_start;
 	enum ttm_bo_type type;
@@ -245,14 +246,15 @@ struct ttm_buffer_object {
  * premapped region.
  */
 
+#define TTM_BO_MAP_IOMEM_MASK 0x80
 struct ttm_bo_kmap_obj {
 	void *virtual;
 	struct page *page;
 	enum {
-		ttm_bo_map_iomap,
-		ttm_bo_map_vmap,
-		ttm_bo_map_kmap,
-		ttm_bo_map_premapped,
+		ttm_bo_map_iomap        = 1 | TTM_BO_MAP_IOMEM_MASK,
+		ttm_bo_map_vmap         = 2,
+		ttm_bo_map_kmap         = 3,
+		ttm_bo_map_premapped    = 4 | TTM_BO_MAP_IOMEM_MASK,
 	} bo_kmap_type;
 };
 
@@ -522,8 +524,7 @@ extern int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type);
 static inline void *ttm_kmap_obj_virtual(struct ttm_bo_kmap_obj *map,
 					 bool *is_iomem)
 {
-	*is_iomem = (map->bo_kmap_type == ttm_bo_map_iomap ||
-		     map->bo_kmap_type == ttm_bo_map_premapped);
+	*is_iomem = !!(map->bo_kmap_type & TTM_BO_MAP_IOMEM_MASK);
 	return map->virtual;
 }
 

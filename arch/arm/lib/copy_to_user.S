@@ -33,8 +33,15 @@
  *	Number of bytes NOT copied.
  */
 
+#define LDR1W_SHIFT	0
+#ifndef CONFIG_THUMB2_KERNEL
+#define STR1W_SHIFT	0
+#else
+#define STR1W_SHIFT	1
+#endif
+
 	.macro ldr1w ptr reg abort
-	ldr \reg, [\ptr], #4
+	W(ldr) \reg, [\ptr], #4
 	.endm
 
 	.macro ldr4w ptr reg1 reg2 reg3 reg4 abort
@@ -50,10 +57,7 @@
 	.endm
 
 	.macro str1w ptr reg abort
-100:	strt \reg, [\ptr], #4
-	.section __ex_table, "a"
-	.long 100b, \abort
-	.previous
+	strusr	\reg, \ptr, 4, abort=\abort
 	.endm
 
 	.macro str8w ptr reg1 reg2 reg3 reg4 reg5 reg6 reg7 reg8 abort
@@ -68,10 +72,7 @@
 	.endm
 
 	.macro str1b ptr reg cond=al abort
-100:	str\cond\()bt \reg, [\ptr], #1
-	.section __ex_table, "a"
-	.long 100b, \abort
-	.previous
+	strusr	\reg, \ptr, 1, \cond, abort=\abort
 	.endm
 
 	.macro enter reg1 reg2

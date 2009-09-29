@@ -382,9 +382,13 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 		 * who knows?  FIXME(eric)
 		 */
 		return SUCCESS;
+	case RESERVATION_CONFLICT:
+		/*
+		 * let issuer deal with this, it could be just fine
+		 */
+		return SUCCESS;
 	case BUSY:
 	case QUEUE_FULL:
-	case RESERVATION_CONFLICT:
 	default:
 		return FAILED;
 	}

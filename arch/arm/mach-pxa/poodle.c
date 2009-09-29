@@ -245,19 +245,9 @@ static inline void poodle_init_spi(void) {}
  * The card detect interrupt isn't debounced so we delay it by 250ms
  * to give the card a chance to fully insert/eject.
  */
-static struct pxamci_platform_data poodle_mci_platform_data;
-
 static int poodle_mci_init(struct device *dev, irq_handler_t poodle_detect_int, void *data)
 {
 	int err;
-
-	err = gpio_request(POODLE_GPIO_nSD_DETECT, "nSD_DETECT");
-	if (err)
-		goto err_out;
-
-	err = gpio_request(POODLE_GPIO_nSD_WP, "nSD_WP");
-	if (err)
-		goto err_free_1;
 
 	err = gpio_request(POODLE_GPIO_SD_PWR, "SD_PWR");
 	if (err)
@@ -267,34 +257,14 @@ static int poodle_mci_init(struct device *dev, irq_handler_t poodle_detect_int, 
 	if (err)
 		goto err_free_3;
 
-	gpio_direction_input(POODLE_GPIO_nSD_DETECT);
-	gpio_direction_input(POODLE_GPIO_nSD_WP);
-
 	gpio_direction_output(POODLE_GPIO_SD_PWR, 0);
 	gpio_direction_output(POODLE_GPIO_SD_PWR1, 0);
 
-	poodle_mci_platform_data.detect_delay = msecs_to_jiffies(250);
-
-	err = request_irq(POODLE_IRQ_GPIO_nSD_DETECT, poodle_detect_int,
-			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  "MMC card detect", data);
-	if (err) {
-		pr_err("%s: MMC/SD: can't request MMC card detect IRQ\n",
-				__func__);
-		goto err_free_4;
-	}
-
 	return 0;
 
-err_free_4:
-	gpio_free(POODLE_GPIO_SD_PWR1);
 err_free_3:
 	gpio_free(POODLE_GPIO_SD_PWR);
 err_free_2:
-	gpio_free(POODLE_GPIO_nSD_WP);
-err_free_1:
-	gpio_free(POODLE_GPIO_nSD_DETECT);
-err_out:
 	return err;
 }
 
@@ -312,62 +282,29 @@ static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
 	}
 }
 
-static int poodle_mci_get_ro(struct device *dev)
-{
-	return !!gpio_get_value(POODLE_GPIO_nSD_WP);
-	return GPLR(POODLE_GPIO_nSD_WP) & GPIO_bit(POODLE_GPIO_nSD_WP);
-}
-
-
 static void poodle_mci_exit(struct device *dev, void *data)
 {
-	free_irq(POODLE_IRQ_GPIO_nSD_DETECT, data);
 	gpio_free(POODLE_GPIO_SD_PWR1);
 	gpio_free(POODLE_GPIO_SD_PWR);
-	gpio_free(POODLE_GPIO_nSD_WP);
-	gpio_free(POODLE_GPIO_nSD_DETECT);
 }
 
 static struct pxamci_platform_data poodle_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= poodle_mci_init,
-	.get_ro		= poodle_mci_get_ro,
-	.setpower 	= poodle_mci_setpower,
-	.exit		= poodle_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.init 			= poodle_mci_init,
+	.setpower 		= poodle_mci_setpower,
+	.exit			= poodle_mci_exit,
+	.gpio_card_detect	= POODLE_IRQ_GPIO_nSD_DETECT,
+	.gpio_card_ro		= POODLE_GPIO_nSD_WP,
+	.gpio_power		= -1,
 };
 
 
 /*
  * Irda
  */
-static void poodle_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(POODLE_GPIO_IR_ON, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
-static int poodle_irda_startup(struct device *dev)
-{
-	int err;
-
-	err = gpio_request(POODLE_GPIO_IR_ON, "IR_ON");
-	if (err)
-		return err;
-
-	gpio_direction_output(POODLE_GPIO_IR_ON, 1);
-	return 0;
-}
-
-static void poodle_irda_shutdown(struct device *dev)
-{
-	gpio_free(POODLE_GPIO_IR_ON);
-}
-
 static struct pxaficp_platform_data poodle_ficp_platform_data = {
+	.gpio_pwdown		= POODLE_GPIO_IR_ON,
 	.transceiver_cap	= IR_SIRMODE | IR_OFF,
-	.transceiver_mode	= poodle_irda_transceiver_mode,
-	.startup		= poodle_irda_startup,
-	.shutdown		= poodle_irda_shutdown,
 };
 
 
@@ -521,6 +458,7 @@ static void __init poodle_init(void)
 	set_pxa_fb_parent(&poodle_locomo_device.dev);
 	set_pxa_fb_info(&poodle_fb_info);
 	pxa_set_udc_info(&udc_info);
+	poodle_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

@@ -7,9 +7,11 @@ obj-vdso64 = sigtramp.o gettimeofday.o datapage.o cacheflush.o note.o
 targets := $(obj-vdso64) vdso64.so vdso64.so.dbg
 obj-vdso64 := $(addprefix $(obj)/, $(obj-vdso64))
 
+GCOV_PROFILE := n
+
 EXTRA_CFLAGS := -shared -fno-common -fno-builtin
 EXTRA_CFLAGS += -nostdlib -Wl,-soname=linux-vdso64.so.1 \
-		$(call ld-option, -Wl$(comma)--hash-style=sysv)
+		$(call cc-ldoption, -Wl$(comma)--hash-style=sysv)
 EXTRA_AFLAGS := -D__VDSO64__ -s
 
 obj-y += vdso64_wrapper.o

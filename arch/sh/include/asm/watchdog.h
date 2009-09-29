@@ -13,10 +13,18 @@
 #ifdef __KERNEL__
 
 #include <linux/types.h>
-#include <cpu/watchdog.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
-/* 
+#define WTCNT_HIGH	0x5a
+#define WTCSR_HIGH	0xa5
+
+#define WTCSR_CKS2	0x04
+#define WTCSR_CKS1	0x02
+#define WTCSR_CKS0	0x01
+
+#include <cpu/watchdog.h>
+
+/*
  * See cpu-sh2/watchdog.h for explanation of this stupidity..
  */
 #ifndef WTCNT_R
@@ -26,13 +34,6 @@
 #ifndef WTCSR_R
 #  define WTCSR_R	WTCSR
 #endif
-
-#define WTCNT_HIGH	0x5a
-#define WTCSR_HIGH	0xa5
-
-#define WTCSR_CKS2	0x04
-#define WTCSR_CKS1	0x02
-#define WTCSR_CKS0	0x01
 
 /*
  * CKS0-2 supports a number of clock division ratios. At the time the watchdog

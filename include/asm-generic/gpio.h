@@ -141,6 +141,8 @@ extern int __gpio_to_irq(unsigned gpio);
  * but more typically is configured entirely from userspace.
  */
 extern int gpio_export(unsigned gpio, bool direction_may_change);
+extern int gpio_export_link(struct device *dev, const char *name,
+			unsigned gpio);
 extern void gpio_unexport(unsigned gpio);
 
 #endif	/* CONFIG_GPIO_SYSFS */
@@ -181,6 +183,12 @@ static inline void gpio_set_value_cansleep(unsigned gpio, int value)
 /* sysfs support is only available with gpiolib, where it's optional */
 
 static inline int gpio_export(unsigned gpio, bool direction_may_change)
+{
+	return -ENOSYS;
+}
+
+static inline int gpio_export_link(struct device *dev, const char *name,
+				unsigned gpio)
 {
 	return -ENOSYS;
 }

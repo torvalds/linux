@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/mmu_notifier.h>
+#include <linux/tracepoint.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
@@ -37,12 +38,14 @@
 #define CR3_L_MODE_RESERVED_BITS (CR3_NONPAE_RESERVED_BITS |	\
 				  0xFFFFFF0000000000ULL)
 
-#define KVM_GUEST_CR0_MASK				   \
-	(X86_CR0_PG | X86_CR0_PE | X86_CR0_WP | X86_CR0_NE \
-	 | X86_CR0_NW | X86_CR0_CD)
+#define KVM_GUEST_CR0_MASK_UNRESTRICTED_GUEST				\
+	(X86_CR0_WP | X86_CR0_NE | X86_CR0_NW | X86_CR0_CD)
+#define KVM_GUEST_CR0_MASK						\
+	(KVM_GUEST_CR0_MASK_UNRESTRICTED_GUEST | X86_CR0_PG | X86_CR0_PE)
+#define KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST				\
+	(X86_CR0_WP | X86_CR0_NE | X86_CR0_TS | X86_CR0_MP)
 #define KVM_VM_CR0_ALWAYS_ON						\
-	(X86_CR0_PG | X86_CR0_PE | X86_CR0_WP | X86_CR0_NE | X86_CR0_TS \
-	 | X86_CR0_MP)
+	(KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST | X86_CR0_PG | X86_CR0_PE)
 #define KVM_GUEST_CR4_MASK						\
 	(X86_CR4_VME | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_PGE | X86_CR4_VMXE)
 #define KVM_PMODE_VM_CR4_ALWAYS_ON (X86_CR4_PAE | X86_CR4_VMXE)
@@ -51,12 +54,12 @@
 #define INVALID_PAGE (~(hpa_t)0)
 #define UNMAPPED_GVA (~(gpa_t)0)
 
-/* shadow tables are PAE even on non-PAE hosts */
-#define KVM_HPAGE_SHIFT 21
-#define KVM_HPAGE_SIZE (1UL << KVM_HPAGE_SHIFT)
-#define KVM_HPAGE_MASK (~(KVM_HPAGE_SIZE - 1))
-
-#define KVM_PAGES_PER_HPAGE (KVM_HPAGE_SIZE / PAGE_SIZE)
+/* KVM Hugepage definitions for x86 */
+#define KVM_NR_PAGE_SIZES	3
+#define KVM_HPAGE_SHIFT(x)	(PAGE_SHIFT + (((x) - 1) * 9))
+#define KVM_HPAGE_SIZE(x)	(1UL << KVM_HPAGE_SHIFT(x))
+#define KVM_HPAGE_MASK(x)	(~(KVM_HPAGE_SIZE(x) - 1))
+#define KVM_PAGES_PER_HPAGE(x)	(KVM_HPAGE_SIZE(x) / PAGE_SIZE)
 
 #define DE_VECTOR 0
 #define DB_VECTOR 1
@@ -120,6 +123,10 @@ enum kvm_reg {
 	NR_VCPU_REGS
 };
 
+enum kvm_reg_ex {
+	VCPU_EXREG_PDPTR = NR_VCPU_REGS,
+};
+
 enum {
 	VCPU_SREG_ES,
 	VCPU_SREG_CS,
@@ -131,7 +138,7 @@ enum {
 	VCPU_SREG_LDTR,
 };
 
-#include <asm/kvm_x86_emulate.h>
+#include <asm/kvm_emulate.h>
 
 #define KVM_NR_MEM_OBJS 40
 
@@ -308,7 +315,6 @@ struct kvm_vcpu_arch {
 	struct {
 		gfn_t gfn;	/* presumed gfn during guest pte update */
 		pfn_t pfn;	/* pfn corresponding to that gfn */
-		int largepage;
 		unsigned long mmu_seq;
 	} update_pte;
 
@@ -334,16 +340,6 @@ struct kvm_vcpu_arch {
 		u8 nr;
 	} interrupt;
 
-	struct {
-		int vm86_active;
-		u8 save_iopl;
-		struct kvm_save_segment {
-			u16 selector;
-			unsigned long base;
-			u32 limit;
-			u32 ar;
-		} tr, es, ds, fs, gs;
-	} rmode;
 	int halt_request; /* real mode on Intel only */
 
 	int cpuid_nent;
@@ -366,13 +362,15 @@ struct kvm_vcpu_arch {
 	u32 pat;
 
 	int switch_db_regs;
-	unsigned long host_db[KVM_NR_DB_REGS];
-	unsigned long host_dr6;
-	unsigned long host_dr7;
 	unsigned long db[KVM_NR_DB_REGS];
 	unsigned long dr6;
 	unsigned long dr7;
 	unsigned long eff_db[KVM_NR_DB_REGS];
+
+	u64 mcg_cap;
+	u64 mcg_status;
+	u64 mcg_ctl;
+	u64 *mce_banks;
 };
 
 struct kvm_mem_alias {
@@ -409,6 +407,7 @@ struct kvm_arch{
 
 	struct page *ept_identity_pagetable;
 	bool ept_identity_pagetable_done;
+	gpa_t ept_identity_map_addr;
 
 	unsigned long irq_sources_bitmap;
 	unsigned long irq_states[KVM_IOAPIC_NUM_PINS];
@@ -526,6 +525,9 @@ struct kvm_x86_ops {
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 	int (*get_tdp_level)(void);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
+	bool (*gb_page_enable)(void);
+
+	const struct trace_print_flags *exit_reasons_str;
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;
@@ -618,6 +620,7 @@ void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr);
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long cr2,
 			   u32 error_code);
+bool kvm_require_cpl(struct kvm_vcpu *vcpu, int required_cpl);
 
 int kvm_pic_set_irq(void *opaque, int irq, int level);
 
@@ -752,8 +755,6 @@ static inline void kvm_inject_gp(struct kvm_vcpu *vcpu, u32 error_code)
 	kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
 }
 
-#define MSR_IA32_TIME_STAMP_COUNTER		0x010
-
 #define TSS_IOPB_BASE_OFFSET 0x66
 #define TSS_BASE_SIZE 0x68
 #define TSS_IOPB_SIZE (65536 / 8)
@@ -796,5 +797,8 @@ asmlinkage void kvm_handle_fault_on_reboot(void);
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 int kvm_age_hva(struct kvm *kvm, unsigned long hva);
 int cpuid_maxphyaddr(struct kvm_vcpu *vcpu);
+int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
+int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu);
+int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
 
 #endif /* _ASM_X86_KVM_HOST_H */

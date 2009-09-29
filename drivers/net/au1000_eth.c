@@ -937,7 +937,7 @@ static int au1000_close(struct net_device *dev)
 /*
  * Au1000 transmit routine.
  */
-static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 	struct net_device_stats *ps = &dev->stats;
@@ -988,7 +988,7 @@ static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb(skb);
 	aup->tx_head = (aup->tx_head + 1) & (NUM_TX_DMA - 1);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -1157,6 +1157,9 @@ static struct net_device * au1000_probe(int port_num)
 	aup->mii_bus->name = "au1000_eth_mii";
 	snprintf(aup->mii_bus->id, MII_BUS_ID_SIZE, "%x", aup->mac_id);
 	aup->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	if (aup->mii_bus->irq == NULL)
+		goto err_out;
+
 	for(i = 0; i < PHY_MAX_ADDR; ++i)
 		aup->mii_bus->irq[i] = PHY_POLL;
 

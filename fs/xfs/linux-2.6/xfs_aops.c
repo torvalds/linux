@@ -216,7 +216,6 @@ xfs_setfilesize(
 	if (ip->i_d.di_size < isize) {
 		ip->i_d.di_size = isize;
 		ip->i_update_core = 1;
-		ip->i_update_size = 1;
 		xfs_mark_inode_dirty_sync(ip);
 	}
 
@@ -1636,4 +1635,5 @@ const struct address_space_operations xfs_address_space_operations = {
 	.direct_IO		= xfs_vm_direct_IO,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate  = block_is_partially_uptodate,
+	.error_remove_page	= generic_error_remove_page,
 };

@@ -71,21 +71,29 @@ void page_add_new_anon_rmap(struct page *, struct vm_area_struct *, unsigned lon
 void page_add_file_rmap(struct page *);
 void page_remove_rmap(struct page *);
 
-#ifdef CONFIG_DEBUG_VM
-void page_dup_rmap(struct page *page, struct vm_area_struct *vma, unsigned long address);
-#else
-static inline void page_dup_rmap(struct page *page, struct vm_area_struct *vma, unsigned long address)
+static inline void page_dup_rmap(struct page *page)
 {
 	atomic_inc(&page->_mapcount);
 }
-#endif
 
 /*
  * Called from mm/vmscan.c to handle paging out
  */
 int page_referenced(struct page *, int is_locked,
 			struct mem_cgroup *cnt, unsigned long *vm_flags);
-int try_to_unmap(struct page *, int ignore_refs);
+enum ttu_flags {
+	TTU_UNMAP = 0,			/* unmap mode */
+	TTU_MIGRATION = 1,		/* migration mode */
+	TTU_MUNLOCK = 2,		/* munlock mode */
+	TTU_ACTION_MASK = 0xff,
+
+	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
+	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
+};
+#define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
+
+int try_to_unmap(struct page *, enum ttu_flags flags);
 
 /*
  * Called from mm/filemap_xip.c to unmap empty zero page
@@ -111,6 +119,13 @@ int page_mkclean(struct page *);
  * the page mlocked.
  */
 int try_to_munlock(struct page *);
+
+/*
+ * Called by memory-failure.c to kill processes.
+ */
+struct anon_vma *page_lock_anon_vma(struct page *page);
+void page_unlock_anon_vma(struct anon_vma *anon_vma);
+int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
 
 #else	/* !CONFIG_MMU */
 

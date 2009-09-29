@@ -12,10 +12,6 @@
 #ifndef __ASM_ARCH_MXC_MX1_H__
 #define __ASM_ARCH_MXC_MX1_H__
 
-#ifndef __ASM_ARCH_MXC_HARDWARE_H__
-#error "Do not include directly."
-#endif
-
 #include <mach/vmalloc.h>
 
 /*
@@ -138,20 +134,6 @@
 #define GPIO_INT_PORTD		62
 #define WDT_INT			63
 
-/* gpio and gpio based interrupt handling */
-#define GPIO_DR		 	0x1C
-#define GPIO_GDIR	 	0x00
-#define GPIO_PSR	 	0x24
-#define GPIO_ICR1	 	0x28
-#define GPIO_ICR2	 	0x2C
-#define GPIO_IMR	 	0x30
-#define GPIO_ISR	 	0x34
-#define GPIO_INT_LOW_LEV	0x3
-#define GPIO_INT_HIGH_LEV	0x2
-#define GPIO_INT_RISE_EDGE 	0x0
-#define GPIO_INT_FALL_EDGE	0x1
-#define GPIO_INT_NONE		0x4
-
 /* DMA */
 #define DMA_REQ_UART3_T		2
 #define DMA_REQ_UART3_R		3
@@ -178,9 +160,5 @@
 #define DMA_REQ_UART2_R		29
 #define DMA_REQ_UART1_T		30
 #define DMA_REQ_UART1_R		31
-
-/* mandatory for CONFIG_DEBUG_LL */
-#define MXC_LL_UART_PADDR	UART1_BASE_ADDR
-#define MXC_LL_UART_VADDR	IO_ADDRESS(UART1_BASE_ADDR)
 
 #endif /*  __ASM_ARCH_MXC_MX1_H__ */

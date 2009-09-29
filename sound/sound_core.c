@@ -29,7 +29,7 @@ MODULE_DESCRIPTION("Core sound module");
 MODULE_AUTHOR("Alan Cox");
 MODULE_LICENSE("GPL");
 
-static char *sound_nodename(struct device *dev)
+static char *sound_devnode(struct device *dev, mode_t *mode)
 {
 	if (MAJOR(dev->devt) == SOUND_MAJOR)
 		return NULL;
@@ -50,7 +50,7 @@ static int __init init_soundcore(void)
 		return PTR_ERR(sound_class);
 	}
 
-	sound_class->nodename = sound_nodename;
+	sound_class->devnode = sound_devnode;
 
 	return 0;
 }

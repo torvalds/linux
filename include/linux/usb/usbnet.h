@@ -53,6 +53,7 @@ struct usbnet {
 	struct sk_buff_head	rxq;
 	struct sk_buff_head	txq;
 	struct sk_buff_head	done;
+	struct sk_buff_head	rxq_pause;
 	struct urb		*interrupt;
 	struct tasklet_struct	bh;
 
@@ -63,6 +64,7 @@ struct usbnet {
 #		define EVENT_RX_MEMORY	2
 #		define EVENT_STS_SPLIT	3
 #		define EVENT_LINK_RESET	4
+#		define EVENT_RX_PAUSED	5
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
@@ -86,6 +88,8 @@ struct driver_info {
 
 #define FLAG_FRAMING_AX 0x0040		/* AX88772/178 packets */
 #define FLAG_WLAN	0x0080		/* use "wlan%d" names */
+#define FLAG_AVOID_UNLINK_URBS 0x0100	/* don't unlink urbs at usbnet_stop() */
+#define FLAG_SEND_ZLP	0x0200		/* hw requires ZLPs are sent */
 
 
 	/* init device ... can sleep, or cause probe() failure */
@@ -96,6 +100,9 @@ struct driver_info {
 
 	/* reset device ... can sleep */
 	int	(*reset)(struct usbnet *);
+
+	/* stop device ... can sleep */
+	int	(*stop)(struct usbnet *);
 
 	/* see if peer is connected ... can sleep */
 	int	(*check_connect)(struct usbnet *);
@@ -118,9 +125,8 @@ struct driver_info {
 	 * right after minidriver have initialized hardware. */
 	int	(*early_init)(struct usbnet *dev);
 
-	/* called by minidriver when link state changes, state: 0=disconnect,
-	 * 1=connect */
-	void	(*link_change)(struct usbnet *dev, int state);
+	/* called by minidriver when receiving indication */
+	void	(*indication)(struct usbnet *dev, void *ind, int indlen);
 
 	/* for new devices, use the descriptor-reading code instead */
 	int		in;		/* rx endpoint */
@@ -177,7 +183,8 @@ struct skb_data {	/* skb->cb is one of these */
 
 extern int usbnet_open (struct net_device *net);
 extern int usbnet_stop (struct net_device *net);
-extern int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net);
+extern netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
+				      struct net_device *net);
 extern void usbnet_tx_timeout (struct net_device *net);
 extern int usbnet_change_mtu (struct net_device *net, int new_mtu);
 
@@ -186,6 +193,10 @@ extern int usbnet_get_ethernet_addr(struct usbnet *, int);
 extern void usbnet_defer_kevent (struct usbnet *, int);
 extern void usbnet_skb_return (struct usbnet *, struct sk_buff *);
 extern void usbnet_unlink_rx_urbs(struct usbnet *);
+
+extern void usbnet_pause_rx(struct usbnet *);
+extern void usbnet_resume_rx(struct usbnet *);
+extern void usbnet_purge_paused_rxq(struct usbnet *);
 
 extern int usbnet_get_settings (struct net_device *net, struct ethtool_cmd *cmd);
 extern int usbnet_set_settings (struct net_device *net, struct ethtool_cmd *cmd);

@@ -112,6 +112,13 @@
 #elif defined(CONFIG_H8S2678)
 # define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define H8300_SCI_DR(ch) *(volatile char *)(P1DR + h8300_sci_pins[ch].port)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7757)
+# define SCSPTR0 0xfe4b0020
+# define SCSPTR1 0xfe4b0020
+# define SCSPTR2 0xfe4b0020
+# define SCIF_ORER 0x0001
+# define SCSCR_INIT(port)	0x38
+# define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763)
 # define SCSPTR0 0xffe00024 /* 16 bit SCIF */
 # define SCSPTR1 0xffe08024 /* 16 bit SCIF */
@@ -561,6 +568,16 @@ static inline int sci_rxd_in(struct uart_port *port)
 	if (port->mapbase == 0xffe80000)
 		return ctrl_inw(SCSPTR2)&0x0001 ? 1 : 0; /* SCIF */
 	return 1;
+}
+#elif defined(CONFIG_CPU_SUBTYPE_SH7757)
+static inline int sci_rxd_in(struct uart_port *port)
+{
+	if (port->mapbase == 0xfe4b0000)
+		return ctrl_inw(SCSPTR0) & 0x0001 ? 1 : 0;
+	if (port->mapbase == 0xfe4c0000)
+		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0;
+	if (port->mapbase == 0xfe4d0000)
+		return ctrl_inw(SCSPTR2) & 0x0001 ? 1 : 0;
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7760)
 static inline int sci_rxd_in(struct uart_port *port)

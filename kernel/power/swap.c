@@ -13,7 +13,6 @@
 
 #include <linux/module.h>
 #include <linux/file.h>
-#include <linux/utsname.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/genhd.h>

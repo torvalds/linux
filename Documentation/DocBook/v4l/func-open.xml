@@ -1,0 +1,121 @@
+<refentry id="func-open">
+  <refmeta>
+    <refentrytitle>V4L2 open()</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>v4l2-open</refname>
+    <refpurpose>Open a V4L2 device</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcsynopsisinfo>#include &lt;fcntl.h&gt;</funcsynopsisinfo>
+      <funcprototype>
+	<funcdef>int <function>open</function></funcdef>
+	<paramdef>const char *<parameter>device_name</parameter></paramdef>
+	<paramdef>int <parameter>flags</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>device_name</parameter></term>
+	<listitem>
+	  <para>Device to be opened.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>flags</parameter></term>
+	<listitem>
+	  <para>Open flags. Access mode must be
+<constant>O_RDWR</constant>. This is just a technicality, input devices
+still support only reading and output devices only writing.</para>
+	  <para>When the <constant>O_NONBLOCK</constant> flag is
+given, the read() function and the &VIDIOC-DQBUF; ioctl will return
+the &EAGAIN; when no data is available or no buffer is in the driver
+outgoing queue, otherwise these functions block until data becomes
+available. All V4L2 drivers exchanging data with applications must
+support the <constant>O_NONBLOCK</constant> flag.</para>
+	  <para>Other flags have no effect.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+  <refsect1>
+    <title>Description</title>
+
+    <para>To open a V4L2 device applications call
+<function>open()</function> with the desired device name. This
+function has no side effects; all data format parameters, current
+input or output, control values or other properties remain unchanged.
+At the first <function>open()</function> call after loading the driver
+they will be reset to default values, drivers are never in an
+undefined state.</para>
+  </refsect1>
+  <refsect1>
+    <title>Return Value</title>
+
+    <para>On success <function>open</function> returns the new file
+descriptor. On error -1 is returned, and the <varname>errno</varname>
+variable is set appropriately. Possible error codes are:</para>
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EACCES</errorcode></term>
+	<listitem>
+	  <para>The caller has no permission to access the
+device.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The driver does not support multiple opens and the
+device is already in use.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENXIO</errorcode></term>
+	<listitem>
+	  <para>No device corresponding to this device special file
+exists.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENOMEM</errorcode></term>
+	<listitem>
+	  <para>Not enough kernel memory was available to complete the
+request.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EMFILE</errorcode></term>
+	<listitem>
+	  <para>The  process  already  has  the  maximum number of
+files open.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENFILE</errorcode></term>
+	<listitem>
+	  <para>The limit on the total number of files open on the
+system has been reached.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

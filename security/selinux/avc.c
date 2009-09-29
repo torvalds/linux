@@ -709,18 +709,16 @@ out:
 }
 
 /**
- * avc_ss_reset - Flush the cache and revalidate migrated permissions.
- * @seqno: policy sequence number
+ * avc_flush - Flush the cache
  */
-int avc_ss_reset(u32 seqno)
+static void avc_flush(void)
 {
-	struct avc_callback_node *c;
-	int i, rc = 0, tmprc;
-	unsigned long flag;
-	struct avc_node *node;
 	struct hlist_head *head;
 	struct hlist_node *next;
+	struct avc_node *node;
 	spinlock_t *lock;
+	unsigned long flag;
+	int i;
 
 	for (i = 0; i < AVC_CACHE_SLOTS; i++) {
 		head = &avc_cache.slots[i];
@@ -737,6 +735,18 @@ int avc_ss_reset(u32 seqno)
 		rcu_read_unlock();
 		spin_unlock_irqrestore(lock, flag);
 	}
+}
+
+/**
+ * avc_ss_reset - Flush the cache and revalidate migrated permissions.
+ * @seqno: policy sequence number
+ */
+int avc_ss_reset(u32 seqno)
+{
+	struct avc_callback_node *c;
+	int rc = 0, tmprc;
+
+	avc_flush();
 
 	for (c = avc_callbacks; c; c = c->next) {
 		if (c->events & AVC_CALLBACK_RESET) {
@@ -858,6 +868,19 @@ u32 avc_policy_seqno(void)
 
 void avc_disable(void)
 {
-	if (avc_node_cachep)
-		kmem_cache_destroy(avc_node_cachep);
+	/*
+	 * If you are looking at this because you have realized that we are
+	 * not destroying the avc_node_cachep it might be easy to fix, but
+	 * I don't know the memory barrier semantics well enough to know.  It's
+	 * possible that some other task dereferenced security_ops when
+	 * it still pointed to selinux operations.  If that is the case it's
+	 * possible that it is about to use the avc and is about to need the
+	 * avc_node_cachep.  I know I could wrap the security.c security_ops call
+	 * in an rcu_lock, but seriously, it's not worth it.  Instead I just flush
+	 * the cache and get that memory back.
+	 */
+	if (avc_node_cachep) {
+		avc_flush();
+		/* kmem_cache_destroy(avc_node_cachep); */
+	}
 }

@@ -103,8 +103,8 @@
 #define __INIT		.section	".init.text","ax"
 #define __FINIT		.previous
 
-#define __INITDATA	.section	".init.data","aw"
-#define __INITRODATA	.section	".init.rodata","a"
+#define __INITDATA	.section	".init.data","aw",%progbits
+#define __INITRODATA	.section	".init.rodata","a",%progbits
 #define __FINITDATA	.previous
 
 #define __DEVINIT        .section	".devinit.text", "ax"
@@ -305,9 +305,17 @@ void __init parse_early_options(char *cmdline);
 #ifdef CONFIG_MODULES
 #define __init_or_module
 #define __initdata_or_module
+#define __initconst_or_module
+#define __INIT_OR_MODULE	.text
+#define __INITDATA_OR_MODULE	.data
+#define __INITRODATA_OR_MODULE	.section ".rodata","a",%progbits
 #else
 #define __init_or_module __init
 #define __initdata_or_module __initdata
+#define __initconst_or_module __initconst
+#define __INIT_OR_MODULE __INIT
+#define __INITDATA_OR_MODULE __INITDATA
+#define __INITRODATA_OR_MODULE __INITRODATA
 #endif /*CONFIG_MODULES*/
 
 /* Functions marked as __devexit may be discarded at kernel link time, depending

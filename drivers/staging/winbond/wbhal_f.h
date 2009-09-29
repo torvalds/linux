@@ -39,7 +39,7 @@ void hal_set_cwmax(  struct hw_data * pHwData,  u16 cwin_max );
 void hal_set_rsn_wpa(  struct hw_data * pHwData,  u32 * RSN_IE_Bitmap , u32 * RSN_OUI_type , unsigned char bDesiredAuthMode);
 void hal_set_connect_info(  struct hw_data * pHwData,  unsigned char boConnect );
 u8 hal_get_est_sq3(  struct hw_data * pHwData,  u8 Count );
-void hal_descriptor_indicate(  struct hw_data * pHwData,  PDESCRIPTOR pDes );
+void hal_descriptor_indicate(  struct hw_data * pHwData,  struct wb35_descriptor *pDes );
 u8 hal_get_antenna_number(  struct hw_data * pHwData );
 u32 hal_get_bss_pk_cnt(  struct hw_data * pHwData );
 #define hal_get_region_from_EEPROM( _A ) ( (_A)->reg.EEPROMRegion )

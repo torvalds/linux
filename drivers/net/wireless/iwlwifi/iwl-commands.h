@@ -283,7 +283,7 @@ struct iwl3945_power_per_rate {
  *        1)  Dual stream (MIMO)
  *        2)  Triple stream (MIMO)
  *
- *    5:  Value of 0x20 in bits 7:0 indicates 6 Mbps FAT duplicate data
+ *    5:  Value of 0x20 in bits 7:0 indicates 6 Mbps HT40 duplicate data
  *
  * Legacy OFDM rate format for bits 7:0 (bit 8 must be "0", bit 9 "0"):
  *  3-0:  0xD)   6 Mbps
@@ -320,11 +320,11 @@ struct iwl3945_power_per_rate {
 #define RATE_MCS_GF_POS 10
 #define RATE_MCS_GF_MSK 0x400
 
-/* Bit 11: (1) Use 40Mhz FAT chnl width, (0) use 20 MHz legacy chnl width */
-#define RATE_MCS_FAT_POS 11
-#define RATE_MCS_FAT_MSK 0x800
+/* Bit 11: (1) Use 40Mhz HT40 chnl width, (0) use 20 MHz legacy chnl width */
+#define RATE_MCS_HT40_POS 11
+#define RATE_MCS_HT40_MSK 0x800
 
-/* Bit 12: (1) Duplicate data on both 20MHz chnls.  FAT (bit 11) must be set. */
+/* Bit 12: (1) Duplicate data on both 20MHz chnls. HT40 (bit 11) must be set. */
 #define RATE_MCS_DUP_POS 12
 #define RATE_MCS_DUP_MSK 0x1000
 
@@ -459,7 +459,7 @@ struct iwl_init_alive_resp {
 
 	/* calibration values from "initialize" uCode */
 	__le32 voltage;		/* signed, higher value is lower voltage */
-	__le32 therm_r1[2];	/* signed, 1st for normal, 2nd for FAT channel*/
+	__le32 therm_r1[2];	/* signed, 1st for normal, 2nd for HT40 */
 	__le32 therm_r2[2];	/* signed */
 	__le32 therm_r3[2];	/* signed */
 	__le32 therm_r4[2];	/* signed */
@@ -610,7 +610,7 @@ enum {
 #define RXON_FLG_HT_OPERATING_MODE_POS		(23)
 
 #define RXON_FLG_HT_PROT_MSK			cpu_to_le32(0x1 << 23)
-#define RXON_FLG_FAT_PROT_MSK			cpu_to_le32(0x2 << 23)
+#define RXON_FLG_HT40_PROT_MSK			cpu_to_le32(0x2 << 23)
 
 #define RXON_FLG_CHANNEL_MODE_POS		(25)
 #define RXON_FLG_CHANNEL_MODE_MSK		cpu_to_le32(0x3 << 25)
@@ -765,6 +765,8 @@ struct iwl5000_rxon_assoc_cmd {
 } __attribute__ ((packed));
 
 #define IWL_CONN_MAX_LISTEN_INTERVAL	10
+#define IWL_MAX_UCODE_BEACON_INTERVAL	4 /* 4096 */
+#define IWL39_MAX_UCODE_BEACON_INTERVAL	1 /* 1024 */
 
 /*
  * REPLY_RXON_TIMING = 0x14 (command, has simple generic response)
@@ -884,12 +886,11 @@ struct iwl_qosparam_cmd {
 
 #define STA_FLG_TX_RATE_MSK		cpu_to_le32(1 << 2);
 #define STA_FLG_PWR_SAVE_MSK		cpu_to_le32(1 << 8);
-#define STA_FLG_PWR_SAVE_MSK		cpu_to_le32(1 << 8);
 #define STA_FLG_RTS_MIMO_PROT_MSK	cpu_to_le32(1 << 17)
 #define STA_FLG_AGG_MPDU_8US_MSK	cpu_to_le32(1 << 18)
 #define STA_FLG_MAX_AGG_SIZE_POS	(19)
 #define STA_FLG_MAX_AGG_SIZE_MSK	cpu_to_le32(3 << 19)
-#define STA_FLG_FAT_EN_MSK		cpu_to_le32(1 << 21)
+#define STA_FLG_HT40_EN_MSK		cpu_to_le32(1 << 21)
 #define STA_FLG_MIMO_DIS_MSK		cpu_to_le32(1 << 22)
 #define STA_FLG_AGG_MPDU_DENSITY_POS	(23)
 #define STA_FLG_AGG_MPDU_DENSITY_MSK	cpu_to_le32(7 << 23)
@@ -1154,6 +1155,7 @@ struct iwl_wep_cmd {
 #define RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK	cpu_to_le16(1 << 2)
 #define RX_RES_PHY_FLAGS_NARROW_BAND_MSK	cpu_to_le16(1 << 3)
 #define RX_RES_PHY_FLAGS_ANTENNA_MSK		cpu_to_le16(0xf0)
+#define RX_RES_PHY_FLAGS_ANTENNA_POS		4
 
 #define RX_RES_STATUS_SEC_TYPE_MSK	(0x7 << 8)
 #define RX_RES_STATUS_SEC_TYPE_NONE	(0x0 << 8)
@@ -1922,7 +1924,7 @@ struct iwl_link_qual_general_params {
 #define LINK_QUAL_AGG_DISABLE_START_MIN	(0)
 
 #define LINK_QUAL_AGG_FRAME_LIMIT_DEF	(31)
-#define LINK_QUAL_AGG_FRAME_LIMIT_MAX	(64)
+#define LINK_QUAL_AGG_FRAME_LIMIT_MAX	(63)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MIN	(0)
 
 /**
@@ -1982,10 +1984,10 @@ struct iwl_link_qual_agg_params {
  *     a) Use this same initial rate for first 3 entries.
  *     b) Find next lower available rate using same mode (SISO or MIMO),
  *        use for next 3 entries.  If no lower rate available, switch to
- *        legacy mode (no FAT channel, no MIMO, no short guard interval).
+ *        legacy mode (no HT40 channel, no MIMO, no short guard interval).
  *     c) If using MIMO, set command's mimo_delimiter to number of entries
  *        using MIMO (3 or 6).
- *     d) After trying 2 HT rates, switch to legacy mode (no FAT channel,
+ *     d) After trying 2 HT rates, switch to legacy mode (no HT40 channel,
  *        no MIMO, no short guard interval), at the next lower bit rate
  *        (e.g. if second HT bit rate was 54, try 48 legacy), and follow
  *        legacy procedure for remaining table entries.
@@ -2311,15 +2313,22 @@ struct iwl_spectrum_notification {
  * PM allow:
  *   bit 0 - '0' Driver not allow power management
  *           '1' Driver allow PM (use rest of parameters)
+ *
  * uCode send sleep notifications:
  *   bit 1 - '0' Don't send sleep notification
  *           '1' send sleep notification (SEND_PM_NOTIFICATION)
+ *
  * Sleep over DTIM
  *   bit 2 - '0' PM have to walk up every DTIM
  *           '1' PM could sleep over DTIM till listen Interval.
+ *
  * PCI power managed
  *   bit 3 - '0' (PCI_CFG_LINK_CTRL & 0x1)
  *           '1' !(PCI_CFG_LINK_CTRL & 0x1)
+ *
+ * Fast PD
+ *   bit 4 - '1' Put radio to sleep when receiving frame for others
+ *
  * Force sleep Modes
  *   bit 31/30- '00' use both mac/xtal sleeps
  *              '01' force Mac sleep
@@ -2409,6 +2418,13 @@ struct iwl_ct_kill_config {
 	__le32   reserved;
 	__le32   critical_temperature_M;
 	__le32   critical_temperature_R;
+}  __attribute__ ((packed));
+
+/* 1000, and 6x00 */
+struct iwl_ct_kill_throttling_config {
+	__le32   critical_temperature_exit;
+	__le32   reserved;
+	__le32   critical_temperature_enter;
 }  __attribute__ ((packed));
 
 /******************************************************************************
@@ -2913,6 +2929,20 @@ struct statistics_rx {
 	struct statistics_rx_ht_phy ofdm_ht;
 } __attribute__ ((packed));
 
+/**
+ * struct statistics_tx_power - current tx power
+ *
+ * @ant_a: current tx power on chain a in 1/2 dB step
+ * @ant_b: current tx power on chain b in 1/2 dB step
+ * @ant_c: current tx power on chain c in 1/2 dB step
+ */
+struct statistics_tx_power {
+	u8 ant_a;
+	u8 ant_b;
+	u8 ant_c;
+	u8 reserved;
+} __attribute__ ((packed));
+
 struct statistics_tx_non_phy_agg {
 	__le32 ba_timeout;
 	__le32 ba_reschedule_frames;
@@ -2924,8 +2954,6 @@ struct statistics_tx_non_phy_agg {
 	__le32 underrun;
 	__le32 bt_prio_kill;
 	__le32 rx_ba_rsp_cnt;
-	__le32 reserved2;
-	__le32 reserved3;
 } __attribute__ ((packed));
 
 struct statistics_tx {
@@ -2944,6 +2972,8 @@ struct statistics_tx {
 	__le32 cts_timeout_collision;
 	__le32 ack_or_ba_timeout_collision;
 	struct statistics_tx_non_phy_agg agg;
+	struct statistics_tx_power tx_power;
+	__le32 reserved1;
 } __attribute__ ((packed));
 
 
@@ -3008,7 +3038,7 @@ struct iwl_statistics_cmd {
  * one channel that has just been scanned.
  */
 #define STATISTICS_REPLY_FLG_BAND_24G_MSK         cpu_to_le32(0x2)
-#define STATISTICS_REPLY_FLG_FAT_MODE_MSK         cpu_to_le32(0x8)
+#define STATISTICS_REPLY_FLG_HT40_MODE_MSK        cpu_to_le32(0x8)
 
 struct iwl3945_notif_statistics {
 	__le32 flag;
@@ -3465,7 +3495,7 @@ struct iwl_wimax_coex_cmd {
  *****************************************************************************/
 
 struct iwl_rx_packet {
-	__le32 len;
+	__le32 len_n_flags;
 	struct iwl_cmd_header hdr;
 	union {
 		struct iwl3945_rx_frame rx_frame;

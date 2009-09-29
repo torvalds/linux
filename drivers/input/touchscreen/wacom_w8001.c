@@ -25,18 +25,16 @@ MODULE_AUTHOR("Jaya Kumar <jayakumar.lkml@gmail.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-/*
- * Definitions & global arrays.
- */
-
 #define W8001_MAX_LENGTH	11
-#define W8001_PACKET_LEN	11
-#define W8001_LEAD_MASK 0x80
-#define W8001_LEAD_BYTE 0x80
-#define W8001_TAB_MASK 0x40
-#define W8001_TAB_BYTE 0x40
+#define W8001_LEAD_MASK		0x80
+#define W8001_LEAD_BYTE		0x80
+#define W8001_TAB_MASK		0x40
+#define W8001_TAB_BYTE		0x40
 
-#define W8001_QUERY_PACKET 0x20
+#define W8001_QUERY_PACKET	0x20
+
+#define W8001_CMD_START		'1'
+#define W8001_CMD_QUERY		'*'
 
 struct w8001_coord {
 	u8 rdy;
@@ -57,18 +55,19 @@ struct w8001_coord {
 struct w8001 {
 	struct input_dev *dev;
 	struct serio *serio;
-	struct mutex cmd_mutex;
 	struct completion cmd_done;
 	int id;
 	int idx;
-	unsigned char expected_packet;
+	unsigned char response_type;
+	unsigned char response[W8001_MAX_LENGTH];
 	unsigned char data[W8001_MAX_LENGTH];
-	unsigned char response[W8001_PACKET_LEN];
 	char phys[32];
 };
 
-static int parse_data(u8 *data, struct w8001_coord *coord)
+static void parse_data(u8 *data, struct w8001_coord *coord)
 {
+	memset(coord, 0, sizeof(*coord));
+
 	coord->rdy = data[0] & 0x20;
 	coord->tsw = data[0] & 0x01;
 	coord->f1 = data[0] & 0x02;
@@ -87,15 +86,15 @@ static int parse_data(u8 *data, struct w8001_coord *coord)
 
 	coord->tilt_x = data[7] & 0x7F;
 	coord->tilt_y = data[8] & 0x7F;
-
-	return 0;
 }
 
-static void w8001_process_data(struct w8001 *w8001, unsigned char data)
+static irqreturn_t w8001_interrupt(struct serio *serio,
+				   unsigned char data, unsigned int flags)
 {
+	struct w8001 *w8001 = serio_get_drvdata(serio);
 	struct input_dev *dev = w8001->dev;
-	u8 tmp;
 	struct w8001_coord coord;
+	unsigned char tmp;
 
 	w8001->data[w8001->idx] = data;
 	switch (w8001->idx++) {
@@ -105,12 +104,13 @@ static void w8001_process_data(struct w8001 *w8001, unsigned char data)
 			w8001->idx = 0;
 		}
 		break;
+
 	case 8:
 		tmp = w8001->data[0] & W8001_TAB_MASK;
 		if (unlikely(tmp == W8001_TAB_BYTE))
 			break;
+
 		w8001->idx = 0;
-		memset(&coord, 0, sizeof(coord));
 		parse_data(w8001->data, &coord);
 		input_report_abs(dev, ABS_X, coord.x);
 		input_report_abs(dev, ABS_Y, coord.y);
@@ -118,86 +118,48 @@ static void w8001_process_data(struct w8001 *w8001, unsigned char data)
 		input_report_key(dev, BTN_TOUCH, coord.tsw);
 		input_sync(dev);
 		break;
+
 	case 10:
 		w8001->idx = 0;
-		memcpy(w8001->response, &w8001->data, W8001_PACKET_LEN);
-		w8001->expected_packet = W8001_QUERY_PACKET;
+		memcpy(w8001->response, w8001->data, W8001_MAX_LENGTH);
+		w8001->response_type = W8001_QUERY_PACKET;
 		complete(&w8001->cmd_done);
 		break;
 	}
-}
-
-
-static irqreturn_t w8001_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags)
-{
-	struct w8001 *w8001 = serio_get_drvdata(serio);
-
-	w8001_process_data(w8001, data);
 
 	return IRQ_HANDLED;
 }
 
-static int w8001_async_command(struct w8001 *w8001, unsigned char *packet,
-					int len)
+static int w8001_command(struct w8001 *w8001, unsigned char command,
+			 bool wait_response)
 {
-	int rc = -1;
-	int i;
+	int rc;
 
-	mutex_lock(&w8001->cmd_mutex);
-
-	for (i = 0; i < len; i++) {
-		if (serio_write(w8001->serio, packet[i]))
-			goto out;
-	}
-	rc = 0;
-
-out:
-	mutex_unlock(&w8001->cmd_mutex);
-	return rc;
-}
-
-static int w8001_command(struct w8001 *w8001, unsigned char *packet, int len)
-{
-	int rc = -1;
-	int i;
-
-	mutex_lock(&w8001->cmd_mutex);
-
-	serio_pause_rx(w8001->serio);
+	w8001->response_type = 0;
 	init_completion(&w8001->cmd_done);
-	serio_continue_rx(w8001->serio);
 
-	for (i = 0; i < len; i++) {
-		if (serio_write(w8001->serio, packet[i]))
-			goto out;
+	rc = serio_write(w8001->serio, command);
+	if (rc == 0 && wait_response) {
+
+		wait_for_completion_timeout(&w8001->cmd_done, HZ);
+		if (w8001->response_type != W8001_QUERY_PACKET)
+			rc = -EIO;
 	}
 
-	wait_for_completion_timeout(&w8001->cmd_done, HZ);
-
-	if (w8001->expected_packet == W8001_QUERY_PACKET) {
-		/* We are back in reporting mode, the query was ACKed */
-		memcpy(packet, w8001->response, W8001_PACKET_LEN);
-		rc = 0;
-	}
-
-out:
-	mutex_unlock(&w8001->cmd_mutex);
 	return rc;
 }
 
 static int w8001_setup(struct w8001 *w8001)
 {
-	struct w8001_coord coord;
 	struct input_dev *dev = w8001->dev;
-	unsigned char start[1] = { '1' };
-	unsigned char query[11] = { '*' };
+	struct w8001_coord coord;
+	int error;
 
-	if (w8001_command(w8001, query, 1))
-		return -1;
+	error = w8001_command(w8001, W8001_CMD_QUERY, true);
+	if (error)
+		return error;
 
-	memset(&coord, 0, sizeof(coord));
-	parse_data(query, &coord);
+	parse_data(w8001->response, &coord);
 
 	input_set_abs_params(dev, ABS_X, 0, coord.x, 0, 0);
 	input_set_abs_params(dev, ABS_Y, 0, coord.y, 0, 0);
@@ -205,10 +167,7 @@ static int w8001_setup(struct w8001 *w8001)
 	input_set_abs_params(dev, ABS_TILT_X, 0, coord.tilt_x, 0, 0);
 	input_set_abs_params(dev, ABS_TILT_Y, 0, coord.tilt_y, 0, 0);
 
-	if (w8001_async_command(w8001, start, 1))
-		return -1;
-
-	return 0;
+	return w8001_command(w8001, W8001_CMD_START, false);
 }
 
 /*
@@ -249,7 +208,6 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	w8001->serio = serio;
 	w8001->id = serio->id.id;
 	w8001->dev = input_dev;
-	mutex_init(&w8001->cmd_mutex);
 	init_completion(&w8001->cmd_done);
 	snprintf(w8001->phys, sizeof(w8001->phys), "%s/input0", serio->phys);
 
@@ -269,7 +227,8 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	if (err)
 		goto fail2;
 
-	if (w8001_setup(w8001))
+	err = w8001_setup(w8001);
+	if (err)
 		goto fail3;
 
 	err = input_register_device(w8001->dev);

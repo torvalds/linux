@@ -279,7 +279,7 @@ static int cosa_net_attach(struct net_device *dev, unsigned short encoding,
 static int cosa_net_open(struct net_device *d);
 static int cosa_net_close(struct net_device *d);
 static void cosa_net_timeout(struct net_device *d);
-static int cosa_net_tx(struct sk_buff *skb, struct net_device *d);
+static netdev_tx_t cosa_net_tx(struct sk_buff *skb, struct net_device *d);
 static char *cosa_net_setup_rx(struct channel_data *channel, int size);
 static int cosa_net_rx_done(struct channel_data *channel);
 static int cosa_net_tx_done(struct channel_data *channel, int size);
@@ -672,7 +672,8 @@ static int cosa_net_open(struct net_device *dev)
 	return 0;
 }
 
-static int cosa_net_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t cosa_net_tx(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct channel_data *chan = dev_to_chan(dev);
 
@@ -680,7 +681,7 @@ static int cosa_net_tx(struct sk_buff *skb, struct net_device *dev)
 
 	chan->tx_skb = skb;
 	cosa_start_tx(chan, skb->data, skb->len);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void cosa_net_timeout(struct net_device *dev)

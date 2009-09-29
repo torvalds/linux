@@ -154,7 +154,7 @@ static int ocfs2_get_quota_block(struct inode *inode, int block,
 		err = -EIO;
 		mlog_errno(err);
 	}
-	return err;;
+	return err;
 }
 
 /* Read data from global quotafile - avoid pagecache and such because we cannot
@@ -253,8 +253,9 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 	flush_dcache_page(bh->b_page);
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
-	ocfs2_set_buffer_uptodate(gqinode, bh);
-	err = ocfs2_journal_access_dq(handle, gqinode, bh, ja_type);
+	ocfs2_set_buffer_uptodate(INODE_CACHE(gqinode), bh);
+	err = ocfs2_journal_access_dq(handle, INODE_CACHE(gqinode), bh,
+				      ja_type);
 	if (err < 0) {
 		brelse(bh);
 		goto out;
@@ -849,7 +850,7 @@ static void ocfs2_destroy_dquot(struct dquot *dquot)
 	kmem_cache_free(ocfs2_dquot_cachep, dquot);
 }
 
-struct dquot_operations ocfs2_quota_operations = {
+const struct dquot_operations ocfs2_quota_operations = {
 	.initialize	= dquot_initialize,
 	.drop		= dquot_drop,
 	.alloc_space	= dquot_alloc_space,

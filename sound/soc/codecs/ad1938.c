@@ -28,7 +28,6 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <sound/core.h>
@@ -457,7 +456,6 @@ static int __devexit ad1938_spi_remove(struct spi_device *spi)
 static struct spi_driver ad1938_spi_driver = {
 	.driver = {
 		.name	= "ad1938",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad1938_spi_probe,
@@ -516,6 +514,7 @@ static int ad1938_register(struct ad1938_priv *ad1938)
 	codec->num_dai = 1;
 	codec->write = ad1938_write_reg;
 	codec->read = ad1938_read_reg_cache;
+	codec->set_bias_level = ad1938_set_bias_level;
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 

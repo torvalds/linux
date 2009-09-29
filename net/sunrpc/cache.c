@@ -103,23 +103,21 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 EXPORT_SYMBOL_GPL(sunrpc_cache_lookup);
 
 
-static void queue_loose(struct cache_detail *detail, struct cache_head *ch);
+static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch);
 
-static int cache_fresh_locked(struct cache_head *head, time_t expiry)
+static void cache_fresh_locked(struct cache_head *head, time_t expiry)
 {
 	head->expiry_time = expiry;
 	head->last_refresh = get_seconds();
-	return !test_and_set_bit(CACHE_VALID, &head->flags);
+	set_bit(CACHE_VALID, &head->flags);
 }
 
 static void cache_fresh_unlocked(struct cache_head *head,
-			struct cache_detail *detail, int new)
+				 struct cache_detail *detail)
 {
-	if (new)
-		cache_revisit_request(head);
 	if (test_and_clear_bit(CACHE_PENDING, &head->flags)) {
 		cache_revisit_request(head);
-		queue_loose(detail, head);
+		cache_dequeue(detail, head);
 	}
 }
 
@@ -132,7 +130,6 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	 */
 	struct cache_head **head;
 	struct cache_head *tmp;
-	int is_new;
 
 	if (!test_bit(CACHE_VALID, &old->flags)) {
 		write_lock(&detail->hash_lock);
@@ -141,9 +138,9 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 				set_bit(CACHE_NEGATIVE, &old->flags);
 			else
 				detail->update(old, new);
-			is_new = cache_fresh_locked(old, new->expiry_time);
+			cache_fresh_locked(old, new->expiry_time);
 			write_unlock(&detail->hash_lock);
-			cache_fresh_unlocked(old, detail, is_new);
+			cache_fresh_unlocked(old, detail);
 			return old;
 		}
 		write_unlock(&detail->hash_lock);
@@ -167,11 +164,11 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	*head = tmp;
 	detail->entries++;
 	cache_get(tmp);
-	is_new = cache_fresh_locked(tmp, new->expiry_time);
+	cache_fresh_locked(tmp, new->expiry_time);
 	cache_fresh_locked(old, 0);
 	write_unlock(&detail->hash_lock);
-	cache_fresh_unlocked(tmp, detail, is_new);
-	cache_fresh_unlocked(old, detail, 0);
+	cache_fresh_unlocked(tmp, detail);
+	cache_fresh_unlocked(old, detail);
 	cache_put(old, detail);
 	return tmp;
 }
@@ -184,6 +181,22 @@ static int cache_make_upcall(struct cache_detail *cd, struct cache_head *h)
 	return cd->cache_upcall(cd, h);
 }
 
+static inline int cache_is_valid(struct cache_detail *detail, struct cache_head *h)
+{
+	if (!test_bit(CACHE_VALID, &h->flags) ||
+	    h->expiry_time < get_seconds())
+		return -EAGAIN;
+	else if (detail->flush_time > h->last_refresh)
+		return -EAGAIN;
+	else {
+		/* entry is valid */
+		if (test_bit(CACHE_NEGATIVE, &h->flags))
+			return -ENOENT;
+		else
+			return 0;
+	}
+}
+
 /*
  * This is the generic cache management routine for all
  * the authentication caches.
@@ -192,8 +205,10 @@ static int cache_make_upcall(struct cache_detail *cd, struct cache_head *h)
  *
  *
  * Returns 0 if the cache_head can be used, or cache_puts it and returns
- * -EAGAIN if upcall is pending,
- * -ETIMEDOUT if upcall failed and should be retried,
+ * -EAGAIN if upcall is pending and request has been queued
+ * -ETIMEDOUT if upcall failed or request could not be queue or
+ *           upcall completed but item is still invalid (implying that
+ *           the cache item has been replaced with a newer one).
  * -ENOENT if cache entry was negative
  */
 int cache_check(struct cache_detail *detail,
@@ -203,17 +218,7 @@ int cache_check(struct cache_detail *detail,
 	long refresh_age, age;
 
 	/* First decide return status as best we can */
-	if (!test_bit(CACHE_VALID, &h->flags) ||
-	    h->expiry_time < get_seconds())
-		rv = -EAGAIN;
-	else if (detail->flush_time > h->last_refresh)
-		rv = -EAGAIN;
-	else {
-		/* entry is valid */
-		if (test_bit(CACHE_NEGATIVE, &h->flags))
-			rv = -ENOENT;
-		else rv = 0;
-	}
+	rv = cache_is_valid(detail, h);
 
 	/* now see if we want to start an upcall */
 	refresh_age = (h->expiry_time - h->last_refresh);
@@ -229,10 +234,11 @@ int cache_check(struct cache_detail *detail,
 			switch (cache_make_upcall(detail, h)) {
 			case -EINVAL:
 				clear_bit(CACHE_PENDING, &h->flags);
+				cache_revisit_request(h);
 				if (rv == -EAGAIN) {
 					set_bit(CACHE_NEGATIVE, &h->flags);
-					cache_fresh_unlocked(h, detail,
-					     cache_fresh_locked(h, get_seconds()+CACHE_NEW_EXPIRY));
+					cache_fresh_locked(h, get_seconds()+CACHE_NEW_EXPIRY);
+					cache_fresh_unlocked(h, detail);
 					rv = -ENOENT;
 				}
 				break;
@@ -245,10 +251,14 @@ int cache_check(struct cache_detail *detail,
 		}
 	}
 
-	if (rv == -EAGAIN)
-		if (cache_defer_req(rqstp, h) != 0)
-			rv = -ETIMEDOUT;
-
+	if (rv == -EAGAIN) {
+		if (cache_defer_req(rqstp, h) < 0) {
+			/* Request is not deferred */
+			rv = cache_is_valid(detail, h);
+			if (rv == -EAGAIN)
+				rv = -ETIMEDOUT;
+		}
+	}
 	if (rv)
 		cache_put(h, detail);
 	return rv;
@@ -396,7 +406,7 @@ static int cache_clean(void)
 				)
 				continue;
 			if (test_and_clear_bit(CACHE_PENDING, &ch->flags))
-				queue_loose(current_detail, ch);
+				cache_dequeue(current_detail, ch);
 
 			if (atomic_read(&ch->ref.refcount) == 1)
 				break;
@@ -412,8 +422,10 @@ static int cache_clean(void)
 		if (!ch)
 			current_index ++;
 		spin_unlock(&cache_list_lock);
-		if (ch)
+		if (ch) {
+			cache_revisit_request(ch);
 			cache_put(ch, d);
+		}
 	} else
 		spin_unlock(&cache_list_lock);
 
@@ -488,7 +500,7 @@ static int cache_defer_cnt;
 
 static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 {
-	struct cache_deferred_req *dreq;
+	struct cache_deferred_req *dreq, *discard;
 	int hash = DFR_HASH(item);
 
 	if (cache_defer_cnt >= DFR_MAX) {
@@ -496,11 +508,11 @@ static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 		 * or continue and drop the oldest below
 		 */
 		if (net_random()&1)
-			return -ETIMEDOUT;
+			return -ENOMEM;
 	}
 	dreq = req->defer(req);
 	if (dreq == NULL)
-		return -ETIMEDOUT;
+		return -ENOMEM;
 
 	dreq->item = item;
 
@@ -513,23 +525,24 @@ static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 	list_add(&dreq->hash, &cache_defer_hash[hash]);
 
 	/* it is in, now maybe clean up */
-	dreq = NULL;
+	discard = NULL;
 	if (++cache_defer_cnt > DFR_MAX) {
-		dreq = list_entry(cache_defer_list.prev,
-				  struct cache_deferred_req, recent);
-		list_del(&dreq->recent);
-		list_del(&dreq->hash);
+		discard = list_entry(cache_defer_list.prev,
+				     struct cache_deferred_req, recent);
+		list_del_init(&discard->recent);
+		list_del_init(&discard->hash);
 		cache_defer_cnt--;
 	}
 	spin_unlock(&cache_defer_lock);
 
-	if (dreq) {
+	if (discard)
 		/* there was one too many */
-		dreq->revisit(dreq, 1);
-	}
+		discard->revisit(discard, 1);
+
 	if (!test_bit(CACHE_PENDING, &item->flags)) {
 		/* must have just been validated... */
 		cache_revisit_request(item);
+		return -EAGAIN;
 	}
 	return 0;
 }
@@ -551,7 +564,7 @@ static void cache_revisit_request(struct cache_head *item)
 			dreq = list_entry(lp, struct cache_deferred_req, hash);
 			lp = lp->next;
 			if (dreq->item == item) {
-				list_del(&dreq->hash);
+				list_del_init(&dreq->hash);
 				list_move(&dreq->recent, &pending);
 				cache_defer_cnt--;
 			}
@@ -577,7 +590,7 @@ void cache_clean_deferred(void *owner)
 
 	list_for_each_entry_safe(dreq, tmp, &cache_defer_list, recent) {
 		if (dreq->owner == owner) {
-			list_del(&dreq->hash);
+			list_del_init(&dreq->hash);
 			list_move(&dreq->recent, &pending);
 			cache_defer_cnt--;
 		}
@@ -887,7 +900,7 @@ static int cache_release(struct inode *inode, struct file *filp,
 
 
 
-static void queue_loose(struct cache_detail *detail, struct cache_head *ch)
+static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch)
 {
 	struct cache_queue *cq;
 	spin_lock(&queue_lock);

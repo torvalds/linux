@@ -356,7 +356,6 @@ static void complete_edac_device_list_del(struct rcu_head *head)
 
 	edac_dev = container_of(head, struct edac_device_ctl_info, rcu);
 	INIT_LIST_HEAD(&edac_dev->link);
-	complete(&edac_dev->removal_complete);
 }
 
 /*
@@ -369,10 +368,8 @@ static void del_edac_device_from_global_list(struct edac_device_ctl_info
 						*edac_device)
 {
 	list_del_rcu(&edac_device->link);
-
-	init_completion(&edac_device->removal_complete);
 	call_rcu(&edac_device->rcu, complete_edac_device_list_del);
-	wait_for_completion(&edac_device->removal_complete);
+	rcu_barrier();
 }
 
 /*

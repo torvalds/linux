@@ -187,9 +187,72 @@ union iop3xx_desc {
 	void *ptr;
 };
 
+/* No support for p+q operations */
+static inline int
+iop_chan_pq_slot_count(size_t len, int src_cnt, int *slots_per_op)
+{
+	BUG();
+	return 0;
+}
+
+static inline void
+iop_desc_init_pq(struct iop_adma_desc_slot *desc, int src_cnt,
+		  unsigned long flags)
+{
+	BUG();
+}
+
+static inline void
+iop_desc_set_pq_addr(struct iop_adma_desc_slot *desc, dma_addr_t *addr)
+{
+	BUG();
+}
+
+static inline void
+iop_desc_set_pq_src_addr(struct iop_adma_desc_slot *desc, int src_idx,
+			 dma_addr_t addr, unsigned char coef)
+{
+	BUG();
+}
+
+static inline int
+iop_chan_pq_zero_sum_slot_count(size_t len, int src_cnt, int *slots_per_op)
+{
+	BUG();
+	return 0;
+}
+
+static inline void
+iop_desc_init_pq_zero_sum(struct iop_adma_desc_slot *desc, int src_cnt,
+			  unsigned long flags)
+{
+	BUG();
+}
+
+static inline void
+iop_desc_set_pq_zero_sum_byte_count(struct iop_adma_desc_slot *desc, u32 len)
+{
+	BUG();
+}
+
+#define iop_desc_set_pq_zero_sum_src_addr iop_desc_set_pq_src_addr
+
+static inline void
+iop_desc_set_pq_zero_sum_addr(struct iop_adma_desc_slot *desc, int pq_idx,
+			      dma_addr_t *src)
+{
+	BUG();
+}
+
 static inline int iop_adma_get_max_xor(void)
 {
 	return 32;
+}
+
+static inline int iop_adma_get_max_pq(void)
+{
+	BUG();
+	return 0;
 }
 
 static inline u32 iop_chan_get_current_descriptor(struct iop_adma_chan *chan)
@@ -332,6 +395,11 @@ static inline int iop_chan_zero_sum_slot_count(size_t len, int src_cnt,
 	return slot_cnt;
 }
 
+static inline int iop_desc_is_pq(struct iop_adma_desc_slot *desc)
+{
+	return 0;
+}
+
 static inline u32 iop_desc_get_dest_addr(struct iop_adma_desc_slot *desc,
 					struct iop_adma_chan *chan)
 {
@@ -346,6 +414,14 @@ static inline u32 iop_desc_get_dest_addr(struct iop_adma_desc_slot *desc,
 	default:
 		BUG();
 	}
+	return 0;
+}
+
+
+static inline u32 iop_desc_get_qdest_addr(struct iop_adma_desc_slot *desc,
+					  struct iop_adma_chan *chan)
+{
+	BUG();
 	return 0;
 }
 
@@ -756,13 +832,14 @@ static inline void iop_desc_set_block_fill_val(struct iop_adma_desc_slot *desc,
 	hw_desc->src[0] = val;
 }
 
-static inline int iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
+static inline enum sum_check_flags
+iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
 {
 	struct iop3xx_desc_aau *hw_desc = desc->hw_desc;
 	struct iop3xx_aau_desc_ctrl desc_ctrl = hw_desc->desc_ctrl_field;
 
 	iop_paranoia(!(desc_ctrl.tx_complete && desc_ctrl.zero_result_en));
-	return desc_ctrl.zero_result_err;
+	return desc_ctrl.zero_result_err << SUM_CHECK_P;
 }
 
 static inline void iop_chan_append(struct iop_adma_chan *chan)

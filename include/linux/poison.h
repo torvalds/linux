@@ -65,6 +65,9 @@
 #define MUTEX_DEBUG_INIT	0x11
 #define MUTEX_DEBUG_FREE	0x22
 
+/********** lib/flex_array.c **********/
+#define FLEX_ARRAY_FREE	0x6c	/* for use-after-free poisoning */
+
 /********** security/ **********/
 #define KEY_DESTROY		0xbd
 

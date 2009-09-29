@@ -98,6 +98,7 @@
 #define AOPOBJ_SETUP_COMPLETE       0x10
 #define AOPOBJ_SINGLE_DATUM         0x20
 #define AOPOBJ_INVALID              0x40	/* Used if host OS won't allow an op_region address */
+#define AOPOBJ_MODULE_LEVEL         0x80
 
 /******************************************************************************
  *

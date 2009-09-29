@@ -82,6 +82,8 @@ block/
 	- info on the Block I/O (BIO) layer.
 blockdev/
 	- info on block devices & drivers
+btmrvl.txt
+	- info on Marvell Bluetooth driver usage.
 cachetlb.txt
 	- describes the cache/TLB flushing interfaces Linux uses.
 cdrom/

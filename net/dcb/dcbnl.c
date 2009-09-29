@@ -64,6 +64,7 @@ static struct nla_policy dcbnl_rtnl_policy[DCB_ATTR_MAX + 1] = {
 	[DCB_ATTR_CAP]         = {.type = NLA_NESTED},
 	[DCB_ATTR_PFC_STATE]   = {.type = NLA_U8},
 	[DCB_ATTR_BCN]         = {.type = NLA_NESTED},
+	[DCB_ATTR_APP]         = {.type = NLA_NESTED},
 };
 
 /* DCB priority flow control to User Priority nested attributes */
@@ -156,6 +157,13 @@ static struct nla_policy dcbnl_bcn_nest[DCB_BCN_ATTR_MAX + 1] = {
 	[DCB_BCN_ATTR_RI]           = {.type = NLA_U32},
 	[DCB_BCN_ATTR_C]            = {.type = NLA_U32},
 	[DCB_BCN_ATTR_ALL]          = {.type = NLA_FLAG},
+};
+
+/* DCB APP nested attributes. */
+static struct nla_policy dcbnl_app_nest[DCB_APP_ATTR_MAX + 1] = {
+	[DCB_APP_ATTR_IDTYPE]       = {.type = NLA_U8},
+	[DCB_APP_ATTR_ID]           = {.type = NLA_U16},
+	[DCB_APP_ATTR_PRIORITY]     = {.type = NLA_U8},
 };
 
 /* standard netlink reply call */
@@ -533,6 +541,120 @@ static int dcbnl_setpfcstate(struct net_device *netdev, struct nlattr **tb,
 	ret = dcbnl_reply(0, RTM_SETDCB, DCB_CMD_PFC_SSTATE, DCB_ATTR_PFC_STATE,
 	                  pid, seq, flags);
 
+	return ret;
+}
+
+static int dcbnl_getapp(struct net_device *netdev, struct nlattr **tb,
+                        u32 pid, u32 seq, u16 flags)
+{
+	struct sk_buff *dcbnl_skb;
+	struct nlmsghdr *nlh;
+	struct dcbmsg *dcb;
+	struct nlattr *app_nest;
+	struct nlattr *app_tb[DCB_APP_ATTR_MAX + 1];
+	u16 id;
+	u8 up, idtype;
+	int ret = -EINVAL;
+
+	if (!tb[DCB_ATTR_APP] || !netdev->dcbnl_ops->getapp)
+		goto out;
+
+	ret = nla_parse_nested(app_tb, DCB_APP_ATTR_MAX, tb[DCB_ATTR_APP],
+	                       dcbnl_app_nest);
+	if (ret)
+		goto out;
+
+	ret = -EINVAL;
+	/* all must be non-null */
+	if ((!app_tb[DCB_APP_ATTR_IDTYPE]) ||
+	    (!app_tb[DCB_APP_ATTR_ID]))
+		goto out;
+
+	/* either by eth type or by socket number */
+	idtype = nla_get_u8(app_tb[DCB_APP_ATTR_IDTYPE]);
+	if ((idtype != DCB_APP_IDTYPE_ETHTYPE) &&
+	    (idtype != DCB_APP_IDTYPE_PORTNUM))
+		goto out;
+
+	id = nla_get_u16(app_tb[DCB_APP_ATTR_ID]);
+	up = netdev->dcbnl_ops->getapp(netdev, idtype, id);
+
+	/* send this back */
+	dcbnl_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!dcbnl_skb)
+		goto out;
+
+	nlh = NLMSG_NEW(dcbnl_skb, pid, seq, RTM_GETDCB, sizeof(*dcb), flags);
+	dcb = NLMSG_DATA(nlh);
+	dcb->dcb_family = AF_UNSPEC;
+	dcb->cmd = DCB_CMD_GAPP;
+
+	app_nest = nla_nest_start(dcbnl_skb, DCB_ATTR_APP);
+	ret = nla_put_u8(dcbnl_skb, DCB_APP_ATTR_IDTYPE, idtype);
+	if (ret)
+		goto out_cancel;
+
+	ret = nla_put_u16(dcbnl_skb, DCB_APP_ATTR_ID, id);
+	if (ret)
+		goto out_cancel;
+
+	ret = nla_put_u8(dcbnl_skb, DCB_APP_ATTR_PRIORITY, up);
+	if (ret)
+		goto out_cancel;
+
+	nla_nest_end(dcbnl_skb, app_nest);
+	nlmsg_end(dcbnl_skb, nlh);
+
+	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
+	if (ret)
+		goto nlmsg_failure;
+
+	goto out;
+
+out_cancel:
+	nla_nest_cancel(dcbnl_skb, app_nest);
+nlmsg_failure:
+	kfree_skb(dcbnl_skb);
+out:
+	return ret;
+}
+
+static int dcbnl_setapp(struct net_device *netdev, struct nlattr **tb,
+                        u32 pid, u32 seq, u16 flags)
+{
+	int ret = -EINVAL;
+	u16 id;
+	u8 up, idtype;
+	struct nlattr *app_tb[DCB_APP_ATTR_MAX + 1];
+
+	if (!tb[DCB_ATTR_APP] || !netdev->dcbnl_ops->setapp)
+		goto out;
+
+	ret = nla_parse_nested(app_tb, DCB_APP_ATTR_MAX, tb[DCB_ATTR_APP],
+	                       dcbnl_app_nest);
+	if (ret)
+		goto out;
+
+	ret = -EINVAL;
+	/* all must be non-null */
+	if ((!app_tb[DCB_APP_ATTR_IDTYPE]) ||
+	    (!app_tb[DCB_APP_ATTR_ID]) ||
+	    (!app_tb[DCB_APP_ATTR_PRIORITY]))
+		goto out;
+
+	/* either by eth type or by socket number */
+	idtype = nla_get_u8(app_tb[DCB_APP_ATTR_IDTYPE]);
+	if ((idtype != DCB_APP_IDTYPE_ETHTYPE) &&
+	    (idtype != DCB_APP_IDTYPE_PORTNUM))
+		goto out;
+
+	id = nla_get_u16(app_tb[DCB_APP_ATTR_ID]);
+	up = nla_get_u8(app_tb[DCB_APP_ATTR_PRIORITY]);
+
+	ret = dcbnl_reply(netdev->dcbnl_ops->setapp(netdev, idtype, id, up),
+	                  RTM_SETDCB, DCB_CMD_SAPP, DCB_ATTR_APP,
+	                  pid, seq, flags);
+out:
 	return ret;
 }
 
@@ -1092,6 +1214,14 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	case DCB_CMD_BCN_SCFG:
 		ret = dcbnl_bcn_setcfg(netdev, tb, pid, nlh->nlmsg_seq,
 		                       nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_GAPP:
+		ret = dcbnl_getapp(netdev, tb, pid, nlh->nlmsg_seq,
+		                   nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_SAPP:
+		ret = dcbnl_setapp(netdev, tb, pid, nlh->nlmsg_seq,
+		                   nlh->nlmsg_flags);
 		goto out;
 	default:
 		goto errout;

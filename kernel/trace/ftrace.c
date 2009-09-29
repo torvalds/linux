@@ -1323,11 +1323,10 @@ static int __init ftrace_dyn_table_alloc(unsigned long num_to_init)
 
 enum {
 	FTRACE_ITER_FILTER	= (1 << 0),
-	FTRACE_ITER_CONT	= (1 << 1),
-	FTRACE_ITER_NOTRACE	= (1 << 2),
-	FTRACE_ITER_FAILURES	= (1 << 3),
-	FTRACE_ITER_PRINTALL	= (1 << 4),
-	FTRACE_ITER_HASH	= (1 << 5),
+	FTRACE_ITER_NOTRACE	= (1 << 1),
+	FTRACE_ITER_FAILURES	= (1 << 2),
+	FTRACE_ITER_PRINTALL	= (1 << 3),
+	FTRACE_ITER_HASH	= (1 << 4),
 };
 
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
@@ -1337,8 +1336,7 @@ struct ftrace_iterator {
 	int			hidx;
 	int			idx;
 	unsigned		flags;
-	unsigned char		buffer[FTRACE_BUFF_MAX+1];
-	unsigned		buffer_idx;
+	struct trace_parser	parser;
 };
 
 static void *
@@ -1407,7 +1405,7 @@ static int t_hash_show(struct seq_file *m, void *v)
 	if (rec->ops->print)
 		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
 
-	seq_printf(m, "%pf:%pf", (void *)rec->ip, (void *)rec->ops->func);
+	seq_printf(m, "%ps:%ps", (void *)rec->ip, (void *)rec->ops->func);
 
 	if (rec->data)
 		seq_printf(m, ":%p", rec->data);
@@ -1517,12 +1515,12 @@ static int t_show(struct seq_file *m, void *v)
 	if (!rec)
 		return 0;
 
-	seq_printf(m, "%pf\n", (void *)rec->ip);
+	seq_printf(m, "%ps\n", (void *)rec->ip);
 
 	return 0;
 }
 
-static struct seq_operations show_ftrace_seq_ops = {
+static const struct seq_operations show_ftrace_seq_ops = {
 	.start = t_start,
 	.next = t_next,
 	.stop = t_stop,
@@ -1604,6 +1602,11 @@ ftrace_regex_open(struct inode *inode, struct file *file, int enable)
 	if (!iter)
 		return -ENOMEM;
 
+	if (trace_parser_get_init(&iter->parser, FTRACE_BUFF_MAX)) {
+		kfree(iter);
+		return -ENOMEM;
+	}
+
 	mutex_lock(&ftrace_regex_lock);
 	if ((file->f_mode & FMODE_WRITE) &&
 	    (file->f_flags & O_TRUNC))
@@ -1618,8 +1621,10 @@ ftrace_regex_open(struct inode *inode, struct file *file, int enable)
 		if (!ret) {
 			struct seq_file *m = file->private_data;
 			m->private = iter;
-		} else
+		} else {
+			trace_parser_put(&iter->parser);
 			kfree(iter);
+		}
 	} else
 		file->private_data = iter;
 	mutex_unlock(&ftrace_regex_lock);
@@ -2059,9 +2064,9 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	int i, len = 0;
 	char *search;
 
-	if (glob && (strcmp(glob, "*") || !strlen(glob)))
+	if (glob && (strcmp(glob, "*") == 0 || !strlen(glob)))
 		glob = NULL;
-	else {
+	else if (glob) {
 		int not;
 
 		type = ftrace_setup_glob(glob, strlen(glob), &search, &not);
@@ -2196,11 +2201,10 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos, int enable)
 {
 	struct ftrace_iterator *iter;
-	char ch;
-	size_t read = 0;
-	ssize_t ret;
+	struct trace_parser *parser;
+	ssize_t ret, read;
 
-	if (!cnt || cnt < 0)
+	if (!cnt)
 		return 0;
 
 	mutex_lock(&ftrace_regex_lock);
@@ -2211,72 +2215,23 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 	} else
 		iter = file->private_data;
 
-	if (!*ppos) {
-		iter->flags &= ~FTRACE_ITER_CONT;
-		iter->buffer_idx = 0;
-	}
+	parser = &iter->parser;
+	read = trace_get_user(parser, ubuf, cnt, ppos);
 
-	ret = get_user(ch, ubuf++);
-	if (ret)
-		goto out;
-	read++;
-	cnt--;
-
-	/*
-	 * If the parser haven't finished with the last write,
-	 * continue reading the user input without skipping spaces.
-	 */
-	if (!(iter->flags & FTRACE_ITER_CONT)) {
-		/* skip white space */
-		while (cnt && isspace(ch)) {
-			ret = get_user(ch, ubuf++);
-			if (ret)
-				goto out;
-			read++;
-			cnt--;
-		}
-
-		/* only spaces were written */
-		if (isspace(ch)) {
-			*ppos += read;
-			ret = read;
-			goto out;
-		}
-
-		iter->buffer_idx = 0;
-	}
-
-	while (cnt && !isspace(ch)) {
-		if (iter->buffer_idx < FTRACE_BUFF_MAX)
-			iter->buffer[iter->buffer_idx++] = ch;
-		else {
-			ret = -EINVAL;
-			goto out;
-		}
-		ret = get_user(ch, ubuf++);
+	if (read >= 0 && trace_parser_loaded(parser) &&
+	    !trace_parser_cont(parser)) {
+		ret = ftrace_process_regex(parser->buffer,
+					   parser->idx, enable);
 		if (ret)
 			goto out;
-		read++;
-		cnt--;
+
+		trace_parser_clear(parser);
 	}
 
-	if (isspace(ch)) {
-		iter->buffer[iter->buffer_idx] = 0;
-		ret = ftrace_process_regex(iter->buffer,
-					   iter->buffer_idx, enable);
-		if (ret)
-			goto out;
-		iter->buffer_idx = 0;
-	} else {
-		iter->flags |= FTRACE_ITER_CONT;
-		iter->buffer[iter->buffer_idx++] = ch;
-	}
-
-	*ppos += read;
 	ret = read;
- out:
-	mutex_unlock(&ftrace_regex_lock);
 
+	mutex_unlock(&ftrace_regex_lock);
+out:
 	return ret;
 }
 
@@ -2381,6 +2336,7 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 {
 	struct seq_file *m = (struct seq_file *)file->private_data;
 	struct ftrace_iterator *iter;
+	struct trace_parser *parser;
 
 	mutex_lock(&ftrace_regex_lock);
 	if (file->f_mode & FMODE_READ) {
@@ -2390,9 +2346,10 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 	} else
 		iter = file->private_data;
 
-	if (iter->buffer_idx) {
-		iter->buffer[iter->buffer_idx] = 0;
-		ftrace_match_records(iter->buffer, iter->buffer_idx, enable);
+	parser = &iter->parser;
+	if (trace_parser_loaded(parser)) {
+		parser->buffer[parser->idx] = 0;
+		ftrace_match_records(parser->buffer, parser->idx, enable);
 	}
 
 	mutex_lock(&ftrace_lock);
@@ -2400,7 +2357,9 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
 	mutex_unlock(&ftrace_lock);
 
+	trace_parser_put(parser);
 	kfree(iter);
+
 	mutex_unlock(&ftrace_regex_lock);
 	return 0;
 }
@@ -2457,11 +2416,9 @@ unsigned long ftrace_graph_funcs[FTRACE_GRAPH_MAX_FUNCS] __read_mostly;
 static void *
 __g_next(struct seq_file *m, loff_t *pos)
 {
-	unsigned long *array = m->private;
-
 	if (*pos >= ftrace_graph_count)
 		return NULL;
-	return &array[*pos];
+	return &ftrace_graph_funcs[*pos];
 }
 
 static void *
@@ -2499,12 +2456,12 @@ static int g_show(struct seq_file *m, void *v)
 		return 0;
 	}
 
-	seq_printf(m, "%pf\n", v);
+	seq_printf(m, "%ps\n", (void *)*ptr);
 
 	return 0;
 }
 
-static struct seq_operations ftrace_graph_seq_ops = {
+static const struct seq_operations ftrace_graph_seq_ops = {
 	.start = g_start,
 	.next = g_next,
 	.stop = g_stop,
@@ -2525,16 +2482,10 @@ ftrace_graph_open(struct inode *inode, struct file *file)
 		ftrace_graph_count = 0;
 		memset(ftrace_graph_funcs, 0, sizeof(ftrace_graph_funcs));
 	}
-
-	if (file->f_mode & FMODE_READ) {
-		ret = seq_open(file, &ftrace_graph_seq_ops);
-		if (!ret) {
-			struct seq_file *m = file->private_data;
-			m->private = ftrace_graph_funcs;
-		}
-	} else
-		file->private_data = ftrace_graph_funcs;
 	mutex_unlock(&graph_lock);
+
+	if (file->f_mode & FMODE_READ)
+		ret = seq_open(file, &ftrace_graph_seq_ops);
 
 	return ret;
 }
@@ -2602,12 +2553,8 @@ static ssize_t
 ftrace_graph_write(struct file *file, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos)
 {
-	unsigned char buffer[FTRACE_BUFF_MAX+1];
-	unsigned long *array;
-	size_t read = 0;
-	ssize_t ret;
-	int index = 0;
-	char ch;
+	struct trace_parser parser;
+	ssize_t read, ret;
 
 	if (!cnt || cnt < 0)
 		return 0;
@@ -2616,60 +2563,31 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 
 	if (ftrace_graph_count >= FTRACE_GRAPH_MAX_FUNCS) {
 		ret = -EBUSY;
-		goto out;
+		goto out_unlock;
 	}
 
-	if (file->f_mode & FMODE_READ) {
-		struct seq_file *m = file->private_data;
-		array = m->private;
-	} else
-		array = file->private_data;
+	if (trace_parser_get_init(&parser, FTRACE_BUFF_MAX)) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
 
-	ret = get_user(ch, ubuf++);
-	if (ret)
-		goto out;
-	read++;
-	cnt--;
+	read = trace_get_user(&parser, ubuf, cnt, ppos);
 
-	/* skip white space */
-	while (cnt && isspace(ch)) {
-		ret = get_user(ch, ubuf++);
+	if (read >= 0 && trace_parser_loaded((&parser))) {
+		parser.buffer[parser.idx] = 0;
+
+		/* we allow only one expression at a time */
+		ret = ftrace_set_func(ftrace_graph_funcs, &ftrace_graph_count,
+					parser.buffer);
 		if (ret)
-			goto out;
-		read++;
-		cnt--;
+			goto out_free;
 	}
-
-	if (isspace(ch)) {
-		*ppos += read;
-		ret = read;
-		goto out;
-	}
-
-	while (cnt && !isspace(ch)) {
-		if (index < FTRACE_BUFF_MAX)
-			buffer[index++] = ch;
-		else {
-			ret = -EINVAL;
-			goto out;
-		}
-		ret = get_user(ch, ubuf++);
-		if (ret)
-			goto out;
-		read++;
-		cnt--;
-	}
-	buffer[index] = 0;
-
-	/* we allow only one expression at a time */
-	ret = ftrace_set_func(array, &ftrace_graph_count, buffer);
-	if (ret)
-		goto out;
-
-	file->f_pos += read;
 
 	ret = read;
- out:
+
+out_free:
+	trace_parser_put(&parser);
+out_unlock:
 	mutex_unlock(&graph_lock);
 
 	return ret;
@@ -3100,7 +3018,7 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 
 int
 ftrace_enable_sysctl(struct ctl_table *table, int write,
-		     struct file *file, void __user *buffer, size_t *lenp,
+		     void __user *buffer, size_t *lenp,
 		     loff_t *ppos)
 {
 	int ret;
@@ -3110,7 +3028,7 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 	mutex_lock(&ftrace_lock);
 
-	ret  = proc_dointvec(table, write, file, buffer, lenp, ppos);
+	ret  = proc_dointvec(table, write, buffer, lenp, ppos);
 
 	if (ret || !write || (last_ftrace_enabled == !!ftrace_enabled))
 		goto out;

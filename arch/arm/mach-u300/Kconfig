@@ -81,6 +81,18 @@ config MACH_U300_SEMI_IS_SHARED
 		Memory Interface) from both from access and application
 		side.
 
+config MACH_U300_SPIDUMMY
+	bool "SSP/SPI dummy chip"
+	select SPI
+	select SPI_MASTER
+	select SPI_PL022
+	help
+		This creates a small kernel module that creates a dummy
+		SPI device to be used for loopback tests. Regularly used
+		to test reference designs. If you're not testing SPI,
+		you don't need it. Selecting this will activate the
+		SPI framework and ARM PL022 support.
+
 comment "All the settings below must match the bootloader's settings"
 
 config MACH_U300_ACCESS_MEM_SIZE

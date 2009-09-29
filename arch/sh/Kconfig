@@ -10,12 +10,17 @@ config SUPERH
 	select EMBEDDED
 	select HAVE_CLK
 	select HAVE_IDE
+	select HAVE_LMB
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IOREMAP_PROT if MMU
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
-	select HAVE_PERF_COUNTERS
+	select HAVE_PERF_EVENTS
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_LZMA
+	select HAVE_SYSCALL_TRACEPOINTS
 	select RTC_LIB
 	select GENERIC_ATOMIC64
 	help
@@ -31,6 +36,9 @@ config SUPERH32
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FTRACE_SYSCALLS
+	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_ARCH_KGDB
 	select ARCH_HIBERNATION_POSSIBLE if MMU
 
@@ -212,6 +220,8 @@ config CPU_SHX3
 config ARCH_SHMOBILE
 	bool
 	select ARCH_SUSPEND_POSSIBLE
+	select PM
+	select PM_RUNTIME
 
 if SUPERH32
 
@@ -388,6 +398,13 @@ config CPU_SUBTYPE_SH7724
 	select SYS_SUPPORTS_CMT
 	help
 	  Select SH7724 if you have an SH-MobileR2R CPU.
+
+config CPU_SUBTYPE_SH7757
+	bool "Support SH7757 processor"
+	select CPU_SH4A
+	select CPU_SHX2
+	help
+	  Select SH7757 if you have a SH4A SH7757 CPU.
 
 config CPU_SUBTYPE_SH7763
 	bool "Support SH7763 processor"
@@ -751,12 +768,31 @@ config UBC_WAKEUP
 
 	  If unsure, say N.
 
-config CMDLINE_BOOL
-	bool "Default bootloader kernel arguments"
+choice
+	prompt "Kernel command line"
+	optional
+	default CMDLINE_OVERWRITE
+	help
+	  Setting this option allows the kernel command line arguments
+	  to be set.
+
+config CMDLINE_OVERWRITE
+	bool "Overwrite bootloader kernel arguments"
+	help
+	  Given string will overwrite any arguments passed in by
+	  a bootloader.
+
+config CMDLINE_EXTEND
+	bool "Extend bootloader kernel arguments"
+	help
+	  Given string will be concatenated with arguments passed in
+	  by a bootloader.
+
+endchoice
 
 config CMDLINE
-	string "Initial kernel command string"
-	depends on CMDLINE_BOOL
+	string "Kernel command line arguments string"
+	depends on CMDLINE_OVERWRITE || CMDLINE_EXTEND
 	default "console=ttySC1,115200"
 
 endmenu

@@ -13,10 +13,8 @@
 #define EXTENT_DEFRAG (1 << 6)
 #define EXTENT_DEFRAG_DONE (1 << 7)
 #define EXTENT_BUFFER_FILLED (1 << 8)
-#define EXTENT_ORDERED (1 << 9)
-#define EXTENT_ORDERED_METADATA (1 << 10)
-#define EXTENT_BOUNDARY (1 << 11)
-#define EXTENT_NODATASUM (1 << 12)
+#define EXTENT_BOUNDARY (1 << 9)
+#define EXTENT_NODATASUM (1 << 10)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 
 /* flags for bio submission */
@@ -142,6 +140,8 @@ int try_release_extent_state(struct extent_map_tree *map,
 			     struct extent_io_tree *tree, struct page *page,
 			     gfp_t mask);
 int lock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
+int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
+		     int bits, struct extent_state **cached, gfp_t mask);
 int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
 int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 		    gfp_t mask);
@@ -155,11 +155,12 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		     u64 max_bytes, unsigned long bits);
 
 int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   int bits, int filled);
+		   int bits, int filled, struct extent_state *cached_state);
 int clear_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		      int bits, gfp_t mask);
 int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		     int bits, int wake, int delete, gfp_t mask);
+		     int bits, int wake, int delete, struct extent_state **cached,
+		     gfp_t mask);
 int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		    int bits, gfp_t mask);
 int set_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
@@ -282,5 +283,6 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 				int clear_unlock,
 				int clear_delalloc, int clear_dirty,
 				int set_writeback,
-				int end_writeback);
+				int end_writeback,
+				int set_private2);
 #endif

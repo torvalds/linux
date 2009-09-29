@@ -21,8 +21,11 @@ static u32 *uart;
 
 static u32 *get_uart_base(void)
 {
-	/* Add logic here for new platforms, using __macine_arch_type */
-	return (u32 *)DAVINCI_UART0_BASE;
+	if (__machine_arch_type == MACH_TYPE_DAVINCI_DA830_EVM ||
+		__machine_arch_type == MACH_TYPE_DAVINCI_DA850_EVM)
+		return (u32 *)DA8XX_UART2_BASE;
+	else
+		return (u32 *)DAVINCI_UART0_BASE;
 }
 
 /* PORT_16C550A, in polled non-fifo mode */

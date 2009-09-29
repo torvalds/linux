@@ -36,6 +36,21 @@
 # define LOAD_IPIPE_IPEND
 #endif
 
+/*
+ * Workaround for anomalies 05000283 and 05000315
+ */
+#if ANOMALY_05000283 || ANOMALY_05000315
+# define ANOMALY_283_315_WORKAROUND(preg, dreg)		\
+	cc = dreg == dreg;				\
+	preg.h = HI(CHIPID);				\
+	preg.l = LO(CHIPID);				\
+	if cc jump 1f;					\
+	dreg.l = W[preg];				\
+1:
+#else
+# define ANOMALY_283_315_WORKAROUND(preg, dreg)
+#endif /* ANOMALY_05000283 || ANOMALY_05000315 */
+
 #ifndef CONFIG_EXACT_HWERR
 /* As a debugging aid - we save IPEND when DEBUG_KERNEL is on,
  * otherwise it is a waste of cycles.
@@ -88,17 +103,22 @@
  * As you can see by the code - we actually need to do two SSYNCS - one to
  * make sure the read/writes complete, and another to make sure the hardware
  * error is recognized by the core.
+ *
+ * The extra nop before the SSYNC is to make sure we work around 05000244,
+ * since the 283/315 workaround includes a branch to the end
  */
 #define INTERRUPT_ENTRY(N)						\
-    SSYNC;								\
-    SSYNC;								\
     [--sp] = SYSCFG;							\
     [--sp] = P0;	/*orig_p0*/					\
     [--sp] = R0;	/*orig_r0*/					\
     [--sp] = (R7:0,P5:0);						\
     R1 = ASTAT;								\
+    ANOMALY_283_315_WORKAROUND(p0, r0)					\
     P0.L = LO(ILAT);							\
     P0.H = HI(ILAT);							\
+    NOP;								\
+    SSYNC;								\
+    SSYNC;								\
     R0 = [P0];								\
     CC = BITTST(R0, EVT_IVHW_P);					\
     IF CC JUMP 1f;							\
@@ -118,15 +138,17 @@
     RTI;
 
 #define TIMER_INTERRUPT_ENTRY(N)					\
-    SSYNC;								\
-    SSYNC;								\
     [--sp] = SYSCFG;							\
     [--sp] = P0;	/*orig_p0*/					\
     [--sp] = R0;	/*orig_r0*/					\
     [--sp] = (R7:0,P5:0);						\
     R1 = ASTAT;								\
+    ANOMALY_283_315_WORKAROUND(p0, r0)					\
     P0.L = LO(ILAT);							\
     P0.H = HI(ILAT);							\
+    NOP;								\
+    SSYNC;								\
+    SSYNC;								\
     R0 = [P0];								\
     CC = BITTST(R0, EVT_IVHW_P);					\
     IF CC JUMP 1f;							\

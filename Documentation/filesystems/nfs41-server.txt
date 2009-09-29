@@ -11,6 +11,11 @@ the /proc/fs/nfsd/versions control file.  Note that to write this
 control file, the nfsd service must be taken down.  Use your user-mode
 nfs-utils to set this up; see rpc.nfsd(8)
 
+(Warning: older servers will interpret "+4.1" and "-4.1" as "+4" and
+"-4", respectively.  Therefore, code meant to work on both new and old
+kernels must turn 4.1 on or off *before* turning support for version 4
+on or off; rpc.nfsd does this correctly.)
+
 The NFSv4 minorversion 1 (NFSv4.1) implementation in nfsd is based
 on the latest NFSv4.1 Internet Draft:
 http://tools.ietf.org/html/draft-ietf-nfsv4-minorversion1-29
@@ -24,6 +29,49 @@ Other NFSv4.1 features, Parallel NFS operations in particular,
 are still under development out of tree.
 See http://wiki.linux-nfs.org/wiki/index.php/PNFS_prototype_design
 for more information.
+
+The current implementation is intended for developers only: while it
+does support ordinary file operations on clients we have tested against
+(including the linux client), it is incomplete in ways which may limit
+features unexpectedly, cause known bugs in rare cases, or cause
+interoperability problems with future clients.  Known issues:
+
+	- gss support is questionable: currently mounts with kerberos
+	  from a linux client are possible, but we aren't really
+	  conformant with the spec (for example, we don't use kerberos
+	  on the backchannel correctly).
+	- no trunking support: no clients currently take advantage of
+	  trunking, but this is a mandatory failure, and its use is
+	  recommended to clients in a number of places.  (E.g. to ensure
+	  timely renewal in case an existing connection's retry timeouts
+	  have gotten too long; see section 8.3 of the draft.)
+	  Therefore, lack of this feature may cause future clients to
+	  fail.
+	- Incomplete backchannel support: incomplete backchannel gss
+	  support and no support for BACKCHANNEL_CTL mean that
+	  callbacks (hence delegations and layouts) may not be
+	  available and clients confused by the incomplete
+	  implementation may fail.
+	- Server reboot recovery is unsupported; if the server reboots,
+	  clients may fail.
+	- We do not support SSV, which provides security for shared
+	  client-server state (thus preventing unauthorized tampering
+	  with locks and opens, for example).  It is mandatory for
+	  servers to support this, though no clients use it yet.
+	- Mandatory operations which we do not support, such as
+	  DESTROY_CLIENTID, FREE_STATEID, SECINFO_NO_NAME, and
+	  TEST_STATEID, are not currently used by clients, but will be
+	  (and the spec recommends their uses in common cases), and
+	  clients should not be expected to know how to recover from the
+	  case where they are not supported.  This will eventually cause
+	  interoperability failures.
+
+In addition, some limitations are inherited from the current NFSv4
+implementation:
+
+	- Incomplete delegation enforcement: if a file is renamed or
+	  unlinked, a client holding a delegation may continue to
+	  indefinitely allow opens of the file under the old name.
 
 The table below, taken from the NFSv4.1 document, lists
 the operations that are mandatory to implement (REQ), optional
@@ -141,6 +189,12 @@ NS*| CB_WANTS_CANCELLED      | OPT       | FDELG,      | Section 20.10 |
    +-------------------------+-----------+-------------+---------------+
 
 Implementation notes:
+
+DELEGPURGE:
+* mandatory only for servers that support CLAIM_DELEGATE_PREV and/or
+  CLAIM_DELEG_PREV_FH (which allows clients to keep delegations that
+  persist across client reboots).  Thus we need not implement this for
+  now.
 
 EXCHANGE_ID:
 * only SP4_NONE state protection supported

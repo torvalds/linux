@@ -57,10 +57,6 @@
 #ifndef _P80211TYPES_H
 #define _P80211TYPES_H
 
-/*================================================================*/
-/* Project Includes */
-/*================================================================*/
-
 /*----------------------------------------------------------------*/
 /* The following constants are indexes into the Mib Category List */
 /* and the Message Category List */

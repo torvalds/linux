@@ -500,7 +500,7 @@ int key_negate_and_link(struct key *key,
 		set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
 		now = current_kernel_time();
 		key->expiry = now.tv_sec + timeout;
-		key_schedule_gc(key->expiry);
+		key_schedule_gc(key->expiry + key_gc_delay);
 
 		if (test_and_clear_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags))
 			awaken = 1;
@@ -909,7 +909,7 @@ void key_revoke(struct key *key)
 	time = now.tv_sec;
 	if (key->revoked_at == 0 || key->revoked_at > time) {
 		key->revoked_at = time;
-		key_schedule_gc(key->revoked_at);
+		key_schedule_gc(key->revoked_at + key_gc_delay);
 	}
 
 	up_write(&key->sem);

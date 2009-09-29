@@ -23,7 +23,7 @@ typedef unsigned long elf_greg_t;
 #define ELF_NGREG 40 /* (sizeof(struct user_regs_struct) / sizeof(elf_greg_t)) */
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
-typedef struct user_bfinfp_struct elf_fpregset_t;
+typedef struct { } elf_fpregset_t;
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */

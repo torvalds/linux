@@ -228,7 +228,7 @@ static void ttm_bo_vm_close(struct vm_area_struct *vma)
 	vma->vm_private_data = NULL;
 }
 
-static struct vm_operations_struct ttm_bo_vm_ops = {
+static const struct vm_operations_struct ttm_bo_vm_ops = {
 	.fault = ttm_bo_vm_fault,
 	.open = ttm_bo_vm_open,
 	.close = ttm_bo_vm_close

@@ -1115,7 +1115,7 @@ long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 	}
 
 	key->expiry = expiry;
-	key_schedule_gc(key->expiry);
+	key_schedule_gc(key->expiry + key_gc_delay);
 
 	up_write(&key->sem);
 	key_put(key);
@@ -1319,6 +1319,7 @@ long keyctl_session_to_parent(void)
 already_same:
 	ret = 0;
 not_permitted:
+	write_unlock_irq(&tasklist_lock);
 	put_cred(cred);
 	return ret;
 

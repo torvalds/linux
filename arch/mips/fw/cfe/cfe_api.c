@@ -45,8 +45,8 @@ int cfe_iocb_dispatch(struct cfe_xiocb *xiocb);
  * passed in two registers each, and CFE expects one.
  */
 
-static int (*cfe_dispfunc) (intptr_t handle, intptr_t xiocb) = 0;
-static u64 cfe_handle = 0;
+static int (*cfe_dispfunc) (intptr_t handle, intptr_t xiocb);
+static u64 cfe_handle;
 
 int cfe_init(u64 handle, u64 ept)
 {

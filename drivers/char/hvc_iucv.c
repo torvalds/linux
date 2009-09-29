@@ -273,7 +273,9 @@ static int hvc_iucv_write(struct hvc_iucv_private *priv,
 	case MSG_TYPE_WINSIZE:
 		if (rb->mbuf->datalen != sizeof(struct winsize))
 			break;
-		hvc_resize(priv->hvc, *((struct winsize *) rb->mbuf->data));
+		/* The caller must ensure that the hvc is locked, which
+		 * is the case when called from hvc_iucv_get_chars() */
+		__hvc_resize(priv->hvc, *((struct winsize *) rb->mbuf->data));
 		break;
 
 	case MSG_TYPE_ERROR:	/* ignored ... */

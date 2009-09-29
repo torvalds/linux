@@ -84,7 +84,6 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
  * struct irqaction - per interrupt action descriptor
  * @handler:	interrupt handler function
  * @flags:	flags (see IRQF_* above)
- * @mask:	no comment as it is useless and about to be removed
  * @name:	name of the device
  * @dev_id:	cookie to identify the device
  * @next:	pointer to the next irqaction for shared interrupts
@@ -97,7 +96,6 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
 struct irqaction {
 	irq_handler_t handler;
 	unsigned long flags;
-	cpumask_t mask;
 	const char *name;
 	void *dev_id;
 	struct irqaction *next;
@@ -348,6 +346,7 @@ enum
 	NET_TX_SOFTIRQ,
 	NET_RX_SOFTIRQ,
 	BLOCK_SOFTIRQ,
+	BLOCK_IOPOLL_SOFTIRQ,
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
 	HRTIMER_SOFTIRQ,

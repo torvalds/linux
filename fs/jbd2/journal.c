@@ -768,7 +768,7 @@ static void jbd2_seq_history_stop(struct seq_file *seq, void *v)
 {
 }
 
-static struct seq_operations jbd2_seq_history_ops = {
+static const struct seq_operations jbd2_seq_history_ops = {
 	.start  = jbd2_seq_history_start,
 	.next   = jbd2_seq_history_next,
 	.stop   = jbd2_seq_history_stop,
@@ -872,7 +872,7 @@ static void jbd2_seq_info_stop(struct seq_file *seq, void *v)
 {
 }
 
-static struct seq_operations jbd2_seq_info_ops = {
+static const struct seq_operations jbd2_seq_info_ops = {
 	.start  = jbd2_seq_info_start,
 	.next   = jbd2_seq_info_next,
 	.stop   = jbd2_seq_info_stop,
@@ -1187,6 +1187,12 @@ static int journal_reset(journal_t *journal)
 
 	first = be32_to_cpu(sb->s_first);
 	last = be32_to_cpu(sb->s_maxlen);
+	if (first + JBD2_MIN_JOURNAL_BLOCKS > last + 1) {
+		printk(KERN_ERR "JBD: Journal too short (blocks %llu-%llu).\n",
+		       first, last);
+		journal_fail_superblock(journal);
+		return -EINVAL;
+	}
 
 	journal->j_first = first;
 	journal->j_last = last;

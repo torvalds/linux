@@ -1,8 +1,8 @@
 # TODO: all of these should be removed
-EXTRA_CFLAGS += -DLINUX -D__KERNEL__ -DMODULE  -DEXPORT_SYMTAB -D__NO_VERSION__
+EXTRA_CFLAGS += -DLINUX -D__KERNEL__ -D__NO_VERSION__
 EXTRA_CFLAGS += -DHOSTAP
 
-vt6655-y +=	device_main.o \
+vt6655_stage-y +=	device_main.o \
 	card.o \
 	mac.o \
 	baseband.o \
@@ -35,4 +35,4 @@ vt6655-y +=	device_main.o \
 	vntwifi.o \
 	IEEE11h.o
 
-obj-$(CONFIG_VT6655) +=	vt6655.o
+obj-$(CONFIG_VT6655) +=	vt6655_stage.o

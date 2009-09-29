@@ -719,8 +719,12 @@ retry:
 		/* port status seems weird until after reset, so
 		 * force the reset and make khubd clean up later.
 		 */
-		sl811->port1 |= (1 << USB_PORT_FEAT_C_CONNECTION)
-				| (1 << USB_PORT_FEAT_CONNECTION);
+		if (sl811->stat_insrmv & 1)
+			sl811->port1 |= 1 << USB_PORT_FEAT_CONNECTION;
+		else
+			sl811->port1 &= ~(1 << USB_PORT_FEAT_CONNECTION);
+
+		sl811->port1 |= 1 << USB_PORT_FEAT_C_CONNECTION;
 
 	} else if (irqstat & SL11H_INTMASK_RD) {
 		if (sl811->port1 & (1 << USB_PORT_FEAT_SUSPEND)) {

@@ -710,7 +710,7 @@ EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
 
 static int ipv6_gso_pull_exthdrs(struct sk_buff *skb, int proto)
 {
-	struct inet6_protocol *ops = NULL;
+	const struct inet6_protocol *ops = NULL;
 
 	for (;;) {
 		struct ipv6_opt_hdr *opth;
@@ -745,7 +745,7 @@ static int ipv6_gso_pull_exthdrs(struct sk_buff *skb, int proto)
 static int ipv6_gso_send_check(struct sk_buff *skb)
 {
 	struct ipv6hdr *ipv6h;
-	struct inet6_protocol *ops;
+	const struct inet6_protocol *ops;
 	int err = -EINVAL;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
@@ -773,7 +773,12 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	struct ipv6hdr *ipv6h;
-	struct inet6_protocol *ops;
+	const struct inet6_protocol *ops;
+	int proto;
+	struct frag_hdr *fptr;
+	unsigned int unfrag_ip6hlen;
+	u8 *prevhdr;
+	int offset = 0;
 
 	if (!(features & NETIF_F_V6_CSUM))
 		features &= ~NETIF_F_SG;
@@ -793,10 +798,9 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 	__skb_pull(skb, sizeof(*ipv6h));
 	segs = ERR_PTR(-EPROTONOSUPPORT);
 
+	proto = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
 	rcu_read_lock();
-	ops = rcu_dereference(inet6_protos[
-		ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr)]);
-
+	ops = rcu_dereference(inet6_protos[proto]);
 	if (likely(ops && ops->gso_segment)) {
 		skb_reset_transport_header(skb);
 		segs = ops->gso_segment(skb, features);
@@ -810,6 +814,16 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
 		ipv6h = ipv6_hdr(skb);
 		ipv6h->payload_len = htons(skb->len - skb->mac_len -
 					   sizeof(*ipv6h));
+		if (proto == IPPROTO_UDP) {
+			unfrag_ip6hlen = ip6_find_1stfragopt(skb, &prevhdr);
+			fptr = (struct frag_hdr *)(skb_network_header(skb) +
+				unfrag_ip6hlen);
+			fptr->frag_off = htons(offset);
+			if (skb->next != NULL)
+				fptr->frag_off |= htons(IP6_MF);
+			offset += (ntohs(ipv6h->payload_len) -
+				   sizeof(struct frag_hdr));
+		}
 	}
 
 out:
@@ -826,7 +840,7 @@ struct ipv6_gro_cb {
 static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 					 struct sk_buff *skb)
 {
-	struct inet6_protocol *ops;
+	const struct inet6_protocol *ops;
 	struct sk_buff **pp = NULL;
 	struct sk_buff *p;
 	struct ipv6hdr *iph;
@@ -912,7 +926,7 @@ out:
 
 static int ipv6_gro_complete(struct sk_buff *skb)
 {
-	struct inet6_protocol *ops;
+	const struct inet6_protocol *ops;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	int err = -ENOSYS;
 

@@ -23,7 +23,7 @@
 #define _PAGE_FILE	0x00002	/* S: when !present: nonlinear file mapping */
 #define _PAGE_RW	0x00004	/* S: Write permission (SW) */
 #define _PAGE_DIRTY	0x00008	/* S: Page dirty */
-#define _PAGE_HWEXEC	0x00010	/* H: SX permission */
+#define _PAGE_EXEC	0x00010	/* H: SX permission */
 #define _PAGE_ACCESSED	0x00020	/* S: Page referenced */
 
 #define _PAGE_ENDIAN	0x00040	/* H: E bit */
@@ -32,13 +32,6 @@
 #define _PAGE_NO_CACHE	0x00200	/* H: I bit */
 #define _PAGE_WRITETHRU	0x00400	/* H: W bit */
 #define _PAGE_SPECIAL	0x00800 /* S: Special page */
-
-#ifdef CONFIG_PTE_64BIT
-/* ERPN in a PTE never gets cleared, ignore it */
-#define _PTE_NONE_MASK	0xffffffffffff0000ULL
-/* We extend the size of the PTE flags area when using 64-bit PTEs */
-#define PTE_RPN_SHIFT	(PAGE_SHIFT + 8)
-#endif
 
 #define _PMD_PRESENT	0
 #define _PMD_PRESENT_MASK (PAGE_MASK)

@@ -118,5 +118,8 @@ extern struct device_node *of_console_device;
 extern char *of_console_path;
 extern char *of_console_options;
 
+extern void (*prom_build_more)(struct device_node *dp, struct device_node ***nextp);
+extern char *build_full_name(struct device_node *dp);
+
 #endif /* __KERNEL__ */
 #endif /* _SPARC_PROM_H */
