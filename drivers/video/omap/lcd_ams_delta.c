@@ -123,12 +123,12 @@ struct platform_driver ams_delta_panel_driver = {
 	},
 };
 
-static int ams_delta_panel_drv_init(void)
+static int __init ams_delta_panel_drv_init(void)
 {
 	return platform_driver_register(&ams_delta_panel_driver);
 }
 
-static void ams_delta_panel_drv_cleanup(void)
+static void __exit ams_delta_panel_drv_cleanup(void)
 {
 	platform_driver_unregister(&ams_delta_panel_driver);
 }
