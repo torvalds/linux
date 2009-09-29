@@ -3142,14 +3142,14 @@ static int ql_route_initialize(struct ql_adapter *qdev)
 {
 	int status = 0;
 
-	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
-	if (status)
-		return status;
-
 	/* Clear all the entries in the routing table. */
 	status = ql_clear_routing_entries(qdev);
 	if (status)
-		goto exit;
+		return status;
+
+	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
+	if (status)
+		return status;
 
 	status = ql_set_routing_reg(qdev, RT_IDX_ALL_ERR_SLOT, RT_IDX_ERR, 1);
 	if (status) {
