@@ -2456,46 +2456,6 @@ xfs_set_dmattrs(
 	return error;
 }
 
-int
-xfs_reclaim(
-	xfs_inode_t	*ip)
-{
-
-	xfs_itrace_entry(ip);
-
-	ASSERT(!VN_MAPPED(VFS_I(ip)));
-
-	/* bad inode, get out here ASAP */
-	if (is_bad_inode(VFS_I(ip))) {
-		xfs_ireclaim(ip);
-		return 0;
-	}
-
-	xfs_ioend_wait(ip);
-
-	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
-
-	/*
-	 * If we have nothing to flush with this inode then complete the
-	 * teardown now, otherwise break the link between the xfs inode and the
-	 * linux inode and clean up the xfs inode later. This avoids flushing
-	 * the inode to disk during the delete operation itself.
-	 *
-	 * When breaking the link, we need to set the XFS_IRECLAIMABLE flag
-	 * first to ensure that xfs_iunpin() will never see an xfs inode
-	 * that has a linux inode being reclaimed. Synchronisation is provided
-	 * by the i_flags_lock.
-	 */
-	if (!ip->i_update_core && (ip->i_itemp == NULL)) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		xfs_iflock(ip);
-		xfs_iflags_set(ip, XFS_IRECLAIMABLE);
-		return xfs_reclaim_inode(ip, 1, XFS_IFLUSH_DELWRI_ELSE_SYNC);
-	}
-	xfs_inode_set_reclaim_tag(ip);
-	return 0;
-}
-
 /*
  * xfs_alloc_file_space()
  *      This routine allocates disk space for the given file.
