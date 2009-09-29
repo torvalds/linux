@@ -206,8 +206,6 @@ struct jsm_channel {
 
 	u64		ch_close_delay;	/* How long we should drop RTS/DTR for */
 
-	u64		ch_cpstime;	/* Time for CPS calculations	*/
-
 	tcflag_t	ch_c_iflag;	/* channel iflags		*/
 	tcflag_t	ch_c_cflag;	/* channel cflags		*/
 	tcflag_t	ch_c_oflag;	/* channel oflags		*/
