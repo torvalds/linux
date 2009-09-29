@@ -464,8 +464,7 @@ static u64 nop_for_index(int idx)
 			      sparc_pmu->lower_nop, idx);
 }
 
-static inline void sparc_pmu_enable_event(struct hw_perf_event *hwc,
-					    int idx)
+static inline void sparc_pmu_enable_event(struct hw_perf_event *hwc, int idx)
 {
 	u64 val, mask = mask_for_index(idx);
 
@@ -473,8 +472,7 @@ static inline void sparc_pmu_enable_event(struct hw_perf_event *hwc,
 	pcr_ops->write((val & ~mask) | hwc->config);
 }
 
-static inline void sparc_pmu_disable_event(struct hw_perf_event *hwc,
-					     int idx)
+static inline void sparc_pmu_disable_event(struct hw_perf_event *hwc, int idx)
 {
 	u64 mask = mask_for_index(idx);
 	u64 nop = nop_for_index(idx);
@@ -555,7 +553,7 @@ static void write_pmc(int idx, u64 val)
 }
 
 static int sparc_perf_event_set_period(struct perf_event *event,
-					 struct hw_perf_event *hwc, int idx)
+				       struct hw_perf_event *hwc, int idx)
 {
 	s64 left = atomic64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
@@ -607,7 +605,7 @@ static int sparc_pmu_enable(struct perf_event *event)
 }
 
 static u64 sparc_perf_event_update(struct perf_event *event,
-				     struct hw_perf_event *hwc, int idx)
+				   struct hw_perf_event *hwc, int idx)
 {
 	int shift = 64 - 32;
 	u64 prev_raw_count, new_raw_count;
@@ -939,7 +937,7 @@ void perf_event_print_debug(void)
 }
 
 static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
-					      unsigned long cmd, void *__args)
+					    unsigned long cmd, void *__args)
 {
 	struct die_args *args = __args;
 	struct perf_sample_data data;
