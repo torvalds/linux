@@ -36,11 +36,11 @@
 #include <scsi/scsi_eh.h>
 
 #define DRV_NAME "stex"
-#define ST_DRIVER_VERSION "4.6.0000.3"
+#define ST_DRIVER_VERSION "4.6.0000.4"
 #define ST_VER_MAJOR		4
 #define ST_VER_MINOR		6
 #define ST_OEM			0
-#define ST_BUILD_VER		3
+#define ST_BUILD_VER		4
 
 enum {
 	/* MU register offset */
@@ -1488,8 +1488,8 @@ static int stex_set_dma_mask(struct pci_dev * pdev)
 {
 	int ret;
 
-	if (!pci_set_dma_mask(pdev,  DMA_BIT_MASK(64))
-		&& !pci_set_consistent_dma_mask(pdev,  DMA_BIT_MASK(64)))
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
+		&& !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
 		return 0;
 	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (!ret)
