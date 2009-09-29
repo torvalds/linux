@@ -104,29 +104,20 @@ int gfs2_check_acl(struct inode *inode, int mask)
 	return -EAGAIN;
 }
 
-static int munge_mode(struct gfs2_inode *ip, mode_t mode)
+static int gfs2_set_mode(struct inode *inode, mode_t mode)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct buffer_head *dibh;
-	int error;
+	int error = 0;
 
-	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
-	if (error)
-		return error;
+	if (mode != inode->i_mode) {
+		struct iattr iattr;
 
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (!error) {
-		gfs2_assert_withdraw(sdp,
-				(ip->i_inode.i_mode & S_IFMT) == (mode & S_IFMT));
-		ip->i_inode.i_mode = mode;
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(ip, dibh->b_data);
-		brelse(dibh);
+		iattr.ia_valid = ATTR_MODE;
+		iattr.ia_mode = mode;
+
+		error = gfs2_setattr_simple(GFS2_I(inode), &iattr);
 	}
 
-	gfs2_trans_end(sdp);
-
-	return 0;
+	return error;
 }
 
 int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
@@ -151,7 +142,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
 	if (!acl) {
 		mode &= ~current_umask();
 		if (mode != ip->i_inode.i_mode)
-			error = munge_mode(ip, mode);
+			error = gfs2_set_mode(&ip->i_inode, mode);
 		return error;
 	}
 
@@ -181,7 +172,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
 	if (error)
 		goto out;
 munge:
-	error = munge_mode(ip, mode);
+	error = gfs2_set_mode(&ip->i_inode, mode);
 out:
 	posix_acl_release(acl);
 	kfree(data);
@@ -244,21 +235,6 @@ static int gfs2_xattr_system_get(struct inode *inode, const char *name,
 	return gfs2_xattr_get(inode, GFS2_EATYPE_SYS, name, buffer, size);
 }
 
-static int gfs2_set_mode(struct inode *inode, mode_t mode)
-{
-	int error = 0;
-
-	if (mode != inode->i_mode) {
-		struct iattr iattr;
-
-		iattr.ia_valid = ATTR_MODE;
-		iattr.ia_mode = mode;
-
-		error = gfs2_setattr_simple(GFS2_I(inode), &iattr);
-	}
-
-	return error;
-}
 
 static int gfs2_xattr_system_set(struct inode *inode, const char *name,
 				 const void *value, size_t size, int flags)
