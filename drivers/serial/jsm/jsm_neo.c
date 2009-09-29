@@ -957,10 +957,6 @@ static void neo_param(struct jsm_channel *ch)
 		ch->ch_old_baud = 0;
 		return;
 
-	} else if (ch->ch_custom_speed) {
-			baud = ch->ch_custom_speed;
-			if (ch->ch_flags & CH_BAUD0)
-				ch->ch_flags &= ~(CH_BAUD0);
 	} else {
 		int i;
 		unsigned int cflag;
