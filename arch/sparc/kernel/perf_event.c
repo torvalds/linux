@@ -68,6 +68,17 @@ struct perf_event_map {
 #define PIC_LOWER	0x02
 };
 
+static unsigned long perf_event_encode(const struct perf_event_map *pmap)
+{
+	return ((unsigned long) pmap->encoding << 16) | pmap->pic_mask;
+}
+
+static void perf_event_decode(unsigned long val, u16 *enc, u8 *msk)
+{
+	*msk = val & 0xff;
+	*enc = val >> 16;
+}
+
 #define C(x) PERF_COUNT_HW_CACHE_##x
 
 #define CACHE_OP_UNSUPPORTED	0xfffe
@@ -713,6 +724,48 @@ static void hw_perf_event_destroy(struct perf_event *event)
 	perf_event_release_pmc();
 }
 
+/* Make sure all events can be scheduled into the hardware at
+ * the same time.  This is simplified by the fact that we only
+ * need to support 2 simultaneous HW events.
+ */
+static int sparc_check_constraints(unsigned long *events, int n_ev)
+{
+	if (n_ev <= perf_max_events) {
+		u8 msk1, msk2;
+		u16 dummy;
+
+		if (n_ev == 1)
+			return 0;
+		BUG_ON(n_ev != 2);
+		perf_event_decode(events[0], &dummy, &msk1);
+		perf_event_decode(events[1], &dummy, &msk2);
+
+		/* If both events can go on any counter, OK.  */
+		if (msk1 == (PIC_UPPER | PIC_LOWER) &&
+		    msk2 == (PIC_UPPER | PIC_LOWER))
+			return 0;
+
+		/* If one event is limited to a specific counter,
+		 * and the other can go on both, OK.
+		 */
+		if ((msk1 == PIC_UPPER || msk1 == PIC_LOWER) &&
+		    msk2 == (PIC_UPPER | PIC_LOWER))
+			return 0;
+		if ((msk2 == PIC_UPPER || msk2 == PIC_LOWER) &&
+		    msk1 == (PIC_UPPER | PIC_LOWER))
+			return 0;
+
+		/* If the events are fixed to different counters, OK.  */
+		if ((msk1 == PIC_UPPER && msk2 == PIC_LOWER) ||
+		    (msk1 == PIC_LOWER && msk2 == PIC_UPPER))
+			return 0;
+
+		/* Otherwise, there is a conflict.  */
+	}
+
+	return -1;
+}
+
 static int check_excludes(struct perf_event **evts, int n_prev, int n_new)
 {
 	int eu = 0, ek = 0, eh = 0;
@@ -742,7 +795,7 @@ static int check_excludes(struct perf_event **evts, int n_prev, int n_new)
 }
 
 static int collect_events(struct perf_event *group, int max_count,
-			  struct perf_event *evts[], u64 *events)
+			  struct perf_event *evts[], unsigned long *events)
 {
 	struct perf_event *event;
 	int n = 0;
@@ -751,7 +804,7 @@ static int collect_events(struct perf_event *group, int max_count,
 		if (n >= max_count)
 			return -1;
 		evts[n] = group;
-		events[n++] = group->hw.config;
+		events[n++] = group->hw.event_base;
 	}
 	list_for_each_entry(event, &group->sibling_list, group_entry) {
 		if (!is_software_event(event) &&
@@ -759,7 +812,7 @@ static int collect_events(struct perf_event *group, int max_count,
 			if (n >= max_count)
 				return -1;
 			evts[n] = event;
-			events[n++] = event->hw.config;
+			events[n++] = event->hw.event_base;
 		}
 	}
 	return n;
@@ -770,8 +823,9 @@ static int __hw_perf_event_init(struct perf_event *event)
 	struct perf_event_attr *attr = &event->attr;
 	struct perf_event *evts[MAX_HWEVENTS];
 	struct hw_perf_event *hwc = &event->hw;
+	unsigned long events[MAX_HWEVENTS];
 	const struct perf_event_map *pmap;
-	u64 enc, events[MAX_HWEVENTS];
+	u64 enc;
 	int n;
 
 	if (atomic_read(&nmi_active) < 0)
@@ -800,6 +854,8 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (!attr->exclude_hv)
 		hwc->config_base |= sparc_pmu->hv_bit;
 
+	hwc->event_base = perf_event_encode(pmap);
+
 	enc = pmap->encoding;
 
 	n = 0;
@@ -810,10 +866,13 @@ static int __hw_perf_event_init(struct perf_event *event)
 		if (n < 0)
 			return -EINVAL;
 	}
-	events[n] = enc;
+	events[n] = hwc->event_base;
 	evts[n] = event;
 
 	if (check_excludes(evts, n, 1))
+		return -EINVAL;
+
+	if (sparc_check_constraints(events, n + 1))
 		return -EINVAL;
 
 	/* Try to do all error checking before this point, as unwinding
