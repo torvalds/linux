@@ -1117,8 +1117,6 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 	unsigned long lock_flags2;
 	int outofloop_count = 0;
 
-	brd->intr_count++;
-
 	/* Lock out the slow poller from running on this board. */
 	spin_lock_irqsave(&brd->bd_intr_lock, lock_flags);
 
