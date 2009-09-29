@@ -3,6 +3,8 @@ config HERMES
 	depends on (PPC_PMAC || PCI || PCMCIA) && WLAN_80211
 	depends on CFG80211
 	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
 	select FW_LOADER
 	select CRYPTO
 	select CRYPTO_MICHAEL_MIC

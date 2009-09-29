@@ -1264,7 +1264,7 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 	if (!err)
 		err = func(&rdev->wiphy, dev, key.idx);
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	if (!err) {
 		if (func == rdev->ops->set_default_key)
 			dev->ieee80211_ptr->wext.default_key = key.idx;
@@ -1365,7 +1365,7 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	if (!err)
 		err = rdev->ops->del_key(&rdev->wiphy, dev, key.idx, mac_addr);
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	if (!err) {
 		if (key.idx == dev->ieee80211_ptr->wext.default_key)
 			dev->ieee80211_ptr->wext.default_key = -1;

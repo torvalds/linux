@@ -1171,6 +1171,10 @@ struct wiphy {
 	struct net *_net;
 #endif
 
+#ifdef CONFIG_CFG80211_WEXT
+	const struct iw_handler_def *wext;
+#endif
+
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
 
@@ -1345,7 +1349,7 @@ struct wireless_dev {
 	struct cfg80211_internal_bss *auth_bsses[MAX_AUTH_BSSES];
 	struct cfg80211_internal_bss *current_bss; /* associated / joined */
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	/* wext data */
 	struct {
 		struct cfg80211_ibss_params ibss;
