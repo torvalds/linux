@@ -48,6 +48,10 @@ static struct posix_acl *gfs2_acl_get(struct gfs2_inode *ip, int type)
 	if (!ip->i_eattr)
 		return NULL;
 
+	acl = get_cached_acl(&ip->i_inode, type);
+	if (acl != ACL_NOT_CACHED)
+		return acl;
+
 	name = gfs2_acl_name(type);
 	if (name == NULL)
 		return ERR_PTR(-EINVAL);
@@ -123,6 +127,8 @@ static int gfs2_acl_set(struct inode *inode, int type, struct posix_acl *acl)
 	if (error < 0)
 		goto out;
 	error = gfs2_xattr_set(inode, GFS2_EATYPE_SYS, name, data, len, 0);
+	if (!error)
+		set_cached_acl(inode, type, acl);
 out:
 	kfree(data);
 	return error;
@@ -209,6 +215,7 @@ int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr)
 		posix_acl_to_xattr(acl, data, len);
 		error = gfs2_xattr_acl_chmod(ip, attr, data);
 		kfree(data);
+		set_cached_acl(&ip->i_inode, ACL_TYPE_ACCESS, acl);
 	}
 
 out:
@@ -228,15 +235,25 @@ static int gfs2_acl_type(const char *name)
 static int gfs2_xattr_system_get(struct inode *inode, const char *name,
 				 void *buffer, size_t size)
 {
+	struct posix_acl *acl;
 	int type;
+	int error;
 
 	type = gfs2_acl_type(name);
 	if (type < 0)
 		return type;
 
-	return gfs2_xattr_get(inode, GFS2_EATYPE_SYS, name, buffer, size);
-}
+	acl = gfs2_acl_get(GFS2_I(inode), type);
+	if (IS_ERR(acl))
+		return PTR_ERR(acl);
+	if (acl == NULL)
+		return -ENODATA;
 
+	error = posix_acl_to_xattr(acl, buffer, size);
+	posix_acl_release(acl);
+
+	return error;
+}
 
 static int gfs2_xattr_system_set(struct inode *inode, const char *name,
 				 const void *value, size_t size, int flags)
@@ -303,6 +320,12 @@ static int gfs2_xattr_system_set(struct inode *inode, const char *name,
 
 set_acl:
 	error = gfs2_xattr_set(inode, GFS2_EATYPE_SYS, name, value, size, 0);
+	if (!error) {
+		if (acl)
+			set_cached_acl(inode, type, acl);
+		else
+			forget_cached_acl(inode, type);
+	}
 out_release:
 	posix_acl_release(acl);
 out:
