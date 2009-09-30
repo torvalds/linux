@@ -65,6 +65,12 @@ typedef __u32 ext4_lblk_t;
 /* data type for block group number */
 typedef unsigned int ext4_group_t;
 
+/*
+ * Flags used in mballoc's allocation_context flags field.  
+ *
+ * Also used to show what's going on for debugging purposes when the
+ * flag field is exported via the traceport interface
+ */
 
 /* prefer goal again. length */
 #define EXT4_MB_HINT_MERGE		0x0001
@@ -970,14 +976,6 @@ struct ext4_sb_info {
 	/* where last allocation was done - for stream allocation */
 	unsigned long s_mb_last_group;
 	unsigned long s_mb_last_start;
-
-	/* history to debug policy */
-	struct ext4_mb_history *s_mb_history;
-	int s_mb_history_cur;
-	int s_mb_history_max;
-	int s_mb_history_num;
-	spinlock_t s_mb_history_lock;
-	int s_mb_history_filter;
 
 	/* stats for buddy allocator */
 	spinlock_t s_mb_pa_lock;

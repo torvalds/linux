@@ -50,13 +50,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
 
-static int default_mb_history_length = 1000;
-
-module_param_named(default_mb_history_length, default_mb_history_length,
-		   int, 0644);
-MODULE_PARM_DESC(default_mb_history_length,
-		 "Default number of entries saved for mb_history");
-
 struct proc_dir_entry *ext4_proc_root;
 static struct kset *ext4_kset;
 
@@ -1079,7 +1072,7 @@ enum {
 	Opt_journal_update, Opt_journal_dev,
 	Opt_journal_checksum, Opt_journal_async_commit,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
-	Opt_data_err_abort, Opt_data_err_ignore, Opt_mb_history_length,
+	Opt_data_err_abort, Opt_data_err_ignore,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_nobarrier, Opt_err, Opt_resize,
@@ -1126,7 +1119,6 @@ static const match_table_t tokens = {
 	{Opt_data_writeback, "data=writeback"},
 	{Opt_data_err_abort, "data_err=abort"},
 	{Opt_data_err_ignore, "data_err=ignore"},
-	{Opt_mb_history_length, "mb_history_length=%u"},
 	{Opt_offusrjquota, "usrjquota="},
 	{Opt_usrjquota, "usrjquota=%s"},
 	{Opt_offgrpjquota, "grpjquota="},
@@ -1366,13 +1358,6 @@ static int parse_options(char *options, struct super_block *sb,
 			break;
 		case Opt_data_err_ignore:
 			clear_opt(sbi->s_mount_opt, DATA_ERR_ABORT);
-			break;
-		case Opt_mb_history_length:
-			if (match_int(&args[0], &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			sbi->s_mb_history_max = option;
 			break;
 #ifdef CONFIG_QUOTA
 		case Opt_usrjquota:
@@ -2435,7 +2420,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_commit_interval = JBD2_DEFAULT_MAX_COMMIT_AGE * HZ;
 	sbi->s_min_batch_time = EXT4_DEF_MIN_BATCH_TIME;
 	sbi->s_max_batch_time = EXT4_DEF_MAX_BATCH_TIME;
-	sbi->s_mb_history_max = default_mb_history_length;
 
 	set_opt(sbi->s_mount_opt, BARRIER);
 

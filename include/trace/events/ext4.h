@@ -743,6 +743,169 @@ TRACE_EVENT(ext4_alloc_da_blocks,
 		  __entry->data_blocks, __entry->meta_blocks)
 );
 
+TRACE_EVENT(ext4_mballoc_alloc,
+	TP_PROTO(struct ext4_allocation_context *ac),
+
+	TP_ARGS(ac),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	__u16,	found			)
+		__field(	__u16,	groups			)
+		__field(	__u16,	buddy			)
+		__field(	__u16,	flags			)
+		__field(	__u16,	tail			)
+		__field(	__u8,	cr			)
+		__field(	__u32, 	orig_logical		)
+		__field(	  int,	orig_start		)
+		__field(	__u32, 	orig_group		)
+		__field(	  int,	orig_len		)
+		__field(	__u32, 	goal_logical		)
+		__field(	  int,	goal_start		)
+		__field(	__u32, 	goal_group		)
+		__field(	  int,	goal_len		)
+		__field(	__u32, 	result_logical		)
+		__field(	  int,	result_start		)
+		__field(	__u32, 	result_group		)
+		__field(	  int,	result_len		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= ac->ac_inode->i_sb->s_dev;
+		__entry->ino		= ac->ac_inode->i_ino;
+		__entry->found		= ac->ac_found;
+		__entry->flags		= ac->ac_flags;
+		__entry->groups		= ac->ac_groups_scanned;
+		__entry->buddy		= ac->ac_buddy;
+		__entry->tail		= ac->ac_tail;
+		__entry->cr		= ac->ac_criteria;
+		__entry->orig_logical	= ac->ac_o_ex.fe_logical;
+		__entry->orig_start	= ac->ac_o_ex.fe_start;
+		__entry->orig_group	= ac->ac_o_ex.fe_group;
+		__entry->orig_len	= ac->ac_o_ex.fe_len;
+		__entry->goal_logical	= ac->ac_g_ex.fe_logical;
+		__entry->goal_start	= ac->ac_g_ex.fe_start;
+		__entry->goal_group	= ac->ac_g_ex.fe_group;
+		__entry->goal_len	= ac->ac_g_ex.fe_len;
+		__entry->result_logical	= ac->ac_f_ex.fe_logical;
+		__entry->result_start	= ac->ac_f_ex.fe_start;
+		__entry->result_group	= ac->ac_f_ex.fe_group;
+		__entry->result_len	= ac->ac_f_ex.fe_len;
+	),
+
+	TP_printk("dev %s inode %lu orig %u/%d/%u@%u goal %u/%d/%u@%u "
+		  "result %u/%d/%u@%u blks %u grps %u cr %u flags 0x%04x "
+		  "tail %u broken %u",
+		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
+		  __entry->orig_group, __entry->orig_start,
+		  __entry->orig_len, __entry->orig_logical,
+		  __entry->goal_group, __entry->goal_start,
+		  __entry->goal_len, __entry->goal_logical,
+		  __entry->result_group, __entry->result_start,
+		  __entry->result_len, __entry->result_logical,
+		  __entry->found, __entry->groups, __entry->cr,
+		  __entry->flags, __entry->tail,
+		  __entry->buddy ? 1 << __entry->buddy : 0)
+);
+
+TRACE_EVENT(ext4_mballoc_prealloc,
+	TP_PROTO(struct ext4_allocation_context *ac),
+
+	TP_ARGS(ac),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	__u32, 	orig_logical		)
+		__field(	  int,	orig_start		)
+		__field(	__u32, 	orig_group		)
+		__field(	  int,	orig_len		)
+		__field(	__u32, 	result_logical		)
+		__field(	  int,	result_start		)
+		__field(	__u32, 	result_group		)
+		__field(	  int,	result_len		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= ac->ac_inode->i_sb->s_dev;
+		__entry->ino		= ac->ac_inode->i_ino;
+		__entry->orig_logical	= ac->ac_o_ex.fe_logical;
+		__entry->orig_start	= ac->ac_o_ex.fe_start;
+		__entry->orig_group	= ac->ac_o_ex.fe_group;
+		__entry->orig_len	= ac->ac_o_ex.fe_len;
+		__entry->result_logical	= ac->ac_b_ex.fe_logical;
+		__entry->result_start	= ac->ac_b_ex.fe_start;
+		__entry->result_group	= ac->ac_b_ex.fe_group;
+		__entry->result_len	= ac->ac_b_ex.fe_len;
+	),
+
+	TP_printk("dev %s inode %lu orig %u/%d/%u@%u result %u/%d/%u@%u",
+		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
+		  __entry->orig_group, __entry->orig_start,
+		  __entry->orig_len, __entry->orig_logical,
+		  __entry->result_group, __entry->result_start,
+		  __entry->result_len, __entry->result_logical)
+);
+
+TRACE_EVENT(ext4_mballoc_discard,
+	TP_PROTO(struct ext4_allocation_context *ac),
+
+	TP_ARGS(ac),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	__u32, 	result_logical		)
+		__field(	  int,	result_start		)
+		__field(	__u32, 	result_group		)
+		__field(	  int,	result_len		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= ac->ac_inode->i_sb->s_dev;
+		__entry->ino		= ac->ac_inode->i_ino;
+		__entry->result_logical	= ac->ac_b_ex.fe_logical;
+		__entry->result_start	= ac->ac_b_ex.fe_start;
+		__entry->result_group	= ac->ac_b_ex.fe_group;
+		__entry->result_len	= ac->ac_b_ex.fe_len;
+	),
+
+	TP_printk("dev %s inode %lu extent %u/%d/%u@%u ",
+		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
+		  __entry->result_group, __entry->result_start,
+		  __entry->result_len, __entry->result_logical)
+);
+
+TRACE_EVENT(ext4_mballoc_free,
+	TP_PROTO(struct ext4_allocation_context *ac),
+
+	TP_ARGS(ac),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	__u32, 	result_logical		)
+		__field(	  int,	result_start		)
+		__field(	__u32, 	result_group		)
+		__field(	  int,	result_len		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= ac->ac_inode->i_sb->s_dev;
+		__entry->ino		= ac->ac_inode->i_ino;
+		__entry->result_logical	= ac->ac_b_ex.fe_logical;
+		__entry->result_start	= ac->ac_b_ex.fe_start;
+		__entry->result_group	= ac->ac_b_ex.fe_group;
+		__entry->result_len	= ac->ac_b_ex.fe_len;
+	),
+
+	TP_printk("dev %s inode %lu extent %u/%d/%u@%u ",
+		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
+		  __entry->result_group, __entry->result_start,
+		  __entry->result_len, __entry->result_logical)
+);
+
 #endif /* _TRACE_EXT4_H */
 
 /* This part must be outside protection */
