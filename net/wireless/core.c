@@ -21,6 +21,7 @@
 #include "sysfs.h"
 #include "debugfs.h"
 #include "wext-compat.h"
+#include "ethtool.h"
 
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
@@ -690,6 +691,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 				wdev->wext.ps = false;
 			}
 #endif
+		if (!dev->ethtool_ops)
+			dev->ethtool_ops = &cfg80211_ethtool_ops;
 		break;
 	case NETDEV_GOING_DOWN:
 		switch (wdev->iftype) {
