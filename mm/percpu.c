@@ -1043,7 +1043,9 @@ static struct pcpu_chunk *alloc_pcpu_chunk(void)
  */
 static void *pcpu_alloc(size_t size, size_t align, bool reserved)
 {
+	static int warn_limit = 10;
 	struct pcpu_chunk *chunk;
+	const char *err;
 	int slot, off;
 
 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
@@ -1059,11 +1061,14 @@ static void *pcpu_alloc(size_t size, size_t align, bool reserved)
 	if (reserved && pcpu_reserved_chunk) {
 		chunk = pcpu_reserved_chunk;
 		if (size > chunk->contig_hint ||
-		    pcpu_extend_area_map(chunk) < 0)
+		    pcpu_extend_area_map(chunk) < 0) {
+			err = "failed to extend area map of reserved chunk";
 			goto fail_unlock;
+		}
 		off = pcpu_alloc_area(chunk, size, align);
 		if (off >= 0)
 			goto area_found;
+		err = "alloc from reserved chunk failed";
 		goto fail_unlock;
 	}
 
@@ -1080,6 +1085,7 @@ restart:
 			case 1:
 				goto restart;	/* pcpu_lock dropped, restart */
 			default:
+				err = "failed to extend area map";
 				goto fail_unlock;
 			}
 
@@ -1093,8 +1099,10 @@ restart:
 	spin_unlock_irq(&pcpu_lock);
 
 	chunk = alloc_pcpu_chunk();
-	if (!chunk)
+	if (!chunk) {
+		err = "failed to allocate new chunk";
 		goto fail_unlock_mutex;
+	}
 
 	spin_lock_irq(&pcpu_lock);
 	pcpu_chunk_relocate(chunk, -1);
@@ -1107,6 +1115,7 @@ area_found:
 	if (pcpu_populate_chunk(chunk, off, size)) {
 		spin_lock_irq(&pcpu_lock);
 		pcpu_free_area(chunk, off);
+		err = "failed to populate";
 		goto fail_unlock;
 	}
 
@@ -1119,6 +1128,13 @@ fail_unlock:
 	spin_unlock_irq(&pcpu_lock);
 fail_unlock_mutex:
 	mutex_unlock(&pcpu_alloc_mutex);
+	if (warn_limit) {
+		pr_warning("PERCPU: allocation failed, size=%zu align=%zu, "
+			   "%s\n", size, align, err);
+		dump_stack();
+		if (!--warn_limit)
+			pr_info("PERCPU: limit reached, disable warning\n");
+	}
 	return NULL;
 }
 
@@ -1347,6 +1363,10 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 	struct pcpu_alloc_info *ai;
 	unsigned int *cpu_map;
 
+	/* this function may be called multiple times */
+	memset(group_map, 0, sizeof(group_map));
+	memset(group_cnt, 0, sizeof(group_map));
+
 	/*
 	 * Determine min_unit_size, alloc_size and max_upa such that
 	 * alloc_size is multiple of atom_size and is the smallest
@@ -1574,6 +1594,7 @@ static void pcpu_dump_alloc_info(const char *lvl,
 int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 				  void *base_addr)
 {
+	static char cpus_buf[4096] __initdata;
 	static int smap[2], dmap[2];
 	size_t dyn_size = ai->dyn_size;
 	size_t size_sum = ai->static_size + ai->reserved_size + dyn_size;
@@ -1585,17 +1606,26 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	int *unit_map;
 	int group, unit, i;
 
+	cpumask_scnprintf(cpus_buf, sizeof(cpus_buf), cpu_possible_mask);
+
+#define PCPU_SETUP_BUG_ON(cond)	do {					\
+	if (unlikely(cond)) {						\
+		pr_emerg("PERCPU: failed to initialize, %s", #cond);	\
+		pr_emerg("PERCPU: cpu_possible_mask=%s\n", cpus_buf);	\
+		pcpu_dump_alloc_info(KERN_EMERG, ai);			\
+		BUG();							\
+	}								\
+} while (0)
+
 	/* sanity checks */
 	BUILD_BUG_ON(ARRAY_SIZE(smap) >= PCPU_DFL_MAP_ALLOC ||
 		     ARRAY_SIZE(dmap) >= PCPU_DFL_MAP_ALLOC);
-	BUG_ON(ai->nr_groups <= 0);
-	BUG_ON(!ai->static_size);
-	BUG_ON(!base_addr);
-	BUG_ON(ai->unit_size < size_sum);
-	BUG_ON(ai->unit_size & ~PAGE_MASK);
-	BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
-
-	pcpu_dump_alloc_info(KERN_DEBUG, ai);
+	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
+	PCPU_SETUP_BUG_ON(!ai->static_size);
+	PCPU_SETUP_BUG_ON(!base_addr);
+	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
+	PCPU_SETUP_BUG_ON(ai->unit_size & ~PAGE_MASK);
+	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
 
 	/* process group information and build config tables accordingly */
 	group_offsets = alloc_bootmem(ai->nr_groups * sizeof(group_offsets[0]));
@@ -1604,7 +1634,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	unit_off = alloc_bootmem(nr_cpu_ids * sizeof(unit_off[0]));
 
 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
-		unit_map[cpu] = NR_CPUS;
+		unit_map[cpu] = UINT_MAX;
 	pcpu_first_unit_cpu = NR_CPUS;
 
 	for (group = 0, unit = 0; group < ai->nr_groups; group++, unit += i) {
@@ -1618,8 +1648,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 			if (cpu == NR_CPUS)
 				continue;
 
-			BUG_ON(cpu > nr_cpu_ids || !cpu_possible(cpu));
-			BUG_ON(unit_map[cpu] != NR_CPUS);
+			PCPU_SETUP_BUG_ON(cpu > nr_cpu_ids);
+			PCPU_SETUP_BUG_ON(!cpu_possible(cpu));
+			PCPU_SETUP_BUG_ON(unit_map[cpu] != UINT_MAX);
 
 			unit_map[cpu] = unit + i;
 			unit_off[cpu] = gi->base_offset + i * ai->unit_size;
@@ -1632,7 +1663,11 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_nr_units = unit;
 
 	for_each_possible_cpu(cpu)
-		BUG_ON(unit_map[cpu] == NR_CPUS);
+		PCPU_SETUP_BUG_ON(unit_map[cpu] == UINT_MAX);
+
+	/* we're done parsing the input, undefine BUG macro and dump config */
+#undef PCPU_SETUP_BUG_ON
+	pcpu_dump_alloc_info(KERN_INFO, ai);
 
 	pcpu_nr_groups = ai->nr_groups;
 	pcpu_group_offsets = group_offsets;
@@ -1782,7 +1817,7 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
 	void *base = (void *)ULONG_MAX;
 	void **areas = NULL;
 	struct pcpu_alloc_info *ai;
-	size_t size_sum, areas_size;
+	size_t size_sum, areas_size, max_distance;
 	int group, i, rc;
 
 	ai = pcpu_build_alloc_info(reserved_size, dyn_size, atom_size,
@@ -1832,8 +1867,24 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
 	}
 
 	/* base address is now known, determine group base offsets */
-	for (group = 0; group < ai->nr_groups; group++)
+	max_distance = 0;
+	for (group = 0; group < ai->nr_groups; group++) {
 		ai->groups[group].base_offset = areas[group] - base;
+		max_distance = max(max_distance, ai->groups[group].base_offset);
+	}
+	max_distance += ai->unit_size;
+
+	/* warn if maximum distance is further than 75% of vmalloc space */
+	if (max_distance > (VMALLOC_END - VMALLOC_START) * 3 / 4) {
+		pr_warning("PERCPU: max_distance=0x%lx too large for vmalloc "
+			   "space 0x%lx\n",
+			   max_distance, VMALLOC_END - VMALLOC_START);
+#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
+		/* and fail if we have fallback */
+		rc = -EINVAL;
+		goto out_free;
+#endif
+	}
 
 	pr_info("PERCPU: Embedded %zu pages/cpu @%p s%zu r%zu d%zu u%zu\n",
 		PFN_DOWN(size_sum), base, ai->static_size, ai->reserved_size,
