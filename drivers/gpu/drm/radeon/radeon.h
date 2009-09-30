@@ -1064,6 +1064,8 @@ extern void rs400_gart_fini(struct radeon_device *rdev);
 
 /* rs600 */
 extern void rs600_set_safe_registers(struct radeon_device *rdev);
+extern int rs600_irq_set(struct radeon_device *rdev);
+extern void rs600_irq_disable(struct radeon_device *rdev);
 
 /* rs690, rs740 */
 extern void rs690_line_buffer_adjust(struct radeon_device *rdev,

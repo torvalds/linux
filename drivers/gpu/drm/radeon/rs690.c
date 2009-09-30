@@ -606,7 +606,7 @@ static int rs690_startup(struct radeon_device *rdev)
 		return r;
 	/* Enable IRQ */
 	rdev->irq.sw_int = true;
-	r100_irq_set(rdev);
+	rs600_irq_set(rdev);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
@@ -647,7 +647,7 @@ int rs690_suspend(struct radeon_device *rdev)
 {
 	r100_cp_disable(rdev);
 	r100_wb_disable(rdev);
-	r100_irq_disable(rdev);
+	rs600_irq_disable(rdev);
 	rs400_gart_disable(rdev);
 	return 0;
 }

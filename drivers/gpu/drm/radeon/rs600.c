@@ -229,6 +229,17 @@ static inline uint32_t rs600_irq_ack(struct radeon_device *rdev, u32 *r500_disp_
 	return irqs & irq_mask;
 }
 
+void rs600_irq_disable(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	WREG32(R_000040_GEN_INT_CNTL, 0);
+	WREG32(R_006540_DxMODE_INT_MASK, 0);
+	/* Wait and acknowledge irq */
+	mdelay(1);
+	rs600_irq_ack(rdev, &tmp);
+}
+
 int rs600_irq_process(struct radeon_device *rdev)
 {
 	uint32_t status;
@@ -403,7 +414,7 @@ int rs600_suspend(struct radeon_device *rdev)
 {
 	r100_cp_disable(rdev);
 	r100_wb_disable(rdev);
-	r100_irq_disable(rdev);
+	rs600_irq_disable(rdev);
 	rs600_gart_disable(rdev);
 	return 0;
 }
