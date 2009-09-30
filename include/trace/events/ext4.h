@@ -11,6 +11,7 @@ struct ext4_allocation_context;
 struct ext4_allocation_request;
 struct ext4_prealloc_space;
 struct ext4_inode_info;
+struct mpage_da_data;
 
 #define EXT4_I(inode) (container_of(inode, struct ext4_inode_info, vfs_inode))
 
