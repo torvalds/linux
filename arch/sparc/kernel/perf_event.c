@@ -56,7 +56,8 @@ struct cpu_hw_events {
 	struct perf_event	*events[MAX_HWEVENTS];
 	unsigned long		used_mask[BITS_TO_LONGS(MAX_HWEVENTS)];
 	unsigned long		active_mask[BITS_TO_LONGS(MAX_HWEVENTS)];
-	int enabled;
+	u64			pcr;
+	int			enabled;
 };
 DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = { .enabled = 1, };
 
@@ -464,21 +465,30 @@ static u64 nop_for_index(int idx)
 			      sparc_pmu->lower_nop, idx);
 }
 
-static inline void sparc_pmu_enable_event(struct hw_perf_event *hwc, int idx)
+static inline void sparc_pmu_enable_event(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc, int idx)
 {
 	u64 val, mask = mask_for_index(idx);
 
-	val = pcr_ops->read();
-	pcr_ops->write((val & ~mask) | hwc->config);
+	val = cpuc->pcr;
+	val &= ~mask;
+	val |= hwc->config;
+	cpuc->pcr = val;
+
+	pcr_ops->write(cpuc->pcr);
 }
 
-static inline void sparc_pmu_disable_event(struct hw_perf_event *hwc, int idx)
+static inline void sparc_pmu_disable_event(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc, int idx)
 {
 	u64 mask = mask_for_index(idx);
 	u64 nop = nop_for_index(idx);
-	u64 val = pcr_ops->read();
+	u64 val;
 
-	pcr_ops->write((val & ~mask) | nop);
+	val = cpuc->pcr;
+	val &= ~mask;
+	val |= nop;
+	cpuc->pcr = val;
+
+	pcr_ops->write(cpuc->pcr);
 }
 
 void hw_perf_enable(void)
@@ -493,7 +503,7 @@ void hw_perf_enable(void)
 	cpuc->enabled = 1;
 	barrier();
 
-	val = pcr_ops->read();
+	val = cpuc->pcr;
 
 	for (i = 0; i < MAX_HWEVENTS; i++) {
 		struct perf_event *cp = cpuc->events[i];
@@ -505,7 +515,9 @@ void hw_perf_enable(void)
 		val |= hwc->config_base;
 	}
 
-	pcr_ops->write(val);
+	cpuc->pcr = val;
+
+	pcr_ops->write(cpuc->pcr);
 }
 
 void hw_perf_disable(void)
@@ -518,10 +530,12 @@ void hw_perf_disable(void)
 
 	cpuc->enabled = 0;
 
-	val = pcr_ops->read();
+	val = cpuc->pcr;
 	val &= ~(PCR_UTRACE | PCR_STRACE |
 		 sparc_pmu->hv_bit | sparc_pmu->irq_bit);
-	pcr_ops->write(val);
+	cpuc->pcr = val;
+
+	pcr_ops->write(cpuc->pcr);
 }
 
 static u32 read_pmc(int idx)
@@ -593,13 +607,13 @@ static int sparc_pmu_enable(struct perf_event *event)
 	if (test_and_set_bit(idx, cpuc->used_mask))
 		return -EAGAIN;
 
-	sparc_pmu_disable_event(hwc, idx);
+	sparc_pmu_disable_event(cpuc, hwc, idx);
 
 	cpuc->events[idx] = event;
 	set_bit(idx, cpuc->active_mask);
 
 	sparc_perf_event_set_period(event, hwc, idx);
-	sparc_pmu_enable_event(hwc, idx);
+	sparc_pmu_enable_event(cpuc, hwc, idx);
 	perf_event_update_userpage(event);
 	return 0;
 }
@@ -635,7 +649,7 @@ static void sparc_pmu_disable(struct perf_event *event)
 	int idx = hwc->idx;
 
 	clear_bit(idx, cpuc->active_mask);
-	sparc_pmu_disable_event(hwc, idx);
+	sparc_pmu_disable_event(cpuc, hwc, idx);
 
 	barrier();
 
@@ -649,17 +663,28 @@ static void sparc_pmu_disable(struct perf_event *event)
 static void sparc_pmu_read(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
+
 	sparc_perf_event_update(event, hwc, hwc->idx);
 }
 
 static void sparc_pmu_unthrottle(struct perf_event *event)
 {
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
-	sparc_pmu_enable_event(hwc, hwc->idx);
+
+	sparc_pmu_enable_event(cpuc, hwc, hwc->idx);
 }
 
 static atomic_t active_events = ATOMIC_INIT(0);
 static DEFINE_MUTEX(pmc_grab_mutex);
+
+static void perf_stop_nmi_watchdog(void *unused)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+
+	stop_nmi_watchdog(NULL);
+	cpuc->pcr = pcr_ops->read();
+}
 
 void perf_event_grab_pmc(void)
 {
@@ -669,7 +694,7 @@ void perf_event_grab_pmc(void)
 	mutex_lock(&pmc_grab_mutex);
 	if (atomic_read(&active_events) == 0) {
 		if (atomic_read(&nmi_active) > 0) {
-			on_each_cpu(stop_nmi_watchdog, NULL, 1);
+			on_each_cpu(perf_stop_nmi_watchdog, NULL, 1);
 			BUG_ON(atomic_read(&nmi_active) != 0);
 		}
 		atomic_inc(&active_events);
@@ -978,7 +1003,7 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 			continue;
 
 		if (perf_event_overflow(event, 1, &data, regs))
-			sparc_pmu_disable_event(hwc, idx);
+			sparc_pmu_disable_event(cpuc, hwc, idx);
 	}
 
 	return NOTIFY_STOP;
