@@ -12660,7 +12660,7 @@ static struct alc_config_preset alc268_presets[] = {
 		.init_hook = alc268_toshiba_automute,
 	},
 	[ALC268_ACER] = {
-		.mixers = { alc268_acer_mixer, alc268_capture_nosrc_mixer,
+		.mixers = { alc268_acer_mixer, alc268_capture_alt_mixer,
 			    alc268_beep_mixer },
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_acer_verbs },
