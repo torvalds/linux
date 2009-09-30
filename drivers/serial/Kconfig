@@ -1458,4 +1458,23 @@ config SERIAL_TIMBERDALE
 	---help---
 	Add support for UART controller on timberdale.
 
+config SERIAL_BCM63XX
+	tristate "bcm63xx serial port support"
+	select SERIAL_CORE
+	depends on BCM63XX
+	help
+	  If you have a bcm63xx CPU, you can enable its onboard
+	  serial port by enabling this options.
+
+          To compile this driver as a module, choose M here: the
+          module will be called bcm963xx_uart.
+
+config SERIAL_BCM63XX_CONSOLE
+	bool "Console on bcm63xx serial port"
+	depends on SERIAL_BCM63XX=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the serial port on the bcm63xx CPU
+	  you can make it the console by answering Y to this option.
+
 endmenu

@@ -32,6 +32,11 @@ static void mips_sc_wback_inv(unsigned long addr, unsigned long size)
  */
 static void mips_sc_inv(unsigned long addr, unsigned long size)
 {
+	unsigned long lsize = cpu_scache_line_size();
+	unsigned long almask = ~(lsize - 1);
+
+	cache_op(Hit_Writeback_Inv_SD, addr & almask);
+	cache_op(Hit_Writeback_Inv_SD, (addr + size - 1) & almask);
 	blast_inv_scache_range(addr, addr + size);
 }
 

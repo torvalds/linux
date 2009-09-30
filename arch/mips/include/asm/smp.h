@@ -77,7 +77,18 @@ extern void play_dead(void);
 
 extern asmlinkage void smp_call_function_interrupt(void);
 
-extern void arch_send_call_function_single_ipi(int cpu);
-extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+static inline void arch_send_call_function_single_ipi(int cpu)
+{
+	extern struct plat_smp_ops *mp_ops;     /* private */
+
+	mp_ops->send_ipi_mask(&cpumask_of_cpu(cpu), SMP_CALL_FUNCTION);
+}
+
+static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)
+{
+	extern struct plat_smp_ops *mp_ops;     /* private */
+
+	mp_ops->send_ipi_mask(mask, SMP_CALL_FUNCTION);
+}
 
 #endif /* __ASM_SMP_H */

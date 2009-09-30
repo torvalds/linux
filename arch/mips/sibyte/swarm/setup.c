@@ -106,7 +106,7 @@ void read_persistent_clock(struct timespec *ts)
 		break;
 	}
 	ts->tv_sec = sec;
-	tv->tv_nsec = 0;
+	ts->tv_nsec = 0;
 }
 
 int rtc_mips_set_time(unsigned long sec)
