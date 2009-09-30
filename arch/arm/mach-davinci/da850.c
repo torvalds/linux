@@ -422,6 +422,14 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, MII_RXD_0,	3,	28,	15,	8,	false)
 	MUX_CFG(DA850, MDIO_CLK,	4,	0,	15,	8,	false)
 	MUX_CFG(DA850, MDIO_D,		4,	4,	15,	8,	false)
+	MUX_CFG(DA850, RMII_TXD_0,	14,	12,	15,	8,	false)
+	MUX_CFG(DA850, RMII_TXD_1,	14,	8,	15,	8,	false)
+	MUX_CFG(DA850, RMII_TXEN,	14,	16,	15,	8,	false)
+	MUX_CFG(DA850, RMII_CRS_DV,	15,	4,	15,	8,	false)
+	MUX_CFG(DA850, RMII_RXD_0,	14,	24,	15,	8,	false)
+	MUX_CFG(DA850, RMII_RXD_1,	14,	20,	15,	8,	false)
+	MUX_CFG(DA850, RMII_RXER,	14,	28,	15,	8,	false)
+	MUX_CFG(DA850, RMII_MHZ_50_CLK,	15,	0,	15,	0,	false)
 	/* McASP function */
 	MUX_CFG(DA850,	ACLKR,		0,	0,	15,	1,	false)
 	MUX_CFG(DA850,	ACLKX,		0,	4,	15,	1,	false)
@@ -524,6 +532,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, EMA_WAIT_1,	6,	24,	15,	1,	false)
 	MUX_CFG(DA850, NEMA_CS_2,	7,	0,	15,	1,	false)
 	/* GPIO function */
+	MUX_CFG(DA850, GPIO2_6,		6,	4,	15,	8,	false)
 	MUX_CFG(DA850, GPIO2_8,		5,	28,	15,	8,	false)
 	MUX_CFG(DA850, GPIO2_15,	5,	0,	15,	8,	false)
 	MUX_CFG(DA850, GPIO4_0,		10,	28,	15,	8,	false)
@@ -561,6 +570,14 @@ const short da850_cpgmac_pins[] __initdata = {
 	DA850_MII_TXD_2, DA850_MII_TXD_1, DA850_MII_TXD_0, DA850_MII_RXER,
 	DA850_MII_CRS, DA850_MII_RXCLK, DA850_MII_RXDV, DA850_MII_RXD_3,
 	DA850_MII_RXD_2, DA850_MII_RXD_1, DA850_MII_RXD_0, DA850_MDIO_CLK,
+	DA850_MDIO_D,
+	-1
+};
+
+const short da850_rmii_pins[] __initdata = {
+	DA850_RMII_TXD_0, DA850_RMII_TXD_1, DA850_RMII_TXEN,
+	DA850_RMII_CRS_DV, DA850_RMII_RXD_0, DA850_RMII_RXD_1,
+	DA850_RMII_RXER, DA850_RMII_MHZ_50_CLK, DA850_MDIO_CLK,
 	DA850_MDIO_D,
 	-1
 };

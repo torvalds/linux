@@ -45,6 +45,8 @@
 #define DA850_MMCSD_CD_PIN		GPIO_TO_PIN(4, 0)
 #define DA850_MMCSD_WP_PIN		GPIO_TO_PIN(4, 1)
 
+#define DA850_MII_MDIO_CLKEN_PIN	GPIO_TO_PIN(2, 6)
+
 static struct mtd_partition da850_evm_norflash_partition[] = {
 	{
 		.name           = "NOR filesystem",
@@ -152,6 +154,7 @@ static void da850_evm_setup_nor_nand(void);
 static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 						unsigned ngpio, void *c)
 {
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int sel_a, sel_b, sel_c, ret;
 
 	sel_a = gpio + 7;
@@ -185,6 +188,10 @@ static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 	pr_info("DA850/OMAP-L138 EVM UI card detected\n");
 
 	da850_evm_setup_nor_nand();
+
+	if (soc_info->emac_pdata->rmii_en)
+		/* enable RMII */
+		gpio_set_value(sel_a, 0);
 
 	return 0;
 
@@ -509,6 +516,58 @@ static const short da850_evm_lcdc_pins[] = {
 	-1
 };
 
+static int __init da850_evm_config_emac(u8 rmii_en)
+{
+	void __iomem *cfg_chip3_base;
+	int ret;
+	u32 val;
+
+	cfg_chip3_base = DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP3_REG);
+
+	/* configure the CFGCHIP3 register for RMII or MII */
+	val = __raw_readl(cfg_chip3_base);
+	if (rmii_en)
+		val |= BIT(8);
+	else
+		val &= ~BIT(8);
+
+	__raw_writel(val, cfg_chip3_base);
+
+	if (!rmii_en)
+		ret = da8xx_pinmux_setup(da850_cpgmac_pins);
+	else
+		ret = da8xx_pinmux_setup(da850_rmii_pins);
+	if (ret)
+		pr_warning("da850_evm_init: cpgmac/rmii mux setup failed: %d\n",
+				ret);
+
+	ret = davinci_cfg_reg(DA850_GPIO2_6);
+	if (ret)
+		pr_warning("da850_evm_init:GPIO(2,6) mux setup "
+							"failed\n");
+
+	ret = gpio_request(DA850_MII_MDIO_CLKEN_PIN, "mdio_clk_en");
+	if (ret) {
+		pr_warning("Cannot open GPIO %d\n",
+					DA850_MII_MDIO_CLKEN_PIN);
+		return ret;
+	}
+
+	if (rmii_en) {
+		/* Disable MII MDIO clock */
+		gpio_direction_output(DA850_MII_MDIO_CLKEN_PIN, 1);
+		pr_info("EMAC: RMII PHY configured, MII PHY will not be"
+							" functional\n");
+	} else {
+		/* Enable MII MDIO clock */
+		gpio_direction_output(DA850_MII_MDIO_CLKEN_PIN, 0);
+		pr_info("EMAC: MII PHY configured, RMII PHY will not be"
+							" functional\n");
+	}
+
+	return 0;
+}
+
 static __init void da850_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
@@ -536,12 +595,15 @@ static __init void da850_evm_init(void)
 
 	soc_info->emac_pdata->phy_mask = DA850_EVM_PHY_MASK;
 	soc_info->emac_pdata->mdio_max_freq = DA850_EVM_MDIO_FREQUENCY;
+#ifdef CONFIG_DA850_UI_RMII
+	soc_info->emac_pdata->rmii_en = 1;
+#else
 	soc_info->emac_pdata->rmii_en = 0;
+#endif
 
-	ret = da8xx_pinmux_setup(da850_cpgmac_pins);
+	ret = da850_evm_config_emac(soc_info->emac_pdata->rmii_en);
 	if (ret)
-		pr_warning("da850_evm_init: cpgmac mux setup failed: %d\n",
-				ret);
+		pr_warning("da850_evm_init: emac setup failed: %d\n", ret);
 
 	ret = da8xx_register_emac();
 	if (ret)
