@@ -1531,22 +1531,92 @@ static int uvc_scan_device(struct uvc_device *dev)
  */
 
 /*
+ * Delete the UVC device.
+ *
+ * Called by the kernel when the last reference to the uvc_device structure
+ * is released.
+ *
+ * As this function is called after or during disconnect(), all URBs have
+ * already been canceled by the USB core. There is no need to kill the
+ * interrupt URB manually.
+ */
+static void uvc_delete(struct uvc_device *dev)
+{
+	struct list_head *p, *n;
+
+	usb_put_intf(dev->intf);
+	usb_put_dev(dev->udev);
+
+	uvc_status_cleanup(dev);
+	uvc_ctrl_cleanup_device(dev);
+
+	list_for_each_safe(p, n, &dev->chains) {
+		struct uvc_video_chain *chain;
+		chain = list_entry(p, struct uvc_video_chain, list);
+		kfree(chain);
+	}
+
+	list_for_each_safe(p, n, &dev->entities) {
+		struct uvc_entity *entity;
+		entity = list_entry(p, struct uvc_entity, list);
+		kfree(entity);
+	}
+
+	list_for_each_safe(p, n, &dev->streams) {
+		struct uvc_streaming *streaming;
+		streaming = list_entry(p, struct uvc_streaming, list);
+		usb_driver_release_interface(&uvc_driver.driver,
+			streaming->intf);
+		usb_put_intf(streaming->intf);
+		kfree(streaming->format);
+		kfree(streaming->header.bmaControls);
+		kfree(streaming);
+	}
+
+	kfree(dev);
+}
+
+static void uvc_release(struct video_device *vdev)
+{
+	struct uvc_streaming *stream = video_get_drvdata(vdev);
+	struct uvc_device *dev = stream->dev;
+
+	video_device_release(vdev);
+
+	/* Decrement the registered streams count and delete the device when it
+	 * reaches zero.
+	 */
+	if (atomic_dec_and_test(&dev->nstreams))
+		uvc_delete(dev);
+}
+
+/*
  * Unregister the video devices.
  */
 static void uvc_unregister_video(struct uvc_device *dev)
 {
 	struct uvc_streaming *stream;
 
+	/* Unregistering all video devices might result in uvc_delete() being
+	 * called from inside the loop if there's no open file handle. To avoid
+	 * that, increment the stream count before iterating over the streams
+	 * and decrement it when done.
+	 */
+	atomic_inc(&dev->nstreams);
+
 	list_for_each_entry(stream, &dev->streams, list) {
 		if (stream->vdev == NULL)
 			continue;
 
-		if (stream->vdev->minor == -1)
-			video_device_release(stream->vdev);
-		else
-			video_unregister_device(stream->vdev);
+		video_unregister_device(stream->vdev);
 		stream->vdev = NULL;
 	}
+
+	/* Decrement the stream count and call uvc_delete explicitly if there
+	 * are no stream left.
+	 */
+	if (atomic_dec_and_test(&dev->nstreams))
+		uvc_delete(dev);
 }
 
 static int uvc_register_video(struct uvc_device *dev,
@@ -1580,7 +1650,7 @@ static int uvc_register_video(struct uvc_device *dev,
 	vdev->parent = &dev->intf->dev;
 	vdev->minor = -1;
 	vdev->fops = &uvc_fops;
-	vdev->release = video_device_release;
+	vdev->release = uvc_release;
 	strlcpy(vdev->name, dev->name, sizeof vdev->name);
 
 	/* Set the driver data before calling video_register_device, otherwise
@@ -1598,6 +1668,7 @@ static int uvc_register_video(struct uvc_device *dev,
 		return ret;
 	}
 
+	atomic_inc(&dev->nstreams);
 	return 0;
 }
 
@@ -1653,61 +1724,6 @@ static int uvc_register_chains(struct uvc_device *dev)
  * USB probe, disconnect, suspend and resume
  */
 
-/*
- * Delete the UVC device.
- *
- * Called by the kernel when the last reference to the uvc_device structure
- * is released.
- *
- * Unregistering the video devices is done here because every opened instance
- * must be closed before the device can be unregistered. An alternative would
- * have been to use another reference count for uvc_v4l2_open/uvc_release, and
- * unregister the video devices on disconnect when that reference count drops
- * to zero.
- *
- * As this function is called after or during disconnect(), all URBs have
- * already been canceled by the USB core. There is no need to kill the
- * interrupt URB manually.
- */
-void uvc_delete(struct kref *kref)
-{
-	struct uvc_device *dev = container_of(kref, struct uvc_device, kref);
-	struct list_head *p, *n;
-
-	/* Unregister the video devices. */
-	uvc_unregister_video(dev);
-	usb_put_intf(dev->intf);
-	usb_put_dev(dev->udev);
-
-	uvc_status_cleanup(dev);
-	uvc_ctrl_cleanup_device(dev);
-
-	list_for_each_safe(p, n, &dev->chains) {
-		struct uvc_video_chain *chain;
-		chain = list_entry(p, struct uvc_video_chain, list);
-		kfree(chain);
-	}
-
-	list_for_each_safe(p, n, &dev->entities) {
-		struct uvc_entity *entity;
-		entity = list_entry(p, struct uvc_entity, list);
-		kfree(entity);
-	}
-
-	list_for_each_safe(p, n, &dev->streams) {
-		struct uvc_streaming *streaming;
-		streaming = list_entry(p, struct uvc_streaming, list);
-		usb_driver_release_interface(&uvc_driver.driver,
-			streaming->intf);
-		usb_put_intf(streaming->intf);
-		kfree(streaming->format);
-		kfree(streaming->header.bmaControls);
-		kfree(streaming);
-	}
-
-	kfree(dev);
-}
-
 static int uvc_probe(struct usb_interface *intf,
 		     const struct usb_device_id *id)
 {
@@ -1730,7 +1746,7 @@ static int uvc_probe(struct usb_interface *intf,
 	INIT_LIST_HEAD(&dev->entities);
 	INIT_LIST_HEAD(&dev->chains);
 	INIT_LIST_HEAD(&dev->streams);
-	kref_init(&dev->kref);
+	atomic_set(&dev->nstreams, 0);
 	atomic_set(&dev->users, 0);
 
 	dev->udev = usb_get_dev(udev);
@@ -1792,7 +1808,7 @@ static int uvc_probe(struct usb_interface *intf,
 	return 0;
 
 error:
-	kref_put(&dev->kref, uvc_delete);
+	uvc_unregister_video(dev);
 	return -ENODEV;
 }
 
@@ -1809,21 +1825,9 @@ static void uvc_disconnect(struct usb_interface *intf)
 	    UVC_SC_VIDEOSTREAMING)
 		return;
 
-	/* uvc_v4l2_open() might race uvc_disconnect(). A static driver-wide
-	 * lock is needed to prevent uvc_disconnect from releasing its
-	 * reference to the uvc_device instance after uvc_v4l2_open() received
-	 * the pointer to the device (video_devdata) but before it got the
-	 * chance to increase the reference count (kref_get).
-	 *
-	 * Note that the reference can't be released with the lock held,
-	 * otherwise a AB-BA deadlock can occur with videodev_lock that
-	 * videodev acquires in videodev_open() and video_unregister_device().
-	 */
-	mutex_lock(&uvc_driver.open_mutex);
 	dev->state |= UVC_DEV_DISCONNECTED;
-	mutex_unlock(&uvc_driver.open_mutex);
 
-	kref_put(&dev->kref, uvc_delete);
+	uvc_unregister_video(dev);
 }
 
 static int uvc_suspend(struct usb_interface *intf, pm_message_t message)
@@ -2159,7 +2163,6 @@ static int __init uvc_init(void)
 
 	INIT_LIST_HEAD(&uvc_driver.devices);
 	INIT_LIST_HEAD(&uvc_driver.controls);
-	mutex_init(&uvc_driver.open_mutex);
 	mutex_init(&uvc_driver.ctrl_mutex);
 
 	uvc_ctrl_init();

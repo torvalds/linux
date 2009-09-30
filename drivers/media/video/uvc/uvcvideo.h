@@ -475,7 +475,6 @@ struct uvc_device {
 	char name[32];
 
 	enum uvc_device_state state;
-	struct kref kref;
 	struct list_head list;
 	atomic_t users;
 
@@ -488,6 +487,7 @@ struct uvc_device {
 
 	/* Video Streaming interfaces */
 	struct list_head streams;
+	atomic_t nstreams;
 
 	/* Status Interrupt Endpoint */
 	struct usb_host_endpoint *int_ep;
@@ -510,8 +510,6 @@ struct uvc_fh {
 
 struct uvc_driver {
 	struct usb_driver driver;
-
-	struct mutex open_mutex;	/* protects from open/disconnect race */
 
 	struct list_head devices;	/* struct uvc_device list */
 	struct list_head controls;	/* struct uvc_control_info list */
@@ -572,7 +570,6 @@ extern unsigned int uvc_trace_param;
 
 /* Core driver */
 extern struct uvc_driver uvc_driver;
-extern void uvc_delete(struct kref *kref);
 
 /* Video buffers queue management. */
 extern void uvc_queue_init(struct uvc_video_queue *queue,
