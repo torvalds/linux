@@ -930,6 +930,8 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 	priv->hw_wakeup_firmware = btmrvl_sdio_wakeup_fw;
 
 	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
+	priv->btmrvl_dev.psmode = 1;
+	btmrvl_enable_ps(priv);
 
 	return 0;
 
