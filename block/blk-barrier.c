@@ -385,6 +385,8 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 
 	while (nr_sects && !ret) {
 		unsigned int sector_size = q->limits.logical_block_size;
+		unsigned int max_discard_sectors =
+			min(q->limits.max_discard_sectors, UINT_MAX >> 9);
 
 		bio = bio_alloc(gfp_mask, 1);
 		if (!bio)
@@ -411,10 +413,10 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		 * touch many more blocks on disk than the actual payload
 		 * length.
 		 */
-		if (nr_sects > queue_max_hw_sectors(q)) {
-			bio->bi_size = queue_max_hw_sectors(q) << 9;
-			nr_sects -= queue_max_hw_sectors(q);
-			sector += queue_max_hw_sectors(q);
+		if (nr_sects > max_discard_sectors) {
+			bio->bi_size = max_discard_sectors << 9;
+			nr_sects -= max_discard_sectors;
+			sector += max_discard_sectors;
 		} else {
 			bio->bi_size = nr_sects << 9;
 			nr_sects = 0;
