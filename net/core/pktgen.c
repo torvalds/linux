@@ -3441,12 +3441,14 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	txq = netdev_get_tx_queue(odev, queue_map);
 
 	__netif_tx_lock_bh(txq);
-	atomic_inc(&(pkt_dev->skb->users));
 
-	if (unlikely(netif_tx_queue_stopped(txq) || netif_tx_queue_frozen(txq)))
+	if (unlikely(netif_tx_queue_stopped(txq) || netif_tx_queue_frozen(txq))) {
 		ret = NETDEV_TX_BUSY;
-	else
-		ret = (*xmit)(pkt_dev->skb, odev);
+		pkt_dev->last_ok = 0;
+		goto unlock;
+	}
+	atomic_inc(&(pkt_dev->skb->users));
+	ret = (*xmit)(pkt_dev->skb, odev);
 
 	switch (ret) {
 	case NETDEV_TX_OK:
@@ -3468,6 +3470,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		atomic_dec(&(pkt_dev->skb->users));
 		pkt_dev->last_ok = 0;
 	}
+unlock:
 	__netif_tx_unlock_bh(txq);
 
 	/* If pkt_dev->count is zero, then run forever */
