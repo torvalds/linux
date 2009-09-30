@@ -641,15 +641,10 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 
 	case SO_BINDTODEVICE:
 		if (optlen > IFNAMSIZ)
-			optlen=IFNAMSIZ;
-		if (copy_from_user(devname, optval, optlen)) {
-		res = -EFAULT;
-			break;
-		}
+			optlen = IFNAMSIZ;
 
-		dev = dev_get_by_name(&init_net, devname);
-		if (dev == NULL) {
-			res = -ENODEV;
+		if (copy_from_user(devname, optval, optlen)) {
+			res = -EFAULT;
 			break;
 		}
 
@@ -657,12 +652,18 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 		   (sock->state != SS_UNCONNECTED ||
 		    sk->sk_state == TCP_LISTEN)) {
 			res = -EADDRNOTAVAIL;
-			dev_put(dev);
+			break;
+		}
+
+		dev = dev_get_by_name(&init_net, devname);
+		if (!dev) {
+			res = -ENODEV;
 			break;
 		}
 
 		ax25->ax25_dev = ax25_dev_ax25dev(dev);
 		ax25_fillin_cb(ax25, ax25->ax25_dev);
+		dev_put(dev);
 		break;
 
 	default:
