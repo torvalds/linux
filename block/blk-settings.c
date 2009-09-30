@@ -96,6 +96,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->max_segment_size = MAX_SEGMENT_SIZE;
 	lim->max_sectors = BLK_DEF_MAX_SECTORS;
 	lim->max_hw_sectors = INT_MAX;
+	lim->max_discard_sectors = SAFE_MAX_SECTORS;
 	lim->logical_block_size = lim->physical_block_size = lim->io_min = 512;
 	lim->bounce_pfn = (unsigned long)(BLK_BOUNCE_ANY >> PAGE_SHIFT);
 	lim->alignment_offset = 0;
@@ -237,6 +238,18 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_sectors)
 		q->limits.max_hw_sectors = max_sectors;
 }
 EXPORT_SYMBOL(blk_queue_max_hw_sectors);
+
+/**
+ * blk_queue_max_discard_sectors - set max sectors for a single discard
+ * @q:  the request queue for the device
+ * @max_discard: maximum number of sectors to discard
+ **/
+void blk_queue_max_discard_sectors(struct request_queue *q,
+		unsigned int max_discard_sectors)
+{
+	q->limits.max_discard_sectors = max_discard_sectors;
+}
+EXPORT_SYMBOL(blk_queue_max_discard_sectors);
 
 /**
  * blk_queue_max_phys_segments - set max phys segments for a request for this queue
