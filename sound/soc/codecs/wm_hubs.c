@@ -738,6 +738,41 @@ int wm_hubs_add_analogue_routes(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(wm_hubs_add_analogue_routes);
 
+int wm_hubs_handle_analogue_pdata(struct snd_soc_codec *codec,
+				  int lineout1_diff, int lineout2_diff,
+				  int lineout1fb, int lineout2fb,
+				  int jd_scthr, int jd_thr, int micbias1_lvl,
+				  int micbias2_lvl)
+{
+	if (!lineout1_diff)
+		snd_soc_update_bits(codec, WM8993_LINE_MIXER1,
+				    WM8993_LINEOUT1_MODE,
+				    WM8993_LINEOUT1_MODE);
+	if (!lineout2_diff)
+		snd_soc_update_bits(codec, WM8993_LINE_MIXER2,
+				    WM8993_LINEOUT2_MODE,
+				    WM8993_LINEOUT2_MODE);
+
+	if (lineout1fb)
+		snd_soc_update_bits(codec, WM8993_ADDITIONAL_CONTROL,
+				    WM8993_LINEOUT1_FB, WM8993_LINEOUT1_FB);
+
+	if (lineout2fb)
+		snd_soc_update_bits(codec, WM8993_ADDITIONAL_CONTROL,
+				    WM8993_LINEOUT2_FB, WM8993_LINEOUT2_FB);
+
+	snd_soc_update_bits(codec, WM8993_MICBIAS,
+			    WM8993_JD_SCTHR_MASK | WM8993_JD_THR_MASK |
+			    WM8993_MICB1_LVL | WM8993_MICB2_LVL,
+			    jd_scthr << WM8993_JD_SCTHR_SHIFT |
+			    jd_thr << WM8993_JD_THR_SHIFT |
+			    micbias1_lvl |
+			    micbias2_lvl << WM8993_MICB2_LVL_SHIFT);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm_hubs_handle_analogue_pdata);
+
 MODULE_DESCRIPTION("Shared support for Wolfson hubs products");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_LICENSE("GPL");
