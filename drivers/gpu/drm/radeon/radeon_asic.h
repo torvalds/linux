@@ -290,18 +290,13 @@ static struct radeon_asic rs400_asic = {
 /*
  * rs600.
  */
-int rs600_init(struct radeon_device *rdev);
-void rs600_errata(struct radeon_device *rdev);
-void rs600_vram_info(struct radeon_device *rdev);
-int rs600_mc_init(struct radeon_device *rdev);
-void rs600_mc_fini(struct radeon_device *rdev);
+extern int rs600_init(struct radeon_device *rdev);
+extern void rs600_fini(struct radeon_device *rdev);
+extern int rs600_suspend(struct radeon_device *rdev);
+extern int rs600_resume(struct radeon_device *rdev);
 int rs600_irq_set(struct radeon_device *rdev);
 int rs600_irq_process(struct radeon_device *rdev);
 u32 rs600_get_vblank_counter(struct radeon_device *rdev, int crtc);
-int rs600_gart_init(struct radeon_device *rdev);
-void rs600_gart_fini(struct radeon_device *rdev);
-int rs600_gart_enable(struct radeon_device *rdev);
-void rs600_gart_disable(struct radeon_device *rdev);
 void rs600_gart_tlb_flush(struct radeon_device *rdev);
 int rs600_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
 uint32_t rs600_mc_rreg(struct radeon_device *rdev, uint32_t reg);
@@ -309,27 +304,30 @@ void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rs600_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic rs600_asic = {
 	.init = &rs600_init,
-	.errata = &rs600_errata,
-	.vram_info = &rs600_vram_info,
+	.fini = &rs600_fini,
+	.suspend = &rs600_suspend,
+	.resume = &rs600_resume,
+	.errata = NULL,
+	.vram_info = NULL,
 	.gpu_reset = &r300_gpu_reset,
-	.mc_init = &rs600_mc_init,
-	.mc_fini = &rs600_mc_fini,
-	.wb_init = &r100_wb_init,
-	.wb_fini = &r100_wb_fini,
-	.gart_init = &rs600_gart_init,
-	.gart_fini = &rs600_gart_fini,
-	.gart_enable = &rs600_gart_enable,
-	.gart_disable = &rs600_gart_disable,
+	.mc_init = NULL,
+	.mc_fini = NULL,
+	.wb_init = NULL,
+	.wb_fini = NULL,
+	.gart_init = NULL,
+	.gart_fini = NULL,
+	.gart_enable = NULL,
+	.gart_disable = NULL,
 	.gart_tlb_flush = &rs600_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.cp_init = &r100_cp_init,
-	.cp_fini = &r100_cp_fini,
-	.cp_disable = &r100_cp_disable,
+	.cp_init = NULL,
+	.cp_fini = NULL,
+	.cp_disable = NULL,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &r300_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = &r100_ib_test,
+	.ib_test = NULL,
 	.irq_set = &rs600_irq_set,
 	.irq_process = &rs600_irq_process,
 	.get_vblank_counter = &rs600_get_vblank_counter,
