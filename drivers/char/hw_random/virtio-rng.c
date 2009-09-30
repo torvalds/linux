@@ -21,7 +21,6 @@
 #include <linux/scatterlist.h>
 #include <linux/spinlock.h>
 #include <linux/virtio.h>
-#include <linux/virtio_ids.h>
 #include <linux/virtio_rng.h>
 
 /* The host will fill any buffer we give it with sweet, sweet randomness.  We
