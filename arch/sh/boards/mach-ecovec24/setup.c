@@ -71,7 +71,7 @@ static struct mtd_partition nor_flash_partitions[] = {
 		.name = "boot loader",
 		.offset = 0,
 		.size = (5 * 1024 * 1024),
-		.mask_flags = MTD_CAP_ROM,
+		.mask_flags = MTD_WRITEABLE,  /* force read-only */
 	}, {
 		.name = "free-area",
 		.offset = MTDPART_OFS_APPEND,
