@@ -129,54 +129,51 @@ static struct radeon_asic r100_asic = {
 /*
  * r300,r350,rv350,rv380
  */
-int r300_init(struct radeon_device *rdev);
-void r300_errata(struct radeon_device *rdev);
-void r300_vram_info(struct radeon_device *rdev);
-int r300_gpu_reset(struct radeon_device *rdev);
-int r300_mc_init(struct radeon_device *rdev);
-void r300_mc_fini(struct radeon_device *rdev);
-void r300_ring_start(struct radeon_device *rdev);
-void r300_fence_ring_emit(struct radeon_device *rdev,
-			  struct radeon_fence *fence);
-int r300_cs_parse(struct radeon_cs_parser *p);
-int rv370_pcie_gart_init(struct radeon_device *rdev);
-void rv370_pcie_gart_fini(struct radeon_device *rdev);
-int rv370_pcie_gart_enable(struct radeon_device *rdev);
-void rv370_pcie_gart_disable(struct radeon_device *rdev);
-void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev);
-int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
-uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
-void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
-void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes);
-int r300_copy_dma(struct radeon_device *rdev,
-		  uint64_t src_offset,
-		  uint64_t dst_offset,
-		  unsigned num_pages,
-		  struct radeon_fence *fence);
-
+extern int r300_init(struct radeon_device *rdev);
+extern void r300_fini(struct radeon_device *rdev);
+extern int r300_suspend(struct radeon_device *rdev);
+extern int r300_resume(struct radeon_device *rdev);
+extern int r300_gpu_reset(struct radeon_device *rdev);
+extern void r300_ring_start(struct radeon_device *rdev);
+extern void r300_fence_ring_emit(struct radeon_device *rdev,
+				struct radeon_fence *fence);
+extern int r300_cs_parse(struct radeon_cs_parser *p);
+extern void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev);
+extern int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
+extern uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
+extern void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
+extern void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes);
+extern int r300_copy_dma(struct radeon_device *rdev,
+			uint64_t src_offset,
+			uint64_t dst_offset,
+			unsigned num_pages,
+			struct radeon_fence *fence);
 static struct radeon_asic r300_asic = {
 	.init = &r300_init,
-	.errata = &r300_errata,
-	.vram_info = &r300_vram_info,
+	.fini = &r300_fini,
+	.suspend = &r300_suspend,
+	.resume = &r300_resume,
+	.errata = NULL,
+	.vram_info = NULL,
 	.gpu_reset = &r300_gpu_reset,
-	.mc_init = &r300_mc_init,
-	.mc_fini = &r300_mc_fini,
-	.wb_init = &r100_wb_init,
-	.wb_fini = &r100_wb_fini,
-	.gart_init = &r100_pci_gart_init,
-	.gart_fini = &r100_pci_gart_fini,
-	.gart_enable = &r100_pci_gart_enable,
-	.gart_disable = &r100_pci_gart_disable,
+	.mc_init = NULL,
+	.mc_fini = NULL,
+	.wb_init = NULL,
+	.wb_fini = NULL,
+	.gart_init = NULL,
+	.gart_fini = NULL,
+	.gart_enable = NULL,
+	.gart_disable = NULL,
 	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
 	.gart_set_page = &r100_pci_gart_set_page,
-	.cp_init = &r100_cp_init,
-	.cp_fini = &r100_cp_fini,
-	.cp_disable = &r100_cp_disable,
+	.cp_init = NULL,
+	.cp_fini = NULL,
+	.cp_disable = NULL,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &r300_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = &r100_ib_test,
+	.ib_test = NULL,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
 	.get_vblank_counter = &r100_get_vblank_counter,

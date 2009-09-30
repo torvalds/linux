@@ -1031,6 +1031,16 @@ extern void r100_hdp_reset(struct radeon_device *rdev);
 extern int r100_rb2d_reset(struct radeon_device *rdev);
 extern int r100_cp_reset(struct radeon_device *rdev);
 extern void r100_vga_render_disable(struct radeon_device *rdev);
+extern int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
+						struct radeon_cs_packet *pkt,
+						struct radeon_object *robj);
+extern int r100_cs_parse_packet0(struct radeon_cs_parser *p,
+				struct radeon_cs_packet *pkt,
+				const unsigned *auth, unsigned n,
+				radeon_packet0_check_t check);
+extern int r100_cs_packet_parse(struct radeon_cs_parser *p,
+				struct radeon_cs_packet *pkt,
+				unsigned idx);
 
 /* r300,r350,rv350,rv370,rv380 */
 extern void r300_set_reg_safe(struct radeon_device *rdev);
