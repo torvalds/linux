@@ -446,7 +446,7 @@ static inline void sock_valbool_flag(struct sock *sk, int bit, int valbool)
  */
 
 int sock_setsockopt(struct socket *sock, int level, int optname,
-		    char __user *optval, int optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int val;
@@ -1697,7 +1697,7 @@ int sock_no_shutdown(struct socket *sock, int how)
 EXPORT_SYMBOL(sock_no_shutdown);
 
 int sock_no_setsockopt(struct socket *sock, int level, int optname,
-		    char __user *optval, int optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	return -EOPNOTSUPP;
 }
@@ -2018,7 +2018,7 @@ EXPORT_SYMBOL(sock_common_recvmsg);
  *	Set socket options on an inet socket.
  */
 int sock_common_setsockopt(struct socket *sock, int level, int optname,
-			   char __user *optval, int optlen)
+			   char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 
@@ -2028,7 +2028,7 @@ EXPORT_SYMBOL(sock_common_setsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_sock_common_setsockopt(struct socket *sock, int level, int optname,
-				  char __user *optval, int optlen)
+				  char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 

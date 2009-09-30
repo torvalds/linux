@@ -409,7 +409,7 @@ static void x25_destroy_socket(struct sock *sk)
  */
 
 static int x25_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	int opt;
 	struct sock *sk = sock->sk;

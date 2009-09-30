@@ -1150,7 +1150,7 @@ static void netlink_update_socket_mc(struct netlink_sock *nlk,
 }
 
 static int netlink_setsockopt(struct socket *sock, int level, int optname,
-			      char __user *optval, int optlen)
+			      char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct netlink_sock *nlk = nlk_sk(sk);

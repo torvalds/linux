@@ -2032,7 +2032,7 @@ int tcp_disconnect(struct sock *sk, int flags)
  *	Socket option code for TCP.
  */
 static int do_tcp_setsockopt(struct sock *sk, int level,
-		int optname, char __user *optval, int optlen)
+		int optname, char __user *optval, unsigned int optlen)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -2220,7 +2220,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 }
 
 int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
-		   int optlen)
+		   unsigned int optlen)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
@@ -2232,7 +2232,7 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 
 #ifdef CONFIG_COMPAT
 int compat_tcp_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	if (level != SOL_TCP)
 		return inet_csk_compat_setsockopt(sk, level, optname,

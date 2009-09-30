@@ -1795,7 +1795,7 @@ fore200e_getsockopt(struct atm_vcc* vcc, int level, int optname, void __user *op
 
 
 static int
-fore200e_setsockopt(struct atm_vcc* vcc, int level, int optname, void __user *optval, int optlen)
+fore200e_setsockopt(struct atm_vcc* vcc, int level, int optname, void __user *optval, unsigned int optlen)
 {
     /* struct fore200e* fore200e = FORE200E_DEV(vcc->dev); */
     

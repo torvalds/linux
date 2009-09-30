@@ -2391,7 +2391,7 @@ int kernel_getsockopt(struct socket *sock, int level, int optname,
 }
 
 int kernel_setsockopt(struct socket *sock, int level, int optname,
-			char *optval, int optlen)
+			char *optval, unsigned int optlen)
 {
 	mm_segment_t oldfs = get_fs();
 	int err;
