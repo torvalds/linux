@@ -1,4 +1,5 @@
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <mach/mx25.h>
 #include <mach/irqs.h>
