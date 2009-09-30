@@ -453,9 +453,7 @@ int do_sync_mapping_range(struct address_space *mapping, loff_t offset,
 
 	ret = 0;
 	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
-		ret = wait_on_page_writeback_range(mapping,
-					offset >> PAGE_CACHE_SHIFT,
-					endbyte >> PAGE_CACHE_SHIFT);
+		ret = filemap_fdatawait_range(mapping, offset, endbyte);
 		if (ret < 0)
 			goto out;
 	}
@@ -468,9 +466,7 @@ int do_sync_mapping_range(struct address_space *mapping, loff_t offset,
 	}
 
 	if (flags & SYNC_FILE_RANGE_WAIT_AFTER) {
-		ret = wait_on_page_writeback_range(mapping,
-					offset >> PAGE_CACHE_SHIFT,
-					endbyte >> PAGE_CACHE_SHIFT);
+		ret = filemap_fdatawait_range(mapping, offset, endbyte);
 	}
 out:
 	return ret;

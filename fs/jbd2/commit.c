@@ -286,7 +286,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 		if (err) {
 			/*
 			 * Because AS_EIO is cleared by
-			 * wait_on_page_writeback_range(), set it again so
+			 * filemap_fdatawait_range(), set it again so
 			 * that user process can get -EIO from fsync().
 			 */
 			set_bit(AS_EIO,
