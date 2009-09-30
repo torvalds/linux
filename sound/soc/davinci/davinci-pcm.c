@@ -66,38 +66,53 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 	dma_addr_t dma_pos;
 	dma_addr_t src, dst;
 	unsigned short src_bidx, dst_bidx;
+	unsigned short src_cidx, dst_cidx;
 	unsigned int data_type;
 	unsigned short acnt;
 	unsigned int count;
+	unsigned int fifo_level;
 
 	period_size = snd_pcm_lib_period_bytes(substream);
 	dma_offset = prtd->period * period_size;
 	dma_pos = runtime->dma_addr + dma_offset;
+	fifo_level = prtd->params->fifo_level;
 
 	pr_debug("davinci_pcm: audio_set_dma_params_play channel = %d "
 		"dma_ptr = %x period_size=%x\n", lch, dma_pos, period_size);
 
 	data_type = prtd->params->data_type;
 	count = period_size / data_type;
+	if (fifo_level)
+		count /= fifo_level;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		src = dma_pos;
 		dst = prtd->params->dma_addr;
 		src_bidx = data_type;
 		dst_bidx = 0;
+		src_cidx = data_type * fifo_level;
+		dst_cidx = 0;
 	} else {
 		src = prtd->params->dma_addr;
 		dst = dma_pos;
 		src_bidx = 0;
 		dst_bidx = data_type;
+		src_cidx = 0;
+		dst_cidx = data_type * fifo_level;
 	}
 
 	acnt = prtd->params->acnt;
 	edma_set_src(lch, src, INCR, W8BIT);
 	edma_set_dest(lch, dst, INCR, W8BIT);
-	edma_set_src_index(lch, src_bidx, 0);
-	edma_set_dest_index(lch, dst_bidx, 0);
-	edma_set_transfer_params(lch, acnt, count, 1, 0, ASYNC);
+
+	edma_set_src_index(lch, src_bidx, src_cidx);
+	edma_set_dest_index(lch, dst_bidx, dst_cidx);
+
+	if (!fifo_level)
+		edma_set_transfer_params(lch, acnt, count, 1, 0, ASYNC);
+	else
+		edma_set_transfer_params(lch, acnt, fifo_level, count,
+							fifo_level, ABSYNC);
 
 	prtd->period++;
 	if (unlikely(prtd->period >= runtime->periods))
