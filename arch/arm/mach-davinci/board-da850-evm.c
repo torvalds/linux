@@ -17,6 +17,7 @@
 #include <linux/console.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
+#include <linux/i2c/pca953x.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
@@ -145,10 +146,85 @@ static struct platform_device da850_evm_nandflash_device = {
 	.resource	= da850_evm_nandflash_resource,
 };
 
+static u32 ui_card_detected;
+static void da850_evm_setup_nor_nand(void);
+
+static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
+						unsigned ngpio, void *c)
+{
+	int sel_a, sel_b, sel_c, ret;
+
+	sel_a = gpio + 7;
+	sel_b = gpio + 6;
+	sel_c = gpio + 5;
+
+	ret = gpio_request(sel_a, "sel_a");
+	if (ret) {
+		pr_warning("Cannot open UI expander pin %d\n", sel_a);
+		goto exp_setup_sela_fail;
+	}
+
+	ret = gpio_request(sel_b, "sel_b");
+	if (ret) {
+		pr_warning("Cannot open UI expander pin %d\n", sel_b);
+		goto exp_setup_selb_fail;
+	}
+
+	ret = gpio_request(sel_c, "sel_c");
+	if (ret) {
+		pr_warning("Cannot open UI expander pin %d\n", sel_c);
+		goto exp_setup_selc_fail;
+	}
+
+	/* deselect all functionalities */
+	gpio_direction_output(sel_a, 1);
+	gpio_direction_output(sel_b, 1);
+	gpio_direction_output(sel_c, 1);
+
+	ui_card_detected = 1;
+	pr_info("DA850/OMAP-L138 EVM UI card detected\n");
+
+	da850_evm_setup_nor_nand();
+
+	return 0;
+
+exp_setup_selc_fail:
+	gpio_free(sel_b);
+exp_setup_selb_fail:
+	gpio_free(sel_a);
+exp_setup_sela_fail:
+	return ret;
+}
+
+static int da850_evm_ui_expander_teardown(struct i2c_client *client,
+					unsigned gpio, unsigned ngpio, void *c)
+{
+	/* deselect all functionalities */
+	gpio_set_value(gpio + 5, 1);
+	gpio_set_value(gpio + 6, 1);
+	gpio_set_value(gpio + 7, 1);
+
+	gpio_free(gpio + 5);
+	gpio_free(gpio + 6);
+	gpio_free(gpio + 7);
+
+	return 0;
+}
+
+static struct pca953x_platform_data da850_evm_ui_expander_info = {
+	.gpio_base	= DAVINCI_N_GPIO,
+	.setup		= da850_evm_ui_expander_setup,
+	.teardown	= da850_evm_ui_expander_teardown,
+};
+
 static struct i2c_board_info __initdata da850_evm_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
-	}
+	},
+	{
+		I2C_BOARD_INFO("tca6416", 0x20),
+		.platform_data = &da850_evm_ui_expander_info,
+	},
 };
 
 static struct davinci_i2c_platform_data da850_evm_i2c_0_pdata = {
@@ -399,19 +475,34 @@ static int __init pmic_tps65070_init(void)
 					ARRAY_SIZE(da850evm_tps65070_info));
 }
 
-#if defined(CONFIG_MTD_PHYSMAP) || \
-    defined(CONFIG_MTD_PHYSMAP_MODULE)
-#define HAS_NOR 1
-#else
-#define HAS_NOR 0
-#endif
-
 #if defined(CONFIG_MMC_DAVINCI) || \
     defined(CONFIG_MMC_DAVINCI_MODULE)
 #define HAS_MMC 1
 #else
 #define HAS_MMC 0
 #endif
+
+static void da850_evm_setup_nor_nand(void)
+{
+	int ret = 0;
+
+	if (ui_card_detected & !HAS_MMC) {
+		ret = da8xx_pinmux_setup(da850_nand_pins);
+		if (ret)
+			pr_warning("da850_evm_init: nand mux setup failed: "
+					"%d\n",	ret);
+
+		ret = da8xx_pinmux_setup(da850_nor_pins);
+		if (ret)
+			pr_warning("da850_evm_init: nor mux setup failed: %d\n",
+				ret);
+
+		da850_evm_init_nor();
+
+		platform_add_devices(da850_evm_devices,
+					ARRAY_SIZE(da850_evm_devices));
+	}
+}
 
 static const short da850_evm_lcdc_pins[] = {
 	DA850_GPIO2_8, DA850_GPIO2_15,
@@ -427,21 +518,6 @@ static __init void da850_evm_init(void)
 	if (ret)
 		pr_warning("da850_evm_init: TPS65070 PMIC init failed: %d\n",
 				ret);
-
-	ret = da8xx_pinmux_setup(da850_nand_pins);
-	if (ret)
-		pr_warning("da850_evm_init: nand mux setup failed: %d\n",
-				ret);
-
-	ret = da8xx_pinmux_setup(da850_nor_pins);
-	if (ret)
-		pr_warning("da850_evm_init: nor mux setup failed: %d\n",
-				ret);
-
-	da850_evm_init_nor();
-
-	platform_add_devices(da850_evm_devices,
-				ARRAY_SIZE(da850_evm_devices));
 
 	ret = da8xx_register_edma();
 	if (ret)
@@ -478,11 +554,6 @@ static __init void da850_evm_init(void)
 				ret);
 
 	if (HAS_MMC) {
-		if (HAS_NOR)
-			pr_warning("WARNING: both NOR Flash and MMC/SD are "
-				"enabled, but they share AEMIF pins.\n"
-				"\tDisable one of them.\n");
-
 		ret = da8xx_pinmux_setup(da850_mmcsd0_pins);
 		if (ret)
 			pr_warning("da850_evm_init: mmcsd0 mux setup failed:"
