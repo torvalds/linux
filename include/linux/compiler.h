@@ -270,6 +270,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 #ifndef __compiletime_object_size
 # define __compiletime_object_size(obj) -1
 #endif
+#ifndef __compiletime_warning
+# define __compiletime_warning(message)
+#endif
+
 /*
  * Prevent the compiler from merging or refetching accesses.  The compiler
  * is also forbidden from reordering successive instances of ACCESS_ONCE(),

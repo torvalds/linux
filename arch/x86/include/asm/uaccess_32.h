@@ -191,6 +191,13 @@ unsigned long __must_check _copy_from_user(void *to,
 					  const void __user *from,
 					  unsigned long n);
 
+
+extern void copy_from_user_overflow(void)
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
+	__compiletime_warning("copy_from_user() buffer size is not provably correct")
+#endif
+;
+
 static inline unsigned long __must_check copy_from_user(void *to,
 					  const void __user *from,
 					  unsigned long n)
@@ -200,10 +207,9 @@ static inline unsigned long __must_check copy_from_user(void *to,
 
 	if (likely(sz == -1 || sz >= n))
 		ret = _copy_from_user(to, from, n);
-#ifdef CONFIG_DEBUG_VM
 	else
-		WARN(1, "Buffer overflow detected!\n");
-#endif
+		copy_from_user_overflow();
+
 	return ret;
 }
 
