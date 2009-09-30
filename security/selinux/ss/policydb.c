@@ -713,7 +713,6 @@ void policydb_destroy(struct policydb *p)
 			ebitmap_destroy(&p->type_attr_map[i]);
 	}
 	kfree(p->type_attr_map);
-	kfree(p->undefined_perms);
 	ebitmap_destroy(&p->policycaps);
 	ebitmap_destroy(&p->permissive_map);
 
@@ -1640,6 +1639,40 @@ static int policydb_bounds_sanity_check(struct policydb *p)
 
 extern int ss_initialized;
 
+u16 string_to_security_class(struct policydb *p, const char *name)
+{
+	struct class_datum *cladatum;
+
+	cladatum = hashtab_search(p->p_classes.table, name);
+	if (!cladatum)
+		return 0;
+
+	return cladatum->value;
+}
+
+u32 string_to_av_perm(struct policydb *p, u16 tclass, const char *name)
+{
+	struct class_datum *cladatum;
+	struct perm_datum *perdatum = NULL;
+	struct common_datum *comdatum;
+
+	if (!tclass || tclass > p->p_classes.nprim)
+		return 0;
+
+	cladatum = p->class_val_to_struct[tclass-1];
+	comdatum = cladatum->comdatum;
+	if (comdatum)
+		perdatum = hashtab_search(comdatum->permissions.table,
+					  name);
+	if (!perdatum)
+		perdatum = hashtab_search(cladatum->permissions.table,
+					  name);
+	if (!perdatum)
+		return 0;
+
+	return 1U << (perdatum->value-1);
+}
+
 /*
  * Read the configuration data from a policy database binary
  * representation file into a policy database structure.
@@ -1859,6 +1892,16 @@ int policydb_read(struct policydb *p, void *fp)
 
 	rc = policydb_index_others(p);
 	if (rc)
+		goto bad;
+
+	p->process_class = string_to_security_class(p, "process");
+	if (!p->process_class)
+		goto bad;
+	p->process_trans_perms = string_to_av_perm(p, p->process_class,
+						   "transition");
+	p->process_trans_perms |= string_to_av_perm(p, p->process_class,
+						    "dyntransition");
+	if (!p->process_trans_perms)
 		goto bad;
 
 	for (i = 0; i < info->ocon_num; i++) {
@@ -2101,7 +2144,7 @@ int policydb_read(struct policydb *p, void *fp)
 					goto bad;
 				rt->target_class = le32_to_cpu(buf[0]);
 			} else
-				rt->target_class = SECCLASS_PROCESS;
+				rt->target_class = p->process_class;
 			if (!policydb_type_isvalid(p, rt->source_type) ||
 			    !policydb_type_isvalid(p, rt->target_type) ||
 			    !policydb_class_isvalid(p, rt->target_class)) {

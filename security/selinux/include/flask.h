@@ -34,26 +34,26 @@
 #define SECCLASS_MSGQ                                    27
 #define SECCLASS_SHM                                     28
 #define SECCLASS_IPC                                     29
-#define SECCLASS_NETLINK_ROUTE_SOCKET                    43
-#define SECCLASS_NETLINK_FIREWALL_SOCKET                 44
-#define SECCLASS_NETLINK_TCPDIAG_SOCKET                  45
-#define SECCLASS_NETLINK_NFLOG_SOCKET                    46
-#define SECCLASS_NETLINK_XFRM_SOCKET                     47
-#define SECCLASS_NETLINK_SELINUX_SOCKET                  48
-#define SECCLASS_NETLINK_AUDIT_SOCKET                    49
-#define SECCLASS_NETLINK_IP6FW_SOCKET                    50
-#define SECCLASS_NETLINK_DNRT_SOCKET                     51
-#define SECCLASS_ASSOCIATION                             54
-#define SECCLASS_NETLINK_KOBJECT_UEVENT_SOCKET           55
-#define SECCLASS_APPLETALK_SOCKET                        56
-#define SECCLASS_PACKET                                  57
-#define SECCLASS_KEY                                     58
-#define SECCLASS_DCCP_SOCKET                             60
-#define SECCLASS_MEMPROTECT                              61
-#define SECCLASS_PEER                                    68
-#define SECCLASS_CAPABILITY2                             69
-#define SECCLASS_KERNEL_SERVICE                          74
-#define SECCLASS_TUN_SOCKET                              75
+#define SECCLASS_NETLINK_ROUTE_SOCKET                    30
+#define SECCLASS_NETLINK_FIREWALL_SOCKET                 31
+#define SECCLASS_NETLINK_TCPDIAG_SOCKET                  32
+#define SECCLASS_NETLINK_NFLOG_SOCKET                    33
+#define SECCLASS_NETLINK_XFRM_SOCKET                     34
+#define SECCLASS_NETLINK_SELINUX_SOCKET                  35
+#define SECCLASS_NETLINK_AUDIT_SOCKET                    36
+#define SECCLASS_NETLINK_IP6FW_SOCKET                    37
+#define SECCLASS_NETLINK_DNRT_SOCKET                     38
+#define SECCLASS_ASSOCIATION                             39
+#define SECCLASS_NETLINK_KOBJECT_UEVENT_SOCKET           40
+#define SECCLASS_APPLETALK_SOCKET                        41
+#define SECCLASS_PACKET                                  42
+#define SECCLASS_KEY                                     43
+#define SECCLASS_DCCP_SOCKET                             44
+#define SECCLASS_MEMPROTECT                              45
+#define SECCLASS_PEER                                    46
+#define SECCLASS_CAPABILITY2                             47
+#define SECCLASS_KERNEL_SERVICE                          48
+#define SECCLASS_TUN_SOCKET                              49
 
 /*
  * Security identifier indices for initial entities
