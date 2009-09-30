@@ -70,7 +70,7 @@ struct clk {
 	unsigned long		rate;
 	u8			usecount;
 	u8			lpsc;
-	u8			psc_ctlr;
+	u8			gpsc;
 	u32			flags;
 	struct clk              *parent;
 	struct list_head	children; 	/* list of children */

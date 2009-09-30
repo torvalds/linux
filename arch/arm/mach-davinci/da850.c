@@ -224,16 +224,16 @@ static struct clk tpcc1_clk = {
 	.name		= "tpcc1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA850_LPSC1_TPCC1,
+	.gpsc		= 1,
 	.flags		= CLK_PSC | ALWAYS_ENABLED,
-	.psc_ctlr	= 1,
 };
 
 static struct clk tptc2_clk = {
 	.name		= "tptc2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA850_LPSC1_TPTC2,
+	.gpsc		= 1,
 	.flags		= ALWAYS_ENABLED,
-	.psc_ctlr	= 1,
 };
 
 static struct clk uart0_clk = {
@@ -246,16 +246,16 @@ static struct clk uart1_clk = {
 	.name		= "uart1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_UART1,
+	.gpsc		= 1,
 	.flags		= DA850_CLK_ASYNC3,
-	.psc_ctlr	= 1,
 };
 
 static struct clk uart2_clk = {
 	.name		= "uart2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_UART2,
+	.gpsc		= 1,
 	.flags		= DA850_CLK_ASYNC3,
-	.psc_ctlr	= 1,
 };
 
 static struct clk aintc_clk = {
@@ -269,22 +269,22 @@ static struct clk gpio_clk = {
 	.name		= "gpio",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_GPIO,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk i2c1_clk = {
 	.name		= "i2c1",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_I2C,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk emif3_clk = {
 	.name		= "emif3",
 	.parent		= &pll0_sysclk5,
 	.lpsc		= DA8XX_LPSC1_EMIF3C,
+	.gpsc		= 1,
 	.flags		= ALWAYS_ENABLED,
-	.psc_ctlr	= 1,
 };
 
 static struct clk arm_clk = {
@@ -305,21 +305,21 @@ static struct clk emac_clk = {
 	.name		= "emac",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_CPGMAC,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk mcasp_clk = {
 	.name		= "mcasp",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_McASP0,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk lcdc_clk = {
 	.name		= "lcdc",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_LCDC,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk mmcsd_clk = {

@@ -193,14 +193,14 @@ static struct clk uart1_clk = {
 	.name		= "uart1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_UART1,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk uart2_clk = {
 	.name		= "uart2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_UART2,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk spi0_clk = {
@@ -213,98 +213,98 @@ static struct clk spi1_clk = {
 	.name		= "spi1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_SPI1,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk ecap0_clk = {
 	.name		= "ecap0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_ECAP,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk ecap1_clk = {
 	.name		= "ecap1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_ECAP,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk ecap2_clk = {
 	.name		= "ecap2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_ECAP,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk pwm0_clk = {
 	.name		= "pwm0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_PWM,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk pwm1_clk = {
 	.name		= "pwm1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_PWM,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk pwm2_clk = {
 	.name		= "pwm2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_PWM,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk eqep0_clk = {
 	.name		= "eqep0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA830_LPSC1_EQEP,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk eqep1_clk = {
 	.name		= "eqep1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA830_LPSC1_EQEP,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk lcdc_clk = {
 	.name		= "lcdc",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_LCDC,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk mcasp0_clk = {
 	.name		= "mcasp0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_McASP0,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk mcasp1_clk = {
 	.name		= "mcasp1",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA830_LPSC1_McASP1,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk mcasp2_clk = {
 	.name		= "mcasp2",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA830_LPSC1_McASP2,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk usb20_clk = {
 	.name		= "usb20",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_USB20,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk aemif_clk = {
@@ -332,36 +332,36 @@ static struct clk emac_clk = {
 	.name		= "emac",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_CPGMAC,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk gpio_clk = {
 	.name		= "gpio",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_GPIO,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk i2c1_clk = {
 	.name		= "i2c1",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_I2C,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk usb11_clk = {
 	.name		= "usb11",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_USB11,
-	.psc_ctlr	= 1,
+	.gpsc		= 1,
 };
 
 static struct clk emif3_clk = {
 	.name		= "emif3",
 	.parent		= &pll0_sysclk5,
 	.lpsc		= DA8XX_LPSC1_EMIF3C,
+	.gpsc		= 1,
 	.flags		= ALWAYS_ENABLED,
-	.psc_ctlr	= 1,
 };
 
 static struct clk arm_clk = {
