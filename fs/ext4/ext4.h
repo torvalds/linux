@@ -525,8 +525,8 @@ struct move_extent {
 static inline __le32 ext4_encode_extra_time(struct timespec *time)
 {
        return cpu_to_le32((sizeof(time->tv_sec) > 4 ?
-			   time->tv_sec >> 32 : 0) |
-			   ((time->tv_nsec << 2) & EXT4_NSEC_MASK));
+			   (time->tv_sec >> 32) & EXT4_EPOCH_MASK : 0) |
+                          ((time->tv_nsec << EXT4_EPOCH_BITS) & EXT4_NSEC_MASK));
 }
 
 static inline void ext4_decode_extra_time(struct timespec *time, __le32 extra)
@@ -534,7 +534,7 @@ static inline void ext4_decode_extra_time(struct timespec *time, __le32 extra)
        if (sizeof(time->tv_sec) > 4)
 	       time->tv_sec |= (__u64)(le32_to_cpu(extra) & EXT4_EPOCH_MASK)
 			       << 32;
-       time->tv_nsec = (le32_to_cpu(extra) & EXT4_NSEC_MASK) >> 2;
+       time->tv_nsec = (le32_to_cpu(extra) & EXT4_NSEC_MASK) >> EXT4_EPOCH_BITS;
 }
 
 #define EXT4_INODE_SET_XTIME(xtime, inode, raw_inode)			       \
