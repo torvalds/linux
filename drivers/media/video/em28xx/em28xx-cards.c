@@ -1381,7 +1381,6 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2882_BOARD_TERRATEC_HYBRID_XS] = {
 		.name         = "Terratec Hybrid XS (em2882)",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.mts_firmware = 1,
