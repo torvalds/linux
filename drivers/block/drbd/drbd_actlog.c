@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/drbd.h>
 #include "drbd_int.h"
-#include "drbd_tracing.h"
 #include "drbd_wrappers.h"
 
 /* We maintain a trivial check sum in our on disk activity log.
@@ -66,17 +65,6 @@ struct drbd_atodb_wait {
 
 int w_al_write_transaction(struct drbd_conf *, struct drbd_work *, int);
 
-/* The actual tracepoint needs to have constant number of known arguments...
- */
-void trace_drbd_resync(struct drbd_conf *mdev, int level, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	trace__drbd_resync(mdev, level, fmt, ap);
-	va_end(ap);
-}
-
 static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 				 struct drbd_backing_dev *bdev,
 				 struct page *page, sector_t sector,
@@ -104,8 +92,6 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	bio->bi_private = &md_io;
 	bio->bi_end_io = drbd_md_io_complete;
 	bio->bi_rw = rw;
-
-	trace_drbd_bio(mdev, "Md", bio, 0, NULL);
 
 	if (FAULT_ACTIVE(mdev, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
 		bio_endio(bio, -EIO);
@@ -236,8 +222,6 @@ void drbd_al_begin_io(struct drbd_conf *mdev, sector_t sector)
 
 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
 
-	trace_drbd_actlog(mdev, sector, "al_begin_io");
-
 	wait_event(mdev->al_wait, (al_ext = _al_get(mdev, enr)));
 
 	if (al_ext->lc_number != enr) {
@@ -269,8 +253,6 @@ void drbd_al_complete_io(struct drbd_conf *mdev, sector_t sector)
 	unsigned int enr = (sector >> (AL_EXTENT_SHIFT-9));
 	struct lc_element *extent;
 	unsigned long flags;
-
-	trace_drbd_actlog(mdev, sector, "al_complete_io");
 
 	spin_lock_irqsave(&mdev->al_lock, flags);
 
@@ -967,10 +949,6 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
 		ebnr = BM_SECT_TO_BIT(esector - (BM_SECT_PER_BIT-1));
 	sbnr = BM_SECT_TO_BIT(sector + BM_SECT_PER_BIT-1);
 
-	trace_drbd_resync(mdev, TRACE_LVL_METRICS,
-			  "drbd_set_in_sync: sector=%llus size=%u sbnr=%lu ebnr=%lu\n",
-			  (unsigned long long)sector, size, sbnr, ebnr);
-
 	if (sbnr > ebnr)
 		return;
 
@@ -1044,10 +1022,6 @@ void __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector, int size,
 	 * we do not need to round anything here */
 	sbnr = BM_SECT_TO_BIT(sector);
 	ebnr = BM_SECT_TO_BIT(esector);
-
-	trace_drbd_resync(mdev, TRACE_LVL_METRICS,
-			  "drbd_set_out_of_sync: sector=%llus size=%u sbnr=%lu ebnr=%lu\n",
-			  (unsigned long long)sector, size, sbnr, ebnr);
 
 	/* ok, (capacity & 7) != 0 sometimes, but who cares...
 	 * we count rs_{total,left} in bits, not sectors.  */
@@ -1143,10 +1117,6 @@ int drbd_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 	struct bm_extent *bm_ext;
 	int i, sig;
 
-	trace_drbd_resync(mdev, TRACE_LVL_ALL,
-			  "drbd_rs_begin_io: sector=%llus (rs_end=%d)\n",
-			  (unsigned long long)sector, enr);
-
 	sig = wait_event_interruptible(mdev->al_wait,
 			(bm_ext = _bme_get(mdev, enr)));
 	if (sig)
@@ -1192,9 +1162,6 @@ int drbd_try_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 	struct bm_extent *bm_ext;
 	int i;
 
-	trace_drbd_resync(mdev, TRACE_LVL_ALL, "drbd_try_rs_begin_io: sector=%llus\n",
-			  (unsigned long long)sector);
-
 	spin_lock_irq(&mdev->al_lock);
 	if (mdev->resync_wenr != LC_FREE && mdev->resync_wenr != enr) {
 		/* in case you have very heavy scattered io, it may
@@ -1210,11 +1177,6 @@ int drbd_try_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 		 * the lc_put here...
 		 * we also have to wake_up
 		 */
-
-		trace_drbd_resync(mdev, TRACE_LVL_ALL,
-				  "dropping %u, apparently got 'synced' by application io\n",
-				  mdev->resync_wenr);
-
 		e = lc_find(mdev->resync, mdev->resync_wenr);
 		bm_ext = e ? lc_entry(e, struct bm_extent, lce) : NULL;
 		if (bm_ext) {
@@ -1242,21 +1204,14 @@ int drbd_try_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 			 * but then could not set BME_LOCKED,
 			 * so we tried again.
 			 * drop the extra reference. */
-			trace_drbd_resync(mdev, TRACE_LVL_ALL,
-					  "dropping extra reference on %u\n", enr);
-
 			bm_ext->lce.refcnt--;
 			D_ASSERT(bm_ext->lce.refcnt > 0);
 		}
 		goto check_al;
 	} else {
 		/* do we rather want to try later? */
-		if (mdev->resync_locked > mdev->resync->nr_elements-3) {
-			trace_drbd_resync(mdev, TRACE_LVL_ALL,
-					  "resync_locked = %u!\n", mdev->resync_locked);
-
+		if (mdev->resync_locked > mdev->resync->nr_elements-3)
 			goto try_again;
-		}
 		/* Do or do not. There is no try. -- Yoda */
 		e = lc_get(mdev->resync, enr);
 		bm_ext = e ? lc_entry(e, struct bm_extent, lce) : NULL;
@@ -1281,8 +1236,6 @@ int drbd_try_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 		goto check_al;
 	}
 check_al:
-	trace_drbd_resync(mdev, TRACE_LVL_ALL, "checking al for %u\n", enr);
-
 	for (i = 0; i < AL_EXT_PER_BM_SECT; i++) {
 		if (unlikely(al_enr+i == mdev->act_log->new_number))
 			goto try_again;
@@ -1296,7 +1249,6 @@ proceed:
 	return 0;
 
 try_again:
-	trace_drbd_resync(mdev, TRACE_LVL_ALL, "need to try again for %u\n", enr);
 	if (bm_ext)
 		mdev->resync_wenr = enr;
 	spin_unlock_irq(&mdev->al_lock);
@@ -1309,10 +1261,6 @@ void drbd_rs_complete_io(struct drbd_conf *mdev, sector_t sector)
 	struct lc_element *e;
 	struct bm_extent *bm_ext;
 	unsigned long flags;
-
-	trace_drbd_resync(mdev, TRACE_LVL_ALL,
-			  "drbd_rs_complete_io: sector=%llus (rs_enr=%d)\n",
-			  (long long)sector, enr);
 
 	spin_lock_irqsave(&mdev->al_lock, flags);
 	e = lc_find(mdev->resync, enr);
@@ -1348,8 +1296,6 @@ void drbd_rs_complete_io(struct drbd_conf *mdev, sector_t sector)
  */
 void drbd_rs_cancel_all(struct drbd_conf *mdev)
 {
-	trace_drbd_resync(mdev, TRACE_LVL_METRICS, "drbd_rs_cancel_all\n");
-
 	spin_lock_irq(&mdev->al_lock);
 
 	if (get_ldev_if_state(mdev, D_FAILED)) { /* Makes sure ->resync is there. */
@@ -1374,8 +1320,6 @@ int drbd_rs_del_all(struct drbd_conf *mdev)
 	struct lc_element *e;
 	struct bm_extent *bm_ext;
 	int i;
-
-	trace_drbd_resync(mdev, TRACE_LVL_METRICS, "drbd_rs_del_all\n");
 
 	spin_lock_irq(&mdev->al_lock);
 
@@ -1428,10 +1372,6 @@ void drbd_rs_failed_io(struct drbd_conf *mdev, sector_t sector, int size)
 	unsigned long count;
 	sector_t esector, nr_sectors;
 	int wake_up = 0;
-
-	trace_drbd_resync(mdev, TRACE_LVL_SUMMARY,
-			  "drbd_rs_failed_io: sector=%llus, size=%u\n",
-			  (unsigned long long)sector, size);
 
 	if (size <= 0 || (size & 0x1ff) != 0 || size > DRBD_MAX_SEGMENT_SIZE) {
 		dev_err(DEV, "drbd_rs_failed_io: sector=%llus size=%d nonsense!\n",

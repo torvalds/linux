@@ -40,7 +40,6 @@
 
 #include "drbd_int.h"
 #include "drbd_req.h"
-#include "drbd_tracing.h"
 
 #define SLEEP_TIME (HZ/10)
 
@@ -82,8 +81,6 @@ void drbd_md_io_complete(struct bio *bio, int error)
 	md_io = (struct drbd_md_io *)bio->bi_private;
 	md_io->error = error;
 
-	trace_drbd_bio(md_io->mdev, "Md", bio, 1, NULL);
-
 	complete(&md_io->event);
 }
 
@@ -114,8 +111,6 @@ void drbd_endio_read_sec(struct bio *bio, int error) __releases(local)
 
 	D_ASSERT(e->block_id != ID_VACANT);
 
-	trace_drbd_bio(mdev, "Sec", bio, 1, NULL);
-
 	spin_lock_irqsave(&mdev->req_lock, flags);
 	mdev->read_cnt += e->size >> 9;
 	list_del(&e->w.list);
@@ -126,8 +121,6 @@ void drbd_endio_read_sec(struct bio *bio, int error) __releases(local)
 	drbd_chk_io_error(mdev, error, FALSE);
 	drbd_queue_work(&mdev->data.work, &e->w);
 	put_ldev(mdev);
-
-	trace_drbd_ee(mdev, e, "read completed");
 }
 
 /* writes on behalf of the partner, or resync writes,
@@ -176,8 +169,6 @@ void drbd_endio_write_sec(struct bio *bio, int error) __releases(local)
 
 	D_ASSERT(e->block_id != ID_VACANT);
 
-	trace_drbd_bio(mdev, "Sec", bio, 1, NULL);
-
 	spin_lock_irqsave(&mdev->req_lock, flags);
 	mdev->writ_cnt += e->size >> 9;
 	is_syncer_req = is_syncer_block_id(e->block_id);
@@ -191,8 +182,6 @@ void drbd_endio_write_sec(struct bio *bio, int error) __releases(local)
 
 	list_del(&e->w.list); /* has been on active_ee or sync_ee */
 	list_add_tail(&e->w.list, &mdev->done_ee);
-
-	trace_drbd_ee(mdev, e, "write completed");
 
 	/* No hlist_del_init(&e->colision) here, we did not send the Ack yet,
 	 * neither did we wake possibly waiting conflicting requests.
@@ -243,8 +232,6 @@ void drbd_endio_pri(struct bio *bio, int error)
 		 * but do not return any error?! */
 		error = -EIO;
 	}
-
-	trace_drbd_bio(mdev, "Pri", bio, 1, NULL);
 
 	/* to avoid recursion in __req_mod */
 	if (unlikely(error)) {
@@ -1320,9 +1307,6 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		dev_err(DEV, "Resync already running!\n");
 		return;
 	}
-
-	trace_drbd_resync(mdev, TRACE_LVL_SUMMARY, "Resync starting: side=%s\n",
-			  side == C_SYNC_TARGET ? "SyncTarget" : "SyncSource");
 
 	/* In case a previous resync run was aborted by an IO error/detach on the peer. */
 	drbd_rs_cancel_all(mdev);

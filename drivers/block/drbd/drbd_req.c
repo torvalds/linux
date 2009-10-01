@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/drbd.h>
 #include "drbd_int.h"
-#include "drbd_tracing.h"
 #include "drbd_req.h"
 
 
@@ -218,7 +217,6 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 void complete_master_bio(struct drbd_conf *mdev,
 		struct bio_and_error *m)
 {
-	trace_drbd_bio(mdev, "Rq", m->bio, 1, NULL);
 	bio_endio(m->bio, m->error);
 	dec_ap_bio(mdev);
 }
@@ -235,8 +233,6 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 	struct drbd_conf *mdev = req->mdev;
 	/* only WRITES may end up here without a master bio (on barrier ack) */
 	int rw = req->master_bio ? bio_data_dir(req->master_bio) : WRITE;
-
-	trace_drbd_req(req, nothing, "_req_may_be_done");
 
 	/* we must not complete the master bio, while it is
 	 *	still being processed by _drbd_send_zc_bio (drbd_send_dblock)
@@ -414,8 +410,6 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 {
 	struct drbd_conf *mdev = req->mdev;
 	m->bio = NULL;
-
-	trace_drbd_req(req, what, NULL);
 
 	switch (what) {
 	default:
@@ -666,7 +660,6 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			 * this is bad, because if the connection is lost now,
 			 * we won't be able to clean them up... */
 			dev_err(DEV, "FIXME (barrier_acked but pending)\n");
-			trace_drbd_req(req, nothing, "FIXME (barrier_acked but pending)");
 			list_move(&req->tl_requests, &mdev->out_of_sequence_requests);
 		}
 		D_ASSERT(req->rq_state & RQ_NET_SENT);
@@ -735,8 +728,6 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 		bio_endio(bio, -ENOMEM);
 		return 0;
 	}
-
-	trace_drbd_bio(mdev, "Rq", bio, 0, req);
 
 	local = get_ldev(mdev);
 	if (!local) {
@@ -927,8 +918,6 @@ allocate_barrier:
 
 	if (local) {
 		req->private_bio->bi_bdev = mdev->ldev->backing_bdev;
-
-		trace_drbd_bio(mdev, "Pri", req->private_bio, 0, NULL);
 
 		if (FAULT_ACTIVE(mdev, rw == WRITE ? DRBD_FAULT_DT_WR
 				     : rw == READ  ? DRBD_FAULT_DT_RD

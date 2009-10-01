@@ -38,17 +38,6 @@ config BLK_DEV_DRBD
 
 	  If unsure, say N.
 
-config DRBD_TRACE
-	tristate "DRBD tracing"
-	depends on BLK_DEV_DRBD
-	select TRACEPOINTS
-	default n
-	help
-
-	  Say Y here if you want to be able to trace various events in DRBD.
-
-	  If unsure, say N.
-
 config DRBD_FAULT_INJECTION
 	bool "DRBD fault injection"
 	depends on BLK_DEV_DRBD
