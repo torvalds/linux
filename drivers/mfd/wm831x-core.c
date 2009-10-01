@@ -90,9 +90,9 @@ int wm831x_isinkv_values[WM831X_ISINK_MAX_ISEL + 1] = {
 EXPORT_SYMBOL_GPL(wm831x_isinkv_values);
 
 enum wm831x_parent {
-	WM8310 = 0,
-	WM8311 = 1,
-	WM8312 = 2,
+	WM8310 = 0x8310,
+	WM8311 = 0x8311,
+	WM8312 = 0x8312,
 };
 
 static int wm831x_reg_locked(struct wm831x *wm831x, unsigned short reg)
@@ -1282,50 +1282,28 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		goto err;
 	}
 
+	/* Some engineering samples do not have the ID set, rely on
+	 * the device being registered correctly.
+	 */
+	if (ret == 0) {
+		dev_info(wm831x->dev, "Device is an engineering sample\n");
+		ret = id;
+	}
+
 	switch (ret) {
-	case 0x8310:
+	case WM8310:
 		parent = WM8310;
-		switch (rev) {
-		case 0:
-			dev_info(wm831x->dev, "WM8310 revision %c\n",
-				 'A' + rev);
-			break;
-		}
+		dev_info(wm831x->dev, "WM8310 revision %c\n", 'A' + rev);
 		break;
 
-	case 0x8311:
+	case WM8311:
 		parent = WM8311;
-		switch (rev) {
-		case 0:
-			dev_info(wm831x->dev, "WM8311 revision %c\n",
-				 'A' + rev);
-			break;
-		}
+		dev_info(wm831x->dev, "WM8311 revision %c\n", 'A' + rev);
 		break;
 
-	case 0x8312:
+	case WM8312:
 		parent = WM8312;
-		switch (rev) {
-		case 0:
-			dev_info(wm831x->dev, "WM8312 revision %c\n",
-				 'A' + rev);
-			break;
-		}
-		break;
-
-	case 0:
-		/* Some engineering samples do not have the ID set,
-		 * rely on the device being registered correctly.
-		 * This will need revisiting for future devices with
-		 * multiple dies.
-		 */
-		parent = id;
-		switch (rev) {
-		case 0:
-			dev_info(wm831x->dev, "WM831%d ES revision %c\n",
-				 parent, 'A' + rev);
-			break;
-		}
+		dev_info(wm831x->dev, "WM8312 revision %c\n", 'A' + rev);
 		break;
 
 	default:
@@ -1338,7 +1316,7 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	 * current parts.
 	 */
 	if (parent != id)
-		dev_warn(wm831x->dev, "Device was registered as a WM831%lu\n",
+		dev_warn(wm831x->dev, "Device was registered as a WM%lx\n",
 			 id);
 
 	/* Bootstrap the user key */
