@@ -478,11 +478,17 @@ static int spi_imx_transfer(struct spi_device *spi,
 
 static int spi_imx_setup(struct spi_device *spi)
 {
+	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
+	int gpio = spi_imx->chipselect[spi->chip_select];
+
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
 
 	pr_debug("%s: mode %d, %u bpw, %d hz\n", __func__,
 		 spi->mode, spi->bits_per_word, spi->max_speed_hz);
+
+	if (gpio >= 0)
+		gpio_direction_output(gpio, spi->mode & SPI_CS_HIGH ? 0 : 1);
 
 	spi_imx_chipselect(spi, BITBANG_CS_INACTIVE);
 
@@ -532,7 +538,6 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "can't get cs gpios");
 			goto out_master_put;
 		}
-		gpio_direction_output(spi_imx->chipselect[i], 1);
 	}
 
 	spi_imx->bitbang.chipselect = spi_imx_chipselect;
