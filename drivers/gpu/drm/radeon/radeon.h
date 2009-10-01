@@ -1042,6 +1042,9 @@ extern int r100_cs_packet_parse(struct radeon_cs_parser *p,
 				struct radeon_cs_packet *pkt,
 				unsigned idx);
 
+/* rv200,rv250,rv280 */
+extern void r200_set_safe_registers(struct radeon_device *rdev);
+
 /* r300,r350,rv350,rv370,rv380 */
 extern void r300_set_reg_safe(struct radeon_device *rdev);
 extern void r300_mc_program(struct radeon_device *rdev);
