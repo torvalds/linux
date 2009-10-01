@@ -19,6 +19,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/spi/spi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -632,9 +633,9 @@ static int __init wm8711_modinit(void)
 	}
 #endif
 #if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&wm8731_spi_driver);
+	ret = spi_register_driver(&wm8711_spi_driver);
 	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8731 SPI driver: %d\n",
+		printk(KERN_ERR "Failed to register WM8711 SPI driver: %d\n",
 		       ret);
 	}
 #endif
@@ -648,7 +649,7 @@ static void __exit wm8711_exit(void)
 	i2c_del_driver(&wm8711_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&wm8731_spi_driver);
+	spi_unregister_driver(&wm8711_spi_driver);
 #endif
 }
 module_exit(wm8711_exit);
