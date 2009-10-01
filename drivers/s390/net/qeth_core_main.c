@@ -4305,11 +4305,16 @@ static struct {
 	{"tx csum"},
 };
 
-int qeth_core_get_stats_count(struct net_device *dev)
+int qeth_core_get_sset_count(struct net_device *dev, int stringset)
 {
-	return (sizeof(qeth_ethtool_stats_keys) / ETH_GSTRING_LEN);
+	switch (stringset) {
+	case ETH_SS_STATS:
+		return (sizeof(qeth_ethtool_stats_keys) / ETH_GSTRING_LEN);
+	default:
+		return -EINVAL;
+	}
 }
-EXPORT_SYMBOL_GPL(qeth_core_get_stats_count);
+EXPORT_SYMBOL_GPL(qeth_core_get_sset_count);
 
 void qeth_core_get_ethtool_stats(struct net_device *dev,
 		struct ethtool_stats *stats, u64 *data)

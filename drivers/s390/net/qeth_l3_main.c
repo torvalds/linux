@@ -2957,7 +2957,7 @@ static const struct ethtool_ops qeth_l3_ethtool_ops = {
 	.set_tso     = qeth_l3_ethtool_set_tso,
 	.get_strings = qeth_core_get_strings,
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
-	.get_stats_count = qeth_core_get_stats_count,
+	.get_sset_count = qeth_core_get_sset_count,
 	.get_drvinfo = qeth_core_get_drvinfo,
 	.get_settings = qeth_core_ethtool_get_settings,
 };
