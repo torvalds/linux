@@ -42,6 +42,11 @@ struct s3cmci_host {
 	int			dodma;
 	int			dmatogo;
 
+	bool			irq_disabled;
+	bool			irq_enabled;
+	bool			irq_state;
+	int			sdio_irqen;
+
 	struct mmc_request	*mrq;
 	int			cmd_is_stop;
 
