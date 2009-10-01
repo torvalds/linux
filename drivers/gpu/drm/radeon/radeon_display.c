@@ -724,7 +724,11 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	if (ret) {
 		return ret;
 	}
-	/* allocate crtcs - TODO single crtc */
+
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		num_crtc = 1;
+
+	/* allocate crtcs */
 	for (i = 0; i < num_crtc; i++) {
 		radeon_crtc_init(rdev->ddev, i);
 	}
