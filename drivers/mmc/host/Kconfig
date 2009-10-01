@@ -276,6 +276,13 @@ config MMC_S3C
 
 	  If unsure, say N.
 
+config MMC_S3C_HW_SDIO_IRQ
+       bool "Hardware support for SDIO IRQ"
+       depends on MMC_S3C
+       help
+         Enable the hardware support for SDIO interrupts instead of using
+	 the generic polling code.
+
 choice
 	prompt "Samsung S3C SD/MMC transfer code"
 	depends on MMC_S3C

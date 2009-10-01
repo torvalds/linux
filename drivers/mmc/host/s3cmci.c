@@ -1715,7 +1715,11 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 
 	mmc->ops 	= &s3cmci_ops;
 	mmc->ocr_avail	= MMC_VDD_32_33 | MMC_VDD_33_34;
+#ifdef CONFIG_MMC_S3C_HW_SDIO_IRQ
 	mmc->caps	= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
+#else
+	mmc->caps	= MMC_CAP_4_BIT_DATA;
+#endif
 	mmc->f_min 	= host->clk_rate / (host->clk_div * 256);
 	mmc->f_max 	= host->clk_rate / host->clk_div;
 
@@ -1750,8 +1754,9 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 	s3cmci_debugfs_attach(host);
 
 	platform_set_drvdata(pdev, mmc);
-	dev_info(&pdev->dev, "%s - using %s\n", mmc_hostname(mmc),
-		 s3cmci_host_usedma(host) ? "dma" : "pio");
+	dev_info(&pdev->dev, "%s - using %s, %s SDIO IRQ\n", mmc_hostname(mmc),
+		 s3cmci_host_usedma(host) ? "dma" : "pio",
+		 mmc->caps & MMC_CAP_SDIO_IRQ ? "hw" : "sw");
 
 	return 0;
 
