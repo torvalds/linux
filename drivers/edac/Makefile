@@ -18,7 +18,7 @@ edac_core-objs	+= edac_pci.o edac_pci_sysfs.o
 endif
 
 ifdef CONFIG_CPU_SUP_AMD
-edac_core-objs  += edac_mce_amd.o
+obj-$(CONFIG_X86_MCE)			+= edac_mce_amd.o
 endif
 
 obj-$(CONFIG_EDAC_AMD76X)		+= amd76x_edac.o
