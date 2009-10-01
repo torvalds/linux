@@ -875,7 +875,7 @@ static struct zl10353_config behold_h6_config = {
 static struct xc5000_config behold_x7_tunerconfig = {
 	.i2c_address      = 0xc2>>1,
 	.if_khz           = 4560,
-	.radio_input      = 1,
+	.radio_input      = XC5000_RADIO_FM1,
 };
 
 static struct zl10353_config behold_x7_config = {
