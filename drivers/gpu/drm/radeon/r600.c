@@ -240,14 +240,9 @@ int r600_mc_wait_for_idle(struct radeon_device *rdev)
 	return -1;
 }
 
-static void r600_mc_resume(struct radeon_device *rdev)
+static void r600_mc_program(struct radeon_device *rdev)
 {
-	u32 d1vga_control, d2vga_control;
-	u32 vga_render_control, vga_hdp_control;
-	u32 d1crtc_control, d2crtc_control;
-	u32 new_d1grph_primary, new_d1grph_secondary;
-	u32 new_d2grph_primary, new_d2grph_secondary;
-	u64 old_vram_start;
+	struct rv515_mc_save save;
 	u32 tmp;
 	int i, j;
 
@@ -261,41 +256,12 @@ static void r600_mc_resume(struct radeon_device *rdev)
 	}
 	WREG32(HDP_REG_COHERENCY_FLUSH_CNTL, 0);
 
-	d1vga_control = RREG32(D1VGA_CONTROL);
-	d2vga_control = RREG32(D2VGA_CONTROL);
-	vga_render_control = RREG32(VGA_RENDER_CONTROL);
-	vga_hdp_control = RREG32(VGA_HDP_CONTROL);
-	d1crtc_control = RREG32(D1CRTC_CONTROL);
-	d2crtc_control = RREG32(D2CRTC_CONTROL);
-	old_vram_start = (u64)(RREG32(MC_VM_FB_LOCATION) & 0xFFFF) << 24;
-	new_d1grph_primary = RREG32(D1GRPH_PRIMARY_SURFACE_ADDRESS);
-	new_d1grph_secondary = RREG32(D1GRPH_SECONDARY_SURFACE_ADDRESS);
-	new_d1grph_primary += rdev->mc.vram_start - old_vram_start;
-	new_d1grph_secondary += rdev->mc.vram_start - old_vram_start;
-	new_d2grph_primary = RREG32(D2GRPH_PRIMARY_SURFACE_ADDRESS);
-	new_d2grph_secondary = RREG32(D2GRPH_SECONDARY_SURFACE_ADDRESS);
-	new_d2grph_primary += rdev->mc.vram_start - old_vram_start;
-	new_d2grph_secondary += rdev->mc.vram_start - old_vram_start;
-
-	/* Stop all video */
-	WREG32(D1VGA_CONTROL, 0);
-	WREG32(D2VGA_CONTROL, 0);
-	WREG32(VGA_RENDER_CONTROL, 0);
-	WREG32(D1CRTC_UPDATE_LOCK, 1);
-	WREG32(D2CRTC_UPDATE_LOCK, 1);
-	WREG32(D1CRTC_CONTROL, 0);
-	WREG32(D2CRTC_CONTROL, 0);
-	WREG32(D1CRTC_UPDATE_LOCK, 0);
-	WREG32(D2CRTC_UPDATE_LOCK, 0);
-
-	mdelay(1);
+	rv515_mc_stop(rdev, &save);
 	if (r600_mc_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "[drm] MC not idle !\n");
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
 	}
-
-	/* Lockout access through VGA aperture*/
+	/* Lockout access through VGA aperture (doesn't exist before R600) */
 	WREG32(VGA_HDP_CONTROL, VGA_MEMORY_DISABLE);
-
 	/* Update configuration */
 	WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR, rdev->mc.vram_start >> 12);
 	WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR, (rdev->mc.vram_end - 1) >> 12);
@@ -315,31 +281,10 @@ static void r600_mc_resume(struct radeon_device *rdev)
 		WREG32(MC_VM_AGP_TOP, 0x0FFFFFFF);
 		WREG32(MC_VM_AGP_BOT, 0x0FFFFFFF);
 	}
-	WREG32(D1GRPH_PRIMARY_SURFACE_ADDRESS, new_d1grph_primary);
-	WREG32(D1GRPH_SECONDARY_SURFACE_ADDRESS, new_d1grph_secondary);
-	WREG32(D2GRPH_PRIMARY_SURFACE_ADDRESS, new_d2grph_primary);
-	WREG32(D2GRPH_SECONDARY_SURFACE_ADDRESS, new_d2grph_secondary);
-	WREG32(VGA_MEMORY_BASE_ADDRESS, rdev->mc.vram_start);
-
-	/* Unlock host access */
-	WREG32(VGA_HDP_CONTROL, vga_hdp_control);
-
-	mdelay(1);
 	if (r600_mc_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "[drm] MC not idle !\n");
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
 	}
-
-	/* Restore video state */
-	WREG32(D1CRTC_UPDATE_LOCK, 1);
-	WREG32(D2CRTC_UPDATE_LOCK, 1);
-	WREG32(D1CRTC_CONTROL, d1crtc_control);
-	WREG32(D2CRTC_CONTROL, d2crtc_control);
-	WREG32(D1CRTC_UPDATE_LOCK, 0);
-	WREG32(D2CRTC_UPDATE_LOCK, 0);
-	WREG32(D1VGA_CONTROL, d1vga_control);
-	WREG32(D2VGA_CONTROL, d2vga_control);
-	WREG32(VGA_RENDER_CONTROL, vga_render_control);
-
+	rv515_mc_resume(rdev, &save);
 	/* we need to own VRAM, so turn off the VGA renderer here
 	 * to stop it overwriting our objects */
 	rv515_vga_render_disable(rdev);
@@ -463,6 +408,7 @@ int r600_mc_init(struct radeon_device *rdev)
  */
 int r600_gpu_soft_reset(struct radeon_device *rdev)
 {
+	struct rv515_mc_save save;
 	u32 grbm_busy_mask = S_008010_VC_BUSY(1) | S_008010_VGT_BUSY_NO_DMA(1) |
 				S_008010_VGT_BUSY(1) | S_008010_TA03_BUSY(1) |
 				S_008010_TC_BUSY(1) | S_008010_SX_BUSY(1) |
@@ -480,13 +426,21 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 			S_008014_CB0_BUSY(1) | S_008014_CB1_BUSY(1) |
 			S_008014_CB2_BUSY(1) | S_008014_CB3_BUSY(1);
 	u32 srbm_reset = 0;
+	u32 tmp;
 
+	dev_info(rdev->dev, "GPU softreset (R_008010_GRBM_STATUS=0x%08X "
+		"R_008014_GRBM_STATUS2=0x%08X)\n", RREG32(R_008010_GRBM_STATUS),
+		RREG32(R_008014_GRBM_STATUS2));
+	rv515_mc_stop(rdev, &save);
+	if (r600_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
 	/* Disable CP parsing/prefetching */
 	WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(0xff));
 	/* Check if any of the rendering block is busy and reset it */
 	if ((RREG32(R_008010_GRBM_STATUS) & grbm_busy_mask) ||
 	    (RREG32(R_008014_GRBM_STATUS2) & grbm2_busy_mask)) {
-		WREG32(R_008020_GRBM_SOFT_RESET, S_008020_SOFT_RESET_CR(1) |
+		tmp = S_008020_SOFT_RESET_CR(1) |
 			S_008020_SOFT_RESET_DB(1) |
 			S_008020_SOFT_RESET_CB(1) |
 			S_008020_SOFT_RESET_PA(1) |
@@ -498,14 +452,18 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 			S_008020_SOFT_RESET_TC(1) |
 			S_008020_SOFT_RESET_TA(1) |
 			S_008020_SOFT_RESET_VC(1) |
-			S_008020_SOFT_RESET_VGT(1));
+			S_008020_SOFT_RESET_VGT(1);
+		dev_info(rdev->dev, "R_008020_GRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(R_008020_GRBM_SOFT_RESET, tmp);
 		(void)RREG32(R_008020_GRBM_SOFT_RESET);
 		udelay(50);
 		WREG32(R_008020_GRBM_SOFT_RESET, 0);
 		(void)RREG32(R_008020_GRBM_SOFT_RESET);
 	}
 	/* Reset CP (we always reset CP) */
-	WREG32(R_008020_GRBM_SOFT_RESET, S_008020_SOFT_RESET_CP(1));
+	tmp = S_008020_SOFT_RESET_CP(1);
+	dev_info(rdev->dev, "R_008020_GRBM_SOFT_RESET=0x%08X\n", tmp);
+	WREG32(R_008020_GRBM_SOFT_RESET, tmp);
 	(void)RREG32(R_008020_GRBM_SOFT_RESET);
 	udelay(50);
 	WREG32(R_008020_GRBM_SOFT_RESET, 0);
@@ -533,6 +491,7 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 		srbm_reset |= S_000E60_SOFT_RESET_RLC(1);
 	if (G_000E50_SEM_BUSY(RREG32(R_000E50_SRBM_STATUS)))
 		srbm_reset |= S_000E60_SOFT_RESET_SEM(1);
+	dev_info(rdev->dev, "R_000E60_SRBM_SOFT_RESET=0x%08X\n", srbm_reset);
 	WREG32(R_000E60_SRBM_SOFT_RESET, srbm_reset);
 	(void)RREG32(R_000E60_SRBM_SOFT_RESET);
 	udelay(50);
@@ -540,6 +499,11 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 	(void)RREG32(R_000E60_SRBM_SOFT_RESET);
 	/* Wait a little for things to settle down */
 	udelay(50);
+	/* After reset we need to reinit the asic as GPU often endup in an
+	 * incoherent state.
+	 */
+	atom_asic_init(rdev->mode_info.atom_context);
+	rv515_mc_resume(rdev, &save);
 	return 0;
 }
 
@@ -1477,8 +1441,7 @@ int r600_startup(struct radeon_device *rdev)
 {
 	int r;
 
-	r600_gpu_reset(rdev);
-	r600_mc_resume(rdev);
+	r600_mc_program(rdev);
 	r = r600_pcie_gart_enable(rdev);
 	if (r)
 		return r;
@@ -1509,7 +1472,7 @@ int r600_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	if (radeon_gpu_reset(rdev)) {
+	if (r600_gpu_reset(rdev)) {
 		/* FIXME: what do we want to do here ? */
 	}
 	/* post card */
