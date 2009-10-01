@@ -65,7 +65,6 @@
 #include "audit.h"
 
 extern void selnl_notify_policyload(u32 seqno);
-unsigned int policydb_loaded_version;
 
 int selinux_policycap_netpeer;
 int selinux_policycap_openperm;
@@ -617,17 +616,6 @@ static int context_struct_compute_av(struct context *scontext,
 	unsigned int i, j;
 
 	/*
-	 * Remap extended Netlink classes for old policy versions.
-	 * Do this here rather than socket_type_to_security_class()
-	 * in case a newer policy version is loaded, allowing sockets
-	 * to remain in the correct class.
-	 */
-	if (policydb_loaded_version < POLICYDB_VERSION_NLCLASS)
-		if (tclass >= unmap_class(SECCLASS_NETLINK_ROUTE_SOCKET) &&
-		    tclass <= unmap_class(SECCLASS_NETLINK_DNRT_SOCKET))
-			tclass = unmap_class(SECCLASS_NETLINK_SOCKET);
-
-	/*
 	 * Initialize the access vectors to the default values.
 	 */
 	avd->allowed = 0;
@@ -760,17 +748,6 @@ int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
 	read_lock(&policy_rwlock);
 
 	tclass = unmap_class(orig_tclass);
-
-	/*
-	 * Remap extended Netlink classes for old policy versions.
-	 * Do this here rather than socket_type_to_security_class()
-	 * in case a newer policy version is loaded, allowing sockets
-	 * to remain in the correct class.
-	 */
-	if (policydb_loaded_version < POLICYDB_VERSION_NLCLASS)
-		if (tclass >= unmap_class(SECCLASS_NETLINK_ROUTE_SOCKET) &&
-		    tclass <= unmap_class(SECCLASS_NETLINK_DNRT_SOCKET))
-			tclass = unmap_class(SECCLASS_NETLINK_SOCKET);
 
 	if (!tclass || tclass > policydb.p_classes.nprim) {
 		printk(KERN_ERR "SELinux: %s:  unrecognized class %d\n",
@@ -1766,7 +1743,6 @@ int security_load_policy(void *data, size_t len)
 			return -EINVAL;
 		}
 		security_load_policycaps();
-		policydb_loaded_version = policydb.policyvers;
 		ss_initialized = 1;
 		seqno = ++latest_granting;
 		selinux_complete_init();
@@ -1829,7 +1805,6 @@ int security_load_policy(void *data, size_t len)
 	current_mapping = map;
 	current_mapping_size = map_size;
 	seqno = ++latest_granting;
-	policydb_loaded_version = policydb.policyvers;
 	write_unlock_irq(&policy_rwlock);
 
 	/* Free the old policydb and SID table. */
