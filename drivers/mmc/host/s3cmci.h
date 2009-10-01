@@ -68,6 +68,12 @@ struct s3cmci_host {
 	unsigned int		ccnt, dcnt;
 	struct tasklet_struct	pio_tasklet;
 
+#ifdef CONFIG_DEBUG_FS
+	struct dentry		*debug_root;
+	struct dentry		*debug_state;
+	struct dentry		*debug_regs;
+#endif
+
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
 #endif
