@@ -1081,6 +1081,16 @@ extern void rv515_clock_startup(struct radeon_device *rdev);
 extern void rv515_debugfs(struct radeon_device *rdev);
 extern int rv515_suspend(struct radeon_device *rdev);
 
+/* rs400 */
+extern int rs400_gart_init(struct radeon_device *rdev);
+extern int rs400_gart_enable(struct radeon_device *rdev);
+extern void rs400_gart_adjust_size(struct radeon_device *rdev);
+extern void rs400_gart_disable(struct radeon_device *rdev);
+extern void rs400_gart_fini(struct radeon_device *rdev);
+
+/* rs600 */
+extern void rs600_set_safe_registers(struct radeon_device *rdev);
+
 /* rs690, rs740 */
 extern void rs690_line_buffer_adjust(struct radeon_device *rdev,
 					struct drm_display_mode *mode1,

@@ -416,9 +416,14 @@ void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	WREG32(RS600_MC_DATA, v);
 }
 
-int rs600_init(struct radeon_device *rdev)
+void rs600_set_safe_registers(struct radeon_device *rdev)
 {
 	rdev->config.r300.reg_safe_bm = rs600_reg_safe_bm;
 	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(rs600_reg_safe_bm);
+}
+
+int rs600_init(struct radeon_device *rdev)
+{
+    rs600_set_safe_registers(rdev);
 	return 0;
 }
