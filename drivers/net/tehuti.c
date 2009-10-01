@@ -2105,12 +2105,6 @@ err_pci:
 }
 
 /****************** Ethtool interface *********************/
-/* get strings for tests */
-static const char
- bdx_test_names[][ETH_GSTRING_LEN] = {
-	"No tests defined"
-};
-
 /* get strings for statistics counters */
 static const char
  bdx_stat_names[][ETH_GSTRING_LEN] = {
@@ -2380,9 +2374,6 @@ bdx_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
 static void bdx_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	switch (stringset) {
-	case ETH_SS_TEST:
-		memcpy(data, *bdx_test_names, sizeof(bdx_test_names));
-		break;
 	case ETH_SS_STATS:
 		memcpy(data, *bdx_stat_names, sizeof(bdx_stat_names));
 		break;
@@ -2390,15 +2381,21 @@ static void bdx_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 }
 
 /*
- * bdx_get_stats_count - return number of 64bit statistics counters
+ * bdx_get_sset_count - return number of statistics or tests
  * @netdev
  */
-static int bdx_get_stats_count(struct net_device *netdev)
+static int bdx_get_sset_count(struct net_device *netdev, int stringset)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
-	BDX_ASSERT(ARRAY_SIZE(bdx_stat_names)
-		   != sizeof(struct bdx_stats) / sizeof(u64));
-	return ((priv->stats_flag) ? ARRAY_SIZE(bdx_stat_names)	: 0);
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		BDX_ASSERT(ARRAY_SIZE(bdx_stat_names)
+			   != sizeof(struct bdx_stats) / sizeof(u64));
+		return ((priv->stats_flag) ? ARRAY_SIZE(bdx_stat_names)	: 0);
+	default:
+		return -EINVAL;
+	}
 }
 
 /*
@@ -2441,7 +2438,7 @@ static void bdx_ethtool_ops(struct net_device *netdev)
 		.get_sg = ethtool_op_get_sg,
 		.get_tso = ethtool_op_get_tso,
 		.get_strings = bdx_get_strings,
-		.get_stats_count = bdx_get_stats_count,
+		.get_sset_count = bdx_get_sset_count,
 		.get_ethtool_stats = bdx_get_ethtool_stats,
 	};
 
