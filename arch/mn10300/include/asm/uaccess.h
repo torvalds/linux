@@ -129,42 +129,47 @@ extern int fixup_exception(struct pt_regs *regs);
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) (*(struct __large_struct *)(x))
 
-#define __get_user_nocheck(x, ptr, size)	\
-({						\
-	__typeof(*(ptr)) __gu_val;		\
-	unsigned long __gu_addr;		\
-	int __gu_err;				\
-	__gu_addr = (unsigned long) (ptr);	\
-	switch (size) {				\
-	case 1:  __get_user_asm("bu"); break;	\
-	case 2:  __get_user_asm("hu"); break;	\
-	case 4:  __get_user_asm(""  ); break;	\
-	default: __get_user_unknown(); break;	\
-	}					\
-	x = (__typeof__(*(ptr))) __gu_val;	\
-	__gu_err;				\
+#define __get_user_nocheck(x, ptr, size)				\
+({									\
+	unsigned long __gu_addr;					\
+	int __gu_err;							\
+	__gu_addr = (unsigned long) (ptr);				\
+	switch (size) {							\
+	case 1: {							\
+		unsigned char __gu_val;					\
+		__get_user_asm("bu");					\
+		(x) = *(__force __typeof__(*(ptr))*) &__gu_val;		\
+		break;							\
+	}								\
+	case 2: {							\
+		unsigned short __gu_val;				\
+		__get_user_asm("hu");					\
+		(x) = *(__force __typeof__(*(ptr))*) &__gu_val;		\
+		break;							\
+	}								\
+	case 4: {							\
+		unsigned int __gu_val;					\
+		__get_user_asm("");					\
+		(x) = *(__force __typeof__(*(ptr))*) &__gu_val;		\
+		break;							\
+	}								\
+	default:							\
+		__get_user_unknown();					\
+		break;							\
+	}								\
+	__gu_err;							\
 })
 
-#define __get_user_check(x, ptr, size)			\
-({							\
-	__typeof__(*(ptr)) __gu_val;			\
-	unsigned long __gu_addr;			\
-	int __gu_err;					\
-	__gu_addr = (unsigned long) (ptr);		\
-	if (likely(__access_ok(__gu_addr,size))) {	\
-		switch (size) {				\
-		case 1:  __get_user_asm("bu"); break;	\
-		case 2:  __get_user_asm("hu"); break;	\
-		case 4:  __get_user_asm(""  ); break;	\
-		default: __get_user_unknown(); break;	\
-		}					\
-	}						\
-	else {						\
-		__gu_err = -EFAULT;			\
-		__gu_val = 0;				\
-	}						\
-	x = (__typeof__(*(ptr))) __gu_val;		\
-	__gu_err;					\
+#define __get_user_check(x, ptr, size)					\
+({									\
+	int _e;								\
+	if (likely(__access_ok((unsigned long) (ptr), (size))))		\
+		_e = __get_user_nocheck((x), (ptr), (size));		\
+	else {								\
+		_e = -EFAULT;						\
+		(x) = (__typeof__(x))0;					\
+	}								\
+	_e;								\
 })
 
 #define __get_user_asm(INSN)					\
