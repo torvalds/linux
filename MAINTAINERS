@@ -741,23 +741,36 @@ M:	Dirk Opfer <dirk@opfer-online.de>
 S:	Maintained
 
 ARM/PALMTX,PALMT5,PALMLD,PALMTE2,PALMTC SUPPORT
-P:	Marek Vasut
-M:	marek.vasut@gmail.com
+M:	Marek Vasut <marek.vasut@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
+F:	arch/arm/mach-pxa/include/mach/palmtx.h
+F:	arch/arm/mach-pxa/palmtx.c
+F:	arch/arm/mach-pxa/include/mach/palmt5.h
+F:	arch/arm/mach-pxa/palmt5.c
+F:	arch/arm/mach-pxa/include/mach/palmld.h
+F:	arch/arm/mach-pxa/palmld.c
+F:	arch/arm/mach-pxa/include/mach/palmte2.h
+F:	arch/arm/mach-pxa/palmte2.c
+F:	arch/arm/mach-pxa/include/mach/palmtc.h
+F:	arch/arm/mach-pxa/palmtc.c
 
 ARM/PALM TREO 680 SUPPORT
 M:	Tomas Cech <sleep_walker@suse.cz>
 L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
+F:	arch/arm/mach-pxa/include/mach/treo680.h
+F:	arch/arm/mach-pxa/treo680.c
 
 ARM/PALMZ72 SUPPORT
 M:	Sergey Lapin <slapin@ossfans.org>
 L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
+F:	arch/arm/mach-pxa/include/mach/palmz72.h
+F:	arch/arm/mach-pxa/palmz72.c
 
 ARM/PLEB SUPPORT
 M:	Peter Chubb <pleb@gelato.unsw.edu.au>
