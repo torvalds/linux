@@ -9818,11 +9818,6 @@ static const struct {
 	{ "idle check (online)" }
 };
 
-static int bnx2x_self_test_count(struct net_device *dev)
-{
-	return BNX2X_NUM_TESTS;
-}
-
 static int bnx2x_test_registers(struct bnx2x *bp)
 {
 	int idx, i, rc = -ENODEV;
@@ -10436,6 +10431,36 @@ static const struct {
 #define IS_E1HMF_MODE_STAT(bp) \
 			(IS_E1HMF(bp) && !(bp->msglevel & BNX2X_MSG_STATS))
 
+static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int i, num_stats;
+
+	switch(stringset) {
+	case ETH_SS_STATS:
+		if (is_multi(bp)) {
+			num_stats = BNX2X_NUM_Q_STATS * bp->num_rx_queues;
+			if (!IS_E1HMF_MODE_STAT(bp))
+				num_stats += BNX2X_NUM_STATS;
+		} else {
+			if (IS_E1HMF_MODE_STAT(bp)) {
+				num_stats = 0;
+				for (i = 0; i < BNX2X_NUM_STATS; i++)
+					if (IS_FUNC_STAT(i))
+						num_stats++;
+			} else
+				num_stats = BNX2X_NUM_STATS;
+		}
+		return num_stats;
+
+	case ETH_SS_TEST:
+		return BNX2X_NUM_TESTS;
+
+	default:
+		return -EINVAL;
+	}
+}
+
 static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -10471,28 +10496,6 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 		memcpy(buf, bnx2x_tests_str_arr, sizeof(bnx2x_tests_str_arr));
 		break;
 	}
-}
-
-static int bnx2x_get_stats_count(struct net_device *dev)
-{
-	struct bnx2x *bp = netdev_priv(dev);
-	int i, num_stats;
-
-	if (is_multi(bp)) {
-		num_stats = BNX2X_NUM_Q_STATS * bp->num_rx_queues;
-		if (!IS_E1HMF_MODE_STAT(bp))
-			num_stats += BNX2X_NUM_STATS;
-	} else {
-		if (IS_E1HMF_MODE_STAT(bp)) {
-			num_stats = 0;
-			for (i = 0; i < BNX2X_NUM_STATS; i++)
-				if (IS_FUNC_STAT(i))
-					num_stats++;
-		} else
-			num_stats = BNX2X_NUM_STATS;
-	}
-
-	return num_stats;
 }
 
 static void bnx2x_get_ethtool_stats(struct net_device *dev,
@@ -10637,11 +10640,10 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.set_sg			= ethtool_op_set_sg,
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= bnx2x_set_tso,
-	.self_test_count	= bnx2x_self_test_count,
 	.self_test		= bnx2x_self_test,
+	.get_sset_count		= bnx2x_get_sset_count,
 	.get_strings		= bnx2x_get_strings,
 	.phys_id		= bnx2x_phys_id,
-	.get_stats_count	= bnx2x_get_stats_count,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,
 };
 

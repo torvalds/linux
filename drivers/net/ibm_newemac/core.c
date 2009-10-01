@@ -2145,9 +2145,12 @@ static int emac_ethtool_nway_reset(struct net_device *ndev)
 	return res;
 }
 
-static int emac_ethtool_get_stats_count(struct net_device *ndev)
+static int emac_ethtool_get_sset_count(struct net_device *ndev, int stringset)
 {
-	return EMAC_ETHTOOL_STATS_COUNT;
+	if (stringset == ETH_SS_STATS)
+		return EMAC_ETHTOOL_STATS_COUNT;
+	else
+		return -EINVAL;
 }
 
 static void emac_ethtool_get_strings(struct net_device *ndev, u32 stringset,
@@ -2178,7 +2181,6 @@ static void emac_ethtool_get_drvinfo(struct net_device *ndev,
 	info->fw_version[0] = '\0';
 	sprintf(info->bus_info, "PPC 4xx EMAC-%d %s",
 		dev->cell_index, dev->ofdev->node->full_name);
-	info->n_stats = emac_ethtool_get_stats_count(ndev);
 	info->regdump_len = emac_ethtool_get_regs_len(ndev);
 }
 
@@ -2198,7 +2200,7 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_rx_csum = emac_ethtool_get_rx_csum,
 
 	.get_strings = emac_ethtool_get_strings,
-	.get_stats_count = emac_ethtool_get_stats_count,
+	.get_sset_count = emac_ethtool_get_sset_count,
 	.get_ethtool_stats = emac_ethtool_get_ethtool_stats,
 
 	.get_link = ethtool_op_get_link,

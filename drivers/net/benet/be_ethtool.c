@@ -281,9 +281,14 @@ be_get_stat_strings(struct net_device *netdev, uint32_t stringset,
 	}
 }
 
-static int be_get_stats_count(struct net_device *netdev)
+static int be_get_sset_count(struct net_device *netdev, int stringset)
 {
-	return ETHTOOL_STATS_NUM;
+	switch (stringset) {
+	case ETH_SS_STATS:
+		return ETHTOOL_STATS_NUM;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
@@ -364,7 +369,7 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
 	.get_strings = be_get_stat_strings,
-	.get_stats_count = be_get_stats_count,
+	.get_sset_count = be_get_sset_count,
 	.get_ethtool_stats = be_get_ethtool_stats,
 	.flash_device = be_do_flash,
 };

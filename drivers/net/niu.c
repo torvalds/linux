@@ -7855,9 +7855,12 @@ static void niu_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	}
 }
 
-static int niu_get_stats_count(struct net_device *dev)
+static int niu_get_sset_count(struct net_device *dev, int stringset)
 {
 	struct niu *np = netdev_priv(dev);
+
+	if (stringset != ETH_SS_STATS)
+		return -EINVAL;
 
 	return ((np->flags & NIU_FLAGS_XMAC ?
 		 NUM_XMAC_STAT_KEYS :
@@ -7978,7 +7981,7 @@ static const struct ethtool_ops niu_ethtool_ops = {
 	.get_settings		= niu_get_settings,
 	.set_settings		= niu_set_settings,
 	.get_strings		= niu_get_strings,
-	.get_stats_count	= niu_get_stats_count,
+	.get_sset_count		= niu_get_sset_count,
 	.get_ethtool_stats	= niu_get_ethtool_stats,
 	.phys_id		= niu_phys_id,
 	.get_rxnfc		= niu_get_nfc,
