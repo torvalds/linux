@@ -747,9 +747,16 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 			struct be_eth_rx_compl *rxcp)
 {
 	struct sk_buff *skb;
-	u32 vtp, vid;
+	u32 vlanf, vid;
+	u8 vtm;
 
-	vtp = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
+	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
+	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
+
+	/* vlanf could be wrongly set in some cards.
+	 * ignore if vtm is not set */
+	if ((adapter->cap == 0x400) && !vtm)
+		vlanf = 0;
 
 	skb = netdev_alloc_skb(adapter->netdev, BE_HDR_LEN + NET_IP_ALIGN);
 	if (!skb) {
@@ -772,7 +779,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
 	skb->dev = adapter->netdev;
 
-	if (vtp) {
+	if (vlanf) {
 		if (!adapter->vlan_grp || adapter->num_vlans == 0) {
 			kfree_skb(skb);
 			return;
@@ -797,11 +804,18 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	struct be_eq_obj *eq_obj =  &adapter->rx_eq;
 	u32 num_rcvd, pkt_size, remaining, vlanf, curr_frag_len;
 	u16 i, rxq_idx = 0, vid, j;
+	u8 vtm;
 
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
 	pkt_size = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
 	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
+	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
+
+	/* vlanf could be wrongly set in some cards.
+	 * ignore if vtm is not set */
+	if ((adapter->cap == 0x400) && !vtm)
+		vlanf = 0;
 
 	skb = napi_get_frags(&eq_obj->napi);
 	if (!skb) {
@@ -2045,7 +2059,8 @@ static int be_hw_up(struct be_adapter *adapter)
 	if (status)
 		return status;
 
-	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num);
+	status = be_cmd_query_fw_cfg(adapter,
+				&adapter->port_num, &adapter->cap);
 	return status;
 }
 
