@@ -841,11 +841,7 @@ int rv770_resume(struct radeon_device *rdev)
 		/* FIXME: what do we want to do here ? */
 	}
 	/* post card */
-	if (rdev->is_atom_bios) {
-		atom_asic_init(rdev->mode_info.atom_context);
-	} else {
-		radeon_combios_asic_init(rdev->ddev);
-	}
+	atom_asic_init(rdev->mode_info.atom_context);
 	/* Initialize clocks */
 	r = radeon_clocks_init(rdev);
 	if (r) {
@@ -902,8 +898,10 @@ int rv770_init(struct radeon_device *rdev)
 			return -EINVAL;
 	}
 	/* Must be an ATOMBIOS */
-	if (!rdev->is_atom_bios)
+	if (!rdev->is_atom_bios) {
+		dev_err(rdev->dev, "Expecting atombios for R600 GPU\n");
 		return -EINVAL;
+	}
 	r = radeon_atombios_init(rdev);
 	if (r)
 		return r;
@@ -1006,11 +1004,7 @@ void rv770_fini(struct radeon_device *rdev)
 		radeon_agp_fini(rdev);
 #endif
 	radeon_object_fini(rdev);
-	if (rdev->is_atom_bios) {
-		radeon_atombios_fini(rdev);
-	} else {
-		radeon_combios_fini(rdev);
-	}
+	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
 	radeon_dummy_page_fini(rdev);
