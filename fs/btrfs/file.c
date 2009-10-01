@@ -123,7 +123,10 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		    root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
 
 	end_of_last_block = start_pos + num_bytes - 1;
-	btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block);
+	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block);
+	if (err)
+		return err;
+
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = pages[i];
 		SetPageUptodate(p);
@@ -917,21 +920,35 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	start_pos = pos;
 
 	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
+
+	/* do the reserve before the mutex lock in case we have to do some
+	 * flushing.  We wouldn't deadlock, but this is more polite.
+	 */
+	err = btrfs_reserve_metadata_for_delalloc(root, inode, 1);
+	if (err)
+		goto out_nolock;
+
+	mutex_lock(&inode->i_mutex);
+
 	current->backing_dev_info = inode->i_mapping->backing_dev_info;
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
 	if (err)
-		goto out_nolock;
+		goto out;
+
 	if (count == 0)
-		goto out_nolock;
+		goto out;
 
 	err = file_remove_suid(file);
 	if (err)
-		goto out_nolock;
+		goto out;
+
 	file_update_time(file);
 
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
 
-	mutex_lock(&inode->i_mutex);
+	/* generic_write_checks can change our pos */
+	start_pos = pos;
+
 	BTRFS_I(inode)->sequence++;
 	first_index = pos >> PAGE_CACHE_SHIFT;
 	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
@@ -1028,6 +1045,7 @@ out:
 	mutex_unlock(&inode->i_mutex);
 	if (ret)
 		err = ret;
+	btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
 
 out_nolock:
 	kfree(pages);
