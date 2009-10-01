@@ -212,7 +212,7 @@ extern struct attribute_group blk_trace_attr_group;
 # define blk_trace_startstop(q, start)			(-ENOTTY)
 # define blk_trace_remove(q)				(-ENOTTY)
 # define blk_add_trace_msg(q, fmt, ...)			do { } while (0)
-# define blk_trace_remove_sysfs(struct device *dev)	do { } while (0)
+# define blk_trace_remove_sysfs(dev)			do { } while (0)
 static inline int blk_trace_init_sysfs(struct device *dev)
 {
 	return 0;
