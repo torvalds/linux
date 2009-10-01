@@ -703,7 +703,7 @@ static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cgrp);
 static const struct inode_operations cgroup_dir_inode_operations;
-static struct file_operations proc_cgroupstats_operations;
+static const struct file_operations proc_cgroupstats_operations;
 
 static struct backing_dev_info cgroup_backing_dev_info = {
 	.name		= "cgroup",
@@ -1863,7 +1863,7 @@ static int cgroup_seqfile_release(struct inode *inode, struct file *file)
 	return single_release(inode, file);
 }
 
-static struct file_operations cgroup_seqfile_operations = {
+static const struct file_operations cgroup_seqfile_operations = {
 	.read = seq_read,
 	.write = cgroup_file_write,
 	.llseek = seq_lseek,
@@ -1922,7 +1922,7 @@ static int cgroup_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return simple_rename(old_dir, old_dentry, new_dir, new_dentry);
 }
 
-static struct file_operations cgroup_file_operations = {
+static const struct file_operations cgroup_file_operations = {
 	.read = cgroup_file_read,
 	.write = cgroup_file_write,
 	.llseek = generic_file_llseek,
@@ -3369,7 +3369,7 @@ static int cgroup_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_cgroup_show, pid);
 }
 
-struct file_operations proc_cgroup_operations = {
+const struct file_operations proc_cgroup_operations = {
 	.open		= cgroup_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -3398,7 +3398,7 @@ static int cgroupstats_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_cgroupstats_show, NULL);
 }
 
-static struct file_operations proc_cgroupstats_operations = {
+static const struct file_operations proc_cgroupstats_operations = {
 	.open = cgroupstats_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
