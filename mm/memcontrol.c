@@ -447,9 +447,10 @@ static struct mem_cgroup_per_zone *
 __mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
 {
 	struct rb_node *rightmost = NULL;
-	struct mem_cgroup_per_zone *mz = NULL;
+	struct mem_cgroup_per_zone *mz;
 
 retry:
+	mz = NULL;
 	rightmost = rb_last(&mctz->rb_root);
 	if (!rightmost)
 		goto done;		/* Nothing to reclaim from */
