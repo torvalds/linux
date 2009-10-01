@@ -98,7 +98,7 @@ static const struct i2c_device_id keywest_i2c_id[] = {
 	{ }
 };
 
-struct i2c_driver keywest_driver = {
+static struct i2c_driver keywest_driver = {
 	.driver = {
 		.name = "PMac Keywest Audio",
 	},
