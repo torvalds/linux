@@ -313,7 +313,8 @@ soft_limit_tree_from_page(struct page *page)
 static void
 __mem_cgroup_insert_exceeded(struct mem_cgroup *mem,
 				struct mem_cgroup_per_zone *mz,
-				struct mem_cgroup_tree_per_zone *mctz)
+				struct mem_cgroup_tree_per_zone *mctz,
+				unsigned long long new_usage_in_excess)
 {
 	struct rb_node **p = &mctz->rb_root.rb_node;
 	struct rb_node *parent = NULL;
@@ -322,7 +323,9 @@ __mem_cgroup_insert_exceeded(struct mem_cgroup *mem,
 	if (mz->on_tree)
 		return;
 
-	mz->usage_in_excess = res_counter_soft_limit_excess(&mem->res);
+	mz->usage_in_excess = new_usage_in_excess;
+	if (!mz->usage_in_excess)
+		return;
 	while (*p) {
 		parent = *p;
 		mz_node = rb_entry(parent, struct mem_cgroup_per_zone,
@@ -382,7 +385,7 @@ static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
 
 static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
 {
-	unsigned long long new_usage_in_excess;
+	unsigned long long excess;
 	struct mem_cgroup_per_zone *mz;
 	struct mem_cgroup_tree_per_zone *mctz;
 	int nid = page_to_nid(page);
@@ -395,25 +398,21 @@ static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
 	 */
 	for (; mem; mem = parent_mem_cgroup(mem)) {
 		mz = mem_cgroup_zoneinfo(mem, nid, zid);
-		new_usage_in_excess =
-			res_counter_soft_limit_excess(&mem->res);
+		excess = res_counter_soft_limit_excess(&mem->res);
 		/*
 		 * We have to update the tree if mz is on RB-tree or
 		 * mem is over its softlimit.
 		 */
-		if (new_usage_in_excess || mz->on_tree) {
+		if (excess || mz->on_tree) {
 			spin_lock(&mctz->lock);
 			/* if on-tree, remove it */
 			if (mz->on_tree)
 				__mem_cgroup_remove_exceeded(mem, mz, mctz);
 			/*
-			 * if over soft limit, insert again. mz->usage_in_excess
-			 * will be updated properly.
+			 * Insert again. mz->usage_in_excess will be updated.
+			 * If excess is 0, no tree ops.
 			 */
-			if (new_usage_in_excess)
-				__mem_cgroup_insert_exceeded(mem, mz, mctz);
-			else
-				mz->usage_in_excess = 0;
+			__mem_cgroup_insert_exceeded(mem, mz, mctz, excess);
 			spin_unlock(&mctz->lock);
 		}
 	}
@@ -2221,6 +2220,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 	unsigned long reclaimed;
 	int loop = 0;
 	struct mem_cgroup_tree_per_zone *mctz;
+	unsigned long long excess;
 
 	if (order > 0)
 		return 0;
@@ -2272,9 +2272,8 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 					break;
 			} while (1);
 		}
-		mz->usage_in_excess =
-			res_counter_soft_limit_excess(&mz->mem->res);
 		__mem_cgroup_remove_exceeded(mz->mem, mz, mctz);
+		excess = res_counter_soft_limit_excess(&mz->mem->res);
 		/*
 		 * One school of thought says that we should not add
 		 * back the node to the tree if reclaim returns 0.
@@ -2283,8 +2282,8 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 		 * memory to reclaim from. Consider this as a longer
 		 * term TODO.
 		 */
-		if (mz->usage_in_excess)
-			__mem_cgroup_insert_exceeded(mz->mem, mz, mctz);
+		/* If excess == 0, no tree ops */
+		__mem_cgroup_insert_exceeded(mz->mem, mz, mctz, excess);
 		spin_unlock(&mctz->lock);
 		css_put(&mz->mem->css);
 		loop++;
