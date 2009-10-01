@@ -1238,8 +1238,8 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_NR_MEMSLOTS:
 		r = KVM_MEMORY_SLOTS;
 		break;
-	case KVM_CAP_PV_MMU:
-		r = !tdp_enabled;
+	case KVM_CAP_PV_MMU:	/* obsolete */
+		r = 0;
 		break;
 	case KVM_CAP_IOMMU:
 		r = iommu_found();
