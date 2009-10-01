@@ -4909,10 +4909,21 @@ again:
 		goto again;
 	}
 
+	/*
+	 * XXX - page_mkwrite gets called every time the page is dirtied, even
+	 * if it was already dirty, so for space accounting reasons we need to
+	 * clear any delalloc bits for the range we are fixing to save.  There
+	 * is probably a better way to do this, but for now keep consistent with
+	 * prepare_pages in the normal write path.
+	 */
+	clear_extent_bits(&BTRFS_I(inode)->io_tree, page_start, page_end,
+			  EXTENT_DIRTY | EXTENT_DELALLOC, GFP_NOFS);
+
 	ret = btrfs_set_extent_delalloc(inode, page_start, page_end);
 	if (ret) {
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 		ret = VM_FAULT_SIGBUS;
+		btrfs_free_reserved_data_space(root, inode, PAGE_CACHE_SIZE);
 		goto out_unlock;
 	}
 	ret = 0;
