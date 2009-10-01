@@ -57,6 +57,7 @@
 #define CMD_802_11_ENABLE_RSN			0x002f
 #define CMD_802_11_SET_AFC			0x003c
 #define CMD_802_11_GET_AFC			0x003d
+#define CMD_802_11_DEEP_SLEEP                  0x003e
 #define CMD_802_11_AD_HOC_STOP			0x0040
 #define CMD_802_11_HOST_SLEEP_CFG		0x0043
 #define CMD_802_11_WAKEUP_CONFIRM		0x0044

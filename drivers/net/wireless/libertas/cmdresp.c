@@ -504,7 +504,19 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 
 	case MACREG_INT_CODE_HOST_AWAKE:
 		lbs_deb_cmd("EVENT: host awake\n");
+		if (priv->reset_deep_sleep_wakeup)
+			priv->reset_deep_sleep_wakeup(priv);
+		priv->is_deep_sleep = 0;
 		lbs_send_confirmwake(priv);
+		break;
+
+	case MACREG_INT_CODE_DEEP_SLEEP_AWAKE:
+		if (priv->reset_deep_sleep_wakeup)
+			priv->reset_deep_sleep_wakeup(priv);
+		lbs_deb_cmd("EVENT: ds awake\n");
+		priv->is_deep_sleep = 0;
+		priv->wakeup_dev_required = 0;
+		wake_up_interruptible(&priv->ds_awake_q);
 		break;
 
 	case MACREG_INT_CODE_PS_AWAKE:

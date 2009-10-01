@@ -129,6 +129,20 @@ struct lbs_private {
 	u32 bbp_offset;
 	u32 rf_offset;
 
+	/** Deep sleep flag */
+	int is_deep_sleep;
+	/** Auto deep sleep enabled flag */
+	int is_auto_deep_sleep_enabled;
+	/** Device wakeup required flag */
+	int wakeup_dev_required;
+	/** Auto deep sleep flag*/
+	int is_activity_detected;
+	/** Auto deep sleep timeout (in miliseconds) */
+	int auto_deep_sleep_timeout;
+
+	/** Deep sleep wait queue */
+	wait_queue_head_t       ds_awake_q;
+
 	/* Download sent:
 	   bit0 1/0=data_sent/data_tx_done,
 	   bit1 1/0=cmd_sent/cmd_tx_done,
@@ -154,6 +168,9 @@ struct lbs_private {
 	/** Hardware access */
 	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);
 	void (*reset_card) (struct lbs_private *priv);
+	int (*enter_deep_sleep) (struct lbs_private *priv);
+	int (*exit_deep_sleep) (struct lbs_private *priv);
+	int (*reset_deep_sleep_wakeup) (struct lbs_private *priv);
 
 	/* Wake On LAN */
 	uint32_t wol_criteria;
@@ -204,6 +221,7 @@ struct lbs_private {
 
 	/** Timers */
 	struct timer_list command_timer;
+	struct timer_list auto_deepsleep_timer;
 	int nr_retries;
 	int cmd_timed_out;
 

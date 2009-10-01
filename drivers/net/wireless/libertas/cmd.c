@@ -17,7 +17,6 @@
 
 static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
 
-
 /**
  *  @brief Simple callback that copies response back into command
  *
@@ -317,6 +316,60 @@ int lbs_cmd_802_11_sleep_params(struct lbs_private *priv, uint16_t cmd_action,
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return 0;
+}
+
+static int lbs_wait_for_ds_awake(struct lbs_private *priv)
+{
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	if (priv->is_deep_sleep) {
+		if (!wait_event_interruptible_timeout(priv->ds_awake_q,
+					!priv->is_deep_sleep, (10 * HZ))) {
+			lbs_pr_err("ds_awake_q: timer expired\n");
+			ret = -1;
+		}
+	}
+
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
+}
+
+int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep)
+{
+	int ret =  0;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	if (deep_sleep) {
+		if (priv->is_deep_sleep != 1) {
+			lbs_deb_cmd("deep sleep: sleep\n");
+			BUG_ON(!priv->enter_deep_sleep);
+			ret = priv->enter_deep_sleep(priv);
+			if (!ret) {
+				netif_stop_queue(priv->dev);
+				netif_carrier_off(priv->dev);
+			}
+		} else {
+			lbs_pr_err("deep sleep: already enabled\n");
+		}
+	} else {
+		if (priv->is_deep_sleep) {
+			lbs_deb_cmd("deep sleep: wakeup\n");
+			BUG_ON(!priv->exit_deep_sleep);
+			ret = priv->exit_deep_sleep(priv);
+			if (!ret) {
+				ret = lbs_wait_for_ds_awake(priv);
+				if (ret)
+					lbs_pr_err("deep sleep: wakeup"
+							"failed\n");
+			}
+		}
+	}
+
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
 }
 
 int lbs_cmd_802_11_set_wep(struct lbs_private *priv, uint16_t cmd_action,
@@ -1242,8 +1295,17 @@ static void lbs_submit_command(struct lbs_private *priv,
 		timeo = HZ/4;
 	}
 
-	/* Setup the timer after transmit command */
-	mod_timer(&priv->command_timer, jiffies + timeo);
+	if (command == CMD_802_11_DEEP_SLEEP) {
+		if (priv->is_auto_deep_sleep_enabled) {
+			priv->wakeup_dev_required = 1;
+			priv->dnld_sent = 0;
+		}
+		priv->is_deep_sleep = 1;
+		lbs_complete_command(priv, cmdnode, 0);
+	} else {
+		/* Setup the timer after transmit command */
+		mod_timer(&priv->command_timer, jiffies + timeo);
+	}
 
 	lbs_deb_leave(LBS_DEB_HOST);
 }
@@ -1504,6 +1566,10 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 	case CMD_802_11_BEACON_CTRL:
 		ret = lbs_cmd_bcn_ctrl(priv, cmdptr, cmd_action);
+		break;
+	case CMD_802_11_DEEP_SLEEP:
+		cmdptr->command = cpu_to_le16(CMD_802_11_DEEP_SLEEP);
+		cmdptr->size = cpu_to_le16(S_DS_GEN);
 		break;
 	default:
 		lbs_pr_err("PREP_CMD: unknown command 0x%04x\n", cmd_no);

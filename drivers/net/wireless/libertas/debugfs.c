@@ -117,6 +117,11 @@ static ssize_t lbs_sleepparams_write(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
+	if (!lbs_is_cmd_allowed(priv)) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
 	buf_size = min(count, len - 1);
 	if (copy_from_user(buf, user_buf, buf_size)) {
 		ret = -EFAULT;
@@ -156,6 +161,11 @@ static ssize_t lbs_sleepparams_read(struct file *file, char __user *userbuf,
 	char *buf = (char *)addr;
 	if (!buf)
 		return -ENOMEM;
+
+	if (!lbs_is_cmd_allowed(priv)) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
 
 	ret = lbs_cmd_802_11_sleep_params(priv, CMD_ACT_GET, &sp);
 	if (ret)
@@ -223,6 +233,9 @@ static ssize_t lbs_threshold_read(uint16_t tlv_type, uint16_t event_mask,
 	u8 freq;
 	int events = 0;
 
+	if (!lbs_is_cmd_allowed(priv))
+		return -EBUSY;
+
 	buf = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -274,6 +287,9 @@ static ssize_t lbs_threshold_write(uint16_t tlv_type, uint16_t event_mask,
 	uint16_t curr_mask;
 	char *buf;
 	int ret;
+
+	if (!lbs_is_cmd_allowed(priv))
+		return -EBUSY;
 
 	buf = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!buf)
@@ -444,6 +460,11 @@ static ssize_t lbs_rdmac_read(struct file *file, char __user *userbuf,
 	if (!buf)
 		return -ENOMEM;
 
+	if (!lbs_is_cmd_allowed(priv)) {
+		free_page(addr);
+		return -EBUSY;
+	}
+
 	offval.offset = priv->mac_offset;
 	offval.value = 0;
 
@@ -496,6 +517,11 @@ static ssize_t lbs_wrmac_write(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
+	if (!lbs_is_cmd_allowed(priv)) {
+		res = -EBUSY;
+		goto out_unlock;
+	}
+
 	buf_size = min(count, len - 1);
 	if (copy_from_user(buf, userbuf, buf_size)) {
 		res = -EFAULT;
@@ -531,6 +557,11 @@ static ssize_t lbs_rdbbp_read(struct file *file, char __user *userbuf,
 	char *buf = (char *)addr;
 	if (!buf)
 		return -ENOMEM;
+
+	if (!lbs_is_cmd_allowed(priv)) {
+		free_page(addr);
+		return -EBUSY;
+	}
 
 	offval.offset = priv->bbp_offset;
 	offval.value = 0;
@@ -585,6 +616,11 @@ static ssize_t lbs_wrbbp_write(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
+	if (!lbs_is_cmd_allowed(priv)) {
+		res = -EBUSY;
+		goto out_unlock;
+	}
+
 	buf_size = min(count, len - 1);
 	if (copy_from_user(buf, userbuf, buf_size)) {
 		res = -EFAULT;
@@ -620,6 +656,11 @@ static ssize_t lbs_rdrf_read(struct file *file, char __user *userbuf,
 	char *buf = (char *)addr;
 	if (!buf)
 		return -ENOMEM;
+
+	if (!lbs_is_cmd_allowed(priv)) {
+		free_page(addr);
+		return -EBUSY;
+	}
 
 	offval.offset = priv->rf_offset;
 	offval.value = 0;
@@ -673,6 +714,11 @@ static ssize_t lbs_wrrf_write(struct file *file,
 	char *buf = (char *)addr;
 	if (!buf)
 		return -ENOMEM;
+
+	if (!lbs_is_cmd_allowed(priv)) {
+		res = -EBUSY;
+		goto out_unlock;
+	}
 
 	buf_size = min(count, len - 1);
 	if (copy_from_user(buf, userbuf, buf_size)) {
