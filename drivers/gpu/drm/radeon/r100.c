@@ -3176,7 +3176,6 @@ int r100_init(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->new_init_path = true;
 	/* Register debugfs file specific to this group of asics */
 	r100_debugfs(rdev);
 	/* Disable VGA */

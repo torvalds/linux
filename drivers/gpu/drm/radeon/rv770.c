@@ -915,7 +915,7 @@ int rv770_resume(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_ib_test(rdev);
+	r = r600_ib_test(rdev);
 	if (r) {
 		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 		return r;
@@ -946,7 +946,6 @@ int rv770_init(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->new_init_path = true;
 	r = radeon_dummy_page_init(rdev);
 	if (r)
 		return r;
@@ -1034,7 +1033,7 @@ int rv770_init(struct radeon_device *rdev)
 			DRM_ERROR("radeon: failled initializing IB pool (%d).\n", r);
 			rdev->accel_working = false;
 		}
-		r = radeon_ib_test(rdev);
+		r = r600_ib_test(rdev);
 		if (r) {
 			DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 			rdev->accel_working = false;

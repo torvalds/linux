@@ -590,17 +590,7 @@ struct radeon_asic {
 	void (*fini)(struct radeon_device *rdev);
 	int (*resume)(struct radeon_device *rdev);
 	int (*suspend)(struct radeon_device *rdev);
-	void (*errata)(struct radeon_device *rdev);
-	void (*vram_info)(struct radeon_device *rdev);
 	int (*gpu_reset)(struct radeon_device *rdev);
-	int (*mc_init)(struct radeon_device *rdev);
-	void (*mc_fini)(struct radeon_device *rdev);
-	int (*wb_init)(struct radeon_device *rdev);
-	void (*wb_fini)(struct radeon_device *rdev);
-	int (*gart_init)(struct radeon_device *rdev);
-	void (*gart_fini)(struct radeon_device *rdev);
-	int (*gart_enable)(struct radeon_device *rdev);
-	void (*gart_disable)(struct radeon_device *rdev);
 	void (*gart_tlb_flush)(struct radeon_device *rdev);
 	int (*gart_set_page)(struct radeon_device *rdev, int i, uint64_t addr);
 	int (*cp_init)(struct radeon_device *rdev, unsigned ring_size);
@@ -610,7 +600,6 @@ struct radeon_asic {
 	void (*ring_start)(struct radeon_device *rdev);
 	int (*ring_test)(struct radeon_device *rdev);
 	void (*ring_ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
-	int (*ib_test)(struct radeon_device *rdev);
 	int (*irq_set)(struct radeon_device *rdev);
 	int (*irq_process)(struct radeon_device *rdev);
 	u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
@@ -788,7 +777,6 @@ struct radeon_device {
 	bool				shutdown;
 	bool				suspend;
 	bool				need_dma32;
-	bool				new_init_path;
 	bool				accel_working;
 	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
 	const struct firmware *me_fw;	/* all family ME firmware */
@@ -948,27 +936,13 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_resume(rdev) (rdev)->asic->resume((rdev))
 #define radeon_suspend(rdev) (rdev)->asic->suspend((rdev))
 #define radeon_cs_parse(p) rdev->asic->cs_parse((p))
-#define radeon_errata(rdev) (rdev)->asic->errata((rdev))
-#define radeon_vram_info(rdev) (rdev)->asic->vram_info((rdev))
 #define radeon_gpu_reset(rdev) (rdev)->asic->gpu_reset((rdev))
-#define radeon_mc_init(rdev) (rdev)->asic->mc_init((rdev))
-#define radeon_mc_fini(rdev) (rdev)->asic->mc_fini((rdev))
-#define radeon_wb_init(rdev) (rdev)->asic->wb_init((rdev))
-#define radeon_wb_fini(rdev) (rdev)->asic->wb_fini((rdev))
-#define radeon_gpu_gart_init(rdev) (rdev)->asic->gart_init((rdev))
-#define radeon_gpu_gart_fini(rdev) (rdev)->asic->gart_fini((rdev))
-#define radeon_gart_enable(rdev) (rdev)->asic->gart_enable((rdev))
-#define radeon_gart_disable(rdev) (rdev)->asic->gart_disable((rdev))
 #define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart_tlb_flush((rdev))
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart_set_page((rdev), (i), (p))
-#define radeon_cp_init(rdev,rsize) (rdev)->asic->cp_init((rdev), (rsize))
-#define radeon_cp_fini(rdev) (rdev)->asic->cp_fini((rdev))
-#define radeon_cp_disable(rdev) (rdev)->asic->cp_disable((rdev))
 #define radeon_cp_commit(rdev) (rdev)->asic->cp_commit((rdev))
 #define radeon_ring_start(rdev) (rdev)->asic->ring_start((rdev))
 #define radeon_ring_test(rdev) (rdev)->asic->ring_test((rdev))
 #define radeon_ring_ib_execute(rdev, ib) (rdev)->asic->ring_ib_execute((rdev), (ib))
-#define radeon_ib_test(rdev) (rdev)->asic->ib_test((rdev))
 #define radeon_irq_set(rdev) (rdev)->asic->irq_set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq_process((rdev))
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->get_vblank_counter((rdev), (crtc))

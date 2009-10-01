@@ -672,7 +672,6 @@ int rs690_init(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->new_init_path = true;
 	/* Disable VGA */
 	rv515_vga_render_disable(rdev);
 	/* Initialize scratch registers */
