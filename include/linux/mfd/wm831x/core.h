@@ -253,6 +253,8 @@ struct wm831x {
 	unsigned int irq_base;
 	int irq_masks[5];
 
+	int num_gpio;
+
 	struct mutex auxadc_lock;
 
 	/* The WM831x has a security key blocking access to certain

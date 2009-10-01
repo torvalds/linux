@@ -1293,16 +1293,19 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	switch (ret) {
 	case WM8310:
 		parent = WM8310;
+		wm831x->num_gpio = 16;
 		dev_info(wm831x->dev, "WM8310 revision %c\n", 'A' + rev);
 		break;
 
 	case WM8311:
 		parent = WM8311;
+		wm831x->num_gpio = 16;
 		dev_info(wm831x->dev, "WM8311 revision %c\n", 'A' + rev);
 		break;
 
 	case WM8312:
 		parent = WM8312;
+		wm831x->num_gpio = 16;
 		dev_info(wm831x->dev, "WM8312 revision %c\n", 'A' + rev);
 		break;
 

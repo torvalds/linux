@@ -23,8 +23,6 @@
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/gpio.h>
 
-#define WM831X_GPIO_MAX 16
-
 struct wm831x_gpio {
 	struct wm831x *wm831x;
 	struct gpio_chip gpio_chip;
@@ -192,7 +190,7 @@ static int __devinit wm831x_gpio_probe(struct platform_device *pdev)
 
 	wm831x_gpio->wm831x = wm831x;
 	wm831x_gpio->gpio_chip = template_chip;
-	wm831x_gpio->gpio_chip.ngpio = WM831X_GPIO_MAX;
+	wm831x_gpio->gpio_chip.ngpio = wm831x->num_gpio;
 	wm831x_gpio->gpio_chip.dev = &pdev->dev;
 	if (pdata && pdata->gpio_base)
 		wm831x_gpio->gpio_chip.base = pdata->gpio_base;
