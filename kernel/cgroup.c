@@ -3708,8 +3708,10 @@ static void check_for_release(struct cgroup *cgrp)
 void __css_put(struct cgroup_subsys_state *css)
 {
 	struct cgroup *cgrp = css->cgroup;
+	int val;
 	rcu_read_lock();
-	if (atomic_dec_return(&css->refcnt) == 1) {
+	val = atomic_dec_return(&css->refcnt);
+	if (val == 1) {
 		if (notify_on_release(cgrp)) {
 			set_bit(CGRP_RELEASABLE, &cgrp->flags);
 			check_for_release(cgrp);
@@ -3717,6 +3719,7 @@ void __css_put(struct cgroup_subsys_state *css)
 		cgroup_wakeup_rmdir_waiter(cgrp);
 	}
 	rcu_read_unlock();
+	WARN_ON_ONCE(val < 1);
 }
 
 /*
