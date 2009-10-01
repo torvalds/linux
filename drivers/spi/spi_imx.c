@@ -442,6 +442,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	config.bpw = t ? t->bits_per_word : spi->bits_per_word;
 	config.speed_hz  = t ? t->speed_hz : spi->max_speed_hz;
 	config.mode = spi->mode;
+	config.cs = spi_imx->chipselect[spi->chip_select];
 
 	if (!config.speed_hz)
 		config.speed_hz = spi->max_speed_hz;
