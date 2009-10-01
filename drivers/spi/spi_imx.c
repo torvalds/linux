@@ -354,43 +354,14 @@ static int mx1_rx_available(struct spi_imx_data *spi_imx)
 static void spi_imx_chipselect(struct spi_device *spi, int is_active)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
-	unsigned int cs = 0;
 	int gpio = spi_imx->chipselect[spi->chip_select];
-	struct spi_imx_config config;
+	int active = is_active != BITBANG_CS_INACTIVE;
+	int dev_is_lowactive = !(spi->mode & SPI_CS_HIGH);
 
-	if (spi->mode & SPI_CS_HIGH)
-		cs = 1;
-
-	if (is_active == BITBANG_CS_INACTIVE) {
-		if (gpio >= 0)
-			gpio_set_value(gpio, !cs);
+	if (gpio < 0)
 		return;
-	}
 
-	config.bpw = spi->bits_per_word;
-	config.speed_hz = spi->max_speed_hz;
-	config.mode = spi->mode;
-	config.cs = spi_imx->chipselect[spi->chip_select];
-
-	spi_imx->config(spi_imx, &config);
-
-	/* Initialize the functions for transfer */
-	if (config.bpw <= 8) {
-		spi_imx->rx = spi_imx_buf_rx_u8;
-		spi_imx->tx = spi_imx_buf_tx_u8;
-	} else if (config.bpw <= 16) {
-		spi_imx->rx = spi_imx_buf_rx_u16;
-		spi_imx->tx = spi_imx_buf_tx_u16;
-	} else if (config.bpw <= 32) {
-		spi_imx->rx = spi_imx_buf_rx_u32;
-		spi_imx->tx = spi_imx_buf_tx_u32;
-	} else
-		BUG();
-
-	if (gpio >= 0)
-		gpio_set_value(gpio, cs);
-
-	return;
+	gpio_set_value(gpio, dev_is_lowactive ^ active);
 }
 
 static void spi_imx_push(struct spi_imx_data *spi_imx)
@@ -450,6 +421,19 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 		config.bpw = spi->bits_per_word;
 	if (!config.speed_hz)
 		config.speed_hz = spi->max_speed_hz;
+
+	/* Initialize the functions for transfer */
+	if (config.bpw <= 8) {
+		spi_imx->rx = spi_imx_buf_rx_u8;
+		spi_imx->tx = spi_imx_buf_tx_u8;
+	} else if (config.bpw <= 16) {
+		spi_imx->rx = spi_imx_buf_rx_u16;
+		spi_imx->tx = spi_imx_buf_tx_u16;
+	} else if (config.bpw <= 32) {
+		spi_imx->rx = spi_imx_buf_rx_u32;
+		spi_imx->tx = spi_imx_buf_tx_u32;
+	} else
+		BUG();
 
 	spi_imx->config(spi_imx, &config);
 
