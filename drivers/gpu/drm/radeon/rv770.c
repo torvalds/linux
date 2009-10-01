@@ -968,6 +968,11 @@ int rv770_init(struct radeon_device *rdev)
 			rdev->flags &= ~RADEON_IS_AGP;
 			return rv770_init(rdev);
 		}
+		rv770_suspend(rdev);
+		r600_wb_fini(rdev);
+		radeon_ib_pool_fini(rdev);
+		radeon_ring_fini(rdev);
+		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}
 	if (rdev->accel_working) {

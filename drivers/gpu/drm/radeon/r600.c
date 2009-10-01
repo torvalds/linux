@@ -1605,6 +1605,11 @@ int r600_init(struct radeon_device *rdev)
 			rdev->flags &= ~RADEON_IS_AGP;
 			return r600_init(rdev);
 		}
+		r600_suspend(rdev);
+		r600_wb_fini(rdev);
+		radeon_ib_pool_fini(rdev);
+		radeon_ring_fini(rdev);
+		r600_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}
 	if (rdev->accel_working) {
