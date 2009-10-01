@@ -443,6 +443,13 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	config.speed_hz  = t ? t->speed_hz : spi->max_speed_hz;
 	config.mode = spi->mode;
 
+	if (!config.speed_hz)
+		config.speed_hz = spi->max_speed_hz;
+	if (!config.bpw)
+		config.bpw = spi->bits_per_word;
+	if (!config.speed_hz)
+		config.speed_hz = spi->max_speed_hz;
+
 	spi_imx->config(spi_imx, &config);
 
 	return 0;
