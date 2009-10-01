@@ -153,7 +153,7 @@ static int neo1973_hifi_hw_free(struct snd_pcm_substream *substream)
 	pr_debug("Entered %s\n", __func__);
 
 	/* disable the PLL */
-	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL1, 0, 0);
+	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL1, 0, 0, 0);
 }
 
 /*
@@ -203,7 +203,7 @@ static int neo1973_voice_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* configue and enable PLL for 12.288MHz output */
-	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL2,
+	ret = snd_soc_dai_set_pll(codec_dai, WM8753_PLL2, 0,
 		iis_clkrate / 4, 12288000);
 	if (ret < 0)
 		return ret;
@@ -219,7 +219,7 @@ static int neo1973_voice_hw_free(struct snd_pcm_substream *substream)
 	pr_debug("Entered %s\n", __func__);
 
 	/* disable the PLL */
-	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL2, 0, 0);
+	return snd_soc_dai_set_pll(codec_dai, WM8753_PLL2, 0, 0, 0);
 }
 
 static struct snd_soc_ops neo1973_voice_ops = {
