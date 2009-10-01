@@ -290,14 +290,14 @@ extern int	   dccp_disconnect(struct sock *sk, int flags);
 extern int	   dccp_getsockopt(struct sock *sk, int level, int optname,
 				   char __user *optval, int __user *optlen);
 extern int	   dccp_setsockopt(struct sock *sk, int level, int optname,
-				   char __user *optval, int optlen);
+				   char __user *optval, unsigned int optlen);
 #ifdef CONFIG_COMPAT
 extern int	   compat_dccp_getsockopt(struct sock *sk,
 				int level, int optname,
 				char __user *optval, int __user *optlen);
 extern int	   compat_dccp_setsockopt(struct sock *sk,
 				int level, int optname,
-				char __user *optval, int optlen);
+				char __user *optval, unsigned int optlen);
 #endif
 extern int	   dccp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 extern int	   dccp_sendmsg(struct kiocb *iocb, struct sock *sk,
