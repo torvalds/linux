@@ -40,7 +40,6 @@ void rs400_gart_disable(struct radeon_device *rdev);
 int rs400_gart_enable(struct radeon_device *rdev);
 void rs400_gart_adjust_size(struct radeon_device *rdev);
 void rs600_mc_disable_clients(struct radeon_device *rdev);
-void rs600_disable_vga(struct radeon_device *rdev);
 
 /* This files gather functions specifics to :
  * rs690,rs740
@@ -94,9 +93,6 @@ int rs690_mc_init(struct radeon_device *rdev)
 
 void rs690_mc_fini(struct radeon_device *rdev)
 {
-	rs400_gart_disable(rdev);
-	radeon_gart_table_ram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 
@@ -128,7 +124,7 @@ void rs690_gpu_init(struct radeon_device *rdev)
 {
 	/* FIXME: HDP same place on rs690 ? */
 	r100_hdp_reset(rdev);
-	rs600_disable_vga(rdev);
+	rv515_vga_render_disable(rdev);
 	/* FIXME: is this correct ? */
 	r420_pipes_init(rdev);
 	if (rs690_mc_wait_for_idle(rdev)) {
@@ -652,4 +648,3 @@ void rs690_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	WREG32(RS690_MC_DATA, v);
 	WREG32(RS690_MC_INDEX, RS690_MC_INDEX_WR_ACK);
 }
-

@@ -42,7 +42,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 
 /* If force_addr is set to anything different from 0, we forcibly enable

@@ -303,9 +303,6 @@ static void pcie_get_aspm_reg(struct pci_dev *pdev,
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	pci_read_config_dword(pdev, pos + PCI_EXP_LNKCAP, &reg32);
 	info->support = (reg32 & PCI_EXP_LNKCAP_ASPMS) >> 10;
-	/* 00b and 10b are defined as "Reserved". */
-	if (info->support == PCIE_LINK_STATE_L1)
-		info->support = 0;
 	info->latency_encoding_l0s = (reg32 & PCI_EXP_LNKCAP_L0SEL) >> 12;
 	info->latency_encoding_l1  = (reg32 & PCI_EXP_LNKCAP_L1EL) >> 15;
 	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &reg16);

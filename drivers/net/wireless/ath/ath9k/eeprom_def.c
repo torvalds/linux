@@ -509,6 +509,8 @@ static void ath9k_hw_def_set_board_values(struct ath_hw *ah,
 			REG_RMW_FIELD(ah, AR_AN_TOP1, AR_AN_TOP1_DACIPMODE,
 				      eep->baseEepHeader.dacLpMode);
 
+		udelay(100);
+
 		REG_RMW_FIELD(ah, AR_PHY_FRAME_CTL, AR_PHY_FRAME_CTL_TX_CLIP,
 			      pModal->miscBits >> 2);
 
@@ -902,7 +904,7 @@ static void ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 						  u16 powerLimit)
 {
 #define REDUCE_SCALED_POWER_BY_TWO_CHAIN     6  /* 10*log10(2)*2 */
-#define REDUCE_SCALED_POWER_BY_THREE_CHAIN   10 /* 10*log10(3)*2 */
+#define REDUCE_SCALED_POWER_BY_THREE_CHAIN   9 /* 10*log10(3)*2 */
 
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ar5416_eeprom_def *pEepData = &ah->eeprom.def;

@@ -67,16 +67,9 @@ config SGI_NEWPORT_CONSOLE
 
 #  bool 'IODC console' CONFIG_IODC_CONSOLE
 
-config PROM_CONSOLE
-	bool "PROM console"
-	depends on SPARC
-	help
-	  Say Y to build a console driver for Sun machines that uses the
-	  terminal emulation built into their console PROMS.
-
 config DUMMY_CONSOLE
 	bool
-	depends on PROM_CONSOLE!=y || VGA_CONSOLE!=y || SGI_NEWPORT_CONSOLE!=y 
+	depends on VGA_CONSOLE!=y || SGI_NEWPORT_CONSOLE!=y 
 	default y
 
 config DUMMY_CONSOLE_COLUMNS

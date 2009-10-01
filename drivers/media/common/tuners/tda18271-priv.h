@@ -108,6 +108,7 @@ struct tda18271_priv {
 	enum tda18271_role role;
 	enum tda18271_i2c_gate gate;
 	enum tda18271_ver id;
+	enum tda18271_output_options output_opt;
 
 	unsigned int config; /* interface to saa713x / tda829x */
 	unsigned int tm_rfcal;

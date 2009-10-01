@@ -3966,7 +3966,7 @@ static int igb_set_vf_multicasts(struct igb_adapter *adapter,
 	/* VFs are limited to using the MTA hash table for their multicast
 	 * addresses */
 	for (i = 0; i < n; i++)
-		vf_data->vf_mc_hashes[i] = hash_list[i];;
+		vf_data->vf_mc_hashes[i] = hash_list[i];
 
 	/* Flush and reset the mta with the new values */
 	igb_set_rx_mode(adapter->netdev);
@@ -5320,7 +5320,7 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 	*enable_wake = wufc || adapter->en_mng_pt;
 	if (!*enable_wake)
-		igb_shutdown_fiber_serdes_link_82575(hw);
+		igb_shutdown_serdes_link_82575(hw);
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant. */

@@ -1438,7 +1438,7 @@ out_unlocked:
 	return 0;
 }
 
-static struct block_device_operations lo_fops = {
+static const struct block_device_operations lo_fops = {
 	.owner =	THIS_MODULE,
 	.open =		lo_open,
 	.release =	lo_release,

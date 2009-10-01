@@ -540,7 +540,7 @@ dasd_check_blocksize(int bsize)
 extern debug_info_t *dasd_debug_area;
 extern struct dasd_profile_info_t dasd_global_profile;
 extern unsigned int dasd_profile_level;
-extern struct block_device_operations dasd_device_operations;
+extern const struct block_device_operations dasd_device_operations;
 
 extern struct kmem_cache *dasd_page_cache;
 

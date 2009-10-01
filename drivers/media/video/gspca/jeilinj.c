@@ -312,6 +312,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* create the JPEG header */
 	dev->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+	if (dev->jpeg_hdr == NULL)
+		return -ENOMEM;
 	jpeg_define(dev->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);          /* JPEG 422 */
 	jpeg_set_qual(dev->jpeg_hdr, dev->quality);

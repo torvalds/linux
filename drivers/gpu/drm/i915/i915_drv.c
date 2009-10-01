@@ -37,11 +37,14 @@
 #include <linux/console.h>
 #include "drm_crtc_helper.h"
 
-static unsigned int i915_modeset = -1;
+static int i915_modeset = -1;
 module_param_named(modeset, i915_modeset, int, 0400);
 
 unsigned int i915_fbpercrtc = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
+
+unsigned int i915_powersave = 1;
+module_param_named(powersave, i915_powersave, int, 0400);
 
 static struct drm_driver driver;
 
@@ -86,6 +89,8 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 		pci_set_power_state(dev->pdev, PCI_D3hot);
 	}
 
+	dev_priv->suspended = 1;
+
 	return 0;
 }
 
@@ -94,8 +99,6 @@ static int i915_resume(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 
-	pci_set_power_state(dev->pdev, PCI_D0);
-	pci_restore_state(dev->pdev);
 	if (pci_enable_device(dev->pdev))
 		return -1;
 	pci_set_master(dev->pdev);
@@ -121,8 +124,134 @@ static int i915_resume(struct drm_device *dev)
 		drm_helper_resume_force_mode(dev);
 	}
 
+	dev_priv->suspended = 0;
+
 	return ret;
 }
+
+/**
+ * i965_reset - reset chip after a hang
+ * @dev: drm device to reset
+ * @flags: reset domains
+ *
+ * Reset the chip.  Useful if a hang is detected. Returns zero on successful
+ * reset or otherwise an error code.
+ *
+ * Procedure is fairly simple:
+ *   - reset the chip using the reset reg
+ *   - re-init context state
+ *   - re-init hardware status page
+ *   - re-init ring buffer
+ *   - re-init interrupt state
+ *   - re-init display
+ */
+int i965_reset(struct drm_device *dev, u8 flags)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long timeout;
+	u8 gdrst;
+	/*
+	 * We really should only reset the display subsystem if we actually
+	 * need to
+	 */
+	bool need_display = true;
+
+	mutex_lock(&dev->struct_mutex);
+
+	/*
+	 * Clear request list
+	 */
+	i915_gem_retire_requests(dev);
+
+	if (need_display)
+		i915_save_display(dev);
+
+	if (IS_I965G(dev) || IS_G4X(dev)) {
+		/*
+		 * Set the domains we want to reset, then the reset bit (bit 0).
+		 * Clear the reset bit after a while and wait for hardware status
+		 * bit (bit 1) to be set
+		 */
+		pci_read_config_byte(dev->pdev, GDRST, &gdrst);
+		pci_write_config_byte(dev->pdev, GDRST, gdrst | flags | ((flags == GDRST_FULL) ? 0x1 : 0x0));
+		udelay(50);
+		pci_write_config_byte(dev->pdev, GDRST, gdrst & 0xfe);
+
+		/* ...we don't want to loop forever though, 500ms should be plenty */
+	       timeout = jiffies + msecs_to_jiffies(500);
+		do {
+			udelay(100);
+			pci_read_config_byte(dev->pdev, GDRST, &gdrst);
+		} while ((gdrst & 0x1) && time_after(timeout, jiffies));
+
+		if (gdrst & 0x1) {
+			WARN(true, "i915: Failed to reset chip\n");
+			mutex_unlock(&dev->struct_mutex);
+			return -EIO;
+		}
+	} else {
+		DRM_ERROR("Error occurred. Don't know how to reset this chip.\n");
+		return -ENODEV;
+	}
+
+	/* Ok, now get things going again... */
+
+	/*
+	 * Everything depends on having the GTT running, so we need to start
+	 * there.  Fortunately we don't need to do this unless we reset the
+	 * chip at a PCI level.
+	 *
+	 * Next we need to restore the context, but we don't use those
+	 * yet either...
+	 *
+	 * Ring buffer needs to be re-initialized in the KMS case, or if X
+	 * was running at the time of the reset (i.e. we weren't VT
+	 * switched away).
+	 */
+	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
+	    !dev_priv->mm.suspended) {
+		drm_i915_ring_buffer_t *ring = &dev_priv->ring;
+		struct drm_gem_object *obj = ring->ring_obj;
+		struct drm_i915_gem_object *obj_priv = obj->driver_private;
+		dev_priv->mm.suspended = 0;
+
+		/* Stop the ring if it's running. */
+		I915_WRITE(PRB0_CTL, 0);
+		I915_WRITE(PRB0_TAIL, 0);
+		I915_WRITE(PRB0_HEAD, 0);
+
+		/* Initialize the ring. */
+		I915_WRITE(PRB0_START, obj_priv->gtt_offset);
+		I915_WRITE(PRB0_CTL,
+			   ((obj->size - 4096) & RING_NR_PAGES) |
+			   RING_NO_REPORT |
+			   RING_VALID);
+		if (!drm_core_check_feature(dev, DRIVER_MODESET))
+			i915_kernel_lost_context(dev);
+		else {
+			ring->head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
+			ring->tail = I915_READ(PRB0_TAIL) & TAIL_ADDR;
+			ring->space = ring->head - (ring->tail + 8);
+			if (ring->space < 0)
+				ring->space += ring->Size;
+		}
+
+		mutex_unlock(&dev->struct_mutex);
+		drm_irq_uninstall(dev);
+		drm_irq_install(dev);
+		mutex_lock(&dev->struct_mutex);
+	}
+
+	/*
+	 * Display needs restore too...
+	 */
+	if (need_display)
+		i915_restore_display(dev);
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
 
 static int __devinit
 i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -188,8 +317,8 @@ static struct drm_driver driver = {
 	.master_create = i915_master_create,
 	.master_destroy = i915_master_destroy,
 #if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = i915_gem_debugfs_init,
-	.debugfs_cleanup = i915_gem_debugfs_cleanup,
+	.debugfs_init = i915_debugfs_init,
+	.debugfs_cleanup = i915_debugfs_cleanup,
 #endif
 	.gem_init_object = i915_gem_init_object,
 	.gem_free_object = i915_gem_free_object,
@@ -231,6 +360,8 @@ static int __init i915_init(void)
 {
 	driver.num_ioctls = i915_max_ioctl;
 
+	i915_gem_shrinker_init();
+
 	/*
 	 * If CONFIG_DRM_I915_KMS is set, default to KMS unless
 	 * explicitly disabled with the module pararmeter.
@@ -257,6 +388,7 @@ static int __init i915_init(void)
 
 static void __exit i915_exit(void)
 {
+	i915_gem_shrinker_exit();
 	drm_exit(&driver);
 }
 

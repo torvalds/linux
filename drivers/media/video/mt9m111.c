@@ -148,12 +148,12 @@ enum mt9m111_context {
 };
 
 struct mt9m111 {
-	struct i2c_client *client;
-	struct soc_camera_device icd;
+	struct v4l2_subdev subdev;
 	int model;	/* V4L2_IDENT_MT9M11x* codes from v4l2-chip-ident.h */
 	enum mt9m111_context context;
 	struct v4l2_rect rect;
 	u32 pixfmt;
+	unsigned int gain;
 	unsigned char autoexposure;
 	unsigned char datawidth;
 	unsigned int powered:1;
@@ -165,6 +165,11 @@ struct mt9m111 {
 	unsigned int swap_yuv_cb_cr:1;
 	unsigned int autowhitebalance:1;
 };
+
+static struct mt9m111 *to_mt9m111(const struct i2c_client *client)
+{
+	return container_of(i2c_get_clientdata(client), struct mt9m111, subdev);
+}
 
 static int reg_page_map_set(struct i2c_client *client, const u16 reg)
 {
@@ -190,7 +195,7 @@ static int mt9m111_reg_read(struct i2c_client *client, const u16 reg)
 
 	ret = reg_page_map_set(client, reg);
 	if (!ret)
-		ret = swab16(i2c_smbus_read_word_data(client, (reg & 0xff)));
+		ret = swab16(i2c_smbus_read_word_data(client, reg & 0xff));
 
 	dev_dbg(&client->dev, "read  reg.%03x -> %04x\n", reg, ret);
 	return ret;
@@ -203,7 +208,7 @@ static int mt9m111_reg_write(struct i2c_client *client, const u16 reg,
 
 	ret = reg_page_map_set(client, reg);
 	if (!ret)
-		ret = i2c_smbus_write_word_data(client, (reg & 0xff),
+		ret = i2c_smbus_write_word_data(client, reg & 0xff,
 						swab16(data));
 	dev_dbg(&client->dev, "write reg.%03x = %04x -> %d\n", reg, data, ret);
 	return ret;
@@ -229,10 +234,9 @@ static int mt9m111_reg_clear(struct i2c_client *client, const u16 reg,
 	return mt9m111_reg_write(client, reg, ret & ~data);
 }
 
-static int mt9m111_set_context(struct soc_camera_device *icd,
+static int mt9m111_set_context(struct i2c_client *client,
 			       enum mt9m111_context ctxt)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
 	int valB = MT9M111_CTXT_CTRL_RESTART | MT9M111_CTXT_CTRL_DEFECTCOR_B
 		| MT9M111_CTXT_CTRL_RESIZE_B | MT9M111_CTXT_CTRL_CTRL2_B
 		| MT9M111_CTXT_CTRL_GAMMA_B | MT9M111_CTXT_CTRL_READ_MODE_B
@@ -246,17 +250,16 @@ static int mt9m111_set_context(struct soc_camera_device *icd,
 		return reg_write(CONTEXT_CONTROL, valA);
 }
 
-static int mt9m111_setup_rect(struct soc_camera_device *icd,
+static int mt9m111_setup_rect(struct i2c_client *client,
 			      struct v4l2_rect *rect)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret, is_raw_format;
 	int width = rect->width;
 	int height = rect->height;
 
-	if ((mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR8)
-	    || (mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR16))
+	if (mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR8 ||
+	    mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR16)
 		is_raw_format = 1;
 	else
 		is_raw_format = 0;
@@ -292,9 +295,8 @@ static int mt9m111_setup_rect(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int mt9m111_setup_pixfmt(struct soc_camera_device *icd, u16 outfmt)
+static int mt9m111_setup_pixfmt(struct i2c_client *client, u16 outfmt)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
 	int ret;
 
 	ret = reg_write(OUTPUT_FORMAT_CTRL2_A, outfmt);
@@ -303,19 +305,19 @@ static int mt9m111_setup_pixfmt(struct soc_camera_device *icd, u16 outfmt)
 	return ret;
 }
 
-static int mt9m111_setfmt_bayer8(struct soc_camera_device *icd)
+static int mt9m111_setfmt_bayer8(struct i2c_client *client)
 {
-	return mt9m111_setup_pixfmt(icd, MT9M111_OUTFMT_PROCESSED_BAYER);
+	return mt9m111_setup_pixfmt(client, MT9M111_OUTFMT_PROCESSED_BAYER);
 }
 
-static int mt9m111_setfmt_bayer10(struct soc_camera_device *icd)
+static int mt9m111_setfmt_bayer10(struct i2c_client *client)
 {
-	return mt9m111_setup_pixfmt(icd, MT9M111_OUTFMT_BYPASS_IFP);
+	return mt9m111_setup_pixfmt(client, MT9M111_OUTFMT_BYPASS_IFP);
 }
 
-static int mt9m111_setfmt_rgb565(struct soc_camera_device *icd)
+static int mt9m111_setfmt_rgb565(struct i2c_client *client)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int val = 0;
 
 	if (mt9m111->swap_rgb_red_blue)
@@ -324,12 +326,12 @@ static int mt9m111_setfmt_rgb565(struct soc_camera_device *icd)
 		val |= MT9M111_OUTFMT_SWAP_RGB_EVEN;
 	val |= MT9M111_OUTFMT_RGB | MT9M111_OUTFMT_RGB565;
 
-	return mt9m111_setup_pixfmt(icd, val);
+	return mt9m111_setup_pixfmt(client, val);
 }
 
-static int mt9m111_setfmt_rgb555(struct soc_camera_device *icd)
+static int mt9m111_setfmt_rgb555(struct i2c_client *client)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int val = 0;
 
 	if (mt9m111->swap_rgb_red_blue)
@@ -338,12 +340,12 @@ static int mt9m111_setfmt_rgb555(struct soc_camera_device *icd)
 		val |= MT9M111_OUTFMT_SWAP_RGB_EVEN;
 	val |= MT9M111_OUTFMT_RGB | MT9M111_OUTFMT_RGB555;
 
-	return mt9m111_setup_pixfmt(icd, val);
+	return mt9m111_setup_pixfmt(client, val);
 }
 
-static int mt9m111_setfmt_yuv(struct soc_camera_device *icd)
+static int mt9m111_setfmt_yuv(struct i2c_client *client)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int val = 0;
 
 	if (mt9m111->swap_yuv_cb_cr)
@@ -351,24 +353,13 @@ static int mt9m111_setfmt_yuv(struct soc_camera_device *icd)
 	if (mt9m111->swap_yuv_y_chromas)
 		val |= MT9M111_OUTFMT_SWAP_YCbCr_C_Y;
 
-	return mt9m111_setup_pixfmt(icd, val);
+	return mt9m111_setup_pixfmt(client, val);
 }
 
-static int mt9m111_enable(struct soc_camera_device *icd)
+static int mt9m111_enable(struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
-	struct soc_camera_link *icl = client->dev.platform_data;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
-
-	if (icl->power) {
-		ret = icl->power(&client->dev, 1);
-		if (ret < 0) {
-			dev_err(icd->vdev->parent,
-				"Platform failed to power-on the camera.\n");
-			return ret;
-		}
-	}
 
 	ret = reg_set(RESET, MT9M111_RESET_CHIP_ENABLE);
 	if (!ret)
@@ -376,27 +367,8 @@ static int mt9m111_enable(struct soc_camera_device *icd)
 	return ret;
 }
 
-static int mt9m111_disable(struct soc_camera_device *icd)
+static int mt9m111_reset(struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
-	struct soc_camera_link *icl = client->dev.platform_data;
-	int ret;
-
-	ret = reg_clear(RESET, MT9M111_RESET_CHIP_ENABLE);
-	if (!ret)
-		mt9m111->powered = 0;
-
-	if (icl->power)
-		icl->power(&client->dev, 0);
-
-	return ret;
-}
-
-static int mt9m111_reset(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(icd->control);
-	struct soc_camera_link *icl = client->dev.platform_data;
 	int ret;
 
 	ret = reg_set(RESET, MT9M111_RESET_RESET_MODE);
@@ -406,26 +378,12 @@ static int mt9m111_reset(struct soc_camera_device *icd)
 		ret = reg_clear(RESET, MT9M111_RESET_RESET_MODE
 				| MT9M111_RESET_RESET_SOC);
 
-	if (icl->reset)
-		icl->reset(&client->dev);
-
 	return ret;
-}
-
-static int mt9m111_start_capture(struct soc_camera_device *icd)
-{
-	return 0;
-}
-
-static int mt9m111_stop_capture(struct soc_camera_device *icd)
-{
-	return 0;
 }
 
 static unsigned long mt9m111_query_bus_param(struct soc_camera_device *icd)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
-	struct soc_camera_link *icl = mt9m111->client->dev.platform_data;
+	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	unsigned long flags = SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |
 		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
 		SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8;
@@ -438,62 +396,126 @@ static int mt9m111_set_bus_param(struct soc_camera_device *icd, unsigned long f)
 	return 0;
 }
 
-static int mt9m111_set_crop(struct soc_camera_device *icd,
-			    struct v4l2_rect *rect)
+static int mt9m111_make_rect(struct i2c_client *client,
+			     struct v4l2_rect *rect)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
+
+	if (mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR8 ||
+	    mt9m111->pixfmt == V4L2_PIX_FMT_SBGGR16) {
+		/* Bayer format - even size lengths */
+		rect->width	= ALIGN(rect->width, 2);
+		rect->height	= ALIGN(rect->height, 2);
+		/* Let the user play with the starting pixel */
+	}
+
+	/* FIXME: the datasheet doesn't specify minimum sizes */
+	soc_camera_limit_side(&rect->left, &rect->width,
+		     MT9M111_MIN_DARK_COLS, 2, MT9M111_MAX_WIDTH);
+
+	soc_camera_limit_side(&rect->top, &rect->height,
+		     MT9M111_MIN_DARK_ROWS, 2, MT9M111_MAX_HEIGHT);
+
+	return mt9m111_setup_rect(client, rect);
+}
+
+static int mt9m111_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+{
+	struct v4l2_rect rect = a->c;
+	struct i2c_client *client = sd->priv;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
 
-	dev_dbg(&icd->dev, "%s left=%d, top=%d, width=%d, height=%d\n",
-		__func__, rect->left, rect->top, rect->width,
-		rect->height);
+	dev_dbg(&client->dev, "%s left=%d, top=%d, width=%d, height=%d\n",
+		__func__, rect.left, rect.top, rect.width, rect.height);
 
-	ret = mt9m111_setup_rect(icd, rect);
+	ret = mt9m111_make_rect(client, &rect);
 	if (!ret)
-		mt9m111->rect = *rect;
+		mt9m111->rect = rect;
 	return ret;
 }
 
-static int mt9m111_set_pixfmt(struct soc_camera_device *icd, u32 pixfmt)
+static int mt9m111_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct i2c_client *client = sd->priv;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
+
+	a->c	= mt9m111->rect;
+	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	return 0;
+}
+
+static int mt9m111_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
+{
+	a->bounds.left			= MT9M111_MIN_DARK_COLS;
+	a->bounds.top			= MT9M111_MIN_DARK_ROWS;
+	a->bounds.width			= MT9M111_MAX_WIDTH;
+	a->bounds.height		= MT9M111_MAX_HEIGHT;
+	a->defrect			= a->bounds;
+	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a->pixelaspect.numerator	= 1;
+	a->pixelaspect.denominator	= 1;
+
+	return 0;
+}
+
+static int mt9m111_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+{
+	struct i2c_client *client = sd->priv;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	pix->width		= mt9m111->rect.width;
+	pix->height		= mt9m111->rect.height;
+	pix->pixelformat	= mt9m111->pixfmt;
+	pix->field		= V4L2_FIELD_NONE;
+	pix->colorspace		= V4L2_COLORSPACE_SRGB;
+
+	return 0;
+}
+
+static int mt9m111_set_pixfmt(struct i2c_client *client, u32 pixfmt)
+{
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
 
 	switch (pixfmt) {
 	case V4L2_PIX_FMT_SBGGR8:
-		ret = mt9m111_setfmt_bayer8(icd);
+		ret = mt9m111_setfmt_bayer8(client);
 		break;
 	case V4L2_PIX_FMT_SBGGR16:
-		ret = mt9m111_setfmt_bayer10(icd);
+		ret = mt9m111_setfmt_bayer10(client);
 		break;
 	case V4L2_PIX_FMT_RGB555:
-		ret = mt9m111_setfmt_rgb555(icd);
+		ret = mt9m111_setfmt_rgb555(client);
 		break;
 	case V4L2_PIX_FMT_RGB565:
-		ret = mt9m111_setfmt_rgb565(icd);
+		ret = mt9m111_setfmt_rgb565(client);
 		break;
 	case V4L2_PIX_FMT_UYVY:
 		mt9m111->swap_yuv_y_chromas = 0;
 		mt9m111->swap_yuv_cb_cr = 0;
-		ret = mt9m111_setfmt_yuv(icd);
+		ret = mt9m111_setfmt_yuv(client);
 		break;
 	case V4L2_PIX_FMT_VYUY:
 		mt9m111->swap_yuv_y_chromas = 0;
 		mt9m111->swap_yuv_cb_cr = 1;
-		ret = mt9m111_setfmt_yuv(icd);
+		ret = mt9m111_setfmt_yuv(client);
 		break;
 	case V4L2_PIX_FMT_YUYV:
 		mt9m111->swap_yuv_y_chromas = 1;
 		mt9m111->swap_yuv_cb_cr = 0;
-		ret = mt9m111_setfmt_yuv(icd);
+		ret = mt9m111_setfmt_yuv(client);
 		break;
 	case V4L2_PIX_FMT_YVYU:
 		mt9m111->swap_yuv_y_chromas = 1;
 		mt9m111->swap_yuv_cb_cr = 1;
-		ret = mt9m111_setfmt_yuv(icd);
+		ret = mt9m111_setfmt_yuv(client);
 		break;
 	default:
-		dev_err(&icd->dev, "Pixel format not handled : %x\n", pixfmt);
+		dev_err(&client->dev, "Pixel format not handled : %x\n",
+			pixfmt);
 		ret = -EINVAL;
 	}
 
@@ -503,10 +525,10 @@ static int mt9m111_set_pixfmt(struct soc_camera_device *icd, u32 pixfmt)
 	return ret;
 }
 
-static int mt9m111_set_fmt(struct soc_camera_device *icd,
-			   struct v4l2_format *f)
+static int mt9m111_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct i2c_client *client = sd->priv;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_rect rect = {
 		.left	= mt9m111->rect.left,
@@ -516,40 +538,56 @@ static int mt9m111_set_fmt(struct soc_camera_device *icd,
 	};
 	int ret;
 
-	dev_dbg(&icd->dev, "%s fmt=%x left=%d, top=%d, width=%d, height=%d\n",
-		__func__, pix->pixelformat, rect.left, rect.top, rect.width,
-		rect.height);
+	dev_dbg(&client->dev,
+		"%s fmt=%x left=%d, top=%d, width=%d, height=%d\n", __func__,
+		pix->pixelformat, rect.left, rect.top, rect.width, rect.height);
 
-	ret = mt9m111_setup_rect(icd, &rect);
+	ret = mt9m111_make_rect(client, &rect);
 	if (!ret)
-		ret = mt9m111_set_pixfmt(icd, pix->pixelformat);
+		ret = mt9m111_set_pixfmt(client, pix->pixelformat);
 	if (!ret)
 		mt9m111->rect = rect;
 	return ret;
 }
 
-static int mt9m111_try_fmt(struct soc_camera_device *icd,
-			   struct v4l2_format *f)
+static int mt9m111_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
 	struct v4l2_pix_format *pix = &f->fmt.pix;
+	bool bayer = pix->pixelformat == V4L2_PIX_FMT_SBGGR8 ||
+		pix->pixelformat == V4L2_PIX_FMT_SBGGR16;
+
+	/*
+	 * With Bayer format enforce even side lengths, but let the user play
+	 * with the starting pixel
+	 */
 
 	if (pix->height > MT9M111_MAX_HEIGHT)
 		pix->height = MT9M111_MAX_HEIGHT;
+	else if (pix->height < 2)
+		pix->height = 2;
+	else if (bayer)
+		pix->height = ALIGN(pix->height, 2);
+
 	if (pix->width > MT9M111_MAX_WIDTH)
 		pix->width = MT9M111_MAX_WIDTH;
+	else if (pix->width < 2)
+		pix->width = 2;
+	else if (bayer)
+		pix->width = ALIGN(pix->width, 2);
 
 	return 0;
 }
 
-static int mt9m111_get_chip_id(struct soc_camera_device *icd,
-			       struct v4l2_dbg_chip_ident *id)
+static int mt9m111_g_chip_ident(struct v4l2_subdev *sd,
+				struct v4l2_dbg_chip_ident *id)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct i2c_client *client = sd->priv;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
 	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
 		return -EINVAL;
 
-	if (id->match.addr != mt9m111->client->addr)
+	if (id->match.addr != client->addr)
 		return -ENODEV;
 
 	id->ident	= mt9m111->model;
@@ -559,11 +597,11 @@ static int mt9m111_get_chip_id(struct soc_camera_device *icd,
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-static int mt9m111_get_register(struct soc_camera_device *icd,
-				struct v4l2_dbg_register *reg)
+static int mt9m111_g_register(struct v4l2_subdev *sd,
+			      struct v4l2_dbg_register *reg)
 {
+	struct i2c_client *client = sd->priv;
 	int val;
-	struct i2c_client *client = to_i2c_client(icd->control);
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x2ff)
 		return -EINVAL;
@@ -580,10 +618,10 @@ static int mt9m111_get_register(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int mt9m111_set_register(struct soc_camera_device *icd,
-				struct v4l2_dbg_register *reg)
+static int mt9m111_s_register(struct v4l2_subdev *sd,
+			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
+	struct i2c_client *client = sd->priv;
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x2ff)
 		return -EINVAL;
@@ -635,45 +673,21 @@ static const struct v4l2_queryctrl mt9m111_controls[] = {
 	}
 };
 
-static int mt9m111_video_probe(struct soc_camera_device *);
-static void mt9m111_video_remove(struct soc_camera_device *);
-static int mt9m111_get_control(struct soc_camera_device *,
-			       struct v4l2_control *);
-static int mt9m111_set_control(struct soc_camera_device *,
-			       struct v4l2_control *);
 static int mt9m111_resume(struct soc_camera_device *icd);
-static int mt9m111_init(struct soc_camera_device *icd);
-static int mt9m111_release(struct soc_camera_device *icd);
+static int mt9m111_suspend(struct soc_camera_device *icd, pm_message_t state);
 
 static struct soc_camera_ops mt9m111_ops = {
-	.owner			= THIS_MODULE,
-	.probe			= mt9m111_video_probe,
-	.remove			= mt9m111_video_remove,
-	.init			= mt9m111_init,
+	.suspend		= mt9m111_suspend,
 	.resume			= mt9m111_resume,
-	.release		= mt9m111_release,
-	.start_capture		= mt9m111_start_capture,
-	.stop_capture		= mt9m111_stop_capture,
-	.set_crop		= mt9m111_set_crop,
-	.set_fmt		= mt9m111_set_fmt,
-	.try_fmt		= mt9m111_try_fmt,
 	.query_bus_param	= mt9m111_query_bus_param,
 	.set_bus_param		= mt9m111_set_bus_param,
 	.controls		= mt9m111_controls,
 	.num_controls		= ARRAY_SIZE(mt9m111_controls),
-	.get_control		= mt9m111_get_control,
-	.set_control		= mt9m111_set_control,
-	.get_chip_id		= mt9m111_get_chip_id,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.get_register		= mt9m111_get_register,
-	.set_register		= mt9m111_set_register,
-#endif
 };
 
-static int mt9m111_set_flip(struct soc_camera_device *icd, int flip, int mask)
+static int mt9m111_set_flip(struct i2c_client *client, int flip, int mask)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
 
 	if (mt9m111->context == HIGHPOWER) {
@@ -691,9 +705,8 @@ static int mt9m111_set_flip(struct soc_camera_device *icd, int flip, int mask)
 	return ret;
 }
 
-static int mt9m111_get_global_gain(struct soc_camera_device *icd)
+static int mt9m111_get_global_gain(struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
 	int data;
 
 	data = reg_read(GLOBAL_GAIN);
@@ -703,15 +716,15 @@ static int mt9m111_get_global_gain(struct soc_camera_device *icd)
 	return data;
 }
 
-static int mt9m111_set_global_gain(struct soc_camera_device *icd, int gain)
+static int mt9m111_set_global_gain(struct i2c_client *client, int gain)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	u16 val;
 
 	if (gain > 63 * 2 * 2)
 		return -EINVAL;
 
-	icd->gain = gain;
+	mt9m111->gain = gain;
 	if ((gain >= 64 * 2) && (gain < 63 * 2 * 2))
 		val = (1 << 10) | (1 << 9) | (gain / 4);
 	else if ((gain >= 64) && (gain < 64 * 2))
@@ -722,10 +735,9 @@ static int mt9m111_set_global_gain(struct soc_camera_device *icd, int gain)
 	return reg_write(GLOBAL_GAIN, val);
 }
 
-static int mt9m111_set_autoexposure(struct soc_camera_device *icd, int on)
+static int mt9m111_set_autoexposure(struct i2c_client *client, int on)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
 
 	if (on)
@@ -739,10 +751,9 @@ static int mt9m111_set_autoexposure(struct soc_camera_device *icd, int on)
 	return ret;
 }
 
-static int mt9m111_set_autowhitebalance(struct soc_camera_device *icd, int on)
+static int mt9m111_set_autowhitebalance(struct i2c_client *client, int on)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
 
 	if (on)
@@ -756,11 +767,10 @@ static int mt9m111_set_autowhitebalance(struct soc_camera_device *icd, int on)
 	return ret;
 }
 
-static int mt9m111_get_control(struct soc_camera_device *icd,
-			       struct v4l2_control *ctrl)
+static int mt9m111_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct i2c_client *client = sd->priv;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int data;
 
 	switch (ctrl->id) {
@@ -785,7 +795,7 @@ static int mt9m111_get_control(struct soc_camera_device *icd,
 		ctrl->value = !!(data & MT9M111_RMB_MIRROR_COLS);
 		break;
 	case V4L2_CID_GAIN:
-		data = mt9m111_get_global_gain(icd);
+		data = mt9m111_get_global_gain(client);
 		if (data < 0)
 			return data;
 		ctrl->value = data;
@@ -800,37 +810,36 @@ static int mt9m111_get_control(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int mt9m111_set_control(struct soc_camera_device *icd,
-			       struct v4l2_control *ctrl)
+static int mt9m111_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct i2c_client *client = sd->priv;
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	const struct v4l2_queryctrl *qctrl;
 	int ret;
 
 	qctrl = soc_camera_find_qctrl(&mt9m111_ops, ctrl->id);
-
 	if (!qctrl)
 		return -EINVAL;
 
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
 		mt9m111->vflip = ctrl->value;
-		ret = mt9m111_set_flip(icd, ctrl->value,
+		ret = mt9m111_set_flip(client, ctrl->value,
 					MT9M111_RMB_MIRROR_ROWS);
 		break;
 	case V4L2_CID_HFLIP:
 		mt9m111->hflip = ctrl->value;
-		ret = mt9m111_set_flip(icd, ctrl->value,
+		ret = mt9m111_set_flip(client, ctrl->value,
 					MT9M111_RMB_MIRROR_COLS);
 		break;
 	case V4L2_CID_GAIN:
-		ret = mt9m111_set_global_gain(icd, ctrl->value);
+		ret = mt9m111_set_global_gain(client, ctrl->value);
 		break;
 	case V4L2_CID_EXPOSURE_AUTO:
-		ret =  mt9m111_set_autoexposure(icd, ctrl->value);
+		ret =  mt9m111_set_autoexposure(client, ctrl->value);
 		break;
 	case V4L2_CID_AUTO_WHITE_BALANCE:
-		ret =  mt9m111_set_autowhitebalance(icd, ctrl->value);
+		ret =  mt9m111_set_autowhitebalance(client, ctrl->value);
 		break;
 	default:
 		ret = -EINVAL;
@@ -839,62 +848,62 @@ static int mt9m111_set_control(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int mt9m111_restore_state(struct soc_camera_device *icd)
+static int mt9m111_suspend(struct soc_camera_device *icd, pm_message_t state)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
-	mt9m111_set_context(icd, mt9m111->context);
-	mt9m111_set_pixfmt(icd, mt9m111->pixfmt);
-	mt9m111_setup_rect(icd, &mt9m111->rect);
-	mt9m111_set_flip(icd, mt9m111->hflip, MT9M111_RMB_MIRROR_COLS);
-	mt9m111_set_flip(icd, mt9m111->vflip, MT9M111_RMB_MIRROR_ROWS);
-	mt9m111_set_global_gain(icd, icd->gain);
-	mt9m111_set_autoexposure(icd, mt9m111->autoexposure);
-	mt9m111_set_autowhitebalance(icd, mt9m111->autowhitebalance);
+	mt9m111->gain = mt9m111_get_global_gain(client);
+
+	return 0;
+}
+
+static int mt9m111_restore_state(struct i2c_client *client)
+{
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
+
+	mt9m111_set_context(client, mt9m111->context);
+	mt9m111_set_pixfmt(client, mt9m111->pixfmt);
+	mt9m111_setup_rect(client, &mt9m111->rect);
+	mt9m111_set_flip(client, mt9m111->hflip, MT9M111_RMB_MIRROR_COLS);
+	mt9m111_set_flip(client, mt9m111->vflip, MT9M111_RMB_MIRROR_ROWS);
+	mt9m111_set_global_gain(client, mt9m111->gain);
+	mt9m111_set_autoexposure(client, mt9m111->autoexposure);
+	mt9m111_set_autowhitebalance(client, mt9m111->autowhitebalance);
 	return 0;
 }
 
 static int mt9m111_resume(struct soc_camera_device *icd)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret = 0;
 
 	if (mt9m111->powered) {
-		ret = mt9m111_enable(icd);
+		ret = mt9m111_enable(client);
 		if (!ret)
-			ret = mt9m111_reset(icd);
+			ret = mt9m111_reset(client);
 		if (!ret)
-			ret = mt9m111_restore_state(icd);
+			ret = mt9m111_restore_state(client);
 	}
 	return ret;
 }
 
-static int mt9m111_init(struct soc_camera_device *icd)
+static int mt9m111_init(struct i2c_client *client)
 {
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
 
 	mt9m111->context = HIGHPOWER;
-	ret = mt9m111_enable(icd);
+	ret = mt9m111_enable(client);
 	if (!ret)
-		ret = mt9m111_reset(icd);
+		ret = mt9m111_reset(client);
 	if (!ret)
-		ret = mt9m111_set_context(icd, mt9m111->context);
+		ret = mt9m111_set_context(client, mt9m111->context);
 	if (!ret)
-		ret = mt9m111_set_autoexposure(icd, mt9m111->autoexposure);
+		ret = mt9m111_set_autoexposure(client, mt9m111->autoexposure);
 	if (ret)
-		dev_err(&icd->dev, "mt9m11x init failed: %d\n", ret);
-	return ret;
-}
-
-static int mt9m111_release(struct soc_camera_device *icd)
-{
-	int ret;
-
-	ret = mt9m111_disable(icd);
-	if (ret < 0)
-		dev_err(&icd->dev, "mt9m11x release failed: %d\n", ret);
-
+		dev_err(&client->dev, "mt9m11x init failed: %d\n", ret);
 	return ret;
 }
 
@@ -902,10 +911,10 @@ static int mt9m111_release(struct soc_camera_device *icd)
  * Interface active, can use i2c. If it fails, it can indeed mean, that
  * this wasn't our capture interface, so, we wait for the right one
  */
-static int mt9m111_video_probe(struct soc_camera_device *icd)
+static int mt9m111_video_probe(struct soc_camera_device *icd,
+			       struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(icd->control);
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	s32 data;
 	int ret;
 
@@ -917,10 +926,13 @@ static int mt9m111_video_probe(struct soc_camera_device *icd)
 	    to_soc_camera_host(icd->dev.parent)->nr != icd->iface)
 		return -ENODEV;
 
-	ret = mt9m111_enable(icd);
-	if (ret)
-		goto ei2c;
-	ret = mt9m111_reset(icd);
+	mt9m111->autoexposure = 1;
+	mt9m111->autowhitebalance = 1;
+
+	mt9m111->swap_rgb_even_odd = 1;
+	mt9m111->swap_rgb_red_blue = 1;
+
+	ret = mt9m111_init(client);
 	if (ret)
 		goto ei2c;
 
@@ -935,7 +947,7 @@ static int mt9m111_video_probe(struct soc_camera_device *icd)
 		break;
 	default:
 		ret = -ENODEV;
-		dev_err(&icd->dev,
+		dev_err(&client->dev,
 			"No MT9M11x chip detected, register read %x\n", data);
 		goto ei2c;
 	}
@@ -943,42 +955,51 @@ static int mt9m111_video_probe(struct soc_camera_device *icd)
 	icd->formats = mt9m111_colour_formats;
 	icd->num_formats = ARRAY_SIZE(mt9m111_colour_formats);
 
-	dev_info(&icd->dev, "Detected a MT9M11x chip ID %x\n", data);
+	dev_info(&client->dev, "Detected a MT9M11x chip ID %x\n", data);
 
-	ret = soc_camera_video_start(icd);
-	if (ret)
-		goto eisis;
-
-	mt9m111->autoexposure = 1;
-	mt9m111->autowhitebalance = 1;
-
-	mt9m111->swap_rgb_even_odd = 1;
-	mt9m111->swap_rgb_red_blue = 1;
-
-	return 0;
-eisis:
 ei2c:
 	return ret;
 }
 
-static void mt9m111_video_remove(struct soc_camera_device *icd)
-{
-	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+static struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
+	.g_ctrl		= mt9m111_g_ctrl,
+	.s_ctrl		= mt9m111_s_ctrl,
+	.g_chip_ident	= mt9m111_g_chip_ident,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.g_register	= mt9m111_g_register,
+	.s_register	= mt9m111_s_register,
+#endif
+};
 
-	dev_dbg(&icd->dev, "Video %x removed: %p, %p\n", mt9m111->client->addr,
-		mt9m111->icd.dev.parent, mt9m111->icd.vdev);
-	soc_camera_video_stop(&mt9m111->icd);
-}
+static struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
+	.s_fmt		= mt9m111_s_fmt,
+	.g_fmt		= mt9m111_g_fmt,
+	.try_fmt	= mt9m111_try_fmt,
+	.s_crop		= mt9m111_s_crop,
+	.g_crop		= mt9m111_g_crop,
+	.cropcap	= mt9m111_cropcap,
+};
+
+static struct v4l2_subdev_ops mt9m111_subdev_ops = {
+	.core	= &mt9m111_subdev_core_ops,
+	.video	= &mt9m111_subdev_video_ops,
+};
 
 static int mt9m111_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
 	struct mt9m111 *mt9m111;
-	struct soc_camera_device *icd;
+	struct soc_camera_device *icd = client->dev.platform_data;
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link *icl = client->dev.platform_data;
+	struct soc_camera_link *icl;
 	int ret;
 
+	if (!icd) {
+		dev_err(&client->dev, "MT9M11x: missing soc-camera data!\n");
+		return -EINVAL;
+	}
+
+	icl = to_soc_camera_link(icd);
 	if (!icl) {
 		dev_err(&client->dev, "MT9M11x driver needs platform data\n");
 		return -EINVAL;
@@ -994,38 +1015,35 @@ static int mt9m111_probe(struct i2c_client *client,
 	if (!mt9m111)
 		return -ENOMEM;
 
-	mt9m111->client = client;
-	i2c_set_clientdata(client, mt9m111);
+	v4l2_i2c_subdev_init(&mt9m111->subdev, client, &mt9m111_subdev_ops);
 
 	/* Second stage probe - when a capture adapter is there */
-	icd 		= &mt9m111->icd;
-	icd->ops	= &mt9m111_ops;
-	icd->control	= &client->dev;
-	icd->x_min	= MT9M111_MIN_DARK_COLS;
-	icd->y_min	= MT9M111_MIN_DARK_ROWS;
-	icd->x_current	= icd->x_min;
-	icd->y_current	= icd->y_min;
-	icd->width_min	= MT9M111_MIN_DARK_ROWS;
-	icd->width_max	= MT9M111_MAX_WIDTH;
-	icd->height_min	= MT9M111_MIN_DARK_COLS;
-	icd->height_max	= MT9M111_MAX_HEIGHT;
-	icd->y_skip_top	= 0;
-	icd->iface	= icl->bus_id;
+	icd->ops		= &mt9m111_ops;
+	icd->y_skip_top		= 0;
 
-	ret = soc_camera_device_register(icd);
-	if (ret)
-		goto eisdr;
-	return 0;
+	mt9m111->rect.left	= MT9M111_MIN_DARK_COLS;
+	mt9m111->rect.top	= MT9M111_MIN_DARK_ROWS;
+	mt9m111->rect.width	= MT9M111_MAX_WIDTH;
+	mt9m111->rect.height	= MT9M111_MAX_HEIGHT;
 
-eisdr:
-	kfree(mt9m111);
+	ret = mt9m111_video_probe(icd, client);
+	if (ret) {
+		icd->ops = NULL;
+		i2c_set_clientdata(client, NULL);
+		kfree(mt9m111);
+	}
+
 	return ret;
 }
 
 static int mt9m111_remove(struct i2c_client *client)
 {
-	struct mt9m111 *mt9m111 = i2c_get_clientdata(client);
-	soc_camera_device_unregister(&mt9m111->icd);
+	struct mt9m111 *mt9m111 = to_mt9m111(client);
+	struct soc_camera_device *icd = client->dev.platform_data;
+
+	icd->ops = NULL;
+	i2c_set_clientdata(client, NULL);
+	client->driver = NULL;
 	kfree(mt9m111);
 
 	return 0;

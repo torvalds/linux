@@ -15,8 +15,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/input.h>
+#include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/serial_8250.h>
 
+#include <asm/serial.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -162,10 +165,6 @@ static struct omap_lcd_config ams_delta_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_uart_config ams_delta_uart_config __initdata = {
-	.enabled_uarts = 1,
-};
-
 static struct omap_usb_config ams_delta_usb_config __initdata = {
 	.register_host	= 1,
 	.hmc_mode	= 16,
@@ -174,7 +173,6 @@ static struct omap_usb_config ams_delta_usb_config __initdata = {
 
 static struct omap_board_config_kernel ams_delta_config[] = {
 	{ OMAP_TAG_LCD,		&ams_delta_lcd_config },
-	{ OMAP_TAG_UART,	&ams_delta_uart_config },
 };
 
 static struct resource ams_delta_kp_resources[] = {
@@ -234,6 +232,41 @@ static void __init ams_delta_init(void)
 	omap_usb_init(&ams_delta_usb_config);
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
 }
+
+static struct plat_serial8250_port ams_delta_modem_ports[] = {
+	{
+		.membase	= (void *) AMS_DELTA_MODEM_VIRT,
+		.mapbase	= AMS_DELTA_MODEM_PHYS,
+		.irq		= -EINVAL, /* changed later */
+		.flags		= UPF_BOOT_AUTOCONF,
+		.irqflags	= IRQF_TRIGGER_RISING,
+		.iotype		= UPIO_MEM,
+		.regshift	= 1,
+		.uartclk	= BASE_BAUD * 16,
+	},
+	{ },
+};
+
+static struct platform_device ams_delta_modem_device = {
+	.name	= "serial8250",
+	.id	= PLAT8250_DEV_PLATFORM1,
+	.dev		= {
+		.platform_data = ams_delta_modem_ports,
+	},
+};
+
+static int __init ams_delta_modem_init(void)
+{
+	omap_cfg_reg(M14_1510_GPIO2);
+	ams_delta_modem_ports[0].irq = gpio_to_irq(2);
+
+	ams_delta_latch2_write(
+		AMS_DELTA_LATCH2_MODEM_NRESET | AMS_DELTA_LATCH2_MODEM_CODEC,
+		AMS_DELTA_LATCH2_MODEM_NRESET | AMS_DELTA_LATCH2_MODEM_CODEC);
+
+	return platform_device_register(&ams_delta_modem_device);
+}
+arch_initcall(ams_delta_modem_init);
 
 static void __init ams_delta_map_io(void)
 {

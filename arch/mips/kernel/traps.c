@@ -466,9 +466,8 @@ asmlinkage void do_be(struct pt_regs *regs)
  * The ll_bit is cleared by r*_switch.S
  */
 
-unsigned long ll_bit;
-
-static struct task_struct *ll_task = NULL;
+unsigned int ll_bit;
+struct task_struct *ll_task;
 
 static inline int simulate_ll(struct pt_regs *regs, unsigned int opcode)
 {

@@ -66,7 +66,6 @@ extern void program_IAR(void);
 
 extern asmlinkage void lower_to_irq14(void);
 extern asmlinkage void bfin_return_from_exception(void);
-extern asmlinkage void evt14_softirq(void);
 extern asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs);
 extern int bfin_internal_set_wake(unsigned int irq, unsigned int state);
 
@@ -99,11 +98,6 @@ extern const char bfin_board_name[];
 extern unsigned long bfin_sic_iwr[];
 extern unsigned vr_wakeup;
 extern u16 _bfin_swrst; /* shadow for Software Reset Register (SWRST) */
-
-#ifdef CONFIG_BFIN_ICACHE_LOCK
-extern void cache_grab_lock(int way);
-extern void bfin_cache_lock(int way);
-#endif
 
 #endif
 

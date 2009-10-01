@@ -251,7 +251,8 @@ int  rndis_set_param_vendor (u8 configNr, u32 vendorID,
 			    const char *vendorDescr);
 int  rndis_set_param_medium (u8 configNr, u32 medium, u32 speed);
 void rndis_add_hdr (struct sk_buff *skb);
-int rndis_rm_hdr (struct sk_buff *skb);
+int rndis_rm_hdr(struct gether *port, struct sk_buff *skb,
+			struct sk_buff_head *list);
 u8   *rndis_get_next_response (int configNr, u32 *length);
 void rndis_free_response (int configNr, u8 *buf);
 

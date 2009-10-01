@@ -1686,7 +1686,7 @@ static int idecd_revalidate_disk(struct gendisk *disk)
 	return  0;
 }
 
-static struct block_device_operations idecd_ops = {
+static const struct block_device_operations idecd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= idecd_open,
 	.release		= idecd_release,

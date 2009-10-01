@@ -418,9 +418,9 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 		case ACPI_EXD_REFERENCE:
 
 			acpi_ex_out_string("Class Name",
-					   (char *)
-					   acpi_ut_get_reference_name
-					   (obj_desc));
+					   ACPI_CAST_PTR(char,
+							 acpi_ut_get_reference_name
+							 (obj_desc)));
 			acpi_ex_dump_reference_obj(obj_desc);
 			break;
 

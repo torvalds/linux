@@ -8,3 +8,12 @@ config 9P_FS
 	  See <http://v9fs.sf.net> for more information.
 
 	  If unsure, say N.
+
+config 9P_FSCACHE
+	bool "Enable 9P client caching support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on 9P_FS=m && FSCACHE || 9P_FS=y && FSCACHE=y
+	help
+	  Choose Y here to enable persistent, read-only local
+	  caching support for 9p clients using FS-Cache
+

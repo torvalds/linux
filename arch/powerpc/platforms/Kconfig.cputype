@@ -280,9 +280,9 @@ config PPC_HAVE_PMU_SUPPORT
 
 config PPC_PERF_CTRS
        def_bool y
-       depends on PERF_COUNTERS && PPC_HAVE_PMU_SUPPORT
+       depends on PERF_EVENTS && PPC_HAVE_PMU_SUPPORT
        help
-         This enables the powerpc-specific perf_counter back-end.
+         This enables the powerpc-specific perf_event back-end.
 
 config SMP
 	depends on PPC_BOOK3S || PPC_BOOK3E || FSL_BOOKE

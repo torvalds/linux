@@ -255,6 +255,15 @@ config PATA_ARTOP
 
 	  If unsure, say N.
 
+config PATA_ATP867X
+	tristate "ARTOP/Acard ATP867X PATA support"
+	depends on PCI
+	help
+	  This option enables support for ARTOP/Acard ATP867X PATA
+	  controllers.
+
+	  If unsure, say N.
+
 config PATA_AT32
 	tristate "Atmel AVR32 PATA support (Experimental)"
 	depends on AVR32 && PLATFORM_AT32AP && EXPERIMENTAL

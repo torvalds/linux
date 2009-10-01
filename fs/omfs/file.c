@@ -333,11 +333,11 @@ struct file_operations omfs_file_operations = {
 	.splice_read = generic_file_splice_read,
 };
 
-struct inode_operations omfs_file_inops = {
+const struct inode_operations omfs_file_inops = {
 	.truncate = omfs_truncate
 };
 
-struct address_space_operations omfs_aops = {
+const struct address_space_operations omfs_aops = {
 	.readpage = omfs_readpage,
 	.readpages = omfs_readpages,
 	.writepage = omfs_writepage,

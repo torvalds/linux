@@ -95,14 +95,14 @@ void init_smtc_stats(void);
 
 /* Global SMTC Status */
 
-unsigned int smtc_status = 0;
+unsigned int smtc_status;
 
 /* Boot command line configuration overrides */
 
 static int vpe0limit;
-static int ipibuffers = 0;
-static int nostlb = 0;
-static int asidmask = 0;
+static int ipibuffers;
+static int nostlb;
+static int asidmask;
 unsigned long smtc_asid_mask = 0xff;
 
 static int __init vpe0tcs(char *str)
@@ -151,7 +151,7 @@ __setup("asidmask=", asidmask_set);
 
 #ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
 
-static int hang_trig = 0;
+static int hang_trig;
 
 static int __init hangtrig_enable(char *s)
 {
@@ -305,7 +305,7 @@ int __init smtc_build_cpu_map(int start_cpu_slot)
 	 */
 	ntcs = ((read_c0_mvpconf0() & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT) + 1;
 	for (i=start_cpu_slot; i<NR_CPUS && i<ntcs; i++) {
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 		__cpu_number_map[i] = i;
 		__cpu_logical_map[i] = i;
 	}
@@ -525,8 +525,8 @@ void smtc_prepare_cpus(int cpus)
 	 * Pull any physically present but unused TCs out of circulation.
 	 */
 	while (tc < (((val & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT) + 1)) {
-		cpu_clear(tc, cpu_possible_map);
-		cpu_clear(tc, cpu_present_map);
+		set_cpu_possible(tc, false);
+		set_cpu_present(tc, false);
 		tc++;
 	}
 
@@ -1098,9 +1098,8 @@ static void ipi_irq_dispatch(void)
 
 static struct irqaction irq_ipi = {
 	.handler	= ipi_interrupt,
-	.flags		= IRQF_DISABLED,
-	.name		= "SMTC_IPI",
-	.flags		= IRQF_PERCPU
+	.flags		= IRQF_DISABLED | IRQF_PERCPU,
+	.name		= "SMTC_IPI"
 };
 
 static void setup_cross_vpe_interrupts(unsigned int nvpe)

@@ -644,11 +644,10 @@ static int wl1271_op_config_interface(struct ieee80211_hw *hw,
 {
 	struct wl1271 *wl = hw->priv;
 	struct sk_buff *beacon;
-	DECLARE_MAC_BUF(mac);
 	int ret;
 
-	wl1271_debug(DEBUG_MAC80211, "mac80211 config_interface bssid %s",
-		     print_mac(mac, conf->bssid));
+	wl1271_debug(DEBUG_MAC80211, "mac80211 config_interface bssid %pM",
+		     conf->bssid);
 	wl1271_dump_ascii(DEBUG_MAC80211, "ssid: ", conf->ssid,
 			  conf->ssid_len);
 

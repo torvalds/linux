@@ -51,7 +51,7 @@
 #include <linux/mutex.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include "lm75.h"
 
 static struct platform_device *pdev;

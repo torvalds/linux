@@ -2012,7 +2012,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->snd_cwnd = 2;
 	icsk->icsk_probes_out = 0;
 	tp->packets_out = 0;
-	tp->snd_ssthresh = 0x7fffffff;
+	tp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 	tp->snd_cwnd_cnt = 0;
 	tp->bytes_acked = 0;
 	tcp_set_ca_state(sk, TCP_CA_Open);
@@ -2862,7 +2862,7 @@ void __init tcp_init(void)
 		alloc_large_system_hash("TCP established",
 					sizeof(struct inet_ehash_bucket),
 					thash_entries,
-					(num_physpages >= 128 * 1024) ?
+					(totalram_pages >= 128 * 1024) ?
 					13 : 15,
 					0,
 					&tcp_hashinfo.ehash_size,
@@ -2879,7 +2879,7 @@ void __init tcp_init(void)
 		alloc_large_system_hash("TCP bind",
 					sizeof(struct inet_bind_hashbucket),
 					tcp_hashinfo.ehash_size,
-					(num_physpages >= 128 * 1024) ?
+					(totalram_pages >= 128 * 1024) ?
 					13 : 15,
 					0,
 					&tcp_hashinfo.bhash_size,

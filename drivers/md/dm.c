@@ -1716,7 +1716,7 @@ out:
 	return r;
 }
 
-static struct block_device_operations dm_blk_dops;
+static const struct block_device_operations dm_blk_dops;
 
 static void dm_wq_work(struct work_struct *work);
 
@@ -2663,7 +2663,7 @@ void dm_free_md_mempools(struct dm_md_mempools *pools)
 	kfree(pools);
 }
 
-static struct block_device_operations dm_blk_dops = {
+static const struct block_device_operations dm_blk_dops = {
 	.open = dm_blk_open,
 	.release = dm_blk_close,
 	.ioctl = dm_blk_ioctl,

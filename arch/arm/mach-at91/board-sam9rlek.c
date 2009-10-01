@@ -43,7 +43,7 @@ static void __init ek_map_io(void)
 	/* Initialize processor: 12.000 MHz crystal */
 	at91sam9rl_initialize(12000000);
 
-	/* DGBU on ttyS0. (Rx & Tx only) */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
 	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS) */
@@ -211,6 +211,14 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data;
 
 
 /*
+ * AC97
+ * reset_pin is not connected: NRST
+ */
+static struct ac97c_platform_data ek_ac97_data = {
+};
+
+
+/*
  * LEDs
  */
 static struct gpio_led ek_leds[] = {
@@ -299,6 +307,8 @@ static void __init ek_board_init(void)
 	at91_add_device_mmc(0, &ek_mmc_data);
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
+	/* AC97 */
+	at91_add_device_ac97(&ek_ac97_data);
 	/* Touch Screen Controller */
 	at91_add_device_tsadcc();
 	/* LEDs */

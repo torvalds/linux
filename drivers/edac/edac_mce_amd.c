@@ -405,7 +405,7 @@ void decode_mce(struct mce *m)
 		regs.nbsh  = (u32)(m->status >> 32);
 		regs.nbeal = (u32) m->addr;
 		regs.nbeah = (u32)(m->addr >> 32);
-		node       = per_cpu(cpu_llc_id, m->extcpu);
+		node       = amd_get_nb_id(m->extcpu);
 
 		amd_decode_nb_mce(node, &regs, 1);
 		break;

@@ -728,6 +728,27 @@ static void nfs_umount_begin(struct super_block *sb)
 	unlock_kernel();
 }
 
+static struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(int flags)
+{
+	struct nfs_parsed_mount_data *data;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (data) {
+		data->flags		= flags;
+		data->rsize		= NFS_MAX_FILE_IO_SIZE;
+		data->wsize		= NFS_MAX_FILE_IO_SIZE;
+		data->acregmin		= NFS_DEF_ACREGMIN;
+		data->acregmax		= NFS_DEF_ACREGMAX;
+		data->acdirmin		= NFS_DEF_ACDIRMIN;
+		data->acdirmax		= NFS_DEF_ACDIRMAX;
+		data->nfs_server.port	= NFS_UNSPEC_PORT;
+		data->auth_flavors[0]	= RPC_AUTH_UNIX;
+		data->auth_flavor_len	= 1;
+		data->minorversion	= 0;
+	}
+	return data;
+}
+
 /*
  * Sanity-check a server address provided by the mount command.
  *
@@ -1430,10 +1451,13 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 	int status;
 
 	if (args->mount_server.version == 0) {
-		if (args->flags & NFS_MOUNT_VER3)
-			args->mount_server.version = NFS_MNT3_VERSION;
-		else
-			args->mount_server.version = NFS_MNT_VERSION;
+		switch (args->version) {
+			default:
+				args->mount_server.version = NFS_MNT3_VERSION;
+				break;
+			case 2:
+				args->mount_server.version = NFS_MNT_VERSION;
+		}
 	}
 	request.version = args->mount_server.version;
 
@@ -1634,20 +1658,6 @@ static int nfs_validate_mount_data(void *options,
 	if (data == NULL)
 		goto out_no_data;
 
-	args->flags		= (NFS_MOUNT_VER3 | NFS_MOUNT_TCP);
-	args->rsize		= NFS_MAX_FILE_IO_SIZE;
-	args->wsize		= NFS_MAX_FILE_IO_SIZE;
-	args->acregmin		= NFS_DEF_ACREGMIN;
-	args->acregmax		= NFS_DEF_ACREGMAX;
-	args->acdirmin		= NFS_DEF_ACDIRMIN;
-	args->acdirmax		= NFS_DEF_ACDIRMAX;
-	args->mount_server.port	= NFS_UNSPEC_PORT;
-	args->nfs_server.port	= NFS_UNSPEC_PORT;
-	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
-	args->auth_flavors[0]	= RPC_AUTH_UNIX;
-	args->auth_flavor_len	= 1;
-	args->minorversion	= 0;
-
 	switch (data->version) {
 	case 1:
 		data->namlen = 0;
@@ -1701,6 +1711,8 @@ static int nfs_validate_mount_data(void *options,
 
 		if (!(data->flags & NFS_MOUNT_TCP))
 			args->nfs_server.protocol = XPRT_TRANSPORT_UDP;
+		else
+			args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 		/* N.B. caller will free nfs_server.hostname in all cases */
 		args->nfs_server.hostname = kstrdup(data->hostname, GFP_KERNEL);
 		args->namlen		= data->namlen;
@@ -1778,7 +1790,7 @@ static int nfs_validate_mount_data(void *options,
 	}
 
 #ifndef CONFIG_NFS_V3
-	if (args->flags & NFS_MOUNT_VER3)
+	if (args->version == 3)
 		goto out_v3_not_compiled;
 #endif /* !CONFIG_NFS_V3 */
 
@@ -1936,7 +1948,7 @@ static void nfs_fill_super(struct super_block *sb,
 	if (data->bsize)
 		sb->s_blocksize = nfs_block_size(data->bsize, &sb->s_blocksize_bits);
 
-	if (server->flags & NFS_MOUNT_VER3) {
+	if (server->nfs_client->rpc_ops->version == 3) {
 		/* The VFS shouldn't apply the umask to mode bits. We will do
 		 * so ourselves when necessary.
 		 */
@@ -1960,7 +1972,7 @@ static void nfs_clone_super(struct super_block *sb,
 	sb->s_blocksize = old_sb->s_blocksize;
 	sb->s_maxbytes = old_sb->s_maxbytes;
 
-	if (server->flags & NFS_MOUNT_VER3) {
+	if (server->nfs_client->rpc_ops->version == 3) {
 		/* The VFS shouldn't apply the umask to mode bits. We will do
 		 * so ourselves when necessary.
 		 */
@@ -2094,7 +2106,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	};
 	int error = -ENOMEM;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = nfs_alloc_parsed_mount_data(NFS_MOUNT_VER3 | NFS_MOUNT_TCP);
 	mntfh = kzalloc(sizeof(*mntfh), GFP_KERNEL);
 	if (data == NULL || mntfh == NULL)
 		goto out_free_fh;
@@ -2144,7 +2156,8 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs_fill_super(s, data);
-		nfs_fscache_get_super_cookie(s, data);
+		nfs_fscache_get_super_cookie(
+			s, data ? data->fscache_uniq : NULL, NULL);
 	}
 
 	mntroot = nfs_get_root(s, mntfh);
@@ -2190,8 +2203,8 @@ static void nfs_kill_super(struct super_block *s)
 {
 	struct nfs_server *server = NFS_SB(s);
 
-	bdi_unregister(&server->backing_dev_info);
 	kill_anon_super(s);
+	bdi_unregister(&server->backing_dev_info);
 	nfs_fscache_release_super_cookie(s);
 	nfs_free_server(server);
 }
@@ -2245,6 +2258,7 @@ static int nfs_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs_clone_super(s, data->sb);
+		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
 	mntroot = nfs_get_root(s, data->fh);
@@ -2362,18 +2376,7 @@ static int nfs4_validate_mount_data(void *options,
 	if (data == NULL)
 		goto out_no_data;
 
-	args->rsize		= NFS_MAX_FILE_IO_SIZE;
-	args->wsize		= NFS_MAX_FILE_IO_SIZE;
-	args->acregmin		= NFS_DEF_ACREGMIN;
-	args->acregmax		= NFS_DEF_ACREGMAX;
-	args->acdirmin		= NFS_DEF_ACDIRMIN;
-	args->acdirmax		= NFS_DEF_ACDIRMAX;
-	args->nfs_server.port	= NFS_UNSPEC_PORT;
-	args->auth_flavors[0]	= RPC_AUTH_UNIX;
-	args->auth_flavor_len	= 1;
 	args->version		= 4;
-	args->minorversion	= 0;
-
 	switch (data->version) {
 	case 1:
 		if (data->host_addrlen > sizeof(args->nfs_server.address))
@@ -2508,7 +2511,8 @@ static int nfs4_remote_get_sb(struct file_system_type *fs_type,
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs4_fill_super(s);
-		nfs_fscache_get_super_cookie(s, data);
+		nfs_fscache_get_super_cookie(
+			s, data ? data->fscache_uniq : NULL, NULL);
 	}
 
 	mntroot = nfs4_get_root(s, mntfh);
@@ -2656,7 +2660,7 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 	struct nfs_parsed_mount_data *data;
 	int error = -ENOMEM;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = nfs_alloc_parsed_mount_data(0);
 	if (data == NULL)
 		goto out_free_data;
 
@@ -2741,6 +2745,7 @@ static int nfs4_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs4_clone_super(s, data->sb);
+		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
 	mntroot = nfs4_get_root(s, data->fh);
@@ -2822,6 +2827,7 @@ static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs4_fill_super(s);
+		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
 	mntroot = nfs4_get_root(s, &mntfh);

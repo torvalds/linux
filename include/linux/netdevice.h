@@ -1873,7 +1873,8 @@ extern void		__dev_addr_unsync(struct dev_addr_list **to, int *to_count, struct 
 extern int		dev_set_promiscuity(struct net_device *dev, int inc);
 extern int		dev_set_allmulti(struct net_device *dev, int inc);
 extern void		netdev_state_change(struct net_device *dev);
-extern void		netdev_bonding_change(struct net_device *dev);
+extern void		netdev_bonding_change(struct net_device *dev,
+					      unsigned long event);
 extern void		netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
 extern void		dev_load(struct net *net, const char *name);

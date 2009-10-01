@@ -34,9 +34,9 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/tboot.h>
+#include <linux/dmi.h>
 
-#undef PREFIX
-#define PREFIX "DMAR:"
+#define PREFIX "DMAR: "
 
 /* No locks are needed as DMA remapping hardware unit
  * list is constructed at boot time and hotplug of
@@ -577,9 +577,6 @@ int __init dmar_table_init(void)
 		printk(KERN_INFO PREFIX "No ATSR found\n");
 #endif
 
-#ifdef CONFIG_INTR_REMAP
-	parse_ioapics_under_ir();
-#endif
 	return 0;
 }
 
@@ -639,20 +636,31 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	iommu->cap = dmar_readq(iommu->reg + DMAR_CAP_REG);
 	iommu->ecap = dmar_readq(iommu->reg + DMAR_ECAP_REG);
 
+	if (iommu->cap == (uint64_t)-1 && iommu->ecap == (uint64_t)-1) {
+		/* Promote an attitude of violence to a BIOS engineer today */
+		WARN(1, "Your BIOS is broken; DMAR reported at address %llx returns all ones!\n"
+		     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+		     drhd->reg_base_addr,
+		     dmi_get_system_info(DMI_BIOS_VENDOR),
+		     dmi_get_system_info(DMI_BIOS_VERSION),
+		     dmi_get_system_info(DMI_PRODUCT_VERSION));
+		goto err_unmap;
+	}
+
 #ifdef CONFIG_DMAR
 	agaw = iommu_calculate_agaw(iommu);
 	if (agaw < 0) {
 		printk(KERN_ERR
 		       "Cannot get a valid agaw for iommu (seq_id = %d)\n",
 		       iommu->seq_id);
-		goto error;
+		goto err_unmap;
 	}
 	msagaw = iommu_calculate_max_sagaw(iommu);
 	if (msagaw < 0) {
 		printk(KERN_ERR
 			"Cannot get a valid max agaw for iommu (seq_id = %d)\n",
 			iommu->seq_id);
-		goto error;
+		goto err_unmap;
 	}
 #endif
 	iommu->agaw = agaw;
@@ -672,7 +680,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	}
 
 	ver = readl(iommu->reg + DMAR_VER_REG);
-	pr_debug("IOMMU %llx: ver %d:%d cap %llx ecap %llx\n",
+	pr_info("IOMMU %llx: ver %d:%d cap %llx ecap %llx\n",
 		(unsigned long long)drhd->reg_base_addr,
 		DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver),
 		(unsigned long long)iommu->cap,
@@ -682,7 +690,10 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 
 	drhd->iommu = iommu;
 	return 0;
-error:
+
+ err_unmap:
+	iounmap(iommu->reg);
+ error:
 	kfree(iommu);
 	return -1;
 }
@@ -1219,7 +1230,7 @@ irqreturn_t dmar_fault(int irq, void *dev_id)
 				source_id, guest_addr);
 
 		fault_index++;
-		if (fault_index > cap_num_fault_regs(iommu->cap))
+		if (fault_index >= cap_num_fault_regs(iommu->cap))
 			fault_index = 0;
 		spin_lock_irqsave(&iommu->register_lock, flag);
 	}
@@ -1311,4 +1322,14 @@ int dmar_reenable_qi(struct intel_iommu *iommu)
 	__dmar_enable_qi(iommu);
 
 	return 0;
+}
+
+/*
+ * Check interrupt remapping support in DMAR table description.
+ */
+int dmar_ir_support(void)
+{
+	struct acpi_table_dmar *dmar;
+	dmar = (struct acpi_table_dmar *)dmar_tbl;
+	return dmar->flags & 0x1;
 }

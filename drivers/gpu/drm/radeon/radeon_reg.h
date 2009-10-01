@@ -1945,6 +1945,11 @@
 #       define RADEON_TXFORMAT_DXT1               (12 <<  0)
 #       define RADEON_TXFORMAT_DXT23              (14 <<  0)
 #       define RADEON_TXFORMAT_DXT45              (15 <<  0)
+#	define RADEON_TXFORMAT_SHADOW16           (16 <<  0)
+#	define RADEON_TXFORMAT_SHADOW32           (17 <<  0)
+#       define RADEON_TXFORMAT_DUDV88             (18 <<  0)
+#       define RADEON_TXFORMAT_LDUDV655           (19 <<  0)
+#       define RADEON_TXFORMAT_LDUDUV8888         (20 <<  0)
 #       define RADEON_TXFORMAT_FORMAT_MASK        (31 <<  0)
 #       define RADEON_TXFORMAT_FORMAT_SHIFT       0
 #       define RADEON_TXFORMAT_APPLE_YUV_MODE     (1  <<  5)
@@ -2203,7 +2208,7 @@
 #       define RADEON_ROP_ENABLE               (1  <<  6)
 #       define RADEON_STENCIL_ENABLE           (1  <<  7)
 #       define RADEON_Z_ENABLE                 (1  <<  8)
-#       define RADEON_DEPTH_XZ_OFFEST_ENABLE   (1  <<  9)
+#       define RADEON_DEPTHXY_OFFSET_ENABLE    (1  <<  9)
 #       define RADEON_RB3D_COLOR_FORMAT_SHIFT  10
 
 #       define RADEON_COLOR_FORMAT_ARGB1555    3
@@ -2773,7 +2778,12 @@
 #       define R200_TXFORMAT_DXT1		(12 << 0)
 #       define R200_TXFORMAT_DXT23		(14 << 0)
 #       define R200_TXFORMAT_DXT45		(15 << 0)
+#       define R200_TXFORMAT_DVDU88		(18 << 0)
+#       define R200_TXFORMAT_LDVDU655		(19 << 0)
+#       define R200_TXFORMAT_LDVDU8888		(20 << 0)
+#       define R200_TXFORMAT_GR1616		(21 << 0)
 #       define R200_TXFORMAT_ABGR8888		(22 << 0)
+#       define R200_TXFORMAT_BGR111110		(23 << 0)
 #       define R200_TXFORMAT_FORMAT_MASK	(31 <<	0)
 #       define R200_TXFORMAT_FORMAT_SHIFT	0
 #       define R200_TXFORMAT_ALPHA_IN_MAP	(1 << 6)
@@ -2818,6 +2828,13 @@
 #define R200_PP_TXPITCH_4			0x2c90 /* NPOT only */
 #define R200_PP_TXPITCH_5			0x2cb0 /* NPOT only */
 
+#define R200_PP_CUBIC_FACES_0			0x2c18
+#define R200_PP_CUBIC_FACES_1			0x2c38
+#define R200_PP_CUBIC_FACES_2			0x2c58
+#define R200_PP_CUBIC_FACES_3			0x2c78
+#define R200_PP_CUBIC_FACES_4			0x2c98
+#define R200_PP_CUBIC_FACES_5			0x2cb8
+
 #define R200_PP_TXOFFSET_0			0x2d00
 #       define R200_TXO_ENDIAN_NO_SWAP		(0 << 0)
 #       define R200_TXO_ENDIAN_BYTE_SWAP	(1 << 0)
@@ -2829,11 +2846,44 @@
 #       define R200_TXO_MICRO_TILE		(1 << 3)
 #       define R200_TXO_OFFSET_MASK		0xffffffe0
 #       define R200_TXO_OFFSET_SHIFT		5
+#define R200_PP_CUBIC_OFFSET_F1_0         0x2d04
+#define R200_PP_CUBIC_OFFSET_F2_0         0x2d08
+#define R200_PP_CUBIC_OFFSET_F3_0         0x2d0c
+#define R200_PP_CUBIC_OFFSET_F4_0         0x2d10
+#define R200_PP_CUBIC_OFFSET_F5_0         0x2d14
+
 #define R200_PP_TXOFFSET_1			0x2d18
+#define R200_PP_CUBIC_OFFSET_F1_1         0x2d1c
+#define R200_PP_CUBIC_OFFSET_F2_1         0x2d20
+#define R200_PP_CUBIC_OFFSET_F3_1         0x2d24
+#define R200_PP_CUBIC_OFFSET_F4_1         0x2d28
+#define R200_PP_CUBIC_OFFSET_F5_1         0x2d2c
+
 #define R200_PP_TXOFFSET_2			0x2d30
+#define R200_PP_CUBIC_OFFSET_F1_2         0x2d34
+#define R200_PP_CUBIC_OFFSET_F2_2         0x2d38
+#define R200_PP_CUBIC_OFFSET_F3_2         0x2d3c
+#define R200_PP_CUBIC_OFFSET_F4_2         0x2d40
+#define R200_PP_CUBIC_OFFSET_F5_2         0x2d44
+
 #define R200_PP_TXOFFSET_3			0x2d48
+#define R200_PP_CUBIC_OFFSET_F1_3         0x2d4c
+#define R200_PP_CUBIC_OFFSET_F2_3         0x2d50
+#define R200_PP_CUBIC_OFFSET_F3_3         0x2d54
+#define R200_PP_CUBIC_OFFSET_F4_3         0x2d58
+#define R200_PP_CUBIC_OFFSET_F5_3         0x2d5c
 #define R200_PP_TXOFFSET_4			0x2d60
+#define R200_PP_CUBIC_OFFSET_F1_4         0x2d64
+#define R200_PP_CUBIC_OFFSET_F2_4         0x2d68
+#define R200_PP_CUBIC_OFFSET_F3_4         0x2d6c
+#define R200_PP_CUBIC_OFFSET_F4_4         0x2d70
+#define R200_PP_CUBIC_OFFSET_F5_4         0x2d74
 #define R200_PP_TXOFFSET_5			0x2d78
+#define R200_PP_CUBIC_OFFSET_F1_5         0x2d7c
+#define R200_PP_CUBIC_OFFSET_F2_5         0x2d80
+#define R200_PP_CUBIC_OFFSET_F3_5         0x2d84
+#define R200_PP_CUBIC_OFFSET_F4_5         0x2d88
+#define R200_PP_CUBIC_OFFSET_F5_5         0x2d8c
 
 #define R200_PP_TFACTOR_0			0x2ee0
 #define R200_PP_TFACTOR_1			0x2ee4
@@ -3175,6 +3225,11 @@
 #       define R200_FORCE_INORDER_PROC		(1<<31)
 #define R200_PP_CNTL_X				0x2cc4
 #define R200_PP_TXMULTI_CTL_0			0x2c1c
+#define R200_PP_TXMULTI_CTL_1			0x2c3c
+#define R200_PP_TXMULTI_CTL_2			0x2c5c
+#define R200_PP_TXMULTI_CTL_3			0x2c7c
+#define R200_PP_TXMULTI_CTL_4			0x2c9c
+#define R200_PP_TXMULTI_CTL_5			0x2cbc
 #define R200_SE_VTX_STATE_CNTL			0x2180
 #       define R200_UPDATE_USER_COLOR_0_ENA_MASK (1<<16)
 
@@ -3199,6 +3254,24 @@
 #define RADEON_CP_RB_RPTR                   0x0710
 #define RADEON_CP_RB_WPTR                   0x0714
 #define RADEON_CP_RB_RPTR_WR                0x071c
+
+#define RADEON_SCRATCH_UMSK		    0x0770
+#define RADEON_SCRATCH_ADDR		    0x0774
+
+#define R600_CP_RB_BASE                     0xc100
+#define R600_CP_RB_CNTL                     0xc104
+#       define R600_RB_BUFSZ(x)             ((x) << 0)
+#       define R600_RB_BLKSZ(x)             ((x) << 8)
+#       define R600_RB_NO_UPDATE            (1 << 27)
+#       define R600_RB_RPTR_WR_ENA          (1 << 31)
+#define R600_CP_RB_RPTR_WR                  0xc108
+#define R600_CP_RB_RPTR_ADDR                0xc10c
+#define R600_CP_RB_RPTR_ADDR_HI             0xc110
+#define R600_CP_RB_WPTR                     0xc114
+#define R600_CP_RB_WPTR_ADDR                0xc118
+#define R600_CP_RB_WPTR_ADDR_HI             0xc11c
+#define R600_CP_RB_RPTR                     0x8700
+#define R600_CP_RB_WPTR_DELAY               0x8704
 
 #define RADEON_CP_IB_BASE                   0x0738
 #define RADEON_CP_IB_BUFSZ                  0x073c
@@ -3260,6 +3333,7 @@
 #       define RADEON_CP_PACKET_MAX_DWORDS          (1 << 12)
 #       define RADEON_CP_PACKET0_REG_MASK           0x000007ff
 #       define R300_CP_PACKET0_REG_MASK             0x00001fff
+#       define R600_CP_PACKET0_REG_MASK             0x0000ffff
 #       define RADEON_CP_PACKET1_REG0_MASK          0x000007ff
 #       define RADEON_CP_PACKET1_REG1_MASK          0x003ff800
 
@@ -3407,7 +3481,9 @@
 #       define RADEON_RGB_CONVERT_BY_PASS	  (1 << 10)
 #       define RADEON_UVRAM_READ_MARGIN_SHIFT	  16
 #       define RADEON_FIFORAM_FFMACRO_READ_MARGIN_SHIFT	  20
-#	define RADEON_TVOUT_SCALE_EN		  (1 << 26)
+#       define RADEON_RGB_ATTEN_SEL(x)            ((x) << 24)
+#       define RADEON_TVOUT_SCALE_EN              (1 << 26)
+#       define RADEON_RGB_ATTEN_VAL(x)            ((x) << 28)
 #define RADEON_TV_SYNC_CNTL                          0x0808
 #       define RADEON_SYNC_OE                     (1 <<  0)
 #       define RADEON_SYNC_OUT                    (1 <<  1)

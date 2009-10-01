@@ -30,16 +30,10 @@
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <linux/audit.h>
+#include <linux/magic.h>
 #include "smack.h"
 
 #define task_security(task)	(task_cred_xxx((task), security))
-
-/*
- * I hope these are the hokeyist lines of code in the module. Casey.
- */
-#define DEVPTS_SUPER_MAGIC	0x1cd1
-#define SOCKFS_MAGIC		0x534F434B
-#define TMPFS_MAGIC		0x01021994
 
 /**
  * smk_fetch - Fetch the smack label from a file.

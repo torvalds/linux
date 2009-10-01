@@ -261,7 +261,7 @@ static const struct file_operations raw_ctl_fops = {
 
 static struct cdev raw_cdev;
 
-static char *raw_nodename(struct device *dev)
+static char *raw_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "raw/%s", dev_name(dev));
 }
@@ -289,7 +289,7 @@ static int __init raw_init(void)
 		ret = PTR_ERR(raw_class);
 		goto error_region;
 	}
-	raw_class->nodename = raw_nodename;
+	raw_class->devnode = raw_devnode;
 	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), NULL, "rawctl");
 
 	return 0;

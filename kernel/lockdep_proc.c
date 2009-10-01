@@ -594,7 +594,7 @@ static int ls_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations lockstat_ops = {
+static const struct seq_operations lockstat_ops = {
 	.start	= ls_start,
 	.next	= ls_next,
 	.stop	= ls_stop,

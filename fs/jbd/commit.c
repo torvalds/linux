@@ -308,7 +308,7 @@ void journal_commit_transaction(journal_t *journal)
 	int bufs;
 	int flags;
 	int err;
-	unsigned long blocknr;
+	unsigned int blocknr;
 	ktime_t start_time;
 	u64 commit_time;
 	char *tagp = NULL;

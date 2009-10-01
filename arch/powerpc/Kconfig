@@ -129,7 +129,7 @@ config PPC
 	select HAVE_OPROFILE
 	select HAVE_SYSCALL_WRAPPERS if PPC64
 	select GENERIC_ATOMIC64 if PPC32
-	select HAVE_PERF_COUNTERS
+	select HAVE_PERF_EVENTS
 
 config EARLY_PRINTK
 	bool
@@ -385,8 +385,14 @@ config NUMA
 
 config NODES_SHIFT
 	int
+	default "8" if PPC64
 	default "4"
 	depends on NEED_MULTIPLE_NODES
+
+config MAX_ACTIVE_REGIONS
+	int
+	default "256" if PPC64
+	default "32"
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y

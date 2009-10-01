@@ -75,7 +75,6 @@ struct netup_ci_state {
 	void *priv;
 };
 
-struct mutex gpio_mutex;/* Two CiMax's uses same GPIO lines */
 
 int netup_read_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 						u8 *buf, int len)
@@ -183,10 +182,11 @@ int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 	if (ret != 0)
 		return ret;
 
-	mutex_lock(&gpio_mutex);
+	mutex_lock(&dev->gpio_lock);
 
 	/* write addr */
 	cx_write(MC417_OEN, NETUP_EN_ALL);
+	msleep(2);
 	cx_write(MC417_RWD, NETUP_CTRL_OFF |
 				NETUP_ADLO | (0xff & addr));
 	cx_clear(MC417_RWD, NETUP_ADLO);
@@ -194,9 +194,10 @@ int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 				NETUP_ADHI | (0xff & (addr >> 8)));
 	cx_clear(MC417_RWD, NETUP_ADHI);
 
-	if (read) /* data in */
+	if (read) { /* data in */
 		cx_write(MC417_OEN, NETUP_EN_ALL | NETUP_DATA);
-	else /* data out */
+		msleep(2);
+	} else /* data out */
 		cx_write(MC417_RWD, NETUP_CTRL_OFF | data);
 
 	/* choose chip */
@@ -206,7 +207,7 @@ int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 	cx_clear(MC417_RWD, (read) ? NETUP_RD : NETUP_WR);
 	mem = netup_ci_get_mem(dev);
 
-	mutex_unlock(&gpio_mutex);
+	mutex_unlock(&dev->gpio_lock);
 
 	if (!read)
 		if (mem < 0)
@@ -403,7 +404,6 @@ int netup_ci_init(struct cx23885_tsport *port)
 	switch (port->nr) {
 	case 1:
 		state->ci_i2c_addr = 0x40;
-		mutex_init(&gpio_mutex);
 		break;
 	case 2:
 		state->ci_i2c_addr = 0x41;

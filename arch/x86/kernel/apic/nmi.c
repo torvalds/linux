@@ -66,7 +66,7 @@ static inline unsigned int get_nmi_count(int cpu)
 
 static inline int mce_in_progress(void)
 {
-#if defined(CONFIG_X86_NEW_MCE)
+#if defined(CONFIG_X86_MCE)
 	return atomic_read(&mce_entry) > 0;
 #endif
 	return 0;
@@ -508,14 +508,14 @@ static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
 /*
  * proc handler for /proc/sys/kernel/nmi
  */
-int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
+int proc_nmi_enabled(struct ctl_table *table, int write,
 			void __user *buffer, size_t *length, loff_t *ppos)
 {
 	int old_state;
 
 	nmi_watchdog_enabled = (atomic_read(&nmi_active) > 0) ? 1 : 0;
 	old_state = nmi_watchdog_enabled;
-	proc_dointvec(table, write, file, buffer, length, ppos);
+	proc_dointvec(table, write, buffer, length, ppos);
 	if (!!old_state == !!nmi_watchdog_enabled)
 		return 0;
 

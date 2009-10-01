@@ -933,8 +933,7 @@ static int garmin_init_session(struct usb_serial_port *port)
 
 
 
-static int garmin_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int garmin_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	unsigned long flags;
 	int status = 0;

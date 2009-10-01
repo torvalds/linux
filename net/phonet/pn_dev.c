@@ -209,7 +209,14 @@ static int phonet_device_autoconf(struct net_device *dev)
 						SIOCPNGAUTOCONF);
 	if (ret < 0)
 		return ret;
-	return phonet_address_add(dev, req.ifr_phonet_autoconf.device);
+
+	ASSERT_RTNL();
+	ret = phonet_address_add(dev, req.ifr_phonet_autoconf.device);
+	if (ret)
+		return ret;
+	phonet_address_notify(RTM_NEWADDR, dev,
+				req.ifr_phonet_autoconf.device);
+	return 0;
 }
 
 /* notify Phonet of device events */

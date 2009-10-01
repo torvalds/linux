@@ -229,7 +229,7 @@ struct atkbd {
 };
 
 /*
- * System-specific ketymap fixup routine
+ * System-specific keymap fixup routine
  */
 static void (*atkbd_platform_fixup)(struct atkbd *, const void *data);
 static void *atkbd_platform_fixup_data;
@@ -773,23 +773,6 @@ static int atkbd_select_set(struct atkbd *atkbd, int target_set, int allow_extra
 static int atkbd_activate(struct atkbd *atkbd)
 {
 	struct ps2dev *ps2dev = &atkbd->ps2dev;
-	unsigned char param[1];
-
-/*
- * Set the LEDs to a defined state.
- */
-
-	param[0] = 0;
-	if (ps2_command(ps2dev, param, ATKBD_CMD_SETLEDS))
-		return -1;
-
-/*
- * Set autorepeat to fastest possible.
- */
-
-	param[0] = 0;
-	if (ps2_command(ps2dev, param, ATKBD_CMD_SETREP))
-		return -1;
 
 /*
  * Enable the keyboard to receive keystrokes.
@@ -1158,14 +1141,6 @@ static int atkbd_reconnect(struct serio *serio)
 			return -1;
 
 		atkbd_activate(atkbd);
-
-/*
- * Restore repeat rate and LEDs (that were reset by atkbd_activate)
- * to pre-resume state
- */
-		if (!atkbd->softrepeat)
-			atkbd_set_repeat_rate(atkbd);
-		atkbd_set_leds(atkbd);
 	}
 
 	atkbd_enable(atkbd);

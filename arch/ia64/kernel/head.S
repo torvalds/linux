@@ -34,7 +34,6 @@
 #include <asm/mca_asm.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
-#include "head.h"
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define SAL_PSR_BITS_TO_SET				\
@@ -168,7 +167,7 @@ RestRR:											\
 	mov _tmp2=((ia64_rid(IA64_REGION_ID_KERNEL, (num<<61)) << 8) | (pgsize << 2) | vhpt);; \
 	mov rr[_tmp1]=_tmp2
 
-	.section __special_page_section,"ax"
+	__PAGE_ALIGNED_DATA
 
 	.global empty_zero_page
 empty_zero_page:
@@ -182,7 +181,7 @@ swapper_pg_dir:
 halt_msg:
 	stringz "Halting kernel\n"
 
-	.section .text.head,"ax"
+	__REF
 
 	.global start_ap
 
@@ -1131,95 +1130,6 @@ SET_REG(b5);
 #endif /* CONFIG_IA64_BRL_EMU */
 
 #ifdef CONFIG_SMP
-	/*
-	 * This routine handles spinlock contention.  It uses a non-standard calling
-	 * convention to avoid converting leaf routines into interior routines.  Because
-	 * of this special convention, there are several restrictions:
-	 *
-	 * - do not use gp relative variables, this code is called from the kernel
-	 *   and from modules, r1 is undefined.
-	 * - do not use stacked registers, the caller owns them.
-	 * - do not use the scratch stack space, the caller owns it.
-	 * - do not use any registers other than the ones listed below
-	 *
-	 * Inputs:
-	 *   ar.pfs - saved CFM of caller
-	 *   ar.ccv - 0 (and available for use)
-	 *   r27    - flags from spin_lock_irqsave or 0.  Must be preserved.
-	 *   r28    - available for use.
-	 *   r29    - available for use.
-	 *   r30    - available for use.
-	 *   r31    - address of lock, available for use.
-	 *   b6     - return address
-	 *   p14    - available for use.
-	 *   p15    - used to track flag status.
-	 *
-	 * If you patch this code to use more registers, do not forget to update
-	 * the clobber lists for spin_lock() in arch/ia64/include/asm/spinlock.h.
-	 */
-
-#if (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
-
-GLOBAL_ENTRY(ia64_spinlock_contention_pre3_4)
-	.prologue
-	.save ar.pfs, r0	// this code effectively has a zero frame size
-	.save rp, r28
-	.body
-	nop 0
-	tbit.nz p15,p0=r27,IA64_PSR_I_BIT
-	.restore sp		// pop existing prologue after next insn
-	mov b6 = r28
-	.prologue
-	.save ar.pfs, r0
-	.altrp b6
-	.body
-	;;
-(p15)	ssm psr.i		// reenable interrupts if they were on
-				// DavidM says that srlz.d is slow and is not required in this case
-.wait:
-	// exponential backoff, kdb, lockmeter etc. go in here
-	hint @pause
-	ld4 r30=[r31]		// don't use ld4.bias; if it's contended, we won't write the word
-	nop 0
-	;;
-	cmp4.ne p14,p0=r30,r0
-(p14)	br.cond.sptk.few .wait
-(p15)	rsm psr.i		// disable interrupts if we reenabled them
-	br.cond.sptk.few b6	// lock is now free, try to acquire
-	.global ia64_spinlock_contention_pre3_4_end	// for kernprof
-ia64_spinlock_contention_pre3_4_end:
-END(ia64_spinlock_contention_pre3_4)
-
-#else
-
-GLOBAL_ENTRY(ia64_spinlock_contention)
-	.prologue
-	.altrp b6
-	.body
-	tbit.nz p15,p0=r27,IA64_PSR_I_BIT
-	;;
-.wait:
-(p15)	ssm psr.i		// reenable interrupts if they were on
-				// DavidM says that srlz.d is slow and is not required in this case
-.wait2:
-	// exponential backoff, kdb, lockmeter etc. go in here
-	hint @pause
-	ld4 r30=[r31]		// don't use ld4.bias; if it's contended, we won't write the word
-	;;
-	cmp4.ne p14,p0=r30,r0
-	mov r30 = 1
-(p14)	br.cond.sptk.few .wait2
-(p15)	rsm psr.i		// disable interrupts if we reenabled them
-	;;
-	cmpxchg4.acq r30=[r31], r30, ar.ccv
-	;;
-	cmp4.ne p14,p0=r0,r30
-(p14)	br.cond.sptk.few .wait
-
-	br.ret.sptk.many b6	// lock is now taken
-END(ia64_spinlock_contention)
-
-#endif
 
 #ifdef CONFIG_HOTPLUG_CPU
 GLOBAL_ENTRY(ia64_jump_to_sal)
@@ -1243,7 +1153,7 @@ GLOBAL_ENTRY(ia64_jump_to_sal)
 	movl r16=SAL_PSR_BITS_TO_SET;;
 	mov cr.ipsr=r16
 	mov cr.ifs=r0;;
-	rfi;;
+	rfi;;			// note: this unmask MCA/INIT (psr.mc)
 1:
 	/*
 	 * Invalidate all TLB data/inst

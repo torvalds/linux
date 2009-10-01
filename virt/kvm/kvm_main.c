@@ -738,8 +738,7 @@ static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 	bool called = true;
 	struct kvm_vcpu *vcpu;
 
-	if (alloc_cpumask_var(&cpus, GFP_ATOMIC))
-		cpumask_clear(cpus);
+	zalloc_cpumask_var(&cpus, GFP_ATOMIC);
 
 	spin_lock(&kvm->requests_lock);
 	me = smp_processor_id();
@@ -1714,7 +1713,7 @@ static int kvm_vcpu_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-static struct vm_operations_struct kvm_vcpu_vm_ops = {
+static const struct vm_operations_struct kvm_vcpu_vm_ops = {
 	.fault = kvm_vcpu_fault,
 };
 
@@ -2318,7 +2317,7 @@ static int kvm_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-static struct vm_operations_struct kvm_vm_vm_ops = {
+static const struct vm_operations_struct kvm_vm_vm_ops = {
 	.fault = kvm_vm_fault,
 };
 

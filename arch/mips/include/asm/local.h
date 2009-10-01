@@ -29,7 +29,7 @@ static __inline__ long local_add_return(long i, local_t * l)
 {
 	unsigned long result;
 
-	if (cpu_has_llsc && R10000_LLSC_WAR) {
+	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
 
 		__asm__ __volatile__(
@@ -43,7 +43,7 @@ static __inline__ long local_add_return(long i, local_t * l)
 		: "=&r" (result), "=&r" (temp), "=m" (l->a.counter)
 		: "Ir" (i), "m" (l->a.counter)
 		: "memory");
-	} else if (cpu_has_llsc) {
+	} else if (kernel_uses_llsc) {
 		unsigned long temp;
 
 		__asm__ __volatile__(
@@ -74,7 +74,7 @@ static __inline__ long local_sub_return(long i, local_t * l)
 {
 	unsigned long result;
 
-	if (cpu_has_llsc && R10000_LLSC_WAR) {
+	if (kernel_uses_llsc && R10000_LLSC_WAR) {
 		unsigned long temp;
 
 		__asm__ __volatile__(
@@ -88,7 +88,7 @@ static __inline__ long local_sub_return(long i, local_t * l)
 		: "=&r" (result), "=&r" (temp), "=m" (l->a.counter)
 		: "Ir" (i), "m" (l->a.counter)
 		: "memory");
-	} else if (cpu_has_llsc) {
+	} else if (kernel_uses_llsc) {
 		unsigned long temp;
 
 		__asm__ __volatile__(

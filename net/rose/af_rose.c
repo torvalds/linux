@@ -63,7 +63,7 @@ int sysctl_rose_window_size             = ROSE_DEFAULT_WINDOW_SIZE;
 static HLIST_HEAD(rose_list);
 static DEFINE_SPINLOCK(rose_list_lock);
 
-static struct proto_ops rose_proto_ops;
+static const struct proto_ops rose_proto_ops;
 
 ax25_address rose_callsign;
 
@@ -1515,7 +1515,7 @@ static struct net_proto_family rose_family_ops = {
 	.owner		=	THIS_MODULE,
 };
 
-static struct proto_ops rose_proto_ops = {
+static const struct proto_ops rose_proto_ops = {
 	.family		=	PF_ROSE,
 	.owner		=	THIS_MODULE,
 	.release	=	rose_release,

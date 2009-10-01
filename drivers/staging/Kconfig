@@ -47,6 +47,8 @@ source "drivers/staging/slicoss/Kconfig"
 
 source "drivers/staging/go7007/Kconfig"
 
+source "drivers/staging/cx25821/Kconfig"
+
 source "drivers/staging/usbip/Kconfig"
 
 source "drivers/staging/winbond/Kconfig"
@@ -114,8 +116,6 @@ source "drivers/staging/quatech_usb2/Kconfig"
 source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
-
-source "drivers/staging/cpc-usb/Kconfig"
 
 source "drivers/staging/udlfb/Kconfig"
 

@@ -127,6 +127,7 @@ struct bfin5xx_spi_chip {
 	u32 cs_gpio;
 	/* Value to send if no TX value is supplied, usually 0x0 or 0xFFFF */
 	u16 idle_tx_val;
+	u8 pio_interrupt; /* Enable spi data irq */
 };
 
 #endif /* _SPI_CHANNEL_H_ */

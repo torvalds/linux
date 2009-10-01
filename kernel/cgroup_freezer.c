@@ -159,7 +159,7 @@ static bool is_task_frozen_enough(struct task_struct *task)
  */
 static int freezer_can_attach(struct cgroup_subsys *ss,
 			      struct cgroup *new_cgroup,
-			      struct task_struct *task)
+			      struct task_struct *task, bool threadgroup)
 {
 	struct freezer *freezer;
 
@@ -176,6 +176,19 @@ static int freezer_can_attach(struct cgroup_subsys *ss,
 	freezer = cgroup_freezer(new_cgroup);
 	if (freezer->state == CGROUP_FROZEN)
 		return -EBUSY;
+
+	if (threadgroup) {
+		struct task_struct *c;
+
+		rcu_read_lock();
+		list_for_each_entry_rcu(c, &task->thread_group, thread_group) {
+			if (is_task_frozen_enough(c)) {
+				rcu_read_unlock();
+				return -EBUSY;
+			}
+		}
+		rcu_read_unlock();
+	}
 
 	return 0;
 }

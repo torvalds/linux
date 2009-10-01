@@ -976,15 +976,12 @@ static acpi_status sony_walk_callback(acpi_handle handle, u32 level,
 				      void *context, void **return_value)
 {
 	struct acpi_device_info *info;
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 
-	if (ACPI_SUCCESS(acpi_get_object_info(handle, &buffer))) {
-		info = buffer.pointer;
-
+	if (ACPI_SUCCESS(acpi_get_object_info(handle, &info))) {
 		printk(KERN_WARNING DRV_PFX "method: name: %4.4s, args %X\n",
 			(char *)&info->name, info->param_count);
 
-		kfree(buffer.pointer);
+		kfree(info);
 	}
 
 	return AE_OK;
@@ -1044,6 +1041,9 @@ static int sony_nc_resume(struct acpi_device *device)
 			sony_backlight_update_status(sony_backlight_device) < 0)
 		printk(KERN_WARNING DRV_PFX "unable to restore brightness level\n");
 
+	/* re-read rfkill state */
+	sony_nc_rfkill_update();
+
 	return 0;
 }
 
@@ -1081,6 +1081,8 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 	struct rfkill *rfk;
 	enum rfkill_type type;
 	const char *name;
+	int result;
+	bool hwblock;
 
 	switch (nc_type) {
 	case SONY_WIFI:
@@ -1107,6 +1109,10 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 			   &sony_rfkill_ops, (void *)nc_type);
 	if (!rfk)
 		return -ENOMEM;
+
+	sony_call_snc_handle(0x124, 0x200, &result);
+	hwblock = !(result & 0x1);
+	rfkill_set_hw_state(rfk, hwblock);
 
 	err = rfkill_register(rfk);
 	if (err) {
