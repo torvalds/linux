@@ -1254,21 +1254,35 @@ static const struct file_operations codec_reg_fops = {
 
 static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 {
+	char codec_root[128];
+
+	snprintf(codec_root, sizeof(codec_root),
+		 "%s-%s", dev_name(codec->socdev->dev), codec->name);
+
+	codec->debugfs_codec_root = debugfs_create_dir(codec_root,
+						       debugfs_root);
+	if (!codec->debugfs_codec_root) {
+		printk(KERN_WARNING
+		       "ASoC: Failed to create codec debugfs directory\n");
+		return;
+	}
+
 	codec->debugfs_reg = debugfs_create_file("codec_reg", 0644,
-						 debugfs_root, codec,
-						 &codec_reg_fops);
+						 codec->debugfs_codec_root,
+						 codec, &codec_reg_fops);
 	if (!codec->debugfs_reg)
 		printk(KERN_WARNING
 		       "ASoC: Failed to create codec register debugfs file\n");
 
 	codec->debugfs_pop_time = debugfs_create_u32("dapm_pop_time", 0744,
-						     debugfs_root,
+						     codec->debugfs_codec_root,
 						     &codec->pop_time);
 	if (!codec->debugfs_pop_time)
 		printk(KERN_WARNING
 		       "Failed to create pop time debugfs file\n");
 
-	codec->debugfs_dapm = debugfs_create_dir("dapm", debugfs_root);
+	codec->debugfs_dapm = debugfs_create_dir("dapm",
+						 codec->debugfs_codec_root);
 	if (!codec->debugfs_dapm)
 		printk(KERN_WARNING
 		       "Failed to create DAPM debugfs directory\n");
@@ -1278,9 +1292,7 @@ static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 
 static void soc_cleanup_codec_debugfs(struct snd_soc_codec *codec)
 {
-	debugfs_remove_recursive(codec->debugfs_dapm);
-	debugfs_remove(codec->debugfs_pop_time);
-	debugfs_remove(codec->debugfs_reg);
+	debugfs_remove_recursive(codec->debugfs_codec_root);
 }
 
 #else

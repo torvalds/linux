@@ -413,6 +413,7 @@ struct snd_soc_codec {
 	unsigned int num_dai;
 
 #ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_codec_root;
 	struct dentry *debugfs_reg;
 	struct dentry *debugfs_pop_time;
 	struct dentry *debugfs_dapm;
