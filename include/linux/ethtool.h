@@ -495,10 +495,6 @@ struct ethtool_ops {
 	u32     (*get_priv_flags)(struct net_device *);
 	int     (*set_priv_flags)(struct net_device *, u32);
 	int	(*get_sset_count)(struct net_device *, int);
-
-	/* the following hooks are obsolete */
-	int	(*self_test_count)(struct net_device *);/* use get_sset_count */
-	int	(*get_stats_count)(struct net_device *);/* use get_sset_count */
 	int	(*get_rxnfc)(struct net_device *, struct ethtool_rxnfc *, void *);
 	int	(*set_rxnfc)(struct net_device *, struct ethtool_rxnfc *);
 	int     (*flash_device)(struct net_device *, struct ethtool_flash *);
