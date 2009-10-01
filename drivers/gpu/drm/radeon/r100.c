@@ -3100,7 +3100,7 @@ void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save)
 	WREG32(R_000740_CP_CSQ_CNTL, 0);
 
 	/* Save few CRTC registers */
-	save->GENMO_WT = RREG32(R_0003C0_GENMO_WT);
+	save->GENMO_WT = RREG8(R_0003C2_GENMO_WT);
 	save->CRTC_EXT_CNTL = RREG32(R_000054_CRTC_EXT_CNTL);
 	save->CRTC_GEN_CNTL = RREG32(R_000050_CRTC_GEN_CNTL);
 	save->CUR_OFFSET = RREG32(R_000260_CUR_OFFSET);
@@ -3110,7 +3110,7 @@ void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save)
 	}
 
 	/* Disable VGA aperture access */
-	WREG32(R_0003C0_GENMO_WT, C_0003C0_VGA_RAM_EN & save->GENMO_WT);
+	WREG8(R_0003C2_GENMO_WT, C_0003C2_VGA_RAM_EN & save->GENMO_WT);
 	/* Disable cursor, overlay, crtc */
 	WREG32(R_000260_CUR_OFFSET, save->CUR_OFFSET | S_000260_CUR_LOCK(1));
 	WREG32(R_000054_CRTC_EXT_CNTL, save->CRTC_EXT_CNTL |
@@ -3142,10 +3142,18 @@ void r100_mc_resume(struct radeon_device *rdev, struct r100_mc_save *save)
 				rdev->mc.vram_location);
 	}
 	/* Restore CRTC registers */
-	WREG32(R_0003C0_GENMO_WT, save->GENMO_WT);
+	WREG8(R_0003C2_GENMO_WT, save->GENMO_WT);
 	WREG32(R_000054_CRTC_EXT_CNTL, save->CRTC_EXT_CNTL);
 	WREG32(R_000050_CRTC_GEN_CNTL, save->CRTC_GEN_CNTL);
 	if (!(rdev->flags & RADEON_SINGLE_CRTC)) {
 		WREG32(R_0003F8_CRTC2_GEN_CNTL, save->CRTC2_GEN_CNTL);
 	}
+}
+
+void r100_vga_render_disable(struct radeon_device *rdev)
+{
+    u32 tmp;
+
+    tmp = RREG8(R_0003C2_GENMO_WT);
+	WREG8(R_0003C2_GENMO_WT, C_0003C2_VGA_RAM_EN & tmp);
 }

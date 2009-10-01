@@ -403,25 +403,25 @@
 #define   S_000360_CUR2_LOCK(x)                        (((x) & 0x1) << 31)
 #define   G_000360_CUR2_LOCK(x)                        (((x) >> 31) & 0x1)
 #define   C_000360_CUR2_LOCK                           0x7FFFFFFF
-#define R_0003C0_GENMO_WT                            0x0003C0
-#define   S_0003C0_GENMO_MONO_ADDRESS_B(x)             (((x) & 0x1) << 0)
-#define   G_0003C0_GENMO_MONO_ADDRESS_B(x)             (((x) >> 0) & 0x1)
-#define   C_0003C0_GENMO_MONO_ADDRESS_B                0xFFFFFFFE
-#define   S_0003C0_VGA_RAM_EN(x)                       (((x) & 0x1) << 1)
-#define   G_0003C0_VGA_RAM_EN(x)                       (((x) >> 1) & 0x1)
-#define   C_0003C0_VGA_RAM_EN                          0xFFFFFFFD
-#define   S_0003C0_VGA_CKSEL(x)                        (((x) & 0x3) << 2)
-#define   G_0003C0_VGA_CKSEL(x)                        (((x) >> 2) & 0x3)
-#define   C_0003C0_VGA_CKSEL                           0xFFFFFFF3
-#define   S_0003C0_ODD_EVEN_MD_PGSEL(x)                (((x) & 0x1) << 5)
-#define   G_0003C0_ODD_EVEN_MD_PGSEL(x)                (((x) >> 5) & 0x1)
-#define   C_0003C0_ODD_EVEN_MD_PGSEL                   0xFFFFFFDF
-#define   S_0003C0_VGA_HSYNC_POL(x)                    (((x) & 0x1) << 6)
-#define   G_0003C0_VGA_HSYNC_POL(x)                    (((x) >> 6) & 0x1)
-#define   C_0003C0_VGA_HSYNC_POL                       0xFFFFFFBF
-#define   S_0003C0_VGA_VSYNC_POL(x)                    (((x) & 0x1) << 7)
-#define   G_0003C0_VGA_VSYNC_POL(x)                    (((x) >> 7) & 0x1)
-#define   C_0003C0_VGA_VSYNC_POL                       0xFFFFFF7F
+#define R_0003C2_GENMO_WT                            0x0003C0
+#define   S_0003C2_GENMO_MONO_ADDRESS_B(x)             (((x) & 0x1) << 0)
+#define   G_0003C2_GENMO_MONO_ADDRESS_B(x)             (((x) >> 0) & 0x1)
+#define   C_0003C2_GENMO_MONO_ADDRESS_B                0xFE
+#define   S_0003C2_VGA_RAM_EN(x)                       (((x) & 0x1) << 1)
+#define   G_0003C2_VGA_RAM_EN(x)                       (((x) >> 1) & 0x1)
+#define   C_0003C2_VGA_RAM_EN                          0xFD
+#define   S_0003C2_VGA_CKSEL(x)                        (((x) & 0x3) << 2)
+#define   G_0003C2_VGA_CKSEL(x)                        (((x) >> 2) & 0x3)
+#define   C_0003C2_VGA_CKSEL                           0xF3
+#define   S_0003C2_ODD_EVEN_MD_PGSEL(x)                (((x) & 0x1) << 5)
+#define   G_0003C2_ODD_EVEN_MD_PGSEL(x)                (((x) >> 5) & 0x1)
+#define   C_0003C2_ODD_EVEN_MD_PGSEL                   0xDF
+#define   S_0003C2_VGA_HSYNC_POL(x)                    (((x) & 0x1) << 6)
+#define   G_0003C2_VGA_HSYNC_POL(x)                    (((x) >> 6) & 0x1)
+#define   C_0003C2_VGA_HSYNC_POL                       0xBF
+#define   S_0003C2_VGA_VSYNC_POL(x)                    (((x) & 0x1) << 7)
+#define   G_0003C2_VGA_VSYNC_POL(x)                    (((x) >> 7) & 0x1)
+#define   C_0003C2_VGA_VSYNC_POL                       0x7F
 #define R_0003F8_CRTC2_GEN_CNTL                      0x0003F8
 #define   S_0003F8_CRTC2_DBL_SCAN_EN(x)                (((x) & 0x1) << 0)
 #define   G_0003F8_CRTC2_DBL_SCAN_EN(x)                (((x) >> 0) & 0x1)

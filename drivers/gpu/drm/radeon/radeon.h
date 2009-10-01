@@ -994,6 +994,7 @@ extern void radeon_clocks_fini(struct radeon_device *rdev);
 extern void radeon_scratch_init(struct radeon_device *rdev);
 extern void radeon_surface_init(struct radeon_device *rdev);
 extern int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data);
+extern void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable);
 extern void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
@@ -1029,11 +1030,14 @@ extern int r100_wb_init(struct radeon_device *rdev);
 extern void r100_hdp_reset(struct radeon_device *rdev);
 extern int r100_rb2d_reset(struct radeon_device *rdev);
 extern int r100_cp_reset(struct radeon_device *rdev);
+extern void r100_vga_render_disable(struct radeon_device *rdev);
 
 /* r300,r350,rv350,rv370,rv380 */
 extern void r300_set_reg_safe(struct radeon_device *rdev);
 extern void r300_mc_program(struct radeon_device *rdev);
 extern void r300_vram_info(struct radeon_device *rdev);
+extern void r300_clock_startup(struct radeon_device *rdev);
+extern int r300_mc_wait_for_idle(struct radeon_device *rdev);
 extern int rv370_pcie_gart_init(struct radeon_device *rdev);
 extern void rv370_pcie_gart_fini(struct radeon_device *rdev);
 extern int rv370_pcie_gart_enable(struct radeon_device *rdev);

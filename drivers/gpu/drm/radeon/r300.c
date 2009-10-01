@@ -33,6 +33,7 @@
 #include "radeon_drm.h"
 #include "r100_track.h"
 #include "r300d.h"
+#include "rv350d.h"
 
 #include "r300_reg_safe.h"
 
@@ -63,7 +64,6 @@ int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
  * Some of these functions might be used by newer ASICs.
  */
 void r300_gpu_init(struct radeon_device *rdev);
-int r300_mc_wait_for_idle(struct radeon_device *rdev);
 int rv370_debugfs_pcie_gart_info_init(struct radeon_device *rdev);
 
 
@@ -1264,4 +1264,18 @@ void r300_mc_program(struct radeon_device *rdev)
 		S_000148_MC_FB_START(rdev->mc.vram_start >> 16) |
 		S_000148_MC_FB_TOP(rdev->mc.vram_end >> 16));
 	r100_mc_resume(rdev, &save);
+}
+
+void r300_clock_startup(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	if (radeon_dynclks != -1 && radeon_dynclks)
+		radeon_legacy_set_clock_gating(rdev, 1);
+	/* We need to force on some of the block */
+	tmp = RREG32_PLL(R_00000D_SCLK_CNTL);
+	tmp |= S_00000D_FORCE_CP(1) | S_00000D_FORCE_VIP(1);
+	if ((rdev->family == CHIP_RV350) || (rdev->family == CHIP_RV380))
+		tmp |= S_00000D_FORCE_VAP(1);
+	WREG32_PLL(R_00000D_SCLK_CNTL, tmp);
 }

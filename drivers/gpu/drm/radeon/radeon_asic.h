@@ -246,41 +246,40 @@ static struct radeon_asic r420_asic = {
 /*
  * rs400,rs480
  */
-void rs400_errata(struct radeon_device *rdev);
-void rs400_vram_info(struct radeon_device *rdev);
-int rs400_mc_init(struct radeon_device *rdev);
-void rs400_mc_fini(struct radeon_device *rdev);
-int rs400_gart_init(struct radeon_device *rdev);
-void rs400_gart_fini(struct radeon_device *rdev);
-int rs400_gart_enable(struct radeon_device *rdev);
-void rs400_gart_disable(struct radeon_device *rdev);
+extern int rs400_init(struct radeon_device *rdev);
+extern void rs400_fini(struct radeon_device *rdev);
+extern int rs400_suspend(struct radeon_device *rdev);
+extern int rs400_resume(struct radeon_device *rdev);
 void rs400_gart_tlb_flush(struct radeon_device *rdev);
 int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
 uint32_t rs400_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs400_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 static struct radeon_asic rs400_asic = {
-	.init = &r300_init,
-	.errata = &rs400_errata,
-	.vram_info = &rs400_vram_info,
+	.init = &rs400_init,
+	.fini = &rs400_fini,
+	.suspend = &rs400_suspend,
+	.resume = &rs400_resume,
+	.errata = NULL,
+	.vram_info = NULL,
 	.gpu_reset = &r300_gpu_reset,
-	.mc_init = &rs400_mc_init,
-	.mc_fini = &rs400_mc_fini,
-	.wb_init = &r100_wb_init,
-	.wb_fini = &r100_wb_fini,
-	.gart_init = &rs400_gart_init,
-	.gart_fini = &rs400_gart_fini,
-	.gart_enable = &rs400_gart_enable,
-	.gart_disable = &rs400_gart_disable,
+	.mc_init = NULL,
+	.mc_fini = NULL,
+	.wb_init = NULL,
+	.wb_fini = NULL,
+	.gart_init = NULL,
+	.gart_fini = NULL,
+	.gart_enable = NULL,
+	.gart_disable = NULL,
 	.gart_tlb_flush = &rs400_gart_tlb_flush,
 	.gart_set_page = &rs400_gart_set_page,
-	.cp_init = &r100_cp_init,
-	.cp_fini = &r100_cp_fini,
-	.cp_disable = &r100_cp_disable,
+	.cp_init = NULL,
+	.cp_fini = NULL,
+	.cp_disable = NULL,
 	.cp_commit = &r100_cp_commit,
 	.ring_start = &r300_ring_start,
 	.ring_test = &r100_ring_test,
 	.ring_ib_execute = &r100_ring_ib_execute,
-	.ib_test = &r100_ib_test,
+	.ib_test = NULL,
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
 	.get_vblank_counter = &r100_get_vblank_counter,
