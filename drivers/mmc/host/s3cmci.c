@@ -183,6 +183,21 @@ static inline bool s3cmci_host_usedma(struct s3cmci_host *host)
 #endif
 }
 
+/**
+ * s3cmci_host_canpio - return true if host has pio code available
+ *
+ * Return true if the driver has been compiled with the PIO support code
+ * available.
+ */
+static inline bool s3cmci_host_canpio(void)
+{
+#ifdef CONFIG_MMC_S3C_PIO
+	return true;
+#else
+	return false;
+#endif
+}
+
 static inline u32 enable_imask(struct s3cmci_host *host, u32 imask)
 {
 	u32 newmask;
@@ -786,6 +801,7 @@ static void s3cmci_dma_done_callback(struct s3c2410_dma_chan *dma_ch,
 	dbg(host, dbg_dma, "DMA FINISHED Size:%i DSTA:%08x DCNT:%08x\n",
 		size, mci_dsta, mci_dcnt);
 
+	host->dma_complete = 1;
 	host->complete_what = COMPLETION_FINALIZE;
 
 out:
@@ -816,7 +832,8 @@ static void finalize_request(struct s3cmci_host *host)
 	if (cmd->data && (cmd->error == 0) &&
 	    (cmd->data->error == 0)) {
 		if (s3cmci_host_usedma(host) && (!host->dma_complete)) {
-			dbg(host, dbg_dma, "DMA Missing!\n");
+			dbg(host, dbg_dma, "DMA Missing (%d)!\n",
+			    host->dma_complete);
 			return;
 		}
 	}
@@ -1065,7 +1082,7 @@ static int s3cmci_prepare_pio(struct s3cmci_host *host, struct mmc_data *data)
 static int s3cmci_prepare_dma(struct s3cmci_host *host, struct mmc_data *data)
 {
 	int dma_len, i;
-	int rw = (data->flags & MMC_DATA_WRITE) ? 1 : 0;
+	int rw = data->flags & MMC_DATA_WRITE;
 
 	BUG_ON((data->flags & BOTH_DIR) == BOTH_DIR);
 
@@ -1073,7 +1090,7 @@ static int s3cmci_prepare_dma(struct s3cmci_host *host, struct mmc_data *data)
 	s3c2410_dma_ctrl(host->dma, S3C2410_DMAOP_FLUSH);
 
 	dma_len = dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
-			     (rw) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			     rw ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 	if (dma_len == 0)
 		return -ENOMEM;
@@ -1084,11 +1101,11 @@ static int s3cmci_prepare_dma(struct s3cmci_host *host, struct mmc_data *data)
 	for (i = 0; i < dma_len; i++) {
 		int res;
 
-		dbg(host, dbg_dma, "enqueue %i:%u@%u\n", i,
-			sg_dma_address(&data->sg[i]),
-			sg_dma_len(&data->sg[i]));
+		dbg(host, dbg_dma, "enqueue %i: %08x@%u\n", i,
+		    sg_dma_address(&data->sg[i]),
+		    sg_dma_len(&data->sg[i]));
 
-		res = s3c2410_dma_enqueue(host->dma, (void *) host,
+		res = s3c2410_dma_enqueue(host->dma, host,
 					  sg_dma_address(&data->sg[i]),
 					  sg_dma_len(&data->sg[i]));
 
@@ -1581,8 +1598,6 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 	host->complete_what 	= COMPLETION_NONE;
 	host->pio_active 	= XFER_NONE;
 
-	host->dma		= S3CMCI_DMA;
-
 #ifdef CONFIG_MMC_S3C_PIODMA
 	host->dodma		= host->pdata->dma;
 #endif
@@ -1665,10 +1680,21 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 		gpio_direction_input(host->pdata->gpio_wprotect);
 	}
 
-	if (s3c2410_dma_request(S3CMCI_DMA, &s3cmci_dma_client, NULL) < 0) {
-		dev_err(&pdev->dev, "unable to get DMA channel.\n");
-		ret = -EBUSY;
-		goto probe_free_gpio_wp;
+	/* depending on the dma state, get a dma channel to use. */
+
+	if (s3cmci_host_usedma(host)) {
+		host->dma = s3c2410_dma_request(DMACH_SDI, &s3cmci_dma_client,
+						host);
+		if (host->dma < 0) {
+			dev_err(&pdev->dev, "cannot get DMA channel.\n");
+			if (!s3cmci_host_canpio()) {
+				ret = -EBUSY;
+				goto probe_free_gpio_wp;
+			} else {
+				dev_warn(&pdev->dev, "falling back to PIO.\n");
+				host->dodma = 0;
+			}
+		}
 	}
 
 	host->clk = clk_get(&pdev->dev, "sdi");
@@ -1676,7 +1702,7 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to find clock source.\n");
 		ret = PTR_ERR(host->clk);
 		host->clk = NULL;
-		goto probe_free_host;
+		goto probe_free_dma;
 	}
 
 	ret = clk_enable(host->clk);
@@ -1738,6 +1764,10 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
  clk_free:
 	clk_put(host->clk);
 
+ probe_free_dma:
+	if (s3cmci_host_usedma(host))
+		s3c2410_dma_free(host->dma, &s3cmci_dma_client);
+
  probe_free_gpio_wp:
 	if (host->pdata->gpio_wprotect)
 		gpio_free(host->pdata->gpio_wprotect);
@@ -1796,7 +1826,9 @@ static int __devexit s3cmci_remove(struct platform_device *pdev)
 	clk_put(host->clk);
 
 	tasklet_disable(&host->pio_tasklet);
-	s3c2410_dma_free(S3CMCI_DMA, &s3cmci_dma_client);
+
+	if (s3cmci_host_usedma(host))
+		s3c2410_dma_free(host->dma, &s3cmci_dma_client);
 
 	free_irq(host->irq, host);
 

@@ -8,9 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-/* FIXME: DMA Resource management ?! */
-#define S3CMCI_DMA 0
-
 enum s3cmci_waitfor {
 	COMPLETION_NONE,
 	COMPLETION_FINALIZE,
