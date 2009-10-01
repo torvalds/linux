@@ -1299,7 +1299,7 @@ static int s3cmci_get_ro(struct mmc_host *mmc)
 	struct s3c24xx_mci_pdata *pdata = host->pdata;
 	int ret;
 
-	if (pdata->gpio_wprotect == 0)
+	if (pdata->no_wprotect)
 		return 0;
 
 	ret = s3c2410_gpio_getpin(pdata->gpio_wprotect);
@@ -1647,30 +1647,34 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 	disable_irq(host->irq);
 	host->irq_state = false;
 
-	if (host->pdata->gpio_detect) {
+	if (!host->pdata->no_detect) {
 		ret = gpio_request(host->pdata->gpio_detect, "s3cmci detect");
 		if (ret) {
 			dev_err(&pdev->dev, "failed to get detect gpio\n");
 			goto probe_free_irq;
 		}
-	}
 
-	host->irq_cd = s3c2410_gpio_getirq(host->pdata->gpio_detect);
+		host->irq_cd = s3c2410_gpio_getirq(host->pdata->gpio_detect);
 
-	if (host->irq_cd >= 0) {
-		if (request_irq(host->irq_cd, s3cmci_irq_cd,
-				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				DRIVER_NAME, host)) {
-			dev_err(&pdev->dev, "can't get card detect irq.\n");
-			ret = -ENOENT;
-			goto probe_free_gpio_cd;
+		if (host->irq_cd >= 0) {
+			if (request_irq(host->irq_cd, s3cmci_irq_cd,
+					IRQF_TRIGGER_RISING |
+					IRQF_TRIGGER_FALLING,
+					DRIVER_NAME, host)) {
+				dev_err(&pdev->dev,
+					"can't get card detect irq.\n");
+				ret = -ENOENT;
+				goto probe_free_gpio_cd;
+			}
+		} else {
+			dev_warn(&pdev->dev,
+				 "host detect has no irq available\n");
+			gpio_direction_input(host->pdata->gpio_detect);
 		}
-	} else {
-		dev_warn(&pdev->dev, "host detect has no irq available\n");
-		gpio_direction_input(host->pdata->gpio_detect);
-	}
+	} else
+		host->irq_cd = -1;
 
-	if (host->pdata->gpio_wprotect) {
+	if (!host->pdata->no_wprotect) {
 		ret = gpio_request(host->pdata->gpio_wprotect, "s3cmci wp");
 		if (ret) {
 			dev_err(&pdev->dev, "failed to get writeprotect\n");
@@ -1774,11 +1778,11 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 		s3c2410_dma_free(host->dma, &s3cmci_dma_client);
 
  probe_free_gpio_wp:
-	if (host->pdata->gpio_wprotect)
+	if (!host->pdata->no_wprotect)
 		gpio_free(host->pdata->gpio_wprotect);
 
  probe_free_gpio_cd:
-	if (host->pdata->gpio_detect)
+	if (!host->pdata->no_detect)
 		gpio_free(host->pdata->gpio_detect);
 
  probe_free_irq_cd:
@@ -1837,10 +1841,10 @@ static int __devexit s3cmci_remove(struct platform_device *pdev)
 
 	free_irq(host->irq, host);
 
-	if (pd->gpio_wprotect)
+	if (!pd->no_wprotect)
 		gpio_free(pd->gpio_wprotect);
 
-	if (pd->gpio_detect)
+	if (!pd->no_detect)
 		gpio_free(pd->gpio_detect);
 
 	for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++)
