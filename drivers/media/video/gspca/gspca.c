@@ -980,7 +980,7 @@ static void gspca_release(struct video_device *vfd)
 {
 	struct gspca_dev *gspca_dev = container_of(vfd, struct gspca_dev, vdev);
 
-	PDEBUG(D_STREAM, "device released");
+	PDEBUG(D_PROBE, "/dev/video%d released", gspca_dev->vdev.num);
 
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
@@ -991,7 +991,7 @@ static int dev_open(struct file *file)
 	struct gspca_dev *gspca_dev;
 	int ret;
 
-	PDEBUG(D_STREAM, "%s open", current->comm);
+	PDEBUG(D_STREAM, "[%s] open", current->comm);
 	gspca_dev = (struct gspca_dev *) video_devdata(file);
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
@@ -1037,7 +1037,7 @@ static int dev_close(struct file *file)
 {
 	struct gspca_dev *gspca_dev = file->private_data;
 
-	PDEBUG(D_STREAM, "%s close", current->comm);
+	PDEBUG(D_STREAM, "[%s] close", current->comm);
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
 	gspca_dev->users--;
@@ -2001,11 +2001,15 @@ int gspca_dev_probe(struct usb_interface *intf,
 	PDEBUG(D_PROBE, "probing %04x:%04x", id->idVendor, id->idProduct);
 
 	/* we don't handle multi-config cameras */
-	if (dev->descriptor.bNumConfigurations != 1)
+	if (dev->descriptor.bNumConfigurations != 1) {
+		PDEBUG(D_ERR, "Too many config");
 		return -ENODEV;
+	}
 	interface = &intf->cur_altsetting->desc;
-	if (interface->bInterfaceNumber > 0)
+	if (interface->bInterfaceNumber > 0) {
+		PDEBUG(D_ERR, "intf != 0");
 		return -ENODEV;
+	}
 
 	/* create the device */
 	if (dev_size < sizeof *gspca_dev)
@@ -2059,7 +2063,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 	}
 
 	usb_set_intfdata(intf, gspca_dev);
-	PDEBUG(D_PROBE, "probe ok");
+	PDEBUG(D_PROBE, "/dev/video%d created", gspca_dev->vdev.num);
 	return 0;
 out:
 	kfree(gspca_dev->usb_buf);
@@ -2078,6 +2082,7 @@ void gspca_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
 
+	PDEBUG(D_PROBE, "/dev/video%d disconnect", gspca_dev->vdev.num);
 	mutex_lock(&gspca_dev->usb_lock);
 	gspca_dev->present = 0;
 
@@ -2096,7 +2101,7 @@ void gspca_disconnect(struct usb_interface *intf)
 	/* (this will call gspca_release() immediatly or on last close) */
 	video_unregister_device(&gspca_dev->vdev);
 
-	PDEBUG(D_PROBE, "disconnect complete");
+/*	PDEBUG(D_PROBE, "disconnect complete"); */
 }
 EXPORT_SYMBOL(gspca_disconnect);
 
