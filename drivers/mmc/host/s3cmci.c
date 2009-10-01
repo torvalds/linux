@@ -164,6 +164,25 @@ static void dbg_dumpregs(struct s3cmci_host *host, char *prefix) { }
 
 #endif /* CONFIG_MMC_DEBUG */
 
+/**
+ * s3cmci_host_usedma - return whether the host is using dma or pio
+ * @host: The host state
+ *
+ * Return true if the host is using DMA to transfer data, else false
+ * to use PIO mode. Will return static data depending on the driver
+ * configuration.
+ */
+static inline bool s3cmci_host_usedma(struct s3cmci_host *host)
+{
+#ifdef CONFIG_MMC_S3C_PIO
+	return false;
+#elif defined(CONFIG_MMC_S3C_DMA)
+	return true;
+#else
+	return host->dodma;
+#endif
+}
+
 static inline u32 enable_imask(struct s3cmci_host *host, u32 imask)
 {
 	u32 newmask;
@@ -560,7 +579,7 @@ static irqreturn_t s3cmci_irq(int irq, void *dev_id)
 		goto irq_out;
 	}
 
-	if (!host->dodma) {
+	if (!s3cmci_host_usedma(host)) {
 		if ((host->pio_active == XFER_WRITE) &&
 		    (mci_fsta & S3C2410_SDIFSTA_TFDET)) {
 
@@ -796,7 +815,7 @@ static void finalize_request(struct s3cmci_host *host)
 
 	if (cmd->data && (cmd->error == 0) &&
 	    (cmd->data->error == 0)) {
-		if (host->dodma && (!host->dma_complete)) {
+		if (s3cmci_host_usedma(host) && (!host->dma_complete)) {
 			dbg(host, dbg_dma, "DMA Missing!\n");
 			return;
 		}
@@ -848,7 +867,7 @@ static void finalize_request(struct s3cmci_host *host)
 	/* If we had an error while transfering data we flush the
 	 * DMA channel and the fifo to clear out any garbage. */
 	if (mrq->data->error != 0) {
-		if (host->dodma)
+		if (s3cmci_host_usedma(host))
 			s3c2410_dma_ctrl(host->dma, S3C2410_DMAOP_FLUSH);
 
 		if (host->is2440) {
@@ -968,7 +987,7 @@ static int s3cmci_setup_data(struct s3cmci_host *host, struct mmc_data *data)
 
 	dcon  = data->blocks & S3C2410_SDIDCON_BLKNUM_MASK;
 
-	if (host->dodma)
+	if (s3cmci_host_usedma(host))
 		dcon |= S3C2410_SDIDCON_DMAEN;
 
 	if (host->bus_width == MMC_BUS_WIDTH_4)
@@ -1114,7 +1133,7 @@ static void s3cmci_send_request(struct mmc_host *mmc)
 			return;
 		}
 
-		if (host->dodma)
+		if (s3cmci_host_usedma(host))
 			res = s3cmci_prepare_dma(host, cmd->data);
 		else
 			res = s3cmci_prepare_pio(host, cmd->data);
@@ -1398,7 +1417,7 @@ static int s3cmci_state_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "IRQ disabled = %d\n", host->irq_disabled);
 	seq_printf(seq, "IRQ state = %d\n", host->irq_state);
 	seq_printf(seq, "CD IRQ = %d\n", host->irq_cd);
-	seq_printf(seq, "Do DMA = %d\n", host->dodma);
+	seq_printf(seq, "Do DMA = %d\n", s3cmci_host_usedma(host));
 	seq_printf(seq, "SDIIMSK at %d\n", host->sdiimsk);
 	seq_printf(seq, "SDIDATA at %d\n", host->sdidata);
 
@@ -1559,11 +1578,14 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 		host->clk_div	= 2;
 	}
 
-	host->dodma		= 0;
 	host->complete_what 	= COMPLETION_NONE;
 	host->pio_active 	= XFER_NONE;
 
 	host->dma		= S3CMCI_DMA;
+
+#ifdef CONFIG_MMC_S3C_PIODMA
+	host->dodma		= host->pdata->dma;
+#endif
 
 	host->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!host->mem) {
@@ -1702,7 +1724,8 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 	s3cmci_debugfs_attach(host);
 
 	platform_set_drvdata(pdev, mmc);
-	dev_info(&pdev->dev, "initialisation done.\n");
+	dev_info(&pdev->dev, "%s - using %s\n", mmc_hostname(mmc),
+		 s3cmci_host_usedma(host) ? "dma" : "pio");
 
 	return 0;
 
