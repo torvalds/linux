@@ -513,7 +513,8 @@ static void visor_read_bulk_callback(struct urb *urb)
 			tty_kref_put(tty);
 		}
 		spin_lock(&priv->lock);
-		priv->bytes_in += available_room;
+		if (tty)
+			priv->bytes_in += available_room;
 
 	} else {
 		spin_lock(&priv->lock);
