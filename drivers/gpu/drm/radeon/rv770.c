@@ -884,9 +884,8 @@ static int rv770_startup(struct radeon_device *rdev)
 	r = r600_cp_resume(rdev);
 	if (r)
 		return r;
-	r = r600_wb_init(rdev);
-	if (r)
-		return r;
+	/* write back buffer are not vital so don't worry about failure */
+	r600_wb_enable(rdev);
 	return 0;
 }
 
@@ -929,8 +928,8 @@ int rv770_suspend(struct radeon_device *rdev)
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
+	r600_wb_disable(rdev);
 	rv770_pcie_gart_disable(rdev);
-
 	/* unpin shaders bo */
         radeon_object_unpin(rdev->r600_blit.shader_obj);
 	return 0;
@@ -1048,6 +1047,7 @@ void rv770_fini(struct radeon_device *rdev)
 
 	r600_blit_fini(rdev);
 	radeon_ring_fini(rdev);
+	r600_wb_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
