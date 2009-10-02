@@ -186,32 +186,3 @@ static int microblaze_debugfs_init(void)
 }
 arch_initcall(microblaze_debugfs_init);
 #endif
-
-void machine_restart(char *cmd)
-{
-	printk(KERN_NOTICE "Machine restart...\n");
-	dump_stack();
-	while (1)
-		;
-}
-
-void machine_shutdown(void)
-{
-	printk(KERN_NOTICE "Machine shutdown...\n");
-	while (1)
-		;
-}
-
-void machine_halt(void)
-{
-	printk(KERN_NOTICE "Machine halt...\n");
-	while (1)
-		;
-}
-
-void machine_power_off(void)
-{
-	printk(KERN_NOTICE "Machine power off...\n");
-	while (1)
-		;
-}

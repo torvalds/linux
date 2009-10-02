@@ -32,6 +32,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 	compatible = "xlnx,microblaze";
+	hard-reset-gpios = <&LEDs_8Bit 2 1>;
 	model = "testing";
 	DDR2_SDRAM: memory@90000000 {
 		device_type = "memory";
@@ -261,6 +262,33 @@
 			xlnx,is-dual = <0x0>;
 			xlnx,tri-default = <0xffffffff>;
 			xlnx,tri-default-2 = <0xffffffff>;
+			#gpio-cells = <2>;
+			gpio-controller;
+		} ;
+
+		gpio-leds {
+			compatible = "gpio-leds";
+
+			heartbeat {
+				label = "Heartbeat";
+				gpios = <&LEDs_8Bit 4 1>;
+				linux,default-trigger = "heartbeat";
+			};
+
+			yellow {
+				label = "Yellow";
+				gpios = <&LEDs_8Bit 5 1>;
+			};
+
+			red {
+				label = "Red";
+				gpios = <&LEDs_8Bit 6 1>;
+			};
+
+			green {
+				label = "Green";
+				gpios = <&LEDs_8Bit 7 1>;
+			};
 		} ;
 		RS232_Uart_1: serial@84000000 {
 			clock-frequency = <125000000>;
