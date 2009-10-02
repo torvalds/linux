@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -31,7 +32,29 @@
 
 #include "mux.h"
 
+#define RX51_GPIO_SLEEP_IND 162
+
 struct omap_sdrc_params *rx51_get_sdram_timings(void);
+
+static struct gpio_led gpio_leds[] = {
+	{
+		.name	= "sleep_ind",
+		.gpio	= RX51_GPIO_SLEEP_IND,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_info = {
+	.leds		= gpio_leds,
+	.num_leds	= ARRAY_SIZE(gpio_leds),
+};
+
+static struct platform_device leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gpio_led_info,
+	},
+};
 
 static struct omap_lcd_config rx51_lcd_config = {
 	.ctrl_name	= "internal",
@@ -88,6 +111,8 @@ static void __init rx51_init(void)
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
+
+	platform_device_register(&leds_gpio);
 }
 
 static void __init rx51_map_io(void)
