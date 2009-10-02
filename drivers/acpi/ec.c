@@ -120,6 +120,7 @@ static struct acpi_ec {
 
 static int EC_FLAGS_MSI; /* Out-of-spec MSI controller */
 static int EC_FLAGS_VALIDATE_ECDT; /* ASUStec ECDTs need to be validated */
+static int EC_FLAGS_SKIP_DSDT_SCAN; /* Not all BIOS survive early DSDT scan */
 
 /* --------------------------------------------------------------------------
                              Transaction Management
@@ -900,6 +901,13 @@ static const struct acpi_device_id ec_device_ids[] = {
 	{"", 0},
 };
 
+/* Some BIOS do not survive early DSDT scan, skip it */
+static int ec_skip_dsdt_scan(const struct dmi_system_id *id)
+{
+	EC_FLAGS_SKIP_DSDT_SCAN = 1;
+	return 0;
+}
+
 /* ASUStek often supplies us with broken ECDT, validate it */
 static int ec_validate_ecdt(const struct dmi_system_id *id)
 {
@@ -916,6 +924,10 @@ static int ec_flag_msi(const struct dmi_system_id *id)
 }
 
 static struct dmi_system_id __initdata ec_dmi_table[] = {
+	{
+	ec_skip_dsdt_scan, "Compal JFL92", {
+	DMI_MATCH(DMI_BIOS_VENDOR, "COMPAL"),
+	DMI_MATCH(DMI_BOARD_NAME, "JFL92") }, NULL},
 	{
 	ec_flag_msi, "MSI hardware", {
 	DMI_MATCH(DMI_BIOS_VENDOR, "Micro-Star"),
@@ -958,6 +970,9 @@ int __init acpi_ec_ecdt_probe(void)
 		memcpy(saved_ec, boot_ec, sizeof(struct acpi_ec));
 	/* fall through */
 	}
+
+	if (EC_FLAGS_SKIP_DSDT_SCAN)
+		return -ENODEV;
 
 	/* This workaround is needed only on some broken machines,
 	 * which require early EC, but fail to provide ECDT */
