@@ -696,10 +696,6 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 {
 	struct i2c_board_info info;
-	const unsigned short addr_list[] = {
-		0x47, 0x71, 0x2d,
-		I2C_CLIENT_END
-	};
 
 	struct i2c_msg msg_msi = {
 		.addr = 0x50,
@@ -757,6 +753,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "HVR 1110";
 		dev->init_data.get_key = get_key_hvr1110;
 		dev->init_data.ir_codes = &ir_codes_hauppauge_new_table;
+		info.addr = 0x71;
 		break;
 	case SAA7134_BOARD_BEHOLD_607FM_MK3:
 	case SAA7134_BOARD_BEHOLD_607FM_MK5:
@@ -774,23 +771,20 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "BeholdTV";
 		dev->init_data.get_key = get_key_beholdm6xx;
 		dev->init_data.ir_codes = &ir_codes_behold_table;
+		info.addr = 0x2d;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
 		info.addr = 0x40;
 		break;
+	default:
+		dprintk("No I2C IR support for board %x\n", dev->board);
+		return;
 	}
 
 	if (dev->init_data.name)
 		info.platform_data = &dev->init_data;
-	/* No need to probe if address is known */
-	if (info.addr) {
-		i2c_new_device(&dev->i2c_adap, &info);
-		return;
-	}
-
-	/* Address not known, fallback to probing */
-	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
+	i2c_new_device(&dev->i2c_adap, &info);
 }
 
 static int saa7134_rc5_irq(struct saa7134_dev *dev)
