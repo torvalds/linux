@@ -2712,12 +2712,16 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	    !lpfc_error_lost_link(irsp)) {
 		/* FLOGI retry policy */
 		retry = 1;
-		maxretry = 48;
-		if (cmdiocb->retry >= 32)
+		/* retry forever */
+		maxretry = 0;
+		if (cmdiocb->retry >= 100)
+			delay = 5000;
+		else if (cmdiocb->retry >= 32)
 			delay = 1000;
 	}
 
-	if ((++cmdiocb->retry) >= maxretry) {
+	cmdiocb->retry++;
+	if (maxretry && (cmdiocb->retry >= maxretry)) {
 		phba->fc_stat.elsRetryExceeded++;
 		retry = 0;
 	}
@@ -5671,7 +5675,7 @@ dropit:
  *    NULL - No vport with the matching @vpi found
  *    Otherwise - Address to the vport with the matching @vpi.
  **/
-static struct lpfc_vport *
+struct lpfc_vport *
 lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 {
 	struct lpfc_vport *vport;

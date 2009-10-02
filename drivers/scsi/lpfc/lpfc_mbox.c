@@ -849,7 +849,10 @@ lpfc_unreg_vpi(struct lpfc_hba *phba, uint16_t vpi, LPFC_MBOXQ_t *pmb)
 	MAILBOX_t *mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
-	mb->un.varUnregVpi.vpi = vpi + phba->vpi_base;
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		mb->un.varUnregVpi.vpi = vpi + phba->vpi_base;
+	else
+		mb->un.varUnregVpi.sli4_vpi = vpi + phba->vpi_base;
 
 	mb->mbxCommand = MBX_UNREG_VPI;
 	mb->mbxOwner = OWN_HOST;
@@ -1850,7 +1853,7 @@ lpfc_init_vpi(struct lpfc_hba *phba, struct lpfcMboxq *mbox, uint16_t vpi)
 /**
  * lpfc_unreg_vfi - Initialize the UNREG_VFI mailbox command
  * @mbox: pointer to lpfc mbox command to initialize.
- * @vfi: VFI to be unregistered.
+ * @vport: vport associated with the VF.
  *
  * The UNREG_VFI mailbox command causes the SLI Host to put a virtual fabric
  * (logical NPort) into the inactive state. The SLI Host must have logged out
@@ -1859,11 +1862,12 @@ lpfc_init_vpi(struct lpfc_hba *phba, struct lpfcMboxq *mbox, uint16_t vpi)
  * fabric inactive.
  **/
 void
-lpfc_unreg_vfi(struct lpfcMboxq *mbox, uint16_t vfi)
+lpfc_unreg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport)
 {
 	memset(mbox, 0, sizeof(*mbox));
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_UNREG_VFI);
-	bf_set(lpfc_unreg_vfi_vfi, &mbox->u.mqe.un.unreg_vfi, vfi);
+	bf_set(lpfc_unreg_vfi_vfi, &mbox->u.mqe.un.unreg_vfi,
+	       vport->vfi + vport->phba->vfi_base);
 }
 
 /**

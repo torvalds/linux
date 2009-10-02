@@ -113,7 +113,7 @@ typedef struct lpfcMboxq {
 				   return */
 #define MBX_NOWAIT      2	/* issue command then return immediately */
 
-#define LPFC_MAX_RING_MASK  4	/* max num of rctl/type masks allowed per
+#define LPFC_MAX_RING_MASK  5	/* max num of rctl/type masks allowed per
 				   ring */
 #define LPFC_MAX_RING       4	/* max num of SLI rings used by driver */
 

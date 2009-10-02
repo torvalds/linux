@@ -4474,7 +4474,7 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 		return;
 	}
 
-	lpfc_unreg_vfi(mbox, phba->pport->vfi);
+	lpfc_unreg_vfi(mbox, phba->pport);
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_unregister_vfi_cmpl;
 

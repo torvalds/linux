@@ -87,7 +87,6 @@ void
 lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		    struct lpfc_iocbq *piocbq)
 {
-
 	struct lpfc_dmabuf *mp = NULL;
 	IOCB_t *icmd = &piocbq->iocb;
 	int i;
@@ -158,6 +157,39 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		}
 		list_del(&head);
 	}
+}
+
+/**
+ * lpfc_sli4_ct_abort_unsol_event - Default handle for sli4 unsol abort
+ * @phba: Pointer to HBA context object.
+ * @pring: Pointer to the driver internal I/O ring.
+ * @piocbq: Pointer to the IOCBQ.
+ *
+ * This function serves as the default handler for the sli4 unsolicited
+ * abort event. It shall be invoked when there is no application interface
+ * registered unsolicited abort handler. This handler does nothing but
+ * just simply releases the dma buffer used by the unsol abort event.
+ **/
+void
+lpfc_sli4_ct_abort_unsol_event(struct lpfc_hba *phba,
+			       struct lpfc_sli_ring *pring,
+			       struct lpfc_iocbq *piocbq)
+{
+	IOCB_t *icmd = &piocbq->iocb;
+	struct lpfc_dmabuf *bdeBuf;
+	uint32_t size;
+
+	/* Forward abort event to any process registered to receive ct event */
+	lpfc_bsg_ct_unsol_event(phba, pring, piocbq);
+
+	/* If there is no BDE associated with IOCB, there is nothing to do */
+	if (icmd->ulpBdeCount == 0)
+		return;
+	bdeBuf = piocbq->context2;
+	piocbq->context2 = NULL;
+	size  = icmd->un.cont64[0].tus.f.bdeSize;
+	lpfc_ct_unsol_buffer(phba, piocbq, bdeBuf, size);
+	lpfc_in_buf_free(phba, bdeBuf);
 }
 
 static void
