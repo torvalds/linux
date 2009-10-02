@@ -3815,7 +3815,11 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	hs->invalid_crc_count -= lso->invalid_crc_count;
 	hs->error_frames -= lso->error_frames;
 
-	if (phba->fc_topology == TOPOLOGY_LOOP) {
+	if (phba->hba_flag & HBA_FCOE_SUPPORT) {
+		hs->lip_count = -1;
+		hs->nos_count = (phba->link_events >> 1);
+		hs->nos_count -= lso->link_events;
+	} else if (phba->fc_topology == TOPOLOGY_LOOP) {
 		hs->lip_count = (phba->fc_eventTag >> 1);
 		hs->lip_count -= lso->link_events;
 		hs->nos_count = -1;
@@ -3906,7 +3910,10 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	lso->invalid_tx_word_count = pmb->un.varRdLnk.invalidXmitWord;
 	lso->invalid_crc_count = pmb->un.varRdLnk.crcCnt;
 	lso->error_frames = pmb->un.varRdLnk.crcCnt;
-	lso->link_events = (phba->fc_eventTag >> 1);
+	if (phba->hba_flag & HBA_FCOE_SUPPORT)
+		lso->link_events = (phba->link_events >> 1);
+	else
+		lso->link_events = (phba->fc_eventTag >> 1);
 
 	psli->stats_start = get_seconds();
 

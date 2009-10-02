@@ -2919,6 +2919,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	uint8_t event_type = bf_get(lpfc_acqe_fcoe_event_type, acqe_fcoe);
 	int rc;
 
+	phba->fc_eventTag = acqe_fcoe->event_tag;
 	phba->fcoe_eventtag = acqe_fcoe->event_tag;
 	switch (event_type) {
 	case LPFC_FCOE_EVENT_TYPE_NEW_FCF:
@@ -2990,6 +2991,7 @@ static void
 lpfc_sli4_async_dcbx_evt(struct lpfc_hba *phba,
 			 struct lpfc_acqe_dcbx *acqe_dcbx)
 {
+	phba->fc_eventTag = acqe_dcbx->event_tag;
 	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 			"0290 The SLI4 DCBX asynchronous event is not "
 			"handled yet\n");
@@ -3594,8 +3596,10 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 
 	/* Free the current connect table */
 	list_for_each_entry_safe(conn_entry, next_conn_entry,
-		&phba->fcf_conn_rec_list, list)
+		&phba->fcf_conn_rec_list, list) {
+		list_del_init(&conn_entry->list);
 		kfree(conn_entry);
+	}
 
 	return;
 }
@@ -5058,15 +5062,6 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	}
 	phba->sli4_hba.els_cq = qdesc;
 
-	/* Create slow-path Unsolicited Receive Complete Queue */
-	qdesc = lpfc_sli4_queue_alloc(phba, phba->sli4_hba.cq_esize,
-				      phba->sli4_hba.cq_ecount);
-	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0502 Failed allocate slow-path USOL RX CQ\n");
-		goto out_free_els_cq;
-	}
-	phba->sli4_hba.rxq_cq = qdesc;
 
 	/* Create fast-path FCP Completion Queue(s), one-to-one with EQs */
 	phba->sli4_hba.fcp_cq = kzalloc((sizeof(struct lpfc_queue *) *
@@ -5075,7 +5070,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2577 Failed allocate memory for fast-path "
 				"CQ record array\n");
-		goto out_free_rxq_cq;
+		goto out_free_els_cq;
 	}
 	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_eq_count; fcp_cqidx++) {
 		qdesc = lpfc_sli4_queue_alloc(phba, phba->sli4_hba.cq_esize,
@@ -5188,9 +5183,6 @@ out_free_fcp_cq:
 		phba->sli4_hba.fcp_cq[fcp_cqidx] = NULL;
 	}
 	kfree(phba->sli4_hba.fcp_cq);
-out_free_rxq_cq:
-	lpfc_sli4_queue_free(phba->sli4_hba.rxq_cq);
-	phba->sli4_hba.rxq_cq = NULL;
 out_free_els_cq:
 	lpfc_sli4_queue_free(phba->sli4_hba.els_cq);
 	phba->sli4_hba.els_cq = NULL;
@@ -5246,10 +5238,6 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 	phba->sli4_hba.hdr_rq = NULL;
 	lpfc_sli4_queue_free(phba->sli4_hba.dat_rq);
 	phba->sli4_hba.dat_rq = NULL;
-
-	/* Release unsolicited receive complete queue */
-	lpfc_sli4_queue_free(phba->sli4_hba.rxq_cq);
-	phba->sli4_hba.rxq_cq = NULL;
 
 	/* Release ELS complete queue */
 	lpfc_sli4_queue_free(phba->sli4_hba.els_cq);
@@ -5383,25 +5371,6 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.els_cq->queue_id,
 			phba->sli4_hba.sp_eq->queue_id);
 
-	/* Set up slow-path Unsolicited Receive Complete Queue */
-	if (!phba->sli4_hba.rxq_cq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0532 USOL RX CQ not allocated\n");
-		goto out_destroy_els_cq;
-	}
-	rc = lpfc_cq_create(phba, phba->sli4_hba.rxq_cq, phba->sli4_hba.sp_eq,
-			    LPFC_RCQ, LPFC_USOL);
-	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0533 Failed setup of slow-path USOL RX CQ: "
-				"rc = 0x%x\n", rc);
-		goto out_destroy_els_cq;
-	}
-	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-			"2587 USL CQ setup: cq-id=%d, parent eq-id=%d\n",
-			phba->sli4_hba.rxq_cq->queue_id,
-			phba->sli4_hba.sp_eq->queue_id);
-
 	/* Set up fast-path FCP Response Complete Queue */
 	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_eq_count; fcp_cqidx++) {
 		if (!phba->sli4_hba.fcp_cq[fcp_cqidx]) {
@@ -5507,7 +5476,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		goto out_destroy_fcp_wq;
 	}
 	rc = lpfc_rq_create(phba, phba->sli4_hba.hdr_rq, phba->sli4_hba.dat_rq,
-			    phba->sli4_hba.rxq_cq, LPFC_USOL);
+			    phba->sli4_hba.els_cq, LPFC_USOL);
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0541 Failed setup of Receive Queue: "
@@ -5519,7 +5488,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			"parent cq-id=%d\n",
 			phba->sli4_hba.hdr_rq->queue_id,
 			phba->sli4_hba.dat_rq->queue_id,
-			phba->sli4_hba.rxq_cq->queue_id);
+			phba->sli4_hba.els_cq->queue_id);
 	return 0;
 
 out_destroy_fcp_wq:
@@ -5531,8 +5500,6 @@ out_destroy_mbx_wq:
 out_destroy_fcp_cq:
 	for (--fcp_cqidx; fcp_cqidx >= 0; fcp_cqidx--)
 		lpfc_cq_destroy(phba, phba->sli4_hba.fcp_cq[fcp_cqidx]);
-	lpfc_cq_destroy(phba, phba->sli4_hba.rxq_cq);
-out_destroy_els_cq:
 	lpfc_cq_destroy(phba, phba->sli4_hba.els_cq);
 out_destroy_mbx_cq:
 	lpfc_cq_destroy(phba, phba->sli4_hba.mbx_cq);
@@ -5574,8 +5541,6 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
 	lpfc_cq_destroy(phba, phba->sli4_hba.mbx_cq);
 	/* Unset ELS complete queue */
 	lpfc_cq_destroy(phba, phba->sli4_hba.els_cq);
-	/* Unset unsolicited receive complete queue */
-	lpfc_cq_destroy(phba, phba->sli4_hba.rxq_cq);
 	/* Unset FCP response complete queue */
 	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++)
 		lpfc_cq_destroy(phba, phba->sli4_hba.fcp_cq[fcp_qidx]);

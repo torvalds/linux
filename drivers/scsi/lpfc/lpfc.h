@@ -109,7 +109,7 @@ struct hbq_dmabuf {
 	struct lpfc_dmabuf dbuf;
 	uint32_t size;
 	uint32_t tag;
-	struct lpfc_rcqe rcqe;
+	struct lpfc_cq_event cq_event;
 };
 
 /* Priority bit.  Set value to exceed low water mark in lpfc_mem. */
@@ -551,6 +551,7 @@ struct lpfc_hba {
 	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
 
 	uint32_t fc_eventTag;	/* event tag for link attention */
+	uint32_t link_events;
 
 	/* These fields used to be binfo */
 	uint32_t fc_pref_DID;	/* preferred D_ID */

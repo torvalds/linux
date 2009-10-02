@@ -29,14 +29,17 @@ typedef enum _lpfc_ctx_cmd {
 	LPFC_CTX_HOST
 } lpfc_ctx_cmd;
 
-/* This structure is used to carry the needed response IOCB states */
-struct lpfc_sli4_rspiocb_info {
-	uint8_t hw_status;
-	uint8_t bfield;
-#define LPFC_XB	0x1
-#define LPFC_PV	0x2
-	uint8_t priority;
-	uint8_t reserved;
+struct lpfc_cq_event {
+	struct list_head list;
+	union {
+		struct lpfc_mcqe		mcqe_cmpl;
+		struct lpfc_acqe_link		acqe_link;
+		struct lpfc_acqe_fcoe		acqe_fcoe;
+		struct lpfc_acqe_dcbx		acqe_dcbx;
+		struct lpfc_rcqe		rcqe_cmpl;
+		struct sli4_wcqe_xri_aborted	wcqe_axri;
+		struct lpfc_wcqe_complete	wcqe_cmpl;
+	} cqe;
 };
 
 /* This structure is used to handle IOCB requests / responses */
@@ -76,7 +79,7 @@ struct lpfc_iocbq {
 			   struct lpfc_iocbq *);
 	void (*iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_iocbq *);
-	struct lpfc_sli4_rspiocb_info sli4_info;
+	struct lpfc_cq_event cq_event;
 };
 
 #define SLI_IOCB_RET_IOCB      1	/* Return IOCB if cmd ring full */

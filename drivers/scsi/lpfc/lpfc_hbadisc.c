@@ -525,8 +525,6 @@ lpfc_work_done(struct lpfc_hba *phba)
 			spin_unlock_irq(&phba->hbalock);
 			lpfc_sli_hbqbuf_add_hbqs(phba, LPFC_ELS_HBQ);
 		}
-		if (phba->hba_flag & HBA_RECEIVE_BUFFER)
-			lpfc_sli4_handle_received_buffer(phba);
 	}
 
 	vports = lpfc_create_vport_work_array(phba);
@@ -568,8 +566,9 @@ lpfc_work_done(struct lpfc_hba *phba)
 	pring = &phba->sli.ring[LPFC_ELS_RING];
 	status = (ha_copy & (HA_RXMASK  << (4*LPFC_ELS_RING)));
 	status >>= (4*LPFC_ELS_RING);
-	if ((status & HA_RXMASK)
-		|| (pring->flag & LPFC_DEFERRED_RING_EVENT)) {
+	if ((status & HA_RXMASK) ||
+	    (pring->flag & LPFC_DEFERRED_RING_EVENT) ||
+	    (phba->hba_flag & HBA_RECEIVE_BUFFER)) {
 		if (pring->flag & LPFC_STOP_IOCB_EVENT) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
 			/* Set the lpfc data pending flag */
@@ -688,7 +687,8 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 			lpfc_unreg_rpi(vport, ndlp);
 
 		/* Leave Fabric nodes alone on link down */
-		if (!remove && ndlp->nlp_type & NLP_FABRIC)
+		if ((phba->sli_rev < LPFC_SLI_REV4) &&
+		    (!remove && ndlp->nlp_type & NLP_FABRIC))
 			continue;
 		rc = lpfc_disc_state_machine(vport, ndlp, NULL,
 					     remove
@@ -1015,10 +1015,10 @@ lpfc_mbx_cmpl_reg_fcfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		return;
 	}
+	phba->fcf.fcf_flag |= (FCF_DISCOVERED | FCF_IN_USE);
+	phba->hba_flag &= ~FCF_DISC_INPROGRESS;
 	if (vport->port_state != LPFC_FLOGI) {
 		spin_lock_irqsave(&phba->hbalock, flags);
-		phba->fcf.fcf_flag |= (FCF_DISCOVERED | FCF_IN_USE);
-		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		lpfc_initial_flogi(vport);
 	}
@@ -1199,6 +1199,7 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 
 	/* If the FCF is not availabe do nothing. */
 	if (!(phba->fcf.fcf_flag & FCF_AVAILABLE)) {
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return;
 	}
@@ -1216,15 +1217,23 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 
 	fcf_mbxq = mempool_alloc(phba->mbox_mem_pool,
 		GFP_KERNEL);
-	if (!fcf_mbxq)
+	if (!fcf_mbxq) {
+		spin_lock_irqsave(&phba->hbalock, flags);
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
+		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return;
+	}
 
 	lpfc_reg_fcfi(phba, fcf_mbxq);
 	fcf_mbxq->vport = phba->pport;
 	fcf_mbxq->mbox_cmpl = lpfc_mbx_cmpl_reg_fcfi;
 	rc = lpfc_sli_issue_mbox(phba, fcf_mbxq, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED)
+	if (rc == MBX_NOT_FINISHED) {
+		spin_lock_irqsave(&phba->hbalock, flags);
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
+		spin_unlock_irqrestore(&phba->hbalock, flags);
 		mempool_free(fcf_mbxq, phba->mbox_mem_pool);
+	}
 
 	return;
 }
@@ -1253,6 +1262,20 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 			uint16_t *vlan_id)
 {
 	struct lpfc_fcf_conn_entry *conn_entry;
+	int i, j, fcf_vlan_id = 0;
+
+	/* Find the lowest VLAN id in the FCF record */
+	for (i = 0; i < 512; i++) {
+		if (new_fcf_record->vlan_bitmap[i]) {
+			fcf_vlan_id = i * 8;
+			j = 0;
+			while (!((new_fcf_record->vlan_bitmap[i] >> j) & 1)) {
+				j++;
+				fcf_vlan_id++;
+			}
+			break;
+		}
+	}
 
 	/* If FCF not available return 0 */
 	if (!bf_get(lpfc_fcf_record_fcf_avail, new_fcf_record) ||
@@ -1286,7 +1309,11 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 		if (*addr_mode & LPFC_FCF_FPMA)
 			*addr_mode = LPFC_FCF_FPMA;
 
-		*vlan_id = 0xFFFF;
+		/* If FCF record report a vlan id use that vlan id */
+		if (fcf_vlan_id)
+			*vlan_id = fcf_vlan_id;
+		else
+			*vlan_id = 0xFFFF;
 		return 1;
 	}
 
@@ -1384,8 +1411,15 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 			(*addr_mode & LPFC_FCF_FPMA))
 				*addr_mode = LPFC_FCF_FPMA;
 
+		/* If matching connect list has a vlan id, use it */
 		if (conn_entry->conn_rec.flags & FCFCNCT_VLAN_VALID)
 			*vlan_id = conn_entry->conn_rec.vlan_tag;
+		/*
+		 * If no vlan id is specified in connect list, use the vlan id
+		 * in the FCF record
+		 */
+		else if (fcf_vlan_id)
+			*vlan_id = fcf_vlan_id;
 		else
 			*vlan_id = 0xFFFF;
 
@@ -1423,6 +1457,12 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
 
 	if (phba->link_state >= LPFC_LINK_UP)
 		lpfc_sli4_read_fcf_record(phba, LPFC_FCOE_FCF_GET_FIRST);
+	else
+		/*
+		 * Do not continue FCF discovery and clear FCF_DISC_INPROGRESS
+		 * flag
+		 */
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
 
 	if (unreg_fcf) {
 		spin_lock_irq(&phba->hbalock);
@@ -2085,6 +2125,7 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	else
 		phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
 
+	phba->link_events++;
 	if (la->attType == AT_LINK_UP && (!la->mm)) {
 		phba->fc_stat.LinkUp++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
@@ -4409,6 +4450,8 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 	if (lpfc_fcf_inuse(phba))
 		return;
 
+	/* At this point, all discovery is aborted */
+	phba->pport->port_state = LPFC_VPORT_UNKNOWN;
 
 	/* Unregister VPIs */
 	vports = lpfc_create_vport_work_array(phba);
@@ -4512,8 +4555,10 @@ lpfc_read_fcf_conn_tbl(struct lpfc_hba *phba,
 
 	/* Free the current connect table */
 	list_for_each_entry_safe(conn_entry, next_conn_entry,
-		&phba->fcf_conn_rec_list, list)
+		&phba->fcf_conn_rec_list, list) {
+		list_del_init(&conn_entry->list);
 		kfree(conn_entry);
+	}
 
 	conn_hdr = (struct lpfc_fcf_conn_hdr *) buff;
 	record_count = conn_hdr->length * sizeof(uint32_t)/

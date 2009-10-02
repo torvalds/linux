@@ -3018,16 +3018,31 @@ lpfc_sli_handle_slow_ring_event_s4(struct lpfc_hba *phba,
 				   struct lpfc_sli_ring *pring, uint32_t mask)
 {
 	struct lpfc_iocbq *irspiocbq;
+	struct hbq_dmabuf *dmabuf;
+	struct lpfc_cq_event *cq_event;
 	unsigned long iflag;
 
 	while (!list_empty(&phba->sli4_hba.sp_rspiocb_work_queue)) {
 		/* Get the response iocb from the head of work queue */
 		spin_lock_irqsave(&phba->hbalock, iflag);
 		list_remove_head(&phba->sli4_hba.sp_rspiocb_work_queue,
-				 irspiocbq, struct lpfc_iocbq, list);
+				 cq_event, struct lpfc_cq_event, list);
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
-		/* Process the response iocb */
-		lpfc_sli_sp_handle_rspiocb(phba, pring, irspiocbq);
+
+		switch (bf_get(lpfc_wcqe_c_code, &cq_event->cqe.wcqe_cmpl)) {
+		case CQE_CODE_COMPL_WQE:
+			irspiocbq = container_of(cq_event, struct lpfc_iocbq,
+						 cq_event);
+			lpfc_sli_sp_handle_rspiocb(phba, pring, irspiocbq);
+			break;
+		case CQE_CODE_RECEIVE:
+			dmabuf = container_of(cq_event, struct hbq_dmabuf,
+					      cq_event);
+			lpfc_sli4_handle_received_buffer(phba, dmabuf);
+			break;
+		default:
+			break;
+		}
 	}
 }
 
@@ -3416,6 +3431,7 @@ lpfc_sli_brdreset(struct lpfc_hba *phba)
 
 	/* perform board reset */
 	phba->fc_eventTag = 0;
+	phba->link_events = 0;
 	phba->pport->fc_myDID = 0;
 	phba->pport->fc_prevDID = 0;
 
@@ -3476,6 +3492,7 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 
 	/* perform board reset */
 	phba->fc_eventTag = 0;
+	phba->link_events = 0;
 	phba->pport->fc_myDID = 0;
 	phba->pport->fc_prevDID = 0;
 
@@ -3495,7 +3512,6 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	list_del_init(&phba->sli4_hba.dat_rq->list);
 	list_del_init(&phba->sli4_hba.mbx_cq->list);
 	list_del_init(&phba->sli4_hba.els_cq->list);
-	list_del_init(&phba->sli4_hba.rxq_cq->list);
 	for (qindx = 0; qindx < phba->cfg_fcp_wq_count; qindx++)
 		list_del_init(&phba->sli4_hba.fcp_wq[qindx]->list);
 	for (qindx = 0; qindx < phba->cfg_fcp_eq_count; qindx++)
@@ -4243,7 +4259,6 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 
 	lpfc_sli4_cq_release(phba->sli4_hba.mbx_cq, LPFC_QUEUE_REARM);
 	lpfc_sli4_cq_release(phba->sli4_hba.els_cq, LPFC_QUEUE_REARM);
-	lpfc_sli4_cq_release(phba->sli4_hba.rxq_cq, LPFC_QUEUE_REARM);
 	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++)
 		lpfc_sli4_cq_release(phba->sli4_hba.fcp_cq[fcp_eqidx],
 				     LPFC_QUEUE_REARM);
@@ -8351,8 +8366,7 @@ lpfc_sli4_iocb_param_transfer(struct lpfc_iocbq *pIocbIn,
 
 	memcpy((char *)pIocbIn + offset, (char *)pIocbOut + offset,
 	       sizeof(struct lpfc_iocbq) - offset);
-	memset(&pIocbIn->sli4_info, 0,
-	       sizeof(struct lpfc_sli4_rspiocb_info));
+	pIocbIn->cq_event.cqe.wcqe_cmpl = *wcqe;
 	/* Map WCQE parameters into irspiocb parameters */
 	pIocbIn->iocb.ulpStatus = bf_get(lpfc_wcqe_c_status, wcqe);
 	if (pIocbOut->iocb_flag & LPFC_IO_FCP)
@@ -8364,16 +8378,6 @@ lpfc_sli4_iocb_param_transfer(struct lpfc_iocbq *pIocbIn,
 			pIocbIn->iocb.un.ulpWord[4] = wcqe->parameter;
 	else
 		pIocbIn->iocb.un.ulpWord[4] = wcqe->parameter;
-	/* Load in additional WCQE parameters */
-	pIocbIn->sli4_info.hw_status = bf_get(lpfc_wcqe_c_hw_status, wcqe);
-	pIocbIn->sli4_info.bfield = 0;
-	if (bf_get(lpfc_wcqe_c_xb, wcqe))
-		pIocbIn->sli4_info.bfield |= LPFC_XB;
-	if (bf_get(lpfc_wcqe_c_pv, wcqe)) {
-		pIocbIn->sli4_info.bfield |= LPFC_PV;
-		pIocbIn->sli4_info.priority =
-					bf_get(lpfc_wcqe_c_priority, wcqe);
-	}
 }
 
 /**
@@ -8598,7 +8602,8 @@ lpfc_sli4_sp_handle_els_wcqe(struct lpfc_hba *phba,
 
 	/* Add the irspiocb to the response IOCB work list */
 	spin_lock_irqsave(&phba->hbalock, iflags);
-	list_add_tail(&irspiocbq->list, &phba->sli4_hba.sp_rspiocb_work_queue);
+	list_add_tail(&irspiocbq->cq_event.list,
+		      &phba->sli4_hba.sp_rspiocb_work_queue);
 	/* Indicate ELS ring attention */
 	phba->work_ha |= (HA_R0ATT << (4*LPFC_ELS_RING));
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
@@ -8690,17 +8695,78 @@ lpfc_sli4_sp_handle_abort_xri_wcqe(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_sp_handle_wcqe - Process a work-queue completion queue entry
+ * lpfc_sli4_sp_handle_rcqe - Process a receive-queue completion queue entry
  * @phba: Pointer to HBA context object.
- * @cq: Pointer to the completion queue.
- * @wcqe: Pointer to a completion queue entry.
+ * @rcqe: Pointer to receive-queue completion queue entry.
  *
- * This routine process a slow-path work-queue completion queue entry.
+ * This routine process a receive-queue completion queue entry.
  *
  * Return: true if work posted to worker thread, otherwise false.
  **/
 static bool
-lpfc_sli4_sp_handle_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
+lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
+{
+	bool workposted = false;
+	struct lpfc_queue *hrq = phba->sli4_hba.hdr_rq;
+	struct lpfc_queue *drq = phba->sli4_hba.dat_rq;
+	struct hbq_dmabuf *dma_buf;
+	uint32_t status;
+	unsigned long iflags;
+
+	lpfc_sli4_rq_release(hrq, drq);
+	if (bf_get(lpfc_rcqe_code, rcqe) != CQE_CODE_RECEIVE)
+		goto out;
+	if (bf_get(lpfc_rcqe_rq_id, rcqe) != hrq->queue_id)
+		goto out;
+
+	status = bf_get(lpfc_rcqe_status, rcqe);
+	switch (status) {
+	case FC_STATUS_RQ_BUF_LEN_EXCEEDED:
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2537 Receive Frame Truncated!!\n");
+	case FC_STATUS_RQ_SUCCESS:
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		dma_buf = lpfc_sli_hbqbuf_get(&phba->hbqs[0].hbq_buffer_list);
+		if (!dma_buf) {
+			spin_unlock_irqrestore(&phba->hbalock, iflags);
+			goto out;
+		}
+		memcpy(&dma_buf->cq_event.cqe.rcqe_cmpl, rcqe, sizeof(*rcqe));
+		/* save off the frame for the word thread to process */
+		list_add_tail(&dma_buf->cq_event.list,
+			      &phba->sli4_hba.sp_rspiocb_work_queue);
+		/* Frame received */
+		phba->hba_flag |= HBA_RECEIVE_BUFFER;
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		workposted = true;
+		break;
+	case FC_STATUS_INSUFF_BUF_NEED_BUF:
+	case FC_STATUS_INSUFF_BUF_FRM_DISC:
+		/* Post more buffers if possible */
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		phba->hba_flag |= HBA_POST_RECEIVE_BUFFER;
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		workposted = true;
+		break;
+	}
+out:
+	return workposted;
+
+}
+
+/**
+ * lpfc_sli4_sp_handle_cqe - Process a slow path completion queue entry
+ * @phba: Pointer to HBA context object.
+ * @cq: Pointer to the completion queue.
+ * @wcqe: Pointer to a completion queue entry.
+ *
+ * This routine process a slow-path work-queue or recieve queue completion queue
+ * entry.
+ *
+ * Return: true if work posted to worker thread, otherwise false.
+ **/
+static bool
+lpfc_sli4_sp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			 struct lpfc_cqe *cqe)
 {
 	struct lpfc_wcqe_complete wcqe;
@@ -8726,6 +8792,11 @@ lpfc_sli4_sp_handle_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		workposted = lpfc_sli4_sp_handle_abort_xri_wcqe(phba, cq,
 					(struct sli4_wcqe_xri_aborted *)&wcqe);
 		break;
+	case CQE_CODE_RECEIVE:
+		/* Process the RQ event */
+		workposted = lpfc_sli4_sp_handle_rcqe(phba,
+					(struct lpfc_rcqe *)&wcqe);
+		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0388 Not a valid WCQE code: x%x\n",
@@ -8733,68 +8804,6 @@ lpfc_sli4_sp_handle_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		break;
 	}
 	return workposted;
-}
-
-/**
- * lpfc_sli4_sp_handle_rcqe - Process a receive-queue completion queue entry
- * @phba: Pointer to HBA context object.
- * @rcqe: Pointer to receive-queue completion queue entry.
- *
- * This routine process a receive-queue completion queue entry.
- *
- * Return: true if work posted to worker thread, otherwise false.
- **/
-static bool
-lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_cqe *cqe)
-{
-	struct lpfc_rcqe rcqe;
-	bool workposted = false;
-	struct lpfc_queue *hrq = phba->sli4_hba.hdr_rq;
-	struct lpfc_queue *drq = phba->sli4_hba.dat_rq;
-	struct hbq_dmabuf *dma_buf;
-	uint32_t status;
-	unsigned long iflags;
-
-	/* Copy the receive queue CQE and convert endian order if needed */
-	lpfc_sli_pcimem_bcopy(cqe, &rcqe, sizeof(struct lpfc_rcqe));
-	lpfc_sli4_rq_release(hrq, drq);
-	if (bf_get(lpfc_rcqe_code, &rcqe) != CQE_CODE_RECEIVE)
-		goto out;
-	if (bf_get(lpfc_rcqe_rq_id, &rcqe) != hrq->queue_id)
-		goto out;
-
-	status = bf_get(lpfc_rcqe_status, &rcqe);
-	switch (status) {
-	case FC_STATUS_RQ_BUF_LEN_EXCEEDED:
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"2537 Receive Frame Truncated!!\n");
-	case FC_STATUS_RQ_SUCCESS:
-		spin_lock_irqsave(&phba->hbalock, iflags);
-		dma_buf = lpfc_sli_hbqbuf_get(&phba->hbqs[0].hbq_buffer_list);
-		if (!dma_buf) {
-			spin_unlock_irqrestore(&phba->hbalock, iflags);
-			goto out;
-		}
-		memcpy(&dma_buf->rcqe, &rcqe, sizeof(rcqe));
-		/* save off the frame for the word thread to process */
-		list_add_tail(&dma_buf->dbuf.list, &phba->rb_pend_list);
-		/* Frame received */
-		phba->hba_flag |= HBA_RECEIVE_BUFFER;
-		spin_unlock_irqrestore(&phba->hbalock, iflags);
-		workposted = true;
-		break;
-	case FC_STATUS_INSUFF_BUF_NEED_BUF:
-	case FC_STATUS_INSUFF_BUF_FRM_DISC:
-		/* Post more buffers if possible */
-		spin_lock_irqsave(&phba->hbalock, iflags);
-		phba->hba_flag |= HBA_POST_RECEIVE_BUFFER;
-		spin_unlock_irqrestore(&phba->hbalock, iflags);
-		workposted = true;
-		break;
-	}
-out:
-	return workposted;
-
 }
 
 /**
@@ -8858,14 +8867,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 		break;
 	case LPFC_WCQ:
 		while ((cqe = lpfc_sli4_cq_get(cq))) {
-			workposted |= lpfc_sli4_sp_handle_wcqe(phba, cq, cqe);
-			if (!(++ecount % LPFC_GET_QE_REL_INT))
-				lpfc_sli4_cq_release(cq, LPFC_QUEUE_NOARM);
-		}
-		break;
-	case LPFC_RCQ:
-		while ((cqe = lpfc_sli4_cq_get(cq))) {
-			workposted |= lpfc_sli4_sp_handle_rcqe(phba, cqe);
+			workposted |= lpfc_sli4_sp_handle_cqe(phba, cq, cqe);
 			if (!(++ecount % LPFC_GET_QE_REL_INT))
 				lpfc_sli4_cq_release(cq, LPFC_QUEUE_NOARM);
 		}
@@ -10823,6 +10825,7 @@ lpfc_fc_frame_add(struct lpfc_vport *vport, struct hbq_dmabuf *dmabuf)
 	struct hbq_dmabuf *seq_dmabuf = NULL;
 	struct hbq_dmabuf *temp_dmabuf = NULL;
 
+	INIT_LIST_HEAD(&dmabuf->dbuf.list);
 	new_hdr = (struct fc_frame_header *)dmabuf->hbuf.virt;
 	/* Use the hdr_buf to find the sequence that this frame belongs to */
 	list_for_each_entry(h_buf, &vport->rcv_buffer_list, list) {
@@ -10845,7 +10848,9 @@ lpfc_fc_frame_add(struct lpfc_vport *vport, struct hbq_dmabuf *dmabuf)
 	}
 	temp_hdr = seq_dmabuf->hbuf.virt;
 	if (new_hdr->fh_seq_cnt < temp_hdr->fh_seq_cnt) {
-		list_add(&seq_dmabuf->dbuf.list, &dmabuf->dbuf.list);
+		list_del_init(&seq_dmabuf->hbuf.list);
+		list_add_tail(&dmabuf->hbuf.list, &vport->rcv_buffer_list);
+		list_add_tail(&dmabuf->dbuf.list, &seq_dmabuf->dbuf.list);
 		return dmabuf;
 	}
 	/* find the correct place in the sequence to insert this frame */
@@ -10957,7 +10962,8 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 							LPFC_DATA_BUF_SIZE;
 		first_iocbq->iocb.un.rcvels.remoteID = sid;
 		first_iocbq->iocb.unsli3.rcvsli3.acc_len +=
-				bf_get(lpfc_rcqe_length, &seq_dmabuf->rcqe);
+				bf_get(lpfc_rcqe_length,
+				       &seq_dmabuf->cq_event.cqe.rcqe_cmpl);
 	}
 	iocbq = first_iocbq;
 	/*
@@ -10975,7 +10981,8 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 			iocbq->iocb.unsli3.rcvsli3.bde2.tus.f.bdeSize =
 							LPFC_DATA_BUF_SIZE;
 			first_iocbq->iocb.unsli3.rcvsli3.acc_len +=
-				bf_get(lpfc_rcqe_length, &seq_dmabuf->rcqe);
+				bf_get(lpfc_rcqe_length,
+				       &seq_dmabuf->cq_event.cqe.rcqe_cmpl);
 		} else {
 			iocbq = lpfc_sli_get_iocbq(vport->phba);
 			if (!iocbq) {
@@ -10994,7 +11001,8 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 			iocbq->iocb.un.cont64[0].tus.f.bdeSize =
 							LPFC_DATA_BUF_SIZE;
 			first_iocbq->iocb.unsli3.rcvsli3.acc_len +=
-				bf_get(lpfc_rcqe_length, &seq_dmabuf->rcqe);
+				bf_get(lpfc_rcqe_length,
+				       &seq_dmabuf->cq_event.cqe.rcqe_cmpl);
 			iocbq->iocb.un.rcvels.remoteID = sid;
 			list_add_tail(&iocbq->list, &first_iocbq->list);
 		}
@@ -11014,11 +11022,11 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
  * Worker thread calls lpfc_sli4_handle_received_buffer, which will call the
  * appropriate receive function when the final frame in a sequence is received.
  **/
-int
-lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba)
+void
+lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
+				 struct hbq_dmabuf *dmabuf)
 {
-	LIST_HEAD(cmplq);
-	struct hbq_dmabuf *dmabuf, *seq_dmabuf;
+	struct hbq_dmabuf *seq_dmabuf;
 	struct fc_frame_header *fc_hdr;
 	struct lpfc_vport *vport;
 	uint32_t fcfi;
@@ -11027,54 +11035,50 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba)
 	/* Clear hba flag and get all received buffers into the cmplq */
 	spin_lock_irq(&phba->hbalock);
 	phba->hba_flag &= ~HBA_RECEIVE_BUFFER;
-	list_splice_init(&phba->rb_pend_list, &cmplq);
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Process each received buffer */
-	while ((dmabuf = lpfc_sli_hbqbuf_get(&cmplq)) != NULL) {
-		fc_hdr = (struct fc_frame_header *)dmabuf->hbuf.virt;
-		/* check to see if this a valid type of frame */
-		if (lpfc_fc_frame_check(phba, fc_hdr)) {
-			lpfc_in_buf_free(phba, &dmabuf->dbuf);
-			continue;
-		}
-		fcfi = bf_get(lpfc_rcqe_fcf_id, &dmabuf->rcqe);
-		vport = lpfc_fc_frame_to_vport(phba, fc_hdr, fcfi);
-		if (!vport) {
-			/* throw out the frame */
-			lpfc_in_buf_free(phba, &dmabuf->dbuf);
-			continue;
-		}
-		/* Link this frame */
-		seq_dmabuf = lpfc_fc_frame_add(vport, dmabuf);
-		if (!seq_dmabuf) {
-			/* unable to add frame to vport - throw it out */
-			lpfc_in_buf_free(phba, &dmabuf->dbuf);
-			continue;
-		}
-		/* If not last frame in sequence continue processing frames. */
-		if (!lpfc_seq_complete(seq_dmabuf)) {
-			/*
-			 * When saving off frames post a new one and mark this
-			 * frame to be freed when it is finished.
-			 **/
-			lpfc_sli_hbqbuf_fill_hbqs(phba, LPFC_ELS_HBQ, 1);
-			dmabuf->tag = -1;
-			continue;
-		}
-		fc_hdr = (struct fc_frame_header *)seq_dmabuf->hbuf.virt;
-		iocbq = lpfc_prep_seq(vport, seq_dmabuf);
-		if (!lpfc_complete_unsol_iocb(phba,
-					      &phba->sli.ring[LPFC_ELS_RING],
-					      iocbq, fc_hdr->fh_r_ctl,
-					      fc_hdr->fh_type))
-			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-					"2540 Ring %d handler: unexpected Rctl "
-					"x%x Type x%x received\n",
-					LPFC_ELS_RING,
-					fc_hdr->fh_r_ctl, fc_hdr->fh_type);
-	};
-	return 0;
+	fc_hdr = (struct fc_frame_header *)dmabuf->hbuf.virt;
+	/* check to see if this a valid type of frame */
+	if (lpfc_fc_frame_check(phba, fc_hdr)) {
+		lpfc_in_buf_free(phba, &dmabuf->dbuf);
+		return;
+	}
+	fcfi = bf_get(lpfc_rcqe_fcf_id, &dmabuf->cq_event.cqe.rcqe_cmpl);
+	vport = lpfc_fc_frame_to_vport(phba, fc_hdr, fcfi);
+	if (!vport) {
+		/* throw out the frame */
+		lpfc_in_buf_free(phba, &dmabuf->dbuf);
+		return;
+	}
+	/* Link this frame */
+	seq_dmabuf = lpfc_fc_frame_add(vport, dmabuf);
+	if (!seq_dmabuf) {
+		/* unable to add frame to vport - throw it out */
+		lpfc_in_buf_free(phba, &dmabuf->dbuf);
+		return;
+	}
+	/* If not last frame in sequence continue processing frames. */
+	if (!lpfc_seq_complete(seq_dmabuf)) {
+		/*
+		* When saving off frames post a new one and mark this
+		* frame to be freed when it is finished.
+		**/
+		lpfc_sli_hbqbuf_fill_hbqs(phba, LPFC_ELS_HBQ, 1);
+		dmabuf->tag = -1;
+		return;
+	}
+	fc_hdr = (struct fc_frame_header *)seq_dmabuf->hbuf.virt;
+	iocbq = lpfc_prep_seq(vport, seq_dmabuf);
+	if (!lpfc_complete_unsol_iocb(phba,
+				      &phba->sli.ring[LPFC_ELS_RING],
+				      iocbq, fc_hdr->fh_r_ctl,
+				      fc_hdr->fh_type))
+		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+				"2540 Ring %d handler: unexpected Rctl "
+				"x%x Type x%x received\n",
+				LPFC_ELS_RING,
+				fc_hdr->fh_r_ctl, fc_hdr->fh_type);
 }
 
 /**
@@ -11542,7 +11546,8 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2000 Failed to allocate mbox for "
 				"READ_FCF cmd\n");
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto fail_fcfscan;
 	}
 
 	req_len = sizeof(struct fcf_record) +
@@ -11558,8 +11563,8 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 				"0291 Allocated DMA memory size (x%x) is "
 				"less than the requested DMA memory "
 				"size (x%x)\n", alloc_len, req_len);
-		lpfc_sli4_mbox_cmd_free(phba, mboxq);
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto fail_fcfscan;
 	}
 
 	/* Get the first SGE entry from the non-embedded DMA memory. This
@@ -11571,8 +11576,8 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
 				"2527 Failed to get the non-embedded SGE "
 				"virtual address\n");
-		lpfc_sli4_mbox_cmd_free(phba, mboxq);
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto fail_fcfscan;
 	}
 	virt_addr = mboxq->sge_array->addr[0];
 	read_fcf = (struct lpfc_mbx_read_fcf_tbl *)virt_addr;
@@ -11586,13 +11591,21 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 	mboxq->mbox_cmpl = lpfc_mbx_cmpl_read_fcf_record;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		lpfc_sli4_mbox_cmd_free(phba, mboxq);
 		error = -EIO;
 	} else {
 		spin_lock_irq(&phba->hbalock);
 		phba->hba_flag |= FCF_DISC_INPROGRESS;
 		spin_unlock_irq(&phba->hbalock);
 		error = 0;
+	}
+fail_fcfscan:
+	if (error) {
+		if (mboxq)
+			lpfc_sli4_mbox_cmd_free(phba, mboxq);
+		/* FCF scan failed, clear FCF_DISC_INPROGRESS flag */
+		spin_lock_irq(&phba->hbalock);
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
+		spin_unlock_irq(&phba->hbalock);
 	}
 	return error;
 }

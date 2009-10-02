@@ -110,18 +110,6 @@ struct lpfc_queue {
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
 };
 
-struct lpfc_cq_event {
-	struct list_head list;
-	union {
-		struct lpfc_mcqe		mcqe_cmpl;
-		struct lpfc_acqe_link		acqe_link;
-		struct lpfc_acqe_fcoe		acqe_fcoe;
-		struct lpfc_acqe_dcbx		acqe_dcbx;
-		struct lpfc_rcqe		rcqe_cmpl;
-		struct sli4_wcqe_xri_aborted	wcqe_axri;
-	} cqe;
-};
-
 struct lpfc_sli4_link {
 	uint8_t speed;
 	uint8_t duplex;
@@ -325,7 +313,6 @@ struct lpfc_sli4_hba {
 	struct lpfc_queue **fcp_cq;/* Fast-path FCP compl queue */
 	struct lpfc_queue *mbx_cq; /* Slow-path mailbox complete queue */
 	struct lpfc_queue *els_cq; /* Slow-path ELS response complete queue */
-	struct lpfc_queue *rxq_cq; /* Slow-path unsolicited complete queue */
 
 	/* Setup information for various queue parameters */
 	int eq_esize;
