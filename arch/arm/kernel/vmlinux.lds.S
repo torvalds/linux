@@ -24,13 +24,11 @@ SECTIONS
 #else
 	. = PAGE_OFFSET + TEXT_OFFSET;
 #endif
-	.text.head : {
-		_stext = .;
-		_sinittext = .;
-		*(.text.head)
-	}
 
 	.init : {			/* Init code and data		*/
+		_stext = .;
+		_sinittext = .;
+			HEAD_TEXT
 			INIT_TEXT
 		_einittext = .;
 		__proc_info_begin = .;
