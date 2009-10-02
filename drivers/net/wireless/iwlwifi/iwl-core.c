@@ -1329,6 +1329,42 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_irq_handle_error);
 
+int iwl_apm_stop_master(struct iwl_priv *priv)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	/* set stop master bit */
+	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
+
+	iwl_poll_direct_bit(priv, CSR_RESET,
+			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+	IWL_DEBUG_INFO(priv, "stop master\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_apm_stop_master);
+
+void iwl_apm_stop(struct iwl_priv *priv)
+{
+	unsigned long flags;
+
+	iwl_apm_stop_master(priv);
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+
+	udelay(10);
+	/* clear "init complete"  move adapter D0A* --> D0U state */
+	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+EXPORT_SYMBOL(iwl_apm_stop);
+
 void iwl_configure_filter(struct ieee80211_hw *hw,
 			  unsigned int changed_flags,
 			  unsigned int *total_flags,

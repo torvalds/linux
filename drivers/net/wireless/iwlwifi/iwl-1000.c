@@ -112,7 +112,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,
-		.stop = iwl5000_apm_stop,
+		.stop = iwl_apm_stop,
 		.config = iwl1000_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
 	},

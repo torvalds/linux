@@ -72,26 +72,6 @@ static const u16 iwl5000_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_HCCA_2
 };
 
-/* FIXME: same implementation as 4965 */
-static int iwl5000_apm_stop_master(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* set stop master bit */
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
-
-	iwl_poll_direct_bit(priv, CSR_RESET,
-				  CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-	IWL_DEBUG_INFO(priv, "stop master\n");
-
-	return 0;
-}
-
-
 int iwl5000_apm_init(struct iwl_priv *priv)
 {
 	int ret = 0;
@@ -137,31 +117,11 @@ int iwl5000_apm_init(struct iwl_priv *priv)
 	return ret;
 }
 
-/* FIXME: this is identical to 4965 */
-void iwl5000_apm_stop(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	iwl5000_apm_stop_master(priv);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
-
-	/* clear "init complete"  move adapter D0A* --> D0U state */
-	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-
 int iwl5000_apm_reset(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	iwl5000_apm_stop_master(priv);
+	iwl_apm_stop_master(priv);
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
@@ -1561,7 +1521,7 @@ struct iwl_lib_ops iwl5000_lib = {
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,
-		.stop = iwl5000_apm_stop,
+		.stop = iwl_apm_stop,
 		.config = iwl5000_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
 	},
@@ -1613,7 +1573,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,
-		.stop = iwl5000_apm_stop,
+		.stop = iwl_apm_stop,
 		.config = iwl5000_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
 	},

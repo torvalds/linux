@@ -1167,48 +1167,9 @@ void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
 	iwl3945_hw_txq_ctx_free(priv);
 }
 
-static int iwl3945_apm_stop_master(struct iwl_priv *priv)
-{
-	int ret = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* set stop master bit */
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
-
-	iwl_poll_direct_bit(priv, CSR_RESET,
-			    CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-
-	if (ret < 0)
-		goto out;
-
-out:
-	spin_unlock_irqrestore(&priv->lock, flags);
-	IWL_DEBUG_INFO(priv, "stop master\n");
-
-	return ret;
-}
-
-static void iwl3945_apm_stop(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	iwl3945_apm_stop_master(priv);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
-	/* clear "init complete"  move adapter D0A* --> D0U state */
-	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
 static int iwl3945_apm_reset(struct iwl_priv *priv)
 {
-	iwl3945_apm_stop_master(priv);
+	iwl_apm_stop_master(priv);
 
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
@@ -2841,7 +2802,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.apm_ops = {
 		.init = iwl3945_apm_init,
 		.reset = iwl3945_apm_reset,
-		.stop = iwl3945_apm_stop,
+		.stop = iwl_apm_stop,
 		.config = iwl3945_nic_config,
 		.set_pwr_src = iwl3945_set_pwr_src,
 	},

@@ -396,45 +396,11 @@ static void iwl4965_nic_config(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static int iwl4965_apm_stop_master(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* set stop master bit */
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
-
-	iwl_poll_direct_bit(priv, CSR_RESET,
-			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-	IWL_DEBUG_INFO(priv, "stop master\n");
-
-	return 0;
-}
-
-static void iwl4965_apm_stop(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	iwl4965_apm_stop_master(priv);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
-	/* clear "init complete"  move adapter D0A* --> D0U state */
-	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
 static int iwl4965_apm_reset(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	iwl4965_apm_stop_master(priv);
+	iwl_apm_stop_master(priv);
 
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
@@ -2306,7 +2272,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.apm_ops = {
 		.init = iwl4965_apm_init,
 		.reset = iwl4965_apm_reset,
-		.stop = iwl4965_apm_stop,
+		.stop = iwl_apm_stop,
 		.config = iwl4965_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
 	},
