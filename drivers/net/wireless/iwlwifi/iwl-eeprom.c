@@ -215,12 +215,35 @@ static const struct iwl_txpwr_section enhinfo[] = {
 
 int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 {
-	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
-	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
-		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
-		return -ENOENT;
+	u32 gp = iwl_read32(priv, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
+	int ret = 0;
+
+	IWL_DEBUG_INFO(priv, "EEPROM signature=0x%08x\n", gp);
+	switch (gp) {
+	case CSR_EEPROM_GP_BAD_SIG_EEP_GOOD_SIG_OTP:
+		if (priv->nvm_device_type != NVM_DEVICE_TYPE_OTP) {
+			IWL_ERR(priv, "EEPROM with bad signature: 0x%08x\n",
+				gp);
+			ret = -ENOENT;
+		}
+		break;
+	case CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K:
+	case CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K:
+		if (priv->nvm_device_type != NVM_DEVICE_TYPE_EEPROM) {
+			IWL_ERR(priv, "OTP with bad signature: 0x%08x\n", gp);
+			ret = -ENOENT;
+		}
+		break;
+	case CSR_EEPROM_GP_BAD_SIGNATURE_BOTH_EEP_AND_OTP:
+	default:
+		IWL_ERR(priv, "bad EEPROM/OTP signature, type=%s, "
+			"EEPROM_GP=0x%08x\n",
+			(priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+			? "OTP" : "EEPROM", gp);
+		ret = -ENOENT;
+		break;
 	}
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(iwlcore_eeprom_verify_signature);
 
