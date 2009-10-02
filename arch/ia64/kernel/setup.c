@@ -855,18 +855,6 @@ identify_cpu (struct cpuinfo_ia64 *c)
 }
 
 /*
- * In UP configuration, setup_per_cpu_areas() is defined in
- * include/linux/percpu.h
- */
-#ifdef CONFIG_SMP
-void __init
-setup_per_cpu_areas (void)
-{
-	/* start_kernel() requires this... */
-}
-#endif
-
-/*
  * Do the following calculations:
  *
  * 1. the max. cache line size.

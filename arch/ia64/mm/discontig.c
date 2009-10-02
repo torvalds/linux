@@ -172,6 +172,91 @@ static void *per_cpu_node_setup(void *cpu_data, int node)
 	return cpu_data;
 }
 
+#ifdef CONFIG_SMP
+/**
+ * setup_per_cpu_areas - setup percpu areas
+ *
+ * Arch code has already allocated and initialized percpu areas.  All
+ * this function has to do is to teach the determined layout to the
+ * dynamic percpu allocator, which happens to be more complex than
+ * creating whole new ones using helpers.
+ */
+void __init setup_per_cpu_areas(void)
+{
+	struct pcpu_alloc_info *ai;
+	struct pcpu_group_info *uninitialized_var(gi);
+	unsigned int *cpu_map;
+	void *base;
+	unsigned long base_offset;
+	unsigned int cpu;
+	ssize_t static_size, reserved_size, dyn_size;
+	int node, prev_node, unit, nr_units, rc;
+
+	ai = pcpu_alloc_alloc_info(MAX_NUMNODES, nr_cpu_ids);
+	if (!ai)
+		panic("failed to allocate pcpu_alloc_info");
+	cpu_map = ai->groups[0].cpu_map;
+
+	/* determine base */
+	base = (void *)ULONG_MAX;
+	for_each_possible_cpu(cpu)
+		base = min(base,
+			   (void *)(__per_cpu_offset[cpu] + __per_cpu_start));
+	base_offset = (void *)__per_cpu_start - base;
+
+	/* build cpu_map, units are grouped by node */
+	unit = 0;
+	for_each_node(node)
+		for_each_possible_cpu(cpu)
+			if (node == node_cpuid[cpu].nid)
+				cpu_map[unit++] = cpu;
+	nr_units = unit;
+
+	/* set basic parameters */
+	static_size = __per_cpu_end - __per_cpu_start;
+	reserved_size = PERCPU_MODULE_RESERVE;
+	dyn_size = PERCPU_PAGE_SIZE - static_size - reserved_size;
+	if (dyn_size < 0)
+		panic("percpu area overflow static=%zd reserved=%zd\n",
+		      static_size, reserved_size);
+
+	ai->static_size		= static_size;
+	ai->reserved_size	= reserved_size;
+	ai->dyn_size		= dyn_size;
+	ai->unit_size		= PERCPU_PAGE_SIZE;
+	ai->atom_size		= PAGE_SIZE;
+	ai->alloc_size		= PERCPU_PAGE_SIZE;
+
+	/*
+	 * CPUs are put into groups according to node.  Walk cpu_map
+	 * and create new groups at node boundaries.
+	 */
+	prev_node = -1;
+	ai->nr_groups = 0;
+	for (unit = 0; unit < nr_units; unit++) {
+		cpu = cpu_map[unit];
+		node = node_cpuid[cpu].nid;
+
+		if (node == prev_node) {
+			gi->nr_units++;
+			continue;
+		}
+		prev_node = node;
+
+		gi = &ai->groups[ai->nr_groups++];
+		gi->nr_units		= 1;
+		gi->base_offset		= __per_cpu_offset[cpu] + base_offset;
+		gi->cpu_map		= &cpu_map[unit];
+	}
+
+	rc = pcpu_setup_first_chunk(ai, base);
+	if (rc)
+		panic("failed to setup percpu area (err=%d)", rc);
+
+	pcpu_free_alloc_info(ai);
+}
+#endif
+
 /**
  * fill_pernode - initialize pernode data.
  * @node: the node id.

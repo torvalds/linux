@@ -163,11 +163,11 @@ per_cpu_init (void)
 	first_time = false;
 
 	/*
-	 * get_free_pages() cannot be used before cpu_init() done.  BSP
-	 * allocates "NR_CPUS" pages for all CPUs to avoid that AP calls
-	 * get_zeroed_page().
+	 * get_free_pages() cannot be used before cpu_init() done.
+	 * BSP allocates PERCPU_PAGE_SIZE bytes for all possible CPUs
+	 * to avoid that AP calls get_zeroed_page().
 	 */
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+	for_each_possible_cpu(cpu) {
 		void *src = cpu == 0 ? cpu0_data : __phys_per_cpu_start;
 
 		memcpy(cpu_data, src, __per_cpu_end - __per_cpu_start);
@@ -196,8 +196,56 @@ skip:
 static inline void
 alloc_per_cpu_data(void)
 {
-	cpu_data = __alloc_bootmem(PERCPU_PAGE_SIZE * NR_CPUS,
+	cpu_data = __alloc_bootmem(PERCPU_PAGE_SIZE * num_possible_cpus(),
 				   PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+}
+
+/**
+ * setup_per_cpu_areas - setup percpu areas
+ *
+ * Arch code has already allocated and initialized percpu areas.  All
+ * this function has to do is to teach the determined layout to the
+ * dynamic percpu allocator, which happens to be more complex than
+ * creating whole new ones using helpers.
+ */
+void __init
+setup_per_cpu_areas(void)
+{
+	struct pcpu_alloc_info *ai;
+	struct pcpu_group_info *gi;
+	unsigned int cpu;
+	ssize_t static_size, reserved_size, dyn_size;
+	int rc;
+
+	ai = pcpu_alloc_alloc_info(1, num_possible_cpus());
+	if (!ai)
+		panic("failed to allocate pcpu_alloc_info");
+	gi = &ai->groups[0];
+
+	/* units are assigned consecutively to possible cpus */
+	for_each_possible_cpu(cpu)
+		gi->cpu_map[gi->nr_units++] = cpu;
+
+	/* set parameters */
+	static_size = __per_cpu_end - __per_cpu_start;
+	reserved_size = PERCPU_MODULE_RESERVE;
+	dyn_size = PERCPU_PAGE_SIZE - static_size - reserved_size;
+	if (dyn_size < 0)
+		panic("percpu area overflow static=%zd reserved=%zd\n",
+		      static_size, reserved_size);
+
+	ai->static_size		= static_size;
+	ai->reserved_size	= reserved_size;
+	ai->dyn_size		= dyn_size;
+	ai->unit_size		= PERCPU_PAGE_SIZE;
+	ai->atom_size		= PAGE_SIZE;
+	ai->alloc_size		= PERCPU_PAGE_SIZE;
+
+	rc = pcpu_setup_first_chunk(ai, __per_cpu_start + __per_cpu_offset[0]);
+	if (rc)
+		panic("failed to setup percpu area (err=%d)", rc);
+
+	pcpu_free_alloc_info(ai);
 }
 #else
 #define alloc_per_cpu_data() do { } while (0)
