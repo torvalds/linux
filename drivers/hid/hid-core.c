@@ -39,7 +39,6 @@
  * Version Information
  */
 
-#define DRIVER_VERSION "v2.6"
 #define DRIVER_DESC "HID core driver"
 #define DRIVER_LICENSE "GPL"
 
