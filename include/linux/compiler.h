@@ -273,6 +273,9 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 #ifndef __compiletime_warning
 # define __compiletime_warning(message)
 #endif
+#ifndef __compiletime_error
+# define __compiletime_error(message)
+#endif
 
 /*
  * Prevent the compiler from merging or refetching accesses.  The compiler
