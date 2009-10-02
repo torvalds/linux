@@ -33,6 +33,7 @@
 #define IWL_ABSOLUTE_ZERO		0
 #define IWL_ABSOLUTE_MAX		0xFFFFFFFF
 #define IWL_TT_INCREASE_MARGIN	5
+#define IWL_TT_CT_KILL_MARGIN	3
 
 enum iwl_antenna_ok {
 	IWL_ANT_OK_NONE,
@@ -110,6 +111,7 @@ struct iwl_tt_mgmt {
 	struct iwl_tt_restriction *restriction;
 	struct iwl_tt_trans *transaction;
 	struct timer_list ct_kill_exit_tm;
+	struct timer_list ct_kill_waiting_tm;
 };
 
 enum iwl_power_level {
@@ -129,6 +131,7 @@ struct iwl_power_mgr {
 
 int iwl_power_update_mode(struct iwl_priv *priv, bool force);
 bool iwl_ht_enabled(struct iwl_priv *priv);
+bool iwl_within_ct_kill_margin(struct iwl_priv *priv);
 enum iwl_antenna_ok iwl_tx_ant_restriction(struct iwl_priv *priv);
 enum iwl_antenna_ok iwl_rx_ant_restriction(struct iwl_priv *priv);
 void iwl_tt_enter_ct_kill(struct iwl_priv *priv);

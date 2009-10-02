@@ -580,6 +580,7 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_HCMD_SYNC_ACTIVE	1	/* sync host command in progress */
 #define STATUS_INT_ENABLED	2
 #define STATUS_RF_KILL_HW	3
+#define STATUS_CT_KILL		4
 #define STATUS_INIT		5
 #define STATUS_ALIVE		6
 #define STATUS_READY		7
@@ -622,6 +623,11 @@ static inline int iwl_is_rfkill_hw(struct iwl_priv *priv)
 static inline int iwl_is_rfkill(struct iwl_priv *priv)
 {
 	return iwl_is_rfkill_hw(priv);
+}
+
+static inline int iwl_is_ctkill(struct iwl_priv *priv)
+{
+	return test_bit(STATUS_CT_KILL, &priv->status);
 }
 
 static inline int iwl_is_ready_rf(struct iwl_priv *priv)

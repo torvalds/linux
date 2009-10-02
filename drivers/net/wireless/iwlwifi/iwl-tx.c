@@ -969,13 +969,19 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
 	       !(cmd->flags & CMD_SIZE_HUGE));
 
-	if (iwl_is_rfkill(priv)) {
-		IWL_DEBUG_INFO(priv, "Not sending command - RF KILL\n");
+	if (iwl_is_rfkill(priv) || iwl_is_ctkill(priv)) {
+		IWL_DEBUG_INFO(priv, "Not sending command - RF/CT KILL\n");
 		return -EIO;
 	}
 
 	if (iwl_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
 		IWL_ERR(priv, "No space for Tx\n");
+		if (iwl_within_ct_kill_margin(priv))
+			iwl_tt_enter_ct_kill(priv);
+		else {
+			IWL_ERR(priv, "Restarting adapter due to queue full\n");
+			queue_work(priv->workqueue, &priv->restart);
+		}
 		return -ENOSPC;
 	}
 
