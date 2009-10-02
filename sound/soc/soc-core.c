@@ -1256,8 +1256,12 @@ static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 {
 	char codec_root[128];
 
-	snprintf(codec_root, sizeof(codec_root),
-		 "%s-%s", dev_name(codec->socdev->dev), codec->name);
+	if (codec->dev)
+		snprintf(codec_root, sizeof(codec_root),
+			"%s.%s", codec->name, dev_name(codec->dev));
+	else
+		snprintf(codec_root, sizeof(codec_root),
+			"%s", codec->name);
 
 	codec->debugfs_codec_root = debugfs_create_dir(codec_root,
 						       debugfs_root);
