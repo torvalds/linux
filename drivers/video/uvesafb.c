@@ -67,7 +67,7 @@ static DEFINE_MUTEX(uvfb_lock);
  * find the kernel part of the task struct, copy the registers and
  * the buffer contents and then complete the task.
  */
-static void uvesafb_cn_callback(struct cn_msg *msg)
+static void uvesafb_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
 	struct uvesafb_task *utask;
 	struct uvesafb_ktask *task;

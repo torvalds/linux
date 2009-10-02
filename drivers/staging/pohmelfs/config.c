@@ -527,7 +527,7 @@ out_unlock:
 	return err;
 }
 
-static void pohmelfs_cn_callback(struct cn_msg *msg)
+static void pohmelfs_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
 	int err;
 

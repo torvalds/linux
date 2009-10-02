@@ -847,7 +847,7 @@ static dst_command_func dst_commands[] = {
 /*
  * Configuration parser.
  */
-static void cn_dst_callback(struct cn_msg *msg)
+static void cn_dst_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
 	struct dst_ctl *ctl;
 	int err;
