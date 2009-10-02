@@ -43,7 +43,7 @@ struct wpan_phy *net_to_phy(struct net_device *dev)
  *
  * Return the ID of the PAN from the PIB.
  */
-static u16 fake_get_pan_id(struct net_device *dev)
+static u16 fake_get_pan_id(const struct net_device *dev)
 {
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -58,7 +58,7 @@ static u16 fake_get_pan_id(struct net_device *dev)
  * device. If the device has not yet had a short address assigned
  * then this should return 0xFFFF to indicate a lack of association.
  */
-static u16 fake_get_short_addr(struct net_device *dev)
+static u16 fake_get_short_addr(const struct net_device *dev)
 {
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -78,7 +78,7 @@ static u16 fake_get_short_addr(struct net_device *dev)
  * Note: This is in section 7.2.1.2 of the IEEE 802.15.4-2006
  *       document.
  */
-static u8 fake_get_dsn(struct net_device *dev)
+static u8 fake_get_dsn(const struct net_device *dev)
 {
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -98,7 +98,7 @@ static u8 fake_get_dsn(struct net_device *dev)
  * Note: This is in section 7.2.1.2 of the IEEE 802.15.4-2006
  *       document.
  */
-static u8 fake_get_bsn(struct net_device *dev)
+static u8 fake_get_bsn(const struct net_device *dev)
 {
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
