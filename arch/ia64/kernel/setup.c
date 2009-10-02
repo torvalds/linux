@@ -566,19 +566,18 @@ setup_arch (char **cmdline_p)
 	early_acpi_boot_init();
 # ifdef CONFIG_ACPI_NUMA
 	acpi_numa_init();
-#ifdef CONFIG_ACPI_HOTPLUG_CPU
+#  ifdef CONFIG_ACPI_HOTPLUG_CPU
 	prefill_possible_map();
-#endif
+#  endif
 	per_cpu_scan_finalize((cpus_weight(early_cpu_possible_map) == 0 ?
 		32 : cpus_weight(early_cpu_possible_map)),
 		additional_cpus > 0 ? additional_cpus : 0);
 # endif
-#else
-# ifdef CONFIG_SMP
-	smp_build_cpu_map();	/* happens, e.g., with the Ski simulator */
-# endif
 #endif /* CONFIG_APCI_BOOT */
 
+#ifdef CONFIG_SMP
+	smp_build_cpu_map();
+#endif
 	find_memory();
 
 	/* process SAL system table: */
