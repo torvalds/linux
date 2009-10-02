@@ -709,7 +709,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	dma_addr_t scratch_phys;
-	u16 len, len_org;
+	u16 len, len_org, firstlen, secondlen;
 	u16 seq_number = 0;
 	__le16 fc;
 	u8 hdr_len;
@@ -842,7 +842,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		sizeof(struct iwl_cmd_header) + hdr_len;
 
 	len_org = len;
-	len = (len + 3) & ~3;
+	firstlen = len = (len + 3) & ~3;
 
 	if (len_org != len)
 		len_org = 1;
@@ -876,7 +876,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
-	len = skb->len - hdr_len;
+	secondlen = len = skb->len - hdr_len;
 	if (len) {
 		phys_addr = pci_map_single(priv->pci_dev, skb->data + hdr_len,
 					   len, PCI_DMA_TODEVICE);
@@ -909,6 +909,12 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	pci_dma_sync_single_for_device(priv->pci_dev, txcmd_phys,
 				       len, PCI_DMA_BIDIRECTIONAL);
+
+	trace_iwlwifi_dev_tx(priv,
+			     &((struct iwl_tfd *)txq->tfds)[txq->q.write_ptr],
+			     sizeof(struct iwl_tfd),
+			     &out_cmd->hdr, firstlen,
+			     skb->data + hdr_len, secondlen);
 
 	/* Tell device the write index *just past* this latest filled TFD */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
@@ -1043,6 +1049,8 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 				   fix_size, PCI_DMA_BIDIRECTIONAL);
 	pci_unmap_addr_set(out_meta, mapping, phys_addr);
 	pci_unmap_len_set(out_meta, len, fix_size);
+
+	trace_iwlwifi_dev_hcmd(priv, &out_cmd->hdr, fix_size, cmd->flags);
 
 	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
 						   phys_addr, fix_size, 1,

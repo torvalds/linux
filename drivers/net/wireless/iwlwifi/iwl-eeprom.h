@@ -63,6 +63,8 @@
 #ifndef __iwl_eeprom_h__
 #define __iwl_eeprom_h__
 
+#include <net/mac80211.h>
+
 struct iwl_priv;
 
 /*
