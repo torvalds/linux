@@ -35,7 +35,6 @@
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
-#include <mach/common.h>
 #include <mach/mmc.h>
 #include <mach/nand.h>
 
