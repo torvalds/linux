@@ -49,6 +49,8 @@ void lpfc_init_link(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t, uint32_t);
 void lpfc_request_features(struct lpfc_hba *, struct lpfcMboxq *);
 
 struct lpfc_vport *lpfc_find_vport_by_did(struct lpfc_hba *, uint32_t);
+void lpfc_cleanup_rcv_buffers(struct lpfc_vport *);
+void lpfc_rcv_seq_check_edtov(struct lpfc_vport *);
 void lpfc_cleanup_rpis(struct lpfc_vport *, int);
 int lpfc_linkdown(struct lpfc_hba *);
 void lpfc_linkdown_port(struct lpfc_vport *);
@@ -214,7 +216,10 @@ void lpfc_stop_vport_timers(struct lpfc_vport *);
 void lpfc_poll_timeout(unsigned long ptr);
 void lpfc_poll_start_timer(struct lpfc_hba *);
 void lpfc_poll_eratt(unsigned long);
-void lpfc_sli_poll_fcp_ring(struct lpfc_hba *);
+int
+lpfc_sli_handle_fast_ring_event(struct lpfc_hba *,
+			struct lpfc_sli_ring *, uint32_t);
+
 struct lpfc_iocbq * lpfc_sli_get_iocbq(struct lpfc_hba *);
 void lpfc_sli_release_iocbq(struct lpfc_hba *, struct lpfc_iocbq *);
 uint16_t lpfc_sli_next_iotag(struct lpfc_hba *, struct lpfc_iocbq *);

@@ -352,7 +352,7 @@ struct lpfc_sli4_hba {
 	unsigned long *rpi_bmask;
 	uint16_t rpi_count;
 	struct lpfc_sli4_flags sli4_flags;
-	struct list_head sp_rspiocb_work_queue;
+	struct list_head sp_queue_event;
 	struct list_head sp_cqe_event_pool;
 	struct list_head sp_asynce_work_queue;
 	struct list_head sp_fcp_xri_aborted_work_queue;

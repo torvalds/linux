@@ -2773,7 +2773,9 @@ void lpfc_poll_timeout(unsigned long ptr)
 	struct lpfc_hba *phba = (struct lpfc_hba *) ptr;
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
-		lpfc_sli_poll_fcp_ring (phba);
+		lpfc_sli_handle_fast_ring_event(phba,
+			&phba->sli.ring[LPFC_FCP_RING], HA_R0RE_REQ);
+
 		if (phba->cfg_poll & DISABLE_FCP_RING_INT)
 			lpfc_poll_rearm_timer(phba);
 	}
@@ -2932,7 +2934,11 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		goto out_host_busy_free_buf;
 	}
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
-		lpfc_sli_poll_fcp_ring(phba);
+		spin_unlock(shost->host_lock);
+		lpfc_sli_handle_fast_ring_event(phba,
+			&phba->sli.ring[LPFC_FCP_RING], HA_R0RE_REQ);
+
+		spin_lock(shost->host_lock);
 		if (phba->cfg_poll & DISABLE_FCP_RING_INT)
 			lpfc_poll_rearm_timer(phba);
 	}
@@ -3028,7 +3034,8 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	}
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT)
-		lpfc_sli_poll_fcp_ring (phba);
+		lpfc_sli_handle_fast_ring_event(phba,
+			&phba->sli.ring[LPFC_FCP_RING], HA_R0RE_REQ);
 
 	lpfc_cmd->waitq = &waitq;
 	/* Wait for abort to complete */
@@ -3546,7 +3553,8 @@ lpfc_slave_configure(struct scsi_device *sdev)
 	rport->dev_loss_tmo = vport->cfg_devloss_tmo;
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
-		lpfc_sli_poll_fcp_ring(phba);
+		lpfc_sli_handle_fast_ring_event(phba,
+			&phba->sli.ring[LPFC_FCP_RING], HA_R0RE_REQ);
 		if (phba->cfg_poll & DISABLE_FCP_RING_INT)
 			lpfc_poll_rearm_timer(phba);
 	}

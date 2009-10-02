@@ -110,6 +110,7 @@ struct hbq_dmabuf {
 	uint32_t size;
 	uint32_t tag;
 	struct lpfc_cq_event cq_event;
+	unsigned long time_stamp;
 };
 
 /* Priority bit.  Set value to exceed low water mark in lpfc_mem. */
@@ -405,6 +406,7 @@ struct lpfc_vport {
 	uint8_t stat_data_enabled;
 	uint8_t stat_data_blocked;
 	struct list_head rcv_buffer_list;
+	unsigned long rcv_buffer_time_stamp;
 	uint32_t vport_flag;
 #define STATIC_VPORT	1
 };
@@ -527,14 +529,16 @@ struct lpfc_hba {
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
 #define DEFER_ERATT		0x2 /* Deferred error attention in progress */
 #define HBA_FCOE_SUPPORT	0x4 /* HBA function supports FCOE */
-#define HBA_RECEIVE_BUFFER	0x8 /* Rcv buffer posted to worker thread */
+#define HBA_SP_QUEUE_EVT	0x8 /* Slow-path qevt posted to worker thread*/
 #define HBA_POST_RECEIVE_BUFFER 0x10 /* Rcv buffers need to be posted */
 #define FCP_XRI_ABORT_EVENT	0x20
 #define ELS_XRI_ABORT_EVENT	0x40
 #define ASYNC_EVENT		0x80
 #define LINK_DISABLED		0x100 /* Link disabled by user */
 #define FCF_DISC_INPROGRESS	0x200 /* FCF discovery in progress */
-#define HBA_AER_ENABLED         0x800 /* AER enabled with HBA */
+#define HBA_FIP_SUPPORT		0x400 /* FIP support in HBA */
+#define HBA_AER_ENABLED		0x800 /* AER enabled with HBA */
+	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;
 
 	MAILBOX_t *mbox;
@@ -606,7 +610,6 @@ struct lpfc_hba {
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
 	uint32_t cfg_enable_bg;
-	uint32_t cfg_enable_fip;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
 

@@ -568,7 +568,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 	status >>= (4*LPFC_ELS_RING);
 	if ((status & HA_RXMASK) ||
 	    (pring->flag & LPFC_DEFERRED_RING_EVENT) ||
-	    (phba->hba_flag & HBA_RECEIVE_BUFFER)) {
+	    (phba->hba_flag & HBA_SP_QUEUE_EVT)) {
 		if (pring->flag & LPFC_STOP_IOCB_EVENT) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
 			/* Set the lpfc data pending flag */
@@ -706,6 +706,9 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 void
 lpfc_port_link_failure(struct lpfc_vport *vport)
 {
+	/* Cleanup any outstanding received buffers */
+	lpfc_cleanup_rcv_buffers(vport);
+
 	/* Cleanup any outstanding RSCN activity */
 	lpfc_els_flush_rscn(vport);
 
@@ -1282,7 +1285,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 		!bf_get(lpfc_fcf_record_fcf_valid, new_fcf_record))
 		return 0;
 
-	if (!phba->cfg_enable_fip) {
+	if (!(phba->hba_flag & HBA_FIP_SUPPORT)) {
 		*boot_flag = 0;
 		*addr_mode = bf_get(lpfc_fcf_record_mac_addr_prov,
 				new_fcf_record);
@@ -1997,7 +2000,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 		 * is phase 1 implementation that support FCF index 0 and driver
 		 * defaults.
 		 */
-		if (phba->cfg_enable_fip == 0) {
+		if (!(phba->hba_flag & HBA_FIP_SUPPORT)) {
 			fcf_record = kzalloc(sizeof(struct fcf_record),
 					GFP_KERNEL);
 			if (unlikely(!fcf_record)) {
@@ -4442,7 +4445,7 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 	 */
 	if (!(phba->hba_flag & HBA_FCOE_SUPPORT) ||
 		!(phba->fcf.fcf_flag & FCF_REGISTERED) ||
-		(phba->cfg_enable_fip == 0)) {
+		(!(phba->hba_flag & HBA_FIP_SUPPORT))) {
 		spin_unlock_irq(&phba->hbalock);
 		return;
 	}
@@ -4614,14 +4617,6 @@ lpfc_read_fcoe_param(struct lpfc_hba *phba,
 	if ((fcoe_param_hdr->parm_version != FIPP_VERSION) ||
 		(fcoe_param_hdr->length != FCOE_PARAM_LENGTH))
 		return;
-
-	if (bf_get(lpfc_fip_param_hdr_fipp_mode, fcoe_param_hdr) ==
-			FIPP_MODE_ON)
-		phba->cfg_enable_fip = 1;
-
-	if (bf_get(lpfc_fip_param_hdr_fipp_mode, fcoe_param_hdr) ==
-		FIPP_MODE_OFF)
-		phba->cfg_enable_fip = 0;
 
 	if (fcoe_param_hdr->parm_flags & FIPP_VLAN_VALID) {
 		phba->valid_vlan = 1;

@@ -853,11 +853,18 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 void
 lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 {
+	struct lpfc_vport **vports;
 	LPFC_MBOXQ_t *pmboxq;
 	struct lpfc_dmabuf *buf_ptr;
-	int retval;
+	int retval, i;
 	struct lpfc_sli *psli = &phba->sli;
 	LIST_HEAD(completions);
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
+			lpfc_rcv_seq_check_edtov(vports[i]);
+	lpfc_destroy_vport_work_array(phba, vports);
 
 	if ((phba->link_state == LPFC_HBA_ERROR) ||
 		(phba->pport->load_flag & FC_UNLOADING) ||
@@ -3519,7 +3526,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* Driver internel slow-path CQ Event pool */
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_cqe_event_pool);
 	/* Response IOCB work queue list */
-	INIT_LIST_HEAD(&phba->sli4_hba.sp_rspiocb_work_queue);
+	INIT_LIST_HEAD(&phba->sli4_hba.sp_queue_event);
 	/* Asynchronous event CQ Event work queue list */
 	INIT_LIST_HEAD(&phba->sli4_hba.sp_asynce_work_queue);
 	/* Fast-path XRI aborted CQ Event work queue list */

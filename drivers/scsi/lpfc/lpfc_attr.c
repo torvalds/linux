@@ -100,6 +100,28 @@ lpfc_drvr_version_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, LPFC_MODULE_DESC "\n");
 }
 
+/**
+ * lpfc_enable_fip_show - Return the fip mode of the HBA
+ * @dev: class unused variable.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the module description text.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_enable_fip_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	if (phba->hba_flag & HBA_FIP_SUPPORT)
+		return snprintf(buf, PAGE_SIZE, "1\n");
+	else
+		return snprintf(buf, PAGE_SIZE, "0\n");
+}
+
 static ssize_t
 lpfc_bg_info_show(struct device *dev, struct device_attribute *attr,
 		  char *buf)
@@ -1134,6 +1156,9 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 	if ((val & 0x3) != val)
 		return -EINVAL;
 
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		val = 0;
+
 	spin_lock_irq(&phba->hbalock);
 
 	old_val = phba->cfg_poll;
@@ -1597,6 +1622,7 @@ static DEVICE_ATTR(num_discovered_ports, S_IRUGO,
 static DEVICE_ATTR(menlo_mgmt_mode, S_IRUGO, lpfc_mlomgmt_show, NULL);
 static DEVICE_ATTR(nport_evt_cnt, S_IRUGO, lpfc_nport_evt_cnt_show, NULL);
 static DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show, NULL);
+static DEVICE_ATTR(lpfc_enable_fip, S_IRUGO, lpfc_enable_fip_show, NULL);
 static DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 		   lpfc_board_mode_show, lpfc_board_mode_store);
 static DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
@@ -3128,15 +3154,6 @@ LPFC_ATTR_R(enable_hba_heartbeat, 1, 0, 1, "Enable HBA Heartbeat.");
 LPFC_ATTR_R(enable_bg, 0, 0, 1, "Enable BlockGuard Support");
 
 /*
-# lpfc_enable_fip: When set, FIP is required to start discovery. If not
-# set, the driver will add an FCF record manually if the port has no
-# FCF records available and start discovery.
-# Value range is [0,1]. Default value is 1 (enabled)
-*/
-LPFC_ATTR_RW(enable_fip, 0, 0, 1, "Enable FIP Discovery");
-
-
-/*
 # lpfc_prot_mask: i
 #	- Bit mask of host protection capabilities used to register with the
 #	  SCSI mid-layer
@@ -3194,6 +3211,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_num_discovered_ports,
 	&dev_attr_menlo_mgmt_mode,
 	&dev_attr_lpfc_drvr_version,
+	&dev_attr_lpfc_enable_fip,
 	&dev_attr_lpfc_temp_sensor,
 	&dev_attr_lpfc_log_verbose,
 	&dev_attr_lpfc_lun_queue_depth,
@@ -3201,7 +3219,6 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_peer_port_login,
 	&dev_attr_lpfc_nodev_tmo,
 	&dev_attr_lpfc_devloss_tmo,
-	&dev_attr_lpfc_enable_fip,
 	&dev_attr_lpfc_fcp_class,
 	&dev_attr_lpfc_use_adisc,
 	&dev_attr_lpfc_ack0,
@@ -3256,7 +3273,6 @@ struct device_attribute *lpfc_vport_attrs[] = {
 	&dev_attr_lpfc_lun_queue_depth,
 	&dev_attr_lpfc_nodev_tmo,
 	&dev_attr_lpfc_devloss_tmo,
-	&dev_attr_lpfc_enable_fip,
 	&dev_attr_lpfc_hba_queue_depth,
 	&dev_attr_lpfc_peer_port_login,
 	&dev_attr_lpfc_restrict_login,
@@ -4412,13 +4428,15 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_enable_hba_reset_init(phba, lpfc_enable_hba_reset);
 	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
 	lpfc_enable_bg_init(phba, lpfc_enable_bg);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		phba->cfg_poll = 0;
+	else
 	phba->cfg_poll = lpfc_poll;
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
 	lpfc_prot_sg_seg_cnt_init(phba, lpfc_prot_sg_seg_cnt);
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
-	lpfc_enable_fip_init(phba, lpfc_enable_fip);
 	lpfc_hba_log_verbose_init(phba, lpfc_log_verbose);
 	lpfc_aer_support_init(phba, lpfc_aer_support);
 

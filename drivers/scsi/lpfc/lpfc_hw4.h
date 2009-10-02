@@ -1601,6 +1601,11 @@ struct lpfc_mbx_read_rev {
 #define lpfc_mbx_rd_rev_fcoe_SHIFT		20
 #define lpfc_mbx_rd_rev_fcoe_MASK		0x00000001
 #define lpfc_mbx_rd_rev_fcoe_WORD		word1
+#define lpfc_mbx_rd_rev_cee_ver_SHIFT		21
+#define lpfc_mbx_rd_rev_cee_ver_MASK		0x00000003
+#define lpfc_mbx_rd_rev_cee_ver_WORD		word1
+#define LPFC_PREDCBX_CEE_MODE	0
+#define LPFC_DCBX_CEE_MODE	1
 #define lpfc_mbx_rd_rev_vpd_SHIFT		29
 #define lpfc_mbx_rd_rev_vpd_MASK		0x00000001
 #define lpfc_mbx_rd_rev_vpd_WORD		word1
