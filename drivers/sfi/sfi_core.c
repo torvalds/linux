@@ -129,7 +129,7 @@ static void sfi_print_table_header(unsigned long long pa,
  * sfi_verify_table()
  * Sanity check table lengh, calculate checksum
  */
-static __init int sfi_verify_table(struct sfi_table_header *table)
+static int sfi_verify_table(struct sfi_table_header *table)
 {
 
 	u8 checksum = 0;
