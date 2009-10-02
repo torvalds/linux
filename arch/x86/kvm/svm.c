@@ -1065,26 +1065,16 @@ static void update_db_intercept(struct kvm_vcpu *vcpu)
 		vcpu->guest_debug = 0;
 }
 
-static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
+static void svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 {
-	int old_debug = vcpu->guest_debug;
 	struct vcpu_svm *svm = to_svm(vcpu);
-
-	vcpu->guest_debug = dbg->control;
-
-	update_db_intercept(vcpu);
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
 		svm->vmcb->save.dr7 = dbg->arch.debugreg[7];
 	else
 		svm->vmcb->save.dr7 = vcpu->arch.dr7;
 
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		svm->vmcb->save.rflags |= X86_EFLAGS_TF | X86_EFLAGS_RF;
-	else if (old_debug & KVM_GUESTDBG_SINGLESTEP)
-		svm->vmcb->save.rflags &= ~(X86_EFLAGS_TF | X86_EFLAGS_RF);
-
-	return 0;
+	update_db_intercept(vcpu);
 }
 
 static void load_host_msrs(struct kvm_vcpu *vcpu)
