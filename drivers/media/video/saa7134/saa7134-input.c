@@ -697,7 +697,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 {
 	struct i2c_board_info info;
 	const unsigned short addr_list[] = {
-		0x7a, 0x47, 0x71, 0x2d,
+		0x47, 0x71, 0x2d,
 		I2C_CLIENT_END
 	};
 
@@ -737,6 +737,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "Purple TV";
 		dev->init_data.get_key = get_key_purpletv;
 		dev->init_data.ir_codes = &ir_codes_purpletv_table;
+		info.addr = 0x7a;
 		break;
 	case SAA7134_BOARD_MSI_TVATANYWHERE_PLUS:
 		dev->init_data.name = "MSI TV@nywhere Plus";
