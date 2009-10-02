@@ -37,6 +37,7 @@ ov519		041e:405f	Creative Live! VISTA VF0330
 ov519		041e:4060	Creative Live! VISTA VF0350
 ov519		041e:4061	Creative Live! VISTA VF0400
 ov519		041e:4064	Creative Live! VISTA VF0420
+ov519		041e:4067	Creative Live! Cam Video IM (VF0350)
 ov519		041e:4068	Creative Live! VISTA VF0470
 spca561		0458:7004	Genius VideoCAM Express V2
 sunplus		0458:7006	Genius Dsc 1.3 Smart
