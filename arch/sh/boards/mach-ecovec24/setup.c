@@ -39,6 +39,20 @@
  *  0x1800_0000  MFI              16bit
  */
 
+/* SWITCH
+ *------------------------------
+ * DS2[1] = FlashROM write protect  ON     : write protect
+ *                                  OFF    : No write protect
+ * DS2[2] = RMII / TS, SCIF         ON     : RMII
+ *                                  OFF    : TS, SCIF3
+ * DS2[3] = Camera / Video          ON     : Camera
+ *                                  OFF    : NTSC/PAL (IN)
+ * DS2[5] = NTSC_OUT Clock          ON     : On board OSC
+ *                                  OFF    : SH7724 DV_CLK
+ * DS2[6-7] = MMC / SD              ON-OFF : SD
+ *                                  OFF-ON : MMC
+ */
+
 /* Heartbeat */
 static unsigned char led_pos[] = { 0, 1, 2, 3 };
 static struct heartbeat_data heartbeat_data = {
