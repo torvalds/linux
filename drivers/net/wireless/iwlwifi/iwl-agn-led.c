@@ -38,15 +38,13 @@
 #include <asm/unaligned.h>
 
 #include "iwl-commands.h"
-#include "iwl-3945.h"
-#include "iwl-core.h"
 #include "iwl-dev.h"
-#include "iwl-3945-led.h"
-
+#include "iwl-core.h"
+#include "iwl-io.h"
+#include "iwl-agn-led.h"
 
 /* Send led command */
-static int iwl3945_send_led_cmd(struct iwl_priv *priv,
-				struct iwl_led_cmd *led_cmd)
+static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 {
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_LEDS_CMD,
@@ -55,37 +53,33 @@ static int iwl3945_send_led_cmd(struct iwl_priv *priv,
 		.flags = CMD_ASYNC,
 		.callback = NULL,
 	};
+	u32 reg;
+
+	reg = iwl_read32(priv, CSR_LED_REG);
+	if (reg != (reg & CSR_LED_BSM_CTRL_MSK))
+		iwl_write32(priv, CSR_LED_REG, reg & CSR_LED_BSM_CTRL_MSK);
 
 	return iwl_send_cmd(priv, &cmd);
 }
 
-/* Set led on command */
-static int iwl3945_led_on(struct iwl_priv *priv)
+/* Set led register off */
+static int iwl_led_on_reg(struct iwl_priv *priv)
 {
-	struct iwl_led_cmd led_cmd = {
-		.id = IWL_LED_LINK,
-		.on = IWL_LED_SOLID,
-		.off = 0,
-		.interval = IWL_DEF_LED_INTRVL
-	};
-	return iwl3945_send_led_cmd(priv, &led_cmd);
+	IWL_DEBUG_LED(priv, "led on\n");
+	iwl_write32(priv, CSR_LED_REG, CSR_LED_REG_TRUN_ON);
+	return 0;
 }
 
-/* Set led off command */
-static int iwl3945_led_off(struct iwl_priv *priv)
+/* Set led register off */
+static int iwl_led_off_reg(struct iwl_priv *priv)
 {
-	struct iwl_led_cmd led_cmd = {
-		.id = IWL_LED_LINK,
-		.on = 0,
-		.off = 0,
-		.interval = IWL_DEF_LED_INTRVL
-	};
-	IWL_DEBUG_LED(priv, "led off\n");
-	return iwl3945_send_led_cmd(priv, &led_cmd);
+	IWL_DEBUG_LED(priv, "LED Reg off\n");
+	iwl_write32(priv, CSR_LED_REG, CSR_LED_REG_TRUN_OFF);
+	return 0;
 }
 
-const struct iwl_led_ops iwl3945_led_ops = {
-	.cmd = iwl3945_send_led_cmd,
-	.on = iwl3945_led_on,
-	.off = iwl3945_led_off,
+const struct iwl_led_ops iwlagn_led_ops = {
+	.cmd = iwl_send_led_cmd,
+	.on = iwl_led_on_reg,
+	.off = iwl_led_off_reg,
 };

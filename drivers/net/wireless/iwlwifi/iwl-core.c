@@ -2384,6 +2384,8 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			priv->timestamp = bss_conf->timestamp;
 			priv->assoc_capability = bss_conf->assoc_capability;
 
+			iwl_led_associate(priv);
+
 			/*
 			 * We have just associated, don't start scan too early
 			 * leave time for EAPOL exchange to complete.
@@ -2394,9 +2396,10 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
 			if (!iwl_is_rfkill(priv))
 				priv->cfg->ops->lib->post_associate(priv);
-		} else
+		} else {
 			priv->assoc_id = 0;
-
+			iwl_led_disassociate(priv);
+		}
 	}
 
 	if (changes && iwl_is_associated(priv) && priv->assoc_id) {

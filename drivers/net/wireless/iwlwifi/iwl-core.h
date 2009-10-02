@@ -187,11 +187,18 @@ struct iwl_lib_ops {
 	struct iwl_temp_ops temp_ops;
 };
 
+struct iwl_led_ops {
+	int (*cmd)(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd);
+	int (*on)(struct iwl_priv *priv);
+	int (*off)(struct iwl_priv *priv);
+};
+
 struct iwl_ops {
 	const struct iwl_ucode_ops *ucode;
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
+	const struct iwl_led_ops *led;
 };
 
 struct iwl_mod_params {

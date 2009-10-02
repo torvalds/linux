@@ -44,6 +44,7 @@
 #include "iwl-helpers.h"
 #include "iwl-calib.h"
 #include "iwl-sta.h"
+#include "iwl-agn-led.h"
 
 static int iwl4965_send_tx_power(struct iwl_priv *priv);
 static int iwl4965_hw_get_temperature(struct iwl_priv *priv);
@@ -2341,6 +2342,7 @@ static struct iwl_ops iwl4965_ops = {
 	.lib = &iwl4965_lib,
 	.hcmd = &iwl4965_hcmd,
 	.utils = &iwl4965_hcmd_utils,
+	.led = &iwlagn_led_ops,
 };
 
 struct iwl_cfg iwl4965_agn_cfg = {

@@ -24,9 +24,9 @@
  *
  *****************************************************************************/
 
-#ifndef __iwl_3945_led_h__
-#define __iwl_3945_led_h__
+#ifndef __iwl_agn_led_h__
+#define __iwl_agn_led_h__
 
-extern const struct iwl_led_ops iwl3945_led_ops;
+extern const struct iwl_led_ops iwlagn_led_ops;
 
-#endif /* __iwl_3945_led_h__ */
+#endif /* __iwl_agn_led_h__ */

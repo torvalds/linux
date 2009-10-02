@@ -1801,7 +1801,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	/* At this point, the NIC is initialized and operational */
 	iwl_rf_kill_ct_config(priv);
 
-	iwl_leds_register(priv);
+	iwl_leds_init(priv);
 
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
 	set_bit(STATUS_READY, &priv->status);
@@ -1838,8 +1838,6 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	if (!exit_pending)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
-
-	iwl_leds_unregister(priv);
 
 	iwl_clear_stations_table(priv);
 
@@ -2338,6 +2336,8 @@ static int iwl_mac_start(struct ieee80211_hw *hw)
 			return -ETIMEDOUT;
 		}
 	}
+
+	iwl_led_start(priv);
 
 out:
 	priv->is_open = 1;
