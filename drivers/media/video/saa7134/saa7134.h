@@ -594,7 +594,6 @@ struct saa7134_dev {
 	unsigned int               insuspend;
 
 	/* I2C keyboard data */
-	struct i2c_board_info      info;
 	struct IR_i2c_init_data    init_data;
 
 	/* SAA7134_MPEG_* */

@@ -615,7 +615,6 @@ struct em28xx {
 	struct em28xx_dvb *dvb;
 
 	/* I2C keyboard data */
-	struct i2c_board_info info;
 	struct IR_i2c_init_data init_data;
 };
 

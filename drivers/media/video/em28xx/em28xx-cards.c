@@ -2234,6 +2234,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 /* ----------------------------------------------------------------------- */
 void em28xx_register_i2c_ir(struct em28xx *dev)
 {
+	struct i2c_board_info info;
 	const unsigned short addr_list[] = {
 		 0x30, 0x47, I2C_CLIENT_END
 	};
@@ -2241,9 +2242,9 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 	if (disable_ir)
 		return;
 
-	memset(&dev->info, 0, sizeof(&dev->info));
+	memset(&info, 0, sizeof(struct i2c_board_info));
 	memset(&dev->init_data, 0, sizeof(dev->init_data));
-	strlcpy(dev->info.type, "ir_video", I2C_NAME_SIZE);
+	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
 
 	/* detect & configure */
 	switch (dev->model) {
@@ -2266,8 +2267,8 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 	}
 
 	if (dev->init_data.name)
-		dev->info.platform_data = &dev->init_data;
-	i2c_new_probed_device(&dev->i2c_adap, &dev->info, addr_list);
+		info.platform_data = &dev->init_data;
+	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
 }
 
 void em28xx_card_setup(struct em28xx *dev)
