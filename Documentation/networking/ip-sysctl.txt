@@ -1086,6 +1086,24 @@ accept_dad - INTEGER
 	2: Enable DAD, and disable IPv6 operation if MAC-based duplicate
 	   link-local address has been found.
 
+force_tllao - BOOLEAN
+	Enable sending the target link-layer address option even when
+	responding to a unicast neighbor solicitation.
+	Default: FALSE
+
+	Quoting from RFC 2461, section 4.4, Target link-layer address:
+
+	"The option MUST be included for multicast solicitations in order to
+	avoid infinite Neighbor Solicitation "recursion" when the peer node
+	does not have a cache entry to return a Neighbor Advertisements
+	message.  When responding to unicast solicitations, the option can be
+	omitted since the sender of the solicitation has the correct link-
+	layer address; otherwise it would not have be able to send the unicast
+	solicitation in the first place. However, including the link-layer
+	address in this case adds little overhead and eliminates a potential
+	race condition where the sender deletes the cached link-layer address
+	prior to receiving a response to a previous solicitation."
+
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
