@@ -3874,6 +3874,7 @@ static struct b43_wldev * b43_wireless_core_stop(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
 	struct b43_wldev *orig_dev;
+	u32 mask;
 
 redo:
 	if (!dev || b43_status(dev) < B43_STAT_STARTED)
@@ -3920,7 +3921,8 @@ redo:
 			goto redo;
 		return dev;
 	}
-	B43_WARN_ON(b43_read32(dev, B43_MMIO_GEN_IRQ_MASK));
+	mask = b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);
+	B43_WARN_ON(mask != 0xFFFFFFFF && mask);
 
 	/* Drain the TX queue */
 	while (skb_queue_len(&wl->tx_queue))
