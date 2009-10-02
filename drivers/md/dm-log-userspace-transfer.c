@@ -133,6 +133,9 @@ static void cn_ulog_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
 	struct dm_ulog_request *tfr = (struct dm_ulog_request *)(msg + 1);
 
+	if (!cap_raised(nsp->eff_cap, CAP_SYS_ADMIN))
+		return;
+
 	spin_lock(&receiving_list_lock);
 	if (msg->len == 0)
 		fill_pkg(msg, NULL);
