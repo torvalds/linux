@@ -23,18 +23,11 @@ static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct mxc_nand_platform_data nand_board_info = {
-	.width = 1,
-	.hw_ecc = 1,
-};
-
 static void __init mx25pdk_init(void)
 {
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxc_usbh2, NULL);
-	mxc_register_device(&mxc_nand_device, &nand_board_info);
 }
-
 
 static void __init mx25pdk_timer_init(void)
 {
