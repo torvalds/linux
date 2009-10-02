@@ -299,7 +299,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct ir_scancode_table *ir_codes = NULL;
 	const char *name = NULL;
-	int ir_type;
+	int ir_type = 0;
 	struct IR_i2c *ir;
 	struct input_dev *input_dev;
 	struct i2c_adapter *adap = client->adapter;
@@ -353,10 +353,8 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_type     = IR_TYPE_RC5;
 		ir_codes    = &ir_codes_fusionhdtv_mce_table;
 		break;
-	case 0x7a:
 	case 0x47:
 	case 0x71:
-	case 0x2d:
 		if (adap->id == I2C_HW_B_CX2388x ||
 		    adap->id == I2C_HW_B_CX2341X) {
 			/* Handled by cx88-input */
@@ -381,10 +379,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_type     = IR_TYPE_OTHER;
 		ir_codes    = &ir_codes_avermedia_cardbus_table;
 		break;
-	default:
-		dprintk(1, DEVNAME ": Unsupported i2c address 0x%02x\n", addr);
-		err = -ENODEV;
-		goto err_out_free;
 	}
 
 	/* Let the caller override settings */
@@ -427,7 +421,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	/* Make sure we are all setup before going on */
-	if (!name || !ir->get_key || !ir_codes) {
+	if (!name || !ir->get_key || !ir_type || !ir_codes) {
 		dprintk(1, DEVNAME ": Unsupported device at address 0x%02x\n",
 			addr);
 		err = -ENODEV;
