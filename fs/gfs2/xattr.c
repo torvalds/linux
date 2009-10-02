@@ -1507,18 +1507,6 @@ static int gfs2_xattr_user_set(struct inode *inode, const char *name,
 	return gfs2_xattr_set(inode, GFS2_EATYPE_USR, name, value, size, flags);
 }
 
-static int gfs2_xattr_system_get(struct inode *inode, const char *name,
-				 void *buffer, size_t size)
-{
-	return gfs2_xattr_get(inode, GFS2_EATYPE_SYS, name, buffer, size);
-}
-
-static int gfs2_xattr_system_set(struct inode *inode, const char *name,
-				 const void *value, size_t size, int flags)
-{
-	return gfs2_xattr_set(inode, GFS2_EATYPE_SYS, name, value, size, flags);
-}
-
 static int gfs2_xattr_security_get(struct inode *inode, const char *name,
 				   void *buffer, size_t size)
 {
@@ -1541,12 +1529,6 @@ static struct xattr_handler gfs2_xattr_security_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.get    = gfs2_xattr_security_get,
 	.set    = gfs2_xattr_security_set,
-};
-
-static struct xattr_handler gfs2_xattr_system_handler = {
-	.prefix = XATTR_SYSTEM_PREFIX,
-	.get    = gfs2_xattr_system_get,
-	.set    = gfs2_xattr_system_set,
 };
 
 struct xattr_handler *gfs2_xattr_handlers[] = {
