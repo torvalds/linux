@@ -2212,7 +2212,7 @@ static void set_cur_queue_map(struct pktgen_dev *pkt_dev)
 	if (pkt_dev->flags & F_QUEUE_MAP_CPU)
 		pkt_dev->cur_queue_map = smp_processor_id();
 
-	else if (pkt_dev->queue_map_min < pkt_dev->queue_map_max) {
+	else if (pkt_dev->queue_map_min <= pkt_dev->queue_map_max) {
 		__u16 t;
 		if (pkt_dev->flags & F_QUEUE_MAP_RND) {
 			t = random32() %
