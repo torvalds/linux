@@ -83,8 +83,8 @@ void cn_queue_wrapper(struct work_struct *work)
 
 	d->callback(msg, nsp);
 
-	d->destruct_data(d->ddata);
-	d->ddata = NULL;
+	kfree_skb(d->skb);
+	d->skb = NULL;
 
 	kfree(d->free);
 }

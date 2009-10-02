@@ -129,7 +129,7 @@ EXPORT_SYMBOL_GPL(cn_netlink_send);
 /*
  * Callback helper - queues work and setup destructor for given data.
  */
-static int cn_call_callback(struct sk_buff *skb, void (*destruct_data)(void *), void *data)
+static int cn_call_callback(struct sk_buff *skb)
 {
 	struct cn_callback_entry *__cbq, *__new_cbq;
 	struct cn_dev *dev = &cdev;
@@ -140,11 +140,8 @@ static int cn_call_callback(struct sk_buff *skb, void (*destruct_data)(void *), 
 	list_for_each_entry(__cbq, &dev->cbdev->queue_list, callback_entry) {
 		if (cn_cb_equal(&__cbq->id.id, &msg->id)) {
 			if (likely(!work_pending(&__cbq->work) &&
-					__cbq->data.ddata == NULL)) {
+					__cbq->data.skb == NULL)) {
 				__cbq->data.skb = skb;
-
-				__cbq->data.ddata = data;
-				__cbq->data.destruct_data = destruct_data;
 
 				if (queue_cn_work(__cbq, &__cbq->work))
 					err = 0;
@@ -159,8 +156,6 @@ static int cn_call_callback(struct sk_buff *skb, void (*destruct_data)(void *), 
 					d = &__new_cbq->data;
 					d->skb = skb;
 					d->callback = __cbq->data.callback;
-					d->ddata = data;
-					d->destruct_data = destruct_data;
 					d->free = __new_cbq;
 
 					__new_cbq->pdev = __cbq->pdev;
@@ -208,7 +203,7 @@ static void cn_rx_skb(struct sk_buff *__skb)
 			return;
 		}
 
-		err = cn_call_callback(skb, (void (*)(void *))kfree_skb, skb);
+		err = cn_call_callback(skb);
 		if (err < 0)
 			kfree_skb(skb);
 	}

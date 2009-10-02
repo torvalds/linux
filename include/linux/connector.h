@@ -132,9 +132,6 @@ struct cn_callback_id {
 };
 
 struct cn_callback_data {
-	void (*destruct_data) (void *);
-	void *ddata;
-
 	struct sk_buff *skb;
 	void (*callback) (struct cn_msg *, struct netlink_skb_parms *);
 
