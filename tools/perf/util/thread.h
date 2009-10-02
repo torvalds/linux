@@ -8,6 +8,7 @@
 struct thread {
 	struct rb_node		rb_node;
 	struct rb_root		maps;
+	struct list_head	removed_maps;
 	pid_t			pid;
 	char			shortname[3];
 	char			*comm;
@@ -24,6 +25,9 @@ size_t threads__fprintf(FILE *fp, struct rb_root *threads);
 
 void maps__insert(struct rb_root *maps, struct map *map);
 struct map *maps__find(struct rb_root *maps, u64 ip);
+
+struct symbol *kernel_maps__find_symbol(const u64 ip, struct map **mapp);
+struct map *kernel_maps__find_by_dso_name(const char *name);
 
 static inline struct map *thread__find_map(struct thread *self, u64 ip)
 {

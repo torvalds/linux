@@ -3,6 +3,7 @@
 
 #include "../perf.h"
 #include "util.h"
+#include <linux/list.h>
 #include <linux/rbtree.h>
 
 enum {
@@ -79,7 +80,10 @@ typedef union event_union {
 } event_t;
 
 struct map {
-	struct rb_node		rb_node;
+	union {
+		struct rb_node	rb_node;
+		struct list_head node;
+	};
 	u64			start;
 	u64			end;
 	u64			pgoff;

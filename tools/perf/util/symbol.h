@@ -5,7 +5,6 @@
 #include "types.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
-#include "module.h"
 #include "event.h"
 
 #ifdef HAVE_CPLUS_DEMANGLE
@@ -36,10 +35,8 @@ struct symbol {
 	struct rb_node	rb_node;
 	u64		start;
 	u64		end;
-	u64		obj_start;
 	u64		hist_sum;
 	u64		*hist;
-	struct module	*module;
 	void		*priv;
 	char		name[0];
 };
@@ -52,12 +49,14 @@ struct dso {
 	unsigned char	 adjust_symbols;
 	unsigned char	 slen_calculated;
 	unsigned char	 origin;
+	const char	 *short_name;
+	char	 	 *long_name;
 	char		 name[0];
 };
 
 extern const char *sym_hist_filter;
 
-typedef int (*symbol_filter_t)(struct dso *self, struct symbol *sym);
+typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
 
 struct dso *dso__new(const char *name, unsigned int sym_priv_size);
 void dso__delete(struct dso *self);
@@ -69,10 +68,12 @@ static inline void *dso__sym_priv(struct dso *self, struct symbol *sym)
 
 struct symbol *dso__find_symbol(struct dso *self, u64 ip);
 
-int dso__load_kernel(struct dso *self, const char *vmlinux,
-		     symbol_filter_t filter, int verbose, int modules);
-int dso__load_modules(struct dso *self, symbol_filter_t filter, int verbose);
-int dso__load(struct dso *self, symbol_filter_t filter, int verbose);
+int dsos__load_kernel(const char *vmlinux, unsigned int sym_priv_size,
+		      symbol_filter_t filter, int verbose, int modules);
+int dsos__load_modules(unsigned int sym_priv_size, symbol_filter_t filter,
+		       int verbose);
+int dso__load(struct dso *self, struct map *map, symbol_filter_t filter,
+	      int verbose);
 struct dso *dsos__findnew(const char *name);
 void dsos__fprintf(FILE *fp);
 
@@ -84,9 +85,8 @@ int load_kernel(void);
 void symbol__init(void);
 
 extern struct list_head dsos;
-extern struct dso *kernel_dso;
+extern struct map *kernel_map;
 extern struct dso *vdso;
-extern struct dso *hypervisor_dso;
 extern const char *vmlinux_name;
 extern int   modules;
 #endif /* __PERF_SYMBOL */

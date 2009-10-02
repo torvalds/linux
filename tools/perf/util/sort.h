@@ -42,18 +42,15 @@ extern unsigned int threads__col_width;
 
 struct hist_entry {
 	struct rb_node		rb_node;
-
+	u64			count;
 	struct thread		*thread;
 	struct map		*map;
-	struct dso		*dso;
 	struct symbol		*sym;
-	struct symbol		*parent;
 	u64			ip;
 	char			level;
+	struct symbol		*parent;
 	struct callchain_node	callchain;
 	struct rb_root		sorted_chain;
-
-	u64			count;
 };
 
 /*

@@ -63,6 +63,7 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 		return;
 
 	sym_size = sym->end - sym->start;
+	ip = he->map->map_ip(he->map, ip);
 	offset = ip - sym->start;
 
 	if (offset >= sym_size)
@@ -80,7 +81,7 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 }
 
 static int
-hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
+hist_entry__add(struct thread *thread, struct map *map,
 		struct symbol *sym, u64 ip, char level)
 {
 	struct rb_node **p = &hist.rb_node;
@@ -89,7 +90,6 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	struct hist_entry entry = {
 		.thread	= thread,
 		.map	= map,
-		.dso	= dso,
 		.sym	= sym,
 		.ip	= ip,
 		.level	= level,
@@ -130,10 +130,10 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
 	int show = 0;
-	struct dso *dso = NULL;
 	struct thread *thread;
 	u64 ip = event->ip.ip;
 	struct map *map = NULL;
+	struct symbol *sym = NULL;
 
 	thread = threads__findnew(event->ip.pid, &threads, &last_match);
 
@@ -155,32 +155,35 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	if (event->header.misc & PERF_RECORD_MISC_KERNEL) {
 		show = SHOW_KERNEL;
 		level = 'k';
-
-		dso = kernel_dso;
-
-		dump_printf(" ...... dso: %s\n", dso->name);
-
+		sym = kernel_maps__find_symbol(ip, &map);
+		dump_printf(" ...... dso: %s\n",
+			    map ? map->dso->long_name : "<not found>");
 	} else if (event->header.misc & PERF_RECORD_MISC_USER) {
-
 		show = SHOW_USER;
 		level = '.';
-
 		map = thread__find_map(thread, ip);
 		if (map != NULL) {
+got_map:
 			ip = map->map_ip(map, ip);
-			dso = map->dso;
+			sym = map->dso->find_symbol(map->dso, ip);
 		} else {
 			/*
 			 * If this is outside of all known maps,
 			 * and is a negative address, try to look it
 			 * up in the kernel dso, as it might be a
-			 * vsyscall (which executes in user-mode):
+			 * vsyscall or vdso (which executes in user-mode).
+			 *
+			 * XXX This is nasty, we should have a symbol list in
+			 * the "[vdso]" dso, but for now lets use the old
+			 * trick of looking in the whole kernel symbol list.
 			 */
-			if ((long long)ip < 0)
-				dso = kernel_dso;
+			if ((long long)ip < 0) {
+				map = kernel_map;
+				goto got_map;
+			}
 		}
-		dump_printf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
-
+		dump_printf(" ...... dso: %s\n",
+			    map ? map->dso->long_name : "<not found>");
 	} else {
 		show = SHOW_HV;
 		level = 'H';
@@ -188,12 +191,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	}
 
 	if (show & show_mask) {
-		struct symbol *sym = NULL;
-
-		if (dso)
-			sym = dso->find_symbol(dso, ip);
-
-		if (hist_entry__add(thread, map, dso, sym, ip, level)) {
+		if (hist_entry__add(thread, map, sym, ip, level)) {
 			fprintf(stderr,
 		"problem incrementing symbol count, skipping event\n");
 			return -1;
@@ -313,7 +311,7 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
+parse_line(FILE *file, struct symbol *sym, u64 len)
 {
 	char *line = NULL, *tmp, *tmp2;
 	static const char *prev_line;
@@ -363,7 +361,7 @@ parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
 		const char *color;
 		struct sym_ext *sym_ext = sym->priv;
 
-		offset = line_ip - start;
+		offset = line_ip - sym->start;
 		if (offset < len)
 			hits = sym->hist[offset];
 
@@ -442,7 +440,7 @@ static void free_source_line(struct symbol *sym, int len)
 
 /* Get the filename:line for the colored entries */
 static void
-get_source_line(struct symbol *sym, u64 start, int len, const char *filename)
+get_source_line(struct symbol *sym, int len, const char *filename)
 {
 	int i;
 	char cmd[PATH_MAX * 2];
@@ -467,7 +465,7 @@ get_source_line(struct symbol *sym, u64 start, int len, const char *filename)
 		if (sym_ext[i].percent <= 0.5)
 			continue;
 
-		offset = start + i;
+		offset = sym->start + i;
 		sprintf(cmd, "addr2line -e %s %016llx", filename, offset);
 		fp = popen(cmd, "r");
 		if (!fp)
@@ -519,31 +517,23 @@ static void print_summary(const char *filename)
 
 static void annotate_sym(struct dso *dso, struct symbol *sym)
 {
-	const char *filename = dso->name, *d_filename;
-	u64 start, end, len;
+	const char *filename = dso->long_name, *d_filename;
+	u64 len;
 	char command[PATH_MAX*2];
 	FILE *file;
 
 	if (!filename)
 		return;
-	if (sym->module)
-		filename = sym->module->path;
-	else if (dso == kernel_dso)
-		filename = vmlinux_name;
 
-	start = sym->obj_start;
-	if (!start)
-		start = sym->start;
 	if (full_paths)
 		d_filename = filename;
 	else
 		d_filename = basename(filename);
 
-	end = start + sym->end - sym->start + 1;
 	len = sym->end - sym->start;
 
 	if (print_line) {
-		get_source_line(sym, start, len, filename);
+		get_source_line(sym, len, filename);
 		print_summary(filename);
 	}
 
@@ -552,10 +542,11 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 	printf("------------------------------------------------\n");
 
 	if (verbose >= 2)
-		printf("annotating [%p] %30s : [%p] %30s\n", dso, dso->name, sym, sym->name);
+		printf("annotating [%p] %30s : [%p] %30s\n",
+		       dso, dso->long_name, sym, sym->name);
 
 	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s|grep -v %s",
-			(u64)start, (u64)end, filename, filename);
+		sym->start, sym->end, filename, filename);
 
 	if (verbose >= 3)
 		printf("doing: %s\n", command);
@@ -565,7 +556,7 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 		return;
 
 	while (!feof(file)) {
-		if (parse_line(file, sym, start, len) < 0)
+		if (parse_line(file, sym, len) < 0)
 			break;
 	}
 

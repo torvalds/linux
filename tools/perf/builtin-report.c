@@ -349,21 +349,16 @@ static int thread__set_comm_adjust(struct thread *self, const char *comm)
 
 
 static struct symbol *
-resolve_symbol(struct thread *thread, struct map **mapp,
-	       struct dso **dsop, u64 *ipp)
+resolve_symbol(struct thread *thread, struct map **mapp, u64 *ipp)
 {
-	struct dso *dso = dsop ? *dsop : NULL;
 	struct map *map = mapp ? *mapp : NULL;
 	u64 ip = *ipp;
 
-	if (!thread)
-		return NULL;
-
-	if (dso)
-		goto got_dso;
-
 	if (map)
 		goto got_map;
+
+	if (!thread)
+		return NULL;
 
 	map = thread__find_map(thread, ip);
 	if (map != NULL) {
@@ -379,29 +374,29 @@ resolve_symbol(struct thread *thread, struct map **mapp,
 			*mapp = map;
 got_map:
 		ip = map->map_ip(map, ip);
-
-		dso = map->dso;
 	} else {
 		/*
 		 * If this is outside of all known maps,
 		 * and is a negative address, try to look it
 		 * up in the kernel dso, as it might be a
-		 * vsyscall (which executes in user-mode):
+		 * vsyscall or vdso (which executes in user-mode).
+		 *
+		 * XXX This is nasty, we should have a symbol list in
+		 * the "[vdso]" dso, but for now lets use the old
+		 * trick of looking in the whole kernel symbol list.
 		 */
-		if ((long long)ip < 0)
-		dso = kernel_dso;
+		if ((long long)ip < 0) {
+			map = kernel_map;
+			if (mapp)
+				*mapp = map;
+		}
 	}
-	dump_printf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
+	dump_printf(" ...... dso: %s\n",
+		    map ? map->dso->long_name : "<not found>");
 	dump_printf(" ...... map: %Lx -> %Lx\n", *ipp, ip);
 	*ipp  = ip;
 
-	if (dsop)
-		*dsop = dso;
-
-	if (!dso)
-		return NULL;
-got_dso:
-	return dso->find_symbol(dso, ip);
+	return map ? map->dso->find_symbol(map->dso, ip) : NULL;
 }
 
 static int call__match(struct symbol *sym)
@@ -413,7 +408,7 @@ static int call__match(struct symbol *sym)
 }
 
 static struct symbol **
-resolve_callchain(struct thread *thread, struct map *map __used,
+resolve_callchain(struct thread *thread, struct map *map,
 		    struct ip_callchain *chain, struct hist_entry *entry)
 {
 	u64 context = PERF_CONTEXT_MAX;
@@ -430,8 +425,7 @@ resolve_callchain(struct thread *thread, struct map *map __used,
 
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip = chain->ips[i];
-		struct dso *dso = NULL;
-		struct symbol *sym;
+		struct symbol *sym = NULL;
 
 		if (ip >= PERF_CONTEXT_MAX) {
 			context = ip;
@@ -440,16 +434,14 @@ resolve_callchain(struct thread *thread, struct map *map __used,
 
 		switch (context) {
 		case PERF_CONTEXT_HV:
-			dso = hypervisor_dso;
 			break;
 		case PERF_CONTEXT_KERNEL:
-			dso = kernel_dso;
+			sym = kernel_maps__find_symbol(ip, &map);
 			break;
 		default:
+			sym = resolve_symbol(thread, &map, &ip);
 			break;
 		}
-
-		sym = resolve_symbol(thread, NULL, &dso, &ip);
 
 		if (sym) {
 			if (sort__has_parent && call__match(sym) &&
@@ -469,7 +461,7 @@ resolve_callchain(struct thread *thread, struct map *map __used,
  */
 
 static int
-hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
+hist_entry__add(struct thread *thread, struct map *map,
 		struct symbol *sym, u64 ip, struct ip_callchain *chain,
 		char level, u64 count)
 {
@@ -480,7 +472,6 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	struct hist_entry entry = {
 		.thread	= thread,
 		.map	= map,
-		.dso	= dso,
 		.sym	= sym,
 		.ip	= ip,
 		.level	= level,
@@ -641,7 +632,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
 	int show = 0;
-	struct dso *dso = NULL;
+	struct symbol *sym = NULL;
 	struct thread *thread;
 	u64 ip = event->ip.ip;
 	u64 period = 1;
@@ -700,35 +691,35 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		show = SHOW_KERNEL;
 		level = 'k';
 
-		dso = kernel_dso;
-
-		dump_printf(" ...... dso: %s\n", dso->name);
-
+		sym = kernel_maps__find_symbol(ip, &map);
+		dump_printf(" ...... dso: %s\n",
+			    map ? map->dso->long_name : "<not found>");
 	} else if (cpumode == PERF_RECORD_MISC_USER) {
 
 		show = SHOW_USER;
 		level = '.';
+		sym = resolve_symbol(thread, &map, &ip);
 
 	} else {
 		show = SHOW_HV;
 		level = 'H';
 
-		dso = hypervisor_dso;
-
 		dump_printf(" ...... dso: [hypervisor]\n");
 	}
 
 	if (show & show_mask) {
-		struct symbol *sym = resolve_symbol(thread, &map, &dso, &ip);
-
-		if (dso_list && (!dso || !dso->name ||
-				 !strlist__has_entry(dso_list, dso->name)))
+		if (dso_list &&
+		    (!map || !map->dso ||
+		     !(strlist__has_entry(dso_list, map->dso->short_name) ||
+		       (map->dso->short_name != map->dso->long_name &&
+			strlist__has_entry(dso_list, map->dso->long_name)))))
 			return 0;
 
-		if (sym_list && (!sym || !strlist__has_entry(sym_list, sym->name)))
+		if (sym_list && sym && !strlist__has_entry(sym_list, sym->name))
 			return 0;
 
-		if (hist_entry__add(thread, map, dso, sym, ip, chain, level, period)) {
+		if (hist_entry__add(thread, map, sym, ip,
+				    chain, level, period)) {
 			eprintf("problem incrementing symbol count, skipping event\n");
 			return -1;
 		}

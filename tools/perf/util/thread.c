@@ -16,6 +16,7 @@ static struct thread *thread__new(pid_t pid)
 		if (self->comm)
 			snprintf(self->comm, 32, ":%d", self->pid);
 		self->maps = RB_ROOT;
+		INIT_LIST_HEAD(&self->removed_maps);
 	}
 
 	return self;
@@ -32,12 +33,19 @@ int thread__set_comm(struct thread *self, const char *comm)
 static size_t thread__fprintf(struct thread *self, FILE *fp)
 {
 	struct rb_node *nd;
-	size_t ret = fprintf(fp, "Thread %d %s\n", self->pid, self->comm);
+	struct map *pos;
+	size_t ret = fprintf(fp, "Thread %d %s\nCurrent maps:\n",
+			     self->pid, self->comm);
 
 	for (nd = rb_first(&self->maps); nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node);
+		pos = rb_entry(nd, struct map, rb_node);
 		ret += map__fprintf(pos, fp);
 	}
+
+	ret = fprintf(fp, "Removed maps:\n");
+
+	list_for_each_entry(pos, &self->removed_maps, node)
+		ret += map__fprintf(pos, fp);
 
 	return ret;
 }
@@ -112,21 +120,13 @@ static void thread__remove_overlappings(struct thread *self, struct map *map)
 			map__fprintf(pos, stdout);
 		}
 
-		if (map->start <= pos->start && map->end > pos->start)
-			pos->start = map->end;
-
-		if (map->end >= pos->end && map->start < pos->end)
-			pos->end = map->start;
-
-		if (verbose >= 2) {
-			printf("after collision:\n");
-			map__fprintf(pos, stdout);
-		}
-
-		if (pos->start >= pos->end) {
-			rb_erase(&pos->rb_node, &self->maps);
-			free(pos);
-		}
+		rb_erase(&pos->rb_node, &self->maps);
+		/*
+		 * We may have references to this map, for instance in some
+		 * hist_entry instances, so just move them to a separate
+		 * list.
+		 */
+		list_add_tail(&pos->node, &self->removed_maps);
 	}
 }
 

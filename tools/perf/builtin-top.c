@@ -22,6 +22,7 @@
 
 #include "util/symbol.h"
 #include "util/color.h"
+#include "util/thread.h"
 #include "util/util.h"
 #include <linux/rbtree.h>
 #include "util/parse-options.h"
@@ -103,6 +104,7 @@ struct sym_entry {
 	unsigned long		snap_count;
 	double			weight;
 	int			skip;
+	struct map		*map;
 	struct source_line	*source;
 	struct source_line	*lines;
 	struct source_line	**lines_tail;
@@ -116,12 +118,11 @@ struct sym_entry {
 static void parse_source(struct sym_entry *syme)
 {
 	struct symbol *sym;
-	struct module *module;
-	struct section *section = NULL;
+	struct map *map;
 	FILE *file;
 	char command[PATH_MAX*2];
-	const char *path = vmlinux_name;
-	u64 start, end, len;
+	const char *path;
+	u64 len;
 
 	if (!syme)
 		return;
@@ -132,27 +133,15 @@ static void parse_source(struct sym_entry *syme)
 	}
 
 	sym = (struct symbol *)(syme + 1);
-	module = sym->module;
+	map = syme->map;
+	path = map->dso->long_name;
 
-	if (module)
-		path = module->path;
-	if (!path)
-		return;
-
-	start = sym->obj_start;
-	if (!start)
-		start = sym->start;
-
-	if (module) {
-		section = module->sections->find_section(module->sections, ".text");
-		if (section)
-			start -= section->vma;
-	}
-
-	end = start + sym->end - sym->start + 1;
 	len = sym->end - sym->start;
 
-	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s", start, end, path);
+	sprintf(command,
+		"objdump --start-address=0x%016Lx "
+			 "--stop-address=0x%016Lx -dS %s",
+		sym->start, sym->end, path);
 
 	file = popen(command, "r");
 	if (!file)
@@ -184,13 +173,11 @@ static void parse_source(struct sym_entry *syme)
 
 		if (strlen(src->line)>8 && src->line[8] == ':') {
 			src->eip = strtoull(src->line, NULL, 16);
-			if (section)
-				src->eip += section->vma;
+			src->eip += map->start;
 		}
 		if (strlen(src->line)>8 && src->line[16] == ':') {
 			src->eip = strtoull(src->line, NULL, 16);
-			if (section)
-				src->eip += section->vma;
+			src->eip += map->start;
 		}
 	}
 	pclose(file);
@@ -242,15 +229,8 @@ static void lookup_sym_source(struct sym_entry *syme)
 	struct symbol *symbol = (struct symbol *)(syme + 1);
 	struct source_line *line;
 	char pattern[PATH_MAX];
-	char *idx;
 
 	sprintf(pattern, "<%s>:", symbol->name);
-
-	if (symbol->module) {
-		idx = strstr(pattern, "\t");
-		if (idx)
-			*idx = 0;
-	}
 
 	pthread_mutex_lock(&syme->source_lock);
 	for (line = syme->lines; line; line = line->next) {
@@ -513,8 +493,8 @@ static void print_sym_table(void)
 		if (verbose)
 			printf(" - %016llx", sym->start);
 		printf(" : %s", sym->name);
-		if (sym->module)
-			printf("\t[%s]", sym->module->name);
+		if (syme->map->dso->name[0] == '[')
+			printf(" \t%s", syme->map->dso->name);
 		printf("\n");
 	}
 }
@@ -784,7 +764,7 @@ static const char *skip_symbols[] = {
 	NULL
 };
 
-static int symbol_filter(struct dso *self, struct symbol *sym)
+static int symbol_filter(struct map *map, struct symbol *sym)
 {
 	struct sym_entry *syme;
 	const char *name = sym->name;
@@ -806,7 +786,8 @@ static int symbol_filter(struct dso *self, struct symbol *sym)
 	    strstr(name, "_text_end"))
 		return 1;
 
-	syme = dso__sym_priv(self, sym);
+	syme = dso__sym_priv(map->dso, sym);
+	syme->map = map;
 	pthread_mutex_init(&syme->source_lock, NULL);
 	if (!sym_filter_entry && sym_filter && !strcmp(name, sym_filter))
 		sym_filter_entry = syme;
@@ -825,22 +806,14 @@ static int parse_symbols(void)
 {
 	int use_modules = vmlinux_name ? 1 : 0;
 
-	kernel_dso = dso__new("[kernel]", sizeof(struct sym_entry));
-	if (kernel_dso == NULL)
+	if (dsos__load_kernel(vmlinux_name, sizeof(struct sym_entry),
+			      symbol_filter, verbose, use_modules) <= 0)
 		return -1;
 
-	if (dso__load_kernel(kernel_dso, vmlinux_name, symbol_filter, verbose, use_modules) <= 0)
-		goto out_delete_dso;
-
 	if (dump_symtab)
-		dso__fprintf(kernel_dso, stderr);
+		dsos__fprintf(stderr);
 
 	return 0;
-
-out_delete_dso:
-	dso__delete(kernel_dso);
-	kernel_dso = NULL;
-	return -1;
 }
 
 /*
@@ -848,10 +821,11 @@ out_delete_dso:
  */
 static void record_ip(u64 ip, int counter)
 {
-	struct symbol *sym = dso__find_symbol(kernel_dso, ip);
+	struct map *map;
+	struct symbol *sym = kernel_maps__find_symbol(ip, &map);
 
 	if (sym != NULL) {
-		struct sym_entry *syme = dso__sym_priv(kernel_dso, sym);
+		struct sym_entry *syme = dso__sym_priv(map->dso, sym);
 
 		if (!syme->skip) {
 			syme->count[counter]++;

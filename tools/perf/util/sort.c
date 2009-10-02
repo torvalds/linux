@@ -129,20 +129,32 @@ sort__comm_print(FILE *fp, struct hist_entry *self, unsigned int width)
 int64_t
 sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	struct dso *dso_l = left->dso;
-	struct dso *dso_r = right->dso;
+	struct dso *dso_l = left->map ? left->map->dso : NULL;
+	struct dso *dso_r = right->map ? right->map->dso : NULL;
+	const char *dso_name_l, *dso_name_r;
 
 	if (!dso_l || !dso_r)
 		return cmp_null(dso_l, dso_r);
 
-	return strcmp(dso_l->name, dso_r->name);
+	if (verbose) {
+		dso_name_l = dso_l->long_name;
+		dso_name_r = dso_r->long_name;
+	} else {
+		dso_name_l = dso_l->short_name;
+		dso_name_r = dso_r->short_name;
+	}
+
+	return strcmp(dso_name_l, dso_name_r);
 }
 
 size_t
 sort__dso_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	if (self->dso)
-		return repsep_fprintf(fp, "%-*s", width, self->dso->name);
+	if (self->map && self->map->dso) {
+		const char *dso_name = !verbose ? self->map->dso->short_name :
+						  self->map->dso->long_name;
+		return repsep_fprintf(fp, "%-*s", width, dso_name);
+	}
 
 	return repsep_fprintf(fp, "%*llx", width, (u64)self->ip);
 }
@@ -169,20 +181,16 @@ sort__sym_print(FILE *fp, struct hist_entry *self, unsigned int width __used)
 {
 	size_t ret = 0;
 
-	if (verbose)
-		ret += repsep_fprintf(fp, "%#018llx %c ", (u64)self->ip,
-				      dso__symtab_origin(self->dso));
+	if (verbose) {
+		char o = self->map ? dso__symtab_origin(self->map->dso) : '!';
+		ret += repsep_fprintf(fp, "%#018llx %c ", (u64)self->ip, o);
+	}
 
 	ret += repsep_fprintf(fp, "[%c] ", self->level);
-	if (self->sym) {
+	if (self->sym)
 		ret += repsep_fprintf(fp, "%s", self->sym->name);
-
-		if (self->sym->module)
-			ret += repsep_fprintf(fp, "\t[%s]",
-					     self->sym->module->name);
-	} else {
+	else
 		ret += repsep_fprintf(fp, "%#016llx", (u64)self->ip);
-	}
 
 	return ret;
 }
