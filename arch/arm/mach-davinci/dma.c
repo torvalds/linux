@@ -18,22 +18,13 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/compiler.h>
 #include <linux/io.h>
 
-#include <mach/cputype.h>
-#include <mach/memory.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
 #include <mach/edma.h>
-#include <mach/mux.h>
-
 
 /* Offsets matching "struct edmacc_param" */
 #define PARM_OPT		0x00

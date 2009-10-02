@@ -8,29 +8,22 @@
  * warranty of any kind, whether express or implied.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 #include <linux/i2c.h>
-#include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
 
-#include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
-#include <mach/hardware.h>
 #include <mach/dm355.h>
-#include <mach/psc.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>

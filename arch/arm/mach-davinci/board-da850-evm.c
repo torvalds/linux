@@ -12,7 +12,6 @@
  * or implied.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/i2c.h>
@@ -29,8 +28,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
 #include <mach/nand.h>

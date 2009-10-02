@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 
-#include <mach/hardware.h>
 #include <mach/mux.h>
 #include <mach/common.h>
 

@@ -9,45 +9,33 @@
  * or implied.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/leds.h>
-#include <linux/memory.h>
-
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/i2c/at24.h>
-#include <linux/etherdevice.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
-#include <linux/io.h>
 #include <linux/phy.h>
 #include <linux/clk.h>
 #include <linux/videodev2.h>
 
 #include <media/tvp514x.h>
 
-#include <asm/setup.h>
 #include <asm/mach-types.h>
-
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
 #include <mach/dm644x.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/mux.h>
-#include <mach/psc.h>
 #include <mach/nand.h>
 #include <mach/mmc.h>
-#include <mach/emac.h>
 
 #define DM644X_EVM_PHY_MASK		(0x2)
 #define DM644X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */

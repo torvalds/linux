@@ -9,14 +9,10 @@
  * (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
-
-#include <asm/mach/map.h>
 
 #include <mach/hardware.h>
 #include <mach/i2c.h>

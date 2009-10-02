@@ -12,7 +12,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/serial_8250.h>
@@ -23,7 +22,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/dm365.h>
-#include <mach/clock.h>
 #include <mach/cputype.h>
 #include <mach/edma.h>
 #include <mach/psc.h>

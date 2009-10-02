@@ -13,9 +13,8 @@
  * GNU General Public License for more details.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/clk.h>
@@ -24,20 +23,17 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
-#include <asm/setup.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
+
 #include <mach/mux.h>
-#include <mach/hardware.h>
 #include <mach/dm365.h>
-#include <mach/psc.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/mmc.h>
 #include <mach/nand.h>
-
 
 static inline int have_imager(void)
 {

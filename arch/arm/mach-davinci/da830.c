@@ -8,22 +8,17 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
-#include <linux/platform_device.h>
 
 #include <asm/mach/map.h>
 
-#include <mach/clock.h>
 #include <mach/psc.h>
-#include <mach/mux.h>
 #include <mach/irqs.h>
 #include <mach/cputype.h>
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
-#include <mach/asp.h>
 
 #include "clock.h"
 #include "mux.h"

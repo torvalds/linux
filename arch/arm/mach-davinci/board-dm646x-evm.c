@@ -17,38 +17,23 @@
  **************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/major.h>
-#include <linux/root_dev.h>
-#include <linux/dma-mapping.h>
-#include <linux/serial.h>
-#include <linux/serial_8250.h>
 #include <linux/leds.h>
 #include <linux/gpio.h>
-#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/i2c/pcf857x.h>
-#include <linux/etherdevice.h>
 
 #include <media/tvp514x.h>
 
-#include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
 #include <mach/dm646x.h>
 #include <mach/common.h>
-#include <mach/psc.h>
 #include <mach/serial.h>
 #include <mach/i2c.h>
-#include <mach/mmc.h>
-#include <mach/emac.h>
 
 #if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
     defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)

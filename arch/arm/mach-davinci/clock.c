@@ -17,7 +17,6 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 
