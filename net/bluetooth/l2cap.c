@@ -1698,7 +1698,7 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	return bt_sock_recvmsg(iocb, sock, msg, len, flags);
 }
 
-static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __user *optval, int optlen)
+static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct l2cap_options opts;
@@ -1755,7 +1755,7 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 	return err;
 }
 
-static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen)
+static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct bt_security sec;

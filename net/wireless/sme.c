@@ -762,9 +762,8 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		wdev->conn->params.ssid = wdev->ssid;
 		wdev->conn->params.ssid_len = connect->ssid_len;
 
-		/* don't care about result -- but fill bssid & channel */
-		if (!wdev->conn->params.bssid || !wdev->conn->params.channel)
-			bss = cfg80211_get_conn_bss(wdev);
+		/* see if we have the bss already */
+		bss = cfg80211_get_conn_bss(wdev);
 
 		wdev->sme_state = CFG80211_SME_CONNECTING;
 		wdev->connect_keys = connkeys;

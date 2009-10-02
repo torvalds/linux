@@ -624,7 +624,7 @@ struct proto {
 	void			(*shutdown)(struct sock *sk, int how);
 	int			(*setsockopt)(struct sock *sk, int level, 
 					int optname, char __user *optval,
-					int optlen);
+					unsigned int optlen);
 	int			(*getsockopt)(struct sock *sk, int level, 
 					int optname, char __user *optval, 
 					int __user *option);  	 
@@ -632,7 +632,7 @@ struct proto {
 	int			(*compat_setsockopt)(struct sock *sk,
 					int level,
 					int optname, char __user *optval,
-					int optlen);
+					unsigned int optlen);
 	int			(*compat_getsockopt)(struct sock *sk,
 					int level,
 					int optname, char __user *optval,
@@ -951,7 +951,7 @@ extern void			sock_rfree(struct sk_buff *skb);
 
 extern int			sock_setsockopt(struct socket *sock, int level,
 						int op, char __user *optval,
-						int optlen);
+						unsigned int optlen);
 
 extern int			sock_getsockopt(struct socket *sock, int level,
 						int op, char __user *optval, 
@@ -993,7 +993,7 @@ extern int                      sock_no_shutdown(struct socket *, int);
 extern int			sock_no_getsockopt(struct socket *, int , int,
 						   char __user *, int __user *);
 extern int			sock_no_setsockopt(struct socket *, int, int,
-						   char __user *, int);
+						   char __user *, unsigned int);
 extern int                      sock_no_sendmsg(struct kiocb *, struct socket *,
 						struct msghdr *, size_t);
 extern int                      sock_no_recvmsg(struct kiocb *, struct socket *,
@@ -1015,11 +1015,11 @@ extern int sock_common_getsockopt(struct socket *sock, int level, int optname,
 extern int sock_common_recvmsg(struct kiocb *iocb, struct socket *sock,
 			       struct msghdr *msg, size_t size, int flags);
 extern int sock_common_setsockopt(struct socket *sock, int level, int optname,
-				  char __user *optval, int optlen);
+				  char __user *optval, unsigned int optlen);
 extern int compat_sock_common_getsockopt(struct socket *sock, int level,
 		int optname, char __user *optval, int __user *optlen);
 extern int compat_sock_common_setsockopt(struct socket *sock, int level,
-		int optname, char __user *optval, int optlen);
+		int optname, char __user *optval, unsigned int optlen);
 
 extern void sk_common_release(struct sock *sk);
 

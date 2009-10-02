@@ -28,7 +28,6 @@
 #include "drmP.h"
 #include "radeon_reg.h"
 #include "radeon.h"
-#include "avivod.h"
 
 #include "rs600_reg_safe.h"
 
@@ -45,7 +44,6 @@ void r420_pipes_init(struct radeon_device *rdev);
  */
 void rs600_gpu_init(struct radeon_device *rdev);
 int rs600_mc_wait_for_idle(struct radeon_device *rdev);
-void rs600_disable_vga(struct radeon_device *rdev);
 
 
 /*
@@ -198,7 +196,7 @@ void rs600_mc_disable_clients(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 
-	radeon_avivo_vga_render_disable(rdev);
+	rv515_vga_render_disable(rdev);
 
 	tmp = RREG32(AVIVO_D1VGA_CONTROL);
 	WREG32(AVIVO_D1VGA_CONTROL, tmp & ~AVIVO_DVGA_CONTROL_MODE_ENABLE);
@@ -346,20 +344,6 @@ u32 rs600_get_vblank_counter(struct radeon_device *rdev, int crtc)
 /*
  * Global GPU functions
  */
-void rs600_disable_vga(struct radeon_device *rdev)
-{
-	unsigned tmp;
-
-	WREG32(0x330, 0);
-	WREG32(0x338, 0);
-	tmp = RREG32(0x300);
-	tmp &= ~(3 << 16);
-	WREG32(0x300, tmp);
-	WREG32(0x308, (1 << 8));
-	WREG32(0x310, rdev->mc.vram_location);
-	WREG32(0x594, 0);
-}
-
 int rs600_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
@@ -385,7 +369,7 @@ void rs600_gpu_init(struct radeon_device *rdev)
 {
 	/* FIXME: HDP same place on rs600 ? */
 	r100_hdp_reset(rdev);
-	rs600_disable_vga(rdev);
+	rv515_vga_render_disable(rdev);
 	/* FIXME: is this correct ? */
 	r420_pipes_init(rdev);
 	if (rs600_mc_wait_for_idle(rdev)) {

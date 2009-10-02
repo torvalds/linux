@@ -363,7 +363,7 @@ static int at91_cf_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct at91_cf_socket	*cf = platform_get_drvdata(pdev);
 	struct at91_cf_data	*board = cf->board;
 
-	pcmcia_socket_dev_suspend(&pdev->dev, mesg);
+	pcmcia_socket_dev_suspend(&pdev->dev);
 	if (device_may_wakeup(&pdev->dev)) {
 		enable_irq_wake(board->det_pin);
 		if (board->irq_pin)

@@ -134,7 +134,7 @@ static int pzl_open(struct inode *inode, struct file *file)
 	return single_open(file, pzl_print, inode->i_private);
 }
 
-static struct file_operations di_fops = {
+static const struct file_operations di_fops = {
 	.open    = di_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -142,7 +142,7 @@ static struct file_operations di_fops = {
 	.owner   = THIS_MODULE,
 };
 
-static struct file_operations asl_fops = {
+static const struct file_operations asl_fops = {
 	.open    = asl_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -150,7 +150,7 @@ static struct file_operations asl_fops = {
 	.owner   = THIS_MODULE,
 };
 
-static struct file_operations pzl_fops = {
+static const struct file_operations pzl_fops = {
 	.open    = pzl_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

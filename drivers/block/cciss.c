@@ -426,7 +426,7 @@ out:
 	return err;
 }
 
-static struct file_operations cciss_proc_fops = {
+static const struct file_operations cciss_proc_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = cciss_seq_open,
 	.read    = seq_read,

@@ -232,10 +232,8 @@ static int ec_poll(struct acpi_ec *ec)
 			}
 			advance_transaction(ec, acpi_ec_read_status(ec));
 		} while (time_before(jiffies, delay));
-		if (!ec->curr->irq_count ||
-		    (acpi_ec_read_status(ec) & ACPI_EC_FLAG_IBF))
+		if (acpi_ec_read_status(ec) & ACPI_EC_FLAG_IBF)
 			break;
-		/* try restart command if we get any false interrupts */
 		pr_debug(PREFIX "controller reset, restart transaction\n");
 		spin_lock_irqsave(&ec->curr_lock, flags);
 		start_transaction(ec);
