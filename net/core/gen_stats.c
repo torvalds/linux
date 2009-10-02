@@ -127,6 +127,7 @@ gnet_stats_copy_basic(struct gnet_dump *d, struct gnet_stats_basic_packed *b)
 /**
  * gnet_stats_copy_rate_est - copy rate estimator statistics into statistics TLV
  * @d: dumping handle
+ * @b: basic statistics
  * @r: rate estimator statistics
  *
  * Appends the rate estimator statistics to the top level TLV created by
@@ -136,8 +137,13 @@ gnet_stats_copy_basic(struct gnet_dump *d, struct gnet_stats_basic_packed *b)
  * if the room in the socket buffer was not sufficient.
  */
 int
-gnet_stats_copy_rate_est(struct gnet_dump *d, struct gnet_stats_rate_est *r)
+gnet_stats_copy_rate_est(struct gnet_dump *d,
+			 const struct gnet_stats_basic_packed *b,
+			 struct gnet_stats_rate_est *r)
 {
+	if (b && !gen_estimator_active(b, r))
+		return 0;
+
 	if (d->compat_tc_stats) {
 		d->tc_stats.bps = r->bps;
 		d->tc_stats.pps = r->pps;
