@@ -143,17 +143,30 @@ static void *per_cpu_node_setup(void *cpu_data, int node)
 	int cpu;
 
 	for_each_possible_early_cpu(cpu) {
-		if (cpu == 0) {
-			void *cpu0_data = __cpu0_per_cpu;
-			__per_cpu_offset[cpu] = (char*)cpu0_data -
-				__per_cpu_start;
-		} else if (node == node_cpuid[cpu].nid) {
-			memcpy(__va(cpu_data), __phys_per_cpu_start,
-			       __per_cpu_end - __per_cpu_start);
-			__per_cpu_offset[cpu] = (char*)__va(cpu_data) -
-				__per_cpu_start;
-			cpu_data += PERCPU_PAGE_SIZE;
-		}
+		void *src = cpu == 0 ? __cpu0_per_cpu : __phys_per_cpu_start;
+
+		if (node != node_cpuid[cpu].nid)
+			continue;
+
+		memcpy(__va(cpu_data), src, __per_cpu_end - __per_cpu_start);
+		__per_cpu_offset[cpu] = (char *)__va(cpu_data) -
+			__per_cpu_start;
+
+		/*
+		 * percpu area for cpu0 is moved from the __init area
+		 * which is setup by head.S and used till this point.
+		 * Update ar.k3.  This move is ensures that percpu
+		 * area for cpu0 is on the correct node and its
+		 * virtual address isn't insanely far from other
+		 * percpu areas which is important for congruent
+		 * percpu allocator.
+		 */
+		if (cpu == 0)
+			ia64_set_kr(IA64_KR_PER_CPU_DATA,
+				    (unsigned long)cpu_data -
+				    (unsigned long)__per_cpu_start);
+
+		cpu_data += PERCPU_PAGE_SIZE;
 	}
 #endif
 	return cpu_data;

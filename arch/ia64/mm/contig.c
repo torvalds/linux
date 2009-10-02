@@ -154,36 +154,49 @@ static void *cpu_data;
 void * __cpuinit
 per_cpu_init (void)
 {
-	int cpu;
-	static int first_time=1;
+	static bool first_time = true;
+	void *cpu0_data = __cpu0_per_cpu;
+	unsigned int cpu;
+
+	if (!first_time)
+		goto skip;
+	first_time = false;
 
 	/*
 	 * get_free_pages() cannot be used before cpu_init() done.  BSP
 	 * allocates "NR_CPUS" pages for all CPUs to avoid that AP calls
 	 * get_zeroed_page().
 	 */
-	if (first_time) {
-		void *cpu0_data = __cpu0_per_cpu;
+	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+		void *src = cpu == 0 ? cpu0_data : __phys_per_cpu_start;
 
-		first_time=0;
+		memcpy(cpu_data, src, __per_cpu_end - __per_cpu_start);
+		__per_cpu_offset[cpu] = (char *)cpu_data - __per_cpu_start;
+		per_cpu(local_per_cpu_offset, cpu) = __per_cpu_offset[cpu];
 
-		__per_cpu_offset[0] = (char *) cpu0_data - __per_cpu_start;
-		per_cpu(local_per_cpu_offset, 0) = __per_cpu_offset[0];
+		/*
+		 * percpu area for cpu0 is moved from the __init area
+		 * which is setup by head.S and used till this point.
+		 * Update ar.k3.  This move is ensures that percpu
+		 * area for cpu0 is on the correct node and its
+		 * virtual address isn't insanely far from other
+		 * percpu areas which is important for congruent
+		 * percpu allocator.
+		 */
+		if (cpu == 0)
+			ia64_set_kr(IA64_KR_PER_CPU_DATA, __pa(cpu_data) -
+				    (unsigned long)__per_cpu_start);
 
-		for (cpu = 1; cpu < NR_CPUS; cpu++) {
-			memcpy(cpu_data, __phys_per_cpu_start, __per_cpu_end - __per_cpu_start);
-			__per_cpu_offset[cpu] = (char *) cpu_data - __per_cpu_start;
-			cpu_data += PERCPU_PAGE_SIZE;
-			per_cpu(local_per_cpu_offset, cpu) = __per_cpu_offset[cpu];
-		}
+		cpu_data += PERCPU_PAGE_SIZE;
 	}
+skip:
 	return __per_cpu_start + __per_cpu_offset[smp_processor_id()];
 }
 
 static inline void
 alloc_per_cpu_data(void)
 {
-	cpu_data = __alloc_bootmem(PERCPU_PAGE_SIZE * NR_CPUS-1,
+	cpu_data = __alloc_bootmem(PERCPU_PAGE_SIZE * NR_CPUS,
 				   PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
 }
 #else
