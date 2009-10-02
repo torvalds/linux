@@ -534,6 +534,7 @@ struct lpfc_hba {
 #define ASYNC_EVENT		0x80
 #define LINK_DISABLED		0x100 /* Link disabled by user */
 #define FCF_DISC_INPROGRESS	0x200 /* FCF discovery in progress */
+#define HBA_AER_ENABLED         0x800 /* AER enabled with HBA */
 	struct lpfc_dmabuf slim2p;
 
 	MAILBOX_t *mbox;
@@ -607,6 +608,7 @@ struct lpfc_hba {
 	uint32_t cfg_enable_bg;
 	uint32_t cfg_enable_fip;
 	uint32_t cfg_log_verbose;
+	uint32_t cfg_aer_support;
 
 	lpfc_vpd_t vpd;		/* vital product data */
 

@@ -30,6 +30,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
+#include <linux/aer.h>
 
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
@@ -3551,8 +3552,12 @@ lpfc_sli_brdrestart_s3(struct lpfc_hba *phba)
 	struct lpfc_sli *psli;
 	volatile uint32_t word0;
 	void __iomem *to_slim;
+	uint32_t hba_aer_enabled;
 
 	spin_lock_irq(&phba->hbalock);
+
+	/* Take PCIe device Advanced Error Reporting (AER) state */
+	hba_aer_enabled = phba->hba_flag & HBA_AER_ENABLED;
 
 	psli = &phba->sli;
 
@@ -3592,6 +3597,10 @@ lpfc_sli_brdrestart_s3(struct lpfc_hba *phba)
 
 	/* Give the INITFF and Post time to settle. */
 	mdelay(100);
+
+	/* Reset HBA AER if it was enabled, note hba_flag was reset above */
+	if (hba_aer_enabled)
+		pci_disable_pcie_error_reporting(phba->pcidev);
 
 	lpfc_hba_down_post(phba);
 
@@ -4061,6 +4070,24 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		rc = lpfc_sli_config_port(phba, 2);
 	if (rc)
 		goto lpfc_sli_hba_setup_error;
+
+	/* Enable PCIe device Advanced Error Reporting (AER) if configured */
+	if (phba->cfg_aer_support == 1 && !(phba->hba_flag & HBA_AER_ENABLED)) {
+		rc = pci_enable_pcie_error_reporting(phba->pcidev);
+		if (!rc) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"2709 This device supports "
+					"Advanced Error Reporting (AER)\n");
+			spin_lock_irq(&phba->hbalock);
+			phba->hba_flag |= HBA_AER_ENABLED;
+			spin_unlock_irq(&phba->hbalock);
+		} else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"2708 This device does not support "
+					"Advanced Error Reporting (AER)\n");
+			phba->cfg_aer_support = 0;
+		}
+	}
 
 	if (phba->sli_rev == 3) {
 		phba->iocb_cmd_size = SLI3_IOCB_CMD_SIZE;

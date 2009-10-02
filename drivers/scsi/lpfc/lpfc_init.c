@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/ctype.h>
+#include <linux/aer.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -7098,6 +7099,7 @@ lpfc_pci_resume_one_s3(struct pci_dev *pdev)
 	/* Restore device state from PCI config space */
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+
 	if (pdev->is_busmaster)
 		pci_set_master(pdev);
 
@@ -7132,6 +7134,53 @@ lpfc_pci_resume_one_s3(struct pci_dev *pdev)
 }
 
 /**
+ * lpfc_sli_prep_dev_for_reset - Prepare SLI3 device for pci slot reset
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is called to prepare the SLI3 device for PCI slot reset. It
+ * disables the device interrupt and pci device, and aborts the internal FCP
+ * pending I/Os.
+ **/
+static void
+lpfc_sli_prep_dev_for_reset(struct lpfc_hba *phba)
+{
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring  *pring;
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2710 PCI channel I/O frozen\n");
+	/* Disable interrupt and pci device */
+	lpfc_sli_disable_intr(phba);
+	pci_disable_device(phba->pcidev);
+	/*
+	 * There may be I/Os dropped by the firmware.
+	 * Error iocb (I/O) on txcmplq and let the SCSI layer
+	 * retry it after re-establishing link.
+	 */
+	pring = &psli->ring[psli->fcp_ring];
+	lpfc_sli_abort_iocb_ring(phba, pring);
+}
+
+/**
+ * lpfc_sli_prep_dev_for_perm_failure - Prepare SLI3 dev for pci slot disable
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is called to prepare the SLI3 device for PCI slot permanently
+ * disabling. It blocks the SCSI transport layer traffic and flushes the FCP
+ * pending I/Os.
+ **/
+static void
+lpfc_prep_dev_for_perm_failure(struct lpfc_hba *phba)
+{
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2711 PCI channel I/O permanent failure\n");
+	/* Block all SCSI devices' I/Os on the host */
+	lpfc_scsi_dev_block(phba);
+	/* Clean up all driver's outstanding SCSI I/Os */
+	lpfc_sli_flush_fcp_rings(phba);
+}
+
+/**
  * lpfc_io_error_detected_s3 - Method for handling SLI-3 device PCI I/O error
  * @pdev: pointer to PCI device.
  * @state: the current PCI connection state.
@@ -7145,6 +7194,7 @@ lpfc_pci_resume_one_s3(struct pci_dev *pdev)
  * as desired.
  *
  * Return codes
+ * 	PCI_ERS_RESULT_CAN_RECOVER - can be recovered with reset_link
  * 	PCI_ERS_RESULT_NEED_RESET - need to reset before recovery
  * 	PCI_ERS_RESULT_DISCONNECT - device could not be recovered
  **/
@@ -7153,33 +7203,26 @@ lpfc_io_error_detected_s3(struct pci_dev *pdev, pci_channel_state_t state)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
-	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_sli_ring  *pring;
 
-	if (state == pci_channel_io_perm_failure) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0472 PCI channel I/O permanent failure\n");
-		/* Block all SCSI devices' I/Os on the host */
-		lpfc_scsi_dev_block(phba);
-		/* Clean up all driver's outstanding SCSI I/Os */
-		lpfc_sli_flush_fcp_rings(phba);
+	switch (state) {
+	case pci_channel_io_normal:
+		/* Non-fatal error, do nothing */
+		return PCI_ERS_RESULT_CAN_RECOVER;
+	case pci_channel_io_frozen:
+		/* Fatal error, prepare for slot reset */
+		lpfc_sli_prep_dev_for_reset(phba);
+		return PCI_ERS_RESULT_NEED_RESET;
+	case pci_channel_io_perm_failure:
+		/* Permanent failure, prepare for device down */
+		lpfc_prep_dev_for_perm_failure(phba);
 		return PCI_ERS_RESULT_DISCONNECT;
+	default:
+		/* Unknown state, prepare and request slot reset */
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0472 Unknown PCI error state: x%x\n", state);
+		lpfc_sli_prep_dev_for_reset(phba);
+		return PCI_ERS_RESULT_NEED_RESET;
 	}
-
-	pci_disable_device(pdev);
-	/*
-	 * There may be I/Os dropped by the firmware.
-	 * Error iocb (I/O) on txcmplq and let the SCSI layer
-	 * retry it after re-establishing link.
-	 */
-	pring = &psli->ring[psli->fcp_ring];
-	lpfc_sli_abort_iocb_ring(phba, pring);
-
-	/* Disable interrupt */
-	lpfc_sli_disable_intr(phba);
-
-	/* Request a slot reset. */
-	return PCI_ERS_RESULT_NEED_RESET;
 }
 
 /**
@@ -7259,7 +7302,12 @@ lpfc_io_resume_s3(struct pci_dev *pdev)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 
+	/* Bring the device online */
 	lpfc_online(phba);
+
+	/* Clean up Advanced Error Reporting (AER) if needed */
+	if (phba->hba_flag & HBA_AER_ENABLED)
+		pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 
 /**
