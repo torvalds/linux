@@ -1746,21 +1746,22 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		err = -EINVAL;
 		goto fail_iput;
 	}
-printk("thread pool is %d\n", fs_info->thread_pool_size);
-	/*
-	 * we need to start all the end_io workers up front because the
-	 * queue work function gets called at interrupt time, and so it
-	 * cannot dynamically grow.
-	 */
+
+	btrfs_init_workers(&fs_info->generic_worker,
+			   "genwork", 1, NULL);
+
 	btrfs_init_workers(&fs_info->workers, "worker",
-			   fs_info->thread_pool_size);
+			   fs_info->thread_pool_size,
+			   &fs_info->generic_worker);
 
 	btrfs_init_workers(&fs_info->delalloc_workers, "delalloc",
-			   fs_info->thread_pool_size);
+			   fs_info->thread_pool_size,
+			   &fs_info->generic_worker);
 
 	btrfs_init_workers(&fs_info->submit_workers, "submit",
 			   min_t(u64, fs_devices->num_devices,
-			   fs_info->thread_pool_size));
+			   fs_info->thread_pool_size),
+			   &fs_info->generic_worker);
 
 	/* a higher idle thresh on the submit workers makes it much more
 	 * likely that bios will be send down in a sane order to the
@@ -1774,15 +1775,20 @@ printk("thread pool is %d\n", fs_info->thread_pool_size);
 	fs_info->delalloc_workers.idle_thresh = 2;
 	fs_info->delalloc_workers.ordered = 1;
 
-	btrfs_init_workers(&fs_info->fixup_workers, "fixup", 1);
+	btrfs_init_workers(&fs_info->fixup_workers, "fixup", 1,
+			   &fs_info->generic_worker);
 	btrfs_init_workers(&fs_info->endio_workers, "endio",
-			   fs_info->thread_pool_size);
+			   fs_info->thread_pool_size,
+			   &fs_info->generic_worker);
 	btrfs_init_workers(&fs_info->endio_meta_workers, "endio-meta",
-			   fs_info->thread_pool_size);
+			   fs_info->thread_pool_size,
+			   &fs_info->generic_worker);
 	btrfs_init_workers(&fs_info->endio_meta_write_workers,
-			   "endio-meta-write", fs_info->thread_pool_size);
+			   "endio-meta-write", fs_info->thread_pool_size,
+			   &fs_info->generic_worker);
 	btrfs_init_workers(&fs_info->endio_write_workers, "endio-write",
-			   fs_info->thread_pool_size);
+			   fs_info->thread_pool_size,
+			   &fs_info->generic_worker);
 
 	/*
 	 * endios are largely parallel and should have a very
@@ -1794,12 +1800,8 @@ printk("thread pool is %d\n", fs_info->thread_pool_size);
 	fs_info->endio_write_workers.idle_thresh = 2;
 	fs_info->endio_meta_write_workers.idle_thresh = 2;
 
-	fs_info->endio_workers.atomic_worker_start = 1;
-	fs_info->endio_meta_workers.atomic_worker_start = 1;
-	fs_info->endio_write_workers.atomic_worker_start = 1;
-	fs_info->endio_meta_write_workers.atomic_worker_start = 1;
-
 	btrfs_start_workers(&fs_info->workers, 1);
+	btrfs_start_workers(&fs_info->generic_worker, 1);
 	btrfs_start_workers(&fs_info->submit_workers, 1);
 	btrfs_start_workers(&fs_info->delalloc_workers, 1);
 	btrfs_start_workers(&fs_info->fixup_workers, 1);
@@ -2012,6 +2014,7 @@ fail_chunk_root:
 	free_extent_buffer(chunk_root->node);
 	free_extent_buffer(chunk_root->commit_root);
 fail_sb_buffer:
+	btrfs_stop_workers(&fs_info->generic_worker);
 	btrfs_stop_workers(&fs_info->fixup_workers);
 	btrfs_stop_workers(&fs_info->delalloc_workers);
 	btrfs_stop_workers(&fs_info->workers);
@@ -2437,6 +2440,7 @@ int close_ctree(struct btrfs_root *root)
 
 	iput(fs_info->btree_inode);
 
+	btrfs_stop_workers(&fs_info->generic_worker);
 	btrfs_stop_workers(&fs_info->fixup_workers);
 	btrfs_stop_workers(&fs_info->delalloc_workers);
 	btrfs_stop_workers(&fs_info->workers);

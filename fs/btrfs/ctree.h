@@ -907,6 +907,7 @@ struct btrfs_fs_info {
 	 * A third pool does submit_bio to avoid deadlocking with the other
 	 * two
 	 */
+	struct btrfs_workers generic_worker;
 	struct btrfs_workers workers;
 	struct btrfs_workers delalloc_workers;
 	struct btrfs_workers endio_workers;
