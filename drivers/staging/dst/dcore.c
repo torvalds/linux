@@ -855,6 +855,11 @@ static void cn_dst_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 	struct dst_node *n = NULL, *tmp;
 	unsigned int hash;
 
+	if (!cap_raised(nsp->eff_cap, CAP_SYS_ADMIN)) {
+		err = -EPERM;
+		goto out;
+	}
+
 	if (msg->len < sizeof(struct dst_ctl)) {
 		err = -EBADMSG;
 		goto out;
