@@ -130,6 +130,44 @@ static ssize_t show_carrier(struct device *dev,
 	return -EINVAL;
 }
 
+static ssize_t show_speed(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+	int ret = -EINVAL;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (netif_running(netdev) && netdev->ethtool_ops->get_settings) {
+		struct ethtool_cmd cmd = { ETHTOOL_GSET };
+
+		if (!netdev->ethtool_ops->get_settings(netdev, &cmd))
+			ret = sprintf(buf, fmt_dec, ethtool_cmd_speed(&cmd));
+	}
+	rtnl_unlock();
+	return ret;
+}
+
+static ssize_t show_duplex(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+	int ret = -EINVAL;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (netif_running(netdev) && netdev->ethtool_ops->get_settings) {
+		struct ethtool_cmd cmd = { ETHTOOL_GSET };
+
+		if (!netdev->ethtool_ops->get_settings(netdev, &cmd))
+			ret = sprintf(buf, "%s\n", cmd.duplex ? "full" : "half");
+	}
+	rtnl_unlock();
+	return ret;
+}
+
 static ssize_t show_dormant(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -259,6 +297,8 @@ static struct device_attribute net_class_attributes[] = {
 	__ATTR(address, S_IRUGO, show_address, NULL),
 	__ATTR(broadcast, S_IRUGO, show_broadcast, NULL),
 	__ATTR(carrier, S_IRUGO, show_carrier, NULL),
+	__ATTR(speed, S_IRUGO, show_speed, NULL),
+	__ATTR(duplex, S_IRUGO, show_duplex, NULL),
 	__ATTR(dormant, S_IRUGO, show_dormant, NULL),
 	__ATTR(operstate, S_IRUGO, show_operstate, NULL),
 	__ATTR(mtu, S_IRUGO | S_IWUSR, show_mtu, store_mtu),
