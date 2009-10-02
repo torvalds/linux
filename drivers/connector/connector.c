@@ -129,10 +129,11 @@ EXPORT_SYMBOL_GPL(cn_netlink_send);
 /*
  * Callback helper - queues work and setup destructor for given data.
  */
-static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), void *data)
+static int cn_call_callback(struct sk_buff *skb, void (*destruct_data)(void *), void *data)
 {
 	struct cn_callback_entry *__cbq, *__new_cbq;
 	struct cn_dev *dev = &cdev;
+	struct cn_msg *msg = NLMSG_DATA(nlmsg_hdr(skb));
 	int err = -ENODEV;
 
 	spin_lock_bh(&dev->cbdev->queue_lock);
@@ -140,7 +141,7 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 		if (cn_cb_equal(&__cbq->id.id, &msg->id)) {
 			if (likely(!work_pending(&__cbq->work) &&
 					__cbq->data.ddata == NULL)) {
-				__cbq->data.callback_priv = msg;
+				__cbq->data.skb = skb;
 
 				__cbq->data.ddata = data;
 				__cbq->data.destruct_data = destruct_data;
@@ -156,7 +157,7 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 				__new_cbq = kzalloc(sizeof(struct cn_callback_entry), GFP_ATOMIC);
 				if (__new_cbq) {
 					d = &__new_cbq->data;
-					d->callback_priv = msg;
+					d->skb = skb;
 					d->callback = __cbq->data.callback;
 					d->ddata = data;
 					d->destruct_data = destruct_data;
@@ -191,7 +192,6 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
  */
 static void cn_rx_skb(struct sk_buff *__skb)
 {
-	struct cn_msg *msg;
 	struct nlmsghdr *nlh;
 	int err;
 	struct sk_buff *skb;
@@ -208,8 +208,7 @@ static void cn_rx_skb(struct sk_buff *__skb)
 			return;
 		}
 
-		msg = NLMSG_DATA(nlh);
-		err = cn_call_callback(msg, (void (*)(void *))kfree_skb, skb);
+		err = cn_call_callback(skb, (void (*)(void *))kfree_skb, skb);
 		if (err < 0)
 			kfree_skb(skb);
 	}

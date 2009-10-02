@@ -78,8 +78,9 @@ void cn_queue_wrapper(struct work_struct *work)
 	struct cn_callback_entry *cbq =
 		container_of(work, struct cn_callback_entry, work);
 	struct cn_callback_data *d = &cbq->data;
+	struct cn_msg *msg = NLMSG_DATA(nlmsg_hdr(d->skb));
 
-	d->callback(d->callback_priv);
+	d->callback(msg);
 
 	d->destruct_data(d->ddata);
 	d->ddata = NULL;
