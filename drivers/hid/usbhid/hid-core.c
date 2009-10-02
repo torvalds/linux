@@ -42,7 +42,6 @@
  */
 
 #define DRIVER_VERSION "v2.6"
-#define DRIVER_AUTHOR "Andreas Gal, Vojtech Pavlik, Jiri Kosina"
 #define DRIVER_DESC "USB HID core driver"
 #define DRIVER_LICENSE "GPL"
 
@@ -1423,6 +1422,8 @@ static void __exit hid_exit(void)
 module_init(hid_init);
 module_exit(hid_exit);
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_AUTHOR("Andreas Gal");
+MODULE_AUTHOR("Vojtech Pavlik");
+MODULE_AUTHOR("Jiri Kosina");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
