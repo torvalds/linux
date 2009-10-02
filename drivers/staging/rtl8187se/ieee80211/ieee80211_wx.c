@@ -331,12 +331,10 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			return -ENOMEM;
 		memset(new_crypt, 0, sizeof(struct ieee80211_crypt_data));
 		new_crypt->ops = ieee80211_get_crypto_ops("WEP");
-		if (!new_crypt->ops) {
-			request_module("ieee80211_crypt_wep");
+		if (!new_crypt->ops)
 			new_crypt->ops = ieee80211_get_crypto_ops("WEP");
-		}
 
-		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
+		if (new_crypt->ops)
 			new_crypt->priv = new_crypt->ops->init(key);
 
 		if (!new_crypt->ops || !new_crypt->priv) {
@@ -483,7 +481,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
         struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
         int i, idx, ret = 0;
         int group_key = 0;
-        const char *alg, *module;
+        const char *alg;
         struct ieee80211_crypto_ops *ops;
         struct ieee80211_crypt_data **crypt;
 
@@ -539,15 +537,12 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
         switch (ext->alg) {
         case IW_ENCODE_ALG_WEP:
                 alg = "WEP";
-                module = "ieee80211_crypt_wep";
                 break;
         case IW_ENCODE_ALG_TKIP:
                 alg = "TKIP";
-                module = "ieee80211_crypt_tkip";
                 break;
         case IW_ENCODE_ALG_CCMP:
                 alg = "CCMP";
-                module = "ieee80211_crypt_ccmp";
                 break;
         default:
                 IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
@@ -558,10 +553,8 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 //	printk("8-09-08-9=====>%s, alg name:%s\n",__func__, alg);
 
 	 ops = ieee80211_get_crypto_ops(alg);
-        if (ops == NULL) {
-                request_module(module);
+        if (ops == NULL)
                 ops = ieee80211_get_crypto_ops(alg);
-        }
         if (ops == NULL) {
                 IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
                                    dev->name, ext->alg);
@@ -581,7 +574,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                         goto done;
                 }
                 new_crypt->ops = ops;
-                if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
+                if (new_crypt->ops)
                         new_crypt->priv = new_crypt->ops->init(idx);
                 if (new_crypt->priv == NULL) {
                         kfree(new_crypt);

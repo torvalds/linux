@@ -242,14 +242,8 @@ void free_ieee80211(struct net_device *dev)
 	for (i = 0; i < WEP_KEYS; i++) {
 		struct ieee80211_crypt_data *crypt = ieee->crypt[i];
 		if (crypt) {
-			if (crypt->ops) {
+			if (crypt->ops)
 				crypt->ops->deinit(crypt->priv);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-				module_put(crypt->ops->owner);
-#else
-				__MOD_DEC_USE_COUNT(crypt->ops->owner);
-#endif
-			}
 			kfree(crypt);
 			ieee->crypt[i] = NULL;
 		}
