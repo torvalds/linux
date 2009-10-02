@@ -186,8 +186,8 @@ static int ea_find_i(struct gfs2_inode *ip, struct buffer_head *bh,
 	return 0;
 }
 
-int gfs2_ea_find(struct gfs2_inode *ip, int type, const char *name,
-		 struct gfs2_ea_location *el)
+static int gfs2_ea_find(struct gfs2_inode *ip, int type, const char *name,
+			struct gfs2_ea_location *el)
 {
 	struct ea_find ef;
 	int error;
@@ -516,8 +516,8 @@ out:
 	return error;
 }
 
-int gfs2_ea_get_copy(struct gfs2_inode *ip, struct gfs2_ea_location *el,
-		     char *data, size_t size)
+static int gfs2_ea_get_copy(struct gfs2_inode *ip, struct gfs2_ea_location *el,
+			    char *data, size_t size)
 {
 	int ret;
 	size_t len = GFS2_EA_DATA_LEN(el->el_ea);
@@ -532,6 +532,36 @@ int gfs2_ea_get_copy(struct gfs2_inode *ip, struct gfs2_ea_location *el,
 	if (ret < 0)
 		return ret;
 	return len;
+}
+
+int gfs2_xattr_acl_get(struct gfs2_inode *ip, const char *name, char **ppdata)
+{
+	struct gfs2_ea_location el;
+	int error;
+	int len;
+	char *data;
+
+	error = gfs2_ea_find(ip, GFS2_EATYPE_SYS, name, &el);
+	if (error)
+		return error;
+	if (!el.el_ea)
+		goto out;
+	if (!GFS2_EA_DATA_LEN(el.el_ea))
+		goto out;
+
+	len = GFS2_EA_DATA_LEN(el.el_ea);
+	data = kmalloc(len, GFP_NOFS);
+	error = -ENOMEM;
+	if (data == NULL)
+		goto out;
+
+	error = gfs2_ea_get_copy(ip, &el, data, len);
+	if (error == 0)
+		error = len;
+	*ppdata = data;
+out:
+	brelse(el.el_bh);
+	return error;
 }
 
 /**
@@ -1259,22 +1289,26 @@ fail:
 	return error;
 }
 
-int gfs2_ea_acl_chmod(struct gfs2_inode *ip, struct gfs2_ea_location *el,
-		      struct iattr *attr, char *data)
+int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
 {
+	struct gfs2_ea_location el;
 	struct buffer_head *dibh;
 	int error;
 
-	if (GFS2_EA_IS_STUFFED(el->el_ea)) {
+	error = gfs2_ea_find(ip, GFS2_EATYPE_SYS, GFS2_POSIX_ACL_ACCESS, &el);
+	if (error)
+		return error;
+
+	if (GFS2_EA_IS_STUFFED(el.el_ea)) {
 		error = gfs2_trans_begin(GFS2_SB(&ip->i_inode), RES_DINODE + RES_EATTR, 0);
 		if (error)
 			return error;
 
-		gfs2_trans_add_bh(ip->i_gl, el->el_bh, 1);
-		memcpy(GFS2_EA2DATA(el->el_ea), data,
-		       GFS2_EA_DATA_LEN(el->el_ea));
+		gfs2_trans_add_bh(ip->i_gl, el.el_bh, 1);
+		memcpy(GFS2_EA2DATA(el.el_ea), data,
+		       GFS2_EA_DATA_LEN(el.el_ea));
 	} else
-		error = ea_acl_chmod_unstuffed(ip, el->el_ea, data);
+		error = ea_acl_chmod_unstuffed(ip, el.el_ea, data);
 
 	if (error)
 		return error;

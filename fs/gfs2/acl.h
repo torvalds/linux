@@ -17,7 +17,7 @@
 #define GFS2_ACL_MAX_ENTRIES		25
 
 extern int gfs2_check_acl(struct inode *inode, int mask);
-extern int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip);
+extern int gfs2_acl_create(struct gfs2_inode *dip, struct inode *inode);
 extern int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr);
 extern struct xattr_handler gfs2_xattr_system_handler;
 
