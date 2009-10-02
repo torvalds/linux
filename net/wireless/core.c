@@ -625,6 +625,10 @@ static void wdev_cleanup_work(struct work_struct *work)
 	dev_put(wdev->netdev);
 }
 
+static struct device_type wiphy_type = {
+	.name	= "wlan",
+};
+
 static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 					 unsigned long state,
 					 void *ndev)
@@ -641,6 +645,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 	WARN_ON(wdev->iftype == NL80211_IFTYPE_UNSPECIFIED);
 
 	switch (state) {
+	case NETDEV_POST_INIT:
+		SET_NETDEV_DEVTYPE(dev, &wiphy_type);
+		break;
 	case NETDEV_REGISTER:
 		/*
 		 * NB: cannot take rdev->mtx here because this may be
