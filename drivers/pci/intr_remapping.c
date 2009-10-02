@@ -548,7 +548,8 @@ static int setup_intr_remapping(struct intel_iommu *iommu, int mode)
 	if (!iommu->ir_table)
 		return -ENOMEM;
 
-	pages = alloc_pages(GFP_ATOMIC | __GFP_ZERO, INTR_REMAP_PAGE_ORDER);
+	pages = alloc_pages_node(iommu->node, GFP_ATOMIC | __GFP_ZERO,
+				 INTR_REMAP_PAGE_ORDER);
 
 	if (!pages) {
 		printk(KERN_ERR "failed to allocate pages of order %d\n",
