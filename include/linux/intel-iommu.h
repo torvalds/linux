@@ -332,6 +332,7 @@ struct intel_iommu {
 #ifdef CONFIG_INTR_REMAP
 	struct ir_table *ir_table;	/* Interrupt remapping info */
 #endif
+	int		node;
 };
 
 static inline void __iommu_flush_cache(
