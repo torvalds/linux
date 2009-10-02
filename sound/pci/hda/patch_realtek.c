@@ -4309,6 +4309,20 @@ static int add_control(struct alc_spec *spec, int type, const char *name,
 	return 0;
 }
 
+static int add_control_with_pfx(struct alc_spec *spec, int type,
+				const char *pfx, const char *dir,
+				const char *sfx, unsigned long val)
+{
+	char name[32];
+	snprintf(name, sizeof(name), "%s %s %s", pfx, dir, sfx);
+	return add_control(spec, type, name, val);
+}
+
+#define add_pb_vol_ctrl(spec, type, pfx, val) \
+	add_control_with_pfx(spec, type, pfx, "Playback", "Volume", val)
+#define add_pb_sw_ctrl(spec, type, pfx, val) \
+	add_control_with_pfx(spec, type, pfx, "Playback", "Switch", val)
+
 #define alc880_is_fixed_pin(nid)	((nid) >= 0x14 && (nid) <= 0x17)
 #define alc880_fixed_pin_idx(nid)	((nid) - 0x14)
 #define alc880_is_multi_pin(nid)	((nid) >= 0x18)
@@ -4362,7 +4376,6 @@ static int alc880_auto_fill_dac_nids(struct alc_spec *spec,
 static int alc880_auto_create_multi_out_ctls(struct alc_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
-	char name[32];
 	static const char *chname[4] = {
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
@@ -4375,26 +4388,26 @@ static int alc880_auto_create_multi_out_ctls(struct alc_spec *spec,
 		nid = alc880_idx_to_mixer(alc880_dac_to_idx(spec->multiout.dac_nids[i]));
 		if (i == 2) {
 			/* Center/LFE */
-			err = add_control(spec, ALC_CTL_WIDGET_VOL,
-					  "Center Playback Volume",
+			err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL,
+					      "Center",
 					  HDA_COMPOSE_AMP_VAL(nid, 1, 0,
 							      HDA_OUTPUT));
 			if (err < 0)
 				return err;
-			err = add_control(spec, ALC_CTL_WIDGET_VOL,
-					  "LFE Playback Volume",
+			err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL,
+					      "LFE",
 					  HDA_COMPOSE_AMP_VAL(nid, 2, 0,
 							      HDA_OUTPUT));
 			if (err < 0)
 				return err;
-			err = add_control(spec, ALC_CTL_BIND_MUTE,
-					  "Center Playback Switch",
+			err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE,
+					     "Center",
 					  HDA_COMPOSE_AMP_VAL(nid, 1, 2,
 							      HDA_INPUT));
 			if (err < 0)
 				return err;
-			err = add_control(spec, ALC_CTL_BIND_MUTE,
-					  "LFE Playback Switch",
+			err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE,
+					     "LFE",
 					  HDA_COMPOSE_AMP_VAL(nid, 2, 2,
 							      HDA_INPUT));
 			if (err < 0)
@@ -4406,14 +4419,12 @@ static int alc880_auto_create_multi_out_ctls(struct alc_spec *spec,
 				pfx = "Speaker";
 			else
 				pfx = chname[i];
-			sprintf(name, "%s Playback Volume", pfx);
-			err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+			err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx,
 					  HDA_COMPOSE_AMP_VAL(nid, 3, 0,
 							      HDA_OUTPUT));
 			if (err < 0)
 				return err;
-			sprintf(name, "%s Playback Switch", pfx);
-			err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+			err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE, pfx,
 					  HDA_COMPOSE_AMP_VAL(nid, 3, 2,
 							      HDA_INPUT));
 			if (err < 0)
@@ -4429,7 +4440,6 @@ static int alc880_auto_create_extra_out(struct alc_spec *spec, hda_nid_t pin,
 {
 	hda_nid_t nid;
 	int err;
-	char name[32];
 
 	if (!pin)
 		return 0;
@@ -4443,21 +4453,18 @@ static int alc880_auto_create_extra_out(struct alc_spec *spec, hda_nid_t pin,
 			spec->multiout.extra_out_nid[0] = nid;
 		/* control HP volume/switch on the output mixer amp */
 		nid = alc880_idx_to_mixer(alc880_fixed_pin_idx(pin));
-		sprintf(name, "%s Playback Volume", pfx);
-		err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+		err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx,
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT));
 		if (err < 0)
 			return err;
-		sprintf(name, "%s Playback Switch", pfx);
-		err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+		err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE, pfx,
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 2, HDA_INPUT));
 		if (err < 0)
 			return err;
 	} else if (alc880_is_multi_pin(pin)) {
 		/* set manual connection */
 		/* we have only a switch on HP-out PIN */
-		sprintf(name, "%s Playback Switch", pfx);
-		err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+		err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx,
 				  HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
 		if (err < 0)
 			return err;
@@ -4470,16 +4477,13 @@ static int new_analog_input(struct alc_spec *spec, hda_nid_t pin,
 			    const char *ctlname,
 			    int idx, hda_nid_t mix_nid)
 {
-	char name[32];
 	int err;
 
-	sprintf(name, "%s Playback Volume", ctlname);
-	err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+	err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, ctlname,
 			  HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
 	if (err < 0)
 		return err;
-	sprintf(name, "%s Playback Switch", ctlname);
-	err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+	err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, ctlname,
 			  HDA_COMPOSE_AMP_VAL(mix_nid, 3, idx, HDA_INPUT));
 	if (err < 0)
 		return err;
@@ -5972,7 +5976,6 @@ static int alc260_add_playback_controls(struct alc_spec *spec, hda_nid_t nid,
 {
 	hda_nid_t nid_vol;
 	unsigned long vol_val, sw_val;
-	char name[32];
 	int err;
 
 	if (nid >= 0x0f && nid < 0x11) {
@@ -5992,14 +5995,12 @@ static int alc260_add_playback_controls(struct alc_spec *spec, hda_nid_t nid,
 
 	if (!(*vol_bits & (1 << nid_vol))) {
 		/* first control for the volume widget */
-		snprintf(name, sizeof(name), "%s Playback Volume", pfx);
-		err = add_control(spec, ALC_CTL_WIDGET_VOL, name, vol_val);
+		err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx, vol_val);
 		if (err < 0)
 			return err;
 		*vol_bits |= (1 << nid_vol);
 	}
-	snprintf(name, sizeof(name), "%s Playback Switch", pfx);
-	err = add_control(spec, ALC_CTL_WIDGET_MUTE, name, sw_val);
+	err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx, sw_val);
 	if (err < 0)
 		return err;
 	return 1;
@@ -10936,7 +10937,6 @@ static int alc262_check_volbit(hda_nid_t nid)
 static int alc262_add_out_vol_ctl(struct alc_spec *spec, hda_nid_t nid,
 				  const char *pfx, int *vbits)
 {
-	char name[32];
 	unsigned long val;
 	int vbit;
 
@@ -10946,28 +10946,25 @@ static int alc262_add_out_vol_ctl(struct alc_spec *spec, hda_nid_t nid,
 	if (*vbits & vbit) /* a volume control for this mixer already there */
 		return 0;
 	*vbits |= vbit;
-	snprintf(name, sizeof(name), "%s Playback Volume", pfx);
 	if (vbit == 2)
 		val = HDA_COMPOSE_AMP_VAL(0x0e, 2, 0, HDA_OUTPUT);
 	else
 		val = HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT);
-	return add_control(spec, ALC_CTL_WIDGET_VOL, name, val);
+	return add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx, val);
 }
 
 static int alc262_add_out_sw_ctl(struct alc_spec *spec, hda_nid_t nid,
 				 const char *pfx)
 {
-	char name[32];
 	unsigned long val;
 
 	if (!nid)
 		return 0;
-	snprintf(name, sizeof(name), "%s Playback Switch", pfx);
 	if (nid == 0x16)
 		val = HDA_COMPOSE_AMP_VAL(nid, 2, 0, HDA_OUTPUT);
 	else
 		val = HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT);
-	return add_control(spec, ALC_CTL_WIDGET_MUTE, name, val);
+	return add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx, val);
 }
 
 /* add playback controls from the parsed DAC table */
@@ -12305,11 +12302,9 @@ static struct snd_kcontrol_new alc268_test_mixer[] = {
 static int alc268_new_analog_output(struct alc_spec *spec, hda_nid_t nid,
 				    const char *ctlname, int idx)
 {
-	char name[32];
 	hda_nid_t dac;
 	int err;
 
-	sprintf(name, "%s Playback Volume", ctlname);
 	switch (nid) {
 	case 0x14:
 	case 0x16:
@@ -12323,7 +12318,7 @@ static int alc268_new_analog_output(struct alc_spec *spec, hda_nid_t nid,
 	}
 	if (spec->multiout.dac_nids[0] != dac &&
 	    spec->multiout.dac_nids[1] != dac) {
-		err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+		err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, ctlname,
 				  HDA_COMPOSE_AMP_VAL(dac, 3, idx,
 						      HDA_OUTPUT));
 		if (err < 0)
@@ -12331,12 +12326,11 @@ static int alc268_new_analog_output(struct alc_spec *spec, hda_nid_t nid,
 		spec->multiout.dac_nids[spec->multiout.num_dacs++] = dac;
 	}
 
-	sprintf(name, "%s Playback Switch", ctlname);
 	if (nid != 0x16)
-		err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+		err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, ctlname,
 			  HDA_COMPOSE_AMP_VAL(nid, 3, idx, HDA_OUTPUT));
 	else /* mono */
-		err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+		err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, ctlname,
 			  HDA_COMPOSE_AMP_VAL(nid, 2, idx, HDA_OUTPUT));
 	if (err < 0)
 		return err;
@@ -12366,8 +12360,7 @@ static int alc268_auto_create_multi_out_ctls(struct alc_spec *spec,
 
 	nid = cfg->speaker_pins[0];
 	if (nid == 0x1d) {
-		err = add_control(spec, ALC_CTL_WIDGET_VOL,
-				  "Speaker Playback Volume",
+		err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, "Speaker",
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
 		if (err < 0)
 			return err;
@@ -12385,8 +12378,7 @@ static int alc268_auto_create_multi_out_ctls(struct alc_spec *spec,
 
 	nid = cfg->line_out_pins[1] | cfg->line_out_pins[2];
 	if (nid == 0x16) {
-		err = add_control(spec, ALC_CTL_WIDGET_MUTE,
-				  "Mono Playback Switch",
+		err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, "Mono",
 				  HDA_COMPOSE_AMP_VAL(nid, 2, 0, HDA_OUTPUT));
 		if (err < 0)
 			return err;
@@ -14235,9 +14227,7 @@ static int alc861_auto_fill_dac_nids(struct hda_codec *codec,
 static int alc861_create_out_sw(struct hda_codec *codec, const char *pfx,
 				hda_nid_t nid, unsigned int chs)
 {
-	char name[32];
-	snprintf(name, sizeof(name), "%s Playback Switch", pfx);
-	return add_control(codec->spec, ALC_CTL_WIDGET_MUTE, name,
+	return add_pb_sw_ctrl(codec->spec, ALC_CTL_WIDGET_MUTE, pfx,
 			   HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT));
 }
 
@@ -15360,7 +15350,6 @@ static void alc861vd_auto_init_analog_input(struct hda_codec *codec)
 static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
 					     const struct auto_pin_cfg *cfg)
 {
-	char name[32];
 	static const char *chname[4] = {"Front", "Surround", "CLFE", "Side"};
 	hda_nid_t nid_v, nid_s;
 	int i, err;
@@ -15377,26 +15366,26 @@ static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
 
 		if (i == 2) {
 			/* Center/LFE */
-			err = add_control(spec, ALC_CTL_WIDGET_VOL,
-					  "Center Playback Volume",
+			err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL,
+					      "Center",
 					  HDA_COMPOSE_AMP_VAL(nid_v, 1, 0,
 							      HDA_OUTPUT));
 			if (err < 0)
 				return err;
-			err = add_control(spec, ALC_CTL_WIDGET_VOL,
-					  "LFE Playback Volume",
+			err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL,
+					      "LFE",
 					  HDA_COMPOSE_AMP_VAL(nid_v, 2, 0,
 							      HDA_OUTPUT));
 			if (err < 0)
 				return err;
-			err = add_control(spec, ALC_CTL_BIND_MUTE,
-					  "Center Playback Switch",
+			err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE,
+					     "Center",
 					  HDA_COMPOSE_AMP_VAL(nid_s, 1, 2,
 							      HDA_INPUT));
 			if (err < 0)
 				return err;
-			err = add_control(spec, ALC_CTL_BIND_MUTE,
-					  "LFE Playback Switch",
+			err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE,
+					     "LFE",
 					  HDA_COMPOSE_AMP_VAL(nid_s, 2, 2,
 							      HDA_INPUT));
 			if (err < 0)
@@ -15411,8 +15400,7 @@ static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
 					pfx = "PCM";
 			} else
 				pfx = chname[i];
-			sprintf(name, "%s Playback Volume", pfx);
-			err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+			err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx,
 					  HDA_COMPOSE_AMP_VAL(nid_v, 3, 0,
 							      HDA_OUTPUT));
 			if (err < 0)
@@ -15420,8 +15408,7 @@ static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
 			if (cfg->line_outs == 1 &&
 			    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
 				pfx = "Speaker";
-			sprintf(name, "%s Playback Switch", pfx);
-			err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+			err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE, pfx,
 					  HDA_COMPOSE_AMP_VAL(nid_s, 3, 2,
 							      HDA_INPUT));
 			if (err < 0)
@@ -15439,7 +15426,6 @@ static int alc861vd_auto_create_extra_out(struct alc_spec *spec,
 {
 	hda_nid_t nid_v, nid_s;
 	int err;
-	char name[32];
 
 	if (!pin)
 		return 0;
@@ -15457,21 +15443,18 @@ static int alc861vd_auto_create_extra_out(struct alc_spec *spec,
 		nid_s = alc861vd_idx_to_mixer_switch(
 				alc880_fixed_pin_idx(pin));
 
-		sprintf(name, "%s Playback Volume", pfx);
-		err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
+		err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx,
 				  HDA_COMPOSE_AMP_VAL(nid_v, 3, 0, HDA_OUTPUT));
 		if (err < 0)
 			return err;
-		sprintf(name, "%s Playback Switch", pfx);
-		err = add_control(spec, ALC_CTL_BIND_MUTE, name,
+		err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE, pfx,
 				  HDA_COMPOSE_AMP_VAL(nid_s, 3, 2, HDA_INPUT));
 		if (err < 0)
 			return err;
 	} else if (alc880_is_multi_pin(pin)) {
 		/* set manual connection */
 		/* we have only a switch on HP-out PIN */
-		sprintf(name, "%s Playback Switch", pfx);
-		err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+		err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx,
 				  HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
 		if (err < 0)
 			return err;
@@ -17213,21 +17196,17 @@ static int alc662_auto_fill_dac_nids(struct hda_codec *codec,
 	return 0;
 }
 
-static int alc662_add_vol_ctl(struct alc_spec *spec, const char *pfx,
+static inline int alc662_add_vol_ctl(struct alc_spec *spec, const char *pfx,
 			      hda_nid_t nid, unsigned int chs)
 {
-	char name[32];
-	sprintf(name, "%s Playback Volume", pfx);
-	return add_control(spec, ALC_CTL_WIDGET_VOL, name,
+	return add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx,
 			   HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT));
 }
 
-static int alc662_add_sw_ctl(struct alc_spec *spec, const char *pfx,
+static inline int alc662_add_sw_ctl(struct alc_spec *spec, const char *pfx,
 			     hda_nid_t nid, unsigned int chs)
 {
-	char name[32];
-	sprintf(name, "%s Playback Switch", pfx);
-	return add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+	return add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx,
 			   HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_INPUT));
 }
 
@@ -17305,13 +17284,11 @@ static int alc662_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 		return 0;
 	nid = alc662_look_for_dac(codec, pin);
 	if (!nid) {
-		char name[32];
 		/* the corresponding DAC is already occupied */
 		if (!(get_wcaps(codec, pin) & AC_WCAP_OUT_AMP))
 			return 0; /* no way */
 		/* create a switch only */
-		sprintf(name, "%s Playback Switch", pfx);
-		return add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+		return add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx,
 				   HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
 	}
 
