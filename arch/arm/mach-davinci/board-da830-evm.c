@@ -26,7 +26,6 @@
 #include <mach/irqs.h>
 #include <mach/cp_intc.h>
 #include <mach/mux.h>
-#include <mach/gpio.h>
 #include <mach/da8xx.h>
 #include <mach/asp.h>
 #include <mach/usb.h>
