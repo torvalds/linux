@@ -26,6 +26,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_bsg_fc.h>
+#include <scsi/fc/fc_fs.h>
 
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
@@ -148,8 +149,8 @@ lpfc_bsg_rport_ct(struct fc_bsg_job *job)
 	cmd->ulpCommand = CMD_GEN_REQUEST64_CR;
 	cmd->un.genreq64.w5.hcsw.Fctl = (SI | LA);
 	cmd->un.genreq64.w5.hcsw.Dfctl = 0;
-	cmd->un.genreq64.w5.hcsw.Rctl = FC_UNSOL_CTL;
-	cmd->un.genreq64.w5.hcsw.Type = FC_COMMON_TRANSPORT_ULP;
+	cmd->un.genreq64.w5.hcsw.Rctl = FC_RCTL_DD_UNSOL_CTL;
+	cmd->un.genreq64.w5.hcsw.Type = FC_TYPE_CT;
 	cmd->ulpBdeCount = 1;
 	cmd->ulpLe = 1;
 	cmd->ulpClass = CLASS3;

@@ -159,7 +159,7 @@ struct lpfc_fip_param_hdr {
 #define	lpfc_fip_param_hdr_fipp_mode_SHIFT	6
 #define	lpfc_fip_param_hdr_fipp_mode_MASK	0x3
 #define lpfc_fip_param_hdr_fipp_mode_WORD	parm_flags
-#define	FIPP_MODE_ON				0x2
+#define	FIPP_MODE_ON				0x1
 #define	FIPP_MODE_OFF				0x0
 #define FIPP_VLAN_VALID				0x1
 };

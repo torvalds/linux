@@ -19,7 +19,7 @@
  *******************************************************************/
 
 #define FC_MAX_HOLD_RSCN     32	      /* max number of deferred RSCNs */
-#define FC_MAX_NS_RSP        65536    /* max size NameServer rsp */
+#define FC_MAX_NS_RSP        64512    /* max size NameServer rsp */
 #define FC_MAXLOOP           126      /* max devices supported on a fc loop */
 #define LPFC_DISC_FLOGI_TMO  10	      /* Discovery FLOGI ratov */
 

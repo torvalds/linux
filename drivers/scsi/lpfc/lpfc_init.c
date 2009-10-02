@@ -3004,12 +3004,11 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 		spin_unlock_irq(&phba->hbalock);
 
 		/* Read the FCF table and re-discover SAN. */
-		rc = lpfc_sli4_read_fcf_record(phba,
-			LPFC_FCOE_FCF_GET_FIRST);
+		rc = lpfc_sli4_read_fcf_record(phba, LPFC_FCOE_FCF_GET_FIRST);
 		if (rc)
 			lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-				"2547 Read FCF record failed 0x%x\n",
-				rc);
+					"2547 Read FCF record failed 0x%x\n",
+					rc);
 		break;
 
 	case LPFC_FCOE_EVENT_TYPE_FCF_TABLE_FULL:
@@ -3021,7 +3020,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 
 	case LPFC_FCOE_EVENT_TYPE_FCF_DEAD:
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-			"2549 FCF disconnected fron network index 0x%x"
+			"2549 FCF disconnected from network index 0x%x"
 			" tag 0x%x\n", acqe_fcoe->index,
 			acqe_fcoe->event_tag);
 		/* If the event is not for currently used fcf do nothing */
@@ -3917,7 +3916,7 @@ lpfc_free_sgl_list(struct lpfc_hba *phba)
 	rc = lpfc_sli4_remove_all_sgl_pages(phba);
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"2005 Unable to deregister pages from HBA: %x", rc);
+			"2005 Unable to deregister pages from HBA: %x\n", rc);
 	}
 	kfree(phba->sli4_hba.lpfc_els_sgl_array);
 }
@@ -4366,7 +4365,8 @@ lpfc_setup_bg(struct lpfc_hba *phba, struct Scsi_Host *shost)
 			_dump_buf_data =
 				(char *) __get_free_pages(GFP_KERNEL, pagecnt);
 			if (_dump_buf_data) {
-				printk(KERN_ERR "BLKGRD allocated %d pages for "
+				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					"9043 BLKGRD: allocated %d pages for "
 				       "_dump_buf_data at 0x%p\n",
 				       (1 << pagecnt), _dump_buf_data);
 				_dump_buf_data_order = pagecnt;
@@ -4377,17 +4377,20 @@ lpfc_setup_bg(struct lpfc_hba *phba, struct Scsi_Host *shost)
 				--pagecnt;
 		}
 		if (!_dump_buf_data_order)
-			printk(KERN_ERR "BLKGRD ERROR unable to allocate "
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				"9044 BLKGRD: ERROR unable to allocate "
 			       "memory for hexdump\n");
 	} else
-		printk(KERN_ERR "BLKGRD already allocated _dump_buf_data=0x%p"
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9045 BLKGRD: already allocated _dump_buf_data=0x%p"
 		       "\n", _dump_buf_data);
 	if (!_dump_buf_dif) {
 		while (pagecnt) {
 			_dump_buf_dif =
 				(char *) __get_free_pages(GFP_KERNEL, pagecnt);
 			if (_dump_buf_dif) {
-				printk(KERN_ERR "BLKGRD allocated %d pages for "
+				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					"9046 BLKGRD: allocated %d pages for "
 				       "_dump_buf_dif at 0x%p\n",
 				       (1 << pagecnt), _dump_buf_dif);
 				_dump_buf_dif_order = pagecnt;
@@ -4398,10 +4401,12 @@ lpfc_setup_bg(struct lpfc_hba *phba, struct Scsi_Host *shost)
 				--pagecnt;
 		}
 		if (!_dump_buf_dif_order)
-			printk(KERN_ERR "BLKGRD ERROR unable to allocate "
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9047 BLKGRD: ERROR unable to allocate "
 			       "memory for hexdump\n");
 	} else
-		printk(KERN_ERR "BLKGRD already allocated _dump_buf_dif=0x%p\n",
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9048 BLKGRD: already allocated _dump_buf_dif=0x%p\n",
 		       _dump_buf_dif);
 }
 
@@ -5072,10 +5077,9 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	/* It does not make sense to have more EQs than WQs */
 	if (cfg_fcp_eq_count > phba->cfg_fcp_wq_count) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
-				"2593 The number of FCP EQs (%d) is more "
-				"than the number of FCP WQs (%d), take "
-				"the number of FCP EQs same as than of "
-				"WQs (%d)\n", cfg_fcp_eq_count,
+				"2593 The FCP EQ count(%d) cannot be greater "
+				"than the FCP WQ count(%d), limiting the "
+				"FCP EQ count to %d\n", cfg_fcp_eq_count,
 				phba->cfg_fcp_wq_count,
 				phba->cfg_fcp_wq_count);
 		cfg_fcp_eq_count = phba->cfg_fcp_wq_count;
@@ -7271,15 +7275,15 @@ lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *phba)
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		if (max_xri <= 100)
-			return 4;
+			return 10;
 		else if (max_xri <= 256)
-			return 8;
+			return 25;
 		else if (max_xri <= 512)
-			return 16;
+			return 50;
 		else if (max_xri <= 1024)
-			return 32;
+			return 100;
 		else
-			return 48;
+			return 150;
 	} else
 		return 0;
 }
@@ -8117,15 +8121,15 @@ lpfc_exit(void)
 	if (lpfc_enable_npiv)
 		fc_release_transport(lpfc_vport_transport_template);
 	if (_dump_buf_data) {
-		printk(KERN_ERR "BLKGRD freeing %lu pages for _dump_buf_data "
-				"at 0x%p\n",
+		printk(KERN_ERR	"9062 BLKGRD: freeing %lu pages for "
+				"_dump_buf_data at 0x%p\n",
 				(1L << _dump_buf_data_order), _dump_buf_data);
 		free_pages((unsigned long)_dump_buf_data, _dump_buf_data_order);
 	}
 
 	if (_dump_buf_dif) {
-		printk(KERN_ERR "BLKGRD freeing %lu pages for _dump_buf_dif "
-				"at 0x%p\n",
+		printk(KERN_ERR	"9049 BLKGRD: freeing %lu pages for "
+				"_dump_buf_dif at 0x%p\n",
 				(1L << _dump_buf_dif_order), _dump_buf_dif);
 		free_pages((unsigned long)_dump_buf_dif, _dump_buf_dif_order);
 	}

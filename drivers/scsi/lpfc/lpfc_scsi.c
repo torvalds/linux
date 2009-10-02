@@ -61,20 +61,22 @@ static void
 lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb);
 
 static void
-lpfc_debug_save_data(struct scsi_cmnd *cmnd)
+lpfc_debug_save_data(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
 {
 	void *src, *dst;
 	struct scatterlist *sgde = scsi_sglist(cmnd);
 
 	if (!_dump_buf_data) {
-		printk(KERN_ERR "BLKGRD ERROR %s _dump_buf_data is NULL\n",
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9050 BLKGRD: ERROR %s _dump_buf_data is NULL\n",
 				__func__);
 		return;
 	}
 
 
 	if (!sgde) {
-		printk(KERN_ERR "BLKGRD ERROR: data scatterlist is null\n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9051 BLKGRD: ERROR: data scatterlist is null\n");
 		return;
 	}
 
@@ -88,19 +90,21 @@ lpfc_debug_save_data(struct scsi_cmnd *cmnd)
 }
 
 static void
-lpfc_debug_save_dif(struct scsi_cmnd *cmnd)
+lpfc_debug_save_dif(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
 {
 	void *src, *dst;
 	struct scatterlist *sgde = scsi_prot_sglist(cmnd);
 
 	if (!_dump_buf_dif) {
-		printk(KERN_ERR "BLKGRD ERROR %s _dump_buf_data is NULL\n",
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9052 BLKGRD: ERROR %s _dump_buf_data is NULL\n",
 				__func__);
 		return;
 	}
 
 	if (!sgde) {
-		printk(KERN_ERR "BLKGRD ERROR: prot scatterlist is null\n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9053 BLKGRD: ERROR: prot scatterlist is null\n");
 		return;
 	}
 
@@ -1024,7 +1028,8 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 
 		lpfc_cmd->seg_cnt = nseg;
 		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
-			printk(KERN_ERR "%s: Too many sg segments from "
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				"9064 BLKGRD: %s: Too many sg segments from "
 			       "dma_map_sg.  Config %d, seg_cnt %d\n",
 			       __func__, phba->cfg_sg_seg_cnt,
 			       lpfc_cmd->seg_cnt);
@@ -1112,7 +1117,7 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
  * with the cmd
  */
 static int
-lpfc_sc_to_sli_prof(struct scsi_cmnd *sc)
+lpfc_sc_to_sli_prof(struct lpfc_hba *phba, struct scsi_cmnd *sc)
 {
 	uint8_t guard_type = scsi_host_get_guard(sc->device->host);
 	uint8_t ret_prof = LPFC_PROF_INVALID;
@@ -1136,7 +1141,8 @@ lpfc_sc_to_sli_prof(struct scsi_cmnd *sc)
 
 		case SCSI_PROT_NORMAL:
 		default:
-			printk(KERN_ERR "Bad op/guard:%d/%d combination\n",
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				"9063 BLKGRD:Bad op/guard:%d/%d combination\n",
 					scsi_get_prot_op(sc), guard_type);
 			break;
 
@@ -1157,7 +1163,8 @@ lpfc_sc_to_sli_prof(struct scsi_cmnd *sc)
 		case SCSI_PROT_WRITE_STRIP:
 		case SCSI_PROT_NORMAL:
 		default:
-			printk(KERN_ERR "Bad op/guard:%d/%d combination\n",
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				"9075 BLKGRD: Bad op/guard:%d/%d combination\n",
 					scsi_get_prot_op(sc), guard_type);
 			break;
 		}
@@ -1259,7 +1266,7 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	uint16_t apptagmask, apptagval;
 
 	pde1 = (struct lpfc_pde *) bpl;
-	prof = lpfc_sc_to_sli_prof(sc);
+	prof = lpfc_sc_to_sli_prof(phba, sc);
 
 	if (prof == LPFC_PROF_INVALID)
 		goto out;
@@ -1359,7 +1366,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		return 0;
 	}
 
-	prof = lpfc_sc_to_sli_prof(sc);
+	prof = lpfc_sc_to_sli_prof(phba, sc);
 	if (prof == LPFC_PROF_INVALID)
 		goto out;
 
@@ -1408,7 +1415,8 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		subtotal = 0; /* total bytes processed for current prot grp */
 		while (!pgdone) {
 			if (!sgde) {
-				printk(KERN_ERR "%s Invalid data segment\n",
+				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					"9065 BLKGRD:%s Invalid data segment\n",
 						__func__);
 				return 0;
 			}
@@ -1462,7 +1470,8 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 			reftag += protgrp_blks;
 		} else {
 			/* if we're here, we have a bug */
-			printk(KERN_ERR "BLKGRD: bug in %s\n", __func__);
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				"9054 BLKGRD: bug in %s\n", __func__);
 		}
 
 	} while (!alldone);
@@ -1544,8 +1553,10 @@ lpfc_bg_scsi_prep_dma_buf(struct lpfc_hba *phba,
 
 		lpfc_cmd->seg_cnt = datasegcnt;
 		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
-			printk(KERN_ERR "%s: Too many sg segments from "
-					"dma_map_sg.  Config %d, seg_cnt %d\n",
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					"9067 BLKGRD: %s: Too many sg segments"
+					" from dma_map_sg.  Config %d, seg_cnt"
+					" %d\n",
 					__func__, phba->cfg_sg_seg_cnt,
 					lpfc_cmd->seg_cnt);
 			scsi_dma_unmap(scsi_cmnd);
@@ -1579,8 +1590,9 @@ lpfc_bg_scsi_prep_dma_buf(struct lpfc_hba *phba,
 			lpfc_cmd->prot_seg_cnt = protsegcnt;
 			if (lpfc_cmd->prot_seg_cnt
 			    > phba->cfg_prot_sg_seg_cnt) {
-				printk(KERN_ERR "%s: Too many prot sg segments "
-						"from dma_map_sg.  Config %d,"
+				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+					"9068 BLKGRD: %s: Too many prot sg "
+					"segments from dma_map_sg.  Config %d,"
 						"prot_seg_cnt %d\n", __func__,
 						phba->cfg_prot_sg_seg_cnt,
 						lpfc_cmd->prot_seg_cnt);
@@ -1671,23 +1683,26 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 	uint32_t bgstat = bgf->bgstat;
 	uint64_t failing_sector = 0;
 
-	printk(KERN_ERR "BG ERROR in cmd 0x%x lba 0x%llx blk cnt 0x%x "
+	lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9069 BLKGRD: BG ERROR in cmd"
+			" 0x%x lba 0x%llx blk cnt 0x%x "
 			"bgstat=0x%x bghm=0x%x\n",
 			cmd->cmnd[0], (unsigned long long)scsi_get_lba(cmd),
 			blk_rq_sectors(cmd->request), bgstat, bghm);
 
 	spin_lock(&_dump_buf_lock);
 	if (!_dump_buf_done) {
-		printk(KERN_ERR "Saving Data for %u blocks to debugfs\n",
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,  "9070 BLKGRD: Saving"
+			" Data for %u blocks to debugfs\n",
 				(cmd->cmnd[7] << 8 | cmd->cmnd[8]));
-		lpfc_debug_save_data(cmd);
+		lpfc_debug_save_data(phba, cmd);
 
 		/* If we have a prot sgl, save the DIF buffer */
 		if (lpfc_prot_group_type(phba, cmd) ==
 				LPFC_PG_TYPE_DIF_BUF) {
-			printk(KERN_ERR "Saving DIF for %u blocks to debugfs\n",
-					(cmd->cmnd[7] << 8 | cmd->cmnd[8]));
-			lpfc_debug_save_dif(cmd);
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9071 BLKGRD: "
+				"Saving DIF for %u blocks to debugfs\n",
+				(cmd->cmnd[7] << 8 | cmd->cmnd[8]));
+			lpfc_debug_save_dif(phba, cmd);
 		}
 
 		_dump_buf_done = 1;
@@ -1696,15 +1711,17 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 
 	if (lpfc_bgs_get_invalid_prof(bgstat)) {
 		cmd->result = ScsiResult(DID_ERROR, 0);
-		printk(KERN_ERR "Invalid BlockGuard profile. bgstat:0x%x\n",
-				bgstat);
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9072 BLKGRD: Invalid"
+			" BlockGuard profile. bgstat:0x%x\n",
+			bgstat);
 		ret = (-1);
 		goto out;
 	}
 
 	if (lpfc_bgs_get_uninit_dif_block(bgstat)) {
 		cmd->result = ScsiResult(DID_ERROR, 0);
-		printk(KERN_ERR "Invalid BlockGuard DIF Block. bgstat:0x%x\n",
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9073 BLKGRD: "
+				"Invalid BlockGuard DIF Block. bgstat:0x%x\n",
 				bgstat);
 		ret = (-1);
 		goto out;
@@ -1718,7 +1735,8 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 		cmd->result = DRIVER_SENSE << 24
 			| ScsiResult(DID_ABORT, SAM_STAT_CHECK_CONDITION);
 		phba->bg_guard_err_cnt++;
-		printk(KERN_ERR "BLKGRD: guard_tag error\n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9055 BLKGRD: guard_tag error\n");
 	}
 
 	if (lpfc_bgs_get_reftag_err(bgstat)) {
@@ -1730,7 +1748,8 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 			| ScsiResult(DID_ABORT, SAM_STAT_CHECK_CONDITION);
 
 		phba->bg_reftag_err_cnt++;
-		printk(KERN_ERR "BLKGRD: ref_tag error\n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9056 BLKGRD: ref_tag error\n");
 	}
 
 	if (lpfc_bgs_get_apptag_err(bgstat)) {
@@ -1742,7 +1761,8 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 			| ScsiResult(DID_ABORT, SAM_STAT_CHECK_CONDITION);
 
 		phba->bg_apptag_err_cnt++;
-		printk(KERN_ERR "BLKGRD: app_tag error\n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9061 BLKGRD: app_tag error\n");
 	}
 
 	if (lpfc_bgs_get_hi_water_mark_present(bgstat)) {
@@ -1763,7 +1783,8 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 	if (!ret) {
 		/* No error was reported - problem in FW? */
 		cmd->result = ScsiResult(DID_ERROR, 0);
-		printk(KERN_ERR "BLKGRD: no errors reported!\n");
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+			"9057 BLKGRD: no errors reported!\n");
 	}
 
 out:
@@ -1822,9 +1843,10 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 
 		lpfc_cmd->seg_cnt = nseg;
 		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
-			printk(KERN_ERR "%s: Too many sg segments from "
-			       "dma_map_sg.  Config %d, seg_cnt %d\n",
-			       __func__, phba->cfg_sg_seg_cnt,
+			lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9074 BLKGRD:"
+				" %s: Too many sg segments from "
+				"dma_map_sg.  Config %d, seg_cnt %d\n",
+				__func__, phba->cfg_sg_seg_cnt,
 			       lpfc_cmd->seg_cnt);
 			scsi_dma_unmap(scsi_cmnd);
 			return 1;
@@ -2050,6 +2072,21 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		goto out;
 	}
 
+	if (resp_info & RSP_LEN_VALID) {
+		rsplen = be32_to_cpu(fcprsp->rspRspLen);
+		if ((rsplen != 0 && rsplen != 4 && rsplen != 8) ||
+		    (fcprsp->rspInfo3 != RSP_NO_FAILURE)) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+				 "2719 Invalid response length: "
+				 "tgt x%x lun x%x cmnd x%x rsplen x%x\n",
+				 cmnd->device->id,
+				 cmnd->device->lun, cmnd->cmnd[0],
+				 rsplen);
+			host_status = DID_ERROR;
+			goto out;
+		}
+	}
+
 	if ((resp_info & SNS_LEN_VALID) && fcprsp->rspSnsLen) {
 		uint32_t snslen = be32_to_cpu(fcprsp->rspSnsLen);
 		if (snslen > SCSI_SENSE_BUFFERSIZE)
@@ -2073,15 +2110,6 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 			 be32_to_cpu(fcprsp->rspSnsLen),
 			 be32_to_cpu(fcprsp->rspRspLen),
 			 fcprsp->rspInfo3);
-
-	if (resp_info & RSP_LEN_VALID) {
-		rsplen = be32_to_cpu(fcprsp->rspRspLen);
-		if ((rsplen != 0 && rsplen != 4 && rsplen != 8) ||
-		    (fcprsp->rspInfo3 != RSP_NO_FAILURE)) {
-			host_status = DID_ERROR;
-			goto out;
-		}
-	}
 
 	scsi_set_resid(cmnd, 0);
 	if (resp_info & RESID_UNDER) {
@@ -2264,7 +2292,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 					lpfc_printf_vlog(vport, KERN_WARNING,
 							LOG_BG,
 							"9031 non-zero BGSTAT "
-							"on unprotected cmd");
+							"on unprotected cmd\n");
 				}
 			}
 
@@ -2785,9 +2813,10 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	if (!(phba->sli3_options & LPFC_SLI3_BG_ENABLED) &&
 		scsi_get_prot_op(cmnd) != SCSI_PROT_NORMAL) {
 
-		printk(KERN_ERR "BLKGRD ERROR: rcvd protected cmd:%02x op:%02x "
-				"str=%s without registering for BlockGuard - "
-				"Rejecting command\n",
+		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
+				"9058 BLKGRD: ERROR: rcvd protected cmd:%02x"
+				" op:%02x str=%s without registering for"
+				" BlockGuard - Rejecting command\n",
 				cmnd->cmnd[0], scsi_get_prot_op(cmnd),
 				dif_op_str[scsi_get_prot_op(cmnd)]);
 		goto out_fail_command;
@@ -2827,61 +2856,66 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	cmnd->scsi_done = done;
 
 	if (scsi_get_prot_op(cmnd) != SCSI_PROT_NORMAL) {
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
+		if (vport->phba->cfg_enable_bg) {
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 				"9033 BLKGRD: rcvd protected cmd:%02x op:%02x "
 				"str=%s\n",
 				cmnd->cmnd[0], scsi_get_prot_op(cmnd),
 				dif_op_str[scsi_get_prot_op(cmnd)]);
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 				"9034 BLKGRD: CDB: %02x %02x %02x %02x %02x "
 				"%02x %02x %02x %02x %02x\n",
 				cmnd->cmnd[0], cmnd->cmnd[1], cmnd->cmnd[2],
 				cmnd->cmnd[3], cmnd->cmnd[4], cmnd->cmnd[5],
 				cmnd->cmnd[6], cmnd->cmnd[7], cmnd->cmnd[8],
 				cmnd->cmnd[9]);
-		if (cmnd->cmnd[0] == READ_10)
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
+			if (cmnd->cmnd[0] == READ_10)
+				lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					"9035 BLKGRD: READ @ sector %llu, "
 					"count %u\n",
 					(unsigned long long)scsi_get_lba(cmnd),
 					blk_rq_sectors(cmnd->request));
-		else if (cmnd->cmnd[0] == WRITE_10)
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
+			else if (cmnd->cmnd[0] == WRITE_10)
+				lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					"9036 BLKGRD: WRITE @ sector %llu, "
 					"count %u cmd=%p\n",
 					(unsigned long long)scsi_get_lba(cmnd),
 					blk_rq_sectors(cmnd->request),
 					cmnd);
+		}
 
 		err = lpfc_bg_scsi_prep_dma_buf(phba, lpfc_cmd);
 	} else {
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
-				"9038 BLKGRD: rcvd unprotected cmd:%02x op:%02x"
-				" str=%s\n",
-				cmnd->cmnd[0], scsi_get_prot_op(cmnd),
-				dif_op_str[scsi_get_prot_op(cmnd)]);
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
-				 "9039 BLKGRD: CDB: %02x %02x %02x %02x %02x "
-				 "%02x %02x %02x %02x %02x\n",
-				 cmnd->cmnd[0], cmnd->cmnd[1], cmnd->cmnd[2],
-				 cmnd->cmnd[3], cmnd->cmnd[4], cmnd->cmnd[5],
-				 cmnd->cmnd[6], cmnd->cmnd[7], cmnd->cmnd[8],
-				 cmnd->cmnd[9]);
-		if (cmnd->cmnd[0] == READ_10)
+		if (vport->phba->cfg_enable_bg) {
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
-					 "9040 dbg: READ @ sector %llu, "
-					 "count %u\n",
-					 (unsigned long long)scsi_get_lba(cmnd),
+					"9038 BLKGRD: rcvd unprotected cmd:"
+					"%02x op:%02x str=%s\n",
+					cmnd->cmnd[0], scsi_get_prot_op(cmnd),
+					dif_op_str[scsi_get_prot_op(cmnd)]);
+				lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
+					"9039 BLKGRD: CDB: %02x %02x %02x "
+					"%02x %02x %02x %02x %02x %02x %02x\n",
+					cmnd->cmnd[0], cmnd->cmnd[1],
+					cmnd->cmnd[2], cmnd->cmnd[3],
+					cmnd->cmnd[4], cmnd->cmnd[5],
+					cmnd->cmnd[6], cmnd->cmnd[7],
+					cmnd->cmnd[8], cmnd->cmnd[9]);
+			if (cmnd->cmnd[0] == READ_10)
+				lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
+					"9040 dbg: READ @ sector %llu, "
+					"count %u\n",
+					(unsigned long long)scsi_get_lba(cmnd),
 					 blk_rq_sectors(cmnd->request));
-		else if (cmnd->cmnd[0] == WRITE_10)
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
+			else if (cmnd->cmnd[0] == WRITE_10)
+				lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					 "9041 dbg: WRITE @ sector %llu, "
 					 "count %u cmd=%p\n",
 					 (unsigned long long)scsi_get_lba(cmnd),
 					 blk_rq_sectors(cmnd->request), cmnd);
-		else
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
+			else
+				lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					 "9042 dbg: parser not implemented\n");
+		}
 		err = lpfc_scsi_prep_dma_buf(phba, lpfc_cmd);
 	}
 

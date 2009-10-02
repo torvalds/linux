@@ -25,8 +25,8 @@
 
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_transport_fc.h>
-
 #include <scsi/scsi.h>
+#include <scsi/fc/fc_fs.h>
 
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
@@ -1135,7 +1135,7 @@ lpfc_config_ring(struct lpfc_hba * phba, int ring, LPFC_MBOXQ_t * pmb)
 	/* Otherwise we setup specific rctl / type masks for this ring */
 	for (i = 0; i < pring->num_mask; i++) {
 		mb->un.varCfgRing.rrRegs[i].rval = pring->prt[i].rctl;
-		if (mb->un.varCfgRing.rrRegs[i].rval != FC_ELS_REQ)
+		if (mb->un.varCfgRing.rrRegs[i].rval != FC_RCTL_ELS_REQ)
 			mb->un.varCfgRing.rrRegs[i].rmask = 0xff;
 		else
 			mb->un.varCfgRing.rrRegs[i].rmask = 0xfe;
@@ -1657,9 +1657,12 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 	/* Allocate record for keeping SGE virtual addresses */
 	mbox->sge_array = kmalloc(sizeof(struct lpfc_mbx_nembed_sge_virt),
 				  GFP_KERNEL);
-	if (!mbox->sge_array)
+	if (!mbox->sge_array) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"2527 Failed to allocate non-embedded SGE "
+				"array.\n");
 		return 0;
-
+	}
 	for (pagen = 0, alloc_len = 0; pagen < pcount; pagen++) {
 		/* The DMA memory is always allocated in the length of a
 		 * page even though the last SGE might not fill up to a

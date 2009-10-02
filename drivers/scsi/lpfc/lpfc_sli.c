@@ -516,6 +516,8 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba)
 	struct lpfc_sglq *sglq = NULL;
 	uint16_t adj_xri;
 	list_remove_head(lpfc_sgl_list, sglq, struct lpfc_sglq, list);
+	if (!sglq)
+		return NULL;
 	adj_xri = sglq->sli4_xritag - phba->sli4_hba.max_cfg_param.xri_base;
 	phba->sli4_hba.lpfc_sglq_active_list[adj_xri] = sglq;
 	return sglq;
@@ -2070,8 +2072,8 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if ((irsp->ulpCommand == CMD_RCV_ELS_REQ64_CX) ||
 	    (irsp->ulpCommand == CMD_RCV_ELS_REQ_CX) ||
 	    (irsp->ulpCommand == CMD_IOCB_RCV_ELS64_CX)) {
-		Rctl = FC_ELS_REQ;
-		Type = FC_ELS_DATA;
+		Rctl = FC_RCTL_ELS_REQ;
+		Type = FC_TYPE_ELS;
 	} else {
 		w5p = (WORD5 *)&(saveq->iocb.un.ulpWord[5]);
 		Rctl = w5p->hcsw.Rctl;
@@ -2081,8 +2083,8 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		if ((Rctl == 0) && (pring->ringno == LPFC_ELS_RING) &&
 			(irsp->ulpCommand == CMD_RCV_SEQUENCE64_CX ||
 			 irsp->ulpCommand == CMD_IOCB_RCV_SEQ64_CX)) {
-			Rctl = FC_ELS_REQ;
-			Type = FC_ELS_DATA;
+			Rctl = FC_RCTL_ELS_REQ;
+			Type = FC_TYPE_ELS;
 			w5p->hcsw.Rctl = Rctl;
 			w5p->hcsw.Type = Type;
 		}
@@ -4485,7 +4487,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	rc = lpfc_sli4_post_sgl_list(phba);
 	if (unlikely(rc)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
-				"0582 Error %d during sgl post operation", rc);
+				"0582 Error %d during sgl post operation\n",
+					rc);
 		rc = -ENODEV;
 		goto out_free_vpd;
 	}
@@ -4494,8 +4497,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	rc = lpfc_sli4_repost_scsi_sgl_list(phba);
 	if (unlikely(rc)) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
-				"0383 Error %d during scsi sgl post opeation",
-				rc);
+				"0383 Error %d during scsi sgl post "
+				"operation\n", rc);
 		/* Some Scsi buffers were moved to the abort scsi list */
 		/* A pci function reset will repost them */
 		rc = -ENODEV;
@@ -5686,7 +5689,7 @@ __lpfc_sli_issue_iocb_s3(struct lpfc_hba *phba, uint32_t ring_number,
 		case CMD_GEN_REQUEST64_CX:
 			if (!(phba->sli.sli_flag & LPFC_MENLO_MAINT) ||
 				(piocb->iocb.un.genreq64.w5.hcsw.Rctl !=
-					FC_FCP_CMND) ||
+					FC_RCTL_DD_UNSOL_CMD) ||
 				(piocb->iocb.un.genreq64.w5.hcsw.Type !=
 					MENLO_TRANSPORT_TYPE))
 
@@ -6485,27 +6488,27 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 				lpfc_sli_async_event_handler;
 			pring->num_mask = LPFC_MAX_RING_MASK;
 			pring->prt[0].profile = 0;	/* Mask 0 */
-			pring->prt[0].rctl = FC_ELS_REQ;
-			pring->prt[0].type = FC_ELS_DATA;
+			pring->prt[0].rctl = FC_RCTL_ELS_REQ;
+			pring->prt[0].type = FC_TYPE_ELS;
 			pring->prt[0].lpfc_sli_rcv_unsol_event =
 			    lpfc_els_unsol_event;
 			pring->prt[1].profile = 0;	/* Mask 1 */
-			pring->prt[1].rctl = FC_ELS_RSP;
-			pring->prt[1].type = FC_ELS_DATA;
+			pring->prt[1].rctl = FC_RCTL_ELS_REP;
+			pring->prt[1].type = FC_TYPE_ELS;
 			pring->prt[1].lpfc_sli_rcv_unsol_event =
 			    lpfc_els_unsol_event;
 			pring->prt[2].profile = 0;	/* Mask 2 */
 			/* NameServer Inquiry */
-			pring->prt[2].rctl = FC_UNSOL_CTL;
+			pring->prt[2].rctl = FC_RCTL_DD_UNSOL_CTL;
 			/* NameServer */
-			pring->prt[2].type = FC_COMMON_TRANSPORT_ULP;
+			pring->prt[2].type = FC_TYPE_CT;
 			pring->prt[2].lpfc_sli_rcv_unsol_event =
 			    lpfc_ct_unsol_event;
 			pring->prt[3].profile = 0;	/* Mask 3 */
 			/* NameServer response */
-			pring->prt[3].rctl = FC_SOL_CTL;
+			pring->prt[3].rctl = FC_RCTL_DD_SOL_CTL;
 			/* NameServer */
-			pring->prt[3].type = FC_COMMON_TRANSPORT_ULP;
+			pring->prt[3].type = FC_TYPE_CT;
 			pring->prt[3].lpfc_sli_rcv_unsol_event =
 			    lpfc_ct_unsol_event;
 			/* abort unsolicited sequence */
@@ -8089,7 +8092,7 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 							KERN_ERR,
 							LOG_MBOX | LOG_SLI,
 							"0350 rc should have"
-							"been MBX_BUSY");
+							"been MBX_BUSY\n");
 						if (rc != MBX_NOT_FINISHED)
 							goto send_current_mbox;
 					}
@@ -8118,7 +8121,7 @@ send_current_mbox:
 			if (rc != MBX_SUCCESS)
 				lpfc_printf_log(phba, KERN_ERR, LOG_MBOX |
 						LOG_SLI, "0349 rc should be "
-						"MBX_SUCCESS");
+						"MBX_SUCCESS\n");
 		}
 
 		spin_lock_irqsave(&phba->hbalock, iflag);
@@ -10454,8 +10457,7 @@ lpfc_sli4_next_xritag(struct lpfc_hba *phba)
 		return xritag;
 	}
 	spin_unlock_irq(&phba->hbalock);
-
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+	lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 			"2004 Failed to allocate XRI.last XRITAG is %d"
 			" Max XRI is %d, Used XRI is %d\n",
 			phba->sli4_hba.next_xri,
@@ -10519,15 +10521,7 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
 		lpfc_sli4_mbox_cmd_free(phba, mbox);
 		return -ENOMEM;
 	}
-
 	/* Get the first SGE entry from the non-embedded DMA memory */
-	if (unlikely(!mbox->sge_array)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
-				"2525 Failed to get the non-embedded SGE "
-				"virtual address\n");
-		lpfc_sli4_mbox_cmd_free(phba, mbox);
-		return -ENOMEM;
-	}
 	viraddr = mbox->sge_array->addr[0];
 
 	/* Set up the SGL pages in the non-embedded DMA pages */
@@ -10551,8 +10545,7 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
 		sgl_pg_pairs++;
 	}
 	bf_set(lpfc_post_sgl_pages_xri, sgl, xritag_start);
-	pg_pairs = (pg_pairs > 0) ? (pg_pairs - 1) : pg_pairs;
-	bf_set(lpfc_post_sgl_pages_xricnt, sgl, pg_pairs);
+	bf_set(lpfc_post_sgl_pages_xricnt, sgl, els_xri_cnt);
 	/* Perform endian conversion if necessary */
 	sgl->word0 = cpu_to_le32(sgl->word0);
 
@@ -10634,15 +10627,7 @@ lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *phba, struct list_head *sblist,
 		lpfc_sli4_mbox_cmd_free(phba, mbox);
 		return -ENOMEM;
 	}
-
 	/* Get the first SGE entry from the non-embedded DMA memory */
-	if (unlikely(!mbox->sge_array)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
-				"2565 Failed to get the non-embedded SGE "
-				"virtual address\n");
-		lpfc_sli4_mbox_cmd_free(phba, mbox);
-		return -ENOMEM;
-	}
 	viraddr = mbox->sge_array->addr[0];
 
 	/* Set up the SGL pages in the non-embedded DMA pages */
@@ -11565,6 +11550,7 @@ lpfc_sli4_init_vpi(struct lpfc_hba *phba, uint16_t vpi)
 {
 	LPFC_MBOXQ_t *mboxq;
 	int rc = 0;
+	int retval = MBX_SUCCESS;
 	uint32_t mbox_tmo;
 
 	if (vpi == 0)
@@ -11575,16 +11561,17 @@ lpfc_sli4_init_vpi(struct lpfc_hba *phba, uint16_t vpi)
 	lpfc_init_vpi(phba, mboxq, vpi);
 	mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_INIT_VPI);
 	rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mboxq, phba->mbox_mem_pool);
 	if (rc != MBX_SUCCESS) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2022 INIT VPI Mailbox failed "
 				"status %d, mbxStatus x%x\n", rc,
 				bf_get(lpfc_mqe_status, &mboxq->u.mqe));
-		rc = -EIO;
+		retval = -EIO;
 	}
-	return rc;
+	if (rc != MBX_TIMEOUT)
+		mempool_free(mboxq, phba->mbox_mem_pool);
+
+	return retval;
 }
 
 /**
@@ -11669,13 +11656,6 @@ lpfc_sli4_add_fcf_record(struct lpfc_hba *phba, struct fcf_record *fcf_record)
 	 */
 	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
 	phys_addr = getPaddr(sge.pa_hi, sge.pa_lo);
-	if (unlikely(!mboxq->sge_array)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
-				"2526 Failed to get the non-embedded SGE "
-				"virtual address\n");
-		lpfc_sli4_mbox_cmd_free(phba, mboxq);
-		return -ENOMEM;
-	}
 	virt_addr = mboxq->sge_array->addr[0];
 	/*
 	 * Configure the FCF record for FCFI 0.  This is the driver's
@@ -11799,13 +11779,6 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 	 */
 	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
 	phys_addr = getPaddr(sge.pa_hi, sge.pa_lo);
-	if (unlikely(!mboxq->sge_array)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
-				"2527 Failed to get the non-embedded SGE "
-				"virtual address\n");
-		error = -ENOMEM;
-		goto fail_fcfscan;
-	}
 	virt_addr = mboxq->sge_array->addr[0];
 	read_fcf = (struct lpfc_mbx_read_fcf_tbl *)virt_addr;
 

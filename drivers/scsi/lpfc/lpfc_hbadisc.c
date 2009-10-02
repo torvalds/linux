@@ -1699,9 +1699,8 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_initial_fdisc(vport);
 	else {
 		lpfc_vport_set_state(vport, FC_VPORT_NO_FABRIC_SUPP);
-		lpfc_printf_vlog(vport, KERN_ERR,
-			LOG_ELS,
-			"2606 No NPIV Fabric support\n");
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "2606 No NPIV Fabric support\n");
 	}
 	return;
 }
@@ -1901,7 +1900,10 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 	if (phba->fc_topology == TOPOLOGY_LOOP) {
 		phba->sli3_options &= ~LPFC_SLI3_NPIV_ENABLED;
 
-		if (phba->cfg_enable_npiv)
+		/* if npiv is enabled and this adapter supports npiv log
+		 * a message that npiv is not supported in this topology
+		 */
+		if (phba->cfg_enable_npiv && phba->max_vpi)
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 				"1309 Link Up Event npiv not supported in loop "
 				"topology\n");
@@ -3118,7 +3120,7 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	struct lpfc_sli *psli;
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *iocb, *next_iocb;
-	uint32_t rpi, i;
+	uint32_t i;
 
 	lpfc_fabric_abort_nport(ndlp);
 
@@ -3127,7 +3129,6 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	 * by firmware with a no rpi error.
 	 */
 	psli = &phba->sli;
-	rpi = ndlp->nlp_rpi;
 	if (ndlp->nlp_flag & NLP_RPI_VALID) {
 		/* Now process each ring */
 		for (i = 0; i < psli->num_rings; i++) {

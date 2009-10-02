@@ -1124,21 +1124,6 @@ typedef struct {
 /* Number of 4-byte words in an IOCB. */
 #define IOCB_WORD_SZ    8
 
-/* defines for type field in fc header */
-#define FC_ELS_DATA     0x1
-#define FC_LLC_SNAP     0x5
-#define FC_FCP_DATA     0x8
-#define FC_COMMON_TRANSPORT_ULP 0x20
-
-/* defines for rctl field in fc header */
-#define FC_DEV_DATA     0x0
-#define FC_UNSOL_CTL    0x2
-#define FC_SOL_CTL      0x3
-#define FC_UNSOL_DATA   0x4
-#define FC_FCP_CMND     0x6
-#define FC_ELS_REQ      0x22
-#define FC_ELS_RSP      0x23
-
 /* network headers for Dfctl field */
 #define FC_NET_HDR      0x20
 

@@ -29,6 +29,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_transport_fc.h>
+#include <scsi/fc/fc_fs.h>
 
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
@@ -762,9 +763,15 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 	} else if (strncmp(buf, "offline", sizeof("offline") - 1) == 0)
 		status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 	else if (strncmp(buf, "warm", sizeof("warm") - 1) == 0)
-		status = lpfc_do_offline(phba, LPFC_EVT_WARM_START);
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			return -EINVAL;
+		else
+			status = lpfc_do_offline(phba, LPFC_EVT_WARM_START);
 	else if (strncmp(buf, "error", sizeof("error") - 1) == 0)
-		status = lpfc_do_offline(phba, LPFC_EVT_KILL);
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			return -EINVAL;
+		else
+			status = lpfc_do_offline(phba, LPFC_EVT_KILL);
 	else
 		return -EINVAL;
 
@@ -2846,7 +2853,7 @@ LPFC_ATTR_R(multi_ring_support, 1, 1, 2, "Determines number of primary "
 # identifies what rctl value to configure the additional ring for.
 # Value range is [1,0xff]. Default value is 4 (Unsolicated Data).
 */
-LPFC_ATTR_R(multi_ring_rctl, FC_UNSOL_DATA, 1,
+LPFC_ATTR_R(multi_ring_rctl, FC_RCTL_DD_UNSOL_DATA, 1,
 	     255, "Identifies RCTL for additional ring configuration");
 
 /*
@@ -2854,7 +2861,7 @@ LPFC_ATTR_R(multi_ring_rctl, FC_UNSOL_DATA, 1,
 # identifies what type value to configure the additional ring for.
 # Value range is [1,0xff]. Default value is 5 (LLC/SNAP).
 */
-LPFC_ATTR_R(multi_ring_type, FC_LLC_SNAP, 1,
+LPFC_ATTR_R(multi_ring_type, FC_TYPE_IP, 1,
 	     255, "Identifies TYPE for additional ring configuration");
 
 /*
