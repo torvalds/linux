@@ -181,6 +181,8 @@ struct cfq_data {
 	 * Fallback dummy cfqq for extreme OOM conditions
 	 */
 	struct cfq_queue oom_cfqq;
+
+	unsigned long last_end_sync_rq;
 };
 
 enum cfqq_state_flags {
@@ -1314,6 +1316,8 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 	 * Does this cfqq already have too much IO in flight?
 	 */
 	if (cfqq->dispatched >= max_dispatch) {
+		unsigned long load_at = cfqd->last_end_sync_rq + cfq_slice_sync;
+
 		/*
 		 * idle queue must always only have a single IO in flight
 		 */
@@ -1324,6 +1328,14 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 		 * We have other queues, don't allow more IO from this one
 		 */
 		if (cfqd->busy_queues > 1)
+			return 0;
+
+		/*
+		 * If a sync request has completed recently, don't overload
+		 * the dispatch queue yet with async requests.
+		 */
+		if (cfqd->cfq_desktop && !cfq_cfqq_sync(cfqq)
+		    && time_before(jiffies, load_at))
 			return 0;
 
 		/*
@@ -2158,8 +2170,10 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	if (cfq_cfqq_sync(cfqq))
 		cfqd->sync_flight--;
 
-	if (sync)
+	if (sync) {
 		RQ_CIC(rq)->last_end_request = now;
+		cfqd->last_end_sync_rq = now;
+	}
 
 	/*
 	 * If this is the active queue, check if it needs to be expired,
@@ -2483,7 +2497,7 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfqd->cfq_slice_idle = cfq_slice_idle;
 	cfqd->cfq_desktop = 1;
 	cfqd->hw_tag = 1;
-
+	cfqd->last_end_sync_rq = jiffies;
 	return cfqd;
 }
 
