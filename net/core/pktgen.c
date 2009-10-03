@@ -964,7 +964,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (value == 0x7FFFFFFF)
 			pkt_dev->delay = ULLONG_MAX;
 		else
-			pkt_dev->delay = (u64)value * NSEC_PER_USEC;
+			pkt_dev->delay = (u64)value;
 
 		sprintf(pg_result, "OK: delay=%llu",
 			(unsigned long long) pkt_dev->delay);
