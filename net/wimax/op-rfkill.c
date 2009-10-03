@@ -305,8 +305,15 @@ int wimax_rfkill(struct wimax_dev *wimax_dev, enum wimax_rf_state state)
 	d_fnstart(3, dev, "(wimax_dev %p state %u)\n", wimax_dev, state);
 	mutex_lock(&wimax_dev->mutex);
 	result = wimax_dev_is_ready(wimax_dev);
-	if (result < 0)
+	if (result < 0) {
+		/* While initializing, < 1.4.3 wimax-tools versions use
+		 * this call to check if the device is a valid WiMAX
+		 * device; so we allow it to proceed always,
+		 * considering the radios are all off. */
+		if (result == -ENOMEDIUM && state == WIMAX_RF_QUERY)
+			result = WIMAX_RF_OFF << 1 | WIMAX_RF_OFF;
 		goto error_not_ready;
+	}
 	switch (state) {
 	case WIMAX_RF_ON:
 	case WIMAX_RF_OFF:
