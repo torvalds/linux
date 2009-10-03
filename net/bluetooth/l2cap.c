@@ -3362,6 +3362,16 @@ expected:
 		return 0;
 	}
 
+	if (rx_control & L2CAP_CTRL_FINAL) {
+		if (pi->conn_state & L2CAP_CONN_REJ_ACT)
+			pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
+		else {
+			sk->sk_send_head = TX_QUEUE(sk)->next;
+			pi->next_tx_seq = pi->expected_ack_seq;
+			l2cap_ertm_send(sk);
+		}
+	}
+
 	pi->buffer_seq = (pi->buffer_seq + 1) % 64;
 
 	err = l2cap_sar_reassembly_sdu(sk, skb, rx_control);
@@ -3398,6 +3408,14 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 			pi->expected_ack_seq = tx_seq;
 			l2cap_drop_acked_frames(sk);
 
+			if (pi->conn_state & L2CAP_CONN_REJ_ACT)
+				pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
+			else {
+				sk->sk_send_head = TX_QUEUE(sk)->next;
+				pi->next_tx_seq = pi->expected_ack_seq;
+				l2cap_ertm_send(sk);
+			}
+
 			if (!(pi->conn_state & L2CAP_CONN_WAIT_F))
 				break;
 
@@ -3425,10 +3443,24 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 		pi->expected_ack_seq = __get_reqseq(rx_control);
 		l2cap_drop_acked_frames(sk);
 
-		sk->sk_send_head = TX_QUEUE(sk)->next;
-		pi->next_tx_seq = pi->expected_ack_seq;
+		if (rx_control & L2CAP_CTRL_FINAL) {
+			if (pi->conn_state & L2CAP_CONN_REJ_ACT)
+				pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
+			else {
+				sk->sk_send_head = TX_QUEUE(sk)->next;
+				pi->next_tx_seq = pi->expected_ack_seq;
+				l2cap_ertm_send(sk);
+			}
+		} else {
+			sk->sk_send_head = TX_QUEUE(sk)->next;
+			pi->next_tx_seq = pi->expected_ack_seq;
+			l2cap_ertm_send(sk);
 
-		l2cap_ertm_send(sk);
+			if (pi->conn_state & L2CAP_CONN_WAIT_F) {
+				pi->srej_save_reqseq = tx_seq;
+				pi->conn_state |= L2CAP_CONN_REJ_ACT;
+			}
+		}
 
 		break;
 
