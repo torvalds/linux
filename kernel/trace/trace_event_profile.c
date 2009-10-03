@@ -53,8 +53,8 @@ static int ftrace_profile_enable_event(struct ftrace_event_call *event)
 
 fail_buf_nmi:
 	if (!total_profile_count) {
-		kfree(trace_profile_buf_nmi);
-		kfree(trace_profile_buf);
+		free_percpu(trace_profile_buf_nmi);
+		free_percpu(trace_profile_buf);
 		trace_profile_buf_nmi = NULL;
 		trace_profile_buf = NULL;
 	}
