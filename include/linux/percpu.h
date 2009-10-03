@@ -219,4 +219,404 @@ do {									\
 # define percpu_xor(var, val)		__percpu_generic_to_op(var, (val), ^=)
 #endif
 
+/*
+ * Branching function to split up a function into a set of functions that
+ * are called for different scalar sizes of the objects handled.
+ */
+
+extern void __bad_size_call_parameter(void);
+
+#define __size_call_return(stem, variable)				\
+({	typeof(variable) ret__;						\
+	switch(sizeof(variable)) {					\
+	case 1: ret__ = stem##1(variable);break;			\
+	case 2: ret__ = stem##2(variable);break;			\
+	case 4: ret__ = stem##4(variable);break;			\
+	case 8: ret__ = stem##8(variable);break;			\
+	default:							\
+		__bad_size_call_parameter();break;			\
+	}								\
+	ret__;								\
+})
+
+#define __size_call(stem, variable, ...)				\
+do {									\
+	switch(sizeof(variable)) {					\
+		case 1: stem##1(variable, __VA_ARGS__);break;		\
+		case 2: stem##2(variable, __VA_ARGS__);break;		\
+		case 4: stem##4(variable, __VA_ARGS__);break;		\
+		case 8: stem##8(variable, __VA_ARGS__);break;		\
+		default: 						\
+			__bad_size_call_parameter();break;		\
+	}								\
+} while (0)
+
+/*
+ * Optimized manipulation for memory allocated through the per cpu
+ * allocator or for addresses of per cpu variables (can be determined
+ * using per_cpu_var(xx).
+ *
+ * These operation guarantee exclusivity of access for other operations
+ * on the *same* processor. The assumption is that per cpu data is only
+ * accessed by a single processor instance (the current one).
+ *
+ * The first group is used for accesses that must be done in a
+ * preemption safe way since we know that the context is not preempt
+ * safe. Interrupts may occur. If the interrupt modifies the variable
+ * too then RMW actions will not be reliable.
+ *
+ * The arch code can provide optimized functions in two ways:
+ *
+ * 1. Override the function completely. F.e. define this_cpu_add().
+ *    The arch must then ensure that the various scalar format passed
+ *    are handled correctly.
+ *
+ * 2. Provide functions for certain scalar sizes. F.e. provide
+ *    this_cpu_add_2() to provide per cpu atomic operations for 2 byte
+ *    sized RMW actions. If arch code does not provide operations for
+ *    a scalar size then the fallback in the generic code will be
+ *    used.
+ */
+
+#define _this_cpu_generic_read(pcp)					\
+({	typeof(pcp) ret__;						\
+	preempt_disable();						\
+	ret__ = *this_cpu_ptr(&(pcp));					\
+	preempt_enable();						\
+	ret__;								\
+})
+
+#ifndef this_cpu_read
+# ifndef this_cpu_read_1
+#  define this_cpu_read_1(pcp)	_this_cpu_generic_read(pcp)
+# endif
+# ifndef this_cpu_read_2
+#  define this_cpu_read_2(pcp)	_this_cpu_generic_read(pcp)
+# endif
+# ifndef this_cpu_read_4
+#  define this_cpu_read_4(pcp)	_this_cpu_generic_read(pcp)
+# endif
+# ifndef this_cpu_read_8
+#  define this_cpu_read_8(pcp)	_this_cpu_generic_read(pcp)
+# endif
+# define this_cpu_read(pcp)	__size_call_return(this_cpu_read_, (pcp))
+#endif
+
+#define _this_cpu_generic_to_op(pcp, val, op)				\
+do {									\
+	preempt_disable();						\
+	*__this_cpu_ptr(&pcp) op val;					\
+	preempt_enable();						\
+} while (0)
+
+#ifndef this_cpu_write
+# ifndef this_cpu_write_1
+#  define this_cpu_write_1(pcp, val)	_this_cpu_generic_to_op((pcp), (val), =)
+# endif
+# ifndef this_cpu_write_2
+#  define this_cpu_write_2(pcp, val)	_this_cpu_generic_to_op((pcp), (val), =)
+# endif
+# ifndef this_cpu_write_4
+#  define this_cpu_write_4(pcp, val)	_this_cpu_generic_to_op((pcp), (val), =)
+# endif
+# ifndef this_cpu_write_8
+#  define this_cpu_write_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), =)
+# endif
+# define this_cpu_write(pcp, val)	__size_call(this_cpu_write_, (pcp), (val))
+#endif
+
+#ifndef this_cpu_add
+# ifndef this_cpu_add_1
+#  define this_cpu_add_1(pcp, val)	_this_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# ifndef this_cpu_add_2
+#  define this_cpu_add_2(pcp, val)	_this_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# ifndef this_cpu_add_4
+#  define this_cpu_add_4(pcp, val)	_this_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# ifndef this_cpu_add_8
+#  define this_cpu_add_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# define this_cpu_add(pcp, val)		__size_call(this_cpu_add_, (pcp), (val))
+#endif
+
+#ifndef this_cpu_sub
+# define this_cpu_sub(pcp, val)		this_cpu_add((pcp), -(val))
+#endif
+
+#ifndef this_cpu_inc
+# define this_cpu_inc(pcp)		this_cpu_add((pcp), 1)
+#endif
+
+#ifndef this_cpu_dec
+# define this_cpu_dec(pcp)		this_cpu_sub((pcp), 1)
+#endif
+
+#ifndef this_cpu_and
+# ifndef this_cpu_and_1
+#  define this_cpu_and_1(pcp, val)	_this_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# ifndef this_cpu_and_2
+#  define this_cpu_and_2(pcp, val)	_this_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# ifndef this_cpu_and_4
+#  define this_cpu_and_4(pcp, val)	_this_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# ifndef this_cpu_and_8
+#  define this_cpu_and_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# define this_cpu_and(pcp, val)		__size_call(this_cpu_and_, (pcp), (val))
+#endif
+
+#ifndef this_cpu_or
+# ifndef this_cpu_or_1
+#  define this_cpu_or_1(pcp, val)	_this_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# ifndef this_cpu_or_2
+#  define this_cpu_or_2(pcp, val)	_this_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# ifndef this_cpu_or_4
+#  define this_cpu_or_4(pcp, val)	_this_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# ifndef this_cpu_or_8
+#  define this_cpu_or_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# define this_cpu_or(pcp, val)		__size_call(this_cpu_or_, (pcp), (val))
+#endif
+
+#ifndef this_cpu_xor
+# ifndef this_cpu_xor_1
+#  define this_cpu_xor_1(pcp, val)	_this_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# ifndef this_cpu_xor_2
+#  define this_cpu_xor_2(pcp, val)	_this_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# ifndef this_cpu_xor_4
+#  define this_cpu_xor_4(pcp, val)	_this_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# ifndef this_cpu_xor_8
+#  define this_cpu_xor_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# define this_cpu_xor(pcp, val)		__size_call(this_cpu_or_, (pcp), (val))
+#endif
+
+/*
+ * Generic percpu operations that do not require preemption handling.
+ * Either we do not care about races or the caller has the
+ * responsibility of handling preemptions issues. Arch code can still
+ * override these instructions since the arch per cpu code may be more
+ * efficient and may actually get race freeness for free (that is the
+ * case for x86 for example).
+ *
+ * If there is no other protection through preempt disable and/or
+ * disabling interupts then one of these RMW operations can show unexpected
+ * behavior because the execution thread was rescheduled on another processor
+ * or an interrupt occurred and the same percpu variable was modified from
+ * the interrupt context.
+ */
+#ifndef __this_cpu_read
+# ifndef __this_cpu_read_1
+#  define __this_cpu_read_1(pcp)	(*__this_cpu_ptr(&(pcp)))
+# endif
+# ifndef __this_cpu_read_2
+#  define __this_cpu_read_2(pcp)	(*__this_cpu_ptr(&(pcp)))
+# endif
+# ifndef __this_cpu_read_4
+#  define __this_cpu_read_4(pcp)	(*__this_cpu_ptr(&(pcp)))
+# endif
+# ifndef __this_cpu_read_8
+#  define __this_cpu_read_8(pcp)	(*__this_cpu_ptr(&(pcp)))
+# endif
+# define __this_cpu_read(pcp)	__size_call_return(__this_cpu_read_, (pcp))
+#endif
+
+#define __this_cpu_generic_to_op(pcp, val, op)				\
+do {									\
+	*__this_cpu_ptr(&(pcp)) op val;					\
+} while (0)
+
+#ifndef __this_cpu_write
+# ifndef __this_cpu_write_1
+#  define __this_cpu_write_1(pcp, val)	__this_cpu_generic_to_op((pcp), (val), =)
+# endif
+# ifndef __this_cpu_write_2
+#  define __this_cpu_write_2(pcp, val)	__this_cpu_generic_to_op((pcp), (val), =)
+# endif
+# ifndef __this_cpu_write_4
+#  define __this_cpu_write_4(pcp, val)	__this_cpu_generic_to_op((pcp), (val), =)
+# endif
+# ifndef __this_cpu_write_8
+#  define __this_cpu_write_8(pcp, val)	__this_cpu_generic_to_op((pcp), (val), =)
+# endif
+# define __this_cpu_write(pcp, val)	__size_call(__this_cpu_write_, (pcp), (val))
+#endif
+
+#ifndef __this_cpu_add
+# ifndef __this_cpu_add_1
+#  define __this_cpu_add_1(pcp, val)	__this_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# ifndef __this_cpu_add_2
+#  define __this_cpu_add_2(pcp, val)	__this_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# ifndef __this_cpu_add_4
+#  define __this_cpu_add_4(pcp, val)	__this_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# ifndef __this_cpu_add_8
+#  define __this_cpu_add_8(pcp, val)	__this_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# define __this_cpu_add(pcp, val)	__size_call(__this_cpu_add_, (pcp), (val))
+#endif
+
+#ifndef __this_cpu_sub
+# define __this_cpu_sub(pcp, val)	__this_cpu_add((pcp), -(val))
+#endif
+
+#ifndef __this_cpu_inc
+# define __this_cpu_inc(pcp)		__this_cpu_add((pcp), 1)
+#endif
+
+#ifndef __this_cpu_dec
+# define __this_cpu_dec(pcp)		__this_cpu_sub((pcp), 1)
+#endif
+
+#ifndef __this_cpu_and
+# ifndef __this_cpu_and_1
+#  define __this_cpu_and_1(pcp, val)	__this_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# ifndef __this_cpu_and_2
+#  define __this_cpu_and_2(pcp, val)	__this_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# ifndef __this_cpu_and_4
+#  define __this_cpu_and_4(pcp, val)	__this_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# ifndef __this_cpu_and_8
+#  define __this_cpu_and_8(pcp, val)	__this_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# define __this_cpu_and(pcp, val)	__size_call(__this_cpu_and_, (pcp), (val))
+#endif
+
+#ifndef __this_cpu_or
+# ifndef __this_cpu_or_1
+#  define __this_cpu_or_1(pcp, val)	__this_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# ifndef __this_cpu_or_2
+#  define __this_cpu_or_2(pcp, val)	__this_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# ifndef __this_cpu_or_4
+#  define __this_cpu_or_4(pcp, val)	__this_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# ifndef __this_cpu_or_8
+#  define __this_cpu_or_8(pcp, val)	__this_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# define __this_cpu_or(pcp, val)	__size_call(__this_cpu_or_, (pcp), (val))
+#endif
+
+#ifndef __this_cpu_xor
+# ifndef __this_cpu_xor_1
+#  define __this_cpu_xor_1(pcp, val)	__this_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# ifndef __this_cpu_xor_2
+#  define __this_cpu_xor_2(pcp, val)	__this_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# ifndef __this_cpu_xor_4
+#  define __this_cpu_xor_4(pcp, val)	__this_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# ifndef __this_cpu_xor_8
+#  define __this_cpu_xor_8(pcp, val)	__this_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# define __this_cpu_xor(pcp, val)	__size_call(__this_cpu_xor_, (pcp), (val))
+#endif
+
+/*
+ * IRQ safe versions of the per cpu RMW operations. Note that these operations
+ * are *not* safe against modification of the same variable from another
+ * processors (which one gets when using regular atomic operations)
+ . They are guaranteed to be atomic vs. local interrupts and
+ * preemption only.
+ */
+#define irqsafe_cpu_generic_to_op(pcp, val, op)				\
+do {									\
+	unsigned long flags;						\
+	local_irq_save(flags);						\
+	*__this_cpu_ptr(&(pcp)) op val;					\
+	local_irq_restore(flags);					\
+} while (0)
+
+#ifndef irqsafe_cpu_add
+# ifndef irqsafe_cpu_add_1
+#  define irqsafe_cpu_add_1(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# ifndef irqsafe_cpu_add_2
+#  define irqsafe_cpu_add_2(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# ifndef irqsafe_cpu_add_4
+#  define irqsafe_cpu_add_4(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# ifndef irqsafe_cpu_add_8
+#  define irqsafe_cpu_add_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), +=)
+# endif
+# define irqsafe_cpu_add(pcp, val) __size_call(irqsafe_cpu_add_, (pcp), (val))
+#endif
+
+#ifndef irqsafe_cpu_sub
+# define irqsafe_cpu_sub(pcp, val)	irqsafe_cpu_add((pcp), -(val))
+#endif
+
+#ifndef irqsafe_cpu_inc
+# define irqsafe_cpu_inc(pcp)	irqsafe_cpu_add((pcp), 1)
+#endif
+
+#ifndef irqsafe_cpu_dec
+# define irqsafe_cpu_dec(pcp)	irqsafe_cpu_sub((pcp), 1)
+#endif
+
+#ifndef irqsafe_cpu_and
+# ifndef irqsafe_cpu_and_1
+#  define irqsafe_cpu_and_1(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# ifndef irqsafe_cpu_and_2
+#  define irqsafe_cpu_and_2(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# ifndef irqsafe_cpu_and_4
+#  define irqsafe_cpu_and_4(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# ifndef irqsafe_cpu_and_8
+#  define irqsafe_cpu_and_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), &=)
+# endif
+# define irqsafe_cpu_and(pcp, val) __size_call(irqsafe_cpu_and_, (val))
+#endif
+
+#ifndef irqsafe_cpu_or
+# ifndef irqsafe_cpu_or_1
+#  define irqsafe_cpu_or_1(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# ifndef irqsafe_cpu_or_2
+#  define irqsafe_cpu_or_2(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# ifndef irqsafe_cpu_or_4
+#  define irqsafe_cpu_or_4(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# ifndef irqsafe_cpu_or_8
+#  define irqsafe_cpu_or_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), |=)
+# endif
+# define irqsafe_cpu_or(pcp, val) __size_call(irqsafe_cpu_or_, (val))
+#endif
+
+#ifndef irqsafe_cpu_xor
+# ifndef irqsafe_cpu_xor_1
+#  define irqsafe_cpu_xor_1(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# ifndef irqsafe_cpu_xor_2
+#  define irqsafe_cpu_xor_2(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# ifndef irqsafe_cpu_xor_4
+#  define irqsafe_cpu_xor_4(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# ifndef irqsafe_cpu_xor_8
+#  define irqsafe_cpu_xor_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), ^=)
+# endif
+# define irqsafe_cpu_xor(pcp, val) __size_call(irqsafe_cpu_xor_, (val))
+#endif
+
 #endif /* __LINUX_PERCPU_H */
