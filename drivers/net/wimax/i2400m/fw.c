@@ -1388,15 +1388,16 @@ const struct i2400m_bcf_hdr *i2400m_bcf_hdr_find(struct i2400m *i2400m)
  */
 static
 int i2400m_fw_dnload(struct i2400m *i2400m, const struct i2400m_bcf_hdr *bcf,
-		     size_t bcf_size, enum i2400m_bri flags)
+		     size_t fw_size, enum i2400m_bri flags)
 {
 	int ret = 0;
 	struct device *dev = i2400m_dev(i2400m);
 	int count = i2400m->bus_bm_retries;
 	const struct i2400m_bcf_hdr *bcf_hdr;
+	size_t bcf_size;
 
-	d_fnstart(5, dev, "(i2400m %p bcf %p size %zu)\n",
-		  i2400m, bcf, bcf_size);
+	d_fnstart(5, dev, "(i2400m %p bcf %p fw size %zu)\n",
+		  i2400m, bcf, fw_size);
 	i2400m->boot_mode = 1;
 	wmb();		/* Make sure other readers see it */
 hw_reboot:
@@ -1434,6 +1435,12 @@ hw_reboot:
 	if (ret < 0)
 		goto error_dnload_init;
 
+	/*
+	 * bcf_size refers to one header size plus the fw sections size
+	 * indicated by the header,ie. if there are other extended headers
+	 * at the tail, they are not counted
+	 */
+	bcf_size = sizeof(u32) * le32_to_cpu(bcf_hdr->size);
 	ret = i2400m_dnload_bcf(i2400m, bcf, bcf_size);
 	if (ret == -ERESTARTSYS)
 		goto error_dev_rebooted;
@@ -1464,7 +1471,7 @@ error_bcf_hdr_find:
 error_bootrom_init:
 error_too_many_reboots:
 	d_fnend(5, dev, "(i2400m %p bcf %p size %zu) = %d\n",
-		i2400m, bcf, bcf_size, ret);
+		i2400m, bcf, fw_size, ret);
 	return ret;
 
 error_dev_rebooted:
