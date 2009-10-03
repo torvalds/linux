@@ -153,6 +153,84 @@ do {							\
 #define percpu_or(var, val)	percpu_to_op("or", per_cpu__##var, val)
 #define percpu_xor(var, val)	percpu_to_op("xor", per_cpu__##var, val)
 
+#define __this_cpu_read_1(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+#define __this_cpu_read_2(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+#define __this_cpu_read_4(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+
+#define __this_cpu_write_1(pcp, val)	percpu_to_op("mov", (pcp), val)
+#define __this_cpu_write_2(pcp, val)	percpu_to_op("mov", (pcp), val)
+#define __this_cpu_write_4(pcp, val)	percpu_to_op("mov", (pcp), val)
+#define __this_cpu_add_1(pcp, val)	percpu_to_op("add", (pcp), val)
+#define __this_cpu_add_2(pcp, val)	percpu_to_op("add", (pcp), val)
+#define __this_cpu_add_4(pcp, val)	percpu_to_op("add", (pcp), val)
+#define __this_cpu_and_1(pcp, val)	percpu_to_op("and", (pcp), val)
+#define __this_cpu_and_2(pcp, val)	percpu_to_op("and", (pcp), val)
+#define __this_cpu_and_4(pcp, val)	percpu_to_op("and", (pcp), val)
+#define __this_cpu_or_1(pcp, val)	percpu_to_op("or", (pcp), val)
+#define __this_cpu_or_2(pcp, val)	percpu_to_op("or", (pcp), val)
+#define __this_cpu_or_4(pcp, val)	percpu_to_op("or", (pcp), val)
+#define __this_cpu_xor_1(pcp, val)	percpu_to_op("xor", (pcp), val)
+#define __this_cpu_xor_2(pcp, val)	percpu_to_op("xor", (pcp), val)
+#define __this_cpu_xor_4(pcp, val)	percpu_to_op("xor", (pcp), val)
+
+#define this_cpu_read_1(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+#define this_cpu_read_2(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+#define this_cpu_read_4(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+#define this_cpu_write_1(pcp, val)	percpu_to_op("mov", (pcp), val)
+#define this_cpu_write_2(pcp, val)	percpu_to_op("mov", (pcp), val)
+#define this_cpu_write_4(pcp, val)	percpu_to_op("mov", (pcp), val)
+#define this_cpu_add_1(pcp, val)	percpu_to_op("add", (pcp), val)
+#define this_cpu_add_2(pcp, val)	percpu_to_op("add", (pcp), val)
+#define this_cpu_add_4(pcp, val)	percpu_to_op("add", (pcp), val)
+#define this_cpu_and_1(pcp, val)	percpu_to_op("and", (pcp), val)
+#define this_cpu_and_2(pcp, val)	percpu_to_op("and", (pcp), val)
+#define this_cpu_and_4(pcp, val)	percpu_to_op("and", (pcp), val)
+#define this_cpu_or_1(pcp, val)		percpu_to_op("or", (pcp), val)
+#define this_cpu_or_2(pcp, val)		percpu_to_op("or", (pcp), val)
+#define this_cpu_or_4(pcp, val)		percpu_to_op("or", (pcp), val)
+#define this_cpu_xor_1(pcp, val)	percpu_to_op("xor", (pcp), val)
+#define this_cpu_xor_2(pcp, val)	percpu_to_op("xor", (pcp), val)
+#define this_cpu_xor_4(pcp, val)	percpu_to_op("xor", (pcp), val)
+
+#define irqsafe_cpu_add_1(pcp, val)	percpu_to_op("add", (pcp), val)
+#define irqsafe_cpu_add_2(pcp, val)	percpu_to_op("add", (pcp), val)
+#define irqsafe_cpu_add_4(pcp, val)	percpu_to_op("add", (pcp), val)
+#define irqsafe_cpu_and_1(pcp, val)	percpu_to_op("and", (pcp), val)
+#define irqsafe_cpu_and_2(pcp, val)	percpu_to_op("and", (pcp), val)
+#define irqsafe_cpu_and_4(pcp, val)	percpu_to_op("and", (pcp), val)
+#define irqsafe_cpu_or_1(pcp, val)	percpu_to_op("or", (pcp), val)
+#define irqsafe_cpu_or_2(pcp, val)	percpu_to_op("or", (pcp), val)
+#define irqsafe_cpu_or_4(pcp, val)	percpu_to_op("or", (pcp), val)
+#define irqsafe_cpu_xor_1(pcp, val)	percpu_to_op("xor", (pcp), val)
+#define irqsafe_cpu_xor_2(pcp, val)	percpu_to_op("xor", (pcp), val)
+#define irqsafe_cpu_xor_4(pcp, val)	percpu_to_op("xor", (pcp), val)
+
+/*
+ * Per cpu atomic 64 bit operations are only available under 64 bit.
+ * 32 bit must fall back to generic operations.
+ */
+#ifdef CONFIG_X86_64
+#define __this_cpu_read_8(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+#define __this_cpu_write_8(pcp, val)	percpu_to_op("mov", (pcp), val)
+#define __this_cpu_add_8(pcp, val)	percpu_to_op("add", (pcp), val)
+#define __this_cpu_and_8(pcp, val)	percpu_to_op("and", (pcp), val)
+#define __this_cpu_or_8(pcp, val)	percpu_to_op("or", (pcp), val)
+#define __this_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
+
+#define this_cpu_read_8(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
+#define this_cpu_write_8(pcp, val)	percpu_to_op("mov", (pcp), val)
+#define this_cpu_add_8(pcp, val)	percpu_to_op("add", (pcp), val)
+#define this_cpu_and_8(pcp, val)	percpu_to_op("and", (pcp), val)
+#define this_cpu_or_8(pcp, val)		percpu_to_op("or", (pcp), val)
+#define this_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
+
+#define irqsafe_cpu_add_8(pcp, val)	percpu_to_op("add", (pcp), val)
+#define irqsafe_cpu_and_8(pcp, val)	percpu_to_op("and", (pcp), val)
+#define irqsafe_cpu_or_8(pcp, val)	percpu_to_op("or", (pcp), val)
+#define irqsafe_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
+
+#endif
+
 /* This is not atomic against other CPUs -- CPU preemption needs to be off */
 #define x86_test_and_clear_bit_percpu(bit, var)				\
 ({									\
