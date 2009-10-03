@@ -323,6 +323,7 @@ LIB_H += ../../include/linux/rbtree.h
 LIB_H += ../../include/linux/list.h
 LIB_H += util/include/linux/list.h
 LIB_H += perf.h
+LIB_H += util/event.h
 LIB_H += util/types.h
 LIB_H += util/levenshtein.h
 LIB_H += util/parse-options.h

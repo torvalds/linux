@@ -38,7 +38,6 @@ static struct strlist	*dso_list, *comm_list, *sym_list;
 
 static int		force;
 static int		input;
-static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
 static int		full_paths;
 static int		show_nr_samples;
@@ -600,7 +599,6 @@ static int
 process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
-	int show = 0;
 	struct symbol *sym = NULL;
 	struct thread *thread;
 	u64 ip = event->ip.ip;
@@ -657,42 +655,35 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	if (cpumode == PERF_RECORD_MISC_KERNEL) {
-		show = SHOW_KERNEL;
 		level = 'k';
-
 		sym = kernel_maps__find_symbol(ip, &map);
 		dump_printf(" ...... dso: %s\n",
 			    map ? map->dso->long_name : "<not found>");
 	} else if (cpumode == PERF_RECORD_MISC_USER) {
-
-		show = SHOW_USER;
 		level = '.';
 		sym = resolve_symbol(thread, &map, &ip);
 
 	} else {
-		show = SHOW_HV;
 		level = 'H';
-
 		dump_printf(" ...... dso: [hypervisor]\n");
 	}
 
-	if (show & show_mask) {
-		if (dso_list &&
-		    (!map || !map->dso ||
-		     !(strlist__has_entry(dso_list, map->dso->short_name) ||
-		       (map->dso->short_name != map->dso->long_name &&
-			strlist__has_entry(dso_list, map->dso->long_name)))))
-			return 0;
+	if (dso_list &&
+	    (!map || !map->dso ||
+	     !(strlist__has_entry(dso_list, map->dso->short_name) ||
+	       (map->dso->short_name != map->dso->long_name &&
+		strlist__has_entry(dso_list, map->dso->long_name)))))
+		return 0;
 
-		if (sym_list && sym && !strlist__has_entry(sym_list, sym->name))
-			return 0;
+	if (sym_list && sym && !strlist__has_entry(sym_list, sym->name))
+		return 0;
 
-		if (hist_entry__add(thread, map, sym, ip,
-				    chain, level, period)) {
-			eprintf("problem incrementing symbol count, skipping event\n");
-			return -1;
-		}
+	if (hist_entry__add(thread, map, sym, ip,
+			    chain, level, period)) {
+		eprintf("problem incrementing symbol count, skipping event\n");
+		return -1;
 	}
+
 	total += period;
 
 	return 0;

@@ -29,7 +29,6 @@ static char		const *input_name = "perf.data";
 
 static int		force;
 static int		input;
-static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
 static int		full_paths;
 
@@ -97,7 +96,6 @@ static int
 process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
-	int show = 0;
 	struct thread *thread;
 	u64 ip = event->ip.ip;
 	struct map *map = NULL;
@@ -121,13 +119,11 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	}
 
 	if (event->header.misc & PERF_RECORD_MISC_KERNEL) {
-		show = SHOW_KERNEL;
 		level = 'k';
 		sym = kernel_maps__find_symbol(ip, &map);
 		dump_printf(" ...... dso: %s\n",
 			    map ? map->dso->long_name : "<not found>");
 	} else if (event->header.misc & PERF_RECORD_MISC_USER) {
-		show = SHOW_USER;
 		level = '.';
 		map = thread__find_map(thread, ip);
 		if (map != NULL) {
@@ -153,17 +149,14 @@ got_map:
 		dump_printf(" ...... dso: %s\n",
 			    map ? map->dso->long_name : "<not found>");
 	} else {
-		show = SHOW_HV;
 		level = 'H';
 		dump_printf(" ...... dso: [hypervisor]\n");
 	}
 
-	if (show & show_mask) {
-		if (hist_entry__add(thread, map, sym, ip, 1, level)) {
-			fprintf(stderr,
-		"problem incrementing symbol count, skipping event\n");
-			return -1;
-		}
+	if (hist_entry__add(thread, map, sym, ip, 1, level)) {
+		fprintf(stderr, "problem incrementing symbol count, "
+				"skipping event\n");
+		return -1;
 	}
 	total++;
 
