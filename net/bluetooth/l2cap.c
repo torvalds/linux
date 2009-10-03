@@ -373,6 +373,8 @@ static inline int l2cap_send_rr_or_rnr(struct l2cap_pinfo *pi, u16 control)
 	else
 		control |= L2CAP_SUPER_RCV_READY;
 
+	control |= pi->buffer_seq << L2CAP_CTRL_REQSEQ_SHIFT;
+
 	return l2cap_send_sframe(pi, control);
 }
 
