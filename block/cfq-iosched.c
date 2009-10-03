@@ -1348,12 +1348,13 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 		/*
 		 * must wait a bit longer
 		 */
-		if (last_sync < cfq_slice_sync) {
-			cfq_schedule_dispatch(cfqd, cfq_slice_sync - last_sync);
+		if (last_sync < cfqd->cfq_slice[1]) {
+			cfq_schedule_dispatch(cfqd,
+						cfqd->cfq_slice[1] - last_sync);
 			return 0;
 		}
 
-		depth = last_sync / cfq_slice_sync;
+		depth = last_sync / cfqd->cfq_slice[1];
 		if (depth < max_dispatch)
 			max_dispatch = depth;
 	}
