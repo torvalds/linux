@@ -36,6 +36,9 @@ extern unsigned long total_fork;
 extern unsigned long total_unknown;
 extern unsigned long total_lost;
 
+struct hist_entry *__hist_entry__add(struct thread *thread, struct map *map,
+				     struct symbol *sym, struct symbol *parent,
+				     u64 ip, u64 count, char level, bool *hit);
 extern int64_t hist_entry__cmp(struct hist_entry *, struct hist_entry *);
 extern int64_t hist_entry__collapse(struct hist_entry *, struct hist_entry *);
 extern void hist_entry__free(struct hist_entry *);

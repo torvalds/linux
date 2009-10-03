@@ -407,9 +407,9 @@ static int call__match(struct symbol *sym)
 	return 0;
 }
 
-static struct symbol **
-resolve_callchain(struct thread *thread, struct map *map,
-		    struct ip_callchain *chain, struct hist_entry *entry)
+static struct symbol **resolve_callchain(struct thread *thread, struct map *map,
+					 struct ip_callchain *chain,
+					 struct symbol **parent)
 {
 	u64 context = PERF_CONTEXT_MAX;
 	struct symbol **syms = NULL;
@@ -444,9 +444,8 @@ resolve_callchain(struct thread *thread, struct map *map,
 		}
 
 		if (sym) {
-			if (sort__has_parent && call__match(sym) &&
-			    !entry->parent)
-				entry->parent = sym;
+			if (sort__has_parent && !*parent && call__match(sym))
+				*parent = sym;
 			if (!callchain)
 				break;
 			syms[i] = sym;
@@ -465,57 +464,27 @@ hist_entry__add(struct thread *thread, struct map *map,
 		struct symbol *sym, u64 ip, struct ip_callchain *chain,
 		char level, u64 count)
 {
-	struct rb_node **p = &hist.rb_node;
-	struct rb_node *parent = NULL;
+	struct symbol **syms = NULL, *parent = NULL;
+	bool hit;
 	struct hist_entry *he;
-	struct symbol **syms = NULL;
-	struct hist_entry entry = {
-		.thread	= thread,
-		.map	= map,
-		.sym	= sym,
-		.ip	= ip,
-		.level	= level,
-		.count	= count,
-		.parent = NULL,
-		.sorted_chain = RB_ROOT
-	};
-	int cmp;
 
 	if ((sort__has_parent || callchain) && chain)
-		syms = resolve_callchain(thread, map, chain, &entry);
+		syms = resolve_callchain(thread, map, chain, &parent);
 
-	while (*p != NULL) {
-		parent = *p;
-		he = rb_entry(parent, struct hist_entry, rb_node);
-
-		cmp = hist_entry__cmp(&entry, he);
-
-		if (!cmp) {
-			he->count += count;
-			if (callchain) {
-				append_chain(&he->callchain, chain, syms);
-				free(syms);
-			}
-			return 0;
-		}
-
-		if (cmp < 0)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	he = malloc(sizeof(*he));
-	if (!he)
+	he = __hist_entry__add(thread, map, sym, parent,
+			       ip, count, level, &hit);
+	if (he == NULL)
 		return -ENOMEM;
-	*he = entry;
+
+	if (hit)
+		he->count += count;
+
 	if (callchain) {
-		callchain_init(&he->callchain);
+		if (!hit)
+			callchain_init(&he->callchain);
 		append_chain(&he->callchain, chain, syms);
 		free(syms);
 	}
-	rb_link_node(&he->rb_node, parent, p);
-	rb_insert_color(&he->rb_node, &hist);
 
 	return 0;
 }

@@ -21,6 +21,52 @@ unsigned long total_lost;
  * histogram, sorted on item, collects counts
  */
 
+struct hist_entry *__hist_entry__add(struct thread *thread, struct map *map,
+				     struct symbol *sym,
+				     struct symbol *sym_parent,
+				     u64 ip, u64 count, char level, bool *hit)
+{
+	struct rb_node **p = &hist.rb_node;
+	struct rb_node *parent = NULL;
+	struct hist_entry *he;
+	struct hist_entry entry = {
+		.thread	= thread,
+		.map	= map,
+		.sym	= sym,
+		.ip	= ip,
+		.level	= level,
+		.count	= count,
+		.parent = sym_parent,
+	};
+	int cmp;
+
+	while (*p != NULL) {
+		parent = *p;
+		he = rb_entry(parent, struct hist_entry, rb_node);
+
+		cmp = hist_entry__cmp(&entry, he);
+
+		if (!cmp) {
+			*hit = true;
+			return he;
+		}
+
+		if (cmp < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	he = malloc(sizeof(*he));
+	if (!he)
+		return NULL;
+	*he = entry;
+	rb_link_node(&he->rb_node, parent, p);
+	rb_insert_color(&he->rb_node, &hist);
+	*hit = false;
+	return he;
+}
+
 int64_t
 hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 {

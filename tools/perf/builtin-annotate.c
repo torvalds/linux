@@ -80,48 +80,16 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 			sym->hist[offset]);
 }
 
-static int
-hist_entry__add(struct thread *thread, struct map *map,
-		struct symbol *sym, u64 ip, char level)
+static int hist_entry__add(struct thread *thread, struct map *map,
+			   struct symbol *sym, u64 ip, u64 count, char level)
 {
-	struct rb_node **p = &hist.rb_node;
-	struct rb_node *parent = NULL;
-	struct hist_entry *he;
-	struct hist_entry entry = {
-		.thread	= thread,
-		.map	= map,
-		.sym	= sym,
-		.ip	= ip,
-		.level	= level,
-		.count	= 1,
-	};
-	int cmp;
-
-	while (*p != NULL) {
-		parent = *p;
-		he = rb_entry(parent, struct hist_entry, rb_node);
-
-		cmp = hist_entry__cmp(&entry, he);
-
-		if (!cmp) {
-			hist_hit(he, ip);
-
-			return 0;
-		}
-
-		if (cmp < 0)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	he = malloc(sizeof(*he));
-	if (!he)
+	bool hit;
+	struct hist_entry *he = __hist_entry__add(thread, map, sym, NULL, ip,
+						  count, level, &hit);
+	if (he == NULL)
 		return -ENOMEM;
-	*he = entry;
-	rb_link_node(&he->rb_node, parent, p);
-	rb_insert_color(&he->rb_node, &hist);
-
+	if (hit)
+		hist_hit(he, ip);
 	return 0;
 }
 
@@ -191,7 +159,7 @@ got_map:
 	}
 
 	if (show & show_mask) {
-		if (hist_entry__add(thread, map, sym, ip, level)) {
+		if (hist_entry__add(thread, map, sym, ip, 1, level)) {
 			fprintf(stderr,
 		"problem incrementing symbol count, skipping event\n");
 			return -1;
