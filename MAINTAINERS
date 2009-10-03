@@ -2519,6 +2519,7 @@ L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
 S:	Maintained
+F:	Documentation/debugging-via-ohci1394.txt
 F:	drivers/ieee1394/
 
 IEEE 1394 RAW I/O DRIVER
