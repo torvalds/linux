@@ -1081,9 +1081,19 @@ static inline unsigned int queue_physical_block_size(struct request_queue *q)
 	return q->limits.physical_block_size;
 }
 
+static inline int bdev_physical_block_size(struct block_device *bdev)
+{
+	return queue_physical_block_size(bdev_get_queue(bdev));
+}
+
 static inline unsigned int queue_io_min(struct request_queue *q)
 {
 	return q->limits.io_min;
+}
+
+static inline int bdev_io_min(struct block_device *bdev)
+{
+	return queue_io_min(bdev_get_queue(bdev));
 }
 
 static inline unsigned int queue_io_opt(struct request_queue *q)
@@ -1091,15 +1101,17 @@ static inline unsigned int queue_io_opt(struct request_queue *q)
 	return q->limits.io_opt;
 }
 
+static inline int bdev_io_opt(struct block_device *bdev)
+{
+	return queue_io_opt(bdev_get_queue(bdev));
+}
+
 static inline int queue_alignment_offset(struct request_queue *q)
 {
-	if (q && q->limits.misaligned)
+	if (q->limits.misaligned)
 		return -1;
 
-	if (q && q->limits.alignment_offset)
-		return q->limits.alignment_offset;
-
-	return 0;
+	return q->limits.alignment_offset;
 }
 
 static inline int queue_sector_alignment_offset(struct request_queue *q,
@@ -1107,6 +1119,19 @@ static inline int queue_sector_alignment_offset(struct request_queue *q,
 {
 	return ((sector << 9) - q->limits.alignment_offset)
 		& (q->limits.io_min - 1);
+}
+
+static inline int bdev_alignment_offset(struct block_device *bdev)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (q->limits.misaligned)
+		return -1;
+
+	if (bdev != bdev->bd_contains)
+		return bdev->bd_part->alignment_offset;
+
+	return q->limits.alignment_offset;
 }
 
 static inline int queue_dma_alignment(struct request_queue *q)
