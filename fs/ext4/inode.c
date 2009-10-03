@@ -5612,14 +5612,12 @@ int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode)
  */
 void ext4_dirty_inode(struct inode *inode)
 {
-	handle_t *current_handle = ext4_journal_current_handle();
 	handle_t *handle;
 
 	handle = ext4_journal_start(inode, 2);
 	if (IS_ERR(handle))
 		goto out;
 
-	jbd_debug(5, "marking dirty.  outer handle=%p\n", current_handle);
 	ext4_mark_inode_dirty(handle, inode);
 
 	ext4_journal_stop(handle);
