@@ -1,6 +1,3 @@
-#
-# Config.in for HYSDN ISDN driver
-#
 config HYSDN
 	tristate "Hypercope HYSDN cards (Champ, Ergo, Metro) support (module only)"
 	depends on m && PROC_FS && PCI
@@ -15,4 +12,3 @@ config HYSDN_CAPI
 	depends on HYSDN && ISDN_CAPI
 	help
 	  Say Y here if you like to use Hypercope's CAPI 2.0 interface.
-

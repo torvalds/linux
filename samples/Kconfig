@@ -1,5 +1,3 @@
-# samples/Kconfig
-
 menuconfig SAMPLES
 	bool "Sample kernel code"
 	help
@@ -41,4 +39,3 @@ config SAMPLE_KRETPROBES
 	depends on SAMPLE_KPROBES && KRETPROBES
 
 endif # SAMPLES
-
