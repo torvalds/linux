@@ -42,11 +42,6 @@ char irq_tab_alchemy[][5] __initdata = {
 	[13] = { -1, INTA, INTB, INTC, INTD }, /* IDSEL 13 - PCI slot 1 (right) */
 };
 
-struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
-	{ AU1000_GPIO_0, IRQF_TRIGGER_LOW, 0 },
-	{ AU1000_GPIO_1, IRQF_TRIGGER_LOW, 0 },
-};
-
 const char *get_system_type(void)
 {
 	return "Alchemy Pb1550";
@@ -55,11 +50,6 @@ const char *get_system_type(void)
 void board_reset(void)
 {
 	bcsr_write(BCSR_SYSTEM, 0);
-}
-
-void __init board_init_irq(void)
-{
-	au1xxx_setup_irqmap(au1xxx_irq_map, ARRAY_SIZE(au1xxx_irq_map));
 }
 
 void __init board_setup(void)
@@ -93,3 +83,12 @@ void __init board_setup(void)
 
 	printk(KERN_INFO "AMD Alchemy Pb1550 Board\n");
 }
+
+static int __init pb1550_init_irq(void)
+{
+	set_irq_type(AU1000_GPIO_0, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1000_GPIO_1, IRQF_TRIGGER_LOW);
+
+	return 0;
+}
+arch_initcall(pb1550_init_irq);

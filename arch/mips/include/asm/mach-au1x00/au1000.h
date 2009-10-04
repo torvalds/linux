@@ -143,21 +143,6 @@ void au_sleep(void);
 void save_au1xxx_intctl(void);
 void restore_au1xxx_intctl(void);
 
-/*
- * Every board describes its IRQ mapping with this table.
- */
-struct au1xxx_irqmap {
-	int	im_irq;
-	int	im_type;
-	int	im_request;
-};
-
-/* core calls this function to let boards initialize other IRQ sources */
-void board_init_irq(void);
-
-/* boards call this to register additional (GPIO) interrupts */
-void au1xxx_setup_irqmap(struct au1xxx_irqmap *map, int count);
-
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
 /*

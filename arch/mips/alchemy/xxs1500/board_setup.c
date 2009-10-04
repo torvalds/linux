@@ -25,6 +25,7 @@
 
 #include <linux/gpio.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/delay.h>
 
 #include <asm/mach-au1x00/au1000.h>
@@ -92,3 +93,23 @@ void __init board_setup(void)
 #endif
 #endif
 }
+
+static int __init xxs1500_init_irq(void)
+{
+	set_irq_type(AU1500_GPIO_204, IRQF_TRIGGER_HIGH);
+	set_irq_type(AU1500_GPIO_201, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO_202, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO_203, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO_205, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO_207, IRQF_TRIGGER_LOW);
+
+	set_irq_type(AU1000_GPIO_0, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1000_GPIO_1, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1000_GPIO_2, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1000_GPIO_3, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1000_GPIO_4, IRQF_TRIGGER_LOW); /* CF interrupt */
+	set_irq_type(AU1000_GPIO_5, IRQF_TRIGGER_LOW);
+
+	return 0;
+}
+arch_initcall(xxs1500_init_irq);

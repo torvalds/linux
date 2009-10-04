@@ -32,11 +32,6 @@
 #include <prom.h>
 
 
-struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
-	{ AU1000_GPIO_15, IRQF_TRIGGER_LOW, 0 },
-};
-
-
 const char *get_system_type(void)
 {
 	return "Alchemy Pb1000";
@@ -44,11 +39,6 @@ const char *get_system_type(void)
 
 void board_reset(void)
 {
-}
-
-void __init board_init_irq(void)
-{
-	au1xxx_setup_irqmap(au1xxx_irq_map, ARRAY_SIZE(au1xxx_irq_map));
 }
 
 void __init board_setup(void)
@@ -193,3 +183,10 @@ void __init board_setup(void)
 		break;
 	}
 }
+
+static int __init pb1000_init_irq(void)
+{
+	set_irq_type(AU1000_GPIO_15, IRQF_TRIGGER_LOW);
+	return 0;
+}
+arch_initcall(pb1000_init_irq);

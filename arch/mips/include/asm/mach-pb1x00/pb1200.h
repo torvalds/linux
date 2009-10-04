@@ -25,6 +25,7 @@
 #define __ASM_PB1200_H
 
 #include <linux/types.h>
+#include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_psc.h>
 
 #define DBDMA_AC97_TX_CHAN	DSCR_CMD0_PSC1_TX

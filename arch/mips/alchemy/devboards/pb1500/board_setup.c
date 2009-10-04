@@ -40,14 +40,6 @@ char irq_tab_alchemy[][5] __initdata = {
 	[13] = { -1, INTA, INTB, INTC, INTD },   /* IDSEL 13 - PCI slot */
 };
 
-struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
-	{ AU1500_GPIO_204, IRQF_TRIGGER_HIGH, 0 },
-	{ AU1500_GPIO_201, IRQF_TRIGGER_LOW, 0 },
-	{ AU1500_GPIO_202, IRQF_TRIGGER_LOW, 0 },
-	{ AU1500_GPIO_203, IRQF_TRIGGER_LOW, 0 },
-	{ AU1500_GPIO_205, IRQF_TRIGGER_LOW, 0 },
-};
-
 
 const char *get_system_type(void)
 {
@@ -57,11 +49,6 @@ const char *get_system_type(void)
 void board_reset(void)
 {
 	bcsr_write(BCSR_SYSTEM, 0);
-}
-
-void __init board_init_irq(void)
-{
-	au1xxx_setup_irqmap(au1xxx_irq_map, ARRAY_SIZE(au1xxx_irq_map));
 }
 
 void __init board_setup(void)
@@ -166,3 +153,15 @@ void __init board_setup(void)
 		au_sync();
 	}
 }
+
+static int __init pb1500_init_irq(void)
+{
+	set_irq_type(AU1500_GPIO_204, IRQF_TRIGGER_HIGH);
+	set_irq_type(AU1500_GPIO_201, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO_202, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO_203, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO_205, IRQF_TRIGGER_LOW);
+
+	return 0;
+}
+arch_initcall(pb1500_init_irq);

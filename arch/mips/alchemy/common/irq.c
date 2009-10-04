@@ -40,8 +40,11 @@
 static int au1x_ic_settype(unsigned int irq, unsigned int flow_type);
 
 /* per-processor fixed function irqs */
-struct au1xxx_irqmap au1xxx_ic0_map[] __initdata = {
-
+struct au1xxx_irqmap {
+	int im_irq;
+	int im_type;
+	int im_request;
+} au1xxx_ic0_map[] __initdata = {
 #if defined(CONFIG_SOC_AU1000)
 	{ AU1000_UART0_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
 	{ AU1000_UART1_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
@@ -547,7 +550,7 @@ spurious:
 }
 
 /* setup edge/level and assign request 0/1 */
-void __init au1xxx_setup_irqmap(struct au1xxx_irqmap *map, int count)
+static void __init setup_irqmap(struct au1xxx_irqmap *map, int count)
 {
 	unsigned int bit, irq_nr;
 
@@ -619,11 +622,7 @@ void __init arch_init_irq(void)
 	/*
 	 * Initialize IC0, which is fixed per processor.
 	 */
-	au1xxx_setup_irqmap(au1xxx_ic0_map, ARRAY_SIZE(au1xxx_ic0_map));
-
-	/* Boards can register additional (GPIO-based) IRQs.
-	*/
-	board_init_irq();
+	setup_irqmap(au1xxx_ic0_map, ARRAY_SIZE(au1xxx_ic0_map));
 
 	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3);
 }
