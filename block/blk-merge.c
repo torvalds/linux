@@ -351,7 +351,7 @@ static void blk_account_io_merge(struct request *req)
 		part = disk_map_sector_rcu(req->rq_disk, blk_rq_pos(req));
 
 		part_round_stats(cpu, part);
-		part_dec_in_flight(part, rq_data_dir(req));
+		part_dec_in_flight(part);
 
 		part_stat_unlock();
 	}
