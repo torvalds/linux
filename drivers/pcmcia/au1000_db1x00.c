@@ -47,9 +47,9 @@
 	#include <pb1200.h>
 #else
 	#include <asm/mach-db1x00/db1x00.h>
-	static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 #endif
 
+#include <asm/mach-db1x00/bcsr.h>
 #include "au1000_generic.h"
 
 #if 0
@@ -76,8 +76,8 @@ static int db1x00_pcmcia_hw_init(struct au1000_pcmcia_socket *skt)
 
 static void db1x00_pcmcia_shutdown(struct au1000_pcmcia_socket *skt)
 {
-	bcsr->pcmcia = 0; /* turn off power */
-	au_sync_delay(2);
+	bcsr_write(BCSR_PCMCIA, 0);	/* turn off power */
+	msleep(2);
 }
 
 static void
@@ -93,19 +93,19 @@ db1x00_pcmcia_socket_state(struct au1000_pcmcia_socket *skt, struct pcmcia_state
 
 	switch (skt->nr) {
 	case 0:
-		vs = bcsr->status & 0x3;
+		vs = bcsr_read(BCSR_STATUS) & 0x3;
 #if defined(CONFIG_MIPS_DB1200) || defined(CONFIG_MIPS_PB1200)
 		inserted = BOARD_CARD_INSERTED(0);
 #else
-		inserted = !(bcsr->status & (1<<4));
+		inserted = !(bcsr_read(BCSR_STATUS) & (1 << 4));
 #endif
 		break;
 	case 1:
-		vs = (bcsr->status & 0xC)>>2;
+		vs = (bcsr_read(BCSR_STATUS) & 0xC) >> 2;
 #if defined(CONFIG_MIPS_DB1200) || defined(CONFIG_MIPS_PB1200)
 		inserted = BOARD_CARD_INSERTED(1);
 #else
-		inserted = !(bcsr->status & (1<<5));
+		inserted = !(bcsr_read(BCSR_STATUS) & (1<<5));
 #endif
 		break;
 	default:/* should never happen */
@@ -114,7 +114,7 @@ db1x00_pcmcia_socket_state(struct au1000_pcmcia_socket *skt, struct pcmcia_state
 
 	if (inserted)
 		debug("db1x00 socket %d: inserted %d, vs %d pcmcia %x\n",
-				skt->nr, inserted, vs, bcsr->pcmcia);
+				skt->nr, inserted, vs, bcsr_read(BCSR_PCMCIA));
 
 	if (inserted) {
 		switch (vs) {
@@ -136,19 +136,21 @@ db1x00_pcmcia_socket_state(struct au1000_pcmcia_socket *skt, struct pcmcia_state
 		/* if the card was previously inserted and then ejected,
 		 * we should turn off power to it
 		 */
-		if ((skt->nr == 0) && (bcsr->pcmcia & BCSR_PCMCIA_PC0RST)) {
-			bcsr->pcmcia &= ~(BCSR_PCMCIA_PC0RST |
-					BCSR_PCMCIA_PC0DRVEN |
-					BCSR_PCMCIA_PC0VPP |
-					BCSR_PCMCIA_PC0VCC);
-			au_sync_delay(10);
+		if ((skt->nr == 0) &&
+		    (bcsr_read(BCSR_PCMCIA) & BCSR_PCMCIA_PC0RST)) {
+			bcsr_mod(BCSR_PCMCIA, BCSR_PCMCIA_PC0RST   |
+					      BCSR_PCMCIA_PC0DRVEN |
+					      BCSR_PCMCIA_PC0VPP   |
+					      BCSR_PCMCIA_PC0VCC, 0);
+			msleep(10);
 		}
-		else if ((skt->nr == 1) && bcsr->pcmcia & BCSR_PCMCIA_PC1RST) {
-			bcsr->pcmcia &= ~(BCSR_PCMCIA_PC1RST |
-					BCSR_PCMCIA_PC1DRVEN |
-					BCSR_PCMCIA_PC1VPP |
-					BCSR_PCMCIA_PC1VCC);
-			au_sync_delay(10);
+		else if ((skt->nr == 1) &&
+			 (bcsr_read(BCSR_PCMCIA) & BCSR_PCMCIA_PC1RST)) {
+			bcsr_mod(BCSR_PCMCIA, BCSR_PCMCIA_PC1RST   |
+					      BCSR_PCMCIA_PC1DRVEN |
+					      BCSR_PCMCIA_PC1VPP   |
+					      BCSR_PCMCIA_PC1VCC, 0);
+			msleep(10);
 		}
 	}
 
@@ -171,7 +173,7 @@ db1x00_pcmcia_configure_socket(struct au1000_pcmcia_socket *skt, struct socket_s
 	 * initializing a socket not to wipe out the settings of the
 	 * other socket.
 	 */
-	pwr = bcsr->pcmcia;
+	pwr = bcsr_read(BCSR_PCMCIA);
 	pwr &= ~(0xf << sock*8); /* clear voltage settings */
 
 	state->Vpp = 0;
@@ -228,37 +230,37 @@ db1x00_pcmcia_configure_socket(struct au1000_pcmcia_socket *skt, struct socket_s
 			break;
 	}
 
-	bcsr->pcmcia = pwr;
-	au_sync_delay(300);
+	bcsr_write(BCSR_PCMCIA, pwr);
+	msleep(300);
 
 	if (sock == 0) {
 		if (!(state->flags & SS_RESET)) {
 			pwr |= BCSR_PCMCIA_PC0DRVEN;
-			bcsr->pcmcia = pwr;
-			au_sync_delay(300);
+			bcsr_write(BCSR_PCMCIA, pwr);
+			msleep(300);
 			pwr |= BCSR_PCMCIA_PC0RST;
-			bcsr->pcmcia = pwr;
-			au_sync_delay(100);
+			bcsr_write(BCSR_PCMCIA, pwr);
+			msleep(100);
 		}
 		else {
 			pwr &= ~(BCSR_PCMCIA_PC0RST | BCSR_PCMCIA_PC0DRVEN);
-			bcsr->pcmcia = pwr;
-			au_sync_delay(100);
+			bcsr_write(BCSR_PCMCIA, pwr);
+			msleep(100);
 		}
 	}
 	else {
 		if (!(state->flags & SS_RESET)) {
 			pwr |= BCSR_PCMCIA_PC1DRVEN;
-			bcsr->pcmcia = pwr;
-			au_sync_delay(300);
+			bcsr_write(BCSR_PCMCIA, pwr);
+			msleep(300);
 			pwr |= BCSR_PCMCIA_PC1RST;
-			bcsr->pcmcia = pwr;
-			au_sync_delay(100);
+			bcsr_write(BCSR_PCMCIA, pwr);
+			msleep(100);
 		}
 		else {
 			pwr &= ~(BCSR_PCMCIA_PC1RST | BCSR_PCMCIA_PC1DRVEN);
-			bcsr->pcmcia = pwr;
-			au_sync_delay(100);
+			bcsr_write(BCSR_PCMCIA, pwr);
+			msleep(100);
 		}
 	}
 	return 0;
@@ -298,8 +300,8 @@ struct pcmcia_low_level db1x00_pcmcia_ops = {
 int au1x_board_init(struct device *dev)
 {
 	int ret = -ENODEV;
-	bcsr->pcmcia = 0; /* turn off power, if it's not already off */
-	au_sync_delay(2);
+	bcsr_write(BCSR_PCMCIA, 0); /* turn off power, if it's not already off */
+	msleep(2);
 	ret = au1x00_pcmcia_socket_probe(dev, &db1x00_pcmcia_ops, 0, 2);
 	return ret;
 }

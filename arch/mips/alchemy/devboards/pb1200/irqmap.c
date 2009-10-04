@@ -38,11 +38,14 @@
 #define PB1200_INT_END DB1200_INT_END
 #endif
 
+#include <asm/mach-db1x00/bcsr.h>
+
 struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
 	/* This is external interrupt cascade */
 	{ AU1000_GPIO_7, IRQF_TRIGGER_LOW, 0 },
 };
 
+static void __iomem *bcsr_virt;
 
 /*
  * Support for External interrupts on the Pb1200 Development platform.
@@ -50,7 +53,7 @@ struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
 
 static void pb1200_cascade_handler(unsigned int irq, struct irq_desc *d)
 {
-	unsigned short bisr = bcsr->int_status;
+	unsigned short bisr = __raw_readw(bcsr_virt + BCSR_REG_INTSTAT);
 
 	for ( ; bisr; bisr &= bisr - 1)
 		generic_handle_irq(PB1200_INT_BEGIN + __ffs(bisr));
@@ -61,24 +64,27 @@ static void pb1200_cascade_handler(unsigned int irq, struct irq_desc *d)
  */
 static void pb1200_mask_irq(unsigned int irq_nr)
 {
-	bcsr->intclr_mask = 1 << (irq_nr - PB1200_INT_BEGIN);
-	bcsr->intclr = 1 << (irq_nr - PB1200_INT_BEGIN);
-	au_sync();
+	unsigned short v = 1 << (irq_nr - PB1200_INT_BEGIN);
+	__raw_writew(v, bcsr_virt + BCSR_REG_INTCLR);
+	__raw_writew(v, bcsr_virt + BCSR_REG_MASKCLR);
+	wmb();
 }
 
 static void pb1200_maskack_irq(unsigned int irq_nr)
 {
-	bcsr->intclr_mask = 1 << (irq_nr - PB1200_INT_BEGIN);
-	bcsr->intclr = 1 << (irq_nr - PB1200_INT_BEGIN);
-	bcsr->int_status = 1 << (irq_nr - PB1200_INT_BEGIN);	/* ack */
-	au_sync();
+	unsigned short v = 1 << (irq_nr - PB1200_INT_BEGIN);
+	__raw_writew(v, bcsr_virt + BCSR_REG_INTCLR);
+	__raw_writew(v, bcsr_virt + BCSR_REG_MASKCLR);
+	__raw_writew(v, bcsr_virt + BCSR_REG_INTSTAT);	/* ack */
+	wmb();
 }
 
 static void pb1200_unmask_irq(unsigned int irq_nr)
 {
-	bcsr->intset = 1 << (irq_nr - PB1200_INT_BEGIN);
-	bcsr->intset_mask = 1 << (irq_nr - PB1200_INT_BEGIN);
-	au_sync();
+	unsigned short v = 1 << (irq_nr - PB1200_INT_BEGIN);
+	__raw_writew(v, bcsr_virt + BCSR_REG_INTSET);
+	__raw_writew(v, bcsr_virt + BCSR_REG_MASKSET);
+	wmb();
 }
 
 static struct irq_chip pb1200_cpld_irq_type = {
@@ -100,8 +106,10 @@ void __init board_init_irq(void)
 	au1xxx_setup_irqmap(au1xxx_irq_map, ARRAY_SIZE(au1xxx_irq_map));
 
 #ifdef CONFIG_MIPS_PB1200
+	bcsr_virt = (void __iomem *)KSEG1ADDR(PB1200_BCSR_PHYS_ADDR);
+
 	/* We have a problem with CPLD rev 3. */
-	if (((bcsr->whoami & BCSR_WHOAMI_CPLD) >> 4) <= 3) {
+	if (BCSR_WHOAMI_CPLD(bcsr_read(BCSR_WHOAMI)) <= 3) {
 		printk(KERN_ERR "WARNING!!!\n");
 		printk(KERN_ERR "WARNING!!!\n");
 		printk(KERN_ERR "WARNING!!!\n");
@@ -119,12 +127,14 @@ void __init board_init_irq(void)
 		printk(KERN_ERR "WARNING!!!\n");
 		panic("Game over.  Your score is 0.");
 	}
+#else
+	bcsr_virt = (void __iomem *)KSEG1ADDR(DB1200_BCSR_PHYS_ADDR);
 #endif
+
 	/* mask & disable & ack all */
-	bcsr->intclr_mask = 0xffff;
-	bcsr->intclr = 0xffff;
-	bcsr->int_status = 0xffff;
-	au_sync();
+	bcsr_write(BCSR_INTCLR, 0xffff);
+	bcsr_write(BCSR_MASKCLR, 0xffff);
+	bcsr_write(BCSR_INTSTAT, 0xffff);
 
 	for (irq = PB1200_INT_BEGIN; irq <= PB1200_INT_END; irq++)
 		set_irq_chip_and_handler_name(irq, &pb1200_cpld_irq_type,

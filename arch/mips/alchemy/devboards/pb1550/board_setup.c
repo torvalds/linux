@@ -32,6 +32,7 @@
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1550.h>
+#include <asm/mach-db1x00/bcsr.h>
 
 #include <prom.h>
 
@@ -53,8 +54,7 @@ const char *get_system_type(void)
 
 void board_reset(void)
 {
-	/* Hit BCSR.SYSTEM[RESET] */
-	au_writew(au_readw(0xAF00001C) & ~BCSR_SYSTEM_RESET, 0xAF00001C);
+	bcsr_write(BCSR_SYSTEM, 0);
 }
 
 void __init board_init_irq(void)
@@ -65,6 +65,10 @@ void __init board_init_irq(void)
 void __init board_setup(void)
 {
 	u32 pin_func;
+
+	bcsr_init(PB1550_BCSR_PHYS_ADDR,
+		  PB1550_BCSR_PHYS_ADDR + PB1550_BCSR_HEXLED_OFS);
+
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	char *argptr;
@@ -85,8 +89,7 @@ void __init board_setup(void)
 	pin_func |= SYS_PF_MUST_BE_SET | SYS_PF_PSC1_S1;
 	au_writel(pin_func, SYS_PINFUNC);
 
-	au_writel(0, (u32)bcsr | 0x10); /* turn off PCMCIA power */
-	au_sync();
+	bcsr_write(BCSR_PCMCIA, 0);	/* turn off PCMCIA power */
 
 	printk(KERN_INFO "AMD Alchemy Pb1550 Board\n");
 }

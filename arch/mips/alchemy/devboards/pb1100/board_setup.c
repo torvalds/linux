@@ -30,6 +30,7 @@
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1100.h>
+#include <asm/mach-db1x00/bcsr.h>
 
 #include <prom.h>
 
@@ -49,8 +50,7 @@ const char *get_system_type(void)
 
 void board_reset(void)
 {
-	/* Hit BCSR.RST_VDDI[SOFT_RESET] */
-	au_writel(0x00000000, PB1100_RST_VDDI);
+	bcsr_write(BCSR_SYSTEM, 0);
 }
 
 void __init board_init_irq(void)
@@ -62,6 +62,9 @@ void __init board_setup(void)
 {
 	volatile void __iomem *base = (volatile void __iomem *)0xac000000UL;
 	char *argptr;
+
+	bcsr_init(DB1000_BCSR_PHYS_ADDR,
+		  DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS);
 
 	argptr = prom_getcmdline();
 #ifdef CONFIG_SERIAL_8250_CONSOLE
