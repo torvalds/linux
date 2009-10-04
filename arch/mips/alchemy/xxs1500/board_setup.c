@@ -69,22 +69,6 @@ void __init board_setup(void)
 	/* Enable DTR = USB power up */
 	au_writel(0x01, UART3_ADDR + UART_MCR); /* UART_MCR_DTR is 0x01??? */
 
-#ifdef CONFIG_PCMCIA_XXS1500
-	/* GPIO 0, 1, and 4 are inputs */
-	alchemy_gpio_direction_input(0);
-	alchemy_gpio_direction_input(1);
-	alchemy_gpio_direction_input(4);
-
-	/* GPIO2 208/9/10/11 are inputs */
-	alchemy_gpio_direction_input(208);
-	alchemy_gpio_direction_input(209);
-	alchemy_gpio_direction_input(210);
-	alchemy_gpio_direction_input(211);
-
-	/* Turn off power */
-	alchemy_gpio_direction_output(214, 0);
-#endif
-
 #ifdef CONFIG_PCI
 #if defined(__MIPSEB__)
 	au_writel(0xf | (2 << 6) | (1 << 4), Au1500_PCI_CFG);
