@@ -257,6 +257,13 @@ W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 F:	drivers/acpi/fan.c
 
+ACPI PROCESSOR AGGREGATOR DRIVER
+M:	Shaohua Li <shaohua.li@intel.com>
+L:	linux-acpi@vger.kernel.org
+W:	http://www.lesswatts.org/projects/acpi/
+S:	Supported
+F:	drivers/acpi/acpi_pad.c
+
 ACPI THERMAL DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
