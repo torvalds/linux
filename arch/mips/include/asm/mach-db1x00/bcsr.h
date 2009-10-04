@@ -232,4 +232,7 @@ void bcsr_write(enum bcsr_id reg, unsigned short val);
 /* modify a register. clear bits set in 'clr', set bits set in 'set' */
 void bcsr_mod(enum bcsr_id reg, unsigned short clr, unsigned short set);
 
+/* install CPLD IRQ demuxer (DB1200/PB1200) */
+void __init bcsr_init_irq(int csc_start, int csc_end, int hook_irq);
+
 #endif
