@@ -29,7 +29,6 @@
 #include <linux/interrupt.h>
 
 #include <asm/mach-au1x00/au1000.h>
-#include <asm/mach-pb1x00/pb1500.h>
 #include <asm/mach-db1x00/bcsr.h>
 
 #include <prom.h>
@@ -156,6 +155,9 @@ void __init board_setup(void)
 
 static int __init pb1500_init_irq(void)
 {
+	set_irq_type(AU1000_GPIO_9, IRQF_TRIGGER_LOW);	/* CD0# */
+	set_irq_type(AU1000_GPIO_10, IRQF_TRIGGER_LOW);	/* CARD0 */
+	set_irq_type(AU1000_GPIO_11, IRQF_TRIGGER_LOW);	/* STSCHG0# */
 	set_irq_type(AU1500_GPIO_204, IRQF_TRIGGER_HIGH);
 	set_irq_type(AU1500_GPIO_201, IRQF_TRIGGER_LOW);
 	set_irq_type(AU1500_GPIO_202, IRQF_TRIGGER_LOW);

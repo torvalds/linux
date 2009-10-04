@@ -187,8 +187,12 @@ static int __init db1x00_init_irq(void)
 #if defined(CONFIG_MIPS_MIRAGE)
 	set_irq_type(AU1000_GPIO_7, IRQF_TRIGGER_RISING); /* TS pendown */
 #elif defined(CONFIG_MIPS_DB1550)
+	set_irq_type(AU1000_GPIO_0, IRQF_TRIGGER_LOW);	/* CD0# */
+	set_irq_type(AU1000_GPIO_1, IRQF_TRIGGER_LOW);	/* CD1# */
 	set_irq_type(AU1000_GPIO_3, IRQF_TRIGGER_LOW);	/* CARD0# */
 	set_irq_type(AU1000_GPIO_5, IRQF_TRIGGER_LOW);	/* CARD1# */
+	set_irq_type(AU1000_GPIO_21, IRQF_TRIGGER_LOW);	/* STSCHG0# */
+	set_irq_type(AU1000_GPIO_22, IRQF_TRIGGER_LOW);	/* STSCHG1# */
 #else
 	set_irq_type(AU1000_GPIO_0, IRQF_TRIGGER_LOW);	/* CD0# */
 	set_irq_type(AU1000_GPIO_3, IRQF_TRIGGER_LOW);	/* CD1# */

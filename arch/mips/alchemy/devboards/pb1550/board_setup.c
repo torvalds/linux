@@ -33,6 +33,7 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1550.h>
 #include <asm/mach-db1x00/bcsr.h>
+#include <asm/mach-au1x00/gpio.h>
 
 #include <prom.h>
 
@@ -70,6 +71,8 @@ void __init board_setup(void)
 	}
 #endif
 
+	alchemy_gpio2_enable();
+
 	/*
 	 * Enable PSC1 SYNC for AC'97.  Normaly done in audio driver,
 	 * but it is board specific code, so put it here.
@@ -88,6 +91,11 @@ static int __init pb1550_init_irq(void)
 {
 	set_irq_type(AU1000_GPIO_0, IRQF_TRIGGER_LOW);
 	set_irq_type(AU1000_GPIO_1, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO_201_205, IRQF_TRIGGER_HIGH);
+
+	/* enable both PCMCIA card irqs in the shared line */
+	alchemy_gpio2_enable_int(201);
+	alchemy_gpio2_enable_int(202);
 
 	return 0;
 }

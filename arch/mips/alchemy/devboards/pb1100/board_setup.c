@@ -29,7 +29,6 @@
 #include <linux/interrupt.h>
 
 #include <asm/mach-au1x00/au1000.h>
-#include <asm/mach-pb1x00/pb1100.h>
 #include <asm/mach-db1x00/bcsr.h>
 
 #include <prom.h>

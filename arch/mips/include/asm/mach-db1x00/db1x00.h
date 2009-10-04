@@ -45,14 +45,6 @@
 
 #endif
 
-/* PCMCIA DBAu1x00 specific defines */
-#define PCMCIA_MAX_SOCK  1
-#define PCMCIA_NUM_SOCKS (PCMCIA_MAX_SOCK + 1)
-
-/* VPP/VCC */
-#define SET_VCC_VPP(VCC, VPP, SLOT)\
-	((((VCC) << 2) | ((VPP) << 0)) << ((SLOT) * 8))
-
 /*
  * NAND defines
  *

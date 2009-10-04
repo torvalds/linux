@@ -40,13 +40,6 @@
 #define SMBUS_PSC_BASE		PSC2_BASE_ADDR
 #define I2S_PSC_BASE		PSC3_BASE_ADDR
 
-#define PCMCIA_MAX_SOCK  1
-#define PCMCIA_NUM_SOCKS (PCMCIA_MAX_SOCK + 1)
-
-/* VPP/VCC */
-#define SET_VCC_VPP(VCC, VPP, SLOT) \
-	((((VCC) << 2) | ((VPP) << 0)) << ((SLOT) * 8))
-
 #if defined(CONFIG_MTD_PB1550_BOOT) && defined(CONFIG_MTD_PB1550_USER)
 #define PB1550_BOTH_BANKS
 #elif defined(CONFIG_MTD_PB1550_BOOT) && !defined(CONFIG_MTD_PB1550_USER)

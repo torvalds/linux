@@ -103,21 +103,6 @@ enum external_pb1200_ints {
 	DB1200_INT_END		= DB1200_INT_BEGIN + 15,
 };
 
-
-/*
- * DBAu1200 specific PCMCIA defines for drivers/pcmcia/au1000_db1x00.c
- */
-#define PCMCIA_MAX_SOCK  1
-#define PCMCIA_NUM_SOCKS (PCMCIA_MAX_SOCK + 1)
-
-/* VPP/VCC */
-#define SET_VCC_VPP(VCC, VPP, SLOT) \
-	((((VCC) << 2) | ((VPP) << 0)) << ((SLOT) * 8))
-
-#define BOARD_PC0_INT	DB1200_PC0_INT
-#define BOARD_PC1_INT	DB1200_PC1_INT
-#define BOARD_CARD_INSERTED(SOCKET) (bcsr_read(BCSR_SIGSTAT) & (1 << (8 + (2 * SOCKET))))
-
 /* NAND chip select */
 #define NAND_CS 1
 

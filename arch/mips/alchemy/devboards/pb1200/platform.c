@@ -28,6 +28,8 @@
 #include <asm/mach-au1x00/au1100_mmc.h>
 #include <asm/mach-db1x00/bcsr.h>
 
+#include "../platform.h"
+
 static int mmc_activity;
 
 static void pb1200mmc0_set_power(void *mmc_host, int state)
@@ -170,8 +172,57 @@ static struct platform_device *board_platform_devices[] __initdata = {
 
 static int __init board_register_devices(void)
 {
+#ifdef CONFIG_MIPS_PB1200
+	db1x_register_pcmcia_socket(PCMCIA_ATTR_PSEUDO_PHYS,
+				    PCMCIA_ATTR_PSEUDO_PHYS + 0x00040000 - 1,
+				    PCMCIA_MEM_PSEUDO_PHYS,
+				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00040000 - 1,
+				    PCMCIA_IO_PSEUDO_PHYS,
+				    PCMCIA_IO_PSEUDO_PHYS   + 0x00001000 - 1,
+				    PB1200_PC0_INT,
+				    PB1200_PC0_INSERT_INT,
+				    /*PB1200_PC0_STSCHG_INT*/0,
+				    PB1200_PC0_EJECT_INT,
+				    0);
+
+	db1x_register_pcmcia_socket(PCMCIA_ATTR_PSEUDO_PHYS + 0x00800000,
+				    PCMCIA_ATTR_PSEUDO_PHYS + 0x00840000 - 1,
+				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00800000,
+				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00840000 - 1,
+				    PCMCIA_IO_PSEUDO_PHYS   + 0x00800000,
+				    PCMCIA_IO_PSEUDO_PHYS   + 0x00801000 - 1,
+				    PB1200_PC1_INT,
+				    PB1200_PC1_INSERT_INT,
+				    /*PB1200_PC1_STSCHG_INT*/0,
+				    PB1200_PC1_EJECT_INT,
+				    1);
+#else
+	db1x_register_pcmcia_socket(PCMCIA_ATTR_PSEUDO_PHYS,
+				    PCMCIA_ATTR_PSEUDO_PHYS + 0x00040000 - 1,
+				    PCMCIA_MEM_PSEUDO_PHYS,
+				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00040000 - 1,
+				    PCMCIA_IO_PSEUDO_PHYS,
+				    PCMCIA_IO_PSEUDO_PHYS   + 0x00001000 - 1,
+				    DB1200_PC0_INT,
+				    DB1200_PC0_INSERT_INT,
+				    /*DB1200_PC0_STSCHG_INT*/0,
+				    DB1200_PC0_EJECT_INT,
+				    0);
+
+	db1x_register_pcmcia_socket(PCMCIA_ATTR_PSEUDO_PHYS + 0x00400000,
+				    PCMCIA_ATTR_PSEUDO_PHYS + 0x00440000 - 1,
+				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00400000,
+				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00440000 - 1,
+				    PCMCIA_IO_PSEUDO_PHYS   + 0x00400000,
+				    PCMCIA_IO_PSEUDO_PHYS   + 0x00401000 - 1,
+				    DB1200_PC1_INT,
+				    DB1200_PC1_INSERT_INT,
+				    /*DB1200_PC1_STSCHG_INT*/0,
+				    DB1200_PC1_EJECT_INT,
+				    1);
+#endif
+
 	return platform_add_devices(board_platform_devices,
 				    ARRAY_SIZE(board_platform_devices));
 }
-
-arch_initcall(board_register_devices);
+device_initcall(board_register_devices);
