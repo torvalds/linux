@@ -447,6 +447,18 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@new_dir contains the path structure for parent of the new link.
  *	@new_dentry contains the dentry structure of the new link.
  *	Return 0 if permission is granted.
+ * @path_chmod:
+ *	Check for permission to change DAC's permission of a file or directory.
+ *	@dentry contains the dentry structure.
+ *	@mnt contains the vfsmnt structure.
+ *	@mode contains DAC's mode.
+ *	Return 0 if permission is granted.
+ * @path_chown:
+ *	Check for permission to change owner/group of a file or directory.
+ *	@path contains the path structure.
+ *	@uid contains new owner's ID.
+ *	@gid contains new group's ID.
+ *	Return 0 if permission is granted.
  * @inode_readlink:
  *	Check the permission to read the symbolic link.
  *	@dentry contains the dentry structure for the file link.
@@ -1488,6 +1500,9 @@ struct security_operations {
 			  struct dentry *new_dentry);
 	int (*path_rename) (struct path *old_dir, struct dentry *old_dentry,
 			    struct path *new_dir, struct dentry *new_dentry);
+	int (*path_chmod) (struct dentry *dentry, struct vfsmount *mnt,
+			   mode_t mode);
+	int (*path_chown) (struct path *path, uid_t uid, gid_t gid);
 #endif
 
 	int (*inode_alloc_security) (struct inode *inode);
@@ -2952,6 +2967,9 @@ int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 		       struct dentry *new_dentry);
 int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 			 struct path *new_dir, struct dentry *new_dentry);
+int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
+			mode_t mode);
+int security_path_chown(struct path *path, uid_t uid, gid_t gid);
 #else	/* CONFIG_SECURITY_PATH */
 static inline int security_path_unlink(struct path *dir, struct dentry *dentry)
 {
@@ -2998,6 +3016,18 @@ static inline int security_path_rename(struct path *old_dir,
 				       struct dentry *old_dentry,
 				       struct path *new_dir,
 				       struct dentry *new_dentry)
+{
+	return 0;
+}
+
+static inline int security_path_chmod(struct dentry *dentry,
+				      struct vfsmount *mnt,
+				      mode_t mode)
+{
+	return 0;
+}
+
+static inline int security_path_chown(struct path *path, uid_t uid, gid_t gid)
 {
 	return 0;
 }

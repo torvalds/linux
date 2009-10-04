@@ -616,6 +616,9 @@ SYSCALL_DEFINE2(fchmod, unsigned int, fd, mode_t, mode)
 	err = mnt_want_write_file(file);
 	if (err)
 		goto out_putf;
+	err = security_path_chmod(dentry, file->f_vfsmnt, mode);
+	if (err)
+		goto out_drop_write;
 	mutex_lock(&inode->i_mutex);
 	if (mode == (mode_t) -1)
 		mode = inode->i_mode;
@@ -623,6 +626,7 @@ SYSCALL_DEFINE2(fchmod, unsigned int, fd, mode_t, mode)
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 	err = notify_change(dentry, &newattrs);
 	mutex_unlock(&inode->i_mutex);
+out_drop_write:
 	mnt_drop_write(file->f_path.mnt);
 out_putf:
 	fput(file);
@@ -645,6 +649,9 @@ SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename, mode_t, mode)
 	error = mnt_want_write(path.mnt);
 	if (error)
 		goto dput_and_out;
+	error = security_path_chmod(path.dentry, path.mnt, mode);
+	if (error)
+		goto out_drop_write;
 	mutex_lock(&inode->i_mutex);
 	if (mode == (mode_t) -1)
 		mode = inode->i_mode;
@@ -652,6 +659,7 @@ SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename, mode_t, mode)
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 	error = notify_change(path.dentry, &newattrs);
 	mutex_unlock(&inode->i_mutex);
+out_drop_write:
 	mnt_drop_write(path.mnt);
 dput_and_out:
 	path_put(&path);
@@ -700,7 +708,9 @@ SYSCALL_DEFINE3(chown, const char __user *, filename, uid_t, user, gid_t, group)
 	error = mnt_want_write(path.mnt);
 	if (error)
 		goto out_release;
-	error = chown_common(path.dentry, user, group);
+	error = security_path_chown(&path, user, group);
+	if (!error)
+		error = chown_common(path.dentry, user, group);
 	mnt_drop_write(path.mnt);
 out_release:
 	path_put(&path);
@@ -725,7 +735,9 @@ SYSCALL_DEFINE5(fchownat, int, dfd, const char __user *, filename, uid_t, user,
 	error = mnt_want_write(path.mnt);
 	if (error)
 		goto out_release;
-	error = chown_common(path.dentry, user, group);
+	error = security_path_chown(&path, user, group);
+	if (!error)
+		error = chown_common(path.dentry, user, group);
 	mnt_drop_write(path.mnt);
 out_release:
 	path_put(&path);
@@ -744,7 +756,9 @@ SYSCALL_DEFINE3(lchown, const char __user *, filename, uid_t, user, gid_t, group
 	error = mnt_want_write(path.mnt);
 	if (error)
 		goto out_release;
-	error = chown_common(path.dentry, user, group);
+	error = security_path_chown(&path, user, group);
+	if (!error)
+		error = chown_common(path.dentry, user, group);
 	mnt_drop_write(path.mnt);
 out_release:
 	path_put(&path);
@@ -767,7 +781,9 @@ SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 		goto out_fput;
 	dentry = file->f_path.dentry;
 	audit_inode(NULL, dentry);
-	error = chown_common(dentry, user, group);
+	error = security_path_chown(&file->f_path, user, group);
+	if (!error)
+		error = chown_common(dentry, user, group);
 	mnt_drop_write(file->f_path.mnt);
 out_fput:
 	fput(file);

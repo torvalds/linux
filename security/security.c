@@ -434,6 +434,21 @@ int security_path_truncate(struct path *path, loff_t length,
 		return 0;
 	return security_ops->path_truncate(path, length, time_attrs);
 }
+
+int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
+			mode_t mode)
+{
+	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+		return 0;
+	return security_ops->path_chmod(dentry, mnt, mode);
+}
+
+int security_path_chown(struct path *path, uid_t uid, gid_t gid)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_chown(path, uid, gid);
+}
 #endif
 
 int security_inode_create(struct inode *dir, struct dentry *dentry, int mode)
