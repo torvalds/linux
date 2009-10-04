@@ -1870,13 +1870,14 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
 	max_distance = 0;
 	for (group = 0; group < ai->nr_groups; group++) {
 		ai->groups[group].base_offset = areas[group] - base;
-		max_distance = max(max_distance, ai->groups[group].base_offset);
+		max_distance = max_t(size_t, max_distance,
+				     ai->groups[group].base_offset);
 	}
 	max_distance += ai->unit_size;
 
 	/* warn if maximum distance is further than 75% of vmalloc space */
 	if (max_distance > (VMALLOC_END - VMALLOC_START) * 3 / 4) {
-		pr_warning("PERCPU: max_distance=0x%lx too large for vmalloc "
+		pr_warning("PERCPU: max_distance=0x%zx too large for vmalloc "
 			   "space 0x%lx\n",
 			   max_distance, VMALLOC_END - VMALLOC_START);
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
