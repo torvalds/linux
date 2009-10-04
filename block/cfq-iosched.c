@@ -1345,16 +1345,9 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 		unsigned long last_sync = jiffies - cfqd->last_end_sync_rq;
 		unsigned int depth;
 
-		/*
-		 * must wait a bit longer
-		 */
-		if (last_sync < cfqd->cfq_slice[1]) {
-			cfq_schedule_dispatch(cfqd,
-						cfqd->cfq_slice[1] - last_sync);
-			return 0;
-		}
-
 		depth = last_sync / cfqd->cfq_slice[1];
+		if (!depth && !cfqq->dispatched)
+			depth = 1;
 		if (depth < max_dispatch)
 			max_dispatch = depth;
 	}
