@@ -579,7 +579,6 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xff, 0x03);	/* page 3 */
 	reg_w(gspca_dev, 0x11, 0x01);
 	reg_w(gspca_dev, 0xff, 0x00);	/* page 0 */
-	reg_w(gspca_dev, 0xff, 0x00);	/* page 0 */
 	for (i = 0; i < 9; i++) {
 		v = a[i] * sd->colors / COLOR_MAX + b[i];
 		reg_w(gspca_dev, 0x0f + 2 * i, (v >> 8) & 0x07);
