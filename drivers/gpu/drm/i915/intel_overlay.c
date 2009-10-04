@@ -286,16 +286,15 @@ static int intel_overlay_wait_flip(struct intel_overlay *overlay)
 	RING_LOCALS;
 
 	if (overlay->last_flip_req != 0) {
-		ret = i915_do_wait_request(dev, overlay->last_flip_req, 0);
-		if (ret != 0)
-			return ret;
+		ret = i915_do_wait_request(dev, overlay->last_flip_req, 1);
+		if (ret == 0) {
+			overlay->last_flip_req = 0;
 
-		overlay->last_flip_req = 0;
+			tmp = I915_READ(ISR);
 
-		tmp = I915_READ(ISR);
-
-		if (!(tmp & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT))
-			return 0;
+			if (!(tmp & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT))
+				return 0;
+		}
 	}
 
 	/* synchronous slowpath */
@@ -439,8 +438,6 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 				return ret;
 
 		case SWITCH_OFF_STAGE_2:
-			printk("switch off 2\n");
-
 			BUG_ON(!overlay->vid_bo);
 			obj = overlay->vid_bo->obj;
 
