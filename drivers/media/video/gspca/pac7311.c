@@ -244,6 +244,10 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.priv = 0},
 };
 
+#define LOAD_PAGE3		255
+#define LOAD_PAGE4		254
+#define END_OF_SEQUENCE		0
+
 /* pac 7302 */
 static const __u8 init_7302[] = {
 /*	index,value */
@@ -302,7 +306,7 @@ static const __u8 start_7302[] = {
 	0xff, 1,	0x02,		/* page 2 */
 	0x22, 1,	0x00,
 	0xff, 1,	0x03,		/* page 3 */
-	0x00, 255,			/* load the page 3 */
+	0, LOAD_PAGE3,			/* load the page 3 */
 	0x11, 1,	0x01,
 	0xff, 1,	0x02,		/* page 2 */
 	0x13, 1,	0x00,
@@ -313,7 +317,7 @@ static const __u8 start_7302[] = {
 	0x6e, 1,	0x08,
 	0xff, 1,	0x01,		/* page 1 */
 	0x78, 1,	0x00,
-	0, 0				/* end of sequence */
+	0, END_OF_SEQUENCE		/* end of sequence */
 };
 
 #define SKIP		0xaa
@@ -379,9 +383,9 @@ static const __u8 start_7311[] = {
 	0xf0, 13,	0x01, 0x00, 0x00, 0x00, 0x22, 0x00, 0x20, 0x00,
 			0x3f, 0x00, 0x0a, 0x01, 0x00,
 	0xff, 1,	0x04,		/* page 4 */
-	0x00, 254,			/* load the page 4 */
+	0, LOAD_PAGE4,			/* load the page 4 */
 	0x11, 1,	0x01,
-	0, 0				/* end of sequence */
+	0, END_OF_SEQUENCE		/* end of sequence */
 };
 
 /* page 4 - the value SKIP says skip the index - see reg_w_page() */
@@ -461,12 +465,12 @@ static void reg_w_var(struct gspca_dev *gspca_dev,
 		index = *seq++;
 		len = *seq++;
 		switch (len) {
-		case 0:
+		case END_OF_SEQUENCE:
 			return;
-		case 254:
+		case LOAD_PAGE4:
 			reg_w_page(gspca_dev, page4_7311, sizeof page4_7311);
 			break;
-		case 255:
+		case LOAD_PAGE3:
 			reg_w_page(gspca_dev, page3_7302, sizeof page3_7302);
 			break;
 		default:
