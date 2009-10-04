@@ -399,6 +399,10 @@ static int ethoc_rx(struct net_device *dev, int limit)
 		if (ethoc_update_rx_stats(priv, &bd) == 0) {
 			int size = bd.stat >> 16;
 			struct sk_buff *skb = netdev_alloc_skb(dev, size);
+
+			size -= 4; /* strip the CRC */
+			skb_reserve(skb, 2); /* align TCP/IP header */
+
 			if (likely(skb)) {
 				void *src = phys_to_virt(bd.addr);
 				memcpy_fromio(skb_put(skb, size), src, size);
