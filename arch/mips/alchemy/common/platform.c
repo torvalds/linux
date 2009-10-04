@@ -308,11 +308,6 @@ static struct platform_device au1200_mmc1_device = {
 #endif /* #ifndef CONFIG_MIPS_DB1200 */
 #endif /* #ifdef CONFIG_SOC_AU1200 */
 
-static struct platform_device au1x00_pcmcia_device = {
-	.name 		= "au1x00-pcmcia",
-	.id 		= 0,
-};
-
 /* All Alchemy demoboards with I2C have this #define in their headers */
 #ifdef SMBUS_PSC_BASE
 static struct resource pbdb_smbus_resources[] = {
@@ -334,7 +329,6 @@ static struct platform_device pbdb_smbus_device = {
 static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1xx0_uart_device,
 	&au1xxx_usb_ohci_device,
-	&au1x00_pcmcia_device,
 #ifdef CONFIG_FB_AU1100
 	&au1100_lcd_device,
 #endif

@@ -107,7 +107,8 @@ phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 	 * The pseudo address we use is 0xF400 0000. Any address over
 	 * 0xF400 0000 is a PCMCIA pseudo address.
 	 */
-	if ((phys_addr >= 0xF4000000) && (phys_addr < 0xFFFFFFFF))
+	if ((phys_addr >= PCMCIA_ATTR_PSEUDO_PHYS) &&
+	    (phys_addr < PCMCIA_PSEUDO_END))
 		return (phys_t)(phys_addr << 4);
 
 	/* default nop */
