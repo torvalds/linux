@@ -800,7 +800,7 @@ static ssize_t i7core_inject_store_##param(			\
 	if (pvt->inject.enable)					\
 		disable_inject(mci);				\
 								\
-	if (!strcasecmp(data, "any"))				\
+	if (!strcasecmp(data, "any") || !strcasecmp(data, "any\n"))\
 		value = -1;					\
 	else {							\
 		rc = strict_strtoul(data, 10, &value);		\
