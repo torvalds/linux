@@ -98,9 +98,11 @@ int drm_fb_helper_setcolreg(unsigned regno,
 void drm_fb_helper_restore(void);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_framebuffer *fb,
 			    uint32_t fb_width, uint32_t fb_height);
-void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch);
+void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
+			    uint32_t depth);
 
 int drm_fb_helper_add_connector(struct drm_connector *connector);
 int drm_fb_helper_parse_command_line(struct drm_device *dev);
+int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
 #endif

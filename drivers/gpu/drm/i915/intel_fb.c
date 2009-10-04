@@ -60,6 +60,7 @@ static struct fb_ops intelfb_ops = {
 	.fb_imageblit = cfb_imageblit,
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
+	.fb_setcmap = drm_fb_helper_setcmap,
 };
 
 static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
@@ -206,7 +207,7 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 
 //	memset(info->screen_base, 0, size);
 
-	drm_fb_helper_fill_fix(info, fb->pitch);
+	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
 	drm_fb_helper_fill_var(info, fb, fb_width, fb_height);
 
 	/* FIXME: we really shouldn't expose mmio space at all */

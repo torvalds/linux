@@ -454,6 +454,48 @@ out_free:
 }
 EXPORT_SYMBOL(drm_fb_helper_init_crtc_count);
 
+int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
+	u16 *red, *green, *blue, *transp;
+	struct drm_crtc *crtc;
+	int i, rc = 0;
+	int start;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+		for (i = 0; i < fb_helper->crtc_count; i++) {
+			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
+				break;
+		}
+		if (i == fb_helper->crtc_count)
+			continue;
+
+		red = cmap->red;
+		green = cmap->green;
+		blue = cmap->blue;
+		transp = cmap->transp;
+		start = cmap->start;
+
+		for (i = 0; i < cmap->len; i++) {
+			u16 hred, hgreen, hblue, htransp = 0xffff;
+
+			hred = *red++;
+			hgreen = *green++;
+			hblue = *blue++;
+
+			if (transp)
+				htransp = *transp++;
+
+			fb_helper->funcs->gamma_set(crtc, hred, hgreen, hblue, start++);
+		}
+		crtc_funcs->load_lut(crtc);
+	}
+	return rc;
+}
+EXPORT_SYMBOL(drm_fb_helper_setcmap);
+
 int drm_fb_helper_setcolreg(unsigned regno,
 			    unsigned red,
 			    unsigned green,
@@ -485,20 +527,21 @@ int drm_fb_helper_setcolreg(unsigned regno,
 		}
 
 		if (regno < 16) {
+			u32 *pal = fb->pseudo_palette;
 			switch (fb->depth) {
 			case 15:
-				fb->pseudo_palette[regno] = ((red & 0xf800) >> 1) |
+				pal[regno] = ((red & 0xf800) >> 1) |
 					((green & 0xf800) >>  6) |
 					((blue & 0xf800) >> 11);
 				break;
 			case 16:
-				fb->pseudo_palette[regno] = (red & 0xf800) |
+				pal[regno] = (red & 0xf800) |
 					((green & 0xfc00) >>  5) |
 					((blue  & 0xf800) >> 11);
 				break;
 			case 24:
 			case 32:
-				fb->pseudo_palette[regno] =
+				pal[regno] =
 					(((red >> 8) & 0xff) << info->var.red.offset) |
 					(((green >> 8) & 0xff) << info->var.green.offset) |
 					(((blue >> 8) & 0xff) << info->var.blue.offset);
@@ -851,10 +894,12 @@ void drm_fb_helper_free(struct drm_fb_helper *helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_free);
 
-void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch)
+void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
+			    uint32_t depth)
 {
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
-	info->fix.visual = FB_VISUAL_TRUECOLOR;
+	info->fix.visual = depth == 8 ? FB_VISUAL_PSEUDOCOLOR :
+		FB_VISUAL_TRUECOLOR;
 	info->fix.type_aux = 0;
 	info->fix.xpanstep = 1; /* doing it in hw */
 	info->fix.ypanstep = 1; /* doing it in hw */
