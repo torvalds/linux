@@ -449,6 +449,11 @@ int security_path_chown(struct path *path, uid_t uid, gid_t gid)
 		return 0;
 	return security_ops->path_chown(path, uid, gid);
 }
+
+int security_path_chroot(struct path *path)
+{
+	return security_ops->path_chroot(path);
+}
 #endif
 
 int security_inode_create(struct inode *dir, struct dentry *dentry, int mode)

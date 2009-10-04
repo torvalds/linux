@@ -587,6 +587,9 @@ SYSCALL_DEFINE1(chroot, const char __user *, filename)
 	error = -EPERM;
 	if (!capable(CAP_SYS_CHROOT))
 		goto dput_and_out;
+	error = security_path_chroot(&path);
+	if (error)
+		goto dput_and_out;
 
 	set_fs_root(current->fs, &path);
 	error = 0;
