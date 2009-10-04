@@ -474,7 +474,7 @@ static void reg_w_var(struct gspca_dev *gspca_dev,
 			reg_w_page(gspca_dev, page3_7302, sizeof page3_7302);
 			break;
 		default:
-			if (len > 64) {
+			if (len > USB_BUF_SZ) {
 				PDEBUG(D_ERR|D_STREAM,
 					"Incorrect variable sequence");
 				return;
