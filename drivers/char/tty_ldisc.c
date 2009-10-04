@@ -518,7 +518,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 static int tty_ldisc_halt(struct tty_struct *tty)
 {
 	clear_bit(TTY_LDISC, &tty->flags);
-	return cancel_delayed_work(&tty->buf.work);
+	return cancel_delayed_work_sync(&tty->buf.work);
 }
 
 /**
@@ -756,12 +756,9 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	 * N_TTY.
 	 */
 	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS) {
-		/* Make sure the old ldisc is quiescent */
-		tty_ldisc_halt(tty);
-		flush_scheduled_work();
-
 		/* Avoid racing set_ldisc or tty_ldisc_release */
 		mutex_lock(&tty->ldisc_mutex);
+		tty_ldisc_halt(tty);
 		if (tty->ldisc) {	/* Not yet closed */
 			/* Switch back to N_TTY */
 			tty_ldisc_reinit(tty);
