@@ -284,7 +284,7 @@ static int ethoc_init_ring(struct ethoc *dev)
 	dev->cur_rx = 0;
 
 	/* setup transmission buffers */
-	bd.addr = 0;
+	bd.addr = virt_to_phys(dev->membase);
 	bd.stat = TX_BD_IRQ | TX_BD_CRC;
 
 	for (i = 0; i < dev->num_tx; i++) {
@@ -295,7 +295,6 @@ static int ethoc_init_ring(struct ethoc *dev)
 		bd.addr += ETHOC_BUFSIZ;
 	}
 
-	bd.addr = dev->num_tx * ETHOC_BUFSIZ;
 	bd.stat = RX_BD_EMPTY | RX_BD_IRQ;
 
 	for (i = 0; i < dev->num_rx; i++) {
@@ -401,7 +400,7 @@ static int ethoc_rx(struct net_device *dev, int limit)
 			int size = bd.stat >> 16;
 			struct sk_buff *skb = netdev_alloc_skb(dev, size);
 			if (likely(skb)) {
-				void *src = priv->membase + bd.addr;
+				void *src = phys_to_virt(bd.addr);
 				memcpy_fromio(skb_put(skb, size), src, size);
 				skb->protocol = eth_type_trans(skb, dev);
 				priv->stats.rx_packets++;
@@ -823,7 +822,7 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		bd.stat &= ~TX_BD_PAD;
 
-	dest = priv->membase + bd.addr;
+	dest = phys_to_virt(bd.addr);
 	memcpy_toio(dest, skb->data, skb->len);
 
 	bd.stat &= ~(TX_BD_STATS | TX_BD_LEN_MASK);
