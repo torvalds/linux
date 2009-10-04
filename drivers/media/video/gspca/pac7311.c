@@ -801,13 +801,32 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
 
+/* JPEG header, part 1 */
 static const unsigned char pac7311_jpeg_header1[] = {
-  0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08
+  0xff, 0xd8,		/* SOI: Start of Image */
+
+  0xff, 0xc0,		/* SOF0: Start of Frame (Baseline DCT) */
+  0x00, 0x11,		/* length = 17 bytes (including this length field) */
+  0x08			/* Precision: 8 */
+  /* 2 bytes is placed here: number of image lines */
+  /* 2 bytes is placed here: samples per line */
 };
 
+/* JPEG header, continued */
 static const unsigned char pac7311_jpeg_header2[] = {
-  0x03, 0x01, 0x21, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01, 0xff, 0xda,
-  0x00, 0x0c, 0x03, 0x01, 0x00, 0x02, 0x11, 0x03, 0x11, 0x00, 0x3f, 0x00
+  0x03,			/* Number of image components: 3 */
+  0x01, 0x21, 0x00,	/* ID=1, Subsampling 1x1, Quantization table: 0 */
+  0x02, 0x11, 0x01,	/* ID=2, Subsampling 2x1, Quantization table: 1 */
+  0x03, 0x11, 0x01,	/* ID=3, Subsampling 2x1, Quantization table: 1 */
+
+  0xff, 0xda,		/* SOS: Start Of Scan */
+  0x00, 0x0c,		/* length = 12 bytes (including this length field) */
+  0x03,			/* number of components: 3 */
+  0x01, 0x00,		/* selector 1, table 0x00 */
+  0x02, 0x11,		/* selector 2, table 0x11 */
+  0x03, 0x11,		/* selector 3, table 0x11 */
+  0x00, 0x3f,		/* Spectral selection: 0 .. 63 */
+  0x00			/* Successive approximation: 0 */
 };
 
 /* this function is run at interrupt level */
