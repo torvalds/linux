@@ -866,7 +866,8 @@ static void pcie_disable_notification(struct controller *ctrl)
 	u16 mask;
 	mask = (PCI_EXP_SLTCTL_PDCE | PCI_EXP_SLTCTL_ABPE |
 		PCI_EXP_SLTCTL_MRLSCE | PCI_EXP_SLTCTL_PFDE |
-		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE);
+		PCI_EXP_SLTCTL_HPIE | PCI_EXP_SLTCTL_CCIE |
+		PCI_EXP_SLTCTL_DLLSCE);
 	if (pcie_write_cmd(ctrl, 0, mask))
 		ctrl_warn(ctrl, "Cannot disable software notification\n");
 }
