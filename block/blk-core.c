@@ -2492,14 +2492,6 @@ int kblockd_schedule_work(struct request_queue *q, struct work_struct *work)
 }
 EXPORT_SYMBOL(kblockd_schedule_work);
 
-int kblockd_schedule_delayed_work(struct request_queue *q,
-				  struct delayed_work *work,
-				  unsigned long delay)
-{
-	return queue_delayed_work(kblockd_workqueue, work, delay);
-}
-EXPORT_SYMBOL(kblockd_schedule_delayed_work);
-
 int __init blk_dev_init(void)
 {
 	BUILD_BUG_ON(__REQ_NR_BITS > 8 *
