@@ -54,6 +54,7 @@ static int irq[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_IRQ;
 static int mpu_irq[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_IRQ;
 static int dma[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_DMA;
 static int dma2[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_DMA;
+static bool joystick[SNDRV_CARDS] __devinitdata;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index number for SoundScape soundcard");
@@ -78,6 +79,9 @@ MODULE_PARM_DESC(dma, "DMA # for SoundScape driver.");
 
 module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for SoundScape driver.");
+
+module_param_array(joystick, bool, NULL, 0444);
+MODULE_PARM_DESC(joystick, "Enable gameport.");
 
 #ifdef CONFIG_PNP
 static int isa_registered;
@@ -145,7 +149,6 @@ struct soundscape {
 	struct resource *io_res;
 	struct resource *wss_res;
 	struct snd_wss *chip;
-	struct snd_mpu401 *mpu;
 
 	unsigned char midi_vol;
 };
@@ -815,7 +818,6 @@ static int __devinit create_mpu401(struct snd_card *card, int devnum, unsigned l
 		mpu->open_input = mpu401_open;
 		mpu->open_output = mpu401_open;
 		mpu->private_data = sscape;
-		sscape->mpu = mpu;
 
 		initialise_mpu401(mpu);
 	}
@@ -836,12 +838,30 @@ static int __devinit create_ad1845(struct snd_card *card, unsigned port,
 	register struct soundscape *sscape = get_card_soundscape(card);
 	struct snd_wss *chip;
 	int err;
+	int codec_type = WSS_HW_DETECT;
 
-	if (sscape->type == SSCAPE_VIVO)
+	switch (sscape->type) {
+	case MEDIA_FX:
+	case SSCAPE:
+		/*
+		 * There are some freak examples of early Soundscape cards
+		 * with CS4231 instead of AD1848/CS4248. Unfortunately, the
+		 * CS4231 works only in CS4248 compatibility mode on
+		 * these cards so force it.
+		 */
+		if (sscape->ic_type != IC_OPUS)
+			codec_type = WSS_HW_AD1848;
+		break;
+
+	case SSCAPE_VIVO:
 		port += 4;
+		break;
+	default:
+		break;
+	}
 
 	err = snd_wss_create(card, port, -1, irq, dma1, dma2,
-			     WSS_HW_DETECT, WSS_HWSHARE_DMA1, &chip);
+			     codec_type, WSS_HWSHARE_DMA1, &chip);
 	if (!err) {
 		unsigned long flags;
 		struct snd_pcm *pcm;
@@ -927,6 +947,7 @@ static int __devinit create_sscape(int dev, struct snd_card *card)
 	struct resource *wss_res;
 	unsigned long flags;
 	int err;
+	int val;
 	const char *name;
 
 	/*
@@ -1026,6 +1047,10 @@ static int __devinit create_sscape(int dev, struct snd_card *card)
 	sscape_write_unsafe(sscape->io_base, GA_DMAB_REG, 0x20);
 
 	mpu_irq_cfg |= mpu_irq_cfg << 2;
+	val = sscape_read_unsafe(sscape->io_base, GA_HMCTL_REG) & 0xF7;
+	if (joystick[dev])
+		val |= 8;
+	sscape_write_unsafe(sscape->io_base, GA_HMCTL_REG, val | 0x10);
 	sscape_write_unsafe(sscape->io_base, GA_INTCFG_REG, 0xf0 | mpu_irq_cfg);
 	sscape_write_unsafe(sscape->io_base,
 			    GA_CDCFG_REG, 0x09 | DMA_8BIT

@@ -1639,6 +1639,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- MPU-401 IRQ # (PnP setup)
     dma		- DMA # (PnP setup)
     dma2	- 2nd DMA # (PnP setup, -1 to disable)
+    joystick	- Enable gameport - 0 = disable (default), 1 = enable
 
     This module supports multiple cards.
 
