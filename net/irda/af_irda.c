@@ -2463,7 +2463,7 @@ bed:
 	return 0;
 }
 
-static struct net_proto_family irda_family_ops = {
+static const struct net_proto_family irda_family_ops = {
 	.family = PF_IRDA,
 	.create = irda_create,
 	.owner	= THIS_MODULE,

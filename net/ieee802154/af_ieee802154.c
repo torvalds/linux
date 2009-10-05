@@ -285,7 +285,7 @@ out:
 	return rc;
 }
 
-static struct net_proto_family ieee802154_family_ops = {
+static const struct net_proto_family ieee802154_family_ops = {
 	.family		= PF_IEEE802154,
 	.create		= ieee802154_create,
 	.owner		= THIS_MODULE,

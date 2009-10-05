@@ -45,7 +45,7 @@
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
-static struct net_proto_family *bt_proto[BT_MAX_PROTO];
+static const struct net_proto_family *bt_proto[BT_MAX_PROTO];
 static DEFINE_RWLOCK(bt_proto_lock);
 
 static struct lock_class_key bt_lock_key[BT_MAX_PROTO];
@@ -86,7 +86,7 @@ static inline void bt_sock_reclassify_lock(struct socket *sock, int proto)
 				bt_key_strings[proto], &bt_lock_key[proto]);
 }
 
-int bt_sock_register(int proto, struct net_proto_family *ops)
+int bt_sock_register(int proto, const struct net_proto_family *ops)
 {
 	int err = 0;
 

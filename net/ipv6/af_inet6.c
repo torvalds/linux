@@ -552,7 +552,7 @@ const struct proto_ops inet6_dgram_ops = {
 #endif
 };
 
-static struct net_proto_family inet6_family_ops = {
+static const struct net_proto_family inet6_family_ops = {
 	.family = PF_INET6,
 	.create = inet6_create,
 	.owner	= THIS_MODULE,

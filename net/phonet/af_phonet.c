@@ -118,7 +118,7 @@ out:
 	return err;
 }
 
-static struct net_proto_family phonet_proto_family = {
+static const struct net_proto_family phonet_proto_family = {
 	.family = PF_PHONET,
 	.create = pn_socket_create,
 	.owner = THIS_MODULE,

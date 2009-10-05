@@ -137,7 +137,7 @@ static int pvc_create(struct net *net, struct socket *sock,int protocol)
 }
 
 
-static struct net_proto_family pvc_family_ops = {
+static const struct net_proto_family pvc_family_ops = {
 	.family = PF_ATMPVC,
 	.create = pvc_create,
 	.owner = THIS_MODULE,

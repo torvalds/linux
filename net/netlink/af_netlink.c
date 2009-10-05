@@ -2050,7 +2050,7 @@ static const struct proto_ops netlink_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
-static struct net_proto_family netlink_family_ops = {
+static const struct net_proto_family netlink_family_ops = {
 	.family = PF_NETLINK,
 	.create = netlink_create,
 	.owner	= THIS_MODULE,	/* for consistency 8) */

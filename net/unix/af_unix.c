@@ -2214,7 +2214,7 @@ static const struct file_operations unix_seq_fops = {
 
 #endif
 
-static struct net_proto_family unix_family_ops = {
+static const struct net_proto_family unix_family_ops = {
 	.family = PF_UNIX,
 	.create = unix_create,
 	.owner	= THIS_MODULE,

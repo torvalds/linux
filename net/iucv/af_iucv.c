@@ -1715,7 +1715,7 @@ static const struct proto_ops iucv_sock_ops = {
 	.getsockopt	= iucv_sock_getsockopt,
 };
 
-static struct net_proto_family iucv_sock_family_ops = {
+static const struct net_proto_family iucv_sock_family_ops = {
 	.family	= AF_IUCV,
 	.owner	= THIS_MODULE,
 	.create	= iucv_sock_create,

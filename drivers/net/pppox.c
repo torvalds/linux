@@ -125,7 +125,7 @@ out:
 	return rc;
 }
 
-static struct net_proto_family pppox_proto_family = {
+static const struct net_proto_family pppox_proto_family = {
 	.family	= PF_PPPOX,
 	.create	= pppox_create,
 	.owner	= THIS_MODULE,

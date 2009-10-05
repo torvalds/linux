@@ -1961,7 +1961,7 @@ static const struct file_operations ax25_info_fops = {
 
 #endif
 
-static struct net_proto_family ax25_family_ops = {
+static const struct net_proto_family ax25_family_ops = {
 	.family =	PF_AX25,
 	.create =	ax25_create,
 	.owner	=	THIS_MODULE,

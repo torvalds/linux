@@ -842,7 +842,7 @@ static struct packet_type can_packet __read_mostly = {
 	.func = can_rcv,
 };
 
-static struct net_proto_family can_family_ops __read_mostly = {
+static const struct net_proto_family can_family_ops = {
 	.family = PF_CAN,
 	.create = can_create,
 	.owner  = THIS_MODULE,

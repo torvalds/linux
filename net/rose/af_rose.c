@@ -1509,7 +1509,7 @@ static const struct file_operations rose_info_fops = {
 };
 #endif	/* CONFIG_PROC_FS */
 
-static struct net_proto_family rose_family_ops = {
+static const struct net_proto_family rose_family_ops = {
 	.family		=	PF_ROSE,
 	.create		=	rose_create,
 	.owner		=	THIS_MODULE,

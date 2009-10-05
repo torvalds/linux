@@ -1101,7 +1101,7 @@ static const struct proto_ops rfcomm_sock_ops = {
 	.mmap		= sock_no_mmap
 };
 
-static struct net_proto_family rfcomm_sock_family_ops = {
+static const struct net_proto_family rfcomm_sock_family_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.create		= rfcomm_sock_create

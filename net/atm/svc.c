@@ -666,7 +666,7 @@ static int svc_create(struct net *net, struct socket *sock,int protocol)
 }
 
 
-static struct net_proto_family svc_family_ops = {
+static const struct net_proto_family svc_family_ops = {
 	.family = PF_ATMSVC,
 	.create = svc_create,
 	.owner = THIS_MODULE,

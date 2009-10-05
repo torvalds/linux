@@ -742,7 +742,7 @@ static int econet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg
 	return 0;
 }
 
-static struct net_proto_family econet_family_ops = {
+static const struct net_proto_family econet_family_ops = {
 	.family =	PF_ECONET,
 	.create =	econet_create,
 	.owner	=	THIS_MODULE,

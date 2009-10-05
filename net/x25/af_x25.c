@@ -1476,7 +1476,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return rc;
 }
 
-static struct net_proto_family x25_family_ops = {
+static const struct net_proto_family x25_family_ops = {
 	.family =	AF_X25,
 	.create =	x25_create,
 	.owner	=	THIS_MODULE,

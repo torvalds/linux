@@ -3644,7 +3644,7 @@ static const struct proto_ops pfkey_ops = {
 	.recvmsg	=	pfkey_recvmsg,
 };
 
-static struct net_proto_family pfkey_family_ops = {
+static const struct net_proto_family pfkey_family_ops = {
 	.family	=	PF_KEY,
 	.create	=	pfkey_create,
 	.owner	=	THIS_MODULE,

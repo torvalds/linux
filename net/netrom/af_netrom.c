@@ -1372,7 +1372,7 @@ static const struct file_operations nr_info_fops = {
 };
 #endif	/* CONFIG_PROC_FS */
 
-static struct net_proto_family nr_family_ops = {
+static const struct net_proto_family nr_family_ops = {
 	.family		=	PF_NETROM,
 	.create		=	nr_create,
 	.owner		=	THIS_MODULE,

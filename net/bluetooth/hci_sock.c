@@ -687,7 +687,7 @@ static int hci_sock_dev_event(struct notifier_block *this, unsigned long event, 
 	return NOTIFY_DONE;
 }
 
-static struct net_proto_family hci_sock_family_ops = {
+static const struct net_proto_family hci_sock_family_ops = {
 	.family	= PF_BLUETOOTH,
 	.owner	= THIS_MODULE,
 	.create	= hci_sock_create,

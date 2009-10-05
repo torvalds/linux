@@ -777,7 +777,7 @@ static struct proto rxrpc_proto = {
 	.max_header	= sizeof(struct rxrpc_header),
 };
 
-static struct net_proto_family rxrpc_family_ops = {
+static const struct net_proto_family rxrpc_family_ops = {
 	.family	= PF_RXRPC,
 	.create = rxrpc_create,
 	.owner	= THIS_MODULE,

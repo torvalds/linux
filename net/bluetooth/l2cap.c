@@ -3916,7 +3916,7 @@ static const struct proto_ops l2cap_sock_ops = {
 	.getsockopt	= l2cap_sock_getsockopt
 };
 
-static struct net_proto_family l2cap_sock_family_ops = {
+static const struct net_proto_family l2cap_sock_family_ops = {
 	.family	= PF_BLUETOOTH,
 	.owner	= THIS_MODULE,
 	.create	= l2cap_sock_create,

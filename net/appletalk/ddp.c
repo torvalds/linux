@@ -1821,7 +1821,7 @@ static int atalk_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned lo
 #endif
 
 
-static struct net_proto_family atalk_family_ops = {
+static const struct net_proto_family atalk_family_ops = {
 	.family		= PF_APPLETALK,
 	.create		= atalk_create,
 	.owner		= THIS_MODULE,

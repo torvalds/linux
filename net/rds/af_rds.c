@@ -431,7 +431,7 @@ void rds_sock_put(struct rds_sock *rs)
 	sock_put(rds_rs_to_sk(rs));
 }
 
-static struct net_proto_family rds_family_ops = {
+static const struct net_proto_family rds_family_ops = {
 	.family =	AF_RDS,
 	.create =	rds_create,
 	.owner	=	THIS_MODULE,
