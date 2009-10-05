@@ -33,8 +33,12 @@
 
 #include <asm/mach/flash.h>
 #include <mach/mxc_nand.h>
+#include <mach/hardware.h>
 
 #define DRIVER_NAME "mxc_nand"
+
+#define nfc_is_v21()		(cpu_is_mx25() || cpu_is_mx35())
+#define nfc_is_v1()		(cpu_is_mx31() || cpu_is_mx27())
 
 /* Addresses for NFC registers */
 #define NFC_BUF_SIZE		0xE00
@@ -46,8 +50,10 @@
 #define NFC_RSLTMAIN_AREA	0xE0E
 #define NFC_RSLTSPARE_AREA	0xE10
 #define NFC_WRPROT		0xE12
-#define NFC_UNLOCKSTART_BLKADDR	0xE14
-#define NFC_UNLOCKEND_BLKADDR	0xE16
+#define NFC_V1_UNLOCKSTART_BLKADDR	0xe14
+#define NFC_V1_UNLOCKEND_BLKADDR	0xe16
+#define NFC_V21_UNLOCKSTART_BLKADDR	0xe20
+#define NFC_V21_UNLOCKEND_BLKADDR	0xe22
 #define NFC_NF_WRPRST		0xE18
 #define NFC_CONFIG1		0xE1A
 #define NFC_CONFIG2		0xE1C
@@ -116,17 +122,45 @@ struct mxc_nand_host {
 #define TROP_US_DELAY   2000
 
 /* OOB placement block for use with hardware ecc generation */
-static struct nand_ecclayout nand_hw_eccoob_smallpage = {
+static struct nand_ecclayout nandv1_hw_eccoob_smallpage = {
 	.eccbytes = 5,
 	.eccpos = {6, 7, 8, 9, 10},
 	.oobfree = {{0, 5}, {12, 4}, }
 };
 
-static struct nand_ecclayout nand_hw_eccoob_largepage = {
+static struct nand_ecclayout nandv1_hw_eccoob_largepage = {
 	.eccbytes = 20,
 	.eccpos = {6, 7, 8, 9, 10, 22, 23, 24, 25, 26,
 		   38, 39, 40, 41, 42, 54, 55, 56, 57, 58},
 	.oobfree = {{2, 4}, {11, 10}, {27, 10}, {43, 10}, {59, 5}, }
+};
+
+/* OOB description for 512 byte pages with 16 byte OOB */
+static struct nand_ecclayout nandv2_hw_eccoob_smallpage = {
+	.eccbytes = 1 * 9,
+	.eccpos = {
+		 7,  8,  9, 10, 11, 12, 13, 14, 15
+	},
+	.oobfree = {
+		{.offset = 0, .length = 5}
+	}
+};
+
+/* OOB description for 2048 byte pages with 64 byte OOB */
+static struct nand_ecclayout nandv2_hw_eccoob_largepage = {
+	.eccbytes = 4 * 9,
+	.eccpos = {
+		 7,  8,  9, 10, 11, 12, 13, 14, 15,
+		23, 24, 25, 26, 27, 28, 29, 30, 31,
+		39, 40, 41, 42, 43, 44, 45, 46, 47,
+		55, 56, 57, 58, 59, 60, 61, 62, 63
+	},
+	.oobfree = {
+		{.offset = 2, .length = 4},
+		{.offset = 16, .length = 7},
+		{.offset = 32, .length = 7},
+		{.offset = 48, .length = 7}
+	}
 };
 
 #ifdef CONFIG_MTD_PARTITIONS
@@ -219,7 +253,7 @@ static void send_page(struct mtd_info *mtd, unsigned int ops)
 	struct mxc_nand_host *host = nand_chip->priv;
 	int bufs, i;
 
-	if (mtd->writesize > 512)
+	if (nfc_is_v1() && mtd->writesize > 512)
 		bufs = 4;
 	else
 		bufs = 1;
@@ -613,6 +647,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 		send_cmd(host, command, true);
 		mxc_do_addr_cycle(mtd, column, page_addr);
 		send_read_id(host);
+		host->buf_start = column;
 		break;
 
 	case NAND_CMD_ERASE1:
@@ -633,6 +668,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	struct resource *res;
 	uint16_t tmp;
 	int err = 0, nr_parts = 0;
+	struct nand_ecclayout *oob_smallpage, *oob_largepage;
 
 	/* Allocate memory for MTD device structure and private data */
 	host = kzalloc(sizeof(struct mxc_nand_host) + NAND_MAX_PAGESIZE +
@@ -641,7 +677,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	host->data_buf = (uint8_t *)(host + 1);
-	host->spare_len = 16;
 
 	host->dev = &pdev->dev;
 	/* structures must be linked */
@@ -686,10 +721,23 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		goto eres;
 	}
 
-	host->regs = host->base;
 	host->main_area0 = host->base;
 	host->main_area1 = host->base + 0x200;
-	host->spare0 = host->base + 0x800;
+
+	if (nfc_is_v21()) {
+		host->regs = host->base + 0x1000;
+		host->spare0 = host->base + 0x1000;
+		host->spare_len = 64;
+		oob_smallpage = &nandv2_hw_eccoob_smallpage;
+		oob_largepage = &nandv2_hw_eccoob_largepage;
+	} else if (nfc_is_v1()) {
+		host->regs = host->base;
+		host->spare0 = host->base + 0x800;
+		host->spare_len = 16;
+		oob_smallpage = &nandv1_hw_eccoob_smallpage;
+		oob_largepage = &nandv1_hw_eccoob_largepage;
+	} else
+		BUG();
 
 	tmp = readw(host->regs + NFC_CONFIG1);
 	tmp |= NFC_INT_MSK;
@@ -711,15 +759,22 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	writew(0x2, host->regs + NFC_CONFIG);
 
 	/* Blocks to be unlocked */
-	writew(0x0, host->regs + NFC_UNLOCKSTART_BLKADDR);
-	writew(0x4000, host->regs + NFC_UNLOCKEND_BLKADDR);
+	if (nfc_is_v21()) {
+		writew(0x0, host->regs + NFC_V21_UNLOCKSTART_BLKADDR);
+	        writew(0xffff, host->regs + NFC_V21_UNLOCKEND_BLKADDR);
+		this->ecc.bytes = 9;
+	} else if (nfc_is_v1()) {
+		writew(0x0, host->regs + NFC_V1_UNLOCKSTART_BLKADDR);
+	        writew(0x4000, host->regs + NFC_V1_UNLOCKEND_BLKADDR);
+		this->ecc.bytes = 3;
+	} else
+		BUG();
 
 	/* Unlock Block Command for given address range */
 	writew(0x4, host->regs + NFC_WRPROT);
 
 	this->ecc.size = 512;
-	this->ecc.bytes = 3;
-	this->ecc.layout = &nand_hw_eccoob_smallpage;
+	this->ecc.layout = oob_smallpage;
 
 	if (pdata->hw_ecc) {
 		this->ecc.calculate = mxc_nand_calculate_ecc;
@@ -747,7 +802,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	}
 
 	if (mtd->writesize == 2048)
-		this->ecc.layout = &nand_hw_eccoob_largepage;
+		this->ecc.layout = oob_largepage;
 
 	/* second phase scan */
 	if (nand_scan_tail(mtd)) {
