@@ -240,9 +240,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
  **/
 static s32 igb_acquire_phy_82575(struct e1000_hw *hw)
 {
-	u16 mask;
+	u16 mask = E1000_SWFW_PHY0_SM;
 
-	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
+	if (hw->bus.func == E1000_FUNC_1)
+		mask = E1000_SWFW_PHY1_SM;
 
 	return igb_acquire_swfw_sync_82575(hw, mask);
 }
@@ -256,9 +257,11 @@ static s32 igb_acquire_phy_82575(struct e1000_hw *hw)
  **/
 static void igb_release_phy_82575(struct e1000_hw *hw)
 {
-	u16 mask;
+	u16 mask = E1000_SWFW_PHY0_SM;
 
-	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
+	if (hw->bus.func == E1000_FUNC_1)
+		mask = E1000_SWFW_PHY1_SM;
+
 	igb_release_swfw_sync_82575(hw, mask);
 }
 
