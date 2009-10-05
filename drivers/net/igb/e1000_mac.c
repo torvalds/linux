@@ -185,13 +185,12 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 	}
 
 	if (nvm_alt_mac_addr_offset == 0xFFFF) {
-		ret_val = -(E1000_NOT_IMPLEMENTED);
+		/* There is no Alternate MAC Address */
 		goto out;
 	}
 
 	if (hw->bus.func == E1000_FUNC_1)
-		nvm_alt_mac_addr_offset += ETH_ALEN/sizeof(u16);
-
+		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN1;
 	for (i = 0; i < ETH_ALEN; i += 2) {
 		offset = nvm_alt_mac_addr_offset + (i >> 1);
 		ret_val = hw->nvm.ops.read(hw, offset, 1, &nvm_data);
@@ -206,14 +205,16 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 
 	/* if multicast bit is set, the alternate address will not be used */
 	if (alt_mac_addr[0] & 0x01) {
-		ret_val = -(E1000_NOT_IMPLEMENTED);
+		hw_dbg("Ignoring Alternate Mac Address with MC bit set\n");
 		goto out;
 	}
 
-	for (i = 0; i < ETH_ALEN; i++)
-		hw->mac.addr[i] = hw->mac.perm_addr[i] = alt_mac_addr[i];
-
-	hw->mac.ops.rar_set(hw, hw->mac.perm_addr, 0);
+	/*
+	 * We have a valid alternate MAC address, and we want to treat it the
+	 * same as the normal permanent MAC address stored by the HW into the
+	 * RAR. Do this by mapping this address into RAR0.
+	 */
+	hw->mac.ops.rar_set(hw, alt_mac_addr, 0);
 
 out:
 	return ret_val;

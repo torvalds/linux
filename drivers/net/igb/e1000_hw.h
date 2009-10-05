@@ -53,6 +53,8 @@ struct e1000_hw;
 
 #define E1000_FUNC_1     1
 
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
+
 enum e1000_mac_type {
 	e1000_undefined = 0,
 	e1000_82575,
