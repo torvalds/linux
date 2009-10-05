@@ -4088,8 +4088,9 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		driver_config->config_dev_cnt = 0;
 		driver_config->total_dev_cnt = 0;
 		driver_config->g_no_cpus = 0;
-		driver_config->vpath_per_dev = max_config_vpath;
 	}
+
+	driver_config->vpath_per_dev = max_config_vpath;
 
 	driver_config->total_dev_cnt++;
 	if (++driver_config->config_dev_cnt > max_config_dev) {
