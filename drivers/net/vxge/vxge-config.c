@@ -356,10 +356,8 @@ __vxge_hw_device_access_rights_get(u32 host_type, u32 func_id)
 
 	switch (host_type) {
 	case VXGE_HW_NO_MR_NO_SR_NORMAL_FUNCTION:
-		if (func_id == 0) {
-			access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
-					VXGE_HW_DEVICE_ACCESS_RIGHT_SRPCIM;
-		}
+		access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
+				VXGE_HW_DEVICE_ACCESS_RIGHT_SRPCIM;
 		break;
 	case VXGE_HW_MR_NO_SR_VH0_BASE_FUNCTION:
 		access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
@@ -381,6 +379,22 @@ __vxge_hw_device_access_rights_get(u32 host_type, u32 func_id)
 
 	return access_rights;
 }
+/*
+ * __vxge_hw_device_is_privilaged
+ * This routine checks if the device function is privilaged or not
+ */
+
+enum vxge_hw_status
+__vxge_hw_device_is_privilaged(u32 host_type, u32 func_id)
+{
+	if (__vxge_hw_device_access_rights_get(host_type,
+		func_id) &
+		VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM)
+		return VXGE_HW_OK;
+	else
+		return VXGE_HW_ERR_PRIVILAGED_OPEARATION;
+}
+
 /*
  * __vxge_hw_device_host_info_get
  * This routine returns the host type assignments
@@ -446,18 +460,6 @@ __vxge_hw_verify_pci_e_info(struct __vxge_hw_device *hldev)
 	return VXGE_HW_OK;
 }
 
-enum vxge_hw_status
-__vxge_hw_device_is_privilaged(struct __vxge_hw_device *hldev)
-{
-	if ((hldev->host_type == VXGE_HW_NO_MR_NO_SR_NORMAL_FUNCTION ||
-	hldev->host_type == VXGE_HW_MR_NO_SR_VH0_BASE_FUNCTION ||
-	hldev->host_type == VXGE_HW_NO_MR_SR_VH0_FUNCTION0) &&
-	(hldev->func_id == 0))
-		return VXGE_HW_OK;
-	else
-		return VXGE_HW_ERR_PRIVILAGED_OPEARATION;
-}
-
 /*
  * vxge_hw_wrr_rebalance - Rebalance the RX_WRR and KDFC_WRR calandars.
  * Rebalance the RX_WRR and KDFC_WRR calandars.
@@ -470,7 +472,8 @@ vxge_hw_status vxge_hw_wrr_rebalance(struct __vxge_hw_device *hldev)
 	u32 i, j, how_often = 1;
 	enum vxge_hw_status status = VXGE_HW_OK;
 
-	status = __vxge_hw_device_is_privilaged(hldev);
+	status = __vxge_hw_device_is_privilaged(hldev->host_type,
+			hldev->func_id);
 	if (status != VXGE_HW_OK)
 		goto exit;
 
@@ -668,7 +671,8 @@ enum vxge_hw_status __vxge_hw_device_initialize(struct __vxge_hw_device *hldev)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 
-	if (VXGE_HW_OK == __vxge_hw_device_is_privilaged(hldev)) {
+	if (VXGE_HW_OK == __vxge_hw_device_is_privilaged(hldev->host_type,
+				hldev->func_id)) {
 		/* Validate the pci-e link width and speed */
 		status = __vxge_hw_verify_pci_e_info(hldev);
 		if (status != VXGE_HW_OK)
@@ -953,7 +957,8 @@ vxge_hw_mrpcim_stats_access(struct __vxge_hw_device *hldev,
 	u64 val64;
 	enum vxge_hw_status status = VXGE_HW_OK;
 
-	status = __vxge_hw_device_is_privilaged(hldev);
+	status = __vxge_hw_device_is_privilaged(hldev->host_type,
+			hldev->func_id);
 	if (status != VXGE_HW_OK)
 		goto exit;
 
@@ -990,7 +995,8 @@ vxge_hw_device_xmac_aggr_stats_get(struct __vxge_hw_device *hldev, u32 port,
 
 	val64 = (u64 *)aggr_stats;
 
-	status = __vxge_hw_device_is_privilaged(hldev);
+	status = __vxge_hw_device_is_privilaged(hldev->host_type,
+			hldev->func_id);
 	if (status != VXGE_HW_OK)
 		goto exit;
 
@@ -1023,7 +1029,8 @@ vxge_hw_device_xmac_port_stats_get(struct __vxge_hw_device *hldev, u32 port,
 	u32 offset = 0x0;
 	val64 = (u64 *) port_stats;
 
-	status = __vxge_hw_device_is_privilaged(hldev);
+	status = __vxge_hw_device_is_privilaged(hldev->host_type,
+			hldev->func_id);
 	if (status != VXGE_HW_OK)
 		goto exit;
 
@@ -1221,7 +1228,8 @@ enum vxge_hw_status vxge_hw_device_setpause_data(struct __vxge_hw_device *hldev,
 		goto exit;
 	}
 
-	status = __vxge_hw_device_is_privilaged(hldev);
+	status = __vxge_hw_device_is_privilaged(hldev->host_type,
+			hldev->func_id);
 	if (status != VXGE_HW_OK)
 		goto exit;
 
