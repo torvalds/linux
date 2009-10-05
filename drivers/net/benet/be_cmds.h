@@ -62,7 +62,7 @@ enum {
 	MCC_STATUS_QUEUE_FLUSHING = 0x4,
 /* The command is completing with a DMA error */
 	MCC_STATUS_DMA_FAILED = 0x5,
-	MCC_STATUS_NOT_SUPPORTED = 0x66
+	MCC_STATUS_NOT_SUPPORTED = 66
 };
 
 #define CQE_STATUS_COMPL_MASK		0xFFFF
