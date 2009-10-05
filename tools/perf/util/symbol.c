@@ -189,7 +189,7 @@ struct symbol *dso__find_symbol(struct dso *self, u64 ip)
 
 size_t dso__fprintf(struct dso *self, FILE *fp)
 {
-	size_t ret = fprintf(fp, "dso: %s\n", self->long_name);
+	size_t ret = fprintf(fp, "dso: %s\n", self->short_name);
 
 	struct rb_node *nd;
 	for (nd = rb_first(&self->syms); nd; nd = rb_next(nd)) {
@@ -977,6 +977,7 @@ static int dsos__load_modules_sym_dir(char *dirname,
 			snprintf(dso_name, sizeof(dso_name), "[%.*s]",
 				 (int)(dot - dent->d_name), dent->d_name);
 
+			strxfrchar(dso_name, '-', '_');
 			map = kernel_maps__find_by_dso_name(dso_name);
 			if (map == NULL)
 				continue;
