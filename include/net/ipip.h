@@ -42,9 +42,9 @@ struct ip_tunnel_prl_entry
 	ip_select_ident(iph, &rt->u.dst, NULL);				\
 									\
 	err = ip_local_out(skb);					\
-	if (net_xmit_eval(err) == 0) {					\
-		stats->tx_bytes += pkt_len;				\
-		stats->tx_packets++;					\
+	if (likely(net_xmit_eval(err) == 0)) {				\
+		txq->tx_bytes += pkt_len;				\
+		txq->tx_packets++;					\
 	} else {							\
 		stats->tx_errors++;					\
 		stats->tx_aborted_errors++;				\

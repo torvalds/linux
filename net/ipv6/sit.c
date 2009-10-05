@@ -555,7 +555,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	struct net_device_stats *stats = &tunnel->dev->stats;
+	struct net_device_stats *stats = &dev->stats;
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
 	struct iphdr  *tiph = &tunnel->parms.iph;
 	struct ipv6hdr *iph6 = ipv6_hdr(skb);
 	u8     tos = tunnel->parms.iph.tos;
@@ -688,7 +689,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		struct sk_buff *new_skb = skb_realloc_headroom(skb, max_headroom);
 		if (!new_skb) {
 			ip_rt_put(rt);
-			stats->tx_dropped++;
+			txq->tx_dropped++;
 			dev_kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
