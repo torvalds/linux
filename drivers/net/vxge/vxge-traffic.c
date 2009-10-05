@@ -295,6 +295,8 @@ void vxge_hw_device_intr_enable(struct __vxge_hw_device *hldev)
 	u64 val64;
 	u32 val32;
 
+	vxge_hw_device_mask_all(hldev);
+
 	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
 
 		if (!(hldev->vpaths_deployed & vxge_mBIT(i)))

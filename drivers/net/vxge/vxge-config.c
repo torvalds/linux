@@ -3882,6 +3882,30 @@ __vxge_hw_vpath_tim_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 	return status;
 }
 
+void
+vxge_hw_vpath_tti_ci_set(struct __vxge_hw_device *hldev, u32 vp_id)
+{
+	struct __vxge_hw_virtualpath *vpath;
+	struct vxge_hw_vpath_reg __iomem *vp_reg;
+	struct vxge_hw_vp_config *config;
+	u64 val64;
+
+	vpath = &hldev->virtual_paths[vp_id];
+	vp_reg = vpath->vp_reg;
+	config = vpath->vp_config;
+
+	if (config->fifo.enable == VXGE_HW_FIFO_ENABLE) {
+		val64 = readq(&vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_TX]);
+
+		if (config->tti.timer_ci_en != VXGE_HW_TIM_TIMER_CI_ENABLE) {
+			config->tti.timer_ci_en = VXGE_HW_TIM_TIMER_CI_ENABLE;
+			val64 |= VXGE_HW_TIM_CFG1_INT_NUM_TIMER_CI;
+			writeq(val64,
+			&vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_TX]);
+		}
+	}
+	return;
+}
 /*
  * __vxge_hw_vpath_initialize
  * This routine is the final phase of init which initializes the
