@@ -61,6 +61,8 @@ s32  igb_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data);
 s32  igb_phy_has_link(struct e1000_hw *hw, u32 iterations,
 				u32 usec_interval, bool *success);
 s32  igb_phy_init_script_igp3(struct e1000_hw *hw);
+s32  igb_read_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 *data);
+s32  igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data);
 
 /* IGP01E1000 Specific Registers */
 #define IGP01E1000_PHY_PORT_CONFIG        0x10 /* Port Config */

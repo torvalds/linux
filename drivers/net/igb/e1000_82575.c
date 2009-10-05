@@ -277,45 +277,23 @@ static void igb_release_phy_82575(struct e1000_hw *hw)
 static s32 igb_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 					  u16 *data)
 {
-	struct e1000_phy_info *phy = &hw->phy;
-	u32 i, i2ccmd = 0;
+	s32 ret_val = -E1000_ERR_PARAM;
 
 	if (offset > E1000_MAX_SGMII_PHY_REG_ADDR) {
 		hw_dbg("PHY Address %u is out of range\n", offset);
-		return -E1000_ERR_PARAM;
+		goto out;
 	}
 
-	/*
-	 * Set up Op-code, Phy Address, and register address in the I2CCMD
-	 * register.  The MAC will take care of interfacing with the
-	 * PHY to retrieve the desired data.
-	 */
-	i2ccmd = ((offset << E1000_I2CCMD_REG_ADDR_SHIFT) |
-		  (phy->addr << E1000_I2CCMD_PHY_ADDR_SHIFT) |
-		  (E1000_I2CCMD_OPCODE_READ));
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
 
-	wr32(E1000_I2CCMD, i2ccmd);
+	ret_val = igb_read_phy_reg_i2c(hw, offset, data);
 
-	/* Poll the ready bit to see if the I2C read completed */
-	for (i = 0; i < E1000_I2CCMD_PHY_TIMEOUT; i++) {
-		udelay(50);
-		i2ccmd = rd32(E1000_I2CCMD);
-		if (i2ccmd & E1000_I2CCMD_READY)
-			break;
-	}
-	if (!(i2ccmd & E1000_I2CCMD_READY)) {
-		hw_dbg("I2CCMD Read did not complete\n");
-		return -E1000_ERR_PHY;
-	}
-	if (i2ccmd & E1000_I2CCMD_ERROR) {
-		hw_dbg("I2CCMD Error bit set\n");
-		return -E1000_ERR_PHY;
-	}
+	hw->phy.ops.release(hw);
 
-	/* Need to byte-swap the 16-bit value. */
-	*data = ((i2ccmd >> 8) & 0x00FF) | ((i2ccmd << 8) & 0xFF00);
-
-	return 0;
+out:
+	return ret_val;
 }
 
 /**
@@ -330,47 +308,24 @@ static s32 igb_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 static s32 igb_write_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 					   u16 data)
 {
-	struct e1000_phy_info *phy = &hw->phy;
-	u32 i, i2ccmd = 0;
-	u16 phy_data_swapped;
+	s32 ret_val = -E1000_ERR_PARAM;
+
 
 	if (offset > E1000_MAX_SGMII_PHY_REG_ADDR) {
 		hw_dbg("PHY Address %d is out of range\n", offset);
-		return -E1000_ERR_PARAM;
+		goto out;
 	}
 
-	/* Swap the data bytes for the I2C interface */
-	phy_data_swapped = ((data >> 8) & 0x00FF) | ((data << 8) & 0xFF00);
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
 
-	/*
-	 * Set up Op-code, Phy Address, and register address in the I2CCMD
-	 * register.  The MAC will take care of interfacing with the
-	 * PHY to retrieve the desired data.
-	 */
-	i2ccmd = ((offset << E1000_I2CCMD_REG_ADDR_SHIFT) |
-		  (phy->addr << E1000_I2CCMD_PHY_ADDR_SHIFT) |
-		  E1000_I2CCMD_OPCODE_WRITE |
-		  phy_data_swapped);
+	ret_val = igb_write_phy_reg_i2c(hw, offset, data);
 
-	wr32(E1000_I2CCMD, i2ccmd);
+	hw->phy.ops.release(hw);
 
-	/* Poll the ready bit to see if the I2C read completed */
-	for (i = 0; i < E1000_I2CCMD_PHY_TIMEOUT; i++) {
-		udelay(50);
-		i2ccmd = rd32(E1000_I2CCMD);
-		if (i2ccmd & E1000_I2CCMD_READY)
-			break;
-	}
-	if (!(i2ccmd & E1000_I2CCMD_READY)) {
-		hw_dbg("I2CCMD Write did not complete\n");
-		return -E1000_ERR_PHY;
-	}
-	if (i2ccmd & E1000_I2CCMD_ERROR) {
-		hw_dbg("I2CCMD Error bit set\n");
-		return -E1000_ERR_PHY;
-	}
-
-	return 0;
+out:
+	return ret_val;
 }
 
 /**
