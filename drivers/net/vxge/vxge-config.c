@@ -2157,6 +2157,28 @@ exit:
 }
 
 /*
+ * vxge_hw_vpath_strip_fcs_check - Check for FCS strip.
+ */
+enum vxge_hw_status
+vxge_hw_vpath_strip_fcs_check(struct __vxge_hw_device *hldev, u64 vpath_mask)
+{
+	struct vxge_hw_vpmgmt_reg       __iomem *vpmgmt_reg;
+	enum vxge_hw_status status = VXGE_HW_OK;
+	int i = 0, j = 0;
+
+	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
+		if (!((vpath_mask) & vxge_mBIT(i)))
+			continue;
+		vpmgmt_reg = hldev->vpmgmt_reg[i];
+		for (j = 0; j < VXGE_HW_MAC_MAX_MAC_PORT_ID; j++) {
+			if (readq(&vpmgmt_reg->rxmac_cfg0_port_vpmgmt_clone[j])
+			& VXGE_HW_RXMAC_CFG0_PORT_VPMGMT_CLONE_STRIP_FCS)
+				return VXGE_HW_FAIL;
+		}
+	}
+	return status;
+}
+/*
  * vxge_hw_mgmt_reg_Write - Write Titan register.
  */
 enum vxge_hw_status

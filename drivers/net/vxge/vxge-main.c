@@ -4244,6 +4244,15 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 			goto _exit3;
 	}
 
+	/* if FCS stripping is not disabled in MAC fail driver load */
+	if (vxge_hw_vpath_strip_fcs_check(hldev, vpath_mask) != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR,
+			"%s: FCS stripping is not disabled in MAC"
+			" failing driver load", VXGE_DRIVER_NAME);
+		ret = -EINVAL;
+		goto _exit4;
+	}
+
 	vxge_hw_device_debug_set(hldev, VXGE_ERR, VXGE_COMPONENT_LL);
 
 	/* set private device info */
