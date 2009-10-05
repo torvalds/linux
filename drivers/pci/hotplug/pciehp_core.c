@@ -253,14 +253,13 @@ static int pciehp_probe(struct pcie_device *dev)
 	int rc;
 	struct controller *ctrl;
 	struct slot *slot;
-	u8 value;
-	struct pci_dev *pdev = dev->port;
+	u8 occupied, poweron;
 
 	if (pciehp_force)
 		dev_info(&dev->device,
 			 "Bypassing BIOS check for pciehp use on %s\n",
-			 pci_name(pdev));
-	else if (pciehp_get_hp_hw_control_from_firmware(pdev))
+			 pci_name(dev->port));
+	else if (pciehp_get_hp_hw_control_from_firmware(dev->port))
 		goto err_out_none;
 
 	ctrl = pcie_init(dev);
@@ -290,18 +289,13 @@ static int pciehp_probe(struct pcie_device *dev)
 
 	/* Check if slot is occupied */
 	slot = ctrl->slot;
-	pciehp_get_adapter_status(slot, &value);
-	if (value) {
-		if (pciehp_force)
-			pciehp_enable_slot(slot);
-	} else {
-		/* Power off slot if not occupied */
-		if (POWER_CTRL(ctrl)) {
-			rc = pciehp_power_off_slot(slot);
-			if (rc)
-				goto err_out_free_ctrl_slot;
-		}
-	}
+	pciehp_get_adapter_status(slot, &occupied);
+	pciehp_get_power_status(slot, &poweron);
+	if (occupied && pciehp_force)
+		pciehp_enable_slot(slot);
+	/* If empty slot's power status is on, turn power off */
+	if (!occupied && poweron && POWER_CTRL(ctrl))
+		pciehp_power_off_slot(slot);
 
 	return 0;
 
