@@ -752,14 +752,17 @@ static int tuner_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int tuner_s_standby(struct v4l2_subdev *sd)
+static int tuner_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct tuner *t = to_tuner(sd);
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 
+	if (on)
+		return 0;
+
 	tuner_dbg("Putting tuner to sleep\n");
 
-	if (check_mode(t, "s_standby") == -EINVAL)
+	if (check_mode(t, "s_power") == -EINVAL)
 		return 0;
 	t->mode = T_STANDBY;
 	if (analog_ops->standby)
@@ -961,6 +964,7 @@ static int tuner_command(struct i2c_client *client, unsigned cmd, void *arg)
 static const struct v4l2_subdev_core_ops tuner_core_ops = {
 	.log_status = tuner_log_status,
 	.s_std = tuner_s_std,
+	.s_power = tuner_s_power,
 };
 
 static const struct v4l2_subdev_tuner_ops tuner_tuner_ops = {
@@ -971,7 +975,6 @@ static const struct v4l2_subdev_tuner_ops tuner_tuner_ops = {
 	.g_frequency = tuner_g_frequency,
 	.s_type_addr = tuner_s_type_addr,
 	.s_config = tuner_s_config,
-	.s_standby = tuner_s_standby,
 };
 
 static const struct v4l2_subdev_ops tuner_ops = {

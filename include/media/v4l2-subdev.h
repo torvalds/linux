@@ -106,6 +106,9 @@ struct v4l2_decode_vbi_line {
 
    s_gpio: set GPIO pins. Very simple right now, might need to be extended with
 	a direction argument if needed.
+
+   s_power: puts subdevice in power saving mode (on == 0) or normal operation
+	mode (on == 1).
  */
 struct v4l2_subdev_core_ops {
 	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
@@ -128,6 +131,7 @@ struct v4l2_subdev_core_ops {
 	int (*g_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
 	int (*s_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
 #endif
+	int (*s_power)(struct v4l2_subdev *sd, int on);
 };
 
 /* s_mode: switch the tuner to a specific tuner mode. Replacement of s_radio.
@@ -137,8 +141,6 @@ struct v4l2_subdev_core_ops {
    s_type_addr: sets tuner type and its I2C addr.
 
    s_config: sets tda9887 specific stuff, like port1, port2 and qss
-
-   s_standby: puts tuner on powersaving state, disabling it, except for i2c.
  */
 struct v4l2_subdev_tuner_ops {
 	int (*s_mode)(struct v4l2_subdev *sd, enum v4l2_tuner_type);
@@ -151,7 +153,6 @@ struct v4l2_subdev_tuner_ops {
 	int (*s_modulator)(struct v4l2_subdev *sd, struct v4l2_modulator *vm);
 	int (*s_type_addr)(struct v4l2_subdev *sd, struct tuner_setup *type);
 	int (*s_config)(struct v4l2_subdev *sd, const struct v4l2_priv_tun_config *config);
-	int (*s_standby)(struct v4l2_subdev *sd);
 };
 
 /* s_clock_freq: set the frequency (in Hz) of the audio clock output.

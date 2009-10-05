@@ -2106,7 +2106,7 @@ static int cx231xx_v4l2_close(struct file *filp)
 		}
 
 		/* Save some power by putting tuner to sleep */
-		call_all(dev, tuner, s_standby);
+		call_all(dev, core, s_power, 0);
 
 		/* do this before setting alternate! */
 		cx231xx_uninit_isoc(dev);

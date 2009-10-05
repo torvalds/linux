@@ -3267,7 +3267,7 @@ static void cx88_card_setup(struct cx88_core *core)
 			    ctl.fname);
 		call_all(core, tuner, s_config, &xc2028_cfg);
 	}
-	call_all(core, tuner, s_standby);
+	call_all(core, core, s_power, 0);
 }
 
 /* ------------------------------------------------------------------ */

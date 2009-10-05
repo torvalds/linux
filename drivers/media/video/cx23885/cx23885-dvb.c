@@ -920,7 +920,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	fe0->dvb.frontend->callback = cx23885_tuner_callback;
 
 	/* Put the analog decoder in standby to keep it quiet */
-	call_all(dev, tuner, s_standby);
+	call_all(dev, core, s_power, 0);
 
 	if (fe0->dvb.frontend->ops.analog_ops.standby)
 		fe0->dvb.frontend->ops.analog_ops.standby(fe0->dvb.frontend);
