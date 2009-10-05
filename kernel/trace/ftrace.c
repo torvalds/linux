@@ -225,7 +225,11 @@ static void ftrace_update_pid_func(void)
 	if (ftrace_trace_function == ftrace_stub)
 		return;
 
+#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	func = ftrace_trace_function;
+#else
+	func = __ftrace_trace_function;
+#endif
 
 	if (ftrace_pid_trace) {
 		set_ftrace_pid_function(func);
