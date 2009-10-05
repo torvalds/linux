@@ -17,13 +17,31 @@ config EP93XX_SDCE3_SYNC_PHYS_OFFSET
 	bool "0x00000000 - SDCE3/SyncBoot"
 	help
 	  Select this option if you want support for EP93xx boards with the
-	  first SDRAM bank at 0x00000000
+	  first SDRAM bank at 0x00000000.
 
 config EP93XX_SDCE0_PHYS_OFFSET
 	bool "0xc0000000 - SDCEO"
 	help
 	  Select this option if you want support for EP93xx boards with the
-	  first SDRAM bank at 0xc0000000
+	  first SDRAM bank at 0xc0000000.
+
+config EP93XX_SDCE1_PHYS_OFFSET
+	bool "0xd0000000 - SDCE1"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0xd0000000.
+
+config EP93XX_SDCE2_PHYS_OFFSET
+	bool "0xe0000000 - SDCE2"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0xe0000000.
+
+config EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	bool "0xf0000000 - SDCE3/AsyncBoot"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0xf0000000.
 
 endchoice
 
