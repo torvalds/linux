@@ -1678,6 +1678,8 @@ static void i7core_check_error(struct mem_ctl_info *mci)
  *				This routine simply queues mcelog errors, and
  *				return. The error itself should be handled later
  *				by i7core_check_error.
+ * WARNING: As this routine should be called at NMI time, extra care should
+ * be taken to avoid deadlocks, and to be as fast as possible.
  */
 static int i7core_mce_check_error(void *priv, struct mce *mce)
 {
@@ -1696,13 +1698,8 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 		return 0;
 
 	/* Only handle if it is the right mc controller */
-	if (cpu_data(mce->cpu).phys_proc_id != pvt->i7core_dev->socket) {
-		debugf0("mc%d: ignoring mce log for socket %d. "
-			"Another mc should get it.\n",
-			pvt->i7core_dev->socket,
-			cpu_data(mce->cpu).phys_proc_id);
+	if (cpu_data(mce->cpu).phys_proc_id != pvt->i7core_dev->socket)
 		return 0;
-	}
 
 	smp_rmb();
 	if ((pvt->mce_out + 1) % sizeof(mce_entry) == pvt->mce_in) {
@@ -1710,9 +1707,11 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 		pvt->mce_overrun++;
 		return 0;
 	}
+
+	/* Copy memory error at the ringbuffer */
+	memcpy(&pvt->mce_entry[pvt->mce_out], mce, sizeof(*mce));
 	smp_wmb();
 	pvt->mce_out = (pvt->mce_out + 1) % sizeof(mce_entry);
-	memcpy(&pvt->mce_entry[pvt->mce_out], mce, sizeof(*mce));
 
 	/* Handle fatal errors immediately */
 	if (mce->mcgstatus & 1)
