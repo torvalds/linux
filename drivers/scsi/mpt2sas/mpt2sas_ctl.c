@@ -848,8 +848,9 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		printk(MPT2SAS_DEBUG_FMT "TASK_MGMT: "
 		    "IOCStatus(0x%04x), IOCLogInfo(0x%08x), "
 		    "TerminationCount(0x%08x)\n", ioc->name,
-		    tm_reply->IOCStatus, tm_reply->IOCLogInfo,
-		    tm_reply->TerminationCount);
+		    le16_to_cpu(tm_reply->IOCStatus),
+		    le32_to_cpu(tm_reply->IOCLogInfo),
+		    le32_to_cpu(tm_reply->TerminationCount));
 	}
 #endif
 	/* copy out xdata to user */
@@ -1411,7 +1412,7 @@ _ctl_diag_register_2(struct MPT2SAS_ADAPTER *ioc,
 	} else {
 		printk(MPT2SAS_DEBUG_FMT "%s: ioc_status(0x%04x) "
 		    "log_info(0x%08x)\n", ioc->name, __func__,
-		    ioc_status, mpi_reply->IOCLogInfo);
+		    ioc_status, le32_to_cpu(mpi_reply->IOCLogInfo));
 		rc = -EFAULT;
 	}
 
@@ -1756,7 +1757,7 @@ _ctl_send_release(struct MPT2SAS_ADAPTER *ioc, u8 buffer_type, u8 *issue_reset)
 	} else {
 		printk(MPT2SAS_DEBUG_FMT "%s: ioc_status(0x%04x) "
 		    "log_info(0x%08x)\n", ioc->name, __func__,
-		    ioc_status, mpi_reply->IOCLogInfo);
+		    ioc_status, le32_to_cpu(mpi_reply->IOCLogInfo));
 		rc = -EFAULT;
 	}
 
@@ -2017,7 +2018,7 @@ _ctl_diag_read_buffer(void __user *arg, enum block_state state)
 	} else {
 		printk(MPT2SAS_DEBUG_FMT "%s: ioc_status(0x%04x) "
 		    "log_info(0x%08x)\n", ioc->name, __func__,
-		    ioc_status, mpi_reply->IOCLogInfo);
+		    ioc_status, le32_to_cpu(mpi_reply->IOCLogInfo));
 		rc = -EFAULT;
 	}
 

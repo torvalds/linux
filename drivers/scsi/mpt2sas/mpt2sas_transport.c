@@ -258,8 +258,7 @@ struct rep_manu_reply{
 	u8 response_length;
 	u16 expander_change_count;
 	u8 reserved0[2];
-	u8 sas_format:1;
-	u8 reserved1:7;
+	u8 sas_format;
 	u8 reserved2[3];
 	u8 vendor_id[SAS_EXPANDER_VENDOR_ID_LEN];
 	u8 product_id[SAS_EXPANDER_PRODUCT_ID_LEN];
@@ -374,7 +373,8 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 	mpi_request->VP_ID = 0;
 	sas_address_le = (u64 *)&mpi_request->SASAddress;
 	*sas_address_le = cpu_to_le64(sas_address);
-	mpi_request->RequestDataLength = sizeof(struct rep_manu_request);
+	mpi_request->RequestDataLength =
+	    cpu_to_le16(sizeof(struct rep_manu_request));
 	psge = &mpi_request->SGL;
 
 	/* WRITE sgel first */
@@ -437,8 +437,8 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 		     SAS_EXPANDER_PRODUCT_ID_LEN);
 		strncpy(edev->product_rev, manufacture_reply->product_rev,
 		     SAS_EXPANDER_PRODUCT_REV_LEN);
-		edev->level = manufacture_reply->sas_format;
-		if (manufacture_reply->sas_format) {
+		edev->level = manufacture_reply->sas_format & 1;
+		if (edev->level) {
 			strncpy(edev->component_vendor_id,
 			    manufacture_reply->component_vendor_id,
 			     SAS_EXPANDER_COMPONENT_VENDOR_ID_LEN);
@@ -1116,7 +1116,7 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	dma_addr_out = pci_map_single(ioc->pdev, bio_data(req->bio),
 		blk_rq_bytes(req), PCI_DMA_BIDIRECTIONAL);
 	if (!dma_addr_out) {
-		mpt2sas_base_free_smid(ioc, le16_to_cpu(smid));
+		mpt2sas_base_free_smid(ioc, smid);
 		goto unmap;
 	}
 
@@ -1134,7 +1134,7 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	dma_addr_in = pci_map_single(ioc->pdev, bio_data(rsp->bio),
 				     blk_rq_bytes(rsp), PCI_DMA_BIDIRECTIONAL);
 	if (!dma_addr_in) {
-		mpt2sas_base_free_smid(ioc, le16_to_cpu(smid));
+		mpt2sas_base_free_smid(ioc, smid);
 		goto unmap;
 	}
 

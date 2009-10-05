@@ -2775,8 +2775,6 @@ _scsih_setup_eedp(struct scsi_cmnd *scmd, Mpi2SCSIIORequest_t *mpi_request)
 	else
 		return;
 
-	mpi_request->EEDPBlockSize = scmd->device->sector_size;
-
 	switch (prot_type) {
 	case SCSI_PROT_DIF_TYPE1:
 
@@ -2784,8 +2782,7 @@ _scsih_setup_eedp(struct scsi_cmnd *scmd, Mpi2SCSIIORequest_t *mpi_request)
 		* enable ref/guard checking
 		* auto increment ref tag
 		*/
-		mpi_request->EEDPFlags = eedp_flags |
-		    MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
+		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
 		    MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG |
 		    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
 		mpi_request->CDB.EEDP32.PrimaryReferenceTag =
@@ -2798,11 +2795,11 @@ _scsih_setup_eedp(struct scsi_cmnd *scmd, Mpi2SCSIIORequest_t *mpi_request)
 		/*
 		* enable guard checking
 		*/
-		mpi_request->EEDPFlags = eedp_flags |
-		    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
-
+		eedp_flags |= MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
 		break;
 	}
+	mpi_request->EEDPBlockSize = cpu_to_le32(scmd->device->sector_size);
+	mpi_request->EEDPFlags = cpu_to_le16(eedp_flags);
 }
 
 /**
@@ -4395,6 +4392,7 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	Mpi2EventDataSasBroadcastPrimitive_t *event_data = fw_event->event_data;
 #endif
+	u16 ioc_status;
 	dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "broadcast primative: "
 	    "phy number(%d), width(%d)\n", ioc->name, event_data->PhyNum,
 	    event_data->PortWidth));
@@ -4428,8 +4426,9 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		mpt2sas_scsih_issue_tm(ioc, handle, lun,
 		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30);
 		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
-
-		if ((mpi_reply->IOCStatus == MPI2_IOCSTATUS_SUCCESS) &&
+		ioc_status = le16_to_cpu(mpi_reply->IOCStatus)
+		    & MPI2_IOCSTATUS_MASK;
+		if ((ioc_status == MPI2_IOCSTATUS_SUCCESS) &&
 		    (mpi_reply->ResponseCode ==
 		     MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED ||
 		     mpi_reply->ResponseCode ==

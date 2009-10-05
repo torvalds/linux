@@ -2949,6 +2949,7 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	Mpi2IOCInitReply_t mpi_reply;
 	int r;
 	struct timeval current_time;
+	u16 ioc_status;
 
 	dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n", ioc->name,
 	    __func__));
@@ -3028,7 +3029,8 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 		return r;
 	}
 
-	if (mpi_reply.IOCStatus != MPI2_IOCSTATUS_SUCCESS ||
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS ||
 	    mpi_reply.IOCLogInfo) {
 		printk(MPT2SAS_ERR_FMT "%s: failed\n", ioc->name, __func__);
 		r = -EIO;
