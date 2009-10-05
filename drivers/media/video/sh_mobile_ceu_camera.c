@@ -153,6 +153,40 @@ static u32 ceu_read(struct sh_mobile_ceu_dev *priv, unsigned long reg_offs)
 	return ioread32(priv->base + reg_offs);
 }
 
+static int sh_mobile_ceu_soft_reset(struct sh_mobile_ceu_dev *pcdev)
+{
+	int i, success = 0;
+	struct soc_camera_device *icd = pcdev->icd;
+
+	ceu_write(pcdev, CAPSR, 1 << 16); /* reset */
+
+	/* wait CSTSR.CPTON bit */
+	for (i = 0; i < 1000; i++) {
+		if (!(ceu_read(pcdev, CSTSR) & 1)) {
+			success++;
+			break;
+		}
+		udelay(1);
+	}
+
+	/* wait CAPSR.CPKIL bit */
+	for (i = 0; i < 1000; i++) {
+		if (!(ceu_read(pcdev, CAPSR) & (1 << 16))) {
+			success++;
+			break;
+		}
+		udelay(1);
+	}
+
+
+	if (2 != success) {
+		dev_warn(&icd->dev, "soft reset time out\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /*
  *  Videobuf operations
  */
@@ -407,13 +441,9 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 
 	pm_runtime_get_sync(ici->v4l2_dev.dev);
 
-	ceu_write(pcdev, CAPSR, 1 << 16); /* reset */
-	while (ceu_read(pcdev, CSTSR) & 1)
-		msleep(1);
-
 	pcdev->icd = icd;
 
-	return 0;
+	return sh_mobile_ceu_soft_reset(pcdev);
 }
 
 /* Called with .video_lock held */
@@ -427,7 +457,7 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 
 	/* disable capture, disable interrupts */
 	ceu_write(pcdev, CEIER, 0);
-	ceu_write(pcdev, CAPSR, 1 << 16); /* reset */
+	sh_mobile_ceu_soft_reset(pcdev);
 
 	/* make sure active buffer is canceled */
 	spin_lock_irqsave(&pcdev->lock, flags);
