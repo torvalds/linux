@@ -83,8 +83,6 @@ source "drivers/staging/mimio/Kconfig"
 
 source "drivers/staging/frontier/Kconfig"
 
-source "drivers/staging/android/Kconfig"
-
 source "drivers/staging/dream/Kconfig"
 
 source "drivers/staging/dst/Kconfig"
