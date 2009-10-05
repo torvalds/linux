@@ -27,6 +27,44 @@ enum dso_origin {
 static void dsos__add(struct dso *dso);
 static struct dso *dsos__find(const char *name);
 
+static struct rb_root kernel_maps;
+
+static void dso__set_symbols_end(struct dso *self)
+{
+	struct rb_node *nd, *prevnd = rb_first(&self->syms);
+
+	if (prevnd == NULL)
+		return;
+
+	for (nd = rb_next(prevnd); nd; nd = rb_next(nd)) {
+		struct symbol *prev = rb_entry(prevnd, struct symbol, rb_node),
+			      *curr = rb_entry(nd, struct symbol, rb_node);
+
+		if (prev->end == prev->start)
+			prev->end = curr->start - 1;
+		prevnd = nd;
+	}
+}
+
+static void kernel_maps__fixup_sym_end(void)
+{
+	struct map *prev, *curr;
+	struct rb_node *nd, *prevnd = rb_first(&kernel_maps);
+
+	if (prevnd == NULL)
+		return;
+
+	curr = rb_entry(prevnd, struct map, rb_node);
+	dso__set_symbols_end(curr->dso);
+
+	for (nd = rb_next(prevnd); nd; nd = rb_next(nd)) {
+		prev = curr;
+		curr = rb_entry(nd, struct map, rb_node);
+		prev->end = curr->start - 1;
+		dso__set_symbols_end(curr->dso);
+	}
+}
+
 static struct symbol *symbol__new(u64 start, u64 len, const char *name,
 				  unsigned int priv_size, int v)
 {
@@ -162,10 +200,9 @@ size_t dso__fprintf(struct dso *self, FILE *fp)
 	return ret;
 }
 
-static int dso__load_kallsyms(struct dso *self, struct map *map,
-			      symbol_filter_t filter, int v)
+static int maps__load_kallsyms(symbol_filter_t filter, int use_modules, int v)
 {
-	struct rb_node *nd, *prevnd;
+	struct map *map = kernel_map;
 	char *line = NULL;
 	size_t n;
 	FILE *file = fopen("/proc/kallsyms", "r");
@@ -179,6 +216,7 @@ static int dso__load_kallsyms(struct dso *self, struct map *map,
 		struct symbol *sym;
 		int line_len, len;
 		char symbol_type;
+		char *module, *symbol_name;
 
 		line_len = getline(&line, &n, file);
 		if (line_len < 0)
@@ -201,38 +239,48 @@ static int dso__load_kallsyms(struct dso *self, struct map *map,
 		 */
 		if (symbol_type != 'T' && symbol_type != 'W')
 			continue;
+
+		symbol_name = line + len + 2;
+		module = strchr(symbol_name, '\t');
+		if (module) {
+			char *module_name_end;
+
+			if (!use_modules)
+				continue;
+			*module = '\0';
+			module = strchr(module + 1, '[');
+			if (!module)
+				continue;
+			module_name_end = strchr(module + 1, ']');
+			if (!module_name_end)
+				continue;
+			*(module_name_end + 1) = '\0';
+			if (strcmp(map->dso->name, module)) {
+				map = kernel_maps__find_by_dso_name(module);
+				if (!map) {
+					fputs("/proc/{kallsyms,modules} "
+					      "inconsistency!\n", stderr);
+					return -1;
+				}
+			}
+			start = map->map_ip(map, start);
+		} else
+			map = kernel_map;
 		/*
 		 * Well fix up the end later, when we have all sorted.
 		 */
-		sym = symbol__new(start, 0xdead, line + len + 2,
-				  self->sym_priv_size, v);
+		sym = symbol__new(start, 0, symbol_name,
+				  map->dso->sym_priv_size, v);
 
 		if (sym == NULL)
 			goto out_delete_line;
 
 		if (filter && filter(map, sym))
-			symbol__delete(sym, self->sym_priv_size);
+			symbol__delete(sym, map->dso->sym_priv_size);
 		else {
-			dso__insert_symbol(self, sym);
+			dso__insert_symbol(map->dso, sym);
 			count++;
 		}
-	}
-
-	/*
-	 * Now that we have all sorted out, just set the ->end of all
-	 * symbols
-	 */
-	prevnd = rb_first(&self->syms);
-
-	if (prevnd == NULL)
-		goto out_delete_line;
-
-	for (nd = rb_next(prevnd); nd; nd = rb_next(nd)) {
-		struct symbol *prev = rb_entry(prevnd, struct symbol, rb_node),
-			      *curr = rb_entry(nd, struct symbol, rb_node);
-
-		prev->end = curr->start - 1;
-		prevnd = nd;
 	}
 
 	free(line);
@@ -244,6 +292,24 @@ out_delete_line:
 	free(line);
 out_failure:
 	return -1;
+}
+
+static size_t kernel_maps__fprintf(FILE *fp)
+{
+	size_t printed = fprintf(stderr, "Kernel maps:\n");
+	struct rb_node *nd;
+
+	printed += map__fprintf(kernel_map, fp);
+	printed += dso__fprintf(kernel_map->dso, fp);
+
+	for (nd = rb_first(&kernel_maps); nd; nd = rb_next(nd)) {
+		struct map *pos = rb_entry(nd, struct map, rb_node);
+
+		printed += map__fprintf(pos, fp);
+		printed += dso__fprintf(pos->dso, fp);
+	}
+
+	return printed + fprintf(stderr, "END kernel maps\n");
 }
 
 static int dso__load_perf_map(struct dso *self, struct map *map,
@@ -598,6 +664,7 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 		char *demangled;
 		int is_label = elf_sym__is_label(&sym);
 		const char *section_name;
+		u64 sh_offset = 0;
 
 		if (!is_label && !elf_sym__is_function(&sym))
 			continue;
@@ -613,14 +680,18 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 
 		section_name = elf_sec__name(&shdr, secstrs);
 
+		if ((kernel || kmodule)) {
+			if (strstr(section_name, ".init"))
+				sh_offset = shdr.sh_offset;
+		}
+
 		if (self->adjust_symbols) {
 			if (v >= 2)
 				printf("adjusting symbol: st_value: %Lx sh_addr: %Lx sh_offset: %Lx\n",
 					(u64)sym.st_value, (u64)shdr.sh_addr, (u64)shdr.sh_offset);
 
 			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
-		} else if (kmodule)
-			sym.st_value += shdr.sh_offset;
+		}
 		/*
 		 * We need to figure out if the object was created from C++ sources
 		 * DWARF DW_compile_unit has this, but we don't always have access
@@ -631,7 +702,7 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 		if (demangled != NULL)
 			elf_name = demangled;
 
-		f = symbol__new(sym.st_value, sym.st_size, elf_name,
+		f = symbol__new(sym.st_value + sh_offset, sym.st_size, elf_name,
 				self->sym_priv_size, v);
 		free(demangled);
 		if (!f)
@@ -804,7 +875,6 @@ out:
 	return ret;
 }
 
-static struct rb_root kernel_maps;
 struct map *kernel_map;
 
 static void kernel_maps__insert(struct map *map)
@@ -975,8 +1045,7 @@ static struct map *map__new2(u64 start, struct dso *dso)
 	return self;
 }
 
-int dsos__load_modules(unsigned int sym_priv_size,
-		       symbol_filter_t filter, int v)
+static int dsos__load_modules(unsigned int sym_priv_size)
 {
 	char *line = NULL;
 	size_t n;
@@ -1034,8 +1103,7 @@ int dsos__load_modules(unsigned int sym_priv_size,
 	free(line);
 	fclose(file);
 
-	v = 1;
-	return dsos__load_modules_sym(filter, v);
+	return 0;
 
 out_delete_line:
 	free(line);
@@ -1075,25 +1143,37 @@ int dsos__load_kernel(const char *vmlinux, unsigned int sym_priv_size,
 
 	kernel_map->map_ip = vdso__map_ip;
 
+	if (use_modules && dsos__load_modules(sym_priv_size) < 0) {
+		fprintf(stderr, "Failed to load list of modules in use! "
+				"Continuing...\n");
+		use_modules = 0;
+	}
+
 	if (vmlinux) {
 		err = dso__load_vmlinux(dso, kernel_map, vmlinux, filter, v);
 		if (err > 0 && use_modules) {
-			int syms = dsos__load_modules(sym_priv_size, filter, v);
+			int syms = dsos__load_modules_sym(filter, v);
 
-			if (syms < 0) {
-				fprintf(stderr, "dsos__load_modules failed!\n");
-				return syms;
-			}
-			err += syms;
+			if (syms < 0)
+				fprintf(stderr, "Failed to read module symbols!"
+					" Continuing...\n");
+			else
+				err += syms;
 		}
 	}
 
 	if (err <= 0)
-		err = dso__load_kallsyms(dso, kernel_map, filter, v);
+		err = maps__load_kallsyms(filter, use_modules, v);
 
 	if (err > 0) {
 		struct rb_node *node = rb_first(&dso->syms);
 		struct symbol *sym = rb_entry(node, struct symbol, rb_node);
+		/*
+		 * Now that we have all sorted out, just set the ->end of all
+		 * symbols that still don't have it.
+		 */
+		dso__set_symbols_end(dso);
+		kernel_maps__fixup_sym_end();
 
 		kernel_map->start = sym->start;
 		node = rb_last(&dso->syms);
@@ -1106,6 +1186,9 @@ int dsos__load_kernel(const char *vmlinux, unsigned int sym_priv_size,
 		 * kernel_maps__insert(kernel_map)
 		 */
 		dsos__add(dso);
+
+		if (v > 0)
+			kernel_maps__fprintf(stderr);
 	}
 
 	return err;

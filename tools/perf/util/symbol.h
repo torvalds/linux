@@ -70,8 +70,6 @@ struct symbol *dso__find_symbol(struct dso *self, u64 ip);
 
 int dsos__load_kernel(const char *vmlinux, unsigned int sym_priv_size,
 		      symbol_filter_t filter, int verbose, int modules);
-int dsos__load_modules(unsigned int sym_priv_size, symbol_filter_t filter,
-		       int verbose);
 int dso__load(struct dso *self, struct map *map, symbol_filter_t filter,
 	      int verbose);
 struct dso *dsos__findnew(const char *name);
