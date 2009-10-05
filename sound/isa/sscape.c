@@ -46,15 +46,15 @@ MODULE_FIRMWARE("sndscape.co3");
 MODULE_FIRMWARE("sndscape.co4");
 MODULE_FIRMWARE("scope.cod");
 
-static int index[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_IDX;
-static char* id[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_STR;
-static long port[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_PORT;
-static long wss_port[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_PORT;
-static int irq[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_IRQ;
-static int mpu_irq[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_IRQ;
-static int dma[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_DMA;
-static int dma2[SNDRV_CARDS] __devinitdata = SNDRV_DEFAULT_DMA;
-static bool joystick[SNDRV_CARDS] __devinitdata;
+static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
+static char* id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
+static long port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
+static long wss_port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
+static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;
+static int mpu_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;
+static int dma[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;
+static int dma2[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;
+static bool joystick[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index number for SoundScape soundcard");
