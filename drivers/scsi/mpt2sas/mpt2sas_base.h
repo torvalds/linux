@@ -492,12 +492,14 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @msix_table_backup: backup msix table
  * @scsi_io_cb_idx: shost generated commands
  * @tm_cb_idx: task management commands
+ * @scsih_cb_idx: scsih internal commands
  * @transport_cb_idx: transport internal commands
  * @ctl_cb_idx: clt internal commands
  * @base_cb_idx: base internal commands
  * @config_cb_idx: base internal commands
  * @base_cmds:
  * @transport_cmds:
+ * @scsih_cmds:
  * @tm_cmds:
  * @ctl_cmds:
  * @config_cmds:
@@ -624,6 +626,7 @@ struct MPT2SAS_ADAPTER {
 	u8		scsi_io_cb_idx;
 	u8		tm_cb_idx;
 	u8		transport_cb_idx;
+	u8		scsih_cb_idx;
 	u8		ctl_cb_idx;
 	u8		base_cb_idx;
 	u8		config_cb_idx;
@@ -631,6 +634,7 @@ struct MPT2SAS_ADAPTER {
 	u8		tm_sas_control_cb_idx;
 	struct _internal_cmd base_cmds;
 	struct _internal_cmd transport_cmds;
+	struct _internal_cmd scsih_cmds;
 	struct _internal_cmd tm_cmds;
 	struct _internal_cmd ctl_cmds;
 	struct _internal_cmd config_cmds;

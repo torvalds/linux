@@ -76,6 +76,7 @@ static u8 tm_cb_idx = -1;
 static u8 ctl_cb_idx = -1;
 static u8 base_cb_idx = -1;
 static u8 transport_cb_idx = -1;
+static u8 scsih_cb_idx = -1;
 static u8 config_cb_idx = -1;
 static int mpt_ids;
 
@@ -3794,6 +3795,40 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 }
 
 /**
+ * _scsih_done -  scsih callback handler.
+ * @ioc: per adapter object
+ * @smid: system request message index
+ * @msix_index: MSIX table index supplied by the OS
+ * @reply: reply message frame(lower 32bit addr)
+ *
+ * Callback handler when sending internal generated message frames.
+ * The callback index passed is `ioc->scsih_cb_idx`
+ *
+ * Return 1 meaning mf should be freed from _base_interrupt
+ *        0 means the mf is freed from this function.
+ */
+static u8
+_scsih_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
+{
+	MPI2DefaultReply_t *mpi_reply;
+
+	mpi_reply =  mpt2sas_base_get_reply_virt_addr(ioc, reply);
+	if (ioc->scsih_cmds.status == MPT2_CMD_NOT_USED)
+		return 1;
+	if (ioc->scsih_cmds.smid != smid)
+		return 1;
+	ioc->scsih_cmds.status |= MPT2_CMD_COMPLETE;
+	if (mpi_reply) {
+		memcpy(ioc->scsih_cmds.reply, mpi_reply,
+		    mpi_reply->MsgLength*4);
+		ioc->scsih_cmds.status |= MPT2_CMD_REPLY_VALID;
+	}
+	ioc->scsih_cmds.status &= ~MPT2_CMD_PENDING;
+	complete(&ioc->scsih_cmds.done);
+	return 1;
+}
+
+/**
  * _scsih_expander_remove - removing expander object
  * @ioc: per adapter object
  * @sas_address: expander sas_address
@@ -5854,9 +5889,99 @@ _scsih_expander_node_remove(struct MPT2SAS_ADAPTER *ioc,
 }
 
 /**
+ * _scsih_ir_shutdown - IR shutdown notification
+ * @ioc: per adapter object
+ *
+ * Sending RAID Action to alert the Integrated RAID subsystem of the IOC that
+ * the host system is shutting down.
+ *
+ * Return nothing.
+ */
+static void
+_scsih_ir_shutdown(struct MPT2SAS_ADAPTER *ioc)
+{
+	Mpi2RaidActionRequest_t *mpi_request;
+	Mpi2RaidActionReply_t *mpi_reply;
+	u16 smid;
+
+	/* is IR firmware build loaded ? */
+	if (!ioc->ir_firmware)
+		return;
+
+	/* are there any volumes ? */
+	if (list_empty(&ioc->raid_device_list))
+		return;
+
+	mutex_lock(&ioc->scsih_cmds.mutex);
+
+	if (ioc->scsih_cmds.status != MPT2_CMD_NOT_USED) {
+		printk(MPT2SAS_ERR_FMT "%s: scsih_cmd in use\n",
+		    ioc->name, __func__);
+		goto out;
+	}
+	ioc->scsih_cmds.status = MPT2_CMD_PENDING;
+
+	smid = mpt2sas_base_get_smid(ioc, ioc->scsih_cb_idx);
+	if (!smid) {
+		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
+		    ioc->name, __func__);
+		ioc->scsih_cmds.status = MPT2_CMD_NOT_USED;
+		goto out;
+	}
+
+	mpi_request = mpt2sas_base_get_msg_frame(ioc, smid);
+	ioc->scsih_cmds.smid = smid;
+	memset(mpi_request, 0, sizeof(Mpi2RaidActionRequest_t));
+
+	mpi_request->Function = MPI2_FUNCTION_RAID_ACTION;
+	mpi_request->Action = MPI2_RAID_ACTION_SYSTEM_SHUTDOWN_INITIATED;
+
+	printk(MPT2SAS_INFO_FMT "IR shutdown (sending)\n", ioc->name);
+	init_completion(&ioc->scsih_cmds.done);
+	mpt2sas_base_put_smid_default(ioc, smid);
+	wait_for_completion_timeout(&ioc->scsih_cmds.done, 10*HZ);
+
+	if (!(ioc->scsih_cmds.status & MPT2_CMD_COMPLETE)) {
+		printk(MPT2SAS_ERR_FMT "%s: timeout\n",
+		    ioc->name, __func__);
+		goto out;
+	}
+
+	if (ioc->scsih_cmds.status & MPT2_CMD_REPLY_VALID) {
+		mpi_reply = ioc->scsih_cmds.reply;
+
+		printk(MPT2SAS_INFO_FMT "IR shutdown (complete): "
+		    "ioc_status(0x%04x), loginfo(0x%08x)\n",
+		    ioc->name, le16_to_cpu(mpi_reply->IOCStatus),
+		    le32_to_cpu(mpi_reply->IOCLogInfo));
+	}
+
+ out:
+	ioc->scsih_cmds.status = MPT2_CMD_NOT_USED;
+	mutex_unlock(&ioc->scsih_cmds.mutex);
+}
+
+/**
+ * _scsih_shutdown - routine call during system shutdown
+ * @pdev: PCI device struct
+ *
+ * Return nothing.
+ */
+static void
+_scsih_shutdown(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	_scsih_ir_shutdown(ioc);
+	mpt2sas_base_detach(ioc);
+}
+
+/**
  * _scsih_remove - detach and remove add host
  * @pdev: PCI device struct
  *
+ * Routine called when unloading the driver.
  * Return nothing.
  */
 static void __devexit
@@ -5913,7 +6038,7 @@ _scsih_remove(struct pci_dev *pdev)
 	}
 
 	sas_remove_host(shost);
-	mpt2sas_base_detach(ioc);
+	_scsih_shutdown(pdev);
 	list_del(&ioc->list);
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
@@ -6097,6 +6222,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->ctl_cb_idx = ctl_cb_idx;
 	ioc->base_cb_idx = base_cb_idx;
 	ioc->transport_cb_idx = transport_cb_idx;
+	ioc->scsih_cb_idx = scsih_cb_idx;
 	ioc->config_cb_idx = config_cb_idx;
 	ioc->tm_tr_cb_idx = tm_tr_cb_idx;
 	ioc->tm_sas_control_cb_idx = tm_sas_control_cb_idx;
@@ -6234,6 +6360,7 @@ static struct pci_driver scsih_driver = {
 	.id_table	= scsih_pci_table,
 	.probe		= _scsih_probe,
 	.remove		= __devexit_p(_scsih_remove),
+	.shutdown	= _scsih_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= _scsih_suspend,
 	.resume		= _scsih_resume,
@@ -6275,6 +6402,9 @@ _scsih_init(void)
 	transport_cb_idx = mpt2sas_base_register_callback_handler(
 	    mpt2sas_transport_done);
 
+	/* scsih internal commands callback handler */
+	scsih_cb_idx = mpt2sas_base_register_callback_handler(_scsih_done);
+
 	/* configuration page API internal commands callback handler */
 	config_cb_idx = mpt2sas_base_register_callback_handler(
 	    mpt2sas_config_done);
@@ -6314,6 +6444,7 @@ _scsih_exit(void)
 	mpt2sas_base_release_callback_handler(tm_cb_idx);
 	mpt2sas_base_release_callback_handler(base_cb_idx);
 	mpt2sas_base_release_callback_handler(transport_cb_idx);
+	mpt2sas_base_release_callback_handler(scsih_cb_idx);
 	mpt2sas_base_release_callback_handler(config_cb_idx);
 	mpt2sas_base_release_callback_handler(ctl_cb_idx);
 
