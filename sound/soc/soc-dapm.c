@@ -1202,8 +1202,8 @@ void snd_soc_dapm_debugfs_init(struct snd_soc_codec *codec)
 
 /* test and update the power status of a mux widget */
 static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
-				 struct snd_kcontrol *kcontrol, int mask,
-				 int mux, int val, struct soc_enum *e)
+				 struct snd_kcontrol *kcontrol, int change,
+				 int mux, struct soc_enum *e)
 {
 	struct snd_soc_dapm_path *path;
 	int found = 0;
@@ -1212,7 +1212,7 @@ static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 	    widget->id != snd_soc_dapm_value_mux)
 		return -ENODEV;
 
-	if (!snd_soc_test_bits(widget->codec, e->reg, mask, val))
+	if (!change)
 		return 0;
 
 	/* find dapm widget path assoc with kcontrol */
@@ -1765,7 +1765,7 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int val, mux;
+	unsigned int val, mux, change;
 	unsigned int mask, bitmask;
 	int ret = 0;
 
@@ -1785,7 +1785,8 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
-	dapm_mux_update_power(widget, kcontrol, mask, mux, val, e);
+	change = snd_soc_test_bits(widget->codec, e->reg, mask, val);
+	dapm_mux_update_power(widget, kcontrol, change, mux, e);
 
 	if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
 		ret = widget->event(widget,
@@ -1864,7 +1865,7 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int val, mux;
+	unsigned int val, mux, change;
 	unsigned int mask;
 	int ret = 0;
 
@@ -1882,7 +1883,8 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
-	dapm_mux_update_power(widget, kcontrol, mask, mux, val, e);
+	change = snd_soc_test_bits(widget->codec, e->reg, mask, val);
+	dapm_mux_update_power(widget, kcontrol, change, mux, e);
 
 	if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
 		ret = widget->event(widget,
