@@ -285,7 +285,7 @@ static int pciehp_probe(struct pcie_device *dev)
 	rc = pcie_init_notification(ctrl);
 	if (rc) {
 		ctrl_err(ctrl, "Notification initialization failed\n");
-		goto err_out_release_ctlr;
+		goto err_out_free_ctrl_slot;
 	}
 
 	/* Check if slot is occupied */
