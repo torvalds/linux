@@ -1786,19 +1786,19 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
 	dapm_mux_update_power(widget, kcontrol, mask, mux, val, e);
-	if (widget->event) {
-		if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
-			ret = widget->event(widget,
-				kcontrol, SND_SOC_DAPM_PRE_REG);
-			if (ret < 0)
-				goto out;
-		}
-		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
-		if (widget->event_flags & SND_SOC_DAPM_POST_REG)
-			ret = widget->event(widget,
-				kcontrol, SND_SOC_DAPM_POST_REG);
-	} else
-		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+
+	if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
+		ret = widget->event(widget,
+				    kcontrol, SND_SOC_DAPM_PRE_REG);
+		if (ret < 0)
+			goto out;
+	}
+
+	ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+
+	if (widget->event_flags & SND_SOC_DAPM_POST_REG)
+		ret = widget->event(widget,
+				    kcontrol, SND_SOC_DAPM_POST_REG);
 
 out:
 	mutex_unlock(&widget->codec->mutex);
@@ -1883,19 +1883,19 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
 	dapm_mux_update_power(widget, kcontrol, mask, mux, val, e);
-	if (widget->event) {
-		if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
-			ret = widget->event(widget,
-				kcontrol, SND_SOC_DAPM_PRE_REG);
-			if (ret < 0)
-				goto out;
-		}
-		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
-		if (widget->event_flags & SND_SOC_DAPM_POST_REG)
-			ret = widget->event(widget,
-				kcontrol, SND_SOC_DAPM_POST_REG);
-	} else
-		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+
+	if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
+		ret = widget->event(widget,
+				    kcontrol, SND_SOC_DAPM_PRE_REG);
+		if (ret < 0)
+			goto out;
+	}
+
+	ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+
+	if (widget->event_flags & SND_SOC_DAPM_POST_REG)
+		ret = widget->event(widget,
+				    kcontrol, SND_SOC_DAPM_POST_REG);
 
 out:
 	mutex_unlock(&widget->codec->mutex);
