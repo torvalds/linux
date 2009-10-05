@@ -15,3 +15,4 @@ obj-$(CONFIG_X86_NUMAQ)		+= numaq_32.o
 
 obj-y				+= common.o early.o
 obj-y				+= amd_bus.o
+obj-$(CONFIG_X86_64)		+= intel_bus.o
