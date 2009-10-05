@@ -4106,8 +4106,6 @@ __vxge_hw_vpath_initialize(struct __vxge_hw_device *hldev, u32 vp_id)
 	if (status != VXGE_HW_OK)
 		goto exit;
 
-	writeq(0, &vp_reg->gendma_int);
-
 	val64 = readq(&vp_reg->rtdma_rd_optimization_ctrl);
 
 	/* Get MRRS value from device control */
