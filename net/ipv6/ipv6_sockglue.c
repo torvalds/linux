@@ -424,6 +424,7 @@ sticky_done:
 
 		fl.fl6_flowlabel = 0;
 		fl.oif = sk->sk_bound_dev_if;
+		fl.mark = sk->sk_mark;
 
 		if (optlen == 0)
 			goto update;

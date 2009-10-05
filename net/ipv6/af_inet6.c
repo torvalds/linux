@@ -654,6 +654,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 		fl.fl6_flowlabel = np->flow_label;
 		fl.oif = sk->sk_bound_dev_if;
+		fl.mark = sk->sk_mark;
 		fl.fl_ip_dport = inet->dport;
 		fl.fl_ip_sport = inet->sport;
 		security_sk_classify_flow(sk, &fl);

@@ -194,6 +194,7 @@ int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
 	fl.fl6_flowlabel = np->flow_label;
 	IP6_ECN_flow_xmit(sk, fl.fl6_flowlabel);
 	fl.oif = sk->sk_bound_dev_if;
+	fl.mark = sk->sk_mark;
 	fl.fl_ip_sport = inet->sport;
 	fl.fl_ip_dport = inet->dport;
 	security_sk_classify_flow(sk, &fl);

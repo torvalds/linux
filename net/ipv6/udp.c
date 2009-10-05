@@ -879,6 +879,8 @@ do_udp_sendmsg:
 	if (!fl.oif)
 		fl.oif = np->sticky_pktinfo.ipi6_ifindex;
 
+	fl.mark = sk->sk_mark;
+
 	if (msg->msg_controllen) {
 		opt = &opt_space;
 		memset(opt, 0, sizeof(struct ipv6_txoptions));

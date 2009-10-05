@@ -243,6 +243,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	ipv6_addr_copy(&fl.fl6_src,
 		       (saddr ? saddr : &np->saddr));
 	fl.oif = sk->sk_bound_dev_if;
+	fl.mark = sk->sk_mark;
 	fl.fl_ip_dport = usin->sin6_port;
 	fl.fl_ip_sport = inet->sport;
 
@@ -383,6 +384,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
 			ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 			fl.oif = sk->sk_bound_dev_if;
+			fl.mark = sk->sk_mark;
 			fl.fl_ip_dport = inet->dport;
 			fl.fl_ip_sport = inet->sport;
 			security_skb_classify_flow(skb, &fl);
@@ -477,6 +479,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req)
 	ipv6_addr_copy(&fl.fl6_src, &treq->loc_addr);
 	fl.fl6_flowlabel = 0;
 	fl.oif = treq->iif;
+	fl.mark = sk->sk_mark;
 	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 	fl.fl_ip_sport = inet_rsk(req)->loc_port;
 	security_req_classify_flow(req, &fl);
@@ -1345,6 +1348,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		}
 		ipv6_addr_copy(&fl.fl6_src, &treq->loc_addr);
 		fl.oif = sk->sk_bound_dev_if;
+		fl.mark = sk->sk_mark;
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 		fl.fl_ip_sport = inet_rsk(req)->loc_port;
 		security_req_classify_flow(req, &fl);

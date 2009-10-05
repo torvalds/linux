@@ -147,6 +147,7 @@ ipv4_connected:
 	ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
 	ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 	fl.oif = sk->sk_bound_dev_if;
+	fl.mark = sk->sk_mark;
 	fl.fl_ip_dport = inet->dport;
 	fl.fl_ip_sport = inet->sport;
 
