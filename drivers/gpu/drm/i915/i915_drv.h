@@ -342,6 +342,7 @@ typedef struct drm_i915_private {
 	u32 savePFIT_CONTROL;
 	u32 save_palette_a[256];
 	u32 save_palette_b[256];
+	u32 saveDPFC_CB_BASE;
 	u32 saveFBC_CFB_BASE;
 	u32 saveFBC_LL_BASE;
 	u32 saveFBC_CONTROL;
