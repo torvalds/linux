@@ -72,18 +72,6 @@ static int get_adapter_status	(struct hotplug_slot *slot, u8 *value);
 static int get_max_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
 static int get_cur_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
 
-static struct hotplug_slot_ops pciehp_hotplug_slot_ops = {
-	.set_attention_status =	set_attention_status,
-	.enable_slot =		enable_slot,
-	.disable_slot =		disable_slot,
-	.get_power_status =	get_power_status,
-	.get_attention_status =	get_attention_status,
-	.get_latch_status =	get_latch_status,
-	.get_adapter_status =	get_adapter_status,
-  	.get_max_bus_speed =	get_max_bus_speed,
-  	.get_cur_bus_speed =	get_cur_bus_speed,
-};
-
 /**
  * release_slot - free up the memory used by a slot
  * @hotplug_slot: slot to free
@@ -95,6 +83,7 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
 		 __func__, hotplug_slot_name(hotplug_slot));
 
+	kfree(hotplug_slot->ops);
 	kfree(hotplug_slot->info);
 	kfree(hotplug_slot);
 }
@@ -104,6 +93,7 @@ static int init_slot(struct controller *ctrl)
 	struct slot *slot = ctrl->slot;
 	struct hotplug_slot *hotplug = NULL;
 	struct hotplug_slot_info *info = NULL;
+	struct hotplug_slot_ops *ops = NULL;
 	char name[SLOT_NAME_SIZE];
 	int retval = -ENOMEM;
 
@@ -115,11 +105,28 @@ static int init_slot(struct controller *ctrl)
 	if (!info)
 		goto out;
 
+	/* Setup hotplug slot ops */
+	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	if (!ops)
+		goto out;
+	ops->enable_slot = enable_slot;
+	ops->disable_slot = disable_slot;
+	ops->get_power_status = get_power_status;
+	ops->get_adapter_status = get_adapter_status;
+	ops->get_max_bus_speed = get_max_bus_speed;
+	ops->get_cur_bus_speed = get_cur_bus_speed;
+	if (MRL_SENS(ctrl))
+		ops->get_latch_status = get_latch_status;
+	if (ATTN_LED(ctrl)) {
+		ops->get_attention_status = get_attention_status;
+		ops->set_attention_status = set_attention_status;
+	}
+
 	/* register this slot with the hotplug pci core */
 	hotplug->info = info;
 	hotplug->private = slot;
 	hotplug->release = &release_slot;
-	hotplug->ops = &pciehp_hotplug_slot_ops;
+	hotplug->ops = ops;
 	slot->hotplug_slot = hotplug;
 	snprintf(name, SLOT_NAME_SIZE, "%u", PSN(ctrl));
 
@@ -139,6 +146,7 @@ static int init_slot(struct controller *ctrl)
 	get_adapter_status(hotplug, &info->adapter_status);
 out:
 	if (retval) {
+		kfree(ops);
 		kfree(info);
 		kfree(hotplug);
 	}
@@ -161,9 +169,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 		  __func__, slot_name(slot));
 
 	hotplug_slot->info->attention_status = status;
-
-	if (ATTN_LED(slot->ctrl))
-		pciehp_set_attention_status(slot, status);
+	pciehp_set_attention_status(slot, status);
 
 	return 0;
 }
