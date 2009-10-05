@@ -518,22 +518,6 @@ void __devinit e1000_check_options(struct e1000_adapter *adapter)
 			adapter->smart_power_down = opt.def;
 		}
 	}
-	{ /* Kumeran Lock Loss Workaround */
-		opt = (struct e1000_option) {
-			.type = enable_option,
-			.name = "Kumeran Lock Loss Workaround",
-			.err  = "defaulting to Enabled",
-			.def  = OPTION_ENABLED
-		};
-
-		if (num_KumeranLockLoss > bd) {
-			unsigned int kmrn_lock_loss = KumeranLockLoss[bd];
-			e1000_validate_option(&kmrn_lock_loss, &opt, adapter);
-			adapter->hw.kmrn_lock_loss_workaround_disabled = !kmrn_lock_loss;
-		} else {
-			adapter->hw.kmrn_lock_loss_workaround_disabled = !opt.def;
-		}
-	}
 
 	switch (adapter->hw.media_type) {
 	case e1000_media_type_fiber:
@@ -626,12 +610,6 @@ static void __devinit e1000_check_copper_options(struct e1000_adapter *adapter)
 					 .p = dplx_list }}
 		};
 
-		if (e1000_check_phy_reset_block(&adapter->hw)) {
-			DPRINTK(PROBE, INFO,
-				"Link active due to SoL/IDER Session. "
-			        "Speed/Duplex/AutoNeg parameter ignored.\n");
-			return;
-		}
 		if (num_Duplex > bd) {
 			dplx = Duplex[bd];
 			e1000_validate_option(&dplx, &opt, adapter);

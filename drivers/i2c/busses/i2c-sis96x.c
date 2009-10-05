@@ -280,7 +280,7 @@ static int __devinit sis96x_probe(struct pci_dev *dev,
 
 	retval = acpi_check_resource_conflict(&dev->resource[SIS96x_BAR]);
 	if (retval)
-		return retval;
+		return -ENODEV;
 
 	/* Everything is happy, let's grab the memory and set things up. */
 	if (!request_region(sis96x_smbus_base, SMB_IOSIZE,

@@ -532,10 +532,13 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	if (radeon_agpmode == -1) {
 		rdev->flags &= ~RADEON_IS_AGP;
-		if (rdev->family >= CHIP_RV515 ||
-		    rdev->family == CHIP_RV380 ||
-		    rdev->family == CHIP_RV410 ||
-		    rdev->family == CHIP_R423) {
+		if (rdev->family >= CHIP_R600) {
+			DRM_INFO("Forcing AGP to PCIE mode\n");
+			rdev->flags |= RADEON_IS_PCIE;
+		} else if (rdev->family >= CHIP_RV515 ||
+			   rdev->family == CHIP_RV380 ||
+			   rdev->family == CHIP_RV410 ||
+			   rdev->family == CHIP_R423) {
 			DRM_INFO("Forcing AGP to PCIE mode\n");
 			rdev->flags |= RADEON_IS_PCIE;
 			rdev->asic->gart_init = &rv370_pcie_gart_init;

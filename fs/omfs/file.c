@@ -322,7 +322,7 @@ static sector_t omfs_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, omfs_get_block);
 }
 
-struct file_operations omfs_file_operations = {
+const struct file_operations omfs_file_operations = {
 	.llseek = generic_file_llseek,
 	.read = do_sync_read,
 	.write = do_sync_write,

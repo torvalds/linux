@@ -166,6 +166,8 @@ struct iwl_lib_ops {
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	/* 1st ucode load */
 	int (*load_ucode)(struct iwl_priv *priv);
+	void (*dump_nic_event_log)(struct iwl_priv *priv);
+	void (*dump_nic_error_log)(struct iwl_priv *priv);
 	/* power management */
 	struct iwl_apm_ops apm_ops;
 
@@ -540,7 +542,19 @@ int iwl_pci_resume(struct pci_dev *pdev);
 /*****************************************************
 *  Error Handling Debugging
 ******************************************************/
+#ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_dump_nic_event_log(struct iwl_priv *priv);
+void iwl_dump_nic_error_log(struct iwl_priv *priv);
+#else
+static inline void iwl_dump_nic_event_log(struct iwl_priv *priv)
+{
+}
+
+static inline void iwl_dump_nic_error_log(struct iwl_priv *priv)
+{
+}
+#endif
+
 void iwl_clear_isr_stats(struct iwl_priv *priv);
 
 /*****************************************************

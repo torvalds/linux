@@ -1182,6 +1182,7 @@ static ssize_t bonding_store_primary(struct device *d,
 				       ": %s: Setting %s as primary slave.\n",
 				       bond->dev->name, slave->dev->name);
 				bond->primary_slave = slave;
+				strcpy(bond->params.primary, slave->dev->name);
 				bond_select_active_slave(bond);
 				goto out;
 			}

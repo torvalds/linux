@@ -508,7 +508,7 @@ static int close(struct inode *inode, struct file *file)
  * uses: reading and writing a character device called /dev/lguest.  All the
  * work happens in the read(), write() and close() routines:
  */
-static struct file_operations lguest_fops = {
+static const struct file_operations lguest_fops = {
 	.owner	 = THIS_MODULE,
 	.release = close,
 	.write	 = write,

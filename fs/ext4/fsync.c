@@ -44,6 +44,8 @@
  *
  * What we do is just kick off a commit and wait on it.  This will snapshot the
  * inode to disk.
+ *
+ * i_mutex lock is held when entering and exiting this function
  */
 
 int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
@@ -56,6 +58,9 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 
 	trace_ext4_sync_file(file, dentry, datasync);
 
+	ret = flush_aio_dio_completed_IO(inode);
+	if (ret < 0)
+		goto out;
 	/*
 	 * data=writeback:
 	 *  The caller's filemap_fdatawrite()/wait will sync the data.

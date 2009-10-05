@@ -110,7 +110,7 @@ static struct plat_serial8250_port serial_platform_data2[] = {
 		.uartclk	= OMAP24XX_BASE_BAUD * 16,
 	}, {
 #ifdef CONFIG_ARCH_OMAP4
-		.membase	= IO_ADDRESS(OMAP_UART4_BASE),
+		.membase	= OMAP2_IO_ADDRESS(OMAP_UART4_BASE),
 		.mapbase	= OMAP_UART4_BASE,
 		.irq		= 70,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -126,7 +126,7 @@ static struct plat_serial8250_port serial_platform_data2[] = {
 #ifdef CONFIG_ARCH_OMAP4
 static struct plat_serial8250_port serial_platform_data3[] = {
 	{
-		.membase	= IO_ADDRESS(OMAP_UART4_BASE),
+		.membase	= OMAP2_IO_ADDRESS(OMAP_UART4_BASE),
 		.mapbase	= OMAP_UART4_BASE,
 		.irq		= 70,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -579,7 +579,7 @@ static struct omap_uart_state omap_uart[OMAP_MAX_NR_PORTS] = {
 	{
 		.pdev = {
 			.name			= "serial8250",
-			.id			= 3
+			.id			= 3,
 			.dev			= {
 				.platform_data	= serial_platform_data3,
 			},
