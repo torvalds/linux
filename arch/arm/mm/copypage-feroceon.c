@@ -74,6 +74,7 @@ void feroceon_copy_user_highpage(struct page *to, struct page *from,
 
 	kto = kmap_atomic(to, KM_USER0);
 	kfrom = kmap_atomic(from, KM_USER1);
+	flush_cache_page(vma, vaddr, page_to_pfn(from));
 	feroceon_copy_user_page(kto, kfrom);
 	kunmap_atomic(kfrom, KM_USER1);
 	kunmap_atomic(kto, KM_USER0);
