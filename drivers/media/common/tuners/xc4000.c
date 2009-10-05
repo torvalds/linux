@@ -89,6 +89,7 @@ struct xc4000_priv {
 	struct firmware_properties cur_fw;
 	__u16			hwmodel;
 	__u16			hwvers;
+	u8 ignore_i2c_write_errors;
 };
 
 /* Misc Defines */
@@ -255,8 +256,15 @@ static int xc_send_i2c_data(struct xc4000_priv *priv, u8 *buf, int len)
 	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
 			       .flags = 0, .buf = buf, .len = len };
 	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
-		printk(KERN_ERR "xc4000: I2C write failed (len=%i)\n", len);
-		return XC_RESULT_I2C_WRITE_FAILURE;
+		if (priv->ignore_i2c_write_errors == 0) {
+			printk(KERN_ERR "xc4000: I2C write failed (len=%i)\n",
+			       len);
+			if (len == 4) {
+				printk("bytes %02x %02x %02x %02x\n", buf[0],
+				       buf[1], buf[2], buf[3]);
+			}
+			return XC_RESULT_I2C_WRITE_FAILURE;
+		}
 	}
 	return XC_RESULT_SUCCESS;
 }
@@ -371,9 +379,14 @@ static int xc_SetTVStandard(struct xc4000_priv *priv,
 		__func__,
 		XC4000_Standard[priv->video_standard].Name);
 
+	/* Don't complain when the request fails because of i2c stretching */
+	priv->ignore_i2c_write_errors = 1;
+
 	ret = xc_write_reg(priv, XREG_VIDEO_MODE, VideoMode);
 	if (ret == XC_RESULT_SUCCESS)
 		ret = xc_write_reg(priv, XREG_AUDIO_MODE, AudioMode);
+
+	priv->ignore_i2c_write_errors = 0;
 
 	return ret;
 }
@@ -506,10 +519,16 @@ static u16 WaitForLock(struct xc4000_priv *priv)
 static int xc_tune_channel(struct xc4000_priv *priv, u32 freq_hz, int mode)
 {
 	int found = 0;
+	int result = 0;
 
 	dprintk(1, "%s(%u)\n", __func__, freq_hz);
 
-	if (xc_set_RF_frequency(priv, freq_hz) != XC_RESULT_SUCCESS)
+	/* Don't complain when the request fails because of i2c stretching */
+	priv->ignore_i2c_write_errors = 1;
+	result = xc_set_RF_frequency(priv, freq_hz);
+	priv->ignore_i2c_write_errors = 0;
+
+	if (result != XC_RESULT_SUCCESS)
 		return 0;
 
 	if (mode == XC_TUNE_ANALOG) {
@@ -721,7 +740,12 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	p = priv->firm[pos].ptr;
 	printk("firmware length = %d\n", priv->firm[pos].size);
 
+	/* Don't complain when the request fails because of i2c stretching */
+	priv->ignore_i2c_write_errors = 1;
+
 	rc = xc_load_i2c_sequence(fe, p);
+
+	priv->ignore_i2c_write_errors = 0;
 
 	return rc;
 }
@@ -954,7 +978,7 @@ static int check_firmware(struct dvb_frontend *fe, unsigned int type,
 	int			   rc = 0, is_retry = 0;
 	u16			   version, hwmodel;
 	v4l2_std_id		   std0;
-	u8 		   	   hw_major, hw_minor, fw_major, fw_minor;
+	u8 			   hw_major, hw_minor, fw_major, fw_minor;
 
 	dprintk(1, "%s called\n", __func__);
 
@@ -1071,7 +1095,7 @@ skip_std_specific:
 check_device:
 	rc = xc4000_readreg(priv, XREG_PRODUCT_ID, &hwmodel);
 
-	if (xc_get_version(priv, &hw_major, &hw_minor, &fw_major, 
+	if (xc_get_version(priv, &hw_major, &hw_minor, &fw_major,
 			   &fw_minor) != XC_RESULT_SUCCESS) {
 		printk("Unable to read tuner registers.\n");
 		goto fail;
