@@ -512,8 +512,11 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		rb_key = cfq_slice_offset(cfqd, cfqq) + jiffies;
 		rb_key += cfqq->slice_resid;
 		cfqq->slice_resid = 0;
-	} else
-		rb_key = 0;
+	} else {
+		rb_key = -HZ;
+		__cfqq = cfq_rb_first(&cfqd->service_tree);
+		rb_key += __cfqq ? __cfqq->rb_key : jiffies;
+	}
 
 	if (!RB_EMPTY_NODE(&cfqq->rb_node)) {
 		/*
@@ -547,7 +550,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			n = &(*p)->rb_left;
 		else if (cfq_class_idle(cfqq) > cfq_class_idle(__cfqq))
 			n = &(*p)->rb_right;
-		else if (rb_key < __cfqq->rb_key)
+		else if (time_before(rb_key, __cfqq->rb_key))
 			n = &(*p)->rb_left;
 		else
 			n = &(*p)->rb_right;
