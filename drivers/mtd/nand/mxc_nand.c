@@ -274,15 +274,9 @@ static void send_page(struct mtd_info *mtd, unsigned int ops)
 static void send_read_id(struct mxc_nand_host *host)
 {
 	struct nand_chip *this = &host->nand;
-	uint16_t tmp;
 
 	/* NANDFC buffer 0 is used for device ID output */
 	writew(0x0, host->regs + NFC_BUF_ADDR);
-
-	/* Read ID into main buffer */
-	tmp = readw(host->regs + NFC_CONFIG1);
-	tmp &= ~NFC_SP_EN;
-	writew(tmp, host->regs + NFC_CONFIG1);
 
 	writew(NFC_ID, host->regs + NFC_CONFIG2);
 
@@ -307,7 +301,7 @@ static uint16_t get_dev_status(struct mxc_nand_host *host)
 {
 	void __iomem *main_buf = host->main_area1;
 	uint32_t store;
-	uint16_t ret, tmp;
+	uint16_t ret;
 	/* Issue status request to NAND device */
 
 	/* store the main area1 first word, later do recovery */
@@ -315,11 +309,6 @@ static uint16_t get_dev_status(struct mxc_nand_host *host)
 	/* NANDFC buffer 1 is used for device status to prevent
 	 * corruption of read/write buffer on status requests. */
 	writew(1, host->regs + NFC_BUF_ADDR);
-
-	/* Read status into main buffer */
-	tmp = readw(host->regs + NFC_CONFIG1);
-	tmp &= ~NFC_SP_EN;
-	writew(tmp, host->regs + NFC_CONFIG1);
 
 	writew(NFC_STATUS, host->regs + NFC_CONFIG2);
 
@@ -739,8 +728,10 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	} else
 		BUG();
 
+	/* disable interrupt and spare enable */
 	tmp = readw(host->regs + NFC_CONFIG1);
 	tmp |= NFC_INT_MSK;
+	tmp &= ~NFC_SP_EN;
 	writew(tmp, host->regs + NFC_CONFIG1);
 
 	init_waitqueue_head(&host->irq_waitq);
