@@ -1286,22 +1286,22 @@ static struct adp5588_kpad_platform_data adp5588_kpad_data = {
 	 *  ADP5520/5501 Backlight Data
 	 */
 
-static struct adp5520_backlight_platfrom_data adp5520_backlight_data = {
-	.fade_in 		= FADE_T_1200ms,
-	.fade_out 		= FADE_T_1200ms,
-	.fade_led_law 		= BL_LAW_LINEAR,
-	.en_ambl_sens 		= 1,
-	.abml_filt 		= BL_AMBL_FILT_640ms,
-	.l1_daylight_max 	= BL_CUR_mA(15),
-	.l1_daylight_dim 	= BL_CUR_mA(0),
-	.l2_office_max 		= BL_CUR_mA(7),
-	.l2_office_dim 		= BL_CUR_mA(0),
-	.l3_dark_max 		= BL_CUR_mA(3),
-	.l3_dark_dim 		= BL_CUR_mA(0),
-	.l2_trip 		= L2_COMP_CURR_uA(700),
-	.l2_hyst 		= L2_COMP_CURR_uA(50),
-	.l3_trip 		= L3_COMP_CURR_uA(80),
-	.l3_hyst 		= L3_COMP_CURR_uA(20),
+static struct adp5520_backlight_platform_data adp5520_backlight_data = {
+	.fade_in		= ADP5520_FADE_T_1200ms,
+	.fade_out		= ADP5520_FADE_T_1200ms,
+	.fade_led_law		= ADP5520_BL_LAW_LINEAR,
+	.en_ambl_sens		= 1,
+	.abml_filt		= ADP5520_BL_AMBL_FILT_640ms,
+	.l1_daylight_max	= ADP5520_BL_CUR_mA(15),
+	.l1_daylight_dim	= ADP5520_BL_CUR_mA(0),
+	.l2_office_max		= ADP5520_BL_CUR_mA(7),
+	.l2_office_dim		= ADP5520_BL_CUR_mA(0),
+	.l3_dark_max		= ADP5520_BL_CUR_mA(3),
+	.l3_dark_dim		= ADP5520_BL_CUR_mA(0),
+	.l2_trip		= ADP5520_L2_COMP_CURR_uA(700),
+	.l2_hyst		= ADP5520_L2_COMP_CURR_uA(50),
+	.l3_trip		= ADP5520_L3_COMP_CURR_uA(80),
+	.l3_hyst		= ADP5520_L3_COMP_CURR_uA(20),
 };
 
 	/*
@@ -1314,7 +1314,7 @@ static struct led_info adp5520_leds[] = {
 	{
 		.name = "adp5520-led1",
 		.default_trigger = "none",
-		.flags = FLAG_ID_ADP5520_LED1_ADP5501_LED0 | LED_OFFT_600ms,
+		.flags = FLAG_ID_ADP5520_LED1_ADP5501_LED0 | ADP5520_LED_OFFT_600ms,
 	},
 #ifdef ADP5520_EN_ALL_LEDS
 	{
@@ -1330,22 +1330,22 @@ static struct led_info adp5520_leds[] = {
 #endif
 };
 
-static struct adp5520_leds_platfrom_data adp5520_leds_data = {
+static struct adp5520_leds_platform_data adp5520_leds_data = {
 	.num_leds = ARRAY_SIZE(adp5520_leds),
 	.leds = adp5520_leds,
-	.fade_in = FADE_T_600ms,
-	.fade_out = FADE_T_600ms,
-	.led_on_time = LED_ONT_600ms,
+	.fade_in = ADP5520_FADE_T_600ms,
+	.fade_out = ADP5520_FADE_T_600ms,
+	.led_on_time = ADP5520_LED_ONT_600ms,
 };
 
 	/*
 	 *  ADP5520 GPIO Data
 	 */
 
-static struct adp5520_gpio_platfrom_data adp5520_gpio_data = {
+static struct adp5520_gpio_platform_data adp5520_gpio_data = {
 	.gpio_start = 50,
-	.gpio_en_mask = GPIO_C1 | GPIO_C2 | GPIO_R2,
-	.gpio_pullup_mask = GPIO_C1 | GPIO_C2 | GPIO_R2,
+	.gpio_en_mask = ADP5520_GPIO_C1 | ADP5520_GPIO_C2 | ADP5520_GPIO_R2,
+	.gpio_pullup_mask = ADP5520_GPIO_C1 | ADP5520_GPIO_C2 | ADP5520_GPIO_R2,
 };
 
 	/*
@@ -1354,27 +1354,27 @@ static struct adp5520_gpio_platfrom_data adp5520_gpio_data = {
 
 #include <linux/input.h>
 static const unsigned short adp5520_keymap[ADP5520_KEYMAPSIZE] = {
-	[KEY(0, 0)]	= KEY_GRAVE,
-	[KEY(0, 1)]	= KEY_1,
-	[KEY(0, 2)]	= KEY_2,
-	[KEY(0, 3)]	= KEY_3,
-	[KEY(1, 0)]	= KEY_4,
-	[KEY(1, 1)]	= KEY_5,
-	[KEY(1, 2)]	= KEY_6,
-	[KEY(1, 3)]	= KEY_7,
-	[KEY(2, 0)]	= KEY_8,
-	[KEY(2, 1)]	= KEY_9,
-	[KEY(2, 2)]	= KEY_0,
-	[KEY(2, 3)]	= KEY_MINUS,
-	[KEY(3, 0)]	= KEY_EQUAL,
-	[KEY(3, 1)]	= KEY_BACKSLASH,
-	[KEY(3, 2)]	= KEY_BACKSPACE,
-	[KEY(3, 3)]	= KEY_ENTER,
+	[ADP5520_KEY(0, 0)]	= KEY_GRAVE,
+	[ADP5520_KEY(0, 1)]	= KEY_1,
+	[ADP5520_KEY(0, 2)]	= KEY_2,
+	[ADP5520_KEY(0, 3)]	= KEY_3,
+	[ADP5520_KEY(1, 0)]	= KEY_4,
+	[ADP5520_KEY(1, 1)]	= KEY_5,
+	[ADP5520_KEY(1, 2)]	= KEY_6,
+	[ADP5520_KEY(1, 3)]	= KEY_7,
+	[ADP5520_KEY(2, 0)]	= KEY_8,
+	[ADP5520_KEY(2, 1)]	= KEY_9,
+	[ADP5520_KEY(2, 2)]	= KEY_0,
+	[ADP5520_KEY(2, 3)]	= KEY_MINUS,
+	[ADP5520_KEY(3, 0)]	= KEY_EQUAL,
+	[ADP5520_KEY(3, 1)]	= KEY_BACKSLASH,
+	[ADP5520_KEY(3, 2)]	= KEY_BACKSPACE,
+	[ADP5520_KEY(3, 3)]	= KEY_ENTER,
 };
 
-static struct adp5520_keys_platfrom_data adp5520_keys_data = {
-	.rows_en_mask	= ROW_R3 | ROW_R2 | ROW_R1 | ROW_R0,
-	.cols_en_mask	= COL_C3 | COL_C2 | COL_C1 | COL_C0,
+static struct adp5520_keys_platform_data adp5520_keys_data = {
+	.rows_en_mask	= ADP5520_ROW_R3 | ADP5520_ROW_R2 | ADP5520_ROW_R1 | ADP5520_ROW_R0,
+	.cols_en_mask	= ADP5520_COL_C3 | ADP5520_COL_C2 | ADP5520_COL_C1 | ADP5520_COL_C0,
 	.keymap		= adp5520_keymap,
 	.keymapsize	= ARRAY_SIZE(adp5520_keymap),
 	.repeat		= 0,
@@ -1384,39 +1384,18 @@ static struct adp5520_keys_platfrom_data adp5520_keys_data = {
 	 *  ADP5520/5501 Multifuction Device Init Data
 	 */
 
-static struct adp5520_subdev_info adp5520_subdevs[] = {
-	{
-		.name = "adp5520-backlight",
-		.id = ID_ADP5520,
-		.platform_data = &adp5520_backlight_data,
-	},
-	{
-		.name = "adp5520-led",
-		.id = ID_ADP5520,
-		.platform_data = &adp5520_leds_data,
-	},
-	{
-		.name = "adp5520-gpio",
-		.id = ID_ADP5520,
-		.platform_data = &adp5520_gpio_data,
-	},
-	{
-		.name = "adp5520-keys",
-		.id = ID_ADP5520,
-		.platform_data = &adp5520_keys_data,
-	},
-};
-
 static struct adp5520_platform_data adp5520_pdev_data = {
-	.num_subdevs = ARRAY_SIZE(adp5520_subdevs),
-	.subdevs = adp5520_subdevs,
+	.backlight = &adp5520_backlight_data,
+	.leds = &adp5520_leds_data,
+	.gpio = &adp5520_gpio_data,
+	.keys = &adp5520_keys_data,
 };
 
 #endif
 
 #if defined(CONFIG_GPIO_ADP5588) || defined(CONFIG_GPIO_ADP5588_MODULE)
 #include <linux/i2c/adp5588.h>
-static struct adp5588_gpio_platfrom_data adp5588_gpio_data = {
+static struct adp5588_gpio_platform_data adp5588_gpio_data = {
 	.gpio_start = 50,
 	.pullup_dis_mask = 0,
 };
