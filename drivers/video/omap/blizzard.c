@@ -93,7 +93,7 @@ struct blizzard_reg_list {
 };
 
 /* These need to be saved / restored separately from the rest. */
-static struct blizzard_reg_list blizzard_pll_regs[] = {
+static const struct blizzard_reg_list blizzard_pll_regs[] = {
 	{
 		.start	= 0x04,		/* Don't save PLL ctrl (0x0C) */
 		.end	= 0x0a,
@@ -104,7 +104,7 @@ static struct blizzard_reg_list blizzard_pll_regs[] = {
 	},
 };
 
-static struct blizzard_reg_list blizzard_gen_regs[] = {
+static const struct blizzard_reg_list blizzard_gen_regs[] = {
 	{
 		.start	= 0x18,		/* SDRAM control */
 		.end	= 0x20,
@@ -1372,7 +1372,7 @@ static void blizzard_get_caps(int plane, struct omapfb_caps *caps)
 			   (1 << OMAPFB_COLOR_YUV420);
 }
 
-static void _save_regs(struct blizzard_reg_list *list, int cnt)
+static void _save_regs(const struct blizzard_reg_list *list, int cnt)
 {
 	int i;
 
@@ -1383,7 +1383,7 @@ static void _save_regs(struct blizzard_reg_list *list, int cnt)
 	}
 }
 
-static void _restore_regs(struct blizzard_reg_list *list, int cnt)
+static void _restore_regs(const struct blizzard_reg_list *list, int cnt)
 {
 	int i;
 
