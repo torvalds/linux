@@ -2195,15 +2195,21 @@ static void ftdi_set_termios(struct tty_struct *tty,
 
 	/* Set number of data bits, parity, stop bits */
 
-	termios->c_cflag &= ~CMSPAR;
-
 	urb_value = 0;
 	urb_value |= (cflag & CSTOPB ? FTDI_SIO_SET_DATA_STOP_BITS_2 :
 		      FTDI_SIO_SET_DATA_STOP_BITS_1);
-	urb_value |= (cflag & PARENB ?
-		      (cflag & PARODD ? FTDI_SIO_SET_DATA_PARITY_ODD :
-		       FTDI_SIO_SET_DATA_PARITY_EVEN) :
-		      FTDI_SIO_SET_DATA_PARITY_NONE);
+	if (cflag & PARENB) {
+		if (cflag & CMSPAR)
+			urb_value |= cflag & PARODD ?
+				     FTDI_SIO_SET_DATA_PARITY_MARK :
+				     FTDI_SIO_SET_DATA_PARITY_SPACE;
+		else
+			urb_value |= cflag & PARODD ?
+				     FTDI_SIO_SET_DATA_PARITY_ODD :
+				     FTDI_SIO_SET_DATA_PARITY_EVEN;
+	} else {
+		urb_value |= FTDI_SIO_SET_DATA_PARITY_NONE;
+	}
 	if (cflag & CSIZE) {
 		switch (cflag & CSIZE) {
 		case CS5: urb_value |= 5; dbg("Setting CS5"); break;
