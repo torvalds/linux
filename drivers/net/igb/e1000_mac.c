@@ -247,8 +247,15 @@ void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 	if (rar_low || rar_high)
 		rar_high |= E1000_RAH_AV;
 
+	/*
+	 * Some bridges will combine consecutive 32-bit writes into
+	 * a single burst write, which will malfunction on some parts.
+	 * The flushes avoid this.
+	 */
 	wr32(E1000_RAL(index), rar_low);
+	wrfl();
 	wr32(E1000_RAH(index), rar_high);
+	wrfl();
 }
 
 /**
