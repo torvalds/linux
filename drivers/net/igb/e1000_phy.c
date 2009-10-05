@@ -669,7 +669,7 @@ out:
  *  and restart the negotiation process between the link partner.  If
  *  autoneg_wait_to_complete, then wait for autoneg to complete before exiting.
  **/
-s32 igb_copper_link_autoneg(struct e1000_hw *hw)
+static s32 igb_copper_link_autoneg(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
@@ -886,6 +886,65 @@ static s32 igb_phy_setup_autoneg(struct e1000_hw *hw)
 					     mii_1000t_ctrl_reg);
 		if (ret_val)
 			goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_setup_copper_link - Configure copper link settings
+ *  @hw: pointer to the HW structure
+ *
+ *  Calls the appropriate function to configure the link for auto-neg or forced
+ *  speed and duplex.  Then we check for link, once link is established calls
+ *  to configure collision distance and flow control are called.  If link is
+ *  not established, we return -E1000_ERR_PHY (-2).
+ **/
+s32 igb_setup_copper_link(struct e1000_hw *hw)
+{
+	s32 ret_val;
+	bool link;
+
+
+	if (hw->mac.autoneg) {
+		/*
+		 * Setup autoneg and flow control advertisement and perform
+		 * autonegotiation.
+		 */
+		ret_val = igb_copper_link_autoneg(hw);
+		if (ret_val)
+			goto out;
+	} else {
+		/*
+		 * PHY will be set to 10H, 10F, 100H or 100F
+		 * depending on user settings.
+		 */
+		hw_dbg("Forcing Speed and Duplex\n");
+		ret_val = hw->phy.ops.force_speed_duplex(hw);
+		if (ret_val) {
+			hw_dbg("Error Forcing Speed and Duplex\n");
+			goto out;
+		}
+	}
+
+	/*
+	 * Check link status. Wait up to 100 microseconds for link to become
+	 * valid.
+	 */
+	ret_val = igb_phy_has_link(hw,
+	                           COPPER_LINK_UP_LIMIT,
+	                           10,
+	                           &link);
+	if (ret_val)
+		goto out;
+
+	if (link) {
+		hw_dbg("Valid link established!!!\n");
+		igb_config_collision_dist(hw);
+		ret_val = igb_config_fc_after_link_up(hw);
+	} else {
+		hw_dbg("Unable to establish link!!!\n");
 	}
 
 out:

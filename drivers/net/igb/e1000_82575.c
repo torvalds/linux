@@ -907,7 +907,6 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 {
 	u32 ctrl;
 	s32  ret_val;
-	bool link;
 
 	ctrl = rd32(E1000_CTRL);
 	ctrl |= E1000_CTRL_SLU;
@@ -940,44 +939,7 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	if (hw->mac.autoneg) {
-		/*
-		 * Setup autoneg and flow control advertisement
-		 * and perform autonegotiation.
-		 */
-		ret_val = igb_copper_link_autoneg(hw);
-		if (ret_val)
-			goto out;
-	} else {
-		/*
-		 * PHY will be set to 10H, 10F, 100H or 100F
-		 * depending on user settings.
-		 */
-		hw_dbg("Forcing Speed and Duplex\n");
-		ret_val = hw->phy.ops.force_speed_duplex(hw);
-		if (ret_val) {
-			hw_dbg("Error Forcing Speed and Duplex\n");
-			goto out;
-		}
-	}
-
-	/*
-	 * Check link status. Wait up to 100 microseconds for link to become
-	 * valid.
-	 */
-	ret_val = igb_phy_has_link(hw, COPPER_LINK_UP_LIMIT, 10, &link);
-	if (ret_val)
-		goto out;
-
-	if (link) {
-		hw_dbg("Valid link established!!!\n");
-		/* Config the MAC and PHY after link is up */
-		igb_config_collision_dist(hw);
-		ret_val = igb_config_fc_after_link_up(hw);
-	} else {
-		hw_dbg("Unable to establish link!!!\n");
-	}
-
+	ret_val = igb_setup_copper_link(hw);
 out:
 	return ret_val;
 }
