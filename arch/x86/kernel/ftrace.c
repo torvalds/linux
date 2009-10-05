@@ -9,6 +9,8 @@
  * the dangers of modifying code on the run.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
 #include <linux/uaccess.h>
@@ -336,15 +338,15 @@ int __init ftrace_dyn_arch_init(void *data)
 
 	switch (faulted) {
 	case 0:
-		pr_info("ftrace: converting mcount calls to 0f 1f 44 00 00\n");
+		pr_info("converting mcount calls to 0f 1f 44 00 00\n");
 		memcpy(ftrace_nop, ftrace_test_p6nop, MCOUNT_INSN_SIZE);
 		break;
 	case 1:
-		pr_info("ftrace: converting mcount calls to 66 66 66 66 90\n");
+		pr_info("converting mcount calls to 66 66 66 66 90\n");
 		memcpy(ftrace_nop, ftrace_test_nop5, MCOUNT_INSN_SIZE);
 		break;
 	case 2:
-		pr_info("ftrace: converting mcount calls to jmp . + 5\n");
+		pr_info("converting mcount calls to jmp . + 5\n");
 		memcpy(ftrace_nop, ftrace_test_jmp, MCOUNT_INSN_SIZE);
 		break;
 	}
