@@ -54,6 +54,7 @@
 #define VERSION "2.14"
 
 static int enable_ertm = 0;
+static int max_transmit = L2CAP_DEFAULT_MAX_TX;
 
 static u32 l2cap_feat_mask = L2CAP_FEAT_FIXED_CHAN;
 static u8 l2cap_fixed_chan[8] = { 0x02, };
@@ -2253,7 +2254,7 @@ done:
 	case L2CAP_MODE_ERTM:
 		rfc.mode            = L2CAP_MODE_ERTM;
 		rfc.txwin_size      = L2CAP_DEFAULT_TX_WINDOW;
-		rfc.max_transmit    = L2CAP_DEFAULT_MAX_TX;
+		rfc.max_transmit    = max_transmit;
 		rfc.retrans_timeout = 0;
 		rfc.monitor_timeout = 0;
 		rfc.max_pdu_size    = cpu_to_le16(L2CAP_DEFAULT_MAX_PDU_SIZE);
@@ -4059,6 +4060,9 @@ module_exit(l2cap_exit);
 
 module_param(enable_ertm, bool, 0644);
 MODULE_PARM_DESC(enable_ertm, "Enable enhanced retransmission mode");
+
+module_param(max_transmit, uint, 0644);
+MODULE_PARM_DESC(max_transmit, "Max transmit value (default = 3)");
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth L2CAP ver " VERSION);
