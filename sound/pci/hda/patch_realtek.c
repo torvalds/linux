@@ -14357,15 +14357,16 @@ static void alc861_auto_init_multi_out(struct hda_codec *codec)
 static void alc861_auto_init_hp_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t pin;
 
-	pin = spec->autocfg.hp_pins[0];
-	if (pin)
-		alc861_auto_set_output_and_unmute(codec, pin, PIN_HP,
+	if (spec->autocfg.hp_outs)
+		alc861_auto_set_output_and_unmute(codec,
+						  spec->autocfg.hp_pins[0],
+						  PIN_HP,
 						  spec->multiout.hp_nid);
-	pin = spec->autocfg.speaker_pins[0];
-	if (pin)
-		alc861_auto_set_output_and_unmute(codec, pin, PIN_OUT,
+	if (spec->autocfg.speaker_outs)
+		alc861_auto_set_output_and_unmute(codec,
+						  spec->autocfg.speaker_pins[0],
+						  PIN_OUT,
 						  spec->multiout.dac_nids[0]);
 }
 
