@@ -81,6 +81,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		break;
 	case E1000_DEV_ID_82576:
 	case E1000_DEV_ID_82576_NS:
+	case E1000_DEV_ID_82576_NS_SERDES:
 	case E1000_DEV_ID_82576_FIBER:
 	case E1000_DEV_ID_82576_SERDES:
 	case E1000_DEV_ID_82576_QUAD_COPPER:
