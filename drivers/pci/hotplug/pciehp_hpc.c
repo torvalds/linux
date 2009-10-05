@@ -427,27 +427,24 @@ int pciehp_set_attention_status(struct slot *slot, u8 value)
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
 	u16 cmd_mask;
-	int rc;
 
 	cmd_mask = PCI_EXP_SLTCTL_AIC;
 	switch (value) {
-		case 0 :	/* turn off */
-			slot_cmd = 0x00C0;
-			break;
-		case 1:		/* turn on */
-			slot_cmd = 0x0040;
-			break;
-		case 2:		/* turn blink */
-			slot_cmd = 0x0080;
-			break;
-		default:
-			return -1;
+	case 0 :	/* turn off */
+		slot_cmd = 0x00C0;
+		break;
+	case 1:		/* turn on */
+		slot_cmd = 0x0040;
+		break;
+	case 2:		/* turn blink */
+		slot_cmd = 0x0080;
+		break;
+	default:
+		return -EINVAL;
 	}
-	rc = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n",
 		 __func__, ctrl->cap_base + PCI_EXP_SLTCTL, slot_cmd);
-
-	return rc;
+	return pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 }
 
 void pciehp_green_led_on(struct slot *slot)

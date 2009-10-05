@@ -363,25 +363,6 @@ void pciehp_queue_pushbutton_work(struct work_struct *work)
 	mutex_unlock(&p_slot->lock);
 }
 
-static int update_slot_info(struct slot *slot)
-{
-	struct hotplug_slot_info *info;
-	int result;
-
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	pciehp_get_power_status(slot, &info->power_status);
-	pciehp_get_attention_status(slot, &info->attention_status);
-	pciehp_get_latch_status(slot, &info->latch_status);
-	pciehp_get_adapter_status(slot, &info->adapter_status);
-
-	result = pci_hp_change_slot_info(slot->hotplug_slot, info);
-	kfree (info);
-	return result;
-}
-
 /*
  * Note: This function must be called with slot->lock held
  */
@@ -442,7 +423,6 @@ static void handle_button_press_event(struct slot *p_slot)
 		 * to hot-add or hot-remove is undergoing
 		 */
 		ctrl_info(ctrl, "Button ignore on Slot(%s)\n", slot_name(p_slot));
-		update_slot_info(p_slot);
 		break;
 	default:
 		ctrl_warn(ctrl, "Not a valid state\n");
@@ -500,11 +480,9 @@ static void interrupt_event_handler(struct work_struct *work)
 		if (!HP_SUPR_RM(ctrl))
 			break;
 		ctrl_dbg(ctrl, "Surprise Removal\n");
-		update_slot_info(p_slot);
 		handle_surprise_event(p_slot);
 		break;
 	default:
-		update_slot_info(p_slot);
 		break;
 	}
 	mutex_unlock(&p_slot->lock);
@@ -547,9 +525,6 @@ int pciehp_enable_slot(struct slot *p_slot)
 	if (rc) {
 		pciehp_get_latch_status(p_slot, &getstatus);
 	}
-
-	update_slot_info(p_slot);
-
 	return rc;
 }
 
@@ -590,10 +565,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 		}
 	}
 
-	ret = remove_board(p_slot);
-	update_slot_info(p_slot);
-
-	return ret;
+	return remove_board(p_slot);
 }
 
 int pciehp_sysfs_enable_slot(struct slot *p_slot)
