@@ -1181,61 +1181,59 @@ static s32 igb_read_mac_addr_82575(struct e1000_hw *hw)
  **/
 static void igb_clear_hw_cntrs_82575(struct e1000_hw *hw)
 {
-	u32 temp;
-
 	igb_clear_hw_cntrs_base(hw);
 
-	temp = rd32(E1000_PRC64);
-	temp = rd32(E1000_PRC127);
-	temp = rd32(E1000_PRC255);
-	temp = rd32(E1000_PRC511);
-	temp = rd32(E1000_PRC1023);
-	temp = rd32(E1000_PRC1522);
-	temp = rd32(E1000_PTC64);
-	temp = rd32(E1000_PTC127);
-	temp = rd32(E1000_PTC255);
-	temp = rd32(E1000_PTC511);
-	temp = rd32(E1000_PTC1023);
-	temp = rd32(E1000_PTC1522);
+	rd32(E1000_PRC64);
+	rd32(E1000_PRC127);
+	rd32(E1000_PRC255);
+	rd32(E1000_PRC511);
+	rd32(E1000_PRC1023);
+	rd32(E1000_PRC1522);
+	rd32(E1000_PTC64);
+	rd32(E1000_PTC127);
+	rd32(E1000_PTC255);
+	rd32(E1000_PTC511);
+	rd32(E1000_PTC1023);
+	rd32(E1000_PTC1522);
 
-	temp = rd32(E1000_ALGNERRC);
-	temp = rd32(E1000_RXERRC);
-	temp = rd32(E1000_TNCRS);
-	temp = rd32(E1000_CEXTERR);
-	temp = rd32(E1000_TSCTC);
-	temp = rd32(E1000_TSCTFC);
+	rd32(E1000_ALGNERRC);
+	rd32(E1000_RXERRC);
+	rd32(E1000_TNCRS);
+	rd32(E1000_CEXTERR);
+	rd32(E1000_TSCTC);
+	rd32(E1000_TSCTFC);
 
-	temp = rd32(E1000_MGTPRC);
-	temp = rd32(E1000_MGTPDC);
-	temp = rd32(E1000_MGTPTC);
+	rd32(E1000_MGTPRC);
+	rd32(E1000_MGTPDC);
+	rd32(E1000_MGTPTC);
 
-	temp = rd32(E1000_IAC);
-	temp = rd32(E1000_ICRXOC);
+	rd32(E1000_IAC);
+	rd32(E1000_ICRXOC);
 
-	temp = rd32(E1000_ICRXPTC);
-	temp = rd32(E1000_ICRXATC);
-	temp = rd32(E1000_ICTXPTC);
-	temp = rd32(E1000_ICTXATC);
-	temp = rd32(E1000_ICTXQEC);
-	temp = rd32(E1000_ICTXQMTC);
-	temp = rd32(E1000_ICRXDMTC);
+	rd32(E1000_ICRXPTC);
+	rd32(E1000_ICRXATC);
+	rd32(E1000_ICTXPTC);
+	rd32(E1000_ICTXATC);
+	rd32(E1000_ICTXQEC);
+	rd32(E1000_ICTXQMTC);
+	rd32(E1000_ICRXDMTC);
 
-	temp = rd32(E1000_CBTMPC);
-	temp = rd32(E1000_HTDPMC);
-	temp = rd32(E1000_CBRMPC);
-	temp = rd32(E1000_RPTHC);
-	temp = rd32(E1000_HGPTC);
-	temp = rd32(E1000_HTCBDPC);
-	temp = rd32(E1000_HGORCL);
-	temp = rd32(E1000_HGORCH);
-	temp = rd32(E1000_HGOTCL);
-	temp = rd32(E1000_HGOTCH);
-	temp = rd32(E1000_LENERRS);
+	rd32(E1000_CBTMPC);
+	rd32(E1000_HTDPMC);
+	rd32(E1000_CBRMPC);
+	rd32(E1000_RPTHC);
+	rd32(E1000_HGPTC);
+	rd32(E1000_HTCBDPC);
+	rd32(E1000_HGORCL);
+	rd32(E1000_HGORCH);
+	rd32(E1000_HGOTCL);
+	rd32(E1000_HGOTCH);
+	rd32(E1000_LENERRS);
 
 	/* This register should not be read in copper configurations */
 	if (hw->phy.media_type == e1000_media_type_internal_serdes ||
 	    igb_sgmii_active_82575(hw))
-		temp = rd32(E1000_SCVPC);
+		rd32(E1000_SCVPC);
 }
 
 /**

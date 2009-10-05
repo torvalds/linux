@@ -399,45 +399,43 @@ void igb_update_mc_addr_list(struct e1000_hw *hw,
  **/
 void igb_clear_hw_cntrs_base(struct e1000_hw *hw)
 {
-	u32 temp;
-
-	temp = rd32(E1000_CRCERRS);
-	temp = rd32(E1000_SYMERRS);
-	temp = rd32(E1000_MPC);
-	temp = rd32(E1000_SCC);
-	temp = rd32(E1000_ECOL);
-	temp = rd32(E1000_MCC);
-	temp = rd32(E1000_LATECOL);
-	temp = rd32(E1000_COLC);
-	temp = rd32(E1000_DC);
-	temp = rd32(E1000_SEC);
-	temp = rd32(E1000_RLEC);
-	temp = rd32(E1000_XONRXC);
-	temp = rd32(E1000_XONTXC);
-	temp = rd32(E1000_XOFFRXC);
-	temp = rd32(E1000_XOFFTXC);
-	temp = rd32(E1000_FCRUC);
-	temp = rd32(E1000_GPRC);
-	temp = rd32(E1000_BPRC);
-	temp = rd32(E1000_MPRC);
-	temp = rd32(E1000_GPTC);
-	temp = rd32(E1000_GORCL);
-	temp = rd32(E1000_GORCH);
-	temp = rd32(E1000_GOTCL);
-	temp = rd32(E1000_GOTCH);
-	temp = rd32(E1000_RNBC);
-	temp = rd32(E1000_RUC);
-	temp = rd32(E1000_RFC);
-	temp = rd32(E1000_ROC);
-	temp = rd32(E1000_RJC);
-	temp = rd32(E1000_TORL);
-	temp = rd32(E1000_TORH);
-	temp = rd32(E1000_TOTL);
-	temp = rd32(E1000_TOTH);
-	temp = rd32(E1000_TPR);
-	temp = rd32(E1000_TPT);
-	temp = rd32(E1000_MPTC);
-	temp = rd32(E1000_BPTC);
+	rd32(E1000_CRCERRS);
+	rd32(E1000_SYMERRS);
+	rd32(E1000_MPC);
+	rd32(E1000_SCC);
+	rd32(E1000_ECOL);
+	rd32(E1000_MCC);
+	rd32(E1000_LATECOL);
+	rd32(E1000_COLC);
+	rd32(E1000_DC);
+	rd32(E1000_SEC);
+	rd32(E1000_RLEC);
+	rd32(E1000_XONRXC);
+	rd32(E1000_XONTXC);
+	rd32(E1000_XOFFRXC);
+	rd32(E1000_XOFFTXC);
+	rd32(E1000_FCRUC);
+	rd32(E1000_GPRC);
+	rd32(E1000_BPRC);
+	rd32(E1000_MPRC);
+	rd32(E1000_GPTC);
+	rd32(E1000_GORCL);
+	rd32(E1000_GORCH);
+	rd32(E1000_GOTCL);
+	rd32(E1000_GOTCH);
+	rd32(E1000_RNBC);
+	rd32(E1000_RUC);
+	rd32(E1000_RFC);
+	rd32(E1000_ROC);
+	rd32(E1000_RJC);
+	rd32(E1000_TORL);
+	rd32(E1000_TORH);
+	rd32(E1000_TOTL);
+	rd32(E1000_TOTH);
+	rd32(E1000_TPR);
+	rd32(E1000_TPT);
+	rd32(E1000_MPTC);
+	rd32(E1000_BPTC);
 }
 
 /**
