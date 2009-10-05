@@ -384,11 +384,8 @@ got_map:
 		 * the "[vdso]" dso, but for now lets use the old
 		 * trick of looking in the whole kernel symbol list.
 		 */
-		if ((long long)ip < 0) {
-			map = kernel_map;
-			if (mapp)
-				*mapp = map;
-		}
+		if ((long long)ip < 0)
+			return kernel_maps__find_symbol(ip, mapp);
 	}
 	dump_printf(" ...... dso: %s\n",
 		    map ? map->dso->long_name : "<not found>");
