@@ -143,12 +143,16 @@ static s32 igb_poll_for_msg(struct e1000_hw *hw, u16 mbx_id)
 	if (!countdown || !mbx->ops.check_for_msg)
 		goto out;
 
-	while (mbx->ops.check_for_msg(hw, mbx_id)) {
+	while (countdown && mbx->ops.check_for_msg(hw, mbx_id)) {
 		countdown--;
 		if (!countdown)
 			break;
 		udelay(mbx->usec_delay);
 	}
+
+	/* if we failed, all future posted messages fail until reset */
+	if (!countdown)
+		mbx->timeout = 0;
 out:
 	return countdown ? 0 : -E1000_ERR_MBX;
 }
@@ -168,12 +172,16 @@ static s32 igb_poll_for_ack(struct e1000_hw *hw, u16 mbx_id)
 	if (!countdown || !mbx->ops.check_for_ack)
 		goto out;
 
-	while (mbx->ops.check_for_ack(hw, mbx_id)) {
+	while (countdown && mbx->ops.check_for_ack(hw, mbx_id)) {
 		countdown--;
 		if (!countdown)
 			break;
 		udelay(mbx->usec_delay);
 	}
+
+	/* if we failed, all future posted messages fail until reset */
+	if (!countdown)
+		mbx->timeout = 0;
 out:
 	return countdown ? 0 : -E1000_ERR_MBX;
 }
@@ -217,12 +225,13 @@ out:
 static s32 igb_write_posted_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
-	s32 ret_val = 0;
+	s32 ret_val = -E1000_ERR_MBX;
 
-	if (!mbx->ops.write)
+	/* exit if either we can't write or there isn't a defined timeout */
+	if (!mbx->ops.write || !mbx->timeout)
 		goto out;
 
-	/* send msg*/
+	/* send msg */
 	ret_val = mbx->ops.write(hw, msg, size, mbx_id);
 
 	/* if msg sent wait until we receive an ack */
