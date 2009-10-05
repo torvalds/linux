@@ -50,6 +50,7 @@ struct e1000_hw;
 #define E1000_REVISION_2 2
 #define E1000_REVISION_4 4
 
+#define E1000_FUNC_0     0
 #define E1000_FUNC_1     1
 
 enum e1000_mac_type {

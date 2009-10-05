@@ -167,6 +167,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DCA_TXCTRL_CPUID_SHIFT 24 /* Tx CPUID now in the last byte */
 #define E1000_DCA_RXCTRL_CPUID_SHIFT 24 /* Rx CPUID now in the last byte */
 
+#define E1000_NVM_APME_82575          0x0400
 #define MAX_NUM_VFS                   8
 
 #define E1000_DTXSWC_VMDQ_LOOPBACK_EN (1 << 31)  /* global VF LB enable */

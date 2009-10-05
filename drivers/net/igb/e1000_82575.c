@@ -706,9 +706,7 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 speed, duplex;
 
-	/* SGMII link check is done through the PCS register. */
-	if ((hw->phy.media_type != e1000_media_type_copper) ||
-	    (igb_sgmii_active_82575(hw))) {
+	if (hw->phy.media_type != e1000_media_type_copper) {
 		ret_val = igb_get_pcs_speed_and_duplex_82575(hw, &speed,
 		                                             &duplex);
 		/*
@@ -723,6 +721,7 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 
 	return ret_val;
 }
+
 /**
  *  igb_get_pcs_speed_and_duplex_82575 - Retrieve current speed/duplex
  *  @hw: pointer to the HW structure
@@ -788,13 +787,23 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 void igb_shutdown_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 reg;
+	u16 eeprom_data = 0;
 
 	if (hw->phy.media_type != e1000_media_type_internal_serdes ||
 	    igb_sgmii_active_82575(hw))
 		return;
 
-	/* if the management interface is not enabled, then power down */
-	if (!igb_enable_mng_pass_thru(hw)) {
+	if (hw->bus.func == E1000_FUNC_0)
+		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
+	else if (hw->bus.func == E1000_FUNC_1)
+		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
+
+	/*
+	 * If APM is not enabled in the EEPROM and management interface is
+	 * not enabled, then power down.
+	 */
+	if (!(eeprom_data & E1000_NVM_APME_82575) &&
+	    !igb_enable_mng_pass_thru(hw)) {
 		/* Disable PCS to turn off link */
 		reg = rd32(E1000_PCS_CFG0);
 		reg &= ~E1000_PCS_CFG_PCS_EN;
@@ -1010,10 +1019,13 @@ out:
 }
 
 /**
- *  igb_setup_serdes_link_82575 - Setup link for fiber/serdes
+ *  igb_setup_serdes_link_82575 - Setup link for serdes
  *  @hw: pointer to the HW structure
  *
- *  Configures speed and duplex for fiber and serdes links.
+ *  Configure the physical coding sub-layer (PCS) link.  The PCS link is
+ *  used on copper connections where the serialized gigabit media independent
+ *  interface (sgmii), or serdes fiber is being used.  Configures the link
+ *  for auto-negotiation or forces speed/duplex.
  **/
 static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 {
@@ -1086,18 +1098,27 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	 */
 	if (hw->mac.autoneg || igb_sgmii_active_82575(hw)) {
 		/* Set PCS register for autoneg */
-		reg |= E1000_PCS_LCTL_FSV_1000 |      /* Force 1000    */
-		       E1000_PCS_LCTL_FDV_FULL |      /* SerDes Full duplex */
-		       E1000_PCS_LCTL_AN_ENABLE |     /* Enable Autoneg */
-		       E1000_PCS_LCTL_AN_RESTART;     /* Restart autoneg */
+		reg |= E1000_PCS_LCTL_FSV_1000 |  /* Force 1000 */
+		       E1000_PCS_LCTL_FDV_FULL |  /* SerDes Full dplx */
+		       E1000_PCS_LCTL_AN_ENABLE | /* Enable Autoneg */
+		       E1000_PCS_LCTL_AN_RESTART; /* Restart autoneg */
 		hw_dbg("Configuring Autoneg; PCS_LCTL = 0x%08X\n", reg);
 	} else {
-		/* Set PCS register for forced speed */
-		reg |= E1000_PCS_LCTL_FLV_LINK_UP |   /* Force link up */
-		       E1000_PCS_LCTL_FSV_1000 |      /* Force 1000    */
-		       E1000_PCS_LCTL_FDV_FULL |      /* SerDes Full duplex */
-		       E1000_PCS_LCTL_FSD |           /* Force Speed */
-		       E1000_PCS_LCTL_FORCE_LINK;     /* Force Link */
+		/* Check for duplex first */
+		if (hw->mac.forced_speed_duplex & E1000_ALL_FULL_DUPLEX)
+			reg |= E1000_PCS_LCTL_FDV_FULL;
+
+		/* No need to check for 1000/full since the spec states that
+		 * it requires autoneg to be enabled */
+		/* Now set speed */
+		if (hw->mac.forced_speed_duplex & E1000_ALL_100_SPEED)
+			reg |= E1000_PCS_LCTL_FSV_100;
+
+		/* Force speed and force link */
+		reg |= E1000_PCS_LCTL_FSD |
+		       E1000_PCS_LCTL_FORCE_LINK |
+		       E1000_PCS_LCTL_FLV_LINK_UP;
+
 		hw_dbg("Configuring Forced Link; PCS_LCTL = 0x%08X\n", reg);
 	}
 
