@@ -1051,7 +1051,7 @@ static int onenand_mlc_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	int writesize = this->writesize;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "%s: from = 0x%08x, len = %i\n",
-		(unsigned int) from, (int) len);
+	      __func__, (unsigned int) from, (int) len);
 
 	if (ops->mode == MTD_OOB_AUTO)
 		oobsize = this->ecclayout->oobavail;
@@ -2022,8 +2022,8 @@ static int onenand_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 	if (unlikely(to >= mtd->size ||
 		     column + len > ((mtd->size >> this->page_shift) -
 				     (to >> this->page_shift)) * oobsize)) {
-		printk(KERN_ERR "%s: Attempted to write past end of device\n"
-			__func__);
+		printk(KERN_ERR "%s: Attempted to write past end of device\n",
+		       __func__);
 		return -EINVAL;
 	}
 
