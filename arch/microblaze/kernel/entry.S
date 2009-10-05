@@ -592,6 +592,8 @@ C_ENTRY(full_exception_trap):
 	nop
 	mfs	r7, rfsr;		/* save FSR */
 	nop
+	mts	rfsr, r0;	/* Clear sticky fsr */
+	nop
 	la	r12, r0, full_exception
 	set_vms;
 	rtbd	r12, 0;
