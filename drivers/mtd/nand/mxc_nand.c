@@ -52,18 +52,6 @@
 #define NFC_CONFIG1		0xE1A
 #define NFC_CONFIG2		0xE1C
 
-/* Addresses for NFC RAM BUFFER Main area 0 */
-#define MAIN_AREA0		0x000
-#define MAIN_AREA1		0x200
-#define MAIN_AREA2		0x400
-#define MAIN_AREA3		0x600
-
-/* Addresses for NFC SPARE BUFFER Spare area 0 */
-#define SPARE_AREA0		0x800
-#define SPARE_AREA1		0x810
-#define SPARE_AREA2		0x820
-#define SPARE_AREA3		0x830
-
 /* Set INT to 0, FCMD to 1, rest to 0 in NFC_CONFIG2 Register
  * for Command operation */
 #define NFC_CMD            0x1
@@ -106,6 +94,11 @@ struct mxc_nand_host {
 	struct mtd_partition	*parts;
 	struct device		*dev;
 
+	void			*spare0;
+	void			*main_area0;
+	void			*main_area1;
+
+	void __iomem		*base;
 	void __iomem		*regs;
 	int			status_request;
 	int			pagesize_2k;
@@ -262,7 +255,7 @@ static void send_read_id(struct mxc_nand_host *host)
 	wait_op_done(host, TROP_US_DELAY, true);
 
 	if (this->options & NAND_BUSWIDTH_16) {
-		void __iomem *main_buf = host->regs + MAIN_AREA0;
+		void __iomem *main_buf = host->main_area0;
 		/* compress the ID info */
 		writeb(readb(main_buf + 2), main_buf + 1);
 		writeb(readb(main_buf + 4), main_buf + 2);
@@ -270,14 +263,14 @@ static void send_read_id(struct mxc_nand_host *host)
 		writeb(readb(main_buf + 8), main_buf + 4);
 		writeb(readb(main_buf + 10), main_buf + 5);
 	}
-	memcpy(host->data_buf, host->regs + MAIN_AREA0, 16);
+	memcpy(host->data_buf, host->main_area0, 16);
 }
 
 /* This function requests the NANDFC to perform a read of the
  * NAND device status and returns the current status. */
 static uint16_t get_dev_status(struct mxc_nand_host *host)
 {
-	void __iomem *main_buf = host->regs + MAIN_AREA1;
+	void __iomem *main_buf = host->main_area1;
 	uint32_t store;
 	uint16_t ret, tmp;
 	/* Issue status request to NAND device */
@@ -462,7 +455,7 @@ static void copy_spare(struct mtd_info *mtd, bool bfrom)
 	u16 i, j;
 	u16 n = mtd->writesize >> 9;
 	u8 *d = host->data_buf + mtd->writesize;
-	u8 *s = host->regs + SPARE_AREA0;
+	u8 *s = host->spare0;
 	u16 t = host->spare_len;
 
 	j = (mtd->oobsize / n >> 1) << 1;
@@ -572,7 +565,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 
 		send_page(host, NFC_OUTPUT);
 
-		memcpy(host->data_buf, host->regs + MAIN_AREA0, mtd->writesize);
+		memcpy(host->data_buf, host->main_area0, mtd->writesize);
 		copy_spare(mtd, true);
 		break;
 
@@ -608,7 +601,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_PAGEPROG:
-		memcpy(host->regs + MAIN_AREA0, host->data_buf, mtd->writesize);
+		memcpy(host->main_area0, host->data_buf, mtd->writesize);
 		copy_spare(mtd, false);
 		send_page(host, NFC_INPUT);
 		send_cmd(host, command, true);
@@ -686,11 +679,16 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		goto eres;
 	}
 
-	host->regs = ioremap(res->start, resource_size(res));
-	if (!host->regs) {
+	host->base = ioremap(res->start, resource_size(res));
+	if (!host->base) {
 		err = -ENOMEM;
 		goto eres;
 	}
+
+	host->regs = host->base;
+	host->main_area0 = host->base;
+	host->main_area1 = host->base + 0x200;
+	host->spare0 = host->base + 0x800;
 
 	tmp = readw(host->regs + NFC_CONFIG1);
 	tmp |= NFC_INT_MSK;
@@ -778,7 +776,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 escan:
 	free_irq(host->irq, host);
 eirq:
-	iounmap(host->regs);
+	iounmap(host->base);
 eres:
 	clk_put(host->clk);
 eclk:
@@ -797,7 +795,7 @@ static int __exit mxcnd_remove(struct platform_device *pdev)
 
 	nand_release(&host->mtd);
 	free_irq(host->irq, host);
-	iounmap(host->regs);
+	iounmap(host->base);
 	kfree(host);
 
 	return 0;
