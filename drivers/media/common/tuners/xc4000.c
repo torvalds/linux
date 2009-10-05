@@ -174,25 +174,29 @@ struct XC_TV_STANDARD {
 };
 
 /* Tuner standards */
-#define MN_NTSC_PAL_BTSC	0
-#define MN_NTSC_PAL_A2		1
-#define MN_NTSC_PAL_EIAJ	2
-#define MN_NTSC_PAL_Mono	3
-#define BG_PAL_A2		4
-#define BG_PAL_NICAM		5
-#define BG_PAL_MONO		6
-#define I_PAL_NICAM		7
-#define I_PAL_NICAM_MONO	8
-#define DK_PAL_A2		9
-#define DK_PAL_NICAM		10
-#define DK_PAL_MONO		11
-#define DK_SECAM_A2DK1		12
-#define DK_SECAM_A2LDK3 	13
-#define DK_SECAM_A2MONO 	14
-#define L_SECAM_NICAM		15
-#define LC_SECAM_NICAM		16
-#define FM_Radio_INPUT2 	21
-#define FM_Radio_INPUT1 	22
+#define XC4000_MN_NTSC_PAL_BTSC		0
+#define XC4000_MN_NTSC_PAL_A2		1
+#define XC4000_MN_NTSC_PAL_EIAJ		2
+#define XC4000_MN_NTSC_PAL_Mono		3
+#define XC4000_BG_PAL_A2		4
+#define XC4000_BG_PAL_NICAM		5
+#define XC4000_BG_PAL_MONO		6
+#define XC4000_I_PAL_NICAM		7
+#define XC4000_I_PAL_NICAM_MONO		8
+#define XC4000_DK_PAL_A2		9
+#define XC4000_DK_PAL_NICAM		10
+#define XC4000_DK_PAL_MONO		11
+#define XC4000_DK_SECAM_A2DK1		12
+#define XC4000_DK_SECAM_A2LDK3 		13
+#define XC4000_DK_SECAM_A2MONO 		14
+#define XC4000_L_SECAM_NICAM		15
+#define XC4000_LC_SECAM_NICAM		16
+#define XC4000_DTV6			17
+#define XC4000_DTV8			18
+#define XC4000_DTV7_8			19
+#define XC4000_DTV7			20
+#define XC4000_FM_Radio_INPUT2 		21
+#define XC4000_FM_Radio_INPUT1  	22
 
 /* WAS :
 static struct XC_TV_STANDARD XC4000_Standard[MAX_TV_STANDARD] = {
@@ -1205,14 +1209,10 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 	struct dvb_frontend_parameters *params)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
+	unsigned int type;
 	int ret;
 
 	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
-
-	/* FIXME: setup proper parameters */
-	if (check_firmware(fe, DTV8, 0, priv->if_khz) != XC_RESULT_SUCCESS) {
-		return -EREMOTEIO;
-	}
 
 	if (fe->ops.info.type == FE_ATSC) {
 		dprintk(1, "%s() ATSC\n", __func__);
@@ -1223,7 +1223,8 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 			priv->rf_mode = XC_RF_MODE_AIR;
 			priv->freq_hz = params->frequency - 1750000;
 			priv->bandwidth = BANDWIDTH_6_MHZ;
-			priv->video_standard = DTV6;
+			priv->video_standard = XC4000_DTV6;
+			type = DTV6;
 			break;
 		case QAM_64:
 		case QAM_256:
@@ -1232,7 +1233,8 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 			priv->rf_mode = XC_RF_MODE_CABLE;
 			priv->freq_hz = params->frequency - 1750000;
 			priv->bandwidth = BANDWIDTH_6_MHZ;
-			priv->video_standard = DTV6;
+			priv->video_standard = XC4000_DTV6;
+			type = DTV6;
 			break;
 		default:
 			return -EINVAL;
@@ -1242,16 +1244,19 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 		switch (params->u.ofdm.bandwidth) {
 		case BANDWIDTH_6_MHZ:
 			priv->bandwidth = BANDWIDTH_6_MHZ;
-			priv->video_standard = DTV6;
+			priv->video_standard = XC4000_DTV6;
 			priv->freq_hz = params->frequency - 1750000;
+			type = DTV6;
 			break;
 		case BANDWIDTH_7_MHZ:
 			printk(KERN_ERR "xc4000 bandwidth 7MHz not supported\n");
+			type = DTV7;
 			return -EINVAL;
 		case BANDWIDTH_8_MHZ:
 			priv->bandwidth = BANDWIDTH_8_MHZ;
-			priv->video_standard = DTV8;
+			priv->video_standard = XC4000_DTV8;
 			priv->freq_hz = params->frequency - 2750000;
+			type = DTV8;
 			break;
 		default:
 			printk(KERN_ERR "xc4000 bandwidth not set!\n");
@@ -1265,6 +1270,11 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 
 	dprintk(1, "%s() frequency=%d (compensated)\n",
 		__func__, priv->freq_hz);
+
+	/* Make sure the correct firmware type is loaded */
+	if (check_firmware(fe, type, 0, priv->if_khz) != XC_RESULT_SUCCESS) {
+		return -EREMOTEIO;
+	}
 
 	ret = xc_SetSignalSource(priv, priv->rf_mode);
 	if (ret != XC_RESULT_SUCCESS) {
@@ -1325,11 +1335,6 @@ static int xc4000_set_analog_params(struct dvb_frontend *fe,
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
 		__func__, params->frequency);
 
-	/* FIXME: setup proper parameters */
-	if (check_firmware(fe, DTV8, 0, priv->if_khz) != XC_RESULT_SUCCESS) {
-		return -EREMOTEIO;
-	}
-
 	/* Fix me: it could be air. */
 	priv->rf_mode = params->mode;
 	if (params->mode > XC_RF_MODE_CABLE)
@@ -1343,45 +1348,51 @@ static int xc4000_set_analog_params(struct dvb_frontend *fe,
 	 */
 	if (params->std & V4L2_STD_MN) {
 		/* default to BTSC audio standard */
-		priv->video_standard = MN_NTSC_PAL_BTSC;
+		priv->video_standard = XC4000_MN_NTSC_PAL_BTSC;
 		goto tune_channel;
 	}
 
 	if (params->std & V4L2_STD_PAL_BG) {
 		/* default to NICAM audio standard */
-		priv->video_standard = BG_PAL_NICAM;
+		priv->video_standard = XC4000_BG_PAL_NICAM;
 		goto tune_channel;
 	}
 
 	if (params->std & V4L2_STD_PAL_I) {
 		/* default to NICAM audio standard */
-		priv->video_standard = I_PAL_NICAM;
+		priv->video_standard = XC4000_I_PAL_NICAM;
 		goto tune_channel;
 	}
 
 	if (params->std & V4L2_STD_PAL_DK) {
 		/* default to NICAM audio standard */
-		priv->video_standard = DK_PAL_NICAM;
+		priv->video_standard = XC4000_DK_PAL_NICAM;
 		goto tune_channel;
 	}
 
 	if (params->std & V4L2_STD_SECAM_DK) {
 		/* default to A2 DK1 audio standard */
-		priv->video_standard = DK_SECAM_A2DK1;
+		priv->video_standard = XC4000_DK_SECAM_A2DK1;
 		goto tune_channel;
 	}
 
 	if (params->std & V4L2_STD_SECAM_L) {
-		priv->video_standard = L_SECAM_NICAM;
+		priv->video_standard = XC4000_L_SECAM_NICAM;
 		goto tune_channel;
 	}
 
 	if (params->std & V4L2_STD_SECAM_LC) {
-		priv->video_standard = LC_SECAM_NICAM;
+		priv->video_standard = XC4000_LC_SECAM_NICAM;
 		goto tune_channel;
 	}
 
 tune_channel:
+
+	/* FIXME - firmware type not being set properly */
+	if (check_firmware(fe, DTV8, 0, priv->if_khz) != XC_RESULT_SUCCESS) {
+		return -EREMOTEIO;
+	}
+
 	ret = xc_SetSignalSource(priv, priv->rf_mode);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR
