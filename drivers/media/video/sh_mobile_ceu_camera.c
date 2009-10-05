@@ -236,26 +236,45 @@ static void free_buffer(struct videobuf_queue *vq,
 #define CEU_CETCR_MAGIC 0x0317f313 /* acknowledge magical interrupt sources */
 #define CEU_CETCR_IGRW (1 << 4) /* prohibited register access interrupt bit */
 #define CEU_CEIER_CPEIE (1 << 0) /* one-frame capture end interrupt */
+#define CEU_CEIER_VBP   (1 << 20) /* vbp error */
 #define CEU_CAPCR_CTNCP (1 << 16) /* continuous capture mode (if set) */
+#define CEU_CEIER_MASK (CEU_CEIER_CPEIE | CEU_CEIER_VBP)
 
 
-static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
+/*
+ * return value doesn't reflex the success/failure to queue the new buffer,
+ * but rather the status of the previous buffer.
+ */
+static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 {
 	struct soc_camera_device *icd = pcdev->icd;
 	dma_addr_t phys_addr_top, phys_addr_bottom;
+	u32 status;
+	int ret = 0;
 
 	/* The hardware is _very_ picky about this sequence. Especially
 	 * the CEU_CETCR_MAGIC value. It seems like we need to acknowledge
 	 * several not-so-well documented interrupt sources in CETCR.
 	 */
-	ceu_write(pcdev, CEIER, ceu_read(pcdev, CEIER) & ~CEU_CEIER_CPEIE);
-	ceu_write(pcdev, CETCR, ~ceu_read(pcdev, CETCR) & CEU_CETCR_MAGIC);
-	ceu_write(pcdev, CEIER, ceu_read(pcdev, CEIER) | CEU_CEIER_CPEIE);
+	ceu_write(pcdev, CEIER, ceu_read(pcdev, CEIER) & ~CEU_CEIER_MASK);
+	status = ceu_read(pcdev, CETCR);
+	ceu_write(pcdev, CETCR, ~status & CEU_CETCR_MAGIC);
+	ceu_write(pcdev, CEIER, ceu_read(pcdev, CEIER) | CEU_CEIER_MASK);
 	ceu_write(pcdev, CAPCR, ceu_read(pcdev, CAPCR) & ~CEU_CAPCR_CTNCP);
 	ceu_write(pcdev, CETCR, CEU_CETCR_MAGIC ^ CEU_CETCR_IGRW);
 
+	/*
+	 * When a VBP interrupt occurs, a capture end interrupt does not occur
+	 * and the image of that frame is not captured correctly. So, soft reset
+	 * is needed here.
+	 */
+	if (status & CEU_CEIER_VBP) {
+		sh_mobile_ceu_soft_reset(pcdev);
+		ret = -EIO;
+	}
+
 	if (!pcdev->active)
-		return;
+		return ret;
 
 	phys_addr_top = videobuf_to_dma_contig(pcdev->active);
 	ceu_write(pcdev, CDAYR, phys_addr_top);
@@ -281,6 +300,8 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 
 	pcdev->active->state = VIDEOBUF_ACTIVE;
 	ceu_write(pcdev, CAPSR, 0x1); /* start capture */
+
+	return ret;
 }
 
 static int sh_mobile_ceu_videobuf_prepare(struct videobuf_queue *vq,
@@ -353,6 +374,11 @@ static void sh_mobile_ceu_videobuf_queue(struct videobuf_queue *vq,
 	list_add_tail(&vb->queue, &pcdev->capture);
 
 	if (!pcdev->active) {
+		/*
+		 * Because there were no active buffer at this moment,
+		 * we are not interested in the return value of
+		 * sh_mobile_ceu_capture here.
+		 */
 		pcdev->active = vb;
 		sh_mobile_ceu_capture(pcdev);
 	}
@@ -413,9 +439,8 @@ static irqreturn_t sh_mobile_ceu_irq(int irq, void *data)
 	else
 		pcdev->active = NULL;
 
-	sh_mobile_ceu_capture(pcdev);
-
-	vb->state = VIDEOBUF_DONE;
+	vb->state = (sh_mobile_ceu_capture(pcdev) < 0) ?
+		VIDEOBUF_ERROR : VIDEOBUF_DONE;
 	do_gettimeofday(&vb->ts);
 	vb->field_count++;
 	wake_up(&vb->done);
