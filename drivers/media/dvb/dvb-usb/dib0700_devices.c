@@ -2735,13 +2735,53 @@ static struct dibx000_agc_config stk7700p_7000p_xc4000_agc_config = {
 	.perform_agc_softsplit = 0x00,
 };
 
+/* validation:
+   reg 900 (0x0384) = 0x0e60
+   reg 903 (0x0387) = 0x0027
+   reg 18 (0x0012) = 0x0321
+   reg 19 (0x0013) = 0x1620
+   reg 21 (0x0015) = 0x0265
+   reg 22 (0x0016) =  0x6cbd
+   reg 23 (0x0017) = 0x0138
+   reg 24 (0x0018) = 0x1381
+   reg 72 (0x0048) = 0xd257
+   internal = 52500
+   sampling = never seems to be used?
+   pll_prediv = 1
+   pll_ratio = 7
+   pll_range = 3
+   pll_reset = 1
+   pll_bypass = 0
+   enable_refdiv = 0
+   bypclk_div = 0
+   IO_CLK_en_core = 1
+   ADClkSrc = 1
+   modulo = 0
+   sad_cfg: = 0xd257
+	    refsel = (3 << 14)
+	    sel = (1 << 12)
+	    freq_15k = (599 << 0)
+   ifreq = 40201405
+   timf = ? (need lock to compute)
+   xtal_hz = ? (val dependent on exact tuning freq)
+ */
+static struct dibx000_bandwidth_config stk7700p_xc4000_pll_config = {
+	52500, 30000, // internal, sampling
+	1, 7, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
+	0, 0, 1, 1, 0, // misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc, modulo
+	(3 << 14) | (1 << 12) | (599 << 0), // sad_cfg: refsel, sel, freq_15k
+	40201405, // ifreq
+	20452225, // timf
+	30000000, // xtal
+};
+
 /* FIXME: none of these inputs are validated yet */
 static struct dib7000p_config pctv_340e_config = {
 	.output_mpeg2_in_188_bytes = 1, // validated L3317: 0x00eb=0x0066
 
 	.agc_config_count = 1,
 	.agc = &stk7700p_7000p_xc4000_agc_config,
-	.bw  = &stk7700p_pll_config,
+	.bw  = &stk7700p_xc4000_pll_config,
 
 	.gpio_dir = DIB7000M_GPIO_DEFAULT_DIRECTIONS,
 	.gpio_val = DIB7000M_GPIO_DEFAULT_VALUES,
