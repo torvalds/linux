@@ -1030,14 +1030,10 @@ void __perf_event_sched_out(struct perf_event_context *ctx,
 	update_context_time(ctx);
 
 	perf_disable();
-	if (ctx->nr_active) {
-		list_for_each_entry(event, &ctx->group_list, group_entry) {
-			if (event != event->group_leader)
-				event_sched_out(event, cpuctx, ctx);
-			else
-				group_sched_out(event, cpuctx, ctx);
-		}
-	}
+	if (ctx->nr_active)
+		list_for_each_entry(event, &ctx->group_list, group_entry)
+			group_sched_out(event, cpuctx, ctx);
+
 	perf_enable();
  out:
 	spin_unlock(&ctx->lock);
@@ -1258,12 +1254,8 @@ __perf_event_sched_in(struct perf_event_context *ctx,
 		if (event->cpu != -1 && event->cpu != cpu)
 			continue;
 
-		if (event != event->group_leader)
-			event_sched_in(event, cpuctx, ctx, cpu);
-		else {
-			if (group_can_go_on(event, cpuctx, 1))
-				group_sched_in(event, cpuctx, ctx, cpu);
-		}
+		if (group_can_go_on(event, cpuctx, 1))
+			group_sched_in(event, cpuctx, ctx, cpu);
 
 		/*
 		 * If this pinned group hasn't been scheduled,
@@ -1291,15 +1283,9 @@ __perf_event_sched_in(struct perf_event_context *ctx,
 		if (event->cpu != -1 && event->cpu != cpu)
 			continue;
 
-		if (event != event->group_leader) {
-			if (event_sched_in(event, cpuctx, ctx, cpu))
+		if (group_can_go_on(event, cpuctx, can_add_hw))
+			if (group_sched_in(event, cpuctx, ctx, cpu))
 				can_add_hw = 0;
-		} else {
-			if (group_can_go_on(event, cpuctx, can_add_hw)) {
-				if (group_sched_in(event, cpuctx, ctx, cpu))
-					can_add_hw = 0;
-			}
-		}
 	}
 	perf_enable();
  out:
@@ -4781,9 +4767,7 @@ int perf_event_init_task(struct task_struct *child)
 	 * We dont have to disable NMIs - we are only looking at
 	 * the list, not manipulating it:
 	 */
-	list_for_each_entry_rcu(event, &parent_ctx->event_list, event_entry) {
-		if (event != event->group_leader)
-			continue;
+	list_for_each_entry(event, &parent_ctx->group_list, group_entry) {
 
 		if (!event->attr.inherit) {
 			inherited_all = 0;
