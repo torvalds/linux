@@ -804,10 +804,8 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 
 static int parse_symbols(void)
 {
-	int use_modules = vmlinux_name ? 1 : 0;
-
 	if (dsos__load_kernel(vmlinux_name, sizeof(struct sym_entry),
-			      symbol_filter, verbose, use_modules) <= 0)
+			      symbol_filter, verbose, 1) <= 0)
 		return -1;
 
 	if (dump_symtab)
