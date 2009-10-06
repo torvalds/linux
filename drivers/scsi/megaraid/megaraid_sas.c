@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_sas.c
- * Version     : v00.00.04.01-rc1
+ * Version     : v00.00.04.12-rc1
  *
  * Authors:
  *	(email-id : megaraidlinux@lsi.com)
