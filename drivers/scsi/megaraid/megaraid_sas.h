@@ -1120,6 +1120,7 @@ struct megasas_instance {
 	struct tasklet_struct isr_tasklet;
 
 	u8 flag;
+	u8 unload;
 	unsigned long last_time;
 
 	struct timer_list io_completion_timer;
