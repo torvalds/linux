@@ -80,30 +80,9 @@ static struct resource h3xxx_flash_resource = {
 	.flags		= IORESOURCE_MEM,
 };
 
-/*
- * This turns the IRDA power on or off on the Compaq H3600
- */
-static int h3600_irda_set_power(struct device *dev, unsigned int state)
-{
-	assign_h3600_egpio( IPAQ_EGPIO_IR_ON, state );
-
-	return 0;
-}
-
-static void h3600_irda_set_speed(struct device *dev, unsigned int speed)
-{
-	assign_h3600_egpio(IPAQ_EGPIO_IR_FSEL, !(speed < 4000000));
-}
-
-static struct irda_platform_data h3600_irda_data = {
-	.set_power	= h3600_irda_set_power,
-	.set_speed	= h3600_irda_set_speed,
-};
-
 static void h3xxx_mach_init(void)
 {
 	sa11x0_register_mtd(&h3xxx_flash_data, &h3xxx_flash_resource, 1);
-	sa11x0_register_irda(&h3600_irda_data);
 }
 
 /*
@@ -321,9 +300,30 @@ static void __init h3100_map_io(void)
 	assign_h3600_egpio = h3100_control_egpio;
 }
 
+/*
+ * This turns the IRDA power on or off on the Compaq H3100
+ */
+static int h3100_irda_set_power(struct device *dev, unsigned int state)
+{
+	assign_h3100_egpio(IPAQ_EGPIO_IR_ON, state);
+
+	return 0;
+}
+
+static void h3100_irda_set_speed(struct device *dev, unsigned int speed)
+{
+	assign_h3100_egpio(IPAQ_EGPIO_IR_FSEL, !(speed < 4000000));
+}
+
+static struct irda_platform_data h3100_irda_data = {
+	.set_power	= h3100_irda_set_power,
+	.set_speed	= h3100_irda_set_speed,
+};
+
 static void h3100_mach_init(void)
 {
 	h3xxx_mach_init();
+	sa11x0_register_irda(&h3100_irda_data);
 }
 
 MACHINE_START(H3100, "Compaq iPAQ H3100")
@@ -423,9 +423,29 @@ static void __init h3600_map_io(void)
 	assign_h3600_egpio = h3600_control_egpio;
 }
 
+/*
+ * This turns the IRDA power on or off on the Compaq H3600
+ */
+static int h3600_irda_set_power(struct device *dev, unsigned int state)
+{
+	assign_h3600_egpio(IPAQ_EGPIO_IR_ON, state);
+	return 0;
+}
+
+static void h3600_irda_set_speed(struct device *dev, unsigned int speed)
+{
+	assign_h3600_egpio(IPAQ_EGPIO_IR_FSEL, !(speed < 4000000));
+}
+
+static struct irda_platform_data h3600_irda_data = {
+	.set_power	= h3600_irda_set_power,
+	.set_speed	= h3600_irda_set_speed,
+};
+
 static void h3600_mach_init(void)
 {
 	h3xxx_mach_init();
+	sa11x0_register_irda(&h3600_irda_data);
 }
 
 MACHINE_START(H3600, "Compaq iPAQ H3600")
