@@ -226,7 +226,10 @@ megasas_clear_intr_xscale(struct megasas_register_set __iomem * regs)
  * @regs :			MFI register set
  */
 static inline void 
-megasas_fire_cmd_xscale(dma_addr_t frame_phys_addr,u32 frame_count, struct megasas_register_set __iomem *regs)
+megasas_fire_cmd_xscale(struct megasas_instance *instance,
+		dma_addr_t frame_phys_addr,
+		u32 frame_count,
+		struct megasas_register_set __iomem *regs)
 {
 	writel((frame_phys_addr >> 3)|(frame_count),
 	       &(regs)->inbound_queue_port);
@@ -323,7 +326,10 @@ megasas_clear_intr_ppc(struct megasas_register_set __iomem * regs)
  * @regs :			MFI register set
  */
 static inline void 
-megasas_fire_cmd_ppc(dma_addr_t frame_phys_addr, u32 frame_count, struct megasas_register_set __iomem *regs)
+megasas_fire_cmd_ppc(struct megasas_instance *instance,
+		dma_addr_t frame_phys_addr,
+		u32 frame_count,
+		struct megasas_register_set __iomem *regs)
 {
 	writel((frame_phys_addr | (frame_count<<1))|1, 
 			&(regs)->inbound_queue_port);
@@ -413,12 +419,17 @@ megasas_clear_intr_skinny(struct megasas_register_set __iomem *regs)
  * @regs :			MFI register set
  */
 static inline void
-megasas_fire_cmd_skinny(dma_addr_t frame_phys_addr, u32 frame_count,
+megasas_fire_cmd_skinny(struct megasas_instance *instance,
+			dma_addr_t frame_phys_addr,
+			u32 frame_count,
 			struct megasas_register_set __iomem *regs)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&instance->fire_lock, flags);
 	writel(0, &(regs)->inbound_high_queue_port);
 	writel((frame_phys_addr | (frame_count<<1))|1,
 		&(regs)->inbound_low_queue_port);
+	spin_unlock_irqrestore(&instance->fire_lock, flags);
 }
 
 static struct megasas_instance_template megasas_instance_template_skinny = {
@@ -508,7 +519,9 @@ megasas_clear_intr_gen2(struct megasas_register_set __iomem *regs)
  * @regs :                     MFI register set
  */
 static inline void
-megasas_fire_cmd_gen2(dma_addr_t frame_phys_addr, u32 frame_count,
+megasas_fire_cmd_gen2(struct megasas_instance *instance,
+			dma_addr_t frame_phys_addr,
+			u32 frame_count,
 			struct megasas_register_set __iomem *regs)
 {
 	writel((frame_phys_addr | (frame_count<<1))|1,
@@ -550,7 +563,8 @@ megasas_issue_polled(struct megasas_instance *instance, struct megasas_cmd *cmd)
 	/*
 	 * Issue the frame using inbound queue port
 	 */
-	instance->instancet->fire_cmd(cmd->frame_phys_addr ,0,instance->reg_set);
+	instance->instancet->fire_cmd(instance,
+			cmd->frame_phys_addr, 0, instance->reg_set);
 
 	/*
 	 * Wait for cmd_status to change
@@ -581,7 +595,8 @@ megasas_issue_blocked_cmd(struct megasas_instance *instance,
 {
 	cmd->cmd_status = ENODATA;
 
-	instance->instancet->fire_cmd(cmd->frame_phys_addr ,0,instance->reg_set);
+	instance->instancet->fire_cmd(instance,
+			cmd->frame_phys_addr, 0, instance->reg_set);
 
 	wait_event_timeout(instance->int_cmd_wait_q, (cmd->cmd_status != ENODATA),
 		MEGASAS_INTERNAL_CMD_WAIT_TIME*HZ);
@@ -626,7 +641,8 @@ megasas_issue_blocked_abort_cmd(struct megasas_instance *instance,
 	cmd->sync_cmd = 1;
 	cmd->cmd_status = 0xFF;
 
-	instance->instancet->fire_cmd(cmd->frame_phys_addr ,0,instance->reg_set);
+	instance->instancet->fire_cmd(instance,
+			cmd->frame_phys_addr, 0, instance->reg_set);
 
 	/*
 	 * Wait for this cmd to complete
@@ -1153,7 +1169,8 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 	 */
 	atomic_inc(&instance->fw_outstanding);
 
-	instance->instancet->fire_cmd(cmd->frame_phys_addr ,cmd->frame_count-1,instance->reg_set);
+	instance->instancet->fire_cmd(instance, cmd->frame_phys_addr,
+				cmd->frame_count-1, instance->reg_set);
 	/*
 	 * Check if we have pend cmds to be completed
 	 */
@@ -1346,8 +1363,16 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 		* Send signal to FW to stop processing any pending cmds.
 		* The controller will be taken offline by the OS now.
 		*/
-		writel(MFI_STOP_ADP,
+		if ((instance->pdev->device ==
+			PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+			(instance->pdev->device ==
+			PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+			writel(MFI_STOP_ADP,
+				&instance->reg_set->reserved_0[0]);
+		} else {
+			writel(MFI_STOP_ADP,
 				&instance->reg_set->inbound_doorbell);
+		}
 		megasas_dump_pending_frames(instance);
 		instance->hw_crit_error = 1;
 		return FAILED;
@@ -1799,7 +1824,7 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 			/*
 			 * Set the CLR bit in inbound doorbell
 			 */
-			if ((instance->pdev->device == \
+			if ((instance->pdev->device ==
 				PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
 				(instance->pdev->device ==
 				PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
@@ -2799,7 +2824,8 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 	/*
 	 * Issue the aen registration frame
 	 */
-	instance->instancet->fire_cmd(cmd->frame_phys_addr ,0,instance->reg_set);
+	instance->instancet->fire_cmd(instance,
+			cmd->frame_phys_addr, 0, instance->reg_set);
 
 	return 0;
 }
@@ -2983,6 +3009,7 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_waitqueue_head(&instance->abort_cmd_wait_q);
 
 	spin_lock_init(&instance->cmd_pool_lock);
+	spin_lock_init(&instance->fire_lock);
 	spin_lock_init(&instance->completion_lock);
 	spin_lock_init(&poll_aen_lock);
 
@@ -3005,7 +3032,7 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	megasas_dbg_lvl = 0;
 	instance->flag = 0;
-	instance->unload = 0;
+	instance->unload = 1;
 	instance->last_time = 0;
 
 	/*
@@ -3051,6 +3078,7 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (megasas_io_attach(instance))
 		goto fail_io_attach;
 
+	instance->unload = 0;
 	return 0;
 
       fail_start_aen:
@@ -3174,6 +3202,7 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	instance = pci_get_drvdata(pdev);
 	host = instance->host;
+	instance->unload = 1;
 
 	if (poll_mode_io)
 		del_timer_sync(&instance->io_completion_timer);
@@ -3269,6 +3298,8 @@ megasas_resume(struct pci_dev *pdev)
 		megasas_start_timer(instance, &instance->io_completion_timer,
 				megasas_io_completion_timer,
 				MEGASAS_COMPLETION_TIMER_INTERVAL);
+	instance->unload = 0;
+
 	return 0;
 
 fail_irq:
@@ -3366,6 +3397,7 @@ static void __devexit megasas_detach_one(struct pci_dev *pdev)
 static void megasas_shutdown(struct pci_dev *pdev)
 {
 	struct megasas_instance *instance = pci_get_drvdata(pdev);
+	instance->unload = 1;
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
 }
@@ -3615,6 +3647,17 @@ static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
 		goto out_kfree_ioc;
 	}
 
+	if (instance->hw_crit_error == 1) {
+		printk(KERN_DEBUG "Controller in Crit ERROR\n");
+		error = -ENODEV;
+		goto out_kfree_ioc;
+	}
+
+	if (instance->unload == 1) {
+		error = -ENODEV;
+		goto out_kfree_ioc;
+	}
+
 	/*
 	 * We will allow only MEGASAS_INT_CMDS number of parallel ioctl cmds
 	 */
@@ -3649,6 +3692,14 @@ static int megasas_mgmt_ioctl_aen(struct file *file, unsigned long arg)
 
 	if (!instance)
 		return -ENODEV;
+
+	if (instance->hw_crit_error == 1) {
+		error = -ENODEV;
+	}
+
+	if (instance->unload == 1) {
+		return -ENODEV;
+	}
 
 	mutex_lock(&instance->aen_mutex);
 	error = megasas_register_aen(instance, aen.seq_num,
