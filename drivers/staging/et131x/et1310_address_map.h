@@ -1389,19 +1389,8 @@ typedef struct _RXMAC_t {				/* Location: */
 /*
  * structure for Test reg in mac address map.
  * located at address 0x501C
+ * test: bits 0-2, rest unused
  */
-typedef union _MAC_TEST_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:29;	/* bits 3-31 */
-		u32 mac_test:3;	/* bits 0-2 */
-#else
-		u32 mac_test:3;	/* bits 0-2 */
-		u32 unused:29;	/* bits 3-31 */
-#endif
-	} bits;
-} MAC_TEST_t, *PMAC_TEST_t;
 
 /*
  * structure for MII Management Configuration reg in mac address map.
@@ -1643,7 +1632,7 @@ typedef struct _MAC_t {					/* Location: */
 	u32 max_fm_len;					/*  0x5010 */
 	u32 rsv1;					/*  0x5014 */
 	u32 rsv2;					/*  0x5018 */
-	MAC_TEST_t mac_test;				/*  0x501C */
+	u32 mac_test;					/*  0x501C */
 	u32 mii_mgmt_cfg;				/*  0x5020 */
 	MII_MGMT_CMD_t mii_mgmt_cmd;			/*  0x5024 */
 	MII_MGMT_ADDR_t mii_mgmt_addr;			/*  0x5028 */
