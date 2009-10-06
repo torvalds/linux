@@ -947,7 +947,7 @@ static void init_input(struct hda_codec *codec)
 		coef |= 0x0500; /* DMIC2 enable 2 channels, disable GPIO1 */
 	if (is_active_pin(codec, CS_DMIC1_PIN_NID))
 		coef |= 0x1800; /* DMIC1 enable 2 channels, disable GPIO0 
-				 * No effect if SPDIF_OUT2 is slected in 
+				 * No effect if SPDIF_OUT2 is selected in 
 				 * IDX_SPDIF_CTL.
 				  */
 	cs_vendor_coef_set(codec, IDX_ADC_CFG, coef);

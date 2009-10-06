@@ -247,7 +247,7 @@
 
 /* COM5 */
 #define AFR_ON_OFF      0x80	/* Auto frame rate control ON/OFF selection */
-#define AFR_SPPED       0x40	/* Auto frame rate control speed slection */
+#define AFR_SPPED       0x40	/* Auto frame rate control speed selection */
 				/* Auto frame rate max rate control */
 #define AFR_NO_RATE     0x00	/*     No  reduction of frame rate */
 #define AFR_1p2         0x10	/*     Max reduction to 1/2 frame rate */
