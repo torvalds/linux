@@ -321,6 +321,11 @@ static void __init h3100_map_io(void)
 	assign_h3600_egpio = h3100_control_egpio;
 }
 
+static void h3100_mach_init(void)
+{
+	h3xxx_mach_init();
+}
+
 MACHINE_START(H3100, "Compaq iPAQ H3100")
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
@@ -328,7 +333,7 @@ MACHINE_START(H3100, "Compaq iPAQ H3100")
 	.map_io		= h3100_map_io,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
-	.init_machine	= h3xxx_mach_init,
+	.init_machine	= h3100_mach_init,
 MACHINE_END
 
 #endif /* CONFIG_SA1100_H3100 */
@@ -418,6 +423,11 @@ static void __init h3600_map_io(void)
 	assign_h3600_egpio = h3600_control_egpio;
 }
 
+static void h3600_mach_init(void)
+{
+	h3xxx_mach_init();
+}
+
 MACHINE_START(H3600, "Compaq iPAQ H3600")
 	.phys_io	= 0x80000000,
 	.io_pg_offst	= ((0xf8000000) >> 18) & 0xfffc,
@@ -425,7 +435,7 @@ MACHINE_START(H3600, "Compaq iPAQ H3600")
 	.map_io		= h3600_map_io,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
-	.init_machine	= h3xxx_mach_init,
+	.init_machine	= h3600_mach_init,
 MACHINE_END
 
 #endif /* CONFIG_SA1100_H3600 */
