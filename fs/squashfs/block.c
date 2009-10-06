@@ -36,6 +36,7 @@
 #include "squashfs_fs_sb.h"
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
+#include "decompressor.h"
 
 /*
  * Read the metadata block length, this is stored in the first two
@@ -151,7 +152,7 @@ int squashfs_read_data(struct super_block *sb, void **buffer, u64 index,
 	}
 
 	if (compressed) {
-		length = squashfs_zlib_uncompress(msblk, buffer, bh, b, offset,
+		length = squashfs_decompress(msblk, buffer, bh, b, offset,
 			 length, srclength, pages);
 		if (length < 0)
 			goto read_failure;

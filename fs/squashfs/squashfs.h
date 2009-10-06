@@ -51,6 +51,9 @@ extern struct squashfs_cache_entry *squashfs_get_datablock(struct super_block *,
 				u64, int);
 extern int squashfs_read_table(struct super_block *, void *, u64, int);
 
+/* decompressor.c */
+extern const struct squashfs_decompressor *squashfs_lookup_decompressor(int);
+
 /* export.c */
 extern __le64 *squashfs_read_inode_lookup_table(struct super_block *, u64,
 				unsigned int);
@@ -70,14 +73,8 @@ extern struct inode *squashfs_iget(struct super_block *, long long,
 				unsigned int);
 extern int squashfs_read_inode(struct inode *, long long);
 
-/* zlib_wrapper.c */
-extern void *squashfs_zlib_init(void);
-extern void squashfs_zlib_free(void *);
-extern int squashfs_zlib_uncompress(struct squashfs_sb_info *, void **,
-				struct buffer_head **, int, int, int, int, int);
-
 /*
- * Inodes and files operations
+ * Inodes, files and decompressor operations
  */
 
 /* dir.c */
@@ -94,3 +91,6 @@ extern const struct inode_operations squashfs_dir_inode_ops;
 
 /* symlink.c */
 extern const struct address_space_operations squashfs_symlink_aops;
+
+/* zlib_wrapper.c */
+extern const struct squashfs_decompressor squashfs_zlib_comp_ops;

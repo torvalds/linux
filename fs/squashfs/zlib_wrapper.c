@@ -30,8 +30,9 @@
 #include "squashfs_fs_sb.h"
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
+#include "decompressor.h"
 
-void *squashfs_zlib_init()
+static void *zlib_init(struct squashfs_sb_info *dummy)
 {
 	z_stream *stream = kmalloc(sizeof(z_stream), GFP_KERNEL);
 	if (stream == NULL)
@@ -50,7 +51,7 @@ failed:
 }
 
 
-void squashfs_zlib_free(void *strm)
+static void zlib_free(void *strm)
 {
 	z_stream *stream = strm;
 
@@ -60,7 +61,7 @@ void squashfs_zlib_free(void *strm)
 }
 
 
-int squashfs_zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
+static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 	struct buffer_head **bh, int b, int offset, int length, int srclength,
 	int pages)
 {
@@ -137,3 +138,13 @@ release_mutex:
 
 	return -EIO;
 }
+
+const struct squashfs_decompressor squashfs_zlib_comp_ops = {
+	.init = zlib_init,
+	.free = zlib_free,
+	.decompress = zlib_uncompress,
+	.id = ZLIB_COMPRESSION,
+	.name = "zlib",
+	.supported = 1
+};
+
