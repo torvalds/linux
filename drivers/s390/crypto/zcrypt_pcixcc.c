@@ -361,7 +361,7 @@ static void rng_type6CPRB_msgX(struct ap_device *ap_dev,
 		.ToCardLen1	= sizeof *msg - sizeof(msg->hdr),
 		.FromCardLen1	= sizeof *msg - sizeof(msg->hdr),
 	};
-	static struct CPRBX static_cprbx = {
+	static struct CPRBX local_cprbx = {
 		.cprb_len	= 0x00dc,
 		.cprb_ver_id	= 0x02,
 		.func_id	= {0x54, 0x32},
@@ -372,7 +372,7 @@ static void rng_type6CPRB_msgX(struct ap_device *ap_dev,
 
 	msg->hdr = static_type6_hdrX;
 	msg->hdr.FromCardLen2 = random_number_length,
-	msg->cprbx = static_cprbx;
+	msg->cprbx = local_cprbx;
 	msg->cprbx.rpl_datal = random_number_length,
 	msg->cprbx.domain = AP_QID_QUEUE(ap_dev->qid);
 	memcpy(msg->function_code, msg->hdr.function_code, 0x02);
