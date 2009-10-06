@@ -555,7 +555,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	spin_lock_init(&etdev->TCBSendQLock);
 	spin_lock_init(&etdev->TCBReadyQLock);
 	spin_lock_init(&etdev->SendHWLock);
-	spin_lock_init(&etdev->SendWaitLock);
 	spin_lock_init(&etdev->RcvLock);
 	spin_lock_init(&etdev->RcvPendLock);
 	spin_lock_init(&etdev->FbrLock);

@@ -203,7 +203,6 @@ struct et131x_adapter {
 	spinlock_t TCBSendQLock;
 	spinlock_t TCBReadyQLock;
 	spinlock_t SendHWLock;
-	spinlock_t SendWaitLock;
 
 	spinlock_t RcvLock;
 	spinlock_t RcvPendLock;

@@ -155,10 +155,6 @@ struct tx_ring {
 	struct tcb *CurrSendTail;
 	int nBusySend;
 
-	/* List of packets (not TCBs) that were queued for lack of resources */
-	struct list_head SendWaitQueue;
-	int nWaitSend;
-
 	/* The actual descriptor ring */
 	struct tx_desc *tx_desc_ring;
 	dma_addr_t tx_desc_ring_pa;

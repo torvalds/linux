@@ -95,7 +95,6 @@
 
 
 static void et131x_update_tcb_list(struct et131x_adapter *etdev);
-static void et131x_check_send_wait_list(struct et131x_adapter *etdev);
 static inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 					   struct tcb *tcb);
 static int et131x_send_packet(struct sk_buff *skb,
@@ -310,8 +309,6 @@ void et131x_init_send(struct et131x_adapter *adapter)
 	/* Curr send queue should now be empty */
 	tx_ring->CurrSendHead = NULL;
 	tx_ring->CurrSendTail = NULL;
-
-	INIT_LIST_HEAD(&adapter->tx_ring.SendWaitQueue);
 }
 
 /**
@@ -334,9 +331,8 @@ int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 	 * to Tx, so the PacketCount and it's array used makes no sense here
 	 */
 
-	/* Queue is not empty or TCB is not available */
-	if (!list_empty(&etdev->tx_ring.SendWaitQueue) ||
-	    MP_TCB_RESOURCES_NOT_AVAILABLE(etdev)) {
+	/* TCB is not available */
+	if (MP_TCB_RESOURCES_NOT_AVAILABLE(etdev)) {
 		/* NOTE: If there's an error on send, no need to queue the
 		 * packet under Linux; if we just send an error up to the
 		 * netif layer, it will resend the skb to us.
@@ -392,7 +388,7 @@ static int et131x_send_packet(struct sk_buff *skb,
 {
 	int status = 0;
 	struct tcb *tcb = NULL;
-	uint16_t *shbufva;
+	u16 *shbufva;
 	unsigned long flags;
 
 	/* All packets must have at least a MAC address and a protocol type */
@@ -420,7 +416,7 @@ static int et131x_send_packet(struct sk_buff *skb,
 	tcb->Packet = skb;
 
 	if ((skb->data != NULL) && ((skb->len - skb->data_len) >= 6)) {
-		shbufva = (uint16_t *) skb->data;
+		shbufva = (u16 *) skb->data;
 
 		if ((shbufva[0] == 0xffff) &&
 		    (shbufva[1] == 0xffff) && (shbufva[2] == 0xffff)) {
@@ -755,17 +751,6 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 	unsigned long flags;
 	u32 freed = 0;
 
-	while (!list_empty(&etdev->tx_ring.SendWaitQueue)) {
-		spin_lock_irqsave(&etdev->SendWaitLock, flags);
-
-		etdev->tx_ring.nWaitSend--;
-		spin_unlock_irqrestore(&etdev->SendWaitLock, flags);
-
-		entry = etdev->tx_ring.SendWaitQueue.next;
-	}
-
-	etdev->tx_ring.nWaitSend = 0;
-
 	/* Any packets being sent? Check the first TCB on the send list */
 	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
@@ -811,11 +796,6 @@ void et131x_handle_send_interrupt(struct et131x_adapter *etdev)
 {
 	/* Mark as completed any packets which have been sent by the device. */
 	et131x_update_tcb_list(etdev);
-
-	/* If we queued any transmits because we didn't have any TCBs earlier,
-	 * dequeue and send those packets now, as long as we have free TCBs.
-	 */
-	et131x_check_send_wait_list(etdev);
 }
 
 /**
@@ -881,27 +861,3 @@ static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 	spin_unlock_irqrestore(&etdev->TCBSendQLock, flags);
 }
 
-/**
- * et131x_check_send_wait_list - Helper routine for the interrupt handler
- * @etdev: pointer to our adapter
- *
- * Takes packets from the send wait queue and posts them to the device (if
- * room available).
- */
-static void et131x_check_send_wait_list(struct et131x_adapter *etdev)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&etdev->SendWaitLock, flags);
-
-	while (!list_empty(&etdev->tx_ring.SendWaitQueue) &&
-				MP_TCB_RESOURCES_AVAILABLE(etdev)) {
-		struct list_head *entry;
-
-		entry = etdev->tx_ring.SendWaitQueue.next;
-
-		etdev->tx_ring.nWaitSend--;
-	}
-
-	spin_unlock_irqrestore(&etdev->SendWaitLock, flags);
-}
