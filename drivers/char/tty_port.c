@@ -199,7 +199,7 @@ EXPORT_SYMBOL(tty_port_lower_dtr_rts);
  *	management of these lines. Note that the dtr/rts raise is done each
  *	iteration as a hangup may have previously dropped them while we wait.
  */
- 
+
 int tty_port_block_til_ready(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp)
 {
@@ -254,7 +254,8 @@ int tty_port_block_til_ready(struct tty_port *port,
 			tty_port_raise_dtr_rts(port);
 
 		prepare_to_wait(&port->open_wait, &wait, TASK_INTERRUPTIBLE);
-		/* Check for a hangup or uninitialised port. Return accordingly */
+		/* Check for a hangup or uninitialised port.
+							Return accordingly */
 		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)) {
 			if (port->flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
@@ -286,11 +287,11 @@ int tty_port_block_til_ready(struct tty_port *port,
 		port->flags |= ASYNC_NORMAL_ACTIVE;
 	spin_unlock_irqrestore(&port->lock, flags);
 	return retval;
-	
 }
 EXPORT_SYMBOL(tty_port_block_til_ready);
 
-int tty_port_close_start(struct tty_port *port, struct tty_struct *tty, struct file *filp)
+int tty_port_close_start(struct tty_port *port,
+				struct tty_struct *tty, struct file *filp)
 {
 	unsigned long flags;
 
@@ -300,7 +301,7 @@ int tty_port_close_start(struct tty_port *port, struct tty_struct *tty, struct f
 		return 0;
 	}
 
-	if( tty->count == 1 && port->count != 1) {
+	if (tty->count == 1 && port->count != 1) {
 		printk(KERN_WARNING
 		    "tty_port_close_start: tty->count = 1 port count = %d.\n",
 								port->count);
@@ -332,8 +333,8 @@ int tty_port_close_start(struct tty_port *port, struct tty_struct *tty, struct f
 		long timeout;
 
 		if (bps > 1200)
-			timeout = max_t(long, (HZ * 10 * port->drain_delay) / bps,
-								HZ / 10);
+			timeout = max_t(long,
+				(HZ * 10 * port->drain_delay) / bps, HZ / 10);
 		else
 			timeout = 2 * HZ;
 		schedule_timeout_interruptible(timeout);
@@ -384,7 +385,7 @@ void tty_port_close(struct tty_port *port, struct tty_struct *tty,
 EXPORT_SYMBOL(tty_port_close);
 
 int tty_port_open(struct tty_port *port, struct tty_struct *tty,
-                                                        struct file *filp)
+							struct file *filp)
 {
 	spin_lock_irq(&port->lock);
 	if (!tty_hung_up_p(filp))
@@ -404,10 +405,10 @@ int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 		if (port->ops->activate) {
 			int retval = port->ops->activate(port, tty);
 			if (retval) {
-        		        mutex_unlock(&port->mutex);
-        			return retval;
-        		}
-                }
+				mutex_unlock(&port->mutex);
+				return retval;
+			}
+		}
 		set_bit(ASYNCB_INITIALIZED, &port->flags);
 	}
 	mutex_unlock(&port->mutex);
