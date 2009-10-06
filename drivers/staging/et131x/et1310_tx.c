@@ -94,7 +94,6 @@
 #include "et1310_tx.h"
 
 
-static void et131x_update_tcb_list(struct et131x_adapter *etdev);
 static inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 					   struct tcb *tcb);
 static int et131x_send_packet(struct sk_buff *skb,
@@ -230,15 +229,10 @@ void ConfigTxDmaRegs(struct et131x_adapter *etdev)
 	/* Initialise the transmit DMA engine */
 	writel(NUM_DESC_PER_RING_TX - 1, &txdma->pr_num_des.value);
 
-	/* Load the completion writeback physical address
-	 *
-	 * NOTE: pci_alloc_consistent(), used above to alloc DMA regions,
-	 * ALWAYS returns SAC (32-bit) addresses. If DAC (64-bit) addresses
-	 * are ever returned, make sure the high part is retrieved here before
-	 * storing the adjusted address.
-	 */
-	writel(0, &txdma->dma_wb_base_hi);
-	writel(etdev->tx_ring.pTxStatusPa, &txdma->dma_wb_base_lo);
+	/* Load the completion writeback physical address */
+	writel((u32)((u64)etdev->tx_ring.pTxStatusPa >> 32),
+						&txdma->dma_wb_base_hi);
+	writel((u32)etdev->tx_ring.pTxStatusPa, &txdma->dma_wb_base_lo);
 
 	memset(etdev->tx_ring.pTxStatusVa, 0, sizeof(TX_STATUS_BLOCK_t));
 
@@ -279,7 +273,7 @@ void et131x_tx_dma_enable(struct et131x_adapter *etdev)
 void et131x_init_send(struct et131x_adapter *adapter)
 {
 	struct tcb *tcb;
-	u32 count;
+	u32 ct;
 	struct tx_ring *tx_ring;
 
 	/* Setup some convenience pointers */
@@ -289,23 +283,22 @@ void et131x_init_send(struct et131x_adapter *adapter)
 	tx_ring->TCBReadyQueueHead = tcb;
 
 	/* Go through and set up each TCB */
-	for (count = 0; count < NUM_TCB; count++) {
+	for (ct = 0; ct < NUM_TCB; ct++) {
 		memset(tcb, 0, sizeof(struct tcb));
 
 		/* Set the link pointer in HW TCB to the next TCB in the
 		 * chain.  If this is the last TCB in the chain, also set the
 		 * tail pointer.
 		 */
-		if (count < NUM_TCB - 1) {
+		if (ct < NUM_TCB - 1)
 			tcb->Next = tcb + 1;
-		} else {
+		else {
 			tx_ring->TCBReadyQueueTail = tcb;
 			tcb->Next = NULL;
 		}
 
 		tcb++;
 	}
-
 	/* Curr send queue should now be empty */
 	tx_ring->CurrSendHead = NULL;
 	tx_ring->CurrSendTail = NULL;
@@ -332,7 +325,7 @@ int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 	 */
 
 	/* TCB is not available */
-	if (MP_TCB_RESOURCES_NOT_AVAILABLE(etdev)) {
+	if (etdev->tx_ring.nBusySend >= NUM_TCB) {
 		/* NOTE: If there's an error on send, no need to queue the
 		 * packet under Linux; if we just send an error up to the
 		 * netif layer, it will resend the skb to us.
@@ -342,26 +335,15 @@ int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 		/* We need to see if the link is up; if it's not, make the
 		 * netif layer think we're good and drop the packet
 		 */
-		/*
-		 * if( MP_SHOULD_FAIL_SEND( etdev ) ||
-		 *  etdev->DriverNoPhyAccess )
-		 */
-		if (MP_SHOULD_FAIL_SEND(etdev) || !netif_carrier_ok(netdev)) {
+		if ((etdev->Flags & fMP_ADAPTER_FAIL_SEND_MASK) ||
+					!netif_carrier_ok(netdev)) {
 			dev_kfree_skb_any(skb);
 			skb = NULL;
 
 			etdev->net_stats.tx_dropped++;
 		} else {
 			status = et131x_send_packet(skb, etdev);
-
-			if (status == -ENOMEM) {
-
-				/* NOTE: If there's an error on send, no need
-				 * to queue the packet under Linux; if we just
-				 * send an error up to the netif layer, it
-				 * will resend the skb to us.
-				 */
-			} else if (status != 0) {
+			if (status != 0 && status != -ENOMEM) {
 				/* On any other error, make netif think we're
 				 * OK and drop the packet
 				 */
@@ -386,7 +368,7 @@ int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 static int et131x_send_packet(struct sk_buff *skb,
 			      struct et131x_adapter *etdev)
 {
-	int status = 0;
+	int status;
 	struct tcb *tcb = NULL;
 	u16 *shbufva;
 	unsigned long flags;
@@ -429,8 +411,7 @@ static int et131x_send_packet(struct sk_buff *skb,
 	tcb->Next = NULL;
 
 	/* Call the NIC specific send handler. */
-	if (status == 0)
-		status = nic_send_packet(etdev, tcb);
+	status = nic_send_packet(etdev, tcb);
 
 	if (status != 0) {
 		spin_lock_irqsave(&etdev->TCBReadyQLock, flags);
@@ -725,12 +706,11 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 
 	etdev->Stats.opackets++;
 
-	if (etdev->tx_ring.TCBReadyQueueTail) {
+	if (etdev->tx_ring.TCBReadyQueueTail)
 		etdev->tx_ring.TCBReadyQueueTail->Next = tcb;
-	} else {
+	else
 		/* Apparently ready Q is empty. */
 		etdev->tx_ring.TCBReadyQueueHead = tcb;
-	}
 
 	etdev->tx_ring.TCBReadyQueueTail = tcb;
 
@@ -747,7 +727,6 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
 {
 	struct tcb *tcb;
-	struct list_head *entry;
 	unsigned long flags;
 	u32 freed = 0;
 
@@ -793,20 +772,6 @@ void et131x_free_busy_send_packets(struct et131x_adapter *etdev)
  * Assumption - Send spinlock has been acquired
  */
 void et131x_handle_send_interrupt(struct et131x_adapter *etdev)
-{
-	/* Mark as completed any packets which have been sent by the device. */
-	et131x_update_tcb_list(etdev);
-}
-
-/**
- * et131x_update_tcb_list - Helper routine for Send Interrupt handler
- * @etdev: pointer to our adapter
- *
- * Re-claims the send resources and completes sends.  Can also be called as
- * part of the NIC send routine when the "ServiceComplete" indication has
- * wrapped.
- */
-static void et131x_update_tcb_list(struct et131x_adapter *etdev)
 {
 	unsigned long flags;
 	u32 serviced;
