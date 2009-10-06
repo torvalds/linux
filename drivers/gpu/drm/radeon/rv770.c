@@ -75,7 +75,7 @@ int rv770_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(MC_VM_MB_L1_TLB2_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB3_CNTL, tmp);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR, rdev->mc.gtt_start >> 12);
-	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, (rdev->mc.gtt_end - 1) >> 12);
+	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, rdev->mc.gtt_end >> 12);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR, rdev->gart.table_addr >> 12);
 	WREG32(VM_CONTEXT0_CNTL, ENABLE_CONTEXT | PAGE_TABLE_DEPTH(0) |
 				RANGE_PROTECTION_FAULT_ENABLE_DEFAULT);
@@ -126,9 +126,33 @@ void rv770_pcie_gart_fini(struct radeon_device *rdev)
 }
 
 
-/*
- * MC
- */
+void rv770_agp_enable(struct radeon_device *rdev)
+{
+	u32 tmp;
+	int i;
+
+	/* Setup L2 cache */
+	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE | ENABLE_L2_FRAGMENT_PROCESSING |
+				ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
+				EFFECTIVE_L2_QUEUE_SIZE(7));
+	WREG32(VM_L2_CNTL2, 0);
+	WREG32(VM_L2_CNTL3, BANK_SELECT(0) | CACHE_UPDATE_MODE(2));
+	/* Setup TLB control */
+	tmp = ENABLE_L1_TLB | ENABLE_L1_FRAGMENT_PROCESSING |
+		SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+		SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU |
+		EFFECTIVE_L1_TLB_SIZE(5) | EFFECTIVE_L1_QUEUE_SIZE(5);
+	WREG32(MC_VM_MD_L1_TLB0_CNTL, tmp);
+	WREG32(MC_VM_MD_L1_TLB1_CNTL, tmp);
+	WREG32(MC_VM_MD_L1_TLB2_CNTL, tmp);
+	WREG32(MC_VM_MB_L1_TLB0_CNTL, tmp);
+	WREG32(MC_VM_MB_L1_TLB1_CNTL, tmp);
+	WREG32(MC_VM_MB_L1_TLB2_CNTL, tmp);
+	WREG32(MC_VM_MB_L1_TLB3_CNTL, tmp);
+	for (i = 0; i < 7; i++)
+		WREG32(VM_CONTEXT0_CNTL + (i * 4), 0);
+}
+
 static void rv770_mc_program(struct radeon_device *rdev)
 {
 	struct rv515_mc_save save;
@@ -152,17 +176,35 @@ static void rv770_mc_program(struct radeon_device *rdev)
 	/* Lockout access through VGA aperture*/
 	WREG32(VGA_HDP_CONTROL, VGA_MEMORY_DISABLE);
 	/* Update configuration */
-	WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR, rdev->mc.vram_start >> 12);
-	WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR, (rdev->mc.vram_end - 1) >> 12);
+	if (rdev->flags & RADEON_IS_AGP) {
+		if (rdev->mc.vram_start < rdev->mc.gtt_start) {
+			/* VRAM before AGP */
+			WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
+				rdev->mc.vram_start >> 12);
+			WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+				rdev->mc.gtt_end >> 12);
+		} else {
+			/* VRAM after AGP */
+			WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
+				rdev->mc.gtt_start >> 12);
+			WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+				rdev->mc.vram_end >> 12);
+		}
+	} else {
+		WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
+			rdev->mc.vram_start >> 12);
+		WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+			rdev->mc.vram_end >> 12);
+	}
 	WREG32(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR, 0);
-	tmp = (((rdev->mc.vram_end - 1) >> 24) & 0xFFFF) << 16;
+	tmp = ((rdev->mc.vram_end >> 24) & 0xFFFF) << 16;
 	tmp |= ((rdev->mc.vram_start >> 24) & 0xFFFF);
 	WREG32(MC_VM_FB_LOCATION, tmp);
 	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
 	WREG32(HDP_NONSURFACE_INFO, (2 << 7));
 	WREG32(HDP_NONSURFACE_SIZE, (rdev->mc.mc_vram_size - 1) | 0x3FF);
 	if (rdev->flags & RADEON_IS_AGP) {
-		WREG32(MC_VM_AGP_TOP, (rdev->mc.gtt_end - 1) >> 16);
+		WREG32(MC_VM_AGP_TOP, rdev->mc.gtt_end >> 16);
 		WREG32(MC_VM_AGP_BOT, rdev->mc.gtt_start >> 16);
 		WREG32(MC_VM_AGP_BASE, rdev->mc.agp_base >> 22);
 	} else {
@@ -785,9 +827,9 @@ int rv770_mc_init(struct radeon_device *rdev)
 		rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 	}
 	rdev->mc.vram_start = rdev->mc.vram_location;
-	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size;
+	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	rdev->mc.gtt_start = rdev->mc.gtt_location;
-	rdev->mc.gtt_end = rdev->mc.gtt_location + rdev->mc.gtt_size;
+	rdev->mc.gtt_end = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
 	/* FIXME: we should enforce default clock in case GPU is not in
 	 * default setup
 	 */
@@ -807,9 +849,13 @@ static int rv770_startup(struct radeon_device *rdev)
 	int r;
 
 	rv770_mc_program(rdev);
-	r = rv770_pcie_gart_enable(rdev);
-	if (r)
-		return r;
+	if (rdev->flags & RADEON_IS_AGP) {
+		rv770_agp_enable(rdev);
+	} else {
+		r = rv770_pcie_gart_enable(rdev);
+		if (r)
+			return r;
+	}
 	rv770_gpu_init(rdev);
 
 	r = radeon_object_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
@@ -837,9 +883,10 @@ int rv770_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	if (rv770_gpu_reset(rdev)) {
-		/* FIXME: what do we want to do here ? */
-	}
+	/* Do not reset GPU before posting, on rv770 hw unlike on r500 hw,
+	 * posting will perform necessary task to bring back GPU into good
+	 * shape.
+	 */
 	/* post card */
 	atom_asic_init(rdev->mode_info.atom_context);
 	/* Initialize clocks */

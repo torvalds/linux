@@ -575,6 +575,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		/* Acceleration not working on AGP card try again
 		 * with fallback to PCI or PCIE GART
 		 */
+		radeon_gpu_reset(rdev);
 		radeon_fini(rdev);
 		radeon_agp_disable(rdev);
 		r = radeon_init(rdev);
