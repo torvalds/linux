@@ -179,10 +179,10 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	/* This is our interrupt, so process accordingly */
 
 	if (status & ET_INTR_WATCHDOG) {
-		struct tcb *tcb = adapter->tx_ring.CurrSendHead;
+		struct tcb *tcb = adapter->tx_ring.send_head;
 
 		if (tcb)
-			if (++tcb->PacketStaleCount > 1)
+			if (++tcb->stale > 1)
 				status |= ET_INTR_TXDMA_ISR;
 
 		if (adapter->RxRing.UnfinishedReceives)

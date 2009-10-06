@@ -97,87 +97,58 @@ struct tx_desc {
 	u32 flags;	/* data (detailed above) */
 };
 
-/* Typedefs for Tx DMA engine status writeback */
-
 /*
- * TX_STATUS_BLOCK_t is sructure representing the status of the Tx DMA engine
- * it sits in free memory, and is pointed to by 0x101c / 0x1020
+ * The status of the Tx DMA engine it sits in free memory, and is pointed to
+ * by 0x101c / 0x1020. This is a DMA10 type
  */
-typedef union _tx_status_block_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:21;		/* bits 11-31 */
-		u32 serv_cpl_wrap:1;	/* bit 10 */
-		u32 serv_cpl:10;		/* bits 0-9 */
-#else
-		u32 serv_cpl:10;		/* bits 0-9 */
-		u32 serv_cpl_wrap:1;	/* bit 10 */
-		u32 unused:21;		/* bits 11-31 */
-#endif
-	} bits;
-} TX_STATUS_BLOCK_t, *PTX_STATUS_BLOCK_t;
 
-/* TCB (Transmit Control Block) */
+/* TCB (Transmit Control Block: Host Side) */
 struct tcb {
-	struct tcb *Next;
-	u32 Flags;
-	u32 Count;
-	u32 PacketStaleCount;
-	struct sk_buff *Packet;
-	u32 PacketLength;
-	u32 WrIndex;
-	u32 WrIndexStart;
+	struct tcb *next;	/* Next entry in ring */
+	u32 flags;		/* Our flags for the packet */
+	u32 count;
+	u32 stale;		/* Used to spot stuck/lost packets */
+	struct sk_buff *skb;	/* Network skb we are tied to */
+	u32 len;
+	u32 index;
+	u32 index_start;
 };
-
-/* Structure to hold the skb's in a list */
-typedef struct tx_skb_list_elem {
-	struct list_head skb_list_elem;
-	struct sk_buff *skb;
-} TX_SKB_LIST_ELEM, *PTX_SKB_LIST_ELEM;
 
 /* Structure representing our local reference(s) to the ring */
 struct tx_ring {
 	/* TCB (Transmit Control Block) memory and lists */
-	struct tcb *MpTcbMem;
+	struct tcb *tcb_ring;
 
 	/* List of TCBs that are ready to be used */
-	struct tcb *TCBReadyQueueHead;
-	struct tcb *TCBReadyQueueTail;
+	struct tcb *tcb_qhead;
+	struct tcb *tcb_qtail;
 
 	/* list of TCBs that are currently being sent.  NOTE that access to all
-	 * three of these (including nBusySend) are controlled via the
+	 * three of these (including used) are controlled via the
 	 * TCBSendQLock.  This lock should be secured prior to incementing /
-	 * decrementing nBusySend, or any queue manipulation on CurrSendHead /
+	 * decrementing used, or any queue manipulation on send_head /
 	 * Tail
 	 */
-	struct tcb *CurrSendHead;
-	struct tcb *CurrSendTail;
-	int nBusySend;
+	struct tcb *send_head;
+	struct tcb *send_tail;
+	int used;
 
 	/* The actual descriptor ring */
 	struct tx_desc *tx_desc_ring;
 	dma_addr_t tx_desc_ring_pa;
 
 	/* ReadyToSend indicates where we last wrote to in the descriptor ring. */
-	u32 txDmaReadyToSend;
+	u32 send_idx;
 
 	/* The location of the write-back status block */
-	PTX_STATUS_BLOCK_t pTxStatusVa;
-	dma_addr_t pTxStatusPa;
-
-	/* A Block of zeroes used to pad packets that are less than 60 bytes */
-	void *pTxDummyBlkVa;
-	dma_addr_t pTxDummyBlkPa;
+	u32 *tx_status;
+	dma_addr_t tx_status_pa;
 
 	TXMAC_ERR_t TxMacErr;
 
 	/* Variables to track the Tx interrupt coalescing features */
-	int TxPacketsSinceLastinterrupt;
+	int since_irq;
 };
-
-/* Forward declaration of the frag-list for the following prototypes */
-typedef struct _MP_FRAG_LIST MP_FRAG_LIST, *PMP_FRAG_LIST;
 
 /* Forward declaration of the private adapter structure */
 struct et131x_adapter;
@@ -185,12 +156,12 @@ struct et131x_adapter;
 /* PROTOTYPES for et1310_tx.c */
 int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter);
 void et131x_tx_dma_memory_free(struct et131x_adapter *adapter);
-void ConfigTxDmaRegs(struct et131x_adapter *pAdapter);
+void ConfigTxDmaRegs(struct et131x_adapter *adapter);
 void et131x_init_send(struct et131x_adapter *adapter);
-void et131x_tx_dma_disable(struct et131x_adapter *pAdapter);
-void et131x_tx_dma_enable(struct et131x_adapter *pAdapter);
-void et131x_handle_send_interrupt(struct et131x_adapter *pAdapter);
-void et131x_free_busy_send_packets(struct et131x_adapter *pAdapter);
+void et131x_tx_dma_disable(struct et131x_adapter *adapter);
+void et131x_tx_dma_enable(struct et131x_adapter *adapter);
+void et131x_handle_send_interrupt(struct et131x_adapter *adapter);
+void et131x_free_busy_send_packets(struct et131x_adapter *adapter);
 int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev);
 
 #endif /* __ET1310_TX_H__ */

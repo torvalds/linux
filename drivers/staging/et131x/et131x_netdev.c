@@ -541,19 +541,19 @@ void et131x_tx_timeout(struct net_device *netdev)
 	/* Is send stuck? */
 	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
-	tcb = etdev->tx_ring.CurrSendHead;
+	tcb = etdev->tx_ring.send_head;
 
 	if (tcb != NULL) {
-		tcb->Count++;
+		tcb->count++;
 
-		if (tcb->Count > NIC_SEND_HANG_THRESHOLD) {
+		if (tcb->count > NIC_SEND_HANG_THRESHOLD) {
 			spin_unlock_irqrestore(&etdev->TCBSendQLock,
 					       flags);
 
 			dev_warn(&etdev->pdev->dev,
 				"Send stuck - reset.  tcb->WrIndex %x, Flags 0x%08x\n",
-				tcb->WrIndex,
-				tcb->Flags);
+				tcb->index,
+				tcb->flags);
 
 			et131x_close(netdev);
 			et131x_open(netdev);
