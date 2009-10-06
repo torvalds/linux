@@ -239,7 +239,7 @@ static void __init h3xxx_map_io(void)
 
 	/* Configure suspend conditions */
 	PGSR = 0;
-	PWER = PWER_GPIO0 | PWER_RTC;
+	PWER = PWER_GPIO0;
 	PCFR = PCFR_OPDE;
 	PSDR = 0;
 
