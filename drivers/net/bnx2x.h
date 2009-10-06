@@ -30,6 +30,8 @@
 #define BNX2X_NEW_NAPI
 
 
+
+#include <linux/mdio.h>
 #include "bnx2x_reg.h"
 #include "bnx2x_fw_defs.h"
 #include "bnx2x_hsi.h"
@@ -87,6 +89,7 @@
 	} while (0)
 #else
 #define bnx2x_panic() do { \
+		bp->panic = 1; \
 		BNX2X_ERR("driver assert\n"); \
 		bnx2x_panic_dump(bp); \
 	} while (0)
@@ -113,20 +116,31 @@
 #define REG_RD_DMAE(bp, offset, valp, len32) \
 	do { \
 		bnx2x_read_dmae(bp, offset, len32);\
-		memcpy(valp, bnx2x_sp(bp, wb_data[0]), len32 * 4); \
+		memcpy(valp, bnx2x_sp(bp, wb_data[0]), (len32) * 4); \
 	} while (0)
 
 #define REG_WR_DMAE(bp, offset, valp, len32) \
 	do { \
-		memcpy(bnx2x_sp(bp, wb_data[0]), valp, len32 * 4); \
+		memcpy(bnx2x_sp(bp, wb_data[0]), valp, (len32) * 4); \
 		bnx2x_write_dmae(bp, bnx2x_sp_mapping(bp, wb_data), \
 				 offset, len32); \
+	} while (0)
+
+#define VIRT_WR_DMAE_LEN(bp, data, addr, len32) \
+	do { \
+		memcpy(GUNZIP_BUF(bp), data, (len32) * 4); \
+		bnx2x_write_big_buf_wb(bp, addr, len32); \
 	} while (0)
 
 #define SHMEM_ADDR(bp, field)		(bp->common.shmem_base + \
 					 offsetof(struct shmem_region, field))
 #define SHMEM_RD(bp, field)		REG_RD(bp, SHMEM_ADDR(bp, field))
 #define SHMEM_WR(bp, field, val)	REG_WR(bp, SHMEM_ADDR(bp, field), val)
+
+#define SHMEM2_ADDR(bp, field)		(bp->common.shmem2_base + \
+					 offsetof(struct shmem2_region, field))
+#define SHMEM2_RD(bp, field)		REG_RD(bp, SHMEM2_ADDR(bp, field))
+#define SHMEM2_WR(bp, field, val)	REG_WR(bp, SHMEM2_ADDR(bp, field), val)
 
 #define EMAC_RD(bp, reg)		REG_RD(bp, emac_base + reg)
 #define EMAC_WR(bp, reg, val)		REG_WR(bp, emac_base + reg, val)
@@ -142,11 +156,19 @@ struct sw_rx_bd {
 struct sw_tx_bd {
 	struct sk_buff	*skb;
 	u16		first_bd;
+	u8		flags;
+/* Set on the first BD descriptor when there is a split BD */
+#define BNX2X_TSO_SPLIT_BD		(1<<0)
 };
 
 struct sw_rx_page {
 	struct page	*page;
 	DECLARE_PCI_UNMAP_ADDR(mapping)
+};
+
+union db_prod {
+	struct doorbell_set_prod data;
+	u32		raw;
 };
 
 
@@ -160,7 +182,7 @@ struct sw_rx_page {
 #define PAGES_PER_SGE			(1 << PAGES_PER_SGE_SHIFT)
 #define SGE_PAGE_SIZE			PAGE_SIZE
 #define SGE_PAGE_SHIFT			PAGE_SHIFT
-#define SGE_PAGE_ALIGN(addr)		PAGE_ALIGN((typeof(PAGE_SIZE))addr)
+#define SGE_PAGE_ALIGN(addr)		PAGE_ALIGN((typeof(PAGE_SIZE))(addr))
 
 /* SGE ring related macros */
 #define NUM_RX_SGE_PAGES		2
@@ -234,15 +256,14 @@ struct bnx2x_fastpath {
 
 	struct napi_struct	napi;
 
+	u8			is_rx_queue;
+
 	struct host_status_block *status_blk;
 	dma_addr_t		status_blk_mapping;
 
-	struct eth_tx_db_data	*hw_tx_prods;
-	dma_addr_t		tx_prods_mapping;
-
 	struct sw_tx_bd		*tx_buf_ring;
 
-	struct eth_tx_bd	*tx_desc_ring;
+	union eth_tx_bd_types	*tx_desc_ring;
 	dma_addr_t		tx_desc_mapping;
 
 	struct sw_rx_bd		*rx_buf_ring;	/* BDs mappings ring */
@@ -272,6 +293,8 @@ struct bnx2x_fastpath {
 	u8			cl_id;	/* eth client id */
 	u8			sb_id;	/* status block number in HW */
 
+	union db_prod		tx_db;
+
 	u16			tx_pkt_prod;
 	u16			tx_pkt_cons;
 	u16			tx_bd_prod;
@@ -291,9 +314,11 @@ struct bnx2x_fastpath {
 	__le16			*rx_cons_sb;
 	__le16			*rx_bd_cons_sb;
 
+
 	unsigned long		tx_pkt,
 				rx_pkt,
 				rx_calls;
+
 	/* TPA related */
 	struct sw_rx_bd		tpa_pool[ETH_MAX_AGGREGATION_QUEUES_E1H];
 	u8			tpa_state[ETH_MAX_AGGREGATION_QUEUES_E1H];
@@ -309,13 +334,16 @@ struct bnx2x_fastpath {
 	struct xstorm_per_client_stats old_xclient;
 	struct bnx2x_eth_q_stats eth_q_stats;
 
-	char			name[IFNAMSIZ];
+	/* The size is calculated using the following:
+	     sizeof name field from netdev structure +
+	     4 ('-Xx-' string) +
+	     4 (for the digits and to make it DWORD aligned) */
+#define FP_NAME_SIZE		(sizeof(((struct net_device *)0)->name) + 8)
+	char			name[FP_NAME_SIZE];
 	struct bnx2x		*bp; /* parent */
 };
 
 #define bnx2x_fp(bp, nr, var)		(bp->fp[nr].var)
-
-#define BNX2X_HAS_WORK(fp)	(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))
 
 
 /* MC hsi */
@@ -323,7 +351,7 @@ struct bnx2x_fastpath {
 #define RX_COPY_THRESH			92
 
 #define NUM_TX_RINGS			16
-#define TX_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_tx_bd))
+#define TX_DESC_CNT		(BCM_PAGE_SIZE / sizeof(union eth_tx_bd_types))
 #define MAX_TX_DESC_CNT			(TX_DESC_CNT - 1)
 #define NUM_TX_BD			(TX_DESC_CNT * NUM_TX_RINGS)
 #define MAX_TX_BD			(NUM_TX_BD - 1)
@@ -395,7 +423,7 @@ struct bnx2x_fastpath {
 #define DPM_TRIGER_TYPE			0x40
 #define DOORBELL(bp, cid, val) \
 	do { \
-		writel((u32)val, (bp)->doorbells + (BCM_PAGE_SIZE * cid) + \
+		writel((u32)(val), bp->doorbells + (BCM_PAGE_SIZE * (cid)) + \
 		       DPM_TRIGER_TYPE); \
 	} while (0)
 
@@ -523,6 +551,7 @@ struct bnx2x_common {
 #define NVRAM_PAGE_SIZE			256
 
 	u32			shmem_base;
+	u32			shmem2_base;
 
 	u32			hw_config;
 
@@ -757,6 +786,7 @@ struct bnx2x_slowpath {
 	struct nig_stats		nig_stats;
 	struct host_port_stats		port_stats;
 	struct host_func_stats		func_stats;
+	struct host_func_stats		func_stats_base;
 
 	u32				wb_comp;
 	u32				wb_data[4];
@@ -877,6 +907,7 @@ struct bnx2x {
 
 	struct link_params	link_params;
 	struct link_vars	link_vars;
+	struct mdio_if_info	mdio;
 
 	struct bnx2x_common	common;
 	struct bnx2x_port	port;
@@ -945,10 +976,11 @@ struct bnx2x {
 	dma_addr_t      	qm_mapping;
 #endif
 
+	int			dropless_fc;
+
 	int			dmae_ready;
 	/* used to synchronize dmae accesses */
 	struct mutex		dmae_mutex;
-	struct dmae_command	init_dmae;
 
 	/* used to synchronize stats collecting */
 	int			stats_state;
@@ -964,38 +996,54 @@ struct bnx2x {
 	dma_addr_t		gunzip_mapping;
 	int			gunzip_outlen;
 #define FW_BUF_SIZE			0x8000
+#define GUNZIP_BUF(bp)			(bp->gunzip_buf)
+#define GUNZIP_PHYS(bp)			(bp->gunzip_mapping)
+#define GUNZIP_OUTLEN(bp)		(bp->gunzip_outlen)
 
-	struct raw_op          *init_ops;
+	struct raw_op		*init_ops;
 	/* Init blocks offsets inside init_ops */
-	u16                    *init_ops_offsets;
+	u16			*init_ops_offsets;
 	/* Data blob - has 32 bit granularity */
-	u32                    *init_data;
+	u32			*init_data;
 	/* Zipped PRAM blobs - raw data */
-	const u8               *tsem_int_table_data;
-	const u8               *tsem_pram_data;
-	const u8               *usem_int_table_data;
-	const u8               *usem_pram_data;
-	const u8               *xsem_int_table_data;
-	const u8               *xsem_pram_data;
-	const u8               *csem_int_table_data;
-	const u8               *csem_pram_data;
-        const struct firmware  *firmware;
+	const u8		*tsem_int_table_data;
+	const u8		*tsem_pram_data;
+	const u8		*usem_int_table_data;
+	const u8		*usem_pram_data;
+	const u8		*xsem_int_table_data;
+	const u8		*xsem_pram_data;
+	const u8		*csem_int_table_data;
+	const u8		*csem_pram_data;
+#define INIT_OPS(bp)			(bp->init_ops)
+#define INIT_OPS_OFFSETS(bp)		(bp->init_ops_offsets)
+#define INIT_DATA(bp)			(bp->init_data)
+#define INIT_TSEM_INT_TABLE_DATA(bp)	(bp->tsem_int_table_data)
+#define INIT_TSEM_PRAM_DATA(bp)		(bp->tsem_pram_data)
+#define INIT_USEM_INT_TABLE_DATA(bp)	(bp->usem_int_table_data)
+#define INIT_USEM_PRAM_DATA(bp)		(bp->usem_pram_data)
+#define INIT_XSEM_INT_TABLE_DATA(bp)	(bp->xsem_int_table_data)
+#define INIT_XSEM_PRAM_DATA(bp)		(bp->xsem_pram_data)
+#define INIT_CSEM_INT_TABLE_DATA(bp)	(bp->csem_int_table_data)
+#define INIT_CSEM_PRAM_DATA(bp)		(bp->csem_pram_data)
+
+	const struct firmware	*firmware;
 };
 
 
-#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT / E1HVN_MAX) : \
-						 MAX_CONTEXT)
-#define BNX2X_NUM_QUEUES(bp)	max(bp->num_rx_queues, bp->num_tx_queues)
-#define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)
+#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT/(2 * E1HVN_MAX)) \
+					      : (MAX_CONTEXT/2))
+#define BNX2X_NUM_QUEUES(bp)	(bp->num_rx_queues + bp->num_tx_queues)
+#define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 2)
 
 #define for_each_rx_queue(bp, var) \
 			for (var = 0; var < bp->num_rx_queues; var++)
 #define for_each_tx_queue(bp, var) \
-			for (var = 0; var < bp->num_tx_queues; var++)
+			for (var = bp->num_rx_queues; \
+			     var < BNX2X_NUM_QUEUES(bp); var++)
 #define for_each_queue(bp, var) \
 			for (var = 0; var < BNX2X_NUM_QUEUES(bp); var++)
 #define for_each_nondefault_queue(bp, var) \
-			for (var = 1; var < BNX2X_NUM_QUEUES(bp); var++)
+			for (var = 1; var < bp->num_rx_queues; var++)
 
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
@@ -1004,6 +1052,10 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port);
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 int bnx2x_set_gpio_int(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
+u32 bnx2x_fw_command(struct bnx2x *bp, u32 command);
+void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val);
+void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
+			       u32 addr, u32 len);
 
 static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 			   int wait)
@@ -1061,9 +1113,9 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define DMAE_COMP_VAL			0xe0d0d0ae
 
 #define MAX_DMAE_C_PER_PORT		8
-#define INIT_DMAE_C(bp)			(BP_PORT(bp)*MAX_DMAE_C_PER_PORT + \
+#define INIT_DMAE_C(bp)			(BP_PORT(bp) * MAX_DMAE_C_PER_PORT + \
 					 BP_E1HVN(bp))
-#define PMF_DMAE_C(bp)			(BP_PORT(bp)*MAX_DMAE_C_PER_PORT + \
+#define PMF_DMAE_C(bp)			(BP_PORT(bp) * MAX_DMAE_C_PER_PORT + \
 					 E1HVN_MAX)
 
 
@@ -1088,7 +1140,8 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 
 /* must be used on a CID before placing it on a HW ring */
-#define HW_CID(bp, x)		((BP_PORT(bp) << 23) | (BP_E1HVN(bp) << 17) | x)
+#define HW_CID(bp, x)			((BP_PORT(bp) << 23) | \
+					 (BP_E1HVN(bp) << 17) | (x))
 
 #define SP_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_spe))
 #define MAX_SP_DESC_CNT			(SP_DESC_CNT - 1)
@@ -1176,8 +1229,8 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 				 AEU_INPUTS_ATTN_BITS_QM_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_XSDM_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_XSEMI_PARITY_ERROR | \
-				AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR |\
-			    AEU_INPUTS_ATTN_BITS_VAUX_PCI_CORE_PARITY_ERROR |\
+				 AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR |\
+			     AEU_INPUTS_ATTN_BITS_VAUX_PCI_CORE_PARITY_ERROR |\
 				 AEU_INPUTS_ATTN_BITS_DEBUG_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_USDM_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_USEMI_PARITY_ERROR | \
@@ -1205,7 +1258,6 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 		 TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_TCP_CAPABILITY | \
 		 (bp->multi_mode << \
 		  TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_MODE_SHIFT))
-
 #define MULTI_MASK			0x7f
 
 

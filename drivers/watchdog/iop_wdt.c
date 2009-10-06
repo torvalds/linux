@@ -139,7 +139,7 @@ static long iop_wdt_ioctl(struct file *file,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		if (copy_to_user(argp, &ident, sizeof ident))
+		if (copy_to_user(argp, &ident, sizeof(ident)))
 			ret = -EFAULT;
 		else
 			ret = 0;

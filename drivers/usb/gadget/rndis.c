@@ -442,6 +442,8 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 
 	case OID_802_3_MAC_OPTIONS:
 		pr_debug("%s: OID_802_3_MAC_OPTIONS\n", __func__);
+		*outbuf = cpu_to_le32(0);
+		retval = 0;
 		break;
 
 	/* ieee802.3 statistics OIDs (table 4-4) */
@@ -1020,22 +1022,29 @@ static rndis_resp_t *rndis_add_response (int configNr, u32 length)
 	return r;
 }
 
-int rndis_rm_hdr(struct sk_buff *skb)
+int rndis_rm_hdr(struct gether *port,
+			struct sk_buff *skb,
+			struct sk_buff_head *list)
 {
 	/* tmp points to a struct rndis_packet_msg_type */
 	__le32		*tmp = (void *) skb->data;
 
 	/* MessageType, MessageLength */
 	if (cpu_to_le32(REMOTE_NDIS_PACKET_MSG)
-			!= get_unaligned(tmp++))
+			!= get_unaligned(tmp++)) {
+		dev_kfree_skb_any(skb);
 		return -EINVAL;
+	}
 	tmp++;
 
 	/* DataOffset, DataLength */
-	if (!skb_pull(skb, get_unaligned_le32(tmp++) + 8))
+	if (!skb_pull(skb, get_unaligned_le32(tmp++) + 8)) {
+		dev_kfree_skb_any(skb);
 		return -EOVERFLOW;
+	}
 	skb_trim(skb, get_unaligned_le32(tmp++));
 
+	skb_queue_tail(list, skb);
 	return 0;
 }
 

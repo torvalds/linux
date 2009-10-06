@@ -200,6 +200,9 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 /** NOTE:: For DM646x the IN_VECTOR has changed */
 #define EMAC_DM646X_MAC_IN_VECTOR_RX_INT_VEC	BIT(EMAC_DEF_RX_CH)
 #define EMAC_DM646X_MAC_IN_VECTOR_TX_INT_VEC	BIT(16 + EMAC_DEF_TX_CH)
+#define EMAC_DM646X_MAC_IN_VECTOR_HOST_INT	BIT(26)
+#define EMAC_DM646X_MAC_IN_VECTOR_STATPEND_INT	BIT(27)
+
 
 /* CPPI bit positions */
 #define EMAC_CPPI_SOP_BIT		BIT(31)
@@ -1820,11 +1823,19 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 	struct device *emac_dev = &priv->ndev->dev;
 	struct sockaddr *sa = addr;
 
+	if (!is_valid_ether_addr(sa->sa_data))
+		return -EINVAL;
+
 	/* Store mac addr in priv and rx channel and set it in EMAC hw */
 	memcpy(priv->mac_addr, sa->sa_data, ndev->addr_len);
-	memcpy(rxch->mac_addr, sa->sa_data, ndev->addr_len);
 	memcpy(ndev->dev_addr, sa->sa_data, ndev->addr_len);
-	emac_setmac(priv, EMAC_DEF_RX_CH, rxch->mac_addr);
+
+	/* If the interface is down - rxch is NULL. */
+	/* MAC address is configured only after the interface is enabled. */
+	if (netif_running(ndev)) {
+		memcpy(rxch->mac_addr, sa->sa_data, ndev->addr_len);
+		emac_setmac(priv, EMAC_DEF_RX_CH, rxch->mac_addr);
+	}
 
 	if (netif_msg_drv(priv))
 		dev_notice(emac_dev, "DaVinci EMAC: emac_dev_setmac_addr %pM\n",
@@ -1912,7 +1923,6 @@ static int emac_net_rx_cb(struct emac_priv *priv,
 	skb_put(p_skb, net_pkt_list->pkt_length);
 	EMAC_CACHE_INVALIDATE((unsigned long)p_skb->data, p_skb->len);
 	p_skb->protocol = eth_type_trans(p_skb, priv->ndev);
-	p_skb->dev->last_rx = jiffies;
 	netif_receive_skb(p_skb);
 	priv->net_dev_stats.rx_bytes += net_pkt_list->pkt_length;
 	priv->net_dev_stats.rx_packets++;
@@ -2160,7 +2170,11 @@ static int emac_poll(struct napi_struct *napi, int budget)
 		emac_int_enable(priv);
 	}
 
-	if (unlikely(status & EMAC_DM644X_MAC_IN_VECTOR_HOST_INT)) {
+	mask = EMAC_DM644X_MAC_IN_VECTOR_HOST_INT;
+	if (priv->version == EMAC_VERSION_2)
+		mask = EMAC_DM646X_MAC_IN_VECTOR_HOST_INT;
+
+	if (unlikely(status & mask)) {
 		u32 ch, cause;
 		dev_err(emac_dev, "DaVinci EMAC: Fatal Hardware Error\n");
 		netif_stop_queue(ndev);
@@ -2809,7 +2823,7 @@ static int __init davinci_emac_init(void)
 {
 	return platform_driver_register(&davinci_emac_driver);
 }
-module_init(davinci_emac_init);
+late_initcall(davinci_emac_init);
 
 /**
  * davinci_emac_exit: EMAC driver module exit

@@ -35,13 +35,14 @@
 #include <mach/hardware.h>
 #include <mach/memory.h>
 #include <mach/gpio.h>
+#include <mach/cputype.h>
 
 #include <asm/mach-types.h>
 
 #include "musb_core.h"
 
 #ifdef CONFIG_MACH_DAVINCI_EVM
-#define GPIO_nVBUS_DRV		87
+#define GPIO_nVBUS_DRV		144
 #endif
 
 #include "davinci.h"
@@ -329,7 +330,6 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (is_host_enabled(musb) && drvvbus) {
-			musb->is_active = 1;
 			MUSB_HST_MODE(musb);
 			musb->xceiv->default_a = 1;
 			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
@@ -343,7 +343,9 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 			portstate(musb->port1_status &= ~USB_PORT_STAT_POWER);
 		}
 
-		/* NOTE:  this must complete poweron within 100 msec */
+		/* NOTE:  this must complete poweron within 100 msec
+		 * (OTG_TIME_A_WAIT_VRISE) but we don't check for that.
+		 */
 		davinci_source_power(musb, drvvbus, 0);
 		DBG(2, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
@@ -411,6 +413,21 @@ int __init musb_platform_init(struct musb *musb)
 		__raw_writel(phy_ctrl, USB_PHY_CTRL);
 	}
 
+	/* On dm355, the default-A state machine needs DRVVBUS control.
+	 * If we won't be a host, there's no need to turn it on.
+	 */
+	if (cpu_is_davinci_dm355()) {
+		u32	deepsleep = __raw_readl(DM355_DEEPSLEEP);
+
+		if (is_host_enabled(musb)) {
+			deepsleep &= ~DRVVBUS_OVERRIDE;
+		} else {
+			deepsleep &= ~DRVVBUS_FORCE;
+			deepsleep |= DRVVBUS_OVERRIDE;
+		}
+		__raw_writel(deepsleep, DM355_DEEPSLEEP);
+	}
+
 	/* reset the controller */
 	musb_writel(tibase, DAVINCI_USB_CTRL_REG, 0x1);
 
@@ -436,6 +453,15 @@ int musb_platform_exit(struct musb *musb)
 {
 	if (is_host_enabled(musb))
 		del_timer_sync(&otg_workaround);
+
+	/* force VBUS off */
+	if (cpu_is_davinci_dm355()) {
+		u32	deepsleep = __raw_readl(DM355_DEEPSLEEP);
+
+		deepsleep &= ~DRVVBUS_FORCE;
+		deepsleep |= DRVVBUS_OVERRIDE;
+		__raw_writel(deepsleep, DM355_DEEPSLEEP);
+	}
 
 	davinci_source_power(musb, 0 /*off*/, 1);
 

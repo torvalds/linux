@@ -30,7 +30,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
-#include <linux/utsname.h>
 #include <linux/init.h>
 #include <linux/sysctl.h>
 #include <linux/random.h>
@@ -103,7 +102,6 @@ static void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 		     lock->ast_pending, lock->ml.type);
 		BUG();
 	}
-	BUG_ON(!list_empty(&lock->ast_list));
 	if (lock->ast_pending)
 		mlog(0, "lock has an ast getting flushed right now\n");
 

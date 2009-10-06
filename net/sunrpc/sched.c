@@ -16,11 +16,12 @@
 #include <linux/slab.h>
 #include <linux/mempool.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 
 #include <linux/sunrpc/clnt.h>
+
+#include "sunrpc.h"
 
 #ifdef RPC_DEBUG
 #define RPCDBG_FACILITY		RPCDBG_SCHED
@@ -711,11 +712,6 @@ static void rpc_async_schedule(struct work_struct *work)
 {
 	__rpc_execute(container_of(work, struct rpc_task, u.tk_work));
 }
-
-struct rpc_buffer {
-	size_t	len;
-	char	data[];
-};
 
 /**
  * rpc_malloc - allocate an RPC buffer

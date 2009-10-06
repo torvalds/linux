@@ -330,15 +330,6 @@ static int cap_file_ioctl(struct file *file, unsigned int command,
 	return 0;
 }
 
-static int cap_file_mmap(struct file *file, unsigned long reqprot,
-			 unsigned long prot, unsigned long flags,
-			 unsigned long addr, unsigned long addr_only)
-{
-	if ((addr < mmap_min_addr) && !capable(CAP_SYS_RAWIO))
-		return -EACCES;
-	return 0;
-}
-
 static int cap_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
 			     unsigned long prot)
 {
@@ -382,6 +373,11 @@ static int cap_task_create(unsigned long clone_flags)
 	return 0;
 }
 
+static int cap_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+{
+	return 0;
+}
+
 static void cap_cred_free(struct cred *cred)
 {
 }
@@ -395,12 +391,21 @@ static void cap_cred_commit(struct cred *new, const struct cred *old)
 {
 }
 
+static void cap_cred_transfer(struct cred *new, const struct cred *old)
+{
+}
+
 static int cap_kernel_act_as(struct cred *new, u32 secid)
 {
 	return 0;
 }
 
 static int cap_kernel_create_files_as(struct cred *new, struct inode *inode)
+{
+	return 0;
+}
+
+static int cap_kernel_module_request(void)
 {
 	return 0;
 }
@@ -710,9 +715,25 @@ static void cap_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 {
 }
 
+
+
 static void cap_req_classify_flow(const struct request_sock *req,
 				  struct flowi *fl)
 {
+}
+
+static int cap_tun_dev_create(void)
+{
+	return 0;
+}
+
+static void cap_tun_dev_post_create(struct sock *sk)
+{
+}
+
+static int cap_tun_dev_attach(struct sock *sk)
+{
+	return 0;
 }
 #endif	/* CONFIG_SECURITY_NETWORK */
 
@@ -801,6 +822,20 @@ static void cap_release_secctx(char *secdata, u32 seclen)
 {
 }
 
+static int cap_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
+{
+	return 0;
+}
+
+static int cap_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
+{
+	return 0;
+}
+
+static int cap_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+{
+	return 0;
+}
 #ifdef CONFIG_KEYS
 static int cap_key_alloc(struct key *key, const struct cred *cred,
 			 unsigned long flags)
@@ -821,6 +856,13 @@ static int cap_key_permission(key_ref_t key_ref, const struct cred *cred,
 static int cap_key_getsecurity(struct key *key, char **_buffer)
 {
 	*_buffer = NULL;
+	return 0;
+}
+
+static int cap_key_session_to_parent(const struct cred *cred,
+				     const struct cred *parent_cred,
+				     struct key *key)
+{
 	return 0;
 }
 
@@ -863,7 +905,7 @@ struct security_operations default_security_ops = {
 
 void security_fixup_ops(struct security_operations *ops)
 {
-	set_to_cap_if_null(ops, ptrace_may_access);
+	set_to_cap_if_null(ops, ptrace_access_check);
 	set_to_cap_if_null(ops, ptrace_traceme);
 	set_to_cap_if_null(ops, capget);
 	set_to_cap_if_null(ops, capset);
@@ -949,11 +991,14 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, file_receive);
 	set_to_cap_if_null(ops, dentry_open);
 	set_to_cap_if_null(ops, task_create);
+	set_to_cap_if_null(ops, cred_alloc_blank);
 	set_to_cap_if_null(ops, cred_free);
 	set_to_cap_if_null(ops, cred_prepare);
 	set_to_cap_if_null(ops, cred_commit);
+	set_to_cap_if_null(ops, cred_transfer);
 	set_to_cap_if_null(ops, kernel_act_as);
 	set_to_cap_if_null(ops, kernel_create_files_as);
+	set_to_cap_if_null(ops, kernel_module_request);
 	set_to_cap_if_null(ops, task_setuid);
 	set_to_cap_if_null(ops, task_fix_setuid);
 	set_to_cap_if_null(ops, task_setgid);
@@ -1001,6 +1046,9 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, secid_to_secctx);
 	set_to_cap_if_null(ops, secctx_to_secid);
 	set_to_cap_if_null(ops, release_secctx);
+	set_to_cap_if_null(ops, inode_notifysecctx);
+	set_to_cap_if_null(ops, inode_setsecctx);
+	set_to_cap_if_null(ops, inode_getsecctx);
 #ifdef CONFIG_SECURITY_NETWORK
 	set_to_cap_if_null(ops, unix_stream_connect);
 	set_to_cap_if_null(ops, unix_may_send);
@@ -1029,6 +1077,9 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, inet_csk_clone);
 	set_to_cap_if_null(ops, inet_conn_established);
 	set_to_cap_if_null(ops, req_classify_flow);
+	set_to_cap_if_null(ops, tun_dev_create);
+	set_to_cap_if_null(ops, tun_dev_post_create);
+	set_to_cap_if_null(ops, tun_dev_attach);
 #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	set_to_cap_if_null(ops, xfrm_policy_alloc_security);
@@ -1047,6 +1098,7 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, key_free);
 	set_to_cap_if_null(ops, key_permission);
 	set_to_cap_if_null(ops, key_getsecurity);
+	set_to_cap_if_null(ops, key_session_to_parent);
 #endif	/* CONFIG_KEYS */
 #ifdef CONFIG_AUDIT
 	set_to_cap_if_null(ops, audit_rule_init);

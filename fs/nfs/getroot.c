@@ -30,7 +30,6 @@
 #include <linux/nfs_idmap.h>
 #include <linux/vfs.h>
 #include <linux/namei.h>
-#include <linux/mnt_namespace.h>
 #include <linux/security.h>
 
 #include <asm/system.h>

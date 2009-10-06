@@ -51,20 +51,51 @@
 /* For struct ocfs2_blockcheck_stats */
 #include "blockcheck.h"
 
+
+/* Caching of metadata buffers */
+
 /* Most user visible OCFS2 inodes will have very few pieces of
  * metadata, but larger files (including bitmaps, etc) must be taken
  * into account when designing an access scheme. We allow a small
  * amount of inlined blocks to be stored on an array and grow the
  * structure into a rb tree when necessary. */
-#define OCFS2_INODE_MAX_CACHE_ARRAY 2
+#define OCFS2_CACHE_INFO_MAX_ARRAY 2
 
+/* Flags for ocfs2_caching_info */
+
+enum ocfs2_caching_info_flags {
+	/* Indicates that the metadata cache is using the inline array */
+	OCFS2_CACHE_FL_INLINE	= 1<<1,
+};
+
+struct ocfs2_caching_operations;
 struct ocfs2_caching_info {
+	/*
+	 * The parent structure provides the locks, but because the
+	 * parent structure can differ, it provides locking operations
+	 * to struct ocfs2_caching_info.
+	 */
+	const struct ocfs2_caching_operations *ci_ops;
+
+	/* next two are protected by trans_inc_lock */
+	/* which transaction were we created on? Zero if none. */
+	unsigned long		ci_created_trans;
+	/* last transaction we were a part of. */
+	unsigned long		ci_last_trans;
+
+	/* Cache structures */
+	unsigned int		ci_flags;
 	unsigned int		ci_num_cached;
 	union {
-		sector_t	ci_array[OCFS2_INODE_MAX_CACHE_ARRAY];
+	sector_t	ci_array[OCFS2_CACHE_INFO_MAX_ARRAY];
 		struct rb_root	ci_tree;
 	} ci_cache;
 };
+/*
+ * Need this prototype here instead of in uptodate.h because journal.h
+ * uses it.
+ */
+struct super_block *ocfs2_metadata_cache_get_super(struct ocfs2_caching_info *ci);
 
 /* this limits us to 256 nodes
  * if we need more, we can do a kmalloc for the map */
@@ -224,10 +255,12 @@ enum ocfs2_mount_options
 	OCFS2_MOUNT_GRPQUOTA = 1 << 10, /* We support group quotas */
 };
 
-#define OCFS2_OSB_SOFT_RO	0x0001
-#define OCFS2_OSB_HARD_RO	0x0002
-#define OCFS2_OSB_ERROR_FS	0x0004
-#define OCFS2_DEFAULT_ATIME_QUANTUM	60
+#define OCFS2_OSB_SOFT_RO			0x0001
+#define OCFS2_OSB_HARD_RO			0x0002
+#define OCFS2_OSB_ERROR_FS			0x0004
+#define OCFS2_OSB_DROP_DENTRY_LOCK_IMMED	0x0008
+
+#define OCFS2_DEFAULT_ATIME_QUANTUM		60
 
 struct ocfs2_journal;
 struct ocfs2_slot_info;
@@ -375,12 +408,17 @@ struct ocfs2_super
 
 	/* the group we used to allocate inodes. */
 	u64				osb_inode_alloc_group;
+
+	/* rb tree root for refcount lock. */
+	struct rb_root	osb_rf_lock_tree;
+	struct ocfs2_refcount_tree *osb_ref_tree_lru;
 };
 
 #define OCFS2_SB(sb)	    ((struct ocfs2_super *)(sb)->s_fs_info)
 
 /* Useful typedef for passing around journal access functions */
-typedef int (*ocfs2_journal_access_func)(handle_t *handle, struct inode *inode,
+typedef int (*ocfs2_journal_access_func)(handle_t *handle,
+					 struct ocfs2_caching_info *ci,
 					 struct buffer_head *bh, int type);
 
 static inline int ocfs2_should_order_data(struct inode *inode)
@@ -478,6 +516,13 @@ static inline void ocfs2_add_links_count(struct ocfs2_dinode *di, int n)
 	ocfs2_set_links_count(di, links);
 }
 
+static inline int ocfs2_refcount_tree(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_REFCOUNT_TREE)
+		return 1;
+	return 0;
+}
+
 /* set / clear functions because cluster events can make these happen
  * in parallel so we want the transitions to be atomic. this also
  * means that any future flags osb_flags must be protected by spinlock
@@ -488,6 +533,18 @@ static inline void ocfs2_set_osb_flag(struct ocfs2_super *osb,
 	spin_lock(&osb->osb_lock);
 	osb->osb_flags |= flag;
 	spin_unlock(&osb->osb_lock);
+}
+
+
+static inline unsigned long  ocfs2_test_osb_flag(struct ocfs2_super *osb,
+						 unsigned long flag)
+{
+	unsigned long ret;
+
+	spin_lock(&osb->osb_lock);
+	ret = osb->osb_flags & flag;
+	spin_unlock(&osb->osb_lock);
+	return ret;
 }
 
 static inline void ocfs2_set_ro_flag(struct ocfs2_super *osb,
@@ -563,6 +620,9 @@ static inline int ocfs2_uses_extended_slot_map(struct ocfs2_super *osb)
 
 #define OCFS2_IS_VALID_DX_LEAF(ptr)					\
 	(!strcmp((ptr)->dl_signature, OCFS2_DX_LEAF_SIGNATURE))
+
+#define OCFS2_IS_VALID_REFCOUNT_BLOCK(ptr)				\
+	(!strcmp((ptr)->rf_signature, OCFS2_REFCOUNT_BLOCK_SIGNATURE))
 
 static inline unsigned long ino_from_blkno(struct super_block *sb,
 					   u64 blkno)

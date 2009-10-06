@@ -135,11 +135,11 @@ config SND_AW2
 
 
 config SND_AZT3328
-	tristate "Aztech AZF3328 / PCI168 (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Aztech AZF3328 / PCI168"
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_RAWMIDI
 	help
 	  Say Y here to include support for Aztech AZF3328 (PCI168)
 	  soundcards.

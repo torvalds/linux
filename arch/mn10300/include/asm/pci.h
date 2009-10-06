@@ -59,7 +59,6 @@ void pcibios_penalize_isa_irq(int irq);
 #include <linux/slab.h>
 #include <asm/scatterlist.h>
 #include <linux/string.h>
-#include <linux/mm.h>
 #include <asm/io.h>
 
 struct pci_dev;
@@ -69,10 +68,6 @@ struct pci_dev;
  * this boolean for bounce buffer decisions.
  */
 #define PCI_DMA_BUS_IS_PHYS	(1)
-
-
-/* This is always fine. */
-#define pci_dac_dma_supported(pci_dev, mask)	(0)
 
 /* Return the index of the PCI controller for device. */
 static inline int pci_controller_num(struct pci_dev *dev)
@@ -106,7 +101,18 @@ extern void pcibios_bus_to_resource(struct pci_dev *dev,
 				    struct resource *res,
 				    struct pci_bus_region *region);
 
-#define pcibios_scan_all_fns(a, b)	0
+static inline struct resource *
+pcibios_select_root(struct pci_dev *pdev, struct resource *res)
+{
+	struct resource *root = NULL;
+
+	if (res->flags & IORESOURCE_IO)
+		root = &ioport_resource;
+	if (res->flags & IORESOURCE_MEM)
+		root = &iomem_resource;
+
+	return root;
+}
 
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {

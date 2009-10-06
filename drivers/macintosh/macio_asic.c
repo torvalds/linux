@@ -294,10 +294,11 @@ static void macio_setup_interrupts(struct macio_dev *dev)
 	int i = 0, j = 0;
 
 	for (;;) {
-		struct resource *res = &dev->interrupt[j];
+		struct resource *res;
 
 		if (j >= MACIO_DEV_COUNT_IRQS)
 			break;
+		res = &dev->interrupt[j];
 		irq = irq_of_parse_and_map(np, i++);
 		if (irq == NO_IRQ)
 			break;
@@ -321,9 +322,10 @@ static void macio_setup_resources(struct macio_dev *dev,
 	int index;
 
 	for (index = 0; of_address_to_resource(np, index, &r) == 0; index++) {
-		struct resource *res = &dev->resource[index];
+		struct resource *res;
 		if (index >= MACIO_DEV_COUNT_RESOURCES)
 			break;
+		res = &dev->resource[index];
 		*res = r;
 		res->name = dev_name(&dev->ofdev.dev);
 
@@ -377,6 +379,17 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	dev->ofdev.dev.parent = parent;
 	dev->ofdev.dev.bus = &macio_bus_type;
 	dev->ofdev.dev.release = macio_release_dev;
+
+#ifdef CONFIG_PCI
+	/* Set the DMA ops to the ones from the PCI device, this could be
+	 * fishy if we didn't know that on PowerMac it's always direct ops
+	 * or iommu ops that will work fine
+	 */
+	dev->ofdev.dev.archdata.dma_ops =
+		chip->lbus.pdev->dev.archdata.dma_ops;
+	dev->ofdev.dev.archdata.dma_data =
+		chip->lbus.pdev->dev.archdata.dma_data;
+#endif /* CONFIG_PCI */
 
 #ifdef DEBUG
 	printk("preparing mdev @%p, ofdev @%p, dev @%p, kobj @%p\n",

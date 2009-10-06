@@ -87,7 +87,7 @@
 
 /* These identify the driver base version and may not be removed. */
 static char version[] =
-KERN_INFO DRV_NAME ": 10/100 PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE ")\n";
+DRV_NAME ": 10/100 PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE ")\n";
 
 MODULE_AUTHOR("Jeff Garzik <jgarzik@pobox.com>");
 MODULE_DESCRIPTION("RealTek RTL-8139C+ series 10/100 PCI Ethernet driver");
@@ -515,7 +515,7 @@ rx_status_loop:
 		dma_addr_t mapping;
 		struct sk_buff *skb, *new_skb;
 		struct cp_desc *desc;
-		unsigned buflen;
+		const unsigned buflen = cp->rx_buf_sz;
 
 		skb = cp->rx_skb[rx_tail];
 		BUG_ON(!skb);
@@ -549,8 +549,7 @@ rx_status_loop:
 			pr_debug("%s: rx slot %d status 0x%x len %d\n",
 			       dev->name, rx_tail, status, len);
 
-		buflen = cp->rx_buf_sz + NET_IP_ALIGN;
-		new_skb = netdev_alloc_skb(dev, buflen);
+		new_skb = netdev_alloc_skb(dev, buflen + NET_IP_ALIGN);
 		if (!new_skb) {
 			dev->stats.rx_dropped++;
 			goto rx_next;
@@ -737,7 +736,8 @@ static void cp_tx (struct cp_private *cp)
 		netif_wake_queue(cp->dev);
 }
 
-static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
+					struct net_device *dev)
 {
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned entry;
@@ -891,7 +891,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	cpw8(TxPoll, NormalTxPoll);
 	dev->trans_start = jiffies;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* Set or clear the multicast filter for this adaptor.

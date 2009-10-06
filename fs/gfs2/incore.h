@@ -159,6 +159,7 @@ struct gfs2_glock_operations {
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
 	int (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl);
+	void (*go_callback) (struct gfs2_glock *gl);
 	const int go_type;
 	const unsigned long go_min_hold_time;
 };
@@ -228,6 +229,7 @@ struct gfs2_glock {
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
 	struct delayed_work gl_work;
+	struct work_struct gl_delete;
 };
 
 #define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
@@ -404,6 +406,12 @@ struct gfs2_statfs_change_host {
 #define GFS2_DATA_WRITEBACK	1
 #define GFS2_DATA_ORDERED	2
 
+#define GFS2_ERRORS_DEFAULT     GFS2_ERRORS_WITHDRAW
+#define GFS2_ERRORS_WITHDRAW    0
+#define GFS2_ERRORS_CONTINUE    1 /* place holder for future feature */
+#define GFS2_ERRORS_RO          2 /* place holder for future feature */
+#define GFS2_ERRORS_PANIC       3
+
 struct gfs2_args {
 	char ar_lockproto[GFS2_LOCKNAME_LEN];	/* Name of the Lock Protocol */
 	char ar_locktable[GFS2_LOCKNAME_LEN];	/* Name of the Lock Table */
@@ -420,6 +428,7 @@ struct gfs2_args {
 	unsigned int ar_data:2;			/* ordered/writeback */
 	unsigned int ar_meta:1;			/* mount metafs */
 	unsigned int ar_discard:1;		/* discard requests */
+	unsigned int ar_errors:2;               /* errors=withdraw | panic */
 	int ar_commit;				/* Commit interval */
 };
 
@@ -487,7 +496,6 @@ struct gfs2_sb_host {
  */
 
 struct lm_lockstruct {
-	u32 ls_id;
 	unsigned int ls_jid;
 	unsigned int ls_first;
 	unsigned int ls_first_done;
@@ -539,17 +547,11 @@ struct gfs2_sbd {
 	struct dentry *sd_root_dir;
 
 	struct inode *sd_jindex;
-	struct inode *sd_inum_inode;
 	struct inode *sd_statfs_inode;
-	struct inode *sd_ir_inode;
 	struct inode *sd_sc_inode;
 	struct inode *sd_qc_inode;
 	struct inode *sd_rindex;
 	struct inode *sd_quota_inode;
-
-	/* Inum stuff */
-
-	struct mutex sd_inum_mutex;
 
 	/* StatFS stuff */
 
@@ -578,7 +580,6 @@ struct gfs2_sbd {
 	struct gfs2_holder sd_journal_gh;
 	struct gfs2_holder sd_jinode_gh;
 
-	struct gfs2_holder sd_ir_gh;
 	struct gfs2_holder sd_sc_gh;
 	struct gfs2_holder sd_qc_gh;
 

@@ -20,8 +20,14 @@
 #include "tuner-simple.h"
 #include "stv0297.h"
 
+
+/* Can we use the specified front-end?  Remember that if we are compiled
+ * into the kernel we can't call code that's in modules.  */
+#define FE_SUPPORTED(fe) (defined(CONFIG_DVB_##fe) || \
+	(defined(CONFIG_DVB_##fe##_MODULE) && defined(MODULE)))
+
 /* lnb control */
-#if defined(CONFIG_DVB_MT312_MODULE) || defined(CONFIG_DVB_STV0299_MODULE)
+#if FE_SUPPORTED(MT312) || FE_SUPPORTED(STV0299)
 static int flexcop_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
 	struct flexcop_device *fc = fe->dvb->priv;
@@ -49,8 +55,7 @@ static int flexcop_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage
 }
 #endif
 
-#if defined(CONFIG_DVB_S5H1420_MODULE) || defined(CONFIG_DVB_STV0299_MODULE) \
-	|| defined(CONFIG_DVB_MT312_MODULE)
+#if FE_SUPPORTED(S5H1420) || FE_SUPPORTED(STV0299) || FE_SUPPORTED(MT312)
 static int flexcop_sleep(struct dvb_frontend* fe)
 {
 	struct flexcop_device *fc = fe->dvb->priv;
@@ -61,7 +66,7 @@ static int flexcop_sleep(struct dvb_frontend* fe)
 #endif
 
 /* SkyStar2 DVB-S rev 2.3 */
-#if defined(CONFIG_DVB_MT312_MODULE)
+#if FE_SUPPORTED(MT312) && FE_SUPPORTED(PLL)
 static int flexcop_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 {
 /* u16 wz_half_period_for_45_mhz[] = { 0x01ff, 0x0154, 0x00ff, 0x00cc }; */
@@ -150,53 +155,34 @@ static struct mt312_config skystar23_samsung_tbdu18132_config = {
 	.demod_address = 0x0e,
 };
 
-static int skystar23_samsung_tbdu18132_tuner_set_params(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
-{
-	u8 buf[4];
-	u32 div;
-	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf,
-	.len = sizeof(buf) };
-	struct flexcop_device *fc = fe->dvb->priv;
-	div = (params->frequency + (125/2)) / 125;
-
-	buf[0] = (div >> 8) & 0x7f;
-	buf[1] = (div >> 0) & 0xff;
-	buf[2] = 0x84 | ((div >> 10) & 0x60);
-	buf[3] = 0x80;
-
-	if (params->frequency < 1550000)
-		buf[3] |= 0x02;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&fc->fc_i2c_adap[0].i2c_adap, &msg, 1) != 1)
-		return -EIO;
-	return 0;
-}
-
 static int skystar2_rev23_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
+	struct dvb_frontend_ops *ops;
+
 	fc->fe = dvb_attach(mt312_attach, &skystar23_samsung_tbdu18132_config, i2c);
-	if (fc->fe != NULL) {
-		struct dvb_frontend_ops *ops = &fc->fe->ops;
-		ops->tuner_ops.set_params   =
-			skystar23_samsung_tbdu18132_tuner_set_params;
-		ops->diseqc_send_master_cmd = flexcop_diseqc_send_master_cmd;
-		ops->diseqc_send_burst      = flexcop_diseqc_send_burst;
-		ops->set_tone               = flexcop_set_tone;
-		ops->set_voltage            = flexcop_set_voltage;
-		fc->fe_sleep                = ops->sleep;
-		ops->sleep                  = flexcop_sleep;
-		return 1;
-	}
-	return 0;
+	if (!fc->fe)
+		return 0;
+
+	if (!dvb_attach(dvb_pll_attach, fc->fe, 0x61, i2c,
+			DVB_PLL_SAMSUNG_TBDU18132))
+		return 0;
+
+	ops = &fc->fe->ops;
+	ops->diseqc_send_master_cmd = flexcop_diseqc_send_master_cmd;
+	ops->diseqc_send_burst      = flexcop_diseqc_send_burst;
+	ops->set_tone               = flexcop_set_tone;
+	ops->set_voltage            = flexcop_set_voltage;
+	fc->fe_sleep                = ops->sleep;
+	ops->sleep                  = flexcop_sleep;
+	return 1;
 }
+#else
+#define skystar2_rev23_attach NULL
 #endif
 
 /* SkyStar2 DVB-S rev 2.6 */
-#if defined(CONFIG_DVB_STV0299_MODULE)
+#if FE_SUPPORTED(STV0299) && FE_SUPPORTED(PLL)
 static int samsung_tbmu24112_set_symbol_rate(struct dvb_frontend *fe,
 	u32 srate, u32 ratio)
 {
@@ -222,31 +208,6 @@ static int samsung_tbmu24112_set_symbol_rate(struct dvb_frontend *fe,
 	stv0299_writereg(fe, 0x1f, (ratio >> 16) & 0xff);
 	stv0299_writereg(fe, 0x20, (ratio >>  8) & 0xff);
 	stv0299_writereg(fe, 0x21,  ratio        & 0xf0);
-	return 0;
-}
-
-static int samsung_tbmu24112_tuner_set_params(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
-{
-	u8 buf[4];
-	u32 div;
-	struct i2c_msg msg = {
-	.addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
-	struct flexcop_device *fc = fe->dvb->priv;
-	div = params->frequency / 125;
-
-	buf[0] = (div >> 8) & 0x7f;
-	buf[1] = div & 0xff;
-	buf[2] = 0x84; /* 0xC4 */
-	buf[3] = 0x08;
-
-	if (params->frequency < 1500000)
-		buf[3] |= 0x10;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&fc->fc_i2c_adap[0].i2c_adap, &msg, 1) != 1)
-		return -EIO;
 	return 0;
 }
 
@@ -311,20 +272,25 @@ static int skystar2_rev26_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fe = dvb_attach(stv0299_attach, &samsung_tbmu24112_config, i2c);
-	if (fc->fe != NULL) {
-		struct dvb_frontend_ops *ops  = &fc->fe->ops;
-		ops->tuner_ops.set_params = samsung_tbmu24112_tuner_set_params;
-		ops->set_voltage = flexcop_set_voltage;
-		fc->fe_sleep = ops->sleep;
-		ops->sleep = flexcop_sleep;
-		return 1;
-	}
-	return 0;
+	if (!fc->fe)
+		return 0;
+
+	if (!dvb_attach(dvb_pll_attach, fc->fe, 0x61, i2c,
+			DVB_PLL_SAMSUNG_TBMU24112))
+		return 0;
+
+	fc->fe->ops.set_voltage = flexcop_set_voltage;
+	fc->fe_sleep = fc->fe->ops.sleep;
+	fc->fe->ops.sleep = flexcop_sleep;
+	return 1;
+
 }
+#else
+#define skystar2_rev26_attach NULL
 #endif
 
 /* SkyStar2 DVB-S rev 2.7 */
-#if defined(CONFIG_DVB_S5H1420_MODULE)
+#if FE_SUPPORTED(S5H1420) && FE_SUPPORTED(ISL6421) && FE_SUPPORTED(TUNER_ITD1000)
 static struct s5h1420_config skystar2_rev2_7_s5h1420_config = {
 	.demod_address = 0x53,
 	.invert = 1,
@@ -385,10 +351,12 @@ fail:
 	fc->fc_i2c_adap[0].no_base_addr = 0;
 	return 0;
 }
+#else
+#define skystar2_rev27_attach NULL
 #endif
 
 /* SkyStar2 rev 2.8 */
-#if defined(CONFIG_DVB_CX24123_MODULE)
+#if FE_SUPPORTED(CX24123) && FE_SUPPORTED(ISL6421) && FE_SUPPORTED(TUNER_CX24113)
 static struct cx24123_config skystar2_rev2_8_cx24123_config = {
 	.demod_address = 0x55,
 	.dont_use_pll = 1,
@@ -410,7 +378,7 @@ static int skystar2_rev28_attach(struct flexcop_device *fc,
 	if (!fc->fe)
 		return 0;
 
-	i2c_tuner = cx24123_get_tuner_i2c_adapter(fc->fe);;
+	i2c_tuner = cx24123_get_tuner_i2c_adapter(fc->fe);
 	if (!i2c_tuner)
 		return 0;
 
@@ -433,10 +401,12 @@ static int skystar2_rev28_attach(struct flexcop_device *fc,
 	 * IR-receiver (PIC16F818) - but the card has no input for that ??? */
 	return 1;
 }
+#else
+#define skystar2_rev28_attach NULL
 #endif
 
 /* AirStar DVB-T */
-#if defined(CONFIG_DVB_MT352_MODULE)
+#if FE_SUPPORTED(MT352) && FE_SUPPORTED(PLL)
 static int samsung_tdtc9251dh0_demod_init(struct dvb_frontend *fe)
 {
 	static u8 mt352_clock_config[] = { 0x89, 0x18, 0x2d };
@@ -454,32 +424,6 @@ static int samsung_tdtc9251dh0_demod_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int samsung_tdtc9251dh0_calc_regs(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params, u8* pllbuf, int buf_len)
-{
-	u32 div;
-	unsigned char bs = 0;
-
-	if (buf_len < 5)
-		return -EINVAL;
-
-#define IF_FREQUENCYx6 217    /* 6 * 36.16666666667MHz */
-	div = (((params->frequency + 83333) * 3) / 500000) + IF_FREQUENCYx6;
-	if (params->frequency >= 48000000 && params->frequency <= 154000000) \
-		bs = 0x09;
-	if (params->frequency >= 161000000 && params->frequency <= 439000000) \
-		bs = 0x0a;
-	if (params->frequency >= 447000000 && params->frequency <= 863000000) \
-		bs = 0x08;
-
-	pllbuf[0] = 0x61;
-	pllbuf[1] = div >> 8;
-	pllbuf[2] = div & 0xff;
-	pllbuf[3] = 0xcc;
-	pllbuf[4] = bs;
-	return 5;
-}
-
 static struct mt352_config samsung_tdtc9251dh0_config = {
 	.demod_address = 0x0f,
 	.demod_init    = samsung_tdtc9251dh0_demod_init,
@@ -489,16 +433,18 @@ static int airstar_dvbt_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fe = dvb_attach(mt352_attach, &samsung_tdtc9251dh0_config, i2c);
-	if (fc->fe != NULL) {
-		fc->fe->ops.tuner_ops.calc_regs = samsung_tdtc9251dh0_calc_regs;
-		return 1;
-	}
-	return 0;
+	if (!fc->fe)
+		return 0;
+
+	return !!dvb_attach(dvb_pll_attach, fc->fe, 0x61, NULL,
+			    DVB_PLL_SAMSUNG_TDTC9251DH0);
 }
+#else
+#define airstar_dvbt_attach NULL
 #endif
 
 /* AirStar ATSC 1st generation */
-#if defined(CONFIG_DVB_BCM3510_MODULE)
+#if FE_SUPPORTED(BCM3510)
 static int flexcop_fe_request_firmware(struct dvb_frontend *fe,
 	const struct firmware **fw, char* name)
 {
@@ -517,10 +463,12 @@ static int airstar_atsc1_attach(struct flexcop_device *fc,
 	fc->fe = dvb_attach(bcm3510_attach, &air2pc_atsc_first_gen_config, i2c);
 	return fc->fe != NULL;
 }
+#else
+#define airstar_atsc1_attach NULL
 #endif
 
 /* AirStar ATSC 2nd generation */
-#if defined(CONFIG_DVB_NXT200X_MODULE)
+#if FE_SUPPORTED(NXT200X) && FE_SUPPORTED(PLL)
 static struct nxt200x_config samsung_tbmv_config = {
 	.demod_address = 0x0a,
 };
@@ -535,10 +483,12 @@ static int airstar_atsc2_attach(struct flexcop_device *fc,
 	return !!dvb_attach(dvb_pll_attach, fc->fe, 0x61, NULL,
 			    DVB_PLL_SAMSUNG_TBMV);
 }
+#else
+#define airstar_atsc2_attach NULL
 #endif
 
 /* AirStar ATSC 3rd generation */
-#if defined(CONFIG_DVB_LGDT330X_MODULE)
+#if FE_SUPPORTED(LGDT330X)
 static struct lgdt330x_config air2pc_atsc_hd5000_config = {
 	.demod_address       = 0x59,
 	.demod_chip          = LGDT3303,
@@ -556,57 +506,12 @@ static int airstar_atsc3_attach(struct flexcop_device *fc,
 	return !!dvb_attach(simple_tuner_attach, fc->fe, i2c, 0x61,
 			    TUNER_LG_TDVS_H06XF);
 }
+#else
+#define airstar_atsc3_attach NULL
 #endif
 
 /* CableStar2 DVB-C */
-#if defined(CONFIG_DVB_STV0297_MODULE)
-static int alps_tdee4_stv0297_tuner_set_params(struct dvb_frontend* fe,
-		struct dvb_frontend_parameters *fep)
-{
-	struct flexcop_device *fc = fe->dvb->priv;
-	u8 buf[4];
-	u16 div;
-	int ret;
-
-/* 62.5 kHz * 10 */
-#define REF_FREQ    625
-#define FREQ_OFFSET 36125
-
-	div = ((fep->frequency/1000 + FREQ_OFFSET) * 10) / REF_FREQ;
-/* 4 MHz = 4000 KHz */
-
-	buf[0] = (u8)( div >> 8) & 0x7f;
-	buf[1] = (u8)        div & 0xff;
-
-/* F(osc) = N * Reference Freq. (62.5 kHz)
- * byte 2 :  0 N14 N13 N12 N11 N10 N9  N8
- * byte 3 : N7 N6  N5  N4  N3  N2  N1  N0
- * byte 4 : 1  *   *   AGD R3  R2  R1  R0
- * byte 5 : C1 *   RE  RTS BS4 BS3 BS2 BS1
- * AGD = 1, R3 R2 R1 R0 = 0 1 0 1 => byte 4 = 1**10101 = 0x95 */
-	buf[2] = 0x95;
-
-/* Range(MHz)  C1 *  RE RTS BS4 BS3 BS2 BS1  Byte 5
- *  47 - 153   0  *  0   0   0   0   0   1   0x01
- * 153 - 430   0  *  0   0   0   0   1   0   0x02
- * 430 - 822   0  *  0   0   1   0   0   0   0x08
- * 822 - 862   1  *  0   0   1   0   0   0   0x88 */
-
-	     if (fep->frequency <= 153000000) buf[3] = 0x01;
-	else if (fep->frequency <= 430000000) buf[3] = 0x02;
-	else if (fep->frequency <= 822000000) buf[3] = 0x08;
-	else buf[3] = 0x88;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-	deb_tuner("tuner buffer for %d Hz: %x %x %x %x\n", fep->frequency,
-	buf[0], buf[1], buf[2], buf[3]);
-	ret = fc->i2c_request(&fc->fc_i2c_adap[2],
-			FC_WRITE, 0x61, buf[0], &buf[1], 3);
-	deb_tuner("tuner write returned: %d\n",ret);
-	return ret;
-}
-
+#if FE_SUPPORTED(STV0297) && FE_SUPPORTED(PLL)
 static u8 alps_tdee4_stv0297_inittab[] = {
 	0x80, 0x01,
 	0x80, 0x00,
@@ -690,47 +595,43 @@ static int cablestar2_attach(struct flexcop_device *fc,
 {
 	fc->fc_i2c_adap[0].no_base_addr = 1;
 	fc->fe = dvb_attach(stv0297_attach, &alps_tdee4_stv0297_config, i2c);
-	if (!fc->fe) {
-		/* Reset for next frontend to try */
-		fc->fc_i2c_adap[0].no_base_addr = 0;
-		return 0;
-	}
-	fc->fe->ops.tuner_ops.set_params = alps_tdee4_stv0297_tuner_set_params;
+	if (!fc->fe)
+		goto fail;
+
+	/* This tuner doesn't use the stv0297's I2C gate, but instead the
+	 * tuner is connected to a different flexcop I2C adapter.  */
+	if (fc->fe->ops.i2c_gate_ctrl)
+		fc->fe->ops.i2c_gate_ctrl(fc->fe, 0);
+	fc->fe->ops.i2c_gate_ctrl = NULL;
+
+	if (!dvb_attach(dvb_pll_attach, fc->fe, 0x61,
+			&fc->fc_i2c_adap[2].i2c_adap, DVB_PLL_TDEE4))
+		goto fail;
+
 	return 1;
+
+fail:
+	/* Reset for next frontend to try */
+	fc->fc_i2c_adap[0].no_base_addr = 0;
+	return 0;
 }
+#else
+#define cablestar2_attach NULL
 #endif
 
 static struct {
 	flexcop_device_type_t type;
 	int (*attach)(struct flexcop_device *, struct i2c_adapter *);
 } flexcop_frontends[] = {
-#if defined(CONFIG_DVB_S5H1420_MODULE)
 	{ FC_SKY_REV27, skystar2_rev27_attach },
-#endif
-#if defined(CONFIG_DVB_CX24123_MODULE)
 	{ FC_SKY_REV28, skystar2_rev28_attach },
-#endif
-#if defined(CONFIG_DVB_STV0299_MODULE)
 	{ FC_SKY_REV26, skystar2_rev26_attach },
-#endif
-#if defined(CONFIG_DVB_MT352_MODULE)
 	{ FC_AIR_DVBT, airstar_dvbt_attach },
-#endif
-#if defined(CONFIG_DVB_NXT200X_MODULE)
 	{ FC_AIR_ATSC2, airstar_atsc2_attach },
-#endif
-#if defined(CONFIG_DVB_LGDT330X_MODULE)
 	{ FC_AIR_ATSC3, airstar_atsc3_attach },
-#endif
-#if defined(CONFIG_DVB_BCM3510_MODULE)
 	{ FC_AIR_ATSC1, airstar_atsc1_attach },
-#endif
-#if defined(CONFIG_DVB_STV0297_MODULE)
 	{ FC_CABLE, cablestar2_attach },
-#endif
-#if defined(CONFIG_DVB_MT312_MODULE)
 	{ FC_SKY_REV23, skystar2_rev23_attach },
-#endif
 };
 
 /* try to figure out the frontend */
@@ -738,6 +639,8 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(flexcop_frontends); i++) {
+		if (!flexcop_frontends[i].attach)
+			continue;
 		/* type needs to be set before, because of some workarounds
 		 * done based on the probed card type */
 		fc->dev_type = flexcop_frontends[i].type;

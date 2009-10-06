@@ -43,6 +43,7 @@
 #include <net/9p/transport.h>
 #include <linux/scatterlist.h>
 #include <linux/virtio.h>
+#include <linux/virtio_ids.h>
 #include <linux/virtio_9p.h>
 
 #define VIRTQUEUE_NUM	128
@@ -57,11 +58,9 @@ static int chan_index;
  * @initialized: whether the channel is initialized
  * @inuse: whether the channel is in use
  * @lock: protects multiple elements within this structure
+ * @client: client instance
  * @vdev: virtio dev associated with this channel
  * @vq: virtio queue associated with this channel
- * @tagpool: accounting for tag ids (and request slots)
- * @reqs: array of request slots
- * @max_tag: current number of request_slots allocated
  * @sg: scatter gather list which is used to pack a request (protected?)
  *
  * We keep all per-channel information in a structure.
@@ -92,7 +91,7 @@ static unsigned int rest_of_page(void *data)
 
 /**
  * p9_virtio_close - reclaim resources of a channel
- * @trans: transport state
+ * @client: client instance
  *
  * This reclaims a channel by freeing its resources and
  * reseting its inuse flag.
@@ -181,9 +180,8 @@ static int p9_virtio_cancel(struct p9_client *client, struct p9_req_t *req)
 
 /**
  * p9_virtio_request - issue a request
- * @t: transport state
- * @tc: &p9_fcall request to transmit
- * @rc: &p9_fcall to put reponse into
+ * @client: client instance issuing the request
+ * @req: request to be issued
  *
  */
 
@@ -203,7 +201,7 @@ p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 
 	req->status = REQ_STATUS_SENT;
 
-	if (chan->vq->vq_ops->add_buf(chan->vq, chan->sg, out, in, req->tc)) {
+	if (chan->vq->vq_ops->add_buf(chan->vq, chan->sg, out, in, req->tc) < 0) {
 		P9_DPRINTK(P9_DEBUG_TRANS,
 			"9p debug: virtio rpc add_buf returned failure");
 		return -EIO;
@@ -336,8 +334,6 @@ static void p9_virtio_remove(struct virtio_device *vdev)
 		chan->initialized = false;
 	}
 }
-
-#define VIRTIO_ID_9P 9
 
 static struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_9P, VIRTIO_DEV_ANY_ID },

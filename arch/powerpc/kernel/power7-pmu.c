@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
-#include <linux/perf_counter.h>
+#include <linux/perf_event.h>
 #include <linux/string.h>
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -317,7 +317,7 @@ static int power7_generic_events[] = {
  */
 static int power7_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
-		[C(OP_READ)] = {	0x400f0,	0xc880	},
+		[C(OP_READ)] = {	0xc880,		0x400f0	},
 		[C(OP_WRITE)] = {	0,		0x300f0	},
 		[C(OP_PREFETCH)] = {	0xd8b8,		0	},
 	},
@@ -327,8 +327,8 @@ static int power7_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_PREFETCH)] = {	0x408a,		0	},
 	},
 	[C(LL)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
-		[C(OP_READ)] = {	0x6080,		0x6084	},
-		[C(OP_WRITE)] = {	0x6082,		0x6086	},
+		[C(OP_READ)] = {	0x16080,	0x26080	},
+		[C(OP_WRITE)] = {	0x16082,	0x26082	},
 		[C(OP_PREFETCH)] = {	0,		0	},
 	},
 	[C(DTLB)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
@@ -358,6 +358,7 @@ static struct power_pmu power7_pmu = {
 	.get_constraint		= power7_get_constraint,
 	.get_alternatives	= power7_get_alternatives,
 	.disable_pmc		= power7_disable_pmc,
+	.flags			= PPMU_ALT_SIPR,
 	.n_generic		= ARRAY_SIZE(power7_generic_events),
 	.generic_events		= power7_generic_events,
 	.cache_events		= &power7_cache_events,
@@ -365,7 +366,8 @@ static struct power_pmu power7_pmu = {
 
 static int init_power7_pmu(void)
 {
-	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power7"))
+	if (!cur_cpu_spec->oprofile_cpu_type ||
+	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power7"))
 		return -ENODEV;
 
 	return register_power_pmu(&power7_pmu);

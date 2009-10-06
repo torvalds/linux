@@ -68,11 +68,16 @@ static void catas_reset(struct work_struct *work)
 	spin_unlock_irq(&catas_lock);
 
 	list_for_each_entry_safe(dev, tmpdev, &tlist, catas_err.list) {
+		struct pci_dev *pdev = dev->pdev;
 		ret = __mthca_restart_one(dev->pdev);
+		/* 'dev' now is not valid */
 		if (ret)
-			mthca_err(dev, "Reset failed (%d)\n", ret);
-		else
-			mthca_dbg(dev, "Reset succeeded\n");
+			printk(KERN_ERR "mthca %s: Reset failed (%d)\n",
+			       pci_name(pdev), ret);
+		else {
+			struct mthca_dev *d = pci_get_drvdata(pdev);
+			mthca_dbg(d, "Reset succeeded\n");
+		}
 	}
 
 	mutex_unlock(&mthca_device_mutex);
@@ -88,6 +93,7 @@ static void handle_catas(struct mthca_dev *dev)
 	event.device = &dev->ib_dev;
 	event.event  = IB_EVENT_DEVICE_FATAL;
 	event.element.port_num = 0;
+	dev->active = false;
 
 	ib_dispatch_event(&event);
 

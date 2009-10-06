@@ -218,9 +218,8 @@ static ssize_t bonding_store_slaves(struct device *d,
 
 	/* Quick sanity check -- is the bond interface up? */
 	if (!(bond->dev->flags & IFF_UP)) {
-		printk(KERN_WARNING DRV_NAME
-		       ": %s: doing slave updates when interface is down.\n",
-		       bond->dev->name);
+		pr_warning(DRV_NAME ": %s: doing slave updates when "
+			   "interface is down.\n", bond->dev->name);
 	}
 
 	/* Note:  We can't hold bond->lock here, as bond_create grabs it. */
@@ -778,12 +777,14 @@ static ssize_t bonding_store_downdelay(struct device *d,
 		goto out;
 	} else {
 		if ((new_value % bond->params.miimon) != 0) {
-			printk(KERN_WARNING DRV_NAME
-			       ": %s: Warning: down delay (%d) is not a multiple "
-			       "of miimon (%d), delay rounded to %d ms\n",
-			       bond->dev->name, new_value, bond->params.miimon,
-			       (new_value / bond->params.miimon) *
-			       bond->params.miimon);
+			pr_warning(DRV_NAME
+				   ": %s: Warning: down delay (%d) is not a "
+				   "multiple of miimon (%d), delay rounded "
+				   "to %d ms\n",
+				   bond->dev->name, new_value,
+				   bond->params.miimon,
+				   (new_value / bond->params.miimon) *
+				   bond->params.miimon);
 		}
 		bond->params.downdelay = new_value / bond->params.miimon;
 		pr_info(DRV_NAME ": %s: Setting down delay to %d.\n",
@@ -838,12 +839,14 @@ static ssize_t bonding_store_updelay(struct device *d,
 		goto out;
 	} else {
 		if ((new_value % bond->params.miimon) != 0) {
-			printk(KERN_WARNING DRV_NAME
-			       ": %s: Warning: up delay (%d) is not a multiple "
-			       "of miimon (%d), updelay rounded to %d ms\n",
-			       bond->dev->name, new_value, bond->params.miimon,
-			       (new_value / bond->params.miimon) *
-			       bond->params.miimon);
+			pr_warning(DRV_NAME
+				   ": %s: Warning: up delay (%d) is not a "
+				   "multiple of miimon (%d), updelay rounded "
+				   "to %d ms\n",
+				   bond->dev->name, new_value,
+				   bond->params.miimon,
+				   (new_value / bond->params.miimon) *
+				   bond->params.miimon);
 		}
 		bond->params.updelay = new_value / bond->params.miimon;
 		pr_info(DRV_NAME ": %s: Setting up delay to %d.\n",
@@ -1179,6 +1182,7 @@ static ssize_t bonding_store_primary(struct device *d,
 				       ": %s: Setting %s as primary slave.\n",
 				       bond->dev->name, slave->dev->name);
 				bond->primary_slave = slave;
+				strcpy(bond->params.primary, slave->dev->name);
 				bond_select_active_slave(bond);
 				goto out;
 			}
@@ -1299,9 +1303,9 @@ static ssize_t bonding_store_active_slave(struct device *d,
         			new_active = slave;
         			if (new_active == old_active) {
 					/* do nothing */
-					printk(KERN_INFO DRV_NAME
-				       	       ": %s: %s is already the current active slave.\n",
-				               bond->dev->name, slave->dev->name);
+					pr_info(DRV_NAME
+						": %s: %s is already the current active slave.\n",
+						bond->dev->name, slave->dev->name);
 					goto out;
 				}
 				else {
@@ -1309,17 +1313,17 @@ static ssize_t bonding_store_active_slave(struct device *d,
             				    (old_active) &&
 				            (new_active->link == BOND_LINK_UP) &&
 				            IS_UP(new_active->dev)) {
-						printk(KERN_INFO DRV_NAME
-				       	              ": %s: Setting %s as active slave.\n",
-				                      bond->dev->name, slave->dev->name);
-                				bond_change_active_slave(bond, new_active);
+						pr_info(DRV_NAME
+							": %s: Setting %s as active slave.\n",
+							bond->dev->name, slave->dev->name);
+							bond_change_active_slave(bond, new_active);
         				}
 					else {
-						printk(KERN_INFO DRV_NAME
-				       	              ": %s: Could not set %s as active slave; "
-						      "either %s is down or the link is down.\n",
-				                      bond->dev->name, slave->dev->name,
-						      slave->dev->name);
+						pr_info(DRV_NAME
+							": %s: Could not set %s as active slave; "
+							"either %s is down or the link is down.\n",
+							bond->dev->name, slave->dev->name,
+							slave->dev->name);
 					}
 					goto out;
 				}
@@ -1537,8 +1541,8 @@ int bond_create_sysfs(void)
 		/* Is someone being kinky and naming a device bonding_master? */
 		if (__dev_get_by_name(&init_net,
 				      class_attr_bonding_masters.attr.name))
-			printk(KERN_ERR
-			       "network device named %s already exists in sysfs",
+			pr_err("network device named %s already "
+			       "exists in sysfs",
 			       class_attr_bonding_masters.attr.name);
 		ret = 0;
 	}
@@ -1566,7 +1570,7 @@ int bond_create_sysfs_entry(struct bonding *bond)
 
 	err = sysfs_create_group(&(dev->dev.kobj), &bonding_group);
 	if (err)
-		printk(KERN_EMERG "eek! didn't create group!\n");
+		pr_emerg("eek! didn't create group!\n");
 
 	return err;
 }

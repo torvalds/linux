@@ -47,10 +47,12 @@ static int get_next_char(void)
 static char *parse_value(void)
 {
 	static char value[1024];
-	int quote = 0, comment = 0, len = 0, space = 0;
+	int quote = 0, comment = 0, space = 0;
+	size_t len = 0;
 
 	for (;;) {
 		int c = get_next_char();
+
 		if (len >= sizeof(value) - 1)
 			return NULL;
 		if (c == '\n') {
@@ -158,17 +160,18 @@ static int get_extended_base_var(char *name, int baselen, int c)
 	name[baselen++] = '.';
 
 	for (;;) {
-		int c = get_next_char();
-		if (c == '\n')
+		int ch = get_next_char();
+
+		if (ch == '\n')
 			return -1;
-		if (c == '"')
+		if (ch == '"')
 			break;
-		if (c == '\\') {
-			c = get_next_char();
-			if (c == '\n')
+		if (ch == '\\') {
+			ch = get_next_char();
+			if (ch == '\n')
 				return -1;
 		}
-		name[baselen++] = c;
+		name[baselen++] = ch;
 		if (baselen > MAXNAME / 2)
 			return -1;
 	}
@@ -353,13 +356,13 @@ int perf_config_string(const char **dest, const char *var, const char *value)
 	return 0;
 }
 
-static int perf_default_core_config(const char *var, const char *value)
+static int perf_default_core_config(const char *var __used, const char *value __used)
 {
 	/* Add other config variables here and to Documentation/config.txt. */
 	return 0;
 }
 
-int perf_default_config(const char *var, const char *value, void *dummy)
+int perf_default_config(const char *var, const char *value, void *dummy __used)
 {
 	if (!prefixcmp(var, "core."))
 		return perf_default_core_config(var, value);
@@ -471,10 +474,10 @@ static int matches(const char* key, const char* value)
 		  !regexec(store.value_regex, value, 0, NULL, 0)));
 }
 
-static int store_aux(const char* key, const char* value, void *cb)
+static int store_aux(const char* key, const char* value, void *cb __used)
 {
+	int section_len;
 	const char *ep;
-	size_t section_len;
 
 	switch (store.state) {
 	case KEY_SEEN:
@@ -528,6 +531,8 @@ static int store_aux(const char* key, const char* value, void *cb)
 					store.offset[store.seen] = ftell(config_file);
 			}
 		}
+	default:
+		break;
 	}
 	return 0;
 }
@@ -551,7 +556,7 @@ static int store_write_section(int fd, const char* key)
 		strbuf_addf(&sb, "[%.*s]\n", store.baselen, key);
 	}
 
-	success = write_in_full(fd, sb.buf, sb.len) == sb.len;
+	success = (write_in_full(fd, sb.buf, sb.len) == (ssize_t)sb.len);
 	strbuf_release(&sb);
 
 	return success;
@@ -599,7 +604,7 @@ static int store_write_pair(int fd, const char* key, const char* value)
 		}
 	strbuf_addf(&sb, "%s\n", quote);
 
-	success = write_in_full(fd, sb.buf, sb.len) == sb.len;
+	success = (write_in_full(fd, sb.buf, sb.len) == (ssize_t)sb.len);
 	strbuf_release(&sb);
 
 	return success;
@@ -617,6 +622,7 @@ contline:
 		switch (contents[offset]) {
 			case '=': equal_offset = offset; break;
 			case ']': bracket_offset = offset; break;
+			default: break;
 		}
 	if (offset > 0 && contents[offset-1] == '\\') {
 		offset_ = offset;
@@ -740,9 +746,9 @@ int perf_config_set_multivar(const char* key, const char* value,
 			goto write_err_out;
 	} else {
 		struct stat st;
-		char* contents;
-		size_t contents_sz, copy_begin, copy_end;
-		int i, new_line = 0;
+		char *contents;
+		ssize_t contents_sz, copy_begin, copy_end;
+		int new_line = 0;
 
 		if (value_regex == NULL)
 			store.value_regex = NULL;

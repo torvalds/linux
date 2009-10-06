@@ -51,7 +51,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include "lm75.h"
 
 enum kinds { w83627ehf, w83627dhg, w83627dhg_p, w83667hg };

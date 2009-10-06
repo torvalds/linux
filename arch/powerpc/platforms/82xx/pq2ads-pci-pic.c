@@ -147,7 +147,7 @@ int __init pq2ads_pci_init_irq(void)
 		goto out;
 	}
 
-	priv = alloc_bootmem(sizeof(struct pq2ads_pci_pic));
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		of_node_put(np);
 		ret = -ENOMEM;

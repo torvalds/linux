@@ -301,6 +301,7 @@ struct ubi_wl_entry;
  *                @vol->readers, @vol->writers, @vol->exclusive,
  *                @vol->ref_count, @vol->mapping and @vol->eba_tbl.
  * @ref_count: count of references on the UBI device
+ * @image_seq: image sequence number recorded on EC headers
  *
  * @rsvd_pebs: count of reserved physical eraseblocks
  * @avail_pebs: count of available physical eraseblocks
@@ -372,6 +373,7 @@ struct ubi_wl_entry;
  * @vid_hdr_shift: contains @vid_hdr_offset - @vid_hdr_aloffset
  * @bad_allowed: whether the MTD device admits of bad physical eraseblocks or
  *               not
+ * @nor_flash: non-zero if working on top of NOR flash
  * @mtd: MTD device descriptor
  *
  * @peb_buf1: a buffer of PEB size used for different purposes
@@ -390,6 +392,7 @@ struct ubi_device {
 	struct ubi_volume *volumes[UBI_MAX_VOLUMES+UBI_INT_VOL_COUNT];
 	spinlock_t volumes_lock;
 	int ref_count;
+	int image_seq;
 
 	int rsvd_pebs;
 	int avail_pebs;
@@ -452,7 +455,8 @@ struct ubi_device {
 	int vid_hdr_offset;
 	int vid_hdr_aloffset;
 	int vid_hdr_shift;
-	int bad_allowed;
+	unsigned int bad_allowed:1;
+	unsigned int nor_flash:1;
 	struct mtd_info *mtd;
 
 	void *peb_buf1;
@@ -566,7 +570,7 @@ void ubi_do_get_volume_info(struct ubi_device *ubi, struct ubi_volume *vol,
 
 /*
  * ubi_rb_for_each_entry - walk an RB-tree.
- * @rb: a pointer to type 'struct rb_node' to to use as a loop counter
+ * @rb: a pointer to type 'struct rb_node' to use as a loop counter
  * @pos: a pointer to RB-tree entry type to use as a loop counter
  * @root: RB-tree's root
  * @member: the name of the 'struct rb_node' within the RB-tree entry
@@ -575,7 +579,8 @@ void ubi_do_get_volume_info(struct ubi_device *ubi, struct ubi_volume *vol,
 	for (rb = rb_first(root),                                            \
 	     pos = (rb ? container_of(rb, typeof(*pos), member) : NULL);     \
 	     rb;                                                             \
-	     rb = rb_next(rb), pos = container_of(rb, typeof(*pos), member))
+	     rb = rb_next(rb),                                               \
+	     pos = (rb ? container_of(rb, typeof(*pos), member) : NULL))
 
 /**
  * ubi_zalloc_vid_hdr - allocate a volume identifier header object.

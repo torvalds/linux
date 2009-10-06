@@ -245,7 +245,7 @@ ipt_get_target(struct ipt_entry *e)
 extern void ipt_init(void) __init;
 
 extern struct xt_table *ipt_register_table(struct net *net,
-					   struct xt_table *table,
+					   const struct xt_table *table,
 					   const struct ipt_replace *repl);
 extern void ipt_unregister_table(struct xt_table *table);
 

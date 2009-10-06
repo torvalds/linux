@@ -686,14 +686,15 @@ static inline int highest_inservice_irq(struct kvm_vcpu *vcpu)
 	return highest_bits((int *)&(VMX(vcpu, insvc[0])));
 }
 
-extern void vcpu_get_fpreg(struct kvm_vcpu *vcpu, u64 reg,
+extern void vcpu_get_fpreg(struct kvm_vcpu *vcpu, unsigned long reg,
 					struct ia64_fpreg *val);
-extern void vcpu_set_fpreg(struct kvm_vcpu *vcpu, u64 reg,
+extern void vcpu_set_fpreg(struct kvm_vcpu *vcpu, unsigned long reg,
 					struct ia64_fpreg *val);
-extern u64 vcpu_get_gr(struct kvm_vcpu *vcpu, u64 reg);
-extern void vcpu_set_gr(struct kvm_vcpu *vcpu, u64 reg, u64 val, int nat);
-extern u64 vcpu_get_psr(struct kvm_vcpu *vcpu);
-extern void vcpu_set_psr(struct kvm_vcpu *vcpu, u64 val);
+extern u64 vcpu_get_gr(struct kvm_vcpu *vcpu, unsigned long reg);
+extern void vcpu_set_gr(struct kvm_vcpu *vcpu, unsigned long reg,
+			u64 val, int nat);
+extern unsigned long vcpu_get_psr(struct kvm_vcpu *vcpu);
+extern void vcpu_set_psr(struct kvm_vcpu *vcpu, unsigned long val);
 extern u64 vcpu_thash(struct kvm_vcpu *vcpu, u64 vadr);
 extern void vcpu_bsw0(struct kvm_vcpu *vcpu);
 extern void thash_vhpt_insert(struct kvm_vcpu *v, u64 pte,

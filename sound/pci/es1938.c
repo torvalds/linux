@@ -244,7 +244,7 @@ struct es1938 {
 static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id);
 
 static struct pci_device_id snd_es1938_ids[] = {
-        { 0x125d, 0x1969, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },   /* Solo-1 */
+	{ PCI_VDEVICE(ESS, 0x1969), 0, },   /* Solo-1 */
 	{ 0, }
 };
 

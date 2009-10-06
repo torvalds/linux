@@ -311,6 +311,36 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 	return 1;
 }
 
+/**
+ * blk_rq_set_mixed_merge - mark a request as mixed merge
+ * @rq: request to mark as mixed merge
+ *
+ * Description:
+ *     @rq is about to be mixed merged.  Make sure the attributes
+ *     which can be mixed are set in each bio and mark @rq as mixed
+ *     merged.
+ */
+void blk_rq_set_mixed_merge(struct request *rq)
+{
+	unsigned int ff = rq->cmd_flags & REQ_FAILFAST_MASK;
+	struct bio *bio;
+
+	if (rq->cmd_flags & REQ_MIXED_MERGE)
+		return;
+
+	/*
+	 * @rq will no longer represent mixable attributes for all the
+	 * contained bios.  It will just track those of the first one.
+	 * Distributes the attributs to each bio.
+	 */
+	for (bio = rq->bio; bio; bio = bio->bi_next) {
+		WARN_ON_ONCE((bio->bi_rw & REQ_FAILFAST_MASK) &&
+			     (bio->bi_rw & REQ_FAILFAST_MASK) != ff);
+		bio->bi_rw |= ff;
+	}
+	rq->cmd_flags |= REQ_MIXED_MERGE;
+}
+
 static void blk_account_io_merge(struct request *req)
 {
 	if (blk_do_io_stat(req)) {
@@ -358,6 +388,19 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	 */
 	if (!ll_merge_requests_fn(q, req, next))
 		return 0;
+
+	/*
+	 * If failfast settings disagree or any of the two is already
+	 * a mixed merge, mark both as mixed before proceeding.  This
+	 * makes sure that all involved bios have mixable attributes
+	 * set properly.
+	 */
+	if ((req->cmd_flags | next->cmd_flags) & REQ_MIXED_MERGE ||
+	    (req->cmd_flags & REQ_FAILFAST_MASK) !=
+	    (next->cmd_flags & REQ_FAILFAST_MASK)) {
+		blk_rq_set_mixed_merge(req);
+		blk_rq_set_mixed_merge(next);
+	}
 
 	/*
 	 * At this point we have either done a back merge

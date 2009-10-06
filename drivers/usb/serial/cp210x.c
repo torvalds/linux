@@ -33,8 +33,7 @@
 /*
  * Function Prototypes
  */
-static int cp210x_open(struct tty_struct *, struct usb_serial_port *,
-							struct file *);
+static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *);
 static void cp210x_cleanup(struct usb_serial_port *);
 static void cp210x_close(struct usb_serial_port *);
 static void cp210x_get_termios(struct tty_struct *,
@@ -67,6 +66,8 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x10AB, 0x10C5) }, /* Siemens MC60 Cable */
 	{ USB_DEVICE(0x10B5, 0xAC70) }, /* Nokia CA-42 USB */
 	{ USB_DEVICE(0x10C4, 0x0F91) }, /* Vstabi */
+	{ USB_DEVICE(0x10C4, 0x1101) }, /* Arkham Technology DS101 Bus Monitor */
+	{ USB_DEVICE(0x10C4, 0x1601) }, /* Arkham Technology DS101 Adapter */
 	{ USB_DEVICE(0x10C4, 0x800A) }, /* SPORTident BSM7-D-USB main station */
 	{ USB_DEVICE(0x10C4, 0x803B) }, /* Pololu USB-serial converter */
 	{ USB_DEVICE(0x10C4, 0x8053) }, /* Enfora EDG1228 */
@@ -78,6 +79,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x10C4, 0x80F6) }, /* Suunto sports instrument */
 	{ USB_DEVICE(0x10C4, 0x8115) }, /* Arygon NFC/Mifare Reader */
 	{ USB_DEVICE(0x10C4, 0x813D) }, /* Burnside Telecom Deskmobile */
+	{ USB_DEVICE(0x10C4, 0x813F) }, /* Tams Master Easy Control */
 	{ USB_DEVICE(0x10C4, 0x814A) }, /* West Mountain Radio RIGblaster P&P */
 	{ USB_DEVICE(0x10C4, 0x814B) }, /* West Mountain Radio RIGtalk */
 	{ USB_DEVICE(0x10C4, 0x815E) }, /* Helicomm IP-Link 1220-DVM */
@@ -94,7 +96,9 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x10c4, 0x8293) }, /* Telegesys ETRX2USB */
 	{ USB_DEVICE(0x10C4, 0x82F9) }, /* Procyon AVS */
 	{ USB_DEVICE(0x10C4, 0x8341) }, /* Siemens MC35PU GPRS Modem */
+	{ USB_DEVICE(0x10C4, 0x8382) }, /* Cygnal Integrated Products, Inc. */
 	{ USB_DEVICE(0x10C4, 0x83A8) }, /* Amber Wireless AMB2560 */
+	{ USB_DEVICE(0x10C4, 0x8411) }, /* Kyocera GPS Module */
 	{ USB_DEVICE(0x10C4, 0x846E) }, /* BEI USB Sensor Interface (VCP) */
 	{ USB_DEVICE(0x10C4, 0xEA60) }, /* Silicon Labs factory default */
 	{ USB_DEVICE(0x10C4, 0xEA61) }, /* Silicon Labs factory default */
@@ -363,8 +367,7 @@ static unsigned int cp210x_quantise_baudrate(unsigned int baud) {
 	return baud;
 }
 
-static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port,
-				struct file *filp)
+static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	int result;
@@ -394,12 +397,6 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 	/* Configure the termios structure */
 	cp210x_get_termios(tty, port);
-
-	/* Set the DTR and RTS pins low */
-	cp210x_tiocmset_port(tty ? (struct usb_serial_port *) tty->driver_data
-			: port,
-		NULL, TIOCM_DTR | TIOCM_RTS, 0);
-
 	return 0;
 }
 

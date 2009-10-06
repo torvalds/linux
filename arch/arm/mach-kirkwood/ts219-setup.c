@@ -206,6 +206,15 @@ static void __init qnap_ts219_init(void)
 
 }
 
+static int __init ts219_pci_init(void)
+{
+   if (machine_is_ts219())
+           kirkwood_pcie_init();
+
+   return 0;
+}
+subsys_initcall(ts219_pci_init);
+
 MACHINE_START(TS219, "QNAP TS-119/TS-219")
 	/* Maintainer: Martin Michlmayr <tbm@cyrius.com> */
 	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,

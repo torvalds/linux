@@ -204,8 +204,19 @@ static void amba_device_release(struct device *dev)
 int amba_device_register(struct amba_device *dev, struct resource *parent)
 {
 	u32 pid, cid;
+	u32 size;
 	void __iomem *tmp;
 	int i, ret;
+
+	device_initialize(&dev->dev);
+
+	/*
+	 * Copy from device_add
+	 */
+	if (dev->dev.init_name) {
+		dev_set_name(&dev->dev, "%s", dev->dev.init_name);
+		dev->dev.init_name = NULL;
+	}
 
 	dev->dev.release = amba_device_release;
 	dev->dev.bus = &amba_bustype;
@@ -219,16 +230,25 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 	if (ret)
 		goto err_out;
 
-	tmp = ioremap(dev->res.start, SZ_4K);
+	/*
+	 * Dynamically calculate the size of the resource
+	 * and use this for iomap
+	 */
+	size = resource_size(&dev->res);
+	tmp = ioremap(dev->res.start, size);
 	if (!tmp) {
 		ret = -ENOMEM;
 		goto err_release;
 	}
 
+	/*
+	 * Read pid and cid based on size of resource
+	 * they are located at end of region
+	 */
 	for (pid = 0, i = 0; i < 4; i++)
-		pid |= (readl(tmp + 0xfe0 + 4 * i) & 255) << (i * 8);
+		pid |= (readl(tmp + size - 0x20 + 4 * i) & 255) << (i * 8);
 	for (cid = 0, i = 0; i < 4; i++)
-		cid |= (readl(tmp + 0xff0 + 4 * i) & 255) << (i * 8);
+		cid |= (readl(tmp + size - 0x10 + 4 * i) & 255) << (i * 8);
 
 	iounmap(tmp);
 
@@ -240,7 +260,7 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 		goto err_release;
 	}
 
-	ret = device_register(&dev->dev);
+	ret = device_add(&dev->dev);
 	if (ret)
 		goto err_release;
 
@@ -343,11 +363,14 @@ amba_find_device(const char *busid, struct device *parent, unsigned int id,
 int amba_request_regions(struct amba_device *dev, const char *name)
 {
 	int ret = 0;
+	u32 size;
 
 	if (!name)
 		name = dev->dev.driver->name;
 
-	if (!request_mem_region(dev->res.start, SZ_4K, name))
+	size = resource_size(&dev->res);
+
+	if (!request_mem_region(dev->res.start, size, name))
 		ret = -EBUSY;
 
 	return ret;
@@ -361,7 +384,10 @@ int amba_request_regions(struct amba_device *dev, const char *name)
  */
 void amba_release_regions(struct amba_device *dev)
 {
-	release_mem_region(dev->res.start, SZ_4K);
+	u32 size;
+
+	size = resource_size(&dev->res);
+	release_mem_region(dev->res.start, size);
 }
 
 EXPORT_SYMBOL(amba_driver_register);

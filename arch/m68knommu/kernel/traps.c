@@ -111,7 +111,7 @@ static void print_this_address(unsigned long addr, int i)
 	if (i % 5)
 		printk(KERN_CONT " [%08lx] ", addr);
 	else
-		printk(KERN_CONT "\n" KERN_EMERG " [%08lx] ", addr);
+		printk(KERN_EMERG " [%08lx] ", addr);
 	i++;
 #endif
 }
@@ -137,8 +137,8 @@ static void __show_stack(struct task_struct *task, unsigned long *stack)
 		if (stack + 1 + i > endstack)
 			break;
 		if (i % 8 == 0)
-			printk("\n" KERN_EMERG "       ");
-		printk(" %08lx", *(stack + i));
+			printk(KERN_EMERG "       ");
+		printk(KERN_CONT " %08lx", *(stack + i));
 	}
 	printk("\n");
 	i = 0;

@@ -372,8 +372,7 @@ static const struct {
 	/* DViCO Momobay FX-3A with TSB42AA9A bridge */ {
 		.firmware_revision	= 0x002800,
 		.model			= 0x000000,
-		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY |
-					  SBP2_WORKAROUND_POWER_CONDITION,
+		.workarounds		= SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,
@@ -880,6 +879,7 @@ static struct sbp2_lu *sbp2_alloc_device(struct unit_directory *ud)
 	}
 
 	shost->hostdata[0] = (unsigned long)lu;
+	shost->max_cmd_len = SBP2_MAX_CDB_SIZE;
 
 	if (!scsi_add_host(shost, &ud->device)) {
 		lu->shost = shost;

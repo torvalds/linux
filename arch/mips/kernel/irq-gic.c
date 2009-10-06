@@ -107,9 +107,7 @@ static unsigned int gic_irq_startup(unsigned int irq)
 {
 	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
 	irq -= _irqbase;
-	/* FIXME: this is wrong for !GICISWORDLITTLEENDIAN */
-	GICWRITE(GIC_REG_ADDR(SHARED, (GIC_SH_SMASK_31_0_OFS + (irq / 32))),
-		 1 << (irq % 32));
+	GIC_SET_INTR_MASK(irq, 1);
 	return 0;
 }
 
@@ -120,8 +118,7 @@ static void gic_irq_ack(unsigned int irq)
 #endif
 	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
 	irq -= _irqbase;
-	GICWRITE(GIC_REG_ADDR(SHARED, (GIC_SH_RMASK_31_0_OFS + (irq / 32))),
-		 1 << (irq % 32));
+	GIC_CLR_INTR_MASK(irq, 1);
 
 	if (_intrmap[irq].trigtype == GIC_TRIG_EDGE) {
 		if (!gic_wedgeb2bok)
@@ -138,18 +135,14 @@ static void gic_mask_irq(unsigned int irq)
 {
 	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
 	irq -= _irqbase;
-	/* FIXME: this is wrong for !GICISWORDLITTLEENDIAN */
-	GICWRITE(GIC_REG_ADDR(SHARED, (GIC_SH_RMASK_31_0_OFS + (irq / 32))),
-		 1 << (irq % 32));
+	GIC_CLR_INTR_MASK(irq, 1);
 }
 
 static void gic_unmask_irq(unsigned int irq)
 {
 	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
 	irq -= _irqbase;
-	/* FIXME: this is wrong for !GICISWORDLITTLEENDIAN */
-	GICWRITE(GIC_REG_ADDR(SHARED, (GIC_SH_SMASK_31_0_OFS + (irq / 32))),
-		 1 << (irq % 32));
+	GIC_SET_INTR_MASK(irq, 1);
 }
 
 #ifdef CONFIG_SMP
@@ -252,6 +245,10 @@ static void __init gic_basic_init(void)
 	for (i = 0; i < _mapsize; i++) {
 		cpu = _intrmap[i].cpunum;
 		if (cpu == X)
+			continue;
+
+		if (cpu == 0 && i != 0 && _intrmap[i].intrnum == 0 &&
+					_intrmap[i].ipiflag == 0)
 			continue;
 
 		setup_intr(_intrmap[i].intrnum,

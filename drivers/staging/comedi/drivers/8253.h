@@ -29,8 +29,10 @@
 #define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_2div
 
 static inline void i8253_cascade_ns_to_timer_2div_old(int i8253_osc_base,
-	unsigned int *d1, unsigned int *d2, unsigned int *nanosec,
-	int round_mode)
+						      unsigned int *d1,
+						      unsigned int *d2,
+						      unsigned int *nanosec,
+						      int round_mode)
 {
 	int divider;
 	int div1, div2;
@@ -78,8 +80,10 @@ static inline void i8253_cascade_ns_to_timer_2div_old(int i8253_osc_base,
 }
 
 static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base,
-	unsigned int *d1, unsigned int *d2, unsigned int *nanosec,
-	int round_mode)
+						   unsigned int *d1,
+						   unsigned int *d2,
+						   unsigned int *nanosec,
+						   int round_mode)
 {
 	int div1, div2;
 	int base;
@@ -118,8 +122,10 @@ static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base,
 }
 
 static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
-	unsigned int *d1, unsigned int *d2, unsigned int *nanosec,
-	int round_mode)
+						  unsigned int *d1,
+						  unsigned int *d2,
+						  unsigned int *nanosec,
+						  int round_mode)
 {
 	unsigned int divider;
 	unsigned int div1, div2;
@@ -136,12 +142,11 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	div2 = *d2 ? *d2 : max_count;
 	divider = div1 * div2;
 	if (div1 * div2 * i8253_osc_base == *nanosec &&
-		div1 > 1 && div1 <= max_count &&
-		div2 > 1 && div2 <= max_count &&
-		/* check for overflow */
-		divider > div1 && divider > div2 &&
-		divider * i8253_osc_base > divider &&
-		divider * i8253_osc_base > i8253_osc_base) {
+	    div1 > 1 && div1 <= max_count && div2 > 1 && div2 <= max_count &&
+	    /* check for overflow */
+	    divider > div1 && divider > div2 &&
+	    divider * i8253_osc_base > divider &&
+	    divider * i8253_osc_base > i8253_osc_base) {
 		return;
 	}
 
@@ -158,10 +163,10 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	if (start < 2)
 		start = 2;
 	for (div1 = start; div1 <= divider / div1 + 1 && div1 <= max_count;
-		div1++) {
+	     div1++) {
 		for (div2 = divider / div1;
-			div1 * div2 <= divider + div1 + 1 && div2 <= max_count;
-			div2++) {
+		     div1 * div2 <= divider + div1 + 1 && div2 <= max_count;
+		     div2++) {
 			ns = i8253_osc_base * div1 * div2;
 			if (ns <= *nanosec && ns > ns_glb) {
 				ns_glb = ns;
@@ -229,7 +234,8 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 #define i8254_control_reg	3
 
 static inline int i8254_load(unsigned long base_address, unsigned int regshift,
-	unsigned int counter_number, unsigned int count, unsigned int mode)
+			     unsigned int counter_number, unsigned int count,
+			     unsigned int mode)
 {
 	unsigned int byte;
 
@@ -255,7 +261,8 @@ static inline int i8254_load(unsigned long base_address, unsigned int regshift,
 }
 
 static inline int i8254_mm_load(void *base_address, unsigned int regshift,
-	unsigned int counter_number, unsigned int count, unsigned int mode)
+				unsigned int counter_number, unsigned int count,
+				unsigned int mode)
 {
 	unsigned int byte;
 
@@ -282,7 +289,7 @@ static inline int i8254_mm_load(void *base_address, unsigned int regshift,
 
 /* Returns 16 bit counter value, should work for 8253 also.*/
 static inline int i8254_read(unsigned long base_address, unsigned int regshift,
-	unsigned int counter_number)
+			     unsigned int counter_number)
 {
 	unsigned int byte;
 	int ret;
@@ -303,7 +310,7 @@ static inline int i8254_read(unsigned long base_address, unsigned int regshift,
 }
 
 static inline int i8254_mm_read(void *base_address, unsigned int regshift,
-	unsigned int counter_number)
+				unsigned int counter_number)
 {
 	unsigned int byte;
 	int ret;
@@ -325,7 +332,8 @@ static inline int i8254_mm_read(void *base_address, unsigned int regshift,
 
 /* Loads 16 bit initial counter value, should work for 8253 also. */
 static inline void i8254_write(unsigned long base_address,
-	unsigned int regshift, unsigned int counter_number, unsigned int count)
+			       unsigned int regshift,
+			       unsigned int counter_number, unsigned int count)
 {
 	unsigned int byte;
 
@@ -339,7 +347,9 @@ static inline void i8254_write(unsigned long base_address,
 }
 
 static inline void i8254_mm_write(void *base_address,
-	unsigned int regshift, unsigned int counter_number, unsigned int count)
+				  unsigned int regshift,
+				  unsigned int counter_number,
+				  unsigned int count)
 {
 	unsigned int byte;
 
@@ -360,7 +370,8 @@ static inline void i8254_mm_write(void *base_address,
  *   I8254_BCD, I8254_BINARY
  */
 static inline int i8254_set_mode(unsigned long base_address,
-	unsigned int regshift, unsigned int counter_number, unsigned int mode)
+				 unsigned int regshift,
+				 unsigned int counter_number, unsigned int mode)
 {
 	unsigned int byte;
 
@@ -378,7 +389,9 @@ static inline int i8254_set_mode(unsigned long base_address,
 }
 
 static inline int i8254_mm_set_mode(void *base_address,
-	unsigned int regshift, unsigned int counter_number, unsigned int mode)
+				    unsigned int regshift,
+				    unsigned int counter_number,
+				    unsigned int mode)
 {
 	unsigned int byte;
 
@@ -396,18 +409,20 @@ static inline int i8254_mm_set_mode(void *base_address,
 }
 
 static inline int i8254_status(unsigned long base_address,
-	unsigned int regshift, unsigned int counter_number)
+			       unsigned int regshift,
+			       unsigned int counter_number)
 {
 	outb(0xE0 | (2 << counter_number),
-		base_address + (i8254_control_reg << regshift));
+	     base_address + (i8254_control_reg << regshift));
 	return inb(base_address + (counter_number << regshift));
 }
 
 static inline int i8254_mm_status(void *base_address,
-	unsigned int regshift, unsigned int counter_number)
+				  unsigned int regshift,
+				  unsigned int counter_number)
 {
 	writeb(0xE0 | (2 << counter_number),
-		base_address + (i8254_control_reg << regshift));
+	       base_address + (i8254_control_reg << regshift));
 	return readb(base_address + (counter_number << regshift));
 }
 

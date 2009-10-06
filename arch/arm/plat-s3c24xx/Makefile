@@ -20,19 +20,28 @@ obj-y				+= gpiolib.o
 obj-y				+= clock.o
 obj-$(CONFIG_S3C24XX_DCLK)	+= clock-dclk.o
 
+obj-$(CONFIG_CPU_FREQ_S3C24XX)	+= cpu-freq.o
+obj-$(CONFIG_CPU_FREQ_S3C24XX_DEBUGFS) += cpu-freq-debugfs.o
+
 # Architecture dependant builds
 
 obj-$(CONFIG_CPU_S3C244X)	+= s3c244x.o
 obj-$(CONFIG_CPU_S3C244X)	+= s3c244x-irq.o
 obj-$(CONFIG_CPU_S3C244X)	+= s3c244x-clock.o
+obj-$(CONFIG_S3C2440_CPUFREQ)	+= s3c2440-cpufreq.o
+obj-$(CONFIG_S3C2440_PLL_12000000) += s3c2440-pll-12000000.o
+obj-$(CONFIG_S3C2440_PLL_16934400) += s3c2440-pll-16934400.o
+
 obj-$(CONFIG_PM_SIMTEC)		+= pm-simtec.o
 obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_PM)		+= irq-pm.o
 obj-$(CONFIG_PM)		+= sleep.o
-obj-$(CONFIG_HAVE_PWM)		+= pwm.o
 obj-$(CONFIG_S3C2410_CLOCK)	+= s3c2410-clock.o
 obj-$(CONFIG_S3C2410_DMA)	+= dma.o
 obj-$(CONFIG_S3C24XX_ADC)	+= adc.o
+obj-$(CONFIG_S3C2410_IOTIMING)	+= s3c2410-iotiming.o
+obj-$(CONFIG_S3C2412_IOTIMING)	+= s3c2412-iotiming.o
+obj-$(CONFIG_S3C2410_CPUFREQ_UTILS) += s3c2410-cpufreq-utils.o
 
 # device specific setup and/or initialisation
 obj-$(CONFIG_ARCH_S3C2410)	+= setup-i2c.o
@@ -41,6 +50,7 @@ obj-$(CONFIG_ARCH_S3C2410)	+= setup-i2c.o
 
 obj-$(CONFIG_S3C24XX_SPI_BUS0_GPE11_GPE12_GPE13) += spi-bus0-gpe11_12_13.o
 obj-$(CONFIG_S3C24XX_SPI_BUS1_GPG5_GPG6_GPG7)    += spi-bus1-gpg5_6_7.o
+obj-$(CONFIG_S3C24XX_SPI_BUS1_GPD8_GPD9_GPD10)	 += spi-bus1-gpd8_9_10.o
 
 # machine common support
 

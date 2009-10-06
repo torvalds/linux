@@ -65,6 +65,19 @@ static unsigned int qe_num_of_snum;
 
 static phys_addr_t qebase = -1;
 
+int qe_alive_during_sleep(void)
+{
+	static int ret = -1;
+
+	if (ret != -1)
+		return ret;
+
+	ret = !of_find_compatible_node(NULL, NULL, "fsl,mpc8569-pmc");
+
+	return ret;
+}
+EXPORT_SYMBOL(qe_alive_during_sleep);
+
 phys_addr_t get_qe_base(void)
 {
 	struct device_node *qe;
@@ -112,6 +125,7 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
 {
 	unsigned long flags;
 	u8 mcn_shift = 0, dev_shift = 0;
+	u32 ret;
 
 	spin_lock_irqsave(&qe_lock, flags);
 	if (cmd == QE_RESET) {
@@ -139,11 +153,13 @@ int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input)
 	}
 
 	/* wait for the QE_CR_FLG to clear */
-	while(in_be32(&qe_immr->cp.cecr) & QE_CR_FLG)
-		cpu_relax();
+	ret = spin_event_timeout((in_be32(&qe_immr->cp.cecr) & QE_CR_FLG) == 0,
+			   100, 0);
+	/* On timeout (e.g. failure), the expression will be false (ret == 0),
+	   otherwise it will be true (ret == 1). */
 	spin_unlock_irqrestore(&qe_lock, flags);
 
-	return 0;
+	return ret == 1;
 }
 EXPORT_SYMBOL(qe_issue_cmd);
 

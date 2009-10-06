@@ -28,7 +28,7 @@ static inline struct s3c_gpio_chip *s3c_gpiolib_getchip(unsigned int pin)
 		return NULL;
 
 	chip = &s3c24xx_gpios[pin/32];
-	return (S3C2410_GPIO_OFFSET(pin) > chip->chip.ngpio) ? chip : NULL;
+	return (S3C2410_GPIO_OFFSET(pin) < chip->chip.ngpio) ? chip : NULL;
 }
 
 #endif /* __ASM_ARCH_GPIO_CORE_H */

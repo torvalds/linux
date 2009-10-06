@@ -26,12 +26,6 @@
 				MXC_MAX_VIRTUAL_INTS)
 
 /*
- * MXC UART EVB board level configurations
- */
-#define MXC_LL_UART_PADDR       UART1_BASE_ADDR
-#define MXC_LL_UART_VADDR       AIPI_IO_ADDRESS(UART1_BASE_ADDR)
-
-/*
  * @name Memory Size parameters
  */
 

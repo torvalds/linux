@@ -456,7 +456,7 @@ struct dvb_frontend* ves1x93_attach(const struct ves1x93_config* config,
 	u8 identity;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct ves1x93_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct ves1x93_state), GFP_KERNEL);
 	if (state == NULL) goto error;
 
 	/* setup the state */

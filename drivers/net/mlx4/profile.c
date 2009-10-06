@@ -32,8 +32,6 @@
  * SOFTWARE.
  */
 
-#include <linux/init.h>
-
 #include "mlx4.h"
 #include "fw.h"
 

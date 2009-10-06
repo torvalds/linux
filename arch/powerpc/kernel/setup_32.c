@@ -119,6 +119,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
  */
 notrace void __init machine_init(unsigned long dt_ptr)
 {
+	lockdep_init();
+
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 
@@ -207,6 +209,14 @@ void nvram_write_byte(unsigned char val, int addr)
 		ppc_md.nvram_write_val(addr, val);
 }
 EXPORT_SYMBOL(nvram_write_byte);
+
+ssize_t nvram_get_size(void)
+{
+	if (ppc_md.nvram_size)
+		return ppc_md.nvram_size();
+	return -1;
+}
+EXPORT_SYMBOL(nvram_get_size);
 
 void nvram_sync(void)
 {

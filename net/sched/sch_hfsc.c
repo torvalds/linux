@@ -77,7 +77,7 @@
  *   The service curve parameters are converted to the internal
  *   representation. The slope values are scaled to avoid overflow.
  *   the inverse slope values as well as the y-projection of the 1st
- *   segment are kept in order to to avoid 64-bit divide operations
+ *   segment are kept in order to avoid 64-bit divide operations
  *   that are expensive on 32-bit architectures.
  */
 
@@ -116,7 +116,7 @@ struct hfsc_class
 	struct Qdisc_class_common cl_common;
 	unsigned int	refcnt;		/* usage count */
 
-	struct gnet_stats_basic bstats;
+	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
 	struct gnet_stats_rate_est rate_est;
 	unsigned int	level;		/* class level in hierarchy */
@@ -1203,8 +1203,6 @@ hfsc_graft_class(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 {
 	struct hfsc_class *cl = (struct hfsc_class *)arg;
 
-	if (cl == NULL)
-		return -ENOENT;
 	if (cl->level > 0)
 		return -EINVAL;
 	if (new == NULL) {
@@ -1228,7 +1226,7 @@ hfsc_class_leaf(struct Qdisc *sch, unsigned long arg)
 {
 	struct hfsc_class *cl = (struct hfsc_class *)arg;
 
-	if (cl != NULL && cl->level == 0)
+	if (cl->level == 0)
 		return cl->qdisc;
 
 	return NULL;

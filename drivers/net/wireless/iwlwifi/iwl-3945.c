@@ -349,12 +349,13 @@ static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
  *
  *****************************************************************************/
 
-void iwl3945_hw_rx_statistics(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
+void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
+		struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(struct iwl3945_notif_statistics),
-		     le32_to_cpu(pkt->len));
+		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
 
 	memcpy(&priv->statistics_39, pkt->u.raw, sizeof(priv->statistics_39));
 
@@ -509,7 +510,7 @@ static void iwl3945_dbg_report_frame(struct iwl_priv *priv,
 		      struct iwl_rx_packet *pkt,
 		      struct ieee80211_hdr *header, int group100)
 {
-	if (priv->debug_level & IWL_DL_RX)
+	if (iwl_get_debug_level(priv) & IWL_DL_RX)
 		_iwl3945_dbg_report_frame(priv, pkt, header, group100);
 }
 
@@ -544,9 +545,7 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 				   struct ieee80211_rx_status *stats)
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-#ifdef CONFIG_IWLWIFI_LEDS
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)IWL_RX_DATA(pkt);
-#endif
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
 	short len = le16_to_cpu(rx_hdr->len);
@@ -577,7 +576,10 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 	if (ieee80211_is_data(hdr->frame_control))
 		priv->rxtxpackets += len;
 #endif
-	ieee80211_rx_irqsafe(priv->hw, rxb->skb, stats);
+	iwl_update_stats(priv, false, hdr->frame_control, len);
+
+	memcpy(IEEE80211_SKB_RXCB(rxb->skb), stats, sizeof(*stats));
+	ieee80211_rx_irqsafe(priv->hw, rxb->skb);
 	rxb->skb = NULL;
 }
 
@@ -678,6 +680,7 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 
 	/* Set "1" to report good data frames in groups of 100 */
 	iwl3945_dbg_report_frame(priv, pkt, header, 1);
+	iwl_dbg_log_rx_data_frame(priv, le16_to_cpu(rx_hdr->len), header);
 
 	if (network_packet) {
 		priv->last_beacon_time = le32_to_cpu(rx_end->beacon_timestamp);
@@ -748,8 +751,8 @@ void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	/* Unmap tx_cmd */
 	if (counter)
 		pci_unmap_single(dev,
-				pci_unmap_addr(&txq->cmd[index]->meta, mapping),
-				pci_unmap_len(&txq->cmd[index]->meta, len),
+				pci_unmap_addr(&txq->meta[index], mapping),
+				pci_unmap_len(&txq->meta[index], len),
 				PCI_DMA_TODEVICE);
 
 	/* unmap chunks if any */
@@ -773,9 +776,11 @@ void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
  * iwl3945_hw_build_tx_cmd_rate - Add rate portion to TX_CMD:
  *
 */
-void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv, struct iwl_cmd *cmd,
-			      struct ieee80211_tx_info *info,
-			      struct ieee80211_hdr *hdr, int sta_id, int tx_id)
+void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
+				  struct iwl_device_cmd *cmd,
+				  struct ieee80211_tx_info *info,
+				  struct ieee80211_hdr *hdr,
+				  int sta_id, int tx_id)
 {
 	u16 hw_value = ieee80211_get_tx_rate(priv->hw, info)->hw_value;
 	u16 rate_index = min(hw_value & 0xffff, IWL_RATE_COUNT - 1);
@@ -962,7 +967,7 @@ static int iwl3945_txq_ctx_reset(struct iwl_priv *priv)
 		goto error;
 
 	/* Tx queue(s) */
-	for (txq_id = 0; txq_id <= priv->hw_params.max_txq_num; txq_id++) {
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
 		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
 				TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		rc = iwl_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
@@ -1139,7 +1144,7 @@ void iwl3945_hw_txq_ctx_free(struct iwl_priv *priv)
 	int txq_id;
 
 	/* Tx queues */
-	for (txq_id = 0; txq_id <= priv->hw_params.max_txq_num; txq_id++)
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
 		if (txq_id == IWL_CMD_QUEUE_NUM)
 			iwl_cmd_queue_free(priv);
 		else
@@ -1155,7 +1160,7 @@ void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
 	iwl_write_prph(priv, ALM_SCD_MODE_REG, 0);
 
 	/* reset TFD queues */
-	for (txq_id = 0; txq_id <= priv->hw_params.max_txq_num; txq_id++) {
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
 		iwl_write_direct32(priv, FH39_TCSR_CONFIG(txq_id), 0x0);
 		iwl_poll_direct_bit(priv, FH39_TSSR_TX_STATUS,
 				FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
@@ -1857,7 +1862,7 @@ static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_RXON_ASSOC,
 		.len = sizeof(rxon_assoc),
-		.meta.flags = CMD_WANT_SKB,
+		.flags = CMD_WANT_SKB,
 		.data = &rxon_assoc,
 	};
 	const struct iwl_rxon_cmd *rxon1 = &priv->staging_rxon;
@@ -1881,14 +1886,14 @@ static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
 	if (rc)
 		return rc;
 
-	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
+	res = (struct iwl_rx_packet *)cmd.reply_skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_RXON_ASSOC command\n");
 		rc = -EIO;
 	}
 
 	priv->alloc_rxb_skb--;
-	dev_kfree_skb_any(cmd.meta.u.skb);
+	dev_kfree_skb_any(cmd.reply_skb);
 
 	return rc;
 }
@@ -1986,7 +1991,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	staging_rxon->reserved4 = 0;
 	staging_rxon->reserved5 = 0;
 
-	iwl_set_rxon_hwcrypto(priv, !priv->hw_params.sw_crypto);
+	iwl_set_rxon_hwcrypto(priv, !iwl3945_mod_params.sw_crypto);
 
 	/* Apply the new configuration */
 	rc = iwl_send_cmd_pdu(priv, REPLY_RXON,
@@ -2551,7 +2556,7 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	/* Assign number of Usable TX queues */
-	priv->hw_params.max_txq_num = TFD_QUEUE_MAX;
+	priv->hw_params.max_txq_num = IWL39_NUM_QUEUES;
 
 	priv->hw_params.tfd_size = sizeof(struct iwl3945_tfd);
 	priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_3K;
@@ -2562,6 +2567,7 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.bcast_sta_id = IWL3945_BROADCAST_ID;
 
 	priv->hw_params.rx_wrt_ptr_reg = FH39_RSCSR_CHNL0_WPTR;
+	priv->hw_params.max_beacon_itrvl = IWL39_MAX_UCODE_BEACON_INTERVAL;
 
 	return 0;
 }
@@ -2784,9 +2790,48 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 	return 0;
 }
 
+#define IWL3945_UCODE_GET(item)						\
+static u32 iwl3945_ucode_get_##item(const struct iwl_ucode_header *ucode,\
+				    u32 api_ver)			\
+{									\
+	return le32_to_cpu(ucode->u.v1.item);				\
+}
+
+static u32 iwl3945_ucode_get_header_size(u32 api_ver)
+{
+	return UCODE_HEADER_SIZE(1);
+}
+static u32 iwl3945_ucode_get_build(const struct iwl_ucode_header *ucode,
+				   u32 api_ver)
+{
+	return 0;
+}
+static u8 *iwl3945_ucode_get_data(const struct iwl_ucode_header *ucode,
+				  u32 api_ver)
+{
+	return (u8 *) ucode->u.v1.data;
+}
+
+IWL3945_UCODE_GET(inst_size);
+IWL3945_UCODE_GET(data_size);
+IWL3945_UCODE_GET(init_size);
+IWL3945_UCODE_GET(init_data_size);
+IWL3945_UCODE_GET(boot_size);
+
 static struct iwl_hcmd_ops iwl3945_hcmd = {
 	.rxon_assoc = iwl3945_send_rxon_assoc,
 	.commit_rxon = iwl3945_commit_rxon,
+};
+
+static struct iwl_ucode_ops iwl3945_ucode = {
+	.get_header_size = iwl3945_ucode_get_header_size,
+	.get_build = iwl3945_ucode_get_build,
+	.get_inst_size = iwl3945_ucode_get_inst_size,
+	.get_data_size = iwl3945_ucode_get_data_size,
+	.get_init_size = iwl3945_ucode_get_init_size,
+	.get_init_data_size = iwl3945_ucode_get_init_data_size,
+	.get_boot_size = iwl3945_ucode_get_boot_size,
+	.get_data = iwl3945_ucode_get_data,
 };
 
 static struct iwl_lib_ops iwl3945_lib = {
@@ -2794,6 +2839,8 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.txq_free_tfd = iwl3945_hw_txq_free_tfd,
 	.txq_init = iwl3945_hw_tx_queue_init,
 	.load_ucode = iwl3945_load_bsm,
+	.dump_nic_event_log = iwl3945_dump_nic_event_log,
+	.dump_nic_error_log = iwl3945_dump_nic_error_log,
 	.apm_ops = {
 		.init = iwl3945_apm_init,
 		.reset = iwl3945_apm_reset,
@@ -2808,8 +2855,8 @@ static struct iwl_lib_ops iwl3945_lib = {
 			EEPROM_REGULATORY_BAND_3_CHANNELS,
 			EEPROM_REGULATORY_BAND_4_CHANNELS,
 			EEPROM_REGULATORY_BAND_5_CHANNELS,
-			EEPROM_REGULATORY_BAND_NO_FAT,
-			EEPROM_REGULATORY_BAND_NO_FAT,
+			EEPROM_REGULATORY_BAND_NO_HT40,
+			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwl3945_eeprom_acquire_semaphore,
@@ -2829,6 +2876,7 @@ static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 };
 
 static struct iwl_ops iwl3945_ops = {
+	.ucode = &iwl3945_ucode,
 	.lib = &iwl3945_lib,
 	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,
@@ -2844,7 +2892,8 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
 	.mod_params = &iwl3945_mod_params,
-	.use_isr_legacy = true
+	.use_isr_legacy = true,
+	.ht_greenfield_support = false,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2857,7 +2906,8 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
 	.mod_params = &iwl3945_mod_params,
-	.use_isr_legacy = true
+	.use_isr_legacy = true,
+	.ht_greenfield_support = false,
 };
 
 struct pci_device_id iwl3945_hw_card_ids[] = {

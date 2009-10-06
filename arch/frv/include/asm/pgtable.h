@@ -225,7 +225,7 @@ static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
  */
 #define pud_alloc_one(mm, address)		NULL
 #define pud_free(mm, x)				do { } while (0)
-#define __pud_free_tlb(tlb, x)			do { } while (0)
+#define __pud_free_tlb(tlb, x, address)		do { } while (0)
 
 /*
  * The "pud_xxx()" functions here are trivial for a folded two-level

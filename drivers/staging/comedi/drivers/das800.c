@@ -118,114 +118,114 @@ struct das800_board {
 static const struct comedi_lrange range_das800_ai = {
 	1,
 	{
-			RANGE(-5, 5),
-		}
+	 RANGE(-5, 5),
+	 }
 };
 
 static const struct comedi_lrange range_das801_ai = {
 	9,
 	{
-			RANGE(-5, 5),
-			RANGE(-10, 10),
-			RANGE(0, 10),
-			RANGE(-0.5, 0.5),
-			RANGE(0, 1),
-			RANGE(-0.05, 0.05),
-			RANGE(0, 0.1),
-			RANGE(-0.01, 0.01),
-			RANGE(0, 0.02),
-		}
+	 RANGE(-5, 5),
+	 RANGE(-10, 10),
+	 RANGE(0, 10),
+	 RANGE(-0.5, 0.5),
+	 RANGE(0, 1),
+	 RANGE(-0.05, 0.05),
+	 RANGE(0, 0.1),
+	 RANGE(-0.01, 0.01),
+	 RANGE(0, 0.02),
+	 }
 };
 
 static const struct comedi_lrange range_cio_das801_ai = {
 	9,
 	{
-			RANGE(-5, 5),
-			RANGE(-10, 10),
-			RANGE(0, 10),
-			RANGE(-0.5, 0.5),
-			RANGE(0, 1),
-			RANGE(-0.05, 0.05),
-			RANGE(0, 0.1),
-			RANGE(-0.005, 0.005),
-			RANGE(0, 0.01),
-		}
+	 RANGE(-5, 5),
+	 RANGE(-10, 10),
+	 RANGE(0, 10),
+	 RANGE(-0.5, 0.5),
+	 RANGE(0, 1),
+	 RANGE(-0.05, 0.05),
+	 RANGE(0, 0.1),
+	 RANGE(-0.005, 0.005),
+	 RANGE(0, 0.01),
+	 }
 };
 
 static const struct comedi_lrange range_das802_ai = {
 	9,
 	{
-			RANGE(-5, 5),
-			RANGE(-10, 10),
-			RANGE(0, 10),
-			RANGE(-2.5, 2.5),
-			RANGE(0, 5),
-			RANGE(-1.25, 1.25),
-			RANGE(0, 2.5),
-			RANGE(-0.625, 0.625),
-			RANGE(0, 1.25),
-		}
+	 RANGE(-5, 5),
+	 RANGE(-10, 10),
+	 RANGE(0, 10),
+	 RANGE(-2.5, 2.5),
+	 RANGE(0, 5),
+	 RANGE(-1.25, 1.25),
+	 RANGE(0, 2.5),
+	 RANGE(-0.625, 0.625),
+	 RANGE(0, 1.25),
+	 }
 };
 
 static const struct comedi_lrange range_das80216_ai = {
 	8,
 	{
-			RANGE(-10, 10),
-			RANGE(0, 10),
-			RANGE(-5, 5),
-			RANGE(0, 5),
-			RANGE(-2.5, 2.5),
-			RANGE(0, 2.5),
-			RANGE(-1.25, 1.25),
-			RANGE(0, 1.25),
-		}
+	 RANGE(-10, 10),
+	 RANGE(0, 10),
+	 RANGE(-5, 5),
+	 RANGE(0, 5),
+	 RANGE(-2.5, 2.5),
+	 RANGE(0, 2.5),
+	 RANGE(-1.25, 1.25),
+	 RANGE(0, 1.25),
+	 }
 };
 
 enum { das800, ciodas800, das801, ciodas801, das802, ciodas802, ciodas80216 };
 
 static const struct das800_board das800_boards[] = {
 	{
-	.name = "das-800",
-	.ai_speed = 25000,
-	.ai_range = &range_das800_ai,
-	.resolution = 12,
-		},
+	 .name = "das-800",
+	 .ai_speed = 25000,
+	 .ai_range = &range_das800_ai,
+	 .resolution = 12,
+	 },
 	{
-	.name = "cio-das800",
-	.ai_speed = 20000,
-	.ai_range = &range_das800_ai,
-	.resolution = 12,
-		},
+	 .name = "cio-das800",
+	 .ai_speed = 20000,
+	 .ai_range = &range_das800_ai,
+	 .resolution = 12,
+	 },
 	{
-	.name = "das-801",
-	.ai_speed = 25000,
-	.ai_range = &range_das801_ai,
-	.resolution = 12,
-		},
+	 .name = "das-801",
+	 .ai_speed = 25000,
+	 .ai_range = &range_das801_ai,
+	 .resolution = 12,
+	 },
 	{
-	.name = "cio-das801",
-	.ai_speed = 20000,
-	.ai_range = &range_cio_das801_ai,
-	.resolution = 12,
-		},
+	 .name = "cio-das801",
+	 .ai_speed = 20000,
+	 .ai_range = &range_cio_das801_ai,
+	 .resolution = 12,
+	 },
 	{
-	.name = "das-802",
-	.ai_speed = 25000,
-	.ai_range = &range_das802_ai,
-	.resolution = 12,
-		},
+	 .name = "das-802",
+	 .ai_speed = 25000,
+	 .ai_range = &range_das802_ai,
+	 .resolution = 12,
+	 },
 	{
-	.name = "cio-das802",
-	.ai_speed = 20000,
-	.ai_range = &range_das802_ai,
-	.resolution = 12,
-		},
+	 .name = "cio-das802",
+	 .ai_speed = 20000,
+	 .ai_range = &range_das802_ai,
+	 .resolution = 12,
+	 },
 	{
-	.name = "cio-das802/16",
-	.ai_speed = 10000,
-	.ai_range = &range_das80216_ai,
-	.resolution = 16,
-		},
+	 .name = "cio-das802/16",
+	 .ai_speed = 10000,
+	 .ai_range = &range_das80216_ai,
+	 .resolution = 16,
+	 },
 };
 
 /*
@@ -243,7 +243,8 @@ struct das800_private {
 
 #define devpriv ((struct das800_private *)dev->private)
 
-static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int das800_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 static int das800_detach(struct comedi_device *dev);
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
@@ -260,15 +261,20 @@ static struct comedi_driver driver_das800 = {
 static irqreturn_t das800_interrupt(int irq, void *d);
 static void enable_das800(struct comedi_device *dev);
 static void disable_das800(struct comedi_device *dev);
-static int das800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd);
-static int das800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int das800_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int das800_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int das800_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+static int das800_ai_do_cmdtest(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_cmd *cmd);
+static int das800_ai_do_cmd(struct comedi_device *dev,
+			    struct comedi_subdevice *s);
+static int das800_ai_rinsn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data);
+static int das800_di_rbits(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data);
+static int das800_do_wbits(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data);
 static int das800_probe(struct comedi_device *dev);
 static int das800_set_frequency(struct comedi_device *dev);
 
@@ -330,7 +336,7 @@ static int das800_probe(struct comedi_device *dev)
 		break;
 	default:
 		printk(" Board model: probe returned 0x%x (unknown)\n",
-			id_bits);
+		       id_bits);
 		return board;
 		break;
 	}
@@ -429,7 +435,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		 * We already have spinlock, so indirect addressing is safe */
 		outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
 		outb(CONTROL1_INTE | devpriv->do_bits,
-			dev->iobase + DAS800_CONTROL1);
+		     dev->iobase + DAS800_CONTROL1);
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		/* otherwise, stop taking data */
 	} else {
@@ -585,8 +591,9 @@ static void disable_das800(struct comedi_device *dev)
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 }
 
-static int das800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd)
+static int das800_ai_do_cmdtest(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -676,8 +683,9 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdevi
 		tmp = cmd->convert_arg;
 		/* calculate counter values that give desired timing */
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
-			&(devpriv->divisor2), &(cmd->convert_arg),
-			cmd->flags & TRIG_ROUND_MASK);
+					       &(devpriv->divisor2),
+					       &(cmd->convert_arg),
+					       cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -691,14 +699,14 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdevi
 		startChan = CR_CHAN(cmd->chanlist[0]);
 		for (i = 1; i < cmd->chanlist_len; i++) {
 			if (CR_CHAN(cmd->chanlist[i]) !=
-				(startChan + i) % N_CHAN_AI) {
+			    (startChan + i) % N_CHAN_AI) {
 				comedi_error(dev,
-					"entries in chanlist must be consecutive channels, counting upwards\n");
+					     "entries in chanlist must be consecutive channels, counting upwards\n");
 				err++;
 			}
 			if (CR_RANGE(cmd->chanlist[i]) != gain) {
 				comedi_error(dev,
-					"entries in chanlist must all have the same gain\n");
+					     "entries in chanlist must all have the same gain\n");
 				err++;
 			}
 		}
@@ -710,7 +718,8 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdevi
 	return 0;
 }
 
-static int das800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+static int das800_ai_do_cmd(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
 {
 	int startChan, endChan, scan, gain;
 	int conv_bits;
@@ -719,7 +728,7 @@ static int das800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *
 
 	if (!dev->irq) {
 		comedi_error(dev,
-			"no irq assigned for das-800, cannot do hardware conversions");
+			     "no irq assigned for das-800, cannot do hardware conversions");
 		return -1;
 	}
 
@@ -767,8 +776,10 @@ static int das800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *
 		conv_bits |= CASC | ITE;
 		/* set conversion frequency */
 		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
-			&(devpriv->divisor2), &(async->cmd.convert_arg),
-			async->cmd.flags & TRIG_ROUND_MASK);
+					       &(devpriv->divisor2),
+					       &(async->cmd.convert_arg),
+					       async->cmd.
+					       flags & TRIG_ROUND_MASK);
 		if (das800_set_frequency(dev) < 0) {
 			comedi_error(dev, "Error setting up counters");
 			return -1;
@@ -789,8 +800,9 @@ static int das800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *
 	return 0;
 }
 
-static int das800_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int das800_ai_rinsn(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	int i, n;
 	int chan;
@@ -843,8 +855,9 @@ static int das800_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 	return n;
 }
 
-static int das800_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int das800_di_rbits(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	unsigned int bits;
 
@@ -856,8 +869,9 @@ static int das800_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s
 	return 2;
 }
 
-static int das800_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int das800_do_wbits(struct comedi_device *dev,
+			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   unsigned int *data)
 {
 	int wbits;
 	unsigned long irq_flags;

@@ -19,7 +19,6 @@
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
@@ -78,7 +77,7 @@ static int ptrace_read_user(struct task_struct *tsk, unsigned long off,
 	struct user * dummy = NULL;
 #endif
 
-	if ((off & 3) || (off < 0) || (off > sizeof(struct user) - 3))
+	if ((off & 3) || off > sizeof(struct user) - 3)
 		return -EIO;
 
 	off >>= 2;
@@ -140,8 +139,7 @@ static int ptrace_write_user(struct task_struct *tsk, unsigned long off,
 	struct user * dummy = NULL;
 #endif
 
-	if ((off & 3) || off < 0 ||
-	    off > sizeof(struct user) - 3)
+	if ((off & 3) || off > sizeof(struct user) - 3)
 		return -EIO;
 
 	off >>= 2;

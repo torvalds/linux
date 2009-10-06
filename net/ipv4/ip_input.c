@@ -202,7 +202,7 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 	{
 		int protocol = ip_hdr(skb)->protocol;
 		int hash, raw;
-		struct net_protocol *ipprot;
+		const struct net_protocol *ipprot;
 
 	resubmit:
 		raw = raw_local_deliver(skb, protocol);
@@ -439,6 +439,9 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 
 	/* Remove any debris in the socket control block */
 	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+
+	/* Must drop socket now because of tproxy. */
+	skb_orphan(skb);
 
 	return NF_HOOK(PF_INET, NF_INET_PRE_ROUTING, skb, dev, NULL,
 		       ip_rcv_finish);

@@ -281,7 +281,7 @@ syscall_exit_work:
 	ld.w	r1, r0[TI_flags]
 	rjmp	1b
 
-2:	mov	r2, _TIF_SIGPENDING | _TIF_RESTORE_SIGMASK
+2:	mov	r2, _TIF_SIGPENDING | _TIF_RESTORE_SIGMASK | _TIF_NOTIFY_RESUME
 	tst	r1, r2
 	breq	3f
 	unmask_interrupts

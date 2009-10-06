@@ -38,7 +38,6 @@
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
-#include "eaops.h"
 
 /**
  * gfs2_llseek - seek to a location in a file
@@ -419,7 +418,7 @@ out:
 	return ret;
 }
 
-static struct vm_operations_struct gfs2_vm_ops = {
+static const struct vm_operations_struct gfs2_vm_ops = {
 	.fault = filemap_fault,
 	.page_mkwrite = gfs2_page_mkwrite,
 };

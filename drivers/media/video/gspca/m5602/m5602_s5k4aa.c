@@ -47,11 +47,24 @@ static
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 2550")
 		}
 	}, {
+		.ident = "Fujitsu-Siemens Amilo Pa 2548",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pa 2548")
+		}
+	}, {
 		.ident = "MSI GX700",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "GX700"),
 			DMI_MATCH(DMI_BIOS_DATE, "07/26/2007")
+		}
+	}, {
+		.ident = "MSI GX700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "GX700"),
+			DMI_MATCH(DMI_BIOS_DATE, "07/19/2007")
 		}
 	}, {
 		.ident = "MSI GX700/GX705/EX700",
@@ -476,9 +489,6 @@ static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
-	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
-	if (err < 0)
-		return err;
 
 	err = m5602_read_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
@@ -522,9 +532,6 @@ static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 
 	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
-	if (err < 0)
-		return err;
-	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		return err;
 

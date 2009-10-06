@@ -22,6 +22,7 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/io.h>
+#include <linux/bug.h>
 #include <asm/cpuinfo.h>
 #include <asm/setup.h>
 #include <asm/prom.h>
@@ -234,6 +235,7 @@ void __init time_init(void)
 		if (timer)
 			break;
 	}
+	BUG_ON(!timer);
 
 	timer_baseaddr = *(int *) of_get_property(timer, "reg", NULL);
 	timer_baseaddr = (unsigned long) ioremap(timer_baseaddr, PAGE_SIZE);

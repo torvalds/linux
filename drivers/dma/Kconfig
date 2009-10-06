@@ -4,7 +4,7 @@
 
 menuconfig DMADEVICES
 	bool "DMA Engine support"
-	depends on !HIGHMEM64G && HAS_DMA
+	depends on HAS_DMA
 	help
 	  DMA engines can do asynchronous data transfers without
 	  involving the host CPU.  Currently, this framework can be
@@ -17,11 +17,15 @@ if DMADEVICES
 
 comment "DMA Devices"
 
+config ASYNC_TX_DISABLE_CHANNEL_SWITCH
+	bool
+
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
 	depends on PCI && X86
 	select DMA_ENGINE
 	select DCA
+	select ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	help
 	  Enable support for the Intel(R) I/OAT DMA engine present
 	  in recent Intel Xeon chipsets.
@@ -45,6 +49,14 @@ config DW_DMAC
 	help
 	  Support the Synopsys DesignWare AHB DMA controller.  This
 	  can be integrated in chips such as the Atmel AT32ap7000.
+
+config AT_HDMAC
+	tristate "Atmel AHB DMA support"
+	depends on ARCH_AT91SAM9RL
+	select DMA_ENGINE
+	help
+	  Support the Atmel AHB DMA controller.  This can be integrated in
+	  chips such as the Atmel AT91SAM9RL.
 
 config FSL_DMA
 	tristate "Freescale Elo and Elo Plus DMA support"
@@ -88,6 +100,14 @@ config TXX9_DMAC
 	help
 	  Support the TXx9 SoC internal DMA controller.  This can be
 	  integrated in chips such as the Toshiba TX4927/38/39.
+
+config SH_DMAE
+	tristate "Renesas SuperH DMAC support"
+	depends on SUPERH && SH_DMA
+	depends on !SH_DMA_API
+	select DMA_ENGINE
+	help
+	  Enable support for the Renesas SuperH DMA controllers.
 
 config DMA_ENGINE
 	bool

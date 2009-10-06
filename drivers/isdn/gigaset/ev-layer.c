@@ -294,32 +294,33 @@ struct reply_t gigaset_tab_cid[] =
 	{RSP_OK,      604,604, -1,                605, 5, {ACT_CMD+AT_MSN}},
 	{RSP_OK,      605,605, -1,                606, 5, {ACT_CMD+AT_ISO}},
 	{RSP_NULL,    605,605, -1,                606, 5, {ACT_CMD+AT_ISO}},
-	{RSP_OK,      606,606, -1,                607, 5, {0},             "+VLS=17\r"}, /* set "Endgeraetemodus" */
+	{RSP_OK,      606,606, -1,                607, 5, {0}, "+VLS=17\r"},
 	{RSP_OK,      607,607, -1,                608,-1},
-	//{RSP_ZSAU,    608,608,ZSAU_PROCEEDING,    608, 0, {ACT_ERROR}},//DELETE
 	{RSP_ZSAU,    608,608,ZSAU_PROCEEDING,    609, 5, {ACT_CMD+AT_DIAL}},
 	{RSP_OK,      609,609, -1,                650, 0, {ACT_DIALING}},
 
-	{RSP_ZVLS,    608,608, 17,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ZCTP,    609,609, -1,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ZCPN,    609,609, -1,                 -1,-1, {ACT_DEBUG}},
 	{RSP_ERROR,   601,609, -1,                  0, 0, {ACT_ABORTDIAL}},
 	{EV_TIMEOUT,  601,609, -1,                  0, 0, {ACT_ABORTDIAL}},
 
-	/* dialing */
-	{RSP_ZCTP,    650,650, -1,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ZCPN,    650,650, -1,                 -1,-1, {ACT_DEBUG}},
-	{RSP_ZSAU,    650,650,ZSAU_CALL_DELIVERED, -1,-1, {ACT_DEBUG}}, /* some devices don't send this */
+	/* optional dialing responses */
+	{EV_BC_OPEN,  650,650, -1,                651,-1},
+	{RSP_ZVLS,    608,651, 17,                 -1,-1, {ACT_DEBUG}},
+	{RSP_ZCTP,    609,651, -1,                 -1,-1, {ACT_DEBUG}},
+	{RSP_ZCPN,    609,651, -1,                 -1,-1, {ACT_DEBUG}},
+	{RSP_ZSAU,    650,651,ZSAU_CALL_DELIVERED, -1,-1, {ACT_DEBUG}},
 
-	/* connection established  */
-	{RSP_ZSAU,    650,650,ZSAU_ACTIVE,        800,-1, {ACT_CONNECT}}, //FIXME -> DLE1
-	{RSP_ZSAU,    750,750,ZSAU_ACTIVE,        800,-1, {ACT_CONNECT}}, //FIXME -> DLE1
-
-	{EV_BC_OPEN,  800,800, -1,                800,-1, {ACT_NOTIFY_BC_UP}}, //FIXME new constate + timeout
+	/* connect */
+	{RSP_ZSAU,    650,650,ZSAU_ACTIVE,        800,-1, {ACT_CONNECT}},
+	{RSP_ZSAU,    651,651,ZSAU_ACTIVE,        800,-1, {ACT_CONNECT,
+							   ACT_NOTIFY_BC_UP}},
+	{RSP_ZSAU,    750,750,ZSAU_ACTIVE,        800,-1, {ACT_CONNECT}},
+	{RSP_ZSAU,    751,751,ZSAU_ACTIVE,        800,-1, {ACT_CONNECT,
+							   ACT_NOTIFY_BC_UP}},
+	{EV_BC_OPEN,  800,800, -1,                800,-1, {ACT_NOTIFY_BC_UP}},
 
 	/* remote hangup */
-	{RSP_ZSAU,    650,650,ZSAU_DISCONNECT_IND,  0, 0, {ACT_REMOTEREJECT}},
-	{RSP_ZSAU,    750,750,ZSAU_DISCONNECT_IND,  0, 0, {ACT_REMOTEHUP}},
+	{RSP_ZSAU,    650,651,ZSAU_DISCONNECT_IND,  0, 0, {ACT_REMOTEREJECT}},
+	{RSP_ZSAU,    750,751,ZSAU_DISCONNECT_IND,  0, 0, {ACT_REMOTEHUP}},
 	{RSP_ZSAU,    800,800,ZSAU_DISCONNECT_IND,  0, 0, {ACT_REMOTEHUP}},
 
 	/* hangup */
@@ -358,7 +359,8 @@ struct reply_t gigaset_tab_cid[] =
 	{RSP_ZSAU,    700,729,ZSAU_ACTIVE,          0, 0, {ACT_ABORTACCEPT}},
 	{RSP_ZSAU,    700,729,ZSAU_DISCONNECT_IND,  0, 0, {ACT_ABORTACCEPT}},
 
-	{EV_TIMEOUT,  750,750, -1,                  0, 0, {ACT_CONNTIMEOUT}},
+	{EV_BC_OPEN,  750,750, -1,                751,-1},
+	{EV_TIMEOUT,  750,751, -1,                  0, 0, {ACT_CONNTIMEOUT}},
 
 	/* B channel closed (general case) */
 	{EV_BC_CLOSED, -1, -1, -1,                 -1,-1, {ACT_NOTIFY_BC_DOWN}}, //FIXME
@@ -876,12 +878,6 @@ static void bchannel_down(struct bc_state *bcs)
 
 static void bchannel_up(struct bc_state *bcs)
 {
-	if (!(bcs->chstate & CHS_D_UP)) {
-		dev_notice(bcs->cs->dev, "%s: D channel not up\n", __func__);
-		bcs->chstate |= CHS_D_UP;
-		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DCONN);
-	}
-
 	if (bcs->chstate & CHS_B_UP) {
 		dev_notice(bcs->cs->dev, "%s: B channel already up\n",
 			   __func__);

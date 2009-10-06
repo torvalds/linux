@@ -66,13 +66,6 @@ UNUSUAL_DEV(  0x03eb, 0x2002, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE),
 
-/* modified by Tobias Lorenz <tobias.lorenz@gmx.net> */
-UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0200,
-		"Mitsumi",
-		"USB FDD",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_SINGLE_LUN ),
-
 /* Reported by Rodolfo Quesada <rquesada@roqz.net> */
 UNUSUAL_DEV(  0x03ee, 0x6906, 0x0003, 0x0003,
 		"VIA Technologies Inc.",
@@ -232,13 +225,6 @@ UNUSUAL_DEV(  0x0421, 0x0495, 0x0370, 0x0370,
 		"6234",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64 ),
-
-/* Reported by Olaf Hering <olh@suse.de> from novell bug #105878 */
-UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
-		"SMSC",
-		"FDC GOLD-2.30",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_SINGLE_LUN ),
 
 #ifdef NO_SDDR09
 UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
@@ -664,17 +650,11 @@ UNUSUAL_DEV(  0x055d, 0x2020, 0x0000, 0x0210,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
-		
+/* We keep this entry to force the transport; firmware 3.00 and later is ok. */
 UNUSUAL_DEV(  0x057b, 0x0000, 0x0000, 0x0299,
 		"Y-E Data",
 		"Flashbuster-U",
 		US_SC_DEVICE,  US_PR_CB, NULL,
-		US_FL_SINGLE_LUN),
-
-UNUSUAL_DEV(  0x057b, 0x0000, 0x0300, 0x9999,
-		"Y-E Data",
-		"Flashbuster-U",
-		US_SC_DEVICE,  US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN),
 
 /* Reported by Johann Cardon <johann.cardon@free.fr>
@@ -837,6 +817,13 @@ UNUSUAL_DEV( 0x066f, 0x8000, 0x0001, 0x0001,
 		"USBMSC Audio Player",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
+
+/* Reported by Rogerio Brito <rbrito@ime.usp.br> */
+UNUSUAL_DEV( 0x067b, 0x2317, 0x0001, 0x001,
+		"Prolific Technology, Inc.",
+		"Mass Storage Device",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_NOT_LOCKABLE ),
 
 /* Reported by Richard -=[]=- <micro_flyer@hotmail.com> */
 /* Change to bcdDeviceMin (0x0100 to 0x0001) reported by

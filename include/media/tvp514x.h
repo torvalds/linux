@@ -104,10 +104,6 @@ enum tvp514x_output {
  * @ vs_polarity: VSYNC Polarity configuration for current interface.
  */
 struct tvp514x_platform_data {
-	char *master;
-	int (*power_set) (enum v4l2_power on);
-	int (*ifparm) (struct v4l2_ifparm *p);
-	int (*priv_data_set) (void *);
 	/* Interface control params */
 	bool clk_polarity;
 	bool hs_polarity;

@@ -162,10 +162,8 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
  * entries are stored 1024 bytes below.
  */
 #define L_PTE_PRESENT		(1 << 0)
-#define L_PTE_FILE		(1 << 1)	/* only when !PRESENT */
 #define L_PTE_YOUNG		(1 << 1)
-#define L_PTE_BUFFERABLE	(1 << 2)	/* obsolete, matches PTE */
-#define L_PTE_CACHEABLE		(1 << 3)	/* obsolete, matches PTE */
+#define L_PTE_FILE		(1 << 2)	/* only when !PRESENT */
 #define L_PTE_DIRTY		(1 << 6)
 #define L_PTE_WRITE		(1 << 7)
 #define L_PTE_USER		(1 << 8)
@@ -264,10 +262,19 @@ extern struct page *empty_zero_page;
 #define pte_clear(mm,addr,ptep)	set_pte_ext(ptep, __pte(0), 0)
 #define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
 #define pte_offset_kernel(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
-#define pte_offset_map(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
-#define pte_offset_map_nested(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
-#define pte_unmap(pte)		do { } while (0)
-#define pte_unmap_nested(pte)	do { } while (0)
+
+#define pte_offset_map(dir,addr)	(__pte_map(dir, KM_PTE0) + __pte_index(addr))
+#define pte_offset_map_nested(dir,addr)	(__pte_map(dir, KM_PTE1) + __pte_index(addr))
+#define pte_unmap(pte)			__pte_unmap(pte, KM_PTE0)
+#define pte_unmap_nested(pte)		__pte_unmap(pte, KM_PTE1)
+
+#ifndef CONFIG_HIGHPTE
+#define __pte_map(dir,km)	pmd_page_vaddr(*(dir))
+#define __pte_unmap(pte,km)	do { } while (0)
+#else
+#define __pte_map(dir,km)	((pte_t *)kmap_atomic(pmd_page(*(dir)), km) + PTRS_PER_PTE)
+#define __pte_unmap(pte,km)	kunmap_atomic((pte - PTRS_PER_PTE), km)
+#endif
 
 #define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
 
@@ -284,15 +291,6 @@ extern struct page *empty_zero_page;
 #define pte_dirty(pte)		(pte_val(pte) & L_PTE_DIRTY)
 #define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
 #define pte_special(pte)	(0)
-
-/*
- * The following only works if pte_present() is not true.
- */
-#define pte_file(pte)		(pte_val(pte) & L_PTE_FILE)
-#define pte_to_pgoff(x)		(pte_val(x) >> 2)
-#define pgoff_to_pte(x)		__pte(((x) << 2) | L_PTE_FILE)
-
-#define PTE_FILE_MAX_BITS	30
 
 #define PTE_BIT_FUNC(fn,op) \
 static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
@@ -384,15 +382,49 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-/* Encode and decode a swap entry.
+/*
+ * Encode and decode a swap entry.  Swap entries are stored in the Linux
+ * page tables as follows:
  *
- * We support up to 32GB of swap on 4k machines
+ *   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *   <--------------- offset --------------------> <- type --> 0 0 0
+ *
+ * This gives us up to 63 swap files and 32GB per swap file.  Note that
+ * the offset field is always non-zero.
  */
-#define __swp_type(x)		(((x).val >> 2) & 0x7f)
-#define __swp_offset(x)		((x).val >> 9)
-#define __swp_entry(type,offset) ((swp_entry_t) { ((type) << 2) | ((offset) << 9) })
+#define __SWP_TYPE_SHIFT	3
+#define __SWP_TYPE_BITS		6
+#define __SWP_TYPE_MASK		((1 << __SWP_TYPE_BITS) - 1)
+#define __SWP_OFFSET_SHIFT	(__SWP_TYPE_BITS + __SWP_TYPE_SHIFT)
+
+#define __swp_type(x)		(((x).val >> __SWP_TYPE_SHIFT) & __SWP_TYPE_MASK)
+#define __swp_offset(x)		((x).val >> __SWP_OFFSET_SHIFT)
+#define __swp_entry(type,offset) ((swp_entry_t) { ((type) << __SWP_TYPE_SHIFT) | ((offset) << __SWP_OFFSET_SHIFT) })
+
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(swp)	((pte_t) { (swp).val })
+
+/*
+ * It is an error for the kernel to have more swap files than we can
+ * encode in the PTEs.  This ensures that we know when MAX_SWAPFILES
+ * is increased beyond what we presently support.
+ */
+#define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
+
+/*
+ * Encode and decode a file entry.  File entries are stored in the Linux
+ * page tables as follows:
+ *
+ *   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *   <----------------------- offset ------------------------> 1 0 0
+ */
+#define pte_file(pte)		(pte_val(pte) & L_PTE_FILE)
+#define pte_to_pgoff(x)		(pte_val(x) >> 3)
+#define pgoff_to_pte(x)		__pte(((x) << 3) | L_PTE_FILE)
+
+#define PTE_FILE_MAX_BITS	29
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 /* FIXME: this is not correct */

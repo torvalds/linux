@@ -516,8 +516,6 @@ static void hvc_set_winsz(struct work_struct *work)
 	struct winsize ws;
 
 	hp = container_of(work, struct hvc_struct, tty_resize);
-	if (!hp)
-		return;
 
 	spin_lock_irqsave(&hp->lock, hvc_flags);
 	if (!hp->tty) {
@@ -552,7 +550,7 @@ static int hvc_chars_in_buffer(struct tty_struct *tty)
 	struct hvc_struct *hp = tty->driver_data;
 
 	if (!hp)
-		return -1;
+		return 0;
 	return hp->n_outbuf;
 }
 
@@ -680,7 +678,7 @@ int hvc_poll(struct hvc_struct *hp)
 EXPORT_SYMBOL_GPL(hvc_poll);
 
 /**
- * hvc_resize() - Update terminal window size information.
+ * __hvc_resize() - Update terminal window size information.
  * @hp:		HVC console pointer
  * @ws:		Terminal window size structure
  *
@@ -689,12 +687,12 @@ EXPORT_SYMBOL_GPL(hvc_poll);
  *
  * Locking:	Locking free; the function MUST be called holding hp->lock
  */
-void hvc_resize(struct hvc_struct *hp, struct winsize ws)
+void __hvc_resize(struct hvc_struct *hp, struct winsize ws)
 {
 	hp->ws = ws;
 	schedule_work(&hp->tty_resize);
 }
-EXPORT_SYMBOL_GPL(hvc_resize);
+EXPORT_SYMBOL_GPL(__hvc_resize);
 
 /*
  * This kthread is either polling or interrupt driven.  This is determined by

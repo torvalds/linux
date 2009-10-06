@@ -595,6 +595,8 @@ EXPORT_SYMBOL(kmem_cache_create);
 void kmem_cache_destroy(struct kmem_cache *c)
 {
 	kmemleak_free(c);
+	if (c->flags & SLAB_DESTROY_BY_RCU)
+		rcu_barrier();
 	slob_free(c, sizeof(struct kmem_cache));
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
@@ -689,4 +691,9 @@ int slab_is_available(void)
 void __init kmem_cache_init(void)
 {
 	slob_ready = 1;
+}
+
+void __init kmem_cache_init_late(void)
+{
+	/* Nothing to do */
 }

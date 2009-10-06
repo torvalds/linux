@@ -107,8 +107,8 @@ out_unlock:
 
 struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
 {
-	/* those all static, do move them */
-	if (desc->irq < NR_IRQS_LEGACY)
+	/* those static or target node is -1, do not move them */
+	if (desc->irq < NR_IRQS_LEGACY || node == -1)
 		return desc;
 
 	if (desc->node != node)

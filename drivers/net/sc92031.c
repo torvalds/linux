@@ -941,7 +941,8 @@ static struct net_device_stats *sc92031_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
-static int sc92031_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t sc92031_start_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
 {
 	struct sc92031_priv *priv = netdev_priv(dev);
 	void __iomem *port_base = priv->port_base;
@@ -1593,6 +1594,7 @@ out:
 static struct pci_device_id sc92031_pci_device_id_table[] __devinitdata = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x2031) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x8139) },
+	{ PCI_DEVICE(0x1088, 0x2031) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sc92031_pci_device_id_table);

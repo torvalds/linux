@@ -14,6 +14,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/parser.h>
 #include <linux/statfs.h>
 #include <linux/random.h>
@@ -28,9 +29,33 @@ static struct kmem_cache *fuse_inode_cachep;
 struct list_head fuse_conn_list;
 DEFINE_MUTEX(fuse_mutex);
 
+static int set_global_limit(const char *val, struct kernel_param *kp);
+
+unsigned max_user_bgreq;
+module_param_call(max_user_bgreq, set_global_limit, param_get_uint,
+		  &max_user_bgreq, 0644);
+__MODULE_PARM_TYPE(max_user_bgreq, "uint");
+MODULE_PARM_DESC(max_user_bgreq,
+ "Global limit for the maximum number of backgrounded requests an "
+ "unprivileged user can set");
+
+unsigned max_user_congthresh;
+module_param_call(max_user_congthresh, set_global_limit, param_get_uint,
+		  &max_user_congthresh, 0644);
+__MODULE_PARM_TYPE(max_user_congthresh, "uint");
+MODULE_PARM_DESC(max_user_congthresh,
+ "Global limit for the maximum congestion threshold an "
+ "unprivileged user can set");
+
 #define FUSE_SUPER_MAGIC 0x65735546
 
 #define FUSE_DEFAULT_BLKSIZE 512
+
+/** Maximum number of outstanding background requests */
+#define FUSE_DEFAULT_MAX_BACKGROUND 12
+
+/** Congestion starts at 75% of maximum */
+#define FUSE_DEFAULT_CONGESTION_THRESHOLD (FUSE_DEFAULT_MAX_BACKGROUND * 3 / 4)
 
 struct fuse_mount_data {
 	int fd;
@@ -115,14 +140,6 @@ static int fuse_remount_fs(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-void fuse_truncate(struct address_space *mapping, loff_t offset)
-{
-	/* See vmtruncate() */
-	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
-	truncate_inode_pages(mapping, offset);
-	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
-}
-
 void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 				   u64 attr_valid)
 {
@@ -180,8 +197,7 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 	spin_unlock(&fc->lock);
 
 	if (S_ISREG(inode->i_mode) && oldsize != attr->size) {
-		if (attr->size < oldsize)
-			fuse_truncate(inode->i_mapping, attr->size);
+		truncate_pagecache(inode, oldsize, attr->size);
 		invalidate_inode_pages2(inode->i_mapping);
 	}
 }
@@ -206,7 +222,7 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
 		BUG();
 }
 
-static int fuse_inode_eq(struct inode *inode, void *_nodeidp)
+int fuse_inode_eq(struct inode *inode, void *_nodeidp)
 {
 	u64 nodeid = *(u64 *) _nodeidp;
 	if (get_node_id(inode) == nodeid)
@@ -255,6 +271,31 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 	fuse_change_attributes(inode, attr, attr_valid, attr_version);
 
 	return inode;
+}
+
+int fuse_reverse_inval_inode(struct super_block *sb, u64 nodeid,
+			     loff_t offset, loff_t len)
+{
+	struct inode *inode;
+	pgoff_t pg_start;
+	pgoff_t pg_end;
+
+	inode = ilookup5(sb, nodeid, fuse_inode_eq, &nodeid);
+	if (!inode)
+		return -ENOENT;
+
+	fuse_invalidate_attr(inode);
+	if (offset >= 0) {
+		pg_start = offset >> PAGE_CACHE_SHIFT;
+		if (len <= 0)
+			pg_end = -1;
+		else
+			pg_end = (offset + len - 1) >> PAGE_CACHE_SHIFT;
+		invalidate_inode_pages2_range(inode->i_mapping,
+					      pg_start, pg_end);
+	}
+	iput(inode);
+	return 0;
 }
 
 static void fuse_umount_begin(struct super_block *sb)
@@ -480,6 +521,7 @@ void fuse_conn_init(struct fuse_conn *fc)
 	memset(fc, 0, sizeof(*fc));
 	spin_lock_init(&fc->lock);
 	mutex_init(&fc->inst_mutex);
+	init_rwsem(&fc->killsb);
 	atomic_set(&fc->count, 1);
 	init_waitqueue_head(&fc->waitq);
 	init_waitqueue_head(&fc->blocked_waitq);
@@ -491,6 +533,8 @@ void fuse_conn_init(struct fuse_conn *fc)
 	INIT_LIST_HEAD(&fc->bg_queue);
 	INIT_LIST_HEAD(&fc->entry);
 	atomic_set(&fc->num_waiting, 0);
+	fc->max_background = FUSE_DEFAULT_MAX_BACKGROUND;
+	fc->congestion_threshold = FUSE_DEFAULT_CONGESTION_THRESHOLD;
 	fc->khctr = 0;
 	fc->polled_files = RB_ROOT;
 	fc->reqctr = 0;
@@ -701,6 +745,54 @@ static const struct super_operations fuse_super_operations = {
 	.show_options	= fuse_show_options,
 };
 
+static void sanitize_global_limit(unsigned *limit)
+{
+	if (*limit == 0)
+		*limit = ((num_physpages << PAGE_SHIFT) >> 13) /
+			 sizeof(struct fuse_req);
+
+	if (*limit >= 1 << 16)
+		*limit = (1 << 16) - 1;
+}
+
+static int set_global_limit(const char *val, struct kernel_param *kp)
+{
+	int rv;
+
+	rv = param_set_uint(val, kp);
+	if (rv)
+		return rv;
+
+	sanitize_global_limit((unsigned *)kp->arg);
+
+	return 0;
+}
+
+static void process_init_limits(struct fuse_conn *fc, struct fuse_init_out *arg)
+{
+	int cap_sys_admin = capable(CAP_SYS_ADMIN);
+
+	if (arg->minor < 13)
+		return;
+
+	sanitize_global_limit(&max_user_bgreq);
+	sanitize_global_limit(&max_user_congthresh);
+
+	if (arg->max_background) {
+		fc->max_background = arg->max_background;
+
+		if (!cap_sys_admin && fc->max_background > max_user_bgreq)
+			fc->max_background = max_user_bgreq;
+	}
+	if (arg->congestion_threshold) {
+		fc->congestion_threshold = arg->congestion_threshold;
+
+		if (!cap_sys_admin &&
+		    fc->congestion_threshold > max_user_congthresh)
+			fc->congestion_threshold = max_user_congthresh;
+	}
+}
+
 static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 {
 	struct fuse_init_out *arg = &req->misc.init_out;
@@ -709,6 +801,8 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->conn_error = 1;
 	else {
 		unsigned long ra_pages;
+
+		process_init_limits(fc, arg);
 
 		if (arg->minor >= 6) {
 			ra_pages = arg->max_readahead / PAGE_CACHE_SIZE;
@@ -725,6 +819,8 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 			}
 			if (arg->flags & FUSE_BIG_WRITES)
 				fc->big_writes = 1;
+			if (arg->flags & FUSE_DONT_MASK)
+				fc->dont_mask = 1;
 		} else {
 			ra_pages = fc->max_read / PAGE_CACHE_SIZE;
 			fc->no_lock = 1;
@@ -748,7 +844,7 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 	arg->minor = FUSE_KERNEL_MINOR_VERSION;
 	arg->max_readahead = fc->bdi.ra_pages * PAGE_CACHE_SIZE;
 	arg->flags |= FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_ATOMIC_O_TRUNC |
-		FUSE_EXPORT_SUPPORT | FUSE_BIG_WRITES;
+		FUSE_EXPORT_SUPPORT | FUSE_BIG_WRITES | FUSE_DONT_MASK;
 	req->in.h.opcode = FUSE_INIT;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(*arg);
@@ -773,6 +869,7 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 {
 	int err;
 
+	fc->bdi.name = "fuse";
 	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 	fc->bdi.unplug_io_fn = default_unplug_io_fn;
 	/* fuse does it's own writeback accounting */
@@ -860,9 +957,17 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	fuse_conn_init(fc);
 
 	fc->dev = sb->s_dev;
+	fc->sb = sb;
 	err = fuse_bdi_init(fc, sb);
 	if (err)
 		goto err_put_conn;
+
+	sb->s_bdi = &fc->bdi;
+
+	/* Handle umasking inside the fuse code */
+	if (sb->s_flags & MS_POSIXACL)
+		fc->dont_mask = 1;
+	sb->s_flags |= MS_POSIXACL;
 
 	fc->release = fuse_free_conn;
 	fc->flags = d.flags;
@@ -941,12 +1046,25 @@ static int fuse_get_sb(struct file_system_type *fs_type,
 	return get_sb_nodev(fs_type, flags, raw_data, fuse_fill_super, mnt);
 }
 
+static void fuse_kill_sb_anon(struct super_block *sb)
+{
+	struct fuse_conn *fc = get_fuse_conn_super(sb);
+
+	if (fc) {
+		down_write(&fc->killsb);
+		fc->sb = NULL;
+		up_write(&fc->killsb);
+	}
+
+	kill_anon_super(sb);
+}
+
 static struct file_system_type fuse_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fuse",
 	.fs_flags	= FS_HAS_SUBTYPE,
 	.get_sb		= fuse_get_sb,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= fuse_kill_sb_anon,
 };
 
 #ifdef CONFIG_BLOCK
@@ -958,11 +1076,24 @@ static int fuse_get_sb_blk(struct file_system_type *fs_type,
 			   mnt);
 }
 
+static void fuse_kill_sb_blk(struct super_block *sb)
+{
+	struct fuse_conn *fc = get_fuse_conn_super(sb);
+
+	if (fc) {
+		down_write(&fc->killsb);
+		fc->sb = NULL;
+		up_write(&fc->killsb);
+	}
+
+	kill_block_super(sb);
+}
+
 static struct file_system_type fuseblk_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fuseblk",
 	.get_sb		= fuse_get_sb_blk,
-	.kill_sb	= kill_block_super,
+	.kill_sb	= fuse_kill_sb_blk,
 	.fs_flags	= FS_REQUIRES_DEV | FS_HAS_SUBTYPE,
 };
 
@@ -1086,6 +1217,9 @@ static int __init fuse_init(void)
 	res = fuse_ctl_init();
 	if (res)
 		goto err_sysfs_cleanup;
+
+	sanitize_global_limit(&max_user_bgreq);
+	sanitize_global_limit(&max_user_congthresh);
 
 	return 0;
 

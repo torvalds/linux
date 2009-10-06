@@ -65,7 +65,7 @@ _GLOBAL(load_up_altivec)
 1:
 	/* enable use of VMX after return */
 #ifdef CONFIG_PPC32
-	mfspr	r5,SPRN_SPRG3		/* current task's THREAD (phys) */
+	mfspr	r5,SPRN_SPRG_THREAD		/* current task's THREAD (phys) */
 	oris	r9,r9,MSR_VEC@h
 #else
 	ld	r4,PACACURRENT(r13)
@@ -80,10 +80,10 @@ _GLOBAL(load_up_altivec)
 	mtvscr	vr0
 	REST_32VRS(0,r4,r5)
 #ifndef CONFIG_SMP
-	/* Update last_task_used_math to 'current' */
+	/* Update last_task_used_altivec to 'current' */
 	subi	r4,r5,THREAD		/* Back to 'current' */
 	fromreal(r4)
-	PPC_STL	r4,ADDROFF(last_task_used_math)(r3)
+	PPC_STL	r4,ADDROFF(last_task_used_altivec)(r3)
 #endif /* CONFIG_SMP */
 	/* restore registers and return */
 	blr
@@ -172,7 +172,7 @@ _GLOBAL(load_up_vsx)
 	oris	r12,r12,MSR_VSX@h
 	std	r12,_MSR(r1)
 #ifndef CONFIG_SMP
-	/* Update last_task_used_math to 'current' */
+	/* Update last_task_used_vsx to 'current' */
 	ld	r4,PACACURRENT(r13)
 	std	r4,0(r3)
 #endif /* CONFIG_SMP */

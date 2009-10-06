@@ -207,13 +207,13 @@ static bool lvds_identify_integratedlvds(void)
 
 int viafb_lvds_trasmitter_identify(void)
 {
-	viaparinfo->i2c_stuff.i2c_port = I2CPORTINDEX;
+	viaparinfo->shared->i2c_stuff.i2c_port = I2CPORTINDEX;
 	if (viafb_lvds_identify_vt1636()) {
 		viaparinfo->chip_info->lvds_chip_info.i2c_port = I2CPORTINDEX;
 		DEBUG_MSG(KERN_INFO
 			  "Found VIA VT1636 LVDS on port i2c 0x31 \n");
 	} else {
-		viaparinfo->i2c_stuff.i2c_port = GPIOPORTINDEX;
+		viaparinfo->shared->i2c_stuff.i2c_port = GPIOPORTINDEX;
 		if (viafb_lvds_identify_vt1636()) {
 			viaparinfo->chip_info->lvds_chip_info.i2c_port =
 				GPIOPORTINDEX;
@@ -470,7 +470,7 @@ static int lvds_register_read(int index)
 {
 	u8 data;
 
-	viaparinfo->i2c_stuff.i2c_port = GPIOPORTINDEX;
+	viaparinfo->shared->i2c_stuff.i2c_port = GPIOPORTINDEX;
 	viafb_i2c_readbyte((u8) viaparinfo->chip_info->
 	    lvds_chip_info.lvds_chip_slave_addr,
 			(u8) index, &data);
@@ -580,10 +580,7 @@ static void load_lcd_k400_patch_tbl(int set_hres, int set_vres,
 	int reg_num = 0;
 	struct io_reg *lcd_patch_reg = NULL;
 
-	if (viaparinfo->lvds_setting_info->iga_path == IGA2)
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 1);
-	else
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 0);
+	vmode_index = viafb_get_mode_index(set_hres, set_vres);
 	switch (panel_id) {
 		/* LCD 800x600 */
 	case LCD_PANEL_ID1_800X600:
@@ -761,10 +758,7 @@ static void load_lcd_p880_patch_tbl(int set_hres, int set_vres,
 	int reg_num = 0;
 	struct io_reg *lcd_patch_reg = NULL;
 
-	if (viaparinfo->lvds_setting_info->iga_path == IGA2)
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 1);
-	else
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 0);
+	vmode_index = viafb_get_mode_index(set_hres, set_vres);
 
 	switch (panel_id) {
 	case LCD_PANEL_ID5_1400X1050:
@@ -832,10 +826,7 @@ static void load_lcd_patch_regs(int set_hres, int set_vres,
 {
 	int vmode_index;
 
-	if (viaparinfo->lvds_setting_info->iga_path == IGA2)
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 1);
-	else
-		vmode_index = viafb_get_mode_index(set_hres, set_vres, 0);
+	vmode_index = viafb_get_mode_index(set_hres, set_vres);
 
 	viafb_unlock_crt();
 
@@ -961,13 +952,10 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 	int video_index = plvds_setting_info->lcd_panel_size;
 	int set_iga = plvds_setting_info->iga_path;
 	int mode_bpp = plvds_setting_info->bpp;
-	int viafb_load_reg_num = 0;
-	int reg_value = 0;
 	int set_hres, set_vres;
 	int panel_hres, panel_vres;
 	u32 pll_D_N;
 	int offset;
-	struct io_register *reg = NULL;
 	struct display_timing mode_crt_reg, panel_crt_reg;
 	struct crt_mode_table *panel_crt_table = NULL;
 	struct VideoModeTable *vmode_tbl = NULL;
@@ -1047,16 +1035,11 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 		}
 
 		/* Offset for simultaneous */
-		reg_value = offset;
-		viafb_load_reg_num = offset_reg.iga2_offset_reg.reg_num;
-		reg = offset_reg.iga2_offset_reg.reg;
-		viafb_load_reg(reg_value, viafb_load_reg_num, reg, VIACR);
+		viafb_set_secondary_pitch(offset << 3);
 		DEBUG_MSG(KERN_INFO "viafb_load_reg!!\n");
 		viafb_load_fetch_count_reg(set_hres, 4, IGA2);
 		/* Fetch count for simultaneous */
 	} else {		/* SAMM */
-		/* Offset for IGA2 only */
-		viafb_load_offset_reg(set_hres, mode_bpp / 8, set_iga);
 		/* Fetch count for IGA2 only */
 		viafb_load_fetch_count_reg(set_hres, mode_bpp / 8, set_iga);
 

@@ -6,6 +6,8 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/idr.h>
+#include <linux/rculist.h>
+#include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -127,7 +129,7 @@ static struct net *net_create(void)
 	rv = setup_net(net);
 	if (rv == 0) {
 		rtnl_lock();
-		list_add_tail(&net->list, &net_namespace_list);
+		list_add_tail_rcu(&net->list, &net_namespace_list);
 		rtnl_unlock();
 	}
 	mutex_unlock(&net_mutex);
@@ -156,8 +158,15 @@ static void cleanup_net(struct work_struct *work)
 
 	/* Don't let anyone else find us. */
 	rtnl_lock();
-	list_del(&net->list);
+	list_del_rcu(&net->list);
 	rtnl_unlock();
+
+	/*
+	 * Another CPU might be rcu-iterating the list, wait for it.
+	 * This needs to be before calling the exit() notifiers, so
+	 * the rcu_barrier() below isn't sufficient alone.
+	 */
+	synchronize_rcu();
 
 	/* Run all of the network namespace exit methods */
 	list_for_each_entry_reverse(ops, &pernet_list, list) {
@@ -193,6 +202,26 @@ struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 }
 #endif
 
+struct net *get_net_ns_by_pid(pid_t pid)
+{
+	struct task_struct *tsk;
+	struct net *net;
+
+	/* Lookup the network namespace */
+	net = ERR_PTR(-ESRCH);
+	rcu_read_lock();
+	tsk = find_task_by_vpid(pid);
+	if (tsk) {
+		struct nsproxy *nsproxy;
+		nsproxy = task_nsproxy(tsk);
+		if (nsproxy)
+			net = get_net(nsproxy->net_ns);
+	}
+	rcu_read_unlock();
+	return net;
+}
+EXPORT_SYMBOL_GPL(get_net_ns_by_pid);
+
 static int __init net_ns_init(void)
 {
 	struct net_generic *ng;
@@ -219,7 +248,7 @@ static int __init net_ns_init(void)
 		panic("Could not setup the initial network namespace");
 
 	rtnl_lock();
-	list_add_tail(&init_net.list, &net_namespace_list);
+	list_add_tail_rcu(&init_net.list, &net_namespace_list);
 	rtnl_unlock();
 
 	mutex_unlock(&net_mutex);
@@ -488,7 +517,7 @@ int net_assign_generic(struct net *net, int id, void *data)
 	 */
 
 	ng->len = id;
-	memcpy(&ng->ptr, &old_ng->ptr, old_ng->len);
+	memcpy(&ng->ptr, &old_ng->ptr, old_ng->len * sizeof(void*));
 
 	rcu_assign_pointer(net->gen, ng);
 	call_rcu(&old_ng->rcu, net_generic_release);

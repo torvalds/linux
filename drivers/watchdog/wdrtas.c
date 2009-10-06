@@ -218,16 +218,14 @@ static void wdrtas_timer_keepalive(void)
  */
 static int wdrtas_get_temperature(void)
 {
-	long result;
+	int result;
 	int temperature = 0;
 
-	result = rtas_call(wdrtas_token_get_sensor_state, 2, 2,
-			   (void *)__pa(&temperature),
-			   WDRTAS_THERMAL_SENSOR, 0);
+	result = rtas_get_sensor(WDRTAS_THERMAL_SENSOR, 0, &temperature);
 
 	if (result < 0)
 		printk(KERN_WARNING "wdrtas: reading the thermal sensor "
-		       "faild: %li\n", result);
+		       "failed: %i\n", result);
 	else
 		temperature = ((temperature * 9) / 5) + 32; /* fahrenheit */
 

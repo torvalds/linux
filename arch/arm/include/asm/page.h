@@ -12,7 +12,7 @@
 
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT		12
-#define PAGE_SIZE		(1UL << PAGE_SHIFT)
+#define PAGE_SIZE		(_AC(1,UL) << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 
 #ifndef __ASSEMBLY__
@@ -193,6 +193,10 @@ typedef unsigned long pgprot_t;
 #endif /* CONFIG_MMU */
 
 typedef struct page *pgtable_t;
+
+#ifndef CONFIG_SPARSEMEM
+extern int pfn_valid(unsigned long);
+#endif
 
 #include <asm/memory.h>
 

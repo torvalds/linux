@@ -96,6 +96,20 @@ int fw_core_initiate_bus_reset(struct fw_card *card, int short_reset);
 int fw_compute_block_crc(u32 *block);
 void fw_schedule_bm_work(struct fw_card *card, unsigned long delay);
 
+static inline struct fw_card *fw_card_get(struct fw_card *card)
+{
+	kref_get(&card->kref);
+
+	return card;
+}
+
+void fw_card_release(struct kref *kref);
+
+static inline void fw_card_put(struct fw_card *card)
+{
+	kref_put(&card->kref, fw_card_release);
+}
+
 
 /* -cdev */
 
@@ -120,7 +134,8 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event);
 
 int fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma);
 void fw_iso_resource_manage(struct fw_card *card, int generation,
-		u64 channels_mask, int *channel, int *bandwidth, bool allocate);
+			    u64 channels_mask, int *channel, int *bandwidth,
+			    bool allocate, __be32 buffer[2]);
 
 
 /* -topology */

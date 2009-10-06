@@ -69,10 +69,10 @@
 #define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT2SAS_AUTHOR	"LSI Corporation <DL-MPTFusionLinux@lsi.com>"
 #define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
-#define MPT2SAS_DRIVER_VERSION		"01.100.03.00"
+#define MPT2SAS_DRIVER_VERSION		"01.100.06.00"
 #define MPT2SAS_MAJOR_VERSION		01
 #define MPT2SAS_MINOR_VERSION		100
-#define MPT2SAS_BUILD_VERSION		03
+#define MPT2SAS_BUILD_VERSION		06
 #define MPT2SAS_RELEASE_VERSION		00
 
 /*
@@ -119,6 +119,7 @@
 #define MPT2_IOC_PRE_RESET		1 /* prior to host reset */
 #define MPT2_IOC_AFTER_RESET		2 /* just after host reset */
 #define MPT2_IOC_DONE_RESET		3 /* links re-initialized */
+#define MPT2_IOC_RUNNING		4 /* shost running */
 
 /*
  * logging format
@@ -196,6 +197,38 @@ struct MPT2SAS_TARGET {
  * @block: device is in SDEV_BLOCK state
  * @tlr_snoop_check: flag used in determining whether to disable TLR
  */
+
+/* OEM Identifiers */
+#define MFG10_OEM_ID_INVALID                   (0x00000000)
+#define MFG10_OEM_ID_DELL                      (0x00000001)
+#define MFG10_OEM_ID_FSC                       (0x00000002)
+#define MFG10_OEM_ID_SUN                       (0x00000003)
+#define MFG10_OEM_ID_IBM                       (0x00000004)
+
+/* GENERIC Flags 0*/
+#define MFG10_GF0_OCE_DISABLED                 (0x00000001)
+#define MFG10_GF0_R1E_DRIVE_COUNT              (0x00000002)
+#define MFG10_GF0_R10_DISPLAY                  (0x00000004)
+#define MFG10_GF0_SSD_DATA_SCRUB_DISABLE       (0x00000008)
+#define MFG10_GF0_SINGLE_DRIVE_R0              (0x00000010)
+
+/* OEM Specific Flags will come from OEM specific header files */
+typedef struct _MPI2_CONFIG_PAGE_MAN_10 {
+    MPI2_CONFIG_PAGE_HEADER Header;                                 /* 00h */
+    U8                      OEMIdentifier;                          /* 04h */
+    U8                      Reserved1;                              /* 05h */
+    U16                     Reserved2;                              /* 08h */
+    U32                     Reserved3;                              /* 0Ch */
+    U32                     GenericFlags0;                          /* 10h */
+    U32                     GenericFlags1;                          /* 14h */
+    U32                     Reserved4;                              /* 18h */
+    U32                     OEMSpecificFlags0;                      /* 1Ch */
+    U32                     OEMSpecificFlags1;                      /* 20h */
+    U32                     Reserved5[18];                          /* 24h-60h*/
+} MPI2_CONFIG_PAGE_MAN_10,
+  MPI2_POINTER PTR_MPI2_CONFIG_PAGE_MAN_10,
+  Mpi2ManufacturingPage10_t, MPI2_POINTER pMpi2ManufacturingPage10_t;
+
 struct MPT2SAS_DEVICE {
 	struct MPT2SAS_TARGET *sas_target;
 	unsigned int	lun;
@@ -431,7 +464,7 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @fw_event_list: list of fw events
  * @aen_event_read_flag: event log was read
  * @broadcast_aen_busy: broadcast aen waiting to be serviced
- * @ioc_reset_in_progress: host reset in progress
+ * @shost_recovery: host reset in progress
  * @ioc_reset_in_progress_lock:
  * @ioc_link_reset_in_progress: phy/hard reset in progress
  * @ignore_loginfos: ignore loginfos during task managment
@@ -460,6 +493,7 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @facts: static facts data
  * @pfacts: static port facts data
  * @manu_pg0: static manufacturing page 0
+ * @manu_pg10: static manufacturing page 10
  * @bios_pg2: static bios page 2
  * @bios_pg3: static bios page 3
  * @ioc_pg8: static ioc page 8
@@ -544,7 +578,6 @@ struct MPT2SAS_ADAPTER {
 	 /* misc flags */
 	int		aen_event_read_flag;
 	u8		broadcast_aen_busy;
-	u8		ioc_reset_in_progress;
 	u8		shost_recovery;
 	spinlock_t 	ioc_reset_in_progress_lock;
 	u8		ioc_link_reset_in_progress;
@@ -663,6 +696,7 @@ struct MPT2SAS_ADAPTER {
 	dma_addr_t	diag_buffer_dma[MPI2_DIAG_BUF_TYPE_COUNT];
 	u8		diag_buffer_status[MPI2_DIAG_BUF_TYPE_COUNT];
 	u32		unique_id[MPI2_DIAG_BUF_TYPE_COUNT];
+	Mpi2ManufacturingPage10_t manu_pg10;
 	u32		product_specific[MPI2_DIAG_BUF_TYPE_COUNT][23];
 	u32		diagnostic_flags[MPI2_DIAG_BUF_TYPE_COUNT];
 };
@@ -673,6 +707,8 @@ typedef void (*MPT_CALLBACK)(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID,
 
 /* base shared API */
 extern struct list_head mpt2sas_ioc_list;
+void mpt2sas_base_start_watchdog(struct MPT2SAS_ADAPTER *ioc);
+void mpt2sas_base_stop_watchdog(struct MPT2SAS_ADAPTER *ioc);
 
 int mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc);
 void mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc);
@@ -732,6 +768,8 @@ void mpt2sas_config_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 re
 int mpt2sas_config_get_number_hba_phys(struct MPT2SAS_ADAPTER *ioc, u8 *num_phys);
 int mpt2sas_config_get_manufacturing_pg0(struct MPT2SAS_ADAPTER *ioc,
     Mpi2ConfigReply_t *mpi_reply, Mpi2ManufacturingPage0_t *config_page);
+int mpt2sas_config_get_manufacturing_pg10(struct MPT2SAS_ADAPTER *ioc,
+    Mpi2ConfigReply_t *mpi_reply, Mpi2ManufacturingPage10_t *config_page);
 int mpt2sas_config_get_bios_pg2(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
     *mpi_reply, Mpi2BiosPage2_t *config_page);
 int mpt2sas_config_get_bios_pg3(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
@@ -747,7 +785,7 @@ int mpt2sas_config_get_sas_iounit_pg0(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigRep
 int mpt2sas_config_get_iounit_pg1(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
     *mpi_reply, Mpi2IOUnitPage1_t *config_page);
 int mpt2sas_config_set_iounit_pg1(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
-    *mpi_reply, Mpi2IOUnitPage1_t config_page);
+    *mpi_reply, Mpi2IOUnitPage1_t *config_page);
 int mpt2sas_config_get_sas_iounit_pg1(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
     *mpi_reply, Mpi2SasIOUnitPage1_t *config_page, u16 sz);
 int mpt2sas_config_get_ioc_pg8(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
@@ -774,7 +812,6 @@ int mpt2sas_config_get_volume_handle(struct MPT2SAS_ADAPTER *ioc, u16 pd_handle,
     u16 *volume_handle);
 int mpt2sas_config_get_volume_wwid(struct MPT2SAS_ADAPTER *ioc, u16 volume_handle,
     u64 *wwid);
-
 /* ctl shared API */
 extern struct device_attribute *mpt2sas_host_attrs[];
 extern struct device_attribute *mpt2sas_dev_attrs[];
@@ -796,9 +833,11 @@ int mpt2sas_transport_add_host_phy(struct MPT2SAS_ADAPTER *ioc, struct _sas_phy
     *mpt2sas_phy, Mpi2SasPhyPage0_t phy_pg0, struct device *parent_dev);
 int mpt2sas_transport_add_expander_phy(struct MPT2SAS_ADAPTER *ioc, struct _sas_phy
     *mpt2sas_phy, Mpi2ExpanderPage1_t expander_pg1, struct device *parent_dev);
-void mpt2sas_transport_update_phy_link_change(struct MPT2SAS_ADAPTER *ioc, u16 handle,
+void mpt2sas_transport_update_links(struct MPT2SAS_ADAPTER *ioc, u16 handle,
    u16 attached_handle, u8 phy_number, u8 link_rate);
 extern struct sas_function_template mpt2sas_transport_functions;
 extern struct scsi_transport_template *mpt2sas_transport_template;
+extern int scsi_internal_device_block(struct scsi_device *sdev);
+extern int scsi_internal_device_unblock(struct scsi_device *sdev);
 
 #endif /* MPT2SAS_BASE_H_INCLUDED */

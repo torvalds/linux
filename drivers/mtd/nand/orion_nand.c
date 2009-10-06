@@ -61,7 +61,7 @@ static void orion_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	buf64 = (uint64_t *)buf;
 	while (i < len/8) {
 		uint64_t x;
-		asm ("ldrd\t%0, [%1]" : "=r" (x) : "r" (io_base));
+		asm volatile ("ldrd\t%0, [%1]" : "=&r" (x) : "r" (io_base));
 		buf64[i++] = x;
 	}
 	i *= 8;
@@ -171,7 +171,6 @@ static int __devexit orion_nand_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver orion_nand_driver = {
-	.probe		= orion_nand_probe,
 	.remove		= __devexit_p(orion_nand_remove),
 	.driver		= {
 		.name	= "orion_nand",
@@ -181,7 +180,7 @@ static struct platform_driver orion_nand_driver = {
 
 static int __init orion_nand_init(void)
 {
-	return platform_driver_register(&orion_nand_driver);
+	return platform_driver_probe(&orion_nand_driver, orion_nand_probe);
 }
 
 static void __exit orion_nand_exit(void)

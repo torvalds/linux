@@ -406,7 +406,7 @@ void getreg(unsigned long regnum, unsigned long *val,
 	 * Now look at registers in [0-31] range and init correct UNAT
 	 */
 	addr = (unsigned long)regs;
-	unat = &regs->eml_unat;;
+	unat = &regs->eml_unat;
 
 	addr += gr_info[regnum];
 
@@ -461,7 +461,7 @@ void setreg(unsigned long regnum, unsigned long val,
 u64 vcpu_get_gr(struct kvm_vcpu *vcpu, unsigned long reg)
 {
 	struct kvm_pt_regs *regs = vcpu_regs(vcpu);
-	u64 val;
+	unsigned long val;
 
 	if (!reg)
 		return 0;
@@ -469,7 +469,7 @@ u64 vcpu_get_gr(struct kvm_vcpu *vcpu, unsigned long reg)
 	return val;
 }
 
-void vcpu_set_gr(struct kvm_vcpu *vcpu, u64 reg, u64 value, int nat)
+void vcpu_set_gr(struct kvm_vcpu *vcpu, unsigned long reg, u64 value, int nat)
 {
 	struct kvm_pt_regs *regs = vcpu_regs(vcpu);
 	long sof = (regs->cr_ifs) & 0x7f;
@@ -830,8 +830,8 @@ static void vcpu_set_itc(struct kvm_vcpu *vcpu, u64 val)
 
 	kvm = (struct kvm *)KVM_VM_BASE;
 
-	if (vcpu->vcpu_id == 0) {
-		for (i = 0; i < kvm->arch.online_vcpus; i++) {
+	if (kvm_vcpu_is_bsp(vcpu)) {
+		for (i = 0; i < atomic_read(&kvm->online_vcpus); i++) {
 			v = (struct kvm_vcpu *)((char *)vcpu +
 					sizeof(struct kvm_vcpu_data) * i);
 			VMX(v, itc_offset) = itc_offset;
@@ -1072,7 +1072,7 @@ void kvm_ttag(struct kvm_vcpu *vcpu, INST64 inst)
 	vcpu_set_gr(vcpu, inst.M46.r1, tag, 0);
 }
 
-int vcpu_tpa(struct kvm_vcpu *vcpu, u64 vadr, u64 *padr)
+int vcpu_tpa(struct kvm_vcpu *vcpu, u64 vadr, unsigned long *padr)
 {
 	struct thash_data *data;
 	union ia64_isr visr, pt_isr;

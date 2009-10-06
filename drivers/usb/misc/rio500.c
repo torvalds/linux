@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/random.h>
 #include <linux/poll.h>
@@ -428,8 +429,7 @@ read_rio(struct file *file, char __user *buffer, size_t count, loff_t * ppos)
 	return read_count;
 }
 
-static struct
-file_operations usb_rio_fops = {
+static const struct file_operations usb_rio_fops = {
 	.owner =	THIS_MODULE,
 	.read =		read_rio,
 	.write =	write_rio,

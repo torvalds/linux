@@ -50,6 +50,7 @@
 #include <linux/swab.h>
 #include <linux/phy.h>
 #include <linux/smsc911x.h>
+#include <linux/device.h>
 #include "smsc911x.h"
 
 #define SMSC_CHIPNAME		"smsc911x"
@@ -1046,7 +1047,6 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 		/* Update counters */
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += (pktlength - 4);
-		dev->last_rx = jiffies;
 	}
 
 	/* Return total received packets */
@@ -1779,6 +1779,7 @@ static const struct net_device_ops smsc911x_netdev_ops = {
 	.ndo_get_stats		= smsc911x_get_stats,
 	.ndo_set_multicast_list	= smsc911x_set_multicast_list,
 	.ndo_do_ioctl		= smsc911x_do_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= smsc911x_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1938,7 +1939,7 @@ static int __devexit smsc911x_drv_remove(struct platform_device *pdev)
 	if (!res)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	release_mem_region(res->start, res->end - res->start);
+	release_mem_region(res->start, resource_size(res));
 
 	iounmap(pdata->ioaddr);
 
@@ -1976,7 +1977,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 		retval = -ENODEV;
 		goto out_0;
 	}
-	res_size = res->end - res->start + 1;
+	res_size = resource_size(res);
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
@@ -2104,7 +2105,7 @@ out_unmap_io_3:
 out_free_netdev_2:
 	free_netdev(dev);
 out_release_io_1:
-	release_mem_region(res->start, res->end - res->start);
+	release_mem_region(res->start, resource_size(res));
 out_0:
 	return retval;
 }
@@ -2113,10 +2114,12 @@ out_0:
 /* This implementation assumes the devices remains powered on its VDDVARIO
  * pins during suspend. */
 
-static int smsc911x_suspend(struct platform_device *pdev, pm_message_t state)
+/* TODO: implement freeze/thaw callbacks for hibernation.*/
+
+static int smsc911x_suspend(struct device *dev)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct smsc911x_data *pdata = netdev_priv(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct smsc911x_data *pdata = netdev_priv(ndev);
 
 	/* enable wake on LAN, energy detection and the external PME
 	 * signal. */
@@ -2127,10 +2130,10 @@ static int smsc911x_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int smsc911x_resume(struct platform_device *pdev)
+static int smsc911x_resume(struct device *dev)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct smsc911x_data *pdata = netdev_priv(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct smsc911x_data *pdata = netdev_priv(ndev);
 	unsigned int to = 100;
 
 	/* Note 3.11 from the datasheet:
@@ -2148,19 +2151,25 @@ static int smsc911x_resume(struct platform_device *pdev)
 	return (to == 0) ? -EIO : 0;
 }
 
+static struct dev_pm_ops smsc911x_pm_ops = {
+	.suspend	= smsc911x_suspend,
+	.resume		= smsc911x_resume,
+};
+
+#define SMSC911X_PM_OPS (&smsc911x_pm_ops)
+
 #else
-#define smsc911x_suspend	NULL
-#define smsc911x_resume		NULL
+#define SMSC911X_PM_OPS NULL
 #endif
 
 static struct platform_driver smsc911x_driver = {
 	.probe = smsc911x_drv_probe,
 	.remove = __devexit_p(smsc911x_drv_remove),
 	.driver = {
-		.name = SMSC_CHIPNAME,
+		.name	= SMSC_CHIPNAME,
+		.owner	= THIS_MODULE,
+		.pm	= SMSC911X_PM_OPS,
 	},
-	.suspend = smsc911x_suspend,
-	.resume = smsc911x_resume,
 };
 
 /* Entry point for loading the module */

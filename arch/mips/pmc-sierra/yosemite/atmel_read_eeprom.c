@@ -1,6 +1,4 @@
 /*
- *  arch/mips/pmc-sierra/yosemite/atmel_read_eeprom.c
- *
  *  Copyright (C) 2003 PMC-Sierra Inc.
  *  Author: Manish Lachwani (lachwani@pmc-sierra.com)
  *

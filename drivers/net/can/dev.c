@@ -315,12 +315,28 @@ void can_get_echo_skb(struct net_device *dev, int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	if ((dev->flags & IFF_ECHO) && priv->echo_skb[idx]) {
+	if (priv->echo_skb[idx]) {
 		netif_rx(priv->echo_skb[idx]);
 		priv->echo_skb[idx] = NULL;
 	}
 }
 EXPORT_SYMBOL_GPL(can_get_echo_skb);
+
+/*
+  * Remove the skb from the stack and free it.
+  *
+  * The function is typically called when TX failed.
+  */
+void can_free_echo_skb(struct net_device *dev, int idx)
+{
+	struct can_priv *priv = netdev_priv(dev);
+
+	if (priv->echo_skb[idx]) {
+		kfree_skb(priv->echo_skb[idx]);
+		priv->echo_skb[idx] = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(can_free_echo_skb);
 
 /*
  * CAN device restart for bus-off recovery
@@ -346,7 +362,7 @@ void can_restart(unsigned long data)
 	skb = dev_alloc_skb(sizeof(struct can_frame));
 	if (skb == NULL) {
 		err = -ENOMEM;
-		goto out;
+		goto restart;
 	}
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_CAN);
@@ -357,17 +373,16 @@ void can_restart(unsigned long data)
 
 	netif_rx(skb);
 
-	dev->last_rx = jiffies;
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
 
+restart:
 	dev_dbg(dev->dev.parent, "restarted\n");
 	priv->can_stats.restarts++;
 
 	/* Now restart the device */
 	err = priv->do_set_mode(dev, CAN_MODE_START);
 
-out:
 	netif_carrier_on(dev);
 	if (err)
 		dev_err(dev->dev.parent, "Error %d during restart", err);
@@ -472,6 +487,10 @@ int open_candev(struct net_device *dev)
 		dev_err(dev->dev.parent, "bit-timing not yet defined\n");
 		return -EINVAL;
 	}
+
+	/* Switch carrier on if device was stopped while in bus-off state */
+	if (!netif_carrier_ok(dev))
+		netif_carrier_on(dev);
 
 	setup_timer(&priv->restart_timer, can_restart, (unsigned long)dev);
 
@@ -607,11 +626,18 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int can_newlink(struct net_device *dev,
+		       struct nlattr *tb[], struct nlattr *data[])
+{
+	return -EOPNOTSUPP;
+}
+
 static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.kind		= "can",
 	.maxtype	= IFLA_CAN_MAX,
 	.policy		= can_policy,
 	.setup		= can_setup,
+	.newlink	= can_newlink,
 	.changelink	= can_changelink,
 	.fill_info	= can_fill_info,
 	.fill_xstats	= can_fill_xstats,

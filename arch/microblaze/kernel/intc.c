@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <asm/page.h>
 #include <linux/io.h>
+#include <linux/bug.h>
 
 #include <asm/prom.h>
 #include <asm/irq.h>
@@ -130,6 +131,7 @@ void __init init_IRQ(void)
 		if (intc)
 			break;
 	}
+	BUG_ON(!intc);
 
 	intc_baseaddr = *(int *) of_get_property(intc, "reg", NULL);
 	intc_baseaddr = (unsigned long) ioremap(intc_baseaddr, PAGE_SIZE);

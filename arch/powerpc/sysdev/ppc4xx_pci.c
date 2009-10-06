@@ -1531,7 +1531,7 @@ static void __init ppc4xx_configure_pciex_PIMs(struct ppc4xx_pciex_port *port,
 		 */
 
 		/* Calculate window size */
-		sa = (0xffffffffffffffffull << ilog2(ep_size));;
+		sa = (0xffffffffffffffffull << ilog2(ep_size));
 
 		/* Setup BAR0 */
 		out_le32(mbase + PECFG_BAR0HMPA, RES_TO_U32_HIGH(sa));
@@ -1550,7 +1550,7 @@ static void __init ppc4xx_configure_pciex_PIMs(struct ppc4xx_pciex_port *port,
 		out_le32(mbase + PCI_BASE_ADDRESS_1, RES_TO_U32_HIGH(ep_addr));
 	} else {
 		/* Calculate window size */
-		sa = (0xffffffffffffffffull << ilog2(size));;
+		sa = (0xffffffffffffffffull << ilog2(size));
 		if (res->flags & IORESOURCE_PREFETCH)
 			sa |= 0x8;
 

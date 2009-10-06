@@ -1,5 +1,5 @@
 /*
- * udbg for for NS16550 compatable serial ports
+ * udbg for NS16550 compatable serial ports
  *
  * Copyright (C) 2001-2005 PPC 64 Team, IBM Corp
  *
@@ -219,7 +219,7 @@ void udbg_init_pas_realmode(void)
 #ifdef CONFIG_PPC_EARLY_DEBUG_44x
 #include <platforms/44x/44x.h>
 
-static int udbg_44x_as1_flush(void)
+static void udbg_44x_as1_flush(void)
 {
 	if (udbg_comport) {
 		while ((as1_readb(&udbg_comport->lsr) & LSR_THRE) == 0)

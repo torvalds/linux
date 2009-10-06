@@ -112,10 +112,8 @@ static int iodev_open(struct inode *i, struct file *f)
 {
 	int ret;
 
-	lock_kernel();
 	ret = request_irq(iodev_irq, iodev_irqhdl, IRQF_DISABLED,
 			   iodev_name, &miscdev);
-	unlock_kernel();
 
 	return ret;
 }

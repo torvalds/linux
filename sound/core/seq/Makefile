@@ -3,10 +3,6 @@
 # Copyright (c) 1999 by Jaroslav Kysela <perex@perex.cz>
 #
 
-ifeq ($(CONFIG_SND_SEQUENCER_OSS),y)
-  obj-$(CONFIG_SND_SEQUENCER) += oss/
-endif
-
 snd-seq-device-objs := seq_device.o
 snd-seq-objs := seq.o seq_lock.o seq_clientmgr.o seq_memory.o seq_queue.o \
                 seq_fifo.o seq_prioq.o seq_timer.o \
@@ -19,7 +15,8 @@ snd-seq-virmidi-objs := seq_virmidi.o
 
 obj-$(CONFIG_SND_SEQUENCER) += snd-seq.o snd-seq-device.o
 ifeq ($(CONFIG_SND_SEQUENCER_OSS),y)
-obj-$(CONFIG_SND_SEQUENCER) += snd-seq-midi-event.o
+  obj-$(CONFIG_SND_SEQUENCER) += snd-seq-midi-event.o
+  obj-$(CONFIG_SND_SEQUENCER) += oss/
 endif
 obj-$(CONFIG_SND_SEQ_DUMMY) += snd-seq-dummy.o
 

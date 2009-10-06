@@ -13,13 +13,53 @@ SYNOPSIS
 DESCRIPTION
 -----------
 This command displays the performance counter profile information recorded
-via perf report.
+via perf record.
 
 OPTIONS
 -------
 -i::
 --input=::
         Input file name. (default: perf.data)
+-d::
+--dsos=::
+	Only consider symbols in these dsos. CSV that understands
+	file://filename entries.
+-n
+--show-nr-samples
+	Show the number of samples for each symbol
+-T
+--threads
+	Show per-thread event counters
+-C::
+--comms=::
+	Only consider symbols in these comms. CSV that understands
+	file://filename entries.
+-S::
+--symbols=::
+	Only consider these symbols. CSV that understands
+	file://filename entries.
+
+-w::
+--field-width=::
+	Force each column width to the provided list, for large terminal
+	readability.
+
+-t::
+--field-separator=::
+
+	Use a special separator character and don't pad with spaces, replacing
+	all occurances of this separator in symbol names (and other output)
+	with a '.' character, that thus it's the only non valid separator.
+
+-g [type,min]::
+--call-graph::
+        Display callchains using type and min percent threshold.
+	type can be either:
+	- flat: single column, linear exposure of callchains.
+	- graph: use a graph tree, displaying absolute overhead rates.
+	- fractal: like graph, but displays relative rates. Each branch of
+		 the tree is considered as a new profiled object. +
+	Default: fractal,0.5.
 
 SEE ALSO
 --------

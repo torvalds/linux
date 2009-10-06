@@ -30,6 +30,17 @@
 #ifndef __ASM_ARCH_OMAP_CPU_H
 #define __ASM_ARCH_OMAP_CPU_H
 
+/*
+ * Omap device type i.e. EMU/HS/TST/GP/BAD
+ */
+#define OMAP2_DEVICE_TYPE_TEST		0
+#define OMAP2_DEVICE_TYPE_EMU		1
+#define OMAP2_DEVICE_TYPE_SEC		2
+#define OMAP2_DEVICE_TYPE_GP		3
+#define OMAP2_DEVICE_TYPE_BAD		4
+
+int omap_type(void);
+
 struct omap_chip_id {
 	u8 oc;
 	u8 type;
@@ -367,9 +378,6 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define cpu_class_is_omap2()	(cpu_is_omap24xx() || cpu_is_omap34xx() || \
 				cpu_is_omap44xx())
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-			defined(CONFIG_ARCH_OMAP4)
-
 /* Various silicon revisions for omap2 */
 #define OMAP242X_CLASS		0x24200024
 #define OMAP2420_REV_ES1_0	0x24200024
@@ -424,17 +432,4 @@ IS_OMAP_TYPE(3430, 0x3430)
 
 
 int omap_chip_is(struct omap_chip_id oci);
-int omap_type(void);
-
-/*
- * Macro to detect device type i.e. EMU/HS/TST/GP/BAD
- */
-#define OMAP2_DEVICE_TYPE_TEST		0
-#define OMAP2_DEVICE_TYPE_EMU		1
-#define OMAP2_DEVICE_TYPE_SEC		2
-#define OMAP2_DEVICE_TYPE_GP		3
-#define OMAP2_DEVICE_TYPE_BAD		4
-
 void omap2_check_revision(void);
-
-#endif    /* defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) */

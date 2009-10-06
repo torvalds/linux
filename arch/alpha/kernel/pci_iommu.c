@@ -268,11 +268,7 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 	   assume it doesn't support sg mapping, and, since we tried to
 	   use direct_map above, it now must be considered an error. */
 	if (! alpha_mv.mv_pci_tbi) {
-		static int been_here = 0; /* Only print the message once. */
-		if (!been_here) {
-		    printk(KERN_WARNING "pci_map_single: no HW sg\n");
-		    been_here = 1;
-		}
+		printk_once(KERN_WARNING "pci_map_single: no HW sg\n");
 		return 0;
 	}
 
@@ -880,7 +876,7 @@ iommu_release(struct pci_iommu_arena *arena, long pg_start, long pg_count)
 
 int
 iommu_bind(struct pci_iommu_arena *arena, long pg_start, long pg_count, 
-	   unsigned long *physaddrs)
+	   struct page **pages)
 {
 	unsigned long flags;
 	unsigned long *ptes;
@@ -900,7 +896,7 @@ iommu_bind(struct pci_iommu_arena *arena, long pg_start, long pg_count,
 	}
 		
 	for(i = 0, j = pg_start; i < pg_count; i++, j++)
-		ptes[j] = mk_iommu_pte(physaddrs[i]);
+		ptes[j] = mk_iommu_pte(page_to_phys(pages[i]));
 
 	spin_unlock_irqrestore(&arena->lock, flags);
 

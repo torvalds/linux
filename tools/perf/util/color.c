@@ -11,7 +11,8 @@ static int parse_color(const char *name, int len)
 	};
 	char *end;
 	int i;
-	for (i = 0; i < ARRAY_SIZE(color_names); i++) {
+
+	for (i = 0; i < (int)ARRAY_SIZE(color_names); i++) {
 		const char *str = color_names[i];
 		if (!strncasecmp(name, str, len) && !str[len])
 			return i - 1;
@@ -28,7 +29,8 @@ static int parse_attr(const char *name, int len)
 	static const char * const attr_names[] = {
 		"bold", "dim", "ul", "blink", "reverse"
 	};
-	int i;
+	unsigned int i;
+
 	for (i = 0; i < ARRAY_SIZE(attr_names); i++) {
 		const char *str = attr_names[i];
 		if (!strncasecmp(name, str, len) && !str[len])
@@ -164,7 +166,7 @@ int perf_color_default_config(const char *var, const char *value, void *cb)
 	return perf_default_config(var, value, cb);
 }
 
-static int color_vfprintf(FILE *fp, const char *color, const char *fmt,
+static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
 		va_list args, const char *trail)
 {
 	int r = 0;
@@ -189,6 +191,10 @@ static int color_vfprintf(FILE *fp, const char *color, const char *fmt,
 	return r;
 }
 
+int color_vfprintf(FILE *fp, const char *color, const char *fmt, va_list args)
+{
+	return __color_vfprintf(fp, color, fmt, args, NULL);
+}
 
 
 int color_fprintf(FILE *fp, const char *color, const char *fmt, ...)
@@ -197,7 +203,7 @@ int color_fprintf(FILE *fp, const char *color, const char *fmt, ...)
 	int r;
 
 	va_start(args, fmt);
-	r = color_vfprintf(fp, color, fmt, args, NULL);
+	r = color_vfprintf(fp, color, fmt, args);
 	va_end(args);
 	return r;
 }
@@ -207,7 +213,7 @@ int color_fprintf_ln(FILE *fp, const char *color, const char *fmt, ...)
 	va_list args;
 	int r;
 	va_start(args, fmt);
-	r = color_vfprintf(fp, color, fmt, args, "\n");
+	r = __color_vfprintf(fp, color, fmt, args, "\n");
 	va_end(args);
 	return r;
 }
@@ -222,10 +228,12 @@ int color_fwrite_lines(FILE *fp, const char *color,
 {
 	if (!*color)
 		return fwrite(buf, count, 1, fp) != 1;
+
 	while (count) {
 		char *p = memchr(buf, '\n', count);
+
 		if (p != buf && (fputs(color, fp) < 0 ||
-				fwrite(buf, p ? p - buf : count, 1, fp) != 1 ||
+				fwrite(buf, p ? (size_t)(p - buf) : count, 1, fp) != 1 ||
 				fputs(PERF_COLOR_RESET, fp) < 0))
 			return -1;
 		if (!p)
@@ -238,4 +246,31 @@ int color_fwrite_lines(FILE *fp, const char *color,
 	return 0;
 }
 
+const char *get_percent_color(double percent)
+{
+	const char *color = PERF_COLOR_NORMAL;
 
+	/*
+	 * We color high-overhead entries in red, mid-overhead
+	 * entries in green - and keep the low overhead places
+	 * normal:
+	 */
+	if (percent >= MIN_RED)
+		color = PERF_COLOR_RED;
+	else {
+		if (percent > MIN_GREEN)
+			color = PERF_COLOR_GREEN;
+	}
+	return color;
+}
+
+int percent_color_fprintf(FILE *fp, const char *fmt, double percent)
+{
+	int r;
+	const char *color;
+
+	color = get_percent_color(percent);
+	r = color_fprintf(fp, color, fmt, percent);
+
+	return r;
+}

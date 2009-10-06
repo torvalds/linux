@@ -55,15 +55,12 @@ static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 	return desc->irq_2_iommu;
 }
 
-static struct irq_2_iommu *irq_2_iommu_alloc_node(unsigned int irq, int node)
+static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
 {
 	struct irq_desc *desc;
 	struct irq_2_iommu *irq_iommu;
 
-	/*
-	 * alloc irq desc if not allocated already.
-	 */
-	desc = irq_to_desc_alloc_node(irq, node);
+	desc = irq_to_desc(irq);
 	if (!desc) {
 		printk(KERN_INFO "can not get irq_desc for %d\n", irq);
 		return NULL;
@@ -72,14 +69,9 @@ static struct irq_2_iommu *irq_2_iommu_alloc_node(unsigned int irq, int node)
 	irq_iommu = desc->irq_2_iommu;
 
 	if (!irq_iommu)
-		desc->irq_2_iommu = get_one_free_irq_2_iommu(node);
+		desc->irq_2_iommu = get_one_free_irq_2_iommu(irq_node(irq));
 
 	return desc->irq_2_iommu;
-}
-
-static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
-{
-	return irq_2_iommu_alloc_node(irq, cpu_to_node(boot_cpu_id));
 }
 
 #else /* !CONFIG_SPARSE_IRQ */
@@ -611,6 +603,9 @@ int __init intr_remapping_supported(void)
 	if (disable_intremap)
 		return 0;
 
+	if (!dmar_ir_support())
+		return 0;
+
 	for_each_drhd_unit(drhd) {
 		struct intel_iommu *iommu = drhd->iommu;
 
@@ -625,6 +620,11 @@ int __init enable_intr_remapping(int eim)
 {
 	struct dmar_drhd_unit *drhd;
 	int setup = 0;
+
+	if (parse_ioapics_under_ir() != 1) {
+		printk(KERN_INFO "Not enable interrupt remapping\n");
+		return -1;
+	}
 
 	for_each_drhd_unit(drhd) {
 		struct intel_iommu *iommu = drhd->iommu;

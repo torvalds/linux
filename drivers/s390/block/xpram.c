@@ -42,7 +42,6 @@
 #include <linux/suspend.h>
 #include <linux/platform_device.h>
 #include <asm/uaccess.h>
-#include <asm/checksum.h>
 
 #define XPRAM_NAME	"xpram"
 #define XPRAM_DEVS	1	/* one partition */
@@ -51,7 +50,6 @@
 typedef struct {
 	unsigned int	size;		/* size of xpram segment in pages */
 	unsigned int	offset;		/* start page of xpram segment */
-	unsigned int	csum;		/* partition checksum for suspend */
 } xpram_device_t;
 
 static xpram_device_t xpram_devices[XPRAM_MAX_DEVS];
@@ -246,7 +244,7 @@ static int xpram_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static struct block_device_operations xpram_devops =
+static const struct block_device_operations xpram_devops =
 {
 	.owner	= THIS_MODULE,
 	.getgeo	= xpram_getgeo,
@@ -387,63 +385,11 @@ out:
 }
 
 /*
- * Save checksums for all partitions.
- */
-static int xpram_save_checksums(void)
-{
-	unsigned long mem_page;
-	int rc, i;
-
-	rc = 0;
-	mem_page = (unsigned long) __get_free_page(GFP_KERNEL);
-	if (!mem_page)
-		return -ENOMEM;
-	for (i = 0; i < xpram_devs; i++) {
-		rc = xpram_page_in(mem_page, xpram_devices[i].offset);
-		if (rc)
-			goto fail;
-		xpram_devices[i].csum = csum_partial((const void *) mem_page,
-						     PAGE_SIZE, 0);
-	}
-fail:
-	free_page(mem_page);
-	return rc ? -ENXIO : 0;
-}
-
-/*
- * Verify checksums for all partitions.
- */
-static int xpram_validate_checksums(void)
-{
-	unsigned long mem_page;
-	unsigned int csum;
-	int rc, i;
-
-	rc = 0;
-	mem_page = (unsigned long) __get_free_page(GFP_KERNEL);
-	if (!mem_page)
-		return -ENOMEM;
-	for (i = 0; i < xpram_devs; i++) {
-		rc = xpram_page_in(mem_page, xpram_devices[i].offset);
-		if (rc)
-			goto fail;
-		csum = csum_partial((const void *) mem_page, PAGE_SIZE, 0);
-		if (xpram_devices[i].csum != csum) {
-			rc = -EINVAL;
-			goto fail;
-		}
-	}
-fail:
-	free_page(mem_page);
-	return rc ? -ENXIO : 0;
-}
-
-/*
  * Resume failed: Print error message and call panic.
  */
 static void xpram_resume_error(const char *message)
 {
-	pr_err("Resume error: %s\n", message);
+	pr_err("Resuming the system failed: %s\n", message);
 	panic("xpram resume error\n");
 }
 
@@ -458,21 +404,10 @@ static int xpram_restore(struct device *dev)
 		xpram_resume_error("xpram disappeared");
 	if (xpram_pages != xpram_highest_page_index() + 1)
 		xpram_resume_error("Size of xpram changed");
-	if (xpram_validate_checksums())
-		xpram_resume_error("Data of xpram changed");
 	return 0;
 }
 
-/*
- * Save necessary state in suspend.
- */
-static int xpram_freeze(struct device *dev)
-{
-	return xpram_save_checksums();
-}
-
 static struct dev_pm_ops xpram_pm_ops = {
-	.freeze		= xpram_freeze,
 	.restore	= xpram_restore,
 };
 

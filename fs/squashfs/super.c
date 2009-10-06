@@ -30,6 +30,7 @@
 #include <linux/fs.h>
 #include <linux/vfs.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
 #include <linux/init.h>
@@ -43,7 +44,7 @@
 #include "squashfs.h"
 
 static struct file_system_type squashfs_fs_type;
-static struct super_operations squashfs_super_ops;
+static const struct super_operations squashfs_super_ops;
 
 static int supported_squashfs_filesystem(short major, short minor, short comp)
 {
@@ -443,7 +444,7 @@ static struct file_system_type squashfs_fs_type = {
 	.fs_flags = FS_REQUIRES_DEV
 };
 
-static struct super_operations squashfs_super_ops = {
+static const struct super_operations squashfs_super_ops = {
 	.alloc_inode = squashfs_alloc_inode,
 	.destroy_inode = squashfs_destroy_inode,
 	.statfs = squashfs_statfs,

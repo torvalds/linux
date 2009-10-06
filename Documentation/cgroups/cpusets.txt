@@ -777,6 +777,18 @@ in cpuset directories:
 # /bin/echo 1-4 > cpus		-> set cpus list to cpus 1,2,3,4
 # /bin/echo 1,2,3,4 > cpus	-> set cpus list to cpus 1,2,3,4
 
+To add a CPU to a cpuset, write the new list of CPUs including the
+CPU to be added. To add 6 to the above cpuset:
+
+# /bin/echo 1-4,6 > cpus	-> set cpus list to cpus 1,2,3,4,6
+
+Similarly to remove a CPU from a cpuset, write the new list of CPUs
+without the CPU to be removed.
+
+To remove all the CPUs:
+
+# /bin/echo "" > cpus		-> clear cpus list
+
 2.3 Setting flags
 -----------------
 

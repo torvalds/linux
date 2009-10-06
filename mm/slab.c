@@ -1384,7 +1384,7 @@ void __init kmem_cache_init(void)
 	 * Fragmentation resistance on low memory - only use bigger
 	 * page orders on machines with more than 32MB of memory.
 	 */
-	if (num_physpages > (32 << 20) >> PAGE_SHIFT)
+	if (totalram_pages > (32 << 20) >> PAGE_SHIFT)
 		slab_break_gfp_order = BREAK_GFP_ORDER_HI;
 
 	/* Bootstrap is tricky, because several objects are allocated
@@ -1544,9 +1544,6 @@ void __init kmem_cache_init(void)
 	}
 
 	g_cpucache_up = EARLY;
-
-	/* Annotate slab for lockdep -- annotate the malloc caches */
-	init_lock_keys();
 }
 
 void __init kmem_cache_init_late(void)
@@ -1562,6 +1559,9 @@ void __init kmem_cache_init_late(void)
 
 	/* Done! */
 	g_cpucache_up = FULL;
+
+	/* Annotate slab for lockdep -- annotate the malloc caches */
+	init_lock_keys();
 
 	/*
 	 * Register a cpu startup notifier callback that initializes
@@ -2547,7 +2547,7 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
 	}
 
 	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
-		synchronize_rcu();
+		rcu_barrier();
 
 	__kmem_cache_destroy(cachep);
 	mutex_unlock(&cache_chain_mutex);

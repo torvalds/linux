@@ -15,7 +15,7 @@ quiet_cmd_elftoaout	= ELFTOAOUT $@
 
 ifeq ($(CONFIG_SPARC32),y)
 quiet_cmd_piggy		= PIGGY   $@
-      cmd_piggy		= $(obj)/piggyback_32 $@ $(obj)/System.map $(ROOT_IMG)
+      cmd_piggy		= $(obj)/piggyback_32 $@ System.map $(ROOT_IMG)
 quiet_cmd_btfix		= BTFIX   $@
       cmd_btfix		= $(OBJDUMP) -x vmlinux | $(obj)/btfixupprep > $@
 quiet_cmd_sysmap        = SYSMAP  $(obj)/System.map
@@ -58,7 +58,7 @@ $(obj)/image: $(obj)/btfix.o FORCE
 $(obj)/zImage: $(obj)/image
 	$(call if_changed,strip)
 
-$(obj)/tftpboot.img: $(obj)/piggyback $(obj)/System.map $(obj)/image FORCE
+$(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback_32 System.map $(ROOT_IMG) FORCE
 	$(call if_changed,elftoaout)
 	$(call if_changed,piggy)
 
@@ -79,7 +79,10 @@ $(obj)/image: vmlinux FORCE
 	$(call if_changed,strip)
 	@echo '  kernel: $@ is ready'
 
-$(obj)/tftpboot.img: vmlinux $(obj)/piggyback_64 System.map $(ROOT_IMG) FORCE
+$(obj)/zImage: $(obj)/image
+	$(call if_changed,gzip)
+
+$(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback_64 System.map $(ROOT_IMG) FORCE
 	$(call if_changed,elftoaout)
 	$(call if_changed,piggy)
 	@echo '  kernel: $@ is ready'

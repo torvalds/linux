@@ -348,6 +348,10 @@ static void blkdev_discard_end_io(struct bio *bio, int err)
 		clear_bit(BIO_UPTODATE, &bio->bi_flags);
 	}
 
+	if (bio->bi_private)
+		complete(bio->bi_private);
+	__free_page(bio_page(bio));
+
 	bio_put(bio);
 }
 
@@ -357,49 +361,73 @@ static void blkdev_discard_end_io(struct bio *bio, int err)
  * @sector:	start sector
  * @nr_sects:	number of sectors to discard
  * @gfp_mask:	memory allocation flags (for bio_alloc)
+ * @flags:	DISCARD_FL_* flags to control behaviour
  *
  * Description:
- *    Issue a discard request for the sectors in question. Does not wait.
+ *    Issue a discard request for the sectors in question.
  */
-int blkdev_issue_discard(struct block_device *bdev,
-			 sector_t sector, sector_t nr_sects, gfp_t gfp_mask)
+int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp_mask, int flags)
 {
-	struct request_queue *q;
+	DECLARE_COMPLETION_ONSTACK(wait);
+	struct request_queue *q = bdev_get_queue(bdev);
+	int type = flags & DISCARD_FL_BARRIER ?
+		DISCARD_BARRIER : DISCARD_NOBARRIER;
 	struct bio *bio;
+	struct page *page;
 	int ret = 0;
 
-	if (bdev->bd_disk == NULL)
-		return -ENXIO;
-
-	q = bdev_get_queue(bdev);
 	if (!q)
 		return -ENXIO;
 
-	if (!q->prepare_discard_fn)
+	if (!blk_queue_discard(q))
 		return -EOPNOTSUPP;
 
 	while (nr_sects && !ret) {
-		bio = bio_alloc(gfp_mask, 0);
-		if (!bio)
-			return -ENOMEM;
+		unsigned int sector_size = q->limits.logical_block_size;
+		unsigned int max_discard_sectors =
+			min(q->limits.max_discard_sectors, UINT_MAX >> 9);
 
+		bio = bio_alloc(gfp_mask, 1);
+		if (!bio)
+			goto out;
+		bio->bi_sector = sector;
 		bio->bi_end_io = blkdev_discard_end_io;
 		bio->bi_bdev = bdev;
+		if (flags & DISCARD_FL_WAIT)
+			bio->bi_private = &wait;
 
-		bio->bi_sector = sector;
+		/*
+		 * Add a zeroed one-sector payload as that's what
+		 * our current implementations need.  If we'll ever need
+		 * more the interface will need revisiting.
+		 */
+		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		if (!page)
+			goto out_free_bio;
+		if (bio_add_pc_page(q, bio, page, sector_size, 0) < sector_size)
+			goto out_free_page;
 
-		if (nr_sects > queue_max_hw_sectors(q)) {
-			bio->bi_size = queue_max_hw_sectors(q) << 9;
-			nr_sects -= queue_max_hw_sectors(q);
-			sector += queue_max_hw_sectors(q);
+		/*
+		 * And override the bio size - the way discard works we
+		 * touch many more blocks on disk than the actual payload
+		 * length.
+		 */
+		if (nr_sects > max_discard_sectors) {
+			bio->bi_size = max_discard_sectors << 9;
+			nr_sects -= max_discard_sectors;
+			sector += max_discard_sectors;
 		} else {
 			bio->bi_size = nr_sects << 9;
 			nr_sects = 0;
 		}
-		bio_get(bio);
-		submit_bio(DISCARD_BARRIER, bio);
 
-		/* Check if it failed immediately */
+		bio_get(bio);
+		submit_bio(type, bio);
+
+		if (flags & DISCARD_FL_WAIT)
+			wait_for_completion(&wait);
+
 		if (bio_flagged(bio, BIO_EOPNOTSUPP))
 			ret = -EOPNOTSUPP;
 		else if (!bio_flagged(bio, BIO_UPTODATE))
@@ -407,5 +435,11 @@ int blkdev_issue_discard(struct block_device *bdev,
 		bio_put(bio);
 	}
 	return ret;
+out_free_page:
+	__free_page(page);
+out_free_bio:
+	bio_put(bio);
+out:
+	return -ENOMEM;
 }
 EXPORT_SYMBOL(blkdev_issue_discard);

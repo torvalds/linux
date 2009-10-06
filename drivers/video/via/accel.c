@@ -20,229 +20,430 @@
  */
 #include "global.h"
 
-void viafb_init_accel(void)
+static int hw_bitblt_1(void __iomem *engine, u8 op, u32 width, u32 height,
+	u8 dst_bpp, u32 dst_addr, u32 dst_pitch, u32 dst_x, u32 dst_y,
+	u32 *src_mem, u32 src_addr, u32 src_pitch, u32 src_x, u32 src_y,
+	u32 fg_color, u32 bg_color, u8 fill_rop)
 {
-	viaparinfo->fbmem_free -= CURSOR_SIZE;
-	viaparinfo->cursor_start = viaparinfo->fbmem_free;
-	viaparinfo->fbmem_used += CURSOR_SIZE;
+	u32 ge_cmd = 0, tmp, i;
 
-	/* Reverse 8*1024 memory space for cursor image */
-	viaparinfo->fbmem_free -= (CURSOR_SIZE + VQ_SIZE);
-	viaparinfo->VQ_start = viaparinfo->fbmem_free;
-	viaparinfo->VQ_end = viaparinfo->VQ_start + VQ_SIZE - 1;
-	viaparinfo->fbmem_used += (CURSOR_SIZE + VQ_SIZE); }
-
-void viafb_init_2d_engine(void)
-{
-	u32 dwVQStartAddr, dwVQEndAddr;
-	u32 dwVQLen, dwVQStartL, dwVQEndL, dwVQStartEndH;
-
-	/* init 2D engine regs to reset 2D engine */
-	writel(0x0, viaparinfo->io_virt + VIA_REG_GEMODE);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_SRCPOS);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_DSTPOS);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_DIMENSION);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_PATADDR);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_FGCOLOR);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_BGCOLOR);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_CLIPTL);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_CLIPBR);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_OFFSET);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_KEYCONTROL);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_SRCBASE);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_DSTBASE);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_PITCH);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_MONOPAT1);
-
-	/* Init AGP and VQ regs */
-	switch (viaparinfo->chip_info->gfx_chip_name) {
-	case UNICHROME_K8M890:
-	case UNICHROME_P4M900:
-		writel(0x00100000, viaparinfo->io_virt + VIA_REG_CR_TRANSET);
-		writel(0x680A0000, viaparinfo->io_virt + VIA_REG_CR_TRANSPACE);
-		writel(0x02000000, viaparinfo->io_virt + VIA_REG_CR_TRANSPACE);
-		break;
-
-	default:
-		writel(0x00100000, viaparinfo->io_virt + VIA_REG_TRANSET);
-		writel(0x00000000, viaparinfo->io_virt + VIA_REG_TRANSPACE);
-		writel(0x00333004, viaparinfo->io_virt + VIA_REG_TRANSPACE);
-		writel(0x60000000, viaparinfo->io_virt + VIA_REG_TRANSPACE);
-		writel(0x61000000, viaparinfo->io_virt + VIA_REG_TRANSPACE);
-		writel(0x62000000, viaparinfo->io_virt + VIA_REG_TRANSPACE);
-		writel(0x63000000, viaparinfo->io_virt + VIA_REG_TRANSPACE);
-		writel(0x64000000, viaparinfo->io_virt + VIA_REG_TRANSPACE);
-		writel(0x7D000000, viaparinfo->io_virt + VIA_REG_TRANSPACE);
-
-		writel(0xFE020000, viaparinfo->io_virt + VIA_REG_TRANSET);
-		writel(0x00000000, viaparinfo->io_virt + VIA_REG_TRANSPACE);
-		break;
+	if (!op || op > 3) {
+		printk(KERN_WARNING "hw_bitblt_1: Invalid operation: %d\n", op);
+		return -EINVAL;
 	}
-	if (viaparinfo->VQ_start != 0) {
-		/* Enable VQ */
-		dwVQStartAddr = viaparinfo->VQ_start;
-		dwVQEndAddr = viaparinfo->VQ_end;
 
-		dwVQStartL = 0x50000000 | (dwVQStartAddr & 0xFFFFFF);
-		dwVQEndL = 0x51000000 | (dwVQEndAddr & 0xFFFFFF);
-		dwVQStartEndH = 0x52000000 |
-			((dwVQStartAddr & 0xFF000000) >> 24) |
-			((dwVQEndAddr & 0xFF000000) >> 16);
-		dwVQLen = 0x53000000 | (VQ_SIZE >> 3);
-		switch (viaparinfo->chip_info->gfx_chip_name) {
-		case UNICHROME_K8M890:
-		case UNICHROME_P4M900:
-			dwVQStartL |= 0x20000000;
-			dwVQEndL |= 0x20000000;
-			dwVQStartEndH |= 0x20000000;
-			dwVQLen |= 0x20000000;
-			break;
-		default:
-			break;
+	if (op != VIA_BITBLT_FILL && !src_mem && src_addr == dst_addr) {
+		if (src_x < dst_x) {
+			ge_cmd |= 0x00008000;
+			src_x += width - 1;
+			dst_x += width - 1;
 		}
-
-		switch (viaparinfo->chip_info->gfx_chip_name) {
-		case UNICHROME_K8M890:
-		case UNICHROME_P4M900:
-			writel(0x00100000,
-				viaparinfo->io_virt + VIA_REG_CR_TRANSET);
-			writel(dwVQStartEndH,
-				viaparinfo->io_virt + VIA_REG_CR_TRANSPACE);
-			writel(dwVQStartL,
-				viaparinfo->io_virt + VIA_REG_CR_TRANSPACE);
-			writel(dwVQEndL,
-				viaparinfo->io_virt + VIA_REG_CR_TRANSPACE);
-			writel(dwVQLen,
-				viaparinfo->io_virt + VIA_REG_CR_TRANSPACE);
-			writel(0x74301001,
-				viaparinfo->io_virt + VIA_REG_CR_TRANSPACE);
-			writel(0x00000000,
-				viaparinfo->io_virt + VIA_REG_CR_TRANSPACE);
-			break;
-		default:
-			writel(0x00FE0000,
-				viaparinfo->io_virt + VIA_REG_TRANSET);
-			writel(0x080003FE,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x0A00027C,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x0B000260,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x0C000274,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x0D000264,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x0E000000,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x0F000020,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x1000027E,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x110002FE,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x200F0060,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-
-			writel(0x00000006,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x40008C0F,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x44000000,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x45080C04,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x46800408,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-
-			writel(dwVQStartEndH,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(dwVQStartL,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(dwVQEndL,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(dwVQLen,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			break;
-		}
-	} else {
-		/* Disable VQ */
-		switch (viaparinfo->chip_info->gfx_chip_name) {
-		case UNICHROME_K8M890:
-		case UNICHROME_P4M900:
-			writel(0x00100000,
-				viaparinfo->io_virt + VIA_REG_CR_TRANSET);
-			writel(0x74301000,
-				viaparinfo->io_virt + VIA_REG_CR_TRANSPACE);
-			break;
-		default:
-			writel(0x00FE0000,
-				viaparinfo->io_virt + VIA_REG_TRANSET);
-			writel(0x00000004,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x40008C0F,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x44000000,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x45080C04,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			writel(0x46800408,
-				viaparinfo->io_virt + VIA_REG_TRANSPACE);
-			break;
+		if (src_y < dst_y) {
+			ge_cmd |= 0x00004000;
+			src_y += height - 1;
+			dst_y += height - 1;
 		}
 	}
 
-	viafb_set_2d_color_depth(viaparinfo->bpp);
+	if (op == VIA_BITBLT_FILL) {
+		switch (fill_rop) {
+		case 0x00: /* blackness */
+		case 0x5A: /* pattern inversion */
+		case 0xF0: /* pattern copy */
+		case 0xFF: /* whiteness */
+			break;
+		default:
+			printk(KERN_WARNING "hw_bitblt_1: Invalid fill rop: "
+				"%u\n", fill_rop);
+			return -EINVAL;
+		}
+	}
 
-	writel(0x0, viaparinfo->io_virt + VIA_REG_SRCBASE);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_DSTBASE);
-
-	writel(VIA_PITCH_ENABLE |
-		   (((viaparinfo->hres *
-		      viaparinfo->bpp >> 3) >> 3) | (((viaparinfo->hres *
-						   viaparinfo->
-						   bpp >> 3) >> 3) << 16)),
-					viaparinfo->io_virt + VIA_REG_PITCH);
-}
-
-void viafb_set_2d_color_depth(int bpp)
-{
-	u32 dwGEMode;
-
-	dwGEMode = readl(viaparinfo->io_virt + 0x04) & 0xFFFFFCFF;
-
-	switch (bpp) {
+	switch (dst_bpp) {
+	case 8:
+		tmp = 0x00000000;
+		break;
 	case 16:
-		dwGEMode |= VIA_GEM_16bpp;
+		tmp = 0x00000100;
 		break;
 	case 32:
-		dwGEMode |= VIA_GEM_32bpp;
+		tmp = 0x00000300;
 		break;
 	default:
-		dwGEMode |= VIA_GEM_8bpp;
+		printk(KERN_WARNING "hw_bitblt_1: Unsupported bpp %d\n",
+			dst_bpp);
+		return -EINVAL;
+	}
+	writel(tmp, engine + 0x04);
+
+	if (op != VIA_BITBLT_FILL) {
+		if (src_x & (op == VIA_BITBLT_MONO ? 0xFFFF8000 : 0xFFFFF000)
+			|| src_y & 0xFFFFF000) {
+			printk(KERN_WARNING "hw_bitblt_1: Unsupported source "
+				"x/y %d %d\n", src_x, src_y);
+			return -EINVAL;
+		}
+		tmp = src_x | (src_y << 16);
+		writel(tmp, engine + 0x08);
+	}
+
+	if (dst_x & 0xFFFFF000 || dst_y & 0xFFFFF000) {
+		printk(KERN_WARNING "hw_bitblt_1: Unsupported destination x/y "
+			"%d %d\n", dst_x, dst_y);
+		return -EINVAL;
+	}
+	tmp = dst_x | (dst_y << 16);
+	writel(tmp, engine + 0x0C);
+
+	if ((width - 1) & 0xFFFFF000 || (height - 1) & 0xFFFFF000) {
+		printk(KERN_WARNING "hw_bitblt_1: Unsupported width/height "
+			"%d %d\n", width, height);
+		return -EINVAL;
+	}
+	tmp = (width - 1) | ((height - 1) << 16);
+	writel(tmp, engine + 0x10);
+
+	if (op != VIA_BITBLT_COLOR)
+		writel(fg_color, engine + 0x18);
+
+	if (op == VIA_BITBLT_MONO)
+		writel(bg_color, engine + 0x1C);
+
+	if (op != VIA_BITBLT_FILL) {
+		tmp = src_mem ? 0 : src_addr;
+		if (dst_addr & 0xE0000007) {
+			printk(KERN_WARNING "hw_bitblt_1: Unsupported source "
+				"address %X\n", tmp);
+			return -EINVAL;
+		}
+		tmp >>= 3;
+		writel(tmp, engine + 0x30);
+	}
+
+	if (dst_addr & 0xE0000007) {
+		printk(KERN_WARNING "hw_bitblt_1: Unsupported destination "
+			"address %X\n", dst_addr);
+		return -EINVAL;
+	}
+	tmp = dst_addr >> 3;
+	writel(tmp, engine + 0x34);
+
+	if (op == VIA_BITBLT_FILL)
+		tmp = 0;
+	else
+		tmp = src_pitch;
+	if (tmp & 0xFFFFC007 || dst_pitch & 0xFFFFC007) {
+		printk(KERN_WARNING "hw_bitblt_1: Unsupported pitch %X %X\n",
+			tmp, dst_pitch);
+		return -EINVAL;
+	}
+	tmp = (tmp >> 3) | (dst_pitch << (16 - 3));
+	writel(tmp, engine + 0x38);
+
+	if (op == VIA_BITBLT_FILL)
+		ge_cmd |= fill_rop << 24 | 0x00002000 | 0x00000001;
+	else {
+		ge_cmd |= 0xCC000000; /* ROP=SRCCOPY */
+		if (src_mem)
+			ge_cmd |= 0x00000040;
+		if (op == VIA_BITBLT_MONO)
+			ge_cmd |= 0x00000002 | 0x00000100 | 0x00020000;
+		else
+			ge_cmd |= 0x00000001;
+	}
+	writel(ge_cmd, engine);
+
+	if (op == VIA_BITBLT_FILL || !src_mem)
+		return 0;
+
+	tmp = (width * height * (op == VIA_BITBLT_MONO ? 1 : (dst_bpp >> 3)) +
+		3) >> 2;
+
+	for (i = 0; i < tmp; i++)
+		writel(src_mem[i], engine + VIA_MMIO_BLTBASE);
+
+	return 0;
+}
+
+static int hw_bitblt_2(void __iomem *engine, u8 op, u32 width, u32 height,
+	u8 dst_bpp, u32 dst_addr, u32 dst_pitch, u32 dst_x, u32 dst_y,
+	u32 *src_mem, u32 src_addr, u32 src_pitch, u32 src_x, u32 src_y,
+	u32 fg_color, u32 bg_color, u8 fill_rop)
+{
+	u32 ge_cmd = 0, tmp, i;
+
+	if (!op || op > 3) {
+		printk(KERN_WARNING "hw_bitblt_2: Invalid operation: %d\n", op);
+		return -EINVAL;
+	}
+
+	if (op != VIA_BITBLT_FILL && !src_mem && src_addr == dst_addr) {
+		if (src_x < dst_x) {
+			ge_cmd |= 0x00008000;
+			src_x += width - 1;
+			dst_x += width - 1;
+		}
+		if (src_y < dst_y) {
+			ge_cmd |= 0x00004000;
+			src_y += height - 1;
+			dst_y += height - 1;
+		}
+	}
+
+	if (op == VIA_BITBLT_FILL) {
+		switch (fill_rop) {
+		case 0x00: /* blackness */
+		case 0x5A: /* pattern inversion */
+		case 0xF0: /* pattern copy */
+		case 0xFF: /* whiteness */
+			break;
+		default:
+			printk(KERN_WARNING "hw_bitblt_2: Invalid fill rop: "
+				"%u\n", fill_rop);
+			return -EINVAL;
+		}
+	}
+
+	switch (dst_bpp) {
+	case 8:
+		tmp = 0x00000000;
+		break;
+	case 16:
+		tmp = 0x00000100;
+		break;
+	case 32:
+		tmp = 0x00000300;
+		break;
+	default:
+		printk(KERN_WARNING "hw_bitblt_2: Unsupported bpp %d\n",
+			dst_bpp);
+		return -EINVAL;
+	}
+	writel(tmp, engine + 0x04);
+
+	if (op == VIA_BITBLT_FILL)
+		tmp = 0;
+	else
+		tmp = src_pitch;
+	if (tmp & 0xFFFFC007 || dst_pitch & 0xFFFFC007) {
+		printk(KERN_WARNING "hw_bitblt_2: Unsupported pitch %X %X\n",
+			tmp, dst_pitch);
+		return -EINVAL;
+	}
+	tmp = (tmp >> 3) | (dst_pitch << (16 - 3));
+	writel(tmp, engine + 0x08);
+
+	if ((width - 1) & 0xFFFFF000 || (height - 1) & 0xFFFFF000) {
+		printk(KERN_WARNING "hw_bitblt_2: Unsupported width/height "
+			"%d %d\n", width, height);
+		return -EINVAL;
+	}
+	tmp = (width - 1) | ((height - 1) << 16);
+	writel(tmp, engine + 0x0C);
+
+	if (dst_x & 0xFFFFF000 || dst_y & 0xFFFFF000) {
+		printk(KERN_WARNING "hw_bitblt_2: Unsupported destination x/y "
+			"%d %d\n", dst_x, dst_y);
+		return -EINVAL;
+	}
+	tmp = dst_x | (dst_y << 16);
+	writel(tmp, engine + 0x10);
+
+	if (dst_addr & 0xE0000007) {
+		printk(KERN_WARNING "hw_bitblt_2: Unsupported destination "
+			"address %X\n", dst_addr);
+		return -EINVAL;
+	}
+	tmp = dst_addr >> 3;
+	writel(tmp, engine + 0x14);
+
+	if (op != VIA_BITBLT_FILL) {
+		if (src_x & (op == VIA_BITBLT_MONO ? 0xFFFF8000 : 0xFFFFF000)
+			|| src_y & 0xFFFFF000) {
+			printk(KERN_WARNING "hw_bitblt_2: Unsupported source "
+				"x/y %d %d\n", src_x, src_y);
+			return -EINVAL;
+		}
+		tmp = src_x | (src_y << 16);
+		writel(tmp, engine + 0x18);
+
+		tmp = src_mem ? 0 : src_addr;
+		if (dst_addr & 0xE0000007) {
+			printk(KERN_WARNING "hw_bitblt_2: Unsupported source "
+				"address %X\n", tmp);
+			return -EINVAL;
+		}
+		tmp >>= 3;
+		writel(tmp, engine + 0x1C);
+	}
+
+	if (op != VIA_BITBLT_COLOR)
+		writel(fg_color, engine + 0x4C);
+
+	if (op == VIA_BITBLT_MONO)
+		writel(bg_color, engine + 0x50);
+
+	if (op == VIA_BITBLT_FILL)
+		ge_cmd |= fill_rop << 24 | 0x00002000 | 0x00000001;
+	else {
+		ge_cmd |= 0xCC000000; /* ROP=SRCCOPY */
+		if (src_mem)
+			ge_cmd |= 0x00000040;
+		if (op == VIA_BITBLT_MONO)
+			ge_cmd |= 0x00000002 | 0x00000100 | 0x00020000;
+		else
+			ge_cmd |= 0x00000001;
+	}
+	writel(ge_cmd, engine);
+
+	if (op == VIA_BITBLT_FILL || !src_mem)
+		return 0;
+
+	tmp = (width * height * (op == VIA_BITBLT_MONO ? 1 : (dst_bpp >> 3)) +
+		3) >> 2;
+
+	for (i = 0; i < tmp; i++)
+		writel(src_mem[i], engine + VIA_MMIO_BLTBASE);
+
+	return 0;
+}
+
+int viafb_init_engine(struct fb_info *info)
+{
+	struct viafb_par *viapar = info->par;
+	void __iomem *engine;
+	u32 vq_start_addr, vq_end_addr, vq_start_low, vq_end_low, vq_high,
+		vq_len, chip_name = viapar->shared->chip_info.gfx_chip_name;
+
+	engine = ioremap_nocache(info->fix.mmio_start, info->fix.mmio_len);
+	viapar->shared->engine_mmio = engine;
+	if (!engine) {
+		printk(KERN_WARNING "viafb_init_accel: ioremap failed, "
+			"hardware acceleration disabled\n");
+		return -ENOMEM;
+	}
+
+	switch (chip_name) {
+	case UNICHROME_CLE266:
+	case UNICHROME_K400:
+	case UNICHROME_K800:
+	case UNICHROME_PM800:
+	case UNICHROME_CN700:
+	case UNICHROME_CX700:
+	case UNICHROME_CN750:
+	case UNICHROME_K8M890:
+	case UNICHROME_P4M890:
+	case UNICHROME_P4M900:
+		viapar->shared->hw_bitblt = hw_bitblt_1;
+		break;
+	case UNICHROME_VX800:
+	case UNICHROME_VX855:
+		viapar->shared->hw_bitblt = hw_bitblt_2;
+		break;
+	default:
+		viapar->shared->hw_bitblt = NULL;
+	}
+
+	viapar->fbmem_free -= CURSOR_SIZE;
+	viapar->shared->cursor_vram_addr = viapar->fbmem_free;
+	viapar->fbmem_used += CURSOR_SIZE;
+
+	viapar->fbmem_free -= VQ_SIZE;
+	viapar->shared->vq_vram_addr = viapar->fbmem_free;
+	viapar->fbmem_used += VQ_SIZE;
+
+	/* Init AGP and VQ regs */
+	switch (chip_name) {
+	case UNICHROME_K8M890:
+	case UNICHROME_P4M900:
+		writel(0x00100000, engine + VIA_REG_CR_TRANSET);
+		writel(0x680A0000, engine + VIA_REG_CR_TRANSPACE);
+		writel(0x02000000, engine + VIA_REG_CR_TRANSPACE);
+		break;
+
+	default:
+		writel(0x00100000, engine + VIA_REG_TRANSET);
+		writel(0x00000000, engine + VIA_REG_TRANSPACE);
+		writel(0x00333004, engine + VIA_REG_TRANSPACE);
+		writel(0x60000000, engine + VIA_REG_TRANSPACE);
+		writel(0x61000000, engine + VIA_REG_TRANSPACE);
+		writel(0x62000000, engine + VIA_REG_TRANSPACE);
+		writel(0x63000000, engine + VIA_REG_TRANSPACE);
+		writel(0x64000000, engine + VIA_REG_TRANSPACE);
+		writel(0x7D000000, engine + VIA_REG_TRANSPACE);
+
+		writel(0xFE020000, engine + VIA_REG_TRANSET);
+		writel(0x00000000, engine + VIA_REG_TRANSPACE);
 		break;
 	}
 
-	/* Set BPP and Pitch */
-	writel(dwGEMode, viaparinfo->io_virt + VIA_REG_GEMODE);
-}
+	/* Enable VQ */
+	vq_start_addr = viapar->shared->vq_vram_addr;
+	vq_end_addr = viapar->shared->vq_vram_addr + VQ_SIZE - 1;
 
-void viafb_hw_cursor_init(void)
-{
+	vq_start_low = 0x50000000 | (vq_start_addr & 0xFFFFFF);
+	vq_end_low = 0x51000000 | (vq_end_addr & 0xFFFFFF);
+	vq_high = 0x52000000 | ((vq_start_addr & 0xFF000000) >> 24) |
+		((vq_end_addr & 0xFF000000) >> 16);
+	vq_len = 0x53000000 | (VQ_SIZE >> 3);
+
+	switch (chip_name) {
+	case UNICHROME_K8M890:
+	case UNICHROME_P4M900:
+		vq_start_low |= 0x20000000;
+		vq_end_low |= 0x20000000;
+		vq_high |= 0x20000000;
+		vq_len |= 0x20000000;
+
+		writel(0x00100000, engine + VIA_REG_CR_TRANSET);
+		writel(vq_high, engine + VIA_REG_CR_TRANSPACE);
+		writel(vq_start_low, engine + VIA_REG_CR_TRANSPACE);
+		writel(vq_end_low, engine + VIA_REG_CR_TRANSPACE);
+		writel(vq_len, engine + VIA_REG_CR_TRANSPACE);
+		writel(0x74301001, engine + VIA_REG_CR_TRANSPACE);
+		writel(0x00000000, engine + VIA_REG_CR_TRANSPACE);
+		break;
+	default:
+		writel(0x00FE0000, engine + VIA_REG_TRANSET);
+		writel(0x080003FE, engine + VIA_REG_TRANSPACE);
+		writel(0x0A00027C, engine + VIA_REG_TRANSPACE);
+		writel(0x0B000260, engine + VIA_REG_TRANSPACE);
+		writel(0x0C000274, engine + VIA_REG_TRANSPACE);
+		writel(0x0D000264, engine + VIA_REG_TRANSPACE);
+		writel(0x0E000000, engine + VIA_REG_TRANSPACE);
+		writel(0x0F000020, engine + VIA_REG_TRANSPACE);
+		writel(0x1000027E, engine + VIA_REG_TRANSPACE);
+		writel(0x110002FE, engine + VIA_REG_TRANSPACE);
+		writel(0x200F0060, engine + VIA_REG_TRANSPACE);
+
+		writel(0x00000006, engine + VIA_REG_TRANSPACE);
+		writel(0x40008C0F, engine + VIA_REG_TRANSPACE);
+		writel(0x44000000, engine + VIA_REG_TRANSPACE);
+		writel(0x45080C04, engine + VIA_REG_TRANSPACE);
+		writel(0x46800408, engine + VIA_REG_TRANSPACE);
+
+		writel(vq_high, engine + VIA_REG_TRANSPACE);
+		writel(vq_start_low, engine + VIA_REG_TRANSPACE);
+		writel(vq_end_low, engine + VIA_REG_TRANSPACE);
+		writel(vq_len, engine + VIA_REG_TRANSPACE);
+		break;
+	}
+
 	/* Set Cursor Image Base Address */
-	writel(viaparinfo->cursor_start,
-		viaparinfo->io_virt + VIA_REG_CURSOR_MODE);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_CURSOR_POS);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_CURSOR_ORG);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_CURSOR_BG);
-	writel(0x0, viaparinfo->io_virt + VIA_REG_CURSOR_FG);
+	writel(viapar->shared->cursor_vram_addr, engine + VIA_REG_CURSOR_MODE);
+	writel(0x0, engine + VIA_REG_CURSOR_POS);
+	writel(0x0, engine + VIA_REG_CURSOR_ORG);
+	writel(0x0, engine + VIA_REG_CURSOR_BG);
+	writel(0x0, engine + VIA_REG_CURSOR_FG);
+	return 0;
 }
 
 void viafb_show_hw_cursor(struct fb_info *info, int Status)
 {
-	u32 temp;
-	u32 iga_path = ((struct viafb_par *)(info->par))->iga_path;
+	struct viafb_par *viapar = info->par;
+	u32 temp, iga_path = viapar->iga_path;
 
-	temp = readl(viaparinfo->io_virt + VIA_REG_CURSOR_MODE);
+	temp = readl(viapar->shared->engine_mmio + VIA_REG_CURSOR_MODE);
 	switch (Status) {
 	case HW_Cursor_ON:
 		temp |= 0x1;
@@ -259,25 +460,27 @@ void viafb_show_hw_cursor(struct fb_info *info, int Status)
 	default:
 		temp &= 0x7FFFFFFF;
 	}
-	writel(temp, viaparinfo->io_virt + VIA_REG_CURSOR_MODE);
+	writel(temp, viapar->shared->engine_mmio + VIA_REG_CURSOR_MODE);
 }
 
-int viafb_wait_engine_idle(void)
+void viafb_wait_engine_idle(struct fb_info *info)
 {
+	struct viafb_par *viapar = info->par;
 	int loop = 0;
 
-	while (!(readl(viaparinfo->io_virt + VIA_REG_STATUS) &
+	while (!(readl(viapar->shared->engine_mmio + VIA_REG_STATUS) &
 			VIA_VR_QUEUE_BUSY) && (loop < MAXLOOP)) {
 		loop++;
 		cpu_relax();
 	}
 
-	while ((readl(viaparinfo->io_virt + VIA_REG_STATUS) &
+	while ((readl(viapar->shared->engine_mmio + VIA_REG_STATUS) &
 		    (VIA_CMD_RGTR_BUSY | VIA_2D_ENG_BUSY | VIA_3D_ENG_BUSY)) &&
 		    (loop < MAXLOOP)) {
 		loop++;
 		cpu_relax();
 	}
 
-	return loop >= MAXLOOP;
+	if (loop >= MAXLOOP)
+		printk(KERN_ERR "viafb_wait_engine_idle: not syncing\n");
 }

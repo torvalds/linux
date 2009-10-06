@@ -49,7 +49,7 @@ static struct net_proto_family *bt_proto[BT_MAX_PROTO];
 static DEFINE_RWLOCK(bt_proto_lock);
 
 static struct lock_class_key bt_lock_key[BT_MAX_PROTO];
-static const char *bt_key_strings[BT_MAX_PROTO] = {
+static const char *const bt_key_strings[BT_MAX_PROTO] = {
 	"sk_lock-AF_BLUETOOTH-BTPROTO_L2CAP",
 	"sk_lock-AF_BLUETOOTH-BTPROTO_HCI",
 	"sk_lock-AF_BLUETOOTH-BTPROTO_SCO",
@@ -61,7 +61,7 @@ static const char *bt_key_strings[BT_MAX_PROTO] = {
 };
 
 static struct lock_class_key bt_slock_key[BT_MAX_PROTO];
-static const char *bt_slock_key_strings[BT_MAX_PROTO] = {
+static const char *const bt_slock_key_strings[BT_MAX_PROTO] = {
 	"slock-AF_BLUETOOTH-BTPROTO_L2CAP",
 	"slock-AF_BLUETOOTH-BTPROTO_HCI",
 	"slock-AF_BLUETOOTH-BTPROTO_SCO",

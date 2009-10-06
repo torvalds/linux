@@ -121,6 +121,7 @@ Code	Seq#	Include File		Comments
 'c'	00-7F	linux/comstats.h	conflict!
 'c'	00-7F	linux/coda.h		conflict!
 'c'	80-9F	arch/s390/include/asm/chsc.h
+'c'	A0-AF   arch/x86/include/asm/msr.h
 'd'	00-FF	linux/char/drm/drm/h	conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
@@ -134,11 +135,13 @@ Code	Seq#	Include File		Comments
 					<http://mikonos.dia.unisa.it/tcfs>
 'l'	40-7F	linux/udf_fs_i.h	in development:
 					<http://sourceforge.net/projects/linux-udf/>
+'m'	00-09	linux/mmtimer.h
 'm'	all	linux/mtio.h		conflict!
 'm'	all	linux/soundcard.h	conflict!
 'm'	all	linux/synclink.h	conflict!
 'm'	00-1F	net/irda/irmod.h	conflict!
 'n'	00-7F	linux/ncp_fs.h
+'n'	80-8F	linux/nilfs2_fs.h	NILFS2
 'n'	E0-FF	video/matrox.h          matroxfb
 'o'	00-1F	fs/ocfs2/ocfs2_fs.h	OCFS2
 'o'     00-03   include/mtd/ubi-user.h  conflict! (OCFS2 and UBI overlaps)
@@ -191,7 +194,7 @@ Code	Seq#	Include File		Comments
 0xAD	00	Netfilter device	in development:
 					<mailto:rusty@rustcorp.com.au>	
 0xAE	all	linux/kvm.h		Kernel-based Virtual Machine
-					<mailto:kvm-devel@lists.sourceforge.net>
+					<mailto:kvm@vger.kernel.org>
 0xB0	all	RATIO devices		in development:
 					<mailto:vgo@ratio.de>
 0xB1	00-1F	PPPoX			<mailto:mostrows@styx.uwaterloo.ca>

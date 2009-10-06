@@ -62,7 +62,7 @@ void rs400_gart_adjust_size(struct radeon_device *rdev)
 		break;
 	default:
 		DRM_ERROR("Unable to use IGP GART size %uM\n",
-			  rdev->mc.gtt_size >> 20);
+			  (unsigned)(rdev->mc.gtt_size >> 20));
 		DRM_ERROR("Valid GART size for IGP are 32M,64M,128M,256M,512M,1G,2G\n");
 		DRM_ERROR("Forcing to 32M GART size\n");
 		rdev->mc.gtt_size = 32 * 1024 * 1024;
@@ -92,20 +92,41 @@ void rs400_gart_tlb_flush(struct radeon_device *rdev)
 	WREG32_MC(RS480_GART_CACHE_CNTRL, 0);
 }
 
+int rs400_gart_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->gart.table.ram.ptr) {
+		WARN(1, "RS400 GART already initialized.\n");
+		return 0;
+	}
+	/* Check gart size */
+	switch(rdev->mc.gtt_size / (1024 * 1024)) {
+	case 32:
+	case 64:
+	case 128:
+	case 256:
+	case 512:
+	case 1024:
+	case 2048:
+		break;
+	default:
+		return -EINVAL;
+	}
+	/* Initialize common gart structure */
+	r = radeon_gart_init(rdev);
+	if (r)
+		return r;
+	if (rs400_debugfs_pcie_gart_info_init(rdev))
+		DRM_ERROR("Failed to register debugfs file for RS400 GART !\n");
+	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
+	return radeon_gart_table_ram_alloc(rdev);
+}
+
 int rs400_gart_enable(struct radeon_device *rdev)
 {
 	uint32_t size_reg;
 	uint32_t tmp;
-	int r;
-
-	/* Initialize common gart structure */
-	r = radeon_gart_init(rdev);
-	if (r) {
-		return r;
-	}
-	if (rs400_debugfs_pcie_gart_info_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for RS400 GART !\n");
-	}
 
 	tmp = RREG32_MC(RS690_AIC_CTRL_SCRATCH);
 	tmp |= RS690_DIS_OUT_OF_PCI_GART_ACCESS;
@@ -136,13 +157,6 @@ int rs400_gart_enable(struct radeon_device *rdev)
 	default:
 		return -EINVAL;
 	}
-	if (rdev->gart.table.ram.ptr == NULL) {
-		rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
-		r = radeon_gart_table_ram_alloc(rdev);
-		if (r) {
-			return r;
-		}
-	}
 	/* It should be fine to program it to max value */
 	if (rdev->family == CHIP_RS690 || (rdev->family == CHIP_RS740)) {
 		WREG32_MC(RS690_MCCFG_AGP_BASE, 0xFFFFFFFF);
@@ -164,7 +178,9 @@ int rs400_gart_enable(struct radeon_device *rdev)
 		WREG32(RADEON_BUS_CNTL, tmp);
 	}
 	/* Table should be in 32bits address space so ignore bits above. */
-	tmp = rdev->gart.table_addr & 0xfffff000;
+	tmp = (u32)rdev->gart.table_addr & 0xfffff000;
+	tmp |= (upper_32_bits(rdev->gart.table_addr) & 0xff) << 4;
+
 	WREG32_MC(RS480_GART_BASE, tmp);
 	/* TODO: more tweaking here */
 	WREG32_MC(RS480_GART_FEATURE_ID,
@@ -199,12 +215,26 @@ void rs400_gart_disable(struct radeon_device *rdev)
 	WREG32_MC(RS480_AGP_ADDRESS_SPACE_SIZE, 0);
 }
 
+void rs400_gart_fini(struct radeon_device *rdev)
+{
+	rs400_gart_disable(rdev);
+	radeon_gart_table_ram_free(rdev);
+	radeon_gart_fini(rdev);
+}
+
 int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 {
+	uint32_t entry;
+
 	if (i < 0 || i > rdev->gart.num_gpu_pages) {
 		return -EINVAL;
 	}
-	rdev->gart.table.ram.ptr[i] = cpu_to_le32(((uint32_t)addr) | 0xC);
+
+	entry = (lower_32_bits(addr) & PAGE_MASK) |
+		((upper_32_bits(addr) & 0xff) << 4) |
+		0xc;
+	entry = cpu_to_le32(entry);
+	rdev->gart.table.ram.ptr[i] = entry;
 	return 0;
 }
 
@@ -223,10 +253,9 @@ int rs400_mc_init(struct radeon_device *rdev)
 
 	rs400_gpu_init(rdev);
 	rs400_gart_disable(rdev);
-	rdev->mc.gtt_location = rdev->mc.vram_size;
+	rdev->mc.gtt_location = rdev->mc.mc_vram_size;
 	rdev->mc.gtt_location += (rdev->mc.gtt_size - 1);
 	rdev->mc.gtt_location &= ~(rdev->mc.gtt_size - 1);
-	rdev->mc.vram_location = 0xFFFFFFFFUL;
 	r = radeon_mc_setup(rdev);
 	if (r) {
 		return r;
@@ -238,7 +267,7 @@ int rs400_mc_init(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 
-	tmp = rdev->mc.vram_location + rdev->mc.vram_size - 1;
+	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	tmp = REG_SET(RADEON_MC_FB_TOP, tmp >> 16);
 	tmp |= REG_SET(RADEON_MC_FB_START, rdev->mc.vram_location >> 16);
 	WREG32(RADEON_MC_FB_LOCATION, tmp);
@@ -247,14 +276,12 @@ int rs400_mc_init(struct radeon_device *rdev)
 	(void)RREG32(RADEON_HOST_PATH_CNTL);
 	WREG32(RADEON_HOST_PATH_CNTL, tmp);
 	(void)RREG32(RADEON_HOST_PATH_CNTL);
+
 	return 0;
 }
 
 void rs400_mc_fini(struct radeon_device *rdev)
 {
-	rs400_gart_disable(rdev);
-	radeon_gart_table_ram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 
@@ -284,21 +311,12 @@ void rs400_gpu_init(struct radeon_device *rdev)
  */
 void rs400_vram_info(struct radeon_device *rdev)
 {
-	uint32_t tom;
-
 	rs400_gart_adjust_size(rdev);
 	/* DDR for all card after R300 & IGP */
 	rdev->mc.vram_is_ddr = true;
 	rdev->mc.vram_width = 128;
 
-	/* read NB_TOM to get the amount of ram stolen for the GPU */
-	tom = RREG32(RADEON_NB_TOM);
-	rdev->mc.vram_size = (((tom >> 16) - (tom & 0xffff) + 1) << 16);
-	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
-
-	/* Could aper size report 0 ? */
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	r100_vram_init_sizes(rdev);
 }
 
 

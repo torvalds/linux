@@ -373,7 +373,7 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 		musb_save_toggle(qh, is_in, urb);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (urb->error_count)
+		if (status == 0 && urb->error_count)
 			status = -EXDEV;
 		break;
 	}
@@ -2235,13 +2235,30 @@ static void musb_h_stop(struct usb_hcd *hcd)
 static int musb_bus_suspend(struct usb_hcd *hcd)
 {
 	struct musb	*musb = hcd_to_musb(hcd);
+	u8		devctl;
 
-	if (musb->xceiv->state == OTG_STATE_A_SUSPEND)
+	if (!is_host_active(musb))
 		return 0;
 
-	if (is_host_active(musb) && musb->is_active) {
-		WARNING("trying to suspend as %s is_active=%i\n",
-			otg_state_string(musb), musb->is_active);
+	switch (musb->xceiv->state) {
+	case OTG_STATE_A_SUSPEND:
+		return 0;
+	case OTG_STATE_A_WAIT_VRISE:
+		/* ID could be grounded even if there's no device
+		 * on the other end of the cable.  NOTE that the
+		 * A_WAIT_VRISE timers are messy with MUSB...
+		 */
+		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+		if ((devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS)
+			musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
+		break;
+	default:
+		break;
+	}
+
+	if (musb->is_active) {
+		WARNING("trying to suspend as %s while active\n",
+				otg_state_string(musb));
 		return -EBUSY;
 	} else
 		return 0;

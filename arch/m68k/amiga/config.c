@@ -574,10 +574,11 @@ static int a2000_hwclk(int op, struct rtc_time *t)
 
 	tod_2000.cntrl1 = TOD2000_CNTRL1_HOLD;
 
-	while ((tod_2000.cntrl1 & TOD2000_CNTRL1_BUSY) && cnt--) {
+	while ((tod_2000.cntrl1 & TOD2000_CNTRL1_BUSY) && cnt) {
 		tod_2000.cntrl1 &= ~TOD2000_CNTRL1_HOLD;
 		udelay(70);
 		tod_2000.cntrl1 |= TOD2000_CNTRL1_HOLD;
+		--cnt;
 	}
 
 	if (!cnt)
@@ -649,10 +650,11 @@ static int amiga_set_clock_mmss(unsigned long nowtime)
 
 		tod_2000.cntrl1 |= TOD2000_CNTRL1_HOLD;
 
-		while ((tod_2000.cntrl1 & TOD2000_CNTRL1_BUSY) && cnt--) {
+		while ((tod_2000.cntrl1 & TOD2000_CNTRL1_BUSY) && cnt) {
 			tod_2000.cntrl1 &= ~TOD2000_CNTRL1_HOLD;
 			udelay(70);
 			tod_2000.cntrl1 |= TOD2000_CNTRL1_HOLD;
+			--cnt;
 		}
 
 		if (!cnt)

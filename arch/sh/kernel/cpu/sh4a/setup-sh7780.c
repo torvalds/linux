@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
+#include <asm/dma-sh.h>
 
 static struct sh_timer_config tmu0_platform_data = {
 	.name = "TMU0",
@@ -240,6 +241,18 @@ static struct platform_device sci_device = {
 	},
 };
 
+static struct sh_dmae_pdata dma_platform_data = {
+	.mode = (SHDMA_MIX_IRQ | SHDMA_DMAOR1),
+};
+
+static struct platform_device dma_device = {
+	.name           = "sh-dma-engine",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &dma_platform_data,
+	},
+};
+
 static struct platform_device *sh7780_devices[] __initdata = {
 	&tmu0_device,
 	&tmu1_device,
@@ -249,6 +262,7 @@ static struct platform_device *sh7780_devices[] __initdata = {
 	&tmu5_device,
 	&rtc_device,
 	&sci_device,
+	&dma_device,
 };
 
 static int __init sh7780_devices_setup(void)
@@ -256,7 +270,7 @@ static int __init sh7780_devices_setup(void)
 	return platform_add_devices(sh7780_devices,
 				    ARRAY_SIZE(sh7780_devices));
 }
-__initcall(sh7780_devices_setup);
+arch_initcall(sh7780_devices_setup);
 
 static struct platform_device *sh7780_early_devices[] __initdata = {
 	&tmu0_device,

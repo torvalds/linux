@@ -1,1 +1,1 @@
-#include <linux/io.h>
+#include <asm-generic/pci.h>

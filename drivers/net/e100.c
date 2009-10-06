@@ -1690,7 +1690,8 @@ static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	cb->u.tcb.tbd.size = cpu_to_le16(skb->len);
 }
 
-static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t e100_xmit_frame(struct sk_buff *skb,
+				   struct net_device *netdev)
 {
 	struct nic *nic = netdev_priv(netdev);
 	int err;
@@ -1720,7 +1721,7 @@ static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	netdev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int e100_tx_clean(struct nic *nic)
@@ -1897,6 +1898,9 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 
 			if (ioread8(&nic->csr->scb.status) & rus_no_res)
 				nic->ru_running = RU_SUSPENDED;
+		pci_dma_sync_single_for_device(nic->pdev, rx->dma_addr,
+					       sizeof(struct rfd),
+					       PCI_DMA_FROMDEVICE);
 		return -ENODATA;
 	}
 

@@ -62,6 +62,7 @@
 #include <linux/init.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/pagemap.h>
 #include <linux/errno.h>
 #include <linux/videodev.h>
@@ -733,16 +734,17 @@ static int stv680_start_stream (struct usb_stv *stv680)
 	return 0;
 
  nomem_err:
-	for (i = 0; i < STV680_NUMSCRATCH; i++) {
-		kfree(stv680->scratch[i].data);
-		stv680->scratch[i].data = NULL;
-	}
 	for (i = 0; i < STV680_NUMSBUF; i++) {
 		usb_kill_urb(stv680->urb[i]);
 		usb_free_urb(stv680->urb[i]);
 		stv680->urb[i] = NULL;
 		kfree(stv680->sbuf[i].data);
 		stv680->sbuf[i].data = NULL;
+	}
+	/* used in irq, free only as all URBs are dead */
+	for (i = 0; i < STV680_NUMSCRATCH; i++) {
+		kfree(stv680->scratch[i].data);
+		stv680->scratch[i].data = NULL;
 	}
 	return -ENOMEM;
 

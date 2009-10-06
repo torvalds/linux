@@ -22,77 +22,7 @@
 #include <asm/pgalloc.h>
 #include <asm/pat.h>
 
-static inline int phys_addr_valid(resource_size_t addr)
-{
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-	return !(addr >> boot_cpu_data.x86_phys_bits);
-#else
-	return 1;
-#endif
-}
-
-#ifdef CONFIG_X86_64
-
-unsigned long __phys_addr(unsigned long x)
-{
-	if (x >= __START_KERNEL_map) {
-		x -= __START_KERNEL_map;
-		VIRTUAL_BUG_ON(x >= KERNEL_IMAGE_SIZE);
-		x += phys_base;
-	} else {
-		VIRTUAL_BUG_ON(x < PAGE_OFFSET);
-		x -= PAGE_OFFSET;
-		VIRTUAL_BUG_ON(!phys_addr_valid(x));
-	}
-	return x;
-}
-EXPORT_SYMBOL(__phys_addr);
-
-bool __virt_addr_valid(unsigned long x)
-{
-	if (x >= __START_KERNEL_map) {
-		x -= __START_KERNEL_map;
-		if (x >= KERNEL_IMAGE_SIZE)
-			return false;
-		x += phys_base;
-	} else {
-		if (x < PAGE_OFFSET)
-			return false;
-		x -= PAGE_OFFSET;
-		if (!phys_addr_valid(x))
-			return false;
-	}
-
-	return pfn_valid(x >> PAGE_SHIFT);
-}
-EXPORT_SYMBOL(__virt_addr_valid);
-
-#else
-
-#ifdef CONFIG_DEBUG_VIRTUAL
-unsigned long __phys_addr(unsigned long x)
-{
-	/* VMALLOC_* aren't constants  */
-	VIRTUAL_BUG_ON(x < PAGE_OFFSET);
-	VIRTUAL_BUG_ON(__vmalloc_start_set && is_vmalloc_addr((void *) x));
-	return x - PAGE_OFFSET;
-}
-EXPORT_SYMBOL(__phys_addr);
-#endif
-
-bool __virt_addr_valid(unsigned long x)
-{
-	if (x < PAGE_OFFSET)
-		return false;
-	if (__vmalloc_start_set && is_vmalloc_addr((void *) x))
-		return false;
-	if (x >= FIXADDR_START)
-		return false;
-	return pfn_valid((x - PAGE_OFFSET) >> PAGE_SHIFT);
-}
-EXPORT_SYMBOL(__virt_addr_valid);
-
-#endif
+#include "physaddr.h"
 
 int page_is_ram(unsigned long pagenr)
 {
@@ -228,24 +158,14 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	retval = reserve_memtype(phys_addr, (u64)phys_addr + size,
 						prot_val, &new_prot_val);
 	if (retval) {
-		pr_debug("Warning: reserve_memtype returned %d\n", retval);
+		printk(KERN_ERR "ioremap reserve_memtype failed %d\n", retval);
 		return NULL;
 	}
 
 	if (prot_val != new_prot_val) {
-		/*
-		 * Do not fallback to certain memory types with certain
-		 * requested type:
-		 * - request is uc-, return cannot be write-back
-		 * - request is uc-, return cannot be write-combine
-		 * - request is write-combine, return cannot be write-back
-		 */
-		if ((prot_val == _PAGE_CACHE_UC_MINUS &&
-		     (new_prot_val == _PAGE_CACHE_WB ||
-		      new_prot_val == _PAGE_CACHE_WC)) ||
-		    (prot_val == _PAGE_CACHE_WC &&
-		     new_prot_val == _PAGE_CACHE_WB)) {
-			pr_debug(
+		if (!is_new_memtype_allowed(phys_addr, size,
+					    prot_val, new_prot_val)) {
+			printk(KERN_ERR
 		"ioremap error for 0x%llx-0x%llx, requested 0x%lx, got 0x%lx\n",
 				(unsigned long long)phys_addr,
 				(unsigned long long)(phys_addr + size),

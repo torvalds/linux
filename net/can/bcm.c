@@ -46,6 +46,7 @@
 #include <linux/hrtimer.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/uio.h>
 #include <linux/net.h>
 #include <linux/netdevice.h>
@@ -75,6 +76,7 @@ static __initdata const char banner[] = KERN_INFO
 MODULE_DESCRIPTION("PF_CAN broadcast manager protocol");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Oliver Hartkopp <oliver.hartkopp@volkswagen.de>");
+MODULE_ALIAS("can-proto-2");
 
 /* easy access to can_frame payload */
 static inline u64 GET_U64(const struct can_frame *cp)
@@ -145,23 +147,18 @@ static char *bcm_proc_getifname(int ifindex)
 	return "???";
 }
 
-static int bcm_read_proc(char *page, char **start, off_t off,
-			 int count, int *eof, void *data)
+static int bcm_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
-	struct sock *sk = (struct sock *)data;
+	struct sock *sk = (struct sock *)m->private;
 	struct bcm_sock *bo = bcm_sk(sk);
 	struct bcm_op *op;
 
-	len += snprintf(page + len, PAGE_SIZE - len, ">>> socket %p",
-			sk->sk_socket);
-	len += snprintf(page + len, PAGE_SIZE - len, " / sk %p", sk);
-	len += snprintf(page + len, PAGE_SIZE - len, " / bo %p", bo);
-	len += snprintf(page + len, PAGE_SIZE - len, " / dropped %lu",
-			bo->dropped_usr_msgs);
-	len += snprintf(page + len, PAGE_SIZE - len, " / bound %s",
-			bcm_proc_getifname(bo->ifindex));
-	len += snprintf(page + len, PAGE_SIZE - len, " <<<\n");
+	seq_printf(m, ">>> socket %p", sk->sk_socket);
+	seq_printf(m, " / sk %p", sk);
+	seq_printf(m, " / bo %p", bo);
+	seq_printf(m, " / dropped %lu", bo->dropped_usr_msgs);
+	seq_printf(m, " / bound %s", bcm_proc_getifname(bo->ifindex));
+	seq_printf(m, " <<<\n");
 
 	list_for_each_entry(op, &bo->rx_ops, list) {
 
@@ -171,70 +168,61 @@ static int bcm_read_proc(char *page, char **start, off_t off,
 		if (!op->frames_abs)
 			continue;
 
-		len += snprintf(page + len, PAGE_SIZE - len,
-				"rx_op: %03X %-5s ",
+		seq_printf(m, "rx_op: %03X %-5s ",
 				op->can_id, bcm_proc_getifname(op->ifindex));
-		len += snprintf(page + len, PAGE_SIZE - len, "[%d]%c ",
-				op->nframes,
+		seq_printf(m, "[%d]%c ", op->nframes,
 				(op->flags & RX_CHECK_DLC)?'d':' ');
 		if (op->kt_ival1.tv64)
-			len += snprintf(page + len, PAGE_SIZE - len,
-					"timeo=%lld ",
+			seq_printf(m, "timeo=%lld ",
 					(long long)
 					ktime_to_us(op->kt_ival1));
 
 		if (op->kt_ival2.tv64)
-			len += snprintf(page + len, PAGE_SIZE - len,
-					"thr=%lld ",
+			seq_printf(m, "thr=%lld ",
 					(long long)
 					ktime_to_us(op->kt_ival2));
 
-		len += snprintf(page + len, PAGE_SIZE - len,
-				"# recv %ld (%ld) => reduction: ",
+		seq_printf(m, "# recv %ld (%ld) => reduction: ",
 				op->frames_filtered, op->frames_abs);
 
 		reduction = 100 - (op->frames_filtered * 100) / op->frames_abs;
 
-		len += snprintf(page + len, PAGE_SIZE - len, "%s%ld%%\n",
+		seq_printf(m, "%s%ld%%\n",
 				(reduction == 100)?"near ":"", reduction);
-
-		if (len > PAGE_SIZE - 200) {
-			/* mark output cut off */
-			len += snprintf(page + len, PAGE_SIZE - len, "(..)\n");
-			break;
-		}
 	}
 
 	list_for_each_entry(op, &bo->tx_ops, list) {
 
-		len += snprintf(page + len, PAGE_SIZE - len,
-				"tx_op: %03X %s [%d] ",
+		seq_printf(m, "tx_op: %03X %s [%d] ",
 				op->can_id, bcm_proc_getifname(op->ifindex),
 				op->nframes);
 
 		if (op->kt_ival1.tv64)
-			len += snprintf(page + len, PAGE_SIZE - len, "t1=%lld ",
+			seq_printf(m, "t1=%lld ",
 					(long long) ktime_to_us(op->kt_ival1));
 
 		if (op->kt_ival2.tv64)
-			len += snprintf(page + len, PAGE_SIZE - len, "t2=%lld ",
+			seq_printf(m, "t2=%lld ",
 					(long long) ktime_to_us(op->kt_ival2));
 
-		len += snprintf(page + len, PAGE_SIZE - len, "# sent %ld\n",
-				op->frames_abs);
-
-		if (len > PAGE_SIZE - 100) {
-			/* mark output cut off */
-			len += snprintf(page + len, PAGE_SIZE - len, "(..)\n");
-			break;
-		}
+		seq_printf(m, "# sent %ld\n", op->frames_abs);
 	}
-
-	len += snprintf(page + len, PAGE_SIZE - len, "\n");
-
-	*eof = 1;
-	return len;
+	seq_putc(m, '\n');
+	return 0;
 }
+
+static int bcm_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, bcm_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations bcm_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= bcm_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /*
  * bcm_can_tx - send the (next) CAN frame to the appropriate CAN interface
@@ -1469,6 +1457,9 @@ static int bcm_release(struct socket *sock)
 		bo->ifindex = 0;
 	}
 
+	sock_orphan(sk);
+	sock->sk = NULL;
+
 	release_sock(sk);
 	sock_put(sk);
 
@@ -1511,9 +1502,9 @@ static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
 	if (proc_dir) {
 		/* unique socket address as filename */
 		sprintf(bo->procname, "%p", sock);
-		bo->bcm_proc_read = create_proc_read_entry(bo->procname, 0644,
-							   proc_dir,
-							   bcm_read_proc, sk);
+		bo->bcm_proc_read = proc_create_data(bo->procname, 0644,
+						     proc_dir,
+						     &bcm_proc_fops, sk);
 	}
 
 	return 0;

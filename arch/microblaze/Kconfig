@@ -6,6 +6,7 @@ mainmenu "Linux/Microblaze Kernel Configuration"
 config MICROBLAZE
 	def_bool y
 	select HAVE_LMB
+	select USB_ARCH_HAS_EHCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config SWAP
@@ -51,6 +52,9 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
 
 config GENERIC_GPIO
+	def_bool y
+
+config GENERIC_CSUM
 	def_bool y
 
 config PCI

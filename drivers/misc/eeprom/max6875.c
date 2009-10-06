@@ -33,12 +33,6 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 
-/* Do not scan - the MAX6875 access method will write to some EEPROM chips */
-static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
-
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(max6875);
-
 /* The MAX6875 can only read/write 16 bytes at a time */
 #define SLICE_SIZE			16
 #define SLICE_BITS			4
@@ -146,30 +140,20 @@ static struct bin_attribute user_eeprom_attr = {
 	.read = max6875_read,
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
-static int max6875_detect(struct i2c_client *client, int kind,
-			  struct i2c_board_info *info)
+static int max6875_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	struct max6875_data *data;
+	int err;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WRITE_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_BYTE))
 		return -ENODEV;
 
-	/* Only check even addresses */
+	/* Only bind to even addresses */
 	if (client->addr & 1)
 		return -ENODEV;
-
-	strlcpy(info->type, "max6875", I2C_NAME_SIZE);
-
-	return 0;
-}
-
-static int max6875_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
-{
-	struct max6875_data *data;
-	int err;
 
 	if (!(data = kzalloc(sizeof(struct max6875_data), GFP_KERNEL)))
 		return -ENOMEM;
@@ -222,9 +206,6 @@ static struct i2c_driver max6875_driver = {
 	.probe		= max6875_probe,
 	.remove		= max6875_remove,
 	.id_table	= max6875_id,
-
-	.detect		= max6875_detect,
-	.address_data	= &addr_data,
 };
 
 static int __init max6875_init(void)

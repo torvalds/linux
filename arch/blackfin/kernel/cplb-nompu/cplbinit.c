@@ -36,7 +36,7 @@ int first_switched_icplb PDT_ATTR;
 int first_switched_dcplb PDT_ATTR;
 
 struct cplb_boundary dcplb_bounds[9] PDT_ATTR;
-struct cplb_boundary icplb_bounds[7] PDT_ATTR;
+struct cplb_boundary icplb_bounds[9] PDT_ATTR;
 
 int icplb_nr_bounds PDT_ATTR;
 int dcplb_nr_bounds PDT_ATTR;
@@ -72,13 +72,24 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 	}
 
 	/* Cover L1 memory.  One 4M area for code and data each is enough.  */
-	if (L1_DATA_A_LENGTH || L1_DATA_B_LENGTH) {
-		d_tbl[i_d].addr = L1_DATA_A_START;
-		d_tbl[i_d++].data = L1_DMEMORY | PAGE_SIZE_4MB;
+	if (cpu == 0) {
+		if (L1_DATA_A_LENGTH || L1_DATA_B_LENGTH) {
+			d_tbl[i_d].addr = L1_DATA_A_START;
+			d_tbl[i_d++].data = L1_DMEMORY | PAGE_SIZE_4MB;
+		}
+		i_tbl[i_i].addr = L1_CODE_START;
+		i_tbl[i_i++].data = L1_IMEMORY | PAGE_SIZE_4MB;
 	}
-	i_tbl[i_i].addr = L1_CODE_START;
-	i_tbl[i_i++].data = L1_IMEMORY | PAGE_SIZE_4MB;
-
+#ifdef CONFIG_SMP
+	else {
+		if (L1_DATA_A_LENGTH || L1_DATA_B_LENGTH) {
+			d_tbl[i_d].addr = COREB_L1_DATA_A_START;
+			d_tbl[i_d++].data = L1_DMEMORY | PAGE_SIZE_4MB;
+		}
+		i_tbl[i_i].addr = COREB_L1_CODE_START;
+		i_tbl[i_i++].data = L1_IMEMORY | PAGE_SIZE_4MB;
+	}
+#endif
 	first_switched_dcplb = i_d;
 	first_switched_icplb = i_i;
 
@@ -156,14 +167,21 @@ void __init generate_cplb_tables_all(void)
 		icplb_bounds[i_i++].data = (reserved_mem_icache_on ?
 					    SDRAM_IGENERIC : SDRAM_INON_CHBL);
 	}
+	/* Addressing hole up to the async bank.  */
+	icplb_bounds[i_i].eaddr = ASYNC_BANK0_BASE;
+	icplb_bounds[i_i++].data = 0;
+	/* ASYNC banks.  */
+	icplb_bounds[i_i].eaddr = ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE;
+	icplb_bounds[i_i++].data = SDRAM_EBIU;
 	/* Addressing hole up to BootROM.  */
 	icplb_bounds[i_i].eaddr = BOOT_ROM_START;
 	icplb_bounds[i_i++].data = 0;
 	/* BootROM -- largest one should be less than 1 meg.  */
 	icplb_bounds[i_i].eaddr = BOOT_ROM_START + (1 * 1024 * 1024);
 	icplb_bounds[i_i++].data = SDRAM_IGENERIC;
+
 	if (L2_LENGTH) {
-		/* Addressing hole up to L2 SRAM, including the async bank.  */
+		/* Addressing hole up to L2 SRAM.  */
 		icplb_bounds[i_i].eaddr = L2_START;
 		icplb_bounds[i_i++].data = 0;
 		/* L2 SRAM.  */

@@ -49,8 +49,8 @@
 #include <asm/processor.h>
 
 #define DRV_NAME	"r6040"
-#define DRV_VERSION	"0.23"
-#define DRV_RELDATE	"05May2009"
+#define DRV_VERSION	"0.25"
+#define DRV_RELDATE	"20Aug2009"
 
 /* PHY CHIP Address */
 #define PHY1_ADDR	1	/* For MAC1 */
@@ -704,8 +704,11 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 	/* Read MISR status and clear */
 	status = ioread16(ioaddr + MISR);
 
-	if (status == 0x0000 || status == 0xffff)
+	if (status == 0x0000 || status == 0xffff) {
+		/* Restore RDC MAC interrupt */
+		iowrite16(misr, ioaddr + MIER);
 		return IRQ_NONE;
+	}
 
 	/* RX interrupt request */
 	if (status & RX_INTS) {
@@ -747,14 +750,6 @@ static int r6040_up(struct net_device *dev)
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 	int ret;
-	u16 val;
-
-	/* Check presence of a second PHY */
-	val = r6040_phy_read(ioaddr, lp->phy_addr, 2);
-	if (val == 0xFFFF) {
-		printk(KERN_ERR DRV_NAME " no second PHY attached\n");
-		return -EIO;
-	}
 
 	/* Initialise and alloc RX/TX buffers */
 	r6040_init_txbufs(dev);
@@ -888,13 +883,13 @@ static int r6040_open(struct net_device *dev)
 	return 0;
 }
 
-static int r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
+				    struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	struct r6040_descriptor *descptr;
 	void __iomem *ioaddr = lp->base;
 	unsigned long flags;
-	int ret = NETDEV_TX_OK;
 
 	/* Critical Section */
 	spin_lock_irqsave(&lp->lock, flags);
@@ -904,8 +899,7 @@ static int r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_irqrestore(&lp->lock, flags);
 		netif_stop_queue(dev);
 		printk(KERN_ERR DRV_NAME ": no tx descriptor\n");
-		ret = NETDEV_TX_BUSY;
-		return ret;
+		return NETDEV_TX_BUSY;
 	}
 
 	/* Statistic Counter */
@@ -933,7 +927,8 @@ static int r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&lp->lock, flags);
-	return ret;
+
+	return NETDEV_TX_OK;
 }
 
 static void r6040_multicast_list(struct net_device *dev)
@@ -1088,7 +1083,6 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	int err, io_size = R6040_IO_SIZE;
 	static int card_idx = -1;
 	int bar = 0;
-	long pioaddr;
 	u16 *adrp;
 
 	printk(KERN_INFO "%s\n", version);
@@ -1112,13 +1106,12 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	}
 
 	/* IO Size check */
-	if (pci_resource_len(pdev, 0) < io_size) {
+	if (pci_resource_len(pdev, bar) < io_size) {
 		printk(KERN_ERR DRV_NAME ": Insufficient PCI resources, aborting\n");
 		err = -EIO;
 		goto err_out;
 	}
 
-	pioaddr = pci_resource_start(pdev, 0);	/* IO map base address */
 	pci_set_master(pdev);
 
 	dev = alloc_etherdev(sizeof(struct r6040_private));
@@ -1192,6 +1185,13 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->mii_if.phy_id = lp->phy_addr;
 	lp->mii_if.phy_id_mask = 0x1f;
 	lp->mii_if.reg_num_mask = 0x1f;
+
+	/* Check the vendor ID on the PHY, if 0xffff assume none attached */
+	if (r6040_phy_read(ioaddr, lp->phy_addr, 2) == 0xffff) {
+		printk(KERN_ERR DRV_NAME ": Failed to detect an attached PHY\n");
+		err = -ENODEV;
+		goto err_out_unmap;
+	}
 
 	/* Register net device. After this dev->name assign */
 	err = register_netdev(dev);

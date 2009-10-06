@@ -1184,6 +1184,7 @@ int tty_init_termios(struct tty_struct *tty)
 	tty->termios->c_ospeed = tty_termios_baud_rate(tty->termios);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tty_init_termios);
 
 /**
  *	tty_driver_install_tty() - install a tty entry in the driver
@@ -1386,16 +1387,19 @@ EXPORT_SYMBOL(tty_shutdown);
  *		tty_mutex - sometimes only
  *		takes the file list lock internally when working on the list
  *	of ttys that the driver keeps.
+ *
+ *	This method gets called from a work queue so that the driver private
+ *	cleanup ops can sleep (needed for USB at least)
  */
-static void release_one_tty(struct kref *kref)
+static void release_one_tty(struct work_struct *work)
 {
-	struct tty_struct *tty = container_of(kref, struct tty_struct, kref);
+	struct tty_struct *tty =
+		container_of(work, struct tty_struct, hangup_work);
 	struct tty_driver *driver = tty->driver;
 
-	if (tty->ops->shutdown)
-		tty->ops->shutdown(tty);
-	else
-		tty_shutdown(tty);
+	if (tty->ops->cleanup)
+		tty->ops->cleanup(tty);
+
 	tty->magic = 0;
 	tty_driver_kref_put(driver);
 	module_put(driver->owner);
@@ -1405,6 +1409,21 @@ static void release_one_tty(struct kref *kref)
 	file_list_unlock();
 
 	free_tty_struct(tty);
+}
+
+static void queue_release_one_tty(struct kref *kref)
+{
+	struct tty_struct *tty = container_of(kref, struct tty_struct, kref);
+
+	if (tty->ops->shutdown)
+		tty->ops->shutdown(tty);
+	else
+		tty_shutdown(tty);
+
+	/* The hangup queue is now free so we can reuse it rather than
+	   waste a chunk of memory for each port */
+	INIT_WORK(&tty->hangup_work, release_one_tty);
+	schedule_work(&tty->hangup_work);
 }
 
 /**
@@ -1418,7 +1437,7 @@ static void release_one_tty(struct kref *kref)
 void tty_kref_put(struct tty_struct *tty)
 {
 	if (tty)
-		kref_put(&tty->kref, release_one_tty);
+		kref_put(&tty->kref, queue_release_one_tty);
 }
 EXPORT_SYMBOL(tty_kref_put);
 
@@ -2085,7 +2104,7 @@ static int tioccons(struct file *file)
  *	the generic functionality existed. This piece of history is preserved
  *	in the expected tty API of posix OS's.
  *
- *	Locking: none, the open fle handle ensures it won't go away.
+ *	Locking: none, the open file handle ensures it won't go away.
  */
 
 static int fionbio(struct file *file, int __user *p)
@@ -3056,11 +3075,22 @@ void __init console_init(void)
 	}
 }
 
+static char *tty_devnode(struct device *dev, mode_t *mode)
+{
+	if (!mode)
+		return NULL;
+	if (dev->devt == MKDEV(TTYAUX_MAJOR, 0) ||
+	    dev->devt == MKDEV(TTYAUX_MAJOR, 2))
+		*mode = 0666;
+	return NULL;
+}
+
 static int __init tty_class_init(void)
 {
 	tty_class = class_create(THIS_MODULE, "tty");
 	if (IS_ERR(tty_class))
 		return PTR_ERR(tty_class);
+	tty_class->devnode = tty_devnode;
 	return 0;
 }
 

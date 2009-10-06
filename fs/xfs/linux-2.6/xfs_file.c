@@ -41,9 +41,8 @@
 #include "xfs_ioctl.h"
 
 #include <linux/dcache.h>
-#include <linux/smp_lock.h>
 
-static struct vm_operations_struct xfs_file_vm_ops;
+static const struct vm_operations_struct xfs_file_vm_ops;
 
 STATIC ssize_t
 xfs_file_aio_read(
@@ -173,12 +172,21 @@ xfs_file_release(
  */
 STATIC int
 xfs_file_fsync(
-	struct file	*filp,
-	struct dentry	*dentry,
-	int		datasync)
+	struct file		*file,
+	struct dentry		*dentry,
+	int			datasync)
 {
-	xfs_iflags_clear(XFS_I(dentry->d_inode), XFS_ITRUNCATED);
-	return -xfs_fsync(XFS_I(dentry->d_inode));
+	struct inode		*inode = dentry->d_inode;
+	struct xfs_inode	*ip = XFS_I(inode);
+	int			error;
+
+	/* capture size updates in I/O completion before writing the inode. */
+	error = filemap_fdatawait(inode->i_mapping);
+	if (error)
+		return error;
+
+	xfs_iflags_clear(ip, XFS_ITRUNCATED);
+	return -xfs_fsync(ip);
 }
 
 STATIC int
@@ -272,7 +280,7 @@ const struct file_operations xfs_dir_file_operations = {
 	.fsync		= xfs_file_fsync,
 };
 
-static struct vm_operations_struct xfs_file_vm_ops = {
+static const struct vm_operations_struct xfs_file_vm_ops = {
 	.fault		= filemap_fault,
 	.page_mkwrite	= xfs_vm_page_mkwrite,
 };

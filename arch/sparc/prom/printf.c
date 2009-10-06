@@ -14,14 +14,14 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/compiler.h>
 
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 
 static char ppbuf[1024];
 
-void
-prom_write(const char *buf, unsigned int n)
+void notrace prom_write(const char *buf, unsigned int n)
 {
 	char ch;
 
@@ -33,8 +33,7 @@ prom_write(const char *buf, unsigned int n)
 	}
 }
 
-void
-prom_printf(const char *fmt, ...)
+void notrace prom_printf(const char *fmt, ...)
 {
 	va_list args;
 	int i;

@@ -14,7 +14,7 @@
 
 static int force = 0;
 module_param(force, bool, 0444);
-MODULE_PARM_DESC(force, "Assume system has ALIX.2 style LEDs");
+MODULE_PARM_DESC(force, "Assume system has ALIX.2/ALIX.3 style LEDs");
 
 struct alix_led {
 	struct led_classdev cdev;
@@ -154,6 +154,11 @@ static int __init alix_led_init(void)
 		ret = -ENODEV;
 		goto out;
 	}
+
+	/* enable output on GPIO for LED 1,2,3 */
+	outl(1 << 6, 0x6104);
+	outl(1 << 9, 0x6184);
+	outl(1 << 11, 0x6184);
 
 	pdev = platform_device_register_simple(KBUILD_MODNAME, -1, NULL, 0);
 	if (!IS_ERR(pdev)) {

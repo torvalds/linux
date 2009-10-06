@@ -21,11 +21,14 @@
 #undef __field
 #define __field(type, item)		type	item;
 
+#undef __field_ext
+#define __field_ext(type, item, filter_type)	type	item;
+
 #undef __array
 #define __array(type, item, len)	type	item[len];
 
 #undef __dynamic_array
-#define __dynamic_array(type, item, len) unsigned short __data_loc_##item;
+#define __dynamic_array(type, item, len) u32 __data_loc_##item;
 
 #undef __string
 #define __string(item, src) __dynamic_array(char, item, -1)
@@ -42,6 +45,16 @@
 	};							\
 	static struct ftrace_event_call event_##name
 
+#undef __cpparg
+#define __cpparg(arg...) arg
+
+/* Callbacks are meaningless to ftrace. */
+#undef TRACE_EVENT_FN
+#define TRACE_EVENT_FN(name, proto, args, tstruct,			\
+		assign, print, reg, unreg)				\
+	TRACE_EVENT(name, __cpparg(proto), __cpparg(args),		\
+		__cpparg(tstruct), __cpparg(assign), __cpparg(print))	\
+
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
 
@@ -51,23 +64,27 @@
  * Include the following:
  *
  * struct ftrace_data_offsets_<call> {
- *	int				<item1>;
- *	int				<item2>;
+ *	u32				<item1>;
+ *	u32				<item2>;
  *	[...]
  * };
  *
- * The __dynamic_array() macro will create each int <item>, this is
+ * The __dynamic_array() macro will create each u32 <item>, this is
  * to keep the offset of each array from the beginning of the event.
+ * The size of an array is also encoded, in the higher 16 bits of <item>.
  */
 
 #undef __field
-#define __field(type, item);
+#define __field(type, item)
+
+#undef __field_ext
+#define __field_ext(type, item, filter_type)
 
 #undef __array
 #define __array(type, item, len)
 
 #undef __dynamic_array
-#define __dynamic_array(type, item, len)	int item;
+#define __dynamic_array(type, item, len)	u32 item;
 
 #undef __string
 #define __string(item, src) __dynamic_array(char, item, -1)
@@ -109,6 +126,9 @@
 	if (!ret)							\
 		return 0;
 
+#undef __field_ext
+#define __field_ext(type, item, filter_type)	__field(type, item)
+
 #undef __array
 #define __array(type, item, len)						\
 	ret = trace_seq_printf(s, "\tfield:" #type " " #item "[" #len "];\t"	\
@@ -120,7 +140,7 @@
 
 #undef __dynamic_array
 #define __dynamic_array(type, item, len)				       \
-	ret = trace_seq_printf(s, "\tfield:__data_loc " #item ";\t"	       \
+	ret = trace_seq_printf(s, "\tfield:__data_loc " #type "[] " #item ";\t"\
 			       "offset:%u;\tsize:%u;\n",		       \
 			       (unsigned int)offsetof(typeof(field),	       \
 					__data_loc_##item),		       \
@@ -144,10 +164,14 @@
 #undef TP_fast_assign
 #define TP_fast_assign(args...) args
 
+#undef TP_perf_assign
+#define TP_perf_assign(args...)
+
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
 static int								\
-ftrace_format_##call(struct trace_seq *s)				\
+ftrace_format_##call(struct ftrace_event_call *unused,			\
+		      struct trace_seq *s)				\
 {									\
 	struct ftrace_raw_##call field __attribute__((unused));		\
 	int ret = 0;							\
@@ -207,7 +231,7 @@ ftrace_format_##call(struct trace_seq *s)				\
 
 #undef __get_dynamic_array
 #define __get_dynamic_array(field)	\
-		((void *)__entry + __entry->__data_loc_##field)
+		((void *)__entry + (__entry->__data_loc_##field & 0xffff))
 
 #undef __get_str
 #define __get_str(field) (char *)__get_dynamic_array(field)
@@ -215,9 +239,9 @@ ftrace_format_##call(struct trace_seq *s)				\
 #undef __print_flags
 #define __print_flags(flag, delim, flag_array...)			\
 	({								\
-		static const struct trace_print_flags flags[] =		\
+		static const struct trace_print_flags __flags[] =	\
 			{ flag_array, { -1, NULL }};			\
-		ftrace_print_flags_seq(p, delim, flag, flags);		\
+		ftrace_print_flags_seq(p, delim, flag, __flags);	\
 	})
 
 #undef __print_symbolic
@@ -230,7 +254,7 @@ ftrace_format_##call(struct trace_seq *s)				\
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
-enum print_line_t							\
+static enum print_line_t						\
 ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 {									\
 	struct trace_seq *s = &iter->seq;				\
@@ -260,46 +284,48 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 	
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#undef __field
-#define __field(type, item)						\
+#undef __field_ext
+#define __field_ext(type, item, filter_type)				\
 	ret = trace_define_field(event_call, #type, #item,		\
 				 offsetof(typeof(field), item),		\
-				 sizeof(field.item), is_signed_type(type));	\
+				 sizeof(field.item),			\
+				 is_signed_type(type), filter_type);	\
 	if (ret)							\
 		return ret;
+
+#undef __field
+#define __field(type, item)	__field_ext(type, item, FILTER_OTHER)
 
 #undef __array
 #define __array(type, item, len)					\
 	BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);				\
 	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
 				 offsetof(typeof(field), item),		\
-				 sizeof(field.item), 0);		\
+				 sizeof(field.item), 0, FILTER_OTHER);	\
 	if (ret)							\
 		return ret;
 
 #undef __dynamic_array
 #define __dynamic_array(type, item, len)				       \
-	ret = trace_define_field(event_call, "__data_loc" "[" #type "]", #item,\
-				offsetof(typeof(field), __data_loc_##item),    \
-				 sizeof(field.__data_loc_##item), 0);
+	ret = trace_define_field(event_call, "__data_loc " #type "[]", #item,  \
+				 offsetof(typeof(field), __data_loc_##item),   \
+				 sizeof(field.__data_loc_##item), 0,	       \
+				 FILTER_OTHER);
 
 #undef __string
 #define __string(item, src) __dynamic_array(char, item, -1)
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
-int									\
-ftrace_define_fields_##call(void)					\
+static int								\
+ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 {									\
 	struct ftrace_raw_##call field;					\
-	struct ftrace_event_call *event_call = &event_##call;		\
 	int ret;							\
 									\
-	__common_field(int, type, 1);					\
-	__common_field(unsigned char, flags, 0);			\
-	__common_field(unsigned char, preempt_count, 0);		\
-	__common_field(int, pid, 1);					\
-	__common_field(int, tgid, 1);					\
+	ret = trace_define_common_fields(event_call);			\
+	if (ret)							\
+		return ret;						\
 									\
 	tstruct;							\
 									\
@@ -318,6 +344,9 @@ ftrace_define_fields_##call(void)					\
 #undef __field
 #define __field(type, item)
 
+#undef __field_ext
+#define __field_ext(type, item, filter_type)
+
 #undef __array
 #define __array(type, item, len)
 
@@ -325,6 +354,7 @@ ftrace_define_fields_##call(void)					\
 #define __dynamic_array(type, item, len)				\
 	__data_offsets->item = __data_size +				\
 			       offsetof(typeof(*entry), __data);	\
+	__data_offsets->item |= (len * sizeof(type)) << 16;		\
 	__data_size += (len) * sizeof(type);
 
 #undef __string
@@ -344,6 +374,44 @@ static inline int ftrace_get_offsets_##call(				\
 }
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
+
+#ifdef CONFIG_EVENT_PROFILE
+
+/*
+ * Generate the functions needed for tracepoint perf_event support.
+ *
+ * NOTE: The insertion profile callback (ftrace_profile_<call>) is defined later
+ *
+ * static int ftrace_profile_enable_<call>(void)
+ * {
+ * 	return register_trace_<call>(ftrace_profile_<call>);
+ * }
+ *
+ * static void ftrace_profile_disable_<call>(void)
+ * {
+ * 	unregister_trace_<call>(ftrace_profile_<call>);
+ * }
+ *
+ */
+
+#undef TRACE_EVENT
+#define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
+									\
+static void ftrace_profile_##call(proto);				\
+									\
+static int ftrace_profile_enable_##call(void)				\
+{									\
+	return register_trace_##call(ftrace_profile_##call);		\
+}									\
+									\
+static void ftrace_profile_disable_##call(void)				\
+{									\
+	unregister_trace_##call(ftrace_profile_##call);			\
+}
+
+#include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
+
+#endif
 
 /*
  * Stage 4 of the trace events.
@@ -380,13 +448,15 @@ static inline int ftrace_get_offsets_##call(				\
  * {
  *	struct ring_buffer_event *event;
  *	struct ftrace_raw_<call> *entry; <-- defined in stage 1
+ *	struct ring_buffer *buffer;
  *	unsigned long irq_flags;
  *	int pc;
  *
  *	local_save_flags(irq_flags);
  *	pc = preempt_count();
  *
- *	event = trace_current_buffer_lock_reserve(event_<call>.id,
+ *	event = trace_current_buffer_lock_reserve(&buffer,
+ *				  event_<call>.id,
  *				  sizeof(struct ftrace_raw_<call>),
  *				  irq_flags, pc);
  *	if (!event)
@@ -396,7 +466,7 @@ static inline int ftrace_get_offsets_##call(				\
  *	<assign>;  <-- Here we assign the entries by the __field and
  *			__array macros.
  *
- *	trace_current_buffer_unlock_commit(event, irq_flags, pc);
+ *	trace_current_buffer_unlock_commit(buffer, event, irq_flags, pc);
  * }
  *
  * static int ftrace_raw_reg_event_<call>(void)
@@ -447,28 +517,6 @@ static inline int ftrace_get_offsets_##call(				\
 #define TP_FMT(fmt, args...)	fmt "\n", ##args
 
 #ifdef CONFIG_EVENT_PROFILE
-#define _TRACE_PROFILE(call, proto, args)				\
-static void ftrace_profile_##call(proto)				\
-{									\
-	extern void perf_tpcounter_event(int);				\
-	perf_tpcounter_event(event_##call.id);				\
-}									\
-									\
-static int ftrace_profile_enable_##call(struct ftrace_event_call *event_call) \
-{									\
-	int ret = 0;							\
-									\
-	if (!atomic_inc_return(&event_call->profile_count))		\
-		ret = register_trace_##call(ftrace_profile_##call);	\
-									\
-	return ret;							\
-}									\
-									\
-static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
-{									\
-	if (atomic_add_negative(-1, &event_call->profile_count))	\
-		unregister_trace_##call(ftrace_profile_##call);		\
-}
 
 #define _TRACE_PROFILE_INIT(call)					\
 	.profile_count = ATOMIC_INIT(-1),				\
@@ -476,7 +524,6 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
 	.profile_disable = ftrace_profile_disable_##call,
 
 #else
-#define _TRACE_PROFILE(call, proto, args)
 #define _TRACE_PROFILE_INIT(call)
 #endif
 
@@ -502,7 +549,6 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
-_TRACE_PROFILE(call, PARAMS(proto), PARAMS(args))			\
 									\
 static struct ftrace_event_call event_##call;				\
 									\
@@ -512,6 +558,7 @@ static void ftrace_raw_event_##call(proto)				\
 	struct ftrace_event_call *event_call = &event_##call;		\
 	struct ring_buffer_event *event;				\
 	struct ftrace_raw_##call *entry;				\
+	struct ring_buffer *buffer;					\
 	unsigned long irq_flags;					\
 	int __data_size;						\
 	int pc;								\
@@ -521,7 +568,8 @@ static void ftrace_raw_event_##call(proto)				\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
-	event = trace_current_buffer_lock_reserve(event_##call.id,	\
+	event = trace_current_buffer_lock_reserve(&buffer,		\
+				 event_##call.id,			\
 				 sizeof(*entry) + __data_size,		\
 				 irq_flags, pc);			\
 	if (!event)							\
@@ -533,11 +581,12 @@ static void ftrace_raw_event_##call(proto)				\
 									\
 	{ assign; }							\
 									\
-	if (!filter_current_check_discard(event_call, entry, event))	\
-		trace_nowake_buffer_unlock_commit(event, irq_flags, pc); \
+	if (!filter_current_check_discard(buffer, event_call, entry, event)) \
+		trace_nowake_buffer_unlock_commit(buffer,		\
+						  event, irq_flags, pc); \
 }									\
 									\
-static int ftrace_raw_reg_event_##call(void)				\
+static int ftrace_raw_reg_event_##call(void *ptr)			\
 {									\
 	int ret;							\
 									\
@@ -548,7 +597,7 @@ static int ftrace_raw_reg_event_##call(void)				\
 	return ret;							\
 }									\
 									\
-static void ftrace_raw_unreg_event_##call(void)				\
+static void ftrace_raw_unreg_event_##call(void *ptr)			\
 {									\
 	unregister_trace_##call(ftrace_raw_event_##call);		\
 }									\
@@ -566,7 +615,6 @@ static int ftrace_raw_init_event_##call(void)				\
 		return -ENODEV;						\
 	event_##call.id = id;						\
 	INIT_LIST_HEAD(&event_##call.fields);				\
-	init_preds(&event_##call);					\
 	return 0;							\
 }									\
 									\
@@ -586,6 +634,137 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#undef _TRACE_PROFILE
+/*
+ * Define the insertion callback to profile events
+ *
+ * The job is very similar to ftrace_raw_event_<call> except that we don't
+ * insert in the ring buffer but in a perf counter.
+ *
+ * static void ftrace_profile_<call>(proto)
+ * {
+ *	struct ftrace_data_offsets_<call> __maybe_unused __data_offsets;
+ *	struct ftrace_event_call *event_call = &event_<call>;
+ *	extern void perf_tp_event(int, u64, u64, void *, int);
+ *	struct ftrace_raw_##call *entry;
+ *	u64 __addr = 0, __count = 1;
+ *	unsigned long irq_flags;
+ *	struct trace_entry *ent;
+ *	int __entry_size;
+ *	int __data_size;
+ *	int __cpu
+ *	int pc;
+ *
+ *	pc = preempt_count();
+ *
+ *	__data_size = ftrace_get_offsets_<call>(&__data_offsets, args);
+ *
+ *	// Below we want to get the aligned size by taking into account
+ *	// the u32 field that will later store the buffer size
+ *	__entry_size = ALIGN(__data_size + sizeof(*entry) + sizeof(u32),
+ *			     sizeof(u64));
+ *	__entry_size -= sizeof(u32);
+ *
+ *	// Protect the non nmi buffer
+ *	// This also protects the rcu read side
+ *	local_irq_save(irq_flags);
+ *	__cpu = smp_processor_id();
+ *
+ *	if (in_nmi())
+ *		raw_data = rcu_dereference(trace_profile_buf_nmi);
+ *	else
+ *		raw_data = rcu_dereference(trace_profile_buf);
+ *
+ *	if (!raw_data)
+ *		goto end;
+ *
+ *	raw_data = per_cpu_ptr(raw_data, __cpu);
+ *
+ *	//zero dead bytes from alignment to avoid stack leak to userspace:
+ *	*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;
+ *	entry = (struct ftrace_raw_<call> *)raw_data;
+ *	ent = &entry->ent;
+ *	tracing_generic_entry_update(ent, irq_flags, pc);
+ *	ent->type = event_call->id;
+ *
+ *	<tstruct> <- do some jobs with dynamic arrays
+ *
+ *	<assign>  <- affect our values
+ *
+ *	perf_tp_event(event_call->id, __addr, __count, entry,
+ *		     __entry_size);  <- submit them to perf counter
+ *
+ * }
+ */
+
+#ifdef CONFIG_EVENT_PROFILE
+
+#undef __perf_addr
+#define __perf_addr(a) __addr = (a)
+
+#undef __perf_count
+#define __perf_count(c) __count = (c)
+
+#undef TRACE_EVENT
+#define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
+static void ftrace_profile_##call(proto)				\
+{									\
+	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
+	struct ftrace_event_call *event_call = &event_##call;		\
+	extern void perf_tp_event(int, u64, u64, void *, int);	\
+	struct ftrace_raw_##call *entry;				\
+	u64 __addr = 0, __count = 1;					\
+	unsigned long irq_flags;					\
+	struct trace_entry *ent;					\
+	int __entry_size;						\
+	int __data_size;						\
+	char *raw_data;							\
+	int __cpu;							\
+	int pc;								\
+									\
+	pc = preempt_count();						\
+									\
+	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
+	__entry_size = ALIGN(__data_size + sizeof(*entry) + sizeof(u32),\
+			     sizeof(u64));				\
+	__entry_size -= sizeof(u32);					\
+									\
+	if (WARN_ONCE(__entry_size > FTRACE_MAX_PROFILE_SIZE,		\
+		      "profile buffer not large enough"))		\
+		return;							\
+									\
+	local_irq_save(irq_flags);					\
+	__cpu = smp_processor_id();					\
+									\
+	if (in_nmi())							\
+		raw_data = rcu_dereference(trace_profile_buf_nmi);		\
+	else								\
+		raw_data = rcu_dereference(trace_profile_buf);		\
+									\
+	if (!raw_data)							\
+		goto end;						\
+									\
+	raw_data = per_cpu_ptr(raw_data, __cpu);			\
+									\
+	*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;		\
+	entry = (struct ftrace_raw_##call *)raw_data;			\
+	ent = &entry->ent;						\
+	tracing_generic_entry_update(ent, irq_flags, pc);		\
+	ent->type = event_call->id;					\
+									\
+	tstruct								\
+									\
+	{ assign; }							\
+									\
+	perf_tp_event(event_call->id, __addr, __count, entry,		\
+			     __entry_size);				\
+									\
+end:									\
+	local_irq_restore(irq_flags);					\
+									\
+}
+
+#include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
+#endif /* CONFIG_EVENT_PROFILE */
+
 #undef _TRACE_PROFILE_INIT
 

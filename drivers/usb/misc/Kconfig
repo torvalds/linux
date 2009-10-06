@@ -220,7 +220,7 @@ config USB_IOWARRIOR
 
 config USB_TEST
 	tristate "USB testing driver"
-	depends on USB && USB_DEVICEFS
+	depends on USB
 	help
 	  This driver is for testing host controller software.  It is used
 	  with specialized device firmware for regression and stress testing,

@@ -586,7 +586,7 @@ static void dec_pending(struct dm_io *io, int error)
 			 */
 			spin_lock_irqsave(&md->deferred_lock, flags);
 			if (__noflush_suspending(md)) {
-				if (!bio_barrier(io->bio))
+				if (!bio_rw_flagged(io->bio, BIO_RW_BARRIER))
 					bio_list_add_head(&md->deferred,
 							  io->bio);
 			} else
@@ -598,7 +598,7 @@ static void dec_pending(struct dm_io *io, int error)
 		io_error = io->error;
 		bio = io->bio;
 
-		if (bio_barrier(bio)) {
+		if (bio_rw_flagged(bio, BIO_RW_BARRIER)) {
 			/*
 			 * There can be just one barrier request so we use
 			 * a per-device variable for error reporting.
@@ -738,16 +738,22 @@ static void rq_completed(struct mapped_device *md, int run_queue)
 	dm_put(md);
 }
 
+static void free_rq_clone(struct request *clone)
+{
+	struct dm_rq_target_io *tio = clone->end_io_data;
+
+	blk_rq_unprep_clone(clone);
+	free_rq_tio(tio);
+}
+
 static void dm_unprep_request(struct request *rq)
 {
 	struct request *clone = rq->special;
-	struct dm_rq_target_io *tio = clone->end_io_data;
 
 	rq->special = NULL;
 	rq->cmd_flags &= ~REQ_DONTPREP;
 
-	blk_rq_unprep_clone(clone);
-	free_rq_tio(tio);
+	free_rq_clone(clone);
 }
 
 /*
@@ -825,8 +831,7 @@ static void dm_end_request(struct request *clone, int error)
 			rq->sense_len = clone->sense_len;
 	}
 
-	BUG_ON(clone->bio);
-	free_rq_tio(tio);
+	free_rq_clone(clone);
 
 	blk_end_request_all(rq, error);
 
@@ -1017,7 +1022,7 @@ static struct bio *split_bvec(struct bio *bio, sector_t sector,
 	clone->bi_flags |= 1 << BIO_CLONED;
 
 	if (bio_integrity(bio)) {
-		bio_integrity_clone(clone, bio, GFP_NOIO);
+		bio_integrity_clone(clone, bio, GFP_NOIO, bs);
 		bio_integrity_trim(clone,
 				   bio_sector_offset(bio, idx, offset), len);
 	}
@@ -1045,7 +1050,7 @@ static struct bio *clone_bio(struct bio *bio, sector_t sector,
 	clone->bi_flags &= ~(1 << BIO_SEG_VALID);
 
 	if (bio_integrity(bio)) {
-		bio_integrity_clone(clone, bio, GFP_NOIO);
+		bio_integrity_clone(clone, bio, GFP_NOIO, bs);
 
 		if (idx != bio->bi_idx || clone->bi_size < bio->bi_size)
 			bio_integrity_trim(clone,
@@ -1204,7 +1209,7 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 
 	ci.map = dm_get_table(md);
 	if (unlikely(!ci.map)) {
-		if (!bio_barrier(bio))
+		if (!bio_rw_flagged(bio, BIO_RW_BARRIER))
 			bio_io_error(bio);
 		else
 			if (!md->barrier_error)
@@ -1316,7 +1321,7 @@ static int _dm_request(struct request_queue *q, struct bio *bio)
 	 * we have to queue this io for later.
 	 */
 	if (unlikely(test_bit(DMF_QUEUE_IO_TO_THREAD, &md->flags)) ||
-	    unlikely(bio_barrier(bio))) {
+	    unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		up_read(&md->io_lock);
 
 		if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) &&
@@ -1339,7 +1344,7 @@ static int dm_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct mapped_device *md = q->queuedata;
 
-	if (unlikely(bio_barrier(bio))) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
@@ -1709,7 +1714,7 @@ out:
 	return r;
 }
 
-static struct block_device_operations dm_blk_dops;
+static const struct block_device_operations dm_blk_dops;
 
 static void dm_wq_work(struct work_struct *work);
 
@@ -2159,7 +2164,7 @@ static void dm_wq_work(struct work_struct *work)
 		if (dm_request_based(md))
 			generic_make_request(c);
 		else {
-			if (bio_barrier(c))
+			if (bio_rw_flagged(c, BIO_RW_BARRIER))
 				process_barrier(md, c);
 			else
 				__split_and_process_bio(md, c);
@@ -2202,16 +2207,6 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 		DMWARN("can't change the device type after a table is bound");
 		goto out;
 	}
-
-	/*
-	 * It is enought that blk_queue_ordered() is called only once when
-	 * the first bio-based table is bound.
-	 *
-	 * This setting should be moved to alloc_dev() when request-based dm
-	 * supports barrier.
-	 */
-	if (!md->map && dm_table_bio_based(table))
-		blk_queue_ordered(md->queue, QUEUE_ORDERED_DRAIN, NULL);
 
 	__unbind(md);
 	r = __bind(md, table, &limits);
@@ -2664,7 +2659,7 @@ void dm_free_md_mempools(struct dm_md_mempools *pools)
 	kfree(pools);
 }
 
-static struct block_device_operations dm_blk_dops = {
+static const struct block_device_operations dm_blk_dops = {
 	.open = dm_blk_open,
 	.release = dm_blk_close,
 	.ioctl = dm_blk_ioctl,

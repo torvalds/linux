@@ -145,6 +145,8 @@ static int pwm_backlight_suspend(struct platform_device *pdev,
 	struct backlight_device *bl = platform_get_drvdata(pdev);
 	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
 
+	if (pb->notify)
+		pb->notify(0);
 	pwm_config(pb->pwm, 0, pb->period);
 	pwm_disable(pb->pwm);
 	return 0;

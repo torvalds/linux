@@ -14,31 +14,41 @@
 #include <net/iw_handler.h>
 #include "core.h"
 #include "nl80211.h"
+#include "wext-compat.h"
 
-#define IEEE80211_SCAN_RESULT_EXPIRE	(10 * HZ)
+#define IEEE80211_SCAN_RESULT_EXPIRE	(15 * HZ)
 
-void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
+void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev, bool leak)
 {
+	struct cfg80211_scan_request *request;
 	struct net_device *dev;
 #ifdef CONFIG_WIRELESS_EXT
 	union iwreq_data wrqu;
 #endif
 
-	dev = dev_get_by_index(&init_net, request->ifidx);
-	if (!dev)
-		goto out;
+	ASSERT_RDEV_LOCK(rdev);
 
-	WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req);
+	request = rdev->scan_req;
 
-	if (aborted)
-		nl80211_send_scan_aborted(wiphy_to_dev(request->wiphy), dev);
+	if (!request)
+		return;
+
+	dev = request->dev;
+
+	/*
+	 * This must be before sending the other events!
+	 * Otherwise, wpa_supplicant gets completely confused with
+	 * wext events.
+	 */
+	cfg80211_sme_scan_done(dev);
+
+	if (request->aborted)
+		nl80211_send_scan_aborted(rdev, dev);
 	else
-		nl80211_send_scan_done(wiphy_to_dev(request->wiphy), dev);
-
-	wiphy_to_dev(request->wiphy)->scan_req = NULL;
+		nl80211_send_scan_done(rdev, dev);
 
 #ifdef CONFIG_WIRELESS_EXT
-	if (!aborted) {
+	if (!request->aborted) {
 		memset(&wrqu, 0, sizeof(wrqu));
 
 		wireless_send_event(dev, SIOCGIWSCAN, &wrqu, NULL);
@@ -47,8 +57,38 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 
 	dev_put(dev);
 
- out:
-	kfree(request);
+	rdev->scan_req = NULL;
+
+	/*
+	 * OK. If this is invoked with "leak" then we can't
+	 * free this ... but we've cleaned it up anyway. The
+	 * driver failed to call the scan_done callback, so
+	 * all bets are off, it might still be trying to use
+	 * the scan request or not ... if it accesses the dev
+	 * in there (it shouldn't anyway) then it may crash.
+	 */
+	if (!leak)
+		kfree(request);
+}
+
+void __cfg80211_scan_done(struct work_struct *wk)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rdev = container_of(wk, struct cfg80211_registered_device,
+			    scan_done_wk);
+
+	cfg80211_lock_rdev(rdev);
+	___cfg80211_scan_done(rdev, false);
+	cfg80211_unlock_rdev(rdev);
+}
+
+void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
+{
+	WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req);
+
+	request->aborted = aborted;
+	schedule_work(&wiphy_to_dev(request->wiphy)->scan_done_wk);
 }
 EXPORT_SYMBOL(cfg80211_scan_done);
 
@@ -62,6 +102,8 @@ static void bss_release(struct kref *ref)
 
 	if (bss->ies_allocated)
 		kfree(bss->pub.information_elements);
+
+	BUG_ON(atomic_read(&bss->hold));
 
 	kfree(bss);
 }
@@ -85,8 +127,9 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 	bool expired = false;
 
 	list_for_each_entry_safe(bss, tmp, &dev->bss_list, list) {
-		if (bss->hold ||
-		    !time_after(jiffies, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE))
+		if (atomic_read(&bss->hold))
+			continue;
+		if (!time_after(jiffies, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE))
 			continue;
 		list_del(&bss->list);
 		rb_erase(&bss->rbn, &dev->bss_tree);
@@ -98,7 +141,7 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 		dev->bss_generation++;
 }
 
-static u8 *find_ie(u8 num, u8 *ies, size_t len)
+static u8 *find_ie(u8 num, u8 *ies, int len)
 {
 	while (len > 2 && ies[0] != num) {
 		len -= ies[1] + 2;
@@ -119,7 +162,7 @@ static int cmp_ies(u8 num, u8 *ies1, size_t len1, u8 *ies2, size_t len2)
 
 	if (!ie1 && !ie2)
 		return 0;
-	if (!ie1)
+	if (!ie1 || !ie2)
 		return -1;
 
 	r = memcmp(ie1 + 2, ie2 + 2, min(ie1[1], ie2[1]));
@@ -172,6 +215,8 @@ static bool is_mesh(struct cfg80211_bss *a,
 	ie = find_ie(WLAN_EID_MESH_CONFIG,
 		     a->information_elements,
 		     a->len_information_elements);
+	if (!ie)
+		return false;
 	if (ie[1] != IEEE80211_MESH_CONFIG_LEN)
 		return false;
 
@@ -366,7 +411,6 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 	found = rb_find_bss(dev, res);
 
 	if (found) {
-		kref_get(&found->ref);
 		found->pub.beacon_interval = res->pub.beacon_interval;
 		found->pub.tsf = res->pub.tsf;
 		found->pub.signal = res->pub.signal;
@@ -539,6 +583,7 @@ void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 	spin_lock_bh(&dev->bss_lock);
 
 	list_del(&bss->list);
+	dev->bss_generation++;
 	rb_erase(&bss->rbn, &dev->bss_tree);
 
 	spin_unlock_bh(&dev->bss_lock);
@@ -546,30 +591,6 @@ void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 	kref_put(&bss->ref, bss_release);
 }
 EXPORT_SYMBOL(cfg80211_unlink_bss);
-
-void cfg80211_hold_bss(struct cfg80211_bss *pub)
-{
-	struct cfg80211_internal_bss *bss;
-
-	if (!pub)
-		return;
-
-	bss = container_of(pub, struct cfg80211_internal_bss, pub);
-	bss->hold = true;
-}
-EXPORT_SYMBOL(cfg80211_hold_bss);
-
-void cfg80211_unhold_bss(struct cfg80211_bss *pub)
-{
-	struct cfg80211_internal_bss *bss;
-
-	if (!pub)
-		return;
-
-	bss = container_of(pub, struct cfg80211_internal_bss, pub);
-	bss->hold = false;
-}
-EXPORT_SYMBOL(cfg80211_unhold_bss);
 
 #ifdef CONFIG_WIRELESS_EXT
 int cfg80211_wext_siwscan(struct net_device *dev,
@@ -586,7 +607,10 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	if (!netif_running(dev))
 		return -ENETDOWN;
 
-	rdev = cfg80211_get_dev_from_ifindex(dev->ifindex);
+	if (wrqu->data.length == sizeof(struct iw_scan_req))
+		wreq = (struct iw_scan_req *)extra;
+
+	rdev = cfg80211_get_dev_from_ifindex(dev_net(dev), dev->ifindex);
 
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
@@ -598,9 +622,14 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 
 	wiphy = &rdev->wiphy;
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++)
-		if (wiphy->bands[band])
-			n_channels += wiphy->bands[band]->n_channels;
+	/* Determine number of channels, needed to allocate creq */
+	if (wreq && wreq->num_channels)
+		n_channels = wreq->num_channels;
+	else {
+		for (band = 0; band < IEEE80211_NUM_BANDS; band++)
+			if (wiphy->bands[band])
+				n_channels += wiphy->bands[band]->n_channels;
+	}
 
 	creq = kzalloc(sizeof(*creq) + sizeof(struct cfg80211_ssid) +
 		       n_channels * sizeof(void *),
@@ -611,28 +640,52 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	}
 
 	creq->wiphy = wiphy;
-	creq->ifidx = dev->ifindex;
-	creq->ssids = (void *)(creq + 1);
-	creq->channels = (void *)(creq->ssids + 1);
+	creq->dev = dev;
+	/* SSIDs come after channels */
+	creq->ssids = (void *)&creq->channels[n_channels];
 	creq->n_channels = n_channels;
 	creq->n_ssids = 1;
 
-	/* all channels */
+	/* translate "Scan on frequencies" request */
 	i = 0;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		int j;
 		if (!wiphy->bands[band])
 			continue;
 		for (j = 0; j < wiphy->bands[band]->n_channels; j++) {
+
+			/* If we have a wireless request structure and the
+			 * wireless request specifies frequencies, then search
+			 * for the matching hardware channel.
+			 */
+			if (wreq && wreq->num_channels) {
+				int k;
+				int wiphy_freq = wiphy->bands[band]->channels[j].center_freq;
+				for (k = 0; k < wreq->num_channels; k++) {
+					int wext_freq = cfg80211_wext_freq(wiphy, &wreq->channel_list[k]);
+					if (wext_freq == wiphy_freq)
+						goto wext_freq_found;
+				}
+				goto wext_freq_not_found;
+			}
+
+		wext_freq_found:
 			creq->channels[i] = &wiphy->bands[band]->channels[j];
 			i++;
+		wext_freq_not_found: ;
 		}
 	}
+	/* No channels found? */
+	if (!i) {
+		err = -EINVAL;
+		goto out;
+	}
 
-	/* translate scan request */
-	if (wrqu->data.length == sizeof(struct iw_scan_req)) {
-		wreq = (struct iw_scan_req *)extra;
+	/* Set real number of channels specified in creq->channels[] */
+	creq->n_channels = i;
 
+	/* translate "Scan for SSID" request */
+	if (wreq) {
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 			if (wreq->essid_len > IEEE80211_MAX_SSID_LEN)
 				return -EINVAL;
@@ -648,9 +701,12 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	if (err) {
 		rdev->scan_req = NULL;
 		kfree(creq);
+	} else {
+		nl80211_send_scan_start(rdev, dev);
+		dev_hold(dev);
 	}
  out:
-	cfg80211_put_dev(rdev);
+	cfg80211_unlock_rdev(rdev);
 	return err;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwscan);
@@ -941,7 +997,7 @@ int cfg80211_wext_giwscan(struct net_device *dev,
 	if (!netif_running(dev))
 		return -ENETDOWN;
 
-	rdev = cfg80211_get_dev_from_ifindex(dev->ifindex);
+	rdev = cfg80211_get_dev_from_ifindex(dev_net(dev), dev->ifindex);
 
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
@@ -959,7 +1015,7 @@ int cfg80211_wext_giwscan(struct net_device *dev,
 	}
 
  out:
-	cfg80211_put_dev(rdev);
+	cfg80211_unlock_rdev(rdev);
 	return res;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwscan);

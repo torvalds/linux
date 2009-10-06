@@ -44,9 +44,9 @@
 #define OMAP2_SRAM_VA		0xe3000000
 #define OMAP2_SRAM_PUB_VA	(OMAP2_SRAM_VA + 0x800)
 #define OMAP3_SRAM_PA           0x40200000
-#define OMAP3_SRAM_VA           0xd7000000
+#define OMAP3_SRAM_VA           0xe3000000
 #define OMAP3_SRAM_PUB_PA       0x40208000
-#define OMAP3_SRAM_PUB_VA       0xd7008000
+#define OMAP3_SRAM_PUB_VA       (OMAP3_SRAM_VA + 0x8000)
 #define OMAP4_SRAM_PA		0x40200000		/*0x402f0000*/
 #define OMAP4_SRAM_VA		0xd7000000		/*0xd70f0000*/
 
@@ -56,16 +56,16 @@
 #define SRAM_BOOTLOADER_SZ	0x80
 #endif
 
-#define OMAP24XX_VA_REQINFOPERM0	IO_ADDRESS(0x68005048)
-#define OMAP24XX_VA_READPERM0		IO_ADDRESS(0x68005050)
-#define OMAP24XX_VA_WRITEPERM0		IO_ADDRESS(0x68005058)
+#define OMAP24XX_VA_REQINFOPERM0	OMAP2_IO_ADDRESS(0x68005048)
+#define OMAP24XX_VA_READPERM0		OMAP2_IO_ADDRESS(0x68005050)
+#define OMAP24XX_VA_WRITEPERM0		OMAP2_IO_ADDRESS(0x68005058)
 
-#define OMAP34XX_VA_REQINFOPERM0	IO_ADDRESS(0x68012848)
-#define OMAP34XX_VA_READPERM0		IO_ADDRESS(0x68012850)
-#define OMAP34XX_VA_WRITEPERM0		IO_ADDRESS(0x68012858)
-#define OMAP34XX_VA_ADDR_MATCH2		IO_ADDRESS(0x68012880)
-#define OMAP34XX_VA_SMS_RG_ATT0		IO_ADDRESS(0x6C000048)
-#define OMAP34XX_VA_CONTROL_STAT	IO_ADDRESS(0x480022F0)
+#define OMAP34XX_VA_REQINFOPERM0	OMAP2_IO_ADDRESS(0x68012848)
+#define OMAP34XX_VA_READPERM0		OMAP2_IO_ADDRESS(0x68012850)
+#define OMAP34XX_VA_WRITEPERM0		OMAP2_IO_ADDRESS(0x68012858)
+#define OMAP34XX_VA_ADDR_MATCH2		OMAP2_IO_ADDRESS(0x68012880)
+#define OMAP34XX_VA_SMS_RG_ATT0		OMAP2_IO_ADDRESS(0x6C000048)
+#define OMAP34XX_VA_CONTROL_STAT	OMAP2_IO_ADDRESS(0x480022F0)
 
 #define GP_DEVICE		0x300
 
@@ -133,7 +133,12 @@ void __init omap_detect_sram(void)
 			if (cpu_is_omap34xx()) {
 				omap_sram_base = OMAP3_SRAM_PUB_VA;
 				omap_sram_start = OMAP3_SRAM_PUB_PA;
-				omap_sram_size = 0x8000; /* 32K */
+				if ((omap_type() == OMAP2_DEVICE_TYPE_EMU) ||
+				    (omap_type() == OMAP2_DEVICE_TYPE_SEC)) {
+					omap_sram_size = 0x7000; /* 28K */
+				} else {
+					omap_sram_size = 0x8000; /* 32K */
+				}
 			} else {
 				omap_sram_base = OMAP2_SRAM_PUB_VA;
 				omap_sram_start = OMAP2_SRAM_PUB_PA;
@@ -368,20 +373,26 @@ static inline int omap243x_sram_init(void)
 
 #ifdef CONFIG_ARCH_OMAP3
 
-static u32 (*_omap3_sram_configure_core_dpll)(u32 sdrc_rfr_ctrl,
-					      u32 sdrc_actim_ctrla,
-					      u32 sdrc_actim_ctrlb,
-					      u32 m2, u32 unlock_dll,
-					      u32 f, u32 sdrc_mr, u32 inc);
-u32 omap3_configure_core_dpll(u32 sdrc_rfr_ctrl, u32 sdrc_actim_ctrla,
-			      u32 sdrc_actim_ctrlb, u32 m2, u32 unlock_dll,
-			      u32 f, u32 sdrc_mr, u32 inc)
+static u32 (*_omap3_sram_configure_core_dpll)(
+			u32 m2, u32 unlock_dll, u32 f, u32 inc,
+			u32 sdrc_rfr_ctrl_0, u32 sdrc_actim_ctrl_a_0,
+			u32 sdrc_actim_ctrl_b_0, u32 sdrc_mr_0,
+			u32 sdrc_rfr_ctrl_1, u32 sdrc_actim_ctrl_a_1,
+			u32 sdrc_actim_ctrl_b_1, u32 sdrc_mr_1);
+
+u32 omap3_configure_core_dpll(u32 m2, u32 unlock_dll, u32 f, u32 inc,
+			u32 sdrc_rfr_ctrl_0, u32 sdrc_actim_ctrl_a_0,
+			u32 sdrc_actim_ctrl_b_0, u32 sdrc_mr_0,
+			u32 sdrc_rfr_ctrl_1, u32 sdrc_actim_ctrl_a_1,
+			u32 sdrc_actim_ctrl_b_1, u32 sdrc_mr_1)
 {
 	BUG_ON(!_omap3_sram_configure_core_dpll);
-	return _omap3_sram_configure_core_dpll(sdrc_rfr_ctrl,
-					       sdrc_actim_ctrla,
-					       sdrc_actim_ctrlb, m2,
-					       unlock_dll, f, sdrc_mr, inc);
+	return _omap3_sram_configure_core_dpll(
+			m2, unlock_dll, f, inc,
+			sdrc_rfr_ctrl_0, sdrc_actim_ctrl_a_0,
+			sdrc_actim_ctrl_b_0, sdrc_mr_0,
+			sdrc_rfr_ctrl_1, sdrc_actim_ctrl_a_1,
+			sdrc_actim_ctrl_b_1, sdrc_mr_1);
 }
 
 /* REVISIT: Should this be same as omap34xx_sram_init() after off-idle? */

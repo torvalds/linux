@@ -21,7 +21,7 @@ static void afs_fl_release_private(struct file_lock *fl);
 static struct workqueue_struct *afs_lock_manager;
 static DEFINE_MUTEX(afs_lock_manager_mutex);
 
-static struct file_lock_operations afs_lock_ops = {
+static const struct file_lock_operations afs_lock_ops = {
 	.fl_copy_lock		= afs_fl_copy_lock,
 	.fl_release_private	= afs_fl_release_private,
 };
@@ -432,7 +432,6 @@ vfs_rejected_lock:
 	list_del_init(&fl->fl_u.afs.link);
 	if (list_empty(&vnode->granted_locks))
 		afs_defer_unlock(vnode, key);
-	spin_unlock(&vnode->lock);
 	goto abort_attempt;
 }
 

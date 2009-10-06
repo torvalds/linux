@@ -715,7 +715,7 @@ static int meth_tx(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&priv->meth_lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -784,7 +784,7 @@ static const struct net_device_ops meth_netdev_ops = {
 /*
  * The init function.
  */
-static int __init meth_probe(struct platform_device *pdev)
+static int __devinit meth_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct meth_private *priv;
@@ -828,7 +828,7 @@ static int __exit meth_remove(struct platform_device *pdev)
 
 static struct platform_driver meth_driver = {
 	.probe	= meth_probe,
-	.remove	= __devexit_p(meth_remove),
+	.remove	= __exit_p(meth_remove),
 	.driver = {
 		.name	= "meth",
 		.owner	= THIS_MODULE,

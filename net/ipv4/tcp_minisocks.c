@@ -128,7 +128,8 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 			goto kill_with_rst;
 
 		/* Dup ACK? */
-		if (!after(TCP_SKB_CB(skb)->end_seq, tcptw->tw_rcv_nxt) ||
+		if (!th->ack ||
+		    !after(TCP_SKB_CB(skb)->end_seq, tcptw->tw_rcv_nxt) ||
 		    TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq) {
 			inet_twsk_put(tw);
 			return TCP_TW_SUCCESS;
@@ -321,7 +322,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			if (key != NULL) {
 				memcpy(&tcptw->tw_md5_key, key->key, key->keylen);
 				tcptw->tw_md5_keylen = key->keylen;
-				if (tcp_alloc_md5sig_pool() == NULL)
+				if (tcp_alloc_md5sig_pool(sk) == NULL)
 					BUG();
 			}
 		} while (0);
@@ -362,7 +363,7 @@ void tcp_twsk_destructor(struct sock *sk)
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_timewait_sock *twsk = tcp_twsk(sk);
 	if (twsk->tw_md5_keylen)
-		tcp_put_md5sig_pool();
+		tcp_free_md5sig_pool();
 #endif
 }
 
@@ -409,7 +410,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->retrans_out = 0;
 		newtp->sacked_out = 0;
 		newtp->fackets_out = 0;
-		newtp->snd_ssthresh = 0x7fffffff;
+		newtp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 
 		/* So many TCP implementations out there (incorrectly) count the
 		 * initial SYN frame in their delayed-ACK and congestion control
@@ -656,29 +657,6 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
 	if (child == NULL)
 		goto listen_overflow;
-#ifdef CONFIG_TCP_MD5SIG
-	else {
-		/* Copy over the MD5 key from the original socket */
-		struct tcp_md5sig_key *key;
-		struct tcp_sock *tp = tcp_sk(sk);
-		key = tp->af_specific->md5_lookup(sk, child);
-		if (key != NULL) {
-			/*
-			 * We're using one, so create a matching key on the
-			 * newsk structure. If we fail to get memory then we
-			 * end up not copying the key across. Shucks.
-			 */
-			char *newkey = kmemdup(key->key, key->keylen,
-					       GFP_ATOMIC);
-			if (newkey) {
-				if (!tcp_alloc_md5sig_pool())
-					BUG();
-				tp->af_specific->md5_add(child, child, newkey,
-							 key->keylen);
-			}
-		}
-	}
-#endif
 
 	inet_csk_reqsk_queue_unlink(sk, req, prev);
 	inet_csk_reqsk_queue_removed(sk, req);

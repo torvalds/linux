@@ -58,11 +58,17 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long write,
 	 * only copy the information from the master page table,
 	 * nothing more.
 	 */
+#ifdef CONFIG_64BIT
+# define VMALLOC_FAULT_TARGET no_context
+#else
+# define VMALLOC_FAULT_TARGET vmalloc_fault
+#endif
+
 	if (unlikely(address >= VMALLOC_START && address <= VMALLOC_END))
-		goto vmalloc_fault;
+		goto VMALLOC_FAULT_TARGET;
 #ifdef MODULE_START
 	if (unlikely(address >= MODULE_START && address < MODULE_END))
-		goto vmalloc_fault;
+		goto VMALLOC_FAULT_TARGET;
 #endif
 
 	/*
@@ -171,6 +177,7 @@ out_of_memory:
 	 * We ran out of memory, call the OOM killer, and return the userspace
 	 * (which will retry the fault, or kill us if we got oom-killed).
 	 */
+	up_read(&mm->mmap_sem);
 	pagefault_out_of_memory();
 	return;
 
@@ -202,6 +209,7 @@ do_sigbus:
 	force_sig_info(SIGBUS, &info, tsk);
 
 	return;
+#ifndef CONFIG_64BIT
 vmalloc_fault:
 	{
 		/*
@@ -240,4 +248,5 @@ vmalloc_fault:
 			goto no_context;
 		return;
 	}
+#endif
 }

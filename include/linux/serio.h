@@ -31,8 +31,6 @@ struct serio {
 
 	bool manual_bind;
 	bool registered;	/* port has been fully registered with driver core */
-	bool suspended;		/* port is suspended */
-
 
 	struct serio_device_id id;
 

@@ -537,8 +537,12 @@ int bbc_envctrl_init(struct bbc_i2c_bus *bp)
 	}
 	if (temp_index != 0 && fan_index != 0) {
 		kenvctrld_task = kthread_run(kenvctrld, NULL, "kenvctrld");
-		if (IS_ERR(kenvctrld_task))
-			return PTR_ERR(kenvctrld_task);
+		if (IS_ERR(kenvctrld_task)) {
+			int err = PTR_ERR(kenvctrld_task);
+
+			kenvctrld_task = NULL;
+			return err;
+		}
 	}
 
 	return 0;
@@ -561,7 +565,8 @@ void bbc_envctrl_cleanup(struct bbc_i2c_bus *bp)
 	struct bbc_cpu_temperature *tp, *tpos;
 	struct bbc_fan_control *fp, *fpos;
 
-	kthread_stop(kenvctrld_task);
+	if (kenvctrld_task)
+		kthread_stop(kenvctrld_task);
 
 	list_for_each_entry_safe(tp, tpos, &bp->temps, bp_list) {
 		list_del(&tp->bp_list);

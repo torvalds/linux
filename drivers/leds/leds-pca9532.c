@@ -19,9 +19,6 @@
 #include <linux/workqueue.h>
 #include <linux/leds-pca9532.h>
 
-static const unsigned short normal_i2c[] = { /*0x60,*/ I2C_CLIENT_END};
-I2C_CLIENT_INSMOD_1(pca9532);
-
 #define PCA9532_REG_PSC(i) (0x2+(i)*2)
 #define PCA9532_REG_PWM(i) (0x3+(i)*2)
 #define PCA9532_REG_LS0  0x6
@@ -34,8 +31,8 @@ struct pca9532_data {
 	struct i2c_client *client;
 	struct pca9532_led leds[16];
 	struct mutex update_lock;
-	struct input_dev    *idev;
-       struct work_struct work;
+	struct input_dev *idev;
+	struct work_struct work;
 	u8 pwm[2];
 	u8 psc[2];
 };
@@ -53,9 +50,9 @@ MODULE_DEVICE_TABLE(i2c, pca9532_id);
 
 static struct i2c_driver pca9532_driver = {
 	.driver = {
-		.name   = "pca9532",
+		.name = "pca9532",
 	},
-	.probe  = pca9532_probe,
+	.probe = pca9532_probe,
 	.remove = pca9532_remove,
 	.id_table = pca9532_id,
 };
@@ -87,14 +84,14 @@ static int pca9532_calcpwm(struct i2c_client *client, int pwm, int blink,
 	if (b > 0xFF)
 		return -EINVAL;
 	data->pwm[pwm] = b;
-       data->psc[pwm] = blink;
-       return 0;
+	data->psc[pwm] = blink;
+	return 0;
 }
 
 static int pca9532_setpwm(struct i2c_client *client, int pwm)
 {
-       struct pca9532_data *data = i2c_get_clientdata(client);
-       mutex_lock(&data->update_lock);
+	struct pca9532_data *data = i2c_get_clientdata(client);
+	mutex_lock(&data->update_lock);
 	i2c_smbus_write_byte_data(client, PCA9532_REG_PWM(pwm),
 		data->pwm[pwm]);
 	i2c_smbus_write_byte_data(client, PCA9532_REG_PSC(pwm),
@@ -132,11 +129,11 @@ static void pca9532_set_brightness(struct led_classdev *led_cdev,
 		led->state = PCA9532_ON;
 	else {
 		led->state = PCA9532_PWM0; /* Thecus: hardcode one pwm */
-               err = pca9532_calcpwm(led->client, 0, 0, value);
+		err = pca9532_calcpwm(led->client, 0, 0, value);
 		if (err)
 			return; /* XXX: led api doesn't allow error code? */
 	}
-       schedule_work(&led->work);
+	schedule_work(&led->work);
 }
 
 static int pca9532_set_blink(struct led_classdev *led_cdev,
@@ -145,11 +142,11 @@ static int pca9532_set_blink(struct led_classdev *led_cdev,
 	struct pca9532_led *led = ldev_to_led(led_cdev);
 	struct i2c_client *client = led->client;
 	int psc;
-       int err = 0;
+	int err = 0;
 
 	if (*delay_on == 0 && *delay_off == 0) {
 	/* led subsystem ask us for a blink rate */
-		*delay_on  = 1000;
+		*delay_on = 1000;
 		*delay_off = 1000;
 	}
 	if (*delay_on != *delay_off || *delay_on > 1690 || *delay_on < 6)
@@ -157,11 +154,11 @@ static int pca9532_set_blink(struct led_classdev *led_cdev,
 
 	/* Thecus specific: only use PSC/PWM 0 */
 	psc = (*delay_on * 152-1)/1000;
-       err = pca9532_calcpwm(client, 0, psc, led_cdev->brightness);
-       if (err)
-               return err;
-       schedule_work(&led->work);
-       return 0;
+	err = pca9532_calcpwm(client, 0, psc, led_cdev->brightness);
+	if (err)
+		return err;
+	schedule_work(&led->work);
+	return 0;
 }
 
 static int pca9532_event(struct input_dev *dev, unsigned int type,
@@ -178,15 +175,15 @@ static int pca9532_event(struct input_dev *dev, unsigned int type,
 	else
 		data->pwm[1] = 0;
 
-       schedule_work(&data->work);
+	schedule_work(&data->work);
 
-       return 0;
+	return 0;
 }
 
 static void pca9532_input_work(struct work_struct *work)
 {
-       struct pca9532_data *data;
-       data = container_of(work, struct pca9532_data, work);
+	struct pca9532_data *data;
+	data = container_of(work, struct pca9532_data, work);
 	mutex_lock(&data->update_lock);
 	i2c_smbus_write_byte_data(data->client, PCA9532_REG_PWM(1),
 		data->pwm[1]);
@@ -195,11 +192,11 @@ static void pca9532_input_work(struct work_struct *work)
 
 static void pca9532_led_work(struct work_struct *work)
 {
-       struct pca9532_led *led;
-       led = container_of(work, struct pca9532_led, work);
-       if (led->state == PCA9532_PWM0)
-               pca9532_setpwm(led->client, 0);
-       pca9532_setled(led);
+	struct pca9532_led *led;
+	led = container_of(work, struct pca9532_led, work);
+	if (led->state == PCA9532_PWM0)
+		pca9532_setpwm(led->client, 0);
+	pca9532_setled(led);
 }
 
 static int pca9532_configure(struct i2c_client *client,
@@ -227,12 +224,12 @@ static int pca9532_configure(struct i2c_client *client,
 			break;
 		case PCA9532_TYPE_LED:
 			led->state = pled->state;
-			led->name =  pled->name;
+			led->name = pled->name;
 			led->ldev.name = led->name;
 			led->ldev.brightness = LED_OFF;
 			led->ldev.brightness_set = pca9532_set_brightness;
 			led->ldev.blink_set = pca9532_set_blink;
-                       INIT_WORK(&led->work, pca9532_led_work);
+			INIT_WORK(&led->work, pca9532_led_work);
 			err = led_classdev_register(&client->dev, &led->ldev);
 			if (err < 0) {
 				dev_err(&client->dev,
@@ -254,7 +251,7 @@ static int pca9532_configure(struct i2c_client *client,
 			data->idev->name = pled->name;
 			data->idev->phys = "i2c/pca9532";
 			data->idev->id.bustype = BUS_HOST;
-			data->idev->id.vendor  = 0x001f;
+			data->idev->id.vendor = 0x001f;
 			data->idev->id.product = 0x0001;
 			data->idev->id.version = 0x0100;
 			data->idev->evbit[0] = BIT_MASK(EV_SND);
@@ -262,11 +259,11 @@ static int pca9532_configure(struct i2c_client *client,
 						BIT_MASK(SND_TONE);
 			data->idev->event = pca9532_event;
 			input_set_drvdata(data->idev, data);
-                       INIT_WORK(&data->work, pca9532_input_work);
+			INIT_WORK(&data->work, pca9532_input_work);
 			err = input_register_device(data->idev);
 			if (err) {
 				input_free_device(data->idev);
-                               cancel_work_sync(&data->work);
+				cancel_work_sync(&data->work);
 				data->idev = NULL;
 				goto exit;
 			}
@@ -283,13 +280,13 @@ exit:
 				break;
 			case PCA9532_TYPE_LED:
 				led_classdev_unregister(&data->leds[i].ldev);
-                               cancel_work_sync(&data->leds[i].work);
+				cancel_work_sync(&data->leds[i].work);
 				break;
 			case PCA9532_TYPE_N2100_BEEP:
 				if (data->idev != NULL) {
 					input_unregister_device(data->idev);
 					input_free_device(data->idev);
-                                       cancel_work_sync(&data->work);
+					cancel_work_sync(&data->work);
 					data->idev = NULL;
 				}
 				break;
@@ -340,13 +337,13 @@ static int pca9532_remove(struct i2c_client *client)
 			break;
 		case PCA9532_TYPE_LED:
 			led_classdev_unregister(&data->leds[i].ldev);
-                       cancel_work_sync(&data->leds[i].work);
+			cancel_work_sync(&data->leds[i].work);
 			break;
 		case PCA9532_TYPE_N2100_BEEP:
 			if (data->idev != NULL) {
 				input_unregister_device(data->idev);
 				input_free_device(data->idev);
-                               cancel_work_sync(&data->work);
+				cancel_work_sync(&data->work);
 				data->idev = NULL;
 			}
 			break;

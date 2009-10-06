@@ -53,6 +53,10 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"tx_packets", IXGBE_STAT(net_stats.tx_packets)},
 	{"rx_bytes", IXGBE_STAT(net_stats.rx_bytes)},
 	{"tx_bytes", IXGBE_STAT(net_stats.tx_bytes)},
+	{"rx_pkts_nic", IXGBE_STAT(stats.gprc)},
+	{"tx_pkts_nic", IXGBE_STAT(stats.gptc)},
+	{"rx_bytes_nic", IXGBE_STAT(stats.gorc)},
+	{"tx_bytes_nic", IXGBE_STAT(stats.gotc)},
 	{"lsc_int", IXGBE_STAT(lsc_int)},
 	{"tx_busy", IXGBE_STAT(tx_busy)},
 	{"non_eop_descs", IXGBE_STAT(non_eop_descs)},
@@ -139,7 +143,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	ecmd->autoneg = AUTONEG_ENABLE;
 	ecmd->transceiver = XCVR_EXTERNAL;
 	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
-	    (hw->mac.type == ixgbe_mac_82599EB)) {
+	    (hw->phy.multispeed_fiber)) {
 		ecmd->supported |= (SUPPORTED_1000baseT_Full |
 		                    SUPPORTED_Autoneg);
 
@@ -169,23 +173,20 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		}
 	} else if (hw->phy.media_type == ixgbe_media_type_backplane) {
 		/* Set as FIBRE until SERDES defined in kernel */
-		switch (hw->device_id) {
-		case IXGBE_DEV_ID_82598:
-			ecmd->supported |= (SUPPORTED_1000baseT_Full |
-				SUPPORTED_FIBRE);
-			ecmd->advertising = (ADVERTISED_10000baseT_Full |
-				ADVERTISED_1000baseT_Full |
-				ADVERTISED_FIBRE);
-			ecmd->port = PORT_FIBRE;
-			break;
-		case IXGBE_DEV_ID_82598_BX:
+		if (hw->device_id == IXGBE_DEV_ID_82598_BX) {
 			ecmd->supported = (SUPPORTED_1000baseT_Full |
 					   SUPPORTED_FIBRE);
 			ecmd->advertising = (ADVERTISED_1000baseT_Full |
 					     ADVERTISED_FIBRE);
 			ecmd->port = PORT_FIBRE;
 			ecmd->autoneg = AUTONEG_DISABLE;
-			break;
+		} else {
+			ecmd->supported |= (SUPPORTED_1000baseT_Full |
+					    SUPPORTED_FIBRE);
+			ecmd->advertising = (ADVERTISED_10000baseT_Full |
+					     ADVERTISED_1000baseT_Full |
+					     ADVERTISED_FIBRE);
+			ecmd->port = PORT_FIBRE;
 		}
 	} else {
 		ecmd->supported |= SUPPORTED_FIBRE;
@@ -217,7 +218,7 @@ static int ixgbe_set_settings(struct net_device *netdev,
 	s32 err = 0;
 
 	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
-	    (hw->mac.type == ixgbe_mac_82599EB)) {
+	    (hw->phy.multispeed_fiber)) {
 		/* 10000/copper and 1000/copper must autoneg
 		 * this function does not support any duplex forcing, but can
 		 * limit the advertising of the adapter to only 10000 or 1000 */
@@ -236,15 +237,16 @@ static int ixgbe_set_settings(struct net_device *netdev,
 			return err;
 		/* this sets the link speed and restarts auto-neg */
 		hw->mac.autotry_restart = true;
-		err = hw->mac.ops.setup_link_speed(hw, advertised, true, true);
+		err = hw->mac.ops.setup_link(hw, advertised, true, true);
 		if (err) {
 			DPRINTK(PROBE, INFO,
 			        "setup link failed with code %d\n", err);
-			hw->mac.ops.setup_link_speed(hw, old, true, true);
+			hw->mac.ops.setup_link(hw, old, true, true);
 		}
 	} else {
 		/* in this case we currently only support 10Gb/FULL */
 		if ((ecmd->autoneg == AUTONEG_ENABLE) ||
+		    (ecmd->advertising != ADVERTISED_10000baseT_Full) ||
 		    (ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
 			return -EINVAL;
 	}
@@ -1439,7 +1441,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 		goto err_nomem;
 	}
 
-	tx_ring->size = tx_ring->count * sizeof(struct ixgbe_legacy_tx_desc);
+	tx_ring->size = tx_ring->count * sizeof(union ixgbe_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 	if (!(tx_ring->desc = pci_alloc_consistent(pdev, tx_ring->size,
 						   &tx_ring->dma))) {
@@ -1453,7 +1455,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_TDBAH(0),
 			((u64) tx_ring->dma >> 32));
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_TDLEN(0),
-			tx_ring->count * sizeof(struct ixgbe_legacy_tx_desc));
+			tx_ring->count * sizeof(union ixgbe_adv_tx_desc));
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_TDH(0), 0);
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_TDT(0), 0);
 
@@ -1471,7 +1473,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_TXDCTL(0), reg_data);
 
 	for (i = 0; i < tx_ring->count; i++) {
-		struct ixgbe_legacy_tx_desc *desc = IXGBE_TX_DESC(*tx_ring, i);
+		union ixgbe_adv_tx_desc *desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
 		struct sk_buff *skb;
 		unsigned int size = 1024;
 
@@ -1485,13 +1487,18 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 		tx_ring->tx_buffer_info[i].length = skb->len;
 		tx_ring->tx_buffer_info[i].dma =
 			pci_map_single(pdev, skb->data, skb->len,
-					PCI_DMA_TODEVICE);
-		desc->buffer_addr = cpu_to_le64(tx_ring->tx_buffer_info[i].dma);
-		desc->lower.data = cpu_to_le32(skb->len);
-		desc->lower.data |= cpu_to_le32(IXGBE_TXD_CMD_EOP |
-		                                IXGBE_TXD_CMD_IFCS |
-		                                IXGBE_TXD_CMD_RS);
-		desc->upper.data = 0;
+			               PCI_DMA_TODEVICE);
+		desc->read.buffer_addr =
+		                    cpu_to_le64(tx_ring->tx_buffer_info[i].dma);
+		desc->read.cmd_type_len = cpu_to_le32(skb->len);
+		desc->read.cmd_type_len |= cpu_to_le32(IXGBE_TXD_CMD_EOP |
+		                                       IXGBE_TXD_CMD_IFCS |
+		                                       IXGBE_TXD_CMD_RS);
+		desc->read.olinfo_status = 0;
+		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+			desc->read.olinfo_status |=
+			                (skb->len << IXGBE_ADVTXD_PAYLEN_SHIFT);
+
 	}
 
 	/* Setup Rx Descriptor ring and Rx buffers */
@@ -1507,7 +1514,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 		goto err_nomem;
 	}
 
-	rx_ring->size = rx_ring->count * sizeof(struct ixgbe_legacy_rx_desc);
+	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
 	if (!(rx_ring->desc = pci_alloc_consistent(pdev, rx_ring->size,
 						   &rx_ring->dma))) {
@@ -1565,8 +1572,8 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_RXCTRL, rctl);
 
 	for (i = 0; i < rx_ring->count; i++) {
-		struct ixgbe_legacy_rx_desc *rx_desc =
-					IXGBE_RX_DESC(*rx_ring, i);
+		union ixgbe_adv_rx_desc *rx_desc =
+		                                 IXGBE_RX_DESC_ADV(*rx_ring, i);
 		struct sk_buff *skb;
 
 		skb = alloc_skb(IXGBE_RXBUFFER_2048 + NET_IP_ALIGN, GFP_KERNEL);
@@ -1579,7 +1586,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 		rx_ring->rx_buffer_info[i].dma =
 			pci_map_single(pdev, skb->data, IXGBE_RXBUFFER_2048,
 			               PCI_DMA_FROMDEVICE);
-		rx_desc->buffer_addr =
+		rx_desc->read.pkt_addr =
 				cpu_to_le64(rx_ring->rx_buffer_info[i].dma);
 		memset(skb->data, 0x00, skb->len);
 	}
@@ -1829,7 +1836,6 @@ static int ixgbe_wol_exclusion(struct ixgbe_adapter *adapter,
 		break;
 	default:
 		wol->supported = 0;
-		retval = 0;
 	}
 
 	return retval;
@@ -1927,7 +1933,7 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 	ec->tx_max_coalesced_frames_irq = adapter->tx_ring[0].work_limit;
 
 	/* only valid if in constant ITR mode */
-	switch (adapter->itr_setting) {
+	switch (adapter->rx_itr_setting) {
 	case 0:
 		/* throttling disabled */
 		ec->rx_coalesce_usecs = 0;
@@ -1938,9 +1944,25 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 		break;
 	default:
 		/* fixed interrupt rate mode */
-		ec->rx_coalesce_usecs = 1000000/adapter->eitr_param;
+		ec->rx_coalesce_usecs = 1000000/adapter->rx_eitr_param;
 		break;
 	}
+
+	/* only valid if in constant ITR mode */
+	switch (adapter->tx_itr_setting) {
+	case 0:
+		/* throttling disabled */
+		ec->tx_coalesce_usecs = 0;
+		break;
+	case 1:
+		/* dynamic ITR mode */
+		ec->tx_coalesce_usecs = 1;
+		break;
+	default:
+		ec->tx_coalesce_usecs = 1000000/adapter->tx_eitr_param;
+		break;
+	}
+
 	return 0;
 }
 
@@ -1948,7 +1970,16 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
                               struct ethtool_coalesce *ec)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_q_vector *q_vector;
 	int i;
+
+	/*
+	 * don't accept tx specific changes if we've got mixed RxTx vectors
+	 * test and jump out here if needed before changing the rx numbers
+	 */
+	if ((1000000/ec->tx_coalesce_usecs) != adapter->tx_eitr_param &&
+	    adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count)
+		return -EINVAL;
 
 	if (ec->tx_max_coalesced_frames_irq)
 		adapter->tx_ring[0].work_limit = ec->tx_max_coalesced_frames_irq;
@@ -1960,33 +1991,69 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 			return -EINVAL;
 
 		/* store the value in ints/second */
-		adapter->eitr_param = 1000000/ec->rx_coalesce_usecs;
+		adapter->rx_eitr_param = 1000000/ec->rx_coalesce_usecs;
 
 		/* static value of interrupt rate */
-		adapter->itr_setting = adapter->eitr_param;
+		adapter->rx_itr_setting = adapter->rx_eitr_param;
 		/* clear the lower bit as its used for dynamic state */
-		adapter->itr_setting &= ~1;
+		adapter->rx_itr_setting &= ~1;
 	} else if (ec->rx_coalesce_usecs == 1) {
 		/* 1 means dynamic mode */
-		adapter->eitr_param = 20000;
-		adapter->itr_setting = 1;
+		adapter->rx_eitr_param = 20000;
+		adapter->rx_itr_setting = 1;
 	} else {
 		/*
 		 * any other value means disable eitr, which is best
 		 * served by setting the interrupt rate very high
 		 */
-		adapter->eitr_param = IXGBE_MAX_INT_RATE;
-		adapter->itr_setting = 0;
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
+			adapter->rx_eitr_param = IXGBE_MAX_RSC_INT_RATE;
+		else
+			adapter->rx_eitr_param = IXGBE_MAX_INT_RATE;
+		adapter->rx_itr_setting = 0;
 	}
 
-	for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++) {
-		struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
-		if (q_vector->txr_count && !q_vector->rxr_count)
-			/* tx vector gets half the rate */
-			q_vector->eitr = (adapter->eitr_param >> 1);
-		else
-			/* rx only or mixed */
-			q_vector->eitr = adapter->eitr_param;
+	if (ec->tx_coalesce_usecs > 1) {
+		/* check the limits */
+		if ((1000000/ec->tx_coalesce_usecs > IXGBE_MAX_INT_RATE) ||
+		    (1000000/ec->tx_coalesce_usecs < IXGBE_MIN_INT_RATE))
+			return -EINVAL;
+
+		/* store the value in ints/second */
+		adapter->tx_eitr_param = 1000000/ec->tx_coalesce_usecs;
+
+		/* static value of interrupt rate */
+		adapter->tx_itr_setting = adapter->tx_eitr_param;
+
+		/* clear the lower bit as its used for dynamic state */
+		adapter->tx_itr_setting &= ~1;
+	} else if (ec->tx_coalesce_usecs == 1) {
+		/* 1 means dynamic mode */
+		adapter->tx_eitr_param = 10000;
+		adapter->tx_itr_setting = 1;
+	} else {
+		adapter->tx_eitr_param = IXGBE_MAX_INT_RATE;
+		adapter->tx_itr_setting = 0;
+	}
+
+	/* MSI/MSIx Interrupt Mode */
+	if (adapter->flags &
+	    (IXGBE_FLAG_MSIX_ENABLED | IXGBE_FLAG_MSI_ENABLED)) {
+		int num_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+		for (i = 0; i < num_vectors; i++) {
+			q_vector = adapter->q_vector[i];
+			if (q_vector->txr_count && !q_vector->rxr_count)
+				/* tx only */
+				q_vector->eitr = adapter->tx_eitr_param;
+			else
+				/* rx only or mixed */
+				q_vector->eitr = adapter->rx_eitr_param;
+			ixgbe_write_eitr(q_vector);
+		}
+	/* Legacy Interrupt Mode */
+	} else {
+		q_vector = adapter->q_vector[0];
+		q_vector->eitr = adapter->rx_eitr_param;
 		ixgbe_write_eitr(q_vector);
 	}
 
@@ -1999,13 +2066,13 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 
 	ethtool_op_set_flags(netdev, data);
 
-	if (!(adapter->flags & IXGBE_FLAG2_RSC_CAPABLE))
+	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
 		return 0;
 
 	/* if state changes we need to update adapter->flags and reset */
 	if ((!!(data & ETH_FLAG_LRO)) != 
-	    (!!(adapter->flags & IXGBE_FLAG2_RSC_ENABLED))) {
-		adapter->flags ^= IXGBE_FLAG2_RSC_ENABLED;
+	    (!!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) {
+		adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
 		if (netif_running(netdev))
 			ixgbe_reinit_locked(adapter);
 		else

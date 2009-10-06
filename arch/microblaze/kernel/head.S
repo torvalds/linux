@@ -31,6 +31,7 @@
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
+#include <asm/prom.h>		/* for OF_DT_HEADER */
 
 #ifdef CONFIG_MMU
 #include <asm/setup.h> /* COMMAND_LINE_SIZE */
@@ -53,12 +54,30 @@ ENTRY(_start)
 	mfs	r1, rmsr
 	andi	r1, r1, ~2
 	mts	rmsr, r1
+/*
+ * Here is checking mechanism which check if Microblaze has msr instructions
+ * We load msr and compare it with previous r1 value - if is the same,
+ * msr instructions works if not - cpu don't have them.
+ */
+	/* r8=0 - I have msr instr, 1 - I don't have them */
+	rsubi	r0, r0, 1	/* set the carry bit */
+	msrclr	r0, 0x4		/* try to clear it */
+	/* read the carry bit, r8 will be '0' if msrclr exists */
+	addik	r8, r0, 0
 
-/* save fdt to kernel location */
-/* r7 stores pointer to fdt blob */
-	beqi	r7, no_fdt_arg
+/* r7 may point to an FDT, or there may be one linked in.
+   if it's in r7, we've got to save it away ASAP.
+   We ensure r7 points to a valid FDT, just in case the bootloader
+   is broken or non-existent */
+	beqi	r7, no_fdt_arg			/* NULL pointer?  don't copy */
+	lw	r11, r0, r7			/* Does r7 point to a */
+	rsubi	r11, r11, OF_DT_HEADER		/* valid FDT? */
+	beqi	r11, _prepare_copy_fdt
+	or	r7, r0, r0		/* clear R7 when not valid DTB */
+	bnei	r11, no_fdt_arg			/* No - get out of here */
+_prepare_copy_fdt:
 	or	r11, r0, r0 /* incremment */
-	ori	r4, r0, TOPHYS(_fdt_start) /* save bram context */
+	ori	r4, r0, TOPHYS(_fdt_start)
 	ori	r3, r0, (0x4000 - 4)
 _copy_fdt:
 	lw	r12, r7, r11 /* r12 = r7 + r11 */
@@ -200,8 +219,8 @@ start_here:
 	 * Please see $(ARCH)/mach-$(SUBARCH)/setup.c for
 	 * the function.
 	 */
-	la	r8, r0, machine_early_init
-	brald	r15, r8
+	la	r9, r0, machine_early_init
+	brald	r15, r9
 	nop
 
 #ifndef CONFIG_MMU

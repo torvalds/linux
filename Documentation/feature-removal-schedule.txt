@@ -6,6 +6,35 @@ be removed from this file.
 
 ---------------------------
 
+What:	PRISM54
+When:	2.6.34
+
+Why:	prism54 FullMAC PCI / Cardbus devices used to be supported only by the
+	prism54 wireless driver. After Intersil stopped selling these
+	devices in preference for the newer more flexible SoftMAC devices
+	a SoftMAC device driver was required and prism54 did not support
+	them. The p54pci driver now exists and has been present in the kernel for
+	a while. This driver supports both SoftMAC devices and FullMAC devices.
+	The main difference between these devices was the amount of memory which
+	could be used for the firmware. The SoftMAC devices support a smaller
+	amount of memory. Because of this the SoftMAC firmware fits into FullMAC
+	devices's memory. p54pci supports not only PCI / Cardbus but also USB
+	and SPI. Since p54pci supports all devices prism54 supports
+	you will have a conflict. I'm not quite sure how distributions are
+	handling this conflict right now. prism54 was kept around due to
+	claims users may experience issues when using the SoftMAC driver.
+	Time has passed users have not reported issues. If you use prism54
+	and for whatever reason you cannot use p54pci please let us know!
+	E-mail us at: linux-wireless@vger.kernel.org
+
+	For more information see the p54 wiki page:
+
+	http://wireless.kernel.org/en/users/Drivers/p54
+
+Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
+
+---------------------------
+
 What:	IRQF_SAMPLE_RANDOM
 Check:	IRQF_SAMPLE_RANDOM
 When:	July 2009
@@ -206,24 +235,6 @@ Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
-What: libata spindown skipping and warning
-When: Dec 2008
-Why:  Some halt(8) implementations synchronize caches for and spin
-      down libata disks because libata didn't use to spin down disk on
-      system halt (only synchronized caches).
-      Spin down on system halt is now implemented.  sysfs node
-      /sys/class/scsi_disk/h:c:i:l/manage_start_stop is present if
-      spin down support is available.
-      Because issuing spin down command to an already spun down disk
-      makes some disks spin up just to spin down again, libata tracks
-      device spindown status to skip the extra spindown command and
-      warn about it.
-      This is to give userspace tools the time to get updated and will
-      be removed after userspace is reasonably updated.
-Who:  Tejun Heo <htejun@gmail.com>
-
----------------------------
-
 What:	i386/x86_64 bzImage symlinks
 When:	April 2010
 
@@ -235,31 +246,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 ---------------------------
 
 What (Why):
-	- include/linux/netfilter_ipv4/ipt_TOS.h ipt_tos.h header files
-	  (superseded by xt_TOS/xt_tos target & match)
-
-	- "forwarding" header files like ipt_mac.h in
-	  include/linux/netfilter_ipv4/ and include/linux/netfilter_ipv6/
-
-	- xt_CONNMARK match revision 0
-	  (superseded by xt_CONNMARK match revision 1)
-
-	- xt_MARK target revisions 0 and 1
-	  (superseded by xt_MARK match revision 2)
-
-	- xt_connmark match revision 0
-	  (superseded by xt_connmark match revision 1)
-
-	- xt_conntrack match revision 0
-	  (superseded by xt_conntrack match revision 1)
-
-	- xt_iprange match revision 0,
-	  include/linux/netfilter_ipv4/ipt_iprange.h
-	  (superseded by xt_iprange match revision 1)
-
-	- xt_mark match revision 0
-	  (superseded by xt_mark match revision 1)
-
 	- xt_recent: the old ipt_recent proc dir
 	  (superseded by /proc/net/xt_recent)
 
@@ -368,14 +354,6 @@ Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
 
 ---------------------------
 
-What:	fscher and fscpos drivers
-When:	June 2009
-Why:	Deprecated by the new fschmd driver.
-Who:	Hans de Goede <hdegoede@redhat.com>
-	Jean Delvare <khali@linux-fr.org>
-
----------------------------
-
 What:	sysfs ui for changing p4-clockmod parameters
 When:	September 2009
 Why:	See commits 129f8ae9b1b5be94517da76009ea956e89104ce8 and
@@ -393,15 +371,6 @@ Why:	__do_IRQ was kept for easy migration to the type flow handlers.
 Who:	Thomas Gleixner <tglx@linutronix.de>
 
 -----------------------------
-
-What:	obsolete generic irq defines and typedefs
-When:	2.6.30
-Why:	The defines and typedefs (hw_interrupt_type, no_irq_type, irq_desc_t)
-	have been kept around for migration reasons. After more than two years
-	it's time to remove them finally
-Who:	Thomas Gleixner <tglx@linutronix.de>
-
----------------------------
 
 What:	fakephp and associated sysfs files in /sys/bus/pci/slots/
 When:	2011
@@ -451,10 +420,34 @@ Who:	Johannes Berg <johannes@sipsolutions.net>
 
 ----------------------------
 
-What:	CONFIG_X86_OLD_MCE
-When:	2.6.32
-Why:	Remove the old legacy 32bit machine check code. This has been
-	superseded by the newer machine check code from the 64bit port,
-	but the old version has been kept around for easier testing. Note this
-	doesn't impact the old P5 and WinChip machine check handlers.
-Who:	Andi Kleen <andi@firstfloor.org>
+What:	lock_policy_rwsem_* and unlock_policy_rwsem_* will not be
+	exported interface anymore.
+When:	2.6.33
+Why:	cpu_policy_rwsem has a new cleaner definition making it local to
+	cpufreq core and contained inside cpufreq.c. Other dependent
+	drivers should not use it in order to safely avoid lockdep issues.
+Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
+
+----------------------------
+
+What:	sound-slot/service-* module aliases and related clutters in
+	sound/sound_core.c
+When:	August 2010
+Why:	OSS sound_core grabs all legacy minors (0-255) of SOUND_MAJOR
+	(14) and requests modules using custom sound-slot/service-*
+	module aliases.  The only benefit of doing this is allowing
+	use of custom module aliases which might as well be considered
+	a bug at this point.  This preemptive claiming prevents
+	alternative OSS implementations.
+
+	Till the feature is removed, the kernel will be requesting
+	both sound-slot/service-* and the standard char-major-* module
+	aliases and allow turning off the pre-claiming selectively via
+	CONFIG_SOUND_OSS_CORE_PRECLAIM and soundcore.preclaim_oss
+	kernel parameter.
+
+	After the transition phase is complete, both the custom module
+	aliases and switches to disable it will go away.  This removal
+	will also allow making ALSA OSS emulation independent of
+	sound_core.  The dependency will be broken then too.
+Who:	Tejun Heo <tj@kernel.org>

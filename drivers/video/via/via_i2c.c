@@ -97,7 +97,7 @@ int viafb_i2c_readbyte(u8 slave_addr, u8 index, u8 *pdata)
 	mm1[0] = index;
 	msgs[0].len = 1; msgs[1].len = 1;
 	msgs[0].buf = mm1; msgs[1].buf = pdata;
-	i2c_transfer(&viaparinfo->i2c_stuff.adapter, msgs, 2);
+	i2c_transfer(&viaparinfo->shared->i2c_stuff.adapter, msgs, 2);
 
 	return 0;
 }
@@ -111,7 +111,7 @@ int viafb_i2c_writebyte(u8 slave_addr, u8 index, u8 data)
 	msgs.addr = slave_addr / 2;
 	msgs.len = 2;
 	msgs.buf = msg;
-	return i2c_transfer(&viaparinfo->i2c_stuff.adapter, &msgs, 1);
+	return i2c_transfer(&viaparinfo->shared->i2c_stuff.adapter, &msgs, 1);
 }
 
 int viafb_i2c_readbytes(u8 slave_addr, u8 index, u8 *buff, int buff_len)
@@ -125,53 +125,53 @@ int viafb_i2c_readbytes(u8 slave_addr, u8 index, u8 *buff, int buff_len)
 	mm1[0] = index;
 	msgs[0].len = 1; msgs[1].len = buff_len;
 	msgs[0].buf = mm1; msgs[1].buf = buff;
-	i2c_transfer(&viaparinfo->i2c_stuff.adapter, msgs, 2);
+	i2c_transfer(&viaparinfo->shared->i2c_stuff.adapter, msgs, 2);
 	return 0;
 }
 
 int viafb_create_i2c_bus(void *viapar)
 {
 	int ret;
-	struct viafb_par *par = (struct viafb_par *)viapar;
+	struct via_i2c_stuff *i2c_stuff =
+		&((struct viafb_par *)viapar)->shared->i2c_stuff;
 
-	strcpy(par->i2c_stuff.adapter.name, "via_i2c");
-	par->i2c_stuff.i2c_port = 0x0;
-	par->i2c_stuff.adapter.owner = THIS_MODULE;
-	par->i2c_stuff.adapter.id = 0x01FFFF;
-	par->i2c_stuff.adapter.class = 0;
-	par->i2c_stuff.adapter.algo_data = &par->i2c_stuff.algo;
-	par->i2c_stuff.adapter.dev.parent = NULL;
-	par->i2c_stuff.algo.setsda = via_i2c_setsda;
-	par->i2c_stuff.algo.setscl = via_i2c_setscl;
-	par->i2c_stuff.algo.getsda = via_i2c_getsda;
-	par->i2c_stuff.algo.getscl = via_i2c_getscl;
-	par->i2c_stuff.algo.udelay = 40;
-	par->i2c_stuff.algo.timeout = 20;
-	par->i2c_stuff.algo.data = &par->i2c_stuff;
+	strcpy(i2c_stuff->adapter.name, "via_i2c");
+	i2c_stuff->i2c_port = 0x0;
+	i2c_stuff->adapter.owner = THIS_MODULE;
+	i2c_stuff->adapter.id = 0x01FFFF;
+	i2c_stuff->adapter.class = 0;
+	i2c_stuff->adapter.algo_data = &i2c_stuff->algo;
+	i2c_stuff->adapter.dev.parent = NULL;
+	i2c_stuff->algo.setsda = via_i2c_setsda;
+	i2c_stuff->algo.setscl = via_i2c_setscl;
+	i2c_stuff->algo.getsda = via_i2c_getsda;
+	i2c_stuff->algo.getscl = via_i2c_getscl;
+	i2c_stuff->algo.udelay = 40;
+	i2c_stuff->algo.timeout = 20;
+	i2c_stuff->algo.data = i2c_stuff;
 
-	i2c_set_adapdata(&par->i2c_stuff.adapter, &par->i2c_stuff);
+	i2c_set_adapdata(&i2c_stuff->adapter, i2c_stuff);
 
 	/* Raise SCL and SDA */
-	par->i2c_stuff.i2c_port = I2CPORTINDEX;
-	via_i2c_setsda(&par->i2c_stuff, 1);
-	via_i2c_setscl(&par->i2c_stuff, 1);
+	i2c_stuff->i2c_port = I2CPORTINDEX;
+	via_i2c_setsda(i2c_stuff, 1);
+	via_i2c_setscl(i2c_stuff, 1);
 
-	par->i2c_stuff.i2c_port = GPIOPORTINDEX;
-	via_i2c_setsda(&par->i2c_stuff, 1);
-	via_i2c_setscl(&par->i2c_stuff, 1);
+	i2c_stuff->i2c_port = GPIOPORTINDEX;
+	via_i2c_setsda(i2c_stuff, 1);
+	via_i2c_setscl(i2c_stuff, 1);
 	udelay(20);
 
-	ret = i2c_bit_add_bus(&par->i2c_stuff.adapter);
+	ret = i2c_bit_add_bus(&i2c_stuff->adapter);
 	if (ret == 0)
-		DEBUG_MSG("I2C bus %s registered.\n",
-		par->i2c_stuff.adapter.name);
+		DEBUG_MSG("I2C bus %s registered.\n", i2c_stuff->adapter.name);
 	else
 		DEBUG_MSG("Failed to register I2C bus %s.\n",
-			par->i2c_stuff.adapter.name);
+			i2c_stuff->adapter.name);
 	return ret;
 }
 
 void viafb_delete_i2c_buss(void *par)
 {
-	i2c_del_adapter(&((struct viafb_par *)par)->i2c_stuff.adapter);
+	i2c_del_adapter(&((struct viafb_par *)par)->shared->i2c_stuff.adapter);
 }

@@ -49,6 +49,7 @@
 #include <asm/sclp.h>
 #include <asm/cputime.h>
 #include <asm/vdso.h>
+#include <asm/cpu.h>
 #include "entry.h"
 
 static struct task_struct *current_set[NR_CPUS];
@@ -70,6 +71,23 @@ static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
 static void smp_ext_bitcall(int, ec_bit_sig);
 
+static int cpu_stopped(int cpu)
+{
+	__u32 status;
+
+	switch (signal_processor_ps(&status, 0, cpu, sigp_sense)) {
+	case sigp_order_code_accepted:
+	case sigp_status_stored:
+		/* Check for stopped and check stop state */
+		if (status & 0x50)
+			return 1;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 void smp_send_stop(void)
 {
 	int cpu, rc;
@@ -86,7 +104,7 @@ void smp_send_stop(void)
 			rc = signal_processor(cpu, sigp_stop);
 		} while (rc == sigp_busy);
 
-		while (!smp_cpu_not_running(cpu))
+		while (!cpu_stopped(cpu))
 			cpu_relax();
 	}
 }
@@ -129,11 +147,11 @@ static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
 		udelay(10);
 }
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	int cpu;
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu(cpu, mask)
 		smp_ext_bitcall(cpu, ec_call_function);
 }
 
@@ -269,19 +287,6 @@ static inline void smp_get_save_area(unsigned int cpu, unsigned int phy_cpu) { }
 
 #endif /* CONFIG_ZFCPDUMP */
 
-static int cpu_stopped(int cpu)
-{
-	__u32 status;
-
-	/* Check for stopped state */
-	if (signal_processor_ps(&status, 0, cpu, sigp_sense) ==
-	    sigp_status_stored) {
-		if (status & 0x40)
-			return 1;
-	}
-	return 0;
-}
-
 static int cpu_known(int cpu_id)
 {
 	int cpu;
@@ -300,7 +305,7 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 	logical_cpu = cpumask_first(&avail);
 	if (logical_cpu >= nr_cpu_ids)
 		return 0;
-	for (cpu_id = 0; cpu_id <= 65535; cpu_id++) {
+	for (cpu_id = 0; cpu_id <= MAX_CPU_ADDRESS; cpu_id++) {
 		if (cpu_known(cpu_id))
 			continue;
 		__cpu_logical_map[logical_cpu] = cpu_id;
@@ -379,7 +384,7 @@ static void __init smp_detect_cpus(void)
 	/* Use sigp detection algorithm if sclp doesn't work. */
 	if (sclp_get_cpu_info(info)) {
 		smp_use_sigp_detection = 1;
-		for (cpu = 0; cpu <= 65535; cpu++) {
+		for (cpu = 0; cpu <= MAX_CPU_ADDRESS; cpu++) {
 			if (cpu == boot_cpu_addr)
 				continue;
 			__cpu_logical_map[CPU_INIT_NO] = cpu;
@@ -470,10 +475,8 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 {
 	unsigned long async_stack, panic_stack;
 	struct _lowcore *lowcore;
-	int lc_order;
 
-	lc_order = sizeof(long) == 8 ? 1 : 0;
-	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, lc_order);
+	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
 	if (!lowcore)
 		return -ENOMEM;
 	async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
@@ -504,16 +507,14 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 out:
 	free_page(panic_stack);
 	free_pages(async_stack, ASYNC_ORDER);
-	free_pages((unsigned long) lowcore, lc_order);
+	free_pages((unsigned long) lowcore, LC_ORDER);
 	return -ENOMEM;
 }
 
 static void smp_free_lowcore(int cpu)
 {
 	struct _lowcore *lowcore;
-	int lc_order;
 
-	lc_order = sizeof(long) == 8 ? 1 : 0;
 	lowcore = lowcore_ptr[cpu];
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE)
@@ -523,7 +524,7 @@ static void smp_free_lowcore(int cpu)
 #endif
 	free_page(lowcore->panic_stack - PAGE_SIZE);
 	free_pages(lowcore->async_stack - ASYNC_SIZE, ASYNC_ORDER);
-	free_pages((unsigned long) lowcore, lc_order);
+	free_pages((unsigned long) lowcore, LC_ORDER);
 	lowcore_ptr[cpu] = NULL;
 }
 
@@ -635,7 +636,7 @@ int __cpu_disable(void)
 void __cpu_die(unsigned int cpu)
 {
 	/* Wait until target cpu is down */
-	while (!smp_cpu_not_running(cpu))
+	while (!cpu_stopped(cpu))
 		cpu_relax();
 	smp_free_lowcore(cpu);
 	pr_info("Processor %d stopped\n", cpu);
@@ -659,7 +660,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	unsigned long async_stack, panic_stack;
 	struct _lowcore *lowcore;
 	unsigned int cpu;
-	int lc_order;
 
 	smp_detect_cpus();
 
@@ -669,8 +669,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	print_cpu_info();
 
 	/* Reallocate current lowcore, but keep its contents. */
-	lc_order = sizeof(long) == 8 ? 1 : 0;
-	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, lc_order);
+	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
 	panic_stack = __get_free_page(GFP_KERNEL);
 	async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
 	BUG_ON(!lowcore || !panic_stack || !async_stack);
@@ -687,13 +686,14 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE)
 		lowcore->extended_save_area_addr = (u32) save_area;
-#else
-	if (vdso_alloc_per_cpu(smp_processor_id(), lowcore))
-		BUG();
 #endif
 	set_prefix((u32)(unsigned long) lowcore);
 	local_mcck_enable();
 	local_irq_enable();
+#ifdef CONFIG_64BIT
+	if (vdso_alloc_per_cpu(smp_processor_id(), &S390_lowcore))
+		BUG();
+#endif
 	for_each_possible_cpu(cpu)
 		if (cpu != smp_processor_id())
 			smp_create_idle(cpu);
@@ -1040,42 +1040,6 @@ out:
 }
 static SYSDEV_CLASS_ATTR(dispatching, 0644, dispatching_show,
 			 dispatching_store);
-
-/*
- * If the resume kernel runs on another cpu than the suspended kernel,
- * we have to switch the cpu IDs in the logical map.
- */
-void smp_switch_boot_cpu_in_resume(u32 resume_phys_cpu_id,
-				   struct _lowcore *suspend_lowcore)
-{
-	int cpu, suspend_cpu_id, resume_cpu_id;
-	u32 suspend_phys_cpu_id;
-
-	suspend_phys_cpu_id = __cpu_logical_map[suspend_lowcore->cpu_nr];
-	suspend_cpu_id = suspend_lowcore->cpu_nr;
-
-	for_each_present_cpu(cpu) {
-		if (__cpu_logical_map[cpu] == resume_phys_cpu_id) {
-			resume_cpu_id = cpu;
-			goto found;
-		}
-	}
-	panic("Could not find resume cpu in logical map.\n");
-
-found:
-	printk("Resume  cpu ID: %i/%i\n", resume_phys_cpu_id, resume_cpu_id);
-	printk("Suspend cpu ID: %i/%i\n", suspend_phys_cpu_id, suspend_cpu_id);
-
-	__cpu_logical_map[resume_cpu_id] = suspend_phys_cpu_id;
-	__cpu_logical_map[suspend_cpu_id] = resume_phys_cpu_id;
-
-	lowcore_ptr[suspend_cpu_id]->cpu_addr = resume_phys_cpu_id;
-}
-
-u32 smp_get_phys_cpu_id(void)
-{
-	return __cpu_logical_map[smp_processor_id()];
-}
 
 static int __init topology_init(void)
 {

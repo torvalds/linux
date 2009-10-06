@@ -365,6 +365,8 @@ static int atl1e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & WAKE_PHY)
 		adapter->wol |= AT_WUFC_LNKC;
 
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
+
 	return 0;
 }
 
@@ -376,7 +378,7 @@ static int atl1e_nway_reset(struct net_device *netdev)
 	return 0;
 }
 
-static struct ethtool_ops atl1e_ethtool_ops = {
+static const struct ethtool_ops atl1e_ethtool_ops = {
 	.get_settings           = atl1e_get_settings,
 	.set_settings           = atl1e_set_settings,
 	.get_drvinfo            = atl1e_get_drvinfo,

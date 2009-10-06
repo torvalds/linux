@@ -100,6 +100,25 @@ static int vlan_changelink(struct net_device *dev,
 	return 0;
 }
 
+static int vlan_get_tx_queues(struct net *net,
+			      struct nlattr *tb[],
+			      unsigned int *num_tx_queues,
+			      unsigned int *real_num_tx_queues)
+{
+	struct net_device *real_dev;
+
+	if (!tb[IFLA_LINK])
+		return -EINVAL;
+
+	real_dev = __dev_get_by_index(net, nla_get_u32(tb[IFLA_LINK]));
+	if (!real_dev)
+		return -ENODEV;
+
+	*num_tx_queues      = real_dev->num_tx_queues;
+	*real_num_tx_queues = real_dev->real_num_tx_queues;
+	return 0;
+}
+
 static int vlan_newlink(struct net_device *dev,
 			struct nlattr *tb[], struct nlattr *data[])
 {
@@ -150,6 +169,7 @@ static size_t vlan_get_size(const struct net_device *dev)
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 
 	return nla_total_size(2) +	/* IFLA_VLAN_ID */
+	       sizeof(struct ifla_vlan_flags) + /* IFLA_VLAN_FLAGS */
 	       vlan_qos_map_size(vlan->nr_ingress_mappings) +
 	       vlan_qos_map_size(vlan->nr_egress_mappings);
 }
@@ -216,6 +236,7 @@ struct rtnl_link_ops vlan_link_ops __read_mostly = {
 	.maxtype	= IFLA_VLAN_MAX,
 	.policy		= vlan_policy,
 	.priv_size	= sizeof(struct vlan_dev_info),
+	.get_tx_queues  = vlan_get_tx_queues,
 	.setup		= vlan_setup,
 	.validate	= vlan_validate,
 	.newlink	= vlan_newlink,

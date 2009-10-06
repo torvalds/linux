@@ -39,7 +39,9 @@
 struct power_state {
 	struct powerdomain *pwrdm;
 	u32 next_state;
+#ifdef CONFIG_SUSPEND
 	u32 saved_state;
+#endif
 	struct list_head node;
 };
 
@@ -168,6 +170,8 @@ static void omap_sram_idle(void)
 		printk(KERN_ERR "Invalid mpu state in sram_idle\n");
 		return;
 	}
+	pwrdm_pre_transition();
+
 	omap2_gpio_prepare_for_retention();
 	omap_uart_prepare_idle(0);
 	omap_uart_prepare_idle(1);
@@ -180,6 +184,9 @@ static void omap_sram_idle(void)
 	omap_uart_resume_idle(1);
 	omap_uart_resume_idle(0);
 	omap2_gpio_resume_after_retention();
+
+	pwrdm_post_transition();
+
 }
 
 /*
@@ -269,6 +276,7 @@ static int set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 	if (sleep_switch) {
 		omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
 		pwrdm_wait_transition(pwrdm);
+		pwrdm_state_switch(pwrdm);
 	}
 
 err:
@@ -292,6 +300,9 @@ out:
 	local_fiq_enable();
 	local_irq_enable();
 }
+
+#ifdef CONFIG_SUSPEND
+static suspend_state_t suspend_state;
 
 static int omap3_pm_prepare(void)
 {
@@ -321,7 +332,6 @@ static int omap3_pm_suspend(void)
 restore:
 	/* Restore next_pwrsts */
 	list_for_each_entry(pwrst, &pwrst_list, node) {
-		set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
 		state = pwrdm_read_prev_pwrst(pwrst->pwrdm);
 		if (state > pwrst->next_state) {
 			printk(KERN_INFO "Powerdomain (%s) didn't enter "
@@ -329,6 +339,7 @@ restore:
 			       pwrst->pwrdm->name, pwrst->next_state);
 			ret = -1;
 		}
+		set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
 	}
 	if (ret)
 		printk(KERN_ERR "Could not enter target state in pm_suspend\n");
@@ -339,11 +350,11 @@ restore:
 	return ret;
 }
 
-static int omap3_pm_enter(suspend_state_t state)
+static int omap3_pm_enter(suspend_state_t unused)
 {
 	int ret = 0;
 
-	switch (state) {
+	switch (suspend_state) {
 	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
 		ret = omap3_pm_suspend();
@@ -360,12 +371,30 @@ static void omap3_pm_finish(void)
 	enable_hlt();
 }
 
+/* Hooks to enable / disable UART interrupts during suspend */
+static int omap3_pm_begin(suspend_state_t state)
+{
+	suspend_state = state;
+	omap_uart_enable_irqs(0);
+	return 0;
+}
+
+static void omap3_pm_end(void)
+{
+	suspend_state = PM_SUSPEND_ON;
+	omap_uart_enable_irqs(1);
+	return;
+}
+
 static struct platform_suspend_ops omap_pm_ops = {
+	.begin		= omap3_pm_begin,
+	.end		= omap3_pm_end,
 	.prepare	= omap3_pm_prepare,
 	.enter		= omap3_pm_enter,
 	.finish		= omap3_pm_finish,
 	.valid		= suspend_valid_only_mem,
 };
+#endif /* CONFIG_SUSPEND */
 
 
 /**
@@ -613,18 +642,60 @@ static void __init prcm_setup_regs(void)
 	/* Clear any pending PRCM interrupts */
 	prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
 
+	/* Don't attach IVA interrupts */
+	prm_write_mod_reg(0, WKUP_MOD, OMAP3430_PM_IVAGRPSEL);
+	prm_write_mod_reg(0, CORE_MOD, OMAP3430_PM_IVAGRPSEL1);
+	prm_write_mod_reg(0, CORE_MOD, OMAP3430ES2_PM_IVAGRPSEL3);
+	prm_write_mod_reg(0, OMAP3430_PER_MOD, OMAP3430_PM_IVAGRPSEL);
+
+	/* Clear any pending 'reset' flags */
+	prm_write_mod_reg(0xffffffff, MPU_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, CORE_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_PER_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_EMU_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_NEON_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_DSS_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430ES2_USBHOST_MOD, RM_RSTST);
+
+	/* Clear any pending PRCM interrupts */
+	prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
+
 	omap3_iva_idle();
 	omap3_d2d_idle();
 }
 
-static int __init pwrdms_setup(struct powerdomain *pwrdm)
+int omap3_pm_get_suspend_state(struct powerdomain *pwrdm)
+{
+	struct power_state *pwrst;
+
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		if (pwrst->pwrdm == pwrdm)
+			return pwrst->next_state;
+	}
+	return -EINVAL;
+}
+
+int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state)
+{
+	struct power_state *pwrst;
+
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		if (pwrst->pwrdm == pwrdm) {
+			pwrst->next_state = state;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 {
 	struct power_state *pwrst;
 
 	if (!pwrdm->pwrsts)
 		return 0;
 
-	pwrst = kmalloc(sizeof(struct power_state), GFP_KERNEL);
+	pwrst = kmalloc(sizeof(struct power_state), GFP_ATOMIC);
 	if (!pwrst)
 		return -ENOMEM;
 	pwrst->pwrdm = pwrdm;
@@ -642,7 +713,7 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm)
  * supported. Initiate sleep transition for other clockdomains, if
  * they are not used
  */
-static int __init clkdms_setup(struct clockdomain *clkdm)
+static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 {
 	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
 		omap2_clkdm_allow_idle(clkdm);
@@ -652,7 +723,7 @@ static int __init clkdms_setup(struct clockdomain *clkdm)
 	return 0;
 }
 
-int __init omap3_pm_init(void)
+static int __init omap3_pm_init(void)
 {
 	struct power_state *pwrst, *tmp;
 	int ret;
@@ -675,13 +746,13 @@ int __init omap3_pm_init(void)
 		goto err1;
 	}
 
-	ret = pwrdm_for_each(pwrdms_setup);
+	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
 		printk(KERN_ERR "Failed to setup powerdomains\n");
 		goto err2;
 	}
 
-	(void) clkdm_for_each(clkdms_setup);
+	(void) clkdm_for_each(clkdms_setup, NULL);
 
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	if (mpu_pwrdm == NULL) {
@@ -692,7 +763,9 @@ int __init omap3_pm_init(void)
 	_omap_sram_idle = omap_sram_push(omap34xx_cpu_suspend,
 					 omap34xx_cpu_suspend_sz);
 
+#ifdef CONFIG_SUSPEND
 	suspend_set_ops(&omap_pm_ops);
+#endif /* CONFIG_SUSPEND */
 
 	pm_idle = omap3_pm_idle;
 

@@ -198,70 +198,100 @@ Configuration options:
   The board has 3 input modes and the gains of 1,2,4,...32 (, 64, 128)
 */
 static const struct comedi_lrange rtd_ai_7520_range = { 18, {
-			/* +-5V input range gain steps */
-			BIP_RANGE(5.0),
-			BIP_RANGE(5.0 / 2),
-			BIP_RANGE(5.0 / 4),
-			BIP_RANGE(5.0 / 8),
-			BIP_RANGE(5.0 / 16),
-			BIP_RANGE(5.0 / 32),
-			/* +-10V input range gain steps */
-			BIP_RANGE(10.0),
-			BIP_RANGE(10.0 / 2),
-			BIP_RANGE(10.0 / 4),
-			BIP_RANGE(10.0 / 8),
-			BIP_RANGE(10.0 / 16),
-			BIP_RANGE(10.0 / 32),
-			/* +10V input range gain steps */
-			UNI_RANGE(10.0),
-			UNI_RANGE(10.0 / 2),
-			UNI_RANGE(10.0 / 4),
-			UNI_RANGE(10.0 / 8),
-			UNI_RANGE(10.0 / 16),
-			UNI_RANGE(10.0 / 32),
+							     /* +-5V input range gain steps */
+							     BIP_RANGE(5.0),
+							     BIP_RANGE(5.0 / 2),
+							     BIP_RANGE(5.0 / 4),
+							     BIP_RANGE(5.0 / 8),
+							     BIP_RANGE(5.0 /
+								       16),
+							     BIP_RANGE(5.0 /
+								       32),
+							     /* +-10V input range gain steps */
+							     BIP_RANGE(10.0),
+							     BIP_RANGE(10.0 /
+								       2),
+							     BIP_RANGE(10.0 /
+								       4),
+							     BIP_RANGE(10.0 /
+								       8),
+							     BIP_RANGE(10.0 /
+								       16),
+							     BIP_RANGE(10.0 /
+								       32),
+							     /* +10V input range gain steps */
+							     UNI_RANGE(10.0),
+							     UNI_RANGE(10.0 /
+								       2),
+							     UNI_RANGE(10.0 /
+								       4),
+							     UNI_RANGE(10.0 /
+								       8),
+							     UNI_RANGE(10.0 /
+								       16),
+							     UNI_RANGE(10.0 /
+								       32),
 
-	}
+							     }
 };
 
 /* PCI4520 has two more gains (6 more entries) */
 static const struct comedi_lrange rtd_ai_4520_range = { 24, {
-			/* +-5V input range gain steps */
-			BIP_RANGE(5.0),
-			BIP_RANGE(5.0 / 2),
-			BIP_RANGE(5.0 / 4),
-			BIP_RANGE(5.0 / 8),
-			BIP_RANGE(5.0 / 16),
-			BIP_RANGE(5.0 / 32),
-			BIP_RANGE(5.0 / 64),
-			BIP_RANGE(5.0 / 128),
-			/* +-10V input range gain steps */
-			BIP_RANGE(10.0),
-			BIP_RANGE(10.0 / 2),
-			BIP_RANGE(10.0 / 4),
-			BIP_RANGE(10.0 / 8),
-			BIP_RANGE(10.0 / 16),
-			BIP_RANGE(10.0 / 32),
-			BIP_RANGE(10.0 / 64),
-			BIP_RANGE(10.0 / 128),
-			/* +10V input range gain steps */
-			UNI_RANGE(10.0),
-			UNI_RANGE(10.0 / 2),
-			UNI_RANGE(10.0 / 4),
-			UNI_RANGE(10.0 / 8),
-			UNI_RANGE(10.0 / 16),
-			UNI_RANGE(10.0 / 32),
-			UNI_RANGE(10.0 / 64),
-			UNI_RANGE(10.0 / 128),
-	}
+							     /* +-5V input range gain steps */
+							     BIP_RANGE(5.0),
+							     BIP_RANGE(5.0 / 2),
+							     BIP_RANGE(5.0 / 4),
+							     BIP_RANGE(5.0 / 8),
+							     BIP_RANGE(5.0 /
+								       16),
+							     BIP_RANGE(5.0 /
+								       32),
+							     BIP_RANGE(5.0 /
+								       64),
+							     BIP_RANGE(5.0 /
+								       128),
+							     /* +-10V input range gain steps */
+							     BIP_RANGE(10.0),
+							     BIP_RANGE(10.0 /
+								       2),
+							     BIP_RANGE(10.0 /
+								       4),
+							     BIP_RANGE(10.0 /
+								       8),
+							     BIP_RANGE(10.0 /
+								       16),
+							     BIP_RANGE(10.0 /
+								       32),
+							     BIP_RANGE(10.0 /
+								       64),
+							     BIP_RANGE(10.0 /
+								       128),
+							     /* +10V input range gain steps */
+							     UNI_RANGE(10.0),
+							     UNI_RANGE(10.0 /
+								       2),
+							     UNI_RANGE(10.0 /
+								       4),
+							     UNI_RANGE(10.0 /
+								       8),
+							     UNI_RANGE(10.0 /
+								       16),
+							     UNI_RANGE(10.0 /
+								       32),
+							     UNI_RANGE(10.0 /
+								       64),
+							     UNI_RANGE(10.0 /
+								       128),
+							     }
 };
 
 /* Table order matches range values */
 static const struct comedi_lrange rtd_ao_range = { 4, {
-			RANGE(0, 5),
-			RANGE(0, 10),
-			RANGE(-5, 5),
-			RANGE(-10, 10),
-	}
+						       RANGE(0, 5),
+						       RANGE(0, 10),
+						       RANGE(-5, 5),
+						       RANGE(-10, 10),
+						       }
 };
 
 /*
@@ -279,29 +309,30 @@ struct rtdBoard {
 
 static const struct rtdBoard rtd520Boards[] = {
 	{
-	.name = "DM7520",
-	.device_id = 0x7520,
-	.aiChans = 16,
-	.aiBits = 12,
-	.aiMaxGain = 32,
-	.range10Start = 6,
-	.rangeUniStart = 12,
-		},
+	 .name = "DM7520",
+	 .device_id = 0x7520,
+	 .aiChans = 16,
+	 .aiBits = 12,
+	 .aiMaxGain = 32,
+	 .range10Start = 6,
+	 .rangeUniStart = 12,
+	 },
 	{
-	.name = "PCI4520",
-	.device_id = 0x4520,
-	.aiChans = 16,
-	.aiBits = 12,
-	.aiMaxGain = 128,
-	.range10Start = 8,
-	.rangeUniStart = 16,
-		},
+	 .name = "PCI4520",
+	 .device_id = 0x4520,
+	 .aiChans = 16,
+	 .aiBits = 12,
+	 .aiMaxGain = 128,
+	 .range10Start = 8,
+	 .rangeUniStart = 16,
+	 },
 };
 
 static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
-	{PCI_VENDOR_ID_RTD, 0x7520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_RTD, 0x4520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0}
+	{
+	PCI_VENDOR_ID_RTD, 0x7520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
+	PCI_VENDOR_ID_RTD, 0x4520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
+	0}
 };
 
 MODULE_DEVICE_TABLE(pci, rtd520_pci_table);
@@ -692,17 +723,19 @@ static struct comedi_driver rtd520Driver = {
 };
 
 static int rtd_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+			struct comedi_insn *insn, unsigned int *data);
 static int rtd_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+			struct comedi_insn *insn, unsigned int *data);
 static int rtd_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int rtd_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
-static int rtd_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data);
+			struct comedi_insn *insn, unsigned int *data);
+static int rtd_dio_insn_bits(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data);
+static int rtd_dio_insn_config(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data);
 static int rtd_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_cmd *cmd);
+			  struct comedi_cmd *cmd);
 static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 /* static int rtd_ai_poll (struct comedi_device *dev,struct comedi_subdevice *s); */
@@ -747,31 +780,29 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	 * Probe the device to determine what device in the series it is.
 	 */
 	for (pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, pcidev)) {
+	     pcidev != NULL;
+	     pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, pcidev)) {
 		int i;
 
 		if (it->options[0] || it->options[1]) {
 			if (pcidev->bus->number != it->options[0]
-				|| PCI_SLOT(pcidev->devfn) !=
-				it->options[1]) {
+			    || PCI_SLOT(pcidev->devfn) != it->options[1]) {
 				continue;
 			}
 		}
-		for (i = 0; i < ARRAY_SIZE(rtd520Boards); ++i)
-		{
-			if (pcidev->device == rtd520Boards[i].device_id)
-			{
+		for (i = 0; i < ARRAY_SIZE(rtd520Boards); ++i) {
+			if (pcidev->device == rtd520Boards[i].device_id) {
 				dev->board_ptr = &rtd520Boards[i];
 				break;
 			}
 		}
-		if (dev->board_ptr) break;	/* found one */
+		if (dev->board_ptr)
+			break;	/* found one */
 	}
 	if (!pcidev) {
 		if (it->options[0] && it->options[1]) {
 			printk("No RTD card at bus=%d slot=%d.\n",
-				it->options[0], it->options[1]);
+			       it->options[0], it->options[1]);
 		} else {
 			printk("No RTD card found.\n");
 		}
@@ -813,16 +844,16 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/*uint32_t epld_version; */
 
 		pci_read_config_word(devpriv->pci_dev, PCI_REVISION_ID,
-			&revision);
+				     &revision);
 		DPRINTK("%s: PCI revision %d.\n", dev->board_name, revision);
 
 		pci_read_config_byte(devpriv->pci_dev,
-			PCI_LATENCY_TIMER, &pci_latency);
+				     PCI_LATENCY_TIMER, &pci_latency);
 		if (pci_latency < 32) {
 			printk("%s: PCI latency changed from %d to %d\n",
-				dev->board_name, pci_latency, 32);
+			       dev->board_name, pci_latency, 32);
 			pci_write_config_byte(devpriv->pci_dev,
-				PCI_LATENCY_TIMER, 32);
+					      PCI_LATENCY_TIMER, 32);
 		} else {
 			DPRINTK("rtd520: PCI latency = %d\n", pci_latency);
 		}
@@ -854,8 +885,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags =
-		SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF |
-		SDF_CMD_READ;
+	    SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF | SDF_CMD_READ;
 	s->n_chan = thisboard->aiChans;
 	s->maxdata = (1 << thisboard->aiBits) - 1;
 	if (thisboard->aiMaxGain <= 32) {
@@ -868,7 +898,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->do_cmd = rtd_ai_cmd;
 	s->do_cmdtest = rtd_ai_cmdtest;
 	s->cancel = rtd_ai_cancel;
-	/* s->poll = rtd_ai_poll; */ /* not ready yet */
+	/* s->poll = rtd_ai_poll; *//* not ready yet */
 
 	s = dev->subdevices + 1;
 	/* analog output subdevice */
@@ -901,7 +931,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* initialize board, per RTD spec */
 	/* also, initialize shadow registers */
 	RtdResetBoard(dev);
-	udelay(100);	/* needed? */
+	udelay(100);		/* needed? */
 	RtdPlxInterruptWrite(dev, 0);
 	RtdInterruptMask(dev, 0);	/* and sets shadow */
 	RtdInterruptClearMask(dev, ~0);	/* and sets shadow */
@@ -921,11 +951,11 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* check if our interrupt is available and get it */
 	ret = request_irq(devpriv->pci_dev->irq, rtd_interrupt,
-				 IRQF_SHARED, DRV_NAME, dev);
+			  IRQF_SHARED, DRV_NAME, dev);
 
 	if (ret < 0) {
 		printk("Could not get interrupt! (%u)\n",
-			devpriv->pci_dev->irq);
+		       devpriv->pci_dev->irq);
 		return ret;
 	}
 	dev->irq = devpriv->pci_dev->irq;
@@ -948,9 +978,11 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 			devpriv->dma0Buff[index] =
-				pci_alloc_consistent(devpriv->pci_dev,
-				sizeof(u16) * devpriv->fifoLen / 2,
-				&devpriv->dma0BuffPhysAddr[index]);
+			    pci_alloc_consistent(devpriv->pci_dev,
+						 sizeof(u16) *
+						 devpriv->fifoLen / 2,
+						 &devpriv->
+						 dma0BuffPhysAddr[index]);
 			if (devpriv->dma0Buff[index] == NULL) {
 				ret = -ENOMEM;
 				goto rtd_attach_die_error;
@@ -962,21 +994,23 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		/* setup DMA descriptor ring (use cpu_to_le32 for byte ordering?) */
 		devpriv->dma0Chain =
-			pci_alloc_consistent(devpriv->pci_dev,
-			sizeof(struct plx_dma_desc) * DMA_CHAIN_COUNT,
-			&devpriv->dma0ChainPhysAddr);
+		    pci_alloc_consistent(devpriv->pci_dev,
+					 sizeof(struct plx_dma_desc) *
+					 DMA_CHAIN_COUNT,
+					 &devpriv->dma0ChainPhysAddr);
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 			devpriv->dma0Chain[index].pci_start_addr =
-				devpriv->dma0BuffPhysAddr[index];
+			    devpriv->dma0BuffPhysAddr[index];
 			devpriv->dma0Chain[index].local_start_addr =
-				DMALADDR_ADC;
+			    DMALADDR_ADC;
 			devpriv->dma0Chain[index].transfer_size =
-				sizeof(u16) * devpriv->fifoLen / 2;
+			    sizeof(u16) * devpriv->fifoLen / 2;
 			devpriv->dma0Chain[index].next =
-				(devpriv->dma0ChainPhysAddr + ((index +
-						1) % (DMA_CHAIN_COUNT))
-				* sizeof(devpriv->dma0Chain[0]))
-				| DMA_TRANSFER_BITS;
+			    (devpriv->dma0ChainPhysAddr + ((index +
+							    1) %
+							   (DMA_CHAIN_COUNT))
+			     * sizeof(devpriv->dma0Chain[0]))
+			    | DMA_TRANSFER_BITS;
 			/*DPRINTK ("ring[%d] @%lx PCI: %x, local: %x, N: 0x%x, next: %x\n",
 			   index,
 			   ((long)devpriv->dma0ChainPhysAddr
@@ -1014,17 +1048,18 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 		if (NULL != devpriv->dma0Buff[index]) {	/* free buffer memory */
 			pci_free_consistent(devpriv->pci_dev,
-				sizeof(u16) * devpriv->fifoLen / 2,
-				devpriv->dma0Buff[index],
-				devpriv->dma0BuffPhysAddr[index]);
+					    sizeof(u16) * devpriv->fifoLen / 2,
+					    devpriv->dma0Buff[index],
+					    devpriv->dma0BuffPhysAddr[index]);
 			devpriv->dma0Buff[index] = NULL;
 		}
 	}
 	if (NULL != devpriv->dma0Chain) {
 		pci_free_consistent(devpriv->pci_dev,
-			sizeof(struct plx_dma_desc)
-			* DMA_CHAIN_COUNT,
-			devpriv->dma0Chain, devpriv->dma0ChainPhysAddr);
+				    sizeof(struct plx_dma_desc)
+				    * DMA_CHAIN_COUNT,
+				    devpriv->dma0Chain,
+				    devpriv->dma0ChainPhysAddr);
 		devpriv->dma0Chain = NULL;
 	}
 #endif /* USE_DMA */
@@ -1032,7 +1067,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (dev->irq) {
 		/* disable interrupt controller */
 		RtdPlxInterruptWrite(dev, RtdPlxInterruptRead(dev)
-			& ~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
+				     & ~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
 		free_irq(dev->irq, dev);
 	}
 
@@ -1070,7 +1105,11 @@ static int rtd_detach(struct comedi_device *dev)
 	DPRINTK("comedi%d: rtd520: removing (%ld ints)\n",
 		dev->minor, (devpriv ? devpriv->intCount : 0L));
 	if (devpriv && devpriv->lcfg) {
-		DPRINTK("(int status 0x%x, overrun status 0x%x, fifo status 0x%x)...\n", 0xffff & RtdInterruptStatus(dev), 0xffff & RtdInterruptOverrunStatus(dev), (0xffff & RtdFifoStatus(dev)) ^ 0x6666);
+		DPRINTK
+		    ("(int status 0x%x, overrun status 0x%x, fifo status 0x%x)...\n",
+		     0xffff & RtdInterruptStatus(dev),
+		     0xffff & RtdInterruptOverrunStatus(dev),
+		     (0xffff & RtdFifoStatus(dev)) ^ 0x6666);
 	}
 
 	if (devpriv) {
@@ -1093,16 +1132,19 @@ static int rtd_detach(struct comedi_device *dev)
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 			if (NULL != devpriv->dma0Buff[index]) {
 				pci_free_consistent(devpriv->pci_dev,
-					sizeof(u16) * devpriv->fifoLen / 2,
-					devpriv->dma0Buff[index],
-					devpriv->dma0BuffPhysAddr[index]);
+						    sizeof(u16) *
+						    devpriv->fifoLen / 2,
+						    devpriv->dma0Buff[index],
+						    devpriv->
+						    dma0BuffPhysAddr[index]);
 				devpriv->dma0Buff[index] = NULL;
 			}
 		}
 		if (NULL != devpriv->dma0Chain) {
 			pci_free_consistent(devpriv->pci_dev,
-				sizeof(struct plx_dma_desc) * DMA_CHAIN_COUNT,
-				devpriv->dma0Chain, devpriv->dma0ChainPhysAddr);
+					    sizeof(struct plx_dma_desc) *
+					    DMA_CHAIN_COUNT, devpriv->dma0Chain,
+					    devpriv->dma0ChainPhysAddr);
 			devpriv->dma0Chain = NULL;
 		}
 #endif /* USE_DMA */
@@ -1111,7 +1153,8 @@ static int rtd_detach(struct comedi_device *dev)
 		if (dev->irq) {
 			/* disable interrupt controller */
 			RtdPlxInterruptWrite(dev, RtdPlxInterruptRead(dev)
-				& ~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
+					     & ~(ICS_PLIE | ICS_DMA0_E |
+						 ICS_DMA1_E));
 			free_irq(dev->irq, dev);
 		}
 
@@ -1142,7 +1185,7 @@ static int rtd_detach(struct comedi_device *dev)
   Convert a single comedi channel-gain entry to a RTD520 table entry
 */
 static unsigned short rtdConvertChanGain(struct comedi_device *dev,
-	unsigned int comediChan, int chanIndex)
+					 unsigned int comediChan, int chanIndex)
 {				/* index in channel list */
 	unsigned int chan, range, aref;
 	unsigned short r = 0;
@@ -1192,7 +1235,7 @@ static unsigned short rtdConvertChanGain(struct comedi_device *dev,
   Setup the channel-gain table from a comedi list
 */
 static void rtd_load_channelgain_list(struct comedi_device *dev,
-	unsigned int n_chan, unsigned int *list)
+				      unsigned int n_chan, unsigned int *list)
 {
 	if (n_chan > 1) {	/* setup channel gain table */
 		int ii;
@@ -1200,7 +1243,7 @@ static void rtd_load_channelgain_list(struct comedi_device *dev,
 		RtdEnableCGT(dev, 1);	/* enable table */
 		for (ii = 0; ii < n_chan; ii++) {
 			RtdWriteCGTable(dev, rtdConvertChanGain(dev, list[ii],
-					ii));
+								ii));
 		}
 	} else {		/* just use the channel gain latch */
 		RtdEnableCGT(dev, 0);	/* disable table, enable latch */
@@ -1232,16 +1275,15 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 			break;
 		}
 	}
-	if (i == limit)
-	{
+	if (i == limit) {
 		printk("\ncomedi: %s: failed to probe fifo size.\n", DRV_NAME);
 		return -EIO;
 	}
 	RtdAdcClearFifo(dev);
-	if (fifo_size != 0x400 && fifo_size != 0x2000)
-	{
-		printk("\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
-			DRV_NAME, fifo_size);
+	if (fifo_size != 0x400 && fifo_size != 0x2000) {
+		printk
+		    ("\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
+		     DRV_NAME, fifo_size);
 		return -EIO;
 	}
 	return fifo_size;
@@ -1256,7 +1298,8 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
   select, delay, then read.
  */
 static int rtd_ai_rinsn(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+			struct comedi_subdevice *s, struct comedi_insn *insn,
+			unsigned int *data)
 {
 	int n, ii;
 	int stat;
@@ -1283,7 +1326,9 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 			WAIT_QUIETLY;
 		}
 		if (ii >= RTD_ADC_TIMEOUT) {
-			DPRINTK("rtd520: Error: ADC never finished! FifoStatus=0x%x\n", stat ^ 0x6666);
+			DPRINTK
+			    ("rtd520: Error: ADC never finished! FifoStatus=0x%x\n",
+			     stat ^ 0x6666);
 			return -ETIMEDOUT;
 		}
 
@@ -1308,7 +1353,8 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 
   The manual claims that we can do a lword read, but it doesn't work here.
 */
-static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s, int count)
+static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
+		     int count)
 {
 	int ii;
 
@@ -1384,7 +1430,7 @@ void abort_dma(struct comedi_device *dev, unsigned int channel)
 	/* unsigned long flags; */
 
 	dma_cs_addr = (unsigned long)devpriv->lcfg
-		+ ((channel == 0) ? LCFG_DMACSR0 : LCFG_DMACSR1);
+	    + ((channel == 0) ? LCFG_DMACSR0 : LCFG_DMACSR1);
 
 	/*  spinlock for plx dma control/status reg */
 	/* spin_lock_irqsave( &dev->spinlock, flags ); */
@@ -1404,30 +1450,29 @@ void abort_dma(struct comedi_device *dev, unsigned int channel)
 	}
 	if (status & PLX_DMA_DONE_BIT) {
 		printk("rtd520: Timeout waiting for dma %i done clear\n",
-			channel);
+		       channel);
 		goto abortDmaExit;
 	}
 
 	/* disable channel (required) */
 	writeb(0, dma_cs_addr);
-	udelay(1);	/* needed?? */
+	udelay(1);		/* needed?? */
 	/* set abort bit for channel */
 	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
 
 	/*  wait for dma done bit to be set */
 	status = readb(dma_cs_addr);
 	for (ii = 0;
-		(status & PLX_DMA_DONE_BIT) == 0 && ii < RTD_DMA_TIMEOUT;
-		ii++) {
+	     (status & PLX_DMA_DONE_BIT) == 0 && ii < RTD_DMA_TIMEOUT; ii++) {
 		status = readb(dma_cs_addr);
 		WAIT_QUIETLY;
 	}
 	if ((status & PLX_DMA_DONE_BIT) == 0) {
 		printk("rtd520: Timeout waiting for dma %i done set\n",
-			channel);
+		       channel);
 	}
 
-      abortDmaExit:
+abortDmaExit:
 	/* spin_unlock_irqrestore( &dev->spinlock, flags ); */
 }
 
@@ -1495,8 +1540,8 @@ static int ai_process_dma(struct comedi_device *dev, struct comedi_subdevice *s)
   The data conversion may someday happen in a "bottom half".
 */
 static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
-	void *d)		/* our data */
-{				/* cpu context (ignored) */
+				 void *d)
+{				/* our data *//* cpu context (ignored) */
 	struct comedi_device *dev = d;	/* must be called "dev" for devpriv */
 	u16 status;
 	u16 fifoStatus;
@@ -1520,20 +1565,22 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 
 		if (istatus & ICS_DMA0_A) {
 			if (ai_process_dma(dev, s) < 0) {
-				DPRINTK("rtd520: comedi read buffer overflow (DMA) with %ld to go!\n", devpriv->aiCount);
+				DPRINTK
+				    ("rtd520: comedi read buffer overflow (DMA) with %ld to go!\n",
+				     devpriv->aiCount);
 				RtdDma0Control(dev,
-					(devpriv->
-						dma0Control &
+					       (devpriv->dma0Control &
 						~PLX_DMA_START_BIT)
-					| PLX_CLEAR_DMA_INTR_BIT);
+					       | PLX_CLEAR_DMA_INTR_BIT);
 				goto abortTransfer;
 			}
 
 			/*DPRINTK ("rtd520: DMA transfer: %ld to go, istatus %x\n",
 			   devpriv->aiCount, istatus); */
 			RtdDma0Control(dev,
-				(devpriv->dma0Control & ~PLX_DMA_START_BIT)
-				| PLX_CLEAR_DMA_INTR_BIT);
+				       (devpriv->
+					dma0Control & ~PLX_DMA_START_BIT)
+				       | PLX_CLEAR_DMA_INTR_BIT);
 			if (0 == devpriv->aiCount) {	/* counted down */
 				DPRINTK("rtd520: Samples Done (DMA).\n");
 				goto transferDone;
@@ -1560,7 +1607,9 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 			/*DPRINTK("rtd520: Sample int, reading 1/2FIFO.  fifo_status 0x%x\n",
 			   (fifoStatus ^ 0x6666) & 0x7777); */
 			if (ai_read_n(dev, s, devpriv->fifoLen / 2) < 0) {
-				DPRINTK("rtd520: comedi read buffer overflow (1/2FIFO) with %ld to go!\n", devpriv->aiCount);
+				DPRINTK
+				    ("rtd520: comedi read buffer overflow (1/2FIFO) with %ld to go!\n",
+				     devpriv->aiCount);
 				goto abortTransfer;
 			}
 			if (0 == devpriv->aiCount) {	/* counted down */
@@ -1573,24 +1622,32 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 			   devpriv->transCount, (fifoStatus ^ 0x6666) & 0x7777); */
 			if (fifoStatus & FS_ADC_NOT_EMPTY) {	/* 1 -> not empty */
 				if (ai_read_n(dev, s, devpriv->transCount) < 0) {
-					DPRINTK("rtd520: comedi read buffer overflow (N) with %ld to go!\n", devpriv->aiCount);
+					DPRINTK
+					    ("rtd520: comedi read buffer overflow (N) with %ld to go!\n",
+					     devpriv->aiCount);
 					goto abortTransfer;
 				}
 				if (0 == devpriv->aiCount) {	/* counted down */
-					DPRINTK("rtd520: Samples Done (N). fifo_status was 0x%x\n", (fifoStatus ^ 0x6666) & 0x7777);
+					DPRINTK
+					    ("rtd520: Samples Done (N). fifo_status was 0x%x\n",
+					     (fifoStatus ^ 0x6666) & 0x7777);
 					goto transferDone;
 				}
 				comedi_event(dev, s);
 			}
 		} else {	/* wait for 1/2 FIFO (old) */
-			DPRINTK("rtd520: Sample int.  Wait for 1/2. fifo_status 0x%x\n", (fifoStatus ^ 0x6666) & 0x7777);
+			DPRINTK
+			    ("rtd520: Sample int.  Wait for 1/2. fifo_status 0x%x\n",
+			     (fifoStatus ^ 0x6666) & 0x7777);
 		}
 	} else {
 		DPRINTK("rtd520: unknown interrupt source!\n");
 	}
 
 	if (0xffff & RtdInterruptOverrunStatus(dev)) {	/* interrupt overrun */
-		DPRINTK("rtd520: Interrupt overrun with %ld to go! over_status=0x%x\n", devpriv->aiCount, 0xffff & RtdInterruptOverrunStatus(dev));
+		DPRINTK
+		    ("rtd520: Interrupt overrun with %ld to go! over_status=0x%x\n",
+		     devpriv->aiCount, 0xffff & RtdInterruptOverrunStatus(dev));
 		goto abortTransfer;
 	}
 
@@ -1599,13 +1656,13 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 	RtdInterruptClear(dev);
 	return IRQ_HANDLED;
 
-      abortTransfer:
+abortTransfer:
 	RtdAdcClearFifo(dev);	/* clears full flag */
 	s->async->events |= COMEDI_CB_ERROR;
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
 	/* fall into transferDone */
 
-      transferDone:
+transferDone:
 	RtdPacerStopSource(dev, 0);	/* stop on SOFTWARE stop */
 	RtdPacerStop(dev);	/* Stop PACER */
 	RtdAdcConversionSource(dev, 0);	/* software trigger only */
@@ -1613,7 +1670,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {
 		RtdPlxInterruptWrite(dev,	/* disable any more interrupts */
-			RtdPlxInterruptRead(dev) & ~ICS_DMA0_E);
+				     RtdPlxInterruptRead(dev) & ~ICS_DMA0_E);
 		abort_dma(dev, 0);
 		devpriv->flags &= ~DMA0_ACTIVE;
 		/* if Using DMA, then we should have read everything by now */
@@ -1639,7 +1696,10 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 	RtdInterruptClear(dev);
 
 	fifoStatus = RtdFifoStatus(dev);	/* DEBUG */
-	DPRINTK("rtd520: Acquisition complete. %ld ints, intStat=%x, overStat=%x\n", devpriv->intCount, status, 0xffff & RtdInterruptOverrunStatus(dev));
+	DPRINTK
+	    ("rtd520: Acquisition complete. %ld ints, intStat=%x, overStat=%x\n",
+	     devpriv->intCount, status,
+	     0xffff & RtdInterruptOverrunStatus(dev));
 
 	return IRQ_HANDLED;
 }
@@ -1666,7 +1726,7 @@ static int rtd_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 */
 
 static int rtd_ai_cmdtest(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_cmd *cmd)
+			  struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -1710,7 +1770,7 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	   and mutually compatible */
 	/* note that mutual compatiblity is not an issue here */
 	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_EXT) {
+	    cmd->scan_begin_src != TRIG_EXT) {
 		err++;
 	}
 	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT) {
@@ -1737,26 +1797,26 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 			if (cmd->scan_begin_arg < RTD_MAX_SPEED_1) {
 				cmd->scan_begin_arg = RTD_MAX_SPEED_1;
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					TRIG_ROUND_UP);
+						TRIG_ROUND_UP);
 				err++;
 			}
 			if (cmd->scan_begin_arg > RTD_MIN_SPEED_1) {
 				cmd->scan_begin_arg = RTD_MIN_SPEED_1;
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					TRIG_ROUND_DOWN);
+						TRIG_ROUND_DOWN);
 				err++;
 			}
 		} else {
 			if (cmd->scan_begin_arg < RTD_MAX_SPEED) {
 				cmd->scan_begin_arg = RTD_MAX_SPEED;
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					TRIG_ROUND_UP);
+						TRIG_ROUND_UP);
 				err++;
 			}
 			if (cmd->scan_begin_arg > RTD_MIN_SPEED) {
 				cmd->scan_begin_arg = RTD_MIN_SPEED;
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
-					TRIG_ROUND_DOWN);
+						TRIG_ROUND_DOWN);
 				err++;
 			}
 		}
@@ -1774,26 +1834,26 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 			if (cmd->convert_arg < RTD_MAX_SPEED_1) {
 				cmd->convert_arg = RTD_MAX_SPEED_1;
 				rtd_ns_to_timer(&cmd->convert_arg,
-					TRIG_ROUND_UP);
+						TRIG_ROUND_UP);
 				err++;
 			}
 			if (cmd->convert_arg > RTD_MIN_SPEED_1) {
 				cmd->convert_arg = RTD_MIN_SPEED_1;
 				rtd_ns_to_timer(&cmd->convert_arg,
-					TRIG_ROUND_DOWN);
+						TRIG_ROUND_DOWN);
 				err++;
 			}
 		} else {
 			if (cmd->convert_arg < RTD_MAX_SPEED) {
 				cmd->convert_arg = RTD_MAX_SPEED;
 				rtd_ns_to_timer(&cmd->convert_arg,
-					TRIG_ROUND_UP);
+						TRIG_ROUND_UP);
 				err++;
 			}
 			if (cmd->convert_arg > RTD_MIN_SPEED) {
 				cmd->convert_arg = RTD_MIN_SPEED;
 				rtd_ns_to_timer(&cmd->convert_arg,
-					TRIG_ROUND_DOWN);
+						TRIG_ROUND_DOWN);
 				err++;
 			}
 		}
@@ -1836,7 +1896,7 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		rtd_ns_to_timer(&cmd->scan_begin_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+				cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->scan_begin_arg) {
 			err++;
 		}
@@ -1844,15 +1904,15 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		rtd_ns_to_timer(&cmd->convert_arg,
-			cmd->flags & TRIG_ROUND_MASK);
+				cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->convert_arg) {
 			err++;
 		}
 		if (cmd->scan_begin_src == TRIG_TIMER
-			&& (cmd->scan_begin_arg
-				< (cmd->convert_arg * cmd->scan_end_arg))) {
+		    && (cmd->scan_begin_arg
+			< (cmd->convert_arg * cmd->scan_end_arg))) {
 			cmd->scan_begin_arg =
-				cmd->convert_arg * cmd->scan_end_arg;
+			    cmd->convert_arg * cmd->scan_end_arg;
 			err++;
 		}
 	}
@@ -1883,7 +1943,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {	/* cancel anything running */
 		RtdPlxInterruptWrite(dev,	/* disable any more interrupts */
-			RtdPlxInterruptRead(dev) & ~ICS_DMA0_E);
+				     RtdPlxInterruptRead(dev) & ~ICS_DMA0_E);
 		abort_dma(dev, 0);
 		devpriv->flags &= ~DMA0_ACTIVE;
 		if (RtdPlxInterruptRead(dev) & ICS_DMA0_A) {	/*clear pending int */
@@ -1929,17 +1989,17 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		} else {
 			/* arrange to transfer data periodically */
 			devpriv->transCount
-				=
-				(TRANS_TARGET_PERIOD * cmd->chanlist_len) /
-				cmd->scan_begin_arg;
+			    =
+			    (TRANS_TARGET_PERIOD * cmd->chanlist_len) /
+			    cmd->scan_begin_arg;
 			if (devpriv->transCount < cmd->chanlist_len) {
 				/* tranfer after each scan (and avoid 0) */
 				devpriv->transCount = cmd->chanlist_len;
 			} else {	/* make a multiple of scan length */
 				devpriv->transCount =
-					(devpriv->transCount +
-					cmd->chanlist_len - 1)
-					/ cmd->chanlist_len;
+				    (devpriv->transCount +
+				     cmd->chanlist_len - 1)
+				    / cmd->chanlist_len;
 				devpriv->transCount *= cmd->chanlist_len;
 			}
 			devpriv->flags |= SEND_EOS;
@@ -1953,7 +2013,10 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			RtdAboutCounter(dev, devpriv->transCount - 1);
 		}
 
-		DPRINTK("rtd520: scanLen=%d tranferCount=%d fifoLen=%d\n  scanTime(ns)=%d flags=0x%x\n", cmd->chanlist_len, devpriv->transCount, devpriv->fifoLen, cmd->scan_begin_arg, devpriv->flags);
+		DPRINTK
+		    ("rtd520: scanLen=%d tranferCount=%d fifoLen=%d\n  scanTime(ns)=%d flags=0x%x\n",
+		     cmd->chanlist_len, devpriv->transCount, devpriv->fifoLen,
+		     cmd->scan_begin_arg, devpriv->flags);
 	} else {		/* unknown timing, just use 1/2 FIFO */
 		devpriv->transCount = 0;
 		devpriv->flags &= ~SEND_EOS;
@@ -1968,7 +2031,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	case TRIG_COUNT:	/* stop after N scans */
 		devpriv->aiCount = cmd->stop_arg * cmd->chanlist_len;
 		if ((devpriv->transCount > 0)
-			&& (devpriv->transCount > devpriv->aiCount)) {
+		    && (devpriv->transCount > devpriv->aiCount)) {
 			devpriv->transCount = devpriv->aiCount;
 		}
 		break;
@@ -1986,7 +2049,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:	/* periodic scanning */
 		timer = rtd_ns_to_timer(&cmd->scan_begin_arg,
-			TRIG_ROUND_NEAREST);
+					TRIG_ROUND_NEAREST);
 		/* set PACER clock */
 		/*DPRINTK ("rtd520: loading %d into pacer\n", timer); */
 		RtdPacerCounter(dev, timer);
@@ -2007,7 +2070,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	case TRIG_TIMER:	/* periodic */
 		if (cmd->chanlist_len > 1) {	/* only needed for multi-channel */
 			timer = rtd_ns_to_timer(&cmd->convert_arg,
-				TRIG_ROUND_NEAREST);
+						TRIG_ROUND_NEAREST);
 			/* setup BURST clock */
 			/*DPRINTK ("rtd520: loading %d into burst\n", timer); */
 			RtdBurstCounter(dev, timer);
@@ -2042,11 +2105,11 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->dma0Offset = 0;
 		RtdDma0Mode(dev, DMA_MODE_BITS);
 		RtdDma0Next(dev,	/* point to first block */
-			devpriv->dma0Chain[DMA_CHAIN_COUNT - 1].next);
+			    devpriv->dma0Chain[DMA_CHAIN_COUNT - 1].next);
 		RtdDma0Source(dev, DMAS_ADFIFO_HALF_FULL);	/* set DMA trigger source */
 
 		RtdPlxInterruptWrite(dev,	/* enable interrupt */
-			RtdPlxInterruptRead(dev) | ICS_DMA0_E);
+				     RtdPlxInterruptRead(dev) | ICS_DMA0_E);
 		/* Must be 2 steps.  See PLX app note about "Starting a DMA transfer" */
 		RtdDma0Control(dev, PLX_DMA_EN_BIT);	/* enable DMA (clear INTR?) */
 		RtdDma0Control(dev, PLX_DMA_EN_BIT | PLX_DMA_START_BIT);	/*start DMA */
@@ -2079,13 +2142,16 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 #ifdef USE_DMA
 	if (devpriv->flags & DMA0_ACTIVE) {
 		RtdPlxInterruptWrite(dev,	/* disable any more interrupts */
-			RtdPlxInterruptRead(dev) & ~ICS_DMA0_E);
+				     RtdPlxInterruptRead(dev) & ~ICS_DMA0_E);
 		abort_dma(dev, 0);
 		devpriv->flags &= ~DMA0_ACTIVE;
 	}
 #endif /* USE_DMA */
 	status = RtdInterruptStatus(dev);
-	DPRINTK("rtd520: Acquisition canceled. %ld ints, intStat=%x, overStat=%x\n", devpriv->intCount, status, 0xffff & RtdInterruptOverrunStatus(dev));
+	DPRINTK
+	    ("rtd520: Acquisition canceled. %ld ints, intStat=%x, overStat=%x\n",
+	     devpriv->intCount, status,
+	     0xffff & RtdInterruptOverrunStatus(dev));
 	return 0;
 }
 
@@ -2096,7 +2162,7 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
   Note: you have to check if the value is larger than the counter range!
 */
 static int rtd_ns_to_timer_base(unsigned int *nanosec,	/* desired period (in ns) */
-	int round_mode, int base)
+				int round_mode, int base)
 {				/* clock period (in ns) */
 	int divider;
 
@@ -2136,7 +2202,8 @@ static int rtd_ns_to_timer(unsigned int *ns, int round_mode)
   Output one (or more) analog values to a single port as fast as possible.
 */
 static int rtd_ao_winsn(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+			struct comedi_subdevice *s, struct comedi_insn *insn,
+			unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -2155,14 +2222,16 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 		/* VERIFY: comedi range and offset conversions */
 
 		if ((range > 1)	/* bipolar */
-			&& (data[i] < 2048)) {
+		    &&(data[i] < 2048)) {
 			/* offset and sign extend */
 			val = (((int)data[i]) - 2048) << 3;
 		} else {	/* unipolor */
 			val = data[i] << 3;
 		}
 
-		DPRINTK("comedi: rtd520 DAC chan=%d range=%d writing %d as 0x%x\n", chan, range, data[i], val);
+		DPRINTK
+		    ("comedi: rtd520 DAC chan=%d range=%d writing %d as 0x%x\n",
+		     chan, range, data[i], val);
 
 		/* a typical programming sequence */
 		RtdDacFifoPut(dev, chan, val);	/* put the value in */
@@ -2174,12 +2243,14 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 			stat = RtdFifoStatus(dev);
 			/* 1 -> not empty */
 			if (stat & ((0 == chan) ? FS_DAC1_NOT_EMPTY :
-					FS_DAC2_NOT_EMPTY))
+				    FS_DAC2_NOT_EMPTY))
 				break;
 			WAIT_QUIETLY;
 		}
 		if (ii >= RTD_DAC_TIMEOUT) {
-			DPRINTK("rtd520: Error: DAC never finished! FifoStatus=0x%x\n", stat ^ 0x6666);
+			DPRINTK
+			    ("rtd520: Error: DAC never finished! FifoStatus=0x%x\n",
+			     stat ^ 0x6666);
 			return -ETIMEDOUT;
 		}
 	}
@@ -2191,7 +2262,8 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
 static int rtd_ao_rinsn(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+			struct comedi_subdevice *s, struct comedi_insn *insn,
+			unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -2214,7 +2286,8 @@ static int rtd_ao_rinsn(struct comedi_device *dev,
  * comedi core can convert between insn_bits and insn_read/write
  */
 static int rtd_dio_insn_bits(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -2241,7 +2314,8 @@ static int rtd_dio_insn_bits(struct comedi_device *dev,
   Configure one bit on a IO port as Input or Output (hence the name :-).
 */
 static int rtd_dio_insn_config(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -2258,8 +2332,7 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] =
-			(s->
-			io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	default:

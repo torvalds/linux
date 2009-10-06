@@ -222,6 +222,34 @@ int set_irq_chip_data(unsigned int irq, void *data)
 }
 EXPORT_SYMBOL(set_irq_chip_data);
 
+/**
+ *	set_irq_nested_thread - Set/Reset the IRQ_NESTED_THREAD flag of an irq
+ *
+ *	@irq:	Interrupt number
+ *	@nest:	0 to clear / 1 to set the IRQ_NESTED_THREAD flag
+ *
+ *	The IRQ_NESTED_THREAD flag indicates that on
+ *	request_threaded_irq() no separate interrupt thread should be
+ *	created for the irq as the handler are called nested in the
+ *	context of a demultiplexing interrupt handler thread.
+ */
+void set_irq_nested_thread(unsigned int irq, int nest)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
+
+	if (!desc)
+		return;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	if (nest)
+		desc->status |= IRQ_NESTED_THREAD;
+	else
+		desc->status &= ~IRQ_NESTED_THREAD;
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+EXPORT_SYMBOL_GPL(set_irq_nested_thread);
+
 /*
  * default enable function
  */
@@ -298,6 +326,45 @@ static inline void mask_ack_irq(struct irq_desc *desc, int irq)
 			desc->chip->ack(irq);
 	}
 }
+
+/*
+ *	handle_nested_irq - Handle a nested irq from a irq thread
+ *	@irq:	the interrupt number
+ *
+ *	Handle interrupts which are nested into a threaded interrupt
+ *	handler. The handler function is called inside the calling
+ *	threads context.
+ */
+void handle_nested_irq(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	struct irqaction *action;
+	irqreturn_t action_ret;
+
+	might_sleep();
+
+	spin_lock_irq(&desc->lock);
+
+	kstat_incr_irqs_this_cpu(irq, desc);
+
+	action = desc->action;
+	if (unlikely(!action || (desc->status & IRQ_DISABLED)))
+		goto out_unlock;
+
+	desc->status |= IRQ_INPROGRESS;
+	spin_unlock_irq(&desc->lock);
+
+	action_ret = action->thread_fn(action->irq, action->dev_id);
+	if (!noirqdebug)
+		note_interrupt(irq, desc, action_ret);
+
+	spin_lock_irq(&desc->lock);
+	desc->status &= ~IRQ_INPROGRESS;
+
+out_unlock:
+	spin_unlock_irq(&desc->lock);
+}
+EXPORT_SYMBOL_GPL(handle_nested_irq);
 
 /**
  *	handle_simple_irq - Simple and software-decoded IRQs.
@@ -382,7 +449,10 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 
 	spin_lock(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
-	if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
+
+	if (unlikely(desc->status & IRQ_ONESHOT))
+		desc->status |= IRQ_MASKED;
+	else if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
 		desc->chip->unmask(irq);
 out_unlock:
 	spin_unlock(&desc->lock);
@@ -572,6 +642,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		desc->chip = &dummy_irq_chip;
 	}
 
+	chip_bus_lock(irq, desc);
 	spin_lock_irqsave(&desc->lock, flags);
 
 	/* Uninstall? */
@@ -591,6 +662,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		desc->chip->startup(irq);
 	}
 	spin_unlock_irqrestore(&desc->lock, flags);
+	chip_bus_sync_unlock(irq, desc);
 }
 EXPORT_SYMBOL_GPL(__set_irq_handler);
 

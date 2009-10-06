@@ -37,14 +37,13 @@ static int set_bios_mode(u8 mode)
 	ireg.al = mode;		/* AH=0x00 Set Video Mode */
 	intcall(0x10, &ireg, NULL);
 
-
 	ireg.ah = 0x0f;		/* Get Current Video Mode */
 	intcall(0x10, &ireg, &oreg);
 
 	do_restore = 1;		/* Assume video contents were lost */
 
 	/* Not all BIOSes are clean with the top bit */
-	new_mode = ireg.al & 0x7f;
+	new_mode = oreg.al & 0x7f;
 
 	if (new_mode == mode)
 		return 0;	/* Mode change OK */

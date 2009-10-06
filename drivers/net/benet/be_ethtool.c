@@ -16,6 +16,7 @@
  */
 
 #include "be.h"
+#include "be_cmds.h"
 #include <linux/ethtool.h>
 
 struct be_ethtool_stat {
@@ -127,8 +128,6 @@ be_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 	struct be_eq_obj *rx_eq = &adapter->rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 
-	coalesce->rx_max_coalesced_frames = adapter->max_rx_coal;
-
 	coalesce->rx_coalesce_usecs = rx_eq->cur_eqd;
 	coalesce->rx_coalesce_usecs_high = rx_eq->max_eqd;
 	coalesce->rx_coalesce_usecs_low = rx_eq->min_eqd;
@@ -144,14 +143,12 @@ be_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 }
 
 /*
- * This routine is used to set interrup coalescing delay *as well as*
- * the number of pkts to coalesce for LRO.
+ * This routine is used to set interrup coalescing delay
  */
 static int
 be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 	struct be_eq_obj *rx_eq = &adapter->rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	u32 tx_max, tx_min, tx_cur;
@@ -160,10 +157,6 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 
 	if (coalesce->use_adaptive_tx_coalesce == 1)
 		return -EINVAL;
-
-	adapter->max_rx_coal = coalesce->rx_max_coalesced_frames;
-	if (adapter->max_rx_coal > MAX_SKB_FRAGS)
-		adapter->max_rx_coal = MAX_SKB_FRAGS - 1;
 
 	/* if AIC is being turned on now, start with an EQD of 0 */
 	if (rx_eq->enable_aic == 0 &&
@@ -183,7 +176,7 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 	if (tx_cur > BE_MAX_EQD)
 		tx_cur = BE_MAX_EQD;
 	if (tx_eq->cur_eqd != tx_cur) {
-		status = be_cmd_modify_eqd(ctrl, tx_eq->q.id, tx_cur);
+		status = be_cmd_modify_eqd(adapter, tx_eq->q.id, tx_cur);
 		if (!status)
 			tx_eq->cur_eqd = tx_cur;
 	}
@@ -203,7 +196,8 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 		if (rx_cur > BE_MAX_EQD)
 			rx_cur = BE_MAX_EQD;
 		if (rx_eq->cur_eqd != rx_cur) {
-			status = be_cmd_modify_eqd(ctrl, rx_eq->q.id, rx_cur);
+			status = be_cmd_modify_eqd(adapter, rx_eq->q.id,
+					rx_cur);
 			if (!status)
 				rx_eq->cur_eqd = rx_cur;
 		}
@@ -317,8 +311,7 @@ be_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	be_cmd_get_flow_control(&adapter->ctrl, &ecmd->tx_pause,
-		&ecmd->rx_pause);
+	be_cmd_get_flow_control(adapter, &ecmd->tx_pause, &ecmd->rx_pause);
 	ecmd->autoneg = 0;
 }
 
@@ -331,7 +324,7 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	if (ecmd->autoneg != 0)
 		return -EINVAL;
 
-	status = be_cmd_set_flow_control(&adapter->ctrl, ecmd->tx_pause,
+	status = be_cmd_set_flow_control(adapter, ecmd->tx_pause,
 			ecmd->rx_pause);
 	if (!status)
 		dev_warn(&adapter->pdev->dev, "Pause param set failed.\n");
@@ -339,7 +332,21 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	return status;
 }
 
-struct ethtool_ops be_ethtool_ops = {
+static int
+be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	char file_name[ETHTOOL_FLASH_MAX_FILENAME];
+	u32 region;
+
+	file_name[ETHTOOL_FLASH_MAX_FILENAME - 1] = 0;
+	strcpy(file_name, efl->data);
+	region = efl->region;
+
+	return be_load_fw(adapter, file_name);
+}
+
+const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
 	.get_link = ethtool_op_get_link,
@@ -359,4 +366,5 @@ struct ethtool_ops be_ethtool_ops = {
 	.get_strings = be_get_stat_strings,
 	.get_stats_count = be_get_stats_count,
 	.get_ethtool_stats = be_get_ethtool_stats,
+	.flash_device = be_do_flash,
 };

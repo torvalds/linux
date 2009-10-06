@@ -78,6 +78,7 @@ struct usb_hub {
 	u8			indicator[USB_MAXCHILDREN];
 	struct delayed_work	leds;
 	struct delayed_work	init_work;
+	void			**port_owners;
 };
 
 
@@ -162,8 +163,10 @@ static inline char *portspeed(int portstatus)
 }
 
 /* Note that hdev or one of its children must be locked! */
-static inline struct usb_hub *hdev_to_hub(struct usb_device *hdev)
+static struct usb_hub *hdev_to_hub(struct usb_device *hdev)
 {
+	if (!hdev || !hdev->actconfig)
+		return NULL;
 	return usb_get_intfdata(hdev->actconfig->interface[0]);
 }
 
@@ -372,7 +375,7 @@ static void kick_khubd(struct usb_hub *hub)
 	unsigned long	flags;
 
 	/* Suppress autosuspend until khubd runs */
-	to_usb_interface(hub->intfdev)->pm_usage_cnt = 1;
+	atomic_set(&to_usb_interface(hub->intfdev)->pm_usage_cnt, 1);
 
 	spin_lock_irqsave(&hub_event_lock, flags);
 	if (!hub->disconnected && list_empty(&hub->event_list)) {
@@ -384,8 +387,10 @@ static void kick_khubd(struct usb_hub *hub)
 
 void usb_kick_khubd(struct usb_device *hdev)
 {
-	/* FIXME: What if hdev isn't bound to the hub driver? */
-	kick_khubd(hdev_to_hub(hdev));
+	struct usb_hub *hub = hdev_to_hub(hdev);
+
+	if (hub)
+		kick_khubd(hub);
 }
 
 
@@ -450,10 +455,10 @@ hub_clear_tt_buffer (struct usb_device *hdev, u16 devinfo, u16 tt)
  * talking to TTs must queue control transfers (not just bulk and iso), so
  * both can talk to the same hub concurrently.
  */
-static void hub_tt_kevent (struct work_struct *work)
+static void hub_tt_work(struct work_struct *work)
 {
 	struct usb_hub		*hub =
-		container_of(work, struct usb_hub, tt.kevent);
+		container_of(work, struct usb_hub, tt.clear_work);
 	unsigned long		flags;
 	int			limit = 100;
 
@@ -462,6 +467,7 @@ static void hub_tt_kevent (struct work_struct *work)
 		struct list_head	*next;
 		struct usb_tt_clear	*clear;
 		struct usb_device	*hdev = hub->hdev;
+		const struct hc_driver	*drv;
 		int			status;
 
 		next = hub->tt.clear_list.next;
@@ -471,21 +477,25 @@ static void hub_tt_kevent (struct work_struct *work)
 		/* drop lock so HCD can concurrently report other TT errors */
 		spin_unlock_irqrestore (&hub->tt.lock, flags);
 		status = hub_clear_tt_buffer (hdev, clear->devinfo, clear->tt);
-		spin_lock_irqsave (&hub->tt.lock, flags);
-
 		if (status)
 			dev_err (&hdev->dev,
 				"clear tt %d (%04x) error %d\n",
 				clear->tt, clear->devinfo, status);
+
+		/* Tell the HCD, even if the operation failed */
+		drv = clear->hcd->driver;
+		if (drv->clear_tt_buffer_complete)
+			(drv->clear_tt_buffer_complete)(clear->hcd, clear->ep);
+
 		kfree(clear);
+		spin_lock_irqsave(&hub->tt.lock, flags);
 	}
 	spin_unlock_irqrestore (&hub->tt.lock, flags);
 }
 
 /**
- * usb_hub_tt_clear_buffer - clear control/bulk TT state in high speed hub
- * @udev: the device whose split transaction failed
- * @pipe: identifies the endpoint of the failed transaction
+ * usb_hub_clear_tt_buffer - clear control/bulk TT state in high speed hub
+ * @urb: an URB associated with the failed or incomplete split transaction
  *
  * High speed HCDs use this to tell the hub driver that some split control or
  * bulk transaction failed in a way that requires clearing internal state of
@@ -495,8 +505,10 @@ static void hub_tt_kevent (struct work_struct *work)
  * It may not be possible for that hub to handle additional full (or low)
  * speed transactions until that state is fully cleared out.
  */
-void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
+int usb_hub_clear_tt_buffer(struct urb *urb)
 {
+	struct usb_device	*udev = urb->dev;
+	int			pipe = urb->pipe;
 	struct usb_tt		*tt = udev->tt;
 	unsigned long		flags;
 	struct usb_tt_clear	*clear;
@@ -508,7 +520,7 @@ void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
 	if ((clear = kmalloc (sizeof *clear, GFP_ATOMIC)) == NULL) {
 		dev_err (&udev->dev, "can't save CLEAR_TT_BUFFER state\n");
 		/* FIXME recover somehow ... RESET_TT? */
-		return;
+		return -ENOMEM;
 	}
 
 	/* info that CLEAR_TT_BUFFER needs */
@@ -520,14 +532,19 @@ void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
 			: (USB_ENDPOINT_XFER_BULK << 11);
 	if (usb_pipein (pipe))
 		clear->devinfo |= 1 << 15;
-	
+
+	/* info for completion callback */
+	clear->hcd = bus_to_hcd(udev->bus);
+	clear->ep = urb->ep;
+
 	/* tell keventd to clear state for this TT */
 	spin_lock_irqsave (&tt->lock, flags);
 	list_add_tail (&clear->clear_list, &tt->clear_list);
-	schedule_work (&tt->kevent);
+	schedule_work(&tt->clear_work);
 	spin_unlock_irqrestore (&tt->lock, flags);
+	return 0;
 }
-EXPORT_SYMBOL_GPL(usb_hub_tt_clear_buffer);
+EXPORT_SYMBOL_GPL(usb_hub_clear_tt_buffer);
 
 /* If do_delay is false, return the number of milliseconds the caller
  * needs to delay.
@@ -665,7 +682,8 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 					msecs_to_jiffies(delay));
 
 			/* Suppress autosuspend until init is done */
-			to_usb_interface(hub->intfdev)->pm_usage_cnt = 1;
+			atomic_set(&to_usb_interface(hub->intfdev)->
+					pm_usage_cnt, 1);
 			return;		/* Continues at init2: below */
 		} else {
 			hub_power_on(hub, true);
@@ -818,7 +836,7 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 	if (hub->has_indicators)
 		cancel_delayed_work_sync(&hub->leds);
 	if (hub->tt.hub)
-		cancel_work_sync(&hub->tt.kevent);
+		cancel_work_sync(&hub->tt.clear_work);
 }
 
 /* caller has locked the hub device */
@@ -842,25 +860,24 @@ static int hub_post_reset(struct usb_interface *intf)
 static int hub_configure(struct usb_hub *hub,
 	struct usb_endpoint_descriptor *endpoint)
 {
+	struct usb_hcd *hcd;
 	struct usb_device *hdev = hub->hdev;
 	struct device *hub_dev = hub->intfdev;
 	u16 hubstatus, hubchange;
 	u16 wHubCharacteristics;
 	unsigned int pipe;
 	int maxp, ret;
-	char *message;
+	char *message = "out of memory";
 
 	hub->buffer = usb_buffer_alloc(hdev, sizeof(*hub->buffer), GFP_KERNEL,
 			&hub->buffer_dma);
 	if (!hub->buffer) {
-		message = "can't allocate hub irq buffer";
 		ret = -ENOMEM;
 		goto fail;
 	}
 
 	hub->status = kmalloc(sizeof(*hub->status), GFP_KERNEL);
 	if (!hub->status) {
-		message = "can't kmalloc hub status buffer";
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -868,7 +885,6 @@ static int hub_configure(struct usb_hub *hub,
 
 	hub->descriptor = kmalloc(sizeof(*hub->descriptor), GFP_KERNEL);
 	if (!hub->descriptor) {
-		message = "can't kmalloc hub descriptor";
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -891,6 +907,12 @@ static int hub_configure(struct usb_hub *hub,
 	hdev->maxchild = hub->descriptor->bNbrPorts;
 	dev_info (hub_dev, "%d port%s detected\n", hdev->maxchild,
 		(hdev->maxchild == 1) ? "" : "s");
+
+	hub->port_owners = kzalloc(hdev->maxchild * sizeof(void *), GFP_KERNEL);
+	if (!hub->port_owners) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 
 	wHubCharacteristics = le16_to_cpu(hub->descriptor->wHubCharacteristics);
 
@@ -935,7 +957,7 @@ static int hub_configure(struct usb_hub *hub,
 
 	spin_lock_init (&hub->tt.lock);
 	INIT_LIST_HEAD (&hub->tt.clear_list);
-	INIT_WORK (&hub->tt.kevent, hub_tt_kevent);
+	INIT_WORK(&hub->tt.clear_work, hub_tt_work);
 	switch (hdev->descriptor.bDeviceProtocol) {
 		case 0:
 			break;
@@ -1040,6 +1062,19 @@ static int hub_configure(struct usb_hub *hub,
 		dev_dbg(hub_dev, "%umA bus power budget for each child\n",
 				hub->mA_per_port);
 
+	/* Update the HCD's internal representation of this hub before khubd
+	 * starts getting port status changes for devices under the hub.
+	 */
+	hcd = bus_to_hcd(hdev->bus);
+	if (hcd->driver->update_hub_device) {
+		ret = hcd->driver->update_hub_device(hcd, hdev,
+				&hub->tt, GFP_KERNEL);
+		if (ret < 0) {
+			message = "can't update HCD hub info";
+			goto fail;
+		}
+	}
+
 	ret = hub_hub_status(hub, &hubstatus, &hubchange);
 	if (ret < 0) {
 		message = "can't get hub status";
@@ -1070,7 +1105,6 @@ static int hub_configure(struct usb_hub *hub,
 
 	hub->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!hub->urb) {
-		message = "couldn't allocate interrupt urb";
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1119,11 +1153,13 @@ static void hub_disconnect(struct usb_interface *intf)
 	hub_quiesce(hub, HUB_DISCONNECT);
 
 	usb_set_intfdata (intf, NULL);
+	hub->hdev->maxchild = 0;
 
 	if (hub->hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs--;
 
 	usb_free_urb(hub->urb);
+	kfree(hub->port_owners);
 	kfree(hub->descriptor);
 	kfree(hub->status);
 	usb_buffer_free(hub->hdev, sizeof(*hub->buffer), hub->buffer,
@@ -1236,6 +1272,79 @@ hub_ioctl(struct usb_interface *intf, unsigned int code, void *user_data)
 	default:
 		return -ENOSYS;
 	}
+}
+
+/*
+ * Allow user programs to claim ports on a hub.  When a device is attached
+ * to one of these "claimed" ports, the program will "own" the device.
+ */
+static int find_port_owner(struct usb_device *hdev, unsigned port1,
+		void ***ppowner)
+{
+	if (hdev->state == USB_STATE_NOTATTACHED)
+		return -ENODEV;
+	if (port1 == 0 || port1 > hdev->maxchild)
+		return -EINVAL;
+
+	/* This assumes that devices not managed by the hub driver
+	 * will always have maxchild equal to 0.
+	 */
+	*ppowner = &(hdev_to_hub(hdev)->port_owners[port1 - 1]);
+	return 0;
+}
+
+/* In the following three functions, the caller must hold hdev's lock */
+int usb_hub_claim_port(struct usb_device *hdev, unsigned port1, void *owner)
+{
+	int rc;
+	void **powner;
+
+	rc = find_port_owner(hdev, port1, &powner);
+	if (rc)
+		return rc;
+	if (*powner)
+		return -EBUSY;
+	*powner = owner;
+	return rc;
+}
+
+int usb_hub_release_port(struct usb_device *hdev, unsigned port1, void *owner)
+{
+	int rc;
+	void **powner;
+
+	rc = find_port_owner(hdev, port1, &powner);
+	if (rc)
+		return rc;
+	if (*powner != owner)
+		return -ENOENT;
+	*powner = NULL;
+	return rc;
+}
+
+void usb_hub_release_all_ports(struct usb_device *hdev, void *owner)
+{
+	int n;
+	void **powner;
+
+	n = find_port_owner(hdev, 1, &powner);
+	if (n == 0) {
+		for (; n < hdev->maxchild; (++n, ++powner)) {
+			if (*powner == owner)
+				*powner = NULL;
+		}
+	}
+}
+
+/* The caller must hold udev's lock */
+bool usb_device_is_owned(struct usb_device *udev)
+{
+	struct usb_hub *hub;
+
+	if (udev->state == USB_STATE_NOTATTACHED || !udev->parent)
+		return false;
+	hub = hdev_to_hub(udev->parent);
+	return !!hub->port_owners[udev->portnum - 1];
 }
 
 
@@ -2837,14 +2946,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 			/* For a suspended device, treat this as a
 			 * remote wakeup event.
 			 */
-			if (udev->do_remote_wakeup)
-				status = remote_wakeup(udev);
-
-			/* Otherwise leave it be; devices can't tell the
-			 * difference between suspended and disabled.
-			 */
-			else
-				status = 0;
+			status = remote_wakeup(udev);
 #endif
 
 		} else {

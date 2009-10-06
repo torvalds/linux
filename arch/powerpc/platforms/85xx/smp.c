@@ -25,7 +25,6 @@
 
 #include <sysdev/fsl_soc.h>
 
-extern volatile unsigned long __secondary_hold_acknowledge;
 extern void __early_start(void);
 
 #define BOOT_ENTRY_ADDR_UPPER	0
@@ -52,19 +51,18 @@ smp_85xx_kick_cpu(int nr)
 
 	pr_debug("smp_85xx_kick_cpu: kick CPU #%d\n", nr);
 
-	local_irq_save(flags);
-
 	np = of_get_cpu_node(nr, NULL);
 	cpu_rel_addr = of_get_property(np, "cpu-release-addr", NULL);
 
 	if (cpu_rel_addr == NULL) {
 		printk(KERN_ERR "No cpu-release-addr for cpu %d\n", nr);
-		local_irq_restore(flags);
 		return;
 	}
 
 	/* Map the spin table */
 	bptr_vaddr = ioremap(*cpu_rel_addr, SIZE_BOOT_ENTRY);
+
+	local_irq_save(flags);
 
 	out_be32(bptr_vaddr + BOOT_ENTRY_PIR, nr);
 	out_be32(bptr_vaddr + BOOT_ENTRY_ADDR_LOWER, __pa(__early_start));
@@ -73,54 +71,32 @@ smp_85xx_kick_cpu(int nr)
 	while ((__secondary_hold_acknowledge != nr) && (++n < 1000))
 		mdelay(1);
 
-	iounmap(bptr_vaddr);
-
 	local_irq_restore(flags);
 
+	iounmap(bptr_vaddr);
+
 	pr_debug("waited %d msecs for CPU #%d.\n", n, nr);
-}
-
-static void __init
-smp_85xx_basic_setup(int cpu_nr)
-{
-	/* Clear any pending timer interrupts */
-	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
-
-	/* Enable decrementer interrupt */
-	mtspr(SPRN_TCR, TCR_DIE);
 }
 
 static void __init
 smp_85xx_setup_cpu(int cpu_nr)
 {
 	mpic_setup_this_cpu();
-
-	smp_85xx_basic_setup(cpu_nr);
 }
 
 struct smp_ops_t smp_85xx_ops = {
 	.kick_cpu = smp_85xx_kick_cpu,
 };
 
-static int __init smp_dummy_probe(void)
-{
-	return NR_CPUS;
-}
-
 void __init mpc85xx_smp_init(void)
 {
 	struct device_node *np;
-
-	smp_85xx_ops.message_pass = NULL;
 
 	np = of_find_node_by_type(NULL, "open-pic");
 	if (np) {
 		smp_85xx_ops.probe = smp_mpic_probe;
 		smp_85xx_ops.setup_cpu = smp_85xx_setup_cpu;
 		smp_85xx_ops.message_pass = smp_mpic_message_pass;
-	} else {
-		smp_85xx_ops.probe = smp_dummy_probe;
-		smp_85xx_ops.setup_cpu = smp_85xx_basic_setup;
 	}
 
 	if (cpu_has_feature(CPU_FTR_DBELL))

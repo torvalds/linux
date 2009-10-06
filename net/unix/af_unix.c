@@ -315,7 +315,7 @@ static void unix_write_space(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
 	if (unix_writable(sk)) {
-		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+		if (sk_has_sleeper(sk))
 			wake_up_interruptible_sync(sk->sk_sleep);
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
@@ -1501,6 +1501,7 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	struct sk_buff *skb;
 	int sent = 0;
 	struct scm_cookie tmp_scm;
+	bool fds_sent = false;
 
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
@@ -1562,12 +1563,14 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		size = min_t(int, size, skb_tailroom(skb));
 
 		memcpy(UNIXCREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
-		if (siocb->scm->fp) {
+		/* Only send the fds in the first buffer */
+		if (siocb->scm->fp && !fds_sent) {
 			err = unix_attach_fds(siocb->scm, skb);
 			if (err) {
 				kfree_skb(skb);
 				goto out_err;
 			}
+			fds_sent = true;
 		}
 
 		err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
@@ -1985,7 +1988,7 @@ static unsigned int unix_poll(struct file *file, struct socket *sock, poll_table
 	struct sock *sk = sock->sk;
 	unsigned int mask;
 
-	poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk->sk_sleep, wait);
 	mask = 0;
 
 	/* exceptional events? */
@@ -2022,7 +2025,7 @@ static unsigned int unix_dgram_poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk, *other;
 	unsigned int mask, writable;
 
-	poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk->sk_sleep, wait);
 	mask = 0;
 
 	/* exceptional events? */
@@ -2053,7 +2056,7 @@ static unsigned int unix_dgram_poll(struct file *file, struct socket *sock,
 		other = unix_peer_get(sk);
 		if (other) {
 			if (unix_peer(other) != sk) {
-				poll_wait(file, &unix_sk(other)->peer_wait,
+				sock_poll_wait(file, &unix_sk(other)->peer_wait,
 					  wait);
 				if (unix_recvq_full(other))
 					writable = 0;

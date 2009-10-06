@@ -121,9 +121,6 @@ void __cpuinit smp4m_callin(void)
  */
  
 extern struct linux_prom_registers smp_penguin_ctable;
-extern unsigned long trapbase_cpu1[];
-extern unsigned long trapbase_cpu2[];
-extern unsigned long trapbase_cpu3[];
 
 void __init smp4m_boot_cpus(void)
 {
@@ -192,29 +189,6 @@ void __init smp4m_smp_done(void)
 	}
 	*prev = first;
 	local_flush_cache_all();
-
-	/* Free unneeded trap tables */
-	if (!cpu_isset(1, cpu_present_map)) {
-		ClearPageReserved(virt_to_page(trapbase_cpu1));
-		init_page_count(virt_to_page(trapbase_cpu1));
-		free_page((unsigned long)trapbase_cpu1);
-		totalram_pages++;
-		num_physpages++;
-	}
-	if (!cpu_isset(2, cpu_present_map)) {
-		ClearPageReserved(virt_to_page(trapbase_cpu2));
-		init_page_count(virt_to_page(trapbase_cpu2));
-		free_page((unsigned long)trapbase_cpu2);
-		totalram_pages++;
-		num_physpages++;
-	}
-	if (!cpu_isset(3, cpu_present_map)) {
-		ClearPageReserved(virt_to_page(trapbase_cpu3));
-		init_page_count(virt_to_page(trapbase_cpu3));
-		free_page((unsigned long)trapbase_cpu3);
-		totalram_pages++;
-		num_physpages++;
-	}
 
 	/* Ok, they are spinning and ready to go. */
 }

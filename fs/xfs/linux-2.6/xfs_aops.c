@@ -216,7 +216,6 @@ xfs_setfilesize(
 	if (ip->i_d.di_size < isize) {
 		ip->i_d.di_size = isize;
 		ip->i_update_core = 1;
-		ip->i_update_size = 1;
 		xfs_mark_inode_dirty_sync(ip);
 	}
 
@@ -1268,6 +1267,14 @@ xfs_vm_writepage(
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, 1 << inode->i_blkbits, 0);
 
+
+	/*
+	 *  VM calculation for nr_to_write seems off.  Bump it way
+	 *  up, this gets simple streaming writes zippy again.
+	 *  To be reviewed again after Jens' writeback changes.
+	 */
+	wbc->nr_to_write *= 4;
+
 	/*
 	 * Convert delayed allocate, unwritten or unmapped space
 	 * to real space and flush out to disk.
@@ -1628,4 +1635,5 @@ const struct address_space_operations xfs_address_space_operations = {
 	.direct_IO		= xfs_vm_direct_IO,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate  = block_is_partially_uptodate,
+	.error_remove_page	= generic_error_remove_page,
 };

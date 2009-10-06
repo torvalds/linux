@@ -926,31 +926,21 @@ static struct midi_operations mpu401_midi_operations[MAX_MIDI_DEV];
 static void mpu401_chk_version(int n, struct mpu_config *devc)
 {
 	int tmp;
-	unsigned long flags;
 
 	devc->version = devc->revision = 0;
 
-	spin_lock_irqsave(&devc->lock,flags);
-	if ((tmp = mpu_cmd(n, 0xAC, 0)) < 0)
-	{
-		spin_unlock_irqrestore(&devc->lock,flags);
+	tmp = mpu_cmd(n, 0xAC, 0);
+	if (tmp < 0)
 		return;
-	}
 	if ((tmp & 0xf0) > 0x20)	/* Why it's larger than 2.x ??? */
-	{
-		spin_unlock_irqrestore(&devc->lock,flags);
 		return;
-	}
 	devc->version = tmp;
 
-	if ((tmp = mpu_cmd(n, 0xAD, 0)) < 0)
-	{
+	if ((tmp = mpu_cmd(n, 0xAD, 0)) < 0) {
 		devc->version = 0;
-		spin_unlock_irqrestore(&devc->lock,flags);
 		return;
 	}
 	devc->revision = tmp;
-	spin_unlock_irqrestore(&devc->lock,flags);
 }
 
 int attach_mpu401(struct address_info *hw_config, struct module *owner)
@@ -1084,7 +1074,7 @@ int attach_mpu401(struct address_info *hw_config, struct module *owner)
 			sprintf(mpu_synth_info[m].name, "%s (MPU401)", hw_config->name);
 		else
 			sprintf(mpu_synth_info[m].name,
-				"MPU-401 %d.%d%c Midi interface #%d",
+				"MPU-401 %d.%d%c MIDI #%d",
 				(int) (devc->version & 0xf0) >> 4,
 				devc->version & 0x0f,
 				revision_char,

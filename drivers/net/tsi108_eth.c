@@ -1132,7 +1132,9 @@ static int tsi108_get_mac(struct net_device *dev)
 	}
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		printk("KERN_ERR: word1: %08x, word2: %08x\n", word1, word2);
+		printk(KERN_ERR
+		       "%s: Invalid MAC address. word1: %08x, word2: %08x\n",
+		       dev->name, word1, word2);
 		return -EINVAL;
 	}
 
@@ -1201,8 +1203,8 @@ static void tsi108_set_rx_mode(struct net_device *dev)
 				__set_bit(hash, &data->mc_hash[0]);
 			} else {
 				printk(KERN_ERR
-				       "%s: got multicast address of length %d "
-				       "instead of 6.\n", dev->name,
+		"%s: got multicast address of length %d instead of 6.\n",
+				       dev->name,
 				       mc->dmi_addrlen);
 			}
 

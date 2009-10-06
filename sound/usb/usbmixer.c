@@ -86,6 +86,7 @@ struct usb_mixer_interface {
 	u8 rc_buffer[6];
 
 	u8 audigy2nx_leds[3];
+	u8 xonar_u1_status;
 };
 
 
@@ -461,7 +462,7 @@ static int mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 			 unsigned int size, unsigned int __user *_tlv)
 {
 	struct usb_mixer_elem_info *cval = kcontrol->private_data;
-	DECLARE_TLV_DB_SCALE(scale, 0, 0, 0);
+	DECLARE_TLV_DB_MINMAX(scale, 0, 0);
 
 	if (size < sizeof(scale))
 		return -ENOMEM;
@@ -469,7 +470,16 @@ static int mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	 * while ALSA TLV contains in 1/100 dB unit
 	 */
 	scale[2] = (convert_signed_value(cval, cval->min) * 100) / 256;
-	scale[3] = (convert_signed_value(cval, cval->res) * 100) / 256;
+	scale[3] = (convert_signed_value(cval, cval->max) * 100) / 256;
+	if (scale[3] <= scale[2]) {
+		/* something is wrong; assume it's either from/to 0dB */
+		if (scale[2] < 0)
+			scale[3] = 0;
+		else if (scale[2] > 0)
+			scale[2] = 0;
+		else /* totally crap, return an error */
+			return -EINVAL;
+	}
 	if (copy_to_user(_tlv, scale, sizeof(scale)))
 		return -EFAULT;
 	return 0;
@@ -888,6 +898,11 @@ static struct snd_kcontrol_new usb_feature_unit_ctl = {
  * build a feature control
  */
 
+static size_t append_ctl_name(struct snd_kcontrol *kctl, const char *str)
+{
+	return strlcat(kctl->id.name, str, sizeof(kctl->id.name));
+}
+
 static void build_feature_ctl(struct mixer_build *state, unsigned char *desc,
 			      unsigned int ctl_mask, int control,
 			      struct usb_audio_term *iterm, int unitid)
@@ -968,13 +983,13 @@ static void build_feature_ctl(struct mixer_build *state, unsigned char *desc,
 		 */
 		if (! mapped_name && ! (state->oterm.type >> 16)) {
 			if ((state->oterm.type & 0xff00) == 0x0100) {
-				len = strlcat(kctl->id.name, " Capture", sizeof(kctl->id.name));
+				len = append_ctl_name(kctl, " Capture");
 			} else {
-				len = strlcat(kctl->id.name + len, " Playback", sizeof(kctl->id.name));
+				len = append_ctl_name(kctl, " Playback");
 			}
 		}
-		strlcat(kctl->id.name + len, control == USB_FEATURE_MUTE ? " Switch" : " Volume",
-			sizeof(kctl->id.name));
+		append_ctl_name(kctl, control == USB_FEATURE_MUTE ?
+				" Switch" : " Volume");
 		if (control == USB_FEATURE_VOLUME) {
 			kctl->tlv.c = mixer_vol_tlv;
 			kctl->vd[0].access |= 
@@ -990,20 +1005,35 @@ static void build_feature_ctl(struct mixer_build *state, unsigned char *desc,
 		break;
 	}
 
-	/* quirk for UDA1321/N101 */
-	/* note that detection between firmware 2.1.1.7 (N101) and later 2.1.1.21 */
-	/* is not very clear from datasheets */
-	/* I hope that the min value is -15360 for newer firmware --jk */
+	/* volume control quirks */
 	switch (state->chip->usb_id) {
 	case USB_ID(0x0471, 0x0101):
 	case USB_ID(0x0471, 0x0104):
 	case USB_ID(0x0471, 0x0105):
 	case USB_ID(0x0672, 0x1041):
+	/* quirk for UDA1321/N101.
+	 * note that detection between firmware 2.1.1.7 (N101)
+	 * and later 2.1.1.21 is not very clear from datasheets.
+	 * I hope that the min value is -15360 for newer firmware --jk
+	 */
 		if (!strcmp(kctl->id.name, "PCM Playback Volume") &&
 		    cval->min == -15616) {
-			snd_printk(KERN_INFO "using volume control quirk for the UDA1321/N101 chip\n");
+			snd_printk(KERN_INFO
+				 "set volume quirk for UDA1321/N101 chip\n");
 			cval->max = -256;
 		}
+		break;
+
+	case USB_ID(0x046d, 0x09a4):
+		if (!strcmp(kctl->id.name, "Mic Capture Volume")) {
+			snd_printk(KERN_INFO
+				"set volume quirk for QuickCam E3500\n");
+			cval->min = 6080;
+			cval->max = 8768;
+			cval->res = 192;
+		}
+		break;
+
 	}
 
 	snd_printdd(KERN_INFO "[%d] FU [%s] ch = %d, val = %d/%d/%d\n",
@@ -1118,7 +1148,7 @@ static void build_mixer_unit_ctl(struct mixer_build *state, unsigned char *desc,
 		len = get_term_name(state, iterm, kctl->id.name, sizeof(kctl->id.name), 0);
 	if (! len)
 		len = sprintf(kctl->id.name, "Mixer Source %d", in_ch + 1);
-	strlcat(kctl->id.name + len, " Volume", sizeof(kctl->id.name));
+	append_ctl_name(kctl, " Volume");
 
 	snd_printdd(KERN_INFO "[%d] MU [%s] ch = %d, val = %d/%d\n",
 		    cval->id, kctl->id.name, cval->channels, cval->min, cval->max);
@@ -1375,8 +1405,8 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, unsigned 
 			if (! len)
 				strlcpy(kctl->id.name, name, sizeof(kctl->id.name));
 		}
-		strlcat(kctl->id.name, " ", sizeof(kctl->id.name));
-		strlcat(kctl->id.name, valinfo->suffix, sizeof(kctl->id.name));
+		append_ctl_name(kctl, " ");
+		append_ctl_name(kctl, valinfo->suffix);
 
 		snd_printdd(KERN_INFO "[%d] PU [%s] ch = %d, val = %d/%d\n",
 			    cval->id, kctl->id.name, cval->channels, cval->min, cval->max);
@@ -1585,9 +1615,9 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, unsi
 			strlcpy(kctl->id.name, "USB", sizeof(kctl->id.name));
 
 		if ((state->oterm.type & 0xff00) == 0x0100)
-			strlcat(kctl->id.name, " Capture Source", sizeof(kctl->id.name));
+			append_ctl_name(kctl, " Capture Source");
 		else
-			strlcat(kctl->id.name, " Playback Source", sizeof(kctl->id.name));
+			append_ctl_name(kctl, " Playback Source");
 	}
 
 	snd_printdd(KERN_INFO "[%d] SU [%s] items = %d\n",
@@ -2018,6 +2048,58 @@ static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 	}
 }
 
+static int snd_xonar_u1_switch_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = !!(mixer->xonar_u1_status & 0x02);
+	return 0;
+}
+
+static int snd_xonar_u1_switch_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_interface *mixer = snd_kcontrol_chip(kcontrol);
+	u8 old_status, new_status;
+	int err, changed;
+
+	old_status = mixer->xonar_u1_status;
+	if (ucontrol->value.integer.value[0])
+		new_status = old_status | 0x02;
+	else
+		new_status = old_status & ~0x02;
+	changed = new_status != old_status;
+	err = snd_usb_ctl_msg(mixer->chip->dev,
+			      usb_sndctrlpipe(mixer->chip->dev, 0), 0x08,
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
+			      50, 0, &new_status, 1, 100);
+	if (err < 0)
+		return err;
+	mixer->xonar_u1_status = new_status;
+	return changed;
+}
+
+static struct snd_kcontrol_new snd_xonar_u1_output_switch = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Digital Playback Switch",
+	.info = snd_ctl_boolean_mono_info,
+	.get = snd_xonar_u1_switch_get,
+	.put = snd_xonar_u1_switch_put,
+};
+
+static int snd_xonar_u1_controls_create(struct usb_mixer_interface *mixer)
+{
+	int err;
+
+	err = snd_ctl_add(mixer->chip->card,
+			  snd_ctl_new1(&snd_xonar_u1_output_switch, mixer));
+	if (err < 0)
+		return err;
+	mixer->xonar_u1_status = 0x05;
+	return 0;
+}
+
 int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 			 int ignore_error)
 {
@@ -2058,6 +2140,13 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 		if (!snd_card_proc_new(chip->card, "audigy2nx", &entry))
 			snd_info_set_text_ops(entry, mixer,
 					      snd_audigy2nx_proc_read);
+	}
+
+	if (mixer->chip->usb_id == USB_ID(0x0b05, 0x1739) ||
+	    mixer->chip->usb_id == USB_ID(0x0b05, 0x1743)) {
+		err = snd_xonar_u1_controls_create(mixer);
+		if (err < 0)
+			goto _error;
 	}
 
 	err = snd_device_new(chip->card, SNDRV_DEV_LOWLEVEL, mixer, &dev_ops);

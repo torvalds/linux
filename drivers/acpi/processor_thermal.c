@@ -40,6 +40,8 @@
 #include <acpi/processor.h>
 #include <acpi/acpi_drivers.h>
 
+#define PREFIX "ACPI: "
+
 #define ACPI_PROCESSOR_CLASS            "processor"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_thermal");
@@ -66,7 +68,7 @@ static int acpi_processor_apply_limit(struct acpi_processor *pr)
 		if (pr->limit.thermal.tx > tx)
 			tx = pr->limit.thermal.tx;
 
-		result = acpi_processor_set_throttling(pr, tx);
+		result = acpi_processor_set_throttling(pr, tx, false);
 		if (result)
 			goto end;
 	}
@@ -421,12 +423,12 @@ processor_set_cur_state(struct thermal_cooling_device *cdev,
 
 	if (state <= max_pstate) {
 		if (pr->flags.throttling && pr->throttling.state)
-			result = acpi_processor_set_throttling(pr, 0);
+			result = acpi_processor_set_throttling(pr, 0, false);
 		cpufreq_set_cur_state(pr->id, state);
 	} else {
 		cpufreq_set_cur_state(pr->id, max_pstate);
 		result = acpi_processor_set_throttling(pr,
-				state - max_pstate);
+				state - max_pstate, false);
 	}
 	return result;
 }
@@ -438,7 +440,7 @@ struct thermal_cooling_device_ops processor_cooling_ops = {
 };
 
 /* /proc interface */
-
+#ifdef CONFIG_ACPI_PROCFS
 static int acpi_processor_limit_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
@@ -517,3 +519,4 @@ const struct file_operations acpi_processor_limit_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+#endif

@@ -50,6 +50,8 @@
 #include <linux/writeback.h>
 #include <linux/kobject.h>
 #include <linux/exportfs.h>
+#include <linux/seq_file.h>
+#include <linux/mount.h>
 #include "nilfs.h"
 #include "mdt.h"
 #include "alloc.h"
@@ -65,7 +67,6 @@ MODULE_DESCRIPTION("A New Implementation of the Log-structured Filesystem "
 		   "(NILFS)");
 MODULE_LICENSE("GPL");
 
-static void nilfs_write_super(struct super_block *sb);
 static int nilfs_remount(struct super_block *sb, int *flags, char *data);
 
 /**
@@ -311,9 +312,6 @@ static void nilfs_put_super(struct super_block *sb)
 
 	lock_kernel();
 
-	if (sb->s_dirt)
-		nilfs_write_super(sb);
-
 	nilfs_detach_segment_constructor(sbi);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
@@ -336,63 +334,21 @@ static void nilfs_put_super(struct super_block *sb)
 	unlock_kernel();
 }
 
-/**
- * nilfs_write_super - write super block(s) of NILFS
- * @sb: super_block
- *
- * nilfs_write_super() gets a fs-dependent lock, writes super block(s), and
- * clears s_dirt.  This function is called in the section protected by
- * lock_super().
- *
- * The s_dirt flag is managed by each filesystem and we protect it by ns_sem
- * of the struct the_nilfs.  Lock order must be as follows:
- *
- *   1. lock_super()
- *   2.    down_write(&nilfs->ns_sem)
- *
- * Inside NILFS, locking ns_sem is enough to protect s_dirt and the buffer
- * of the super block (nilfs->ns_sbp[]).
- *
- * In most cases, VFS functions call lock_super() before calling these
- * methods.  So we must be careful not to bring on deadlocks when using
- * lock_super();  see generic_shutdown_super(), write_super(), and so on.
- *
- * Note that order of lock_kernel() and lock_super() depends on contexts
- * of VFS.  We should also note that lock_kernel() can be used in its
- * protective section and only the outermost one has an effect.
- */
-static void nilfs_write_super(struct super_block *sb)
+static int nilfs_sync_fs(struct super_block *sb, int wait)
 {
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
 	struct the_nilfs *nilfs = sbi->s_nilfs;
-
-	down_write(&nilfs->ns_sem);
-	if (!(sb->s_flags & MS_RDONLY)) {
-		struct nilfs_super_block **sbp = nilfs->ns_sbp;
-		u64 t = get_seconds();
-		int dupsb;
-
-		if (!nilfs_discontinued(nilfs) && t >= nilfs->ns_sbwtime[0] &&
-		    t < nilfs->ns_sbwtime[0] + NILFS_SB_FREQ) {
-			up_write(&nilfs->ns_sem);
-			return;
-		}
-		dupsb = sbp[1] && t > nilfs->ns_sbwtime[1] + NILFS_ALTSB_FREQ;
-		nilfs_commit_super(sbi, dupsb);
-	}
-	sb->s_dirt = 0;
-	up_write(&nilfs->ns_sem);
-}
-
-static int nilfs_sync_fs(struct super_block *sb, int wait)
-{
 	int err = 0;
-
-	nilfs_write_super(sb);
 
 	/* This function is called when super block should be written back */
 	if (wait)
 		err = nilfs_construct_segment(sb);
+
+	down_write(&nilfs->ns_sem);
+	if (sb->s_dirt)
+		nilfs_commit_super(sbi, 1);
+	up_write(&nilfs->ns_sem);
+
 	return err;
 }
 
@@ -407,8 +363,7 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	list_add(&sbi->s_list, &nilfs->ns_supers);
 	up_write(&nilfs->ns_super_sem);
 
-	sbi->s_ifile = nilfs_mdt_new(
-		nilfs, sbi->s_super, NILFS_IFILE_INO, NILFS_IFILE_GFP);
+	sbi->s_ifile = nilfs_mdt_new(nilfs, sbi->s_super, NILFS_IFILE_INO);
 	if (!sbi->s_ifile)
 		return -ENOMEM;
 
@@ -416,8 +371,10 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	if (unlikely(err))
 		goto failed;
 
+	down_read(&nilfs->ns_segctor_sem);
 	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, cno, 0, &raw_cp,
 					  &bh_cp);
+	up_read(&nilfs->ns_segctor_sem);
 	if (unlikely(err)) {
 		if (err == -ENOENT || err == -EINVAL) {
 			printk(KERN_ERR
@@ -527,7 +484,27 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static struct super_operations nilfs_sops = {
+static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
+{
+	struct super_block *sb = vfs->mnt_sb;
+	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+
+	if (!nilfs_test_opt(sbi, BARRIER))
+		seq_printf(seq, ",barrier=off");
+	if (nilfs_test_opt(sbi, SNAPSHOT))
+		seq_printf(seq, ",cp=%llu",
+			   (unsigned long long int)sbi->s_snapshot_cno);
+	if (nilfs_test_opt(sbi, ERRORS_RO))
+		seq_printf(seq, ",errors=remount-ro");
+	if (nilfs_test_opt(sbi, ERRORS_PANIC))
+		seq_printf(seq, ",errors=panic");
+	if (nilfs_test_opt(sbi, STRICT_ORDER))
+		seq_printf(seq, ",order=strict");
+
+	return 0;
+}
+
+static const struct super_operations nilfs_sops = {
 	.alloc_inode    = nilfs_alloc_inode,
 	.destroy_inode  = nilfs_destroy_inode,
 	.dirty_inode    = nilfs_dirty_inode,
@@ -536,7 +513,7 @@ static struct super_operations nilfs_sops = {
 	/* .drop_inode	  = nilfs_drop_inode, */
 	.delete_inode   = nilfs_delete_inode,
 	.put_super      = nilfs_put_super,
-	.write_super    = nilfs_write_super,
+	/* .write_super    = nilfs_write_super, */
 	.sync_fs        = nilfs_sync_fs,
 	/* .write_super_lockfs */
 	/* .unlockfs */
@@ -544,7 +521,7 @@ static struct super_operations nilfs_sops = {
 	.remount_fs     = nilfs_remount,
 	.clear_inode    = nilfs_clear_inode,
 	/* .umount_begin */
-	/* .show_options */
+	.show_options = nilfs_show_options
 };
 
 static struct inode *
@@ -583,7 +560,7 @@ nilfs_fh_to_parent(struct super_block *sb, struct fid *fid, int fh_len,
 				    nilfs_nfs_get_inode);
 }
 
-static struct export_operations nilfs_export_ops = {
+static const struct export_operations nilfs_export_ops = {
 	.fh_to_dentry = nilfs_fh_to_dentry,
 	.fh_to_parent = nilfs_fh_to_parent,
 	.get_parent = nilfs_get_parent,
@@ -814,10 +791,15 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 
 	if (sb->s_flags & MS_RDONLY) {
 		if (nilfs_test_opt(sbi, SNAPSHOT)) {
+			down_read(&nilfs->ns_segctor_sem);
 			err = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile,
 						       sbi->s_snapshot_cno);
-			if (err < 0)
+			up_read(&nilfs->ns_segctor_sem);
+			if (err < 0) {
+				if (err == -ENOENT)
+					err = -EINVAL;
 				goto failed_sbi;
+			}
 			if (!err) {
 				printk(KERN_ERR
 				       "NILFS: The specified checkpoint is "
@@ -1124,10 +1106,6 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	 * Find existing nilfs_sb_info struct
 	 */
 	sd.sbi = nilfs_find_sbinfo(nilfs, !(flags & MS_RDONLY), sd.cno);
-
-	if (!sd.cno)
-		/* trying to get the latest checkpoint.  */
-		sd.cno = nilfs_last_cno(nilfs);
 
 	/*
 	 * Get super block instance holding the nilfs_sb_info struct.

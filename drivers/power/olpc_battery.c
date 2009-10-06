@@ -8,8 +8,11 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/types.h>
 #include <linux/err.h>
+#include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/jiffies.h>
@@ -35,6 +38,7 @@
 #define BAT_STAT_AC		0x10
 #define BAT_STAT_CHARGING	0x20
 #define BAT_STAT_DISCHARGING	0x40
+#define BAT_STAT_TRICKLE	0x80
 
 #define BAT_ERR_INFOFAIL	0x02
 #define BAT_ERR_OVERVOLTAGE	0x04
@@ -89,7 +93,7 @@ static char bat_serial[17]; /* Ick */
 static int olpc_bat_get_status(union power_supply_propval *val, uint8_t ec_byte)
 {
 	if (olpc_platform_info.ecver > 0x44) {
-		if (ec_byte & BAT_STAT_CHARGING)
+		if (ec_byte & (BAT_STAT_CHARGING | BAT_STAT_TRICKLE))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else if (ec_byte & BAT_STAT_DISCHARGING)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
@@ -219,7 +223,8 @@ static int olpc_bat_get_property(struct power_supply *psy,
 	   It doesn't matter though -- the EC will return the last-known
 	   information, and it's as if we just ran that _little_ bit faster
 	   and managed to read it out before the battery went away. */
-	if (!(ec_byte & BAT_STAT_PRESENT) && psp != POWER_SUPPLY_PROP_PRESENT)
+	if (!(ec_byte & (BAT_STAT_PRESENT | BAT_STAT_TRICKLE)) &&
+			psp != POWER_SUPPLY_PROP_PRESENT)
 		return -ENODEV;
 
 	switch (psp) {
@@ -228,8 +233,17 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		if (ret)
 			return ret;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_TYPE:
+		if (ec_byte & BAT_STAT_TRICKLE)
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
+		else if (ec_byte & BAT_STAT_CHARGING)
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_FAST;
+		else
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		break;
 	case POWER_SUPPLY_PROP_PRESENT:
-		val->intval = !!(ec_byte & BAT_STAT_PRESENT);
+		val->intval = !!(ec_byte & (BAT_STAT_PRESENT |
+					    BAT_STAT_TRICKLE));
 		break;
 
 	case POWER_SUPPLY_PROP_HEALTH:
@@ -272,6 +286,14 @@ static int olpc_bat_get_property(struct power_supply *psy,
 			return ret;
 		val->intval = ec_byte;
 		break;
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		if (ec_byte & BAT_STAT_FULL)
+			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
+		else if (ec_byte & BAT_STAT_LOW)
+			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
+		else
+			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		ret = olpc_ec_cmd(EC_BAT_TEMP, NULL, 0, (void *)&ec_word, 2);
 		if (ret)
@@ -311,12 +333,14 @@ static int olpc_bat_get_property(struct power_supply *psy,
 
 static enum power_supply_property olpc_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TEMP_AMBIENT,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -334,21 +358,21 @@ static ssize_t olpc_bat_eeprom_read(struct kobject *kobj,
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	uint8_t ec_byte;
-	int ret, end;
+	int ret;
+	int i;
 
 	if (off >= EEPROM_SIZE)
 		return 0;
 	if (off + count > EEPROM_SIZE)
 		count = EEPROM_SIZE - off;
 
-	end = EEPROM_START + off + count;
-	for (ec_byte = EEPROM_START + off; ec_byte < end; ec_byte++) {
-		ret = olpc_ec_cmd(EC_BAT_EEPROM, &ec_byte, 1,
-				&buf[ec_byte - EEPROM_START], 1);
+	for (i = 0; i < count; i++) {
+		ec_byte = EEPROM_START + off + i;
+		ret = olpc_ec_cmd(EC_BAT_EEPROM, &ec_byte, 1, &buf[i], 1);
 		if (ret) {
-			printk(KERN_ERR "olpc-battery:  EC command "
-					"EC_BAT_EEPROM @ 0x%x failed -"
-					" %d!\n", ec_byte, ret);
+			pr_err("olpc-battery: "
+			       "EC_BAT_EEPROM cmd @ 0x%x failed - %d!\n",
+			       ec_byte, ret);
 			return -EIO;
 		}
 	}
@@ -364,6 +388,29 @@ static struct bin_attribute olpc_bat_eeprom = {
 	},
 	.size = 0,
 	.read = olpc_bat_eeprom_read,
+};
+
+/* Allow userspace to see the specific error value pulled from the EC */
+
+static ssize_t olpc_bat_error_read(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	uint8_t ec_byte;
+	ssize_t ret;
+
+	ret = olpc_ec_cmd(EC_BAT_ERRCODE, NULL, 0, &ec_byte, 1);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", ec_byte);
+}
+
+static struct device_attribute olpc_bat_error = {
+	.attr = {
+		.name = "error",
+		.mode = S_IRUGO,
+	},
+	.show = olpc_bat_error_read,
 };
 
 /*********************************************************************
@@ -429,8 +476,14 @@ static int __init olpc_bat_init(void)
 	if (ret)
 		goto eeprom_failed;
 
+	ret = device_create_file(olpc_bat.dev, &olpc_bat_error);
+	if (ret)
+		goto error_failed;
+
 	goto success;
 
+error_failed:
+	device_remove_bin_file(olpc_bat.dev, &olpc_bat_eeprom);
 eeprom_failed:
 	power_supply_unregister(&olpc_bat);
 battery_failed:
@@ -443,6 +496,7 @@ success:
 
 static void __exit olpc_bat_exit(void)
 {
+	device_remove_file(olpc_bat.dev, &olpc_bat_error);
 	device_remove_bin_file(olpc_bat.dev, &olpc_bat_eeprom);
 	power_supply_unregister(&olpc_bat);
 	power_supply_unregister(&olpc_ac);

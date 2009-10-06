@@ -154,7 +154,7 @@ static void usb_stream_hwdep_vm_close(struct vm_area_struct *area)
 	snd_printdd(KERN_DEBUG "%i\n", atomic_read(&us122l->mmap_count));
 }
 
-static struct vm_operations_struct usb_stream_hwdep_vm_ops = {
+static const struct vm_operations_struct usb_stream_hwdep_vm_ops = {
 	.open = usb_stream_hwdep_vm_open,
 	.fault = usb_stream_hwdep_vm_fault,
 	.close = usb_stream_hwdep_vm_close,
@@ -514,7 +514,6 @@ static int usx2y_create_card(struct usb_device *device, struct snd_card **cardp)
 		US122L(card)->chip.dev->bus->busnum,
 		US122L(card)->chip.dev->devnum
 		);
-	snd_card_set_dev(card, &device->dev);
 	*cardp = card;
 	return 0;
 }
@@ -531,6 +530,7 @@ static int us122l_usb_probe(struct usb_interface *intf,
 	if (err < 0)
 		return err;
 
+	snd_card_set_dev(card, &intf->dev);
 	if (!us122l_create_card(card)) {
 		snd_card_free(card);
 		return -EINVAL;

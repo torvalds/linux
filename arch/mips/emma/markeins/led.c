@@ -1,7 +1,4 @@
 /*
- *  arch/mips/emma2rh/markeins/led.c
- *      This file defines the led display for Mark-eins.
- *
  *  Copyright (C) NEC Electronics Corporation 2004-2006
  *
  *  This program is free software; you can redistribute it and/or modify

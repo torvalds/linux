@@ -22,6 +22,6 @@ extern int efx_ethtool_get_settings(struct net_device *net_dev,
 extern int efx_ethtool_set_settings(struct net_device *net_dev,
 				    struct ethtool_cmd *ecmd);
 
-extern struct ethtool_ops efx_ethtool_ops;
+extern const struct ethtool_ops efx_ethtool_ops;
 
 #endif /* EFX_ETHTOOL_H */

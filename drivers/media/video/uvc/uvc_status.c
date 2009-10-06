@@ -145,8 +145,8 @@ static void uvc_status_complete(struct urb *urb)
 			break;
 
 		default:
-			uvc_printk(KERN_INFO, "unknown event type %u.\n",
-				dev->status[0]);
+			uvc_trace(UVC_TRACE_STATUS, "Unknown status event "
+				"type %u.\n", dev->status[0]);
 			break;
 		}
 	}

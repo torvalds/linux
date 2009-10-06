@@ -2826,8 +2826,7 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
 	 */
 
 	local_irq_restore(flags);
-	printk(KERN_INFO "scsi%d: warning : SCSI command probably completed successfully\n"
-	       KERN_INFO "        before abortion\n", HOSTNO);
+	printk(KERN_INFO "scsi%d: warning : SCSI command probably completed successfully before abortion\n", HOSTNO);
 
 	/* Maybe it is sufficient just to release the ST-DMA lock... (if
 	 * possible at all) At least, we should check if the lock could be

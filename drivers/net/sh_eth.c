@@ -772,13 +772,15 @@ static void sh_eth_error(struct net_device *ndev, int intr_status)
 			mdp->stats.tx_carrier_errors++;
 		if (felic_stat & ECSR_LCHNG) {
 			/* Link Changed */
-			if (mdp->cd->no_psr) {
+			if (mdp->cd->no_psr || mdp->no_ether_link) {
 				if (mdp->link == PHY_DOWN)
 					link_stat = 0;
 				else
 					link_stat = PHY_ST_LINK;
 			} else {
 				link_stat = (ctrl_inl(ioaddr + PSR));
+				if (mdp->ether_link_active_low)
+					link_stat = ~link_stat;
 			}
 			if (!(link_stat & PHY_ST_LINK)) {
 				/* Link Down : disable tx and rx */
@@ -865,8 +867,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_cpu_data *cd = mdp->cd;
 	irqreturn_t ret = IRQ_NONE;
-	u32 ioaddr, boguscnt = RX_RING_SIZE;
-	u32 intr_status = 0;
+	u32 ioaddr, intr_status = 0;
 
 	ioaddr = ndev->base_addr;
 	spin_lock(&mdp->lock);
@@ -900,12 +901,6 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 
 	if (intr_status & cd->eesr_err_check)
 		sh_eth_error(ndev, intr_status);
-
-	if (--boguscnt < 0) {
-		printk(KERN_WARNING
-		       "%s: Too much work at interrupt, status=0x%4.4x.\n",
-		       ndev->name, intr_status);
-	}
 
 other_irq:
 	spin_unlock(&mdp->lock);
@@ -1140,7 +1135,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	ndev->trans_start = jiffies;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* device close function */
@@ -1417,6 +1412,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->phy_id = pd->phy;
 	/* EDMAC endian */
 	mdp->edmac_endian = pd->edmac_endian;
+	mdp->no_ether_link = pd->no_ether_link;
+	mdp->ether_link_active_low = pd->ether_link_active_low;
 
 	/* set cpu data */
 	mdp->cd = &sh_eth_my_cpu_data;

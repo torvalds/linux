@@ -459,35 +459,23 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 			io->urbs[i]->context = io;
 
 			/*
-			 * Some systems need to revert to PIO when DMA is
-			 * temporarily unavailable.  For their sakes, both
-			 * transfer_buffer and transfer_dma are set when
-			 * possible.  However this can only work on systems
-			 * without:
+			 * Some systems need to revert to PIO when DMA is temporarily
+			 * unavailable.  For their sakes, both transfer_buffer and
+			 * transfer_dma are set when possible.
 			 *
-			 *  - HIGHMEM, since DMA buffers located in high memory
-			 *    are not directly addressable by the CPU for PIO;
-			 *
-			 *  - IOMMU, since dma_map_sg() is allowed to use an
-			 *    IOMMU to make virtually discontiguous buffers be
-			 *    "dma-contiguous" so that PIO and DMA need diferent
-			 *    numbers of URBs.
-			 *
-			 * So when HIGHMEM or IOMMU are in use, transfer_buffer
-			 * is NULL to prevent stale pointers and to help spot
-			 * bugs.
+			 * Note that if IOMMU coalescing occurred, we cannot
+			 * trust sg_page anymore, so check if S/G list shrunk.
 			 */
+			if (io->nents == io->entries && !PageHighMem(sg_page(sg)))
+				io->urbs[i]->transfer_buffer = sg_virt(sg);
+			else
+				io->urbs[i]->transfer_buffer = NULL;
+
 			if (dma) {
 				io->urbs[i]->transfer_dma = sg_dma_address(sg);
 				len = sg_dma_len(sg);
-#if defined(CONFIG_HIGHMEM) || defined(CONFIG_GART_IOMMU)
-				io->urbs[i]->transfer_buffer = NULL;
-#else
-				io->urbs[i]->transfer_buffer = sg_virt(sg);
-#endif
 			} else {
 				/* hc may use _only_ transfer_buffer */
-				io->urbs[i]->transfer_buffer = sg_virt(sg);
 				len = sg->length;
 			}
 
@@ -806,6 +794,48 @@ static int usb_string_sub(struct usb_device *dev, unsigned int langid,
 	return rc;
 }
 
+static int usb_get_langid(struct usb_device *dev, unsigned char *tbuf)
+{
+	int err;
+
+	if (dev->have_langid)
+		return 0;
+
+	if (dev->string_langid < 0)
+		return -EPIPE;
+
+	err = usb_string_sub(dev, 0, 0, tbuf);
+
+	/* If the string was reported but is malformed, default to english
+	 * (0x0409) */
+	if (err == -ENODATA || (err > 0 && err < 4)) {
+		dev->string_langid = 0x0409;
+		dev->have_langid = 1;
+		dev_err(&dev->dev,
+			"string descriptor 0 malformed (err = %d), "
+			"defaulting to 0x%04x\n",
+				err, dev->string_langid);
+		return 0;
+	}
+
+	/* In case of all other errors, we assume the device is not able to
+	 * deal with strings at all. Set string_langid to -1 in order to
+	 * prevent any string to be retrieved from the device */
+	if (err < 0) {
+		dev_err(&dev->dev, "string descriptor 0 read error: %d\n",
+					err);
+		dev->string_langid = -1;
+		return -EPIPE;
+	}
+
+	/* always use the first langid listed */
+	dev->string_langid = tbuf[2] | (tbuf[3] << 8);
+	dev->have_langid = 1;
+	dev_dbg(&dev->dev, "default language 0x%04x\n",
+				dev->string_langid);
+	return 0;
+}
+
 /**
  * usb_string - returns UTF-8 version of a string descriptor
  * @dev: the device whose string descriptor is being retrieved
@@ -837,24 +867,9 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 	if (!tbuf)
 		return -ENOMEM;
 
-	/* get langid for strings if it's not yet known */
-	if (!dev->have_langid) {
-		err = usb_string_sub(dev, 0, 0, tbuf);
-		if (err < 0) {
-			dev_err(&dev->dev,
-				"string descriptor 0 read error: %d\n",
-				err);
-		} else if (err < 4) {
-			dev_err(&dev->dev, "string descriptor 0 too short\n");
-		} else {
-			dev->string_langid = tbuf[2] | (tbuf[3] << 8);
-			/* always use the first langid listed */
-			dev_dbg(&dev->dev, "default language 0x%04x\n",
-				dev->string_langid);
-		}
-
-		dev->have_langid = 1;
-	}
+	err = usb_get_langid(dev, tbuf);
+	if (err < 0)
+		goto errout;
 
 	err = usb_string_sub(dev, dev->string_langid, index, tbuf);
 	if (err < 0)

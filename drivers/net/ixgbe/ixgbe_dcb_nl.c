@@ -36,6 +36,7 @@
 #define BIT_PFC		0x02
 #define BIT_PG_RX	0x04
 #define BIT_PG_TX	0x08
+#define BIT_APP_UPCHG	0x10
 #define BIT_RESETLINK   0x40
 #define BIT_LINKSPEED   0x80
 
@@ -106,8 +107,6 @@ static u8 ixgbe_dcbnl_get_state(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	DPRINTK(DRV, INFO, "Get DCB Admin Mode.\n");
-
 	return !!(adapter->flags & IXGBE_FLAG_DCB_ENABLED);
 }
 
@@ -115,8 +114,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 {
 	u8 err = 0;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
-	DPRINTK(DRV, INFO, "Set DCB Admin Mode.\n");
 
 	if (state > 0) {
 		/* Turn on DCB */
@@ -138,6 +135,10 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
 		}
 		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
+		if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+			adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
+			adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
+		}
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
 		ixgbe_init_interrupt_scheme(adapter);
 		if (netif_running(netdev))
@@ -154,6 +155,9 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			adapter->dcb_cfg.pfc_mode_enable = false;
 			adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 			adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
+			if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+				adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+
 			ixgbe_init_interrupt_scheme(adapter);
 			if (netif_running(netdev))
 				netdev->netdev_ops->ndo_open(netdev);
@@ -168,6 +172,8 @@ static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int i, j;
+
+	memset(perm_addr, 0xff, MAX_ADDR_LEN);
 
 	for (i = 0; i < netdev->addr_len; i++)
 		perm_addr[i] = adapter->hw.mac.perm_addr[i];
@@ -343,8 +349,14 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 			msleep(1);
 
-		if (netif_running(netdev))
-			ixgbe_down(adapter);
+		if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
+			if (netif_running(netdev))
+				netdev->netdev_ops->ndo_stop(netdev);
+			ixgbe_clear_interrupt_scheme(adapter);
+		} else {
+			if (netif_running(netdev))
+				ixgbe_down(adapter);
+		}
 	}
 
 	ret = ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
@@ -368,8 +380,14 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	}
 
 	if (adapter->dcb_set_bitmap & BIT_RESETLINK) {
-		if (netif_running(netdev))
-			ixgbe_up(adapter);
+		if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
+			ixgbe_init_interrupt_scheme(adapter);
+			if (netif_running(netdev))
+				netdev->netdev_ops->ndo_open(netdev);
+		} else {
+			if (netif_running(netdev))
+				ixgbe_up(adapter);
+		}
 		ret = DCB_HW_CHG_RST;
 	} else if (adapter->dcb_set_bitmap & BIT_PFC) {
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
@@ -475,6 +493,76 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 	return;
 }
 
+/**
+ * ixgbe_dcbnl_getapp - retrieve the DCBX application user priority
+ * @netdev : the corresponding netdev
+ * @idtype : identifies the id as ether type or TCP/UDP port number
+ * @id: id is either ether type or TCP/UDP port number
+ *
+ * Returns : on success, returns a non-zero 802.1p user priority bitmap
+ * otherwise returns 0 as the invalid user priority bitmap to indicate an
+ * error.
+ */
+static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
+{
+	u8 rval = 0;
+
+	switch (idtype) {
+	case DCB_APP_IDTYPE_ETHTYPE:
+#ifdef IXGBE_FCOE
+		if (id == ETH_P_FCOE)
+			rval = ixgbe_fcoe_getapp(netdev_priv(netdev));
+#endif
+		break;
+	case DCB_APP_IDTYPE_PORTNUM:
+		break;
+	default:
+		break;
+	}
+	return rval;
+}
+
+/**
+ * ixgbe_dcbnl_setapp - set the DCBX application user priority
+ * @netdev : the corresponding netdev
+ * @idtype : identifies the id as ether type or TCP/UDP port number
+ * @id: id is either ether type or TCP/UDP port number
+ * @up: the 802.1p user priority bitmap
+ *
+ * Returns : 0 on success or 1 on error
+ */
+static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
+                             u8 idtype, u16 id, u8 up)
+{
+	u8 rval = 1;
+
+	switch (idtype) {
+	case DCB_APP_IDTYPE_ETHTYPE:
+#ifdef IXGBE_FCOE
+		if (id == ETH_P_FCOE) {
+			u8 tc;
+			struct ixgbe_adapter *adapter;
+
+			adapter = netdev_priv(netdev);
+			tc = adapter->fcoe.tc;
+			rval = ixgbe_fcoe_setapp(adapter, up);
+			if ((!rval) && (tc != adapter->fcoe.tc) &&
+			    (adapter->flags & IXGBE_FLAG_DCB_ENABLED) &&
+			    (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)) {
+				adapter->dcb_set_bitmap |= BIT_APP_UPCHG;
+				adapter->dcb_set_bitmap |= BIT_RESETLINK;
+			}
+		}
+#endif
+		break;
+	case DCB_APP_IDTYPE_PORTNUM:
+		break;
+	default:
+		break;
+	}
+	return rval;
+}
+
 struct dcbnl_rtnl_ops dcbnl_ops = {
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
@@ -495,5 +583,7 @@ struct dcbnl_rtnl_ops dcbnl_ops = {
 	.setnumtcs	= ixgbe_dcbnl_setnumtcs,
 	.getpfcstate	= ixgbe_dcbnl_getpfcstate,
 	.setpfcstate	= ixgbe_dcbnl_setpfcstate,
+	.getapp		= ixgbe_dcbnl_getapp,
+	.setapp		= ixgbe_dcbnl_setapp,
 };
 

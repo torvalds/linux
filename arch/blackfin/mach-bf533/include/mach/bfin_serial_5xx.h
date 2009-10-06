@@ -53,7 +53,7 @@
 #define UART_SET_DLAB(uart)     do { UART_PUT_LCR(uart, UART_GET_LCR(uart) | DLAB); SSYNC(); } while (0)
 #define UART_CLEAR_DLAB(uart)   do { UART_PUT_LCR(uart, UART_GET_LCR(uart) & ~DLAB); SSYNC(); } while (0)
 
-#define UART_GET_CTS(x) (!gpio_get_value(x->cts_pin))
+#define UART_GET_CTS(x) gpio_get_value(x->cts_pin)
 #define UART_DISABLE_RTS(x) gpio_set_value(x->rts_pin, 1)
 #define UART_ENABLE_RTS(x) gpio_set_value(x->rts_pin, 0)
 #define UART_ENABLE_INTS(x, v) UART_PUT_IER(x, v)
@@ -131,11 +131,11 @@ struct bfin_serial_res {
 struct bfin_serial_res bfin_serial_resource[] = {
 	{
 	0xFFC00400,
-	IRQ_UART_RX,
-	IRQ_UART_ERROR,
+	IRQ_UART0_RX,
+	IRQ_UART0_ERROR,
 #ifdef CONFIG_SERIAL_BFIN_DMA
-	CH_UART_TX,
-	CH_UART_RX,
+	CH_UART0_TX,
+	CH_UART0_RX,
 #endif
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
 	CONFIG_UART0_CTS_PIN,

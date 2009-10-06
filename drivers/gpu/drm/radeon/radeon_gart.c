@@ -75,7 +75,6 @@ void radeon_gart_table_ram_free(struct radeon_device *rdev)
 
 int radeon_gart_table_vram_alloc(struct radeon_device *rdev)
 {
-	uint64_t gpu_addr;
 	int r;
 
 	if (rdev->gart.table.vram.robj == NULL) {
@@ -88,6 +87,14 @@ int radeon_gart_table_vram_alloc(struct radeon_device *rdev)
 			return r;
 		}
 	}
+	return 0;
+}
+
+int radeon_gart_table_vram_pin(struct radeon_device *rdev)
+{
+	uint64_t gpu_addr;
+	int r;
+
 	r = radeon_object_pin(rdev->gart.table.vram.robj,
 			      RADEON_GEM_DOMAIN_VRAM, &gpu_addr);
 	if (r) {
@@ -177,7 +184,7 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 			return -ENOMEM;
 		}
 		rdev->gart.pages[p] = pagelist[i];
-		page_base = (uint32_t)rdev->gart.pages_addr[p];
+		page_base = rdev->gart.pages_addr[p];
 		for (j = 0; j < (PAGE_SIZE / 4096); j++, t++) {
 			radeon_gart_set_page(rdev, t, page_base);
 			page_base += 4096;

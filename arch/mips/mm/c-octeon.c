@@ -79,7 +79,7 @@ static void octeon_flush_icache_all_cores(struct vm_area_struct *vma)
 	 * cores it has been used on
 	 */
 	if (vma)
-		mask = vma->vm_mm->cpu_vm_mask;
+		mask = *mm_cpumask(vma->vm_mm);
 	else
 		mask = cpu_online_map;
 	cpu_clear(cpu, mask);
@@ -289,7 +289,7 @@ static void  cache_parity_error_octeon(int non_recoverable)
 }
 
 /**
- * Called when the the exception is not recoverable
+ * Called when the the exception is recoverable
  */
 
 asmlinkage void cache_parity_error_octeon_recoverable(void)
@@ -298,7 +298,7 @@ asmlinkage void cache_parity_error_octeon_recoverable(void)
 }
 
 /**
- * Called when the the exception is recoverable
+ * Called when the the exception is not recoverable
  */
 
 asmlinkage void cache_parity_error_octeon_non_recoverable(void)

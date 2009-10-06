@@ -70,7 +70,8 @@ static void xt_osf_finger_free_rcu(struct rcu_head *rcu_head)
 }
 
 static int xt_osf_add_callback(struct sock *ctnl, struct sk_buff *skb,
-			struct nlmsghdr *nlh, struct nlattr *osf_attrs[])
+			       const struct nlmsghdr *nlh,
+			       const struct nlattr * const osf_attrs[])
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *kf = NULL, *sf;
@@ -112,7 +113,8 @@ static int xt_osf_add_callback(struct sock *ctnl, struct sk_buff *skb,
 }
 
 static int xt_osf_remove_callback(struct sock *ctnl, struct sk_buff *skb,
-			struct nlmsghdr *nlh, struct nlattr *osf_attrs[])
+				  const struct nlmsghdr *nlh,
+				  const struct nlattr * const osf_attrs[])
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *sf;
@@ -330,7 +332,8 @@ static bool xt_osf_match_packet(const struct sk_buff *skb,
 			fcount++;
 
 			if (info->flags & XT_OSF_LOG)
-				nf_log_packet(p->hooknum, 0, skb, p->in, p->out, NULL,
+				nf_log_packet(p->family, p->hooknum, skb,
+					p->in, p->out, NULL,
 					"%s [%s:%s] : %pi4:%d -> %pi4:%d hops=%d\n",
 					f->genre, f->version, f->subtype,
 					&ip->saddr, ntohs(tcp->source),
@@ -345,7 +348,7 @@ static bool xt_osf_match_packet(const struct sk_buff *skb,
 	rcu_read_unlock();
 
 	if (!fcount && (info->flags & XT_OSF_LOG))
-		nf_log_packet(p->hooknum, 0, skb, p->in, p->out, NULL,
+		nf_log_packet(p->family, p->hooknum, skb, p->in, p->out, NULL,
 			"Remote OS is not known: %pi4:%u -> %pi4:%u\n",
 				&ip->saddr, ntohs(tcp->source),
 				&ip->daddr, ntohs(tcp->dest));

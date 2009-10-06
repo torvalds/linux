@@ -18,6 +18,7 @@
  */
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/slow-work.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
 /*
@@ -83,7 +84,7 @@ enum securityEnum {
 	NTLM,			/* Legacy NTLM012 auth with NTLM hash */
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO, NTLMv2 hash */
-	NTLMSSP,		/* NTLMSSP via SPNEGO, NTLMv2 hash */
+/*	NTLMSSP, */ /* can use rawNTLMSSP instead of NTLMSSP via SPNEGO */
 	Kerberos,		/* Kerberos via SPNEGO */
 	MSKerberos,		/* MS Kerberos via SPNEGO */
 };
@@ -260,6 +261,8 @@ struct cifsTconInfo {
 	atomic_t num_closes;
 	atomic_t num_deletes;
 	atomic_t num_mkdirs;
+	atomic_t num_posixopens;
+	atomic_t num_posixmkdirs;
 	atomic_t num_rmdirs;
 	atomic_t num_renames;
 	atomic_t num_t2renames;
@@ -344,15 +347,32 @@ struct cifsFileInfo {
 	/* lock scope id (0 if none) */
 	struct file *pfile; /* needed for writepage */
 	struct inode *pInode; /* needed for oplock break */
+	struct vfsmount *mnt;
 	struct mutex lock_mutex;
 	struct list_head llist; /* list of byte range locks we have. */
 	bool closePend:1;	/* file is marked to close */
 	bool invalidHandle:1;	/* file closed via session abend */
-	bool messageMode:1;	/* for pipes: message vs byte mode */
-	atomic_t wrtPending;   /* handle in use - defer close */
+	bool oplock_break_cancelled:1;
+	atomic_t count;		/* reference count */
 	struct mutex fh_mutex; /* prevents reopen race after dead ses*/
 	struct cifs_search_info srch_inf;
+	struct slow_work oplock_break; /* slow_work job for oplock breaks */
 };
+
+/* Take a reference on the file private data */
+static inline void cifsFileInfo_get(struct cifsFileInfo *cifs_file)
+{
+	atomic_inc(&cifs_file->count);
+}
+
+/* Release a reference on the file private data */
+static inline void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
+{
+	if (atomic_dec_and_test(&cifs_file->count)) {
+		iput(cifs_file->pInode);
+		kfree(cifs_file);
+	}
+}
 
 /*
  * One of these for each file inode
@@ -364,13 +384,12 @@ struct cifsInodeInfo {
 	struct list_head openFileList;
 	int write_behind_rc;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
-	atomic_t inUse;	 /* num concurrent users (local openers cifs) of file*/
 	unsigned long time;	/* jiffies of last update/check of inode */
 	bool clientCanCacheRead:1;	/* read oplock */
 	bool clientCanCacheAll:1;	/* read and writebehind oplock */
-	bool oplockPending:1;
 	bool delete_pending:1;		/* DELETE_ON_CLOSE is set */
 	u64  server_eof;		/* current file size on server */
+	u64  uniqueid;			/* server inode number */
 	struct inode vfs_inode;
 };
 
@@ -472,6 +491,32 @@ struct dfs_info3_param {
 	char *node_name;
 };
 
+/*
+ * common struct for holding inode info when searching for or updating an
+ * inode with new info
+ */
+
+#define CIFS_FATTR_DFS_REFERRAL		0x1
+#define CIFS_FATTR_DELETE_PENDING	0x2
+#define CIFS_FATTR_NEED_REVAL		0x4
+
+struct cifs_fattr {
+	u32		cf_flags;
+	u32		cf_cifsattrs;
+	u64		cf_uniqueid;
+	u64		cf_eof;
+	u64		cf_bytes;
+	uid_t		cf_uid;
+	gid_t		cf_gid;
+	umode_t		cf_mode;
+	dev_t		cf_rdev;
+	unsigned int	cf_nlink;
+	unsigned int	cf_dtype;
+	struct timespec	cf_atime;
+	struct timespec	cf_mtime;
+	struct timespec	cf_ctime;
+};
+
 static inline void free_dfs_info_param(struct dfs_info3_param *param)
 {
 	if (param) {
@@ -544,9 +589,9 @@ require use of the stronger protocol */
 #define   CIFSSEC_MUST_LANMAN	0x10010
 #define   CIFSSEC_MUST_PLNTXT	0x20020
 #ifdef CONFIG_CIFS_UPCALL
-#define   CIFSSEC_MASK          0xAF0AF /* allows weak security but also krb5 */
+#define   CIFSSEC_MASK          0xBF0BF /* allows weak security but also krb5 */
 #else
-#define   CIFSSEC_MASK          0xA70A7 /* current flags supported if weak */
+#define   CIFSSEC_MASK          0xB70B7 /* current flags supported if weak */
 #endif /* UPCALL */
 #else /* do not allow weak pw hash */
 #ifdef CONFIG_CIFS_UPCALL
@@ -628,8 +673,6 @@ GLOBAL_EXTERN rwlock_t		cifs_tcp_ses_lock;
  */
 GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;
 
-GLOBAL_EXTERN struct list_head GlobalOplock_Q;
-
 /* Outstanding dir notify requests */
 GLOBAL_EXTERN struct list_head GlobalDnotifyReqList;
 /* DirNotify response queue */
@@ -680,3 +723,4 @@ GLOBAL_EXTERN unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */
 GLOBAL_EXTERN unsigned int cifs_min_small;  /* min size of small buf pool */
 GLOBAL_EXTERN unsigned int cifs_max_pending; /* MAX requests at once to server*/
 
+extern const struct slow_work_ops cifs_oplock_break_ops;

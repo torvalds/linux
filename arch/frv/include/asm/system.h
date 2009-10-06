@@ -208,6 +208,8 @@ extern void free_initmem(void);
  * - if (*ptr == test) then orig = *ptr; *ptr = test;
  * - if (*ptr != test) then orig = *ptr;
  */
+extern uint64_t __cmpxchg_64(uint64_t test, uint64_t new, volatile uint64_t *v);
+
 #ifndef CONFIG_FRV_OUTOFLINE_ATOMIC_OPS
 
 #define cmpxchg(ptr, test, new)							\

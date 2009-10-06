@@ -298,14 +298,11 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
 
     strcpy(info->node.dev_name, dev->name);
 
-    printk(KERN_INFO "%s: port %#3lx, irq %d,",
-           dev->name, dev->base_addr, dev->irq);
-    printk (" mmio %#5lx,", (u_long)ti->mmio);
-    printk (" sram %#5lx,", (u_long)ti->sram_base << 12);
-    printk ("\n" KERN_INFO "  hwaddr=");
-    for (i = 0; i < TR_ALEN; i++)
-        printk("%02X", dev->dev_addr[i]);
-    printk("\n");
+    printk(KERN_INFO
+	   "%s: port %#3lx, irq %d,  mmio %#5lx, sram %#5lx, hwaddr=%pM\n",
+           dev->name, dev->base_addr, dev->irq,
+	   (u_long)ti->mmio, (u_long)(ti->sram_base << 12),
+	   dev->dev_addr);
     return 0;
 
 cs_failed:

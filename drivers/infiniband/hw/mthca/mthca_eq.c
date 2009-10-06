@@ -829,27 +829,34 @@ int mthca_init_eq_table(struct mthca_dev *dev)
 
 	if (dev->mthca_flags & MTHCA_FLAG_MSI_X) {
 		static const char *eq_name[] = {
-			[MTHCA_EQ_COMP]  = DRV_NAME " (comp)",
-			[MTHCA_EQ_ASYNC] = DRV_NAME " (async)",
-			[MTHCA_EQ_CMD]   = DRV_NAME " (cmd)"
+			[MTHCA_EQ_COMP]  = DRV_NAME "-comp",
+			[MTHCA_EQ_ASYNC] = DRV_NAME "-async",
+			[MTHCA_EQ_CMD]   = DRV_NAME "-cmd"
 		};
 
 		for (i = 0; i < MTHCA_NUM_EQ; ++i) {
+			snprintf(dev->eq_table.eq[i].irq_name,
+				 IB_DEVICE_NAME_MAX,
+				 "%s@pci:%s", eq_name[i],
+				 pci_name(dev->pdev));
 			err = request_irq(dev->eq_table.eq[i].msi_x_vector,
 					  mthca_is_memfree(dev) ?
 					  mthca_arbel_msi_x_interrupt :
 					  mthca_tavor_msi_x_interrupt,
-					  0, eq_name[i], dev->eq_table.eq + i);
+					  0, dev->eq_table.eq[i].irq_name,
+					  dev->eq_table.eq + i);
 			if (err)
 				goto err_out_cmd;
 			dev->eq_table.eq[i].have_irq = 1;
 		}
 	} else {
+		snprintf(dev->eq_table.eq[0].irq_name, IB_DEVICE_NAME_MAX,
+			 DRV_NAME "@pci:%s", pci_name(dev->pdev));
 		err = request_irq(dev->pdev->irq,
 				  mthca_is_memfree(dev) ?
 				  mthca_arbel_interrupt :
 				  mthca_tavor_interrupt,
-				  IRQF_SHARED, DRV_NAME, dev);
+				  IRQF_SHARED, dev->eq_table.eq[0].irq_name, dev);
 		if (err)
 			goto err_out_cmd;
 		dev->eq_table.have_irq = 1;

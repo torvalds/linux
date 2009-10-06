@@ -19,13 +19,18 @@
 #include "zlib_inflate/inflate.h"
 
 #include "zlib_inflate/infutil.h"
+#include <linux/slab.h>
 
 #endif /* STATIC */
 
 #include <linux/decompress/mm.h>
-#include <linux/slab.h>
 
-#define INBUF_LEN (16*1024)
+#define GZIP_IOBUF_SIZE (16*1024)
+
+static int nofill(void *buffer, unsigned int len)
+{
+	return -1;
+}
 
 /* Included from initramfs et al code */
 STATIC int INIT gunzip(unsigned char *buf, int len,
@@ -55,7 +60,7 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 	if (buf)
 		zbuf = buf;
 	else {
-		zbuf = malloc(INBUF_LEN);
+		zbuf = malloc(GZIP_IOBUF_SIZE);
 		len = 0;
 	}
 	if (!zbuf) {
@@ -76,8 +81,11 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 		goto gunzip_nomem4;
 	}
 
+	if (!fill)
+		fill = nofill;
+
 	if (len == 0)
-		len = fill(zbuf, INBUF_LEN);
+		len = fill(zbuf, GZIP_IOBUF_SIZE);
 
 	/* verify the gzip header */
 	if (len < 10 ||
@@ -113,7 +121,7 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 	while (rc == Z_OK) {
 		if (strm->avail_in == 0) {
 			/* TODO: handle case where both pos and fill are set */
-			len = fill(zbuf, INBUF_LEN);
+			len = fill(zbuf, GZIP_IOBUF_SIZE);
 			if (len < 0) {
 				rc = -1;
 				error("read error");

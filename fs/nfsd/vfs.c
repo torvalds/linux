@@ -89,6 +89,12 @@ struct raparm_hbucket {
 #define RAPARM_HASH_MASK	(RAPARM_HASH_SIZE-1)
 static struct raparm_hbucket	raparm_hash[RAPARM_HASH_SIZE];
 
+static inline int
+nfsd_v4client(struct svc_rqst *rq)
+{
+    return rq->rq_prog == NFS_PROGRAM && rq->rq_vers == 4;
+}
+
 /* 
  * Called from nfsd_lookup and encode_dirent. Check if we have crossed 
  * a mount point.
@@ -115,7 +121,8 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 		path_put(&path);
 		goto out;
 	}
-	if ((exp->ex_flags & NFSEXP_CROSSMOUNT) || EX_NOHIDE(exp2)) {
+	if (nfsd_v4client(rqstp) ||
+		(exp->ex_flags & NFSEXP_CROSSMOUNT) || EX_NOHIDE(exp2)) {
 		/* successfully crossed mount point */
 		/*
 		 * This is subtle: path.dentry is *not* on path.mnt
@@ -678,12 +685,13 @@ __be32
 nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 			int access, struct file **filp)
 {
-	const struct cred *cred = current_cred();
 	struct dentry	*dentry;
 	struct inode	*inode;
 	int		flags = O_RDONLY|O_LARGEFILE;
 	__be32		err;
 	int		host_err;
+
+	validate_process_creds();
 
 	/*
 	 * If we get here, then the client has already done an "open",
@@ -733,7 +741,7 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 		vfs_dq_init(inode);
 	}
 	*filp = dentry_open(dget(dentry), mntget(fhp->fh_export->ex_path.mnt),
-			    flags, cred);
+			    flags, current_cred());
 	if (IS_ERR(*filp))
 		host_err = PTR_ERR(*filp);
 	else
@@ -741,6 +749,7 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 out_nfserr:
 	err = nfserrno(host_err);
 out:
+	validate_process_creds();
 	return err;
 }
 

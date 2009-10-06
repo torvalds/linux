@@ -178,7 +178,7 @@ static int sport_uart_setup(struct sport_uart_port *up, int sclk, int baud_rate)
 static irqreturn_t sport_uart_rx_irq(int irq, void *dev_id)
 {
 	struct sport_uart_port *up = dev_id;
-	struct tty_struct *tty = up->port.info->port.tty;
+	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned int ch;
 
 	do {
@@ -205,7 +205,7 @@ static irqreturn_t sport_uart_tx_irq(int irq, void *dev_id)
 static irqreturn_t sport_uart_err_irq(int irq, void *dev_id)
 {
 	struct sport_uart_port *up = dev_id;
-	struct tty_struct *tty = up->port.info->port.tty;
+	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned int stat = SPORT_GET_STAT(up);
 
 	/* Overflow in RX FIFO */
@@ -236,7 +236,6 @@ static int sport_startup(struct uart_port *port)
 	int retval;
 
 	pr_debug("%s enter\n", __func__);
-	memset(buffer, 20, '\0');
 	snprintf(buffer, 20, "%s rx", up->name);
 	retval = request_irq(up->rx_irq, sport_uart_rx_irq, IRQF_SAMPLE_RANDOM, buffer, up);
 	if (retval) {
@@ -291,7 +290,7 @@ fail1:
 
 static void sport_uart_tx_chars(struct sport_uart_port *up)
 {
-	struct circ_buf *xmit = &up->port.info->xmit;
+	struct circ_buf *xmit = &up->port.state->xmit;
 
 	if (SPORT_GET_STAT(up) & TXF)
 		return;

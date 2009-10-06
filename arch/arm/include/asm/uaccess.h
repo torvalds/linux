@@ -17,6 +17,7 @@
 #include <asm/memory.h>
 #include <asm/domain.h>
 #include <asm/system.h>
+#include <asm/unified.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
@@ -365,8 +366,10 @@ do {									\
 
 #define __put_user_asm_dword(x,__pu_addr,err)			\
 	__asm__ __volatile__(					\
-	"1:	strt	" __reg_oper1 ", [%1], #4\n"		\
-	"2:	strt	" __reg_oper0 ", [%1]\n"		\
+ ARM(	"1:	strt	" __reg_oper1 ", [%1], #4\n"	)	\
+ ARM(	"2:	strt	" __reg_oper0 ", [%1]\n"	)	\
+ THUMB(	"1:	strt	" __reg_oper1 ", [%1]\n"	)	\
+ THUMB(	"2:	strt	" __reg_oper0 ", [%1, #4]\n"	)	\
 	"3:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\

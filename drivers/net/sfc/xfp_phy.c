@@ -97,21 +97,22 @@ static int qt2025c_wait_reset(struct efx_nic *efx)
 	return 0;
 }
 
-/* Reset the PHYXS MMD. This is documented (for the Quake PHYs) as doing
- * a complete soft reset.
- */
 static int xfp_reset_phy(struct efx_nic *efx)
 {
 	int rc;
 
-	rc = efx_mdio_reset_mmd(efx, MDIO_MMD_PHYXS,
-				XFP_MAX_RESET_TIME / XFP_RESET_WAIT,
-				XFP_RESET_WAIT);
-	if (rc < 0)
-		goto fail;
-
 	if (efx->phy_type == PHY_TYPE_QT2025C) {
+		/* Wait for the reset triggered by falcon_reset_hw()
+		 * to complete */
 		rc = qt2025c_wait_reset(efx);
+		if (rc < 0)
+			goto fail;
+	} else {
+		/* Reset the PHYXS MMD. This is documented as doing
+		 * a complete soft reset. */
+		rc = efx_mdio_reset_mmd(efx, MDIO_MMD_PHYXS,
+					XFP_MAX_RESET_TIME / XFP_RESET_WAIT,
+					XFP_RESET_WAIT);
 		if (rc < 0)
 			goto fail;
 	}

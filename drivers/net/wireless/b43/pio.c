@@ -32,9 +32,6 @@
 #include <linux/delay.h>
 
 
-static void b43_pio_rx_work(struct work_struct *work);
-
-
 static u16 generate_cookie(struct b43_pio_txqueue *q,
 			   struct b43_pio_txpacket *pack)
 {
@@ -144,7 +141,6 @@ static struct b43_pio_txqueue *b43_setup_pioqueue_tx(struct b43_wldev *dev,
 	q = kzalloc(sizeof(*q), GFP_KERNEL);
 	if (!q)
 		return NULL;
-	spin_lock_init(&q->lock);
 	q->dev = dev;
 	q->rev = dev->dev->id.revision;
 	q->mmio_base = index_to_pioqueue_base(dev, index) +
@@ -179,12 +175,10 @@ static struct b43_pio_rxqueue *b43_setup_pioqueue_rx(struct b43_wldev *dev,
 	q = kzalloc(sizeof(*q), GFP_KERNEL);
 	if (!q)
 		return NULL;
-	spin_lock_init(&q->lock);
 	q->dev = dev;
 	q->rev = dev->dev->id.revision;
 	q->mmio_base = index_to_pioqueue_base(dev, index) +
 		       pio_rxqueue_offset(dev);
-	INIT_WORK(&q->rx_work, b43_pio_rx_work);
 
 	/* Enable Direct FIFO RX (PIO) on the engine. */
 	b43_dma_direct_fifo_rx(dev, index, 1);
@@ -247,13 +241,6 @@ void b43_pio_free(struct b43_wldev *dev)
 	destroy_queue_tx(pio, tx_queue_AC_VI);
 	destroy_queue_tx(pio, tx_queue_AC_BE);
 	destroy_queue_tx(pio, tx_queue_AC_BK);
-}
-
-void b43_pio_stop(struct b43_wldev *dev)
-{
-	if (!b43_using_pio_transfers(dev))
-		return;
-	cancel_work_sync(&dev->pio.rx_queue->rx_work);
 }
 
 int b43_pio_init(struct b43_wldev *dev)
@@ -353,10 +340,15 @@ static u16 tx_write_2byte_queue(struct b43_pio_txqueue *q,
 			q->mmio_base + B43_PIO_TXDATA,
 			sizeof(u16));
 	if (data_len & 1) {
+		u8 tail[2] = { 0, };
+
 		/* Write the last byte. */
 		ctl &= ~B43_PIO_TXCTL_WRITEHI;
 		b43_piotx_write16(q, B43_PIO_TXCTL, ctl);
-		b43_piotx_write16(q, B43_PIO_TXDATA, data[data_len - 1]);
+		tail[0] = data[data_len - 1];
+		ssb_block_write(dev->dev, tail, 2,
+				q->mmio_base + B43_PIO_TXDATA,
+				sizeof(u16));
 	}
 
 	return ctl;
@@ -399,26 +391,31 @@ static u32 tx_write_4byte_queue(struct b43_pio_txqueue *q,
 			q->mmio_base + B43_PIO8_TXDATA,
 			sizeof(u32));
 	if (data_len & 3) {
-		u32 value = 0;
+		u8 tail[4] = { 0, };
 
 		/* Write the last few bytes. */
 		ctl &= ~(B43_PIO8_TXCTL_8_15 | B43_PIO8_TXCTL_16_23 |
 			 B43_PIO8_TXCTL_24_31);
-		data = &(data[data_len - 1]);
 		switch (data_len & 3) {
 		case 3:
-			ctl |= B43_PIO8_TXCTL_16_23;
-			value |= (u32)(*data) << 16;
-			data--;
+			ctl |= B43_PIO8_TXCTL_16_23 | B43_PIO8_TXCTL_8_15;
+			tail[0] = data[data_len - 3];
+			tail[1] = data[data_len - 2];
+			tail[2] = data[data_len - 1];
+			break;
 		case 2:
 			ctl |= B43_PIO8_TXCTL_8_15;
-			value |= (u32)(*data) << 8;
-			data--;
+			tail[0] = data[data_len - 2];
+			tail[1] = data[data_len - 1];
+			break;
 		case 1:
-			value |= (u32)(*data);
+			tail[0] = data[data_len - 1];
+			break;
 		}
 		b43_piotx_write32(q, B43_PIO8_TXCTL, ctl);
-		b43_piotx_write32(q, B43_PIO8_TXDATA, value);
+		ssb_block_write(dev->dev, tail, 4,
+				q->mmio_base + B43_PIO8_TXDATA,
+				sizeof(u32));
 	}
 
 	return ctl;
@@ -461,8 +458,8 @@ static int pio_tx_frame(struct b43_pio_txqueue *q,
 
 	cookie = generate_cookie(q, pack);
 	hdrlen = b43_txhdr_size(q->dev);
-	err = b43_generate_txhdr(q->dev, (u8 *)&txhdr, skb->data,
-				 skb->len, info, cookie);
+	err = b43_generate_txhdr(q->dev, (u8 *)&txhdr, skb,
+				 info, cookie);
 	if (err)
 		return err;
 
@@ -494,7 +491,6 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 {
 	struct b43_pio_txqueue *q;
 	struct ieee80211_hdr *hdr;
-	unsigned long flags;
 	unsigned int hdrlen, total_len;
 	int err = 0;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -512,20 +508,18 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		q = select_queue_by_priority(dev, skb_get_queue_mapping(skb));
 	}
 
-	spin_lock_irqsave(&q->lock, flags);
-
 	hdrlen = b43_txhdr_size(dev);
 	total_len = roundup(skb->len + hdrlen, 4);
 
 	if (unlikely(total_len > q->buffer_size)) {
 		err = -ENOBUFS;
 		b43dbg(dev->wl, "PIO: TX packet longer than queue.\n");
-		goto out_unlock;
+		goto out;
 	}
 	if (unlikely(q->free_packet_slots == 0)) {
 		err = -ENOBUFS;
 		b43warn(dev->wl, "PIO: TX packet overflow.\n");
-		goto out_unlock;
+		goto out;
 	}
 	B43_WARN_ON(q->buffer_used > q->buffer_size);
 
@@ -534,7 +528,7 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		err = -EBUSY;
 		ieee80211_stop_queue(dev->wl->hw, skb_get_queue_mapping(skb));
 		q->stopped = 1;
-		goto out_unlock;
+		goto out;
 	}
 
 	/* Assign the queue number to the ring (if not already done before)
@@ -548,11 +542,11 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		 * anymore and must not transmit it unencrypted. */
 		dev_kfree_skb_any(skb);
 		err = 0;
-		goto out_unlock;
+		goto out;
 	}
 	if (unlikely(err)) {
 		b43err(dev->wl, "PIO transmission failure\n");
-		goto out_unlock;
+		goto out;
 	}
 	q->nr_tx_packets++;
 
@@ -564,13 +558,10 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		q->stopped = 1;
 	}
 
-out_unlock:
-	spin_unlock_irqrestore(&q->lock, flags);
-
+out:
 	return err;
 }
 
-/* Called with IRQs disabled. */
 void b43_pio_handle_txstatus(struct b43_wldev *dev,
 			     const struct b43_txstatus *status)
 {
@@ -584,8 +575,6 @@ void b43_pio_handle_txstatus(struct b43_wldev *dev,
 		return;
 	B43_WARN_ON(!pack);
 
-	spin_lock(&q->lock); /* IRQs are already disabled. */
-
 	info = IEEE80211_SKB_CB(pack->skb);
 
 	b43_fill_txstatus_report(dev, info, status);
@@ -595,7 +584,7 @@ void b43_pio_handle_txstatus(struct b43_wldev *dev,
 	q->buffer_used -= total_len;
 	q->free_packet_slots += 1;
 
-	ieee80211_tx_status_irqsafe(dev->wl->hw, pack->skb);
+	ieee80211_tx_status(dev->wl->hw, pack->skb);
 	pack->skb = NULL;
 	list_add(&pack->list, &q->packets_list);
 
@@ -603,8 +592,6 @@ void b43_pio_handle_txstatus(struct b43_wldev *dev,
 		ieee80211_wake_queue(dev->wl->hw, q->queue_prio);
 		q->stopped = 0;
 	}
-
-	spin_unlock(&q->lock);
 }
 
 void b43_pio_get_tx_stats(struct b43_wldev *dev,
@@ -612,17 +599,14 @@ void b43_pio_get_tx_stats(struct b43_wldev *dev,
 {
 	const int nr_queues = dev->wl->hw->queues;
 	struct b43_pio_txqueue *q;
-	unsigned long flags;
 	int i;
 
 	for (i = 0; i < nr_queues; i++) {
 		q = select_queue_by_priority(dev, i);
 
-		spin_lock_irqsave(&q->lock, flags);
 		stats[i].len = B43_PIO_MAX_NR_TXPACKETS - q->free_packet_slots;
 		stats[i].limit = B43_PIO_MAX_NR_TXPACKETS;
 		stats[i].count = q->nr_tx_packets;
-		spin_unlock_irqrestore(&q->lock, flags);
 	}
 }
 
@@ -719,21 +703,25 @@ data_ready:
 			       q->mmio_base + B43_PIO8_RXDATA,
 			       sizeof(u32));
 		if (len & 3) {
-			u32 value;
-			char *data;
+			u8 tail[4] = { 0, };
 
 			/* Read the last few bytes. */
-			value = b43_piorx_read32(q, B43_PIO8_RXDATA);
-			data = &(skb->data[len + padding - 1]);
+			ssb_block_read(dev->dev, tail, 4,
+				       q->mmio_base + B43_PIO8_RXDATA,
+				       sizeof(u32));
 			switch (len & 3) {
 			case 3:
-				*data = (value >> 16);
-				data--;
+				skb->data[len + padding - 3] = tail[0];
+				skb->data[len + padding - 2] = tail[1];
+				skb->data[len + padding - 1] = tail[2];
+				break;
 			case 2:
-				*data = (value >> 8);
-				data--;
+				skb->data[len + padding - 2] = tail[0];
+				skb->data[len + padding - 1] = tail[1];
+				break;
 			case 1:
-				*data = value;
+				skb->data[len + padding - 1] = tail[0];
+				break;
 			}
 		}
 	} else {
@@ -741,11 +729,13 @@ data_ready:
 			       q->mmio_base + B43_PIO_RXDATA,
 			       sizeof(u16));
 		if (len & 1) {
-			u16 value;
+			u8 tail[2] = { 0, };
 
 			/* Read the last byte. */
-			value = b43_piorx_read16(q, B43_PIO_RXDATA);
-			skb->data[len + padding - 1] = value;
+			ssb_block_read(dev->dev, tail, 2,
+				       q->mmio_base + B43_PIO_RXDATA,
+				       sizeof(u16));
+			skb->data[len + padding - 1] = tail[0];
 		}
 	}
 
@@ -760,37 +750,23 @@ rx_error:
 	return 1;
 }
 
-/* RX workqueue. We can sleep, yay! */
-static void b43_pio_rx_work(struct work_struct *work)
-{
-	struct b43_pio_rxqueue *q = container_of(work, struct b43_pio_rxqueue,
-						 rx_work);
-	unsigned int budget = 50;
-	bool stop;
-
-	do {
-		spin_lock_irq(&q->lock);
-		stop = (pio_rx_frame(q) == 0);
-		spin_unlock_irq(&q->lock);
-		cond_resched();
-		if (stop)
-			break;
-	} while (--budget);
-}
-
-/* Called with IRQs disabled. */
 void b43_pio_rx(struct b43_pio_rxqueue *q)
 {
-	/* Due to latency issues we must run the RX path in
-	 * a workqueue to be able to schedule between packets. */
-	queue_work(q->dev->wl->hw->workqueue, &q->rx_work);
+	unsigned int count = 0;
+	bool stop;
+
+	while (1) {
+		stop = (pio_rx_frame(q) == 0);
+		if (stop)
+			break;
+		cond_resched();
+		if (WARN_ON_ONCE(++count > 10000))
+			break;
+	}
 }
 
 static void b43_pio_tx_suspend_queue(struct b43_pio_txqueue *q)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&q->lock, flags);
 	if (q->rev >= 8) {
 		b43_piotx_write32(q, B43_PIO8_TXCTL,
 				  b43_piotx_read32(q, B43_PIO8_TXCTL)
@@ -800,14 +776,10 @@ static void b43_pio_tx_suspend_queue(struct b43_pio_txqueue *q)
 				  b43_piotx_read16(q, B43_PIO_TXCTL)
 				  | B43_PIO_TXCTL_SUSPREQ);
 	}
-	spin_unlock_irqrestore(&q->lock, flags);
 }
 
 static void b43_pio_tx_resume_queue(struct b43_pio_txqueue *q)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&q->lock, flags);
 	if (q->rev >= 8) {
 		b43_piotx_write32(q, B43_PIO8_TXCTL,
 				  b43_piotx_read32(q, B43_PIO8_TXCTL)
@@ -817,7 +789,6 @@ static void b43_pio_tx_resume_queue(struct b43_pio_txqueue *q)
 				  b43_piotx_read16(q, B43_PIO_TXCTL)
 				  & ~B43_PIO_TXCTL_SUSPREQ);
 	}
-	spin_unlock_irqrestore(&q->lock, flags);
 }
 
 void b43_pio_tx_suspend(struct b43_wldev *dev)

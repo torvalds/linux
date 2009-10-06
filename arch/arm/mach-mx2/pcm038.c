@@ -186,17 +186,13 @@ static struct at24_platform_data board_eeprom = {
 };
 
 static struct i2c_board_info pcm038_i2c_devices[] = {
-	[0] = {
+	{
 		I2C_BOARD_INFO("at24", 0x52), /* E0=0, E1=1, E2=0 */
 		.platform_data = &board_eeprom,
-	},
-	[1] = {
-		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
-		.type = "pcf8563"
-	},
-	[2] = {
+	}, {
+		I2C_BOARD_INFO("pcf8563", 0x51),
+	}, {
 		I2C_BOARD_INFO("lm75", 0x4a),
-		.type = "lm75"
 	}
 };
 
@@ -220,6 +216,9 @@ static void __init pcm038_init(void)
 
 	mxc_register_device(&mxc_i2c_device1, &pcm038_i2c_1_data);
 
+	/* PE18 for user-LED D40 */
+	mxc_gpio_mode(GPIO_PORTE | 18 | GPIO_GPIO | GPIO_OUT);
+
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 #ifdef CONFIG_MACH_PCM970_BASEBOARD
@@ -241,7 +240,7 @@ MACHINE_START(PCM038, "phyCORE-i.MX27")
 	.io_pg_offst    = ((AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx27_map_io,
-	.init_irq       = mxc_init_irq,
+	.init_irq       = mx27_init_irq,
 	.init_machine   = pcm038_init,
 	.timer          = &pcm038_timer,
 MACHINE_END

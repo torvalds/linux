@@ -123,7 +123,7 @@ static struct pcmcia_low_level neponset_pcmcia_ops = {
 	.socket_suspend 	= sa1111_pcmcia_socket_suspend,
 };
 
-int __init pcmcia_neponset_init(struct sa1111_dev *sadev)
+int pcmcia_neponset_init(struct sa1111_dev *sadev)
 {
 	int ret = -ENODEV;
 

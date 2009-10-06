@@ -21,6 +21,7 @@ EXPORT_SYMBOL(csum_ipv6_magic);
 
 #include <asm/page.h>
 EXPORT_SYMBOL(clear_page);
+EXPORT_SYMBOL(copy_page);
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 #include <linux/bootmem.h>
@@ -60,9 +61,6 @@ EXPORT_SYMBOL(__udivdi3);
 EXPORT_SYMBOL(__moddi3);
 EXPORT_SYMBOL(__umoddi3);
 
-#include <asm/page.h>
-EXPORT_SYMBOL(copy_page);
-
 #if defined(CONFIG_MD_RAID456) || defined(CONFIG_MD_RAID456_MODULE)
 extern void xor_ia64_2(void);
 extern void xor_ia64_3(void);
@@ -85,26 +83,6 @@ EXPORT_SYMBOL(ia64_save_scratch_fpregs);
 
 #include <asm/unwind.h>
 EXPORT_SYMBOL(unw_init_running);
-
-#ifdef ASM_SUPPORTED
-# ifdef CONFIG_SMP
-#  if (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
-/*
- * This is not a normal routine and we don't want a function descriptor for it, so we use
- * a fake declaration here.
- */
-extern char ia64_spinlock_contention_pre3_4;
-EXPORT_SYMBOL(ia64_spinlock_contention_pre3_4);
-#  else
-/*
- * This is not a normal routine and we don't want a function descriptor for it, so we use
- * a fake declaration here.
- */
-extern char ia64_spinlock_contention;
-EXPORT_SYMBOL(ia64_spinlock_contention);
-#  endif
-# endif
-#endif
 
 #if defined(CONFIG_IA64_ESI) || defined(CONFIG_IA64_ESI_MODULE)
 extern void esi_call_phys (void);

@@ -27,8 +27,7 @@ void trace_print_seq(struct seq_file *m, struct trace_seq *s)
 {
 	int len = s->len >= PAGE_SIZE ? PAGE_SIZE - 1 : s->len;
 
-	s->buffer[len] = 0;
-	seq_puts(m, s->buffer);
+	seq_write(m, s->buffer, len);
 
 	trace_seq_init(s);
 }
@@ -408,7 +407,7 @@ seq_print_userip_objs(const struct userstack_entry *entry, struct trace_seq *s,
 		 * since individual threads might have already quit!
 		 */
 		rcu_read_lock();
-		task = find_task_by_vpid(entry->ent.tgid);
+		task = find_task_by_vpid(entry->tgid);
 		if (task)
 			mm = get_task_mm(task);
 		rcu_read_unlock();
@@ -461,18 +460,23 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 	return ret;
 }
 
-static int
-lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
+/**
+ * trace_print_lat_fmt - print the irq, preempt and lockdep fields
+ * @s: trace seq struct to write to
+ * @entry: The trace entry field from the ring buffer
+ *
+ * Prints the generic fields of irqs off, in hard or softirq, preempt
+ * count and lock depth.
+ */
+int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 {
 	int hardirq, softirq;
-	char comm[TASK_COMM_LEN];
+	int ret;
 
-	trace_find_cmdline(entry->pid, comm);
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
 	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
 
-	if (!trace_seq_printf(s, "%8.8s-%-5d %3d%c%c%c",
-			      comm, entry->pid, cpu,
+	if (!trace_seq_printf(s, "%c%c%c",
 			      (entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
 				(entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ?
 				  'X' : '.',
@@ -482,9 +486,30 @@ lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 				hardirq ? 'h' : softirq ? 's' : '.'))
 		return 0;
 
+	if (entry->lock_depth < 0)
+		ret = trace_seq_putc(s, '.');
+	else
+		ret = trace_seq_printf(s, "%d", entry->lock_depth);
+	if (!ret)
+		return 0;
+
 	if (entry->preempt_count)
 		return trace_seq_printf(s, "%x", entry->preempt_count);
-	return trace_seq_puts(s, ".");
+	return trace_seq_putc(s, '.');
+}
+
+static int
+lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
+{
+	char comm[TASK_COMM_LEN];
+
+	trace_find_cmdline(entry->pid, comm);
+
+	if (!trace_seq_printf(s, "%8.8s-%-5d %3d",
+			      comm, entry->pid, cpu))
+		return 0;
+
+	return trace_print_lat_fmt(s, entry);
 }
 
 static unsigned long preempt_mark_thresh = 100;

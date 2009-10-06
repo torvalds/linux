@@ -61,10 +61,13 @@ static struct af9013_config af9015_af9013_config[] = {
 
 static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 {
+#define BUF_LEN 63
+#define REQ_HDR_LEN 8 /* send header size */
+#define ACK_HDR_LEN 2 /* rece header size */
 	int act_len, ret;
-	u8 buf[64];
+	u8 buf[BUF_LEN];
 	u8 write = 1;
-	u8 msg_len = 8;
+	u8 msg_len = REQ_HDR_LEN;
 	static u8 seq; /* packet sequence number */
 
 	if (mutex_lock_interruptible(&af9015_usb_mutex) < 0)
@@ -81,7 +84,6 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 
 	switch (req->cmd) {
 	case GET_CONFIG:
-	case BOOT:
 	case READ_MEMORY:
 	case RECONNECT_USB:
 	case GET_IR_CODE:
@@ -95,11 +97,12 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 		break;
 	case WRITE_MEMORY:
 		if (((req->addr & 0xff00) == 0xff00) ||
-		    ((req->addr & 0xae00) == 0xae00))
+		    ((req->addr & 0xff00) == 0xae00))
 			buf[0] = WRITE_VIRTUAL_MEMORY;
 	case WRITE_VIRTUAL_MEMORY:
 	case COPY_FIRMWARE:
 	case DOWNLOAD_FIRMWARE:
+	case BOOT:
 		break;
 	default:
 		err("unknown command:%d", req->cmd);
@@ -107,17 +110,26 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 		goto error_unlock;
 	}
 
+	/* buffer overflow check */
+	if ((write && (req->data_len > BUF_LEN - REQ_HDR_LEN)) ||
+		(!write && (req->data_len > BUF_LEN - ACK_HDR_LEN))) {
+		err("too much data; cmd:%d len:%d", req->cmd, req->data_len);
+		ret = -EINVAL;
+		goto error_unlock;
+	}
+
 	/* write requested */
 	if (write) {
-		memcpy(&buf[8], req->data, req->data_len);
+		memcpy(&buf[REQ_HDR_LEN], req->data, req->data_len);
 		msg_len += req->data_len;
 	}
+
 	deb_xfer(">>> ");
 	debug_dump(buf, msg_len, deb_xfer);
 
 	/* send req */
 	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, 0x02), buf, msg_len,
-	&act_len, AF9015_USB_TIMEOUT);
+		&act_len, AF9015_USB_TIMEOUT);
 	if (ret)
 		err("bulk message failed:%d (%d/%d)", ret, msg_len, act_len);
 	else
@@ -130,10 +142,14 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 	if (req->cmd == DOWNLOAD_FIRMWARE || req->cmd == RECONNECT_USB)
 		goto exit_unlock;
 
-	/* receive ack and data if read req */
-	msg_len = 1 + 1 + req->data_len;  /* seq + status + data len */
+	/* write receives seq + status = 2 bytes
+	   read receives seq + status + data = 2 + N bytes */
+	msg_len = ACK_HDR_LEN;
+	if (!write)
+		msg_len += req->data_len;
+
 	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, 0x81), buf, msg_len,
-			   &act_len, AF9015_USB_TIMEOUT);
+		&act_len, AF9015_USB_TIMEOUT);
 	if (ret) {
 		err("recv bulk message failed:%d", ret);
 		ret = -1;
@@ -159,7 +175,7 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 
 	/* read request, copy returned data to return buf */
 	if (!write)
-		memcpy(req->data, &buf[2], req->data_len);
+		memcpy(req->data, &buf[ACK_HDR_LEN], req->data_len);
 
 error_unlock:
 exit_unlock:
@@ -369,12 +385,14 @@ static int af9015_init_endpoint(struct dvb_usb_device *d)
 	u8  packet_size;
 	deb_info("%s: USB speed:%d\n", __func__, d->udev->speed);
 
+	/* Windows driver uses packet count 21 for USB1.1 and 348 for USB2.0.
+	   We use smaller - about 1/4 from the original, 5 and 87. */
 #define TS_PACKET_SIZE            188
 
-#define TS_USB20_PACKET_COUNT     348
+#define TS_USB20_PACKET_COUNT      87
 #define TS_USB20_FRAME_SIZE       (TS_PACKET_SIZE*TS_USB20_PACKET_COUNT)
 
-#define TS_USB11_PACKET_COUNT      21
+#define TS_USB11_PACKET_COUNT       5
 #define TS_USB11_FRAME_SIZE       (TS_PACKET_SIZE*TS_USB11_PACKET_COUNT)
 
 #define TS_USB20_MAX_PACKET_SIZE  512
@@ -538,24 +556,22 @@ exit:
 /* dump eeprom */
 static int af9015_eeprom_dump(struct dvb_usb_device *d)
 {
-	char buf[4+3*16+1], buf2[4];
 	u8 reg, val;
 
 	for (reg = 0; ; reg++) {
 		if (reg % 16 == 0) {
 			if (reg)
-				deb_info("%s\n", buf);
-			sprintf(buf, "%02x: ", reg);
+				deb_info(KERN_CONT "\n");
+			deb_info(KERN_DEBUG "%02x:", reg);
 		}
 		if (af9015_read_reg_i2c(d, AF9015_I2C_EEPROM, reg, &val) == 0)
-			sprintf(buf2, "%02x ", val);
+			deb_info(KERN_CONT " %02x", val);
 		else
-			strcpy(buf2, "-- ");
-		strcat(buf, buf2);
+			deb_info(KERN_CONT " --");
 		if (reg == 0xff)
 			break;
 	}
-	deb_info("%s\n", buf);
+	deb_info(KERN_CONT "\n");
 	return 0;
 }
 
@@ -870,13 +886,13 @@ static int af9015_read_config(struct usb_device *udev)
 		/* USB1.1 set smaller buffersize and disable 2nd adapter */
 		if (udev->speed == USB_SPEED_FULL) {
 			af9015_properties[i].adapter[0].stream.u.bulk.buffersize
-				= TS_USB11_MAX_PACKET_SIZE;
+				= TS_USB11_FRAME_SIZE;
 			/* disable 2nd adapter because we don't have
 			   PID-filters */
 			af9015_config.dual_mode = 0;
 		} else {
 			af9015_properties[i].adapter[0].stream.u.bulk.buffersize
-				= TS_USB20_MAX_PACKET_SIZE;
+				= TS_USB20_FRAME_SIZE;
 		}
 	}
 
@@ -1045,8 +1061,8 @@ static int af9015_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*state = REMOTE_NO_KEY_PRESSED;
 
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (!buf[1] && keymap[i].custom == buf[0] &&
-		    keymap[i].data == buf[2]) {
+		if (!buf[1] && rc5_custom(&keymap[i]) == buf[0] &&
+		    rc5_data(&keymap[i]) == buf[2]) {
 			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 			break;
@@ -1266,6 +1282,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_CONCEPTRONIC_CTVDIGRCU)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_MC810)},
 	{USB_DEVICE(USB_VID_KYE,       USB_PID_GENIUS_TVGO_DVB_T03)},
+/* 25 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_399U_2)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1311,7 +1328,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 					.u = {
 						.bulk = {
 							.buffersize =
-						TS_USB20_MAX_PACKET_SIZE,
+						TS_USB20_FRAME_SIZE,
 						}
 					}
 				},
@@ -1346,7 +1363,8 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "KWorld PlusTV Dual DVB-T Stick " \
 					"(DVB-T 399U)",
-				.cold_ids = {&af9015_usb_table[4], NULL},
+				.cold_ids = {&af9015_usb_table[4],
+					     &af9015_usb_table[25], NULL},
 				.warm_ids = {NULL},
 			},
 			{
@@ -1416,7 +1434,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 					.u = {
 						.bulk = {
 							.buffersize =
-						TS_USB20_MAX_PACKET_SIZE,
+						TS_USB20_FRAME_SIZE,
 						}
 					}
 				},
@@ -1522,7 +1540,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 					.u = {
 						.bulk = {
 							.buffersize =
-						TS_USB20_MAX_PACKET_SIZE,
+						TS_USB20_FRAME_SIZE,
 						}
 					}
 				},

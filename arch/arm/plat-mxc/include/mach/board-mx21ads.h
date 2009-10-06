@@ -15,12 +15,6 @@
 #define __ASM_ARCH_MXC_BOARD_MX21ADS_H__
 
 /*
- * MXC UART EVB board level configurations
- */
-#define MXC_LL_UART_PADDR       UART1_BASE_ADDR
-#define MXC_LL_UART_VADDR       AIPI_IO_ADDRESS(UART1_BASE_ADDR)
-
-/*
  * Memory-mapped I/O on MX21ADS base board
  */
 #define MX21ADS_MMIO_BASE_ADDR   0xF5000000

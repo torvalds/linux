@@ -29,7 +29,6 @@
 #include <linux/usb.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
-#include <linux/smp_lock.h>
 #include <linux/version.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
@@ -135,12 +134,6 @@
 #define DEVICE_USE_CODEC2(x) ((x)>=675 && (x)<700)
 #define DEVICE_USE_CODEC3(x) ((x)>=700)
 #define DEVICE_USE_CODEC23(x) ((x)>=675)
-
-
-#ifndef V4L2_PIX_FMT_PWC1
-#define V4L2_PIX_FMT_PWC1	v4l2_fourcc('P','W','C','1')
-#define V4L2_PIX_FMT_PWC2	v4l2_fourcc('P','W','C','2')
-#endif
 
 /* The following structures were based on cpia.h. Why reinvent the wheel? :-) */
 struct pwc_iso_buf
@@ -260,6 +253,7 @@ struct pwc_device
    int snapshot_button_status;		/* set to 1 when the user push the button, reset to 0 when this value is read */
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
    struct input_dev *button_dev;	/* webcam snapshot button input */
+   char button_phys[64];
 #endif
 
    /*** Misc. data ***/

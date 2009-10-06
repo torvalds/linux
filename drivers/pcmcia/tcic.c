@@ -366,7 +366,7 @@ static int __init get_tcic_id(void)
 static int tcic_drv_pcmcia_suspend(struct platform_device *dev,
 				     pm_message_t state)
 {
-	return pcmcia_socket_dev_suspend(&dev->dev, state);
+	return pcmcia_socket_dev_suspend(&dev->dev);
 }
 
 static int tcic_drv_pcmcia_resume(struct platform_device *dev)
@@ -472,7 +472,8 @@ static int __init init_tcic(void)
     init_timer(&poll_timer);
 
     /* Build interrupt mask */
-    printk(", %d sockets\n" KERN_INFO "  irq list (", sockets);
+    printk(KERN_CONT ", %d sockets\n", sockets);
+    printk(KERN_INFO "  irq list (");
     if (irq_list_count == 0)
 	mask = irq_mask;
     else

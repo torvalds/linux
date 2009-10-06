@@ -46,10 +46,7 @@ static void isofs_put_super(struct super_block *sb)
 #ifdef CONFIG_JOLIET
 	lock_kernel();
 
-	if (sbi->s_nls_iocharset) {
-		unload_nls(sbi->s_nls_iocharset);
-		sbi->s_nls_iocharset = NULL;
-	}
+	unload_nls(sbi->s_nls_iocharset);
 
 	unlock_kernel();
 #endif
@@ -142,6 +139,7 @@ static const struct dentry_operations isofs_dentry_ops[] = {
 
 struct iso9660_options{
 	unsigned int rock:1;
+	unsigned int joliet:1;
 	unsigned int cruft:1;
 	unsigned int hide:1;
 	unsigned int showassoc:1;
@@ -151,7 +149,6 @@ struct iso9660_options{
 	unsigned int gid_set:1;
 	unsigned int utf8:1;
 	unsigned char map;
-	char joliet;
 	unsigned char check;
 	unsigned int blocksize;
 	mode_t fmode;
@@ -632,7 +629,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 			else if (isonum_711(vdp->type) == ISO_VD_SUPPLEMENTARY) {
 				sec = (struct iso_supplementary_descriptor *)vdp;
 				if (sec->escape[0] == 0x25 && sec->escape[1] == 0x2f) {
-					if (opt.joliet == 'y') {
+					if (opt.joliet) {
 						if (sec->escape[2] == 0x40)
 							joliet_level = 1;
 						else if (sec->escape[2] == 0x43)
@@ -912,8 +909,7 @@ out_no_root:
 		printk(KERN_WARNING "%s: get root inode failed\n", __func__);
 out_no_inode:
 #ifdef CONFIG_JOLIET
-	if (sbi->s_nls_iocharset)
-		unload_nls(sbi->s_nls_iocharset);
+	unload_nls(sbi->s_nls_iocharset);
 #endif
 	goto out_freesbi;
 out_no_read:

@@ -133,10 +133,12 @@ static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
 	{0, 0}
 };
 
-/* Convert string containing dotted ip address to binary form */
-/* returns 0 if invalid address */
-
-int
+/*
+ * Convert a string containing text IPv4 or IPv6 address to binary form.
+ *
+ * Returns 0 on failure.
+ */
+static int
 cifs_inet_pton(const int address_family, const char *cp, void *dst)
 {
 	int ret = 0;
@@ -151,6 +153,52 @@ cifs_inet_pton(const int address_family, const char *cp, void *dst)
 	if (ret > 0)
 		ret = 1;
 	return ret;
+}
+
+/*
+ * Try to convert a string to an IPv4 address and then attempt to convert
+ * it to an IPv6 address if that fails. Set the family field if either
+ * succeeds. If it's an IPv6 address and it has a '%' sign in it, try to
+ * treat the part following it as a numeric sin6_scope_id.
+ *
+ * Returns 0 on failure.
+ */
+int
+cifs_convert_address(char *src, void *dst)
+{
+	int rc;
+	char *pct, *endp;
+	struct sockaddr_in *s4 = (struct sockaddr_in *) dst;
+	struct sockaddr_in6 *s6 = (struct sockaddr_in6 *) dst;
+
+	/* IPv4 address */
+	if (cifs_inet_pton(AF_INET, src, &s4->sin_addr.s_addr)) {
+		s4->sin_family = AF_INET;
+		return 1;
+	}
+
+	/* temporarily terminate string */
+	pct = strchr(src, '%');
+	if (pct)
+		*pct = '\0';
+
+	rc = cifs_inet_pton(AF_INET6, src, &s6->sin6_addr.s6_addr);
+
+	/* repair temp termination (if any) and make pct point to scopeid */
+	if (pct)
+		*pct++ = '%';
+
+	if (!rc)
+		return rc;
+
+	s6->sin6_family = AF_INET6;
+	if (pct) {
+		s6->sin6_scope_id = (u32) simple_strtoul(pct, &endp, 0);
+		if (!*pct || *endp)
+			return 0;
+	}
+
+	return rc;
 }
 
 /*****************************************************************************

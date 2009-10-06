@@ -7,7 +7,6 @@
 #ifndef _LINUX_QUOTAOPS_
 #define _LINUX_QUOTAOPS_
 
-#include <linux/smp_lock.h>
 #include <linux/fs.h>
 
 static inline struct quota_info *sb_dqopt(struct super_block *sb)
@@ -136,8 +135,8 @@ static inline int sb_any_quota_active(struct super_block *sb)
 /*
  * Operations supported for diskquotas.
  */
-extern struct dquot_operations dquot_operations;
-extern struct quotactl_ops vfs_quotactl_ops;
+extern const struct dquot_operations dquot_operations;
+extern const struct quotactl_ops vfs_quotactl_ops;
 
 #define sb_dquot_ops (&dquot_operations)
 #define sb_quotactl_ops (&vfs_quotactl_ops)

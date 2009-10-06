@@ -635,6 +635,8 @@ static void xonar_d2_resume(struct oxygen *chip)
 
 static void xonar_d1_resume(struct oxygen *chip)
 {
+	oxygen_set_bits8(chip, OXYGEN_FUNCTION, OXYGEN_FUNCTION_RESET_CODEC);
+	msleep(1);
 	cs43xx_init(chip);
 	xonar_enable_output(chip);
 }

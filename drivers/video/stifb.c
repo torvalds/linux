@@ -1115,10 +1115,9 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 		  if the device name contains the string "DX" and tell the
 		  user how to reconfigure the card. */
 		if (strstr(sti->outptr.dev_name, "DX")) {
-		   printk(KERN_WARNING "WARNING: stifb framebuffer driver does not "
-			"support '%s' in double-buffer mode.\n"
-			KERN_WARNING "WARNING: Please disable the double-buffer mode "
-			"in IPL menu (the PARISC-BIOS).\n",
+		   printk(KERN_WARNING
+"WARNING: stifb framebuffer driver does not support '%s' in double-buffer mode.\n"
+"WARNING: Please disable the double-buffer mode in IPL menu (the PARISC-BIOS).\n",
 			sti->outptr.dev_name);
 		   goto out_err0;
 		}

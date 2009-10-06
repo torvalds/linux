@@ -13,6 +13,7 @@
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <asm/atomic.h>
 
 /*
@@ -52,6 +53,7 @@ long long atomic64_read(const atomic64_t *v)
 	spin_unlock_irqrestore(lock, flags);
 	return val;
 }
+EXPORT_SYMBOL(atomic64_read);
 
 void atomic64_set(atomic64_t *v, long long i)
 {
@@ -62,6 +64,7 @@ void atomic64_set(atomic64_t *v, long long i)
 	v->counter = i;
 	spin_unlock_irqrestore(lock, flags);
 }
+EXPORT_SYMBOL(atomic64_set);
 
 void atomic64_add(long long a, atomic64_t *v)
 {
@@ -72,6 +75,7 @@ void atomic64_add(long long a, atomic64_t *v)
 	v->counter += a;
 	spin_unlock_irqrestore(lock, flags);
 }
+EXPORT_SYMBOL(atomic64_add);
 
 long long atomic64_add_return(long long a, atomic64_t *v)
 {
@@ -84,6 +88,7 @@ long long atomic64_add_return(long long a, atomic64_t *v)
 	spin_unlock_irqrestore(lock, flags);
 	return val;
 }
+EXPORT_SYMBOL(atomic64_add_return);
 
 void atomic64_sub(long long a, atomic64_t *v)
 {
@@ -94,6 +99,7 @@ void atomic64_sub(long long a, atomic64_t *v)
 	v->counter -= a;
 	spin_unlock_irqrestore(lock, flags);
 }
+EXPORT_SYMBOL(atomic64_sub);
 
 long long atomic64_sub_return(long long a, atomic64_t *v)
 {
@@ -106,6 +112,7 @@ long long atomic64_sub_return(long long a, atomic64_t *v)
 	spin_unlock_irqrestore(lock, flags);
 	return val;
 }
+EXPORT_SYMBOL(atomic64_sub_return);
 
 long long atomic64_dec_if_positive(atomic64_t *v)
 {
@@ -120,6 +127,7 @@ long long atomic64_dec_if_positive(atomic64_t *v)
 	spin_unlock_irqrestore(lock, flags);
 	return val;
 }
+EXPORT_SYMBOL(atomic64_dec_if_positive);
 
 long long atomic64_cmpxchg(atomic64_t *v, long long o, long long n)
 {
@@ -134,6 +142,7 @@ long long atomic64_cmpxchg(atomic64_t *v, long long o, long long n)
 	spin_unlock_irqrestore(lock, flags);
 	return val;
 }
+EXPORT_SYMBOL(atomic64_cmpxchg);
 
 long long atomic64_xchg(atomic64_t *v, long long new)
 {
@@ -147,6 +156,7 @@ long long atomic64_xchg(atomic64_t *v, long long new)
 	spin_unlock_irqrestore(lock, flags);
 	return val;
 }
+EXPORT_SYMBOL(atomic64_xchg);
 
 int atomic64_add_unless(atomic64_t *v, long long a, long long u)
 {
@@ -162,6 +172,7 @@ int atomic64_add_unless(atomic64_t *v, long long a, long long u)
 	spin_unlock_irqrestore(lock, flags);
 	return ret;
 }
+EXPORT_SYMBOL(atomic64_add_unless);
 
 static int init_atomic64_lock(void)
 {

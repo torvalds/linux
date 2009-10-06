@@ -324,12 +324,12 @@ static int delay_iterate_devices(struct dm_target *ti,
 	struct delay_c *dc = ti->private;
 	int ret = 0;
 
-	ret = fn(ti, dc->dev_read, dc->start_read, data);
+	ret = fn(ti, dc->dev_read, dc->start_read, ti->len, data);
 	if (ret)
 		goto out;
 
 	if (dc->dev_write)
-		ret = fn(ti, dc->dev_write, dc->start_write, data);
+		ret = fn(ti, dc->dev_write, dc->start_write, ti->len, data);
 
 out:
 	return ret;

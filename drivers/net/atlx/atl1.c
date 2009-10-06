@@ -2349,7 +2349,8 @@ static void atl1_tx_queue(struct atl1_adapter *adapter, u16 count,
 	atomic_set(&tpd_ring->next_to_use, next_to_use);
 }
 
-static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
+					 struct net_device *netdev)
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
@@ -3378,11 +3379,11 @@ static void atl1_get_drvinfo(struct net_device *netdev,
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 
-	strncpy(drvinfo->driver, ATLX_DRIVER_NAME, sizeof(drvinfo->driver));
-	strncpy(drvinfo->version, ATLX_DRIVER_VERSION,
+	strlcpy(drvinfo->driver, ATLX_DRIVER_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, ATLX_DRIVER_VERSION,
 		sizeof(drvinfo->version));
-	strncpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev),
+	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 	drvinfo->eedump_len = ATL1_EEDUMP_LEN;
 }

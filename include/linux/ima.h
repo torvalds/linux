@@ -24,6 +24,7 @@ extern int ima_path_check(struct path *path, int mask, int update_counts);
 extern void ima_file_free(struct file *file);
 extern int ima_file_mmap(struct file *file, unsigned long prot);
 extern void ima_counts_get(struct file *file);
+extern void ima_counts_put(struct path *path, int mask);
 
 #else
 static inline int ima_bprm_check(struct linux_binprm *bprm)
@@ -57,6 +58,11 @@ static inline int ima_file_mmap(struct file *file, unsigned long prot)
 }
 
 static inline void ima_counts_get(struct file *file)
+{
+	return;
+}
+
+static inline void ima_counts_put(struct path *path, int mask)
 {
 	return;
 }

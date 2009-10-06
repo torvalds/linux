@@ -46,7 +46,7 @@
  * Version 0.11:	Converted to v4l2_device.
  *
  * Many things to do:
- * 	- Correct power managment of device (suspend & resume)
+ * 	- Correct power management of device (suspend & resume)
  * 	- Add code for scanning and smooth tuning
  * 	- Add code for sensitivity value
  * 	- Correct mistakes
@@ -58,6 +58,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/input.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>

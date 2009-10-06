@@ -1,0 +1,50 @@
+# arch/arm/plat-s5pc1xx/Kconfig
+#
+# Copyright 2009 Samsung Electronics Co.
+#	Byungho Min <bhmin@samsung.com>
+#
+# Licensed under GPLv2
+
+config PLAT_S5PC1XX
+	bool
+	depends on ARCH_S5PC1XX
+	default y
+	select PLAT_S3C
+	select ARM_VIC
+	select NO_IOPORT
+	select ARCH_REQUIRE_GPIOLIB
+	select S3C_GPIO_TRACK
+	select S3C_GPIO_PULL_UPDOWN
+	help
+	  Base platform code for any Samsung S5PC1XX device
+
+if PLAT_S5PC1XX
+
+# Configuration options shared by all S3C64XX implementations
+
+config CPU_S5PC100_INIT
+	bool
+	help
+	  Common initialisation code for the S5PC1XX
+
+config CPU_S5PC100_CLOCK
+	bool
+	help
+	  Common clock support code for the S5PC1XX
+
+# platform specific device setup
+
+config S5PC100_SETUP_I2C0
+	bool
+	default y
+	help
+	  Common setup code for i2c bus 0.
+
+	  Note, currently since i2c0 is always compiled, this setup helper
+	  is always compiled with it.
+
+config S5PC100_SETUP_I2C1
+	bool
+	help
+	  Common setup code for i2c bus 1.
+endif

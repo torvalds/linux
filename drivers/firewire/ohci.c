@@ -34,6 +34,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
+#include <linux/pci_ids.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 
@@ -1278,8 +1279,8 @@ static void bus_reset_tasklet(unsigned long data)
 	 * the inverted quadlets and a header quadlet, we shift one
 	 * bit extra to get the actual number of self IDs.
 	 */
-	self_id_count = (reg >> 3) & 0x3ff;
-	if (self_id_count == 0) {
+	self_id_count = (reg >> 3) & 0xff;
+	if (self_id_count == 0 || self_id_count > 252) {
 		fw_notify("inconsistent self IDs\n");
 		return;
 	}
@@ -2372,6 +2373,9 @@ static void ohci_pmac_off(struct pci_dev *dev)
 #define ohci_pmac_off(dev)
 #endif /* CONFIG_PPC_PMAC */
 
+#define PCI_VENDOR_ID_AGERE		PCI_VENDOR_ID_ATT
+#define PCI_DEVICE_ID_AGERE_FW643	0x5901
+
 static int __devinit pci_probe(struct pci_dev *dev,
 			       const struct pci_device_id *ent)
 {
@@ -2421,6 +2425,16 @@ static int __devinit pci_probe(struct pci_dev *dev,
 
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	ohci->use_dualbuffer = version >= OHCI_VERSION_1_1;
+
+	/* dual-buffer mode is broken if more than one IR context is active */
+	if (dev->vendor == PCI_VENDOR_ID_AGERE &&
+	    dev->device == PCI_DEVICE_ID_AGERE_FW643)
+		ohci->use_dualbuffer = false;
+
+	/* dual-buffer mode is broken */
+	if (dev->vendor == PCI_VENDOR_ID_RICOH &&
+	    dev->device == PCI_DEVICE_ID_RICOH_R5C832)
+		ohci->use_dualbuffer = false;
 
 /* x86-32 currently doesn't use highmem for dma_alloc_coherent */
 #if !defined(CONFIG_X86_32)

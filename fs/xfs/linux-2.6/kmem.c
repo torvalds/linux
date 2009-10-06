@@ -53,7 +53,7 @@ kmem_alloc(size_t size, unsigned int __nocast flags)
 			printk(KERN_ERR "XFS: possible memory allocation "
 					"deadlock in %s (mode:0x%x)\n",
 					__func__, lflags);
-		congestion_wait(WRITE, HZ/50);
+		congestion_wait(BLK_RW_ASYNC, HZ/50);
 	} while (1);
 }
 
@@ -130,7 +130,7 @@ kmem_zone_alloc(kmem_zone_t *zone, unsigned int __nocast flags)
 			printk(KERN_ERR "XFS: possible memory allocation "
 					"deadlock in %s (mode:0x%x)\n",
 					__func__, lflags);
-		congestion_wait(WRITE, HZ/50);
+		congestion_wait(BLK_RW_ASYNC, HZ/50);
 	} while (1);
 }
 

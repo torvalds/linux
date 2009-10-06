@@ -1545,6 +1545,9 @@ static int ehea_clean_portres(struct ehea_port *port, struct ehea_port_res *pr)
 {
 	int ret, i;
 
+	if (pr->qp)
+		netif_napi_del(&pr->napi);
+
 	ret = ehea_destroy_qp(pr->qp);
 
 	if (!ret) {
@@ -3081,6 +3084,7 @@ static const struct net_device_ops ehea_netdev_ops = {
 #endif
 	.ndo_get_stats		= ehea_get_stats,
 	.ndo_set_mac_address	= ehea_set_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= ehea_set_multicast_list,
 	.ndo_change_mtu		= ehea_change_mtu,
 	.ndo_vlan_rx_register	= ehea_vlan_rx_register,

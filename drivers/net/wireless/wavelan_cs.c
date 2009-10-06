@@ -3078,7 +3078,7 @@ wv_packet_write(struct net_device *	dev,
  * the packet. We also prevent reentrance. Then, we call the function
  * to send the packet...
  */
-static int
+static netdev_tx_t
 wavelan_packet_xmit(struct sk_buff *	skb,
 		    struct net_device *		dev)
 {
@@ -3113,7 +3113,7 @@ wavelan_packet_xmit(struct sk_buff *	skb,
 	 * able to detect collisions, therefore in theory we don't really
 	 * need to pad. Jean II */
 	if (skb_padto(skb, ETH_ZLEN))
-		return 0;
+		return NETDEV_TX_OK;
 
   wv_packet_write(dev, skb->data, skb->len);
 
@@ -3122,7 +3122,7 @@ wavelan_packet_xmit(struct sk_buff *	skb,
 #ifdef DEBUG_TX_TRACE
   printk(KERN_DEBUG "%s: <-wavelan_packet_xmit()\n", dev->name);
 #endif
-  return(0);
+  return NETDEV_TX_OK;
 }
 
 /********************** HARDWARE CONFIGURATION **********************/
@@ -3556,17 +3556,8 @@ wv_82593_config(struct net_device *	dev)
   cfblk.rcvstop = TRUE; 	/* Enable Receive Stop Register */
 
 #ifdef DEBUG_I82593_SHOW
-  {
-    u_char *c = (u_char *) &cfblk;
-    int i;
-    printk(KERN_DEBUG "wavelan_cs: config block:");
-    for(i = 0; i < sizeof(struct i82593_conf_block); i++,c++)
-      {
-	if((i % 16) == 0) printk("\n" KERN_DEBUG);
-	printk("%02x ", *c);
-      }
-    printk("\n");
-  }
+  print_hex_dump(KERN_DEBUG, "wavelan_cs: config block: ", DUMP_PREFIX_NONE,
+		 16, 1, &cfblk, sizeof(struct i82593_conf_block), false);
 #endif
 
   /* Copy the config block to the i82593 */

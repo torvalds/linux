@@ -381,6 +381,51 @@ struct bdb_sdvo_lvds_options {
 } __attribute__((packed));
 
 
+#define BDB_DRIVER_FEATURE_NO_LVDS		0
+#define BDB_DRIVER_FEATURE_INT_LVDS		1
+#define BDB_DRIVER_FEATURE_SDVO_LVDS		2
+#define BDB_DRIVER_FEATURE_EDP			3
+
+struct bdb_driver_features {
+	u8 boot_dev_algorithm:1;
+	u8 block_display_switch:1;
+	u8 allow_display_switch:1;
+	u8 hotplug_dvo:1;
+	u8 dual_view_zoom:1;
+	u8 int15h_hook:1;
+	u8 sprite_in_clone:1;
+	u8 primary_lfp_id:1;
+
+	u16 boot_mode_x;
+	u16 boot_mode_y;
+	u8 boot_mode_bpp;
+	u8 boot_mode_refresh;
+
+	u16 enable_lfp_primary:1;
+	u16 selective_mode_pruning:1;
+	u16 dual_frequency:1;
+	u16 render_clock_freq:1; /* 0: high freq; 1: low freq */
+	u16 nt_clone_support:1;
+	u16 power_scheme_ui:1; /* 0: CUI; 1: 3rd party */
+	u16 sprite_display_assign:1; /* 0: secondary; 1: primary */
+	u16 cui_aspect_scaling:1;
+	u16 preserve_aspect_ratio:1;
+	u16 sdvo_device_power_down:1;
+	u16 crt_hotplug:1;
+	u16 lvds_config:2;
+	u16 tv_hotplug:1;
+	u16 hdmi_config:2;
+
+	u8 static_display:1;
+	u8 reserved2:7;
+	u16 legacy_crt_max_x;
+	u16 legacy_crt_max_y;
+	u8 legacy_crt_max_refresh;
+
+	u8 hdmi_termination;
+	u8 custom_vbt_version;
+} __attribute__((packed));
+
 bool intel_init_bios(struct drm_device *dev);
 
 /*

@@ -188,16 +188,18 @@ struct usb_tt {
 	/* for control/bulk error recovery (CLEAR_TT_BUFFER) */
 	spinlock_t		lock;
 	struct list_head	clear_list;	/* of usb_tt_clear */
-	struct work_struct			kevent;
+	struct work_struct	clear_work;
 };
 
 struct usb_tt_clear {
 	struct list_head	clear_list;
 	unsigned		tt;
 	u16			devinfo;
+	struct usb_hcd		*hcd;
+	struct usb_host_endpoint	*ep;
 };
 
-extern void usb_hub_tt_clear_buffer(struct usb_device *dev, int pipe);
+extern int usb_hub_clear_tt_buffer(struct urb *urb);
 extern void usb_ep0_reinit(struct usb_device *);
 
 #endif /* __LINUX_HUB_H */

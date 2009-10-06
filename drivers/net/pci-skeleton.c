@@ -105,7 +105,7 @@ IVc. Errata
 
 static char version[] __devinitdata =
 KERN_INFO NETDRV_DRIVER_LOAD_MSG "\n"
-KERN_INFO "  Support available from http://foo.com/bar/baz.html\n";
+"  Support available from http://foo.com/bar/baz.html\n";
 
 /* define to 1 to enable PIO instead of MMIO */
 #undef USE_IO_OPS
@@ -1356,7 +1356,7 @@ static int netdrv_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	DPRINTK ("%s: Queued Tx packet at %p size %u to slot %d.\n",
 		 dev->name, skb->data, skb->len, entry);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -1784,11 +1784,6 @@ static int netdrv_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 
 	case SIOCSMIIREG:		/* Write MII PHY register. */
-		if (!capable (CAP_NET_ADMIN)) {
-			rc = -EPERM;
-			break;
-		}
-
 		spin_lock_irqsave (&tp->lock, flags);
 		mdio_write (dev, data->phy_id & 0x1f, data->reg_num & 0x1f, data->val_in);
 		spin_unlock_irqrestore (&tp->lock, flags);

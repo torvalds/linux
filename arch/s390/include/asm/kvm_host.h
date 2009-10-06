@@ -1,7 +1,7 @@
 /*
  * asm-s390/kvm_host.h - definition for kernel virtual machines on s390
  *
- * Copyright IBM Corp. 2008
+ * Copyright IBM Corp. 2008,2009
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/kvm_host.h>
 #include <asm/debug.h>
-#include <asm/cpuid.h>
+#include <asm/cpu.h>
 
 #define KVM_MAX_VCPUS 64
 #define KVM_MEMORY_SLOTS 32
@@ -40,7 +40,11 @@ struct sca_block {
 	struct sca_entry cpu[64];
 } __attribute__((packed));
 
-#define KVM_PAGES_PER_HPAGE 256
+#define KVM_NR_PAGE_SIZES 2
+#define KVM_HPAGE_SHIFT(x) (PAGE_SHIFT + ((x) - 1) * 8)
+#define KVM_HPAGE_SIZE(x) (1UL << KVM_HPAGE_SHIFT(x))
+#define KVM_HPAGE_MASK(x)	(~(KVM_HPAGE_SIZE(x) - 1))
+#define KVM_PAGES_PER_HPAGE(x)	(KVM_HPAGE_SIZE(x) / PAGE_SIZE)
 
 #define CPUSTAT_HOST       0x80000000
 #define CPUSTAT_WAIT       0x10000000
@@ -99,7 +103,9 @@ struct kvm_s390_sie_block {
 	__u8	reservedd0[48];		/* 0x00d0 */
 	__u64	gcr[16];		/* 0x0100 */
 	__u64	gbea;			/* 0x0180 */
-	__u8	reserved188[120];	/* 0x0188 */
+	__u8	reserved188[24];	/* 0x0188 */
+	__u32	fac;			/* 0x01a0 */
+	__u8	reserved1a4[92];	/* 0x01a4 */
 } __attribute__((packed));
 
 struct kvm_vcpu_stat {
@@ -180,8 +186,9 @@ struct kvm_s390_interrupt_info {
 };
 
 /* for local_interrupt.action_flags */
-#define ACTION_STORE_ON_STOP 1
-#define ACTION_STOP_ON_STOP  2
+#define ACTION_STORE_ON_STOP		(1<<0)
+#define ACTION_STOP_ON_STOP		(1<<1)
+#define ACTION_RELOADVCPU_ON_STOP	(1<<2)
 
 struct kvm_s390_local_interrupt {
 	spinlock_t lock;
@@ -215,8 +222,8 @@ struct kvm_vcpu_arch {
 	struct hrtimer    ckc_timer;
 	struct tasklet_struct tasklet;
 	union  {
-		cpuid_t	  cpu_id;
-		u64	  stidp_data;
+		struct cpuid	cpu_id;
+		u64		stidp_data;
 	};
 };
 
@@ -225,8 +232,6 @@ struct kvm_vm_stat {
 };
 
 struct kvm_arch{
-	unsigned long guest_origin;
-	unsigned long guest_memsize;
 	struct sca_block *sca;
 	debug_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;

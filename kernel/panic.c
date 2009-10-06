@@ -177,7 +177,7 @@ static const struct tnt tnts[] = {
  *  'W' - Taint on warning.
  *  'C' - modules from drivers/staging are loaded.
  *
- *	The string is overwritten by the next call to print_taint().
+ *	The string is overwritten by the next call to print_tainted().
  */
 const char *print_tainted(void)
 {
@@ -301,6 +301,7 @@ int oops_may_print(void)
  */
 void oops_enter(void)
 {
+	tracing_off();
 	/* can't trust the integrity of the kernel anymore: */
 	debug_locks_off();
 	do_oops_enter_exit();

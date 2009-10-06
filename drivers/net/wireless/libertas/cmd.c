@@ -135,8 +135,14 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	/* Clamp region code to 8-bit since FW spec indicates that it should
 	 * only ever be 8-bit, even though the field size is 16-bit.  Some firmware
 	 * returns non-zero high 8 bits here.
+	 *
+	 * Firmware version 4.0.102 used in CF8381 has region code shifted.  We
+	 * need to check for this problem and handle it properly.
 	 */
-	priv->regioncode = le16_to_cpu(cmd.regioncode) & 0xFF;
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) == MRVL_FW_V4)
+		priv->regioncode = (le16_to_cpu(cmd.regioncode) >> 8) & 0xFF;
+	else
+		priv->regioncode = le16_to_cpu(cmd.regioncode) & 0xFF;
 
 	for (i = 0; i < MRVDRV_MAX_REGION_CODE; i++) {
 		/* use the region code to search for the index */

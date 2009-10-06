@@ -335,6 +335,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 
 		{
 			struct flowi fl = { .oif = sk->sk_bound_dev_if,
+					    .mark = sk->sk_mark,
 					    .nl_u = { .ip4_u =
 						      { .daddr = daddr,
 							.saddr = inet->saddr,
@@ -813,6 +814,8 @@ int ip_append_data(struct sock *sk,
 			inet->cork.addr = ipc->addr;
 		}
 		rt = *rtp;
+		if (unlikely(!rt))
+			return -EFAULT;
 		/*
 		 * We steal reference to this route, caller should not release it
 		 */
@@ -1243,7 +1246,6 @@ int ip_push_pending_frames(struct sock *sk)
 		skb->len += tmp_skb->len;
 		skb->data_len += tmp_skb->len;
 		skb->truesize += tmp_skb->truesize;
-		__sock_put(tmp_skb->sk);
 		tmp_skb->destructor = NULL;
 		tmp_skb->sk = NULL;
 	}
@@ -1303,7 +1305,7 @@ int ip_push_pending_frames(struct sock *sk)
 	err = ip_local_out(skb);
 	if (err) {
 		if (err > 0)
-			err = inet->recverr ? net_xmit_errno(err) : 0;
+			err = net_xmit_errno(err);
 		if (err)
 			goto error;
 	}

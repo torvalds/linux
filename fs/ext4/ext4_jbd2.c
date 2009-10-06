@@ -43,6 +43,8 @@ int __ext4_journal_forget(const char *where, handle_t *handle,
 			ext4_journal_abort_handle(where, __func__, bh,
 						  handle, err);
 	}
+	else
+		bforget(bh);
 	return err;
 }
 
@@ -57,6 +59,8 @@ int __ext4_journal_revoke(const char *where, handle_t *handle,
 			ext4_journal_abort_handle(where, __func__, bh,
 						  handle, err);
 	}
+	else
+		bforget(bh);
 	return err;
 }
 
@@ -85,7 +89,10 @@ int __ext4_handle_dirty_metadata(const char *where, handle_t *handle,
 			ext4_journal_abort_handle(where, __func__, bh,
 						  handle, err);
 	} else {
-		mark_buffer_dirty(bh);
+		if (inode && bh)
+			mark_buffer_dirty_inode(bh, inode);
+		else
+			mark_buffer_dirty(bh);
 		if (inode && inode_needs_sync(inode)) {
 			sync_dirty_buffer(bh);
 			if (buffer_req(bh) && !buffer_uptodate(bh)) {

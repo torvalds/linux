@@ -220,11 +220,6 @@ static int smsc95xx_eeprom_confirm_not_busy(struct usbnet *dev)
 	do {
 		smsc95xx_read_reg(dev, E2P_CMD, &val);
 
-		if (!(val & E2P_CMD_LOADED_)) {
-			devwarn(dev, "No EEPROM present");
-			return -EIO;
-		}
-
 		if (!(val & E2P_CMD_BUSY_))
 			return 0;
 
@@ -630,7 +625,7 @@ static int smsc95xx_ethtool_set_tx_csum(struct net_device *netdev, u32 val)
 	return smsc95xx_set_csums(dev);
 }
 
-static struct ethtool_ops smsc95xx_ethtool_ops = {
+static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_link	= usbnet_get_link,
 	.nway_reset	= usbnet_nway_reset,
 	.get_drvinfo	= usbnet_get_drvinfo,
@@ -1108,18 +1103,18 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (unlikely(header & RX_STS_ES_)) {
 			if (netif_msg_rx_err(dev))
 				devdbg(dev, "Error header=0x%08x", header);
-			dev->stats.rx_errors++;
-			dev->stats.rx_dropped++;
+			dev->net->stats.rx_errors++;
+			dev->net->stats.rx_dropped++;
 
 			if (header & RX_STS_CRC_) {
-				dev->stats.rx_crc_errors++;
+				dev->net->stats.rx_crc_errors++;
 			} else {
 				if (header & (RX_STS_TL_ | RX_STS_RF_))
-					dev->stats.rx_frame_errors++;
+					dev->net->stats.rx_frame_errors++;
 
 				if ((header & RX_STS_LE_) &&
 					(!(header & RX_STS_FT_)))
-					dev->stats.rx_length_errors++;
+					dev->net->stats.rx_length_errors++;
 			}
 		} else {
 			/* ETH_FRAME_LEN + 4(CRC) + 2(COE) + 4(Vlan) */
@@ -1232,7 +1227,7 @@ static const struct driver_info smsc95xx_info = {
 	.rx_fixup	= smsc95xx_rx_fixup,
 	.tx_fixup	= smsc95xx_tx_fixup,
 	.status		= smsc95xx_status,
-	.flags		= FLAG_ETHER,
+	.flags		= FLAG_ETHER | FLAG_SEND_ZLP,
 };
 
 static const struct usb_device_id products[] = {
@@ -1242,8 +1237,73 @@ static const struct usb_device_id products[] = {
 		.driver_info = (unsigned long) &smsc95xx_info,
 	},
 	{
+		/* SMSC9505 USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9505),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9500A USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9E00),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9505A USB Ethernet Device */
+		USB_DEVICE(0x0424, 0x9E01),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
 		/* SMSC9512/9514 USB Hub & Ethernet Device */
 		USB_DEVICE(0x0424, 0xec00),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9500 USB Ethernet Device (SAL10) */
+		USB_DEVICE(0x0424, 0x9900),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9505 USB Ethernet Device (SAL10) */
+		USB_DEVICE(0x0424, 0x9901),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9500A USB Ethernet Device (SAL10) */
+		USB_DEVICE(0x0424, 0x9902),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9505A USB Ethernet Device (SAL10) */
+		USB_DEVICE(0x0424, 0x9903),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9512/9514 USB Hub & Ethernet Device (SAL10) */
+		USB_DEVICE(0x0424, 0x9904),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9500A USB Ethernet Device (HAL) */
+		USB_DEVICE(0x0424, 0x9905),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9505A USB Ethernet Device (HAL) */
+		USB_DEVICE(0x0424, 0x9906),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9500 USB Ethernet Device (Alternate ID) */
+		USB_DEVICE(0x0424, 0x9907),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9500A USB Ethernet Device (Alternate ID) */
+		USB_DEVICE(0x0424, 0x9908),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9512/9514 USB Hub & Ethernet Device (Alternate ID) */
+		USB_DEVICE(0x0424, 0x9909),
 		.driver_info = (unsigned long) &smsc95xx_info,
 	},
 	{ },		/* END */

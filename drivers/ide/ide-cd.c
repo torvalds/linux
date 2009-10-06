@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
@@ -592,9 +593,19 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			}
 		} else if (!blk_pc_request(rq)) {
 			ide_cd_request_sense_fixup(drive, cmd);
-			/* complain if we still have data left to transfer */
+
 			uptodate = cmd->nleft ? 0 : 1;
-			if (uptodate == 0)
+
+			/*
+			 * suck out the remaining bytes from the drive in an
+			 * attempt to complete the data xfer. (see BZ#13399)
+			 */
+			if (!(stat & ATA_ERR) && !uptodate && thislen) {
+				ide_pio_bytes(drive, cmd, write, thislen);
+				uptodate = cmd->nleft ? 0 : 1;
+			}
+
+			if (!uptodate)
 				rq->cmd_flags |= REQ_FAILED;
 		}
 		goto out_end;
@@ -876,9 +887,12 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 		return stat;
 
 	/*
-	 * Sanity check the given block size
+	 * Sanity check the given block size, in so far as making
+	 * sure the sectors_per_frame we give to the caller won't
+	 * end up being bogus.
 	 */
 	blocklen = be32_to_cpu(capbuf.blocklen);
+	blocklen = (blocklen >> SECTOR_BITS) << SECTOR_BITS;
 	switch (blocklen) {
 	case 512:
 	case 1024:
@@ -886,10 +900,9 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	case 4096:
 		break;
 	default:
-		printk(KERN_ERR PFX "%s: weird block size %u\n",
+		printk_once(KERN_ERR PFX "%s: weird block size %u; "
+				"setting default block size to 2048\n",
 				drive->name, blocklen);
-		printk(KERN_ERR PFX "%s: default to 2kb block size\n",
-				drive->name);
 		blocklen = 2048;
 		break;
 	}
@@ -1134,8 +1147,8 @@ void ide_cdrom_update_speed(ide_drive_t *drive, u8 *buf)
 	ide_debug_log(IDE_DBG_PROBE, "curspeed: %u, maxspeed: %u",
 				     curspeed, maxspeed);
 
-	cd->current_speed = (curspeed + (176/2)) / 176;
-	cd->max_speed = (maxspeed + (176/2)) / 176;
+	cd->current_speed = DIV_ROUND_CLOSEST(curspeed, 176);
+	cd->max_speed = DIV_ROUND_CLOSEST(maxspeed, 176);
 }
 
 #define IDE_CD_CAPABILITIES \
@@ -1377,19 +1390,30 @@ static sector_t ide_cdrom_capacity(ide_drive_t *drive)
 	return capacity * sectors_per_frame;
 }
 
-static int proc_idecd_read_capacity(char *page, char **start, off_t off,
-					int count, int *eof, void *data)
+static int idecd_capacity_proc_show(struct seq_file *m, void *v)
 {
-	ide_drive_t *drive = data;
-	int len;
+	ide_drive_t *drive = m->private;
 
-	len = sprintf(page, "%llu\n", (long long)ide_cdrom_capacity(drive));
-	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
+	seq_printf(m, "%llu\n", (long long)ide_cdrom_capacity(drive));
+	return 0;
 }
 
+static int idecd_capacity_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, idecd_capacity_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations idecd_capacity_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= idecd_capacity_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static ide_proc_entry_t idecd_proc[] = {
-	{ "capacity", S_IFREG|S_IRUGO, proc_idecd_read_capacity, NULL },
-	{ NULL, 0, NULL, NULL }
+	{ "capacity", S_IFREG|S_IRUGO, &idecd_capacity_proc_fops },
+	{}
 };
 
 static ide_proc_entry_t *ide_cd_proc_entries(ide_drive_t *drive)
@@ -1662,7 +1686,7 @@ static int idecd_revalidate_disk(struct gendisk *disk)
 	return  0;
 }
 
-static struct block_device_operations idecd_ops = {
+static const struct block_device_operations idecd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= idecd_open,
 	.release		= idecd_release,

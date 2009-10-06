@@ -131,9 +131,11 @@ int __ext4_journal_get_undo_access(const char *where, handle_t *handle,
 int __ext4_journal_get_write_access(const char *where, handle_t *handle,
 				struct buffer_head *bh);
 
+/* When called with an invalid handle, this will still do a put on the BH */
 int __ext4_journal_forget(const char *where, handle_t *handle,
 				struct buffer_head *bh);
 
+/* When called with an invalid handle, this will still do a put on the BH */
 int __ext4_journal_revoke(const char *where, handle_t *handle,
 				ext4_fsblk_t blocknr, struct buffer_head *bh);
 
@@ -159,11 +161,13 @@ int __ext4_handle_dirty_metadata(const char *where, handle_t *handle,
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks);
 int __ext4_journal_stop(const char *where, handle_t *handle);
 
-#define EXT4_NOJOURNAL_HANDLE	((handle_t *) 0x1)
+#define EXT4_NOJOURNAL_MAX_REF_COUNT ((unsigned long) 4096)
 
+/* Note:  Do not use this for NULL handles.  This is only to determine if
+ * a properly allocated handle is using a journal or not. */
 static inline int ext4_handle_valid(handle_t *handle)
 {
-	if (handle == EXT4_NOJOURNAL_HANDLE)
+	if ((unsigned long)handle < EXT4_NOJOURNAL_MAX_REF_COUNT)
 		return 0;
 	return 1;
 }
@@ -281,10 +285,10 @@ static inline int ext4_should_order_data(struct inode *inode)
 
 static inline int ext4_should_writeback_data(struct inode *inode)
 {
-	if (EXT4_JOURNAL(inode) == NULL)
-		return 0;
 	if (!S_ISREG(inode->i_mode))
 		return 0;
+	if (EXT4_JOURNAL(inode) == NULL)
+		return 1;
 	if (EXT4_I(inode)->i_flags & EXT4_JOURNAL_DATA_FL)
 		return 0;
 	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)

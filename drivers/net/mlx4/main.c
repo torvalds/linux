@@ -525,7 +525,10 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 		goto err_unmap_aux;
 	}
 
-	err = mlx4_map_eq_icm(dev, init_hca->eqc_base);
+	err = mlx4_init_icm_table(dev, &priv->eq_table.table,
+				  init_hca->eqc_base, dev_cap->eqc_entry_sz,
+				  dev->caps.num_eqs, dev->caps.num_eqs,
+				  0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map EQ context memory, aborting.\n");
 		goto err_unmap_cmpt;
@@ -668,7 +671,7 @@ err_unmap_mtt:
 	mlx4_cleanup_icm_table(dev, &priv->mr_table.mtt_table);
 
 err_unmap_eq:
-	mlx4_unmap_eq_icm(dev);
+	mlx4_cleanup_icm_table(dev, &priv->eq_table.table);
 
 err_unmap_cmpt:
 	mlx4_cleanup_icm_table(dev, &priv->eq_table.cmpt_table);
@@ -698,11 +701,11 @@ static void mlx4_free_icms(struct mlx4_dev *dev)
 	mlx4_cleanup_icm_table(dev, &priv->qp_table.qp_table);
 	mlx4_cleanup_icm_table(dev, &priv->mr_table.dmpt_table);
 	mlx4_cleanup_icm_table(dev, &priv->mr_table.mtt_table);
+	mlx4_cleanup_icm_table(dev, &priv->eq_table.table);
 	mlx4_cleanup_icm_table(dev, &priv->eq_table.cmpt_table);
 	mlx4_cleanup_icm_table(dev, &priv->cq_table.cmpt_table);
 	mlx4_cleanup_icm_table(dev, &priv->srq_table.cmpt_table);
 	mlx4_cleanup_icm_table(dev, &priv->qp_table.cmpt_table);
-	mlx4_unmap_eq_icm(dev);
 
 	mlx4_UNMAP_ICM_AUX(dev);
 	mlx4_free_icm(dev, priv->fw.aux_icm, 0);
@@ -729,7 +732,10 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 
 	err = mlx4_QUERY_FW(dev);
 	if (err) {
-		mlx4_err(dev, "QUERY_FW command failed, aborting.\n");
+		if (err == -EACCES)
+			mlx4_info(dev, "non-primary physical function, skipping.\n");
+		else
+			mlx4_err(dev, "QUERY_FW command failed, aborting.\n");
 		return err;
 	}
 
@@ -783,7 +789,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 	return 0;
 
 err_close:
-	mlx4_close_hca(dev);
+	mlx4_CLOSE_HCA(dev, 0);
 
 err_free_icm:
 	mlx4_free_icms(dev);
@@ -1067,16 +1073,10 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_disable_pdev;
 	}
 
-	err = pci_request_region(pdev, 0, DRV_NAME);
+	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot request control region, aborting.\n");
+		dev_err(&pdev->dev, "Couldn't get PCI resources, aborting\n");
 		goto err_disable_pdev;
-	}
-
-	err = pci_request_region(pdev, 2, DRV_NAME);
-	if (err) {
-		dev_err(&pdev->dev, "Cannot request UAR region, aborting.\n");
-		goto err_release_bar0;
 	}
 
 	pci_set_master(pdev);
@@ -1087,7 +1087,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "Can't set PCI DMA mask, aborting.\n");
-			goto err_release_bar2;
+			goto err_release_regions;
 		}
 	}
 	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
@@ -1098,7 +1098,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (err) {
 			dev_err(&pdev->dev, "Can't set consistent PCI DMA mask, "
 				"aborting.\n");
-			goto err_release_bar2;
+			goto err_release_regions;
 		}
 	}
 
@@ -1107,7 +1107,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_err(&pdev->dev, "Device struct alloc failed, "
 			"aborting.\n");
 		err = -ENOMEM;
-		goto err_release_bar2;
+		goto err_release_regions;
 	}
 
 	dev       = &priv->dev;
@@ -1202,11 +1202,8 @@ err_cmd:
 err_free_dev:
 	kfree(priv);
 
-err_release_bar2:
-	pci_release_region(pdev, 2);
-
-err_release_bar0:
-	pci_release_region(pdev, 0);
+err_release_regions:
+	pci_release_regions(pdev);
 
 err_disable_pdev:
 	pci_disable_device(pdev);
@@ -1262,8 +1259,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 			pci_disable_msix(pdev);
 
 		kfree(priv);
-		pci_release_region(pdev, 2);
-		pci_release_region(pdev, 0);
+		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		pci_set_drvdata(pdev, NULL);
 	}
@@ -1285,6 +1281,7 @@ static struct pci_device_id mlx4_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x6750) }, /* MT25408 "Hermon" EN 10GigE PCIe gen2 */
 	{ PCI_VDEVICE(MELLANOX, 0x6372) }, /* MT25458 ConnectX EN 10GBASE-T 10GigE */
 	{ PCI_VDEVICE(MELLANOX, 0x675a) }, /* MT25458 ConnectX EN 10GBASE-T+Gen2 10GigE */
+	{ PCI_VDEVICE(MELLANOX, 0x6764) }, /* MT26468 ConnectX EN 10GigE PCIe gen2*/
 	{ 0, }
 };
 

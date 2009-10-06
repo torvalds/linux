@@ -302,7 +302,7 @@ static struct attribute_group part_attr_group = {
 	.attrs = part_attrs,
 };
 
-static struct attribute_group *part_attr_groups[] = {
+static const struct attribute_group *part_attr_groups[] = {
 	&part_attr_group,
 #ifdef CONFIG_BLK_DEV_IO_TRACE
 	&blk_trace_attr_group,
@@ -436,7 +436,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	rcu_assign_pointer(ptbl->part[partno], p);
 
 	/* suppress uevent if the disk supresses it */
-	if (!dev_get_uevent_suppress(pdev))
+	if (!dev_get_uevent_suppress(ddev))
 		kobject_uevent(&pdev->kobj, KOBJ_ADD);
 
 	return p;
@@ -571,7 +571,7 @@ try_scan:
 		}
 
 		if (from + size > get_capacity(disk)) {
-			struct block_device_operations *bdops = disk->fops;
+			const struct block_device_operations *bdops = disk->fops;
 			unsigned long long capacity;
 
 			printk(KERN_WARNING

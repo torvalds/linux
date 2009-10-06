@@ -29,9 +29,8 @@ struct net_device;
 struct work_struct;
 
 void set_port_type(struct orinoco_private *priv);
-int __orinoco_program_rids(struct net_device *dev);
+int orinoco_commit(struct orinoco_private *priv);
 void orinoco_reset(struct work_struct *work);
-
 
 /* Information element helpers - find a home for these... */
 static inline u8 *orinoco_get_ie(u8 *data, size_t len,

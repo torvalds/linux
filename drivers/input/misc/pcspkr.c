@@ -114,7 +114,7 @@ static int __devexit pcspkr_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int pcspkr_suspend(struct platform_device *dev, pm_message_t state)
+static int pcspkr_suspend(struct device *dev)
 {
 	pcspkr_event(NULL, EV_SND, SND_BELL, 0);
 
@@ -127,14 +127,18 @@ static void pcspkr_shutdown(struct platform_device *dev)
 	pcspkr_event(NULL, EV_SND, SND_BELL, 0);
 }
 
+static struct dev_pm_ops pcspkr_pm_ops = {
+	.suspend = pcspkr_suspend,
+};
+
 static struct platform_driver pcspkr_platform_driver = {
 	.driver		= {
 		.name	= "pcspkr",
 		.owner	= THIS_MODULE,
+		.pm	= &pcspkr_pm_ops,
 	},
 	.probe		= pcspkr_probe,
 	.remove		= __devexit_p(pcspkr_remove),
-	.suspend	= pcspkr_suspend,
 	.shutdown	= pcspkr_shutdown,
 };
 

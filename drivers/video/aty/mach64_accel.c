@@ -63,14 +63,17 @@ static void reset_GTC_3D_engine(const struct atyfb_par *par)
 void aty_init_engine(struct atyfb_par *par, struct fb_info *info)
 {
 	u32 pitch_value;
+	u32 vxres;
 
 	/* determine modal information from global mode structure */
-	pitch_value = info->var.xres_virtual;
+	pitch_value = info->fix.line_length / (info->var.bits_per_pixel / 8);
+	vxres = info->var.xres_virtual;
 
 	if (info->var.bits_per_pixel == 24) {
 		/* In 24 bpp, the engine is in 8 bpp - this requires that all */
 		/* horizontal coordinates and widths must be adjusted */
 		pitch_value *= 3;
+		vxres *= 3;
 	}
 
 	/* On GTC (RagePro), we need to reset the 3D engine before */
@@ -133,7 +136,7 @@ void aty_init_engine(struct atyfb_par *par, struct fb_info *info)
 	aty_st_le32(SC_LEFT, 0, par);
 	aty_st_le32(SC_TOP, 0, par);
 	aty_st_le32(SC_BOTTOM, par->crtc.vyres - 1, par);
-	aty_st_le32(SC_RIGHT, pitch_value - 1, par);
+	aty_st_le32(SC_RIGHT, vxres - 1, par);
 
 	/* set background color to minimum value (usually BLACK) */
 	aty_st_le32(DP_BKGD_CLR, 0, par);

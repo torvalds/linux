@@ -16,6 +16,7 @@
  */
 
 #include "be.h"
+#include "be_cmds.h"
 #include <asm/div64.h>
 
 MODULE_VERSION(DRV_VER);
@@ -60,40 +61,39 @@ static int be_queue_alloc(struct be_adapter *adapter, struct be_queue_info *q,
 	return 0;
 }
 
-static void be_intr_set(struct be_ctrl_info *ctrl, bool enable)
+static void be_intr_set(struct be_adapter *adapter, bool enable)
 {
-	u8 __iomem *addr = ctrl->pcicfg + PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET;
+	u8 __iomem *addr = adapter->pcicfg + PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET;
 	u32 reg = ioread32(addr);
 	u32 enabled = reg & MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
-	if (!enabled && enable) {
+
+	if (!enabled && enable)
 		reg |= MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
-	} else if (enabled && !enable) {
+	else if (enabled && !enable)
 		reg &= ~MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
-	} else {
-		printk(KERN_WARNING DRV_NAME
-			": bad value in membar_int_ctrl reg=0x%x\n", reg);
+	else
 		return;
-	}
+
 	iowrite32(reg, addr);
 }
 
-static void be_rxq_notify(struct be_ctrl_info *ctrl, u16 qid, u16 posted)
+static void be_rxq_notify(struct be_adapter *adapter, u16 qid, u16 posted)
 {
 	u32 val = 0;
 	val |= qid & DB_RQ_RING_ID_MASK;
 	val |= posted << DB_RQ_NUM_POSTED_SHIFT;
-	iowrite32(val, ctrl->db + DB_RQ_OFFSET);
+	iowrite32(val, adapter->db + DB_RQ_OFFSET);
 }
 
-static void be_txq_notify(struct be_ctrl_info *ctrl, u16 qid, u16 posted)
+static void be_txq_notify(struct be_adapter *adapter, u16 qid, u16 posted)
 {
 	u32 val = 0;
 	val |= qid & DB_TXULP_RING_ID_MASK;
 	val |= (posted & DB_TXULP_NUM_POSTED_MASK) << DB_TXULP_NUM_POSTED_SHIFT;
-	iowrite32(val, ctrl->db + DB_TXULP1_OFFSET);
+	iowrite32(val, adapter->db + DB_TXULP1_OFFSET);
 }
 
-static void be_eq_notify(struct be_ctrl_info *ctrl, u16 qid,
+static void be_eq_notify(struct be_adapter *adapter, u16 qid,
 		bool arm, bool clear_int, u16 num_popped)
 {
 	u32 val = 0;
@@ -104,20 +104,18 @@ static void be_eq_notify(struct be_ctrl_info *ctrl, u16 qid,
 		val |= 1 << DB_EQ_CLR_SHIFT;
 	val |= 1 << DB_EQ_EVNT_SHIFT;
 	val |= num_popped << DB_EQ_NUM_POPPED_SHIFT;
-	iowrite32(val, ctrl->db + DB_EQ_OFFSET);
+	iowrite32(val, adapter->db + DB_EQ_OFFSET);
 }
 
-void be_cq_notify(struct be_ctrl_info *ctrl, u16 qid,
-		bool arm, u16 num_popped)
+void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 {
 	u32 val = 0;
 	val |= qid & DB_CQ_RING_ID_MASK;
 	if (arm)
 		val |= 1 << DB_CQ_REARM_SHIFT;
 	val |= num_popped << DB_CQ_NUM_POPPED_SHIFT;
-	iowrite32(val, ctrl->db + DB_CQ_OFFSET);
+	iowrite32(val, adapter->db + DB_CQ_OFFSET);
 }
-
 
 static int be_mac_addr_set(struct net_device *netdev, void *p)
 {
@@ -125,23 +123,19 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	struct sockaddr *addr = p;
 	int status = 0;
 
-	if (netif_running(netdev)) {
-		status = be_cmd_pmac_del(&adapter->ctrl, adapter->if_handle,
-				adapter->pmac_id);
-		if (status)
-			return status;
+	status = be_cmd_pmac_del(adapter, adapter->if_handle, adapter->pmac_id);
+	if (status)
+		return status;
 
-		status = be_cmd_pmac_add(&adapter->ctrl, (u8 *)addr->sa_data,
-				adapter->if_handle, &adapter->pmac_id);
-	}
-
+	status = be_cmd_pmac_add(adapter, (u8 *)addr->sa_data,
+			adapter->if_handle, &adapter->pmac_id);
 	if (!status)
 		memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 
 	return status;
 }
 
-static void netdev_stats_update(struct be_adapter *adapter)
+void netdev_stats_update(struct be_adapter *adapter)
 {
 	struct be_hw_stats *hw_stats = hw_stats_from_cmd(adapter->stats.cmd.va);
 	struct be_rxf_stats *rxf_stats = &hw_stats->rxf;
@@ -214,9 +208,8 @@ static void netdev_stats_update(struct be_adapter *adapter)
 	dev_stats->tx_window_errors = 0;
 }
 
-void be_link_status_update(void *ctxt, bool link_up)
+void be_link_status_update(struct be_adapter *adapter, bool link_up)
 {
-	struct be_adapter *adapter = ctxt;
 	struct net_device *netdev = adapter->netdev;
 
 	/* If link came up or went down */
@@ -237,7 +230,6 @@ void be_link_status_update(void *ctxt, bool link_up)
 /* Update the EQ delay n BE based on the RX frags consumed / sec */
 static void be_rx_eqd_update(struct be_adapter *adapter)
 {
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 	struct be_eq_obj *rx_eq = &adapter->rx_eq;
 	struct be_drvr_stats *stats = &adapter->stats.drvr_stats;
 	ulong now = jiffies;
@@ -270,7 +262,7 @@ static void be_rx_eqd_update(struct be_adapter *adapter)
 	if (eqd < 10)
 		eqd = 0;
 	if (eqd != rx_eq->cur_eqd)
-		be_cmd_modify_eqd(ctrl, rx_eq->q.id, eqd);
+		be_cmd_modify_eqd(adapter, rx_eq->q.id, eqd);
 
 	rx_eq->cur_eqd = eqd;
 }
@@ -393,15 +385,19 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	struct be_eth_wrb *wrb;
 	struct be_eth_hdr_wrb *hdr;
 
-	atomic_add(wrb_cnt, &txq->used);
 	hdr = queue_head_node(txq);
+	atomic_add(wrb_cnt, &txq->used);
 	queue_head_inc(txq);
+
+	if (skb_dma_map(&pdev->dev, skb, DMA_TO_DEVICE)) {
+		dev_err(&pdev->dev, "TX DMA mapping failed\n");
+		return 0;
+	}
 
 	if (skb->len > skb->data_len) {
 		int len = skb->len - skb->data_len;
-		busaddr = pci_map_single(pdev, skb->data, len,
-					 PCI_DMA_TODEVICE);
 		wrb = queue_head_node(txq);
+		busaddr = skb_shinfo(skb)->dma_head;
 		wrb_fill(wrb, busaddr, len);
 		be_dws_cpu_to_le(wrb, sizeof(*wrb));
 		queue_head_inc(txq);
@@ -411,9 +407,8 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		struct skb_frag_struct *frag =
 			&skb_shinfo(skb)->frags[i];
-		busaddr = pci_map_page(pdev, frag->page,
-				       frag->page_offset,
-				       frag->size, PCI_DMA_TODEVICE);
+
+		busaddr = skb_shinfo(skb)->dma_maps[i];
 		wrb = queue_head_node(txq);
 		wrb_fill(wrb, busaddr, frag->size);
 		be_dws_cpu_to_le(wrb, sizeof(*wrb));
@@ -435,7 +430,8 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	return copied;
 }
 
-static int be_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t be_xmit(struct sk_buff *skb,
+			struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_tx_obj *tx_obj = &adapter->tx_obj;
@@ -447,23 +443,28 @@ static int be_xmit(struct sk_buff *skb, struct net_device *netdev)
 	wrb_cnt = wrb_cnt_for_skb(skb, &dummy_wrb);
 
 	copied = make_tx_wrbs(adapter, skb, wrb_cnt, dummy_wrb);
+	if (copied) {
+		/* record the sent skb in the sent_skb table */
+		BUG_ON(tx_obj->sent_skb_list[start]);
+		tx_obj->sent_skb_list[start] = skb;
 
-	/* record the sent skb in the sent_skb table */
-	BUG_ON(tx_obj->sent_skb_list[start]);
-	tx_obj->sent_skb_list[start] = skb;
+		/* Ensure txq has space for the next skb; Else stop the queue
+		 * *BEFORE* ringing the tx doorbell, so that we serialze the
+		 * tx compls of the current transmit which'll wake up the queue
+		 */
+		if ((BE_MAX_TX_FRAG_COUNT + atomic_read(&txq->used)) >=
+								txq->len) {
+			netif_stop_queue(netdev);
+			stopped = true;
+		}
 
-	/* Ensure that txq has space for the next skb; Else stop the queue
-	 * *BEFORE* ringing the tx doorbell, so that we serialze the
-	 * tx compls of the current transmit which'll wake up the queue
-	 */
-	if ((BE_MAX_TX_FRAG_COUNT + atomic_read(&txq->used)) >= txq->len) {
-		netif_stop_queue(netdev);
-		stopped = true;
+		be_txq_notify(adapter, txq->id, wrb_cnt);
+
+		be_tx_stats_update(adapter, wrb_cnt, copied, stopped);
+	} else {
+		txq->head = start;
+		dev_kfree_skb_any(skb);
 	}
-
-	be_txq_notify(&adapter->ctrl, txq->id, wrb_cnt);
-
-	be_tx_stats_update(adapter, wrb_cnt, copied, stopped);
 	return NETDEV_TX_OK;
 }
 
@@ -488,11 +489,11 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
  * program them in BE.  If more than BE_NUM_VLANS_SUPPORTED are configured,
  * set the BE in promiscuous VLAN mode.
  */
-static void be_vid_config(struct net_device *netdev)
+static int be_vid_config(struct be_adapter *adapter)
 {
-	struct be_adapter *adapter = netdev_priv(netdev);
 	u16 vtag[BE_NUM_VLANS_SUPPORTED];
 	u16 ntags = 0, i;
+	int status;
 
 	if (adapter->num_vlans <= BE_NUM_VLANS_SUPPORTED)  {
 		/* Construct VLAN Table to give to HW */
@@ -502,12 +503,13 @@ static void be_vid_config(struct net_device *netdev)
 				ntags++;
 			}
 		}
-		be_cmd_vlan_config(&adapter->ctrl, adapter->if_handle,
-			vtag, ntags, 1, 0);
+		status = be_cmd_vlan_config(adapter, adapter->if_handle,
+					vtag, ntags, 1, 0);
 	} else {
-		be_cmd_vlan_config(&adapter->ctrl, adapter->if_handle,
-			NULL, 0, 1, 1);
+		status = be_cmd_vlan_config(adapter, adapter->if_handle,
+					NULL, 0, 1, 1);
 	}
+	return status;
 }
 
 static void be_vlan_register(struct net_device *netdev, struct vlan_group *grp)
@@ -515,13 +517,12 @@ static void be_vlan_register(struct net_device *netdev, struct vlan_group *grp)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_eq_obj *rx_eq = &adapter->rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 
-	be_eq_notify(ctrl, rx_eq->q.id, false, false, 0);
-	be_eq_notify(ctrl, tx_eq->q.id, false, false, 0);
+	be_eq_notify(adapter, rx_eq->q.id, false, false, 0);
+	be_eq_notify(adapter, tx_eq->q.id, false, false, 0);
 	adapter->vlan_grp = grp;
-	be_eq_notify(ctrl, rx_eq->q.id, true, false, 0);
-	be_eq_notify(ctrl, tx_eq->q.id, true, false, 0);
+	be_eq_notify(adapter, rx_eq->q.id, true, false, 0);
+	be_eq_notify(adapter, tx_eq->q.id, true, false, 0);
 }
 
 static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
@@ -531,7 +532,7 @@ static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
 	adapter->num_vlans++;
 	adapter->vlan_tag[vid] = 1;
 
-	be_vid_config(netdev);
+	be_vid_config(adapter);
 }
 
 static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
@@ -542,16 +543,15 @@ static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 	adapter->vlan_tag[vid] = 0;
 
 	vlan_group_set_device(adapter->vlan_grp, vid, NULL);
-	be_vid_config(netdev);
+	be_vid_config(adapter);
 }
 
 static void be_set_multicast_list(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 
 	if (netdev->flags & IFF_PROMISC) {
-		be_cmd_promiscuous_config(ctrl, adapter->port_num, 1);
+		be_cmd_promiscuous_config(adapter, adapter->port_num, 1);
 		adapter->promiscuous = true;
 		goto done;
 	}
@@ -559,15 +559,15 @@ static void be_set_multicast_list(struct net_device *netdev)
 	/* BE was previously in promiscous mode; disable it */
 	if (adapter->promiscuous) {
 		adapter->promiscuous = false;
-		be_cmd_promiscuous_config(ctrl, adapter->port_num, 0);
+		be_cmd_promiscuous_config(adapter, adapter->port_num, 0);
 	}
 
 	if (netdev->flags & IFF_ALLMULTI) {
-		be_cmd_multicast_set(ctrl, adapter->if_handle, NULL, 0);
+		be_cmd_multicast_set(adapter, adapter->if_handle, NULL, 0);
 		goto done;
 	}
 
-	be_cmd_multicast_set(ctrl, adapter->if_handle, netdev->mc_list,
+	be_cmd_multicast_set(adapter, adapter->if_handle, netdev->mc_list,
 		netdev->mc_count);
 done:
 	return;
@@ -666,8 +666,8 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 {
 	struct be_queue_info *rxq = &adapter->rx_obj.q;
 	struct be_rx_page_info *page_info;
-	u16 rxq_idx, i, num_rcvd;
-	u32 pktsize, hdr_len, curr_frag_len;
+	u16 rxq_idx, i, num_rcvd, j;
+	u32 pktsize, hdr_len, curr_frag_len, size;
 	u8 *start;
 
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
@@ -708,37 +708,55 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 	}
 
 	/* More frags present for this completion */
-	pktsize -= curr_frag_len; /* account for above copied frag */
-	for (i = 1; i < num_rcvd; i++) {
+	size = pktsize;
+	for (i = 1, j = 0; i < num_rcvd; i++) {
+		size -= curr_frag_len;
 		index_inc(&rxq_idx, rxq->len);
 		page_info = get_rx_page_info(adapter, rxq_idx);
 
-		curr_frag_len = min(pktsize, rx_frag_size);
+		curr_frag_len = min(size, rx_frag_size);
 
-		skb_shinfo(skb)->frags[i].page = page_info->page;
-		skb_shinfo(skb)->frags[i].page_offset = page_info->page_offset;
-		skb_shinfo(skb)->frags[i].size = curr_frag_len;
+		/* Coalesce all frags from the same physical page in one slot */
+		if (page_info->page_offset == 0) {
+			/* Fresh page */
+			j++;
+			skb_shinfo(skb)->frags[j].page = page_info->page;
+			skb_shinfo(skb)->frags[j].page_offset =
+							page_info->page_offset;
+			skb_shinfo(skb)->frags[j].size = 0;
+			skb_shinfo(skb)->nr_frags++;
+		} else {
+			put_page(page_info->page);
+		}
+
+		skb_shinfo(skb)->frags[j].size += curr_frag_len;
 		skb->len += curr_frag_len;
 		skb->data_len += curr_frag_len;
-		skb_shinfo(skb)->nr_frags++;
-		pktsize -= curr_frag_len;
 
 		memset(page_info, 0, sizeof(*page_info));
 	}
+	BUG_ON(j > MAX_SKB_FRAGS);
 
 done:
 	be_rx_stats_update(adapter, pktsize, num_rcvd);
 	return;
 }
 
-/* Process the RX completion indicated by rxcp when LRO is disabled */
+/* Process the RX completion indicated by rxcp when GRO is disabled */
 static void be_rx_compl_process(struct be_adapter *adapter,
 			struct be_eth_rx_compl *rxcp)
 {
 	struct sk_buff *skb;
-	u32 vtp, vid;
+	u32 vlanf, vid;
+	u8 vtm;
 
-	vtp = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
+	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
+	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
+
+	/* vlanf could be wrongly set in some cards.
+	 * ignore if vtm is not set */
+	if ((adapter->cap == 0x400) && !vtm)
+		vlanf = 0;
 
 	skb = netdev_alloc_skb(adapter->netdev, BE_HDR_LEN + NET_IP_ALIGN);
 	if (!skb) {
@@ -761,7 +779,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
 	skb->dev = adapter->netdev;
 
-	if (vtp) {
+	if (vlanf) {
 		if (!adapter->vlan_grp || adapter->num_vlans == 0) {
 			kfree_skb(skb);
 			return;
@@ -773,45 +791,71 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 		netif_receive_skb(skb);
 	}
 
-	adapter->netdev->last_rx = jiffies;
-
 	return;
 }
 
-/* Process the RX completion indicated by rxcp when LRO is enabled */
-static void be_rx_compl_process_lro(struct be_adapter *adapter,
+/* Process the RX completion indicated by rxcp when GRO is enabled */
+static void be_rx_compl_process_gro(struct be_adapter *adapter,
 			struct be_eth_rx_compl *rxcp)
 {
 	struct be_rx_page_info *page_info;
-	struct skb_frag_struct rx_frags[BE_MAX_FRAGS_PER_FRAME];
+	struct sk_buff *skb = NULL;
 	struct be_queue_info *rxq = &adapter->rx_obj.q;
+	struct be_eq_obj *eq_obj =  &adapter->rx_eq;
 	u32 num_rcvd, pkt_size, remaining, vlanf, curr_frag_len;
-	u16 i, rxq_idx = 0, vid;
+	u16 i, rxq_idx = 0, vid, j;
+	u8 vtm;
 
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
 	pkt_size = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
 	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
+	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
+
+	/* vlanf could be wrongly set in some cards.
+	 * ignore if vtm is not set */
+	if ((adapter->cap == 0x400) && !vtm)
+		vlanf = 0;
+
+	skb = napi_get_frags(&eq_obj->napi);
+	if (!skb) {
+		be_rx_compl_discard(adapter, rxcp);
+		return;
+	}
 
 	remaining = pkt_size;
-	for (i = 0; i < num_rcvd; i++) {
+	for (i = 0, j = -1; i < num_rcvd; i++) {
 		page_info = get_rx_page_info(adapter, rxq_idx);
 
 		curr_frag_len = min(remaining, rx_frag_size);
 
-		rx_frags[i].page = page_info->page;
-		rx_frags[i].page_offset = page_info->page_offset;
-		rx_frags[i].size = curr_frag_len;
+		/* Coalesce all frags from the same physical page in one slot */
+		if (i == 0 || page_info->page_offset == 0) {
+			/* First frag or Fresh page */
+			j++;
+			skb_shinfo(skb)->frags[j].page = page_info->page;
+			skb_shinfo(skb)->frags[j].page_offset =
+							page_info->page_offset;
+			skb_shinfo(skb)->frags[j].size = 0;
+		} else {
+			put_page(page_info->page);
+		}
+		skb_shinfo(skb)->frags[j].size += curr_frag_len;
+
 		remaining -= curr_frag_len;
-
 		index_inc(&rxq_idx, rxq->len);
-
 		memset(page_info, 0, sizeof(*page_info));
 	}
+	BUG_ON(j > MAX_SKB_FRAGS);
+
+	skb_shinfo(skb)->nr_frags = j + 1;
+	skb->len = pkt_size;
+	skb->data_len = pkt_size;
+	skb->truesize += pkt_size;
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (likely(!vlanf)) {
-		lro_receive_frags(&adapter->rx_obj.lro_mgr, rx_frags, pkt_size,
-				pkt_size, NULL, 0);
+		napi_gro_frags(&eq_obj->napi);
 	} else {
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
 		vid = be16_to_cpu(vid);
@@ -819,9 +863,7 @@ static void be_rx_compl_process_lro(struct be_adapter *adapter,
 		if (!adapter->vlan_grp || adapter->num_vlans == 0)
 			return;
 
-		lro_vlan_hwaccel_receive_frags(&adapter->rx_obj.lro_mgr,
-			rx_frags, pkt_size, pkt_size, adapter->vlan_grp,
-			vid, NULL, 0);
+		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp, vid);
 	}
 
 	be_rx_stats_update(adapter, pkt_size, num_rcvd);
@@ -912,7 +954,7 @@ static void be_post_rx_frags(struct be_adapter *adapter)
 
 	if (posted) {
 		atomic_add(posted, &rxq->used);
-		be_rxq_notify(&adapter->ctrl, rxq->id, posted);
+		be_rxq_notify(adapter, rxq->id, posted);
 	} else if (atomic_read(&rxq->used) == 0) {
 		/* Let be_worker replenish when memory is available */
 		adapter->rx_post_starved = true;
@@ -939,10 +981,8 @@ static struct be_eth_tx_compl *be_tx_compl_get(struct be_queue_info *tx_cq)
 static void be_tx_compl_process(struct be_adapter *adapter, u16 last_index)
 {
 	struct be_queue_info *txq = &adapter->tx_obj.q;
-	struct be_eth_wrb *wrb;
 	struct sk_buff **sent_skbs = adapter->tx_obj.sent_skb_list;
 	struct sk_buff *sent_skb;
-	u64 busaddr;
 	u16 cur_index, num_wrbs = 0;
 
 	cur_index = txq->tail;
@@ -952,20 +992,63 @@ static void be_tx_compl_process(struct be_adapter *adapter, u16 last_index)
 
 	do {
 		cur_index = txq->tail;
-		wrb = queue_tail_node(txq);
-		be_dws_le_to_cpu(wrb, sizeof(*wrb));
-		busaddr = ((u64)wrb->frag_pa_hi << 32) | (u64)wrb->frag_pa_lo;
-		if (busaddr != 0) {
-			pci_unmap_single(adapter->pdev, busaddr,
-				wrb->frag_len, PCI_DMA_TODEVICE);
-		}
 		num_wrbs++;
 		queue_tail_inc(txq);
 	} while (cur_index != last_index);
 
 	atomic_sub(num_wrbs, &txq->used);
-
+	skb_dma_unmap(&adapter->pdev->dev, sent_skb, DMA_TO_DEVICE);
 	kfree_skb(sent_skb);
+}
+
+static inline struct be_eq_entry *event_get(struct be_eq_obj *eq_obj)
+{
+	struct be_eq_entry *eqe = queue_tail_node(&eq_obj->q);
+
+	if (!eqe->evt)
+		return NULL;
+
+	eqe->evt = le32_to_cpu(eqe->evt);
+	queue_tail_inc(&eq_obj->q);
+	return eqe;
+}
+
+static int event_handle(struct be_adapter *adapter,
+			struct be_eq_obj *eq_obj)
+{
+	struct be_eq_entry *eqe;
+	u16 num = 0;
+
+	while ((eqe = event_get(eq_obj)) != NULL) {
+		eqe->evt = 0;
+		num++;
+	}
+
+	/* Deal with any spurious interrupts that come
+	 * without events
+	 */
+	be_eq_notify(adapter, eq_obj->q.id, true, true, num);
+	if (num)
+		napi_schedule(&eq_obj->napi);
+
+	return num;
+}
+
+/* Just read and notify events without processing them.
+ * Used at the time of destroying event queues */
+static void be_eq_clean(struct be_adapter *adapter,
+			struct be_eq_obj *eq_obj)
+{
+	struct be_eq_entry *eqe;
+	u16 num = 0;
+
+	while ((eqe = event_get(eq_obj)) != NULL) {
+		eqe->evt = 0;
+		num++;
+	}
+
+	if (num)
+		be_eq_notify(adapter, eq_obj->q.id, false, true, num);
 }
 
 static void be_rx_q_clean(struct be_adapter *adapter)
@@ -980,12 +1063,12 @@ static void be_rx_q_clean(struct be_adapter *adapter)
 	while ((rxcp = be_rx_compl_get(adapter)) != NULL) {
 		be_rx_compl_discard(adapter, rxcp);
 		be_rx_compl_reset(rxcp);
-		be_cq_notify(&adapter->ctrl, rx_cq->id, true, 1);
+		be_cq_notify(adapter, rx_cq->id, true, 1);
 	}
 
 	/* Then free posted rx buffer that were not used */
 	tail = (rxq->head + rxq->len - atomic_read(&rxq->used)) % rxq->len;
-	for (; tail != rxq->head; index_inc(&tail, rxq->len)) {
+	for (; atomic_read(&rxq->used) > 0; index_inc(&tail, rxq->len)) {
 		page_info = get_rx_page_info(adapter, tail);
 		put_page(page_info->page);
 		memset(page_info, 0, sizeof(*page_info));
@@ -993,36 +1076,49 @@ static void be_rx_q_clean(struct be_adapter *adapter)
 	BUG_ON(atomic_read(&rxq->used));
 }
 
-static void be_tx_q_clean(struct be_adapter *adapter)
+static void be_tx_compl_clean(struct be_adapter *adapter)
 {
-	struct sk_buff **sent_skbs = adapter->tx_obj.sent_skb_list;
-	struct sk_buff *sent_skb;
+	struct be_queue_info *tx_cq = &adapter->tx_obj.cq;
 	struct be_queue_info *txq = &adapter->tx_obj.q;
-	u16 last_index;
-	bool dummy_wrb;
+	struct be_eth_tx_compl *txcp;
+	u16 end_idx, cmpl = 0, timeo = 0;
 
-	while (atomic_read(&txq->used)) {
-		sent_skb = sent_skbs[txq->tail];
-		last_index = txq->tail;
-		index_adv(&last_index,
-			wrb_cnt_for_skb(sent_skb, &dummy_wrb) - 1, txq->len);
-		be_tx_compl_process(adapter, last_index);
-	}
+	/* Wait for a max of 200ms for all the tx-completions to arrive. */
+	do {
+		while ((txcp = be_tx_compl_get(tx_cq))) {
+			end_idx = AMAP_GET_BITS(struct amap_eth_tx_compl,
+					wrb_index, txcp);
+			be_tx_compl_process(adapter, end_idx);
+			cmpl++;
+		}
+		if (cmpl) {
+			be_cq_notify(adapter, tx_cq->id, false, cmpl);
+			cmpl = 0;
+		}
+
+		if (atomic_read(&txq->used) == 0 || ++timeo > 200)
+			break;
+
+		mdelay(1);
+	} while (true);
+
+	if (atomic_read(&txq->used))
+		dev_err(&adapter->pdev->dev, "%d pending tx-completions\n",
+			atomic_read(&txq->used));
 }
 
 static void be_mcc_queues_destroy(struct be_adapter *adapter)
 {
 	struct be_queue_info *q;
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 
-	q = &ctrl->mcc_obj.q;
+	q = &adapter->mcc_obj.q;
 	if (q->created)
-		be_cmd_q_destroy(ctrl, q, QTYPE_MCCQ);
+		be_cmd_q_destroy(adapter, q, QTYPE_MCCQ);
 	be_queue_free(adapter, q);
 
-	q = &ctrl->mcc_obj.cq;
+	q = &adapter->mcc_obj.cq;
 	if (q->created)
-		be_cmd_q_destroy(ctrl, q, QTYPE_CQ);
+		be_cmd_q_destroy(adapter, q, QTYPE_CQ);
 	be_queue_free(adapter, q);
 }
 
@@ -1030,25 +1126,24 @@ static void be_mcc_queues_destroy(struct be_adapter *adapter)
 static int be_mcc_queues_create(struct be_adapter *adapter)
 {
 	struct be_queue_info *q, *cq;
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 
 	/* Alloc MCC compl queue */
-	cq = &ctrl->mcc_obj.cq;
+	cq = &adapter->mcc_obj.cq;
 	if (be_queue_alloc(adapter, cq, MCC_CQ_LEN,
-			sizeof(struct be_mcc_cq_entry)))
+			sizeof(struct be_mcc_compl)))
 		goto err;
 
 	/* Ask BE to create MCC compl queue; share TX's eq */
-	if (be_cmd_cq_create(ctrl, cq, &adapter->tx_eq.q, false, true, 0))
+	if (be_cmd_cq_create(adapter, cq, &adapter->tx_eq.q, false, true, 0))
 		goto mcc_cq_free;
 
 	/* Alloc MCC queue */
-	q = &ctrl->mcc_obj.q;
+	q = &adapter->mcc_obj.q;
 	if (be_queue_alloc(adapter, q, MCC_Q_LEN, sizeof(struct be_mcc_wrb)))
 		goto mcc_cq_destroy;
 
 	/* Ask BE to create MCC queue */
-	if (be_cmd_mccq_create(ctrl, q, cq))
+	if (be_cmd_mccq_create(adapter, q, cq))
 		goto mcc_q_free;
 
 	return 0;
@@ -1056,7 +1151,7 @@ static int be_mcc_queues_create(struct be_adapter *adapter)
 mcc_q_free:
 	be_queue_free(adapter, q);
 mcc_cq_destroy:
-	be_cmd_q_destroy(ctrl, cq, QTYPE_CQ);
+	be_cmd_q_destroy(adapter, cq, QTYPE_CQ);
 mcc_cq_free:
 	be_queue_free(adapter, cq);
 err:
@@ -1068,23 +1163,21 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 	struct be_queue_info *q;
 
 	q = &adapter->tx_obj.q;
-	if (q->created) {
-		be_cmd_q_destroy(&adapter->ctrl, q, QTYPE_TXQ);
-
-		/* No more tx completions can be rcvd now; clean up if there
-		 * are any pending completions or pending tx requests */
-		be_tx_q_clean(adapter);
-	}
+	if (q->created)
+		be_cmd_q_destroy(adapter, q, QTYPE_TXQ);
 	be_queue_free(adapter, q);
 
 	q = &adapter->tx_obj.cq;
 	if (q->created)
-		be_cmd_q_destroy(&adapter->ctrl, q, QTYPE_CQ);
+		be_cmd_q_destroy(adapter, q, QTYPE_CQ);
 	be_queue_free(adapter, q);
+
+	/* Clear any residual events */
+	be_eq_clean(adapter, &adapter->tx_eq);
 
 	q = &adapter->tx_eq.q;
 	if (q->created)
-		be_cmd_q_destroy(&adapter->ctrl, q, QTYPE_EQ);
+		be_cmd_q_destroy(adapter, q, QTYPE_EQ);
 	be_queue_free(adapter, q);
 }
 
@@ -1102,7 +1195,7 @@ static int be_tx_queues_create(struct be_adapter *adapter)
 		return -1;
 
 	/* Ask BE to create Tx Event queue */
-	if (be_cmd_eq_create(&adapter->ctrl, eq, adapter->tx_eq.cur_eqd))
+	if (be_cmd_eq_create(adapter, eq, adapter->tx_eq.cur_eqd))
 		goto tx_eq_free;
 	/* Alloc TX eth compl queue */
 	cq = &adapter->tx_obj.cq;
@@ -1111,7 +1204,7 @@ static int be_tx_queues_create(struct be_adapter *adapter)
 		goto tx_eq_destroy;
 
 	/* Ask BE to create Tx eth compl queue */
-	if (be_cmd_cq_create(&adapter->ctrl, cq, eq, false, false, 3))
+	if (be_cmd_cq_create(adapter, cq, eq, false, false, 3))
 		goto tx_cq_free;
 
 	/* Alloc TX eth queue */
@@ -1120,18 +1213,18 @@ static int be_tx_queues_create(struct be_adapter *adapter)
 		goto tx_cq_destroy;
 
 	/* Ask BE to create Tx eth queue */
-	if (be_cmd_txq_create(&adapter->ctrl, q, cq))
+	if (be_cmd_txq_create(adapter, q, cq))
 		goto tx_q_free;
 	return 0;
 
 tx_q_free:
 	be_queue_free(adapter, q);
 tx_cq_destroy:
-	be_cmd_q_destroy(&adapter->ctrl, cq, QTYPE_CQ);
+	be_cmd_q_destroy(adapter, cq, QTYPE_CQ);
 tx_cq_free:
 	be_queue_free(adapter, cq);
 tx_eq_destroy:
-	be_cmd_q_destroy(&adapter->ctrl, eq, QTYPE_EQ);
+	be_cmd_q_destroy(adapter, eq, QTYPE_EQ);
 tx_eq_free:
 	be_queue_free(adapter, eq);
 	return -1;
@@ -1143,19 +1236,22 @@ static void be_rx_queues_destroy(struct be_adapter *adapter)
 
 	q = &adapter->rx_obj.q;
 	if (q->created) {
-		be_cmd_q_destroy(&adapter->ctrl, q, QTYPE_RXQ);
+		be_cmd_q_destroy(adapter, q, QTYPE_RXQ);
 		be_rx_q_clean(adapter);
 	}
 	be_queue_free(adapter, q);
 
 	q = &adapter->rx_obj.cq;
 	if (q->created)
-		be_cmd_q_destroy(&adapter->ctrl, q, QTYPE_CQ);
+		be_cmd_q_destroy(adapter, q, QTYPE_CQ);
 	be_queue_free(adapter, q);
+
+	/* Clear any residual events */
+	be_eq_clean(adapter, &adapter->rx_eq);
 
 	q = &adapter->rx_eq.q;
 	if (q->created)
-		be_cmd_q_destroy(&adapter->ctrl, q, QTYPE_EQ);
+		be_cmd_q_destroy(adapter, q, QTYPE_EQ);
 	be_queue_free(adapter, q);
 }
 
@@ -1164,7 +1260,6 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 	struct be_queue_info *eq, *q, *cq;
 	int rc;
 
-	adapter->max_rx_coal = BE_MAX_FRAGS_PER_FRAME;
 	adapter->big_page_size = (1 << get_order(rx_frag_size)) * PAGE_SIZE;
 	adapter->rx_eq.max_eqd = BE_MAX_EQD;
 	adapter->rx_eq.min_eqd = 0;
@@ -1179,7 +1274,7 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 		return rc;
 
 	/* Ask BE to create Rx Event queue */
-	rc = be_cmd_eq_create(&adapter->ctrl, eq, adapter->rx_eq.cur_eqd);
+	rc = be_cmd_eq_create(adapter, eq, adapter->rx_eq.cur_eqd);
 	if (rc)
 		goto rx_eq_free;
 
@@ -1191,7 +1286,7 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 		goto rx_eq_destroy;
 
 	/* Ask BE to create Rx eth compl queue */
-	rc = be_cmd_cq_create(&adapter->ctrl, cq, eq, false, false, 3);
+	rc = be_cmd_cq_create(adapter, cq, eq, false, false, 3);
 	if (rc)
 		goto rx_cq_free;
 
@@ -1202,7 +1297,7 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 		goto rx_cq_destroy;
 
 	/* Ask BE to create Rx eth queue */
-	rc = be_cmd_rxq_create(&adapter->ctrl, q, cq->id, rx_frag_size,
+	rc = be_cmd_rxq_create(adapter, q, cq->id, rx_frag_size,
 		BE_MAX_JUMBO_FRAME_SIZE, adapter->if_handle, false);
 	if (rc)
 		goto rx_q_free;
@@ -1211,66 +1306,43 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 rx_q_free:
 	be_queue_free(adapter, q);
 rx_cq_destroy:
-	be_cmd_q_destroy(&adapter->ctrl, cq, QTYPE_CQ);
+	be_cmd_q_destroy(adapter, cq, QTYPE_CQ);
 rx_cq_free:
 	be_queue_free(adapter, cq);
 rx_eq_destroy:
-	be_cmd_q_destroy(&adapter->ctrl, eq, QTYPE_EQ);
+	be_cmd_q_destroy(adapter, eq, QTYPE_EQ);
 rx_eq_free:
 	be_queue_free(adapter, eq);
 	return rc;
 }
-static bool event_get(struct be_eq_obj *eq_obj, u16 *rid)
+
+/* There are 8 evt ids per func. Retruns the evt id's bit number */
+static inline int be_evt_bit_get(struct be_adapter *adapter, u32 eq_id)
 {
-	struct be_eq_entry *entry = queue_tail_node(&eq_obj->q);
-	u32 evt = entry->evt;
-
-	if (!evt)
-		return false;
-
-	evt = le32_to_cpu(evt);
-	*rid = (evt >> EQ_ENTRY_RES_ID_SHIFT) & EQ_ENTRY_RES_ID_MASK;
-	entry->evt = 0;
-	queue_tail_inc(&eq_obj->q);
-	return true;
-}
-
-static int event_handle(struct be_ctrl_info *ctrl,
-			struct be_eq_obj *eq_obj)
-{
-	u16 rid = 0, num = 0;
-
-	while (event_get(eq_obj, &rid))
-		num++;
-
-	/* We can see an interrupt and no event */
-	be_eq_notify(ctrl, eq_obj->q.id, true, true, num);
-	if (num)
-		napi_schedule(&eq_obj->napi);
-
-	return num;
+	return eq_id - 8 * be_pci_func(adapter);
 }
 
 static irqreturn_t be_intx(int irq, void *dev)
 {
 	struct be_adapter *adapter = dev;
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
-	int rx, tx;
+	int isr;
 
-	tx = event_handle(ctrl, &adapter->tx_eq);
-	rx = event_handle(ctrl, &adapter->rx_eq);
-
-	if (rx || tx)
-		return IRQ_HANDLED;
-	else
+	isr = ioread32(adapter->csr + CEV_ISR0_OFFSET +
+			be_pci_func(adapter) * CEV_ISR_SIZE);
+	if (!isr)
 		return IRQ_NONE;
+
+	event_handle(adapter, &adapter->tx_eq);
+	event_handle(adapter, &adapter->rx_eq);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t be_msix_rx(int irq, void *dev)
 {
 	struct be_adapter *adapter = dev;
 
-	event_handle(&adapter->ctrl, &adapter->rx_eq);
+	event_handle(adapter, &adapter->rx_eq);
 
 	return IRQ_HANDLED;
 }
@@ -1279,12 +1351,12 @@ static irqreturn_t be_msix_tx_mcc(int irq, void *dev)
 {
 	struct be_adapter *adapter = dev;
 
-	event_handle(&adapter->ctrl, &adapter->tx_eq);
+	event_handle(adapter, &adapter->tx_eq);
 
 	return IRQ_HANDLED;
 }
 
-static inline bool do_lro(struct be_adapter *adapter,
+static inline bool do_gro(struct be_adapter *adapter,
 			struct be_eth_rx_compl *rxcp)
 {
 	int err = AMAP_GET_BITS(struct amap_eth_rx_compl, err, rxcp);
@@ -1293,8 +1365,7 @@ static inline bool do_lro(struct be_adapter *adapter,
 	if (err)
 		drvr_stats(adapter)->be_rxcp_err++;
 
-	return (!tcp_frame || err || (adapter->max_rx_coal <= 1)) ?
-		false : true;
+	return (tcp_frame && !err) ? true : false;
 }
 
 int be_poll_rx(struct napi_struct *napi, int budget)
@@ -1311,15 +1382,13 @@ int be_poll_rx(struct napi_struct *napi, int budget)
 		if (!rxcp)
 			break;
 
-		if (do_lro(adapter, rxcp))
-			be_rx_compl_process_lro(adapter, rxcp);
+		if (do_gro(adapter, rxcp))
+			be_rx_compl_process_gro(adapter, rxcp);
 		else
 			be_rx_compl_process(adapter, rxcp);
 
 		be_rx_compl_reset(rxcp);
 	}
-
-	lro_flush_all(&adapter->rx_obj.lro_mgr);
 
 	/* Refill the queue */
 	if (atomic_read(&adapter->rx_obj.q.used) < RX_FRAGS_REFILL_WM)
@@ -1328,10 +1397,10 @@ int be_poll_rx(struct napi_struct *napi, int budget)
 	/* All consumed */
 	if (work_done < budget) {
 		napi_complete(napi);
-		be_cq_notify(&adapter->ctrl, rx_cq->id, true, work_done);
+		be_cq_notify(adapter, rx_cq->id, true, work_done);
 	} else {
 		/* More to be consumed; continue with interrupts disabled */
-		be_cq_notify(&adapter->ctrl, rx_cq->id, false, work_done);
+		be_cq_notify(adapter, rx_cq->id, false, work_done);
 	}
 	return work_done;
 }
@@ -1352,7 +1421,7 @@ void be_process_tx(struct be_adapter *adapter)
 	}
 
 	if (num_cmpl) {
-		be_cq_notify(&adapter->ctrl, tx_cq->id, true, num_cmpl);
+		be_cq_notify(adapter, tx_cq->id, true, num_cmpl);
 
 		/* As Tx wrbs have been freed up, wake up netdev queue if
 		 * it was stopped due to lack of tx wrbs.
@@ -1380,7 +1449,7 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 
 	be_process_tx(adapter);
 
-	be_process_mcc(&adapter->ctrl);
+	be_process_mcc(adapter);
 
 	return 1;
 }
@@ -1389,12 +1458,8 @@ static void be_worker(struct work_struct *work)
 {
 	struct be_adapter *adapter =
 		container_of(work, struct be_adapter, work.work);
-	int status;
 
-	/* Get Stats */
-	status = be_cmd_get_stats(&adapter->ctrl, &adapter->stats.cmd);
-	if (!status)
-		netdev_stats_update(adapter);
+	be_cmd_get_stats(adapter, &adapter->stats.cmd);
 
 	/* Set EQ delay */
 	be_rx_eqd_update(adapter);
@@ -1426,32 +1491,44 @@ static void be_msix_enable(struct be_adapter *adapter)
 
 static inline int be_msix_vec_get(struct be_adapter *adapter, u32 eq_id)
 {
-	return adapter->msix_entries[eq_id -
-			8 * adapter->ctrl.pci_func].vector;
+	return adapter->msix_entries[
+			be_evt_bit_get(adapter, eq_id)].vector;
+}
+
+static int be_request_irq(struct be_adapter *adapter,
+		struct be_eq_obj *eq_obj,
+		void *handler, char *desc)
+{
+	struct net_device *netdev = adapter->netdev;
+	int vec;
+
+	sprintf(eq_obj->desc, "%s-%s", netdev->name, desc);
+	vec = be_msix_vec_get(adapter, eq_obj->q.id);
+	return request_irq(vec, handler, 0, eq_obj->desc, adapter);
+}
+
+static void be_free_irq(struct be_adapter *adapter, struct be_eq_obj *eq_obj)
+{
+	int vec = be_msix_vec_get(adapter, eq_obj->q.id);
+	free_irq(vec, adapter);
 }
 
 static int be_msix_register(struct be_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
-	struct be_eq_obj *tx_eq = &adapter->tx_eq;
-	struct be_eq_obj *rx_eq = &adapter->rx_eq;
-	int status, vec;
+	int status;
 
-	sprintf(tx_eq->desc, "%s-tx", netdev->name);
-	vec = be_msix_vec_get(adapter, tx_eq->q.id);
-	status = request_irq(vec, be_msix_tx_mcc, 0, tx_eq->desc, adapter);
+	status = be_request_irq(adapter, &adapter->tx_eq, be_msix_tx_mcc, "tx");
 	if (status)
 		goto err;
 
-	sprintf(rx_eq->desc, "%s-rx", netdev->name);
-	vec = be_msix_vec_get(adapter, rx_eq->q.id);
-	status = request_irq(vec, be_msix_rx, 0, rx_eq->desc, adapter);
-	if (status) { /* Free TX IRQ */
-		vec = be_msix_vec_get(adapter, tx_eq->q.id);
-		free_irq(vec, adapter);
-		goto err;
-	}
+	status = be_request_irq(adapter, &adapter->rx_eq, be_msix_rx, "rx");
+	if (status)
+		goto free_tx_irq;
+
 	return 0;
+
+free_tx_irq:
+	be_free_irq(adapter, &adapter->tx_eq);
 err:
 	dev_warn(&adapter->pdev->dev,
 		"MSIX Request IRQ failed - err %d\n", status);
@@ -1488,7 +1565,6 @@ done:
 static void be_irq_unregister(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	int vec;
 
 	if (!adapter->isr_registered)
 		return;
@@ -1500,10 +1576,8 @@ static void be_irq_unregister(struct be_adapter *adapter)
 	}
 
 	/* MSIx */
-	vec = be_msix_vec_get(adapter, adapter->tx_eq.q.id);
-	free_irq(vec, adapter);
-	vec = be_msix_vec_get(adapter, adapter->rx_eq.q.id);
-	free_irq(vec, adapter);
+	be_free_irq(adapter, &adapter->tx_eq);
+	be_free_irq(adapter, &adapter->rx_eq);
 done:
 	adapter->isr_registered = false;
 	return;
@@ -1512,7 +1586,6 @@ done:
 static int be_open(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 	struct be_eq_obj *rx_eq = &adapter->rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	bool link_up;
@@ -1526,16 +1599,16 @@ static int be_open(struct net_device *netdev)
 
 	be_irq_register(adapter);
 
-	be_intr_set(ctrl, true);
+	be_intr_set(adapter, true);
 
 	/* The evt queues are created in unarmed state; arm them */
-	be_eq_notify(ctrl, rx_eq->q.id, true, false, 0);
-	be_eq_notify(ctrl, tx_eq->q.id, true, false, 0);
+	be_eq_notify(adapter, rx_eq->q.id, true, false, 0);
+	be_eq_notify(adapter, tx_eq->q.id, true, false, 0);
 
 	/* Rx compl queue may be in unarmed state; rearm it */
-	be_cq_notify(ctrl, adapter->rx_obj.cq.id, true, 0);
+	be_cq_notify(adapter, adapter->rx_obj.cq.id, true, 0);
 
-	status = be_cmd_link_status_query(ctrl, &link_up);
+	status = be_cmd_link_status_query(adapter, &link_up);
 	if (status)
 		return status;
 	be_link_status_update(adapter, link_up);
@@ -1546,7 +1619,6 @@ static int be_open(struct net_device *netdev)
 
 static int be_setup(struct be_adapter *adapter)
 {
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 	struct net_device *netdev = adapter->netdev;
 	u32 if_flags;
 	int status;
@@ -1554,17 +1626,12 @@ static int be_setup(struct be_adapter *adapter)
 	if_flags = BE_IF_FLAGS_BROADCAST | BE_IF_FLAGS_PROMISCUOUS |
 		BE_IF_FLAGS_MCAST_PROMISCUOUS | BE_IF_FLAGS_UNTAGGED |
 		BE_IF_FLAGS_PASS_L3L4_ERRORS;
-	status = be_cmd_if_create(ctrl, if_flags, netdev->dev_addr,
+	status = be_cmd_if_create(adapter, if_flags, netdev->dev_addr,
 			false/* pmac_invalid */, &adapter->if_handle,
 			&adapter->pmac_id);
 	if (status != 0)
 		goto do_none;
 
-	be_vid_config(netdev);
-
-	status = be_cmd_set_flow_control(ctrl, true, true);
-	if (status != 0)
-		goto if_destroy;
 
 	status = be_tx_queues_create(adapter);
 	if (status != 0)
@@ -1578,35 +1645,41 @@ static int be_setup(struct be_adapter *adapter)
 	if (status != 0)
 		goto rx_qs_destroy;
 
+	status = be_vid_config(adapter);
+	if (status != 0)
+		goto mccqs_destroy;
+
+	status = be_cmd_set_flow_control(adapter, true, true);
+	if (status != 0)
+		goto mccqs_destroy;
 	return 0;
 
+mccqs_destroy:
+	be_mcc_queues_destroy(adapter);
 rx_qs_destroy:
 	be_rx_queues_destroy(adapter);
 tx_qs_destroy:
 	be_tx_queues_destroy(adapter);
 if_destroy:
-	be_cmd_if_destroy(ctrl, adapter->if_handle);
+	be_cmd_if_destroy(adapter, adapter->if_handle);
 do_none:
 	return status;
 }
 
 static int be_clear(struct be_adapter *adapter)
 {
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
-
+	be_mcc_queues_destroy(adapter);
 	be_rx_queues_destroy(adapter);
 	be_tx_queues_destroy(adapter);
 
-	be_cmd_if_destroy(ctrl, adapter->if_handle);
+	be_cmd_if_destroy(adapter, adapter->if_handle);
 
-	be_mcc_queues_destroy(adapter);
 	return 0;
 }
 
 static int be_close(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 	struct be_eq_obj *rx_eq = &adapter->rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	int vec;
@@ -1617,7 +1690,7 @@ static int be_close(struct net_device *netdev)
 	netif_carrier_off(netdev);
 	adapter->link_up = false;
 
-	be_intr_set(ctrl, false);
+	be_intr_set(adapter, false);
 
 	if (adapter->msix_enabled) {
 		vec = be_msix_vec_get(adapter, tx_eq->q.id);
@@ -1632,58 +1705,179 @@ static int be_close(struct net_device *netdev)
 	napi_disable(&rx_eq->napi);
 	napi_disable(&tx_eq->napi);
 
+	/* Wait for all pending tx completions to arrive so that
+	 * all tx skbs are freed.
+	 */
+	be_tx_compl_clean(adapter);
+
 	return 0;
 }
 
-static int be_get_frag_header(struct skb_frag_struct *frag, void **mac_hdr,
-				void **ip_hdr, void **tcpudp_hdr,
-				u64 *hdr_flags, void *priv)
+#define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
+char flash_cookie[2][16] =	{"*** SE FLAS",
+				"H DIRECTORY *** "};
+static int be_flash_image(struct be_adapter *adapter,
+			const struct firmware *fw,
+			struct be_dma_mem *flash_cmd, u32 flash_type)
 {
-	struct ethhdr *eh;
-	struct vlan_ethhdr *veh;
-	struct iphdr *iph;
-	u8 *va = page_address(frag->page) + frag->page_offset;
-	unsigned long ll_hlen;
+	int status;
+	u32 flash_op, image_offset = 0, total_bytes, image_size = 0;
+	int num_bytes;
+	const u8 *p = fw->data;
+	struct be_cmd_write_flashrom *req = flash_cmd->va;
 
-	prefetch(va);
-	eh = (struct ethhdr *)va;
-	*mac_hdr = eh;
-	ll_hlen = ETH_HLEN;
-	if (eh->h_proto != htons(ETH_P_IP)) {
-		if (eh->h_proto == htons(ETH_P_8021Q)) {
-			veh = (struct vlan_ethhdr *)va;
-			if (veh->h_vlan_encapsulated_proto != htons(ETH_P_IP))
-				return -1;
+	switch (flash_type) {
+	case FLASHROM_TYPE_ISCSI_ACTIVE:
+		image_offset = FLASH_iSCSI_PRIMARY_IMAGE_START;
+		image_size = FLASH_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_ISCSI_BACKUP:
+		image_offset = FLASH_iSCSI_BACKUP_IMAGE_START;
+		image_size = FLASH_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_FCOE_FW_ACTIVE:
+		image_offset = FLASH_FCoE_PRIMARY_IMAGE_START;
+		image_size = FLASH_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_FCOE_FW_BACKUP:
+		image_offset = FLASH_FCoE_BACKUP_IMAGE_START;
+		image_size = FLASH_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_BIOS:
+		image_offset = FLASH_iSCSI_BIOS_START;
+		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_FCOE_BIOS:
+		image_offset = FLASH_FCoE_BIOS_START;
+		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
+		break;
+	case FLASHROM_TYPE_PXE_BIOS:
+		image_offset = FLASH_PXE_BIOS_START;
+		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
+		break;
+	default:
+		return 0;
+	}
 
-			ll_hlen += VLAN_HLEN;
-		} else {
+	p += sizeof(struct flash_file_hdr) + image_offset;
+	if (p + image_size > fw->data + fw->size)
+		return -1;
+
+	total_bytes = image_size;
+
+	while (total_bytes) {
+		if (total_bytes > 32*1024)
+			num_bytes = 32*1024;
+		else
+			num_bytes = total_bytes;
+		total_bytes -= num_bytes;
+
+		if (!total_bytes)
+			flash_op = FLASHROM_OPER_FLASH;
+		else
+			flash_op = FLASHROM_OPER_SAVE;
+		memcpy(req->params.data_buf, p, num_bytes);
+		p += num_bytes;
+		status = be_cmd_write_flashrom(adapter, flash_cmd,
+				flash_type, flash_op, num_bytes);
+		if (status) {
+			dev_err(&adapter->pdev->dev,
+			"cmd to write to flash rom failed. type/op %d/%d\n",
+			flash_type, flash_op);
 			return -1;
 		}
+		yield();
 	}
-	*hdr_flags = LRO_IPV4;
-	iph = (struct iphdr *)(va + ll_hlen);
-	*ip_hdr = iph;
-	if (iph->protocol != IPPROTO_TCP)
-		return -1;
-	*hdr_flags |= LRO_TCP;
-	*tcpudp_hdr = (u8 *) (*ip_hdr) + (iph->ihl << 2);
 
 	return 0;
 }
 
-static void be_lro_init(struct be_adapter *adapter, struct net_device *netdev)
+int be_load_fw(struct be_adapter *adapter, u8 *func)
 {
-	struct net_lro_mgr *lro_mgr;
+	char fw_file[ETHTOOL_FLASH_MAX_FILENAME];
+	const struct firmware *fw;
+	struct flash_file_hdr *fhdr;
+	struct flash_section_info *fsec = NULL;
+	struct be_dma_mem flash_cmd;
+	int status;
+	const u8 *p;
+	bool entry_found = false;
+	int flash_type;
+	char fw_ver[FW_VER_LEN];
+	char fw_cfg;
 
-	lro_mgr = &adapter->rx_obj.lro_mgr;
-	lro_mgr->dev = netdev;
-	lro_mgr->features = LRO_F_NAPI;
-	lro_mgr->ip_summed = CHECKSUM_UNNECESSARY;
-	lro_mgr->ip_summed_aggr = CHECKSUM_UNNECESSARY;
-	lro_mgr->max_desc = BE_MAX_LRO_DESCRIPTORS;
-	lro_mgr->lro_arr = adapter->rx_obj.lro_desc;
-	lro_mgr->get_frag_header = be_get_frag_header;
-	lro_mgr->max_aggr = BE_MAX_FRAGS_PER_FRAME;
+	status = be_cmd_get_fw_ver(adapter, fw_ver);
+	if (status)
+		return status;
+
+	fw_cfg = *(fw_ver + 2);
+	if (fw_cfg == '0')
+		fw_cfg = '1';
+	strcpy(fw_file, func);
+
+	status = request_firmware(&fw, fw_file, &adapter->pdev->dev);
+	if (status)
+		goto fw_exit;
+
+	p = fw->data;
+	fhdr = (struct flash_file_hdr *) p;
+	if (memcmp(fhdr->sign, FW_FILE_HDR_SIGN, strlen(FW_FILE_HDR_SIGN))) {
+		dev_err(&adapter->pdev->dev,
+			"Firmware(%s) load error (signature did not match)\n",
+				fw_file);
+		status = -1;
+		goto fw_exit;
+	}
+
+	dev_info(&adapter->pdev->dev, "Flashing firmware file %s\n", fw_file);
+
+	p += sizeof(struct flash_file_hdr);
+	while (p < (fw->data + fw->size)) {
+		fsec = (struct flash_section_info *)p;
+		if (!memcmp(flash_cookie, fsec->cookie, sizeof(flash_cookie))) {
+			entry_found = true;
+			break;
+		}
+		p += 32;
+	}
+
+	if (!entry_found) {
+		status = -1;
+		dev_err(&adapter->pdev->dev,
+			"Flash cookie not found in firmware image\n");
+		goto fw_exit;
+	}
+
+	flash_cmd.size = sizeof(struct be_cmd_write_flashrom) + 32*1024;
+	flash_cmd.va = pci_alloc_consistent(adapter->pdev, flash_cmd.size,
+					&flash_cmd.dma);
+	if (!flash_cmd.va) {
+		status = -ENOMEM;
+		dev_err(&adapter->pdev->dev,
+			"Memory allocation failure while flashing\n");
+		goto fw_exit;
+	}
+
+	for (flash_type = FLASHROM_TYPE_ISCSI_ACTIVE;
+		flash_type <= FLASHROM_TYPE_FCOE_FW_BACKUP; flash_type++) {
+		status = be_flash_image(adapter, fw, &flash_cmd,
+				flash_type);
+		if (status)
+			break;
+	}
+
+	pci_free_consistent(adapter->pdev, flash_cmd.size, flash_cmd.va,
+				flash_cmd.dma);
+	if (status) {
+		dev_err(&adapter->pdev->dev, "Firmware load error\n");
+		goto fw_exit;
+	}
+
+	dev_info(&adapter->pdev->dev, "Firmware flashed succesfully\n");
+
+fw_exit:
+	release_firmware(fw);
+	return status;
 }
 
 static struct net_device_ops be_netdev_ops = {
@@ -1706,17 +1900,17 @@ static void be_netdev_init(struct net_device *netdev)
 
 	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
 		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM;
+		NETIF_F_IPV6_CSUM | NETIF_F_GRO;
 
 	netdev->flags |= IFF_MULTICAST;
 
 	adapter->rx_csum = true;
 
+	netif_set_gso_max_size(netdev, 65535);
+
 	BE_SET_NETDEV_OPS(netdev, &be_netdev_ops);
 
 	SET_ETHTOOL_OPS(netdev, &be_ethtool_ops);
-
-	be_lro_init(adapter, netdev);
 
 	netif_napi_add(netdev, &adapter->rx_eq.napi, be_poll_rx,
 		BE_NAPI_WEIGHT);
@@ -1729,13 +1923,12 @@ static void be_netdev_init(struct net_device *netdev)
 
 static void be_unmap_pci_bars(struct be_adapter *adapter)
 {
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
-	if (ctrl->csr)
-		iounmap(ctrl->csr);
-	if (ctrl->db)
-		iounmap(ctrl->db);
-	if (ctrl->pcicfg)
-		iounmap(ctrl->pcicfg);
+	if (adapter->csr)
+		iounmap(adapter->csr);
+	if (adapter->db)
+		iounmap(adapter->db);
+	if (adapter->pcicfg)
+		iounmap(adapter->pcicfg);
 }
 
 static int be_map_pci_bars(struct be_adapter *adapter)
@@ -1746,19 +1939,19 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 			pci_resource_len(adapter->pdev, 2));
 	if (addr == NULL)
 		return -ENOMEM;
-	adapter->ctrl.csr = addr;
+	adapter->csr = addr;
 
 	addr = ioremap_nocache(pci_resource_start(adapter->pdev, 4),
 			128 * 1024);
 	if (addr == NULL)
 		goto pci_map_err;
-	adapter->ctrl.db = addr;
+	adapter->db = addr;
 
 	addr = ioremap_nocache(pci_resource_start(adapter->pdev, 1),
 			pci_resource_len(adapter->pdev, 1));
 	if (addr == NULL)
 		goto pci_map_err;
-	adapter->ctrl.pcicfg = addr;
+	adapter->pcicfg = addr;
 
 	return 0;
 pci_map_err:
@@ -1769,7 +1962,7 @@ pci_map_err:
 
 static void be_ctrl_cleanup(struct be_adapter *adapter)
 {
-	struct be_dma_mem *mem = &adapter->ctrl.mbox_mem_alloced;
+	struct be_dma_mem *mem = &adapter->mbox_mem_alloced;
 
 	be_unmap_pci_bars(adapter);
 
@@ -1778,14 +1971,11 @@ static void be_ctrl_cleanup(struct be_adapter *adapter)
 			mem->va, mem->dma);
 }
 
-/* Initialize the mbox required to send cmds to BE */
 static int be_ctrl_init(struct be_adapter *adapter)
 {
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
-	struct be_dma_mem *mbox_mem_alloc = &ctrl->mbox_mem_alloced;
-	struct be_dma_mem *mbox_mem_align = &ctrl->mbox_mem;
+	struct be_dma_mem *mbox_mem_alloc = &adapter->mbox_mem_alloced;
+	struct be_dma_mem *mbox_mem_align = &adapter->mbox_mem;
 	int status;
-	u32 val;
 
 	status = be_map_pci_bars(adapter);
 	if (status)
@@ -1802,16 +1992,10 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	mbox_mem_align->va = PTR_ALIGN(mbox_mem_alloc->va, 16);
 	mbox_mem_align->dma = PTR_ALIGN(mbox_mem_alloc->dma, 16);
 	memset(mbox_mem_align->va, 0, sizeof(struct be_mcc_mailbox));
-	spin_lock_init(&ctrl->mbox_lock);
-	spin_lock_init(&ctrl->mcc_lock);
-	spin_lock_init(&ctrl->mcc_cq_lock);
+	spin_lock_init(&adapter->mbox_lock);
+	spin_lock_init(&adapter->mcc_lock);
+	spin_lock_init(&adapter->mcc_cq_lock);
 
-	ctrl->async_cb = be_link_status_update;
-	ctrl->adapter_ctxt = adapter;
-
-	val = ioread32(ctrl->pcicfg + PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET);
-	ctrl->pci_func = (val >> MEMBAR_CTRL_INT_CTRL_PFUNC_SHIFT) &
-					MEMBAR_CTRL_INT_CTRL_PFUNC_MASK;
 	return 0;
 }
 
@@ -1865,18 +2049,18 @@ static void __devexit be_remove(struct pci_dev *pdev)
 
 static int be_hw_up(struct be_adapter *adapter)
 {
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 	int status;
 
-	status = be_cmd_POST(ctrl);
+	status = be_cmd_POST(adapter);
 	if (status)
 		return status;
 
-	status = be_cmd_get_fw_ver(ctrl, adapter->fw_ver);
+	status = be_cmd_get_fw_ver(adapter, adapter->fw_ver);
 	if (status)
 		return status;
 
-	status = be_cmd_query_fw_cfg(ctrl, &adapter->port_num);
+	status = be_cmd_query_fw_cfg(adapter,
+				&adapter->port_num, &adapter->cap);
 	return status;
 }
 
@@ -1886,7 +2070,6 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	int status = 0;
 	struct be_adapter *adapter;
 	struct net_device *netdev;
-	struct be_ctrl_info *ctrl;
 	u8 mac[ETH_ALEN];
 
 	status = pci_enable_device(pdev);
@@ -1921,10 +2104,13 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		}
 	}
 
-	ctrl = &adapter->ctrl;
 	status = be_ctrl_init(adapter);
 	if (status)
 		goto free_netdev;
+
+	status = be_cmd_reset_function(adapter);
+	if (status)
+		goto ctrl_clean;
 
 	status = be_stats_init(adapter);
 	if (status)
@@ -1934,7 +2120,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	if (status)
 		goto stats_clean;
 
-	status = be_cmd_mac_addr_query(ctrl, mac, MAC_ADDRESS_TYPE_NETWORK,
+	status = be_cmd_mac_addr_query(adapter, mac, MAC_ADDRESS_TYPE_NETWORK,
 			true /* permanent */, 0);
 	if (status)
 		goto stats_clean;
@@ -1980,9 +2166,9 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (netif_running(netdev)) {
 		rtnl_lock();
 		be_close(netdev);
-		be_clear(adapter);
 		rtnl_unlock();
 	}
+	be_clear(adapter);
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
@@ -2005,9 +2191,9 @@ static int be_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
 
+	be_setup(adapter);
 	if (netif_running(netdev)) {
 		rtnl_lock();
-		be_setup(adapter);
 		be_open(netdev);
 		rtnl_unlock();
 	}
@@ -2031,12 +2217,6 @@ static int __init be_init_module(void)
 		printk(KERN_WARNING DRV_NAME
 			" : Module param rx_frag_size must be 2048/4096/8192."
 			" Using 2048\n");
-		rx_frag_size = 2048;
-	}
-	/* Ensure rx_frag_size is aligned to chache line */
-	if (SKB_DATA_ALIGN(rx_frag_size) != rx_frag_size) {
-		printk(KERN_WARNING DRV_NAME
-			" : Bad module param rx_frag_size. Using 2048\n");
 		rx_frag_size = 2048;
 	}
 

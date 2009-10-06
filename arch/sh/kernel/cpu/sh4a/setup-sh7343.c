@@ -325,7 +325,7 @@ static int __init sh7343_devices_setup(void)
 	return platform_add_devices(sh7343_devices,
 				    ARRAY_SIZE(sh7343_devices));
 }
-__initcall(sh7343_devices_setup);
+arch_initcall(sh7343_devices_setup);
 
 static struct platform_device *sh7343_early_devices[] __initdata = {
 	&cmt_device,

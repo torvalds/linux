@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2003 - 2009 NetXen, Inc.
+ * Copyright (C) 2009 - QLogic Corporation.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -19,12 +20,6 @@
  *
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.
- *
- * Contact Information:
- *    info@netxen.com
- * NetXen Inc,
- * 18922 Forge Drive
- * Cupertino, CA 95014-0701
  *
  */
 
@@ -433,6 +428,7 @@ enum {
 #define NETXEN_CRB_PEG_NET_1	NETXEN_PCI_CRB_WINDOW(NETXEN_HW_PX_MAP_CRB_PGN1)
 #define NETXEN_CRB_PEG_NET_2	NETXEN_PCI_CRB_WINDOW(NETXEN_HW_PX_MAP_CRB_PGN2)
 #define NETXEN_CRB_PEG_NET_3	NETXEN_PCI_CRB_WINDOW(NETXEN_HW_PX_MAP_CRB_PGN3)
+#define NETXEN_CRB_PEG_NET_4	NETXEN_PCI_CRB_WINDOW(NETXEN_HW_PX_MAP_CRB_SQS2)
 #define NETXEN_CRB_PEG_NET_D	NETXEN_PCI_CRB_WINDOW(NETXEN_HW_PX_MAP_CRB_PGND)
 #define NETXEN_CRB_PEG_NET_I	NETXEN_PCI_CRB_WINDOW(NETXEN_HW_PX_MAP_CRB_PGNI)
 #define NETXEN_CRB_DDR_NET	NETXEN_PCI_CRB_WINDOW(NETXEN_HW_PX_MAP_CRB_MN)
@@ -723,9 +719,92 @@ enum {
 #define NETXEN_FW_VERSION_MINOR (NETXEN_CAM_RAM(0x154))
 #define NETXEN_FW_VERSION_SUB	(NETXEN_CAM_RAM(0x158))
 #define NETXEN_ROM_LOCK_ID	(NETXEN_CAM_RAM(0x100))
+#define NETXEN_PHY_LOCK_ID	(NETXEN_CAM_RAM(0x120))
 #define NETXEN_CRB_WIN_LOCK_ID	(NETXEN_CAM_RAM(0x124))
 
-#define NETXEN_PHY_LOCK_ID	(NETXEN_CAM_RAM(0x120))
+#define NIC_CRB_BASE		(NETXEN_CAM_RAM(0x200))
+#define NIC_CRB_BASE_2		(NETXEN_CAM_RAM(0x700))
+#define NETXEN_NIC_REG(X)	(NIC_CRB_BASE+(X))
+#define NETXEN_NIC_REG_2(X)	(NIC_CRB_BASE_2+(X))
+
+#define NX_CDRP_CRB_OFFSET		(NETXEN_NIC_REG(0x18))
+#define NX_ARG1_CRB_OFFSET		(NETXEN_NIC_REG(0x1c))
+#define NX_ARG2_CRB_OFFSET		(NETXEN_NIC_REG(0x20))
+#define NX_ARG3_CRB_OFFSET		(NETXEN_NIC_REG(0x24))
+#define NX_SIGN_CRB_OFFSET		(NETXEN_NIC_REG(0x28))
+
+#define CRB_HOST_DUMMY_BUF_ADDR_HI	(NETXEN_NIC_REG(0x3c))
+#define CRB_HOST_DUMMY_BUF_ADDR_LO	(NETXEN_NIC_REG(0x40))
+
+#define CRB_CMDPEG_STATE		(NETXEN_NIC_REG(0x50))
+#define CRB_RCVPEG_STATE		(NETXEN_NIC_REG(0x13c))
+
+#define CRB_XG_STATE			(NETXEN_NIC_REG(0x94))
+#define CRB_XG_STATE_P3			(NETXEN_NIC_REG(0x98))
+#define CRB_PF_LINK_SPEED_1		(NETXEN_NIC_REG(0xe8))
+#define CRB_PF_LINK_SPEED_2		(NETXEN_NIC_REG(0xec))
+
+#define CRB_MPORT_MODE			(NETXEN_NIC_REG(0xc4))
+#define CRB_DMA_SHIFT			(NETXEN_NIC_REG(0xcc))
+#define CRB_INT_VECTOR			(NETXEN_NIC_REG(0xd4))
+
+#define CRB_CMD_PRODUCER_OFFSET		(NETXEN_NIC_REG(0x08))
+#define CRB_CMD_CONSUMER_OFFSET		(NETXEN_NIC_REG(0x0c))
+#define CRB_CMD_PRODUCER_OFFSET_1   	(NETXEN_NIC_REG(0x1ac))
+#define CRB_CMD_CONSUMER_OFFSET_1	(NETXEN_NIC_REG(0x1b0))
+#define CRB_CMD_PRODUCER_OFFSET_2	(NETXEN_NIC_REG(0x1b8))
+#define CRB_CMD_CONSUMER_OFFSET_2	(NETXEN_NIC_REG(0x1bc))
+#define CRB_CMD_PRODUCER_OFFSET_3	(NETXEN_NIC_REG(0x1d0))
+#define CRB_CMD_CONSUMER_OFFSET_3	(NETXEN_NIC_REG(0x1d4))
+#define CRB_TEMP_STATE			(NETXEN_NIC_REG(0x1b4))
+
+#define CRB_V2P_0			(NETXEN_NIC_REG(0x290))
+#define CRB_V2P(port)			(CRB_V2P_0+((port)*4))
+#define CRB_DRIVER_VERSION		(NETXEN_NIC_REG(0x2a0))
+
+#define CRB_SW_INT_MASK_0		(NETXEN_NIC_REG(0x1d8))
+#define CRB_SW_INT_MASK_1		(NETXEN_NIC_REG(0x1e0))
+#define CRB_SW_INT_MASK_2		(NETXEN_NIC_REG(0x1e4))
+#define CRB_SW_INT_MASK_3		(NETXEN_NIC_REG(0x1e8))
+
+#define CRB_FW_CAPABILITIES_1		(NETXEN_CAM_RAM(0x128))
+#define CRB_MAC_BLOCK_START		(NETXEN_CAM_RAM(0x1c0))
+
+/*
+ * capabilities register, can be used to selectively enable/disable features
+ * for backward compability
+ */
+#define CRB_NIC_CAPABILITIES_HOST	NETXEN_NIC_REG(0x1a8)
+#define CRB_NIC_CAPABILITIES_FW	  	NETXEN_NIC_REG(0x1dc)
+#define CRB_NIC_MSI_MODE_HOST		NETXEN_NIC_REG(0x270)
+#define CRB_NIC_MSI_MODE_FW	  	NETXEN_NIC_REG(0x274)
+
+#define INTR_SCHEME_PERPORT	      	0x1
+#define MSI_MODE_MULTIFUNC	      	0x1
+
+/* used for ethtool tests */
+#define CRB_SCRATCHPAD_TEST	    NETXEN_NIC_REG(0x280)
+
+/*
+ * CrbPortPhanCntrHi/Lo is used to pass the address of HostPhantomIndex address
+ * which can be read by the Phantom host to get producer/consumer indexes from
+ * Phantom/Casper. If it is not HOST_SHARED_MEMORY, then the following
+ * registers will be used for the addresses of the ring's shared memory
+ * on the Phantom.
+ */
+
+#define nx_get_temp_val(x)		((x) >> 16)
+#define nx_get_temp_state(x)		((x) & 0xffff)
+#define nx_encode_temp(val, state)	(((val) << 16) | (state))
+
+/*
+ * Temperature control.
+ */
+enum {
+	NX_TEMP_NORMAL = 0x1,	/* Normal operating range */
+	NX_TEMP_WARN,		/* Sound alert, temperature getting high */
+	NX_TEMP_PANIC		/* Fatal error, hardware has shut down. */
+};
 
 /* Lock IDs for PHY lock */
 #define PHY_LOCK_DRIVER		0x44524956
@@ -816,16 +895,24 @@ enum {
 
 #define PCIE_DCR		0x00d8
 
+#define PCIE_SEM0_LOCK		(0x1c000)
+#define PCIE_SEM0_UNLOCK	(0x1c004)
+#define PCIE_SEM1_LOCK		(0x1c008)
+#define PCIE_SEM1_UNLOCK	(0x1c00c)
 #define PCIE_SEM2_LOCK		(0x1c010)	/* Flash lock   */
 #define PCIE_SEM2_UNLOCK	(0x1c014)	/* Flash unlock */
 #define PCIE_SEM3_LOCK	  	(0x1c018)	/* Phy lock     */
 #define PCIE_SEM3_UNLOCK	(0x1c01c)	/* Phy unlock   */
+#define PCIE_SEM4_LOCK	  	(0x1c020)
+#define PCIE_SEM4_UNLOCK	(0x1c024)
 #define PCIE_SEM5_LOCK		(0x1c028)	/* API lock     */
 #define PCIE_SEM5_UNLOCK	(0x1c02c)	/* API unlock   */
 #define PCIE_SEM6_LOCK		(0x1c030)	/* sw lock      */
 #define PCIE_SEM6_UNLOCK	(0x1c034)	/* sw unlock    */
 #define PCIE_SEM7_LOCK		(0x1c038)	/* crb win lock */
 #define PCIE_SEM7_UNLOCK	(0x1c03c)	/* crbwin unlock*/
+#define PCIE_SEM_LOCK(N)	(PCIE_SEM0_LOCK + 8*(N))
+#define PCIE_SEM_UNLOCK(N)	(PCIE_SEM0_UNLOCK + 8*(N))
 
 #define PCIE_SETUP_FUNCTION	(0x12040)
 #define PCIE_SETUP_FUNCTION2	(0x12048)
@@ -852,7 +939,30 @@ enum {
 #define NX_PEG_TUNE_MN_PRESENT		0x1
 #define NX_PEG_TUNE_CAPABILITY		(NETXEN_CAM_RAM(0x02c))
 
-#define NETXEN_CAM_RAM_DMA_WATCHDOG_CTRL		(0x14)
+#define NETXEN_DMA_WATCHDOG_CTRL	(NETXEN_CAM_RAM(0x14))
+#define NETXEN_PEG_ALIVE_COUNTER	(NETXEN_CAM_RAM(0xb0))
+#define NETXEN_PEG_HALT_STATUS1 	(NETXEN_CAM_RAM(0xa8))
+#define NETXEN_PEG_HALT_STATUS2 	(NETXEN_CAM_RAM(0xac))
+#define NX_CRB_DEV_REF_COUNT		(NETXEN_CAM_RAM(0x138))
+#define NX_CRB_DEV_STATE		(NETXEN_CAM_RAM(0x140))
+
+/* Device State */
+#define NX_DEV_COLD		1
+#define NX_DEV_INITALIZING	2
+#define NX_DEV_READY		3
+#define NX_DEV_NEED_RESET	4
+#define NX_DEV_NEED_QUISCENT	5
+#define NX_DEV_FAILED		6
+
+#define NX_RCODE_DRIVER_INFO		0x20000000
+#define NX_RCODE_DRIVER_CAN_RELOAD	0x40000000
+#define NX_RCODE_FATAL_ERROR		0x80000000
+#define NX_FWERROR_PEGNUM(code)		((code) & 0xff)
+#define NX_FWERROR_CODE(code)		((code >> 8) & 0xfffff)
+
+#define FW_POLL_DELAY			(2 * HZ)
+#define FW_FAIL_THRESH			3
+#define FW_POLL_THRESH			10
 
 #define	ISR_MSI_INT_TRIGGER(FUNC) (NETXEN_PCIX_PS_REG(PCIX_MSI_F(FUNC)))
 #define ISR_LEGACY_INT_TRIGGERED(VAL)	(((VAL) & 0x300) == 0x200)

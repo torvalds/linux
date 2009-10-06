@@ -63,7 +63,6 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-#include <linux/can/dev.h>
 
 #include "sja1000.h"
 
@@ -239,10 +238,10 @@ static void chipset_init(struct net_device *dev)
  * xx xx xx xx	 ff	 ll   00 11 22 33 44 55 66 77
  * [  can-id ] [flags] [len] [can data (up to 8 bytes]
  */
-static int sja1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
-	struct net_device_stats *stats = &dev->stats;
 	struct can_frame *cf = (struct can_frame *)skb->data;
 	uint8_t fi;
 	uint8_t dlc;
@@ -276,14 +275,13 @@ static int sja1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	for (i = 0; i < dlc; i++)
 		priv->write_reg(priv, dreg++, cf->data[i]);
 
-	stats->tx_bytes += dlc;
 	dev->trans_start = jiffies;
 
 	can_put_echo_skb(skb, dev, 0);
 
 	priv->write_reg(priv, REG_CMR, CMD_TR);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void sja1000_rx(struct net_device *dev)
@@ -340,7 +338,6 @@ static void sja1000_rx(struct net_device *dev)
 
 	netif_rx(skb);
 
-	dev->last_rx = jiffies;
 	stats->rx_packets++;
 	stats->rx_bytes += dlc;
 }
@@ -428,7 +425,7 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 		dev_dbg(dev->dev.parent, "arbitration lost interrupt\n");
 		alc = priv->read_reg(priv, REG_ALC);
 		priv->can.can_stats.arbitration_lost++;
-		stats->rx_errors++;
+		stats->tx_errors++;
 		cf->can_id |= CAN_ERR_LOSTARB;
 		cf->data[0] = alc & 0x1f;
 	}
@@ -455,7 +452,6 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 
 	netif_rx(skb);
 
-	dev->last_rx = jiffies;
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
 
@@ -486,6 +482,7 @@ irqreturn_t sja1000_interrupt(int irq, void *dev_id)
 
 		if (isrc & IRQ_TI) {
 			/* transmission complete interrupt */
+			stats->tx_bytes += priv->read_reg(priv, REG_FI) & 0xf;
 			stats->tx_packets++;
 			can_get_echo_skb(dev, 0);
 			netif_wake_queue(dev);

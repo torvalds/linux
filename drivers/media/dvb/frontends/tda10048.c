@@ -1095,7 +1095,7 @@ struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 	dprintk(1, "%s()\n", __func__);
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct tda10048_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct tda10048_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 

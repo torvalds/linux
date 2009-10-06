@@ -47,10 +47,10 @@
 static DEFINE_SPINLOCK(irq_mapping_update_lock);
 
 /* IRQ <-> VIRQ mapping. */
-static DEFINE_PER_CPU(int, virq_to_irq[NR_VIRQS]) = {[0 ... NR_VIRQS-1] = -1};
+static DEFINE_PER_CPU(int [NR_VIRQS], virq_to_irq) = {[0 ... NR_VIRQS-1] = -1};
 
 /* IRQ <-> IPI mapping */
-static DEFINE_PER_CPU(int, ipi_to_irq[XEN_NR_IPIS]) = {[0 ... XEN_NR_IPIS-1] = -1};
+static DEFINE_PER_CPU(int [XEN_NR_IPIS], ipi_to_irq) = {[0 ... XEN_NR_IPIS-1] = -1};
 
 /* Interrupt types. */
 enum xen_irq_type {
@@ -602,6 +602,8 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static DEFINE_PER_CPU(unsigned, xed_nesting_count);
+
 /*
  * Search the CPUs pending events bitmasks.  For each one found, map
  * the event number to an irq, and feed it into do_IRQ() for
@@ -617,7 +619,6 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __get_cpu_var(xen_vcpu);
-	static DEFINE_PER_CPU(unsigned, nesting_count);
  	unsigned count;
 
 	exit_idle();
@@ -628,7 +629,7 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 
 		vcpu_info->evtchn_upcall_pending = 0;
 
-		if (__get_cpu_var(nesting_count)++)
+		if (__get_cpu_var(xed_nesting_count)++)
 			goto out;
 
 #ifndef CONFIG_X86 /* No need for a barrier -- XCHG is a barrier on x86. */
@@ -653,8 +654,8 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 
 		BUG_ON(!irqs_disabled());
 
-		count = __get_cpu_var(nesting_count);
-		__get_cpu_var(nesting_count) = 0;
+		count = __get_cpu_var(xed_nesting_count);
+		__get_cpu_var(xed_nesting_count) = 0;
 	} while(count != 1);
 
 out:
@@ -927,9 +928,9 @@ static struct irq_chip xen_dynamic_chip __read_mostly = {
 void __init xen_init_IRQ(void)
 {
 	int i;
-	size_t size = nr_cpu_ids * sizeof(struct cpu_evtchn_s);
 
-	cpu_evtchn_mask_p = alloc_bootmem(size);
+	cpu_evtchn_mask_p = kcalloc(nr_cpu_ids, sizeof(struct cpu_evtchn_s),
+				    GFP_KERNEL);
 	BUG_ON(cpu_evtchn_mask_p == NULL);
 
 	init_evtchn_cpu_bindings();

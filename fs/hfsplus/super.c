@@ -12,6 +12,7 @@
 #include <linux/pagemap.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/vfs.h>
 #include <linux/nls.h>
 
@@ -228,8 +229,7 @@ static void hfsplus_put_super(struct super_block *sb)
 	iput(HFSPLUS_SB(sb).alloc_file);
 	iput(HFSPLUS_SB(sb).hidden_dir);
 	brelse(HFSPLUS_SB(sb).s_vhbh);
-	if (HFSPLUS_SB(sb).nls)
-		unload_nls(HFSPLUS_SB(sb).nls);
+	unload_nls(HFSPLUS_SB(sb).nls);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
 
@@ -463,8 +463,7 @@ out:
 
 cleanup:
 	hfsplus_put_super(sb);
-	if (nls)
-		unload_nls(nls);
+	unload_nls(nls);
 	return err;
 }
 

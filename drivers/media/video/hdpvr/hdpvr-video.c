@@ -375,6 +375,7 @@ static int hdpvr_open(struct file *file)
 	 * in resumption */
 	mutex_lock(&dev->io_mutex);
 	dev->open_count++;
+	mutex_unlock(&dev->io_mutex);
 
 	fh->dev = dev;
 
@@ -383,7 +384,6 @@ static int hdpvr_open(struct file *file)
 
 	retval = 0;
 err:
-	mutex_unlock(&dev->io_mutex);
 	return retval;
 }
 
@@ -519,8 +519,10 @@ static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 
 	mutex_lock(&dev->io_mutex);
 
-	if (video_is_unregistered(dev->video_dev))
+	if (video_is_unregistered(dev->video_dev)) {
+		mutex_unlock(&dev->io_mutex);
 		return -EIO;
+	}
 
 	if (dev->status == STATUS_IDLE) {
 		if (hdpvr_start_streaming(dev)) {
@@ -1219,6 +1221,8 @@ static const struct video_device hdpvr_video_template = {
 		V4L2_STD_NTSC  | V4L2_STD_SECAM | V4L2_STD_PAL_B |
 		V4L2_STD_PAL_G | V4L2_STD_PAL_H | V4L2_STD_PAL_I |
 		V4L2_STD_PAL_D | V4L2_STD_PAL_M | V4L2_STD_PAL_N |
+		V4L2_STD_PAL_60,
+	.current_norm 		= V4L2_STD_NTSC | V4L2_STD_PAL_M |
 		V4L2_STD_PAL_60,
 };
 

@@ -53,7 +53,7 @@ MODULE_ALIAS("wmi:5FB7F034-2C63-45e9-BE91-3D44E2C707E4");
 
 static int __init hp_wmi_bios_setup(struct platform_device *device);
 static int __exit hp_wmi_bios_remove(struct platform_device *device);
-static int hp_wmi_resume_handler(struct platform_device *device);
+static int hp_wmi_resume_handler(struct device *device);
 
 struct bios_args {
 	u32 signature;
@@ -94,14 +94,19 @@ static struct rfkill *wifi_rfkill;
 static struct rfkill *bluetooth_rfkill;
 static struct rfkill *wwan_rfkill;
 
+static struct dev_pm_ops hp_wmi_pm_ops = {
+	.resume  = hp_wmi_resume_handler,
+	.restore  = hp_wmi_resume_handler,
+};
+
 static struct platform_driver hp_wmi_driver = {
 	.driver = {
-		   .name = "hp-wmi",
-		   .owner = THIS_MODULE,
+		.name = "hp-wmi",
+		.owner = THIS_MODULE,
+		.pm = &hp_wmi_pm_ops,
 	},
 	.probe = hp_wmi_bios_setup,
 	.remove = hp_wmi_bios_remove,
-	.resume = hp_wmi_resume_handler,
 };
 
 static int hp_wmi_perform_query(int query, int write, int value)
@@ -171,7 +176,7 @@ static int hp_wmi_tablet_state(void)
 static int hp_wmi_set_block(void *data, bool blocked)
 {
 	unsigned long b = (unsigned long) data;
-	int query = BIT(b + 8) | ((!!blocked) << b);
+	int query = BIT(b + 8) | ((!blocked) << b);
 
 	return hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1, query);
 }
@@ -502,7 +507,7 @@ static int __exit hp_wmi_bios_remove(struct platform_device *device)
 	}
 	if (bluetooth_rfkill) {
 		rfkill_unregister(bluetooth_rfkill);
-		rfkill_destroy(wifi_rfkill);
+		rfkill_destroy(bluetooth_rfkill);
 	}
 	if (wwan_rfkill) {
 		rfkill_unregister(wwan_rfkill);
@@ -512,7 +517,7 @@ static int __exit hp_wmi_bios_remove(struct platform_device *device)
 	return 0;
 }
 
-static int hp_wmi_resume_handler(struct platform_device *device)
+static int hp_wmi_resume_handler(struct device *device)
 {
 	/*
 	 * Hardware state may have changed while suspended, so trigger
@@ -520,11 +525,13 @@ static int hp_wmi_resume_handler(struct platform_device *device)
 	 * the input layer will only actually pass it on if the state
 	 * changed.
 	 */
-
-	input_report_switch(hp_wmi_input_dev, SW_DOCK, hp_wmi_dock_state());
-	input_report_switch(hp_wmi_input_dev, SW_TABLET_MODE,
-			    hp_wmi_tablet_state());
-	input_sync(hp_wmi_input_dev);
+	if (hp_wmi_input_dev) {
+		input_report_switch(hp_wmi_input_dev, SW_DOCK,
+				    hp_wmi_dock_state());
+		input_report_switch(hp_wmi_input_dev, SW_TABLET_MODE,
+				    hp_wmi_tablet_state());
+		input_sync(hp_wmi_input_dev);
+	}
 
 	return 0;
 }

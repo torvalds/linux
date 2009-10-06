@@ -669,14 +669,14 @@ static void dasd_profile_end(struct dasd_block *block,
  * memory and 2) dasd_smalloc_request uses the static ccw memory
  * that gets allocated for each device.
  */
-struct dasd_ccw_req *dasd_kmalloc_request(char *magic, int cplength,
+struct dasd_ccw_req *dasd_kmalloc_request(int magic, int cplength,
 					  int datasize,
 					  struct dasd_device *device)
 {
 	struct dasd_ccw_req *cqr;
 
 	/* Sanity checks */
-	BUG_ON( magic == NULL || datasize > PAGE_SIZE ||
+	BUG_ON(datasize > PAGE_SIZE ||
 	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
 
 	cqr = kzalloc(sizeof(struct dasd_ccw_req), GFP_ATOMIC);
@@ -700,14 +700,13 @@ struct dasd_ccw_req *dasd_kmalloc_request(char *magic, int cplength,
 			return ERR_PTR(-ENOMEM);
 		}
 	}
-	strncpy((char *) &cqr->magic, magic, 4);
-	ASCEBC((char *) &cqr->magic, 4);
+	cqr->magic =  magic;
 	set_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	dasd_get_device(device);
 	return cqr;
 }
 
-struct dasd_ccw_req *dasd_smalloc_request(char *magic, int cplength,
+struct dasd_ccw_req *dasd_smalloc_request(int magic, int cplength,
 					  int datasize,
 					  struct dasd_device *device)
 {
@@ -717,7 +716,7 @@ struct dasd_ccw_req *dasd_smalloc_request(char *magic, int cplength,
 	int size;
 
 	/* Sanity checks */
-	BUG_ON( magic == NULL || datasize > PAGE_SIZE ||
+	BUG_ON(datasize > PAGE_SIZE ||
 	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
 
 	size = (sizeof(struct dasd_ccw_req) + 7L) & -8L;
@@ -744,8 +743,7 @@ struct dasd_ccw_req *dasd_smalloc_request(char *magic, int cplength,
 		cqr->data = data;
  		memset(cqr->data, 0, datasize);
 	}
-	strncpy((char *) &cqr->magic, magic, 4);
-	ASCEBC((char *) &cqr->magic, 4);
+	cqr->magic = magic;
 	set_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	dasd_get_device(device);
 	return cqr;
@@ -899,9 +897,6 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 	switch (rc) {
 	case 0:
 		cqr->status = DASD_CQR_IN_IO;
-		DBF_DEV_EVENT(DBF_DEBUG, device,
-			      "start_IO: request %p started successful",
-			      cqr);
 		break;
 	case -EBUSY:
 		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
@@ -1699,8 +1694,11 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 	 * for that. State DASD_STATE_ONLINE is normal block device
 	 * operation.
 	 */
-	if (basedev->state < DASD_STATE_READY)
+	if (basedev->state < DASD_STATE_READY) {
+		while ((req = blk_fetch_request(block->request_queue)))
+			__blk_end_request_all(req, -EIO);
 		return;
+	}
 	/* Now we try to fetch requests from the request queue */
 	while (!blk_queue_plugged(queue) && (req = blk_peek_request(queue))) {
 		if (basedev->features & DASD_FEATURE_READONLY &&
@@ -2135,9 +2133,9 @@ static int dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	struct dasd_device *base;
 
 	block = bdev->bd_disk->private_data;
-	base = block->base;
 	if (!block)
 		return -ENODEV;
+	base = block->base;
 
 	if (!base->discipline ||
 	    !base->discipline->fill_geometry)
@@ -2148,7 +2146,7 @@ static int dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-struct block_device_operations
+const struct block_device_operations
 dasd_device_operations = {
 	.owner		= THIS_MODULE,
 	.open		= dasd_open,
@@ -2530,7 +2528,7 @@ EXPORT_SYMBOL_GPL(dasd_generic_restore_device);
 static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 						   void *rdc_buffer,
 						   int rdc_buffer_size,
-						   char *magic)
+						   int magic)
 {
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
@@ -2561,7 +2559,7 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 }
 
 
-int dasd_generic_read_dev_chars(struct dasd_device *device, char *magic,
+int dasd_generic_read_dev_chars(struct dasd_device *device, int magic,
 				void *rdc_buffer, int rdc_buffer_size)
 {
 	int ret;

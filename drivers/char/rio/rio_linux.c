@@ -44,6 +44,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/miscdevice.h>
 #include <linux/init.h>
 

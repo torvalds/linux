@@ -376,8 +376,10 @@ static int __devinit amd8111_probe(struct pci_dev *dev,
 	smbus->size = pci_resource_len(dev, 0);
 
 	error = acpi_check_resource_conflict(&dev->resource[0]);
-	if (error)
+	if (error) {
+		error = -ENODEV;
 		goto out_kfree;
+	}
 
 	if (!request_region(smbus->base, smbus->size, amd8111_driver.name)) {
 		error = -EBUSY;

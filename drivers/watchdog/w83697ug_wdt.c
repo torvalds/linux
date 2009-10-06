@@ -149,8 +149,10 @@ static void wdt_ctrl(int timeout)
 {
 	spin_lock(&io_lock);
 
-	if (w83697ug_select_wd_register() < 0)
+	if (w83697ug_select_wd_register() < 0) {
+		spin_unlock(&io_lock);
 		return;
+	}
 
 	outb_p(0xF4, WDT_EFER);    /* Select CRF4 */
 	outb_p(timeout, WDT_EFDR); /* Write Timeout counter to CRF4 */

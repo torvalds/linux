@@ -27,6 +27,8 @@
 #include <linux/net.h>
 #include <linux/netdevice.h>
 #include <linux/phonet.h>
+#include <linux/proc_fs.h>
+#include <linux/if_arp.h>
 #include <net/sock.h>
 #include <net/netns/generic.h>
 #include <net/phonet/pn_dev.h>
@@ -69,17 +71,34 @@ static struct phonet_device *__phonet_get(struct net_device *dev)
 	return NULL;
 }
 
-static void __phonet_device_free(struct phonet_device *pnd)
+static void phonet_device_destroy(struct net_device *dev)
 {
-	list_del(&pnd->list);
-	kfree(pnd);
+	struct phonet_device_list *pndevs = phonet_device_list(dev_net(dev));
+	struct phonet_device *pnd;
+
+	ASSERT_RTNL();
+
+	spin_lock_bh(&pndevs->lock);
+	pnd = __phonet_get(dev);
+	if (pnd)
+		list_del(&pnd->list);
+	spin_unlock_bh(&pndevs->lock);
+
+	if (pnd) {
+		u8 addr;
+
+		for (addr = find_first_bit(pnd->addrs, 64); addr < 64;
+			addr = find_next_bit(pnd->addrs, 64, 1+addr))
+			phonet_address_notify(RTM_DELADDR, dev, addr);
+		kfree(pnd);
+	}
 }
 
 struct net_device *phonet_device_get(struct net *net)
 {
 	struct phonet_device_list *pndevs = phonet_device_list(net);
 	struct phonet_device *pnd;
-	struct net_device *dev;
+	struct net_device *dev = NULL;
 
 	spin_lock_bh(&pndevs->lock);
 	list_for_each_entry(pnd, &pndevs->list, list) {
@@ -126,8 +145,10 @@ int phonet_address_del(struct net_device *dev, u8 addr)
 	pnd = __phonet_get(dev);
 	if (!pnd || !test_and_clear_bit(addr >> 2, pnd->addrs))
 		err = -EADDRNOTAVAIL;
-	else if (bitmap_empty(pnd->addrs, 64))
-		__phonet_device_free(pnd);
+	else if (bitmap_empty(pnd->addrs, 64)) {
+		list_del(&pnd->list);
+		kfree(pnd);
+	}
 	spin_unlock_bh(&pndevs->lock);
 	return err;
 }
@@ -175,23 +196,43 @@ found:
 	return err;
 }
 
+/* automatically configure a Phonet device, if supported */
+static int phonet_device_autoconf(struct net_device *dev)
+{
+	struct if_phonet_req req;
+	int ret;
+
+	if (!dev->netdev_ops->ndo_do_ioctl)
+		return -EOPNOTSUPP;
+
+	ret = dev->netdev_ops->ndo_do_ioctl(dev, (struct ifreq *)&req,
+						SIOCPNGAUTOCONF);
+	if (ret < 0)
+		return ret;
+
+	ASSERT_RTNL();
+	ret = phonet_address_add(dev, req.ifr_phonet_autoconf.device);
+	if (ret)
+		return ret;
+	phonet_address_notify(RTM_NEWADDR, dev,
+				req.ifr_phonet_autoconf.device);
+	return 0;
+}
+
 /* notify Phonet of device events */
 static int phonet_device_notify(struct notifier_block *me, unsigned long what,
 				void *arg)
 {
 	struct net_device *dev = arg;
 
-	if (what == NETDEV_UNREGISTER) {
-		struct phonet_device_list *pndevs;
-		struct phonet_device *pnd;
-
-		/* Destroy phonet-specific device data */
-		pndevs = phonet_device_list(dev_net(dev));
-		spin_lock_bh(&pndevs->lock);
-		pnd = __phonet_get(dev);
-		if (pnd)
-			__phonet_device_free(pnd);
-		spin_unlock_bh(&pndevs->lock);
+	switch (what) {
+	case NETDEV_REGISTER:
+		if (dev->type == ARPHRD_PHONET)
+			phonet_device_autoconf(dev);
+		break;
+	case NETDEV_UNREGISTER:
+		phonet_device_destroy(dev);
+		break;
 	}
 	return 0;
 
@@ -209,6 +250,11 @@ static int phonet_init_net(struct net *net)
 	if (!pnn)
 		return -ENOMEM;
 
+	if (!proc_net_fops_create(net, "phonet", 0, &pn_sock_seq_fops)) {
+		kfree(pnn);
+		return -ENOMEM;
+	}
+
 	INIT_LIST_HEAD(&pnn->pndevs.list);
 	spin_lock_init(&pnn->pndevs.lock);
 	net_assign_generic(net, phonet_net_id, pnn);
@@ -218,11 +264,14 @@ static int phonet_init_net(struct net *net)
 static void phonet_exit_net(struct net *net)
 {
 	struct phonet_net *pnn = net_generic(net, phonet_net_id);
-	struct phonet_device *pnd, *n;
+	struct net_device *dev;
 
-	list_for_each_entry_safe(pnd, n, &pnn->pndevs.list, list)
-		__phonet_device_free(pnd);
+	rtnl_lock();
+	for_each_netdev(net, dev)
+		phonet_device_destroy(dev);
+	rtnl_unlock();
 
+	proc_net_remove(net, "phonet");
 	kfree(pnn);
 }
 

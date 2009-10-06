@@ -258,6 +258,7 @@ enum {
 	IDE_TFLAG_DYN			= (1 << 5),
 	IDE_TFLAG_FS			= (1 << 6),
 	IDE_TFLAG_MULTI_PIO		= (1 << 7),
+	IDE_TFLAG_SET_XFER		= (1 << 8),
 };
 
 enum {
@@ -294,7 +295,7 @@ struct ide_cmd {
 		} out, in;
 	} valid;
 
-	u8			tf_flags;
+	u16			tf_flags;
 	u8			ftf_flags;	/* for TASKFILE ioctl */
 	int			protocol;
 
@@ -918,8 +919,7 @@ __IDE_PROC_DEVSET(_name, _min, _max, NULL, NULL)
 typedef struct {
 	const char	*name;
 	mode_t		mode;
-	read_proc_t	*read_proc;
-	write_proc_t	*write_proc;
+	const struct file_operations *proc_fops;
 } ide_proc_entry_t;
 
 void proc_ide_create(void);
@@ -931,24 +931,8 @@ void ide_proc_unregister_port(ide_hwif_t *);
 void ide_proc_register_driver(ide_drive_t *, struct ide_driver *);
 void ide_proc_unregister_driver(ide_drive_t *, struct ide_driver *);
 
-read_proc_t proc_ide_read_capacity;
-read_proc_t proc_ide_read_geometry;
-
-/*
- * Standard exit stuff:
- */
-#define PROC_IDE_READ_RETURN(page,start,off,count,eof,len) \
-{					\
-	len -= off;			\
-	if (len < count) {		\
-		*eof = 1;		\
-		if (len <= 0)		\
-			return 0;	\
-	} else				\
-		len = count;		\
-	*start = page + off;		\
-	return len;			\
-}
+extern const struct file_operations ide_capacity_proc_fops;
+extern const struct file_operations ide_geometry_proc_fops;
 #else
 static inline void proc_ide_create(void) { ; }
 static inline void proc_ide_destroy(void) { ; }
@@ -960,7 +944,6 @@ static inline void ide_proc_register_driver(ide_drive_t *drive,
 					    struct ide_driver *driver) { ; }
 static inline void ide_proc_unregister_driver(ide_drive_t *drive,
 					      struct ide_driver *driver) { ; }
-#define PROC_IDE_READ_RETURN(page,start,off,count,eof,len) return 0;
 #endif
 
 enum {
@@ -1062,7 +1045,6 @@ int generic_ide_ioctl(ide_drive_t *, struct block_device *, unsigned, unsigned l
 extern int ide_vlb_clk;
 extern int ide_pci_clk;
 
-unsigned int ide_rq_bytes(struct request *);
 int ide_end_rq(ide_drive_t *, struct request *, int, unsigned int);
 void ide_kill_rq(ide_drive_t *, struct request *);
 
@@ -1082,6 +1064,7 @@ extern void ide_fixstring(u8 *, const int, const int);
 
 int ide_busy_sleep(ide_drive_t *, unsigned long, int);
 
+int __ide_wait_stat(ide_drive_t *, u8, u8, unsigned long, u8 *);
 int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
 
 ide_startstop_t ide_do_park_unpark(ide_drive_t *, struct request *);
@@ -1170,7 +1153,7 @@ int ide_no_data_taskfile(ide_drive_t *, struct ide_cmd *);
 
 int ide_taskfile_ioctl(ide_drive_t *, unsigned long);
 
-int ide_dev_read_id(ide_drive_t *, u8, u16 *);
+int ide_dev_read_id(ide_drive_t *, u8, u16 *, int);
 
 extern int ide_driveid_update(ide_drive_t *);
 extern int ide_config_drive_speed(ide_drive_t *, u8);
@@ -1361,7 +1344,6 @@ int ide_in_drive_list(u16 *, const struct drive_list_entry *);
 #ifdef CONFIG_BLK_DEV_IDEDMA
 int ide_dma_good_drive(ide_drive_t *);
 int __ide_dma_bad_drive(ide_drive_t *);
-int ide_id_dma_bug(ide_drive_t *);
 
 u8 ide_find_dma_mode(ide_drive_t *, u8);
 
@@ -1402,7 +1384,6 @@ void ide_dma_lost_irq(ide_drive_t *);
 ide_startstop_t ide_dma_timeout_retry(ide_drive_t *, int);
 
 #else
-static inline int ide_id_dma_bug(ide_drive_t *drive) { return 0; }
 static inline u8 ide_find_dma_mode(ide_drive_t *drive, u8 speed) { return 0; }
 static inline u8 ide_max_dma_mode(ide_drive_t *drive) { return 0; }
 static inline void ide_dma_off_quietly(ide_drive_t *drive) { ; }
@@ -1422,6 +1403,7 @@ static inline void ide_dma_unmap_sg(ide_drive_t *drive,
 
 #ifdef CONFIG_BLK_DEV_IDEACPI
 int ide_acpi_init(void);
+bool ide_port_acpi(ide_hwif_t *hwif);
 extern int ide_acpi_exec_tfs(ide_drive_t *drive);
 extern void ide_acpi_get_timing(ide_hwif_t *hwif);
 extern void ide_acpi_push_timing(ide_hwif_t *hwif);
@@ -1430,6 +1412,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *);
 extern void ide_acpi_set_state(ide_hwif_t *hwif, int on);
 #else
 static inline int ide_acpi_init(void) { return 0; }
+static inline bool ide_port_acpi(ide_hwif_t *hwif) { return 0; }
 static inline int ide_acpi_exec_tfs(ide_drive_t *drive) { return 0; }
 static inline void ide_acpi_get_timing(ide_hwif_t *hwif) { ; }
 static inline void ide_acpi_push_timing(ide_hwif_t *hwif) { ; }

@@ -24,6 +24,7 @@
 #include <linux/stat.h>
 #include <linux/slab.h>
 #include <linux/namei.h>
+#include <linux/mount.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #include "cifsglob.h"
@@ -129,44 +130,45 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-static void
-cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
-			struct cifsTconInfo *tcon, bool write_only)
+struct cifsFileInfo *
+cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
+		  struct file *file, struct vfsmount *mnt, unsigned int oflags)
 {
 	int oplock = 0;
 	struct cifsFileInfo *pCifsFile;
 	struct cifsInodeInfo *pCifsInode;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(mnt->mnt_sb);
 
 	pCifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
-
 	if (pCifsFile == NULL)
-		return;
+		return pCifsFile;
 
 	if (oplockEnabled)
 		oplock = REQ_OPLOCK;
 
 	pCifsFile->netfid = fileHandle;
 	pCifsFile->pid = current->tgid;
-	pCifsFile->pInode = newinode;
+	pCifsFile->pInode = igrab(newinode);
+	pCifsFile->mnt = mnt;
+	pCifsFile->pfile = file;
 	pCifsFile->invalidHandle = false;
 	pCifsFile->closePend = false;
 	mutex_init(&pCifsFile->fh_mutex);
 	mutex_init(&pCifsFile->lock_mutex);
 	INIT_LIST_HEAD(&pCifsFile->llist);
-	atomic_set(&pCifsFile->wrtPending, 0);
+	atomic_set(&pCifsFile->count, 1);
+	slow_work_init(&pCifsFile->oplock_break, &cifs_oplock_break_ops);
 
-	/* set the following in open now
-			pCifsFile->pfile = file; */
 	write_lock(&GlobalSMBSeslock);
-	list_add(&pCifsFile->tlist, &tcon->openFileList);
+	list_add(&pCifsFile->tlist, &cifs_sb->tcon->openFileList);
 	pCifsInode = CIFS_I(newinode);
 	if (pCifsInode) {
 		/* if readable file instance put first in list*/
-		if (write_only)
+		if (oflags & FMODE_READ)
+			list_add(&pCifsFile->flist, &pCifsInode->openFileList);
+		else
 			list_add_tail(&pCifsFile->flist,
 				      &pCifsInode->openFileList);
-		else
-			list_add(&pCifsFile->flist, &pCifsInode->openFileList);
 
 		if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
 			pCifsInode->clientCanCacheAll = true;
@@ -176,18 +178,19 @@ cifs_fill_fileinfo(struct inode *newinode, __u16 fileHandle,
 				pCifsInode->clientCanCacheRead = true;
 	}
 	write_unlock(&GlobalSMBSeslock);
+
+	return pCifsFile;
 }
 
 int cifs_posix_open(char *full_path, struct inode **pinode,
-		    struct super_block *sb, int mode, int oflags,
-		    int *poplock, __u16 *pnetfid, int xid)
+		    struct vfsmount *mnt, int mode, int oflags,
+		    __u32 *poplock, __u16 *pnetfid, int xid)
 {
 	int rc;
-	__u32 oplock;
-	bool write_only = false;
 	FILE_UNIX_BASIC_INFO *presp_data;
 	__u32 posix_flags = 0;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(mnt->mnt_sb);
+	struct cifs_fattr fattr;
 
 	cFYI(1, ("posix open %s", full_path));
 
@@ -222,12 +225,9 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	if (oflags & O_DIRECT)
 		posix_flags |= SMB_O_DIRECT;
 
-	if (!(oflags & FMODE_READ))
-		write_only = true;
-
 	mode &= ~current_umask();
 	rc = CIFSPOSIXCreate(xid, cifs_sb->tcon, posix_flags, mode,
-			pnetfid, presp_data, &oplock, full_path,
+			pnetfid, presp_data, poplock, full_path,
 			cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc)
@@ -236,24 +236,23 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	if (presp_data->Type == cpu_to_le32(-1))
 		goto posix_open_ret; /* open ok, caller does qpathinfo */
 
-	/* get new inode and set it up */
 	if (!pinode)
 		goto posix_open_ret; /* caller does not need info */
 
+	cifs_unix_basic_to_fattr(&fattr, presp_data, cifs_sb);
+
+	/* get new inode and set it up */
 	if (*pinode == NULL) {
-		__u64 unique_id = le64_to_cpu(presp_data->UniqueId);
-		*pinode = cifs_new_inode(sb, &unique_id);
+		*pinode = cifs_iget(mnt->mnt_sb, &fattr);
+		if (!*pinode) {
+			rc = -ENOMEM;
+			goto posix_open_ret;
+		}
+	} else {
+		cifs_fattr_to_inode(*pinode, &fattr);
 	}
-	/* else an inode was passed in. Update its info, don't create one */
 
-	/* We do not need to close the file if new_inode fails since
-	   the caller will retry qpathinfo as long as inode is null */
-	if (*pinode == NULL)
-		goto posix_open_ret;
-
-	posix_fill_in_inode(*pinode, presp_data, 1);
-
-	cifs_fill_fileinfo(*pinode, *pnetfid, cifs_sb->tcon, write_only);
+	cifs_new_fileinfo(*pinode, *pnetfid, NULL, mnt, oflags);
 
 posix_open_ret:
 	kfree(presp_data);
@@ -280,7 +279,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	int rc = -ENOENT;
 	int xid;
 	int create_options = CREATE_NOT_DIR;
-	int oplock = 0;
+	__u32 oplock = 0;
 	int oflags;
 	bool posix_create = false;
 	/*
@@ -298,7 +297,6 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	FILE_ALL_INFO *buf = NULL;
 	struct inode *newinode = NULL;
 	int disposition = FILE_OVERWRITE_IF;
-	bool write_only = false;
 
 	xid = GetXid();
 
@@ -307,8 +305,9 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
+		rc = -ENOMEM;
 		FreeXid(xid);
-		return -ENOMEM;
+		return rc;
 	}
 
 	if (oplockEnabled)
@@ -322,7 +321,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	if (tcon->unix_ext && (tcon->ses->capabilities & CAP_UNIX) &&
 	    (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
-		rc = cifs_posix_open(full_path, &newinode, inode->i_sb,
+		rc = cifs_posix_open(full_path, &newinode, nd->path.mnt,
 				     mode, oflags, &oplock, &fileHandle, xid);
 		/* EIO could indicate that (posix open) operation is not
 		   supported, despite what server claimed in capability
@@ -350,11 +349,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		desiredAccess = 0;
 		if (oflags & FMODE_READ)
 			desiredAccess |= GENERIC_READ; /* is this too little? */
-		if (oflags & FMODE_WRITE) {
+		if (oflags & FMODE_WRITE)
 			desiredAccess |= GENERIC_WRITE;
-			if (!(oflags & FMODE_READ))
-				write_only = true;
-		}
 
 		if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
 			disposition = FILE_CREATE;
@@ -424,9 +420,10 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			args.uid = NO_CHANGE_64;
 			args.gid = NO_CHANGE_64;
 		}
-		CIFSSMBUnixSetInfo(xid, tcon, full_path, &args,
-			cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} else {
 		/* BB implement mode setting via Windows security
 		   descriptors e.g. */
@@ -468,8 +465,8 @@ cifs_create_set_dentry:
 		/* mknod case - do not leave file open */
 		CIFSSMBClose(xid, tcon, fileHandle);
 	} else if (!(posix_create) && (newinode)) {
-			cifs_fill_fileinfo(newinode, fileHandle,
-					cifs_sb->tcon, write_only);
+			cifs_new_fileinfo(newinode, fileHandle, NULL,
+						nd->path.mnt, oflags);
 	}
 cifs_create_out:
 	kfree(buf);
@@ -514,10 +511,10 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 			args.uid = NO_CHANGE_64;
 			args.gid = NO_CHANGE_64;
 		}
-		rc = CIFSSMBUnixSetInfo(xid, pTcon, full_path,
-			&args, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
+		rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, &args,
+					    cifs_sb->local_nls,
+					    cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 		if (!rc) {
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
@@ -540,8 +537,9 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 			buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
 			if (buf == NULL) {
 				kfree(full_path);
+				rc = -ENOMEM;
 				FreeXid(xid);
-				return -ENOMEM;
+				return rc;
 			}
 
 			rc = CIFSSMBOpen(xid, pTcon, full_path,
@@ -608,7 +606,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 {
 	int xid;
 	int rc = 0; /* to get around spurious gcc warning, set to zero here */
-	int oplock = 0;
+	__u32 oplock = 0;
 	__u16 fileHandle = 0;
 	bool posix_open = false;
 	struct cifs_sb_info *cifs_sb;
@@ -641,6 +639,15 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 			}
 	}
 
+	/*
+	 * O_EXCL: optimize away the lookup, but don't hash the dentry. Let
+	 * the VFS handle the create.
+	 */
+	if (nd->flags & LOOKUP_EXCL) {
+		d_instantiate(direntry, NULL);
+		return 0;
+	}
+
 	/* can not grab the rename sem here since it would
 	deadlock in the cases (beginning of sys_rename itself)
 	in which we already have the sb rename sem */
@@ -671,8 +678,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		if (!(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY)) &&
 		     (nd->flags & LOOKUP_OPEN) && !pTcon->broken_posix_open &&
 		     (nd->intent.open.flags & O_CREAT)) {
-			rc = cifs_posix_open(full_path, &newInode,
-					parent_dir_inode->i_sb,
+			rc = cifs_posix_open(full_path, &newInode, nd->path.mnt,
 					nd->intent.open.create_mode,
 					nd->intent.open.flags, &oplock,
 					&fileHandle, xid);

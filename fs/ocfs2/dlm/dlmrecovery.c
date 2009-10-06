@@ -30,7 +30,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
-#include <linux/utsname.h>
 #include <linux/init.h>
 #include <linux/sysctl.h>
 #include <linux/random.h>
@@ -1118,7 +1117,7 @@ static int dlm_send_mig_lockres_msg(struct dlm_ctxt *dlm,
 
 	mlog(0, "%s:%.*s: sending mig lockres (%s) to %u\n",
 	     dlm->name, res->lockname.len, res->lockname.name,
-	     orig_flags & DLM_MRES_MIGRATION ? "migrate" : "recovery",
+	     orig_flags & DLM_MRES_MIGRATION ? "migration" : "recovery",
 	     send_to);
 
 	/* send it */

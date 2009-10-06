@@ -97,8 +97,9 @@ static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
-static int iwl_add_sta_callback(struct iwl_priv *priv,
-				   struct iwl_cmd *cmd, struct sk_buff *skb)
+static void iwl_add_sta_callback(struct iwl_priv *priv,
+				 struct iwl_device_cmd *cmd,
+				 struct sk_buff *skb)
 {
 	struct iwl_rx_packet *res = NULL;
 	struct iwl_addsta_cmd *addsta =
@@ -107,14 +108,14 @@ static int iwl_add_sta_callback(struct iwl_priv *priv,
 
 	if (!skb) {
 		IWL_ERR(priv, "Error: Response NULL in REPLY_ADD_STA.\n");
-		return 1;
+		return;
 	}
 
 	res = (struct iwl_rx_packet *)skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
 			  res->hdr.flags);
-		return 1;
+		return;
 	}
 
 	switch (res->u.add_sta.status) {
@@ -126,9 +127,6 @@ static int iwl_add_sta_callback(struct iwl_priv *priv,
 			     res->u.add_sta.status);
 		break;
 	}
-
-	/* We didn't cache the SKB; let the caller free it */
-	return 1;
 }
 
 int iwl_send_add_sta(struct iwl_priv *priv,
@@ -139,14 +137,14 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	u8 data[sizeof(*sta)];
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_ADD_STA,
-		.meta.flags = flags,
+		.flags = flags,
 		.data = data,
 	};
 
 	if (flags & CMD_ASYNC)
-		cmd.meta.u.callback = iwl_add_sta_callback;
+		cmd.callback = iwl_add_sta_callback;
 	else
-		cmd.meta.flags |= CMD_WANT_SKB;
+		cmd.flags |= CMD_WANT_SKB;
 
 	cmd.len = priv->cfg->ops->utils->build_addsta_hcmd(sta, data);
 	ret = iwl_send_cmd(priv, &cmd);
@@ -154,7 +152,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	if (ret || (flags & CMD_ASYNC))
 		return ret;
 
-	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
+	res = (struct iwl_rx_packet *)cmd.reply_skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
 			  res->hdr.flags);
@@ -175,7 +173,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	}
 
 	priv->alloc_rxb_skb--;
-	dev_kfree_skb_any(cmd.meta.u.skb);
+	dev_kfree_skb_any(cmd.reply_skb);
 
 	return ret;
 }
@@ -216,10 +214,10 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 	sta_flags |= cpu_to_le32(
 	      (u32)sta_ht_inf->ampdu_density << STA_FLG_AGG_MPDU_DENSITY_POS);
 
-	if (iwl_is_fat_tx_allowed(priv, sta_ht_inf))
-		sta_flags |= STA_FLG_FAT_EN_MSK;
+	if (iwl_is_ht40_tx_allowed(priv, sta_ht_inf))
+		sta_flags |= STA_FLG_HT40_EN_MSK;
 	else
-		sta_flags &= ~STA_FLG_FAT_EN_MSK;
+		sta_flags &= ~STA_FLG_HT40_EN_MSK;
 
 	priv->stations[index].sta.station_flags = sta_flags;
  done:
@@ -324,8 +322,9 @@ static void iwl_sta_ucode_deactivate(struct iwl_priv *priv, const char *addr)
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
-static int iwl_remove_sta_callback(struct iwl_priv *priv,
-				   struct iwl_cmd *cmd, struct sk_buff *skb)
+static void iwl_remove_sta_callback(struct iwl_priv *priv,
+				    struct iwl_device_cmd *cmd,
+				    struct sk_buff *skb)
 {
 	struct iwl_rx_packet *res = NULL;
 	struct iwl_rem_sta_cmd *rm_sta =
@@ -334,14 +333,14 @@ static int iwl_remove_sta_callback(struct iwl_priv *priv,
 
 	if (!skb) {
 		IWL_ERR(priv, "Error: Response NULL in REPLY_REMOVE_STA.\n");
-		return 1;
+		return;
 	}
 
 	res = (struct iwl_rx_packet *)skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_REMOVE_STA (0x%08X)\n",
 		res->hdr.flags);
-		return 1;
+		return;
 	}
 
 	switch (res->u.rem_sta.status) {
@@ -352,9 +351,6 @@ static int iwl_remove_sta_callback(struct iwl_priv *priv,
 		IWL_ERR(priv, "REPLY_REMOVE_STA failed\n");
 		break;
 	}
-
-	/* We didn't cache the SKB; let the caller free it */
-	return 1;
 }
 
 static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,
@@ -368,7 +364,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_REMOVE_STA,
 		.len = sizeof(struct iwl_rem_sta_cmd),
-		.meta.flags = flags,
+		.flags = flags,
 		.data = &rm_sta_cmd,
 	};
 
@@ -377,15 +373,15 @@ static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,
 	memcpy(&rm_sta_cmd.addr, addr , ETH_ALEN);
 
 	if (flags & CMD_ASYNC)
-		cmd.meta.u.callback = iwl_remove_sta_callback;
+		cmd.callback = iwl_remove_sta_callback;
 	else
-		cmd.meta.flags |= CMD_WANT_SKB;
+		cmd.flags |= CMD_WANT_SKB;
 	ret = iwl_send_cmd(priv, &cmd);
 
 	if (ret || (flags & CMD_ASYNC))
 		return ret;
 
-	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
+	res = (struct iwl_rx_packet *)cmd.reply_skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_REMOVE_STA (0x%08X)\n",
 			  res->hdr.flags);
@@ -406,7 +402,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,
 	}
 
 	priv->alloc_rxb_skb--;
-	dev_kfree_skb_any(cmd.meta.u.skb);
+	dev_kfree_skb_any(cmd.reply_skb);
 
 	return ret;
 }
@@ -468,7 +464,6 @@ out:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL(iwl_remove_station);
 
 /**
  * iwl_clear_stations_table - Clear the driver's station table
@@ -525,7 +520,7 @@ int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_WEPKEY,
 		.data = wep_cmd,
-		.meta.flags = CMD_ASYNC,
+		.flags = CMD_ASYNC,
 	};
 
 	memset(wep_cmd, 0, cmd_size +
@@ -566,6 +561,8 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
+	IWL_DEBUG_WEP(priv, "Removing default WEP key: idx=%d\n",
+		      keyconf->keyidx);
 
 	if (!test_and_clear_bit(keyconf->keyidx, &priv->ucode_key_table))
 		IWL_ERR(priv, "index %d not used in uCode key table.\n",
@@ -573,6 +570,11 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 
 	priv->default_wep_key--;
 	memset(&priv->wep_keys[keyconf->keyidx], 0, sizeof(priv->wep_keys[0]));
+	if (iwl_is_rfkill(priv)) {
+		IWL_DEBUG_WEP(priv, "Not sending REPLY_WEPKEY command due to RFKILL.\n");
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
+		return 0;
+	}
 	ret = iwl_send_static_wepkey_cmd(priv, 1);
 	IWL_DEBUG_WEP(priv, "Remove default WEP key: idx=%d ret=%d\n",
 		      keyconf->keyidx, ret);
@@ -853,6 +855,11 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
+	if (iwl_is_rfkill(priv)) {
+		IWL_DEBUG_WEP(priv, "Not sending REPLY_ADD_STA command because RFKILL enabled. \n");
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
+		return 0;
+	}
 	ret =  iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;
@@ -918,7 +925,7 @@ int iwl_send_lq_cmd(struct iwl_priv *priv,
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_TX_LINK_QUALITY_CMD,
 		.len = sizeof(struct iwl_link_quality_cmd),
-		.meta.flags = flags,
+		.flags = flags,
 		.data = lq,
 	};
 
@@ -1044,11 +1051,10 @@ EXPORT_SYMBOL(iwl_rxon_add_station);
 int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 {
 	int sta_id;
-	u16 fc = le16_to_cpu(hdr->frame_control);
+	__le16 fc = hdr->frame_control;
 
 	/* If this frame is broadcast or management, use broadcast station id */
-	if (((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA) ||
-	    is_multicast_ether_addr(hdr->addr1))
+	if (!ieee80211_is_data(fc) ||  is_multicast_ether_addr(hdr->addr1))
 		return priv->hw_params.bcast_sta_id;
 
 	switch (priv->iw_mode) {
