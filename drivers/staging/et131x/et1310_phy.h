@@ -741,7 +741,7 @@ struct et131x_adapter;
 
 /* Prototypes for ET1310_phy.c */
 int et131x_xcvr_find(struct et131x_adapter *adapter);
-int et131x_setphy_normal(struct et131x_adapter *adapter);
+void et131x_setphy_normal(struct et131x_adapter *adapter);
 
 /* static inline function does not work because et131x_adapter is not always
  * defined
