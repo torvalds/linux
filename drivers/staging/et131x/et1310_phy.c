@@ -115,69 +115,55 @@ int PhyMiRead(struct et131x_adapter *adapter, uint8_t xcvrAddr,
 	struct _MAC_t __iomem *mac = &adapter->regs->mac;
 	int status = 0;
 	uint32_t delay;
-	MII_MGMT_ADDR_t miiAddr;
-	MII_MGMT_CMD_t miiCmd;
-	MII_MGMT_INDICATOR_t miiIndicator;
+	u32 miiAddr;
+	u32 miiCmd;
+	u32 miiIndicator;
 
 	/* Save a local copy of the registers we are dealing with so we can
 	 * set them back
 	 */
-	miiAddr.value = readl(&mac->mii_mgmt_addr.value);
-	miiCmd.value = readl(&mac->mii_mgmt_cmd.value);
+	miiAddr = readl(&mac->mii_mgmt_addr);
+	miiCmd = readl(&mac->mii_mgmt_cmd);
 
 	/* Stop the current operation */
-	writel(0, &mac->mii_mgmt_cmd.value);
+	writel(0, &mac->mii_mgmt_cmd);
 
 	/* Set up the register we need to read from on the correct PHY */
-	{
-		MII_MGMT_ADDR_t mii_mgmt_addr = { 0 };
-
-		mii_mgmt_addr.bits.phy_addr = xcvrAddr;
-		mii_mgmt_addr.bits.reg_addr = xcvrReg;
-		writel(mii_mgmt_addr.value, &mac->mii_mgmt_addr.value);
-	}
+	writel(MII_ADDR(xcvrAddr, xcvrReg), &mac->mii_mgmt_addr);
 
 	/* Kick the read cycle off */
 	delay = 0;
 
-	writel(0x1, &mac->mii_mgmt_cmd.value);
+	writel(0x1, &mac->mii_mgmt_cmd);
 
 	do {
 		udelay(50);
 		delay++;
-		miiIndicator.value = readl(&mac->mii_mgmt_indicator.value);
-	} while ((miiIndicator.bits.not_valid || miiIndicator.bits.busy) &&
-		 delay < 50);
+		miiIndicator = readl(&mac->mii_mgmt_indicator);
+	} while ((miiIndicator & MGMT_WAIT) && delay < 50);
 
 	/* If we hit the max delay, we could not read the register */
-	if (delay >= 50) {
+	if (delay == 50) {
 		dev_warn(&adapter->pdev->dev,
 			    "xcvrReg 0x%08x could not be read\n", xcvrReg);
 		dev_warn(&adapter->pdev->dev, "status is  0x%08x\n",
-			    miiIndicator.value);
+			    miiIndicator);
 
 		status = -EIO;
 	}
 
 	/* If we hit here we were able to read the register and we need to
-	 * return the value to the caller
-	 */
-	/* TODO: make this stuff a simple readw()?! */
-	{
-		MII_MGMT_STAT_t mii_mgmt_stat;
-
-		mii_mgmt_stat.value = readl(&mac->mii_mgmt_stat.value);
-		*value = (uint16_t) mii_mgmt_stat.bits.phy_stat;
-	}
+	 * return the value to the caller */
+	*value = readl(&mac->mii_mgmt_stat) & 0xFFFF;
 
 	/* Stop the read operation */
-	writel(0, &mac->mii_mgmt_cmd.value);
+	writel(0, &mac->mii_mgmt_cmd);
 
 	/* set the registers we touched back to the state at which we entered
 	 * this function
 	 */
-	writel(miiAddr.value, &mac->mii_mgmt_addr.value);
-	writel(miiCmd.value, &mac->mii_mgmt_cmd.value);
+	writel(miiAddr, &mac->mii_mgmt_addr);
+	writel(miiCmd, &mac->mii_mgmt_cmd);
 
 	return status;
 }
@@ -196,37 +182,31 @@ int MiWrite(struct et131x_adapter *adapter, uint8_t xcvrReg, uint16_t value)
 	int status = 0;
 	uint8_t xcvrAddr = adapter->Stats.xcvr_addr;
 	uint32_t delay;
-	MII_MGMT_ADDR_t miiAddr;
-	MII_MGMT_CMD_t miiCmd;
-	MII_MGMT_INDICATOR_t miiIndicator;
+	u32 miiAddr;
+	u32 miiCmd;
+	u32 miiIndicator;
 
 	/* Save a local copy of the registers we are dealing with so we can
 	 * set them back
 	 */
-	miiAddr.value = readl(&mac->mii_mgmt_addr.value);
-	miiCmd.value = readl(&mac->mii_mgmt_cmd.value);
+	miiAddr = readl(&mac->mii_mgmt_addr);
+	miiCmd = readl(&mac->mii_mgmt_cmd);
 
 	/* Stop the current operation */
-	writel(0, &mac->mii_mgmt_cmd.value);
+	writel(0, &mac->mii_mgmt_cmd);
 
 	/* Set up the register we need to write to on the correct PHY */
-	{
-		MII_MGMT_ADDR_t mii_mgmt_addr;
-
-		mii_mgmt_addr.bits.phy_addr = xcvrAddr;
-		mii_mgmt_addr.bits.reg_addr = xcvrReg;
-		writel(mii_mgmt_addr.value, &mac->mii_mgmt_addr.value);
-	}
+	writel(MII_ADDR(xcvrAddr, xcvrReg), &mac->mii_mgmt_addr);
 
 	/* Add the value to write to the registers to the mac */
-	writel(value, &mac->mii_mgmt_ctrl.value);
+	writel(value, &mac->mii_mgmt_ctrl);
 	delay = 0;
 
 	do {
 		udelay(50);
 		delay++;
-		miiIndicator.value = readl(&mac->mii_mgmt_indicator.value);
-	} while (miiIndicator.bits.busy && delay < 100);
+		miiIndicator = readl(&mac->mii_mgmt_indicator);
+	} while ((miiIndicator & MGMT_BUSY) && delay < 100);
 
 	/* If we hit the max delay, we could not write the register */
 	if (delay == 100) {
@@ -235,23 +215,22 @@ int MiWrite(struct et131x_adapter *adapter, uint8_t xcvrReg, uint16_t value)
 		dev_warn(&adapter->pdev->dev,
 		    "xcvrReg 0x%08x could not be written", xcvrReg);
 		dev_warn(&adapter->pdev->dev, "status is  0x%08x\n",
-			    miiIndicator.value);
+			    miiIndicator);
 		dev_warn(&adapter->pdev->dev, "command is  0x%08x\n",
-			    readl(&mac->mii_mgmt_cmd.value));
+			    readl(&mac->mii_mgmt_cmd));
 
 		MiRead(adapter, xcvrReg, &TempValue);
 
 		status = -EIO;
 	}
-
 	/* Stop the write operation */
-	writel(0, &mac->mii_mgmt_cmd.value);
+	writel(0, &mac->mii_mgmt_cmd);
 
 	/* set the registers we touched back to the state at which we entered
 	 * this function
 	 */
-	writel(miiAddr.value, &mac->mii_mgmt_addr.value);
-	writel(miiCmd.value, &mac->mii_mgmt_cmd.value);
+	writel(miiAddr, &mac->mii_mgmt_addr);
+	writel(miiCmd, &mac->mii_mgmt_cmd);
 
 	return status;
 }

@@ -1407,97 +1407,46 @@ typedef struct _RXMAC_t {				/* Location: */
 /*
  * structure for MII Management Command reg in mac address map.
  * located at address 0x5024
+ * bit 1: scan cycle
+ * bit 0: read cycle
  */
-typedef union _MII_MGMT_CMD_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:30;	/* bits 2-31 */
-		u32 scan_cycle:1;	/* bit 1 */
-		u32 read_cycle:1;	/* bit 0 */
-#else
-		u32 read_cycle:1;	/* bit 0 */
-		u32 scan_cycle:1;	/* bit 1 */
-		u32 reserved:30;	/* bits 2-31 */
-#endif
-	} bits;
-} MII_MGMT_CMD_t, *PMII_MGMT_CMD_t;
 
 /*
  * structure for MII Management Address reg in mac address map.
  * located at address 0x5028
+ * 31-13: reserved
+ * 12-8: phy addr
+ * 7-5: reserved
+ * 4-0: register
  */
-typedef union _MII_MGMT_ADDR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved2:19;	/* bit 13-31 */
-		u32 phy_addr:5;	/* bits 8-12 */
-		u32 reserved1:3;	/* bits 5-7 */
-		u32 reg_addr:5;	/* bits 0-4 */
-#else
-		u32 reg_addr:5;	/* bits 0-4 */
-		u32 reserved1:3;	/* bits 5-7 */
-		u32 phy_addr:5;	/* bits 8-12 */
-		u32 reserved2:19;	/* bit 13-31 */
-#endif
-	} bits;
-} MII_MGMT_ADDR_t, *PMII_MGMT_ADDR_t;
+
+#define MII_ADDR(phy,reg)	((phy) << 8 | (reg))
 
 /*
  * structure for MII Management Control reg in mac address map.
  * located at address 0x502C
+ * 31-16: reserved
+ * 15-0: phy control
  */
-typedef union _MII_MGMT_CTRL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:16;	/* bits 16-31 */
-		u32 phy_ctrl:16;	/* bits 0-15 */
-#else
-		u32 phy_ctrl:16;	/* bits 0-15 */
-		u32 reserved:16;	/* bits 16-31 */
-#endif
-	} bits;
-} MII_MGMT_CTRL_t, *PMII_MGMT_CTRL_t;
 
 /*
  * structure for MII Management Status reg in mac address map.
  * located at address 0x5030
+ * 31-16: reserved
+ * 15-0: phy control
  */
-typedef union _MII_MGMT_STAT_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:16;	/* bits 16-31 */
-		u32 phy_stat:16;	/* bits 0-15 */
-#else
-		u32 phy_stat:16;	/* bits 0-15 */
-		u32 reserved:16;	/* bits 16-31 */
-#endif
-	} bits;
-} MII_MGMT_STAT_t, *PMII_MGMT_STAT_t;
 
 /*
  * structure for MII Management Indicators reg in mac address map.
  * located at address 0x5034
+ * 31-3: reserved
+ * 2: not valid
+ * 1: scanning
+ * 0: busy
  */
-typedef union _MII_MGMT_INDICATOR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:29;	/* bits 3-31 */
-		u32 not_valid:1;	/* bit 2 */
-		u32 scanning:1;	/* bit 1 */
-		u32 busy:1;	/* bit 0 */
-#else
-		u32 busy:1;	/* bit 0 */
-		u32 scanning:1;	/* bit 1 */
-		u32 not_valid:1;	/* bit 2 */
-		u32 reserved:29;	/* bits 3-31 */
-#endif
-	} bits;
-} MII_MGMT_INDICATOR_t, *PMII_MGMT_INDICATOR_t;
+
+#define MGMT_BUSY	0x00000001	/* busy */
+#define MGMT_WAIT	0x00000005	/* busy | not valid */
 
 /*
  * structure for Interface Control reg in mac address map.
@@ -1634,11 +1583,11 @@ typedef struct _MAC_t {					/* Location: */
 	u32 rsv2;					/*  0x5018 */
 	u32 mac_test;					/*  0x501C */
 	u32 mii_mgmt_cfg;				/*  0x5020 */
-	MII_MGMT_CMD_t mii_mgmt_cmd;			/*  0x5024 */
-	MII_MGMT_ADDR_t mii_mgmt_addr;			/*  0x5028 */
-	MII_MGMT_CTRL_t mii_mgmt_ctrl;			/*  0x502C */
-	MII_MGMT_STAT_t mii_mgmt_stat;			/*  0x5030 */
-	MII_MGMT_INDICATOR_t mii_mgmt_indicator;	/*  0x5034 */
+	u32 mii_mgmt_cmd;				/*  0x5024 */
+	u32 mii_mgmt_addr;				/*  0x5028 */
+	u32 mii_mgmt_ctrl;				/*  0x502C */
+	u32 mii_mgmt_stat;				/*  0x5030 */
+	u32 mii_mgmt_indicator;				/*  0x5034 */
 	MAC_IF_CTRL_t if_ctrl;				/*  0x5038 */
 	MAC_IF_STAT_t if_stat;				/*  0x503C */
 	MAC_STATION_ADDR1_t station_addr_1;		/*  0x5040 */
