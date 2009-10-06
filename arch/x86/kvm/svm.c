@@ -46,6 +46,7 @@ MODULE_LICENSE("GPL");
 #define SVM_FEATURE_NPT  (1 << 0)
 #define SVM_FEATURE_LBRV (1 << 1)
 #define SVM_FEATURE_SVML (1 << 2)
+#define SVM_FEATURE_PAUSE_FILTER (1 << 10)
 
 #define NESTED_EXIT_HOST	0	/* Exit handled on host level */
 #define NESTED_EXIT_DONE	1	/* Exit caused nested vmexit  */
@@ -653,6 +654,11 @@ static void init_vmcb(struct vcpu_svm *svm)
 
 	svm->nested.vmcb = 0;
 	svm->vcpu.arch.hflags = 0;
+
+	if (svm_has(SVM_FEATURE_PAUSE_FILTER)) {
+		control->pause_filter_count = 3000;
+		control->intercept |= (1ULL << INTERCEPT_PAUSE);
+	}
 
 	enable_gif(svm);
 }
@@ -2281,6 +2287,12 @@ static int interrupt_window_interception(struct vcpu_svm *svm)
 	return 1;
 }
 
+static int pause_interception(struct vcpu_svm *svm)
+{
+	kvm_vcpu_on_spin(&(svm->vcpu));
+	return 1;
+}
+
 static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_READ_CR0]           		= emulate_on_interception,
 	[SVM_EXIT_READ_CR3]           		= emulate_on_interception,
@@ -2316,6 +2328,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_CPUID]			= cpuid_interception,
 	[SVM_EXIT_IRET]                         = iret_interception,
 	[SVM_EXIT_INVD]                         = emulate_on_interception,
+	[SVM_EXIT_PAUSE]			= pause_interception,
 	[SVM_EXIT_HLT]				= halt_interception,
 	[SVM_EXIT_INVLPG]			= invlpg_interception,
 	[SVM_EXIT_INVLPGA]			= invlpga_interception,
