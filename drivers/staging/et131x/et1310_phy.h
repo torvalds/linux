@@ -61,9 +61,6 @@
 
 #include "et1310_address_map.h"
 
-#define TRUEPHY_SUCCESS 0
-#define TRUEPHY_FAILURE 1
-
 /* MI Register Addresses */
 #define MI_CONTROL_REG                      0
 #define MI_STATUS_REG                       1

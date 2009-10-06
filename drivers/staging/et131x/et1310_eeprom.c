@@ -146,7 +146,7 @@
  * @addr: the address to write
  * @data: the value to write
  *
- * Returns SUCCESS or FAILURE
+ * Returns 1 for a successful write.
  */
 int EepromWriteByte(struct et131x_adapter *etdev, u32 addr, u8 data)
 {
@@ -227,7 +227,7 @@ int EepromWriteByte(struct et131x_adapter *etdev, u32 addr, u8 data)
 	}
 
 	if (err || (index >= MAX_NUM_REGISTER_POLLS))
-		return FAILURE;
+		return 0;
 
 	/* Step 2: */
 	control = 0;
@@ -235,7 +235,7 @@ int EepromWriteByte(struct et131x_adapter *etdev, u32 addr, u8 data)
 
 	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER_OFFSET,
 				  control)) {
-		return FAILURE;
+		return 0;
 	}
 
 	i2c_wack = 1;
@@ -334,7 +334,7 @@ int EepromWriteByte(struct et131x_adapter *etdev, u32 addr, u8 data)
 		index++;
 	}
 
-	return writeok ? SUCCESS : FAILURE;
+	return writeok;
 }
 
 /**
@@ -345,7 +345,7 @@ int EepromWriteByte(struct et131x_adapter *etdev, u32 addr, u8 data)
  * @eeprom_id: the ID of the EEPROM
  * @addrmode: how the EEPROM is to be accessed
  *
- * Returns SUCCESS or FAILURE
+ * Returns 1 for a successful read
  */
 int EepromReadByte(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
 {
@@ -409,7 +409,7 @@ int EepromReadByte(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
 	}
 
 	if (err || (index >= MAX_NUM_REGISTER_POLLS))
-		return FAILURE;
+		return 0;
 
 	/* Step 2: */
 	control = 0;
@@ -417,14 +417,14 @@ int EepromReadByte(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
 
 	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER_OFFSET,
 				  control)) {
-		return FAILURE;
+		return 0;
 	}
 
 	/* Step 3: */
 
 	if (pci_write_config_dword(pdev, LBCIF_ADDRESS_REGISTER_OFFSET,
 				   addr)) {
-		return FAILURE;
+		return 0;
 	}
 
 	/* Step 4: */
@@ -446,10 +446,10 @@ int EepromReadByte(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
 	}
 
 	if (err || (index >= MAX_NUM_REGISTER_POLLS))
-		return FAILURE;
+		return 0;
 
 	/* Step 6: */
 	*pdata = EXTRACT_DATA_REGISTER(dword1);
 
-	return (status & LBCIF_STATUS_ACK_ERROR) ? FAILURE : SUCCESS;
+	return (status & LBCIF_STATUS_ACK_ERROR) ? 0 : 1;
 }
