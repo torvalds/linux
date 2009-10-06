@@ -191,7 +191,9 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define AT_PROTO	4
 #define AT_TYPE		5
 #define AT_HLC		6
-#define AT_NUM		7
+#define AT_CLIP		7
+/* total number */
+#define AT_NUM		8
 
 /* variables in struct at_state_t */
 #define VAR_ZSAU	0
@@ -412,6 +414,8 @@ struct bc_state {
 		struct usb_bc_state *usb;	/* usb hardware driver (m105) */
 		struct bas_bc_state *bas;	/* usb hardware driver (base) */
 	} hw;
+
+	void *ap;			/* LL application structure */
 };
 
 struct cardstate {
@@ -725,6 +729,7 @@ void gigaset_bcs_reinit(struct bc_state *bcs);
 void gigaset_at_init(struct at_state_t *at_state, struct bc_state *bcs,
 		     struct cardstate *cs, int cid);
 int gigaset_get_channel(struct bc_state *bcs);
+struct bc_state *gigaset_get_free_channel(struct cardstate *cs);
 void gigaset_free_channel(struct bc_state *bcs);
 int gigaset_get_channels(struct cardstate *cs);
 void gigaset_free_channels(struct cardstate *cs);

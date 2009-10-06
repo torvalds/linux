@@ -207,6 +207,32 @@ int gigaset_get_channel(struct bc_state *bcs)
 	return 1;
 }
 
+struct bc_state *gigaset_get_free_channel(struct cardstate *cs)
+{
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&cs->lock, flags);
+	if (!try_module_get(cs->driver->owner)) {
+		gig_dbg(DEBUG_ANY,
+			"could not get module for allocating channel");
+		spin_unlock_irqrestore(&cs->lock, flags);
+		return NULL;
+	}
+	for (i = 0; i < cs->channels; ++i)
+		if (!cs->bcs[i].use_count) {
+			++cs->bcs[i].use_count;
+			cs->bcs[i].busy = 1;
+			spin_unlock_irqrestore(&cs->lock, flags);
+			gig_dbg(DEBUG_ANY, "allocated channel %d", i);
+			return cs->bcs + i;
+		}
+	module_put(cs->driver->owner);
+	spin_unlock_irqrestore(&cs->lock, flags);
+	gig_dbg(DEBUG_ANY, "no free channel");
+	return NULL;
+}
+
 void gigaset_free_channel(struct bc_state *bcs)
 {
 	unsigned long flags;

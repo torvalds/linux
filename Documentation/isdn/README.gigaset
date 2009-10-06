@@ -5,7 +5,7 @@ GigaSet 307x Device Driver
      ------------
 1.1. Hardware
      --------
-     This release supports the connection of the Gigaset 307x/417x family of
+     This driver supports the connection of the Gigaset 307x/417x family of
      ISDN DECT bases via Gigaset M101 Data, Gigaset M105 Data or direct USB
      connection. The following devices are reported to be compatible:
 
@@ -33,7 +33,7 @@ GigaSet 307x Device Driver
               http://gigaset307x.sourceforge.net/
 
      We had also reports from users of Gigaset M105 who could use the drivers
-     with SX 100 and CX 100 ISDN bases (only in unimodem mode, see section 2.4.)
+     with SX 100 and CX 100 ISDN bases (only in unimodem mode, see section 2.5.)
      If you have another device that works with our driver, please let us know.
 
      Chances of getting an USB device to work are good if the output of
@@ -49,7 +49,7 @@ GigaSet 307x Device Driver
      --------
      The driver works with ISDN4linux and so can be used with any software
      which is able to use ISDN4linux for ISDN connections (voice or data).
-     CAPI4Linux support is planned but not yet available.
+     Experimental Kernel CAPI support is available as a compilation option.
 
      There are some user space tools available at
      http://sourceforge.net/projects/gigaset307x/
@@ -102,20 +102,28 @@ GigaSet 307x Device Driver
 2.3. ISDN4linux
      ----------
      This is the "normal" mode of operation. After loading the module you can
-     set up the ISDN system just as you'd do with any ISDN card.
-     Your distribution should provide some configuration utility.
-     If not, you can use some HOWTOs like
+     set up the ISDN system just as you'd do with any ISDN card supported by
+     the ISDN4Linux subsystem. Most distributions provide some configuration
+     utility. If not, you can use some HOWTOs like
          http://www.linuxhaven.de/dlhp/HOWTO/DE-ISDN-HOWTO-5.html
-     If this doesn't work, because you have some recent device like SX100 where
+     If this doesn't work, because you have some device like SX100 where
      debug output (see section 3.2.) shows something like this when dialing
          CMD Received: ERROR
          Available Params: 0
          Connection State: 0, Response: -1
          gigaset_process_response: resp_code -1 in ConState 0 !
          Timeout occurred
-     you might need to use unimodem mode:
+     you might need to use unimodem mode. (see section 2.5.)
 
-2.4. Unimodem mode
+2.4. CAPI
+     ----
+     If the driver is compiled with CAPI support (kernel configuration option
+     GIGASET_CAPI, experimental) it can also be used with CAPI 2.0 kernel and
+     user space applications.  ISDN4Linux is supported in this configuration
+     via the capidrv compatibility driver. The kernel module capidrv.ko must
+     be loaded explicitly ("modprobe capidrv") if needed.
+
+2.5. Unimodem mode
      -------------
      This is needed for some devices [e.g. SX100] as they have problems with
      the "normal" commands.
@@ -160,7 +168,7 @@ GigaSet 307x Device Driver
      configuration file like /etc/modprobe.conf.local,
      using that should be preferred.
 
-2.5. Call-ID (CID) mode
+2.6. Call-ID (CID) mode
      ------------------
      Call-IDs are numbers used to tag commands to, and responses from, the
      Gigaset base in order to support the simultaneous handling of multiple
@@ -188,7 +196,7 @@ GigaSet 307x Device Driver
      You can also use /sys/class/tty/ttyGxy/cidmode for changing the CID mode
      setting (ttyGxy is ttyGU0 or ttyGB0).
 
-2.6. Unregistered Wireless Devices (M101/M105)
+2.7. Unregistered Wireless Devices (M101/M105)
      -----------------------------------------
      The main purpose of the ser_gigaset and usb_gigaset drivers is to allow
      the M101 and M105 wireless devices to be used as ISDN devices for ISDN
@@ -228,7 +236,7 @@ GigaSet 307x Device Driver
         You have two or more DECT data adapters (M101/M105) and only the
         first one you turn on works.
      Solution:
-        Select Unimodem mode for all DECT data adapters. (see section 2.4.)
+        Select Unimodem mode for all DECT data adapters. (see section 2.5.)
 
      Problem:
 	Messages like this:
@@ -236,7 +244,7 @@ GigaSet 307x Device Driver
 	appear in your syslog.
      Solution:
 	Check whether your M10x wireless device is correctly registered to the
-	Gigaset base. (see section 2.6.)
+	Gigaset base. (see section 2.7.)
 
 3.2. Telling the driver to provide more information
      ----------------------------------------------

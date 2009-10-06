@@ -1,4 +1,5 @@
 gigaset-y := common.o interface.o proc.o ev-layer.o asyncdata.o
+gigaset-$(CONFIG_GIGASET_CAPI) += capi.o
 gigaset-$(CONFIG_GIGASET_I4L) += i4l.o
 gigaset-$(CONFIG_GIGASET_DUMMYLL) += dummyll.o
 usb_gigaset-y := usb-gigaset.o
