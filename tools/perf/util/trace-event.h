@@ -26,6 +26,7 @@ enum {
 enum format_flags {
 	FIELD_IS_ARRAY		= 1,
 	FIELD_IS_POINTER	= 2,
+	FIELD_IS_SIGNED		= 4,
 };
 
 struct format_field {

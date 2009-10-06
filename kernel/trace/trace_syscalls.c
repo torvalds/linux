@@ -103,7 +103,8 @@ extern char *__bad_type_size(void);
 #define SYSCALL_FIELD(type, name)					\
 	sizeof(type) != sizeof(trace.name) ?				\
 		__bad_type_size() :					\
-		#type, #name, offsetof(typeof(trace), name), sizeof(trace.name)
+		#type, #name, offsetof(typeof(trace), name),		\
+		sizeof(trace.name), is_signed_type(type)
 
 int syscall_enter_format(struct ftrace_event_call *call, struct trace_seq *s)
 {
@@ -120,7 +121,8 @@ int syscall_enter_format(struct ftrace_event_call *call, struct trace_seq *s)
 	if (!entry)
 		return 0;
 
-	ret = trace_seq_printf(s, "\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n",
+	ret = trace_seq_printf(s, "\tfield:%s %s;\toffset:%zu;\tsize:%zu;"
+			       "\tsigned:%u;\n",
 			       SYSCALL_FIELD(int, nr));
 	if (!ret)
 		return 0;
@@ -130,8 +132,10 @@ int syscall_enter_format(struct ftrace_event_call *call, struct trace_seq *s)
 				        entry->args[i]);
 		if (!ret)
 			return 0;
-		ret = trace_seq_printf(s, "\toffset:%d;\tsize:%zu;\n", offset,
-				       sizeof(unsigned long));
+		ret = trace_seq_printf(s, "\toffset:%d;\tsize:%zu;"
+				       "\tsigned:%u;\n", offset,
+				       sizeof(unsigned long),
+				       is_signed_type(unsigned long));
 		if (!ret)
 			return 0;
 		offset += sizeof(unsigned long);
@@ -163,8 +167,10 @@ int syscall_exit_format(struct ftrace_event_call *call, struct trace_seq *s)
 	struct syscall_trace_exit trace;
 
 	ret = trace_seq_printf(s,
-			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n",
+			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;"
+			       "\tsigned:%u;\n"
+			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;"
+			       "\tsigned:%u;\n",
 			       SYSCALL_FIELD(int, nr),
 			       SYSCALL_FIELD(long, ret));
 	if (!ret)
@@ -212,7 +218,7 @@ int syscall_exit_define_fields(struct ftrace_event_call *call)
 	if (ret)
 		return ret;
 
-	ret = trace_define_field(call, SYSCALL_FIELD(long, ret), 0,
+	ret = trace_define_field(call, SYSCALL_FIELD(long, ret),
 				 FILTER_OTHER);
 
 	return ret;

@@ -897,6 +897,21 @@ static int event_read_fields(struct event *event, struct format_field **fields)
 		if (read_expected(EVENT_OP, (char *)";") < 0)
 			goto fail_expect;
 
+		if (read_expected(EVENT_ITEM, (char *)"signed") < 0)
+			goto fail_expect;
+
+		if (read_expected(EVENT_OP, (char *)":") < 0)
+			goto fail_expect;
+
+		if (read_expect_type(EVENT_ITEM, &token))
+			goto fail;
+		if (strtoul(token, NULL, 0))
+			field->flags |= FIELD_IS_SIGNED;
+		free_token(token);
+
+		if (read_expected(EVENT_OP, (char *)";") < 0)
+			goto fail_expect;
+
 		if (read_expect_type(EVENT_NEWLINE, &token) < 0)
 			goto fail;
 		free_token(token);
@@ -2842,6 +2857,15 @@ static void parse_header_field(char *type,
 	if (read_expect_type(EVENT_ITEM, &token) < 0)
 		return;
 	*size = atoi(token);
+	free_token(token);
+	if (read_expected(EVENT_OP, (char *)";") < 0)
+		return;
+	if (read_expected(EVENT_ITEM, (char *)"signed") < 0)
+		return;
+	if (read_expected(EVENT_OP, (char *)":") < 0)
+		return;
+	if (read_expect_type(EVENT_ITEM, &token) < 0)
+		return;
 	free_token(token);
 	if (read_expected(EVENT_OP, (char *)";") < 0)
 		return;

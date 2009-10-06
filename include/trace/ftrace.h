@@ -120,9 +120,10 @@
 #undef __field
 #define __field(type, item)					\
 	ret = trace_seq_printf(s, "\tfield:" #type " " #item ";\t"	\
-			       "offset:%u;\tsize:%u;\n",		\
+			       "offset:%u;\tsize:%u;\tsigned:%u;\n",	\
 			       (unsigned int)offsetof(typeof(field), item), \
-			       (unsigned int)sizeof(field.item));	\
+			       (unsigned int)sizeof(field.item),	\
+			       (unsigned int)is_signed_type(type));	\
 	if (!ret)							\
 		return 0;
 
@@ -132,19 +133,21 @@
 #undef __array
 #define __array(type, item, len)						\
 	ret = trace_seq_printf(s, "\tfield:" #type " " #item "[" #len "];\t"	\
-			       "offset:%u;\tsize:%u;\n",		\
+			       "offset:%u;\tsize:%u;\tsigned:%u;\n",	\
 			       (unsigned int)offsetof(typeof(field), item), \
-			       (unsigned int)sizeof(field.item));	\
+			       (unsigned int)sizeof(field.item),	\
+			       (unsigned int)is_signed_type(type));	\
 	if (!ret)							\
 		return 0;
 
 #undef __dynamic_array
 #define __dynamic_array(type, item, len)				       \
 	ret = trace_seq_printf(s, "\tfield:__data_loc " #type "[] " #item ";\t"\
-			       "offset:%u;\tsize:%u;\n",		       \
+			       "offset:%u;\tsize:%u;\tsigned:%u;\n",	       \
 			       (unsigned int)offsetof(typeof(field),	       \
 					__data_loc_##item),		       \
-			       (unsigned int)sizeof(field.__data_loc_##item)); \
+			       (unsigned int)sizeof(field.__data_loc_##item), \
+			       (unsigned int)is_signed_type(type));	\
 	if (!ret)							       \
 		return 0;
 
