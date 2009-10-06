@@ -1395,38 +1395,19 @@ typedef union _MAC_CFG2_t {
  * 22-16: non B2B ipg 2
  * 15-8: Min ifg enforce
  * 7-0: B2B ipg
- */
-
-/*
+ *
  * structure for half duplex reg in mac address map.
  * located at address 0x500C
+ * 31-24: reserved
+ * 23-20: Alt BEB trunc
+ * 19: Alt BEB enable
+ * 18: BP no backoff
+ * 17: no backoff
+ * 16: excess defer
+ * 15-12: re-xmit max
+ * 11-10: reserved
+ * 9-0: collision window
  */
-typedef union _MAC_HFDP_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved2:8;		/* bits 24-31 */
-		u32 alt_beb_trunc:4;	/* bits 23-20 */
-		u32 alt_beb_enable:1;	/* bit 19 */
-		u32 bp_no_backoff:1;	/* bit 18 */
-		u32 no_backoff:1;		/* bit 17 */
-		u32 excess_defer:1;	/* bit 16 */
-		u32 rexmit_max:4;		/* bits 12-15 */
-		u32 reserved1:2;		/* bits 10-11 */
-		u32 coll_window:10;	/* bits 0-9 */
-#else
-		u32 coll_window:10;	/* bits 0-9 */
-		u32 reserved1:2;		/* bits 10-11 */
-		u32 rexmit_max:4;		/* bits 12-15 */
-		u32 excess_defer:1;	/* bit 16 */
-		u32 no_backoff:1;		/* bit 17 */
-		u32 bp_no_backoff:1;	/* bit 18 */
-		u32 alt_beb_enable:1;	/* bit 19 */
-		u32 alt_beb_trunc:4;	/* bits 23-20 */
-		u32 reserved2:8;		/* bits 24-31 */
-#endif
-	} bits;
-} MAC_HFDP_t, *PMAC_HFDP_t;
 
 /*
  * structure for Maximum Frame Length reg in mac address map.
@@ -1717,7 +1698,7 @@ typedef struct _MAC_t {					/* Location: */
 	MAC_CFG1_t cfg1;				/*  0x5000 */
 	MAC_CFG2_t cfg2;				/*  0x5004 */
 	u32 ipg;					/*  0x5008 */
-	MAC_HFDP_t hfdp;				/*  0x500C */
+	u32 hfdp;					/*  0x500C */
 	MAC_MAX_FM_LEN_t max_fm_len;			/*  0x5010 */
 	u32 rsv1;					/*  0x5014 */
 	u32 rsv2;					/*  0x5018 */

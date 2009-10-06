@@ -102,7 +102,6 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	MAC_STATION_ADDR1_t station1;
 	MAC_STATION_ADDR2_t station2;
 	u32 ipg;
-	MAC_HFDP_t hfdp;
 	MII_MGMT_CFG_t mii_mgmt_cfg;
 
 	/* First we need to reset everything.  Write to MAC configuration
@@ -116,14 +115,8 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	writel(ipg, &pMac->ipg);
 
 	/* Next lets configure the MAC Half Duplex register */
-	hfdp.bits.alt_beb_trunc = 0xA;
-	hfdp.bits.alt_beb_enable = 0x0;
-	hfdp.bits.bp_no_backoff = 0x0;
-	hfdp.bits.no_backoff = 0x0;
-	hfdp.bits.excess_defer = 0x1;
-	hfdp.bits.rexmit_max = 0xF;
-	hfdp.bits.coll_window = 0x37;		/* 55d */
-	writel(hfdp.value, &pMac->hfdp.value);
+	/* BEB trunc 0xA, Ex Defer, Rexmit 0xF Coll 0x37 */
+	writel(0x00A1F037, &pMac->hfdp);
 
 	/* Next lets configure the MAC Interface Control register */
 	writel(0, &pMac->if_ctrl.value);
