@@ -507,8 +507,14 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		} else
 			rb_key += jiffies;
 	} else if (!add_front) {
+		/*
+		 * Get our rb key offset. Subtract any residual slice
+		 * value carried from last service. A negative resid
+		 * count indicates slice overrun, and this should position
+		 * the next service time further away in the tree.
+		 */
 		rb_key = cfq_slice_offset(cfqd, cfqq) + jiffies;
-		rb_key += cfqq->slice_resid;
+		rb_key -= cfqq->slice_resid;
 		cfqq->slice_resid = 0;
 	} else {
 		rb_key = -HZ;
