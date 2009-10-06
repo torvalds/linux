@@ -502,7 +502,8 @@ static int opticon_resume(struct usb_interface *intf)
 	int result;
 
 	mutex_lock(&port->port.mutex);
-	if (port->port.count)
+	/* This is protected by the port mutex against close/open */
+	if (test_bit(ASYNCB_INITIALIZED, &port->port.flags))
 		result = usb_submit_urb(priv->bulk_read_urb, GFP_NOIO);
 	else
 		result = 0;
