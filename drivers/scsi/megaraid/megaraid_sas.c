@@ -76,6 +76,10 @@ static struct pci_device_id megasas_pci_table[] = {
 	/* gen2*/
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS0079GEN2)},
 	/* gen2*/
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS0073SKINNY)},
+	/* skinny*/
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS0071SKINNY)},
+	/* skinny*/
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_VERDE_ZCR)},
 	/* xscale IOP, vega */
 	{PCI_DEVICE(PCI_VENDOR_ID_DELL, PCI_DEVICE_ID_DELL_PERC5)},
@@ -333,6 +337,99 @@ static struct megasas_instance_template megasas_instance_template_ppc = {
 	.clear_intr = megasas_clear_intr_ppc,
 	.read_fw_status_reg = megasas_read_fw_status_reg_ppc,
 };
+
+/**
+ * megasas_enable_intr_skinny -	Enables interrupts
+ * @regs:			MFI register set
+ */
+static inline void
+megasas_enable_intr_skinny(struct megasas_register_set __iomem *regs)
+{
+	writel(0xFFFFFFFF, &(regs)->outbound_intr_mask);
+
+	writel(~MFI_SKINNY_ENABLE_INTERRUPT_MASK, &(regs)->outbound_intr_mask);
+
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_intr_mask);
+}
+
+/**
+ * megasas_disable_intr_skinny -	Disables interrupt
+ * @regs:			MFI register set
+ */
+static inline void
+megasas_disable_intr_skinny(struct megasas_register_set __iomem *regs)
+{
+	u32 mask = 0xFFFFFFFF;
+	writel(mask, &regs->outbound_intr_mask);
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_intr_mask);
+}
+
+/**
+ * megasas_read_fw_status_reg_skinny - returns the current FW status value
+ * @regs:			MFI register set
+ */
+static u32
+megasas_read_fw_status_reg_skinny(struct megasas_register_set __iomem *regs)
+{
+	return readl(&(regs)->outbound_scratch_pad);
+}
+
+/**
+ * megasas_clear_interrupt_skinny -	Check & clear interrupt
+ * @regs:				MFI register set
+ */
+static int
+megasas_clear_intr_skinny(struct megasas_register_set __iomem *regs)
+{
+	u32 status;
+	/*
+	 * Check if it is our interrupt
+	 */
+	status = readl(&regs->outbound_intr_status);
+
+	if (!(status & MFI_SKINNY_ENABLE_INTERRUPT_MASK)) {
+		return 1;
+	}
+
+	/*
+	 * Clear the interrupt by writing back the same value
+	 */
+	writel(status, &regs->outbound_intr_status);
+
+	/*
+	* dummy read to flush PCI
+	*/
+	readl(&regs->outbound_intr_status);
+
+	return 0;
+}
+
+/**
+ * megasas_fire_cmd_skinny -	Sends command to the FW
+ * @frame_phys_addr :		Physical address of cmd
+ * @frame_count :		Number of frames for the command
+ * @regs :			MFI register set
+ */
+static inline void
+megasas_fire_cmd_skinny(dma_addr_t frame_phys_addr, u32 frame_count,
+			struct megasas_register_set __iomem *regs)
+{
+	writel(0, &(regs)->inbound_high_queue_port);
+	writel((frame_phys_addr | (frame_count<<1))|1,
+		&(regs)->inbound_low_queue_port);
+}
+
+static struct megasas_instance_template megasas_instance_template_skinny = {
+
+	.fire_cmd = megasas_fire_cmd_skinny,
+	.enable_intr = megasas_enable_intr_skinny,
+	.disable_intr = megasas_disable_intr_skinny,
+	.clear_intr = megasas_clear_intr_skinny,
+	.read_fw_status_reg = megasas_read_fw_status_reg_skinny,
+};
+
 
 /**
 *	The following functions are defined for gen2 (deviceid : 0x78 0x79)
@@ -1587,16 +1684,34 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 			/*
 			 * Set the CLR bit in inbound doorbell
 			 */
-			writel(MFI_INIT_CLEAR_HANDSHAKE|MFI_INIT_HOTPLUG,
-				&instance->reg_set->inbound_doorbell);
+			if ((instance->pdev->device == \
+				PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+				(instance->pdev->device ==
+				PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+
+				writel(
+				  MFI_INIT_CLEAR_HANDSHAKE|MFI_INIT_HOTPLUG,
+				  &instance->reg_set->reserved_0[0]);
+			} else {
+				writel(
+				    MFI_INIT_CLEAR_HANDSHAKE|MFI_INIT_HOTPLUG,
+					&instance->reg_set->inbound_doorbell);
+			}
 
 			max_wait = 2;
 			cur_state = MFI_STATE_WAIT_HANDSHAKE;
 			break;
 
 		case MFI_STATE_BOOT_MESSAGE_PENDING:
-			writel(MFI_INIT_HOTPLUG,
-				&instance->reg_set->inbound_doorbell);
+			if ((instance->pdev->device ==
+				PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+			(instance->pdev->device ==
+				PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+				writel(MFI_INIT_HOTPLUG,
+				&instance->reg_set->reserved_0[0]);
+			} else
+				writel(MFI_INIT_HOTPLUG,
+					&instance->reg_set->inbound_doorbell);
 
 			max_wait = 10;
 			cur_state = MFI_STATE_BOOT_MESSAGE_PENDING;
@@ -1607,7 +1722,15 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 			 * Bring it to READY state; assuming max wait 10 secs
 			 */
 			instance->instancet->disable_intr(instance->reg_set);
-			writel(MFI_RESET_FLAGS, &instance->reg_set->inbound_doorbell);
+			if ((instance->pdev->device ==
+				PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+				(instance->pdev->device ==
+				PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+				writel(MFI_RESET_FLAGS,
+					&instance->reg_set->reserved_0[0]);
+			} else
+				writel(MFI_RESET_FLAGS,
+					&instance->reg_set->inbound_doorbell);
 
 			max_wait = 60;
 			cur_state = MFI_STATE_OPERATIONAL;
@@ -2112,6 +2235,8 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	 * Map the message registers
 	 */
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS1078GEN2) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
 		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0079GEN2)) {
 		instance->base_addr = pci_resource_start(instance->pdev, 1);
 	} else {
@@ -2141,6 +2266,10 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 		case PCI_DEVICE_ID_LSI_SAS1078GEN2:
 		case PCI_DEVICE_ID_LSI_SAS0079GEN2:
 			instance->instancet = &megasas_instance_template_gen2;
+			break;
+		case PCI_DEVICE_ID_LSI_SAS0073SKINNY:
+		case PCI_DEVICE_ID_LSI_SAS0071SKINNY:
+			instance->instancet = &megasas_instance_template_skinny;
 			break;
 		case PCI_DEVICE_ID_LSI_SAS1064R:
 		case PCI_DEVICE_ID_DELL_PERC5:
