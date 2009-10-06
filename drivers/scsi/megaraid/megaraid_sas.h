@@ -133,6 +133,7 @@
 #define MR_DCMD_CLUSTER				0x08000000
 #define MR_DCMD_CLUSTER_RESET_ALL		0x08010100
 #define MR_DCMD_CLUSTER_RESET_LD		0x08010200
+#define MR_DCMD_PD_LIST_QUERY                   0x02010100
 
 /*
  * MFI command completion codes
@@ -253,8 +254,88 @@ enum MR_EVT_ARGS {
 	MR_EVT_ARGS_STR,
 	MR_EVT_ARGS_TIME,
 	MR_EVT_ARGS_ECC,
-
+	MR_EVT_ARGS_LD_PROP,
+	MR_EVT_ARGS_PD_SPARE,
+	MR_EVT_ARGS_PD_INDEX,
+	MR_EVT_ARGS_DIAG_PASS,
+	MR_EVT_ARGS_DIAG_FAIL,
+	MR_EVT_ARGS_PD_LBA_LBA,
+	MR_EVT_ARGS_PORT_PHY,
+	MR_EVT_ARGS_PD_MISSING,
+	MR_EVT_ARGS_PD_ADDRESS,
+	MR_EVT_ARGS_BITMAP,
+	MR_EVT_ARGS_CONNECTOR,
+	MR_EVT_ARGS_PD_PD,
+	MR_EVT_ARGS_PD_FRU,
+	MR_EVT_ARGS_PD_PATHINFO,
+	MR_EVT_ARGS_PD_POWER_STATE,
+	MR_EVT_ARGS_GENERIC,
 };
+
+/*
+ * define constants for device list query options
+ */
+enum MR_PD_QUERY_TYPE {
+	MR_PD_QUERY_TYPE_ALL                = 0,
+	MR_PD_QUERY_TYPE_STATE              = 1,
+	MR_PD_QUERY_TYPE_POWER_STATE        = 2,
+	MR_PD_QUERY_TYPE_MEDIA_TYPE         = 3,
+	MR_PD_QUERY_TYPE_SPEED              = 4,
+	MR_PD_QUERY_TYPE_EXPOSED_TO_HOST    = 5,
+};
+
+enum MR_PD_STATE {
+	MR_PD_STATE_UNCONFIGURED_GOOD   = 0x00,
+	MR_PD_STATE_UNCONFIGURED_BAD    = 0x01,
+	MR_PD_STATE_HOT_SPARE           = 0x02,
+	MR_PD_STATE_OFFLINE             = 0x10,
+	MR_PD_STATE_FAILED              = 0x11,
+	MR_PD_STATE_REBUILD             = 0x14,
+	MR_PD_STATE_ONLINE              = 0x18,
+	MR_PD_STATE_COPYBACK            = 0x20,
+	MR_PD_STATE_SYSTEM              = 0x40,
+ };
+
+
+ /*
+ * defines the physical drive address structure
+ */
+struct MR_PD_ADDRESS {
+	u16     deviceId;
+	u16     enclDeviceId;
+
+	union {
+		struct {
+			u8  enclIndex;
+			u8  slotNumber;
+		} mrPdAddress;
+		struct {
+			u8  enclPosition;
+			u8  enclConnectorIndex;
+		} mrEnclAddress;
+	};
+	u8      scsiDevType;
+	union {
+		u8      connectedPortBitmap;
+		u8      connectedPortNumbers;
+	};
+	u64     sasAddr[2];
+} __packed;
+
+/*
+ * defines the physical drive list structure
+ */
+struct MR_PD_LIST {
+	u32             size;
+	u32             count;
+	struct MR_PD_ADDRESS   addr[1];
+} __packed;
+
+struct megasas_pd_list {
+	u16             tid;
+	u8             driveType;
+	u8             driveState;
+} __packed;
 
 /*
  * SAS controller properties
@@ -284,7 +365,7 @@ struct megasas_ctrl_prop {
 	u8 expose_encl_devices;
 	u8 reserved[38];
 
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * SAS controller information
@@ -527,7 +608,7 @@ struct megasas_ctrl_info {
 
 	u8 pad[0x800 - 0x6a0];
 
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * ===============================
@@ -542,6 +623,8 @@ struct megasas_ctrl_info {
 #define MEGASAS_DEFAULT_INIT_ID			-1
 #define MEGASAS_MAX_LUN				8
 #define MEGASAS_MAX_LD				64
+#define MEGASAS_MAX_PD                          (MEGASAS_MAX_PD_CHANNELS * \
+						MEGASAS_MAX_DEV_PER_CHANNEL)
 
 #define MEGASAS_DBG_LVL				1
 
@@ -1089,6 +1172,7 @@ struct megasas_instance {
 	unsigned long base_addr;
 	struct megasas_register_set __iomem *reg_set;
 
+	struct megasas_pd_list          pd_list[MEGASAS_MAX_PD];
 	s8 init_id;
 
 	u16 max_num_sge;
