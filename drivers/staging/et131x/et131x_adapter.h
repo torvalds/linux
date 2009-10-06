@@ -235,7 +235,6 @@ struct et131x_adapter {
 	u32 RegistryJumboPacket;	/* Max supported ethernet packet size */
 
 	/* Validation helpers */
-	u8 RegistryNMIDisable;
 	u8 RegistryPhyLoopbk;	/* Enable Phy loopback */
 
 	/* Derived from the registry: */

@@ -106,17 +106,6 @@
 #define PARM_SPEED_DUPLEX_MIN   0
 #define PARM_SPEED_DUPLEX_MAX   5
 
-/* Module parameter for disabling NMI
- * et131x_nmi_disable :
- * Disable NMI (0-2) [0]
- *  0 :
- *  1 :
- *  2 :
- */
-static u32 et131x_nmi_disable;	/* 0-2 */
-module_param(et131x_nmi_disable, uint, 0);
-MODULE_PARM_DESC(et131x_nmi_disable, "Disable NMI (0-2) [0]");
-
 /* Module parameter for manual speed setting
  * Set Link speed and dublex manually (0-5)  [0]
  *  1 : 10Mb   Half-Duplex
@@ -186,21 +175,6 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 	int i;
 	u8 max_payload;
 	u8 read_size_reg;
-
-	/* Allow disabling of Non-Maskable Interrupts in I/O space, to
-	 * support validation.
-	 */
-	if (adapter->RegistryNMIDisable) {
-		uint8_t RegisterVal;
-
-		RegisterVal = inb(ET1310_NMI_DISABLE);
-		RegisterVal &= 0xf3;
-
-		if (adapter->RegistryNMIDisable == 2)
-			RegisterVal |= 0xc;
-
-		outb(ET1310_NMI_DISABLE, RegisterVal);
-	}
 
 	if (et131x_init_eeprom(adapter) < 0)
 		return -EIO;
@@ -612,8 +586,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 
 	etdev->SpeedDuplex = et131x_speed_set;
 	etdev->RegistryJumboPacket = 1514;	/* 1514-9216 */
-
-	etdev->RegistryNMIDisable = et131x_nmi_disable;
 
 	/* Set the MAC address to a default */
 	memcpy(etdev->CurrentAddress, default_mac, ETH_ALEN);
