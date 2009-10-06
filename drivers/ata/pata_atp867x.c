@@ -118,20 +118,13 @@ struct atp867x_priv {
 	int		pci66mhz;
 };
 
-static inline u8 atp867x_speed_to_mode(u8 speed)
-{
-	return speed - XFER_UDMA_0 + 1;
-}
-
 static void atp867x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
 	struct atp867x_priv *dp = ap->private_data;
 	u8 speed = adev->dma_mode;
 	u8 b;
-	u8 mode;
-
-	mode = atp867x_speed_to_mode(speed);
+	u8 mode = speed - XFER_UDMA_0 + 1;
 
 	/*
 	 * Doc 6.6.9: decrease the udma mode value by 1 for safer UDMA speed
@@ -471,7 +464,6 @@ static int atp867x_init_one(struct pci_dev *pdev,
 	static const struct ata_port_info info_867x = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= ATA_PIO4,
-		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask 	= ATA_UDMA6,
 		.port_ops	= &atp867x_ops,
 	};
