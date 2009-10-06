@@ -282,23 +282,19 @@ void et131x_init_send(struct et131x_adapter *adapter)
 
 	tx_ring->TCBReadyQueueHead = tcb;
 
-	/* Go through and set up each TCB */
-	for (ct = 0; ct < NUM_TCB; ct++) {
-		memset(tcb, 0, sizeof(struct tcb));
+	memset(tcb, 0, sizeof(struct tcb) * NUM_TCB);
 
+	/* Go through and set up each TCB */
+	for (ct = 0; ct++ < NUM_TCB; tcb++) {
 		/* Set the link pointer in HW TCB to the next TCB in the
 		 * chain.  If this is the last TCB in the chain, also set the
 		 * tail pointer.
 		 */
-		if (ct < NUM_TCB - 1)
-			tcb->Next = tcb + 1;
-		else {
-			tx_ring->TCBReadyQueueTail = tcb;
-			tcb->Next = NULL;
-		}
+		tcb->Next = tcb + 1;
 
-		tcb++;
-	}
+	tcb--;
+	tx_ring->TCBReadyQueueTail = tcb;
+	tcb->Next = NULL;
 	/* Curr send queue should now be empty */
 	tx_ring->CurrSendHead = NULL;
 	tx_ring->CurrSendTail = NULL;
