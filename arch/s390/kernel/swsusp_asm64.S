@@ -43,7 +43,7 @@ swsusp_arch_suspend:
 	lghi	%r1,0x1000
 
 	/* Save CPU address */
-	stap	__LC_CPU_ADDRESS(%r1)
+	stap	__LC_CPU_ADDRESS(%r0)
 
 	/* Store registers */
 	mvc	0x318(4,%r1),__SF_EMPTY(%r15)	/* move prefix to lowcore */
@@ -172,8 +172,7 @@ pgm_check_entry:
 	larl	%r1,.Lresume_cpu		/* Resume CPU address: r2 */
 	stap	0(%r1)
 	llgh	%r2,0(%r1)
-	lghi	%r3,0x1000
-	llgh	%r1,__LC_CPU_ADDRESS(%r3)	/* Suspend CPU address: r1 */
+	llgh	%r1,__LC_CPU_ADDRESS(%r0)	/* Suspend CPU address: r1 */
 	cgr	%r1,%r2
 	je	restore_registers		/* r1 = r2 -> nothing to do */
 	larl	%r4,.Lrestart_suspend_psw	/* Set new restart PSW */
