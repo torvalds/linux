@@ -42,6 +42,7 @@
 #define LBS_DEB_SDIO	0x00400000
 #define LBS_DEB_SYSFS	0x00800000
 #define LBS_DEB_SPI	0x01000000
+#define LBS_DEB_CFG80211 0x02000000
 
 extern unsigned int lbs_debug;
 
@@ -86,6 +87,7 @@ do { if ((lbs_debug & (grp)) == (grp)) \
 #define lbs_deb_sdio(fmt, args...)      LBS_DEB_LL(LBS_DEB_SDIO, " sdio", fmt, ##args)
 #define lbs_deb_sysfs(fmt, args...)     LBS_DEB_LL(LBS_DEB_SYSFS, " sysfs", fmt, ##args)
 #define lbs_deb_spi(fmt, args...)       LBS_DEB_LL(LBS_DEB_SPI, " spi", fmt, ##args)
+#define lbs_deb_cfg80211(fmt, args...)  LBS_DEB_LL(LBS_DEB_CFG80211, " cfg80211", fmt, ##args)
 
 #define lbs_pr_info(format, args...) \
 	printk(KERN_INFO DRV_NAME": " format, ## args)
