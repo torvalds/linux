@@ -516,9 +516,10 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 			 */
 			if ((pPacket->len - pPacket->data_len) <= 1514) {
 				CurDesc[FragmentNumber].DataBufferPtrHigh = 0;
-				CurDesc[FragmentNumber].word2.bits.
-				    length_in_bytes =
-				    pPacket->len - pPacket->data_len;
+				/* Low 16bits are length, high is vlan and
+				   unused currently so zero */
+				CurDesc[FragmentNumber].word2 =
+					pPacket->len - pPacket->data_len;
 
 				/* NOTE: Here, the dma_addr_t returned from
 				 * pci_map_single() is implicitly cast as a
@@ -536,9 +537,8 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 						   PCI_DMA_TODEVICE);
 			} else {
 				CurDesc[FragmentNumber].DataBufferPtrHigh = 0;
-				CurDesc[FragmentNumber].word2.bits.
-				    length_in_bytes =
-				    ((pPacket->len - pPacket->data_len) / 2);
+				CurDesc[FragmentNumber].word2 =
+				    (pPacket->len - pPacket->data_len) / 2;
 
 				/* NOTE: Here, the dma_addr_t returned from
 				 * pci_map_single() is implicitly cast as a
@@ -556,9 +556,8 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 						   PCI_DMA_TODEVICE);
 				CurDesc[FragmentNumber].DataBufferPtrHigh = 0;
 
-				CurDesc[FragmentNumber].word2.bits.
-				    length_in_bytes =
-				    ((pPacket->len - pPacket->data_len) / 2);
+				CurDesc[FragmentNumber].word2 =
+				    (pPacket->len - pPacket->data_len) / 2;
 
 				/* NOTE: Here, the dma_addr_t returned from
 				 * pci_map_single() is implicitly cast as a
@@ -579,8 +578,8 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 			}
 		} else {
 			CurDesc[FragmentNumber].DataBufferPtrHigh = 0;
-			CurDesc[FragmentNumber].word2.bits.length_in_bytes =
-			    pFragList[loopIndex - 1].size;
+			CurDesc[FragmentNumber].word2 =
+					pFragList[loopIndex - 1].size;
 
 			/* NOTE: Here, the dma_addr_t returned from
 			 * pci_map_page() is implicitly cast as a uint32_t.
@@ -724,7 +723,7 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 
 			pci_unmap_single(etdev->pdev,
 					 desc->DataBufferPtrLow,
-					 desc->word2.value, PCI_DMA_TODEVICE);
+					 desc->word2, PCI_DMA_TODEVICE);
 
 			add_10bit(&pMpTcb->WrIndexStart, 1);
 			if (INDEX10(pMpTcb->WrIndexStart) >=

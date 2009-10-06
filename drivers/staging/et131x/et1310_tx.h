@@ -63,29 +63,14 @@
 /* Typedefs for Tx Descriptor Ring */
 
 /*
- * TXDESC_WORD2_t structure holds part of the control bits in the Tx Descriptor
- * ring for the ET-1310
- */
-typedef union _txdesc_word2_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 vlan_prio:3;		/* bits 29-31(VLAN priority) */
-		u32 vlan_cfi:1;		/* bit 28(cfi) */
-		u32 vlan_tag:12;		/* bits 16-27(VLAN tag) */
-		u32 length_in_bytes:16;	/* bits  0-15(packet length) */
-#else
-		u32 length_in_bytes:16;	/* bits  0-15(packet length) */
-		u32 vlan_tag:12;		/* bits 16-27(VLAN tag) */
-		u32 vlan_cfi:1;		/* bit 28(cfi) */
-		u32 vlan_prio:3;		/* bits 29-31(VLAN priority) */
-#endif	/* _BIT_FIELDS_HTOL */
-	} bits;
-} TXDESC_WORD2_t, *PTXDESC_WORD2_t;
-
-/*
- * word 3 of the control bits in the Tx Descriptor ring for the
- * ET-1310
+ * word 2 of the control bits in the Tx Descriptor ring for the ET-1310
+ *
+ * 0-15: length of packet
+ * 16-27: VLAN tag
+ * 28: VLAN CFI
+ * 29-31: VLAN priority
+ *
+ * word 3 of the control bits in the Tx Descriptor ring for the ET-1310
  *
  * 0: last packet in the sequence
  * 1: first packet in the sequence
@@ -108,7 +93,7 @@ typedef union _txdesc_word2_t {
 typedef struct _tx_desc_entry_t {
 	u32 DataBufferPtrHigh;
 	u32 DataBufferPtrLow;
-	TXDESC_WORD2_t word2;	/* control words how to xmit the */
+	u32 word2;	/* control words how to xmit the */
 	u32 word3;	/* data (detailed above) */
 } TX_DESC_ENTRY_t, *PTX_DESC_ENTRY_t;
 
