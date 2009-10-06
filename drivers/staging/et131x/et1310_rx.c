@@ -417,14 +417,16 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 					       MP_RFD, list_node);
 
 		list_del(&rfd->list_node);
-		et131x_rfd_resources_free(adapter, rfd);
+		rfd->Packet = NULL;
+		kmem_cache_free(adapter->RxRing.RecvLookaside, rfd);
 	}
 
 	while (!list_empty(&rx_ring->RecvPendingList)) {
 		rfd = (MP_RFD *) list_entry(rx_ring->RecvPendingList.next,
 					       MP_RFD, list_node);
 		list_del(&rfd->list_node);
-		et131x_rfd_resources_free(adapter, rfd);
+		rfd->Packet = NULL;
+		kmem_cache_free(adapter->RxRing.RecvLookaside, rfd);
 	}
 
 	/* Free Free Buffer Ring 1 */
@@ -572,13 +574,7 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 			continue;
 		}
 
-		status = et131x_rfd_resources_alloc(adapter, rfd);
-		if (status != 0) {
-			dev_err(&adapter->pdev->dev,
-				  "Couldn't alloc packet for RFD\n");
-			kmem_cache_free(rx_ring->RecvLookaside, rfd);
-			continue;
-		}
+		rfd->Packet = NULL;
 
 		/* Add this RFD to the RecvList */
 		list_add_tail(&rfd->list_node, &rx_ring->RecvList);
@@ -599,31 +595,6 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 			  "Allocation problems in et131x_init_recv\n");
 	}
 	return status;
-}
-
-/**
- * et131x_rfd_resources_alloc
- * @adapter: pointer to our private adapter structure
- * @rfd: pointer to a RFD
- *
- * Returns 0 on success and errno on failure (as defined in errno.h)
- */
-int et131x_rfd_resources_alloc(struct et131x_adapter *adapter, MP_RFD *rfd)
-{
-	rfd->Packet = NULL;
-
-	return 0;
-}
-
-/**
- * et131x_rfd_resources_free - Free the packet allocated for the given RFD
- * @adapter: pointer to our private adapter structure
- * @rfd: pointer to a RFD
- */
-void et131x_rfd_resources_free(struct et131x_adapter *adapter, MP_RFD *rfd)
-{
-	rfd->Packet = NULL;
-	kmem_cache_free(adapter->RxRing.RecvLookaside, rfd);
 }
 
 /**
