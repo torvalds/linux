@@ -101,7 +101,7 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	struct _MAC_t __iomem *pMac = &etdev->regs->mac;
 	MAC_STATION_ADDR1_t station1;
 	MAC_STATION_ADDR2_t station2;
-	MAC_IPG_t ipg;
+	u32 ipg;
 	MAC_HFDP_t hfdp;
 	MII_MGMT_CFG_t mii_mgmt_cfg;
 
@@ -111,11 +111,9 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	writel(0xC00F0000, &pMac->cfg1.value);
 
 	/* Next lets configure the MAC Inter-packet gap register */
-	ipg.bits.non_B2B_ipg_1 = 0x38;		/* 58d */
-	ipg.bits.non_B2B_ipg_2 = 0x58;		/* 88d */
-	ipg.bits.min_ifg_enforce = 0x50;	/* 80d */
-	ipg.bits.B2B_ipg = 0x60;		/* 96d */
-	writel(ipg.value, &pMac->ipg.value);
+	ipg = 0x38005860;		/* IPG1 0x38 IPG2 0x58 B2B 0x60 */
+	ipg |= 0x50 << 8;		/* ifg enforce 0x50 */
+	writel(ipg, &pMac->ipg);
 
 	/* Next lets configure the MAC Half Duplex register */
 	hfdp.bits.alt_beb_trunc = 0xA;

@@ -1388,29 +1388,14 @@ typedef union _MAC_CFG2_t {
 /*
  * structure for Interpacket gap reg in mac address map.
  * located at address 0x5008
+ *
+ * 31: reserved
+ * 30-24: non B2B ipg 1
+ * 23: undefined
+ * 22-16: non B2B ipg 2
+ * 15-8: Min ifg enforce
+ * 7-0: B2B ipg
  */
-typedef union _MAC_IPG_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:1;		/* bit 31 */
-		u32 non_B2B_ipg_1:7;	/* bits 24-30 */
-		u32 undefined2:1;		/* bit 23 */
-		u32 non_B2B_ipg_2:7;	/* bits 16-22 */
-		u32 min_ifg_enforce:8;	/* bits 8-15 */
-		u32 undefined1:1;		/* bit 7 */
-		u32 B2B_ipg:7;		/* bits 0-6 */
-#else
-		u32 B2B_ipg:7;		/* bits 0-6 */
-		u32 undefined1:1;		/* bit 7 */
-		u32 min_ifg_enforce:8;	/* bits 8-15 */
-		u32 non_B2B_ipg_2:7;	/* bits 16-22 */
-		u32 undefined2:1;		/* bit 23 */
-		u32 non_B2B_ipg_1:7;	/* bits 24-30 */
-		u32 reserved:1;		/* bit 31 */
-#endif
-	} bits;
-} MAC_IPG_t, *PMAC_IPG_t;
 
 /*
  * structure for half duplex reg in mac address map.
@@ -1731,7 +1716,7 @@ typedef union _MAC_STATION_ADDR2_t {
 typedef struct _MAC_t {					/* Location: */
 	MAC_CFG1_t cfg1;				/*  0x5000 */
 	MAC_CFG2_t cfg2;				/*  0x5004 */
-	MAC_IPG_t ipg;					/*  0x5008 */
+	u32 ipg;					/*  0x5008 */
 	MAC_HFDP_t hfdp;				/*  0x500C */
 	MAC_MAX_FM_LEN_t max_fm_len;			/*  0x5010 */
 	u32 rsv1;					/*  0x5014 */
