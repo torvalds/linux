@@ -1820,6 +1820,7 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 	u8 max_wait;
 	u32 fw_state;
 	u32 cur_state;
+	u32 abs_state, curr_abs_state;
 
 	fw_state = instance->instancet->read_fw_status_reg(instance->reg_set) & MFI_STATE_MASK;
 
@@ -1828,6 +1829,9 @@ megasas_transition_to_ready(struct megasas_instance* instance)
  		       " state\n");
 
 	while (fw_state != MFI_STATE_READY) {
+
+		abs_state =
+		instance->instancet->read_fw_status_reg(instance->reg_set);
 
 		switch (fw_state) {
 
@@ -1854,7 +1858,7 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 					&instance->reg_set->inbound_doorbell);
 			}
 
-			max_wait = 2;
+			max_wait = MEGASAS_RESET_WAIT_TIME;
 			cur_state = MFI_STATE_WAIT_HANDSHAKE;
 			break;
 
@@ -1869,7 +1873,7 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 				writel(MFI_INIT_HOTPLUG,
 					&instance->reg_set->inbound_doorbell);
 
-			max_wait = 10;
+			max_wait = MEGASAS_RESET_WAIT_TIME;
 			cur_state = MFI_STATE_BOOT_MESSAGE_PENDING;
 			break;
 
@@ -1888,7 +1892,7 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 				writel(MFI_RESET_FLAGS,
 					&instance->reg_set->inbound_doorbell);
 
-			max_wait = 60;
+			max_wait = MEGASAS_RESET_WAIT_TIME;
 			cur_state = MFI_STATE_OPERATIONAL;
 			break;
 
@@ -1896,32 +1900,32 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 			/*
 			 * This state should not last for more than 2 seconds
 			 */
-			max_wait = 2;
+			max_wait = MEGASAS_RESET_WAIT_TIME;
 			cur_state = MFI_STATE_UNDEFINED;
 			break;
 
 		case MFI_STATE_BB_INIT:
-			max_wait = 2;
+			max_wait = MEGASAS_RESET_WAIT_TIME;
 			cur_state = MFI_STATE_BB_INIT;
 			break;
 
 		case MFI_STATE_FW_INIT:
-			max_wait = 20;
+			max_wait = MEGASAS_RESET_WAIT_TIME;
 			cur_state = MFI_STATE_FW_INIT;
 			break;
 
 		case MFI_STATE_FW_INIT_2:
-			max_wait = 20;
+			max_wait = MEGASAS_RESET_WAIT_TIME;
 			cur_state = MFI_STATE_FW_INIT_2;
 			break;
 
 		case MFI_STATE_DEVICE_SCAN:
-			max_wait = 20;
+			max_wait = MEGASAS_RESET_WAIT_TIME;
 			cur_state = MFI_STATE_DEVICE_SCAN;
 			break;
 
 		case MFI_STATE_FLUSH_CACHE:
-			max_wait = 20;
+			max_wait = MEGASAS_RESET_WAIT_TIME;
 			cur_state = MFI_STATE_FLUSH_CACHE;
 			break;
 
@@ -1937,8 +1941,10 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 		for (i = 0; i < (max_wait * 1000); i++) {
 			fw_state = instance->instancet->read_fw_status_reg(instance->reg_set) &  
 					MFI_STATE_MASK ;
+		curr_abs_state =
+		instance->instancet->read_fw_status_reg(instance->reg_set);
 
-			if (fw_state == cur_state) {
+			if (abs_state == curr_abs_state) {
 				msleep(1);
 			} else
 				break;
@@ -1947,7 +1953,7 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 		/*
 		 * Return error if fw_state hasn't changed after max_wait
 		 */
-		if (fw_state == cur_state) {
+		if (curr_abs_state == abs_state) {
 			printk(KERN_DEBUG "FW state [%d] hasn't changed "
 			       "in %d secs\n", fw_state, max_wait);
 			return -ENODEV;
