@@ -1808,6 +1808,54 @@ out:
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_enum_double);
 
 /**
+ * snd_soc_dapm_get_enum_virt - Get virtual DAPM mux
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_dapm_get_enum_virt(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = widget->value;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_enum_virt);
+
+/**
+ * snd_soc_dapm_put_enum_virt - Set virtual DAPM mux
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_dapm_put_enum_virt(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e =
+		(struct soc_enum *)kcontrol->private_value;
+	int change;
+	int ret = 0;
+
+	if (ucontrol->value.enumerated.item[0] >= e->max)
+		return -EINVAL;
+
+	mutex_lock(&widget->codec->mutex);
+
+	change = widget->value != ucontrol->value.enumerated.item[0];
+	widget->value = ucontrol->value.enumerated.item[0];
+	dapm_mux_update_power(widget, kcontrol, change, widget->value, e);
+
+	mutex_unlock(&widget->codec->mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_put_enum_virt);
+
+/**
  * snd_soc_dapm_get_value_enum_double - dapm semi enumerated double mixer get
  *					callback
  * @kcontrol: mixer control
