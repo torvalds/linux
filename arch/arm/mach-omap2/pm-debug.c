@@ -527,6 +527,29 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *dir)
 	return 0;
 }
 
+static int option_get(void *data, u64 *val)
+{
+	u32 *option = data;
+
+	*val = *option;
+
+	return 0;
+}
+
+static int option_set(void *data, u64 val)
+{
+	u32 *option = data;
+
+	*option = val;
+
+	if (option == &enable_off_mode)
+		omap3_pm_off_mode_enable(val);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(pm_dbg_option_fops, option_get, option_set, "%llu\n");
+
 static int __init pm_dbg_init(void)
 {
 	int i;
@@ -569,6 +592,10 @@ static int __init pm_dbg_init(void)
 
 		}
 
+	(void) debugfs_create_file("enable_off_mode", S_IRUGO | S_IWUGO, d,
+				   &enable_off_mode, &pm_dbg_option_fops);
+	(void) debugfs_create_file("sleep_while_idle", S_IRUGO | S_IWUGO, d,
+				   &sleep_while_idle, &pm_dbg_option_fops);
 	pm_dbg_init_done = 1;
 
 	return 0;

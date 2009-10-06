@@ -13,7 +13,11 @@
 
 #include <plat/powerdomain.h>
 
+extern u32 enable_off_mode;
+extern u32 sleep_while_idle;
+
 extern void *omap3_secure_ram_storage;
+extern void omap3_pm_off_mode_enable(int);
 
 extern int omap3_pm_get_suspend_state(struct powerdomain *pwrdm);
 extern int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state);

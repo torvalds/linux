@@ -25,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/clk.h>
 
 #include <plat/sram.h>
 #include <plat/clockdomain.h>
@@ -56,6 +57,9 @@
 #define OMAP343X_TABLE_ADDRESS_OFFSET	   0x31
 #define OMAP343X_TABLE_VALUE_OFFSET	   0x30
 #define OMAP343X_CONTROL_REG_VALUE_OFFSET  0x32
+
+u32 enable_off_mode;
+u32 sleep_while_idle;
 
 struct power_state {
 	struct powerdomain *pwrdm;
@@ -456,6 +460,8 @@ static int omap3_fclks_active(void)
 
 static int omap3_can_sleep(void)
 {
+	if (!sleep_while_idle)
+		return 0;
 	if (!omap_uart_can_sleep())
 		return 0;
 	if (omap3_fclks_active())
@@ -898,6 +904,22 @@ static void __init prcm_setup_regs(void)
 
 	omap3_iva_idle();
 	omap3_d2d_idle();
+}
+
+void omap3_pm_off_mode_enable(int enable)
+{
+	struct power_state *pwrst;
+	u32 state;
+
+	if (enable)
+		state = PWRDM_POWER_OFF;
+	else
+		state = PWRDM_POWER_RET;
+
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		pwrst->next_state = state;
+		set_pwrdm_state(pwrst->pwrdm, state);
+	}
 }
 
 int omap3_pm_get_suspend_state(struct powerdomain *pwrdm)
