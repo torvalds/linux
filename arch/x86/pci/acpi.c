@@ -7,6 +7,7 @@
 #include <asm/pci_x86.h>
 
 struct pci_root_info {
+	struct acpi_device *bridge;
 	char *name;
 	unsigned int res_num;
 	struct resource *res;
@@ -107,12 +108,18 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->child = NULL;
 
 	if (insert_resource(root, res)) {
-		printk(KERN_ERR "PCI: Failed to allocate 0x%lx-0x%lx "
-			"from %s for %s\n", (unsigned long) res->start,
-			(unsigned long) res->end, root->name, info->name);
+		dev_err(&info->bridge->dev, "can't allocate %pRt\n", res);
 	} else {
 		info->bus->resource[info->res_num] = res;
 		info->res_num++;
+		if (addr.translation_offset)
+			dev_info(&info->bridge->dev, "host bridge window: %pRt "
+				 "(PCI address [%#llx-%#llx])\n",
+				 res, res->start - addr.translation_offset,
+				 res->end - addr.translation_offset);
+		else
+			dev_info(&info->bridge->dev,
+				 "host bridge window: %pRt\n", res);
 	}
 	return AE_OK;
 }
@@ -124,6 +131,7 @@ get_current_resources(struct acpi_device *device, int busnum,
 	struct pci_root_info info;
 	size_t size;
 
+	info.bridge = device;
 	info.bus = bus;
 	info.res_num = 0;
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_resource,
