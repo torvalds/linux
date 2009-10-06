@@ -547,15 +547,6 @@ void et131x_tx_timeout(struct net_device *netdev)
 		tcb->Count++;
 
 		if (tcb->Count > NIC_SEND_HANG_THRESHOLD) {
-			struct tx_desc stuck[10];
-
-			if (INDEX10(tcb->WrIndex) > 7) {
-				memcpy(stuck,
-				       etdev->tx_ring.tx_desc_ring +
-				       INDEX10(tcb->WrIndex) - 6,
-				       sizeof(struct tx_desc) * 10);
-			}
-
 			spin_unlock_irqrestore(&etdev->TCBSendQLock,
 					       flags);
 
