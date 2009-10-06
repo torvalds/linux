@@ -96,6 +96,7 @@
 #define MFI_FRAME_DIR_WRITE			0x0008
 #define MFI_FRAME_DIR_READ			0x0010
 #define MFI_FRAME_DIR_BOTH			0x0018
+#define MFI_FRAME_IEEE                          0x0020
 
 /*
  * Definition for cmd_status
@@ -732,10 +733,17 @@ struct megasas_sge64 {
 
 } __attribute__ ((packed));
 
+struct megasas_sge_skinny {
+	u64 phys_addr;
+	u32 length;
+	u32 flag;
+} __packed;
+
 union megasas_sgl {
 
 	struct megasas_sge32 sge32[1];
 	struct megasas_sge64 sge64[1];
+	struct megasas_sge_skinny sge_skinny[1];
 
 } __attribute__ ((packed));
 
@@ -1210,6 +1218,7 @@ struct megasas_instance {
 
 	u8 flag;
 	u8 unload;
+	u8 flag_ieee;
 	unsigned long last_time;
 
 	struct timer_list io_completion_timer;
