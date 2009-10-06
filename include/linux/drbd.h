@@ -138,6 +138,7 @@ enum drbd_ret_codes {
 	ERR_VERIFY_RUNNING	= 149, /* DRBD 8.2 only */
 	ERR_DATA_NOT_CURRENT	= 150,
 	ERR_CONNECTED		= 151, /* DRBD 8.3 only */
+	ERR_PERM		= 152,
 
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE

@@ -2000,7 +2000,7 @@ static struct cn_handler_struct cnd_table[] = {
 	[ P_new_c_uuid ]	= { &drbd_nl_new_c_uuid,	0 },
 };
 
-static void drbd_connector_callback(struct cn_msg *req)
+static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms *nsp)
 {
 	struct drbd_nl_cfg_req *nlp = (struct drbd_nl_cfg_req *)req->data;
 	struct cn_handler_struct *cm;
@@ -2015,6 +2015,11 @@ static void drbd_connector_callback(struct cn_msg *req)
 	if (!try_module_get(THIS_MODULE)) {
 		printk(KERN_ERR "drbd: try_module_get() failed!\n");
 		return;
+	}
+
+	if (!cap_raised(nsp->eff_cap, CAP_SYS_ADMIN)) {
+		retcode = ERR_PERM;
+		goto fail;
 	}
 
 	mdev = ensure_mdev(nlp);
