@@ -561,7 +561,8 @@ static int convert_response_ica(struct zcrypt_device *zdev,
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_ica(zdev, reply,
 						  outputdata, outputdatalength);
-		/* no break, incorrect cprb version is an unknown response */
+		/* Fall through, no break, incorrect cprb version is an unknown
+		 * response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zdev->online = 0;
 		return -EAGAIN;	/* repeat the request on a different device. */
@@ -587,7 +588,8 @@ static int convert_response_xcrb(struct zcrypt_device *zdev,
 		}
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_xcrb(zdev, reply, xcRB);
-		/* no break, incorrect cprb version is an unknown response */
+		/* Fall through, no break, incorrect cprb version is an unknown
+		 * response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		xcRB->status = 0x0008044DL; /* HDD_InvalidParm */
 		zdev->online = 0;
@@ -610,7 +612,8 @@ static int convert_response_rng(struct zcrypt_device *zdev,
 			return -EINVAL;
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_rng(zdev, reply, data);
-		/* no break, incorrect cprb version is an unknown response */
+		/* Fall through, no break, incorrect cprb version is an unknown
+		 * response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zdev->online = 0;
 		return -EAGAIN;	/* repeat the request on a different device. */
