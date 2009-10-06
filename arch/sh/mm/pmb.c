@@ -269,6 +269,13 @@ again:
 			pmbp->link = pmbe;
 
 		pmbp = pmbe;
+
+		/*
+		 * Instead of trying smaller sizes on every iteration
+		 * (even if we succeed in allocating space), try using
+		 * pmb_sizes[i].size again.
+		 */
+		i--;
 	}
 
 	if (size >= 0x1000000)
