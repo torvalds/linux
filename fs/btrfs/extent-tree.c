@@ -4028,6 +4028,7 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	int loop = 0;
 	bool found_uncached_bg = false;
 	bool failed_cluster_refill = false;
+	bool failed_alloc = false;
 
 	WARN_ON(num_bytes < root->sectorsize);
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
@@ -4232,14 +4233,23 @@ refill_cluster:
 
 		offset = btrfs_find_space_for_alloc(block_group, search_start,
 						    num_bytes, empty_size);
-		if (!offset && (cached || (!cached &&
-					   loop == LOOP_CACHING_NOWAIT))) {
-			goto loop;
-		} else if (!offset && (!cached &&
-				       loop > LOOP_CACHING_NOWAIT)) {
+		/*
+		 * If we didn't find a chunk, and we haven't failed on this
+		 * block group before, and this block group is in the middle of
+		 * caching and we are ok with waiting, then go ahead and wait
+		 * for progress to be made, and set failed_alloc to true.
+		 *
+		 * If failed_alloc is true then we've already waited on this
+		 * block group once and should move on to the next block group.
+		 */
+		if (!offset && !failed_alloc && !cached &&
+		    loop > LOOP_CACHING_NOWAIT) {
 			wait_block_group_cache_progress(block_group,
-					num_bytes + empty_size);
+						num_bytes + empty_size);
+			failed_alloc = true;
 			goto have_block_group;
+		} else if (!offset) {
+			goto loop;
 		}
 checks:
 		search_start = stripe_align(root, offset);
@@ -4287,6 +4297,7 @@ checks:
 		break;
 loop:
 		failed_cluster_refill = false;
+		failed_alloc = false;
 		btrfs_put_block_group(block_group);
 	}
 	up_read(&space_info->groups_sem);
