@@ -596,7 +596,8 @@ static int receive(struct net_device *dev, int cnt)
 						state = 0;
 
 					/* not flag received */
-					else if (!(bitstream & (0x1fe << j)) != (0x0fc << j)) {
+					else if ((bitstream & (0x1fe << j)) !=
+							(0x0fc << j)) {
 						if (state)
 							do_rxpacket(dev);
 						bc->hdlcrx.bufcnt = 0;
