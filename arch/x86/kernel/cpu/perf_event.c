@@ -1349,6 +1349,12 @@ fixed_mode_idx(struct perf_event *event, struct hw_perf_event *hwc)
 	if (!x86_pmu.num_events_fixed)
 		return -1;
 
+	/*
+	 * fixed counters do not take all possible filters
+	 */
+	if (hwc->config & ARCH_PERFMON_EVENT_FILTER_MASK)
+		return -1;
+
 	if (unlikely(hw_event == x86_pmu.event_map(PERF_COUNT_HW_INSTRUCTIONS)))
 		return X86_PMC_IDX_FIXED_INSTRUCTIONS;
 	if (unlikely(hw_event == x86_pmu.event_map(PERF_COUNT_HW_CPU_CYCLES)))
