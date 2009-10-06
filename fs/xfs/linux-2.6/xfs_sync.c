@@ -419,14 +419,16 @@ xfs_quiesce_data(
 	/* push non-blocking */
 	xfs_sync_data(mp, 0);
 	xfs_qm_sync(mp, SYNC_TRYLOCK);
-	xfs_filestream_flush(mp);
 
-	/* push and block */
+	/* push and block till complete */
 	xfs_sync_data(mp, SYNC_WAIT);
 	xfs_qm_sync(mp, SYNC_WAIT);
 
+	/* drop inode references pinned by filestreams */
+	xfs_filestream_flush(mp);
+
 	/* write superblock and hoover up shutdown errors */
-	error = xfs_sync_fsdata(mp, 0);
+	error = xfs_sync_fsdata(mp, SYNC_WAIT);
 
 	/* flush data-only devices */
 	if (mp->m_rtdev_targp)
