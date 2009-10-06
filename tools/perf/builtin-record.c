@@ -29,43 +29,43 @@ static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static long			default_interval		= 100000;
 
-static int			nr_cpus				= 0;
+static int			nr_cpus				=      0;
 static unsigned int		page_size;
-static unsigned int		mmap_pages			= 128;
-static int			freq				= 0;
+static unsigned int		mmap_pages			=    128;
+static int			freq				=   1000;
 static int			output;
 static const char		*output_name			= "perf.data";
-static int			group				= 0;
-static unsigned int		realtime_prio			= 0;
-static int			raw_samples			= 0;
-static int			system_wide			= 0;
-static int			profile_cpu			= -1;
-static pid_t			target_pid			= -1;
-static pid_t			child_pid			= -1;
-static int			inherit				= 1;
-static int			force				= 0;
-static int			append_file			= 0;
-static int			call_graph			= 0;
-static int			inherit_stat			= 0;
-static int			no_samples			= 0;
-static int			sample_address			= 0;
-static int			multiplex			= 0;
-static int			multiplex_fd			= -1;
+static int			group				=      0;
+static unsigned int		realtime_prio			=      0;
+static int			raw_samples			=      0;
+static int			system_wide			=      0;
+static int			profile_cpu			=     -1;
+static pid_t			target_pid			=     -1;
+static pid_t			child_pid			=     -1;
+static int			inherit				=      1;
+static int			force				=      0;
+static int			append_file			=      0;
+static int			call_graph			=      0;
+static int			inherit_stat			=      0;
+static int			no_samples			=      0;
+static int			sample_address			=      0;
+static int			multiplex			=      0;
+static int			multiplex_fd			=     -1;
 
-static long			samples;
+static long			samples				=      0;
 static struct timeval		last_read;
 static struct timeval		this_read;
 
-static u64			bytes_written;
+static u64			bytes_written			=      0;
 
 static struct pollfd		event_array[MAX_NR_CPUS * MAX_COUNTERS];
 
-static int			nr_poll;
-static int			nr_cpu;
+static int			nr_poll				=      0;
+static int			nr_cpu				=      0;
 
-static int			file_new = 1;
+static int			file_new			=      1;
 
-struct perf_header		*header;
+struct perf_header		*header				=   NULL;
 
 struct mmap_data {
 	int			counter;

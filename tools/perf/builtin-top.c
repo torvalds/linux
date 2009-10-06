@@ -55,26 +55,26 @@
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
-static int			system_wide			=  0;
+static int			system_wide			=      0;
 
 static int			default_interval		= 100000;
 
-static int			count_filter			=  5;
-static int			print_entries			= 15;
+static int			count_filter			=      5;
+static int			print_entries			=     15;
 
-static int			target_pid			= -1;
-static int			inherit				=  0;
-static int			profile_cpu			= -1;
-static int			nr_cpus				=  0;
-static unsigned int		realtime_prio			=  0;
-static int			group				=  0;
+static int			target_pid			=     -1;
+static int			inherit				=      0;
+static int			profile_cpu			=     -1;
+static int			nr_cpus				=      0;
+static unsigned int		realtime_prio			=      0;
+static int			group				=      0;
 static unsigned int		page_size;
-static unsigned int		mmap_pages			= 16;
-static int			freq				=  0;
+static unsigned int		mmap_pages			=     16;
+static int			freq				=   1000; /* 1 KHz */
 
-static int			delay_secs			=  2;
-static int			zero;
-static int			dump_symtab;
+static int			delay_secs			=      2;
+static int			zero                            =      0;
+static int			dump_symtab                     =      0;
 
 /*
  * Source
@@ -87,11 +87,11 @@ struct source_line {
 	struct source_line	*next;
 };
 
-static char			*sym_filter			=  NULL;
-struct sym_entry		*sym_filter_entry		=  NULL;
-static int			sym_pcnt_filter			=  5;
-static int			sym_counter			=  0;
-static int			display_weighted		= -1;
+static char			*sym_filter			=   NULL;
+struct sym_entry		*sym_filter_entry		=   NULL;
+static int			sym_pcnt_filter			=      5;
+static int			sym_counter			=      0;
+static int			display_weighted		=     -1;
 
 /*
  * Symbols
