@@ -622,7 +622,7 @@ int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 
 	et131x_init_send(adapter);
 
-	et131x_setup_hardware_properties(adapter);
+	et131x_hwaddr_init(adapter);
 	memcpy(netdev->dev_addr, adapter->CurrentAddress, ETH_ALEN);
 
 	/* Init the device with the new settings */
@@ -709,9 +709,7 @@ int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	et131x_init_send(adapter);
 
-	et131x_setup_hardware_properties(adapter);
-	/* memcpy( netdev->dev_addr, adapter->CurrentAddress, ETH_ALEN ); */
-	/* blux: no, do not override our nice address */
+	et131x_hwaddr_init(adapter);
 
 	/* Init the device with the new settings */
 	et131x_adapter_setup(adapter);
