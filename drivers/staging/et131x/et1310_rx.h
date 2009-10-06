@@ -309,15 +309,11 @@ typedef struct _rx_ring_t {
 
 	void *pPSRingVa;
 	dma_addr_t pPSRingPa;
-	uint64_t pPSRingRealPa;
-	uint64_t pPSRingOffset;
 	RXDMA_PSR_FULL_OFFSET_t local_psr_full;
 	u32 PsrNumEntries;
 
 	void *pRxStatusVa;
 	dma_addr_t pRxStatusPa;
-	uint64_t RxStatusRealPA;
-	uint64_t RxStatusOffset;
 
 	struct list_head RecvBufferPool;
 

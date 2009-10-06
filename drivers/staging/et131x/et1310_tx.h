@@ -162,8 +162,6 @@ struct tx_ring {
 	/* The actual descriptor ring */
 	struct tx_desc *tx_desc_ring;
 	dma_addr_t tx_desc_ring_pa;
-	u64 pTxDescRingAdjustedPa;
-	u64 TxDescOffset;
 
 	/* ReadyToSend indicates where we last wrote to in the descriptor ring. */
 	u32 txDmaReadyToSend;

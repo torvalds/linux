@@ -146,15 +146,6 @@ int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 * are ever returned, make sure the high part is retrieved here before
 	 * storing the adjusted address.
 	 */
-	tx_ring->pTxDescRingAdjustedPa = tx_ring->tx_desc_ring_pa;
-
-	/* Align Tx Descriptor Ring on a 4k (0x1000) byte boundary */
-	et131x_align_allocated_memory(adapter,
-				      &tx_ring->pTxDescRingAdjustedPa,
-				      &tx_ring->TxDescOffset, 0x0FFF);
-
-	tx_ring->tx_desc_ring += tx_ring->TxDescOffset;
-
 	/* Allocate memory for the Tx status block */
 	tx_ring->pTxStatusVa = pci_alloc_consistent(adapter->pdev,
 						    sizeof(TX_STATUS_BLOCK_t),
@@ -190,16 +181,12 @@ void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
 
 	if (adapter->tx_ring.tx_desc_ring) {
 		/* Free memory relating to Tx rings here */
-		adapter->tx_ring.tx_desc_ring -= adapter->tx_ring.TxDescOffset;
-
 		desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX)
 									+ 4096 - 1;
-
 		pci_free_consistent(adapter->pdev,
 				    desc_size,
 				    adapter->tx_ring.tx_desc_ring,
 				    adapter->tx_ring.tx_desc_ring_pa);
-
 		adapter->tx_ring.tx_desc_ring = NULL;
 	}
 
@@ -236,9 +223,9 @@ void ConfigTxDmaRegs(struct et131x_adapter *etdev)
 	struct _TXDMA_t __iomem *txdma = &etdev->regs->txdma;
 
 	/* Load the hardware with the start of the transmit descriptor ring. */
-	writel((u32) (etdev->tx_ring.pTxDescRingAdjustedPa >> 32),
+	writel((u32) ((u64)etdev->tx_ring.tx_desc_ring_pa >> 32),
 	       &txdma->pr_base_hi);
-	writel((u32) etdev->tx_ring.pTxDescRingAdjustedPa,
+	writel((u32) etdev->tx_ring.tx_desc_ring_pa,
 	       &txdma->pr_base_lo);
 
 	/* Initialise the transmit DMA engine */

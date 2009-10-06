@@ -342,7 +342,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	    sizeof(PKT_STAT_DESC_t) * adapter->RxRing.PsrNumEntries;
 
 	rx_ring->pPSRingVa = pci_alloc_consistent(adapter->pdev,
-						  pktStatRingSize + 0x0fff,
+						  pktStatRingSize,
 						  &rx_ring->pPSRingPa);
 
 	if (!rx_ring->pPSRingVa) {
@@ -350,45 +350,26 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			  "Cannot alloc memory for Packet Status Ring\n");
 		return -ENOMEM;
 	}
+	printk("PSR %lx\n", (unsigned long) rx_ring->pPSRingPa);
 
-	/* Save physical address
-	 *
+	/*
 	 * NOTE : pci_alloc_consistent(), used above to alloc DMA regions,
 	 * ALWAYS returns SAC (32-bit) addresses. If DAC (64-bit) addresses
 	 * are ever returned, make sure the high part is retrieved here before
 	 * storing the adjusted address.
 	 */
-	rx_ring->pPSRingRealPa = rx_ring->pPSRingPa;
-
-	/* Align Packet Status Ring on a 4K boundary */
-	et131x_align_allocated_memory(adapter,
-				      &rx_ring->pPSRingRealPa,
-				      &rx_ring->pPSRingOffset, 0x0FFF);
-
-	rx_ring->pPSRingVa = (void *)((uint8_t *) rx_ring->pPSRingVa +
-				      rx_ring->pPSRingOffset);
 
 	/* Allocate an area of memory for writeback of status information */
 	rx_ring->pRxStatusVa = pci_alloc_consistent(adapter->pdev,
-						    sizeof(RX_STATUS_BLOCK_t) +
-						    0x7, &rx_ring->pRxStatusPa);
+						    sizeof(RX_STATUS_BLOCK_t),
+						    &rx_ring->pRxStatusPa);
 	if (!rx_ring->pRxStatusVa) {
 		dev_err(&adapter->pdev->dev,
 			  "Cannot alloc memory for Status Block\n");
 		return -ENOMEM;
 	}
-
-	/* Save physical address */
-	rx_ring->RxStatusRealPA = rx_ring->pRxStatusPa;
-
-	/* Align write back on an 8 byte boundary */
-	et131x_align_allocated_memory(adapter,
-				      &rx_ring->RxStatusRealPA,
-				      &rx_ring->RxStatusOffset, 0x07);
-
-	rx_ring->pRxStatusVa = (void *)((uint8_t *) rx_ring->pRxStatusVa +
-					rx_ring->RxStatusOffset);
 	rx_ring->NumRfd = NIC_DEFAULT_NUM_RFD;
+	printk("PRS %lx\n", (unsigned long)rx_ring->pRxStatusPa);
 
 	/* Recv
 	 * pci_pool_create initializes a lookaside list. After successful
@@ -523,14 +504,10 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 	/* Free Packet Status Ring */
 	if (rx_ring->pPSRingVa) {
-		rx_ring->pPSRingVa = (void *)((uint8_t *) rx_ring->pPSRingVa -
-					      rx_ring->pPSRingOffset);
-
 		pktStatRingSize =
 		    sizeof(PKT_STAT_DESC_t) * adapter->RxRing.PsrNumEntries;
 
-		pci_free_consistent(adapter->pdev,
-				    pktStatRingSize + 0x0fff,
+		pci_free_consistent(adapter->pdev, pktStatRingSize,
 				    rx_ring->pPSRingVa, rx_ring->pPSRingPa);
 
 		rx_ring->pPSRingVa = NULL;
@@ -538,11 +515,8 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 	/* Free area of memory for the writeback of status information */
 	if (rx_ring->pRxStatusVa) {
-		rx_ring->pRxStatusVa = (void *)((uint8_t *)
-				rx_ring->pRxStatusVa - rx_ring->RxStatusOffset);
-
 		pci_free_consistent(adapter->pdev,
-				sizeof(RX_STATUS_BLOCK_t) + 0x7,
+				sizeof(RX_STATUS_BLOCK_t),
 				rx_ring->pRxStatusVa, rx_ring->pRxStatusPa);
 
 		rx_ring->pRxStatusVa = NULL;
@@ -675,18 +649,18 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	 * are ever returned, make sure the high part is retrieved here
 	 * before storing the adjusted address.
 	 */
-	writel((uint32_t) (pRxLocal->RxStatusRealPA >> 32),
+	writel((uint32_t) ((u64)pRxLocal->pRxStatusPa >> 32),
 	       &rx_dma->dma_wb_base_hi);
-	writel((uint32_t) pRxLocal->RxStatusRealPA, &rx_dma->dma_wb_base_lo);
+	writel((uint32_t) pRxLocal->pRxStatusPa, &rx_dma->dma_wb_base_lo);
 
 	memset(pRxLocal->pRxStatusVa, 0, sizeof(RX_STATUS_BLOCK_t));
 
 	/* Set the address and parameters of the packet status ring into the
 	 * 1310's registers
 	 */
-	writel((uint32_t) (pRxLocal->pPSRingRealPa >> 32),
+	writel((uint32_t) ((u64)pRxLocal->pPSRingPa >> 32),
 	       &rx_dma->psr_base_hi);
-	writel((uint32_t) pRxLocal->pPSRingRealPa, &rx_dma->psr_base_lo);
+	writel((uint32_t) pRxLocal->pPSRingPa, &rx_dma->psr_base_lo);
 	writel(pRxLocal->PsrNumEntries - 1, &rx_dma->psr_num_des.value);
 	writel(0, &rx_dma->psr_full_offset.value);
 
