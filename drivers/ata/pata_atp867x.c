@@ -533,6 +533,23 @@ err_out:
 	return rc;
 }
 
+#ifdef CONFIG_PM
+static int atp867x_reinit_one(struct pci_dev *pdev)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
+	atp867x_fixup(host);
+
+	ata_host_resume(host);
+	return 0;
+}
+#endif
+
 static struct pci_device_id atp867x_pci_tbl[] = {
 	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP867A),	0 },
 	{ PCI_VDEVICE(ARTOP, PCI_DEVICE_ID_ARTOP_ATP867B),	0 },
@@ -544,6 +561,10 @@ static struct pci_driver atp867x_driver = {
 	.id_table 	= atp867x_pci_tbl,
 	.probe 		= atp867x_init_one,
 	.remove		= ata_pci_remove_one,
+#ifdef CONFIG_PM
+	.suspend	= ata_pci_device_suspend,
+	.resume		= atp867x_reinit_one,
+#endif
 };
 
 static int __init atp867x_init(void)
