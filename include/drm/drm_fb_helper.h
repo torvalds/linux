@@ -39,6 +39,8 @@ struct drm_fb_helper_crtc {
 struct drm_fb_helper_funcs {
 	void (*gamma_set)(struct drm_crtc *crtc, u16 red, u16 green,
 			  u16 blue, int regno);
+	void (*gamma_get)(struct drm_crtc *crtc, u16 *red, u16 *green,
+			  u16 *blue, int regno);
 };
 
 /* mode specified on the command line */
@@ -71,6 +73,7 @@ struct drm_fb_helper {
 };
 
 int drm_fb_helper_single_fb_probe(struct drm_device *dev,
+				  int preferred_bpp,
 				  int (*fb_create)(struct drm_device *dev,
 						   uint32_t fb_width,
 						   uint32_t fb_height,

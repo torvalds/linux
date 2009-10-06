@@ -65,6 +65,7 @@ static struct fb_ops intelfb_ops = {
 
 static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.gamma_set = intel_crtc_fb_gamma_set,
+	.gamma_get = intel_crtc_fb_gamma_get,
 };
 
 
@@ -123,6 +124,10 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	struct drm_i915_gem_object *obj_priv;
 	struct device *device = &dev->pdev->dev;
 	int size, ret, mmio_bar = IS_I9XX(dev) ? 0 : 1;
+
+	/* we don't do packed 24bpp */
+	if (surface_bpp == 24)
+		surface_bpp = 32;
 
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
@@ -245,7 +250,7 @@ int intelfb_probe(struct drm_device *dev)
 	int ret;
 
 	DRM_DEBUG("\n");
-	ret = drm_fb_helper_single_fb_probe(dev, intelfb_create);
+	ret = drm_fb_helper_single_fb_probe(dev, 32, intelfb_create);
 	return ret;
 }
 EXPORT_SYMBOL(intelfb_probe);

@@ -124,6 +124,7 @@ static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bo
 
 static struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
 	.gamma_set = radeon_crtc_fb_gamma_set,
+	.gamma_get = radeon_crtc_fb_gamma_get,
 };
 
 int radeonfb_create(struct drm_device *dev,
@@ -151,6 +152,11 @@ int radeonfb_create(struct drm_device *dev,
 
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
+
+	/* avivo can't scanout real 24bpp */
+	if ((surface_bpp == 24) && ASIC_IS_AVIVO(rdev))
+		surface_bpp = 32;
+
 	mode_cmd.bpp = surface_bpp;
 	/* need to align pitch with crtc limits */
 	mode_cmd.pitch = radeon_align_pitch(rdev, mode_cmd.width, mode_cmd.bpp, fb_tiled) * ((mode_cmd.bpp + 1) / 8);
@@ -315,7 +321,7 @@ int radeon_parse_options(char *options)
 
 int radeonfb_probe(struct drm_device *dev)
 {
-	return drm_fb_helper_single_fb_probe(dev, &radeonfb_create);
+	return drm_fb_helper_single_fb_probe(dev, 32, &radeonfb_create);
 }
 
 int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb)
