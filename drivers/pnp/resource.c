@@ -517,7 +517,7 @@ struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
 	res->start = irq;
 	res->end = irq;
 
-	pnp_dbg(&dev->dev, "  add irq %d flags %#x\n", irq, flags);
+	pnp_dbg(&dev->dev, "  add %pRf\n", res);
 	return pnp_res;
 }
 
@@ -538,7 +538,7 @@ struct pnp_resource *pnp_add_dma_resource(struct pnp_dev *dev, int dma,
 	res->start = dma;
 	res->end = dma;
 
-	pnp_dbg(&dev->dev, "  add dma %d flags %#x\n", dma, flags);
+	pnp_dbg(&dev->dev, "  add %pRf\n", res);
 	return pnp_res;
 }
 
@@ -562,8 +562,7 @@ struct pnp_resource *pnp_add_io_resource(struct pnp_dev *dev,
 	res->start = start;
 	res->end = end;
 
-	pnp_dbg(&dev->dev, "  add io  %#llx-%#llx flags %#x\n",
-		(unsigned long long) start, (unsigned long long) end, flags);
+	pnp_dbg(&dev->dev, "  add %pRf\n", res);
 	return pnp_res;
 }
 
@@ -587,8 +586,7 @@ struct pnp_resource *pnp_add_mem_resource(struct pnp_dev *dev,
 	res->start = start;
 	res->end = end;
 
-	pnp_dbg(&dev->dev, "  add mem %#llx-%#llx flags %#x\n",
-		(unsigned long long) start, (unsigned long long) end, flags);
+	pnp_dbg(&dev->dev, "  add %pRf\n", res);
 	return pnp_res;
 }
 

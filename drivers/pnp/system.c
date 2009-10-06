@@ -22,11 +22,11 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{"", 0}
 };
 
-static void reserve_range(struct pnp_dev *dev, resource_size_t start,
-			  resource_size_t end, int port)
+static void reserve_range(struct pnp_dev *dev, struct resource *r, int port)
 {
 	char *regionid;
 	const char *pnpid = dev_name(&dev->dev);
+	resource_size_t start = r->start, end = r->end;
 	struct resource *res;
 
 	regionid = kmalloc(16, GFP_KERNEL);
@@ -48,10 +48,8 @@ static void reserve_range(struct pnp_dev *dev, resource_size_t start,
 	 * example do reserve stuff they know about too, so we may well
 	 * have double reservations.
 	 */
-	dev_info(&dev->dev, "%s range 0x%llx-0x%llx %s reserved\n",
-		port ? "ioport" : "iomem",
-		(unsigned long long) start, (unsigned long long) end,
-		res ? "has been" : "could not be");
+	dev_info(&dev->dev, "%pRt %s reserved\n", r,
+		 res ? "has been" : "could not be");
 }
 
 static void reserve_resources_of_dev(struct pnp_dev *dev)
@@ -77,14 +75,14 @@ static void reserve_resources_of_dev(struct pnp_dev *dev)
 		if (res->end < res->start)
 			continue;	/* invalid */
 
-		reserve_range(dev, res->start, res->end, 1);
+		reserve_range(dev, res, 1);
 	}
 
 	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_MEM, i)); i++) {
 		if (res->flags & IORESOURCE_DISABLED)
 			continue;
 
-		reserve_range(dev, res->start, res->end, 0);
+		reserve_range(dev, res, 0);
 	}
 }
 
