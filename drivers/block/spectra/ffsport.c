@@ -126,7 +126,9 @@ u64 GLOB_u64_Remainder(u64 addr, u32 divisor_type)
 #define GLOB_SBD_IOCTL_WRITE_DATA                (0x7709)
 #define GLOB_SBD_IOCTL_READ_DATA                 (0x770A)
 
-static u32 reserved_mb_for_os_image = 0;
+static int reserved_mb = 0;
+module_param(reserved_mb, int, 0);
+MODULE_PARM_DESC(reserved_mb, "Reserved space for OS image, in MiB (default 25 MiB)");
 
 int nand_debug_level;
 module_param(nand_debug_level, int, 0644);
@@ -262,7 +264,7 @@ static int get_res_blk_num_os(void)
 	blk_size = IdentifyDeviceData.PageDataSize *
 		IdentifyDeviceData.PagesPerBlock;
 
-	res_blks = (reserved_mb_for_os_image * 1024 * 1024) / blk_size;
+	res_blks = (reserved_mb * 1024 * 1024) / blk_size;
 
 	if ((res_blks < 1) || (res_blks >= IdentifyDeviceData.wDataBlockNum))
 		res_blks = 1; /* Reserved 1 block for block table */
@@ -822,26 +824,6 @@ static void __exit GLOB_SBD_exit(void)
 		       "Spectra FTL module (major number %d) unloaded.\n",
 		       GLOB_SBD_majornum);
 }
-
-static int __init setup_reserve_space_for_os_image(char *cmdline)
-{
-	unsigned long value;
-	int error;
-
-	printk(KERN_ALERT "Spectra - cmdline: %s\n", cmdline);
-	if (!cmdline)
-		return -EINVAL;
-
-	error = strict_strtoul((const char *)cmdline, 10, &value);
-	if (error)
-		return -EINVAL;
-
-	reserved_mb_for_os_image = value;
-
-	return 0;
-}
-
-early_param("res_nand", setup_reserve_space_for_os_image);
 
 module_init(GLOB_SBD_init);
 module_exit(GLOB_SBD_exit);
