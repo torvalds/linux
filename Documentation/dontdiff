@@ -68,7 +68,6 @@ autoconf.h*
 bbootsect
 bin2c
 binkernel.spec
-binoffset
 bootsect
 bounds.h
 bsetup
