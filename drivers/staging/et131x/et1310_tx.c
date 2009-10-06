@@ -368,7 +368,6 @@ static int et131x_send_packet(struct sk_buff *skb,
 
 	spin_unlock_irqrestore(&etdev->TCBReadyQLock, flags);
 
-	tcb->len = skb->len;
 	tcb->skb = skb;
 
 	if ((skb->data != NULL) && ((skb->len - skb->data_len) >= 6)) {

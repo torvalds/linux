@@ -106,11 +106,10 @@ struct tx_desc {
 struct tcb {
 	struct tcb *next;	/* Next entry in ring */
 	u32 flags;		/* Our flags for the packet */
-	u32 count;
+	u32 count;		/* Used to spot stuck/lost packets */
 	u32 stale;		/* Used to spot stuck/lost packets */
 	struct sk_buff *skb;	/* Network skb we are tied to */
-	u32 len;
-	u32 index;
+	u32 index;		/* Ring indexes */
 	u32 index_start;
 };
 
