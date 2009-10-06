@@ -272,15 +272,6 @@ typedef enum {
 } eRX_INTERRUPT_STATE_t, *PeRX_INTERRUPT_STATE_t;
 
 /*
- * Structure to hold the skb's in a list
- */
-typedef struct rx_skb_list_elem {
-	struct list_head skb_list_elem;
-	dma_addr_t dma_addr;
-	struct sk_buff *skb;
-} RX_SKB_LIST_ELEM, *PRX_SKB_LIST_ELEM;
-
-/*
  * RX_RING_t is sructure representing the adaptor's local reference(s) to the
  * rings
  */
