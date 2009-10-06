@@ -1452,27 +1452,14 @@ typedef union _MAC_TEST_t {
 /*
  * structure for MII Management Configuration reg in mac address map.
  * located at address 0x5020
+ *
+ * 31: reset MII mgmt
+ * 30-6: unused
+ * 5: scan auto increment
+ * 4: preamble supress
+ * 3: undefined
+ * 2-0: mgmt clock reset
  */
-typedef union _MII_MGMT_CFG_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reset_mii_mgmt:1;	/* bit 31 */
-		u32 reserved:25;		/* bits 6-30 */
-		u32 scan_auto_incremt:1;	/* bit 5 */
-		u32 preamble_suppress:1;	/* bit 4 */
-		u32 undefined:1;		/* bit 3 */
-		u32 mgmt_clk_reset:3;	/* bits 0-2 */
-#else
-		u32 mgmt_clk_reset:3;	/* bits 0-2 */
-		u32 undefined:1;		/* bit 3 */
-		u32 preamble_suppress:1;	/* bit 4 */
-		u32 scan_auto_incremt:1;	/* bit 5 */
-		u32 reserved:25;		/* bits 6-30 */
-		u32 reset_mii_mgmt:1;	/* bit 31 */
-#endif
-	} bits;
-} MII_MGMT_CFG_t, *PMII_MGMT_CFG_t;
 
 /*
  * structure for MII Management Command reg in mac address map.
@@ -1703,7 +1690,7 @@ typedef struct _MAC_t {					/* Location: */
 	u32 rsv1;					/*  0x5014 */
 	u32 rsv2;					/*  0x5018 */
 	MAC_TEST_t mac_test;				/*  0x501C */
-	MII_MGMT_CFG_t mii_mgmt_cfg;			/*  0x5020 */
+	u32 mii_mgmt_cfg;				/*  0x5020 */
 	MII_MGMT_CMD_t mii_mgmt_cmd;			/*  0x5024 */
 	MII_MGMT_ADDR_t mii_mgmt_addr;			/*  0x5028 */
 	MII_MGMT_CTRL_t mii_mgmt_ctrl;			/*  0x502C */

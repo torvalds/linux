@@ -102,7 +102,6 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	MAC_STATION_ADDR1_t station1;
 	MAC_STATION_ADDR2_t station2;
 	u32 ipg;
-	MII_MGMT_CFG_t mii_mgmt_cfg;
 
 	/* First we need to reset everything.  Write to MAC configuration
 	 * register 1 to perform reset.
@@ -122,11 +121,7 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	writel(0, &pMac->if_ctrl.value);
 
 	/* Let's move on to setting up the mii management configuration */
-	mii_mgmt_cfg.bits.reset_mii_mgmt = 0;
-	mii_mgmt_cfg.bits.scan_auto_incremt = 0;
-	mii_mgmt_cfg.bits.preamble_suppress = 0;
-	mii_mgmt_cfg.bits.mgmt_clk_reset = 0x7;
-	writel(mii_mgmt_cfg.value, &pMac->mii_mgmt_cfg.value);
+	writel(0x07, &pMac->mii_mgmt_cfg);	/* Clock reset 0x7 */
 
 	/* Next lets configure the MAC Station Address register.  These
 	 * values are read from the EEPROM during initialization and stored
