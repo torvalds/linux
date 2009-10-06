@@ -127,7 +127,6 @@
 #define ACT_NOTIFY_BC_UP	39
 #define ACT_DIAL		40
 #define ACT_ACCEPT		41
-#define ACT_PROTO_L2		42
 #define ACT_HUP			43
 #define ACT_IF_LOCK		44
 #define ACT_START		45
@@ -365,8 +364,6 @@ struct reply_t gigaset_tab_cid[] =
 	{EV_BC_CLOSED, -1, -1, -1,                 -1,-1, {ACT_NOTIFY_BC_DOWN}}, //FIXME
 
 	/* misc. */
-	{EV_PROTO_L2,  -1, -1, -1,                 -1,-1, {ACT_PROTO_L2}}, //FIXME
-
 	{RSP_ZCON,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
 	{RSP_ZCCR,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
 	{RSP_ZAOC,     -1, -1, -1,                 -1,-1, {ACT_DEBUG}}, //FIXME
@@ -714,7 +711,7 @@ static void disconnect(struct at_state_t **at_state_p)
 		/* notify LL */
 		if (bcs->chstate & (CHS_D_UP | CHS_NOTIFY_LL)) {
 			bcs->chstate &= ~(CHS_D_UP | CHS_NOTIFY_LL);
-			gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DHUP);
+			gigaset_isdn_hupD(bcs);
 		}
 	} else {
 		/* no B channel assigned: just deallocate */
@@ -872,12 +869,12 @@ static void bchannel_down(struct bc_state *bcs)
 {
 	if (bcs->chstate & CHS_B_UP) {
 		bcs->chstate &= ~CHS_B_UP;
-		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_BHUP);
+		gigaset_isdn_hupB(bcs);
 	}
 
 	if (bcs->chstate & (CHS_D_UP | CHS_NOTIFY_LL)) {
 		bcs->chstate &= ~(CHS_D_UP | CHS_NOTIFY_LL);
-		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DHUP);
+		gigaset_isdn_hupD(bcs);
 	}
 
 	gigaset_free_channel(bcs);
@@ -894,15 +891,16 @@ static void bchannel_up(struct bc_state *bcs)
 	}
 
 	bcs->chstate |= CHS_B_UP;
-	gigaset_i4l_channel_cmd(bcs, ISDN_STAT_BCONN);
+	gigaset_isdn_connB(bcs);
 }
 
 static void start_dial(struct at_state_t *at_state, void *data, unsigned seq_index)
 {
 	struct bc_state *bcs = at_state->bcs;
 	struct cardstate *cs = at_state->cs;
-	int retval;
+	char **commands = data;
 	unsigned long flags;
+	int i;
 
 	bcs->chstate |= CHS_NOTIFY_LL;
 
@@ -913,10 +911,10 @@ static void start_dial(struct at_state_t *at_state, void *data, unsigned seq_ind
 	}
 	spin_unlock_irqrestore(&cs->lock, flags);
 
-	retval = gigaset_isdn_setup_dial(at_state, data);
-	if (retval != 0)
-		goto error;
-
+	for (i = 0; i < AT_NUM; ++i) {
+		kfree(bcs->commands[i]);
+		bcs->commands[i] = commands[i];
+	}
 
 	at_state->pending_commands |= PC_CID;
 	gig_dbg(DEBUG_CMD, "Scheduling PC_CID");
@@ -924,6 +922,10 @@ static void start_dial(struct at_state_t *at_state, void *data, unsigned seq_ind
 	return;
 
 error:
+	for (i = 0; i < AT_NUM; ++i) {
+		kfree(commands[i]);
+		commands[i] = NULL;
+	}
 	at_state->pending_commands |= PC_NOCID;
 	gig_dbg(DEBUG_CMD, "Scheduling PC_NOCID");
 	cs->commands_pending = 1;
@@ -933,20 +935,31 @@ error:
 static void start_accept(struct at_state_t *at_state)
 {
 	struct cardstate *cs = at_state->cs;
-	int retval;
+	struct bc_state *bcs = at_state->bcs;
+	int i;
 
-	retval = gigaset_isdn_setup_accept(at_state);
+	for (i = 0; i < AT_NUM; ++i) {
+		kfree(bcs->commands[i]);
+		bcs->commands[i] = NULL;
+	}
 
-	if (retval == 0) {
-		at_state->pending_commands |= PC_ACCEPT;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_ACCEPT");
-		cs->commands_pending = 1;
-	} else {
+	bcs->commands[AT_PROTO] = kmalloc(9, GFP_ATOMIC);
+	bcs->commands[AT_ISO] = kmalloc(9, GFP_ATOMIC);
+	if (!bcs->commands[AT_PROTO] || !bcs->commands[AT_ISO]) {
+		dev_err(at_state->cs->dev, "out of memory\n");
 		/* error reset */
 		at_state->pending_commands |= PC_HUP;
 		gig_dbg(DEBUG_CMD, "Scheduling PC_HUP");
 		cs->commands_pending = 1;
+		return;
 	}
+
+	snprintf(bcs->commands[AT_PROTO], 9, "^SBPR=%u\r", bcs->proto2);
+	snprintf(bcs->commands[AT_ISO], 9, "^SISO=%u\r", bcs->channel + 1);
+
+	at_state->pending_commands |= PC_ACCEPT;
+	gig_dbg(DEBUG_CMD, "Scheduling PC_ACCEPT");
+	cs->commands_pending = 1;
 }
 
 static void do_start(struct cardstate *cs)
@@ -957,7 +970,7 @@ static void do_start(struct cardstate *cs)
 		schedule_init(cs, MS_INIT);
 
 	cs->isdn_up = 1;
-	gigaset_i4l_cmd(cs, ISDN_STAT_RUN);
+	gigaset_isdn_start(cs);
 					// FIXME: not in locked mode
 					// FIXME 2: only after init sequence
 
@@ -975,7 +988,7 @@ static void finish_shutdown(struct cardstate *cs)
 	/* Tell the LL that the device is not available .. */
 	if (cs->isdn_up) {
 		cs->isdn_up = 0;
-		gigaset_i4l_cmd(cs, ISDN_STAT_STOP);
+		gigaset_isdn_stop(cs);
 	}
 
 	/* The rest is done by cleanup_cs () in user mode. */
@@ -1276,7 +1289,7 @@ static void do_action(int action, struct cardstate *cs,
 			break;
 		}
 		bcs->chstate |= CHS_D_UP;
-		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DCONN);
+		gigaset_isdn_connD(bcs);
 		cs->ops->init_bchannel(bcs);
 		break;
 	case ACT_DLE1:
@@ -1284,7 +1297,7 @@ static void do_action(int action, struct cardstate *cs,
 		bcs = cs->bcs + cs->curchannel;
 
 		bcs->chstate |= CHS_D_UP;
-		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DCONN);
+		gigaset_isdn_connD(bcs);
 		cs->ops->init_bchannel(bcs);
 		break;
 	case ACT_FAKEHUP:
@@ -1473,11 +1486,6 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_ACCEPT:
 		start_accept(at_state);
-		break;
-	case ACT_PROTO_L2:
-		gig_dbg(DEBUG_CMD, "set protocol to %u",
-			(unsigned) ev->parameter);
-		at_state->bcs->proto2 = ev->parameter;
 		break;
 	case ACT_HUP:
 		at_state->pending_commands |= PC_HUP;

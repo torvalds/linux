@@ -500,7 +500,7 @@ int gigaset_isoc_buildframe(struct bc_state *bcs, unsigned char *in, int len)
 	int result;
 
 	switch (bcs->proto2) {
-	case ISDN_PROTO_L2_HDLC:
+	case L2_HDLC:
 		result = hdlc_buildframe(bcs->hw.bas->isooutbuf, in, len);
 		gig_dbg(DEBUG_ISO, "%s: %d bytes HDLC -> %d",
 			__func__, len, result);
@@ -542,8 +542,9 @@ static inline void hdlc_flush(struct bc_state *bcs)
 	if (likely(bcs->skb != NULL))
 		skb_trim(bcs->skb, 0);
 	else if (!bcs->ignore) {
-		if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
-			skb_reserve(bcs->skb, HW_HDR_LEN);
+		bcs->skb = dev_alloc_skb(SBUFSIZE + bcs->cs->hw_hdr_len);
+		if (bcs->skb)
+			skb_reserve(bcs->skb, bcs->cs->hw_hdr_len);
 		else
 			dev_err(bcs->cs->dev, "could not allocate skb\n");
 	}
@@ -557,7 +558,9 @@ static inline void hdlc_flush(struct bc_state *bcs)
  */
 static inline void hdlc_done(struct bc_state *bcs)
 {
+	struct cardstate *cs = bcs->cs;
 	struct sk_buff *procskb;
+	unsigned int len;
 
 	if (unlikely(bcs->ignore)) {
 		bcs->ignore--;
@@ -568,32 +571,33 @@ static inline void hdlc_done(struct bc_state *bcs)
 	if ((procskb = bcs->skb) == NULL) {
 		/* previous error */
 		gig_dbg(DEBUG_ISO, "%s: skb=NULL", __func__);
-		gigaset_rcv_error(NULL, bcs->cs, bcs);
+		gigaset_isdn_rcv_err(bcs);
 	} else if (procskb->len < 2) {
-		dev_notice(bcs->cs->dev, "received short frame (%d octets)\n",
+		dev_notice(cs->dev, "received short frame (%d octets)\n",
 			   procskb->len);
 		bcs->hw.bas->runts++;
-		gigaset_rcv_error(procskb, bcs->cs, bcs);
+		dev_kfree_skb(procskb);
+		gigaset_isdn_rcv_err(bcs);
 	} else if (bcs->fcs != PPP_GOODFCS) {
-		dev_notice(bcs->cs->dev, "frame check error (0x%04x)\n",
-			   bcs->fcs);
+		dev_notice(cs->dev, "frame check error (0x%04x)\n", bcs->fcs);
 		bcs->hw.bas->fcserrs++;
-		gigaset_rcv_error(procskb, bcs->cs, bcs);
+		dev_kfree_skb(procskb);
+		gigaset_isdn_rcv_err(bcs);
 	} else {
-		procskb->len -= 2;		/* subtract FCS */
-		procskb->tail -= 2;
-		gig_dbg(DEBUG_ISO, "%s: good frame (%d octets)",
-			__func__, procskb->len);
+		len = procskb->len;
+		__skb_trim(procskb, len -= 2);	/* subtract FCS */
+		gig_dbg(DEBUG_ISO, "%s: good frame (%d octets)", __func__, len);
 		dump_bytes(DEBUG_STREAM_DUMP,
-			   "rcv data", procskb->data, procskb->len);
-		bcs->hw.bas->goodbytes += procskb->len;
-		gigaset_rcv_skb(procskb, bcs->cs, bcs);
+			   "rcv data", procskb->data, len);
+		bcs->hw.bas->goodbytes += len;
+		gigaset_skb_rcvd(bcs, procskb);
 	}
 
-	if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
-		skb_reserve(bcs->skb, HW_HDR_LEN);
+	bcs->skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
+	if (bcs->skb)
+		skb_reserve(bcs->skb, cs->hw_hdr_len);
 	else
-		dev_err(bcs->cs->dev, "could not allocate skb\n");
+		dev_err(cs->dev, "could not allocate skb\n");
 	bcs->fcs = PPP_INITFCS;
 }
 
@@ -610,12 +614,8 @@ static inline void hdlc_frag(struct bc_state *bcs, unsigned inbits)
 
 	dev_notice(bcs->cs->dev, "received partial byte (%d bits)\n", inbits);
 	bcs->hw.bas->alignerrs++;
-	gigaset_rcv_error(bcs->skb, bcs->cs, bcs);
-
-	if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
-		skb_reserve(bcs->skb, HW_HDR_LEN);
-	else
-		dev_err(bcs->cs->dev, "could not allocate skb\n");
+	gigaset_isdn_rcv_err(bcs);
+	__skb_trim(bcs->skb, 0);
 	bcs->fcs = PPP_INITFCS;
 }
 
@@ -648,8 +648,8 @@ static const unsigned char bitcounts[256] = {
 /* hdlc_unpack
  * perform HDLC frame processing (bit unstuffing, flag detection, FCS calculation)
  * on a sequence of received data bytes (8 bits each, LSB first)
- * pass on successfully received, complete frames as SKBs via gigaset_rcv_skb
- * notify of errors via gigaset_rcv_error
+ * pass on successfully received, complete frames as SKBs via gigaset_skb_rcvd
+ * notify of errors via gigaset_isdn_rcv_err
  * tally frames, errors etc. in BC structure counters
  * parameters:
  *	src	received data
@@ -841,7 +841,7 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 }
 
 /* trans_receive
- * pass on received USB frame transparently as SKB via gigaset_rcv_skb
+ * pass on received USB frame transparently as SKB via gigaset_skb_rcvd
  * invert bytes
  * tally frames, errors etc. in BC structure counters
  * parameters:
@@ -852,6 +852,7 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 static inline void trans_receive(unsigned char *src, unsigned count,
 				 struct bc_state *bcs)
 {
+	struct cardstate *cs = bcs->cs;
 	struct sk_buff *skb;
 	int dobytes;
 	unsigned char *dst;
@@ -862,12 +863,12 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 		return;
 	}
 	if (unlikely((skb = bcs->skb) == NULL)) {
-		bcs->skb = skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN);
+		bcs->skb = skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
 		if (!skb) {
-			dev_err(bcs->cs->dev, "could not allocate skb\n");
+			dev_err(cs->dev, "could not allocate skb\n");
 			return;
 		}
-		skb_reserve(skb, HW_HDR_LEN);
+		skb_reserve(skb, cs->hw_hdr_len);
 	}
 	bcs->hw.bas->goodbytes += skb->len;
 	dobytes = TRANSBUFSIZE - skb->len;
@@ -881,14 +882,14 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 		if (dobytes == 0) {
 			dump_bytes(DEBUG_STREAM_DUMP,
 				   "rcv data", skb->data, skb->len);
-			gigaset_rcv_skb(skb, bcs->cs, bcs);
-			bcs->skb = skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN);
+			gigaset_skb_rcvd(bcs, skb);
+			bcs->skb = skb =
+				dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
 			if (!skb) {
-				dev_err(bcs->cs->dev,
-					"could not allocate skb\n");
+				dev_err(cs->dev, "could not allocate skb\n");
 				return;
 			}
-			skb_reserve(bcs->skb, HW_HDR_LEN);
+			skb_reserve(skb, cs->hw_hdr_len);
 			dobytes = TRANSBUFSIZE;
 		}
 	}
@@ -897,7 +898,7 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 void gigaset_isoc_receive(unsigned char *src, unsigned count, struct bc_state *bcs)
 {
 	switch (bcs->proto2) {
-	case ISDN_PROTO_L2_HDLC:
+	case L2_HDLC:
 		hdlc_unpack(src, count, bcs);
 		break;
 	default:		/* assume transparent */
@@ -981,8 +982,10 @@ void gigaset_isoc_input(struct inbuf_t *inbuf)
  * @bcs:	B channel descriptor structure.
  * @skb:	data to send.
  *
- * Called by i4l.c to queue an skb for sending, and start transmission if
+ * Called by LL to queue an skb for sending, and start transmission if
  * necessary.
+ * Once the payload data has been transmitted completely, gigaset_skb_sent()
+ * will be called with the first cs->hw_hdr_len bytes of skb->head preserved.
  *
  * Return value:
  *	number of bytes accepted for sending (skb->len) if ok,

@@ -463,6 +463,12 @@ void gigaset_freecs(struct cardstate *cs)
 
 	switch (cs->cs_init) {
 	default:
+		/* clear B channel structures */
+		for (i = 0; i < cs->channels; ++i) {
+			gig_dbg(DEBUG_INIT, "clearing bcs[%d]", i);
+			gigaset_freebcs(cs->bcs + i);
+		}
+
 		/* clear device sysfs */
 		gigaset_free_dev_sysfs(cs);
 
@@ -477,22 +483,16 @@ void gigaset_freecs(struct cardstate *cs)
 	case 2: /* error in initcshw */
 		/* Deregister from LL */
 		make_invalid(cs, VALID_ID);
-		gig_dbg(DEBUG_INIT, "clearing iif");
-		gigaset_i4l_cmd(cs, ISDN_STAT_UNLOAD);
+		gigaset_isdn_unregister(cs);
 
 		/* fall through */
-	case 1: /* error when regestering to LL */
+	case 1: /* error when registering to LL */
 		gig_dbg(DEBUG_INIT, "clearing at_state");
 		clear_at_state(&cs->at_state);
 		dealloc_at_states(cs);
 
 		/* fall through */
-	case 0: /* error in one call to initbcs */
-		for (i = 0; i < cs->channels; ++i) {
-			gig_dbg(DEBUG_INIT, "clearing bcs[%d]", i);
-			gigaset_freebcs(cs->bcs + i);
-		}
-
+	case 0:	/* error in basic setup */
 		clear_events(cs);
 		gig_dbg(DEBUG_INIT, "freeing inbuf");
 		kfree(cs->inbuf);
@@ -620,11 +620,14 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	if (cs->ignoreframes) {
 		bcs->inputstate |= INS_skip_frame;
 		bcs->skb = NULL;
-	} else if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
-		skb_reserve(bcs->skb, HW_HDR_LEN);
-	else {
-		pr_err("out of memory\n");
-		bcs->inputstate |= INS_skip_frame;
+	} else {
+		bcs->skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
+		if (bcs->skb != NULL)
+			skb_reserve(bcs->skb, cs->hw_hdr_len);
+		else {
+			pr_err("out of memory\n");
+			bcs->inputstate |= INS_skip_frame;
+		}
 	}
 
 	bcs->channel = channel;
@@ -726,14 +729,6 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->mode = M_UNKNOWN;
 	cs->mstate = MS_UNINITIALIZED;
 
-	for (i = 0; i < channels; ++i) {
-		gig_dbg(DEBUG_INIT, "setting up bcs[%d].read", i);
-		if (!gigaset_initbcs(cs->bcs + i, cs, i)) {
-			pr_err("could not allocate channel %d data\n", i);
-			goto error;
-		}
-	}
-
 	++cs->cs_init;
 
 	gig_dbg(DEBUG_INIT, "setting up at_state");
@@ -758,7 +753,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->cmdbytes = 0;
 
 	gig_dbg(DEBUG_INIT, "setting up iif");
-	if (!gigaset_register_to_LL(cs, modulename)) {
+	if (!gigaset_isdn_register(cs, modulename)) {
 		pr_err("error registering ISDN device\n");
 		goto error;
 	}
@@ -776,6 +771,15 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 
 	/* set up device sysfs */
 	gigaset_init_dev_sysfs(cs);
+
+	/* set up channel data structures */
+	for (i = 0; i < channels; ++i) {
+		gig_dbg(DEBUG_INIT, "setting up bcs[%d]", i);
+		if (!gigaset_initbcs(cs->bcs + i, cs, i)) {
+			pr_err("could not allocate channel %d data\n", i);
+			goto error;
+		}
+	}
 
 	spin_lock_irqsave(&cs->lock, flags);
 	cs->running = 1;

@@ -23,7 +23,6 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/isdnif.h>
 #include <linux/usb.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -40,7 +39,6 @@
 
 #define MAX_REC_PARAMS 10	/* Max. number of params in response string */
 #define MAX_RESP_SIZE 512	/* Max. size of a response string */
-#define HW_HDR_LEN 2		/* Header size used to store ack info */
 
 #define MAX_EVENTS 64		/* size of event queue */
 
@@ -216,7 +214,6 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define EV_START	-110
 #define EV_STOP		-111
 #define EV_IF_LOCK	-112
-#define EV_PROTO_L2	-113
 #define EV_ACCEPT	-114
 #define EV_DIAL		-115
 #define EV_HUP		-116
@@ -258,6 +255,11 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 /* start mode */
 #define SM_LOCKED	0
 #define SM_ISDN		1 /* default */
+
+/* layer 2 protocols (AT^SBPR=...) */
+#define L2_BITSYNC	0
+#define L2_HDLC		1
+#define L2_VOICE	2
 
 struct gigaset_ops;
 struct gigaset_driver;
@@ -395,7 +397,7 @@ struct bc_state {
 
 	unsigned chstate;		/* bitmap (CHS_*) */
 	int ignore;
-	unsigned proto2;		/* Layer 2 protocol (ISDN_PROTO_L2_*) */
+	unsigned proto2;		/* layer 2 protocol (L2_*) */
 	char *commands[AT_NUM];		/* see AT_XXXX */
 
 #ifdef CONFIG_GIGASET_DEBUG
@@ -456,12 +458,13 @@ struct cardstate {
 
 	unsigned running;		/* !=0 if events are handled */
 	unsigned connected;		/* !=0 if hardware is connected */
-	unsigned isdn_up;		/* !=0 after ISDN_STAT_RUN */
+	unsigned isdn_up;		/* !=0 after gigaset_isdn_start() */
 
 	unsigned cidmode;
 
 	int myid;			/* id for communication with LL */
-	isdn_if iif;
+	void *iif;			/* LL interface structure */
+	unsigned short hw_hdr_len;	/* headroom needed in data skbs */
 
 	struct reply_t *tabnocid;
 	struct reply_t *tabcid;
@@ -616,7 +619,9 @@ struct gigaset_ops {
 	int (*baud_rate)(struct cardstate *cs, unsigned cflag);
 	int (*set_line_ctrl)(struct cardstate *cs, unsigned cflag);
 
-	/* Called from i4l.c to put an skb into the send-queue. */
+	/* Called from LL interface to put an skb into the send-queue.
+	 * After sending is completed, gigaset_skb_sent() must be called
+	 * with the first cs->hw_hdr_len bytes of skb->head preserved. */
 	int (*send_skb)(struct bc_state *bcs, struct sk_buff *skb);
 
 	/* Called from ev-layer.c to process a block of data
@@ -638,8 +643,7 @@ struct gigaset_ops {
  *  Functions implemented in asyncdata.c
  */
 
-/* Called from i4l.c to put an skb into the send-queue.
- * After sending gigaset_skb_sent() should be called. */
+/* Called from LL interface to put an skb into the send queue. */
 int gigaset_m10x_send_skb(struct bc_state *bcs, struct sk_buff *skb);
 
 /* Called from ev-layer.c to process a block of data
@@ -650,8 +654,7 @@ void gigaset_m10x_input(struct inbuf_t *inbuf);
  *  Functions implemented in isocdata.c
  */
 
-/* Called from i4l.c to put an skb into the send-queue.
- * After sending gigaset_skb_sent() should be called. */
+/* Called from LL interface to put an skb into the send queue. */
 int gigaset_isoc_send_skb(struct bc_state *bcs, struct sk_buff *skb);
 
 /* Called from ev-layer.c to process a block of data
@@ -674,36 +677,26 @@ void gigaset_isowbuf_init(struct isowbuf_t *iwb, unsigned char idle);
 int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size);
 
 /* ===========================================================================
- *  Functions implemented in i4l.c/gigaset.h
+ *  Functions implemented in LL interface
  */
 
-/* Called by gigaset_initcs() for setting up with the isdn4linux subsystem */
-int gigaset_register_to_LL(struct cardstate *cs, const char *isdnid);
+/* Called from common.c for setting up/shutting down with the ISDN subsystem */
+int gigaset_isdn_register(struct cardstate *cs, const char *isdnid);
+void gigaset_isdn_unregister(struct cardstate *cs);
 
-/* Called from xxx-gigaset.c to indicate completion of sending an skb */
+/* Called from hardware module to indicate completion of an skb */
 void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb);
+void gigaset_skb_rcvd(struct bc_state *bcs, struct sk_buff *skb);
+void gigaset_isdn_rcv_err(struct bc_state *bcs);
 
 /* Called from common.c/ev-layer.c to indicate events relevant to the LL */
+void gigaset_isdn_start(struct cardstate *cs);
+void gigaset_isdn_stop(struct cardstate *cs);
 int gigaset_isdn_icall(struct at_state_t *at_state);
-int gigaset_isdn_setup_accept(struct at_state_t *at_state);
-int gigaset_isdn_setup_dial(struct at_state_t *at_state, void *data);
-
-void gigaset_i4l_cmd(struct cardstate *cs, int cmd);
-void gigaset_i4l_channel_cmd(struct bc_state *bcs, int cmd);
-
-
-static inline void gigaset_isdn_rcv_err(struct bc_state *bcs)
-{
-	isdn_ctrl response;
-
-	/* error -> LL */
-	gig_dbg(DEBUG_CMD, "sending L1ERR");
-	response.driver = bcs->cs->myid;
-	response.command = ISDN_STAT_L1ERR;
-	response.arg = bcs->channel;
-	response.parm.errcode = ISDN_STAT_L1ERR_RECV;
-	bcs->cs->iif.statcallb(&response);
-}
+void gigaset_isdn_connD(struct bc_state *bcs);
+void gigaset_isdn_hupD(struct bc_state *bcs);
+void gigaset_isdn_connB(struct bc_state *bcs);
+void gigaset_isdn_hupB(struct bc_state *bcs);
 
 /* ===========================================================================
  *  Functions implemented in ev-layer.c
@@ -815,35 +808,6 @@ static inline void gigaset_bchannel_up(struct bc_state *bcs)
 
 /* handling routines for sk_buff */
 /* ============================= */
-
-/* pass received skb to LL
- * Warning: skb must not be accessed anymore!
- */
-static inline void gigaset_rcv_skb(struct sk_buff *skb,
-				   struct cardstate *cs,
-				   struct bc_state *bcs)
-{
-	cs->iif.rcvcallb_skb(cs->myid, bcs->channel, skb);
-	bcs->trans_down++;
-}
-
-/* handle reception of corrupted skb
- * Warning: skb must not be accessed anymore!
- */
-static inline void gigaset_rcv_error(struct sk_buff *procskb,
-				     struct cardstate *cs,
-				     struct bc_state *bcs)
-{
-	if (procskb)
-		dev_kfree_skb(procskb);
-
-	if (bcs->ignore)
-		--bcs->ignore;
-	else {
-		++bcs->corrupted;
-		gigaset_isdn_rcv_err(bcs);
-	}
-}
 
 /* append received bytes to inbuf */
 int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,

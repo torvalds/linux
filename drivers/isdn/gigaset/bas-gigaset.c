@@ -911,7 +911,7 @@ static int starturbs(struct bc_state *bcs)
 	int rc;
 
 	/* initialize L2 reception */
-	if (bcs->proto2 == ISDN_PROTO_L2_HDLC)
+	if (bcs->proto2 == L2_HDLC)
 		bcs->inputstate |= INS_flag_hunt;
 
 	/* submit all isochronous input URBs */
@@ -1064,7 +1064,7 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 					"%s: buffer busy at frame %d",
 					__func__, nframe);
 				/* tasklet will be restarted from
-				   gigaset_send_skb() */
+				   gigaset_isoc_send_skb() */
 			} else {
 				dev_err(ucx->bcs->cs->dev,
 					"%s: buffer error %d at frame %d\n",

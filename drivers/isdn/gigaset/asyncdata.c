@@ -119,10 +119,7 @@ static inline int hdlc_loop(unsigned char c, unsigned char *src, int numbytes,
 	int inputstate = bcs->inputstate;
 	__u16 fcs = bcs->fcs;
 	struct sk_buff *skb = bcs->skb;
-	unsigned char error;
-	struct sk_buff *compskb;
 	int startbytes = numbytes;
-	int l;
 
 	if (unlikely(inputstate & INS_byte_stuff)) {
 		inputstate &= ~INS_byte_stuff;
@@ -158,8 +155,8 @@ byte_stuff:
 #endif
 
 				/* end of frame */
-				error = 1;
-				gigaset_rcv_error(NULL, cs, bcs);
+				gigaset_isdn_rcv_err(bcs);
+				dev_kfree_skb(skb);
 			} else if (!(inputstate & INS_have_data)) { /* 7E 7E */
 #ifdef CONFIG_GIGASET_DEBUG
 				++bcs->emptycount;
@@ -170,54 +167,39 @@ byte_stuff:
 					"7e----------------------------");
 
 				/* end of frame */
-				error = 0;
-
 				if (unlikely(fcs != PPP_GOODFCS)) {
 					dev_err(cs->dev,
 				"Checksum failed, %u bytes corrupted!\n",
 						skb->len);
-					compskb = NULL;
-					gigaset_rcv_error(compskb, cs, bcs);
-					error = 1;
+					gigaset_isdn_rcv_err(bcs);
+					dev_kfree_skb(skb);
+				} else if (likely(skb->len > 2)) {
+					__skb_trim(skb, skb->len - 2);
+					gigaset_skb_rcvd(bcs, skb);
 				} else {
-					if (likely((l = skb->len) > 2)) {
-						skb->tail -= 2;
-						skb->len -= 2;
-					} else {
-						dev_kfree_skb(skb);
-						skb = NULL;
-						inputstate |= INS_skip_frame;
-						if (l == 1) {
-							dev_err(cs->dev,
-						  "invalid packet size (1)!\n");
-							error = 1;
-							gigaset_rcv_error(NULL,
-								cs, bcs);
-						}
+					if (skb->len) {
+						dev_err(cs->dev,
+					"invalid packet size (%d)\n", skb->len);
+						gigaset_isdn_rcv_err(bcs);
 					}
-					if (likely(!(error ||
-						     (inputstate &
-						      INS_skip_frame)))) {
-						gigaset_rcv_skb(skb, cs, bcs);
-					}
+					dev_kfree_skb(skb);
 				}
 			}
-
-			if (unlikely(error))
-				if (skb)
-					dev_kfree_skb(skb);
 
 			fcs = PPP_INITFCS;
 			inputstate &= ~(INS_have_data | INS_skip_frame);
 			if (unlikely(bcs->ignore)) {
 				inputstate |= INS_skip_frame;
 				skb = NULL;
-			} else if (likely((skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)) {
-				skb_reserve(skb, HW_HDR_LEN);
 			} else {
-				dev_warn(cs->dev,
-					 "could not allocate new skb\n");
-				inputstate |= INS_skip_frame;
+				skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
+				if (skb != NULL) {
+					skb_reserve(skb, cs->hw_hdr_len);
+				} else {
+					dev_warn(cs->dev,
+						"could not allocate new skb\n");
+					inputstate |= INS_skip_frame;
+				}
 			}
 
 			break;
@@ -314,18 +296,21 @@ static inline int iraw_loop(unsigned char c, unsigned char *src, int numbytes,
 	/* pass data up */
 	if (likely(inputstate & INS_have_data)) {
 		if (likely(!(inputstate & INS_skip_frame))) {
-			gigaset_rcv_skb(skb, cs, bcs);
+			gigaset_skb_rcvd(bcs, skb);
 		}
 		inputstate &= ~(INS_have_data | INS_skip_frame);
 		if (unlikely(bcs->ignore)) {
 			inputstate |= INS_skip_frame;
 			skb = NULL;
-		} else if (likely((skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN))
-				  != NULL)) {
-			skb_reserve(skb, HW_HDR_LEN);
 		} else {
-			dev_warn(cs->dev, "could not allocate new skb\n");
-			inputstate |= INS_skip_frame;
+			skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
+			if (skb != NULL) {
+				skb_reserve(skb, cs->hw_hdr_len);
+			} else {
+				dev_warn(cs->dev,
+					 "could not allocate new skb\n");
+				inputstate |= INS_skip_frame;
+			}
 		}
 	}
 
@@ -383,7 +368,7 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 					/* FIXME use function pointers?  */
 					if (inbuf->inputstate & INS_command)
 						procbytes = cmd_loop(c, src, numbytes, inbuf);
-					else if (inbuf->bcs->proto2 == ISDN_PROTO_L2_HDLC)
+					else if (inbuf->bcs->proto2 == L2_HDLC)
 						procbytes = hdlc_loop(c, src, numbytes, inbuf);
 					else
 						procbytes = iraw_loop(c, src, numbytes, inbuf);
@@ -440,16 +425,16 @@ EXPORT_SYMBOL_GPL(gigaset_m10x_input);
 
 /* == data output ========================================================== */
 
-/* Encoding of a PPP packet into an octet stuffed HDLC frame
- * with FCS, opening and closing flags.
+/*
+ * Encode a data packet into an octet stuffed HDLC frame with FCS,
+ * opening and closing flags, preserving headroom data.
  * parameters:
- *	skb	skb containing original packet (freed upon return)
- *	head	number of headroom bytes to allocate in result skb
- *	tail	number of tailroom bytes to allocate in result skb
+ *	skb		skb containing original packet (freed upon return)
+ *	headroom	number of headroom bytes to preserve
  * Return value:
  *	pointer to newly allocated skb containing the result frame
  */
-static struct sk_buff *HDLC_Encode(struct sk_buff *skb, int head, int tail)
+static struct sk_buff *HDLC_Encode(struct sk_buff *skb, int headroom)
 {
 	struct sk_buff *hdlc_skb;
 	__u16 fcs;
@@ -471,16 +456,17 @@ static struct sk_buff *HDLC_Encode(struct sk_buff *skb, int head, int tail)
 
 	/* size of new buffer: original size + number of stuffing bytes
 	 * + 2 bytes FCS + 2 stuffing bytes for FCS (if needed) + 2 flag bytes
+	 * + room for acknowledgement header
 	 */
-	hdlc_skb = dev_alloc_skb(skb->len + stuf_cnt + 6 + tail + head);
+	hdlc_skb = dev_alloc_skb(skb->len + stuf_cnt + 6 + headroom);
 	if (!hdlc_skb) {
 		dev_kfree_skb(skb);
 		return NULL;
 	}
-	skb_reserve(hdlc_skb, head);
 
-	/* Copy acknowledge request into new skb */
-	memcpy(hdlc_skb->head, skb->head, 2);
+	/* Copy acknowledgement header into new skb */
+	skb_reserve(hdlc_skb, headroom);
+	memcpy(hdlc_skb->head, skb->head, headroom);
 
 	/* Add flag sequence in front of everything.. */
 	*(skb_put(hdlc_skb, 1)) = PPP_FLAG;
@@ -515,15 +501,16 @@ static struct sk_buff *HDLC_Encode(struct sk_buff *skb, int head, int tail)
 	return hdlc_skb;
 }
 
-/* Encoding of a raw packet into an octet stuffed bit inverted frame
+/*
+ * Encode a data packet into an octet stuffed raw bit inverted frame,
+ * preserving headroom data.
  * parameters:
- *	skb	skb containing original packet (freed upon return)
- *	head	number of headroom bytes to allocate in result skb
- *	tail	number of tailroom bytes to allocate in result skb
+ *	skb		skb containing original packet (freed upon return)
+ *	headroom	number of headroom bytes to preserve
  * Return value:
  *	pointer to newly allocated skb containing the result frame
  */
-static struct sk_buff *iraw_encode(struct sk_buff *skb, int head, int tail)
+static struct sk_buff *iraw_encode(struct sk_buff *skb, int headroom)
 {
 	struct sk_buff *iraw_skb;
 	unsigned char c;
@@ -531,12 +518,15 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb, int head, int tail)
 	int len;
 
 	/* worst case: every byte must be stuffed */
-	iraw_skb = dev_alloc_skb(2*skb->len + tail + head);
+	iraw_skb = dev_alloc_skb(2*skb->len + headroom);
 	if (!iraw_skb) {
 		dev_kfree_skb(skb);
 		return NULL;
 	}
-	skb_reserve(iraw_skb, head);
+
+	/* Copy acknowledgement header into new skb */
+	skb_reserve(iraw_skb, headroom);
+	memcpy(iraw_skb->head, skb->head, headroom);
 
 	cp = skb->data;
 	len = skb->len;
@@ -555,8 +545,10 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb, int head, int tail)
  * @bcs:	B channel descriptor structure.
  * @skb:	data to send.
  *
- * Called by i4l.c to encode and queue an skb for sending, and start
+ * Called by LL to encode and queue an skb for sending, and start
  * transmission if necessary.
+ * Once the payload data has been transmitted completely, gigaset_skb_sent()
+ * will be called with the first cs->hw_hdr_len bytes of skb->head preserved.
  *
  * Return value:
  *	number of bytes accepted for sending (skb->len) if ok,
@@ -567,10 +559,10 @@ int gigaset_m10x_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 	unsigned len = skb->len;
 	unsigned long flags;
 
-	if (bcs->proto2 == ISDN_PROTO_L2_HDLC)
-		skb = HDLC_Encode(skb, HW_HDR_LEN, 0);
+	if (bcs->proto2 == L2_HDLC)
+		skb = HDLC_Encode(skb, bcs->cs->hw_hdr_len);
 	else
-		skb = iraw_encode(skb, HW_HDR_LEN, 0);
+		skb = iraw_encode(skb, bcs->cs->hw_hdr_len);
 	if (!skb) {
 		dev_err(bcs->cs->dev,
 			"unable to allocate memory for encoding!\n");
