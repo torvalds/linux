@@ -84,56 +84,32 @@ typedef union _txdesc_word2_t {
 } TXDESC_WORD2_t, *PTXDESC_WORD2_t;
 
 /*
- * TXDESC_WORD3_t structure holds part of the control bits in the Tx Descriptor
- * ring for the ET-1310
+ * word 3 of the control bits in the Tx Descriptor ring for the
+ * ET-1310
+ *
+ * 0: last packet in the sequence
+ * 1: first packet in the sequence
+ * 2: interrupt the processor when this pkt sent
+ * 3: Control word - no packet data
+ * 4: Issue half-duplex backpressure : XON/XOFF
+ * 5: send pause frame
+ * 6: Tx frame has error
+ * 7: append CRC
+ * 8: MAC override
+ * 9: pad packet
+ * 10: Packet is a Huge packet
+ * 11: append VLAN tag
+ * 12: IP checksum assist
+ * 13: TCP checksum assist
+ * 14: UDP checksum assist
  */
-typedef union _txdesc_word3_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:17;	/* bits 15-31 */
-		u32 udpa:1;	/* bit 14(UDP checksum assist) */
-		u32 tcpa:1;	/* bit 13(TCP checksum assist) */
-		u32 ipa:1;		/* bit 12(IP checksum assist) */
-		u32 vlan:1;	/* bit 11(append VLAN tag) */
-		u32 hp:1;		/* bit 10(Packet is a Huge packet) */
-		u32 pp:1;		/* bit  9(pad packet) */
-		u32 mac:1;		/* bit  8(MAC override) */
-		u32 crc:1;		/* bit  7(append CRC) */
-		u32 e:1;		/* bit  6(Tx frame has error) */
-		u32 pf:1;		/* bit  5(send pause frame) */
-		u32 bp:1;		/* bit  4(Issue half-duplex backpressure (XON/XOFF) */
-		u32 cw:1;		/* bit  3(Control word - no packet data) */
-		u32 ir:1;		/* bit  2(interrupt the processor when this pkt sent) */
-		u32 f:1;		/* bit  1(first packet in the sequence) */
-		u32 l:1;		/* bit  0(last packet in the sequence) */
-#else
-		u32 l:1;		/* bit  0(last packet in the sequence) */
-		u32 f:1;		/* bit  1(first packet in the sequence) */
-		u32 ir:1;		/* bit  2(interrupt the processor when this pkt sent) */
-		u32 cw:1;		/* bit  3(Control word - no packet data) */
-		u32 bp:1;		/* bit  4(Issue half-duplex backpressure (XON/XOFF) */
-		u32 pf:1;		/* bit  5(send pause frame) */
-		u32 e:1;		/* bit  6(Tx frame has error) */
-		u32 crc:1;		/* bit  7(append CRC) */
-		u32 mac:1;		/* bit  8(MAC override) */
-		u32 pp:1;		/* bit  9(pad packet) */
-		u32 hp:1;		/* bit 10(Packet is a Huge packet) */
-		u32 vlan:1;	/* bit 11(append VLAN tag) */
-		u32 ipa:1;		/* bit 12(IP checksum assist) */
-		u32 tcpa:1;	/* bit 13(TCP checksum assist) */
-		u32 udpa:1;	/* bit 14(UDP checksum assist) */
-		u32 unused:17;	/* bits 15-31 */
-#endif	/* _BIT_FIELDS_HTOL */
-	} bits;
-} TXDESC_WORD3_t, *PTXDESC_WORD3_t;
 
 /* TX_DESC_ENTRY_t is sructure representing each descriptor on the ring */
 typedef struct _tx_desc_entry_t {
 	u32 DataBufferPtrHigh;
 	u32 DataBufferPtrLow;
 	TXDESC_WORD2_t word2;	/* control words how to xmit the */
-	TXDESC_WORD3_t word3;	/* data (detailed above) */
+	u32 word3;	/* data (detailed above) */
 } TX_DESC_ENTRY_t, *PTX_DESC_ENTRY_t;
 
 

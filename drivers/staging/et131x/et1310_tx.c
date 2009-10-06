@@ -603,16 +603,16 @@ static int nic_send_packet(struct et131x_adapter *etdev, PMP_TCB pMpTcb)
 	if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS) {
 		if (++etdev->TxRing.TxPacketsSinceLastinterrupt ==
 		    PARM_TX_NUM_BUFS_DEF) {
-			CurDesc[FragmentNumber - 1].word3.value = 0x5;
+		    	/* Last element & Interrupt flag */
+			CurDesc[FragmentNumber - 1].word3 = 0x5;
 			etdev->TxRing.TxPacketsSinceLastinterrupt = 0;
-		} else {
-			CurDesc[FragmentNumber - 1].word3.value = 0x1;
+		} else { /* Last element */
+			CurDesc[FragmentNumber - 1].word3 = 0x1;
 		}
 	} else {
-		CurDesc[FragmentNumber - 1].word3.value = 0x5;
+		CurDesc[FragmentNumber - 1].word3 = 0x5;
 	}
-
-	CurDesc[0].word3.bits.f = 1;
+	CurDesc[0].word3 |= 2;	/* First element flag */
 
 	pMpTcb->WrIndexStart = etdev->TxRing.txDmaReadyToSend;
 	pMpTcb->PacketStaleCount = 0;
