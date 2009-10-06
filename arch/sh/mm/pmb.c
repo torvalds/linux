@@ -70,14 +70,20 @@ repeat:
 }
 
 static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
-				   unsigned long flags)
+				   unsigned long flags, int entry)
 {
 	struct pmb_entry *pmbe;
 	int pos;
 
-	pos = pmb_alloc_entry();
-	if (pos < 0)
-		return ERR_PTR(pos);
+	if (entry == PMB_NO_ENTRY) {
+		pos = pmb_alloc_entry();
+		if (pos < 0)
+			return ERR_PTR(pos);
+	} else {
+		if (test_bit(entry, &pmb_map))
+			return ERR_PTR(-ENOSPC);
+		pos = entry;
+	}
 
 	pmbe = &pmb_entry_list[pos];
 	if (!pmbe)
@@ -187,7 +193,8 @@ again:
 		if (size < pmb_sizes[i].size)
 			continue;
 
-		pmbe = pmb_alloc(vaddr, phys, pmb_flags | pmb_sizes[i].flag);
+		pmbe = pmb_alloc(vaddr, phys, pmb_flags | pmb_sizes[i].flag,
+				 PMB_NO_ENTRY);
 		if (IS_ERR(pmbe)) {
 			err = PTR_ERR(pmbe);
 			goto out;
@@ -272,6 +279,7 @@ static void __pmb_unmap(struct pmb_entry *pmbe)
 	} while (pmbe);
 }
 
+#ifdef CONFIG_PMB
 int __uses_jump_to_uncached pmb_init(void)
 {
 	unsigned int i;
@@ -309,6 +317,53 @@ int __uses_jump_to_uncached pmb_init(void)
 
 	return 0;
 }
+#else
+int __uses_jump_to_uncached pmb_init(void)
+{
+	int i;
+	unsigned long addr, data;
+
+	jump_to_uncached();
+
+	for (i = 0; i < PMB_ENTRY_MAX; i++) {
+		struct pmb_entry *pmbe;
+		unsigned long vpn, ppn, flags;
+
+		addr = PMB_DATA + (i << PMB_E_SHIFT);
+		data = ctrl_inl(addr);
+		if (!(data & PMB_V))
+			continue;
+
+		if (data & PMB_C) {
+#if defined(CONFIG_CACHE_WRITETHROUGH)
+			data |= PMB_WT;
+#elif defined(CONFIG_CACHE_WRITEBACK)
+			data &= ~PMB_WT;
+#else
+			data &= ~(PMB_C | PMB_WT);
+#endif
+		}
+		ctrl_outl(data, addr);
+
+		ppn = data & PMB_PFN_MASK;
+
+		flags = data & (PMB_C | PMB_WT | PMB_UB);
+		flags |= data & PMB_SZ_MASK;
+
+		addr = PMB_ADDR + (i << PMB_E_SHIFT);
+		data = ctrl_inl(addr);
+
+		vpn = data & PMB_PFN_MASK;
+
+		pmbe = pmb_alloc(vpn, ppn, flags, i);
+		WARN_ON(IS_ERR(pmbe));
+	}
+
+	back_to_cached();
+
+	return 0;
+}
+#endif /* CONFIG_PMB */
 
 static int pmb_seq_show(struct seq_file *file, void *iter)
 {

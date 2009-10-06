@@ -15,6 +15,8 @@
 #define PMB_E_MASK		0x0000000f
 #define PMB_E_SHIFT		8
 
+#define PMB_PFN_MASK		0xff000000
+
 #define PMB_SZ_16M		0x00000000
 #define PMB_SZ_64M		0x00000010
 #define PMB_SZ_128M		0x00000080

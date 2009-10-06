@@ -453,7 +453,7 @@ void __init setup_arch(char **cmdline_p)
 
 	paging_init();
 
-#ifdef CONFIG_PMB
+#ifdef CONFIG_PMB_ENABLE
 	pmb_init();
 #endif
 
