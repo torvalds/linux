@@ -275,7 +275,7 @@ static void __pmb_unmap(struct pmb_entry *pmbe)
 int __uses_jump_to_uncached pmb_init(void)
 {
 	unsigned int i;
-	long size;
+	long size, ret;
 
 	jump_to_uncached();
 
@@ -287,12 +287,13 @@ int __uses_jump_to_uncached pmb_init(void)
 	 *	P1 - provides a cached window onto physical memory
 	 *	P2 - provides an uncached window onto physical memory
 	 */
-	size = pmb_remap(P2SEG, __MEMORY_START, __MEMORY_SIZE,
-			 PMB_WT | PMB_UB);
-	BUG_ON(size != __MEMORY_SIZE);
+	size = __MEMORY_START + __MEMORY_SIZE;
 
-	size = pmb_remap(P1SEG, __MEMORY_START, __MEMORY_SIZE, PMB_C);
-	BUG_ON(size != __MEMORY_SIZE);
+	ret = pmb_remap(P1SEG, 0x00000000, size, PMB_C);
+	BUG_ON(ret != size);
+
+	ret = pmb_remap(P2SEG, 0x00000000, size, PMB_WT | PMB_UB);
+	BUG_ON(ret != size);
 
 	ctrl_outl(0, PMB_IRMCR);
 
