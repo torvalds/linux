@@ -39,8 +39,6 @@ enum port_dev_state {
  * @serial: pointer back to the struct usb_serial owner of this port.
  * @port: pointer to the corresponding tty_port for this port.
  * @lock: spinlock to grab when updating portions of this structure.
- * @mutex: mutex used to synchronize serial_open() and serial_close()
- *	access for this port.
  * @number: the number of the port (the minor number).
  * @interrupt_in_buffer: pointer to the interrupt in buffer for this port.
  * @interrupt_in_urb: pointer to the interrupt in struct urb for this port.
@@ -77,7 +75,6 @@ struct usb_serial_port {
 	struct usb_serial	*serial;
 	struct tty_port		port;
 	spinlock_t		lock;
-	struct mutex            mutex;
 	unsigned char		number;
 
 	unsigned char		*interrupt_in_buffer;

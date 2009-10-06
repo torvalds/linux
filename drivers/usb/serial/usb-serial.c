@@ -897,7 +897,6 @@ int usb_serial_probe(struct usb_interface *interface,
 		spin_lock_init(&port->lock);
 		/* Keep this for private driver use for the moment but
 		   should probably go away */
-		mutex_init(&port->mutex);
 		INIT_WORK(&port->work, usb_serial_port_work);
 		serial->port[i] = port;
 		port->dev.parent = &interface->dev;
