@@ -1308,82 +1308,48 @@ typedef struct _RXMAC_t {				/* Location: */
 /*
  * structure for configuration #1 reg in mac address map.
  * located at address 0x5000
+ *
+ * 31: soft reset
+ * 30: sim reset
+ * 29-20: reserved
+ * 19: reset rx mc
+ * 18: reset tx mc
+ * 17: reset rx func
+ * 16: reset tx fnc
+ * 15-9: reserved
+ * 8: loopback
+ * 7-6: reserved
+ * 5: rx flow
+ * 4: tx flow
+ * 3: syncd rx en
+ * 2: rx enable
+ * 1: syncd tx en
+ * 0: tx enable
  */
-typedef union _MAC_CFG1_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 soft_reset:1;		/* bit 31 */
-		u32 sim_reset:1;		/* bit 30 */
-		u32 reserved3:10;		/* bits 20-29 */
-		u32 reset_rx_mc:1;		/* bit 19 */
-		u32 reset_tx_mc:1;		/* bit 18 */
-		u32 reset_rx_fun:1;	/* bit 17 */
-		u32 reset_tx_fun:1;	/* bit 16 */
-		u32 reserved2:7;		/* bits 9-15 */
-		u32 loop_back:1;		/* bit 8 */
-		u32 reserved1:2;		/* bits 6-7 */
-		u32 rx_flow:1;		/* bit 5 */
-		u32 tx_flow:1;		/* bit 4 */
-		u32 syncd_rx_en:1;		/* bit 3 */
-		u32 rx_enable:1;		/* bit 2 */
-		u32 syncd_tx_en:1;		/* bit 1 */
-		u32 tx_enable:1;		/* bit 0 */
-#else
-		u32 tx_enable:1;		/* bit 0 */
-		u32 syncd_tx_en:1;		/* bit 1 */
-		u32 rx_enable:1;		/* bit 2 */
-		u32 syncd_rx_en:1;		/* bit 3 */
-		u32 tx_flow:1;		/* bit 4 */
-		u32 rx_flow:1;		/* bit 5 */
-		u32 reserved1:2;		/* bits 6-7 */
-		u32 loop_back:1;		/* bit 8 */
-		u32 reserved2:7;		/* bits 9-15 */
-		u32 reset_tx_fun:1;	/* bit 16 */
-		u32 reset_rx_fun:1;	/* bit 17 */
-		u32 reset_tx_mc:1;		/* bit 18 */
-		u32 reset_rx_mc:1;		/* bit 19 */
-		u32 reserved3:10;		/* bits 20-29 */
-		u32 sim_reset:1;		/* bit 30 */
-		u32 soft_reset:1;		/* bit 31 */
-#endif
-	} bits;
-} MAC_CFG1_t, *PMAC_CFG1_t;
+
+#define CFG1_LOOPBACK	0x00000100
+#define CFG1_RX_FLOW	0x00000020
+#define CFG1_TX_FLOW	0x00000010
+#define CFG1_RX_ENABLE	0x00000004
+#define CFG1_TX_ENABLE	0x00000001
+#define CFG1_WAIT	0x0000000A	/* RX & TX syncd */
 
 /*
  * structure for configuration #2 reg in mac address map.
  * located at address 0x5004
+ * 31-16: reserved
+ * 15-12: preamble
+ * 11-10: reserved
+ * 9-8: if mode
+ * 7-6: reserved
+ * 5: huge frame
+ * 4: length check
+ * 3: undefined
+ * 2: pad crc
+ * 1: crc enable
+ * 0: full duplex
  */
-typedef union _MAC_CFG2_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved3:16;		/* bits 16-31 */
-		u32 preamble_len:4;	/* bits 12-15 */
-		u32 reserved2:2;		/* bits 10-11 */
-		u32 if_mode:2;		/* bits 8-9 */
-		u32 reserved1:2;		/* bits 6-7 */
-		u32 huge_frame:1;		/* bit 5 */
-		u32 len_check:1;		/* bit 4 */
-		u32 undefined:1;		/* bit 3 */
-		u32 pad_crc:1;		/* bit 2 */
-		u32 crc_enable:1;		/* bit 1 */
-		u32 full_duplex:1;		/* bit 0 */
-#else
-		u32 full_duplex:1;		/* bit 0 */
-		u32 crc_enable:1;		/* bit 1 */
-		u32 pad_crc:1;		/* bit 2 */
-		u32 undefined:1;		/* bit 3 */
-		u32 len_check:1;		/* bit 4 */
-		u32 huge_frame:1;		/* bit 5 */
-		u32 reserved1:2;		/* bits 6-7 */
-		u32 if_mode:2;		/* bits 8-9 */
-		u32 reserved2:2;		/* bits 10-11 */
-		u32 preamble_len:4;	/* bits 12-15 */
-		u32 reserved3:16;		/* bits 16-31 */
-#endif
-	} bits;
-} MAC_CFG2_t, *PMAC_CFG2_t;
+
 
 /*
  * structure for Interpacket gap reg in mac address map.
@@ -1682,8 +1648,8 @@ typedef union _MAC_STATION_ADDR2_t {
  * MAC Module of JAGCore Address Mapping
  */
 typedef struct _MAC_t {					/* Location: */
-	MAC_CFG1_t cfg1;				/*  0x5000 */
-	MAC_CFG2_t cfg2;				/*  0x5004 */
+	u32 cfg1;					/*  0x5000 */
+	u32 cfg2;					/*  0x5004 */
 	u32 ipg;					/*  0x5008 */
 	u32 hfdp;					/*  0x500C */
 	MAC_MAX_FM_LEN_t max_fm_len;			/*  0x5010 */

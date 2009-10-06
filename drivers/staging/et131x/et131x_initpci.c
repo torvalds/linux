@@ -432,12 +432,12 @@ int et131x_adapter_setup(struct et131x_adapter *etdev)
 void et131x_soft_reset(struct et131x_adapter *adapter)
 {
 	/* Disable MAC Core */
-	writel(0xc00f0000, &adapter->regs->mac.cfg1.value);
+	writel(0xc00f0000, &adapter->regs->mac.cfg1);
 
 	/* Set everything to a reset value */
 	writel(0x7F, &adapter->regs->global.sw_reset);
-	writel(0x000f0000, &adapter->regs->mac.cfg1.value);
-	writel(0x00000000, &adapter->regs->mac.cfg1.value);
+	writel(0x000f0000, &adapter->regs->mac.cfg1);
+	writel(0x00000000, &adapter->regs->mac.cfg1);
 }
 
 /**
