@@ -13,6 +13,8 @@
 #include <linux/fs.h>
 #include <linux/magic.h>
 
+#include <xen/xen.h>
+
 #include "xenfs.h"
 
 #include <asm/xen/hypervisor.h>

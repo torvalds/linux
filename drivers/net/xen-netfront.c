@@ -42,6 +42,7 @@
 #include <linux/mm.h>
 #include <net/ip.h>
 
+#include <xen/xen.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
 #include <xen/page.h>
