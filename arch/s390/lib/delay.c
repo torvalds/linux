@@ -49,17 +49,22 @@ static void __udelay_disabled(unsigned long usecs)
 static void __udelay_enabled(unsigned long usecs)
 {
 	unsigned long mask;
-	u64 end, time;
+	u64 clock_saved;
+	u64 end;
 
 	mask = psw_kernel_bits | PSW_MASK_WAIT | PSW_MASK_EXT | PSW_MASK_IO;
 	end = get_clock() + ((u64) usecs << 12);
 	do {
-		time = end < S390_lowcore.clock_comparator ?
-			end : S390_lowcore.clock_comparator;
-		set_clock_comparator(time);
+		clock_saved = 0;
+		if (end < S390_lowcore.clock_comparator) {
+			clock_saved = local_tick_disable();
+			set_clock_comparator(end);
+		}
 		trace_hardirqs_on();
 		__load_psw_mask(mask);
 		local_irq_disable();
+		if (clock_saved)
+			local_tick_enable(clock_saved);
 	} while (get_clock() < end);
 	set_clock_comparator(S390_lowcore.clock_comparator);
 }
