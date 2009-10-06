@@ -1076,10 +1076,7 @@ void et131x_reset_recv(struct et131x_adapter *etdev)
 void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 {
 	PMP_RFD rfd = NULL;
-	struct sk_buff *packets[NUM_PACKETS_HANDLED];
-	PMP_RFD freed[NUM_PACKETS_HANDLED];
 	u32 count = 0;
-	u32 nfree = 0;
 	bool done = true;
 
 	/* Process up to available RFD's */
@@ -1110,24 +1107,10 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 		etdev->Stats.ipackets++;
 
 		/* Set the status on the packet, either resources or success */
-		if (etdev->RxRing.nReadyRecv >= RFD_LOW_WATER_MARK) {
-			/* Put this RFD on the pending list
-			 *
-			 * NOTE: nic_rx_pkts() above is already returning the
-			 * RFD to the RecvList, so don't additionally do that
-			 * here.
-			 * Besides, we don't really need (at this point) the
-			 * pending list anyway.
-			 */
-		} else {
-			freed[nfree] = rfd;
-			nfree++;
-
+		if (etdev->RxRing.nReadyRecv < RFD_LOW_WATER_MARK) {
 			dev_warn(&etdev->pdev->dev,
 				    "RFD's are running out\n");
 		}
-
-		packets[count] = rfd->Packet;
 		count++;
 	}
 
