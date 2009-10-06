@@ -687,6 +687,10 @@ ccw_device_offline(struct ccw_device *cdev)
 		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
 		return 0;
 	}
+	if (cdev->private->state == DEV_STATE_BOXED) {
+		ccw_device_done(cdev, DEV_STATE_BOXED);
+		return 0;
+	}
 	if (ccw_device_is_orphan(cdev)) {
 		ccw_device_done(cdev, DEV_STATE_OFFLINE);
 		return 0;
