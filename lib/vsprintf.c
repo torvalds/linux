@@ -598,11 +598,11 @@ static char *resource_string(char *buf, char *end, struct resource *res,
 				struct printf_spec spec)
 {
 #ifndef IO_RSRC_PRINTK_SIZE
-#define IO_RSRC_PRINTK_SIZE	4
+#define IO_RSRC_PRINTK_SIZE	6
 #endif
 
 #ifndef MEM_RSRC_PRINTK_SIZE
-#define MEM_RSRC_PRINTK_SIZE	8
+#define MEM_RSRC_PRINTK_SIZE	10
 #endif
 	struct printf_spec num_spec = {
 		.base = 16,
