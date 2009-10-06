@@ -1577,7 +1577,8 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 
 out_err:
 	if (tcp_ses) {
-		kfree(tcp_ses->hostname);
+		if (!IS_ERR(tcp_ses->hostname))
+			kfree(tcp_ses->hostname);
 		if (tcp_ses->ssocket)
 			sock_release(tcp_ses->ssocket);
 		kfree(tcp_ses);
