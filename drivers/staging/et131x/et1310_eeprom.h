@@ -98,9 +98,6 @@
 /* Forward declaration of the private adapter structure */
 struct et131x_adapter;
 
-int eeprom_write(struct et131x_adapter *adapter, u32 unAddress,
-			u8 bData);
-int eeprom_read(struct et131x_adapter *adapter, u32 unAddress,
-			u8 *pbData);
+int et131x_init_eeprom(struct et131x_adapter *etdev);
 
 #endif /* _ET1310_EEPROM_H_ */

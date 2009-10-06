@@ -140,10 +140,8 @@ MODULE_PARM_DESC(et131x_speed_set,
 int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 {
 	int result;
-	uint8_t eepromStat;
 	uint8_t maxPayload = 0;
 	uint8_t read_size_reg;
-	u8 rev;
 
 	/* Allow disabling of Non-Maskable Interrupts in I/O space, to
 	 * support validation.
@@ -160,71 +158,8 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 		outb(ET1310_NMI_DISABLE, RegisterVal);
 	}
 
-	/* We first need to check the EEPROM Status code located at offset
-	 * 0xB2 of config space
-	 */
-	result = pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS,
-				      &eepromStat);
-
-	/* THIS IS A WORKAROUND:
-	 * I need to call this function twice to get my card in a
-	 * LG M1 Express Dual running. I tried also a msleep before this
-	 * function, because I thougth there could be some time condidions
-	 * but it didn't work. Call the whole function twice also work.
-	 */
-	result = pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS,
-				      &eepromStat);
-	if (result != PCIBIOS_SUCCESSFUL) {
-		dev_err(&pdev->dev, "Could not read PCI config space for "
-			  "EEPROM Status\n");
+	if (et131x_init_eeprom(adapter) < 0)
 		return -EIO;
-	}
-
-	/* Determine if the error(s) we care about are present.  If they are
-	 * present, we need to fail.
-	 */
-	if (eepromStat & 0x4C) {
-		result = pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
-		if (result != PCIBIOS_SUCCESSFUL) {
-			dev_err(&pdev->dev,
-				  "Could not read PCI config space for "
-				  "Revision ID\n");
-			return -EIO;
-		} else if (rev == 0x01) {
-			int32_t nLoop;
-			uint8_t temp[4] = { 0xFE, 0x13, 0x10, 0xFF };
-
-			/* Re-write the first 4 bytes if we have an eeprom
-			 * present and the revision id is 1, this fixes the
-			 * corruption seen with 1310 B Silicon
-			 */
-			for (nLoop = 0; nLoop < 3; nLoop++) {
-				eeprom_write(adapter, nLoop, temp[nLoop]);
-			}
-		}
-
-		dev_err(&pdev->dev, "Fatal EEPROM Status Error - 0x%04x\n", eepromStat);
-
-		/* This error could mean that there was an error reading the
-		 * eeprom or that the eeprom doesn't exist.  We will treat
-		 * each case the same and not try to gather additional
-		 * information that normally would come from the eeprom, like
-		 * MAC Address
-		 */
-		adapter->has_eeprom = 0;
-		return -EIO;
-	} else
-		adapter->has_eeprom = 1;
-
-	/* Read the EEPROM for information regarding LED behavior. Refer to
-	 * ET1310_phy.c, et131x_xcvr_init(), for its use.
-	 */
-	eeprom_read(adapter, 0x70, &adapter->eepromData[0]);
-	eeprom_read(adapter, 0x71, &adapter->eepromData[1]);
-
-	if (adapter->eepromData[0] != 0xcd)
-		/* Disable all optional features */
-		adapter->eepromData[1] = 0x00;
 
 	/* Let's set up the PORT LOGIC Register.  First we need to know what
 	 * the max_payload_size is

@@ -132,7 +132,7 @@ static int eeprom_wait_ready(struct pci_dev *pdev, u32 *status)
  *
  * Returns 1 for a successful write.
  */
-int eeprom_write(struct et131x_adapter *etdev, u32 addr, u8 data)
+static int eeprom_write(struct et131x_adapter *etdev, u32 addr, u8 data)
 {
 	struct pci_dev *pdev = etdev->pdev;
 	int index = 0;
@@ -264,7 +264,7 @@ int eeprom_write(struct et131x_adapter *etdev, u32 addr, u8 data)
  *
  * Returns 1 for a successful read
  */
-int eeprom_read(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
+static int eeprom_read(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
 {
 	struct pci_dev *pdev = etdev->pdev;
 	int err;
@@ -311,4 +311,73 @@ int eeprom_read(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
 	 * then an error has occurred.
 	 */
 	return (status & LBCIF_STATUS_ACK_ERROR) ? -EIO : 0;
+}
+
+int et131x_init_eeprom(struct et131x_adapter *etdev)
+{
+	struct pci_dev *pdev = etdev->pdev;
+	u8 eestatus;
+
+	/* We first need to check the EEPROM Status code located at offset
+	 * 0xB2 of config space
+	 */
+	pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS,
+				      &eestatus);
+
+	/* THIS IS A WORKAROUND:
+	 * I need to call this function twice to get my card in a
+	 * LG M1 Express Dual running. I tried also a msleep before this
+	 * function, because I thougth there could be some time condidions
+	 * but it didn't work. Call the whole function twice also work.
+	 */
+	if (pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS, &eestatus)) {
+		dev_err(&pdev->dev,
+		       "Could not read PCI config space for EEPROM Status\n");
+		return -EIO;
+	}
+
+	/* Determine if the error(s) we care about are present. If they are
+	 * present we need to fail.
+	 */
+	if (eestatus & 0x4C) {
+		int write_failed = 0;
+		if (pdev->revision == 0x01) {
+			int	i;
+			static const u8 eedata[4] = { 0xFE, 0x13, 0x10, 0xFF };
+
+			/* Re-write the first 4 bytes if we have an eeprom
+			 * present and the revision id is 1, this fixes the
+			 * corruption seen with 1310 B Silicon
+			 */
+			for (i = 0; i < 3; i++)
+				if (eeprom_write(etdev, i, eedata[i]) < 0)
+					write_failed = 1;
+		}
+		if (pdev->revision  != 0x01 || write_failed) {
+			dev_err(&pdev->dev,
+			    "Fatal EEPROM Status Error - 0x%04x\n", eestatus);
+
+			/* This error could mean that there was an error
+			 * reading the eeprom or that the eeprom doesn't exist.
+			 * We will treat each case the same and not try to gather
+			 * additional information that normally would come from the
+			 * eeprom, like MAC Address
+			 */
+			etdev->has_eeprom = 0;
+			return -EIO;
+		}
+	}
+	etdev->has_eeprom = 1;
+
+	/* Read the EEPROM for information regarding LED behavior. Refer to
+	 * ET1310_phy.c, et131x_xcvr_init(), for its use.
+	 */
+	eeprom_read(etdev, 0x70, &etdev->eepromData[0]);
+	eeprom_read(etdev, 0x71, &etdev->eepromData[1]);
+
+	if (etdev->eepromData[0] != 0xcd)
+		/* Disable all optional features */
+		etdev->eepromData[1] = 0x00;
+
+	return 0;
 }
