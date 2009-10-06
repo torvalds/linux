@@ -473,8 +473,13 @@ static int cid_of_response(char *s)
 	//FIXME is ;<digit>+ at end of non-CID response really impossible?
 }
 
-/* This function will be called via task queue from the callback handler.
- * We received a modem response and have to handle it..
+/**
+ * gigaset_handle_modem_response() - process received modem response
+ * @cs:		device descriptor structure.
+ *
+ * Called by asyncdata/isocdata if a block of data received from the
+ * device must be processed as a modem command response. The data is
+ * already in the cs structure.
  */
 void gigaset_handle_modem_response(struct cardstate *cs)
 {

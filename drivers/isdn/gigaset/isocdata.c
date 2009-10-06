@@ -976,16 +976,17 @@ void gigaset_isoc_input(struct inbuf_t *inbuf)
 
 /* == data output ========================================================== */
 
-/* gigaset_send_skb
- * called by common.c to queue an skb for sending
- * and start transmission if necessary
- * parameters:
- *	B Channel control structure
- *	skb
- * return value:
- *	number of bytes accepted for sending
- *	(skb->len if ok, 0 if out of buffer space)
- *	or error code (< 0, eg. -EINVAL)
+/**
+ * gigaset_isoc_send_skb() - queue an skb for sending
+ * @bcs:	B channel descriptor structure.
+ * @skb:	data to send.
+ *
+ * Called by i4l.c to queue an skb for sending, and start transmission if
+ * necessary.
+ *
+ * Return value:
+ *	number of bytes accepted for sending (skb->len) if ok,
+ *	error code < 0 (eg. -ENODEV) on error
  */
 int gigaset_isoc_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 {

@@ -616,6 +616,15 @@ void gigaset_if_free(struct cardstate *cs)
 	tty_unregister_device(drv->tty, cs->minor_index);
 }
 
+/**
+ * gigaset_if_receive() - pass a received block of data to the tty device
+ * @cs:		device descriptor structure.
+ * @buffer:	received data.
+ * @len:	number of bytes received.
+ *
+ * Called by asyncdata/isocdata if a block of data received from the
+ * device must be sent to userspace through the ttyG* device.
+ */
 void gigaset_if_receive(struct cardstate *cs,
 			unsigned char *buffer, size_t len)
 {

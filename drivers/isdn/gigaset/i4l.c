@@ -85,6 +85,14 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 	return cs->ops->send_skb(bcs, skb);
 }
 
+/**
+ * gigaset_skb_sent() - acknowledge sending an skb
+ * @bcs:	B channel descriptor structure.
+ * @skb:	sent data.
+ *
+ * Called by hardware module {bas,ser,usb}_gigaset when the data in a
+ * skb has been successfully sent, for signalling completion to the LL.
+ */
 void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb)
 {
 	unsigned len;
@@ -461,6 +469,15 @@ int gigaset_isdn_setup_accept(struct at_state_t *at_state)
 	return 0;
 }
 
+/**
+ * gigaset_isdn_icall() - signal incoming call
+ * @at_state:	connection state structure.
+ *
+ * Called by main module to notify the LL that an incoming call has been
+ * received. @at_state contains the parameters of the call.
+ *
+ * Return value: call disposition (ICALL_*)
+ */
 int gigaset_isdn_icall(struct at_state_t *at_state)
 {
 	struct cardstate *cs = at_state->cs;
