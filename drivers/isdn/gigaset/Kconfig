@@ -1,6 +1,5 @@
 menuconfig ISDN_DRV_GIGASET
 	tristate "Siemens Gigaset support"
-	depends on ISDN_I4L
 	select CRC_CCITT
 	select BITREVERSE
 	help
@@ -11,8 +10,20 @@ menuconfig ISDN_DRV_GIGASET
 	  If you have one of these devices, say M here and for at least
 	  one of the connection specific parts that follow.
 	  This will build a module called "gigaset".
+	  Note: If you build the ISDN4Linux subsystem (ISDN_I4L)
+	  as a module, you have to build this driver as a module too,
+	  otherwise the Gigaset device won't show up as an ISDN device.
 
 if ISDN_DRV_GIGASET
+
+config GIGASET_I4L
+	bool
+	depends on ISDN_I4L='y'||(ISDN_I4L='m'&&ISDN_DRV_GIGASET='m')
+	default y
+
+config GIGASET_DUMMYLL
+	bool
+	default !GIGASET_I4L
 
 config GIGASET_BASE
 	tristate "Gigaset base station support"
