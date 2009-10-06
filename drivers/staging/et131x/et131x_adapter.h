@@ -248,7 +248,6 @@ struct et131x_adapter {
 		NETIF_STATUS_MEDIA_DISCONNECT,
 		NETIF_STATUS_MAX
 	} MediaState;
-	u8 DriverNoPhyAccess;
 
 	/* Minimize init-time */
 	struct timer_list ErrorTimer;

@@ -109,9 +109,6 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 	else
 		mask = INT_MASK_ENABLE_NO_FLOW;
 
-	if (adapter->DriverNoPhyAccess)
-		mask |= ET_INTR_PHY;
-
 	adapter->CachedMaskValue = mask;
 	writel(mask, &adapter->regs->global.int_mask);
 }

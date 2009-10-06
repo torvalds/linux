@@ -368,8 +368,7 @@ int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 		 * if( MP_SHOULD_FAIL_SEND( etdev ) ||
 		 *  etdev->DriverNoPhyAccess )
 		 */
-		if (MP_SHOULD_FAIL_SEND(etdev) || etdev->DriverNoPhyAccess
-		    || !netif_carrier_ok(netdev)) {
+		if (MP_SHOULD_FAIL_SEND(etdev) || !netif_carrier_ok(netdev)) {
 			dev_kfree_skb_any(skb);
 			skb = NULL;
 
