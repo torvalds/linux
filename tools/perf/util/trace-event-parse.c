@@ -721,6 +721,24 @@ static int event_read_id(void)
 	return -1;
 }
 
+static int field_is_string(struct format_field *field)
+{
+	if ((field->flags & FIELD_IS_ARRAY) &&
+	    (!strstr(field->type, "char") || !strstr(field->type, "u8") ||
+	     !strstr(field->type, "s8")))
+		return 1;
+
+	return 0;
+}
+
+static int field_is_dynamic(struct format_field *field)
+{
+	if (!strcmp(field->type, "__data_loc"))
+		return 1;
+
+	return 0;
+}
+
 static int event_read_fields(struct event *event, struct format_field **fields)
 {
 	struct format_field *field = NULL;
@@ -863,6 +881,12 @@ static int event_read_fields(struct event *event, struct format_field **fields)
 				strcat(field->type, brackets);
 			}
 			free(brackets);
+		}
+
+		if (field_is_string(field)) {
+			field->flags |= FIELD_IS_STRING;
+			if (field_is_dynamic(field))
+				field->flags |= FIELD_IS_DYNAMIC;
 		}
 
 		if (test_type_token(type, token,  EVENT_OP, (char *)";"))
