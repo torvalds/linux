@@ -246,7 +246,7 @@ void __iounmap(void __iomem *addr);
 static inline void __iomem *
 __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 {
-#if defined(CONFIG_SUPERH32) && !defined(CONFIG_PMB_FIXED)
+#if defined(CONFIG_SUPERH32) && !defined(CONFIG_PMB_FIXED) && !defined(CONFIG_PMB)
 	unsigned long last_addr = offset + size - 1;
 #endif
 	void __iomem *ret;
@@ -255,7 +255,7 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 	if (ret)
 		return ret;
 
-#if defined(CONFIG_SUPERH32) && !defined(CONFIG_PMB_FIXED)
+#if defined(CONFIG_SUPERH32) && !defined(CONFIG_PMB_FIXED) && !defined(CONFIG_PMB)
 	/*
 	 * For P1 and P2 space this is trivial, as everything is already
 	 * mapped. Uncached access for P1 addresses are done through P2.

@@ -85,7 +85,7 @@ EXPORT_SYMBOL(dma_free_coherent);
 void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		    enum dma_data_direction direction)
 {
-#ifdef CONFIG_CPU_SH5
+#if defined(CONFIG_CPU_SH5) || defined(CONFIG_PMB)
 	void *p1addr = vaddr;
 #else
 	void *p1addr = (void*) P1SEGADDR((unsigned long)vaddr);
