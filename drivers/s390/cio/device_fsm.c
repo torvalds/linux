@@ -400,6 +400,8 @@ ccw_device_done(struct ccw_device *cdev, int state)
 			      cdev->private->dev_id.devno, sch->schid.sch_no);
 		if (!ccw_device_notify(cdev, CIO_GONE))
 			ccw_device_schedule_sch_unregister(cdev);
+		else
+			ccw_device_set_disconnected(cdev);
 		cdev->private->flags.donotify = 0;
 		break;
 	case DEV_STATE_DISCONNECTED:
@@ -744,11 +746,10 @@ ccw_device_recog_notoper(struct ccw_device *cdev, enum dev_event dev_event)
 static void ccw_device_generic_notoper(struct ccw_device *cdev,
 				       enum dev_event dev_event)
 {
-	struct subchannel *sch;
-
-	ccw_device_set_notoper(cdev);
-	sch = to_subchannel(cdev->dev.parent);
-	css_schedule_eval(sch->schid);
+	if (!ccw_device_notify(cdev, CIO_GONE))
+		ccw_device_schedule_sch_unregister(cdev);
+	else
+		ccw_device_set_disconnected(cdev);
 }
 
 /*
