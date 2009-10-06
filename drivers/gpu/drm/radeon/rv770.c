@@ -923,15 +923,8 @@ int rv770_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	r = rv770_mc_init(rdev);
-	if (r) {
-		if (rdev->flags & RADEON_IS_AGP) {
-			/* Retry with disabling AGP */
-			rv770_fini(rdev);
-			rdev->flags &= ~RADEON_IS_AGP;
-			return rv770_init(rdev);
-		}
+	if (r)
 		return r;
-	}
 	/* Memory manager */
 	r = radeon_object_init(rdev);
 	if (r)
@@ -960,15 +953,8 @@ int rv770_init(struct radeon_device *rdev)
 
 	r = rv770_startup(rdev);
 	if (r) {
-		if (rdev->flags & RADEON_IS_AGP) {
-			/* Retry with disabling AGP */
-			rv770_fini(rdev);
-			rdev->flags &= ~RADEON_IS_AGP;
-			return rv770_init(rdev);
-		}
 		rv770_suspend(rdev);
 		r600_wb_fini(rdev);
-		radeon_ib_pool_fini(rdev);
 		radeon_ring_fini(rdev);
 		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
@@ -999,10 +985,8 @@ void rv770_fini(struct radeon_device *rdev)
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);
-#if __OS_HAS_AGP
 	if (rdev->flags & RADEON_IS_AGP)
 		radeon_agp_fini(rdev);
-#endif
 	radeon_object_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);

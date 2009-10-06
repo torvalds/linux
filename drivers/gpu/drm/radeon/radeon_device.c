@@ -476,6 +476,27 @@ void radeon_combios_fini(struct radeon_device *rdev)
 {
 }
 
+void radeon_agp_disable(struct radeon_device *rdev)
+{
+	rdev->flags &= ~RADEON_IS_AGP;
+	if (rdev->family >= CHIP_R600) {
+		DRM_INFO("Forcing AGP to PCIE mode\n");
+		rdev->flags |= RADEON_IS_PCIE;
+	} else if (rdev->family >= CHIP_RV515 ||
+			rdev->family == CHIP_RV380 ||
+			rdev->family == CHIP_RV410 ||
+			rdev->family == CHIP_R423) {
+		DRM_INFO("Forcing AGP to PCIE mode\n");
+		rdev->flags |= RADEON_IS_PCIE;
+		rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
+		rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
+	} else {
+		DRM_INFO("Forcing AGP to PCI mode\n");
+		rdev->flags |= RADEON_IS_PCI;
+		rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
+		rdev->asic->gart_set_page = &r100_pci_gart_set_page;
+	}
+}
 
 /*
  * Radeon device.
@@ -515,24 +536,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	}
 
 	if (radeon_agpmode == -1) {
-		rdev->flags &= ~RADEON_IS_AGP;
-		if (rdev->family >= CHIP_R600) {
-			DRM_INFO("Forcing AGP to PCIE mode\n");
-			rdev->flags |= RADEON_IS_PCIE;
-		} else if (rdev->family >= CHIP_RV515 ||
-			   rdev->family == CHIP_RV380 ||
-			   rdev->family == CHIP_RV410 ||
-			   rdev->family == CHIP_R423) {
-			DRM_INFO("Forcing AGP to PCIE mode\n");
-			rdev->flags |= RADEON_IS_PCIE;
-			rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
-			rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
-		} else {
-			DRM_INFO("Forcing AGP to PCI mode\n");
-			rdev->flags |= RADEON_IS_PCI;
-			rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
-			rdev->asic->gart_set_page = &r100_pci_gart_set_page;
-		}
+		radeon_agp_disable(rdev);
 	}
 
 	/* set DMA mask + need_dma32 flags.
@@ -565,8 +569,17 @@ int radeon_device_init(struct radeon_device *rdev,
 	DRM_INFO("register mmio size: %u\n", (unsigned)rdev->rmmio_size);
 
 	r = radeon_init(rdev);
-	if (r) {
+	if (r)
 		return r;
+	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
+		/* Acceleration not working on AGP card try again
+		 * with fallback to PCI or PCIE GART
+		 */
+		radeon_fini(rdev);
+		radeon_agp_disable(rdev);
+		r = radeon_init(rdev);
+		if (r)
+			return r;
 	}
 	if (radeon_testing) {
 		radeon_test_moves(rdev);

@@ -1560,15 +1560,8 @@ int r600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	r = r600_mc_init(rdev);
-	if (r) {
-		if (rdev->flags & RADEON_IS_AGP) {
-			/* Retry with disabling AGP */
-			r600_fini(rdev);
-			rdev->flags &= ~RADEON_IS_AGP;
-			return r600_init(rdev);
-		}
+	if (r)
 		return r;
-	}
 	/* Memory manager */
 	r = radeon_object_init(rdev);
 	if (r)
@@ -1597,15 +1590,8 @@ int r600_init(struct radeon_device *rdev)
 
 	r = r600_startup(rdev);
 	if (r) {
-		if (rdev->flags & RADEON_IS_AGP) {
-			/* Retry with disabling AGP */
-			r600_fini(rdev);
-			rdev->flags &= ~RADEON_IS_AGP;
-			return r600_init(rdev);
-		}
 		r600_suspend(rdev);
 		r600_wb_fini(rdev);
-		radeon_ib_pool_fini(rdev);
 		radeon_ring_fini(rdev);
 		r600_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
@@ -1637,10 +1623,8 @@ void r600_fini(struct radeon_device *rdev)
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);
-#if __OS_HAS_AGP
 	if (rdev->flags & RADEON_IS_AGP)
 		radeon_agp_fini(rdev);
-#endif
 	radeon_object_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
