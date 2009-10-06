@@ -234,8 +234,6 @@ struct et131x_adapter {
 	u32 RegistryRxMemEnd;	/* Size of internal rx memory */
 	u32 RegistryJumboPacket;	/* Max supported ethernet packet size */
 
-	/* Validation helpers */
-	u8 RegistryPhyLoopbk;	/* Enable Phy loopback */
 
 	/* Derived from the registry: */
 	u8 AiForceDpx;		/* duplex setting */

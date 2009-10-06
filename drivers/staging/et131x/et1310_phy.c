@@ -469,9 +469,7 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 
 			spin_unlock_irqrestore(&etdev->Lock, flags);
 
-			/* Don't indicate state if we're in loopback mode */
-			if (etdev->RegistryPhyLoopbk == false)
-				netif_carrier_on(etdev->netdev);
+			netif_carrier_on(etdev->netdev);
 		} else {
 			dev_warn(&etdev->pdev->dev,
 			    "Link down - cable problem ?\n");
@@ -504,11 +502,7 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 				spin_unlock_irqrestore(&etdev->Lock,
 						       flags);
 
-				/* Only indicate state if we're in loopback
-				 * mode
-				 */
-				if (etdev->RegistryPhyLoopbk == false)
-					netif_carrier_off(etdev->netdev);
+				netif_carrier_off(etdev->netdev);
 			}
 
 			etdev->linkspeed = 0;

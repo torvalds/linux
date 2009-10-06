@@ -807,40 +807,35 @@ void et131x_rx_dma_disable(struct et131x_adapter *etdev)
  */
 void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 {
-	if (etdev->RegistryPhyLoopbk)
-		/* RxDMA is disabled for loopback operation. */
-		writel(0x1, &etdev->regs->rxdma.csr.value);
-	else {
 	/* Setup the receive dma configuration register for normal operation */
-		RXDMA_CSR_t csr = { 0 };
+	RXDMA_CSR_t csr = { 0 };
 
-		csr.bits.fbr1_enable = 1;
-		if (etdev->RxRing.Fbr1BufferSize == 4096)
-			csr.bits.fbr1_size = 1;
-		else if (etdev->RxRing.Fbr1BufferSize == 8192)
-			csr.bits.fbr1_size = 2;
-		else if (etdev->RxRing.Fbr1BufferSize == 16384)
-			csr.bits.fbr1_size = 3;
+	csr.bits.fbr1_enable = 1;
+	if (etdev->RxRing.Fbr1BufferSize == 4096)
+		csr.bits.fbr1_size = 1;
+	else if (etdev->RxRing.Fbr1BufferSize == 8192)
+		csr.bits.fbr1_size = 2;
+	else if (etdev->RxRing.Fbr1BufferSize == 16384)
+		csr.bits.fbr1_size = 3;
 #ifdef USE_FBR0
-		csr.bits.fbr0_enable = 1;
-		if (etdev->RxRing.Fbr0BufferSize == 256)
-			csr.bits.fbr0_size = 1;
-		else if (etdev->RxRing.Fbr0BufferSize == 512)
-			csr.bits.fbr0_size = 2;
-		else if (etdev->RxRing.Fbr0BufferSize == 1024)
-			csr.bits.fbr0_size = 3;
+	csr.bits.fbr0_enable = 1;
+	if (etdev->RxRing.Fbr0BufferSize == 256)
+		csr.bits.fbr0_size = 1;
+	else if (etdev->RxRing.Fbr0BufferSize == 512)
+		csr.bits.fbr0_size = 2;
+	else if (etdev->RxRing.Fbr0BufferSize == 1024)
+		csr.bits.fbr0_size = 3;
 #endif
-		writel(csr.value, &etdev->regs->rxdma.csr.value);
+	writel(csr.value, &etdev->regs->rxdma.csr.value);
 
+	csr.value = readl(&etdev->regs->rxdma.csr.value);
+	if (csr.bits.halt_status != 0) {
+		udelay(5);
 		csr.value = readl(&etdev->regs->rxdma.csr.value);
 		if (csr.bits.halt_status != 0) {
-			udelay(5);
-			csr.value = readl(&etdev->regs->rxdma.csr.value);
-			if (csr.bits.halt_status != 0) {
-				dev_err(&etdev->pdev->dev,
-					"RX Dma failed to exit halt state.  CSR 0x%08x\n",
-					csr.value);
-			}
+			dev_err(&etdev->pdev->dev,
+			    "RX Dma failed to exit halt state.  CSR 0x%08x\n",
+				csr.value);
 		}
 	}
 }

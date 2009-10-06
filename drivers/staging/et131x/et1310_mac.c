@@ -221,13 +221,8 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	 */
 	cfg2.bits.len_check = 0x1;
 
-	if (etdev->RegistryPhyLoopbk == false) {
-		cfg2.bits.pad_crc = 0x1;
-		cfg2.bits.crc_enable = 0x1;
-	} else {
-		cfg2.bits.pad_crc = 0;
-		cfg2.bits.crc_enable = 0;
-	}
+	cfg2.bits.pad_crc = 0x1;
+	cfg2.bits.crc_enable = 0x1;
 
 	/* 1 - full duplex, 0 - half-duplex */
 	cfg2.bits.full_duplex = etdev->duplex_mode;

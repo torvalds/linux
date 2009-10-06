@@ -329,51 +329,33 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 {
 	struct _GLOBAL_t __iomem *regs = &etdev->regs->global;
 
-	if (etdev->RegistryPhyLoopbk == false) {
-		if (etdev->RegistryJumboPacket < 2048) {
-			/* Tx / RxDMA and Tx/Rx MAC interfaces have a 1k word
-			 * block of RAM that the driver can split between Tx
-			 * and Rx as it desires.  Our default is to split it
-			 * 50/50:
-			 */
-			writel(0, &regs->rxq_start_addr);
-			writel(PARM_RX_MEM_END_DEF, &regs->rxq_end_addr);
-			writel(PARM_RX_MEM_END_DEF + 1, &regs->txq_start_addr);
-			writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
-		} else if (etdev->RegistryJumboPacket < 8192) {
-			/* For jumbo packets > 2k but < 8k, split 50-50. */
-			writel(0, &regs->rxq_start_addr);
-			writel(INTERNAL_MEM_RX_OFFSET, &regs->rxq_end_addr);
-			writel(INTERNAL_MEM_RX_OFFSET + 1, &regs->txq_start_addr);
-			writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
-		} else {
-			/* 9216 is the only packet size greater than 8k that
-			 * is available. The Tx buffer has to be big enough
-			 * for one whole packet on the Tx side. We'll make
-			 * the Tx 9408, and give the rest to Rx
-			 */
-			writel(0x0000, &regs->rxq_start_addr);
-			writel(0x01b3, &regs->rxq_end_addr);
-			writel(0x01b4, &regs->txq_start_addr);
-			writel(INTERNAL_MEM_SIZE - 1,&regs->txq_end_addr);
-		}
+	writel(0, &regs->rxq_start_addr);
+	writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
 
-		/* Initialize the loopback register. Disable all loopbacks. */
-		writel(0, &regs->loopback);
-	} else {
-		/* For PHY Line loopback, the memory is configured as if Tx
-		 * and Rx both have all the memory.  This is because the
-		 * RxMAC will write data into the space, and the TxMAC will
-		 * read it out.
+	if (etdev->RegistryJumboPacket < 2048) {
+		/* Tx / RxDMA and Tx/Rx MAC interfaces have a 1k word
+		 * block of RAM that the driver can split between Tx
+		 * and Rx as it desires.  Our default is to split it
+		 * 50/50:
 		 */
-		writel(0, &regs->rxq_start_addr);
-		writel(INTERNAL_MEM_SIZE - 1, &regs->rxq_end_addr);
-		writel(0, &regs->txq_start_addr);
-		writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
-
-		/* Initialize the loopback register (MAC loopback). */
-		writel(ET_LOOP_MAC, &regs->loopback);
+		writel(PARM_RX_MEM_END_DEF, &regs->rxq_end_addr);
+		writel(PARM_RX_MEM_END_DEF + 1, &regs->txq_start_addr);
+	} else if (etdev->RegistryJumboPacket < 8192) {
+		/* For jumbo packets > 2k but < 8k, split 50-50. */
+		writel(INTERNAL_MEM_RX_OFFSET, &regs->rxq_end_addr);
+		writel(INTERNAL_MEM_RX_OFFSET + 1, &regs->txq_start_addr);
+	} else {
+		/* 9216 is the only packet size greater than 8k that
+		 * is available. The Tx buffer has to be big enough
+		 * for one whole packet on the Tx side. We'll make
+		 * the Tx 9408, and give the rest to Rx
+		 */
+		writel(0x01b3, &regs->rxq_end_addr);
+		writel(0x01b4, &regs->txq_start_addr);
 	}
+
+	/* Initialize the loopback register. Disable all loopbacks. */
+	writel(0, &regs->loopback);
 
 	/* MSI Register */
 	writel(0, &regs->msi_config);
