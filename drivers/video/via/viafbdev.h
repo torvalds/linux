@@ -37,51 +37,50 @@
 #define VERSION_OS          0	/* 0: for 32 bits OS, 1: for 64 bits OS */
 #define VERSION_MINOR       4
 
-struct viafb_par {
-	int bpp;
-	int hres;
-	int vres;
-	int linelength;
-	u32 xoffset;
-	u32 yoffset;
-
-	void __iomem *fbmem_virt;	/*framebuffer virtual memory address */
-	void __iomem *io_virt;	/*iospace virtual memory address */
-	unsigned int fbmem;	/*framebuffer physical memory address */
-	unsigned int memsize;	/*size of fbmem */
-	unsigned int io;	/*io space address */
-	unsigned long mmio_base;	/*mmio base address */
-	unsigned long mmio_len;	/*mmio base length */
-	u32 fbmem_free;		/* Free FB memory */
-	u32 fbmem_used;		/* Use FB memory size */
-	u32 cursor_start;	/* Cursor Start Address */
-	u32 VQ_start;		/* Virtual Queue Start Address */
-	u32 VQ_end;		/* Virtual Queue End Address */
-	u32 iga_path;
+struct viafb_shared {
 	struct proc_dir_entry *proc_entry;	/*viafb proc entry */
-	u8 duoview;		/*Is working in duoview mode? */
 
 	/* I2C stuff */
 	struct via_i2c_stuff i2c_stuff;
 
 	/* All the information will be needed to set engine */
+	struct tmds_setting_information tmds_setting_info;
+	struct crt_setting_information crt_setting_info;
+	struct lvds_setting_information lvds_setting_info;
+	struct lvds_setting_information lvds_setting_info2;
+	struct chip_information chip_info;
+
+	/* hardware acceleration stuff */
+	void __iomem *engine_mmio;
+	u32 cursor_vram_addr;
+	u32 vq_vram_addr;	/* virtual queue address in video ram */
+	int (*hw_bitblt)(void __iomem *engine, u8 op, u32 width, u32 height,
+		u8 dst_bpp, u32 dst_addr, u32 dst_pitch, u32 dst_x, u32 dst_y,
+		u32 *src_mem, u32 src_addr, u32 src_pitch, u32 src_x, u32 src_y,
+		u32 fg_color, u32 bg_color, u8 fill_rop);
+};
+
+struct viafb_par {
+	u8 depth;
+	u32 vram_addr;
+
+	unsigned int fbmem;	/*framebuffer physical memory address */
+	unsigned int memsize;	/*size of fbmem */
+	u32 fbmem_free;		/* Free FB memory */
+	u32 fbmem_used;		/* Use FB memory size */
+	u32 iga_path;
+
+	struct viafb_shared *shared;
+
+	/* All the information will be needed to set engine */
+	/* depreciated, use the ones in shared directly */
 	struct tmds_setting_information *tmds_setting_info;
 	struct crt_setting_information *crt_setting_info;
 	struct lvds_setting_information *lvds_setting_info;
 	struct lvds_setting_information *lvds_setting_info2;
 	struct chip_information *chip_info;
-
-	/* some information related to video playing */
-	int video_on_crt;
-	int video_on_dvi;
-	int video_on_lcd;
-
 };
-struct viafb_modeinfo {
-	u32 xres;
-	u32 yres;
-	int mode_index;
-};
+
 extern unsigned int viafb_second_virtual_yres;
 extern unsigned int viafb_second_virtual_xres;
 extern unsigned int viafb_second_offset;
@@ -91,14 +90,12 @@ extern int viafb_dual_fb;
 extern int viafb_LCD2_ON;
 extern int viafb_LCD_ON;
 extern int viafb_DVI_ON;
-extern int viafb_accel;
 extern int viafb_hotplug;
 extern int viafb_memsize;
 
 extern int strict_strtoul(const char *cp, unsigned int base,
 	unsigned long *res);
 
-void viafb_memory_pitch_patch(struct fb_info *info);
 void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
 			  int mode_index);
 int viafb_get_mode_index(int hres, int vres);

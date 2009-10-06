@@ -19,6 +19,7 @@ if USB_GSPCA && VIDEO_V4L2
 
 source "drivers/media/video/gspca/m5602/Kconfig"
 source "drivers/media/video/gspca/stv06xx/Kconfig"
+source "drivers/media/video/gspca/gl860/Kconfig"
 
 config USB_GSPCA_CONEX
 	tristate "Conexant Camera Driver"
@@ -46,6 +47,15 @@ config USB_GSPCA_FINEPIX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_finepix.
+
+config USB_GSPCA_JEILINJ
+	tristate "Jeilin JPEG USB V4L2 driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on this Jeilin chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_jeilinj.
 
 config USB_GSPCA_MARS
 	tristate "Mars USB Camera Driver"
@@ -103,9 +113,9 @@ config USB_GSPCA_PAC7311
 	  module will be called gspca_pac7311.
 
 config USB_GSPCA_SN9C20X
-       tristate "SN9C20X USB Camera Driver"
-       depends on VIDEO_V4L2 && USB_GSPCA
-       help
+	tristate "SN9C20X USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
 	 Say Y here if you want support for cameras based on the
 	 sn9c20x chips (SN9C201 and SN9C202).
 
@@ -113,10 +123,10 @@ config USB_GSPCA_SN9C20X
 	 module will be called gspca_sn9c20x.
 
 config USB_GSPCA_SN9C20X_EVDEV
-       bool "Enable evdev support"
-       depends on USB_GSPCA_SN9C20X
-       ---help---
-	 Say Y here in order to enable evdev support for sn9c20x webcam button.
+	bool "Enable evdev support"
+	depends on USB_GSPCA_SN9C20X && INPUT
+	---help---
+	  Say Y here in order to enable evdev support for sn9c20x webcam button.
 
 config USB_GSPCA_SONIXB
 	tristate "SONIX Bayer USB Camera Driver"

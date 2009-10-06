@@ -57,8 +57,10 @@ unsigned int mmu_huge_psizes[MMU_PAGE_COUNT] = { }; /* initialize all to 0 */
 #define HUGEPTE_CACHE_NAME(psize)	(huge_pgtable_cache_name[psize])
 
 static const char *huge_pgtable_cache_name[MMU_PAGE_COUNT] = {
-	"unused_4K", "hugepte_cache_64K", "unused_64K_AP",
-	"hugepte_cache_1M", "hugepte_cache_16M", "hugepte_cache_16G"
+	[MMU_PAGE_64K]	= "hugepte_cache_64K",
+	[MMU_PAGE_1M]	= "hugepte_cache_1M",
+	[MMU_PAGE_16M]	= "hugepte_cache_16M",
+	[MMU_PAGE_16G]	= "hugepte_cache_16G",
 };
 
 /* Flag to mark huge PD pointers.  This means pmd_bad() and pud_bad()
@@ -699,6 +701,8 @@ static void __init set_huge_psize(int psize)
 		 * same as the base page size. */
 		if (mmu_huge_psizes[psize] ||
 		   mmu_psize_defs[psize].shift == PAGE_SHIFT)
+			return;
+		if (WARN_ON(HUGEPTE_CACHE_NAME(psize) == NULL))
 			return;
 		hugetlb_add_hstate(mmu_psize_defs[psize].shift - PAGE_SHIFT);
 

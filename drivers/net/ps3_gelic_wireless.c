@@ -2714,7 +2714,7 @@ static const struct net_device_ops gelic_wl_netdevice_ops = {
 #endif
 };
 
-static struct ethtool_ops gelic_wl_ethtool_ops = {
+static const struct ethtool_ops gelic_wl_ethtool_ops = {
 	.get_drvinfo	= gelic_net_get_drvinfo,
 	.get_link	= gelic_wl_get_link,
 	.get_tx_csum	= ethtool_op_get_tx_csum,

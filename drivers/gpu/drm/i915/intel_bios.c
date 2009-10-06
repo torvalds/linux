@@ -59,6 +59,16 @@ find_section(struct bdb_header *bdb, int section_id)
 	return NULL;
 }
 
+static u16
+get_blocksize(void *p)
+{
+	u16 *block_ptr, block_size;
+
+	block_ptr = (u16 *)((char *)p - 2);
+	block_size = *block_ptr;
+	return block_size;
+}
+
 static void
 fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 			struct lvds_dvo_timing *dvo_timing)
@@ -207,9 +217,47 @@ parse_general_features(struct drm_i915_private *dev_priv,
 			if (IS_I85X(dev_priv->dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 66 : 48;
+			else if (IS_IGDNG(dev_priv->dev))
+				dev_priv->lvds_ssc_freq =
+					general->ssc_freq ? 100 : 120;
 			else
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 100 : 96;
+		}
+	}
+}
+
+static void
+parse_general_definitions(struct drm_i915_private *dev_priv,
+			  struct bdb_header *bdb)
+{
+	struct bdb_general_definitions *general;
+	const int crt_bus_map_table[] = {
+		GPIOB,
+		GPIOA,
+		GPIOC,
+		GPIOD,
+		GPIOE,
+		GPIOF,
+	};
+
+	/* Set sensible defaults in case we can't find the general block
+	   or it is the wrong chipset */
+	dev_priv->crt_ddc_bus = -1;
+
+	general = find_section(bdb, BDB_GENERAL_DEFINITIONS);
+	if (general) {
+		u16 block_size = get_blocksize(general);
+		if (block_size >= sizeof(*general)) {
+			int bus_pin = general->crt_ddc_gmbus_pin;
+			DRM_DEBUG("crt_ddc_bus_pin: %d\n", bus_pin);
+			if ((bus_pin >= 1) && (bus_pin <= 6)) {
+				dev_priv->crt_ddc_bus =
+					crt_bus_map_table[bus_pin-1];
+			}
+		} else {
+			DRM_DEBUG("BDB_GD too small (%d). Invalid.\n",
+				  block_size);
 		}
 	}
 }
@@ -222,7 +270,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 	struct bdb_general_definitions *p_defs;
 	struct child_device_config *p_child;
 	int i, child_device_num, count;
-	u16	block_size, *block_ptr;
+	u16	block_size;
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
@@ -240,8 +288,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 		return;
 	}
 	/* get the block size of general definitions */
-	block_ptr = (u16 *)((char *)p_defs - 2);
-	block_size = *block_ptr;
+	block_size = get_blocksize(p_defs);
 	/* get the number of child device */
 	child_device_num = (block_size - sizeof(*p_defs)) /
 				sizeof(*p_child);
@@ -311,8 +358,14 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 	}
 
 	driver = find_section(bdb, BDB_DRIVER_FEATURES);
-	if (driver && driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
+	if (!driver)
+		return;
+
+	if (driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
 		dev_priv->edp_support = 1;
+
+	if (driver->dual_frequency)
+		dev_priv->render_reclock_avail = true;
 }
 
 /**
@@ -362,6 +415,7 @@ intel_init_bios(struct drm_device *dev)
 
 	/* Grab useful general definitions */
 	parse_general_features(dev_priv, bdb);
+	parse_general_definitions(dev_priv, bdb);
 	parse_lfp_panel_data(dev_priv, bdb);
 	parse_sdvo_panel_data(dev_priv, bdb);
 	parse_sdvo_device_mapping(dev_priv, bdb);

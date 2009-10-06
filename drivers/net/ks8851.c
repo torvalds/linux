@@ -868,11 +868,12 @@ static int ks8851_net_stop(struct net_device *dev)
  * and secondly so we can round up more than one packet to transmit which
  * means we can try and avoid generating too many transmit done interrupts.
  */
-static int ks8851_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ks8851_start_xmit(struct sk_buff *skb,
+				     struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
 	unsigned needed = calc_txlen(skb->len);
-	int ret = NETDEV_TX_OK;
+	netdev_tx_t ret = NETDEV_TX_OK;
 
 	if (netif_msg_tx_queued(ks))
 		ks_dbg(ks, "%s: skb %p, %d@%p\n", __func__,
@@ -1320,3 +1321,4 @@ MODULE_LICENSE("GPL");
 
 module_param_named(message, msg_enable, int, 0);
 MODULE_PARM_DESC(message, "Message verbosity level (0=none, 31=all)");
+MODULE_ALIAS("spi:ks8851");

@@ -43,6 +43,7 @@ source "fs/xfs/Kconfig"
 source "fs/gfs2/Kconfig"
 source "fs/ocfs2/Kconfig"
 source "fs/btrfs/Kconfig"
+source "fs/nilfs2/Kconfig"
 
 endif # BLOCK
 
@@ -108,6 +109,7 @@ source "fs/sysfs/Kconfig"
 
 config TMPFS
 	bool "Virtual memory file system support (former shm fs)"
+	depends on SHMEM
 	help
 	  Tmpfs is a file system which keeps all files in virtual memory.
 
@@ -186,7 +188,6 @@ source "fs/romfs/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
 source "fs/exofs/Kconfig"
-source "fs/nilfs2/Kconfig"
 
 endif # MISC_FILESYSTEMS
 

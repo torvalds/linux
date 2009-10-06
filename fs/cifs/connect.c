@@ -1377,7 +1377,7 @@ cifs_parse_mount_options(char *options, const char *devname,
 }
 
 static struct TCP_Server_Info *
-cifs_find_tcp_session(struct sockaddr_storage *addr)
+cifs_find_tcp_session(struct sockaddr_storage *addr, unsigned short int port)
 {
 	struct list_head *tmp;
 	struct TCP_Server_Info *server;
@@ -1397,16 +1397,37 @@ cifs_find_tcp_session(struct sockaddr_storage *addr)
 		if (server->tcpStatus == CifsNew)
 			continue;
 
-		if (addr->ss_family == AF_INET &&
-		    (addr4->sin_addr.s_addr !=
-		     server->addr.sockAddr.sin_addr.s_addr))
-			continue;
-		else if (addr->ss_family == AF_INET6 &&
-			 (!ipv6_addr_equal(&server->addr.sockAddr6.sin6_addr,
-					   &addr6->sin6_addr) ||
-			  server->addr.sockAddr6.sin6_scope_id !=
-					   addr6->sin6_scope_id))
-			continue;
+		switch (addr->ss_family) {
+		case AF_INET:
+			if (addr4->sin_addr.s_addr ==
+			    server->addr.sockAddr.sin_addr.s_addr) {
+				addr4->sin_port = htons(port);
+				/* user overrode default port? */
+				if (addr4->sin_port) {
+					if (addr4->sin_port !=
+					    server->addr.sockAddr.sin_port)
+						continue;
+				}
+				break;
+			} else
+				continue;
+
+		case AF_INET6:
+			if (ipv6_addr_equal(&addr6->sin6_addr,
+			    &server->addr.sockAddr6.sin6_addr) &&
+			    (addr6->sin6_scope_id ==
+			    server->addr.sockAddr6.sin6_scope_id)) {
+				addr6->sin6_port = htons(port);
+				/* user overrode default port? */
+				if (addr6->sin6_port) {
+					if (addr6->sin6_port !=
+					   server->addr.sockAddr6.sin6_port)
+						continue;
+				}
+				break;
+			} else
+				continue;
+		}
 
 		++server->srv_count;
 		write_unlock(&cifs_tcp_ses_lock);
@@ -1475,7 +1496,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	}
 
 	/* see if we already have a matching tcp_ses */
-	tcp_ses = cifs_find_tcp_session(&addr);
+	tcp_ses = cifs_find_tcp_session(&addr, volume_info->port);
 	if (tcp_ses)
 		return tcp_ses;
 
@@ -1649,7 +1670,6 @@ cifs_put_tcon(struct cifsTconInfo *tcon)
 	CIFSSMBTDis(xid, tcon);
 	_FreeXid(xid);
 
-	DeleteTconOplockQEntries(tcon);
 	tconInfoFree(tcon);
 	cifs_put_smb_ses(ses);
 }
@@ -2636,9 +2656,9 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		return -EIO;
 
 	smb_buffer = cifs_buf_get();
-	if (smb_buffer == NULL) {
+	if (smb_buffer == NULL)
 		return -ENOMEM;
-	}
+
 	smb_buffer_response = smb_buffer;
 
 	header_assemble(smb_buffer, SMB_COM_TREE_CONNECT_ANDX,

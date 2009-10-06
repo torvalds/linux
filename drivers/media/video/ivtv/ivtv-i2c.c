@@ -161,19 +161,19 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 		return -1;
 	if (hw == IVTV_HW_TUNER) {
 		/* special tuner handling */
-		sd = v4l2_i2c_new_probed_subdev(&itv->v4l2_dev,
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, mod, type,
-				itv->card_i2c->radio);
+				0, itv->card_i2c->radio);
 		if (sd)
 			sd->grp_id = 1 << idx;
-		sd = v4l2_i2c_new_probed_subdev(&itv->v4l2_dev,
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, mod, type,
-				itv->card_i2c->demod);
+				0, itv->card_i2c->demod);
 		if (sd)
 			sd->grp_id = 1 << idx;
-		sd = v4l2_i2c_new_probed_subdev(&itv->v4l2_dev,
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, mod, type,
-				itv->card_i2c->tv);
+				0, itv->card_i2c->tv);
 		if (sd)
 			sd->grp_id = 1 << idx;
 		return sd ? 0 : -1;
@@ -181,11 +181,11 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	if (!hw_addrs[idx])
 		return -1;
 	if (hw == IVTV_HW_UPD64031A || hw == IVTV_HW_UPD6408X) {
-		sd = v4l2_i2c_new_probed_subdev_addr(&itv->v4l2_dev,
-				adap, mod, type, hw_addrs[idx]);
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
+				adap, mod, type, 0, I2C_ADDRS(hw_addrs[idx]));
 	} else {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, mod, type, hw_addrs[idx]);
+				adap, mod, type, hw_addrs[idx], NULL);
 	}
 	if (sd)
 		sd->grp_id = 1 << idx;
@@ -509,7 +509,6 @@ static struct i2c_algorithm ivtv_algo = {
 /* template for our-bit banger */
 static struct i2c_adapter ivtv_i2c_adap_hw_template = {
 	.name = "ivtv i2c driver",
-	.id = I2C_HW_B_CX2341X,
 	.algo = &ivtv_algo,
 	.algo_data = NULL,			/* filled from template */
 	.owner = THIS_MODULE,
@@ -560,7 +559,6 @@ static int ivtv_getsda_old(void *data)
 /* template for i2c-bit-algo */
 static struct i2c_adapter ivtv_i2c_adap_template = {
 	.name = "ivtv i2c driver",
-	.id = I2C_HW_B_CX2341X,
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */
 	.owner = THIS_MODULE,

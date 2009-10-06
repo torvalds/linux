@@ -80,52 +80,59 @@ static int get_ctrl_id(__u32 v4l2_id) {
 	return -EINVAL;
 }
 
-static inline int* get_ctrl_ptr(WPMINFO unsigned int idx) {
-	return (int*)((char*)MINFO + g450_controls[idx].control);
+static inline int *get_ctrl_ptr(struct matrox_fb_info *minfo, unsigned int idx)
+{
+	return (int*)((char*)minfo + g450_controls[idx].control);
 }
 
-static void tvo_fill_defaults(WPMINFO2) {
+static void tvo_fill_defaults(struct matrox_fb_info *minfo)
+{
 	unsigned int i;
 	
 	for (i = 0; i < G450CTRLS; i++) {
-		*get_ctrl_ptr(PMINFO i) = g450_controls[i].desc.default_value;
+		*get_ctrl_ptr(minfo, i) = g450_controls[i].desc.default_value;
 	}
 }
 
-static int cve2_get_reg(WPMINFO int reg) {
+static int cve2_get_reg(struct matrox_fb_info *minfo, int reg)
+{
 	unsigned long flags;
 	int val;
 	
 	matroxfb_DAC_lock_irqsave(flags);
-	matroxfb_DAC_out(PMINFO 0x87, reg);
-	val = matroxfb_DAC_in(PMINFO 0x88);
+	matroxfb_DAC_out(minfo, 0x87, reg);
+	val = matroxfb_DAC_in(minfo, 0x88);
 	matroxfb_DAC_unlock_irqrestore(flags);
 	return val;
 }
 
-static void cve2_set_reg(WPMINFO int reg, int val) {
+static void cve2_set_reg(struct matrox_fb_info *minfo, int reg, int val)
+{
 	unsigned long flags;
 
 	matroxfb_DAC_lock_irqsave(flags);
-	matroxfb_DAC_out(PMINFO 0x87, reg);
-	matroxfb_DAC_out(PMINFO 0x88, val);
+	matroxfb_DAC_out(minfo, 0x87, reg);
+	matroxfb_DAC_out(minfo, 0x88, val);
 	matroxfb_DAC_unlock_irqrestore(flags);
 }
 
-static void cve2_set_reg10(WPMINFO int reg, int val) {
+static void cve2_set_reg10(struct matrox_fb_info *minfo, int reg, int val)
+{
 	unsigned long flags;
 
 	matroxfb_DAC_lock_irqsave(flags);
-	matroxfb_DAC_out(PMINFO 0x87, reg);
-	matroxfb_DAC_out(PMINFO 0x88, val >> 2);
-	matroxfb_DAC_out(PMINFO 0x87, reg + 1);
-	matroxfb_DAC_out(PMINFO 0x88, val & 3);
+	matroxfb_DAC_out(minfo, 0x87, reg);
+	matroxfb_DAC_out(minfo, 0x88, val >> 2);
+	matroxfb_DAC_out(minfo, 0x87, reg + 1);
+	matroxfb_DAC_out(minfo, 0x88, val & 3);
 	matroxfb_DAC_unlock_irqrestore(flags);
 }
 
-static void g450_compute_bwlevel(CPMINFO int *bl, int *wl) {
-	const int b = ACCESS_FBINFO(altout.tvo_params.brightness) + BLMIN;
-	const int c = ACCESS_FBINFO(altout.tvo_params.contrast);
+static void g450_compute_bwlevel(const struct matrox_fb_info *minfo, int *bl,
+				 int *wl)
+{
+	const int b = minfo->altout.tvo_params.brightness + BLMIN;
+	const int c = minfo->altout.tvo_params.contrast;
 
 	*bl = max(b - c, BLMIN);
 	*wl = min(b + c, WLMAX);
@@ -154,7 +161,7 @@ static int g450_query_ctrl(void* md, struct v4l2_queryctrl *p) {
 
 static int g450_set_ctrl(void* md, struct v4l2_control *p) {
 	int i;
-	MINFO_FROM(md);
+	struct matrox_fb_info *minfo = md;
 	
 	i = get_ctrl_id(p->id);
 	if (i < 0) return -EINVAL;
@@ -162,7 +169,7 @@ static int g450_set_ctrl(void* md, struct v4l2_control *p) {
 	/*
 	 * Check if changed.
 	 */
-	if (p->value == *get_ctrl_ptr(PMINFO i)) return 0;
+	if (p->value == *get_ctrl_ptr(minfo, i)) return 0;
 
 	/*
 	 * Check limits.
@@ -173,31 +180,31 @@ static int g450_set_ctrl(void* md, struct v4l2_control *p) {
 	/*
 	 * Store new value.
 	 */
-	*get_ctrl_ptr(PMINFO i) = p->value;
+	*get_ctrl_ptr(minfo, i) = p->value;
 
 	switch (p->id) {
 		case V4L2_CID_BRIGHTNESS:
 		case V4L2_CID_CONTRAST:
 			{
 				int blacklevel, whitelevel;
-				g450_compute_bwlevel(PMINFO &blacklevel, &whitelevel);
-				cve2_set_reg10(PMINFO 0x0e, blacklevel);
-				cve2_set_reg10(PMINFO 0x1e, whitelevel);
+				g450_compute_bwlevel(minfo, &blacklevel, &whitelevel);
+				cve2_set_reg10(minfo, 0x0e, blacklevel);
+				cve2_set_reg10(minfo, 0x1e, whitelevel);
 			}
 			break;
 		case V4L2_CID_SATURATION:
-			cve2_set_reg(PMINFO 0x20, p->value);
-			cve2_set_reg(PMINFO 0x22, p->value);
+			cve2_set_reg(minfo, 0x20, p->value);
+			cve2_set_reg(minfo, 0x22, p->value);
 			break;
 		case V4L2_CID_HUE:
-			cve2_set_reg(PMINFO 0x25, p->value);
+			cve2_set_reg(minfo, 0x25, p->value);
 			break;
 		case MATROXFB_CID_TESTOUT:
 			{
-				unsigned char val = cve2_get_reg (PMINFO 0x05);
+				unsigned char val = cve2_get_reg(minfo, 0x05);
 				if (p->value) val |=  0x02;
 				else          val &= ~0x02;
-				cve2_set_reg(PMINFO 0x05, val);
+				cve2_set_reg(minfo, 0x05, val);
 			}
 			break;
 	}
@@ -208,11 +215,11 @@ static int g450_set_ctrl(void* md, struct v4l2_control *p) {
 
 static int g450_get_ctrl(void* md, struct v4l2_control *p) {
 	int i;
-	MINFO_FROM(md);
+	struct matrox_fb_info *minfo = md;
 	
 	i = get_ctrl_id(p->id);
 	if (i < 0) return -EINVAL;
-	p->value = *get_ctrl_ptr(PMINFO i);
+	p->value = *get_ctrl_ptr(minfo, i);
 	return 0;
 }
 
@@ -226,7 +233,9 @@ struct output_desc {
 	unsigned int	v_total;
 };
 
-static void computeRegs(WPMINFO struct mavenregs* r, struct my_timming* mt, const struct output_desc* outd) {
+static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
+			struct my_timming *mt, const struct output_desc *outd)
+{
 	u_int32_t chromasc;
 	u_int32_t hlen;
 	u_int32_t hsl;
@@ -251,10 +260,10 @@ static void computeRegs(WPMINFO struct mavenregs* r, struct my_timming* mt, cons
 
 	dprintk(KERN_DEBUG "Want %u kHz pixclock\n", (unsigned int)piic);
 	
-	mnp = matroxfb_g450_setclk(PMINFO piic, M_VIDEO_PLL);
+	mnp = matroxfb_g450_setclk(minfo, piic, M_VIDEO_PLL);
 	
 	mt->mnp = mnp;
-	mt->pixclock = g450_mnp2f(PMINFO mnp);
+	mt->pixclock = g450_mnp2f(minfo, mnp);
 
 	dprintk(KERN_DEBUG "MNP=%08X\n", mnp);
 
@@ -490,65 +499,67 @@ static void cve2_init_TVdata(int norm, struct mavenregs* data, const struct outp
  	return;
 }
 
-#define LR(x) cve2_set_reg(PMINFO (x), m->regs[(x)])
-static void cve2_init_TV(WPMINFO const struct mavenregs* m) {
+#define LR(x) cve2_set_reg(minfo, (x), m->regs[(x)])
+static void cve2_init_TV(struct matrox_fb_info *minfo,
+			 const struct mavenregs *m)
+{
 	int i;
 
 	LR(0x80);
 	LR(0x82); LR(0x83);
 	LR(0x84); LR(0x85);
 	
-	cve2_set_reg(PMINFO 0x3E, 0x01);
+	cve2_set_reg(minfo, 0x3E, 0x01);
 	
 	for (i = 0; i < 0x3E; i++) {
 		LR(i);
 	}
-	cve2_set_reg(PMINFO 0x3E, 0x00);
+	cve2_set_reg(minfo, 0x3E, 0x00);
 }
 
 static int matroxfb_g450_compute(void* md, struct my_timming* mt) {
-	MINFO_FROM(md);
+	struct matrox_fb_info *minfo = md;
 
-	dprintk(KERN_DEBUG "Computing, mode=%u\n", ACCESS_FBINFO(outputs[1]).mode);
+	dprintk(KERN_DEBUG "Computing, mode=%u\n", minfo->outputs[1].mode);
 
 	if (mt->crtc == MATROXFB_SRC_CRTC2 &&
-	    ACCESS_FBINFO(outputs[1]).mode != MATROXFB_OUTPUT_MODE_MONITOR) {
+	    minfo->outputs[1].mode != MATROXFB_OUTPUT_MODE_MONITOR) {
 		const struct output_desc* outd;
 
-		cve2_init_TVdata(ACCESS_FBINFO(outputs[1]).mode, &ACCESS_FBINFO(hw).maven, &outd);
+		cve2_init_TVdata(minfo->outputs[1].mode, &minfo->hw.maven, &outd);
 		{
 			int blacklevel, whitelevel;
-			g450_compute_bwlevel(PMINFO &blacklevel, &whitelevel);
-			ACCESS_FBINFO(hw).maven.regs[0x0E] = blacklevel >> 2;
-			ACCESS_FBINFO(hw).maven.regs[0x0F] = blacklevel & 3;
-			ACCESS_FBINFO(hw).maven.regs[0x1E] = whitelevel >> 2;
-			ACCESS_FBINFO(hw).maven.regs[0x1F] = whitelevel & 3;
+			g450_compute_bwlevel(minfo, &blacklevel, &whitelevel);
+			minfo->hw.maven.regs[0x0E] = blacklevel >> 2;
+			minfo->hw.maven.regs[0x0F] = blacklevel & 3;
+			minfo->hw.maven.regs[0x1E] = whitelevel >> 2;
+			minfo->hw.maven.regs[0x1F] = whitelevel & 3;
 
-			ACCESS_FBINFO(hw).maven.regs[0x20] =
-			ACCESS_FBINFO(hw).maven.regs[0x22] = ACCESS_FBINFO(altout.tvo_params.saturation);
+			minfo->hw.maven.regs[0x20] =
+			minfo->hw.maven.regs[0x22] = minfo->altout.tvo_params.saturation;
 
-			ACCESS_FBINFO(hw).maven.regs[0x25] = ACCESS_FBINFO(altout.tvo_params.hue);
+			minfo->hw.maven.regs[0x25] = minfo->altout.tvo_params.hue;
 
-			if (ACCESS_FBINFO(altout.tvo_params.testout)) {
-				ACCESS_FBINFO(hw).maven.regs[0x05] |= 0x02;
+			if (minfo->altout.tvo_params.testout) {
+				minfo->hw.maven.regs[0x05] |= 0x02;
 			}
 		}
-		computeRegs(PMINFO &ACCESS_FBINFO(hw).maven, mt, outd);
+		computeRegs(minfo, &minfo->hw.maven, mt, outd);
 	} else if (mt->mnp < 0) {
 		/* We must program clocks before CRTC2, otherwise interlaced mode
 		   startup may fail */
-		mt->mnp = matroxfb_g450_setclk(PMINFO mt->pixclock, (mt->crtc == MATROXFB_SRC_CRTC1) ? M_PIXEL_PLL_C : M_VIDEO_PLL);
-		mt->pixclock = g450_mnp2f(PMINFO mt->mnp);
+		mt->mnp = matroxfb_g450_setclk(minfo, mt->pixclock, (mt->crtc == MATROXFB_SRC_CRTC1) ? M_PIXEL_PLL_C : M_VIDEO_PLL);
+		mt->pixclock = g450_mnp2f(minfo, mt->mnp);
 	}
 	dprintk(KERN_DEBUG "Pixclock = %u\n", mt->pixclock);
 	return 0;
 }
 
 static int matroxfb_g450_program(void* md) {
-	MINFO_FROM(md);
+	struct matrox_fb_info *minfo = md;
 	
-	if (ACCESS_FBINFO(outputs[1]).mode != MATROXFB_OUTPUT_MODE_MONITOR) {
-		cve2_init_TV(PMINFO &ACCESS_FBINFO(hw).maven);
+	if (minfo->outputs[1].mode != MATROXFB_OUTPUT_MODE_MONITOR) {
+		cve2_init_TV(minfo, &minfo->hw.maven);
 	}
 	return 0;
 }
@@ -564,11 +575,11 @@ static int matroxfb_g450_verify_mode(void* md, u_int32_t arg) {
 }
 
 static int g450_dvi_compute(void* md, struct my_timming* mt) {
-	MINFO_FROM(md);
+	struct matrox_fb_info *minfo = md;
 
 	if (mt->mnp < 0) {
-		mt->mnp = matroxfb_g450_setclk(PMINFO mt->pixclock, (mt->crtc == MATROXFB_SRC_CRTC1) ? M_PIXEL_PLL_C : M_VIDEO_PLL);
-		mt->pixclock = g450_mnp2f(PMINFO mt->mnp);
+		mt->mnp = matroxfb_g450_setclk(minfo, mt->pixclock, (mt->crtc == MATROXFB_SRC_CRTC1) ? M_PIXEL_PLL_C : M_VIDEO_PLL);
+		mt->pixclock = g450_mnp2f(minfo, mt->mnp);
 	}
 	return 0;
 }
@@ -588,34 +599,36 @@ static struct matrox_altout matroxfb_g450_dvi = {
 	.compute	= g450_dvi_compute,
 };
 
-void matroxfb_g450_connect(WPMINFO2) {
-	if (ACCESS_FBINFO(devflags.g450dac)) {
-		down_write(&ACCESS_FBINFO(altout.lock));
-		tvo_fill_defaults(PMINFO2);
-		ACCESS_FBINFO(outputs[1]).src = ACCESS_FBINFO(outputs[1]).default_src;
-		ACCESS_FBINFO(outputs[1]).data = MINFO;
-		ACCESS_FBINFO(outputs[1]).output = &matroxfb_g450_altout;
-		ACCESS_FBINFO(outputs[1]).mode = MATROXFB_OUTPUT_MODE_MONITOR;
-		ACCESS_FBINFO(outputs[2]).src = ACCESS_FBINFO(outputs[2]).default_src;
-		ACCESS_FBINFO(outputs[2]).data = MINFO;
-		ACCESS_FBINFO(outputs[2]).output = &matroxfb_g450_dvi;
-		ACCESS_FBINFO(outputs[2]).mode = MATROXFB_OUTPUT_MODE_MONITOR;
-		up_write(&ACCESS_FBINFO(altout.lock));
+void matroxfb_g450_connect(struct matrox_fb_info *minfo)
+{
+	if (minfo->devflags.g450dac) {
+		down_write(&minfo->altout.lock);
+		tvo_fill_defaults(minfo);
+		minfo->outputs[1].src = minfo->outputs[1].default_src;
+		minfo->outputs[1].data = minfo;
+		minfo->outputs[1].output = &matroxfb_g450_altout;
+		minfo->outputs[1].mode = MATROXFB_OUTPUT_MODE_MONITOR;
+		minfo->outputs[2].src = minfo->outputs[2].default_src;
+		minfo->outputs[2].data = minfo;
+		minfo->outputs[2].output = &matroxfb_g450_dvi;
+		minfo->outputs[2].mode = MATROXFB_OUTPUT_MODE_MONITOR;
+		up_write(&minfo->altout.lock);
 	}
 }
 
-void matroxfb_g450_shutdown(WPMINFO2) {
-	if (ACCESS_FBINFO(devflags.g450dac)) {
-		down_write(&ACCESS_FBINFO(altout.lock));
-		ACCESS_FBINFO(outputs[1]).src = MATROXFB_SRC_NONE;
-		ACCESS_FBINFO(outputs[1]).output = NULL;
-		ACCESS_FBINFO(outputs[1]).data = NULL;
-		ACCESS_FBINFO(outputs[1]).mode = MATROXFB_OUTPUT_MODE_MONITOR;
-		ACCESS_FBINFO(outputs[2]).src = MATROXFB_SRC_NONE;
-		ACCESS_FBINFO(outputs[2]).output = NULL;
-		ACCESS_FBINFO(outputs[2]).data = NULL;
-		ACCESS_FBINFO(outputs[2]).mode = MATROXFB_OUTPUT_MODE_MONITOR;
-		up_write(&ACCESS_FBINFO(altout.lock));
+void matroxfb_g450_shutdown(struct matrox_fb_info *minfo)
+{
+	if (minfo->devflags.g450dac) {
+		down_write(&minfo->altout.lock);
+		minfo->outputs[1].src = MATROXFB_SRC_NONE;
+		minfo->outputs[1].output = NULL;
+		minfo->outputs[1].data = NULL;
+		minfo->outputs[1].mode = MATROXFB_OUTPUT_MODE_MONITOR;
+		minfo->outputs[2].src = MATROXFB_SRC_NONE;
+		minfo->outputs[2].output = NULL;
+		minfo->outputs[2].data = NULL;
+		minfo->outputs[2].mode = MATROXFB_OUTPUT_MODE_MONITOR;
+		up_write(&minfo->altout.lock);
 	}
 }
 

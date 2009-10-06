@@ -205,8 +205,7 @@ static void edge_bulk_out_data_callback(struct urb *urb);
 static void edge_bulk_out_cmd_callback(struct urb *urb);
 
 /* function prototypes for the usbserial callbacks */
-static int edge_open(struct tty_struct *tty, struct usb_serial_port *port,
-					struct file *filp);
+static int edge_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void edge_close(struct usb_serial_port *port);
 static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf, int count);
@@ -852,8 +851,7 @@ static void edge_bulk_out_cmd_callback(struct urb *urb)
  *	If successful, we return 0
  *	Otherwise we return a negative error number.
  *****************************************************************************/
-static int edge_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	struct usb_serial *serial;
@@ -2542,7 +2540,7 @@ static int calc_baud_rate_divisor(int baudrate, int *divisor)
 
 /*****************************************************************************
  * send_cmd_write_uart_register
- *  this function builds up a uart register message and sends to to the device.
+ *  this function builds up a uart register message and sends to the device.
  *****************************************************************************/
 static int send_cmd_write_uart_register(struct edgeport_port *edge_port,
 						__u8 regNum, __u8 regValue)

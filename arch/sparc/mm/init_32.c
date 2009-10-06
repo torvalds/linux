@@ -34,6 +34,7 @@
 #include <asm/pgalloc.h>	/* bug in asm-generic/tlb.h: check_pgt_cache */
 #include <asm/tlb.h>
 #include <asm/prom.h>
+#include <asm/leon.h>
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
@@ -326,6 +327,9 @@ void __init paging_init(void)
 		sparc_unmapped_base = 0xe0000000;
 		BTFIXUPSET_SETHI(sparc_unmapped_base, 0xe0000000);
 		break;
+	case sparc_leon:
+		leon_init();
+		/* fall through */
 	case sun4m:
 	case sun4d:
 		srmmu_paging_init();
@@ -468,7 +472,7 @@ void __init mem_init(void)
 			reservedpages++;
 
 	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init, %ldk highmem)\n",
-	       (unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
+	       nr_free_pages() << (PAGE_SHIFT-10),
 	       num_physpages << (PAGE_SHIFT - 10),
 	       codepages << (PAGE_SHIFT-10),
 	       reservedpages << (PAGE_SHIFT - 10),

@@ -46,10 +46,7 @@ static void isofs_put_super(struct super_block *sb)
 #ifdef CONFIG_JOLIET
 	lock_kernel();
 
-	if (sbi->s_nls_iocharset) {
-		unload_nls(sbi->s_nls_iocharset);
-		sbi->s_nls_iocharset = NULL;
-	}
+	unload_nls(sbi->s_nls_iocharset);
 
 	unlock_kernel();
 #endif
@@ -912,8 +909,7 @@ out_no_root:
 		printk(KERN_WARNING "%s: get root inode failed\n", __func__);
 out_no_inode:
 #ifdef CONFIG_JOLIET
-	if (sbi->s_nls_iocharset)
-		unload_nls(sbi->s_nls_iocharset);
+	unload_nls(sbi->s_nls_iocharset);
 #endif
 	goto out_freesbi;
 out_no_read:

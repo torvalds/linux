@@ -144,7 +144,7 @@ extern unsigned int udp_poll(struct file *file, struct socket *sock,
 extern int 	udp_lib_getsockopt(struct sock *sk, int level, int optname,
 			           char __user *optval, int __user *optlen);
 extern int 	udp_lib_setsockopt(struct sock *sk, int level, int optname,
-				   char __user *optval, int optlen,
+				   char __user *optval, unsigned int optlen,
 				   int (*push_pending_frames)(struct sock *));
 
 extern struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
@@ -207,4 +207,7 @@ extern void udp4_proc_exit(void);
 #endif
 
 extern void udp_init(void);
+
+extern int udp4_ufo_send_check(struct sk_buff *skb);
+extern struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb, int features);
 #endif	/* _UDP_H */

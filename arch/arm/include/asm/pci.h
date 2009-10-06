@@ -6,8 +6,6 @@
 
 #include <mach/hardware.h> /* for PCIBIOS_MIN_* */
 
-#define pcibios_scan_all_fns(a, b)	0
-
 #ifdef CONFIG_PCI_HOST_ITE8152
 /* ITE bridge requires setting latency timer to avoid early bus access
    termination by PIC bus mater devices

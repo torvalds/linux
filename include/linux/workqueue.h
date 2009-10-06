@@ -94,7 +94,7 @@ struct execute_work {
 /*
  * initialize all of a work item in one go
  *
- * NOTE! No point in using "atomic_long_set()": useing a direct
+ * NOTE! No point in using "atomic_long_set()": using a direct
  * assignment of the work data initializer allows the compiler
  * to generate better code.
  */
@@ -235,6 +235,21 @@ static inline int cancel_delayed_work(struct delayed_work *work)
 	int ret;
 
 	ret = del_timer_sync(&work->timer);
+	if (ret)
+		work_clear_pending(&work->work);
+	return ret;
+}
+
+/*
+ * Like above, but uses del_timer() instead of del_timer_sync(). This means,
+ * if it returns 0 the timer function may be running and the queueing is in
+ * progress.
+ */
+static inline int __cancel_delayed_work(struct delayed_work *work)
+{
+	int ret;
+
+	ret = del_timer(&work->timer);
 	if (ret)
 		work_clear_pending(&work->work);
 	return ret;

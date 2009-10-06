@@ -39,7 +39,7 @@ typedef struct {
 
 static sa1100_dma_t dma_chan[SA1100_DMA_CHANNELS];
 
-static spinlock_t dma_list_lock;
+static DEFINE_SPINLOCK(dma_list_lock);
 
 
 static irqreturn_t dma_irq_handler(int irq, void *dev_id)

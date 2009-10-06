@@ -123,7 +123,7 @@ struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
 }
 
 static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct net *net = sock_net(sk);
@@ -315,6 +315,9 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			goto e_inval;
 		if (val < -1 || val > 0xff)
 			goto e_inval;
+		/* RFC 3542, 6.5: default traffic class of 0x0 */
+		if (val == -1)
+			val = 0;
 		np->tclass = val;
 		retv = 0;
 		break;
@@ -770,7 +773,7 @@ e_inval:
 }
 
 int ipv6_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	int err;
 
@@ -798,7 +801,7 @@ EXPORT_SYMBOL(ipv6_setsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_ipv6_setsockopt(struct sock *sk, int level, int optname,
-			   char __user *optval, int optlen)
+			   char __user *optval, unsigned int optlen)
 {
 	int err;
 
@@ -1037,8 +1040,6 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_TCLASS:
 		val = np->tclass;
-		if (val < 0)
-			val = 0;
 		break;
 
 	case IPV6_RECVTCLASS:

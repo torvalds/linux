@@ -64,7 +64,6 @@ static int current_device   = -1;
 
 static DEFINE_SPINLOCK(z2ram_lock);
 
-static struct block_device_operations z2_fops;
 static struct gendisk *z2ram_gendisk;
 
 static void do_z2_request(struct request_queue *q)
@@ -315,7 +314,7 @@ z2_release(struct gendisk *disk, fmode_t mode)
     return 0;
 }
 
-static struct block_device_operations z2_fops =
+static const struct block_device_operations z2_fops =
 {
 	.owner		= THIS_MODULE,
 	.open		= z2_open,

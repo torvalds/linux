@@ -9,6 +9,7 @@ config OPROFILE
 	depends on TRACING_SUPPORT
 	select TRACING
 	select RING_BUFFER
+	select RING_BUFFER_ALLOW_SWAP
 	help
 	  OProfile is a profiling system capable of profiling the
 	  whole system, include the kernel, kernel modules, libraries,
@@ -27,6 +28,18 @@ config OPROFILE_IBS
           (AMD Opteron Quad-Core processor "Barcelona") to overcome
           the limitations of conventional performance counter
           sampling.
+
+	  If unsure, say N.
+
+config OPROFILE_EVENT_MULTIPLEX
+	bool "OProfile multiplexing support (EXPERIMENTAL)"
+	default n
+	depends on OPROFILE && X86
+	help
+	  The number of hardware counters is limited. The multiplexing
+	  feature enables OProfile to gather more events than counters
+	  are provided by the hardware. This is realized by switching
+	  between events at an user specified time interval.
 
 	  If unsure, say N.
 

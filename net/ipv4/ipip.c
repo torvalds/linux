@@ -387,7 +387,7 @@ static int ipip_rcv(struct sk_buff *skb)
  *	and that skb is filled properly by that function.
  */
 
-static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct net_device_stats *stats = &tunnel->dev->stats;
@@ -401,11 +401,6 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int max_headroom;		/* The extra header space needed */
 	__be32 dst = tiph->daddr;
 	int    mtu;
-
-	if (tunnel->recursion++) {
-		stats->collisions++;
-		goto tx_error;
-	}
 
 	if (skb->protocol != htons(ETH_P_IP))
 		goto tx_error;
@@ -485,8 +480,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			ip_rt_put(rt);
 			stats->tx_dropped++;
 			dev_kfree_skb(skb);
-			tunnel->recursion--;
-			return 0;
+			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
 			skb_set_owner_w(new_skb, skb->sk);
@@ -523,16 +517,14 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	nf_reset(skb);
 
 	IPTUNNEL_XMIT();
-	tunnel->recursion--;
-	return 0;
+	return NETDEV_TX_OK;
 
 tx_error_icmp:
 	dst_link_failure(skb);
 tx_error:
 	stats->tx_errors++;
 	dev_kfree_skb(skb);
-	tunnel->recursion--;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void ipip_tunnel_bind_dev(struct net_device *dev)

@@ -197,6 +197,16 @@
 #define __cpu_is_pxa935(id)	(0)
 #endif
 
+#ifdef CONFIG_CPU_PXA950
+#define __cpu_is_pxa950(id)                             \
+	({                                              \
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		id == 0x697;				\
+	 })
+#else
+#define __cpu_is_pxa950(id)	(0)
+#endif
+
 #define cpu_is_pxa210()					\
 	({						\
 		__cpu_is_pxa210(read_cpuid_id());	\
@@ -248,6 +258,13 @@
 		unsigned int id = read_cpuid(CPUID_ID);	\
 		__cpu_is_pxa935(id);			\
 	 })
+
+#define cpu_is_pxa950()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa950(id);			\
+	 })
+
 
 /*
  * CPUID Core Generation Bit

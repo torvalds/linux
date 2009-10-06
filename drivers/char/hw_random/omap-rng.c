@@ -116,7 +116,7 @@ static int __devinit omap_rng_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENOENT;
 
-	mem = request_mem_region(res->start, res->end - res->start + 1,
+	mem = request_mem_region(res->start, resource_size(res),
 				 pdev->name);
 	if (mem == NULL) {
 		ret = -EBUSY;
@@ -124,7 +124,7 @@ static int __devinit omap_rng_probe(struct platform_device *pdev)
 	}
 
 	dev_set_drvdata(&pdev->dev, mem);
-	rng_base = ioremap(res->start, res->end - res->start + 1);
+	rng_base = ioremap(res->start, resource_size(res));
 	if (!rng_base) {
 		ret = -ENOMEM;
 		goto err_ioremap;

@@ -1344,7 +1344,7 @@ static inline int emac_xmit_finish(struct emac_instance *dev, int len)
 	++dev->stats.tx_packets;
 	dev->stats.tx_bytes += len;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* Tx lock BH */
@@ -2209,7 +2209,7 @@ static const struct ethtool_ops emac_ethtool_ops = {
 static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
-	uint16_t *data = (uint16_t *) & rq->ifr_ifru;
+	struct mii_ioctl_data *data = if_mii(rq);
 
 	DBG(dev, "ioctl %08x" NL, cmd);
 
@@ -2218,19 +2218,16 @@ static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
-	case SIOCDEVPRIVATE:
-		data[0] = dev->phy.address;
+		data->phy_id = dev->phy.address;
 		/* Fall through */
 	case SIOCGMIIREG:
-	case SIOCDEVPRIVATE + 1:
-		data[3] = emac_mdio_read(ndev, dev->phy.address, data[1]);
+		data->val_out = emac_mdio_read(ndev, dev->phy.address,
+					       data->reg_num);
 		return 0;
 
 	case SIOCSMIIREG:
-	case SIOCDEVPRIVATE + 2:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-		emac_mdio_write(ndev, dev->phy.address, data[1], data[2]);
+		emac_mdio_write(ndev, dev->phy.address, data->reg_num,
+				data->val_in);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
@@ -2559,13 +2556,13 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 	if (emac_read_uint_prop(np, "mdio-device", &dev->mdio_ph, 0))
 		dev->mdio_ph = 0;
 	if (emac_read_uint_prop(np, "zmii-device", &dev->zmii_ph, 0))
-		dev->zmii_ph = 0;;
+		dev->zmii_ph = 0;
 	if (emac_read_uint_prop(np, "zmii-channel", &dev->zmii_port, 0))
-		dev->zmii_port = 0xffffffff;;
+		dev->zmii_port = 0xffffffff;
 	if (emac_read_uint_prop(np, "rgmii-device", &dev->rgmii_ph, 0))
-		dev->rgmii_ph = 0;;
+		dev->rgmii_ph = 0;
 	if (emac_read_uint_prop(np, "rgmii-channel", &dev->rgmii_port, 0))
-		dev->rgmii_port = 0xffffffff;;
+		dev->rgmii_port = 0xffffffff;
 	if (emac_read_uint_prop(np, "fifo-entry-size", &dev->fifo_entry_size, 0))
 		dev->fifo_entry_size = 16;
 	if (emac_read_uint_prop(np, "mal-burst-size", &dev->mal_burst_size, 0))

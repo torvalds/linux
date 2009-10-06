@@ -82,7 +82,8 @@ struct sb1000_private {
 extern int sb1000_probe(struct net_device *dev);
 static int sb1000_open(struct net_device *dev);
 static int sb1000_dev_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd);
-static int sb1000_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t sb1000_start_xmit(struct sk_buff *skb,
+				     struct net_device *dev);
 static irqreturn_t sb1000_interrupt(int irq, void *dev_id);
 static int sb1000_close(struct net_device *dev);
 
@@ -1080,13 +1081,13 @@ static int sb1000_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 }
 
 /* transmit function: do nothing since SB1000 can't send anything out */
-static int
+static netdev_tx_t
 sb1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	printk(KERN_WARNING "%s: trying to transmit!!!\n", dev->name);
 	/* sb1000 can't xmit datagrams */
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* SB1000 interrupt handler. */

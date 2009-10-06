@@ -87,18 +87,6 @@ static unsigned int nlm_hash_address(const struct sockaddr *sap)
 	return hash & (NLM_HOST_NRHASH - 1);
 }
 
-static void nlm_clear_port(struct sockaddr *sap)
-{
-	switch (sap->sa_family) {
-	case AF_INET:
-		((struct sockaddr_in *)sap)->sin_port = 0;
-		break;
-	case AF_INET6:
-		((struct sockaddr_in6 *)sap)->sin6_port = 0;
-		break;
-	}
-}
-
 /*
  * Common host lookup routine for server & client
  */
@@ -123,7 +111,7 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 	 */
 	chain = &nlm_hosts[nlm_hash_address(ni->sap)];
 	hlist_for_each_entry(host, pos, chain, h_hash) {
-		if (!nlm_cmp_addr(nlm_addr(host), ni->sap))
+		if (!rpc_cmp_addr(nlm_addr(host), ni->sap))
 			continue;
 
 		/* See if we have an NSM handle for this client */
@@ -137,7 +125,7 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 		if (host->h_server != ni->server)
 			continue;
 		if (ni->server &&
-		    !nlm_cmp_addr(nlm_srcaddr(host), ni->src_sap))
+		    !rpc_cmp_addr(nlm_srcaddr(host), ni->src_sap))
 			continue;
 
 		/* Move to head of hash chain. */
@@ -177,7 +165,7 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 	host->h_addrbuf    = nsm->sm_addrbuf;
 	memcpy(nlm_addr(host), ni->sap, ni->salen);
 	host->h_addrlen = ni->salen;
-	nlm_clear_port(nlm_addr(host));
+	rpc_set_port(nlm_addr(host), 0);
 	memcpy(nlm_srcaddr(host), ni->src_sap, ni->src_len);
 	host->h_version    = ni->version;
 	host->h_proto      = ni->protocol;

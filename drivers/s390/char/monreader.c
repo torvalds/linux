@@ -581,7 +581,7 @@ static int __init mon_init(void)
 	monreader_device->release = (void (*)(struct device *))kfree;
 	rc = device_register(monreader_device);
 	if (rc) {
-		kfree(monreader_device);
+		put_device(monreader_device);
 		goto out_driver;
 	}
 

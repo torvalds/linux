@@ -31,8 +31,6 @@
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
 #include <asm/cacheflush.h>
-#include <crypto/internal/hash.h>
-#include <crypto/algapi.h>
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 #include "crypto4xx_reg_def.h"
@@ -998,10 +996,15 @@ static int crypto4xx_alg_init(struct crypto_tfm *tfm)
 	ctx->sa_out_dma_addr = 0;
 	ctx->sa_len = 0;
 
-	if (alg->cra_type == &crypto_ablkcipher_type)
+	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
+	default:
 		tfm->crt_ablkcipher.reqsize = sizeof(struct crypto4xx_ctx);
-	else if (alg->cra_type == &crypto_ahash_type)
-		tfm->crt_ahash.reqsize = sizeof(struct crypto4xx_ctx);
+		break;
+	case CRYPTO_ALG_TYPE_AHASH:
+		crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
+					 sizeof(struct crypto4xx_ctx));
+		break;
+	}
 
 	return 0;
 }
@@ -1015,7 +1018,8 @@ static void crypto4xx_alg_exit(struct crypto_tfm *tfm)
 }
 
 int crypto4xx_register_alg(struct crypto4xx_device *sec_dev,
-			   struct crypto_alg *crypto_alg, int array_size)
+			   struct crypto4xx_alg_common *crypto_alg,
+			   int array_size)
 {
 	struct crypto4xx_alg *alg;
 	int i;
@@ -1027,13 +1031,18 @@ int crypto4xx_register_alg(struct crypto4xx_device *sec_dev,
 			return -ENOMEM;
 
 		alg->alg = crypto_alg[i];
-		INIT_LIST_HEAD(&alg->alg.cra_list);
-		if (alg->alg.cra_init == NULL)
-			alg->alg.cra_init = crypto4xx_alg_init;
-		if (alg->alg.cra_exit == NULL)
-			alg->alg.cra_exit = crypto4xx_alg_exit;
 		alg->dev = sec_dev;
-		rc = crypto_register_alg(&alg->alg);
+
+		switch (alg->alg.type) {
+		case CRYPTO_ALG_TYPE_AHASH:
+			rc = crypto_register_ahash(&alg->alg.u.hash);
+			break;
+
+		default:
+			rc = crypto_register_alg(&alg->alg.u.cipher);
+			break;
+		}
+
 		if (rc) {
 			list_del(&alg->entry);
 			kfree(alg);
@@ -1051,7 +1060,14 @@ static void crypto4xx_unregister_alg(struct crypto4xx_device *sec_dev)
 
 	list_for_each_entry_safe(alg, tmp, &sec_dev->alg_list, entry) {
 		list_del(&alg->entry);
-		crypto_unregister_alg(&alg->alg);
+		switch (alg->alg.type) {
+		case CRYPTO_ALG_TYPE_AHASH:
+			crypto_unregister_ahash(&alg->alg.u.hash);
+			break;
+
+		default:
+			crypto_unregister_alg(&alg->alg.u.cipher);
+		}
 		kfree(alg);
 	}
 }
@@ -1104,17 +1120,18 @@ static irqreturn_t crypto4xx_ce_interrupt_handler(int irq, void *data)
 /**
  * Supported Crypto Algorithms
  */
-struct crypto_alg crypto4xx_alg[] = {
+struct crypto4xx_alg_common crypto4xx_alg[] = {
 	/* Crypto AES modes */
-	{
+	{ .type = CRYPTO_ALG_TYPE_ABLKCIPHER, .u.cipher = {
 		.cra_name 	= "cbc(aes)",
 		.cra_driver_name = "cbc-aes-ppc4xx",
 		.cra_priority 	= CRYPTO4XX_CRYPTO_PRIORITY,
 		.cra_flags 	= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 		.cra_blocksize 	= AES_BLOCK_SIZE,
 		.cra_ctxsize 	= sizeof(struct crypto4xx_ctx),
-		.cra_alignmask 	= 0,
 		.cra_type 	= &crypto_ablkcipher_type,
+		.cra_init	= crypto4xx_alg_init,
+		.cra_exit	= crypto4xx_alg_exit,
 		.cra_module 	= THIS_MODULE,
 		.cra_u 		= {
 			.ablkcipher = {
@@ -1126,29 +1143,7 @@ struct crypto_alg crypto4xx_alg[] = {
 				.decrypt 	= crypto4xx_decrypt,
 			}
 		}
-	},
-	/* Hash SHA1 */
-	{
-		.cra_name	= "sha1",
-		.cra_driver_name = "sha1-ppc4xx",
-		.cra_priority	= CRYPTO4XX_CRYPTO_PRIORITY,
-		.cra_flags	= CRYPTO_ALG_TYPE_AHASH | CRYPTO_ALG_ASYNC,
-		.cra_blocksize	= SHA1_BLOCK_SIZE,
-		.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
-		.cra_alignmask	= 0,
-		.cra_type	= &crypto_ahash_type,
-		.cra_init	= crypto4xx_sha1_alg_init,
-		.cra_module	= THIS_MODULE,
-		.cra_u		= {
-			.ahash = {
-				.digestsize 	= SHA1_DIGEST_SIZE,
-				.init		= crypto4xx_hash_init,
-				.update		= crypto4xx_hash_update,
-				.final  	= crypto4xx_hash_final,
-				.digest 	= crypto4xx_hash_digest,
-			}
-		}
-	},
+	}},
 };
 
 /**

@@ -230,22 +230,28 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
+	intel_output->crtc_mask = (1 << 0) | (1 << 1);
 
 	/* Set up the DDC bus. */
-	if (sdvox_reg == SDVOB)
+	if (sdvox_reg == SDVOB) {
+		intel_output->clone_mask = (1 << INTEL_HDMIB_CLONE_BIT);
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOE, "HDMIB");
-	else if (sdvox_reg == SDVOC)
+	} else if (sdvox_reg == SDVOC) {
+		intel_output->clone_mask = (1 << INTEL_HDMIC_CLONE_BIT);
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOD, "HDMIC");
-	else if (sdvox_reg == HDMIB)
+	} else if (sdvox_reg == HDMIB) {
+		intel_output->clone_mask = (1 << INTEL_HDMID_CLONE_BIT);
 		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOE,
 								"HDMIB");
-	else if (sdvox_reg == HDMIC)
+	} else if (sdvox_reg == HDMIC) {
+		intel_output->clone_mask = (1 << INTEL_HDMIE_CLONE_BIT);
 		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOD,
 								"HDMIC");
-	else if (sdvox_reg == HDMID)
+	} else if (sdvox_reg == HDMID) {
+		intel_output->clone_mask = (1 << INTEL_HDMIF_CLONE_BIT);
 		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOF,
 								"HDMID");
-
+	}
 	if (!intel_output->ddc_bus)
 		goto err_connector;
 

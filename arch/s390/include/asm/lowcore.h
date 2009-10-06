@@ -86,6 +86,7 @@
 #define __LC_PGM_OLD_PSW		0x0150
 #define __LC_MCK_OLD_PSW		0x0160
 #define __LC_IO_OLD_PSW			0x0170
+#define __LC_RESTART_PSW		0x01a0
 #define __LC_EXT_NEW_PSW		0x01b0
 #define __LC_SVC_NEW_PSW		0x01c0
 #define __LC_PGM_NEW_PSW		0x01d0
@@ -132,7 +133,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/cpuid.h>
+#include <asm/cpu.h>
 #include <asm/ptrace.h>
 #include <linux/types.h>
 
@@ -188,6 +189,14 @@ union save_area {
 #define SAVE_AREA_SIZE sizeof(struct save_area_s390x)
 #define SAVE_AREA_BASE SAVE_AREA_BASE_S390X
 #endif
+
+#ifndef __s390x__
+#define LC_ORDER 0
+#else
+#define LC_ORDER 1
+#endif
+
+#define LC_PAGES (1UL << LC_ORDER)
 
 struct _lowcore
 {
@@ -275,7 +284,7 @@ struct _lowcore
 	__u32	user_exec_asce;			/* 0x02ac */
 
 	/* SMP info area */
-	cpuid_t	cpu_id;				/* 0x02b0 */
+	struct cpuid cpu_id;			/* 0x02b0 */
 	__u32	cpu_nr;				/* 0x02b8 */
 	__u32	softirq_pending;		/* 0x02bc */
 	__u32	percpu_offset;			/* 0x02c0 */
@@ -380,7 +389,7 @@ struct _lowcore
 	__u64	user_exec_asce;			/* 0x0318 */
 
 	/* SMP info area */
-	cpuid_t	cpu_id;				/* 0x0320 */
+	struct cpuid cpu_id;			/* 0x0320 */
 	__u32	cpu_nr;				/* 0x0328 */
 	__u32	softirq_pending;		/* 0x032c */
 	__u64	percpu_offset;			/* 0x0330 */

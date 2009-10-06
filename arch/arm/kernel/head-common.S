@@ -13,7 +13,9 @@
 
 #define ATAG_CORE 0x54410001
 #define ATAG_CORE_SIZE ((2*4 + 3*4) >> 2)
+#define ATAG_CORE_SIZE_EMPTY ((2*4) >> 2)
 
+	.align	2
 	.type	__switch_data, %object
 __switch_data:
 	.long	__mmap_switched
@@ -51,7 +53,9 @@ __mmap_switched:
 	strcc	fp, [r6],#4
 	bcc	1b
 
-	ldmia	r3, {r4, r5, r6, r7, sp}
+ ARM(	ldmia	r3, {r4, r5, r6, r7, sp})
+ THUMB(	ldmia	r3, {r4, r5, r6, r7}	)
+ THUMB(	ldr	sp, [r3, #16]		)
 	str	r9, [r4]			@ Save processor ID
 	str	r1, [r5]			@ Save machine type
 	str	r2, [r6]			@ Save atags pointer
@@ -155,7 +159,8 @@ ENDPROC(__error)
  */
 __lookup_processor_type:
 	adr	r3, 3f
-	ldmda	r3, {r5 - r7}
+	ldmia	r3, {r5 - r7}
+	add	r3, r3, #8
 	sub	r3, r3, r7			@ get offset between virt&phys
 	add	r5, r5, r3			@ convert virt addresses to
 	add	r6, r6, r3			@ physical address space
@@ -185,9 +190,10 @@ ENDPROC(lookup_processor_type)
  * Look in <asm/procinfo.h> and arch/arm/kernel/arch.[ch] for
  * more information about the __proc_info and __arch_info structures.
  */
-	.long	__proc_info_begin
+	.align	2
+3:	.long	__proc_info_begin
 	.long	__proc_info_end
-3:	.long	.
+4:	.long	.
 	.long	__arch_info_begin
 	.long	__arch_info_end
 
@@ -203,7 +209,7 @@ ENDPROC(lookup_processor_type)
  *  r5 = mach_info pointer in physical address space
  */
 __lookup_machine_type:
-	adr	r3, 3b
+	adr	r3, 4b
 	ldmia	r3, {r4, r5, r6}
 	sub	r3, r3, r4			@ get offset between virt&phys
 	add	r5, r5, r3			@ convert virt addresses to
@@ -246,7 +252,8 @@ __vet_atags:
 	bne	1f
 
 	ldr	r5, [r2, #0]			@ is first tag ATAG_CORE?
-	subs	r5, r5, #ATAG_CORE_SIZE
+	cmp	r5, #ATAG_CORE_SIZE
+	cmpne	r5, #ATAG_CORE_SIZE_EMPTY
 	bne	1f
 	ldr	r5, [r2, #4]
 	ldr	r6, =ATAG_CORE

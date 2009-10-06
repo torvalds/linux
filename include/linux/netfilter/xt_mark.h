@@ -3,11 +3,6 @@
 
 #include <linux/types.h>
 
-struct xt_mark_info {
-    unsigned long mark, mask;
-    __u8 invert;
-};
-
 struct xt_mark_mtinfo1 {
 	__u32 mark, mask;
 	__u8 invert;

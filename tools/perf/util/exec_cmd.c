@@ -6,7 +6,6 @@
 
 #define MAX_ARGS	32
 
-extern char **environ;
 static const char *argv_exec_path;
 static const char *argv0_path;
 

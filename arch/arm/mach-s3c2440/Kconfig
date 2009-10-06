@@ -33,6 +33,7 @@ config MACH_ANUBIS
 	select PM_SIMTEC if PM
 	select HAVE_PATA_PLATFORM
 	select S3C24XX_GPIO_EXTRA64
+	select S3C2440_XTAL_12000000
 	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Simtec Electronics ANUBIS
@@ -44,7 +45,10 @@ config MACH_OSIRIS
 	select S3C24XX_DCLK
 	select PM_SIMTEC if PM
 	select S3C24XX_GPIO_EXTRA128
+	select S3C2440_XTAL_12000000
+	select S3C2410_IOTIMING if S3C2440_CPUFREQ
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using the Simtec IM2440D20 module, also
 	  known as the Osiris.
@@ -52,22 +56,28 @@ config MACH_OSIRIS
 config MACH_RX3715
 	bool "HP iPAQ rx3715"
 	select CPU_S3C2440
+	select S3C2440_XTAL_16934400
 	select PM_H1940 if PM
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using the HP iPAQ rx3715.
 
 config ARCH_S3C2440
 	bool "SMDK2440"
 	select CPU_S3C2440
+	select S3C2440_XTAL_16934400
 	select MACH_SMDK
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using the SMDK2440.
 
 config MACH_NEXCODER_2440
  	bool "NexVision NEXCODER 2440 Light Board"
  	select CPU_S3C2440
+	select S3C2440_XTAL_12000000
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
  	  Say Y here if you are using the Nex Vision NEXCODER 2440 Light Board
 
@@ -75,12 +85,14 @@ config SMDK2440_CPU2440
 	bool "SMDK2440 with S3C2440 CPU module"
 	depends on ARCH_S3C2440
 	default y if ARCH_S3C2440
+	select S3C2440_XTAL_16934400
 	select CPU_S3C2440
 
 config MACH_AT2440EVB
 	bool "Avantech AT2440EVB development board"
 	select CPU_S3C2440
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using the AT2440EVB development board
 
@@ -90,6 +102,7 @@ config MACH_MINI2440
 	select EEPROM_AT24
 	select LEDS_TRIGGER_BACKLIGHT
 	select SND_S3C24XX_SOC_S3C24XX_UDA134X
+	select S3C_DEV_NAND
 	help
 	  Say Y here to select support for the MINI2440. Is a 10cm x 10cm board
 	  available via various sources. It can come with a 3.5" or 7" touch LCD.

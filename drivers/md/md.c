@@ -138,7 +138,7 @@ static ctl_table raid_root_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static struct block_device_operations md_fops;
+static const struct block_device_operations md_fops;
 
 static int start_readonly;
 
@@ -261,6 +261,12 @@ static void mddev_resume(mddev_t *mddev)
 	wake_up(&mddev->sb_wait);
 	mddev->pers->quiesce(mddev, 0);
 }
+
+int mddev_congested(mddev_t *mddev, int bits)
+{
+	return mddev->suspended;
+}
+EXPORT_SYMBOL(mddev_congested);
 
 
 static inline mddev_t *mddev_get(mddev_t *mddev)
@@ -4218,7 +4224,7 @@ static int do_md_run(mddev_t * mddev)
 			set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 			mddev->sync_thread = md_register_thread(md_do_sync,
 								mddev,
-								"%s_resync");
+								"resync");
 			if (!mddev->sync_thread) {
 				printk(KERN_ERR "%s: could not start resync"
 				       " thread...\n",
@@ -4575,10 +4581,10 @@ static int get_version(void __user * arg)
 static int get_array_info(mddev_t * mddev, void __user * arg)
 {
 	mdu_array_info_t info;
-	int nr,working,active,failed,spare;
+	int nr,working,insync,failed,spare;
 	mdk_rdev_t *rdev;
 
-	nr=working=active=failed=spare=0;
+	nr=working=insync=failed=spare=0;
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		nr++;
 		if (test_bit(Faulty, &rdev->flags))
@@ -4586,7 +4592,7 @@ static int get_array_info(mddev_t * mddev, void __user * arg)
 		else {
 			working++;
 			if (test_bit(In_sync, &rdev->flags))
-				active++;	
+				insync++;	
 			else
 				spare++;
 		}
@@ -4611,7 +4617,7 @@ static int get_array_info(mddev_t * mddev, void __user * arg)
 		info.state = (1<<MD_SB_CLEAN);
 	if (mddev->bitmap && mddev->bitmap_offset)
 		info.state = (1<<MD_SB_BITMAP_PRESENT);
-	info.active_disks  = active;
+	info.active_disks  = insync;
 	info.working_disks = working;
 	info.failed_disks  = failed;
 	info.spare_disks   = spare;
@@ -4721,7 +4727,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		if (!list_empty(&mddev->disks)) {
 			mdk_rdev_t *rdev0 = list_entry(mddev->disks.next,
 							mdk_rdev_t, same_set);
-			int err = super_types[mddev->major_version]
+			err = super_types[mddev->major_version]
 				.load_super(rdev, rdev0, mddev->minor_version);
 			if (err < 0) {
 				printk(KERN_WARNING 
@@ -5556,7 +5562,7 @@ static int md_revalidate(struct gendisk *disk)
 	mddev->changed = 0;
 	return 0;
 }
-static struct block_device_operations md_fops =
+static const struct block_device_operations md_fops =
 {
 	.owner		= THIS_MODULE,
 	.open		= md_open,
@@ -5631,7 +5637,10 @@ mdk_thread_t *md_register_thread(void (*run) (mddev_t *), mddev_t *mddev,
 	thread->run = run;
 	thread->mddev = mddev;
 	thread->timeout = MAX_SCHEDULE_TIMEOUT;
-	thread->tsk = kthread_run(md_thread, thread, name, mdname(thread->mddev));
+	thread->tsk = kthread_run(md_thread, thread,
+				  "%s_%s",
+				  mdname(thread->mddev),
+				  name ?: mddev->pers->name);
 	if (IS_ERR(thread->tsk)) {
 		kfree(thread);
 		return NULL;
@@ -6745,7 +6754,7 @@ void md_check_recovery(mddev_t *mddev)
 			}
 			mddev->sync_thread = md_register_thread(md_do_sync,
 								mddev,
-								"%s_resync");
+								"resync");
 			if (!mddev->sync_thread) {
 				printk(KERN_ERR "%s: could not start resync"
 					" thread...\n", 

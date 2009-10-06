@@ -110,17 +110,28 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 						sizeof(struct lpfc_nodelist));
 	if (!phba->nlp_mem_pool)
 		goto fail_free_mbox_pool;
-	phba->lpfc_hrb_pool = pci_pool_create("lpfc_hrb_pool",
+
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		phba->lpfc_hrb_pool = pci_pool_create("lpfc_hrb_pool",
 					      phba->pcidev,
 					      LPFC_HDR_BUF_SIZE, align, 0);
-	if (!phba->lpfc_hrb_pool)
-		goto fail_free_nlp_mem_pool;
-	phba->lpfc_drb_pool = pci_pool_create("lpfc_drb_pool",
+		if (!phba->lpfc_hrb_pool)
+			goto fail_free_nlp_mem_pool;
+
+		phba->lpfc_drb_pool = pci_pool_create("lpfc_drb_pool",
 					      phba->pcidev,
 					      LPFC_DATA_BUF_SIZE, align, 0);
-	if (!phba->lpfc_drb_pool)
-		goto fail_free_hbq_pool;
-
+		if (!phba->lpfc_drb_pool)
+			goto fail_free_hrb_pool;
+		phba->lpfc_hbq_pool = NULL;
+	} else {
+		phba->lpfc_hbq_pool = pci_pool_create("lpfc_hbq_pool",
+			phba->pcidev, LPFC_BPL_SIZE, align, 0);
+		if (!phba->lpfc_hbq_pool)
+			goto fail_free_nlp_mem_pool;
+		phba->lpfc_hrb_pool = NULL;
+		phba->lpfc_drb_pool = NULL;
+	}
 	/* vpi zero is reserved for the physical port so add 1 to max */
 	longs = ((phba->max_vpi + 1) + BITS_PER_LONG - 1) / BITS_PER_LONG;
 	phba->vpi_bmask = kzalloc(longs * sizeof(unsigned long), GFP_KERNEL);
@@ -132,7 +143,7 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
  fail_free_dbq_pool:
 	pci_pool_destroy(phba->lpfc_drb_pool);
 	phba->lpfc_drb_pool = NULL;
- fail_free_hbq_pool:
+ fail_free_hrb_pool:
 	pci_pool_destroy(phba->lpfc_hrb_pool);
 	phba->lpfc_hrb_pool = NULL;
  fail_free_nlp_mem_pool:
@@ -176,10 +187,16 @@ lpfc_mem_free(struct lpfc_hba *phba)
 
 	/* Free HBQ pools */
 	lpfc_sli_hbqbuf_free_all(phba);
-	pci_pool_destroy(phba->lpfc_drb_pool);
+	if (phba->lpfc_drb_pool)
+		pci_pool_destroy(phba->lpfc_drb_pool);
 	phba->lpfc_drb_pool = NULL;
-	pci_pool_destroy(phba->lpfc_hrb_pool);
+	if (phba->lpfc_hrb_pool)
+		pci_pool_destroy(phba->lpfc_hrb_pool);
 	phba->lpfc_hrb_pool = NULL;
+
+	if (phba->lpfc_hbq_pool)
+		pci_pool_destroy(phba->lpfc_hbq_pool);
+	phba->lpfc_hbq_pool = NULL;
 
 	/* Free NLP memory pool */
 	mempool_destroy(phba->nlp_mem_pool);
@@ -380,7 +397,7 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 	if (!hbqbp)
 		return NULL;
 
-	hbqbp->dbuf.virt = pci_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
+	hbqbp->dbuf.virt = pci_pool_alloc(phba->lpfc_hbq_pool, GFP_KERNEL,
 					  &hbqbp->dbuf.phys);
 	if (!hbqbp->dbuf.virt) {
 		kfree(hbqbp);
@@ -405,7 +422,7 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 void
 lpfc_els_hbq_free(struct lpfc_hba *phba, struct hbq_dmabuf *hbqbp)
 {
-	pci_pool_free(phba->lpfc_hrb_pool, hbqbp->dbuf.virt, hbqbp->dbuf.phys);
+	pci_pool_free(phba->lpfc_hbq_pool, hbqbp->dbuf.virt, hbqbp->dbuf.phys);
 	kfree(hbqbp);
 	return;
 }

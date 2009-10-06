@@ -84,9 +84,11 @@ static struct mfp_addr_map pxa310_mfp_addr_map[] __initdata = {
 };
 
 static DEFINE_PXA3_CKEN(common_nand, NAND, 156000000, 0);
+static DEFINE_PXA3_CKEN(gcu, PXA300_GCU, 0, 0);
 
 static struct clk_lookup common_clkregs[] = {
 	INIT_CLKREG(&clk_common_nand, "pxa3xx-nand", NULL),
+	INIT_CLKREG(&clk_gcu, "pxa3xx-gcu", NULL),
 };
 
 static DEFINE_PXA3_CKEN(pxa310_mmc3, MMC3, 19500000, 0);

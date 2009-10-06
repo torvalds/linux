@@ -11,3 +11,5 @@ else
 obj-y += pci-dma-nommu.o
 endif
 endif
+
+obj-$(CONFIG_MTD) += flash.o

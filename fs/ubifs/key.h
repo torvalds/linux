@@ -229,23 +229,6 @@ static inline void xent_key_init(const struct ubifs_info *c,
 }
 
 /**
- * xent_key_init_hash - initialize extended attribute entry key without
- *                      re-calculating hash function.
- * @c: UBIFS file-system description object
- * @key: key to initialize
- * @inum: host inode number
- * @hash: extended attribute entry name hash
- */
-static inline void xent_key_init_hash(const struct ubifs_info *c,
-				      union ubifs_key *key, ino_t inum,
-				      uint32_t hash)
-{
-	ubifs_assert(!(hash & ~UBIFS_S_KEY_HASH_MASK));
-	key->u32[0] = inum;
-	key->u32[1] = hash | (UBIFS_XENT_KEY << UBIFS_S_KEY_HASH_BITS);
-}
-
-/**
  * xent_key_init_flash - initialize on-flash extended attribute entry key.
  * @c: UBIFS file-system description object
  * @k: key to initialize
@@ -295,22 +278,15 @@ static inline void data_key_init(const struct ubifs_info *c,
 }
 
 /**
- * data_key_init_flash - initialize on-flash data key.
+ * highest_data_key - get the highest possible data key for an inode.
  * @c: UBIFS file-system description object
- * @k: key to initialize
+ * @key: key to initialize
  * @inum: inode number
- * @block: block number
  */
-static inline void data_key_init_flash(const struct ubifs_info *c, void *k,
-				       ino_t inum, unsigned int block)
+static inline void highest_data_key(const struct ubifs_info *c,
+				   union ubifs_key *key, ino_t inum)
 {
-	union ubifs_key *key = k;
-
-	ubifs_assert(!(block & ~UBIFS_S_KEY_BLOCK_MASK));
-	key->j32[0] = cpu_to_le32(inum);
-	key->j32[1] = cpu_to_le32(block |
-				  (UBIFS_DATA_KEY << UBIFS_S_KEY_BLOCK_BITS));
-	memset(k + 8, 0, UBIFS_MAX_KEY_LEN - 8);
+	data_key_init(c, key, inum, UBIFS_S_KEY_BLOCK_MASK);
 }
 
 /**
@@ -554,4 +530,5 @@ static inline unsigned long long key_max_inode_size(const struct ubifs_info *c)
 		return 0;
 	}
 }
+
 #endif /* !__UBIFS_KEY_H__ */

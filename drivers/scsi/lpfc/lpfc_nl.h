@@ -177,3 +177,23 @@ struct temp_event {
 	uint32_t data;
 };
 
+/* bsg definitions */
+#define LPFC_BSG_VENDOR_SET_CT_EVENT	1
+#define LPFC_BSG_VENDOR_GET_CT_EVENT	2
+
+struct set_ct_event {
+	uint32_t command;
+	uint32_t ev_req_id;
+	uint32_t ev_reg_id;
+};
+
+struct get_ct_event {
+	uint32_t command;
+	uint32_t ev_reg_id;
+	uint32_t ev_req_id;
+};
+
+struct get_ct_event_reply {
+	uint32_t immed_data;
+	uint32_t type;
+};

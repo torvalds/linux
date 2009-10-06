@@ -264,7 +264,6 @@ static const struct rt2x00debug rt2800usb_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
-#ifdef CONFIG_RT2X00_LIB_RFKILL
 static int rt2800usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -272,9 +271,6 @@ static int rt2800usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	rt2x00usb_register_read(rt2x00dev, GPIO_CTRL_CFG, &reg);
 	return rt2x00_get_field32(reg, GPIO_CTRL_CFG_BIT2);
 }
-#else
-#define rt2800usb_rfkill_poll	NULL
-#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 #ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt2800usb_brightness_set(struct led_classdev *led_cdev,
@@ -522,7 +518,7 @@ static void rt2800usb_config_filter(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_RTS,
 			   !(filter_flags & FIF_CONTROL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_PSPOLL,
-			   !(filter_flags & FIF_CONTROL));
+			   !(filter_flags & FIF_PSPOLL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BA, 1);
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BAR, 0);
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_CNTL,
@@ -584,8 +580,7 @@ static void rt2800usb_config_erp(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 
 	rt2x00usb_register_read(rt2x00dev, TX_TIMEOUT_CFG, &reg);
-	rt2x00_set_field32(&reg, TX_TIMEOUT_CFG_RX_ACK_TIMEOUT,
-			   DIV_ROUND_UP(erp->ack_timeout, erp->slot_time));
+	rt2x00_set_field32(&reg, TX_TIMEOUT_CFG_RX_ACK_TIMEOUT, 0x20);
 	rt2x00usb_register_write(rt2x00dev, TX_TIMEOUT_CFG, reg);
 
 	rt2x00usb_register_read(rt2x00dev, AUTO_RSP_CFG, &reg);
@@ -1467,6 +1462,10 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * ASIC will keep garbage value after boot, clear encryption keys.
 	 */
+	for (i = 0; i < 4; i++)
+		rt2x00usb_register_write(rt2x00dev,
+					 SHARED_KEY_MODE_ENTRY(i), 0);
+
 	for (i = 0; i < 256; i++) {
 		u32 wcid[2] = { 0xffffffff, 0x00ffffff };
 		rt2x00usb_register_multiwrite(rt2x00dev, MAC_WCID_ENTRY(i),
@@ -1475,10 +1474,6 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 		rt2x00usb_register_write(rt2x00dev, MAC_WCID_ATTR_ENTRY(i), 1);
 		rt2x00usb_register_write(rt2x00dev, MAC_IVEIV_ENTRY(i), 0);
 	}
-
-	for (i = 0; i < 16; i++)
-		rt2x00usb_register_write(rt2x00dev,
-					 SHARED_KEY_MODE_ENTRY(i), 0);
 
 	/*
 	 * Clear all beacons
@@ -1524,7 +1519,7 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00usb_register_read(rt2x00dev, LG_FBK_CFG0, &reg);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS0FBK, 8);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS1FBK, 8);
-	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS2FBK, 3);
+	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS2FBK, 9);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS3FBK, 10);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS4FBK, 11);
 	rt2x00_set_field32(&reg, LG_FBK_CFG0_OFDMMCS5FBK, 12);
@@ -1914,7 +1909,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * Before the radio can be enabled, the device first has
 		 * to be woken up. After that it needs a bit of time
-		 * to be fully awake and the radio can be enabled.
+		 * to be fully awake and then the radio can be enabled.
 		 */
 		rt2800usb_set_state(rt2x00dev, STATE_AWAKE);
 		msleep(1);
@@ -1922,7 +1917,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	case STATE_RADIO_OFF:
 		/*
-		 * After the radio has been disablee, the device should
+		 * After the radio has been disabled, the device should
 		 * be put to sleep for powersaving.
 		 */
 		rt2800usb_disable_radio(rt2x00dev);
@@ -1999,11 +1994,11 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXWI_W1_BW_WIN_SIZE, txdesc->ba_size);
 	rt2x00_set_field32(&word, TXWI_W1_WIRELESS_CLI_ID,
 			   test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags) ?
-			       txdesc->key_idx : 0xff);
+			       (skbdesc->entry->entry_idx + 1) : 0xff);
 	rt2x00_set_field32(&word, TXWI_W1_MPDU_TOTAL_BYTE_COUNT,
 			   skb->len - txdesc->l2pad);
 	rt2x00_set_field32(&word, TXWI_W1_PACKETID,
-			   skbdesc->entry->entry_idx);
+			   skbdesc->entry->queue->qid + 1);
 	rt2x00_desc_write(txwi, 1, word);
 
 	/*
@@ -2054,8 +2049,6 @@ static void rt2800usb_write_beacon(struct queue_entry *entry)
 	 * otherwise we might be sending out invalid data.
 	 */
 	rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
 	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
 	rt2x00usb_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
@@ -2169,8 +2162,10 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(rxd0, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
-	if (rt2x00_get_field32(rxd0, RXD_W0_L2PAD))
+	if (rt2x00_get_field32(rxd0, RXD_W0_L2PAD)) {
 		rxdesc->dev_flags |= RXDONE_L2PAD;
+		skbdesc->flags |= SKBDESC_L2_PADDED;
+	}
 
 	if (rt2x00_get_field32(rxwi1, RXWI_W1_SHORT_GI))
 		rxdesc->flags |= RX_FLAG_SHORT_GI;
@@ -2224,10 +2219,8 @@ static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	mac = rt2x00_eeprom_addr(rt2x00dev, EEPROM_MAC_ADDR_0);
 	if (!is_valid_ether_addr(mac)) {
-		DECLARE_MAC_BUF(macbuf);
-
 		random_ether_addr(mac);
-		EEPROM(rt2x00dev, "MAC: %s\n", print_mac(macbuf, mac));
+		EEPROM(rt2x00dev, "MAC: %pM\n", mac);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &word);
@@ -2385,10 +2378,8 @@ static int rt2800usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
-#ifdef CONFIG_RT2X00_LIB_RFKILL
 	if (rt2x00_get_field16(eeprom, EEPROM_NIC_HW_RADIO))
 		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
-#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 	/*
 	 * Store led settings, for correct led behaviour.
@@ -2632,10 +2623,16 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 		return retval;
 
 	/*
+	 * This device has multiple filters for control frames
+	 * and has a separate filter for PS Poll frames.
+	 */
+	__set_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags);
+	__set_bit(DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL, &rt2x00dev->flags);
+
+	/*
 	 * This device requires firmware.
 	 */
 	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags);
 	if (!modparam_nohwcrypt)
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
@@ -2792,6 +2789,7 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 	.remove_interface	= rt2x00mac_remove_interface,
 	.config			= rt2x00mac_config,
 	.configure_filter	= rt2x00mac_configure_filter,
+	.set_tim		= rt2x00mac_set_tim,
 	.set_key		= rt2x00mac_set_key,
 	.get_stats		= rt2x00mac_get_stats,
 	.get_tkip_seq		= rt2800usb_get_tkip_seq,
@@ -2800,6 +2798,7 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 	.conf_tx		= rt2800usb_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt2800usb_get_tsf,
+	.rfkill_poll		= rt2x00mac_rfkill_poll,
 };
 
 static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {

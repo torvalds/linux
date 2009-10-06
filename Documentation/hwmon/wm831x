@@ -1,0 +1,37 @@
+Kernel driver wm831x-hwmon
+==========================
+
+Supported chips:
+  * Wolfson Microelectronics WM831x PMICs
+    Prefix: 'wm831x'
+    Datasheet:
+	http://www.wolfsonmicro.com/products/WM8310
+	http://www.wolfsonmicro.com/products/WM8311
+	http://www.wolfsonmicro.com/products/WM8312
+
+Authors: Mark Brown <broonie@opensource.wolfsonmicro.com>
+
+Description
+-----------
+
+The WM831x series of PMICs include an AUXADC which can be used to
+monitor a range of system operating parameters, including the voltages
+of the major supplies within the system.  Currently the driver provides
+reporting of all the input values but does not provide any alarms.
+
+Voltage Monitoring
+------------------
+
+Voltages are sampled by a 12 bit ADC.  Voltages in milivolts are 1.465
+times the ADC value.
+
+Temperature Monitoring
+----------------------
+
+Temperatures are sampled by a 12 bit ADC.  Chip and battery temperatures
+are available.  The chip temperature is calculated as:
+
+	Degrees celsius = (512.18 - data) / 1.0983
+
+while the battery temperature calculation will depend on the NTC
+thermistor component.

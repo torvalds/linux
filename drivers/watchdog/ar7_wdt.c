@@ -28,9 +28,8 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
+#include <linux/platform_device.h>
 #include <linux/watchdog.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
@@ -76,24 +75,10 @@ static unsigned expect_close;
 /* XXX currently fixed, allows max margin ~68.72 secs */
 #define prescale_value 0xffff
 
-/* Offset of the WDT registers */
-static unsigned long ar7_regs_wdt;
+/* Resource of the WDT registers */
+static struct resource *ar7_regs_wdt;
 /* Pointer to the remapped WDT IO space */
 static struct ar7_wdt *ar7_wdt;
-static void ar7_wdt_get_regs(void)
-{
-	u16 chip_id = ar7_chip_id();
-	switch (chip_id) {
-	case AR7_CHIP_7100:
-	case AR7_CHIP_7200:
-		ar7_regs_wdt = AR7_REGS_WDT;
-		break;
-	default:
-		ar7_regs_wdt = UR8_REGS_WDT;
-		break;
-	}
-}
-
 
 static void ar7_wdt_kick(u32 value)
 {
@@ -202,20 +187,6 @@ static int ar7_wdt_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ar7_wdt_notify_sys(struct notifier_block *this,
-			      unsigned long code, void *unused)
-{
-	if (code == SYS_HALT || code == SYS_POWER_OFF)
-		if (!nowayout)
-			ar7_wdt_disable_wdt();
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block ar7_wdt_notifier = {
-	.notifier_call = ar7_wdt_notify_sys,
-};
-
 static ssize_t ar7_wdt_write(struct file *file, const char *data,
 			     size_t len, loff_t *ppos)
 {
@@ -299,56 +270,86 @@ static struct miscdevice ar7_wdt_miscdev = {
 	.fops		= &ar7_wdt_fops,
 };
 
-static int __init ar7_wdt_init(void)
+static int __devinit ar7_wdt_probe(struct platform_device *pdev)
 {
 	int rc;
 
 	spin_lock_init(&wdt_lock);
 
-	ar7_wdt_get_regs();
-
-	if (!request_mem_region(ar7_regs_wdt, sizeof(struct ar7_wdt),
-							LONGNAME)) {
-		printk(KERN_WARNING DRVNAME ": watchdog I/O region busy\n");
-		return -EBUSY;
+	ar7_regs_wdt =
+		platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
+	if (!ar7_regs_wdt) {
+		printk(KERN_ERR DRVNAME ": could not get registers resource\n");
+		rc = -ENODEV;
+		goto out;
 	}
 
-	ar7_wdt = (struct ar7_wdt *)
-			ioremap(ar7_regs_wdt, sizeof(struct ar7_wdt));
+	if (!request_mem_region(ar7_regs_wdt->start,
+				resource_size(ar7_regs_wdt), LONGNAME)) {
+		printk(KERN_WARNING DRVNAME ": watchdog I/O region busy\n");
+		rc = -EBUSY;
+		goto out;
+	}
+
+	ar7_wdt = ioremap(ar7_regs_wdt->start, resource_size(ar7_regs_wdt));
+	if (!ar7_wdt) {
+		printk(KERN_ERR DRVNAME ": could not ioremap registers\n");
+		rc = -ENXIO;
+		goto out_mem_region;
+	}
 
 	ar7_wdt_disable_wdt();
 	ar7_wdt_prescale(prescale_value);
 	ar7_wdt_update_margin(margin);
 
-	rc = register_reboot_notifier(&ar7_wdt_notifier);
-	if (rc) {
-		printk(KERN_ERR DRVNAME
-			": unable to register reboot notifier\n");
-		goto out_alloc;
-	}
-
 	rc = misc_register(&ar7_wdt_miscdev);
 	if (rc) {
 		printk(KERN_ERR DRVNAME ": unable to register misc device\n");
-		goto out_register;
+		goto out_alloc;
 	}
 	goto out;
 
-out_register:
-	unregister_reboot_notifier(&ar7_wdt_notifier);
 out_alloc:
 	iounmap(ar7_wdt);
-	release_mem_region(ar7_regs_wdt, sizeof(struct ar7_wdt));
+out_mem_region:
+	release_mem_region(ar7_regs_wdt->start, resource_size(ar7_regs_wdt));
 out:
 	return rc;
 }
 
-static void __exit ar7_wdt_cleanup(void)
+static int __devexit ar7_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ar7_wdt_miscdev);
-	unregister_reboot_notifier(&ar7_wdt_notifier);
 	iounmap(ar7_wdt);
-	release_mem_region(ar7_regs_wdt, sizeof(struct ar7_wdt));
+	release_mem_region(ar7_regs_wdt->start, resource_size(ar7_regs_wdt));
+
+	return 0;
+}
+
+static void ar7_wdt_shutdown(struct platform_device *pdev)
+{
+	if (!nowayout)
+		ar7_wdt_disable_wdt();
+}
+
+static struct platform_driver ar7_wdt_driver = {
+	.probe = ar7_wdt_probe,
+	.remove = __devexit_p(ar7_wdt_remove),
+	.shutdown = ar7_wdt_shutdown,
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "ar7_wdt",
+	},
+};
+
+static int __init ar7_wdt_init(void)
+{
+	return platform_driver_register(&ar7_wdt_driver);
+}
+
+static void __exit ar7_wdt_cleanup(void)
+{
+	platform_driver_unregister(&ar7_wdt_driver);
 }
 
 module_init(ar7_wdt_init);

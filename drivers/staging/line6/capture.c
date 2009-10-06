@@ -26,7 +26,7 @@
 */
 static int submit_audio_in_urb(struct snd_pcm_substream *substream)
 {
-	int index;
+	unsigned int index;
 	unsigned long flags;
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 	int i, urb_size;
@@ -35,7 +35,7 @@ static int submit_audio_in_urb(struct snd_pcm_substream *substream)
 	spin_lock_irqsave(&line6pcm->lock_audio_in, flags);
 	index = find_first_zero_bit(&line6pcm->active_urb_in, LINE6_ISO_BUFFERS);
 
-	if (index < 0 || index >= LINE6_ISO_BUFFERS) {
+	if (index >= LINE6_ISO_BUFFERS) {
 		spin_unlock_irqrestore(&line6pcm->lock_audio_in, flags);
 		dev_err(s2m(substream), "no free URB found\n");
 		return -EINVAL;

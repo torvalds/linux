@@ -576,6 +576,9 @@ static int raid1_congested(void *data, int bits)
 	conf_t *conf = mddev->private;
 	int i, ret = 0;
 
+	if (mddev_congested(mddev, bits))
+		return 1;
+
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
@@ -782,8 +785,9 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	struct bio_list bl;
 	struct page **behind_pages = NULL;
 	const int rw = bio_data_dir(bio);
-	const int do_sync = bio_sync(bio);
-	int cpu, do_barriers;
+	const bool do_sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
+	int cpu;
+	bool do_barriers;
 	mdk_rdev_t *blocked_rdev;
 
 	/*
@@ -797,7 +801,8 @@ static int make_request(struct request_queue *q, struct bio * bio)
 
 	md_write_start(mddev, bio); /* wait on superblock update early */
 
-	if (unlikely(!mddev->barriers_work && bio_barrier(bio))) {
+	if (unlikely(!mddev->barriers_work &&
+		     bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		if (rw == WRITE)
 			md_write_end(mddev);
 		bio_endio(bio, -EOPNOTSUPP);
@@ -849,7 +854,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 		read_bio->bi_sector = r1_bio->sector + mirror->rdev->data_offset;
 		read_bio->bi_bdev = mirror->rdev->bdev;
 		read_bio->bi_end_io = raid1_end_read_request;
-		read_bio->bi_rw = READ | do_sync;
+		read_bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
 		read_bio->bi_private = r1_bio;
 
 		generic_make_request(read_bio);
@@ -925,7 +930,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	atomic_set(&r1_bio->remaining, 0);
 	atomic_set(&r1_bio->behind_remaining, 0);
 
-	do_barriers = bio_barrier(bio);
+	do_barriers = bio_rw_flagged(bio, BIO_RW_BARRIER);
 	if (do_barriers)
 		set_bit(R1BIO_Barrier, &r1_bio->state);
 
@@ -941,7 +946,8 @@ static int make_request(struct request_queue *q, struct bio * bio)
 		mbio->bi_sector	= r1_bio->sector + conf->mirrors[i].rdev->data_offset;
 		mbio->bi_bdev = conf->mirrors[i].rdev->bdev;
 		mbio->bi_end_io	= raid1_end_write_request;
-		mbio->bi_rw = WRITE | do_barriers | do_sync;
+		mbio->bi_rw = WRITE | (do_barriers << BIO_RW_BARRIER) |
+			(do_sync << BIO_RW_SYNCIO);
 		mbio->bi_private = r1_bio;
 
 		if (behind_pages) {
@@ -1600,7 +1606,7 @@ static void raid1d(mddev_t *mddev)
 			 * We already have a nr_pending reference on these rdevs.
 			 */
 			int i;
-			const int do_sync = bio_sync(r1_bio->master_bio);
+			const bool do_sync = bio_rw_flagged(r1_bio->master_bio, BIO_RW_SYNCIO);
 			clear_bit(R1BIO_BarrierRetry, &r1_bio->state);
 			clear_bit(R1BIO_Barrier, &r1_bio->state);
 			for (i=0; i < conf->raid_disks; i++)
@@ -1621,7 +1627,8 @@ static void raid1d(mddev_t *mddev)
 						conf->mirrors[i].rdev->data_offset;
 					bio->bi_bdev = conf->mirrors[i].rdev->bdev;
 					bio->bi_end_io = raid1_end_write_request;
-					bio->bi_rw = WRITE | do_sync;
+					bio->bi_rw = WRITE |
+						(do_sync << BIO_RW_SYNCIO);
 					bio->bi_private = r1_bio;
 					r1_bio->bios[i] = bio;
 					generic_make_request(bio);
@@ -1654,7 +1661,7 @@ static void raid1d(mddev_t *mddev)
 				       (unsigned long long)r1_bio->sector);
 				raid_end_bio_io(r1_bio);
 			} else {
-				const int do_sync = bio_sync(r1_bio->master_bio);
+				const bool do_sync = bio_rw_flagged(r1_bio->master_bio, BIO_RW_SYNCIO);
 				r1_bio->bios[r1_bio->read_disk] =
 					mddev->ro ? IO_BLOCKED : NULL;
 				r1_bio->read_disk = disk;
@@ -1670,7 +1677,7 @@ static void raid1d(mddev_t *mddev)
 				bio->bi_sector = r1_bio->sector + rdev->data_offset;
 				bio->bi_bdev = rdev->bdev;
 				bio->bi_end_io = raid1_end_read_request;
-				bio->bi_rw = READ | do_sync;
+				bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
 				bio->bi_private = r1_bio;
 				unplug = 1;
 				generic_make_request(bio);
@@ -2045,7 +2052,7 @@ static int run(mddev_t *mddev)
 	conf->last_used = j;
 
 
-	mddev->thread = md_register_thread(raid1d, mddev, "%s_raid1");
+	mddev->thread = md_register_thread(raid1d, mddev, NULL);
 	if (!mddev->thread) {
 		printk(KERN_ERR
 		       "raid1: couldn't allocate thread for %s\n",

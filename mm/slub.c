@@ -141,6 +141,13 @@
 				SLAB_POISON | SLAB_STORE_USER)
 
 /*
+ * Debugging flags that require metadata to be stored in the slab.  These get
+ * disabled when slub_debug=O is used and a cache's min order increases with
+ * metadata.
+ */
+#define DEBUG_METADATA_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
+
+/*
  * Set of flags that will prevent slab merging
  */
 #define SLUB_NEVER_MERGE (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
@@ -325,6 +332,7 @@ static int slub_debug;
 #endif
 
 static char *slub_debug_slabs;
+static int disable_higher_order_debug;
 
 /*
  * Object debugging
@@ -646,7 +654,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
 	print_section("Padding", end - remainder, remainder);
 
-	restore_bytes(s, "slab padding", POISON_INUSE, start, end);
+	restore_bytes(s, "slab padding", POISON_INUSE, end - remainder, end);
 	return 0;
 }
 
@@ -976,6 +984,15 @@ static int __init setup_slub_debug(char *str)
 		 */
 		goto check_slabs;
 
+	if (tolower(*str) == 'o') {
+		/*
+		 * Avoid enabling debugging on caches if its minimum order
+		 * would increase as a result.
+		 */
+		disable_higher_order_debug = 1;
+		goto out;
+	}
+
 	slub_debug = 0;
 	if (*str == '-')
 		/*
@@ -1026,8 +1043,8 @@ static unsigned long kmem_cache_flags(unsigned long objsize,
 	 * Enable debugging if selected on the kernel commandline.
 	 */
 	if (slub_debug && (!slub_debug_slabs ||
-	    strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs)) == 0))
-			flags |= slub_debug;
+		!strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs))))
+		flags |= slub_debug;
 
 	return flags;
 }
@@ -1053,6 +1070,8 @@ static inline unsigned long kmem_cache_flags(unsigned long objsize,
 	return flags;
 }
 #define slub_debug 0
+
+#define disable_higher_order_debug 0
 
 static inline unsigned long slabs_node(struct kmem_cache *s, int node)
 							{ return 0; }
@@ -1109,8 +1128,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	}
 
 	if (kmemcheck_enabled
-		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS)))
-	{
+		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
 		int pages = 1 << oo_order(oo);
 
 		kmemcheck_alloc_shadow(page, oo_order(oo), flags, node);
@@ -1560,6 +1578,10 @@ slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
 		"default order: %d, min order: %d\n", s->name, s->objsize,
 		s->size, oo_order(s->oo), oo_order(s->min));
 
+	if (oo_order(s->min) > get_order(s->objsize))
+		printk(KERN_WARNING "  %s debugging increased min order, use "
+		       "slub_debug=O to disable.\n", s->name);
+
 	for_each_online_node(node) {
 		struct kmem_cache_node *n = get_node(s, node);
 		unsigned long nr_slabs;
@@ -2001,7 +2023,7 @@ static inline int calculate_order(int size)
 				return order;
 			fraction /= 2;
 		}
-		min_objects --;
+		min_objects--;
 	}
 
 	/*
@@ -2091,8 +2113,8 @@ init_kmem_cache_node(struct kmem_cache_node *n, struct kmem_cache *s)
  */
 #define NR_KMEM_CACHE_CPU 100
 
-static DEFINE_PER_CPU(struct kmem_cache_cpu,
-				kmem_cache_cpu)[NR_KMEM_CACHE_CPU];
+static DEFINE_PER_CPU(struct kmem_cache_cpu [NR_KMEM_CACHE_CPU],
+		      kmem_cache_cpu);
 
 static DEFINE_PER_CPU(struct kmem_cache_cpu *, kmem_cache_cpu_free);
 static DECLARE_BITMAP(kmem_cach_cpu_free_init_once, CONFIG_NR_CPUS);
@@ -2400,6 +2422,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
 	 * on bootup.
 	 */
 	align = calculate_alignment(flags, align, s->objsize);
+	s->align = align;
 
 	/*
 	 * SLUB stores one object immediately after another beginning from
@@ -2452,6 +2475,18 @@ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
 
 	if (!calculate_sizes(s, -1))
 		goto error;
+	if (disable_higher_order_debug) {
+		/*
+		 * Disable debugging flags that store metadata if the min slab
+		 * order increased.
+		 */
+		if (get_order(s->size) > get_order(s->objsize)) {
+			s->flags &= ~DEBUG_METADATA_FLAGS;
+			s->offset = 0;
+			if (!calculate_sizes(s, -1))
+				goto error;
+		}
+	}
 
 	/*
 	 * The larger the object size is, the more pages we want on the partial
@@ -2594,8 +2629,6 @@ static inline int kmem_cache_close(struct kmem_cache *s)
  */
 void kmem_cache_destroy(struct kmem_cache *s)
 {
-	if (s->flags & SLAB_DESTROY_BY_RCU)
-		rcu_barrier();
 	down_write(&slub_lock);
 	s->refcount--;
 	if (!s->refcount) {
@@ -2606,6 +2639,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
 				"still has objects.\n", s->name, __func__);
 			dump_stack();
 		}
+		if (s->flags & SLAB_DESTROY_BY_RCU)
+			rcu_barrier();
 		sysfs_slab_remove(s);
 	} else
 		up_write(&slub_lock);
@@ -2790,6 +2825,11 @@ static s8 size_index[24] = {
 	2	/* 192 */
 };
 
+static inline int size_index_elem(size_t bytes)
+{
+	return (bytes - 1) / 8;
+}
+
 static struct kmem_cache *get_slab(size_t size, gfp_t flags)
 {
 	int index;
@@ -2798,7 +2838,7 @@ static struct kmem_cache *get_slab(size_t size, gfp_t flags)
 		if (!size)
 			return ZERO_SIZE_PTR;
 
-		index = size_index[(size - 1) / 8];
+		index = size_index[size_index_elem(size)];
 	} else
 		index = fls(size - 1);
 
@@ -3156,10 +3196,12 @@ void __init kmem_cache_init(void)
 	slab_state = PARTIAL;
 
 	/* Caches that are not of the two-to-the-power-of size */
-	if (KMALLOC_MIN_SIZE <= 64) {
+	if (KMALLOC_MIN_SIZE <= 32) {
 		create_kmalloc_cache(&kmalloc_caches[1],
 				"kmalloc-96", 96, GFP_NOWAIT);
 		caches++;
+	}
+	if (KMALLOC_MIN_SIZE <= 64) {
 		create_kmalloc_cache(&kmalloc_caches[2],
 				"kmalloc-192", 192, GFP_NOWAIT);
 		caches++;
@@ -3186,17 +3228,28 @@ void __init kmem_cache_init(void)
 	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
 		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
 
-	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8)
-		size_index[(i - 1) / 8] = KMALLOC_SHIFT_LOW;
+	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8) {
+		int elem = size_index_elem(i);
+		if (elem >= ARRAY_SIZE(size_index))
+			break;
+		size_index[elem] = KMALLOC_SHIFT_LOW;
+	}
 
-	if (KMALLOC_MIN_SIZE == 128) {
+	if (KMALLOC_MIN_SIZE == 64) {
+		/*
+		 * The 96 byte size cache is not used if the alignment
+		 * is 64 byte.
+		 */
+		for (i = 64 + 8; i <= 96; i += 8)
+			size_index[size_index_elem(i)] = 7;
+	} else if (KMALLOC_MIN_SIZE == 128) {
 		/*
 		 * The 192 byte sized cache is not used if the alignment
 		 * is 128 byte. Redirect kmalloc to use the 256 byte cache
 		 * instead.
 		 */
 		for (i = 128 + 8; i <= 192; i += 8)
-			size_index[(i - 1) / 8] = 8;
+			size_index[size_index_elem(i)] = 8;
 	}
 
 	slab_state = UP;
@@ -3291,6 +3344,9 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		size_t align, unsigned long flags, void (*ctor)(void *))
 {
 	struct kmem_cache *s;
+
+	if (WARN_ON(!name))
+		return NULL;
 
 	down_write(&slub_lock);
 	s = find_mergeable(size, align, flags, name, ctor);
@@ -4543,8 +4599,11 @@ static int sysfs_slab_add(struct kmem_cache *s)
 	}
 
 	err = sysfs_create_group(&s->kobj, &slab_attr_group);
-	if (err)
+	if (err) {
+		kobject_del(&s->kobj);
+		kobject_put(&s->kobj);
 		return err;
+	}
 	kobject_uevent(&s->kobj, KOBJ_ADD);
 	if (!unmergeable) {
 		/* Setup first alias */
@@ -4726,7 +4785,7 @@ static const struct file_operations proc_slabinfo_operations = {
 
 static int __init slab_proc_init(void)
 {
-	proc_create("slabinfo",S_IWUSR|S_IRUGO,NULL,&proc_slabinfo_operations);
+	proc_create("slabinfo", S_IRUGO, NULL, &proc_slabinfo_operations);
 	return 0;
 }
 module_init(slab_proc_init);

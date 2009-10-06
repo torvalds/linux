@@ -1151,7 +1151,7 @@ static int ipath_file_vma_fault(struct vm_area_struct *vma,
 	return 0;
 }
 
-static struct vm_operations_struct ipath_file_vm_ops = {
+static const struct vm_operations_struct ipath_file_vm_ops = {
 	.fault = ipath_file_vma_fault,
 };
 
@@ -1616,7 +1616,7 @@ static int try_alloc_port(struct ipath_devdata *dd, int port,
 		pd->port_cnt = 1;
 		port_fp(fp) = pd;
 		pd->port_pid = get_pid(task_pid(current));
-		strncpy(pd->port_comm, current->comm, sizeof(pd->port_comm));
+		strlcpy(pd->port_comm, current->comm, sizeof(pd->port_comm));
 		ipath_stats.sps_ports++;
 		ret = 0;
 	} else

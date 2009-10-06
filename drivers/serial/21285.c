@@ -86,7 +86,7 @@ static void serial21285_enable_ms(struct uart_port *port)
 static irqreturn_t serial21285_rx_chars(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 	unsigned int status, ch, flag, rxs, max_count = 256;
 
 	status = *CSR_UARTFLG;
@@ -124,7 +124,7 @@ static irqreturn_t serial21285_rx_chars(int irq, void *dev_id)
 static irqreturn_t serial21285_tx_chars(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 	int count = 256;
 
 	if (port->x_char) {
@@ -235,8 +235,8 @@ serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16); 
 	quot = uart_get_divisor(port, baud);
 
-	if (port->info && port->info->port.tty) {
-		struct tty_struct *tty = port->info->port.tty;
+	if (port->state && port->state->port.tty) {
+		struct tty_struct *tty = port->state->port.tty;
 		unsigned int b = port->uartclk / (16 * quot);
 		tty_encode_baud_rate(tty, b, b);
 	}

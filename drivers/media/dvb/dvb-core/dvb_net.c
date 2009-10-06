@@ -904,7 +904,7 @@ static int dvb_net_sec_callback(const u8 *buffer1, size_t buffer1_len,
 static int dvb_net_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static u8 mask_normal[6]={0xff, 0xff, 0xff, 0xff, 0xff, 0xff};

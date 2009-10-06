@@ -50,7 +50,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/kref.h>
 #include <linux/usb.h>
 #include <linux/device.h>
 #include <linux/crc32.h>
@@ -817,7 +816,8 @@ static void mcs_send_irq(struct urb *urb)
 }
 
 /* Transmit callback funtion.  */
-static int mcs_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t mcs_hard_xmit(struct sk_buff *skb,
+				       struct net_device *ndev)
 {
 	unsigned long flags;
 	struct mcs_cb *mcs;

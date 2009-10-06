@@ -89,7 +89,7 @@ MODULE_LICENSE("GPL");
 
  /* module parameters */
 struct iwl_mod_params iwl3945_mod_params = {
-	.num_of_queues = IWL39_MAX_NUM_QUEUES,
+	.num_of_queues = IWL39_NUM_QUEUES, /* Not used */
 	.sw_crypto = 1,
 	.restart_fw = 1,
 	/* the rest are 0 by default */
@@ -361,79 +361,9 @@ static void iwl3945_unset_hw_params(struct iwl_priv *priv)
 				    priv->shared_phys);
 }
 
-#define MAX_UCODE_BEACON_INTERVAL	1024
-#define INTEL_CONN_LISTEN_INTERVAL	cpu_to_le16(0xA)
-
-static __le16 iwl3945_adjust_beacon_interval(u16 beacon_val)
-{
-	u16 new_val = 0;
-	u16 beacon_factor = 0;
-
-	beacon_factor =
-	    (beacon_val + MAX_UCODE_BEACON_INTERVAL)
-		/ MAX_UCODE_BEACON_INTERVAL;
-	new_val = beacon_val / beacon_factor;
-
-	return cpu_to_le16(new_val);
-}
-
-static void iwl3945_setup_rxon_timing(struct iwl_priv *priv)
-{
-	u64 interval_tm_unit;
-	u64 tsf, result;
-	unsigned long flags;
-	struct ieee80211_conf *conf = NULL;
-	u16 beacon_int = 0;
-
-	conf = ieee80211_get_hw_conf(priv->hw);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->rxon_timing.timestamp = cpu_to_le64(priv->timestamp);
-	priv->rxon_timing.listen_interval = INTEL_CONN_LISTEN_INTERVAL;
-
-	tsf = priv->timestamp;
-
-	beacon_int = priv->beacon_int;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (priv->iw_mode == NL80211_IFTYPE_STATION) {
-		if (beacon_int == 0) {
-			priv->rxon_timing.beacon_interval = cpu_to_le16(100);
-			priv->rxon_timing.beacon_init_val = cpu_to_le32(102400);
-		} else {
-			priv->rxon_timing.beacon_interval =
-				cpu_to_le16(beacon_int);
-			priv->rxon_timing.beacon_interval =
-			    iwl3945_adjust_beacon_interval(
-				le16_to_cpu(priv->rxon_timing.beacon_interval));
-		}
-
-		priv->rxon_timing.atim_window = 0;
-	} else {
-		priv->rxon_timing.beacon_interval =
-			iwl3945_adjust_beacon_interval(
-				priv->vif->bss_conf.beacon_int);
-		/* TODO: we need to get atim_window from upper stack
-		 * for now we set to 0 */
-		priv->rxon_timing.atim_window = 0;
-	}
-
-	interval_tm_unit =
-		(le16_to_cpu(priv->rxon_timing.beacon_interval) * 1024);
-	result = do_div(tsf, interval_tm_unit);
-	priv->rxon_timing.beacon_init_val =
-	    cpu_to_le32((u32) ((u64) interval_tm_unit - result));
-
-	IWL_DEBUG_ASSOC(priv,
-		"beacon interval %d beacon timer %d beacon tim %d\n",
-		le16_to_cpu(priv->rxon_timing.beacon_interval),
-		le32_to_cpu(priv->rxon_timing.beacon_init_val),
-		le16_to_cpu(priv->rxon_timing.atim_window));
-}
-
 static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 				      struct ieee80211_tx_info *info,
-				      struct iwl_cmd *cmd,
+				      struct iwl_device_cmd *cmd,
 				      struct sk_buff *skb_frag,
 				      int sta_id)
 {
@@ -473,7 +403,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
  * handle build REPLY_TX command notification.
  */
 static void iwl3945_build_tx_cmd_basic(struct iwl_priv *priv,
-				  struct iwl_cmd *cmd,
+				  struct iwl_device_cmd *cmd,
 				  struct ieee80211_tx_info *info,
 				  struct ieee80211_hdr *hdr, u8 std_id)
 {
@@ -546,7 +476,8 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct iwl3945_tx_cmd *tx;
 	struct iwl_tx_queue *txq = NULL;
 	struct iwl_queue *q = NULL;
-	struct iwl_cmd *out_cmd = NULL;
+	struct iwl_device_cmd *out_cmd;
+	struct iwl_cmd_meta *out_meta;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	int txq_id = skb_get_queue_mapping(skb);
@@ -587,9 +518,9 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		IWL_DEBUG_TX(priv, "Sending REASSOC frame\n");
 #endif
 
-	/* drop all data frame if we are not associated */
+	/* drop all non-injected data frame if we are not associated */
 	if (ieee80211_is_data(fc) &&
-	    (!iwl_is_monitor_mode(priv)) && /* packet injection */
+	    !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
 	    (!iwl_is_associated(priv) ||
 	     ((priv->iw_mode == NL80211_IFTYPE_STATION) && !priv->assoc_id))) {
 		IWL_DEBUG_DROP(priv, "Dropping - !iwl_is_associated\n");
@@ -601,7 +532,10 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find (or create) index into station table for destination station */
-	sta_id = iwl_get_sta_id(priv, hdr);
+	if (info->flags & IEEE80211_TX_CTL_INJECTED)
+		sta_id = priv->hw_params.bcast_sta_id;
+	else
+		sta_id = iwl_get_sta_id(priv, hdr);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 			       hdr->addr1);
@@ -613,6 +547,8 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (ieee80211_is_data_qos(fc)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+		if (unlikely(tid >= MAX_TID_COUNT))
+			goto drop;
 		seq_number = priv->stations[sta_id].tid[tid].seq_number &
 				IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl = cpu_to_le16(seq_number) |
@@ -635,6 +571,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* Init first empty entry in queue's array of Tx/cmd buffers */
 	out_cmd = txq->cmd[idx];
+	out_meta = &txq->meta[idx];
 	tx = (struct iwl3945_tx_cmd *)out_cmd->cmd.payload;
 	memset(&out_cmd->hdr, 0, sizeof(out_cmd->hdr));
 	memset(tx, 0, sizeof(*tx));
@@ -666,7 +603,8 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	len = (u16)skb->len;
 	tx->len = cpu_to_le16(len);
 
-
+	iwl_dbg_log_tx_data_frame(priv, len, hdr);
+	iwl_update_stats(priv, true, fc, len);
 	tx->tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
 	tx->tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
 
@@ -712,8 +650,8 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 				    len, PCI_DMA_TODEVICE);
 	/* we do not map meta data ... so we can safely access address to
 	 * provide to unmap command*/
-	pci_unmap_addr_set(&out_cmd->meta, mapping, txcmd_phys);
-	pci_unmap_len_set(&out_cmd->meta, len, len);
+	pci_unmap_addr_set(out_meta, mapping, txcmd_phys);
+	pci_unmap_len_set(out_meta, len, len);
 
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
@@ -823,7 +761,7 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SPECTRUM_MEASUREMENT_CMD,
 		.data = (void *)&spectrum,
-		.meta.flags = CMD_WANT_SKB,
+		.flags = CMD_WANT_SKB,
 	};
 	u32 add_time = le64_to_cpu(params->start_time);
 	int rc;
@@ -864,7 +802,7 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 	if (rc)
 		return rc;
 
-	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
+	res = (struct iwl_rx_packet *)cmd.reply_skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_RX_ON_ASSOC command\n");
 		rc = -EIO;
@@ -887,7 +825,7 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 		break;
 	}
 
-	dev_kfree_skb_any(cmd.meta.u.skb);
+	dev_kfree_skb_any(cmd.reply_skb);
 
 	return rc;
 }
@@ -996,7 +934,7 @@ static void iwl3945_rx_card_state_notif(struct iwl_priv *priv,
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = priv->status;
 
-	IWL_DEBUG_RF_KILL(priv, "Card state received: HW:%s SW:%s\n",
+	IWL_WARN(priv, "Card state received: HW:%s SW:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & SW_CARD_DISABLED) ? "Kill" : "On");
 
@@ -1196,6 +1134,7 @@ static void iwl3945_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
+	struct sk_buff *skb;
 	unsigned long flags;
 
 	while (1) {
@@ -1205,24 +1144,38 @@ static void iwl3945_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 			spin_unlock_irqrestore(&rxq->lock, flags);
 			return;
 		}
-
-		element = rxq->rx_used.next;
-		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
-		list_del(element);
 		spin_unlock_irqrestore(&rxq->lock, flags);
 
+		if (rxq->free_count > RX_LOW_WATERMARK)
+			priority |= __GFP_NOWARN;
 		/* Alloc a new receive buffer */
-		rxb->skb =
-		    alloc_skb(priv->hw_params.rx_buf_size,
-				priority);
-		if (!rxb->skb) {
+		skb = alloc_skb(priv->hw_params.rx_buf_size, priority);
+		if (!skb) {
 			if (net_ratelimit())
-				IWL_CRIT(priv, ": Can not allocate SKB buffers\n");
+				IWL_DEBUG_INFO(priv, "Failed to allocate SKB buffer.\n");
+			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
+			    net_ratelimit())
+				IWL_CRIT(priv, "Failed to allocate SKB buffer with %s. Only %u free buffers remaining.\n",
+					 priority == GFP_ATOMIC ?  "GFP_ATOMIC" : "GFP_KERNEL",
+					 rxq->free_count);
 			/* We don't reschedule replenish work here -- we will
 			 * call the restock method and if it still needs
 			 * more buffers it will schedule replenish */
 			break;
 		}
+
+		spin_lock_irqsave(&rxq->lock, flags);
+		if (list_empty(&rxq->rx_used)) {
+			spin_unlock_irqrestore(&rxq->lock, flags);
+			dev_kfree_skb_any(skb);
+			return;
+		}
+		element = rxq->rx_used.next;
+		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
+		list_del(element);
+		spin_unlock_irqrestore(&rxq->lock, flags);
+
+		rxb->skb = skb;
 
 		/* If radiotap head is required, reserve some headroom here.
 		 * The physical head count is a variable rx_stats->phy_count.
@@ -1435,7 +1388,7 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 		fill_rx = 1;
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
-		IWL_DEBUG(priv, IWL_DL_RX | IWL_DL_ISR, "r = %d, i = %d\n", r, i);
+		IWL_DEBUG_RX(priv, "r = %d, i = %d\n", r, i);
 
 	while (i != r) {
 		rxb = rxq->queue[i];
@@ -1466,15 +1419,13 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 		 *   handle those that need handling via function in
 		 *   rx_handlers table.  See iwl3945_setup_rx_handlers() */
 		if (priv->rx_handlers[pkt->hdr.cmd]) {
-			IWL_DEBUG(priv, IWL_DL_HCMD | IWL_DL_RX | IWL_DL_ISR,
-				"r = %d, i = %d, %s, 0x%02x\n", r, i,
+			IWL_DEBUG_RX(priv, "r = %d, i = %d, %s, 0x%02x\n", r, i,
 				get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
 			priv->rx_handlers[pkt->hdr.cmd] (priv, rxb);
 			priv->isr_stats.rx_handlers[pkt->hdr.cmd]++;
 		} else {
 			/* No handling needed */
-			IWL_DEBUG(priv, IWL_DL_HCMD | IWL_DL_RX | IWL_DL_ISR,
-				"r %d i %d No handler needed for %s, 0x%02x\n",
+			IWL_DEBUG_RX(priv, "r %d i %d No handler needed for %s, 0x%02x\n",
 				r, i, get_cmd_string(pkt->hdr.cmd),
 				pkt->hdr.cmd);
 		}
@@ -1530,6 +1481,7 @@ static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 	tasklet_kill(&priv->irq_tasklet);
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUG
 static const char *desc_lookup(int i)
 {
 	switch (i) {
@@ -1553,7 +1505,7 @@ static const char *desc_lookup(int i)
 #define ERROR_START_OFFSET  (1 * sizeof(u32))
 #define ERROR_ELEM_SIZE     (7 * sizeof(u32))
 
-static void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
+void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 {
 	u32 i;
 	u32 desc, time, count, base, data1;
@@ -1647,7 +1599,7 @@ static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	}
 }
 
-static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
+void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 {
 	u32 base;       /* SRAM byte address of event log header */
 	u32 capacity;   /* event log capacity in # entries */
@@ -1689,6 +1641,16 @@ static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 	iwl3945_print_event_log(priv, 0, next_entry, mode);
 
 }
+#else
+void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
+{
+}
+
+void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
+{
+}
+
+#endif
 
 static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 {
@@ -1714,7 +1676,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & IWL_DL_ISR) {
+	if (iwl_get_debug_level(priv) & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -1733,7 +1695,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
-		IWL_ERR(priv, "Microcode HW error detected.  Restarting.\n");
+		IWL_ERR(priv, "Hardware error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
 		iwl_disable_interrupts(priv);
@@ -1749,7 +1711,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
@@ -1828,7 +1790,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 		iwl_enable_interrupts(priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
 		inta = iwl_read32(priv, CSR_INT);
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
@@ -1844,7 +1806,7 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 				     u8 is_active, u8 n_probes,
 				     struct iwl3945_scan_channel *scan_ch)
 {
-	const struct ieee80211_channel *channels = NULL;
+	struct ieee80211_channel *chan;
 	const struct ieee80211_supported_band *sband;
 	const struct iwl_channel_info *ch_info;
 	u16 passive_dwell = 0;
@@ -1855,19 +1817,19 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 	if (!sband)
 		return 0;
 
-	channels = sband->channels;
-
 	active_dwell = iwl_get_active_dwell_time(priv, band, n_probes);
 	passive_dwell = iwl_get_passive_dwell_time(priv, band);
 
 	if (passive_dwell <= active_dwell)
 		passive_dwell = active_dwell + 1;
 
-	for (i = 0, added = 0; i < sband->n_channels; i++) {
-		if (channels[i].flags & IEEE80211_CHAN_DISABLED)
+	for (i = 0, added = 0; i < priv->scan_request->n_channels; i++) {
+		chan = priv->scan_request->channels[i];
+
+		if (chan->band != band)
 			continue;
 
-		scan_ch->channel = channels[i].hw_value;
+		scan_ch->channel = chan->hw_value;
 
 		ch_info = iwl_get_channel_info(priv, band, scan_ch->channel);
 		if (!is_channel_valid(ch_info)) {
@@ -1882,7 +1844,7 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 		 *  and use long active_dwell time.
 		 */
 		if (!is_active || is_channel_passive(ch_info) ||
-		    (channels[i].flags & IEEE80211_CHAN_PASSIVE_SCAN)) {
+		    (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)) {
 			scan_ch->type = 0;	/* passive */
 			if (IWL_UCODE_API(priv->ucode_ver) == 1)
 				scan_ch->active_dwell = cpu_to_le16(passive_dwell - 1);
@@ -2111,7 +2073,7 @@ static void iwl3945_nic_start(struct iwl_priv *priv)
  */
 static int iwl3945_read_ucode(struct iwl_priv *priv)
 {
-	struct iwl_ucode *ucode;
+	const struct iwl_ucode_header *ucode;
 	int ret = -EINVAL, index;
 	const struct firmware *ucode_raw;
 	/* firmware file name contains uCode/driver compatibility version */
@@ -2152,22 +2114,24 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 		goto error;
 
 	/* Make sure that we got at least our header! */
-	if (ucode_raw->size < sizeof(*ucode)) {
+	if (ucode_raw->size <  priv->cfg->ops->ucode->get_header_size(1)) {
 		IWL_ERR(priv, "File size way too small!\n");
 		ret = -EINVAL;
 		goto err_release;
 	}
 
 	/* Data from ucode file:  header followed by uCode images */
-	ucode = (void *)ucode_raw->data;
+	ucode = (struct iwl_ucode_header *)ucode_raw->data;
 
 	priv->ucode_ver = le32_to_cpu(ucode->ver);
 	api_ver = IWL_UCODE_API(priv->ucode_ver);
-	inst_size = le32_to_cpu(ucode->inst_size);
-	data_size = le32_to_cpu(ucode->data_size);
-	init_size = le32_to_cpu(ucode->init_size);
-	init_data_size = le32_to_cpu(ucode->init_data_size);
-	boot_size = le32_to_cpu(ucode->boot_size);
+	inst_size = priv->cfg->ops->ucode->get_inst_size(ucode, api_ver);
+	data_size = priv->cfg->ops->ucode->get_data_size(ucode, api_ver);
+	init_size = priv->cfg->ops->ucode->get_init_size(ucode, api_ver);
+	init_data_size =
+		priv->cfg->ops->ucode->get_init_data_size(ucode, api_ver);
+	boot_size = priv->cfg->ops->ucode->get_boot_size(ucode, api_ver);
+	src = priv->cfg->ops->ucode->get_data(ucode, api_ver);
 
 	/* api_ver should match the api version forming part of the
 	 * firmware filename ... but we don't check for that and only rely
@@ -2208,12 +2172,13 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 
 
 	/* Verify size of file vs. image size info in file's header */
-	if (ucode_raw->size < sizeof(*ucode) +
+	if (ucode_raw->size != priv->cfg->ops->ucode->get_header_size(api_ver) +
 		inst_size + data_size + init_size +
 		init_data_size + boot_size) {
 
-		IWL_DEBUG_INFO(priv, "uCode file size %zd too small\n",
-			       ucode_raw->size);
+		IWL_DEBUG_INFO(priv,
+			"uCode file size %zd does not match expected size\n",
+			ucode_raw->size);
 		ret = -EINVAL;
 		goto err_release;
 	}
@@ -2296,44 +2261,44 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 	/* Copy images into buffers for card's bus-master reads ... */
 
 	/* Runtime instructions (first block of data in file) */
-	src = &ucode->data[0];
-	len = priv->ucode_code.len;
+	len = inst_size;
 	IWL_DEBUG_INFO(priv,
 		"Copying (but not loading) uCode instr len %zd\n", len);
 	memcpy(priv->ucode_code.v_addr, src, len);
+	src += len;
+
 	IWL_DEBUG_INFO(priv, "uCode instr buf vaddr = 0x%p, paddr = 0x%08x\n",
 		priv->ucode_code.v_addr, (u32)priv->ucode_code.p_addr);
 
 	/* Runtime data (2nd block)
 	 * NOTE:  Copy into backup buffer will be done in iwl3945_up()  */
-	src = &ucode->data[inst_size];
-	len = priv->ucode_data.len;
+	len = data_size;
 	IWL_DEBUG_INFO(priv,
 		"Copying (but not loading) uCode data len %zd\n", len);
 	memcpy(priv->ucode_data.v_addr, src, len);
 	memcpy(priv->ucode_data_backup.v_addr, src, len);
+	src += len;
 
 	/* Initialization instructions (3rd block) */
 	if (init_size) {
-		src = &ucode->data[inst_size + data_size];
-		len = priv->ucode_init.len;
+		len = init_size;
 		IWL_DEBUG_INFO(priv,
 			"Copying (but not loading) init instr len %zd\n", len);
 		memcpy(priv->ucode_init.v_addr, src, len);
+		src += len;
 	}
 
 	/* Initialization data (4th block) */
 	if (init_data_size) {
-		src = &ucode->data[inst_size + data_size + init_size];
-		len = priv->ucode_init_data.len;
+		len = init_data_size;
 		IWL_DEBUG_INFO(priv,
 			"Copying (but not loading) init data len %zd\n", len);
 		memcpy(priv->ucode_init_data.v_addr, src, len);
+		src += len;
 	}
 
 	/* Bootstrap instructions (5th block) */
-	src = &ucode->data[inst_size + data_size + init_size + init_data_size];
-	len = priv->ucode_boot.len;
+	len = boot_size;
 	IWL_DEBUG_INFO(priv,
 		"Copying (but not loading) boot instr len %zd\n", len);
 	memcpy(priv->ucode_boot.v_addr, src, len);
@@ -2784,7 +2749,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
 		.len = sizeof(struct iwl3945_scan_cmd),
-		.meta.flags = CMD_SIZE_HUGE,
+		.flags = CMD_SIZE_HUGE,
 	};
 	int rc = 0;
 	struct iwl3945_scan_cmd *scan;
@@ -3066,7 +3031,7 @@ void iwl3945_post_associate(struct iwl_priv *priv)
 	iwlcore_commit_rxon(priv);
 
 	memset(&priv->rxon_timing, 0, sizeof(struct iwl_rxon_time_cmd));
-	iwl3945_setup_rxon_timing(priv);
+	iwl_setup_rxon_timing(priv);
 	rc = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
 			      sizeof(priv->rxon_timing), &priv->rxon_timing);
 	if (rc)
@@ -3261,7 +3226,7 @@ void iwl3945_config_ap(struct iwl_priv *priv)
 
 		/* RXON Timing */
 		memset(&priv->rxon_timing, 0, sizeof(struct iwl_rxon_time_cmd));
-		iwl3945_setup_rxon_timing(priv);
+		iwl_setup_rxon_timing(priv);
 		rc = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
 				      sizeof(priv->rxon_timing),
 				      &priv->rxon_timing);
@@ -3375,13 +3340,16 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  * used for controlling the debug level.
  *
  * See the level definitions in iwl for details.
+ *
+ * The debug_level being managed using sysfs below is a per device debug
+ * level that is used instead of the global debug level if it (the per
+ * device debug level) is set.
  */
 static ssize_t show_debug_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	return sprintf(buf, "0x%08X\n", priv->debug_level);
+	return sprintf(buf, "0x%08X\n", iwl_get_debug_level(priv));
 }
 static ssize_t store_debug_level(struct device *d,
 				struct device_attribute *attr,
@@ -3394,9 +3362,12 @@ static ssize_t store_debug_level(struct device *d,
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret)
 		IWL_INFO(priv, "%s is not in hex or decimal form.\n", buf);
-	else
+	else {
 		priv->debug_level = val;
-
+		if (iwl_alloc_traffic_mem(priv))
+			IWL_ERR(priv,
+				"Not enough memory to generate traffic log\n");
+	}
 	return strnlen(buf, count);
 }
 
@@ -3612,65 +3583,6 @@ static DEVICE_ATTR(retry_rate, S_IWUSR | S_IRUSR, show_retry_rate,
 		   store_retry_rate);
 
 
-static ssize_t store_power_level(struct device *d,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	int ret;
-	unsigned long mode;
-
-
-	mutex_lock(&priv->mutex);
-
-	ret = strict_strtoul(buf, 10, &mode);
-	if (ret)
-		goto out;
-
-	ret = iwl_power_set_user_mode(priv, mode);
-	if (ret) {
-		IWL_DEBUG_MAC80211(priv, "failed setting power mode.\n");
-		goto out;
-	}
-	ret = count;
-
- out:
-	mutex_unlock(&priv->mutex);
-	return ret;
-}
-
-static ssize_t show_power_level(struct device *d,
-				struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	int level = priv->power_data.power_mode;
-	char *p = buf;
-
-	p += sprintf(p, "%d\n", level);
-	return p - buf + 1;
-}
-
-static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR,
-		   show_power_level, store_power_level);
-
-#define MAX_WX_STRING 80
-
-/* Values are in microsecond */
-static const s32 timeout_duration[] = {
-	350000,
-	250000,
-	75000,
-	37000,
-	25000,
-};
-static const s32 period_duration[] = {
-	400000,
-	700000,
-	1000000,
-	1000000,
-	1000000
-};
-
 static ssize_t show_channels(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
@@ -3782,21 +3694,6 @@ static ssize_t dump_error_log(struct device *d,
 
 static DEVICE_ATTR(dump_errors, S_IWUSR, NULL, dump_error_log);
 
-static ssize_t dump_event_log(struct device *d,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	char *p = (char *)buf;
-
-	if (p[0] == '1')
-		iwl3945_dump_nic_event_log(priv);
-
-	return strnlen(buf, count);
-}
-
-static DEVICE_ATTR(dump_events, S_IWUSR, NULL, dump_event_log);
-
 /*****************************************************************************
  *
  * driver setup and tear down
@@ -3841,13 +3738,11 @@ static struct attribute *iwl3945_sysfs_entries[] = {
 	&dev_attr_antenna.attr,
 	&dev_attr_channels.attr,
 	&dev_attr_dump_errors.attr,
-	&dev_attr_dump_events.attr,
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 	&dev_attr_measurement.attr,
 #endif
-	&dev_attr_power_level.attr,
 	&dev_attr_retry_rate.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_status.attr,
@@ -3912,8 +3807,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->qos_data.qos_cap.val = 0;
 
 	priv->rates_mask = IWL_RATES_MASK;
-	/* If power management is turned on, default to CAM mode */
-	priv->power_mode = IWL_POWER_MODE_CAM;
 	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
 
 	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
@@ -3960,7 +3853,9 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM |
-		    IEEE80211_HW_SPECTRUM_MGMT;
+		    IEEE80211_HW_SPECTRUM_MGMT |
+		    IEEE80211_HW_SUPPORTS_PS |
+		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
@@ -4020,15 +3915,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv = hw->priv;
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
-	if ((iwl3945_mod_params.num_of_queues > IWL39_MAX_NUM_QUEUES) ||
-	     (iwl3945_mod_params.num_of_queues < IWL39_MIN_NUM_QUEUES)) {
-		IWL_ERR(priv,
-			"invalid queues_num, should be between %d and %d\n",
-			IWL39_MIN_NUM_QUEUES, IWL39_MAX_NUM_QUEUES);
-		err = -EINVAL;
-		goto out_ieee80211_free_hw;
-	}
-
 	/*
 	 * Disabling hardware scan means that mac80211 will perform scans
 	 * "the hard way", rather than using device's scan.
@@ -4045,9 +3931,10 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->inta_mask = CSR_INI_SET_MASK;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	priv->debug_level = iwl3945_mod_params.debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
+	if (iwl_alloc_traffic_mem(priv))
+		IWL_ERR(priv, "Not enough memory to generate traffic log\n");
 
 	/***************************
 	 * 2. Initializing PCI bus
@@ -4210,6 +4097,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	pci_disable_device(pdev);
  out_ieee80211_free_hw:
 	ieee80211_free_hw(priv->hw);
+	iwl_free_traffic_mem(priv);
  out:
 	return err;
 }
@@ -4265,6 +4153,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	 * until now... */
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
+	iwl_free_traffic_mem(priv);
 
 	free_irq(pdev->irq, priv);
 	pci_disable_msi(pdev);
@@ -4341,14 +4230,12 @@ MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
 module_param_named(swcrypto, iwl3945_mod_params.sw_crypto, int, 0444);
 MODULE_PARM_DESC(swcrypto,
 		 "using software crypto (default 1 [software])\n");
-module_param_named(debug, iwl3945_mod_params.debug, uint, 0444);
+#ifdef CONFIG_IWLWIFI_DEBUG
+module_param_named(debug, iwl_debug_level, uint, 0644);
 MODULE_PARM_DESC(debug, "debug output mask");
+#endif
 module_param_named(disable_hw_scan, iwl3945_mod_params.disable_hw_scan, int, 0444);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
-
-module_param_named(queues_num, iwl3945_mod_params.num_of_queues, int, 0444);
-MODULE_PARM_DESC(queues_num, "number of hw queues.");
-
 module_param_named(fw_restart3945, iwl3945_mod_params.restart_fw, int, 0444);
 MODULE_PARM_DESC(fw_restart3945, "restart firmware in case of error");
 

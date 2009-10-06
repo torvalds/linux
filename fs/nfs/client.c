@@ -648,8 +648,6 @@ static int nfs_start_lockd(struct nfs_server *server)
 		.hostname	= clp->cl_hostname,
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrlen	= clp->cl_addrlen,
-		.protocol	= server->flags & NFS_MOUNT_TCP ?
-						IPPROTO_TCP : IPPROTO_UDP,
 		.nfs_version	= clp->rpc_ops->version,
 		.noresvport	= server->flags & NFS_MOUNT_NORESVPORT ?
 					1 : 0,
@@ -659,6 +657,14 @@ static int nfs_start_lockd(struct nfs_server *server)
 		return 0;
 	if (server->flags & NFS_MOUNT_NONLM)
 		return 0;
+
+	switch (clp->cl_proto) {
+		default:
+			nlm_init.protocol = IPPROTO_TCP;
+			break;
+		case XPRT_TRANSPORT_UDP:
+			nlm_init.protocol = IPPROTO_UDP;
+	}
 
 	host = nlmclnt_init(&nlm_init);
 	if (IS_ERR(host))
@@ -787,7 +793,7 @@ static int nfs_init_server(struct nfs_server *server,
 	dprintk("--> nfs_init_server()\n");
 
 #ifdef CONFIG_NFS_V3
-	if (data->flags & NFS_MOUNT_VER3)
+	if (data->version == 3)
 		cl_init.rpc_ops = &nfs_v3_clientops;
 #endif
 
@@ -809,6 +815,9 @@ static int nfs_init_server(struct nfs_server *server,
 	/* Initialise the client representation from the mount data */
 	server->flags = data->flags;
 	server->options = data->options;
+	server->caps |= NFS_CAP_HARDLINKS|NFS_CAP_SYMLINKS|NFS_CAP_FILEID|
+		NFS_CAP_MODE|NFS_CAP_NLINK|NFS_CAP_OWNER|NFS_CAP_OWNER_GROUP|
+		NFS_CAP_ATIME|NFS_CAP_CTIME|NFS_CAP_MTIME;
 
 	if (data->rsize)
 		server->rsize = nfs_block_size(data->rsize, NULL);
@@ -879,6 +888,7 @@ static void nfs_server_set_fsinfo(struct nfs_server *server, struct nfs_fsinfo *
 		server->rsize = NFS_MAX_FILE_IO_SIZE;
 	server->rpages = (server->rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
+	server->backing_dev_info.name = "nfs";
 	server->backing_dev_info.ra_pages = server->rpages * NFS_MAX_READAHEAD;
 
 	if (server->wsize > max_rpc_payload)
@@ -929,10 +939,6 @@ static int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, str
 		goto out_error;
 
 	nfs_server_set_fsinfo(server, &fsinfo);
-	error = bdi_init(&server->backing_dev_info);
-	if (error)
-		goto out_error;
-
 
 	/* Get some general file system info */
 	if (server->namelen == 0) {
@@ -964,6 +970,7 @@ static void nfs_server_copy_userdata(struct nfs_server *target, struct nfs_serve
 	target->acdirmin = source->acdirmin;
 	target->acdirmax = source->acdirmax;
 	target->caps = source->caps;
+	target->options = source->options;
 }
 
 /*
@@ -987,6 +994,12 @@ static struct nfs_server *nfs_alloc_server(void)
 
 	server->io_stats = nfs_alloc_iostats();
 	if (!server->io_stats) {
+		kfree(server);
+		return NULL;
+	}
+
+	if (bdi_init(&server->backing_dev_info)) {
+		nfs_free_iostats(server->io_stats);
 		kfree(server);
 		return NULL;
 	}
@@ -1073,10 +1086,6 @@ struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
 	dprintk("Server FSID: %llx:%llx\n",
 		(unsigned long long) server->fsid.major,
 		(unsigned long long) server->fsid.minor);
-
-	BUG_ON(!server->nfs_client);
-	BUG_ON(!server->nfs_client->rpc_ops);
-	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
 	spin_lock(&nfs_client_lock);
 	list_add_tail(&server->client_link, &server->nfs_client->cl_superblocks);
@@ -1274,7 +1283,7 @@ static int nfs4_init_server(struct nfs_server *server,
 
 	/* Initialise the client representation from the mount data */
 	server->flags = data->flags;
-	server->caps |= NFS_CAP_ATOMIC_OPEN;
+	server->caps |= NFS_CAP_ATOMIC_OPEN|NFS_CAP_CHANGE_ATTR;
 	server->options = data->options;
 
 	/* Get a client record */
@@ -1359,10 +1368,6 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 	if (server->namelen == 0 || server->namelen > NFS4_MAXNAMLEN)
 		server->namelen = NFS4_MAXNAMLEN;
 
-	BUG_ON(!server->nfs_client);
-	BUG_ON(!server->nfs_client->rpc_ops);
-	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
-
 	spin_lock(&nfs_client_lock);
 	list_add_tail(&server->client_link, &server->nfs_client->cl_superblocks);
 	list_add_tail(&server->master_link, &nfs_volume_list);
@@ -1400,7 +1405,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 
 	/* Initialise the client representation from the parent server */
 	nfs_server_copy_userdata(server, parent_server);
-	server->caps |= NFS_CAP_ATOMIC_OPEN;
+	server->caps |= NFS_CAP_ATOMIC_OPEN|NFS_CAP_CHANGE_ATTR;
 
 	/* Get a client representation.
 	 * Note: NFSv4 always uses TCP, */
@@ -1533,7 +1538,7 @@ static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos);
 static void nfs_server_list_stop(struct seq_file *p, void *v);
 static int nfs_server_list_show(struct seq_file *m, void *v);
 
-static struct seq_operations nfs_server_list_ops = {
+static const struct seq_operations nfs_server_list_ops = {
 	.start	= nfs_server_list_start,
 	.next	= nfs_server_list_next,
 	.stop	= nfs_server_list_stop,
@@ -1554,7 +1559,7 @@ static void *nfs_volume_list_next(struct seq_file *p, void *v, loff_t *pos);
 static void nfs_volume_list_stop(struct seq_file *p, void *v);
 static int nfs_volume_list_show(struct seq_file *m, void *v);
 
-static struct seq_operations nfs_volume_list_ops = {
+static const struct seq_operations nfs_volume_list_ops = {
 	.start	= nfs_volume_list_start,
 	.next	= nfs_volume_list_next,
 	.stop	= nfs_volume_list_stop,

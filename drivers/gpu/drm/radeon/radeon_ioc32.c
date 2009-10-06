@@ -422,3 +422,18 @@ long radeon_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	return ret;
 }
+
+long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	unsigned int nr = DRM_IOCTL_NR(cmd);
+	int ret;
+
+	if (nr < DRM_COMMAND_BASE)
+		return drm_compat_ioctl(filp, cmd, arg);
+
+	lock_kernel();		/* XXX for now */
+	ret = drm_ioctl(filp->f_path.dentry->d_inode, filp, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}

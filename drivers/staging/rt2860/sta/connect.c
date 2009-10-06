@@ -1171,7 +1171,6 @@ VOID LinkUp(
 		OPSTATUS_SET_FLAG(pAd, fOP_STATUS_ADHOC_ON);
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_INFRA_ON);
 
-#ifdef RT30xx
 		if ((pAd->CommonCfg.HtCapability.HtCapInfo.ChannelWidth  == BW_40) &&
 			(pAd->CommonCfg.AddHTInfo.AddHtInfo.ExtChanOffset == EXTCHA_ABOVE))
 		{
@@ -1183,7 +1182,6 @@ VOID LinkUp(
 		{
 			pAd->CommonCfg.CentralChannel = pAd->CommonCfg.Channel - 2;
 		}
-#endif
 #ifdef RT2870
 		if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED)
 			AdhocTurnOnQos(pAd);
@@ -1585,9 +1583,7 @@ VOID LinkUp(
 		pAd->MacTab.Size = 1;	// infra mode always set MACtab size =1.
 		pAd->MacTab.Content[BSSID_WCID].Sst = SST_ASSOC;
 		pAd->MacTab.Content[BSSID_WCID].AuthState = SST_ASSOC;
-#ifdef RT30xx
 		pAd->MacTab.Content[BSSID_WCID].AuthMode = pAd->StaCfg.AuthMode;
-#endif
 		pAd->MacTab.Content[BSSID_WCID].WepStatus = pAd->StaCfg.WepStatus;
         NdisReleaseSpinLock(&pAd->MacTabLock);
 
@@ -1711,15 +1707,10 @@ VOID LinkUp(
 	// Txop can only be modified when RDG is off, WMM is disable and TxBurst is enable
 	//
 	// if 1. Legacy AP WMM on,  or 2. 11n AP, AMPDU disable.  Force turn off burst no matter what bEnableTxBurst is.
-#ifdef RT30xx
-	if (!((pAd->CommonCfg.RxStream == 1)&&(pAd->CommonCfg.TxStream == 1)) &&
+	if (
+		!(pAd->CommonCfg.RxStream == 1 && pAd->CommonCfg.TxStream == 1) &&
 		(((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED))
 		|| ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE) && (pAd->CommonCfg.BACapability.field.Policy == BA_NOTUSE))))
-#endif
-#ifndef RT30xx
-	if (((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED)))
-		|| ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE) && (pAd->CommonCfg.BACapability.field.Policy == BA_NOTUSE)))
-#endif
 	{
 		RTMP_IO_READ32(pAd, EDCA_AC0_CFG, &Data);
 		Data  &= 0xFFFFFF00;
@@ -2101,7 +2092,6 @@ VOID LinkDown(
 		wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 	}
 
-#ifdef RT30xx
 	if (IS_RT3090(pAd))
 	{
 		UINT32				macdata;
@@ -2115,7 +2105,6 @@ VOID LinkDown(
 		macdata &= ~(0x09);	//bit 0, 3
 		RTMP_IO_WRITE32(pAd, 0x1210, macdata);
 	}
-#endif // RT30xx //
 }
 
 /*

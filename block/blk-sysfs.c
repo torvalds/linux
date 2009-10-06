@@ -40,7 +40,12 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 {
 	struct request_list *rl = &q->rq;
 	unsigned long nr;
-	int ret = queue_var_store(&nr, page, count);
+	int ret;
+
+	if (!q->request_fn)
+		return -EINVAL;
+
+	ret = queue_var_store(&nr, page, count);
 	if (nr < BLKDEV_MIN_RQ)
 		nr = BLKDEV_MIN_RQ;
 
@@ -133,7 +138,7 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 		return -EINVAL;
 
 	spin_lock_irq(q->queue_lock);
-	blk_queue_max_sectors(q, max_sectors_kb << 1);
+	q->limits.max_sectors = max_sectors_kb << 1;
 	spin_unlock_irq(q->queue_lock);
 
 	return ret;
@@ -447,6 +452,7 @@ int blk_register_queue(struct gendisk *disk)
 	if (ret) {
 		kobject_uevent(&q->kobj, KOBJ_REMOVE);
 		kobject_del(&q->kobj);
+		blk_trace_remove_sysfs(disk_to_dev(disk));
 		return ret;
 	}
 
@@ -460,11 +466,11 @@ void blk_unregister_queue(struct gendisk *disk)
 	if (WARN_ON(!q))
 		return;
 
-	if (q->request_fn) {
+	if (q->request_fn)
 		elv_unregister_queue(q);
 
-		kobject_uevent(&q->kobj, KOBJ_REMOVE);
-		kobject_del(&q->kobj);
-		kobject_put(&disk_to_dev(disk)->kobj);
-	}
+	kobject_uevent(&q->kobj, KOBJ_REMOVE);
+	kobject_del(&q->kobj);
+	blk_trace_remove_sysfs(disk_to_dev(disk));
+	kobject_put(&disk_to_dev(disk)->kobj);
 }

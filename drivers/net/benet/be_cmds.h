@@ -61,7 +61,8 @@ enum {
 /* The command is completing because the queue was getting flushed */
 	MCC_STATUS_QUEUE_FLUSHING = 0x4,
 /* The command is completing with a DMA error */
-	MCC_STATUS_DMA_FAILED = 0x5
+	MCC_STATUS_DMA_FAILED = 0x5,
+	MCC_STATUS_NOT_SUPPORTED = 0x66
 };
 
 #define CQE_STATUS_COMPL_MASK		0xFFFF
@@ -69,7 +70,7 @@ enum {
 #define CQE_STATUS_EXTD_MASK		0xFFFF
 #define CQE_STATUS_EXTD_SHIFT		0	/* bits 0 - 15 */
 
-struct be_mcc_cq_entry {
+struct be_mcc_compl {
 	u32 status;		/* dword 0 */
 	u32 tag0;		/* dword 1 */
 	u32 tag1;		/* dword 2 */
@@ -106,7 +107,7 @@ struct be_async_event_link_state {
 
 struct be_mcc_mailbox {
 	struct be_mcc_wrb wrb;
-	struct be_mcc_cq_entry cqe;
+	struct be_mcc_compl compl;
 };
 
 #define CMD_SUBSYSTEM_COMMON	0x1
@@ -117,6 +118,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_NTWK_MULTICAST_SET		3
 #define OPCODE_COMMON_NTWK_VLAN_CONFIG  		4
 #define OPCODE_COMMON_NTWK_LINK_STATUS_QUERY		5
+#define OPCODE_COMMON_WRITE_FLASHROM			7
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
 #define OPCODE_COMMON_MCC_CREATE        		21
@@ -135,6 +137,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_QUERY_FIRMWARE_CONFIG		58
 #define OPCODE_COMMON_NTWK_PMAC_ADD			59
 #define OPCODE_COMMON_NTWK_PMAC_DEL			60
+#define OPCODE_COMMON_FUNCTION_RESET			61
 
 #define OPCODE_ETH_ACPI_CONFIG				2
 #define OPCODE_ETH_PROMISCUOUS				3
@@ -634,7 +637,6 @@ struct be_cmd_resp_link_status {
 } __packed;
 
 /******************** Get FW Version *******************/
-#define FW_VER_LEN			32
 struct be_cmd_req_get_fw_version {
 	struct be_cmd_req_hdr hdr;
 	u8 rsvd0[FW_VER_LEN];
@@ -693,56 +695,75 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 be_config_number;
 	u32 asic_revision;
 	u32 phys_port;
-	u32 function_mode;
+	u32 function_cap;
 	u32 rsvd[26];
 };
 
-extern int be_pci_fnum_get(struct be_ctrl_info *ctrl);
-extern int be_cmd_POST(struct be_ctrl_info *ctrl);
-extern int be_cmd_mac_addr_query(struct be_ctrl_info *ctrl, u8 *mac_addr,
+/****************** Firmware Flash ******************/
+struct flashrom_params {
+	u32 op_code;
+	u32 op_type;
+	u32 data_buf_size;
+	u32 offset;
+	u8 data_buf[4];
+};
+
+struct be_cmd_write_flashrom {
+	struct be_cmd_req_hdr hdr;
+	struct flashrom_params params;
+};
+
+extern int be_pci_fnum_get(struct be_adapter *adapter);
+extern int be_cmd_POST(struct be_adapter *adapter);
+extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 			u8 type, bool permanent, u32 if_handle);
-extern int be_cmd_pmac_add(struct be_ctrl_info *ctrl, u8 *mac_addr,
+extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 			u32 if_id, u32 *pmac_id);
-extern int be_cmd_pmac_del(struct be_ctrl_info *ctrl, u32 if_id, u32 pmac_id);
-extern int be_cmd_if_create(struct be_ctrl_info *ctrl, u32 if_flags, u8 *mac,
+extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, u32 pmac_id);
+extern int be_cmd_if_create(struct be_adapter *adapter, u32 if_flags, u8 *mac,
 			bool pmac_invalid, u32 *if_handle, u32 *pmac_id);
-extern int be_cmd_if_destroy(struct be_ctrl_info *ctrl, u32 if_handle);
-extern int be_cmd_eq_create(struct be_ctrl_info *ctrl,
+extern int be_cmd_if_destroy(struct be_adapter *adapter, u32 if_handle);
+extern int be_cmd_eq_create(struct be_adapter *adapter,
 			struct be_queue_info *eq, int eq_delay);
-extern int be_cmd_cq_create(struct be_ctrl_info *ctrl,
+extern int be_cmd_cq_create(struct be_adapter *adapter,
 			struct be_queue_info *cq, struct be_queue_info *eq,
 			bool sol_evts, bool no_delay,
 			int num_cqe_dma_coalesce);
-extern int be_cmd_mccq_create(struct be_ctrl_info *ctrl,
+extern int be_cmd_mccq_create(struct be_adapter *adapter,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq);
-extern int be_cmd_txq_create(struct be_ctrl_info *ctrl,
+extern int be_cmd_txq_create(struct be_adapter *adapter,
 			struct be_queue_info *txq,
 			struct be_queue_info *cq);
-extern int be_cmd_rxq_create(struct be_ctrl_info *ctrl,
+extern int be_cmd_rxq_create(struct be_adapter *adapter,
 			struct be_queue_info *rxq, u16 cq_id,
 			u16 frag_size, u16 max_frame_size, u32 if_id,
 			u32 rss);
-extern int be_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
+extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
-extern int be_cmd_link_status_query(struct be_ctrl_info *ctrl,
+extern int be_cmd_link_status_query(struct be_adapter *adapter,
 			bool *link_up);
-extern int be_cmd_reset(struct be_ctrl_info *ctrl);
-extern int be_cmd_get_stats(struct be_ctrl_info *ctrl,
+extern int be_cmd_reset(struct be_adapter *adapter);
+extern int be_cmd_get_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);
-extern int be_cmd_get_fw_ver(struct be_ctrl_info *ctrl, char *fw_ver);
+extern int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver);
 
-extern int be_cmd_modify_eqd(struct be_ctrl_info *ctrl, u32 eq_id, u32 eqd);
-extern int be_cmd_vlan_config(struct be_ctrl_info *ctrl, u32 if_id,
+extern int be_cmd_modify_eqd(struct be_adapter *adapter, u32 eq_id, u32 eqd);
+extern int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id,
 			u16 *vtag_array, u32 num, bool untagged,
 			bool promiscuous);
-extern int be_cmd_promiscuous_config(struct be_ctrl_info *ctrl,
+extern int be_cmd_promiscuous_config(struct be_adapter *adapter,
 			u8 port_num, bool en);
-extern int be_cmd_multicast_set(struct be_ctrl_info *ctrl, u32 if_id,
+extern int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 			struct dev_mc_list *mc_list, u32 mc_count);
-extern int be_cmd_set_flow_control(struct be_ctrl_info *ctrl,
+extern int be_cmd_set_flow_control(struct be_adapter *adapter,
 			u32 tx_fc, u32 rx_fc);
-extern int be_cmd_get_flow_control(struct be_ctrl_info *ctrl,
+extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 			u32 *tx_fc, u32 *rx_fc);
-extern int be_cmd_query_fw_cfg(struct be_ctrl_info *ctrl, u32 *port_num);
-extern void be_process_mcc(struct be_ctrl_info *ctrl);
+extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
+			u32 *port_num, u32 *cap);
+extern int be_cmd_reset_function(struct be_adapter *adapter);
+extern int be_process_mcc(struct be_adapter *adapter);
+extern int be_cmd_write_flashrom(struct be_adapter *adapter,
+			struct be_dma_mem *cmd, u32 flash_oper,
+			u32 flash_opcode, u32 buf_size);

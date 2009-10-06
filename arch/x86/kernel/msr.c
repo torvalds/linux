@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2000-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -80,11 +81,8 @@ static ssize_t msr_read(struct file *file, char __user *buf,
 
 	for (; count; count -= 8) {
 		err = rdmsr_safe_on_cpu(cpu, reg, &data[0], &data[1]);
-		if (err) {
-			if (err == -EFAULT) /* Fix idiotic error code */
-				err = -EIO;
+		if (err)
 			break;
-		}
 		if (copy_to_user(tmp, &data, 8)) {
 			err = -EFAULT;
 			break;
@@ -115,16 +113,61 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 			break;
 		}
 		err = wrmsr_safe_on_cpu(cpu, reg, data[0], data[1]);
-		if (err) {
-			if (err == -EFAULT) /* Fix idiotic error code */
-				err = -EIO;
+		if (err)
 			break;
-		}
 		tmp += 2;
 		bytes += 8;
 	}
 
 	return bytes ? bytes : err;
+}
+
+static long msr_ioctl(struct file *file, unsigned int ioc, unsigned long arg)
+{
+	u32 __user *uregs = (u32 __user *)arg;
+	u32 regs[8];
+	int cpu = iminor(file->f_path.dentry->d_inode);
+	int err;
+
+	switch (ioc) {
+	case X86_IOC_RDMSR_REGS:
+		if (!(file->f_mode & FMODE_READ)) {
+			err = -EBADF;
+			break;
+		}
+		if (copy_from_user(&regs, uregs, sizeof regs)) {
+			err = -EFAULT;
+			break;
+		}
+		err = rdmsr_safe_regs_on_cpu(cpu, regs);
+		if (err)
+			break;
+		if (copy_to_user(uregs, &regs, sizeof regs))
+			err = -EFAULT;
+		break;
+
+	case X86_IOC_WRMSR_REGS:
+		if (!(file->f_mode & FMODE_WRITE)) {
+			err = -EBADF;
+			break;
+		}
+		if (copy_from_user(&regs, uregs, sizeof regs)) {
+			err = -EFAULT;
+			break;
+		}
+		err = wrmsr_safe_regs_on_cpu(cpu, regs);
+		if (err)
+			break;
+		if (copy_to_user(uregs, &regs, sizeof regs))
+			err = -EFAULT;
+		break;
+
+	default:
+		err = -ENOTTY;
+		break;
+	}
+
+	return err;
 }
 
 static int msr_open(struct inode *inode, struct file *file)
@@ -157,6 +200,8 @@ static const struct file_operations msr_fops = {
 	.read = msr_read,
 	.write = msr_write,
 	.open = msr_open,
+	.unlocked_ioctl = msr_ioctl,
+	.compat_ioctl = msr_ioctl,
 };
 
 static int __cpuinit msr_device_create(int cpu)
@@ -196,7 +241,7 @@ static struct notifier_block __refdata msr_class_cpu_notifier = {
 	.notifier_call = msr_class_cpu_callback,
 };
 
-static char *msr_nodename(struct device *dev)
+static char *msr_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cpu/%u/msr", MINOR(dev->devt));
 }
@@ -217,7 +262,7 @@ static int __init msr_init(void)
 		err = PTR_ERR(msr_class);
 		goto out_chrdev;
 	}
-	msr_class->nodename = msr_nodename;
+	msr_class->devnode = msr_devnode;
 	for_each_online_cpu(i) {
 		err = msr_device_create(i);
 		if (err != 0)

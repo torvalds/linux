@@ -85,8 +85,6 @@ static int cnic_uio_open(struct uio_info *uinfo, struct inode *inode)
 
 	cp->uio_dev = iminor(inode);
 
-	cnic_shutdown_bnx2_rx_ring(dev);
-
 	cnic_init_bnx2_tx_ring(dev);
 	cnic_init_bnx2_rx_ring(dev);
 
@@ -97,6 +95,8 @@ static int cnic_uio_close(struct uio_info *uinfo, struct inode *inode)
 {
 	struct cnic_dev *dev = uinfo->priv;
 	struct cnic_local *cp = dev->cnic_priv;
+
+	cnic_shutdown_bnx2_rx_ring(dev);
 
 	cp->uio_dev = -1;
 	return 0;
@@ -774,10 +774,81 @@ static int cnic_alloc_context(struct cnic_dev *dev)
 	return 0;
 }
 
+static int cnic_alloc_l2_rings(struct cnic_dev *dev, int pages)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+
+	cp->l2_ring_size = pages * BCM_PAGE_SIZE;
+	cp->l2_ring = pci_alloc_consistent(dev->pcidev, cp->l2_ring_size,
+					   &cp->l2_ring_map);
+	if (!cp->l2_ring)
+		return -ENOMEM;
+
+	cp->l2_buf_size = (cp->l2_rx_ring_size + 1) * cp->l2_single_buf_size;
+	cp->l2_buf_size = PAGE_ALIGN(cp->l2_buf_size);
+	cp->l2_buf = pci_alloc_consistent(dev->pcidev, cp->l2_buf_size,
+					   &cp->l2_buf_map);
+	if (!cp->l2_buf)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int cnic_alloc_uio(struct cnic_dev *dev) {
+	struct cnic_local *cp = dev->cnic_priv;
+	struct uio_info *uinfo;
+	int ret;
+
+	uinfo = kzalloc(sizeof(*uinfo), GFP_ATOMIC);
+	if (!uinfo)
+		return -ENOMEM;
+
+	uinfo->mem[0].addr = dev->netdev->base_addr;
+	uinfo->mem[0].internal_addr = dev->regview;
+	uinfo->mem[0].size = dev->netdev->mem_end - dev->netdev->mem_start;
+	uinfo->mem[0].memtype = UIO_MEM_PHYS;
+
+	uinfo->mem[1].addr = (unsigned long) cp->status_blk & PAGE_MASK;
+	if (test_bit(CNIC_F_BNX2_CLASS, &dev->flags)) {
+		if (cp->ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX)
+			uinfo->mem[1].size = BNX2_SBLK_MSIX_ALIGN_SIZE * 9;
+		else
+			uinfo->mem[1].size = BNX2_SBLK_MSIX_ALIGN_SIZE;
+
+		uinfo->name = "bnx2_cnic";
+	}
+
+	uinfo->mem[1].memtype = UIO_MEM_LOGICAL;
+
+	uinfo->mem[2].addr = (unsigned long) cp->l2_ring;
+	uinfo->mem[2].size = cp->l2_ring_size;
+	uinfo->mem[2].memtype = UIO_MEM_LOGICAL;
+
+	uinfo->mem[3].addr = (unsigned long) cp->l2_buf;
+	uinfo->mem[3].size = cp->l2_buf_size;
+	uinfo->mem[3].memtype = UIO_MEM_LOGICAL;
+
+	uinfo->version = CNIC_MODULE_VERSION;
+	uinfo->irq = UIO_IRQ_CUSTOM;
+
+	uinfo->open = cnic_uio_open;
+	uinfo->release = cnic_uio_close;
+
+	uinfo->priv = dev;
+
+	ret = uio_register_device(&dev->pcidev->dev, uinfo);
+	if (ret) {
+		kfree(uinfo);
+		return ret;
+	}
+
+	cp->cnic_uinfo = uinfo;
+	return 0;
+}
+
 static int cnic_alloc_bnx2_resc(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
-	struct uio_info *uinfo;
 	int ret;
 
 	ret = cnic_alloc_dma(dev, &cp->kwq_info, KWQ_PAGE_CNT, 1);
@@ -794,59 +865,13 @@ static int cnic_alloc_bnx2_resc(struct cnic_dev *dev)
 	if (ret)
 		goto error;
 
-	cp->l2_ring_size = 2 * BCM_PAGE_SIZE;
-	cp->l2_ring = pci_alloc_consistent(dev->pcidev, cp->l2_ring_size,
-					   &cp->l2_ring_map);
-	if (!cp->l2_ring)
+	ret = cnic_alloc_l2_rings(dev, 2);
+	if (ret)
 		goto error;
 
-	cp->l2_buf_size = (cp->l2_rx_ring_size + 1) * cp->l2_single_buf_size;
-	cp->l2_buf_size = PAGE_ALIGN(cp->l2_buf_size);
-	cp->l2_buf = pci_alloc_consistent(dev->pcidev, cp->l2_buf_size,
-					   &cp->l2_buf_map);
-	if (!cp->l2_buf)
+	ret = cnic_alloc_uio(dev);
+	if (ret)
 		goto error;
-
-	uinfo = kzalloc(sizeof(*uinfo), GFP_ATOMIC);
-	if (!uinfo)
-		goto error;
-
-	uinfo->mem[0].addr = dev->netdev->base_addr;
-	uinfo->mem[0].internal_addr = dev->regview;
-	uinfo->mem[0].size = dev->netdev->mem_end - dev->netdev->mem_start;
-	uinfo->mem[0].memtype = UIO_MEM_PHYS;
-
-	uinfo->mem[1].addr = (unsigned long) cp->status_blk & PAGE_MASK;
-	if (cp->ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX)
-		uinfo->mem[1].size = BNX2_SBLK_MSIX_ALIGN_SIZE * 9;
-	else
-		uinfo->mem[1].size = BNX2_SBLK_MSIX_ALIGN_SIZE;
-	uinfo->mem[1].memtype = UIO_MEM_LOGICAL;
-
-	uinfo->mem[2].addr = (unsigned long) cp->l2_ring;
-	uinfo->mem[2].size = cp->l2_ring_size;
-	uinfo->mem[2].memtype = UIO_MEM_LOGICAL;
-
-	uinfo->mem[3].addr = (unsigned long) cp->l2_buf;
-	uinfo->mem[3].size = cp->l2_buf_size;
-	uinfo->mem[3].memtype = UIO_MEM_LOGICAL;
-
-	uinfo->name = "bnx2_cnic";
-	uinfo->version = CNIC_MODULE_VERSION;
-	uinfo->irq = UIO_IRQ_CUSTOM;
-
-	uinfo->open = cnic_uio_open;
-	uinfo->release = cnic_uio_close;
-
-	uinfo->priv = dev;
-
-	ret = uio_register_device(&dev->pcidev->dev, uinfo);
-	if (ret) {
-		kfree(uinfo);
-		goto error;
-	}
-
-	cp->cnic_uinfo = uinfo;
 
 	return 0;
 
@@ -2708,7 +2733,8 @@ static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
 			cnic_ulp_init(dev);
 		else if (event == NETDEV_UNREGISTER)
 			cnic_ulp_exit(dev);
-		else if (event == NETDEV_UP) {
+
+		if (event == NETDEV_UP) {
 			if (cnic_register_netdev(dev) != 0) {
 				cnic_put(dev);
 				goto done;

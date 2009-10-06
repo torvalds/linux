@@ -129,10 +129,12 @@ static int fill_pkg(struct cn_msg *msg, struct dm_ulog_request *tfr)
  * This is the connector callback that delivers data
  * that was sent from userspace.
  */
-static void cn_ulog_callback(void *data)
+static void cn_ulog_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
-	struct cn_msg *msg = (struct cn_msg *)data;
 	struct dm_ulog_request *tfr = (struct dm_ulog_request *)(msg + 1);
+
+	if (!cap_raised(nsp->eff_cap, CAP_SYS_ADMIN))
+		return;
 
 	spin_lock(&receiving_list_lock);
 	if (msg->len == 0)
@@ -147,7 +149,8 @@ static void cn_ulog_callback(void *data)
 
 /**
  * dm_consult_userspace
- * @uuid: log's uuid (must be DM_UUID_LEN in size)
+ * @uuid: log's universal unique identifier (must be DM_UUID_LEN in size)
+ * @luid: log's local unique identifier
  * @request_type:  found in include/linux/dm-log-userspace.h
  * @data: data to tx to the server
  * @data_size: size of data in bytes
@@ -163,7 +166,7 @@ static void cn_ulog_callback(void *data)
  *
  * Returns: 0 on success, -EXXX on failure
  **/
-int dm_consult_userspace(const char *uuid, int request_type,
+int dm_consult_userspace(const char *uuid, uint64_t luid, int request_type,
 			 char *data, size_t data_size,
 			 char *rdata, size_t *rdata_size)
 {
@@ -190,6 +193,7 @@ resend:
 
 	memset(tfr, 0, DM_ULOG_PREALLOCED_SIZE - overhead_size);
 	memcpy(tfr->uuid, uuid, DM_UUID_LEN);
+	tfr->luid = luid;
 	tfr->seq = dm_ulog_seq++;
 
 	/*

@@ -3,6 +3,8 @@
 #include "string.h"
 #include "symbol.h"
 
+#include "debug.h"
+
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
@@ -21,7 +23,7 @@ enum dso_origin {
 
 static struct symbol *symbol__new(u64 start, u64 len,
 				  const char *name, unsigned int priv_size,
-				  u64 obj_start, int verbose)
+				  u64 obj_start, int v)
 {
 	size_t namelen = strlen(name) + 1;
 	struct symbol *self = calloc(1, priv_size + sizeof(*self) + namelen);
@@ -29,7 +31,7 @@ static struct symbol *symbol__new(u64 start, u64 len,
 	if (!self)
 		return NULL;
 
-	if (verbose >= 2)
+	if (v >= 2)
 		printf("new symbol: %016Lx [%08lx]: %s, hist: %p, obj_start: %p\n",
 			(u64)start, (unsigned long)len, name, self->hist, (void *)(unsigned long)obj_start);
 
@@ -156,7 +158,7 @@ size_t dso__fprintf(struct dso *self, FILE *fp)
 	return ret;
 }
 
-static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter, int verbose)
+static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter, int v)
 {
 	struct rb_node *nd, *prevnd;
 	char *line = NULL;
@@ -198,7 +200,7 @@ static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter, int verb
 		 * Well fix up the end later, when we have all sorted.
 		 */
 		sym = symbol__new(start, 0xdead, line + len + 2,
-				  self->sym_priv_size, 0, verbose);
+				  self->sym_priv_size, 0, v);
 
 		if (sym == NULL)
 			goto out_delete_line;
@@ -239,7 +241,7 @@ out_failure:
 	return -1;
 }
 
-static int dso__load_perf_map(struct dso *self, symbol_filter_t filter, int verbose)
+static int dso__load_perf_map(struct dso *self, symbol_filter_t filter, int v)
 {
 	char *line = NULL;
 	size_t n;
@@ -277,7 +279,7 @@ static int dso__load_perf_map(struct dso *self, symbol_filter_t filter, int verb
 			continue;
 
 		sym = symbol__new(start, size, line + len,
-				  self->sym_priv_size, start, verbose);
+				  self->sym_priv_size, start, v);
 
 		if (sym == NULL)
 			goto out_delete_line;
@@ -305,13 +307,13 @@ out_failure:
  * elf_symtab__for_each_symbol - iterate thru all the symbols
  *
  * @self: struct elf_symtab instance to iterate
- * @index: uint32_t index
+ * @idx: uint32_t idx
  * @sym: GElf_Sym iterator
  */
-#define elf_symtab__for_each_symbol(syms, nr_syms, index, sym) \
-	for (index = 0, gelf_getsym(syms, index, &sym);\
-	     index < nr_syms; \
-	     index++, gelf_getsym(syms, index, &sym))
+#define elf_symtab__for_each_symbol(syms, nr_syms, idx, sym) \
+	for (idx = 0, gelf_getsym(syms, idx, &sym);\
+	     idx < nr_syms; \
+	     idx++, gelf_getsym(syms, idx, &sym))
 
 static inline uint8_t elf_sym__type(const GElf_Sym *sym)
 {
@@ -354,7 +356,7 @@ static inline const char *elf_sym__name(const GElf_Sym *sym,
 
 static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 				    GElf_Shdr *shp, const char *name,
-				    size_t *index)
+				    size_t *idx)
 {
 	Elf_Scn *sec = NULL;
 	size_t cnt = 1;
@@ -365,8 +367,8 @@ static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 		gelf_getshdr(sec, shp);
 		str = elf_strptr(elf, ep->e_shstrndx, shp->sh_name);
 		if (!strcmp(name, str)) {
-			if (index)
-				*index = cnt;
+			if (idx)
+				*idx = cnt;
 			break;
 		}
 		++cnt;
@@ -392,7 +394,7 @@ static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
  * And always look at the original dso, not at debuginfo packages, that
  * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_NOBITS).
  */
-static int dso__synthesize_plt_symbols(struct  dso *self, int verbose)
+static int dso__synthesize_plt_symbols(struct  dso *self, int v)
 {
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
@@ -442,7 +444,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, int verbose)
 		goto out_elf_end;
 
 	/*
-	 * Fetch the relocation section to find the indexes to the GOT
+	 * Fetch the relocation section to find the idxes to the GOT
 	 * and the symbols in the .dynsym they refer to.
 	 */
 	reldata = elf_getdata(scn_plt_rel, NULL);
@@ -476,7 +478,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, int verbose)
 				 "%s@plt", elf_sym__name(&sym, symstrs));
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
-					sympltname, self->sym_priv_size, 0, verbose);
+					sympltname, self->sym_priv_size, 0, v);
 			if (!f)
 				goto out_elf_end;
 
@@ -494,7 +496,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, int verbose)
 				 "%s@plt", elf_sym__name(&sym, symstrs));
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
-					sympltname, self->sym_priv_size, 0, verbose);
+					sympltname, self->sym_priv_size, 0, v);
 			if (!f)
 				goto out_elf_end;
 
@@ -518,12 +520,12 @@ out:
 }
 
 static int dso__load_sym(struct dso *self, int fd, const char *name,
-			 symbol_filter_t filter, int verbose, struct module *mod)
+			 symbol_filter_t filter, int v, struct module *mod)
 {
 	Elf_Data *symstrs, *secstrs;
 	uint32_t nr_syms;
 	int err = -1;
-	uint32_t index;
+	uint32_t idx;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
 	Elf_Data *syms;
@@ -534,14 +536,14 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 
 	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		if (verbose)
+		if (v)
 			fprintf(stderr, "%s: cannot read %s ELF file.\n",
 				__func__, name);
 		goto out_close;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
-		if (verbose)
+		if (v)
 			fprintf(stderr, "%s: cannot get elf header.\n", __func__);
 		goto out_elf_end;
 	}
@@ -583,9 +585,9 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 						     NULL) != NULL);
 	} else self->adjust_symbols = 0;
 
-	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
+	elf_symtab__for_each_symbol(syms, nr_syms, idx, sym) {
 		struct symbol *f;
-		const char *name;
+		const char *elf_name;
 		char *demangled;
 		u64 obj_start;
 		struct section *section = NULL;
@@ -608,7 +610,7 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 		obj_start = sym.st_value;
 
 		if (self->adjust_symbols) {
-			if (verbose >= 2)
+			if (v >= 2)
 				printf("adjusting symbol: st_value: %Lx sh_addr: %Lx sh_offset: %Lx\n",
 					(u64)sym.st_value, (u64)shdr.sh_addr, (u64)shdr.sh_offset);
 
@@ -630,13 +632,13 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 		 * DWARF DW_compile_unit has this, but we don't always have access
 		 * to it...
 		 */
-		name = elf_sym__name(&sym, symstrs);
-		demangled = bfd_demangle(NULL, name, DMGL_PARAMS | DMGL_ANSI);
+		elf_name = elf_sym__name(&sym, symstrs);
+		demangled = bfd_demangle(NULL, elf_name, DMGL_PARAMS | DMGL_ANSI);
 		if (demangled != NULL)
-			name = demangled;
+			elf_name = demangled;
 
-		f = symbol__new(sym.st_value, sym.st_size, name,
-				self->sym_priv_size, obj_start, verbose);
+		f = symbol__new(sym.st_value, sym.st_size, elf_name,
+				self->sym_priv_size, obj_start, v);
 		free(demangled);
 		if (!f)
 			goto out_elf_end;
@@ -659,7 +661,7 @@ out_close:
 
 #define BUILD_ID_SIZE 128
 
-static char *dso__read_build_id(struct dso *self, int verbose)
+static char *dso__read_build_id(struct dso *self, int v)
 {
 	int i;
 	GElf_Ehdr ehdr;
@@ -676,14 +678,14 @@ static char *dso__read_build_id(struct dso *self, int verbose)
 
 	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		if (verbose)
+		if (v)
 			fprintf(stderr, "%s: cannot read %s ELF file.\n",
 				__func__, self->name);
 		goto out_close;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
-		if (verbose)
+		if (v)
 			fprintf(stderr, "%s: cannot get elf header.\n", __func__);
 		goto out_elf_end;
 	}
@@ -706,7 +708,7 @@ static char *dso__read_build_id(struct dso *self, int verbose)
 		++raw;
 		bid += 2;
 	}
-	if (verbose >= 2)
+	if (v >= 2)
 		printf("%s(%s): %s\n", __func__, self->name, build_id);
 out_elf_end:
 	elf_end(elf);
@@ -732,7 +734,7 @@ char dso__symtab_origin(const struct dso *self)
 	return origin[self->origin];
 }
 
-int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
+int dso__load(struct dso *self, symbol_filter_t filter, int v)
 {
 	int size = PATH_MAX;
 	char *name = malloc(size), *build_id = NULL;
@@ -745,7 +747,7 @@ int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 	self->adjust_symbols = 0;
 
 	if (strncmp(self->name, "/tmp/perf-", 10) == 0) {
-		ret = dso__load_perf_map(self, filter, verbose);
+		ret = dso__load_perf_map(self, filter, v);
 		self->origin = ret > 0 ? DSO__ORIG_JAVA_JIT :
 					 DSO__ORIG_NOT_FOUND;
 		return ret;
@@ -764,7 +766,7 @@ more:
 			snprintf(name, size, "/usr/lib/debug%s", self->name);
 			break;
 		case DSO__ORIG_BUILDID:
-			build_id = dso__read_build_id(self, verbose);
+			build_id = dso__read_build_id(self, v);
 			if (build_id != NULL) {
 				snprintf(name, size,
 					 "/usr/lib/debug/.build-id/%.2s/%s.debug",
@@ -785,7 +787,7 @@ more:
 		fd = open(name, O_RDONLY);
 	} while (fd < 0);
 
-	ret = dso__load_sym(self, fd, name, filter, verbose, NULL);
+	ret = dso__load_sym(self, fd, name, filter, v, NULL);
 	close(fd);
 
 	/*
@@ -795,7 +797,7 @@ more:
 		goto more;
 
 	if (ret > 0) {
-		int nr_plt = dso__synthesize_plt_symbols(self, verbose);
+		int nr_plt = dso__synthesize_plt_symbols(self, v);
 		if (nr_plt > 0)
 			ret += nr_plt;
 	}
@@ -807,7 +809,7 @@ out:
 }
 
 static int dso__load_module(struct dso *self, struct mod_dso *mods, const char *name,
-			     symbol_filter_t filter, int verbose)
+			     symbol_filter_t filter, int v)
 {
 	struct module *mod = mod_dso__find_module(mods, name);
 	int err = 0, fd;
@@ -820,18 +822,18 @@ static int dso__load_module(struct dso *self, struct mod_dso *mods, const char *
 	if (fd < 0)
 		return err;
 
-	err = dso__load_sym(self, fd, name, filter, verbose, mod);
+	err = dso__load_sym(self, fd, name, filter, v, mod);
 	close(fd);
 
 	return err;
 }
 
-int dso__load_modules(struct dso *self, symbol_filter_t filter, int verbose)
+int dso__load_modules(struct dso *self, symbol_filter_t filter, int v)
 {
 	struct mod_dso *mods = mod_dso__new_dso("modules");
 	struct module *pos;
 	struct rb_node *next;
-	int err;
+	int err, count = 0;
 
 	err = mod_dso__load_modules(mods);
 
@@ -844,20 +846,22 @@ int dso__load_modules(struct dso *self, symbol_filter_t filter, int verbose)
 	next = rb_first(&mods->mods);
 	while (next) {
 		pos = rb_entry(next, struct module, rb_node);
-		err = dso__load_module(self, mods, pos->name, filter, verbose);
+		err = dso__load_module(self, mods, pos->name, filter, v);
 
 		if (err < 0)
 			break;
 
 		next = rb_next(&pos->rb_node);
+		count += err;
 	}
 
 	if (err < 0) {
 		mod_dso__delete_modules(mods);
 		mod_dso__delete_self(mods);
+		return err;
 	}
 
-	return err;
+	return count;
 }
 
 static inline void dso__fill_symbol_holes(struct dso *self)
@@ -887,14 +891,14 @@ static inline void dso__fill_symbol_holes(struct dso *self)
 }
 
 static int dso__load_vmlinux(struct dso *self, const char *vmlinux,
-			     symbol_filter_t filter, int verbose)
+			     symbol_filter_t filter, int v)
 {
 	int err, fd = open(vmlinux, O_RDONLY);
 
 	if (fd < 0)
 		return -1;
 
-	err = dso__load_sym(self, fd, vmlinux, filter, verbose, NULL);
+	err = dso__load_sym(self, fd, vmlinux, filter, v, NULL);
 
 	if (err > 0)
 		dso__fill_symbol_holes(self);
@@ -905,24 +909,128 @@ static int dso__load_vmlinux(struct dso *self, const char *vmlinux,
 }
 
 int dso__load_kernel(struct dso *self, const char *vmlinux,
-		     symbol_filter_t filter, int verbose, int modules)
+		     symbol_filter_t filter, int v, int use_modules)
 {
 	int err = -1;
 
 	if (vmlinux) {
-		err = dso__load_vmlinux(self, vmlinux, filter, verbose);
-		if (err > 0 && modules)
-			err = dso__load_modules(self, filter, verbose);
+		err = dso__load_vmlinux(self, vmlinux, filter, v);
+		if (err > 0 && use_modules) {
+			int syms = dso__load_modules(self, filter, v);
+
+			if (syms < 0) {
+				fprintf(stderr, "dso__load_modules failed!\n");
+				return syms;
+			}
+			err += syms;
+		}
 	}
 
 	if (err <= 0)
-		err = dso__load_kallsyms(self, filter, verbose);
+		err = dso__load_kallsyms(self, filter, v);
 
 	if (err > 0)
 		self->origin = DSO__ORIG_KERNEL;
 
 	return err;
 }
+
+LIST_HEAD(dsos);
+struct dso	*kernel_dso;
+struct dso	*vdso;
+struct dso	*hypervisor_dso;
+
+const char	*vmlinux_name = "vmlinux";
+int		modules;
+
+static void dsos__add(struct dso *dso)
+{
+	list_add_tail(&dso->node, &dsos);
+}
+
+static struct dso *dsos__find(const char *name)
+{
+	struct dso *pos;
+
+	list_for_each_entry(pos, &dsos, node)
+		if (strcmp(pos->name, name) == 0)
+			return pos;
+	return NULL;
+}
+
+struct dso *dsos__findnew(const char *name)
+{
+	struct dso *dso = dsos__find(name);
+	int nr;
+
+	if (dso)
+		return dso;
+
+	dso = dso__new(name, 0);
+	if (!dso)
+		goto out_delete_dso;
+
+	nr = dso__load(dso, NULL, verbose);
+	if (nr < 0) {
+		eprintf("Failed to open: %s\n", name);
+		goto out_delete_dso;
+	}
+	if (!nr)
+		eprintf("No symbols found in: %s, maybe install a debug package?\n", name);
+
+	dsos__add(dso);
+
+	return dso;
+
+out_delete_dso:
+	dso__delete(dso);
+	return NULL;
+}
+
+void dsos__fprintf(FILE *fp)
+{
+	struct dso *pos;
+
+	list_for_each_entry(pos, &dsos, node)
+		dso__fprintf(pos, fp);
+}
+
+static struct symbol *vdso__find_symbol(struct dso *dso, u64 ip)
+{
+	return dso__find_symbol(dso, ip);
+}
+
+int load_kernel(void)
+{
+	int err;
+
+	kernel_dso = dso__new("[kernel]", 0);
+	if (!kernel_dso)
+		return -1;
+
+	err = dso__load_kernel(kernel_dso, vmlinux_name, NULL, verbose, modules);
+	if (err <= 0) {
+		dso__delete(kernel_dso);
+		kernel_dso = NULL;
+	} else
+		dsos__add(kernel_dso);
+
+	vdso = dso__new("[vdso]", 0);
+	if (!vdso)
+		return -1;
+
+	vdso->find_symbol = vdso__find_symbol;
+
+	dsos__add(vdso);
+
+	hypervisor_dso = dso__new("[hypervisor]", 0);
+	if (!hypervisor_dso)
+		return -1;
+	dsos__add(hypervisor_dso);
+
+	return err;
+}
+
 
 void symbol__init(void)
 {

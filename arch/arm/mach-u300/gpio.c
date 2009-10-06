@@ -25,11 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 
-/* Need access to SYSCON registers for PADmuxing */
-#include <mach/syscon.h>
-
-#include "padmux.h"
-
 /* Reference to GPIO block clock */
 static struct clk *clk;
 
@@ -285,6 +280,16 @@ int gpio_unregister_callback(unsigned gpio)
 	return 0;
 }
 EXPORT_SYMBOL(gpio_unregister_callback);
+
+/* Non-zero means valid */
+int gpio_is_valid(int number)
+{
+	if (number >= 0 &&
+	    number < (U300_GPIO_NUM_PORTS * U300_GPIO_PINS_PER_PORT))
+		return 1;
+	return 0;
+}
+EXPORT_SYMBOL(gpio_is_valid);
 
 int gpio_request(unsigned gpio, const char *label)
 {
@@ -604,14 +609,6 @@ static int __init gpio_probe(struct platform_device *pdev)
 	       ((val & 0x0000FE00) >> 9),
 	       ((val & 0x000001FC) >> 2));
 	writel(U300_GPIO_CR_BLOCK_CLKRQ_ENABLE, virtbase + U300_GPIO_CR);
-#endif
-
-	/* Set up some padmuxing here */
-#ifdef CONFIG_MMC
-	pmx_set_mission_mode_mmc();
-#endif
-#ifdef CONFIG_SPI_PL022
-	pmx_set_mission_mode_spi();
 #endif
 
 	gpio_set_initial_values();

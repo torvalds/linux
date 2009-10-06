@@ -218,8 +218,9 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
 		mlx4_info(mdev, "Using %d tx rings for port:%d\n",
 			  mdev->profile.prof[i].tx_ring_num, i);
-		mdev->profile.prof[i].rx_ring_num =
-			min_t(int, dev->caps.num_comp_vectors, MAX_RX_RINGS);
+		mdev->profile.prof[i].rx_ring_num = min_t(int,
+			roundup_pow_of_two(dev->caps.num_comp_vectors),
+			MAX_RX_RINGS);
 		mlx4_info(mdev, "Defaulting to %d rx rings for port:%d\n",
 			  mdev->profile.prof[i].rx_ring_num, i);
 	}

@@ -215,7 +215,7 @@ static void skge_wol_init(struct skge_port *skge)
 	if (skge->wol & WAKE_MAGIC)
 		ctrl |= WOL_CTL_ENA_PME_ON_MAGIC_PKT|WOL_CTL_ENA_MAGIC_PKT_UNIT;
 	else
-		ctrl |= WOL_CTL_DIS_PME_ON_MAGIC_PKT|WOL_CTL_DIS_MAGIC_PKT_UNIT;;
+		ctrl |= WOL_CTL_DIS_PME_ON_MAGIC_PKT|WOL_CTL_DIS_MAGIC_PKT_UNIT;
 
 	ctrl |= WOL_CTL_DIS_PME_ON_PATTERN|WOL_CTL_DIS_PATTERN_UNIT;
 	skge_write16(hw, WOL_REGS(port, WOL_CTRL_STAT), ctrl);
@@ -2496,9 +2496,6 @@ static int skge_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 
 	case SIOCSMIIREG:
-		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
-
 		spin_lock_bh(&hw->phy_lock);
 		if (hw->chip_id == CHIP_ID_GENESIS)
 			err = xm_phy_write(hw, skge->port, data->reg_num & 0x1f,
@@ -2746,7 +2743,8 @@ static inline int skge_avail(const struct skge_ring *ring)
 		+ (ring->to_clean - ring->to_use) - 1;
 }
 
-static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
+				   struct net_device *dev)
 {
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
@@ -3937,11 +3935,14 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 #endif
 
 	err = -ENOMEM;
-	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	/* space for skge@pci:0000:04:00.0 */
+	hw = kzalloc(sizeof(*hw) + strlen(DRV_NAME "@pci:" )
+		     + strlen(pci_name(pdev)) + 1, GFP_KERNEL);
 	if (!hw) {
 		dev_err(&pdev->dev, "cannot allocate hardware struct\n");
 		goto err_out_free_regions;
 	}
+	sprintf(hw->irq_name, DRV_NAME "@pci:%s", pci_name(pdev));
 
 	hw->pdev = pdev;
 	spin_lock_init(&hw->hw_lock);
@@ -3976,7 +3977,7 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 		goto err_out_free_netdev;
 	}
 
-	err = request_irq(pdev->irq, skge_intr, IRQF_SHARED, dev->name, hw);
+	err = request_irq(pdev->irq, skge_intr, IRQF_SHARED, hw->irq_name, hw);
 	if (err) {
 		dev_err(&pdev->dev, "%s: cannot assign irq %d\n",
 		       dev->name, pdev->irq);
@@ -3984,14 +3985,17 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	}
 	skge_show_addr(dev);
 
-	if (hw->ports > 1 && (dev1 = skge_devinit(hw, 1, using_dac))) {
-		if (register_netdev(dev1) == 0)
+	if (hw->ports > 1) {
+		dev1 = skge_devinit(hw, 1, using_dac);
+		if (dev1 && register_netdev(dev1) == 0)
 			skge_show_addr(dev1);
 		else {
 			/* Failure to register second port need not be fatal */
 			dev_warn(&pdev->dev, "register of second port failed\n");
 			hw->dev[1] = NULL;
-			free_netdev(dev1);
+			hw->ports = 1;
+			if (dev1)
+				free_netdev(dev1);
 		}
 	}
 	pci_set_drvdata(pdev, hw);

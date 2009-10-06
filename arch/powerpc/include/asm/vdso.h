@@ -7,9 +7,8 @@
 #define VDSO32_LBASE	0x100000
 #define VDSO64_LBASE	0x100000
 
-/* Default map addresses */
+/* Default map addresses for 32bit vDSO */
 #define VDSO32_MBASE	VDSO32_LBASE
-#define VDSO64_MBASE	VDSO64_LBASE
 
 #define VDSO_VERSION_STRING	LINUX_2.6.15
 

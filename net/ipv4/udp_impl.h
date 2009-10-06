@@ -11,13 +11,13 @@ extern void 	__udp4_lib_err(struct sk_buff *, u32, struct udp_table *);
 extern int	udp_v4_get_port(struct sock *sk, unsigned short snum);
 
 extern int	udp_setsockopt(struct sock *sk, int level, int optname,
-			       char __user *optval, int optlen);
+			       char __user *optval, unsigned int optlen);
 extern int	udp_getsockopt(struct sock *sk, int level, int optname,
 			       char __user *optval, int __user *optlen);
 
 #ifdef CONFIG_COMPAT
 extern int	compat_udp_setsockopt(struct sock *sk, int level, int optname,
-				      char __user *optval, int optlen);
+				      char __user *optval, unsigned int optlen);
 extern int	compat_udp_getsockopt(struct sock *sk, int level, int optname,
 				      char __user *optval, int __user *optlen);
 #endif

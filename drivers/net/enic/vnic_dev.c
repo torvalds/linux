@@ -31,6 +31,7 @@
 
 struct vnic_res {
 	void __iomem *vaddr;
+	dma_addr_t bus_addr;
 	unsigned int count;
 };
 
@@ -67,11 +68,14 @@ void *vnic_dev_priv(struct vnic_dev *vdev)
 }
 
 static int vnic_dev_discover_res(struct vnic_dev *vdev,
-	struct vnic_dev_bar *bar)
+	struct vnic_dev_bar *bar, unsigned int num_bars)
 {
 	struct vnic_resource_header __iomem *rh;
 	struct vnic_resource __iomem *r;
 	u8 type;
+
+	if (num_bars == 0)
+		return -EINVAL;
 
 	if (bar->len < VNIC_MAX_RES_HDR_SIZE) {
 		printk(KERN_ERR "vNIC BAR0 res hdr length error\n");
@@ -104,7 +108,10 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 
 		r++;
 
-		if (bar_num != 0)  /* only mapping in BAR0 resources */
+		if (bar_num >= num_bars)
+			continue;
+
+		if (!bar[bar_num].len || !bar[bar_num].vaddr)
 			continue;
 
 		switch (type) {
@@ -114,13 +121,13 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		case RES_TYPE_INTR_CTRL:
 			/* each count is stride bytes long */
 			len = count * VNIC_RES_STRIDE;
-			if (len + bar_offset > bar->len) {
+			if (len + bar_offset > bar[bar_num].len) {
 				printk(KERN_ERR "vNIC BAR0 resource %d "
 					"out-of-bounds, offset 0x%x + "
 					"size 0x%x > bar len 0x%lx\n",
 					type, bar_offset,
 					len,
-					bar->len);
+					bar[bar_num].len);
 				return -EINVAL;
 			}
 			break;
@@ -133,7 +140,9 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		}
 
 		vdev->res[type].count = count;
-		vdev->res[type].vaddr = (char __iomem *)bar->vaddr + bar_offset;
+		vdev->res[type].vaddr = (char __iomem *)bar[bar_num].vaddr +
+			bar_offset;
+		vdev->res[type].bus_addr = bar[bar_num].bus_addr + bar_offset;
 	}
 
 	return 0;
@@ -160,6 +169,21 @@ void __iomem *vnic_dev_get_res(struct vnic_dev *vdev, enum vnic_res_type type,
 			index * VNIC_RES_STRIDE;
 	default:
 		return (char __iomem *)vdev->res[type].vaddr;
+	}
+}
+
+dma_addr_t vnic_dev_get_res_bus_addr(struct vnic_dev *vdev,
+	enum vnic_res_type type, unsigned int index)
+{
+	switch (type) {
+	case RES_TYPE_WQ:
+	case RES_TYPE_RQ:
+	case RES_TYPE_CQ:
+	case RES_TYPE_INTR_CTRL:
+		return vdev->res[type].bus_addr +
+			index * VNIC_RES_STRIDE;
+	default:
+		return vdev->res[type].bus_addr;
 	}
 }
 
@@ -257,7 +281,7 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	iowrite32(cmd, &devcmd->cmd);
 
 	if ((_CMD_FLAGS(cmd) & _CMD_FLAGS_NOWAIT))
-			return 0;
+		return 0;
 
 	for (delay = 0; delay < wait; delay++) {
 
@@ -323,6 +347,25 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 	*fw_info = vdev->fw_info;
 
 	return err;
+}
+
+int vnic_dev_hw_version(struct vnic_dev *vdev, enum vnic_dev_hw_version *hw_ver)
+{
+	struct vnic_devcmd_fw_info *fw_info;
+	int err;
+
+	err = vnic_dev_fw_info(vdev, &fw_info);
+	if (err)
+		return err;
+
+	if (strncmp(fw_info->hw_version, "A1", sizeof("A1")) == 0)
+		*hw_ver = VNIC_DEV_HW_VER_A1;
+	else if (strncmp(fw_info->hw_version, "A2", sizeof("A2")) == 0)
+		*hw_ver = VNIC_DEV_HW_VER_A2;
+	else
+		*hw_ver = VNIC_DEV_HW_VER_UNKNOWN;
+
+	return 0;
 }
 
 int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset, unsigned int size,
@@ -517,6 +560,20 @@ void vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
 		printk(KERN_ERR "Can't del addr [%pM], %d\n", addr, err);
 }
 
+int vnic_dev_raise_intr(struct vnic_dev *vdev, u16 intr)
+{
+	u64 a0 = intr, a1 = 0;
+	int wait = 1000;
+	int err;
+
+	err = vnic_dev_cmd(vdev, CMD_IAR, &a0, &a1, wait);
+	if (err)
+		printk(KERN_ERR "Failed to raise INTR[%d], err %d\n",
+			intr, err);
+
+	return err;
+}
+
 int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
 {
 	u64 a0, a1;
@@ -684,7 +741,8 @@ void vnic_dev_unregister(struct vnic_dev *vdev)
 }
 
 struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
-	void *priv, struct pci_dev *pdev, struct vnic_dev_bar *bar)
+	void *priv, struct pci_dev *pdev, struct vnic_dev_bar *bar,
+	unsigned int num_bars)
 {
 	if (!vdev) {
 		vdev = kzalloc(sizeof(struct vnic_dev), GFP_ATOMIC);
@@ -695,7 +753,7 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	vdev->priv = priv;
 	vdev->pdev = pdev;
 
-	if (vnic_dev_discover_res(vdev, bar))
+	if (vnic_dev_discover_res(vdev, bar, num_bars))
 		goto err_out;
 
 	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);

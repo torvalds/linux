@@ -841,3 +841,4 @@ module_exit(ds1305_exit);
 
 MODULE_DESCRIPTION("RTC driver for DS1305 and DS1306 chips");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:rtc-ds1305");

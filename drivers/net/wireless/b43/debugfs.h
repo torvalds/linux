@@ -13,6 +13,7 @@ enum b43_dyndbg {		/* Dynamic debugging features */
 	B43_DBG_LO,
 	B43_DBG_FIRMWARE,
 	B43_DBG_KEYS,
+	B43_DBG_VERBOSESTATS,
 	__B43_NR_DYNDBG,
 };
 
@@ -23,9 +24,10 @@ struct dentry;
 #define B43_NR_LOGGED_TXSTATUS	100
 
 struct b43_txstatus_log {
+	/* This structure is protected by wl->mutex */
+
 	struct b43_txstatus *log;
 	int end;
-	spinlock_t lock;
 };
 
 struct b43_dfs_file {

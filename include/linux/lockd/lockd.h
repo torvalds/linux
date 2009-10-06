@@ -338,49 +338,6 @@ static inline int nlm_privileged_requester(const struct svc_rqst *rqstp)
 	}
 }
 
-static inline int __nlm_cmp_addr4(const struct sockaddr *sap1,
-				  const struct sockaddr *sap2)
-{
-	const struct sockaddr_in *sin1 = (const struct sockaddr_in *)sap1;
-	const struct sockaddr_in *sin2 = (const struct sockaddr_in *)sap2;
-	return sin1->sin_addr.s_addr == sin2->sin_addr.s_addr;
-}
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static inline int __nlm_cmp_addr6(const struct sockaddr *sap1,
-				  const struct sockaddr *sap2)
-{
-	const struct sockaddr_in6 *sin1 = (const struct sockaddr_in6 *)sap1;
-	const struct sockaddr_in6 *sin2 = (const struct sockaddr_in6 *)sap2;
-	return ipv6_addr_equal(&sin1->sin6_addr, &sin2->sin6_addr);
-}
-#else	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
-static inline int __nlm_cmp_addr6(const struct sockaddr *sap1,
-				  const struct sockaddr *sap2)
-{
-	return 0;
-}
-#endif	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
-
-/*
- * Compare two host addresses
- *
- * Return TRUE if the addresses are the same; otherwise FALSE.
- */
-static inline int nlm_cmp_addr(const struct sockaddr *sap1,
-			       const struct sockaddr *sap2)
-{
-	if (sap1->sa_family == sap2->sa_family) {
-		switch (sap1->sa_family) {
-		case AF_INET:
-			return __nlm_cmp_addr4(sap1, sap2);
-		case AF_INET6:
-			return __nlm_cmp_addr6(sap1, sap2);
-		}
-	}
-	return 0;
-}
-
 /*
  * Compare two NLM locks.
  * When the second lock is of type F_UNLCK, this acts like a wildcard.
@@ -395,7 +352,7 @@ static inline int nlm_compare_locks(const struct file_lock *fl1,
 	     &&(fl1->fl_type  == fl2->fl_type || fl2->fl_type == F_UNLCK);
 }
 
-extern struct lock_manager_operations nlmsvc_lock_operations;
+extern const struct lock_manager_operations nlmsvc_lock_operations;
 
 #endif /* __KERNEL__ */
 
