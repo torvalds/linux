@@ -778,15 +778,13 @@ static int nfs_verify_server_address(struct sockaddr *addr)
  * Select between a default port value and a user-specified port value.
  * If a zero value is set, then autobind will be used.
  */
-static void nfs_set_default_port(struct sockaddr *sap, const int parsed_port,
+static void nfs_set_port(struct sockaddr *sap, int *port,
 				 const unsigned short default_port)
 {
-	unsigned short port = default_port;
+	if (*port == NFS_UNSPEC_PORT)
+		*port = default_port;
 
-	if (parsed_port != NFS_UNSPEC_PORT)
-		port = parsed_port;
-
-	rpc_set_port(sap, port);
+	rpc_set_port(sap, *port);
 }
 
 /*
@@ -1477,7 +1475,7 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 		args->mount_server.addrlen = args->nfs_server.addrlen;
 	}
 	request.salen = args->mount_server.addrlen;
-	nfs_set_default_port(request.sap, args->mount_server.port, 0);
+	nfs_set_port(request.sap, &args->mount_server.port, 0);
 
 	/*
 	 * Now ask the mount server to map our export path
@@ -1767,7 +1765,7 @@ static int nfs_validate_mount_data(void *options,
 			goto out_v4_not_compiled;
 #endif
 
-		nfs_set_default_port(sap, args->nfs_server.port, 0);
+		nfs_set_port(sap, &args->nfs_server.port, 0);
 
 		nfs_set_mount_transport_protocol(args);
 
@@ -2331,7 +2329,7 @@ static int nfs4_validate_text_mount_data(void *options,
 {
 	struct sockaddr *sap = (struct sockaddr *)&args->nfs_server.address;
 
-	nfs_set_default_port(sap, args->nfs_server.port, NFS_PORT);
+	nfs_set_port(sap, &args->nfs_server.port, NFS_PORT);
 
 	nfs_validate_transport_protocol(args);
 
