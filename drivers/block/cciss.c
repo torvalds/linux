@@ -205,7 +205,7 @@ static int cciss_compat_ioctl(struct block_device *, fmode_t,
 			      unsigned, unsigned long);
 #endif
 
-static struct block_device_operations cciss_fops = {
+static const struct block_device_operations cciss_fops = {
 	.owner = THIS_MODULE,
 	.open = cciss_open,
 	.release = cciss_release,
@@ -363,7 +363,7 @@ static void cciss_seq_stop(struct seq_file *seq, void *v)
 	h->busy_configuring = 0;
 }
 
-static struct seq_operations cciss_seq_ops = {
+static const struct seq_operations cciss_seq_ops = {
 	.start = cciss_seq_start,
 	.show  = cciss_seq_show,
 	.next  = cciss_seq_next,

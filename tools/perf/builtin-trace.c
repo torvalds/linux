@@ -191,10 +191,6 @@ remap:
 more:
 	event = (event_t *)(buf + head);
 
-	size = event->header.size;
-	if (!size)
-		size = 8;
-
 	if (head + event->header.size >= page_size * mmap_window) {
 		unsigned long shift = page_size * (head / page_size);
 		int res;
@@ -208,7 +204,6 @@ more:
 	}
 
 	size = event->header.size;
-
 
 	if (!size || process_event(event, offset, head) < 0) {
 
@@ -261,7 +256,6 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		if (argc > 1)
 			usage_with_options(annotate_usage, options);
 	}
-
 
 	setup_pager();
 

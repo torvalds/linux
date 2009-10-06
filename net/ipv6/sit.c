@@ -626,11 +626,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	struct in6_addr *addr6;
 	int addr_type;
 
-	if (tunnel->recursion++) {
-		stats->collisions++;
-		goto tx_error;
-	}
-
 	if (skb->protocol != htons(ETH_P_IPV6))
 		goto tx_error;
 
@@ -753,7 +748,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			ip_rt_put(rt);
 			stats->tx_dropped++;
 			dev_kfree_skb(skb);
-			tunnel->recursion--;
 			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
@@ -794,7 +788,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	nf_reset(skb);
 
 	IPTUNNEL_XMIT();
-	tunnel->recursion--;
 	return NETDEV_TX_OK;
 
 tx_error_icmp:
@@ -802,7 +795,6 @@ tx_error_icmp:
 tx_error:
 	stats->tx_errors++;
 	dev_kfree_skb(skb);
-	tunnel->recursion--;
 	return NETDEV_TX_OK;
 }
 

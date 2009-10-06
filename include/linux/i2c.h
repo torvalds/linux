@@ -98,7 +98,6 @@ extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client,
 
 /**
  * struct i2c_driver - represent an I2C device driver
- * @id: Unique driver ID (optional)
  * @class: What kind of i2c device we instantiate (for detect)
  * @attach_adapter: Callback for bus addition (for legacy drivers)
  * @detach_adapter: Callback for bus removal (for legacy drivers)
@@ -135,7 +134,6 @@ extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client,
  * not allowed.
  */
 struct i2c_driver {
-	int id;
 	unsigned int class;
 
 	/* Notifies the driver that a new bus has appeared or is about to be

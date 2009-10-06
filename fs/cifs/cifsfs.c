@@ -50,7 +50,7 @@
 #define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of SMB PDUs */
 
 #ifdef CONFIG_CIFS_QUOTA
-static struct quotactl_ops cifs_quotactl_ops;
+static const struct quotactl_ops cifs_quotactl_ops;
 #endif /* QUOTA */
 
 int cifsFYI = 0;
@@ -64,9 +64,6 @@ unsigned int multiuser_mount = 0;
 unsigned int extended_security = CIFSSEC_DEF;
 /* unsigned int ntlmv2_support = 0; */
 unsigned int sign_CIFS_PDUs = 1;
-extern struct task_struct *oplockThread; /* remove sparse warning */
-struct task_struct *oplockThread = NULL;
-/* extern struct task_struct * dnotifyThread; remove sparse warning */
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
@@ -185,8 +182,7 @@ out_mount_failed:
 			cifs_sb->mountdata = NULL;
 		}
 #endif
-		if (cifs_sb->local_nls)
-			unload_nls(cifs_sb->local_nls);
+		unload_nls(cifs_sb->local_nls);
 		kfree(cifs_sb);
 	}
 	return rc;
@@ -517,7 +513,7 @@ int cifs_xstate_get(struct super_block *sb, struct fs_quota_stat *qstats)
 	return rc;
 }
 
-static struct quotactl_ops cifs_quotactl_ops = {
+static const struct quotactl_ops cifs_quotactl_ops = {
 	.set_xquota	= cifs_xquota_set,
 	.get_xquota	= cifs_xquota_get,
 	.set_xstate	= cifs_xstate_set,
@@ -973,89 +969,12 @@ cifs_destroy_mids(void)
 	kmem_cache_destroy(cifs_oplock_cachep);
 }
 
-static int cifs_oplock_thread(void *dummyarg)
-{
-	struct oplock_q_entry *oplock_item;
-	struct cifsTconInfo *pTcon;
-	struct inode *inode;
-	__u16  netfid;
-	int rc, waitrc = 0;
-
-	set_freezable();
-	do {
-		if (try_to_freeze())
-			continue;
-
-		spin_lock(&cifs_oplock_lock);
-		if (list_empty(&cifs_oplock_list)) {
-			spin_unlock(&cifs_oplock_lock);
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(39*HZ);
-		} else {
-			oplock_item = list_entry(cifs_oplock_list.next,
-						struct oplock_q_entry, qhead);
-			cFYI(1, ("found oplock item to write out"));
-			pTcon = oplock_item->tcon;
-			inode = oplock_item->pinode;
-			netfid = oplock_item->netfid;
-			spin_unlock(&cifs_oplock_lock);
-			DeleteOplockQEntry(oplock_item);
-			/* can not grab inode sem here since it would
-				deadlock when oplock received on delete
-				since vfs_unlink holds the i_mutex across
-				the call */
-			/* mutex_lock(&inode->i_mutex);*/
-			if (S_ISREG(inode->i_mode)) {
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-				if (CIFS_I(inode)->clientCanCacheAll == 0)
-					break_lease(inode, FMODE_READ);
-				else if (CIFS_I(inode)->clientCanCacheRead == 0)
-					break_lease(inode, FMODE_WRITE);
-#endif
-				rc = filemap_fdatawrite(inode->i_mapping);
-				if (CIFS_I(inode)->clientCanCacheRead == 0) {
-					waitrc = filemap_fdatawait(
-							      inode->i_mapping);
-					invalidate_remote_inode(inode);
-				}
-				if (rc == 0)
-					rc = waitrc;
-			} else
-				rc = 0;
-			/* mutex_unlock(&inode->i_mutex);*/
-			if (rc)
-				CIFS_I(inode)->write_behind_rc = rc;
-			cFYI(1, ("Oplock flush inode %p rc %d",
-				inode, rc));
-
-				/* releasing stale oplock after recent reconnect
-				of smb session using a now incorrect file
-				handle is not a data integrity issue but do
-				not bother sending an oplock release if session
-				to server still is disconnected since oplock
-				already released by the server in that case */
-			if (!pTcon->need_reconnect) {
-				rc = CIFSSMBLock(0, pTcon, netfid,
-						0 /* len */ , 0 /* offset */, 0,
-						0, LOCKING_ANDX_OPLOCK_RELEASE,
-						false /* wait flag */);
-				cFYI(1, ("Oplock release rc = %d", rc));
-			}
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);  /* yield in case q were corrupt */
-		}
-	} while (!kthread_should_stop());
-
-	return 0;
-}
-
 static int __init
 init_cifs(void)
 {
 	int rc = 0;
 	cifs_proc_init();
 	INIT_LIST_HEAD(&cifs_tcp_ses_list);
-	INIT_LIST_HEAD(&cifs_oplock_list);
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	INIT_LIST_HEAD(&GlobalDnotifyReqList);
 	INIT_LIST_HEAD(&GlobalDnotifyRsp_Q);
@@ -1084,7 +1003,6 @@ init_cifs(void)
 	rwlock_init(&GlobalSMBSeslock);
 	rwlock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&GlobalMid_Lock);
-	spin_lock_init(&cifs_oplock_lock);
 
 	if (cifs_max_pending < 2) {
 		cifs_max_pending = 2;
@@ -1119,16 +1037,13 @@ init_cifs(void)
 	if (rc)
 		goto out_unregister_key_type;
 #endif
-	oplockThread = kthread_run(cifs_oplock_thread, NULL, "cifsoplockd");
-	if (IS_ERR(oplockThread)) {
-		rc = PTR_ERR(oplockThread);
-		cERROR(1, ("error %d create oplock thread", rc));
-		goto out_unregister_dfs_key_type;
-	}
+	rc = slow_work_register_user();
+	if (rc)
+		goto out_unregister_resolver_key;
 
 	return 0;
 
- out_unregister_dfs_key_type:
+ out_unregister_resolver_key:
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	unregister_key_type(&key_type_dns_resolver);
  out_unregister_key_type:
@@ -1165,7 +1080,6 @@ exit_cifs(void)
 	cifs_destroy_inodecache();
 	cifs_destroy_mids();
 	cifs_destroy_request_bufs();
-	kthread_stop(oplockThread);
 }
 
 MODULE_AUTHOR("Steve French <sfrench@us.ibm.com>");

@@ -340,6 +340,7 @@
  */
 #define ACPI_ERROR_NAMESPACE(s, e)      acpi_ns_report_error (AE_INFO, s, e);
 #define ACPI_ERROR_METHOD(s, n, p, e)   acpi_ns_report_method_error (AE_INFO, s, n, p, e);
+#define ACPI_WARN_PREDEFINED(plist)     acpi_ut_predefined_warning plist
 
 #else
 
@@ -347,6 +348,7 @@
 
 #define ACPI_ERROR_NAMESPACE(s, e)
 #define ACPI_ERROR_METHOD(s, n, p, e)
+#define ACPI_WARN_PREDEFINED(plist)
 #endif		/* ACPI_NO_ERROR_MESSAGES */
 
 /*

@@ -11,8 +11,8 @@ extern struct matrox_switch matrox_mystique;
 extern struct matrox_switch matrox_G100;
 #endif
 #ifdef NEED_DAC1064
-void DAC1064_global_init(WPMINFO2);
-void DAC1064_global_restore(WPMINFO2);
+void DAC1064_global_init(struct matrox_fb_info *minfo);
+void DAC1064_global_restore(struct matrox_fb_info *minfo);
 #endif
 
 #define M1064_INDEX	0x00

@@ -301,7 +301,7 @@ static inline int private_mapping_ok(struct vm_area_struct *vma)
 }
 #endif
 
-static struct vm_operations_struct mmap_mem_ops = {
+static const struct vm_operations_struct mmap_mem_ops = {
 #ifdef CONFIG_HAVE_IOREMAP_PROT
 	.access = generic_access_phys
 #endif
@@ -690,7 +690,7 @@ static ssize_t read_zero(struct file * file, char __user * buf,
 
 		if (chunk > PAGE_SIZE)
 			chunk = PAGE_SIZE;	/* Just for latency reasons */
-		unwritten = clear_user(buf, chunk);
+		unwritten = __clear_user(buf, chunk);
 		written += chunk - unwritten;
 		if (unwritten)
 			break;

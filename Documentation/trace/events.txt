@@ -72,7 +72,7 @@ To enable all events in sched subsystem:
 
 	# echo 1 > /sys/kernel/debug/tracing/events/sched/enable
 
-To eanble all events:
+To enable all events:
 
 	# echo 1 > /sys/kernel/debug/tracing/events/enable
 

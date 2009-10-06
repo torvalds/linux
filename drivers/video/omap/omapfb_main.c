@@ -67,6 +67,7 @@ static struct caps_table_struct ctrl_caps[] = {
 	{ OMAPFB_CAPS_WINDOW_PIXEL_DOUBLE, "pixel double window" },
 	{ OMAPFB_CAPS_WINDOW_SCALE,   "scale window" },
 	{ OMAPFB_CAPS_WINDOW_OVERLAY, "overlay window" },
+	{ OMAPFB_CAPS_WINDOW_ROTATE,  "rotate window" },
 	{ OMAPFB_CAPS_SET_BACKLIGHT,  "backlight setting" },
 };
 
@@ -215,6 +216,15 @@ static int ctrl_change_mode(struct fb_info *fbi)
 				 offset, var->xres_virtual,
 				 plane->info.pos_x, plane->info.pos_y,
 				 var->xres, var->yres, plane->color_mode);
+	if (r < 0)
+		return r;
+
+	if (fbdev->ctrl->set_rotate != NULL) {
+		r = fbdev->ctrl->set_rotate(var->rotate);
+		if (r < 0)
+			return r;
+	}
+
 	if (fbdev->ctrl->set_scale != NULL)
 		r = fbdev->ctrl->set_scale(plane->idx,
 				   var->xres, var->yres,
@@ -554,7 +564,6 @@ static int set_fb_var(struct fb_info *fbi,
 		var->xoffset = var->xres_virtual - var->xres;
 	if (var->yres + var->yoffset > var->yres_virtual)
 		var->yoffset = var->yres_virtual - var->yres;
-	line_size = var->xres * bpp / 8;
 
 	if (plane->color_mode == OMAPFB_COLOR_RGB444) {
 		var->red.offset	  = 8; var->red.length	 = 4;
@@ -600,7 +609,7 @@ static void omapfb_rotate(struct fb_info *fbi, int rotate)
 	struct omapfb_device *fbdev = plane->fbdev;
 
 	omapfb_rqueue_lock(fbdev);
-	if (cpu_is_omap15xx() && rotate != fbi->var.rotate) {
+	if (rotate != fbi->var.rotate) {
 		struct fb_var_screeninfo *new_var = &fbdev->new_var;
 
 		memcpy(new_var, &fbi->var, sizeof(*new_var));
@@ -707,28 +716,42 @@ int omapfb_update_window_async(struct fb_info *fbi,
 				void (*callback)(void *),
 				void *callback_data)
 {
+	int xres, yres;
 	struct omapfb_plane_struct *plane = fbi->par;
 	struct omapfb_device *fbdev = plane->fbdev;
-	struct fb_var_screeninfo *var;
+	struct fb_var_screeninfo *var = &fbi->var;
 
-	var = &fbi->var;
-	if (win->x >= var->xres || win->y >= var->yres ||
-	    win->out_x > var->xres || win->out_y >= var->yres)
+	switch (var->rotate) {
+	case 0:
+	case 180:
+		xres = fbdev->panel->x_res;
+		yres = fbdev->panel->y_res;
+		break;
+	case 90:
+	case 270:
+		xres = fbdev->panel->y_res;
+		yres = fbdev->panel->x_res;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (win->x >= xres || win->y >= yres ||
+	    win->out_x > xres || win->out_y > yres)
 		return -EINVAL;
 
 	if (!fbdev->ctrl->update_window ||
 	    fbdev->ctrl->get_update_mode() != OMAPFB_MANUAL_UPDATE)
 		return -ENODEV;
 
-	if (win->x + win->width >= var->xres)
-		win->width = var->xres - win->x;
-	if (win->y + win->height >= var->yres)
-		win->height = var->yres - win->y;
-	/* The out sizes should be cropped to the LCD size */
-	if (win->out_x + win->out_width > fbdev->panel->x_res)
-		win->out_width = fbdev->panel->x_res - win->out_x;
-	if (win->out_y + win->out_height > fbdev->panel->y_res)
-		win->out_height = fbdev->panel->y_res - win->out_y;
+	if (win->x + win->width > xres)
+		win->width = xres - win->x;
+	if (win->y + win->height > yres)
+		win->height = yres - win->y;
+	if (win->out_x + win->out_width > xres)
+		win->out_width = xres - win->out_x;
+	if (win->out_y + win->out_height > yres)
+		win->out_height = yres - win->out_y;
 	if (!win->width || !win->height || !win->out_width || !win->out_height)
 		return 0;
 
@@ -1699,8 +1722,8 @@ static int omapfb_do_probe(struct platform_device *pdev,
 
 	pr_info("omapfb: configured for panel %s\n", fbdev->panel->name);
 
-	def_vxres = def_vxres ? : fbdev->panel->x_res;
-	def_vyres = def_vyres ? : fbdev->panel->y_res;
+	def_vxres = def_vxres ? def_vxres : fbdev->panel->x_res;
+	def_vyres = def_vyres ? def_vyres : fbdev->panel->y_res;
 
 	init_state++;
 
@@ -1822,8 +1845,8 @@ static int omapfb_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct omapfb_device *fbdev = platform_get_drvdata(pdev);
 
-	omapfb_blank(FB_BLANK_POWERDOWN, fbdev->fb_info[0]);
-
+	if (fbdev != NULL)
+		omapfb_blank(FB_BLANK_POWERDOWN, fbdev->fb_info[0]);
 	return 0;
 }
 
@@ -1832,7 +1855,8 @@ static int omapfb_resume(struct platform_device *pdev)
 {
 	struct omapfb_device *fbdev = platform_get_drvdata(pdev);
 
-	omapfb_blank(FB_BLANK_UNBLANK, fbdev->fb_info[0]);
+	if (fbdev != NULL)
+		omapfb_blank(FB_BLANK_UNBLANK, fbdev->fb_info[0]);
 	return 0;
 }
 

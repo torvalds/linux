@@ -42,7 +42,7 @@
 
 #include <linux/dcache.h>
 
-static struct vm_operations_struct xfs_file_vm_ops;
+static const struct vm_operations_struct xfs_file_vm_ops;
 
 STATIC ssize_t
 xfs_file_aio_read(
@@ -280,7 +280,7 @@ const struct file_operations xfs_dir_file_operations = {
 	.fsync		= xfs_file_fsync,
 };
 
-static struct vm_operations_struct xfs_file_vm_ops = {
+static const struct vm_operations_struct xfs_file_vm_ops = {
 	.fault		= filemap_fault,
 	.page_mkwrite	= xfs_vm_page_mkwrite,
 };

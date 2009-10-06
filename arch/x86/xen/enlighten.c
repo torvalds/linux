@@ -1082,6 +1082,11 @@ asmlinkage void __init xen_start_kernel(void)
 
 	__supported_pte_mask |= _PAGE_IOMAP;
 
+#ifdef CONFIG_X86_64
+	/* Work out if we support NX */
+	check_efer();
+#endif
+
 	xen_setup_features();
 
 	/* Get mfn list */
@@ -1122,11 +1127,6 @@ asmlinkage void __init xen_start_kernel(void)
 	xen_smp_init();
 
 	pgd = (pgd_t *)xen_start_info->pt_base;
-
-#ifdef CONFIG_X86_64
-	/* Work out if we support NX */
-	check_efer();
-#endif
 
 	/* Don't do the full vcpu_info placement stuff until we have a
 	   possible map and a non-dummy shared_info. */

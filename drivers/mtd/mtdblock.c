@@ -84,7 +84,7 @@ static int erase_write (struct mtd_info *mtd, unsigned long pos,
 	remove_wait_queue(&wait_q, &wait);
 
 	/*
-	 * Next, writhe data to flash.
+	 * Next, write the data to flash.
 	 */
 
 	ret = mtd->write(mtd, pos, len, &retlen, buf);

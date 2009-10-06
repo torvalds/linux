@@ -813,10 +813,10 @@ static int vortex_suspend(struct pci_dev *pdev, pm_message_t state)
 		if (netif_running(dev)) {
 			netif_device_detach(dev);
 			vortex_down(dev, 1);
+			disable_irq(dev->irq);
 		}
 		pci_save_state(pdev);
 		pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
-		free_irq(dev->irq, dev);
 		pci_disable_device(pdev);
 		pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	}
@@ -839,18 +839,12 @@ static int vortex_resume(struct pci_dev *pdev)
 			return err;
 		}
 		pci_set_master(pdev);
-		if (request_irq(dev->irq, vp->full_bus_master_rx ?
-				&boomerang_interrupt : &vortex_interrupt, IRQF_SHARED, dev->name, dev)) {
-			pr_warning("%s: Could not reserve IRQ %d\n", dev->name, dev->irq);
-			pci_disable_device(pdev);
-			return -EBUSY;
-		}
 		if (netif_running(dev)) {
 			err = vortex_up(dev);
 			if (err)
 				return err;
-			else
-				netif_device_attach(dev);
+			enable_irq(dev->irq);
+			netif_device_attach(dev);
 		}
 	}
 	return 0;

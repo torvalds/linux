@@ -2337,7 +2337,7 @@ static int __mpage_da_writepage(struct page *page,
 		/*
 		 * Rest of the page in the page_vec
 		 * redirty then and skip then. We will
-		 * try to to write them again after
+		 * try to write them again after
 		 * starting a new transaction
 		 */
 		redirty_page_for_writepage(wbc, page);
@@ -3386,6 +3386,7 @@ static const struct address_space_operations ext4_ordered_aops = {
 	.direct_IO		= ext4_direct_IO,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate  = block_is_partially_uptodate,
+	.error_remove_page	= generic_error_remove_page,
 };
 
 static const struct address_space_operations ext4_writeback_aops = {
@@ -3401,6 +3402,7 @@ static const struct address_space_operations ext4_writeback_aops = {
 	.direct_IO		= ext4_direct_IO,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate  = block_is_partially_uptodate,
+	.error_remove_page	= generic_error_remove_page,
 };
 
 static const struct address_space_operations ext4_journalled_aops = {
@@ -3415,6 +3417,7 @@ static const struct address_space_operations ext4_journalled_aops = {
 	.invalidatepage		= ext4_invalidatepage,
 	.releasepage		= ext4_releasepage,
 	.is_partially_uptodate  = block_is_partially_uptodate,
+	.error_remove_page	= generic_error_remove_page,
 };
 
 static const struct address_space_operations ext4_da_aops = {
@@ -3431,6 +3434,7 @@ static const struct address_space_operations ext4_da_aops = {
 	.direct_IO		= ext4_direct_IO,
 	.migratepage		= buffer_migrate_page,
 	.is_partially_uptodate  = block_is_partially_uptodate,
+	.error_remove_page	= generic_error_remove_page,
 };
 
 void ext4_set_aops(struct inode *inode)

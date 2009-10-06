@@ -1321,7 +1321,7 @@ static int __kprobes show_kprobe_addr(struct seq_file *pi, void *v)
 	return 0;
 }
 
-static struct seq_operations kprobes_seq_ops = {
+static const struct seq_operations kprobes_seq_ops = {
 	.start = kprobe_seq_start,
 	.next  = kprobe_seq_next,
 	.stop  = kprobe_seq_stop,

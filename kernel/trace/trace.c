@@ -415,7 +415,7 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 
 	/* read the non-space input */
 	while (cnt && !isspace(ch)) {
-		if (parser->idx < parser->size)
+		if (parser->idx < parser->size - 1)
 			parser->buffer[parser->idx++] = ch;
 		else {
 			ret = -EINVAL;
@@ -1949,7 +1949,7 @@ static int s_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations tracer_seq_ops = {
+static const struct seq_operations tracer_seq_ops = {
 	.start		= s_start,
 	.next		= s_next,
 	.stop		= s_stop,
@@ -1984,10 +1984,8 @@ __tracing_open(struct inode *inode, struct file *file)
 	if (current_trace)
 		*iter->trace = *current_trace;
 
-	if (!alloc_cpumask_var(&iter->started, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&iter->started, GFP_KERNEL))
 		goto fail;
-
-	cpumask_clear(iter->started);
 
 	if (current_trace && current_trace->print_max)
 		iter->tr = &max_tr;
@@ -2163,7 +2161,7 @@ static int t_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations show_traces_seq_ops = {
+static const struct seq_operations show_traces_seq_ops = {
 	.start		= t_start,
 	.next		= t_next,
 	.stop		= t_stop,
@@ -4389,7 +4387,7 @@ __init static int tracer_alloc_buffers(void)
 	if (!alloc_cpumask_var(&tracing_cpumask, GFP_KERNEL))
 		goto out_free_buffer_mask;
 
-	if (!alloc_cpumask_var(&tracing_reader_cpumask, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&tracing_reader_cpumask, GFP_KERNEL))
 		goto out_free_tracing_cpumask;
 
 	/* To save memory, keep the ring buffer size to its minimum */
@@ -4400,7 +4398,6 @@ __init static int tracer_alloc_buffers(void)
 
 	cpumask_copy(tracing_buffer_mask, cpu_possible_mask);
 	cpumask_copy(tracing_cpumask, cpu_all_mask);
-	cpumask_clear(tracing_reader_cpumask);
 
 	/* TODO: make the number of buffers hot pluggable with CPUS */
 	global_trace.buffer = ring_buffer_alloc(ring_buf_size,

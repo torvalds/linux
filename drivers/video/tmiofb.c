@@ -974,7 +974,7 @@ static int tmiofb_resume(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct mfd_cell *cell = dev->dev.platform_data;
-	int retval;
+	int retval = 0;
 
 	acquire_console_sem();
 

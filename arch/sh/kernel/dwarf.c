@@ -24,7 +24,6 @@
 #include <asm/unwinder.h>
 #include <asm/sections.h>
 #include <asm/unaligned.h>
-#include <asm/dwarf.h>
 #include <asm/stacktrace.h>
 
 /* Reserve enough memory for two stack frames */

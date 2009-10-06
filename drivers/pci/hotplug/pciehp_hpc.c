@@ -44,25 +44,25 @@ static atomic_t pciehp_num_controllers = ATOMIC_INIT(0);
 
 static inline int pciehp_readw(struct controller *ctrl, int reg, u16 *value)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	return pci_read_config_word(dev, ctrl->cap_base + reg, value);
 }
 
 static inline int pciehp_readl(struct controller *ctrl, int reg, u32 *value)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	return pci_read_config_dword(dev, ctrl->cap_base + reg, value);
 }
 
 static inline int pciehp_writew(struct controller *ctrl, int reg, u16 value)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	return pci_write_config_word(dev, ctrl->cap_base + reg, value);
 }
 
 static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	return pci_write_config_dword(dev, ctrl->cap_base + reg, value);
 }
 
@@ -266,7 +266,7 @@ static void pcie_wait_link_active(struct controller *ctrl)
 	ctrl_dbg(ctrl, "Data Link Layer Link Active not set in 1000 msec\n");
 }
 
-static int hpc_check_lnk_status(struct controller *ctrl)
+int pciehp_check_link_status(struct controller *ctrl)
 {
 	u16 lnk_status;
 	int retval = 0;
@@ -305,7 +305,7 @@ static int hpc_check_lnk_status(struct controller *ctrl)
 	return retval;
 }
 
-static int hpc_get_attention_status(struct slot *slot, u8 *status)
+int pciehp_get_attention_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_ctrl;
@@ -344,7 +344,7 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 	return 0;
 }
 
-static int hpc_get_power_status(struct slot *slot, u8 *status)
+int pciehp_get_power_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_ctrl;
@@ -376,7 +376,7 @@ static int hpc_get_power_status(struct slot *slot, u8 *status)
 	return retval;
 }
 
-static int hpc_get_latch_status(struct slot *slot, u8 *status)
+int pciehp_get_latch_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_status;
@@ -392,7 +392,7 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 	return 0;
 }
 
-static int hpc_get_adapter_status(struct slot *slot, u8 *status)
+int pciehp_get_adapter_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_status;
@@ -408,7 +408,7 @@ static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 	return 0;
 }
 
-static int hpc_query_power_fault(struct slot *slot)
+int pciehp_query_power_fault(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_status;
@@ -422,7 +422,7 @@ static int hpc_query_power_fault(struct slot *slot)
 	return !!(slot_status & PCI_EXP_SLTSTA_PFD);
 }
 
-static int hpc_set_attention_status(struct slot *slot, u8 value)
+int pciehp_set_attention_status(struct slot *slot, u8 value)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -450,7 +450,7 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 	return rc;
 }
 
-static void hpc_set_green_led_on(struct slot *slot)
+void pciehp_green_led_on(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -463,7 +463,7 @@ static void hpc_set_green_led_on(struct slot *slot)
 		 __func__, ctrl->cap_base + PCI_EXP_SLTCTL, slot_cmd);
 }
 
-static void hpc_set_green_led_off(struct slot *slot)
+void pciehp_green_led_off(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -476,7 +476,7 @@ static void hpc_set_green_led_off(struct slot *slot)
 		 __func__, ctrl->cap_base + PCI_EXP_SLTCTL, slot_cmd);
 }
 
-static void hpc_set_green_led_blink(struct slot *slot)
+void pciehp_green_led_blink(struct slot *slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
@@ -489,15 +489,13 @@ static void hpc_set_green_led_blink(struct slot *slot)
 		 __func__, ctrl->cap_base + PCI_EXP_SLTCTL, slot_cmd);
 }
 
-static int hpc_power_on_slot(struct slot * slot)
+int pciehp_power_on_slot(struct slot * slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
 	u16 cmd_mask;
 	u16 slot_status;
 	int retval = 0;
-
-	ctrl_dbg(ctrl, "%s: slot->hp_slot %x\n", __func__, slot->hp_slot);
 
 	/* Clear sticky power-fault bit from previous power failures */
 	retval = pciehp_readw(ctrl, PCI_EXP_SLTSTA, &slot_status);
@@ -539,7 +537,7 @@ static int hpc_power_on_slot(struct slot * slot)
 
 static inline int pcie_mask_bad_dllp(struct controller *ctrl)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	int pos;
 	u32 reg;
 
@@ -556,7 +554,7 @@ static inline int pcie_mask_bad_dllp(struct controller *ctrl)
 
 static inline void pcie_unmask_bad_dllp(struct controller *ctrl)
 {
-	struct pci_dev *dev = ctrl->pci_dev;
+	struct pci_dev *dev = ctrl->pcie->port;
 	u32 reg;
 	int pos;
 
@@ -570,15 +568,13 @@ static inline void pcie_unmask_bad_dllp(struct controller *ctrl)
 	pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, reg);
 }
 
-static int hpc_power_off_slot(struct slot * slot)
+int pciehp_power_off_slot(struct slot * slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
 	u16 cmd_mask;
 	int retval = 0;
 	int changed;
-
-	ctrl_dbg(ctrl, "%s: slot->hp_slot %x\n", __func__, slot->hp_slot);
 
 	/*
 	 * Set Bad DLLP Mask bit in Correctable Error Mask
@@ -614,8 +610,8 @@ static int hpc_power_off_slot(struct slot * slot)
 static irqreturn_t pcie_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
+	struct slot *slot = ctrl->slot;
 	u16 detected, intr_loc;
-	struct slot *p_slot;
 
 	/*
 	 * In order to guarantee that all interrupt events are
@@ -656,29 +652,27 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	if (!(intr_loc & ~PCI_EXP_SLTSTA_CC))
 		return IRQ_HANDLED;
 
-	p_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
-
 	/* Check MRL Sensor Changed */
 	if (intr_loc & PCI_EXP_SLTSTA_MRLSC)
-		pciehp_handle_switch_change(p_slot);
+		pciehp_handle_switch_change(slot);
 
 	/* Check Attention Button Pressed */
 	if (intr_loc & PCI_EXP_SLTSTA_ABP)
-		pciehp_handle_attention_button(p_slot);
+		pciehp_handle_attention_button(slot);
 
 	/* Check Presence Detect Changed */
 	if (intr_loc & PCI_EXP_SLTSTA_PDC)
-		pciehp_handle_presence_change(p_slot);
+		pciehp_handle_presence_change(slot);
 
 	/* Check Power Fault Detected */
 	if ((intr_loc & PCI_EXP_SLTSTA_PFD) && !ctrl->power_fault_detected) {
 		ctrl->power_fault_detected = 1;
-		pciehp_handle_power_fault(p_slot);
+		pciehp_handle_power_fault(slot);
 	}
 	return IRQ_HANDLED;
 }
 
-static int hpc_get_max_lnk_speed(struct slot *slot, enum pci_bus_speed *value)
+int pciehp_get_max_link_speed(struct slot *slot, enum pci_bus_speed *value)
 {
 	struct controller *ctrl = slot->ctrl;
 	enum pcie_link_speed lnk_speed;
@@ -709,7 +703,7 @@ static int hpc_get_max_lnk_speed(struct slot *slot, enum pci_bus_speed *value)
 	return retval;
 }
 
-static int hpc_get_max_lnk_width(struct slot *slot,
+int pciehp_get_max_lnk_width(struct slot *slot,
 				 enum pcie_link_width *value)
 {
 	struct controller *ctrl = slot->ctrl;
@@ -759,7 +753,7 @@ static int hpc_get_max_lnk_width(struct slot *slot,
 	return retval;
 }
 
-static int hpc_get_cur_lnk_speed(struct slot *slot, enum pci_bus_speed *value)
+int pciehp_get_cur_link_speed(struct slot *slot, enum pci_bus_speed *value)
 {
 	struct controller *ctrl = slot->ctrl;
 	enum pcie_link_speed lnk_speed = PCI_SPEED_UNKNOWN;
@@ -791,7 +785,7 @@ static int hpc_get_cur_lnk_speed(struct slot *slot, enum pci_bus_speed *value)
 	return retval;
 }
 
-static int hpc_get_cur_lnk_width(struct slot *slot,
+int pciehp_get_cur_lnk_width(struct slot *slot,
 				 enum pcie_link_width *value)
 {
 	struct controller *ctrl = slot->ctrl;
@@ -841,30 +835,6 @@ static int hpc_get_cur_lnk_width(struct slot *slot,
 
 	return retval;
 }
-
-static void pcie_release_ctrl(struct controller *ctrl);
-static struct hpc_ops pciehp_hpc_ops = {
-	.power_on_slot			= hpc_power_on_slot,
-	.power_off_slot			= hpc_power_off_slot,
-	.set_attention_status		= hpc_set_attention_status,
-	.get_power_status		= hpc_get_power_status,
-	.get_attention_status		= hpc_get_attention_status,
-	.get_latch_status		= hpc_get_latch_status,
-	.get_adapter_status		= hpc_get_adapter_status,
-
-	.get_max_bus_speed		= hpc_get_max_lnk_speed,
-	.get_cur_bus_speed		= hpc_get_cur_lnk_speed,
-	.get_max_lnk_width		= hpc_get_max_lnk_width,
-	.get_cur_lnk_width		= hpc_get_cur_lnk_width,
-
-	.query_power_fault		= hpc_query_power_fault,
-	.green_led_on			= hpc_set_green_led_on,
-	.green_led_off			= hpc_set_green_led_off,
-	.green_led_blink		= hpc_set_green_led_blink,
-
-	.release_ctlr			= pcie_release_ctrl,
-	.check_lnk_status		= hpc_check_lnk_status,
-};
 
 int pcie_enable_notification(struct controller *ctrl)
 {
@@ -930,23 +900,16 @@ static int pcie_init_slot(struct controller *ctrl)
 	if (!slot)
 		return -ENOMEM;
 
-	slot->hp_slot = 0;
 	slot->ctrl = ctrl;
-	slot->bus = ctrl->pci_dev->subordinate->number;
-	slot->device = ctrl->slot_device_offset + slot->hp_slot;
-	slot->hpc_ops = ctrl->hpc_ops;
-	slot->number = ctrl->first_slot;
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
-	list_add(&slot->slot_list, &ctrl->slot_list);
+	ctrl->slot = slot;
 	return 0;
 }
 
 static void pcie_cleanup_slot(struct controller *ctrl)
 {
-	struct slot *slot;
-	slot = list_first_entry(&ctrl->slot_list, struct slot, slot_list);
-	list_del(&slot->slot_list);
+	struct slot *slot = ctrl->slot;
 	cancel_delayed_work(&slot->work);
 	flush_scheduled_work();
 	flush_workqueue(pciehp_wq);
@@ -957,7 +920,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 {
 	int i;
 	u16 reg16;
-	struct pci_dev *pdev = ctrl->pci_dev;
+	struct pci_dev *pdev = ctrl->pcie->port;
 
 	if (!pciehp_debug)
 		return;
@@ -980,7 +943,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 			  (unsigned long long)pci_resource_start(pdev, i));
 	}
 	ctrl_info(ctrl, "Slot Capabilities      : 0x%08x\n", ctrl->slot_cap);
-	ctrl_info(ctrl, "  Physical Slot Number : %d\n", ctrl->first_slot);
+	ctrl_info(ctrl, "  Physical Slot Number : %d\n", PSN(ctrl));
 	ctrl_info(ctrl, "  Attention Button     : %3s\n",
 		  ATTN_BUTTN(ctrl) ? "yes" : "no");
 	ctrl_info(ctrl, "  Power Controller     : %3s\n",
@@ -1014,10 +977,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 		dev_err(&dev->device, "%s: Out of memory\n", __func__);
 		goto abort;
 	}
-	INIT_LIST_HEAD(&ctrl->slot_list);
-
 	ctrl->pcie = dev;
-	ctrl->pci_dev = pdev;
 	ctrl->cap_base = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (!ctrl->cap_base) {
 		ctrl_err(ctrl, "Cannot find PCI Express capability\n");
@@ -1029,11 +989,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 	}
 
 	ctrl->slot_cap = slot_cap;
-	ctrl->first_slot = slot_cap >> 19;
-	ctrl->slot_device_offset = 0;
-	ctrl->num_slots = 1;
-	ctrl->hpc_ops = &pciehp_hpc_ops;
-	mutex_init(&ctrl->crit_sect);
 	mutex_init(&ctrl->ctrl_lock);
 	init_waitqueue_head(&ctrl->queue);
 	dbg_ctrl(ctrl);
@@ -1089,7 +1044,7 @@ abort:
 	return NULL;
 }
 
-void pcie_release_ctrl(struct controller *ctrl)
+void pciehp_release_ctrl(struct controller *ctrl)
 {
 	pcie_shutdown_notification(ctrl);
 	pcie_cleanup_slot(ctrl);

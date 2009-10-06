@@ -1534,7 +1534,7 @@ out_unlock:
 	return err;
 }
 
-static struct vm_operations_struct ubifs_file_vm_ops = {
+static const struct vm_operations_struct ubifs_file_vm_ops = {
 	.fault        = filemap_fault,
 	.page_mkwrite = ubifs_vm_page_mkwrite,
 };

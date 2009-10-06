@@ -79,7 +79,7 @@ enum {
 };
 
 static const struct inode_operations none_inode_operations;
-static struct address_space_operations none_address_operations;
+static const struct address_space_operations none_address_operations;
 static const struct file_operations none_file_operations;
 
 /**

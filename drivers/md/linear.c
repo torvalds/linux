@@ -108,6 +108,9 @@ static int linear_congested(void *data, int bits)
 	linear_conf_t *conf;
 	int i, ret = 0;
 
+	if (mddev_congested(mddev, bits))
+		return 1;
+
 	rcu_read_lock();
 	conf = rcu_dereference(mddev->private);
 

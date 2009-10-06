@@ -69,11 +69,11 @@ ia32_install_gate_page (struct vm_area_struct *vma, struct vm_fault *vmf)
 }
 
 
-static struct vm_operations_struct ia32_shared_page_vm_ops = {
+static const struct vm_operations_struct ia32_shared_page_vm_ops = {
 	.fault = ia32_install_shared_page
 };
 
-static struct vm_operations_struct ia32_gate_page_vm_ops = {
+static const struct vm_operations_struct ia32_gate_page_vm_ops = {
 	.fault = ia32_install_gate_page
 };
 

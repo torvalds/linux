@@ -1089,8 +1089,7 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 		return -1;
 	}
 
-	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE,
-			interrupt ? GFP_ATOMIC : GFP_KERNEL);
+	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
 
 	if (!buf) {
 		report = hid_get_report(report_enum, data);
@@ -1237,6 +1236,17 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hid_connect);
+
+void hid_disconnect(struct hid_device *hdev)
+{
+	if (hdev->claimed & HID_CLAIMED_INPUT)
+		hidinput_disconnect(hdev);
+	if (hdev->claimed & HID_CLAIMED_HIDDEV)
+		hdev->hiddev_disconnect(hdev);
+	if (hdev->claimed & HID_CLAIMED_HIDRAW)
+		hidraw_disconnect(hdev);
+}
+EXPORT_SYMBOL_GPL(hid_disconnect);
 
 /* a list of devices for which there is a specialized driver on HID bus */
 static const struct hid_device_id hid_blacklist[] = {

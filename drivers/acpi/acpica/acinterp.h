@@ -461,9 +461,9 @@ void acpi_ex_acquire_global_lock(u32 rule);
 
 void acpi_ex_release_global_lock(u32 rule);
 
-void acpi_ex_eisa_id_to_string(u32 numeric_id, char *out_string);
+void acpi_ex_eisa_id_to_string(char *dest, acpi_integer compressed_id);
 
-void acpi_ex_unsigned_integer_to_string(acpi_integer value, char *out_string);
+void acpi_ex_integer_to_string(char *dest, acpi_integer value);
 
 /*
  * exregion - default op_region handlers

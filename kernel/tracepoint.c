@@ -48,7 +48,7 @@ static struct hlist_head tracepoint_table[TRACEPOINT_TABLE_SIZE];
 
 /*
  * Note about RCU :
- * It is used to to delay the free of multiple probes array until a quiescent
+ * It is used to delay the free of multiple probes array until a quiescent
  * state is reached.
  * Tracepoint entries modifications are protected by the tracepoints_mutex.
  */

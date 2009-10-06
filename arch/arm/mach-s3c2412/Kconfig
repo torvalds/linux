@@ -48,6 +48,7 @@ config MACH_JIVE
 	bool "Logitech Jive"
 	select CPU_S3C2412
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using the Logitech Jive.
 
@@ -61,6 +62,7 @@ config MACH_SMDK2413
 	select MACH_S3C2413
 	select MACH_SMDK
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using an SMDK2413
 
@@ -84,6 +86,7 @@ config MACH_VSTMS
 	bool "VMSTMS"
 	select CPU_S3C2412
 	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
 	help
 	  Say Y here if you are using an VSTMS board
 

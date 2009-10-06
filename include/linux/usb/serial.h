@@ -59,6 +59,7 @@ enum port_dev_state {
  * @bulk_out_buffer: pointer to the bulk out buffer for this port.
  * @bulk_out_size: the size of the bulk_out_buffer, in bytes.
  * @write_urb: pointer to the bulk out struct urb for this port.
+ * @write_fifo: kfifo used to buffer outgoing data
  * @write_urb_busy: port`s writing status
  * @bulk_out_endpointAddress: endpoint address for the bulk out pipe for this
  *	port.
@@ -96,6 +97,7 @@ struct usb_serial_port {
 	unsigned char		*bulk_out_buffer;
 	int			bulk_out_size;
 	struct urb		*write_urb;
+	struct kfifo		*write_fifo;
 	int			write_urb_busy;
 	__u8			bulk_out_endpointAddress;
 

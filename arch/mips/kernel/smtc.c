@@ -305,7 +305,7 @@ int __init smtc_build_cpu_map(int start_cpu_slot)
 	 */
 	ntcs = ((read_c0_mvpconf0() & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT) + 1;
 	for (i=start_cpu_slot; i<NR_CPUS && i<ntcs; i++) {
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 		__cpu_number_map[i] = i;
 		__cpu_logical_map[i] = i;
 	}
@@ -525,8 +525,8 @@ void smtc_prepare_cpus(int cpus)
 	 * Pull any physically present but unused TCs out of circulation.
 	 */
 	while (tc < (((val & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT) + 1)) {
-		cpu_clear(tc, cpu_possible_map);
-		cpu_clear(tc, cpu_present_map);
+		set_cpu_possible(tc, false);
+		set_cpu_present(tc, false);
 		tc++;
 	}
 

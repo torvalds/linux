@@ -3907,7 +3907,7 @@ static int floppy_revalidate(struct gendisk *disk)
 	return res;
 }
 
-static struct block_device_operations floppy_fops = {
+static const struct block_device_operations floppy_fops = {
 	.owner			= THIS_MODULE,
 	.open			= floppy_open,
 	.release		= floppy_release,
