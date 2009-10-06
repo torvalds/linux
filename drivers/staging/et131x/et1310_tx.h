@@ -143,9 +143,7 @@ struct tx_ring {
 	u32 *tx_status;
 	dma_addr_t tx_status_pa;
 
-	TXMAC_ERR_t TxMacErr;
-
-	/* Variables to track the Tx interrupt coalescing features */
+	/* Packets since the last IRQ: used for interrupt coalescing */
 	int since_irq;
 };
 

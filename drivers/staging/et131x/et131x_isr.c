@@ -397,8 +397,7 @@ void et131x_isr_handler(struct work_struct *work)
 
 		/* Let's move on to the TxMac */
 		if (status & ET_INTR_TXMAC) {
-			etdev->tx_ring.TxMacErr.value =
-				readl(&iomem->txmac.err.value);
+			u32 err = readl(&iomem->txmac.err.value);
 
 			/*
 			 * When any of the errors occur and TXMAC generates
@@ -412,7 +411,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 */
 			dev_warn(&etdev->pdev->dev,
 				    "TXMAC interrupt, error 0x%08x\n",
-				    etdev->tx_ring.TxMacErr.value);
+				    err);
 
 			/* If we are debugging, we want to see this error,
 			 * otherwise we just want the device to be reset and
