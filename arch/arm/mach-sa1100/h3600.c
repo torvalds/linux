@@ -28,6 +28,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/serial_core.h>
+#include <linux/gpio.h>
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
@@ -48,6 +49,47 @@
 
 void (*assign_h3600_egpio)(enum ipaq_egpio_type x, int level);
 EXPORT_SYMBOL(assign_h3600_egpio);
+
+struct gpio_default_state {
+	int gpio;
+	int mode;
+	const char *name;
+};
+
+#define GPIO_MODE_IN	-1
+#define GPIO_MODE_OUT0	0
+#define GPIO_MODE_OUT1	1
+
+static void h3xxx_init_gpio(struct gpio_default_state *s, size_t n)
+{
+	while (n--) {
+		const char *name = s->name;
+		int err;
+
+		if (!name)
+			name = "[init]";
+		err = gpio_request(s->gpio, name);
+		if (err) {
+			printk(KERN_ERR "gpio%u: unable to request: %d\n",
+				s->gpio, err);
+			continue;
+		}
+		if (s->mode >= 0) {
+			err = gpio_direction_output(s->gpio, s->mode);
+		} else {
+			err = gpio_direction_input(s->gpio);
+		}
+		if (err) {
+			printk(KERN_ERR "gpio%u: unable to set direction: %d\n",
+				s->gpio, err);
+			continue;
+		}
+		if (!s->name)
+			gpio_free(s->gpio);
+		s++;
+	}
+}
+
 
 static struct mtd_partition h3xxx_partitions[] = {
 	{
