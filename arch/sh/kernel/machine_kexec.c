@@ -49,7 +49,7 @@ int machine_kexec_prepare(struct kimage *image)
 	/* older versions of kexec-tools are passing
 	 * the zImage entry point as a virtual address.
 	 */
-	if (image->start != PHYSADDR(image->start))
+	if (image->start != __pa(image->start))
 		return -EINVAL; /* upgrade your kexec-tools */
 
 	return 0;

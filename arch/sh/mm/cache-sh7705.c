@@ -141,7 +141,7 @@ static void sh7705_flush_dcache_page(void *arg)
 	if (mapping && !mapping_mapped(mapping))
 		set_bit(PG_dcache_dirty, &page->flags);
 	else
-		__flush_dcache_page(PHYSADDR(page_address(page)));
+		__flush_dcache_page(__pa(page_address(page)));
 }
 
 static void __uses_jump_to_uncached sh7705_flush_cache_all(void *args)

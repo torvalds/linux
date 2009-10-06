@@ -97,7 +97,7 @@ static inline void flush_cache_4096(unsigned long start,
 
 	local_irq_save(flags);
 	__flush_cache_4096(start | SH_CACHE_ASSOC,
-			   P1SEGADDR(phys), exec_offset);
+			   virt_to_phys(phys), exec_offset);
 	local_irq_restore(flags);
 }
 
