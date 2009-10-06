@@ -1332,15 +1332,20 @@ do_sku:
 	 *	        when the external headphone out jack is plugged"
 	 */
 	if (!spec->autocfg.hp_pins[0]) {
+		hda_nid_t nid;
 		tmp = (ass >> 11) & 0x3;	/* HP to chassis */
 		if (tmp == 0)
-			spec->autocfg.hp_pins[0] = porta;
+			nid = porta;
 		else if (tmp == 1)
-			spec->autocfg.hp_pins[0] = porte;
+			nid = porte;
 		else if (tmp == 2)
-			spec->autocfg.hp_pins[0] = portd;
+			nid = portd;
 		else
 			return 1;
+		for (i = 0; i < spec->autocfg.line_outs; i++)
+			if (spec->autocfg.line_out_pins[i] == nid)
+				return 1;
+		spec->autocfg.hp_pins[0] = nid;
 	}
 
 	alc_init_auto_hp(codec);
