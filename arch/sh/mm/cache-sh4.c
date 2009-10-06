@@ -88,12 +88,12 @@ static inline void flush_cache_4096(unsigned long start,
 	unsigned long flags, exec_offset = 0;
 
 	/*
-	 * All types of SH-4 require PC to be in P2 to operate on the I-cache.
-	 * Some types of SH-4 require PC to be in P2 to operate on the D-cache.
+	 * All types of SH-4 require PC to be uncached to operate on the I-cache.
+	 * Some types of SH-4 require PC to be uncached to operate on the D-cache.
 	 */
 	if ((boot_cpu_data.flags & CPU_HAS_P2_FLUSH_BUG) ||
 	    (start < CACHE_OC_ADDRESS_ARRAY))
-		exec_offset = 0x20000000;
+		exec_offset = cached_to_uncached;
 
 	local_irq_save(flags);
 	__flush_cache_4096(start | SH_CACHE_ASSOC,

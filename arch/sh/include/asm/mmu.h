@@ -7,6 +7,8 @@
 #define PMB_PASCR		0xff000070
 #define PMB_IRMCR		0xff000078
 
+#define PASCR_SE		0x80000000
+
 #define PMB_ADDR		0xf6100000
 #define PMB_DATA		0xf7100000
 #define PMB_ENTRY_MAX		16
@@ -75,4 +77,3 @@ void pmb_unmap(unsigned long addr);
 #endif /* __ASSEMBLY__ */
 
 #endif /* __MMU_H */
-
