@@ -158,7 +158,7 @@ struct record *trace_read_data(int cpu);
 
 void parse_set_info(int nr_cpus, int long_sz);
 
-void trace_report(void);
+void trace_report(int fd);
 
 void *malloc_or_die(unsigned int size);
 
@@ -244,6 +244,6 @@ unsigned long long
 raw_field_value(struct event *event, const char *name, void *data);
 void *raw_field_ptr(struct event *event, const char *name, void *data);
 
-void read_tracing_data(struct perf_event_attr *pattrs, int nb_events);
+void read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events);
 
 #endif /* __PERF_TRACE_EVENTS_H */

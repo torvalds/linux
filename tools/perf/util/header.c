@@ -5,6 +5,8 @@
 
 #include "util.h"
 #include "header.h"
+#include "../perf.h"
+#include "trace-event.h"
 
 /*
  * Create new perf.data header attribute:
@@ -62,6 +64,8 @@ struct perf_header *perf_header__new(void)
 
 	self->data_offset = 0;
 	self->data_size = 0;
+	self->trace_info_offset = 0;
+	self->trace_info_size = 0;
 
 	return self;
 }
@@ -145,7 +149,15 @@ struct perf_file_header {
 	struct perf_file_section	attrs;
 	struct perf_file_section	data;
 	struct perf_file_section	event_types;
+	struct perf_file_section	trace_info;
 };
+
+static int trace_info;
+
+void perf_header__set_trace_info(void)
+{
+	trace_info = 1;
+}
 
 static void do_write(int fd, void *buf, size_t size)
 {
@@ -198,6 +210,23 @@ void perf_header__write(struct perf_header *self, int fd)
 	if (events)
 		do_write(fd, events, self->event_size);
 
+	if (trace_info) {
+		static int trace_info_written;
+
+		/*
+		 * Write it only once
+		 */
+		if (!trace_info_written) {
+			self->trace_info_offset = lseek(fd, 0, SEEK_CUR);
+			read_tracing_data(fd, attrs, nr_counters);
+			self->trace_info_size = lseek(fd, 0, SEEK_CUR) -
+						self->trace_info_offset;
+			trace_info_written = 1;
+		} else {
+			lseek(fd, self->trace_info_offset +
+				self->trace_info_size, SEEK_SET);
+		}
+	}
 
 	self->data_offset = lseek(fd, 0, SEEK_CUR);
 
@@ -216,6 +245,10 @@ void perf_header__write(struct perf_header *self, int fd)
 		.event_types = {
 			.offset = self->event_offset,
 			.size	= self->event_size,
+		},
+		.trace_info = {
+			.offset = self->trace_info_offset,
+			.size = self->trace_info_size,
 		},
 	};
 
@@ -290,6 +323,15 @@ struct perf_header *perf_header__read(int fd)
 		do_read(fd, events, f_header.event_types.size);
 		event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
 	}
+
+	self->trace_info_offset = f_header.trace_info.offset;
+	self->trace_info_size = f_header.trace_info.size;
+
+	if (self->trace_info_size) {
+		lseek(fd, self->trace_info_offset, SEEK_SET);
+		trace_report(fd);
+	}
+
 	self->event_offset = f_header.event_types.offset;
 	self->event_size   = f_header.event_types.size;
 

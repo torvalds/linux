@@ -149,7 +149,6 @@ static int __cmd_trace(void)
 	uint32_t size;
 	char *buf;
 
-	trace_report();
 	register_idle_thread(&threads, &last_match);
 
 	input = open(input_name, O_RDONLY);

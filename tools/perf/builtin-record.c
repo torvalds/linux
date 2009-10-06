@@ -17,7 +17,6 @@
 #include "util/header.h"
 #include "util/event.h"
 #include "util/debug.h"
-#include "util/trace-event.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -566,17 +565,17 @@ static int __cmd_record(int argc, const char **argv)
 	else
 		header = perf_header__new();
 
-
 	if (raw_samples) {
-		read_tracing_data(attrs, nr_counters);
+		perf_header__set_trace_info();
 	} else {
 		for (i = 0; i < nr_counters; i++) {
 			if (attrs[i].sample_type & PERF_SAMPLE_RAW) {
-				read_tracing_data(attrs, nr_counters);
+				perf_header__set_trace_info();
 				break;
 			}
 		}
 	}
+
 	atexit(atexit_header);
 
 	if (!system_wide) {
