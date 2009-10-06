@@ -51,11 +51,9 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 
 	pcibios_resource_to_bus(dev, &region, res);
 
-	dev_dbg(&dev->dev, "BAR %d: got res %pR bus [%#llx-%#llx] "
-		"flags %#lx\n", resno, res,
-		 (unsigned long long)region.start,
-		 (unsigned long long)region.end,
-		 (unsigned long)res->flags);
+	dev_dbg(&dev->dev, "BAR %d: got %pRf (bus addr [%#llx-%#llx])\n",
+		resno, res, (unsigned long long)region.start,
+		(unsigned long long)region.end);
 
 	new = region.start | (res->flags & PCI_REGION_FLAG_MASK);
 	if (res->flags & IORESOURCE_IO)
@@ -91,9 +89,9 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 		}
 	}
 	res->flags &= ~IORESOURCE_UNSET;
-	dev_dbg(&dev->dev, "BAR %d: moved to bus [%#llx-%#llx] flags %#lx\n",
+	dev_dbg(&dev->dev, "BAR %d: moved to bus addr [%#llx-%#llx]\n",
 		resno, (unsigned long long)region.start,
-		(unsigned long long)region.end, res->flags);
+		(unsigned long long)region.end);
 }
 
 int pci_claim_resource(struct pci_dev *dev, int resource)
@@ -110,7 +108,7 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 
 	if (err) {
 		const char *dtype = resource < PCI_BRIDGE_RESOURCES ? "device" : "bridge";
-		dev_err(&dev->dev, "BAR %d: %s of %s %pR\n",
+		dev_err(&dev->dev, "BAR %d: %s %s %pRt\n",
 			resource,
 			root ? "address space collision on" :
 				"no parent found for",
@@ -181,9 +179,8 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 
 	align = pci_resource_alignment(dev, res);
 	if (!align) {
-		dev_info(&dev->dev, "BAR %d: can't allocate resource (bogus "
-			"alignment) %pR flags %#lx\n",
-			resno, res, res->flags);
+		dev_info(&dev->dev, "BAR %d: can't allocate %pRf "
+			 "(bogus alignment)\n", resno, res);
 		return -EINVAL;
 	}
 
@@ -199,8 +196,8 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	}
 
 	if (ret)
-		dev_info(&dev->dev, "BAR %d: can't allocate %s resource %pR\n",
-			resno, res->flags & IORESOURCE_IO ? "I/O" : "mem", res);
+		dev_info(&dev->dev, "BAR %d: can't allocate %pRt\n",
+			 resno, res);
 
 	return ret;
 }
@@ -225,9 +222,8 @@ void pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)
 
 		r_align = pci_resource_alignment(dev, r);
 		if (!r_align) {
-			dev_warn(&dev->dev, "BAR %d: bogus alignment "
-				"%pR flags %#lx\n",
-				i, r, r->flags);
+			dev_warn(&dev->dev, "BAR %d: bogus alignment %pRf\n",
+				 i, r);
 			continue;
 		}
 		for (list = head; ; list = list->next) {

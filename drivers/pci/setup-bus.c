@@ -390,8 +390,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			align = pci_resource_alignment(dev, r);
 			order = __ffs(align) - 20;
 			if (order > 11) {
-				dev_warn(&dev->dev, "BAR %d bad alignment %llx: "
-					 "%pR\n", i, (unsigned long long)align, r);
+				dev_warn(&dev->dev, "BAR %d: bad alignment %llx: "
+					 "%pRt\n", i, (unsigned long long)align, r);
 				r->flags = 0;
 				continue;
 			}
@@ -582,10 +582,7 @@ static void pci_bus_dump_res(struct pci_bus *bus)
                 if (!res || !res->end)
                         continue;
 
-		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %s %pR\n", i,
-			   (res->flags & IORESOURCE_IO) ? "io: " :
-			    ((res->flags & IORESOURCE_PREFETCH)? "pref mem":"mem:"),
-			   res);
+		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %pRt\n", i, res);
         }
 }
 
