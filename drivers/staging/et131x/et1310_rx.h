@@ -319,7 +319,6 @@ typedef struct _rx_ring_t {
 
 	/* RECV */
 	struct list_head RecvList;
-	struct list_head RecvPendingList;
 	u32 nReadyRecv;
 
 	u32 NumRfd;

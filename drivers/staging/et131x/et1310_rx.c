@@ -390,7 +390,6 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 * lists now.
 	 */
 	INIT_LIST_HEAD(&rx_ring->RecvList);
-	INIT_LIST_HEAD(&rx_ring->RecvPendingList);
 	return 0;
 }
 
@@ -416,14 +415,6 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		rfd = (MP_RFD *) list_entry(rx_ring->RecvList.next,
 					       MP_RFD, list_node);
 
-		list_del(&rfd->list_node);
-		rfd->Packet = NULL;
-		kmem_cache_free(adapter->RxRing.RecvLookaside, rfd);
-	}
-
-	while (!list_empty(&rx_ring->RecvPendingList)) {
-		rfd = (MP_RFD *) list_entry(rx_ring->RecvPendingList.next,
-					       MP_RFD, list_node);
 		list_del(&rfd->list_node);
 		rfd->Packet = NULL;
 		kmem_cache_free(adapter->RxRing.RecvLookaside, rfd);
@@ -1021,21 +1012,8 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
  */
 void et131x_reset_recv(struct et131x_adapter *etdev)
 {
-	PMP_RFD rfd;
-	struct list_head *element;
-
 	WARN_ON(list_empty(&etdev->RxRing.RecvList));
 
-	/* Take all the RFD's from the pending list, and stick them on the
-	 * RecvList.
-	 */
-	while (!list_empty(&etdev->RxRing.RecvPendingList)) {
-		element = etdev->RxRing.RecvPendingList.next;
-
-		rfd = (PMP_RFD) list_entry(element, MP_RFD, list_node);
-
-		list_move_tail(&rfd->list_node, &etdev->RxRing.RecvList);
-	}
 }
 
 /**
