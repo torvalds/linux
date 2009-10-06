@@ -1520,6 +1520,8 @@ megasas_bios_param(struct scsi_device *sdev, struct block_device *bdev,
 	return 0;
 }
 
+static void megasas_aen_polling(struct work_struct *work);
+
 /**
  * megasas_service_aen -	Processes an event notification
  * @instance:			Adapter soft state
@@ -1551,6 +1553,20 @@ megasas_service_aen(struct megasas_instance *instance, struct megasas_cmd *cmd)
 
 	instance->aen_cmd = NULL;
 	megasas_return_cmd(instance, cmd);
+
+	if (instance->unload == 0) {
+		struct megasas_aen_event *ev;
+		ev = kzalloc(sizeof(*ev), GFP_ATOMIC);
+		if (!ev) {
+			printk(KERN_ERR "megasas_service_aen: out of memory\n");
+		} else {
+			ev->instance = instance;
+			instance->ev = ev;
+			INIT_WORK(&ev->hotplug_work, megasas_aen_polling);
+			schedule_delayed_work(
+				(struct delayed_work *)&ev->hotplug_work, 0);
+		}
+	}
 }
 
 /*
@@ -2075,6 +2091,7 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 		}
 
 		cmd->frame->io.context = cmd->index;
+		cmd->frame->io.pad_0 = 0;
 	}
 
 	return 0;
@@ -2270,7 +2287,6 @@ megasas_get_pd_list(struct megasas_instance *instance)
 
 	return ret;
 }
-
 
 /**
  * megasas_get_controller_info -	Returns FW's controller structure
@@ -2986,6 +3002,7 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	*instance->consumer = 0;
 	megasas_poll_wait_aen = 0;
 	instance->flag_ieee = 0;
+	instance->ev = NULL;
 
 	instance->evt_detail = pci_alloc_consistent(pdev,
 						    sizeof(struct
@@ -3209,6 +3226,16 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_HIBERNATE_SHUTDOWN);
+
+	/* cancel the delayed work if this work still in queue */
+	if (instance->ev != NULL) {
+		struct megasas_aen_event *ev = instance->ev;
+		cancel_delayed_work(
+			(struct delayed_work *)&ev->hotplug_work);
+		flush_scheduled_work();
+		instance->ev = NULL;
+	}
+
 	tasklet_kill(&instance->isr_tasklet);
 
 	pci_set_drvdata(instance->pdev, instance);
@@ -3349,6 +3376,16 @@ static void __devexit megasas_detach_one(struct pci_dev *pdev)
 	scsi_remove_host(instance->host);
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
+
+	/* cancel the delayed work if this work still in queue*/
+	if (instance->ev != NULL) {
+		struct megasas_aen_event *ev = instance->ev;
+		cancel_delayed_work(
+			(struct delayed_work *)&ev->hotplug_work);
+		flush_scheduled_work();
+		instance->ev = NULL;
+	}
+
 	tasklet_kill(&instance->isr_tasklet);
 
 	/*
@@ -3912,6 +3949,92 @@ megasas_sysfs_set_poll_mode_io(struct device_driver *dd,
 out:
 	return retval;
 }
+
+static void
+megasas_aen_polling(struct work_struct *work)
+{
+	struct megasas_aen_event *ev =
+		container_of(work, struct megasas_aen_event, hotplug_work);
+	struct megasas_instance *instance = ev->instance;
+	union megasas_evt_class_locale class_locale;
+	struct  Scsi_Host *host;
+	struct  scsi_device *sdev1;
+	u16     pd_index = 0;
+	int     i, j, doscan = 0;
+	u32 seq_num;
+	int error;
+
+	if (!instance) {
+		printk(KERN_ERR "invalid instance!\n");
+		kfree(ev);
+		return;
+	}
+	instance->ev = NULL;
+	host = instance->host;
+	if (instance->evt_detail) {
+
+		switch (instance->evt_detail->code) {
+		case MR_EVT_PD_INSERTED:
+		case MR_EVT_PD_REMOVED:
+		case MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED:
+			doscan = 1;
+			break;
+		default:
+			doscan = 0;
+			break;
+		}
+	} else {
+		printk(KERN_ERR "invalid evt_detail!\n");
+		kfree(ev);
+		return;
+	}
+
+	if (doscan) {
+		printk(KERN_INFO "scanning ...\n");
+		megasas_get_pd_list(instance);
+		for (i = 0; i < MEGASAS_MAX_PD_CHANNELS; i++) {
+			for (j = 0; j < MEGASAS_MAX_DEV_PER_CHANNEL; j++) {
+				pd_index = i*MEGASAS_MAX_DEV_PER_CHANNEL + j;
+				sdev1 = scsi_device_lookup(host, i, j, 0);
+				if (instance->pd_list[pd_index].driveState ==
+							MR_PD_STATE_SYSTEM) {
+					if (!sdev1) {
+						scsi_add_device(host, i, j, 0);
+					}
+					if (sdev1)
+						scsi_device_put(sdev1);
+				} else {
+					if (sdev1) {
+						scsi_remove_device(sdev1);
+						scsi_device_put(sdev1);
+					}
+				}
+			}
+		}
+	}
+
+	if ( instance->aen_cmd != NULL ) {
+		kfree(ev);
+		return ;
+	}
+
+	seq_num = instance->evt_detail->seq_num + 1;
+
+	/* Register AEN with FW for latest sequence number plus 1 */
+	class_locale.members.reserved = 0;
+	class_locale.members.locale = MR_EVT_LOCALE_ALL;
+	class_locale.members.class = MR_EVT_CLASS_DEBUG;
+	mutex_lock(&instance->aen_mutex);
+	error = megasas_register_aen(instance, seq_num,
+					class_locale.word);
+	mutex_unlock(&instance->aen_mutex);
+
+	if (error)
+		printk(KERN_ERR "register aen failed error %x\n", error);
+
+	kfree(ev);
+}
+
 
 static DRIVER_ATTR(poll_mode_io, S_IRUGO|S_IWUGO,
 		megasas_sysfs_show_poll_mode_io,

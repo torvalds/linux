@@ -285,6 +285,17 @@ enum MR_PD_QUERY_TYPE {
 	MR_PD_QUERY_TYPE_EXPOSED_TO_HOST    = 5,
 };
 
+#define MR_EVT_CFG_CLEARED                              0x0004
+#define MR_EVT_LD_STATE_CHANGE                          0x0051
+#define MR_EVT_PD_INSERTED                              0x005b
+#define MR_EVT_PD_REMOVED                               0x0070
+#define MR_EVT_LD_CREATED                               0x008a
+#define MR_EVT_LD_DELETED                               0x008b
+#define MR_EVT_FOREIGN_CFG_IMPORTED                     0x00db
+#define MR_EVT_LD_OFFLINE                               0x00fc
+#define MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED             0x0152
+#define MAX_LOGICAL_DRIVES				64
+
 enum MR_PD_STATE {
 	MR_PD_STATE_UNCONFIGURED_GOOD   = 0x00,
 	MR_PD_STATE_UNCONFIGURED_BAD    = 0x01,
@@ -1157,6 +1168,11 @@ struct megasas_evt_detail {
 
 } __attribute__ ((packed));
 
+struct megasas_aen_event {
+	struct work_struct hotplug_work;
+	struct megasas_instance *instance;
+};
+
 struct megasas_instance {
 
 	u32 *producer;
@@ -1176,6 +1192,7 @@ struct megasas_instance {
 	u16 max_num_sge;
 	u16 max_fw_cmds;
 	u32 max_sectors_per_req;
+	struct megasas_aen_event *ev;
 
 	struct megasas_cmd **cmd_list;
 	struct list_head cmd_pool;
