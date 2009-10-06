@@ -272,9 +272,9 @@ static void __init collie_init(void)
 		printk(KERN_WARNING "collie: Unable to register LoCoMo device\n");
 	}
 
-	sa11x0_set_flash_data(&collie_flash_data, collie_flash_resources,
-			      ARRAY_SIZE(collie_flash_resources));
-	sa11x0_set_mcp_data(&collie_mcp_data);
+	sa11x0_register_mtd(&collie_flash_data, collie_flash_resources,
+			    ARRAY_SIZE(collie_flash_resources));
+	sa11x0_register_mcp(&collie_mcp_data);
 
 	sharpsl_save_param();
 }

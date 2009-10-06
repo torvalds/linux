@@ -102,8 +102,8 @@ static struct irda_platform_data h3600_irda_data = {
 
 static void h3xxx_mach_init(void)
 {
-	sa11x0_set_flash_data(&h3xxx_flash_data, &h3xxx_flash_resource, 1);
-	sa11x0_set_irda_data(&h3600_irda_data);
+	sa11x0_register_mtd(&h3xxx_flash_data, &h3xxx_flash_resource, 1);
+	sa11x0_register_irda(&h3600_irda_data);
 }
 
 /*
