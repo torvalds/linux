@@ -139,47 +139,6 @@ config PCMCIA_RAYCS
 	  To compile this driver as a module, choose M here: the module will be
 	  called ray_cs.  If unsure, say N.
 
-config LIBERTAS
-	tristate "Marvell 8xxx Libertas WLAN driver support"
-	depends on WLAN_80211
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select LIB80211
-	select FW_LOADER
-	---help---
-	  A library for Marvell Libertas 8xxx devices.
-
-config LIBERTAS_USB
-	tristate "Marvell Libertas 8388 USB 802.11b/g cards"
-	depends on LIBERTAS && USB
-	---help---
-	  A driver for Marvell Libertas 8388 USB devices.
-
-config LIBERTAS_CS
-	tristate "Marvell Libertas 8385 CompactFlash 802.11b/g cards"
-	depends on LIBERTAS && PCMCIA
-	select FW_LOADER
-	---help---
-	  A driver for Marvell Libertas 8385 CompactFlash devices.
-
-config LIBERTAS_SDIO
-	tristate "Marvell Libertas 8385/8686/8688 SDIO 802.11b/g cards"
-	depends on LIBERTAS && MMC
-	---help---
-	  A driver for Marvell Libertas 8385/8686/8688 SDIO devices.
-
-config LIBERTAS_SPI
-	tristate "Marvell Libertas 8686 SPI 802.11b/g cards"
-	depends on LIBERTAS && SPI
-	---help---
-	  A driver for Marvell Libertas 8686 SPI devices.
-
-config LIBERTAS_DEBUG
-	bool "Enable full debugging output in the Libertas module."
-	depends on LIBERTAS
-	---help---
-	  Debugging support.
-
 config LIBERTAS_THINFIRM
 	tristate "Marvell 8xxx Libertas WLAN driver support with thin firmware"
 	depends on WLAN_80211 && MAC80211
@@ -491,17 +450,18 @@ config MWL8K
 	  To compile this driver as a module, choose M here: the module
 	  will be called mwl8k.  If unsure, say N.
 
-source "drivers/net/wireless/p54/Kconfig"
 source "drivers/net/wireless/ath/Kconfig"
-source "drivers/net/wireless/ipw2x00/Kconfig"
-source "drivers/net/wireless/iwlwifi/Kconfig"
-source "drivers/net/wireless/hostap/Kconfig"
 source "drivers/net/wireless/b43/Kconfig"
 source "drivers/net/wireless/b43legacy/Kconfig"
-source "drivers/net/wireless/zd1211rw/Kconfig"
-source "drivers/net/wireless/rt2x00/Kconfig"
-source "drivers/net/wireless/orinoco/Kconfig"
-source "drivers/net/wireless/wl12xx/Kconfig"
+source "drivers/net/wireless/hostap/Kconfig"
+source "drivers/net/wireless/ipw2x00/Kconfig"
+source "drivers/net/wireless/iwlwifi/Kconfig"
 source "drivers/net/wireless/iwmc3200wifi/Kconfig"
+source "drivers/net/wireless/libertas/Kconfig"
+source "drivers/net/wireless/orinoco/Kconfig"
+source "drivers/net/wireless/p54/Kconfig"
+source "drivers/net/wireless/rt2x00/Kconfig"
+source "drivers/net/wireless/wl12xx/Kconfig"
+source "drivers/net/wireless/zd1211rw/Kconfig"
 
 endif # WLAN
