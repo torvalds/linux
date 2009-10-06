@@ -35,7 +35,7 @@
 
 static void __pmb_unmap(struct pmb_entry *);
 
-static struct kmem_cache *pmb_cache;
+static struct pmb_entry pmb_entry_list[NR_PMB_ENTRIES];
 static unsigned long pmb_map;
 
 static struct pmb_entry pmb_init_map[] = {
@@ -73,32 +73,6 @@ static inline unsigned long mk_pmb_data(unsigned int entry)
 	return mk_pmb_entry(entry) | PMB_DATA;
 }
 
-static DEFINE_SPINLOCK(pmb_list_lock);
-static struct pmb_entry *pmb_list;
-
-static inline void pmb_list_add(struct pmb_entry *pmbe)
-{
-	struct pmb_entry **p, *tmp;
-
-	p = &pmb_list;
-	while ((tmp = *p) != NULL)
-		p = &tmp->next;
-
-	pmbe->next = tmp;
-	*p = pmbe;
-}
-
-static inline void pmb_list_del(struct pmb_entry *pmbe)
-{
-	struct pmb_entry **p, *tmp;
-
-	for (p = &pmb_list; (tmp = *p); p = &tmp->next)
-		if (tmp == pmbe) {
-			*p = tmp->next;
-			return;
-		}
-}
-
 static int pmb_alloc_entry(void)
 {
 	unsigned int pos;
@@ -125,7 +99,7 @@ static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 	if (pos < 0)
 		return ERR_PTR(pos);
 
-	pmbe = kmem_cache_alloc(pmb_cache, GFP_KERNEL);
+	pmbe = &pmb_entry_list[pos];
 	if (!pmbe)
 		return ERR_PTR(-ENOMEM);
 
@@ -134,20 +108,19 @@ static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 	pmbe->flags	= flags;
 	pmbe->entry	= pos;
 
-	spin_lock_irq(&pmb_list_lock);
-	pmb_list_add(pmbe);
-	spin_unlock_irq(&pmb_list_lock);
-
 	return pmbe;
 }
 
 static void pmb_free(struct pmb_entry *pmbe)
 {
-	spin_lock_irq(&pmb_list_lock);
-	pmb_list_del(pmbe);
-	spin_unlock_irq(&pmb_list_lock);
+	int pos = pmbe->entry;
 
-	kmem_cache_free(pmb_cache, pmbe);
+	pmbe->vpn	= 0;
+	pmbe->ppn	= 0;
+	pmbe->flags	= 0;
+	pmbe->entry	= 0;
+
+	clear_bit(pos, &pmb_map);
 }
 
 /*
@@ -202,8 +175,6 @@ static void __uses_jump_to_uncached clear_pmb_entry(struct pmb_entry *pmbe)
 	ctrl_outl(ctrl_inl(addr) & ~PMB_V, addr);
 
 	back_to_cached();
-
-	clear_bit(entry, &pmb_map);
 }
 
 
@@ -285,11 +256,16 @@ out:
 
 void pmb_unmap(unsigned long addr)
 {
-	struct pmb_entry **p, *pmbe;
+	struct pmb_entry *pmbe = NULL;
+	int i;
 
-	for (p = &pmb_list; (pmbe = *p); p = &pmbe->next)
-		if (pmbe->vpn == addr)
-			break;
+	for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
+		if (test_bit(i, &pmb_map)) {
+			pmbe = &pmb_entry_list[i];
+			if (pmbe->vpn == addr)
+				break;
+		}
+	}
 
 	if (unlikely(!pmbe))
 		return;
@@ -299,7 +275,7 @@ void pmb_unmap(unsigned long addr)
 
 static void __pmb_unmap(struct pmb_entry *pmbe)
 {
-	WARN_ON(!test_bit(pmbe->entry, &pmb_map));
+	BUG_ON(!test_bit(pmbe->entry, &pmb_map));
 
 	do {
 		struct pmb_entry *pmblink = pmbe;
@@ -322,20 +298,12 @@ static void __pmb_unmap(struct pmb_entry *pmbe)
 	} while (pmbe);
 }
 
-static void pmb_cache_ctor(void *pmb)
-{
-	memset(pmb, 0, sizeof(struct pmb_entry));
-}
-
 int __uses_jump_to_uncached pmb_init(void)
 {
 	unsigned int nr_entries = ARRAY_SIZE(pmb_init_map);
 	unsigned int entry, i;
 
 	BUG_ON(unlikely(nr_entries >= NR_PMB_ENTRIES));
-
-	pmb_cache = kmem_cache_create("pmb", sizeof(struct pmb_entry), 0,
-				      SLAB_PANIC, pmb_cache_ctor);
 
 	jump_to_uncached();
 
@@ -431,15 +399,18 @@ postcore_initcall(pmb_debugfs_init);
 static int pmb_sysdev_suspend(struct sys_device *dev, pm_message_t state)
 {
 	static pm_message_t prev_state;
+	int i;
 
 	/* Restore the PMB after a resume from hibernation */
 	if (state.event == PM_EVENT_ON &&
 	    prev_state.event == PM_EVENT_FREEZE) {
 		struct pmb_entry *pmbe;
-		spin_lock_irq(&pmb_list_lock);
-		for (pmbe = pmb_list; pmbe; pmbe = pmbe->next)
-			set_pmb_entry(pmbe);
-		spin_unlock_irq(&pmb_list_lock);
+		for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
+			if (test_bit(i, &pmb_map)) {
+				pmbe = &pmb_entry_list[i];
+				set_pmb_entry(pmbe);
+			}
+		}
 	}
 	prev_state = state;
 	return 0;
