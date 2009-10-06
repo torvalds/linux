@@ -89,14 +89,13 @@
  * 14: UDP checksum assist
  */
 
-/* TX_DESC_ENTRY_t is sructure representing each descriptor on the ring */
-typedef struct _tx_desc_entry_t {
-	u32 DataBufferPtrHigh;
-	u32 DataBufferPtrLow;
-	u32 word2;	/* control words how to xmit the */
-	u32 word3;	/* data (detailed above) */
-} TX_DESC_ENTRY_t, *PTX_DESC_ENTRY_t;
-
+/* struct tx_desc represents each descriptor on the ring */
+struct tx_desc {
+	u32 addr_hi;
+	u32 addr_lo;
+	u32 len_vlan;	/* control words how to xmit the */
+	u32 flags;	/* data (detailed above) */
+};
 
 /* Typedefs for Tx DMA engine status writeback */
 
@@ -120,8 +119,8 @@ typedef union _tx_status_block_t {
 } TX_STATUS_BLOCK_t, *PTX_STATUS_BLOCK_t;
 
 /* TCB (Transmit Control Block) */
-typedef struct _MP_TCB {
-	struct _MP_TCB *Next;
+struct tcb {
+	struct tcb *Next;
 	u32 Flags;
 	u32 Count;
 	u32 PacketStaleCount;
@@ -129,7 +128,7 @@ typedef struct _MP_TCB {
 	u32 PacketLength;
 	u32 WrIndex;
 	u32 WrIndexStart;
-} MP_TCB, *PMP_TCB;
+};
 
 /* Structure to hold the skb's in a list */
 typedef struct tx_skb_list_elem {
@@ -137,14 +136,14 @@ typedef struct tx_skb_list_elem {
 	struct sk_buff *skb;
 } TX_SKB_LIST_ELEM, *PTX_SKB_LIST_ELEM;
 
-/* TX_RING_t is sructure representing our local reference(s) to the ring */
-typedef struct _tx_ring_t {
+/* Structure representing our local reference(s) to the ring */
+struct tx_ring {
 	/* TCB (Transmit Control Block) memory and lists */
-	PMP_TCB MpTcbMem;
+	struct tcb *MpTcbMem;
 
 	/* List of TCBs that are ready to be used */
-	PMP_TCB TCBReadyQueueHead;
-	PMP_TCB TCBReadyQueueTail;
+	struct tcb *TCBReadyQueueHead;
+	struct tcb *TCBReadyQueueTail;
 
 	/* list of TCBs that are currently being sent.  NOTE that access to all
 	 * three of these (including nBusySend) are controlled via the
@@ -152,19 +151,19 @@ typedef struct _tx_ring_t {
 	 * decrementing nBusySend, or any queue manipulation on CurrSendHead /
 	 * Tail
 	 */
-	PMP_TCB CurrSendHead;
-	PMP_TCB CurrSendTail;
-	int32_t nBusySend;
+	struct tcb *CurrSendHead;
+	struct tcb *CurrSendTail;
+	int nBusySend;
 
 	/* List of packets (not TCBs) that were queued for lack of resources */
 	struct list_head SendWaitQueue;
-	int32_t nWaitSend;
+	int nWaitSend;
 
 	/* The actual descriptor ring */
-	PTX_DESC_ENTRY_t pTxDescRingVa;
-	dma_addr_t pTxDescRingPa;
-	uint64_t pTxDescRingAdjustedPa;
-	uint64_t TxDescOffset;
+	struct tx_desc *tx_desc_ring;
+	dma_addr_t tx_desc_ring_pa;
+	u64 pTxDescRingAdjustedPa;
+	u64 TxDescOffset;
 
 	/* ReadyToSend indicates where we last wrote to in the descriptor ring. */
 	u32 txDmaReadyToSend;
@@ -180,8 +179,8 @@ typedef struct _tx_ring_t {
 	TXMAC_ERR_t TxMacErr;
 
 	/* Variables to track the Tx interrupt coalescing features */
-	int32_t TxPacketsSinceLastinterrupt;
-} TX_RING_t, *PTX_RING_t;
+	int TxPacketsSinceLastinterrupt;
+};
 
 /* Forward declaration of the frag-list for the following prototypes */
 typedef struct _MP_FRAG_LIST MP_FRAG_LIST, *PMP_FRAG_LIST;

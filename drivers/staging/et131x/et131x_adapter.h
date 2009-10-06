@@ -101,8 +101,8 @@
 #define LO_MARK_PERCENT_FOR_RX      15
 
 /* Macros specific to the private adapter structure */
-#define MP_TCB_RESOURCES_AVAILABLE(_M) ((_M)->TxRing.nBusySend < NUM_TCB)
-#define MP_TCB_RESOURCES_NOT_AVAILABLE(_M) ((_M)->TxRing.nBusySend >= NUM_TCB)
+#define MP_TCB_RESOURCES_AVAILABLE(_M) ((_M)->tx_ring.nBusySend < NUM_TCB)
+#define MP_TCB_RESOURCES_NOT_AVAILABLE(_M) ((_M)->tx_ring.nBusySend >= NUM_TCB)
 
 #define MP_SHOULD_FAIL_SEND(_M)   ((_M)->Flags & fMP_ADAPTER_FAIL_SEND_MASK)
 
@@ -255,7 +255,7 @@ struct et131x_adapter {
 	MI_BMSR_t Bmsr;
 
 	/* Tx Memory Variables */
-	TX_RING_t TxRing;
+	struct tx_ring tx_ring;
 
 	/* Rx Memory Variables */
 	RX_RING_t RxRing;

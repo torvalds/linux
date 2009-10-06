@@ -519,7 +519,7 @@ int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 void et131x_tx_timeout(struct net_device *netdev)
 {
 	struct et131x_adapter *etdev = netdev_priv(netdev);
-	PMP_TCB pMpTcb;
+	struct tcb *tcb;
 	unsigned long flags;
 
 	/* Just skip this part if the adapter is doing link detection */
@@ -541,28 +541,28 @@ void et131x_tx_timeout(struct net_device *netdev)
 	/* Is send stuck? */
 	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
-	pMpTcb = etdev->TxRing.CurrSendHead;
+	tcb = etdev->tx_ring.CurrSendHead;
 
-	if (pMpTcb != NULL) {
-		pMpTcb->Count++;
+	if (tcb != NULL) {
+		tcb->Count++;
 
-		if (pMpTcb->Count > NIC_SEND_HANG_THRESHOLD) {
-			TX_DESC_ENTRY_t StuckDescriptors[10];
+		if (tcb->Count > NIC_SEND_HANG_THRESHOLD) {
+			struct tx_desc stuck[10];
 
-			if (INDEX10(pMpTcb->WrIndex) > 7) {
-				memcpy(StuckDescriptors,
-				       etdev->TxRing.pTxDescRingVa +
-				       INDEX10(pMpTcb->WrIndex) - 6,
-				       sizeof(TX_DESC_ENTRY_t) * 10);
+			if (INDEX10(tcb->WrIndex) > 7) {
+				memcpy(stuck,
+				       etdev->tx_ring.tx_desc_ring +
+				       INDEX10(tcb->WrIndex) - 6,
+				       sizeof(struct tx_desc) * 10);
 			}
 
 			spin_unlock_irqrestore(&etdev->TCBSendQLock,
 					       flags);
 
 			dev_warn(&etdev->pdev->dev,
-				"Send stuck - reset.  pMpTcb->WrIndex %x, Flags 0x%08x\n",
-				pMpTcb->WrIndex,
-				pMpTcb->Flags);
+				"Send stuck - reset.  tcb->WrIndex %x, Flags 0x%08x\n",
+				tcb->WrIndex,
+				tcb->Flags);
 
 			et131x_close(netdev);
 			et131x_open(netdev);
