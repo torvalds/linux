@@ -199,7 +199,7 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 			 * corruption seen with 1310 B Silicon
 			 */
 			for (nLoop = 0; nLoop < 3; nLoop++) {
-				EepromWriteByte(adapter, nLoop, temp[nLoop]);
+				eeprom_write(adapter, nLoop, temp[nLoop]);
 			}
 		}
 
@@ -219,8 +219,8 @@ int et131x_find_adapter(struct et131x_adapter *adapter, struct pci_dev *pdev)
 	/* Read the EEPROM for information regarding LED behavior. Refer to
 	 * ET1310_phy.c, et131x_xcvr_init(), for its use.
 	 */
-	EepromReadByte(adapter, 0x70, &adapter->eepromData[0]);
-	EepromReadByte(adapter, 0x71, &adapter->eepromData[1]);
+	eeprom_read(adapter, 0x70, &adapter->eepromData[0]);
+	eeprom_read(adapter, 0x71, &adapter->eepromData[1]);
 
 	if (adapter->eepromData[0] != 0xcd)
 		/* Disable all optional features */
