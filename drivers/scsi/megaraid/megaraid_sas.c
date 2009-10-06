@@ -687,6 +687,17 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	memcpy(pthru->cdb, scp->cmnd, scp->cmd_len);
 
 	/*
+	* If the command is for the tape device, set the
+	* pthru timeout to the os layer timeout value.
+	*/
+	if (scp->device->type == TYPE_TAPE) {
+		if ((scp->request->timeout / HZ) > 0xFFFF)
+			pthru->timeout = 0xFFFF;
+		else
+			pthru->timeout = scp->request->timeout / HZ;
+	}
+
+	/*
 	 * Construct SGL
 	 */
 	if (IS_DMA64) {
