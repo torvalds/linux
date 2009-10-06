@@ -2110,7 +2110,7 @@ static int snd_vt1724_pro_peak_get(struct snd_kcontrol *kcontrol,
 }
 
 static struct snd_kcontrol_new snd_vt1724_mixer_pro_peak __devinitdata = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "Multi Track Peak",
 	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info = snd_vt1724_pro_peak_info,
