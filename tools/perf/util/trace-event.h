@@ -133,6 +133,7 @@ struct event {
 	int			flags;
 	struct format		format;
 	struct print_fmt	print_fmt;
+	char			*system;
 };
 
 enum {
@@ -167,7 +168,7 @@ void print_funcs(void);
 void print_printk(void);
 
 int parse_ftrace_file(char *buf, unsigned long size);
-int parse_event_file(char *buf, unsigned long size, char *system);
+int parse_event_file(char *buf, unsigned long size, char *sys);
 void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 		  char *comm);
 

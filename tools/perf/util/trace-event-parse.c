@@ -2950,7 +2950,7 @@ int parse_ftrace_file(char *buf, unsigned long size)
 	return 0;
 }
 
-int parse_event_file(char *buf, unsigned long size, char *system__unused __unused)
+int parse_event_file(char *buf, unsigned long size, char *sys)
 {
 	struct event *event;
 	int ret;
@@ -2976,6 +2976,8 @@ int parse_event_file(char *buf, unsigned long size, char *system__unused __unuse
 	ret = event_read_print(event);
 	if (ret < 0)
 		die("failed to read event print fmt");
+
+	event->system = strdup(sys);
 
 #define PRINT_ARGS 0
 	if (PRINT_ARGS && event->print_fmt.args)
