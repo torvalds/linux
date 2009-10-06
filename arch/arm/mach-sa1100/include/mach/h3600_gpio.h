@@ -24,6 +24,20 @@
 #define _INCLUDE_H3600_GPIO_H_
 
 /*
+ * gpiolib numbers for all iPAQs
+ */
+#define H3XXX_GPIO_PWR_BUTTON		0
+#define H3XXX_GPIO_PCMCIA_CD1		10
+#define H3XXX_GPIO_PCMCIA_IRQ1		11
+#define H3XXX_GPIO_PCMCIA_CD0		17
+#define H3XXX_GPIO_SYS_CLK		19
+#define H3XXX_GPIO_PCMCIA_IRQ0		21
+#define H3XXX_GPIO_COM_DCD		23
+#define H3XXX_GPIO_OPTION		24
+#define H3XXX_GPIO_COM_CTS		25
+#define H3XXX_GPIO_COM_RTS		26
+
+/*
  * GPIO lines that are common across ALL iPAQ models are in "h3600.h"
  * This file contains machine-specific definitions
  */

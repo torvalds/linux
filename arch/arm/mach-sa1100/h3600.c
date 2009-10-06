@@ -91,6 +91,9 @@ static void h3xxx_init_gpio(struct gpio_default_state *s, size_t n)
 }
 
 
+/*
+ * H3xxx flash support
+ */
 static struct mtd_partition h3xxx_partitions[] = {
 	{
 		.name		= "H3XXX boot firmware",
@@ -122,42 +125,35 @@ static struct resource h3xxx_flash_resource = {
 	.flags		= IORESOURCE_MEM,
 };
 
-static void h3xxx_mach_init(void)
-{
-	sa11x0_register_mtd(&h3xxx_flash_data, &h3xxx_flash_resource, 1);
-}
 
 /*
- * low-level UART features
+ * H3xxx uart support
  */
-
-static void h3600_uart_set_mctrl(struct uart_port *port, u_int mctrl)
+static void h3xxx_uart_set_mctrl(struct uart_port *port, u_int mctrl)
 {
 	if (port->mapbase == _Ser3UTCR0) {
-		if (mctrl & TIOCM_RTS)
-			GPCR = GPIO_H3600_COM_RTS;
-		else
-			GPSR = GPIO_H3600_COM_RTS;
+		gpio_set_value(H3XXX_GPIO_COM_RTS, !(mctrl & TIOCM_RTS));
 	}
 }
 
-static u_int h3600_uart_get_mctrl(struct uart_port *port)
+static u_int h3xxx_uart_get_mctrl(struct uart_port *port)
 {
 	u_int ret = TIOCM_CD | TIOCM_CTS | TIOCM_DSR;
 
 	if (port->mapbase == _Ser3UTCR0) {
-		int gplr = GPLR;
-		/* DCD and CTS bits are inverted in GPLR by RS232 transceiver */
-		if (gplr & GPIO_H3600_COM_DCD)
+		/*
+		 * DCD and CTS bits are inverted in GPLR by RS232 transceiver
+		 */
+		if (gpio_get_value(H3XXX_GPIO_COM_DCD))
 			ret &= ~TIOCM_CD;
-		if (gplr & GPIO_H3600_COM_CTS)
+		if (gpio_get_value(H3XXX_GPIO_COM_CTS))
 			ret &= ~TIOCM_CTS;
 	}
 
 	return ret;
 }
 
-static void h3600_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
+static void h3xxx_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 {
 	if (port->mapbase == _Ser2UTCR0) { /* TODO: REMOVE THIS */
 		assign_h3600_egpio(IPAQ_EGPIO_IR_ON, !state);
@@ -170,7 +166,7 @@ static void h3600_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
  * Enable/Disable wake up events for this serial port.
  * Obviously, we only support this on the normal COM port.
  */
-static int h3600_uart_set_wake(struct uart_port *port, u_int enable)
+static int h3xxx_uart_set_wake(struct uart_port *port, u_int enable)
 {
 	int err = -EINVAL;
 
@@ -184,12 +180,19 @@ static int h3600_uart_set_wake(struct uart_port *port, u_int enable)
 	return err;
 }
 
-static struct sa1100_port_fns h3600_port_fns __initdata = {
-	.set_mctrl	= h3600_uart_set_mctrl,
-	.get_mctrl	= h3600_uart_get_mctrl,
-	.pm		= h3600_uart_pm,
-	.set_wake	= h3600_uart_set_wake,
+static struct sa1100_port_fns h3xxx_port_fns __initdata = {
+	.set_mctrl	= h3xxx_uart_set_mctrl,
+	.get_mctrl	= h3xxx_uart_get_mctrl,
+	.pm		= h3xxx_uart_pm,
+	.set_wake	= h3xxx_uart_set_wake,
 };
+
+
+static void h3xxx_mach_init(void)
+{
+	sa1100_register_uart_fns(&h3xxx_port_fns);
+	sa11x0_register_mtd(&h3xxx_flash_data, &h3xxx_flash_resource, 1);
+}
 
 /*
  * helper for sa1100fb
@@ -227,7 +230,6 @@ static void __init h3xxx_map_io(void)
 	sa1100_map_io();
 	iotable_init(h3600_io_desc, ARRAY_SIZE(h3600_io_desc));
 
-	sa1100_register_uart_fns(&h3600_port_fns);
 	sa1100_register_uart(0, 3); /* Common serial port */
 //	sa1100_register_uart(1, 1); /* Microcontroller on 3100/3600 */
 
@@ -329,7 +331,7 @@ static void __init h3100_map_io(void)
 
 	/* Initialize h3100-specific values here */
 	GPCR = 0x0fffffff;	 /* All outputs are set low by default */
-	GPDR = GPIO_H3600_COM_RTS  | GPIO_H3600_L3_CLOCK |
+	GPDR = GPIO_H3600_L3_CLOCK |
 	       GPIO_H3600_L3_MODE  | GPIO_H3600_L3_DATA  |
 	       GPIO_H3600_CLK_SET1 | GPIO_H3600_CLK_SET0 |
 	       H3100_DIRECT_EGPIO;
@@ -364,6 +366,9 @@ static struct irda_platform_data h3100_irda_data = {
 static struct gpio_default_state h3100_default_gpio[] = {
 	{ H3100_GPIO_IR_ON,	GPIO_MODE_OUT0, "IrDA power" },
 	{ H3100_GPIO_IR_FSEL,	GPIO_MODE_OUT0, "IrDA fsel" },
+	{ H3XXX_GPIO_COM_DCD,	GPIO_MODE_IN,	"COM DCD" },
+	{ H3XXX_GPIO_COM_CTS,	GPIO_MODE_IN,	"COM CTS" },
+	{ H3XXX_GPIO_COM_RTS,	GPIO_MODE_OUT0,	"COM RTS" },
 };
 
 static void h3100_mach_init(void)
@@ -460,7 +465,7 @@ static void __init h3600_map_io(void)
 	/* Initialize h3600-specific values here */
 
 	GPCR = 0x0fffffff;	 /* All outputs are set low by default */
-	GPDR = GPIO_H3600_COM_RTS  | GPIO_H3600_L3_CLOCK |
+	GPDR = GPIO_H3600_L3_CLOCK |
 	       GPIO_H3600_L3_MODE  | GPIO_H3600_L3_DATA  |
 	       GPIO_H3600_CLK_SET1 | GPIO_H3600_CLK_SET0 |
 	       GPIO_LDD15 | GPIO_LDD14 | GPIO_LDD13 | GPIO_LDD12 |
@@ -489,8 +494,15 @@ static struct irda_platform_data h3600_irda_data = {
 	.set_speed	= h3600_irda_set_speed,
 };
 
+static struct gpio_default_state h3600_default_gpio[] = {
+	{ H3XXX_GPIO_COM_DCD,	GPIO_MODE_IN,	"COM DCD" },
+	{ H3XXX_GPIO_COM_CTS,	GPIO_MODE_IN,	"COM CTS" },
+	{ H3XXX_GPIO_COM_RTS,	GPIO_MODE_OUT0,	"COM RTS" },
+};
+
 static void h3600_mach_init(void)
 {
+	h3xxx_init_gpio(h3600_default_gpio, ARRAY_SIZE(h3600_default_gpio));
 	h3xxx_mach_init();
 	sa11x0_register_irda(&h3600_irda_data);
 }
