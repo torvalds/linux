@@ -1377,20 +1377,8 @@ typedef struct _RXMAC_t {				/* Location: */
 
 /*
  * structure for Maximum Frame Length reg in mac address map.
- * located at address 0x5010
+ * located at address 0x5010: bits 0-15 hold the length.
  */
-typedef union _MAC_MAX_FM_LEN_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:16;	/* bits 16-31 */
-		u32 max_len:16;	/* bits 0-15 */
-#else
-		u32 max_len:16;	/* bits 0-15 */
-		u32 reserved:16;	/* bits 16-31 */
-#endif
-	} bits;
-} MAC_MAX_FM_LEN_t, *PMAC_MAX_FM_LEN_t;
 
 /*
  * structure for Reserve 1 reg in mac address map.
@@ -1652,7 +1640,7 @@ typedef struct _MAC_t {					/* Location: */
 	u32 cfg2;					/*  0x5004 */
 	u32 ipg;					/*  0x5008 */
 	u32 hfdp;					/*  0x500C */
-	MAC_MAX_FM_LEN_t max_fm_len;			/*  0x5010 */
+	u32 max_fm_len;					/*  0x5010 */
 	u32 rsv1;					/*  0x5014 */
 	u32 rsv2;					/*  0x5018 */
 	MAC_TEST_t mac_test;				/*  0x501C */

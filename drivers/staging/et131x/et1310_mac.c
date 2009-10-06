@@ -146,7 +146,7 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	 * Packets larger than (RegistryJumboPacket) that do not contain a
 	 * VLAN ID will be dropped by the Rx function.
 	 */
-	writel(etdev->RegistryJumboPacket + 4, &pMac->max_fm_len.value);
+	writel(etdev->RegistryJumboPacket + 4, &pMac->max_fm_len);
 
 	/* clear out MAC config reset */
 	writel(0, &pMac->cfg1);
