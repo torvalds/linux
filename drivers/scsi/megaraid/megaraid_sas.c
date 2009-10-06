@@ -1239,7 +1239,14 @@ static void megasas_complete_cmd_dpc(unsigned long instance_addr)
 
 		spin_lock_irqsave(instance->host->host_lock, flags);
 		instance->flag &= ~MEGASAS_FW_BUSY;
-		instance->host->can_queue =
+		if ((instance->pdev->device ==
+			PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+			(instance->pdev->device ==
+			PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+			instance->host->can_queue =
+				instance->max_fw_cmds - MEGASAS_SKINNY_INT_CMDS;
+		} else
+			instance->host->can_queue =
 				instance->max_fw_cmds - MEGASAS_INT_CMDS;
 
 		spin_unlock_irqrestore(instance->host->host_lock, flags);
@@ -2774,7 +2781,13 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	 */
 	host->irq = instance->pdev->irq;
 	host->unique_id = instance->unique_id;
-	host->can_queue = instance->max_fw_cmds - MEGASAS_INT_CMDS;
+	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+		host->can_queue =
+			instance->max_fw_cmds - MEGASAS_SKINNY_INT_CMDS;
+	} else
+		host->can_queue =
+			instance->max_fw_cmds - MEGASAS_INT_CMDS;
 	host->this_id = instance->init_id;
 	host->sg_tablesize = instance->max_num_sge;
 	host->max_sectors = instance->max_sectors_per_req;
@@ -2909,7 +2922,6 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&poll_aen_lock);
 
 	mutex_init(&instance->aen_mutex);
-	sema_init(&instance->ioctl_sem, MEGASAS_INT_CMDS);
 
 	/*
 	 * Initialize PCI related and misc parameters
@@ -2918,6 +2930,12 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	instance->host = host;
 	instance->unique_id = pdev->bus->number << 8 | pdev->devfn;
 	instance->init_id = MEGASAS_DEFAULT_INIT_ID;
+
+	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+		sema_init(&instance->ioctl_sem, MEGASAS_SKINNY_INT_CMDS);
+	} else
+		sema_init(&instance->ioctl_sem, MEGASAS_INT_CMDS);
 
 	megasas_dbg_lvl = 0;
 	instance->flag = 0;

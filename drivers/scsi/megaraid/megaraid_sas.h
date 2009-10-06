@@ -655,6 +655,7 @@ struct megasas_ctrl_info {
  * is shown below
  */
 #define MEGASAS_INT_CMDS			32
+#define MEGASAS_SKINNY_INT_CMDS			5
 
 /*
  * FW can accept both 32 and 64 bit SGLs. We want to allocate 32/64 bit
