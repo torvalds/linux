@@ -155,29 +155,30 @@ static int atp867x_get_active_clocks_shifted(struct ata_port *ap,
 	struct atp867x_priv *dp = ap->private_data;
 	unsigned char clocks = clk;
 
-	switch (clocks) {
-	case 0:
-		clocks = 1;
-		break;
-	case 1 ... 7:
-		break;
-	case 9 ... 12:
-		clocks = 7;
-		break;
-	default:
-		printk(KERN_WARNING "ATP867X: active %dclk is invalid. "
-			"Using default 8clk.\n", clk);
-	case 8:	/* default 8 clk */
-		clocks = 0;
-		goto active_clock_shift_done;
-	}
-
 	/*
 	 * Doc 6.6.9: increase the clock value by 1 for safer PIO speed
 	 * on 66MHz bus
 	 */
-	if (dp->pci66mhz && clocks < 7)
+	if (dp->pci66mhz)
 		clocks++;
+
+	switch (clocks) {
+	case 0:
+		clocks = 1;
+		break;
+	case 1 ... 6:
+		break;
+	default:
+		printk(KERN_WARNING "ATP867X: active %dclk is invalid. "
+			"Using 12clk.\n", clk);
+	case 9 ... 12:
+		clocks = 7;	/* 12 clk */
+		break;
+	case 7:
+	case 8:	/* default 8 clk */
+		clocks = 0;
+		goto active_clock_shift_done;
+	}
 
 active_clock_shift_done:
 	return clocks << ATP867X_IO_PIOSPD_ACTIVE_SHIFT;
@@ -193,7 +194,8 @@ static int atp867x_get_recover_clocks_shifted(unsigned int clk)
 		break;
 	case 1 ... 11:
 		break;
-	case 13: case 14:
+	case 13:
+	case 14:
 		--clocks;	/* by the spec */
 		break;
 	case 15:
@@ -235,16 +237,16 @@ static void atp867x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	iowrite8(b, dp->dma_mode);
 
 	b = atp867x_get_active_clocks_shifted(ap, t.active) |
-		atp867x_get_recover_clocks_shifted(t.recover);
+	    atp867x_get_recover_clocks_shifted(t.recover);
 
 	if (adev->devno & 1)
 		iowrite8(b, dp->slave_piospd);
 	else
 		iowrite8(b, dp->mstr_piospd);
 
-	/*
-	 * use the same value for comand timing as for PIO timimg
-	 */
+	b = atp867x_get_active_clocks_shifted(ap, t.act8b) |
+	    atp867x_get_recover_clocks_shifted(t.rec8b);
+
 	iowrite8(b, dp->eightb_piospd);
 }
 
