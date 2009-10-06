@@ -190,9 +190,15 @@ struct tty_port_operations {
 	/* Control the DTR line */
 	void (*dtr_rts)(struct tty_port *port, int raise);
 	/* Called when the last close completes or a hangup finishes
-	   IFF the port was initialized. Do not use to free resources */
+	   IFF the port was initialized. Do not use to free resources. Called
+	   under the port mutex to serialize against activate/shutdowns */
 	void (*shutdown)(struct tty_port *port);
 	void (*drop)(struct tty_port *port);
+	/* Called under the port mutex from tty_port_open, serialized using
+	   the port mutex */
+        /* FIXME: long term getting the tty argument *out* of this would be
+           good for consoles */
+	int (*activate)(struct tty_port *port, struct tty_struct *tty);
 };
 	
 struct tty_port {
@@ -466,6 +472,8 @@ extern int tty_port_close_start(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);
 extern void tty_port_close_end(struct tty_port *port, struct tty_struct *tty);
 extern void tty_port_close(struct tty_port *port,
+				struct tty_struct *tty, struct file *filp);
+extern int tty_port_open(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);
 extern inline int tty_port_users(struct tty_port *port)
 {

@@ -247,41 +247,31 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	return retval;
 }
 
-static int serial_open(struct tty_struct *tty, struct file *filp)
+static int serial_activate(struct tty_port *tport, struct tty_struct *tty)
 {
-	struct usb_serial_port *port = tty->driver_data;
+	struct usb_serial_port *port =
+		container_of(tport, struct usb_serial_port, port);
 	struct usb_serial *serial = port->serial;
 	int retval;
 
-	dbg("%s - port %d", __func__, port->number);
-
-	spin_lock_irq(&port->port.lock);
-	if (!tty_hung_up_p(filp))
-		++port->port.count;
-	spin_unlock_irq(&port->port.lock);
-	tty_port_tty_set(&port->port, tty);
-
-	/* Do the device-specific open only if the hardware isn't
-	 * already initialized.
-	 */
-	if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags)) {
-		if (mutex_lock_interruptible(&port->mutex))
-			return -ERESTARTSYS;
-		mutex_lock(&serial->disc_mutex);
-		if (serial->disconnected)
-			retval = -ENODEV;
-		else
-			retval = port->serial->type->open(tty, port);
-		mutex_unlock(&serial->disc_mutex);
-		mutex_unlock(&port->mutex);
-		if (retval)
-			return retval;
-		set_bit(ASYNCB_INITIALIZED, &port->port.flags);
-	}
-
-	/* Now do the correct tty layer semantics */
-	retval = tty_port_block_til_ready(&port->port, tty, filp);
+	if (mutex_lock_interruptible(&port->mutex))
+		return -ERESTARTSYS;
+	mutex_lock(&serial->disc_mutex);
+	if (serial->disconnected)
+		retval = -ENODEV;
+	else
+		retval = port->serial->type->open(tty, port);
+	mutex_unlock(&serial->disc_mutex);
+	mutex_unlock(&port->mutex);
 	return retval;
+}
+
+static int serial_open(struct tty_struct *tty, struct file *filp)
+{
+	struct usb_serial_port *port = tty->driver_data;
+
+	dbg("%s - port %d", __func__, port->number);
+	return tty_port_open(&port->port, tty, filp);
 }
 
 /**
@@ -725,6 +715,7 @@ static void serial_dtr_rts(struct tty_port *port, int on)
 static const struct tty_port_operations serial_port_ops = {
 	.carrier_raised = serial_carrier_raised,
 	.dtr_rts = serial_dtr_rts,
+	.activate = serial_activate,
 };
 
 int usb_serial_probe(struct usb_interface *interface,

@@ -99,10 +99,11 @@ EXPORT_SYMBOL(tty_port_tty_set);
 
 static void tty_port_shutdown(struct tty_port *port)
 {
+	mutex_lock(&port->mutex);
 	if (port->ops->shutdown &&
 		test_and_clear_bit(ASYNCB_INITIALIZED, &port->flags))
 			port->ops->shutdown(port);
-
+	mutex_unlock(&port->mutex);
 }
 
 /**
@@ -381,3 +382,36 @@ void tty_port_close(struct tty_port *port, struct tty_struct *tty,
 	tty_port_tty_set(port, NULL);
 }
 EXPORT_SYMBOL(tty_port_close);
+
+int tty_port_open(struct tty_port *port, struct tty_struct *tty,
+                                                        struct file *filp)
+{
+	spin_lock_irq(&port->lock);
+	if (!tty_hung_up_p(filp))
+		++port->count;
+	spin_unlock_irq(&port->lock);
+	tty_port_tty_set(port, tty);
+
+	/*
+	 * Do the device-specific open only if the hardware isn't
+	 * already initialized. Serialize open and shutdown using the
+	 * port mutex.
+	 */
+
+	mutex_lock(&port->mutex);
+
+	if (!test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+		if (port->ops->activate) {
+			int retval = port->ops->activate(port, tty);
+			if (retval) {
+        		        mutex_unlock(&port->mutex);
+        			return retval;
+        		}
+                }
+		set_bit(ASYNCB_INITIALIZED, &port->flags);
+	}
+	mutex_unlock(&port->mutex);
+	return tty_port_block_til_ready(port, tty, filp);
+}
+
+EXPORT_SYMBOL(tty_port_open);
