@@ -126,7 +126,7 @@ struct tx_ring {
 	 * three of these (including used) are controlled via the
 	 * TCBSendQLock.  This lock should be secured prior to incementing /
 	 * decrementing used, or any queue manipulation on send_head /
-	 * Tail
+	 * tail
 	 */
 	struct tcb *send_head;
 	struct tcb *send_tail;
@@ -136,7 +136,7 @@ struct tx_ring {
 	struct tx_desc *tx_desc_ring;
 	dma_addr_t tx_desc_ring_pa;
 
-	/* ReadyToSend indicates where we last wrote to in the descriptor ring. */
+	/* send_idx indicates where we last wrote to in the descriptor ring. */
 	u32 send_idx;
 
 	/* The location of the write-back status block */
