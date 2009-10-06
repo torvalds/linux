@@ -347,14 +347,13 @@ static void __init h3100_map_io(void)
  */
 static int h3100_irda_set_power(struct device *dev, unsigned int state)
 {
-	assign_h3100_egpio(IPAQ_EGPIO_IR_ON, state);
-
+	gpio_set_value(H3100_GPIO_IR_ON, state);
 	return 0;
 }
 
 static void h3100_irda_set_speed(struct device *dev, unsigned int speed)
 {
-	assign_h3100_egpio(IPAQ_EGPIO_IR_FSEL, !(speed < 4000000));
+	gpio_set_value(H3100_GPIO_IR_FSEL, !(speed < 4000000));
 }
 
 static struct irda_platform_data h3100_irda_data = {
@@ -362,8 +361,14 @@ static struct irda_platform_data h3100_irda_data = {
 	.set_speed	= h3100_irda_set_speed,
 };
 
+static struct gpio_default_state h3100_default_gpio[] = {
+	{ H3100_GPIO_IR_ON,	GPIO_MODE_OUT0, "IrDA power" },
+	{ H3100_GPIO_IR_FSEL,	GPIO_MODE_OUT0, "IrDA fsel" },
+};
+
 static void h3100_mach_init(void)
 {
+	h3xxx_init_gpio(h3100_default_gpio, ARRAY_SIZE(h3100_default_gpio));
 	h3xxx_mach_init();
 	sa11x0_register_irda(&h3100_irda_data);
 }

@@ -39,6 +39,15 @@
 #define GPIO_H3100_IR_ON		GPIO_GPIO (8)
 #define GPIO_H3100_IR_FSEL		GPIO_GPIO (9)
 
+/* gpiolib versions of the above */
+#define H3100_GPIO_BT_ON		2
+#define H3100_GPIO_QMUTE		4
+#define H3100_GPIO_LCD_3V_ON		5
+#define H3100_GPIO_AUD_ON		6
+#define H3100_GPIO_AUD_PWR_ON		7
+#define H3100_GPIO_IR_ON		8
+#define H3100_GPIO_IR_FSEL		9
+
 /* for H3600, audio sample rate clock generator */
 #define GPIO_H3600_CLK_SET0		GPIO_GPIO (12)
 #define GPIO_H3600_CLK_SET1		GPIO_GPIO (13)
