@@ -182,6 +182,7 @@ Code	Seq#	Include File		Comments
 					<http://www.proximity.com.au/~brian/winradio/>
 0x90	00	drivers/cdrom/sbpcd.h
 0x93	60-7F	linux/auto_fs.h
+0x97    00-7F   fs/ceph/ioctl.h         Ceph file system
 0x99	00-0F				537-Addinboard driver
 					<mailto:buk@buks.ipn.de>
 0xA0	all	linux/sdp/sdp.h		Industrial Device Project
