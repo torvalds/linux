@@ -1115,24 +1115,76 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 	return 0;
 }
 
+static struct megasas_instance *megasas_lookup_instance(u16 host_no)
+{
+	int i;
+
+	for (i = 0; i < megasas_mgmt_info.max_index; i++) {
+
+		if ((megasas_mgmt_info.instance[i]) &&
+		    (megasas_mgmt_info.instance[i]->host->host_no == host_no))
+			return megasas_mgmt_info.instance[i];
+	}
+
+	return NULL;
+}
+
 static int megasas_slave_configure(struct scsi_device *sdev)
 {
-	/*
-	 * Don't export physical disk devices to the disk driver.
-	 *
-	 * FIXME: Currently we don't export them to the midlayer at all.
-	 * 	  That will be fixed once LSI engineers have audited the
-	 * 	  firmware for possible issues.
-	 */
-	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS && sdev->type == TYPE_DISK)
-		return -ENXIO;
+	u16             pd_index = 0;
+	struct  megasas_instance *instance ;
+
+	instance = megasas_lookup_instance(sdev->host->host_no);
 
 	/*
-	 * The RAID firmware may require extended timeouts.
-	 */
-	if (sdev->channel >= MEGASAS_MAX_PD_CHANNELS)
-		blk_queue_rq_timeout(sdev->request_queue,
-				     MEGASAS_DEFAULT_CMD_TIMEOUT * HZ);
+	* Don't export physical disk devices to the disk driver.
+	*
+	* FIXME: Currently we don't export them to the midlayer at all.
+	*        That will be fixed once LSI engineers have audited the
+	*        firmware for possible issues.
+	*/
+	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS &&
+				sdev->type == TYPE_DISK) {
+		pd_index = (sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
+								sdev->id;
+		if (instance->pd_list[pd_index].driveState ==
+						MR_PD_STATE_SYSTEM) {
+			blk_queue_rq_timeout(sdev->request_queue,
+				MEGASAS_DEFAULT_CMD_TIMEOUT * HZ);
+			return 0;
+		}
+		return -ENXIO;
+	}
+
+	/*
+	* The RAID firmware may require extended timeouts.
+	*/
+	blk_queue_rq_timeout(sdev->request_queue,
+		MEGASAS_DEFAULT_CMD_TIMEOUT * HZ);
+	return 0;
+}
+
+static int megasas_slave_alloc(struct scsi_device *sdev)
+{
+	u16             pd_index = 0;
+	struct megasas_instance *instance ;
+	instance = megasas_lookup_instance(sdev->host->host_no);
+	if ((sdev->channel < MEGASAS_MAX_PD_CHANNELS) &&
+				(sdev->type == TYPE_DISK)) {
+		/*
+		 * Open the OS scan to the SYSTEM PD
+		 */
+		pd_index =
+			(sdev->channel * MEGASAS_MAX_DEV_PER_CHANNEL) +
+			sdev->id;
+		if ((instance->pd_list[pd_index].driveState ==
+					MR_PD_STATE_SYSTEM) &&
+			(instance->pd_list[pd_index].driveType ==
+						TYPE_DISK)) {
+			return 0;
+		}
+		return -ENXIO;
+	}
 	return 0;
 }
 
@@ -1423,6 +1475,7 @@ static struct scsi_host_template megasas_template = {
 	.name = "LSI SAS based MegaRAID driver",
 	.proc_name = "megaraid_sas",
 	.slave_configure = megasas_slave_configure,
+	.slave_alloc = megasas_slave_alloc,
 	.queuecommand = megasas_queue_command,
 	.eh_device_reset_handler = megasas_reset_device,
 	.eh_bus_reset_handler = megasas_reset_bus_host,
@@ -3453,20 +3506,6 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 
 	megasas_return_cmd(instance, cmd);
 	return error;
-}
-
-static struct megasas_instance *megasas_lookup_instance(u16 host_no)
-{
-	int i;
-
-	for (i = 0; i < megasas_mgmt_info.max_index; i++) {
-
-		if ((megasas_mgmt_info.instance[i]) &&
-		    (megasas_mgmt_info.instance[i]->host->host_no == host_no))
-			return megasas_mgmt_info.instance[i];
-	}
-
-	return NULL;
 }
 
 static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
