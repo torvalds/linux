@@ -64,16 +64,10 @@ struct pmb_entry {
 };
 
 /* arch/sh/mm/pmb.c */
-int __set_pmb_entry(unsigned long vpn, unsigned long ppn,
-		    unsigned long flags, int *entry);
-int set_pmb_entry(struct pmb_entry *pmbe);
-void clear_pmb_entry(struct pmb_entry *pmbe);
-struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
-			    unsigned long flags);
-void pmb_free(struct pmb_entry *pmbe);
 long pmb_remap(unsigned long virt, unsigned long phys,
 	       unsigned long size, unsigned long flags);
 void pmb_unmap(unsigned long addr);
+int pmb_init(void);
 #endif /* __ASSEMBLY__ */
 
 #endif /* __MMU_H */

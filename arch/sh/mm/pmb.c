@@ -115,8 +115,8 @@ repeat:
 	return pos;
 }
 
-struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
-			    unsigned long flags)
+static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
+				   unsigned long flags)
 {
 	struct pmb_entry *pmbe;
 	int pos;
@@ -141,7 +141,7 @@ struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 	return pmbe;
 }
 
-void pmb_free(struct pmb_entry *pmbe)
+static void pmb_free(struct pmb_entry *pmbe)
 {
 	spin_lock_irq(&pmb_list_lock);
 	pmb_list_del(pmbe);
@@ -153,8 +153,8 @@ void pmb_free(struct pmb_entry *pmbe)
 /*
  * Must be in P2 for __set_pmb_entry()
  */
-void __set_pmb_entry(unsigned long vpn, unsigned long ppn,
-		    unsigned long flags, int pos)
+static void __set_pmb_entry(unsigned long vpn, unsigned long ppn,
+			    unsigned long flags, int pos)
 {
 	ctrl_outl(vpn | PMB_V, mk_pmb_addr(pos));
 
@@ -171,14 +171,14 @@ void __set_pmb_entry(unsigned long vpn, unsigned long ppn,
 	ctrl_outl(ppn | flags | PMB_V, mk_pmb_data(pos));
 }
 
-void __uses_jump_to_uncached set_pmb_entry(struct pmb_entry *pmbe)
+static void __uses_jump_to_uncached set_pmb_entry(struct pmb_entry *pmbe)
 {
 	jump_to_uncached();
 	__set_pmb_entry(pmbe->vpn, pmbe->ppn, pmbe->flags, pmbe->entry);
 	back_to_cached();
 }
 
-void __uses_jump_to_uncached clear_pmb_entry(struct pmb_entry *pmbe)
+static void __uses_jump_to_uncached clear_pmb_entry(struct pmb_entry *pmbe)
 {
 	unsigned int entry = pmbe->entry;
 	unsigned long addr;
@@ -327,7 +327,7 @@ static void pmb_cache_ctor(void *pmb)
 	memset(pmb, 0, sizeof(struct pmb_entry));
 }
 
-static int __uses_jump_to_uncached pmb_init(void)
+int __uses_jump_to_uncached pmb_init(void)
 {
 	unsigned int nr_entries = ARRAY_SIZE(pmb_init_map);
 	unsigned int entry, i;
@@ -364,7 +364,6 @@ static int __uses_jump_to_uncached pmb_init(void)
 
 	return 0;
 }
-arch_initcall(pmb_init);
 
 static int pmb_seq_show(struct seq_file *file, void *iter)
 {
