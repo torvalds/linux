@@ -25,3 +25,9 @@ config MRST_NAND_EMU
 
 endchoice
 
+config MRST_NAND_HW_DMA
+       bool
+       default n
+       depends on MRST_NAND_HW
+       help
+         Use DMA for native hardware interface.

@@ -199,6 +199,7 @@ u16  GLOB_LLD_Get_Bad_Block(u32 block)
 	return  NAND_Get_Bad_Block(block);
 }
 
+#if CMD_DMA
 u16 GLOB_LLD_Event_Status(void)
 {
 	return CDMA_Event_Status();
@@ -251,6 +252,7 @@ u16 GLOB_LLD_Read_Page_Main_Spare_cdma(u8 *data,
 			LLD_CMD_FLAG_MODE_CDMA);
 }
 
+#endif /* CMD_DMA */
 #endif /* FLASH_NAND */
 
 /*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
