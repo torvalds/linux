@@ -1100,11 +1100,14 @@ static int sock_fasync(int fd, struct file *filp, int on)
 		fna->fa_next = sock->fasync_list;
 		write_lock_bh(&sk->sk_callback_lock);
 		sock->fasync_list = fna;
+		sock_set_flag(sk, SOCK_FASYNC);
 		write_unlock_bh(&sk->sk_callback_lock);
 	} else {
 		if (fa != NULL) {
 			write_lock_bh(&sk->sk_callback_lock);
 			*prev = fa->fa_next;
+			if (!sock->fasync_list)
+				sock_reset_flag(sk, SOCK_FASYNC);
 			write_unlock_bh(&sk->sk_callback_lock);
 			kfree(fa);
 		}
