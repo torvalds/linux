@@ -42,30 +42,32 @@ struct ixgb_stats {
 
 #define IXGB_STAT(m) FIELD_SIZEOF(struct ixgb_adapter, m), \
 		      offsetof(struct ixgb_adapter, m)
+#define IXGB_NETDEV_STAT(m) FIELD_SIZEOF(struct net_device, m), \
+		      offsetof(struct net_device, m)
 static struct ixgb_stats ixgb_gstrings_stats[] = {
-	{"rx_packets", IXGB_STAT(net_stats.rx_packets)},
-	{"tx_packets", IXGB_STAT(net_stats.tx_packets)},
-	{"rx_bytes", IXGB_STAT(net_stats.rx_bytes)},
-	{"tx_bytes", IXGB_STAT(net_stats.tx_bytes)},
-	{"rx_errors", IXGB_STAT(net_stats.rx_errors)},
-	{"tx_errors", IXGB_STAT(net_stats.tx_errors)},
-	{"rx_dropped", IXGB_STAT(net_stats.rx_dropped)},
-	{"tx_dropped", IXGB_STAT(net_stats.tx_dropped)},
-	{"multicast", IXGB_STAT(net_stats.multicast)},
-	{"collisions", IXGB_STAT(net_stats.collisions)},
+	{"rx_packets", IXGB_NETDEV_STAT(stats.rx_packets)},
+	{"tx_packets", IXGB_NETDEV_STAT(stats.tx_packets)},
+	{"rx_bytes", IXGB_NETDEV_STAT(stats.rx_bytes)},
+	{"tx_bytes", IXGB_NETDEV_STAT(stats.tx_bytes)},
+	{"rx_errors", IXGB_NETDEV_STAT(stats.rx_errors)},
+	{"tx_errors", IXGB_NETDEV_STAT(stats.tx_errors)},
+	{"rx_dropped", IXGB_NETDEV_STAT(stats.rx_dropped)},
+	{"tx_dropped", IXGB_NETDEV_STAT(stats.tx_dropped)},
+	{"multicast", IXGB_NETDEV_STAT(stats.multicast)},
+	{"collisions", IXGB_NETDEV_STAT(stats.collisions)},
 
-/*	{ "rx_length_errors", IXGB_STAT(net_stats.rx_length_errors) },	*/
-	{"rx_over_errors", IXGB_STAT(net_stats.rx_over_errors)},
-	{"rx_crc_errors", IXGB_STAT(net_stats.rx_crc_errors)},
-	{"rx_frame_errors", IXGB_STAT(net_stats.rx_frame_errors)},
+/*	{ "rx_length_errors", IXGB_NETDEV_STAT(stats.rx_length_errors) },	*/
+	{"rx_over_errors", IXGB_NETDEV_STAT(stats.rx_over_errors)},
+	{"rx_crc_errors", IXGB_NETDEV_STAT(stats.rx_crc_errors)},
+	{"rx_frame_errors", IXGB_NETDEV_STAT(stats.rx_frame_errors)},
 	{"rx_no_buffer_count", IXGB_STAT(stats.rnbc)},
-	{"rx_fifo_errors", IXGB_STAT(net_stats.rx_fifo_errors)},
-	{"rx_missed_errors", IXGB_STAT(net_stats.rx_missed_errors)},
-	{"tx_aborted_errors", IXGB_STAT(net_stats.tx_aborted_errors)},
-	{"tx_carrier_errors", IXGB_STAT(net_stats.tx_carrier_errors)},
-	{"tx_fifo_errors", IXGB_STAT(net_stats.tx_fifo_errors)},
-	{"tx_heartbeat_errors", IXGB_STAT(net_stats.tx_heartbeat_errors)},
-	{"tx_window_errors", IXGB_STAT(net_stats.tx_window_errors)},
+	{"rx_fifo_errors", IXGB_NETDEV_STAT(stats.rx_fifo_errors)},
+	{"rx_missed_errors", IXGB_NETDEV_STAT(stats.rx_missed_errors)},
+	{"tx_aborted_errors", IXGB_NETDEV_STAT(stats.tx_aborted_errors)},
+	{"tx_carrier_errors", IXGB_NETDEV_STAT(stats.tx_carrier_errors)},
+	{"tx_fifo_errors", IXGB_NETDEV_STAT(stats.tx_fifo_errors)},
+	{"tx_heartbeat_errors", IXGB_NETDEV_STAT(stats.tx_heartbeat_errors)},
+	{"tx_window_errors", IXGB_NETDEV_STAT(stats.tx_window_errors)},
 	{"tx_deferred_ok", IXGB_STAT(stats.dc)},
 	{"tx_timeout_count", IXGB_STAT(tx_timeout_count) },
 	{"tx_restart_queue", IXGB_STAT(restart_queue) },

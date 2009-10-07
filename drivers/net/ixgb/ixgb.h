@@ -183,7 +183,6 @@ struct ixgb_adapter {
 	struct napi_struct napi;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
 
 	/* structs defined in ixgb_hw.h */
 	struct ixgb_hw hw;

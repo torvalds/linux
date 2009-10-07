@@ -1537,9 +1537,7 @@ ixgb_tx_timeout_task(struct work_struct *work)
 static struct net_device_stats *
 ixgb_get_stats(struct net_device *netdev)
 {
-	struct ixgb_adapter *adapter = netdev_priv(netdev);
-
-	return &adapter->net_stats;
+	return &netdev->stats;
 }
 
 /**
@@ -1676,16 +1674,16 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
 
 	/* Fill out the OS statistics structure */
 
-	adapter->net_stats.rx_packets = adapter->stats.gprcl;
-	adapter->net_stats.tx_packets = adapter->stats.gptcl;
-	adapter->net_stats.rx_bytes = adapter->stats.gorcl;
-	adapter->net_stats.tx_bytes = adapter->stats.gotcl;
-	adapter->net_stats.multicast = adapter->stats.mprcl;
-	adapter->net_stats.collisions = 0;
+	netdev->stats.rx_packets = adapter->stats.gprcl;
+	netdev->stats.tx_packets = adapter->stats.gptcl;
+	netdev->stats.rx_bytes = adapter->stats.gorcl;
+	netdev->stats.tx_bytes = adapter->stats.gotcl;
+	netdev->stats.multicast = adapter->stats.mprcl;
+	netdev->stats.collisions = 0;
 
 	/* ignore RLEC as it reports errors for padded (<64bytes) frames
 	 * with a length in the type/len field */
-	adapter->net_stats.rx_errors =
+	netdev->stats.rx_errors =
 	    /* adapter->stats.rnbc + */ adapter->stats.crcerrs +
 	    adapter->stats.ruc +
 	    adapter->stats.roc /*+ adapter->stats.rlec */  +
@@ -1693,21 +1691,21 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
 	    adapter->stats.ecbc + adapter->stats.mpc;
 
 	/* see above
-	 * adapter->net_stats.rx_length_errors = adapter->stats.rlec;
+	 * netdev->stats.rx_length_errors = adapter->stats.rlec;
 	 */
 
-	adapter->net_stats.rx_crc_errors = adapter->stats.crcerrs;
-	adapter->net_stats.rx_fifo_errors = adapter->stats.mpc;
-	adapter->net_stats.rx_missed_errors = adapter->stats.mpc;
-	adapter->net_stats.rx_over_errors = adapter->stats.mpc;
+	netdev->stats.rx_crc_errors = adapter->stats.crcerrs;
+	netdev->stats.rx_fifo_errors = adapter->stats.mpc;
+	netdev->stats.rx_missed_errors = adapter->stats.mpc;
+	netdev->stats.rx_over_errors = adapter->stats.mpc;
 
-	adapter->net_stats.tx_errors = 0;
-	adapter->net_stats.rx_frame_errors = 0;
-	adapter->net_stats.tx_aborted_errors = 0;
-	adapter->net_stats.tx_carrier_errors = 0;
-	adapter->net_stats.tx_fifo_errors = 0;
-	adapter->net_stats.tx_heartbeat_errors = 0;
-	adapter->net_stats.tx_window_errors = 0;
+	netdev->stats.tx_errors = 0;
+	netdev->stats.rx_frame_errors = 0;
+	netdev->stats.tx_aborted_errors = 0;
+	netdev->stats.tx_carrier_errors = 0;
+	netdev->stats.tx_fifo_errors = 0;
+	netdev->stats.tx_heartbeat_errors = 0;
+	netdev->stats.tx_window_errors = 0;
 }
 
 #define IXGB_MAX_INTR 10
