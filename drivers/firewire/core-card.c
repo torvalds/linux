@@ -38,7 +38,7 @@
 
 #include "core.h"
 
-static int __compute_block_crc(__be32 *block)
+int fw_compute_block_crc(__be32 *block)
 {
 	int length;
 	u16 crc;
@@ -46,19 +46,6 @@ static int __compute_block_crc(__be32 *block)
 	length = (be32_to_cpu(block[0]) >> 16) & 0xff;
 	crc = crc_itu_t(0, (u8 *)&block[1], length * 4);
 	*block |= cpu_to_be32(crc);
-
-	return length;
-}
-
-int fw_compute_block_crc(u32 *block)
-{
-	__be32 be32_block[256];
-	int i, length;
-
-	length = (*block >> 16) & 0xff;
-	for (i = 0; i < length; i++)
-		be32_block[i] = cpu_to_be32(block[i + 1]);
-	*block |= crc_itu_t(0, (u8 *) be32_block, length * 4);
 
 	return length;
 }
@@ -141,7 +128,7 @@ static size_t generate_config_rom(struct fw_card *card, __be32 *config_rom)
 	 * the bus info block, which is always the case for this
 	 * implementation. */
 	for (i = 0; i < j; i += length + 1)
-		length = __compute_block_crc(config_rom + i);
+		length = fw_compute_block_crc(config_rom + i);
 
 	return j;
 }

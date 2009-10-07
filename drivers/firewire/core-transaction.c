@@ -810,8 +810,7 @@ static void handle_topology_map(struct fw_card *card, struct fw_request *request
 		int speed, unsigned long long offset,
 		void *payload, size_t length, void *callback_data)
 {
-	int i, start, end;
-	__be32 *map;
+	int start;
 
 	if (!TCODE_IS_READ_REQUEST(tcode)) {
 		fw_send_response(card, request, RCODE_TYPE_ERROR);
@@ -824,11 +823,7 @@ static void handle_topology_map(struct fw_card *card, struct fw_request *request
 	}
 
 	start = (offset - topology_map_region.start) / 4;
-	end = start + length / 4;
-	map = payload;
-
-	for (i = 0; i < length / 4; i++)
-		map[i] = cpu_to_be32(card->topology_map[start + i]);
+	memcpy(payload, &card->topology_map[start], length);
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 }

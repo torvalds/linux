@@ -117,7 +117,7 @@ struct fw_card {
 
 	bool broadcast_channel_allocated;
 	u32 broadcast_channel;
-	u32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
+	__be32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
 };
 
 struct fw_attribute_group {
