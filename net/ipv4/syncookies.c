@@ -333,7 +333,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	 * no easy way to do this.
 	 */
 	{
-		struct flowi fl = { .nl_u = { .ip4_u =
+		struct flowi fl = { .mark = sk->sk_mark,
+				    .nl_u = { .ip4_u =
 					      { .daddr = ((opt && opt->srr) ?
 							  opt->faddr :
 							  ireq->rmt_addr),
