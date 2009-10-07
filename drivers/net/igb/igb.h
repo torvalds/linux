@@ -256,7 +256,6 @@ struct igb_adapter {
 	struct net_device *netdev;
 	struct napi_struct napi;
 	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
 	struct cyclecounter cycles;
 	struct timecounter clock;
 	struct timecompare compare;

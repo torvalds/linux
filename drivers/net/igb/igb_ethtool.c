@@ -45,6 +45,8 @@ struct igb_stats {
 
 #define IGB_STAT(m) FIELD_SIZEOF(struct igb_adapter, m), \
 		      offsetof(struct igb_adapter, m)
+#define IGB_NETDEV_STAT(m) FIELD_SIZEOF(struct net_device, m), \
+		      offsetof(struct net_device, m)
 static const struct igb_stats igb_gstrings_stats[] = {
 	{ "rx_packets", IGB_STAT(stats.gprc) },
 	{ "tx_packets", IGB_STAT(stats.gptc) },
@@ -54,22 +56,22 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	{ "tx_broadcast", IGB_STAT(stats.bptc) },
 	{ "rx_multicast", IGB_STAT(stats.mprc) },
 	{ "tx_multicast", IGB_STAT(stats.mptc) },
-	{ "rx_errors", IGB_STAT(net_stats.rx_errors) },
-	{ "tx_errors", IGB_STAT(net_stats.tx_errors) },
-	{ "tx_dropped", IGB_STAT(net_stats.tx_dropped) },
+	{ "rx_errors", IGB_NETDEV_STAT(stats.rx_errors) },
+	{ "tx_errors", IGB_NETDEV_STAT(stats.tx_errors) },
+	{ "tx_dropped", IGB_NETDEV_STAT(stats.tx_dropped) },
 	{ "multicast", IGB_STAT(stats.mprc) },
 	{ "collisions", IGB_STAT(stats.colc) },
-	{ "rx_length_errors", IGB_STAT(net_stats.rx_length_errors) },
-	{ "rx_over_errors", IGB_STAT(net_stats.rx_over_errors) },
+	{ "rx_length_errors", IGB_NETDEV_STAT(stats.rx_length_errors) },
+	{ "rx_over_errors", IGB_NETDEV_STAT(stats.rx_over_errors) },
 	{ "rx_crc_errors", IGB_STAT(stats.crcerrs) },
-	{ "rx_frame_errors", IGB_STAT(net_stats.rx_frame_errors) },
+	{ "rx_frame_errors", IGB_NETDEV_STAT(stats.rx_frame_errors) },
 	{ "rx_no_buffer_count", IGB_STAT(stats.rnbc) },
-	{ "rx_queue_drop_packet_count", IGB_STAT(net_stats.rx_fifo_errors) },
+	{ "rx_queue_drop_packet_count", IGB_NETDEV_STAT(stats.rx_fifo_errors) },
 	{ "rx_missed_errors", IGB_STAT(stats.mpc) },
 	{ "tx_aborted_errors", IGB_STAT(stats.ecol) },
 	{ "tx_carrier_errors", IGB_STAT(stats.tncrs) },
-	{ "tx_fifo_errors", IGB_STAT(net_stats.tx_fifo_errors) },
-	{ "tx_heartbeat_errors", IGB_STAT(net_stats.tx_heartbeat_errors) },
+	{ "tx_fifo_errors", IGB_NETDEV_STAT(stats.tx_fifo_errors) },
+	{ "tx_heartbeat_errors", IGB_NETDEV_STAT(stats.tx_heartbeat_errors) },
 	{ "tx_window_errors", IGB_STAT(stats.latecol) },
 	{ "tx_abort_late_coll", IGB_STAT(stats.latecol) },
 	{ "tx_deferred_ok", IGB_STAT(stats.dc) },
