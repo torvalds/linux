@@ -242,18 +242,6 @@ static void ath_beacon_start_adhoc(struct ath_softc *sc,
 		  sc->beacon.beaconq, ito64(bf->bf_daddr), bf->bf_desc);
 }
 
-int ath_beaconq_setup(struct ath_hw *ah)
-{
-	struct ath9k_tx_queue_info qi;
-
-	memset(&qi, 0, sizeof(qi));
-	qi.tqi_aifs = 1;
-	qi.tqi_cwmin = 0;
-	qi.tqi_cwmax = 0;
-	/* NB: don't enable any interrupts */
-	return ath9k_hw_setuptxqueue(ah, ATH9K_TX_QUEUE_BEACON, &qi);
-}
-
 int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 {
 	struct ath_softc *sc = aphy->sc;

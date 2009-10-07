@@ -667,5 +667,6 @@ void ath9k_hw_rxena(struct ath_hw *ah);
 void ath9k_hw_startpcureceive(struct ath_hw *ah);
 void ath9k_hw_stoppcurecv(struct ath_hw *ah);
 bool ath9k_hw_stopdmarecv(struct ath_hw *ah);
+int ath9k_hw_beaconq_setup(struct ath_hw *ah);
 
 #endif /* MAC_H */

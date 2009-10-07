@@ -1018,3 +1018,16 @@ bool ath9k_hw_stopdmarecv(struct ath_hw *ah)
 #undef AH_RX_STOP_DMA_TIMEOUT
 }
 EXPORT_SYMBOL(ath9k_hw_stopdmarecv);
+
+int ath9k_hw_beaconq_setup(struct ath_hw *ah)
+{
+	struct ath9k_tx_queue_info qi;
+
+	memset(&qi, 0, sizeof(qi));
+	qi.tqi_aifs = 1;
+	qi.tqi_cwmin = 0;
+	qi.tqi_cwmax = 0;
+	/* NB: don't enable any interrupts */
+	return ath9k_hw_setuptxqueue(ah, ATH9K_TX_QUEUE_BEACON, &qi);
+}
+EXPORT_SYMBOL(ath9k_hw_beaconq_setup);

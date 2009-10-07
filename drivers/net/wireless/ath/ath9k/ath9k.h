@@ -421,7 +421,6 @@ struct ath_beacon {
 
 void ath_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
-int ath_beaconq_setup(struct ath_hw *ah);
 int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif);
 void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
 

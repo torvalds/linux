@@ -1709,7 +1709,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	 * priority.  Note that the hal handles reseting
 	 * these queues at the needed time.
 	 */
-	sc->beacon.beaconq = ath_beaconq_setup(ah);
+	sc->beacon.beaconq = ath9k_hw_beaconq_setup(ah);
 	if (sc->beacon.beaconq == -1) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup a beacon xmit queue\n");
