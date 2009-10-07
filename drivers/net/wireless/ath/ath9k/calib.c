@@ -1070,6 +1070,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 }
 EXPORT_SYMBOL(ath9k_hw_calibrate);
 
+/* Carrier leakage Calibration fix */
 static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1115,7 +1116,7 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	if (AR_SREV_9285_12_OR_LATER(ah)) {
+	if (AR_SREV_9271(ah) || AR_SREV_9285_12_OR_LATER(ah)) {
 		if (!ar9285_clc(ah, chan))
 			return false;
 	} else {
