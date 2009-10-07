@@ -59,6 +59,7 @@ There are three components to pagemap:
     18. UNEVICTABLE
     19. HWPOISON
     20. NOPAGE
+    21. KSM
 
 Short descriptions to the page flags:
 
@@ -92,6 +93,9 @@ Short descriptions to the page flags:
 
 20. NOPAGE
     no page frame exists at the requested address
+
+21. KSM
+    identical memory pages dynamically shared between one or more processes
 
     [IO related page flags]
  1. ERROR     IO error occurred
