@@ -14,6 +14,7 @@ struct ah_data
 	int			icv_trunc_len;
 
 	struct crypto_hash	*tfm;
+	struct crypto_ahash	*ahash;
 };
 
 static inline int ah_mac_digest(struct ah_data *ahp, struct sk_buff *skb,
