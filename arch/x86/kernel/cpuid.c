@@ -118,8 +118,6 @@ static int cpuid_open(struct inode *inode, struct file *file)
 	struct cpuinfo_x86 *c;
 	int ret = 0;
 
-	lock_kernel();
-
 	cpu = iminor(file->f_path.dentry->d_inode);
 	if (cpu >= nr_cpu_ids || !cpu_online(cpu)) {
 		ret = -ENXIO;	/* No such CPU */
@@ -129,7 +127,6 @@ static int cpuid_open(struct inode *inode, struct file *file)
 	if (c->cpuid_level < 0)
 		ret = -EIO;	/* CPUID not supported */
 out:
-	unlock_kernel();
 	return ret;
 }
 
