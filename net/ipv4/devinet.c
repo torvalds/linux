@@ -1077,12 +1077,16 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 		ip_mc_up(in_dev);
 		/* fall through */
 	case NETDEV_CHANGEADDR:
-		if (IN_DEV_ARP_NOTIFY(in_dev))
-			arp_send(ARPOP_REQUEST, ETH_P_ARP,
-				 in_dev->ifa_list->ifa_address,
-				 dev,
-				 in_dev->ifa_list->ifa_address,
-				 NULL, dev->dev_addr, NULL);
+		/* Send gratuitous ARP to notify of link change */
+		if (IN_DEV_ARP_NOTIFY(in_dev)) {
+			struct in_ifaddr *ifa = in_dev->ifa_list;
+
+			if (ifa)
+				arp_send(ARPOP_REQUEST, ETH_P_ARP,
+					 ifa->ifa_address, dev,
+					 ifa->ifa_address, NULL,
+					 dev->dev_addr, NULL);
+		}
 		break;
 	case NETDEV_DOWN:
 		ip_mc_down(in_dev);
