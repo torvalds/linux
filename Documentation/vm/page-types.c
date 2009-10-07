@@ -436,6 +436,16 @@ static uint64_t well_known_flags(uint64_t flags)
 	return flags;
 }
 
+static uint64_t kpageflags_flags(uint64_t flags)
+{
+	flags = expand_overloaded_flags(flags);
+
+	if (!opt_raw)
+		flags = well_known_flags(flags);
+
+	return flags;
+}
+
 /*
  * page frame walker
  */
@@ -470,10 +480,7 @@ static int hash_slot(uint64_t flags)
 static void add_page(unsigned long voffset,
 		     unsigned long offset, uint64_t flags)
 {
-	flags = expand_overloaded_flags(flags);
-
-	if (!opt_raw)
-		flags = well_known_flags(flags);
+	flags = kpageflags_flags(flags);
 
 	if (!bit_mask_ok(flags))
 		return;
