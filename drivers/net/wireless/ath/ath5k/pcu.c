@@ -295,7 +295,7 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
 	 * Set BSSID which triggers the "SME Join" operation
 	 */
 	low_id = get_unaligned_le32(bssid);
-	high_id = get_unaligned_le16(bssid);
+	high_id = get_unaligned_le16(bssid + 4);
 	ath5k_hw_reg_write(ah, low_id, AR_BSSMSKL);
 	ath5k_hw_reg_write(ah, high_id | ((assoc_id & 0x3fff) <<
 				AR5K_BSS_ID1_AID_S), AR_BSSMSKU);
