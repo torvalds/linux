@@ -1187,7 +1187,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 */
 
 	/* Restore bssid and bssid mask */
-	/* XXX: add ah->aid once mac80211 gives this to us */
 	ath5k_hw_set_associd(ah);
 
 	/* Set PCU config */
