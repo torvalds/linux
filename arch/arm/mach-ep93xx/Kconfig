@@ -130,28 +130,28 @@ config MACH_MICRO9
 	bool
 
 config MACH_MICRO9H
-	bool "Support Contec Hypercontrol Micro9-H"
+	bool "Support Contec Micro9-High"
 	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
 	select MACH_MICRO9
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Contec Hypercontrol Micro9-H board.
+	  Contec Micro9-High board.
 
 config MACH_MICRO9M
-	bool "Support Contec Hypercontrol Micro9-M"
-	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	bool "Support Contec Micro9-Mid"
+	depends on EP93XX_SDCE3_ASYNC_PHYS_OFFSET
 	select MACH_MICRO9
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Contec Hypercontrol Micro9-M board.
+	  Contec Micro9-Mid board.
 
 config MACH_MICRO9L
-	bool "Support Contec Hypercontrol Micro9-L"
+	bool "Support Contec Micro9-Lite"
 	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
 	select MACH_MICRO9
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Contec Hypercontrol Micro9-L board.
+	  Contec Micro9-Lite board.
 
 config MACH_TS72XX
 	bool "Support Technologic Systems TS-72xx SBC"
