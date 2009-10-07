@@ -129,8 +129,21 @@ struct iso_resource {
 	struct iso_resource_event *e_alloc, *e_dealloc;
 };
 
-static void schedule_iso_resource(struct iso_resource *);
 static void release_iso_resource(struct client *, struct client_resource *);
+
+static void schedule_iso_resource(struct iso_resource *r, unsigned long delay)
+{
+	client_get(r->client);
+	if (!schedule_delayed_work(&r->work, delay))
+		client_put(r->client);
+}
+
+static void schedule_if_iso_resource(struct client_resource *resource)
+{
+	if (resource->release == release_iso_resource)
+		schedule_iso_resource(container_of(resource,
+					struct iso_resource, resource), 0);
+}
 
 /*
  * dequeue_event() just kfree()'s the event, so the event has to be
@@ -313,11 +326,8 @@ static void for_each_client(struct fw_device *device,
 
 static int schedule_reallocations(int id, void *p, void *data)
 {
-	struct client_resource *r = p;
+	schedule_if_iso_resource(p);
 
-	if (r->release == release_iso_resource)
-		schedule_iso_resource(container_of(r,
-					struct iso_resource, resource));
 	return 0;
 }
 
@@ -413,9 +423,7 @@ static int add_client_resource(struct client *client,
 				  &resource->handle);
 	if (ret >= 0) {
 		client_get(client);
-		if (resource->release == release_iso_resource)
-			schedule_iso_resource(container_of(resource,
-						struct iso_resource, resource));
+		schedule_if_iso_resource(resource);
 	}
 	spin_unlock_irqrestore(&client->lock, flags);
 
@@ -1032,8 +1040,7 @@ static void iso_resource_work(struct work_struct *work)
 	/* Allow 1000ms grace period for other reallocations. */
 	if (todo == ISO_RES_ALLOC &&
 	    time_is_after_jiffies(client->device->card->reset_jiffies + HZ)) {
-		if (schedule_delayed_work(&r->work, DIV_ROUND_UP(HZ, 3)))
-			client_get(client);
+		schedule_iso_resource(r, DIV_ROUND_UP(HZ, 3));
 		skip = true;
 	} else {
 		/* We could be called twice within the same generation. */
@@ -1118,13 +1125,6 @@ static void iso_resource_work(struct work_struct *work)
 	client_put(client);
 }
 
-static void schedule_iso_resource(struct iso_resource *r)
-{
-	client_get(r->client);
-	if (!schedule_delayed_work(&r->work, 0))
-		client_put(r->client);
-}
-
 static void release_iso_resource(struct client *client,
 				 struct client_resource *resource)
 {
@@ -1133,7 +1133,7 @@ static void release_iso_resource(struct client *client,
 
 	spin_lock_irq(&client->lock);
 	r->todo = ISO_RES_DEALLOC;
-	schedule_iso_resource(r);
+	schedule_iso_resource(r, 0);
 	spin_unlock_irq(&client->lock);
 }
 
@@ -1179,7 +1179,7 @@ static int init_iso_resource(struct client *client,
 	} else {
 		r->resource.release = NULL;
 		r->resource.handle = -1;
-		schedule_iso_resource(r);
+		schedule_iso_resource(r, 0);
 	}
 	request->handle = r->resource.handle;
 

@@ -211,11 +211,8 @@ static const char gap_count_table[] = {
 
 void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 {
-	int scheduled;
-
 	fw_card_get(card);
-	scheduled = schedule_delayed_work(&card->work, delay);
-	if (!scheduled)
+	if (!schedule_delayed_work(&card->work, delay))
 		fw_card_put(card);
 }
 
