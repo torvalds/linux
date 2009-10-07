@@ -292,7 +292,7 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
 		ath5k_hw_reg_write(ah, get_unaligned_le32(common->bssidmask),
 				   AR_BSSMSKL);
 		ath5k_hw_reg_write(ah,
-				   get_unaligned_le16(common->curbssid + 4),
+				   get_unaligned_le16(common->bssidmask + 4),
 				   AR_BSSMSKU);
 	}
 
