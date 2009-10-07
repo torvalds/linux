@@ -282,7 +282,6 @@ int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
 void ath5k_hw_set_associd(struct ath5k_hw *ah)
 {
 	struct ath_common *common = ath5k_hw_common(ah);
-	u32 low_id, high_id;
 	u16 tim_offset = 0;
 
 	/*
@@ -294,11 +293,13 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah)
 	/*
 	 * Set BSSID which triggers the "SME Join" operation
 	 */
-	low_id = get_unaligned_le32(common->curbssid);
-	high_id = get_unaligned_le16(common->curbssid + 4);
-	ath5k_hw_reg_write(ah, low_id, AR_BSSMSKL);
-	ath5k_hw_reg_write(ah, high_id | ((common->curaid & 0x3fff) <<
-				AR5K_BSS_ID1_AID_S), AR_BSSMSKU);
+	ath5k_hw_reg_write(ah,
+			   get_unaligned_le32(common->curbssid),
+			   AR_BSSMSKL);
+	ath5k_hw_reg_write(ah,
+			   get_unaligned_le16(common->curbssid + 4) |
+			   ((common->curaid & 0x3fff) << AR5K_BSS_ID1_AID_S),
+			   AR_BSSMSKU);
 
 	if (common->curaid == 0) {
 		ath5k_hw_disable_pspoll(ah);
@@ -306,7 +307,7 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah)
 	}
 
 	AR5K_REG_WRITE_BITS(ah, AR5K_BEACON, AR5K_BEACON_TIM,
-			tim_offset ? tim_offset + 4 : 0);
+			    tim_offset ? tim_offset + 4 : 0);
 
 	ath5k_hw_enable_pspoll(ah, NULL, 0);
 }
