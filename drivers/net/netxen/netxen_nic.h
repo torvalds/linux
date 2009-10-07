@@ -1203,8 +1203,6 @@ struct netxen_adapter {
 
 	struct work_struct  tx_timeout_task;
 
-	struct net_device_stats net_stats;
-
 	nx_nic_intr_coalesce_t coal;
 
 	unsigned long state;

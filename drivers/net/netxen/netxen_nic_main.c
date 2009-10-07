@@ -1923,7 +1923,7 @@ request_reset:
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct net_device_stats *stats = &adapter->net_stats;
+	struct net_device_stats *stats = &netdev->stats;
 
 	memset(stats, 0, sizeof(*stats));
 
