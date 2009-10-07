@@ -178,7 +178,7 @@ struct iso_interrupt_event {
 
 struct iso_resource_event {
 	struct event event;
-	struct fw_cdev_event_iso_resource resource;
+	struct fw_cdev_event_iso_resource iso_resource;
 };
 
 static inline void __user *u64_to_uptr(__u64 value)
@@ -435,26 +435,26 @@ static int add_client_resource(struct client *client,
 
 static int release_client_resource(struct client *client, u32 handle,
 				   client_resource_release_fn_t release,
-				   struct client_resource **resource)
+				   struct client_resource **return_resource)
 {
-	struct client_resource *r;
+	struct client_resource *resource;
 
 	spin_lock_irq(&client->lock);
 	if (client->in_shutdown)
-		r = NULL;
+		resource = NULL;
 	else
-		r = idr_find(&client->resource_idr, handle);
-	if (r && r->release == release)
+		resource = idr_find(&client->resource_idr, handle);
+	if (resource && resource->release == release)
 		idr_remove(&client->resource_idr, handle);
 	spin_unlock_irq(&client->lock);
 
-	if (!(r && r->release == release))
+	if (!(resource && resource->release == release))
 		return -EINVAL;
 
-	if (resource)
-		*resource = r;
+	if (return_resource)
+		*return_resource = resource;
 	else
-		r->release(client, r);
+		resource->release(client, resource);
 
 	client_put(client);
 
@@ -1108,12 +1108,12 @@ static void iso_resource_work(struct work_struct *work)
 		e = r->e_dealloc;
 		r->e_dealloc = NULL;
 	}
-	e->resource.handle	= r->resource.handle;
-	e->resource.channel	= channel;
-	e->resource.bandwidth	= bandwidth;
+	e->iso_resource.handle    = r->resource.handle;
+	e->iso_resource.channel   = channel;
+	e->iso_resource.bandwidth = bandwidth;
 
 	queue_event(client, &e->event,
-		    &e->resource, sizeof(e->resource), NULL, 0);
+		    &e->iso_resource, sizeof(e->iso_resource), NULL, 0);
 
 	if (free) {
 		cancel_delayed_work(&r->work);
@@ -1166,10 +1166,10 @@ static int init_iso_resource(struct client *client,
 	r->e_alloc	= e1;
 	r->e_dealloc	= e2;
 
-	e1->resource.closure	= request->closure;
-	e1->resource.type	= FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED;
-	e2->resource.closure	= request->closure;
-	e2->resource.type	= FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED;
+	e1->iso_resource.closure = request->closure;
+	e1->iso_resource.type    = FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED;
+	e2->iso_resource.closure = request->closure;
+	e2->iso_resource.type    = FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED;
 
 	if (todo == ISO_RES_ALLOC) {
 		r->resource.release = release_iso_resource;
@@ -1394,10 +1394,10 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int shutdown_resource(int id, void *p, void *data)
 {
-	struct client_resource *r = p;
+	struct client_resource *resource = p;
 	struct client *client = data;
 
-	r->release(client, r);
+	resource->release(client, resource);
 	client_put(client);
 
 	return 0;
@@ -1406,7 +1406,7 @@ static int shutdown_resource(int id, void *p, void *data)
 static int fw_device_op_release(struct inode *inode, struct file *file)
 {
 	struct client *client = file->private_data;
-	struct event *e, *next_e;
+	struct event *event, *next_event;
 
 	mutex_lock(&client->device->client_list_mutex);
 	list_del(&client->link);
@@ -1427,8 +1427,8 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	idr_remove_all(&client->resource_idr);
 	idr_destroy(&client->resource_idr);
 
-	list_for_each_entry_safe(e, next_e, &client->event_list, link)
-		kfree(e);
+	list_for_each_entry_safe(event, next_event, &client->event_list, link)
+		kfree(event);
 
 	client_put(client);
 
