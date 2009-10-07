@@ -85,28 +85,28 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		void *pexport_targets = NULL;
 
 		ceph_decode_need(p, end, sizeof(addr) + 1 + sizeof(u32), bad);
-		*p += sizeof(addr);          /* skip addr key */
+		ceph_decode_copy(p, &addr, sizeof(addr));
 		ceph_decode_8(p, infoversion);
 		ceph_decode_32(p, namelen);  /* skip mds name */
 		*p += namelen;
 
 		ceph_decode_need(p, end,
-				 5*sizeof(u32) + sizeof(u64) +
+				 4*sizeof(u32) + sizeof(u64) +
 				 sizeof(addr) + sizeof(struct ceph_timespec),
 				 bad);
 		ceph_decode_32(p, mds);
 		ceph_decode_32(p, inc);
 		ceph_decode_32(p, state);
 		ceph_decode_64(p, state_seq);
-		ceph_decode_copy(p, &addr, sizeof(addr));
+		*p += sizeof(addr);
 		*p += sizeof(struct ceph_timespec);
 		*p += sizeof(u32);
 		ceph_decode_32_safe(p, end, namelen, bad);
-		*p += sizeof(namelen);
+		*p += namelen;
 		if (infoversion >= 2) {
 			ceph_decode_32_safe(p, end, num_export_targets, bad);
 			pexport_targets = *p;
-			*p += sizeof(num_export_targets * sizeof(u32));
+			*p += num_export_targets * sizeof(u32);
 		} else {
 			num_export_targets = 0;
 		}
