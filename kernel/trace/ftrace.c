@@ -1074,14 +1074,9 @@ static void ftrace_replace_code(int enable)
 		failed = __ftrace_replace_code(rec, enable);
 		if (failed) {
 			rec->flags |= FTRACE_FL_FAILED;
-			if ((system_state == SYSTEM_BOOTING) ||
-			    !core_kernel_text(rec->ip)) {
-				ftrace_free_rec(rec);
-				} else {
-				ftrace_bug(failed, rec->ip);
-					/* Stop processing */
-					return;
-				}
+			ftrace_bug(failed, rec->ip);
+			/* Stop processing */
+			return;
 		}
 	} while_for_each_ftrace_rec();
 }
