@@ -215,22 +215,22 @@ static int probe_arg_string(char *buf, size_t n, struct fetch_func *ff)
 	int ret = -EINVAL;
 
 	if (ff->func == fetch_argument)
-		ret = snprintf(buf, n, "$a%lu", (unsigned long)ff->data);
+		ret = snprintf(buf, n, "$arg%lu", (unsigned long)ff->data);
 	else if (ff->func == fetch_register) {
 		const char *name;
 		name = regs_query_register_name((unsigned int)((long)ff->data));
 		ret = snprintf(buf, n, "%%%s", name);
 	} else if (ff->func == fetch_stack)
-		ret = snprintf(buf, n, "$s%lu", (unsigned long)ff->data);
+		ret = snprintf(buf, n, "$stack%lu", (unsigned long)ff->data);
 	else if (ff->func == fetch_memory)
 		ret = snprintf(buf, n, "@0x%p", ff->data);
 	else if (ff->func == fetch_symbol) {
 		struct symbol_cache *sc = ff->data;
 		ret = snprintf(buf, n, "@%s%+ld", sc->symbol, sc->offset);
 	} else if (ff->func == fetch_retvalue)
-		ret = snprintf(buf, n, "$rv");
+		ret = snprintf(buf, n, "$retval");
 	else if (ff->func == fetch_stack_address)
-		ret = snprintf(buf, n, "$sa");
+		ret = snprintf(buf, n, "$stack");
 	else if (ff->func == fetch_indirect) {
 		struct indirect_fetch_data *id = ff->data;
 		size_t l = 0;
@@ -427,40 +427,36 @@ static int parse_probe_vars(char *arg, struct fetch_func *ff, int is_return)
 	int ret = 0;
 	unsigned long param;
 
-	switch (arg[0]) {
-	case 'a':	/* argument */
-		ret = strict_strtoul(arg + 1, 10, &param);
-		if (ret || param > PARAM_MAX_ARGS)
-			ret = -EINVAL;
-		else {
-			ff->func = fetch_argument;
-			ff->data = (void *)param;
-		}
-		break;
-	case 'r':	/* retval or retaddr */
-		if (is_return && arg[1] == 'v') {
+	if (strcmp(arg, "retval") == 0) {
+		if (is_return) {
 			ff->func = fetch_retvalue;
 			ff->data = NULL;
 		} else
 			ret = -EINVAL;
-		break;
-	case 's':	/* stack */
-		if (arg[1] == 'a') {
+	} else if (strncmp(arg, "stack", 5) == 0) {
+		if (arg[5] == '\0') {
 			ff->func = fetch_stack_address;
 			ff->data = NULL;
-		} else {
-			ret = strict_strtoul(arg + 1, 10, &param);
+		} else if (isdigit(arg[5])) {
+			ret = strict_strtoul(arg + 5, 10, &param);
 			if (ret || param > PARAM_MAX_STACK)
 				ret = -EINVAL;
 			else {
 				ff->func = fetch_stack;
 				ff->data = (void *)param;
 			}
+		} else
+			ret = -EINVAL;
+	} else if (strncmp(arg, "arg", 3) == 0 && isdigit(arg[3])) {
+		ret = strict_strtoul(arg + 3, 10, &param);
+		if (ret || param > PARAM_MAX_ARGS)
+			ret = -EINVAL;
+		else {
+			ff->func = fetch_argument;
+			ff->data = (void *)param;
 		}
-		break;
-	default:
+	} else
 		ret = -EINVAL;
-	}
 	return ret;
 }
 
@@ -548,10 +544,10 @@ static int create_trace_probe(int argc, char **argv)
 	 *  - Add kprobe: p[:[GRP/]EVENT] KSYM[+OFFS]|KADDR [FETCHARGS]
 	 *  - Add kretprobe: r[:[GRP/]EVENT] KSYM[+0] [FETCHARGS]
 	 * Fetch args:
-	 *  $aN	: fetch Nth of function argument. (N:0-)
-	 *  $rv	: fetch return value
-	 *  $sa	: fetch stack address
-	 *  $sN	: fetch Nth of stack (N:0-)
+	 *  $argN	: fetch Nth of function argument. (N:0-)
+	 *  $retval	: fetch return value
+	 *  $stack	: fetch stack address
+	 *  $stackN	: fetch Nth of stack (N:0-)
 	 *  @ADDR	: fetch memory at ADDR (ADDR should be in kernel)
 	 *  @SYM[+|-offs] : fetch memory at SYM +|- offs (SYM is a data symbol)
 	 *  %REG	: fetch register REG
