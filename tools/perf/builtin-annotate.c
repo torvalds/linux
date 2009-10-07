@@ -658,10 +658,10 @@ more:
 	if (dump_trace)
 		return 0;
 
-	if (verbose >= 3)
+	if (verbose > 3)
 		threads__fprintf(stdout, &threads);
 
-	if (verbose >= 2)
+	if (verbose > 2)
 		dsos__fprintf(stdout);
 
 	collapse__resort();

@@ -74,7 +74,7 @@ static struct symbol *symbol__new(u64 start, u64 len, const char *name,
 	if (!self)
 		return NULL;
 
-	if (v >= 2)
+	if (v > 2)
 		printf("new symbol: %016Lx [%08lx]: %s, hist: %p\n",
 			start, (unsigned long)len, name, self->hist);
 
@@ -685,7 +685,7 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 		}
 
 		if (self->adjust_symbols) {
-			if (v >= 2)
+			if (v > 2)
 				printf("adjusting symbol: st_value: %Lx sh_addr: %Lx sh_offset: %Lx\n",
 					(u64)sym.st_value, (u64)shdr.sh_addr, (u64)shdr.sh_offset);
 
