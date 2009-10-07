@@ -583,12 +583,11 @@ static void visor_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct visor_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irq(&priv->lock);
 	priv->throttled = 1;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irq(&priv->lock);
 }
 
 
@@ -596,17 +595,16 @@ static void visor_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct visor_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
 	int result;
 
 	dbg("%s - port %d", __func__, port->number);
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irq(&priv->lock);
 	priv->throttled = 0;
 	priv->actually_throttled = 0;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irq(&priv->lock);
 
 	port->read_urb->dev = port->serial->dev;
-	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result)
 		dev_err(&port->dev,
 			"%s - failed submitting read urb, error %d\n",
