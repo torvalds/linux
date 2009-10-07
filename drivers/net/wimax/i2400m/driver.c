@@ -128,76 +128,6 @@ struct i2400m_work *__i2400m_work_setup(
 }
 
 
-/**
- * i2400m_queue_work - schedule work on a i2400m's queue
- *
- * @i2400m: device descriptor
- *
- * @fn: function to run to execute work. It gets passed a 'struct
- *     work_struct' that is wrapped in a 'struct i2400m_work'. Once
- *     done, you have to (1) i2400m_put(i2400m_work->i2400m) and then
- *     (2) kfree(i2400m_work).
- *
- * @gfp_flags: GFP flags for memory allocation.
- *
- * @pl: pointer to a payload buffer that you want to pass to the _work
- *     function. Use this to pack (for example) a struct with extra
- *     arguments.
- *
- * @pl_size: size of the payload buffer.
- *
- * We do this quite often, so this just saves typing; allocate a
- * wrapper for a i2400m, get a ref to it, pack arguments and launch
- * the work.
- *
- * A usual workflow is:
- *
- * struct my_work_args {
- *         void *something;
- *         int whatever;
- * };
- * ...
- *
- * struct my_work_args my_args = {
- *         .something = FOO,
- *         .whaetever = BLAH
- * };
- * i2400m_queue_work(i2400m, 1, my_work_function, GFP_KERNEL,
- *                   &args, sizeof(args))
- *
- * And now the work function can unpack the arguments and call the
- * real function (or do the job itself):
- *
- * static
- * void my_work_fn((struct work_struct *ws)
- * {
- *         struct i2400m_work *iw =
- *	           container_of(ws, struct i2400m_work, ws);
- *	   struct my_work_args *my_args = (void *) iw->pl;
- *
- *	   my_work(iw->i2400m, my_args->something, my_args->whatevert);
- * }
- */
-int i2400m_queue_work(struct i2400m *i2400m,
-		      void (*fn)(struct work_struct *), gfp_t gfp_flags,
-		      const void *pl, size_t pl_size)
-{
-	int result;
-	struct i2400m_work *iw;
-
-	BUG_ON(i2400m->work_queue == NULL);
-	result = -ENOMEM;
-	iw = __i2400m_work_setup(i2400m, fn, gfp_flags, pl, pl_size);
-	if (iw != NULL) {
-		result = queue_work(i2400m->work_queue, &iw->ws);
-		if (WARN_ON(result == 0))
-			result = -ENXIO;
-	}
-	return result;
-}
-EXPORT_SYMBOL_GPL(i2400m_queue_work);
-
-
 /*
  * Schedule i2400m's specific work on the system's queue.
  *
@@ -459,6 +389,8 @@ retry:
 		goto error_bus_dev_start;
 	i2400m->ready = 1;
 	wmb();		/* see i2400m->ready's documentation  */
+	/* process pending reports from the device */
+	queue_work(i2400m->work_queue, &i2400m->rx_report_ws);
 	result = i2400m_firmware_check(i2400m);	/* fw versions ok? */
 	if (result < 0)
 		goto error_fw_check;
@@ -868,6 +800,8 @@ void i2400m_init(struct i2400m *i2400m)
 	spin_lock_init(&i2400m->rx_lock);
 	i2400m->rx_pl_min = UINT_MAX;
 	i2400m->rx_size_min = UINT_MAX;
+	INIT_LIST_HEAD(&i2400m->rx_reports);
+	INIT_WORK(&i2400m->rx_report_ws, i2400m_report_hook_work);
 
 	mutex_init(&i2400m->msg_mutex);
 	init_completion(&i2400m->msg_completion);

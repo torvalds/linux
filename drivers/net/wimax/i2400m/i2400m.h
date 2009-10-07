@@ -421,6 +421,13 @@ struct i2400m_barker_db;
  *     delivered. Then the driver can release them to the host. See
  *     drivers/net/i2400m/rx.c for details.
  *
+ * @rx_reports: reports received from the device that couldn't be
+ *     processed because the driver wasn't still ready; when ready,
+ *     they are pulled from here and chewed.
+ *
+ * @rx_reports_ws: Work struct used to kick a scan of the RX reports
+ *     list and to process each.
+ *
  * @src_mac_addr: MAC address used to make ethernet packets be coming
  *     from. This is generated at i2400m_setup() time and used during
  *     the life cycle of the instance. See i2400m_fake_eth_header().
@@ -548,6 +555,8 @@ struct i2400m {
 		rx_num, rx_size_acc, rx_size_min, rx_size_max;
 	struct i2400m_roq *rx_roq;	/* not under rx_lock! */
 	u8 src_mac_addr[ETH_HLEN];
+	struct list_head rx_reports;	/* under rx_lock! */
+	struct work_struct rx_report_ws;
 
 	struct mutex msg_mutex;		/* serialize command execution */
 	struct completion msg_completion;
@@ -830,9 +839,7 @@ struct i2400m_work {
 	size_t pl_size;
 	u8 pl[0];
 };
-extern int i2400m_queue_work(struct i2400m *,
-			     void (*)(struct work_struct *), gfp_t,
-			     const void *, size_t);
+
 extern int i2400m_schedule_work(struct i2400m *,
 				void (*)(struct work_struct *), gfp_t,
 				const void *, size_t);
@@ -847,6 +854,7 @@ extern void i2400m_msg_ack_hook(struct i2400m *,
 				const struct i2400m_l3l4_hdr *, size_t);
 extern void i2400m_report_hook(struct i2400m *,
 			       const struct i2400m_l3l4_hdr *, size_t);
+extern void i2400m_report_hook_work(struct work_struct *);
 extern int i2400m_cmd_enter_powersave(struct i2400m *);
 extern int i2400m_cmd_get_state(struct i2400m *);
 extern int i2400m_cmd_exit_idle(struct i2400m *);
