@@ -295,11 +295,11 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah)
 	 */
 	ath5k_hw_reg_write(ah,
 			   get_unaligned_le32(common->curbssid),
-			   AR_BSSMSKL);
+			   AR5K_BSS_ID0);
 	ath5k_hw_reg_write(ah,
 			   get_unaligned_le16(common->curbssid + 4) |
 			   ((common->curaid & 0x3fff) << AR5K_BSS_ID1_AID_S),
-			   AR_BSSMSKU);
+			   AR5K_BSS_ID1);
 
 	if (common->curaid == 0) {
 		ath5k_hw_disable_pspoll(ah);
