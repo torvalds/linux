@@ -576,36 +576,6 @@ struct i2400m {
 
 
 /*
- * Initialize a 'struct i2400m' from all zeroes
- *
- * This is a bus-generic API call.
- */
-static inline
-void i2400m_init(struct i2400m *i2400m)
-{
-	wimax_dev_init(&i2400m->wimax_dev);
-
-	i2400m->boot_mode = 1;
-	i2400m->rx_reorder = 1;
-	init_waitqueue_head(&i2400m->state_wq);
-
-	spin_lock_init(&i2400m->tx_lock);
-	i2400m->tx_pl_min = UINT_MAX;
-	i2400m->tx_size_min = UINT_MAX;
-
-	spin_lock_init(&i2400m->rx_lock);
-	i2400m->rx_pl_min = UINT_MAX;
-	i2400m->rx_size_min = UINT_MAX;
-
-	mutex_init(&i2400m->msg_mutex);
-	init_completion(&i2400m->msg_completion);
-
-	mutex_init(&i2400m->init_mutex);
-	/* wake_tx_ws is initialized in i2400m_tx_setup() */
-}
-
-
-/*
  * Bus-generic internal APIs
  * -------------------------
  */
@@ -737,6 +707,7 @@ unsigned i2400m_brh_get_signature(const struct i2400m_bootrom_header *hdr)
 /*
  * Driver / device setup and internal functions
  */
+extern void i2400m_init(struct i2400m *);
 extern void i2400m_netdev_setup(struct net_device *net_dev);
 extern int i2400m_sysfs_setup(struct device_driver *);
 extern void i2400m_sysfs_release(struct device_driver *);
