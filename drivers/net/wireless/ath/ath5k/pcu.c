@@ -279,7 +279,7 @@ int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
  *
  * Sets the BSSID which trigers the "SME Join" operation
  */
-void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
+void ath5k_hw_set_associd(struct ath5k_hw *ah)
 {
 	struct ath_common *common = ath5k_hw_common(ah);
 	u32 low_id, high_id;
@@ -294,13 +294,13 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
 	/*
 	 * Set BSSID which triggers the "SME Join" operation
 	 */
-	low_id = get_unaligned_le32(bssid);
-	high_id = get_unaligned_le16(bssid + 4);
+	low_id = get_unaligned_le32(common->curbssid);
+	high_id = get_unaligned_le16(common->curbssid + 4);
 	ath5k_hw_reg_write(ah, low_id, AR_BSSMSKL);
-	ath5k_hw_reg_write(ah, high_id | ((assoc_id & 0x3fff) <<
+	ath5k_hw_reg_write(ah, high_id | ((common->curaid & 0x3fff) <<
 				AR5K_BSS_ID1_AID_S), AR_BSSMSKU);
 
-	if (assoc_id == 0) {
+	if (common->curaid == 0) {
 		ath5k_hw_disable_pspoll(ah);
 		return;
 	}

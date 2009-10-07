@@ -326,7 +326,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
 	memcpy(common->curbssid, ath_bcast_mac, ETH_ALEN);
-	ath5k_hw_set_associd(ah, common->curbssid, 0);
+	ath5k_hw_set_associd(ah);
 	ath5k_hw_set_opmode(ah);
 
 	ath5k_hw_rfgain_opt_init(ah);

@@ -3213,7 +3213,7 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 		/* XXX: assoc id is set to 0 for now, mac80211 doesn't have
 		 * a clean way of letting us retrieve this yet. */
-		ath5k_hw_set_associd(ah, common->curbssid, 0);
+		ath5k_hw_set_associd(ah);
 		mmiowb();
 	}
 

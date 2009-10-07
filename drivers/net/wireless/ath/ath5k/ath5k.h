@@ -1191,7 +1191,7 @@ extern bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah);
 extern int ath5k_hw_set_opmode(struct ath5k_hw *ah);
 /* BSSID Functions */
 extern int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);
-extern void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id);
+extern void ath5k_hw_set_associd(struct ath5k_hw *ah);
 extern void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask);
 /* Receive start/stop functions */
 extern void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah);
