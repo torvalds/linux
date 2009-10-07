@@ -348,6 +348,7 @@ found:
 }
 #endif
 
+#ifdef CONFIG_ACPI_NUMA
 static int __init
 dmar_parse_one_rhsa(struct acpi_dmar_header *header)
 {
@@ -355,18 +356,26 @@ dmar_parse_one_rhsa(struct acpi_dmar_header *header)
 	struct dmar_drhd_unit *drhd;
 
 	rhsa = (struct acpi_dmar_rhsa *)header;
-	for_each_drhd_unit(drhd)
+	for_each_drhd_unit(drhd) {
 		if (drhd->reg_base_addr == rhsa->base_address) {
 			int node = acpi_map_pxm_to_node(rhsa->proximity_domain);
 
 			if (!node_online(node))
 				node = -1;
 			drhd->iommu->node = node;
-		return 0;
+			return 0;
+		}
 	}
+	WARN(1, "Your BIOS is broken; RHSA refers to non-existent DMAR unit at %llx\n"
+	     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+	     drhd->reg_base_addr,
+	     dmi_get_system_info(DMI_BIOS_VENDOR),
+	     dmi_get_system_info(DMI_BIOS_VERSION),
+	     dmi_get_system_info(DMI_PRODUCT_VERSION));
 
-	return -ENODEV;
+	return 0;
 }
+#endif
 
 static void __init
 dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
@@ -487,7 +496,9 @@ parse_dmar_table(void)
 #endif
 			break;
 		case ACPI_DMAR_HARDWARE_AFFINITY:
+#ifdef CONFIG_ACPI_NUMA
 			ret = dmar_parse_one_rhsa(entry_header);
+#endif
 			break;
 		default:
 			printk(KERN_WARNING PREFIX
