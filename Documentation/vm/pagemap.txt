@@ -57,6 +57,7 @@ There are three components to pagemap:
     16. COMPOUND_TAIL
     16. HUGE
     18. UNEVICTABLE
+    19. HWPOISON
     20. NOPAGE
 
 Short descriptions to the page flags:
@@ -85,6 +86,9 @@ Short descriptions to the page flags:
     only huge/giga pages are made visible to end users.
 17. HUGE
     this is an integral part of a HugeTLB page
+
+19. HWPOISON
+    hardware detected memory corruption on this page: don't touch the data!
 
 20. NOPAGE
     no page frame exists at the requested address
