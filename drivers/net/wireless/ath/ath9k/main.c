@@ -1313,16 +1313,21 @@ static void ath_start_rfkill_poll(struct ath_softc *sc)
 		wiphy_rfkill_start_polling(sc->hw->wiphy);
 }
 
+static void ath_clean_core(struct ath_softc *sc);
+static void ath9k_uninit_hw(struct ath_softc *sc);
+
 void ath_cleanup(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	ath_detach(sc);
+	ath_clean_core(sc);
 	free_irq(sc->irq, sc);
 	ath_bus_cleanup(common);
 	kfree(sc->sec_wiphy);
 	ieee80211_free_hw(sc->hw);
+
+	ath9k_uninit_hw(sc);
 }
 
 static void ath9k_uninit_hw(struct ath_softc *sc)
@@ -1336,7 +1341,7 @@ static void ath9k_uninit_hw(struct ath_softc *sc)
 	sc->sc_ah = NULL;
 }
 
-void ath_detach(struct ath_softc *sc)
+static void ath_clean_core(struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
 	struct ath_hw *ah = sc->sc_ah;
@@ -1375,7 +1380,11 @@ void ath_detach(struct ath_softc *sc)
 	if ((sc->btcoex.no_stomp_timer) &&
 	    ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 		ath_gen_timer_free(ah, sc->btcoex.no_stomp_timer);
+}
 
+void ath_detach(struct ath_softc *sc)
+{
+	ath_clean_core(sc);
 	ath9k_uninit_hw(sc);
 }
 
