@@ -85,18 +85,26 @@ static DECLARE_WAIT_QUEUE_HEAD(mce_wait);
 static DEFINE_PER_CPU(struct mce, mces_seen);
 static int			cpu_missing;
 
-static void default_decode_mce(struct mce *m)
+/*
+ * CPU/chipset specific EDAC code can register a notifier call here to print
+ * MCE errors in a human-readable form.
+ */
+ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
+EXPORT_SYMBOL_GPL(x86_mce_decoder_chain);
+
+static int default_decode_mce(struct notifier_block *nb, unsigned long val,
+			       void *data)
 {
 	pr_emerg("No human readable MCE decoding support on this CPU type.\n");
 	pr_emerg("Run the message through 'mcelog --ascii' to decode.\n");
+
+	return NOTIFY_STOP;
 }
 
-/*
- * CPU/chipset specific EDAC code can register a callback here to print
- * MCE errors in a human-readable form:
- */
-void (*x86_mce_decode_callback)(struct mce *m) = default_decode_mce;
-EXPORT_SYMBOL(x86_mce_decode_callback);
+static struct notifier_block mce_dec_nb = {
+	.notifier_call = default_decode_mce,
+	.priority      = -1,
+};
 
 /* MCA banks polled by the period polling timer for corrected events */
 DEFINE_PER_CPU(mce_banks_t, mce_poll_banks) = {
@@ -204,9 +212,9 @@ static void print_mce(struct mce *m)
 
 	/*
 	 * Print out human-readable details about the MCE error,
-	 * (if the CPU has an implementation for that):
+	 * (if the CPU has an implementation for that)
 	 */
-	x86_mce_decode_callback(m);
+	atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, m);
 }
 
 static void print_mce_head(void)
@@ -1420,6 +1428,9 @@ void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 	mce_cpu_features(c);
 	mce_init_timer();
 	INIT_WORK(&__get_cpu_var(mce_work), mce_process_work);
+
+	if (raw_smp_processor_id() == 0)
+		atomic_notifier_chain_register(&x86_mce_decoder_chain, &mce_dec_nb);
 }
 
 /*
