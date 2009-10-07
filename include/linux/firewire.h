@@ -20,20 +20,6 @@
 #define fw_notify(s, args...) printk(KERN_NOTICE KBUILD_MODNAME ": " s, ## args)
 #define fw_error(s, args...) printk(KERN_ERR KBUILD_MODNAME ": " s, ## args)
 
-static inline void fw_memcpy_from_be32(void *_dst, void *_src, size_t size)
-{
-	u32    *dst = _dst;
-	__be32 *src = _src;
-	int i;
-
-	for (i = 0; i < size / 4; i++)
-		dst[i] = be32_to_cpu(src[i]);
-}
-
-static inline void fw_memcpy_to_be32(void *_dst, void *_src, size_t size)
-{
-	fw_memcpy_from_be32(_dst, _src, size);
-}
 #define CSR_REGISTER_BASE		0xfffff0000000ULL
 
 /* register offsets are relative to CSR_REGISTER_BASE */
