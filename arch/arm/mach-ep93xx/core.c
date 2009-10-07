@@ -550,13 +550,11 @@ void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 	platform_device_register(&ep93xx_eth_device);
 }
 
-static struct i2c_gpio_platform_data ep93xx_i2c_data = {
-	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
-	.sda_is_open_drain	= 0,
-	.scl_pin		= EP93XX_GPIO_LINE_EECLK,
-	.scl_is_open_drain	= 0,
-	.udelay			= 2,
-};
+
+/*************************************************************************
+ * EP93xx i2c peripheral handling
+ *************************************************************************/
+static struct i2c_gpio_platform_data ep93xx_i2c_data;
 
 static struct platform_device ep93xx_i2c_device = {
 	.name			= "i2c-gpio",
@@ -564,8 +562,25 @@ static struct platform_device ep93xx_i2c_device = {
 	.dev.platform_data	= &ep93xx_i2c_data,
 };
 
-void __init ep93xx_register_i2c(struct i2c_board_info *devices, int num)
+void __init ep93xx_register_i2c(struct i2c_gpio_platform_data *data,
+				struct i2c_board_info *devices, int num)
 {
+	/*
+	 * Set the EEPROM interface pin drive type control.
+	 * Defines the driver type for the EECLK and EEDAT pins as either
+	 * open drain, which will require an external pull-up, or a normal
+	 * CMOS driver.
+	 */
+	if (data->sda_is_open_drain && data->sda_pin != EP93XX_GPIO_LINE_EEDAT)
+		pr_warning("ep93xx: sda != EEDAT, open drain has no effect\n");
+	if (data->scl_is_open_drain && data->scl_pin != EP93XX_GPIO_LINE_EECLK)
+		pr_warning("ep93xx: scl != EECLK, open drain has no effect\n");
+
+	__raw_writel((data->sda_is_open_drain << 1) |
+		     (data->scl_is_open_drain << 0),
+		     EP93XX_GPIO_EEDRIVE);
+
+	ep93xx_i2c_data = *data;
 	i2c_register_board_info(0, devices, num);
 	platform_device_register(&ep93xx_i2c_device);
 }
