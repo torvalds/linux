@@ -281,6 +281,9 @@ struct i2400m_barker_db;
  *     process, so it cannot rely on common infrastructure being laid
  *     out.
  *
+ *     IMPORTANT: don't call reset on RT_BUS with i2400m->init_mutex
+ *     held, as the .pre/.post reset handlers will deadlock.
+ *
  * @bus_bm_retries: [fill] How many times shall a firmware upload /
  *     device initialization be retried? Different models of the same
  *     device might need different values, hence it is set by the

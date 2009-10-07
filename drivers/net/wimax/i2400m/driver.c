@@ -765,9 +765,7 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 		wmb();		/* see i2400m->updown's documentation  */
 		dev_err(dev, "%s: cannot start the device: %d\n",
 			reason, result);
-		result = i2400m->bus_reset(i2400m, I2400M_RT_BUS);
-		if (result >= 0)
-			result = -ENODEV;
+		result = -EUCLEAN;
 	}
 out_unlock:
 	if (i2400m->reset_ctx) {
@@ -775,6 +773,12 @@ out_unlock:
 		complete(&ctx->completion);
 	}
 	mutex_unlock(&i2400m->init_mutex);
+	if (result == -EUCLEAN) {
+		/* ops, need to clean up [w/ init_mutex not held] */
+		result = i2400m->bus_reset(i2400m, I2400M_RT_BUS);
+		if (result >= 0)
+			result = -ENODEV;
+	}
 out:
 	i2400m_put(i2400m);
 	kfree(iw);

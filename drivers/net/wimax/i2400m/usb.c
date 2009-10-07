@@ -254,7 +254,6 @@ int i2400mu_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
 			sizeof(i2400m_COLD_BOOT_BARKER),
 			i2400mu->endpoint_cfg.reset_cold);
 	else if (rt == I2400M_RT_BUS) {
-do_bus_reset:
 		result = usb_reset_device(i2400mu->usb_dev);
 		switch (result) {
 		case 0:
@@ -262,7 +261,7 @@ do_bus_reset:
 		case -ENODEV:
 		case -ENOENT:
 		case -ESHUTDOWN:
-			result = rt == I2400M_RT_WARM ? -ENODEV : 0;
+			result = 0;
 			break;	/* We assume the device is disconnected */
 		default:
 			dev_err(dev, "USB reset failed (%d), giving up!\n",
@@ -275,10 +274,17 @@ do_bus_reset:
 	if (result < 0
 	    && result != -EINVAL	/* device is gone */
 	    && rt != I2400M_RT_BUS) {
+		/*
+		 * Things failed -- resort to lower level reset, that
+		 * we queue in another context; the reason for this is
+		 * that the pre and post reset functionality requires
+		 * the i2400m->init_mutex; RT_WARM and RT_COLD can
+		 * come from areas where i2400m->init_mutex is taken.
+		 */
 		dev_err(dev, "%s reset failed (%d); trying USB reset\n",
 			rt == I2400M_RT_WARM ? "warm" : "cold", result);
-		rt = I2400M_RT_BUS;
-		goto do_bus_reset;
+		usb_queue_reset_device(i2400mu->usb_iface);
+		result = -ENODEV;
 	}
 	d_fnend(3, dev, "(i2400m %p rt %u) = %d\n", i2400m, rt, result);
 	return result;
