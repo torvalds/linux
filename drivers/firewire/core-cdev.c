@@ -698,6 +698,7 @@ static int ioctl_send_response(struct client *client, void *buffer)
 	struct fw_cdev_send_response *request = buffer;
 	struct client_resource *resource;
 	struct inbound_transaction_resource *r;
+	int ret = 0;
 
 	if (release_client_resource(client, request->handle,
 				    release_request, &resource) < 0)
@@ -707,13 +708,17 @@ static int ioctl_send_response(struct client *client, void *buffer)
 			 resource);
 	if (request->length < r->length)
 		r->length = request->length;
-	if (copy_from_user(r->data, u64_to_uptr(request->data), r->length))
-		return -EFAULT;
+
+	if (copy_from_user(r->data, u64_to_uptr(request->data), r->length)) {
+		ret = -EFAULT;
+		goto out;
+	}
 
 	fw_send_response(client->device->card, r->request, request->rcode);
+ out:
 	kfree(r);
 
-	return 0;
+	return ret;
 }
 
 static int ioctl_initiate_bus_reset(struct client *client, void *buffer)
