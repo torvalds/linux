@@ -11,6 +11,7 @@
 #include "util/trace-event.h"
 
 #include "util/debug.h"
+#include "util/data_map.h"
 
 #include <sys/types.h>
 #include <sys/prctl.h>
@@ -20,9 +21,6 @@
 #include <math.h>
 
 static char			const *input_name = "perf.data";
-static int			input;
-static unsigned long		page_size;
-static unsigned long		mmap_window = 32;
 
 static unsigned long		total_comm = 0;
 
@@ -34,6 +32,9 @@ static u64			sample_type;
 
 static char			default_sort_order[] = "avg, max, switch, runtime";
 static char			*sort_order = default_sort_order;
+
+static char			*cwd;
+static int			cwdlen;
 
 #define PR_SET_NAME		15               /* Set process name */
 #define MAX_CPUS		4096
@@ -1594,129 +1595,43 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-process_event(event_t *event, unsigned long offset, unsigned long head)
+process_lost_event(event_t *event __used,
+		   unsigned long offset __used,
+		   unsigned long head __used)
 {
-	trace_event(event);
+	nr_lost_chunks++;
+	nr_lost_events += event->lost.lost;
 
-	nr_events++;
-	switch (event->header.type) {
-	case PERF_RECORD_MMAP:
-		return 0;
-	case PERF_RECORD_LOST:
-		nr_lost_chunks++;
-		nr_lost_events += event->lost.lost;
-		return 0;
+	return 0;
+}
 
-	case PERF_RECORD_COMM:
-		return process_comm_event(event, offset, head);
+static int sample_type_check(u64 type)
+{
+	sample_type = type;
 
-	case PERF_RECORD_EXIT ... PERF_RECORD_READ:
-		return 0;
-
-	case PERF_RECORD_SAMPLE:
-		return process_sample_event(event, offset, head);
-
-	case PERF_RECORD_MAX:
-	default:
+	if (!(sample_type & PERF_SAMPLE_RAW)) {
+		fprintf(stderr,
+			"No trace sample to read. Did you call perf record "
+			"without -R?");
 		return -1;
 	}
 
 	return 0;
 }
 
+static struct perf_file_handler file_handler = {
+	.process_sample_event	= process_sample_event,
+	.process_comm_event	= process_comm_event,
+	.process_lost_event	= process_lost_event,
+	.sample_type_check	= sample_type_check,
+};
+
 static int read_events(void)
 {
-	int ret, rc = EXIT_FAILURE;
-	unsigned long offset = 0;
-	unsigned long head = 0;
-	struct stat perf_stat;
-	event_t *event;
-	uint32_t size;
-	char *buf;
-
 	register_idle_thread(&threads, &last_match);
+	register_perf_file_handler(&file_handler);
 
-	input = open(input_name, O_RDONLY);
-	if (input < 0) {
-		perror("failed to open file");
-		exit(-1);
-	}
-
-	ret = fstat(input, &perf_stat);
-	if (ret < 0) {
-		perror("failed to stat file");
-		exit(-1);
-	}
-
-	if (!perf_stat.st_size) {
-		fprintf(stderr, "zero-sized file, nothing to do!\n");
-		exit(0);
-	}
-	header = perf_header__read(input);
-	head = header->data_offset;
-	sample_type = perf_header__sample_type(header);
-
-	if (!(sample_type & PERF_SAMPLE_RAW))
-		die("No trace sample to read. Did you call perf record "
-		    "without -R?");
-
-	if (load_kernel() < 0) {
-		perror("failed to load kernel symbols");
-		return EXIT_FAILURE;
-	}
-
-remap:
-	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
-			   MAP_SHARED, input, offset);
-	if (buf == MAP_FAILED) {
-		perror("failed to mmap file");
-		exit(-1);
-	}
-
-more:
-	event = (event_t *)(buf + head);
-
-	size = event->header.size;
-	if (!size)
-		size = 8;
-
-	if (head + event->header.size >= page_size * mmap_window) {
-		unsigned long shift = page_size * (head / page_size);
-		int res;
-
-		res = munmap(buf, page_size * mmap_window);
-		assert(res == 0);
-
-		offset += shift;
-		head -= shift;
-		goto remap;
-	}
-
-	size = event->header.size;
-
-
-	if (!size || process_event(event, offset, head) < 0) {
-
-		/*
-		 * assume we lost track of the stream, check alignment, and
-		 * increment a single u64 in the hope to catch on again 'soon'.
-		 */
-
-		if (unlikely(head & 7))
-			head &= ~7ULL;
-
-		size = 8;
-	}
-
-	head += size;
-
-	if (offset + head < (unsigned long)perf_stat.st_size)
-		goto more;
-
-	rc = EXIT_SUCCESS;
-	close(input);
-
-	return rc;
+	return mmap_dispatch_perf_file(&header, input_name, 0, 0, &cwdlen, &cwd);
 }
 
 static void print_bad_events(void)
@@ -1934,7 +1849,6 @@ static int __cmd_record(int argc, const char **argv)
 int cmd_sched(int argc, const char **argv, const char *prefix __used)
 {
 	symbol__init();
-	page_size = getpagesize();
 
 	argc = parse_options(argc, argv, sched_options, sched_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
