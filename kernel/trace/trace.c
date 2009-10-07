@@ -86,17 +86,17 @@ static int dummy_set_flag(u32 old_flags, u32 bit, int set)
  */
 static int tracing_disabled = 1;
 
-DEFINE_PER_CPU(local_t, ftrace_cpu_disabled);
+DEFINE_PER_CPU(int, ftrace_cpu_disabled);
 
 static inline void ftrace_disable_cpu(void)
 {
 	preempt_disable();
-	local_inc(&__get_cpu_var(ftrace_cpu_disabled));
+	__this_cpu_inc(per_cpu_var(ftrace_cpu_disabled));
 }
 
 static inline void ftrace_enable_cpu(void)
 {
-	local_dec(&__get_cpu_var(ftrace_cpu_disabled));
+	__this_cpu_dec(per_cpu_var(ftrace_cpu_disabled));
 	preempt_enable();
 }
 
@@ -1085,7 +1085,7 @@ trace_function(struct trace_array *tr,
 	struct ftrace_entry *entry;
 
 	/* If we are reading the ring buffer, don't trace */
-	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
+	if (unlikely(__this_cpu_read(per_cpu_var(ftrace_cpu_disabled))))
 		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
