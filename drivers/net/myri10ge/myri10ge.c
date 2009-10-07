@@ -207,7 +207,6 @@ struct myri10ge_priv {
 	int big_bytes;
 	int max_intr_slots;
 	struct net_device *dev;
-	struct net_device_stats stats;
 	spinlock_t stats_lock;
 	u8 __iomem *sram;
 	int sram_size;
@@ -1821,7 +1820,7 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	/* force stats update */
 	(void)myri10ge_get_stats(netdev);
 	for (i = 0; i < MYRI10GE_NET_STATS_LEN; i++)
-		data[i] = ((unsigned long *)&mgp->stats)[i];
+		data[i] = ((unsigned long *)&netdev->stats)[i];
 
 	data[i++] = (unsigned int)mgp->tx_boundary;
 	data[i++] = (unsigned int)mgp->wc_enabled;
@@ -2991,7 +2990,7 @@ static struct net_device_stats *myri10ge_get_stats(struct net_device *dev)
 {
 	struct myri10ge_priv *mgp = netdev_priv(dev);
 	struct myri10ge_slice_netstats *slice_stats;
-	struct net_device_stats *stats = &mgp->stats;
+	struct net_device_stats *stats = &dev->stats;
 	int i;
 
 	spin_lock(&mgp->stats_lock);
