@@ -244,7 +244,15 @@ struct rcu_state {
 	/* End  of fields guarded by root rcu_node's lock. */
 
 	spinlock_t onofflock;			/* exclude on/offline and */
-						/*  starting new GP. */
+						/*  starting new GP.  Also */
+						/*  protects the following */
+						/*  orphan_cbs fields. */
+	struct rcu_head *orphan_cbs_list;	/* list of rcu_head structs */
+						/*  orphaned by all CPUs in */
+						/*  a given leaf rcu_node */
+						/*  going offline. */
+	struct rcu_head **orphan_cbs_tail;	/* And tail pointer. */
+	long orphan_qlen;			/* Number of orphaned cbs. */
 	spinlock_t fqslock;			/* Only one task forcing */
 						/*  quiescent states. */
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
@@ -305,6 +313,7 @@ void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
 static int rcu_preempt_pending(int cpu);
 static int rcu_preempt_needs_cpu(int cpu);
 static void __cpuinit rcu_preempt_init_percpu_data(int cpu);
+static void rcu_preempt_send_cbs_to_orphanage(void);
 static void __init __rcu_init_preempt(void);
 
 #endif /* #else #ifdef RCU_TREE_NONCORE */

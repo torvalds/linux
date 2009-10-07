@@ -410,12 +410,29 @@ static int rcu_preempt_needs_cpu(int cpu)
 	return !!per_cpu(rcu_preempt_data, cpu).nxtlist;
 }
 
+/**
+ * rcu_barrier - Wait until all in-flight call_rcu() callbacks complete.
+ */
+void rcu_barrier(void)
+{
+	_rcu_barrier(&rcu_preempt_state, call_rcu);
+}
+EXPORT_SYMBOL_GPL(rcu_barrier);
+
 /*
  * Initialize preemptable RCU's per-CPU data.
  */
 static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
 {
 	rcu_init_percpu_data(cpu, &rcu_preempt_state, 1);
+}
+
+/*
+ * Move preemptable RCU's callbacks to ->orphan_cbs_list.
+ */
+static void rcu_preempt_send_cbs_to_orphanage(void)
+{
+	rcu_send_cbs_to_orphanage(&rcu_preempt_state);
 }
 
 /*
@@ -564,10 +581,27 @@ static int rcu_preempt_needs_cpu(int cpu)
 }
 
 /*
+ * Because preemptable RCU does not exist, rcu_barrier() is just
+ * another name for rcu_barrier_sched().
+ */
+void rcu_barrier(void)
+{
+	rcu_barrier_sched();
+}
+EXPORT_SYMBOL_GPL(rcu_barrier);
+
+/*
  * Because preemptable RCU does not exist, there is no per-CPU
  * data to initialize.
  */
 static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
+{
+}
+
+/*
+ * Because there is no preemptable RCU, there are no callbacks to move.
+ */
+static void rcu_preempt_send_cbs_to_orphanage(void)
 {
 }
 
