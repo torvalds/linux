@@ -553,8 +553,13 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 {
 	struct pcf50633 *pcf;
 	struct pcf50633_platform_data *pdata = client->dev.platform_data;
-	int i, ret = 0;
+	int i, ret;
 	int version, variant;
+
+	if (!client->irq) {
+		dev_err(&client->dev, "Missing IRQ\n");
+		return -ENOENT;
+	}
 
 	pcf = kzalloc(sizeof(*pcf), GFP_KERNEL);
 	if (!pcf)
@@ -570,6 +575,12 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	pcf->irq = client->irq;
 	pcf->work_queue = create_singlethread_workqueue("pcf50633");
 
+	if (!pcf->work_queue) {
+		dev_err(&client->dev, "Failed to alloc workqueue\n");
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
 	INIT_WORK(&pcf->irq_work, pcf50633_irq_worker);
 
 	version = pcf50633_reg_read(pcf, 0);
@@ -577,7 +588,7 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	if (version < 0 || variant < 0) {
 		dev_err(pcf->dev, "Unable to probe pcf50633\n");
 		ret = -ENODEV;
-		goto err;
+		goto err_destroy_workqueue;
 	}
 
 	dev_info(pcf->dev, "Probed device version %d variant %d\n",
@@ -590,6 +601,14 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	pcf50633_reg_write(pcf, PCF50633_REG_INT3M, 0x00);
 	pcf50633_reg_write(pcf, PCF50633_REG_INT4M, 0x00);
 	pcf50633_reg_write(pcf, PCF50633_REG_INT5M, 0x00);
+
+	ret = request_irq(client->irq, pcf50633_irq,
+					IRQF_TRIGGER_LOW, "pcf50633", pcf);
+
+	if (ret) {
+		dev_err(pcf->dev, "Failed to request IRQ %d\n", ret);
+		goto err_destroy_workqueue;
+	}
 
 	/* Create sub devices */
 	pcf50633_client_dev_register(pcf, "pcf50633-input",
@@ -606,7 +625,7 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 
 		pdev = platform_device_alloc("pcf50633-regltr", i);
 		if (!pdev) {
-			dev_err(pcf->dev, "Cannot create regulator\n");
+			dev_err(pcf->dev, "Cannot create regulator %d\n", i);
 			continue;
 		}
 
@@ -616,19 +635,6 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 		pcf->regulator_pdev[i] = pdev;
 
 		platform_device_add(pdev);
-	}
-
-	if (client->irq) {
-		ret = request_irq(client->irq, pcf50633_irq,
-				IRQF_TRIGGER_LOW, "pcf50633", pcf);
-
-		if (ret) {
-			dev_err(pcf->dev, "Failed to request IRQ %d\n", ret);
-			goto err;
-		}
-	} else {
-		dev_err(pcf->dev, "No IRQ configured\n");
-		goto err;
 	}
 
 	if (enable_irq_wake(client->irq) < 0)
@@ -644,9 +650,12 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 
 	return 0;
 
-err:
+err_destroy_workqueue:
 	destroy_workqueue(pcf->work_queue);
+err_free:
+	i2c_set_clientdata(client, NULL);
 	kfree(pcf);
+
 	return ret;
 }
 
