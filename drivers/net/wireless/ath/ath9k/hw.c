@@ -999,6 +999,8 @@ int ath9k_hw_init(struct ath_hw *ah)
 
 	ath9k_init_nfcal_hist_buffer(ah);
 
+	common->state = ATH_HW_INITIALIZED;
+
 	return 0;
 }
 
@@ -1239,11 +1241,18 @@ const char *ath9k_hw_probe(u16 vendorid, u16 devid)
 
 void ath9k_hw_detach(struct ath_hw *ah)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (common->state <= ATH_HW_INITIALIZED)
+		goto free_hw;
+
 	if (!AR_SREV_9100(ah))
 		ath9k_hw_ani_disable(ah);
 
-	ath9k_hw_rf_free(ah);
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
+
+free_hw:
+	ath9k_hw_rf_free(ah);
 	kfree(ah);
 	ah = NULL;
 }

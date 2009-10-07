@@ -1365,8 +1365,8 @@ void ath_detach(struct ath_softc *sc)
 	    ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 		ath_gen_timer_free(ah, sc->btcoex.no_stomp_timer);
 
-	ath9k_hw_detach(ah);
 	ath9k_exit_debug(ah);
+	ath9k_hw_detach(ah);
 	sc->sc_ah = NULL;
 }
 
@@ -1626,10 +1626,8 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 		     (unsigned long)sc);
 
 	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
-	if (!ah) {
-		r = -ENOMEM;
-		goto bad_no_ah;
-	}
+	if (!ah)
+		return -ENOMEM;
 
 	ah->hw_version.devid = devid;
 	ah->hw_version.subsysid = subsysid;
@@ -1651,15 +1649,18 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	/* XXX assert csz is non-zero */
 	common->cachelsz = csz << 2;	/* convert to bytes */
 
-	if (ath9k_init_debug(ah) < 0)
-		dev_err(sc->dev, "Unable to create debugfs files\n");
-
 	r = ath9k_hw_init(ah);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to initialize hardware; "
 			  "initialization status: %d\n", r);
-		goto bad;
+		goto bad_free_hw;
+	}
+
+	if (ath9k_init_debug(ah) < 0) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to create debugfs files\n");
+		goto bad_free_hw;
 	}
 
 	/* Get the hardware key cache size. */
@@ -1848,12 +1849,11 @@ bad2:
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
-bad:
-	ath9k_hw_detach(ah);
-bad_no_ah:
-	ath9k_exit_debug(sc->sc_ah);
-	sc->sc_ah = NULL;
 
+	ath9k_exit_debug(ah);
+bad_free_hw:
+	ath9k_hw_detach(ah);
+	sc->sc_ah = NULL;
 	return r;
 }
 
@@ -1966,8 +1966,8 @@ error_attach:
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
-	ath9k_hw_detach(ah);
 	ath9k_exit_debug(ah);
+	ath9k_hw_detach(ah);
 	sc->sc_ah = NULL;
 
 	return error;
