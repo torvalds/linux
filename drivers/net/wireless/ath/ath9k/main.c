@@ -29,6 +29,10 @@ static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 
+static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
+module_param_named(debug, ath9k_debug, uint, 0);
+MODULE_PARM_DESC(ath9k_debug, "Debugging mask");
+
 /* We use the hw_value as an index into our private channel structure */
 
 #define CHAN2G(_freq, _idx)  { \
@@ -1637,6 +1641,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	common->ah = ah;
 	common->hw = sc->hw;
 	common->priv = sc;
+	common->debug_mask = ath9k_debug;
 
 	/*
 	 * Cache line size is used to size and align various

@@ -23,9 +23,6 @@
 #define REG_READ_D(_ah, _reg) \
 	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
-static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
-module_param_named(debug, ath9k_debug, uint, 0);
-
 static struct dentry *ath9k_debugfs_root;
 
 static int ath9k_debugfs_open(struct inode *inode, struct file *file)
@@ -564,8 +561,6 @@ int ath9k_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
-
-	common->debug_mask = ath9k_debug;
 
 	if (!ath9k_debugfs_root)
 		return -ENOENT;
