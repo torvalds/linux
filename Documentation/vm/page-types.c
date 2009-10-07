@@ -214,6 +214,18 @@ static void fatal(const char *x, ...)
 	exit(EXIT_FAILURE);
 }
 
+int checked_open(const char *pathname, int flags)
+{
+	int fd = open(pathname, flags);
+
+	if (fd < 0) {
+		perror(pathname);
+		exit(EXIT_FAILURE);
+	}
+
+	return fd;
+}
+
 
 /*
  * page flag names
@@ -534,11 +546,7 @@ static void walk_addr_ranges(void)
 {
 	int i;
 
-	kpageflags_fd = open(PROC_KPAGEFLAGS, O_RDONLY);
-	if (kpageflags_fd < 0) {
-		perror(PROC_KPAGEFLAGS);
-		exit(EXIT_FAILURE);
-	}
+	kpageflags_fd = checked_open(PROC_KPAGEFLAGS, O_RDONLY);
 
 	if (!nr_addr_ranges)
 		add_addr_range(0, ULONG_MAX);
@@ -631,11 +639,7 @@ static void parse_pid(const char *str)
 	opt_pid = parse_number(str);
 
 	sprintf(buf, "/proc/%d/pagemap", opt_pid);
-	pagemap_fd = open(buf, O_RDONLY);
-	if (pagemap_fd < 0) {
-		perror(buf);
-		exit(EXIT_FAILURE);
-	}
+	pagemap_fd = checked_open(buf, O_RDONLY);
 
 	sprintf(buf, "/proc/%d/maps", opt_pid);
 	file = fopen(buf, "r");
