@@ -508,7 +508,7 @@ static irqreturn_t ethoc_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	ethoc_ack_irq(priv, INT_MASK_ALL);
+	ethoc_ack_irq(priv, pending);
 
 	if (pending & INT_MASK_BUSY) {
 		dev_err(&dev->dev, "packet dropped\n");
