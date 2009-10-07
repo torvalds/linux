@@ -1720,7 +1720,7 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 /*
  * While swap-in, try_charge -> commit or cancel, the page is locked.
  * And when try_charge() successfully returns, one refcnt to memcg without
- * struct page_cgroup is aquired. This refcnt will be cumsumed by
+ * struct page_cgroup is acquired. This refcnt will be consumed by
  * "commit()" or removed by "cancel()"
  */
 int mem_cgroup_try_charge_swapin(struct mm_struct *mm,

@@ -199,7 +199,7 @@ struct gelic_eurus_rssi_info {
 /* for 'stat' member of gelic_wl_info */
 enum gelic_wl_info_status_bit {
 	GELIC_WL_STAT_CONFIGURED,
-	GELIC_WL_STAT_CH_INFO,   /* ch info aquired */
+	GELIC_WL_STAT_CH_INFO,   /* ch info acquired */
 	GELIC_WL_STAT_ESSID_SET, /* ESSID specified by userspace */
 	GELIC_WL_STAT_BSSID_SET, /* BSSID specified by userspace */
 	GELIC_WL_STAT_WPA_PSK_SET, /* PMK specified by userspace */

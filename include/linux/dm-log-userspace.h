@@ -363,7 +363,7 @@
  * various request types above.  The remaining 24-bits are currently
  * set to zero and are reserved for future use and compatibility concerns.
  *
- * User-space should always use DM_ULOG_REQUEST_TYPE to aquire the
+ * User-space should always use DM_ULOG_REQUEST_TYPE to acquire the
  * request type from the 'request_type' field to maintain forward compatibility.
  */
 #define DM_ULOG_REQUEST_MASK 0xFF
