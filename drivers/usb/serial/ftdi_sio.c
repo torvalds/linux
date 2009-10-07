@@ -2008,38 +2008,13 @@ static int ftdi_chars_in_buffer(struct tty_struct *tty)
 static void ftdi_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty;
 	struct ftdi_private *priv;
 	int status = urb->status;
-
-	if (urb->number_of_packets > 0) {
-		dev_err(&port->dev, "%s transfer_buffer_length %d "
-			"actual_length %d number of packets %d\n", __func__,
-			urb->transfer_buffer_length,
-			urb->actual_length, urb->number_of_packets);
-		dev_err(&port->dev, "%s transfer_flags %x\n", __func__,
-			urb->transfer_flags);
-	}
 
 	dbg("%s - port %d", __func__, port->number);
 
 	if (port->port.count <= 0)
 		return;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty) {
-		dbg("%s - bad tty pointer - exiting", __func__);
-		return;
-	}
-
-	priv = usb_get_serial_port_data(port);
-	if (!priv) {
-		dbg("%s - bad port private data pointer - exiting", __func__);
-		goto out;
-	}
-
-	if (urb != port->read_urb)
-		dev_err(&port->dev, "%s - Not my urb!\n", __func__);
 
 	if (status) {
 		/* This will happen at close every time so it is a dbg not an
@@ -2048,9 +2023,8 @@ static void ftdi_read_bulk_callback(struct urb *urb)
 		goto out;
 	}
 
+	priv = usb_get_serial_port_data(port);
 	ftdi_process_read(&priv->rx_work.work);
-out:
-	tty_kref_put(tty);
 } /* ftdi_read_bulk_callback */
 
 
