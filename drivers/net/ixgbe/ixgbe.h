@@ -340,7 +340,6 @@ struct ixgbe_adapter {
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
 
 	u32 test_icr;
 	struct ixgbe_ring test_tx_ring;

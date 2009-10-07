@@ -372,8 +372,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	tx_ring->total_packets += total_packets;
 	tx_ring->stats.packets += total_packets;
 	tx_ring->stats.bytes += total_bytes;
-	adapter->net_stats.tx_bytes += total_bytes;
-	adapter->net_stats.tx_packets += total_packets;
+	netdev->stats.tx_bytes += total_bytes;
+	netdev->stats.tx_packets += total_packets;
 	return (count < tx_ring->work_limit);
 }
 
@@ -709,6 +709,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
                                int *work_done, int work_to_do)
 {
 	struct ixgbe_adapter *adapter = q_vector->adapter;
+	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	union ixgbe_adv_rx_desc *rx_desc, *next_rxd;
 	struct ixgbe_rx_buffer *rx_buffer_info, *next_buffer;
@@ -880,8 +881,8 @@ next_desc:
 
 	rx_ring->total_packets += total_rx_packets;
 	rx_ring->total_bytes += total_rx_bytes;
-	adapter->net_stats.rx_bytes += total_rx_bytes;
-	adapter->net_stats.rx_packets += total_rx_packets;
+	netdev->stats.rx_bytes += total_rx_bytes;
+	netdev->stats.rx_packets += total_rx_packets;
 
 	return cleaned;
 }
@@ -4403,6 +4404,7 @@ static void ixgbe_shutdown(struct pci_dev *pdev)
  **/
 void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u64 total_mpc = 0;
 	u32 i, missed_rx = 0, mpc, bprc, lxon, lxoff, xon_off_tot;
@@ -4522,15 +4524,15 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 	adapter->stats.bptc += IXGBE_READ_REG(hw, IXGBE_BPTC);
 
 	/* Fill out the OS statistics structure */
-	adapter->net_stats.multicast = adapter->stats.mprc;
+	netdev->stats.multicast = adapter->stats.mprc;
 
 	/* Rx Errors */
-	adapter->net_stats.rx_errors = adapter->stats.crcerrs +
+	netdev->stats.rx_errors = adapter->stats.crcerrs +
 	                               adapter->stats.rlec;
-	adapter->net_stats.rx_dropped = 0;
-	adapter->net_stats.rx_length_errors = adapter->stats.rlec;
-	adapter->net_stats.rx_crc_errors = adapter->stats.crcerrs;
-	adapter->net_stats.rx_missed_errors = total_mpc;
+	netdev->stats.rx_dropped = 0;
+	netdev->stats.rx_length_errors = adapter->stats.rlec;
+	netdev->stats.rx_crc_errors = adapter->stats.crcerrs;
+	netdev->stats.rx_missed_errors = total_mpc;
 }
 
 /**
@@ -5300,10 +5302,8 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
  **/
 static struct net_device_stats *ixgbe_get_stats(struct net_device *netdev)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
 	/* only return the current stats */
-	return &adapter->net_stats;
+	return &netdev->stats;
 }
 
 /**
