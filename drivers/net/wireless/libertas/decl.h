@@ -34,7 +34,6 @@ int lbs_process_event(struct lbs_private *priv, u32 event);
 void lbs_queue_event(struct lbs_private *priv, u32 event);
 void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx);
 int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep);
-int lbs_is_cmd_allowed(struct lbs_private *priv);
 int lbs_enter_auto_deep_sleep(struct lbs_private *priv);
 int lbs_exit_auto_deep_sleep(struct lbs_private *priv);
 

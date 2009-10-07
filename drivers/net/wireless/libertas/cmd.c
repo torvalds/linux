@@ -75,6 +75,30 @@ static u8 is_command_allowed_in_ps(u16 cmd)
 }
 
 /**
+ *  @brief This function checks if the command is allowed.
+ *
+ *  @param priv         A pointer to lbs_private structure
+ *  @return             allowed or not allowed.
+ */
+
+static int lbs_is_cmd_allowed(struct lbs_private *priv)
+{
+	int ret = 1;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	if (!priv->is_auto_deep_sleep_enabled) {
+		if (priv->is_deep_sleep) {
+			lbs_deb_cmd("command not allowed in deep sleep\n");
+			ret = 0;
+		}
+	}
+
+	lbs_deb_leave(LBS_DEB_CMD);
+	return ret;
+}
+
+/**
  *  @brief Updates the hardware details like MAC address and regulatory region
  *
  *  @param priv    	A pointer to struct lbs_private structure
@@ -1452,6 +1476,11 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		goto done;
 	}
 
+	if (!lbs_is_cmd_allowed(priv)) {
+		ret = -EBUSY;
+		goto done;
+	}
+
 	cmdnode = lbs_get_cmd_ctrl_node(priv);
 
 	if (cmdnode == NULL) {
@@ -2101,6 +2130,11 @@ static struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 	if (priv->surpriseremoved) {
 		lbs_deb_host("PREP_CMD: card removed\n");
 		cmdnode = ERR_PTR(-ENOENT);
+		goto done;
+	}
+
+	if (!lbs_is_cmd_allowed(priv)) {
+		cmdnode = ERR_PTR(-EBUSY);
 		goto done;
 	}
 

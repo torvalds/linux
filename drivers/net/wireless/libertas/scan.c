@@ -950,11 +950,6 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (!lbs_is_cmd_allowed(priv)) {
-		ret = -EBUSY;
-		goto out;
-	}
-
 	if (!priv->radio_on) {
 		ret = -EINVAL;
 		goto out;
@@ -1021,12 +1016,6 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 	struct bss_descriptor *safe;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
-
-	if (!lbs_is_cmd_allowed(priv)) {
-		err = -EBUSY;
-		lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", err);
-		return err;
-	}
 
 	/* iwlist should wait until the current scan is finished */
 	if (priv->scan_channel)
