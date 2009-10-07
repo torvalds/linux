@@ -11,5 +11,6 @@ obj-y				+= usb/
 
 obj-$(CONFIG_CAN_SJA1000)	+= sja1000/
 obj-$(CONFIG_CAN_AT91)		+= at91_can.o
+obj-$(CONFIG_CAN_TI_HECC)	+= ti_hecc.o
 
 ccflags-$(CONFIG_CAN_DEBUG_DEVICES) := -DDEBUG
