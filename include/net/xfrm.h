@@ -1500,9 +1500,6 @@ struct scatterlist;
 typedef int (icv_update_fn_t)(struct hash_desc *, struct scatterlist *,
 			      unsigned int);
 
-extern int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *tfm,
-			int offset, int len, icv_update_fn_t icv_update);
-
 static inline int xfrm_addr_cmp(xfrm_address_t *a, xfrm_address_t *b,
 				int family)
 {
