@@ -35,15 +35,13 @@ static inline int au1000_gpio2_to_irq(int gpio)
 	return -ENXIO;
 }
 
-#ifdef CONFIG_SOC_AU1000
 static inline int au1000_irq_to_gpio(int irq)
 {
-	if ((irq >= AU1000_GPIO_0) && (irq <= AU1000_GPIO_31))
-		return ALCHEMY_GPIO1_BASE + (irq - AU1000_GPIO_0) + 0;
+	if ((irq >= AU1000_GPIO0_INT) && (irq <= AU1000_GPIO31_INT))
+		return ALCHEMY_GPIO1_BASE + (irq - AU1000_GPIO0_INT) + 0;
 
 	return -ENXIO;
 }
-#endif
 
 static inline int au1500_gpio1_to_irq(int gpio)
 {
@@ -71,27 +69,25 @@ static inline int au1500_gpio2_to_irq(int gpio)
 	return -ENXIO;
 }
 
-#ifdef CONFIG_SOC_AU1500
 static inline int au1500_irq_to_gpio(int irq)
 {
 	switch (irq) {
-	case AU1000_GPIO_0 ... AU1000_GPIO_15:
-	case AU1500_GPIO_20:
-	case AU1500_GPIO_23 ... AU1500_GPIO_28:
-		return ALCHEMY_GPIO1_BASE + (irq - AU1000_GPIO_0) + 0;
-	case AU1500_GPIO_200 ... AU1500_GPIO_203:
-		return ALCHEMY_GPIO2_BASE + (irq - AU1500_GPIO_200) + 0;
-	case AU1500_GPIO_204 ... AU1500_GPIO_205:
-		return ALCHEMY_GPIO2_BASE + (irq - AU1500_GPIO_204) + 4;
-	case AU1500_GPIO_206 ... AU1500_GPIO_207:
-		return ALCHEMY_GPIO2_BASE + (irq - AU1500_GPIO_206) + 6;
-	case AU1500_GPIO_208_215:
+	case AU1500_GPIO0_INT ... AU1500_GPIO15_INT:
+	case AU1500_GPIO20_INT:
+	case AU1500_GPIO23_INT ... AU1500_GPIO28_INT:
+		return ALCHEMY_GPIO1_BASE + (irq - AU1500_GPIO0_INT) + 0;
+	case AU1500_GPIO200_INT ... AU1500_GPIO203_INT:
+		return ALCHEMY_GPIO2_BASE + (irq - AU1500_GPIO200_INT) + 0;
+	case AU1500_GPIO204_INT ... AU1500_GPIO205_INT:
+		return ALCHEMY_GPIO2_BASE + (irq - AU1500_GPIO204_INT) + 4;
+	case AU1500_GPIO206_INT ... AU1500_GPIO207_INT:
+		return ALCHEMY_GPIO2_BASE + (irq - AU1500_GPIO206_INT) + 6;
+	case AU1500_GPIO208_215_INT:
 		return ALCHEMY_GPIO2_BASE + 8;
 	}
 
 	return -ENXIO;
 }
-#endif
 
 static inline int au1100_gpio1_to_irq(int gpio)
 {
@@ -108,19 +104,17 @@ static inline int au1100_gpio2_to_irq(int gpio)
 	return -ENXIO;
 }
 
-#ifdef CONFIG_SOC_AU1100
 static inline int au1100_irq_to_gpio(int irq)
 {
 	switch (irq) {
-	case AU1000_GPIO_0 ... AU1000_GPIO_31:
-		return ALCHEMY_GPIO1_BASE + (irq - AU1000_GPIO_0) + 0;
-	case AU1100_GPIO_208_215:
+	case AU1100_GPIO0_INT ... AU1100_GPIO31_INT:
+		return ALCHEMY_GPIO1_BASE + (irq - AU1100_GPIO0_INT) + 0;
+	case AU1100_GPIO208_215_INT:
 		return ALCHEMY_GPIO2_BASE + 8;
 	}
 
 	return -ENXIO;
 }
-#endif
 
 static inline int au1550_gpio1_to_irq(int gpio)
 {
@@ -149,24 +143,22 @@ static inline int au1550_gpio2_to_irq(int gpio)
 	return -ENXIO;
 }
 
-#ifdef CONFIG_SOC_AU1550
 static inline int au1550_irq_to_gpio(int irq)
 {
 	switch (irq) {
-	case AU1000_GPIO_0 ... AU1000_GPIO_15:
-		return ALCHEMY_GPIO1_BASE + (irq - AU1000_GPIO_0) + 0;
-	case AU1550_GPIO_200:
-	case AU1500_GPIO_201_205:
-		return ALCHEMY_GPIO2_BASE + (irq - AU1550_GPIO_200) + 0;
-	case AU1500_GPIO_16 ... AU1500_GPIO_28:
-		return ALCHEMY_GPIO1_BASE + (irq - AU1500_GPIO_16) + 16;
-	case AU1500_GPIO_206 ... AU1500_GPIO_208_218:
-		return ALCHEMY_GPIO2_BASE + (irq - AU1500_GPIO_206) + 6;
+	case AU1550_GPIO0_INT ... AU1550_GPIO15_INT:
+		return ALCHEMY_GPIO1_BASE + (irq - AU1550_GPIO0_INT) + 0;
+	case AU1550_GPIO200_INT:
+	case AU1550_GPIO201_205_INT:
+		return ALCHEMY_GPIO2_BASE + (irq - AU1550_GPIO200_INT) + 0;
+	case AU1550_GPIO16_INT ... AU1550_GPIO28_INT:
+		return ALCHEMY_GPIO1_BASE + (irq - AU1550_GPIO16_INT) + 16;
+	case AU1550_GPIO206_INT ... AU1550_GPIO208_215_INT:
+		return ALCHEMY_GPIO2_BASE + (irq - AU1550_GPIO206_INT) + 6;
 	}
 
 	return -ENXIO;
 }
-#endif
 
 static inline int au1200_gpio1_to_irq(int gpio)
 {
@@ -187,23 +179,21 @@ static inline int au1200_gpio2_to_irq(int gpio)
 	return -ENXIO;
 }
 
-#ifdef CONFIG_SOC_AU1200
 static inline int au1200_irq_to_gpio(int irq)
 {
 	switch (irq) {
-	case AU1000_GPIO_0 ... AU1000_GPIO_31:
-		return ALCHEMY_GPIO1_BASE + (irq - AU1000_GPIO_0) + 0;
-	case AU1200_GPIO_200 ... AU1200_GPIO_202:
-		return ALCHEMY_GPIO2_BASE + (irq - AU1200_GPIO_200) + 0;
-	case AU1200_GPIO_203:
+	case AU1200_GPIO0_INT ... AU1200_GPIO31_INT:
+		return ALCHEMY_GPIO1_BASE + (irq - AU1200_GPIO0_INT) + 0;
+	case AU1200_GPIO200_INT ... AU1200_GPIO202_INT:
+		return ALCHEMY_GPIO2_BASE + (irq - AU1200_GPIO200_INT) + 0;
+	case AU1200_GPIO203_INT:
 		return ALCHEMY_GPIO2_BASE + 3;
-	case AU1200_GPIO_204 ... AU1200_GPIO_208_215:
-		return ALCHEMY_GPIO2_BASE + (irq - AU1200_GPIO_204) + 4;
+	case AU1200_GPIO204_INT ... AU1200_GPIO208_215_INT:
+		return ALCHEMY_GPIO2_BASE + (irq - AU1200_GPIO204_INT) + 4;
 	}
 
 	return -ENXIO;
 }
-#endif
 
 /*
  * GPIO1 block macros for common linux gpio functions.

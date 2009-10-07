@@ -73,8 +73,8 @@ static struct resource au1xxx_usb_ohci_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= AU1000_USB_HOST_INT,
-		.end		= AU1000_USB_HOST_INT,
+		.start		= FOR_PLATFORM_C_USB_HOST_INT,
+		.end		= FOR_PLATFORM_C_USB_HOST_INT,
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -132,8 +132,8 @@ static struct resource au1xxx_usb_ehci_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= AU1000_USB_HOST_INT,
-		.end		= AU1000_USB_HOST_INT,
+		.start		= AU1200_USB_INT,
+		.end		= AU1200_USB_INT,
 		.flags		= IORESOURCE_IRQ,
 	},
 };

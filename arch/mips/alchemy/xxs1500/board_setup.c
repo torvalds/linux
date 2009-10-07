@@ -80,19 +80,19 @@ void __init board_setup(void)
 
 static int __init xxs1500_init_irq(void)
 {
-	set_irq_type(AU1500_GPIO_204, IRQF_TRIGGER_HIGH);
-	set_irq_type(AU1500_GPIO_201, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO_202, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO_203, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO_205, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO_207, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
+	set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO207_INT, IRQF_TRIGGER_LOW);
 
-	set_irq_type(AU1000_GPIO_0, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1000_GPIO_1, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1000_GPIO_2, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1000_GPIO_3, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1000_GPIO_4, IRQF_TRIGGER_LOW); /* CF interrupt */
-	set_irq_type(AU1000_GPIO_5, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO0_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO1_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO2_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO3_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO4_INT, IRQF_TRIGGER_LOW); /* CF irq */
+	set_irq_type(AU1500_GPIO5_INT, IRQF_TRIGGER_LOW);
 
 	return 0;
 }

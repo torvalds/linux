@@ -171,8 +171,8 @@ static int __init pb1200_init_irq(void)
 	}
 #endif
 
-	set_irq_type(AU1000_GPIO_7, IRQF_TRIGGER_LOW);
-	bcsr_init_irq(PB1200_INT_BEGIN, PB1200_INT_END, AU1000_GPIO_7);
+	set_irq_type(AU1200_GPIO7_INT, IRQF_TRIGGER_LOW);
+	bcsr_init_irq(PB1200_INT_BEGIN, PB1200_INT_END, AU1200_GPIO7_INT);
 
 	return 0;
 }

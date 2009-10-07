@@ -32,9 +32,9 @@ static int __init pb1500_dev_init(void)
 				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00040000 - 1,
 				    PCMCIA_IO_PSEUDO_PHYS,
 				    PCMCIA_IO_PSEUDO_PHYS   + 0x00001000 - 1,
-				    AU1000_GPIO_11,	 /* card */
-				    AU1000_GPIO_9,	 /* insert */
-				    /*AU1000_GPIO_10*/0, /* stschg */
+				    AU1500_GPIO11_INT,	 /* card */
+				    AU1500_GPIO9_INT,	 /* insert */
+				    /*AU1500_GPIO10_INT*/0, /* stschg */
 				    0,			 /* eject */
 				    0);			 /* id */
 	return 0;

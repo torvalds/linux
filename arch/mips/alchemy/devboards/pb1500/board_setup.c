@@ -35,8 +35,8 @@
 
 
 char irq_tab_alchemy[][5] __initdata = {
-	[12] = { -1, INTA, INTX, INTX, INTX },   /* IDSEL 12 - HPT370	*/
-	[13] = { -1, INTA, INTB, INTC, INTD },   /* IDSEL 13 - PCI slot */
+	[12] = { -1, AU1500_PCI_INTA, 0xff, 0xff, 0xff },   /* IDSEL 12 - HPT370	*/
+	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, AU1500_PCI_INTC, AU1500_PCI_INTD },   /* IDSEL 13 - PCI slot */
 };
 
 
@@ -155,14 +155,14 @@ void __init board_setup(void)
 
 static int __init pb1500_init_irq(void)
 {
-	set_irq_type(AU1000_GPIO_9, IRQF_TRIGGER_LOW);	/* CD0# */
-	set_irq_type(AU1000_GPIO_10, IRQF_TRIGGER_LOW);	/* CARD0 */
-	set_irq_type(AU1000_GPIO_11, IRQF_TRIGGER_LOW);	/* STSCHG0# */
-	set_irq_type(AU1500_GPIO_204, IRQF_TRIGGER_HIGH);
-	set_irq_type(AU1500_GPIO_201, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO_202, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO_203, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO_205, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO9_INT, IRQF_TRIGGER_LOW);   /* CD0# */
+	set_irq_type(AU1500_GPIO10_INT, IRQF_TRIGGER_LOW);  /* CARD0 */
+	set_irq_type(AU1500_GPIO11_INT, IRQF_TRIGGER_LOW);  /* STSCHG0# */
+	set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
+	set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
 
 	return 0;
 }

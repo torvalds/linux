@@ -37,14 +37,14 @@
 #include <prom.h>
 
 char irq_tab_alchemy[][5] __initdata = {
-	[0] = { -1, INTA, INTA, INTX, INTX }, /* IDSEL 00 - AdapterA-Slot0 (top) */
-	[1] = { -1, INTB, INTA, INTX, INTX }, /* IDSEL 01 - AdapterA-Slot1 (bottom) */
-	[2] = { -1, INTC, INTD, INTX, INTX }, /* IDSEL 02 - AdapterB-Slot0 (top) */
-	[3] = { -1, INTD, INTC, INTX, INTX }, /* IDSEL 03 - AdapterB-Slot1 (bottom) */
-	[4] = { -1, INTA, INTB, INTX, INTX }, /* IDSEL 04 - AdapterC-Slot0 (top) */
-	[5] = { -1, INTB, INTA, INTX, INTX }, /* IDSEL 05 - AdapterC-Slot1 (bottom) */
-	[6] = { -1, INTC, INTD, INTX, INTX }, /* IDSEL 06 - AdapterD-Slot0 (top) */
-	[7] = { -1, INTD, INTC, INTX, INTX }, /* IDSEL 07 - AdapterD-Slot1 (bottom) */
+	[0] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTA, 0xff, 0xff }, /* IDSEL 00 - AdapterA-Slot0 (top) */
+	[1] = { -1, AU1500_PCI_INTB, AU1500_PCI_INTA, 0xff, 0xff }, /* IDSEL 01 - AdapterA-Slot1 (bottom) */
+	[2] = { -1, AU1500_PCI_INTC, AU1500_PCI_INTD, 0xff, 0xff }, /* IDSEL 02 - AdapterB-Slot0 (top) */
+	[3] = { -1, AU1500_PCI_INTD, AU1500_PCI_INTC, 0xff, 0xff }, /* IDSEL 03 - AdapterB-Slot1 (bottom) */
+	[4] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, 0xff, 0xff }, /* IDSEL 04 - AdapterC-Slot0 (top) */
+	[5] = { -1, AU1500_PCI_INTB, AU1500_PCI_INTA, 0xff, 0xff }, /* IDSEL 05 - AdapterC-Slot1 (bottom) */
+	[6] = { -1, AU1500_PCI_INTC, AU1500_PCI_INTD, 0xff, 0xff }, /* IDSEL 06 - AdapterD-Slot0 (top) */
+	[7] = { -1, AU1500_PCI_INTD, AU1500_PCI_INTC, 0xff, 0xff }, /* IDSEL 07 - AdapterD-Slot1 (bottom) */
 };
 
 extern int (*board_pci_idsel)(unsigned int devsel, int assert);
@@ -124,11 +124,11 @@ mtx1_pci_idsel(unsigned int devsel, int assert)
 
 static int __init mtx1_init_irq(void)
 {
-	set_irq_type(AU1500_GPIO_204, IRQF_TRIGGER_HIGH);
-	set_irq_type(AU1500_GPIO_201, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO_202, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO_203, IRQF_TRIGGER_LOW);
-	set_irq_type(AU1500_GPIO_205, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
+	set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
 
 	return 0;
 }

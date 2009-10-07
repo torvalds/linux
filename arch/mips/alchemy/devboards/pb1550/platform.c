@@ -40,8 +40,8 @@ static int __init pb1550_dev_init(void)
 				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00040000 - 1,
 				    PCMCIA_IO_PSEUDO_PHYS,
 				    PCMCIA_IO_PSEUDO_PHYS   + 0x00001000 - 1,
-				    AU1500_GPIO_201_205,
-				    AU1000_GPIO_0,
+				    AU1550_GPIO201_205_INT,
+				    AU1550_GPIO0_INT,
 				    0,
 				    0,
 				    0);
@@ -52,8 +52,8 @@ static int __init pb1550_dev_init(void)
 				    PCMCIA_MEM_PSEUDO_PHYS  + 0x00840000 - 1,
 				    PCMCIA_IO_PSEUDO_PHYS   + 0x00800000,
 				    PCMCIA_IO_PSEUDO_PHYS   + 0x00801000 - 1,
-				    AU1500_GPIO_201_205,
-				    AU1000_GPIO_1,
+				    AU1550_GPIO201_205_INT,
+				    AU1550_GPIO1_INT,
 				    0,
 				    0,
 				    1);
