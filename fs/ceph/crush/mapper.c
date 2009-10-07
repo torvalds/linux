@@ -299,7 +299,7 @@ static int crush_choose(struct crush_map *map,
 	struct crush_bucket *in = bucket;
 	int r;
 	int i;
-	int item;
+	int item = 0;
 	int itemtype;
 	int collide, reject;
 	const int orig_tries = 5; /* attempts before we fall back to search */
@@ -316,6 +316,7 @@ static int crush_choose(struct crush_map *map,
 			/* choose through intervening buckets */
 			flocal = 0;
 			do {
+				collide = 0;
 				retry_bucket = 0;
 				r = rep;
 				if (in->alg == CRUSH_BUCKET_UNIFORM) {
@@ -340,6 +341,10 @@ static int crush_choose(struct crush_map *map,
 				}
 
 				/* bucket choose */
+				if (in->size == 0) {
+					reject = 1;
+					goto reject;
+				}
 				if (flocal >= (in->size>>1) &&
 				    flocal > orig_tries)
 					item = bucket_perm_choose(in, x, r);
@@ -363,7 +368,6 @@ static int crush_choose(struct crush_map *map,
 				}
 
 				/* collision? */
-				collide = 0;
 				for (i = 0; i < outpos; i++) {
 					if (out[i] == item) {
 						collide = 1;
@@ -388,6 +392,7 @@ static int crush_choose(struct crush_map *map,
 						reject = 0;
 				}
 
+reject:
 				if (reject || collide) {
 					ftotal++;
 					flocal++;
