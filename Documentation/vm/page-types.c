@@ -2,7 +2,10 @@
  * page-types: Tool for querying page flags
  *
  * Copyright (C) 2009 Intel corporation
- * Copyright (C) 2009 Wu Fengguang <fengguang.wu@intel.com>
+ *
+ * Authors: Wu Fengguang <fengguang.wu@intel.com>
+ *
+ * Released under the General Public License (GPL).
  */
 
 #define _LARGEFILE64_SOURCE
