@@ -686,8 +686,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 	case AF_INET:
 		sin = svc_addr_in(rqstp);
 		sin6 = &sin6_storage;
-		ipv6_addr_set(&sin6->sin6_addr, 0, 0,
-				htonl(0x0000FFFF), sin->sin_addr.s_addr);
+		ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &sin6->sin6_addr);
 		break;
 	case AF_INET6:
 		sin6 = svc_addr_in6(rqstp);

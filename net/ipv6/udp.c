@@ -265,8 +265,8 @@ try_again:
 		sin6->sin6_scope_id = 0;
 
 		if (is_udp4)
-			ipv6_addr_set(&sin6->sin6_addr, 0, 0,
-				      htonl(0xffff), ip_hdr(skb)->saddr);
+			ipv6_addr_set_v4mapped(ip_hdr(skb)->saddr,
+					       &sin6->sin6_addr);
 		else {
 			ipv6_addr_copy(&sin6->sin6_addr,
 				       &ipv6_hdr(skb)->saddr);
