@@ -26,7 +26,7 @@ static void via_i2c_setscl(void *data, int state)
 	u8 val;
 	struct via_i2c_adap_cfg *adap_data = data;
 
-	printk(KERN_DEBUG "reading index 0x%02x from IO 0x%x\n",
+	DEBUG_MSG(KERN_DEBUG "reading index 0x%02x from IO 0x%x\n",
 		adap_data->ioport_index, adap_data->io_port);
 	val = viafb_read_reg(adap_data->io_port,
 			     adap_data->ioport_index) & 0xF0;
@@ -140,7 +140,7 @@ static int create_i2c_bus(struct i2c_adapter *adapter,
 			  struct via_i2c_adap_cfg *adap_cfg,
 			  struct pci_dev *pdev)
 {
-	printk(KERN_DEBUG "viafb: creating bus adap=0x%p, algo_bit_data=0x%p, adap_cfg=0x%p\n", adapter, algo, adap_cfg);
+	DEBUG_MSG(KERN_DEBUG "viafb: creating bus adap=0x%p, algo_bit_data=0x%p, adap_cfg=0x%p\n", adapter, algo, adap_cfg);
 
 	algo->setsda = via_i2c_setsda;
 	algo->setscl = via_i2c_setscl;
