@@ -69,6 +69,8 @@ static LIST_HEAD(card_list);
 static LIST_HEAD(descriptor_list);
 static int descriptor_count;
 
+static __be32 tmp_config_rom[256];
+
 #define BIB_CRC(v)		((v) <<  0)
 #define BIB_CRC_LENGTH(v)	((v) << 16)
 #define BIB_INFO_LENGTH(v)	((v) << 24)
@@ -84,10 +86,9 @@ static int descriptor_count;
 #define BIB_CMC			((1) << 30)
 #define BIB_IMC			((1) << 31)
 
-static __be32 *generate_config_rom(struct fw_card *card, size_t *rom_length)
+static size_t generate_config_rom(struct fw_card *card, __be32 *config_rom)
 {
 	struct fw_descriptor *desc;
-	static __be32 config_rom[256];
 	int i, j, k, length;
 
 	/*
@@ -142,20 +143,17 @@ static __be32 *generate_config_rom(struct fw_card *card, size_t *rom_length)
 	for (i = 0; i < j; i += length + 1)
 		length = __compute_block_crc(config_rom + i);
 
-	*rom_length = j;
-
-	return config_rom;
+	return j;
 }
 
 static void update_config_roms(void)
 {
 	struct fw_card *card;
-	__be32 *config_rom;
 	size_t length;
 
 	list_for_each_entry (card, &card_list, link) {
-		config_rom = generate_config_rom(card, &length);
-		card->driver->set_config_rom(card, config_rom, length);
+		length = generate_config_rom(card, tmp_config_rom);
+		card->driver->set_config_rom(card, tmp_config_rom, length);
 	}
 }
 
@@ -443,7 +441,6 @@ EXPORT_SYMBOL(fw_card_initialize);
 int fw_card_add(struct fw_card *card,
 		u32 max_receive, u32 link_speed, u64 guid)
 {
-	__be32 *config_rom;
 	size_t length;
 	int ret;
 
@@ -453,8 +450,8 @@ int fw_card_add(struct fw_card *card,
 
 	mutex_lock(&card_mutex);
 
-	config_rom = generate_config_rom(card, &length);
-	ret = card->driver->enable(card, config_rom, length);
+	length = generate_config_rom(card, tmp_config_rom);
+	ret = card->driver->enable(card, tmp_config_rom, length);
 	if (ret == 0)
 		list_add_tail(&card->link, &card_list);
 
