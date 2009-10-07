@@ -29,6 +29,8 @@ static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 	unsigned i, nr_strings;
 	char **buffer, *string;
 
+	/* Find all null-terminated (including zero length) strings in
+	   the TPLLV1_INFO field. Trailing garbage is ignored. */
 	buf += 2;
 	size -= 2;
 
@@ -39,11 +41,8 @@ static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 		if (buf[i] == 0)
 			nr_strings++;
 	}
-
-	if (nr_strings < 4) {
-		printk(KERN_WARNING "SDIO: ignoring broken CISTPL_VERS_1\n");
+	if (nr_strings == 0)
 		return 0;
-	}
 
 	size = i;
 
