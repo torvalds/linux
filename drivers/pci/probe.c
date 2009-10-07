@@ -11,6 +11,7 @@
 #include <linux/cpumask.h>
 #include <linux/pci-aspm.h>
 #include <linux/iommu.h>
+#include <xen/xen.h>
 #include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
@@ -1007,7 +1008,7 @@ static void pci_init_capabilities(struct pci_dev *dev)
 	pci_iov_init(dev);
 
 	/* Enable ACS P2P upstream forwarding */
-	if (iommu_found())
+	if (iommu_found() || xen_initial_domain())
 		pci_enable_acs(dev);
 }
 
