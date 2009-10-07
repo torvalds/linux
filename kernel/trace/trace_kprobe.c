@@ -220,24 +220,24 @@ static int probe_arg_string(char *buf, size_t n, struct fetch_func *ff)
 	int ret = -EINVAL;
 
 	if (ff->func == fetch_argument)
-		ret = snprintf(buf, n, "a%lu", (unsigned long)ff->data);
+		ret = snprintf(buf, n, "$a%lu", (unsigned long)ff->data);
 	else if (ff->func == fetch_register) {
 		const char *name;
 		name = regs_query_register_name((unsigned int)((long)ff->data));
 		ret = snprintf(buf, n, "%%%s", name);
 	} else if (ff->func == fetch_stack)
-		ret = snprintf(buf, n, "s%lu", (unsigned long)ff->data);
+		ret = snprintf(buf, n, "$s%lu", (unsigned long)ff->data);
 	else if (ff->func == fetch_memory)
 		ret = snprintf(buf, n, "@0x%p", ff->data);
 	else if (ff->func == fetch_symbol) {
 		struct symbol_cache *sc = ff->data;
 		ret = snprintf(buf, n, "@%s%+ld", sc->symbol, sc->offset);
 	} else if (ff->func == fetch_retvalue)
-		ret = snprintf(buf, n, "rv");
+		ret = snprintf(buf, n, "$rv");
 	else if (ff->func == fetch_ip)
-		ret = snprintf(buf, n, "ra");
+		ret = snprintf(buf, n, "$ra");
 	else if (ff->func == fetch_stack_address)
-		ret = snprintf(buf, n, "sa");
+		ret = snprintf(buf, n, "$sa");
 	else if (ff->func == fetch_indirect) {
 		struct indirect_fetch_data *id = ff->data;
 		size_t l = 0;
@@ -429,12 +429,10 @@ static int split_symbol_offset(char *symbol, unsigned long *offset)
 #define PARAM_MAX_ARGS 16
 #define PARAM_MAX_STACK (THREAD_SIZE / sizeof(unsigned long))
 
-static int parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
+static int parse_probe_vars(char *arg, struct fetch_func *ff, int is_return)
 {
 	int ret = 0;
 	unsigned long param;
-	long offset;
-	char *tmp;
 
 	switch (arg[0]) {
 	case 'a':	/* argument */
@@ -456,14 +454,6 @@ static int parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
 		} else
 			ret = -EINVAL;
 		break;
-	case '%':	/* named register */
-		ret = regs_query_register_offset(arg + 1);
-		if (ret >= 0) {
-			ff->func = fetch_register;
-			ff->data = (void *)(unsigned long)ret;
-			ret = 0;
-		}
-		break;
 	case 's':	/* stack */
 		if (arg[1] == 'a') {
 			ff->func = fetch_stack_address;
@@ -478,6 +468,31 @@ static int parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
 			}
 		}
 		break;
+	default:
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
+static int parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
+{
+	int ret = 0;
+	unsigned long param;
+	long offset;
+	char *tmp;
+
+	switch (arg[0]) {
+	case '$':
+		ret = parse_probe_vars(arg + 1, ff, is_return);
+		break;
+	case '%':	/* named register */
+		ret = regs_query_register_offset(arg + 1);
+		if (ret >= 0) {
+			ff->func = fetch_register;
+			ff->data = (void *)(unsigned long)ret;
+			ret = 0;
+		}
+		break;
 	case '@':	/* memory or symbol */
 		if (isdigit(arg[1])) {
 			ret = strict_strtoul(arg + 1, 0, &param);
@@ -489,8 +504,7 @@ static int parse_probe_arg(char *arg, struct fetch_func *ff, int is_return)
 			ret = split_symbol_offset(arg + 1, &offset);
 			if (ret)
 				break;
-			ff->data = alloc_symbol_cache(arg + 1,
-							      offset);
+			ff->data = alloc_symbol_cache(arg + 1, offset);
 			if (ff->data)
 				ff->func = fetch_symbol;
 			else
@@ -544,11 +558,11 @@ static int create_trace_probe(int argc, char **argv)
 	 *  - Add kprobe: p[:[GRP/]EVENT] KSYM[+OFFS]|KADDR [FETCHARGS]
 	 *  - Add kretprobe: r[:[GRP/]EVENT] KSYM[+0] [FETCHARGS]
 	 * Fetch args:
-	 *  aN	: fetch Nth of function argument. (N:0-)
-	 *  rv	: fetch return value
-	 *  ra	: fetch return address
-	 *  sa	: fetch stack address
-	 *  sN	: fetch Nth of stack (N:0-)
+	 *  $aN	: fetch Nth of function argument. (N:0-)
+	 *  $rv	: fetch return value
+	 *  $ra	: fetch return address
+	 *  $sa	: fetch stack address
+	 *  $sN	: fetch Nth of stack (N:0-)
 	 *  @ADDR	: fetch memory at ADDR (ADDR should be in kernel)
 	 *  @SYM[+|-offs] : fetch memory at SYM +|- offs (SYM is a data symbol)
 	 *  %REG	: fetch register REG
