@@ -16,7 +16,6 @@
 #include <linux/version.h>
 #include <linux/vmalloc.h>
 
-#include "ceph_ver.h"
 #include "decode.h"
 #include "super.h"
 #include "mon_client.h"
@@ -903,7 +902,9 @@ static int __init init_ceph(void)
 	if (ret)
 		goto out_icache;
 
-	pr_info("loaded (%s)\n", STRINGIFY(CEPH_GIT_VER));
+	pr_info("loaded %d.%d.%d (mon/mds/osd proto %d/%d/%d)\n",
+		CEPH_VERSION_MAJOR, CEPH_VERSION_MINOR, CEPH_VERSION_PATCH,
+		CEPH_MONC_PROTOCOL, CEPH_MDSC_PROTOCOL, CEPH_OSDC_PROTOCOL);
 	return 0;
 
 out_icache:
