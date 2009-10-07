@@ -457,15 +457,15 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	iov[0].iov_len = size;
 	for (i = 0; i < msg->msg_iovlen; i++) {
 		void __user *base = msg->msg_iov[i].iov_base;
-		size_t len = msg->msg_iov[i].iov_len;
+		size_t iov_len = msg->msg_iov[i].iov_len;
 		/* Check it now since we switch to KERNEL_DS later. */
-		if (!access_ok(VERIFY_READ, base, len)) {
+		if (!access_ok(VERIFY_READ, base, iov_len)) {
 			mutex_unlock(&econet_mutex);
 			return -EFAULT;
 		}
 		iov[i+1].iov_base = base;
-		iov[i+1].iov_len = len;
-		size += len;
+		iov[i+1].iov_len = iov_len;
+		size += iov_len;
 	}
 
 	/* Get a skbuff (no data, just holds our cb information) */
