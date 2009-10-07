@@ -29,6 +29,8 @@ extern char snd_opl3_regmap[MAX_OPL2_VOICES][4];
 
 extern int use_internal_drums;
 
+static void snd_opl3_note_off_unsafe(void *p, int note, int vel,
+				     struct snd_midi_channel *chan);
 /*
  * The next table looks magical, but it certainly is not. Its values have
  * been calculated as table[i]=8*log(i/64)/log(2) with an obvious exception
@@ -242,16 +244,20 @@ void snd_opl3_timer_func(unsigned long data)
 	int again = 0;
 	int i;
 
-	spin_lock_irqsave(&opl3->sys_timer_lock, flags);
+	spin_lock_irqsave(&opl3->voice_lock, flags);
 	for (i = 0; i < opl3->max_voices; i++) {
 		struct snd_opl3_voice *vp = &opl3->voices[i];
 		if (vp->state > 0 && vp->note_off_check) {
 			if (vp->note_off == jiffies)
-				snd_opl3_note_off(opl3, vp->note, 0, vp->chan);
+				snd_opl3_note_off_unsafe(opl3, vp->note, 0,
+							 vp->chan);
 			else
 				again++;
 		}
 	}
+	spin_unlock_irqrestore(&opl3->voice_lock, flags);
+
+	spin_lock_irqsave(&opl3->sys_timer_lock, flags);
 	if (again) {
 		opl3->tlist.expires = jiffies + 1;	/* invoke again */
 		add_timer(&opl3->tlist);
@@ -658,14 +664,13 @@ static void snd_opl3_kill_voice(struct snd_opl3 *opl3, int voice)
 /*
  * Release a note in response to a midi note off.
  */
-void snd_opl3_note_off(void *p, int note, int vel, struct snd_midi_channel *chan)
+static void snd_opl3_note_off_unsafe(void *p, int note, int vel,
+				     struct snd_midi_channel *chan)
 {
   	struct snd_opl3 *opl3;
 
 	int voice;
 	struct snd_opl3_voice *vp;
-
-	unsigned long flags;
 
 	opl3 = p;
 
@@ -674,12 +679,9 @@ void snd_opl3_note_off(void *p, int note, int vel, struct snd_midi_channel *chan
 		   chan->number, chan->midi_program, note);
 #endif
 
-	spin_lock_irqsave(&opl3->voice_lock, flags);
-
 	if (opl3->synth_mode == SNDRV_OPL3_MODE_SEQ) {
 		if (chan->drum_channel && use_internal_drums) {
 			snd_opl3_drum_switch(opl3, note, vel, 0, chan);
-			spin_unlock_irqrestore(&opl3->voice_lock, flags);
 			return;
 		}
 		/* this loop will hopefully kill all extra voices, because
@@ -697,6 +699,16 @@ void snd_opl3_note_off(void *p, int note, int vel, struct snd_midi_channel *chan
 			snd_opl3_kill_voice(opl3, voice);
 		}
 	}
+}
+
+void snd_opl3_note_off(void *p, int note, int vel,
+		       struct snd_midi_channel *chan)
+{
+	struct snd_opl3 *opl3 = p;
+	unsigned long flags;
+
+	spin_lock_irqsave(&opl3->voice_lock, flags);
+	snd_opl3_note_off_unsafe(p, note, vel, chan);
 	spin_unlock_irqrestore(&opl3->voice_lock, flags);
 }
 
