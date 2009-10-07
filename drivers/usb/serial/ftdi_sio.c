@@ -81,7 +81,6 @@ struct ftdi_private {
 	struct delayed_work rx_work;
 	struct usb_serial_port *port;
 	int rx_processed;
-	unsigned long rx_bytes;
 
 	__u16 interface;	/* FT2232C, FT2232H or FT4232H port interface
 				   (0 for FT232/245) */
@@ -1699,9 +1698,6 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	priv->tx_bytes = 0;
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
-	spin_lock_irqsave(&priv->rx_lock, flags);
-	priv->rx_bytes = 0;
-	spin_unlock_irqrestore(&priv->rx_lock, flags);
 
 	write_latency_timer(port);
 
@@ -2014,8 +2010,6 @@ static void ftdi_read_bulk_callback(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty;
 	struct ftdi_private *priv;
-	unsigned long countread;
-	unsigned long flags;
 	int status = urb->status;
 
 	if (urb->number_of_packets > 0) {
@@ -2053,13 +2047,6 @@ static void ftdi_read_bulk_callback(struct urb *urb)
 		dbg("(this is ok on close) nonzero read bulk status received: %d", status);
 		goto out;
 	}
-
-	/* count data bytes, but not status bytes */
-	countread = urb->actual_length;
-	countread -= 2 * DIV_ROUND_UP(countread, priv->max_packet_size);
-	spin_lock_irqsave(&priv->rx_lock, flags);
-	priv->rx_bytes += countread;
-	spin_unlock_irqrestore(&priv->rx_lock, flags);
 
 	ftdi_process_read(&priv->rx_work.work);
 out:
