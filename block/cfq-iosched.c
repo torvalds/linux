@@ -1995,7 +1995,10 @@ cfq_update_idle_window(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	    (!cfqd->cfq_latency && cfqd->hw_tag && CIC_SEEKY(cic)))
 		enable_idle = 0;
 	else if (sample_valid(cic->ttime_samples)) {
-		if (cic->ttime_mean > cfqd->cfq_slice_idle)
+		unsigned int slice_idle = cfqd->cfq_slice_idle;
+		if (sample_valid(cic->seek_samples) && CIC_SEEKY(cic))
+			slice_idle = msecs_to_jiffies(CFQ_MIN_TT);
+		if (cic->ttime_mean > slice_idle)
 			enable_idle = 0;
 		else
 			enable_idle = 1;
