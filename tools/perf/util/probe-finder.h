@@ -44,6 +44,7 @@ struct probe_point {
 	char	*probes[MAX_PROBES];	/* Output buffers (will be allocated)*/
 };
 
+#ifndef NO_LIBDWARF
 extern int find_probepoint(int fd, struct probe_point *pp);
 
 #include <libdwarf/dwarf.h>
@@ -64,5 +65,6 @@ struct probe_finder {
 	char		*buf;		/* Current output buffer */
 	int		len;		/* Length of output buffer */
 };
+#endif /* NO_LIBDWARF */
 
 #endif /*_PROBE_FINDER_H */

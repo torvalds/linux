@@ -54,6 +54,7 @@ const char *default_search_path[NR_SEARCH_PATH] = {
 static struct {
 	char *vmlinux;
 	char *release;
+	int need_dwarf;
 	int nr_probe;
 	struct probe_point probes[MAX_PROBES];
 	char *events[MAX_PROBES];
@@ -162,6 +163,8 @@ static int parse_probepoint(const struct option *opt __used,
 		      pp->function, pp->file, pp->offset);
 	}
 	free(argv[1]);
+	if (pp->file)
+		session.need_dwarf = 1;
 
 	/* Copy arguments */
 	pp->nr_args = argc - 2;
@@ -173,15 +176,19 @@ static int parse_probepoint(const struct option *opt __used,
 	}
 
 	/* Ensure return probe has no C argument */
-	if (retp)
-		for (i = 0; i < pp->nr_args; i++)
-			if (is_c_varname(pp->args[i]))
+	for (i = 0; i < pp->nr_args; i++)
+		if (is_c_varname(pp->args[i])) {
+			if (retp)
 				semantic_error("You can't specify local"
 						" variable for kretprobe");
+			session.need_dwarf = 1;
+		}
+
 	debug("%d arguments\n", pp->nr_args);
 	return 0;
 }
 
+#ifndef NO_LIBDWARF
 static int open_default_vmlinux(void)
 {
 	struct utsname uts;
@@ -209,6 +216,7 @@ static int open_default_vmlinux(void)
 	}
 	return fd;
 }
+#endif
 
 static const char * const probe_usage[] = {
 	"perf probe [<options>] -P 'PROBEDEF' [-P 'PROBEDEF' ...]",
@@ -216,10 +224,16 @@ static const char * const probe_usage[] = {
 };
 
 static const struct option options[] = {
+#ifndef NO_LIBDWARF
 	OPT_STRING('k', "vmlinux", &session.vmlinux, "file",
 		"vmlinux/module pathname"),
+#endif
 	OPT_CALLBACK('P', "probe", NULL,
+#ifdef NO_LIBDWARF
+		"p|r:[GRP/]NAME FUNC[+OFFS] [ARG ...]",
+#else
 		"p|r:[GRP/]NAME FUNC[+OFFS][@SRC]|@SRC:LINE [ARG ...]",
+#endif
 		"probe point definition, where\n"
 		"\t\tp:\tkprobe probe\n"
 		"\t\tr:\tkretprobe probe\n"
@@ -227,9 +241,13 @@ static const struct option options[] = {
 		"\t\tNAME:\tEvent name\n"
 		"\t\tFUNC:\tFunction name\n"
 		"\t\tOFFS:\tOffset from function entry (in byte)\n"
+#ifdef NO_LIBDWARF
+		"\t\tARG:\tProbe argument (only \n"
+#else
 		"\t\tSRC:\tSource code path\n"
 		"\t\tLINE:\tLine number\n"
 		"\t\tARG:\tProbe argument (local variable name or\n"
+#endif
 		"\t\t\tkprobe-tracer argument format is supported.)\n",
 		parse_probepoint),
 	OPT_END()
@@ -279,7 +297,7 @@ error:
 
 int cmd_probe(int argc, const char **argv, const char *prefix __used)
 {
-	int i, j, fd, ret, need_dwarf = 0;
+	int i, j, fd, ret;
 	struct probe_point *pp;
 	char buf[MAX_CMDLEN];
 
@@ -288,12 +306,19 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	if (argc || session.nr_probe == 0)
 		usage_with_options(probe_usage, options);
 
-	/* Synthesize return probes */
+#ifdef NO_LIBDWARF
+	if (session.need_dwarf)
+		semantic_error("Dwarf-analysis is not supported");
+#endif
+
+	/* Synthesize probes without dwarf */
 	for (j = 0; j < session.nr_probe; j++) {
+#ifndef NO_LIBDWARF
 		if (session.events[j][0] != 'r') {
-			need_dwarf = 1;
+			session.need_dwarf = 1;
 			continue;
 		}
+#endif
 		ret = synthesize_probepoint(&session.probes[j]);
 		if (ret == -E2BIG)
 			semantic_error("probe point is too long.");
@@ -303,7 +328,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		}
 	}
 
-	if (!need_dwarf)
+#ifndef NO_LIBDWARF
+	if (!session.need_dwarf)
 		goto setup_probes;
 
 	if (session.vmlinux)
@@ -332,6 +358,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	close(fd);
 
 setup_probes:
+#endif /* !NO_LIBDWARF */
+
 	/* Settng up probe points */
 	snprintf(buf, MAX_CMDLEN, "%s/../kprobe_events", debugfs_path);
 	fd = open(buf, O_WRONLY, O_APPEND);

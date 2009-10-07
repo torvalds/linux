@@ -295,9 +295,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "version", cmd_version, 0 },
 		{ "trace", cmd_trace, 0 },
 		{ "sched", cmd_sched, 0 },
-#ifdef SUPPORT_DWARF
 		{ "probe", cmd_probe, 0 },
-#endif
 	};
 	unsigned int i;
 	static const char ext[] = STRIP_EXTENSION;
