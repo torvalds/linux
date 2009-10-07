@@ -512,6 +512,11 @@ static void __init sh_eth_init(void)
 #define IODRIVEA  0xA405018A
 static int __init arch_setup(void)
 {
+	/* enable STATUS0, STATUS2 and PDSTATUS */
+	gpio_request(GPIO_FN_STATUS0, NULL);
+	gpio_request(GPIO_FN_STATUS2, NULL);
+	gpio_request(GPIO_FN_PDSTATUS, NULL);
+
 	/* enable SCIFA0 */
 	gpio_request(GPIO_FN_SCIF0_TXD, NULL);
 	gpio_request(GPIO_FN_SCIF0_RXD, NULL);
