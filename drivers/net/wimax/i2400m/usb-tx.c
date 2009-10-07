@@ -161,8 +161,14 @@ int i2400mu_txd(void *_i2400mu)
 	struct device *dev = &i2400mu->usb_iface->dev;
 	struct i2400m_msg_hdr *tx_msg;
 	size_t tx_msg_size;
+	unsigned long flags;
 
 	d_fnstart(4, dev, "(i2400mu %p)\n", i2400mu);
+
+	spin_lock_irqsave(&i2400m->tx_lock, flags);
+	BUG_ON(i2400mu->tx_kthread != NULL);
+	i2400mu->tx_kthread = current;
+	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
 
 	while (1) {
 		d_printf(2, dev, "TX: waiting for messages\n");
@@ -183,6 +189,11 @@ int i2400mu_txd(void *_i2400mu)
 		if (result < 0)
 			break;
 	}
+
+	spin_lock_irqsave(&i2400m->tx_lock, flags);
+	i2400mu->tx_kthread = NULL;
+	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
+
 	d_fnend(4, dev, "(i2400mu %p) = %d\n", i2400mu, result);
 	return result;
 }
@@ -213,11 +224,13 @@ int i2400mu_tx_setup(struct i2400mu *i2400mu)
 	struct i2400m *i2400m = &i2400mu->i2400m;
 	struct device *dev = &i2400mu->usb_iface->dev;
 	struct wimax_dev *wimax_dev = &i2400m->wimax_dev;
+	struct task_struct *kthread;
 
-	i2400mu->tx_kthread = kthread_run(i2400mu_txd, i2400mu, "%s-tx",
-					  wimax_dev->name);
-	if (IS_ERR(i2400mu->tx_kthread)) {
-		result = PTR_ERR(i2400mu->tx_kthread);
+	kthread = kthread_run(i2400mu_txd, i2400mu, "%s-tx",
+			      wimax_dev->name);
+	/* the kthread function sets i2400mu->tx_thread */
+	if (IS_ERR(kthread)) {
+		result = PTR_ERR(kthread);
 		dev_err(dev, "TX: cannot start thread: %d\n", result);
 	}
 	return result;
@@ -225,5 +238,17 @@ int i2400mu_tx_setup(struct i2400mu *i2400mu)
 
 void i2400mu_tx_release(struct i2400mu *i2400mu)
 {
-	kthread_stop(i2400mu->tx_kthread);
+	unsigned long flags;
+	struct i2400m *i2400m = &i2400mu->i2400m;
+	struct device *dev = i2400m_dev(i2400m);
+	struct task_struct *kthread;
+
+	spin_lock_irqsave(&i2400m->tx_lock, flags);
+	kthread = i2400mu->tx_kthread;
+	i2400mu->tx_kthread = NULL;
+	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
+	if (kthread)
+		kthread_stop(kthread);
+	else
+		d_printf(1, dev, "TX: kthread had already exited\n");
 }
