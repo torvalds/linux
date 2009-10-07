@@ -1516,7 +1516,6 @@ struct ql_adapter {
 
 	union flash_params flash;
 
-	struct net_device_stats stats;
 	struct workqueue_struct *workqueue;
 	struct delayed_work asic_reset_work;
 	struct delayed_work mpi_reset_work;

@@ -1644,8 +1644,8 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 		}
 	}
 
-	qdev->stats.rx_packets++;
-	qdev->stats.rx_bytes += skb->len;
+	ndev->stats.rx_packets++;
+	ndev->stats.rx_bytes += skb->len;
 	skb_record_rx_queue(skb, rx_ring->cq_id);
 	if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
 		if (qdev->vlgrp &&
@@ -1669,6 +1669,7 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 static void ql_process_mac_tx_intr(struct ql_adapter *qdev,
 				   struct ob_mac_iocb_rsp *mac_rsp)
 {
+	struct net_device *ndev = qdev->ndev;
 	struct tx_ring *tx_ring;
 	struct tx_ring_desc *tx_ring_desc;
 
@@ -1676,8 +1677,8 @@ static void ql_process_mac_tx_intr(struct ql_adapter *qdev,
 	tx_ring = &qdev->tx_ring[mac_rsp->txq_idx];
 	tx_ring_desc = &tx_ring->q[mac_rsp->tid];
 	ql_unmap_send(qdev, tx_ring_desc, tx_ring_desc->map_cnt);
-	qdev->stats.tx_bytes += (tx_ring_desc->skb)->len;
-	qdev->stats.tx_packets++;
+	ndev->stats.tx_bytes += (tx_ring_desc->skb)->len;
+	ndev->stats.tx_packets++;
 	dev_kfree_skb(tx_ring_desc->skb);
 	tx_ring_desc->skb = NULL;
 
@@ -3569,8 +3570,7 @@ static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 static struct net_device_stats *qlge_get_stats(struct net_device
 					       *ndev)
 {
-	struct ql_adapter *qdev = netdev_priv(ndev);
-	return &qdev->stats;
+	return &ndev->stats;
 }
 
 static void qlge_set_multicast_list(struct net_device *ndev)
