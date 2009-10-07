@@ -34,6 +34,7 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/crypto.h>
+#include <linux/ratelimit.h>
 #include <linux/tcp.h>
 #include <linux/mutex.h>
 #include <linux/major.h>
