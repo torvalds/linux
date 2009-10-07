@@ -130,6 +130,37 @@ static inline int au1xxx_cpu_needs_config_od(void)
 	return 0;
 }
 
+#define ALCHEMY_CPU_UNKNOWN	-1
+#define ALCHEMY_CPU_AU1000	0
+#define ALCHEMY_CPU_AU1500	1
+#define ALCHEMY_CPU_AU1100	2
+#define ALCHEMY_CPU_AU1550	3
+#define ALCHEMY_CPU_AU1200	4
+
+static inline int alchemy_get_cputype(void)
+{
+	switch (read_c0_prid() & 0xffff0000) {
+	case 0x00030000:
+		return ALCHEMY_CPU_AU1000;
+		break;
+	case 0x01030000:
+		return ALCHEMY_CPU_AU1500;
+		break;
+	case 0x02030000:
+		return ALCHEMY_CPU_AU1100;
+		break;
+	case 0x03030000:
+		return ALCHEMY_CPU_AU1550;
+		break;
+	case 0x04030000:
+	case 0x05030000:
+		return ALCHEMY_CPU_AU1200;
+		break;
+	}
+
+	return ALCHEMY_CPU_UNKNOWN;
+}
+
 /* arch/mips/au1000/common/clocks.c */
 extern void set_au1x00_speed(unsigned int new_freq);
 extern unsigned int get_au1x00_speed(void);
