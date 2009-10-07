@@ -206,10 +206,10 @@ int rs600_irq_set(struct radeon_device *rdev)
 
 static inline uint32_t rs600_irq_ack(struct radeon_device *rdev, u32 *r500_disp_int)
 {
-	uint32_t irqs = RREG32(R_000040_GEN_INT_CNTL);
-	uint32_t irq_mask = ~C_000040_SW_INT_EN;
+	uint32_t irqs = RREG32(R_000044_GEN_INT_STATUS);
+	uint32_t irq_mask = ~C_000044_SW_INT;
 
-	if (G_000040_DISPLAY_INT_STATUS(irqs)) {
+	if (G_000044_DISPLAY_INT_STAT(irqs)) {
 		*r500_disp_int = RREG32(R_007EDC_DISP_INTERRUPT_STATUS);
 		if (G_007EDC_LB_D1_VBLANK_INTERRUPT(*r500_disp_int)) {
 			WREG32(R_006534_D1MODE_VBLANK_STATUS,
@@ -224,7 +224,7 @@ static inline uint32_t rs600_irq_ack(struct radeon_device *rdev, u32 *r500_disp_
 	}
 
 	if (irqs) {
-		WREG32(R_000040_GEN_INT_CNTL, irqs);
+		WREG32(R_000044_GEN_INT_STATUS, irqs);
 	}
 	return irqs & irq_mask;
 }

@@ -87,6 +87,70 @@
 #define   S_000040_VIDDMA(x)                           (((x) & 0x1) << 31)
 #define   G_000040_VIDDMA(x)                           (((x) >> 31) & 0x1)
 #define   C_000040_VIDDMA                              0x7FFFFFFF
+#define R_000044_GEN_INT_STATUS                      0x000044
+#define   S_000044_DISPLAY_INT_STAT(x)                 (((x) & 0x1) << 0)
+#define   G_000044_DISPLAY_INT_STAT(x)                 (((x) >> 0) & 0x1)
+#define   C_000044_DISPLAY_INT_STAT                    0xFFFFFFFE
+#define   S_000044_VGA_INT_STAT(x)                     (((x) & 0x1) << 1)
+#define   G_000044_VGA_INT_STAT(x)                     (((x) >> 1) & 0x1)
+#define   C_000044_VGA_INT_STAT                        0xFFFFFFFD
+#define   S_000044_CAP0_INT_ACTIVE(x)                  (((x) & 0x1) << 8)
+#define   G_000044_CAP0_INT_ACTIVE(x)                  (((x) >> 8) & 0x1)
+#define   C_000044_CAP0_INT_ACTIVE                     0xFFFFFEFF
+#define   S_000044_DMA_VIPH0_INT(x)                    (((x) & 0x1) << 12)
+#define   G_000044_DMA_VIPH0_INT(x)                    (((x) >> 12) & 0x1)
+#define   C_000044_DMA_VIPH0_INT                       0xFFFFEFFF
+#define   S_000044_DMA_VIPH1_INT(x)                    (((x) & 0x1) << 13)
+#define   G_000044_DMA_VIPH1_INT(x)                    (((x) >> 13) & 0x1)
+#define   C_000044_DMA_VIPH1_INT                       0xFFFFDFFF
+#define   S_000044_DMA_VIPH2_INT(x)                    (((x) & 0x1) << 14)
+#define   G_000044_DMA_VIPH2_INT(x)                    (((x) >> 14) & 0x1)
+#define   C_000044_DMA_VIPH2_INT                       0xFFFFBFFF
+#define   S_000044_DMA_VIPH3_INT(x)                    (((x) & 0x1) << 15)
+#define   G_000044_DMA_VIPH3_INT(x)                    (((x) >> 15) & 0x1)
+#define   C_000044_DMA_VIPH3_INT                       0xFFFF7FFF
+#define   S_000044_MC_PROBE_FAULT_STAT(x)              (((x) & 0x1) << 16)
+#define   G_000044_MC_PROBE_FAULT_STAT(x)              (((x) >> 16) & 0x1)
+#define   C_000044_MC_PROBE_FAULT_STAT                 0xFFFEFFFF
+#define   S_000044_I2C_INT(x)                          (((x) & 0x1) << 17)
+#define   G_000044_I2C_INT(x)                          (((x) >> 17) & 0x1)
+#define   C_000044_I2C_INT                             0xFFFDFFFF
+#define   S_000044_SCRATCH_INT_STAT(x)                 (((x) & 0x1) << 18)
+#define   G_000044_SCRATCH_INT_STAT(x)                 (((x) >> 18) & 0x1)
+#define   C_000044_SCRATCH_INT_STAT                    0xFFFBFFFF
+#define   S_000044_GUI_IDLE_STAT(x)                    (((x) & 0x1) << 19)
+#define   G_000044_GUI_IDLE_STAT(x)                    (((x) >> 19) & 0x1)
+#define   C_000044_GUI_IDLE_STAT                       0xFFF7FFFF
+#define   S_000044_ATI_OVERDRIVE_INT_STAT(x)           (((x) & 0x1) << 20)
+#define   G_000044_ATI_OVERDRIVE_INT_STAT(x)           (((x) >> 20) & 0x1)
+#define   C_000044_ATI_OVERDRIVE_INT_STAT              0xFFEFFFFF
+#define   S_000044_MC_PROTECTION_FAULT_STAT(x)         (((x) & 0x1) << 21)
+#define   G_000044_MC_PROTECTION_FAULT_STAT(x)         (((x) >> 21) & 0x1)
+#define   C_000044_MC_PROTECTION_FAULT_STAT            0xFFDFFFFF
+#define   S_000044_RBBM_READ_INT_STAT(x)               (((x) & 0x1) << 22)
+#define   G_000044_RBBM_READ_INT_STAT(x)               (((x) >> 22) & 0x1)
+#define   C_000044_RBBM_READ_INT_STAT                  0xFFBFFFFF
+#define   S_000044_CB_CONTEXT_SWITCH_STAT(x)           (((x) & 0x1) << 23)
+#define   G_000044_CB_CONTEXT_SWITCH_STAT(x)           (((x) >> 23) & 0x1)
+#define   C_000044_CB_CONTEXT_SWITCH_STAT              0xFF7FFFFF
+#define   S_000044_VIPH_INT(x)                         (((x) & 0x1) << 24)
+#define   G_000044_VIPH_INT(x)                         (((x) >> 24) & 0x1)
+#define   C_000044_VIPH_INT                            0xFEFFFFFF
+#define   S_000044_SW_INT(x)                           (((x) & 0x1) << 25)
+#define   G_000044_SW_INT(x)                           (((x) >> 25) & 0x1)
+#define   C_000044_SW_INT                              0xFDFFFFFF
+#define   S_000044_SW_INT_SET(x)                       (((x) & 0x1) << 26)
+#define   G_000044_SW_INT_SET(x)                       (((x) >> 26) & 0x1)
+#define   C_000044_SW_INT_SET                          0xFBFFFFFF
+#define   S_000044_IDCT_INT_STAT(x)                    (((x) & 0x1) << 27)
+#define   G_000044_IDCT_INT_STAT(x)                    (((x) >> 27) & 0x1)
+#define   C_000044_IDCT_INT_STAT                       0xF7FFFFFF
+#define   S_000044_GUIDMA_STAT(x)                      (((x) & 0x1) << 30)
+#define   G_000044_GUIDMA_STAT(x)                      (((x) >> 30) & 0x1)
+#define   C_000044_GUIDMA_STAT                         0xBFFFFFFF
+#define   S_000044_VIDDMA_STAT(x)                      (((x) & 0x1) << 31)
+#define   G_000044_VIDDMA_STAT(x)                      (((x) >> 31) & 0x1)
+#define   C_000044_VIDDMA_STAT                         0x7FFFFFFF
 #define R_00004C_BUS_CNTL                            0x00004C
 #define   S_00004C_BUS_MASTER_DIS(x)                   (((x) & 0x1) << 14)
 #define   G_00004C_BUS_MASTER_DIS(x)                   (((x) >> 14) & 0x1)
