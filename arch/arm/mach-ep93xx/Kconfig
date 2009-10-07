@@ -153,6 +153,14 @@ config MACH_MICRO9L
 	  Say 'Y' here if you want your kernel to support the
 	  Contec Micro9-Lite board.
 
+config MACH_MICRO9S
+	bool "Support Contec Micro9-Slim"
+	depends on EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	select MACH_MICRO9
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Contec Micro9-Slim board.
+
 config MACH_TS72XX
 	bool "Support Technologic Systems TS-72xx SBC"
 	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET

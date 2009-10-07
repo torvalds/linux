@@ -28,6 +28,7 @@
  * Micro9-High has up to 64MB of 32-bit flash on CS1
  * Micro9-Mid has up to 64MB of either 32-bit or 16-bit flash on CS1
  * Micro9-Lite uses a seperate MTD map driver for flash support
+ * Micro9-Slim has up to 64MB of either 32-bit or 16-bit flash on CS1
  *************************************************************************/
 static struct physmap_flash_data micro9_flash_data;
 
@@ -70,7 +71,7 @@ static void __init micro9_register_flash(void)
 {
 	if (machine_is_micro9())
 		__micro9_register_flash(4);
-	else if (machine_is_micro9m())
+	else if (machine_is_micro9m() || machine_is_micro9s())
 		__micro9_register_flash(micro9_detect_bootwidth());
 }
 
@@ -123,6 +124,19 @@ MACHINE_START(MICRO9L, "Contec Micro9-Lite")
 	.phys_io	= EP93XX_APB_PHYS_BASE,
 	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
+	.map_io		= ep93xx_map_io,
+	.init_irq	= ep93xx_init_irq,
+	.timer		= &ep93xx_timer,
+	.init_machine	= micro9_init_machine,
+MACHINE_END
+#endif
+
+#ifdef CONFIG_MACH_MICRO9S
+MACHINE_START(MICRO9S, "Contec Micro9-Slim")
+	/* Maintainer: Hubert Feurstein <hubert.feurstein@contec.at> */
+	.phys_io	= EP93XX_APB_PHYS_BASE,
+	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
+	.boot_params	= EP93XX_SDCE3_PHYS_BASE_ASYNC + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,
 	.timer		= &ep93xx_timer,
