@@ -1363,7 +1363,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			    facilities.throughput > 0xDD)
 				break;
 			if (facilities.reverse &&
-				(facilities.reverse | 0x81)!= 0x81)
+				(facilities.reverse & 0x81) != 0x81)
 				break;
 			x25->facilities = facilities;
 			rc = 0;
