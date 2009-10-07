@@ -85,11 +85,6 @@ static __kprobes unsigned long fetch_retvalue(struct pt_regs *regs,
 	return regs_return_value(regs);
 }
 
-static __kprobes unsigned long fetch_ip(struct pt_regs *regs, void *dummy)
-{
-	return instruction_pointer(regs);
-}
-
 static __kprobes unsigned long fetch_stack_address(struct pt_regs *regs,
 						   void *dummy)
 {
@@ -234,8 +229,6 @@ static int probe_arg_string(char *buf, size_t n, struct fetch_func *ff)
 		ret = snprintf(buf, n, "@%s%+ld", sc->symbol, sc->offset);
 	} else if (ff->func == fetch_retvalue)
 		ret = snprintf(buf, n, "$rv");
-	else if (ff->func == fetch_ip)
-		ret = snprintf(buf, n, "$ra");
 	else if (ff->func == fetch_stack_address)
 		ret = snprintf(buf, n, "$sa");
 	else if (ff->func == fetch_indirect) {
@@ -448,9 +441,6 @@ static int parse_probe_vars(char *arg, struct fetch_func *ff, int is_return)
 		if (is_return && arg[1] == 'v') {
 			ff->func = fetch_retvalue;
 			ff->data = NULL;
-		} else if (is_return && arg[1] == 'a') {
-			ff->func = fetch_ip;
-			ff->data = NULL;
 		} else
 			ret = -EINVAL;
 		break;
@@ -560,7 +550,6 @@ static int create_trace_probe(int argc, char **argv)
 	 * Fetch args:
 	 *  $aN	: fetch Nth of function argument. (N:0-)
 	 *  $rv	: fetch return value
-	 *  $ra	: fetch return address
 	 *  $sa	: fetch stack address
 	 *  $sN	: fetch Nth of stack (N:0-)
 	 *  @ADDR	: fetch memory at ADDR (ADDR should be in kernel)
