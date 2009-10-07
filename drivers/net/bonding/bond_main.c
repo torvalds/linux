@@ -1119,7 +1119,7 @@ static struct slave *bond_find_best_slave(struct bonding *bond)
 	int mintime = bond->params.updelay;
 	int i;
 
-	new_active = old_active = bond->curr_active_slave;
+	new_active = bond->curr_active_slave;
 
 	if (!new_active) { /* there were no active slaves left */
 		if (bond->slave_cnt > 0)   /* found one slave */
