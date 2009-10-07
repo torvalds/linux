@@ -12859,12 +12859,15 @@ static int patch_alc268(struct hda_codec *codec)
 		unsigned int wcap = get_wcaps(codec, 0x07);
 		int i;
 
+		spec->capsrc_nids = alc268_capsrc_nids;
 		/* get type */
 		wcap = get_wcaps_type(wcap);
 		if (spec->auto_mic ||
 		    wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
 			spec->adc_nids = alc268_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt);
+			if (spec->auto_mic)
+				fixup_automic_adc(codec);
 			if (spec->auto_mic || spec->input_mux->num_items == 1)
 				add_mixer(spec, alc268_capture_nosrc_mixer);
 			else
@@ -12874,7 +12877,6 @@ static int patch_alc268(struct hda_codec *codec)
 			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids);
 			add_mixer(spec, alc268_capture_mixer);
 		}
-		spec->capsrc_nids = alc268_capsrc_nids;
 		/* set default input source */
 		for (i = 0; i < spec->num_adc_nids; i++)
 			snd_hda_codec_write_cache(codec, alc268_capsrc_nids[i],
