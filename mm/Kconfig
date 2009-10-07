@@ -224,7 +224,9 @@ config KSM
 	  the many instances by a single resident page with that content, so
 	  saving memory until one or another app needs to modify the content.
 	  Recommended for use with KVM, or with other duplicative applications.
-	  See Documentation/vm/ksm.txt for more information.
+	  See Documentation/vm/ksm.txt for more information: KSM is inactive
+	  until a program has madvised that an area is MADV_MERGEABLE, and
+	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
 
 config DEFAULT_MMAP_MIN_ADDR
         int "Low address space to protect from user allocation"
