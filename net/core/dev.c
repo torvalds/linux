@@ -5489,7 +5489,7 @@ unsigned long netdev_increment_features(unsigned long all, unsigned long one,
 	one |= NETIF_F_ALL_CSUM;
 
 	one |= all & NETIF_F_ONE_FOR_ALL;
-	all &= one | NETIF_F_LLTX | NETIF_F_GSO;
+	all &= one | NETIF_F_LLTX | NETIF_F_GSO | NETIF_F_UFO;
 	all |= one & mask & NETIF_F_ONE_FOR_ALL;
 
 	return all;
