@@ -1234,7 +1234,6 @@ static int set_serial_info(struct tty_struct *tty,
 					(new_serial.flags & ASYNC_FLAGS));
 	priv->custom_divisor = new_serial.custom_divisor;
 
-	tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 	write_latency_timer(port);
 
 check_and_exit:
@@ -1703,9 +1702,6 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 	spin_lock_irqsave(&priv->rx_lock, flags);
 	priv->rx_bytes = 0;
 	spin_unlock_irqrestore(&priv->rx_lock, flags);
-
-	if (tty)
-		tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	write_latency_timer(port);
 
