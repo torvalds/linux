@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/list.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>

@@ -30,6 +30,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/err.h>

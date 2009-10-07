@@ -40,6 +40,7 @@
 #include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/rbtree.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
