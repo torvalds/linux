@@ -2111,7 +2111,6 @@ int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
 		 * Unqueue the futex_q and determine which it was.
 		 */
 		plist_del(&q->list, &q->list.plist);
-		drop_futex_key_refs(&q->key);
 
 		if (timeout && !timeout->task)
 			ret = -ETIMEDOUT;
