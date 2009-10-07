@@ -2,7 +2,9 @@
  *  linux/arch/arm/mach-ep93xx/micro9.c
  *
  * Copyright (C) 2006 Contec Steuerungstechnik & Automation GmbH
- *                   Manfred Gruber <manfred.gruber@contec.at>
+ *                    Manfred Gruber <m.gruber@tirol.com>
+ * Copyright (C) 2009 Contec Steuerungstechnik & Automation GmbH
+ *                    Hubert Feurstein <hubert.feurstein@contec.at>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -66,7 +68,7 @@ static void __init micro9h_init_machine(void)
 }
 
 MACHINE_START(MICRO9, "Contec Hypercontrol Micro9-H")
-	/* Maintainer: Manfred Gruber <manfred.gruber@contec.at> */
+	/* Maintainer: Hubert Feurstein <hubert.feurstein@contec.at> */
 	.phys_io	= EP93XX_APB_PHYS_BASE,
 	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
@@ -88,7 +90,7 @@ static void __init micro9m_init_machine(void)
 }
 
 MACHINE_START(MICRO9M, "Contec Hypercontrol Micro9-M")
-	/* Maintainer: Manfred Gruber <manfred.gruber@contec.at> */
+	/* Maintainer: Hubert Feurstein <hubert.feurstein@contec.at> */
 	.phys_io	= EP93XX_APB_PHYS_BASE,
 	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
@@ -110,7 +112,7 @@ static void __init micro9l_init_machine(void)
 }
 
 MACHINE_START(MICRO9L, "Contec Hypercontrol Micro9-L")
-	/* Maintainer: Manfred Gruber <manfred.gruber@contec.at> */
+	/* Maintainer: Hubert Feurstein <hubert.feurstein@contec.at> */
 	.phys_io	= EP93XX_APB_PHYS_BASE,
 	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
