@@ -1471,8 +1471,9 @@ static struct rt6_info *ip6_route_redirect(struct in6_addr *dest,
 				},
 			},
 		},
-		.gateway = *gateway,
 	};
+
+	ipv6_addr_copy(&rdfl.gateway, gateway);
 
 	if (rt6_need_strict(dest))
 		flags |= RT6_LOOKUP_F_IFACE;
