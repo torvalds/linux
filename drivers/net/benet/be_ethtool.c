@@ -234,7 +234,7 @@ be_get_ethtool_stats(struct net_device *netdev,
 	struct be_rxf_stats *rxf_stats = &hw_stats->rxf;
 	struct be_port_rxf_stats *port_stats =
 			&rxf_stats->port[adapter->port_num];
-	struct net_device_stats *net_stats = &adapter->stats.net_stats;
+	struct net_device_stats *net_stats = &netdev->stats;
 	struct be_erx_stats *erx_stats = &hw_stats->erx;
 	void *p = NULL;
 	int i;

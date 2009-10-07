@@ -141,7 +141,7 @@ void netdev_stats_update(struct be_adapter *adapter)
 	struct be_rxf_stats *rxf_stats = &hw_stats->rxf;
 	struct be_port_rxf_stats *port_stats =
 			&rxf_stats->port[adapter->port_num];
-	struct net_device_stats *dev_stats = &adapter->stats.net_stats;
+	struct net_device_stats *dev_stats = &adapter->netdev->stats;
 	struct be_erx_stats *erx_stats = &hw_stats->erx;
 
 	dev_stats->rx_packets = port_stats->rx_total_frames;
@@ -269,9 +269,7 @@ static void be_rx_eqd_update(struct be_adapter *adapter)
 
 static struct net_device_stats *be_get_stats(struct net_device *dev)
 {
-	struct be_adapter *adapter = netdev_priv(dev);
-
-	return &adapter->stats.net_stats;
+	return &dev->stats;
 }
 
 static u32 be_calc_rate(u64 bytes, unsigned long ticks)

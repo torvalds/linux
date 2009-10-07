@@ -181,7 +181,6 @@ struct be_drvr_stats {
 
 struct be_stats_obj {
 	struct be_drvr_stats drvr_stats;
-	struct net_device_stats net_stats;
 	struct be_dma_mem cmd;
 };
 
