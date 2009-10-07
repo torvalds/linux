@@ -91,11 +91,18 @@ static struct ceph_vxattr_cb ceph_dir_vxattrs[] = {
 static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 				   size_t size)
 {
-	return snprintf(val, size,
+	int ret;
+
+	ret = snprintf(val, size,
 		"chunk_bytes=%lld\nstripe_count=%lld\nobject_size=%lld\n",
 		(unsigned long long)ceph_file_layout_su(ci->i_layout),
 		(unsigned long long)ceph_file_layout_stripe_count(ci->i_layout),
 		(unsigned long long)ceph_file_layout_object_size(ci->i_layout));
+	if (ceph_file_layout_pg_preferred(ci->i_layout))
+		ret += snprintf(val + ret, size, "preferred_osd=%lld\n",
+			    (unsigned long long)ceph_file_layout_pg_preferred(
+				    ci->i_layout));
+	return ret;
 }
 
 static struct ceph_vxattr_cb ceph_file_vxattrs[] = {
