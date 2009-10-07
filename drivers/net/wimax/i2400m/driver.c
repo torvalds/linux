@@ -398,7 +398,6 @@ retry:
 	result = i2400m_check_mac_addr(i2400m);
 	if (result < 0)
 		goto error_check_mac_addr;
-	wimax_state_change(wimax_dev, WIMAX_ST_UNINITIALIZED);
 	result = i2400m_dev_initialize(i2400m);
 	if (result < 0)
 		goto error_dev_initialize;
