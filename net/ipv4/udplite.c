@@ -12,7 +12,7 @@
  */
 #include "udp_impl.h"
 
-struct udp_table 	udplite_table;
+struct udp_table 	udplite_table __read_mostly;
 EXPORT_SYMBOL(udplite_table);
 
 static int udplite_rcv(struct sk_buff *skb)
@@ -110,7 +110,7 @@ static inline int udplite4_proc_init(void)
 
 void __init udplite4_register(void)
 {
-	udp_table_init(&udplite_table);
+	udp_table_init(&udplite_table, "UDP-Lite");
 	if (proto_register(&udplite_prot, 1))
 		goto out_register_err;
 

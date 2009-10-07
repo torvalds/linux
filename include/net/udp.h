@@ -54,12 +54,19 @@ struct udp_hslot {
 	struct hlist_nulls_head	head;
 	spinlock_t		lock;
 } __attribute__((aligned(2 * sizeof(long))));
+
 struct udp_table {
-	struct udp_hslot	hash[UDP_HTABLE_SIZE];
+	struct udp_hslot	*hash;
+	unsigned int mask;
+	unsigned int log;
 };
 extern struct udp_table udp_table;
-extern void udp_table_init(struct udp_table *);
-
+extern void udp_table_init(struct udp_table *, const char *);
+static inline struct udp_hslot *udp_hashslot(struct udp_table *table,
+					     struct net *net, unsigned num)
+{
+	return &table->hash[udp_hashfn(net, num, table->mask)];
+}
 
 /* Note: this must match 'valbool' in sock_setsockopt */
 #define UDP_CSUM_NOXMIT		1

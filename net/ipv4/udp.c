@@ -106,7 +106,7 @@
 #include <net/xfrm.h>
 #include "udp_impl.h"
 
-struct udp_table udp_table;
+struct udp_table udp_table __read_mostly;
 EXPORT_SYMBOL(udp_table);
 
 int sysctl_udp_mem[3] __read_mostly;
@@ -121,14 +121,16 @@ EXPORT_SYMBOL(sysctl_udp_wmem_min);
 atomic_t udp_memory_allocated;
 EXPORT_SYMBOL(udp_memory_allocated);
 
-#define PORTS_PER_CHAIN (65536 / UDP_HTABLE_SIZE)
+#define MAX_UDP_PORTS 65536
+#define PORTS_PER_CHAIN (MAX_UDP_PORTS / UDP_HTABLE_SIZE_MIN)
 
 static int udp_lib_lport_inuse(struct net *net, __u16 num,
 			       const struct udp_hslot *hslot,
 			       unsigned long *bitmap,
 			       struct sock *sk,
 			       int (*saddr_comp)(const struct sock *sk1,
-						 const struct sock *sk2))
+						 const struct sock *sk2),
+			       unsigned int log)
 {
 	struct sock *sk2;
 	struct hlist_nulls_node *node;
@@ -142,8 +144,7 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
 			|| sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
 		    (*saddr_comp)(sk, sk2)) {
 			if (bitmap)
-				__set_bit(sk2->sk_hash / UDP_HTABLE_SIZE,
-					  bitmap);
+				__set_bit(sk2->sk_hash >> log, bitmap);
 			else
 				return 1;
 		}
@@ -180,13 +181,15 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		/*
 		 * force rand to be an odd multiple of UDP_HTABLE_SIZE
 		 */
-		rand = (rand | 1) * UDP_HTABLE_SIZE;
-		for (last = first + UDP_HTABLE_SIZE; first != last; first++) {
-			hslot = &udptable->hash[udp_hashfn(net, first)];
+		rand = (rand | 1) * (udptable->mask + 1);
+		for (last = first + udptable->mask + 1;
+		     first != last;
+		     first++) {
+			hslot = udp_hashslot(udptable, net, first);
 			bitmap_zero(bitmap, PORTS_PER_CHAIN);
 			spin_lock_bh(&hslot->lock);
 			udp_lib_lport_inuse(net, snum, hslot, bitmap, sk,
-					    saddr_comp);
+					    saddr_comp, udptable->log);
 
 			snum = first;
 			/*
@@ -196,7 +199,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 			 */
 			do {
 				if (low <= snum && snum <= high &&
-				    !test_bit(snum / UDP_HTABLE_SIZE, bitmap))
+				    !test_bit(snum >> udptable->log, bitmap))
 					goto found;
 				snum += rand;
 			} while (snum != first);
@@ -204,9 +207,10 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		}
 		goto fail;
 	} else {
-		hslot = &udptable->hash[udp_hashfn(net, snum)];
+		hslot = udp_hashslot(udptable, net, snum);
 		spin_lock_bh(&hslot->lock);
-		if (udp_lib_lport_inuse(net, snum, hslot, NULL, sk, saddr_comp))
+		if (udp_lib_lport_inuse(net, snum, hslot, NULL, sk,
+					saddr_comp, 0))
 			goto fail_unlock;
 	}
 found:
@@ -283,7 +287,7 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 	struct sock *sk, *result;
 	struct hlist_nulls_node *node;
 	unsigned short hnum = ntohs(dport);
-	unsigned int hash = udp_hashfn(net, hnum);
+	unsigned int hash = udp_hashfn(net, hnum, udptable->mask);
 	struct udp_hslot *hslot = &udptable->hash[hash];
 	int score, badness;
 
@@ -1013,8 +1017,8 @@ void udp_lib_unhash(struct sock *sk)
 {
 	if (sk_hashed(sk)) {
 		struct udp_table *udptable = sk->sk_prot->h.udp_table;
-		unsigned int hash = udp_hashfn(sock_net(sk), sk->sk_hash);
-		struct udp_hslot *hslot = &udptable->hash[hash];
+		struct udp_hslot *hslot = udp_hashslot(udptable, sock_net(sk),
+						     sk->sk_hash);
 
 		spin_lock_bh(&hslot->lock);
 		if (sk_nulls_del_node_init_rcu(sk)) {
@@ -1169,7 +1173,7 @@ static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 				    struct udp_table *udptable)
 {
 	struct sock *sk;
-	struct udp_hslot *hslot = &udptable->hash[udp_hashfn(net, ntohs(uh->dest))];
+	struct udp_hslot *hslot = udp_hashslot(udptable, net, ntohs(uh->dest));
 	int dif;
 
 	spin_lock(&hslot->lock);
@@ -1609,9 +1613,14 @@ static struct sock *udp_get_first(struct seq_file *seq, int start)
 	struct udp_iter_state *state = seq->private;
 	struct net *net = seq_file_net(seq);
 
-	for (state->bucket = start; state->bucket < UDP_HTABLE_SIZE; ++state->bucket) {
+	for (state->bucket = start; state->bucket <= state->udp_table->mask;
+	     ++state->bucket) {
 		struct hlist_nulls_node *node;
 		struct udp_hslot *hslot = &state->udp_table->hash[state->bucket];
+
+		if (hlist_nulls_empty(&hslot->head))
+			continue;
+
 		spin_lock_bh(&hslot->lock);
 		sk_nulls_for_each(sk, node, &hslot->head) {
 			if (!net_eq(sock_net(sk), net))
@@ -1636,7 +1645,7 @@ static struct sock *udp_get_next(struct seq_file *seq, struct sock *sk)
 	} while (sk && (!net_eq(sock_net(sk), net) || sk->sk_family != state->family));
 
 	if (!sk) {
-		if (state->bucket < UDP_HTABLE_SIZE)
+		if (state->bucket <= state->udp_table->mask)
 			spin_unlock_bh(&state->udp_table->hash[state->bucket].lock);
 		return udp_get_first(seq, state->bucket + 1);
 	}
@@ -1656,7 +1665,7 @@ static struct sock *udp_get_idx(struct seq_file *seq, loff_t pos)
 static void *udp_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct udp_iter_state *state = seq->private;
-	state->bucket = UDP_HTABLE_SIZE;
+	state->bucket = MAX_UDP_PORTS;
 
 	return *pos ? udp_get_idx(seq, *pos-1) : SEQ_START_TOKEN;
 }
@@ -1678,7 +1687,7 @@ static void udp_seq_stop(struct seq_file *seq, void *v)
 {
 	struct udp_iter_state *state = seq->private;
 
-	if (state->bucket < UDP_HTABLE_SIZE)
+	if (state->bucket <= state->udp_table->mask)
 		spin_unlock_bh(&state->udp_table->hash[state->bucket].lock);
 }
 
@@ -1738,7 +1747,7 @@ static void udp4_format_sock(struct sock *sp, struct seq_file *f,
 	__u16 destp	  = ntohs(inet->dport);
 	__u16 srcp	  = ntohs(inet->sport);
 
-	seq_printf(f, "%4d: %08X:%04X %08X:%04X"
+	seq_printf(f, "%5d: %08X:%04X %08X:%04X"
 		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d%n",
 		bucket, src, srcp, dest, destp, sp->sk_state,
 		sk_wmem_alloc_get(sp),
@@ -1804,11 +1813,43 @@ void udp4_proc_exit(void)
 }
 #endif /* CONFIG_PROC_FS */
 
-void __init udp_table_init(struct udp_table *table)
+static __initdata unsigned long uhash_entries;
+static int __init set_uhash_entries(char *str)
 {
-	int i;
+	if (!str)
+		return 0;
+	uhash_entries = simple_strtoul(str, &str, 0);
+	if (uhash_entries && uhash_entries < UDP_HTABLE_SIZE_MIN)
+		uhash_entries = UDP_HTABLE_SIZE_MIN;
+	return 1;
+}
+__setup("uhash_entries=", set_uhash_entries);
 
-	for (i = 0; i < UDP_HTABLE_SIZE; i++) {
+void __init udp_table_init(struct udp_table *table, const char *name)
+{
+	unsigned int i;
+
+	if (!CONFIG_BASE_SMALL)
+		table->hash = alloc_large_system_hash(name,
+			sizeof(struct udp_hslot),
+			uhash_entries,
+			21, /* one slot per 2 MB */
+			0,
+			&table->log,
+			&table->mask,
+			64 * 1024);
+	/*
+	 * Make sure hash table has the minimum size
+	 */
+	if (CONFIG_BASE_SMALL || table->mask < UDP_HTABLE_SIZE_MIN - 1) {
+		table->hash = kmalloc(UDP_HTABLE_SIZE_MIN *
+				      sizeof(struct udp_hslot), GFP_KERNEL);
+		if (!table->hash)
+			panic(name);
+		table->log = ilog2(UDP_HTABLE_SIZE_MIN);
+		table->mask = UDP_HTABLE_SIZE_MIN - 1;
+	}
+	for (i = 0; i <= table->mask; i++) {
 		INIT_HLIST_NULLS_HEAD(&table->hash[i].head, i);
 		spin_lock_init(&table->hash[i].lock);
 	}
@@ -1818,7 +1859,7 @@ void __init udp_init(void)
 {
 	unsigned long nr_pages, limit;
 
-	udp_table_init(&udp_table);
+	udp_table_init(&udp_table, "UDP");
 	/* Set the pressure threshold up by the same strategy of TCP. It is a
 	 * fraction of global memory that is up to 1/2 at 256 MB, decreasing
 	 * toward zero with the amount of memory, with a floor of 128 pages.

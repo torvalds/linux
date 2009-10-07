@@ -2589,6 +2589,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	uart6850=	[HW,OSS]
 			Format: <io>,<irq>
 
+	uhash_entries=	[KNL,NET]
+			Set number of hash buckets for UDP/UDP-Lite connections
+
 	uhci-hcd.ignore_oc=
 			[USB] Ignore overcurrent events (default N).
 			Some badly-designed motherboards generate lots of
