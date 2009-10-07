@@ -572,8 +572,6 @@ int swsusp_read(unsigned int *flags_p)
 		error = load_image(&handle, &snapshot, header->pages - 1);
 	release_swap_reader(&handle);
 
-	blkdev_put(resume_bdev, FMODE_READ);
-
 	if (!error)
 		pr_debug("PM: Image successfully loaded\n");
 	else
@@ -596,7 +594,7 @@ int swsusp_check(void)
 		error = bio_read_page(swsusp_resume_block,
 					swsusp_header, NULL);
 		if (error)
-			return error;
+			goto put;
 
 		if (!memcmp(SWSUSP_SIG, swsusp_header->sig, 10)) {
 			memcpy(swsusp_header->sig, swsusp_header->orig_sig, 10);
@@ -604,8 +602,10 @@ int swsusp_check(void)
 			error = bio_write_page(swsusp_resume_block,
 						swsusp_header, NULL);
 		} else {
-			return -EINVAL;
+			error = -EINVAL;
 		}
+
+put:
 		if (error)
 			blkdev_put(resume_bdev, FMODE_READ);
 		else
