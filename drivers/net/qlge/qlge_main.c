@@ -546,14 +546,14 @@ static int ql_set_routing_reg(struct ql_adapter *qdev, u32 index, u32 mask,
 		}
 	case RT_IDX_MCAST:	/* Pass up All Multicast frames. */
 		{
-			value = RT_IDX_DST_CAM_Q |	/* dest */
+			value = RT_IDX_DST_DFLT_Q |	/* dest */
 			    RT_IDX_TYPE_NICQ |	/* type */
 			    (RT_IDX_ALLMULTI_SLOT << RT_IDX_IDX_SHIFT);/* index */
 			break;
 		}
 	case RT_IDX_MCAST_MATCH:	/* Pass up matched Multicast frames. */
 		{
-			value = RT_IDX_DST_CAM_Q |	/* dest */
+			value = RT_IDX_DST_DFLT_Q |	/* dest */
 			    RT_IDX_TYPE_NICQ |	/* type */
 			    (RT_IDX_MCAST_MATCH_SLOT << RT_IDX_IDX_SHIFT);/* index */
 			break;
