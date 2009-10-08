@@ -427,6 +427,7 @@ again:
 			     &BTRFS_I(inode)->io_tree,
 			     start, end, NULL,
 			     EXTENT_CLEAR_UNLOCK_PAGE | EXTENT_CLEAR_DIRTY |
+			     EXTENT_CLEAR_DELALLOC |
 			     EXTENT_SET_WRITEBACK | EXTENT_END_WRITEBACK);
 			ret = 0;
 			goto free_pages_out;
@@ -644,6 +645,7 @@ static noinline int submit_compressed_extents(struct inode *inode,
 				async_extent->ram_size - 1,
 				NULL, EXTENT_CLEAR_UNLOCK_PAGE |
 				EXTENT_CLEAR_UNLOCK |
+				EXTENT_CLEAR_DELALLOC |
 				EXTENT_CLEAR_DIRTY | EXTENT_SET_WRITEBACK);
 
 		ret = btrfs_submit_compressed_write(inode,
@@ -877,8 +879,8 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 	u64 cur_end;
 	int limit = 10 * 1024 * 1042;
 
-	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, EXTENT_LOCKED |
-			 EXTENT_DELALLOC, 1, 0, NULL, GFP_NOFS);
+	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, EXTENT_LOCKED,
+			 1, 0, NULL, GFP_NOFS);
 	while (start < end) {
 		async_cow = kmalloc(sizeof(*async_cow), GFP_NOFS);
 		async_cow->inode = inode;
