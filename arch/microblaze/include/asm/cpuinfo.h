@@ -43,7 +43,7 @@ struct cpuinfo {
 	u32 use_icache;
 	u32 icache_tagbits;
 	u32 icache_write;
-	u32 icache_line;
+	u32 icache_line_length;
 	u32 icache_size;
 	unsigned long icache_base;
 	unsigned long icache_high;
@@ -51,7 +51,7 @@ struct cpuinfo {
 	u32 use_dcache;
 	u32 dcache_tagbits;
 	u32 dcache_write;
-	u32 dcache_line;
+	u32 dcache_line_length;
 	u32 dcache_size;
 	unsigned long dcache_base;
 	unsigned long dcache_high;

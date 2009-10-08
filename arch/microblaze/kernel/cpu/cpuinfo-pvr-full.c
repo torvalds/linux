@@ -70,7 +70,7 @@ void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
 	CI(use_icache, USE_ICACHE);
 	CI(icache_tagbits, ICACHE_ADDR_TAG_BITS);
 	CI(icache_write, ICACHE_ALLOW_WR);
-	CI(icache_line, ICACHE_LINE_LEN);
+	ci->icache_line_length = PVR_ICACHE_LINE_LEN(pvr) << 2;
 	CI(icache_size, ICACHE_BYTE_SIZE);
 	CI(icache_base, ICACHE_BASEADDR);
 	CI(icache_high, ICACHE_HIGHADDR);
@@ -78,7 +78,7 @@ void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
 	CI(use_dcache, USE_DCACHE);
 	CI(dcache_tagbits, DCACHE_ADDR_TAG_BITS);
 	CI(dcache_write, DCACHE_ALLOW_WR);
-	CI(dcache_line, DCACHE_LINE_LEN);
+	ci->dcache_line_length = PVR_DCACHE_LINE_LEN(pvr) << 2;
 	CI(dcache_size, DCACHE_BYTE_SIZE);
 	CI(dcache_base, DCACHE_BASEADDR);
 	CI(dcache_high, DCACHE_HIGHADDR);

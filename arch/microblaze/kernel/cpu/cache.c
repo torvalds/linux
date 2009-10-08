@@ -140,7 +140,7 @@ void __invalidate_icache_all(void)
 		/* Just loop through cache size and invalidate, no need to add
 			CACHE_BASE address */
 		for (i = 0; i < cpuinfo.icache_size;
-			i += cpuinfo.icache_line)
+			i += cpuinfo.icache_line_length)
 				__invalidate_icache(i);
 
 		__enable_icache();
@@ -160,15 +160,15 @@ void __invalidate_icache_range(unsigned long start, unsigned long end)
 		 * just cover cache footprint
 		 */
 		end = min(start + cpuinfo.icache_size, end);
-		align = ~(cpuinfo.icache_line - 1);
+		align = ~(cpuinfo.icache_line_length - 1);
 		start &= align; /* Make sure we are aligned */
 		/* Push end up to the next cache line */
-		end = ((end & align) + cpuinfo.icache_line);
+		end = ((end & align) + cpuinfo.icache_line_length);
 
 		local_irq_save(flags);
 		__disable_icache();
 
-		for (i = start; i < end; i += cpuinfo.icache_line)
+		for (i = start; i < end; i += cpuinfo.icache_line_length)
 			__invalidate_icache(i);
 
 		__enable_icache();
@@ -207,7 +207,7 @@ void __invalidate_dcache_all(void)
 		 * no need to add CACHE_BASE address
 		 */
 		for (i = 0; i < cpuinfo.dcache_size;
-			i += cpuinfo.dcache_line)
+			i += cpuinfo.dcache_line_length)
 				__invalidate_dcache(i);
 
 		__enable_dcache();
@@ -227,14 +227,14 @@ void __invalidate_dcache_range(unsigned long start, unsigned long end)
 		 * just cover cache footprint
 		 */
 		end = min(start + cpuinfo.dcache_size, end);
-		align = ~(cpuinfo.dcache_line - 1);
+		align = ~(cpuinfo.dcache_line_length - 1);
 		start &= align; /* Make sure we are aligned */
 		/* Push end up to the next cache line */
-		end = ((end & align) + cpuinfo.dcache_line);
+		end = ((end & align) + cpuinfo.dcache_line_length);
 		local_irq_save(flags);
 		__disable_dcache();
 
-		for (i = start; i < end; i += cpuinfo.dcache_line)
+		for (i = start; i < end; i += cpuinfo.dcache_line_length)
 			__invalidate_dcache(i);
 
 		__enable_dcache();
