@@ -1093,6 +1093,15 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	if (!cic || !atomic_read(&cic->ioc->nr_tasks))
 		return;
 
+	/*
+	 * If our average think time is larger than the remaining time
+	 * slice, then don't idle. This avoids overrunning the allotted
+	 * time slice.
+	 */
+	if (sample_valid(cic->ttime_samples) &&
+	    (cfqq->slice_end - jiffies < cic->ttime_mean))
+		return;
+
 	cfq_mark_cfqq_wait_request(cfqq);
 
 	/*
