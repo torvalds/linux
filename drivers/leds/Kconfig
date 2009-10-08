@@ -253,6 +253,16 @@ config LEDS_LT3593
 	  LT3593 controller. This controller uses a special one-wire pulse
 	  coding protocol to set the brightness.
 
+config LEDS_ADP5520
+	tristate "LED Support for ADP5520/ADP5501 PMIC"
+	depends on LEDS_CLASS && PMIC_ADP5520
+	help
+	  This option enables support for on-chip LED drivers found
+	  on Analog Devices ADP5520/ADP5501 PMICs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called leds-adp5520.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS
