@@ -287,10 +287,16 @@ struct perf_header *perf_header__read(int fd)
 	do_read(fd, &f_header, sizeof(f_header));
 
 	if (f_header.magic	!= PERF_MAGIC		||
-	    f_header.size	!= sizeof(f_header)	||
 	    f_header.attr_size	!= sizeof(f_attr))
 		die("incompatible file format");
 
+	if (f_header.size != sizeof(f_header)) {
+		/* Support the previous format */
+		if (f_header.size == offsetof(typeof(f_header), trace_info))
+			f_header.trace_info.size = 0;
+		else
+			die("incompatible file format");
+	}
 	nr_attrs = f_header.attrs.size / sizeof(f_attr);
 	lseek(fd, f_header.attrs.offset, SEEK_SET);
 
