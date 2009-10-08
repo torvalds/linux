@@ -213,7 +213,7 @@ static void handle_subscribe_ack(struct ceph_mon_client *monc,
 		monc->hunting = false;
 	}
 	dout("handle_subscribe_ack after %d seconds\n", seconds);
-	monc->sub_renew_after = monc->sub_sent + seconds*HZ - 1;
+	monc->sub_renew_after = monc->sub_sent + (seconds >> 1)*HZ - 1;
 	monc->sub_sent = 0;
 	mutex_unlock(&monc->mutex);
 	return;
@@ -512,7 +512,7 @@ static void delayed_work(struct work_struct *work)
 	if (monc->want_mount) {
 		__request_mount(monc);
 	} else {
-		if (__sub_expired(monc)) {
+		if (monc->hunting) {
 			__close_session(monc);
 			__open_session(monc);  /* continue hunting */
 		} else {
