@@ -1160,12 +1160,9 @@ static int wl1271_register_hw(struct wl1271 *wl)
 
 static int wl1271_init_ieee80211(struct wl1271 *wl)
 {
-	/*
-	 * The tx descriptor buffer and the TKIP space.
-	 *
-	 * FIXME: add correct 1271 descriptor size
-	 */
-	wl->hw->extra_tx_headroom = WL1271_TKIP_IV_SPACE;
+	/* The tx descriptor buffer and the TKIP space. */
+	wl->hw->extra_tx_headroom = WL1271_TKIP_IV_SPACE +
+		sizeof(struct wl1271_tx_hw_descr);
 
 	/* unit us */
 	/* FIXME: find a proper value */
