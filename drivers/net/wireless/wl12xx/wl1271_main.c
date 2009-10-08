@@ -30,6 +30,7 @@
 #include <linux/spi/spi.h>
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
+#include <linux/vmalloc.h>
 #include <linux/spi/wl12xx.h>
 
 #include "wl1271.h"
@@ -231,7 +232,7 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 	}
 
 	wl->fw_len = fw->size;
-	wl->fw = kmalloc(wl->fw_len, GFP_KERNEL);
+	wl->fw = vmalloc(wl->fw_len);
 
 	if (!wl->fw) {
 		wl1271_error("could not allocate memory for the firmware");
@@ -1484,7 +1485,7 @@ static int __devexit wl1271_remove(struct spi_device *spi)
 	platform_device_unregister(&wl1271_device);
 	free_irq(wl->irq, wl);
 	kfree(wl->target_mem_map);
-	kfree(wl->fw);
+	vfree(wl->fw);
 	wl->fw = NULL;
 	kfree(wl->nvs);
 	wl->nvs = NULL;
