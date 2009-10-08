@@ -881,7 +881,7 @@ static void radeon_legacy_tv_dac_mode_set(struct drm_encoder *encoder,
 					R420_TV_DAC_DACADJ_MASK |
 					R420_TV_DAC_RDACPD |
 					R420_TV_DAC_GDACPD |
-					R420_TV_DAC_GDACPD |
+					R420_TV_DAC_BDACPD |
 					R420_TV_DAC_TVENABLE);
 		} else {
 			tv_dac_cntl &= ~(RADEON_TV_DAC_STD_MASK |
@@ -889,7 +889,7 @@ static void radeon_legacy_tv_dac_mode_set(struct drm_encoder *encoder,
 					RADEON_TV_DAC_DACADJ_MASK |
 					RADEON_TV_DAC_RDACPD |
 					RADEON_TV_DAC_GDACPD |
-					RADEON_TV_DAC_GDACPD);
+					RADEON_TV_DAC_BDACPD);
 		}
 
 		/*  FIXME TV */
@@ -1318,7 +1318,10 @@ radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t 
 		return;
 
 	encoder = &radeon_encoder->base;
-	encoder->possible_crtcs = 0x3;
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		encoder->possible_crtcs = 0x1;
+	else
+		encoder->possible_crtcs = 0x3;
 	encoder->possible_clones = 0;
 
 	radeon_encoder->enc_priv = NULL;
