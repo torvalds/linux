@@ -337,6 +337,11 @@ struct wl1271 {
 	/* Pending TX frames */
 	struct sk_buff *tx_frames[16];
 
+	/* Security sequence number counters */
+	u8 tx_security_last_seq;
+	u16 tx_security_seq_16;
+	u32 tx_security_seq_32;
+
 	/* FW Rx counter */
 	u32 rx_counter;
 

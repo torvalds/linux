@@ -228,6 +228,10 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type, u8 dtim_interval,
 
 	join->ctrl |= wl->session_counter << WL1271_JOIN_CMD_TX_SESSION_OFFSET;
 
+	/* reset TX security counters */
+	wl->tx_security_last_seq = 0;
+	wl->tx_security_seq_16 = 0;
+	wl->tx_security_seq_32 = 0;
 
 	ret = wl1271_cmd_send(wl, CMD_START_JOIN, join, sizeof(*join));
 	if (ret < 0) {
@@ -759,7 +763,8 @@ out:
 }
 
 int wl1271_cmd_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
-		       u8 key_size, const u8 *key, const u8 *addr)
+		       u8 key_size, const u8 *key, const u8 *addr,
+		       u32 tx_seq_32, u16 tx_seq_16)
 {
 	struct wl1271_cmd_set_keys *cmd;
 	int ret = 0;
@@ -777,12 +782,14 @@ int wl1271_cmd_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 	cmd->key_size = key_size;
 	cmd->key_type = key_type;
 
+	cmd->ac_seq_num16[0] = tx_seq_16;
+	cmd->ac_seq_num32[0] = tx_seq_32;
+
 	/* we have only one SSID profile */
 	cmd->ssid_profile = 0;
 
 	cmd->id = id;
 
-	/* FIXME: this is from wl1251, needs to be checked */
 	if (key_type == KEY_TKIP) {
 		/*
 		 * We get the key in the following form:
