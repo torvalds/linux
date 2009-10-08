@@ -245,19 +245,19 @@ struct i2400m_barker_db;
  *     all the host resources created to  handle communication with
  *     the device.
  *
- * @bus_dev_start: [fill] Function called by the bus-generic code
- *     [i2400m_dev_start()] to setup the bus-specific communications
- *     to the the device. See LIFE CYCLE above.
+ * @bus_dev_start: [optional fill] Function called by the bus-generic
+ *     code [i2400m_dev_start()] to do things needed to start the
+ *     device. See LIFE CYCLE above.
  *
  *     NOTE: Doesn't need to upload the firmware, as that is taken
  *     care of by the bus-generic code.
  *
- * @bus_dev_stop: [fill] Function called by the bus-generic code
- *     [i2400m_dev_stop()] to shutdown the bus-specific communications
- *     to the the device. See LIFE CYCLE above.
+ * @bus_dev_stop: [optional fill] Function called by the bus-generic
+ *     code [i2400m_dev_stop()] to do things needed for stopping the
+ *     device. See LIFE CYCLE above.
  *
  *     This function does not need to reset the device, just tear down
- *     all the host resources created to  handle communication with
+ *     all the host resources created to handle communication with
  *     the device.
  *
  * @bus_tx_kick: [fill] Function called by the bus-generic code to let

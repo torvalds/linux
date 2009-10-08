@@ -384,9 +384,11 @@ retry:
 		dev_err(dev, "cannot create workqueue\n");
 		goto error_create_workqueue;
 	}
-	result = i2400m->bus_dev_start(i2400m);
-	if (result < 0)
-		goto error_bus_dev_start;
+	if (i2400m->bus_dev_start) {
+		result = i2400m->bus_dev_start(i2400m);
+		if (result < 0)
+			goto error_bus_dev_start;
+	}
 	i2400m->ready = 1;
 	wmb();		/* see i2400m->ready's documentation  */
 	/* process pending reports from the device */
@@ -413,7 +415,8 @@ error_check_mac_addr:
 	wmb();		/* see i2400m->ready's documentation  */
 	flush_workqueue(i2400m->work_queue);
 error_fw_check:
-	i2400m->bus_dev_stop(i2400m);
+	if (i2400m->bus_dev_stop)
+		i2400m->bus_dev_stop(i2400m);
 error_bus_dev_start:
 	destroy_workqueue(i2400m->work_queue);
 error_create_workqueue:
@@ -480,7 +483,8 @@ void __i2400m_dev_stop(struct i2400m *i2400m)
 	wmb();		/* see i2400m->ready's documentation  */
 	flush_workqueue(i2400m->work_queue);
 
-	i2400m->bus_dev_stop(i2400m);
+	if (i2400m->bus_dev_stop)
+		i2400m->bus_dev_stop(i2400m);
 	destroy_workqueue(i2400m->work_queue);
 	i2400m_rx_release(i2400m);
 	i2400m_tx_release(i2400m);
