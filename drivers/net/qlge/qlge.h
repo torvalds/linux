@@ -1168,7 +1168,7 @@ struct ricb {
 #define RSS_RI6 0x40
 #define RSS_RT6 0x80
 	__le16 mask;
-	__le32 hash_cq_id[256];
+	u8 hash_cq_id[1024];
 	__le32 ipv6_hash_key[10];
 	__le32 ipv4_hash_key[4];
 } __attribute((packed));

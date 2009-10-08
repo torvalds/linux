@@ -3077,6 +3077,12 @@ err_irq:
 
 static int ql_start_rss(struct ql_adapter *qdev)
 {
+	u8 init_hash_seed[] = {0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+				0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f,
+				0xb0, 0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b,
+				0x30, 0xb4, 0x77, 0xcb, 0x2d, 0xa3, 0x80,
+				0x30, 0xf2, 0x0c, 0x6a, 0x42, 0xb7, 0x3b,
+				0xbe, 0xac, 0x01, 0xfa};
 	struct ricb *ricb = &qdev->ricb;
 	int status = 0;
 	int i;
@@ -3086,21 +3092,17 @@ static int ql_start_rss(struct ql_adapter *qdev)
 
 	ricb->base_cq = RSS_L4K;
 	ricb->flags =
-	    (RSS_L6K | RSS_LI | RSS_LB | RSS_LM | RSS_RI4 | RSS_RI6 | RSS_RT4 |
-	     RSS_RT6);
-	ricb->mask = cpu_to_le16(qdev->rss_ring_count - 1);
+		(RSS_L6K | RSS_LI | RSS_LB | RSS_LM | RSS_RT4 | RSS_RT6);
+	ricb->mask = cpu_to_le16((u16)(0x3ff));
 
 	/*
 	 * Fill out the Indirection Table.
 	 */
-	for (i = 0; i < 256; i++)
-		hash_id[i] = i & (qdev->rss_ring_count - 1);
+	for (i = 0; i < 1024; i++)
+		hash_id[i] = (i & (qdev->rss_ring_count - 1));
 
-	/*
-	 * Random values for the IPv6 and IPv4 Hash Keys.
-	 */
-	get_random_bytes((void *)&ricb->ipv6_hash_key[0], 40);
-	get_random_bytes((void *)&ricb->ipv4_hash_key[0], 16);
+	memcpy((void *)&ricb->ipv6_hash_key[0], init_hash_seed, 40);
+	memcpy((void *)&ricb->ipv4_hash_key[0], init_hash_seed, 16);
 
 	QPRINTK(qdev, IFUP, DEBUG, "Initializing RSS.\n");
 
