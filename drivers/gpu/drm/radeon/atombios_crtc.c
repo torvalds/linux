@@ -563,6 +563,10 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		radeon_fb = to_radeon_framebuffer(old_fb);
 		radeon_gem_object_unpin(radeon_fb->obj);
 	}
+
+	/* Bytes per pixel may have changed */
+	radeon_bandwidth_update(rdev);
+
 	return 0;
 }
 
@@ -701,7 +705,6 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	}
 	atombios_overscan_setup(crtc, mode, adjusted_mode);
 	atombios_scaler_setup(crtc);
-	radeon_bandwidth_update(rdev);
 	return 0;
 }
 

@@ -532,6 +532,10 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		radeon_fb = to_radeon_framebuffer(old_fb);
 		radeon_gem_object_unpin(radeon_fb->obj);
 	}
+
+	/* Bytes per pixel may have changed */
+	radeon_bandwidth_update(rdev);
+
 	return 0;
 }
 
@@ -1015,14 +1019,11 @@ static int radeon_crtc_mode_set(struct drm_crtc *crtc,
 				 int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	struct radeon_device *rdev = dev->dev_private;
 
 	/* TODO TV */
 	radeon_crtc_set_base(crtc, x, y, old_fb);
 	radeon_set_crtc_timing(crtc, adjusted_mode);
 	radeon_set_pll(crtc, adjusted_mode);
-	radeon_bandwidth_update(rdev);
 	if (radeon_crtc->crtc_id == 0) {
 		radeon_legacy_rmx_mode_set(crtc, mode, adjusted_mode);
 	} else {
