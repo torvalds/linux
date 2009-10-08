@@ -244,12 +244,75 @@ int wl1271_set_partition(struct wl1271 *wl,
 	return 0;
 }
 
+#define WL1271_BUSY_WORD_TIMEOUT 1000
+
+void wl1271_spi_read_busy(struct wl1271 *wl, void *buf, size_t len)
+{
+	struct spi_transfer t[1];
+	struct spi_message m;
+	u32 *busy_buf;
+	int num_busy_bytes = 0;
+
+	wl1271_info("spi read BUSY!");
+
+	/*
+	 * Look for the non-busy word in the read buffer, and if found,
+	 * read in the remaining data into the buffer.
+	 */
+	busy_buf = (u32 *)buf;
+	for (; (u32)busy_buf < (u32)buf + len; busy_buf++) {
+		num_busy_bytes += sizeof(u32);
+		if (*busy_buf & 0x1) {
+			spi_message_init(&m);
+			memset(t, 0, sizeof(t));
+			memmove(buf, busy_buf, len - num_busy_bytes);
+			t[0].rx_buf = buf + (len - num_busy_bytes);
+			t[0].len = num_busy_bytes;
+			spi_message_add_tail(&t[0], &m);
+			spi_sync(wl->spi, &m);
+			return;
+		}
+	}
+
+	/*
+	 * Read further busy words from SPI until a non-busy word is
+	 * encountered, then read the data itself into the buffer.
+	 */
+	wl1271_info("spi read BUSY-polling needed!");
+
+	num_busy_bytes = WL1271_BUSY_WORD_TIMEOUT;
+	busy_buf = wl->buffer_busyword;
+	while (num_busy_bytes) {
+		num_busy_bytes--;
+		spi_message_init(&m);
+		memset(t, 0, sizeof(t));
+		t[0].rx_buf = busy_buf;
+		t[0].len = sizeof(u32);
+		spi_message_add_tail(&t[0], &m);
+		spi_sync(wl->spi, &m);
+
+		if (*busy_buf & 0x1) {
+			spi_message_init(&m);
+			memset(t, 0, sizeof(t));
+			t[0].rx_buf = buf;
+			t[0].len = len;
+			spi_message_add_tail(&t[0], &m);
+			spi_sync(wl->spi, &m);
+			return;
+		}
+	}
+
+	/* The SPI bus is unresponsive, the read failed. */
+	memset(buf, 0, len);
+	wl1271_error("SPI read busy-word timeout!\n");
+}
+
 void wl1271_spi_read(struct wl1271 *wl, int addr, void *buf,
 		     size_t len, bool fixed)
 {
 	struct spi_transfer t[3];
 	struct spi_message m;
-	u8 *busy_buf;
+	u32 *busy_buf;
 	u32 *cmd;
 
 	cmd = &wl->buffer_cmd;
@@ -281,7 +344,9 @@ void wl1271_spi_read(struct wl1271 *wl, int addr, void *buf,
 
 	spi_sync(wl->spi, &m);
 
-	/* FIXME: check busy words */
+	/* Check busy words */
+	if (!(busy_buf[WL1271_BUSY_WORD_CNT - 1] & 0x1))
+		wl1271_spi_read_busy(wl, buf, len);
 
 	wl1271_dump(DEBUG_SPI, "spi_read cmd -> ", cmd, sizeof(*cmd));
 	wl1271_dump(DEBUG_SPI, "spi_read buf <- ", buf, len);

@@ -107,7 +107,13 @@ enum {
 #define WL1271_FW_NAME "wl1271-fw.bin"
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
 
-#define WL1271_BUSY_WORD_LEN 8
+/*
+ * FIXME: for the wl1271, a busy word count of 1 here will result in a more
+ * optimal SPI interface. There is some SPI bug however, causing RXS time outs
+ * with this mode occasionally on boot, so lets have two for now.
+ */
+#define WL1271_BUSY_WORD_CNT 2
+#define WL1271_BUSY_WORD_LEN (WL1271_BUSY_WORD_CNT * sizeof(u32))
 
 #define WL1271_ELP_HW_STATE_ASLEEP 0
 #define WL1271_ELP_HW_STATE_IRQ    1
@@ -389,7 +395,7 @@ struct wl1271 {
 
 	u32 buffer_32;
 	u32 buffer_cmd;
-	u8 buffer_busyword[WL1271_BUSY_WORD_LEN];
+	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 	struct wl1271_rx_descriptor *rx_descriptor;
 
 	struct wl1271_fw_status *fw_status;
