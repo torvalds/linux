@@ -2350,7 +2350,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 	/*
 	  Find the total latency for the display data.
 	*/
-	disp_latency_overhead.full = rfixed_const(80);
+	disp_latency_overhead.full = rfixed_const(8);
 	disp_latency_overhead.full = rfixed_div(disp_latency_overhead, sclk_ff);
 	mc_latency_mclk.full += disp_latency_overhead.full + cur_latency_mclk.full;
 	mc_latency_sclk.full += disp_latency_overhead.full + cur_latency_sclk.full;
