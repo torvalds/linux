@@ -53,7 +53,7 @@ unsigned long pci_hotplug_mem_size = DEFAULT_HOTPLUG_MEM_SIZE;
  * the dfl or actual value as it sees fit.  Don't forget this is
  * measured in 32-bit words, not bytes.
  */
-u8 pci_dfl_cache_line_size __initdata = L1_CACHE_BYTES >> 2;
+u8 pci_dfl_cache_line_size __devinitdata = L1_CACHE_BYTES >> 2;
 u8 pci_cache_line_size;
 
 /**
