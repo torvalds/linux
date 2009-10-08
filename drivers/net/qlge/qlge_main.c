@@ -3751,6 +3751,12 @@ static void ql_asic_reset_work(struct work_struct *work)
 	status = ql_adapter_up(qdev);
 	if (status)
 		goto error;
+
+	/* Restore rx mode. */
+	clear_bit(QL_ALLMULTI, &qdev->flags);
+	clear_bit(QL_PROMISCUOUS, &qdev->flags);
+	qlge_set_multicast_list(qdev->ndev);
+
 	rtnl_unlock();
 	return;
 error:
