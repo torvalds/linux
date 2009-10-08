@@ -175,11 +175,9 @@ int wl1271_cmd_cal(struct wl1271 *wl)
 	return ret;
 }
 
-int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type, u8 dtim_interval,
-		    u16 beacon_interval, u8 wait)
+int wl1271_cmd_join(struct wl1271 *wl)
 {
 	static bool do_cal = true;
-	unsigned long timeout;
 	struct wl1271_cmd_join *join;
 	int ret, i;
 	u8 *bssid;
@@ -213,9 +211,9 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type, u8 dtim_interval,
 	join->basic_rate_set = RATE_MASK_1MBPS | RATE_MASK_2MBPS |
 		RATE_MASK_5_5MBPS | RATE_MASK_11MBPS;
 
-	join->beacon_interval = beacon_interval;
-	join->dtim_interval = dtim_interval;
-	join->bss_type = bss_type;
+	join->beacon_interval = wl->beacon_int;
+	join->dtim_interval = wl->dtim_period;
+	join->bss_type = wl->bss_type;
 	join->channel = wl->channel;
 	join->ssid_len = wl->ssid_len;
 	memcpy(join->ssid, wl->ssid, wl->ssid_len);
@@ -239,14 +237,11 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type, u8 dtim_interval,
 		goto out_free;
 	}
 
-	timeout = msecs_to_jiffies(JOIN_TIMEOUT);
-
 	/*
 	 * ugly hack: we should wait for JOIN_EVENT_COMPLETE_ID but to
 	 * simplify locking we just sleep instead, for now
 	 */
-	if (wait)
-		msleep(10);
+	msleep(10);
 
 out_free:
 	kfree(join);

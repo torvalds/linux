@@ -104,6 +104,8 @@ enum {
 				  CFG_RX_CTL_EN | CFG_RX_BCN_EN |     \
 				  CFG_RX_AUTH_EN | CFG_RX_ASSOC_EN)
 
+#define WL1271_DEFAULT_BASIC_RATE_SET (ACX_RATE_MASK_ALL)
+
 #define WL1271_FW_NAME "wl1271-fw.bin"
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
 
@@ -117,6 +119,9 @@ enum {
 
 #define WL1271_ELP_HW_STATE_ASLEEP 0
 #define WL1271_ELP_HW_STATE_IRQ    1
+
+#define WL1271_DEFAULT_BEACON_INT  100
+#define WL1271_DEFAULT_DTIM_PERIOD 1
 
 enum wl1271_state {
 	WL1271_STATE_OFF,
@@ -368,6 +373,13 @@ struct wl1271 {
 
 	/* Our association ID */
 	u16 aid;
+
+	/* Beacon parameters */
+	u16 beacon_int;
+	u8 dtim_period;
+
+	/* currently configured rate set */
+	u32 basic_rate_set;
 
 	/* The current band */
 	enum ieee80211_band band;

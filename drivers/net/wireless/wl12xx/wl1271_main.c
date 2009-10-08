@@ -394,8 +394,7 @@ static void wl1271_filter_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	/* FIXME: replace the magic numbers with proper definitions */
-	ret = wl1271_cmd_join(wl, wl->bss_type, 1, 100, 0);
+	ret = wl1271_cmd_join(wl);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -672,8 +671,7 @@ static int wl1271_op_config_interface(struct ieee80211_hw *hw,
 		memcpy(wl->ssid, conf->ssid, wl->ssid_len);
 
 	if (wl->bss_type != BSS_TYPE_IBSS) {
-		/* FIXME: replace the magic numbers with proper definitions */
-		ret = wl1271_cmd_join(wl, wl->bss_type, 5, 100, 1);
+		ret = wl1271_cmd_join(wl);
 		if (ret < 0)
 			goto out_sleep;
 	}
@@ -696,8 +694,7 @@ static int wl1271_op_config_interface(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto out_sleep;
 
-		/* FIXME: replace the magic numbers with proper definitions */
-		ret = wl1271_cmd_join(wl, wl->bss_type, 1, 100, 0);
+		ret = wl1271_cmd_join(wl);
 
 		if (ret < 0)
 			goto out_sleep;
@@ -738,8 +735,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		u8 old_channel = wl->channel;
 		wl->channel = channel;
 
-		/* FIXME: use beacon interval provided by mac80211 */
-		ret = wl1271_cmd_join(wl, wl->bss_type, 1, 100, 0);
+		ret = wl1271_cmd_join(wl);
 		if (ret < 0) {
 			wl->channel = old_channel;
 			goto out_sleep;
@@ -1016,7 +1012,16 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
+			wl->beacon_int = bss_conf->beacon_int;
+			wl->dtim_period = bss_conf->dtim_period;
 			wl->aid = bss_conf->aid;
+
+			ret = wl1271_cmd_join(wl);
+			if (ret < 0) {
+				wl1271_warning("Association configuration "
+					       "failed %d", ret);
+				goto out_sleep;
+			}
 
 			ret = wl1271_cmd_build_ps_poll(wl, wl->aid);
 			if (ret < 0)
@@ -1033,7 +1038,14 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 				if (ret < 0)
 					goto out_sleep;
 			}
+		} else {
+			/* use defaults when not associated */
+			wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
+			wl->dtim_period = WL1271_DEFAULT_DTIM_PERIOD;
+			wl->basic_rate_set = WL1271_DEFAULT_BASIC_RATE_SET;
+			wl->aid = 0;
 		}
+
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
@@ -1066,11 +1078,18 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
-		u32 enabled_rates = wl1271_enabled_rates_get(
+		wl->basic_rate_set = wl1271_enabled_rates_get(
 			wl, bss_conf->basic_rates);
-		ret = wl1271_acx_rate_policies(wl, enabled_rates);
+		ret = wl1271_acx_rate_policies(wl, wl->basic_rate_set);
+
 		if (ret < 0) {
 			wl1271_warning("Set rate policies failed %d", ret);
+			goto out_sleep;
+		}
+		ret = wl1271_cmd_join(wl);
+		if (ret < 0) {
+			wl1271_warning("Join with new basic rate "
+				       "set failed %d", ret);
 			goto out_sleep;
 		}
 	}
@@ -1269,6 +1288,9 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->psm_requested = false;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
+	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
+	wl->dtim_period = WL1271_DEFAULT_DTIM_PERIOD;
+	wl->basic_rate_set = WL1271_DEFAULT_BASIC_RATE_SET;
 	wl->band = IEEE80211_BAND_2GHZ;
 
 	/* We use the default power on sleep time until we know which chip
