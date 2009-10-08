@@ -699,6 +699,9 @@ struct btrfs_space_info {
 
 	int allocating_chunk;
 	wait_queue_head_t wait;
+
+	int flushing;
+	wait_queue_head_t flush_wait;
 };
 
 /*

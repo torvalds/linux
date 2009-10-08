@@ -15,6 +15,7 @@
 #define EXTENT_BUFFER_FILLED (1 << 8)
 #define EXTENT_BOUNDARY (1 << 9)
 #define EXTENT_NODATASUM (1 << 10)
+#define EXTENT_DO_ACCOUNTING (1 << 11)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 
 /* flags for bio submission */
@@ -33,6 +34,7 @@
 #define EXTENT_SET_WRITEBACK	 0x10
 #define EXTENT_END_WRITEBACK	 0x20
 #define EXTENT_SET_PRIVATE2	 0x40
+#define EXTENT_CLEAR_ACCOUNTING  0x80
 
 /*
  * page->private values.  Every page that is controlled by the extent

@@ -2823,14 +2823,17 @@ int btrfs_unreserve_metadata_for_delalloc(struct btrfs_root *root,
 					   num_items);
 
 	spin_lock(&meta_sinfo->lock);
-	if (BTRFS_I(inode)->delalloc_reserved_extents <=
-	    BTRFS_I(inode)->delalloc_extents) {
+	spin_lock(&BTRFS_I(inode)->accounting_lock);
+	if (BTRFS_I(inode)->reserved_extents <=
+	    BTRFS_I(inode)->outstanding_extents) {
+		spin_unlock(&BTRFS_I(inode)->accounting_lock);
 		spin_unlock(&meta_sinfo->lock);
 		return 0;
 	}
+	spin_unlock(&BTRFS_I(inode)->accounting_lock);
 
-	BTRFS_I(inode)->delalloc_reserved_extents--;
-	BUG_ON(BTRFS_I(inode)->delalloc_reserved_extents < 0);
+	BTRFS_I(inode)->reserved_extents--;
+	BUG_ON(BTRFS_I(inode)->reserved_extents < 0);
 
 	if (meta_sinfo->bytes_delalloc < num_bytes) {
 		bug = true;
@@ -2861,6 +2864,37 @@ static void check_force_delalloc(struct btrfs_space_info *meta_sinfo)
 		meta_sinfo->force_delalloc = 1;
 	else
 		meta_sinfo->force_delalloc = 0;
+}
+
+static void flush_delalloc(struct btrfs_root *root,
+				 struct btrfs_space_info *info)
+{
+	bool wait = false;
+
+	spin_lock(&info->lock);
+
+	if (!info->flushing) {
+		info->flushing = 1;
+		init_waitqueue_head(&info->flush_wait);
+	} else {
+		wait = true;
+	}
+
+	spin_unlock(&info->lock);
+
+	if (wait) {
+		wait_event(info->flush_wait,
+			   !info->flushing);
+		return;
+	}
+
+	btrfs_start_delalloc_inodes(root);
+	btrfs_wait_ordered_extents(root, 0);
+
+	spin_lock(&info->lock);
+	info->flushing = 0;
+	spin_unlock(&info->lock);
+	wake_up(&info->flush_wait);
 }
 
 static int maybe_allocate_chunk(struct btrfs_root *root,
@@ -2980,21 +3014,20 @@ again:
 			filemap_flush(inode->i_mapping);
 			goto again;
 		} else if (flushed == 3) {
-			btrfs_start_delalloc_inodes(root);
-			btrfs_wait_ordered_extents(root, 0);
+			flush_delalloc(root, meta_sinfo);
 			goto again;
 		}
 		spin_lock(&meta_sinfo->lock);
 		meta_sinfo->bytes_delalloc -= num_bytes;
 		spin_unlock(&meta_sinfo->lock);
 		printk(KERN_ERR "enospc, has %d, reserved %d\n",
-		       BTRFS_I(inode)->delalloc_extents,
-		       BTRFS_I(inode)->delalloc_reserved_extents);
+		       BTRFS_I(inode)->outstanding_extents,
+		       BTRFS_I(inode)->reserved_extents);
 		dump_space_info(meta_sinfo, 0, 0);
 		return -ENOSPC;
 	}
 
-	BTRFS_I(inode)->delalloc_reserved_extents++;
+	BTRFS_I(inode)->reserved_extents++;
 	check_force_delalloc(meta_sinfo);
 	spin_unlock(&meta_sinfo->lock);
 
@@ -3093,8 +3126,7 @@ again:
 		}
 
 		if (retries == 2) {
-			btrfs_start_delalloc_inodes(root);
-			btrfs_wait_ordered_extents(root, 0);
+			flush_delalloc(root, meta_sinfo);
 			goto again;
 		}
 		spin_lock(&meta_sinfo->lock);

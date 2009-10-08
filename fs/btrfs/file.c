@@ -878,7 +878,8 @@ again:
 			btrfs_put_ordered_extent(ordered);
 
 		clear_extent_bits(&BTRFS_I(inode)->io_tree, start_pos,
-				  last_pos - 1, EXTENT_DIRTY | EXTENT_DELALLOC,
+				  last_pos - 1, EXTENT_DIRTY | EXTENT_DELALLOC |
+				  EXTENT_DO_ACCOUNTING,
 				  GFP_NOFS);
 		unlock_extent(&BTRFS_I(inode)->io_tree,
 			      start_pos, last_pos - 1, GFP_NOFS);
