@@ -248,18 +248,18 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
+		atombios_enable_crtc(crtc, 1);
 		if (ASIC_IS_DCE3(rdev))
 			atombios_enable_crtc_memreq(crtc, 1);
-		atombios_enable_crtc(crtc, 1);
 		atombios_blank_crtc(crtc, 0);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		atombios_blank_crtc(crtc, 1);
-		atombios_enable_crtc(crtc, 0);
 		if (ASIC_IS_DCE3(rdev))
 			atombios_enable_crtc_memreq(crtc, 0);
+		atombios_enable_crtc(crtc, 0);
 		break;
 	}
 
