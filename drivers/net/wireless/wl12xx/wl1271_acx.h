@@ -406,6 +406,16 @@ struct acx_beacon_filter_ie_table {
 	u8 pad[3];
 } __attribute__ ((packed));
 
+#define SYNCH_FAIL_DEFAULT_THRESHOLD    5     /* number of beacons */
+#define NO_BEACON_DEFAULT_TIMEOUT       (100) /* TU */
+
+struct acx_conn_monit_params {
+       struct acx_header header;
+
+       u32 synch_fail_thold; /* number of beacons missed */
+       u32 bss_lose_timeout; /* number of TU's from synch fail */
+};
+
 enum {
 	SG_ENABLE = 0,
 	SG_DISABLE,
@@ -1198,6 +1208,7 @@ int wl1271_acx_service_period_timeout(struct wl1271 *wl);
 int wl1271_acx_rts_threshold(struct wl1271 *wl, u16 rts_threshold);
 int wl1271_acx_beacon_filter_opt(struct wl1271 *wl);
 int wl1271_acx_beacon_filter_table(struct wl1271 *wl);
+int wl1271_acx_conn_monit_params(struct wl1271 *wl);
 int wl1271_acx_sg_enable(struct wl1271 *wl);
 int wl1271_acx_sg_cfg(struct wl1271 *wl);
 int wl1271_acx_cca_threshold(struct wl1271 *wl);

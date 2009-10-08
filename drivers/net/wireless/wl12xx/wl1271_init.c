@@ -323,6 +323,11 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
+	/* Initialize connection monitoring thresholds */
+	ret = wl1271_acx_conn_monit_params(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
 	/* Beacon filtering */
 	ret = wl1271_init_beacon_filter(wl);
 	if (ret < 0)
@@ -392,6 +397,7 @@ int wl1271_hw_init(struct wl1271 *wl)
 
  out_free_memmap:
 	kfree(wl->target_mem_map);
+	wl->target_mem_map = NULL;
 
 	return ret;
 }
