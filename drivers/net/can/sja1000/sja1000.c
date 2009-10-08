@@ -565,7 +565,8 @@ struct net_device *alloc_sja1000dev(int sizeof_priv)
 	struct net_device *dev;
 	struct sja1000_priv *priv;
 
-	dev = alloc_candev(sizeof(struct sja1000_priv) + sizeof_priv);
+	dev = alloc_candev(sizeof(struct sja1000_priv) + sizeof_priv,
+		SJA1000_ECHO_SKB_MAX);
 	if (!dev)
 		return NULL;
 

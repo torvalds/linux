@@ -245,7 +245,7 @@ static void can_flush_echo_skb(struct net_device *dev)
 	struct net_device_stats *stats = &dev->stats;
 	int i;
 
-	for (i = 0; i < CAN_ECHO_SKB_MAX; i++) {
+	for (i = 0; i < priv->echo_skb_max; i++) {
 		if (priv->echo_skb[i]) {
 			kfree_skb(priv->echo_skb[i]);
 			priv->echo_skb[i] = NULL;
@@ -262,9 +262,12 @@ static void can_flush_echo_skb(struct net_device *dev)
  * of the device driver. The driver must protect access to
  * priv->echo_skb, if necessary.
  */
-void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev, int idx)
+void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
+		      unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
+
+	BUG_ON(idx >= priv->echo_skb_max);
 
 	/* check flag whether this packet has to be looped back */
 	if (!(dev->flags & IFF_ECHO) || skb->pkt_type != PACKET_LOOPBACK) {
@@ -311,9 +314,11 @@ EXPORT_SYMBOL_GPL(can_put_echo_skb);
  * is handled in the device driver. The driver must protect
  * access to priv->echo_skb, if necessary.
  */
-void can_get_echo_skb(struct net_device *dev, int idx)
+void can_get_echo_skb(struct net_device *dev, unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
+
+	BUG_ON(idx >= priv->echo_skb_max);
 
 	if (priv->echo_skb[idx]) {
 		netif_rx(priv->echo_skb[idx]);
@@ -327,9 +332,11 @@ EXPORT_SYMBOL_GPL(can_get_echo_skb);
   *
   * The function is typically called when TX failed.
   */
-void can_free_echo_skb(struct net_device *dev, int idx)
+void can_free_echo_skb(struct net_device *dev, unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
+
+	BUG_ON(idx >= priv->echo_skb_max);
 
 	if (priv->echo_skb[idx]) {
 		kfree_skb(priv->echo_skb[idx]);
@@ -445,16 +452,29 @@ static void can_setup(struct net_device *dev)
 /*
  * Allocate and setup space for the CAN network device
  */
-struct net_device *alloc_candev(int sizeof_priv)
+struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max)
 {
 	struct net_device *dev;
 	struct can_priv *priv;
+	int size;
 
-	dev = alloc_netdev(sizeof_priv, "can%d", can_setup);
+	if (echo_skb_max)
+		size = ALIGN(sizeof_priv, sizeof(struct sk_buff *)) +
+			echo_skb_max * sizeof(struct sk_buff *);
+	else
+		size = sizeof_priv;
+
+	dev = alloc_netdev(size, "can%d", can_setup);
 	if (!dev)
 		return NULL;
 
 	priv = netdev_priv(dev);
+
+	if (echo_skb_max) {
+		priv->echo_skb_max = echo_skb_max;
+		priv->echo_skb = (void *)priv +
+			ALIGN(sizeof_priv, sizeof(struct sk_buff *));
+	}
 
 	priv->state = CAN_STATE_STOPPED;
 

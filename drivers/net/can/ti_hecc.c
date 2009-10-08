@@ -74,10 +74,6 @@ MODULE_VERSION(HECC_MODULE_VERSION);
 #define HECC_MB_TX_SHIFT	2 /* as per table above */
 #define HECC_MAX_TX_MBOX	BIT(HECC_MB_TX_SHIFT)
 
-#if (HECC_MAX_TX_MBOX > CAN_ECHO_SKB_MAX)
-#error "HECC: MAX TX mailboxes should be equal or less than CAN_ECHO_SKB_MAX"
-#endif
-
 #define HECC_TX_PRIO_SHIFT	(HECC_MB_TX_SHIFT)
 #define HECC_TX_PRIO_MASK	(MAX_TX_PRIO << HECC_MB_TX_SHIFT)
 #define HECC_TX_MB_MASK		(HECC_MAX_TX_MBOX - 1)
@@ -902,7 +898,7 @@ static int ti_hecc_probe(struct platform_device *pdev)
 		goto probe_exit_free_region;
 	}
 
-	ndev = alloc_candev(sizeof(struct ti_hecc_priv));
+	ndev = alloc_candev(sizeof(struct ti_hecc_priv), HECC_MAX_TX_MBOX);
 	if (!ndev) {
 		dev_err(&pdev->dev, "alloc_candev failed\n");
 		err = -ENOMEM;

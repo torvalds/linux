@@ -1087,7 +1087,7 @@ static int __init at91_can_probe(struct platform_device *pdev)
 		goto exit_release;
 	}
 
-	dev = alloc_candev(sizeof(struct at91_priv));
+	dev = alloc_candev(sizeof(struct at91_priv), AT91_MB_TX_NUM);
 	if (!dev) {
 		err = -ENOMEM;
 		goto exit_iounmap;

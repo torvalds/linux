@@ -29,8 +29,6 @@ enum can_mode {
 /*
  * CAN common private data
  */
-#define CAN_ECHO_SKB_MAX  4
-
 struct can_priv {
 	struct can_device_stats can_stats;
 
@@ -44,15 +42,16 @@ struct can_priv {
 	int restart_ms;
 	struct timer_list restart_timer;
 
-	struct sk_buff *echo_skb[CAN_ECHO_SKB_MAX];
-
 	int (*do_set_bittiming)(struct net_device *dev);
 	int (*do_set_mode)(struct net_device *dev, enum can_mode mode);
 	int (*do_get_state)(const struct net_device *dev,
 			    enum can_state *state);
+
+	unsigned int echo_skb_max;
+	struct sk_buff **echo_skb;
 };
 
-struct net_device *alloc_candev(int sizeof_priv);
+struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max);
 void free_candev(struct net_device *dev);
 
 int open_candev(struct net_device *dev);
@@ -64,8 +63,9 @@ void unregister_candev(struct net_device *dev);
 int can_restart_now(struct net_device *dev);
 void can_bus_off(struct net_device *dev);
 
-void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev, int idx);
-void can_get_echo_skb(struct net_device *dev, int idx);
-void can_free_echo_skb(struct net_device *dev, int idx);
+void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
+		      unsigned int idx);
+void can_get_echo_skb(struct net_device *dev, unsigned int idx);
+void can_free_echo_skb(struct net_device *dev, unsigned int idx);
 
 #endif /* CAN_DEV_H */
