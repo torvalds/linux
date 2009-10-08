@@ -58,7 +58,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra)
 	/* approximate the number of blocks required for this packet
 	   in the firmware */
 	/* FIXME: try to figure out what is done here and make it cleaner */
-	total_blocks = (skb->len) >> TX_HW_BLOCK_SHIFT_DIV;
+	total_blocks = (total_len) >> TX_HW_BLOCK_SHIFT_DIV;
 	excluded = (total_blocks << 2) + (skb->len & 0xff) + 34;
 	total_blocks += (excluded > 252) ? 2 : 1;
 	total_blocks += TX_HW_BLOCK_SPARE;
