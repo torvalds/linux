@@ -97,7 +97,8 @@ enum {
 	} while (0)
 
 #define WL1271_DEFAULT_RX_CONFIG (CFG_UNI_FILTER_EN |	\
-				  CFG_BSSID_FILTER_EN)
+				  CFG_BSSID_FILTER_EN | \
+				  CFG_MC_FILTER_EN)
 
 #define WL1271_DEFAULT_RX_FILTER (CFG_RX_RCTS_ACK | CFG_RX_PRSP_EN |  \
 				  CFG_RX_MGMT_EN | CFG_RX_DATA_EN |   \
@@ -123,7 +124,7 @@ enum {
 #define WL1271_DEFAULT_BEACON_INT  100
 #define WL1271_DEFAULT_DTIM_PERIOD 1
 
-#define ACX_TX_DESCRIPTORS    32
+#define ACX_TX_DESCRIPTORS         32
 
 enum wl1271_state {
 	WL1271_STATE_OFF,
@@ -345,7 +346,9 @@ struct wl1271 {
 	bool tx_queue_stopped;
 
 	struct work_struct tx_work;
+
 	struct work_struct filter_work;
+	struct wl1271_filter_params *filter_params;
 
 	/* Pending TX frames */
 	struct sk_buff *tx_frames[ACX_TX_DESCRIPTORS];

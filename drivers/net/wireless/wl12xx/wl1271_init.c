@@ -117,7 +117,7 @@ static int wl1271_init_phy_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_group_address_tbl(wl);
+	ret = wl1271_acx_group_address_tbl(wl, true, NULL, 0);
 	if (ret < 0)
 		return ret;
 

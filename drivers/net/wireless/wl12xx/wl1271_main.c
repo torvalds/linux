@@ -379,12 +379,39 @@ out:
 	return ret;
 }
 
+struct wl1271_filter_params {
+	unsigned int filters;
+	unsigned int changed;
+	int mc_list_length;
+	u8 mc_list[ACX_MC_ADDRESS_GROUP_MAX][ETH_ALEN];
+};
+
+#define WL1271_SUPPORTED_FILTERS (FIF_PROMISC_IN_BSS | \
+				  FIF_ALLMULTI | \
+				  FIF_FCSFAIL | \
+				  FIF_BCN_PRBRESP_PROMISC | \
+				  FIF_CONTROL | \
+				  FIF_OTHER_BSS)
+
 static void wl1271_filter_work(struct work_struct *work)
 {
 	struct wl1271 *wl =
 		container_of(work, struct wl1271, filter_work);
+	struct wl1271_filter_params *fp;
+	unsigned long flags;
+	bool enabled = true;
 	int ret;
 
+	/* first, get the filter parameters */
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	fp = wl->filter_params;
+	wl->filter_params = NULL;
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	if (!fp)
+		return;
+
+	/* then, lock the mutex without risk of lock-up */
 	mutex_lock(&wl->mutex);
 
 	if (wl->state == WL1271_STATE_OFF)
@@ -394,6 +421,20 @@ static void wl1271_filter_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
+	/* configure the mc filter regardless of the changed flags */
+	if (fp->filters & FIF_ALLMULTI)
+		enabled = false;
+
+	ret = wl1271_acx_group_address_tbl(wl, enabled,
+					   fp->mc_list, fp->mc_list_length);
+	if (ret < 0)
+		goto out_sleep;
+
+	/* determine, whether supported filter values have changed */
+	if (fp->changed == 0)
+		goto out;
+
+	/* apply configured filters */
 	ret = wl1271_cmd_join(wl);
 	if (ret < 0)
 		goto out_sleep;
@@ -403,6 +444,7 @@ out_sleep:
 
 out:
 	mutex_unlock(&wl->mutex);
+	kfree(fp);
 }
 
 int wl1271_plt_start(struct wl1271 *wl)
@@ -544,11 +586,19 @@ out:
 static void wl1271_op_stop(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
+	unsigned long flags;
 	int i;
 
 	wl1271_info("down");
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 stop");
+
+	/* complete/cancel ongoing work */
+	cancel_work_sync(&wl->filter_work);
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	kfree(wl->filter_params);
+	wl->filter_params = NULL;
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	mutex_lock(&wl->mutex);
 
@@ -784,16 +834,52 @@ out:
 	return ret;
 }
 
-#define WL1271_SUPPORTED_FILTERS (FIF_PROMISC_IN_BSS | \
-				  FIF_ALLMULTI | \
-				  FIF_FCSFAIL | \
-				  FIF_BCN_PRBRESP_PROMISC | \
-				  FIF_CONTROL | \
-				  FIF_OTHER_BSS)
+static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
+				       struct dev_addr_list *mc_list)
+{
+	struct wl1271 *wl = hw->priv;
+	struct wl1271_filter_params *fp;
+	unsigned long flags;
+	int i;
+
+	/*
+	 * FIXME: we should return a hash that will be passed to
+	 * configure_filter() instead of saving everything in the context.
+	 */
+
+	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
+	if (!fp) {
+		wl1271_error("Out of memory setting filters.");
+		return 0;
+	}
+
+	/* update multicast filtering parameters */
+	if (mc_count > ACX_MC_ADDRESS_GROUP_MAX) {
+		mc_count = 0;
+		fp->filters |= FIF_ALLMULTI;
+	}
+
+	fp->mc_list_length = 0;
+	for (i = 0; i < mc_count; i++) {
+		if (mc_list->da_addrlen == ETH_ALEN) {
+			memcpy(fp->mc_list[fp->mc_list_length],
+			       mc_list->da_addr, ETH_ALEN);
+			fp->mc_list_length++;
+		} else
+			wl1271_warning("Unknown mc address length.");
+	}
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	kfree(wl->filter_params);
+	wl->filter_params = fp;
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	return 1;
+}
 
 static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 				       unsigned int changed,
-				       unsigned int *total,u64 multicast)
+				       unsigned int *total, u64 multicast)
 {
 	struct wl1271 *wl = hw->priv;
 
@@ -802,19 +888,21 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 	*total &= WL1271_SUPPORTED_FILTERS;
 	changed &= WL1271_SUPPORTED_FILTERS;
 
-	if (changed == 0)
+	if (!multicast)
 		return;
 
-	/* FIXME: wl->rx_config and wl->rx_filter are not protected */
-	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
-	wl->rx_filter = WL1271_DEFAULT_RX_FILTER;
-
 	/*
-	 * FIXME: workqueues need to be properly cancelled on stop(), for
-	 * now let's just disable changing the filter settings. They will
-	 * be updated any on config().
+	 * FIXME: for now we are still using a workqueue for filter
+	 * configuration, but with the new mac80211, this is not needed,
+	 * since configure_filter can now sleep.  We now have
+	 * prepare_multicast, which needs to be atomic instead.
 	 */
-	/* schedule_work(&wl->filter_work); */
+
+	/* store current filter config */
+	wl->filter_params->filters = *total;
+	wl->filter_params->changed = changed;
+
+	ieee80211_queue_work(wl->hw, &wl->filter_work);
 }
 
 static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -1177,6 +1265,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.remove_interface = wl1271_op_remove_interface,
 	.config = wl1271_op_config,
 /* 	.config_interface = wl1271_op_config_interface, */
+	.prepare_multicast = wl1271_op_prepare_multicast,
 	.configure_filter = wl1271_op_configure_filter,
 	.tx = wl1271_op_tx,
 	.set_key = wl1271_op_set_key,

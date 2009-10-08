@@ -300,7 +300,8 @@ out:
 	return ret;
 }
 
-int wl1271_acx_group_address_tbl(struct wl1271 *wl)
+int wl1271_acx_group_address_tbl(struct wl1271 *wl, bool enable,
+				 void *mc_list, u32 mc_list_len)
 {
 	struct acx_dot11_grp_addr_tbl *acx;
 	int ret;
@@ -314,9 +315,9 @@ int wl1271_acx_group_address_tbl(struct wl1271 *wl)
 	}
 
 	/* MAC filtering */
-	acx->enabled = 0;
-	acx->num_groups = 0;
-	memset(acx->mac_table, 0, ADDRESS_GROUP_MAX_LEN);
+	acx->enabled = enable;
+	acx->num_groups = mc_list_len;
+	memcpy(acx->mac_table, mc_list, mc_list_len * ETH_ALEN);
 
 	ret = wl1271_cmd_configure(wl, DOT11_GROUP_ADDRESS_TBL,
 				   acx, sizeof(*acx));
