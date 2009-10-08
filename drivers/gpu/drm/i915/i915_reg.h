@@ -260,6 +260,8 @@
 #define HWS_PGA		0x02080
 #define HWS_ADDRESS_MASK	0xfffff000
 #define HWS_START_ADDRESS_SHIFT	4
+#define PWRCTXA		0x2088 /* 965GM+ only */
+#define   PWRCTX_EN	(1<<0)
 #define IPEIR		0x02088
 #define IPEHR		0x0208c
 #define INSTDONE	0x02090
@@ -769,7 +771,8 @@
 
 /** GM965 GM45 render standby register */
 #define MCHBAR_RENDER_STANDBY	0x111B8
-
+#define   RCX_SW_EXIT		(1<<23)
+#define   RSX_STATUS_MASK	0x00700000
 #define PEG_BAND_GAP_DATA	0x14d68
 
 /*

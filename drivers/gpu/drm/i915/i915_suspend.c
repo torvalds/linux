@@ -699,8 +699,10 @@ int i915_save_state(struct drm_device *dev)
 	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
 
 	/* Render Standby */
-	if (IS_I965G(dev) && IS_MOBILE(dev))
+	if (I915_HAS_RC6(dev)) {
 		dev_priv->saveRENDERSTANDBY = I915_READ(MCHBAR_RENDER_STANDBY);
+		dev_priv->savePWRCTXA = I915_READ(PWRCTXA);
+	}
 
 	/* Hardware status page */
 	dev_priv->saveHWS = I915_READ(HWS_PGA);
@@ -762,8 +764,10 @@ int i915_restore_state(struct drm_device *dev)
 	pci_write_config_byte(dev->pdev, LBB, dev_priv->saveLBB);
 
 	/* Render Standby */
-	if (IS_I965G(dev) && IS_MOBILE(dev))
+	if (I915_HAS_RC6(dev)) {
 		I915_WRITE(MCHBAR_RENDER_STANDBY, dev_priv->saveRENDERSTANDBY);
+		I915_WRITE(PWRCTXA, dev_priv->savePWRCTXA);
+	}
 
 	/* Hardware status page */
 	I915_WRITE(HWS_PGA, dev_priv->saveHWS);

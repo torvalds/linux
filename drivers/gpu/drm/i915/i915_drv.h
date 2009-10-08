@@ -187,6 +187,7 @@ typedef struct drm_i915_private {
 	unsigned int status_gfx_addr;
 	drm_local_map_t hws_map;
 	struct drm_gem_object *hws_obj;
+	struct drm_gem_object *pwrctx;
 
 	struct resource mch_res;
 
@@ -280,6 +281,7 @@ typedef struct drm_i915_private {
 	u32 saveDSPBCNTR;
 	u32 saveDSPARB;
 	u32 saveRENDERSTANDBY;
+	u32 savePWRCTXA;
 	u32 saveHWS;
 	u32 savePIPEACONF;
 	u32 savePIPEBCONF;
@@ -1019,6 +1021,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 			   (IS_I9XX(dev) || IS_GM45(dev)) && \
 			   !IS_IGD(dev) && \
 			   !IS_IGDNG(dev))
+#define I915_HAS_RC6(dev) (IS_I965GM(dev) || IS_GM45(dev) || IS_IGDNG_M(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

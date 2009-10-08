@@ -4296,6 +4296,42 @@ void intel_init_clock_gating(struct drm_device *dev)
 	} else if (IS_I830(dev)) {
 		I915_WRITE(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
 	}
+
+	/*
+	 * GPU can automatically power down the render unit if given a page
+	 * to save state.
+	 */
+	if (I915_HAS_RC6(dev)) {
+		struct drm_gem_object *pwrctx;
+		struct drm_i915_gem_object *obj_priv;
+		int ret;
+
+		pwrctx = drm_gem_object_alloc(dev, 4096);
+		if (!pwrctx) {
+			DRM_DEBUG("failed to alloc power context, RC6 disabled\n");
+			goto out;
+		}
+
+		ret = i915_gem_object_pin(pwrctx, 4096);
+		if (ret) {
+			DRM_ERROR("failed to pin power context: %d\n", ret);
+			drm_gem_object_unreference(pwrctx);
+			goto out;
+		}
+
+		i915_gem_object_set_to_gtt_domain(pwrctx, 1);
+
+		obj_priv = pwrctx->driver_private;
+
+		I915_WRITE(PWRCTXA, obj_priv->gtt_offset | PWRCTX_EN);
+		I915_WRITE(MCHBAR_RENDER_STANDBY,
+			   I915_READ(MCHBAR_RENDER_STANDBY) & ~RCX_SW_EXIT);
+
+		dev_priv->pwrctx = pwrctx;
+	}
+
+out:
+	return;
 }
 
 /* Set up chip specific display functions */
@@ -4449,6 +4485,11 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	if (dev_priv->display.disable_fbc)
 		dev_priv->display.disable_fbc(dev);
+
+	if (dev_priv->pwrctx) {
+		i915_gem_object_unpin(dev_priv->pwrctx);
+		drm_gem_object_unreference(dev_priv->pwrctx);
+	}
 
 	drm_mode_config_cleanup(dev);
 }
