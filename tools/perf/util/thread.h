@@ -18,6 +18,9 @@ int thread__set_comm(struct thread *self, const char *comm);
 struct thread *
 threads__findnew(pid_t pid, struct rb_root *threads, struct thread **last_match);
 struct thread *
+threads__findnew_nocomm(pid_t pid, struct rb_root *threads,
+			struct thread **last_match);
+struct thread *
 register_idle_thread(struct rb_root *threads, struct thread **last_match);
 void thread__insert_map(struct thread *self, struct map *map);
 int thread__fork(struct thread *self, struct thread *parent);

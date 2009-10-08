@@ -1034,6 +1034,36 @@ add_sched_in_event(struct work_atoms *atoms, u64 timestamp)
 	atoms->nb_atoms++;
 }
 
+static struct thread *
+threads__findnew_from_ctx(u32 pid, struct trace_switch_event *switch_event)
+{
+	struct thread *th;
+
+	th = threads__findnew_nocomm(pid, &threads, &last_match);
+	if (th->comm)
+		return th;
+
+	if (pid == switch_event->prev_pid)
+		thread__set_comm(th, switch_event->prev_comm);
+	else
+		thread__set_comm(th, switch_event->next_comm);
+	return th;
+}
+
+static struct thread *
+threads__findnew_from_wakeup(struct trace_wakeup_event *wakeup_event)
+{
+	struct thread *th;
+
+	th =  threads__findnew_nocomm(wakeup_event->pid, &threads, &last_match);
+	if (th->comm)
+		return th;
+
+	thread__set_comm(th, wakeup_event->comm);
+
+	return th;
+}
+
 static void
 latency_switch_event(struct trace_switch_event *switch_event,
 		     struct event *event __used,
@@ -1059,8 +1089,10 @@ latency_switch_event(struct trace_switch_event *switch_event,
 		die("hm, delta: %Ld < 0 ?\n", delta);
 
 
-	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
-	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
+	sched_out = threads__findnew_from_ctx(switch_event->prev_pid,
+					      switch_event);
+	sched_in = threads__findnew_from_ctx(switch_event->next_pid,
+					     switch_event);
 
 	out_events = thread_atoms_search(&atom_root, sched_out, &cmp_pid);
 	if (!out_events) {
@@ -1126,7 +1158,7 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 	if (!wakeup_event->success)
 		return;
 
-	wakee = threads__findnew(wakeup_event->pid, &threads, &last_match);
+	wakee = threads__findnew_from_wakeup(wakeup_event);
 	atoms = thread_atoms_search(&atom_root, wakee, &cmp_pid);
 	if (!atoms) {
 		thread_atoms_insert(wakee);
@@ -1386,8 +1418,10 @@ map_switch_event(struct trace_switch_event *switch_event,
 		die("hm, delta: %Ld < 0 ?\n", delta);
 
 
-	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
-	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
+	sched_out = threads__findnew_from_ctx(switch_event->prev_pid,
+					      switch_event);
+	sched_in = threads__findnew_from_ctx(switch_event->next_pid,
+					     switch_event);
 
 	curr_thread[this_cpu] = sched_in;
 
