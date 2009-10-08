@@ -31,7 +31,7 @@ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 
 static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
 module_param_named(debug, ath9k_debug, uint, 0);
-MODULE_PARM_DESC(ath9k_debug, "Debugging mask");
+MODULE_PARM_DESC(debug, "Debugging mask");
 
 /* We use the hw_value as an index into our private channel structure */
 
