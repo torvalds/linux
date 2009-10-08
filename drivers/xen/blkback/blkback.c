@@ -614,6 +614,7 @@ static void make_response(blkif_t *blkif, u64 id,
 static int __init blkif_init(void)
 {
 	int i, mmap_pages;
+	int rc = 0;
 
 	if (!xen_pv_domain())
 		return -ENODEV;
@@ -626,13 +627,17 @@ static int __init blkif_init(void)
 					mmap_pages, GFP_KERNEL);
 	pending_pages         = alloc_empty_pages_and_pagevec(mmap_pages);
 
-	if (!pending_reqs || !pending_grant_handles || !pending_pages)
+	if (!pending_reqs || !pending_grant_handles || !pending_pages) {
+		rc = -ENOMEM;
 		goto out_of_memory;
+	}
 
 	for (i = 0; i < mmap_pages; i++)
 		pending_grant_handles[i] = BLKBACK_INVALID_HANDLE;
 
-	blkif_interface_init();
+	rc = blkif_interface_init();
+	if (rc)
+		goto failed_init;
 
 	memset(pending_reqs, 0, sizeof(pending_reqs));
 	INIT_LIST_HEAD(&pending_free);
@@ -640,16 +645,19 @@ static int __init blkif_init(void)
 	for (i = 0; i < blkif_reqs; i++)
 		list_add_tail(&pending_reqs[i].free_list, &pending_free);
 
-	blkif_xenbus_init();
+	rc = blkif_xenbus_init();
+	if (rc)
+		goto failed_init;
 
 	return 0;
 
  out_of_memory:
+	printk(KERN_ERR "%s: out of memory\n", __func__);
+ failed_init:
 	kfree(pending_reqs);
 	kfree(pending_grant_handles);
 	free_empty_pages_and_pagevec(pending_pages, mmap_pages);
-	printk("%s: out of memory\n", __FUNCTION__);
-	return -ENOMEM;
+	return rc;
 }
 
 module_init(blkif_init);

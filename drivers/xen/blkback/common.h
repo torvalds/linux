@@ -124,9 +124,9 @@ struct phys_req {
 
 int vbd_translate(struct phys_req *req, blkif_t *blkif, int operation);
 
-void blkif_interface_init(void);
+int blkif_interface_init(void);
 
-void blkif_xenbus_init(void);
+int blkif_xenbus_init(void);
 
 irqreturn_t blkif_be_int(int irq, void *dev_id);
 int blkif_schedule(void *arg);

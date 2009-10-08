@@ -535,8 +535,7 @@ static struct xenbus_driver blkback = {
 };
 
 
-void blkif_xenbus_init(void)
+int blkif_xenbus_init(void)
 {
-	/* XXX must_check */
-	(void)xenbus_register_backend(&blkback);
+	return xenbus_register_backend(&blkback);
 }
