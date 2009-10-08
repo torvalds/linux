@@ -107,7 +107,7 @@ static void wl1271_fw_status(struct wl1271 *wl, struct wl1271_fw_status *status)
 
 	/* if more blocks are available now, schedule some tx work */
 	if (total && !skb_queue_empty(&wl->tx_queue))
-		schedule_work(&wl->tx_work);
+		ieee80211_queue_work(wl->hw, &wl->tx_work);
 
 	/* update the host-chipset time offset */
 	wl->time_offset = jiffies_to_usecs(jiffies) - status->fw_localtime;
@@ -205,7 +205,7 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 		wl->elp_compl = NULL;
 	}
 
-	schedule_work(&wl->irq_work);
+	ieee80211_queue_work(wl->hw, &wl->irq_work);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	return IRQ_HANDLED;
@@ -480,7 +480,7 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * before that, the tx_work will not be initialized!
 	 */
 
-	schedule_work(&wl->tx_work);
+	ieee80211_queue_work(wl->hw, &wl->tx_work);
 
 	/*
 	 * The workqueue is slow to process the tx_queue and we need stop
