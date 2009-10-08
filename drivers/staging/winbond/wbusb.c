@@ -99,10 +99,16 @@ static int wbsoft_get_tx_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static u64 wbsoft_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
+				    struct dev_addr_list *mc_list)
+{
+	return mc_count;
+}
+
 static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 				    unsigned int changed_flags,
 				    unsigned int *total_flags,
-				    int mc_count, struct dev_mc_list *mclist)
+				    u64 multicast)
 {
 	unsigned int new_flags;
 
@@ -110,7 +116,7 @@ static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 
 	if (*total_flags & FIF_PROMISC_IN_BSS)
 		new_flags |= FIF_PROMISC_IN_BSS;
-	else if ((*total_flags & FIF_ALLMULTI) || (mc_count > 32))
+	else if ((*total_flags & FIF_ALLMULTI) || (multicast > 32))
 		new_flags |= FIF_ALLMULTI;
 
 	dev->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
@@ -278,6 +284,7 @@ static const struct ieee80211_ops wbsoft_ops = {
 	.add_interface		= wbsoft_add_interface,
 	.remove_interface	= wbsoft_remove_interface,
 	.config			= wbsoft_config,
+	.prepare_multicast	= wbsoft_prepare_multicast,
 	.configure_filter	= wbsoft_configure_filter,
 	.get_stats		= wbsoft_get_stats,
 	.get_tx_stats		= wbsoft_get_tx_stats,
