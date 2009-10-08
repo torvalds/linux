@@ -398,6 +398,11 @@ struct acx_beacon_filter_option {
 			   (BEACON_FILTER_TABLE_MAX_VENDOR_SPECIFIC_IE_NUM * \
 			    BEACON_FILTER_TABLE_EXTRA_VENDOR_SPECIFIC_IE_SIZE))
 
+#define BEACON_RULE_PASS_ON_CHANGE                     BIT(0)
+#define BEACON_RULE_PASS_ON_APPEARANCE                 BIT(1)
+
+#define BEACON_FILTER_IE_ID_CHANNEL_SWITCH_ANN         (37)
+
 struct acx_beacon_filter_ie_table {
 	struct acx_header header;
 
@@ -1206,7 +1211,7 @@ int wl1271_acx_group_address_tbl(struct wl1271 *wl, bool enable,
 				 void *mc_list, u32 mc_list_len);
 int wl1271_acx_service_period_timeout(struct wl1271 *wl);
 int wl1271_acx_rts_threshold(struct wl1271 *wl, u16 rts_threshold);
-int wl1271_acx_beacon_filter_opt(struct wl1271 *wl);
+int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter);
 int wl1271_acx_beacon_filter_table(struct wl1271 *wl);
 int wl1271_acx_conn_monit_params(struct wl1271 *wl);
 int wl1271_acx_sg_enable(struct wl1271 *wl);

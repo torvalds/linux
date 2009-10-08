@@ -129,6 +129,12 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode)
 	switch (mode) {
 	case STATION_POWER_SAVE_MODE:
 		wl1271_debug(DEBUG_PSM, "entering psm");
+
+		/* enable beacon filtering */
+		ret = wl1271_acx_beacon_filter_opt(wl, true);
+		if (ret < 0)
+			return ret;
+
 		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
 		if (ret < 0)
 			return ret;
@@ -143,6 +149,11 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode)
 	default:
 		wl1271_debug(DEBUG_PSM, "leaving psm");
 		ret = wl1271_ps_elp_wakeup(wl, false);
+		if (ret < 0)
+			return ret;
+
+		/* disable beacon filtering */
+		ret = wl1271_acx_beacon_filter_opt(wl, false);
 		if (ret < 0)
 			return ret;
 
