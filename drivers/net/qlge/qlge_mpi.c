@@ -965,6 +965,8 @@ void ql_mpi_work(struct work_struct *work)
 	int err = 0;
 
 	rtnl_lock();
+	/* Begin polled mode for MPI */
+	ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
 
 	while (ql_read32(qdev, STS) & STS_PI) {
 		memset(mbcp, 0, sizeof(struct mbox_params));
@@ -977,6 +979,8 @@ void ql_mpi_work(struct work_struct *work)
 			break;
 	}
 
+	/* End polled mode for MPI */
+	ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16) | INTR_MASK_PI);
 	rtnl_unlock();
 	ql_enable_completion_interrupt(qdev, 0);
 }
