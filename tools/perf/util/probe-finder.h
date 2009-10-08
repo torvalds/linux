@@ -1,0 +1,68 @@
+#ifndef _PROBE_FINDER_H
+#define _PROBE_FINDER_H
+
+#define _stringify(n)	#n
+#define stringify(n)	_stringify(n)
+
+#ifdef DEBUG
+#define debug(fmt ...)	\
+	fprintf(stderr, "DBG(" __FILE__ ":" stringify(__LINE__) "): " fmt)
+#else
+#define debug(fmt ...)	do {} while (0)
+#endif
+
+#define ERR_IF(cnd)	\
+	do { if (cnd) {	\
+		fprintf(stderr, "Error (" __FILE__ ":" stringify(__LINE__) \
+			"): " stringify(cnd) "\n");			\
+		exit(1);						\
+	} } while (0)
+
+#define MAX_PATH_LEN 256
+#define MAX_PROBE_BUFFER 1024
+#define MAX_PROBES 128
+
+static inline int is_c_varname(const char *name)
+{
+	/* TODO */
+	return isalpha(name[0]) || name[0] == '_';
+}
+
+struct probe_point {
+	/* Inputs */
+	char	*file;		/* File name */
+	int	line;		/* Line number */
+
+	char	*function;	/* Function name */
+	int	offset;		/* Offset bytes */
+
+	int	nr_args;	/* Number of arguments */
+	char	**args;		/* Arguments */
+
+	/* Output */
+	int	found;		/* Number of found probe points */
+	char	*probes[MAX_PROBES];	/* Output buffers (will be allocated)*/
+};
+
+extern int find_probepoint(int fd, struct probe_point *pp);
+
+#include <libdwarf/dwarf.h>
+#include <libdwarf/libdwarf.h>
+
+struct probe_finder {
+	struct probe_point	*pp;	/* Target probe point */
+
+	/* For function searching */
+	Dwarf_Addr	addr;		/* Address */
+	Dwarf_Unsigned	fno;		/* File number */
+	Dwarf_Off	inl_offs;	/* Inline offset */
+
+	/* For variable searching */
+	Dwarf_Addr	cu_base;	/* Current CU base address */
+	Dwarf_Locdesc	fbloc;		/* Location of Current Frame Base */
+	const char	*var;		/* Current variable name */
+	char		*buf;		/* Current output buffer */
+	int		len;		/* Length of output buffer */
+};
+
+#endif /*_PROBE_FINDER_H */
