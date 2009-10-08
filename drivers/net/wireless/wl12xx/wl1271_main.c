@@ -1293,9 +1293,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->basic_rate_set = WL1271_DEFAULT_BASIC_RATE_SET;
 	wl->band = IEEE80211_BAND_2GHZ;
 
-	/* We use the default power on sleep time until we know which chip
-	 * we're using */
-	for (i = 0; i < FW_TX_CMPLT_BLOCK_SIZE; i++)
+	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		wl->tx_frames[i] = NULL;
 
 	spin_lock_init(&wl->wl_lock);

@@ -123,6 +123,8 @@ enum {
 #define WL1271_DEFAULT_BEACON_INT  100
 #define WL1271_DEFAULT_DTIM_PERIOD 1
 
+#define ACX_TX_DESCRIPTORS    32
+
 enum wl1271_state {
 	WL1271_STATE_OFF,
 	WL1271_STATE_ON,
@@ -346,7 +348,7 @@ struct wl1271 {
 	struct work_struct filter_work;
 
 	/* Pending TX frames */
-	struct sk_buff *tx_frames[16];
+	struct sk_buff *tx_frames[ACX_TX_DESCRIPTORS];
 
 	/* Security sequence number counters */
 	u8 tx_security_last_seq;
