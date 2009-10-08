@@ -2866,9 +2866,66 @@ static void check_force_delalloc(struct btrfs_space_info *meta_sinfo)
 		meta_sinfo->force_delalloc = 0;
 }
 
+struct async_flush {
+	struct btrfs_root *root;
+	struct btrfs_space_info *info;
+	struct btrfs_work work;
+};
+
+static noinline void flush_delalloc_async(struct btrfs_work *work)
+{
+	struct async_flush *async;
+	struct btrfs_root *root;
+	struct btrfs_space_info *info;
+
+	async = container_of(work, struct async_flush, work);
+	root = async->root;
+	info = async->info;
+
+	btrfs_start_delalloc_inodes(root);
+	wake_up(&info->flush_wait);
+	btrfs_wait_ordered_extents(root, 0);
+
+	spin_lock(&info->lock);
+	info->flushing = 0;
+	spin_unlock(&info->lock);
+	wake_up(&info->flush_wait);
+
+	kfree(async);
+}
+
+static void wait_on_flush(struct btrfs_space_info *info)
+{
+	DEFINE_WAIT(wait);
+	u64 used;
+
+	while (1) {
+		prepare_to_wait(&info->flush_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		spin_lock(&info->lock);
+		if (!info->flushing) {
+			spin_unlock(&info->lock);
+			break;
+		}
+
+		used = info->bytes_used + info->bytes_reserved +
+			info->bytes_pinned + info->bytes_readonly +
+			info->bytes_super + info->bytes_root +
+			info->bytes_may_use + info->bytes_delalloc;
+		if (used < info->total_bytes) {
+			spin_unlock(&info->lock);
+			break;
+		}
+		spin_unlock(&info->lock);
+		schedule();
+	}
+	finish_wait(&info->flush_wait, &wait);
+}
+
 static void flush_delalloc(struct btrfs_root *root,
 				 struct btrfs_space_info *info)
 {
+	struct async_flush *async;
 	bool wait = false;
 
 	spin_lock(&info->lock);
@@ -2883,11 +2940,24 @@ static void flush_delalloc(struct btrfs_root *root,
 	spin_unlock(&info->lock);
 
 	if (wait) {
-		wait_event(info->flush_wait,
-			   !info->flushing);
+		wait_on_flush(info);
 		return;
 	}
 
+	async = kzalloc(sizeof(*async), GFP_NOFS);
+	if (!async)
+		goto flush;
+
+	async->root = root;
+	async->info = info;
+	async->work.func = flush_delalloc_async;
+
+	btrfs_queue_worker(&root->fs_info->enospc_workers,
+			   &async->work);
+	wait_on_flush(info);
+	return;
+
+flush:
 	btrfs_start_delalloc_inodes(root);
 	btrfs_wait_ordered_extents(root, 0);
 
@@ -2927,7 +2997,7 @@ static int maybe_allocate_chunk(struct btrfs_root *root,
 	if (!info->allocating_chunk) {
 		info->force_alloc = 1;
 		info->allocating_chunk = 1;
-		init_waitqueue_head(&info->wait);
+		init_waitqueue_head(&info->allocate_wait);
 	} else {
 		wait = true;
 	}
@@ -2935,7 +3005,7 @@ static int maybe_allocate_chunk(struct btrfs_root *root,
 	spin_unlock(&info->lock);
 
 	if (wait) {
-		wait_event(info->wait,
+		wait_event(info->allocate_wait,
 			   !info->allocating_chunk);
 		return 1;
 	}
@@ -2956,7 +3026,7 @@ out:
 	spin_lock(&info->lock);
 	info->allocating_chunk = 0;
 	spin_unlock(&info->lock);
-	wake_up(&info->wait);
+	wake_up(&info->allocate_wait);
 
 	if (ret)
 		return 0;

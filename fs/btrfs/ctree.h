@@ -691,17 +691,17 @@ struct btrfs_space_info {
 
 	struct list_head list;
 
+	/* for controlling how we free up space for allocations */
+	wait_queue_head_t allocate_wait;
+	wait_queue_head_t flush_wait;
+	int allocating_chunk;
+	int flushing;
+
 	/* for block groups in our same type */
 	struct list_head block_groups;
 	spinlock_t lock;
 	struct rw_semaphore groups_sem;
 	atomic_t caching_threads;
-
-	int allocating_chunk;
-	wait_queue_head_t wait;
-
-	int flushing;
-	wait_queue_head_t flush_wait;
 };
 
 /*
@@ -918,6 +918,7 @@ struct btrfs_fs_info {
 	struct btrfs_workers endio_meta_write_workers;
 	struct btrfs_workers endio_write_workers;
 	struct btrfs_workers submit_workers;
+	struct btrfs_workers enospc_workers;
 	/*
 	 * fixup workers take dirty pages that didn't properly go through
 	 * the cow mechanism and make them safe to write.  It happens
