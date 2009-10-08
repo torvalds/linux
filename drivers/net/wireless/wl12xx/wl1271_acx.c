@@ -703,7 +703,7 @@ int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
 	return 0;
 }
 
-int wl1271_acx_rate_policies(struct wl1271 *wl)
+int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates)
 {
 	struct acx_rate_policy *acx;
 	int ret = 0;
@@ -719,7 +719,7 @@ int wl1271_acx_rate_policies(struct wl1271 *wl)
 
 	/* configure one default (one-size-fits-all) rate class */
 	acx->rate_class_cnt = 1;
-	acx->rate_class[0].enabled_rates = ACX_RATE_MASK_ALL;
+	acx->rate_class[0].enabled_rates = enabled_rates;
 	acx->rate_class[0].short_retry_limit = ACX_RATE_RETRY_LIMIT;
 	acx->rate_class[0].long_retry_limit = ACX_RATE_RETRY_LIMIT;
 	acx->rate_class[0].aflags = 0;

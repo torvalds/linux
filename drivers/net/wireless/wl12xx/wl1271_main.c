@@ -583,6 +583,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->ssid_len = 0;
 	wl->listen_int = 1;
 	wl->bss_type = MAX_BSS_TYPE;
+	wl->band = IEEE80211_BAND_2GHZ;
 
 	wl->rx_counter = 0;
 	wl->elp = false;
@@ -726,6 +727,8 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		     conf->power_level);
 
 	mutex_lock(&wl->mutex);
+
+	wl->band = conf->channel->band;
 
 	ret = wl1271_ps_elp_wakeup(wl, false);
 	if (ret < 0)
@@ -978,6 +981,22 @@ out:
 	return ret;
 }
 
+static u32 wl1271_enabled_rates_get(struct wl1271 *wl, u64 basic_rate_set)
+{
+	struct ieee80211_supported_band *band;
+	u32 enabled_rates = 0;
+	int bit;
+
+	band = wl->hw->wiphy->bands[wl->band];
+	for (bit = 0; bit < band->n_bitrates; bit++) {
+		if (basic_rate_set & 0x1)
+			enabled_rates |= band->bitrates[bit].hw_value;
+		basic_rate_set >>= 1;
+	}
+
+	return enabled_rates;
+}
+
 static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_bss_conf *bss_conf,
@@ -1016,6 +1035,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			}
 		}
 	}
+
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		if (bss_conf->use_short_slot)
 			ret = wl1271_acx_slot(wl, SLOT_TIME_SHORT);
@@ -1041,6 +1061,16 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			ret = wl1271_acx_cts_protect(wl, CTSPROTECT_DISABLE);
 		if (ret < 0) {
 			wl1271_warning("Set ctsprotect failed %d", ret);
+			goto out_sleep;
+		}
+	}
+
+	if (changed & BSS_CHANGED_BASIC_RATES) {
+		u32 enabled_rates = wl1271_enabled_rates_get(
+			wl, bss_conf->basic_rates);
+		ret = wl1271_acx_rate_policies(wl, enabled_rates);
+		if (ret < 0) {
+			wl1271_warning("Set rate policies failed %d", ret);
 			goto out_sleep;
 		}
 	}
@@ -1239,6 +1269,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->psm_requested = false;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
+	wl->band = IEEE80211_BAND_2GHZ;
 
 	/* We use the default power on sleep time until we know which chip
 	 * we're using */
