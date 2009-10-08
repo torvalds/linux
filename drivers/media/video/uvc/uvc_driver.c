@@ -436,7 +436,8 @@ static int uvc_parse_format(struct uvc_device *dev,
 	/* Parse the frame descriptors. Only uncompressed, MJPEG and frame
 	 * based formats have frame descriptors.
 	 */
-	while (buflen > 2 && buffer[2] == ftype) {
+	while (buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
+	       buffer[2] == ftype) {
 		frame = &format->frame[format->nframes];
 		if (ftype != UVC_VS_FRAME_FRAME_BASED)
 			n = buflen > 25 ? buffer[25] : 0;
@@ -513,12 +514,14 @@ static int uvc_parse_format(struct uvc_device *dev,
 		buffer += buffer[0];
 	}
 
-	if (buflen > 2 && buffer[2] == UVC_VS_STILL_IMAGE_FRAME) {
+	if (buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
+	    buffer[2] == UVC_VS_STILL_IMAGE_FRAME) {
 		buflen -= buffer[0];
 		buffer += buffer[0];
 	}
 
-	if (buflen > 2 && buffer[2] == UVC_VS_COLORFORMAT) {
+	if (buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
+	    buffer[2] == UVC_VS_COLORFORMAT) {
 		if (buflen < 6) {
 			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
 			       "interface %d COLORFORMAT error\n",
@@ -758,6 +761,11 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 		buflen -= buffer[0];
 		buffer += buffer[0];
 	}
+
+	if (buflen)
+		uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming interface "
+			"%d has %u bytes of trailing descriptor garbage.\n",
+			dev->udev->devnum, alts->desc.bInterfaceNumber, buflen);
 
 	/* Parse the alternate settings to find the maximum bandwidth. */
 	for (i = 0; i < intf->num_altsetting; ++i) {
