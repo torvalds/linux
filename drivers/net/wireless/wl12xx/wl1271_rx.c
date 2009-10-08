@@ -91,12 +91,6 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	 */
 	status->signal = desc->rssi;
 
-	/* FIXME: Should this be optimized? */
-	status->qual = (desc->rssi - WL1271_RX_MIN_RSSI) * 100 /
-		(WL1271_RX_MAX_RSSI - WL1271_RX_MIN_RSSI);
-	status->qual = min(status->qual, 100);
-	status->qual = max(status->qual, 0);
-
 	/*
 	 * FIXME: In wl1251, the SNR should be divided by two.  In wl1271 we
 	 * need to divide by two for now, but TI has been discussing about
