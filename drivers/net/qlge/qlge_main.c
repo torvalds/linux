@@ -3241,6 +3241,13 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 	ql_write32(qdev, SPLT_HDR, SPLT_HDR_EP |
 		min(SMALL_BUFFER_SIZE, MAX_SPLIT_SIZE));
 
+	/* Set RX packet routing to use port/pci function on which the
+	 * packet arrived on in addition to usual frame routing.
+	 * This is helpful on bonding where both interfaces can have
+	 * the same MAC address.
+	 */
+	ql_write32(qdev, RST_FO, RST_FO_RR_MASK | RST_FO_RR_RCV_FUNC_CQ);
+
 	/* Start up the rx queues. */
 	for (i = 0; i < qdev->rx_ring_count; i++) {
 		status = ql_start_rx_ring(qdev, &qdev->rx_ring[i]);
