@@ -26,6 +26,7 @@
 #include "wl1271_spi.h"
 #include "wl1271_event.h"
 #include "wl1271_ps.h"
+#include "wl12xx_80211.h"
 
 static int wl1271_event_scan_complete(struct wl1271 *wl,
 				      struct event_mailbox *mbox)
@@ -34,6 +35,9 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 		     mbox->scheduled_scan_status);
 
 	if (wl->scanning) {
+		int size = sizeof(struct wl12xx_probe_req_template);
+		wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4, NULL,
+					size);
 		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, false);
 		mutex_lock(&wl->mutex);
