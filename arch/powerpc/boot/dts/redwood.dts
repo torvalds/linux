@@ -226,6 +226,7 @@
 				max-frame-size = <9000>;
 				rx-fifo-size = <4096>;
 				tx-fifo-size = <2048>;
+				rx-fifo-size-gige = <16384>;
 				phy-mode = "rgmii";
 				phy-map = <0x00000000>;
 				rgmii-device = <&RGMII0>;
