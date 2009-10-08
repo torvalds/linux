@@ -6,17 +6,15 @@
 #include "util.h"
 #include "debug.h"
 
-static struct thread *thread__new(pid_t pid, int set_comm)
+static struct thread *thread__new(pid_t pid)
 {
 	struct thread *self = calloc(1, sizeof(*self));
 
 	if (self != NULL) {
 		self->pid = pid;
-		if (set_comm) {
-			self->comm = malloc(32);
-			if (self->comm)
-				snprintf(self->comm, 32, ":%d", self->pid);
-		}
+		self->comm = malloc(32);
+		if (self->comm)
+			snprintf(self->comm, 32, ":%d", self->pid);
 		self->maps = RB_ROOT;
 		INIT_LIST_HEAD(&self->removed_maps);
 	}
@@ -52,10 +50,8 @@ static size_t thread__fprintf(struct thread *self, FILE *fp)
 	return ret;
 }
 
-static struct thread *
-__threads__findnew(pid_t pid, struct rb_root *threads,
-		   struct thread **last_match,
-		   int set_comm)
+struct thread *
+threads__findnew(pid_t pid, struct rb_root *threads, struct thread **last_match)
 {
 	struct rb_node **p = &threads->rb_node;
 	struct rb_node *parent = NULL;
@@ -84,8 +80,7 @@ __threads__findnew(pid_t pid, struct rb_root *threads,
 			p = &(*p)->rb_right;
 	}
 
-	th = thread__new(pid, set_comm);
-
+	th = thread__new(pid);
 	if (th != NULL) {
 		rb_link_node(&th->rb_node, parent, p);
 		rb_insert_color(&th->rb_node, threads);
@@ -93,19 +88,6 @@ __threads__findnew(pid_t pid, struct rb_root *threads,
 	}
 
 	return th;
-}
-
-struct thread *
-threads__findnew(pid_t pid, struct rb_root *threads, struct thread **last_match)
-{
-	return __threads__findnew(pid, threads, last_match, 1);
-}
-
-struct thread *
-threads__findnew_nocomm(pid_t pid, struct rb_root *threads,
-			struct thread **last_match)
-{
-	return __threads__findnew(pid, threads, last_match, 0);
 }
 
 struct thread *
