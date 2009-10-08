@@ -420,6 +420,8 @@ struct wl1271 {
 
 	struct wl1271_fw_status *fw_status;
 	struct wl1271_tx_hw_res_if *tx_res_if;
+
+	struct ieee80211_vif *vif;
 };
 
 int wl1271_plt_start(struct wl1271 *wl);
