@@ -137,11 +137,20 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&root->log_mutex);
 	if (root->log_root) {
+		if (!root->log_start_pid) {
+			root->log_start_pid = current->pid;
+			root->log_multiple_pids = false;
+		} else if (root->log_start_pid != current->pid) {
+			root->log_multiple_pids = true;
+		}
+
 		root->log_batch++;
 		atomic_inc(&root->log_writers);
 		mutex_unlock(&root->log_mutex);
 		return 0;
 	}
+	root->log_multiple_pids = false;
+	root->log_start_pid = current->pid;
 	mutex_lock(&root->fs_info->tree_log_mutex);
 	if (!root->fs_info->log_root_tree) {
 		ret = btrfs_init_log_root_tree(trans, root->fs_info);
@@ -1985,7 +1994,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	if (atomic_read(&root->log_commit[(index1 + 1) % 2]))
 		wait_log_commit(trans, root, root->log_transid - 1);
 
-	while (1) {
+	while (root->log_multiple_pids) {
 		unsigned long batch = root->log_batch;
 		mutex_unlock(&root->log_mutex);
 		schedule_timeout_uninterruptible(1);
@@ -2011,6 +2020,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	root->log_batch = 0;
 	root->log_transid++;
 	log->log_transid = root->log_transid;
+	root->log_start_pid = 0;
 	smp_mb();
 	/*
 	 * log tree has been flushed to disk, new modifications of

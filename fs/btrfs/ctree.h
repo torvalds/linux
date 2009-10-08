@@ -1010,6 +1010,8 @@ struct btrfs_root {
 	atomic_t log_commit[2];
 	unsigned long log_transid;
 	unsigned long log_batch;
+	pid_t log_start_pid;
+	bool log_multiple_pids;
 
 	u64 objectid;
 	u64 last_trans;
