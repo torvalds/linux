@@ -1631,14 +1631,14 @@ static void i7core_check_error(struct mem_ctl_info *mci)
 	 * loosing an error.
 	 */
 	smp_rmb();
-	count = (pvt->mce_out + sizeof(mce_entry) - pvt->mce_in)
-		% sizeof(mce_entry);
+	count = (pvt->mce_out + MCE_LOG_LEN - pvt->mce_in)
+		% MCE_LOG_LEN;
 	if (!count)
 		return;
 
 	m = pvt->mce_outentry;
-	if (pvt->mce_in + count > sizeof(mce_entry)) {
-		unsigned l = sizeof(mce_entry) - pvt->mce_in;
+	if (pvt->mce_in + count > MCE_LOG_LEN) {
+		unsigned l = MCE_LOG_LEN - pvt->mce_in;
 
 		memcpy(m, &pvt->mce_entry[pvt->mce_in], sizeof(*m) * l);
 		smp_wmb();
@@ -1702,7 +1702,7 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 		return 0;
 
 	smp_rmb();
-	if ((pvt->mce_out + 1) % sizeof(mce_entry) == pvt->mce_in) {
+	if ((pvt->mce_out + 1) % MCE_LOG_LEN == pvt->mce_in) {
 		smp_wmb();
 		pvt->mce_overrun++;
 		return 0;
@@ -1711,7 +1711,7 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 	/* Copy memory error at the ringbuffer */
 	memcpy(&pvt->mce_entry[pvt->mce_out], mce, sizeof(*mce));
 	smp_wmb();
-	pvt->mce_out = (pvt->mce_out + 1) % sizeof(mce_entry);
+	pvt->mce_out = (pvt->mce_out + 1) % MCE_LOG_LEN;
 
 	/* Handle fatal errors immediately */
 	if (mce->mcgstatus & 1)
