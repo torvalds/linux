@@ -1276,7 +1276,6 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 		goto err_adapter;
 	}
 
-	dev->netdev_ops = &lbs_netdev_ops;
 	dev->ieee80211_ptr = wdev;
 	dev->ml_priv = priv;
 	SET_NETDEV_DEV(dev, dmdev);
