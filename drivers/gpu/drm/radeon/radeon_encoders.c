@@ -31,6 +31,10 @@
 
 extern int atom_debug;
 
+/* evil but including atombios.h is much worse */
+bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
+				struct drm_display_mode *mode);
+
 uint32_t
 radeon_get_encoder_id(struct drm_device *dev, uint32_t supported_device, uint8_t dac)
 {
@@ -219,6 +223,8 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 				   struct drm_display_mode *adjusted_mode)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
@@ -229,6 +235,18 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE)
 	    && (mode->crtc_vsync_start < (mode->crtc_vdisplay + 2)))
 		adjusted_mode->crtc_vsync_start = adjusted_mode->crtc_vdisplay + 2;
+
+	if (radeon_encoder->active_device & ATOM_DEVICE_TV_SUPPORT) {
+		struct radeon_encoder_atom_dac *tv_dac = radeon_encoder->enc_priv;
+		if (tv_dac) {
+			if (tv_dac->tv_std == TV_STD_NTSC ||
+			    tv_dac->tv_std == TV_STD_NTSC_J ||
+			    tv_dac->tv_std == TV_STD_PAL_M)
+				radeon_atom_get_tv_timings(rdev, 0, adjusted_mode);
+			else
+				radeon_atom_get_tv_timings(rdev, 1, adjusted_mode);
+		}
+	}
 
 	return true;
 }
