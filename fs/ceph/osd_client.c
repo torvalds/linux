@@ -469,10 +469,15 @@ static void __unregister_request(struct ceph_osd_client *osdc,
 	rb_erase(&req->r_node, &osdc->requests);
 	osdc->num_requests--;
 
-	list_del_init(&req->r_osd_item);
-	if (list_empty(&req->r_osd->o_requests))
-		remove_osd(osdc, req->r_osd);
-	req->r_osd = NULL;
+	if (req->r_osd) {
+		/* make sure the original request isn't in flight. */
+		ceph_con_revoke(&req->r_osd->o_con, req->r_request);
+
+		list_del_init(&req->r_osd_item);
+		if (list_empty(&req->r_osd->o_requests))
+			remove_osd(osdc, req->r_osd);
+		req->r_osd = NULL;
+	}
 
 	ceph_osdc_put_request(req);
 
