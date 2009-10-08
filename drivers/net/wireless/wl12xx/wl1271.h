@@ -373,6 +373,7 @@ struct wl1271 {
 	bool elp;
 
 	struct completion *elp_compl;
+	struct delayed_work elp_work;
 
 	/* we can be in psm, but not in elp, we have to differentiate */
 	bool psm;

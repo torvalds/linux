@@ -27,25 +27,43 @@
 
 #define WL1271_WAKEUP_TIMEOUT 500
 
+void wl1271_elp_work(struct work_struct *work)
+{
+	struct delayed_work *dwork;
+	struct wl1271 *wl;
+
+	dwork = container_of(work, struct delayed_work, work);
+	wl = container_of(dwork, struct wl1271, elp_work);
+
+	wl1271_debug(DEBUG_PSM, "elp work");
+
+	mutex_lock(&wl->mutex);
+
+	/*
+	 * FIXME: below, by means of the "true", ELP has been disabled for now
+	 * to work around a firmware bug. To be enabled upon receiving a new
+	 * firmware version.
+	 */
+	if (true || wl->elp || !wl->psm)
+		goto out;
+
+	wl1271_debug(DEBUG_PSM, "chip to elp");
+	wl1271_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
+	wl->elp = true;
+
+out:
+	mutex_unlock(&wl->mutex);
+}
+
+#define ELP_ENTRY_DELAY  5
+
 /* Routines to toggle sleep mode while in ELP */
 void wl1271_ps_elp_sleep(struct wl1271 *wl)
 {
-	/*
-	 * FIXME: due to a problem in the firmware (causing a firmware
-	 * crash), ELP entry is prevented below. Remove the "true" to
-	 * re-enable ELP entry.
-	 */
-	if (true || wl->elp || !wl->psm)
-		return;
-
-	/*
-	 * Go to ELP unless there is work already pending - pending work
-	 * will immediately wakeup the chipset anyway.
-	 */
-	if (!work_pending(&wl->irq_work) && !work_pending(&wl->tx_work)) {
-		wl1271_debug(DEBUG_PSM, "chip to elp");
-		wl1271_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
-		wl->elp = true;
+	if (wl->psm) {
+		cancel_delayed_work(&wl->elp_work);
+		ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
+					msecs_to_jiffies(ELP_ENTRY_DELAY));
 	}
 }
 

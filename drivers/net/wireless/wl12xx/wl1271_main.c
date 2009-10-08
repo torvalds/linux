@@ -1226,6 +1226,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	skb_queue_head_init(&wl->tx_queue);
 
 	INIT_WORK(&wl->filter_work, wl1271_filter_work);
+	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
 	wl->channel = WL1271_DEFAULT_CHANNEL;
 	wl->scanning = false;
 	wl->default_key = 0;
