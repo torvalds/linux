@@ -415,8 +415,20 @@ static int radeon_lvds_mode_valid(struct drm_connector *connector,
 
 static enum drm_connector_status radeon_lvds_detect(struct drm_connector *connector)
 {
-	enum drm_connector_status ret = connector_status_connected;
+	enum drm_connector_status ret = connector_status_disconnected;
+	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
+
+	if (encoder) {
+		struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+		struct radeon_native_mode *native_mode = &radeon_encoder->native_mode;
+
+		/* check if panel is valid */
+		if (native_mode->panel_xres >= 320 && native_mode->panel_yres >= 240)
+			ret = connector_status_connected;
+
+	}
 	/* check acpi lid status ??? */
+
 	radeon_connector_update_scratch_regs(connector, ret);
 	return ret;
 }
