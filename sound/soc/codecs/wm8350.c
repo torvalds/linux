@@ -579,7 +579,7 @@ static const struct snd_kcontrol_new wm8350_left_capt_mixer_controls[] = {
 	SOC_DAPM_SINGLE_TLV("L3 Capture Volume",
 			    WM8350_INPUT_MIXER_VOLUME_L, 9, 7, 0, out_mix_tlv),
 	SOC_DAPM_SINGLE("PGA Capture Switch",
-			WM8350_LEFT_INPUT_VOLUME, 14, 1, 0),
+			WM8350_LEFT_INPUT_VOLUME, 14, 1, 1),
 };
 
 /* Right Input Mixer */
@@ -589,7 +589,7 @@ static const struct snd_kcontrol_new wm8350_right_capt_mixer_controls[] = {
 	SOC_DAPM_SINGLE_TLV("L3 Capture Volume",
 			    WM8350_INPUT_MIXER_VOLUME_R, 13, 7, 0, out_mix_tlv),
 	SOC_DAPM_SINGLE("PGA Capture Switch",
-			WM8350_RIGHT_INPUT_VOLUME, 14, 1, 0),
+			WM8350_RIGHT_INPUT_VOLUME, 14, 1, 1),
 };
 
 /* Left Mic Mixer */
