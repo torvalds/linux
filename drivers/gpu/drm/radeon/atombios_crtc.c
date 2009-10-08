@@ -333,12 +333,13 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	struct drm_encoder *encoder = NULL;
 	struct radeon_encoder *radeon_encoder = NULL;
 	uint8_t frev, crev;
-	int index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
+	int index;
 	SET_PIXEL_CLOCK_PS_ALLOCATION args;
 	PIXEL_CLOCK_PARAMETERS *spc1_ptr;
 	PIXEL_CLOCK_PARAMETERS_V2 *spc2_ptr;
 	PIXEL_CLOCK_PARAMETERS_V3 *spc3_ptr;
-	uint32_t sclock = mode->clock;
+	uint32_t pll_clock = mode->clock;
+	uint32_t adjusted_clock;
 	uint32_t ref_div = 0, fb_div = 0, frac_fb_div = 0, post_div = 0;
 	struct radeon_pll *pll;
 	int pll_flags = 0;
@@ -393,12 +394,34 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		}
 	}
 
+	/* DCE3+ has an AdjustDisplayPll that will adjust the pixel clock
+	 * accordingly based on the encoder/transmitter to work around
+	 * special hw requirements.
+	 */
+	if (ASIC_IS_DCE3(rdev)) {
+		ADJUST_DISPLAY_PLL_PS_ALLOCATION adjust_pll_args;
+
+		if (!encoder)
+			return;
+
+		memset(&adjust_pll_args, 0, sizeof(adjust_pll_args));
+		adjust_pll_args.usPixelClock = cpu_to_le16(mode->clock / 10);
+		adjust_pll_args.ucTransmitterID = radeon_encoder->encoder_id;
+		adjust_pll_args.ucEncodeMode = atombios_get_encoder_mode(encoder);
+
+		index = GetIndexIntoMasterTable(COMMAND, AdjustDisplayPll);
+		atom_execute_table(rdev->mode_info.atom_context,
+				   index, (uint32_t *)&adjust_pll_args);
+		adjusted_clock = le16_to_cpu(adjust_pll_args.usPixelClock) * 10;
+	} else
+		adjusted_clock = mode->clock;
+
 	if (radeon_crtc->crtc_id == 0)
 		pll = &rdev->clock.p1pll;
 	else
 		pll = &rdev->clock.p2pll;
 
-	radeon_compute_pll(pll, mode->clock, &sclock, &fb_div, &frac_fb_div,
+	radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
 			   &ref_div, &post_div, pll_flags);
 
 	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
@@ -409,7 +432,7 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		switch (crev) {
 		case 1:
 			spc1_ptr = (PIXEL_CLOCK_PARAMETERS *) & args.sPCLKInput;
-			spc1_ptr->usPixelClock = cpu_to_le16(sclock);
+			spc1_ptr->usPixelClock = cpu_to_le16(mode->clock / 10);
 			spc1_ptr->usRefDiv = cpu_to_le16(ref_div);
 			spc1_ptr->usFbDiv = cpu_to_le16(fb_div);
 			spc1_ptr->ucFracFbDiv = frac_fb_div;
@@ -422,7 +445,7 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		case 2:
 			spc2_ptr =
 			    (PIXEL_CLOCK_PARAMETERS_V2 *) & args.sPCLKInput;
-			spc2_ptr->usPixelClock = cpu_to_le16(sclock);
+			spc2_ptr->usPixelClock = cpu_to_le16(mode->clock / 10);
 			spc2_ptr->usRefDiv = cpu_to_le16(ref_div);
 			spc2_ptr->usFbDiv = cpu_to_le16(fb_div);
 			spc2_ptr->ucFracFbDiv = frac_fb_div;
@@ -437,7 +460,7 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 				return;
 			spc3_ptr =
 			    (PIXEL_CLOCK_PARAMETERS_V3 *) & args.sPCLKInput;
-			spc3_ptr->usPixelClock = cpu_to_le16(sclock);
+			spc3_ptr->usPixelClock = cpu_to_le16(mode->clock / 10);
 			spc3_ptr->usRefDiv = cpu_to_le16(ref_div);
 			spc3_ptr->usFbDiv = cpu_to_le16(fb_div);
 			spc3_ptr->ucFracFbDiv = frac_fb_div;
@@ -460,6 +483,7 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	}
 
 	printk("executing set pll\n");
+	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
