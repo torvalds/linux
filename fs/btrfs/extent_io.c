@@ -1401,12 +1401,7 @@ out_failed:
 int extent_clear_unlock_delalloc(struct inode *inode,
 				struct extent_io_tree *tree,
 				u64 start, u64 end, struct page *locked_page,
-				int unlock_pages,
-				int clear_unlock,
-				int clear_delalloc, int clear_dirty,
-				int set_writeback,
-				int end_writeback,
-				int set_private2)
+				unsigned long op)
 {
 	int ret;
 	struct page *pages[16];
@@ -1416,17 +1411,17 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 	int i;
 	int clear_bits = 0;
 
-	if (clear_unlock)
+	if (op & EXTENT_CLEAR_UNLOCK)
 		clear_bits |= EXTENT_LOCKED;
-	if (clear_dirty)
+	if (op & EXTENT_CLEAR_DIRTY)
 		clear_bits |= EXTENT_DIRTY;
 
-	if (clear_delalloc)
+	if (op & EXTENT_CLEAR_DELALLOC)
 		clear_bits |= EXTENT_DELALLOC;
 
 	clear_extent_bit(tree, start, end, clear_bits, 1, 0, NULL, GFP_NOFS);
-	if (!(unlock_pages || clear_dirty || set_writeback || end_writeback ||
-	      set_private2))
+	if (!(op & (EXTENT_CLEAR_UNLOCK_PAGE | EXTENT_CLEAR_DIRTY | EXTENT_SET_WRITEBACK |
+		    EXTENT_END_WRITEBACK | EXTENT_SET_PRIVATE2)))
 		return 0;
 
 	while (nr_pages > 0) {
@@ -1435,20 +1430,20 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 				     nr_pages, ARRAY_SIZE(pages)), pages);
 		for (i = 0; i < ret; i++) {
 
-			if (set_private2)
+			if (op & EXTENT_SET_PRIVATE2)
 				SetPagePrivate2(pages[i]);
 
 			if (pages[i] == locked_page) {
 				page_cache_release(pages[i]);
 				continue;
 			}
-			if (clear_dirty)
+			if (op & EXTENT_CLEAR_DIRTY)
 				clear_page_dirty_for_io(pages[i]);
-			if (set_writeback)
+			if (op & EXTENT_SET_WRITEBACK)
 				set_page_writeback(pages[i]);
-			if (end_writeback)
+			if (op & EXTENT_END_WRITEBACK)
 				end_page_writeback(pages[i]);
-			if (unlock_pages)
+			if (op & EXTENT_CLEAR_UNLOCK_PAGE)
 				unlock_page(pages[i]);
 			page_cache_release(pages[i]);
 		}

@@ -424,9 +424,10 @@ again:
 			 * and free up our temp pages.
 			 */
 			extent_clear_unlock_delalloc(inode,
-						     &BTRFS_I(inode)->io_tree,
-						     start, end, NULL, 1, 0,
-						     0, 1, 1, 1, 0);
+			     &BTRFS_I(inode)->io_tree,
+			     start, end, NULL,
+			     EXTENT_CLEAR_UNLOCK_PAGE | EXTENT_CLEAR_DIRTY |
+			     EXTENT_SET_WRITEBACK | EXTENT_END_WRITEBACK);
 			ret = 0;
 			goto free_pages_out;
 		}
@@ -637,11 +638,13 @@ static noinline int submit_compressed_extents(struct inode *inode,
 		 * clear dirty, set writeback and unlock the pages.
 		 */
 		extent_clear_unlock_delalloc(inode,
-					     &BTRFS_I(inode)->io_tree,
-					     async_extent->start,
-					     async_extent->start +
-					     async_extent->ram_size - 1,
-					     NULL, 1, 1, 0, 1, 1, 0, 0);
+				&BTRFS_I(inode)->io_tree,
+				async_extent->start,
+				async_extent->start +
+				async_extent->ram_size - 1,
+				NULL, EXTENT_CLEAR_UNLOCK_PAGE |
+				EXTENT_CLEAR_UNLOCK |
+				EXTENT_CLEAR_DIRTY | EXTENT_SET_WRITEBACK);
 
 		ret = btrfs_submit_compressed_write(inode,
 				    async_extent->start,
@@ -712,9 +715,14 @@ static noinline int cow_file_range(struct inode *inode,
 					    start, end, 0, NULL);
 		if (ret == 0) {
 			extent_clear_unlock_delalloc(inode,
-						     &BTRFS_I(inode)->io_tree,
-						     start, end, NULL, 1, 1,
-						     1, 1, 1, 1, 0);
+				     &BTRFS_I(inode)->io_tree,
+				     start, end, NULL,
+				     EXTENT_CLEAR_UNLOCK_PAGE |
+				     EXTENT_CLEAR_UNLOCK |
+				     EXTENT_CLEAR_DELALLOC |
+				     EXTENT_CLEAR_DIRTY |
+				     EXTENT_SET_WRITEBACK |
+				     EXTENT_END_WRITEBACK);
 			*nr_written = *nr_written +
 			     (end - start + PAGE_CACHE_SIZE) / PAGE_CACHE_SIZE;
 			*page_started = 1;
@@ -738,6 +746,8 @@ static noinline int cow_file_range(struct inode *inode,
 	btrfs_drop_extent_cache(inode, start, start + num_bytes - 1, 0);
 
 	while (disk_num_bytes > 0) {
+		unsigned long op;
+
 		cur_alloc_size = min(disk_num_bytes, root->fs_info->max_extent);
 		ret = btrfs_reserve_extent(trans, root, cur_alloc_size,
 					   root->sectorsize, 0, alloc_hint,
@@ -789,10 +799,13 @@ static noinline int cow_file_range(struct inode *inode,
 		 * Do set the Private2 bit so we know this page was properly
 		 * setup for writepage
 		 */
+		op = unlock ? EXTENT_CLEAR_UNLOCK_PAGE : 0;
+		op |= EXTENT_CLEAR_UNLOCK | EXTENT_CLEAR_DELALLOC |
+			EXTENT_SET_PRIVATE2;
+
 		extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
 					     start, start + ram_size - 1,
-					     locked_page, unlock, 1,
-					     1, 0, 0, 0, 1);
+					     locked_page, op);
 		disk_num_bytes -= cur_alloc_size;
 		num_bytes -= cur_alloc_size;
 		alloc_hint = ins.objectid + ins.offset;
@@ -1112,8 +1125,10 @@ out_check:
 		BUG_ON(ret);
 
 		extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
-					cur_offset, cur_offset + num_bytes - 1,
-					locked_page, 1, 1, 1, 0, 0, 0, 1);
+				cur_offset, cur_offset + num_bytes - 1,
+				locked_page, EXTENT_CLEAR_UNLOCK_PAGE |
+				EXTENT_CLEAR_UNLOCK | EXTENT_CLEAR_DELALLOC |
+				EXTENT_SET_PRIVATE2);
 		cur_offset = extent_end;
 		if (cur_offset > end)
 			break;
