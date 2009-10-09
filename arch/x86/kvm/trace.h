@@ -349,6 +349,39 @@ TRACE_EVENT(kvm_apic_accept_irq,
 		  __entry->coalesced ? " (coalesced)" : "")
 );
 
+/*
+ * Tracepoint for nested VMRUN
+ */
+TRACE_EVENT(kvm_nested_vmrun,
+	    TP_PROTO(__u64 rip, __u64 vmcb, __u64 nested_rip, __u32 int_ctl,
+		     __u32 event_inj, bool npt),
+	    TP_ARGS(rip, vmcb, nested_rip, int_ctl, event_inj, npt),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		rip		)
+		__field(	__u64,		vmcb		)
+		__field(	__u64,		nested_rip	)
+		__field(	__u32,		int_ctl		)
+		__field(	__u32,		event_inj	)
+		__field(	bool,		npt		)
+	),
+
+	TP_fast_assign(
+		__entry->rip		= rip;
+		__entry->vmcb		= vmcb;
+		__entry->nested_rip	= nested_rip;
+		__entry->int_ctl	= int_ctl;
+		__entry->event_inj	= event_inj;
+		__entry->npt		= npt;
+	),
+
+	TP_printk("rip: 0x%016llx vmcb: 0x%016llx nrip: 0x%016llx int_ctl: 0x%08x "
+		  "event_inj: 0x%08x npt: %s\n",
+		__entry->rip, __entry->vmcb, __entry->nested_rip,
+		__entry->int_ctl, __entry->event_inj,
+		__entry->npt ? "on" : "off")
+);
+
 #endif /* _TRACE_KVM_H */
 
 /* This part must be outside protection */
