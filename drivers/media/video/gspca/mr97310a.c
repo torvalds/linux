@@ -431,12 +431,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (err_code < 0)
 		return err_code;
 
+	err_code = stream_start(gspca_dev);
+	if (err_code < 0)
+		return err_code;
+
 	if (id->idProduct == 0x010e) {
 		sd->cam_type = CAM_TYPE_CIF;
 		cam->nmodes--;
-		err_code = stream_start(gspca_dev);
-		if (err_code < 0)
-			return err_code;
 		err_code = cam_get_response16(gspca_dev, 0x06, 1);
 		if (err_code < 0)
 			return err_code;
@@ -476,74 +477,52 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	} else {
 		sd->cam_type = CAM_TYPE_VGA;
 
-		/*
-		 * VGA cams also have two different sensor types. Detection
-		 * requires a two-step process.
-		 *
-		 * Here is a report on the result of the first test for the
-		 * known MR97310a VGA cameras. If you have another to report,
-		 * please do.
-		 *
-		 * Name		byte just read			sd->sensor_type
-		 *				sd->do_lcd_stop
-		 * Aiptek Pencam VGA+	0x31		0	1
-		 * ION digital		0x31		0	1
-		 * Sakar Digital 77379	0x31		0	1
-		 * Argus DC-1620	0x30		1	0
-		 * Argus QuickClix	0x30		1	1 (see note)
-		 * Note that this test fails to distinguish sd->sensor_type
-		 * for the two cameras which have reported 0x30.
-		 * Another test will be run on them.
-		 * But the sd->do_lcd_stop setting is needed, too.
-		 */
-
-		err_code = cam_get_response16(gspca_dev, 0x20, 1);
-		if (err_code < 0)
-			return err_code;
-		sd->sensor_type = gspca_dev->usb_buf[0] & 1;
-		sd->do_lcd_stop = (~gspca_dev->usb_buf[0]) & 1;
-		err_code = stream_start(gspca_dev);
+		err_code = cam_get_response16(gspca_dev, 0x07, 1);
 		if (err_code < 0)
 			return err_code;
 
 		/*
-		 * A second test can now resolve any remaining ambiguity in the
-		 * identification of the camera's sensor type. Specifically,
-		 * it now gives the correct sensor_type for the Argus DC-1620
-		 * and the Argus QuickClix.
-		 *
-		 * This second test is only run if needed,
-		 * but additional results from testing some other cameras
-		 * are recorded here, too:
+		 * Here is a table of the responses to the previous command
+		 * from the known MR97310A VGA cameras.
 		 *
 		 * Name			gspca_dev->usb_buf[]	sd->sensor_type
+		 *				sd->do_lcd_stop
+		 * Aiptek Pencam VGA+	0300		0		1
+		 * ION digital		0350		0		1
+		 * Argus DC-1620	0450		1		0
+		 * Argus QuickClix	0420		1		1
 		 *
-		 * Aiptek Pencam VGA+	0300	(test not needed)	1
-		 * ION digital		0350	(test not needed)	1
-		 * Argus DC-1620	0450	(remains as type 0)	0
-		 * Argus QuickClix	0420	(corrected to type 1)	1
+		 * Based upon these results, we assume default settings
+		 * and then correct as necessary, as follows.
 		 *
-		 * This test even seems able to distinguish one VGA cam from
-		 * another which may be useful. However, the CIF type 1 cameras
-		 * do not like it.
 		 */
 
-		if (!sd->sensor_type) {
-			err_code = cam_get_response16(gspca_dev, 0x07, 1);
-			if (err_code < 0)
-				return err_code;
-
+		sd->sensor_type = 1;
+		sd->do_lcd_stop = 0;
+		if ((gspca_dev->usb_buf[0] != 0x03) &&
+					(gspca_dev->usb_buf[0] != 0x04)) {
+			PDEBUG(D_ERR, "Unknown VGA Sensor id Byte 0: %02x",
+					gspca_dev->usb_buf[1]);
+			PDEBUG(D_ERR, "Defaults assumed, may not work");
+			PDEBUG(D_ERR, "Please report this");
+		}
+		if (gspca_dev->usb_buf[0] == 0x04) {
+			sd->do_lcd_stop = 1;
 			switch (gspca_dev->usb_buf[1]) {
 			case 0x50:
+				sd->sensor_type = 0;
+				PDEBUG(D_PROBE, "sensor_type corrected to 0");
 				break;
 			case 0x20:
-				sd->sensor_type = 1;
-				PDEBUG(D_PROBE, "sensor_type corrected to 1");
+				/* Nothing to do here. */
 				break;
 			default:
-				PDEBUG(D_ERR, "Unknown VGA Sensor id : %02x",
-				       gspca_dev->usb_buf[1]);
-				return -ENODEV;
+				PDEBUG(D_ERR,
+					"Unknown VGA Sensor id Byte 1: %02x",
+					gspca_dev->usb_buf[1]);
+				PDEBUG(D_ERR,
+					"Defaults assumed, may not work");
+				PDEBUG(D_ERR, "Please report this");
 			}
 		}
 		PDEBUG(D_PROBE, "MR97310A VGA camera detected, sensor: %d",
