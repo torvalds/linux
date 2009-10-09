@@ -154,7 +154,7 @@ static struct platform_device bf54x_kpad_device = {
 };
 #endif
 
-#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+#if defined(CONFIG_INPUT_BFIN_ROTARY) || defined(CONFIG_INPUT_BFIN_ROTARY_MODULE)
 #include <asm/bfin_rotary.h>
 
 static struct bfin_rotary_platform_data bfin_rotary_data = {
@@ -974,7 +974,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bf54x_kpad_device,
 #endif
 
-#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+#if defined(CONFIG_INPUT_BFIN_ROTARY) || defined(CONFIG_INPUT_BFIN_ROTARY_MODULE)
 	&bfin_rotary_device,
 #endif
 
