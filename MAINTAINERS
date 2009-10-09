@@ -1086,7 +1086,6 @@ F:	include/net/ax25.h
 F:	net/ax25/
 
 B43 WIRELESS DRIVER
-M:	Michael Buesch <mb@bu3sch.de>
 M:	Stefano Brivio <stefano.brivio@polimi.it>
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/en/users/Drivers/b43
