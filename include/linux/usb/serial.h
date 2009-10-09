@@ -150,6 +150,7 @@ struct usb_serial {
 	struct usb_interface		*interface;
 	unsigned char			disconnected:1;
 	unsigned char			suspending:1;
+	unsigned char			attached:1;
 	unsigned char			minor;
 	unsigned char			num_ports;
 	unsigned char			num_port_pointers;
