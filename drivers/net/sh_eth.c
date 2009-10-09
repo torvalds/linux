@@ -30,7 +30,7 @@
 #include <linux/phy.h>
 #include <linux/cache.h>
 #include <linux/io.h>
-
+#include <linux/pm_runtime.h>
 #include "sh_eth.h"
 
 /* There is CPU dependent code */
@@ -1012,6 +1012,8 @@ static int sh_eth_open(struct net_device *ndev)
 	int ret = 0;
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
+	pm_runtime_get_sync(&mdp->pdev->dev);
+
 	ret = request_irq(ndev->irq, &sh_eth_interrupt,
 #if defined(CONFIG_CPU_SUBTYPE_SH7763) || defined(CONFIG_CPU_SUBTYPE_SH7764)
 				IRQF_SHARED,
@@ -1048,6 +1050,7 @@ static int sh_eth_open(struct net_device *ndev)
 
 out_free_irq:
 	free_irq(ndev->irq, ndev);
+	pm_runtime_put_sync(&mdp->pdev->dev);
 	return ret;
 }
 
@@ -1179,6 +1182,8 @@ static int sh_eth_close(struct net_device *ndev)
 	ringsize = sizeof(struct sh_eth_txdesc) * TX_RING_SIZE;
 	dma_free_coherent(NULL, ringsize, mdp->tx_ring, mdp->tx_desc_dma);
 
+	pm_runtime_put_sync(&mdp->pdev->dev);
+
 	return 0;
 }
 
@@ -1186,6 +1191,8 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	u32 ioaddr = ndev->base_addr;
+
+	pm_runtime_get_sync(&mdp->pdev->dev);
 
 	mdp->stats.tx_dropped += ctrl_inl(ioaddr + TROCR);
 	ctrl_outl(0, ioaddr + TROCR);	/* (write clear) */
@@ -1202,6 +1209,8 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 	mdp->stats.tx_carrier_errors += ctrl_inl(ioaddr + CNDCR);
 	ctrl_outl(0, ioaddr + CNDCR);	/* (write clear) */
 #endif
+	pm_runtime_put_sync(&mdp->pdev->dev);
+
 	return &mdp->stats;
 }
 
@@ -1410,6 +1419,9 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	mdp = netdev_priv(ndev);
 	spin_lock_init(&mdp->lock);
+	mdp->pdev = pdev;
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_resume(&pdev->dev);
 
 	pd = (struct sh_eth_plat_data *)(pdev->dev.platform_data);
 	/* get PHY ID */
@@ -1485,18 +1497,37 @@ static int sh_eth_drv_remove(struct platform_device *pdev)
 	sh_mdio_release(ndev);
 	unregister_netdev(ndev);
 	flush_scheduled_work();
-
+	pm_runtime_disable(&pdev->dev);
 	free_netdev(ndev);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
+static int sh_eth_runtime_nop(struct device *dev)
+{
+	/*
+	 * Runtime PM callback shared between ->runtime_suspend()
+	 * and ->runtime_resume(). Simply returns success.
+	 *
+	 * This driver re-initializes all registers after
+	 * pm_runtime_get_sync() anyway so there is no need
+	 * to save and restore registers here.
+	 */
+	return 0;
+}
+
+static struct dev_pm_ops sh_eth_dev_pm_ops = {
+	.runtime_suspend = sh_eth_runtime_nop,
+	.runtime_resume = sh_eth_runtime_nop,
+};
+
 static struct platform_driver sh_eth_driver = {
 	.probe = sh_eth_drv_probe,
 	.remove = sh_eth_drv_remove,
 	.driver = {
 		   .name = CARDNAME,
+		   .pm = &sh_eth_dev_pm_ops,
 	},
 };
 

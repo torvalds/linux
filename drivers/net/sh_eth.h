@@ -703,6 +703,7 @@ struct sh_eth_cpu_data {
 };
 
 struct sh_eth_private {
+	struct platform_device *pdev;
 	struct sh_eth_cpu_data *cd;
 	dma_addr_t rx_desc_dma;
 	dma_addr_t tx_desc_dma;
