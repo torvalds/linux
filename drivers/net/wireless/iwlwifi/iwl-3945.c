@@ -806,9 +806,6 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 	} else
 		data_retry_limit = IWL_DEFAULT_TX_RETRY;
 
-	if (priv->data_retry_limit != -1)
-		data_retry_limit = priv->data_retry_limit;
-
 	if (ieee80211_is_mgmt(fc)) {
 		switch (fc & cpu_to_le16(IEEE80211_FCTL_STYPE)) {
 		case cpu_to_le16(IEEE80211_STYPE_AUTH):

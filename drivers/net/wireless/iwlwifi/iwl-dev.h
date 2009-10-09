@@ -1092,7 +1092,6 @@ struct iwl_priv {
 	u8 last_phy_res[100];
 
 	/* Rate scaling data */
-	s8 data_retry_limit;
 	u8 retry_rate;
 
 	wait_queue_head_t wait_command_queue;

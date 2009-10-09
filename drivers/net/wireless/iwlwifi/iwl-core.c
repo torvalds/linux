@@ -1524,7 +1524,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 	/* Clear the driver's (not device's) station table */
 	iwl_clear_stations_table(priv);
 
-	priv->data_retry_limit = -1;
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
 	priv->band = IEEE80211_BAND_2GHZ;

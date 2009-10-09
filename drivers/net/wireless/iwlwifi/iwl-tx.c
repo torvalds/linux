@@ -591,9 +591,7 @@ static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 	u8 rate_plcp;
 
 	/* Set retry limit on DATA packets and Probe Responses*/
-	if (priv->data_retry_limit != -1)
-		data_retry_limit = priv->data_retry_limit;
-	else if (ieee80211_is_probe_resp(fc))
+	if (ieee80211_is_probe_resp(fc))
 		data_retry_limit = 3;
 	else
 		data_retry_limit = IWL_DEFAULT_TX_RETRY;
