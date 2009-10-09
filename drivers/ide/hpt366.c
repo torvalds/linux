@@ -426,14 +426,12 @@ static u32 sixty_six_base_hpt37x[] = {
 };
 #endif
 
-#define HPT366_DEBUG_DRIVE_INFO		0
 #define HPT371_ALLOW_ATA133_6		1
 #define HPT302_ALLOW_ATA133_6		1
 #define HPT372_ALLOW_ATA133_6		1
 #define HPT370_ALLOW_ATA100_5		0
 #define HPT366_ALLOW_ATA66_4		1
 #define HPT366_ALLOW_ATA66_3		1
-#define HPT366_MAX_DEVS			8
 
 /* Supported ATA clock frequencies */
 enum ata_clock {
