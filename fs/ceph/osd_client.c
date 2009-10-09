@@ -294,10 +294,7 @@ __lookup_request_ge(struct ceph_osd_client *osdc,
 
 
 /*
- * The messaging layer will reconnect to the osd as needed.  If the
- * session has dropped, the OSD will have dropped the session state,
- * and we'll get notified by the messaging layer.  If that happens, we
- * need to resubmit all requests for that osd.
+ * If the osd connection drops, we need to resubmit all requests.
  */
 static void osd_reset(struct ceph_connection *con)
 {
@@ -1301,7 +1298,7 @@ const static struct ceph_connection_operations osd_con_ops = {
 	.put = put_osd_con,
 	.dispatch = dispatch,
 	.alloc_msg = alloc_msg,
-	.peer_reset = osd_reset,
+	.fault = osd_reset,
 	.alloc_middle = ceph_alloc_middle,
 	.prepare_pages = prepare_pages,
 };
