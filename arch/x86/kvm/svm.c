@@ -85,6 +85,9 @@ struct nested_state {
 	/* gpa pointers to the real vectors */
 	u64 vmcb_msrpm;
 
+	/* A VMEXIT is required but not yet emulated */
+	bool exit_required;
+
 	/* cache for intercepts of the guest */
 	u16 intercept_cr_read;
 	u16 intercept_cr_write;
@@ -1379,7 +1382,14 @@ static inline int nested_svm_intr(struct vcpu_svm *svm)
 
 	svm->vmcb->control.exit_code = SVM_EXIT_INTR;
 
-	if (nested_svm_exit_handled(svm)) {
+	if (svm->nested.intercept & 1ULL) {
+		/*
+		 * The #vmexit can't be emulated here directly because this
+		 * code path runs with irqs and preemtion disabled. A
+		 * #vmexit emulation might sleep. Only signal request for
+		 * the #vmexit here.
+		 */
+		svm->nested.exit_required = true;
 		nsvm_printk("VMexit -> INTR\n");
 		return 1;
 	}
@@ -2340,6 +2350,13 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 
 	trace_kvm_exit(exit_code, svm->vmcb->save.rip);
 
+	if (unlikely(svm->nested.exit_required)) {
+		nested_svm_vmexit(svm);
+		svm->nested.exit_required = false;
+
+		return 1;
+	}
+
 	if (is_nested(svm)) {
 		int vmexit;
 
@@ -2614,6 +2631,13 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	u16 fs_selector;
 	u16 gs_selector;
 	u16 ldt_selector;
+
+	/*
+	 * A vmexit emulation is required before the vcpu can be executed
+	 * again.
+	 */
+	if (unlikely(svm->nested.exit_required))
+		return;
 
 	svm->vmcb->save.rax = vcpu->arch.regs[VCPU_REGS_RAX];
 	svm->vmcb->save.rsp = vcpu->arch.regs[VCPU_REGS_RSP];
