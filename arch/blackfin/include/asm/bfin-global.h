@@ -11,9 +11,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm/sections.h>
-#include <asm/ptrace.h>
-#include <asm/user.h>
 #include <linux/linkage.h>
 #include <linux/types.h>
 
@@ -35,6 +32,7 @@ extern unsigned long get_sclk(void);
 extern unsigned long sclk_to_usecs(unsigned long sclk);
 extern unsigned long usecs_to_sclk(unsigned long usecs);
 
+struct pt_regs;
 extern void dump_bfin_process(struct pt_regs *regs);
 extern void dump_bfin_mem(struct pt_regs *regs);
 extern void dump_bfin_trace_buffer(void);

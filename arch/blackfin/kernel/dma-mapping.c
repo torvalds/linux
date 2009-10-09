@@ -17,6 +17,7 @@
 #include <linux/scatterlist.h>
 #include <asm/cacheflush.h>
 #include <asm/bfin-global.h>
+#include <asm/sections.h>
 
 static spinlock_t dma_page_lock;
 static unsigned long *dma_page;
