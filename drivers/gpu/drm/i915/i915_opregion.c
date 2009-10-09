@@ -224,7 +224,7 @@ void opregion_asle_intr(struct drm_device *dev)
 	asle_req = asle->aslc & ASLE_REQ_MSK;
 
 	if (!asle_req) {
-		DRM_DEBUG("non asle set request??\n");
+		DRM_DEBUG_DRIVER("non asle set request??\n");
 		return;
 	}
 
@@ -361,9 +361,9 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 	int err = 0;
 
 	pci_read_config_dword(dev->pdev, PCI_ASLS, &asls);
-	DRM_DEBUG("graphic opregion physical addr: 0x%x\n", asls);
+	DRM_DEBUG_DRIVER("graphic opregion physical addr: 0x%x\n", asls);
 	if (asls == 0) {
-		DRM_DEBUG("ACPI OpRegion not supported!\n");
+		DRM_DEBUG_DRIVER("ACPI OpRegion not supported!\n");
 		return -ENOTSUPP;
 	}
 
@@ -373,30 +373,30 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 
 	opregion->header = base;
 	if (memcmp(opregion->header->signature, OPREGION_SIGNATURE, 16)) {
-		DRM_DEBUG("opregion signature mismatch\n");
+		DRM_DEBUG_DRIVER("opregion signature mismatch\n");
 		err = -EINVAL;
 		goto err_out;
 	}
 
 	mboxes = opregion->header->mboxes;
 	if (mboxes & MBOX_ACPI) {
-		DRM_DEBUG("Public ACPI methods supported\n");
+		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
 		opregion->acpi = base + OPREGION_ACPI_OFFSET;
 		if (drm_core_check_feature(dev, DRIVER_MODESET))
 			intel_didl_outputs(dev);
 	} else {
-		DRM_DEBUG("Public ACPI methods not supported\n");
+		DRM_DEBUG_DRIVER("Public ACPI methods not supported\n");
 		err = -ENOTSUPP;
 		goto err_out;
 	}
 	opregion->enabled = 1;
 
 	if (mboxes & MBOX_SWSCI) {
-		DRM_DEBUG("SWSCI supported\n");
+		DRM_DEBUG_DRIVER("SWSCI supported\n");
 		opregion->swsci = base + OPREGION_SWSCI_OFFSET;
 	}
 	if (mboxes & MBOX_ASLE) {
-		DRM_DEBUG("ASLE supported\n");
+		DRM_DEBUG_DRIVER("ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
 		opregion_enable_asle(dev);
 	}

@@ -3690,7 +3690,7 @@ static void intel_gpu_idle_timer(unsigned long arg)
 	struct drm_device *dev = (struct drm_device *)arg;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("idle timer fired, downclocking\n");
+	DRM_DEBUG_DRIVER("idle timer fired, downclocking\n");
 
 	dev_priv->busy = false;
 
@@ -3705,7 +3705,7 @@ void intel_increase_renderclock(struct drm_device *dev, bool schedule)
 		return;
 
 	if (!dev_priv->render_reclock_avail) {
-		DRM_DEBUG("not reclocking render clock\n");
+		DRM_DEBUG_DRIVER("not reclocking render clock\n");
 		return;
 	}
 
@@ -3714,7 +3714,7 @@ void intel_increase_renderclock(struct drm_device *dev, bool schedule)
 		pci_write_config_word(dev->pdev, GCFGC, dev_priv->orig_clock);
 	else if (IS_I85X(dev))
 		pci_write_config_word(dev->pdev, HPLLCC, dev_priv->orig_clock);
-	DRM_DEBUG("increasing render clock frequency\n");
+	DRM_DEBUG_DRIVER("increasing render clock frequency\n");
 
 	/* Schedule downclock */
 	if (schedule)
@@ -3730,7 +3730,7 @@ void intel_decrease_renderclock(struct drm_device *dev)
 		return;
 
 	if (!dev_priv->render_reclock_avail) {
-		DRM_DEBUG("not reclocking render clock\n");
+		DRM_DEBUG_DRIVER("not reclocking render clock\n");
 		return;
 	}
 
@@ -3790,7 +3790,7 @@ void intel_decrease_renderclock(struct drm_device *dev)
 
 		pci_write_config_word(dev->pdev, HPLLCC, hpllcc);
 	}
-	DRM_DEBUG("decreasing render clock frequency\n");
+	DRM_DEBUG_DRIVER("decreasing render clock frequency\n");
 }
 
 /* Note that no increase function is needed for this - increase_renderclock()
@@ -3824,7 +3824,7 @@ static void intel_crtc_idle_timer(unsigned long arg)
 	struct drm_crtc *crtc = &intel_crtc->base;
 	drm_i915_private_t *dev_priv = crtc->dev->dev_private;
 
-	DRM_DEBUG("idle timer fired, downclocking\n");
+	DRM_DEBUG_DRIVER("idle timer fired, downclocking\n");
 
 	intel_crtc->busy = false;
 
@@ -3847,7 +3847,7 @@ static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule)
 		return;
 
 	if (!HAS_PIPE_CXSR(dev) && (dpll & DISPLAY_RATE_SELECT_FPA1)) {
-		DRM_DEBUG("upclocking LVDS\n");
+		DRM_DEBUG_DRIVER("upclocking LVDS\n");
 
 		/* Unlock panel regs */
 		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) | (0xabcd << 16));
@@ -3858,7 +3858,7 @@ static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule)
 		intel_wait_for_vblank(dev);
 		dpll = I915_READ(dpll_reg);
 		if (dpll & DISPLAY_RATE_SELECT_FPA1)
-			DRM_DEBUG("failed to upclock LVDS!\n");
+			DRM_DEBUG_DRIVER("failed to upclock LVDS!\n");
 
 		/* ...and lock them again */
 		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) & 0x3);
@@ -3890,7 +3890,7 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 	 * the manual case.
 	 */
 	if (!HAS_PIPE_CXSR(dev) && intel_crtc->lowfreq_avail) {
-		DRM_DEBUG("downclocking LVDS\n");
+		DRM_DEBUG_DRIVER("downclocking LVDS\n");
 
 		/* Unlock panel regs */
 		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) | (0xabcd << 16));
@@ -3901,7 +3901,7 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 		intel_wait_for_vblank(dev);
 		dpll = I915_READ(dpll_reg);
 		if (!(dpll & DISPLAY_RATE_SELECT_FPA1))
-			DRM_DEBUG("failed to downclock LVDS!\n");
+			DRM_DEBUG_DRIVER("failed to downclock LVDS!\n");
 
 		/* ...and lock them again */
 		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) & 0x3);

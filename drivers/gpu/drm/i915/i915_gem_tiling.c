@@ -121,7 +121,7 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 				     0,   pcibios_align_resource,
 				     dev_priv->bridge_dev);
 	if (ret) {
-		DRM_DEBUG("failed bus alloc: %d\n", ret);
+		DRM_DEBUG_DRIVER("failed bus alloc: %d\n", ret);
 		dev_priv->mch_res.start = 0;
 		goto out;
 	}

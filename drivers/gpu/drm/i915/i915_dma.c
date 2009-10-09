@@ -1073,7 +1073,7 @@ static unsigned long i915_gtt_to_phys(struct drm_device *dev,
 
 	entry = *(volatile u32 *)(gtt + (gtt_addr / 1024));
 
-	DRM_DEBUG("GTT addr: 0x%08lx, PTE: 0x%08lx\n", gtt_addr, entry);
+	DRM_DEBUG_DRIVER("GTT addr: 0x%08lx, PTE: 0x%08lx\n", gtt_addr, entry);
 
 	/* Mask out these reserved bits on this hardware. */
 	if (!IS_I9XX(dev) || IS_I915G(dev) || IS_I915GM(dev) ||
@@ -1099,7 +1099,7 @@ static unsigned long i915_gtt_to_phys(struct drm_device *dev,
 	phys =(entry & PTE_ADDRESS_MASK) |
 		((uint64_t)(entry & PTE_ADDRESS_MASK_HIGH) << (32 - 4));
 
-	DRM_DEBUG("GTT addr: 0x%08lx, phys addr: 0x%08lx\n", gtt_addr, phys);
+	DRM_DEBUG_DRIVER("GTT addr: 0x%08lx, phys addr: 0x%08lx\n", gtt_addr, phys);
 
 	return phys;
 }

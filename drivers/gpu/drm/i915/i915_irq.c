@@ -191,7 +191,8 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	low_frame = pipe ? PIPEBFRAMEPIXEL : PIPEAFRAMEPIXEL;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_DEBUG("trying to get vblank count for disabled pipe %d\n", pipe);
+		DRM_DEBUG_DRIVER("trying to get vblank count for disabled "
+				"pipe %d\n", pipe);
 		return 0;
 	}
 
@@ -220,7 +221,8 @@ u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 	int reg = pipe ? PIPEB_FRMCOUNT_GM45 : PIPEA_FRMCOUNT_GM45;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_DEBUG("trying to get vblank count for disabled pipe %d\n", pipe);
+		DRM_DEBUG_DRIVER("trying to get vblank count for disabled "
+					"pipe %d\n", pipe);
 		return 0;
 	}
 
@@ -309,19 +311,19 @@ static void i915_error_work_func(struct work_struct *work)
 	char *reset_event[] = { "RESET=1", NULL };
 	char *reset_done_event[] = { "ERROR=0", NULL };
 
-	DRM_DEBUG("generating error event\n");
+	DRM_DEBUG_DRIVER("generating error event\n");
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
 	if (atomic_read(&dev_priv->mm.wedged)) {
 		if (IS_I965G(dev)) {
-			DRM_DEBUG("resetting chip\n");
+			DRM_DEBUG_DRIVER("resetting chip\n");
 			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
 			if (!i965_reset(dev, GDRST_RENDER)) {
 				atomic_set(&dev_priv->mm.wedged, 0);
 				kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
 			}
 		} else {
-			printk("reboot required\n");
+			DRM_DEBUG_DRIVER("reboot required\n");
 		}
 	}
 }
@@ -347,7 +349,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 
 	error = kmalloc(sizeof(*error), GFP_ATOMIC);
 	if (!error) {
-		DRM_DEBUG("out ot memory, not capturing error state\n");
+		DRM_DEBUG_DRIVER("out ot memory, not capturing error state\n");
 		goto out;
 	}
 
@@ -560,14 +562,14 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		 */
 		if (pipea_stats & 0x8000ffff) {
 			if (pipea_stats &  PIPE_FIFO_UNDERRUN_STATUS)
-				DRM_DEBUG("pipe a underrun\n");
+				DRM_DEBUG_DRIVER("pipe a underrun\n");
 			I915_WRITE(PIPEASTAT, pipea_stats);
 			irq_received = 1;
 		}
 
 		if (pipeb_stats & 0x8000ffff) {
 			if (pipeb_stats &  PIPE_FIFO_UNDERRUN_STATUS)
-				DRM_DEBUG("pipe b underrun\n");
+				DRM_DEBUG_DRIVER("pipe b underrun\n");
 			I915_WRITE(PIPEBSTAT, pipeb_stats);
 			irq_received = 1;
 		}
@@ -583,7 +585,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		    (iir & I915_DISPLAY_PORT_INTERRUPT)) {
 			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
 
-			DRM_DEBUG("hotplug event received, stat 0x%08x\n",
+			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
 			if (hotplug_status & dev_priv->hotplug_supported_mask)
 				queue_work(dev_priv->wq,
@@ -597,7 +599,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 				(hotplug_status & CRT_EOS_INT_STATUS)) {
 				u32 temp;
 
-				DRM_DEBUG("EOS interrupt occurs\n");
+				DRM_DEBUG_DRIVER("EOS interrupt occurs\n");
 				/* status is already cleared */
 				temp = I915_READ(ADPA);
 				temp &= ~ADPA_DAC_ENABLE;
@@ -676,7 +678,7 @@ static int i915_emit_irq(struct drm_device * dev)
 
 	i915_kernel_lost_context(dev);
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_DRIVER("\n");
 
 	dev_priv->counter++;
 	if (dev_priv->counter > 0x7FFFFFFFUL)
@@ -741,7 +743,7 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 	int ret = 0;
 
-	DRM_DEBUG("irq_nr=%d breadcrumb=%d\n", irq_nr,
+	DRM_DEBUG_DRIVER("irq_nr=%d breadcrumb=%d\n", irq_nr,
 		  READ_BREADCRUMB(dev_priv));
 
 	if (READ_BREADCRUMB(dev_priv) >= irq_nr) {
