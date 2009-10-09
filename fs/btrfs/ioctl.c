@@ -1123,8 +1123,10 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 					datao += off - key.offset;
 					datal -= off - key.offset;
 				}
-				if (key.offset + datao + datal > off + len)
-					datal = off + len - key.offset - datao;
+
+				if (key.offset + datal > off + len)
+					datal = off + len - key.offset;
+
 				/* disko == 0 means it's a hole */
 				if (!disko)
 					datao = 0;
