@@ -412,12 +412,6 @@ static struct platform_device da830_evm_nand_device = {
 };
 #endif
 
-static struct platform_device *da830_evm_devices[] __initdata = {
-#ifdef CONFIG_DA830_UI_NAND
-	&da830_evm_nand_device,
-#endif
-};
-
 /*
  * UI board NAND/NOR flashes only use 8-bit data bus.
  */
@@ -502,10 +496,9 @@ static __init void da830_evm_init(void)
 		pr_warning("da830_evm_init: emif25 mux setup failed: %d\n",
 				ret);
 
-	ret = platform_add_devices(da830_evm_devices,
-			ARRAY_SIZE(da830_evm_devices));
+	ret = platform_device_register(&da830_evm_nand_device);
 	if (ret)
-		pr_warning("da830_evm_init: EVM devices not added\n");
+		pr_warning("da830_evm_init: NAND device not registered.\n");
 #endif
 #endif
 
