@@ -2717,19 +2717,34 @@ static void iwl3945_bg_alive_start(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
+/*
+ * 3945 cannot interrupt driver when hardware rf kill switch toggles;
+ * driver must poll CSR_GP_CNTRL_REG register for change.  This register
+ * *is* readable even when device has been SW_RESET into low power mode
+ * (e.g. during RF KILL).
+ */
 static void iwl3945_rfkill_poll(struct work_struct *data)
 {
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, rfkill_poll.work);
+	bool old_rfkill = test_bit(STATUS_RF_KILL_HW, &priv->status);
+	bool new_rfkill = !(iwl_read32(priv, CSR_GP_CNTRL)
+			& CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 
-	if (iwl_read32(priv, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(STATUS_RF_KILL_HW, &priv->status);
-	else
-		set_bit(STATUS_RF_KILL_HW, &priv->status);
+	if (new_rfkill != old_rfkill) {
+		if (new_rfkill)
+			set_bit(STATUS_RF_KILL_HW, &priv->status);
+		else
+			clear_bit(STATUS_RF_KILL_HW, &priv->status);
 
-	wiphy_rfkill_set_hw_state(priv->hw->wiphy,
-			test_bit(STATUS_RF_KILL_HW, &priv->status));
+		wiphy_rfkill_set_hw_state(priv->hw->wiphy, new_rfkill);
 
+		IWL_DEBUG_RF_KILL(priv, "RF_KILL bit toggled to %s.\n",
+				new_rfkill ? "disable radio" : "enable radio");
+	}
+
+	/* Keep this running, even if radio now enabled.  This will be
+	 * cancelled in mac_start() if system decides to start again */
 	queue_delayed_work(priv->workqueue, &priv->rfkill_poll,
 			   round_jiffies_relative(2 * HZ));
 
