@@ -655,7 +655,7 @@ bail:
 }
 
 static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
-			   unsigned char *end)
+			   unsigned char *end, struct module *mod)
 {
 	struct dwarf_cie *cie;
 	unsigned long flags;
@@ -751,6 +751,8 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 	cie->initial_instructions = p;
 	cie->instructions_end = end;
 
+	cie->mod = mod;
+
 	/* Add to list */
 	spin_lock_irqsave(&dwarf_cie_lock, flags);
 	list_add_tail(&cie->link, &dwarf_cie_list);
@@ -761,7 +763,7 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 
 static int dwarf_parse_fde(void *entry, u32 entry_type,
 			   void *start, unsigned long len,
-			   unsigned char *end)
+			   unsigned char *end, struct module *mod)
 {
 	struct dwarf_fde *fde;
 	struct dwarf_cie *cie;
@@ -809,6 +811,8 @@ static int dwarf_parse_fde(void *entry, u32 entry_type,
 	/* Call frame instructions. */
 	fde->instructions = p;
 	fde->end = end;
+
+	fde->mod = mod;
 
 	/* Add to list. */
 	spin_lock_irqsave(&dwarf_fde_lock, flags);
@@ -875,6 +879,124 @@ static void dwarf_unwinder_cleanup(void)
 }
 
 /**
+ *	dwarf_parse_section - parse DWARF section
+ *	@eh_frame_start: start address of the .eh_frame section
+ *	@eh_frame_end: end address of the .eh_frame section
+ *	@mod: the kernel module containing the .eh_frame section
+ *
+ *	Parse the information in a .eh_frame section.
+ */
+int dwarf_parse_section(char *eh_frame_start, char *eh_frame_end,
+			struct module *mod)
+{
+	u32 entry_type;
+	void *p, *entry;
+	int count, err;
+	unsigned long len;
+	unsigned int c_entries, f_entries;
+	unsigned char *end;
+
+	c_entries = 0;
+	f_entries = 0;
+	entry = eh_frame_start;
+
+	while ((char *)entry < eh_frame_end) {
+		p = entry;
+
+		count = dwarf_entry_len(p, &len);
+		if (count == 0) {
+			/*
+			 * We read a bogus length field value. There is
+			 * nothing we can do here apart from disabling
+			 * the DWARF unwinder. We can't even skip this
+			 * entry and move to the next one because 'len'
+			 * tells us where our next entry is.
+			 */
+			err = -EINVAL;
+			goto out;
+		} else
+			p += count;
+
+		/* initial length does not include itself */
+		end = p + len;
+
+		entry_type = get_unaligned((u32 *)p);
+		p += 4;
+
+		if (entry_type == DW_EH_FRAME_CIE) {
+			err = dwarf_parse_cie(entry, p, len, end, mod);
+			if (err < 0)
+				goto out;
+			else
+				c_entries++;
+		} else {
+			err = dwarf_parse_fde(entry, entry_type, p, len,
+					      end, mod);
+			if (err < 0)
+				goto out;
+			else
+				f_entries++;
+		}
+
+		entry = (char *)entry + len + 4;
+	}
+
+	printk(KERN_INFO "DWARF unwinder initialised: read %u CIEs, %u FDEs\n",
+	       c_entries, f_entries);
+
+	return 0;
+
+out:
+	return err;
+}
+
+/**
+ *	dwarf_module_unload - remove FDE/CIEs associated with @mod
+ *	@mod: the module that is being unloaded
+ *
+ *	Remove any FDEs and CIEs from the global lists that came from
+ *	@mod's .eh_frame section because @mod is being unloaded.
+ */
+void dwarf_module_unload(struct module *mod)
+{
+	struct dwarf_fde *fde;
+	struct dwarf_cie *cie;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dwarf_cie_lock, flags);
+
+again_cie:
+	list_for_each_entry(cie, &dwarf_cie_list, link) {
+		if (cie->mod == mod)
+			break;
+	}
+
+	if (&cie->link != &dwarf_cie_list) {
+		list_del(&cie->link);
+		kfree(cie);
+		goto again_cie;
+	}
+
+	spin_unlock_irqrestore(&dwarf_cie_lock, flags);
+
+	spin_lock_irqsave(&dwarf_fde_lock, flags);
+
+again_fde:
+	list_for_each_entry(fde, &dwarf_fde_list, link) {
+		if (fde->mod == mod)
+			break;
+	}
+
+	if (&fde->link != &dwarf_fde_list) {
+		list_del(&fde->link);
+		kfree(fde);
+		goto again_fde;
+	}
+
+	spin_unlock_irqrestore(&dwarf_fde_lock, flags);
+}
+
+/**
  *	dwarf_unwinder_init - initialise the dwarf unwinder
  *
  *	Build the data structures describing the .dwarf_frame section to
@@ -885,18 +1007,9 @@ static void dwarf_unwinder_cleanup(void)
  */
 static int __init dwarf_unwinder_init(void)
 {
-	u32 entry_type;
-	void *p, *entry;
-	int count, err;
-	unsigned long len;
-	unsigned int c_entries, f_entries;
-	unsigned char *end;
+	int err;
 	INIT_LIST_HEAD(&dwarf_cie_list);
 	INIT_LIST_HEAD(&dwarf_fde_list);
-
-	c_entries = 0;
-	f_entries = 0;
-	entry = &__start_eh_frame;
 
 	dwarf_frame_cachep = kmem_cache_create("dwarf_frames",
 			sizeof(struct dwarf_frame), 0, SLAB_PANIC, NULL);
@@ -913,47 +1026,9 @@ static int __init dwarf_unwinder_init(void)
 					 mempool_free_slab,
 					 dwarf_reg_cachep);
 
-	while ((char *)entry < __stop_eh_frame) {
-		p = entry;
-
-		count = dwarf_entry_len(p, &len);
-		if (count == 0) {
-			/*
-			 * We read a bogus length field value. There is
-			 * nothing we can do here apart from disabling
-			 * the DWARF unwinder. We can't even skip this
-			 * entry and move to the next one because 'len'
-			 * tells us where our next entry is.
-			 */
-			goto out;
-		} else
-			p += count;
-
-		/* initial length does not include itself */
-		end = p + len;
-
-		entry_type = get_unaligned((u32 *)p);
-		p += 4;
-
-		if (entry_type == DW_EH_FRAME_CIE) {
-			err = dwarf_parse_cie(entry, p, len, end);
-			if (err < 0)
-				goto out;
-			else
-				c_entries++;
-		} else {
-			err = dwarf_parse_fde(entry, entry_type, p, len, end);
-			if (err < 0)
-				goto out;
-			else
-				f_entries++;
-		}
-
-		entry = (char *)entry + len + 4;
-	}
-
-	printk(KERN_INFO "DWARF unwinder initialised: read %u CIEs, %u FDEs\n",
-	       c_entries, f_entries);
+	err = dwarf_parse_section(__start_eh_frame, __stop_eh_frame, NULL);
+	if (err)
+		goto out;
 
 	err = unwinder_register(&dwarf_unwinder);
 	if (err)
