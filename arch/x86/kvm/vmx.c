@@ -61,6 +61,25 @@ module_param_named(unrestricted_guest,
 static int __read_mostly emulate_invalid_guest_state = 0;
 module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 
+/*
+ * These 2 parameters are used to config the controls for Pause-Loop Exiting:
+ * ple_gap:    upper bound on the amount of time between two successive
+ *             executions of PAUSE in a loop. Also indicate if ple enabled.
+ *             According to test, this time is usually small than 41 cycles.
+ * ple_window: upper bound on the amount of time a guest is allowed to execute
+ *             in a PAUSE loop. Tests indicate that most spinlocks are held for
+ *             less than 2^12 cycles
+ * Time is measured based on a counter that runs at the same rate as the TSC,
+ * refer SDM volume 3b section 21.6.13 & 22.1.3.
+ */
+#define KVM_VMX_DEFAULT_PLE_GAP    41
+#define KVM_VMX_DEFAULT_PLE_WINDOW 4096
+static int ple_gap = KVM_VMX_DEFAULT_PLE_GAP;
+module_param(ple_gap, int, S_IRUGO);
+
+static int ple_window = KVM_VMX_DEFAULT_PLE_WINDOW;
+module_param(ple_window, int, S_IRUGO);
+
 struct vmcs {
 	u32 revision_id;
 	u32 abort;
@@ -317,6 +336,12 @@ static inline int cpu_has_vmx_unrestricted_guest(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_UNRESTRICTED_GUEST;
+}
+
+static inline int cpu_has_vmx_ple(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_PAUSE_LOOP_EXITING;
 }
 
 static inline int vm_need_virtualize_apic_accesses(struct kvm *kvm)
@@ -1240,7 +1265,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_WBINVD_EXITING |
 			SECONDARY_EXEC_ENABLE_VPID |
 			SECONDARY_EXEC_ENABLE_EPT |
-			SECONDARY_EXEC_UNRESTRICTED_GUEST;
+			SECONDARY_EXEC_UNRESTRICTED_GUEST |
+			SECONDARY_EXEC_PAUSE_LOOP_EXITING;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
@@ -1385,6 +1411,9 @@ static __init int hardware_setup(void)
 
 	if (enable_ept && !cpu_has_vmx_ept_2m_page())
 		kvm_disable_largepages();
+
+	if (!cpu_has_vmx_ple())
+		ple_gap = 0;
 
 	return alloc_kvm_area();
 }
@@ -2298,7 +2327,14 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 			exec_control &= ~SECONDARY_EXEC_ENABLE_EPT;
 		if (!enable_unrestricted_guest)
 			exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
+		if (!ple_gap)
+			exec_control &= ~SECONDARY_EXEC_PAUSE_LOOP_EXITING;
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
+	}
+
+	if (ple_gap) {
+		vmcs_write32(PLE_GAP, ple_gap);
+		vmcs_write32(PLE_WINDOW, ple_window);
 	}
 
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK, !!bypass_guest_pf);
@@ -3348,6 +3384,18 @@ out:
 }
 
 /*
+ * Indicate a busy-waiting vcpu in spinlock. We do not enable the PAUSE
+ * exiting, so only get here on cpu with PAUSE-Loop-Exiting.
+ */
+static int handle_pause(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	skip_emulated_instruction(vcpu);
+	kvm_vcpu_on_spin(vcpu);
+
+	return 1;
+}
+
+/*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
  * to be done to userspace and return 0.
@@ -3383,6 +3431,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_MCE_DURING_VMENTRY]      = handle_machine_check,
 	[EXIT_REASON_EPT_VIOLATION]	      = handle_ept_violation,
 	[EXIT_REASON_EPT_MISCONFIG]           = handle_ept_misconfig,
+	[EXIT_REASON_PAUSE_INSTRUCTION]       = handle_pause,
 };
 
 static const int kvm_vmx_max_exit_handlers =
