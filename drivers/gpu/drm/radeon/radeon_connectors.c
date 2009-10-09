@@ -398,8 +398,10 @@ static int radeon_lvds_mode_valid(struct drm_connector *connector,
 
 static enum drm_connector_status radeon_lvds_detect(struct drm_connector *connector)
 {
-	enum drm_connector_status ret = connector_status_disconnected;
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
+	enum drm_connector_status ret = connector_status_disconnected;
+	bool dret;
 
 	if (encoder) {
 		struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -409,6 +411,15 @@ static enum drm_connector_status radeon_lvds_detect(struct drm_connector *connec
 		if (native_mode->hdisplay >= 320 && native_mode->vdisplay >= 240)
 			ret = connector_status_connected;
 
+	}
+
+	/* check for edid as well */
+	if (radeon_connector->ddc_bus) {
+		radeon_i2c_do_lock(radeon_connector, 1);
+		dret = radeon_ddc_probe(radeon_connector);
+		radeon_i2c_do_lock(radeon_connector, 0);
+		if (dret)
+			ret = connector_status_connected;
 	}
 	/* check acpi lid status ??? */
 
