@@ -1199,11 +1199,14 @@ static int iwch_query_port(struct ib_device *ibdev,
 		props->state = IB_PORT_DOWN;
 	else {
 		inetdev = in_dev_get(netdev);
-		if (inetdev->ifa_list)
-			props->state = IB_PORT_ACTIVE;
-		else
+		if (inetdev) {
+			if (inetdev->ifa_list)
+				props->state = IB_PORT_ACTIVE;
+			else
+				props->state = IB_PORT_INIT;
+			in_dev_put(inetdev);
+		} else
 			props->state = IB_PORT_INIT;
-		in_dev_put(inetdev);
 	}
 
 	props->port_cap_flags =
