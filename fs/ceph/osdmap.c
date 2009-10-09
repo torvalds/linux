@@ -366,8 +366,8 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 /*
  * Insert a new pg_temp mapping
  */
-static void __insert_pg_mapping(struct ceph_pg_mapping *new,
-				struct rb_root *root)
+static int __insert_pg_mapping(struct ceph_pg_mapping *new,
+			       struct rb_root *root)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -381,11 +381,12 @@ static void __insert_pg_mapping(struct ceph_pg_mapping *new,
 		else if (new->pgid > pg->pgid)
 			p = &(*p)->rb_right;
 		else
-			BUG();
+			return -EEXIST;
 	}
 
 	rb_link_node(&new->node, parent, p);
 	rb_insert_color(&new->node, root);
+	return 0;
 }
 
 /*
@@ -481,7 +482,9 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		for (j = 0; j < n; j++)
 			ceph_decode_32(p, pg->osds[j]);
 
-		__insert_pg_mapping(pg, &map->pg_temp);
+		err = __insert_pg_mapping(pg, &map->pg_temp);
+		if (err)
+			goto bad;
 		dout(" added pg_temp %llx len %d\n", pgid, len);
 	}
 
@@ -681,7 +684,9 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			pg->len = pglen;
 			for (j = 0; j < len; j++)
 				ceph_decode_32(p, pg->osds[j]);
-			__insert_pg_mapping(pg, &map->pg_temp);
+			err = __insert_pg_mapping(pg, &map->pg_temp);
+			if (err)
+				goto bad;
 			dout(" added pg_temp %llx len %d\n", pgid, pglen);
 		}
 	}
