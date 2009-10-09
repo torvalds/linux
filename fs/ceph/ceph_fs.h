@@ -72,7 +72,9 @@ struct ceph_file_layout {
 	__le32 fl_pg_pool;      /* namespace, crush ruleset, rep level */
 } __attribute__ ((packed));
 
+#define CEPH_MIN_STRIPE_UNIT 65536
 
+int ceph_file_layout_is_valid(const struct ceph_file_layout *layout);
 
 
 /*********************************************
