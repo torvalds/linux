@@ -833,7 +833,7 @@ static void early_alloc(struct early_log *log)
 	 */
 	rcu_read_lock();
 	object = create_object((unsigned long)log->ptr, log->size,
-			       log->min_count, GFP_KERNEL);
+			       log->min_count, GFP_ATOMIC);
 	spin_lock_irqsave(&object->lock, flags);
 	for (i = 0; i < log->trace_len; i++)
 		object->trace[i] = log->trace[i];
