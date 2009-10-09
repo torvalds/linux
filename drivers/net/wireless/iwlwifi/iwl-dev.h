@@ -146,11 +146,12 @@ extern void iwl5000_temperature(struct iwl_priv *priv);
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
 struct iwl_rx_mem_buffer {
-	dma_addr_t real_dma_addr;
-	dma_addr_t aligned_dma_addr;
-	struct sk_buff *skb;
+	dma_addr_t page_dma;
+	struct page *page;
 	struct list_head list;
 };
+
+#define rxb_addr(r) page_address(r->page)
 
 /* defined below */
 struct iwl_device_cmd;
@@ -167,7 +168,7 @@ struct iwl_cmd_meta {
 	 */
 	void (*callback)(struct iwl_priv *priv,
 			 struct iwl_device_cmd *cmd,
-			 struct sk_buff *skb);
+			 struct iwl_rx_packet *pkt);
 
 	/* The CMD_SIZE_HUGE flag bit indicates that the command
 	 * structure is stored at the end of the shared queue memory. */
@@ -366,6 +367,13 @@ enum {
 
 #define IWL_CMD_MAX_PAYLOAD 320
 
+/*
+ * IWL_LINK_HDR_MAX should include ieee80211_hdr, radiotap header,
+ * SNAP header and alignment. It should also be big enough for 802.11
+ * control frames.
+ */
+#define IWL_LINK_HDR_MAX 64
+
 /**
  * struct iwl_device_cmd
  *
@@ -390,10 +398,10 @@ struct iwl_device_cmd {
 
 struct iwl_host_cmd {
 	const void *data;
-	struct sk_buff *reply_skb;
+	unsigned long reply_page;
 	void (*callback)(struct iwl_priv *priv,
 			 struct iwl_device_cmd *cmd,
-			 struct sk_buff *skb);
+			 struct iwl_rx_packet *pkt);
 	u32 flags;
 	u16 len;
 	u8 id;
@@ -650,7 +658,7 @@ struct iwl_sensitivity_ranges {
  * @valid_tx/rx_ant: usable antennas
  * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
  * @max_rxq_log: Log-base-2 of max_rxq_size
- * @rx_buf_size: Rx buffer size
+ * @rx_page_order: Rx buffer page order
  * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
  * @max_stations:
  * @bcast_sta_id:
@@ -673,9 +681,8 @@ struct iwl_hw_params {
 	u8  valid_rx_ant;
 	u16 max_rxq_size;
 	u16 max_rxq_log;
-	u32 rx_buf_size;
+	u32 rx_page_order;
 	u32 rx_wrt_ptr_reg;
-	u32 max_pkt_size;
 	u8  max_stations;
 	u8  bcast_sta_id;
 	u8  ht40_channel;
@@ -987,7 +994,7 @@ struct iwl_priv {
 	int frames_count;
 
 	enum ieee80211_band band;
-	int alloc_rxb_skb;
+	int alloc_rxb_page;
 
 	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
 				       struct iwl_rx_mem_buffer *rxb);

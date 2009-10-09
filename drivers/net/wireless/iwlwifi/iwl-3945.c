@@ -293,7 +293,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl_priv *priv,
 static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
 			    struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
@@ -353,7 +353,7 @@ static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
 void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 		struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(struct iwl3945_notif_statistics),
 		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
@@ -543,14 +543,17 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 				   struct iwl_rx_mem_buffer *rxb,
 				   struct ieee80211_rx_status *stats)
 {
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)IWL_RX_DATA(pkt);
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
-	short len = le16_to_cpu(rx_hdr->len);
+	u16 len = le16_to_cpu(rx_hdr->len);
+	struct sk_buff *skb;
+	int ret;
 
 	/* We received data from the HW, so stop the watchdog */
-	if (unlikely((len + IWL39_RX_FRAME_SIZE) > skb_tailroom(rxb->skb))) {
+	if (unlikely(len + IWL39_RX_FRAME_SIZE >
+		     PAGE_SIZE << priv->hw_params.rx_page_order)) {
 		IWL_DEBUG_DROP(priv, "Corruption detected!\n");
 		return;
 	}
@@ -562,20 +565,45 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 		return;
 	}
 
-	skb_reserve(rxb->skb, (void *)rx_hdr->payload - (void *)pkt);
-	/* Set the size of the skb to the size of the frame */
-	skb_put(rxb->skb, le16_to_cpu(rx_hdr->len));
+	skb = alloc_skb(IWL_LINK_HDR_MAX, GFP_ATOMIC);
+	if (!skb) {
+		IWL_ERR(priv, "alloc_skb failed\n");
+		return;
+	}
 
 	if (!iwl3945_mod_params.sw_crypto)
 		iwl_set_decrypted_flag(priv,
-				       (struct ieee80211_hdr *)rxb->skb->data,
+				       (struct ieee80211_hdr *)rxb_addr(rxb),
 				       le32_to_cpu(rx_end->status), stats);
+
+	skb_add_rx_frag(skb, 0, rxb->page,
+			(void *)rx_hdr->payload - (void *)pkt, len);
+
+	/* mac80211 currently doesn't support paged SKB. Convert it to
+	 * linear SKB for management frame and data frame requires
+	 * software decryption or software defragementation. */
+	if (ieee80211_is_mgmt(hdr->frame_control) ||
+	    ieee80211_has_protected(hdr->frame_control) ||
+	    ieee80211_has_morefrags(hdr->frame_control) ||
+	    le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG)
+		ret = skb_linearize(skb);
+	else
+		ret = __pskb_pull_tail(skb, min_t(u16, IWL_LINK_HDR_MAX, len)) ?
+			0 : -ENOMEM;
+
+	if (ret) {
+		kfree_skb(skb);
+		goto out;
+	}
 
 	iwl_update_stats(priv, false, hdr->frame_control, len);
 
-	memcpy(IEEE80211_SKB_RXCB(rxb->skb), stats, sizeof(*stats));
-	ieee80211_rx_irqsafe(priv->hw, rxb->skb);
-	rxb->skb = NULL;
+	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
+	ieee80211_rx(priv->hw, skb);
+
+ out:
+	priv->alloc_rxb_page--;
+	rxb->page = NULL;
 }
 
 #define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
@@ -585,7 +613,7 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 {
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status;
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl3945_rx_frame_stats *rx_stats = IWL_RX_STATS(pkt);
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
@@ -1811,7 +1839,7 @@ int iwl3945_hw_reg_set_txpower(struct iwl_priv *priv, s8 power)
 static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
 {
 	int rc = 0;
-	struct iwl_rx_packet *res = NULL;
+	struct iwl_rx_packet *pkt;
 	struct iwl3945_rxon_assoc_cmd rxon_assoc;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_RXON_ASSOC,
@@ -1840,14 +1868,14 @@ static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
 	if (rc)
 		return rc;
 
-	res = (struct iwl_rx_packet *)cmd.reply_skb->data;
-	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
+	pkt = (struct iwl_rx_packet *)cmd.reply_page;
+	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_RXON_ASSOC command\n");
 		rc = -EIO;
 	}
 
-	priv->alloc_rxb_skb--;
-	dev_kfree_skb_any(cmd.reply_skb);
+	priv->alloc_rxb_page--;
+	free_pages(cmd.reply_page, priv->hw_params.rx_page_order);
 
 	return rc;
 }
@@ -2513,8 +2541,7 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
 
 	priv->hw_params.tfd_size = sizeof(struct iwl3945_tfd);
-	priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_3K;
-	priv->hw_params.max_pkt_size = 2342;
+	priv->hw_params.rx_page_order = get_order(IWL_RX_BUF_SIZE_3K);
 	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
 	priv->hw_params.max_stations = IWL3945_STATION_COUNT;
