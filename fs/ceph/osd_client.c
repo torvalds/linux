@@ -813,10 +813,13 @@ static void kick_requests(struct ceph_osd_client *osdc,
 
 		if (req->r_resend) {
 			dout(" r_resend set on tid %llu\n", req->r_tid);
+			__cancel_request(req);
 			goto kick;
 		}
-		if (req->r_osd && kickosd == req->r_osd)
+		if (req->r_osd && kickosd == req->r_osd) {
+			__cancel_request(req);
 			goto kick;
+		}
 
 		err = __map_osds(osdc, req);
 		if (err == 0)
