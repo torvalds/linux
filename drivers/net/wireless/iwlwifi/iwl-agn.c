@@ -1899,11 +1899,9 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	udelay(5);
 
-	/* FIXME: apm_ops.suspend(priv) */
-	if (exit_pending)
-		priv->cfg->ops->lib->apm_ops.stop(priv);
-	else
-		priv->cfg->ops->lib->apm_ops.reset(priv);
+	/* Stop the device, and put it in low power state */
+	priv->cfg->ops->lib->apm_ops.stop(priv);
+
  exit:
 	memset(&priv->card_alive, 0, sizeof(struct iwl_alive_resp));
 
