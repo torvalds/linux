@@ -230,8 +230,9 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	par->intel_fb = intel_fb;
 
 	/* To allow resizeing without swapping buffers */
-	DRM_DEBUG("allocated %dx%d fb: 0x%08x, bo %p\n", intel_fb->base.width,
-		  intel_fb->base.height, obj_priv->gtt_offset, fbo);
+	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x, bo %p\n",
+			intel_fb->base.width, intel_fb->base.height,
+			obj_priv->gtt_offset, fbo);
 
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
@@ -249,7 +250,7 @@ int intelfb_probe(struct drm_device *dev)
 {
 	int ret;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	ret = drm_fb_helper_single_fb_probe(dev, 32, intelfb_create);
 	return ret;
 }

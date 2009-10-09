@@ -1416,16 +1416,16 @@ intel_tv_detect_type (struct drm_crtc *crtc, struct intel_output *intel_output)
 	 *  0 0 0 Component
 	 */
 	if ((tv_dac & TVDAC_SENSE_MASK) == (TVDAC_B_SENSE | TVDAC_C_SENSE)) {
-		DRM_DEBUG("Detected Composite TV connection\n");
+		DRM_DEBUG_KMS("Detected Composite TV connection\n");
 		type = DRM_MODE_CONNECTOR_Composite;
 	} else if ((tv_dac & (TVDAC_A_SENSE|TVDAC_B_SENSE)) == TVDAC_A_SENSE) {
-		DRM_DEBUG("Detected S-Video TV connection\n");
+		DRM_DEBUG_KMS("Detected S-Video TV connection\n");
 		type = DRM_MODE_CONNECTOR_SVIDEO;
 	} else if ((tv_dac & TVDAC_SENSE_MASK) == 0) {
-		DRM_DEBUG("Detected Component TV connection\n");
+		DRM_DEBUG_KMS("Detected Component TV connection\n");
 		type = DRM_MODE_CONNECTOR_Component;
 	} else {
-		DRM_DEBUG("No TV connection detected\n");
+		DRM_DEBUG_KMS("No TV connection detected\n");
 		type = -1;
 	}
 

@@ -85,7 +85,7 @@ i2c_algo_dp_aux_transaction(struct i2c_adapter *adapter, int mode,
 					   msg, msg_bytes,
 					   reply, reply_bytes);
 		if (ret < 0) {
-			DRM_DEBUG("aux_ch failed %d\n", ret);
+			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
 			return ret;
 		}
 		switch (reply[0] & AUX_I2C_REPLY_MASK) {
@@ -95,10 +95,10 @@ i2c_algo_dp_aux_transaction(struct i2c_adapter *adapter, int mode,
 			}
 			return reply_bytes - 1;
 		case AUX_I2C_REPLY_NACK:
-			DRM_DEBUG("aux_ch nack\n");
+			DRM_DEBUG_KMS("aux_ch nack\n");
 			return -EREMOTEIO;
 		case AUX_I2C_REPLY_DEFER:
-			DRM_DEBUG("aux_ch defer\n");
+			DRM_DEBUG_KMS("aux_ch defer\n");
 			udelay(100);
 			break;
 		default:
@@ -224,7 +224,7 @@ i2c_algo_dp_aux_xfer(struct i2c_adapter *adapter,
 	if (ret >= 0)
 		ret = num;
 	i2c_algo_dp_aux_stop(adapter, reading);
-	DRM_DEBUG("dp_aux_xfer return %d\n", ret);
+	DRM_DEBUG_KMS("dp_aux_xfer return %d\n", ret);
 	return ret;
 }
 

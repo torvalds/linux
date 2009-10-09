@@ -994,7 +994,7 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		fbc_ctl |= dev_priv->cfb_fence;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
-	DRM_DEBUG("enabled FBC, pitch %ld, yoff %d, plane %d, ",
+	DRM_DEBUG_KMS("enabled FBC, pitch %ld, yoff %d, plane %d, ",
 		  dev_priv->cfb_pitch, crtc->y, dev_priv->cfb_plane);
 }
 
@@ -1017,7 +1017,7 @@ void i8xx_disable_fbc(struct drm_device *dev)
 
 	intel_wait_for_vblank(dev);
 
-	DRM_DEBUG("disabled FBC\n");
+	DRM_DEBUG_KMS("disabled FBC\n");
 }
 
 static bool i8xx_fbc_enabled(struct drm_crtc *crtc)
@@ -1062,7 +1062,7 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	/* enable it... */
 	I915_WRITE(DPFC_CONTROL, I915_READ(DPFC_CONTROL) | DPFC_CTL_EN);
 
-	DRM_DEBUG("enabled fbc on plane %d\n", intel_crtc->plane);
+	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
 }
 
 void g4x_disable_fbc(struct drm_device *dev)
@@ -1076,7 +1076,7 @@ void g4x_disable_fbc(struct drm_device *dev)
 	I915_WRITE(DPFC_CONTROL, dpfc_ctl);
 	intel_wait_for_vblank(dev);
 
-	DRM_DEBUG("disabled FBC\n");
+	DRM_DEBUG_KMS("disabled FBC\n");
 }
 
 static bool g4x_fbc_enabled(struct drm_crtc *crtc)
@@ -1141,25 +1141,27 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
 	if (intel_fb->obj->size > dev_priv->cfb_size) {
-		DRM_DEBUG("framebuffer too large, disabling compression\n");
+		DRM_DEBUG_KMS("framebuffer too large, disabling "
+				"compression\n");
 		goto out_disable;
 	}
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 	    (mode->flags & DRM_MODE_FLAG_DBLSCAN)) {
-		DRM_DEBUG("mode incompatible with compression, disabling\n");
+		DRM_DEBUG_KMS("mode incompatible with compression, "
+				"disabling\n");
 		goto out_disable;
 	}
 	if ((mode->hdisplay > 2048) ||
 	    (mode->vdisplay > 1536)) {
-		DRM_DEBUG("mode too large for compression, disabling\n");
+		DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		goto out_disable;
 	}
 	if ((IS_I915GM(dev) || IS_I945GM(dev)) && plane != 0) {
-		DRM_DEBUG("plane not 0, disabling compression\n");
+		DRM_DEBUG_KMS("plane not 0, disabling compression\n");
 		goto out_disable;
 	}
 	if (obj_priv->tiling_mode != I915_TILING_X) {
-		DRM_DEBUG("framebuffer not tiled, disabling compression\n");
+		DRM_DEBUG_KMS("framebuffer not tiled, disabling compression\n");
 		goto out_disable;
 	}
 
@@ -1181,7 +1183,7 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	return;
 
 out_disable:
-	DRM_DEBUG("unsupported config, disabling FBC\n");
+	DRM_DEBUG_KMS("unsupported config, disabling FBC\n");
 	/* Multiple disables should be harmless */
 	if (dev_priv->display.fbc_enabled(crtc))
 		dev_priv->display.disable_fbc(dev);
@@ -1211,7 +1213,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* no fb bound */
 	if (!crtc->fb) {
-		DRM_DEBUG("No FB bound\n");
+		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 
@@ -1311,7 +1313,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	Start = obj_priv->gtt_offset;
 	Offset = y * crtc->fb->pitch + x * (crtc->fb->bits_per_pixel / 8);
 
-	DRM_DEBUG("Writing base %08lX %08lX %d %d\n", Start, Offset, x, y);
+	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d\n", Start, Offset, x, y);
 	I915_WRITE(dspstride, crtc->fb->pitch);
 	if (IS_I965G(dev)) {
 		I915_WRITE(dspbase, Offset);
@@ -1385,7 +1387,7 @@ static void igdng_disable_pll_edp (struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 dpa_ctl;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	dpa_ctl = I915_READ(DP_A);
 	dpa_ctl &= ~DP_PLL_ENABLE;
 	I915_WRITE(DP_A, dpa_ctl);
@@ -1410,7 +1412,7 @@ static void igdng_set_pll_edp (struct drm_crtc *crtc, int clock)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 dpa_ctl;
 
-	DRM_DEBUG("eDP PLL enable for clock %d\n", clock);
+	DRM_DEBUG_KMS("eDP PLL enable for clock %d\n", clock);
 	dpa_ctl = I915_READ(DP_A);
 	dpa_ctl &= ~DP_PLL_FREQ_MASK;
 
@@ -1481,7 +1483,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
-		DRM_DEBUG("crtc %d dpms on\n", pipe);
+		DRM_DEBUG_KMS("crtc %d dpms on\n", pipe);
 		if (HAS_eDP) {
 			/* enable eDP PLL */
 			igdng_enable_pll_edp(crtc);
@@ -1568,12 +1570,13 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 			udelay(150);
 
 			temp = I915_READ(fdi_rx_iir_reg);
-			DRM_DEBUG("FDI_RX_IIR 0x%x\n", temp);
+			DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
 
 			if ((temp & FDI_RX_BIT_LOCK) == 0) {
 				for (j = 0; j < tries; j++) {
 					temp = I915_READ(fdi_rx_iir_reg);
-					DRM_DEBUG("FDI_RX_IIR 0x%x\n", temp);
+					DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n",
+								temp);
 					if (temp & FDI_RX_BIT_LOCK)
 						break;
 					udelay(200);
@@ -1582,11 +1585,11 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 					I915_WRITE(fdi_rx_iir_reg,
 							temp | FDI_RX_BIT_LOCK);
 				else
-					DRM_DEBUG("train 1 fail\n");
+					DRM_DEBUG_KMS("train 1 fail\n");
 			} else {
 				I915_WRITE(fdi_rx_iir_reg,
 						temp | FDI_RX_BIT_LOCK);
-				DRM_DEBUG("train 1 ok 2!\n");
+				DRM_DEBUG_KMS("train 1 ok 2!\n");
 			}
 			temp = I915_READ(fdi_tx_reg);
 			temp &= ~FDI_LINK_TRAIN_NONE;
@@ -1601,12 +1604,13 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 			udelay(150);
 
 			temp = I915_READ(fdi_rx_iir_reg);
-			DRM_DEBUG("FDI_RX_IIR 0x%x\n", temp);
+			DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
 
 			if ((temp & FDI_RX_SYMBOL_LOCK) == 0) {
 				for (j = 0; j < tries; j++) {
 					temp = I915_READ(fdi_rx_iir_reg);
-					DRM_DEBUG("FDI_RX_IIR 0x%x\n", temp);
+					DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n",
+								temp);
 					if (temp & FDI_RX_SYMBOL_LOCK)
 						break;
 					udelay(200);
@@ -1614,15 +1618,15 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 				if (j != tries) {
 					I915_WRITE(fdi_rx_iir_reg,
 							temp | FDI_RX_SYMBOL_LOCK);
-					DRM_DEBUG("train 2 ok 1!\n");
+					DRM_DEBUG_KMS("train 2 ok 1!\n");
 				} else
-					DRM_DEBUG("train 2 fail\n");
+					DRM_DEBUG_KMS("train 2 fail\n");
 			} else {
 				I915_WRITE(fdi_rx_iir_reg,
 						temp | FDI_RX_SYMBOL_LOCK);
-				DRM_DEBUG("train 2 ok 2!\n");
+				DRM_DEBUG_KMS("train 2 ok 2!\n");
 			}
-			DRM_DEBUG("train done\n");
+			DRM_DEBUG_KMS("train done\n");
 
 			/* set transcoder timing */
 			I915_WRITE(trans_htot_reg, I915_READ(cpu_htot_reg));
@@ -1664,7 +1668,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	break;
 	case DRM_MODE_DPMS_OFF:
-		DRM_DEBUG("crtc %d dpms off\n", pipe);
+		DRM_DEBUG_KMS("crtc %d dpms off\n", pipe);
 
 		i915_disable_vga(dev);
 
@@ -1690,12 +1694,13 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 					udelay(500);
 					continue;
 				} else {
-					DRM_DEBUG("pipe %d off delay\n", pipe);
+					DRM_DEBUG_KMS("pipe %d off delay\n",
+								pipe);
 					break;
 				}
 			}
 		} else
-			DRM_DEBUG("crtc %d is disabled\n", pipe);
+			DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
 
 		if (HAS_eDP) {
 			igdng_disable_pll_edp(crtc);
@@ -1738,7 +1743,8 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 					udelay(500);
 					continue;
 				} else {
-					DRM_DEBUG("transcoder %d off delay\n", pipe);
+					DRM_DEBUG_KMS("transcoder %d off "
+							"delay\n", pipe);
 					break;
 				}
 			}
@@ -2245,11 +2251,11 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 		1000;
 	entries_required /= wm->cacheline_size;
 
-	DRM_DEBUG("FIFO entries required for mode: %d\n", entries_required);
+	DRM_DEBUG_KMS("FIFO entries required for mode: %d\n", entries_required);
 
 	wm_size = wm->fifo_size - (entries_required + wm->guard_size);
 
-	DRM_DEBUG("FIFO watermark level: %d\n", wm_size);
+	DRM_DEBUG_KMS("FIFO watermark level: %d\n", wm_size);
 
 	/* Don't promote wm_size to unsigned... */
 	if (wm_size > (long)wm->max_wm)
@@ -2311,7 +2317,7 @@ static struct cxsr_latency *intel_get_cxsr_latency(int is_desktop, int fsb,
 			return latency;
 	}
 
-	DRM_DEBUG("Unknown FSB/MEM found, disable CxSR\n");
+	DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
 
 	return NULL;
 }
@@ -2339,7 +2345,7 @@ static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
 	latency = intel_get_cxsr_latency(IS_IGDG(dev), dev_priv->fsb_freq,
 		dev_priv->mem_freq);
 	if (!latency) {
-		DRM_DEBUG("Unknown FSB/MEM found, disable CxSR\n");
+		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
 		igd_disable_cxsr(dev);
 		return;
 	}
@@ -2351,7 +2357,7 @@ static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
 	reg &= 0x7fffff;
 	reg |= wm << 23;
 	I915_WRITE(DSPFW1, reg);
-	DRM_DEBUG("DSPFW1 register is %x\n", reg);
+	DRM_DEBUG_KMS("DSPFW1 register is %x\n", reg);
 
 	/* cursor SR */
 	wm = intel_calculate_wm(clock, &igd_cursor_wm, pixel_size,
@@ -2376,7 +2382,7 @@ static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
 	reg &= ~(0x3f << 16);
 	reg |= (wm & 0x3f) << 16;
 	I915_WRITE(DSPFW3, reg);
-	DRM_DEBUG("DSPFW3 register is %x\n", reg);
+	DRM_DEBUG_KMS("DSPFW3 register is %x\n", reg);
 
 	/* activate cxsr */
 	reg = I915_READ(DSPFW3);
@@ -2416,8 +2422,8 @@ static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 		size = ((dsparb >> DSPARB_CSTART_SHIFT) & 0x7f) -
 			(dsparb & 0x7f);
 
-	DRM_DEBUG("FIFO size - (0x%08x) %s: %d\n", dsparb, plane ? "B" : "A",
-		  size);
+	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
+			plane ? "B" : "A", size);
 
 	return size;
 }
@@ -2435,8 +2441,8 @@ static int i85x_get_fifo_size(struct drm_device *dev, int plane)
 			(dsparb & 0x1ff);
 	size >>= 1; /* Convert to cachelines */
 
-	DRM_DEBUG("FIFO size - (0x%08x) %s: %d\n", dsparb, plane ? "B" : "A",
-		  size);
+	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
+			plane ? "B" : "A", size);
 
 	return size;
 }
@@ -2450,7 +2456,8 @@ static int i845_get_fifo_size(struct drm_device *dev, int plane)
 	size = dsparb & 0x7f;
 	size >>= 2; /* Convert to cachelines */
 
-	DRM_DEBUG("FIFO size - (0x%08x) %s: %d\n", dsparb, plane ? "B" : "A",
+	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
+			plane ? "B" : "A",
 		  size);
 
 	return size;
@@ -2465,8 +2472,8 @@ static int i830_get_fifo_size(struct drm_device *dev, int plane)
 	size = dsparb & 0x7f;
 	size >>= 1; /* Convert to cachelines */
 
-	DRM_DEBUG("FIFO size - (0x%08x) %s: %d\n", dsparb, plane ? "B" : "A",
-		  size);
+	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
+			plane ? "B" : "A", size);
 
 	return size;
 }
@@ -2546,7 +2553,7 @@ static void i965_update_wm(struct drm_device *dev, int unused, int unused2,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("Setting FIFO watermarks - A: 8, B: 8, C: 8, SR 8\n");
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: 8, B: 8, C: 8, SR 8\n");
 
 	/* 965 has limitations... */
 	I915_WRITE(DSPFW1, (8 << 16) | (8 << 8) | (8 << 0));
@@ -2585,7 +2592,7 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 				       pixel_size, latency_ns);
 	planeb_wm = intel_calculate_wm(planeb_clock, &planeb_params,
 				       pixel_size, latency_ns);
-	DRM_DEBUG("FIFO watermarks - A: %d, B: %d\n", planea_wm, planeb_wm);
+	DRM_DEBUG_KMS("FIFO watermarks - A: %d, B: %d\n", planea_wm, planeb_wm);
 
 	/*
 	 * Overlay gets an aggressive default since video jitter is bad.
@@ -2605,14 +2612,14 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 		sr_entries = (((sr_latency_ns / line_time_us) + 1) *
 			      pixel_size * sr_hdisplay) / 1000;
 		sr_entries = roundup(sr_entries / cacheline_size, 1);
-		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
+		DRM_DEBUG_KMS("self-refresh entries: %d\n", sr_entries);
 		srwm = total_size - sr_entries;
 		if (srwm < 0)
 			srwm = 1;
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN | (srwm & 0x3f));
 	}
 
-	DRM_DEBUG("Setting FIFO watermarks - A: %d, B: %d, C: %d, SR %d\n",
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: %d, B: %d, C: %d, SR %d\n",
 		  planea_wm, planeb_wm, cwm, srwm);
 
 	fwater_lo = ((planeb_wm & 0x3f) << 16) | (planea_wm & 0x3f);
@@ -2639,7 +2646,7 @@ static void i830_update_wm(struct drm_device *dev, int planea_clock, int unused,
 				       pixel_size, latency_ns);
 	fwater_lo |= (3<<8) | planea_wm;
 
-	DRM_DEBUG("Setting FIFO watermarks - A: %d\n", planea_wm);
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: %d\n", planea_wm);
 
 	I915_WRITE(FW_BLC, fwater_lo);
 }
@@ -2693,11 +2700,11 @@ static void intel_update_watermarks(struct drm_device *dev)
 		if (crtc->enabled) {
 			enabled++;
 			if (intel_crtc->plane == 0) {
-				DRM_DEBUG("plane A (pipe %d) clock: %d\n",
+				DRM_DEBUG_KMS("plane A (pipe %d) clock: %d\n",
 					  intel_crtc->pipe, crtc->mode.clock);
 				planea_clock = crtc->mode.clock;
 			} else {
-				DRM_DEBUG("plane B (pipe %d) clock: %d\n",
+				DRM_DEBUG_KMS("plane B (pipe %d) clock: %d\n",
 					  intel_crtc->pipe, crtc->mode.clock);
 				planeb_clock = crtc->mode.clock;
 			}
@@ -2811,7 +2818,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	if (is_lvds && dev_priv->lvds_use_ssc && num_outputs < 2) {
 		refclk = dev_priv->lvds_ssc_freq * 1000;
-		DRM_DEBUG("using SSC reference clock of %d MHz\n", refclk / 1000);
+		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
+					refclk / 1000);
 	} else if (IS_I9XX(dev)) {
 		refclk = 96000;
 		if (IS_IGDNG(dev))
@@ -3069,7 +3077,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	if (!IS_IGDNG(dev) && intel_panel_fitter_pipe(dev) == pipe)
 		I915_WRITE(PFIT_CONTROL, 0);
 
-	DRM_DEBUG("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
+	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
 
 	/* assign to IGDNG registers */
@@ -3147,14 +3155,14 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(fp_reg + 4, fp2);
 		intel_crtc->lowfreq_avail = true;
 		if (HAS_PIPE_CXSR(dev)) {
-			DRM_DEBUG("enabling CxSR downclocking\n");
+			DRM_DEBUG_KMS("enabling CxSR downclocking\n");
 			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
 		}
 	} else {
 		I915_WRITE(fp_reg + 4, fp);
 		intel_crtc->lowfreq_avail = false;
 		if (HAS_PIPE_CXSR(dev)) {
-			DRM_DEBUG("disabling CxSR downclocking\n");
+			DRM_DEBUG_KMS("disabling CxSR downclocking\n");
 			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
 		}
 	}
@@ -3266,11 +3274,11 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	size_t addr;
 	int ret;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 
 	/* if we want to turn off the cursor ignore width and height */
 	if (!handle) {
-		DRM_DEBUG("cursor off\n");
+		DRM_DEBUG_KMS("cursor off\n");
 		if (IS_MOBILE(dev) || IS_I9XX(dev)) {
 			temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
 			temp |= CURSOR_MODE_DISABLE;
@@ -3604,7 +3612,7 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 				7 : 14;
 			break;
 		default:
-			DRM_DEBUG("Unknown DPLL mode %08x in programmed "
+			DRM_DEBUG_KMS("Unknown DPLL mode %08x in programmed "
 				  "mode\n", (int)(dpll & DPLL_MODE_MASK));
 			return 0;
 		}
@@ -4042,7 +4050,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	intel_crtc->pipe = pipe;
 	intel_crtc->plane = pipe;
 	if (IS_MOBILE(dev) && (IS_I9XX(dev) && !IS_I965G(dev))) {
-		DRM_DEBUG("swapping pipes & planes for FBC\n");
+		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
 		intel_crtc->plane = ((pipe == 0) ? 1 : 0);
 	}
 
@@ -4471,7 +4479,7 @@ void intel_modeset_init(struct drm_device *dev)
 		num_pipe = 2;
 	else
 		num_pipe = 1;
-	DRM_DEBUG("%d display pipe%s available.\n",
+	DRM_DEBUG_KMS("%d display pipe%s available.\n",
 		  num_pipe, num_pipe > 1 ? "s" : "");
 
 	if (IS_I85X(dev))

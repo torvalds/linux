@@ -159,7 +159,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 
 	dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
 
-	DRM_DEBUG("Found panel mode in BIOS VBT tables:\n");
+	DRM_DEBUG_KMS("Found panel mode in BIOS VBT tables:\n");
 	drm_mode_debug_printmodeline(panel_fixed_mode);
 
 	return;
@@ -250,13 +250,13 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		u16 block_size = get_blocksize(general);
 		if (block_size >= sizeof(*general)) {
 			int bus_pin = general->crt_ddc_gmbus_pin;
-			DRM_DEBUG("crt_ddc_bus_pin: %d\n", bus_pin);
+			DRM_DEBUG_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
 			if ((bus_pin >= 1) && (bus_pin <= 6)) {
 				dev_priv->crt_ddc_bus =
 					crt_bus_map_table[bus_pin-1];
 			}
 		} else {
-			DRM_DEBUG("BDB_GD too small (%d). Invalid.\n",
+			DRM_DEBUG_KMS("BDB_GD too small (%d). Invalid.\n",
 				  block_size);
 		}
 	}
@@ -274,7 +274,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
-		DRM_DEBUG("No general definition block is found\n");
+		DRM_DEBUG_KMS("No general definition block is found\n");
 		return;
 	}
 	/* judge whether the size of child device meets the requirements.
@@ -284,7 +284,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 	 */
 	if (p_defs->child_dev_size != sizeof(*p_child)) {
 		/* different child dev size . Ignore it */
-		DRM_DEBUG("different child size is found. Invalid.\n");
+		DRM_DEBUG_KMS("different child size is found. Invalid.\n");
 		return;
 	}
 	/* get the block size of general definitions */
@@ -310,11 +310,11 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 		if (p_child->dvo_port != DEVICE_PORT_DVOB &&
 			p_child->dvo_port != DEVICE_PORT_DVOC) {
 			/* skip the incorrect SDVO port */
-			DRM_DEBUG("Incorrect SDVO port. Skip it \n");
+			DRM_DEBUG_KMS("Incorrect SDVO port. Skip it \n");
 			continue;
 		}
-		DRM_DEBUG("the SDVO device with slave addr %2x is found on "
-				"%s port\n",
+		DRM_DEBUG_KMS("the SDVO device with slave addr %2x is found on"
+				" %s port\n",
 				p_child->slave_addr,
 				(p_child->dvo_port == DEVICE_PORT_DVOB) ?
 					"SDVOB" : "SDVOC");
@@ -325,21 +325,21 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			p_mapping->dvo_wiring = p_child->dvo_wiring;
 			p_mapping->initialized = 1;
 		} else {
-			DRM_DEBUG("Maybe one SDVO port is shared by "
+			DRM_DEBUG_KMS("Maybe one SDVO port is shared by "
 					 "two SDVO device.\n");
 		}
 		if (p_child->slave2_addr) {
 			/* Maybe this is a SDVO device with multiple inputs */
 			/* And the mapping info is not added */
-			DRM_DEBUG("there exists the slave2_addr. Maybe this "
-				"is a SDVO device with multiple inputs.\n");
+			DRM_DEBUG_KMS("there exists the slave2_addr. Maybe this"
+				" is a SDVO device with multiple inputs.\n");
 		}
 		count++;
 	}
 
 	if (!count) {
 		/* No SDVO device info is found */
-		DRM_DEBUG("No SDVO device info is found in VBT\n");
+		DRM_DEBUG_KMS("No SDVO device info is found in VBT\n");
 	}
 	return;
 }

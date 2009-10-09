@@ -194,7 +194,7 @@ static bool intel_igdng_crt_detect_hotplug(struct drm_connector *connector)
 			ADPA_CRT_HOTPLUG_ENABLE |
 			ADPA_CRT_HOTPLUG_FORCE_TRIGGER);
 
-	DRM_DEBUG("pch crt adpa 0x%x", adpa);
+	DRM_DEBUG_KMS("pch crt adpa 0x%x", adpa);
 	I915_WRITE(PCH_ADPA, adpa);
 
 	while ((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) != 0)

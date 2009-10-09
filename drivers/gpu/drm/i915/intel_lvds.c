@@ -950,7 +950,7 @@ void intel_lvds_init(struct drm_device *dev)
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
 			return;
 		if (dev_priv->edp_support) {
-			DRM_DEBUG("disable LVDS for eDP support\n");
+			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
 			return;
 		}
 		gpio = PCH_GPIOC;
@@ -1082,7 +1082,7 @@ out:
 	}
 	dev_priv->lid_notifier.notifier_call = intel_lid_notify;
 	if (acpi_lid_notifier_register(&dev_priv->lid_notifier)) {
-		DRM_DEBUG("lid notifier registration failed\n");
+		DRM_DEBUG_KMS("lid notifier registration failed\n");
 		dev_priv->lid_notifier.notifier_call = NULL;
 	}
 	drm_sysfs_connector_add(connector);

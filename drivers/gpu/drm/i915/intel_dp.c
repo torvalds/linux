@@ -282,7 +282,7 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	/* Timeouts occur when the device isn't connected, so they're
 	 * "normal" -- don't fill the kernel log with these */
 	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
-		DRM_DEBUG("dp_aux_ch timeout status 0x%08x\n", status);
+		DRM_DEBUG_KMS("dp_aux_ch timeout status 0x%08x\n", status);
 		return -ETIMEDOUT;
 	}
 
@@ -435,7 +435,8 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 				dp_priv->link_bw = bws[clock];
 				dp_priv->lane_count = lane_count;
 				adjusted_mode->clock = intel_dp_link_clock(dp_priv->link_bw);
-				DRM_DEBUG("Display port link bw %02x lane count %d clock %d\n",
+				DRM_DEBUG_KMS("Display port link bw %02x lane "
+						"count %d clock %d\n",
 				       dp_priv->link_bw, dp_priv->lane_count,
 				       adjusted_mode->clock);
 				return true;
@@ -611,7 +612,7 @@ static void igdng_edp_backlight_on (struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	pp = I915_READ(PCH_PP_CONTROL);
 	pp |= EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
@@ -622,7 +623,7 @@ static void igdng_edp_backlight_off (struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	pp = I915_READ(PCH_PP_CONTROL);
 	pp &= ~EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
@@ -1010,7 +1011,7 @@ intel_dp_link_down(struct intel_output *intel_output, uint32_t DP)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_output->dev_priv;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 
 	if (IS_eDP(intel_output)) {
 		DP &= ~DP_PLL_ENABLE;
