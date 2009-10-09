@@ -785,10 +785,10 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 	u8 data_retry_limit;
 	__le32 tx_flags;
 	__le16 fc = hdr->frame_control;
-	struct iwl3945_tx_cmd *tx = (struct iwl3945_tx_cmd *)cmd->cmd.payload;
+	struct iwl3945_tx_cmd *tx_cmd = (struct iwl3945_tx_cmd *)cmd->cmd.payload;
 
 	rate = iwl3945_rates[rate_index].plcp;
-	tx_flags = tx->tx_flags;
+	tx_flags = tx_cmd->tx_flags;
 
 	/* We need to figure out how to get the sta->supp_rates while
 	 * in this running context */
@@ -825,22 +825,22 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 		}
 	}
 
-	tx->rts_retry_limit = rts_retry_limit;
-	tx->data_retry_limit = data_retry_limit;
-	tx->rate = rate;
-	tx->tx_flags = tx_flags;
+	tx_cmd->rts_retry_limit = rts_retry_limit;
+	tx_cmd->data_retry_limit = data_retry_limit;
+	tx_cmd->rate = rate;
+	tx_cmd->tx_flags = tx_flags;
 
 	/* OFDM */
-	tx->supp_rates[0] =
+	tx_cmd->supp_rates[0] =
 	   ((rate_mask & IWL_OFDM_RATES_MASK) >> IWL_FIRST_OFDM_RATE) & 0xFF;
 
 	/* CCK */
-	tx->supp_rates[1] = (rate_mask & 0xF);
+	tx_cmd->supp_rates[1] = (rate_mask & 0xF);
 
 	IWL_DEBUG_RATE(priv, "Tx sta id: %d, rate: %d (plcp), flags: 0x%4X "
 		       "cck/ofdm mask: 0x%x/0x%x\n", sta_id,
-		       tx->rate, le32_to_cpu(tx->tx_flags),
-		       tx->supp_rates[1], tx->supp_rates[0]);
+		       tx_cmd->rate, le32_to_cpu(tx_cmd->tx_flags),
+		       tx_cmd->supp_rates[1], tx_cmd->supp_rates[0]);
 }
 
 u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
