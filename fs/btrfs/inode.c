@@ -3629,12 +3629,14 @@ static int btrfs_dentry_delete(struct dentry *dentry)
 {
 	struct btrfs_root *root;
 
-	if (!dentry->d_inode)
-		return 0;
+	if (!dentry->d_inode && !IS_ROOT(dentry))
+		dentry = dentry->d_parent;
 
-	root = BTRFS_I(dentry->d_inode)->root;
-	if (btrfs_root_refs(&root->root_item) == 0)
-		return 1;
+	if (dentry->d_inode) {
+		root = BTRFS_I(dentry->d_inode)->root;
+		if (btrfs_root_refs(&root->root_item) == 0)
+			return 1;
+	}
 	return 0;
 }
 
