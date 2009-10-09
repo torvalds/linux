@@ -430,7 +430,7 @@ void inet_twsk_purge(struct net *net, struct inet_hashinfo *hashinfo,
 	int h;
 
 	local_bh_disable();
-	for (h = 0; h < (hashinfo->ehash_size); h++) {
+	for (h = 0; h <= hashinfo->ehash_mask; h++) {
 		struct inet_ehash_bucket *head =
 			inet_ehash_bucket(hashinfo, h);
 		spinlock_t *lock = inet_ehash_lockp(hashinfo, h);

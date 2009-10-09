@@ -774,7 +774,7 @@ skip_listen_ht:
 	if (!(r->idiag_states & ~(TCPF_LISTEN | TCPF_SYN_RECV)))
 		goto unlock;
 
-	for (i = s_i; i < hashinfo->ehash_size; i++) {
+	for (i = s_i; i <= hashinfo->ehash_mask; i++) {
 		struct inet_ehash_bucket *head = &hashinfo->ehash[i];
 		spinlock_t *lock = inet_ehash_lockp(hashinfo, i);
 		struct sock *sk;

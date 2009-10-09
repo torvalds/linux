@@ -2000,7 +2000,7 @@ static void *established_get_first(struct seq_file *seq)
 	struct net *net = seq_file_net(seq);
 	void *rc = NULL;
 
-	for (st->bucket = 0; st->bucket < tcp_hashinfo.ehash_size; ++st->bucket) {
+	for (st->bucket = 0; st->bucket <= tcp_hashinfo.ehash_mask; ++st->bucket) {
 		struct sock *sk;
 		struct hlist_nulls_node *node;
 		struct inet_timewait_sock *tw;
@@ -2061,10 +2061,10 @@ get_tw:
 		st->state = TCP_SEQ_STATE_ESTABLISHED;
 
 		/* Look for next non empty bucket */
-		while (++st->bucket < tcp_hashinfo.ehash_size &&
+		while (++st->bucket <= tcp_hashinfo.ehash_mask &&
 				empty_bucket(st))
 			;
-		if (st->bucket >= tcp_hashinfo.ehash_size)
+		if (st->bucket > tcp_hashinfo.ehash_mask)
 			return NULL;
 
 		spin_lock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));

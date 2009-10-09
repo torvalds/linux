@@ -125,7 +125,7 @@ struct inet_hashinfo {
 	 */
 	struct inet_ehash_bucket	*ehash;
 	spinlock_t			*ehash_locks;
-	unsigned int			ehash_size;
+	unsigned int			ehash_mask;
 	unsigned int			ehash_locks_mask;
 
 	/* Ok, let's try this, I give up, we do need a local binding
@@ -158,7 +158,7 @@ static inline struct inet_ehash_bucket *inet_ehash_bucket(
 	struct inet_hashinfo *hashinfo,
 	unsigned int hash)
 {
-	return &hashinfo->ehash[hash & (hashinfo->ehash_size - 1)];
+	return &hashinfo->ehash[hash & hashinfo->ehash_mask];
 }
 
 static inline spinlock_t *inet_ehash_lockp(
