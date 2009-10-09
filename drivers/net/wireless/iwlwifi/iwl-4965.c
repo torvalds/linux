@@ -62,8 +62,6 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv);
 
 /* module parameters */
 static struct iwl_mod_params iwl4965_mod_params = {
-	.num_of_queues = IWL49_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
 	.amsdu_size_8K = 1,
 	.restart_fw = 1,
 	/* the rest are 0 by default */
@@ -698,19 +696,16 @@ static void iwl4965_set_ct_threshold(struct iwl_priv *priv)
  */
 static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 {
+	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
+	    priv->cfg->mod_params->num_of_queues <= IWL49_NUM_QUEUES)
+		priv->cfg->num_of_queues =
+			priv->cfg->mod_params->num_of_queues;
 
-	if ((priv->cfg->mod_params->num_of_queues > IWL49_NUM_QUEUES) ||
-	    (priv->cfg->mod_params->num_of_queues < IWL_MIN_NUM_QUEUES)) {
-		IWL_ERR(priv,
-			"invalid queues_num, should be between %d and %d\n",
-			IWL_MIN_NUM_QUEUES, IWL49_NUM_QUEUES);
-		return -EINVAL;
-	}
-
-	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
+	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH49_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
-			IWL49_NUM_QUEUES * sizeof(struct iwl4965_scd_bc_tbl);
+			priv->cfg->num_of_queues *
+			sizeof(struct iwl4965_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWL4965_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL4965_BROADCAST_ID;
@@ -1739,11 +1734,13 @@ static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 				   u16 ssn_idx, u8 tx_fifo)
 {
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES <= txq_id)) {
+	    (IWL49_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
+	     <= txq_id)) {
 		IWL_WARN(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL49_FIRST_AMPDU_QUEUE,
-			IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES - 1);
+			IWL49_FIRST_AMPDU_QUEUE +
+			priv->cfg->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -1804,11 +1801,13 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	u16 ra_tid;
 
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES <= txq_id)) {
+	    (IWL49_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
+	     <= txq_id)) {
 		IWL_WARN(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL49_FIRST_AMPDU_QUEUE,
-			IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES - 1);
+			IWL49_FIRST_AMPDU_QUEUE +
+			priv->cfg->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -2286,6 +2285,8 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
 	.ops = &iwl4965_ops,
+	.num_of_queues = IWL49_NUM_QUEUES,
+	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl4965_mod_params,
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,

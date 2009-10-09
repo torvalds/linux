@@ -884,10 +884,14 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	char *buf;
 	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
-		(IWL_MAX_NUM_QUEUES * 32 * 8) + 400;
+		(priv->cfg->num_of_queues * 32 * 8) + 400;
 	const u8 *ptr;
 	ssize_t ret;
 
+	if (!priv->txq) {
+		IWL_ERR(priv, "txq not ready\n");
+		return -EAGAIN;
+	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
 		IWL_ERR(priv, "Can not allocate buffer\n");
@@ -979,8 +983,12 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	int pos = 0;
 	int cnt;
 	int ret;
-	const size_t bufsz = sizeof(char) * 60 * IWL_MAX_NUM_QUEUES;
+	const size_t bufsz = sizeof(char) * 60 * priv->cfg->num_of_queues;
 
+	if (!priv->txq) {
+		IWL_ERR(priv, "txq not ready\n");
+		return -EAGAIN;
+	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;

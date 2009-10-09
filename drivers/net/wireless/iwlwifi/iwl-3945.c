@@ -958,6 +958,11 @@ static int iwl3945_txq_ctx_reset(struct iwl_priv *priv)
 
 	iwl3945_hw_txq_ctx_free(priv);
 
+	/* allocate tx queue structure */
+	rc = iwl_alloc_txq_mem(priv);
+	if (rc)
+		return rc;
+
 	/* Tx CMD queue */
 	rc = iwl3945_tx_reset(priv);
 	if (rc)
@@ -1170,12 +1175,16 @@ void iwl3945_hw_txq_ctx_free(struct iwl_priv *priv)
 	int txq_id;
 
 	/* Tx queues */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
-		if (txq_id == IWL_CMD_QUEUE_NUM)
-			iwl_cmd_queue_free(priv);
-		else
-			iwl_tx_queue_free(priv, txq_id);
+	if (priv->txq)
+		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num;
+		     txq_id++)
+			if (txq_id == IWL_CMD_QUEUE_NUM)
+				iwl_cmd_queue_free(priv);
+			else
+				iwl_tx_queue_free(priv, txq_id);
 
+	/* free tx queue structure */
+	iwl_free_txq_mem(priv);
 }
 
 void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
@@ -2503,7 +2512,7 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	/* Assign number of Usable TX queues */
-	priv->hw_params.max_txq_num = IWL39_NUM_QUEUES;
+	priv->hw_params.max_txq_num = priv->cfg->num_of_queues;
 
 	priv->hw_params.tfd_size = sizeof(struct iwl3945_tfd);
 	priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_3K;
@@ -2838,6 +2847,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
+	.num_of_queues = IWL39_NUM_QUEUES,
 	.mod_params = &iwl3945_mod_params,
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,
@@ -2853,6 +2863,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
+	.num_of_queues = IWL39_NUM_QUEUES,
 	.mod_params = &iwl3945_mod_params,
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,

@@ -2826,6 +2826,27 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(iwl_mac_reset_tsf);
 
+int iwl_alloc_txq_mem(struct iwl_priv *priv)
+{
+	if (!priv->txq)
+		priv->txq = kzalloc(
+			sizeof(struct iwl_tx_queue) * priv->cfg->num_of_queues,
+			GFP_KERNEL);
+	if (!priv->txq) {
+		IWL_ERR(priv, "Not enough memory for txq \n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(iwl_alloc_txq_mem);
+
+void iwl_free_txq_mem(struct iwl_priv *priv)
+{
+	kfree(priv->txq);
+	priv->txq = NULL;
+}
+EXPORT_SYMBOL(iwl_free_txq_mem);
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 
 #define IWL_TRAFFIC_DUMP_SIZE	(IWL_TRAFFIC_ENTRY_SIZE * IWL_TRAFFIC_ENTRIES)

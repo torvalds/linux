@@ -974,8 +974,6 @@ struct traffic_stats {
 };
 #endif
 
-#define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
-
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1103,7 +1101,7 @@ struct iwl_priv {
 
 	/* Rx and Tx DMA processing queues */
 	struct iwl_rx_queue rxq;
-	struct iwl_tx_queue txq[IWL_MAX_NUM_QUEUES];
+	struct iwl_tx_queue *txq;
 	unsigned long txq_ctx_active_msk;
 	struct iwl_dma_ptr  kw;	/* keep warm address */
 	struct iwl_dma_ptr  scd_bc_tbls;

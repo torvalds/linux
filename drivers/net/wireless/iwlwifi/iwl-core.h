@@ -204,7 +204,6 @@ struct iwl_mod_params {
 	int sw_crypto;		/* def: 0 = using hardware encryption */
 	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
-	int num_of_ampdu_queues;/* def: HW dependent */
 	int disable_11n;	/* def: 0 = 11n capabilities enabled */
 	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
 	int antenna;  		/* def: 0 = both antennas (use diversity) */
@@ -257,6 +256,8 @@ struct iwl_cfg {
 	int eeprom_size;
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
+	int num_of_queues;	/* def: HW dependent */
+	int num_of_ampdu_queues;/* def: HW dependent */
 	const struct iwl_ops *ops;
 	const struct iwl_mod_params *mod_params;
 	u8   valid_tx_ant;
@@ -326,6 +327,8 @@ void iwl_config_ap(struct iwl_priv *priv);
 int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
 			 struct ieee80211_tx_queue_stats *stats);
 void iwl_mac_reset_tsf(struct ieee80211_hw *hw);
+int iwl_alloc_txq_mem(struct iwl_priv *priv);
+void iwl_free_txq_mem(struct iwl_priv *priv);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_alloc_traffic_mem(struct iwl_priv *priv);
 void iwl_free_traffic_mem(struct iwl_priv *priv);
