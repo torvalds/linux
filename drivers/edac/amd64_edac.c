@@ -1402,27 +1402,36 @@ static void f10_read_dram_ctl_register(struct amd64_pvt *pvt)
 	err = pci_read_config_dword(pvt->dram_f2_ctl, F10_DCTL_SEL_LOW,
 				    &pvt->dram_ctl_select_low);
 	if (err) {
-		debugf0("Reading F10_DCTL_SEL_LOW failed\n");
+		debugf0("Reading F2x110 (DCTL Sel. Low) failed\n");
 	} else {
-		debugf0("DRAM_DCTL_SEL_LOW=0x%x  DctSelBaseAddr=0x%x\n",
-			pvt->dram_ctl_select_low, dct_sel_baseaddr(pvt));
+		debugf0("F2x110 (DCTL Sel. Low): 0x%08x, "
+			"High range addresses at: 0x%x\n",
+			pvt->dram_ctl_select_low,
+			dct_sel_baseaddr(pvt));
 
-		debugf0("  DRAM DCTs are=%s DRAM Is=%s DRAM-Ctl-"
-				"sel-hi-range=%s\n",
-			(dct_ganging_enabled(pvt) ? "GANGED" : "NOT GANGED"),
-			(dct_dram_enabled(pvt) ? "Enabled"   : "Disabled"),
-			(dct_high_range_enabled(pvt) ? "Enabled" : "Disabled"));
+		debugf0("  DCT mode: %s, All DCTs on: %s\n",
+			(dct_ganging_enabled(pvt) ? "ganged" : "unganged"),
+			(dct_dram_enabled(pvt) ? "yes"   : "no"));
 
-		debugf0("  DctDatIntLv=%s MemCleared=%s DctSelIntLvAddr=0x%x\n",
-			(dct_data_intlv_enabled(pvt) ? "Enabled" : "Disabled"),
-			(dct_memory_cleared(pvt) ? "True " : "False "),
+		if (!dct_ganging_enabled(pvt))
+			debugf0("  Address range split per DCT: %s\n",
+				(dct_high_range_enabled(pvt) ? "yes" : "no"));
+
+		debugf0("  DCT data interleave for ECC: %s, "
+			"DRAM cleared since last warm reset: %s\n",
+			(dct_data_intlv_enabled(pvt) ? "enabled" : "disabled"),
+			(dct_memory_cleared(pvt) ? "yes" : "no"));
+
+		debugf0("  DCT channel interleave: %s, "
+			"DCT interleave bits selector: 0x%x\n",
+			(dct_interleave_enabled(pvt) ? "enabled" : "disabled"),
 			dct_sel_interleave_addr(pvt));
 	}
 
 	err = pci_read_config_dword(pvt->dram_f2_ctl, F10_DCTL_SEL_HIGH,
 				    &pvt->dram_ctl_select_high);
 	if (err)
-		debugf0("Reading F10_DCTL_SEL_HIGH failed\n");
+		debugf0("Reading F2x114 (DCT Sel. High) failed\n");
 }
 
 /*
