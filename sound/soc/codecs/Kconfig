@@ -29,6 +29,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TLV320AIC23 if I2C
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
 	select SND_SOC_TLV320AIC3X if I2C
+	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
@@ -227,4 +228,7 @@ config SND_SOC_WM9713
 
 # Amp
 config SND_SOC_MAX9877
+	tristate
+
+config SND_SOC_TPA6130A2
 	tristate
