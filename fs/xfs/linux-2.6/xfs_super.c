@@ -977,6 +977,28 @@ xfs_fs_inode_init_once(
 }
 
 /*
+ * Dirty the XFS inode when mark_inode_dirty_sync() is called so that
+ * we catch unlogged VFS level updates to the inode. Care must be taken
+ * here - the transaction code calls mark_inode_dirty_sync() to mark the
+ * VFS inode dirty in a transaction and clears the i_update_core field;
+ * it must clear the field after calling mark_inode_dirty_sync() to
+ * correctly indicate that the dirty state has been propagated into the
+ * inode log item.
+ *
+ * We need the barrier() to maintain correct ordering between unlogged
+ * updates and the transaction commit code that clears the i_update_core
+ * field. This requires all updates to be completed before marking the
+ * inode dirty.
+ */
+STATIC void
+xfs_fs_dirty_inode(
+	struct inode	*inode)
+{
+	barrier();
+	XFS_I(inode)->i_update_core = 1;
+}
+
+/*
  * Attempt to flush the inode, this will actually fail
  * if the inode is pinned, but we dirty the inode again
  * at the point when it is unpinned after a log write,
@@ -1126,7 +1148,7 @@ xfs_fs_put_super(
 }
 
 STATIC int
-xfs_fs_sync_super(
+xfs_fs_sync_fs(
 	struct super_block	*sb,
 	int			wait)
 {
@@ -1134,23 +1156,23 @@ xfs_fs_sync_super(
 	int			error;
 
 	/*
-	 * Treat a sync operation like a freeze.  This is to work
-	 * around a race in sync_inodes() which works in two phases
-	 * - an asynchronous flush, which can write out an inode
-	 * without waiting for file size updates to complete, and a
-	 * synchronous flush, which wont do anything because the
-	 * async flush removed the inode's dirty flag.  Also
-	 * sync_inodes() will not see any files that just have
-	 * outstanding transactions to be flushed because we don't
-	 * dirty the Linux inode until after the transaction I/O
-	 * completes.
+	 * Not much we can do for the first async pass.  Writing out the
+	 * superblock would be counter-productive as we are going to redirty
+	 * when writing out other data and metadata (and writing out a single
+	 * block is quite fast anyway).
+	 *
+	 * Try to asynchronously kick off quota syncing at least.
 	 */
-	if (wait || unlikely(sb->s_frozen == SB_FREEZE_WRITE))
-		error = xfs_quiesce_data(mp);
-	else
-		error = xfs_sync_fsdata(mp, 0);
+	if (!wait) {
+		xfs_qm_sync(mp, SYNC_TRYLOCK);
+		return 0;
+	}
 
-	if (unlikely(laptop_mode)) {
+	error = xfs_quiesce_data(mp);
+	if (error)
+		return -error;
+
+	if (laptop_mode) {
 		int	prev_sync_seq = mp->m_sync_seq;
 
 		/*
@@ -1169,7 +1191,7 @@ xfs_fs_sync_super(
 				mp->m_sync_seq != prev_sync_seq);
 	}
 
-	return -error;
+	return 0;
 }
 
 STATIC int
@@ -1539,10 +1561,11 @@ xfs_fs_get_sb(
 static const struct super_operations xfs_super_operations = {
 	.alloc_inode		= xfs_fs_alloc_inode,
 	.destroy_inode		= xfs_fs_destroy_inode,
+	.dirty_inode		= xfs_fs_dirty_inode,
 	.write_inode		= xfs_fs_write_inode,
 	.clear_inode		= xfs_fs_clear_inode,
 	.put_super		= xfs_fs_put_super,
-	.sync_fs		= xfs_fs_sync_super,
+	.sync_fs		= xfs_fs_sync_fs,
 	.freeze_fs		= xfs_fs_freeze,
 	.statfs			= xfs_fs_statfs,
 	.remount_fs		= xfs_fs_remount,
