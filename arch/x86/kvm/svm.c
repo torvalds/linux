@@ -1390,7 +1390,7 @@ static inline int nested_svm_intr(struct vcpu_svm *svm)
 		 * the #vmexit here.
 		 */
 		svm->nested.exit_required = true;
-		nsvm_printk("VMexit -> INTR\n");
+		trace_kvm_nested_intr_vmexit(svm->vmcb->save.rip);
 		return 1;
 	}
 

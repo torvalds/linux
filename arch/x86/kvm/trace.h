@@ -451,6 +451,24 @@ TRACE_EVENT(kvm_nested_vmexit_inject,
 		__entry->exit_info1, __entry->exit_info2,
 		__entry->exit_int_info, __entry->exit_int_info_err)
 );
+
+/*
+ * Tracepoint for nested #vmexit because of interrupt pending
+ */
+TRACE_EVENT(kvm_nested_intr_vmexit,
+	    TP_PROTO(__u64 rip),
+	    TP_ARGS(rip),
+
+	TP_STRUCT__entry(
+		__field(	__u64,	rip	)
+	),
+
+	TP_fast_assign(
+		__entry->rip	=	rip
+	),
+
+	TP_printk("rip: 0x%016llx\n", __entry->rip)
+);
 #endif /* _TRACE_KVM_H */
 
 /* This part must be outside protection */
