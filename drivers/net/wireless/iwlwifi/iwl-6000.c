@@ -192,7 +192,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 	.update_chain_flags = iwl_update_chain_flags,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
-		.reset = iwl5000_apm_reset,
 		.stop = iwl_apm_stop,
 		.config = iwl6000_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,

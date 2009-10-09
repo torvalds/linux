@@ -1198,47 +1198,6 @@ void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
 	iwl3945_hw_txq_ctx_free(priv);
 }
 
-static int iwl3945_apm_reset(struct iwl_priv *priv)
-{
-	iwl_apm_stop_master(priv);
-
-
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	udelay(10);
-
-	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-
-	iwl_poll_bit(priv, CSR_GP_CNTRL,
-			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
-
-	iwl_write_prph(priv, APMG_CLK_CTRL_REG,
-				APMG_CLK_VAL_BSM_CLK_RQT);
-
-	iwl_write_prph(priv, APMG_RTC_INT_MSK_REG, 0x0);
-	iwl_write_prph(priv, APMG_RTC_INT_STT_REG,
-					0xFFFFFFFF);
-
-	/* enable DMA */
-	iwl_write_prph(priv, APMG_CLK_EN_REG,
-				APMG_CLK_VAL_DMA_CLK_RQT |
-				APMG_CLK_VAL_BSM_CLK_RQT);
-	udelay(10);
-
-	iwl_set_bits_prph(priv, APMG_PS_CTRL_REG,
-				APMG_PS_CTRL_VAL_RESET_REQ);
-	udelay(5);
-	iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
-				APMG_PS_CTRL_VAL_RESET_REQ);
-
-	/* Clear the 'host command active' bit... */
-	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
-
-	wake_up_interruptible(&priv->wait_command_queue);
-
-	return 0;
-}
-
 /**
  * iwl3945_hw_reg_adjust_power_by_temp
  * return index delta into power gain settings table
@@ -2833,7 +2792,6 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.dump_nic_error_log = iwl3945_dump_nic_error_log,
 	.apm_ops = {
 		.init = iwl3945_apm_init,
-		.reset = iwl3945_apm_reset,
 		.stop = iwl_apm_stop,
 		.config = iwl3945_nic_config,
 		.set_pwr_src = iwl3945_set_pwr_src,

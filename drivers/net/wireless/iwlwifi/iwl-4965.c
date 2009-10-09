@@ -397,46 +397,6 @@ static void iwl4965_nic_config(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static int iwl4965_apm_reset(struct iwl_priv *priv)
-{
-	int ret = 0;
-
-	iwl_apm_stop_master(priv);
-
-
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
-
-	/* FIXME: put here L1A -L0S w/a */
-
-	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-
-	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
-			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
-	if (ret < 0)
-		goto out;
-
-	udelay(10);
-
-	/* Enable DMA and BSM Clock */
-	iwl_write_prph(priv, APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT |
-					      APMG_CLK_VAL_BSM_CLK_RQT);
-
-	udelay(10);
-
-	/* disable L1A */
-	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
-			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
-
-	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
-	wake_up_interruptible(&priv->wait_command_queue);
-
-out:
-	return ret;
-}
-
 /* Reset differential Rx gains in NIC to prepare for chain noise calibration.
  * Called after every association, but this runs only once!
  *  ... once chain noise is calibrated the first time, it's good forever.  */
@@ -2273,7 +2233,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.dump_nic_error_log = iwl_dump_nic_error_log,
 	.apm_ops = {
 		.init = iwl4965_apm_init,
-		.reset = iwl4965_apm_reset,
 		.stop = iwl_apm_stop,
 		.config = iwl4965_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
