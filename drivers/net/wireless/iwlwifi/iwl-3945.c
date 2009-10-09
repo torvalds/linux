@@ -2826,6 +2826,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 	.get_hcmd_size = iwl3945_get_hcmd_size,
 	.build_addsta_hcmd = iwl3945_build_addsta_hcmd,
+	.rts_tx_cmd_flag = iwlcore_rts_tx_cmd_flag,
 };
 
 static struct iwl_ops iwl3945_ops = {
