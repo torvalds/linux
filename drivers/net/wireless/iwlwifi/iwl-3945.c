@@ -991,8 +991,6 @@ static int iwl3945_apm_init(struct iwl_priv *priv)
 {
 	int ret;
 
-	iwl_power_initialize(priv);
-
 	/* Configure chip clock phase-lock-loop */
 	iwl_set_bit(priv, CSR_ANA_PLL_CFG, CSR39_ANA_PLL_CFG_VAL);
 

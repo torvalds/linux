@@ -4064,6 +4064,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 			     &priv->bands[IEEE80211_BAND_2GHZ].channels[5]);
 	iwl3945_setup_deferred_work(priv);
 	iwl3945_setup_rx_handlers(priv);
+	iwl_power_initialize(priv);
 
 	/*********************************
 	 * 8. Setup and Register mac80211
