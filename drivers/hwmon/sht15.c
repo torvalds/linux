@@ -622,7 +622,12 @@ static int __devexit sht15_remove(struct platform_device *pdev)
 }
 
 
-static struct platform_driver sht_drivers[] = {
+/*
+ * sht_drivers simultaneously refers to __devinit and __devexit function
+ * which causes spurious section mismatch warning. So use __refdata to
+ * get rid from this.
+ */
+static struct platform_driver __refdata sht_drivers[] = {
 	{
 		.driver = {
 			.name = "sht10",
