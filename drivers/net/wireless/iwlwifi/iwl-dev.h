@@ -1124,7 +1124,9 @@ struct iwl_priv {
 	struct iwl_tt_mgmt thermal_throttle;
 
 	struct iwl_notif_statistics statistics;
-	unsigned long last_statistics_time;
+#ifdef CONFIG_IWLWIFI_DEBUG
+	struct iwl_notif_statistics accum_statistics;
+#endif
 
 	/* context information */
 	u16 rates_mask;

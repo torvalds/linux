@@ -361,8 +361,6 @@ void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 	memcpy(&priv->statistics_39, pkt->u.raw, sizeof(priv->statistics_39));
 
 	iwl_leds_background(priv);
-
-	priv->last_statistics_time = jiffies;
 }
 
 /******************************************************************************
