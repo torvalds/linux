@@ -178,25 +178,13 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 	struct drm_device *dev = encoder->dev;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct drm_display_mode *mode = NULL;
-	struct radeon_native_mode *native_mode = &radeon_encoder->native_mode;
+	struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
 
-	if (native_mode->panel_xres != 0 &&
-	    native_mode->panel_yres != 0 &&
-	    native_mode->dotclock != 0) {
+	if (native_mode->hdisplay != 0 &&
+	    native_mode->vdisplay != 0 &&
+	    native_mode->clock != 0) {
 		mode = drm_mode_create(dev);
-
-		mode->hdisplay = native_mode->panel_xres;
-		mode->vdisplay = native_mode->panel_yres;
-
-		mode->htotal = mode->hdisplay + native_mode->hblank;
-		mode->hsync_start = mode->hdisplay + native_mode->hoverplus;
-		mode->hsync_end = mode->hsync_start + native_mode->hsync_width;
-		mode->vtotal = mode->vdisplay + native_mode->vblank;
-		mode->vsync_start = mode->vdisplay + native_mode->voverplus;
-		mode->vsync_end = mode->vsync_start + native_mode->vsync_width;
-		mode->clock = native_mode->dotclock;
-		mode->flags = 0;
-
+		*mode = *native_mode;
 		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
 		drm_mode_set_name(mode);
 
@@ -210,7 +198,7 @@ static void radeon_add_common_modes(struct drm_encoder *encoder, struct drm_conn
 	struct drm_device *dev = encoder->dev;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct drm_display_mode *mode = NULL;
-	struct radeon_native_mode *native_mode = &radeon_encoder->native_mode;
+	struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
 	int i;
 	struct mode_size {
 		int w;
@@ -237,10 +225,10 @@ static void radeon_add_common_modes(struct drm_encoder *encoder, struct drm_conn
 
 	for (i = 0; i < 17; i++) {
 		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-			if (common_modes[i].w > native_mode->panel_xres ||
-			    common_modes[i].h > native_mode->panel_yres ||
-			    (common_modes[i].w == native_mode->panel_xres &&
-			     common_modes[i].h == native_mode->panel_yres))
+			if (common_modes[i].w > native_mode->hdisplay ||
+			    common_modes[i].h > native_mode->vdisplay ||
+			    (common_modes[i].w == native_mode->hdisplay &&
+			     common_modes[i].h == native_mode->vdisplay))
 				continue;
 		}
 		if (common_modes[i].w < 320 || common_modes[i].h < 200)
@@ -344,28 +332,23 @@ static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
 					  struct drm_connector *connector)
 {
 	struct radeon_encoder *radeon_encoder =	to_radeon_encoder(encoder);
-	struct radeon_native_mode *native_mode = &radeon_encoder->native_mode;
+	struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
 
 	/* Try to get native mode details from EDID if necessary */
-	if (!native_mode->dotclock) {
+	if (!native_mode->clock) {
 		struct drm_display_mode *t, *mode;
 
 		list_for_each_entry_safe(mode, t, &connector->probed_modes, head) {
-			if (mode->hdisplay == native_mode->panel_xres &&
-			    mode->vdisplay == native_mode->panel_yres) {
-				native_mode->hblank = mode->htotal - mode->hdisplay;
-				native_mode->hoverplus = mode->hsync_start - mode->hdisplay;
-				native_mode->hsync_width = mode->hsync_end - mode->hsync_start;
-				native_mode->vblank = mode->vtotal - mode->vdisplay;
-				native_mode->voverplus = mode->vsync_start - mode->vdisplay;
-				native_mode->vsync_width = mode->vsync_end - mode->vsync_start;
-				native_mode->dotclock = mode->clock;
+			if (mode->hdisplay == native_mode->hdisplay &&
+			    mode->vdisplay == native_mode->vdisplay) {
+				*native_mode = *mode;
+				drm_mode_set_crtcinfo(native_mode, CRTC_INTERLACE_HALVE_V);
 				DRM_INFO("Determined LVDS native mode details from EDID\n");
 				break;
 			}
 		}
 	}
-	if (!native_mode->dotclock) {
+	if (!native_mode->clock) {
 		DRM_INFO("No LVDS native mode details, disabling RMX\n");
 		radeon_encoder->rmx_type = RMX_OFF;
 	}
@@ -420,10 +403,10 @@ static enum drm_connector_status radeon_lvds_detect(struct drm_connector *connec
 
 	if (encoder) {
 		struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-		struct radeon_native_mode *native_mode = &radeon_encoder->native_mode;
+		struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
 
 		/* check if panel is valid */
-		if (native_mode->panel_xres >= 320 && native_mode->panel_yres >= 240)
+		if (native_mode->hdisplay >= 320 && native_mode->vdisplay >= 240)
 			ret = connector_status_connected;
 
 	}

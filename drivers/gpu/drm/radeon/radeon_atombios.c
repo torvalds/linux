@@ -798,27 +798,29 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		if (!lvds)
 			return NULL;
 
-		lvds->native_mode.dotclock =
+		lvds->native_mode.clock =
 		    le16_to_cpu(lvds_info->info.sLCDTiming.usPixClk) * 10;
-		lvds->native_mode.panel_xres =
+		lvds->native_mode.hdisplay =
 		    le16_to_cpu(lvds_info->info.sLCDTiming.usHActive);
-		lvds->native_mode.panel_yres =
+		lvds->native_mode.vdisplay =
 		    le16_to_cpu(lvds_info->info.sLCDTiming.usVActive);
-		lvds->native_mode.hblank =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usHBlanking_Time);
-		lvds->native_mode.hoverplus =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usHSyncOffset);
-		lvds->native_mode.hsync_width =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usHSyncWidth);
-		lvds->native_mode.vblank =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usVBlanking_Time);
-		lvds->native_mode.voverplus =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncOffset);
-		lvds->native_mode.vsync_width =
-		    le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncWidth);
+		lvds->native_mode.htotal = lvds->native_mode.hdisplay +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usHBlanking_Time);
+		lvds->native_mode.hsync_start = lvds->native_mode.hdisplay +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usHSyncOffset);
+		lvds->native_mode.hsync_end = lvds->native_mode.hsync_start +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usHSyncWidth);
+		lvds->native_mode.vtotal = lvds->native_mode.vdisplay +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usVBlanking_Time);
+		lvds->native_mode.vsync_start = lvds->native_mode.vdisplay +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncWidth);
+		lvds->native_mode.vsync_end = lvds->native_mode.vsync_start +
+			le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncWidth);
 		lvds->panel_pwr_delay =
 		    le16_to_cpu(lvds_info->info.usOffDelayInMs);
 		lvds->lvds_misc = lvds_info->info.ucLVDS_Misc;
+		/* set crtc values */
+		drm_mode_set_crtcinfo(&lvds->native_mode, CRTC_INTERLACE_HALVE_V);
 
 		encoder->native_mode = lvds->native_mode;
 	}

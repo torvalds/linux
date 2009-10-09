@@ -186,17 +186,6 @@ struct radeon_mode_info {
 
 };
 
-struct radeon_native_mode {
-	/* preferred mode */
-	uint32_t panel_xres, panel_yres;
-	uint32_t hoverplus, hsync_width;
-	uint32_t hblank;
-	uint32_t voverplus, vsync_width;
-	uint32_t vblank;
-	uint32_t dotclock;
-	uint32_t flags;
-};
-
 #define MAX_H_CODE_TIMING_LEN 32
 #define MAX_V_CODE_TIMING_LEN 32
 
@@ -228,7 +217,7 @@ struct radeon_crtc {
 	enum radeon_rmx_type rmx_type;
 	fixed20_12 vsc;
 	fixed20_12 hsc;
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 };
 
 struct radeon_encoder_primary_dac {
@@ -248,7 +237,7 @@ struct radeon_encoder_lvds {
 	bool     use_bios_dividers;
 	uint32_t lvds_gen_cntl;
 	/* panel mode */
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 };
 
 struct radeon_encoder_tv_dac {
@@ -279,7 +268,7 @@ struct radeon_encoder_atom_dig {
 	uint32_t lvds_misc;
 	uint16_t panel_pwr_delay;
 	/* panel mode */
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 };
 
 struct radeon_encoder_atom_dac {
@@ -294,7 +283,7 @@ struct radeon_encoder {
 	uint32_t flags;
 	uint32_t pixel_clock;
 	enum radeon_rmx_type rmx_type;
-	struct radeon_native_mode native_mode;
+	struct drm_display_mode native_mode;
 	void *enc_priv;
 };
 

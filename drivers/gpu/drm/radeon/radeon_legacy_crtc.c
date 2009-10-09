@@ -48,7 +48,7 @@ static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
 	u32 fp_horz_stretch, fp_vert_stretch, fp_horz_vert_active;
 	u32 fp_h_sync_strt_wid, fp_crtc_h_total_disp;
 	u32 fp_v_sync_strt_wid, fp_crtc_v_total_disp;
-	struct radeon_native_mode *native_mode = &radeon_crtc->native_mode;
+	struct drm_display_mode *native_mode = &radeon_crtc->native_mode;
 
 	fp_vert_stretch = RREG32(RADEON_FP_VERT_STRETCH) &
 		(RADEON_VERT_STRETCH_RESERVED |
@@ -95,19 +95,19 @@ static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
 
 	fp_horz_vert_active = 0;
 
-	if (native_mode->panel_xres == 0 ||
-	    native_mode->panel_yres == 0) {
+	if (native_mode->hdisplay == 0 ||
+	    native_mode->vdisplay == 0) {
 		hscale = false;
 		vscale = false;
 	} else {
-		if (xres > native_mode->panel_xres)
-			xres = native_mode->panel_xres;
-		if (yres > native_mode->panel_yres)
-			yres = native_mode->panel_yres;
+		if (xres > native_mode->hdisplay)
+			xres = native_mode->hdisplay;
+		if (yres > native_mode->vdisplay)
+			yres = native_mode->vdisplay;
 
-		if (xres == native_mode->panel_xres)
+		if (xres == native_mode->hdisplay)
 			hscale = false;
-		if (yres == native_mode->panel_yres)
+		if (yres == native_mode->vdisplay)
 			vscale = false;
 	}
 
@@ -119,11 +119,11 @@ static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
 		else {
 			inc = (fp_horz_stretch & RADEON_HORZ_AUTO_RATIO_INC) ? 1 : 0;
 			scale = ((xres + inc) * RADEON_HORZ_STRETCH_RATIO_MAX)
-				/ native_mode->panel_xres + 1;
+				/ native_mode->hdisplay + 1;
 			fp_horz_stretch |= (((scale) & RADEON_HORZ_STRETCH_RATIO_MASK) |
 					RADEON_HORZ_STRETCH_BLEND |
 					RADEON_HORZ_STRETCH_ENABLE |
-					((native_mode->panel_xres/8-1) << 16));
+					((native_mode->hdisplay/8-1) << 16));
 		}
 
 		if (!vscale)
@@ -131,11 +131,11 @@ static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
 		else {
 			inc = (fp_vert_stretch & RADEON_VERT_AUTO_RATIO_INC) ? 1 : 0;
 			scale = ((yres + inc) * RADEON_VERT_STRETCH_RATIO_MAX)
-				/ native_mode->panel_yres + 1;
+				/ native_mode->vdisplay + 1;
 			fp_vert_stretch |= (((scale) & RADEON_VERT_STRETCH_RATIO_MASK) |
 					RADEON_VERT_STRETCH_ENABLE |
 					RADEON_VERT_STRETCH_BLEND |
-					((native_mode->panel_yres-1) << 12));
+					((native_mode->vdisplay-1) << 12));
 		}
 		break;
 	case RMX_CENTER:
@@ -175,8 +175,8 @@ static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
 						? RADEON_CRTC_V_SYNC_POL
 						: 0)));
 
-		fp_horz_vert_active = (((native_mode->panel_yres) & 0xfff) |
-				(((native_mode->panel_xres / 8) & 0x1ff) << 16));
+		fp_horz_vert_active = (((native_mode->vdisplay) & 0xfff) |
+				(((native_mode->hdisplay / 8) & 0x1ff) << 16));
 		break;
 	case RMX_OFF:
 	default:
