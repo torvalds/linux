@@ -2366,6 +2366,12 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 	if (is_nested(svm)) {
 		int vmexit;
 
+		trace_kvm_nested_vmexit(svm->vmcb->save.rip, exit_code,
+					svm->vmcb->control.exit_info_1,
+					svm->vmcb->control.exit_info_2,
+					svm->vmcb->control.exit_int_info,
+					svm->vmcb->control.exit_int_info_err);
+
 		nsvm_printk("nested handle_exit: 0x%x | 0x%lx | 0x%lx | 0x%lx\n",
 			    exit_code, svm->vmcb->control.exit_info_1,
 			    svm->vmcb->control.exit_info_2, svm->vmcb->save.rip);
