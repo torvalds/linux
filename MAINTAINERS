@@ -2058,7 +2058,7 @@ S:	Maintained
 F:	fs/*
 
 FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
-M:	Riku Voipio <riku.vipio@iki.fi>
+M:	Riku Voipio <riku.voipio@iki.fi>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/f75375s.c
