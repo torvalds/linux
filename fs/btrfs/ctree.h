@@ -2330,7 +2330,7 @@ int btrfs_orphan_del(struct btrfs_trans_handle *trans, struct inode *inode);
 void btrfs_orphan_cleanup(struct btrfs_root *root);
 int btrfs_cont_expand(struct inode *inode, loff_t size);
 int btrfs_invalidate_inodes(struct btrfs_root *root);
-extern struct dentry_operations btrfs_dentry_operations;
+extern const struct dentry_operations btrfs_dentry_operations;
 
 /* ioctl.c */
 long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
