@@ -2884,6 +2884,7 @@ static bool ahci_broken_online(struct pci_dev *pdev)
 	return pdev->bus->number == (val >> 8) && pdev->devfn == (val & 0xff);
 }
 
+#ifdef CONFIG_ATA_ACPI
 static void ahci_gtf_filter_workaround(struct ata_host *host)
 {
 	static const struct dmi_system_id sysids[] = {
@@ -2927,6 +2928,10 @@ static void ahci_gtf_filter_workaround(struct ata_host *host)
 				dev->gtf_filter |= filter;
 	}
 }
+#else
+static inline void ahci_gtf_filter_workaround(struct ata_host *host)
+{}
+#endif
 
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
