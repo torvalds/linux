@@ -121,6 +121,10 @@ static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
 	.auto_corr_max_cck_mrc = 310,
 	.nrg_th_cck = 97,
 	.nrg_th_ofdm = 100,
+
+	.barker_corr_th_min = 190,
+	.barker_corr_th_min_mrc = 390,
+	.nrg_th_cca = 62,
 };
 
 static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)

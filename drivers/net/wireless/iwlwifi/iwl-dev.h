@@ -629,6 +629,10 @@ struct iwl_sensitivity_ranges {
 	u16 auto_corr_max_cck_mrc;
 	u16 auto_corr_min_cck;
 	u16 auto_corr_min_cck_mrc;
+
+	u16 barker_corr_th_min;
+	u16 barker_corr_th_min_mrc;
+	u16 nrg_th_cca;
 };
 
 
@@ -850,6 +854,10 @@ struct iwl_sensitivity_data {
 	s32 nrg_auto_corr_silence_diff;
 	u32 num_in_cck_no_fa;
 	u32 nrg_th_ofdm;
+
+	u16 barker_corr_th_min;
+	u16 barker_corr_th_min_mrc;
+	u16 nrg_th_cca;
 };
 
 /* Chain noise (differential Rx gain) calib data */

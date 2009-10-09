@@ -329,6 +329,10 @@ static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 	.auto_corr_max_cck_mrc = 400,
 	.nrg_th_cck = 95,
 	.nrg_th_ofdm = 95,
+
+	.barker_corr_th_min = 190,
+	.barker_corr_th_min_mrc = 390,
+	.nrg_th_cca = 62,
 };
 
 static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
@@ -351,6 +355,10 @@ static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 	.auto_corr_max_cck_mrc = 400,
 	.nrg_th_cck = 95,
 	.nrg_th_ofdm = 95,
+
+	.barker_corr_th_min = 190,
+	.barker_corr_th_min_mrc = 390,
+	.nrg_th_cca = 62,
 };
 
 const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,

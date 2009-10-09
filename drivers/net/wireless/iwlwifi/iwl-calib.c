@@ -447,11 +447,11 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 				cpu_to_le16((u16)data->nrg_th_ofdm);
 
 	cmd.table[HD_BARKER_CORR_TH_ADD_MIN_INDEX] =
-				cpu_to_le16(190);
+				cpu_to_le16(data->barker_corr_th_min);
 	cmd.table[HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX] =
-				cpu_to_le16(390);
+				cpu_to_le16(data->barker_corr_th_min_mrc);
 	cmd.table[HD_OFDM_ENERGY_TH_IN_INDEX] =
-				cpu_to_le16(62);
+				cpu_to_le16(data->nrg_th_cca);
 
 	IWL_DEBUG_CALIB(priv, "ofdm: ac %u mrc %u x1 %u mrc_x1 %u thresh %u\n",
 			data->auto_corr_ofdm, data->auto_corr_ofdm_mrc,
@@ -524,6 +524,9 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	data->auto_corr_cck_mrc = ranges->auto_corr_min_cck_mrc;
 	data->nrg_th_cck = ranges->nrg_th_cck;
 	data->nrg_th_ofdm = ranges->nrg_th_ofdm;
+	data->barker_corr_th_min = ranges->barker_corr_th_min;
+	data->barker_corr_th_min_mrc = ranges->barker_corr_th_min_mrc;
+	data->nrg_th_cca = ranges->nrg_th_cca;
 
 	data->last_bad_plcp_cnt_ofdm = 0;
 	data->last_fa_cnt_ofdm = 0;

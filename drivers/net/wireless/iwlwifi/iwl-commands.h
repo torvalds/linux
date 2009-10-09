@@ -3247,12 +3247,6 @@ struct iwl_missed_beacon_notif {
  *   Lower values mean higher energy; this means making sure that the value
  *   in HD_MIN_ENERGY_CCK_DET_INDEX is at or *above* "Max cck energy".
  *
- * Driver should set the following entries to fixed values:
- *
- *   HD_MIN_ENERGY_OFDM_DET_INDEX               100
- *   HD_BARKER_CORR_TH_ADD_MIN_INDEX            190
- *   HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX        390
- *   HD_OFDM_ENERGY_TH_IN_INDEX                  62
  */
 
 /*

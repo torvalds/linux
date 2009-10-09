@@ -678,6 +678,10 @@ static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
 
 	.nrg_th_cck = 100,
 	.nrg_th_ofdm = 100,
+
+	.barker_corr_th_min = 190,
+	.barker_corr_th_min_mrc = 390,
+	.nrg_th_cca = 62,
 };
 
 static void iwl4965_set_ct_threshold(struct iwl_priv *priv)
