@@ -1615,6 +1615,22 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_vmcb->control.exit_info_2       = vmcb->control.exit_info_2;
 	nested_vmcb->control.exit_int_info     = vmcb->control.exit_int_info;
 	nested_vmcb->control.exit_int_info_err = vmcb->control.exit_int_info_err;
+
+	/*
+	 * If we emulate a VMRUN/#VMEXIT in the same host #vmexit cycle we have
+	 * to make sure that we do not lose injected events. So check event_inj
+	 * here and copy it to exit_int_info if it is valid.
+	 * Exit_int_info and event_inj can't be both valid because the case
+	 * below only happens on a VMRUN instruction intercept which has
+	 * no valid exit_int_info set.
+	 */
+	if (vmcb->control.event_inj & SVM_EVTINJ_VALID) {
+		struct vmcb_control_area *nc = &nested_vmcb->control;
+
+		nc->exit_int_info     = vmcb->control.event_inj;
+		nc->exit_int_info_err = vmcb->control.event_inj_err;
+	}
+
 	nested_vmcb->control.tlb_ctl           = 0;
 	nested_vmcb->control.event_inj         = 0;
 	nested_vmcb->control.event_inj_err     = 0;
