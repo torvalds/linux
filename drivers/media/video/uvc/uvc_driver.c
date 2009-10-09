@@ -46,6 +46,7 @@
 unsigned int uvc_no_drop_param;
 static unsigned int uvc_quirks_param;
 unsigned int uvc_trace_param;
+unsigned int uvc_timeout_param = UVC_CTRL_STREAMING_TIMEOUT;
 
 /* ------------------------------------------------------------------------
  * Video formats
@@ -2195,6 +2196,8 @@ module_param_named(quirks, uvc_quirks_param, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(quirks, "Forced device quirks");
 module_param_named(trace, uvc_trace_param, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(trace, "Trace level bitmask");
+module_param_named(timeout, uvc_timeout_param, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(timeout, "Streaming control requests timeout");
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

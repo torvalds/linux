@@ -148,7 +148,7 @@ struct uvc_xu_control {
 #define UVC_MAX_STATUS_SIZE	16
 
 #define UVC_CTRL_CONTROL_TIMEOUT	300
-#define UVC_CTRL_STREAMING_TIMEOUT	1000
+#define UVC_CTRL_STREAMING_TIMEOUT	3000
 
 /* Devices quirks */
 #define UVC_QUIRK_STATUS_INTERVAL	0x00000001
@@ -538,6 +538,7 @@ struct uvc_driver {
 
 extern unsigned int uvc_no_drop_param;
 extern unsigned int uvc_trace_param;
+extern unsigned int uvc_timeout_param;
 
 #define uvc_trace(flag, msg...) \
 	do { \
