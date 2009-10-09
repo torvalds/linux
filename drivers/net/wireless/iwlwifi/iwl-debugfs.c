@@ -801,7 +801,9 @@ static ssize_t iwl_dbgfs_sleep_level_override_write(struct file *file,
 	 * valid here. However, let's not confuse them and present
 	 * IWL_POWER_INDEX_1 as "1", not "0".
 	 */
-	if (value > 0)
+	if (value == 0)
+		return -EINVAL;
+	else if (value > 0)
 		value -= 1;
 
 	if (value != -1 && (value < 0 || value >= IWL_POWER_NUM))
