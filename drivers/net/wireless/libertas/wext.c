@@ -832,7 +832,7 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 	u32 rssi_qual;
 	u32 tx_qual;
 	u32 quality = 0;
-	int stats_valid = 0;
+	int ret, stats_valid = 0;
 	u8 rssi;
 	u32 tx_retries;
 	struct cmd_ds_802_11_get_log log;
@@ -881,7 +881,9 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 
 	memset(&log, 0, sizeof(log));
 	log.hdr.size = cpu_to_le16(sizeof(log));
-	lbs_cmd_with_response(priv, CMD_802_11_GET_LOG, &log);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_GET_LOG, &log);
+	if (ret)
+		goto out;
 
 	tx_retries = le32_to_cpu(log.retry);
 
@@ -909,8 +911,10 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 	stats_valid = 1;
 
 	/* update stats asynchronously for future calls */
-	lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
+	ret = lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
 					0, 0, NULL);
+	if (ret)
+		lbs_pr_err("RSSI command failed\n");
 out:
 	if (!stats_valid) {
 		priv->wstats.miss.beacon = 0;

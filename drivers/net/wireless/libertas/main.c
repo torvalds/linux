@@ -1089,6 +1089,8 @@ static void auto_deepsleep_timer_fn(unsigned long data)
 			ret = lbs_prepare_and_send_command(priv,
 					CMD_802_11_DEEP_SLEEP, 0,
 					0, 0, NULL);
+			if (ret)
+				lbs_pr_err("Enter Deep Sleep command failed\n");
 		}
 	}
 	mod_timer(&priv->auto_deepsleep_timer , jiffies +

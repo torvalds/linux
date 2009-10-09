@@ -1022,9 +1022,12 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 		return -EAGAIN;
 
 	/* Update RSSI if current BSS is a locally created ad-hoc BSS */
-	if ((priv->mode == IW_MODE_ADHOC) && priv->adhoccreate)
-		lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
-					     CMD_OPTION_WAITFORRSP, 0, NULL);
+	if ((priv->mode == IW_MODE_ADHOC) && priv->adhoccreate) {
+		err = lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
+				CMD_OPTION_WAITFORRSP, 0, NULL);
+		if (err)
+			goto out;
+	}
 
 	mutex_lock(&priv->lock);
 	list_for_each_entry_safe (iter_bss, safe, &priv->network_list, list) {
@@ -1058,7 +1061,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 
 	dwrq->length = (ev - extra);
 	dwrq->flags = 0;
-
+out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", err);
 	return err;
 }
