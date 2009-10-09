@@ -32,7 +32,7 @@
 
 #include "tpa6130a2.h"
 
-struct i2c_client *tpa6130a2_client;
+static struct i2c_client *tpa6130a2_client;
 
 /* This struct is used to save the context */
 struct tpa6130a2_data {
@@ -372,7 +372,7 @@ static int tpa6130a2_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(tpa6130a2_client, data);
 
-	pdata = (struct tpa6130a2_platform_data *)client->dev.platform_data;
+	pdata = client->dev.platform_data;
 	data->power_gpio = pdata->power_gpio;
 
 	mutex_init(&data->mutex);
@@ -410,7 +410,7 @@ static int tpa6130a2_probe(struct i2c_client *client,
 fail:
 	kfree(data);
 	i2c_set_clientdata(tpa6130a2_client, NULL);
-	tpa6130a2_client = 0;
+	tpa6130a2_client = NULL;
 
 	return ret;
 }
@@ -424,7 +424,7 @@ static int tpa6130a2_remove(struct i2c_client *client)
 	if (data->power_gpio >= 0)
 		gpio_free(data->power_gpio);
 	kfree(data);
-	tpa6130a2_client = 0;
+	tpa6130a2_client = NULL;
 
 	return 0;
 }
