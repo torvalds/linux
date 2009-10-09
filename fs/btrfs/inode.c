@@ -1023,6 +1023,7 @@ next_slot:
 
 		if (found_key.offset > cur_offset) {
 			extent_end = found_key.offset;
+			extent_type = 0;
 			goto out_check;
 		}
 
