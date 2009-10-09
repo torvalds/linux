@@ -320,6 +320,20 @@ static inline void da830_evm_init_mmc(void)
 	}
 }
 
+/*
+ * UI board NAND/NOR flashes only use 8-bit data bus.
+ */
+static const short da830_evm_emif25_pins[] = {
+	DA830_EMA_D_0, DA830_EMA_D_1, DA830_EMA_D_2, DA830_EMA_D_3,
+	DA830_EMA_D_4, DA830_EMA_D_5, DA830_EMA_D_6, DA830_EMA_D_7,
+	DA830_EMA_A_0, DA830_EMA_A_1, DA830_EMA_A_2, DA830_EMA_A_3,
+	DA830_EMA_A_4, DA830_EMA_A_5, DA830_EMA_A_6, DA830_EMA_A_7,
+	DA830_EMA_A_8, DA830_EMA_A_9, DA830_EMA_A_10, DA830_EMA_A_11,
+	DA830_EMA_A_12, DA830_EMA_BA_0, DA830_EMA_BA_1, DA830_NEMA_WE,
+	DA830_NEMA_CS_2, DA830_NEMA_CS_3, DA830_NEMA_OE, DA830_EMA_WAIT_0,
+	-1
+};
+
 #ifdef CONFIG_DA830_UI_NAND
 static struct mtd_partition da830_evm_nand_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -410,21 +424,41 @@ static struct platform_device da830_evm_nand_device = {
 	.num_resources	= ARRAY_SIZE(da830_evm_nand_resources),
 	.resource	= da830_evm_nand_resources,
 };
+
+static inline void da830_evm_init_nand(void)
+{
+	int ret;
+
+	ret = da8xx_pinmux_setup(da830_evm_emif25_pins);
+	if (ret)
+		pr_warning("da830_evm_init: emif25 mux setup failed: %d\n",
+				ret);
+
+	ret = platform_device_register(&da830_evm_nand_device);
+	if (ret)
+		pr_warning("da830_evm_init: NAND device not registered.\n");
+}
+#else
+static inline void da830_evm_init_nand(void) { }
 #endif
 
-/*
- * UI board NAND/NOR flashes only use 8-bit data bus.
- */
-static const short da830_evm_emif25_pins[] = {
-	DA830_EMA_D_0, DA830_EMA_D_1, DA830_EMA_D_2, DA830_EMA_D_3,
-	DA830_EMA_D_4, DA830_EMA_D_5, DA830_EMA_D_6, DA830_EMA_D_7,
-	DA830_EMA_A_0, DA830_EMA_A_1, DA830_EMA_A_2, DA830_EMA_A_3,
-	DA830_EMA_A_4, DA830_EMA_A_5, DA830_EMA_A_6, DA830_EMA_A_7,
-	DA830_EMA_A_8, DA830_EMA_A_9, DA830_EMA_A_10, DA830_EMA_A_11,
-	DA830_EMA_A_12, DA830_EMA_BA_0, DA830_EMA_BA_1, DA830_NEMA_WE,
-	DA830_NEMA_CS_2, DA830_NEMA_CS_3, DA830_NEMA_OE, DA830_EMA_WAIT_0,
-	-1
-};
+#ifdef CONFIG_DA830_UI_LCD
+static inline void da830_evm_init_lcdc(void)
+{
+	int ret;
+
+	ret = da8xx_pinmux_setup(da830_lcdcntl_pins);
+	if (ret)
+		pr_warning("da830_evm_init: lcdcntl mux setup failed: %d\n",
+				ret);
+
+	ret = da8xx_register_lcdc(&sharp_lcd035q3dg01_pdata);
+	if (ret)
+		pr_warning("da830_evm_init: lcd setup failed: %d\n", ret);
+}
+#else
+static inline void da830_evm_init_lcdc(void) { }
+#endif
 
 static __init void da830_evm_init(void)
 {
@@ -480,27 +514,9 @@ static __init void da830_evm_init(void)
 
 	da830_evm_init_mmc();
 
-#ifdef CONFIG_DA830_UI
-#ifdef CONFIG_DA830_UI_LCD
-	ret = da8xx_pinmux_setup(da830_lcdcntl_pins);
-	if (ret)
-		pr_warning("da830_evm_init: lcdcntl mux setup failed: %d\n",
-				ret);
+	da830_evm_init_lcdc();
 
-	ret = da8xx_register_lcdc(&sharp_lcd035q3dg01_pdata);
-	if (ret)
-		pr_warning("da830_evm_init: lcd setup failed: %d\n", ret);
-#else /* Must be NAND or NOR */
-	ret = da8xx_pinmux_setup(da830_evm_emif25_pins);
-	if (ret)
-		pr_warning("da830_evm_init: emif25 mux setup failed: %d\n",
-				ret);
-
-	ret = platform_device_register(&da830_evm_nand_device);
-	if (ret)
-		pr_warning("da830_evm_init: NAND device not registered.\n");
-#endif
-#endif
+	da830_evm_init_nand();
 
 	ret = da8xx_register_rtc();
 	if (ret)
