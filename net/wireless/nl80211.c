@@ -1264,7 +1264,7 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 	if (!err)
 		err = func(&rdev->wiphy, dev, key.idx);
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	if (!err) {
 		if (func == rdev->ops->set_default_key)
 			dev->ieee80211_ptr->wext.default_key = key.idx;
@@ -1365,7 +1365,7 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	if (!err)
 		err = rdev->ops->del_key(&rdev->wiphy, dev, key.idx, mac_addr);
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	if (!err) {
 		if (key.idx == dev->ieee80211_ptr->wext.default_key)
 			dev->ieee80211_ptr->wext.default_key = -1;
@@ -3105,6 +3105,8 @@ static int nl80211_send_bss(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		NLA_PUT_U16(msg, NL80211_BSS_BEACON_INTERVAL, res->beacon_interval);
 	NLA_PUT_U16(msg, NL80211_BSS_CAPABILITY, res->capability);
 	NLA_PUT_U32(msg, NL80211_BSS_FREQUENCY, res->channel->center_freq);
+	NLA_PUT_U32(msg, NL80211_BSS_SEEN_MS_AGO,
+		jiffies_to_msecs(jiffies - intbss->ts));
 
 	switch (rdev->wiphy.signal_type) {
 	case CFG80211_SIGNAL_TYPE_MBM:

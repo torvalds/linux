@@ -1142,6 +1142,9 @@ struct wiphy {
 	u32 frag_threshold;
 	u32 rts_threshold;
 
+	char fw_version[ETHTOOL_BUSINFO_LEN];
+	u32 hw_version;
+
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't
 	 * know whether it points to a wiphy your driver has registered
@@ -1169,6 +1172,10 @@ struct wiphy {
 #ifdef CONFIG_NET_NS
 	/* the network namespace this phy lives in currently */
 	struct net *_net;
+#endif
+
+#ifdef CONFIG_CFG80211_WEXT
+	const struct iw_handler_def *wext;
 #endif
 
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
@@ -1345,7 +1352,7 @@ struct wireless_dev {
 	struct cfg80211_internal_bss *auth_bsses[MAX_AUTH_BSSES];
 	struct cfg80211_internal_bss *current_bss; /* associated / joined */
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	/* wext data */
 	struct {
 		struct cfg80211_ibss_params ibss;

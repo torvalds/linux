@@ -32,6 +32,7 @@
 #include <linux/io.h>
 
 #include "iwl-debug.h"
+#include "iwl-devtrace.h"
 
 /*
  * IO, register, and NIC memory access functions
@@ -61,7 +62,12 @@
  *
  */
 
-#define _iwl_write32(priv, ofs, val) iowrite32((val), (priv)->hw_base + (ofs))
+static inline void _iwl_write32(struct iwl_priv *priv, u32 ofs, u32 val)
+{
+	trace_iwlwifi_dev_iowrite32(priv, ofs, val);
+	iowrite32(val, priv->hw_base + ofs);
+}
+
 #ifdef CONFIG_IWLWIFI_DEBUG
 static inline void __iwl_write32(const char *f, u32 l, struct iwl_priv *priv,
 				 u32 ofs, u32 val)
@@ -75,7 +81,13 @@ static inline void __iwl_write32(const char *f, u32 l, struct iwl_priv *priv,
 #define iwl_write32(priv, ofs, val) _iwl_write32(priv, ofs, val)
 #endif
 
-#define _iwl_read32(priv, ofs) ioread32((priv)->hw_base + (ofs))
+static inline u32 _iwl_read32(struct iwl_priv *priv, u32 ofs)
+{
+	u32 val = ioread32(priv->hw_base + ofs);
+	trace_iwlwifi_dev_ioread32(priv, ofs, val);
+	return val;
+}
+
 #ifdef CONFIG_IWLWIFI_DEBUG
 static inline u32 __iwl_read32(char *f, u32 l, struct iwl_priv *priv, u32 ofs)
 {

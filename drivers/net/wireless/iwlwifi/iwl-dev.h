@@ -43,7 +43,6 @@
 #include "iwl-debug.h"
 #include "iwl-4965-hw.h"
 #include "iwl-3945-hw.h"
-#include "iwl-3945-led.h"
 #include "iwl-led.h"
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
@@ -57,17 +56,22 @@ extern struct iwl_cfg iwl5100_bg_cfg;
 extern struct iwl_cfg iwl5100_abg_cfg;
 extern struct iwl_cfg iwl5150_agn_cfg;
 extern struct iwl_cfg iwl6000h_2agn_cfg;
+extern struct iwl_cfg iwl6000h_2abg_cfg;
+extern struct iwl_cfg iwl6000h_2bg_cfg;
 extern struct iwl_cfg iwl6000i_2agn_cfg;
+extern struct iwl_cfg iwl6000i_2abg_cfg;
+extern struct iwl_cfg iwl6000i_2bg_cfg;
 extern struct iwl_cfg iwl6000_3agn_cfg;
 extern struct iwl_cfg iwl6050_2agn_cfg;
+extern struct iwl_cfg iwl6050_2abg_cfg;
 extern struct iwl_cfg iwl6050_3agn_cfg;
 extern struct iwl_cfg iwl1000_bgn_cfg;
+extern struct iwl_cfg iwl1000_bg_cfg;
 
 struct iwl_tx_queue;
 
 /* shared structures from iwl-5000.c */
 extern struct iwl_mod_params iwl50_mod_params;
-extern struct iwl_ops iwl5000_ops;
 extern struct iwl_ucode_ops iwl5000_ucode;
 extern struct iwl_lib_ops iwl5000_lib;
 extern struct iwl_hcmd_ops iwl5000_hcmd;
@@ -82,7 +86,6 @@ extern void iwl5000_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
 extern int iwl5000_calc_rssi(struct iwl_priv *priv,
 			     struct iwl_rx_phy_res *rx_resp);
 extern int iwl5000_apm_init(struct iwl_priv *priv);
-extern void iwl5000_apm_stop(struct iwl_priv *priv);
 extern int iwl5000_apm_reset(struct iwl_priv *priv);
 extern void iwl5000_nic_config(struct iwl_priv *priv);
 extern u16 iwl5000_eeprom_calib_version(struct iwl_priv *priv);
@@ -502,12 +505,11 @@ union iwl_ht_rate_supp {
 #define CFG_HT_MPDU_DENSITY_4USEC   (0x5)
 #define CFG_HT_MPDU_DENSITY_DEF CFG_HT_MPDU_DENSITY_4USEC
 
-struct iwl_ht_info {
+struct iwl_ht_config {
 	/* self configuration data */
-	u8 is_ht;
-	u8 supported_chan_width;
-	u8 sm_ps;
-	struct ieee80211_mcs_info mcs;
+	bool is_ht;
+	bool is_40mhz;
+	bool single_chain_sufficient;
 	/* BSS related data */
 	u8 extension_chan_offset;
 	u8 ht_protection;
@@ -726,9 +728,6 @@ struct iwl_dma_ptr {
 	size_t size;
 };
 
-#define IWL_CHANNEL_WIDTH_20MHZ   0
-#define IWL_CHANNEL_WIDTH_40MHZ   1
-
 #define IWL_OPERATION_MODE_AUTO     0
 #define IWL_OPERATION_MODE_HT_ONLY  1
 #define IWL_OPERATION_MODE_MIXED    2
@@ -741,7 +740,8 @@ struct iwl_dma_ptr {
 
 /* Sensitivity and chain noise calibration */
 #define INITIALIZATION_VALUE		0xFFFF
-#define CAL_NUM_OF_BEACONS		20
+#define IWL4965_CAL_NUM_BEACONS		20
+#define IWL_CAL_NUM_BEACONS		16
 #define MAXIMUM_ALLOWED_PATHLOSS	15
 
 #define CHAIN_NOISE_MAX_DELTA_GAIN_CODE 3
@@ -1063,14 +1063,11 @@ struct iwl_priv {
 	struct iwl_init_alive_resp card_alive_init;
 	struct iwl_alive_resp card_alive;
 
-#ifdef CONFIG_IWLWIFI_LEDS
 	unsigned long last_blink_time;
 	u8 last_blink_rate;
 	u8 allow_blinking;
 	u64 led_tpt;
-	struct iwl_led led[IWL_LED_TRG_MAX];
-	unsigned int rxtxpackets;
-#endif
+
 	u16 active_rate;
 	u16 active_rate_basic;
 
@@ -1080,7 +1077,7 @@ struct iwl_priv {
 	struct iwl_chain_noise_data chain_noise_data;
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
 
-	struct iwl_ht_info current_ht_config;
+	struct iwl_ht_config current_ht_config;
 	u8 last_phy_res[100];
 
 	/* Rate scaling data */

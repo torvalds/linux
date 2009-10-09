@@ -59,7 +59,7 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 
 	/* virtual addr of the beginning of the buffer. */
 	skb = bf->bf_mpdu;
-	ASSERT(skb != NULL);
+	BUG_ON(skb == NULL);
 	ds->ds_vdata = skb->data;
 
 	/* setup rx descriptors. The rx.bufsize here tells the harware
@@ -272,6 +272,8 @@ rx_next:
 static void ath_opmode_init(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
 	u32 rfilt, mfilt[2];
 
 	/* configure rx filter */
@@ -280,13 +282,13 @@ static void ath_opmode_init(struct ath_softc *sc)
 
 	/* configure bssid mask */
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath9k_hw_setbssidmask(sc);
+		ath_hw_setbssidmask(common);
 
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);
 
 	/* Handle any link-level address change. */
-	ath9k_hw_setmac(ah, sc->sc_ah->macaddr);
+	ath9k_hw_setmac(ah, common->macaddr);
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
@@ -295,6 +297,7 @@ static void ath_opmode_init(struct ath_softc *sc)
 
 int ath_rx_init(struct ath_softc *sc, int nbufs)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct sk_buff *skb;
 	struct ath_buf *bf;
 	int error = 0;
@@ -304,23 +307,23 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	spin_lock_init(&sc->rx.rxbuflock);
 
 	sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
-				 min(sc->common.cachelsz, (u16)64));
+				 min(common->cachelsz, (u16)64));
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
-		sc->common.cachelsz, sc->rx.bufsize);
+	ath_print(common, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
+		  common->cachelsz, sc->rx.bufsize);
 
 	/* Initialize rx descriptors */
 
 	error = ath_descdma_setup(sc, &sc->rx.rxdma, &sc->rx.rxbuf,
 				  "rx", nbufs, 1);
 	if (error != 0) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"failed to allocate rx descriptors: %d\n", error);
+		ath_print(common, ATH_DBG_FATAL,
+			  "failed to allocate rx descriptors: %d\n", error);
 		goto err;
 	}
 
 	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-		skb = ath_rxbuf_alloc(&sc->common, sc->rx.bufsize, GFP_KERNEL);
+		skb = ath_rxbuf_alloc(common, sc->rx.bufsize, GFP_KERNEL);
 		if (skb == NULL) {
 			error = -ENOMEM;
 			goto err;
@@ -334,8 +337,8 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 					       bf->bf_buf_addr))) {
 			dev_kfree_skb_any(skb);
 			bf->bf_mpdu = NULL;
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"dma_mapping_error() on RX init\n");
+			ath_print(common, ATH_DBG_FATAL,
+				  "dma_mapping_error() on RX init\n");
 			error = -ENOMEM;
 			goto err;
 		}
@@ -420,7 +423,10 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	if (sc->rx.rxfilter & FIF_PSPOLL)
+	if ((AR_SREV_9280_10_OR_LATER(sc->sc_ah) ||
+	    AR_SREV_9285_10_OR_LATER(sc->sc_ah)) &&
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_AP) &&
+	    (sc->rx.rxfilter & FIF_PSPOLL))
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
 	if (conf_is_ht(&sc->hw->conf))
@@ -527,20 +533,22 @@ static bool ath_beacon_dtim_pending_cab(struct sk_buff *skb)
 static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	if (skb->len < 24 + 8 + 2 + 2)
 		return;
 
 	mgmt = (struct ieee80211_mgmt *)skb->data;
-	if (memcmp(sc->curbssid, mgmt->bssid, ETH_ALEN) != 0)
+	if (memcmp(common->curbssid, mgmt->bssid, ETH_ALEN) != 0)
 		return; /* not from our current AP */
 
 	sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
 
 	if (sc->sc_flags & SC_OP_BEACON_SYNC) {
 		sc->sc_flags &= ~SC_OP_BEACON_SYNC;
-		DPRINTF(sc, ATH_DBG_PS, "Reconfigure Beacon timers based on "
-			"timestamp from the AP\n");
+		ath_print(common, ATH_DBG_PS,
+			  "Reconfigure Beacon timers based on "
+			  "timestamp from the AP\n");
 		ath_beacon_config(sc, NULL);
 	}
 
@@ -552,8 +560,8 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * a backup trigger for returning into NETWORK SLEEP state,
 		 * so we are waiting for it as well.
 		 */
-		DPRINTF(sc, ATH_DBG_PS, "Received DTIM beacon indicating "
-			"buffered broadcast/multicast frame(s)\n");
+		ath_print(common, ATH_DBG_PS, "Received DTIM beacon indicating "
+			  "buffered broadcast/multicast frame(s)\n");
 		sc->sc_flags |= SC_OP_WAIT_FOR_CAB | SC_OP_WAIT_FOR_BEACON;
 		return;
 	}
@@ -565,13 +573,15 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * been delivered.
 		 */
 		sc->sc_flags &= ~SC_OP_WAIT_FOR_CAB;
-		DPRINTF(sc, ATH_DBG_PS, "PS wait for CAB frames timed out\n");
+		ath_print(common, ATH_DBG_PS,
+			  "PS wait for CAB frames timed out\n");
 	}
 }
 
 static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 
@@ -589,14 +599,15 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 		 * point.
 		 */
 		sc->sc_flags &= ~SC_OP_WAIT_FOR_CAB;
-		DPRINTF(sc, ATH_DBG_PS, "All PS CAB frames received, back to "
-			"sleep\n");
+		ath_print(common, ATH_DBG_PS,
+			  "All PS CAB frames received, back to sleep\n");
 	} else if ((sc->sc_flags & SC_OP_WAIT_FOR_PSPOLL_DATA) &&
 		   !is_multicast_ether_addr(hdr->addr1) &&
 		   !ieee80211_has_morefrags(hdr->frame_control)) {
 		sc->sc_flags &= ~SC_OP_WAIT_FOR_PSPOLL_DATA;
-		DPRINTF(sc, ATH_DBG_PS, "Going back to sleep after having "
-			"received PS-Poll data (0x%x)\n",
+		ath_print(common, ATH_DBG_PS,
+			  "Going back to sleep after having received "
+			  "PS-Poll data (0x%x)\n",
 			sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
 					SC_OP_WAIT_FOR_CAB |
 					SC_OP_WAIT_FOR_PSPOLL_DATA |
@@ -651,6 +662,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 	struct sk_buff *skb = NULL, *requeue_skb;
 	struct ieee80211_rx_status rx_status;
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_hdr *hdr;
 	int hdrlen, padsize, retval;
 	bool decrypt_error = false;
@@ -749,7 +761,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		/* Ensure we always have an skb to requeue once we are done
 		 * processing the current buffer's skb */
-		requeue_skb = ath_rxbuf_alloc(&sc->common, sc->rx.bufsize, GFP_ATOMIC);
+		requeue_skb = ath_rxbuf_alloc(common, sc->rx.bufsize, GFP_ATOMIC);
 
 		/* If there is no memory we ignore the current RX'd frame,
 		 * tell hardware it can give us a new frame using the old
@@ -811,8 +823,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			  bf->bf_buf_addr))) {
 			dev_kfree_skb_any(requeue_skb);
 			bf->bf_mpdu = NULL;
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"dma_mapping_error() on RX\n");
+			ath_print(common, ATH_DBG_FATAL,
+				  "dma_mapping_error() on RX\n");
 			ath_rx_send_to_mac80211(sc, skb, &rx_status);
 			break;
 		}

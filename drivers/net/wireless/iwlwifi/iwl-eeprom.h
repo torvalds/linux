@@ -63,6 +63,8 @@
 #ifndef __iwl_eeprom_h__
 #define __iwl_eeprom_h__
 
+#include <net/mac80211.h>
+
 struct iwl_priv;
 
 /*
@@ -256,6 +258,12 @@ struct iwl_eeprom_enhanced_txpwr {
 #define EEPROM_5050_TX_POWER_VERSION    (4)
 #define EEPROM_5050_EEPROM_VERSION	(0x21E)
 
+/* 1000 Specific */
+#define EEPROM_1000_EEPROM_VERSION	(0x15C)
+
+/* 60x0 Specific */
+#define EEPROM_6000_EEPROM_VERSION	(0x434)
+
 /* OTP */
 /* lower blocks contain EEPROM image and calibration data */
 #define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
@@ -370,12 +378,10 @@ struct iwl_eeprom_calib_info {
 #define EEPROM_BOARD_PBA_NUMBER             (2*0x3B+1)	/* 9  bytes */
 #define EEPROM_VERSION                      (2*0x44)	/* 2  bytes */
 #define EEPROM_SKU_CAP                      (2*0x45)	/* 1  bytes */
-#define EEPROM_LEDS_MODE                    (2*0x45+1)	/* 1  bytes */
 #define EEPROM_OEM_MODE                     (2*0x46)	/* 2  bytes */
 #define EEPROM_WOWLAN_MODE                  (2*0x47)	/* 2  bytes */
 #define EEPROM_RADIO_CONFIG                 (2*0x48)	/* 2  bytes */
 #define EEPROM_3945_M_VERSION               (2*0x4A)	/* 1  bytes */
-#define EEPROM_ANTENNA_SWITCH_TYPE          (2*0x4A+1)	/* 1  bytes */
 
 /* The following masks are to be applied on EEPROM_RADIO_CONFIG */
 #define EEPROM_RF_CFG_TYPE_MSK(x)   (x & 0x3)         /* bits 0-1   */
@@ -387,7 +393,12 @@ struct iwl_eeprom_calib_info {
 
 #define EEPROM_3945_RF_CFG_TYPE_MAX  0x0
 #define EEPROM_4965_RF_CFG_TYPE_MAX  0x1
-#define EEPROM_5000_RF_CFG_TYPE_MAX  0x3
+
+/* Radio Config for 5000 and up */
+#define EEPROM_RF_CONFIG_TYPE_R3x3	0x0
+#define EEPROM_RF_CONFIG_TYPE_R2x2	0x1
+#define EEPROM_RF_CONFIG_TYPE_R1x2	0x2
+#define EEPROM_RF_CONFIG_TYPE_MAX	0x3
 
 /*
  * Per-channel regulatory data.

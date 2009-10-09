@@ -17,6 +17,8 @@
 #ifndef REG_H
 #define REG_H
 
+#include "../reg.h"
+
 #define AR_CR                0x0008
 #define AR_CR_RXE            0x00000004
 #define AR_CR_RXD            0x00000020
@@ -1420,9 +1422,6 @@ enum {
 #define AR_SLEEP2                   0x80d8
 #define AR_SLEEP2_BEACON_TIMEOUT    0xFFE00000
 #define AR_SLEEP2_BEACON_TIMEOUT_S  21
-
-#define AR_BSSMSKL            0x80e0
-#define AR_BSSMSKU            0x80e4
 
 #define AR_TPC                 0x80e8
 #define AR_TPC_ACK             0x0000003f

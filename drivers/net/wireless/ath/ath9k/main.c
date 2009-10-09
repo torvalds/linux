@@ -16,6 +16,7 @@
 
 #include <linux/nl80211.h>
 #include "ath9k.h"
+#include "btcoex.h"
 
 static char *dev_info = "ath9k";
 
@@ -27,6 +28,10 @@ MODULE_LICENSE("Dual BSD/GPL");
 static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
+
+static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
+module_param_named(debug, ath9k_debug, uint, 0);
+MODULE_PARM_DESC(debug, "Debugging mask");
 
 /* We use the hw_value as an index into our private channel structure */
 
@@ -224,8 +229,9 @@ static void ath_setup_rates(struct ath_softc *sc, enum ieee80211_band band)
 		}
 		sband->n_bitrates++;
 
-		DPRINTF(sc, ATH_DBG_CONFIG, "Rate: %2dMbps, ratecode: %2d\n",
-			rate[i].bitrate / 10, rate[i].hw_value);
+		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
+			  "Rate: %2dMbps, ratecode: %2d\n",
+			  rate[i].bitrate / 10, rate[i].hw_value);
 	}
 }
 
@@ -242,6 +248,51 @@ static struct ath9k_channel *ath_get_curchannel(struct ath_softc *sc,
 	return channel;
 }
 
+static bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
+{
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	ret = ath9k_hw_setpower(sc->sc_ah, mode);
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+
+	return ret;
+}
+
+void ath9k_ps_wakeup(struct ath_softc *sc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	if (++sc->ps_usecount != 1)
+		goto unlock;
+
+	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
+
+ unlock:
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+}
+
+void ath9k_ps_restore(struct ath_softc *sc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	if (--sc->ps_usecount != 0)
+		goto unlock;
+
+	if (sc->ps_enabled &&
+	    !(sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
+			      SC_OP_WAIT_FOR_CAB |
+			      SC_OP_WAIT_FOR_PSPOLL_DATA |
+			      SC_OP_WAIT_FOR_TX_ACK)))
+		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
+
+ unlock:
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+}
+
 /*
  * Set/change channels.  If the channel is really being changed, it's done
  * by reseting the chip.  To accomplish this we must first cleanup any pending
@@ -251,6 +302,8 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		    struct ath9k_channel *hchan)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ieee80211_conf *conf = &common->hw->conf;
 	bool fastcc = true, stopped;
 	struct ieee80211_channel *channel = hw->conf.channel;
 	int r;
@@ -280,19 +333,19 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	if (!stopped || (sc->sc_flags & SC_OP_FULL_RESET))
 		fastcc = false;
 
-	DPRINTF(sc, ATH_DBG_CONFIG,
-		"(%u MHz) -> (%u MHz), chanwidth: %d\n",
-		sc->sc_ah->curchan->channel,
-		channel->center_freq, sc->tx_chan_width);
+	ath_print(common, ATH_DBG_CONFIG,
+		  "(%u MHz) -> (%u MHz), conf_is_ht40: %d\n",
+		  sc->sc_ah->curchan->channel,
+		  channel->center_freq, conf_is_ht40(conf));
 
 	spin_lock_bh(&sc->sc_resetlock);
 
 	r = ath9k_hw_reset(ah, hchan, fastcc);
 	if (r) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to reset channel (%u Mhz) "
-			"reset status %d\n",
-			channel->center_freq, r);
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to reset channel (%u Mhz) "
+			  "reset status %d\n",
+			  channel->center_freq, r);
 		spin_unlock_bh(&sc->sc_resetlock);
 		goto ps_restore;
 	}
@@ -301,8 +354,8 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	sc->sc_flags &= ~SC_OP_FULL_RESET;
 
 	if (ath_startrecv(sc) != 0) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to restart recv logic\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to restart recv logic\n");
 		r = -EIO;
 		goto ps_restore;
 	}
@@ -327,6 +380,7 @@ static void ath_ani_calibrate(unsigned long data)
 {
 	struct ath_softc *sc = (struct ath_softc *)data;
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	bool longcal = false;
 	bool shortcal = false;
 	bool aniflag = false;
@@ -353,7 +407,7 @@ static void ath_ani_calibrate(unsigned long data)
 	/* Long calibration runs independently of short calibration. */
 	if ((timestamp - sc->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
 		longcal = true;
-		DPRINTF(sc, ATH_DBG_ANI, "longcal @%lu\n", jiffies);
+		ath_print(common, ATH_DBG_ANI, "longcal @%lu\n", jiffies);
 		sc->ani.longcal_timer = timestamp;
 	}
 
@@ -361,7 +415,8 @@ static void ath_ani_calibrate(unsigned long data)
 	if (!sc->ani.caldone) {
 		if ((timestamp - sc->ani.shortcal_timer) >= short_cal_interval) {
 			shortcal = true;
-			DPRINTF(sc, ATH_DBG_ANI, "shortcal @%lu\n", jiffies);
+			ath_print(common, ATH_DBG_ANI,
+				  "shortcal @%lu\n", jiffies);
 			sc->ani.shortcal_timer = timestamp;
 			sc->ani.resetcal_timer = timestamp;
 		}
@@ -388,16 +443,21 @@ static void ath_ani_calibrate(unsigned long data)
 
 		/* Perform calibration if necessary */
 		if (longcal || shortcal) {
-			sc->ani.caldone = ath9k_hw_calibrate(ah, ah->curchan,
-						     sc->rx_chainmask, longcal);
+			sc->ani.caldone =
+				ath9k_hw_calibrate(ah,
+						   ah->curchan,
+						   common->rx_chainmask,
+						   longcal);
 
 			if (longcal)
 				sc->ani.noise_floor = ath9k_hw_getchan_noise(ah,
 								     ah->curchan);
 
-			DPRINTF(sc, ATH_DBG_ANI," calibrate chan %u/%x nf: %d\n",
-				ah->curchan->channel, ah->curchan->channelFlags,
-				sc->ani.noise_floor);
+			ath_print(common, ATH_DBG_ANI,
+				  " calibrate chan %u/%x nf: %d\n",
+				  ah->curchan->channel,
+				  ah->curchan->channelFlags,
+				  sc->ani.noise_floor);
 		}
 	}
 
@@ -439,17 +499,22 @@ static void ath_start_ani(struct ath_softc *sc)
  */
 void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
 	if ((sc->sc_flags & SC_OP_SCANNING) || is_ht ||
-	    (sc->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE)) {
-		sc->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
-		sc->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
+	    (ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE)) {
+		common->tx_chainmask = ah->caps.tx_chainmask;
+		common->rx_chainmask = ah->caps.rx_chainmask;
 	} else {
-		sc->tx_chainmask = 1;
-		sc->rx_chainmask = 1;
+		common->tx_chainmask = 1;
+		common->rx_chainmask = 1;
 	}
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "tx chmask: %d, rx chmask: %d\n",
-		sc->tx_chainmask, sc->rx_chainmask);
+	ath_print(common, ATH_DBG_CONFIG,
+		  "tx chmask: %d, rx chmask: %d\n",
+		  common->tx_chainmask,
+		  common->rx_chainmask);
 }
 
 static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
@@ -478,6 +543,9 @@ static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 static void ath9k_tasklet(unsigned long data)
 {
 	struct ath_softc *sc = (struct ath_softc *)data;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
 	u32 status = sc->intrstatus;
 
 	ath9k_ps_wakeup(sc);
@@ -502,16 +570,17 @@ static void ath9k_tasklet(unsigned long data)
 		 * TSF sync does not look correct; remain awake to sync with
 		 * the next Beacon.
 		 */
-		DPRINTF(sc, ATH_DBG_PS, "TSFOOR - Sync with next Beacon\n");
+		ath_print(common, ATH_DBG_PS,
+			  "TSFOOR - Sync with next Beacon\n");
 		sc->sc_flags |= SC_OP_WAIT_FOR_BEACON | SC_OP_BEACON_SYNC;
 	}
 
-	if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
+	if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 		if (status & ATH9K_INT_GENTIMER)
 			ath_gen_timer_isr(sc->sc_ah);
 
 	/* re-enable hardware interrupt */
-	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
+	ath9k_hw_set_interrupts(ah, sc->imask);
 	ath9k_ps_restore(sc);
 }
 
@@ -602,7 +671,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 		if (status & ATH9K_INT_TIM_TIMER) {
 			/* Clear RxAbort bit so that we can
 			 * receive frames */
-			ath9k_hw_setpower(ah, ATH9K_PM_AWAKE);
+			ath9k_setpower(sc, ATH9K_PM_AWAKE);
 			ath9k_hw_setrxabort(sc->sc_ah, 0);
 			sc->sc_flags |= SC_OP_WAIT_FOR_BEACON;
 		}
@@ -702,8 +771,8 @@ static int ath_setkey_tkip(struct ath_softc *sc, u16 keyix, const u8 *key,
 	memcpy(hk->kv_mic, key_txmic, sizeof(hk->kv_mic));
 	if (!ath9k_hw_set_keycache_entry(sc->sc_ah, keyix, hk, NULL)) {
 		/* TX MIC entry failed. No need to proceed further */
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Setting TX MIC Key Failed\n");
+		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
+			  "Setting TX MIC Key Failed\n");
 		return 0;
 	}
 
@@ -890,6 +959,7 @@ static void ath_key_delete(struct ath_softc *sc, struct ieee80211_key_conf *key)
 static void setup_ht_cap(struct ath_softc *sc,
 			 struct ieee80211_sta_ht_cap *ht_info)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u8 tx_streams, rx_streams;
 
 	ht_info->ht_supported = true;
@@ -903,12 +973,15 @@ static void setup_ht_cap(struct ath_softc *sc,
 
 	/* set up supported mcs set */
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	tx_streams = !(sc->tx_chainmask & (sc->tx_chainmask - 1)) ? 1 : 2;
-	rx_streams = !(sc->rx_chainmask & (sc->rx_chainmask - 1)) ? 1 : 2;
+	tx_streams = !(common->tx_chainmask & (common->tx_chainmask - 1)) ?
+		     1 : 2;
+	rx_streams = !(common->rx_chainmask & (common->rx_chainmask - 1)) ?
+		     1 : 2;
 
 	if (tx_streams != rx_streams) {
-		DPRINTF(sc, ATH_DBG_CONFIG, "TX streams %d, RX streams: %d\n",
-			tx_streams, rx_streams);
+		ath_print(common, ATH_DBG_CONFIG,
+			  "TX streams %d, RX streams: %d\n",
+			  tx_streams, rx_streams);
 		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
 		ht_info->mcs.tx_params |= ((tx_streams - 1) <<
 				IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
@@ -925,14 +998,17 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *bss_conf)
 {
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (bss_conf->assoc) {
-		DPRINTF(sc, ATH_DBG_CONFIG, "Bss Info ASSOC %d, bssid: %pM\n",
-			bss_conf->aid, sc->curbssid);
+		ath_print(common, ATH_DBG_CONFIG,
+			  "Bss Info ASSOC %d, bssid: %pM\n",
+			   bss_conf->aid, common->curbssid);
 
 		/* New association, store aid */
-		sc->curaid = bss_conf->aid;
-		ath9k_hw_write_associd(sc);
+		common->curaid = bss_conf->aid;
+		ath9k_hw_write_associd(ah);
 
 		/*
 		 * Request a re-configuration of Beacon related timers
@@ -949,8 +1025,8 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 
 		ath_start_ani(sc);
 	} else {
-		DPRINTF(sc, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
-		sc->curaid = 0;
+		ath_print(common, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
+		common->curaid = 0;
 		/* Stop ANI */
 		del_timer_sync(&sc->ani.timer);
 	}
@@ -1042,8 +1118,8 @@ static int ath_register_led(struct ath_softc *sc, struct ath_led *led,
 
 	ret = led_classdev_register(wiphy_dev(sc->hw->wiphy), &led->led_cdev);
 	if (ret)
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Failed to register led:%s", led->name);
+		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
+			  "Failed to register led:%s", led->name);
 	else
 		led->registered = 1;
 	return ret;
@@ -1127,6 +1203,7 @@ fail:
 void ath_radio_enable(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_channel *channel = sc->hw->conf.channel;
 	int r;
 
@@ -1139,17 +1216,17 @@ void ath_radio_enable(struct ath_softc *sc)
 	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, ah->curchan, false);
 	if (r) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to reset channel %u (%uMhz) ",
-			"reset status %d\n",
-			channel->center_freq, r);
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to reset channel %u (%uMhz) ",
+			  "reset status %d\n",
+			  channel->center_freq, r);
 	}
 	spin_unlock_bh(&sc->sc_resetlock);
 
 	ath_update_txpow(sc);
 	if (ath_startrecv(sc) != 0) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to restart recv logic\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to restart recv logic\n");
 		return;
 	}
 
@@ -1194,17 +1271,17 @@ void ath_radio_disable(struct ath_softc *sc)
 	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, ah->curchan, false);
 	if (r) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to reset channel %u (%uMhz) "
-			"reset status %d\n",
-			channel->center_freq, r);
+		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
+			  "Unable to reset channel %u (%uMhz) "
+			  "reset status %d\n",
+			  channel->center_freq, r);
 	}
 	spin_unlock_bh(&sc->sc_resetlock);
 
 	ath9k_hw_phy_disable(ah);
 	ath9k_hw_configpcipowersave(ah, 1, 1);
 	ath9k_ps_restore(sc);
-	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
+	ath9k_setpower(sc, ATH9K_PM_FULL_SLEEP);
 }
 
 /*******************/
@@ -1236,23 +1313,26 @@ static void ath_start_rfkill_poll(struct ath_softc *sc)
 		wiphy_rfkill_start_polling(sc->hw->wiphy);
 }
 
-void ath_cleanup(struct ath_softc *sc)
+static void ath9k_uninit_hw(struct ath_softc *sc)
 {
-	ath_detach(sc);
-	free_irq(sc->irq, sc);
-	ath_bus_cleanup(sc);
-	kfree(sc->sec_wiphy);
-	ieee80211_free_hw(sc->hw);
+	struct ath_hw *ah = sc->sc_ah;
+
+	BUG_ON(!ah);
+
+	ath9k_exit_debug(ah);
+	ath9k_hw_detach(ah);
+	sc->sc_ah = NULL;
 }
 
-void ath_detach(struct ath_softc *sc)
+static void ath_clean_core(struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
+	struct ath_hw *ah = sc->sc_ah;
 	int i = 0;
 
 	ath9k_ps_wakeup(sc);
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "Detach ATH hw\n");
+	dev_dbg(sc->dev, "Detach ATH hw\n");
 
 	ath_deinit_leds(sc);
 	wiphy_rfkill_stop_polling(sc->hw->wiphy);
@@ -1273,20 +1353,36 @@ void ath_detach(struct ath_softc *sc)
 	tasklet_kill(&sc->bcon_tasklet);
 
 	if (!(sc->sc_flags & SC_OP_INVALID))
-		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
+		ath9k_setpower(sc, ATH9K_PM_AWAKE);
 
 	/* cleanup tx queues */
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
-	if ((sc->btcoex_info.no_stomp_timer) &&
-	    sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
-		ath_gen_timer_free(sc->sc_ah, sc->btcoex_info.no_stomp_timer);
+	if ((sc->btcoex.no_stomp_timer) &&
+	    ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+		ath_gen_timer_free(ah, sc->btcoex.no_stomp_timer);
+}
 
-	ath9k_hw_detach(sc->sc_ah);
-	sc->sc_ah = NULL;
-	ath9k_exit_debug(sc);
+void ath_detach(struct ath_softc *sc)
+{
+	ath_clean_core(sc);
+	ath9k_uninit_hw(sc);
+}
+
+void ath_cleanup(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	ath_clean_core(sc);
+	free_irq(sc->irq, sc);
+	ath_bus_cleanup(common);
+	kfree(sc->sec_wiphy);
+	ieee80211_free_hw(sc->hw);
+
+	ath9k_uninit_hw(sc);
 }
 
 static int ath9k_reg_notifier(struct wiphy *wiphy,
@@ -1295,10 +1391,226 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
-	struct ath_regulatory *reg = &sc->common.regulatory;
+	struct ath_regulatory *reg = ath9k_hw_regulatory(sc->sc_ah);
 
 	return ath_reg_notifier_apply(wiphy, request, reg);
 }
+
+/*
+ * Detects if there is any priority bt traffic
+ */
+static void ath_detect_bt_priority(struct ath_softc *sc)
+{
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_hw *ah = sc->sc_ah;
+
+	if (ath9k_hw_gpio_get(sc->sc_ah, ah->btcoex_hw.btpriority_gpio))
+		btcoex->bt_priority_cnt++;
+
+	if (time_after(jiffies, btcoex->bt_priority_time +
+			msecs_to_jiffies(ATH_BT_PRIORITY_TIME_THRESHOLD))) {
+		if (btcoex->bt_priority_cnt >= ATH_BT_CNT_THRESHOLD) {
+			ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_BTCOEX,
+				  "BT priority traffic detected");
+			sc->sc_flags |= SC_OP_BT_PRIORITY_DETECTED;
+		} else {
+			sc->sc_flags &= ~SC_OP_BT_PRIORITY_DETECTED;
+		}
+
+		btcoex->bt_priority_cnt = 0;
+		btcoex->bt_priority_time = jiffies;
+	}
+}
+
+/*
+ * Configures appropriate weight based on stomp type.
+ */
+static void ath9k_btcoex_bt_stomp(struct ath_softc *sc,
+				  enum ath_stomp_type stomp_type)
+{
+	struct ath_hw *ah = sc->sc_ah;
+
+	switch (stomp_type) {
+	case ATH_BTCOEX_STOMP_ALL:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_ALL_WLAN_WGHT);
+		break;
+	case ATH_BTCOEX_STOMP_LOW:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_LOW_WLAN_WGHT);
+		break;
+	case ATH_BTCOEX_STOMP_NONE:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_NONE_WLAN_WGHT);
+		break;
+	default:
+		ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
+			  "Invalid Stomptype\n");
+		break;
+	}
+
+	ath9k_hw_btcoex_enable(ah);
+}
+
+static void ath9k_gen_timer_start(struct ath_hw *ah,
+				  struct ath_gen_timer *timer,
+				  u32 timer_next,
+				  u32 timer_period)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+
+	ath9k_hw_gen_timer_start(ah, timer, timer_next, timer_period);
+
+	if ((sc->imask & ATH9K_INT_GENTIMER) == 0) {
+		ath9k_hw_set_interrupts(ah, 0);
+		sc->imask |= ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah, sc->imask);
+	}
+}
+
+static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+	struct ath_gen_timer_table *timer_table = &ah->hw_gen_timers;
+
+	ath9k_hw_gen_timer_stop(ah, timer);
+
+	/* if no timer is enabled, turn off interrupt mask */
+	if (timer_table->timer_mask.val == 0) {
+		ath9k_hw_set_interrupts(ah, 0);
+		sc->imask &= ~ATH9K_INT_GENTIMER;
+		ath9k_hw_set_interrupts(ah, sc->imask);
+	}
+}
+
+/*
+ * This is the master bt coex timer which runs for every
+ * 45ms, bt traffic will be given priority during 55% of this
+ * period while wlan gets remaining 45%
+ */
+static void ath_btcoex_period_timer(unsigned long data)
+{
+	struct ath_softc *sc = (struct ath_softc *) data;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_btcoex *btcoex = &sc->btcoex;
+
+	ath_detect_bt_priority(sc);
+
+	spin_lock_bh(&btcoex->btcoex_lock);
+
+	ath9k_btcoex_bt_stomp(sc, btcoex->bt_stomp_type);
+
+	spin_unlock_bh(&btcoex->btcoex_lock);
+
+	if (btcoex->btcoex_period != btcoex->btcoex_no_stomp) {
+		if (btcoex->hw_timer_enabled)
+			ath9k_gen_timer_stop(ah, btcoex->no_stomp_timer);
+
+		ath9k_gen_timer_start(ah,
+				      btcoex->no_stomp_timer,
+				      (ath9k_hw_gettsf32(ah) +
+				       btcoex->btcoex_no_stomp),
+				       btcoex->btcoex_no_stomp * 10);
+		btcoex->hw_timer_enabled = true;
+	}
+
+	mod_timer(&btcoex->period_timer, jiffies +
+				  msecs_to_jiffies(ATH_BTCOEX_DEF_BT_PERIOD));
+}
+
+/*
+ * Generic tsf based hw timer which configures weight
+ * registers to time slice between wlan and bt traffic
+ */
+static void ath_btcoex_no_stomp_timer(void *arg)
+{
+	struct ath_softc *sc = (struct ath_softc *)arg;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_btcoex *btcoex = &sc->btcoex;
+
+	ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
+		  "no stomp timer running \n");
+
+	spin_lock_bh(&btcoex->btcoex_lock);
+
+	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW)
+		ath9k_btcoex_bt_stomp(sc, ATH_BTCOEX_STOMP_NONE);
+	 else if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
+		ath9k_btcoex_bt_stomp(sc, ATH_BTCOEX_STOMP_LOW);
+
+	spin_unlock_bh(&btcoex->btcoex_lock);
+}
+
+static int ath_init_btcoex_timer(struct ath_softc *sc)
+{
+	struct ath_btcoex *btcoex = &sc->btcoex;
+
+	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD * 1000;
+	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
+		btcoex->btcoex_period / 100;
+
+	setup_timer(&btcoex->period_timer, ath_btcoex_period_timer,
+			(unsigned long) sc);
+
+	spin_lock_init(&btcoex->btcoex_lock);
+
+	btcoex->no_stomp_timer = ath_gen_timer_alloc(sc->sc_ah,
+			ath_btcoex_no_stomp_timer,
+			ath_btcoex_no_stomp_timer,
+			(void *) sc, AR_FIRST_NDP_TIMER);
+
+	if (!btcoex->no_stomp_timer)
+		return -ENOMEM;
+
+	return 0;
+}
+
+/*
+ * Read and write, they both share the same lock. We do this to serialize
+ * reads and writes on Atheros 802.11n PCI devices only. This is required
+ * as the FIFO on these devices can only accept sanely 2 requests. After
+ * that the device goes bananas. Serializing the reads/writes prevents this
+ * from happening.
+ */
+
+static void ath9k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
+{
+	struct ath_hw *ah = (struct ath_hw *) hw_priv;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+
+	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+		unsigned long flags;
+		spin_lock_irqsave(&sc->sc_serial_rw, flags);
+		iowrite32(val, sc->mem + reg_offset);
+		spin_unlock_irqrestore(&sc->sc_serial_rw, flags);
+	} else
+		iowrite32(val, sc->mem + reg_offset);
+}
+
+static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
+{
+	struct ath_hw *ah = (struct ath_hw *) hw_priv;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+	u32 val;
+
+	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+		unsigned long flags;
+		spin_lock_irqsave(&sc->sc_serial_rw, flags);
+		val = ioread32(sc->mem + reg_offset);
+		spin_unlock_irqrestore(&sc->sc_serial_rw, flags);
+	} else
+		val = ioread32(sc->mem + reg_offset);
+	return val;
+}
+
+static const struct ath_ops ath9k_common_ops = {
+	.read = ath9k_ioread32,
+	.write = ath9k_iowrite32,
+};
 
 /*
  * Initialize and fill ath_softc, ath_sofct is the
@@ -1306,17 +1618,17 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
  * to allow the separation between hardware specific
  * variables (now in ath_hw) and driver specific variables.
  */
-static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
+static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
+			  const struct ath_bus_ops *bus_ops)
 {
 	struct ath_hw *ah = NULL;
+	struct ath_common *common;
 	int r = 0, i;
 	int csz = 0;
+	int qnum;
 
 	/* XXX: hardware will not be ready until ath_open() being called */
 	sc->sc_flags |= SC_OP_INVALID;
-
-	if (ath9k_init_debug(sc) < 0)
-		printk(KERN_ERR "Unable to create debugfs files\n");
 
 	spin_lock_init(&sc->wiphy_lock);
 	spin_lock_init(&sc->sc_resetlock);
@@ -1328,39 +1640,50 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 	tasklet_init(&sc->bcon_tasklet, ath_beacon_tasklet,
 		     (unsigned long)sc);
 
-	/*
-	 * Cache line size is used to size and align various
-	 * structures used to communicate with the hardware.
-	 */
-	ath_read_cachesize(sc, &csz);
-	/* XXX assert csz is non-zero */
-	sc->common.cachelsz = csz << 2;	/* convert to bytes */
-
 	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
-	if (!ah) {
-		r = -ENOMEM;
-		goto bad_no_ah;
-	}
+	if (!ah)
+		return -ENOMEM;
 
-	ah->ah_sc = sc;
 	ah->hw_version.devid = devid;
 	ah->hw_version.subsysid = subsysid;
 	sc->sc_ah = ah;
 
+	common = ath9k_hw_common(ah);
+	common->ops = &ath9k_common_ops;
+	common->bus_ops = bus_ops;
+	common->ah = ah;
+	common->hw = sc->hw;
+	common->priv = sc;
+	common->debug_mask = ath9k_debug;
+
+	/*
+	 * Cache line size is used to size and align various
+	 * structures used to communicate with the hardware.
+	 */
+	ath_read_cachesize(common, &csz);
+	/* XXX assert csz is non-zero */
+	common->cachelsz = csz << 2;	/* convert to bytes */
+
 	r = ath9k_hw_init(ah);
 	if (r) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to initialize hardware; "
-			"initialization status: %d\n", r);
-		goto bad;
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to initialize hardware; "
+			  "initialization status: %d\n", r);
+		goto bad_free_hw;
+	}
+
+	if (ath9k_init_debug(ah) < 0) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to create debugfs files\n");
+		goto bad_free_hw;
 	}
 
 	/* Get the hardware key cache size. */
 	sc->keymax = ah->caps.keycache_size;
 	if (sc->keymax > ATH_KEYMAX) {
-		DPRINTF(sc, ATH_DBG_ANY,
-			"Warning, using only %u entries in %u key cache\n",
-			ATH_KEYMAX, sc->keymax);
+		ath_print(common, ATH_DBG_ANY,
+			  "Warning, using only %u entries in %u key cache\n",
+			  ATH_KEYMAX, sc->keymax);
 		sc->keymax = ATH_KEYMAX;
 	}
 
@@ -1386,17 +1709,17 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 	 * priority.  Note that the hal handles reseting
 	 * these queues at the needed time.
 	 */
-	sc->beacon.beaconq = ath_beaconq_setup(ah);
+	sc->beacon.beaconq = ath9k_hw_beaconq_setup(ah);
 	if (sc->beacon.beaconq == -1) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to setup a beacon xmit queue\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup a beacon xmit queue\n");
 		r = -EIO;
 		goto bad2;
 	}
 	sc->beacon.cabq = ath_txq_setup(sc, ATH9K_TX_QUEUE_CAB, 0);
 	if (sc->beacon.cabq == NULL) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to setup CAB xmit queue\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup CAB xmit queue\n");
 		r = -EIO;
 		goto bad2;
 	}
@@ -1410,27 +1733,27 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 	/* Setup data queues */
 	/* NB: ensure BK queue is the lowest priority h/w queue */
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_BK)) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to setup xmit queue for BK traffic\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup xmit queue for BK traffic\n");
 		r = -EIO;
 		goto bad2;
 	}
 
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_BE)) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to setup xmit queue for BE traffic\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup xmit queue for BE traffic\n");
 		r = -EIO;
 		goto bad2;
 	}
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_VI)) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to setup xmit queue for VI traffic\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup xmit queue for VI traffic\n");
 		r = -EIO;
 		goto bad2;
 	}
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_VO)) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to setup xmit queue for VO traffic\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup xmit queue for VO traffic\n");
 		r = -EIO;
 		goto bad2;
 	}
@@ -1480,14 +1803,14 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 		sc->sc_flags |= SC_OP_RXAGGR;
 	}
 
-	sc->tx_chainmask = ah->caps.tx_chainmask;
-	sc->rx_chainmask = ah->caps.rx_chainmask;
+	common->tx_chainmask = ah->caps.tx_chainmask;
+	common->rx_chainmask = ah->caps.rx_chainmask;
 
 	ath9k_hw_setcapability(ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
 	sc->rx.defant = ath9k_hw_getdefantenna(ah);
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		memcpy(sc->bssidmask, ath_bcast_mac, ETH_ALEN);
+		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;	/* default to short slot time */
 
@@ -1515,10 +1838,24 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid)
 			ARRAY_SIZE(ath9k_5ghz_chantable);
 	}
 
-	if (sc->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE) {
-		r = ath9k_hw_btcoex_init(ah);
+	switch (ah->btcoex_hw.scheme) {
+	case ATH_BTCOEX_CFG_NONE:
+		break;
+	case ATH_BTCOEX_CFG_2WIRE:
+		ath9k_hw_btcoex_init_2wire(ah);
+		break;
+	case ATH_BTCOEX_CFG_3WIRE:
+		ath9k_hw_btcoex_init_3wire(ah);
+		r = ath_init_btcoex_timer(sc);
 		if (r)
 			goto bad2;
+		qnum = ath_tx_get_qnum(sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
+		ath9k_hw_init_btcoex_hw(ah, qnum);
+		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+		break;
+	default:
+		WARN_ON(1);
+		break;
 	}
 
 	return 0;
@@ -1527,12 +1864,9 @@ bad2:
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
-bad:
-	ath9k_hw_detach(ah);
-	sc->sc_ah = NULL;
-bad_no_ah:
-	ath9k_exit_debug(sc);
 
+bad_free_hw:
+	ath9k_uninit_hw(sc);
 	return r;
 }
 
@@ -1574,34 +1908,40 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 }
 
 /* Device driver core initialization */
-int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid)
+int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
+		    const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = sc->hw;
+	struct ath_common *common;
+	struct ath_hw *ah;
 	int error = 0, i;
 	struct ath_regulatory *reg;
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "Attach ATH hw\n");
+	dev_dbg(sc->dev, "Attach ATH hw\n");
 
-	error = ath_init_softc(devid, sc, subsysid);
+	error = ath_init_softc(devid, sc, subsysid, bus_ops);
 	if (error != 0)
 		return error;
 
+	ah = sc->sc_ah;
+	common = ath9k_hw_common(ah);
+
 	/* get mac address from hardware and set in mac80211 */
 
-	SET_IEEE80211_PERM_ADDR(hw, sc->sc_ah->macaddr);
+	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
 
 	ath_set_hw_capab(sc, hw);
 
-	error = ath_regd_init(&sc->common.regulatory, sc->hw->wiphy,
+	error = ath_regd_init(&common->regulatory, sc->hw->wiphy,
 			      ath9k_reg_notifier);
 	if (error)
 		return error;
 
-	reg = &sc->common.regulatory;
+	reg = &common->regulatory;
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
 		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
-		if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes))
+		if (test_bit(ATH9K_MODE_11A, ah->caps.wireless_modes))
 			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 	}
 
@@ -1639,9 +1979,7 @@ error_attach:
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
-	ath9k_hw_detach(sc->sc_ah);
-	sc->sc_ah = NULL;
-	ath9k_exit_debug(sc);
+	ath9k_uninit_hw(sc);
 
 	return error;
 }
@@ -1649,6 +1987,7 @@ error_attach:
 int ath_reset(struct ath_softc *sc, bool retry_tx)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_hw *hw = sc->hw;
 	int r;
 
@@ -1660,12 +1999,13 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, sc->sc_ah->curchan, false);
 	if (r)
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to reset hardware; reset status %d\n", r);
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to reset hardware; reset status %d\n", r);
 	spin_unlock_bh(&sc->sc_resetlock);
 
 	if (ath_startrecv(sc) != 0)
-		DPRINTF(sc, ATH_DBG_FATAL, "Unable to start recv logic\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to start recv logic\n");
 
 	/*
 	 * We may be doing a reset in response to a request
@@ -1708,19 +2048,20 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
 #define ATH_DESC_4KB_BOUND_CHECK(_daddr) ((((_daddr) & 0xFFF) > 0xF7F) ? 1 : 0)
 #define ATH_DESC_4KB_BOUND_NUM_SKIPPED(_len) ((_len) / 4096)
-
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_desc *ds;
 	struct ath_buf *bf;
 	int i, bsize, error;
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "%s DMA: %u buffers %u desc/buf\n",
-		name, nbuf, ndesc);
+	ath_print(common, ATH_DBG_CONFIG, "%s DMA: %u buffers %u desc/buf\n",
+		  name, nbuf, ndesc);
 
 	INIT_LIST_HEAD(head);
 	/* ath_desc must be a multiple of DWORDs */
 	if ((sizeof(struct ath_desc) % 4) != 0) {
-		DPRINTF(sc, ATH_DBG_FATAL, "ath_desc not DWORD aligned\n");
-		ASSERT((sizeof(struct ath_desc) % 4) == 0);
+		ath_print(common, ATH_DBG_FATAL,
+			  "ath_desc not DWORD aligned\n");
+		BUG_ON((sizeof(struct ath_desc) % 4) != 0);
 		error = -ENOMEM;
 		goto fail;
 	}
@@ -1753,9 +2094,9 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		goto fail;
 	}
 	ds = dd->dd_desc;
-	DPRINTF(sc, ATH_DBG_CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
-		name, ds, (u32) dd->dd_desc_len,
-		ito64(dd->dd_desc_paddr), /*XXX*/(u32) dd->dd_desc_len);
+	ath_print(common, ATH_DBG_CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
+		  name, ds, (u32) dd->dd_desc_len,
+		  ito64(dd->dd_desc_paddr), /*XXX*/(u32) dd->dd_desc_len);
 
 	/* allocate buffers */
 	bsize = sizeof(struct ath_buf) * nbuf;
@@ -1778,7 +2119,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 			 * descriptor fetch.
 			 */
 			while (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr)) {
-				ASSERT((caddr_t) bf->bf_desc <
+				BUG_ON((caddr_t) bf->bf_desc >=
 				       ((caddr_t) dd->dd_desc +
 					dd->dd_desc_len));
 
@@ -1882,31 +2223,50 @@ void ath9k_update_ichannel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		ichan->channelFlags = CHANNEL_5GHZ | CHANNEL_OFDM;
 	}
 
-	sc->tx_chan_width = ATH9K_HT_MACMODE_20;
-
-	if (conf_is_ht(conf)) {
-		if (conf_is_ht40(conf))
-			sc->tx_chan_width = ATH9K_HT_MACMODE_2040;
-
+	if (conf_is_ht(conf))
 		ichan->chanmode = ath_get_extchanmode(sc, chan,
 					    conf->channel_type);
-	}
 }
 
 /**********************/
 /* mac80211 callbacks */
 /**********************/
 
+/*
+ * (Re)start btcoex timers
+ */
+static void ath9k_btcoex_timer_resume(struct ath_softc *sc)
+{
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_hw *ah = sc->sc_ah;
+
+	ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
+		  "Starting btcoex timers");
+
+	/* make sure duty cycle timer is also stopped when resuming */
+	if (btcoex->hw_timer_enabled)
+		ath9k_gen_timer_stop(sc->sc_ah, btcoex->no_stomp_timer);
+
+	btcoex->bt_priority_cnt = 0;
+	btcoex->bt_priority_time = jiffies;
+	sc->sc_flags &= ~SC_OP_BT_PRIORITY_DETECTED;
+
+	mod_timer(&btcoex->period_timer, jiffies);
+}
+
 static int ath9k_start(struct ieee80211_hw *hw)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_channel *curchan = hw->conf.channel;
 	struct ath9k_channel *init_channel;
 	int r;
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "Starting driver with "
-		"initial channel: %d MHz\n", curchan->center_freq);
+	ath_print(common, ATH_DBG_CONFIG,
+		  "Starting driver with initial channel: %d MHz\n",
+		  curchan->center_freq);
 
 	mutex_lock(&sc->mutex);
 
@@ -1938,7 +2298,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	init_channel = ath_get_curchannel(sc, hw);
 
 	/* Reset SERDES registers */
-	ath9k_hw_configpcipowersave(sc->sc_ah, 0, 0);
+	ath9k_hw_configpcipowersave(ah, 0, 0);
 
 	/*
 	 * The basic interface to setting the hardware in a good
@@ -1948,12 +2308,12 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * and then setup of the interrupt mask.
 	 */
 	spin_lock_bh(&sc->sc_resetlock);
-	r = ath9k_hw_reset(sc->sc_ah, init_channel, false);
+	r = ath9k_hw_reset(ah, init_channel, false);
 	if (r) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to reset hardware; reset status %d "
-			"(freq %u MHz)\n", r,
-			curchan->center_freq);
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to reset hardware; reset status %d "
+			  "(freq %u MHz)\n", r,
+			  curchan->center_freq);
 		spin_unlock_bh(&sc->sc_resetlock);
 		goto mutex_unlock;
 	}
@@ -1973,7 +2333,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * here except setup the interrupt mask.
 	 */
 	if (ath_startrecv(sc) != 0) {
-		DPRINTF(sc, ATH_DBG_FATAL, "Unable to start recv logic\n");
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to start recv logic\n");
 		r = -EIO;
 		goto mutex_unlock;
 	}
@@ -1983,10 +2344,10 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		| ATH9K_INT_RXEOL | ATH9K_INT_RXORN
 		| ATH9K_INT_FATAL | ATH9K_INT_GLOBAL;
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_GTT)
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_GTT)
 		sc->imask |= ATH9K_INT_GTT;
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		sc->imask |= ATH9K_INT_CST;
 
 	ath_cache_conf_rate(sc, &hw->conf);
@@ -1995,21 +2356,22 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	/* Disable BMISS interrupt when we're not associated */
 	sc->imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
-	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
+	ath9k_hw_set_interrupts(ah, sc->imask);
 
 	ieee80211_wake_queues(hw);
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
-	if ((sc->btcoex_info.btcoex_scheme != ATH_BTCOEX_CFG_NONE) &&
-	    !(sc->sc_flags & SC_OP_BTCOEX_ENABLED)) {
-		ath_btcoex_set_weight(&sc->btcoex_info, AR_BT_COEX_WGHT,
-				      AR_STOMP_LOW_WLAN_WGHT);
-		ath9k_hw_btcoex_enable(sc->sc_ah);
+	if ((ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE) &&
+	    !ah->btcoex_hw.enabled) {
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_LOW_WLAN_WGHT);
+		ath9k_hw_btcoex_enable(ah);
 
-		ath_pcie_aspm_disable(sc);
-		if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
-			ath_btcoex_timer_resume(sc, &sc->btcoex_info);
+		if (common->bus_ops->bt_coex_prep)
+			common->bus_ops->bt_coex_prep(common);
+		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+			ath9k_btcoex_timer_resume(sc);
 	}
 
 mutex_unlock:
@@ -2024,12 +2386,14 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_tx_control txctl;
 	int hdrlen, padsize;
 
 	if (aphy->state != ATH_WIPHY_ACTIVE && aphy->state != ATH_WIPHY_SCAN) {
-		printk(KERN_DEBUG "ath9k: %s: TX in unexpected wiphy state "
-		       "%d\n", wiphy_name(hw->wiphy), aphy->state);
+		ath_print(common, ATH_DBG_XMIT,
+			  "ath9k: %s: TX in unexpected wiphy state "
+			  "%d\n", wiphy_name(hw->wiphy), aphy->state);
 		goto exit;
 	}
 
@@ -2042,8 +2406,8 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		if (ieee80211_is_data(hdr->frame_control) &&
 		    !ieee80211_is_nullfunc(hdr->frame_control) &&
 		    !ieee80211_has_pm(hdr->frame_control)) {
-			DPRINTF(sc, ATH_DBG_PS, "Add PM=1 for a TX frame "
-				"while in PS mode\n");
+			ath_print(common, ATH_DBG_PS, "Add PM=1 for a TX frame "
+				  "while in PS mode\n");
 			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 		}
 	}
@@ -2058,11 +2422,12 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		ath9k_ps_wakeup(sc);
 		ath9k_hw_setrxabort(sc->sc_ah, 0);
 		if (ieee80211_is_pspoll(hdr->frame_control)) {
-			DPRINTF(sc, ATH_DBG_PS, "Sending PS-Poll to pick a "
-				"buffered frame\n");
+			ath_print(common, ATH_DBG_PS,
+				  "Sending PS-Poll to pick a buffered frame\n");
 			sc->sc_flags |= SC_OP_WAIT_FOR_PSPOLL_DATA;
 		} else {
-			DPRINTF(sc, ATH_DBG_PS, "Wake up to complete TX\n");
+			ath_print(common, ATH_DBG_PS,
+				  "Wake up to complete TX\n");
 			sc->sc_flags |= SC_OP_WAIT_FOR_TX_ACK;
 		}
 		/*
@@ -2104,10 +2469,10 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	if (!txctl.txq)
 		goto exit;
 
-	DPRINTF(sc, ATH_DBG_XMIT, "transmitting packet, skb: %p\n", skb);
+	ath_print(common, ATH_DBG_XMIT, "transmitting packet, skb: %p\n", skb);
 
 	if (ath_tx_start(hw, skb, &txctl) != 0) {
-		DPRINTF(sc, ATH_DBG_XMIT, "TX failed\n");
+		ath_print(common, ATH_DBG_XMIT, "TX failed\n");
 		goto exit;
 	}
 
@@ -2117,10 +2482,28 @@ exit:
 	return 0;
 }
 
+/*
+ * Pause btcoex timer and bt duty cycle timer
+ */
+static void ath9k_btcoex_timer_pause(struct ath_softc *sc)
+{
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_hw *ah = sc->sc_ah;
+
+	del_timer_sync(&btcoex->period_timer);
+
+	if (btcoex->hw_timer_enabled)
+		ath9k_gen_timer_stop(ah, btcoex->no_stomp_timer);
+
+	btcoex->hw_timer_enabled = false;
+}
+
 static void ath9k_stop(struct ieee80211_hw *hw)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	mutex_lock(&sc->mutex);
 
@@ -2135,7 +2518,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	}
 
 	if (sc->sc_flags & SC_OP_INVALID) {
-		DPRINTF(sc, ATH_DBG_ANY, "Device not present\n");
+		ath_print(common, ATH_DBG_ANY, "Device not present\n");
 		mutex_unlock(&sc->mutex);
 		return;
 	}
@@ -2145,33 +2528,33 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		return; /* another wiphy still in use */
 	}
 
-	if (sc->sc_flags & SC_OP_BTCOEX_ENABLED) {
-		ath9k_hw_btcoex_disable(sc->sc_ah);
-		if (sc->btcoex_info.btcoex_scheme == ATH_BTCOEX_CFG_3WIRE)
-			ath_btcoex_timer_pause(sc, &sc->btcoex_info);
+	if (ah->btcoex_hw.enabled) {
+		ath9k_hw_btcoex_disable(ah);
+		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+			ath9k_btcoex_timer_pause(sc);
 	}
 
 	/* make sure h/w will not generate any interrupt
 	 * before setting the invalid flag. */
-	ath9k_hw_set_interrupts(sc->sc_ah, 0);
+	ath9k_hw_set_interrupts(ah, 0);
 
 	if (!(sc->sc_flags & SC_OP_INVALID)) {
 		ath_drain_all_txq(sc, false);
 		ath_stoprecv(sc);
-		ath9k_hw_phy_disable(sc->sc_ah);
+		ath9k_hw_phy_disable(ah);
 	} else
 		sc->rx.rxlink = NULL;
 
 	/* disable HAL and put h/w to sleep */
-	ath9k_hw_disable(sc->sc_ah);
-	ath9k_hw_configpcipowersave(sc->sc_ah, 1, 1);
-	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
+	ath9k_hw_disable(ah);
+	ath9k_hw_configpcipowersave(ah, 1, 1);
+	ath9k_setpower(sc, ATH9K_PM_FULL_SLEEP);
 
 	sc->sc_flags |= SC_OP_INVALID;
 
 	mutex_unlock(&sc->mutex);
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "Driver halt\n");
+	ath_print(common, ATH_DBG_CONFIG, "Driver halt\n");
 }
 
 static int ath9k_add_interface(struct ieee80211_hw *hw,
@@ -2179,6 +2562,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)conf->vif->drv_priv;
 	enum nl80211_iftype ic_opmode = NL80211_IFTYPE_UNSPECIFIED;
 	int ret = 0;
@@ -2205,13 +2589,14 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		ic_opmode = conf->type;
 		break;
 	default:
-		DPRINTF(sc, ATH_DBG_FATAL,
+		ath_print(common, ATH_DBG_FATAL,
 			"Interface type %d not yet supported\n", conf->type);
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "Attach a VIF of type: %d\n", ic_opmode);
+	ath_print(common, ATH_DBG_CONFIG,
+		  "Attach a VIF of type: %d\n", ic_opmode);
 
 	/* Set the VIF opmode */
 	avp->av_opmode = ic_opmode;
@@ -2261,10 +2646,11 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)conf->vif->drv_priv;
 	int i;
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "Detach Interface\n");
+	ath_print(common, ATH_DBG_CONFIG, "Detach Interface\n");
 
 	mutex_lock(&sc->mutex);
 
@@ -2299,6 +2685,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ath_hw *ah = sc->sc_ah;
 	bool all_wiphys_idle = false, disable_radio = false;
@@ -2318,8 +2705,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		}
 		else if (all_wiphys_idle) {
 			ath_radio_enable(sc);
-			DPRINTF(sc, ATH_DBG_CONFIG,
-				"not-idle: enabling radio\n");
+			ath_print(common, ATH_DBG_CONFIG,
+				  "not-idle: enabling radio\n");
 		}
 	}
 
@@ -2337,7 +2724,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			sc->ps_enabled = true;
 		} else {
 			sc->ps_enabled = false;
-			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
+			ath9k_setpower(sc, ATH9K_PM_AWAKE);
 			if (!(ah->caps.hw_caps &
 			      ATH9K_HW_CAP_AUTOSLEEP)) {
 				ath9k_hw_setrxabort(sc->sc_ah, 0);
@@ -2372,8 +2759,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			goto skip_chan_change;
 		}
 
-		DPRINTF(sc, ATH_DBG_CONFIG, "Set channel: %d MHz\n",
-			curchan->center_freq);
+		ath_print(common, ATH_DBG_CONFIG, "Set channel: %d MHz\n",
+			  curchan->center_freq);
 
 		/* XXX: remove me eventualy */
 		ath9k_update_ichannel(sc, hw, &sc->sc_ah->channels[pos]);
@@ -2381,7 +2768,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		ath_update_chainmask(sc, conf_is_ht(conf));
 
 		if (ath_set_channel(sc, hw, &sc->sc_ah->channels[pos]) < 0) {
-			DPRINTF(sc, ATH_DBG_FATAL, "Unable to set channel\n");
+			ath_print(common, ATH_DBG_FATAL,
+				  "Unable to set channel\n");
 			mutex_unlock(&sc->mutex);
 			return -EINVAL;
 		}
@@ -2392,7 +2780,7 @@ skip_chan_change:
 		sc->config.txpowlimit = 2 * conf->power_level;
 
 	if (disable_radio) {
-		DPRINTF(sc, ATH_DBG_CONFIG, "idle: disabling radio\n");
+		ath_print(common, ATH_DBG_CONFIG, "idle: disabling radio\n");
 		ath_radio_disable(sc);
 	}
 
@@ -2429,7 +2817,8 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 	ath9k_hw_setrxfilter(sc->sc_ah, rfilt);
 	ath9k_ps_restore(sc);
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "Set HW RX filter: 0x%x\n", rfilt);
+	ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
+		  "Set HW RX filter: 0x%x\n", rfilt);
 }
 
 static void ath9k_sta_notify(struct ieee80211_hw *hw,
@@ -2457,6 +2846,7 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath9k_tx_queue_info qi;
 	int ret = 0, qnum;
 
@@ -2473,15 +2863,15 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	qi.tqi_burstTime = params->txop;
 	qnum = ath_get_hal_qnum(queue, sc);
 
-	DPRINTF(sc, ATH_DBG_CONFIG,
-		"Configure tx [queue/halq] [%d/%d],  "
-		"aifs: %d, cw_min: %d, cw_max: %d, txop: %d\n",
-		queue, qnum, params->aifs, params->cw_min,
-		params->cw_max, params->txop);
+	ath_print(common, ATH_DBG_CONFIG,
+		  "Configure tx [queue/halq] [%d/%d],  "
+		  "aifs: %d, cw_min: %d, cw_max: %d, txop: %d\n",
+		  queue, qnum, params->aifs, params->cw_min,
+		  params->cw_max, params->txop);
 
 	ret = ath_txq_update(sc, qnum, &qi);
 	if (ret)
-		DPRINTF(sc, ATH_DBG_FATAL, "TXQ Update failed\n");
+		ath_print(common, ATH_DBG_FATAL, "TXQ Update failed\n");
 
 	mutex_unlock(&sc->mutex);
 
@@ -2496,6 +2886,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int ret = 0;
 
 	if (modparam_nohwcrypt)
@@ -2503,7 +2894,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
-	DPRINTF(sc, ATH_DBG_CONFIG, "Set HW Key\n");
+	ath_print(common, ATH_DBG_CONFIG, "Set HW Key\n");
 
 	switch (cmd) {
 	case SET_KEY:
@@ -2540,6 +2931,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	u32 rfilt = 0;
 	int error, i;
@@ -2555,9 +2947,9 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	    ah->opmode != NL80211_IFTYPE_AP) {
 		ah->opmode = NL80211_IFTYPE_STATION;
 		ath9k_hw_setopmode(ah);
-		memcpy(sc->curbssid, sc->sc_ah->macaddr, ETH_ALEN);
-		sc->curaid = 0;
-		ath9k_hw_write_associd(sc);
+		memcpy(common->curbssid, common->macaddr, ETH_ALEN);
+		common->curaid = 0;
+		ath9k_hw_write_associd(ah);
 		/* Request full reset to get hw opmode changed properly */
 		sc->sc_flags |= SC_OP_FULL_RESET;
 	}
@@ -2569,17 +2961,17 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		case NL80211_IFTYPE_ADHOC:
 		case NL80211_IFTYPE_MESH_POINT:
 			/* Set BSSID */
-			memcpy(sc->curbssid, bss_conf->bssid, ETH_ALEN);
+			memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 			memcpy(avp->bssid, bss_conf->bssid, ETH_ALEN);
-			sc->curaid = 0;
-			ath9k_hw_write_associd(sc);
+			common->curaid = 0;
+			ath9k_hw_write_associd(ah);
 
 			/* Set aggregation protection mode parameters */
 			sc->config.ath_aggr_prot = 0;
 
-			DPRINTF(sc, ATH_DBG_CONFIG,
-				"RX filter 0x%x bssid %pM aid 0x%x\n",
-				rfilt, sc->curbssid, sc->curaid);
+			ath_print(common, ATH_DBG_CONFIG,
+				  "RX filter 0x%x bssid %pM aid 0x%x\n",
+				  rfilt, common->curbssid, common->curaid);
 
 			/* need to reconfigure the beacon */
 			sc->sc_flags &= ~SC_OP_BEACONS ;
@@ -2618,7 +3010,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			if (ath9k_hw_keyisvalid(sc->sc_ah, (u16)i))
 				ath9k_hw_keysetmac(sc->sc_ah,
 						   (u16)i,
-						   sc->curbssid);
+						   common->curbssid);
 	}
 
 	/* Only legacy IBSS for now */
@@ -2626,8 +3018,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		ath_update_chainmask(sc, 0);
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		DPRINTF(sc, ATH_DBG_CONFIG, "BSS Changed PREAMBLE %d\n",
-			bss_conf->use_short_preamble);
+		ath_print(common, ATH_DBG_CONFIG, "BSS Changed PREAMBLE %d\n",
+			  bss_conf->use_short_preamble);
 		if (bss_conf->use_short_preamble)
 			sc->sc_flags |= SC_OP_PREAMBLE_SHORT;
 		else
@@ -2635,8 +3027,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
-		DPRINTF(sc, ATH_DBG_CONFIG, "BSS Changed CTS PROT %d\n",
-			bss_conf->use_cts_prot);
+		ath_print(common, ATH_DBG_CONFIG, "BSS Changed CTS PROT %d\n",
+			  bss_conf->use_cts_prot);
 		if (bss_conf->use_cts_prot &&
 		    hw->conf.channel->band != IEEE80211_BAND_5GHZ)
 			sc->sc_flags |= SC_OP_PROTECT_ENABLE;
@@ -2645,7 +3037,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		DPRINTF(sc, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
+		ath_print(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
 			bss_conf->assoc);
 		ath9k_bss_assoc_info(sc, vif, bss_conf);
 	}
@@ -2694,7 +3086,11 @@ static void ath9k_reset_tsf(struct ieee80211_hw *hw)
 	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
+
+	ath9k_ps_wakeup(sc);
 	ath9k_hw_reset_tsf(sc->sc_ah);
+	ath9k_ps_restore(sc);
+
 	mutex_unlock(&sc->mutex);
 }
 
@@ -2726,7 +3122,8 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 		ath_tx_aggr_resume(sc, sta, tid);
 		break;
 	default:
-		DPRINTF(sc, ATH_DBG_FATAL, "Unknown AMPDU action\n");
+		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
+			  "Unknown AMPDU action\n");
 	}
 
 	return ret;

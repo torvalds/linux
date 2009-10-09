@@ -44,6 +44,7 @@
 #include "iwl-helpers.h"
 #include "iwl-calib.h"
 #include "iwl-sta.h"
+#include "iwl-agn-led.h"
 
 static int iwl4965_send_tx_power(struct iwl_priv *priv);
 static int iwl4965_hw_get_temperature(struct iwl_priv *priv);
@@ -334,7 +335,8 @@ static int iwl4965_apm_init(struct iwl_priv *priv)
 	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* wait for clock stabilization */
-	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
+	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0) {
 		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
@@ -395,45 +397,11 @@ static void iwl4965_nic_config(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static int iwl4965_apm_stop_master(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* set stop master bit */
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
-
-	iwl_poll_direct_bit(priv, CSR_RESET,
-			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-	IWL_DEBUG_INFO(priv, "stop master\n");
-
-	return 0;
-}
-
-static void iwl4965_apm_stop(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	iwl4965_apm_stop_master(priv);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
-	/* clear "init complete"  move adapter D0A* --> D0U state */
-	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
 static int iwl4965_apm_reset(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	iwl4965_apm_stop_master(priv);
+	iwl_apm_stop_master(priv);
 
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
@@ -444,7 +412,8 @@ static int iwl4965_apm_reset(struct iwl_priv *priv)
 
 	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
-	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
+	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0)
 		goto out;
@@ -495,14 +464,15 @@ static void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 static void iwl4965_gain_computation(struct iwl_priv *priv,
 		u32 *average_noise,
 		u16 min_average_noise_antenna_i,
-		u32 min_average_noise)
+		u32 min_average_noise,
+		u8 default_chain)
 {
 	int i, ret;
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 
 	data->delta_gain_code[min_average_noise_antenna_i] = 0;
 
-	for (i = 0; i < NUM_RX_CHAINS; i++) {
+	for (i = default_chain; i < NUM_RX_CHAINS; i++) {
 		s32 delta_g = 0;
 
 		if (!(data->disconn_array[i]) &&
@@ -662,7 +632,8 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 		iwl_write_targ_mem(priv, a, 0);
 	for (; a < priv->scd_base_addr + IWL49_SCD_TRANSLATE_TBL_OFFSET; a += 4)
 		iwl_write_targ_mem(priv, a, 0);
-	for (; a < sizeof(u16) * priv->hw_params.max_txq_num; a += 4)
+	for (; a < priv->scd_base_addr +
+	       IWL49_SCD_TRANSLATE_TBL_OFFSET_QUEUE(priv->hw_params.max_txq_num); a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 
 	/* Tel 4965 where to find Tx byte count tables */
@@ -2303,7 +2274,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.apm_ops = {
 		.init = iwl4965_apm_init,
 		.reset = iwl4965_apm_reset,
-		.stop = iwl4965_apm_stop,
+		.stop = iwl_apm_stop,
 		.config = iwl4965_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
 	},
@@ -2339,6 +2310,7 @@ static struct iwl_ops iwl4965_ops = {
 	.lib = &iwl4965_lib,
 	.hcmd = &iwl4965_hcmd,
 	.utils = &iwl4965_hcmd_utils,
+	.led = &iwlagn_led_ops,
 };
 
 struct iwl_cfg iwl4965_agn_cfg = {
@@ -2355,26 +2327,29 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,
 	.broken_powersave = true,
+	.led_compensation = 61,
+	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
 };
 
 /* Module firmware */
 MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE(IWL4965_UCODE_API_MAX));
 
-module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
+module_param_named(antenna, iwl4965_mod_params.antenna, int, S_IRUGO);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
-module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, 0444);
+module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, S_IRUGO);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(
-	disable_hw_scan, iwl4965_mod_params.disable_hw_scan, int, 0444);
+	disable_hw_scan, iwl4965_mod_params.disable_hw_scan, int, S_IRUGO);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
 
-module_param_named(queues_num, iwl4965_mod_params.num_of_queues, int, 0444);
+module_param_named(queues_num, iwl4965_mod_params.num_of_queues, int, S_IRUGO);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
 /* 11n */
-module_param_named(11n_disable, iwl4965_mod_params.disable_11n, int, 0444);
+module_param_named(11n_disable, iwl4965_mod_params.disable_11n, int, S_IRUGO);
 MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
-module_param_named(amsdu_size_8K, iwl4965_mod_params.amsdu_size_8K, int, 0444);
+module_param_named(amsdu_size_8K, iwl4965_mod_params.amsdu_size_8K,
+		   int, S_IRUGO);
 MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
 
-module_param_named(fw_restart4965, iwl4965_mod_params.restart_fw, int, 0444);
+module_param_named(fw_restart4965, iwl4965_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart4965, "restart firmware in case of error");

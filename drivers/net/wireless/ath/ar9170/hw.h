@@ -311,6 +311,8 @@ struct ar9170_tx_control {
 
 #define AR9170_TX_PHY_SHORT_GI			0x80000000
 
+#define AR5416_MAX_RATE_POWER                   63
+
 struct ar9170_rx_head {
 	u8 plcp[12];
 } __packed;

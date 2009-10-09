@@ -614,16 +614,6 @@ enum ath9k_cipher {
 	ATH9K_CIPHER_MIC = 127
 };
 
-enum ath9k_ht_macmode {
-	ATH9K_HT_MACMODE_20 = 0,
-	ATH9K_HT_MACMODE_2040 = 1,
-};
-
-enum ath9k_ht_extprotspacing {
-	ATH9K_HT_EXTPROTSPACING_20 = 0,
-	ATH9K_HT_EXTPROTSPACING_25 = 1,
-};
-
 struct ath_hw;
 struct ath9k_channel;
 struct ath_rate_table;
@@ -677,5 +667,6 @@ void ath9k_hw_rxena(struct ath_hw *ah);
 void ath9k_hw_startpcureceive(struct ath_hw *ah);
 void ath9k_hw_stoppcurecv(struct ath_hw *ah);
 bool ath9k_hw_stopdmarecv(struct ath_hw *ah);
+int ath9k_hw_beaconq_setup(struct ath_hw *ah);
 
 #endif /* MAC_H */

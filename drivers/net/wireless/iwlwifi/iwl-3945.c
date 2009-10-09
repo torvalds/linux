@@ -46,7 +46,8 @@
 #include "iwl-eeprom.h"
 #include "iwl-helpers.h"
 #include "iwl-core.h"
-#include "iwl-agn-rs.h"
+#include "iwl-led.h"
+#include "iwl-3945-led.h"
 
 #define IWL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \
 	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,   \
@@ -359,7 +360,7 @@ void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 
 	memcpy(&priv->statistics_39, pkt->u.raw, sizeof(priv->statistics_39));
 
-	iwl3945_led_background(priv);
+	iwl_leds_background(priv);
 
 	priv->last_statistics_time = jiffies;
 }
@@ -572,10 +573,6 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 				       (struct ieee80211_hdr *)rxb->skb->data,
 				       le32_to_cpu(rx_end->status), stats);
 
-#ifdef CONFIG_IWLWIFI_LEDS
-	if (ieee80211_is_data(hdr->frame_control))
-		priv->rxtxpackets += len;
-#endif
 	iwl_update_stats(priv, false, hdr->frame_control, len);
 
 	memcpy(IEEE80211_SKB_RXCB(rxb->skb), stats, sizeof(*stats));
@@ -1002,8 +999,9 @@ static int iwl3945_apm_init(struct iwl_priv *priv)
 	* D0U* --> D0A* state */
 	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
-	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
+	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0) {
 		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
 		goto out;
@@ -1170,48 +1168,9 @@ void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
 	iwl3945_hw_txq_ctx_free(priv);
 }
 
-static int iwl3945_apm_stop_master(struct iwl_priv *priv)
-{
-	int ret = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* set stop master bit */
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
-
-	iwl_poll_direct_bit(priv, CSR_RESET,
-			    CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-
-	if (ret < 0)
-		goto out;
-
-out:
-	spin_unlock_irqrestore(&priv->lock, flags);
-	IWL_DEBUG_INFO(priv, "stop master\n");
-
-	return ret;
-}
-
-static void iwl3945_apm_stop(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	iwl3945_apm_stop_master(priv);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
-	/* clear "init complete"  move adapter D0A* --> D0U state */
-	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
 static int iwl3945_apm_reset(struct iwl_priv *priv)
 {
-	iwl3945_apm_stop_master(priv);
+	iwl_apm_stop_master(priv);
 
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
@@ -1219,8 +1178,9 @@ static int iwl3945_apm_reset(struct iwl_priv *priv)
 
 	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
-	iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
-			 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
+	iwl_poll_bit(priv, CSR_GP_CNTRL,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 
 	iwl_write_prph(priv, APMG_CLK_CTRL_REG,
 				APMG_CLK_VAL_BSM_CLK_RQT);
@@ -2844,7 +2804,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.apm_ops = {
 		.init = iwl3945_apm_init,
 		.reset = iwl3945_apm_reset,
-		.stop = iwl3945_apm_stop,
+		.stop = iwl_apm_stop,
 		.config = iwl3945_nic_config,
 		.set_pwr_src = iwl3945_set_pwr_src,
 	},
@@ -2880,6 +2840,7 @@ static struct iwl_ops iwl3945_ops = {
 	.lib = &iwl3945_lib,
 	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,
+	.led = &iwl3945_led_ops,
 };
 
 static struct iwl_cfg iwl3945_bg_cfg = {
@@ -2894,6 +2855,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.mod_params = &iwl3945_mod_params,
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,
+	.led_compensation = 64,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2908,6 +2870,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.mod_params = &iwl3945_mod_params,
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,
+	.led_compensation = 64,
 };
 
 struct pci_device_id iwl3945_hw_card_ids[] = {

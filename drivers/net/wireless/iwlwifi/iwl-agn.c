@@ -115,9 +115,6 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 
 	/* always get timestamp with Rx frame */
 	priv->staging_rxon.flags |= RXON_FLG_TSF2HOST_MSK;
-	/* allow CTS-to-self if possible. this is relevant only for
-	 * 5000, but will not damage 4965 */
-	priv->staging_rxon.flags |= RXON_FLG_SELF_CTS_EN;
 
 	ret = iwl_check_rxon_cmd(priv);
 	if (ret) {
@@ -216,6 +213,13 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 				IWL_ERR(priv,
 					"Could not send WEP static key.\n");
 		}
+
+		/*
+		 * allow CTS-to-self if possible for new association.
+		 * this is relevant only for 5000 series and up,
+		 * but will not damage 4965
+		 */
+		priv->staging_rxon.flags |= RXON_FLG_SELF_CTS_EN;
 
 		/* Apply the new configuration
 		 * RXON assoc doesn't clear the station table in uCode,
@@ -786,6 +790,9 @@ void iwl_rx_handle(struct iwl_priv *priv)
 				 priv->hw_params.rx_buf_size + 256,
 				 PCI_DMA_FROMDEVICE);
 		pkt = (struct iwl_rx_packet *)rxb->skb->data;
+
+		trace_iwlwifi_dev_rx(priv, pkt,
+			le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.
@@ -1606,6 +1613,9 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	line = iwl_read_targ_mem(priv, base + 9 * sizeof(u32));
 	time = iwl_read_targ_mem(priv, base + 11 * sizeof(u32));
 
+	trace_iwlwifi_dev_ucode_error(priv, desc, time, data1, data2, line,
+				      blink1, blink2, ilink1, ilink2);
+
 	IWL_ERR(priv, "Desc                               Time       "
 		"data1      data2      line\n");
 	IWL_ERR(priv, "%-28s (#%02d) %010u 0x%08X 0x%08X %u\n",
@@ -1654,12 +1664,14 @@ static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 		ptr += sizeof(u32);
 		if (mode == 0) {
 			/* data, ev */
+			trace_iwlwifi_dev_ucode_event(priv, 0, time, ev);
 			IWL_ERR(priv, "EVT_LOG:0x%08x:%04u\n", time, ev);
 		} else {
 			data = iwl_read_targ_mem(priv, ptr);
 			ptr += sizeof(u32);
 			IWL_ERR(priv, "EVT_LOGT:%010u:0x%08x:%04u\n",
 					time, data, ev);
+			trace_iwlwifi_dev_ucode_event(priv, time, data, ev);
 		}
 	}
 }
@@ -1758,6 +1770,10 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	priv->active_rate = priv->rates_mask;
 	priv->active_rate_basic = priv->rates_mask & IWL_BASIC_RATES_MASK;
 
+	/* Configure Tx antenna selection based on H/W config */
+	if (priv->cfg->ops->hcmd->set_tx_ant)
+		priv->cfg->ops->hcmd->set_tx_ant(priv, priv->cfg->valid_tx_ant);
+
 	if (iwl_is_associated(priv)) {
 		struct iwl_rxon_cmd *active_rxon =
 				(struct iwl_rxon_cmd *)&priv->active_rxon;
@@ -1785,7 +1801,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	/* At this point, the NIC is initialized and operational */
 	iwl_rf_kill_ct_config(priv);
 
-	iwl_leds_register(priv);
+	iwl_leds_init(priv);
 
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
 	set_bit(STATUS_READY, &priv->status);
@@ -1822,8 +1838,6 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	if (!exit_pending)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
-
-	iwl_leds_unregister(priv);
 
 	iwl_clear_stations_table(priv);
 
@@ -2323,6 +2337,8 @@ static int iwl_mac_start(struct ieee80211_hw *hw)
 		}
 	}
 
+	iwl_led_start(priv);
+
 out:
 	priv->is_open = 1;
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -2794,6 +2810,40 @@ static ssize_t show_statistics(struct device *d,
 
 static DEVICE_ATTR(statistics, S_IRUGO, show_statistics, NULL);
 
+static ssize_t show_rts_ht_protection(struct device *d,
+			     struct device_attribute *attr, char *buf)
+{
+	struct iwl_priv *priv = dev_get_drvdata(d);
+
+	return sprintf(buf, "%s\n",
+		priv->cfg->use_rts_for_ht ? "RTS/CTS" : "CTS-to-self");
+}
+
+static ssize_t store_rts_ht_protection(struct device *d,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct iwl_priv *priv = dev_get_drvdata(d);
+	unsigned long val;
+	int ret;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret)
+		IWL_INFO(priv, "Input is not in decimal form.\n");
+	else {
+		if (!iwl_is_associated(priv))
+			priv->cfg->use_rts_for_ht = val ? true : false;
+		else
+			IWL_ERR(priv, "Sta associated with AP - "
+				"Change protection mechanism is not allowed\n");
+		ret = count;
+	}
+	return ret;
+}
+
+static DEVICE_ATTR(rts_ht_protection, S_IWUSR | S_IRUGO,
+			show_rts_ht_protection, store_rts_ht_protection);
+
 
 /*****************************************************************************
  *
@@ -2850,6 +2900,7 @@ static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_statistics.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
+	&dev_attr_rts_ht_protection.attr,
 #ifdef CONFIG_IWLWIFI_DEBUG
 	&dev_attr_debug_level.attr,
 #endif
@@ -3215,20 +3266,51 @@ static struct pci_device_id iwl_hw_card_ids[] = {
 /* 5150 Wifi/WiMax */
 	{IWL_PCI_DEVICE(0x423C, PCI_ANY_ID, iwl5150_agn_cfg)},
 	{IWL_PCI_DEVICE(0x423D, PCI_ANY_ID, iwl5150_agn_cfg)},
-/* 6000/6050 Series */
-	{IWL_PCI_DEVICE(0x008D, PCI_ANY_ID, iwl6000h_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x008E, PCI_ANY_ID, iwl6000h_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x422B, PCI_ANY_ID, iwl6000_3agn_cfg)},
-	{IWL_PCI_DEVICE(0x422C, PCI_ANY_ID, iwl6000i_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x4238, PCI_ANY_ID, iwl6000_3agn_cfg)},
-	{IWL_PCI_DEVICE(0x4239, PCI_ANY_ID, iwl6000i_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x0086, PCI_ANY_ID, iwl6050_3agn_cfg)},
-	{IWL_PCI_DEVICE(0x0087, PCI_ANY_ID, iwl6050_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x0088, PCI_ANY_ID, iwl6050_3agn_cfg)},
-	{IWL_PCI_DEVICE(0x0089, PCI_ANY_ID, iwl6050_2agn_cfg)},
+
+/* 6x00 Series */
+	{IWL_PCI_DEVICE(0x008D, 0x1301, iwl6000h_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x008D, 0x1321, iwl6000h_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x008D, 0x1326, iwl6000h_2abg_cfg)},
+	{IWL_PCI_DEVICE(0x008D, 0x1306, iwl6000h_2abg_cfg)},
+	{IWL_PCI_DEVICE(0x008D, 0x1307, iwl6000h_2bg_cfg)},
+	{IWL_PCI_DEVICE(0x008E, 0x1311, iwl6000h_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x008E, 0x1316, iwl6000h_2abg_cfg)},
+
+	{IWL_PCI_DEVICE(0x422B, 0x1101, iwl6000_3agn_cfg)},
+	{IWL_PCI_DEVICE(0x422B, 0x1121, iwl6000_3agn_cfg)},
+	{IWL_PCI_DEVICE(0x422C, 0x1301, iwl6000i_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x422C, 0x1306, iwl6000i_2abg_cfg)},
+	{IWL_PCI_DEVICE(0x422C, 0x1307, iwl6000i_2bg_cfg)},
+	{IWL_PCI_DEVICE(0x422C, 0x1321, iwl6000i_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x422C, 0x1326, iwl6000i_2abg_cfg)},
+	{IWL_PCI_DEVICE(0x4238, 0x1111, iwl6000_3agn_cfg)},
+	{IWL_PCI_DEVICE(0x4239, 0x1311, iwl6000i_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x4239, 0x1316, iwl6000i_2abg_cfg)},
+
+/* 6x50 WiFi/WiMax Series */
+	{IWL_PCI_DEVICE(0x0086, 0x1101, iwl6050_3agn_cfg)},
+	{IWL_PCI_DEVICE(0x0086, 0x1121, iwl6050_3agn_cfg)},
+	{IWL_PCI_DEVICE(0x0087, 0x1301, iwl6050_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x0087, 0x1306, iwl6050_2abg_cfg)},
+	{IWL_PCI_DEVICE(0x0087, 0x1321, iwl6050_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x0087, 0x1326, iwl6050_2abg_cfg)},
+	{IWL_PCI_DEVICE(0x0088, 0x1111, iwl6050_3agn_cfg)},
+	{IWL_PCI_DEVICE(0x0089, 0x1311, iwl6050_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x0089, 0x1316, iwl6050_2abg_cfg)},
+
 /* 1000 Series WiFi */
-	{IWL_PCI_DEVICE(0x0083, PCI_ANY_ID, iwl1000_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0084, PCI_ANY_ID, iwl1000_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1205, iwl1000_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1305, iwl1000_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1225, iwl1000_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1325, iwl1000_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0084, 0x1215, iwl1000_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0084, 0x1315, iwl1000_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1206, iwl1000_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1306, iwl1000_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1226, iwl1000_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1326, iwl1000_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0084, 0x1216, iwl1000_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0084, 0x1316, iwl1000_bg_cfg)},
 #endif /* CONFIG_IWL5000 */
 
 	{0}
@@ -3283,9 +3365,9 @@ module_exit(iwl_exit);
 module_init(iwl_init);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-module_param_named(debug50, iwl_debug_level, uint, 0444);
+module_param_named(debug50, iwl_debug_level, uint, S_IRUGO);
 MODULE_PARM_DESC(debug50, "50XX debug output mask (deprecated)");
-module_param_named(debug, iwl_debug_level, uint, 0644);
+module_param_named(debug, iwl_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 

@@ -72,8 +72,7 @@ int ar9170_write_reg(struct ar9170 *ar, const u32 reg, const u32 val)
 	return err;
 }
 
-static int ar9170_read_mreg(struct ar9170 *ar, int nregs,
-			    const u32 *regs, u32 *out)
+int ar9170_read_mreg(struct ar9170 *ar, int nregs, const u32 *regs, u32 *out)
 {
 	int i, err;
 	__le32 *offs, *res;

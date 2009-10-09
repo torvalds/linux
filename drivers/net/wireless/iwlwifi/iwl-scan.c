@@ -27,7 +27,6 @@
  *****************************************************************************/
 #include <linux/types.h>
 #include <linux/etherdevice.h>
-#include <net/lib80211.h>
 #include <net/mac80211.h>
 
 #include "iwl-eeprom.h"

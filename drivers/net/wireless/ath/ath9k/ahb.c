@@ -22,27 +22,31 @@
 #include "ath9k.h"
 
 /* return bus cachesize in 4B word units */
-static void ath_ahb_read_cachesize(struct ath_softc *sc, int *csz)
+static void ath_ahb_read_cachesize(struct ath_common *common, int *csz)
 {
 	*csz = L1_CACHE_BYTES >> 2;
 }
 
-static void ath_ahb_cleanup(struct ath_softc *sc)
+static void ath_ahb_cleanup(struct ath_common *common)
 {
+	struct ath_hw *ah = (struct ath_hw *) common->ah;
+	struct ath_softc *sc = ah->ah_sc;
 	iounmap(sc->mem);
 }
 
-static bool ath_ahb_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
+static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
+	struct ath_hw *ah = (struct ath_hw *) common->ah;
 	struct ath_softc *sc = ah->ah_sc;
 	struct platform_device *pdev = to_platform_device(sc->dev);
 	struct ath9k_platform_data *pdata;
 
 	pdata = (struct ath9k_platform_data *) pdev->dev.platform_data;
 	if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-			"%s: flash read failed, offset %08x is out of range\n",
-				__func__, off);
+		ath_print(common, ATH_DBG_FATAL,
+			  "%s: flash read failed, offset %08x "
+			  "is out of range\n",
+			  __func__, off);
 		return false;
 	}
 
@@ -116,10 +120,9 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	sc->hw = hw;
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
-	sc->bus_ops = &ath_ahb_bus_ops;
 	sc->irq = irq;
 
-	ret = ath_init_device(AR5416_AR9100_DEVID, sc, 0x0);
+	ret = ath_init_device(AR5416_AR9100_DEVID, sc, 0x0, &ath_ahb_bus_ops);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to initialize device\n");
 		goto err_free_hw;

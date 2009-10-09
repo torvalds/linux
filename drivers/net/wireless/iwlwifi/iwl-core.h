@@ -89,6 +89,7 @@ struct iwl_hcmd_ops {
 	int (*rxon_assoc)(struct iwl_priv *priv);
 	int (*commit_rxon)(struct iwl_priv *priv);
 	void (*set_rxon_chain)(struct iwl_priv *priv);
+	int (*set_tx_ant)(struct iwl_priv *priv, u8 valid_tx_ant);
 };
 
 struct iwl_hcmd_utils_ops {
@@ -97,7 +98,8 @@ struct iwl_hcmd_utils_ops {
 	void (*gain_computation)(struct iwl_priv *priv,
 			u32 *average_noise,
 			u16 min_average_noise_antennat_i,
-			u32 min_average_noise);
+			u32 min_average_noise,
+			u8 default_chain);
 	void (*chain_noise_reset)(struct iwl_priv *priv);
 	void (*rts_tx_cmd_flag)(struct ieee80211_tx_info *info,
 			__le32 *tx_flags);
@@ -185,11 +187,18 @@ struct iwl_lib_ops {
 	struct iwl_temp_ops temp_ops;
 };
 
+struct iwl_led_ops {
+	int (*cmd)(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd);
+	int (*on)(struct iwl_priv *priv);
+	int (*off)(struct iwl_priv *priv);
+};
+
 struct iwl_ops {
 	const struct iwl_ucode_ops *ucode;
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
+	const struct iwl_led_ops *led;
 };
 
 struct iwl_mod_params {
@@ -213,6 +222,11 @@ struct iwl_mod_params {
  * @pa_type: used by 6000 series only to identify the type of Power Amplifier
  * @max_ll_items: max number of OTP blocks
  * @shadow_ram_support: shadow support for OTP memory
+ * @led_compensation: compensate on the led on/off time per HW according
+ *	to the deviation to achieve the desired led frequency.
+ *	The detail algorithm is described in iwl-led.c
+ * @use_rts_for_ht: use rts/cts protection for HT traffic
+ * @chain_noise_num_beacons: number of beacons used to compute chain noise
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -254,7 +268,11 @@ struct iwl_cfg {
 	const u16 max_ll_items;
 	const bool shadow_ram_support;
 	const bool ht_greenfield_support;
+	u16 led_compensation;
 	const bool broken_powersave;
+	bool use_rts_for_ht;
+	int chain_noise_num_beacons;
+	const bool supports_idle;
 };
 
 /***************************
@@ -273,7 +291,7 @@ int iwl_check_rxon_cmd(struct iwl_priv *priv);
 int iwl_full_rxon_required(struct iwl_priv *priv);
 void iwl_set_rxon_chain(struct iwl_priv *priv);
 int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch);
-void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info);
+void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf);
 u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_sta_ht_cap *sta_ht_inf);
 void iwl_set_flags_for_band(struct iwl_priv *priv, enum ieee80211_band band);
@@ -569,6 +587,7 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_HCMD_SYNC_ACTIVE	1	/* sync host command in progress */
 #define STATUS_INT_ENABLED	2
 #define STATUS_RF_KILL_HW	3
+#define STATUS_CT_KILL		4
 #define STATUS_INIT		5
 #define STATUS_ALIVE		6
 #define STATUS_READY		7
@@ -613,6 +632,11 @@ static inline int iwl_is_rfkill(struct iwl_priv *priv)
 	return iwl_is_rfkill_hw(priv);
 }
 
+static inline int iwl_is_ctkill(struct iwl_priv *priv)
+{
+	return test_bit(STATUS_CT_KILL, &priv->status);
+}
+
 static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 {
 
@@ -634,6 +658,8 @@ extern void iwl_rx_reply_rx_phy(struct iwl_priv *priv,
 				    struct iwl_rx_mem_buffer *rxb);
 void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 					   struct iwl_rx_mem_buffer *rxb);
+void iwl_apm_stop(struct iwl_priv *priv);
+int iwl_apm_stop_master(struct iwl_priv *priv);
 
 void iwl_setup_rxon_timing(struct iwl_priv *priv);
 static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)
@@ -653,5 +679,4 @@ static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 {
 	return priv->hw->wiphy->bands[band];
 }
-
 #endif /* __iwl_core_h__ */

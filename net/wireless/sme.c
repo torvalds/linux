@@ -345,7 +345,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	u8 *country_ie;
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
 
@@ -362,7 +362,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 				    resp_ie, resp_ie_len,
 				    status, GFP_KERNEL);
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	if (wextev) {
 		if (req_ie && status == WLAN_STATUS_SUCCESS) {
 			memset(&wrqu, 0, sizeof(wrqu));
@@ -477,7 +477,7 @@ void __cfg80211_roamed(struct wireless_dev *wdev, const u8 *bssid,
 		       const u8 *resp_ie, size_t resp_ie_len)
 {
 	struct cfg80211_bss *bss;
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
 
@@ -512,7 +512,7 @@ void __cfg80211_roamed(struct wireless_dev *wdev, const u8 *bssid,
 			    req_ie, req_ie_len, resp_ie, resp_ie_len,
 			    GFP_KERNEL);
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	if (req_ie) {
 		memset(&wrqu, 0, sizeof(wrqu));
 		wrqu.data.length = req_ie_len;
@@ -573,7 +573,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	int i;
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
 
@@ -631,7 +631,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 		for (i = 0; i < 6; i++)
 			rdev->ops->del_key(wdev->wiphy, dev, i, NULL);
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);

@@ -323,18 +323,19 @@ typedef int (*iw_handler)(struct net_device *dev, struct iw_request_info *info,
  */
 struct iw_handler_def
 {
-	/* Number of handlers defined (more precisely, index of the
-	 * last defined handler + 1) */
-	__u16			num_standard;
-	__u16			num_private;
-	/* Number of private arg description */
-	__u16			num_private_args;
 
 	/* Array of handlers for standard ioctls
 	 * We will call dev->wireless_handlers->standard[ioctl - SIOCSIWCOMMIT]
 	 */
 	const iw_handler *	standard;
+	/* Number of handlers defined (more precisely, index of the
+	 * last defined handler + 1) */
+	__u16			num_standard;
 
+#ifdef CONFIG_WEXT_PRIV
+	__u16			num_private;
+	/* Number of private arg description */
+	__u16			num_private_args;
 	/* Array of handlers for private ioctls
 	 * Will call dev->wireless_handlers->private[ioctl - SIOCIWFIRSTPRIV]
 	 */
@@ -344,6 +345,7 @@ struct iw_handler_def
 	 * can put it in any order you want and should not leave holes...
 	 * We will automatically export that to user space... */
 	const struct iw_priv_args *	private_args;
+#endif
 
 	/* New location of get_wireless_stats, to de-bloat struct net_device.
 	 * The old pointer in struct net_device will be gradually phased

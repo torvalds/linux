@@ -172,8 +172,6 @@ struct ar9170 {
 
 	/* interface mode settings */
 	struct ieee80211_vif *vif;
-	u8 mac_addr[ETH_ALEN];
-	u8 bssid[ETH_ALEN];
 
 	/* beaconing */
 	struct sk_buff *beacon;
@@ -203,6 +201,8 @@ struct ar9170 {
 	u8 power_5G_ht40[8];
 	u8 power_2G_ht20[8];
 	u8 power_2G_ht40[8];
+
+	u8 phy_heavy_clip;
 
 #ifdef CONFIG_AR9170_LEDS
 	struct delayed_work led_work;

@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "ath9k.h"
+#include "hw.h"
 
 void
 ath9k_hw_write_regs(struct ath_hw *ah, u32 modesIndex, u32 freqIndex,
@@ -26,6 +26,7 @@ ath9k_hw_write_regs(struct ath_hw *ah, u32 modesIndex, u32 freqIndex,
 bool
 ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	u32 channelSel = 0;
 	u32 bModeSynth = 0;
 	u32 aModeRefSel = 0;
@@ -46,8 +47,8 @@ ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			channelSel = ((freq - 704) * 2 - 3040) / 10;
 			bModeSynth = 1;
 		} else {
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				"Invalid channel %u MHz\n", freq);
+			ath_print(common, ATH_DBG_FATAL,
+				  "Invalid channel %u MHz\n", freq);
 			return false;
 		}
 
@@ -79,8 +80,8 @@ ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 		channelSel = ath9k_hw_reverse_bits((freq - 4800) / 5, 8);
 		aModeRefSel = ath9k_hw_reverse_bits(1, 2);
 	} else {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-			"Invalid channel %u MHz\n", freq);
+		ath_print(common, ATH_DBG_FATAL,
+			  "Invalid channel %u MHz\n", freq);
 		return false;
 	}
 
@@ -112,20 +113,31 @@ void ath9k_hw_ar9280_set_channel(struct ath_hw *ah,
 
 	if (freq < 4800) {
 		u32 txctl;
+		int regWrites = 0;
 
 		bMode = 1;
 		fracMode = 1;
 		aModeRefSel = 0;
 		channelSel = (freq * 0x10000) / 15;
 
-		txctl = REG_READ(ah, AR_PHY_CCK_TX_CTRL);
-		if (freq == 2484) {
-
-			REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
-				  txctl | AR_PHY_CCK_TX_CTRL_JAPAN);
+		if (AR_SREV_9287_11_OR_LATER(ah)) {
+			if (freq == 2484) {
+				REG_WRITE_ARRAY(&ah->iniCckfirJapan2484,
+						1, regWrites);
+			} else {
+				REG_WRITE_ARRAY(&ah->iniCckfirNormal,
+						1, regWrites);
+			}
 		} else {
-			REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
-				  txctl & ~AR_PHY_CCK_TX_CTRL_JAPAN);
+			txctl = REG_READ(ah, AR_PHY_CCK_TX_CTRL);
+			if (freq == 2484) {
+				/* Enable channel spreading for channel 14 */
+				REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
+					  txctl | AR_PHY_CCK_TX_CTRL_JAPAN);
+			} else {
+				REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
+					  txctl &~ AR_PHY_CCK_TX_CTRL_JAPAN);
+			}
 		}
 	} else {
 		bMode = 0;
@@ -285,6 +297,8 @@ ath9k_hw_rf_free(struct ath_hw *ah)
 
 bool ath9k_hw_init_rf(struct ath_hw *ah, int *status)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
+
 	if (!AR_SREV_9280_10_OR_LATER(ah)) {
 		ah->analogBank0Data =
 		    kzalloc((sizeof(u32) *
@@ -315,8 +329,8 @@ bool ath9k_hw_init_rf(struct ath_hw *ah, int *status)
 		    || ah->analogBank6Data == NULL
 		    || ah->analogBank6TPCData == NULL
 		    || ah->analogBank7Data == NULL) {
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				"Cannot allocate RF banks\n");
+			ath_print(common, ATH_DBG_FATAL,
+				  "Cannot allocate RF banks\n");
 			*status = -ENOMEM;
 			return false;
 		}
@@ -326,8 +340,8 @@ bool ath9k_hw_init_rf(struct ath_hw *ah, int *status)
 			     ah->iniAddac.ia_rows *
 			     ah->iniAddac.ia_columns), GFP_KERNEL);
 		if (ah->addac5416_21 == NULL) {
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				"Cannot allocate addac5416_21\n");
+			ath_print(common, ATH_DBG_FATAL,
+				  "Cannot allocate addac5416_21\n");
 			*status = -ENOMEM;
 			return false;
 		}
@@ -336,8 +350,8 @@ bool ath9k_hw_init_rf(struct ath_hw *ah, int *status)
 		    kzalloc((sizeof(u32) *
 			     ah->iniBank6.ia_rows), GFP_KERNEL);
 		if (ah->bank6Temp == NULL) {
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				"Cannot allocate bank6Temp\n");
+			ath_print(common, ATH_DBG_FATAL,
+				  "Cannot allocate bank6Temp\n");
 			*status = -ENOMEM;
 			return false;
 		}

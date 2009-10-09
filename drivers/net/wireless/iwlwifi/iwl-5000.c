@@ -42,6 +42,7 @@
 #include "iwl-io.h"
 #include "iwl-sta.h"
 #include "iwl-helpers.h"
+#include "iwl-agn-led.h"
 #include "iwl-5000-hw.h"
 #include "iwl-6000-hw.h"
 
@@ -71,26 +72,6 @@ static const u16 iwl5000_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_HCCA_2
 };
 
-/* FIXME: same implementation as 4965 */
-static int iwl5000_apm_stop_master(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* set stop master bit */
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
-
-	iwl_poll_direct_bit(priv, CSR_RESET,
-				  CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-	IWL_DEBUG_INFO(priv, "stop master\n");
-
-	return 0;
-}
-
-
 int iwl5000_apm_init(struct iwl_priv *priv)
 {
 	int ret = 0;
@@ -117,7 +98,8 @@ int iwl5000_apm_init(struct iwl_priv *priv)
 	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* wait for clock stabilization */
-	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
+	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0) {
 		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
@@ -136,31 +118,11 @@ int iwl5000_apm_init(struct iwl_priv *priv)
 	return ret;
 }
 
-/* FIXME: this is identical to 4965 */
-void iwl5000_apm_stop(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	iwl5000_apm_stop_master(priv);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
-
-	/* clear "init complete"  move adapter D0A* --> D0U state */
-	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-
 int iwl5000_apm_reset(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	iwl5000_apm_stop_master(priv);
+	iwl_apm_stop_master(priv);
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
@@ -177,7 +139,8 @@ int iwl5000_apm_reset(struct iwl_priv *priv)
 	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* wait for clock stabilization */
-	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
+	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0) {
 		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
@@ -198,7 +161,7 @@ out:
 }
 
 
-/* NIC configuration for 5000 series and up */
+/* NIC configuration for 5000 series */
 void iwl5000_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
@@ -221,7 +184,7 @@ void iwl5000_nic_config(struct iwl_priv *priv)
 	radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
 
 	/* write radio config values to register */
-	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) < EEPROM_5000_RF_CFG_TYPE_MAX)
+	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) < EEPROM_RF_CONFIG_TYPE_MAX)
 		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
 			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
@@ -301,14 +264,17 @@ u16 iwl5000_eeprom_calib_version(struct iwl_priv *priv)
 static void iwl5000_gain_computation(struct iwl_priv *priv,
 		u32 average_noise[NUM_RX_CHAINS],
 		u16 min_average_noise_antenna_i,
-		u32 min_average_noise)
+		u32 min_average_noise,
+		u8 default_chain)
 {
 	int i;
 	s32 delta_g;
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 
-	/* Find Gain Code for the antennas B and C */
-	for (i = 1; i < NUM_RX_CHAINS; i++) {
+	/*
+	 * Find Gain Code for the chains based on "default chain"
+	 */
+	for (i = default_chain + 1; i < NUM_RX_CHAINS; i++) {
 		if ((data->disconn_array[i])) {
 			data->delta_gain_code[i] = 0;
 			continue;
@@ -745,7 +711,8 @@ int iwl5000_alive_notify(struct iwl_priv *priv)
 	for (; a < priv->scd_base_addr + IWL50_SCD_TRANSLATE_TBL_OFFSET;
 		a += 4)
 		iwl_write_targ_mem(priv, a, 0);
-	for (; a < sizeof(u16) * priv->hw_params.max_txq_num; a += 4)
+	for (; a < priv->scd_base_addr +
+	       IWL50_SCD_TRANSLATE_TBL_OFFSET_QUEUE(priv->hw_params.max_txq_num); a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 
 	iwl_write_prph(priv, IWL50_SCD_DRAM_BASE_ADDR,
@@ -833,16 +800,8 @@ int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
 
-	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
-	case CSR_HW_REV_TYPE_6x00:
-	case CSR_HW_REV_TYPE_6x50:
-		priv->hw_params.max_data_size = IWL60_RTC_DATA_SIZE;
-		priv->hw_params.max_inst_size = IWL60_RTC_INST_SIZE;
-		break;
-	default:
-		priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
-		priv->hw_params.max_inst_size = IWL50_RTC_INST_SIZE;
-	}
+	priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
+	priv->hw_params.max_inst_size = IWL50_RTC_INST_SIZE;
 
 	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
@@ -1458,6 +1417,24 @@ int iwl5000_calc_rssi(struct iwl_priv *priv,
 	return max_rssi - agc - IWL49_RSSI_OFFSET;
 }
 
+static int iwl5000_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
+{
+	struct iwl_tx_ant_config_cmd tx_ant_cmd = {
+	  .valid = cpu_to_le32(valid_tx_ant),
+	};
+
+	if (IWL_UCODE_API(priv->ucode_ver) > 1) {
+		IWL_DEBUG_HC(priv, "select valid tx ant: %u\n", valid_tx_ant);
+		return iwl_send_cmd_pdu(priv, TX_ANT_CONFIGURATION_CMD,
+					sizeof(struct iwl_tx_ant_config_cmd),
+					&tx_ant_cmd);
+	} else {
+		IWL_DEBUG_HC(priv, "TX_ANT_CONFIGURATION_CMD not supported\n");
+		return -EOPNOTSUPP;
+	}
+}
+
+
 #define IWL5000_UCODE_GET(item)						\
 static u32 iwl5000_ucode_get_##item(const struct iwl_ucode_header *ucode,\
 				    u32 api_ver)			\
@@ -1500,6 +1477,7 @@ struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
 	.set_rxon_chain = iwl_set_rxon_chain,
+	.set_tx_ant = iwl5000_send_tx_ant_config,
 };
 
 struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
@@ -1545,7 +1523,7 @@ struct iwl_lib_ops iwl5000_lib = {
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,
-		.stop = iwl5000_apm_stop,
+		.stop = iwl_apm_stop,
 		.config = iwl5000_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
 	},
@@ -1597,7 +1575,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,
-		.stop = iwl5000_apm_stop,
+		.stop = iwl_apm_stop,
 		.config = iwl5000_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
 	},
@@ -1626,11 +1604,12 @@ static struct iwl_lib_ops iwl5150_lib = {
 	 },
 };
 
-struct iwl_ops iwl5000_ops = {
+static struct iwl_ops iwl5000_ops = {
 	.ucode = &iwl5000_ucode,
 	.lib = &iwl5000_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
+	.led = &iwlagn_led_ops,
 };
 
 static struct iwl_ops iwl5150_ops = {
@@ -1638,6 +1617,7 @@ static struct iwl_ops iwl5150_ops = {
 	.lib = &iwl5150_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
+	.led = &iwlagn_led_ops,
 };
 
 struct iwl_mod_params iwl50_mod_params = {
@@ -1664,6 +1644,8 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.valid_rx_ant = ANT_ABC,
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
+	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 struct iwl_cfg iwl5100_bg_cfg = {
@@ -1681,6 +1663,8 @@ struct iwl_cfg iwl5100_bg_cfg = {
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
+	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -1698,6 +1682,8 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
+	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -1715,6 +1701,8 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
+	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -1732,6 +1720,8 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.valid_rx_ant = ANT_ABC,
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
+	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -1749,19 +1739,22 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
+	.led_compensation = 51,
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL5150_MODULE_FIRMWARE(IWL5150_UCODE_API_MAX));
 
-module_param_named(swcrypto50, iwl50_mod_params.sw_crypto, bool, 0444);
+module_param_named(swcrypto50, iwl50_mod_params.sw_crypto, bool, S_IRUGO);
 MODULE_PARM_DESC(swcrypto50,
 		  "using software crypto engine (default 0 [hardware])\n");
-module_param_named(queues_num50, iwl50_mod_params.num_of_queues, int, 0444);
+module_param_named(queues_num50, iwl50_mod_params.num_of_queues, int, S_IRUGO);
 MODULE_PARM_DESC(queues_num50, "number of hw queues in 50xx series");
-module_param_named(11n_disable50, iwl50_mod_params.disable_11n, int, 0444);
+module_param_named(11n_disable50, iwl50_mod_params.disable_11n, int, S_IRUGO);
 MODULE_PARM_DESC(11n_disable50, "disable 50XX 11n functionality");
-module_param_named(amsdu_size_8K50, iwl50_mod_params.amsdu_size_8K, int, 0444);
+module_param_named(amsdu_size_8K50, iwl50_mod_params.amsdu_size_8K,
+		   int, S_IRUGO);
 MODULE_PARM_DESC(amsdu_size_8K50, "enable 8K amsdu size in 50XX series");
-module_param_named(fw_restart50, iwl50_mod_params.restart_fw, int, 0444);
+module_param_named(fw_restart50, iwl50_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart50, "restart firmware in case of error");

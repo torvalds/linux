@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "ath9k.h"
+#include "hw.h"
 
 static int ath9k_hw_AR9287_get_eeprom_ver(struct ath_hw *ah)
 {
@@ -29,20 +29,22 @@ static int ath9k_hw_AR9287_get_eeprom_rev(struct ath_hw *ah)
 static bool ath9k_hw_AR9287_fill_eeprom(struct ath_hw *ah)
 {
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
+	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eep_data;
 	int addr, eep_start_loc = AR9287_EEP_START_LOC;
 	eep_data = (u16 *)eep;
 
 	if (!ath9k_hw_use_flash(ah)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"Reading from EEPROM, not flash\n");
+		ath_print(common, ATH_DBG_EEPROM,
+			  "Reading from EEPROM, not flash\n");
 	}
 
 	for (addr = 0; addr < sizeof(struct ar9287_eeprom) / sizeof(u16);
 			addr++)	{
-		if (!ath9k_hw_nvram_read(ah, addr + eep_start_loc, eep_data)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-				"Unable to read eeprom region \n");
+		if (!ath9k_hw_nvram_read(common,
+					 addr + eep_start_loc, eep_data)) {
+			ath_print(common, ATH_DBG_EEPROM,
+				  "Unable to read eeprom region \n");
 			return false;
 		}
 		eep_data++;
@@ -57,17 +59,18 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 	int i, addr;
 	bool need_swap = false;
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!ath9k_hw_use_flash(ah)) {
-		if (!ath9k_hw_nvram_read
-		    (ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				"Reading Magic # failed\n");
+		if (!ath9k_hw_nvram_read(common,
+					 AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+			ath_print(common, ATH_DBG_FATAL,
+				  "Reading Magic # failed\n");
 			return false;
 		}
 
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-				"Read Magic = 0x%04X\n", magic);
+		ath_print(common, ATH_DBG_EEPROM,
+			  "Read Magic = 0x%04X\n", magic);
 		if (magic != AR5416_EEPROM_MAGIC) {
 			magic2 = swab16(magic);
 
@@ -83,15 +86,15 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 					eepdata++;
 				}
 			} else {
-				DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-					"Invalid EEPROM Magic. "
-					"endianness mismatch.\n");
+				ath_print(common, ATH_DBG_FATAL,
+					  "Invalid EEPROM Magic. "
+					  "endianness mismatch.\n");
 				return -EINVAL;
 			}
 		}
 	}
-	DPRINTF(ah->ah_sc, ATH_DBG_EEPROM, "need_swap = %s.\n", need_swap ?
-		"True" : "False");
+	ath_print(common, ATH_DBG_EEPROM, "need_swap = %s.\n", need_swap ?
+		  "True" : "False");
 
 	if (need_swap)
 		el = swab16(ah->eeprom.map9287.baseEepHeader.length);
@@ -148,9 +151,9 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 
 	if (sum != 0xffff || ah->eep_ops->get_eeprom_ver(ah) != AR9287_EEP_VER
 	    || ah->eep_ops->get_eeprom_rev(ah) < AR5416_EEP_NO_BACK_VER) {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-			"Bad EEPROM checksum 0x%x or revision 0x%04x\n",
-			 sum, ah->eep_ops->get_eeprom_ver(ah));
+		ath_print(common, ATH_DBG_FATAL,
+			  "Bad EEPROM checksum 0x%x or revision 0x%04x\n",
+			   sum, ah->eep_ops->get_eeprom_ver(ah));
 		return -EINVAL;
 	}
 
@@ -436,6 +439,7 @@ static void ath9k_hw_set_AR9287_power_cal_table(struct ath_hw *ah,
 						struct ath9k_channel *chan,
 						int16_t *pTxPowerIndexOffset)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct cal_data_per_freq_ar9287 *pRawDataset;
 	struct cal_data_op_loop_ar9287 *pRawDatasetOpenLoop;
 	u8  *pCalBChans = NULL;
@@ -564,24 +568,25 @@ static void ath9k_hw_set_AR9287_power_cal_table(struct ath_hw *ah,
 						  & 0xFF) << 24) ;
 					REG_WRITE(ah, regOffset, reg32);
 
-					DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-						"PDADC (%d,%4x): %4.4x %8.8x\n",
-						i, regChainOffset, regOffset,
-						reg32);
+					ath_print(common, ATH_DBG_EEPROM,
+						  "PDADC (%d,%4x): %4.4x "
+						  "%8.8x\n",
+						  i, regChainOffset, regOffset,
+						  reg32);
 
-					DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-						"PDADC: Chain %d | "
-						"PDADC %3d Value %3d | "
-						"PDADC %3d Value %3d | "
-						"PDADC %3d Value %3d | "
-						"PDADC %3d Value %3d |\n",
-						i, 4 * j, pdadcValues[4 * j],
-						4 * j + 1,
-						pdadcValues[4 * j + 1],
-						4 * j + 2,
-						pdadcValues[4 * j + 2],
-						4 * j + 3,
-						pdadcValues[4 * j + 3]);
+					ath_print(common, ATH_DBG_EEPROM,
+						  "PDADC: Chain %d | "
+						  "PDADC %3d Value %3d | "
+						  "PDADC %3d Value %3d | "
+						  "PDADC %3d Value %3d | "
+						  "PDADC %3d Value %3d |\n",
+						  i, 4 * j, pdadcValues[4 * j],
+						  4 * j + 1,
+						  pdadcValues[4 * j + 1],
+						  4 * j + 2,
+						  pdadcValues[4 * j + 2],
+						  4 * j + 3,
+						  pdadcValues[4 * j + 3]);
 
 					regOffset += 4;
 				}
@@ -831,6 +836,7 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 {
 #define INCREASE_MAXPOW_BY_TWO_CHAIN     6
 #define INCREASE_MAXPOW_BY_THREE_CHAIN   10
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ar9287_eeprom *pEepData = &ah->eeprom.map9287;
 	struct modal_eep_ar9287_header *pModal = &pEepData->modalHeader;
@@ -966,8 +972,8 @@ static void ath9k_hw_AR9287_set_txpower(struct ath_hw *ah,
 			INCREASE_MAXPOW_BY_THREE_CHAIN;
 		break;
 	default:
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"Invalid chainmask configuration\n");
+		ath_print(common, ATH_DBG_EEPROM,
+			  "Invalid chainmask configuration\n");
 		break;
 	}
 }
@@ -1138,19 +1144,20 @@ static u16 ath9k_hw_AR9287_get_spur_channel(struct ath_hw *ah,
 {
 #define EEP_MAP9287_SPURCHAN \
 	(ah->eeprom.map9287.modalHeader.spurChans[i].spurChan)
+	struct ath_common *common = ath9k_hw_common(ah);
 	u16 spur_val = AR_NO_SPUR;
 
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-		"Getting spur idx %d is2Ghz. %d val %x\n",
-		i, is2GHz, ah->config.spurchans[i][is2GHz]);
+	ath_print(common, ATH_DBG_ANI,
+		  "Getting spur idx %d is2Ghz. %d val %x\n",
+		  i, is2GHz, ah->config.spurchans[i][is2GHz]);
 
 	switch (ah->config.spurmode) {
 	case SPUR_DISABLE:
 		break;
 	case SPUR_ENABLE_IOCTL:
 		spur_val = ah->config.spurchans[i][is2GHz];
-		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-		       "Getting spur val from new loc. %d\n", spur_val);
+		ath_print(common, ATH_DBG_ANI,
+			  "Getting spur val from new loc. %d\n", spur_val);
 		break;
 	case SPUR_ENABLE_EEPROM:
 		spur_val = EEP_MAP9287_SPURCHAN;

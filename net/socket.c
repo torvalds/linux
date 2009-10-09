@@ -905,11 +905,11 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
 		err = dev_ioctl(net, cmd, argp);
 	} else
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_WEXT_CORE
 	if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
 		err = dev_ioctl(net, cmd, argp);
 	} else
-#endif				/* CONFIG_WIRELESS_EXT */
+#endif
 		switch (cmd) {
 		case FIOSETOWN:
 		case SIOCSPGRP:

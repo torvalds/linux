@@ -35,6 +35,7 @@
  * TODO: Make a more generic struct (eg. add more stuff to ath5k_capabilities)
  * and clean up common bits, then introduce set/get functions in eeprom.c */
 #include "eeprom.h"
+#include "../ath.h"
 
 /* PCI IDs */
 #define PCI_DEVICE_ID_ATHEROS_AR5210 		0x0007 /* AR5210 */
@@ -164,13 +165,6 @@
 #define AR5K_INI_VAL_11G_TURBO		4
 #define AR5K_INI_VAL_XR			0
 #define AR5K_INI_VAL_MAX		5
-
-/* Used for BSSID etc manipulation */
-#define AR5K_LOW_ID(_a)(				\
-(_a)[0] | (_a)[1] << 8 | (_a)[2] << 16 | (_a)[3] << 24	\
-)
-
-#define AR5K_HIGH_ID(_a)	((_a)[4] | (_a)[5] << 8)
 
 /*
  * Some tuneable values (these should be changeable by the user)
@@ -1027,6 +1021,7 @@ struct ath5k_capabilities {
 /* TODO: Clean up and merge with ath5k_softc */
 struct ath5k_hw {
 	u32			ah_magic;
+	struct ath_common       common;
 
 	struct ath5k_softc	*ah_sc;
 	void __iomem		*ah_iobase;
@@ -1066,14 +1061,6 @@ struct ath5k_hw {
 	u8			ah_tx_ant;
 	u8			ah_def_ant;
 	bool			ah_software_retry;
-
-	u8			ah_sta_id[ETH_ALEN];
-
-	/* Current BSSID we are trying to assoc to / create.
-	 * This is passed by mac80211 on config_interface() and cached here for
-	 * use in resets */
-	u8			ah_bssid[ETH_ALEN];
-	u8			ah_bssid_mask[ETH_ALEN];
 
 	int			ah_gpio_npins;
 
@@ -1160,7 +1147,7 @@ struct ath5k_hw {
  */
 
 /* Attach/Detach Functions */
-extern struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc);
+extern int ath5k_hw_attach(struct ath5k_softc *sc);
 extern void ath5k_hw_detach(struct ath5k_hw *ah);
 
 /* LED functions */
@@ -1203,10 +1190,9 @@ extern bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah);
 /* Protocol Control Unit Functions */
 extern int ath5k_hw_set_opmode(struct ath5k_hw *ah);
 /* BSSID Functions */
-extern void ath5k_hw_get_lladdr(struct ath5k_hw *ah, u8 *mac);
 extern int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);
-extern void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id);
-extern int ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask);
+extern void ath5k_hw_set_associd(struct ath5k_hw *ah);
+extern void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask);
 /* Receive start/stop functions */
 extern void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah);
 extern void ath5k_hw_stop_rx_pcu(struct ath5k_hw *ah);
@@ -1329,17 +1315,21 @@ static inline unsigned int ath5k_hw_clocktoh(unsigned int clock, bool turbo)
 	return turbo ? (clock / 80) : (clock / 40);
 }
 
-/*
- * Read from a register
- */
+static inline struct ath_common *ath5k_hw_common(struct ath5k_hw *ah)
+{
+        return &ah->common;
+}
+
+static inline struct ath_regulatory *ath5k_hw_regulatory(struct ath5k_hw *ah)
+{
+        return &(ath5k_hw_common(ah)->regulatory);
+}
+
 static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
 {
 	return ioread32(ah->ah_iobase + reg);
 }
 
-/*
- * Write to a register
- */
 static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 {
 	iowrite32(val, ah->ah_iobase + reg);

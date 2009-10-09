@@ -215,12 +215,35 @@ static const struct iwl_txpwr_section enhinfo[] = {
 
 int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 {
-	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
-	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
-		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
-		return -ENOENT;
+	u32 gp = iwl_read32(priv, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
+	int ret = 0;
+
+	IWL_DEBUG_INFO(priv, "EEPROM signature=0x%08x\n", gp);
+	switch (gp) {
+	case CSR_EEPROM_GP_BAD_SIG_EEP_GOOD_SIG_OTP:
+		if (priv->nvm_device_type != NVM_DEVICE_TYPE_OTP) {
+			IWL_ERR(priv, "EEPROM with bad signature: 0x%08x\n",
+				gp);
+			ret = -ENOENT;
+		}
+		break;
+	case CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K:
+	case CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K:
+		if (priv->nvm_device_type != NVM_DEVICE_TYPE_EEPROM) {
+			IWL_ERR(priv, "OTP with bad signature: 0x%08x\n", gp);
+			ret = -ENOENT;
+		}
+		break;
+	case CSR_EEPROM_GP_BAD_SIGNATURE_BOTH_EEP_AND_OTP:
+	default:
+		IWL_ERR(priv, "bad EEPROM/OTP signature, type=%s, "
+			"EEPROM_GP=0x%08x\n",
+			(priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+			? "OTP" : "EEPROM", gp);
+		ret = -ENOENT;
+		break;
 	}
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(iwlcore_eeprom_verify_signature);
 
@@ -283,7 +306,8 @@ int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
 			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 		/* See if we got it */
-		ret = iwl_poll_direct_bit(priv, CSR_HW_IF_CONFIG_REG,
+		ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
@@ -322,7 +346,8 @@ static int iwl_init_otp_access(struct iwl_priv *priv)
 		     CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* wait for clock to be ready */
-	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
+	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
+				  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 				  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 				  25000);
 	if (ret < 0)
@@ -345,7 +370,8 @@ static int iwl_read_otp_word(struct iwl_priv *priv, u16 addr, u16 *eeprom_data)
 
 	_iwl_write32(priv, CSR_EEPROM_REG,
 		     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
-	ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
+	ret = iwl_poll_bit(priv, CSR_EEPROM_REG,
+				  CSR_EEPROM_REG_READ_VALID_MSK,
 				  CSR_EEPROM_REG_READ_VALID_MSK,
 				  IWL_EEPROM_ACCESS_TIMEOUT);
 	if (ret < 0) {
@@ -538,7 +564,8 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 			_iwl_write32(priv, CSR_EEPROM_REG,
 				     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
-			ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
+			ret = iwl_poll_bit(priv, CSR_EEPROM_REG,
+						  CSR_EEPROM_REG_READ_VALID_MSK,
 						  CSR_EEPROM_REG_READ_VALID_MSK,
 						  IWL_EEPROM_ACCESS_TIMEOUT);
 			if (ret < 0) {

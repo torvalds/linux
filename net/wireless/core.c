@@ -21,6 +21,7 @@
 #include "sysfs.h"
 #include "debugfs.h"
 #include "wext-compat.h"
+#include "ethtool.h"
 
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
@@ -358,6 +359,10 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	INIT_LIST_HEAD(&rdev->bss_list);
 	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
 
+#ifdef CONFIG_CFG80211_WEXT
+	rdev->wiphy.wext = &cfg80211_wext_handler;
+#endif
+
 	device_initialize(&rdev->wiphy.dev);
 	rdev->wiphy.dev.class = &ieee80211_class;
 	rdev->wiphy.dev.platform_data = rdev;
@@ -672,9 +677,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		wdev->netdev = dev;
 		wdev->sme_state = CFG80211_SME_IDLE;
 		mutex_unlock(&rdev->devlist_mtx);
-#ifdef CONFIG_WIRELESS_EXT
-		if (!dev->wireless_handlers)
-			dev->wireless_handlers = &cfg80211_wext_handler;
+#ifdef CONFIG_CFG80211_WEXT
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
@@ -688,6 +691,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 				wdev->wext.ps = false;
 			}
 #endif
+		if (!dev->ethtool_ops)
+			dev->ethtool_ops = &cfg80211_ethtool_ops;
 		break;
 	case NETDEV_GOING_DOWN:
 		switch (wdev->iftype) {
@@ -696,7 +701,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			break;
 		case NL80211_IFTYPE_STATION:
 			wdev_lock(wdev);
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 			kfree(wdev->wext.ie);
 			wdev->wext.ie = NULL;
 			wdev->wext.ie_len = 0;
@@ -728,7 +733,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			mutex_unlock(&rdev->devlist_mtx);
 			dev_put(dev);
 		}
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 		cfg80211_lock_rdev(rdev);
 		mutex_lock(&rdev->devlist_mtx);
 		wdev_lock(wdev);
@@ -766,7 +771,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
 			list_del_init(&wdev->list);
 			rdev->devlist_generation++;
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 			kfree(wdev->wext.keys);
 #endif
 		}

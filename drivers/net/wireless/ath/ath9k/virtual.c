@@ -40,6 +40,7 @@ void ath9k_set_bssid_mask(struct ieee80211_hw *hw)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath9k_vif_iter_data iter_data;
 	int i, j;
 	u8 mask[ETH_ALEN];
@@ -51,7 +52,7 @@ void ath9k_set_bssid_mask(struct ieee80211_hw *hw)
 	 */
 	iter_data.addr = kmalloc(ETH_ALEN, GFP_ATOMIC);
 	if (iter_data.addr) {
-		memcpy(iter_data.addr, sc->sc_ah->macaddr, ETH_ALEN);
+		memcpy(iter_data.addr, common->macaddr, ETH_ALEN);
 		iter_data.count = 1;
 	} else
 		iter_data.count = 0;
@@ -86,20 +87,21 @@ void ath9k_set_bssid_mask(struct ieee80211_hw *hw)
 	kfree(iter_data.addr);
 
 	/* Invert the mask and configure hardware */
-	sc->bssidmask[0] = ~mask[0];
-	sc->bssidmask[1] = ~mask[1];
-	sc->bssidmask[2] = ~mask[2];
-	sc->bssidmask[3] = ~mask[3];
-	sc->bssidmask[4] = ~mask[4];
-	sc->bssidmask[5] = ~mask[5];
+	common->bssidmask[0] = ~mask[0];
+	common->bssidmask[1] = ~mask[1];
+	common->bssidmask[2] = ~mask[2];
+	common->bssidmask[3] = ~mask[3];
+	common->bssidmask[4] = ~mask[4];
+	common->bssidmask[5] = ~mask[5];
 
-	ath9k_hw_setbssidmask(sc);
+	ath_hw_setbssidmask(common);
 }
 
 int ath9k_wiphy_add(struct ath_softc *sc)
 {
 	int i, error;
 	struct ath_wiphy *aphy;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ieee80211_hw *hw;
 	u8 addr[ETH_ALEN];
 
@@ -138,7 +140,7 @@ int ath9k_wiphy_add(struct ath_softc *sc)
 	sc->sec_wiphy[i] = aphy;
 	spin_unlock_bh(&sc->wiphy_lock);
 
-	memcpy(addr, sc->sc_ah->macaddr, ETH_ALEN);
+	memcpy(addr, common->macaddr, ETH_ALEN);
 	addr[0] |= 0x02; /* Locally managed address */
 	/*
 	 * XOR virtual wiphy index into the least significant bits to generate
