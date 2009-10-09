@@ -492,6 +492,28 @@ TRACE_EVENT(kvm_invlpga,
 	TP_printk("rip: 0x%016llx asid: %d address: 0x%016llx\n",
 		  __entry->rip, __entry->asid, __entry->address)
 );
+
+/*
+ * Tracepoint for nested #vmexit because of interrupt pending
+ */
+TRACE_EVENT(kvm_skinit,
+	    TP_PROTO(__u64 rip, __u32 slb),
+	    TP_ARGS(rip, slb),
+
+	TP_STRUCT__entry(
+		__field(	__u64,	rip	)
+		__field(	__u32,	slb	)
+	),
+
+	TP_fast_assign(
+		__entry->rip		=	rip;
+		__entry->slb		=	slb;
+	),
+
+	TP_printk("rip: 0x%016llx slb: 0x%08x\n",
+		  __entry->rip, __entry->slb)
+);
+
 #endif /* _TRACE_KVM_H */
 
 /* This part must be outside protection */
