@@ -323,6 +323,12 @@ struct iwl_channel_info {
  * queue, 2 (unused) HCCA queues, and 4 HT queues (one for each AC) */
 #define IWL_MIN_NUM_QUEUES	10
 
+/*
+ * uCode queue management definitions ...
+ * Queue #4 is the command queue for 3945/4965/5x00/1000/6x00.
+ */
+#define IWL_CMD_QUEUE_NUM	4
+
 /* Power management (not Tx power) structures */
 
 enum iwl_pwr_src {

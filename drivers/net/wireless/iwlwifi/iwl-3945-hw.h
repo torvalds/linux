@@ -71,12 +71,6 @@
 
 #include "iwl-eeprom.h"
 
-/*
- * uCode queue management definitions ...
- * Queue #4 is the command queue for 3945 and 4965.
- */
-#define IWL_CMD_QUEUE_NUM	4
-
 /* Time constants */
 #define SHORT_SLOT_TIME 9
 #define LONG_SLOT_TIME 20
