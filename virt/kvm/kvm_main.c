@@ -1108,6 +1108,21 @@ void kvm_resched(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_resched);
 
+void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu)
+{
+	ktime_t expires;
+	DEFINE_WAIT(wait);
+
+	prepare_to_wait(&vcpu->wq, &wait, TASK_INTERRUPTIBLE);
+
+	/* Sleep for 100 us, and hope lock-holder got scheduled */
+	expires = ktime_add_ns(ktime_get(), 100000UL);
+	schedule_hrtimeout(&expires, HRTIMER_MODE_ABS);
+
+	finish_wait(&vcpu->wq, &wait);
+}
+EXPORT_SYMBOL_GPL(kvm_vcpu_on_spin);
+
 static int kvm_vcpu_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct kvm_vcpu *vcpu = vma->vm_file->private_data;
