@@ -273,7 +273,9 @@ static void __request_mount(struct ceph_mon_client *monc)
 	if (IS_ERR(msg))
 		return;
 	h = msg->front.iov_base;
-	h->have_version = 0;
+	h->monhdr.have_version = 0;
+	h->monhdr.session_mon = cpu_to_le16(-1);
+	h->monhdr.session_mon_tid = 0;
 	ceph_con_send(monc->con, msg);
 }
 
@@ -422,7 +424,9 @@ static int send_statfs(struct ceph_mon_client *monc,
 		return PTR_ERR(msg);
 	req->request = msg;
 	h = msg->front.iov_base;
-	h->have_version = 0;
+	h->monhdr.have_version = 0;
+	h->monhdr.session_mon = cpu_to_le16(-1);
+	h->monhdr.session_mon_tid = 0;
 	h->fsid = monc->monmap->fsid;
 	h->tid = cpu_to_le64(req->tid);
 	ceph_con_send(monc->con, msg);

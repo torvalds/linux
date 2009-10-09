@@ -857,7 +857,7 @@ out:
 static int verify_hello(struct ceph_connection *con)
 {
 	if (memcmp(con->in_banner, CEPH_BANNER, strlen(CEPH_BANNER))) {
-		pr_err("connect to/from %s has bad banner\n",
+		pr_err("connect to %s got bad banner\n",
 		       pr_addr(&con->peer_addr.in_addr));
 		con->error_msg = "protocol error, bad banner";
 		return -1;

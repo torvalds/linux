@@ -37,10 +37,10 @@
  */
 #define CEPH_OSD_PROTOCOL     7 /* cluster internal */
 #define CEPH_MDS_PROTOCOL     9 /* cluster internal */
-#define CEPH_MON_PROTOCOL     4 /* cluster internal */
+#define CEPH_MON_PROTOCOL     5 /* cluster internal */
 #define CEPH_OSDC_PROTOCOL   20 /* server/client */
 #define CEPH_MDSC_PROTOCOL   29 /* server/client */
-#define CEPH_MONC_PROTOCOL   14 /* server/client */
+#define CEPH_MONC_PROTOCOL   15 /* server/client */
 
 
 #define CEPH_INO_ROOT  1
@@ -118,9 +118,14 @@ struct ceph_file_layout {
 #define CEPH_MSG_OSD_OP           42
 #define CEPH_MSG_OSD_OPREPLY      43
 
+struct ceph_mon_request_header {
+	__le64 have_version;
+	__le16 session_mon;
+	__le64 session_mon_tid;
+} __attribute__ ((packed));
 
 struct ceph_mon_statfs {
-	__le64 have_version;
+	struct ceph_mon_request_header monhdr;
 	struct ceph_fsid fsid;
 	__le64 tid;
 } __attribute__ ((packed));
@@ -138,22 +143,22 @@ struct ceph_mon_statfs_reply {
 } __attribute__ ((packed));
 
 struct ceph_osd_getmap {
-	__le64 have_version;
+	struct ceph_mon_request_header monhdr;
 	struct ceph_fsid fsid;
 	__le32 start;
 } __attribute__ ((packed));
 
 struct ceph_mds_getmap {
-	__le64 have_version;
+	struct ceph_mon_request_header monhdr;
 	struct ceph_fsid fsid;
 } __attribute__ ((packed));
 
 struct ceph_client_mount {
-	__le64 have_version;
+	struct ceph_mon_request_header monhdr;
 } __attribute__ ((packed));
 
 struct ceph_mon_subscribe_item {
-	__le64 have;
+	__le64 have_version;	__le64 have;
 	__u8 onetime;
 } __attribute__ ((packed));
 
