@@ -185,7 +185,6 @@ static void jlj_dostream(struct work_struct *work)
 	int blocks_left; /* 0x200-sized blocks remaining in current frame. */
 	int size_in_blocks;
 	int act_len;
-	int discarding = 0; /* true if we failed to get space for frame. */
 	int packet_type;
 	int ret;
 	u8 *buffer;
@@ -196,15 +195,6 @@ static void jlj_dostream(struct work_struct *work)
 		goto quit_stream;
 	}
 	while (gspca_dev->present && gspca_dev->streaming) {
-		if (!gspca_dev->present)
-			goto quit_stream;
-		/* Start a new frame, and add the JPEG header, first thing */
-		frame = gspca_get_i_frame(gspca_dev);
-		if (frame && !discarding)
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-					dev->jpeg_hdr, JPEG_HDR_SZ);
-		 else
-			discarding = 1;
 		/*
 		 * Now request data block 0. Line 0 reports the size
 		 * to download, in blocks of size 0x200, and also tells the
@@ -222,14 +212,17 @@ static void jlj_dostream(struct work_struct *work)
 		size_in_blocks = buffer[0x0a];
 		blocks_left = buffer[0x0a] - 1;
 		PDEBUG(D_STREAM, "blocks_left = 0x%x", blocks_left);
-		packet_type = INTER_PACKET;
-		if (frame && !discarding)
+
+		/* Start a new frame, and add the JPEG header, first thing */
+		frame = gspca_get_i_frame(gspca_dev);
+		if (frame) {
+			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+					dev->jpeg_hdr, JPEG_HDR_SZ);
 			/* Toss line 0 of data block 0, keep the rest. */
-			gspca_frame_add(gspca_dev, packet_type,
+			gspca_frame_add(gspca_dev, INTER_PACKET,
 				frame, buffer + FRAME_HEADER_LEN,
 				JEILINJ_MAX_TRANSFER - FRAME_HEADER_LEN);
-			else
-				discarding = 1;
+		}
 		while (blocks_left > 0) {
 			if (!gspca_dev->present)
 				goto quit_stream;
@@ -246,12 +239,10 @@ static void jlj_dostream(struct work_struct *work)
 				packet_type = LAST_PACKET;
 			else
 				packet_type = INTER_PACKET;
-			if (frame && !discarding)
+			if (frame)
 				gspca_frame_add(gspca_dev, packet_type,
 						frame, buffer,
 						JEILINJ_MAX_TRANSFER);
-			else
-				discarding = 1;
 		}
 	}
 quit_stream:
