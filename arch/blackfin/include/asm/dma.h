@@ -10,6 +10,7 @@
 
 #include <linux/interrupt.h>
 #include <mach/dma.h>
+#include <asm/atomic.h>
 #include <asm/blackfin.h>
 #include <asm/page.h>
 
@@ -19,11 +20,6 @@
 *        Generic DMA  Declarations
 *
 ****************************************************************************/
-enum dma_chan_status {
-	DMA_CHANNEL_FREE,
-	DMA_CHANNEL_REQUESTED,
-	DMA_CHANNEL_ENABLED,
-};
 
 /*-------------------------
  * config reg bits value
@@ -104,11 +100,9 @@ struct dma_register {
 
 };
 
-struct mutex;
 struct dma_channel {
-	struct mutex dmalock;
 	const char *device_id;
-	enum dma_chan_status chan_status;
+	atomic_t chan_status;
 	volatile struct dma_register *regs;
 	struct dmasg *sg;		/* large mode descriptor */
 	unsigned int irq;
@@ -220,24 +214,19 @@ static inline void set_dma_sg(unsigned int channel, struct dmasg *sg, int ndsize
 
 static inline int dma_channel_active(unsigned int channel)
 {
-	if (dma_ch[channel].chan_status == DMA_CHANNEL_FREE)
-		return 0;
-	else
-		return 1;
+	return atomic_read(&dma_ch[channel].chan_status);
 }
 
 static inline void disable_dma(unsigned int channel)
 {
 	dma_ch[channel].regs->cfg &= ~DMAEN;
 	SSYNC();
-	dma_ch[channel].chan_status = DMA_CHANNEL_REQUESTED;
 }
 static inline void enable_dma(unsigned int channel)
 {
 	dma_ch[channel].regs->curr_x_count = 0;
 	dma_ch[channel].regs->curr_y_count = 0;
 	dma_ch[channel].regs->cfg |= DMAEN;
-	dma_ch[channel].chan_status = DMA_CHANNEL_ENABLED;
 }
 void free_dma(unsigned int channel);
 int request_dma(unsigned int channel, const char *device_id);
