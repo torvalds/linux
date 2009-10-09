@@ -4911,6 +4911,7 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 	u64 bytenr;
 	u64 generation;
 	u64 refs;
+	u64 flags;
 	u64 last = 0;
 	u32 nritems;
 	u32 blocksize;
@@ -4948,15 +4949,19 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 		    generation <= root->root_key.offset)
 			continue;
 
+		/* We don't lock the tree block, it's OK to be racy here */
+		ret = btrfs_lookup_extent_info(trans, root, bytenr, blocksize,
+					       &refs, &flags);
+		BUG_ON(ret);
+		BUG_ON(refs == 0);
+
 		if (wc->stage == DROP_REFERENCE) {
-			ret = btrfs_lookup_extent_info(trans, root,
-						bytenr, blocksize,
-						&refs, NULL);
-			BUG_ON(ret);
-			BUG_ON(refs == 0);
 			if (refs == 1)
 				goto reada;
 
+			if (wc->level == 1 &&
+			    (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF))
+				continue;
 			if (!wc->update_ref ||
 			    generation <= root->root_key.offset)
 				continue;
@@ -4964,6 +4969,10 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 			ret = btrfs_comp_cpu_keys(&key,
 						  &wc->update_progress);
 			if (ret < 0)
+				continue;
+		} else {
+			if (wc->level == 1 &&
+			    (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF))
 				continue;
 		}
 reada:
@@ -4988,7 +4997,7 @@ reada:
 static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct btrfs_path *path,
-				   struct walk_control *wc)
+				   struct walk_control *wc, int lookup_info)
 {
 	int level = wc->level;
 	struct extent_buffer *eb = path->nodes[level];
@@ -5003,8 +5012,9 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 	 * when reference count of tree block is 1, it won't increase
 	 * again. once full backref flag is set, we never clear it.
 	 */
-	if ((wc->stage == DROP_REFERENCE && wc->refs[level] != 1) ||
-	    (wc->stage == UPDATE_BACKREF && !(wc->flags[level] & flag))) {
+	if (lookup_info &&
+	    ((wc->stage == DROP_REFERENCE && wc->refs[level] != 1) ||
+	     (wc->stage == UPDATE_BACKREF && !(wc->flags[level] & flag)))) {
 		BUG_ON(!path->locks[level]);
 		ret = btrfs_lookup_extent_info(trans, root,
 					       eb->start, eb->len,
@@ -5065,7 +5075,7 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct btrfs_path *path,
-				 struct walk_control *wc)
+				 struct walk_control *wc, int *lookup_info)
 {
 	u64 bytenr;
 	u64 generation;
@@ -5085,8 +5095,10 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	 * for the subtree
 	 */
 	if (wc->stage == UPDATE_BACKREF &&
-	    generation <= root->root_key.offset)
+	    generation <= root->root_key.offset) {
+		*lookup_info = 1;
 		return 1;
+	}
 
 	bytenr = btrfs_node_blockptr(path->nodes[level], path->slots[level]);
 	blocksize = btrfs_level_size(root, level - 1);
@@ -5099,14 +5111,19 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	btrfs_tree_lock(next);
 	btrfs_set_lock_blocking(next);
 
-	if (wc->stage == DROP_REFERENCE) {
-		ret = btrfs_lookup_extent_info(trans, root, bytenr, blocksize,
-					       &wc->refs[level - 1],
-					       &wc->flags[level - 1]);
-		BUG_ON(ret);
-		BUG_ON(wc->refs[level - 1] == 0);
+	ret = btrfs_lookup_extent_info(trans, root, bytenr, blocksize,
+				       &wc->refs[level - 1],
+				       &wc->flags[level - 1]);
+	BUG_ON(ret);
+	BUG_ON(wc->refs[level - 1] == 0);
+	*lookup_info = 0;
 
+	if (wc->stage == DROP_REFERENCE) {
 		if (wc->refs[level - 1] > 1) {
+			if (level == 1 &&
+			    (wc->flags[0] & BTRFS_BLOCK_FLAG_FULL_BACKREF))
+				goto skip;
+
 			if (!wc->update_ref ||
 			    generation <= root->root_key.offset)
 				goto skip;
@@ -5120,12 +5137,17 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 			wc->stage = UPDATE_BACKREF;
 			wc->shared_level = level - 1;
 		}
+	} else {
+		if (level == 1 &&
+		    (wc->flags[0] & BTRFS_BLOCK_FLAG_FULL_BACKREF))
+			goto skip;
 	}
 
 	if (!btrfs_buffer_uptodate(next, generation)) {
 		btrfs_tree_unlock(next);
 		free_extent_buffer(next);
 		next = NULL;
+		*lookup_info = 1;
 	}
 
 	if (!next) {
@@ -5148,21 +5170,22 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 skip:
 	wc->refs[level - 1] = 0;
 	wc->flags[level - 1] = 0;
+	if (wc->stage == DROP_REFERENCE) {
+		if (wc->flags[level] & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
+			parent = path->nodes[level]->start;
+		} else {
+			BUG_ON(root->root_key.objectid !=
+			       btrfs_header_owner(path->nodes[level]));
+			parent = 0;
+		}
 
-	if (wc->flags[level] & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
-		parent = path->nodes[level]->start;
-	} else {
-		BUG_ON(root->root_key.objectid !=
-		       btrfs_header_owner(path->nodes[level]));
-		parent = 0;
+		ret = btrfs_free_extent(trans, root, bytenr, blocksize, parent,
+					root->root_key.objectid, level - 1, 0);
+		BUG_ON(ret);
 	}
-
-	ret = btrfs_free_extent(trans, root, bytenr, blocksize, parent,
-				root->root_key.objectid, level - 1, 0);
-	BUG_ON(ret);
-
 	btrfs_tree_unlock(next);
 	free_extent_buffer(next);
+	*lookup_info = 1;
 	return 1;
 }
 
@@ -5276,6 +5299,7 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 				   struct walk_control *wc)
 {
 	int level = wc->level;
+	int lookup_info = 1;
 	int ret;
 
 	while (level >= 0) {
@@ -5283,14 +5307,14 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 		    btrfs_header_nritems(path->nodes[level]))
 			break;
 
-		ret = walk_down_proc(trans, root, path, wc);
+		ret = walk_down_proc(trans, root, path, wc, lookup_info);
 		if (ret > 0)
 			break;
 
 		if (level == 0)
 			break;
 
-		ret = do_walk_down(trans, root, path, wc);
+		ret = do_walk_down(trans, root, path, wc, &lookup_info);
 		if (ret > 0) {
 			path->slots[level]++;
 			continue;
