@@ -298,16 +298,20 @@ static void update_mac_address(struct net_device *ndev)
  * When you want use this device, you must set MAC address in bootloader.
  *
  */
-static void read_mac_address(struct net_device *ndev)
+static void read_mac_address(struct net_device *ndev, unsigned char *mac)
 {
 	u32 ioaddr = ndev->base_addr;
 
-	ndev->dev_addr[0] = (ctrl_inl(ioaddr + MAHR) >> 24);
-	ndev->dev_addr[1] = (ctrl_inl(ioaddr + MAHR) >> 16) & 0xFF;
-	ndev->dev_addr[2] = (ctrl_inl(ioaddr + MAHR) >> 8) & 0xFF;
-	ndev->dev_addr[3] = (ctrl_inl(ioaddr + MAHR) & 0xFF);
-	ndev->dev_addr[4] = (ctrl_inl(ioaddr + MALR) >> 8) & 0xFF;
-	ndev->dev_addr[5] = (ctrl_inl(ioaddr + MALR) & 0xFF);
+	if (mac[0] || mac[1] || mac[2] || mac[3] || mac[4] || mac[5]) {
+		memcpy(ndev->dev_addr, mac, 6);
+	} else {
+		ndev->dev_addr[0] = (ctrl_inl(ioaddr + MAHR) >> 24);
+		ndev->dev_addr[1] = (ctrl_inl(ioaddr + MAHR) >> 16) & 0xFF;
+		ndev->dev_addr[2] = (ctrl_inl(ioaddr + MAHR) >> 8) & 0xFF;
+		ndev->dev_addr[3] = (ctrl_inl(ioaddr + MAHR) & 0xFF);
+		ndev->dev_addr[4] = (ctrl_inl(ioaddr + MALR) >> 8) & 0xFF;
+		ndev->dev_addr[5] = (ctrl_inl(ioaddr + MALR) & 0xFF);
+	}
 }
 
 struct bb_info {
@@ -1427,7 +1431,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->post_fw = POST_FW >> (devno << 1);
 
 	/* read and set MAC address */
-	read_mac_address(ndev);
+	read_mac_address(ndev, pd->mac_addr);
 
 	/* First device only init */
 	if (!devno) {
