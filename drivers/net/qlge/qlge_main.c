@@ -3868,8 +3868,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 				    struct net_device *ndev, int cards_found)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	int pos, err = 0;
-	u16 val16;
+	int err = 0;
 
 	memset((void *)qdev, 0, sizeof(*qdev));
 	err = pci_enable_device(pdev);
@@ -3881,19 +3880,6 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	qdev->ndev = ndev;
 	qdev->pdev = pdev;
 	pci_set_drvdata(pdev, ndev);
-	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	if (pos <= 0) {
-		dev_err(&pdev->dev, PFX "Cannot find PCI Express capability, "
-			"aborting.\n");
-		return pos;
-	} else {
-		pci_read_config_word(pdev, pos + PCI_EXP_DEVCTL, &val16);
-		val16 &= ~PCI_EXP_DEVCTL_NOSNOOP_EN;
-		val16 |= (PCI_EXP_DEVCTL_CERE |
-			  PCI_EXP_DEVCTL_NFERE |
-			  PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE);
-		pci_write_config_word(pdev, pos + PCI_EXP_DEVCTL, val16);
-	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
