@@ -1,10 +1,10 @@
 /*
  * Universal Interface for Intel High Definition Audio Codec
  *
- * HD audio interface patch for VIA VT1702/VT1708/VT1709 codec
+ * HD audio interface patch for VIA VT17xx/VT18xx/VT20xx codec
  *
- * Copyright (c) 2006-2008 Lydia Wang <lydiawang@viatech.com>
- *			   Takashi Iwai <tiwai@suse.de>
+ *  (C) 2006-2009 VIA Technology, Inc.
+ *  (C) 2006-2008 Takashi Iwai <tiwai@suse.de>
  *
  *  This driver is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,6 +36,11 @@
 /* 2008-04-09  Lydia Wang  Add Independent HP feature                        */
 /* 2008-05-28  Lydia Wang  Add second S/PDIF Out support for VT1702	     */
 /* 2008-09-15  Logan Li    Add VT1708S Mic Boost workaround/backdoor	     */
+/* 2009-02-16  Logan Li	   Add support for VT1718S			     */
+/* 2009-03-13  Logan Li	   Add support for VT1716S			     */
+/* 2009-04-14  Lydai Wang  Add support for VT1828S and VT2020		     */
+/* 2009-07-08  Lydia Wang  Add support for VT2002P			     */
+/* 2009-07-21  Lydia Wang  Add support for VT1812			     */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
