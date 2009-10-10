@@ -252,6 +252,7 @@ struct via_spec {
 	/* HP mode source */
 	const struct hda_input_mux *hp_mux;
 	unsigned int hp_independent_mode;
+	unsigned int hp_independent_mode_index;
 
 	enum VIA_HDA_CODEC codec_type;
 
@@ -584,6 +585,36 @@ static void activate_ctl(struct hda_codec *codec, const char *name, int active)
 	}
 }
 
+static int update_side_mute_status(struct hda_codec *codec)
+{
+	/* mute side channel */
+	struct via_spec *spec = codec->spec;
+	unsigned int parm = spec->hp_independent_mode
+		? AMP_OUT_MUTE : AMP_OUT_UNMUTE;
+	hda_nid_t sw3;
+
+	switch (spec->codec_type) {
+	case VT1708:
+		sw3 = 0x1b;
+		break;
+	case VT1709_10CH:
+		sw3 = 0x29;
+		break;
+	case VT1708B_8CH:
+	case VT1708S:
+		sw3 = 0x27;
+		break;
+	default:
+		sw3 = 0;
+		break;
+	}
+
+	if (sw3)
+		snd_hda_codec_write(codec, sw3, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    parm);
+	return 0;
+}
+
 static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
@@ -591,47 +622,18 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 	struct via_spec *spec = codec->spec;
 	hda_nid_t nid = spec->autocfg.hp_pins[0];
 	unsigned int pinsel = ucontrol->value.enumerated.item[0];
-	unsigned int con_nid = snd_hda_codec_read(codec, nid, 0,
-					 AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
+	/* Get Independent Mode index of headphone pin widget */
+	spec->hp_independent_mode = spec->hp_independent_mode_index == pinsel
+		? 1 : 0;
 
-	if (con_nid == spec->multiout.hp_nid) {
-		if (pinsel == 0) {
-			if (!spec->hp_independent_mode) {
-				if (spec->multiout.num_dacs > 1)
-					spec->multiout.num_dacs -= 1;
-				spec->hp_independent_mode = 1;
-			}
-		} else if (pinsel == 1) {
-		       if (spec->hp_independent_mode) {
-				if (spec->multiout.num_dacs > 1)
-					spec->multiout.num_dacs += 1;
-				spec->hp_independent_mode = 0;
-		       }
-		}
-	} else {
-		if (pinsel == 0) {
-			if (spec->hp_independent_mode) {
-				if (spec->multiout.num_dacs > 1)
-					spec->multiout.num_dacs += 1;
-				spec->hp_independent_mode = 0;
-			}
-		} else if (pinsel == 1) {
-		       if (!spec->hp_independent_mode) {
-				if (spec->multiout.num_dacs > 1)
-					spec->multiout.num_dacs -= 1;
-				spec->hp_independent_mode = 1;
-		       }
-		}
-	}
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL,
-			    pinsel);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, pinsel);
 
-	if (spec->multiout.hp_nid &&
-	    spec->multiout.hp_nid != spec->multiout.dac_nids[HDA_FRONT])
-			snd_hda_codec_setup_stream(codec,
-						   spec->multiout.hp_nid,
-						   0, 0, 0);
+	if (spec->multiout.hp_nid && spec->multiout.hp_nid
+	    != spec->multiout.dac_nids[HDA_FRONT])
+		snd_hda_codec_setup_stream(codec, spec->multiout.hp_nid,
+					   0, 0, 0);
 
+	update_side_mute_status(codec);
 	/* update HP volume/swtich active state */
 	if (spec->codec_type == VT1708S
 	    || spec->codec_type == VT1702) {
@@ -1447,6 +1449,7 @@ static int vt1708_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 		return 0;
 
 	spec->multiout.hp_nid = VT1708_HP_NID; /* AOW3 */
+	spec->hp_independent_mode_index = 1;
 
 	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
 			      "Headphone Playback Volume",
@@ -1982,6 +1985,7 @@ static int vt1709_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 		spec->multiout.hp_nid = VT1709_HP_DAC_NID;
 	else if (spec->multiout.num_dacs == 3) /* 6 channels */
 		spec->multiout.hp_nid = 0;
+	spec->hp_independent_mode_index = 1;
 
 	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
 			      "Headphone Playback Volume",
@@ -2541,6 +2545,7 @@ static int vt1708B_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 		return 0;
 
 	spec->multiout.hp_nid = VT1708B_HP_NID; /* AOW3 */
+	spec->hp_independent_mode_index = 1;
 
 	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
 			      "Headphone Playback Volume",
@@ -3011,6 +3016,7 @@ static int vt1708S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 		return 0;
 
 	spec->multiout.hp_nid = VT1708S_HP_NID; /* AOW3 */
+	spec->hp_independent_mode_index = 1;
 
 	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
 			      "Headphone Playback Volume",
@@ -3368,6 +3374,7 @@ static int vt1702_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	if (!pin)
 		return 0;
 	spec->multiout.hp_nid = 0x1D;
+	spec->hp_independent_mode_index = 0;
 
 	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
 			      "Headphone Playback Volume",
