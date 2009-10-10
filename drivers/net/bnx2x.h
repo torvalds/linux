@@ -863,8 +863,8 @@ struct bnx2x {
 
 	/* Flags for marking that there is a STAT_QUERY or
 	   SET_MAC ramrod pending */
-	u8			stats_pending;
-	u8			set_mac_pending;
+	int			stats_pending;
+	int			set_mac_pending;
 
 	/* End of fields used in the performance code paths */
 
