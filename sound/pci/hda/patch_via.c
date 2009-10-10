@@ -1022,28 +1022,6 @@ static int via_playback_pcm_open(struct hda_pcm_stream *hinfo,
 					     hinfo);
 }
 
-static int via_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
-				    struct hda_codec *codec,
-				    unsigned int stream_tag,
-				    unsigned int format,
-				    struct snd_pcm_substream *substream)
-{
-	struct via_spec *spec = codec->spec;
-	vt1708_start_hp_work(spec);
-	return snd_hda_multi_out_analog_prepare(codec, &spec->multiout,
-						stream_tag, format, substream);
-}
-
-static int via_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
-				    struct hda_codec *codec,
-				    struct snd_pcm_substream *substream)
-{
-	struct via_spec *spec = codec->spec;
-	vt1708_stop_hp_work(spec);
-	return snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
-}
-
-
 static void playback_multi_pcm_prep_0(struct hda_codec *codec,
 				      unsigned int stream_tag,
 				      unsigned int format,
@@ -1252,7 +1230,7 @@ static struct hda_pcm_stream vt1708_pcm_analog_playback = {
 };
 
 static struct hda_pcm_stream vt1708_pcm_analog_s16_playback = {
-	.substreams = 1,
+	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 8,
 	.nid = 0x10, /* NID to query formats and rates */
@@ -1263,8 +1241,8 @@ static struct hda_pcm_stream vt1708_pcm_analog_s16_playback = {
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.ops = {
 		.open = via_playback_pcm_open,
-		.prepare = via_playback_pcm_prepare,
-		.cleanup = via_playback_pcm_cleanup
+		.prepare = via_playback_multi_pcm_prepare,
+		.cleanup = via_playback_multi_pcm_cleanup
 	},
 };
 
@@ -2062,8 +2040,8 @@ static struct hda_pcm_stream vt1709_10ch_pcm_analog_playback = {
 	.nid = 0x10, /* NID to query formats and rates */
 	.ops = {
 		.open = via_playback_pcm_open,
-		.prepare = via_playback_pcm_prepare,
-		.cleanup = via_playback_pcm_cleanup
+		.prepare = via_playback_multi_pcm_prepare,
+		.cleanup = via_playback_multi_pcm_cleanup,
 	},
 };
 
@@ -2074,8 +2052,8 @@ static struct hda_pcm_stream vt1709_6ch_pcm_analog_playback = {
 	.nid = 0x10, /* NID to query formats and rates */
 	.ops = {
 		.open = via_playback_pcm_open,
-		.prepare = via_playback_pcm_prepare,
-		.cleanup = via_playback_pcm_cleanup
+		.prepare = via_playback_multi_pcm_prepare,
+		.cleanup = via_playback_multi_pcm_cleanup,
 	},
 };
 
@@ -3166,8 +3144,8 @@ static struct hda_pcm_stream vt1708S_pcm_analog_playback = {
 	.nid = 0x10, /* NID to query formats and rates */
 	.ops = {
 		.open = via_playback_pcm_open,
-		.prepare = via_playback_pcm_prepare,
-		.cleanup = via_playback_pcm_cleanup,
+		.prepare = via_playback_multi_pcm_prepare,
+		.cleanup = via_playback_multi_pcm_cleanup,
 		.close = via_pcm_open_close
 	},
 };
