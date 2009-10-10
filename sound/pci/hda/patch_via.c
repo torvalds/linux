@@ -124,6 +124,7 @@ static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 
 #define VIA_HP_EVENT		0x01
 #define VIA_GPIO_EVENT		0x02
+#define VIA_JACK_EVENT		0x04
 
 enum {
 	VIA_CTL_WIDGET_VOL,
@@ -1413,10 +1414,12 @@ static void via_unsol_event(struct hda_codec *codec,
 				  unsigned int res)
 {
 	res >>= 26;
-	if (res == VIA_HP_EVENT)
+	if (res & VIA_HP_EVENT)
 		via_hp_automute(codec);
-	else if (res == VIA_GPIO_EVENT)
+	if (res & VIA_GPIO_EVENT)
 		via_gpio_control(codec);
+	if (res & VIA_JACK_EVENT)
+		set_jack_power_state(codec);
 }
 
 static int via_init(struct hda_codec *codec)
@@ -1878,7 +1881,8 @@ static struct snd_kcontrol_new vt1709_capture_mixer[] = {
 };
 
 static struct hda_verb vt1709_uniwill_init_verbs[] = {
-	{0x20, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_HP_EVENT},
+	{0x20, AC_VERB_SET_UNSOLICITED_ENABLE,
+	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
 	{ }
 };
 
@@ -2514,7 +2518,15 @@ static struct hda_verb vt1708B_4ch_volume_init_verbs[] = {
 };
 
 static struct hda_verb vt1708B_uniwill_init_verbs[] = {
-	{0x1D, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_HP_EVENT},
+	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
+	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
+	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1c, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1e, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x22, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
 
@@ -3009,7 +3021,15 @@ static struct hda_verb vt1708S_volume_init_verbs[] = {
 };
 
 static struct hda_verb vt1708S_uniwill_init_verbs[] = {
-	{0x1D, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_HP_EVENT},
+	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
+	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
+	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1c, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1e, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x22, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
 
@@ -3448,8 +3468,12 @@ static struct hda_verb vt1702_volume_init_verbs[] = {
 };
 
 static struct hda_verb vt1702_uniwill_init_verbs[] = {
-	{0x01, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_GPIO_EVENT},
-	{0x17, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_HP_EVENT},
+	{0x17, AC_VERB_SET_UNSOLICITED_ENABLE,
+	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
+	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
 
