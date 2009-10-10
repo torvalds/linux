@@ -2160,7 +2160,7 @@ static int vt1709_auto_create_multi_out_ctls(struct via_spec *spec,
 {
 	char name[32];
 	static const char *chname[4] = { "Front", "Surround", "C/LFE", "Side" };
-	hda_nid_t nid = 0;
+	hda_nid_t nid, nid_vol, nid_vols[] = {0x18, 0x1a, 0x1b, 0x29};
 	int i, err;
 
 	for (i = 0; i <= AUTO_SEQ_SIDE; i++) {
@@ -2169,43 +2169,45 @@ static int vt1709_auto_create_multi_out_ctls(struct via_spec *spec,
 		if (!nid)	
 			continue;
 
+		nid_vol = nid_vols[i];
+
 		if (i == AUTO_SEQ_CENLFE) {
 			/* Center/LFE */
 			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
 					      "Center Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(0x1b, 1, 0,
+					      HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
 			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
 					      "LFE Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(0x1b, 2, 0,
+					      HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
 			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
 					      "Center Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(0x1b, 1, 0,
+					      HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
 			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
 					      "LFE Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(0x1b, 2, 0,
+					      HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
 		} else if (i == AUTO_SEQ_FRONT){
-			/* add control to mixer index 0 */
+			/* ADD control to mixer index 0 */
 			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
 					      "Master Front Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(0x18, 3, 0,
+					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
 								  HDA_INPUT));
 			if (err < 0)
 				return err;
 			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
 					      "Master Front Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(0x18, 3, 0,
+					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
 								  HDA_INPUT));
 			if (err < 0)
 				return err;
@@ -2226,26 +2228,26 @@ static int vt1709_auto_create_multi_out_ctls(struct via_spec *spec,
 		} else if (i == AUTO_SEQ_SURROUND) {
 			sprintf(name, "%s Playback Volume", chname[i]);
 			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(0x1a, 3, 0,
+					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
 			sprintf(name, "%s Playback Switch", chname[i]);
 			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(0x1a, 3, 0,
+					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
 		} else if (i == AUTO_SEQ_SIDE) {
 			sprintf(name, "%s Playback Volume", chname[i]);
 			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(0x29, 3, 0,
+					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
 			sprintf(name, "%s Playback Switch", chname[i]);
 			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(0x29, 3, 0,
+					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
