@@ -3881,6 +3881,13 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	qdev->pdev = pdev;
 	pci_set_drvdata(pdev, ndev);
 
+	/* Set PCIe read request size */
+	err = pcie_set_readrq(pdev, 4096);
+	if (err) {
+		dev_err(&pdev->dev, "Set readrq failed.\n");
+		goto err_out;
+	}
+
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		dev_err(&pdev->dev, "PCI region request failed.\n");
