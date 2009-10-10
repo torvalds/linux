@@ -33,6 +33,8 @@ static u64			sample_type;
 static char			default_sort_order[] = "avg, max, switch, runtime";
 static char			*sort_order = default_sort_order;
 
+static int			profile_cpu = -1;
+
 static char			*cwd;
 static int			cwdlen;
 
@@ -75,6 +77,7 @@ enum sched_event_type {
 	SCHED_EVENT_RUN,
 	SCHED_EVENT_SLEEP,
 	SCHED_EVENT_WAKEUP,
+	SCHED_EVENT_MIGRATION,
 };
 
 struct sched_atom {
@@ -398,6 +401,8 @@ process_sched_event(struct task_desc *this_task __used, struct sched_atom *atom)
 			if (atom->wait_sem)
 				ret = sem_post(atom->wait_sem);
 			BUG_ON(ret);
+			break;
+		case SCHED_EVENT_MIGRATION:
 			break;
 		default:
 			BUG_ON(1);
@@ -746,6 +751,22 @@ struct trace_fork_event {
 	u32 child_pid;
 };
 
+struct trace_migrate_task_event {
+	u32 size;
+
+	u16 common_type;
+	u8 common_flags;
+	u8 common_preempt_count;
+	u32 common_pid;
+	u32 common_tgid;
+
+	char comm[16];
+	u32 pid;
+
+	u32 prio;
+	u32 cpu;
+};
+
 struct trace_sched_handler {
 	void (*switch_event)(struct trace_switch_event *,
 			     struct event *,
@@ -766,6 +787,12 @@ struct trace_sched_handler {
 			     struct thread *thread);
 
 	void (*fork_event)(struct trace_fork_event *,
+			   struct event *,
+			   int cpu,
+			   u64 timestamp,
+			   struct thread *thread);
+
+	void (*migrate_task_event)(struct trace_migrate_task_event *,
 			   struct event *,
 			   int cpu,
 			   u64 timestamp,
@@ -1140,7 +1167,12 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 
 	atom = list_entry(atoms->work_list.prev, struct work_atom, list);
 
-	if (atom->state != THREAD_SLEEPING)
+	/*
+	 * You WILL be missing events if you've recorded only
+	 * one CPU, or are only looking at only one, so don't
+	 * make useless noise.
+	 */
+	if (profile_cpu == -1 && atom->state != THREAD_SLEEPING)
 		nr_state_machine_bugs++;
 
 	nr_timestamps++;
@@ -1153,11 +1185,51 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 	atom->wake_up_time = timestamp;
 }
 
+static void
+latency_migrate_task_event(struct trace_migrate_task_event *migrate_task_event,
+		     struct event *__event __used,
+		     int cpu __used,
+		     u64 timestamp,
+		     struct thread *thread __used)
+{
+	struct work_atoms *atoms;
+	struct work_atom *atom;
+	struct thread *migrant;
+
+	/*
+	 * Only need to worry about migration when profiling one CPU.
+	 */
+	if (profile_cpu == -1)
+		return;
+
+	migrant = threads__findnew(migrate_task_event->pid, &threads, &last_match);
+	atoms = thread_atoms_search(&atom_root, migrant, &cmp_pid);
+	if (!atoms) {
+		thread_atoms_insert(migrant);
+		register_pid(migrant->pid, migrant->comm);
+		atoms = thread_atoms_search(&atom_root, migrant, &cmp_pid);
+		if (!atoms)
+			die("migration-event: Internal tree error");
+		add_sched_out_event(atoms, 'R', timestamp);
+	}
+
+	BUG_ON(list_empty(&atoms->work_list));
+
+	atom = list_entry(atoms->work_list.prev, struct work_atom, list);
+	atom->sched_in_time = atom->sched_out_time = atom->wake_up_time = timestamp;
+
+	nr_timestamps++;
+
+	if (atom->sched_out_time > timestamp)
+		nr_unordered_timestamps++;
+}
+
 static struct trace_sched_handler lat_ops  = {
 	.wakeup_event		= latency_wakeup_event,
 	.switch_event		= latency_switch_event,
 	.runtime_event		= latency_runtime_event,
 	.fork_event		= latency_fork_event,
+	.migrate_task_event	= latency_migrate_task_event,
 };
 
 static void output_lat_thread(struct work_atoms *work_list)
@@ -1518,6 +1590,26 @@ process_sched_exit_event(struct event *event,
 }
 
 static void
+process_sched_migrate_task_event(struct raw_event_sample *raw,
+			   struct event *event,
+			   int cpu __used,
+			   u64 timestamp __used,
+			   struct thread *thread __used)
+{
+	struct trace_migrate_task_event migrate_task_event;
+
+	FILL_COMMON_FIELDS(migrate_task_event, event, raw->data);
+
+	FILL_ARRAY(migrate_task_event, comm, event, raw->data);
+	FILL_FIELD(migrate_task_event, pid, event, raw->data);
+	FILL_FIELD(migrate_task_event, prio, event, raw->data);
+	FILL_FIELD(migrate_task_event, cpu, event, raw->data);
+
+	if (trace_handler->migrate_task_event)
+		trace_handler->migrate_task_event(&migrate_task_event, event, cpu, timestamp, thread);
+}
+
+static void
 process_raw_event(event_t *raw_event __used, void *more_data,
 		  int cpu, u64 timestamp, struct thread *thread)
 {
@@ -1540,6 +1632,8 @@ process_raw_event(event_t *raw_event __used, void *more_data,
 		process_sched_fork_event(raw, event, cpu, timestamp, thread);
 	if (!strcmp(event->name, "sched_process_exit"))
 		process_sched_exit_event(event, cpu, timestamp, thread);
+	if (!strcmp(event->name, "sched_migrate_task"))
+		process_sched_migrate_task_event(raw, event, cpu, timestamp, thread);
 }
 
 static int
@@ -1588,6 +1682,9 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 			event->header.type);
 		return -1;
 	}
+
+	if (profile_cpu != -1 && profile_cpu != (int) cpu)
+		return 0;
 
 	process_raw_event(event, more_data, cpu, timestamp, thread);
 
@@ -1771,6 +1868,8 @@ static const struct option latency_options[] = {
 		   "sort by key(s): runtime, switch, avg, max"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_INTEGER('C', "CPU", &profile_cpu,
+		    "CPU to profile on"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_END()
