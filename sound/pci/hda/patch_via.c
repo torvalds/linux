@@ -179,6 +179,8 @@ static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 	else if ((dev_id & 0xfff) == 0x428
 		 && (dev_id >> 12) < 8)
 		codec_type = VT1718S;
+	else if (dev_id == 0x0441 || dev_id == 0x4441)
+		codec_type = VT1718S;
 	else
 		codec_type = UNKNOWN;
 	return codec_type;
@@ -4323,21 +4325,31 @@ static int patch_vt1718S(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_uniwill_init_verbs;
 
-	spec->stream_name_analog = "VT1718S Analog";
+	if (codec->vendor_id == 0x11060441)
+		spec->stream_name_analog = "VT2020 Analog";
+	else if (codec->vendor_id == 0x11064441)
+		spec->stream_name_analog = "VT1828S Analog";
+	else
+		spec->stream_name_analog = "VT1718S Analog";
 	spec->stream_analog_playback = &vt1718S_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1718S_pcm_analog_capture;
 
-	spec->stream_name_digital = "VT1718S Digital";
+	if (codec->vendor_id == 0x11060441)
+		spec->stream_name_digital = "VT2020 Digital";
+	else if (codec->vendor_id == 0x11064441)
+		spec->stream_name_digital = "VT1828S Digital";
+	else
+		spec->stream_name_digital = "VT1718S Digital";
 	spec->stream_digital_playback = &vt1718S_pcm_digital_playback;
-	if (codec->vendor_id == 0x11060428)
+	if (codec->vendor_id == 0x11060428 || codec->vendor_id == 0x11060441)
 		spec->stream_digital_capture = &vt1718S_pcm_digital_capture;
 
 	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = vt1718S_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(vt1718S_adc_nids);
 		get_mux_nids(codec);
-		override_mic_boost(codec, 0x1a, 0, 3, 40);
-		override_mic_boost(codec, 0x1e, 0, 3, 40);
+		override_mic_boost(codec, 0x2b, 0, 3, 40);
+		override_mic_boost(codec, 0x29, 0, 3, 40);
 		spec->mixers[spec->num_mixers] = vt1718S_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -4428,6 +4440,10 @@ static struct hda_codec_preset snd_hda_preset_via[] = {
 	{ .id = 0x11060428, .name = "VT1718S",
 	  .patch = patch_vt1718S},
 	{ .id = 0x11064428, .name = "VT1718S",
+	  .patch = patch_vt1718S},
+	{ .id = 0x11060441, .name = "VT2020",
+	  .patch = patch_vt1718S},
+	{ .id = 0x11064441, .name = "VT1828S",
 	  .patch = patch_vt1718S},
 	{} /* terminator */
 };
