@@ -317,6 +317,7 @@ static void ql_init_fw_done(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	} else {
 		QPRINTK(qdev, DRV, ERR, "Firmware Revision  = 0x%.08x.\n",
 			mbcp->mbox_out[1]);
+		qdev->fw_rev_id = mbcp->mbox_out[1];
 		status = ql_cam_route_initialize(qdev);
 		if (status)
 			QPRINTK(qdev, IFUP, ERR,
