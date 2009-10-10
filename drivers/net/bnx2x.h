@@ -24,6 +24,10 @@
 #define BCM_VLAN			1
 #endif
 
+#if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
+#define BCM_CNIC 1
+#include "cnic_if.h"
+#endif
 
 #define BNX2X_MULTI_QUEUE
 
