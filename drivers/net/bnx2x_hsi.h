@@ -7,6 +7,20 @@
  * the Free Software Foundation.
  */
 
+struct license_key {
+	u32 reserved[6];
+
+#if defined(__BIG_ENDIAN)
+	u16 max_iscsi_init_conn;
+	u16 max_iscsi_trgt_conn;
+#elif defined(__LITTLE_ENDIAN)
+	u16 max_iscsi_trgt_conn;
+	u16 max_iscsi_init_conn;
+#endif
+
+	u32 reserved_a[6];
+};
+
 
 #define PORT_0				0
 #define PORT_1				1
@@ -881,7 +895,7 @@ struct shmem_region {			       /*   SharedMem Offset (size) */
 
 	struct shm_dev_info	dev_info;		 /* 0x8     (0x438) */
 
-	u8			reserved[52*PORT_MAX];
+	struct license_key	drv_lic_key[PORT_MAX];	/* 0x440 (52*2=0x68) */
 
 	/* FW information (for internal FW use) */
 	u32			fw_info_fio_offset;    /* 0x4a8       (0x4) */
