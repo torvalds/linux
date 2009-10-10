@@ -3068,6 +3068,8 @@ static struct hda_verb vt1708S_volume_init_verbs[] = {
 	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	/* Enable Mic Boost Volume backdoor */
 	{0x1, 0xf98, 0x1},
+	/* don't bybass mixer */
+	{0x1, 0xf88, 0xc0},
 	{ }
 };
 
@@ -3527,6 +3529,10 @@ static struct hda_verb vt1702_volume_init_verbs[] = {
 	/* PW6 PW7 Output enable */
 	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	{0x1C, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	/* mixer enable */
+	{0x1, 0xF88, 0x3},
+	/* GPIO 0~2 */
+	{0x1, 0xF82, 0x3F},
 	{ }
 };
 
@@ -3768,8 +3774,6 @@ static int patch_vt1702(struct hda_codec *codec)
 {
 	struct via_spec *spec;
 	int err;
-	unsigned int response;
-	unsigned char control;
 
 	/* create a codec specific record */
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -3813,18 +3817,6 @@ static int patch_vt1702(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1702_loopbacks;
 #endif
-
-	/* Open backdoor */
-	response = snd_hda_codec_read(codec, codec->afg, 0, 0xF8C, 0);
-	control = (unsigned char)(response & 0xff);
-	control |= 0x3;
-	snd_hda_codec_write(codec,  codec->afg, 0, 0xF88, control);
-
-	/* Enable GPIO 0&1 for volume&mute control */
-	/* Enable GPIO 2 for DMIC-DATA */
-	response = snd_hda_codec_read(codec, codec->afg, 0, 0xF84, 0);
-	control = (unsigned char)((response >> 16) & 0x3f);
-	snd_hda_codec_write(codec,  codec->afg, 0, 0xF82, control);
 
 	return 0;
 }
