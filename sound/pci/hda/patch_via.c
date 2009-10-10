@@ -3166,6 +3166,12 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 	err = vt1702_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
+	/* limit AA path volume to 0 dB */
+	snd_hda_override_amp_caps(codec, 0x1A, HDA_INPUT,
+				  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+				  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+				  (0x5 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+				  (1 << AC_AMPCAP_MUTE_SHIFT));
 	err = vt1702_auto_create_analog_input_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
