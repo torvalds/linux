@@ -1351,14 +1351,25 @@ static void via_free(struct hda_codec *codec)
 /* mute internal speaker if HP is plugged */
 static void via_hp_automute(struct hda_codec *codec)
 {
-	unsigned int present;
+	unsigned int present = 0;
 	struct via_spec *spec = codec->spec;
 
 	present = snd_hda_codec_read(codec, spec->autocfg.hp_pins[0], 0,
 				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_stereo(codec, spec->autocfg.line_out_pins[0],
-				 HDA_OUTPUT, 0, HDA_AMP_MUTE,
-				 present ? HDA_AMP_MUTE : 0);
+
+	if (!spec->hp_independent_mode) {
+		struct snd_ctl_elem_id id;
+		/* auto mute */
+		snd_hda_codec_amp_stereo(
+			codec, spec->autocfg.line_out_pins[0], HDA_OUTPUT, 0,
+			HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+		/* notify change */
+		memset(&id, 0, sizeof(id));
+		id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+		strcpy(id.name, "Front Playback Switch");
+		snd_ctl_notify(codec->bus->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &id);
+	}
 }
 
 static void via_gpio_control(struct hda_codec *codec)
