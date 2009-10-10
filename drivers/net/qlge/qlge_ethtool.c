@@ -132,6 +132,41 @@ static void ql_update_stats(struct ql_adapter *qdev)
 		iter++;
 	}
 
+	/*
+	 * Get Per-priority TX pause frame counter statistics.
+	 */
+	for (i = 0x500; i < 0x540; i += 8) {
+		if (ql_read_xgmac_reg64(qdev, i, &data)) {
+			QPRINTK(qdev, DRV, ERR,
+				"Error reading status register 0x%.04x.\n", i);
+			goto end;
+		} else
+			*iter = data;
+		iter++;
+	}
+
+	/*
+	 * Get Per-priority RX pause frame counter statistics.
+	 */
+	for (i = 0x568; i < 0x5a8; i += 8) {
+		if (ql_read_xgmac_reg64(qdev, i, &data)) {
+			QPRINTK(qdev, DRV, ERR,
+				"Error reading status register 0x%.04x.\n", i);
+			goto end;
+		} else
+			*iter = data;
+		iter++;
+	}
+
+	/*
+	 * Get RX NIC FIFO DROP statistics.
+	 */
+	if (ql_read_xgmac_reg64(qdev, 0x5b8, &data)) {
+		QPRINTK(qdev, DRV, ERR,
+			"Error reading status register 0x%.04x.\n", i);
+		goto end;
+	} else
+		*iter = data;
 end:
 	ql_sem_unlock(qdev, qdev->xg_sem_mask);
 quit:
@@ -185,6 +220,23 @@ static char ql_stats_str_arr[][ETH_GSTRING_LEN] = {
 	{"rx_1024_to_1518_pkts"},
 	{"rx_1519_to_max_pkts"},
 	{"rx_len_err_pkts"},
+	{"tx_cbfc_pause_frames0"},
+	{"tx_cbfc_pause_frames1"},
+	{"tx_cbfc_pause_frames2"},
+	{"tx_cbfc_pause_frames3"},
+	{"tx_cbfc_pause_frames4"},
+	{"tx_cbfc_pause_frames5"},
+	{"tx_cbfc_pause_frames6"},
+	{"tx_cbfc_pause_frames7"},
+	{"rx_cbfc_pause_frames0"},
+	{"rx_cbfc_pause_frames1"},
+	{"rx_cbfc_pause_frames2"},
+	{"rx_cbfc_pause_frames3"},
+	{"rx_cbfc_pause_frames4"},
+	{"rx_cbfc_pause_frames5"},
+	{"rx_cbfc_pause_frames6"},
+	{"rx_cbfc_pause_frames7"},
+	{"rx_nic_fifo_drop"},
 };
 
 static void ql_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
@@ -257,6 +309,23 @@ ql_get_ethtool_stats(struct net_device *ndev,
 	*data++ = s->rx_1024_to_1518_pkts;
 	*data++ = s->rx_1519_to_max_pkts;
 	*data++ = s->rx_len_err_pkts;
+	*data++ = s->tx_cbfc_pause_frames0;
+	*data++ = s->tx_cbfc_pause_frames1;
+	*data++ = s->tx_cbfc_pause_frames2;
+	*data++ = s->tx_cbfc_pause_frames3;
+	*data++ = s->tx_cbfc_pause_frames4;
+	*data++ = s->tx_cbfc_pause_frames5;
+	*data++ = s->tx_cbfc_pause_frames6;
+	*data++ = s->tx_cbfc_pause_frames7;
+	*data++ = s->rx_cbfc_pause_frames0;
+	*data++ = s->rx_cbfc_pause_frames1;
+	*data++ = s->rx_cbfc_pause_frames2;
+	*data++ = s->rx_cbfc_pause_frames3;
+	*data++ = s->rx_cbfc_pause_frames4;
+	*data++ = s->rx_cbfc_pause_frames5;
+	*data++ = s->rx_cbfc_pause_frames6;
+	*data++ = s->rx_cbfc_pause_frames7;
+	*data++ = s->rx_nic_fifo_drop;
 }
 
 static int ql_get_settings(struct net_device *ndev,

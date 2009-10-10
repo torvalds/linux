@@ -1363,6 +1363,27 @@ struct nic_stats {
 	u64 rx_1024_to_1518_pkts;
 	u64 rx_1519_to_max_pkts;
 	u64 rx_len_err_pkts;
+	/*
+	 * These stats come from offset 500h to 5C8h
+	 * in the XGMAC register.
+	 */
+	u64 tx_cbfc_pause_frames0;
+	u64 tx_cbfc_pause_frames1;
+	u64 tx_cbfc_pause_frames2;
+	u64 tx_cbfc_pause_frames3;
+	u64 tx_cbfc_pause_frames4;
+	u64 tx_cbfc_pause_frames5;
+	u64 tx_cbfc_pause_frames6;
+	u64 tx_cbfc_pause_frames7;
+	u64 rx_cbfc_pause_frames0;
+	u64 rx_cbfc_pause_frames1;
+	u64 rx_cbfc_pause_frames2;
+	u64 rx_cbfc_pause_frames3;
+	u64 rx_cbfc_pause_frames4;
+	u64 rx_cbfc_pause_frames5;
+	u64 rx_cbfc_pause_frames6;
+	u64 rx_cbfc_pause_frames7;
+	u64 rx_nic_fifo_drop;
 };
 
 /*
