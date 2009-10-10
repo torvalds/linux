@@ -88,8 +88,9 @@ enum VIA_HDA_CODEC {
 	CODEC_TYPES,
 };
 
-static enum VIA_HDA_CODEC get_codec_type(u32 vendor_id)
+static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 {
+	u32 vendor_id = codec->vendor_id;
 	u16 ven_id = vendor_id >> 16;
 	u16 dev_id = vendor_id & 0xffff;
 	enum VIA_HDA_CODEC codec_type;
@@ -141,7 +142,7 @@ static int mic_boost_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = get_amp_nid(kcontrol);
 
-	if (get_codec_type(codec->vendor_id) == VT1708S
+	if (get_codec_type(codec) == VT1708S
 	    && (nid == 0x1a || nid == 0x1e)) {
 		if (size < 4 * sizeof(unsigned int))
 			return -ENOMEM;
@@ -163,7 +164,7 @@ static int mic_boost_volume_info(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = get_amp_nid(kcontrol);
 
-	if (get_codec_type(codec->vendor_id) == VT1708S
+	if (get_codec_type(codec) == VT1708S
 	    && (nid == 0x1a || nid == 0x1e)) {
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 		uinfo->count = 2;
