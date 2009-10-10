@@ -572,6 +572,18 @@ static int via_independent_hp_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static void activate_ctl(struct hda_codec *codec, const char *name, int active)
+{
+	struct snd_kcontrol *ctl = snd_hda_find_mixer_ctl(codec, name);
+	if (ctl) {
+		ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+		ctl->vd[0].access |= active
+			? 0 : SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+		snd_ctl_notify(codec->bus->card,
+			       SNDRV_CTL_EVENT_MASK_VALUE, &ctl->id);
+	}
+}
+
 static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
@@ -620,6 +632,14 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 						   spec->multiout.hp_nid,
 						   0, 0, 0);
 
+	/* update HP volume/swtich active state */
+	if (spec->codec_type == VT1708S
+	    || spec->codec_type == VT1702) {
+		activate_ctl(codec, "Headphone Playback Volume",
+			     spec->hp_independent_mode);
+		activate_ctl(codec, "Headphone Playback Switch",
+			     spec->hp_independent_mode);
+	}
 	return 0;
 }
 
@@ -3342,11 +3362,11 @@ static int vt1702_auto_create_line_out_ctls(struct via_spec *spec,
 
 static int vt1702_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 {
-	int err;
-
+	int err, i;
+	struct hda_input_mux *imux;
+	static const char *texts[] = { "ON", "OFF", NULL};
 	if (!pin)
 		return 0;
-
 	spec->multiout.hp_nid = 0x1D;
 
 	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
@@ -3361,8 +3381,18 @@ static int vt1702_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	if (err < 0)
 		return err;
 
-	create_hp_imux(spec);
+	imux = &spec->private_imux[1];
 
+	/* for hp mode select */
+	i = 0;
+	while (texts[i] != NULL)	{
+		imux->items[imux->num_items].label =  texts[i];
+		imux->items[imux->num_items].index = i;
+		imux->num_items++;
+		i++;
+	}
+
+	spec->hp_mux = &spec->private_imux[1];
 	return 0;
 }
 
