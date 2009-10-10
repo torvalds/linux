@@ -197,46 +197,6 @@ enum {
 	AUTO_SEQ_SIDE
 };
 
-/* Some VT1708S based boards gets the micboost setting wrong, so we have
- * to apply some brute-force and re-write the TLV's by software. */
-static int mic_boost_tlv(struct snd_kcontrol *kcontrol, int op_flag,
-			 unsigned int size, unsigned int __user *_tlv)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	hda_nid_t nid = get_amp_nid(kcontrol);
-
-	if (get_codec_type(codec) == VT1708S
-	    && (nid == 0x1a || nid == 0x1e)) {
-		if (size < 4 * sizeof(unsigned int))
-			return -ENOMEM;
-		if (put_user(1, _tlv))	/* SNDRV_CTL_TLVT_DB_SCALE */
-			return -EFAULT;
-		if (put_user(2 * sizeof(unsigned int), _tlv + 1))
-			return -EFAULT;
-		if (put_user(0, _tlv + 2)) /* offset = 0 */
-			return -EFAULT;
-		if (put_user(1000, _tlv + 3)) /* step size = 10 dB */
-			return -EFAULT;
-	}
-	return 0;
-}
-
-static int mic_boost_volume_info(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_info *uinfo)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	hda_nid_t nid = get_amp_nid(kcontrol);
-
-	if (get_codec_type(codec) == VT1708S
-	    && (nid == 0x1a || nid == 0x1e)) {
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-		uinfo->count = 2;
-		uinfo->value.integer.min = 0;
-		uinfo->value.integer.max = 3;
-	}
-	return 0;
-}
-
 static void analog_low_current_mode(struct hda_codec *codec, int stream_idle);
 static void set_jack_power_state(struct hda_codec *codec);
 static int is_aa_path_mute(struct hda_codec *codec);
@@ -3063,29 +3023,15 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 
 /* Patch for VT1708S */
 
-/* VT1708S software backdoor based override for buggy hardware micboost
- * setting */
-#define MIC_BOOST_VOLUME(xname, nid) {				\
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,		\
-	.name = xname,					\
-	.index = 0,					\
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |	\
-	SNDRV_CTL_ELEM_ACCESS_TLV_READ |		\
-	SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK,		\
-	.info = mic_boost_volume_info,			\
-	.get = snd_hda_mixer_amp_volume_get,		\
-	.put = snd_hda_mixer_amp_volume_put,		\
-	.tlv = { .c = mic_boost_tlv },			\
-	.private_value = HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT) }
-
 /* capture mixer elements */
 static struct snd_kcontrol_new vt1708S_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x13, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x13, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x14, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x14, 0x0, HDA_INPUT),
-	MIC_BOOST_VOLUME("Mic Boost Capture Volume", 0x1A),
-	MIC_BOOST_VOLUME("Front Mic Boost Capture Volume", 0x1E),
+	HDA_CODEC_VOLUME("Mic Boost Capture Volume", 0x1A, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost Capture Volume", 0x1E, 0x0,
+			 HDA_INPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
@@ -3457,6 +3403,16 @@ static struct hda_amp_list vt1708S_loopbacks[] = {
 };
 #endif
 
+static void override_mic_boost(struct hda_codec *codec, hda_nid_t pin,
+			       int offset, int num_steps, int step_size)
+{
+	snd_hda_override_amp_caps(codec, pin, HDA_INPUT,
+				  (offset << AC_AMPCAP_OFFSET_SHIFT) |
+				  (num_steps << AC_AMPCAP_NUM_STEPS_SHIFT) |
+				  (step_size << AC_AMPCAP_STEP_SIZE_SHIFT) |
+				  (0 << AC_AMPCAP_MUTE_SHIFT));
+}
+
 static int patch_vt1708S(struct hda_codec *codec)
 {
 	struct via_spec *spec;
@@ -3493,6 +3449,8 @@ static int patch_vt1708S(struct hda_codec *codec)
 		spec->adc_nids = vt1708S_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(vt1708S_adc_nids);
 		get_mux_nids(codec);
+		override_mic_boost(codec, 0x1a, 0, 3, 40);
+		override_mic_boost(codec, 0x1e, 0, 3, 40);
 		spec->mixers[spec->num_mixers] = vt1708S_capture_mixer;
 		spec->num_mixers++;
 	}
