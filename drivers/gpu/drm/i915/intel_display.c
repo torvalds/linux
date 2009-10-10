@@ -2936,6 +2936,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 		lvds = I915_READ(lvds_reg);
 		lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP | LVDS_PIPEB_SELECT;
+		/* set the corresponsding LVDS_BORDER bit */
+		lvds |= dev_priv->lvds_border_bits;
 		/* Set the B0-B3 data pairs corresponding to whether we're going to
 		 * set the DPLLs for dual-channel mode or not.
 		 */

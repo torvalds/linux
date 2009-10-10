@@ -968,6 +968,8 @@
 #define   LVDS_PORT_EN			(1 << 31)
 /* Selects pipe B for LVDS data.  Must be set on pre-965. */
 #define   LVDS_PIPEB_SELECT		(1 << 30)
+/* Enable border for unscaled (or aspect-scaled) display */
+#define   LVDS_BORDER_ENABLE		(1 << 15)
 /*
  * Enables the A0-A2 data pairs and CLKA, containing 18 bits of color data per
  * pixel.

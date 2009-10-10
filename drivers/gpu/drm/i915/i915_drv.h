@@ -492,6 +492,8 @@ typedef struct drm_i915_private {
 		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 	} mm;
 	struct sdvo_device_mapping sdvo_mappings[2];
+	/* indicate whether the LVDS_BORDER should be enabled or not */
+	unsigned int lvds_border_bits;
 
 	/* Reclocking support */
 	bool render_reclock_avail;
