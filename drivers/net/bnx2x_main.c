@@ -2638,11 +2638,40 @@ static void bnx2x_dcc_event(struct bnx2x *bp, u32 dcc_event)
 		bnx2x_fw_command(bp, DRV_MSG_CODE_DCC_OK);
 }
 
+/* must be called under the spq lock */
+static inline struct eth_spe *bnx2x_sp_get_next(struct bnx2x *bp)
+{
+	struct eth_spe *next_spe = bp->spq_prod_bd;
+
+	if (bp->spq_prod_bd == bp->spq_last_bd) {
+		bp->spq_prod_bd = bp->spq;
+		bp->spq_prod_idx = 0;
+		DP(NETIF_MSG_TIMER, "end of spq\n");
+	} else {
+		bp->spq_prod_bd++;
+		bp->spq_prod_idx++;
+	}
+	return next_spe;
+}
+
+/* must be called under the spq lock */
+static inline void bnx2x_sp_prod_update(struct bnx2x *bp)
+{
+	int func = BP_FUNC(bp);
+
+	/* Make sure that BD data is updated before writing the producer */
+	wmb();
+
+	REG_WR(bp, BAR_XSTRORM_INTMEM + XSTORM_SPQ_PROD_OFFSET(func),
+	       bp->spq_prod_idx);
+	mmiowb();
+}
+
 /* the slow path queue is odd since completions arrive on the fastpath ring */
 static int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 			 u32 data_hi, u32 data_lo, int common)
 {
-	int func = BP_FUNC(bp);
+	struct eth_spe *spe;
 
 	DP(BNX2X_MSG_SP/*NETIF_MSG_TIMER*/,
 	   "SPQE (%x:%x)  command %d  hw_cid %x  data (%x:%x)  left %x\n",
@@ -2664,38 +2693,23 @@ static int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 		return -EBUSY;
 	}
 
+	spe = bnx2x_sp_get_next(bp);
+
 	/* CID needs port number to be encoded int it */
-	bp->spq_prod_bd->hdr.conn_and_cmd_data =
+	spe->hdr.conn_and_cmd_data =
 			cpu_to_le32(((command << SPE_HDR_CMD_ID_SHIFT) |
 				     HW_CID(bp, cid)));
-	bp->spq_prod_bd->hdr.type = cpu_to_le16(ETH_CONNECTION_TYPE);
+	spe->hdr.type = cpu_to_le16(ETH_CONNECTION_TYPE);
 	if (common)
-		bp->spq_prod_bd->hdr.type |=
+		spe->hdr.type |=
 			cpu_to_le16((1 << SPE_HDR_COMMON_RAMROD_SHIFT));
 
-	bp->spq_prod_bd->data.mac_config_addr.hi = cpu_to_le32(data_hi);
-	bp->spq_prod_bd->data.mac_config_addr.lo = cpu_to_le32(data_lo);
+	spe->data.mac_config_addr.hi = cpu_to_le32(data_hi);
+	spe->data.mac_config_addr.lo = cpu_to_le32(data_lo);
 
 	bp->spq_left--;
 
-	if (bp->spq_prod_bd == bp->spq_last_bd) {
-		bp->spq_prod_bd = bp->spq;
-		bp->spq_prod_idx = 0;
-		DP(NETIF_MSG_TIMER, "end of spq\n");
-
-	} else {
-		bp->spq_prod_bd++;
-		bp->spq_prod_idx++;
-	}
-
-	/* Make sure that BD data is updated before writing the producer */
-	wmb();
-
-	REG_WR(bp, BAR_XSTRORM_INTMEM + XSTORM_SPQ_PROD_OFFSET(func),
-	       bp->spq_prod_idx);
-
-	mmiowb();
-
+	bnx2x_sp_prod_update(bp);
 	spin_unlock_bh(&bp->spq_lock);
 	return 0;
 }
