@@ -14,9 +14,9 @@
 #define _ASM_FIXMAP_H
 
 #include <linux/kernel.h>
+#include <linux/threads.h>
 #include <asm/page.h>
 #ifdef CONFIG_HIGHMEM
-#include <linux/threads.h>
 #include <asm/kmap_types.h>
 #endif
 
@@ -46,9 +46,9 @@
  * fix-mapped?
  */
 enum fixed_addresses {
-#define FIX_N_COLOURS 16
+#define FIX_N_COLOURS 8
 	FIX_CMAP_BEGIN,
-	FIX_CMAP_END = FIX_CMAP_BEGIN + FIX_N_COLOURS,
+	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * NR_CPUS),
 	FIX_UNCACHED,
 #ifdef CONFIG_HIGHMEM
 	FIX_KMAP_BEGIN,	/* reserved pte's for temporary kernel mappings */

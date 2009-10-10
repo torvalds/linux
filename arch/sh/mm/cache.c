@@ -164,11 +164,17 @@ void flush_cache_all(void)
 
 void flush_cache_mm(struct mm_struct *mm)
 {
+	if (boot_cpu_data.dcache.n_aliases == 0)
+		return;
+
 	cacheop_on_each_cpu(local_flush_cache_mm, mm, 1);
 }
 
 void flush_cache_dup_mm(struct mm_struct *mm)
 {
+	if (boot_cpu_data.dcache.n_aliases == 0)
+		return;
+
 	cacheop_on_each_cpu(local_flush_cache_dup_mm, mm, 1);
 }
 
