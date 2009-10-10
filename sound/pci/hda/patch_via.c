@@ -317,8 +317,8 @@ static void via_free_kctls(struct hda_codec *codec)
 }
 
 /* create input playback/capture controls for the given pin */
-static int via_new_analog_input(struct via_spec *spec, hda_nid_t pin,
-				const char *ctlname, int idx, int mix_nid)
+static int via_new_analog_input(struct via_spec *spec, const char *ctlname,
+				int idx, int mix_nid)
 {
 	char name[32];
 	int err;
@@ -1480,8 +1480,7 @@ static int vt1708_auto_create_analog_input_ctls(struct via_spec *spec,
 			idx = 1;
 			break;
 		}
-		err = via_new_analog_input(spec, cfg->input_pins[i], labels[i],
-					   idx, 0x17);
+		err = via_new_analog_input(spec, labels[i], idx, 0x17);
 		if (err < 0)
 			return err;
 		imux->items[imux->num_items].label = labels[i];
@@ -2014,8 +2013,7 @@ static int vt1709_auto_create_analog_input_ctls(struct via_spec *spec,
 			idx = 1;
 			break;
 		}
-		err = via_new_analog_input(spec, cfg->input_pins[i], labels[i],
-					   idx, 0x18);
+		err = via_new_analog_input(spec, labels[i], idx, 0x18);
 		if (err < 0)
 			return err;
 		imux->items[imux->num_items].label = labels[i];
@@ -2576,8 +2574,7 @@ static int vt1708B_auto_create_analog_input_ctls(struct via_spec *spec,
 			idx = 1;
 			break;
 		}
-		err = via_new_analog_input(spec, cfg->input_pins[i], labels[i],
-					   idx, 0x16);
+		err = via_new_analog_input(spec, labels[i], idx, 0x16);
 		if (err < 0)
 			return err;
 		imux->items[imux->num_items].label = labels[i];
@@ -3048,8 +3045,7 @@ static int vt1708S_auto_create_analog_input_ctls(struct via_spec *spec,
 			idx = 1;
 			break;
 		}
-		err = via_new_analog_input(spec, cfg->input_pins[i], labels[i],
-					   idx, 0x16);
+		err = via_new_analog_input(spec, labels[i], idx, 0x16);
 		if (err < 0)
 			return err;
 		imux->items[imux->num_items].label = labels[i];
@@ -3402,8 +3398,7 @@ static int vt1702_auto_create_analog_input_ctls(struct via_spec *spec,
 			idx = 3;
 			break;
 		}
-		err = via_new_analog_input(spec, cfg->input_pins[i],
-					   labels[i], idx, 0x1A);
+		err = via_new_analog_input(spec, labels[i], idx, 0x1A);
 		if (err < 0)
 			return err;
 		imux->items[imux->num_items].label = labels[i];
