@@ -87,7 +87,7 @@ static inline unsigned long phys_addr_mask(void)
 
 	return PHYS_ADDR_MASK32;
 }
-#elif CONFIG_32BIT
+#elif defined(CONFIG_32BIT)
 static inline unsigned long phys_addr_mask(void)
 {
 	return PHYS_ADDR_MASK32;
