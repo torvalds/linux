@@ -76,14 +76,6 @@
 #define VT1702_HP_NID		0x17
 #define VT1702_DIGOUT_NID	0x11
 
-#define IS_VT1708_VENDORID(x)		((x) >= 0x11061708 && (x) <= 0x1106170b)
-#define IS_VT1709_10CH_VENDORID(x)	((x) >= 0x1106e710 && (x) <= 0x1106e713)
-#define IS_VT1709_6CH_VENDORID(x)	((x) >= 0x1106e714 && (x) <= 0x1106e717)
-#define IS_VT1708B_8CH_VENDORID(x)	((x) >= 0x1106e720 && (x) <= 0x1106e723)
-#define IS_VT1708B_4CH_VENDORID(x)	((x) >= 0x1106e724 && (x) <= 0x1106e727)
-#define IS_VT1708S_VENDORID(x)		((x) >= 0x11060397 && (x) <= 0x11067397)
-#define IS_VT1702_VENDORID(x)		((x) >= 0x11060398 && (x) <= 0x11067398)
-
 enum VIA_HDA_CODEC {
 	UNKNOWN = -1,
 	VT1708,
