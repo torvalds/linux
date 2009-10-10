@@ -530,6 +530,16 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 }
 
 /**
+ *	dwarf_free_frame - free the memory allocated for @frame
+ *	@frame: the frame to free
+ */
+void dwarf_free_frame(struct dwarf_frame *frame)
+{
+	dwarf_frame_free_regs(frame);
+	mempool_free(frame, dwarf_frame_pool);
+}
+
+/**
  *	dwarf_unwind_stack - recursively unwind the stack
  *	@pc: address of the function to unwind
  *	@prev: struct dwarf_frame of the previous stackframe on the callstack
@@ -649,8 +659,7 @@ struct dwarf_frame * dwarf_unwind_stack(unsigned long pc,
 	return frame;
 
 bail:
-	dwarf_frame_free_regs(frame);
-	mempool_free(frame, dwarf_frame_pool);
+	dwarf_free_frame(frame);
 	return NULL;
 }
 
@@ -837,10 +846,8 @@ static void dwarf_unwinder_dump(struct task_struct *task,
 	while (1) {
 		frame = dwarf_unwind_stack(return_addr, _frame);
 
-		if (_frame) {
-			dwarf_frame_free_regs(_frame);
-			mempool_free(_frame, dwarf_frame_pool);
-		}
+		if (_frame)
+			dwarf_free_frame(_frame);
 
 		_frame = frame;
 
@@ -850,6 +857,9 @@ static void dwarf_unwinder_dump(struct task_struct *task,
 		return_addr = frame->return_addr;
 		ops->address(data, return_addr, 1);
 	}
+
+	if (frame)
+		dwarf_free_frame(frame);
 }
 
 static struct unwinder dwarf_unwinder = {

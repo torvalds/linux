@@ -376,6 +376,7 @@ static inline unsigned int DW_CFA_operand(unsigned long insn)
 
 extern struct dwarf_frame *dwarf_unwind_stack(unsigned long,
 					      struct dwarf_frame *);
+extern void dwarf_free_frame(struct dwarf_frame *);
 extern int dwarf_parse_section(char *, char *, struct module *);
 extern void dwarf_module_unload(struct module *);
 
