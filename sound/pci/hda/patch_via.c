@@ -211,7 +211,7 @@ static struct snd_kcontrol_new vt1708_control_templates[] = {
 
 struct via_spec {
 	/* codec parameterization */
-	struct snd_kcontrol_new *mixers[3];
+	struct snd_kcontrol_new *mixers[4];
 	unsigned int num_mixers;
 
 	struct hda_verb *init_verbs[5];
@@ -253,6 +253,7 @@ struct via_spec {
 	const struct hda_input_mux *hp_mux;
 	unsigned int hp_independent_mode;
 	unsigned int hp_independent_mode_index;
+	unsigned int smart51_enabled;
 
 	enum VIA_HDA_CODEC codec_type;
 
@@ -390,6 +391,8 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 	}
 }
 
+static int is_smart51_pins(struct via_spec *spec, hda_nid_t pin);
+
 static void set_pin_power_state(struct hda_codec *codec, hda_nid_t nid,
 				unsigned int *affected_parm)
 {
@@ -400,9 +403,10 @@ static void set_pin_power_state(struct hda_codec *codec, hda_nid_t nid,
 		& AC_DEFCFG_MISC_NO_PRESENCE; /* do not support pin sense */
 	unsigned present = snd_hda_codec_read(codec, nid, 0,
 					      AC_VERB_GET_PIN_SENSE, 0) >> 31;
-
-	if ((no_presence || present) && get_defcfg_connect(def_conf)
-	    != AC_JACK_PORT_NONE) {
+	struct via_spec *spec = codec->spec;
+	if ((spec->smart51_enabled && is_smart51_pins(spec, nid))
+	    || ((no_presence || present)
+		&& get_defcfg_connect(def_conf) != AC_JACK_PORT_NONE)) {
 		*affected_parm = AC_PWRST_D0; /* if it's connected */
 		parm = AC_PWRST_D0;
 	} else
@@ -655,6 +659,167 @@ static struct snd_kcontrol_new via_hp_mixer[] = {
 		.put = via_independent_hp_put,
 	},
 	{ } /* end */
+};
+
+static void notify_aa_path_ctls(struct hda_codec *codec)
+{
+	int i;
+	struct snd_ctl_elem_id id;
+	const char *labels[] = {"Mic", "Front Mic", "Line"};
+
+	memset(&id, 0, sizeof(id));
+	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	for (i = 0; i < ARRAY_SIZE(labels); i++) {
+		sprintf(id.name, "%s Playback Volume", labels[i]);
+		snd_ctl_notify(codec->bus->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &id);
+	}
+}
+
+static void mute_aa_path(struct hda_codec *codec, int mute)
+{
+	struct via_spec *spec = codec->spec;
+	hda_nid_t  nid_mixer;
+	int start_idx;
+	int end_idx;
+	int i;
+	/* get nid of MW0 and start & end index */
+	switch (spec->codec_type) {
+	case VT1708:
+		nid_mixer = 0x17;
+		start_idx = 2;
+		end_idx = 4;
+		break;
+	case VT1709_10CH:
+	case VT1709_6CH:
+		nid_mixer = 0x18;
+		start_idx = 2;
+		end_idx = 4;
+		break;
+	case VT1708B_8CH:
+	case VT1708B_4CH:
+	case VT1708S:
+		nid_mixer = 0x16;
+		start_idx = 2;
+		end_idx = 4;
+		break;
+	default:
+		return;
+	}
+	/* check AA path's mute status */
+	for (i = start_idx; i <= end_idx; i++) {
+		int val = mute ? HDA_AMP_MUTE : HDA_AMP_UNMUTE;
+		snd_hda_codec_amp_stereo(codec, nid_mixer, HDA_INPUT, i,
+					 HDA_AMP_MUTE, val);
+	}
+}
+static int is_smart51_pins(struct via_spec *spec, hda_nid_t pin)
+{
+	int res = 0;
+	int index;
+	for (index = AUTO_PIN_MIC; index < AUTO_PIN_FRONT_LINE; index++) {
+		if (pin == spec->autocfg.input_pins[index]) {
+			res = 1;
+			break;
+		}
+	}
+	return res;
+}
+
+static int via_smart51_info(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}
+
+static int via_smart51_get(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct via_spec *spec = codec->spec;
+	int index[] = { AUTO_PIN_MIC, AUTO_PIN_FRONT_MIC, AUTO_PIN_LINE };
+	int on = 1;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(index); i++) {
+		hda_nid_t nid = spec->autocfg.input_pins[index[i]];
+		if (nid) {
+			int ctl =
+			    snd_hda_codec_read(codec, nid, 0,
+					       AC_VERB_GET_PIN_WIDGET_CONTROL,
+					       0);
+			if (i == AUTO_PIN_FRONT_MIC
+			    && spec->hp_independent_mode)
+				continue; /* ignore FMic for independent HP */
+			if (ctl & AC_PINCTL_IN_EN
+			    && !(ctl & AC_PINCTL_OUT_EN))
+				on = 0;
+		}
+	}
+	*ucontrol->value.integer.value = on;
+	return 0;
+}
+
+static int via_smart51_put(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct via_spec *spec = codec->spec;
+	int out_in = *ucontrol->value.integer.value
+		? AC_PINCTL_OUT_EN : AC_PINCTL_IN_EN;
+	int index[] = { AUTO_PIN_MIC, AUTO_PIN_FRONT_MIC, AUTO_PIN_LINE };
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(index); i++) {
+		hda_nid_t nid = spec->autocfg.input_pins[index[i]];
+		if (i == AUTO_PIN_FRONT_MIC
+		    && spec->hp_independent_mode)
+			continue; /* don't retask FMic for independent HP */
+		if (nid) {
+			unsigned int parm = snd_hda_codec_read(
+				codec, nid, 0,
+				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+			parm &= ~(AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN);
+			parm |= out_in;
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    parm);
+			if (out_in == AC_PINCTL_OUT_EN) {
+				mute_aa_path(codec, 1);
+				notify_aa_path_ctls(codec);
+			}
+		}
+		if (i == AUTO_PIN_FRONT_MIC) {
+			if (spec->codec_type == VT1708S) {
+				/* input = index 1 (AOW3) */
+				snd_hda_codec_write(
+					codec, nid, 0,
+					AC_VERB_SET_CONNECT_SEL, 1);
+				snd_hda_codec_amp_stereo(
+					codec, nid, HDA_OUTPUT,
+					0, HDA_AMP_MUTE, HDA_AMP_UNMUTE);
+			}
+		}
+	}
+	spec->smart51_enabled = *ucontrol->value.integer.value;
+	set_jack_power_state(codec);
+	return 1;
+}
+
+static struct snd_kcontrol_new via_smart51_mixer[] = {
+	{
+	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	 .name = "Smart 5.1",
+	 .count = 1,
+	 .info = via_smart51_info,
+	 .get = via_smart51_get,
+	 .put = via_smart51_put,
+	 },
+	{}			/* end */
 };
 
 /* capture mixer elements */
@@ -1587,6 +1752,7 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 	if (spec->hp_mux)
 		spec->mixers[spec->num_mixers++] = via_hp_mixer;
 
+	spec->mixers[spec->num_mixers++] = via_smart51_mixer;
 	return 1;
 }
 
@@ -2087,6 +2253,7 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 	if (spec->hp_mux)
 		spec->mixers[spec->num_mixers++] = via_hp_mixer;
 
+	spec->mixers[spec->num_mixers++] = via_smart51_mixer;
 	return 1;
 }
 
@@ -2649,6 +2816,7 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 	if (spec->hp_mux)
 		spec->mixers[spec->num_mixers++] = via_hp_mixer;
 
+	spec->mixers[spec->num_mixers++] = via_smart51_mixer;
 	return 1;
 }
 
@@ -3142,6 +3310,7 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 	if (spec->hp_mux)
 		spec->mixers[spec->num_mixers++] = via_hp_mixer;
 
+	spec->mixers[spec->num_mixers++] = via_smart51_mixer;
 	return 1;
 }
 
