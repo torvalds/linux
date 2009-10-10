@@ -1348,8 +1348,12 @@ out:
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	kvm_x86_ops->vcpu_load(vcpu, cpu);
-	if (unlikely(per_cpu(cpu_tsc_khz, cpu) == 0))
-		per_cpu(cpu_tsc_khz, cpu) = cpufreq_quick_get(cpu);
+	if (unlikely(per_cpu(cpu_tsc_khz, cpu) == 0)) {
+		unsigned long khz = cpufreq_quick_get(cpu);
+		if (!khz)
+			khz = tsc_khz;
+		per_cpu(cpu_tsc_khz, cpu) = khz;
+	}
 	kvm_request_guest_time_update(vcpu);
 }
 
@@ -3144,8 +3148,12 @@ static void kvm_timer_init(void)
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
 		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
 					  CPUFREQ_TRANSITION_NOTIFIER);
-		for_each_online_cpu(cpu)
-			per_cpu(cpu_tsc_khz, cpu) = cpufreq_get(cpu);
+		for_each_online_cpu(cpu) {
+			unsigned long khz = cpufreq_get(cpu);
+			if (!khz)
+				khz = tsc_khz;
+			per_cpu(cpu_tsc_khz, cpu) = khz;
+		}
 	} else {
 		for_each_possible_cpu(cpu)
 			per_cpu(cpu_tsc_khz, cpu) = tsc_khz;
