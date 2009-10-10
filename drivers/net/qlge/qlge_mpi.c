@@ -1,25 +1,5 @@
 #include "qlge.h"
 
-static void ql_display_mb_sts(struct ql_adapter *qdev,
-						struct mbox_params *mbcp)
-{
-	int i;
-	static char *err_sts[] = {
-		"Command Complete",
-		"Command Not Supported",
-		"Host Interface Error",
-		"Checksum Error",
-		"Unused Completion Status",
-		"Test Failed",
-		"Command Parameter Error"};
-
-	QPRINTK(qdev, DRV, DEBUG, "%s.\n",
-		err_sts[mbcp->mbox_out[0] & 0x0000000f]);
-	for (i = 0; i < mbcp->out_count; i++)
-		QPRINTK(qdev, DRV, DEBUG, "mbox_out[%d] = 0x%.08x.\n",
-				i, mbcp->mbox_out[i]);
-}
-
 int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data)
 {
 	int status;
@@ -540,7 +520,6 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 					MB_CMD_STS_GOOD) &&
 		((mbcp->mbox_out[0] & 0x0000f000) !=
 					MB_CMD_STS_INTRMDT)) {
-		ql_display_mb_sts(qdev, mbcp);
 		status = -EIO;
 	}
 end:
