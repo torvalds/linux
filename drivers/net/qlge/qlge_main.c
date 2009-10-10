@@ -3311,10 +3311,8 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 
 	/* Initialize the port and set the max framesize. */
 	status = qdev->nic_ops->port_initialize(qdev);
-       if (status) {
-              QPRINTK(qdev, IFUP, ERR, "Failed to start port.\n");
-              return status;
-       }
+	if (status)
+		QPRINTK(qdev, IFUP, ERR, "Failed to start port.\n");
 
 	/* Set up the MAC address and frame routing filter. */
 	status = ql_cam_route_initialize(qdev);
