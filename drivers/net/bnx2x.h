@@ -762,7 +762,11 @@ struct bnx2x_eth_stats {
 			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
 
 
+#ifdef BCM_CNIC
+#define MAX_CONTEXT			15
+#else
 #define MAX_CONTEXT			16
+#endif
 
 union cdu_context {
 	struct eth_context eth;
@@ -811,13 +815,21 @@ struct bnx2x {
 	struct bnx2x_fastpath	fp[MAX_CONTEXT];
 	void __iomem		*regview;
 	void __iomem		*doorbells;
+#ifdef BCM_CNIC
+#define BNX2X_DB_SIZE		(18*BCM_PAGE_SIZE)
+#else
 #define BNX2X_DB_SIZE		(16*BCM_PAGE_SIZE)
+#endif
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
 
 	atomic_t		intr_sem;
+#ifdef BCM_CNIC
+	struct msix_entry	msix_table[MAX_CONTEXT+2];
+#else
 	struct msix_entry	msix_table[MAX_CONTEXT+1];
+#endif
 #define INT_MODE_INTx			1
 #define INT_MODE_MSI			2
 #define INT_MODE_MSIX			3
@@ -891,6 +903,11 @@ struct bnx2x {
 #define BP_E1HVN(bp)			(bp->func >> 1)
 #define BP_L_ID(bp)			(BP_E1HVN(bp) << 2)
 
+#ifdef BCM_CNIC
+#define BCM_CNIC_CID_START		16
+#define BCM_ISCSI_ETH_CL_ID		17
+#endif
+
 	int			pm_cap;
 	int			pcie_cap;
 	int			mrrs;
@@ -960,23 +977,43 @@ struct bnx2x {
 #define BNX2X_MAX_MULTICAST		64
 #define BNX2X_MAX_EMUL_MULTI		16
 
+	u32 			rx_mode_cl_mask;
+
 	dma_addr_t		def_status_blk_mapping;
 
 	struct bnx2x_slowpath	*slowpath;
 	dma_addr_t		slowpath_mapping;
 
-#ifdef BCM_ISCSI
-	void    		*t1;
-	dma_addr_t      	t1_mapping;
-	void    		*t2;
-	dma_addr_t      	t2_mapping;
-	void    		*timers;
-	dma_addr_t      	timers_mapping;
-	void    		*qm;
-	dma_addr_t      	qm_mapping;
-#endif
-
 	int			dropless_fc;
+
+#ifdef BCM_CNIC
+	u32			cnic_flags;
+#define BNX2X_CNIC_FLAG_MAC_SET		1
+
+	void			*t1;
+	dma_addr_t		t1_mapping;
+	void			*t2;
+	dma_addr_t		t2_mapping;
+	void			*timers;
+	dma_addr_t		timers_mapping;
+	void			*qm;
+	dma_addr_t		qm_mapping;
+	struct cnic_ops		*cnic_ops;
+	void			*cnic_data;
+	u32			cnic_tag;
+	struct cnic_eth_dev	cnic_eth_dev;
+	struct host_status_block *cnic_sb;
+	dma_addr_t		cnic_sb_mapping;
+#define CNIC_SB_ID(bp)			BP_L_ID(bp)
+	struct eth_spe		*cnic_kwq;
+	struct eth_spe		*cnic_kwq_prod;
+	struct eth_spe		*cnic_kwq_cons;
+	struct eth_spe		*cnic_kwq_last;
+	u16			cnic_kwq_pending;
+	u16			cnic_spq_pending;
+	struct mutex		cnic_mutex;
+	u8			iscsi_mac[6];
+#endif
 
 	int			dmae_ready;
 	/* used to synchronize dmae accesses */
