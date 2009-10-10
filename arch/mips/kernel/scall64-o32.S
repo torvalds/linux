@@ -450,7 +450,7 @@ sys_call_table:
 	PTR	sys_io_submit
 	PTR	sys_io_cancel			/* 4245 */
 	PTR	sys_exit_group
-	PTR	sys_lookup_dcookie
+	PTR	sys32_lookup_dcookie
 	PTR	sys_epoll_create
 	PTR	sys_epoll_ctl
 	PTR	sys_epoll_wait			/* 4250 */
