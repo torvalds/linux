@@ -1541,8 +1541,8 @@ static struct hda_verb vt1708_volume_init_verbs[] = {
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	
-	/* Setup default input to PW4 */
-	{0x20, AC_VERB_SET_CONNECT_SEL, 0x1},
+	/* Setup default input MW0 to PW4 */
+	{0x20, AC_VERB_SET_CONNECT_SEL, 0},
 	/* PW9 Output enable */
 	{0x25, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	{ }
@@ -2668,8 +2668,8 @@ static struct hda_verb vt1709_10ch_volume_init_verbs[] = {
 	{0x1f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 
-	/* Set input of PW4 as AOW4 */
-	{0x20, AC_VERB_SET_CONNECT_SEL, 0x1},
+	/* Set input of PW4 as MW0 */
+	{0x20, AC_VERB_SET_CONNECT_SEL, 0},
 	/* PW9 Output enable */
 	{0x24, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	{ }
@@ -3222,7 +3222,7 @@ static struct hda_verb vt1708B_8ch_volume_init_verbs[] = {
 	{0x27, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 
 	/* Setup default input to PW4 */
-	{0x1d, AC_VERB_SET_CONNECT_SEL, 0x1},
+	{0x1d, AC_VERB_SET_CONNECT_SEL, 0},
 	/* PW9 Output enable */
 	{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	/* PW10 Input enable */
