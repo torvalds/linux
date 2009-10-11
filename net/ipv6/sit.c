@@ -569,12 +569,12 @@ __be32 try_6rd(struct in6_addr *v6dst, struct ip_tunnel *tunnel)
 		pbw0 = tunnel->ip6rd.prefixlen >> 5;
 		pbi0 = tunnel->ip6rd.prefixlen & 0x1f;
 
-		d = (ntohl(tunnel->ip6rd.prefix.s6_addr32[pbw0]) << pbi0) >>
+		d = (ntohl(v6dst->s6_addr32[pbw0]) << pbi0) >>
 		    tunnel->ip6rd.relay_prefixlen;
 
 		pbi1 = pbi0 - tunnel->ip6rd.relay_prefixlen;
 		if (pbi1 > 0)
-			d |= ntohl(tunnel->ip6rd.prefix.s6_addr32[pbw0 + 1]) >>
+			d |= ntohl(v6dst->s6_addr32[pbw0 + 1]) >>
 			     (32 - pbi1);
 
 		dst = tunnel->ip6rd.relay_prefix | htonl(d);
