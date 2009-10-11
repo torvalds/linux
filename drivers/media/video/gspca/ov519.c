@@ -416,6 +416,7 @@ static const struct v4l2_pix_format ov511_sif_mode[] = {
 
 /* I2C ADDRESSES */
 #define OV7xx0_SID   0x42
+#define OV_HIRES_SID 0x60		/* OV9xxx / OV2xxx / OV3xxx */
 #define OV8xx0_SID   0xa0
 #define OV6xx0_SID   0xc0
 
@@ -1423,12 +1424,17 @@ static inline int ov51x_restart(struct sd *sd)
 	return 0;
 }
 
+static int ov51x_set_slave_ids(struct sd *sd, __u8 slave);
+
 /* This does an initial reset of an OmniVision sensor and ensures that I2C
  * is synchronized. Returns <0 on failure.
  */
-static int init_ov_sensor(struct sd *sd)
+static int init_ov_sensor(struct sd *sd, __u8 slave)
 {
 	int i;
+
+	if (ov51x_set_slave_ids(sd, slave) < 0)
+		return -EIO;
 
 	/* Reset the sensor */
 	if (i2c_w(sd, 0x12, 0x80) < 0)
@@ -1996,46 +2002,31 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	ov51x_led_control(sd, 0);	/* turn LED off */
 
-	/* Test for 76xx */
-	if (ov51x_set_slave_ids(sd, OV7xx0_SID) < 0)
-		goto error;
-
 	/* The OV519 must be more aggressive about sensor detection since
 	 * I2C write will never fail if the sensor is not present. We have
 	 * to try to initialize the sensor to detect its presence */
-	if (init_ov_sensor(sd) >= 0) {
+
+	/* Test for 76xx */
+	if (init_ov_sensor(sd, OV7xx0_SID) >= 0) {
 		if (ov7xx0_configure(sd) < 0) {
 			PDEBUG(D_ERR, "Failed to configure OV7xx0");
 			goto error;
 		}
-	} else {
-
-		/* Test for 6xx0 */
-		if (ov51x_set_slave_ids(sd, OV6xx0_SID) < 0)
+	/* Test for 6xx0 */
+	} else if (init_ov_sensor(sd, OV6xx0_SID) >= 0) {
+		if (ov6xx0_configure(sd) < 0) {
+			PDEBUG(D_ERR, "Failed to configure OV6xx0");
 			goto error;
-
-		if (init_ov_sensor(sd) >= 0) {
-			if (ov6xx0_configure(sd) < 0) {
-				PDEBUG(D_ERR, "Failed to configure OV6xx0");
-				goto error;
-			}
-		} else {
-
-			/* Test for 8xx0 */
-			if (ov51x_set_slave_ids(sd, OV8xx0_SID) < 0)
-				goto error;
-
-			if (init_ov_sensor(sd) < 0) {
-				PDEBUG(D_ERR,
-					"Can't determine sensor slave IDs");
-				goto error;
-			}
-			if (ov8xx0_configure(sd) < 0) {
-				PDEBUG(D_ERR,
-					"Failed to configure OV8xx0 sensor");
-				goto error;
-			}
 		}
+	/* Test for 8xx0 */
+	} else if (init_ov_sensor(sd, OV8xx0_SID) >= 0) {
+		if (ov8xx0_configure(sd) < 0) {
+			PDEBUG(D_ERR, "Failed to configure OV8xx0");
+			goto error;
+		}
+	} else {
+		PDEBUG(D_ERR, "Can't determine sensor slave IDs");
+		goto error;
 	}
 
 	cam = &gspca_dev->cam;
