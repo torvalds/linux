@@ -842,8 +842,9 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		return;
 
 	if (sd->cam_type == CAM_TYPE_CIF && sd->sensor_type == 1) {
-		/* This cam does not like very low exposure settings */
-		exposure = (sd->exposure < 300) ? 300 : sd->exposure;
+		/* This cam does not like exposure settings > 300,
+		   so scale 0 - 4095 to 300 - 4095 */
+		exposure = (sd->exposure * 9267) / 10000 + 300;
 		sensor_write1(gspca_dev, 3, exposure >> 4);
 		sensor_write1(gspca_dev, 4, exposure & 0x0f);
 	} else {
