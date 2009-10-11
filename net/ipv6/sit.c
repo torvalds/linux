@@ -1014,9 +1014,12 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 					 ip6rd.prefixlen);
 			if (!ipv6_addr_equal(&prefix, &ip6rd.prefix))
 				goto done;
-			relay_prefix = ip6rd.relay_prefix &
-				       htonl(0xffffffffUL <<
-					     (32 - ip6rd.relay_prefixlen));
+			if (ip6rd.relay_prefixlen)
+				relay_prefix = ip6rd.relay_prefix &
+					       htonl(0xffffffffUL <<
+						     (32 - ip6rd.relay_prefixlen));
+			else
+				relay_prefix = 0;
 			if (relay_prefix != ip6rd.relay_prefix)
 				goto done;
 
