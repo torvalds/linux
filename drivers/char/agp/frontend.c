@@ -676,25 +676,25 @@ static int agp_open(struct inode *inode, struct file *file)
 	int minor = iminor(inode);
 	struct agp_file_private *priv;
 	struct agp_client *client;
-	int rc = -ENXIO;
-
-	lock_kernel();
-	mutex_lock(&(agp_fe.agp_mutex));
 
 	if (minor != AGPGART_MINOR)
-		goto err_out;
+		return -ENXIO;
+
+	mutex_lock(&(agp_fe.agp_mutex));
 
 	priv = kzalloc(sizeof(struct agp_file_private), GFP_KERNEL);
-	if (priv == NULL)
-		goto err_out_nomem;
+	if (priv == NULL) {
+		mutex_unlock(&(agp_fe.agp_mutex));
+		return -ENOMEM;
+	}
 
 	set_bit(AGP_FF_ALLOW_CLIENT, &priv->access_flags);
 	priv->my_pid = current->pid;
 
-	if (capable(CAP_SYS_RAWIO)) {
+	if (capable(CAP_SYS_RAWIO))
 		/* Root priv, can be controller */
 		set_bit(AGP_FF_ALLOW_CONTROLLER, &priv->access_flags);
-	}
+
 	client = agp_find_client_by_pid(current->pid);
 
 	if (client != NULL) {
@@ -704,16 +704,10 @@ static int agp_open(struct inode *inode, struct file *file)
 	file->private_data = (void *) priv;
 	agp_insert_file_private(priv);
 	DBG("private=%p, client=%p", priv, client);
-	mutex_unlock(&(agp_fe.agp_mutex));
-	unlock_kernel();
-	return 0;
 
-err_out_nomem:
-	rc = -ENOMEM;
-err_out:
 	mutex_unlock(&(agp_fe.agp_mutex));
-	unlock_kernel();
-	return rc;
+
+	return 0;
 }
 
 
