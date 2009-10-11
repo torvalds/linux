@@ -1231,6 +1231,13 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/tg3.*
 
+BROCADE BFA FC SCSI DRIVER
+P:      Jing Huang
+M:      huangj@brocade.com
+L:      linux-scsi@vger.kernel.org
+S:      Supported
+F:      drivers/scsi/bfa/
+
 BSG (block layer generic sg v4 driver)
 M:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
 L:	linux-scsi@vger.kernel.org
@@ -4645,6 +4652,14 @@ S:	Supported
 F:	drivers/ata/
 F:	include/linux/ata.h
 F:	include/linux/libata.h
+
+SERVER ENGINES 10Gbps iSCSI - BladeEngine 2 DRIVER
+P:     Jayamohan Kallickal
+M:     jayamohank@serverengines.com
+L:     linux-scsi@vger.kernel.org
+W:     http://www.serverengines.com
+S:     Supported
+F:     drivers/scsi/be2iscsi/
 
 SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
 M:	Sathya Perla <sathyap@serverengines.com>
