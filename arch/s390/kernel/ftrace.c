@@ -185,9 +185,6 @@ unsigned long prepare_ftrace_return(unsigned long ip, unsigned long parent)
 {
 	struct ftrace_graph_ent trace;
 
-	/* Nmi's are currently unsupported. */
-	if (unlikely(in_nmi()))
-		goto out;
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		goto out;
 	if (ftrace_push_return_trace(parent, ip, &trace.depth, 0) == -EBUSY)

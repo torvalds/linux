@@ -361,7 +361,7 @@ static void rng_type6CPRB_msgX(struct ap_device *ap_dev,
 		.ToCardLen1	= sizeof *msg - sizeof(msg->hdr),
 		.FromCardLen1	= sizeof *msg - sizeof(msg->hdr),
 	};
-	static struct CPRBX static_cprbx = {
+	static struct CPRBX local_cprbx = {
 		.cprb_len	= 0x00dc,
 		.cprb_ver_id	= 0x02,
 		.func_id	= {0x54, 0x32},
@@ -372,7 +372,7 @@ static void rng_type6CPRB_msgX(struct ap_device *ap_dev,
 
 	msg->hdr = static_type6_hdrX;
 	msg->hdr.FromCardLen2 = random_number_length,
-	msg->cprbx = static_cprbx;
+	msg->cprbx = local_cprbx;
 	msg->cprbx.rpl_datal = random_number_length,
 	msg->cprbx.domain = AP_QID_QUEUE(ap_dev->qid);
 	memcpy(msg->function_code, msg->hdr.function_code, 0x02);
@@ -561,7 +561,8 @@ static int convert_response_ica(struct zcrypt_device *zdev,
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_ica(zdev, reply,
 						  outputdata, outputdatalength);
-		/* no break, incorrect cprb version is an unknown response */
+		/* Fall through, no break, incorrect cprb version is an unknown
+		 * response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zdev->online = 0;
 		return -EAGAIN;	/* repeat the request on a different device. */
@@ -587,7 +588,8 @@ static int convert_response_xcrb(struct zcrypt_device *zdev,
 		}
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_xcrb(zdev, reply, xcRB);
-		/* no break, incorrect cprb version is an unknown response */
+		/* Fall through, no break, incorrect cprb version is an unknown
+		 * response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		xcRB->status = 0x0008044DL; /* HDD_InvalidParm */
 		zdev->online = 0;
@@ -610,7 +612,8 @@ static int convert_response_rng(struct zcrypt_device *zdev,
 			return -EINVAL;
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_rng(zdev, reply, data);
-		/* no break, incorrect cprb version is an unknown response */
+		/* Fall through, no break, incorrect cprb version is an unknown
+		 * response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zdev->online = 0;
 		return -EAGAIN;	/* repeat the request on a different device. */
