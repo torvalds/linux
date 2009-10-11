@@ -45,7 +45,7 @@ static int __init user_debug_setup(char *str)
 __setup("user_debug=", user_debug_setup);
 #endif
 
-static void dump_mem(const char *str, unsigned long bottom, unsigned long top);
+static void dump_mem(const char *, const char *, unsigned long, unsigned long);
 
 void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long frame)
 {
@@ -59,7 +59,7 @@ void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long
 #endif
 
 	if (in_exception_text(where))
-		dump_mem("Exception stack", frame + 4, frame + 4 + sizeof(struct pt_regs));
+		dump_mem("", "Exception stack", frame + 4, frame + 4 + sizeof(struct pt_regs));
 }
 
 #ifndef CONFIG_ARM_UNWIND
@@ -81,7 +81,8 @@ static int verify_stack(unsigned long sp)
 /*
  * Dump out the contents of some memory nicely...
  */
-static void dump_mem(const char *str, unsigned long bottom, unsigned long top)
+static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
+		     unsigned long top)
 {
 	unsigned long first;
 	mm_segment_t fs;
@@ -95,7 +96,7 @@ static void dump_mem(const char *str, unsigned long bottom, unsigned long top)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	printk("%s(0x%08lx to 0x%08lx)\n", str, bottom, top);
+	printk("%s%s(0x%08lx to 0x%08lx)\n", lvl, str, bottom, top);
 
 	for (first = bottom & ~31; first < top; first += 32) {
 		unsigned long p;
@@ -113,13 +114,13 @@ static void dump_mem(const char *str, unsigned long bottom, unsigned long top)
 					sprintf(str + i * 9, " ????????");
 			}
 		}
-		printk("%04lx:%s\n", first & 0xffff, str);
+		printk("%s%04lx:%s\n", lvl, first & 0xffff, str);
 	}
 
 	set_fs(fs);
 }
 
-static void dump_instr(struct pt_regs *regs)
+static void dump_instr(const char *lvl, struct pt_regs *regs)
 {
 	unsigned long addr = instruction_pointer(regs);
 	const int thumb = thumb_mode(regs);
@@ -152,7 +153,7 @@ static void dump_instr(struct pt_regs *regs)
 			break;
 		}
 	}
-	printk("Code: %s\n", str);
+	printk("%sCode: %s\n", lvl, str);
 
 	set_fs(fs);
 }
@@ -228,18 +229,18 @@ static void __die(const char *str, int err, struct thread_info *thread, struct p
 	struct task_struct *tsk = thread->task;
 	static int die_counter;
 
-	printk("Internal error: %s: %x [#%d]" S_PREEMPT S_SMP "\n",
+	printk(KERN_EMERG "Internal error: %s: %x [#%d]" S_PREEMPT S_SMP "\n",
 	       str, err, ++die_counter);
 	print_modules();
 	__show_regs(regs);
-	printk("Process %s (pid: %d, stack limit = 0x%p)\n",
-		tsk->comm, task_pid_nr(tsk), thread + 1);
+	printk(KERN_EMERG "Process %.*s (pid: %d, stack limit = 0x%p)\n",
+		TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk), thread + 1);
 
 	if (!user_mode(regs) || in_interrupt()) {
-		dump_mem("Stack: ", regs->ARM_sp,
+		dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
 			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
 		dump_backtrace(regs, tsk);
-		dump_instr(regs);
+		dump_instr(KERN_EMERG, regs);
 	}
 }
 
@@ -353,7 +354,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	if (user_debug & UDBG_UNDEFINED) {
 		printk(KERN_INFO "%s (%d): undefined instruction: pc=%p\n",
 			current->comm, task_pid_nr(current), pc);
-		dump_instr(regs);
+		dump_instr(KERN_INFO, regs);
 	}
 #endif
 
@@ -404,7 +405,7 @@ static int bad_syscall(int n, struct pt_regs *regs)
 	if (user_debug & UDBG_SYSCALL) {
 		printk(KERN_ERR "[%d] %s: obsolete system call %08x.\n",
 			task_pid_nr(current), current->comm, n);
-		dump_instr(regs);
+		dump_instr(KERN_ERR, regs);
 	}
 #endif
 
@@ -583,7 +584,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	if (user_debug & UDBG_SYSCALL) {
 		printk("[%d] %s: arm syscall %d\n",
 		       task_pid_nr(current), current->comm, no);
-		dump_instr(regs);
+		dump_instr("", regs);
 		if (user_mode(regs)) {
 			__show_regs(regs);
 			c_backtrace(regs->ARM_fp, processor_mode(regs));
@@ -660,7 +661,7 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 	if (user_debug & UDBG_BADABORT) {
 		printk(KERN_ERR "[%d] %s: bad data abort: code %d instr 0x%08lx\n",
 			task_pid_nr(current), current->comm, code, instr);
-		dump_instr(regs);
+		dump_instr(KERN_ERR, regs);
 		show_pte(current->mm, addr);
 	}
 #endif
