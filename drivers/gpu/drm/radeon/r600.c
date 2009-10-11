@@ -2067,6 +2067,10 @@ int r600_init(struct radeon_device *rdev)
 			rdev->accel_working = false;
 		}
 	}
+
+	r = r600_audio_init(rdev);
+	if (r)
+		return r; /* TODO error handling */
 	return 0;
 }
 
@@ -2075,6 +2079,7 @@ void r600_fini(struct radeon_device *rdev)
 	/* Suspend operations */
 	r600_suspend(rdev);
 
+	r600_audio_fini(rdev);
 	r600_blit_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_irq_kms_fini(rdev);
