@@ -32,6 +32,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <asm/unaligned.h>
+#include <asm/dwarf.h>
 
 void *module_alloc(unsigned long size)
 {
@@ -145,10 +146,41 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
+#ifdef CONFIG_DWARF_UNWINDER
+	unsigned int i, err;
+	unsigned long start, end;
+	char *secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+
+	start = end = 0;
+
+	for (i = 1; i < hdr->e_shnum; i++) {
+		/* Alloc bit cleared means "ignore it." */
+		if ((sechdrs[i].sh_flags & SHF_ALLOC)
+		    && !strcmp(secstrings+sechdrs[i].sh_name, ".eh_frame")) {
+			start = sechdrs[i].sh_addr;
+			end = start + sechdrs[i].sh_size;
+			break;
+		}
+	}
+
+	/* Did we find the .eh_frame section? */
+	if (i != hdr->e_shnum) {
+		err = dwarf_parse_section((char *)start, (char *)end, me);
+		if (err)
+			printk(KERN_WARNING "%s: failed to parse DWARF info\n",
+			       me->name);
+	}
+
+#endif /* CONFIG_DWARF_UNWINDER */
+
 	return module_bug_finalize(hdr, sechdrs, me);
 }
 
 void module_arch_cleanup(struct module *mod)
 {
 	module_bug_cleanup(mod);
+
+#ifdef CONFIG_DWARF_UNWINDER
+	dwarf_module_unload(mod);
+#endif /* CONFIG_DWARF_UNWINDER */
 }
