@@ -32,6 +32,53 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 	return addr;
 }
 
+
+#ifdef CONFIG_DWARF_UNWINDER
+#include <asm/dwarf.h>
+
+#define HAVE_ARCH_CALLER_ADDR
+
+static inline unsigned long dwarf_return_address(int depth)
+{
+	struct dwarf_frame *frame;
+	unsigned long ra;
+	int i;
+
+	for (i = 0, frame = NULL, ra = 0; i <= depth; i++) {
+		struct dwarf_frame *tmp;
+
+		tmp = dwarf_unwind_stack(ra, frame);
+
+		if (frame)
+			dwarf_free_frame(frame);
+
+		frame = tmp;
+
+		if (!frame || !frame->return_addr)
+			break;
+
+		ra = frame->return_addr;
+	}
+
+	/* Failed to unwind the stack to the specified depth. */
+	WARN_ON(i != depth + 1);
+
+	if (frame)
+		dwarf_free_frame(frame);
+
+	return ra;
+}
+
+#define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
+#define CALLER_ADDR1 dwarf_return_address(1)
+#define CALLER_ADDR2 dwarf_return_address(2)
+#define CALLER_ADDR3 dwarf_return_address(3)
+#define CALLER_ADDR4 dwarf_return_address(4)
+#define CALLER_ADDR5 dwarf_return_address(5)
+#define CALLER_ADDR6 dwarf_return_address(6)
+
+#endif /* CONFIG_DWARF_UNWINDER */
+
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_FUNCTION_TRACER */
 
