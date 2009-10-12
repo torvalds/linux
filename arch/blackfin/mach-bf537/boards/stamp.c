@@ -515,7 +515,7 @@ static struct bfin5xx_spi_chip ad1938_spi_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_INPUT_EVAL_AD7147EBZ)
+#if defined(CONFIG_INPUT_AD714X_SPI) || defined(CONFIG_INPUT_AD714X_SPI_MODULE)
 #include <linux/input.h>
 #include <linux/input/ad714x.h>
 static struct bfin5xx_spi_chip ad7147_spi_chip_info = {
@@ -523,7 +523,7 @@ static struct bfin5xx_spi_chip ad7147_spi_chip_info = {
 	.bits_per_word = 16,
 };
 
-static struct ad714x_slider_plat slider_plat[] = {
+static struct ad714x_slider_plat ad7147_spi_slider_plat[] = {
 	{
 		.start_stage = 0,
 		.end_stage = 7,
@@ -531,7 +531,7 @@ static struct ad714x_slider_plat slider_plat[] = {
 	},
 };
 
-static struct ad714x_button_plat button_plat[] = {
+static struct ad714x_button_plat ad7147_spi_button_plat[] = {
 	{
 		.keycode = BTN_FORWARD,
 		.l_mask = 0,
@@ -558,11 +558,11 @@ static struct ad714x_button_plat button_plat[] = {
 		.h_mask = 0x400,
 	},
 };
-static struct ad714x_platform_data ad7147_platfrom_data = {
+static struct ad714x_platform_data ad7147_spi_platform_data = {
 	.slider_num = 1,
 	.button_num = 5,
-	.slider = slider_plat,
-	.button = button_plat,
+	.slider = ad7147_spi_slider_plat,
+	.button = ad7147_spi_button_plat,
 	.stage_cfg_reg =  {
 		{0xFBFF, 0x1FFF, 0, 0x2626, 1600, 1600, 1600, 1600},
 		{0xEFFF, 0x1FFF, 0, 0x2626, 1650, 1650, 1650, 1650},
@@ -581,10 +581,10 @@ static struct ad714x_platform_data ad7147_platfrom_data = {
 };
 #endif
 
-#if defined(CONFIG_INPUT_EVAL_AD7142EB)
+#if defined(CONFIG_INPUT_AD714X_I2C) || defined(CONFIG_INPUT_AD714X_I2C_MODULE)
 #include <linux/input.h>
 #include <linux/input/ad714x.h>
-static struct ad714x_button_plat button_plat[] = {
+static struct ad714x_button_plat ad7142_i2c_button_plat[] = {
 	{
 		.keycode = BTN_1,
 		.l_mask = 0,
@@ -606,9 +606,9 @@ static struct ad714x_button_plat button_plat[] = {
 		.h_mask = 0x8,
 	},
 };
-static struct ad714x_platform_data ad7142_platfrom_data = {
+static struct ad714x_platform_data ad7142_i2c_platform_data = {
 	.button_num = 4,
-	.button = button_plat,
+	.button = ad7142_i2c_button_plat,
 	.stage_cfg_reg =  {
 		/* fixme: figure out right setting for all comoponent according
 		 * to hardware feature of EVAL-AD7142EB board */
@@ -861,7 +861,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_INPUT_EVAL_AD7147EBZ)
+#if defined(CONFIG_INPUT_AD714X_SPI) || defined(CONFIG_INPUT_AD714X_SPI_MODULE)
 	{
 		.modalias = "ad714x_captouch",
 		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
@@ -869,7 +869,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.bus_num = 0,
 		.chip_select = 5,
 		.mode = SPI_MODE_3,
-		.platform_data = &ad7147_platfrom_data,
+		.platform_data = &ad7147_spi_platform_data,
 		.controller_data = &ad7147_spi_chip_info,
 	},
 #endif
@@ -1402,11 +1402,11 @@ static struct adp5588_gpio_platform_data adp5588_gpio_data = {
 #endif
 
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
-#if defined(CONFIG_INPUT_EVAL_AD7142EB)
+#if defined(CONFIG_INPUT_AD714X_I2C) || defined(CONFIG_INPUT_AD714X_I2C_MODULE)
 	{
 		I2C_BOARD_INFO("ad7142_captouch", 0x2C),
 		.irq = IRQ_PG5,
-		.platform_data = (void *)&ad7142_platfrom_data,
+		.platform_data = (void *)&ad7142_i2c_platform_data,
 	},
 #endif
 #if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
