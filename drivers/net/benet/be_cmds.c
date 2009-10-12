@@ -1118,6 +1118,65 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 	return status;
 }
 
+/* Uses sync mcc */
+int be_cmd_set_beacon_state(struct be_adapter *adapter, u8 port_num,
+			u8 bcn, u8 sts, u8 state)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_enable_disable_beacon *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+		OPCODE_COMMON_ENABLE_DISABLE_BEACON, sizeof(*req));
+
+	req->port_num = port_num;
+	req->beacon_state = state;
+	req->beacon_duration = bcn;
+	req->status_duration = sts;
+
+	status = be_mcc_notify_wait(adapter);
+
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+/* Uses sync mcc */
+int be_cmd_get_beacon_state(struct be_adapter *adapter, u8 port_num, u32 *state)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_beacon_state *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+		OPCODE_COMMON_GET_BEACON_STATE, sizeof(*req));
+
+	req->port_num = port_num;
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_get_beacon_state *resp =
+						embedded_payload(wrb);
+		*state = resp->beacon_state;
+	}
+
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
 int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			u32 flash_type, u32 flash_opcode, u32 buf_size)
 {

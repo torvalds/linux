@@ -138,6 +138,8 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_NTWK_PMAC_ADD			59
 #define OPCODE_COMMON_NTWK_PMAC_DEL			60
 #define OPCODE_COMMON_FUNCTION_RESET			61
+#define OPCODE_COMMON_ENABLE_DISABLE_BEACON		69
+#define OPCODE_COMMON_GET_BEACON_STATE			70
 
 #define OPCODE_ETH_ACPI_CONFIG				2
 #define OPCODE_ETH_PROMISCUOUS				3
@@ -699,6 +701,37 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 rsvd[26];
 };
 
+/******************** Port Beacon ***************************/
+
+#define BEACON_STATE_ENABLED		0x1
+#define BEACON_STATE_DISABLED		0x0
+
+struct be_cmd_req_enable_disable_beacon {
+	struct be_cmd_req_hdr hdr;
+	u8  port_num;
+	u8  beacon_state;
+	u8  beacon_duration;
+	u8  status_duration;
+} __packed;
+
+struct be_cmd_resp_enable_disable_beacon {
+	struct be_cmd_resp_hdr resp_hdr;
+	u32 rsvd0;
+} __packed;
+
+struct be_cmd_req_get_beacon_state {
+	struct be_cmd_req_hdr hdr;
+	u8  port_num;
+	u8  rsvd0;
+	u16 rsvd1;
+} __packed;
+
+struct be_cmd_resp_get_beacon_state {
+	struct be_cmd_resp_hdr resp_hdr;
+	u8 beacon_state;
+	u8 rsvd0[3];
+} __packed;
+
 /****************** Firmware Flash ******************/
 struct flashrom_params {
 	u32 op_code;
@@ -764,6 +797,10 @@ extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
 			u32 *port_num, u32 *cap);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
 extern int be_process_mcc(struct be_adapter *adapter);
+extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
+			u8 port_num, u8 beacon, u8 status, u8 state);
+extern int be_cmd_get_beacon_state(struct be_adapter *adapter,
+			u8 port_num, u32 *state);
 extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);

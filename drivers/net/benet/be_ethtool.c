@@ -338,6 +338,35 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 }
 
 static int
+be_phys_id(struct net_device *netdev, u32 data)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int status;
+	u32 cur;
+
+	if (!netif_running(netdev))
+		return 0;
+
+	be_cmd_get_beacon_state(adapter, adapter->port_num, &cur);
+
+	if (cur == BEACON_STATE_ENABLED)
+		return 0;
+
+	if (data < 2)
+		data = 2;
+
+	status = be_cmd_set_beacon_state(adapter, adapter->port_num, 0, 0,
+			BEACON_STATE_ENABLED);
+	set_current_state(TASK_INTERRUPTIBLE);
+	schedule_timeout(data*HZ);
+
+	status = be_cmd_set_beacon_state(adapter, adapter->port_num, 0, 0,
+			BEACON_STATE_DISABLED);
+
+	return status;
+}
+
+static int
 be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
@@ -369,6 +398,7 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
 	.get_strings = be_get_stat_strings,
+	.phys_id = be_phys_id,
 	.get_sset_count = be_get_sset_count,
 	.get_ethtool_stats = be_get_ethtool_stats,
 	.flash_device = be_do_flash,
