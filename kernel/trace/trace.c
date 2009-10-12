@@ -129,7 +129,7 @@ static int tracing_set_tracer(const char *buf);
 static char bootup_tracer_buf[MAX_TRACER_SIZE] __initdata;
 static char *default_bootup_tracer;
 
-static int __init set_ftrace(char *str)
+static int __init set_bootup_ftrace(char *str)
 {
 	strncpy(bootup_tracer_buf, str, MAX_TRACER_SIZE);
 	default_bootup_tracer = bootup_tracer_buf;
@@ -137,7 +137,7 @@ static int __init set_ftrace(char *str)
 	ring_buffer_expanded = 1;
 	return 1;
 }
-__setup("ftrace=", set_ftrace);
+__setup("ftrace=", set_bootup_ftrace);
 
 static int __init set_ftrace_dump_on_oops(char *str)
 {
