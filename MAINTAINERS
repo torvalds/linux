@@ -577,6 +577,11 @@ M:	Mike Rapoport <mike@compulab.co.il>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
+ARM/CONTEC MICRO9 MACHINE SUPPORT
+M:	Hubert Feurstein <hubert.feurstein@contec.at>
+S:	Maintained
+F:	arch/arm/mach-ep93xx/micro9.c
+
 ARM/CORGI MACHINE SUPPORT
 M:	Richard Purdie <rpurdie@rpsys.net>
 S:	Maintained
