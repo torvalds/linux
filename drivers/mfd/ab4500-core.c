@@ -200,7 +200,8 @@ static void __exit ab4500_exit(void)
 	spi_unregister_driver(&ab4500_driver);
 }
 
-subsys_initcall_sync(ab4500_init);
+subsys_initcall(ab4500_init);
+module_exit(ab4500_exit);
 
 MODULE_AUTHOR("Srinidhi KASAGAR <srinidhi.kasagar@stericsson.com");
 MODULE_DESCRIPTION("AB4500 core driver");
