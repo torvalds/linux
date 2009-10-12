@@ -601,7 +601,7 @@ static int snd_us122l_probe(struct usb_interface *intf,
 	if (device->descriptor.idProduct == USB_ID_US144
 		&& device->speed == USB_SPEED_HIGH) {
 		snd_printk(KERN_ERR "disable ehci-hcd to run US-144 \n");
-		return -ENOENT;
+		return -ENODEV;
 	}
 
 	snd_printdd(KERN_DEBUG"%p:%i\n",
