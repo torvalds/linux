@@ -147,9 +147,6 @@ config SPI_MPC8xxx
 	  This enables using the Freescale MPC8xxx SPI controllers in master
 	  mode.
 
-	  This driver uses a simple set of shift registers for data (opposed
-	  to the CPM based descriptor model).
-
 config SPI_OMAP_UWIRE
 	tristate "OMAP1 MicroWire"
 	depends on ARCH_OMAP1
