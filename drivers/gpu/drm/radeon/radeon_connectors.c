@@ -183,8 +183,7 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 	if (native_mode->hdisplay != 0 &&
 	    native_mode->vdisplay != 0 &&
 	    native_mode->clock != 0) {
-		mode = drm_mode_create(dev);
-		*mode = *native_mode;
+		mode = drm_mode_duplicate(dev, native_mode);
 		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
 		drm_mode_set_name(mode);
 

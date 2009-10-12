@@ -175,11 +175,13 @@ void radeon_rmx_mode_fixup(struct drm_encoder *encoder,
 
 	if (mode->hdisplay < native_mode->hdisplay ||
 	    mode->vdisplay < native_mode->vdisplay) {
+		int mode_id = adjusted_mode->base.id;
 		*adjusted_mode = *native_mode;
 		if (!ASIC_IS_AVIVO(rdev)) {
 			adjusted_mode->hdisplay = mode->hdisplay;
 			adjusted_mode->vdisplay = mode->vdisplay;
 		}
+		adjusted_mode->base.id = mode_id;
 	}
 }
 
