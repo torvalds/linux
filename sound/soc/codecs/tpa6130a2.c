@@ -106,7 +106,7 @@ static void tpa6130a2_initialize(void)
 		tpa6130a2_i2c_write(i, data->regs[i]);
 }
 
-void tpa6130a2_power(int power)
+static void tpa6130a2_power(int power)
 {
 	struct	tpa6130a2_data *data;
 	u8	val;

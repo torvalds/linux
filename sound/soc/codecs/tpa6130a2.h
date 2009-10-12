@@ -57,6 +57,5 @@
 #define TPA6130A2_VERSION_MASK		(0x0f)
 
 extern int tpa6130a2_add_controls(struct snd_soc_codec *codec);
-extern void tpa6130a2_power(int power);
 
 #endif /* __TPA6130A2_H__ */
