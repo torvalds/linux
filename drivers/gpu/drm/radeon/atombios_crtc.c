@@ -454,6 +454,7 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
 			   &ref_div, &post_div, pll_flags);
 
+	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
 	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
 			      &crev);
 
@@ -513,7 +514,6 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	}
 
 	printk("executing set pll\n");
-	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
