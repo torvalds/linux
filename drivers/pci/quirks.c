@@ -2572,6 +2572,19 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 	}
 	pci_do_fixups(dev, start, end);
 }
+
+static int __devinit pci_apply_final_quirks(void)
+{
+	struct pci_dev *dev = NULL;
+
+	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+		pci_fixup_device(pci_fixup_final, dev);
+	}
+
+	return 0;
+}
+
+device_initcall(pci_apply_final_quirks);
 #else
 void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev) {}
 #endif
