@@ -39,12 +39,7 @@ void wl1271_elp_work(struct work_struct *work)
 
 	mutex_lock(&wl->mutex);
 
-	/*
-	 * FIXME: below, by means of the "true", ELP has been disabled for now
-	 * to work around a firmware bug. To be enabled upon receiving a new
-	 * firmware version.
-	 */
-	if (true || wl->elp || !wl->psm)
+	if (wl->elp || !wl->psm)
 		goto out;
 
 	wl1271_debug(DEBUG_PSM, "chip to elp");
