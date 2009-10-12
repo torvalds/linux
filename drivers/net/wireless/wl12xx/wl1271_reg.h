@@ -213,7 +213,6 @@
 ==============================================*/
 #define ACX_REG_INTERRUPT_ACK          (REGISTERS_BASE + 0x04F0)
 
-#define RX_DRIVER_DUMMY_WRITE_ADDRESS  (REGISTERS_BASE + 0x0534)
 #define RX_DRIVER_COUNTER_ADDRESS      (REGISTERS_BASE + 0x0538)
 
 /* Device Configuration registers*/

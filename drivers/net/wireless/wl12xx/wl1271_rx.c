@@ -187,8 +187,4 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 	}
 
 	wl1271_reg_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
-
-	/* This is a workaround for some problems in the chip */
-	wl1271_reg_write32(wl, RX_DRIVER_DUMMY_WRITE_ADDRESS, 0x1);
-
 }
