@@ -315,6 +315,7 @@ static int wl1271_setup(struct wl1271 *wl)
 
 static int wl1271_chip_wakeup(struct wl1271 *wl)
 {
+	struct wl1271_partition_set partition;
 	int ret = 0;
 
 	wl1271_power_on(wl);
@@ -324,11 +325,10 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 
 	/* We don't need a real memory partition here, because we only want
 	 * to use the registers at this point. */
-	wl1271_set_partition(wl,
-			     0x00000000,
-			     0x00000000,
-			     REGISTERS_BASE,
-			     REGISTERS_DOWN_SIZE);
+	memset(&partition, 0, sizeof(partition));
+	partition.reg.start = REGISTERS_BASE;
+	partition.reg.size = REGISTERS_DOWN_SIZE;
+	wl1271_set_partition(wl, &partition);
 
 	/* ELP module wake up */
 	wl1271_fw_wakeup(wl);

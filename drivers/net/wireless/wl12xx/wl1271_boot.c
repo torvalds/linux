@@ -39,6 +39,14 @@ static struct wl1271_partition_set part_table[PART_TABLE_LEN] = {
 			.start = REGISTERS_BASE,
 			.size  = 0x00008800
 		},
+		.mem2 = {
+			.start = 0x00000000,
+			.size  = 0x00000000
+		},
+		.mem3 = {
+			.start = 0x00000000,
+			.size  = 0x00000000
+		},
 	},
 
 	[PART_WORK] = {
@@ -48,7 +56,15 @@ static struct wl1271_partition_set part_table[PART_TABLE_LEN] = {
 		},
 		.reg = {
 			.start = REGISTERS_BASE,
-			.size  = 0x0000b000
+			.size  = 0x0000a000
+		},
+		.mem2 = {
+			.start = 0x003004f8,
+			.size  = 0x00000004
+		},
+		.mem3 = {
+			.start = 0x00040404,
+			.size  = 0x00000000
 		},
 	},
 
@@ -60,6 +76,14 @@ static struct wl1271_partition_set part_table[PART_TABLE_LEN] = {
 		.reg = {
 			.start = DRPW_BASE,
 			.size  = 0x00006000
+		},
+		.mem2 = {
+			.start = 0x00000000,
+			.size  = 0x00000000
+		},
+		.mem3 = {
+			.start = 0x00000000,
+			.size  = 0x00000000
 		}
 	}
 };
@@ -93,6 +117,7 @@ static void wl1271_boot_fw_version(struct wl1271 *wl)
 static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 					     size_t fw_data_len, u32 dest)
 {
+	struct wl1271_partition_set partition;
 	int addr, chunk_num, partition_limit;
 	u8 *p, *chunk;
 
@@ -114,10 +139,9 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 		return -ENOMEM;
 	}
 
-	wl1271_set_partition(wl, dest,
-			     part_table[PART_DOWN].mem.size,
-			     part_table[PART_DOWN].reg.start,
-			     part_table[PART_DOWN].reg.size);
+	memcpy(&partition, &part_table[PART_DOWN], sizeof(partition));
+	partition.mem.start = dest;
+	wl1271_set_partition(wl, &partition);
 
 	/* 10.1 set partition limit and chunk num */
 	chunk_num = 0;
@@ -130,13 +154,8 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 			addr = dest + chunk_num * CHUNK_SIZE;
 			partition_limit = chunk_num * CHUNK_SIZE +
 				part_table[PART_DOWN].mem.size;
-
-			/* FIXME: Over 80 chars! */
-			wl1271_set_partition(wl,
-					     addr,
-					     part_table[PART_DOWN].mem.size,
-					     part_table[PART_DOWN].reg.start,
-					     part_table[PART_DOWN].reg.size);
+			partition.mem.start = addr;
+			wl1271_set_partition(wl, &partition);
 		}
 
 		/* 10.3 upload the chunk */
@@ -261,11 +280,7 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	/* FIXME: The driver sets the partition here, but this is not needed,
 	   since it sets to the same one as currently in use */
 	/* Now we must set the partition correctly */
-	wl1271_set_partition(wl,
-			     part_table[PART_WORK].mem.start,
-			     part_table[PART_WORK].mem.size,
-			     part_table[PART_WORK].reg.start,
-			     part_table[PART_WORK].reg.size);
+	wl1271_set_partition(wl, &part_table[PART_WORK]);
 
 	/* Copy the NVS tables to a new block to ensure alignment */
 	nvs_aligned = kmemdup(nvs_ptr, nvs_len, GFP_KERNEL);
@@ -371,11 +386,7 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	wl->event_box_addr = wl1271_reg_read32(wl, REG_EVENT_MAILBOX_PTR);
 
 	/* set the working partition to its "running" mode offset */
-	wl1271_set_partition(wl,
-			     part_table[PART_WORK].mem.start,
-			     part_table[PART_WORK].mem.size,
-			     part_table[PART_WORK].reg.start,
-			     part_table[PART_WORK].reg.size);
+	wl1271_set_partition(wl, &part_table[PART_WORK]);
 
 	wl1271_debug(DEBUG_MAILBOX, "cmd_box_addr 0x%x event_box_addr 0x%x",
 		     wl->cmd_box_addr, wl->event_box_addr);
@@ -469,11 +480,7 @@ int wl1271_boot(struct wl1271 *wl)
 	wl1271_reg_write32(wl, WELP_ARM_COMMAND, WELP_ARM_COMMAND_VAL);
 	udelay(500);
 
-	wl1271_set_partition(wl,
-			     part_table[PART_DRPW].mem.start,
-			     part_table[PART_DRPW].mem.size,
-			     part_table[PART_DRPW].reg.start,
-			     part_table[PART_DRPW].reg.size);
+	wl1271_set_partition(wl, &part_table[PART_DRPW]);
 
 	/* Read-modify-write DRPW_SCRATCH_START register (see next state)
 	   to be used by DRPw FW. The RTRIM value will be added by the FW
@@ -488,11 +495,7 @@ int wl1271_boot(struct wl1271 *wl)
 	clk |= (REF_CLOCK << 1) << 4;
 	wl1271_reg_write32(wl, DRPW_SCRATCH_START, clk);
 
-	wl1271_set_partition(wl,
-			     part_table[PART_WORK].mem.start,
-			     part_table[PART_WORK].mem.size,
-			     part_table[PART_WORK].reg.start,
-			     part_table[PART_WORK].reg.size);
+	wl1271_set_partition(wl, &part_table[PART_WORK]);
 
 	/* Disable interrupts */
 	wl1271_reg_write32(wl, ACX_REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);

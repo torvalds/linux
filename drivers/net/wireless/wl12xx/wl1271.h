@@ -148,6 +148,8 @@ struct wl1271_partition {
 struct wl1271_partition_set {
 	struct wl1271_partition mem;
 	struct wl1271_partition reg;
+	struct wl1271_partition mem2;
+	struct wl1271_partition mem3;
 };
 
 struct wl1271;
@@ -302,10 +304,7 @@ struct wl1271 {
 	enum wl1271_state state;
 	struct mutex mutex;
 
-	int physical_mem_addr;
-	int physical_reg_addr;
-	int virtual_mem_addr;
-	int virtual_reg_addr;
+	struct wl1271_partition_set part;
 
 	struct wl1271_chip chip;
 

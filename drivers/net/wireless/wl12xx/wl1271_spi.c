@@ -30,16 +30,28 @@
 #include "wl12xx_80211.h"
 #include "wl1271_spi.h"
 
-static int wl1271_translate_reg_addr(struct wl1271 *wl, int addr)
+static int wl1271_translate_addr(struct wl1271 *wl, int addr)
 {
-	return addr - wl->physical_reg_addr + wl->virtual_reg_addr;
+	/*
+	 * To translate, first check to which window of addresses the
+	 * particular address belongs. Then subtract the starting address
+	 * of that window from the address. Then, add offset of the
+	 * translated region.
+	 *
+	 * The translated regions occur next to each other in physical device
+	 * memory, so just add the sizes of the preceeding address regions to
+	 * get the offset to the new region.
+	 *
+	 * Currently, only the two first regions are addressed, and the
+	 * assumption is that all addresses will fall into either of those
+	 * two.
+	 */
+	if ((addr >= wl->part.reg.start) &&
+	    (addr < wl->part.reg.start + wl->part.reg.size))
+		return addr - wl->part.reg.start + wl->part.mem.size;
+	else
+		return addr - wl->part.mem.start;
 }
-
-static int wl1271_translate_mem_addr(struct wl1271 *wl, int addr)
-{
-	return addr - wl->physical_mem_addr + wl->virtual_mem_addr;
-}
-
 
 void wl1271_spi_reset(struct wl1271 *wl)
 {
@@ -123,123 +135,61 @@ void wl1271_spi_init(struct wl1271 *wl)
 
 /* Set the SPI partitions to access the chip addresses
  *
- * There are two VIRTUAL (SPI) partitions (the memory partition and the
- * registers partition), which are mapped to two different areas of the
- * PHYSICAL (hardware) memory.  This function also makes other checks to
- * ensure that the partitions are not overlapping.  In the diagram below, the
- * memory partition comes before the register partition, but the opposite is
- * also supported.
+ * To simplify driver code, a fixed (virtual) memory map is defined for
+ * register and memory addresses. Because in the chipset, in different stages
+ * of operation, those addresses will move around, an address translation
+ * mechanism is required.
  *
- *                               PHYSICAL address
+ * There are four partitions (three memory and one register partition),
+ * which are mapped to two different areas of the hardware memory.
+ *
+ *                                Virtual address
  *                                     space
  *
  *                                    |    |
- *                                 ...+----+--> mem_start
- *          VIRTUAL address     ...   |    |
+ *                                 ...+----+--> mem.start
+ *          Physical address    ...   |    |
  *               space       ...      |    | [PART_0]
  *                        ...         |    |
- * 0x00000000 <--+----+...         ...+----+--> mem_start + mem_size
+ *  00000000  <--+----+...         ...+----+--> mem.start + mem.size
  *               |    |         ...   |    |
  *               |MEM |      ...      |    |
  *               |    |   ...         |    |
- *  part_size <--+----+...            |    | {unused area)
+ *  mem.size  <--+----+...            |    | {unused area)
  *               |    |   ...         |    |
  *               |REG |      ...      |    |
- *  part_size    |    |         ...   |    |
- *      +     <--+----+...         ...+----+--> reg_start
- *  reg_size              ...         |    |
- *                           ...      |    | [PART_1]
- *                              ...   |    |
- *                                 ...+----+--> reg_start + reg_size
+ *  mem.size     |    |         ...   |    |
+ *      +     <--+----+...         ...+----+--> reg.start
+ *  reg.size     |    |   ...         |    |
+ *               |MEM2|      ...      |    | [PART_1]
+ *               |    |         ...   |    |
+ *                                 ...+----+--> reg.start + reg.size
  *                                    |    |
  *
  */
 int wl1271_set_partition(struct wl1271 *wl,
-			  u32 mem_start, u32 mem_size,
-			  u32 reg_start, u32 reg_size)
+			 struct wl1271_partition_set *p)
 {
-	struct wl1271_partition *partition;
-	struct spi_transfer t;
-	struct spi_message m;
-	size_t len, cmd_len;
-	u32 *cmd;
-	int addr;
-
-	cmd_len = sizeof(u32) + 2 * sizeof(struct wl1271_partition);
-	cmd = kzalloc(cmd_len, GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-
-	spi_message_init(&m);
-	memset(&t, 0, sizeof(t));
-
-	partition = (struct wl1271_partition *) (cmd + 1);
-	addr = HW_ACCESS_PART0_SIZE_ADDR;
-	len = 2 * sizeof(struct wl1271_partition);
-
-	*cmd |= WSPI_CMD_WRITE;
-	*cmd |= (len << WSPI_CMD_BYTE_LENGTH_OFFSET) & WSPI_CMD_BYTE_LENGTH;
-	*cmd |= addr & WSPI_CMD_BYTE_ADDR;
+	/* copy partition info */
+	memcpy(&wl->part, p, sizeof(*p));
 
 	wl1271_debug(DEBUG_SPI, "mem_start %08X mem_size %08X",
-		     mem_start, mem_size);
+		     p->mem.start, p->mem.size);
 	wl1271_debug(DEBUG_SPI, "reg_start %08X reg_size %08X",
-		     reg_start, reg_size);
+		     p->reg.start, p->reg.size);
+	wl1271_debug(DEBUG_SPI, "mem2_start %08X mem2_size %08X",
+		     p->mem2.start, p->mem2.size);
+	wl1271_debug(DEBUG_SPI, "mem3_start %08X mem3_size %08X",
+		     p->mem3.start, p->mem3.size);
 
-	/* Make sure that the two partitions together don't exceed the
-	 * address range */
-	if ((mem_size + reg_size) > HW_ACCESS_MEMORY_MAX_RANGE) {
-		wl1271_debug(DEBUG_SPI, "Total size exceeds maximum virtual"
-			     " address range.  Truncating partition[0].");
-		mem_size = HW_ACCESS_MEMORY_MAX_RANGE - reg_size;
-		wl1271_debug(DEBUG_SPI, "mem_start %08X mem_size %08X",
-			     mem_start, mem_size);
-		wl1271_debug(DEBUG_SPI, "reg_start %08X reg_size %08X",
-			     reg_start, reg_size);
-	}
-
-	if ((mem_start < reg_start) &&
-	    ((mem_start + mem_size) > reg_start)) {
-		/* Guarantee that the memory partition doesn't overlap the
-		 * registers partition */
-		wl1271_debug(DEBUG_SPI, "End of partition[0] is "
-			     "overlapping partition[1].  Adjusted.");
-		mem_size = reg_start - mem_start;
-		wl1271_debug(DEBUG_SPI, "mem_start %08X mem_size %08X",
-			     mem_start, mem_size);
-		wl1271_debug(DEBUG_SPI, "reg_start %08X reg_size %08X",
-			     reg_start, reg_size);
-	} else if ((reg_start < mem_start) &&
-		   ((reg_start + reg_size) > mem_start)) {
-		/* Guarantee that the register partition doesn't overlap the
-		 * memory partition */
-		wl1271_debug(DEBUG_SPI, "End of partition[1] is"
-			     " overlapping partition[0].  Adjusted.");
-		reg_size = mem_start - reg_start;
-		wl1271_debug(DEBUG_SPI, "mem_start %08X mem_size %08X",
-			     mem_start, mem_size);
-		wl1271_debug(DEBUG_SPI, "reg_start %08X reg_size %08X",
-			     reg_start, reg_size);
-	}
-
-	partition[0].start = mem_start;
-	partition[0].size  = mem_size;
-	partition[1].start = reg_start;
-	partition[1].size  = reg_size;
-
-	wl->physical_mem_addr = mem_start;
-	wl->physical_reg_addr = reg_start;
-
-	wl->virtual_mem_addr = 0;
-	wl->virtual_reg_addr = mem_size;
-
-	t.tx_buf = cmd;
-	t.len = cmd_len;
-	spi_message_add_tail(&t, &m);
-
-	spi_sync(wl->spi, &m);
-
-	kfree(cmd);
+	/* write partition info to the chipset */
+	wl1271_write32(wl, HW_PART0_START_ADDR, p->mem.start);
+	wl1271_write32(wl, HW_PART0_SIZE_ADDR, p->mem.size);
+	wl1271_write32(wl, HW_PART1_START_ADDR, p->reg.start);
+	wl1271_write32(wl, HW_PART1_SIZE_ADDR, p->reg.size);
+	wl1271_write32(wl, HW_PART2_START_ADDR, p->mem2.start);
+	wl1271_write32(wl, HW_PART2_SIZE_ADDR, p->mem2.size);
+	wl1271_write32(wl, HW_PART3_START_ADDR, p->mem3.start);
 
 	return 0;
 }
@@ -391,7 +341,7 @@ void wl1271_spi_mem_read(struct wl1271 *wl, int addr, void *buf,
 {
 	int physical;
 
-	physical = wl1271_translate_mem_addr(wl, addr);
+	physical = wl1271_translate_addr(wl, addr);
 
 	wl1271_spi_read(wl, physical, buf, len, false);
 }
@@ -401,7 +351,7 @@ void wl1271_spi_mem_write(struct wl1271 *wl, int addr, void *buf,
 {
 	int physical;
 
-	physical = wl1271_translate_mem_addr(wl, addr);
+	physical = wl1271_translate_addr(wl, addr);
 
 	wl1271_spi_write(wl, physical, buf, len, false);
 }
@@ -411,7 +361,7 @@ void wl1271_spi_reg_read(struct wl1271 *wl, int addr, void *buf, size_t len,
 {
 	int physical;
 
-	physical = wl1271_translate_reg_addr(wl, addr);
+	physical = wl1271_translate_addr(wl, addr);
 
 	wl1271_spi_read(wl, physical, buf, len, fixed);
 }
@@ -421,27 +371,27 @@ void wl1271_spi_reg_write(struct wl1271 *wl, int addr, void *buf, size_t len,
 {
 	int physical;
 
-	physical = wl1271_translate_reg_addr(wl, addr);
+	physical = wl1271_translate_addr(wl, addr);
 
 	wl1271_spi_write(wl, physical, buf, len, fixed);
 }
 
 u32 wl1271_mem_read32(struct wl1271 *wl, int addr)
 {
-	return wl1271_read32(wl, wl1271_translate_mem_addr(wl, addr));
+	return wl1271_read32(wl, wl1271_translate_addr(wl, addr));
 }
 
 void wl1271_mem_write32(struct wl1271 *wl, int addr, u32 val)
 {
-	wl1271_write32(wl, wl1271_translate_mem_addr(wl, addr), val);
+	wl1271_write32(wl, wl1271_translate_addr(wl, addr), val);
 }
 
 u32 wl1271_reg_read32(struct wl1271 *wl, int addr)
 {
-	return wl1271_read32(wl, wl1271_translate_reg_addr(wl, addr));
+	return wl1271_read32(wl, wl1271_translate_addr(wl, addr));
 }
 
 void wl1271_reg_write32(struct wl1271 *wl, int addr, u32 val)
 {
-	wl1271_write32(wl, wl1271_translate_reg_addr(wl, addr), val);
+	wl1271_write32(wl, wl1271_translate_addr(wl, addr), val);
 }

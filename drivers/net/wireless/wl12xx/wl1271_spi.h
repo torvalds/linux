@@ -29,10 +29,14 @@
 
 #define HW_ACCESS_MEMORY_MAX_RANGE		0x1FFC0
 
-#define HW_ACCESS_PART0_SIZE_ADDR           0x1FFC0
-#define HW_ACCESS_PART0_START_ADDR          0x1FFC4
-#define HW_ACCESS_PART1_SIZE_ADDR           0x1FFC8
-#define HW_ACCESS_PART1_START_ADDR          0x1FFCC
+#define HW_PARTITION_REGISTERS_ADDR         0x1ffc0
+#define HW_PART0_SIZE_ADDR                  (HW_PARTITION_REGISTERS_ADDR)
+#define HW_PART0_START_ADDR                 (HW_PARTITION_REGISTERS_ADDR + 4)
+#define HW_PART1_SIZE_ADDR                  (HW_PARTITION_REGISTERS_ADDR + 8)
+#define HW_PART1_START_ADDR                 (HW_PARTITION_REGISTERS_ADDR + 12)
+#define HW_PART2_SIZE_ADDR                  (HW_PARTITION_REGISTERS_ADDR + 16)
+#define HW_PART2_START_ADDR                 (HW_PARTITION_REGISTERS_ADDR + 20)
+#define HW_PART3_START_ADDR                 (HW_PARTITION_REGISTERS_ADDR + 24)
 
 #define HW_ACCESS_REGISTER_SIZE             4
 
@@ -92,8 +96,7 @@ void wl1271_reg_write32(struct wl1271 *wl, int addr, u32 val);
 void wl1271_spi_reset(struct wl1271 *wl);
 void wl1271_spi_init(struct wl1271 *wl);
 int wl1271_set_partition(struct wl1271 *wl,
-			 u32 part_start, u32 part_size,
-			 u32 reg_start,  u32 reg_size);
+			 struct wl1271_partition_set *p);
 
 static inline u32 wl1271_read32(struct wl1271 *wl, int addr)
 {
