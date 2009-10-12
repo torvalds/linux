@@ -147,6 +147,23 @@ MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Gianfar Ethernet Driver");
 MODULE_LICENSE("GPL");
 
+static void gfar_init_rxbdp(struct net_device *dev, struct rxbd8 *bdp,
+			    dma_addr_t buf)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	u32 lstatus;
+
+	bdp->bufPtr = buf;
+
+	lstatus = BD_LFLAG(RXBD_EMPTY | RXBD_INTERRUPT);
+	if (bdp == priv->rx_bd_base + priv->rx_ring_size - 1)
+		lstatus |= BD_LFLAG(RXBD_WRAP);
+
+	eieio();
+
+	bdp->lstatus = lstatus;
+}
+
 static int gfar_alloc_skb_resources(struct net_device *ndev)
 {
 	struct txbd8 *txbdp;
@@ -1676,19 +1693,11 @@ static void gfar_new_rxbdp(struct net_device *dev, struct rxbd8 *bdp,
 		struct sk_buff *skb)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	u32 lstatus;
+	dma_addr_t buf;
 
-	bdp->bufPtr = dma_map_single(&priv->ofdev->dev, skb->data,
-			priv->rx_buffer_size, DMA_FROM_DEVICE);
-
-	lstatus = BD_LFLAG(RXBD_EMPTY | RXBD_INTERRUPT);
-
-	if (bdp == priv->rx_bd_base + priv->rx_ring_size - 1)
-		lstatus |= BD_LFLAG(RXBD_WRAP);
-
-	eieio();
-
-	bdp->lstatus = lstatus;
+	buf = dma_map_single(&priv->ofdev->dev, skb->data,
+			     priv->rx_buffer_size, DMA_FROM_DEVICE);
+	gfar_init_rxbdp(dev, bdp, buf);
 }
 
 
