@@ -443,7 +443,7 @@ static u32 __emac_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_s
 		ret |= EMAC_MR1_TFS_2K;
 		break;
 	default:
-		printk(KERN_WARNING "%s: Unknown Rx FIFO size %d\n",
+		printk(KERN_WARNING "%s: Unknown Tx FIFO size %d\n",
 		       dev->ndev->name, tx_size);
 	}
 
@@ -470,6 +470,9 @@ static u32 __emac4_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_
 	DBG2(dev, "__emac4_calc_base_mr1" NL);
 
 	switch(tx_size) {
+	case 16384:
+		ret |= EMAC4_MR1_TFS_16K;
+		break;
 	case 4096:
 		ret |= EMAC4_MR1_TFS_4K;
 		break;
@@ -477,7 +480,7 @@ static u32 __emac4_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_
 		ret |= EMAC4_MR1_TFS_2K;
 		break;
 	default:
-		printk(KERN_WARNING "%s: Unknown Rx FIFO size %d\n",
+		printk(KERN_WARNING "%s: Unknown Tx FIFO size %d\n",
 		       dev->ndev->name, tx_size);
 	}
 

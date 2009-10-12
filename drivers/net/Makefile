@@ -2,6 +2,10 @@
 # Makefile for the Linux network (ethercard) device drivers.
 #
 
+obj-$(CONFIG_MII) += mii.o
+obj-$(CONFIG_MDIO) += mdio.o
+obj-$(CONFIG_PHYLIB) += phy/
+
 obj-$(CONFIG_TI_DAVINCI_EMAC) += davinci_emac.o
 
 obj-$(CONFIG_E1000) += e1000/
@@ -99,10 +103,6 @@ obj-$(CONFIG_SH_ETH) += sh_eth.o
 #
 # end link order section
 #
-
-obj-$(CONFIG_MII) += mii.o
-obj-$(CONFIG_MDIO) += mdio.o
-obj-$(CONFIG_PHYLIB) += phy/
 
 obj-$(CONFIG_SUNDANCE) += sundance.o
 obj-$(CONFIG_HAMACHI) += hamachi.o

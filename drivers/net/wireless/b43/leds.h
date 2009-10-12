@@ -60,7 +60,7 @@ enum b43_led_behaviour {
 };
 
 void b43_leds_register(struct b43_wldev *dev);
-void b43_leds_unregister(struct b43_wldev *dev);
+void b43_leds_unregister(struct b43_wl *wl);
 void b43_leds_init(struct b43_wldev *dev);
 void b43_leds_exit(struct b43_wldev *dev);
 void b43_leds_stop(struct b43_wldev *dev);
@@ -76,7 +76,7 @@ struct b43_leds {
 static inline void b43_leds_register(struct b43_wldev *dev)
 {
 }
-static inline void b43_leds_unregister(struct b43_wldev *dev)
+static inline void b43_leds_unregister(struct b43_wl *wl)
 {
 }
 static inline void b43_leds_init(struct b43_wldev *dev)

@@ -1714,7 +1714,7 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* 4 fragments per cmd des */
 	no_of_desc = (frag_count + 3) >> 2;
 
-	if (unlikely(no_of_desc + 2) > netxen_tx_avail(tx_ring)) {
+	if (unlikely(no_of_desc + 2 > netxen_tx_avail(tx_ring))) {
 		netif_stop_queue(netdev);
 		return NETDEV_TX_BUSY;
 	}
