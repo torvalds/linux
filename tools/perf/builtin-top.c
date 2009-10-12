@@ -57,7 +57,7 @@ static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static int			system_wide			=      0;
 
-static int			default_interval		= 100000;
+static int			default_interval		=      0;
 
 static int			count_filter			=      5;
 static int			print_entries			=     15;
@@ -975,7 +975,13 @@ static void start_counter(int i, int counter)
 	attr = attrs + counter;
 
 	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
-	attr->freq		= freq;
+
+	if (freq) {
+		attr->sample_type	|= PERF_SAMPLE_PERIOD;
+		attr->freq		= 1;
+		attr->sample_freq	= freq;
+	}
+
 	attr->inherit		= (cpu < 0) && inherit;
 
 try_again:
@@ -1130,11 +1136,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (argc)
 		usage_with_options(top_usage, options);
 
-	if (freq) {
-		default_interval = freq;
-		freq = 1;
-	}
-
 	/* CPU and PID are mutually exclusive */
 	if (target_pid != -1 && profile_cpu != -1) {
 		printf("WARNING: PID switch overriding CPU\n");
@@ -1150,6 +1151,19 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	parse_symbols();
 	parse_source(sym_filter_entry);
+
+
+	/*
+	 * User specified count overrides default frequency.
+	 */
+	if (default_interval)
+		freq = 0;
+	else if (freq) {
+		default_interval = freq;
+	} else {
+		fprintf(stderr, "frequency and count are zero, aborting\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/*
 	 * Fill in the ones not specifically initialized via -c:

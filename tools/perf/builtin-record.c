@@ -26,7 +26,7 @@
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
-static long			default_interval		= 100000;
+static long			default_interval		=      0;
 
 static int			nr_cpus				=      0;
 static unsigned int		page_size;
@@ -728,6 +728,18 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		nr_counters	= 1;
 		attrs[0].type	= PERF_TYPE_HARDWARE;
 		attrs[0].config = PERF_COUNT_HW_CPU_CYCLES;
+	}
+
+	/*
+	 * User specified count overrides default frequency.
+	 */
+	if (default_interval)
+		freq = 0;
+	else if (freq) {
+		default_interval = freq;
+	} else {
+		fprintf(stderr, "frequency and count are zero, aborting\n");
+		exit(EXIT_FAILURE);
 	}
 
 	for (counter = 0; counter < nr_counters; counter++) {
