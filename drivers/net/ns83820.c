@@ -111,6 +111,7 @@
 #include <linux/compiler.h>
 #include <linux/prefetch.h>
 #include <linux/ethtool.h>
+#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/if_vlan.h>
 #include <linux/rtnetlink.h>

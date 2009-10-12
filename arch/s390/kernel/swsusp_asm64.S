@@ -43,7 +43,7 @@ swsusp_arch_suspend:
 	lghi	%r1,0x1000
 
 	/* Save CPU address */
-	stap	__LC_CPU_ADDRESS(%r1)
+	stap	__LC_CPU_ADDRESS(%r0)
 
 	/* Store registers */
 	mvc	0x318(4,%r1),__SF_EMPTY(%r15)	/* move prefix to lowcore */
@@ -69,7 +69,20 @@ swsusp_arch_suspend:
 	stmg	%r0,%r15,0x280(%r1)		/* store general registers */
 
 	stpt	0x328(%r1)			/* store timer */
+	stck	__SF_EMPTY(%r15)		/* store clock */
 	stckc	0x330(%r1)			/* store clock comparator */
+
+	/* Update cputime accounting before going to sleep */
+	lg	%r0,__LC_LAST_UPDATE_TIMER
+	slg	%r0,0x328(%r1)
+	alg	%r0,__LC_SYSTEM_TIMER
+	stg	%r0,__LC_SYSTEM_TIMER
+	mvc	__LC_LAST_UPDATE_TIMER(8),0x328(%r1)
+	lg	%r0,__LC_LAST_UPDATE_CLOCK
+	slg	%r0,__SF_EMPTY(%r15)
+	alg	%r0,__LC_STEAL_TIMER
+	stg	%r0,__LC_STEAL_TIMER
+	mvc	__LC_LAST_UPDATE_CLOCK(8),__SF_EMPTY(%r15)
 
 	/* Activate DAT */
 	stosm	__SF_EMPTY(%r15),0x04
@@ -159,8 +172,7 @@ pgm_check_entry:
 	larl	%r1,.Lresume_cpu		/* Resume CPU address: r2 */
 	stap	0(%r1)
 	llgh	%r2,0(%r1)
-	lghi	%r3,0x1000
-	llgh	%r1,__LC_CPU_ADDRESS(%r3)	/* Suspend CPU address: r1 */
+	llgh	%r1,__LC_CPU_ADDRESS(%r0)	/* Suspend CPU address: r1 */
 	cgr	%r1,%r2
 	je	restore_registers		/* r1 = r2 -> nothing to do */
 	larl	%r4,.Lrestart_suspend_psw	/* Set new restart PSW */
@@ -200,8 +212,11 @@ restart_suspend:
 
 restore_registers:
 	/* Restore registers */
-	lghi	%r13,0x1000		/* %r1 = pointer to save arae */
+	lghi	%r13,0x1000		/* %r1 = pointer to save area */
 
+	/* Ignore time spent in suspended state. */
+	llgf	%r1,0x318(%r13)
+	stck	__LC_LAST_UPDATE_CLOCK(%r1)
 	spt	0x328(%r13)		/* reprogram timer */
 	//sckc	0x330(%r13)		/* set clock comparator */
 
@@ -228,9 +243,6 @@ restore_registers:
 
 	/* Load old stack */
 	lg	%r15,0x2f8(%r13)
-
-	/* Pointer to save area */
-	lghi	%r13,0x1000
 
 	/* Restore prefix register */
 	spx	0x318(%r13)

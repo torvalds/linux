@@ -28,7 +28,7 @@ extern int zfcp_sg_setup_table(struct scatterlist *, int);
 /* zfcp_ccw.c */
 extern int zfcp_ccw_register(void);
 extern int zfcp_ccw_priv_sch(struct zfcp_adapter *);
-extern struct zfcp_adapter *zfcp_get_adapter_by_busid(char *);
+extern struct ccw_driver zfcp_ccw_driver;
 
 /* zfcp_cfdc.c */
 extern struct miscdevice zfcp_cfdc_misc;

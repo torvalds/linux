@@ -2508,8 +2508,6 @@ int dasd_generic_restore_device(struct ccw_device *cdev)
 	device->stopped &= ~DASD_UNRESUMED_PM;
 
 	dasd_schedule_device_bh(device);
-	if (device->block)
-		dasd_schedule_block_bh(device->block);
 
 	if (device->discipline->restore)
 		rc = device->discipline->restore(device);
@@ -2519,6 +2517,9 @@ int dasd_generic_restore_device(struct ccw_device *cdev)
 		 * an UNRESUMED stop state
 		 */
 		device->stopped |= DASD_UNRESUMED_PM;
+
+	if (device->block)
+		dasd_schedule_block_bh(device->block);
 
 	dasd_put_device(device);
 	return 0;

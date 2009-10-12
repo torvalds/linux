@@ -102,6 +102,14 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	adapter = dev_get_drvdata(&ccw_device->dev);
 	if (!adapter)
 		goto out;
+	mutex_unlock(&zfcp_data.config_mutex);
+
+	cancel_work_sync(&adapter->scan_work);
+
+	mutex_lock(&zfcp_data.config_mutex);
+
+	/* this also removes the scsi devices, so call it first */
+	zfcp_adapter_scsi_unregister(adapter);
 
 	write_lock_irq(&zfcp_data.config_lock);
 	list_for_each_entry_safe(port, p, &adapter->port_list_head, list) {
@@ -117,11 +125,8 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	write_unlock_irq(&zfcp_data.config_lock);
 
 	list_for_each_entry_safe(port, p, &port_remove_lh, list) {
-		list_for_each_entry_safe(unit, u, &unit_remove_lh, list) {
-			if (unit->device)
-				scsi_remove_device(unit->device);
+		list_for_each_entry_safe(unit, u, &unit_remove_lh, list)
 			zfcp_unit_dequeue(unit);
-		}
 		zfcp_port_dequeue(port);
 	}
 	wait_event(adapter->remove_wq, atomic_read(&adapter->refcount) == 0);
@@ -192,13 +197,9 @@ static int zfcp_ccw_set_offline(struct ccw_device *ccw_device)
 
 	mutex_lock(&zfcp_data.config_mutex);
 	adapter = dev_get_drvdata(&ccw_device->dev);
-	if (!adapter)
-		goto out;
-
 	zfcp_erp_adapter_shutdown(adapter, 0, "ccsoff1", NULL);
 	zfcp_erp_wait(adapter);
 	mutex_unlock(&zfcp_data.config_mutex);
-out:
 	return 0;
 }
 
@@ -253,13 +254,17 @@ static void zfcp_ccw_shutdown(struct ccw_device *cdev)
 
 	mutex_lock(&zfcp_data.config_mutex);
 	adapter = dev_get_drvdata(&cdev->dev);
+	if (!adapter)
+		goto out;
+
 	zfcp_erp_adapter_shutdown(adapter, 0, "ccshut1", NULL);
 	zfcp_erp_wait(adapter);
 	zfcp_erp_thread_kill(adapter);
+out:
 	mutex_unlock(&zfcp_data.config_mutex);
 }
 
-static struct ccw_driver zfcp_ccw_driver = {
+struct ccw_driver zfcp_ccw_driver = {
 	.owner       = THIS_MODULE,
 	.name        = "zfcp",
 	.ids         = zfcp_ccw_device_id,
@@ -283,21 +288,4 @@ static struct ccw_driver zfcp_ccw_driver = {
 int __init zfcp_ccw_register(void)
 {
 	return ccw_driver_register(&zfcp_ccw_driver);
-}
-
-/**
- * zfcp_get_adapter_by_busid - find zfcp_adapter struct
- * @busid: bus id string of zfcp adapter to find
- */
-struct zfcp_adapter *zfcp_get_adapter_by_busid(char *busid)
-{
-	struct ccw_device *ccw_device;
-	struct zfcp_adapter *adapter = NULL;
-
-	ccw_device = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
-	if (ccw_device) {
-		adapter = dev_get_drvdata(&ccw_device->dev);
-		put_device(&ccw_device->dev);
-	}
-	return adapter;
 }

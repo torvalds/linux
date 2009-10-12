@@ -1,10 +1,9 @@
 /*
- * File:         arch/blackfin/lib/divsi3.S
- * Based on:
- * Author:
+ * Copyright 2004-2009 Analog Devices Inc.
  *
- * Created:
- * Description:  16 / 32 bit signed division.
+ * Licensed under the ADI BSD license or the GPL-2 (or later)
+ *
+ * 16 / 32 bit signed division.
  *                 Special cases :
  *                      1)  If(numerator == 0)
  *                             return 0
@@ -22,25 +21,6 @@
  *                                   R0 - Quotient    (o)
  *                 Registers Used : R2-R7,P0-P2
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 .global   ___divsi3;

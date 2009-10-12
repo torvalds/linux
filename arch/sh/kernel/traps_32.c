@@ -54,8 +54,8 @@ static unsigned long se_multi;
 /* bitfield: 1: warn 2: fixup 4: signal -> combinations 2|4 && 1|2|4 are not
    valid! */
 static int se_usermode = 3;
-/* 0: no warning 1: print a warning message */
-static int se_kernmode_warn = 1;
+/* 0: no warning 1: print a warning message, disabled by default */
+static int se_kernmode_warn;
 
 #ifdef CONFIG_PROC_FS
 static const char *se_usermode_action[] = {

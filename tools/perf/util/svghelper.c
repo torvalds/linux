@@ -28,7 +28,7 @@ static u64 turbo_frequency, max_freq;
 
 int svg_page_width = 1000;
 
-#define MIN_TEXT_SIZE 0.001
+#define MIN_TEXT_SIZE 0.01
 
 static u64 total_height;
 static FILE *svgfile;
@@ -214,6 +214,18 @@ static char *cpu_model(void)
 				strncpy(cpu_m, &buf[13], 255);
 				break;
 			}
+		}
+		fclose(file);
+	}
+
+	/* CPU type */
+	file = fopen("/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies", "r");
+	if (file) {
+		while (fgets(buf, 255, file)) {
+			unsigned int freq;
+			freq = strtoull(buf, NULL, 10);
+			if (freq > max_freq)
+				max_freq = freq;
 		}
 		fclose(file);
 	}

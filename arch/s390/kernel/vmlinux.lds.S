@@ -51,6 +51,7 @@ SECTIONS
 
 	. = ALIGN(PAGE_SIZE);
 	_eshared = .;		/* End of shareable data */
+	_sdata = .;		/* Start of data section */
 
 	EXCEPTION_TABLE(16) :data
 

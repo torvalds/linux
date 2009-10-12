@@ -782,6 +782,7 @@ static const char *skip_symbols[] = {
 	"exit_idle",
 	"mwait_idle",
 	"mwait_idle_with_hints",
+	"poll_idle",
 	"ppc64_runlatch_off",
 	"pseries_dedicated_idle_sleep",
 	NULL

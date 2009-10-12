@@ -1609,7 +1609,7 @@ int ccw_purge_blacklisted(void)
 	return 0;
 }
 
-static void device_set_disconnected(struct ccw_device *cdev)
+void ccw_device_set_disconnected(struct ccw_device *cdev)
 {
 	if (!cdev)
 		return;
@@ -1705,7 +1705,7 @@ static int io_subchannel_sch_event(struct subchannel *sch, int slow)
 		ccw_device_trigger_reprobe(cdev);
 		break;
 	case DISC:
-		device_set_disconnected(cdev);
+		ccw_device_set_disconnected(cdev);
 		break;
 	default:
 		break;

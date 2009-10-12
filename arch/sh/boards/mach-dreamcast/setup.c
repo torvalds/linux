@@ -42,8 +42,6 @@ static void __init dreamcast_setup(char **cmdline_p)
 	/* Acknowledge any previous events */
 	/* XXX */
 
-	__set_io_port_base(0xa0000000);
-
 	/* Assign all virtual IRQs to the System ASIC int. handler */
 	for (i = HW_EVENT_IRQ_BASE; i < HW_EVENT_IRQ_MAX; i++)
 		set_irq_chip_and_handler(i, &systemasic_int,

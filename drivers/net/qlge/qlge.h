@@ -9,6 +9,7 @@
 
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/rtnetlink.h>
 
 /*
  * General definitions...
@@ -135,9 +136,9 @@ enum {
 	RST_FO_TFO = (1 << 0),
 	RST_FO_RR_MASK = 0x00060000,
 	RST_FO_RR_CQ_CAM = 0x00000000,
-	RST_FO_RR_DROP = 0x00000001,
-	RST_FO_RR_DQ = 0x00000002,
-	RST_FO_RR_RCV_FUNC_CQ = 0x00000003,
+	RST_FO_RR_DROP = 0x00000002,
+	RST_FO_RR_DQ = 0x00000004,
+	RST_FO_RR_RCV_FUNC_CQ = 0x00000006,
 	RST_FO_FRB = (1 << 12),
 	RST_FO_MOP = (1 << 13),
 	RST_FO_REG = (1 << 14),
@@ -1477,7 +1478,6 @@ struct ql_adapter {
 	u32 mailbox_in;
 	u32 mailbox_out;
 	struct mbox_params idc_mbc;
-	struct mutex	mpi_mutex;
 
 	int tx_ring_size;
 	int rx_ring_size;

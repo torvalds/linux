@@ -1,7 +1,4 @@
 /*
- * File: arch/blackfin/mach-bf518/include/mach/gpio.h
- * Bugs: Enter bugs at http://blackfin.uclinux.org/
- *
  * Copyright (C) 2008 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */

@@ -597,6 +597,9 @@ Driver: PCMCIA_PCNET - NE2000 compatible PCMCIA adapter
 
 File: cis/LA-PCM.cis
       cis/PCMLM28.cis
+      cis/DP83903.cis
+      cis/NE2K.cis
+      cis/tamarack.cis
 
 Licence: GPL
 
@@ -628,6 +631,8 @@ Driver: SERIAL_8250_CS - Serial PCMCIA adapter
 
 File: cis/MT5634ZLX.cis
       cis/RS-COM-2P.cis
+      cis/COMpad2.cis
+      cis/COMpad4.cis
 
 Licence: GPL
 

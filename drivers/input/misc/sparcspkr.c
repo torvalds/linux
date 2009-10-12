@@ -230,7 +230,7 @@ out_err:
 	return err;
 }
 
-static int bbc_remove(struct of_device *op)
+static int __devexit bbc_remove(struct of_device *op)
 {
 	struct sparcspkr_state *state = dev_get_drvdata(&op->dev);
 	struct input_dev *input_dev = state->input_dev;
@@ -308,7 +308,7 @@ out_err:
 	return err;
 }
 
-static int grover_remove(struct of_device *op)
+static int __devexit grover_remove(struct of_device *op)
 {
 	struct sparcspkr_state *state = dev_get_drvdata(&op->dev);
 	struct grover_beep_info *info = &state->u.grover;

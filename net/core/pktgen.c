@@ -964,7 +964,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (value == 0x7FFFFFFF)
 			pkt_dev->delay = ULLONG_MAX;
 		else
-			pkt_dev->delay = (u64)value * NSEC_PER_USEC;
+			pkt_dev->delay = (u64)value;
 
 		sprintf(pg_result, "OK: delay=%llu",
 			(unsigned long long) pkt_dev->delay);
@@ -2212,7 +2212,7 @@ static void set_cur_queue_map(struct pktgen_dev *pkt_dev)
 	if (pkt_dev->flags & F_QUEUE_MAP_CPU)
 		pkt_dev->cur_queue_map = smp_processor_id();
 
-	else if (pkt_dev->queue_map_min < pkt_dev->queue_map_max) {
+	else if (pkt_dev->queue_map_min <= pkt_dev->queue_map_max) {
 		__u16 t;
 		if (pkt_dev->flags & F_QUEUE_MAP_RND) {
 			t = random32() %

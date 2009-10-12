@@ -43,7 +43,7 @@ static void (*__flush_dcache_segment_fn)(unsigned long, unsigned long) =
  * Called from kernel/module.c:sys_init_module and routine for a.out format,
  * signal handler code and kprobes code
  */
-static void sh4_flush_icache_range(void *args)
+static void __uses_jump_to_uncached sh4_flush_icache_range(void *args)
 {
 	struct flusher_data *data = args;
 	unsigned long start, end;
