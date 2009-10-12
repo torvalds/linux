@@ -321,7 +321,7 @@ config EZX_PCAP
 
 config MFD_88PM8607
 	bool "Support Marvell 88PM8607"
-	depends on I2C
+	depends on I2C=y
 	select MFD_CORE
 	help
 	  This supports for Marvell 88PM8607 Power Management IC. This includes
