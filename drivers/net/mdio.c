@@ -162,6 +162,10 @@ static u32 mdio45_get_an(const struct mdio_if_info *mdio, u16 addr)
 		result |= ADVERTISED_100baseT_Half;
 	if (reg & ADVERTISE_100FULL)
 		result |= ADVERTISED_100baseT_Full;
+	if (reg & ADVERTISE_PAUSE_CAP)
+		result |= ADVERTISED_Pause;
+	if (reg & ADVERTISE_PAUSE_ASYM)
+		result |= ADVERTISED_Asym_Pause;
 	return result;
 }
 
