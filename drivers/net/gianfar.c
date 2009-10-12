@@ -151,17 +151,15 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 {
 	struct txbd8 *txbdp;
 	struct rxbd8 *rxbdp;
-	dma_addr_t addr = 0;
 	void *vaddr;
 	int i;
 	struct gfar_private *priv = netdev_priv(ndev);
 	struct device *dev = &priv->ofdev->dev;
-	struct gfar __iomem *regs = priv->regs;
 
 	/* Allocate memory for the buffer descriptors */
 	vaddr = dma_alloc_coherent(dev, sizeof(*txbdp) * priv->tx_ring_size +
 					sizeof(*rxbdp) * priv->rx_ring_size,
-				   &addr, GFP_KERNEL);
+				   &priv->tx_bd_dma_base, GFP_KERNEL);
 	if (!vaddr) {
 		if (netif_msg_ifup(priv))
 			pr_err("%s: Could not allocate buffer descriptors!\n",
@@ -171,14 +169,9 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 
 	priv->tx_bd_base = vaddr;
 
-	/* enet DMA only understands physical addresses */
-	gfar_write(&regs->tbase0, addr);
-
 	/* Start the rx descriptor ring where the tx ring leaves off */
-	addr = addr + sizeof(*txbdp) * priv->tx_ring_size;
 	vaddr = vaddr + sizeof(*txbdp) * priv->tx_ring_size;
 	priv->rx_bd_base = vaddr;
-	gfar_write(&regs->rbase0, addr);
 
 	/* Setup the skbuff rings */
 	priv->tx_skbuff = kmalloc(sizeof(*priv->tx_skbuff) *
@@ -255,6 +248,12 @@ static void gfar_init_mac(struct net_device *ndev)
 	u32 rctrl = 0;
 	u32 tctrl = 0;
 	u32 attrs = 0;
+
+	/* enet DMA only understands physical addresses */
+	gfar_write(&regs->tbase0, priv->tx_bd_dma_base);
+	gfar_write(&regs->rbase0, priv->tx_bd_dma_base +
+				  sizeof(*priv->tx_bd_base) *
+				  priv->tx_ring_size);
 
 	/* Configure the coalescing support */
 	gfar_write(&regs->txic, 0);
@@ -1060,7 +1059,7 @@ skip_rx_skbuff:
 
 	dma_free_coherent(dev, sizeof(*txbdp) * priv->tx_ring_size +
 			       sizeof(*rxbdp) * priv->rx_ring_size,
-			  priv->tx_bd_base, gfar_read(&priv->regs->tbase0));
+			  priv->tx_bd_base, priv->tx_bd_dma_base);
 }
 
 void gfar_start(struct net_device *dev)

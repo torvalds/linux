@@ -726,6 +726,7 @@ struct gfar_private {
 	unsigned long txic;
 
 	/* Buffer descriptor pointers */
+	dma_addr_t tx_bd_dma_base;
 	struct txbd8 *tx_bd_base;	/* First tx buffer descriptor */
 	struct txbd8 *cur_tx;	        /* Next free ring entry */
 	struct txbd8 *dirty_tx;		/* First buffer in line
