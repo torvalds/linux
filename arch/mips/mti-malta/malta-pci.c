@@ -241,3 +241,16 @@ void __init mips_pcibios_init(void)
 
 	register_pci_controller(controller);
 }
+
+/* Enable PCI 2.1 compatibility in PIIX4 */
+static void __init quirk_dlcsetup(struct pci_dev *dev)
+{
+	u8 odlc, ndlc;
+	(void) pci_read_config_byte(dev, 0x82, &odlc);
+	/* Enable passive releases and delayed transaction */
+	ndlc = odlc | 7;
+	(void) pci_write_config_byte(dev, 0x82, ndlc);
+}
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,
+	quirk_dlcsetup);
