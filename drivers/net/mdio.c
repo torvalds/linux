@@ -344,11 +344,9 @@ void mdio45_ethtool_spauseparam_an(const struct mdio_if_info *mdio,
 
 	old_adv = mdio->mdio_read(mdio->dev, mdio->prtad, MDIO_MMD_AN,
 				  MDIO_AN_ADVERTISE);
-	adv = old_adv & ~(ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
-	if (ecmd->autoneg)
-		adv |= mii_advertise_flowctrl(
-			(ecmd->rx_pause ? FLOW_CTRL_RX : 0) |
-			(ecmd->tx_pause ? FLOW_CTRL_TX : 0));
+	adv = ((old_adv & ~(ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM)) |
+	       mii_advertise_flowctrl((ecmd->rx_pause ? FLOW_CTRL_RX : 0) |
+				      (ecmd->tx_pause ? FLOW_CTRL_TX : 0)));
 	if (adv != old_adv) {
 		mdio->mdio_write(mdio->dev, mdio->prtad, MDIO_MMD_AN,
 				 MDIO_AN_ADVERTISE, adv);
