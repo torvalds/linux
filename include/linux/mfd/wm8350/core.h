@@ -681,6 +681,8 @@ int wm8350_register_irq(struct wm8350 *wm8350, int irq,
 int wm8350_free_irq(struct wm8350 *wm8350, int irq);
 int wm8350_mask_irq(struct wm8350 *wm8350, int irq);
 int wm8350_unmask_irq(struct wm8350 *wm8350, int irq);
-
+int wm8350_irq_init(struct wm8350 *wm8350, int irq,
+		    struct wm8350_platform_data *pdata);
+int wm8350_irq_exit(struct wm8350 *wm8350);
 
 #endif
