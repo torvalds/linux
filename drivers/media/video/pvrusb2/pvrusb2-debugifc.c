@@ -142,6 +142,9 @@ int pvr2_debugifc_print_info(struct pvr2_hdw *hdw,char *buf,unsigned int acnt)
 {
 	int bcnt = 0;
 	int ccnt;
+	ccnt = scnprintf(buf, acnt, "Driver hardware description: %s\n",
+			 pvr2_hdw_get_desc(hdw));
+	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
 	ccnt = scnprintf(buf,acnt,"Driver state info:\n");
 	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
 	ccnt = pvr2_hdw_state_report(hdw,buf,acnt);
