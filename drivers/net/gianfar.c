@@ -806,7 +806,6 @@ void gfar_halt(struct net_device *dev)
 void stop_gfar(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar __iomem *regs = priv->regs;
 	unsigned long flags;
 
 	phy_stop(priv->phydev);
@@ -830,24 +829,22 @@ void stop_gfar(struct net_device *dev)
 	}
 
 	free_skb_resources(priv);
-
-	dma_free_coherent(&priv->ofdev->dev,
-			sizeof(struct txbd8)*priv->tx_ring_size
-			+ sizeof(struct rxbd8)*priv->rx_ring_size,
-			priv->tx_bd_base,
-			gfar_read(&regs->tbase0));
 }
 
 /* If there are any tx skbs or rx skbs still around, free them.
  * Then free tx_skbuff and rx_skbuff */
 static void free_skb_resources(struct gfar_private *priv)
 {
+	struct device *dev = &priv->ofdev->dev;
 	struct rxbd8 *rxbdp;
 	struct txbd8 *txbdp;
 	int i, j;
 
 	/* Go through all the buffer descriptors and free their data buffers */
 	txbdp = priv->tx_bd_base;
+
+	if (!priv->tx_skbuff)
+		goto skip_tx_skbuff;
 
 	for (i = 0; i < priv->tx_ring_size; i++) {
 		if (!priv->tx_skbuff[i])
@@ -867,30 +864,33 @@ static void free_skb_resources(struct gfar_private *priv)
 	}
 
 	kfree(priv->tx_skbuff);
+skip_tx_skbuff:
 
 	rxbdp = priv->rx_bd_base;
 
-	/* rx_skbuff is not guaranteed to be allocated, so only
-	 * free it and its contents if it is allocated */
-	if(priv->rx_skbuff != NULL) {
-		for (i = 0; i < priv->rx_ring_size; i++) {
-			if (priv->rx_skbuff[i]) {
-				dma_unmap_single(&priv->ofdev->dev, rxbdp->bufPtr,
-						priv->rx_buffer_size,
-						DMA_FROM_DEVICE);
+	if (!priv->rx_skbuff)
+		goto skip_rx_skbuff;
 
-				dev_kfree_skb_any(priv->rx_skbuff[i]);
-				priv->rx_skbuff[i] = NULL;
-			}
-
-			rxbdp->lstatus = 0;
-			rxbdp->bufPtr = 0;
-
-			rxbdp++;
+	for (i = 0; i < priv->rx_ring_size; i++) {
+		if (priv->rx_skbuff[i]) {
+			dma_unmap_single(&priv->ofdev->dev, rxbdp->bufPtr,
+					 priv->rx_buffer_size,
+					DMA_FROM_DEVICE);
+			dev_kfree_skb_any(priv->rx_skbuff[i]);
+			priv->rx_skbuff[i] = NULL;
 		}
 
-		kfree(priv->rx_skbuff);
+		rxbdp->lstatus = 0;
+		rxbdp->bufPtr = 0;
+		rxbdp++;
 	}
+
+	kfree(priv->rx_skbuff);
+skip_rx_skbuff:
+
+	dma_free_coherent(dev, sizeof(*txbdp) * priv->tx_ring_size +
+			       sizeof(*rxbdp) * priv->rx_ring_size,
+			  priv->tx_bd_base, gfar_read(&priv->regs->tbase0));
 }
 
 void gfar_start(struct net_device *dev)
@@ -1148,11 +1148,8 @@ tx_irq_fail:
 err_irq_fail:
 err_rxalloc_fail:
 rx_skb_fail:
-	free_skb_resources(priv);
 tx_skb_fail:
-	dma_free_coherent(dev, sizeof(*txbdp) * priv->tx_ring_size +
-			       sizeof(*rxbdp) * priv->rx_ring_size,
-			  priv->tx_bd_base, gfar_read(&regs->tbase0));
+	free_skb_resources(priv);
 	return err;
 }
 
