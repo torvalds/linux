@@ -121,6 +121,10 @@ static enum whc_update pzl_process_qset(struct whc *whc, struct whc_qset *qset)
 		if (status & QTD_STS_HALTED) {
 			/* Ug, an error. */
 			process_halted_qtd(whc, qset, td);
+			/* A halted qTD always triggers an update
+			   because the qset was either removed or
+			   reactivated. */
+			update |= WHC_UPDATE_UPDATED;
 			goto done;
 		}
 
