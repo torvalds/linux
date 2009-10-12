@@ -3501,7 +3501,8 @@ static int ov519_mode_init_regs(struct sd *sd)
 static int mode_init_ov_sensor_regs(struct sd *sd)
 {
 	struct gspca_dev *gspca_dev;
-	int qvga;
+	int qvga, xstart, xend, ystart, yend;
+	__u8 v;
 
 	gspca_dev = &sd->gspca_dev;
 	qvga = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv & 1;
@@ -3517,9 +3518,7 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0);
 		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20);
 		return 0;
-	case SEN_OV3610: {
-		int xstart, xend, ystart, yend;
-
+	case SEN_OV3610:
 		if (qvga) {
 			xstart = (1040 - gspca_dev->width) / 2 + (0x1f << 4);
 			ystart = (776 - gspca_dev->height) / 2;
@@ -3543,13 +3542,19 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w(sd, 0x19, ystart >> 3);
 		i2c_w(sd, 0x1a, yend >> 3);
 		return 0;
-	}
 	case SEN_OV8610:
 		/* For OV8610 qvga means qsvga */
 		i2c_w_mask(sd, OV7610_REG_COM_C, qvga ? (1 << 5) : 0, 1 << 5);
+		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
+		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
+		i2c_w_mask(sd, 0x2d, 0x00, 0x40); /* from windrv 090403 */
+		i2c_w_mask(sd, 0x28, 0x20, 0x20); /* progressive mode on */
 		break;
 	case SEN_OV7610:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
+		i2c_w(sd, 0x35, qvga?0x1e:0x9e);
+		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
+		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
 		break;
 	case SEN_OV7620:
 	case SEN_OV76BE:
@@ -3560,6 +3565,10 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40);
 		i2c_w_mask(sd, 0x67, qvga ? 0xb0 : 0x90, 0xf0);
 		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20);
+		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
+		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
+		if (sd->sensor == SEN_OV76BE)
+			i2c_w(sd, 0x35, qvga ? 0x1e : 0x9e);
 		break;
 	case SEN_OV7640:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
@@ -3569,6 +3578,7 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 /*		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40); */
 /*		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0); */
 /*		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20); */
+		i2c_w_mask(sd, 0x12, 0x04, 0x04); /* AWB: 1 */
 		break;
 	case SEN_OV7670:
 		/* set COM7_FMT_VGA or COM7_FMT_QVGA
@@ -3577,55 +3587,56 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, OV7670_REG_COM7,
 			 qvga ? OV7670_COM7_FMT_QVGA : OV7670_COM7_FMT_VGA,
 			 OV7670_COM7_FMT_MASK);
+		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
+		i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_AWB,
+				OV7670_COM8_AWB);
+		if (qvga) {		/* QVGA from ov7670.c by
+					 * Jonathan Corbet */
+			xstart = 164;
+			xend = 28;
+			ystart = 14;
+			yend = 494;
+		} else {		/* VGA */
+			xstart = 158;
+			xend = 14;
+			ystart = 10;
+			yend = 490;
+		}
+		/* OV7670 hardware window registers are split across
+		 * multiple locations */
+		i2c_w(sd, OV7670_REG_HSTART, xstart >> 3);
+		i2c_w(sd, OV7670_REG_HSTOP, xend >> 3);
+		v = i2c_r(sd, OV7670_REG_HREF);
+		v = (v & 0xc0) | ((xend & 0x7) << 3) | (xstart & 0x07);
+		msleep(10);	/* need to sleep between read and write to
+				 * same reg! */
+		i2c_w(sd, OV7670_REG_HREF, v);
+
+		i2c_w(sd, OV7670_REG_VSTART, ystart >> 2);
+		i2c_w(sd, OV7670_REG_VSTOP, yend >> 2);
+		v = i2c_r(sd, OV7670_REG_VREF);
+		v = (v & 0xc0) | ((yend & 0x3) << 2) | (ystart & 0x03);
+		msleep(10);	/* need to sleep between read and write to
+				 * same reg! */
+		i2c_w(sd, OV7670_REG_VREF, v);
 		break;
 	case SEN_OV6620:
+		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
+		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
+		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
+		break;
 	case SEN_OV6630:
 	case SEN_OV66308AF:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
+		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	/******** Palette-specific regs ********/
-
-	/* The OV518 needs special treatment. Although both the OV518
-	 * and the OV6630 support a 16-bit video bus, only the 8 bit Y
-	 * bus is actually used. The UV bus is tied to ground.
-	 * Therefore, the OV6630 needs to be in 8-bit multiplexed
-	 * output mode */
-
-	/* OV7640 is 8-bit only */
-
-	if (sd->sensor != SEN_OV6630 && sd->sensor != SEN_OV66308AF &&
-					sd->sensor != SEN_OV7640)
-		i2c_w_mask(sd, 0x13, 0x00, 0x20);
-
 	/******** Clock programming ********/
 	i2c_w(sd, 0x11, sd->clockdiv);
 
-	/******** Special Features ********/
-/* no evidence this is possible with OV7670, either */
-	/* Test Pattern */
-	if (sd->sensor != SEN_OV7640 && sd->sensor != SEN_OV7670)
-		i2c_w_mask(sd, 0x12, 0x00, 0x02);
-
-	/* Enable auto white balance */
-	if (sd->sensor == SEN_OV7670)
-		i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_AWB,
-				OV7670_COM8_AWB);
-	else
-		i2c_w_mask(sd, 0x12, 0x04, 0x04);
-
-	/* This will go away as soon as ov51x_mode_init_sensor_regs() */
-	/* is fully tested. */
-	/* 7620/6620/6630? don't have register 0x35, so play it safe */
-	if (sd->sensor == SEN_OV7610 || sd->sensor == SEN_OV76BE) {
-		if (!qvga)
-			i2c_w(sd, 0x35, 0x9e);
-		else
-			i2c_w(sd, 0x35, 0x1e);
-	}
 	return 0;
 }
 
@@ -3648,11 +3659,11 @@ static int set_ov_sensor_window(struct sd *sd)
 	struct gspca_dev *gspca_dev;
 	int qvga, crop;
 	int hwsbase, hwebase, vwsbase, vwebase, hwscale, vwscale;
-	int ret, hstart, hstop, vstop, vstart;
-	__u8 v;
+	int ret;
 
 	/* mode setup is fully handled in mode_init_ov_sensor_regs for these */
-	if (sd->sensor == SEN_OV2610 || sd->sensor == SEN_OV3610)
+	if (sd->sensor == SEN_OV2610 || sd->sensor == SEN_OV3610 ||
+	    sd->sensor == SEN_OV7670)
 		return mode_init_ov_sensor_regs(sd);
 
 	gspca_dev = &sd->gspca_dev;
@@ -3701,11 +3712,6 @@ static int set_ov_sensor_window(struct sd *sd)
 		hwebase = 0x1a;
 		vwsbase = vwebase = 0x03;
 		break;
-	case SEN_OV7670:
-		/*handling of OV7670 hardware sensor start and stop values
-		 * is very odd, compared to the other OV sensors */
-		vwsbase = vwebase = hwebase = hwsbase = 0x00;
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -3746,58 +3752,11 @@ static int set_ov_sensor_window(struct sd *sd)
 	if (ret < 0)
 		return ret;
 
-	if (sd->sensor == SEN_OV8610) {
-		i2c_w_mask(sd, 0x2d, 0x05, 0x40);
-				/* old 0x95, new 0x05 from windrv 090403 */
-						/* bits 5-7: reserved */
-		i2c_w_mask(sd, 0x28, 0x20, 0x20);
-					/* bit 5: progressive mode on */
-	}
+	i2c_w(sd, 0x17, hwsbase);
+	i2c_w(sd, 0x18, hwebase + (sd->gspca_dev.width >> hwscale));
+	i2c_w(sd, 0x19, vwsbase);
+	i2c_w(sd, 0x1a, vwebase + (sd->gspca_dev.height >> vwscale));
 
-	/* The below is wrong for OV7670s because their window registers
-	 * only store the high bits in 0x17 to 0x1a */
-
-	/* SRH Use sd->max values instead of requested win values */
-	/* SCS Since we're sticking with only the max hardware widths
-	 * for a given mode */
-	/* I can hard code this for OV7670s */
-	/* Yes, these numbers do look odd, but they're tested and work! */
-	if (sd->sensor == SEN_OV7670) {
-		if (qvga) {		/* QVGA from ov7670.c by
-					 * Jonathan Corbet */
-			hstart = 164;
-			hstop = 28;
-			vstart = 14;
-			vstop = 494;
-		} else {		/* VGA */
-			hstart = 158;
-			hstop = 14;
-			vstart = 10;
-			vstop = 490;
-		}
-		/* OV7670 hardware window registers are split across
-		 * multiple locations */
-		i2c_w(sd, OV7670_REG_HSTART, hstart >> 3);
-		i2c_w(sd, OV7670_REG_HSTOP, hstop >> 3);
-		v = i2c_r(sd, OV7670_REG_HREF);
-		v = (v & 0xc0) | ((hstop & 0x7) << 3) | (hstart & 0x07);
-		msleep(10);	/* need to sleep between read and write to
-				 * same reg! */
-		i2c_w(sd, OV7670_REG_HREF, v);
-
-		i2c_w(sd, OV7670_REG_VSTART, vstart >> 2);
-		i2c_w(sd, OV7670_REG_VSTOP, vstop >> 2);
-		v = i2c_r(sd, OV7670_REG_VREF);
-		v = (v & 0xc0) | ((vstop & 0x3) << 2) | (vstart & 0x03);
-		msleep(10);	/* need to sleep between read and write to
-				 * same reg! */
-		i2c_w(sd, OV7670_REG_VREF, v);
-	} else {
-		i2c_w(sd, 0x17, hwsbase);
-		i2c_w(sd, 0x18, hwebase + (sd->gspca_dev.width >> hwscale));
-		i2c_w(sd, 0x19, vwsbase);
-		i2c_w(sd, 0x1a, vwebase + (sd->gspca_dev.height >> vwscale));
-	}
 	return 0;
 }
 
