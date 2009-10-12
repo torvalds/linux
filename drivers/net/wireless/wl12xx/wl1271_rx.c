@@ -132,7 +132,7 @@ static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
 	}
 
 	buf = skb_put(skb, length);
-	wl1271_spi_reg_read(wl, WL1271_SLV_MEM_DATA, buf, length, true);
+	wl1271_spi_read(wl, WL1271_SLV_MEM_DATA, buf, length, true);
 
 	/* the data read starts with the descriptor */
 	desc = (struct wl1271_rx_descriptor *) buf;
@@ -176,9 +176,9 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 			wl->rx_mem_pool_addr.addr + 4;
 
 		/* Choose the block we want to read */
-		wl1271_spi_reg_write(wl, WL1271_SLV_REG_DATA,
-				     &wl->rx_mem_pool_addr,
-				     sizeof(wl->rx_mem_pool_addr), false);
+		wl1271_spi_write(wl, WL1271_SLV_REG_DATA,
+				 &wl->rx_mem_pool_addr,
+				 sizeof(wl->rx_mem_pool_addr), false);
 
 		wl1271_rx_handle_data(wl, buf_size);
 
@@ -186,5 +186,5 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 		drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
 	}
 
-	wl1271_reg_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
+	wl1271_spi_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
 }

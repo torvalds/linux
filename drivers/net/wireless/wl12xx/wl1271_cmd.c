@@ -55,13 +55,13 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len)
 
 	WARN_ON(len % 4 != 0);
 
-	wl1271_spi_mem_write(wl, wl->cmd_box_addr, buf, len);
+	wl1271_spi_write(wl, wl->cmd_box_addr, buf, len, false);
 
-	wl1271_reg_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
+	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
 
 	timeout = jiffies + msecs_to_jiffies(WL1271_COMMAND_TIMEOUT);
 
-	intr = wl1271_reg_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+	intr = wl1271_spi_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 	while (!(intr & WL1271_ACX_INTR_CMD_COMPLETE)) {
 		if (time_after(jiffies, timeout)) {
 			wl1271_error("command complete timeout");
@@ -71,10 +71,10 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len)
 
 		msleep(1);
 
-		intr = wl1271_reg_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+		intr = wl1271_spi_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 	}
 
-	wl1271_reg_write32(wl, ACX_REG_INTERRUPT_ACK,
+	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_ACK,
 			   WL1271_ACX_INTR_CMD_COMPLETE);
 
 out:
@@ -302,7 +302,7 @@ int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer)
 		 * The answer would be a wl1271_command, where the
 		 * parameter array contains the actual answer.
 		 */
-		wl1271_spi_mem_read(wl, wl->cmd_box_addr, buf, buf_len);
+		wl1271_spi_read(wl, wl->cmd_box_addr, buf, buf_len, false);
 
 		cmd_answer = buf;
 
@@ -341,7 +341,7 @@ int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len)
 	}
 
 	/* the interrogate command got in, we can read the answer */
-	wl1271_spi_mem_read(wl, wl->cmd_box_addr, buf, len);
+	wl1271_spi_read(wl, wl->cmd_box_addr, buf, len, false);
 
 	acx = buf;
 	if (acx->cmd.status != CMD_STATUS_SUCCESS)
@@ -496,7 +496,7 @@ int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 	}
 
 	/* the read command got in, we can now read the answer */
-	wl1271_spi_mem_read(wl, wl->cmd_box_addr, cmd, sizeof(*cmd));
+	wl1271_spi_read(wl, wl->cmd_box_addr, cmd, sizeof(*cmd), false);
 
 	if (cmd->header.status != CMD_STATUS_SUCCESS)
 		wl1271_error("error in read command result: %d",
@@ -591,7 +591,8 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 		goto out;
 	}
 
-	wl1271_spi_mem_read(wl, wl->cmd_box_addr, params, sizeof(*params));
+	wl1271_spi_read(wl, wl->cmd_box_addr, params, sizeof(*params),
+			false);
 
 	if (params->header.status != CMD_STATUS_SUCCESS) {
 		wl1271_error("Scan command error: %d",

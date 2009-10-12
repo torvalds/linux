@@ -82,8 +82,8 @@ static void wl1271_fw_status(struct wl1271 *wl,
 	u32 total = 0;
 	int i;
 
-	wl1271_spi_reg_read(wl, FW_STATUS_ADDR, status,
-			    sizeof(*status), false);
+	wl1271_spi_read(wl, FW_STATUS_ADDR, status,
+			sizeof(*status), false);
 
 	wl1271_debug(DEBUG_IRQ, "intr: 0x%x (fw_rx_counter = %d, "
 		     "drv_rx_counter = %d, tx_results_counter = %d)",
@@ -126,7 +126,7 @@ static void wl1271_irq_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	wl1271_reg_write32(wl, ACX_REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);
+	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);
 
 	wl1271_fw_status(wl, wl->fw_status);
 	intr = wl->fw_status->intr;
@@ -168,7 +168,7 @@ static void wl1271_irq_work(struct work_struct *work)
 	}
 
 out_sleep:
-	wl1271_reg_write32(wl, ACX_REG_INTERRUPT_MASK,
+	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_MASK,
 			   WL1271_ACX_INTR_ALL & ~(WL1271_INTR_MASK));
 	wl1271_ps_elp_sleep(wl);
 
@@ -279,7 +279,7 @@ static void wl1271_fw_wakeup(struct wl1271 *wl)
 	u32 elp_reg;
 
 	elp_reg = ELPCTRL_WAKE_UP;
-	wl1271_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
+	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
 }
 
 static int wl1271_setup(struct wl1271 *wl)
@@ -322,7 +322,7 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 	/* whal_FwCtrl_BootSm() */
 
 	/* 0. read chip id from CHIP_ID */
-	wl->chip.id = wl1271_reg_read32(wl, CHIP_ID_B);
+	wl->chip.id = wl1271_spi_read32(wl, CHIP_ID_B);
 
 	/* 1. check if chip id is valid */
 

@@ -154,11 +154,11 @@ static int wl1271_tx_send_packet(struct wl1271 *wl, struct sk_buff *skb,
 	len = WL1271_TX_ALIGN(skb->len);
 
 	/* perform a fixed address block write with the packet */
-	wl1271_spi_reg_write(wl, WL1271_SLV_MEM_DATA, skb->data, len, true);
+	wl1271_spi_write(wl, WL1271_SLV_MEM_DATA, skb->data, len, true);
 
 	/* write packet new counter into the write access register */
 	wl->tx_packets_count++;
-	wl1271_reg_write32(wl, WL1271_HOST_WR_ACCESS, wl->tx_packets_count);
+	wl1271_spi_write32(wl, WL1271_HOST_WR_ACCESS, wl->tx_packets_count);
 
 	desc = (struct wl1271_tx_hw_descr *) skb->data;
 	wl1271_debug(DEBUG_TX, "tx id %u skb 0x%p payload %u (%u words)",
@@ -331,8 +331,8 @@ void wl1271_tx_complete(struct wl1271 *wl, u32 count)
 	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);
 
 	/* read the tx results from the chipset */
-	wl1271_spi_mem_read(wl, memmap->tx_result,
-			    wl->tx_res_if, sizeof(*wl->tx_res_if));
+	wl1271_spi_read(wl, memmap->tx_result,
+			wl->tx_res_if, sizeof(*wl->tx_res_if), false);
 
 	/* verify that the result buffer is not getting overrun */
 	if (count > TX_HW_RESULT_QUEUE_LEN) {
@@ -353,7 +353,7 @@ void wl1271_tx_complete(struct wl1271 *wl, u32 count)
 	}
 
 	/* write host counter to chipset (to ack) */
-	wl1271_mem_write32(wl, memmap->tx_result +
+	wl1271_spi_write32(wl, memmap->tx_result +
 			   offsetof(struct wl1271_tx_hw_res_if,
 				    tx_result_host_counter),
 			   wl->tx_res_if->tx_result_fw_counter);

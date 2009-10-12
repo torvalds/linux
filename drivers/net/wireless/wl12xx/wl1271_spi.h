@@ -85,24 +85,18 @@
 #define OCP_STATUS_RESP_ERROR 0x30000
 
 /* Raw target IO, address is not translated */
-void wl1271_spi_write(struct wl1271 *wl, int addr, void *buf,
+void wl1271_spi_raw_write(struct wl1271 *wl, int addr, void *buf,
 		      size_t len, bool fixed);
-void wl1271_spi_read(struct wl1271 *wl, int addr, void *buf,
+void wl1271_spi_raw_read(struct wl1271 *wl, int addr, void *buf,
 		     size_t len, bool fixed);
 
-/* Memory target IO, address is tranlated to partition 0 */
-void wl1271_spi_mem_read(struct wl1271 *wl, int addr, void *buf, size_t len);
-void wl1271_spi_mem_write(struct wl1271 *wl, int addr, void *buf, size_t len);
-u32 wl1271_mem_read32(struct wl1271 *wl, int addr);
-void wl1271_mem_write32(struct wl1271 *wl, int addr, u32 val);
-
-/* Registers IO */
-void wl1271_spi_reg_read(struct wl1271 *wl, int addr, void *buf, size_t len,
-			 bool fixed);
-void wl1271_spi_reg_write(struct wl1271 *wl, int addr, void *buf, size_t len,
-			  bool fixed);
-u32 wl1271_reg_read32(struct wl1271 *wl, int addr);
-void wl1271_reg_write32(struct wl1271 *wl, int addr, u32 val);
+/* Translated target IO */
+void wl1271_spi_read(struct wl1271 *wl, int addr, void *buf, size_t len,
+		     bool fixed);
+void wl1271_spi_write(struct wl1271 *wl, int addr, void *buf, size_t len,
+		      bool fixed);
+u32 wl1271_spi_read32(struct wl1271 *wl, int addr);
+void wl1271_spi_write32(struct wl1271 *wl, int addr, u32 val);
 
 /* Top Register IO */
 void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val);
@@ -114,19 +108,19 @@ void wl1271_spi_init(struct wl1271 *wl);
 int wl1271_set_partition(struct wl1271 *wl,
 			 struct wl1271_partition_set *p);
 
-static inline u32 wl1271_read32(struct wl1271 *wl, int addr)
+static inline u32 wl1271_raw_read32(struct wl1271 *wl, int addr)
 {
-	wl1271_spi_read(wl, addr, &wl->buffer_32,
-			sizeof(wl->buffer_32), false);
+	wl1271_spi_raw_read(wl, addr, &wl->buffer_32,
+			    sizeof(wl->buffer_32), false);
 
 	return wl->buffer_32;
 }
 
-static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
+static inline void wl1271_raw_write32(struct wl1271 *wl, int addr, u32 val)
 {
 	wl->buffer_32 = val;
-	wl1271_spi_write(wl, addr, &wl->buffer_32,
-			 sizeof(wl->buffer_32), false);
+	wl1271_spi_raw_write(wl, addr, &wl->buffer_32,
+			     sizeof(wl->buffer_32), false);
 }
 
 #endif /* __WL1271_SPI_H__ */
