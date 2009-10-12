@@ -75,6 +75,20 @@ static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
 	ACCESS_ONCE(*p) = (tmp + 2) & ~1;
 }
 
+static __always_inline void __ticket_spin_unlock_wait(raw_spinlock_t *lock)
+{
+	int	*p = (int *)&lock->lock, ticket;
+
+	ia64_invala();
+
+	for (;;) {
+		asm volatile ("ld4.c.nc %0=[%1]" : "=r"(ticket) : "r"(p) : "memory");
+		if (!(((ticket >> TICKET_SHIFT) ^ ticket) & TICKET_MASK))
+			return;
+		cpu_relax();
+	}
+}
+
 static inline int __ticket_spin_is_locked(raw_spinlock_t *lock)
 {
 	long tmp = ACCESS_ONCE(lock->lock);
@@ -123,8 +137,7 @@ static __always_inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
 
 static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
 {
-	while (__raw_spin_is_locked(lock))
-		cpu_relax();
+	__ticket_spin_unlock_wait(lock);
 }
 
 #define __raw_read_can_lock(rw)		(*(volatile int *)(rw) >= 0)
