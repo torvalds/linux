@@ -4942,7 +4942,7 @@ static int patch_vt1718S(struct hda_codec *codec)
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
-	codec->patch_ops.unsol_event = via_unsol_event,
+	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1718S_loopbacks;
@@ -5432,7 +5432,7 @@ static int patch_vt1716S(struct hda_codec *codec)
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
-	codec->patch_ops.unsol_event = via_unsol_event,
+	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1716S_loopbacks;
@@ -5785,7 +5785,7 @@ static int patch_vt2002P(struct hda_codec *codec)
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
-	codec->patch_ops.unsol_event = via_unsol_event,
+	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt2002P_loopbacks;
@@ -6139,7 +6139,7 @@ static int patch_vt1812(struct hda_codec *codec)
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
-	codec->patch_ops.unsol_event = via_unsol_event,
+	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1812_loopbacks;
