@@ -1028,10 +1028,6 @@ int startup_gfar(struct net_device *ndev)
 		rxbdp++;
 	}
 
-	/* Set the last descriptor in the ring to wrap */
-	rxbdp--;
-	rxbdp->status |= RXBD_WRAP;
-
 	/* If the device has multiple interrupts, register for
 	 * them.  Otherwise, only register for the one */
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
