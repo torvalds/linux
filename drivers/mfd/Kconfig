@@ -329,6 +329,16 @@ config MFD_88PM8607
 	  individual components like voltage regulators, RTC and
 	  battery-charger under the corresponding menus.
 
+config AB4500_CORE
+	tristate "ST-Ericsson's AB4500 Mixed Signal Power management chip"
+	depends on SPI
+	default y
+	help
+	  Select this option to enable access to AB4500 power management
+	  chip. This connects to U8500 on the SSP/SPI bus and exports
+	  read/write functions for the devices to get access to this chip.
+	  This chip embeds various other multimedia funtionalities as well.
+
 endmenu
 
 menu "Multimedia Capabilities Port drivers"
