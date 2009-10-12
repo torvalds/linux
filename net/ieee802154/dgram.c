@@ -303,7 +303,7 @@ static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
 	if (err)
 		goto done;
 
-	sock_recv_timestamp(msg, sk, skb);
+	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (flags & MSG_TRUNC)
 		copied = skb->len;
