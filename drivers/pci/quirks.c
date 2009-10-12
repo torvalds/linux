@@ -670,6 +670,25 @@ static void __devinit quirk_vt8235_acpi(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8235,	quirk_vt8235_acpi);
 
+/*
+ * TI XIO2000a PCIe-PCI Bridge erroneously reports it supports fast back-to-back:
+ *	Disable fast back-to-back on the secondary bus segment
+ */
+static void __devinit quirk_xio2000a(struct pci_dev *dev)
+{
+	struct pci_dev *pdev;
+	u16 command;
+
+	dev_warn(&dev->dev, "TI XIO2000a quirk detected; "
+		"secondary bus fast back-to-back transfers disabled\n");
+	list_for_each_entry(pdev, &dev->subordinate->devices, bus_list) {
+		pci_read_config_word(pdev, PCI_COMMAND, &command);
+		if (command & PCI_COMMAND_FAST_BACK)
+			pci_write_config_word(pdev, PCI_COMMAND, command & ~PCI_COMMAND_FAST_BACK);
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_XIO2000A,
+			quirk_xio2000a);
 
 #ifdef CONFIG_X86_IO_APIC 
 
