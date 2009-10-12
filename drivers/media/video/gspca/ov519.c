@@ -2,14 +2,19 @@
  * OV519 driver
  *
  * Copyright (C) 2008 Jean-Francois Moine (http://moinejf.free.fr)
+ * Copyright (C) 2009 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the ov51x-jpeg package, which itself
  * was adapted from the ov511 driver.
  *
  * Original copyright for the ov511 driver is:
  *
- * Copyright (c) 1999-2004 Mark W. McClelland
+ * Copyright (c) 1999-2006 Mark W. McClelland
  * Support for OV519, OV8610 Copyright (c) 2003 Joerg Heckenbach
+ * Many improvements by Bret Wallach <bwallac1@san.rr.com>
+ * Color fixes by by Orion Sky Lawlor <olawlor@acm.org> (2/26/2000)
+ * OV7620 fixes by Charl P. Botha <cpbotha@ieee.org>
+ * Changes by Claudio Matsuoka <claudio@conectiva.com>
  *
  * ov51x-jpeg original copyright is:
  *
@@ -389,26 +394,31 @@ static const struct v4l2_pix_format ovfx2_ov2610_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
-	{2080, 1544, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
-		.bytesperline = 2080,
-		.sizeimage = 2080 * 1544,
-		.colorspace = V4L2_COLORSPACE_SRGB},
-	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
-		.bytesperline = 1600,
-		.sizeimage = 1600 * 1200,
-		.colorspace = V4L2_COLORSPACE_SRGB},
-	{1024, 768, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
-		.bytesperline = 1024,
-		.sizeimage = 1024 * 768,
-		.colorspace = V4L2_COLORSPACE_SRGB},
-	{800, 600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
-		.bytesperline = 800,
-		.sizeimage = 800 * 600,
-		.colorspace = V4L2_COLORSPACE_SRGB},
 	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
-		.colorspace = V4L2_COLORSPACE_SRGB},
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{800, 600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 800,
+		.sizeimage = 800 * 600,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{1024, 768, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 1024,
+		.sizeimage = 1024 * 768,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 1600,
+		.sizeimage = 1600 * 1200,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
+	{2048, 1536, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 2048,
+		.sizeimage = 2048 * 1536,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
 };
 
 
@@ -473,6 +483,30 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 
 #define OV511_ENDPOINT_ADDRESS  1	/* Isoc endpoint number */
 
+/*
+ * The FX2 chip does not give us a zero length read at end of frame.
+ * It does, however, give a short read at the end of a frame, if
+ * neccessary, rather than run two frames together.
+ *
+ * By choosing the right bulk transfer size, we are guaranteed to always
+ * get a short read for the last read of each frame.  Frame sizes are
+ * always a composite number (width * height, or a multiple) so if we
+ * choose a prime number, we are guaranteed that the last read of a
+ * frame will be short.
+ *
+ * But it isn't that easy: the 2.6 kernel requires a multiple of 4KB,
+ * otherwise EOVERFLOW "babbling" errors occur.  I have not been able
+ * to figure out why.  [PMiller]
+ *
+ * The constant (13 * 4096) is the largest "prime enough" number less than 64KB.
+ *
+ * It isn't enough to know the number of bytes per frame, in case we
+ * have data dropouts or buffer overruns (even though the FX2 double
+ * buffers, there are some pretty strict real time constraints for
+ * isochronous transfer for larger frame sizes).
+ */
+#define OVFX2_BULK_SIZE (13 * 4096)
+
 /* I2C registers */
 #define R51x_I2C_W_SID		0x41
 #define R51x_I2C_SADDR_3	0x42
@@ -480,6 +514,7 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 #define R51x_I2C_R_SID		0x44
 #define R51x_I2C_DATA		0x45
 #define R518_I2C_CTL		0x47	/* OV518(+) only */
+#define OVFX2_I2C_ADDR		0x00
 
 /* I2C ADDRESSES */
 #define OV7xx0_SID   0x42
@@ -579,7 +614,7 @@ struct ov_i2c_regvals {
 /* Settings for OV2610 camera chip */
 static const struct ov_i2c_regvals norm_2610[] =
 {
-	{ 0x10, 0x80 },	/* reset */
+	{ 0x12, 0x80 },	/* reset */
 };
 
 static const struct ov_i2c_regvals norm_3620b[] =
@@ -1803,7 +1838,23 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 static int reg_w(struct sd *sd, __u16 index, __u8 value)
 {
 	int ret;
-	int req = (sd->bridge <= BRIDGE_OV511PLUS) ? 2 : 1;
+	int req;
+
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		req = 2;
+		break;
+	case BRIDGE_OVFX2:
+		ret = usb_control_msg(sd->gspca_dev.dev,
+			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
+			0x0a,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			(__u16)value, index, NULL, 0, 500);
+		goto leave;
+	default:
+		req = 1;
+	}
 
 	sd->gspca_dev.usb_buf[0] = value;
 	ret = usb_control_msg(sd->gspca_dev.dev,
@@ -1812,6 +1863,7 @@ static int reg_w(struct sd *sd, __u16 index, __u8 value)
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index,
 			sd->gspca_dev.usb_buf, 1, 500);
+leave:
 	if (ret < 0)
 		PDEBUG(D_ERR, "Write reg [%02x] %02x failed", index, value);
 	return ret;
@@ -1822,7 +1874,19 @@ static int reg_w(struct sd *sd, __u16 index, __u8 value)
 static int reg_r(struct sd *sd, __u16 index)
 {
 	int ret;
-	int req = (sd->bridge <= BRIDGE_OV511PLUS) ? 3 : 1;
+	int req;
+
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		req = 3;
+		break;
+	case BRIDGE_OVFX2:
+		req = 0x0b;
+		break;
+	default:
+		req = 1;
+	}
 
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
@@ -2082,6 +2146,43 @@ static int ov518_i2c_r(struct sd *sd, __u8 reg)
 	return value;
 }
 
+static int ovfx2_i2c_w(struct sd *sd, __u8 reg, __u8 value)
+{
+	int ret;
+
+	ret = usb_control_msg(sd->gspca_dev.dev,
+			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
+			0x02,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			(__u16)value, (__u16)reg, NULL, 0, 500);
+
+	if (ret >= 0)
+		PDEBUG(D_USBO, "i2c 0x%02x -> [0x%02x]", value, reg);
+	else
+		PDEBUG(D_ERR, "i2c 0x%02x -> [0x%02x] failed", value, reg);
+
+	return ret;
+}
+
+static int ovfx2_i2c_r(struct sd *sd, __u8 reg)
+{
+	int ret;
+
+	ret = usb_control_msg(sd->gspca_dev.dev,
+			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
+			0x03,
+			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0, (__u16)reg, sd->gspca_dev.usb_buf, 1, 500);
+
+	if (ret >= 0) {
+		ret = sd->gspca_dev.usb_buf[0];
+		PDEBUG(D_USBI, "i2c [0x%02X] -> 0x%02X", reg, ret);
+	} else
+		PDEBUG(D_ERR, "i2c read [0x%02x] failed", reg);
+
+	return ret;
+}
+
 static int i2c_w(struct sd *sd, __u8 reg, __u8 value)
 {
 	switch (sd->bridge) {
@@ -2092,6 +2193,8 @@ static int i2c_w(struct sd *sd, __u8 reg, __u8 value)
 	case BRIDGE_OV518PLUS:
 	case BRIDGE_OV519:
 		return ov518_i2c_w(sd, reg, value);
+	case BRIDGE_OVFX2:
+		return ovfx2_i2c_w(sd, reg, value);
 	}
 	return -1; /* Should never happen */
 }
@@ -2106,6 +2209,8 @@ static int i2c_r(struct sd *sd, __u8 reg)
 	case BRIDGE_OV518PLUS:
 	case BRIDGE_OV519:
 		return ov518_i2c_r(sd, reg);
+	case BRIDGE_OVFX2:
+		return ovfx2_i2c_r(sd, reg);
 	}
 	return -1; /* Should never happen */
 }
@@ -2147,6 +2252,8 @@ static inline int ov51x_stop(struct sd *sd)
 		return reg_w_mask(sd, R51x_SYS_RESET, 0x3a, 0x3a);
 	case BRIDGE_OV519:
 		return reg_w(sd, OV519_SYS_RESET1, 0x0f);
+	case BRIDGE_OVFX2:
+		return reg_w_mask(sd, 0x0f, 0x00, 0x02);
 	}
 
 	return 0;
@@ -2176,6 +2283,8 @@ static inline int ov51x_restart(struct sd *sd)
 		return reg_w(sd, R51x_SYS_RESET, 0x00);
 	case BRIDGE_OV519:
 		return reg_w(sd, OV519_SYS_RESET1, 0x00);
+	case BRIDGE_OVFX2:
+		return reg_w_mask(sd, 0x0f, 0x02, 0x02);
 	}
 
 	return 0;
@@ -2228,6 +2337,9 @@ static int ov51x_set_slave_ids(struct sd *sd,
 				__u8 slave)
 {
 	int rc;
+
+	if (sd->bridge == BRIDGE_OVFX2)
+		return reg_w(sd, OVFX2_I2C_ADDR, slave);
 
 	rc = reg_w(sd, R51x_I2C_W_SID, slave);
 	if (rc < 0)
@@ -2762,12 +2874,29 @@ static int ov519_configure(struct sd *sd)
 	return write_regvals(sd, init_519, ARRAY_SIZE(init_519));
 }
 
+static int ovfx2_configure(struct sd *sd)
+{
+	static const struct ov_regvals init_fx2[] = {
+		{ 0x00, 0x60 },
+		{ 0x02, 0x01 },
+		{ 0x0f, 0x1d },
+		{ 0xe9, 0x82 },
+		{ 0xea, 0xc7 },
+		{ 0xeb, 0x10 },
+		{ 0xec, 0xf6 },
+	};
+
+	sd->stopped = 1;
+
+	return write_regvals(sd, init_fx2, ARRAY_SIZE(init_fx2));
+}
+
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct cam *cam;
+	struct cam *cam = &gspca_dev->cam;
 	int ret = 0;
 
 	sd->bridge = id->driver_info & BRIDGE_MASK;
@@ -2784,6 +2913,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	case BRIDGE_OV519:
 		ret = ov519_configure(sd);
+		break;
+	case BRIDGE_OVFX2:
+		ret = ovfx2_configure(sd);
+		cam->bulk_size = OVFX2_BULK_SIZE;
+		cam->bulk_nurbs = MAX_NURBS;
+		cam->bulk = 1;
 		break;
 	}
 
@@ -2825,7 +2960,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		goto error;
 	}
 
-	cam = &gspca_dev->cam;
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
@@ -3388,9 +3522,9 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 
 		if (qvga) {
 			xstart = (1040 - gspca_dev->width) / 2 + (0x1f << 4);
-			ystart = (772 - gspca_dev->height) / 2;
+			ystart = (776 - gspca_dev->height) / 2;
 		} else {
-			xstart = (2080 - gspca_dev->width) / 2 + (0x10 << 4);
+			xstart = (2076 - gspca_dev->width) / 2 + (0x10 << 4);
 			ystart = (1544 - gspca_dev->height) / 2;
 		}
 		xend = xstart + gspca_dev->width;
@@ -3685,6 +3819,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case BRIDGE_OV519:
 		ret = ov519_mode_init_regs(sd);
 		break;
+	/* case BRIDGE_OVFX2: nothing to do */
 	}
 	if (ret < 0)
 		goto out;
@@ -3850,6 +3985,20 @@ static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
 			data, len);
 }
 
+static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
+			struct gspca_frame *frame,	/* target */
+			__u8 *data,			/* isoc packet */
+			int len)			/* iso packet length */
+{
+	/* A short read signals EOF */
+	if (len < OVFX2_BULK_SIZE) {
+		gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, len);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
+		return;
+	}
+	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+}
+
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -3868,6 +4017,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		break;
 	case BRIDGE_OV519:
 		ov519_pkt_scan(gspca_dev, frame, data, len);
+		break;
+	case BRIDGE_OVFX2:
+		ovfx2_pkt_scan(gspca_dev, frame, data, len);
 		break;
 	}
 }
@@ -4237,11 +4389,15 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x05a9, 0x0518), .driver_info = BRIDGE_OV518 },
 	{USB_DEVICE(0x05a9, 0x0519), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0x0530), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x05a9, 0x2800), .driver_info = BRIDGE_OVFX2 },
 	{USB_DEVICE(0x05a9, 0x4519), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0x8519), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0xa511), .driver_info = BRIDGE_OV511PLUS },
 	{USB_DEVICE(0x05a9, 0xa518), .driver_info = BRIDGE_OV518PLUS },
 	{USB_DEVICE(0x0813, 0x0002), .driver_info = BRIDGE_OV511PLUS },
+	{USB_DEVICE(0x0b62, 0x0059), .driver_info = BRIDGE_OVFX2 },
+	{USB_DEVICE(0x0e96, 0xc001), .driver_info = BRIDGE_OVFX2 },
+	{USB_DEVICE(0x8020, 0xEF04), .driver_info = BRIDGE_OVFX2 },
 	{}
 };
 
