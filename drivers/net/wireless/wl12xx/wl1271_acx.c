@@ -998,3 +998,75 @@ out:
 	kfree(rx_conf);
 	return ret;
 }
+
+int wl1271_acx_smart_reflex(struct wl1271 *wl)
+{
+	struct acx_smart_reflex_state *sr_state = NULL;
+	struct acx_smart_reflex_config_params *sr_param = NULL;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx smart reflex");
+
+	sr_param = kzalloc(sizeof(*sr_param), GFP_KERNEL);
+	if (!sr_param) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* set cryptic smart reflex parameters - source TI reference code */
+	sr_param->error_table[0].len = 0x07;
+	sr_param->error_table[0].upper_limit = 0x03;
+	sr_param->error_table[0].values[0] = 0x18;
+	sr_param->error_table[0].values[1] = 0x10;
+	sr_param->error_table[0].values[2] = 0x05;
+	sr_param->error_table[0].values[3] = 0xfb;
+	sr_param->error_table[0].values[4] = 0xf0;
+	sr_param->error_table[0].values[5] = 0xe8;
+
+	sr_param->error_table[1].len = 0x07;
+	sr_param->error_table[1].upper_limit = 0x03;
+	sr_param->error_table[1].values[0] = 0x18;
+	sr_param->error_table[1].values[1] = 0x10;
+	sr_param->error_table[1].values[2] = 0x05;
+	sr_param->error_table[1].values[3] = 0xf6;
+	sr_param->error_table[1].values[4] = 0xf0;
+	sr_param->error_table[1].values[5] = 0xe8;
+
+	sr_param->error_table[2].len = 0x07;
+	sr_param->error_table[2].upper_limit = 0x03;
+	sr_param->error_table[2].values[0] = 0x18;
+	sr_param->error_table[2].values[1] = 0x10;
+	sr_param->error_table[2].values[2] = 0x05;
+	sr_param->error_table[2].values[3] = 0xfb;
+	sr_param->error_table[2].values[4] = 0xf0;
+	sr_param->error_table[2].values[5] = 0xe8;
+
+	ret = wl1271_cmd_configure(wl, ACX_SET_SMART_REFLEX_PARAMS,
+				   sr_param, sizeof(*sr_param));
+	if (ret < 0) {
+		wl1271_warning("failed to set smart reflex params: %d", ret);
+		goto out;
+	}
+
+	sr_state = kzalloc(sizeof(*sr_state), GFP_KERNEL);
+	if (!sr_state) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* enable smart reflex */
+	sr_state->enable = 1;
+
+	ret = wl1271_cmd_configure(wl, ACX_SET_SMART_REFLEX_STATE,
+				   sr_state, sizeof(*sr_state));
+	if (ret < 0) {
+		wl1271_warning("failed to set smart reflex params: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(sr_state);
+	kfree(sr_param);
+	return ret;
+
+}
