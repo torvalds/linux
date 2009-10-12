@@ -34,7 +34,7 @@
 #define REGISTERS_WORK_SIZE 0x0000b000
 
 #define HW_ACCESS_ELP_CTRL_REG_ADDR         0x1FFFC
-#define STATUS_MEM_ADDRESS                  0x40400
+#define FW_STATUS_ADDR                      (0x14FC0 + 0xA000)
 
 /* ELP register commands */
 #define ELPCTRL_WAKE_UP             0x1
