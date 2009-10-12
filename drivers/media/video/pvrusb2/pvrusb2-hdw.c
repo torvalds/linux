@@ -2353,6 +2353,7 @@ static void pvr2_hdw_setup(struct pvr2_hdw *hdw)
 				" before this driver can function.  There"
 				" should be some earlier messages giving more"
 				" information about the problem.");
+			break;
 		}
 		if (procreload) {
 			pvr2_trace(
