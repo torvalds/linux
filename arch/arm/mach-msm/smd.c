@@ -246,7 +246,7 @@ static void ch_read_done(struct smd_channel *ch, unsigned count)
 {
 	BUG_ON(count > smd_stream_read_avail(ch));
 	ch->recv->tail = (ch->recv->tail + count) & ch->fifo_mask;
-	ch->recv->fTAIL = 1;
+	ch->send->fTAIL = 1;
 }
 
 /* basic read interface to ch_read_{buffer,done} used
