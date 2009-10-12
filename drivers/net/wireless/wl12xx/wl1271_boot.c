@@ -419,34 +419,13 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 
 static int wl1271_boot_write_irq_polarity(struct wl1271 *wl)
 {
-	u32 polarity, status, i;
+	u32 polarity;
 
-	wl1271_reg_write32(wl, OCP_POR_CTR, OCP_REG_POLARITY);
-	wl1271_reg_write32(wl, OCP_CMD, OCP_CMD_READ);
-
-	/* Wait until the command is complete (ie. bit 18 is set) */
-	for (i = 0; i < OCP_CMD_LOOP; i++) {
-		polarity = wl1271_reg_read32(wl, OCP_DATA_READ);
-		if (polarity & OCP_READY_MASK)
-			break;
-	}
-	if (i == OCP_CMD_LOOP) {
-		wl1271_error("OCP command timeout!");
-		return -EIO;
-	}
-
-	status = polarity & OCP_STATUS_MASK;
-	if (status != OCP_STATUS_OK) {
-		wl1271_error("OCP command failed (%d)", status);
-		return -EIO;
-	}
+	polarity = wl1271_top_reg_read(wl, OCP_REG_POLARITY);
 
 	/* We use HIGH polarity, so unset the LOW bit */
 	polarity &= ~POLARITY_LOW;
-
-	wl1271_reg_write32(wl, OCP_POR_CTR, OCP_REG_POLARITY);
-	wl1271_reg_write32(wl, OCP_DATA_WRITE, polarity);
-	wl1271_reg_write32(wl, OCP_CMD, OCP_CMD_WRITE);
+	wl1271_top_reg_write(wl, OCP_REG_POLARITY, polarity);
 
 	return 0;
 }

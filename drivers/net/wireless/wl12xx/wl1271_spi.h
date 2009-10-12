@@ -71,6 +71,18 @@
 		((WL1271_BUSY_WORD_LEN - 4) / sizeof(u32))
 #define HW_ACCESS_WSPI_INIT_CMD_MASK  0
 
+#define OCP_CMD_LOOP  32
+
+#define OCP_CMD_WRITE 0x1
+#define OCP_CMD_READ  0x2
+
+#define OCP_READY_MASK  BIT(18)
+#define OCP_STATUS_MASK (BIT(16) | BIT(17))
+
+#define OCP_STATUS_NO_RESP    0x00000
+#define OCP_STATUS_OK         0x10000
+#define OCP_STATUS_REQ_FAILED 0x20000
+#define OCP_STATUS_RESP_ERROR 0x30000
 
 /* Raw target IO, address is not translated */
 void wl1271_spi_write(struct wl1271 *wl, int addr, void *buf,
@@ -91,6 +103,10 @@ void wl1271_spi_reg_write(struct wl1271 *wl, int addr, void *buf, size_t len,
 			  bool fixed);
 u32 wl1271_reg_read32(struct wl1271 *wl, int addr);
 void wl1271_reg_write32(struct wl1271 *wl, int addr, u32 val);
+
+/* Top Register IO */
+void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val);
+u16 wl1271_top_reg_read(struct wl1271 *wl, int addr);
 
 /* INIT and RESET words */
 void wl1271_spi_reset(struct wl1271 *wl);

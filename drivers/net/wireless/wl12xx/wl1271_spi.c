@@ -395,3 +395,49 @@ void wl1271_reg_write32(struct wl1271 *wl, int addr, u32 val)
 {
 	wl1271_write32(wl, wl1271_translate_addr(wl, addr), val);
 }
+
+void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val)
+{
+	/* write address >> 1 + 0x30000 to OCP_POR_CTR */
+	addr = (addr >> 1) + 0x30000;
+	wl1271_reg_write32(wl, OCP_POR_CTR, addr);
+
+	/* write value to OCP_POR_WDATA */
+	wl1271_reg_write32(wl, OCP_DATA_WRITE, val);
+
+	/* write 1 to OCP_CMD */
+	wl1271_reg_write32(wl, OCP_CMD, OCP_CMD_WRITE);
+}
+
+u16 wl1271_top_reg_read(struct wl1271 *wl, int addr)
+{
+	u32 val;
+	int timeout = OCP_CMD_LOOP;
+
+	/* write address >> 1 + 0x30000 to OCP_POR_CTR */
+	addr = (addr >> 1) + 0x30000;
+	wl1271_reg_write32(wl, OCP_POR_CTR, addr);
+
+	/* write 2 to OCP_CMD */
+	wl1271_reg_write32(wl, OCP_CMD, OCP_CMD_READ);
+
+	/* poll for data ready */
+	do {
+		val = wl1271_reg_read32(wl, OCP_DATA_READ);
+		timeout--;
+	} while (!(val & OCP_READY_MASK) && timeout);
+
+	if (!timeout) {
+		wl1271_warning("Top register access timed out.");
+		return 0xffff;
+	}
+
+	/* check data status and return if OK */
+	if ((val & OCP_STATUS_MASK) == OCP_STATUS_OK)
+		return val & 0xffff;
+	else {
+		wl1271_warning("Top register access returned error.");
+		return 0xffff;
+	}
+}
+
