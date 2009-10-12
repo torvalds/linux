@@ -3387,7 +3387,7 @@ out:
  * Indicate a busy-waiting vcpu in spinlock. We do not enable the PAUSE
  * exiting, so only get here on cpu with PAUSE-Loop-Exiting.
  */
-static int handle_pause(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int handle_pause(struct kvm_vcpu *vcpu)
 {
 	skip_emulated_instruction(vcpu);
 	kvm_vcpu_on_spin(vcpu);
