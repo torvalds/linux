@@ -270,6 +270,7 @@ struct pvr2_hdw {
 
 	int force_dirty;        /* consider all controls dirty if true */
 	int flag_ok;            /* device in known good state */
+	int flag_modulefail;    /* true if at least one module failed to load */
 	int flag_disconnected;  /* flag_ok == 0 due to disconnect */
 	int flag_init_ok;       /* true if structure is fully initialized */
 	int fw1_state;          /* current situation with fw1 */

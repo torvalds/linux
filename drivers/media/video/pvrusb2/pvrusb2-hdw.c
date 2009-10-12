@@ -2030,7 +2030,8 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	fname = (mid < ARRAY_SIZE(module_names)) ? module_names[mid] : NULL;
 	if (!fname) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u for device %s has no name",
+			   "Module ID %u for device %s has no name?"
+			   "  The driver might have a configuration problem.",
 			   mid,
 			   hdw->hdw_desc->description);
 		return -EINVAL;
@@ -2058,7 +2059,8 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	if (!i2ccnt) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Module ID %u (%s) for device %s:"
-			   " No i2c addresses",
+			   " No i2c addresses."
+			   "  The driver might have a configuration problem.",
 			   mid, fname, hdw->hdw_desc->description);
 		return -EINVAL;
 	}
@@ -2090,7 +2092,9 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 
 	if (!sd) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u (%s) for device %s failed to load",
+			   "Module ID %u (%s) for device %s failed to load."
+			   "  Possible missing sub-device kernel module or"
+			   " initialization failure within module.",
 			   mid, fname, hdw->hdw_desc->description);
 		return -EIO;
 	}
@@ -2132,7 +2136,10 @@ static void pvr2_hdw_load_modules(struct pvr2_hdw *hdw)
 	for (idx = 0; idx < ct->cnt; idx++) {
 		if (pvr2_hdw_load_subdev(hdw, &ct->lst[idx]) < 0) okFl = 0;
 	}
-	if (!okFl) pvr2_hdw_render_useless(hdw);
+	if (!okFl) {
+		hdw->flag_modulefail = !0;
+		pvr2_hdw_render_useless(hdw);
+	}
 }
 
 
@@ -2333,6 +2340,19 @@ static void pvr2_hdw_setup(struct pvr2_hdw *hdw)
 					" appears to be missing.");
 				break;
 			}
+		}
+		if (hdw->flag_modulefail) {
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"***WARNING*** pvrusb2 driver initialization"
+				" failed due to the failure of one or more"
+				" sub-device kernel modules.");
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"You need to resolve the failing condition"
+				" before this driver can function.  There"
+				" should be some earlier messages giving more"
+				" information about the problem.");
 		}
 		if (procreload) {
 			pvr2_trace(
