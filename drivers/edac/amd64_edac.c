@@ -2399,16 +2399,14 @@ static void amd64_read_mc_registers(struct amd64_pvt *pvt)
 	 * Retrieve TOP_MEM and TOP_MEM2; no masking off of reserved bits since
 	 * those are Read-As-Zero
 	 */
-	rdmsrl(MSR_K8_TOP_MEM1, msr_val);
-	pvt->top_mem = msr_val >> 23;
-	debugf0("  TOP_MEM=0x%08llx\n", pvt->top_mem);
+	rdmsrl(MSR_K8_TOP_MEM1, pvt->top_mem);
+	debugf0("  TOP_MEM:  0x%016llx\n", pvt->top_mem);
 
 	/* check first whether TOP_MEM2 is enabled */
 	rdmsrl(MSR_K8_SYSCFG, msr_val);
 	if (msr_val & (1U << 21)) {
-		rdmsrl(MSR_K8_TOP_MEM2, msr_val);
-		pvt->top_mem2 = msr_val >> 23;
-		debugf0("  TOP_MEM2=0x%08llx\n", pvt->top_mem2);
+		rdmsrl(MSR_K8_TOP_MEM2, pvt->top_mem2);
+		debugf0("  TOP_MEM2: 0x%016llx\n", pvt->top_mem2);
 	} else
 		debugf0("  TOP_MEM2 disabled.\n");
 
@@ -2434,13 +2432,12 @@ static void amd64_read_mc_registers(struct amd64_pvt *pvt)
 		 * debug output block away.
 		 */
 		if (pvt->dram_rw_en[dram] != 0) {
-			debugf1("  DRAM_BASE[%d]: 0x%8.08x-%8.08x "
-				"DRAM_LIMIT:  0x%8.08x-%8.08x\n",
+			debugf1("  DRAM-BASE[%d]: 0x%016llx "
+				"DRAM-LIMIT:  0x%016llx\n",
 				dram,
-				(u32)(pvt->dram_base[dram] >> 32),
-				(u32)(pvt->dram_base[dram] & 0xFFFFFFFF),
-				(u32)(pvt->dram_limit[dram] >> 32),
-				(u32)(pvt->dram_limit[dram] & 0xFFFFFFFF));
+				pvt->dram_base[dram],
+				pvt->dram_limit[dram]);
+
 			debugf1("        IntlvEn=%s %s %s "
 				"IntlvSel=%d DstNode=%d\n",
 				pvt->dram_IntlvEn[dram] ?
