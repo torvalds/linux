@@ -435,12 +435,28 @@ int wl1271_boot(struct wl1271 *wl)
 	int ret = 0;
 	u32 tmp, clk, pause;
 
-	if (REF_CLOCK == 0 || REF_CLOCK == 2)
-		/* ref clk: 19.2/38.4 */
+	if (REF_CLOCK == 0 || REF_CLOCK == 2 || REF_CLOCK == 4)
+		/* ref clk: 19.2/38.4/38.4-XTAL */
 		clk = 0x3;
 	else if (REF_CLOCK == 1 || REF_CLOCK == 3)
 		/* ref clk: 26/52 */
 		clk = 0x5;
+
+	if (REF_CLOCK != 0) {
+		u16 val;
+		/* Set clock type */
+		val = wl1271_top_reg_read(wl, OCP_REG_CLK_TYPE);
+		val &= FREF_CLK_TYPE_BITS;
+		val |= CLK_REQ_PRCM;
+		wl1271_top_reg_write(wl, OCP_REG_CLK_TYPE, val);
+	} else {
+		u16 val;
+		/* Set clock polarity */
+		val = wl1271_top_reg_read(wl, OCP_REG_CLK_POLARITY);
+		val &= FREF_CLK_POLARITY_BITS;
+		val |= CLK_REQ_OUTN_SEL;
+		wl1271_top_reg_write(wl, OCP_REG_CLK_POLARITY, val);
+	}
 
 	wl1271_reg_write32(wl, PLL_PARAMETERS, clk);
 
