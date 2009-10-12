@@ -582,6 +582,8 @@ r600_blit_copy(struct drm_device *dev,
 	u64 vb_addr;
 	u32 *vb;
 
+	vb = r600_nomm_get_vb_ptr(dev);
+
 	if ((size_bytes & 3) || (src_gpu_addr & 3) || (dst_gpu_addr & 3)) {
 		max_bytes = 8192;
 
@@ -617,8 +619,8 @@ r600_blit_copy(struct drm_device *dev,
 				if (!dev_priv->blit_vb)
 					return;
 				set_shaders(dev);
+				vb = r600_nomm_get_vb_ptr(dev);
 			}
-			vb = r600_nomm_get_vb_ptr(dev);
 
 			vb[0] = i2f(dst_x);
 			vb[1] = 0;
@@ -706,8 +708,8 @@ r600_blit_copy(struct drm_device *dev,
 					return;
 
 				set_shaders(dev);
+				vb = r600_nomm_get_vb_ptr(dev);
 			}
-			vb = r600_nomm_get_vb_ptr(dev);
 
 			vb[0] = i2f(dst_x / 4);
 			vb[1] = 0;
@@ -775,6 +777,8 @@ r600_blit_swap(struct drm_device *dev,
 	u64 vb_addr;
 	u32 *vb;
 
+	vb = r600_nomm_get_vb_ptr(dev);
+
 	if ((dev_priv->blit_vb->used + 48) > dev_priv->blit_vb->total) {
 
 		r600_nomm_put_vb(dev);
@@ -783,8 +787,8 @@ r600_blit_swap(struct drm_device *dev,
 			return;
 
 		set_shaders(dev);
+		vb = r600_nomm_get_vb_ptr(dev);
 	}
-	vb = r600_nomm_get_vb_ptr(dev);
 
 	if (cpp == 4) {
 		cb_format = COLOR_8_8_8_8;
