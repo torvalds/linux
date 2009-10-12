@@ -232,8 +232,8 @@ int wl1271_cmd_join(struct wl1271 *wl)
 	join->basic_rate_set = RATE_MASK_1MBPS | RATE_MASK_2MBPS |
 		RATE_MASK_5_5MBPS | RATE_MASK_11MBPS;
 
-	join->beacon_interval = wl->beacon_int;
-	join->dtim_interval = wl->dtim_period;
+	join->beacon_interval = WL1271_DEFAULT_BEACON_INT;
+	join->dtim_interval = WL1271_DEFAULT_DTIM_PERIOD;
 	join->bss_type = wl->bss_type;
 	join->channel = wl->channel;
 	join->ssid_len = wl->ssid_len;

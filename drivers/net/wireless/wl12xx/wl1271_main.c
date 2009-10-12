@@ -710,7 +710,15 @@ static int wl1271_op_config_interface(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	memcpy(wl->bssid, conf->bssid, ETH_ALEN);
+	if (memcmp(wl->bssid, conf->bssid, ETH_ALEN)) {
+		wl1271_debug(DEBUG_MAC80211, "bssid changed");
+
+		memcpy(wl->bssid, conf->bssid, ETH_ALEN);
+
+		ret = wl1271_cmd_join(wl);
+		if (ret < 0)
+			goto out_sleep;
+	}
 
 	ret = wl1271_cmd_build_null_data(wl);
 	if (ret < 0)
@@ -719,12 +727,6 @@ static int wl1271_op_config_interface(struct ieee80211_hw *hw,
 	wl->ssid_len = conf->ssid_len;
 	if (wl->ssid_len)
 		memcpy(wl->ssid, conf->ssid, wl->ssid_len);
-
-	if (wl->bss_type != BSS_TYPE_IBSS) {
-		ret = wl1271_cmd_join(wl);
-		if (ret < 0)
-			goto out_sleep;
-	}
 
 	if (conf->changed & IEEE80211_IFCC_BEACON) {
 		beacon = ieee80211_beacon_get(hw, vif);
@@ -740,11 +742,6 @@ static int wl1271_op_config_interface(struct ieee80211_hw *hw,
 					      beacon->data, beacon->len);
 
 		dev_kfree_skb(beacon);
-
-		if (ret < 0)
-			goto out_sleep;
-
-		ret = wl1271_cmd_join(wl);
 
 		if (ret < 0)
 			goto out_sleep;
@@ -782,14 +779,13 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out;
 
 	if (channel != wl->channel) {
-		u8 old_channel = wl->channel;
+		/*
+		 * We assume that the stack will configure the right channel
+		 * before associating, so we don't need to send a join
+		 * command here.  We will join the right channel when the
+		 * BSSID changes
+		 */
 		wl->channel = channel;
-
-		ret = wl1271_cmd_join(wl);
-		if (ret < 0) {
-			wl->channel = old_channel;
-			goto out_sleep;
-		}
 	}
 
 	ret = wl1271_cmd_build_null_data(wl);
@@ -1102,17 +1098,14 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
-			wl->beacon_int = bss_conf->beacon_int;
-			wl->dtim_period = bss_conf->dtim_period;
 			wl->aid = bss_conf->aid;
 
-			ret = wl1271_cmd_join(wl);
-			if (ret < 0) {
-				wl1271_warning("Association configuration "
-					       "failed %d", ret);
-				goto out_sleep;
-			}
-
+			/*
+			 * with wl1271, we don't need to update the
+			 * beacon_int and dtim_period, because the firmware
+			 * updates it by itself when the first beacon is
+			 * received after a join.
+			 */
 			ret = wl1271_cmd_build_ps_poll(wl, wl->aid);
 			if (ret < 0)
 				goto out_sleep;
@@ -1130,8 +1123,6 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			}
 		} else {
 			/* use defaults when not associated */
-			wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
-			wl->dtim_period = WL1271_DEFAULT_DTIM_PERIOD;
 			wl->basic_rate_set = WL1271_DEFAULT_BASIC_RATE_SET;
 			wl->aid = 0;
 		}
@@ -1170,16 +1161,10 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BASIC_RATES) {
 		wl->basic_rate_set = wl1271_enabled_rates_get(
 			wl, bss_conf->basic_rates);
-		ret = wl1271_acx_rate_policies(wl, wl->basic_rate_set);
 
+		ret = wl1271_acx_rate_policies(wl, wl->basic_rate_set);
 		if (ret < 0) {
 			wl1271_warning("Set rate policies failed %d", ret);
-			goto out_sleep;
-		}
-		ret = wl1271_cmd_join(wl);
-		if (ret < 0) {
-			wl1271_warning("Join with new basic rate "
-				       "set failed %d", ret);
 			goto out_sleep;
 		}
 	}
@@ -1380,8 +1365,6 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->psm_requested = false;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
-	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
-	wl->dtim_period = WL1271_DEFAULT_DTIM_PERIOD;
 	wl->basic_rate_set = WL1271_DEFAULT_BASIC_RATE_SET;
 	wl->band = IEEE80211_BAND_2GHZ;
 	wl->vif = NULL;

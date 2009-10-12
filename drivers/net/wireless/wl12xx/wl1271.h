@@ -378,10 +378,6 @@ struct wl1271 {
 	/* Our association ID */
 	u16 aid;
 
-	/* Beacon parameters */
-	u16 beacon_int;
-	u8 dtim_period;
-
 	/* currently configured rate set */
 	u32 basic_rate_set;
 
