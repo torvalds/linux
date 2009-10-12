@@ -422,6 +422,9 @@ struct wl1271 {
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
 	struct ieee80211_vif *vif;
+
+	/* Used for a workaround to send disconnect before rejoining */
+	bool joined;
 };
 
 int wl1271_plt_start(struct wl1271 *wl);

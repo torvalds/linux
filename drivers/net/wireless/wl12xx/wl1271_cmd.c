@@ -191,6 +191,19 @@ int wl1271_cmd_join(struct wl1271 *wl)
 			do_cal = false;
 	}
 
+	/* FIXME: This is a workaround, because with the current stack, we
+	 * cannot know when we have disassociated.  So, if we have already
+	 * joined, we disconnect before joining again. */
+	if (wl->joined) {
+		ret = wl1271_cmd_disconnect(wl);
+		if (ret < 0) {
+			wl1271_error("failed to disconnect before rejoining");
+			goto out;
+		}
+
+		wl->joined = false;
+	}
+
 	join = kzalloc(sizeof(*join), GFP_KERNEL);
 	if (!join) {
 		ret = -ENOMEM;
@@ -244,6 +257,8 @@ int wl1271_cmd_join(struct wl1271 *wl)
 		wl1271_error("failed to initiate cmd join");
 		goto out_free;
 	}
+
+	wl->joined = true;
 
 	/*
 	 * ugly hack: we should wait for JOIN_EVENT_COMPLETE_ID but to
