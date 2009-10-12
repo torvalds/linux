@@ -422,7 +422,7 @@ static void wl1271_filter_work(struct work_struct *work)
 		goto out;
 
 	/* apply configured filters */
-	ret = wl1271_cmd_join(wl);
+	ret = wl1271_acx_rx_config(wl, wl->rx_config, wl->rx_filter);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -868,6 +868,8 @@ static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
 		} else
 			wl1271_warning("Unknown mc address length.");
 	}
+
+	/* FIXME: We still need to set our filters properly */
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 	kfree(wl->filter_params);
