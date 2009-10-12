@@ -202,7 +202,7 @@ static int wl1271_init_general_parms(struct wl1271 *wl)
 	gen_parms->clk_valid_on_wakeup = 0;
 	gen_parms->dc2dcmode = 0;
 	gen_parms->single_dual_band = 0;
-	gen_parms->tx_bip_fem_autodetect = 1;
+	gen_parms->tx_bip_fem_autodetect = 0;
 	gen_parms->tx_bip_fem_manufacturer = 1;
 	gen_parms->settings = 1;
 
