@@ -60,9 +60,6 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	m->num_mon = num_mon;
 	ceph_decode_copy(&p, m->mon_inst, num_mon*sizeof(m->mon_inst[0]));
 
-	if (p != end)
-		goto bad;
-
 	dout("monmap_decode epoch %d, num_mon %d\n", m->epoch,
 	     m->num_mon);
 	for (i = 0; i < m->num_mon; i++)
