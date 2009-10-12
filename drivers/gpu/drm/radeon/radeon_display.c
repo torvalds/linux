@@ -137,9 +137,6 @@ static void radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 	if (size != 256) {
 		return;
 	}
-	if (crtc->fb == NULL) {
-		return;
-	}
 
 	/* userspace palettes are always correct as is */
 	for (i = 0; i < 256; i++) {
@@ -147,7 +144,6 @@ static void radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 		radeon_crtc->lut_g[i] = green[i] >> 6;
 		radeon_crtc->lut_b[i] = blue[i] >> 6;
 	}
-
 	radeon_crtc_load_lut(crtc);
 }
 
