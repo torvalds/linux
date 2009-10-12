@@ -2440,7 +2440,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw = kzalloc(sizeof(*hdw),GFP_KERNEL);
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_create: hdw=%p, type \"%s\"",
 		   hdw,hdw_desc->description);
-	pvr2_trace(PVR2_TRACE_INFO, "Hardware description attached: %s",
+	pvr2_trace(PVR2_TRACE_INFO, "Hardware description: %s",
 		hdw_desc->description);
 	if (!hdw) goto fail;
 
