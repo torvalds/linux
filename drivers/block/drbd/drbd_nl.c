@@ -894,11 +894,6 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		min_md_device_sectors = MD_RESERVED_SECT * (nbc->dc.meta_dev_idx + 1);
 	}
 
-	if (drbd_get_capacity(nbc->md_bdev) > max_possible_sectors)
-		dev_warn(DEV, "truncating very big lower level device "
-		     "to currently maximum possible %llu sectors\n",
-		     (unsigned long long) max_possible_sectors);
-
 	if (drbd_get_capacity(nbc->md_bdev) < min_md_device_sectors) {
 		retcode = ERR_MD_DISK_TO_SMALL;
 		dev_warn(DEV, "refusing attach: md-device too small, "
@@ -916,6 +911,15 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	}
 
 	nbc->known_size = drbd_get_capacity(nbc->backing_bdev);
+
+	if (nbc->known_size > max_possible_sectors) {
+		dev_warn(DEV, "==> truncating very big lower level device "
+			"to currently maximum possible %llu sectors <==\n",
+			(unsigned long long) max_possible_sectors);
+		if (nbc->dc.meta_dev_idx >= 0)
+			dev_warn(DEV, "==>> using internal or flexible "
+				      "meta data may help <<==\n");
+	}
 
 	drbd_suspend_io(mdev);
 	/* also wait for the last barrier ack. */
