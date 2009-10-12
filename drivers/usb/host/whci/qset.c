@@ -49,11 +49,13 @@ struct whc_qset *qset_alloc(struct whc *whc, gfp_t mem_flags)
  *        state
  * @urb:  an urb for a transfer to this endpoint
  */
-static void qset_fill_qh(struct whc_qset *qset, struct urb *urb)
+static void qset_fill_qh(struct whc *whc, struct whc_qset *qset, struct urb *urb)
 {
 	struct usb_device *usb_dev = urb->dev;
+	struct wusb_dev *wusb_dev = usb_dev->wusb_dev;
 	struct usb_wireless_ep_comp_descriptor *epcd;
 	bool is_out;
+	uint8_t phy_rate;
 
 	is_out = usb_pipeout(urb->pipe);
 
@@ -66,6 +68,22 @@ static void qset_fill_qh(struct whc_qset *qset, struct urb *urb)
 	} else {
 		qset->max_seq = 2;
 		qset->max_burst = 1;
+	}
+
+	/*
+	 * Initial PHY rate is 53.3 Mbit/s for control endpoints or
+	 * the maximum supported by the device for other endpoints
+	 * (unless limited by the user).
+	 */
+	if (usb_pipecontrol(urb->pipe))
+		phy_rate = UWB_PHY_RATE_53;
+	else {
+		uint16_t phy_rates;
+
+		phy_rates = le16_to_cpu(wusb_dev->wusb_cap_descr->wPHYRates);
+		phy_rate = fls(phy_rates) - 1;
+		if (phy_rate > whc->wusbhc.phy_rate)
+			phy_rate = whc->wusbhc.phy_rate;
 	}
 
 	qset->qh.info1 = cpu_to_le32(
@@ -87,7 +105,7 @@ static void qset_fill_qh(struct whc_qset *qset, struct urb *urb)
 	 * strength and can presumably guess the Tx power required
 	 * from that? */
 	qset->qh.info3 = cpu_to_le32(
-		QH_INFO3_TX_RATE_53_3
+		QH_INFO3_TX_RATE(phy_rate)
 		| QH_INFO3_TX_PWR(0) /* 0 == max power */
 		);
 
@@ -149,7 +167,7 @@ struct whc_qset *get_qset(struct whc *whc, struct urb *urb,
 
 		qset->ep = urb->ep;
 		urb->ep->hcpriv = qset;
-		qset_fill_qh(qset, urb);
+		qset_fill_qh(whc, qset, urb);
 	}
 	return qset;
 }
