@@ -32,7 +32,7 @@
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
-#include <plat/audio.h>
+
 #include <asm/dma.h>
 #include <mach/dma.h>
 

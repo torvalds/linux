@@ -32,7 +32,6 @@
 
 #include <plat/regs-s3c2412-iis.h>
 
-#include <plat/audio.h>
 #include <mach/dma.h>
 
 #include "s3c-i2s-v2.h"

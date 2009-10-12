@@ -29,7 +29,6 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 #include <mach/hardware.h>
-#include <plat/audio.h>
 #include <linux/io.h>
 #include <mach/spi-gpio.h>
 

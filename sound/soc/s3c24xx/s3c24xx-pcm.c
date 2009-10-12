@@ -29,7 +29,6 @@
 #include <asm/dma.h>
 #include <mach/hardware.h>
 #include <mach/dma.h>
-#include <plat/audio.h>
 
 #include "s3c24xx-pcm.h"
 

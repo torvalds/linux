@@ -31,7 +31,6 @@
 #include <plat/gpio-bank-d.h>
 #include <plat/gpio-bank-e.h>
 #include <plat/gpio-cfg.h>
-#include <plat/audio.h>
 
 #include <mach/map.h>
 #include <mach/dma.h>
