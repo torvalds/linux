@@ -19,6 +19,7 @@
 #include <mach/addr-map.h>
 #include <mach/cputype.h>
 #include <mach/regs-apbc.h>
+#include <mach/regs-apmu.h>
 #include <mach/irqs.h>
 #include <mach/gpio.h>
 #include <mach/dma.h>
@@ -72,6 +73,8 @@ static APBC_CLK(pwm2, PXA168_PWM2, 1, 13000000);
 static APBC_CLK(pwm3, PXA168_PWM3, 1, 13000000);
 static APBC_CLK(pwm4, PXA168_PWM4, 1, 13000000);
 
+static APMU_CLK(nand, NAND, 0x01db, 208000000);
+
 /* device and clock bindings */
 static struct clk_lookup pxa168_clkregs[] = {
 	INIT_CLKREG(&clk_uart1, "pxa2xx-uart.0", NULL),
@@ -82,6 +85,7 @@ static struct clk_lookup pxa168_clkregs[] = {
 	INIT_CLKREG(&clk_pwm2, "pxa168-pwm.1", NULL),
 	INIT_CLKREG(&clk_pwm3, "pxa168-pwm.2", NULL),
 	INIT_CLKREG(&clk_pwm4, "pxa168-pwm.3", NULL),
+	INIT_CLKREG(&clk_nand, "pxa3xx-nand", NULL),
 };
 
 static int __init pxa168_init(void)
@@ -127,3 +131,4 @@ PXA168_DEVICE(pwm1, "pxa168-pwm", 0, NONE, 0xd401a000, 0x10);
 PXA168_DEVICE(pwm2, "pxa168-pwm", 1, NONE, 0xd401a400, 0x10);
 PXA168_DEVICE(pwm3, "pxa168-pwm", 2, NONE, 0xd401a800, 0x10);
 PXA168_DEVICE(pwm4, "pxa168-pwm", 3, NONE, 0xd401ac00, 0x10);
+PXA168_DEVICE(nand, "pxa3xx-nand", -1, NAND, 0xd4283000, 0x80, 97, 99);
