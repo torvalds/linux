@@ -1079,7 +1079,7 @@ static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
 	/* common settings for ct/gs and els requests */
 	req->qtcb->bottom.support.service_class = FSF_CLASS_3;
 	req->qtcb->bottom.support.timeout = 2 * R_A_TOV;
-	zfcp_fsf_start_timer(req, 2 * R_A_TOV + 10);
+	zfcp_fsf_start_timer(req, (2 * R_A_TOV + 10) * HZ);
 
 	return 0;
 }
