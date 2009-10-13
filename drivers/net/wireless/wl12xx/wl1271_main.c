@@ -1160,7 +1160,7 @@ static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
 	 * configure_filter() instead of saving everything in the context.
 	 */
 
-	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
+	fp = kzalloc(sizeof(*fp), GFP_ATOMIC);
 	if (!fp) {
 		wl1271_error("Out of memory setting filters.");
 		return 0;
@@ -1180,6 +1180,7 @@ static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
 			fp->mc_list_length++;
 		} else
 			wl1271_warning("Unknown mc address length.");
+		mc_list = mc_list->next;
 	}
 
 	/* FIXME: We still need to set our filters properly */
