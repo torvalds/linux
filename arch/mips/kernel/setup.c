@@ -58,8 +58,8 @@ EXPORT_SYMBOL(mips_machtype);
 
 struct boot_mem_map boot_mem_map;
 
-static char command_line[CL_SIZE];
-       char arcs_cmdline[CL_SIZE]=CONFIG_CMDLINE;
+static char command_line[COMMAND_LINE_SIZE];
+       char arcs_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
 
 /*
  * mips_io_port_base is the begin of the address space to which x86 style
