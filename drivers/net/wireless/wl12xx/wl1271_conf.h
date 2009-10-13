@@ -746,6 +746,11 @@ enum {
 	CONF_REF_CLK_52_E
 };
 
+enum single_dual_band_enum {
+	CONF_SINGLE_BAND,
+	CONF_DUAL_BAND
+};
+
 struct conf_general_parms {
 	/*
 	 * RF Reference Clock type / speed
@@ -778,7 +783,7 @@ struct conf_general_parms {
 	/*
 	 * Flag defining whether used as single or dual-band.
 	 *
-	 * Range: Unknown
+	 * Range: CONF_SINGLE_BAND, CONF_DUAL_BAND
 	 */
 	u8 single_dual_band;
 

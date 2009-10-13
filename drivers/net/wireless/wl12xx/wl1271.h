@@ -113,6 +113,11 @@ enum {
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
 
 /*
+ * Enable/disable 802.11a support for WL1273
+ */
+#undef WL1271_80211A_ENABLED
+
+/*
  * FIXME: for the wl1271, a busy word count of 1 here will result in a more
  * optimal SPI interface. There is some SPI bug however, causing RXS time outs
  * with this mode occasionally on boot, so lets have three for now. A value of
@@ -441,5 +446,14 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 /* WL1271 needs a 200ms sleep after power on */
 #define WL1271_POWER_ON_SLEEP 200 /* in miliseconds */
+
+static inline bool wl1271_11a_enabled(void)
+{
+#ifdef WL1271_80211A_ENABLED
+	return true;
+#else
+	return false;
+#endif
+}
 
 #endif
