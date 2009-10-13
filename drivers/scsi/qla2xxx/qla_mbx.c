@@ -2782,8 +2782,10 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		    vp_idx, MSB(stat),
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]));
-		if (vp_idx == 0)
-			return;
+
+		vp = vha;
+		if (vp_idx == 0 && (MSB(stat) != 1))
+			goto reg_needed;
 
 		if (MSB(stat) == 1) {
 			DEBUG2(printk("scsi(%ld): Could not acquire ID for "
@@ -2806,8 +2808,11 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		 * response queue. Handle it in dpc context.
 		 */
 		set_bit(VP_IDX_ACQUIRED, &vp->vp_flags);
-		set_bit(VP_DPC_NEEDED, &vha->dpc_flags);
 
+reg_needed:
+		set_bit(REGISTER_FC4_NEEDED, &vp->dpc_flags);
+		set_bit(REGISTER_FDMI_NEEDED, &vp->dpc_flags);
+		set_bit(VP_DPC_NEEDED, &vha->dpc_flags);
 		qla2xxx_wake_dpc(vha);
 	}
 }

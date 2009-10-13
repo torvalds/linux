@@ -382,8 +382,6 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	vha->mgmt_svr_loop_id = 10 + vha->vp_idx;
 
 	vha->dpc_flags = 0L;
-	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
-	set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
 
 	/*
 	 * To fix the issue of processing a parent's RSCN for the vport before

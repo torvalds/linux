@@ -277,7 +277,6 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->marker_needed = 0;
 	ha->isp_abort_cnt = 0;
 	ha->beacon_blink_led = 0;
-	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
 
 	set_bit(0, ha->req_qid_map);
 	set_bit(0, ha->rsp_qid_map);
