@@ -34,8 +34,7 @@
 #include "wl1271_spi.h"
 #include "wl1271_ps.h"
 
-int wl1271_acx_wake_up_conditions(struct wl1271 *wl, u8 wake_up_event,
-				  u8 listen_interval)
+int wl1271_acx_wake_up_conditions(struct wl1271 *wl)
 {
 	struct acx_wake_up_condition *wake_up;
 	int ret;
@@ -48,8 +47,8 @@ int wl1271_acx_wake_up_conditions(struct wl1271 *wl, u8 wake_up_event,
 		goto out;
 	}
 
-	wake_up->wake_up_event = wake_up_event;
-	wake_up->listen_interval = listen_interval;
+	wake_up->wake_up_event = wl->conf.conn.wake_up_event;
+	wake_up->listen_interval = wl->conf.conn.listen_interval;
 
 	ret = wl1271_cmd_configure(wl, ACX_WAKE_UP_CONDITIONS,
 				   wake_up, sizeof(*wake_up));
@@ -393,10 +392,14 @@ out:
 
 int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter)
 {
-	struct acx_beacon_filter_option *beacon_filter;
-	int ret;
+	struct acx_beacon_filter_option *beacon_filter = NULL;
+	int ret = 0;
 
 	wl1271_debug(DEBUG_ACX, "acx beacon filter opt");
+
+	if (enable_filter &&
+	    wl->conf.conn.bcn_filt_mode == CONF_BCN_FILT_MODE_DISABLED)
+		goto out;
 
 	beacon_filter = kzalloc(sizeof(*beacon_filter), GFP_KERNEL);
 	if (!beacon_filter) {
@@ -405,6 +408,11 @@ int wl1271_acx_beacon_filter_opt(struct wl1271 *wl, bool enable_filter)
 	}
 
 	beacon_filter->enable = enable_filter;
+
+	/*
+	 * When set to zero, and the filter is enabled, beacons
+	 * without the unicast TIM bit set are dropped.
+	 */
 	beacon_filter->max_num_beacons = 0;
 
 	ret = wl1271_cmd_configure(wl, ACX_BEACON_FILTER_OPT,
@@ -422,8 +430,9 @@ out:
 int wl1271_acx_beacon_filter_table(struct wl1271 *wl)
 {
 	struct acx_beacon_filter_ie_table *ie_table;
-	int idx = 0;
+	int i, idx = 0;
 	int ret;
+	bool vendor_spec = false;
 
 	wl1271_debug(DEBUG_ACX, "acx beacon filter table");
 
@@ -434,9 +443,31 @@ int wl1271_acx_beacon_filter_table(struct wl1271 *wl)
 	}
 
 	/* configure default beacon pass-through rules */
-	ie_table->num_ie = 1;
-	ie_table->table[idx++] = BEACON_FILTER_IE_ID_CHANNEL_SWITCH_ANN;
-	ie_table->table[idx++] = BEACON_RULE_PASS_ON_APPEARANCE;
+	ie_table->num_ie = 0;
+	for (i = 0; i < wl->conf.conn.bcn_filt_ie_count; i++) {
+		struct conf_bcn_filt_rule *r = &(wl->conf.conn.bcn_filt_ie[i]);
+		ie_table->table[idx++] = r->ie;
+		ie_table->table[idx++] = r->rule;
+
+		if (r->ie == WLAN_EID_VENDOR_SPECIFIC) {
+			/* only one vendor specific ie allowed */
+			if (vendor_spec)
+				continue;
+
+			/* for vendor specific rules configure the
+			   additional fields */
+			memcpy(&(ie_table->table[idx]), r->oui,
+			       CONF_BCN_IE_OUI_LEN);
+			idx += CONF_BCN_IE_OUI_LEN;
+			ie_table->table[idx++] = r->type;
+			memcpy(&(ie_table->table[idx]), r->version,
+			       CONF_BCN_IE_VER_LEN);
+			idx += CONF_BCN_IE_VER_LEN;
+			vendor_spec = true;
+		}
+
+		ie_table->num_ie++;
+	}
 
 	ret = wl1271_cmd_configure(wl, ACX_BEACON_FILTER_TABLE,
 				   ie_table, sizeof(*ie_table));
@@ -463,8 +494,8 @@ int wl1271_acx_conn_monit_params(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->synch_fail_thold = SYNCH_FAIL_DEFAULT_THRESHOLD;
-	acx->bss_lose_timeout = NO_BEACON_DEFAULT_TIMEOUT;
+	acx->synch_fail_thold = wl->conf.conn.synch_fail_thold;
+	acx->bss_lose_timeout = wl->conf.conn.bss_lose_timeout;
 
 	ret = wl1271_cmd_configure(wl, ACX_CONN_MONIT_PARAMS,
 				   acx, sizeof(*acx));
@@ -585,10 +616,10 @@ int wl1271_acx_bcn_dtim_options(struct wl1271 *wl)
 		goto out;
 	}
 
-	bb->beacon_rx_timeout = BCN_RX_TIMEOUT_DEF_VALUE;
-	bb->broadcast_timeout = BROADCAST_RX_TIMEOUT_DEF_VALUE;
-	bb->rx_broadcast_in_ps = RX_BROADCAST_IN_PS_DEF_VALUE;
-	bb->ps_poll_threshold = CONSECUTIVE_PS_POLL_FAILURE_DEF;
+	bb->beacon_rx_timeout = wl->conf.conn.beacon_rx_timeout;
+	bb->broadcast_timeout = wl->conf.conn.broadcast_timeout;
+	bb->rx_broadcast_in_ps = wl->conf.conn.rx_broadcast_in_ps;
+	bb->ps_poll_threshold = wl->conf.conn.ps_poll_threshold;
 
 	ret = wl1271_cmd_configure(wl, ACX_BCN_DTIM_OPTIONS, bb, sizeof(*bb));
 	if (ret < 0) {

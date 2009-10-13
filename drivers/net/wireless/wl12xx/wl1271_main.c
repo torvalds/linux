@@ -176,6 +176,54 @@ static void wl1271_conf_init(struct wl1271 *wl)
 			.frag_threshold          = IEEE80211_MAX_FRAG_THRESHOLD,
 			.tx_compl_timeout           = 5,
 			.tx_compl_threshold         = 5
+		},
+		.conn = {
+			.wake_up_event           = CONF_WAKE_UP_EVENT_DTIM,
+			.listen_interval            = 0,
+			.bcn_filt_mode             = CONF_BCN_FILT_MODE_ENABLED,
+			.bcn_filt_ie_count          = 1,
+			.bcn_filt_ie = {
+				[0] = {
+					.ie         = WLAN_EID_CHANNEL_SWITCH,
+					.rule       =
+					CONF_BCN_RULE_PASS_ON_APPEARANCE,
+				}
+			},
+			.synch_fail_thold           = 5,
+			.bss_lose_timeout           = 100,
+			.beacon_rx_timeout          = 10000,
+			.broadcast_timeout          = 20000,
+			.rx_broadcast_in_ps         = 1,
+			.ps_poll_threshold          = 4,
+			.sig_trigger_count          = 2,
+			.sig_trigger = {
+				[0] = {
+					.threshold  = -75,
+					.pacing     = 500,
+					.metric  = CONF_TRIG_METRIC_RSSI_BEACON,
+					.type       = CONF_TRIG_EVENT_TYPE_EDGE,
+					.direction  = CONF_TRIG_EVENT_DIR_LOW,
+					.hysteresis = 2,
+					.index      = 0,
+					.enable     = 1
+				},
+				[1] = {
+					.threshold  = -75,
+					.pacing     = 500,
+					.metric  = CONF_TRIG_METRIC_RSSI_BEACON,
+					.type       = CONF_TRIG_EVENT_TYPE_EDGE,
+					.direction  = CONF_TRIG_EVENT_DIR_HIGH,
+					.hysteresis = 2,
+					.index      = 1,
+					.enable     = 1
+				}
+			},
+			.sig_weights = {
+				.rssi_bcn_avg_weight = 10,
+				.rssi_pkt_avg_weight = 10,
+				.snr_bcn_avg_weight  = 10,
+				.snr_pkt_avg_weight  = 10
+			}
 		}
 	};
 
@@ -765,7 +813,6 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	memset(wl->bssid, 0, ETH_ALEN);
 	memset(wl->ssid, 0, IW_ESSID_MAX_SIZE + 1);
 	wl->ssid_len = 0;
-	wl->listen_int = 1;
 	wl->bss_type = MAX_BSS_TYPE;
 	wl->band = IEEE80211_BAND_2GHZ;
 
@@ -1504,7 +1551,6 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->channel = WL1271_DEFAULT_CHANNEL;
 	wl->scanning = false;
 	wl->default_key = 0;
-	wl->listen_int = 1;
 	wl->rx_counter = 0;
 	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
 	wl->rx_filter = WL1271_DEFAULT_RX_FILTER;

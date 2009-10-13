@@ -377,11 +377,6 @@ struct acx_beacon_filter_option {
 			   (BEACON_FILTER_TABLE_MAX_VENDOR_SPECIFIC_IE_NUM * \
 			    BEACON_FILTER_TABLE_EXTRA_VENDOR_SPECIFIC_IE_SIZE))
 
-#define BEACON_RULE_PASS_ON_CHANGE                     BIT(0)
-#define BEACON_RULE_PASS_ON_APPEARANCE                 BIT(1)
-
-#define BEACON_FILTER_IE_ID_CHANNEL_SWITCH_ANN         (37)
-
 struct acx_beacon_filter_ie_table {
 	struct acx_header header;
 
@@ -389,9 +384,6 @@ struct acx_beacon_filter_ie_table {
 	u8 table[BEACON_FILTER_TABLE_MAX_SIZE];
 	u8 pad[3];
 } __attribute__ ((packed));
-
-#define SYNCH_FAIL_DEFAULT_THRESHOLD    5     /* number of beacons */
-#define NO_BEACON_DEFAULT_TIMEOUT       (100) /* TU */
 
 struct acx_conn_monit_params {
        struct acx_header header;
@@ -497,11 +489,6 @@ struct acx_energy_detection {
 	u8 pad;
 } __attribute__ ((packed));
 
-#define BCN_RX_TIMEOUT_DEF_VALUE        10000
-#define BROADCAST_RX_TIMEOUT_DEF_VALUE  20000
-#define RX_BROADCAST_IN_PS_DEF_VALUE    1
-#define CONSECUTIVE_PS_POLL_FAILURE_DEF 4
-
 struct acx_beacon_broadcast {
 	struct acx_header header;
 
@@ -574,14 +561,6 @@ struct acx_current_tx_power {
 	u8  current_tx_power;
 	u8  padding[3];
 } __attribute__ ((packed));
-
-enum acx_wake_up_event {
-	WAKE_UP_EVENT_BEACON_BITMAP	= 0x01, /* Wake on every Beacon*/
-	WAKE_UP_EVENT_DTIM_BITMAP	= 0x02,	/* Wake on every DTIM*/
-	WAKE_UP_EVENT_N_DTIM_BITMAP	= 0x04, /* Wake on every Nth DTIM */
-	WAKE_UP_EVENT_N_BEACONS_BITMAP	= 0x08, /* Wake on every Nth Beacon */
-	WAKE_UP_EVENT_BITS_MASK		= 0x0F
-};
 
 struct acx_wake_up_condition {
 	struct acx_header header;
@@ -1038,8 +1017,7 @@ enum {
 };
 
 
-int wl1271_acx_wake_up_conditions(struct wl1271 *wl, u8 wake_up_event,
-				  u8 listen_interval);
+int wl1271_acx_wake_up_conditions(struct wl1271 *wl);
 int wl1271_acx_sleep_auth(struct wl1271 *wl, u8 sleep_auth);
 int wl1271_acx_fw_version(struct wl1271 *wl, char *buf, size_t len);
 int wl1271_acx_tx_power(struct wl1271 *wl, int power);

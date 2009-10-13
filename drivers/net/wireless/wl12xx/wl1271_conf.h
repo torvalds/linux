@@ -441,10 +441,261 @@ struct conf_tx_settings {
 
 };
 
+enum {
+	CONF_WAKE_UP_EVENT_BEACON    = 0x01, /* Wake on every Beacon*/
+	CONF_WAKE_UP_EVENT_DTIM      = 0x02, /* Wake on every DTIM*/
+	CONF_WAKE_UP_EVENT_N_DTIM    = 0x04, /* Wake every Nth DTIM */
+	CONF_WAKE_UP_EVENT_N_BEACONS = 0x08, /* Wake every Nth beacon */
+	CONF_WAKE_UP_EVENT_BITS_MASK = 0x0F
+};
+
+#define CONF_MAX_BCN_FILT_IE_COUNT 32
+
+#define CONF_BCN_RULE_PASS_ON_CHANGE         BIT(0)
+#define CONF_BCN_RULE_PASS_ON_APPEARANCE     BIT(1)
+
+#define CONF_BCN_IE_OUI_LEN    3
+#define CONF_BCN_IE_VER_LEN    2
+
+struct conf_bcn_filt_rule {
+	/*
+	 * IE number to which to associate a rule.
+	 *
+	 * Range: u8
+	 */
+	u8 ie;
+
+	/*
+	 * Rule to associate with the specific ie.
+	 *
+	 * Range: CONF_BCN_RULE_PASS_ON_*
+	 */
+	u8 rule;
+
+	/*
+	 * OUI for the vendor specifie IE (221)
+	 */
+	u8 oui[CONF_BCN_IE_OUI_LEN];
+
+	/*
+	 * Type for the vendor specifie IE (221)
+	 */
+	u8 type;
+
+	/*
+	 * Version for the vendor specifie IE (221)
+	 */
+	u8 version[CONF_BCN_IE_VER_LEN];
+};
+
+#define CONF_MAX_RSSI_SNR_TRIGGERS 8
+
+enum {
+	CONF_TRIG_METRIC_RSSI_BEACON = 0,
+	CONF_TRIG_METRIC_RSSI_DATA,
+	CONF_TRIG_METRIC_SNR_BEACON,
+	CONF_TRIG_METRIC_SNR_DATA
+};
+
+enum {
+	CONF_TRIG_EVENT_TYPE_LEVEL = 0,
+	CONF_TRIG_EVENT_TYPE_EDGE
+};
+
+enum {
+	CONF_TRIG_EVENT_DIR_LOW = 0,
+	CONF_TRIG_EVENT_DIR_HIGH,
+	CONF_TRIG_EVENT_DIR_BIDIR
+};
+
+
+struct conf_sig_trigger {
+	/*
+	 * The RSSI / SNR threshold value.
+	 *
+	 * FIXME: what is the range?
+	 */
+	s16 threshold;
+
+	/*
+	 * Minimum delay between two trigger events for this trigger in ms.
+	 *
+	 * Range: 0 - 60000
+	 */
+	u16 pacing;
+
+	/*
+	 * The measurement data source for this trigger.
+	 *
+	 * Range: CONF_TRIG_METRIC_*
+	 */
+	u8 metric;
+
+	/*
+	 * The trigger type of this trigger.
+	 *
+	 * Range: CONF_TRIG_EVENT_TYPE_*
+	 */
+	u8 type;
+
+	/*
+	 * The direction of the trigger.
+	 *
+	 * Range: CONF_TRIG_EVENT_DIR_*
+	 */
+	u8 direction;
+
+	/*
+	 * Hysteresis range of the trigger around the threshold (in dB)
+	 *
+	 * Range: u8
+	 */
+	u8 hysteresis;
+
+	/*
+	 * Index of the trigger rule.
+	 *
+	 * Range: 0 - CONF_MAX_RSSI_SNR_TRIGGERS-1
+	 */
+	u8 index;
+
+	/*
+	 * Enable / disable this rule (to use for clearing rules.)
+	 *
+	 * Range: 1 - Enabled, 2 - Not enabled
+	 */
+	u8 enable;
+};
+
+struct conf_sig_weights {
+
+	/*
+	 * RSSI from beacons average weight.
+	 *
+	 * Range: u8
+	 */
+	u8 rssi_bcn_avg_weight;
+
+	/*
+	 * RSSI from data average weight.
+	 *
+	 * Range: u8
+	 */
+	u8 rssi_pkt_avg_weight;
+
+	/*
+	 * SNR from beacons average weight.
+	 *
+	 * Range: u8
+	 */
+	u8 snr_bcn_avg_weight;
+
+	/*
+	 * SNR from data average weight.
+	 *
+	 * Range: u8
+	 */
+	u8 snr_pkt_avg_weight;
+};
+
+enum conf_bcn_filt_mode {
+	CONF_BCN_FILT_MODE_DISABLED = 0,
+	CONF_BCN_FILT_MODE_ENABLED = 1
+};
+
+struct conf_conn_settings {
+	/*
+	 * Firmware wakeup conditions configuration. The host may set only
+	 * one bit.
+	 *
+	 * Range: CONF_WAKE_UP_EVENT_*
+	 */
+	u8 wake_up_event;
+
+	/*
+	 * Listen interval for beacons or Dtims.
+	 *
+	 * Range: 0 for beacon and Dtim wakeup
+	 *        1-10 for x Dtims
+	 *        1-255 for x beacons
+	 */
+	u8 listen_interval;
+
+	/*
+	 * Enable or disable the beacon filtering.
+	 *
+	 * Range: CONF_BCN_FILT_MODE_*
+	 */
+	enum conf_bcn_filt_mode bcn_filt_mode;
+
+	/*
+	 * Configure Beacon filter pass-thru rules.
+	 */
+	u8 bcn_filt_ie_count;
+	struct conf_bcn_filt_rule bcn_filt_ie[CONF_MAX_BCN_FILT_IE_COUNT];
+
+	/*
+	 * The number of consequtive beacons to lose, before the firmware
+	 * becomes out of synch.
+	 *
+	 * Range: u32
+	 */
+	u32 synch_fail_thold;
+
+	/*
+	 * After out-of-synch, the number of TU's to wait without a further
+	 * received beacon (or probe response) before issuing the BSS_EVENT_LOSE
+	 * event.
+	 *
+	 * Range: u32
+	 */
+	u32 bss_lose_timeout;
+
+	/*
+	 * Beacon receive timeout.
+	 *
+	 * Range: u32
+	 */
+	u32 beacon_rx_timeout;
+
+	/*
+	 * Broadcast receive timeout.
+	 *
+	 * Range: u32
+	 */
+	u32 broadcast_timeout;
+
+	/*
+	 * Enable/disable reception of broadcast packets in power save mode
+	 *
+	 * Range: 1 - enable, 0 - disable
+	 */
+	u8 rx_broadcast_in_ps;
+
+	/*
+	 * Consequtive PS Poll failures before sending event to driver
+	 *
+	 * Range: u8
+	 */
+	u8 ps_poll_threshold;
+
+	/*
+	 * Configuration of signal (rssi/snr) triggers.
+	 */
+	u8 sig_trigger_count;
+	struct conf_sig_trigger sig_trigger[CONF_MAX_RSSI_SNR_TRIGGERS];
+
+	/*
+	 * Configuration of signal average weights.
+	 */
+	struct conf_sig_weights sig_weights;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
 	struct conf_tx_settings tx;
+	struct conf_conn_settings conn;
 };
 
 #endif

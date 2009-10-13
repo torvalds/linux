@@ -323,7 +323,6 @@ struct wl1271 {
 	u8 bss_type;
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
-	u8 listen_int;
 	int channel;
 
 	struct wl1271_acx_mem_map *target_mem_map;
