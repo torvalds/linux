@@ -310,6 +310,7 @@ static struct clk mcasp_clk = {
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC1_McASP0,
 	.gpsc		= 1,
+	.flags		= DA850_CLK_ASYNC3,
 };
 
 static struct clk lcdc_clk = {
