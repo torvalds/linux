@@ -652,6 +652,16 @@ static const struct dmi_system_id toshiba_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE M300"),
 		},
+
+	},
+	{
+		.ident = "Toshiba Portege M300",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Portable PC"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Version 1.0"),
+		},
+
 	},
 	{ }
 };
