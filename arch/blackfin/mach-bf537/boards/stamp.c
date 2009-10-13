@@ -26,6 +26,8 @@
 #include <linux/i2c.h>
 #include <linux/usb/sl811.h>
 #include <linux/spi/mmc_spi.h>
+#include <linux/leds.h>
+#include <linux/input.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
@@ -77,7 +79,6 @@ static struct platform_device bfin_isp1760_device = {
 #endif
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
-#include <linux/input.h>
 #include <linux/gpio_keys.h>
 
 static struct gpio_keys_button bfin_gpio_keys_table[] = {
@@ -516,7 +517,6 @@ static struct bfin5xx_spi_chip ad1938_spi_chip_info = {
 #endif
 
 #if defined(CONFIG_INPUT_AD714X_SPI) || defined(CONFIG_INPUT_AD714X_SPI_MODULE)
-#include <linux/input.h>
 #include <linux/input/ad714x.h>
 static struct bfin5xx_spi_chip ad7147_spi_chip_info = {
 	.enable_dma = 0,
@@ -582,7 +582,6 @@ static struct ad714x_platform_data ad7147_spi_platform_data = {
 #endif
 
 #if defined(CONFIG_INPUT_AD714X_I2C) || defined(CONFIG_INPUT_AD714X_I2C_MODULE)
-#include <linux/input.h>
 #include <linux/input/ad714x.h>
 static struct ad714x_button_plat ad7142_i2c_button_plat[] = {
 	{
@@ -697,7 +696,6 @@ static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 #endif
 
 #if defined(CONFIG_INPUT_ADXL34X) || defined(CONFIG_INPUT_ADXL34X_MODULE)
-#include <linux/input.h>
 #include <linux/input/adxl34x.h>
 static const struct adxl34x_platform_data adxl34x_info = {
 	.x_axis_offset = 0,
@@ -1193,7 +1191,6 @@ static struct platform_device i2c_bfin_twi_device = {
 #endif
 
 #if defined(CONFIG_KEYBOARD_ADP5588) || defined(CONFIG_KEYBOARD_ADP5588_MODULE)
-#include <linux/input.h>
 #include <linux/i2c/adp5588.h>
 static const unsigned short adp5588_keymap[ADP5588_KEYMAPSIZE] = {
 	[0]	 = KEY_GRAVE,
@@ -1308,8 +1305,6 @@ static struct adp5520_backlight_platform_data adp5520_backlight_data = {
 	 *  ADP5520/5501 LEDs Data
 	 */
 
-#include <linux/leds.h>
-
 static struct led_info adp5520_leds[] = {
 	{
 		.name = "adp5520-led1",
@@ -1352,7 +1347,6 @@ static struct adp5520_gpio_platform_data adp5520_gpio_data = {
 	 *  ADP5520 Keypad Data
 	 */
 
-#include <linux/input.h>
 static const unsigned short adp5520_keymap[ADP5520_KEYMAPSIZE] = {
 	[ADP5520_KEY(0, 0)]	= KEY_GRAVE,
 	[ADP5520_KEY(0, 1)]	= KEY_1,
@@ -1398,6 +1392,58 @@ static struct adp5520_platform_data adp5520_pdev_data = {
 static struct adp5588_gpio_platform_data adp5588_gpio_data = {
 	.gpio_start = 50,
 	.pullup_dis_mask = 0,
+};
+#endif
+
+#if defined(CONFIG_BACKLIGHT_ADP8870) || defined(CONFIG_BACKLIGHT_ADP8870_MODULE)
+#include <linux/i2c/adp8870.h>
+static struct led_info adp8870_leds[] = {
+	{
+		.name = "adp8870-led7",
+		.default_trigger = "none",
+		.flags = ADP8870_LED_D7 | ADP8870_LED_OFFT_600ms,
+	},
+};
+
+
+static struct adp8870_backlight_platform_data adp8870_pdata = {
+	.bl_led_assign = ADP8870_BL_D1 | ADP8870_BL_D2 | ADP8870_BL_D3 |
+			 ADP8870_BL_D4 | ADP8870_BL_D5 | ADP8870_BL_D6,	/* 1 = Backlight 0 = Individual LED */
+	.pwm_assign = 0,				/* 1 = Enables PWM mode */
+
+	.bl_fade_in = ADP8870_FADE_T_1200ms,		/* Backlight Fade-In Timer */
+	.bl_fade_out = ADP8870_FADE_T_1200ms,		/* Backlight Fade-Out Timer */
+	.bl_fade_law = ADP8870_FADE_LAW_CUBIC1,		/* fade-on/fade-off transfer characteristic */
+
+	.en_ambl_sens = 1,				/* 1 = enable ambient light sensor */
+	.abml_filt = ADP8870_BL_AMBL_FILT_320ms,	/* Light sensor filter time */
+
+	.l1_daylight_max = ADP8870_BL_CUR_mA(20),	/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l1_daylight_dim = ADP8870_BL_CUR_mA(0),	/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l2_bright_max = ADP8870_BL_CUR_mA(14),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l2_bright_dim = ADP8870_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l3_office_max = ADP8870_BL_CUR_mA(6),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l3_office_dim = ADP8870_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l4_indoor_max = ADP8870_BL_CUR_mA(3),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l4_indor_dim = ADP8870_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l5_dark_max = ADP8870_BL_CUR_mA(2),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l5_dark_dim = ADP8870_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+
+	.l2_trip = ADP8870_L2_COMP_CURR_uA(710),	/* use L2_COMP_CURR_uA(I) 0 <= I <= 1106 uA */
+	.l2_hyst = ADP8870_L2_COMP_CURR_uA(73),		/* use L2_COMP_CURR_uA(I) 0 <= I <= 1106 uA */
+	.l3_trip = ADP8870_L3_COMP_CURR_uA(389),	/* use L3_COMP_CURR_uA(I) 0 <= I <= 551 uA */
+	.l3_hyst = ADP8870_L3_COMP_CURR_uA(54),		/* use L3_COMP_CURR_uA(I) 0 <= I <= 551 uA */
+	.l4_trip = ADP8870_L4_COMP_CURR_uA(167),	/* use L4_COMP_CURR_uA(I) 0 <= I <= 275 uA */
+	.l4_hyst = ADP8870_L4_COMP_CURR_uA(16),		/* use L4_COMP_CURR_uA(I) 0 <= I <= 275 uA */
+	.l5_trip = ADP8870_L5_COMP_CURR_uA(43),		/* use L5_COMP_CURR_uA(I) 0 <= I <= 138 uA */
+	.l5_hyst = ADP8870_L5_COMP_CURR_uA(11),		/* use L6_COMP_CURR_uA(I) 0 <= I <= 138 uA */
+
+	.leds = adp8870_leds,
+	.num_leds = ARRAY_SIZE(adp8870_leds),
+	.led_fade_law = ADP8870_FADE_LAW_SQUARE,	/* fade-on/fade-off transfer characteristic */
+	.led_fade_in = ADP8870_FADE_T_600ms,
+	.led_fade_out = ADP8870_FADE_T_600ms,
+	.led_on_time = ADP8870_LED_ONT_200ms,
 };
 #endif
 
@@ -1462,6 +1508,12 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
 	{
 		I2C_BOARD_INFO("bf537-lq035-ad5280", 0x2C),
+	},
+#endif
+#if defined(CONFIG_BACKLIGHT_ADP8870) || defined(CONFIG_BACKLIGHT_ADP8870_MODULE)
+	{
+		I2C_BOARD_INFO("adp8870", 0x2B),
+		.platform_data = (void *)&adp8870_pdata,
 	},
 #endif
 };
