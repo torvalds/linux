@@ -56,6 +56,16 @@ config IRQ_PER_CPU
 	bool
 	default y
 
+config NR_IRQS
+	int "Number of virtual interrupt numbers"
+	range 32 512
+	default "512"
+	help
+	  This defines the number of virtual interrupt numbers the kernel
+	  can manage. Virtual interrupt numbers are what you see in
+	  /proc/interrupts. If you configure your system to have too few,
+	  drivers will fail to load or worse - handle with care.
+
 config STACKTRACE_SUPPORT
 	bool
 	default y

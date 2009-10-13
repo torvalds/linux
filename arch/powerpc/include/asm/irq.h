@@ -34,8 +34,8 @@ extern atomic_t ppc_n_lost_interrupts;
  */
 #define NO_IRQ_IGNORE		((unsigned int)-1)
 
-/* Total number of virq in the platform (make it a CONFIG_* option ? */
-#define NR_IRQS		512
+/* Total number of virq in the platform */
+#define NR_IRQS		CONFIG_NR_IRQS
 
 /* Number of irqs reserved for the legacy controller */
 #define NUM_ISA_INTERRUPTS	16
