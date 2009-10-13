@@ -908,6 +908,16 @@ static struct hda_verb d965_core_init[] = {
 	{}
 };
 
+static struct hda_verb dell_3st_core_init[] = {
+	/* don't set delta bit */
+	{0x24, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0x7f},
+	/* unmute node 0x1b */
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	/* select node 0x03 as DAC */
+	{0x0b, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{}
+};
+
 static struct hda_verb stac927x_core_init[] = {
 	/* set master volume and direct control */	
 	{ 0x24, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
@@ -5625,7 +5635,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
 
-		spec->init = d965_core_init;
+		spec->init = dell_3st_core_init;
 		spec->dmux_nids = stac927x_dmux_nids;
 		spec->num_dmuxes = ARRAY_SIZE(stac927x_dmux_nids);
 		break;
