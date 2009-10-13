@@ -1092,3 +1092,41 @@ out:
 	kfree(acx);
 	return ret;
 }
+
+int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
+			     u8 version)
+{
+	struct wl1271_acx_arp_filter *acx;
+	int ret;
+
+	wl1271_debug(DEBUG_ACX, "acx arp ip filter, enable: %d", enable);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->version = version;
+	acx->enable = enable;
+
+	if (enable == true) {
+		if (version == ACX_IPV4_VERSION)
+			memcpy(acx->address, address, ACX_IPV4_ADDR_SIZE);
+		else if (version == ACX_IPV6_VERSION)
+			memcpy(acx->address, address, sizeof(acx->address));
+		else
+			wl1271_error("Invalid IP version");
+	}
+
+	ret = wl1271_cmd_configure(wl, ACX_ARP_IP_FILTER,
+				   acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("failed to set arp ip filter: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}

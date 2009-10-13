@@ -32,6 +32,7 @@
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/spi/wl12xx.h>
+#include <linux/inetdevice.h>
 
 #include "wl1271.h"
 #include "wl12xx_80211.h"
@@ -324,6 +325,8 @@ static struct conf_drv_settings default_conf = {
 		}
 	}
 };
+
+static LIST_HEAD(wl_list);
 
 static void wl1271_conf_init(struct wl1271 *wl)
 {
@@ -843,6 +846,93 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 }
 
+static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
+			     void *arg)
+{
+	struct net_device *dev;
+	struct wireless_dev *wdev;
+	struct wiphy *wiphy;
+	struct ieee80211_hw *hw;
+	struct wl1271 *wl;
+	struct wl1271 *wl_temp;
+	struct in_device *idev;
+	struct in_ifaddr *ifa = arg;
+	int ret = 0;
+
+	/* FIXME: this ugly function should probably be implemented in the
+	 * mac80211, and here should only be a simple callback handling actual
+	 * setting of the filters. Now we need to dig up references to
+	 * various structures to gain access to what we need.
+	 * Also, because of this, there is no "initial" setting of the filter
+	 * in "op_start", because we don't want to dig up struct net_device
+	 * there - the filter will be set upon first change of the interface
+	 * IP address. */
+
+	dev = ifa->ifa_dev->dev;
+
+	wdev = dev->ieee80211_ptr;
+	if (wdev == NULL)
+		return -ENODEV;
+
+	wiphy = wdev->wiphy;
+	if (wiphy == NULL)
+		return -ENODEV;
+
+	hw = wiphy_priv(wiphy);
+	if (hw == NULL)
+		return -ENODEV;
+
+	/* Check that the interface is one supported by this driver. */
+	wl_temp = hw->priv;
+	list_for_each_entry(wl, &wl_list, list) {
+		if (wl == wl_temp)
+			break;
+	}
+	if (wl == NULL)
+		return -ENODEV;
+
+	/* Get the interface IP address for the device. "ifa" will become
+	   NULL if:
+	     - there is no IPV4 protocol address configured
+	     - there are multiple (virtual) IPV4 addresses configured
+	   When "ifa" is NULL, filtering will be disabled.
+	*/
+	ifa = NULL;
+	idev = dev->ip_ptr;
+	if (idev)
+		ifa = idev->ifa_list;
+
+	if (ifa && ifa->ifa_next)
+		ifa = NULL;
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->state == WL1271_STATE_OFF)
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl, false);
+	if (ret < 0)
+		goto out;
+	if (ifa)
+		ret = wl1271_acx_arp_ip_filter(wl, true,
+					       (u8 *)&ifa->ifa_address,
+					       ACX_IPV4_VERSION);
+	else
+		ret = wl1271_acx_arp_ip_filter(wl, false, NULL,
+					       ACX_IPV4_VERSION);
+	wl1271_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+
+	return ret;
+}
+
+static struct notifier_block wl1271_dev_notifier = {
+	.notifier_call = wl1271_dev_notify,
+};
+
+
 static int wl1271_op_start(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
@@ -886,6 +976,11 @@ out_power_off:
 out:
 	mutex_unlock(&wl->mutex);
 
+	if (!ret) {
+		list_add(&wl->list, &wl_list);
+		register_inetaddr_notifier(&wl1271_dev_notifier);
+	}
+
 	return ret;
 }
 
@@ -905,6 +1000,9 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	kfree(wl->filter_params);
 	wl->filter_params = NULL;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	unregister_inetaddr_notifier(&wl1271_dev_notifier);
+	list_del(&wl->list);
 
 	mutex_lock(&wl->mutex);
 
@@ -1753,6 +1851,8 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 
 	wl = hw->priv;
 	memset(wl, 0, sizeof(*wl));
+
+	INIT_LIST_HEAD(&wl->list);
 
 	wl->hw = hw;
 	dev_set_drvdata(&spi->dev, wl);
