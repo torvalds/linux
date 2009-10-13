@@ -571,7 +571,7 @@ EXPORT_SYMBOL(au1xxx_dbdma_ring_alloc);
  * This updates the source pointer and byte count.  Normally used
  * for memory to fifo transfers.
  */
-u32 _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
+u32 au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
 {
 	chan_tab_t		*ctp;
 	au1x_ddma_desc_t	*dp;
@@ -624,14 +624,13 @@ u32 _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
 	/* Return something non-zero. */
 	return nbytes;
 }
-EXPORT_SYMBOL(_au1xxx_dbdma_put_source);
+EXPORT_SYMBOL(au1xxx_dbdma_put_source);
 
 /* Put a destination buffer into the DMA ring.
  * This updates the destination pointer and byte count.  Normally used
  * to place an empty buffer into the ring for fifo to memory transfers.
  */
-u32
-_au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
+u32 au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
 {
 	chan_tab_t		*ctp;
 	au1x_ddma_desc_t	*dp;
@@ -687,7 +686,7 @@ _au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
 	/* Return something non-zero. */
 	return nbytes;
 }
-EXPORT_SYMBOL(_au1xxx_dbdma_put_dest);
+EXPORT_SYMBOL(au1xxx_dbdma_put_dest);
 
 /*
  * Get a destination buffer into the DMA ring.

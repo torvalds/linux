@@ -94,7 +94,7 @@ static const struct snd_pcm_hardware au1xpsc_pcm_hardware = {
 
 static void au1x_pcm_queue_tx(struct au1xpsc_audio_dmadata *cd)
 {
-	au1xxx_dbdma_put_source_flags(cd->ddma_chan,
+	au1xxx_dbdma_put_source(cd->ddma_chan,
 				(void *)phys_to_virt(cd->dma_area),
 				cd->period_bytes, DDMA_FLAGS_IE);
 
@@ -109,9 +109,9 @@ static void au1x_pcm_queue_tx(struct au1xpsc_audio_dmadata *cd)
 
 static void au1x_pcm_queue_rx(struct au1xpsc_audio_dmadata *cd)
 {
-	au1xxx_dbdma_put_dest_flags(cd->ddma_chan,
-				(void *)phys_to_virt(cd->dma_area),
-				cd->period_bytes, DDMA_FLAGS_IE);
+	au1xxx_dbdma_put_dest(cd->ddma_chan,
+			      (void *)phys_to_virt(cd->dma_area),
+			      cd->period_bytes, DDMA_FLAGS_IE);
 
 	/* update next-to-queue period */
 	++cd->q_period;

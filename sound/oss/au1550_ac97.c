@@ -614,7 +614,8 @@ start_adc(struct au1550_state *s)
 	/* Put two buffers on the ring to get things started.
 	*/
 	for (i=0; i<2; i++) {
-		au1xxx_dbdma_put_dest(db->dmanr, db->nextIn, db->dma_fragsize);
+		au1xxx_dbdma_put_dest(db->dmanr, db->nextIn,
+				db->dma_fragsize, DDMA_FLAGS_IE);
 
 		db->nextIn += db->dma_fragsize;
 		if (db->nextIn >= db->rawbuf + db->dmasize)
@@ -733,7 +734,7 @@ static void dac_dma_interrupt(int irq, void *dev_id)
 
 	if (db->count >= db->fragsize) {
 		if (au1xxx_dbdma_put_source(db->dmanr, db->nextOut,
-							db->fragsize) == 0) {
+				db->fragsize, DDMA_FLAGS_IE) == 0) {
 			err("qcount < 2 and no ring room!");
 		}
 		db->nextOut += db->fragsize;
@@ -777,7 +778,8 @@ static void adc_dma_interrupt(int irq, void *dev_id)
 
 	/* Put a new empty buffer on the destination DMA.
 	*/
-	au1xxx_dbdma_put_dest(dp->dmanr, dp->nextIn, dp->dma_fragsize);
+	au1xxx_dbdma_put_dest(dp->dmanr, dp->nextIn,
+			      dp->dma_fragsize, DDMA_FLAGS_IE);
 
 	dp->nextIn += dp->dma_fragsize;
 	if (dp->nextIn >= dp->rawbuf + dp->dmasize)
@@ -1177,8 +1179,8 @@ au1550_write(struct file *file, const char *buffer, size_t count, loff_t * ppos)
 		 * we know the dma has stopped.
 		 */
 		while ((db->dma_qcount < 2) && (db->count >= db->fragsize)) {
-			if (au1xxx_dbdma_put_source(db->dmanr, db->nextOut,
-							db->fragsize) == 0) {
+			if (au1xxx_dbdma_put_source(db->dmanr,
+				db->nextOut, db->fragsize, DDMA_FLAGS_IE) == 0) {
 				err("qcount < 2 and no ring room!");
 			}
 			db->nextOut += db->fragsize;
