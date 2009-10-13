@@ -40,16 +40,22 @@
 
 #define IXGBE_ALL_RAR_ENTRIES 16
 
+enum {NETDEV_STATS, IXGBE_STATS};
+
 struct ixgbe_stats {
 	char stat_string[ETH_GSTRING_LEN];
+	int type;
 	int sizeof_stat;
 	int stat_offset;
 };
 
-#define IXGBE_STAT(m) sizeof(((struct ixgbe_adapter *)0)->m), \
-                             offsetof(struct ixgbe_adapter, m)
-#define IXGBE_NETDEV_STAT(m) sizeof(((struct net_device *)0)->m), \
-                             offsetof(struct net_device, m)
+#define IXGBE_STAT(m)		IXGBE_STATS, \
+				sizeof(((struct ixgbe_adapter *)0)->m), \
+				offsetof(struct ixgbe_adapter, m)
+#define IXGBE_NETDEV_STAT(m)	NETDEV_STATS, \
+				sizeof(((struct net_device *)0)->m), \
+				offsetof(struct net_device, m)
+
 static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_packets", IXGBE_NETDEV_STAT(stats.rx_packets)},
 	{"tx_packets", IXGBE_NETDEV_STAT(stats.tx_packets)},
@@ -931,10 +937,21 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 	int stat_count = sizeof(struct ixgbe_queue_stats) / sizeof(u64);
 	int j, k;
 	int i;
+	char *p = NULL;
 
 	ixgbe_update_stats(adapter);
 	for (i = 0; i < IXGBE_GLOBAL_STATS_LEN; i++) {
-		char *p = (char *)adapter + ixgbe_gstrings_stats[i].stat_offset;
+		switch (ixgbe_gstrings_stats[i].type) {
+		case NETDEV_STATS:
+			p = (char *) netdev +
+					ixgbe_gstrings_stats[i].stat_offset;
+			break;
+		case IXGBE_STATS:
+			p = (char *) adapter +
+					ixgbe_gstrings_stats[i].stat_offset;
+			break;
+		}
+
 		data[i] = (ixgbe_gstrings_stats[i].sizeof_stat ==
 		           sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
