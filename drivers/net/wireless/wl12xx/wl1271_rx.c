@@ -142,15 +142,10 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	if (desc->flags & WL1271_RX_DESC_ENCRYPT_MASK) {
 		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
 
-		if (likely(!(desc->flags & WL1271_RX_DESC_DECRYPT_FAIL)))
+		if (likely(!(desc->status & WL1271_RX_DESC_DECRYPT_FAIL)))
 			status->flag |= RX_FLAG_DECRYPTED;
-		/* FIXME: Flag should be also set when using 5 GHz band.
-		 * At the moment chip reports MIC failed on all packets,
-		 * so flag is silently discarded.
-		 */
-		if (unlikely(desc->flags & WL1271_RX_DESC_MIC_FAIL))
-			if (status->band != IEEE80211_BAND_5GHZ)
-				status->flag |= RX_FLAG_MMIC_ERROR;
+		if (unlikely(desc->status & WL1271_RX_DESC_MIC_FAIL))
+			status->flag |= RX_FLAG_MMIC_ERROR;
 	}
 }
 
