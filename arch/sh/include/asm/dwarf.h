@@ -198,6 +198,7 @@
 #include <linux/compiler.h>
 #include <linux/bug.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 /*
  * Read either the frame pointer (r14) or the stack pointer (r15).
@@ -382,8 +383,10 @@ static inline unsigned int DW_CFA_operand(unsigned long insn)
 extern struct dwarf_frame *dwarf_unwind_stack(unsigned long,
 					      struct dwarf_frame *);
 extern void dwarf_free_frame(struct dwarf_frame *);
-extern int dwarf_parse_section(char *, char *, struct module *);
-extern void dwarf_module_unload(struct module *);
+
+extern int module_dwarf_finalize(const Elf_Ehdr *, const Elf_Shdr *,
+				 struct module *);
+extern void module_dwarf_cleanup(struct module *);
 
 #endif /* !__ASSEMBLY__ */
 
@@ -412,6 +415,10 @@ extern void dwarf_module_unload(struct module *);
 static inline void dwarf_unwinder_init(void)
 {
 }
+
+#define module_dwarf_finalize(hdr, sechdrs, me)	(0)
+#define module_dwarf_cleanup(mod)		do { } while (0)
+
 #endif
 
 #endif /* CONFIG_DWARF_UNWINDER */

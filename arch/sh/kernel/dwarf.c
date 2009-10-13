@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/mempool.h>
 #include <linux/mm.h>
+#include <linux/elf.h>
 #include <asm/dwarf.h>
 #include <asm/unwinder.h>
 #include <asm/sections.h>
@@ -895,8 +896,8 @@ static void dwarf_unwinder_cleanup(void)
  *
  *	Parse the information in a .eh_frame section.
  */
-int dwarf_parse_section(char *eh_frame_start, char *eh_frame_end,
-			struct module *mod)
+static int dwarf_parse_section(char *eh_frame_start, char *eh_frame_end,
+			       struct module *mod)
 {
 	u32 entry_type;
 	void *p, *entry;
@@ -959,14 +960,47 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_MODULES
+int module_dwarf_finalize(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
+			  struct module *me)
+{
+	unsigned int i, err;
+	unsigned long start, end;
+	char *secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+
+	start = end = 0;
+
+	for (i = 1; i < hdr->e_shnum; i++) {
+		/* Alloc bit cleared means "ignore it." */
+		if ((sechdrs[i].sh_flags & SHF_ALLOC)
+		    && !strcmp(secstrings+sechdrs[i].sh_name, ".eh_frame")) {
+			start = sechdrs[i].sh_addr;
+			end = start + sechdrs[i].sh_size;
+			break;
+		}
+	}
+
+	/* Did we find the .eh_frame section? */
+	if (i != hdr->e_shnum) {
+		err = dwarf_parse_section((char *)start, (char *)end, me);
+		if (err) {
+			printk(KERN_WARNING "%s: failed to parse DWARF info\n",
+			       me->name);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 /**
- *	dwarf_module_unload - remove FDE/CIEs associated with @mod
+ *	module_dwarf_cleanup - remove FDE/CIEs associated with @mod
  *	@mod: the module that is being unloaded
  *
  *	Remove any FDEs and CIEs from the global lists that came from
  *	@mod's .eh_frame section because @mod is being unloaded.
  */
-void dwarf_module_unload(struct module *mod)
+void module_dwarf_cleanup(struct module *mod)
 {
 	struct dwarf_fde *fde;
 	struct dwarf_cie *cie;
@@ -1004,6 +1038,7 @@ again_fde:
 
 	spin_unlock_irqrestore(&dwarf_fde_lock, flags);
 }
+#endif /* CONFIG_MODULES */
 
 /**
  *	dwarf_unwinder_init - initialise the dwarf unwinder
