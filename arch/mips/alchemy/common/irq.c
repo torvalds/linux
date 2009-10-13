@@ -519,8 +519,8 @@ asmlinkage void plat_irq_dispatch(void)
 	unsigned long s, off;
 
 	if (pending & CAUSEF_IP7) {
-		do_IRQ(MIPS_CPU_IRQ_BASE + 7);
-		return;
+		off = MIPS_CPU_IRQ_BASE + 7;
+		goto handle;
 	} else if (pending & CAUSEF_IP2) {
 		s = IC0_REQ0INT;
 		off = AU1000_INTC0_INT_BASE;
@@ -542,7 +542,9 @@ spurious:
 		spurious_interrupt();
 		return;
 	}
-	do_IRQ(__ffs(s) + off);
+	off += __ffs(s);
+handle:
+	do_IRQ(off);
 }
 
 /* setup edge/level and assign request 0/1 */
