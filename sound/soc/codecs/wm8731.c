@@ -623,21 +623,6 @@ static int __devexit wm8731_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8731_spi_suspend(struct spi_device *spi, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&spi->dev);
-}
-
-static int wm8731_spi_resume(struct spi_device *spi)
-{
-	return snd_soc_resume_device(&spi->dev);
-}
-#else
-#define wm8731_spi_suspend NULL
-#define wm8731_spi_resume NULL
-#endif
-
 static struct spi_driver wm8731_spi_driver = {
 	.driver = {
 		.name	= "wm8731",
@@ -645,8 +630,6 @@ static struct spi_driver wm8731_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8731_spi_probe,
-	.suspend	= wm8731_spi_suspend,
-	.resume		= wm8731_spi_resume,
 	.remove		= __devexit_p(wm8731_spi_remove),
 };
 #endif /* CONFIG_SPI_MASTER */
@@ -679,21 +662,6 @@ static __devexit int wm8731_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8731_i2c_suspend(struct i2c_client *i2c, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&i2c->dev);
-}
-
-static int wm8731_i2c_resume(struct i2c_client *i2c)
-{
-	return snd_soc_resume_device(&i2c->dev);
-}
-#else
-#define wm8731_i2c_suspend NULL
-#define wm8731_i2c_resume NULL
-#endif
-
 static const struct i2c_device_id wm8731_i2c_id[] = {
 	{ "wm8731", 0 },
 	{ }
@@ -707,8 +675,6 @@ static struct i2c_driver wm8731_i2c_driver = {
 	},
 	.probe =    wm8731_i2c_probe,
 	.remove =   __devexit_p(wm8731_i2c_remove),
-	.suspend =  wm8731_i2c_suspend,
-	.resume =   wm8731_i2c_resume,
 	.id_table = wm8731_i2c_id,
 };
 #endif

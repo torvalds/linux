@@ -944,21 +944,6 @@ static int wm8988_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8988_i2c_suspend(struct i2c_client *client, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int wm8988_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define wm8988_i2c_suspend NULL
-#define wm8988_i2c_resume NULL
-#endif
-
 static const struct i2c_device_id wm8988_i2c_id[] = {
 	{ "wm8988", 0 },
 	{ }
@@ -972,8 +957,6 @@ static struct i2c_driver wm8988_i2c_driver = {
 	},
 	.probe = wm8988_i2c_probe,
 	.remove = wm8988_i2c_remove,
-	.suspend = wm8988_i2c_suspend,
-	.resume = wm8988_i2c_resume,
 	.id_table = wm8988_i2c_id,
 };
 #endif
@@ -1006,21 +989,6 @@ static int __devexit wm8988_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8988_spi_suspend(struct spi_device *spi, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&spi->dev);
-}
-
-static int wm8988_spi_resume(struct spi_device *spi)
-{
-	return snd_soc_resume_device(&spi->dev);
-}
-#else
-#define wm8988_spi_suspend NULL
-#define wm8988_spi_resume NULL
-#endif
-
 static struct spi_driver wm8988_spi_driver = {
 	.driver = {
 		.name	= "wm8988",
@@ -1029,8 +997,6 @@ static struct spi_driver wm8988_spi_driver = {
 	},
 	.probe		= wm8988_spi_probe,
 	.remove		= __devexit_p(wm8988_spi_remove),
-	.suspend	= wm8988_spi_suspend,
-	.resume		= wm8988_spi_resume,
 };
 #endif
 

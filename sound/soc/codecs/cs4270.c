@@ -802,22 +802,6 @@ MODULE_DEVICE_TABLE(i2c, cs4270_id);
  * and all registers are written back to the hardware when resuming.
  */
 
-static int cs4270_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
-{
-	struct cs4270_private *cs4270 = i2c_get_clientdata(client);
-	struct snd_soc_codec *codec = &cs4270->codec;
-
-	return snd_soc_suspend_device(codec->dev);
-}
-
-static int cs4270_i2c_resume(struct i2c_client *client)
-{
-	struct cs4270_private *cs4270 = i2c_get_clientdata(client);
-	struct snd_soc_codec *codec = &cs4270->codec;
-
-	return snd_soc_resume_device(codec->dev);
-}
-
 static int cs4270_soc_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct snd_soc_codec *codec = cs4270_codec;
@@ -853,8 +837,6 @@ static int cs4270_soc_resume(struct platform_device *pdev)
 	return snd_soc_write(codec, CS4270_PWRCTL, reg);
 }
 #else
-#define cs4270_i2c_suspend	NULL
-#define cs4270_i2c_resume	NULL
 #define cs4270_soc_suspend	NULL
 #define cs4270_soc_resume	NULL
 #endif /* CONFIG_PM */
@@ -873,8 +855,6 @@ static struct i2c_driver cs4270_i2c_driver = {
 	.id_table = cs4270_id,
 	.probe = cs4270_i2c_probe,
 	.remove = cs4270_i2c_remove,
-	.suspend = cs4270_i2c_suspend,
-	.resume = cs4270_i2c_resume,
 };
 
 /*

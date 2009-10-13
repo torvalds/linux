@@ -638,21 +638,6 @@ static __devexit int wm8523_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8523_i2c_suspend(struct i2c_client *i2c, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&i2c->dev);
-}
-
-static int wm8523_i2c_resume(struct i2c_client *i2c)
-{
-	return snd_soc_resume_device(&i2c->dev);
-}
-#else
-#define wm8523_i2c_suspend NULL
-#define wm8523_i2c_resume NULL
-#endif
-
 static const struct i2c_device_id wm8523_i2c_id[] = {
 	{ "wm8523", 0 },
 	{ }
@@ -666,8 +651,6 @@ static struct i2c_driver wm8523_i2c_driver = {
 	},
 	.probe =    wm8523_i2c_probe,
 	.remove =   __devexit_p(wm8523_i2c_remove),
-	.suspend =  wm8523_i2c_suspend,
-	.resume =   wm8523_i2c_resume,
 	.id_table = wm8523_i2c_id,
 };
 #endif
