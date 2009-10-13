@@ -196,7 +196,14 @@ static int wl1271_init_general_parms(struct wl1271 *wl)
 
 	gen_parms->id = TEST_CMD_INI_FILE_GENERAL_PARAM;
 
-	gen_parms->ref_clk = REF_CLK_38_4_E;
+	/*
+	 * FIXME: The firmware crashes on boot with REF_CLK_38_4_E as clock.
+	 *        according to TI engineers, ref clk 5 is an unofficial
+	 *        38.4 XTAL clock config, which seems to boot the device.
+	 *        Restore correct value once the real problem source is
+	 *        identified.
+	 */
+	gen_parms->ref_clk = 5; /* REF_CLK_38_4_E; */
 	/* FIXME: magic numbers */
 	gen_parms->settling_time = 5;
 	gen_parms->clk_valid_on_wakeup = 0;
