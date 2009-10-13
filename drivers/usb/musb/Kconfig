@@ -8,8 +8,8 @@ comment "Enable Host or Gadget support to see Inventra options"
 
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
-	depends on (USB || USB_GADGET) && HAVE_CLK
-	depends on !SUPERH
+	depends on (USB || USB_GADGET)
+	depends on (ARM || BLACKFIN)
 	select NOP_USB_XCEIV if ARCH_DAVINCI
 	select TWL4030_USB if MACH_OMAP_3430SDP
 	select NOP_USB_XCEIV if MACH_OMAP3EVM

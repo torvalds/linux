@@ -1,6 +1,7 @@
 /* ioctl() (mostly Linux Wireless Extensions) routines for Host AP driver */
 
 #include <linux/types.h>
+#include <linux/sched.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <net/lib80211.h>

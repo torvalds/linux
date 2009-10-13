@@ -580,7 +580,7 @@ static inline const char *ISP1362_INT_NAME(int n)
 
 static inline void ALIGNSTAT(struct isp1362_hcd *isp1362_hcd, void *ptr)
 {
-	unsigned p = (unsigned)ptr;
+	unsigned long p = (unsigned long)ptr;
 	if (!(p & 0xf))
 		isp1362_hcd->stat16++;
 	else if (!(p & 0x7))
@@ -770,7 +770,7 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 	if (!len)
 		return;
 
-	if ((unsigned)dp & 0x1) {
+	if ((unsigned long)dp & 0x1) {
 		/* not aligned */
 		for (; len > 1; len -= 2) {
 			data = *dp++;
@@ -962,8 +962,8 @@ static void isp1362_read_buffer(struct isp1362_hcd *isp1362_hcd, void *buf, u16 
 
 	isp1362_write_diraddr(isp1362_hcd, offset, len);
 
-	DBG(3, "%s: Reading %d byte from buffer @%04x to memory @ %08x\n", __func__,
-	    len, offset, (u32)buf);
+	DBG(3, "%s: Reading %d byte from buffer @%04x to memory @ %p\n",
+	    __func__, len, offset, buf);
 
 	isp1362_write_reg16(isp1362_hcd, HCuPINT, HCuPINT_EOT);
 	_WARN_ON((isp1362_read_reg16(isp1362_hcd, HCuPINT) & HCuPINT_EOT));
@@ -982,8 +982,8 @@ static void isp1362_write_buffer(struct isp1362_hcd *isp1362_hcd, void *buf, u16
 
 	isp1362_write_diraddr(isp1362_hcd, offset, len);
 
-	DBG(3, "%s: Writing %d byte to buffer @%04x from memory @ %08x\n", __func__,
-	    len, offset, (u32)buf);
+	DBG(3, "%s: Writing %d byte to buffer @%04x from memory @ %p\n",
+	    __func__, len, offset, buf);
 
 	isp1362_write_reg16(isp1362_hcd, HCuPINT, HCuPINT_EOT);
 	_WARN_ON((isp1362_read_reg16(isp1362_hcd, HCuPINT) & HCuPINT_EOT));

@@ -513,7 +513,11 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	else if (state == PCI_D2 || dev->current_state == PCI_D2)
 		udelay(PCI_PM_D2_DELAY);
 
-	dev->current_state = state;
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
+	if (dev->current_state != state && printk_ratelimit())
+		dev_info(&dev->dev, "Refused to change power state, "
+			"currently in D%d\n", dev->current_state);
 
 	/* According to section 5.4.1 of the "PCI BUS POWER MANAGEMENT
 	 * INTERFACE SPECIFICATION, REV. 1.2", a device transitioning
@@ -2542,10 +2546,10 @@ int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
 
 /**
  * pci_set_vga_state - set VGA decode state on device and parents if requested
- * @dev the PCI device
- * @decode - true = enable decoding, false = disable decoding
- * @command_bits PCI_COMMAND_IO and/or PCI_COMMAND_MEMORY
- * @change_bridge - traverse ancestors and change bridges
+ * @dev: the PCI device
+ * @decode: true = enable decoding, false = disable decoding
+ * @command_bits: PCI_COMMAND_IO and/or PCI_COMMAND_MEMORY
+ * @change_bridge: traverse ancestors and change bridges
  */
 int pci_set_vga_state(struct pci_dev *dev, bool decode,
 		      unsigned int command_bits, bool change_bridge)
