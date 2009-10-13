@@ -134,7 +134,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 	}
 
 	chunk = kmalloc(CHUNK_SIZE, GFP_KERNEL);
-	if (!buf) {
+	if (!chunk) {
 		wl1271_error("allocation for firmware upload chunk failed");
 		return -ENOMEM;
 	}
@@ -184,6 +184,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 static int wl1271_boot_upload_firmware(struct wl1271 *wl)
 {
 	u32 chunks, addr, len;
+	int ret = 0;
 	u8 *fw;
 
 	fw = wl->fw;
@@ -204,11 +205,13 @@ static int wl1271_boot_upload_firmware(struct wl1271 *wl)
 		}
 		wl1271_debug(DEBUG_BOOT, "chunk %d addr 0x%x len %u",
 			     chunks, addr, len);
-		wl1271_boot_upload_firmware_chunk(wl, fw, len, addr);
+		ret = wl1271_boot_upload_firmware_chunk(wl, fw, len, addr);
+		if (ret != 0)
+			break;
 		fw += len;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int wl1271_boot_upload_nvs(struct wl1271 *wl)
@@ -284,6 +287,8 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 
 	/* Copy the NVS tables to a new block to ensure alignment */
 	nvs_aligned = kmemdup(nvs_ptr, nvs_len, GFP_KERNEL);
+	if (!nvs_aligned)
+		return -ENOMEM;
 
 	/* And finally we upload the NVS tables */
 	/* FIXME: In wl1271, we upload everything at once.
