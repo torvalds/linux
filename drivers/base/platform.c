@@ -521,11 +521,15 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 {
 	int retval, code;
 
+	/* make sure driver won't have bind/unbind attributes */
+	drv->driver.suppress_bind_attrs = true;
+
 	/* temporary section violation during probe() */
 	drv->probe = probe;
 	retval = code = platform_driver_register(drv);
 
-	/* Fixup that section violation, being paranoid about code scanning
+	/*
+	 * Fixup that section violation, being paranoid about code scanning
 	 * the list of drivers in order to probe new devices.  Check to see
 	 * if the probe was successful, and make sure any forced probes of
 	 * new devices fail.

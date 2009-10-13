@@ -124,7 +124,9 @@ struct device_driver {
 	struct bus_type		*bus;
 
 	struct module		*owner;
-	const char 		*mod_name;	/* used for built-in modules */
+	const char		*mod_name;	/* used for built-in modules */
+
+	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
 
 	int (*probe) (struct device *dev);
 	int (*remove) (struct device *dev);
