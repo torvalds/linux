@@ -134,6 +134,7 @@ obj-$(CONFIG_SCSI_CXGB3_ISCSI)	+= libiscsi.o libiscsi_tcp.o cxgb3i/
 obj-$(CONFIG_SCSI_BNX2_ISCSI)	+= libiscsi.o bnx2i/
 obj-$(CONFIG_BE2ISCSI)		+= libiscsi.o be2iscsi/
 obj-$(CONFIG_SCSI_PMCRAID)	+= pmcraid.o
+obj-$(CONFIG_VMWARE_PVSCSI)	+= vmw_pvscsi.o
 
 obj-$(CONFIG_ARM)		+= arm/
 

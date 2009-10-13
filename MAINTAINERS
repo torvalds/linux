@@ -5696,6 +5696,14 @@ L:     netdev@vger.kernel.org
 S:     Maintained
 F:     drivers/net/vmxnet3/
 
+VMware PVSCSI driver
+M:	Alok Kataria <akataria@vmware.com>
+M:	VMware PV-Drivers <pv-drivers@vmware.com>
+L:	linux-scsi@vger.kernel.org
+S:	Maintained
+F:	drivers/scsi/vmw_pvscsi.c
+F:	drivers/scsi/vmw_pvscsi.h
+
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 M:	Liam Girdwood <lrg@slimlogic.co.uk>
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
