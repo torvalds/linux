@@ -485,13 +485,13 @@ pcf50633_client_dev_register(struct pcf50633 *pcf, const char *name,
 }
 
 #ifdef CONFIG_PM
-static int pcf50633_suspend(struct device *dev, pm_message_t state)
+static int pcf50633_suspend(struct i2c_client *client, pm_message_t state)
 {
 	struct pcf50633 *pcf;
 	int ret = 0, i;
 	u8 res[5];
 
-	pcf = dev_get_drvdata(dev);
+	pcf = i2c_get_clientdata(client);
 
 	/* Make sure our interrupt handlers are not called
 	 * henceforth */
@@ -526,12 +526,12 @@ out:
 	return ret;
 }
 
-static int pcf50633_resume(struct device *dev)
+static int pcf50633_resume(struct i2c_client *client)
 {
 	struct pcf50633 *pcf;
 	int ret;
 
-	pcf = dev_get_drvdata(dev);
+	pcf = i2c_get_clientdata(client);
 
 	/* Write the saved mask registers */
 	ret = pcf50633_write_block(pcf, PCF50633_REG_INT1M,
@@ -689,12 +689,12 @@ static struct i2c_device_id pcf50633_id_table[] = {
 static struct i2c_driver pcf50633_driver = {
 	.driver = {
 		.name	= "pcf50633",
-		.suspend = pcf50633_suspend,
-		.resume	= pcf50633_resume,
 	},
 	.id_table = pcf50633_id_table,
 	.probe = pcf50633_probe,
 	.remove = __devexit_p(pcf50633_remove),
+	.suspend = pcf50633_suspend,
+	.resume	= pcf50633_resume,
 };
 
 static int __init pcf50633_init(void)
