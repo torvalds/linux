@@ -36,8 +36,6 @@
 #include "i915_drv.h"
 #include "intel_sdvo_regs.h"
 
-#undef SDVO_DEBUG
-
 static char *tv_format_names[] = {
 	"NTSC_M"   , "NTSC_J"  , "NTSC_443",
 	"PAL_B"    , "PAL_D"   , "PAL_G"   ,
@@ -356,7 +354,6 @@ static const struct _sdvo_cmd_name {
 #define SDVO_NAME(dev_priv) ((dev_priv)->output_device == SDVOB ? "SDVOB" : "SDVOC")
 #define SDVO_PRIV(output)   ((struct intel_sdvo_priv *) (output)->dev_priv)
 
-#ifdef SDVO_DEBUG
 static void intel_sdvo_debug_write(struct intel_output *intel_output, u8 cmd,
 				   void *args, int args_len)
 {
@@ -379,9 +376,6 @@ static void intel_sdvo_debug_write(struct intel_output *intel_output, u8 cmd,
 		DRM_LOG_KMS("(%02X)", cmd);
 	DRM_LOG_KMS("\n");
 }
-#else
-#define intel_sdvo_debug_write(o, c, a, l)
-#endif
 
 static void intel_sdvo_write_cmd(struct intel_output *intel_output, u8 cmd,
 				 void *args, int args_len)
@@ -398,7 +392,6 @@ static void intel_sdvo_write_cmd(struct intel_output *intel_output, u8 cmd,
 	intel_sdvo_write_byte(intel_output, SDVO_I2C_OPCODE, cmd);
 }
 
-#ifdef SDVO_DEBUG
 static const char *cmd_status_names[] = {
 	"Power on",
 	"Success",
@@ -427,9 +420,6 @@ static void intel_sdvo_debug_response(struct intel_output *intel_output,
 		DRM_LOG_KMS("(??? %d)", status);
 	DRM_LOG_KMS("\n");
 }
-#else
-#define intel_sdvo_debug_response(o, r, l, s)
-#endif
 
 static u8 intel_sdvo_read_response(struct intel_output *intel_output,
 				   void *response, int response_len)
