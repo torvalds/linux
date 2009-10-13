@@ -565,6 +565,22 @@ static inline struct low_ops *family_ops(int index)
 	return &amd64_family_types[index].ops;
 }
 
+static inline int amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
+					   u32 *val, const char *func)
+{
+	int err = 0;
+
+	err = pci_read_config_dword(pdev, offset, val);
+	if (err)
+		amd64_printk(KERN_WARNING, "%s: error reading F%dx%x.\n",
+			     func, PCI_FUNC(pdev->devfn), offset);
+
+	return err;
+}
+
+#define amd64_read_pci_cfg(pdev, offset, val)	\
+	amd64_read_pci_cfg_dword(pdev, offset, val, __func__)
+
 /*
  * For future CPU versions, verify the following as new 'slow' rates appear and
  * modify the necessary skip values for the supported CPU.
