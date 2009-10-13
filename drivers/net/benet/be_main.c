@@ -756,15 +756,13 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	if ((adapter->cap == 0x400) && !vtm)
 		vlanf = 0;
 
-	skb = netdev_alloc_skb(adapter->netdev, BE_HDR_LEN + NET_IP_ALIGN);
+	skb = netdev_alloc_skb_ip_align(adapter->netdev, BE_HDR_LEN);
 	if (!skb) {
 		if (net_ratelimit())
 			dev_warn(&adapter->pdev->dev, "skb alloc failed\n");
 		be_rx_compl_discard(adapter, rxcp);
 		return;
 	}
-
-	skb_reserve(skb, NET_IP_ALIGN);
 
 	skb_fill_rx_data(adapter, skb, rxcp);
 

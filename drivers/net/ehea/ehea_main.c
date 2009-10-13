@@ -447,7 +447,9 @@ static int ehea_refill_rq_def(struct ehea_port_res *pr,
 	max_index_mask = q_skba->len - 1;
 	for (i = 0; i < fill_wqes; i++) {
 		u64 tmp_addr;
-		struct sk_buff *skb = netdev_alloc_skb(dev, packet_size);
+		struct sk_buff *skb;
+
+		skb = netdev_alloc_skb_ip_align(dev, packet_size);
 		if (!skb) {
 			q_skba->os_skbs = fill_wqes - i;
 			if (q_skba->os_skbs == q_skba->len - 2) {
@@ -457,7 +459,6 @@ static int ehea_refill_rq_def(struct ehea_port_res *pr,
 			}
 			break;
 		}
-		skb_reserve(skb, NET_IP_ALIGN);
 
 		skb_arr[index] = skb;
 		tmp_addr = ehea_map_vaddr(skb->data);
@@ -500,7 +501,7 @@ static int ehea_refill_rq2(struct ehea_port_res *pr, int nr_of_wqes)
 {
 	return ehea_refill_rq_def(pr, &pr->rq2_skba, 2,
 				  nr_of_wqes, EHEA_RWQE2_TYPE,
-				  EHEA_RQ2_PKT_SIZE + NET_IP_ALIGN);
+				  EHEA_RQ2_PKT_SIZE);
 }
 
 
@@ -508,7 +509,7 @@ static int ehea_refill_rq3(struct ehea_port_res *pr, int nr_of_wqes)
 {
 	return ehea_refill_rq_def(pr, &pr->rq3_skba, 3,
 				  nr_of_wqes, EHEA_RWQE3_TYPE,
-				  EHEA_MAX_PACKET_SIZE + NET_IP_ALIGN);
+				  EHEA_MAX_PACKET_SIZE);
 }
 
 static inline int ehea_check_cqe(struct ehea_cqe *cqe, int *rq_num)

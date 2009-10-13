@@ -616,21 +616,13 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 
 		if (!bi->skb) {
 			struct sk_buff *skb;
-			skb = netdev_alloc_skb(adapter->netdev,
-			                       (rx_ring->rx_buf_len +
-			                        NET_IP_ALIGN));
+			skb = netdev_alloc_skb_ip_align(adapter->netdev,
+							rx_ring->rx_buf_len);
 
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
 				goto no_buffers;
 			}
-
-			/*
-			 * Make buffer alignment 2 beyond a 16 byte boundary
-			 * this will result in a 16 byte aligned IP header after
-			 * the 14 byte MAC header is removed
-			 */
-			skb_reserve(skb, NET_IP_ALIGN);
 
 			bi->skb = skb;
 			bi->dma = pci_map_single(pdev, skb->data,

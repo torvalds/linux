@@ -320,16 +320,13 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 		if (len < copybreak) {
 			struct sk_buff *nskb;
 
-			nskb = netdev_alloc_skb(dev, len + NET_IP_ALIGN);
+			nskb = netdev_alloc_skb_ip_align(dev, len);
 			if (!nskb) {
 				/* forget packet, just rearm desc */
 				priv->stats.rx_dropped++;
 				continue;
 			}
 
-			/* since we're copying the data, we can align
-			 * them properly */
-			skb_reserve(nskb, NET_IP_ALIGN);
 			dma_sync_single_for_cpu(kdev, desc->address,
 						len, DMA_FROM_DEVICE);
 			memcpy(nskb->data, skb->data, len);

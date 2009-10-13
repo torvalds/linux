@@ -365,11 +365,10 @@ static inline void sgiseeq_rx(struct net_device *dev, struct sgiseeq_private *sp
 					}
 					skb_reserve(newskb, 2);
 				} else {
-					skb = netdev_alloc_skb(dev, len + 2);
-					if (skb) {
-						skb_reserve(skb, 2);
+					skb = netdev_alloc_skb_ip_align(dev, len);
+					if (skb)
 						skb_copy_to_linear_data(skb, rd->skb->data, len);
-					}
+
 					newskb = rd->skb;
 				}
 memory_squeeze:

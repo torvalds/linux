@@ -283,13 +283,12 @@ static bool try_fill_recv_maxbufs(struct virtnet_info *vi, gfp_t gfp)
 	do {
 		struct skb_vnet_hdr *hdr;
 
-		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(vi->dev, MAX_PACKET_LEN);
 		if (unlikely(!skb)) {
 			oom = true;
 			break;
 		}
 
-		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, MAX_PACKET_LEN);
 
 		hdr = skb_vnet_hdr(skb);
@@ -344,13 +343,11 @@ static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
 	do {
 		skb_frag_t *f;
 
-		skb = netdev_alloc_skb(vi->dev, GOOD_COPY_LEN + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(vi->dev, GOOD_COPY_LEN);
 		if (unlikely(!skb)) {
 			oom = true;
 			break;
 		}
-
-		skb_reserve(skb, NET_IP_ALIGN);
 
 		f = &skb_shinfo(skb)->frags[0];
 		f->page = get_a_page(vi, gfp);

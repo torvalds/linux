@@ -409,7 +409,7 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 		if (rxd->status.ok && rxd->status.pkt_size >= 60) {
 			int rx_size = (int)(rxd->status.pkt_size - 4);
 			/* alloc new buffer */
-			skb = netdev_alloc_skb(netdev, rx_size + NET_IP_ALIGN);
+			skb = netdev_alloc_skb_ip_align(netdev, rx_size);
 			if (NULL == skb) {
 				printk(KERN_WARNING
 					"%s: Mem squeeze, deferring packet.\n",
@@ -421,7 +421,6 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 				netdev->stats.rx_dropped++;
 				break;
 			}
-			skb_reserve(skb, NET_IP_ALIGN);
 			skb->dev = netdev;
 			memcpy(skb->data, rxd->packet, rx_size);
 			skb_put(skb, rx_size);

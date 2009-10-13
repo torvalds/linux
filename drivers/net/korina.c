@@ -400,7 +400,7 @@ static int korina_rx(struct net_device *dev, int limit)
 			dma_cache_inv((unsigned long)pkt_buf, pkt_len - 4);
 
 			/* Malloc up new buffer. */
-			skb_new = netdev_alloc_skb(dev, KORINA_RBSIZE + 2);
+			skb_new = netdev_alloc_skb_ip_align(dev, KORINA_RBSIZE);
 
 			if (!skb_new)
 				break;
@@ -416,9 +416,6 @@ static int korina_rx(struct net_device *dev, int limit)
 			/* Update the mcast stats */
 			if (devcs & ETH_RX_MP)
 				dev->stats.multicast++;
-
-			/* 16 bit align */
-			skb_reserve(skb_new, 2);
 
 			lp->rx_skb[lp->rx_next_done] = skb_new;
 		}

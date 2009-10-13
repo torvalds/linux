@@ -1433,14 +1433,12 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 
 			packet_size = ((prrs->word1 >> RRS_PKT_SIZE_SHIFT) &
 					RRS_PKT_SIZE_MASK) - 4; /* CRC */
-			skb = netdev_alloc_skb(netdev,
-					       packet_size + NET_IP_ALIGN);
+			skb = netdev_alloc_skb_ip_align(netdev, packet_size);
 			if (skb == NULL) {
 				dev_warn(&pdev->dev, "%s: Memory squeeze,"
 					"deferring packet.\n", netdev->name);
 				goto skip_pkt;
 			}
-			skb_reserve(skb, NET_IP_ALIGN);
 			skb->dev = netdev;
 			memcpy(skb->data, (u8 *)(prrs + 1), packet_size);
 			skb_put(skb, packet_size);

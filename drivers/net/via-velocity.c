@@ -1949,10 +1949,9 @@ static int velocity_rx_copy(struct sk_buff **rx_skb, int pkt_size,
 	if (pkt_size < rx_copybreak) {
 		struct sk_buff *new_skb;
 
-		new_skb = netdev_alloc_skb(vptr->dev, pkt_size + 2);
+		new_skb = netdev_alloc_skb_ip_align(vptr->dev, pkt_size);
 		if (new_skb) {
 			new_skb->ip_summed = rx_skb[0]->ip_summed;
-			skb_reserve(new_skb, 2);
 			skb_copy_from_linear_data(*rx_skb, new_skb->data, pkt_size);
 			*rx_skb = new_skb;
 			ret = 0;

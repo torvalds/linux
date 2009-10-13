@@ -3070,11 +3070,10 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		goto error;
 
 	if (len < RX_COPY_THRESHOLD) {
-		skb = netdev_alloc_skb(dev, len + 2);
+		skb = netdev_alloc_skb_ip_align(dev, len);
 		if (!skb)
 			goto resubmit;
 
-		skb_reserve(skb, 2);
 		pci_dma_sync_single_for_cpu(skge->hw->pdev,
 					    pci_unmap_addr(e, mapaddr),
 					    len, PCI_DMA_FROMDEVICE);
@@ -3085,11 +3084,11 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		skge_rx_reuse(e, skge->rx_buf_size);
 	} else {
 		struct sk_buff *nskb;
-		nskb = netdev_alloc_skb(dev, skge->rx_buf_size + NET_IP_ALIGN);
+
+		nskb = netdev_alloc_skb_ip_align(dev, skge->rx_buf_size);
 		if (!nskb)
 			goto resubmit;
 
-		skb_reserve(nskb, NET_IP_ALIGN);
 		pci_unmap_single(skge->hw->pdev,
 				 pci_unmap_addr(e, mapaddr),
 				 pci_unmap_len(e, maplen),

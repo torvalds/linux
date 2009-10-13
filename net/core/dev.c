@@ -2604,20 +2604,13 @@ EXPORT_SYMBOL(napi_reuse_skb);
 
 struct sk_buff *napi_get_frags(struct napi_struct *napi)
 {
-	struct net_device *dev = napi->dev;
 	struct sk_buff *skb = napi->skb;
 
 	if (!skb) {
-		skb = netdev_alloc_skb(dev, GRO_MAX_HEAD + NET_IP_ALIGN);
-		if (!skb)
-			goto out;
-
-		skb_reserve(skb, NET_IP_ALIGN);
-
-		napi->skb = skb;
+		skb = netdev_alloc_skb_ip_align(napi->dev, GRO_MAX_HEAD);
+		if (skb)
+			napi->skb = skb;
 	}
-
-out:
 	return skb;
 }
 EXPORT_SYMBOL(napi_get_frags);

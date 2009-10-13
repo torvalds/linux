@@ -738,16 +738,11 @@ static int ipg_get_rxbuff(struct net_device *dev, int entry)
 
 	IPG_DEBUG_MSG("_get_rxbuff\n");
 
-	skb = netdev_alloc_skb(dev, sp->rxsupport_size + NET_IP_ALIGN);
+	skb = netdev_alloc_skb_ip_align(dev, sp->rxsupport_size);
 	if (!skb) {
 		sp->rx_buff[entry] = NULL;
 		return -ENOMEM;
 	}
-
-	/* Adjust the data start location within the buffer to
-	 * align IP address field to a 16 byte boundary.
-	 */
-	skb_reserve(skb, NET_IP_ALIGN);
 
 	/* Associate the receive buffer with the IPG NIC. */
 	skb->dev = dev;
