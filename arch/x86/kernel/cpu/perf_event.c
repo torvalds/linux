@@ -124,7 +124,7 @@ static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = {
 	.enabled = 1,
 };
 
-static const struct event_constraint *event_constraint;
+static const struct event_constraint *event_constraints;
 
 /*
  * Not sure about some of these
@@ -1442,12 +1442,12 @@ intel_get_event_idx(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc)
 	const struct event_constraint *event_constraint;
 	int i, code;
 
-	if (!event_constraint)
+	if (!event_constraints)
 		goto skip;
 
 	code = hwc->config & CORE_EVNTSEL_EVENT_MASK;
 
-	for_each_event_constraint(event_constraint, event_constraint) {
+	for_each_event_constraint(event_constraint, event_constraints) {
 		if (code == event_constraint->code) {
 			for_each_bit(i, event_constraint->idxmsk, X86_PMC_IDX_MAX) {
 				if (!test_and_set_bit(i, cpuc->used_mask))
@@ -2047,12 +2047,12 @@ static int p6_pmu_init(void)
 	case 7:
 	case 8:
 	case 11: /* Pentium III */
-		event_constraint = intel_p6_event_constraints;
+		event_constraints = intel_p6_event_constraints;
 		break;
 	case 9:
 	case 13:
 		/* Pentium M */
-		event_constraint = intel_p6_event_constraints;
+		event_constraints = intel_p6_event_constraints;
 		break;
 	default:
 		pr_cont("unsupported p6 CPU model %d ",
@@ -2124,14 +2124,14 @@ static int intel_pmu_init(void)
 		       sizeof(hw_cache_event_ids));
 
 		pr_cont("Core2 events, ");
-		event_constraint = intel_core_event_constraints;
+		event_constraints = intel_core_event_constraints;
 		break;
 	default:
 	case 26:
 		memcpy(hw_cache_event_ids, nehalem_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 
-		event_constraint = intel_nehalem_event_constraints;
+		event_constraints = intel_nehalem_event_constraints;
 		pr_cont("Nehalem/Corei7 events, ");
 		break;
 	case 28:
