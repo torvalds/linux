@@ -4254,7 +4254,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	mutex_init(&hba[i]->busy_shutting_down);
 
 	if (cciss_pci_init(hba[i], pdev) != 0)
-		goto clean0;
+		goto clean_no_release_regions;
 
 	sprintf(hba[i]->devname, "cciss%d", i);
 	hba[i]->ctlr = i;
@@ -4391,13 +4391,14 @@ clean2:
 clean1:
 	cciss_destroy_hba_sysfs_entry(hba[i]);
 clean0:
+	pci_release_regions(pdev);
+clean_no_release_regions:
 	hba[i]->busy_initializing = 0;
 
 	/*
 	 * Deliberately omit pci_disable_device(): it does something nasty to
 	 * Smart Array controllers that pci_enable_device does not undo
 	 */
-	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);
 	free_hba(i);
 	return -1;
