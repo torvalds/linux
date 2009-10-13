@@ -6,6 +6,9 @@
 #include "util.h"
 #include "debug.h"
 
+static struct rb_root threads;
+static struct thread *last_match;
+
 static struct thread *thread__new(pid_t pid)
 {
 	struct thread *self = calloc(1, sizeof(*self));
@@ -50,10 +53,9 @@ static size_t thread__fprintf(struct thread *self, FILE *fp)
 	return ret;
 }
 
-struct thread *
-threads__findnew(pid_t pid, struct rb_root *threads, struct thread **last_match)
+struct thread *threads__findnew(pid_t pid)
 {
-	struct rb_node **p = &threads->rb_node;
+	struct rb_node **p = &threads.rb_node;
 	struct rb_node *parent = NULL;
 	struct thread *th;
 
@@ -62,15 +64,15 @@ threads__findnew(pid_t pid, struct rb_root *threads, struct thread **last_match)
 	 * so most of the time we dont have to look up
 	 * the full rbtree:
 	 */
-	if (*last_match && (*last_match)->pid == pid)
-		return *last_match;
+	if (last_match && last_match->pid == pid)
+		return last_match;
 
 	while (*p != NULL) {
 		parent = *p;
 		th = rb_entry(parent, struct thread, rb_node);
 
 		if (th->pid == pid) {
-			*last_match = th;
+			last_match = th;
 			return th;
 		}
 
@@ -83,17 +85,16 @@ threads__findnew(pid_t pid, struct rb_root *threads, struct thread **last_match)
 	th = thread__new(pid);
 	if (th != NULL) {
 		rb_link_node(&th->rb_node, parent, p);
-		rb_insert_color(&th->rb_node, threads);
-		*last_match = th;
+		rb_insert_color(&th->rb_node, &threads);
+		last_match = th;
 	}
 
 	return th;
 }
 
-struct thread *
-register_idle_thread(struct rb_root *threads, struct thread **last_match)
+struct thread *register_idle_thread(void)
 {
-	struct thread *thread = threads__findnew(0, threads, last_match);
+	struct thread *thread = threads__findnew(0);
 
 	if (!thread || thread__set_comm(thread, "swapper")) {
 		fprintf(stderr, "problem inserting idle task.\n");
@@ -197,12 +198,12 @@ int thread__fork(struct thread *self, struct thread *parent)
 	return 0;
 }
 
-size_t threads__fprintf(FILE *fp, struct rb_root *threads)
+size_t threads__fprintf(FILE *fp)
 {
 	size_t ret = 0;
 	struct rb_node *nd;
 
-	for (nd = rb_first(threads); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&threads); nd; nd = rb_next(nd)) {
 		struct thread *pos = rb_entry(nd, struct thread, rb_node);
 
 		ret += thread__fprintf(pos, fp);

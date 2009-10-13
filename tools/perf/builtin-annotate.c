@@ -37,10 +37,6 @@ static int		print_line;
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
 
-static struct rb_root	threads;
-static struct thread	*last_match;
-
-
 struct sym_ext {
 	struct rb_node	node;
 	double		percent;
@@ -96,12 +92,10 @@ static int
 process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
-	struct thread *thread;
 	u64 ip = event->ip.ip;
 	struct map *map = NULL;
 	struct symbol *sym = NULL;
-
-	thread = threads__findnew(event->ip.pid, &threads, &last_match);
+	struct thread *thread = threads__findnew(event->ip.pid);
 
 	dump_printf("%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
 		(void *)(offset + head),
@@ -166,10 +160,8 @@ got_map:
 static int
 process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread;
 	struct map *map = map__new(&event->mmap, NULL, 0);
-
-	thread = threads__findnew(event->mmap.pid, &threads, &last_match);
+	struct thread *thread = threads__findnew(event->mmap.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_MMAP %d: [%p(%p) @ %p]: %s\n",
 		(void *)(offset + head),
@@ -194,9 +186,8 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread;
+	struct thread *thread = threads__findnew(event->comm.pid);
 
-	thread = threads__findnew(event->comm.pid, &threads, &last_match);
 	dump_printf("%p [%p]: PERF_RECORD_COMM: %s:%d\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
@@ -215,11 +206,9 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread;
-	struct thread *parent;
+	struct thread *thread = threads__findnew(event->fork.pid);
+	struct thread *parent = threads__findnew(event->fork.ppid);
 
-	thread = threads__findnew(event->fork.pid, &threads, &last_match);
-	parent = threads__findnew(event->fork.ppid, &threads, &last_match);
 	dump_printf("%p [%p]: PERF_RECORD_FORK: %d:%d\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
@@ -558,7 +547,7 @@ static int __cmd_annotate(void)
 	uint32_t size;
 	char *buf;
 
-	register_idle_thread(&threads, &last_match);
+	register_idle_thread();
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
@@ -659,7 +648,7 @@ more:
 		return 0;
 
 	if (verbose > 3)
-		threads__fprintf(stdout, &threads);
+		threads__fprintf(stdout);
 
 	if (verbose > 2)
 		dsos__fprintf(stdout);

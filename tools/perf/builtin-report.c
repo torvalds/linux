@@ -55,9 +55,6 @@ static char		callchain_default_opt[] = "fractal,0.5";
 static char		*cwd;
 static int		cwdlen;
 
-static struct rb_root	threads;
-static struct thread	*last_match;
-
 static struct perf_header *header;
 
 static u64		sample_type;
@@ -593,15 +590,13 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
 	struct symbol *sym = NULL;
-	struct thread *thread;
 	u64 ip = event->ip.ip;
 	u64 period = 1;
 	struct map *map = NULL;
 	void *more_data = event->ip.__more_data;
 	struct ip_callchain *chain = NULL;
 	int cpumode;
-
-	thread = threads__findnew(event->ip.pid, &threads, &last_match);
+	struct thread *thread = threads__findnew(event->ip.pid);
 
 	if (sample_type & PERF_SAMPLE_PERIOD) {
 		period = *(u64 *)more_data;
@@ -685,10 +680,8 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread;
 	struct map *map = map__new(&event->mmap, cwd, cwdlen);
-
-	thread = threads__findnew(event->mmap.pid, &threads, &last_match);
+	struct thread *thread = threads__findnew(event->mmap.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_MMAP %d/%d: [%p(%p) @ %p]: %s\n",
 		(void *)(offset + head),
@@ -714,9 +707,7 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread;
-
-	thread = threads__findnew(event->comm.pid, &threads, &last_match);
+	struct thread *thread = threads__findnew(event->comm.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_COMM: %s:%d\n",
 		(void *)(offset + head),
@@ -736,11 +727,8 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_task_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread;
-	struct thread *parent;
-
-	thread = threads__findnew(event->fork.pid, &threads, &last_match);
-	parent = threads__findnew(event->fork.ppid, &threads, &last_match);
+	struct thread *thread = threads__findnew(event->fork.pid);
+	struct thread *parent = threads__findnew(event->fork.ppid);
 
 	dump_printf("%p [%p]: PERF_RECORD_%s: (%d:%d):(%d:%d)\n",
 		(void *)(offset + head),
@@ -857,7 +845,7 @@ static int __cmd_report(void)
 	struct thread *idle;
 	int ret;
 
-	idle = register_idle_thread(&threads, &last_match);
+	idle = register_idle_thread();
 	thread__comm_adjust(idle);
 
 	if (show_threads)
@@ -881,7 +869,7 @@ static int __cmd_report(void)
 		return 0;
 
 	if (verbose > 3)
-		threads__fprintf(stdout, &threads);
+		threads__fprintf(stdout);
 
 	if (verbose > 2)
 		dsos__fprintf(stdout);

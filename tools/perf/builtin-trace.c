@@ -19,9 +19,6 @@ static char		const *input_name = "perf.data";
 static unsigned long	total = 0;
 static unsigned long	total_comm = 0;
 
-static struct rb_root	threads;
-static struct thread	*last_match;
-
 static struct perf_header *header;
 static u64		sample_type;
 
@@ -32,9 +29,7 @@ static int		cwdlen;
 static int
 process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread;
-
-	thread = threads__findnew(event->comm.pid, &threads, &last_match);
+	struct thread *thread = threads__findnew(event->comm.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_COMM: %s:%d\n",
 		(void *)(offset + head),
@@ -54,14 +49,12 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread;
 	u64 ip = event->ip.ip;
 	u64 timestamp = -1;
 	u32 cpu = -1;
 	u64 period = 1;
 	void *more_data = event->ip.__more_data;
-
-	thread = threads__findnew(event->ip.pid, &threads, &last_match);
+	struct thread *thread = threads__findnew(event->ip.pid);
 
 	if (sample_type & PERF_SAMPLE_TIME) {
 		timestamp = *(u64 *)more_data;
@@ -135,7 +128,7 @@ static struct perf_file_handler file_handler = {
 
 static int __cmd_trace(void)
 {
-	register_idle_thread(&threads, &last_match);
+	register_idle_thread();
 	register_perf_file_handler(&file_handler);
 
 	return mmap_dispatch_perf_file(&header, input_name, 0, 0, &cwdlen, &cwd);

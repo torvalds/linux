@@ -15,13 +15,11 @@ struct thread {
 };
 
 int thread__set_comm(struct thread *self, const char *comm);
-struct thread *
-threads__findnew(pid_t pid, struct rb_root *threads, struct thread **last_match);
-struct thread *
-register_idle_thread(struct rb_root *threads, struct thread **last_match);
+struct thread *threads__findnew(pid_t pid);
+struct thread *register_idle_thread(void);
 void thread__insert_map(struct thread *self, struct map *map);
 int thread__fork(struct thread *self, struct thread *parent);
-size_t threads__fprintf(FILE *fp, struct rb_root *threads);
+size_t threads__fprintf(FILE *fp);
 
 void maps__insert(struct rb_root *maps, struct map *map);
 struct map *maps__find(struct rb_root *maps, u64 ip);

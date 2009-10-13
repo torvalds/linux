@@ -24,9 +24,6 @@ static char			const *input_name = "perf.data";
 
 static unsigned long		total_comm = 0;
 
-static struct rb_root		threads;
-static struct thread		*last_match;
-
 static struct perf_header	*header;
 static u64			sample_type;
 
@@ -641,9 +638,7 @@ static void test_calibrations(void)
 static int
 process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct thread *thread;
-
-	thread = threads__findnew(event->comm.tid, &threads, &last_match);
+	struct thread *thread = threads__findnew(event->comm.tid);
 
 	dump_printf("%p [%p]: perf_event_comm: %s:%d\n",
 		(void *)(offset + head),
@@ -1086,8 +1081,8 @@ latency_switch_event(struct trace_switch_event *switch_event,
 		die("hm, delta: %Ld < 0 ?\n", delta);
 
 
-	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
-	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
+	sched_out = threads__findnew(switch_event->prev_pid);
+	sched_in = threads__findnew(switch_event->next_pid);
 
 	out_events = thread_atoms_search(&atom_root, sched_out, &cmp_pid);
 	if (!out_events) {
@@ -1120,13 +1115,10 @@ latency_runtime_event(struct trace_runtime_event *runtime_event,
 		     u64 timestamp,
 		     struct thread *this_thread __used)
 {
-	struct work_atoms *atoms;
-	struct thread *thread;
+	struct thread *thread = threads__findnew(runtime_event->pid);
+	struct work_atoms *atoms = thread_atoms_search(&atom_root, thread, &cmp_pid);
 
 	BUG_ON(cpu >= MAX_CPUS || cpu < 0);
-
-	thread = threads__findnew(runtime_event->pid, &threads, &last_match);
-	atoms = thread_atoms_search(&atom_root, thread, &cmp_pid);
 	if (!atoms) {
 		thread_atoms_insert(thread);
 		atoms = thread_atoms_search(&atom_root, thread, &cmp_pid);
@@ -1153,7 +1145,7 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 	if (!wakeup_event->success)
 		return;
 
-	wakee = threads__findnew(wakeup_event->pid, &threads, &last_match);
+	wakee = threads__findnew(wakeup_event->pid);
 	atoms = thread_atoms_search(&atom_root, wakee, &cmp_pid);
 	if (!atoms) {
 		thread_atoms_insert(wakee);
@@ -1202,7 +1194,7 @@ latency_migrate_task_event(struct trace_migrate_task_event *migrate_task_event,
 	if (profile_cpu == -1)
 		return;
 
-	migrant = threads__findnew(migrate_task_event->pid, &threads, &last_match);
+	migrant = threads__findnew(migrate_task_event->pid);
 	atoms = thread_atoms_search(&atom_root, migrant, &cmp_pid);
 	if (!atoms) {
 		thread_atoms_insert(migrant);
@@ -1458,8 +1450,8 @@ map_switch_event(struct trace_switch_event *switch_event,
 		die("hm, delta: %Ld < 0 ?\n", delta);
 
 
-	sched_out = threads__findnew(switch_event->prev_pid, &threads, &last_match);
-	sched_in = threads__findnew(switch_event->next_pid, &threads, &last_match);
+	sched_out = threads__findnew(switch_event->prev_pid);
+	sched_in = threads__findnew(switch_event->next_pid);
 
 	curr_thread[this_cpu] = sched_in;
 
@@ -1649,7 +1641,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	if (!(sample_type & PERF_SAMPLE_RAW))
 		return 0;
 
-	thread = threads__findnew(event->ip.pid, &threads, &last_match);
+	thread = threads__findnew(event->ip.pid);
 
 	if (sample_type & PERF_SAMPLE_TIME) {
 		timestamp = *(u64 *)more_data;
@@ -1725,7 +1717,7 @@ static struct perf_file_handler file_handler = {
 
 static int read_events(void)
 {
-	register_idle_thread(&threads, &last_match);
+	register_idle_thread();
 	register_perf_file_handler(&file_handler);
 
 	return mmap_dispatch_perf_file(&header, input_name, 0, 0, &cwdlen, &cwd);
