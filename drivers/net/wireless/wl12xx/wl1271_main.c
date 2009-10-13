@@ -437,14 +437,15 @@ static void wl1271_irq_work(struct work_struct *work)
 
 	intr &= WL1271_INTR_MASK;
 
-	if (intr & (WL1271_ACX_INTR_EVENT_A |
-		    WL1271_ACX_INTR_EVENT_B)) {
-		wl1271_debug(DEBUG_IRQ,
-			     "WL1271_ACX_INTR_EVENT (0x%x)", intr);
-		if (intr & WL1271_ACX_INTR_EVENT_A)
-			wl1271_event_handle(wl, 0);
-		else
-			wl1271_event_handle(wl, 1);
+	if (intr & WL1271_ACX_INTR_EVENT_A) {
+		bool do_ack = (intr & WL1271_ACX_INTR_EVENT_B) ? false : true;
+		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_A");
+		wl1271_event_handle(wl, 0, do_ack);
+	}
+
+	if (intr & WL1271_ACX_INTR_EVENT_B) {
+		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_B");
+		wl1271_event_handle(wl, 1, true);
 	}
 
 	if (intr & WL1271_ACX_INTR_INIT_COMPLETE)
