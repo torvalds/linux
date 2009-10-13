@@ -850,11 +850,6 @@ struct acx_statistics {
 	struct acx_rxpipe_statistics rxpipe;
 } __attribute__ ((packed));
 
-#define ACX_MAX_RATE_CLASSES       8
-#define ACX_RATE_MASK_UNSPECIFIED  0
-#define ACX_RATE_MASK_ALL          0x1eff
-#define ACX_RATE_RETRY_LIMIT       10
-
 struct acx_rate_class {
 	u32 enabled_rates;
 	u8 short_retry_limit;
@@ -867,10 +862,8 @@ struct acx_rate_policy {
 	struct acx_header header;
 
 	u32 rate_class_cnt;
-	struct acx_rate_class rate_class[ACX_MAX_RATE_CLASSES];
+	struct acx_rate_class rate_class[CONF_TX_MAX_RATE_CLASSES];
 } __attribute__ ((packed));
-
-#define WL1271_ACX_AC_COUNT 4
 
 struct acx_ac_cfg {
 	struct acx_header header;
@@ -881,31 +874,6 @@ struct acx_ac_cfg {
 	u8 reserved;
 	u16 tx_op_limit;
 } __attribute__ ((packed));
-
-enum wl1271_acx_ac {
-	WL1271_ACX_AC_BE = 0,
-	WL1271_ACX_AC_BK = 1,
-	WL1271_ACX_AC_VI = 2,
-	WL1271_ACX_AC_VO = 3,
-	WL1271_ACX_AC_CTS2SELF = 4,
-	WL1271_ACX_AC_ANY_TID = 0x1F,
-	WL1271_ACX_AC_INVALID = 0xFF,
-};
-
-enum wl1271_acx_ps_scheme {
-	WL1271_ACX_PS_SCHEME_LEGACY = 0,
-	WL1271_ACX_PS_SCHEME_UPSD_TRIGGER = 1,
-	WL1271_ACX_PS_SCHEME_LEGACY_PSPOLL = 2,
-	WL1271_ACX_PS_SCHEME_SAPSD = 3,
-};
-
-enum wl1271_acx_ack_policy {
-	WL1271_ACX_ACK_POLICY_LEGACY = 0,
-	WL1271_ACX_ACK_POLICY_NO_ACK = 1,
-	WL1271_ACX_ACK_POLICY_BLOCK = 2,
-};
-
-#define WL1271_ACX_TID_COUNT 7
 
 struct acx_tid_config {
 	struct acx_header header;
@@ -923,9 +891,6 @@ struct acx_frag_threshold {
 	u16 frag_threshold;
 	u8 padding[2];
 } __attribute__ ((packed));
-
-#define WL1271_ACX_TX_COMPL_TIMEOUT   5
-#define WL1271_ACX_TX_COMPL_THRESHOLD 5
 
 struct acx_tx_config_options {
 	struct acx_header header;

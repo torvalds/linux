@@ -558,7 +558,7 @@ int wl1271_acx_cca_threshold(struct wl1271 *wl)
 	}
 
 	detection->rx_cca_threshold = wl->conf.rx.rx_cca_threshold;
-	detection->tx_energy_detection = 0;
+	detection->tx_energy_detection = wl->conf.tx.tx_energy_detection;
 
 	ret = wl1271_cmd_configure(wl, ACX_CCA_THRESHOLD,
 				   detection, sizeof(*detection));
@@ -729,6 +729,7 @@ int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats)
 int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates)
 {
 	struct acx_rate_policy *acx;
+	struct conf_tx_rate_class *c = &wl->conf.tx.rc_conf;
 	int ret = 0;
 
 	wl1271_debug(DEBUG_ACX, "acx rate policies");
@@ -743,9 +744,9 @@ int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates)
 	/* configure one default (one-size-fits-all) rate class */
 	acx->rate_class_cnt = 1;
 	acx->rate_class[0].enabled_rates = enabled_rates;
-	acx->rate_class[0].short_retry_limit = ACX_RATE_RETRY_LIMIT;
-	acx->rate_class[0].long_retry_limit = ACX_RATE_RETRY_LIMIT;
-	acx->rate_class[0].aflags = 0;
+	acx->rate_class[0].short_retry_limit = c->short_retry_limit;
+	acx->rate_class[0].long_retry_limit = c->long_retry_limit;
+	acx->rate_class[0].aflags = c->aflags;
 
 	ret = wl1271_cmd_configure(wl, ACX_RATE_POLICY, acx, sizeof(*acx));
 	if (ret < 0) {
@@ -772,22 +773,14 @@ int wl1271_acx_ac_cfg(struct wl1271 *wl)
 		goto out;
 	}
 
-	/*
-	 * FIXME: Configure each AC with appropriate values (most suitable
-	 * values will probably be different for each AC.
-	 */
-	for (i = 0; i < WL1271_ACX_AC_COUNT; i++) {
-		acx->ac = i;
-
-		/*
-		 * FIXME: The following default values originate from
-		 * the TI reference driver. What do they mean?
-		 */
-		acx->cw_min = 15;
-		acx->cw_max = 63;
-		acx->aifsn = 3;
+	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
+		struct conf_tx_ac_category *c = &(wl->conf.tx.ac_conf[i]);
+		acx->ac = c->ac;
+		acx->cw_min = c->cw_min;
+		acx->cw_max = c->cw_max;
+		acx->aifsn = c->aifsn;
 		acx->reserved = 0;
-		acx->tx_op_limit = 0;
+		acx->tx_op_limit = c->tx_op_limit;
 
 		ret = wl1271_cmd_configure(wl, ACX_AC_CFG, acx, sizeof(*acx));
 		if (ret < 0) {
@@ -816,12 +809,15 @@ int wl1271_acx_tid_cfg(struct wl1271 *wl)
 		goto out;
 	}
 
-	/* FIXME: configure each TID with a different AC reference */
-	for (i = 0; i < WL1271_ACX_TID_COUNT; i++) {
-		acx->queue_id = i;
-		acx->tsid = WL1271_ACX_AC_BE;
-		acx->ps_scheme = WL1271_ACX_PS_SCHEME_LEGACY;
-		acx->ack_policy = WL1271_ACX_ACK_POLICY_LEGACY;
+	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
+		struct conf_tx_tid *c = &(wl->conf.tx.tid_conf[i]);
+		acx->queue_id = c->queue_id;
+		acx->channel_type = c->channel_type;
+		acx->tsid = c->tsid;
+		acx->ps_scheme = c->ps_scheme;
+		acx->ack_policy = c->ack_policy;
+		acx->apsd_conf[0] = c->apsd_conf[0];
+		acx->apsd_conf[1] = c->apsd_conf[1];
 
 		ret = wl1271_cmd_configure(wl, ACX_TID_CFG, acx, sizeof(*acx));
 		if (ret < 0) {
@@ -849,7 +845,7 @@ int wl1271_acx_frag_threshold(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->frag_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
+	acx->frag_threshold = wl->conf.tx.frag_threshold;
 	ret = wl1271_cmd_configure(wl, ACX_FRAG_CFG, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of frag threshold failed: %d", ret);
@@ -875,8 +871,8 @@ int wl1271_acx_tx_config_options(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->tx_compl_timeout = WL1271_ACX_TX_COMPL_TIMEOUT;
-	acx->tx_compl_threshold = WL1271_ACX_TX_COMPL_THRESHOLD;
+	acx->tx_compl_timeout = wl->conf.tx.tx_compl_timeout;
+	acx->tx_compl_threshold = wl->conf.tx.tx_compl_threshold;
 	ret = wl1271_cmd_configure(wl, ACX_TX_CONFIG_OPT, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of tx options failed: %d", ret);
@@ -929,7 +925,7 @@ int wl1271_acx_init_mem_config(struct wl1271 *wl)
 		return ret;
 
 	wl->target_mem_map = kzalloc(sizeof(struct wl1271_acx_mem_map),
-					  GFP_KERNEL);
+				     GFP_KERNEL);
 	if (!wl->target_mem_map) {
 		wl1271_error("couldn't allocate target memory map");
 		return -ENOMEM;

@@ -73,6 +73,109 @@ static void wl1271_conf_init(struct wl1271 *wl)
 			.irq_pkt_threshold          = USHORT_MAX,
 			.irq_timeout                = 5,
 			.queue_type           = CONF_RX_QUEUE_TYPE_LOW_PRIORITY,
+		},
+		.tx = {
+			.tx_energy_detection        = 0,
+			.rc_conf                    = {
+				.enabled_rates      =
+				CONF_TX_RATE_MASK_UNSPECIFIED,
+				.short_retry_limit  = 10,
+				.long_retry_limit   = 10,
+				.aflags             = 0
+			},
+			.ac_conf_count              = 4,
+			.ac_conf                    = {
+				[0] = {
+					.ac         = CONF_TX_AC_BE,
+					.cw_min     = 15,
+					.cw_max     = 63,
+					.aifsn      = 3,
+					.tx_op_limit = 0,
+				},
+				[1] = {
+					.ac         = CONF_TX_AC_BK,
+					.cw_min     = 15,
+					.cw_max     = 63,
+					.aifsn      = 7,
+					.tx_op_limit = 0,
+				},
+				[2] = {
+					.ac         = CONF_TX_AC_VI,
+					.cw_min     = 15,
+					.cw_max     = 63,
+					.aifsn      = CONF_TX_AIFS_PIFS,
+					.tx_op_limit = 3008,
+				},
+				[3] = {
+					.ac         = CONF_TX_AC_VO,
+					.cw_min     = 15,
+					.cw_max     = 63,
+					.aifsn      = CONF_TX_AIFS_PIFS,
+					.tx_op_limit = 1504,
+				},
+			},
+			.tid_conf_count = 7,
+			.tid_conf = {
+				[0] = {
+					.queue_id   = 0,
+					.channel_type = CONF_CHANNEL_TYPE_DCF,
+					.tsid = CONF_TX_AC_BE,
+					.ps_scheme  = CONF_PS_SCHEME_LEGACY,
+					.ack_policy = CONF_ACK_POLICY_LEGACY,
+					.apsd_conf  = {0, 0},
+				},
+				[1] = {
+					.queue_id   = 1,
+					.channel_type = CONF_CHANNEL_TYPE_DCF,
+					.tsid = CONF_TX_AC_BE,
+					.ps_scheme  = CONF_PS_SCHEME_LEGACY,
+					.ack_policy = CONF_ACK_POLICY_LEGACY,
+					.apsd_conf  = {0, 0},
+				},
+				[2] = {
+					.queue_id   = 2,
+					.channel_type = CONF_CHANNEL_TYPE_DCF,
+					.tsid = CONF_TX_AC_BE,
+					.ps_scheme  = CONF_PS_SCHEME_LEGACY,
+					.ack_policy = CONF_ACK_POLICY_LEGACY,
+					.apsd_conf  = {0, 0},
+				},
+				[3] = {
+					.queue_id   = 3,
+					.channel_type = CONF_CHANNEL_TYPE_DCF,
+					.tsid = CONF_TX_AC_BE,
+					.ps_scheme  = CONF_PS_SCHEME_LEGACY,
+					.ack_policy = CONF_ACK_POLICY_LEGACY,
+					.apsd_conf  = {0, 0},
+				},
+				[4] = {
+					.queue_id   = 4,
+					.channel_type = CONF_CHANNEL_TYPE_DCF,
+					.tsid = CONF_TX_AC_BE,
+					.ps_scheme  = CONF_PS_SCHEME_LEGACY,
+					.ack_policy = CONF_ACK_POLICY_LEGACY,
+					.apsd_conf  = {0, 0},
+				},
+				[5] = {
+					.queue_id   = 5,
+					.channel_type = CONF_CHANNEL_TYPE_DCF,
+					.tsid = CONF_TX_AC_BE,
+					.ps_scheme  = CONF_PS_SCHEME_LEGACY,
+					.ack_policy = CONF_ACK_POLICY_LEGACY,
+					.apsd_conf  = {0, 0},
+				},
+				[6] = {
+					.queue_id   = 6,
+					.channel_type = CONF_CHANNEL_TYPE_DCF,
+					.tsid = CONF_TX_AC_BE,
+					.ps_scheme  = CONF_PS_SCHEME_LEGACY,
+					.ack_policy = CONF_ACK_POLICY_LEGACY,
+					.apsd_conf  = {0, 0},
+				}
+			},
+			.frag_threshold          = IEEE80211_MAX_FRAG_THRESHOLD,
+			.tx_compl_timeout           = 5,
+			.tx_compl_threshold         = 5
 		}
 	};
 

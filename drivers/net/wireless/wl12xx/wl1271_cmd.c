@@ -626,9 +626,9 @@ int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
 
 	cmd->len = cpu_to_le16(buf_len);
 	cmd->template_type = template_id;
-	cmd->enabled_rates = ACX_RATE_MASK_UNSPECIFIED;
-	cmd->short_retry_limit = ACX_RATE_RETRY_LIMIT;
-	cmd->long_retry_limit = ACX_RATE_RETRY_LIMIT;
+	cmd->enabled_rates = wl->conf.tx.rc_conf.enabled_rates;
+	cmd->short_retry_limit = wl->conf.tx.rc_conf.short_retry_limit;
+	cmd->long_retry_limit = wl->conf.tx.rc_conf.long_retry_limit;
 
 	if (buf)
 		memcpy(cmd->template_data, buf, buf_len);

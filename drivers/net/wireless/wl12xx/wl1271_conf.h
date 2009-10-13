@@ -255,9 +255,196 @@ struct conf_rx_settings {
 	u8 queue_type;
 };
 
+#define CONF_TX_MAX_RATE_CLASSES       8
+
+#define CONF_TX_RATE_MASK_UNSPECIFIED  0
+#define CONF_TX_RATE_MASK_ALL          0x1eff
+#define CONF_TX_RATE_RETRY_LIMIT       10
+
+struct conf_tx_rate_class {
+
+	/*
+	 * The rates enabled for this rate class.
+	 *
+	 * Range: CONF_HW_BIT_RATE_* bit mask
+	 */
+	u32 enabled_rates;
+
+	/*
+	 * The dot11 short retry limit used for TX retries.
+	 *
+	 * Range: u8
+	 */
+	u8 short_retry_limit;
+
+	/*
+	 * The dot11 long retry limit used for TX retries.
+	 *
+	 * Range: u8
+	 */
+	u8 long_retry_limit;
+
+	/*
+	 * Flags controlling the attributes of TX transmission.
+	 *
+	 * Range: bit 0: Truncate - when set, FW attempts to send a frame stop
+	 *               when the total valid per-rate attempts have
+	 *               been exhausted; otherwise transmissions
+	 *               will continue at the lowest available rate
+	 *               until the appropriate one of the
+	 *               short_retry_limit, long_retry_limit,
+	 *               dot11_max_transmit_msdu_life_time, or
+	 *               max_tx_life_time, is exhausted.
+	 *            1: Preamble Override - indicates if the preamble type
+	 *               should be used in TX.
+	 *            2: Preamble Type - the type of the preamble to be used by
+	 *               the policy (0 - long preamble, 1 - short preamble.
+	 */
+	u8 aflags;
+};
+
+#define CONF_TX_MAX_AC_COUNT 4
+
+/* Slot number setting to start transmission at PIFS interval */
+#define CONF_TX_AIFS_PIFS 1
+/* Slot number setting to start transmission at DIFS interval normal
+ * DCF access */
+#define CONF_TX_AIFS_DIFS 2
+
+
+enum conf_tx_ac {
+	CONF_TX_AC_BE = 0,         /* best effort / legacy */
+	CONF_TX_AC_BK = 1,         /* background */
+	CONF_TX_AC_VI = 2,         /* video */
+	CONF_TX_AC_VO = 3,         /* voice */
+	CONF_TX_AC_CTS2SELF = 4,   /* fictious AC, follows AC_VO */
+	CONF_TX_AC_ANY_TID = 0x1f
+};
+
+struct conf_tx_ac_category {
+	/*
+	 * The AC class identifier.
+	 *
+	 * Range: enum conf_tx_ac
+	 */
+	u8 ac;
+
+	/*
+	 * The contention window minimum size (in slots) for the access
+	 * class.
+	 *
+	 * Range: u8
+	 */
+	u8 cw_min;
+
+	/*
+	 * The contention window maximum size (in slots) for the access
+	 * class.
+	 *
+	 * Range: u8
+	 */
+	u16 cw_max;
+
+	/*
+	 * The AIF value (in slots) for the access class.
+	 *
+	 * Range: u8
+	 */
+	u8 aifsn;
+
+	/*
+	 * The TX Op Limit (in microseconds) for the access class.
+	 *
+	 * Range: u16
+	 */
+	u16 tx_op_limit;
+};
+
+#define CONF_TX_MAX_TID_COUNT 7
+
+enum {
+	CONF_CHANNEL_TYPE_DCF = 0,   /* DC/LEGACY*/
+	CONF_CHANNEL_TYPE_EDCF = 1,  /* EDCA*/
+	CONF_CHANNEL_TYPE_HCCA = 2,  /* HCCA*/
+};
+
+enum {
+	CONF_PS_SCHEME_LEGACY = 0,
+	CONF_PS_SCHEME_UPSD_TRIGGER = 1,
+	CONF_PS_SCHEME_LEGACY_PSPOLL = 2,
+	CONF_PS_SCHEME_SAPSD = 3,
+};
+
+enum {
+	CONF_ACK_POLICY_LEGACY = 0,
+	CONF_ACK_POLICY_NO_ACK = 1,
+	CONF_ACK_POLICY_BLOCK = 2,
+};
+
+
+struct conf_tx_tid {
+	u8 queue_id;
+	u8 channel_type;
+	u8 tsid;
+	u8 ps_scheme;
+	u8 ack_policy;
+	u32 apsd_conf[2];
+};
+
+struct conf_tx_settings {
+	/*
+	 * The TX ED value for TELEC Enable/Disable.
+	 *
+	 * Range: 0, 1
+	 */
+	u8 tx_energy_detection;
+
+	/*
+	 * Configuration for rate classes for TX (currently only one
+	 * rate class supported.)
+	 */
+	struct conf_tx_rate_class rc_conf;
+
+	/*
+	 * Configuration for access categories for TX rate control.
+	 */
+	u8 ac_conf_count;
+	struct conf_tx_ac_category ac_conf[CONF_TX_MAX_AC_COUNT];
+
+	/*
+	 * Configuration for TID parameters.
+	 */
+	u8 tid_conf_count;
+	struct conf_tx_tid tid_conf[CONF_TX_MAX_TID_COUNT];
+
+	/*
+	 * The TX fragmentation threshold.
+	 *
+	 * Range: u16
+	 */
+	u16 frag_threshold;
+
+	/*
+	 * Max time in msec the FW may delay frame TX-Complete interrupt.
+	 *
+	 * Range: u16
+	 */
+	u16 tx_compl_timeout;
+
+	/*
+	 * Completed TX packet count which requires to issue the TX-Complete
+	 * interrupt.
+	 *
+	 * Range: u16
+	 */
+	u16 tx_compl_threshold;
+
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
+	struct conf_tx_settings tx;
 };
 
 #endif
