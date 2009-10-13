@@ -515,11 +515,15 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 
 	struct wl1271_cmd_trigger_scan_to *trigger = NULL;
 	struct wl1271_cmd_scan *params = NULL;
-	int i, ret;
+	struct ieee80211_channel *channels;
+	int i, j, n_ch, ret;
 	u16 scan_options = 0;
 
 	if (wl->scanning)
 		return -EINVAL;
+
+	channels = wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ]->channels;
+	n_ch = wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ]->n_channels;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
@@ -535,23 +539,28 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 		scan_options |= WL1271_SCAN_OPT_PRIORITY_HIGH;
 	params->params.scan_options = scan_options;
 
-	params->params.num_channels = num_channels;
 	params->params.num_probe_requests = probe_requests;
 	params->params.tx_rate = cpu_to_le32(CONF_HW_BIT_RATE_2MBPS);
 	params->params.tid_trigger = 0;
 	params->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;
 
-	for (i = 0; i < num_channels; i++) {
-		params->channels[i].min_duration =
-			cpu_to_le32(WL1271_SCAN_CHAN_MIN_DURATION);
-		params->channels[i].max_duration =
-			cpu_to_le32(WL1271_SCAN_CHAN_MAX_DURATION);
-		memset(&params->channels[i].bssid_lsb, 0xff, 4);
-		memset(&params->channels[i].bssid_msb, 0xff, 2);
-		params->channels[i].early_termination = 0;
-		params->channels[i].tx_power_att = WL1271_SCAN_CURRENT_TX_PWR;
-		params->channels[i].channel = i + 1;
+	for (i = 0, j = 0; i < n_ch && i < WL1271_SCAN_MAX_CHANNELS; i++) {
+		if (!(channels[i].flags & IEEE80211_CHAN_DISABLED)) {
+			params->channels[j].min_duration =
+				cpu_to_le32(WL1271_SCAN_CHAN_MIN_DURATION);
+			params->channels[j].max_duration =
+				cpu_to_le32(WL1271_SCAN_CHAN_MAX_DURATION);
+			memset(&params->channels[j].bssid_lsb, 0xff, 4);
+			memset(&params->channels[j].bssid_msb, 0xff, 2);
+			params->channels[j].early_termination = 0;
+			params->channels[j].tx_power_att =
+				WL1271_SCAN_CURRENT_TX_PWR;
+			params->channels[j].channel = channels[i].hw_value;
+			j++;
+		}
 	}
+
+	params->params.num_channels = j;
 
 	if (len && ssid) {
 		params->params.ssid_len = len;
