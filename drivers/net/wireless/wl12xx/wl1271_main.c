@@ -774,6 +774,11 @@ int wl1271_plt_start(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_irq_disable;
 
+	/* Make sure power saving is disabled */
+	ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
+	if (ret < 0)
+		goto out_irq_disable;
+
 	goto out;
 
 out_irq_disable:
@@ -807,6 +812,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	wl1271_power_off(wl);
 
 	wl->state = WL1271_STATE_OFF;
+	wl->rx_counter = 0;
 
 out:
 	mutex_unlock(&wl->mutex);
