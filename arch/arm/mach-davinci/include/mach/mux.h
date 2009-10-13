@@ -237,8 +237,8 @@ enum davinci_dm365_index {
 	DM365_EMAC_MDIO,
 	DM365_EMAC_MDCLK,
 
-	/* Keypad */
-	DM365_KEYPAD,
+	/* Key Scan */
+	DM365_KEYSCAN,
 
 	/* PWM */
 	DM365_PWM0,

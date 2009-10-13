@@ -31,6 +31,7 @@
 #include <mach/serial.h>
 #include <mach/common.h>
 #include <mach/asp.h>
+#include <mach/keyscan.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -530,7 +531,7 @@ MUX_CFG(DM365,  EMAC_CRS,	3,   2,     1,    1,     false)
 MUX_CFG(DM365,  EMAC_MDIO,	3,   1,     1,    1,     false)
 MUX_CFG(DM365,  EMAC_MDCLK,	3,   0,     1,    1,     false)
 
-MUX_CFG(DM365,	KEYPAD,		2,   0,     0x3f, 0x3f,  false)
+MUX_CFG(DM365,	KEYSCAN,	2,   0,     0x3f, 0x3f,  false)
 
 MUX_CFG(DM365,	PWM0,		1,   0,     3,    2,     false)
 MUX_CFG(DM365,	PWM0_G23,	3,   26,    3,    3,     false)
@@ -849,6 +850,28 @@ static struct map_desc dm365_io_desc[] = {
 	},
 };
 
+static struct resource dm365_ks_resources[] = {
+	{
+		/* registers */
+		.start = DM365_KEYSCAN_BASE,
+		.end = DM365_KEYSCAN_BASE + SZ_1K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		/* interrupt */
+		.start = IRQ_DM365_KEYINT,
+		.end = IRQ_DM365_KEYINT,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dm365_ks_device = {
+	.name		= "davinci_keyscan",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(dm365_ks_resources),
+	.resource	= dm365_ks_resources,
+};
+
 /* Contents of JTAG ID register used to identify exact cpu type */
 static struct davinci_id dm365_ids[] = {
 	{
@@ -946,6 +969,13 @@ void __init dm365_init_asp(struct snd_platform_data *pdata)
 	davinci_cfg_reg(DM365_EVT3_ASP_RX);
 	dm365_asp_device.dev.platform_data = pdata;
 	platform_device_register(&dm365_asp_device);
+}
+
+void __init dm365_init_ks(struct davinci_ks_platform_data *pdata)
+{
+	davinci_cfg_reg(DM365_KEYSCAN);
+	dm365_ks_device.dev.platform_data = pdata;
+	platform_device_register(&dm365_ks_device);
 }
 
 void __init dm365_init(void)
