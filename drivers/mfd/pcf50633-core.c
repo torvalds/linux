@@ -345,6 +345,9 @@ static void pcf50633_irq_worker(struct work_struct *work)
 		goto out;
 	}
 
+	/* defeat 8s death from lowsys on A5 */
+	pcf50633_reg_write(pcf, PCF50633_REG_OOCSHDWN,  0x04);
+
 	/* We immediately read the usb and adapter status. We thus make sure
 	 * only of USBINS/USBREM IRQ handlers are called */
 	if (pcf_int[0] & (PCF50633_INT1_USBINS | PCF50633_INT1_USBREM)) {
