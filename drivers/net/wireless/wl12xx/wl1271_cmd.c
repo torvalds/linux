@@ -219,6 +219,7 @@ int wl1271_cmd_join(struct wl1271 *wl)
 
 	join->rx_config_options = wl->rx_config;
 	join->rx_filter_options = wl->rx_filter;
+	join->bss_type = wl->bss_type;
 
 	/*
 	 * FIXME: disable temporarily all filters because after commit
@@ -229,12 +230,20 @@ int wl1271_cmd_join(struct wl1271 *wl)
 	join->rx_config_options = 0;
 	join->rx_filter_options = WL1271_DEFAULT_RX_FILTER;
 
-	join->basic_rate_set = CONF_HW_BIT_RATE_1MBPS | CONF_HW_BIT_RATE_2MBPS |
+	if (wl->band == IEEE80211_BAND_2GHZ)
+		join->basic_rate_set =
+			CONF_HW_BIT_RATE_1MBPS | CONF_HW_BIT_RATE_2MBPS |
 		CONF_HW_BIT_RATE_5_5MBPS | CONF_HW_BIT_RATE_11MBPS;
+	else {
+		join->bss_type |= WL1271_JOIN_CMD_BSS_TYPE_5GHZ;
+		join->basic_rate_set =
+			CONF_HW_BIT_RATE_6MBPS | CONF_HW_BIT_RATE_12MBPS |
+			CONF_HW_BIT_RATE_24MBPS;
+	}
 
 	join->beacon_interval = WL1271_DEFAULT_BEACON_INT;
 	join->dtim_interval = WL1271_DEFAULT_DTIM_PERIOD;
-	join->bss_type = wl->bss_type;
+
 	join->channel = wl->channel;
 	join->ssid_len = wl->ssid_len;
 	memcpy(join->ssid, wl->ssid, wl->ssid_len);

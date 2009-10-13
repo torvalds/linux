@@ -198,6 +198,7 @@ enum {
 
 #define WL1271_JOIN_CMD_CTRL_TX_FLUSH     0x80 /* Firmware flushes all Tx */
 #define WL1271_JOIN_CMD_TX_SESSION_OFFSET 1
+#define WL1271_JOIN_CMD_BSS_TYPE_5GHZ 0x10
 
 struct wl1271_cmd_join {
 	struct wl1271_cmd_header header;
