@@ -315,8 +315,8 @@ int wl1271_hw_init(struct wl1271 *wl)
 
 	/* RX config */
 	ret = wl1271_init_rx_config(wl,
-				       RX_CFG_PROMISCUOUS | RX_CFG_TSF,
-				       RX_FILTER_OPTION_DEF);
+				    RX_CFG_PROMISCUOUS | RX_CFG_TSF,
+				    RX_FILTER_OPTION_DEF);
 	/* RX_CONFIG_OPTION_ANY_DST_ANY_BSS,
 	   RX_FILTER_OPTION_FILTER_ALL); */
 	if (ret < 0)

@@ -400,9 +400,6 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	 * ready to receive event from the command mailbox
 	 */
 
-	/* enable gpio interrupts */
-	wl1271_boot_enable_interrupts(wl);
-
 	/* unmask required mbox events  */
 	wl->event_mask = BSS_LOSE_EVENT_ID |
 		SCAN_COMPLETE_EVENT_ID;
@@ -539,6 +536,9 @@ int wl1271_boot(struct wl1271 *wl)
 	ret = wl1271_boot_run_firmware(wl);
 	if (ret < 0)
 		goto out;
+
+	/* Enable firmware interrupts now */
+	wl1271_boot_enable_interrupts(wl);
 
 	/* set the wl1271 default filters */
 	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
