@@ -187,33 +187,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "CPU%d       ", j);
 		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		desc = irq_to_desc(i);
-		spin_lock_irqsave(&desc->lock, flags);
-		action = desc->action;
-		if (!action || !action->handler)
-			goto skip;
-		seq_printf(p, "%3d: ", i);
-#ifdef CONFIG_SMP
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#else
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#endif /* CONFIG_SMP */
-		if (desc->chip)
-			seq_printf(p, " %s ", desc->chip->typename);
-		else
-			seq_puts(p, "  None      ");
-		seq_printf(p, "%s", (desc->status & IRQ_LEVEL) ? "Level " : "Edge  ");
-		seq_printf(p, "    %s", action->name);
-		for (action = action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-		seq_putc(p, '\n');
-skip:
-		spin_unlock_irqrestore(&desc->lock, flags);
-	} else if (i == NR_IRQS) {
+	} else if (i == nr_irqs) {
 #if defined(CONFIG_PPC32) && defined(CONFIG_TAU_INT)
 		if (tau_initialized){
 			seq_puts(p, "TAU: ");
@@ -223,7 +197,43 @@ skip:
 		}
 #endif /* CONFIG_PPC32 && CONFIG_TAU_INT*/
 		seq_printf(p, "BAD: %10u\n", ppc_spurious_interrupts);
+
+		return 0;
 	}
+
+	desc = irq_to_desc(i);
+	if (!desc)
+		return 0;
+
+	spin_lock_irqsave(&desc->lock, flags);
+
+	action = desc->action;
+	if (!action || !action->handler)
+		goto skip;
+
+	seq_printf(p, "%3d: ", i);
+#ifdef CONFIG_SMP
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
+#else
+	seq_printf(p, "%10u ", kstat_irqs(i));
+#endif /* CONFIG_SMP */
+
+	if (desc->chip)
+		seq_printf(p, " %s ", desc->chip->typename);
+	else
+		seq_puts(p, "  None      ");
+
+	seq_printf(p, "%s", (desc->status & IRQ_LEVEL) ? "Level " : "Edge  ");
+	seq_printf(p, "    %s", action->name);
+
+	for (action = action->next; action; action = action->next)
+		seq_printf(p, ", %s", action->name);
+	seq_putc(p, '\n');
+
+skip:
+	spin_unlock_irqrestore(&desc->lock, flags);
+
 	return 0;
 }
 
