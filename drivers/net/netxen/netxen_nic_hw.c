@@ -1046,46 +1046,34 @@ int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
  * Changes the CRB window to the specified window.
  */
 static void
-netxen_nic_pci_change_crbwindow_128M(struct netxen_adapter *adapter, u32 wndw)
+netxen_nic_pci_set_crbwindow_128M(struct netxen_adapter *adapter,
+		u32 window)
 {
 	void __iomem *offset;
-	u32 tmp;
-	int count = 0;
-	uint8_t func = adapter->ahw.pci_func;
+	int count = 10;
+	u8 func = adapter->ahw.pci_func;
 
-	if (adapter->curr_window == wndw)
+	if (adapter->ahw.crb_win == window)
 		return;
-	/*
-	 * Move the CRB window.
-	 * We need to write to the "direct access" region of PCI
-	 * to avoid a race condition where the window register has
-	 * not been successfully written across CRB before the target
-	 * register address is received by PCI. The direct region bypasses
-	 * the CRB bus.
-	 */
+
 	offset = PCI_OFFSET_SECOND_RANGE(adapter,
 			NETXEN_PCIX_PH_REG(PCIE_CRB_WINDOW_REG(func)));
 
-	if (wndw & 0x1)
-		wndw = NETXEN_WINDOW_ONE;
-
-	writel(wndw, offset);
-
-	/* MUST make sure window is set before we forge on... */
-	while ((tmp = readl(offset)) != wndw) {
-		printk(KERN_WARNING "%s: %s WARNING: CRB window value not "
-		       "registered properly: 0x%08x.\n",
-		       netxen_nic_driver_name, __func__, tmp);
-		mdelay(1);
-		if (count >= 10)
+	writel(window, offset);
+	do {
+		if (window == readl(offset))
 			break;
-		count++;
-	}
 
-	if (wndw == NETXEN_WINDOW_ONE)
-		adapter->curr_window = 1;
-	else
-		adapter->curr_window = 0;
+		if (printk_ratelimit())
+			dev_warn(&adapter->pdev->dev,
+					"failed to set CRB window to %d\n",
+					(window == NETXEN_WINDOW_ONE));
+		udelay(1);
+
+	} while (--count > 0);
+
+	if (count > 0)
+		adapter->ahw.crb_win = window;
 }
 
 /*
@@ -1140,20 +1128,24 @@ netxen_nic_pci_get_crb_addr_2M(struct netxen_adapter *adapter, ulong *off)
 static void
 netxen_nic_pci_set_crbwindow_2M(struct netxen_adapter *adapter, ulong *off)
 {
-	u32 win_read;
+	u32 window;
+	void __iomem *addr = adapter->ahw.pci_base0 + CRB_WINDOW_2M;
 
-	adapter->crb_win = CRB_HI(*off);
-	writel(adapter->crb_win, (adapter->ahw.pci_base0 + CRB_WINDOW_2M));
-	/*
-	 * Read back value to make sure write has gone through before trying
-	 * to use it.
-	 */
-	win_read = readl(adapter->ahw.pci_base0 + CRB_WINDOW_2M);
-	if (win_read != adapter->crb_win) {
-		printk(KERN_ERR "%s: Written crbwin (0x%x) != "
-				"Read crbwin (0x%x), off=0x%lx\n",
-				__func__, adapter->crb_win, win_read, *off);
+	window = CRB_HI(*off);
+
+	if (adapter->ahw.crb_win == window)
+		goto done;
+
+	writel(window, addr);
+	if (readl(addr) != window) {
+		if (printk_ratelimit())
+			dev_warn(&adapter->pdev->dev,
+				"failed to set CRB window to %d off 0x%lx\n",
+				window, *off);
 	}
+	adapter->ahw.crb_win = window;
+
+done:
 	*off = (*off & MASK(16)) + CRB_INDIRECT_2M +
 		(ulong)adapter->ahw.pci_base0;
 }
@@ -1178,9 +1170,10 @@ netxen_nic_hw_write_wx_128M(struct netxen_adapter *adapter, ulong off, u32 data)
 	} else {		/* Window 0 */
 		write_lock_irqsave(&adapter->adapter_lock, flags);
 		addr = pci_base_offset(adapter, off);
-		netxen_nic_pci_change_crbwindow_128M(adapter, 0);
+		netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 		writel(data, addr);
-		netxen_nic_pci_change_crbwindow_128M(adapter, 1);
+		netxen_nic_pci_set_crbwindow_128M(adapter,
+				NETXEN_WINDOW_ONE);
 		write_unlock_irqrestore(&adapter->adapter_lock, flags);
 	}
 
@@ -1207,9 +1200,10 @@ netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter, ulong off)
 		read_unlock(&adapter->adapter_lock);
 	} else {		/* Window 0 */
 		write_lock_irqsave(&adapter->adapter_lock, flags);
-		netxen_nic_pci_change_crbwindow_128M(adapter, 0);
+		netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 		data = readl(addr);
-		netxen_nic_pci_change_crbwindow_128M(adapter, 1);
+		netxen_nic_pci_set_crbwindow_128M(adapter,
+				NETXEN_WINDOW_ONE);
 		write_unlock_irqrestore(&adapter->adapter_lock, flags);
 	}
 
@@ -1460,7 +1454,7 @@ netxen_nic_pci_mem_write_128M(struct netxen_adapter *adapter,
 
 correct:
 	write_lock_irqsave(&adapter->adapter_lock, flags);
-	netxen_nic_pci_change_crbwindow_128M(adapter, 0);
+	netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 
 	writel(off_lo, (mem_crb + MIU_TEST_AGT_ADDR_LO));
 	writel(off_hi, (mem_crb + addr_hi));
@@ -1484,7 +1478,7 @@ correct:
 	} else
 		ret = 0;
 
-	netxen_nic_pci_change_crbwindow_128M(adapter, 1);
+	netxen_nic_pci_set_crbwindow_128M(adapter, NETXEN_WINDOW_ONE);
 	write_unlock_irqrestore(&adapter->adapter_lock, flags);
 	return ret;
 }
@@ -1539,7 +1533,7 @@ netxen_nic_pci_mem_read_128M(struct netxen_adapter *adapter,
 
 correct:
 	write_lock_irqsave(&adapter->adapter_lock, flags);
-	netxen_nic_pci_change_crbwindow_128M(adapter, 0);
+	netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 
 	writel(off_lo, (mem_crb + MIU_TEST_AGT_ADDR_LO));
 	writel(off_hi, (mem_crb + addr_hi));
@@ -1566,7 +1560,7 @@ correct:
 		ret = 0;
 	}
 
-	netxen_nic_pci_change_crbwindow_128M(adapter, 1);
+	netxen_nic_pci_set_crbwindow_128M(adapter, NETXEN_WINDOW_ONE);
 	write_unlock_irqrestore(&adapter->adapter_lock, flags);
 
 	return ret;
@@ -1664,8 +1658,10 @@ netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
 		goto correct;
 	}
 
-	if (ADDR_IN_RANGE(off, NETXEN_ADDR_OCM0, NETXEN_ADDR_OCM0_MAX))
-		return netxen_nic_pci_mem_access_direct(adapter, off, data, 0);
+	if (ADDR_IN_RANGE(off, NETXEN_ADDR_OCM0, NETXEN_ADDR_OCM0_MAX)) {
+		return netxen_nic_pci_mem_access_direct(adapter,
+				off, data, 0);
+	}
 
 	return -EIO;
 

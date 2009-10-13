@@ -549,7 +549,7 @@ struct netxen_hardware_context {
 	unsigned long pci_len0;
 
 	u32 ocm_win;
-	u32 resv1;
+	u32 crb_win;
 
 	u8 cut_through;
 	u8 revision_id;
@@ -1115,8 +1115,6 @@ struct netxen_adapter {
 	struct pci_dev *pdev;
 	struct list_head mac_list;
 
-	u32 curr_window;
-	u32 crb_win;
 	rwlock_t adapter_lock;
 
 	spinlock_t tx_clean_lock;

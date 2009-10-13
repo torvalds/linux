@@ -606,7 +606,7 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	 * Set the CRB window to invalid. If any register in window 0 is
 	 * accessed it should set the window to 0 and then reset it to 1.
 	 */
-	adapter->curr_window = 255;
+	adapter->ahw.crb_win = -1;
 	adapter->ahw.ocm_win = -1;
 
 	/* remap phys address */
@@ -1437,7 +1437,7 @@ netxen_nic_resume(struct pci_dev *pdev)
 	if (err)
 		return err;
 
-	adapter->curr_window = 255;
+	adapter->ahw.crb_win = -1;
 	adapter->ahw.ocm_win = -1;
 
 	err = netxen_start_firmware(adapter);
