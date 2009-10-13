@@ -299,6 +299,15 @@ struct wl1271_rx_mem_pool_addr {
 	u32 addr_extra;
 };
 
+struct wl1271_scan {
+	u8 state;
+	u8 ssid[IW_ESSID_MAX_SIZE+1];
+	size_t ssid_len;
+	u8 active;
+	u8 high_prio;
+	u8 probe_requests;
+};
+
 struct wl1271 {
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
@@ -382,6 +391,7 @@ struct wl1271 {
 
 	/* Are we currently scanning */
 	bool scanning;
+	struct wl1271_scan scan;
 
 	/* Our association ID */
 	u16 aid;

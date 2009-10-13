@@ -1332,13 +1332,13 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 	struct wl1271 *wl = hw->priv;
 	int ret;
 	u8 *ssid = NULL;
-	size_t ssid_len = 0;
+	size_t len = 0;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 hw scan");
 
 	if (req->n_ssids) {
 		ssid = req->ssids[0].ssid;
-		ssid_len = req->ssids[0].ssid_len;
+		len = req->ssids[0].ssid_len;
 	}
 
 	mutex_lock(&wl->mutex);
@@ -1347,7 +1347,12 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_cmd_scan(hw->priv, ssid, ssid_len, 1, 0, 13, 3);
+	if (wl1271_11a_enabled())
+		ret = wl1271_cmd_scan(hw->priv, ssid, len, 1, 0,
+				      WL1271_SCAN_BAND_DUAL, 3);
+	else
+		ret = wl1271_cmd_scan(hw->priv, ssid, len, 1, 0,
+				      WL1271_SCAN_BAND_2_4_GHZ, 3);
 
 	wl1271_ps_elp_sleep(wl);
 

@@ -79,6 +79,9 @@ static void wl1271_rx_status(struct wl1271 *wl,
 
 	if ((desc->flags & WL1271_RX_DESC_BAND_MASK) == WL1271_RX_DESC_BAND_BG)
 		status->band = IEEE80211_BAND_2GHZ;
+	else if ((desc->flags & WL1271_RX_DESC_BAND_MASK) ==
+		 WL1271_RX_DESC_BAND_A)
+		status->band = IEEE80211_BAND_5GHZ;
 	else
 		wl1271_warning("unsupported band 0x%x",
 			       desc->flags & WL1271_RX_DESC_BAND_MASK);

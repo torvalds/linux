@@ -59,6 +59,14 @@ static int wl1271_init_templates_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	if (wl1271_11a_enabled()) {
+		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
+				NULL,
+				sizeof(struct wl12xx_probe_req_template));
+		if (ret < 0)
+			return ret;
+	}
+
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, NULL,
 				      sizeof(struct wl12xx_null_data_template));
 	if (ret < 0)

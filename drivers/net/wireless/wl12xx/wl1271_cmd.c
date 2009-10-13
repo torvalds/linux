@@ -509,7 +509,7 @@ out:
 }
 
 int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
-		    u8 active_scan, u8 high_prio, u8 num_channels,
+		    u8 active_scan, u8 high_prio, u8 band,
 		    u8 probe_requests)
 {
 
@@ -518,12 +518,25 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 	struct ieee80211_channel *channels;
 	int i, j, n_ch, ret;
 	u16 scan_options = 0;
+	u8 ieee_band;
+
+	if (band == WL1271_SCAN_BAND_2_4_GHZ)
+		ieee_band = IEEE80211_BAND_2GHZ;
+	else if (band == WL1271_SCAN_BAND_DUAL && wl1271_11a_enabled())
+		ieee_band = IEEE80211_BAND_2GHZ;
+	else if (band == WL1271_SCAN_BAND_5_GHZ && wl1271_11a_enabled())
+		ieee_band = IEEE80211_BAND_5GHZ;
+	else
+		return -EINVAL;
+
+	if (wl->hw->wiphy->bands[ieee_band]->channels == NULL)
+		return -EINVAL;
+
+	channels = wl->hw->wiphy->bands[ieee_band]->channels;
+	n_ch = wl->hw->wiphy->bands[ieee_band]->n_channels;
 
 	if (wl->scanning)
 		return -EINVAL;
-
-	channels = wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ]->channels;
-	n_ch = wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ]->n_channels;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
@@ -540,9 +553,15 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 	params->params.scan_options = scan_options;
 
 	params->params.num_probe_requests = probe_requests;
-	params->params.tx_rate = cpu_to_le32(CONF_HW_BIT_RATE_2MBPS);
+	/* Let the fw autodetect suitable tx_rate for probes */
+	params->params.tx_rate = 0;
 	params->params.tid_trigger = 0;
 	params->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;
+
+	if (band == WL1271_SCAN_BAND_DUAL)
+		params->params.band = WL1271_SCAN_BAND_2_4_GHZ;
+	else
+		params->params.band = band;
 
 	for (i = 0, j = 0; i < n_ch && i < WL1271_SCAN_MAX_CHANNELS; i++) {
 		if (!(channels[i].flags & IEEE80211_CHAN_DISABLED)) {
@@ -567,7 +586,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 		memcpy(params->params.ssid, ssid, len);
 	}
 
-	ret = wl1271_cmd_build_probe_req(wl, ssid, len);
+	ret = wl1271_cmd_build_probe_req(wl, ssid, len, ieee_band);
 	if (ret < 0) {
 		wl1271_error("PROBE request template failed");
 		goto out;
@@ -592,6 +611,19 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 	wl1271_dump(DEBUG_SCAN, "SCAN: ", params, sizeof(*params));
 
 	wl->scanning = true;
+	if (wl1271_11a_enabled()) {
+		wl->scan.state = band;
+		if (band == WL1271_SCAN_BAND_DUAL) {
+			wl->scan.active = active_scan;
+			wl->scan.high_prio = high_prio;
+			wl->scan.probe_requests = probe_requests;
+			if (len && ssid) {
+				wl->scan.ssid_len = len;
+				memcpy(wl->scan.ssid, ssid, len);
+			} else
+				wl->scan.ssid_len = 0;
+		}
+	}
 
 	ret = wl1271_cmd_send(wl, CMD_SCAN, params, sizeof(*params));
 	if (ret < 0) {
@@ -654,30 +686,62 @@ out:
 	return ret;
 }
 
-static int wl1271_build_basic_rates(char *rates)
+static int wl1271_build_basic_rates(char *rates, u8 band)
 {
 	u8 index = 0;
 
-	rates[index++] = IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_1MB;
-	rates[index++] = IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_2MB;
-	rates[index++] = IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_5MB;
-	rates[index++] = IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_11MB;
+	if (band == IEEE80211_BAND_2GHZ) {
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_1MB;
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_2MB;
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_5MB;
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_CCK_RATE_11MB;
+	} else if (band == IEEE80211_BAND_5GHZ) {
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_OFDM_RATE_6MB;
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_OFDM_RATE_12MB;
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_OFDM_RATE_24MB;
+	} else {
+		wl1271_error("build_basic_rates invalid band: %d", band);
+	}
 
 	return index;
 }
 
-static int wl1271_build_extended_rates(char *rates)
+static int wl1271_build_extended_rates(char *rates, u8 band)
 {
 	u8 index = 0;
 
-	rates[index++] = IEEE80211_OFDM_RATE_6MB;
-	rates[index++] = IEEE80211_OFDM_RATE_9MB;
-	rates[index++] = IEEE80211_OFDM_RATE_12MB;
-	rates[index++] = IEEE80211_OFDM_RATE_18MB;
-	rates[index++] = IEEE80211_OFDM_RATE_24MB;
-	rates[index++] = IEEE80211_OFDM_RATE_36MB;
-	rates[index++] = IEEE80211_OFDM_RATE_48MB;
-	rates[index++] = IEEE80211_OFDM_RATE_54MB;
+	if (band == IEEE80211_BAND_2GHZ) {
+		rates[index++] = IEEE80211_OFDM_RATE_6MB;
+		rates[index++] = IEEE80211_OFDM_RATE_9MB;
+		rates[index++] = IEEE80211_OFDM_RATE_12MB;
+		rates[index++] = IEEE80211_OFDM_RATE_18MB;
+		rates[index++] = IEEE80211_OFDM_RATE_24MB;
+		rates[index++] = IEEE80211_OFDM_RATE_36MB;
+		rates[index++] = IEEE80211_OFDM_RATE_48MB;
+		rates[index++] = IEEE80211_OFDM_RATE_54MB;
+	} else if (band == IEEE80211_BAND_5GHZ) {
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_OFDM_RATE_9MB;
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_OFDM_RATE_18MB;
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_OFDM_RATE_24MB;
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_OFDM_RATE_36MB;
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_OFDM_RATE_48MB;
+		rates[index++] =
+			IEEE80211_BASIC_RATE_MASK | IEEE80211_OFDM_RATE_54MB;
+	} else {
+		wl1271_error("build_basic_rates invalid band: %d", band);
+	}
 
 	return index;
 }
@@ -720,12 +784,14 @@ int wl1271_cmd_build_ps_poll(struct wl1271 *wl, u16 aid)
 
 }
 
-int wl1271_cmd_build_probe_req(struct wl1271 *wl, u8 *ssid, size_t ssid_len)
+int wl1271_cmd_build_probe_req(struct wl1271 *wl, u8 *ssid, size_t ssid_len,
+			       u8 band)
 {
 	struct wl12xx_probe_req_template template;
 	struct wl12xx_ie_rates *rates;
 	char *ptr;
 	u16 size;
+	int ret;
 
 	ptr = (char *)&template;
 	size = sizeof(struct ieee80211_header);
@@ -747,20 +813,25 @@ int wl1271_cmd_build_probe_req(struct wl1271 *wl, u8 *ssid, size_t ssid_len)
 	/* Basic Rates */
 	rates = (struct wl12xx_ie_rates *)ptr;
 	rates->header.id = WLAN_EID_SUPP_RATES;
-	rates->header.len = wl1271_build_basic_rates(rates->rates);
+	rates->header.len = wl1271_build_basic_rates(rates->rates, band);
 	size += sizeof(struct wl12xx_ie_header) + rates->header.len;
 	ptr += sizeof(struct wl12xx_ie_header) + rates->header.len;
 
 	/* Extended rates */
 	rates = (struct wl12xx_ie_rates *)ptr;
 	rates->header.id = WLAN_EID_EXT_SUPP_RATES;
-	rates->header.len = wl1271_build_extended_rates(rates->rates);
+	rates->header.len = wl1271_build_extended_rates(rates->rates, band);
 	size += sizeof(struct wl12xx_ie_header) + rates->header.len;
 
 	wl1271_dump(DEBUG_SCAN, "PROBE REQ: ", &template, size);
 
-	return wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
-				       &template, size);
+	if (band == IEEE80211_BAND_2GHZ)
+		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
+					      &template, size);
+	else
+		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
+					      &template, size);
+	return ret;
 }
 
 int wl1271_cmd_set_default_wep_key(struct wl1271 *wl, u8 id)
