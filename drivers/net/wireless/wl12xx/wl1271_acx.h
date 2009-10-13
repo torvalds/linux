@@ -946,6 +946,15 @@ struct wl1271_acx_rx_config_opt {
 	u8 reserved;
 } __attribute__ ((packed));
 
+
+struct wl1271_acx_bet_enable {
+	struct acx_header header;
+
+	u8 enable;
+	u8 max_consecutive;
+	u8 padding[2];
+} __attribute__ ((packed));
+
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
 	ACX_MEM_CFG                 = 0x0003,
@@ -1043,7 +1052,7 @@ int wl1271_acx_aid(struct wl1271 *wl, u16 aid);
 int wl1271_acx_event_mbox_mask(struct wl1271 *wl, u32 event_mask);
 int wl1271_acx_set_preamble(struct wl1271 *wl, enum acx_preamble_type preamble);
 int wl1271_acx_cts_protect(struct wl1271 *wl,
-			    enum acx_ctsprotect_type ctsprotect);
+			   enum acx_ctsprotect_type ctsprotect);
 int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats);
 int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates);
 int wl1271_acx_ac_cfg(struct wl1271 *wl);
@@ -1054,5 +1063,6 @@ int wl1271_acx_mem_cfg(struct wl1271 *wl);
 int wl1271_acx_init_mem_config(struct wl1271 *wl);
 int wl1271_acx_init_rx_interrupt(struct wl1271 *wl);
 int wl1271_acx_smart_reflex(struct wl1271 *wl);
+int wl1271_acx_bet_enable(struct wl1271 *wl, bool enable);
 
 #endif /* __WL1271_ACX_H__ */

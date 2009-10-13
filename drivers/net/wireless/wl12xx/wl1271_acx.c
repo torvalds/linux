@@ -1062,3 +1062,33 @@ out:
 	return ret;
 
 }
+
+int wl1271_acx_bet_enable(struct wl1271 *wl, bool enable)
+{
+	struct wl1271_acx_bet_enable *acx = NULL;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx bet enable");
+
+	if (enable && wl->conf.conn.bet_enable == CONF_BET_MODE_DISABLE)
+		goto out;
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->enable = enable ? CONF_BET_MODE_ENABLE : CONF_BET_MODE_DISABLE;
+	acx->max_consecutive = wl->conf.conn.bet_max_consecutive;
+
+	ret = wl1271_cmd_configure(wl, ACX_BET_ENABLE, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx bet enable failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}

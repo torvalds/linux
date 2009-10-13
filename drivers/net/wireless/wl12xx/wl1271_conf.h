@@ -603,6 +603,11 @@ enum conf_bcn_filt_mode {
 	CONF_BCN_FILT_MODE_ENABLED = 1
 };
 
+enum conf_bet_mode {
+	CONF_BET_MODE_DISABLE = 0,
+	CONF_BET_MODE_ENABLE = 1,
+};
+
 struct conf_conn_settings {
 	/*
 	 * Firmware wakeup conditions configuration. The host may set only
@@ -689,6 +694,24 @@ struct conf_conn_settings {
 	 * Configuration of signal average weights.
 	 */
 	struct conf_sig_weights sig_weights;
+
+	/*
+	 * Specifies if beacon early termination procedure is enabled or
+	 * disabled.
+	 *
+	 * Range: CONF_BET_MODE_*
+	 */
+	u8 bet_enable;
+
+	/*
+	 * Specifies the maximum number of consecutive beacons that may be
+	 * early terminated. After this number is reached at least one full
+	 * beacon must be correctly received in FW before beacon ET
+	 * resumes.
+	 *
+	 * Range 0 - 255
+	 */
+	u8 bet_max_consecutive;
 };
 
 #define CONF_SR_ERR_TBL_MAX_VALUES   14
