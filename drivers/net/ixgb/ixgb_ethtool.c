@@ -34,16 +34,22 @@
 
 #define IXGB_ALL_RAR_ENTRIES 16
 
+enum {NETDEV_STATS, IXGB_STATS};
+
 struct ixgb_stats {
 	char stat_string[ETH_GSTRING_LEN];
+	int type;
 	int sizeof_stat;
 	int stat_offset;
 };
 
-#define IXGB_STAT(m) FIELD_SIZEOF(struct ixgb_adapter, m), \
-		      offsetof(struct ixgb_adapter, m)
-#define IXGB_NETDEV_STAT(m) FIELD_SIZEOF(struct net_device, m), \
-		      offsetof(struct net_device, m)
+#define IXGB_STAT(m)		IXGB_STATS, \
+				FIELD_SIZEOF(struct ixgb_adapter, m), \
+				offsetof(struct ixgb_adapter, m)
+#define IXGB_NETDEV_STAT(m)	NETDEV_STATS, \
+				FIELD_SIZEOF(struct net_device, m), \
+				offsetof(struct net_device, m)
+
 static struct ixgb_stats ixgb_gstrings_stats[] = {
 	{"rx_packets", IXGB_NETDEV_STAT(stats.rx_packets)},
 	{"tx_packets", IXGB_NETDEV_STAT(stats.tx_packets)},
@@ -664,10 +670,21 @@ ixgb_get_ethtool_stats(struct net_device *netdev,
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	int i;
+	char *p = NULL;
 
 	ixgb_update_stats(adapter);
 	for (i = 0; i < IXGB_STATS_LEN; i++) {
-		char *p = (char *)adapter+ixgb_gstrings_stats[i].stat_offset;
+		switch (ixgb_gstrings_stats[i].type) {
+		case NETDEV_STATS:
+			p = (char *) netdev +
+					ixgb_gstrings_stats[i].stat_offset;
+			break;
+		case IXGB_STATS:
+			p = (char *) adapter +
+					ixgb_gstrings_stats[i].stat_offset;
+			break;
+		}
+
 		data[i] = (ixgb_gstrings_stats[i].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
