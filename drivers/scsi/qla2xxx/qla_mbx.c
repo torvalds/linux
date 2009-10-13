@@ -2318,6 +2318,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 {
 	int		rval, rval2;
 	struct tsk_mgmt_cmd *tsk;
+	struct sts_entry_24xx *sts;
 	dma_addr_t	tsk_dma;
 	scsi_qla_host_t *vha;
 	struct qla_hw_data *ha;
@@ -2357,20 +2358,37 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 		    sizeof(tsk->p.tsk.lun));
 	}
 
+	sts = &tsk->p.sts;
 	rval = qla2x00_issue_iocb(vha, tsk, tsk_dma, 0);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2_3_11(printk("%s(%ld): failed to issue %s Reset IOCB "
 		    "(%x).\n", __func__, vha->host_no, name, rval));
-	} else if (tsk->p.sts.entry_status != 0) {
+	} else if (sts->entry_status != 0) {
 		DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
 		    "-- error status (%x).\n", __func__, vha->host_no,
-		    tsk->p.sts.entry_status));
+		    sts->entry_status));
 		rval = QLA_FUNCTION_FAILED;
-	} else if (tsk->p.sts.comp_status !=
+	} else if (sts->comp_status !=
 	    __constant_cpu_to_le16(CS_COMPLETE)) {
 		DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
 		    "-- completion status (%x).\n", __func__,
-		    vha->host_no, le16_to_cpu(tsk->p.sts.comp_status)));
+		    vha->host_no, le16_to_cpu(sts->comp_status)));
+		rval = QLA_FUNCTION_FAILED;
+	} else if (!(le16_to_cpu(sts->scsi_status) &
+	    SS_RESPONSE_INFO_LEN_VALID)) {
+		DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
+		    "-- no response info (%x).\n", __func__, vha->host_no,
+		    le16_to_cpu(sts->scsi_status)));
+		rval = QLA_FUNCTION_FAILED;
+	} else if (le32_to_cpu(sts->rsp_data_len) < 4) {
+		DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
+		    "-- not enough response info (%d).\n", __func__,
+		    vha->host_no, le32_to_cpu(sts->rsp_data_len)));
+		rval = QLA_FUNCTION_FAILED;
+	} else if (sts->data[3]) {
+		DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
+		    "-- response (%x).\n", __func__,
+		    vha->host_no, sts->data[3]));
 		rval = QLA_FUNCTION_FAILED;
 	}
 
