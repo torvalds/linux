@@ -51,6 +51,10 @@
 ACPI_MODULE_NAME("evregion")
 
 /* Local prototypes */
+static u8
+acpi_ev_has_default_handler(struct acpi_namespace_node *node,
+			    acpi_adr_space_type space_id);
+
 static acpi_status
 acpi_ev_reg_run(acpi_handle obj_handle,
 		u32 level, void *context, void **return_value);
@@ -142,6 +146,50 @@ acpi_status acpi_ev_install_region_handlers(void)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ev_has_default_handler
+ *
+ * PARAMETERS:  Node                - Namespace node for the device
+ *              space_id            - The address space ID
+ *
+ * RETURN:      TRUE if default handler is installed, FALSE otherwise
+ *
+ * DESCRIPTION: Check if the default handler is installed for the requested
+ *              space ID.
+ *
+ ******************************************************************************/
+
+static u8
+acpi_ev_has_default_handler(struct acpi_namespace_node *node,
+			    acpi_adr_space_type space_id)
+{
+	union acpi_operand_object *obj_desc;
+	union acpi_operand_object *handler_obj;
+
+	/* Must have an existing internal object */
+
+	obj_desc = acpi_ns_get_attached_object(node);
+	if (obj_desc) {
+		handler_obj = obj_desc->device.handler;
+
+		/* Walk the linked list of handlers for this object */
+
+		while (handler_obj) {
+			if (handler_obj->address_space.space_id == space_id) {
+				if (handler_obj->address_space.handler_flags &
+				    ACPI_ADDR_HANDLER_DEFAULT_INSTALLED) {
+					return (TRUE);
+				}
+			}
+
+			handler_obj = handler_obj->address_space.next;
+		}
+	}
+
+	return (FALSE);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ev_initialize_op_regions
  *
  * PARAMETERS:  None
@@ -169,12 +217,18 @@ acpi_status acpi_ev_initialize_op_regions(void)
 
 	for (i = 0; i < ACPI_NUM_DEFAULT_SPACES; i++) {
 		/*
-		 * TBD: Make sure handler is the DEFAULT handler, otherwise
-		 * _REG will have already been run.
+		 * Make sure the installed handler is the DEFAULT handler. If not the
+		 * default, the _REG methods will have already been run (when the
+		 * handler was installed)
 		 */
-		status = acpi_ev_execute_reg_methods(acpi_gbl_root_node,
-						     acpi_gbl_default_address_spaces
-						     [i]);
+		if (acpi_ev_has_default_handler(acpi_gbl_root_node,
+						acpi_gbl_default_address_spaces
+						[i])) {
+			status =
+			    acpi_ev_execute_reg_methods(acpi_gbl_root_node,
+							acpi_gbl_default_address_spaces
+							[i]);
+		}
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
