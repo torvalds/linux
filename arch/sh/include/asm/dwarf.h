@@ -194,6 +194,11 @@
 #define DWARF_ARCH_RA_REG	17
 
 #ifndef __ASSEMBLY__
+
+#include <linux/compiler.h>
+#include <linux/bug.h>
+#include <linux/list.h>
+
 /*
  * Read either the frame pointer (r14) or the stack pointer (r15).
  * NOTE: this MUST be inlined.

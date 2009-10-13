@@ -11,6 +11,7 @@ endif
 
 obj-y	:= debugtraps.o dumpstack.o idle.o io.o io_generic.o irq.o	\
 	   machvec.o nmi_debug.o process_$(BITS).o ptrace_$(BITS).o	\
+	   return_address.o						\
 	   setup.o signal_$(BITS).o sys_sh.o sys_sh$(BITS).o		\
 	   syscalls_$(BITS).o time.o topology.o traps.o			\
 	   traps_$(BITS).o unwinder.o
