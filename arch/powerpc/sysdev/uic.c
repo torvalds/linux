@@ -57,7 +57,7 @@ struct uic {
 
 static void uic_unmask_irq(unsigned int virq)
 {
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	struct uic *uic = get_irq_chip_data(virq);
 	unsigned int src = uic_irq_to_hw(virq);
 	unsigned long flags;
@@ -101,7 +101,7 @@ static void uic_ack_irq(unsigned int virq)
 
 static void uic_mask_ack_irq(unsigned int virq)
 {
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	struct uic *uic = get_irq_chip_data(virq);
 	unsigned int src = uic_irq_to_hw(virq);
 	unsigned long flags;
@@ -129,7 +129,7 @@ static int uic_set_irq_type(unsigned int virq, unsigned int flow_type)
 {
 	struct uic *uic = get_irq_chip_data(virq);
 	unsigned int src = uic_irq_to_hw(virq);
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	unsigned long flags;
 	int trigger, polarity;
 	u32 tr, pr, mask;

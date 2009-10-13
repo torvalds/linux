@@ -114,7 +114,7 @@ void media5200_irq_cascade(unsigned int virq, struct irq_desc *desc)
 static int media5200_irq_map(struct irq_host *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 
 	pr_debug("%s: h=%p, virq=%i, hwirq=%i\n", __func__, h, virq, (int)hw);
 	set_irq_chip_data(virq, &media5200_irq);

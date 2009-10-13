@@ -102,7 +102,7 @@ static void spider_ack_irq(unsigned int virq)
 
 	/* Reset edge detection logic if necessary
 	 */
-	if (get_irq_desc(virq)->status & IRQ_LEVEL)
+	if (irq_to_desc(virq)->status & IRQ_LEVEL)
 		return;
 
 	/* Only interrupts 47 to 50 can be set to edge */
@@ -119,7 +119,7 @@ static int spider_set_irq_type(unsigned int virq, unsigned int type)
 	struct spider_pic *pic = spider_virq_to_pic(virq);
 	unsigned int hw = irq_map[virq].hwirq;
 	void __iomem *cfg = spider_get_irq_config(pic, hw);
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	u32 old_mask;
 	u32 ic;
 

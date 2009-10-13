@@ -190,7 +190,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
-		desc = get_irq_desc(i);
+		desc = irq_to_desc(i);
 		spin_lock_irqsave(&desc->lock, flags);
 		action = desc->action;
 		if (!action || !action->handler)
@@ -230,23 +230,25 @@ skip:
 #ifdef CONFIG_HOTPLUG_CPU
 void fixup_irqs(cpumask_t map)
 {
+	struct irq_desc *desc;
 	unsigned int irq;
 	static int warned;
 
 	for_each_irq(irq) {
 		cpumask_t mask;
 
-		if (irq_desc[irq].status & IRQ_PER_CPU)
+		desc = irq_to_desc(irq);
+		if (desc && desc->status & IRQ_PER_CPU)
 			continue;
 
-		cpumask_and(&mask, irq_desc[irq].affinity, &map);
+		cpumask_and(&mask, desc->affinity, &map);
 		if (any_online_cpu(mask) == NR_CPUS) {
 			printk("Breaking affinity for irq %i\n", irq);
 			mask = map;
 		}
-		if (irq_desc[irq].chip->set_affinity)
-			irq_desc[irq].chip->set_affinity(irq, &mask);
-		else if (irq_desc[irq].action && !(warned++))
+		if (desc->chip->set_affinity)
+			desc->chip->set_affinity(irq, &mask);
+		else if (desc->action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}
 
@@ -273,7 +275,7 @@ static inline void handle_one_irq(unsigned int irq)
 		return;
 	}
 
-	desc = irq_desc + irq;
+	desc = irq_to_desc(irq);
 	saved_sp_limit = current->thread.ksp_limit;
 
 	irqtp->task = curtp->task;
@@ -535,7 +537,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 			smp_wmb();
 
 			/* Clear norequest flags */
-			get_irq_desc(i)->status &= ~IRQ_NOREQUEST;
+			irq_to_desc(i)->status &= ~IRQ_NOREQUEST;
 
 			/* Legacy flags are left to default at this point,
 			 * one can then use irq_create_mapping() to
@@ -602,7 +604,7 @@ static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 			    irq_hw_number_t hwirq)
 {
 	/* Clear IRQ_NOREQUEST flag */
-	get_irq_desc(virq)->status &= ~IRQ_NOREQUEST;
+	irq_to_desc(virq)->status &= ~IRQ_NOREQUEST;
 
 	/* map it */
 	smp_wmb();
@@ -732,7 +734,7 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 
 	/* Set type if specified and different than the current one */
 	if (type != IRQ_TYPE_NONE &&
-	    type != (get_irq_desc(virq)->status & IRQF_TRIGGER_MASK))
+	    type != (irq_to_desc(virq)->status & IRQF_TRIGGER_MASK))
 		set_irq_type(virq, type);
 	return virq;
 }
@@ -804,7 +806,7 @@ void irq_dispose_mapping(unsigned int virq)
 	irq_map[virq].hwirq = host->inval_irq;
 
 	/* Set some flags */
-	get_irq_desc(virq)->status |= IRQ_NOREQUEST;
+	irq_to_desc(virq)->status |= IRQ_NOREQUEST;
 
 	/* Free it */
 	irq_free_virt(virq, 1);
@@ -1001,7 +1003,7 @@ void irq_early_init(void)
 	unsigned int i;
 
 	for (i = 0; i < NR_IRQS; i++)
-		get_irq_desc(i)->status |= IRQ_NOREQUEST;
+		irq_to_desc(i)->status |= IRQ_NOREQUEST;
 }
 
 /* We need to create the radix trees late */
@@ -1064,7 +1066,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 		      "chip name", "host name");
 
 	for (i = 1; i < NR_IRQS; i++) {
-		desc = get_irq_desc(i);
+		desc = irq_to_desc(i);
 		spin_lock_irqsave(&desc->lock, flags);
 
 		if (desc->action && desc->action->handler) {

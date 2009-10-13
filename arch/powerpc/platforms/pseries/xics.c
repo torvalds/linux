@@ -156,7 +156,7 @@ static int get_irq_server(unsigned int virq, unsigned int strict_check)
 	cpumask_t cpumask;
 	cpumask_t tmp = CPU_MASK_NONE;
 
-	cpumask_copy(&cpumask, irq_desc[virq].affinity);
+	cpumask_copy(&cpumask, irq_to_desc(virq)->affinity);
 	if (!distribute_irqs)
 		return default_server;
 
@@ -419,7 +419,7 @@ static int xics_host_map(struct irq_host *h, unsigned int virq,
 	/* Insert the interrupt mapping into the radix tree for fast lookup */
 	irq_radix_revmap_insert(xics_host, virq, hw);
 
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(virq, xics_irq_chip, handle_fasteoi_irq);
 	return 0;
 }
@@ -843,7 +843,7 @@ void xics_migrate_irqs_away(void)
 		/* We need to get IPIs still. */
 		if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 			continue;
-		desc = get_irq_desc(virq);
+		desc = irq_to_desc(virq);
 
 		/* We only need to migrate enabled IRQS */
 		if (desc == NULL || desc->chip == NULL
@@ -872,7 +872,7 @@ void xics_migrate_irqs_away(void)
 		       virq, cpu);
 
 		/* Reset affinity to all cpus */
-		cpumask_setall(irq_desc[virq].affinity);
+		cpumask_setall(irq_to_desc(virq)->affinity);
 		desc->chip->set_affinity(virq, cpu_all_mask);
 unlock:
 		spin_unlock_irqrestore(&desc->lock, flags);
