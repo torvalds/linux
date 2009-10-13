@@ -1014,7 +1014,7 @@ int wl1271_acx_smart_reflex(struct wl1271 *wl)
 {
 	struct acx_smart_reflex_state *sr_state = NULL;
 	struct acx_smart_reflex_config_params *sr_param = NULL;
-	int ret;
+	int i, ret;
 
 	wl1271_debug(DEBUG_ACX, "acx smart reflex");
 
@@ -1024,33 +1024,14 @@ int wl1271_acx_smart_reflex(struct wl1271 *wl)
 		goto out;
 	}
 
-	/* set cryptic smart reflex parameters - source TI reference code */
-	sr_param->error_table[0].len = 0x07;
-	sr_param->error_table[0].upper_limit = 0x03;
-	sr_param->error_table[0].values[0] = 0x18;
-	sr_param->error_table[0].values[1] = 0x10;
-	sr_param->error_table[0].values[2] = 0x05;
-	sr_param->error_table[0].values[3] = 0xfb;
-	sr_param->error_table[0].values[4] = 0xf0;
-	sr_param->error_table[0].values[5] = 0xe8;
+	for (i = 0; i < CONF_SR_ERR_TBL_COUNT; i++) {
+		struct conf_mart_reflex_err_table *e =
+			&(wl->conf.init.sr_err_tbl[i]);
 
-	sr_param->error_table[1].len = 0x07;
-	sr_param->error_table[1].upper_limit = 0x03;
-	sr_param->error_table[1].values[0] = 0x18;
-	sr_param->error_table[1].values[1] = 0x10;
-	sr_param->error_table[1].values[2] = 0x05;
-	sr_param->error_table[1].values[3] = 0xf6;
-	sr_param->error_table[1].values[4] = 0xf0;
-	sr_param->error_table[1].values[5] = 0xe8;
-
-	sr_param->error_table[2].len = 0x07;
-	sr_param->error_table[2].upper_limit = 0x03;
-	sr_param->error_table[2].values[0] = 0x18;
-	sr_param->error_table[2].values[1] = 0x10;
-	sr_param->error_table[2].values[2] = 0x05;
-	sr_param->error_table[2].values[3] = 0xfb;
-	sr_param->error_table[2].values[4] = 0xf0;
-	sr_param->error_table[2].values[5] = 0xe8;
+		sr_param->error_table[i].len = e->len;
+		sr_param->error_table[i].upper_limit = e->upper_limit;
+		memcpy(sr_param->error_table[i].values, e->values, e->len);
+	}
 
 	ret = wl1271_cmd_configure(wl, ACX_SET_SMART_REFLEX_PARAMS,
 				   sr_param, sizeof(*sr_param));
@@ -1066,7 +1047,7 @@ int wl1271_acx_smart_reflex(struct wl1271 *wl)
 	}
 
 	/* enable smart reflex */
-	sr_state->enable = 1;
+	sr_state->enable = wl->conf.init.sr_enable;
 
 	ret = wl1271_cmd_configure(wl, ACX_SET_SMART_REFLEX_STATE,
 				   sr_state, sizeof(*sr_state));
