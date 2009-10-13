@@ -21,7 +21,7 @@
  * whenever the wire protocol changes.  try to keep this string length
  * constant.
  */
-#define CEPH_BANNER "ceph v021"
+#define CEPH_BANNER "ceph v022"
 #define CEPH_BANNER_MAX_LEN 30
 
 
@@ -125,6 +125,7 @@ struct ceph_msg_header {
 	__le64 seq;       /* message seq# for this session */
 	__le16 type;      /* message type */
 	__le16 priority;  /* priority.  higher value == higher priority */
+	__le16 version;   /* version of message encoding */
 
 	__le32 front_len; /* bytes in main payload */
 	__le32 middle_len;/* bytes in middle payload */
