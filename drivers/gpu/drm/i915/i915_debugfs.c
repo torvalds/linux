@@ -27,6 +27,7 @@
  */
 
 #include <linux/seq_file.h>
+#include <linux/debugfs.h>
 #include "drmP.h"
 #include "drm.h"
 #include "i915_drm.h"
@@ -412,6 +413,109 @@ static int i915_registers_info(struct seq_file *m, void *data) {
 	return 0;
 }
 
+static int
+i915_wedged_open(struct inode *inode,
+		 struct file *filp)
+{
+	filp->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t
+i915_wedged_read(struct file *filp,
+		 char __user *ubuf,
+		 size_t max,
+		 loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	char buf[80];
+	int len;
+
+	len = snprintf(buf, sizeof (buf),
+		       "wedged :  %d\n",
+		       atomic_read(&dev_priv->mm.wedged));
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static ssize_t
+i915_wedged_write(struct file *filp,
+		  const char __user *ubuf,
+		  size_t cnt,
+		  loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	char buf[20];
+	int val = 1;
+
+	if (cnt > 0) {
+		if (cnt > sizeof (buf) - 1)
+			return -EINVAL;
+
+		if (copy_from_user(buf, ubuf, cnt))
+			return -EFAULT;
+		buf[cnt] = 0;
+
+		val = simple_strtoul(buf, NULL, 0);
+	}
+
+	DRM_INFO("Manually setting wedged to %d\n", val);
+
+	atomic_set(&dev_priv->mm.wedged, val);
+	if (val) {
+		DRM_WAKEUP(&dev_priv->irq_queue);
+		queue_work(dev_priv->wq, &dev_priv->error_work);
+	}
+
+	return cnt;
+}
+
+static const struct file_operations i915_wedged_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_wedged_open,
+	.read = i915_wedged_read,
+	.write = i915_wedged_write,
+};
+
+/* As the drm_debugfs_init() routines are called before dev->dev_private is
+ * allocated we need to hook into the minor for release. */
+static int
+drm_add_fake_info_node(struct drm_minor *minor,
+		       struct dentry *ent,
+		       const void *key)
+{
+	struct drm_info_node *node;
+
+	node = kmalloc(sizeof(struct drm_info_node), GFP_KERNEL);
+	if (node == NULL) {
+		debugfs_remove(ent);
+		return -ENOMEM;
+	}
+
+	node->minor = minor;
+	node->dent = ent;
+	node->info_ent = (void *) key;
+	list_add(&node->list, &minor->debugfs_nodes.list);
+
+	return 0;
+}
+
+static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
+{
+	struct drm_device *dev = minor->dev;
+	struct dentry *ent;
+
+	ent = debugfs_create_file("i915_wedged",
+				  S_IRUGO | S_IWUSR,
+				  root, dev,
+				  &i915_wedged_fops);
+	if (IS_ERR(ent))
+		return PTR_ERR(ent);
+
+	return drm_add_fake_info_node(minor, ent, &i915_wedged_fops);
+}
 
 static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_regs", i915_registers_info, 0},
@@ -432,6 +536,12 @@ static struct drm_info_list i915_debugfs_list[] = {
 
 int i915_debugfs_init(struct drm_minor *minor)
 {
+	int ret;
+
+	ret = i915_wedged_create(minor->debugfs_root, minor);
+	if (ret)
+		return ret;
+
 	return drm_debugfs_create_files(i915_debugfs_list,
 					I915_DEBUGFS_ENTRIES,
 					minor->debugfs_root, minor);
@@ -439,9 +549,13 @@ int i915_debugfs_init(struct drm_minor *minor)
 
 void i915_debugfs_cleanup(struct drm_minor *minor)
 {
+	const void *key;
+
 	drm_debugfs_remove_files(i915_debugfs_list,
 				 I915_DEBUGFS_ENTRIES, minor);
+
+	key = &i915_wedged_fops;
+	drm_debugfs_remove_files((struct drm_info_list *) &key, 1, minor);
 }
 
 #endif /* CONFIG_DEBUG_FS */
-
