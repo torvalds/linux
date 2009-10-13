@@ -46,6 +46,9 @@
 
 #include "mce-internal.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/mce.h>
+
 int mce_disabled __read_mostly;
 
 #define MISC_MCELOG_MINOR	227
@@ -140,6 +143,9 @@ static struct mce_log mcelog = {
 void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
+
+	/* Emit the trace record: */
+	trace_mce_record(mce);
 
 	mce->finished = 0;
 	wmb();
