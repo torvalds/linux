@@ -407,7 +407,7 @@ static unsigned int	stl_baudrates[] = {
  *	Declare all those functions in this driver!
  */
 
-static int	stl_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, unsigned long arg);
+static long	stl_memioctl(struct file *fp, unsigned int cmd, unsigned long arg);
 static int	stl_brdinit(struct stlbrd *brdp);
 static int	stl_getportstats(struct tty_struct *tty, struct stlport *portp, comstats_t __user *cp);
 static int	stl_clrportstats(struct stlport *portp, comstats_t __user *cp);
@@ -607,7 +607,7 @@ static unsigned int	sc26198_baudtable[] = {
  */
 static const struct file_operations	stl_fsiomem = {
 	.owner		= THIS_MODULE,
-	.ioctl		= stl_memioctl,
+	.unlocked_ioctl	= stl_memioctl,
 };
 
 static struct class *stallion_class;
@@ -2486,18 +2486,19 @@ static int stl_getbrdstruct(struct stlbrd __user *arg)
  *	collection.
  */
 
-static int stl_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, unsigned long arg)
+static long stl_memioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	int	brdnr, rc;
 	void __user *argp = (void __user *)arg;
 
-	pr_debug("stl_memioctl(ip=%p,fp=%p,cmd=%x,arg=%lx)\n", ip, fp, cmd,arg);
+	pr_debug("stl_memioctl(fp=%p,cmd=%x,arg=%lx)\n", fp, cmd,arg);
 
-	brdnr = iminor(ip);
+	brdnr = iminor(fp->f_dentry->d_inode);
 	if (brdnr >= STL_MAXBRDS)
 		return -ENODEV;
 	rc = 0;
 
+	lock_kernel();
 	switch (cmd) {
 	case COM_GETPORTSTATS:
 		rc = stl_getportstats(NULL, NULL, argp);
@@ -2518,7 +2519,7 @@ static int stl_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, uns
 		rc = -ENOIOCTLCMD;
 		break;
 	}
-
+	unlock_kernel();
 	return rc;
 }
 
