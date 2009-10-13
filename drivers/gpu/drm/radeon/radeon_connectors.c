@@ -223,6 +223,11 @@ static void radeon_add_common_modes(struct drm_encoder *encoder, struct drm_conn
 	};
 
 	for (i = 0; i < 17; i++) {
+		if (radeon_encoder->devices & (ATOM_DEVICE_TV_SUPPORT)) {
+			if (common_modes[i].w > 1024 ||
+			    common_modes[i].h > 768)
+				continue;
+		}
 		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 			if (common_modes[i].w > native_mode->hdisplay ||
 			    common_modes[i].h > native_mode->vdisplay ||
