@@ -27,8 +27,14 @@ enum xenbus_state
 	XenbusStateClosing      = 5,  /* The device is being closed
 					 due to an error or an unplug
 					 event. */
-	XenbusStateClosed       = 6
+	XenbusStateClosed       = 6,
 
+	/*
+	* Reconfiguring: The device is being reconfigured.
+	*/
+	XenbusStateReconfiguring = 7,
+
+	XenbusStateReconfigured  = 8
 };
 
 #endif /* _XEN_PUBLIC_IO_XENBUS_H */
