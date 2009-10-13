@@ -339,8 +339,8 @@ u32 au1xxx_dbdma_set_devwidth(u32 chanid, int bits);
 u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries);
 
 /* Put buffers on source/destination descriptors. */
-u32 au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags);
-u32 au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags);
+u32 au1xxx_dbdma_put_source(u32 chanid, dma_addr_t buf, int nbytes, u32 flags);
+u32 au1xxx_dbdma_put_dest(u32 chanid, dma_addr_t buf, int nbytes, u32 flags);
 
 /* Get a buffer from the destination descriptor. */
 u32 au1xxx_dbdma_get_dest(u32 chanid, void **buf, int *nbytes);

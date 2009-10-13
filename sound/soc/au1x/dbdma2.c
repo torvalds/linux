@@ -51,8 +51,8 @@ struct au1xpsc_audio_dmadata {
 	struct snd_pcm_substream *substream;
 	unsigned long curr_period;	/* current segment DDMA is working on */
 	unsigned long q_period;		/* queue period(s) */
-	unsigned long dma_area;		/* address of queued DMA area */
-	unsigned long dma_area_s;	/* start address of DMA area */
+	dma_addr_t dma_area;		/* address of queued DMA area */
+	dma_addr_t dma_area_s;		/* start address of DMA area */
 	unsigned long pos;		/* current byte position being played */
 	unsigned long periods;		/* number of SG segments in total */
 	unsigned long period_bytes;	/* size in bytes of one SG segment */
@@ -94,8 +94,7 @@ static const struct snd_pcm_hardware au1xpsc_pcm_hardware = {
 
 static void au1x_pcm_queue_tx(struct au1xpsc_audio_dmadata *cd)
 {
-	au1xxx_dbdma_put_source(cd->ddma_chan,
-				(void *)phys_to_virt(cd->dma_area),
+	au1xxx_dbdma_put_source(cd->ddma_chan, cd->dma_area,
 				cd->period_bytes, DDMA_FLAGS_IE);
 
 	/* update next-to-queue period */
@@ -109,8 +108,7 @@ static void au1x_pcm_queue_tx(struct au1xpsc_audio_dmadata *cd)
 
 static void au1x_pcm_queue_rx(struct au1xpsc_audio_dmadata *cd)
 {
-	au1xxx_dbdma_put_dest(cd->ddma_chan,
-			      (void *)phys_to_virt(cd->dma_area),
+	au1xxx_dbdma_put_dest(cd->ddma_chan, cd->dma_area,
 			      cd->period_bytes, DDMA_FLAGS_IE);
 
 	/* update next-to-queue period */
@@ -233,7 +231,7 @@ static int au1xpsc_pcm_hw_params(struct snd_pcm_substream *substream,
 	pcd->substream = substream;
 	pcd->period_bytes = params_period_bytes(params);
 	pcd->periods = params_periods(params);
-	pcd->dma_area_s = pcd->dma_area = (unsigned long)runtime->dma_addr;
+	pcd->dma_area_s = pcd->dma_area = runtime->dma_addr;
 	pcd->q_period = 0;
 	pcd->curr_period = 0;
 	pcd->pos = 0;

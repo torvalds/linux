@@ -412,12 +412,12 @@ static int au1550_spi_dma_txrxb(struct spi_device *spi, struct spi_transfer *t)
 	}
 
 	/* put buffers on the ring */
-	res = au1xxx_dbdma_put_dest(hw->dma_rx_ch, hw->rx,
+	res = au1xxx_dbdma_put_dest(hw->dma_rx_ch, virt_to_phys(hw->rx),
 				    t->len, DDMA_FLAGS_IE);
 	if (!res)
 		dev_err(hw->dev, "rx dma put dest error\n");
 
-	res = au1xxx_dbdma_put_source(hw->dma_tx_ch, (void *)hw->tx,
+	res = au1xxx_dbdma_put_source(hw->dma_tx_ch, virt_to_phys(hw->tx),
 				      t->len, DDMA_FLAGS_IE);
 	if (!res)
 		dev_err(hw->dev, "tx dma put source error\n");

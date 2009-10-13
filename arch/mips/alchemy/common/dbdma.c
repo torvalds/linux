@@ -571,7 +571,7 @@ EXPORT_SYMBOL(au1xxx_dbdma_ring_alloc);
  * This updates the source pointer and byte count.  Normally used
  * for memory to fifo transfers.
  */
-u32 au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
+u32 au1xxx_dbdma_put_source(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 {
 	chan_tab_t		*ctp;
 	au1x_ddma_desc_t	*dp;
@@ -597,7 +597,7 @@ u32 au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
 		return 0;
 
 	/* Load up buffer address and byte count. */
-	dp->dscr_source0 = virt_to_phys(buf);
+	dp->dscr_source0 = buf & ~0UL;
 	dp->dscr_cmd1 = nbytes;
 	/* Check flags */
 	if (flags & DDMA_FLAGS_IE)
@@ -630,7 +630,7 @@ EXPORT_SYMBOL(au1xxx_dbdma_put_source);
  * This updates the destination pointer and byte count.  Normally used
  * to place an empty buffer into the ring for fifo to memory transfers.
  */
-u32 au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
+u32 au1xxx_dbdma_put_dest(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 {
 	chan_tab_t		*ctp;
 	au1x_ddma_desc_t	*dp;
@@ -660,7 +660,7 @@ u32 au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
 	if (flags & DDMA_FLAGS_NOIE)
 		dp->dscr_cmd0 &= ~DSCR_CMD0_IE;
 
-	dp->dscr_dest0 = virt_to_phys(buf);
+	dp->dscr_dest0 = buf & ~0UL;
 	dp->dscr_cmd1 = nbytes;
 #if 0
 	printk(KERN_DEBUG "cmd0:%x cmd1:%x source0:%x source1:%x dest0:%x dest1:%x\n",
