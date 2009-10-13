@@ -44,6 +44,7 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
+#include "acinterp.h"
 #include "acpredef.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
@@ -76,6 +77,7 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 	union acpi_operand_object *return_object = *return_object_ptr;
 	union acpi_operand_object *new_object;
 	acpi_size length;
+	acpi_status status;
 
 	/*
 	 * At this point, we know that the type of the returned object was not
@@ -120,9 +122,26 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 
 	case ACPI_TYPE_INTEGER:
 
-		/* Does the method/object legally return a string? */
+		/* 1) Does the method/object legally return a buffer? */
 
-		if (expected_btypes & ACPI_RTYPE_STRING) {
+		if (expected_btypes & ACPI_RTYPE_BUFFER) {
+			/*
+			 * Convert the Integer to a packed-byte buffer. _MAT needs
+			 * this sometimes, if a read has been performed on a Field
+			 * object that is less than or equal to the global integer
+			 * size (32 or 64 bits).
+			 */
+			status =
+			    acpi_ex_convert_to_buffer(return_object,
+						      &new_object);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+		}
+
+		/* 2) Does the method/object legally return a string? */
+
+		else if (expected_btypes & ACPI_RTYPE_STRING) {
 			/*
 			 * The only supported Integer-to-String conversion is to convert
 			 * an integer of value 0 to a NULL string. The last element of
