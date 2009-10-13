@@ -94,7 +94,7 @@ static int wl1271_init_rx_config(struct wl1271 *wl, u32 config, u32 filter)
 {
 	int ret;
 
-	ret = wl1271_acx_rx_msdu_life_time(wl, RX_MSDU_LIFETIME_DEF);
+	ret = wl1271_acx_rx_msdu_life_time(wl);
 	if (ret < 0)
 		return ret;
 
@@ -125,7 +125,7 @@ static int wl1271_init_phy_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_rts_threshold(wl, RTS_THRESHOLD_DEF);
+	ret = wl1271_acx_rts_threshold(wl, wl->conf.rx.rts_threshold);
 	if (ret < 0)
 		return ret;
 

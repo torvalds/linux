@@ -61,6 +61,18 @@ static void wl1271_conf_init(struct wl1271 *wl)
 			.beacon_miss_threshold      = 60,
 			.rate_adaptation_threshold  = CONF_HW_BIT_RATE_12MBPS,
 			.rate_adaptation_snr        = 0
+		},
+		.rx = {
+			.rx_msdu_life_time          = 512000,
+			.packet_detection_threshold = 0,
+			.ps_poll_timeout            = 15,
+			.upsd_timeout               = 15,
+			.rts_threshold              = 2347,
+			.rx_cca_threshold           = 0xFFEF,
+			.irq_blk_threshold          = 0,
+			.irq_pkt_threshold          = USHORT_MAX,
+			.irq_timeout                = 5,
+			.queue_type           = CONF_RX_QUEUE_TYPE_LOW_PRIORITY,
 		}
 	};
 

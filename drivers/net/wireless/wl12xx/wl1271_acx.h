@@ -314,34 +314,12 @@ struct acx_dot11_grp_addr_tbl {
 	u8 mac_table[ADDRESS_GROUP_MAX_LEN];
 } __attribute__ ((packed));
 
-#define  RX_TIMEOUT_PS_POLL_MIN    0
-#define  RX_TIMEOUT_PS_POLL_MAX    (200000)
-#define  RX_TIMEOUT_PS_POLL_DEF    (15)
-#define  RX_TIMEOUT_UPSD_MIN       0
-#define  RX_TIMEOUT_UPSD_MAX       (200000)
-#define  RX_TIMEOUT_UPSD_DEF       (15)
-
 struct acx_rx_timeout {
 	struct acx_header header;
 
-	/*
-	 * The longest time the STA will wait to receive
-	 * traffic from the AP after a PS-poll has been
-	 * transmitted.
-	 */
 	u16 ps_poll_timeout;
-
-	/*
-	 * The longest time the STA will wait to receive
-	 * traffic from the AP after a frame has been sent
-	 * from an UPSD enabled queue.
-	 */
 	u16 upsd_timeout;
 } __attribute__ ((packed));
-
-#define RTS_THRESHOLD_MIN              0
-#define RTS_THRESHOLD_MAX              4096
-#define RTS_THRESHOLD_DEF              2347
 
 struct acx_rts_threshold {
 	struct acx_header header;
@@ -509,9 +487,6 @@ struct acx_bt_wlan_coex_param {
 	s8 rate_adaptation_snr;
 	u8 padding[3];
 } __attribute__ ((packed));
-
-#define CCA_THRSH_ENABLE_ENERGY_D       0x140A
-#define CCA_THRSH_DISABLE_ENERGY_D      0xFFEF
 
 struct acx_energy_detection {
 	struct acx_header header;
@@ -1017,22 +992,6 @@ struct wl1271_acx_mem_map {
 	void *tx_ctrl;
 } __attribute__ ((packed));
 
-enum wl1271_acx_rx_queue_type {
-	RX_QUEUE_TYPE_RX_LOW_PRIORITY,    /* All except the high priority */
-	RX_QUEUE_TYPE_RX_HIGH_PRIORITY,   /* Management and voice packets */
-	RX_QUEUE_TYPE_NUM,
-	RX_QUEUE_TYPE_MAX = USHORT_MAX
-};
-
-#define WL1271_RX_INTR_THRESHOLD_DEF  0       /* no pacing, send interrupt on
-					       * every event */
-#define WL1271_RX_INTR_THRESHOLD_MIN  0
-#define WL1271_RX_INTR_THRESHOLD_MAX  15
-
-#define WL1271_RX_INTR_TIMEOUT_DEF    5
-#define WL1271_RX_INTR_TIMEOUT_MIN    1
-#define WL1271_RX_INTR_TIMEOUT_MAX    100
-
 struct wl1271_acx_rx_config_opt {
 	struct acx_header header;
 
@@ -1122,7 +1081,7 @@ int wl1271_acx_tx_power(struct wl1271 *wl, int power);
 int wl1271_acx_feature_cfg(struct wl1271 *wl);
 int wl1271_acx_mem_map(struct wl1271 *wl,
 		       struct acx_header *mem_map, size_t len);
-int wl1271_acx_rx_msdu_life_time(struct wl1271 *wl, u32 life_time);
+int wl1271_acx_rx_msdu_life_time(struct wl1271 *wl);
 int wl1271_acx_rx_config(struct wl1271 *wl, u32 config, u32 filter);
 int wl1271_acx_pd_threshold(struct wl1271 *wl);
 int wl1271_acx_slot(struct wl1271 *wl, enum acx_slot_type slot_time);

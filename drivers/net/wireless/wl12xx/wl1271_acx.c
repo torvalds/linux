@@ -198,7 +198,7 @@ int wl1271_acx_mem_map(struct wl1271 *wl, struct acx_header *mem_map,
 	return 0;
 }
 
-int wl1271_acx_rx_msdu_life_time(struct wl1271 *wl, u32 life_time)
+int wl1271_acx_rx_msdu_life_time(struct wl1271 *wl)
 {
 	struct acx_rx_msdu_lifetime *acx;
 	int ret;
@@ -211,7 +211,7 @@ int wl1271_acx_rx_msdu_life_time(struct wl1271 *wl, u32 life_time)
 		goto out;
 	}
 
-	acx->lifetime = life_time;
+	acx->lifetime = wl->conf.rx.rx_msdu_life_time;
 	ret = wl1271_cmd_configure(wl, DOT11_RX_MSDU_LIFE_TIME,
 				   acx, sizeof(*acx));
 	if (ret < 0) {
@@ -265,7 +265,7 @@ int wl1271_acx_pd_threshold(struct wl1271 *wl)
 		goto out;
 	}
 
-	/* FIXME: threshold value not set */
+	pd->threshold = wl->conf.rx.packet_detection_threshold;
 
 	ret = wl1271_cmd_configure(wl, ACX_PD_THRESHOLD, pd, sizeof(*pd));
 	if (ret < 0) {
@@ -349,8 +349,8 @@ int wl1271_acx_service_period_timeout(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_ACX, "acx service period timeout");
 
-	rx_timeout->ps_poll_timeout = RX_TIMEOUT_PS_POLL_DEF;
-	rx_timeout->upsd_timeout = RX_TIMEOUT_UPSD_DEF;
+	rx_timeout->ps_poll_timeout = wl->conf.rx.ps_poll_timeout;
+	rx_timeout->upsd_timeout = wl->conf.rx.upsd_timeout;
 
 	ret = wl1271_cmd_configure(wl, ACX_SERVICE_PERIOD_TIMEOUT,
 				   rx_timeout, sizeof(*rx_timeout));
@@ -557,7 +557,7 @@ int wl1271_acx_cca_threshold(struct wl1271 *wl)
 		goto out;
 	}
 
-	detection->rx_cca_threshold = CCA_THRSH_DISABLE_ENERGY_D;
+	detection->rx_cca_threshold = wl->conf.rx.rx_cca_threshold;
 	detection->tx_energy_detection = 0;
 
 	ret = wl1271_cmd_configure(wl, ACX_CCA_THRESHOLD,
@@ -966,10 +966,10 @@ int wl1271_acx_init_rx_interrupt(struct wl1271 *wl)
 		goto out;
 	}
 
-	rx_conf->threshold = WL1271_RX_INTR_THRESHOLD_DEF;
-	rx_conf->timeout = WL1271_RX_INTR_TIMEOUT_DEF;
-	rx_conf->mblk_threshold = USHORT_MAX; /* Disabled */
-	rx_conf->queue_type = RX_QUEUE_TYPE_RX_LOW_PRIORITY;
+	rx_conf->threshold = wl->conf.rx.irq_pkt_threshold;
+	rx_conf->timeout = wl->conf.rx.irq_timeout;
+	rx_conf->mblk_threshold = wl->conf.rx.irq_blk_threshold;
+	rx_conf->queue_type = wl->conf.rx.queue_type;
 
 	ret = wl1271_cmd_configure(wl, ACX_RX_CONFIG_OPT, rx_conf,
 				   sizeof(*rx_conf));

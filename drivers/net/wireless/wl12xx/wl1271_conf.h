@@ -171,8 +171,93 @@ struct conf_sg_settings {
 	s8 rate_adaptation_snr;
 };
 
+enum conf_rx_queue_type {
+	CONF_RX_QUEUE_TYPE_LOW_PRIORITY,  /* All except the high priority */
+	CONF_RX_QUEUE_TYPE_HIGH_PRIORITY, /* Management and voice packets */
+};
+
+struct conf_rx_settings {
+	/*
+	 * The maximum amount of time, in TU, before the
+	 * firmware discards the MSDU.
+	 *
+	 * Range: 0 - 0xFFFFFFFF
+	 */
+	u32 rx_msdu_life_time;
+
+	/*
+	 * Packet detection threshold in the PHY.
+	 *
+	 * FIXME: details unknown.
+	 */
+	u32 packet_detection_threshold;
+
+	/*
+	 * The longest time the STA will wait to receive traffic from the AP
+	 * after a PS-poll has been transmitted.
+	 *
+	 * Range: 0 - 200000
+	 */
+	u16 ps_poll_timeout;
+	/*
+	 * The longest time the STA will wait to receive traffic from the AP
+	 * after a frame has been sent from an UPSD enabled queue.
+	 *
+	 * Range: 0 - 200000
+	 */
+	u16 upsd_timeout;
+
+	/*
+	 * The number of octets in an MPDU, below which an RTS/CTS
+	 * handshake is not performed.
+	 *
+	 * Range: 0 - 4096
+	 */
+	u16 rts_threshold;
+
+	/*
+	 * The RX Clear Channel Assessment threshold in the PHY
+	 * (the energy threshold).
+	 *
+	 * Range: ENABLE_ENERGY_D  == 0x140A
+	 *        DISABLE_ENERGY_D == 0xFFEF
+	 */
+	u16 rx_cca_threshold;
+
+	/*
+	 * Occupied Rx mem-blocks number which requires interrupting the host
+	 * (0 = no buffering, 0xffff = disabled).
+	 *
+	 * Range: u16
+	 */
+	u16 irq_blk_threshold;
+
+	/*
+	 * Rx packets number which requires interrupting the host
+	 * (0 = no buffering).
+	 *
+	 * Range: u16
+	 */
+	u16 irq_pkt_threshold;
+
+	/*
+	 * Max time in msec the FW may delay RX-Complete interrupt.
+	 *
+	 * Range: 1 - 100
+	 */
+	u16 irq_timeout;
+
+	/*
+	 * The RX queue type.
+	 *
+	 * Range: RX_QUEUE_TYPE_RX_LOW_PRIORITY, RX_QUEUE_TYPE_RX_HIGH_PRIORITY,
+	 */
+	u8 queue_type;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
+	struct conf_rx_settings rx;
 };
 
 #endif
