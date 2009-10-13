@@ -1,31 +1,7 @@
 /*
- * File:         include/asm-blackfin/mach-bf518/defBF518.h
- * Based on:
- * Author:
+ * Copyright 2008-2009 Analog Devices Inc.
  *
- * Created:
- * Description:
- *
- * Rev:
- *
- * Modified:
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF518_H
@@ -647,5 +623,33 @@
 /* Bit masks for SDH_RD_WAIT_EN */
 
 #define                       RWR  0x1        /* Read Wait Request */
+
+/* Bit masks for EMAC_PTP_CTL */
+
+#define                    PTP_EN  0x1        /* Enable the PTP_TSYNC module */
+#define                        TL  0x2        /* Timestamp lock control */
+#define                      ASEN  0x10       /* Auxiliary snapshot control */
+#define                     PPSEN  0x80       /* Pulse-per-second (PPS) control */
+#define                     CKOEN  0x2000     /* Clock output control */
+
+/* Bit masks for EMAC_PTP_IE */
+
+#define                      ALIE  0x1        /* Alarm interrupt enable */
+#define                     RXEIE  0x2        /* Receive event interrupt enable */
+#define                     RXGIE  0x4        /* Receive general interrupt enable */
+#define                      TXIE  0x8        /* Transmit interrupt enable */
+#define                     RXOVE  0x10       /* Receive overrun error interrupt enable */
+#define                     TXOVE  0x20       /* Transmit overrun error interrupt enable */
+#define                      ASIE  0x40       /* Auxiliary snapshot interrupt enable */
+
+/* Bit masks for EMAC_PTP_ISTAT */
+
+#define                       ALS  0x1        /* Alarm status */
+#define                      RXEL  0x2        /* Receive event interrupt status */
+#define                      RXGL  0x4        /* Receive general interrupt status */
+#define                      TXTL  0x8        /* Transmit snapshot status */
+#define                      RXOV  0x10       /* Receive snapshot overrun status */
+#define                      TXOV  0x20       /* Transmit snapshot overrun status */
+#define                       ASL  0x40       /* Auxiliary snapshot interrupt status */
 
 #endif /* _DEF_BF518_H */

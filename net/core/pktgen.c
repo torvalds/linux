@@ -964,7 +964,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (value == 0x7FFFFFFF)
 			pkt_dev->delay = ULLONG_MAX;
 		else
-			pkt_dev->delay = (u64)value * NSEC_PER_USEC;
+			pkt_dev->delay = (u64)value;
 
 		sprintf(pg_result, "OK: delay=%llu",
 			(unsigned long long) pkt_dev->delay);
@@ -2105,15 +2105,17 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 {
 	ktime_t start_time, end_time;
-	s32 remaining;
+	s64 remaining;
 	struct hrtimer_sleeper t;
 
 	hrtimer_init_on_stack(&t.timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	hrtimer_set_expires(&t.timer, spin_until);
 
 	remaining = ktime_to_us(hrtimer_expires_remaining(&t.timer));
-	if (remaining <= 0)
+	if (remaining <= 0) {
+		pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
 		return;
+	}
 
 	start_time = ktime_now();
 	if (remaining < 100)
@@ -2210,7 +2212,7 @@ static void set_cur_queue_map(struct pktgen_dev *pkt_dev)
 	if (pkt_dev->flags & F_QUEUE_MAP_CPU)
 		pkt_dev->cur_queue_map = smp_processor_id();
 
-	else if (pkt_dev->queue_map_min < pkt_dev->queue_map_max) {
+	else if (pkt_dev->queue_map_min <= pkt_dev->queue_map_max) {
 		__u16 t;
 		if (pkt_dev->flags & F_QUEUE_MAP_RND) {
 			t = random32() %

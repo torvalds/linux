@@ -863,13 +863,6 @@ static int acpi_processor_add(struct acpi_device *device)
 		goto err_remove_sysfs;
 	}
 
-	if (pr->flags.throttling) {
-		printk(KERN_INFO PREFIX "%s [%s] (supports",
-		       acpi_device_name(device), acpi_device_bid(device));
-		printk(" %d throttling states", pr->throttling.state_count);
-		printk(")\n");
-	}
-
 	return 0;
 
 err_remove_sysfs:

@@ -229,10 +229,6 @@ enum scsi_prot_operations {
 	/* OS-HBA: Protected, HBA-Target: Protected */
 	SCSI_PROT_READ_PASS,
 	SCSI_PROT_WRITE_PASS,
-
-	/* OS-HBA: Protected, HBA-Target: Protected, checksum conversion */
-	SCSI_PROT_READ_CONVERT,
-	SCSI_PROT_WRITE_CONVERT,
 };
 
 static inline void scsi_set_prot_op(struct scsi_cmnd *scmd, unsigned char op)

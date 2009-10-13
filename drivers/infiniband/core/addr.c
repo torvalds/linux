@@ -393,7 +393,7 @@ static int addr_resolve_local(struct sockaddr *src_in,
 
 		for_each_netdev(&init_net, dev)
 			if (ipv6_chk_addr(&init_net,
-					  &((struct sockaddr_in6 *) addr)->sin6_addr,
+					  &((struct sockaddr_in6 *) dst_in)->sin6_addr,
 					  dev, 1))
 				break;
 

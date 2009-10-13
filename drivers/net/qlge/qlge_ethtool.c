@@ -45,7 +45,6 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 	if (!netif_running(qdev->ndev))
 		return status;
 
-	spin_lock(&qdev->hw_lock);
 	/* Skip the default queue, and update the outbound handler
 	 * queues if they changed.
 	 */
@@ -92,7 +91,6 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 		}
 	}
 exit:
-	spin_unlock(&qdev->hw_lock);
 	return status;
 }
 

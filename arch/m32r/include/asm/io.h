@@ -162,6 +162,13 @@ static inline void _writel(unsigned long l, unsigned long addr)
 #define __raw_writew writew
 #define __raw_writel writel
 
+#define ioread8 read
+#define ioread16 readw
+#define ioread32 readl
+#define iowrite8 writeb
+#define iowrite16 writew
+#define iowrite32 writel
+
 #define mmiowb()
 
 #define flush_write_buffers() do { } while (0)  /* M32R_FIXME */

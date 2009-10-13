@@ -12,6 +12,7 @@
 */
 
 #include <linux/rtc.h>
+#include <linux/sched.h>
 #include <linux/log2.h>
 
 int rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm)

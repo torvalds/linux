@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/poll.h>
 #include <linux/netdevice.h>

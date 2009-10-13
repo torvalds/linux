@@ -81,11 +81,11 @@ ENTRY(system_call)
 
 	movel	%d3,%a0
 	jbsr	%a0@
-	movel	%d0,%sp@(PT_D0)		/* save the return value */
+	movel	%d0,%sp@(PT_OFF_D0)	/* save the return value */
 	jra	ret_from_exception
 1:
-	movel	#-ENOSYS,%d2		/* strace needs -ENOSYS in PT_D0 */
-	movel	%d2,PT_D0(%sp)		/* on syscall entry */
+	movel	#-ENOSYS,%d2		/* strace needs -ENOSYS in PT_OFF_D0 */
+	movel	%d2,PT_OFF_D0(%sp)	/* on syscall entry */
 	subql	#4,%sp
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace
@@ -93,7 +93,7 @@ ENTRY(system_call)
 	addql	#4,%sp
 	movel	%d3,%a0
 	jbsr	%a0@
-	movel	%d0,%sp@(PT_D0)		/* save the return value */
+	movel	%d0,%sp@(PT_OFF_D0)		/* save the return value */
 	subql	#4,%sp			/* dummy return address */
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace
@@ -104,7 +104,7 @@ ret_from_signal:
 
 ret_from_exception:
 	move	#0x2700,%sr		/* disable intrs */
-	btst	#5,%sp@(PT_SR)		/* check if returning to kernel */
+	btst	#5,%sp@(PT_OFF_SR)	/* check if returning to kernel */
 	jeq	Luser_return		/* if so, skip resched, signals */
 
 #ifdef CONFIG_PREEMPT
@@ -142,8 +142,8 @@ Luser_return:
 Lreturn:
 	move	#0x2700,%sr		/* disable intrs */
 	movel	sw_usp,%a0		/* get usp */
-	movel	%sp@(PT_PC),%a0@-	/* copy exception program counter */
-	movel	%sp@(PT_FORMATVEC),%a0@-/* copy exception format/vector/sr */
+	movel	%sp@(PT_OFF_PC),%a0@-	/* copy exception program counter */
+	movel	%sp@(PT_OFF_FORMATVEC),%a0@- /* copy exception format/vector/sr */
 	moveml	%sp@,%d1-%d5/%a0-%a2
 	lea	%sp@(32),%sp		/* space for 8 regs */
 	movel	%sp@+,%d0
@@ -181,9 +181,9 @@ Lsignal_return:
 ENTRY(inthandler)
 	SAVE_ALL
 	moveq	#-1,%d0
-	movel	%d0,%sp@(PT_ORIG_D0)
+	movel	%d0,%sp@(PT_OFF_ORIG_D0)
 
-	movew	%sp@(PT_FORMATVEC),%d0	/* put exception # in d0 */
+	movew	%sp@(PT_OFF_FORMATVEC),%d0 /* put exception # in d0 */
 	andl	#0x03fc,%d0		/* mask out vector only */
 
 	movel	%sp,%sp@-		/* push regs arg */
@@ -203,7 +203,7 @@ ENTRY(inthandler)
 ENTRY(fasthandler)
 	SAVE_LOCAL
 
-	movew	%sp@(PT_FORMATVEC),%d0
+	movew	%sp@(PT_OFF_FORMATVEC),%d0
 	andl	#0x03fc,%d0		/* mask out vector only */
 
 	movel	%sp,%sp@-		/* push regs arg */

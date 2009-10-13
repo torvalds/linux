@@ -63,6 +63,7 @@
 #include <asm/uaccess.h>
 #include <linux/crc32.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 
 #include "dvb_demux.h"
 #include "dvb_net.h"

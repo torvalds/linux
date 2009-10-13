@@ -155,6 +155,9 @@ static void r420_debugfs(struct radeon_device *rdev)
 static void r420_clock_resume(struct radeon_device *rdev)
 {
 	u32 sclk_cntl;
+
+	if (radeon_dynclks != -1 && radeon_dynclks)
+		radeon_atom_set_clock_gating(rdev, 1);
 	sclk_cntl = RREG32_PLL(R_00000D_SCLK_CNTL);
 	sclk_cntl |= S_00000D_FORCE_CP(1) | S_00000D_FORCE_VIP(1);
 	if (rdev->family == CHIP_R420)
@@ -167,6 +170,8 @@ static int r420_startup(struct radeon_device *rdev)
 	int r;
 
 	r300_mc_program(rdev);
+	/* Resume clock */
+	r420_clock_resume(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
 	if (rdev->flags & RADEON_IS_PCIE) {
@@ -267,7 +272,6 @@ int r420_init(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->new_init_path = true;
 	/* Initialize scratch registers */
 	radeon_scratch_init(rdev);
 	/* Initialize surface registers */

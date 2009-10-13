@@ -725,6 +725,9 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 		case NEEDS_RETRY:
 		case FAILED:
 			break;
+		case ADD_TO_MLQUEUE:
+			rtn = NEEDS_RETRY;
+			break;
 		default:
 			rtn = FAILED;
 			break;

@@ -60,10 +60,12 @@ static struct fb_ops intelfb_ops = {
 	.fb_imageblit = cfb_imageblit,
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
+	.fb_setcmap = drm_fb_helper_setcmap,
 };
 
 static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.gamma_set = intel_crtc_fb_gamma_set,
+	.gamma_get = intel_crtc_fb_gamma_get,
 };
 
 
@@ -110,6 +112,7 @@ EXPORT_SYMBOL(intelfb_resize);
 static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 			  uint32_t fb_height, uint32_t surface_width,
 			  uint32_t surface_height,
+			  uint32_t surface_depth, uint32_t surface_bpp,
 			  struct drm_framebuffer **fb_p)
 {
 	struct fb_info *info;
@@ -122,12 +125,16 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	struct device *device = &dev->pdev->dev;
 	int size, ret, mmio_bar = IS_I9XX(dev) ? 0 : 1;
 
+	/* we don't do packed 24bpp */
+	if (surface_bpp == 24)
+		surface_bpp = 32;
+
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
 
-	mode_cmd.bpp = 32;
+	mode_cmd.bpp = surface_bpp;
 	mode_cmd.pitch = ALIGN(mode_cmd.width * ((mode_cmd.bpp + 1) / 8), 64);
-	mode_cmd.depth = 24;
+	mode_cmd.depth = surface_depth;
 
 	size = mode_cmd.pitch * mode_cmd.height;
 	size = ALIGN(size, PAGE_SIZE);
@@ -205,7 +212,7 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 
 //	memset(info->screen_base, 0, size);
 
-	drm_fb_helper_fill_fix(info, fb->pitch);
+	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
 	drm_fb_helper_fill_var(info, fb, fb_width, fb_height);
 
 	/* FIXME: we really shouldn't expose mmio space at all */
@@ -243,7 +250,7 @@ int intelfb_probe(struct drm_device *dev)
 	int ret;
 
 	DRM_DEBUG("\n");
-	ret = drm_fb_helper_single_fb_probe(dev, intelfb_create);
+	ret = drm_fb_helper_single_fb_probe(dev, 32, intelfb_create);
 	return ret;
 }
 EXPORT_SYMBOL(intelfb_probe);

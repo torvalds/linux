@@ -33,43 +33,16 @@
 #include "radeon_drm.h"
 #include "r100_track.h"
 #include "r300d.h"
-
+#include "rv350d.h"
 #include "r300_reg_safe.h"
 
-/* r300,r350,rv350,rv370,rv380 depends on : */
-void r100_hdp_reset(struct radeon_device *rdev);
-int r100_cp_reset(struct radeon_device *rdev);
-int r100_rb2d_reset(struct radeon_device *rdev);
-int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
-int r100_pci_gart_enable(struct radeon_device *rdev);
-void r100_mc_setup(struct radeon_device *rdev);
-void r100_mc_disable_clients(struct radeon_device *rdev);
-int r100_gui_wait_for_idle(struct radeon_device *rdev);
-int r100_cs_packet_parse(struct radeon_cs_parser *p,
-			 struct radeon_cs_packet *pkt,
-			 unsigned idx);
-int r100_cs_packet_parse_vline(struct radeon_cs_parser *p);
-int r100_cs_parse_packet0(struct radeon_cs_parser *p,
-			  struct radeon_cs_packet *pkt,
-			  const unsigned *auth, unsigned n,
-			  radeon_packet0_check_t check);
-int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
-					 struct radeon_cs_packet *pkt,
-					 struct radeon_object *robj);
-
-/* This files gather functions specifics to:
- * r300,r350,rv350,rv370,rv380
- *
- * Some of these functions might be used by newer ASICs.
- */
-void r300_gpu_init(struct radeon_device *rdev);
-int r300_mc_wait_for_idle(struct radeon_device *rdev);
-int rv370_debugfs_pcie_gart_info_init(struct radeon_device *rdev);
-
+/* This files gather functions specifics to: r300,r350,rv350,rv370,rv380 */
 
 /*
  * rv370,rv380 PCIE GART
  */
+static int rv370_debugfs_pcie_gart_info_init(struct radeon_device *rdev);
+
 void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 {
 	uint32_t tmp;
@@ -182,59 +155,6 @@ void rv370_pcie_gart_fini(struct radeon_device *rdev)
 	radeon_gart_fini(rdev);
 }
 
-/*
- * MC
- */
-int r300_mc_init(struct radeon_device *rdev)
-{
-	int r;
-
-	if (r100_debugfs_rbbm_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for RBBM !\n");
-	}
-
-	r300_gpu_init(rdev);
-	r100_pci_gart_disable(rdev);
-	if (rdev->flags & RADEON_IS_PCIE) {
-		rv370_pcie_gart_disable(rdev);
-	}
-
-	/* Setup GPU memory space */
-	rdev->mc.vram_location = 0xFFFFFFFFUL;
-	rdev->mc.gtt_location = 0xFFFFFFFFUL;
-	if (rdev->flags & RADEON_IS_AGP) {
-		r = radeon_agp_init(rdev);
-		if (r) {
-			printk(KERN_WARNING "[drm] Disabling AGP\n");
-			rdev->flags &= ~RADEON_IS_AGP;
-			rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-		} else {
-			rdev->mc.gtt_location = rdev->mc.agp_base;
-		}
-	}
-	r = radeon_mc_setup(rdev);
-	if (r) {
-		return r;
-	}
-
-	/* Program GPU memory space */
-	r100_mc_disable_clients(rdev);
-	if (r300_mc_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait MC idle while "
-		       "programming pipes. Bad things might happen.\n");
-	}
-	r100_mc_setup(rdev);
-	return 0;
-}
-
-void r300_mc_fini(struct radeon_device *rdev)
-{
-}
-
-
-/*
- * Fence emission
- */
 void r300_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
@@ -260,10 +180,6 @@ void r300_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(rdev, RADEON_SW_INT_FIRE);
 }
 
-
-/*
- * Global GPU functions
- */
 int r300_copy_dma(struct radeon_device *rdev,
 		  uint64_t src_offset,
 		  uint64_t dst_offset,
@@ -582,11 +498,6 @@ void r300_vram_info(struct radeon_device *rdev)
 	r100_vram_init_sizes(rdev);
 }
 
-
-/*
- * PCIE Lanes
- */
-
 void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes)
 {
 	uint32_t link_width_cntl, mask;
@@ -646,10 +557,6 @@ void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes)
 
 }
 
-
-/*
- * Debugfs info
- */
 #if defined(CONFIG_DEBUG_FS)
 static int rv370_debugfs_pcie_gart_info(struct seq_file *m, void *data)
 {
@@ -680,7 +587,7 @@ static struct drm_info_list rv370_pcie_gart_info_list[] = {
 };
 #endif
 
-int rv370_debugfs_pcie_gart_info_init(struct radeon_device *rdev)
+static int rv370_debugfs_pcie_gart_info_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
 	return radeon_debugfs_add_files(rdev, rv370_pcie_gart_info_list, 1);
@@ -689,25 +596,22 @@ int rv370_debugfs_pcie_gart_info_init(struct radeon_device *rdev)
 #endif
 }
 
-
-/*
- * CS functions
- */
 static int r300_packet0_check(struct radeon_cs_parser *p,
 		struct radeon_cs_packet *pkt,
 		unsigned idx, unsigned reg)
 {
-	struct radeon_cs_chunk *ib_chunk;
 	struct radeon_cs_reloc *reloc;
 	struct r100_cs_track *track;
 	volatile uint32_t *ib;
 	uint32_t tmp, tile_flags = 0;
 	unsigned i;
 	int r;
+	u32 idx_value;
 
 	ib = p->ib->ptr;
-	ib_chunk = &p->chunks[p->chunk_ib_idx];
 	track = (struct r100_cs_track *)p->track;
+	idx_value = radeon_get_ib_value(p, idx);
+
 	switch(reg) {
 	case AVIVO_D1MODE_VLINE_START_END:
 	case RADEON_CRTC_GUI_TRIG_VLINE:
@@ -738,8 +642,8 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			return r;
 		}
 		track->cb[i].robj = reloc->robj;
-		track->cb[i].offset = ib_chunk->kdata[idx];
-		ib[idx] = ib_chunk->kdata[idx] + ((u32)reloc->lobj.gpu_offset);
+		track->cb[i].offset = idx_value;
+		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		break;
 	case R300_ZB_DEPTHOFFSET:
 		r = r100_cs_packet_next_reloc(p, &reloc);
@@ -750,8 +654,8 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			return r;
 		}
 		track->zb.robj = reloc->robj;
-		track->zb.offset = ib_chunk->kdata[idx];
-		ib[idx] = ib_chunk->kdata[idx] + ((u32)reloc->lobj.gpu_offset);
+		track->zb.offset = idx_value;
+		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		break;
 	case R300_TX_OFFSET_0:
 	case R300_TX_OFFSET_0+4:
@@ -777,32 +681,32 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			r100_cs_dump_packet(p, pkt);
 			return r;
 		}
-		ib[idx] = ib_chunk->kdata[idx] + ((u32)reloc->lobj.gpu_offset);
+		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		track->textures[i].robj = reloc->robj;
 		break;
 	/* Tracked registers */
 	case 0x2084:
 		/* VAP_VF_CNTL */
-		track->vap_vf_cntl = ib_chunk->kdata[idx];
+		track->vap_vf_cntl = idx_value;
 		break;
 	case 0x20B4:
 		/* VAP_VTX_SIZE */
-		track->vtx_size = ib_chunk->kdata[idx] & 0x7F;
+		track->vtx_size = idx_value & 0x7F;
 		break;
 	case 0x2134:
 		/* VAP_VF_MAX_VTX_INDX */
-		track->max_indx = ib_chunk->kdata[idx] & 0x00FFFFFFUL;
+		track->max_indx = idx_value & 0x00FFFFFFUL;
 		break;
 	case 0x43E4:
 		/* SC_SCISSOR1 */
-		track->maxy = ((ib_chunk->kdata[idx] >> 13) & 0x1FFF) + 1;
+		track->maxy = ((idx_value >> 13) & 0x1FFF) + 1;
 		if (p->rdev->family < CHIP_RV515) {
 			track->maxy -= 1440;
 		}
 		break;
 	case 0x4E00:
 		/* RB3D_CCTL */
-		track->num_cb = ((ib_chunk->kdata[idx] >> 5) & 0x3) + 1;
+		track->num_cb = ((idx_value >> 5) & 0x3) + 1;
 		break;
 	case 0x4E38:
 	case 0x4E3C:
@@ -825,13 +729,13 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
 			tile_flags |= R300_COLOR_MICROTILE_ENABLE;
 
-		tmp = ib_chunk->kdata[idx] & ~(0x7 << 16);
+		tmp = idx_value & ~(0x7 << 16);
 		tmp |= tile_flags;
 		ib[idx] = tmp;
 
 		i = (reg - 0x4E38) >> 2;
-		track->cb[i].pitch = ib_chunk->kdata[idx] & 0x3FFE;
-		switch (((ib_chunk->kdata[idx] >> 21) & 0xF)) {
+		track->cb[i].pitch = idx_value & 0x3FFE;
+		switch (((idx_value >> 21) & 0xF)) {
 		case 9:
 		case 11:
 		case 12:
@@ -854,13 +758,13 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			break;
 		default:
 			DRM_ERROR("Invalid color buffer format (%d) !\n",
-				  ((ib_chunk->kdata[idx] >> 21) & 0xF));
+				  ((idx_value >> 21) & 0xF));
 			return -EINVAL;
 		}
 		break;
 	case 0x4F00:
 		/* ZB_CNTL */
-		if (ib_chunk->kdata[idx] & 2) {
+		if (idx_value & 2) {
 			track->z_enabled = true;
 		} else {
 			track->z_enabled = false;
@@ -868,7 +772,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4F10:
 		/* ZB_FORMAT */
-		switch ((ib_chunk->kdata[idx] & 0xF)) {
+		switch ((idx_value & 0xF)) {
 		case 0:
 		case 1:
 			track->zb.cpp = 2;
@@ -878,7 +782,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			break;
 		default:
 			DRM_ERROR("Invalid z buffer format (%d) !\n",
-				  (ib_chunk->kdata[idx] & 0xF));
+				  (idx_value & 0xF));
 			return -EINVAL;
 		}
 		break;
@@ -897,17 +801,17 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
 			tile_flags |= R300_DEPTHMICROTILE_TILED;;
 
-		tmp = ib_chunk->kdata[idx] & ~(0x7 << 16);
+		tmp = idx_value & ~(0x7 << 16);
 		tmp |= tile_flags;
 		ib[idx] = tmp;
 
-		track->zb.pitch = ib_chunk->kdata[idx] & 0x3FFC;
+		track->zb.pitch = idx_value & 0x3FFC;
 		break;
 	case 0x4104:
 		for (i = 0; i < 16; i++) {
 			bool enabled;
 
-			enabled = !!(ib_chunk->kdata[idx] & (1 << i));
+			enabled = !!(idx_value & (1 << i));
 			track->textures[i].enabled = enabled;
 		}
 		break;
@@ -929,9 +833,9 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x44FC:
 		/* TX_FORMAT1_[0-15] */
 		i = (reg - 0x44C0) >> 2;
-		tmp = (ib_chunk->kdata[idx] >> 25) & 0x3;
+		tmp = (idx_value >> 25) & 0x3;
 		track->textures[i].tex_coord_type = tmp;
-		switch ((ib_chunk->kdata[idx] & 0x1F)) {
+		switch ((idx_value & 0x1F)) {
 		case R300_TX_FORMAT_X8:
 		case R300_TX_FORMAT_Y4X4:
 		case R300_TX_FORMAT_Z3Y3X2:
@@ -971,7 +875,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			break;
 		default:
 			DRM_ERROR("Invalid texture format %u\n",
-				  (ib_chunk->kdata[idx] & 0x1F));
+				  (idx_value & 0x1F));
 			return -EINVAL;
 			break;
 		}
@@ -994,11 +898,11 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x443C:
 		/* TX_FILTER0_[0-15] */
 		i = (reg - 0x4400) >> 2;
-		tmp = ib_chunk->kdata[idx] & 0x7;
+		tmp = idx_value & 0x7;
 		if (tmp == 2 || tmp == 4 || tmp == 6) {
 			track->textures[i].roundup_w = false;
 		}
-		tmp = (ib_chunk->kdata[idx] >> 3) & 0x7;
+		tmp = (idx_value >> 3) & 0x7;
 		if (tmp == 2 || tmp == 4 || tmp == 6) {
 			track->textures[i].roundup_h = false;
 		}
@@ -1021,12 +925,12 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x453C:
 		/* TX_FORMAT2_[0-15] */
 		i = (reg - 0x4500) >> 2;
-		tmp = ib_chunk->kdata[idx] & 0x3FFF;
+		tmp = idx_value & 0x3FFF;
 		track->textures[i].pitch = tmp + 1;
 		if (p->rdev->family >= CHIP_RV515) {
-			tmp = ((ib_chunk->kdata[idx] >> 15) & 1) << 11;
+			tmp = ((idx_value >> 15) & 1) << 11;
 			track->textures[i].width_11 = tmp;
-			tmp = ((ib_chunk->kdata[idx] >> 16) & 1) << 11;
+			tmp = ((idx_value >> 16) & 1) << 11;
 			track->textures[i].height_11 = tmp;
 		}
 		break;
@@ -1048,15 +952,15 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x44BC:
 		/* TX_FORMAT0_[0-15] */
 		i = (reg - 0x4480) >> 2;
-		tmp = ib_chunk->kdata[idx] & 0x7FF;
+		tmp = idx_value & 0x7FF;
 		track->textures[i].width = tmp + 1;
-		tmp = (ib_chunk->kdata[idx] >> 11) & 0x7FF;
+		tmp = (idx_value >> 11) & 0x7FF;
 		track->textures[i].height = tmp + 1;
-		tmp = (ib_chunk->kdata[idx] >> 26) & 0xF;
+		tmp = (idx_value >> 26) & 0xF;
 		track->textures[i].num_levels = tmp;
-		tmp = ib_chunk->kdata[idx] & (1 << 31);
+		tmp = idx_value & (1 << 31);
 		track->textures[i].use_pitch = !!tmp;
-		tmp = (ib_chunk->kdata[idx] >> 22) & 0xF;
+		tmp = (idx_value >> 22) & 0xF;
 		track->textures[i].txdepth = tmp;
 		break;
 	case R300_ZB_ZPASS_ADDR:
@@ -1067,7 +971,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			r100_cs_dump_packet(p, pkt);
 			return r;
 		}
-		ib[idx] = ib_chunk->kdata[idx] + ((u32)reloc->lobj.gpu_offset);
+		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		break;
 	case 0x4be8:
 		/* valid register only on RV530 */
@@ -1085,60 +989,20 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 static int r300_packet3_check(struct radeon_cs_parser *p,
 			      struct radeon_cs_packet *pkt)
 {
-	struct radeon_cs_chunk *ib_chunk;
-
 	struct radeon_cs_reloc *reloc;
 	struct r100_cs_track *track;
 	volatile uint32_t *ib;
 	unsigned idx;
-	unsigned i, c;
 	int r;
 
 	ib = p->ib->ptr;
-	ib_chunk = &p->chunks[p->chunk_ib_idx];
 	idx = pkt->idx + 1;
 	track = (struct r100_cs_track *)p->track;
 	switch(pkt->opcode) {
 	case PACKET3_3D_LOAD_VBPNTR:
-		c = ib_chunk->kdata[idx++] & 0x1F;
-		track->num_arrays = c;
-		for (i = 0; i < (c - 1); i+=2, idx+=3) {
-			r = r100_cs_packet_next_reloc(p, &reloc);
-			if (r) {
-				DRM_ERROR("No reloc for packet3 %d\n",
-					  pkt->opcode);
-				r100_cs_dump_packet(p, pkt);
-				return r;
-			}
-			ib[idx+1] = ib_chunk->kdata[idx+1] + ((u32)reloc->lobj.gpu_offset);
-			track->arrays[i + 0].robj = reloc->robj;
-			track->arrays[i + 0].esize = ib_chunk->kdata[idx] >> 8;
-			track->arrays[i + 0].esize &= 0x7F;
-			r = r100_cs_packet_next_reloc(p, &reloc);
-			if (r) {
-				DRM_ERROR("No reloc for packet3 %d\n",
-					  pkt->opcode);
-				r100_cs_dump_packet(p, pkt);
-				return r;
-			}
-			ib[idx+2] = ib_chunk->kdata[idx+2] + ((u32)reloc->lobj.gpu_offset);
-			track->arrays[i + 1].robj = reloc->robj;
-			track->arrays[i + 1].esize = ib_chunk->kdata[idx] >> 24;
-			track->arrays[i + 1].esize &= 0x7F;
-		}
-		if (c & 1) {
-			r = r100_cs_packet_next_reloc(p, &reloc);
-			if (r) {
-				DRM_ERROR("No reloc for packet3 %d\n",
-					  pkt->opcode);
-				r100_cs_dump_packet(p, pkt);
-				return r;
-			}
-			ib[idx+1] = ib_chunk->kdata[idx+1] + ((u32)reloc->lobj.gpu_offset);
-			track->arrays[i + 0].robj = reloc->robj;
-			track->arrays[i + 0].esize = ib_chunk->kdata[idx] >> 8;
-			track->arrays[i + 0].esize &= 0x7F;
-		}
+		r = r100_packet3_load_vbpntr(p, pkt, idx);
+		if (r)
+			return r;
 		break;
 	case PACKET3_INDX_BUFFER:
 		r = r100_cs_packet_next_reloc(p, &reloc);
@@ -1147,7 +1011,7 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 			r100_cs_dump_packet(p, pkt);
 			return r;
 		}
-		ib[idx+1] = ib_chunk->kdata[idx+1] + ((u32)reloc->lobj.gpu_offset);
+		ib[idx+1] = radeon_get_ib_value(p, idx + 1) + ((u32)reloc->lobj.gpu_offset);
 		r = r100_cs_track_check_pkt3_indx_buffer(p, pkt, reloc->robj);
 		if (r) {
 			return r;
@@ -1158,11 +1022,11 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 		/* Number of dwords is vtx_size * (num_vertices - 1)
 		 * PRIM_WALK must be equal to 3 vertex data in embedded
 		 * in cmd stream */
-		if (((ib_chunk->kdata[idx+1] >> 4) & 0x3) != 3) {
+		if (((radeon_get_ib_value(p, idx + 1) >> 4) & 0x3) != 3) {
 			DRM_ERROR("PRIM_WALK must be 3 for IMMD draw\n");
 			return -EINVAL;
 		}
-		track->vap_vf_cntl = ib_chunk->kdata[idx+1];
+		track->vap_vf_cntl = radeon_get_ib_value(p, idx + 1);
 		track->immd_dwords = pkt->count - 1;
 		r = r100_cs_track_check(p->rdev, track);
 		if (r) {
@@ -1173,11 +1037,11 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 		/* Number of dwords is vtx_size * (num_vertices - 1)
 		 * PRIM_WALK must be equal to 3 vertex data in embedded
 		 * in cmd stream */
-		if (((ib_chunk->kdata[idx] >> 4) & 0x3) != 3) {
+		if (((radeon_get_ib_value(p, idx) >> 4) & 0x3) != 3) {
 			DRM_ERROR("PRIM_WALK must be 3 for IMMD draw\n");
 			return -EINVAL;
 		}
-		track->vap_vf_cntl = ib_chunk->kdata[idx];
+		track->vap_vf_cntl = radeon_get_ib_value(p, idx);
 		track->immd_dwords = pkt->count;
 		r = r100_cs_track_check(p->rdev, track);
 		if (r) {
@@ -1185,28 +1049,28 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	case PACKET3_3D_DRAW_VBUF:
-		track->vap_vf_cntl = ib_chunk->kdata[idx + 1];
+		track->vap_vf_cntl = radeon_get_ib_value(p, idx + 1);
 		r = r100_cs_track_check(p->rdev, track);
 		if (r) {
 			return r;
 		}
 		break;
 	case PACKET3_3D_DRAW_VBUF_2:
-		track->vap_vf_cntl = ib_chunk->kdata[idx];
+		track->vap_vf_cntl = radeon_get_ib_value(p, idx);
 		r = r100_cs_track_check(p->rdev, track);
 		if (r) {
 			return r;
 		}
 		break;
 	case PACKET3_3D_DRAW_INDX:
-		track->vap_vf_cntl = ib_chunk->kdata[idx + 1];
+		track->vap_vf_cntl = radeon_get_ib_value(p, idx + 1);
 		r = r100_cs_track_check(p->rdev, track);
 		if (r) {
 			return r;
 		}
 		break;
 	case PACKET3_3D_DRAW_INDX_2:
-		track->vap_vf_cntl = ib_chunk->kdata[idx];
+		track->vap_vf_cntl = radeon_get_ib_value(p, idx);
 		r = r100_cs_track_check(p->rdev, track);
 		if (r) {
 			return r;
@@ -1265,12 +1129,6 @@ void r300_set_reg_safe(struct radeon_device *rdev)
 	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(r300_reg_safe_bm);
 }
 
-int r300_init(struct radeon_device *rdev)
-{
-	r300_set_reg_safe(rdev);
-	return 0;
-}
-
 void r300_mc_program(struct radeon_device *rdev)
 {
 	struct r100_mc_save save;
@@ -1303,4 +1161,199 @@ void r300_mc_program(struct radeon_device *rdev)
 		S_000148_MC_FB_START(rdev->mc.vram_start >> 16) |
 		S_000148_MC_FB_TOP(rdev->mc.vram_end >> 16));
 	r100_mc_resume(rdev, &save);
+}
+
+void r300_clock_startup(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	if (radeon_dynclks != -1 && radeon_dynclks)
+		radeon_legacy_set_clock_gating(rdev, 1);
+	/* We need to force on some of the block */
+	tmp = RREG32_PLL(R_00000D_SCLK_CNTL);
+	tmp |= S_00000D_FORCE_CP(1) | S_00000D_FORCE_VIP(1);
+	if ((rdev->family == CHIP_RV350) || (rdev->family == CHIP_RV380))
+		tmp |= S_00000D_FORCE_VAP(1);
+	WREG32_PLL(R_00000D_SCLK_CNTL, tmp);
+}
+
+static int r300_startup(struct radeon_device *rdev)
+{
+	int r;
+
+	r300_mc_program(rdev);
+	/* Resume clock */
+	r300_clock_startup(rdev);
+	/* Initialize GPU configuration (# pipes, ...) */
+	r300_gpu_init(rdev);
+	/* Initialize GART (initialize after TTM so we can allocate
+	 * memory through TTM but finalize after TTM) */
+	if (rdev->flags & RADEON_IS_PCIE) {
+		r = rv370_pcie_gart_enable(rdev);
+		if (r)
+			return r;
+	}
+	if (rdev->flags & RADEON_IS_PCI) {
+		r = r100_pci_gart_enable(rdev);
+		if (r)
+			return r;
+	}
+	/* Enable IRQ */
+	rdev->irq.sw_int = true;
+	r100_irq_set(rdev);
+	/* 1M ring buffer */
+	r = r100_cp_init(rdev, 1024 * 1024);
+	if (r) {
+		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
+		return r;
+	}
+	r = r100_wb_init(rdev);
+	if (r)
+		dev_err(rdev->dev, "failled initializing WB (%d).\n", r);
+	r = r100_ib_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
+		return r;
+	}
+	return 0;
+}
+
+int r300_resume(struct radeon_device *rdev)
+{
+	/* Make sur GART are not working */
+	if (rdev->flags & RADEON_IS_PCIE)
+		rv370_pcie_gart_disable(rdev);
+	if (rdev->flags & RADEON_IS_PCI)
+		r100_pci_gart_disable(rdev);
+	/* Resume clock before doing reset */
+	r300_clock_startup(rdev);
+	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
+	if (radeon_gpu_reset(rdev)) {
+		dev_warn(rdev->dev, "GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
+			RREG32(R_000E40_RBBM_STATUS),
+			RREG32(R_0007C0_CP_STAT));
+	}
+	/* post */
+	radeon_combios_asic_init(rdev->ddev);
+	/* Resume clock after posting */
+	r300_clock_startup(rdev);
+	return r300_startup(rdev);
+}
+
+int r300_suspend(struct radeon_device *rdev)
+{
+	r100_cp_disable(rdev);
+	r100_wb_disable(rdev);
+	r100_irq_disable(rdev);
+	if (rdev->flags & RADEON_IS_PCIE)
+		rv370_pcie_gart_disable(rdev);
+	if (rdev->flags & RADEON_IS_PCI)
+		r100_pci_gart_disable(rdev);
+	return 0;
+}
+
+void r300_fini(struct radeon_device *rdev)
+{
+	r300_suspend(rdev);
+	r100_cp_fini(rdev);
+	r100_wb_fini(rdev);
+	r100_ib_fini(rdev);
+	radeon_gem_fini(rdev);
+	if (rdev->flags & RADEON_IS_PCIE)
+		rv370_pcie_gart_fini(rdev);
+	if (rdev->flags & RADEON_IS_PCI)
+		r100_pci_gart_fini(rdev);
+	radeon_irq_kms_fini(rdev);
+	radeon_fence_driver_fini(rdev);
+	radeon_object_fini(rdev);
+	radeon_atombios_fini(rdev);
+	kfree(rdev->bios);
+	rdev->bios = NULL;
+}
+
+int r300_init(struct radeon_device *rdev)
+{
+	int r;
+
+	/* Disable VGA */
+	r100_vga_render_disable(rdev);
+	/* Initialize scratch registers */
+	radeon_scratch_init(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
+	/* TODO: disable VGA need to use VGA request */
+	/* BIOS*/
+	if (!radeon_get_bios(rdev)) {
+		if (ASIC_IS_AVIVO(rdev))
+			return -EINVAL;
+	}
+	if (rdev->is_atom_bios) {
+		dev_err(rdev->dev, "Expecting combios for RS400/RS480 GPU\n");
+		return -EINVAL;
+	} else {
+		r = radeon_combios_init(rdev);
+		if (r)
+			return r;
+	}
+	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
+	if (radeon_gpu_reset(rdev)) {
+		dev_warn(rdev->dev,
+			"GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
+			RREG32(R_000E40_RBBM_STATUS),
+			RREG32(R_0007C0_CP_STAT));
+	}
+	/* check if cards are posted or not */
+	if (!radeon_card_posted(rdev) && rdev->bios) {
+		DRM_INFO("GPU not posted. posting now...\n");
+		radeon_combios_asic_init(rdev->ddev);
+	}
+	/* Set asic errata */
+	r300_errata(rdev);
+	/* Initialize clocks */
+	radeon_get_clock_info(rdev->ddev);
+	/* Get vram informations */
+	r300_vram_info(rdev);
+	/* Initialize memory controller (also test AGP) */
+	r = r420_mc_init(rdev);
+	if (r)
+		return r;
+	/* Fence driver */
+	r = radeon_fence_driver_init(rdev);
+	if (r)
+		return r;
+	r = radeon_irq_kms_init(rdev);
+	if (r)
+		return r;
+	/* Memory manager */
+	r = radeon_object_init(rdev);
+	if (r)
+		return r;
+	if (rdev->flags & RADEON_IS_PCIE) {
+		r = rv370_pcie_gart_init(rdev);
+		if (r)
+			return r;
+	}
+	if (rdev->flags & RADEON_IS_PCI) {
+		r = r100_pci_gart_init(rdev);
+		if (r)
+			return r;
+	}
+	r300_set_reg_safe(rdev);
+	rdev->accel_working = true;
+	r = r300_startup(rdev);
+	if (r) {
+		/* Somethings want wront with the accel init stop accel */
+		dev_err(rdev->dev, "Disabling GPU acceleration\n");
+		r300_suspend(rdev);
+		r100_cp_fini(rdev);
+		r100_wb_fini(rdev);
+		r100_ib_fini(rdev);
+		if (rdev->flags & RADEON_IS_PCIE)
+			rv370_pcie_gart_fini(rdev);
+		if (rdev->flags & RADEON_IS_PCI)
+			r100_pci_gart_fini(rdev);
+		radeon_irq_kms_fini(rdev);
+		rdev->accel_working = false;
+	}
+	return 0;
 }

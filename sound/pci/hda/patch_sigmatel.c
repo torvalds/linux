@@ -182,8 +182,8 @@ struct sigmatel_jack {
 
 struct sigmatel_mic_route {
 	hda_nid_t pin;
-	unsigned char mux_idx;
-	unsigned char dmux_idx;
+	signed char mux_idx;
+	signed char dmux_idx;
 };
 
 struct sigmatel_spec {
@@ -3469,18 +3469,26 @@ static int set_mic_route(struct hda_codec *codec,
 			break;
 	if (i <= AUTO_PIN_FRONT_MIC) {
 		/* analog pin */
-		mic->dmux_idx = 0;
 		i = get_connection_index(codec, spec->mux_nids[0], pin);
 		if (i < 0)
 			return -1;
 		mic->mux_idx = i;
+		mic->dmux_idx = -1;
+		if (spec->dmux_nids)
+			mic->dmux_idx = get_connection_index(codec,
+							     spec->dmux_nids[0],
+							     spec->mux_nids[0]);
 	}  else if (spec->dmux_nids) {
 		/* digital pin */
-		mic->mux_idx = 0;
 		i = get_connection_index(codec, spec->dmux_nids[0], pin);
 		if (i < 0)
 			return -1;
 		mic->dmux_idx = i;
+		mic->mux_idx = -1;
+		if (spec->mux_nids)
+			mic->mux_idx = get_connection_index(codec,
+							    spec->mux_nids[0],
+							    spec->dmux_nids[0]);
 	}
 	return 0;
 }
@@ -4557,11 +4565,11 @@ static void stac92xx_mic_detect(struct hda_codec *codec)
 		mic = &spec->ext_mic;
 	else
 		mic = &spec->int_mic;
-	if (mic->dmux_idx)
+	if (mic->dmux_idx >= 0)
 		snd_hda_codec_write_cache(codec, spec->dmux_nids[0], 0,
 					  AC_VERB_SET_CONNECT_SEL,
 					  mic->dmux_idx);
-	else
+	if (mic->mux_idx >= 0)
 		snd_hda_codec_write_cache(codec, spec->mux_nids[0], 0,
 					  AC_VERB_SET_CONNECT_SEL,
 					  mic->mux_idx);

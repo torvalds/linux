@@ -106,8 +106,8 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 	struct input_dev *input;
 	int err;
 
-	if (!pdata || !pdata->steps) {
-		dev_err(&pdev->dev, "invalid platform data\n");
+	if (!pdata) {
+		dev_err(&pdev->dev, "missing platform data\n");
 		return -ENOENT;
 	}
 

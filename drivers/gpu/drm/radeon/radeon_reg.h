@@ -3333,6 +3333,7 @@
 #       define RADEON_CP_PACKET_MAX_DWORDS          (1 << 12)
 #       define RADEON_CP_PACKET0_REG_MASK           0x000007ff
 #       define R300_CP_PACKET0_REG_MASK             0x00001fff
+#       define R600_CP_PACKET0_REG_MASK             0x0000ffff
 #       define RADEON_CP_PACKET1_REG0_MASK          0x000007ff
 #       define RADEON_CP_PACKET1_REG1_MASK          0x003ff800
 

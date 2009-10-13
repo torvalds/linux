@@ -1,4 +1,8 @@
-/* Changes made by  LG Soft Oct 2004*/
+/*
+ * Copyright 2004-2009 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
 
 #ifndef __ASMBFIN_ELF_H
 #define __ASMBFIN_ELF_H

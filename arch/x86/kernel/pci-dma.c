@@ -35,7 +35,7 @@ int iommu_detected __read_mostly = 0;
 
 /*
  * This variable becomes 1 if iommu=pt is passed on the kernel command line.
- * If this variable is 1, IOMMU implementations do no DMA ranslation for
+ * If this variable is 1, IOMMU implementations do no DMA translation for
  * devices and allow every device to access to whole physical memory. This is
  * useful if a user want to use an IOMMU only for KVM device assignment to
  * guests and not for driver dma translation.
