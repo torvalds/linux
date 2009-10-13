@@ -313,10 +313,11 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 	static char	*link_speeds[] = { "1", "2", "?", "4", "8", "10" };
 	char		*link_speed;
 	uint16_t	handle_cnt;
-	uint16_t	cnt;
+	uint16_t	cnt, mbx;
 	uint32_t	handles[5];
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
+	struct device_reg_24xx __iomem *reg24 = &ha->iobase->isp24;
 	uint32_t	rscn_entry, host_pid;
 	uint8_t		rscn_queue_index;
 	unsigned long	flags;
@@ -395,9 +396,10 @@ skip_rio:
 		break;
 
 	case MBA_SYSTEM_ERR:		/* System Error */
+		mbx = IS_QLA81XX(ha) ? RD_REG_WORD(&reg24->mailbox7) : 0;
 		qla_printk(KERN_INFO, ha,
-		    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh.\n",
-		    mb[1], mb[2], mb[3]);
+		    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh "
+		    "mbx7=%xh.\n", mb[1], mb[2], mb[3], mbx);
 
 		ha->isp_ops->fw_dump(vha, 1);
 
@@ -419,9 +421,10 @@ skip_rio:
 		break;
 
 	case MBA_REQ_TRANSFER_ERR:	/* Request Transfer Error */
-		DEBUG2(printk("scsi(%ld): ISP Request Transfer Error.\n",
-		    vha->host_no));
-		qla_printk(KERN_WARNING, ha, "ISP Request Transfer Error.\n");
+		DEBUG2(printk("scsi(%ld): ISP Request Transfer Error (%x).\n",
+		    vha->host_no, mb[1]));
+		qla_printk(KERN_WARNING, ha,
+		    "ISP Request Transfer Error (%x).\n", mb[1]);
 
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
@@ -485,10 +488,13 @@ skip_rio:
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
+		mbx = IS_QLA81XX(ha) ? RD_REG_WORD(&reg24->mailbox4) : 0;
 		DEBUG2(printk("scsi(%ld): Asynchronous LOOP DOWN "
-		    "(%x %x %x).\n", vha->host_no, mb[1], mb[2], mb[3]));
-		qla_printk(KERN_INFO, ha, "LOOP DOWN detected (%x %x %x).\n",
-		    mb[1], mb[2], mb[3]);
+		    "(%x %x %x %x).\n", vha->host_no, mb[1], mb[2], mb[3],
+		    mbx));
+		qla_printk(KERN_INFO, ha,
+		    "LOOP DOWN detected (%x %x %x %x).\n", mb[1], mb[2], mb[3],
+		    mbx);
 
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 			atomic_set(&vha->loop_state, LOOP_DOWN);
