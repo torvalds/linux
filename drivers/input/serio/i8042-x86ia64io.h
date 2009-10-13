@@ -661,7 +661,7 @@ static void i8042_pnp_exit(void)
 static int __init i8042_pnp_init(void)
 {
 	char kbd_irq_str[4] = { 0 }, aux_irq_str[4] = { 0 };
-	int pnp_data_busted = false;
+	bool pnp_data_busted = false;
 	int err;
 
 #ifdef CONFIG_X86
