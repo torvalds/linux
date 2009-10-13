@@ -363,9 +363,6 @@ struct wl1271 {
 
 	struct work_struct tx_work;
 
-	struct work_struct filter_work;
-	struct wl1271_filter_params *filter_params;
-
 	/* Pending TX frames */
 	struct sk_buff *tx_frames[ACX_TX_DESCRIPTORS];
 
