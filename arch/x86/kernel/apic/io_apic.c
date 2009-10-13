@@ -60,8 +60,6 @@
 #include <asm/irq_remapping.h>
 #include <asm/hpet.h>
 #include <asm/hw_irq.h>
-#include <asm/uv/uv_hub.h>
-#include <asm/uv/uv_irq.h>
 
 #include <asm/apic.h>
 
@@ -140,20 +138,6 @@ static struct irq_pin_list *get_one_free_irq_2_pin(int node)
 	return pin;
 }
 
-/*
- * This is performance-critical, we want to do it O(1)
- *
- * Most irqs are mapped 1:1 with pins.
- */
-struct irq_cfg {
-	struct irq_pin_list *irq_2_pin;
-	cpumask_var_t domain;
-	cpumask_var_t old_domain;
-	unsigned move_cleanup_count;
-	u8 vector;
-	u8 move_in_progress : 1;
-};
-
 /* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
 #ifdef CONFIG_SPARSE_IRQ
 static struct irq_cfg irq_cfgx[] = {
@@ -209,7 +193,7 @@ int __init arch_early_irq_init(void)
 }
 
 #ifdef CONFIG_SPARSE_IRQ
-static struct irq_cfg *irq_cfg(unsigned int irq)
+struct irq_cfg *irq_cfg(unsigned int irq)
 {
 	struct irq_cfg *cfg = NULL;
 	struct irq_desc *desc;
@@ -361,7 +345,7 @@ void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc)
 /* end for move_irq_desc */
 
 #else
-static struct irq_cfg *irq_cfg(unsigned int irq)
+struct irq_cfg *irq_cfg(unsigned int irq)
 {
 	return irq < nr_irqs ? irq_cfgx + irq : NULL;
 }
@@ -1237,8 +1221,7 @@ next:
 	return err;
 }
 
-static int
-assign_irq_vector(int irq, struct irq_cfg *cfg, const struct cpumask *mask)
+int assign_irq_vector(int irq, struct irq_cfg *cfg, const struct cpumask *mask)
 {
 	int err;
 	unsigned long flags;
@@ -2245,7 +2228,7 @@ static int ioapic_retrigger_irq(unsigned int irq)
  */
 
 #ifdef CONFIG_SMP
-static void send_cleanup_vector(struct irq_cfg *cfg)
+void send_cleanup_vector(struct irq_cfg *cfg)
 {
 	cpumask_var_t cleanup_mask;
 
@@ -2289,15 +2272,12 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
 	}
 }
 
-static int
-assign_irq_vector(int irq, struct irq_cfg *cfg, const struct cpumask *mask);
-
 /*
  * Either sets desc->affinity to a valid value, and returns
  * ->cpu_mask_to_apicid of that, or returns BAD_APICID and
  * leaves desc->affinity untouched.
  */
-static unsigned int
+unsigned int
 set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask)
 {
 	struct irq_cfg *cfg;
@@ -3724,116 +3704,6 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 	return err;
 }
 #endif /* CONFIG_HT_IRQ */
-
-#ifdef CONFIG_X86_UV
-/*
- * Re-target the irq to the specified CPU and enable the specified MMR located
- * on the specified blade to allow the sending of MSIs to the specified CPU.
- */
-int arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
-		       unsigned long mmr_offset, int restrict)
-{
-	const struct cpumask *eligible_cpu = cpumask_of(cpu);
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_cfg *cfg;
-	int mmr_pnode;
-	unsigned long mmr_value;
-	struct uv_IO_APIC_route_entry *entry;
-	unsigned long flags;
-	int err;
-
-	BUILD_BUG_ON(sizeof(struct uv_IO_APIC_route_entry) != sizeof(unsigned long));
-
-	cfg = irq_cfg(irq);
-
-	err = assign_irq_vector(irq, cfg, eligible_cpu);
-	if (err != 0)
-		return err;
-
-	if (restrict == UV_AFFINITY_CPU)
-		desc->status |= IRQ_NO_BALANCING;
-	else
-		desc->status |= IRQ_MOVE_PCNTXT;
-
-	spin_lock_irqsave(&vector_lock, flags);
-	set_irq_chip_and_handler_name(irq, &uv_irq_chip, handle_percpu_irq,
-				      irq_name);
-	spin_unlock_irqrestore(&vector_lock, flags);
-
-	mmr_value = 0;
-	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
-	entry->vector		= cfg->vector;
-	entry->delivery_mode	= apic->irq_delivery_mode;
-	entry->dest_mode	= apic->irq_dest_mode;
-	entry->polarity		= 0;
-	entry->trigger		= 0;
-	entry->mask		= 0;
-	entry->dest		= apic->cpu_mask_to_apicid(eligible_cpu);
-
-	mmr_pnode = uv_blade_to_pnode(mmr_blade);
-	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
-
-	if (cfg->move_in_progress)
-		send_cleanup_vector(cfg);
-
-	return irq;
-}
-
-/*
- * Disable the specified MMR located on the specified blade so that MSIs are
- * longer allowed to be sent.
- */
-void arch_disable_uv_irq(int mmr_pnode, unsigned long mmr_offset)
-{
-	unsigned long mmr_value;
-	struct uv_IO_APIC_route_entry *entry;
-
-	BUILD_BUG_ON(sizeof(struct uv_IO_APIC_route_entry) != sizeof(unsigned long));
-
-	mmr_value = 0;
-	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
-	entry->mask = 1;
-
-	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
-}
-
-int uv_set_irq_affinity(unsigned int irq, const struct cpumask *mask)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_cfg *cfg = desc->chip_data;
-	unsigned int dest;
-	unsigned long mmr_value;
-	struct uv_IO_APIC_route_entry *entry;
-	unsigned long mmr_offset;
-	unsigned mmr_pnode;
-
-	dest = set_desc_affinity(desc, mask);
-	if (dest == BAD_APICID)
-		return -1;
-
-	mmr_value = 0;
-	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
-
-	entry->vector = cfg->vector;
-	entry->delivery_mode = apic->irq_delivery_mode;
-	entry->dest_mode = apic->irq_dest_mode;
-	entry->polarity = 0;
-	entry->trigger = 0;
-	entry->mask = 0;
-	entry->dest = dest;
-
-	/* Get previously stored MMR and pnode of hub sourcing interrupts */
-	if (uv_irq_2_mmr_info(irq, &mmr_offset, &mmr_pnode))
-		return -1;
-
-	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
-
-	if (cfg->move_in_progress)
-		send_cleanup_vector(cfg);
-
-	return 0;
-}
-#endif /* CONFIG_X86_64 */
 
 int __init io_apic_get_redir_entries (int ioapic)
 {

@@ -18,13 +18,16 @@
 
 /* MMR offset and pnode of hub sourcing interrupts for a given irq */
 struct uv_irq_2_mmr_pnode{
-	struct rb_node list;
-	unsigned long offset;
-	int pnode;
-	int irq;
+	struct rb_node		list;
+	unsigned long		offset;
+	int			pnode;
+	int			irq;
 };
-static spinlock_t uv_irq_lock;
-static struct rb_root uv_irq_root;
+
+static spinlock_t		uv_irq_lock;
+static struct rb_root		uv_irq_root;
+
+static int uv_set_irq_affinity(unsigned int, const struct cpumask *);
 
 static void uv_noop(unsigned int irq)
 {
@@ -129,6 +132,114 @@ int uv_irq_2_mmr_info(int irq, unsigned long *offset, int *pnode)
 	}
 	spin_unlock_irqrestore(&uv_irq_lock, irqflags);
 	return -1;
+}
+
+/*
+ * Re-target the irq to the specified CPU and enable the specified MMR located
+ * on the specified blade to allow the sending of MSIs to the specified CPU.
+ */
+static int
+arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
+		       unsigned long mmr_offset, int restrict)
+{
+	const struct cpumask *eligible_cpu = cpumask_of(cpu);
+	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_cfg *cfg;
+	int mmr_pnode;
+	unsigned long mmr_value;
+	struct uv_IO_APIC_route_entry *entry;
+	int err;
+
+	BUILD_BUG_ON(sizeof(struct uv_IO_APIC_route_entry) !=
+			sizeof(unsigned long));
+
+	cfg = irq_cfg(irq);
+
+	err = assign_irq_vector(irq, cfg, eligible_cpu);
+	if (err != 0)
+		return err;
+
+	if (restrict == UV_AFFINITY_CPU)
+		desc->status |= IRQ_NO_BALANCING;
+	else
+		desc->status |= IRQ_MOVE_PCNTXT;
+
+	set_irq_chip_and_handler_name(irq, &uv_irq_chip, handle_percpu_irq,
+				      irq_name);
+
+	mmr_value = 0;
+	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
+	entry->vector		= cfg->vector;
+	entry->delivery_mode	= apic->irq_delivery_mode;
+	entry->dest_mode	= apic->irq_dest_mode;
+	entry->polarity		= 0;
+	entry->trigger		= 0;
+	entry->mask		= 0;
+	entry->dest		= apic->cpu_mask_to_apicid(eligible_cpu);
+
+	mmr_pnode = uv_blade_to_pnode(mmr_blade);
+	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
+
+	if (cfg->move_in_progress)
+		send_cleanup_vector(cfg);
+
+	return irq;
+}
+
+/*
+ * Disable the specified MMR located on the specified blade so that MSIs are
+ * longer allowed to be sent.
+ */
+static void arch_disable_uv_irq(int mmr_pnode, unsigned long mmr_offset)
+{
+	unsigned long mmr_value;
+	struct uv_IO_APIC_route_entry *entry;
+
+	BUILD_BUG_ON(sizeof(struct uv_IO_APIC_route_entry) !=
+			sizeof(unsigned long));
+
+	mmr_value = 0;
+	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
+	entry->mask = 1;
+
+	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
+}
+
+static int uv_set_irq_affinity(unsigned int irq, const struct cpumask *mask)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_cfg *cfg = desc->chip_data;
+	unsigned int dest;
+	unsigned long mmr_value;
+	struct uv_IO_APIC_route_entry *entry;
+	unsigned long mmr_offset;
+	unsigned mmr_pnode;
+
+	dest = set_desc_affinity(desc, mask);
+	if (dest == BAD_APICID)
+		return -1;
+
+	mmr_value = 0;
+	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
+
+	entry->vector		= cfg->vector;
+	entry->delivery_mode	= apic->irq_delivery_mode;
+	entry->dest_mode	= apic->irq_dest_mode;
+	entry->polarity		= 0;
+	entry->trigger		= 0;
+	entry->mask		= 0;
+	entry->dest		= dest;
+
+	/* Get previously stored MMR and pnode of hub sourcing interrupts */
+	if (uv_irq_2_mmr_info(irq, &mmr_offset, &mmr_pnode))
+		return -1;
+
+	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
+
+	if (cfg->move_in_progress)
+		send_cleanup_vector(cfg);
+
+	return 0;
 }
 
 /*
