@@ -870,16 +870,12 @@ static unsigned int mmap_read_head(struct mmap_data *md)
 	return head;
 }
 
-struct timeval last_read, this_read;
-
 static void mmap_read_counter(struct mmap_data *md)
 {
 	unsigned int head = mmap_read_head(md);
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
 	int diff;
-
-	gettimeofday(&this_read, NULL);
 
 	/*
 	 * If we're further behind than half the buffer, there's a chance
@@ -891,22 +887,13 @@ static void mmap_read_counter(struct mmap_data *md)
 	 */
 	diff = head - old;
 	if (diff > md->mask / 2 || diff < 0) {
-		struct timeval iv;
-		unsigned long msecs;
-
-		timersub(&this_read, &last_read, &iv);
-		msecs = iv.tv_sec*1000 + iv.tv_usec/1000;
-
-		fprintf(stderr, "WARNING: failed to keep up with mmap data."
-				"  Last read %lu msecs ago.\n", msecs);
+		fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
 
 		/*
 		 * head points to a known good entry, start there.
 		 */
 		old = head;
 	}
-
-	last_read = this_read;
 
 	for (; old != head;) {
 		event_t *event = (event_t *)&data[old & md->mask];
