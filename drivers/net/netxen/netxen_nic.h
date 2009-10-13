@@ -1180,8 +1180,8 @@ struct netxen_adapter {
 	u32 (*crb_read)(struct netxen_adapter *, ulong);
 	int (*crb_write)(struct netxen_adapter *, ulong, u32);
 
-	int (*pci_mem_read)(struct netxen_adapter *, u64, void *, int);
-	int (*pci_mem_write)(struct netxen_adapter *, u64, void *, int);
+	int (*pci_mem_read)(struct netxen_adapter *, u64, u64 *);
+	int (*pci_mem_write)(struct netxen_adapter *, u64, u64);
 
 	unsigned long (*pci_set_window)(struct netxen_adapter *,
 			unsigned long long);

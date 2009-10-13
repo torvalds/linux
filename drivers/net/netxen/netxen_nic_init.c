@@ -702,7 +702,10 @@ netxen_load_firmware(struct netxen_adapter *adapter)
 
 		for (i = 0; i < size; i++) {
 			data = cpu_to_le64(ptr64[i]);
-			adapter->pci_mem_write(adapter, flashaddr, &data, 8);
+			if (adapter->pci_mem_write(adapter,
+						flashaddr, data))
+				return -EIO;
+
 			flashaddr += 8;
 		}
 
@@ -716,7 +719,7 @@ netxen_load_firmware(struct netxen_adapter *adapter)
 			data = cpu_to_le64(ptr64[i]);
 
 			if (adapter->pci_mem_write(adapter,
-						flashaddr, &data, 8))
+						flashaddr, data))
 				return -EIO;
 
 			flashaddr += 8;
@@ -730,17 +733,17 @@ netxen_load_firmware(struct netxen_adapter *adapter)
 
 		for (i = 0; i < size; i++) {
 			if (netxen_rom_fast_read(adapter,
-					flashaddr, &lo) != 0)
+					flashaddr, (int *)&lo) != 0)
 				return -EIO;
 			if (netxen_rom_fast_read(adapter,
-					flashaddr + 4, &hi) != 0)
+					flashaddr + 4, (int *)&hi) != 0)
 				return -EIO;
 
 			/* hi, lo are already in host endian byteorder */
 			data = (((u64)hi << 32) | lo);
 
 			if (adapter->pci_mem_write(adapter,
-						flashaddr, &data, 8))
+						flashaddr, data))
 				return -EIO;
 
 			flashaddr += 8;
