@@ -2013,7 +2013,10 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	ret = btrfs_write_and_wait_marked_extents(log, &log->dirty_log_pages);
+	/* we start IO on  all the marked extents here, but we don't actually
+	 * wait for them until later.
+	 */
+	ret = btrfs_write_marked_extents(log, &log->dirty_log_pages);
 	BUG_ON(ret);
 
 	btrfs_set_root_node(&log->root_item, log->node);
@@ -2048,6 +2051,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	index2 = log_root_tree->log_transid % 2;
 	if (atomic_read(&log_root_tree->log_commit[index2])) {
+		btrfs_wait_marked_extents(log, &log->dirty_log_pages);
 		wait_log_commit(trans, log_root_tree,
 				log_root_tree->log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -2067,6 +2071,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * check the full commit flag again
 	 */
 	if (root->fs_info->last_trans_log_full_commit == trans->transid) {
+		btrfs_wait_marked_extents(log, &log->dirty_log_pages);
 		mutex_unlock(&log_root_tree->log_mutex);
 		ret = -EAGAIN;
 		goto out_wake_log_root;
@@ -2075,6 +2080,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	ret = btrfs_write_and_wait_marked_extents(log_root_tree,
 				&log_root_tree->dirty_log_pages);
 	BUG_ON(ret);
+	btrfs_wait_marked_extents(log, &log->dirty_log_pages);
 
 	btrfs_set_super_log_root(&root->fs_info->super_for_commit,
 				log_root_tree->node->start);
