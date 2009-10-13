@@ -1665,11 +1665,11 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw);
  * header if %RX_FLAG_RADIOTAP is set in the @status flags.
  *
  * This function may not be called in IRQ context. Calls to this function
- * for a single hardware must be synchronized against each other. Calls
- * to this function and ieee80211_rx_irqsafe() may not be mixed for a
- * single hardware.
+ * for a single hardware must be synchronized against each other. Calls to
+ * this function, ieee80211_rx_ni() and ieee80211_rx_irqsafe() may not be
+ * mixed for a single hardware.
  *
- * Note that right now, this function must be called with softirqs disabled.
+ * In process context use instead ieee80211_rx_ni().
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
@@ -1682,13 +1682,33 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb);
  * Like ieee80211_rx() but can be called in IRQ context
  * (internally defers to a tasklet.)
  *
- * Calls to this function and ieee80211_rx() may not be mixed for a
- * single hardware.
+ * Calls to this function, ieee80211_rx() or ieee80211_rx_ni() may not
+ * be mixed for a single hardware.
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
  */
 void ieee80211_rx_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb);
+
+/**
+ * ieee80211_rx_ni - receive frame (in process context)
+ *
+ * Like ieee80211_rx() but can be called in process context
+ * (internally disables bottom halves).
+ *
+ * Calls to this function, ieee80211_rx() and ieee80211_rx_irqsafe() may
+ * not be mixed for a single hardware.
+ *
+ * @hw: the hardware this frame came in on
+ * @skb: the buffer to receive, owned by mac80211 after this call
+ */
+static inline void ieee80211_rx_ni(struct ieee80211_hw *hw,
+				   struct sk_buff *skb)
+{
+	local_bh_disable();
+	ieee80211_rx(hw, skb);
+	local_bh_enable();
+}
 
 /**
  * ieee80211_tx_status - transmit status callback
