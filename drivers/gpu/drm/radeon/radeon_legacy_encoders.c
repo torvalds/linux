@@ -1331,7 +1331,6 @@ radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t 
 		encoder->possible_crtcs = 0x1;
 	else
 		encoder->possible_crtcs = 0x3;
-	encoder->possible_clones = 0;
 
 	radeon_encoder->enc_priv = NULL;
 

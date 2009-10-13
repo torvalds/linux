@@ -324,6 +324,7 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 			ret = radeon_get_legacy_connector_info_from_table(dev);
 	}
 	if (ret) {
+		radeon_setup_encoder_clones(dev);
 		radeon_print_display_setup(dev);
 		list_for_each_entry(drm_connector, &dev->mode_config.connector_list, head)
 			radeon_ddc_dump(drm_connector);

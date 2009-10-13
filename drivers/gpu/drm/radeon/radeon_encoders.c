@@ -35,6 +35,51 @@ extern int atom_debug;
 bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 				struct drm_display_mode *mode);
 
+static uint32_t radeon_encoder_clones(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_encoder *clone_encoder;
+	uint32_t index_mask = 0;
+	int count;
+
+	/* DIG routing gets problematic */
+	if (rdev->family >= CHIP_R600)
+		return index_mask;
+	/* LVDS/TV are too wacky */
+	if (radeon_encoder->devices & ATOM_DEVICE_LCD_SUPPORT)
+		return index_mask;
+	/* DVO requires 2x ppll clocks depending on tmds chip */
+	if (radeon_encoder->devices & ATOM_DEVICE_DFP2_SUPPORT)
+		return index_mask;
+	
+	count = -1;
+	list_for_each_entry(clone_encoder, &dev->mode_config.encoder_list, head) {
+		struct radeon_encoder *radeon_clone = to_radeon_encoder(clone_encoder);
+		count++;
+
+		if (clone_encoder == encoder)
+			continue;
+		if (radeon_clone->devices & (ATOM_DEVICE_LCD_SUPPORT))
+			continue;
+		if (radeon_clone->devices & ATOM_DEVICE_DFP2_SUPPORT)
+			continue;
+		else
+			index_mask |= (1 << count);
+	}
+	return index_mask;
+}
+
+void radeon_setup_encoder_clones(struct drm_device *dev)
+{
+	struct drm_encoder *encoder;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		encoder->possible_clones = radeon_encoder_clones(encoder);
+	}
+}
+
 uint32_t
 radeon_get_encoder_id(struct drm_device *dev, uint32_t supported_device, uint8_t dac)
 {
@@ -1341,7 +1386,6 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 		encoder->possible_crtcs = 0x1;
 	else
 		encoder->possible_crtcs = 0x3;
-	encoder->possible_clones = 0;
 
 	radeon_encoder->enc_priv = NULL;
 

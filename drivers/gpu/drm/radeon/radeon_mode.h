@@ -377,6 +377,8 @@ extern void radeon_compute_pll(struct radeon_pll *pll,
 			       uint32_t *post_div_p,
 			       int flags);
 
+extern void radeon_setup_encoder_clones(struct drm_device *dev);
+
 struct drm_encoder *radeon_encoder_legacy_lvds_add(struct drm_device *dev, int bios_index);
 struct drm_encoder *radeon_encoder_legacy_primary_dac_add(struct drm_device *dev, int bios_index, int with_tv);
 struct drm_encoder *radeon_encoder_legacy_tv_dac_add(struct drm_device *dev, int bios_index, int with_tv);
