@@ -89,8 +89,8 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 		/*
 		 * Check remaining flags.
 		 */
-		if (!prefixcmp(cmd, "--exec-path")) {
-			cmd += 11;
+		if (!prefixcmp(cmd, CMD_EXEC_PATH)) {
+			cmd += strlen(CMD_EXEC_PATH);
 			if (*cmd == '=')
 				perf_set_argv_exec_path(cmd + 1);
 			else {
@@ -117,8 +117,8 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 			(*argv)++;
 			(*argc)--;
 			handled++;
-		} else if (!prefixcmp(cmd, "--perf-dir=")) {
-			setenv(PERF_DIR_ENVIRONMENT, cmd + 10, 1);
+		} else if (!prefixcmp(cmd, CMD_PERF_DIR)) {
+			setenv(PERF_DIR_ENVIRONMENT, cmd + strlen(CMD_PERF_DIR), 1);
 			if (envchanged)
 				*envchanged = 1;
 		} else if (!strcmp(cmd, "--work-tree")) {
@@ -131,8 +131,8 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 				*envchanged = 1;
 			(*argv)++;
 			(*argc)--;
-		} else if (!prefixcmp(cmd, "--work-tree=")) {
-			setenv(PERF_WORK_TREE_ENVIRONMENT, cmd + 12, 1);
+		} else if (!prefixcmp(cmd, CMD_WORK_TREE)) {
+			setenv(PERF_WORK_TREE_ENVIRONMENT, cmd + strlen(CMD_WORK_TREE), 1);
 			if (envchanged)
 				*envchanged = 1;
 		} else if (!strcmp(cmd, "--debugfs-dir")) {
@@ -146,8 +146,8 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 				*envchanged = 1;
 			(*argv)++;
 			(*argc)--;
-		} else if (!prefixcmp(cmd, "--debugfs-dir=")) {
-			strncpy(debugfs_mntpt, cmd + 14, MAXPATHLEN);
+		} else if (!prefixcmp(cmd, CMD_DEBUGFS_DIR)) {
+			strncpy(debugfs_mntpt, cmd + strlen(CMD_DEBUGFS_DIR), MAXPATHLEN);
 			debugfs_mntpt[MAXPATHLEN - 1] = '\0';
 			if (envchanged)
 				*envchanged = 1;
