@@ -2440,11 +2440,11 @@ struct qla_hw_data {
 	dma_addr_t	edc_data_dma;
 	uint16_t	edc_data_len;
 
-#define XGMAC_DATA_SIZE	PAGE_SIZE
+#define XGMAC_DATA_SIZE	4096
 	void		*xgmac_data;
 	dma_addr_t	xgmac_data_dma;
 
-#define DCBX_TLV_DATA_SIZE PAGE_SIZE
+#define DCBX_TLV_DATA_SIZE 4096
 	void		*dcbx_tlv;
 	dma_addr_t	dcbx_tlv_dma;
 
