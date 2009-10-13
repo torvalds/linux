@@ -3230,4 +3230,12 @@ config VIRTIO_NET
 	  This is the virtual network driver for virtio.  It can be used with
           lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
 
+config VMXNET3
+       tristate "VMware VMXNET3 ethernet driver"
+       depends on PCI && X86
+       help
+         This driver supports VMware's vmxnet3 virtual ethernet NIC.
+         To compile this driver as a module, choose M here: the
+         module will be called vmxnet3.
+
 endif # NETDEVICES

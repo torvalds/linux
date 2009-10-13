@@ -30,6 +30,7 @@ obj-$(CONFIG_TEHUTI) += tehuti.o
 obj-$(CONFIG_ENIC) += enic/
 obj-$(CONFIG_JME) += jme.o
 obj-$(CONFIG_BE2NET) += benet/
+obj-$(CONFIG_VMXNET3) += vmxnet3/
 
 gianfar_driver-objs := gianfar.o \
 		gianfar_ethtool.o \
