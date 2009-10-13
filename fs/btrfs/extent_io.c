@@ -280,6 +280,14 @@ static struct extent_buffer *buffer_search(struct extent_io_tree *tree,
 	return NULL;
 }
 
+static void merge_cb(struct extent_io_tree *tree, struct extent_state *new,
+		     struct extent_state *other)
+{
+	if (tree->ops && tree->ops->merge_extent_hook)
+		tree->ops->merge_extent_hook(tree->mapping->host, new,
+					     other);
+}
+
 /*
  * utility function to look for merge candidates inside a given range.
  * Any extents with matching state are merged together into a single
@@ -303,6 +311,7 @@ static int merge_state(struct extent_io_tree *tree,
 		other = rb_entry(other_node, struct extent_state, rb_node);
 		if (other->end == state->start - 1 &&
 		    other->state == state->state) {
+			merge_cb(tree, state, other);
 			state->start = other->start;
 			other->tree = NULL;
 			rb_erase(&other->rb_node, &tree->state);
@@ -314,33 +323,37 @@ static int merge_state(struct extent_io_tree *tree,
 		other = rb_entry(other_node, struct extent_state, rb_node);
 		if (other->start == state->end + 1 &&
 		    other->state == state->state) {
+			merge_cb(tree, state, other);
 			other->start = state->start;
 			state->tree = NULL;
 			rb_erase(&state->rb_node, &tree->state);
 			free_extent_state(state);
+			state = NULL;
 		}
 	}
+
 	return 0;
 }
 
-static void set_state_cb(struct extent_io_tree *tree,
+static int set_state_cb(struct extent_io_tree *tree,
 			 struct extent_state *state,
 			 unsigned long bits)
 {
 	if (tree->ops && tree->ops->set_bit_hook) {
-		tree->ops->set_bit_hook(tree->mapping->host, state->start,
-					state->end, state->state, bits);
+		return tree->ops->set_bit_hook(tree->mapping->host,
+					       state->start, state->end,
+					       state->state, bits);
 	}
+
+	return 0;
 }
 
 static void clear_state_cb(struct extent_io_tree *tree,
 			   struct extent_state *state,
 			   unsigned long bits)
 {
-	if (tree->ops && tree->ops->clear_bit_hook) {
-		tree->ops->clear_bit_hook(tree->mapping->host, state->start,
-					  state->end, state->state, bits);
-	}
+	if (tree->ops && tree->ops->clear_bit_hook)
+		tree->ops->clear_bit_hook(tree->mapping->host, state, bits);
 }
 
 /*
@@ -358,6 +371,7 @@ static int insert_state(struct extent_io_tree *tree,
 			int bits)
 {
 	struct rb_node *node;
+	int ret;
 
 	if (end < start) {
 		printk(KERN_ERR "btrfs end < start %llu %llu\n",
@@ -365,11 +379,14 @@ static int insert_state(struct extent_io_tree *tree,
 		       (unsigned long long)start);
 		WARN_ON(1);
 	}
-	if (bits & EXTENT_DIRTY)
-		tree->dirty_bytes += end - start + 1;
 	state->start = start;
 	state->end = end;
-	set_state_cb(tree, state, bits);
+	ret = set_state_cb(tree, state, bits);
+	if (ret)
+		return ret;
+
+	if (bits & EXTENT_DIRTY)
+		tree->dirty_bytes += end - start + 1;
 	state->state |= bits;
 	node = tree_insert(&tree->state, end, &state->rb_node);
 	if (node) {
@@ -384,6 +401,15 @@ static int insert_state(struct extent_io_tree *tree,
 	}
 	state->tree = tree;
 	merge_state(tree, state);
+	return 0;
+}
+
+static int split_cb(struct extent_io_tree *tree, struct extent_state *orig,
+		     u64 split)
+{
+	if (tree->ops && tree->ops->split_extent_hook)
+		return tree->ops->split_extent_hook(tree->mapping->host,
+						    orig, split);
 	return 0;
 }
 
@@ -405,6 +431,9 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 		       struct extent_state *prealloc, u64 split)
 {
 	struct rb_node *node;
+
+	split_cb(tree, orig, split);
+
 	prealloc->start = orig->start;
 	prealloc->end = split - 1;
 	prealloc->state = orig->state;
@@ -542,8 +571,8 @@ hit_next:
 		if (err)
 			goto out;
 		if (state->end <= end) {
-			set |= clear_state_bit(tree, state, bits,
-					wake, delete);
+			set |= clear_state_bit(tree, state, bits, wake,
+					       delete);
 			if (last_end == (u64)-1)
 				goto out;
 			start = last_end + 1;
@@ -561,12 +590,11 @@ hit_next:
 			prealloc = alloc_extent_state(GFP_ATOMIC);
 		err = split_state(tree, state, prealloc, end + 1);
 		BUG_ON(err == -EEXIST);
-
 		if (wake)
 			wake_up(&state->wq);
 
-		set |= clear_state_bit(tree, prealloc, bits,
-				       wake, delete);
+		set |= clear_state_bit(tree, prealloc, bits, wake, delete);
+
 		prealloc = NULL;
 		goto out;
 	}
@@ -667,16 +695,23 @@ out:
 	return 0;
 }
 
-static void set_state_bits(struct extent_io_tree *tree,
+static int set_state_bits(struct extent_io_tree *tree,
 			   struct extent_state *state,
 			   int bits)
 {
+	int ret;
+
+	ret = set_state_cb(tree, state, bits);
+	if (ret)
+		return ret;
+
 	if ((bits & EXTENT_DIRTY) && !(state->state & EXTENT_DIRTY)) {
 		u64 range = state->end - state->start + 1;
 		tree->dirty_bytes += range;
 	}
-	set_state_cb(tree, state, bits);
 	state->state |= bits;
+
+	return 0;
 }
 
 static void cache_state(struct extent_state *state,
@@ -758,7 +793,10 @@ hit_next:
 			goto out;
 		}
 
-		set_state_bits(tree, state, bits);
+		err = set_state_bits(tree, state, bits);
+		if (err)
+			goto out;
+
 		cache_state(state, cached_state);
 		merge_state(tree, state);
 		if (last_end == (u64)-1)
@@ -805,7 +843,9 @@ hit_next:
 		if (err)
 			goto out;
 		if (state->end <= end) {
-			set_state_bits(tree, state, bits);
+			err = set_state_bits(tree, state, bits);
+			if (err)
+				goto out;
 			cache_state(state, cached_state);
 			merge_state(tree, state);
 			if (last_end == (u64)-1)
@@ -829,11 +869,13 @@ hit_next:
 			this_end = last_start - 1;
 		err = insert_state(tree, prealloc, start, this_end,
 				   bits);
+		BUG_ON(err == -EEXIST);
+		if (err) {
+			prealloc = NULL;
+			goto out;
+		}
 		cache_state(prealloc, cached_state);
 		prealloc = NULL;
-		BUG_ON(err == -EEXIST);
-		if (err)
-			goto out;
 		start = this_end + 1;
 		goto search_again;
 	}
@@ -852,7 +894,11 @@ hit_next:
 		err = split_state(tree, state, prealloc, end + 1);
 		BUG_ON(err == -EEXIST);
 
-		set_state_bits(tree, prealloc, bits);
+		err = set_state_bits(tree, prealloc, bits);
+		if (err) {
+			prealloc = NULL;
+			goto out;
+		}
 		cache_state(prealloc, cached_state);
 		merge_state(tree, prealloc);
 		prealloc = NULL;

@@ -90,7 +90,7 @@ static int do_mdio_op(struct bcm_enet_priv *priv, unsigned int data)
 		if (enet_readl(priv, ENET_IR_REG) & ENET_IR_MII)
 			break;
 		udelay(1);
-	} while (limit-- >= 0);
+	} while (limit-- > 0);
 
 	return (limit < 0) ? 1 : 0;
 }

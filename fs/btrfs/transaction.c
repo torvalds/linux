@@ -186,6 +186,9 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	h->alloc_exclude_start = 0;
 	h->delayed_ref_updates = 0;
 
+	if (!current->journal_info)
+		current->journal_info = h;
+
 	root->fs_info->running_transaction->use_count++;
 	record_root_in_trans(h, root);
 	mutex_unlock(&root->fs_info->trans_mutex);
@@ -317,6 +320,9 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		wake_up(&cur_trans->writer_wait);
 	put_transaction(cur_trans);
 	mutex_unlock(&info->trans_mutex);
+
+	if (current->journal_info == trans)
+		current->journal_info = NULL;
 	memset(trans, 0, sizeof(*trans));
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 
@@ -743,6 +749,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	memcpy(&pending->root_key, &key, sizeof(key));
 fail:
 	kfree(new_root_item);
+	btrfs_unreserve_metadata_space(root, 6);
 	return ret;
 }
 
@@ -1058,6 +1065,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	put_transaction(cur_trans);
 
 	mutex_unlock(&root->fs_info->trans_mutex);
+
+	if (current->journal_info == trans)
+		current->journal_info = NULL;
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 	return ret;

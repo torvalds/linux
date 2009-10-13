@@ -53,7 +53,6 @@ struct gru_stats_s gru_stats;
 /* Guaranteed user available resources on each node */
 static int max_user_cbrs, max_user_dsr_bytes;
 
-static struct file_operations gru_fops;
 static struct miscdevice gru_miscdev;
 
 
@@ -426,7 +425,7 @@ static void __exit gru_exit(void)
 	gru_proc_exit();
 }
 
-static struct file_operations gru_fops = {
+static const struct file_operations gru_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= gru_file_unlocked_ioctl,
 	.mmap		= gru_file_mmap,

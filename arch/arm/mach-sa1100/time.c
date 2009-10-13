@@ -77,7 +77,7 @@ static struct clock_event_device ckevt_sa1100_osmr0 = {
 	.set_mode	= sa1100_osmr0_set_mode,
 };
 
-static cycle_t sa1100_read_oscr(void)
+static cycle_t sa1100_read_oscr(struct clocksource *s)
 {
 	return OSCR;
 }
