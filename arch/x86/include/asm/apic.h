@@ -488,6 +488,8 @@ static inline unsigned int read_apic_id(void)
 
 extern void default_setup_apic_routing(void);
 
+extern struct apic apic_noop;
+
 #ifdef CONFIG_X86_32
 
 extern struct apic apic_default;
