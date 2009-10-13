@@ -621,7 +621,7 @@ static int	stli_brdinit(struct stlibrd *brdp);
 static int	stli_startbrd(struct stlibrd *brdp);
 static ssize_t	stli_memread(struct file *fp, char __user *buf, size_t count, loff_t *offp);
 static ssize_t	stli_memwrite(struct file *fp, const char __user *buf, size_t count, loff_t *offp);
-static int	stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, unsigned long arg);
+static long	stli_memioctl(struct file *fp, unsigned int cmd, unsigned long arg);
 static void	stli_brdpoll(struct stlibrd *brdp, cdkhdr_t __iomem *hdrp);
 static void	stli_poll(unsigned long arg);
 static int	stli_hostcmd(struct stlibrd *brdp, struct stliport *portp);
@@ -704,7 +704,7 @@ static const struct file_operations	stli_fsiomem = {
 	.owner		= THIS_MODULE,
 	.read		= stli_memread,
 	.write		= stli_memwrite,
-	.ioctl		= stli_memioctl,
+	.unlocked_ioctl	= stli_memioctl,
 };
 
 /*****************************************************************************/
@@ -4311,7 +4311,7 @@ static int stli_getbrdstruct(struct stlibrd __user *arg)
  *	reset it, and start/stop it.
  */
 
-static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, unsigned long arg)
+static long stli_memioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	struct stlibrd *brdp;
 	int brdnr, rc, done;
@@ -4356,7 +4356,7 @@ static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, un
  *	Now handle the board specific ioctls. These all depend on the
  *	minor number of the device they were called from.
  */
-	brdnr = iminor(ip);
+	brdnr = iminor(fp->f_dentry->d_inode);
 	if (brdnr >= STL_MAXBRDS)
 		return -ENODEV;
 	brdp = stli_brds[brdnr];
