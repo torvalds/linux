@@ -1893,13 +1893,6 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl->state = WL1271_STATE_OFF;
 	mutex_init(&wl->mutex);
 
-	wl->rx_descriptor = kmalloc(sizeof(*wl->rx_descriptor), GFP_KERNEL);
-	if (!wl->rx_descriptor) {
-		wl1271_error("could not allocate memory for rx descriptor");
-		ret = -ENOMEM;
-		goto out_free;
-	}
-
 	/* This is the only SPI value that we need to set here, the rest
 	 * comes from the board-peripherals file */
 	spi->bits_per_word = 32;
@@ -1965,9 +1958,6 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	free_irq(wl->irq, wl);
 
  out_free:
-	kfree(wl->rx_descriptor);
-	wl->rx_descriptor = NULL;
-
 	ieee80211_free_hw(hw);
 
 	return ret;
@@ -1987,9 +1977,6 @@ static int __devexit wl1271_remove(struct spi_device *spi)
 	wl->fw = NULL;
 	kfree(wl->nvs);
 	wl->nvs = NULL;
-
-	kfree(wl->rx_descriptor);
-	wl->rx_descriptor = NULL;
 
 	kfree(wl->fw_status);
 	kfree(wl->tx_res_if);
