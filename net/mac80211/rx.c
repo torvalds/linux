@@ -2453,6 +2453,8 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 
+	WARN_ON_ONCE(softirq_count() == 0);
+
 	if (WARN_ON(status->band < 0 ||
 		    status->band >= IEEE80211_NUM_BANDS))
 		goto drop;
