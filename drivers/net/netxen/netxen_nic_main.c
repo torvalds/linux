@@ -607,13 +607,11 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	 * accessed it should set the window to 0 and then reset it to 1.
 	 */
 	adapter->curr_window = 255;
-	adapter->ahw.qdr_sn_window = -1;
-	adapter->ahw.ddr_mn_window = -1;
+	adapter->ahw.ocm_win = -1;
 
 	/* remap phys address */
 	mem_base = pci_resource_start(pdev, 0);	/* 0 is for BAR 0 */
 	mem_len = pci_resource_len(pdev, 0);
-	pci_len0 = 0;
 
 	/* 128 Meg of memory */
 	if (mem_len == NETXEN_PCI_128MB_SIZE) {
@@ -622,6 +620,7 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 				SECOND_PAGE_GROUP_SIZE);
 		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START,
 				THIRD_PAGE_GROUP_SIZE);
+		pci_len0 = FIRST_PAGE_GROUP_SIZE;
 	} else if (mem_len == NETXEN_PCI_32MB_SIZE) {
 		mem_ptr1 = ioremap(mem_base, SECOND_PAGE_GROUP_SIZE);
 		mem_ptr2 = ioremap(mem_base + THIRD_PAGE_GROUP_START -
@@ -634,19 +633,6 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 			return -EIO;
 		}
 		pci_len0 = mem_len;
-
-		adapter->ahw.ddr_mn_window = 0;
-		adapter->ahw.qdr_sn_window = 0;
-
-		adapter->ahw.mn_win_crb = NETXEN_PCI_CRBSPACE +
-			0x100000 + PCIX_MN_WINDOW + (pci_func * 0x20);
-		adapter->ahw.ms_win_crb = NETXEN_PCI_CRBSPACE +
-			0x100000 + PCIX_SN_WINDOW;
-		if (pci_func < 4)
-			adapter->ahw.ms_win_crb += (pci_func * 0x20);
-		else
-			adapter->ahw.ms_win_crb +=
-					0xA0 + ((pci_func - 4) * 0x10);
 	} else {
 		return -EIO;
 	}
@@ -659,6 +645,11 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	adapter->ahw.pci_len0 = pci_len0;
 	adapter->ahw.pci_base1 = mem_ptr1;
 	adapter->ahw.pci_base2 = mem_ptr2;
+
+	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		adapter->ahw.ocm_win_crb = netxen_get_ioaddr(adapter,
+			NETXEN_PCIX_PS_REG(PCIE_MN_WINDOW_REG(pci_func)));
+	}
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		goto skip_doorbell;
@@ -1447,6 +1438,7 @@ netxen_nic_resume(struct pci_dev *pdev)
 		return err;
 
 	adapter->curr_window = 255;
+	adapter->ahw.ocm_win = -1;
 
 	err = netxen_start_firmware(adapter);
 	if (err) {

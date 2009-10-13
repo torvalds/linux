@@ -543,13 +543,13 @@ struct netxen_hardware_context {
 	void __iomem *pci_base1;
 	void __iomem *pci_base2;
 	void __iomem *db_base;
+	void __iomem *ocm_win_crb;
+
 	unsigned long db_len;
 	unsigned long pci_len0;
 
-	int qdr_sn_window;
-	int ddr_mn_window;
-	u32 mn_win_crb;
-	u32 ms_win_crb;
+	u32 ocm_win;
+	u32 resv1;
 
 	u8 cut_through;
 	u8 revision_id;
@@ -1183,8 +1183,7 @@ struct netxen_adapter {
 	int (*pci_mem_read)(struct netxen_adapter *, u64, u64 *);
 	int (*pci_mem_write)(struct netxen_adapter *, u64, u64);
 
-	unsigned long (*pci_set_window)(struct netxen_adapter *,
-			unsigned long long);
+	int (*pci_set_window)(struct netxen_adapter *, u64, u32 *);
 
 	u32 (*io_read)(struct netxen_adapter *, void __iomem *);
 	void (*io_write)(struct netxen_adapter *, void __iomem *, u32);
