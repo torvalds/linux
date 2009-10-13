@@ -103,7 +103,7 @@
 #include "card.h"
 
 /*---------------------  Export Definitions -------------------------*/
-#define VNT_USB_VENDOR_ID                     0x160A
+#define VNT_USB_VENDOR_ID                     0x160a
 #define VNT_USB_PRODUCT_ID                    0x3184
 
 #define MAC_MAX_CONTEXT_REG     (256+128)
