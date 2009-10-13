@@ -2071,6 +2071,9 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	if (is_valid_ether_addr(dev->dev_addr)) {
 		smsc911x_set_hw_mac_address(pdata, dev->dev_addr);
 		SMSC_TRACE(PROBE, "MAC Address is specified by configuration");
+	} else if (is_valid_ether_addr(pdata->config.mac)) {
+		memcpy(dev->dev_addr, pdata->config.mac, 6);
+		SMSC_TRACE(PROBE, "MAC Address specified by platform data");
 	} else {
 		/* Try reading mac address from device. if EEPROM is present
 		 * it will already have been set */
