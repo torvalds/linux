@@ -294,9 +294,9 @@ void wl1271_spi_raw_read(struct wl1271 *wl, int addr, void *buf,
 
 	spi_sync(wl->spi, &m);
 
-	/* Check busy words */
-	if (!(busy_buf[WL1271_BUSY_WORD_CNT - 1] & 0x1))
-		wl1271_spi_read_busy(wl, buf, len);
+	/* FIXME: Check busy words, removed due to SPI bug */
+	/* if (!(busy_buf[WL1271_BUSY_WORD_CNT - 1] & 0x1))
+	   wl1271_spi_read_busy(wl, buf, len); */
 
 	wl1271_dump(DEBUG_SPI, "spi_read cmd -> ", cmd, sizeof(*cmd));
 	wl1271_dump(DEBUG_SPI, "spi_read buf <- ", buf, len);
