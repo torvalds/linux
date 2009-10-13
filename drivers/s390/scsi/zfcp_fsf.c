@@ -1475,9 +1475,16 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		plogi = (struct fsf_plogi *) req->qtcb->bottom.support.els;
 		if (req->qtcb->bottom.support.els1_length >=
 		    FSF_PLOGI_MIN_LEN) {
-			if (plogi->serv_param.wwpn != port->wwpn)
+			if (plogi->serv_param.wwpn != port->wwpn) {
 				port->d_id = 0;
-			else {
+				dev_warn(&port->adapter->ccw_device->dev,
+					 "A port opened with WWPN 0x%016Lx "
+					 "returned data that identifies it as "
+					 "WWPN 0x%016Lx\n",
+					 (unsigned long long) port->wwpn,
+					 (unsigned long long)
+					  plogi->serv_param.wwpn);
+			} else {
 				port->wwnn = plogi->serv_param.wwnn;
 				zfcp_fc_plogi_evaluate(port, plogi);
 			}
