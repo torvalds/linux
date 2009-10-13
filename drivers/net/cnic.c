@@ -33,6 +33,7 @@
 #include <net/route.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
+#include <net/ip6_checksum.h>
 #include <scsi/iscsi_if.h>
 
 #include "cnic_if.h"
