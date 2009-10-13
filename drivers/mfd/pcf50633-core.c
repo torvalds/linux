@@ -290,7 +290,7 @@ out:
 
 int pcf50633_irq_mask(struct pcf50633 *pcf, int irq)
 {
-	dev_info(pcf->dev, "Masking IRQ %d\n", irq);
+	dev_dbg(pcf->dev, "Masking IRQ %d\n", irq);
 
 	return __pcf50633_irq_mask_set(pcf, irq, 1);
 }
@@ -298,7 +298,7 @@ EXPORT_SYMBOL_GPL(pcf50633_irq_mask);
 
 int pcf50633_irq_unmask(struct pcf50633 *pcf, int irq)
 {
-	dev_info(pcf->dev, "Unmasking IRQ %d\n", irq);
+	dev_dbg(pcf->dev, "Unmasking IRQ %d\n", irq);
 
 	return __pcf50633_irq_mask_set(pcf, irq, 0);
 }
