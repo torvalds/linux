@@ -41,6 +41,11 @@
 #define CRB_HI(off)	((crb_hub_agt[CRB_BLK(off)] << 20) | ((off) & 0xf0000))
 #define CRB_INDIRECT_2M	(0x1e0000UL)
 
+static void netxen_nic_io_write_128M(struct netxen_adapter *adapter,
+		void __iomem *addr, u32 data);
+static u32 netxen_nic_io_read_128M(struct netxen_adapter *adapter,
+		void __iomem *addr);
+
 #ifndef readq
 static inline u64 readq(void __iomem *addr)
 {
@@ -1164,17 +1169,15 @@ netxen_nic_hw_write_wx_128M(struct netxen_adapter *adapter, ulong off, u32 data)
 	BUG_ON(!addr);
 
 	if (ADDR_IN_WINDOW1(off)) {	/* Window 1 */
-		read_lock(&adapter->adapter_lock);
-		writel(data, addr);
-		read_unlock(&adapter->adapter_lock);
+		netxen_nic_io_write_128M(adapter, addr, data);
 	} else {		/* Window 0 */
-		write_lock_irqsave(&adapter->adapter_lock, flags);
+		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
 		addr = pci_base_offset(adapter, off);
 		netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 		writel(data, addr);
 		netxen_nic_pci_set_crbwindow_128M(adapter,
 				NETXEN_WINDOW_ONE);
-		write_unlock_irqrestore(&adapter->adapter_lock, flags);
+		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
 	}
 
 	return 0;
@@ -1195,16 +1198,14 @@ netxen_nic_hw_read_wx_128M(struct netxen_adapter *adapter, ulong off)
 	BUG_ON(!addr);
 
 	if (ADDR_IN_WINDOW1(off)) {	/* Window 1 */
-		read_lock(&adapter->adapter_lock);
-		data = readl(addr);
-		read_unlock(&adapter->adapter_lock);
+		data = netxen_nic_io_read_128M(adapter, addr);
 	} else {		/* Window 0 */
-		write_lock_irqsave(&adapter->adapter_lock, flags);
+		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
 		netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 		data = readl(addr);
 		netxen_nic_pci_set_crbwindow_128M(adapter,
 				NETXEN_WINDOW_ONE);
-		write_unlock_irqrestore(&adapter->adapter_lock, flags);
+		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
 	}
 
 	return data;
@@ -1226,12 +1227,12 @@ netxen_nic_hw_write_wx_2M(struct netxen_adapter *adapter, ulong off, u32 data)
 	}
 
 	if (rv == 1) {
-		write_lock_irqsave(&adapter->adapter_lock, flags);
+		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
 		crb_win_lock(adapter);
 		netxen_nic_pci_set_crbwindow_2M(adapter, &off);
 		writel(data, (void __iomem *)off);
 		crb_win_unlock(adapter);
-		write_unlock_irqrestore(&adapter->adapter_lock, flags);
+		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
 	} else
 		writel(data, (void __iomem *)off);
 
@@ -1256,12 +1257,12 @@ netxen_nic_hw_read_wx_2M(struct netxen_adapter *adapter, ulong off)
 	}
 
 	if (rv == 1) {
-		write_lock_irqsave(&adapter->adapter_lock, flags);
+		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
 		crb_win_lock(adapter);
 		netxen_nic_pci_set_crbwindow_2M(adapter, &off);
 		data = readl((void __iomem *)off);
 		crb_win_unlock(adapter);
-		write_unlock_irqrestore(&adapter->adapter_lock, flags);
+		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
 	} else
 		data = readl((void __iomem *)off);
 
@@ -1272,9 +1273,9 @@ netxen_nic_hw_read_wx_2M(struct netxen_adapter *adapter, ulong off)
 static void netxen_nic_io_write_128M(struct netxen_adapter *adapter,
 		void __iomem *addr, u32 data)
 {
-	read_lock(&adapter->adapter_lock);
+	read_lock(&adapter->ahw.crb_lock);
 	writel(data, addr);
-	read_unlock(&adapter->adapter_lock);
+	read_unlock(&adapter->ahw.crb_lock);
 }
 
 static u32 netxen_nic_io_read_128M(struct netxen_adapter *adapter,
@@ -1282,9 +1283,9 @@ static u32 netxen_nic_io_read_128M(struct netxen_adapter *adapter,
 {
 	u32 val;
 
-	read_lock(&adapter->adapter_lock);
+	read_lock(&adapter->ahw.crb_lock);
 	val = readl(addr);
-	read_unlock(&adapter->adapter_lock);
+	read_unlock(&adapter->ahw.crb_lock);
 
 	return val;
 }
@@ -1366,11 +1367,10 @@ netxen_nic_pci_mem_access_direct(struct netxen_adapter *adapter, u64 off,
 {
 	void __iomem *addr, *mem_ptr = NULL;
 	resource_size_t mem_base;
-	unsigned long flags;
 	int ret = -EIO;
 	u32 start;
 
-	write_lock_irqsave(&adapter->adapter_lock, flags);
+	spin_lock(&adapter->ahw.mem_lock);
 
 	ret = adapter->pci_set_window(adapter, off, &start);
 	if (ret != 0)
@@ -1397,7 +1397,8 @@ noremap:
 		writeq(*data, addr);
 
 unlock:
-	write_unlock_irqrestore(&adapter->adapter_lock, flags);
+	spin_unlock(&adapter->ahw.mem_lock);
+
 	if (mem_ptr)
 		iounmap(mem_ptr);
 	return ret;
@@ -1409,7 +1410,6 @@ static int
 netxen_nic_pci_mem_write_128M(struct netxen_adapter *adapter,
 		u64 off, u64 data)
 {
-	unsigned long   flags;
 	int j, ret;
 	u32 temp, off_lo, off_hi, addr_hi, data_hi, data_lo;
 	void __iomem *mem_crb;
@@ -1453,7 +1453,7 @@ netxen_nic_pci_mem_write_128M(struct netxen_adapter *adapter,
 	return -EIO;
 
 correct:
-	write_lock_irqsave(&adapter->adapter_lock, flags);
+	spin_lock(&adapter->ahw.mem_lock);
 	netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 
 	writel(off_lo, (mem_crb + MIU_TEST_AGT_ADDR_LO));
@@ -1479,7 +1479,7 @@ correct:
 		ret = 0;
 
 	netxen_nic_pci_set_crbwindow_128M(adapter, NETXEN_WINDOW_ONE);
-	write_unlock_irqrestore(&adapter->adapter_lock, flags);
+	spin_unlock(&adapter->ahw.mem_lock);
 	return ret;
 }
 
@@ -1487,7 +1487,6 @@ static int
 netxen_nic_pci_mem_read_128M(struct netxen_adapter *adapter,
 		u64 off, u64 *data)
 {
-	unsigned long   flags;
 	int j, ret;
 	u32 temp, off_lo, off_hi, addr_hi, data_hi, data_lo;
 	u64 val;
@@ -1532,7 +1531,7 @@ netxen_nic_pci_mem_read_128M(struct netxen_adapter *adapter,
 	return -EIO;
 
 correct:
-	write_lock_irqsave(&adapter->adapter_lock, flags);
+	spin_lock(&adapter->ahw.mem_lock);
 	netxen_nic_pci_set_crbwindow_128M(adapter, 0);
 
 	writel(off_lo, (mem_crb + MIU_TEST_AGT_ADDR_LO));
@@ -1561,7 +1560,7 @@ correct:
 	}
 
 	netxen_nic_pci_set_crbwindow_128M(adapter, NETXEN_WINDOW_ONE);
-	write_unlock_irqrestore(&adapter->adapter_lock, flags);
+	spin_unlock(&adapter->ahw.mem_lock);
 
 	return ret;
 }
@@ -1570,7 +1569,6 @@ static int
 netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
 		u64 off, u64 data)
 {
-	unsigned long   flags;
 	int j, ret;
 	u32 temp, off8;
 	void __iomem *mem_crb;
@@ -1601,7 +1599,7 @@ netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
 correct:
 	off8 = off & MIU_TEST_AGT_ADDR_MASK;
 
-	write_lock_irqsave(&adapter->adapter_lock, flags);
+	spin_lock(&adapter->ahw.mem_lock);
 
 	writel(off8, (mem_crb + MIU_TEST_AGT_ADDR_LO));
 	writel(0, (mem_crb + MIU_TEST_AGT_ADDR_HI));
@@ -1625,7 +1623,7 @@ correct:
 	} else
 		ret = 0;
 
-	write_unlock_irqrestore(&adapter->adapter_lock, flags);
+	spin_unlock(&adapter->ahw.mem_lock);
 
 	return ret;
 }
@@ -1634,7 +1632,6 @@ static int
 netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
 		u64 off, u64 *data)
 {
-	unsigned long   flags;
 	int j, ret;
 	u32 temp, off8;
 	u64 val;
@@ -1668,7 +1665,7 @@ netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
 correct:
 	off8 = off & MIU_TEST_AGT_ADDR_MASK;
 
-	write_lock_irqsave(&adapter->adapter_lock, flags);
+	spin_lock(&adapter->ahw.mem_lock);
 
 	writel(off8, (mem_crb + MIU_TEST_AGT_ADDR_LO));
 	writel(0, (mem_crb + MIU_TEST_AGT_ADDR_HI));
@@ -1694,7 +1691,7 @@ correct:
 		ret = 0;
 	}
 
-	write_unlock_irqrestore(&adapter->adapter_lock, flags);
+	spin_unlock(&adapter->ahw.mem_lock);
 
 	return ret;
 }

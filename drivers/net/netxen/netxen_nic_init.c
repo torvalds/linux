@@ -1513,10 +1513,8 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 					      (rds_ring->num_desc - 1)));
 			netxen_set_msg_ctxid(msg, adapter->portnum);
 			netxen_set_msg_opcode(msg, NETXEN_RCV_PRODUCER(ringid));
-			read_lock(&adapter->adapter_lock);
-			writel(msg, DB_NORMALIZE(adapter,
-					    NETXEN_RCV_PRODUCER_OFFSET));
-			read_unlock(&adapter->adapter_lock);
+			NXWRIO(adapter, DB_NORMALIZE(adapter,
+					NETXEN_RCV_PRODUCER_OFFSET), msg);
 		}
 	}
 }

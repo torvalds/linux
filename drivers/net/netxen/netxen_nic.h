@@ -551,6 +551,9 @@ struct netxen_hardware_context {
 	u32 ocm_win;
 	u32 crb_win;
 
+	rwlock_t crb_lock;
+	spinlock_t mem_lock;
+
 	u8 cut_through;
 	u8 revision_id;
 	u8 pci_func;
@@ -1114,8 +1117,6 @@ struct netxen_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct list_head mac_list;
-
-	rwlock_t adapter_lock;
 
 	spinlock_t tx_clean_lock;
 

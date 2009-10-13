@@ -1240,7 +1240,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	revision_id = pdev->revision;
 	adapter->ahw.revision_id = revision_id;
 
-	rwlock_init(&adapter->adapter_lock);
+	rwlock_init(&adapter->ahw.crb_lock);
+	spin_lock_init(&adapter->ahw.mem_lock);
+
 	spin_lock_init(&adapter->tx_clean_lock);
 	INIT_LIST_HEAD(&adapter->mac_list);
 
