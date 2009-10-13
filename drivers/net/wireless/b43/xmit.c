@@ -690,7 +690,10 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	}
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
+
+	local_bh_disable();
 	ieee80211_rx(dev->wl->hw, skb);
+	local_bh_enable();
 
 #if B43_DEBUG
 	dev->rx_count++;
