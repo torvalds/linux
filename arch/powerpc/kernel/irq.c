@@ -1065,8 +1065,11 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	seq_printf(m, "%-5s  %-7s  %-15s  %s\n", "virq", "hwirq",
 		      "chip name", "host name");
 
-	for (i = 1; i < NR_IRQS; i++) {
+	for (i = 1; i < nr_irqs; i++) {
 		desc = irq_to_desc(i);
+		if (!desc)
+			continue;
+
 		spin_lock_irqsave(&desc->lock, flags);
 
 		if (desc->action && desc->action->handler) {
