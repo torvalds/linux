@@ -770,6 +770,30 @@ static int atkbd_select_set(struct atkbd *atkbd, int target_set, int allow_extra
 	return 3;
 }
 
+static int atkbd_reset_state(struct atkbd *atkbd)
+{
+        struct ps2dev *ps2dev = &atkbd->ps2dev;
+	unsigned char param[1];
+
+/*
+ * Set the LEDs to a predefined state (all off).
+ */
+
+	param[0] = 0;
+	if (ps2_command(ps2dev, param, ATKBD_CMD_SETLEDS))
+		return -1;
+
+/*
+ * Set autorepeat to fastest possible.
+ */
+
+	param[0] = 0;
+	if (ps2_command(ps2dev, param, ATKBD_CMD_SETREP))
+		return -1;
+
+	return 0;
+}
+
 static int atkbd_activate(struct atkbd *atkbd)
 {
 	struct ps2dev *ps2dev = &atkbd->ps2dev;
@@ -1087,6 +1111,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 		}
 
 		atkbd->set = atkbd_select_set(atkbd, atkbd_set, atkbd_extra);
+		atkbd_reset_state(atkbd);
 		atkbd_activate(atkbd);
 
 	} else {
@@ -1267,6 +1292,7 @@ static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t coun
 
 		atkbd->dev = new_dev;
 		atkbd->set = atkbd_select_set(atkbd, atkbd->set, value);
+		atkbd_reset_state(atkbd);
 		atkbd_activate(atkbd);
 		atkbd_set_keycode_table(atkbd);
 		atkbd_set_device_attrs(atkbd);
