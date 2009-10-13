@@ -38,6 +38,9 @@ extern atomic_t ppc_n_lost_interrupts;
 /* Number of irqs reserved for the legacy controller */
 #define NUM_ISA_INTERRUPTS	16
 
+/* Same thing, used by the generic IRQ code */
+#define NR_IRQS_LEGACY		NUM_ISA_INTERRUPTS
+
 /* This type is the placeholder for a hardware interrupt number. It has to
  * be big enough to enclose whatever representation is used by a given
  * platform.

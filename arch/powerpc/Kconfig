@@ -377,6 +377,19 @@ config IRQ_ALL_CPUS
 	  CPU.  Generally saying Y is safe, although some problems have been
 	  reported with SMP Power Macintoshes with this option enabled.
 
+config SPARSE_IRQ
+	bool "Support sparse irq numbering"
+	default y
+	help
+	  This enables support for sparse irqs. This is useful for distro
+	  kernels that want to define a high CONFIG_NR_CPUS value but still
+	  want to have low kernel memory footprint on smaller machines.
+
+	  ( Sparse IRQs can also be beneficial on NUMA boxes, as they spread
+	    out the irq_desc[] array in a more NUMA-friendly way. )
+
+	  If you don't know what to do here, say Y.
+
 config NUMA
 	bool "NUMA support"
 	depends on PPC64

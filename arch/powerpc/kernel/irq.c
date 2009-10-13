@@ -85,7 +85,10 @@ extern int tau_interrupts(int);
 #endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC64
+
+#ifndef CONFIG_SPARSE_IRQ
 EXPORT_SYMBOL(irq_desc);
+#endif
 
 int distribute_irqs = 1;
 
@@ -613,8 +616,16 @@ void irq_set_virq_count(unsigned int count)
 static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 			    irq_hw_number_t hwirq)
 {
+	struct irq_desc *desc;
+
+	desc = irq_to_desc_alloc_node(virq, 0);
+	if (!desc) {
+		pr_debug("irq: -> allocating desc failed\n");
+		goto error;
+	}
+
 	/* Clear IRQ_NOREQUEST flag */
-	irq_to_desc(virq)->status &= ~IRQ_NOREQUEST;
+	desc->status &= ~IRQ_NOREQUEST;
 
 	/* map it */
 	smp_wmb();
@@ -623,11 +634,14 @@ static int irq_setup_virq(struct irq_host *host, unsigned int virq,
 
 	if (host->ops->map(host, virq, hwirq)) {
 		pr_debug("irq: -> mapping failed, freeing\n");
-		irq_free_virt(virq, 1);
-		return -1;
+		goto error;
 	}
 
 	return 0;
+
+error:
+	irq_free_virt(virq, 1);
+	return -1;
 }
 
 unsigned int irq_create_direct_mapping(struct irq_host *host)
@@ -1008,12 +1022,24 @@ void irq_free_virt(unsigned int virq, unsigned int count)
 	spin_unlock_irqrestore(&irq_big_lock, flags);
 }
 
-void irq_early_init(void)
+int arch_early_irq_init(void)
 {
-	unsigned int i;
+	struct irq_desc *desc;
+	int i;
 
-	for (i = 0; i < NR_IRQS; i++)
-		irq_to_desc(i)->status |= IRQ_NOREQUEST;
+	for (i = 0; i < NR_IRQS; i++) {
+		desc = irq_to_desc(i);
+		if (desc)
+			desc->status |= IRQ_NOREQUEST;
+	}
+
+	return 0;
+}
+
+int arch_init_chip_data(struct irq_desc *desc, int node)
+{
+	desc->status |= IRQ_NOREQUEST;
+	return 0;
 }
 
 /* We need to create the radix trees late */
