@@ -229,8 +229,8 @@ int wl1271_cmd_join(struct wl1271 *wl)
 	join->rx_config_options = 0;
 	join->rx_filter_options = WL1271_DEFAULT_RX_FILTER;
 
-	join->basic_rate_set = RATE_MASK_1MBPS | RATE_MASK_2MBPS |
-		RATE_MASK_5_5MBPS | RATE_MASK_11MBPS;
+	join->basic_rate_set = CONF_HW_BIT_RATE_1MBPS | CONF_HW_BIT_RATE_2MBPS |
+		CONF_HW_BIT_RATE_5_5MBPS | CONF_HW_BIT_RATE_11MBPS;
 
 	join->beacon_interval = WL1271_DEFAULT_BEACON_INT;
 	join->dtim_interval = WL1271_DEFAULT_DTIM_PERIOD;
@@ -538,7 +538,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, u8 *ssid, size_t len,
 
 	params->params.num_channels = num_channels;
 	params->params.num_probe_requests = probe_requests;
-	params->params.tx_rate = cpu_to_le32(RATE_MASK_2MBPS);
+	params->params.tx_rate = cpu_to_le32(CONF_HW_BIT_RATE_2MBPS);
 	params->params.tid_trigger = 0;
 	params->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;
 

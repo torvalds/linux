@@ -46,6 +46,39 @@
 #include "wl1271_cmd.h"
 #include "wl1271_boot.h"
 
+static void wl1271_conf_init(struct wl1271 *wl)
+{
+	struct conf_drv_settings conf = {
+		.sg = {
+			.per_threshold              = 7500,
+			.max_scan_compensation_time = 120000,
+			.nfs_sample_interval        = 400,
+			.load_ratio                 = 50,
+			.auto_ps_mode               = 0,
+			.probe_req_compensation     = 170,
+			.scan_window_compensation   = 50,
+			.antenna_config             = 0,
+			.beacon_miss_threshold      = 60,
+			.rate_adaptation_threshold  = CONF_HW_BIT_RATE_12MBPS,
+			.rate_adaptation_snr        = 0
+		}
+	};
+
+	/*
+	 * This function applies the default configuration to the driver. This
+	 * function is invoked upon driver load (spi probe.)
+	 *
+	 * The configuration is stored in a run-time structure in order to
+	 * facilitate for run-time adjustment of any of the parameters. Making
+	 * changes to the configuration structure will apply the new values on
+	 * the next interface up (wl1271_op_start.)
+	 */
+
+	/* apply driver default configuration */
+	memcpy(&wl->conf, &conf, sizeof(conf));
+}
+
+
 static int wl1271_plt_init(struct wl1271 *wl)
 {
 	int ret;
@@ -1180,44 +1213,44 @@ out:
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_rate wl1271_rates[] = {
 	{ .bitrate = 10,
-	  .hw_value = 0x1,
-	  .hw_value_short = 0x1, },
+	  .hw_value = CONF_HW_BIT_RATE_1MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_1MBPS, },
 	{ .bitrate = 20,
-	  .hw_value = 0x2,
-	  .hw_value_short = 0x2,
+	  .hw_value = CONF_HW_BIT_RATE_2MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_2MBPS,
 	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 	{ .bitrate = 55,
-	  .hw_value = 0x4,
-	  .hw_value_short = 0x4,
+	  .hw_value = CONF_HW_BIT_RATE_5_5MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_5_5MBPS,
 	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 	{ .bitrate = 110,
-	  .hw_value = 0x20,
-	  .hw_value_short = 0x20,
+	  .hw_value = CONF_HW_BIT_RATE_11MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_11MBPS,
 	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 	{ .bitrate = 60,
-	  .hw_value = 0x8,
-	  .hw_value_short = 0x8, },
+	  .hw_value = CONF_HW_BIT_RATE_6MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_6MBPS, },
 	{ .bitrate = 90,
-	  .hw_value = 0x10,
-	  .hw_value_short = 0x10, },
+	  .hw_value = CONF_HW_BIT_RATE_9MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_9MBPS, },
 	{ .bitrate = 120,
-	  .hw_value = 0x40,
-	  .hw_value_short = 0x40, },
+	  .hw_value = CONF_HW_BIT_RATE_12MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_12MBPS, },
 	{ .bitrate = 180,
-	  .hw_value = 0x80,
-	  .hw_value_short = 0x80, },
+	  .hw_value = CONF_HW_BIT_RATE_18MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_18MBPS, },
 	{ .bitrate = 240,
-	  .hw_value = 0x200,
-	  .hw_value_short = 0x200, },
+	  .hw_value = CONF_HW_BIT_RATE_24MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_24MBPS, },
 	{ .bitrate = 360,
-	 .hw_value = 0x400,
-	 .hw_value_short = 0x400, },
+	 .hw_value = CONF_HW_BIT_RATE_36MBPS,
+	 .hw_value_short = CONF_HW_BIT_RATE_36MBPS, },
 	{ .bitrate = 480,
-	  .hw_value = 0x800,
-	  .hw_value_short = 0x800, },
+	  .hw_value = CONF_HW_BIT_RATE_48MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_48MBPS, },
 	{ .bitrate = 540,
-	  .hw_value = 0x1000,
-	  .hw_value_short = 0x1000, },
+	  .hw_value = CONF_HW_BIT_RATE_54MBPS,
+	  .hw_value_short = CONF_HW_BIT_RATE_54MBPS, },
 };
 
 /* can't be const, mac80211 writes to this */
@@ -1432,6 +1465,9 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 		goto out_irq;
 	}
 	dev_set_drvdata(&wl1271_device.dev, wl);
+
+	/* Apply default driver configuration. */
+	wl1271_conf_init(wl);
 
 	ret = wl1271_init_ieee80211(wl);
 	if (ret)
