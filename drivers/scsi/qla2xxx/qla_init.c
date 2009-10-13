@@ -1203,7 +1203,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 				}
 				qla2x00_get_resource_cnts(vha, NULL,
 				    &ha->fw_xcb_count, NULL, NULL,
-				    &ha->max_npiv_vports);
+				    &ha->max_npiv_vports, NULL);
 
 				if (!fw_major_version && ql2xallocfwdump)
 					qla2x00_alloc_fw_dump(vha);
