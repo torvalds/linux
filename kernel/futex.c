@@ -1791,6 +1791,7 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 					     current->timer_slack_ns);
 	}
 
+retry:
 	/* Prepare to wait on uaddr. */
 	ret = futex_wait_setup(uaddr, val, fshared, &q, &hb);
 	if (ret)
@@ -1808,9 +1809,14 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 		goto out_put_key;
 
 	/*
-	 * We expect signal_pending(current), but another thread may
-	 * have handled it for us already.
+	 * We expect signal_pending(current), but we might be the
+	 * victim of a spurious wakeup as well.
 	 */
+	if (!signal_pending(current)) {
+		put_futex_key(fshared, &q.key);
+		goto retry;
+	}
+
 	ret = -ERESTARTSYS;
 	if (!abs_time)
 		goto out_put_key;
@@ -2118,9 +2124,11 @@ int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
 		 */
 		plist_del(&q->list, &q->list.plist);
 
+		/* Handle spurious wakeups gracefully */
+		ret = -EAGAIN;
 		if (timeout && !timeout->task)
 			ret = -ETIMEDOUT;
-		else
+		else if (signal_pending(current))
 			ret = -ERESTARTNOINTR;
 	}
 	return ret;
@@ -2198,6 +2206,7 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, int fshared,
 	debug_rt_mutex_init_waiter(&rt_waiter);
 	rt_waiter.task = NULL;
 
+retry:
 	key2 = FUTEX_KEY_INIT;
 	ret = get_futex_key(uaddr2, fshared, &key2, VERIFY_WRITE);
 	if (unlikely(ret != 0))
@@ -2292,6 +2301,9 @@ out_put_keys:
 out_key2:
 	put_futex_key(fshared, &key2);
 
+	/* Spurious wakeup ? */
+	if (ret == -EAGAIN)
+		goto retry;
 out:
 	if (to) {
 		hrtimer_cancel(&to->timer);
