@@ -4116,6 +4116,13 @@ W:	http://www.pmc-sierra.com/
 S:	Supported
 F:	drivers/scsi/pmcraid.*
 
+PMC SIERRA PM8001 DRIVER
+M:	jack_wang@usish.com
+M:	lindar_liu@usish.com
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	drivers/scsi/pm8001/
+
 POSIX CLOCKS and TIMERS
 M:	Thomas Gleixner <tglx@linutronix.de>
 S:	Supported

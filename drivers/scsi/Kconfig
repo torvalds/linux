@@ -1818,6 +1818,14 @@ config SCSI_PMCRAID
 	---help---
 	  This driver supports the PMC SIERRA MaxRAID adapters.
 
+config SCSI_PM8001
+	tristate "PMC-Sierra SPC 8001 SAS/SATA Based Host Adapter driver"
+	depends on PCI && SCSI
+	select SCSI_SAS_LIBSAS
+	help
+	  This driver supports PMC-Sierra PCIE SAS/SATA 8x6G SPC 8001 chip
+	  based host adapters.
+
 config SCSI_SRP
 	tristate "SCSI RDMA Protocol helper library"
 	depends on SCSI && PCI
