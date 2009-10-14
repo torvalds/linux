@@ -44,7 +44,6 @@
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
@@ -1285,7 +1284,6 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 
 	DBG(KERN_INFO "%s: tun_chr_fasync %d\n", tun->dev->name, on);
 
-	lock_kernel();
 	if ((ret = fasync_helper(fd, file, on, &tun->fasync)) < 0)
 		goto out;
 
@@ -1298,7 +1296,6 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 		tun->flags &= ~TUN_FASYNC;
 	ret = 0;
 out:
-	unlock_kernel();
 	tun_put(tun);
 	return ret;
 }
@@ -1306,7 +1303,7 @@ out:
 static int tun_chr_open(struct inode *inode, struct file * file)
 {
 	struct tun_file *tfile;
-	cycle_kernel_lock();
+
 	DBG1(KERN_INFO "tunX: tun_chr_open\n");
 
 	tfile = kmalloc(sizeof(*tfile), GFP_KERNEL);
