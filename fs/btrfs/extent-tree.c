@@ -1584,6 +1584,9 @@ static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 	u64 map_length = num_bytes;
 	struct btrfs_multi_bio *multi = NULL;
 
+	if (!btrfs_test_opt(root, DISCARD))
+		return 0;
+
 	/* Tell the block device(s) that the sectors can be discarded */
 	ret = btrfs_map_block(&root->fs_info->mapping_tree, READ,
 			      bytenr, &map_length, &multi, 0);
