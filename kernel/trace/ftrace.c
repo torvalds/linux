@@ -2293,7 +2293,7 @@ __setup("ftrace_filter=", set_ftrace_filter);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int __init set_graph_function(char *str)
 {
-	strncpy(ftrace_graph_buf, str, FTRACE_FILTER_SIZE);
+	strlcpy(ftrace_graph_buf, str, FTRACE_FILTER_SIZE);
 	return 1;
 }
 __setup("ftrace_graph_filter=", set_graph_function);
