@@ -194,6 +194,8 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
+	/* set the active encoder to connector routing */
+	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	if (radeon_encoder->rmx_type != RMX_OFF)
@@ -860,15 +862,8 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION args;
 	int index = 0;
 	bool is_dig = false;
-	int devices;
 
 	memset(&args, 0, sizeof(args));
-
-	/* on DPMS off we have no idea if active device is meaningful */
-	if (mode != DRM_MODE_DPMS_ON && !radeon_encoder->active_device)
-		devices = radeon_encoder->devices;
-	else
-		devices = radeon_encoder->active_device;
 
 	DRM_DEBUG("encoder dpms %d to mode %d, devices %08x, active_devices %08x\n",
 		  radeon_encoder->encoder_id, mode, radeon_encoder->devices,
@@ -900,18 +895,18 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
-		if (devices & (ATOM_DEVICE_TV_SUPPORT))
+		if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))
 			index = GetIndexIntoMasterTable(COMMAND, TV1OutputControl);
-		else if (devices & (ATOM_DEVICE_CV_SUPPORT))
+		else if (radeon_encoder->active_device & (ATOM_DEVICE_CV_SUPPORT))
 			index = GetIndexIntoMasterTable(COMMAND, CV1OutputControl);
 		else
 			index = GetIndexIntoMasterTable(COMMAND, DAC1OutputControl);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
-		if (devices & (ATOM_DEVICE_TV_SUPPORT))
+		if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))
 			index = GetIndexIntoMasterTable(COMMAND, TV1OutputControl);
-		else if (devices & (ATOM_DEVICE_CV_SUPPORT))
+		else if (radeon_encoder->active_device & (ATOM_DEVICE_CV_SUPPORT))
 			index = GetIndexIntoMasterTable(COMMAND, CV1OutputControl);
 		else
 			index = GetIndexIntoMasterTable(COMMAND, DAC2OutputControl);
@@ -1254,8 +1249,6 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 {
 	radeon_atom_output_lock(encoder, true);
 	radeon_atom_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
-
-	radeon_encoder_set_active_device(encoder);
 }
 
 static void radeon_atom_encoder_commit(struct drm_encoder *encoder)
