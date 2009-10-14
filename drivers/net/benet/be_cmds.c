@@ -243,15 +243,26 @@ static int be_POST_stage_get(struct be_adapter *adapter, u16 *stage)
 
 int be_cmd_POST(struct be_adapter *adapter)
 {
-	u16 stage, error;
+	u16 stage;
+	int status, timeout = 0;
 
-	error = be_POST_stage_get(adapter, &stage);
-	if (error || stage != POST_STAGE_ARMFW_RDY) {
-		dev_err(&adapter->pdev->dev, "POST failed.\n");
-		return -1;
-	}
+	do {
+		status = be_POST_stage_get(adapter, &stage);
+		if (status) {
+			dev_err(&adapter->pdev->dev, "POST error; stage=0x%x\n",
+				stage);
+			return -1;
+		} else if (stage != POST_STAGE_ARMFW_RDY) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(2 * HZ);
+			timeout += 2;
+		} else {
+			return 0;
+		}
+	} while (timeout < 20);
 
-	return 0;
+	dev_err(&adapter->pdev->dev, "POST timeout; stage=0x%x\n", stage);
+	return -1;
 }
 
 static inline void *embedded_payload(struct be_mcc_wrb *wrb)
