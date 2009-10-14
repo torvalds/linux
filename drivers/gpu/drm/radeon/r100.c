@@ -240,7 +240,7 @@ int r100_wb_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->wb.wb_obj == NULL) {
-		r = radeon_object_create(rdev, NULL, 4096,
+		r = radeon_object_create(rdev, NULL, RADEON_GPU_PAGE_SIZE,
 					 true,
 					 RADEON_GEM_DOMAIN_GTT,
 					 false, &rdev->wb.wb_obj);

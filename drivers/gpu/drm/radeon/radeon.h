@@ -276,6 +276,8 @@ union radeon_gart_table {
 	struct radeon_gart_table_vram	vram;
 };
 
+#define RADEON_GPU_PAGE_SIZE 4096
+
 struct radeon_gart {
 	dma_addr_t			table_addr;
 	unsigned			num_gpu_pages;

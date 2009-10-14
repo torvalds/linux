@@ -1269,9 +1269,9 @@ int r600_cp_resume(struct radeon_device *rdev)
 	rb_bufsz = drm_order(rdev->cp.ring_size / 8);
 #ifdef __BIG_ENDIAN
 	WREG32(CP_RB_CNTL, BUF_SWAP_32BIT | RB_NO_UPDATE |
-		(drm_order(4096/8) << 8) | rb_bufsz);
+		(drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz);
 #else
-	WREG32(CP_RB_CNTL, RB_NO_UPDATE | (drm_order(4096/8) << 8) | rb_bufsz);
+	WREG32(CP_RB_CNTL, RB_NO_UPDATE | (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz);
 #endif
 	WREG32(CP_SEM_WAIT_TIMER, 0x4);
 
@@ -1400,7 +1400,7 @@ int r600_wb_enable(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->wb.wb_obj == NULL) {
-		r = radeon_object_create(rdev, NULL, 4096, true,
+		r = radeon_object_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, true,
 				RADEON_GEM_DOMAIN_GTT, false, &rdev->wb.wb_obj);
 		if (r) {
 			dev_warn(rdev->dev, "failed to create WB buffer (%d).\n", r);
@@ -1450,8 +1450,8 @@ int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
 		   unsigned num_pages, struct radeon_fence *fence)
 {
-	r600_blit_prepare_copy(rdev, num_pages * 4096);
-	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_pages * 4096);
+	r600_blit_prepare_copy(rdev, num_pages * RADEON_GPU_PAGE_SIZE);
+	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_pages * RADEON_GPU_PAGE_SIZE);
 	r600_blit_done_copy(rdev, fence);
 	return 0;
 }
