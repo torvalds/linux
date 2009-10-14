@@ -314,6 +314,10 @@ struct pci_id_descr pci_dev_descr_lynnfield[] = {
 	{ PCI_DESCR( 4, 2, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH1_RANK) },
 	{ PCI_DESCR( 4, 3, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH1_TC)   },
 
+	/*
+	 * This is the PCI device has an alternate address on some
+	 * processors like Core i7 860
+	 */
 	{ PCI_DESCR( 0, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE)     },
 };
 
@@ -322,7 +326,7 @@ struct pci_id_descr pci_dev_descr_lynnfield[] = {
  */
 static const struct pci_device_id i7core_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_X58_HUB_MGMT)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNNFIELD_QPI_LINK0)},
 	{0,}			/* 0 terminated list. */
 };
 
@@ -1209,6 +1213,11 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno,
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 				      PCI_DEVICE_ID_INTEL_I7_NONCORE_ALT, *prev);
 
+	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE && !pdev)
+		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+				      PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE_ALT,
+				      *prev);
+
 	if (!pdev) {
 		if (*prev) {
 			*prev = pdev;
@@ -1866,7 +1875,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	/* get the pci devices we want to reserve for our use */
 	mutex_lock(&i7core_edac_lock);
 
-	if (pdev->device == PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE) {
+	if (pdev->device == PCI_DEVICE_ID_INTEL_LYNNFIELD_QPI_LINK0) {
 		printk(KERN_INFO "i7core_edac: detected a "
 				 "Lynnfield processor\n");
 		rc = i7core_get_devices(pci_dev_descr_lynnfield,
