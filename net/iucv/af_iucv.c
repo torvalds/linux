@@ -428,7 +428,6 @@ static void iucv_sock_close(struct sock *sk)
 		break;
 
 	default:
-		sock_set_flag(sk, SOCK_ZAPPED);
 		/* nothing to do here */
 		break;
 	}
