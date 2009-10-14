@@ -97,6 +97,7 @@ static int ceph_syncfs(struct super_block *sb, int wait)
 	dout("sync_fs %d\n", wait);
 	ceph_osdc_sync(&ceph_client(sb)->osdc);
 	ceph_mdsc_sync(&ceph_client(sb)->mdsc);
+	dout("sync_fs %d done\n", wait);
 	return 0;
 }
 
@@ -777,6 +778,7 @@ static int ceph_init_bdi(struct super_block *sb, struct ceph_client *client)
 	err = bdi_init(&client->backing_dev_info);
 	if (err < 0)
 		return err;
+	sb->s_bdi = &client->backing_dev_info;
 
 	/* set ra_pages based on rsize mount option? */
 	if (client->mount_args.rsize >= PAGE_CACHE_SIZE)
@@ -861,8 +863,8 @@ static void ceph_kill_sb(struct super_block *s)
 	struct ceph_client *client = ceph_sb_to_client(s);
 	dout("kill_sb %p\n", s);
 	ceph_mdsc_pre_umount(&client->mdsc);
-	bdi_unregister(&client->backing_dev_info);
 	kill_anon_super(s);    /* will call put_super after sb is r/o */
+	bdi_unregister(&client->backing_dev_info);
 	bdi_destroy(&client->backing_dev_info);
 	ceph_destroy_client(client);
 }
