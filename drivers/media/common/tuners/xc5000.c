@@ -633,8 +633,12 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
-		xc_load_fw_and_init_tuner(fe);
+	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
+		if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
+			dprintk(1, "Unable to load firmware and init tuner\n");
+			return -EINVAL;
+		}
+	}
 
 	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
 
@@ -884,8 +888,12 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 	if (priv->i2c_props.adap == NULL)
 		return -EINVAL;
 
-	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
-		xc_load_fw_and_init_tuner(fe);
+	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
+		if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
+			dprintk(1, "Unable to load firmware and init tuner\n");
+			return -EINVAL;
+		}
+	}
 
 	switch (params->mode) {
 	case V4L2_TUNER_RADIO:
