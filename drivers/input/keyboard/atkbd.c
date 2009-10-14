@@ -574,11 +574,22 @@ static void atkbd_event_work(struct work_struct *work)
 
 	mutex_lock(&atkbd->event_mutex);
 
-	if (test_and_clear_bit(ATKBD_LED_EVENT_BIT, &atkbd->event_mask))
-		atkbd_set_leds(atkbd);
+	if (!atkbd->enabled) {
+		/*
+		 * Serio ports are resumed asynchronously so while driver core
+		 * thinks that device is already fully operational in reality
+		 * it may not be ready yet. In this case we need to keep
+		 * rescheduling till reconnect completes.
+		 */
+		schedule_delayed_work(&atkbd->event_work,
+					msecs_to_jiffies(100));
+	} else {
+		if (test_and_clear_bit(ATKBD_LED_EVENT_BIT, &atkbd->event_mask))
+			atkbd_set_leds(atkbd);
 
-	if (test_and_clear_bit(ATKBD_REP_EVENT_BIT, &atkbd->event_mask))
-		atkbd_set_repeat_rate(atkbd);
+		if (test_and_clear_bit(ATKBD_REP_EVENT_BIT, &atkbd->event_mask))
+			atkbd_set_repeat_rate(atkbd);
+	}
 
 	mutex_unlock(&atkbd->event_mutex);
 }
