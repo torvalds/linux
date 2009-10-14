@@ -284,18 +284,16 @@ void parse_ftrace_printk(char *file, unsigned int size __unused)
 	char *line;
 	char *next = NULL;
 	char *addr_str;
-	int ret;
+	char *fmt;
 	int i;
 
 	line = strtok_r(file, "\n", &next);
 	while (line) {
 		item = malloc_or_die(sizeof(*item));
-		ret = sscanf(line, "%as : %as",
-			     (float *)(void *)&addr_str, /* workaround gcc warning */
-			     (float *)(void *)&item->printk);
+		addr_str = strtok_r(line, ":", &fmt);
 		item->addr = strtoull(addr_str, NULL, 16);
-		free(addr_str);
-
+		/* fmt still has a space, skip it */
+		item->printk = strdup(fmt+1);
 		item->next = list;
 		list = item;
 		line = strtok_r(NULL, "\n", &next);
@@ -2274,8 +2272,9 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 			case 'u':
 			case 'x':
 			case 'i':
-				bptr = (void *)(((unsigned long)bptr + (long_size - 1)) &
-						~(long_size - 1));
+				/* the pointers are always 4 bytes aligned */
+				bptr = (void *)(((unsigned long)bptr + 3) &
+						~3);
 				switch (ls) {
 				case 0:
 				case 1:
