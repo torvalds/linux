@@ -29,15 +29,13 @@ static void ath_ahb_read_cachesize(struct ath_common *common, int *csz)
 
 static void ath_ahb_cleanup(struct ath_common *common)
 {
-	struct ath_hw *ah = (struct ath_hw *) common->ah;
-	struct ath_softc *sc = ah->ah_sc;
+	struct ath_softc *sc = (struct ath_softc *)common->priv;
 	iounmap(sc->mem);
 }
 
 static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
-	struct ath_hw *ah = (struct ath_hw *) common->ah;
-	struct ath_softc *sc = ah->ah_sc;
+	struct ath_softc *sc = (struct ath_softc *)common->priv;
 	struct platform_device *pdev = to_platform_device(sc->dev);
 	struct ath9k_platform_data *pdata;
 
