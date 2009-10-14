@@ -1017,6 +1017,10 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 	} else
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
+	/* platform may not be able to use all advertised caps */
+	if (host->platdata)
+		mmc->caps &= ~(host->platdata->mask_host_caps);
+
 	tasklet_init(&host->data_task, au1xmmc_tasklet_data,
 			(unsigned long)host);
 
