@@ -267,6 +267,7 @@ struct fw_packet {
 	void *payload;
 	size_t payload_length;
 	dma_addr_t payload_bus;
+	bool payload_mapped;
 	u32 timestamp;
 
 	/*

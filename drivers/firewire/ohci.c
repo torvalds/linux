@@ -995,7 +995,8 @@ static int at_context_queue_packet(struct context *ctx,
 			packet->ack = RCODE_SEND_ERROR;
 			return -1;
 		}
-		packet->payload_bus = payload_bus;
+		packet->payload_bus	= payload_bus;
+		packet->payload_mapped	= true;
 
 		d[2].req_count    = cpu_to_le16(packet->payload_length);
 		d[2].data_address = cpu_to_le32(payload_bus);
@@ -1023,7 +1024,7 @@ static int at_context_queue_packet(struct context *ctx,
 	 */
 	if (ohci->generation != packet->generation ||
 	    reg_read(ohci, OHCI1394_IntEventSet) & OHCI1394_busReset) {
-		if (packet->payload_length > 0)
+		if (packet->payload_mapped)
 			dma_unmap_single(ohci->card.device, payload_bus,
 					 packet->payload_length, DMA_TO_DEVICE);
 		packet->ack = RCODE_GENERATION;
@@ -1059,7 +1060,7 @@ static int handle_at_packet(struct context *context,
 		/* This packet was cancelled, just continue. */
 		return 1;
 
-	if (packet->payload_bus)
+	if (packet->payload_mapped)
 		dma_unmap_single(ohci->card.device, packet->payload_bus,
 				 packet->payload_length, DMA_TO_DEVICE);
 
@@ -1723,7 +1724,7 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	if (packet->ack != 0)
 		goto out;
 
-	if (packet->payload_bus)
+	if (packet->payload_mapped)
 		dma_unmap_single(ohci->card.device, packet->payload_bus,
 				 packet->payload_length, DMA_TO_DEVICE);
 
