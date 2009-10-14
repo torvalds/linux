@@ -380,15 +380,12 @@ static __init int uv_rtc_setup_clock(void)
 	if (rc || !uv_rtc_evt_enable)
 		return rc;
 
-	generic_interrupt_extension = uv_rtc_interrupt;
-
 	/* Setup and register clockevents */
 	rc = uv_rtc_allocate_timers();
-	if (rc) {
-		clocksource_unregister(&clocksource_uv);
-		generic_interrupt_extension = NULL;
-		return rc;
-	}
+	if (rc)
+		goto error;
+
+	generic_interrupt_extension = uv_rtc_interrupt;
 
 	clock_event_device_uv.mult = div_sc(sn_rtc_cycles_per_second,
 				NSEC_PER_SEC, clock_event_device_uv.shift);
@@ -401,10 +398,18 @@ static __init int uv_rtc_setup_clock(void)
 
 	rc = schedule_on_each_cpu(uv_rtc_register_clockevents);
 	if (rc) {
-		clocksource_unregister(&clocksource_uv);
 		generic_interrupt_extension = NULL;
 		uv_rtc_deallocate_timers();
+		goto error;
 	}
+
+	printk(KERN_INFO "UV RTC clockevents registered\n");
+
+	return 0;
+
+error:
+	clocksource_unregister(&clocksource_uv);
+	printk(KERN_INFO "UV RTC clockevents failed rc %d\n", rc);
 
 	return rc;
 }
