@@ -133,7 +133,7 @@ work_pending:
 	! r8: current_thread_info
 	! t:  result of "tst	#_TIF_NEED_RESCHED, r0"
 	bf/s	work_resched
-	 tst	#(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK), r0
+	 tst	#_TIF_SIGPENDING, r0
 work_notifysig:
 	bt/s	__restore_all
 	 mov	r15, r4
