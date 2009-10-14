@@ -1620,18 +1620,21 @@ static int be_open(struct net_device *netdev)
 static int be_setup(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	u32 if_flags;
+	u32 cap_flags, en_flags;
 	int status;
 
-	if_flags = BE_IF_FLAGS_BROADCAST | BE_IF_FLAGS_PROMISCUOUS |
-		BE_IF_FLAGS_MCAST_PROMISCUOUS | BE_IF_FLAGS_UNTAGGED |
-		BE_IF_FLAGS_PASS_L3L4_ERRORS;
-	status = be_cmd_if_create(adapter, if_flags, netdev->dev_addr,
-			false/* pmac_invalid */, &adapter->if_handle,
-			&adapter->pmac_id);
+	cap_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+			BE_IF_FLAGS_MCAST_PROMISCUOUS |
+			BE_IF_FLAGS_PROMISCUOUS |
+			BE_IF_FLAGS_PASS_L3L4_ERRORS;
+	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+			BE_IF_FLAGS_PASS_L3L4_ERRORS;
+
+	status = be_cmd_if_create(adapter, cap_flags, en_flags,
+			netdev->dev_addr, false/* pmac_invalid */,
+			&adapter->if_handle, &adapter->pmac_id);
 	if (status != 0)
 		goto do_none;
-
 
 	status = be_tx_queues_create(adapter);
 	if (status != 0)

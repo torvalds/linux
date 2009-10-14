@@ -729,8 +729,8 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 /* Create an rx filtering policy configuration on an i/f
  * Uses mbox
  */
-int be_cmd_if_create(struct be_adapter *adapter, u32 flags, u8 *mac,
-		bool pmac_invalid, u32 *if_handle, u32 *pmac_id)
+int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
+		u8 *mac, bool pmac_invalid, u32 *if_handle, u32 *pmac_id)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_create *req;
@@ -746,8 +746,8 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 flags, u8 *mac,
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_INTERFACE_CREATE, sizeof(*req));
 
-	req->capability_flags = cpu_to_le32(flags);
-	req->enable_flags = cpu_to_le32(flags);
+	req->capability_flags = cpu_to_le32(cap_flags);
+	req->enable_flags = cpu_to_le32(en_flags);
 	req->pmac_invalid = pmac_invalid;
 	if (!pmac_invalid)
 		memcpy(req->mac_addr, mac, ETH_ALEN);
