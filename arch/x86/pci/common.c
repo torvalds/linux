@@ -420,15 +420,19 @@ int __init pcibios_init(void)
 	}
 
 	/*
-	 * Assume PCI cacheline size of 32 bytes for all x86s except K7/K8
-	 * and P4. It's also good for 386/486s (which actually have 16)
+	 * Set PCI cacheline size to that of the CPU if the CPU has reported it.
+	 * (For older CPUs that don't support cpuid, we se it to 32 bytes
+	 * It's also good for 386/486s (which actually have 16)
 	 * as quite a few PCI devices do not support smaller values.
 	 */
-	pci_dfl_cache_line_size = 32 >> 2;
-	if (c->x86 >= 6 && c->x86_vendor == X86_VENDOR_AMD)
-		pci_dfl_cache_line_size = 64 >> 2;	/* K7 & K8 */
-	else if (c->x86 > 6 && c->x86_vendor == X86_VENDOR_INTEL)
-		pci_dfl_cache_line_size = 128 >> 2;	/* P4 */
+	if (c->x86_clflush_size > 0) {
+		pci_dfl_cache_line_size = c->x86_clflush_size >> 2;
+		printk(KERN_DEBUG "PCI: pci_cache_line_size set to %d bytes\n",
+			pci_dfl_cache_line_size << 2);
+	} else {
+ 		pci_dfl_cache_line_size = 32 >> 2;
+		printk(KERN_DEBUG "PCI: Unknown cacheline size. Setting to 32 bytes\n");
+	}
 
 	pcibios_resource_survey();
 
