@@ -394,6 +394,38 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 			send_obj_unreachable(skb);
 			send_reset_indications(skb);
 		}
+	} else if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
+		goto out; /* Race between address deletion and loopback */
+	else {
+		/* Phonet packet routing */
+		struct net_device *out_dev;
+
+		out_dev = phonet_route_output(net, pn_sockaddr_get_addr(&sa));
+		if (!out_dev) {
+			LIMIT_NETDEBUG(KERN_WARNING"No Phonet route to %02X\n",
+					pn_sockaddr_get_addr(&sa));
+			goto out;
+		}
+
+		__skb_push(skb, sizeof(struct phonethdr));
+		skb->dev = out_dev;
+		if (out_dev == dev) {
+			LIMIT_NETDEBUG(KERN_ERR"Phonet loop to %02X on %s\n",
+					pn_sockaddr_get_addr(&sa), dev->name);
+			goto out_dev;
+		}
+		/* Some drivers (e.g. TUN) do not allocate HW header space */
+		if (skb_cow_head(skb, out_dev->hard_header_len))
+			goto out_dev;
+
+		if (dev_hard_header(skb, out_dev, ETH_P_PHONET, NULL, NULL,
+					skb->len) < 0)
+			goto out_dev;
+		dev_queue_xmit(skb);
+		dev_put(out_dev);
+		return NET_RX_SUCCESS;
+out_dev:
+		dev_put(out_dev);
 	}
 
 out:
