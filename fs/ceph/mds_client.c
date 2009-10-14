@@ -2504,7 +2504,7 @@ static void delayed_work(struct work_struct *work)
 	int renew_caps;
 
 	dout("mdsc delayed_work\n");
-	ceph_check_delayed_caps(mdsc, 0);
+	ceph_check_delayed_caps(mdsc);
 
 	mutex_lock(&mdsc->mutex);
 	renew_interval = mdsc->mdsmap->m_session_timeout >> 2;
@@ -2627,7 +2627,7 @@ void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc)
 	mdsc->stopping = 1;
 
 	drop_leases(mdsc);
-	ceph_check_delayed_caps(mdsc, 1);
+	ceph_flush_dirty_caps(mdsc);
 	wait_requests(mdsc);
 }
 
@@ -2677,7 +2677,7 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 	mutex_unlock(&mdsc->mutex);
 	dout("sync want tid %lld flush_seq %lld\n", want_tid, want_flush);
 
-	ceph_check_delayed_caps(mdsc, 1);
+	ceph_flush_dirty_caps(mdsc);
 
 	wait_unsafe_requests(mdsc, want_tid);
 	wait_event(mdsc->cap_flushing_wq, check_cap_flush(mdsc, want_flush));
