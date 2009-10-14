@@ -32,8 +32,10 @@ Winsystems.  This board is a PC-104 based I/O board.  It contains
 four subdevices:
   subdevice 0 - 16 channels of 16-bit AI
   subdevice 1 - 8 channels of 16-bit AO
-  subdevice 2 - first 24 channels of the 48 channel of DIO (with edge-triggered interrupt support)
-  subdevice 3 - last 24 channels of the 48 channel DIO (no interrupt support for this bank of channels)
+  subdevice 2 - first 24 channels of the 48 channel of DIO
+	(with edge-triggered interrupt support)
+  subdevice 3 - last 24 channels of the 48 channel DIO
+	(no interrupt support for this bank of channels)
 
   Some notes:
 
@@ -70,7 +72,8 @@ four subdevices:
 
 Configuration Options:
   [0] - I/O port base address
-  [1] - IRQ (optional -- for edge-detect interrupt support only, leave out if you don't need this feature)
+  [1] - IRQ (optional -- for edge-detect interrupt support only,
+	leave out if you don't need this feature)
 */
 
 #include <linux/interrupt.h>
@@ -115,9 +118,11 @@ Configuration Options:
 #define REG_PORT4 0x4
 #define REG_PORT5 0x5
 #define REG_INT_PENDING 0x6
-#define REG_PAGELOCK 0x7	/* page selector register, upper 2 bits select a page
-				   and bits 0-5 are used to 'lock down' a particular
-				   port above to make it readonly.  */
+#define REG_PAGELOCK 0x7	/*
+				 * page selector register, upper 2 bits select
+				 * a page and bits 0-5 are used to 'lock down'
+				 * a particular port above to make it readonly.
+				 */
 #define REG_POL0 0x8
 #define REG_POL1 0x9
 #define REG_POL2 0xA
@@ -134,7 +139,7 @@ Configuration Options:
 #define REG_PAGE_BITOFFSET 6
 #define REG_LOCK_BITOFFSET 0
 #define REG_PAGE_MASK (~((0x1<<REG_PAGE_BITOFFSET)-1))
-#define REG_LOCK_MASK ~(REG_PAGE_MASK)
+#define REG_LOCK_MASK (~(REG_PAGE_MASK))
 #define PAGE_POL 1
 #define PAGE_ENAB 2
 #define PAGE_INT_ID 3
@@ -168,13 +173,12 @@ struct pcmmio_board {
 	comedi_insn_fn_t ai_rinsn, ao_rinsn, ao_winsn;
 };
 
-static const struct comedi_lrange ranges_ai =
-    { 4, {RANGE(-5., 5.), RANGE(-10., 10.), RANGE(0., 5.), RANGE(0.,
-								 10.)}
+static const struct comedi_lrange ranges_ai = {
+	4, {RANGE(-5., 5.), RANGE(-10., 10.), RANGE(0., 5.), RANGE(0., 10.)}
 };
 
-static const struct comedi_lrange ranges_ao =
-    { 6, {RANGE(0., 5.), RANGE(0., 10.), RANGE(-5., 5.), RANGE(-10., 10.),
+static const struct comedi_lrange ranges_ao = {
+	6, {RANGE(0., 5.), RANGE(0., 10.), RANGE(-5., 5.), RANGE(-10., 10.),
 	  RANGE(-2.5, 2.5), RANGE(-2.5, 7.5)}
 };
 
@@ -204,7 +208,8 @@ static const struct pcmmio_board pcmmio_boards[] = {
 struct pcmmio_subdev_private {
 
 	union {
-		/* for DIO: mapping of halfwords (bytes) in port/chanarray to iobase */
+		/* for DIO: mapping of halfwords (bytes)
+		   in port/chanarray to iobase */
 		unsigned long iobases[PORTS_PER_SUBDEV];
 
 		/* for AI/AO */
@@ -215,15 +220,31 @@ struct pcmmio_subdev_private {
 
 			/* The below is only used for intr subdevices */
 			struct {
-				int asic;	/* if non-negative, this subdev has an interrupt asic */
-				int first_chan;	/* if nonnegative, the first channel id for
-						   interrupts. */
-				int num_asic_chans;	/* the number of asic channels in this subdev
-							   that have interrutps */
-				int asic_chan;	/* if nonnegative, the first channel id with
-						   respect to the asic that has interrupts */
-				int enabled_mask;	/* subdev-relative channel mask for channels
-							   we are interested in */
+				/*
+				 * if non-negative, this subdev has an
+				 * interrupt asic
+				 */
+				int asic;
+				/*
+				 * if nonnegative, the first channel id for
+				 * interrupts.
+				 */
+				int first_chan;
+				/*
+				 * the number of asic channels in this subdev
+				 * that have interrutps
+				 */
+				int num_asic_chans;
+				/*
+				 * if nonnegative, the first channel id with
+				 * respect to the asic that has interrupts
+				 */
+				int asic_chan;
+				/*
+				 * subdev-relative channel mask for channels
+				 * we are interested in
+				 */
+				int enabled_mask;
 				int active;
 				int stop_count;
 				int continuous;
@@ -231,20 +252,25 @@ struct pcmmio_subdev_private {
 			} intr;
 		} dio;
 		struct {
-			unsigned int shadow_samples[8];	/* the last unsigned int data written */
+			/* the last unsigned int data written */
+			unsigned int shadow_samples[8];
 		} ao;
 	};
 };
 
-/* this structure is for data unique to this hardware driver.  If
-   several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
+/*
+ * this structure is for data unique to this hardware driver.  If
+ * several hardware drivers keep similar information in this structure,
+ * feel free to suggest moving the variable to the struct comedi_device struct.
+ */
 struct pcmmio_private {
 	/* stuff for DIO */
 	struct {
 		unsigned char pagelock;	/* current page and lock */
-		unsigned char pol[NUM_PAGED_REGS];	/* shadow of POLx registers */
-		unsigned char enab[NUM_PAGED_REGS];	/* shadow of ENABx registers */
+		/* shadow of POLx registers */
+		unsigned char pol[NUM_PAGED_REGS];
+		/* shadow of ENABx registers */
+		unsigned char enab[NUM_PAGED_REGS];
 		int num;
 		unsigned long iobase;
 		unsigned int irq;
@@ -312,7 +338,8 @@ static int pcmmio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_cmd *cmd);
 
 /* some helper functions to deal with specifics of this device's registers */
-static void init_asics(struct comedi_device *dev);	/* sets up/clears ASIC chips to defaults */
+/* sets up/clears ASIC chips to defaults */
+static void init_asics(struct comedi_device *dev);
 static void switch_page(struct comedi_device *dev, int asic, int page);
 #ifdef notused
 static void lock_port(struct comedi_device *dev, int asic, int port);
@@ -367,9 +394,11 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->asics[asic].num = asic;
 		devpriv->asics[asic].iobase =
 		    dev->iobase + 16 + asic * ASIC_IOSIZE;
-		devpriv->asics[asic].irq = 0;	/* this gets actually set at the end of
-						   this function when we
-						   request_irqs */
+		/*
+		 * this gets actually set at the end of this function when we
+		 * request_irqs
+		 */
+		devpriv->asics[asic].irq = 0;
 		spin_lock_init(&devpriv->asics[asic].spinlock);
 	}
 
@@ -463,7 +492,10 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			if (thisasic_chanct <
 			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
 			    && subpriv->dio.intr.asic < 0) {
-				/* this is an interrupt subdevice, so setup the struct */
+				/*
+				 * this is an interrupt subdevice,
+				 * so setup the struct
+				 */
 				subpriv->dio.intr.asic = asic;
 				subpriv->dio.intr.active = 0;
 				subpriv->dio.intr.stop_count = 0;
@@ -484,7 +516,11 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		chans_left -= s->n_chan;
 
 		if (!chans_left) {
-			asic = 0;	/* reset the asic to our first asic, to do intr subdevs */
+			/*
+			 * reset the asic to our first asic,
+			 * to do intr subdevs
+			 */
+			asic = 0;
 			port = 0;
 		}
 
@@ -507,8 +543,10 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->asics[asic].irq = irq[asic];
 	}
 
-	dev->irq = irq[0];	/* grr.. wish comedi dev struct supported multiple
-				   irqs.. */
+	dev->irq = irq[0];	/*
+				 * grr.. wish comedi dev struct supported
+				 * multiple irqs..
+				 */
 
 	if (irq[0]) {
 		printk("irq: %u ", irq[0]);
@@ -604,9 +642,14 @@ static int pcmmio_dio_insn_bits(struct comedi_device *dev,
 #endif
 
 		if (write_mask_byte) {
-			/* this byte has some write_bits -- so set the output lines */
-			byte &= ~write_mask_byte;	/* clear bits for write mask */
-			byte |= ~data_byte & write_mask_byte;	/* set to inverted data_byte */
+			/*
+			 * this byte has some write_bits
+			 * -- so set the output lines
+			 */
+			/* clear bits for write mask */
+			byte &= ~write_mask_byte;
+			/* set to inverted data_byte */
+			byte |= ~data_byte & write_mask_byte;
 			/* Write out the new digital output state */
 			outb(byte, ioaddr);
 		}
