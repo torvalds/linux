@@ -22,6 +22,7 @@ choice
 
 config MACH_ALCHEMY
 	bool "Alchemy processor based machines"
+	select SYS_SUPPORTS_ZBOOT
 
 config AR7
 	bool "Texas Instruments AR7"
@@ -36,6 +37,7 @@ config AR7
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_ZBOOT_UART16550
 	select GENERIC_GPIO
 	select GCD
 	select VLYNQ
@@ -192,6 +194,7 @@ config LASAT
 
 config MACH_LOONGSON
 	bool "Loongson family of machines"
+	select SYS_SUPPORTS_ZBOOT_UART16550
 	help
 	  This enables the support of Loongson family of machines.
 
@@ -233,6 +236,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_MIPS_CMP
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_SMARTMIPS
+	select SYS_SUPPORTS_ZBOOT
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
 	  board.
@@ -1293,6 +1297,16 @@ config CPU_CAVIUM_OCTEON
 	  Full details can be found at http://www.caviumnetworks.com.
 
 endchoice
+
+config SYS_SUPPORTS_ZBOOT
+	bool
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_LZMA
+
+config SYS_SUPPORTS_ZBOOT_UART16550
+	bool
+	select SYS_SUPPORTS_ZBOOT
 
 config CPU_LOONGSON2
 	bool
