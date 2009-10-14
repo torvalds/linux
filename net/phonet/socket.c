@@ -94,7 +94,28 @@ struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 	spin_unlock_bh(&pnsocks.lock);
 
 	return rval;
+}
 
+/* Deliver a broadcast packet (only in bottom-half) */
+void pn_deliver_sock_broadcast(struct net *net, struct sk_buff *skb)
+{
+	struct hlist_node *node;
+	struct sock *sknode;
+
+	spin_lock(&pnsocks.lock);
+	sk_for_each(sknode, node, &pnsocks.hlist) {
+		struct sk_buff *clone;
+
+		if (!net_eq(sock_net(sknode), net))
+			continue;
+		if (!sock_flag(sknode, SOCK_BROADCAST))
+			continue;
+
+		clone = skb_clone(skb, GFP_ATOMIC);
+		if (clone)
+			sk_receive_skb(sknode, clone, 0);
+	}
+	spin_unlock(&pnsocks.lock);
 }
 
 void pn_sock_hash(struct sock *sk)
