@@ -924,23 +924,30 @@ static int event_read_fields(struct event *event, struct format_field **fields)
 		if (read_expected(EVENT_OP, (char *)";") < 0)
 			goto fail_expect;
 
-		if (read_expected(EVENT_ITEM, (char *)"signed") < 0)
-			goto fail_expect;
+		type = read_token(&token);
+		if (type != EVENT_NEWLINE) {
+			/* newer versions of the kernel have a "signed" type */
+			if (test_type_token(type, token, EVENT_ITEM, (char *)"signed"))
+				goto fail;
 
-		if (read_expected(EVENT_OP, (char *)":") < 0)
-			goto fail_expect;
+			free_token(token);
 
-		if (read_expect_type(EVENT_ITEM, &token))
-			goto fail;
-		if (strtoul(token, NULL, 0))
-			field->flags |= FIELD_IS_SIGNED;
-		free_token(token);
+			if (read_expected(EVENT_OP, (char *)":") < 0)
+				goto fail_expect;
 
-		if (read_expected(EVENT_OP, (char *)";") < 0)
-			goto fail_expect;
+			if (read_expect_type(EVENT_ITEM, &token))
+				goto fail;
 
-		if (read_expect_type(EVENT_NEWLINE, &token) < 0)
-			goto fail;
+			/* add signed type */
+
+			free_token(token);
+			if (read_expected(EVENT_OP, (char *)";") < 0)
+				goto fail_expect;
+
+			if (read_expect_type(EVENT_NEWLINE, &token))
+				goto fail;
+		}
+
 		free_token(token);
 
 		*fields = field;
@@ -2949,21 +2956,23 @@ static void print_args(struct print_arg *args)
 	}
 }
 
-static void parse_header_field(char *type,
+static void parse_header_field(char *field,
 			       int *offset, int *size)
 {
 	char *token;
+	int type;
 
 	if (read_expected(EVENT_ITEM, (char *)"field") < 0)
 		return;
 	if (read_expected(EVENT_OP, (char *)":") < 0)
 		return;
+
 	/* type */
 	if (read_expect_type(EVENT_ITEM, &token) < 0)
-		return;
+		goto fail;
 	free_token(token);
 
-	if (read_expected(EVENT_ITEM, type) < 0)
+	if (read_expected(EVENT_ITEM, field) < 0)
 		return;
 	if (read_expected(EVENT_OP, (char *)";") < 0)
 		return;
@@ -2972,7 +2981,7 @@ static void parse_header_field(char *type,
 	if (read_expected(EVENT_OP, (char *)":") < 0)
 		return;
 	if (read_expect_type(EVENT_ITEM, &token) < 0)
-		return;
+		goto fail;
 	*offset = atoi(token);
 	free_token(token);
 	if (read_expected(EVENT_OP, (char *)";") < 0)
@@ -2982,22 +2991,36 @@ static void parse_header_field(char *type,
 	if (read_expected(EVENT_OP, (char *)":") < 0)
 		return;
 	if (read_expect_type(EVENT_ITEM, &token) < 0)
-		return;
+		goto fail;
 	*size = atoi(token);
 	free_token(token);
 	if (read_expected(EVENT_OP, (char *)";") < 0)
 		return;
-	if (read_expected(EVENT_ITEM, (char *)"signed") < 0)
-		return;
-	if (read_expected(EVENT_OP, (char *)":") < 0)
-		return;
-	if (read_expect_type(EVENT_ITEM, &token) < 0)
-		return;
-	free_token(token);
-	if (read_expected(EVENT_OP, (char *)";") < 0)
-		return;
-	if (read_expect_type(EVENT_NEWLINE, &token) < 0)
-		return;
+	type = read_token(&token);
+	if (type != EVENT_NEWLINE) {
+		/* newer versions of the kernel have a "signed" type */
+		if (type != EVENT_ITEM)
+			goto fail;
+
+		if (strcmp(token, (char *)"signed") != 0)
+			goto fail;
+
+		free_token(token);
+
+		if (read_expected(EVENT_OP, (char *)":") < 0)
+			return;
+
+		if (read_expect_type(EVENT_ITEM, &token))
+			goto fail;
+
+		free_token(token);
+		if (read_expected(EVENT_OP, (char *)";") < 0)
+			return;
+
+		if (read_expect_type(EVENT_NEWLINE, &token))
+			goto fail;
+	}
+ fail:
 	free_token(token);
 }
 
