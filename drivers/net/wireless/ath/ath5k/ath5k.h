@@ -198,6 +198,7 @@
 #define AR5K_TUNE_CWMAX_11B			1023
 #define AR5K_TUNE_CWMAX_XR			7
 #define AR5K_TUNE_NOISE_FLOOR			-72
+#define AR5K_TUNE_CCA_MAX_GOOD_VALUE		-95
 #define AR5K_TUNE_MAX_TXPOWER			63
 #define AR5K_TUNE_DEFAULT_TXPOWER		25
 #define AR5K_TUNE_TPC_TXPOWER			false
@@ -1006,6 +1007,14 @@ struct ath5k_capabilities {
 	} cap_queues;
 };
 
+/* size of noise floor history (keep it a power of two) */
+#define ATH5K_NF_CAL_HIST_MAX	8
+struct ath5k_nfcal_hist
+{
+	s16 index;				/* current index into nfval */
+	s16 nfval[ATH5K_NF_CAL_HIST_MAX];	/* last few noise floors */
+};
+
 
 /***************************************\
   HARDWARE ABSTRACTION LAYER STRUCTURE
@@ -1111,6 +1120,8 @@ struct ath5k_hw {
 		int		r_last_alert;
 		struct ieee80211_channel r_last_channel;
 	} ah_radar;
+
+	struct ath5k_nfcal_hist ah_nfcal_hist;
 
 	/* noise floor from last periodic calibration */
 	s32			ah_noise_floor;
@@ -1274,8 +1285,10 @@ extern int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah);
 extern bool ath5k_channel_ok(struct ath5k_hw *ah, u16 freq, unsigned int flags);
 extern int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 /* PHY calibration */
+void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah);
 extern int ath5k_hw_phy_calibrate(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 extern int ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq);
+extern s16 ath5k_hw_get_noise_floor(struct ath5k_hw *ah);
 extern void ath5k_hw_calibration_poll(struct ath5k_hw *ah);
 /* Spur mitigation */
 bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,

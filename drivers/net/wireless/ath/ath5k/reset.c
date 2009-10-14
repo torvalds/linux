@@ -1293,7 +1293,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 * out and/or noise floor calibration might timeout.
 	 */
 	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
-				AR5K_PHY_AGCCTL_CAL);
+				AR5K_PHY_AGCCTL_CAL | AR5K_PHY_AGCCTL_NF);
 
 	/* At the same time start I/Q calibration for QAM constellation
 	 * -no need for CCK- */
@@ -1313,21 +1313,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		ATH5K_ERR(ah->ah_sc, "gain calibration timeout (%uMHz)\n",
 			channel->center_freq);
 	}
-
-	/*
-	 * If we run NF calibration before AGC, it always times out.
-	 * Binary HAL starts NF and AGC calibration at the same time
-	 * and only waits for AGC to finish. Also if AGC or NF cal.
-	 * times out, reset doesn't fail on binary HAL. I believe
-	 * that's wrong because since rx path is routed to a detector,
-	 * if cal. doesn't finish we won't have RX. Sam's HAL for AR5210/5211
-	 * enables noise floor calibration after offset calibration and if noise
-	 * floor calibration fails, reset fails. I believe that's
-	 * a better approach, we just need to find a polling interval
-	 * that suits best, even if reset continues we need to make
-	 * sure that rx path is ready.
-	 */
-	ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
 
 	/* Restore antenna mode */
 	ath5k_hw_set_antenna_mode(ah, ah->ah_ant_mode);

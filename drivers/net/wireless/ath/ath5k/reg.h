@@ -2033,17 +2033,14 @@
 #define	AR5K_PHY_AGCCTL_NF_NOUPDATE	0x00020000	/* Don't update nf automaticaly */
 
 /*
- * PHY noise floor status register
+ * PHY noise floor status register (CCA = Clear Channel Assessment)
  */
 #define AR5K_PHY_NF			0x9864			/* Register address */
-#define AR5K_PHY_NF_M			0x000001ff	/* Noise floor mask */
-#define AR5K_PHY_NF_ACTIVE		0x00000100	/* Noise floor calibration still active */
-#define AR5K_PHY_NF_RVAL(_n)		(((_n) >> 19) & AR5K_PHY_NF_M)
-#define AR5K_PHY_NF_AVAL(_n)		(-((_n) ^ AR5K_PHY_NF_M) + 1)
-#define AR5K_PHY_NF_SVAL(_n)		(((_n) & AR5K_PHY_NF_M) | (1 << 9))
+#define AR5K_PHY_NF_M			0x000001ff	/* Noise floor, written to hardware in 1/2 dBm units */
+#define AR5K_PHY_NF_SVAL(_n)           (((_n) & AR5K_PHY_NF_M) | (1 << 9))
 #define	AR5K_PHY_NF_THRESH62		0x0007f000	/* Thresh62 -check ANI patent- (field) */
 #define	AR5K_PHY_NF_THRESH62_S		12
-#define	AR5K_PHY_NF_MINCCA_PWR		0x0ff80000	/* ??? */
+#define	AR5K_PHY_NF_MINCCA_PWR		0x0ff80000	/* Minimum measured noise level, read from hardware in 1 dBm units */
 #define	AR5K_PHY_NF_MINCCA_PWR_S	19
 
 /*

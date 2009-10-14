@@ -331,6 +331,8 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 
 	ath5k_hw_rfgain_opt_init(ah);
 
+	ath5k_hw_init_nfcal_hist(ah);
+
 	/* turn on HW LEDs */
 	ath5k_hw_set_ledstate(ah, AR5K_LED_INIT);
 
