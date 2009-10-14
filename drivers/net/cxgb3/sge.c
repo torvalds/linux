@@ -1260,7 +1260,7 @@ netdev_tx_t t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (should_restart_tx(q) &&
 		    test_and_clear_bit(TXQ_ETH, &qs->txq_stopped)) {
 			q->restarts++;
-			netif_tx_wake_queue(txq);
+			netif_tx_start_queue(txq);
 		}
 	}
 
