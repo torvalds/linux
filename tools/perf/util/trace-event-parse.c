@@ -613,7 +613,7 @@ static enum event_type read_token_item(char **tok)
 static int test_type(enum event_type type, enum event_type expect)
 {
 	if (type != expect) {
-		die("Error: expected type %d but read %d",
+		warning("Error: expected type %d but read %d",
 		    expect, type);
 		return -1;
 	}
@@ -624,13 +624,13 @@ static int test_type_token(enum event_type type, char *token,
 		    enum event_type expect, const char *expect_tok)
 {
 	if (type != expect) {
-		die("Error: expected type %d but read %d",
+		warning("Error: expected type %d but read %d",
 		    expect, type);
 		return -1;
 	}
 
 	if (strcmp(token, expect_tok) != 0) {
-		die("Error: expected '%s' but read '%s'",
+		warning("Error: expected '%s' but read '%s'",
 		    expect_tok, token);
 		return -1;
 	}
@@ -668,7 +668,7 @@ static int __read_expected(enum event_type expect, const char *str, int newline_
 
 	free_token(token);
 
-	return 0;
+	return ret;
 }
 
 static int read_expected(enum event_type expect, const char *str)
@@ -1258,11 +1258,11 @@ process_op(struct event *event, struct print_arg *arg, char **tok)
 		type = process_array(event, arg, tok);
 
 	} else {
-		die("unknown op '%s'", token);
+		warning("unknown op '%s'", token);
+		event->flags |= EVENT_FL_FAILED;
 		/* the arg is now the left side */
 		return EVENT_NONE;
 	}
-
 
 	if (type == EVENT_OP) {
 		int prio;
@@ -2873,7 +2873,7 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 
 	event = trace_find_event(type);
 	if (!event) {
-		printf("ug! no event found for type %d\n", type);
+		warning("ug! no event found for type %d", type);
 		return;
 	}
 
@@ -2886,6 +2886,12 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 	printf("%16s-%-5d [%03d] %5lu.%09Lu: %s: ",
 	       comm, pid,  cpu,
 	       secs, nsecs, event->name);
+
+	if (event->flags & EVENT_FL_FAILED) {
+		printf("EVENT '%s' FAILED TO PARSE\n",
+		       event->name);
+		return;
+	}
 
 	pretty_print(data, size, event);
 	printf("\n");
@@ -3120,12 +3126,16 @@ int parse_event_file(char *buf, unsigned long size, char *sys)
 		die("failed to read event id");
 
 	ret = event_read_format(event);
-	if (ret < 0)
-		die("failed to read event format");
+	if (ret < 0) {
+		warning("failed to read event format for %s", event->name);
+		goto event_failed;
+	}
 
 	ret = event_read_print(event);
-	if (ret < 0)
-		die("failed to read event print fmt");
+	if (ret < 0) {
+		warning("failed to read event print fmt for %s", event->name);
+		goto event_failed;
+	}
 
 	event->system = strdup(sys);
 
@@ -3135,6 +3145,12 @@ int parse_event_file(char *buf, unsigned long size, char *sys)
 
 	add_event(event);
 	return 0;
+
+ event_failed:
+	event->flags |= EVENT_FL_FAILED;
+	/* still add it even if it failed */
+	add_event(event);
+	return -1;
 }
 
 void parse_set_info(int nr_cpus, int long_sz)
