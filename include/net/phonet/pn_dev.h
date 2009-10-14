@@ -49,6 +49,7 @@ void phonet_address_notify(int event, struct net_device *dev, u8 addr);
 
 int phonet_route_add(struct net_device *dev, u8 daddr);
 int phonet_route_del(struct net_device *dev, u8 daddr);
+void rtm_phonet_notify(int event, struct net_device *dev, u8 dst);
 struct net_device *phonet_route_get(struct net *net, u8 daddr);
 struct net_device *phonet_route_output(struct net *net, u8 daddr);
 

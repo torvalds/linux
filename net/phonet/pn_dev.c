@@ -240,6 +240,27 @@ static int phonet_device_autoconf(struct net_device *dev)
 	return 0;
 }
 
+static void phonet_route_autodel(struct net_device *dev)
+{
+	struct phonet_net *pnn = net_generic(dev_net(dev), phonet_net_id);
+	unsigned i;
+	DECLARE_BITMAP(deleted, 64);
+
+	/* Remove left-over Phonet routes */
+	bitmap_zero(deleted, 64);
+	spin_lock_bh(&pnn->routes.lock);
+	for (i = 0; i < 64; i++)
+		if (dev == pnn->routes.table[i]) {
+			set_bit(i, deleted);
+			pnn->routes.table[i] = NULL;
+			dev_put(dev);
+		}
+	spin_unlock_bh(&pnn->routes.lock);
+	for (i = find_first_bit(deleted, 64); i < 64;
+			i = find_next_bit(deleted, 64, i + 1))
+		rtm_phonet_notify(RTM_DELROUTE, dev, i);
+}
+
 /* notify Phonet of device events */
 static int phonet_device_notify(struct notifier_block *me, unsigned long what,
 				void *arg)
@@ -253,6 +274,7 @@ static int phonet_device_notify(struct notifier_block *me, unsigned long what,
 		break;
 	case NETDEV_UNREGISTER:
 		phonet_device_destroy(dev);
+		phonet_route_autodel(dev);
 		break;
 	}
 	return 0;
@@ -287,10 +309,19 @@ static void phonet_exit_net(struct net *net)
 {
 	struct phonet_net *pnn = net_generic(net, phonet_net_id);
 	struct net_device *dev;
+	unsigned i;
 
 	rtnl_lock();
 	for_each_netdev(net, dev)
 		phonet_device_destroy(dev);
+
+	for (i = 0; i < 64; i++) {
+		dev = pnn->routes.table[i];
+		if (dev) {
+			rtm_phonet_notify(RTM_DELROUTE, dev, i);
+			dev_put(dev);
+		}
+	}
 	rtnl_unlock();
 
 	proc_net_remove(net, "phonet");
