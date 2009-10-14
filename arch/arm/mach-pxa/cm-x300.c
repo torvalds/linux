@@ -59,7 +59,7 @@
 #define GPIO97_RTC_RD		(97)
 #define GPIO98_RTC_IO		(98)
 
-static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
+static mfp_cfg_t cm_x3xx_mfp_cfg[] __initdata = {
 	/* LCD */
 	GPIO54_LCD_LDD_0,
 	GPIO55_LCD_LDD_1,
@@ -158,18 +158,45 @@ static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
 	GPIO22_I2C_SDA,
 };
 
-static mfp_cfg_t cm_x300_rev_lt130_mfp_cfg[] __initdata = {
+static mfp_cfg_t cm_x3xx_rev_lt130_mfp_cfg[] __initdata = {
 	/* GPIOs */
 	GPIO79_GPIO,			/* LED */
 	GPIO77_GPIO,			/* WiFi reset */
 	GPIO78_GPIO,			/* BT reset */
 };
 
-static mfp_cfg_t cm_x300_rev_ge130_mfp_cfg[] __initdata = {
+static mfp_cfg_t cm_x3xx_rev_ge130_mfp_cfg[] __initdata = {
 	/* GPIOs */
 	GPIO76_GPIO,			/* LED */
 	GPIO71_GPIO,			/* WiFi reset */
 	GPIO70_GPIO,			/* BT reset */
+};
+
+static mfp_cfg_t cm_x310_mfp_cfg[] __initdata = {
+	/* USB PORT 2 */
+	ULPI_STP,
+	ULPI_NXT,
+	ULPI_DIR,
+	GPIO30_ULPI_DATA_OUT_0,
+	GPIO31_ULPI_DATA_OUT_1,
+	GPIO32_ULPI_DATA_OUT_2,
+	GPIO33_ULPI_DATA_OUT_3,
+	GPIO34_ULPI_DATA_OUT_4,
+	GPIO35_ULPI_DATA_OUT_5,
+	GPIO36_ULPI_DATA_OUT_6,
+	GPIO37_ULPI_DATA_OUT_7,
+	GPIO38_ULPI_CLK,
+	/* external PHY reset pin */
+	GPIO127_GPIO,
+
+	/* USB PORT 3 */
+	GPIO77_USB_P3_1,
+	GPIO78_USB_P3_2,
+	GPIO79_USB_P3_3,
+	GPIO80_USB_P3_4,
+	GPIO81_USB_P3_5,
+	GPIO82_USB_P3_6,
+	GPIO0_2_USBH_PEN,
 };
 
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
@@ -553,12 +580,15 @@ static void __init cm_x300_init_wi2wi(void)
 static void __init cm_x300_init_mfp(void)
 {
 	/* board-processor specific GPIO initialization */
-	pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x300_mfp_cfg));
+	pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x3xx_mfp_cfg));
 
 	if (system_rev < 130)
-		pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x300_rev_lt130_mfp_cfg));
+		pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x3xx_rev_lt130_mfp_cfg));
 	else
-		pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x300_rev_ge130_mfp_cfg));
+		pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x3xx_rev_ge130_mfp_cfg));
+
+	if (cpu_is_pxa310())
+		pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x310_mfp_cfg));
 }
 
 static void __init cm_x300_init(void)
