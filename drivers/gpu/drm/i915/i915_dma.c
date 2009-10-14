@@ -1416,7 +1416,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_iomapfree;
 
-	dev_priv->wq = create_workqueue("i915");
+	dev_priv->wq = create_singlethread_workqueue("i915");
 	if (dev_priv->wq == NULL) {
 		DRM_ERROR("Failed to create our workqueue.\n");
 		ret = -ENOMEM;
