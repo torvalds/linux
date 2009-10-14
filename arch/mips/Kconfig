@@ -1427,6 +1427,9 @@ config CPU_SUPPORTS_64BIT_KERNEL
 	bool
 config CPU_SUPPORTS_HUGEPAGES
 	bool
+config MIPS_PGD_C0_CONTEXT
+	bool
+	default y if 64BIT && CPU_MIPSR2
 
 #
 # Set to y for ptrace access to watch registers.

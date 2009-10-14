@@ -87,15 +87,19 @@
 #ifdef CONFIG_SMP
 #ifdef CONFIG_MIPS_MT_SMTC
 #define PTEBASE_SHIFT	19	/* TCBIND */
+#define CPU_ID_REG CP0_TCBIND
+#define CPU_ID_MFC0 mfc0
+#elif defined(CONFIG_MIPS_PGD_C0_CONTEXT)
+#define PTEBASE_SHIFT	48	/* XCONTEXT */
+#define CPU_ID_REG CP0_XCONTEXT
+#define CPU_ID_MFC0 MFC0
 #else
 #define PTEBASE_SHIFT	23	/* CONTEXT */
+#define CPU_ID_REG CP0_CONTEXT
+#define CPU_ID_MFC0 MFC0
 #endif
 		.macro	get_saved_sp	/* SMP variation */
-#ifdef CONFIG_MIPS_MT_SMTC
-		mfc0	k0, CP0_TCBIND
-#else
-		MFC0	k0, CP0_CONTEXT
-#endif
+		CPU_ID_MFC0	k0, CPU_ID_REG
 #if defined(CONFIG_32BIT) || defined(KBUILD_64BIT_SYM32)
 		lui	k1, %hi(kernelsp)
 #else
@@ -111,11 +115,7 @@
 		.endm
 
 		.macro	set_saved_sp stackp temp temp2
-#ifdef CONFIG_MIPS_MT_SMTC
-		mfc0	\temp, CP0_TCBIND
-#else
-		MFC0	\temp, CP0_CONTEXT
-#endif
+		CPU_ID_MFC0	\temp, CPU_ID_REG
 		LONG_SRL	\temp, PTEBASE_SHIFT
 		LONG_S	\stackp, kernelsp(\temp)
 		.endm
