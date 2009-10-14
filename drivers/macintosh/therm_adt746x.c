@@ -387,7 +387,7 @@ static int probe_thermostat(struct i2c_client *client,
 	i2c_set_clientdata(client, th);
 	th->clt = client;
 
-	rc = read_reg(th, 0);
+	rc = read_reg(th, CONFIG_REG);
 	if (rc < 0) {
 		dev_err(&client->dev, "Thermostat failed to read config!\n");
 		kfree(th);
