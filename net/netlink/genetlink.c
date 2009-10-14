@@ -97,25 +97,17 @@ static struct genl_ops *genl_get_cmd(u8 cmd, struct genl_family *family)
 */
 static inline u16 genl_generate_id(void)
 {
-	static u16 id_gen_idx;
-	int overflowed = 0;
+	static u16 id_gen_idx = GENL_MIN_ID;
+	int i;
 
-	do {
-		if (id_gen_idx == 0)
+	for (i = 0; i <= GENL_MAX_ID - GENL_MIN_ID; i++) {
+		if (!genl_family_find_byid(id_gen_idx))
+			return id_gen_idx;
+		if (++id_gen_idx > GENL_MAX_ID)
 			id_gen_idx = GENL_MIN_ID;
+	}
 
-		if (++id_gen_idx > GENL_MAX_ID) {
-			if (!overflowed) {
-				overflowed = 1;
-				id_gen_idx = 0;
-				continue;
-			} else
-				return 0;
-		}
-
-	} while (genl_family_find_byid(id_gen_idx));
-
-	return id_gen_idx;
+	return 0;
 }
 
 static struct genl_multicast_group notify_grp;
