@@ -41,6 +41,21 @@ ENTRY(phys_startup_64)
 jiffies_64 = jiffies;
 #endif
 
+#if defined(CONFIG_X86_64) && defined(CONFIG_DEBUG_RODATA)
+
+#define X64_ALIGN_DEBUG_RODATA_BEGIN	. = ALIGN(HPAGE_SIZE);
+
+#define X64_ALIGN_DEBUG_RODATA_END				\
+		. = ALIGN(HPAGE_SIZE);				\
+		__end_rodata_hpage_align = .;
+
+#else
+
+#define X64_ALIGN_DEBUG_RODATA_BEGIN
+#define X64_ALIGN_DEBUG_RODATA_END
+
+#endif
+
 PHDRS {
 	text PT_LOAD FLAGS(5);          /* R_E */
 	data PT_LOAD FLAGS(7);          /* RWE */
@@ -90,7 +105,9 @@ SECTIONS
 
 	EXCEPTION_TABLE(16) :text = 0x9090
 
+	X64_ALIGN_DEBUG_RODATA_BEGIN
 	RO_DATA(PAGE_SIZE)
+	X64_ALIGN_DEBUG_RODATA_END
 
 	/* Data */
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {
