@@ -2099,7 +2099,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 			break;
 		}
 		/* Else fall through to one of the other strategies... */
-		dev_warn(DEV, "Discard younger/older primary did not found a decision\n"
+		dev_warn(DEV, "Discard younger/older primary did not find a decision\n"
 		     "Using discard-least-changes instead\n");
 	case ASB_DISCARD_ZERO_CHG:
 		if (ch_peer == 0 && ch_self == 0) {
