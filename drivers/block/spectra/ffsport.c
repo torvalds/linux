@@ -729,8 +729,6 @@ static int GLOB_SBD_init(void)
 	int i;
 
 	/* Set debug output level (0~3) here. 3 is most verbose */
-	nand_debug_level = 0;
-
 	printk(KERN_ALERT "Spectra: %s\n", GLOB_version);
 
 	mutex_init(&spectra_lock);
