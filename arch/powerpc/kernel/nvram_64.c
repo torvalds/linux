@@ -184,7 +184,7 @@ static struct miscdevice nvram_dev = {
 
 
 #ifdef DEBUG_NVRAM
-static void nvram_print_partitions(char * label)
+static void __init nvram_print_partitions(char * label)
 {
 	struct list_head * p;
 	struct nvram_partition * tmp_part;
@@ -202,7 +202,7 @@ static void nvram_print_partitions(char * label)
 #endif
 
 
-static int nvram_write_header(struct nvram_partition * part)
+static int __init nvram_write_header(struct nvram_partition * part)
 {
 	loff_t tmp_index;
 	int rc;
@@ -214,7 +214,7 @@ static int nvram_write_header(struct nvram_partition * part)
 }
 
 
-static unsigned char nvram_checksum(struct nvram_header *p)
+static unsigned char __init nvram_checksum(struct nvram_header *p)
 {
 	unsigned int c_sum, c_sum2;
 	unsigned short *sp = (unsigned short *)p->name; /* assume 6 shorts */
@@ -228,7 +228,7 @@ static unsigned char nvram_checksum(struct nvram_header *p)
 	return c_sum;
 }
 
-static int nvram_remove_os_partition(void)
+static int __init nvram_remove_os_partition(void)
 {
 	struct list_head *i;
 	struct list_head *j;
@@ -294,7 +294,7 @@ static int nvram_remove_os_partition(void)
  * Will create a partition starting at the first free
  * space found if space has enough room.
  */
-static int nvram_create_os_partition(void)
+static int __init nvram_create_os_partition(void)
 {
 	struct nvram_partition *part;
 	struct nvram_partition *new_part;
@@ -397,7 +397,7 @@ static int nvram_create_os_partition(void)
  * 5.) If the max chunk cannot be allocated then try finding a chunk
  * that will satisfy the minum needed (NVRAM_MIN_REQ).
  */
-static int nvram_setup_partition(void)
+static int __init nvram_setup_partition(void)
 {
 	struct list_head * p;
 	struct nvram_partition * part;
@@ -455,7 +455,7 @@ static int nvram_setup_partition(void)
 }
 
 
-static int nvram_scan_partitions(void)
+static int __init nvram_scan_partitions(void)
 {
 	loff_t cur_index = 0;
 	struct nvram_header phead;
