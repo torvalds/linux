@@ -713,9 +713,11 @@ static int pcmmio_dio_insn_config(struct comedi_device *dev,
 		byte &= ~(1 << bit_no);
 				/**< set input channel to '0' */
 
-		/* write out byte -- this is the only time we actually affect the
-		   hardware as all channels are implicitly output -- but input
-		   channels are set to float-high */
+		/*
+		 * write out byte -- this is the only time we actually affect
+		 * the hardware as all channels are implicitly output
+		 * -- but input channels are set to float-high
+		 */
 		outb(byte, ioaddr);
 
 		/* save to io_bits */
@@ -769,8 +771,8 @@ static void init_asics(struct comedi_device *dev)
 		   outb(0xff, baseaddr + REG_ENAB0); */
 		/* END DEBUG */
 
-		switch_page(dev, asic, 0);	/* switch back to default page 0 */
-
+		/* switch back to default page 0 */
+		switch_page(dev, asic, 0);
 	}
 }
 
@@ -849,7 +851,10 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 							REG_INT_ID0 + port);
 
 						if (io_lines_with_edges)
-							/* clear pending interrupt */
+							/*
+							 * clear pending
+							 * interrupt
+							 */
 							outb(0, iobase +
 							     REG_INT_ID0 +
 							     port);
@@ -868,14 +873,21 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 
 			if (triggered) {
 				struct comedi_subdevice *s;
-				/* TODO here: dispatch io lines to subdevs with commands.. */
+				/*
+				 * TODO here: dispatch io lines to subdevs
+				 * with commands..
+				 */
 				printk
 				    ("PCMMIO DEBUG: got edge detect interrupt %d asic %d which_chans: %06x\n",
 				     irq, asic, triggered);
 				for (s = dev->subdevices + 2;
 				     s < dev->subdevices + dev->n_subdevices;
 				     ++s) {
-					if (subpriv->dio.intr.asic == asic) {	/* this is an interrupt subdev, and it matches this asic! */
+					/*
+					 * this is an interrupt subdev,
+					 * and it matches this asic!
+					 */
+					if (subpriv->dio.intr.asic == asic) {
 						unsigned long flags;
 						unsigned oldevents;
 
@@ -910,9 +922,8 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 								     n < len;
 								     n++) {
 									ch = CR_CHAN(s->async->cmd.chanlist[n]);
-									if (mytrig & (1U << ch)) {
+									if (mytrig & (1U << ch))
 										val |= (1U << n);
-									}
 								}
 								/* Write the scan to the buffer. */
 								if (comedi_buf_put(s->async, ((short *)&val)[0])
@@ -920,8 +931,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 								    comedi_buf_put
 								    (s->async,
 								     ((short *)
-								      &val)[1]))
-								{
+								      &val)[1])) {
 									s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 								} else {
 									/* Overflow! Stop acquisition!! */
@@ -1024,9 +1034,16 @@ static int pcmmio_start_intr(struct comedi_device *dev,
 			 1) << subpriv->dio.intr.first_chan;
 		subpriv->dio.intr.enabled_mask = bits;
 
-		{		/* the below code configures the board to use a specific IRQ from 0-15. */
+		{
+			/*
+			 * the below code configures the board
+			 * to use a specific IRQ from 0-15.
+			 */
 			unsigned char b;
-			/* set resource enable register to enable IRQ operation */
+			/*
+			 * set resource enable register
+			 * to enable IRQ operation
+			 */
 			outb(1 << 4, dev->iobase + 3);
 			/* set bits 0-3 of b to the irq number from 0-15 */
 			b = dev->irq & ((1 << 4) - 1);
@@ -1080,14 +1097,12 @@ pcmmio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
 	s->async->inttrig = 0;
-	if (subpriv->dio.intr.active) {
+	if (subpriv->dio.intr.active)
 		event = pcmmio_start_intr(dev, s);
-	}
 	spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
 
-	if (event) {
+	if (event)
 		comedi_event(dev, s);
-	}
 
 	return 1;
 }
@@ -1129,9 +1144,8 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
 
-	if (event) {
+	if (event)
 		comedi_event(dev, s);
-	}
 
 	return 0;
 }
@@ -1179,17 +1193,32 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		short sample, adc_adjust = 0;
 
 		if (chan > 7)
-			chan -= 8, iooffset = 4;	/* use the second dword for channels > 7 */
+			chan -= 8, iooffset = 4;	/*
+							 * use the second dword
+							 * for channels > 7
+							 */
 
 		if (aref != AREF_DIFF) {
 			aref = AREF_GROUND;
-			command_byte |= 1 << 7;	/* set bit 7 to indicate single-ended */
+			command_byte |= 1 << 7;	/*
+						 * set bit 7 to indicate
+						 * single-ended
+						 */
 		}
 		if (range < 2)
-			adc_adjust = 0x8000;	/* bipolar ranges (-5,5 .. -10,10 need to be adjusted -- that is.. they need to wrap around by adding 0x8000 */
+			adc_adjust = 0x8000;	/*
+						 * bipolar ranges
+						 * (-5,5 .. -10,10 need to be
+						 * adjusted -- that is.. they
+						 * need to wrap around by
+						 * adding 0x8000
+						 */
 
 		if (chan % 2) {
-			command_byte |= 1 << 6;	/* odd-numbered channels have bit 6 set */
+			command_byte |= 1 << 6;	/*
+						 * odd-numbered channels
+						 * have bit 6 set
+						 */
 		}
 
 		/* select the channel, bits 4-5 == chan/2 */
@@ -1199,16 +1228,22 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		command_byte |= (range & 0x3) << 2;
 
 		/* need to do this twice to make sure mux settled */
-		outb(command_byte, iobase + iooffset + 2);	/* chan/range/aref select */
+		/* chan/range/aref select */
+		outb(command_byte, iobase + iooffset + 2);
 
-		adc_wait_ready(iobase + iooffset);	/* wait for the adc to say it finised the conversion */
+		/* wait for the adc to say it finised the conversion */
+		adc_wait_ready(iobase + iooffset);
 
-		outb(command_byte, iobase + iooffset + 2);	/* select the chan/range/aref AGAIN */
+		/* select the chan/range/aref AGAIN */
+		outb(command_byte, iobase + iooffset + 2);
 
 		adc_wait_ready(iobase + iooffset);
 
-		sample = inb(iobase + iooffset + 0);	/* read data lo byte */
-		sample |= inb(iobase + iooffset + 1) << 8;	/* read data hi byte */
+		/* read data lo byte */
+		sample = inb(iobase + iooffset + 0);
+
+		/* read data hi byte */
+		sample |= inb(iobase + iooffset + 1) << 8;
 		sample += adc_adjust;	/* adjustment .. munge data */
 		data[n] = sample;
 	}
@@ -1270,15 +1305,24 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 			wait_dac_ready(iobase + iooffset);
 
-			outb(data[n] & 0xff, iobase + iooffset + 0);	/* low order byte */
-			outb((data[n] >> 8) & 0xff, iobase + iooffset + 1);	/* high order byte */
-			command_byte = 0x70 | (chan << 1);	/* set bit 4 of command byte to indicate data is loaded and trigger conversion */
+			/* low order byte */
+			outb(data[n] & 0xff, iobase + iooffset + 0);
+
+			/* high order byte */
+			outb((data[n] >> 8) & 0xff, iobase + iooffset + 1);
+
+			/*
+			 * set bit 4 of command byte to indicate
+			 * data is loaded and trigger conversion
+			 */
+			command_byte = 0x70 | (chan << 1);
 			/* trigger converion */
 			outb(command_byte, iobase + iooffset + 2);
 
 			wait_dac_ready(iobase + iooffset);
 
-			subpriv->ao.shadow_samples[chan] = data[n];	/* save to shadow register for ao_rinsn */
+			/* save to shadow register for ao_rinsn */
+			subpriv->ao.shadow_samples[chan] = data[n];
 		}
 	}
 	return n;
