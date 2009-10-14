@@ -2483,6 +2483,8 @@ config S6GMAC
 	  To compile this driver as a module, choose M here. The module
 	  will be called s6gmac.
 
+source "drivers/net/stmmac/Kconfig"
+
 endif # NETDEV_1000
 
 #
