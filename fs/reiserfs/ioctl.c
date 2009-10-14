@@ -20,9 +20,9 @@
  *  2) REISERFS_IOC_[GS]ETFLAGS, REISERFS_IOC_[GS]ETVERSION
  *  3) That's all for a while ...
  */
-int reiserfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-		   unsigned long arg)
+long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	unsigned int flags;
 	int err = 0;
 
@@ -132,9 +132,6 @@ setversion_out:
 long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int ret;
-
 	/* These are just misnamed, they actually get/put from/to user an int */
 	switch (cmd) {
 	case REISERFS_IOC32_UNPACK:
@@ -156,9 +153,7 @@ long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
 		return -ENOIOCTLCMD;
 	}
 
-	ret = reiserfs_ioctl(inode, file, cmd, (unsigned long) compat_ptr(arg));
-
-	return ret;
+	return reiserfs_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
 }
 #endif
 
