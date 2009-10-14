@@ -291,7 +291,7 @@ struct pci_id_descr pci_dev_descr[] = {
 	 * the probing code needs to test for the other address in case of
 	 * failure of this one
 	 */
-	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_NOCORE)  },
+	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_NONCORE)  },
 
 };
 #define N_DEVS ARRAY_SIZE(pci_dev_descr)
@@ -1177,9 +1177,9 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno)
 	 * is at addr 8086:2c40, instead of 8086:2c41. So, we need
 	 * to probe for the alternate address in case of failure
 	 */
-	if (pci_dev_descr[devno].dev_id == PCI_DEVICE_ID_INTEL_I7_NOCORE && !pdev)
+	if (pci_dev_descr[devno].dev_id == PCI_DEVICE_ID_INTEL_I7_NONCORE && !pdev)
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-				      PCI_DEVICE_ID_INTEL_I7_NOCORE_ALT, *prev);
+				      PCI_DEVICE_ID_INTEL_I7_NONCORE_ALT, *prev);
 
 	if (!pdev) {
 		if (*prev) {
