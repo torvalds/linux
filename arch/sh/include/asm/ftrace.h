@@ -32,6 +32,11 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 	return addr;
 }
 
+#endif /* __ASSEMBLY__ */
+#endif /* CONFIG_FUNCTION_TRACER */
+
+#ifndef __ASSEMBLY__
+
 /* arch/sh/kernel/return_address.c */
 extern void *return_address(unsigned int);
 
@@ -46,6 +51,5 @@ extern void *return_address(unsigned int);
 #define CALLER_ADDR6 ((unsigned long)return_address(6))
 
 #endif /* __ASSEMBLY__ */
-#endif /* CONFIG_FUNCTION_TRACER */
 
 #endif /* __ASM_SH_FTRACE_H */
