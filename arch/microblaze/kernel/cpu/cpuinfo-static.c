@@ -96,6 +96,7 @@ void __init set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu)
 	ci->dcache_size = fcpu(cpu, "d-cache-size");
 	ci->dcache_base = fcpu(cpu, "d-cache-baseaddr");
 	ci->dcache_high = fcpu(cpu, "d-cache-highaddr");
+	ci->dcache_wb = fcpu(cpu, "xlnx,dcache-use-writeback");
 
 	ci->use_dopb = fcpu(cpu, "xlnx,d-opb");
 	ci->use_iopb = fcpu(cpu, "xlnx,i-opb");

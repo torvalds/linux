@@ -53,6 +53,7 @@ struct cpuinfo {
 	u32 dcache_write;
 	u32 dcache_line_length;
 	u32 dcache_size;
+	u32 dcache_wb;
 	unsigned long dcache_base;
 	unsigned long dcache_high;
 
