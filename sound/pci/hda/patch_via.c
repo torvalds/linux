@@ -4626,7 +4626,6 @@ static struct hda_pcm_stream vt1718S_pcm_digital_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
-	.rates = SNDRV_PCM_RATE_48000,
 	/* NID is set in via_build_pcms */
 	.ops = {
 		.open = via_dig_playback_pcm_open,
@@ -5124,7 +5123,6 @@ static struct hda_pcm_stream vt1716S_pcm_digital_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 2,
-	.rates = SNDRV_PCM_RATE_48000,
 	/* NID is set in via_build_pcms */
 	.ops = {
 		.open = via_dig_playback_pcm_open,
@@ -5561,7 +5559,6 @@ static struct hda_pcm_stream vt2002P_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
-	.rates = SNDRV_PCM_RATE_48000,
 	/* NID is set in via_build_pcms */
 	.ops = {
 		.open = via_dig_playback_pcm_open,
@@ -5914,7 +5911,6 @@ static struct hda_pcm_stream vt1812_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
-	.rates = SNDRV_PCM_RATE_48000,
 	/* NID is set in via_build_pcms */
 	.ops = {
 		.open = via_dig_playback_pcm_open,
