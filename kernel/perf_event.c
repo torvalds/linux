@@ -1355,7 +1355,7 @@ static void perf_ctx_adjust_freq(struct perf_event_context *ctx)
 	u64 interrupts, freq;
 
 	spin_lock(&ctx->lock);
-	list_for_each_entry(event, &ctx->group_list, group_entry) {
+	list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
 		if (event->state != PERF_EVENT_STATE_ACTIVE)
 			continue;
 
