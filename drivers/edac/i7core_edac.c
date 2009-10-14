@@ -299,11 +299,30 @@ struct pci_id_descr pci_dev_descr_i7core[] = {
 
 };
 
+struct pci_id_descr pci_dev_descr_lynnfield[] = {
+	{ PCI_DESCR( 3, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_MCR)         },
+	{ PCI_DESCR( 3, 1, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_TAD)      },
+	{ PCI_DESCR( 3, 4, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_TEST)     },
+
+	{ PCI_DESCR( 4, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH0_CTRL) },
+	{ PCI_DESCR( 4, 1, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH0_ADDR) },
+	{ PCI_DESCR( 4, 2, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH0_RANK) },
+	{ PCI_DESCR( 4, 3, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH0_TC)   },
+
+	{ PCI_DESCR( 4, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH1_CTRL) },
+	{ PCI_DESCR( 4, 1, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH1_ADDR) },
+	{ PCI_DESCR( 4, 2, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH1_RANK) },
+	{ PCI_DESCR( 4, 3, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH1_TC)   },
+
+	{ PCI_DESCR( 0, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE)     },
+};
+
 /*
  *	pci_device_id	table for which devices we are looking for
  */
 static const struct pci_device_id i7core_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_X58_HUB_MGMT)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE)},
 	{0,}			/* 0 terminated list. */
 };
 
@@ -521,6 +540,9 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow)
 
 	for (i = 0; i < NUM_CHANS; i++) {
 		u32 data, dimm_dod[3], value[8];
+
+		if (!pvt->pci_ch[i][0])
+			continue;
 
 		if (!CH_ACTIVE(pvt, i)) {
 			debugf0("Channel %i is not active\n", i);
@@ -1000,6 +1022,9 @@ static ssize_t i7core_inject_enable_show(struct mem_ctl_info *mci,
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 	u32 injectmask;
+
+	if (!pvt->pci_ch[pvt->inject.channel][0])
+		return 0;
 
 	pci_read_config_dword(pvt->pci_ch[pvt->inject.channel][0],
 			       MC_CHANNEL_ERROR_INJECT, &injectmask);
@@ -1841,8 +1866,18 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	/* get the pci devices we want to reserve for our use */
 	mutex_lock(&i7core_edac_lock);
 
-	rc = i7core_get_devices(pci_dev_descr_i7core,
-				ARRAY_SIZE(pci_dev_descr_i7core));
+	if (pdev->device == PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE) {
+		printk(KERN_INFO "i7core_edac: detected a "
+				 "Lynnfield processor\n");
+		rc = i7core_get_devices(pci_dev_descr_lynnfield,
+					ARRAY_SIZE(pci_dev_descr_lynnfield));
+	} else {
+		printk(KERN_INFO "i7core_edac: detected a "
+				 "Nehalem/Nehalem-EP processor\n");
+		rc = i7core_get_devices(pci_dev_descr_i7core,
+					ARRAY_SIZE(pci_dev_descr_i7core));
+	}
+
 	if (unlikely(rc < 0))
 		goto fail0;
 
