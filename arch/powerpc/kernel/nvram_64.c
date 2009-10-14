@@ -681,6 +681,9 @@ int nvram_clear_error_log(void)
 	int clear_word = ERR_FLAG_ALREADY_LOGGED;
 	int rc;
 
+	if (nvram_error_log_index == -1)
+		return -1;
+
 	tmp_index = nvram_error_log_index;
 	
 	rc = ppc_md.nvram_write((char *)&clear_word, sizeof(int), &tmp_index);
