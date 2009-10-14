@@ -228,31 +228,6 @@ static unsigned char nvram_checksum(struct nvram_header *p)
 	return c_sum;
 }
 
-
-/*
- * Find an nvram partition, sig can be 0 for any
- * partition or name can be NULL for any name, else
- * tries to match both
- */
-struct nvram_partition *nvram_find_partition(int sig, const char *name)
-{
-	struct nvram_partition * part;
-	struct list_head * p;
-
-	list_for_each(p, &nvram_part->partition) {
-		part = list_entry(p, struct nvram_partition, partition);
-
-		if (sig && part->header.signature != sig)
-			continue;
-		if (name && 0 != strncmp(name, part->header.name, 12))
-			continue;
-		return part; 
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(nvram_find_partition);
-
-
 static int nvram_remove_os_partition(void)
 {
 	struct list_head *i;
