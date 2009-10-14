@@ -123,7 +123,10 @@ static int uv_setup_intr(int cpu, u64 expires)
 	/* Initialize comparator value */
 	uv_write_global_mmr64(pnode, UVH_INT_CMPB, expires);
 
-	return (expires < uv_read_rtc(NULL) && !uv_intr_pending(pnode));
+	if (uv_read_rtc(NULL) <= expires)
+		return 0;
+
+	return !uv_intr_pending(pnode);
 }
 
 /*
@@ -223,6 +226,7 @@ static int uv_rtc_set_timer(int cpu, u64 expires)
 
 	next_cpu = head->next_cpu;
 	*t = expires;
+
 	/* Will this one be next to go off? */
 	if (next_cpu < 0 || bcpu == next_cpu ||
 			expires < head->cpu[next_cpu].expires) {
@@ -231,7 +235,7 @@ static int uv_rtc_set_timer(int cpu, u64 expires)
 			*t = ULLONG_MAX;
 			uv_rtc_find_next_timer(head, pnode);
 			spin_unlock_irqrestore(&head->lock, flags);
-			return 1;
+			return -ETIME;
 		}
 	}
 
@@ -244,7 +248,7 @@ static int uv_rtc_set_timer(int cpu, u64 expires)
  *
  * Returns 1 if this timer was pending.
  */
-static int uv_rtc_unset_timer(int cpu)
+static int uv_rtc_unset_timer(int cpu, int force)
 {
 	int pnode = uv_cpu_to_pnode(cpu);
 	int bid = uv_cpu_to_blade_id(cpu);
@@ -256,14 +260,15 @@ static int uv_rtc_unset_timer(int cpu)
 
 	spin_lock_irqsave(&head->lock, flags);
 
-	if (head->next_cpu == bcpu && uv_read_rtc(NULL) >= *t)
+	if ((head->next_cpu == bcpu && uv_read_rtc(NULL) >= *t) || force)
 		rc = 1;
 
-	*t = ULLONG_MAX;
-
-	/* Was the hardware setup for this timer? */
-	if (head->next_cpu == bcpu)
-		uv_rtc_find_next_timer(head, pnode);
+	if (rc) {
+		*t = ULLONG_MAX;
+		/* Was the hardware setup for this timer? */
+		if (head->next_cpu == bcpu)
+			uv_rtc_find_next_timer(head, pnode);
+	}
 
 	spin_unlock_irqrestore(&head->lock, flags);
 
@@ -310,20 +315,20 @@ static void uv_rtc_timer_setup(enum clock_event_mode mode,
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		uv_rtc_unset_timer(ced_cpu);
+		uv_rtc_unset_timer(ced_cpu, 1);
 		break;
 	}
 }
 
 static void uv_rtc_interrupt(void)
 {
-	struct clock_event_device *ced = &__get_cpu_var(cpu_ced);
 	int cpu = smp_processor_id();
+	struct clock_event_device *ced = &per_cpu(cpu_ced, cpu);
 
 	if (!ced || !ced->event_handler)
 		return;
 
-	if (uv_rtc_unset_timer(cpu) != 1)
+	if (uv_rtc_unset_timer(cpu, 0) != 1)
 		return;
 
 	ced->event_handler(ced);
