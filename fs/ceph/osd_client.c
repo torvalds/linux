@@ -894,8 +894,8 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	dout(" %d inc maps\n", nr_maps);
 	while (nr_maps > 0) {
 		ceph_decode_need(&p, end, 2*sizeof(u32), bad);
-		ceph_decode_32(&p, epoch);
-		ceph_decode_32(&p, maplen);
+		epoch = ceph_decode_32(&p);
+		maplen = ceph_decode_32(&p);
 		ceph_decode_need(&p, end, maplen, bad);
 		next = p + maplen;
 		if (osdc->osdmap && osdc->osdmap->epoch+1 == epoch) {
@@ -927,8 +927,8 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	dout(" %d full maps\n", nr_maps);
 	while (nr_maps) {
 		ceph_decode_need(&p, end, 2*sizeof(u32), bad);
-		ceph_decode_32(&p, epoch);
-		ceph_decode_32(&p, maplen);
+		epoch = ceph_decode_32(&p);
+		maplen = ceph_decode_32(&p);
 		ceph_decode_need(&p, end, maplen, bad);
 		if (nr_maps > 1) {
 			dout("skipping non-latest full map %u len %d\n",

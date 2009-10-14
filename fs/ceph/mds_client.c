@@ -136,9 +136,9 @@ static int parse_reply_info_dir(void **p, void *end,
 		goto bad;
 
 	ceph_decode_need(p, end, sizeof(num) + 2, bad);
-	ceph_decode_32(p, num);
-	ceph_decode_8(p, info->dir_end);
-	ceph_decode_8(p, info->dir_complete);
+	num = ceph_decode_32(p);
+	info->dir_end = ceph_decode_8(p);
+	info->dir_complete = ceph_decode_8(p);
 	if (num == 0)
 		goto done;
 
@@ -160,7 +160,7 @@ static int parse_reply_info_dir(void **p, void *end,
 	while (num) {
 		/* dentry */
 		ceph_decode_need(p, end, sizeof(u32)*2, bad);
-		ceph_decode_32(p, info->dir_dname_len[i]);
+		info->dir_dname_len[i] = ceph_decode_32(p);
 		ceph_decode_need(p, end, info->dir_dname_len[i], bad);
 		info->dir_dname[i] = *p;
 		*p += info->dir_dname_len[i];
@@ -1791,10 +1791,10 @@ static void handle_forward(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 	from_mds = le64_to_cpu(msg->hdr.src.name.num);
 
 	ceph_decode_need(&p, end, sizeof(u64)+2*sizeof(u32), bad);
-	ceph_decode_64(&p, tid);
-	ceph_decode_32(&p, next_mds);
-	ceph_decode_32(&p, fwd_seq);
-	ceph_decode_8(&p, must_resend);
+	tid = ceph_decode_64(&p);
+	next_mds = ceph_decode_32(&p);
+	fwd_seq = ceph_decode_32(&p);
+	must_resend = ceph_decode_8(&p);
 
 	WARN_ON(must_resend);  /* shouldn't happen. */
 
@@ -2783,8 +2783,8 @@ void ceph_mdsc_handle_map(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 		pr_err("got mdsmap with wrong fsid\n");
 		return;
 	}
-	ceph_decode_32(&p, epoch);
-	ceph_decode_32(&p, maplen);
+	epoch = ceph_decode_32(&p);
+	maplen = ceph_decode_32(&p);
 	dout("handle_map epoch %u len %d\n", epoch, (int)maplen);
 
 	/* do we need it? */

@@ -60,21 +60,21 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	ceph_decode_16_safe(p, end, version, bad);
 
 	ceph_decode_need(p, end, 8*sizeof(u32) + sizeof(u64), bad);
-	ceph_decode_32(p, m->m_epoch);
-	ceph_decode_32(p, m->m_client_epoch);
-	ceph_decode_32(p, m->m_last_failure);
-	ceph_decode_32(p, m->m_root);
-	ceph_decode_32(p, m->m_session_timeout);
-	ceph_decode_32(p, m->m_session_autoclose);
-	ceph_decode_64(p, m->m_max_file_size);
-	ceph_decode_32(p, m->m_max_mds);
+	m->m_epoch = ceph_decode_32(p);
+	m->m_client_epoch = ceph_decode_32(p);
+	m->m_last_failure = ceph_decode_32(p);
+	m->m_root = ceph_decode_32(p);
+	m->m_session_timeout = ceph_decode_32(p);
+	m->m_session_autoclose = ceph_decode_32(p);
+	m->m_max_file_size = ceph_decode_64(p);
+	m->m_max_mds = ceph_decode_32(p);
 
 	m->m_info = kcalloc(m->m_max_mds, sizeof(*m->m_info), GFP_NOFS);
 	if (m->m_info == NULL)
 		goto badmem;
 
 	/* pick out active nodes from mds_info (state > 0) */
-	ceph_decode_32(p, n);
+	n = ceph_decode_32(p);
 	for (i = 0; i < n; i++) {
 		u32 namelen;
 		s32 mds, inc, state;
@@ -86,18 +86,18 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 
 		ceph_decode_need(p, end, sizeof(addr) + 1 + sizeof(u32), bad);
 		ceph_decode_copy(p, &addr, sizeof(addr));
-		ceph_decode_8(p, infoversion);
-		ceph_decode_32(p, namelen);  /* skip mds name */
+		infoversion = ceph_decode_8(p);
+		namelen = ceph_decode_32(p);  /* skip mds name */
 		*p += namelen;
 
 		ceph_decode_need(p, end,
 				 4*sizeof(u32) + sizeof(u64) +
 				 sizeof(addr) + sizeof(struct ceph_timespec),
 				 bad);
-		ceph_decode_32(p, mds);
-		ceph_decode_32(p, inc);
-		ceph_decode_32(p, state);
-		ceph_decode_64(p, state_seq);
+		mds = ceph_decode_32(p);
+		inc = ceph_decode_32(p);
+		state = ceph_decode_32(p);
+		state_seq = ceph_decode_64(p);
 		*p += sizeof(addr);
 		*p += sizeof(struct ceph_timespec);
 		*p += sizeof(u32);
@@ -123,8 +123,8 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 					kcalloc(num_export_targets, sizeof(u32),
 						GFP_NOFS);
 				for (j = 0; j < num_export_targets; j++)
-					ceph_decode_32(&pexport_targets,
-					      m->m_info[mds].export_targets[j]);
+					m->m_info[mds].export_targets[j] =
+					       ceph_decode_32(&pexport_targets);
 			} else {
 				m->m_info[mds].export_targets = NULL;
 			}
@@ -139,8 +139,8 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		goto badmem;
 	ceph_decode_need(p, end, sizeof(u32)*(n+1), bad);
 	for (i = 0; i < n; i++)
-		ceph_decode_32(p, m->m_data_pg_pools[i]);
-	ceph_decode_32(p, m->m_cas_pg_pool);
+		m->m_data_pg_pools[i] = ceph_decode_32(p);
+	m->m_cas_pg_pool = ceph_decode_32(p);
 
 	/* ok, we don't care about the rest. */
 	dout("mdsmap_decode success epoch %u\n", m->m_epoch);

@@ -45,9 +45,9 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 
 	ceph_decode_need(&p, end, sizeof(fsid) + 2*sizeof(u32), bad);
 	ceph_decode_copy(&p, &fsid, sizeof(fsid));
-	ceph_decode_32(&p, epoch);
+	epoch = ceph_decode_32(&p);
 
-	ceph_decode_32(&p, num_mon);
+	num_mon = ceph_decode_32(&p);
 	ceph_decode_need(&p, end, num_mon*sizeof(m->mon_inst[0]), bad);
 
 	if (num_mon >= CEPH_MAX_MON)
