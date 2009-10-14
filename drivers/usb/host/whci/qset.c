@@ -422,8 +422,6 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 	size_t pl_len;
 	int p = 0;
 
-	dev_dbg(&whc->umc->dev, "adding urb w/ sg of length %d\n", urb->transfer_buffer_length);
-
 	remaining = urb->transfer_buffer_length;
 
 	for_each_sg(urb->sg->sg, sg, urb->num_sgs, i) {
@@ -437,10 +435,7 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 		}
 
 		dma_addr = sg_dma_address(sg);
-		dma_remaining = min(sg_dma_len(sg), remaining);
-
-		dev_dbg(&whc->umc->dev, "adding sg[%d] %08x %d\n", i, (unsigned)dma_addr,
-			dma_remaining);
+		dma_remaining = min_t(size_t, sg_dma_len(sg), remaining);
 
 		while (dma_remaining) {
 			size_t dma_len;
@@ -463,7 +458,6 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 			    || std->len + WHCI_PAGE_SIZE > QTD_MAX_XFER_SIZE) {
 				if (prev_end % qset->max_packet != 0)
 					return -EINVAL;
-				dev_dbg(&whc->umc->dev, "need new std\n");
 				std = qset_new_std(whc, qset, urb, mem_flags);
 				if (std == NULL) {
 					return -ENOMEM;
@@ -485,8 +479,6 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 				dma_len = ep - dma_addr;
 			}
 
-			dev_dbg(&whc->umc->dev, "adding %d\n", dma_len);
-
 			std->len += dma_len;
 			std->ntds_remaining = -1; /* filled in later */
 
@@ -494,9 +486,6 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 			ep = dma_addr + dma_len;
 			num_pointers = DIV_ROUND_UP(ep - sp, WHCI_PAGE_SIZE);
 			std->num_pointers += num_pointers;
-
-			dev_dbg(&whc->umc->dev, "need %d more (%d total) page pointers\n",
-				num_pointers, std->num_pointers);
 
 			pl_len = std->num_pointers * sizeof(struct whc_page_list_entry);
 
@@ -506,7 +495,6 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 			}
 
 			for (;p < std->num_pointers; p++, entry++) {
-				dev_dbg(&whc->umc->dev, "e[%d] %08x\n", p, dma_addr);
 				std->pl_virt[p].buf_ptr = cpu_to_le64(dma_addr);
 				dma_addr = (dma_addr + WHCI_PAGE_SIZE) & ~(WHCI_PAGE_SIZE-1);
 			}
@@ -516,8 +504,6 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 			remaining -= dma_len;
 		}
 	}
-
-	dev_dbg(&whc->umc->dev, "used %d tds\n", ntds);
 
 	/* Now the number of stds is know, go back and fill in
 	   std->ntds_remaining. */
@@ -565,14 +551,11 @@ static int qset_add_urb_sg_linearize(struct whc *whc, struct whc_qset *qset,
 			break;
 		}
 
-		sg_remaining = min(remaining, sg->length);
+		sg_remaining = min_t(size_t, remaining, sg->length);
 		orig = sg_virt(sg);
-
-		dev_dbg(&whc->umc->dev, "adding sg[%d] %d\n", i, sg_remaining);
 
 		while (sg_remaining) {
 			if (!std || std->len == max_std_len) {
-				dev_dbg(&whc->umc->dev, "need new std\n");
 				std = qset_new_std(whc, qset, urb, mem_flags);
 				if (std == NULL)
 					return -ENOMEM;
@@ -586,9 +569,6 @@ static int qset_add_urb_sg_linearize(struct whc *whc, struct whc_qset *qset,
 			}
 
 			len = min(sg_remaining, max_std_len - std->len);
-
-			dev_dbg(&whc->umc->dev, "added %d from sg[%d] @ offset %d\n",
-				len, i, orig - sg_virt(sg));
 
 			if (is_out)
 				memcpy(bounce, orig, len);
@@ -650,8 +630,6 @@ int qset_add_urb(struct whc *whc, struct whc_qset *qset, struct urb *urb,
 	if (urb->sg) {
 		ret = qset_add_urb_sg(whc, qset, urb, mem_flags);
 		if (ret == -EINVAL) {
-			dev_dbg(&whc->umc->dev, "linearizing %d octet urb\n",
-				urb->transfer_buffer_length);
 			qset_free_stds(qset, urb);
 			ret = qset_add_urb_sg_linearize(whc, qset, urb, mem_flags);
 		}
