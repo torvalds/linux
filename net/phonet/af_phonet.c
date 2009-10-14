@@ -190,9 +190,8 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 	skb->priority = 0;
 	skb->dev = dev;
 
-	if (pn_addr(src) == pn_addr(dst)) {
+	if (skb->pkt_type == PACKET_LOOPBACK) {
 		skb_reset_mac_header(skb);
-		skb->pkt_type = PACKET_LOOPBACK;
 		skb_orphan(skb);
 		if (irq)
 			netif_rx(skb);
@@ -222,6 +221,9 @@ static int pn_raw_send(const void *data, int len, struct net_device *dev,
 	if (skb == NULL)
 		return -ENOMEM;
 
+	if (phonet_address_lookup(dev_net(dev), pn_addr(dst)) == 0)
+		skb->pkt_type = PACKET_LOOPBACK;
+
 	skb_reserve(skb, MAX_PHONET_HEADER);
 	__skb_put(skb, len);
 	skb_copy_to_linear_data(skb, data, len);
@@ -235,6 +237,7 @@ static int pn_raw_send(const void *data, int len, struct net_device *dev,
 int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 		const struct sockaddr_pn *target)
 {
+	struct net *net = sock_net(sk);
 	struct net_device *dev;
 	struct pn_sock *pn = pn_sk(sk);
 	int err;
@@ -243,9 +246,13 @@ int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 
 	err = -EHOSTUNREACH;
 	if (sk->sk_bound_dev_if)
-		dev = dev_get_by_index(sock_net(sk), sk->sk_bound_dev_if);
-	else
-		dev = phonet_device_get(sock_net(sk));
+		dev = dev_get_by_index(net, sk->sk_bound_dev_if);
+	else if (phonet_address_lookup(net, daddr) == 0) {
+		dev = phonet_device_get(net);
+		skb->pkt_type = PACKET_LOOPBACK;
+	} else
+		dev = phonet_route_output(net, daddr);
+
 	if (!dev || !(dev->flags & IFF_UP))
 		goto drop;
 
