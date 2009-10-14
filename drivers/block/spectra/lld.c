@@ -103,6 +103,85 @@ u16  GLOB_LLD_Get_Bad_Block(u32 block)
 
 #endif /* FLASH_EMU */
 
+/*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
+#if FLASH_MTD		/* vector all the LLD calls to the LLD_MTD code */
+#include "lld_mtd.h"
+#include "lld_cdma.h"
+
+/* common functions: */
+u16 GLOB_LLD_Flash_Reset(void)
+{
+	return mtd_Flash_Reset();
+}
+
+u16 GLOB_LLD_Read_Device_ID(void)
+{
+	return mtd_Read_Device_ID();
+}
+
+int GLOB_LLD_Flash_Release(void)
+{
+	return mtd_Flash_Release();
+}
+
+u16 GLOB_LLD_Flash_Init(void)
+{
+	return mtd_Flash_Init();
+}
+
+u16 GLOB_LLD_Erase_Block(u32 block_add)
+{
+	return mtd_Erase_Block(block_add);
+}
+
+u16 GLOB_LLD_Write_Page_Main(u8 *write_data, u32 block, u16 Page,
+				u16 PageCount)
+{
+	return mtd_Write_Page_Main(write_data, block, Page, PageCount);
+}
+
+u16 GLOB_LLD_Read_Page_Main(u8 *read_data, u32 block, u16 Page,
+			       u16 PageCount)
+{
+	return mtd_Read_Page_Main(read_data, block, Page, PageCount);
+}
+
+u16 GLOB_LLD_Read_Page_Main_Polling(u8 *read_data,
+			u32 block, u16 page, u16 page_count)
+{
+	return mtd_Read_Page_Main(read_data, block, page, page_count);
+}
+
+u16 GLOB_LLD_Write_Page_Main_Spare(u8 *write_data, u32 block,
+				      u16 Page, u16 PageCount)
+{
+	return mtd_Write_Page_Main_Spare(write_data, block, Page, PageCount);
+}
+
+u16 GLOB_LLD_Read_Page_Main_Spare(u8 *read_data, u32 block,
+				     u16 Page, u16 PageCount)
+{
+	return mtd_Read_Page_Main_Spare(read_data, block, Page, PageCount);
+}
+
+u16 GLOB_LLD_Write_Page_Spare(u8 *write_data, u32 block, u16 Page,
+				 u16 PageCount)
+{
+	return mtd_Write_Page_Spare(write_data, block, Page, PageCount);
+}
+
+u16 GLOB_LLD_Read_Page_Spare(u8 *read_data, u32 block, u16 Page,
+				u16 PageCount)
+{
+	return mtd_Read_Page_Spare(read_data, block, Page, PageCount);
+}
+
+u16  GLOB_LLD_Get_Bad_Block(u32 block)
+{
+    return  mtd_Get_Bad_Block(block);
+}
+
+#endif /* FLASH_MTD */
 
 /*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
 #if FLASH_NAND	/* vector all the LLD calls to the NAND controller code */

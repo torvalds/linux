@@ -18,6 +18,13 @@ config MRST_NAND_HW
 	  Driver communicates with the actual hardware's register interface.
 	  in DMA mode.
 
+config MRST_NAND_MTD
+	bool "Linux MTD mode"
+	depends on MTD
+	help
+	  Driver communicates with the kernel MTD subsystem instead of its own
+	  built-in hardware driver.
+
 config MRST_NAND_EMU
 	bool "RAM emulator testing"
 	help

@@ -47,6 +47,7 @@
 /***** Product Feature Support *****/
 #define FLASH_EMU               defined(CONFIG_MRST_NAND_EMU)
 #define FLASH_NAND              defined(CONFIG_MRST_NAND_HW)
+#define FLASH_MTD               defined(CONFIG_MRST_NAND_MTD)
 #define CMD_DMA                 defined(CONFIG_MRST_NAND_HW_DMA)
 
 #define SPECTRA_PARTITION_ID    0
