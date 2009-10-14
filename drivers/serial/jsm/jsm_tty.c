@@ -430,7 +430,7 @@ int __devinit jsm_tty_init(struct jsm_board *brd)
 	return 0;
 }
 
-int __devinit jsm_uart_port_init(struct jsm_board *brd)
+int jsm_uart_port_init(struct jsm_board *brd)
 {
 	int i;
 	unsigned int line;
