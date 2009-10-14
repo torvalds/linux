@@ -27,6 +27,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
 
+#include <linux/mfd/da903x.h>
+
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
 #include <linux/spi/tdo24m.h>
@@ -552,6 +554,35 @@ static void __init cm_x300_init_rtc(void)
 static inline void cm_x300_init_rtc(void) {}
 #endif
 
+/* DA9030 */
+struct da903x_subdev_info cm_x300_da9030_subdevs[] = {
+	{
+		.name = "da903x-backlight",
+		.id = DA9030_ID_WLED,
+	}
+};
+
+static struct da903x_platform_data cm_x300_da9030_info = {
+	.num_subdevs = ARRAY_SIZE(cm_x300_da9030_subdevs),
+	.subdevs = cm_x300_da9030_subdevs,
+};
+
+static struct i2c_board_info cm_x300_pmic_info = {
+	I2C_BOARD_INFO("da9030", 0x49),
+	.irq = IRQ_GPIO(0),
+	.platform_data = &cm_x300_da9030_info,
+};
+
+static struct i2c_pxa_platform_data cm_x300_pwr_i2c_info = {
+	.use_pio = 1,
+};
+
+static void __init cm_x300_init_da9030(void)
+{
+	pxa3xx_set_i2c_power_info(&cm_x300_pwr_i2c_info);
+	i2c_register_board_info(1, &cm_x300_pmic_info, 1);
+}
+
 static void __init cm_x300_init_wi2wi(void)
 {
 	int bt_reset, wlan_en;
@@ -610,6 +641,7 @@ static void __init cm_x300_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
+	cm_x300_init_da9030();
 	cm_x300_init_dm9000();
 	cm_x300_init_lcd();
 	cm_x300_init_ohci();
