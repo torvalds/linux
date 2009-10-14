@@ -1260,9 +1260,11 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	/* Pre-i965 needs to install a fence for tiled scan-out */
-	if (!IS_I965G(dev) &&
-	    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
+	/* Install a fence for tiled scan-out. Pre-i965 always needs a fence,
+	 * whereas 965+ only requires a fence if using framebuffer compression.
+	 * For simplicity, we always install a fence as the cost is not that onerous.
+	 */
+	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
 	    obj_priv->tiling_mode != I915_TILING_NONE) {
 		ret = i915_gem_object_get_fence_reg(obj);
 		if (ret != 0) {
