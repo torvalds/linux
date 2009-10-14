@@ -344,10 +344,14 @@ static struct pci_dev *nas_gpio_pci_dev;
 static int __devinit ich7_lpc_probe(struct pci_dev *dev,
 				    const struct pci_device_id *id)
 {
-	int status = 0;
+	int status;
 	u32 gc = 0;
 
-	pci_enable_device(dev);
+	status = pci_enable_device(dev);
+	if (status) {
+		dev_err(&dev->dev, "pci_enable_device failed\n");
+		return;
+	}
 
 	nas_gpio_pci_dev = dev;
 	status = pci_read_config_dword(dev, PMBASE, &g_pm_io_base);
