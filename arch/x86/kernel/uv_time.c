@@ -75,6 +75,7 @@ struct uv_rtc_timer_head {
 static struct uv_rtc_timer_head		**blade_info __read_mostly;
 
 static int				uv_rtc_enable;
+static int				uv_rtc_evt_enable;
 
 /*
  * Hardware interface routines
@@ -342,6 +343,14 @@ static int __init uv_enable_rtc(char *str)
 }
 __setup("uvrtc", uv_enable_rtc);
 
+static int __init uv_enable_evt_rtc(char *str)
+{
+	uv_rtc_evt_enable = 1;
+
+	return 1;
+}
+__setup("uvrtcevt", uv_enable_evt_rtc);
+
 static __init void uv_rtc_register_clockevents(struct work_struct *dummy)
 {
 	struct clock_event_device *ced = &__get_cpu_var(cpu_ced);
@@ -358,16 +367,20 @@ static __init int uv_rtc_setup_clock(void)
 	if (!uv_rtc_enable || !is_uv_system() || generic_interrupt_extension)
 		return -ENODEV;
 
-	generic_interrupt_extension = uv_rtc_interrupt;
-
 	clocksource_uv.mult = clocksource_hz2mult(sn_rtc_cycles_per_second,
 				clocksource_uv.shift);
 
 	rc = clocksource_register(&clocksource_uv);
-	if (rc) {
-		generic_interrupt_extension = NULL;
+	if (rc)
+		printk(KERN_INFO "UV RTC clocksource failed rc %d\n", rc);
+	else
+		printk(KERN_INFO "UV RTC clocksource registered freq %lu MHz\n",
+			sn_rtc_cycles_per_second/(unsigned long)1E6);
+
+	if (rc || !uv_rtc_evt_enable)
 		return rc;
-	}
+
+	generic_interrupt_extension = uv_rtc_interrupt;
 
 	/* Setup and register clockevents */
 	rc = uv_rtc_allocate_timers();
