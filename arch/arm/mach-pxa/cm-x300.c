@@ -36,6 +36,7 @@
 #include <asm/setup.h>
 
 #include <mach/pxa300.h>
+#include <mach/pxa27x-udc.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
@@ -437,9 +438,19 @@ static inline void cm_x300_init_mmc(void) {}
 #endif
 
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+static int cm_x300_ohci_init(struct device *dev)
+{
+	if (cpu_is_pxa300())
+		UP2OCR = UP2OCR_HXS
+			| UP2OCR_HXOE | UP2OCR_DMPDE | UP2OCR_DPPDE;
+
+	return 0;
+}
+
 static struct pxaohci_platform_data cm_x300_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.flags		= ENABLE_PORT1 | ENABLE_PORT2 | POWER_CONTROL_LOW,
+	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW,
+	.init		= cm_x300_ohci_init,
 };
 
 static void __init cm_x300_init_ohci(void)
