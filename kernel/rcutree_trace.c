@@ -155,12 +155,14 @@ static const struct file_operations rcudata_csv_fops = {
 
 static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 {
+	long gpnum;
 	int level = 0;
 	struct rcu_node *rnp;
 
+	gpnum = rsp->gpnum;
 	seq_printf(m, "c=%ld g=%ld s=%d jfq=%ld j=%x "
 		      "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld\n",
-		   rsp->completed, rsp->gpnum, rsp->signaled,
+		   rsp->completed, gpnum, rsp->signaled,
 		   (long)(rsp->jiffies_force_qs - jiffies),
 		   (int)(jiffies & 0xffff),
 		   rsp->n_force_qs, rsp->n_force_qs_ngp,
@@ -171,8 +173,10 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 			seq_puts(m, "\n");
 			level = rnp->level;
 		}
-		seq_printf(m, "%lx/%lx %d:%d ^%d    ",
+		seq_printf(m, "%lx/%lx %c>%c %d:%d ^%d    ",
 			   rnp->qsmask, rnp->qsmaskinit,
+			   "T."[list_empty(&rnp->blocked_tasks[gpnum & 1])],
+			   "T."[list_empty(&rnp->blocked_tasks[!(gpnum & 1)])],
 			   rnp->grplo, rnp->grphi, rnp->grpnum);
 	}
 	seq_puts(m, "\n");
