@@ -167,6 +167,10 @@ struct rcu_data {
 	struct rcu_head *nxtlist;
 	struct rcu_head **nxttail[RCU_NEXT_SIZE];
 	long		qlen;		/* # of queued callbacks */
+	long		qlen_last_fqs_check;
+					/* qlen at last check for QS forcing */
+	unsigned long	n_force_qs_snap;
+					/* did other CPU force QS recently? */
 	long		blimit;		/* Upper limit on a processed batch */
 
 #ifdef CONFIG_NO_HZ
