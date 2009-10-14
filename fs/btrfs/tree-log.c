@@ -1995,12 +1995,13 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	if (atomic_read(&root->log_commit[(index1 + 1) % 2]))
 		wait_log_commit(trans, root, root->log_transid - 1);
 
-	while (root->log_multiple_pids) {
+	while (1) {
 		unsigned long batch = root->log_batch;
-		mutex_unlock(&root->log_mutex);
-		schedule_timeout_uninterruptible(1);
-		mutex_lock(&root->log_mutex);
-
+		if (root->log_multiple_pids) {
+			mutex_unlock(&root->log_mutex);
+			schedule_timeout_uninterruptible(1);
+			mutex_lock(&root->log_mutex);
+		}
 		wait_for_writer(trans, root);
 		if (batch == root->log_batch)
 			break;
