@@ -3686,6 +3686,14 @@ static int pin_down_bytes(struct btrfs_trans_handle *trans,
 	if (is_data)
 		goto pinit;
 
+	/*
+	 * discard is sloooow, and so triggering discards on
+	 * individual btree blocks isn't a good plan.  Just
+	 * pin everything in discard mode.
+	 */
+	if (btrfs_test_opt(root, DISCARD))
+		goto pinit;
+
 	buf = btrfs_find_tree_block(root, bytenr, num_bytes);
 	if (!buf)
 		goto pinit;
