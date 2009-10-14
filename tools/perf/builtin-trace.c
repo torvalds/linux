@@ -144,6 +144,8 @@ static const struct option options[] = {
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('l', "latency", &latency_format,
+		    "show latency attributes (irqs/preemption disabled, etc)"),
 	OPT_END()
 };
 

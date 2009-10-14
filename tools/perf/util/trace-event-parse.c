@@ -40,6 +40,8 @@ int header_page_size_size;
 int header_page_data_offset;
 int header_page_data_size;
 
+int latency_format;
+
 static char *input_buf;
 static unsigned long long input_buf_ptr;
 static unsigned long long input_buf_siz;
@@ -1928,37 +1930,67 @@ static int get_common_info(const char *type, int *offset, int *size)
 	return 0;
 }
 
+static int __parse_common(void *data, int *size, int *offset,
+			  char *name)
+{
+	int ret;
+
+	if (!*size) {
+		ret = get_common_info(name, offset, size);
+		if (ret < 0)
+			return ret;
+	}
+	return read_size(data + *offset, *size);
+}
+
 int trace_parse_common_type(void *data)
 {
 	static int type_offset;
 	static int type_size;
-	int ret;
 
-	if (!type_size) {
-		ret = get_common_info("common_type",
-				      &type_offset,
-				      &type_size);
-		if (ret < 0)
-			return ret;
-	}
-	return read_size(data + type_offset, type_size);
+	return __parse_common(data, &type_size, &type_offset,
+			      (char *)"common_type");
 }
 
 static int parse_common_pid(void *data)
 {
 	static int pid_offset;
 	static int pid_size;
+
+	return __parse_common(data, &pid_size, &pid_offset,
+			      (char *)"common_pid");
+}
+
+static int parse_common_pc(void *data)
+{
+	static int pc_offset;
+	static int pc_size;
+
+	return __parse_common(data, &pc_size, &pc_offset,
+			      (char *)"common_preempt_count");
+}
+
+static int parse_common_flags(void *data)
+{
+	static int flags_offset;
+	static int flags_size;
+
+	return __parse_common(data, &flags_size, &flags_offset,
+			      (char *)"common_flags");
+}
+
+static int parse_common_lock_depth(void *data)
+{
+	static int ld_offset;
+	static int ld_size;
 	int ret;
 
-	if (!pid_size) {
-		ret = get_common_info("common_pid",
-				      &pid_offset,
-				      &pid_size);
-		if (ret < 0)
-			return ret;
-	}
+	ret = __parse_common(data, &ld_size, &ld_offset,
+			     (char *)"common_lock_depth");
+	if (ret < 0)
+		return -1;
 
-	return read_size(data + pid_offset, pid_size);
+	return ret;
 }
 
 struct event *trace_find_event(int id)
@@ -2525,6 +2557,41 @@ static inline int log10_cpu(int nb)
 	return 1;
 }
 
+static void print_lat_fmt(void *data, int size __unused)
+{
+	unsigned int lat_flags;
+	unsigned int pc;
+	int lock_depth;
+	int hardirq;
+	int softirq;
+
+	lat_flags = parse_common_flags(data);
+	pc = parse_common_pc(data);
+	lock_depth = parse_common_lock_depth(data);
+
+	hardirq = lat_flags & TRACE_FLAG_HARDIRQ;
+	softirq = lat_flags & TRACE_FLAG_SOFTIRQ;
+
+	printf("%c%c%c",
+	       (lat_flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
+	       (lat_flags & TRACE_FLAG_IRQS_NOSUPPORT) ?
+	       'X' : '.',
+	       (lat_flags & TRACE_FLAG_NEED_RESCHED) ?
+	       'N' : '.',
+	       (hardirq && softirq) ? 'H' :
+	       hardirq ? 'h' : softirq ? 's' : '.');
+
+	if (pc)
+		printf("%x", pc);
+	else
+		printf(".");
+
+	if (lock_depth < 0)
+		printf(".");
+	else
+		printf("%d", lock_depth);
+}
+
 /* taken from Linux, written by Frederic Weisbecker */
 static void print_graph_cpu(int cpu)
 {
@@ -2768,6 +2835,11 @@ pretty_print_func_ent(void *data, int size, struct event *event,
 
 	printf(" | ");
 
+	if (latency_format) {
+		print_lat_fmt(data, size);
+		printf(" | ");
+	}
+
 	field = find_field(event, "func");
 	if (!field)
 		die("function entry does not have func field");
@@ -2810,6 +2882,11 @@ pretty_print_func_ret(void *data, int size __unused, struct event *event,
 	print_graph_proc(pid, comm);
 
 	printf(" | ");
+
+	if (latency_format) {
+		print_lat_fmt(data, size);
+		printf(" | ");
+	}
 
 	field = find_field(event, "rettime");
 	if (!field)
@@ -2882,9 +2959,14 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 		return pretty_print_func_graph(data, size, event, cpu,
 					       pid, comm, secs, usecs);
 
-	printf("%16s-%-5d [%03d] %5lu.%09Lu: %s: ",
-	       comm, pid,  cpu,
-	       secs, nsecs, event->name);
+	if (latency_format) {
+		printf("%8.8s-%-5d %3d",
+		       comm, pid, cpu);
+		print_lat_fmt(data, size);
+	} else
+		printf("%16s-%-5d [%03d]", comm, pid,  cpu);
+
+	printf(" %5lu.%06lu: %s: ", secs, usecs, event->name);
 
 	if (event->flags & EVENT_FL_FAILED) {
 		printf("EVENT '%s' FAILED TO PARSE\n",
