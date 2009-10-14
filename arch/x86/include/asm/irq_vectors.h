@@ -106,7 +106,7 @@
 /*
  * Generic system vector for platform specific use
  */
-#define GENERIC_INTERRUPT_VECTOR	0xed
+#define X86_PLATFORM_IPI_VECTOR		0xed
 
 /*
  * Performance monitoring pending work vector:

@@ -27,7 +27,7 @@
 
 /* Interrupt handlers registered during init_IRQ */
 extern void apic_timer_interrupt(void);
-extern void generic_interrupt(void);
+extern void x86_platform_ipi(void);
 extern void error_interrupt(void);
 extern void perf_pending_interrupt(void);
 
@@ -101,7 +101,7 @@ extern void eisa_set_level_irq(unsigned int irq);
 /* SMP */
 extern void smp_apic_timer_interrupt(struct pt_regs *);
 extern void smp_spurious_interrupt(struct pt_regs *);
-extern void smp_generic_interrupt(struct pt_regs *);
+extern void smp_x86_platform_ipi(struct pt_regs *);
 extern void smp_error_interrupt(struct pt_regs *);
 #ifdef CONFIG_X86_IO_APIC
 extern asmlinkage void smp_irq_move_cleanup_interrupt(void);

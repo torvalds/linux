@@ -91,7 +91,7 @@ static void uv_rtc_send_IPI(int cpu)
 	pnode = uv_apicid_to_pnode(apicid);
 	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
 	      (apicid << UVH_IPI_INT_APIC_ID_SHFT) |
-	      (GENERIC_INTERRUPT_VECTOR << UVH_IPI_INT_VECTOR_SHFT);
+	      (X86_PLATFORM_IPI_VECTOR << UVH_IPI_INT_VECTOR_SHFT);
 
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 }
@@ -116,7 +116,7 @@ static int uv_setup_intr(int cpu, u64 expires)
 	uv_write_global_mmr64(pnode, UVH_EVENT_OCCURRED0_ALIAS,
 		UVH_EVENT_OCCURRED0_RTC1_MASK);
 
-	val = (GENERIC_INTERRUPT_VECTOR << UVH_RTC1_INT_CONFIG_VECTOR_SHFT) |
+	val = (X86_PLATFORM_IPI_VECTOR << UVH_RTC1_INT_CONFIG_VECTOR_SHFT) |
 		((u64)cpu_physical_id(cpu) << UVH_RTC1_INT_CONFIG_APIC_ID_SHFT);
 
 	/* Set configuration */
@@ -364,7 +364,7 @@ static __init int uv_rtc_setup_clock(void)
 {
 	int rc;
 
-	if (!uv_rtc_enable || !is_uv_system() || generic_interrupt_extension)
+	if (!uv_rtc_enable || !is_uv_system() || x86_platform_ipi_callback)
 		return -ENODEV;
 
 	clocksource_uv.mult = clocksource_hz2mult(sn_rtc_cycles_per_second,
@@ -385,7 +385,7 @@ static __init int uv_rtc_setup_clock(void)
 	if (rc)
 		goto error;
 
-	generic_interrupt_extension = uv_rtc_interrupt;
+	x86_platform_ipi_callback = uv_rtc_interrupt;
 
 	clock_event_device_uv.mult = div_sc(sn_rtc_cycles_per_second,
 				NSEC_PER_SEC, clock_event_device_uv.shift);
@@ -398,7 +398,7 @@ static __init int uv_rtc_setup_clock(void)
 
 	rc = schedule_on_each_cpu(uv_rtc_register_clockevents);
 	if (rc) {
-		generic_interrupt_extension = NULL;
+		x86_platform_ipi_callback = NULL;
 		uv_rtc_deallocate_timers();
 		goto error;
 	}
