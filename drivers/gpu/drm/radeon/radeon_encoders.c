@@ -206,7 +206,7 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 	    && (mode->crtc_vsync_start < (mode->crtc_vdisplay + 2)))
 		adjusted_mode->crtc_vsync_start = adjusted_mode->crtc_vdisplay + 2;
 
-	if (radeon_encoder->active_device & ATOM_DEVICE_TV_SUPPORT) {
+	if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
 		struct radeon_encoder_atom_dac *tv_dac = radeon_encoder->enc_priv;
 		if (tv_dac) {
 			if (tv_dac->tv_std == TV_STD_NTSC ||
@@ -1085,8 +1085,11 @@ atombios_apply_encoder_quirks(struct drm_encoder *encoder,
 	}
 
 	/* set scaler clears this on some chips */
-	if (ASIC_IS_AVIVO(rdev) && (mode->flags & DRM_MODE_FLAG_INTERLACE))
-		WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset, AVIVO_D1MODE_INTERLEAVE_EN);
+	if (!(radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))) {
+		if (ASIC_IS_AVIVO(rdev) && (mode->flags & DRM_MODE_FLAG_INTERLACE))
+			WREG32(AVIVO_D1MODE_DATA_FORMAT + radeon_crtc->crtc_offset,
+			       AVIVO_D1MODE_INTERLEAVE_EN);
+	}
 }
 
 static void

@@ -31,10 +31,6 @@
 #include "atom.h"
 #include "atom-bits.h"
 
-/* evil but including atombios.h is much worse */
-bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
-				SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing,
-				int32_t *pixel_clock);
 static void atombios_overscan_setup(struct drm_crtc *crtc,
 				    struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode)
