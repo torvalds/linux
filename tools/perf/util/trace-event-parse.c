@@ -1819,7 +1819,7 @@ static int event_read_print(struct event *event)
 	if (ret < 0)
 		return -1;
 
-	return 0;
+	return ret;
 
  fail:
 	free_token(token);
@@ -3088,6 +3088,9 @@ int parse_ftrace_file(char *buf, unsigned long size)
 	if (ret < 0)
 		die("failed to read ftrace event print fmt");
 
+	/* New ftrace handles args */
+	if (ret > 0)
+		return 0;
 	/*
 	 * The arguments for ftrace files are parsed by the fields.
 	 * Set up the fields as their arguments.
