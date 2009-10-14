@@ -40,6 +40,7 @@
 #include <mach/ohci.h>
 #include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
+#include <mach/audio.h>
 
 #include <asm/mach/map.h>
 
@@ -305,6 +306,15 @@ static void __init cm_x300_init_spi(void)
 static inline void cm_x300_init_spi(void) {}
 #endif
 
+#if defined(CONFIG_SND_PXA2XX_LIB_AC97)
+static void __init cm_x300_init_ac97(void)
+{
+	pxa_set_ac97_info(NULL);
+}
+#else
+static inline void cm_x300_init_ac97(void) {}
+#endif
+
 #if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
 static struct mtd_partition cm_x300_nand_partitions[] = {
 	[0] = {
@@ -531,6 +541,7 @@ static void __init cm_x300_init(void)
 	cm_x300_init_i2c();
 	cm_x300_init_spi();
 	cm_x300_init_rtc();
+	cm_x300_init_ac97();
 }
 
 static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
