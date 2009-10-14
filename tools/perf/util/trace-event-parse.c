@@ -1046,6 +1046,35 @@ out_free:
 	return EVENT_ERROR;
 }
 
+static enum event_type
+process_array(struct event *event, struct print_arg *top, char **tok)
+{
+	struct print_arg *arg;
+	enum event_type type;
+	char *token = NULL;
+
+	arg = malloc_or_die(sizeof(*arg));
+	memset(arg, 0, sizeof(*arg));
+
+	*tok = NULL;
+	type = process_arg(event, arg, &token);
+	if (test_type_token(type, token, EVENT_OP, (char *)"]"))
+		goto out_free;
+
+	top->op.right = arg;
+
+	free_token(token);
+	type = read_token_item(&token);
+	*tok = token;
+
+	return type;
+
+out_free:
+	free_token(*tok);
+	free_arg(arg);
+	return EVENT_ERROR;
+}
+
 static int get_op_prio(char *op)
 {
 	if (!op[1]) {
@@ -1191,6 +1220,18 @@ process_op(struct event *event, struct print_arg *arg, char **tok)
 		type = process_arg(event, right, tok);
 
 		arg->op.right = right;
+
+	} else if (strcmp(token, "[") == 0) {
+
+		left = malloc_or_die(sizeof(*left));
+		*left = *arg;
+
+		arg->type = PRINT_OP;
+		arg->op.op = token;
+		arg->op.left = left;
+
+		arg->op.prio = 0;
+		type = process_array(event, arg, tok);
 
 	} else {
 		die("unknown op '%s'", token);
@@ -1931,6 +1972,7 @@ static unsigned long long eval_num_arg(void *data, int size,
 {
 	unsigned long long val = 0;
 	unsigned long long left, right;
+	struct print_arg *larg;
 
 	switch (arg->type) {
 	case PRINT_NULL:
@@ -1957,6 +1999,26 @@ static unsigned long long eval_num_arg(void *data, int size,
 		return 0;
 		break;
 	case PRINT_OP:
+		if (strcmp(arg->op.op, "[") == 0) {
+			/*
+			 * Arrays are special, since we don't want
+			 * to read the arg as is.
+			 */
+			if (arg->op.left->type != PRINT_FIELD)
+				goto default_op; /* oops, all bets off */
+			larg = arg->op.left;
+			if (!larg->field.field) {
+				larg->field.field =
+					find_any_field(event, larg->field.name);
+				if (!larg->field.field)
+					die("field %s not found", larg->field.name);
+			}
+			right = eval_num_arg(data, size, event, arg->op.right);
+			val = read_size(data + larg->field.field->offset +
+					right * long_size, long_size);
+			break;
+		}
+ default_op:
 		left = eval_num_arg(data, size, event, arg->op.left);
 		right = eval_num_arg(data, size, event, arg->op.right);
 		switch (arg->op.op[0]) {
