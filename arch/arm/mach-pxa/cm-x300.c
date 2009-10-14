@@ -137,7 +137,6 @@ static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
 	GPIO36_UART1_DTR,
 
 	/* GPIOs */
-	GPIO79_GPIO,			/* LED */
 	GPIO82_GPIO | MFP_PULL_HIGH,	/* MMC CD */
 	GPIO85_GPIO,			/* MMC WP */
 	GPIO99_GPIO,			/* Ethernet IRQ */
@@ -151,6 +150,20 @@ static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
 	/* Standard I2C */
 	GPIO21_I2C_SCL,
 	GPIO22_I2C_SDA,
+};
+
+static mfp_cfg_t cm_x300_rev_lt130_mfp_cfg[] __initdata = {
+	/* GPIOs */
+	GPIO79_GPIO,			/* LED */
+	GPIO77_GPIO,			/* WiFi reset */
+	GPIO78_GPIO,			/* BT reset */
+};
+
+static mfp_cfg_t cm_x300_rev_ge130_mfp_cfg[] __initdata = {
+	/* GPIOs */
+	GPIO76_GPIO,			/* LED */
+	GPIO71_GPIO,			/* WiFi reset */
+	GPIO70_GPIO,			/* BT reset */
 };
 
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
@@ -351,7 +364,6 @@ static struct gpio_led cm_x300_leds[] = {
 	[0] = {
 		.name = "cm-x300:green",
 		.default_trigger = "heartbeat",
-		.gpio = 79,
 		.active_low = 1,
 	},
 };
@@ -371,6 +383,11 @@ static struct platform_device cm_x300_led_device = {
 
 static void __init cm_x300_init_leds(void)
 {
+	if (system_rev < 130)
+		cm_x300_leds[0].gpio = 79;
+	else
+		cm_x300_leds[0].gpio = 76;
+
 	platform_device_register(&cm_x300_led_device);
 }
 #else
@@ -433,10 +450,20 @@ static void __init cm_x300_init_rtc(void)
 static inline void cm_x300_init_rtc(void) {}
 #endif
 
-static void __init cm_x300_init(void)
+static void __init cm_x300_init_mfp(void)
 {
 	/* board-processor specific GPIO initialization */
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x300_mfp_cfg));
+
+	if (system_rev < 130)
+		pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x300_rev_lt130_mfp_cfg));
+	else
+		pxa3xx_mfp_config(ARRAY_AND_SIZE(cm_x300_rev_ge130_mfp_cfg));
+}
+
+static void __init cm_x300_init(void)
+{
+	cm_x300_init_mfp();
 
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
