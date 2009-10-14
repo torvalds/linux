@@ -1716,12 +1716,18 @@ process_arg_token(struct event *event, struct print_arg *arg,
 
 static int event_read_print_args(struct event *event, struct print_arg **list)
 {
-	enum event_type type;
+	enum event_type type = EVENT_ERROR;
 	struct print_arg *arg;
 	char *token;
 	int args = 0;
 
 	do {
+		if (type == EVENT_NEWLINE) {
+			free_token(token);
+			type = read_token_item(&token);
+			continue;
+		}
+
 		arg = malloc_or_die(sizeof(*arg));
 		memset(arg, 0, sizeof(*arg));
 
