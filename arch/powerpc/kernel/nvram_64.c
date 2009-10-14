@@ -139,8 +139,8 @@ out:
 
 }
 
-static int dev_nvram_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static long dev_nvram_ioctl(struct file *file, unsigned int cmd,
+			    unsigned long arg)
 {
 	switch(cmd) {
 #ifdef CONFIG_PPC_PMAC
@@ -169,11 +169,11 @@ static int dev_nvram_ioctl(struct inode *inode, struct file *file,
 }
 
 const struct file_operations nvram_fops = {
-	.owner =	THIS_MODULE,
-	.llseek =	dev_nvram_llseek,
-	.read =		dev_nvram_read,
-	.write =	dev_nvram_write,
-	.ioctl =	dev_nvram_ioctl,
+	.owner		= THIS_MODULE,
+	.llseek		= dev_nvram_llseek,
+	.read		= dev_nvram_read,
+	.write		= dev_nvram_write,
+	.unlocked_ioctl	= dev_nvram_ioctl,
 };
 
 static struct miscdevice nvram_dev = {
