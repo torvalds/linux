@@ -393,6 +393,17 @@ void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 EXPORT_SYMBOL_GPL(call_rcu);
 
 /*
+ * Wait for an rcu-preempt grace period.  We are supposed to expedite the
+ * grace period, but this is the crude slow compatability hack, so just
+ * invoke synchronize_rcu().
+ */
+void synchronize_rcu_expedited(void)
+{
+	synchronize_rcu();
+}
+EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
+
+/*
  * Check to see if there is any immediate preemptable-RCU-related work
  * to be done.
  */
@@ -563,6 +574,16 @@ void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 	call_rcu_sched(head, func);
 }
 EXPORT_SYMBOL_GPL(call_rcu);
+
+/*
+ * Wait for an rcu-preempt grace period, but make it happen quickly.
+ * But because preemptable RCU does not exist, map to rcu-sched.
+ */
+void synchronize_rcu_expedited(void)
+{
+	synchronize_sched_expedited();
+}
+EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
 /*
  * Because preemptable RCU does not exist, it never has any work to do.
