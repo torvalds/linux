@@ -1272,16 +1272,30 @@ static void ceph_flush_snaps(struct ceph_inode_info *ci)
 /*
  * Add dirty inode to the flushing list.  Assigned a seq number so we
  * can wait for caps to flush without starving.
+ *
+ * Called under i_lock.
  */
-static void __mark_caps_flushing(struct inode *inode,
+static int __mark_caps_flushing(struct inode *inode,
 				 struct ceph_mds_session *session)
 {
 	struct ceph_mds_client *mdsc = &ceph_client(inode->i_sb)->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-
+	int flushing;
+	
+	BUG_ON(ci->i_dirty_caps == 0);
 	BUG_ON(list_empty(&ci->i_dirty_item));
+
+	flushing = ci->i_dirty_caps;
+	dout("__mark_caps_flushing flushing %s, flushing_caps %s -> %s\n",
+	     ceph_cap_string(flushing),
+	     ceph_cap_string(ci->i_flushing_caps),
+	     ceph_cap_string(ci->i_flushing_caps | flushing));
+	ci->i_flushing_caps |= flushing;
+	ci->i_dirty_caps = 0;
+
 	spin_lock(&mdsc->cap_dirty_lock);
 	if (list_empty(&ci->i_flushing_item)) {
+		list_del_init(&ci->i_dirty_item);
 		list_add_tail(&ci->i_flushing_item, &session->s_cap_flushing);
 		mdsc->num_cap_flushing++;
 		ci->i_cap_flush_seq = ++mdsc->cap_flush_seq;
@@ -1289,6 +1303,8 @@ static void __mark_caps_flushing(struct inode *inode,
 		     ci->i_cap_flush_seq);
 	}
 	spin_unlock(&mdsc->cap_dirty_lock);
+
+	return flushing;
 }
 
 /*
@@ -1504,17 +1520,8 @@ ack:
 			took_snap_rwsem = 1;
 		}
 
-		if (cap == ci->i_auth_cap && ci->i_dirty_caps) {
-			/* update dirty, flushing bits */
-			flushing = ci->i_dirty_caps;
-			dout(" flushing %s, flushing_caps %s -> %s\n",
-			     ceph_cap_string(flushing),
-			     ceph_cap_string(ci->i_flushing_caps),
-			     ceph_cap_string(ci->i_flushing_caps | flushing));
-			ci->i_flushing_caps |= flushing;
-			ci->i_dirty_caps = 0;
-			__mark_caps_flushing(inode, session);
-		}
+		if (cap == ci->i_auth_cap && ci->i_dirty_caps)
+			flushing = __mark_caps_flushing(inode, session);
 
 		mds = cap->mds;  /* remember mds, so we don't repeat */
 		sent++;
@@ -1605,15 +1612,7 @@ retry:
 		if (cap->session->s_state < CEPH_MDS_SESSION_OPEN)
 			goto out;
 
-		__mark_caps_flushing(inode, session);
-
-		flushing = ci->i_dirty_caps;
-		dout(" flushing %s, flushing_caps %s -> %s\n",
-		     ceph_cap_string(flushing),
-		     ceph_cap_string(ci->i_flushing_caps),
-		     ceph_cap_string(ci->i_flushing_caps | flushing));
-		ci->i_flushing_caps |= flushing;
-		ci->i_dirty_caps = 0;
+		flushing = __mark_caps_flushing(inode, session);
 
 		/* __send_cap drops i_lock */
 		delayed = __send_cap(mdsc, cap, CEPH_CAP_OP_FLUSH, used, want,
