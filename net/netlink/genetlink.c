@@ -374,11 +374,6 @@ int genl_register_family(struct genl_family *family)
 		goto errout_locked;
 	}
 
-	if (genl_family_find_byid(family->id)) {
-		err = -EEXIST;
-		goto errout_locked;
-	}
-
 	if (family->id == GENL_ID_GENERATE) {
 		u16 newid = genl_generate_id();
 
@@ -388,6 +383,9 @@ int genl_register_family(struct genl_family *family)
 		}
 
 		family->id = newid;
+	} else if (genl_family_find_byid(family->id)) {
+		err = -EEXIST;
+		goto errout_locked;
 	}
 
 	if (family->maxattr) {
