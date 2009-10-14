@@ -62,6 +62,8 @@ struct au8522_state {
 	u32 rev;
 	u8 brightness;
 	u8 contrast;
+	u8 saturation;
+	s16 hue;
 };
 
 /* These are routines shared by both the VSB/QAM demodulator and the analog
