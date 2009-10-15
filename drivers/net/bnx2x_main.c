@@ -2163,11 +2163,23 @@ static void bnx2x_link_report(struct bnx2x *bp)
 	}
 
 	if (bp->link_vars.link_up) {
+		u16 line_speed;
+
 		if (bp->state == BNX2X_STATE_OPEN)
 			netif_carrier_on(bp->dev);
 		printk(KERN_INFO PFX "%s NIC Link is Up, ", bp->dev->name);
 
-		printk("%d Mbps ", bp->link_vars.line_speed);
+		line_speed = bp->link_vars.line_speed;
+		if (IS_E1HMF(bp)) {
+			u16 vn_max_rate;
+
+			vn_max_rate =
+				((bp->mf_config & FUNC_MF_CFG_MAX_BW_MASK) >>
+				 FUNC_MF_CFG_MAX_BW_SHIFT) * 100;
+			if (vn_max_rate < line_speed)
+				line_speed = vn_max_rate;
+		}
+		printk("%d Mbps ", line_speed);
 
 		if (bp->link_vars.duplex == DUPLEX_FULL)
 			printk("full duplex");
