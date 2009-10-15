@@ -2092,12 +2092,6 @@
 #define                     TRUN6  0x40000000 /* Timer 6 Slave Enable Status */
 #define                     TRUN7  0x80000000 /* Timer 7 Slave Enable Status */
 
-/* Bit masks for WDOG_CTL */
-
-#define                      WDEV  0x6        /* Watchdog Event */
-#define                      WDEN  0xff0      /* Watchdog Enable */
-#define                      WDRO  0x8000     /* Watchdog Rolled Over */
-
 /* Bit masks for CNT_CONFIG */
 
 #define                      CNTE  0x1        /* Counter Enable */

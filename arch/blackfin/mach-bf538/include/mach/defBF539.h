@@ -1609,41 +1609,6 @@
 #endif /* _MISRA_RULES */
 
 
-/* ********* WATCHDOG TIMER MASKS ******************** */
-/* Watchdog Timer WDOG_CTL Register Masks */
-#ifdef _MISRA_RULES
-#define	WDEV(x)			(((x)<<1) & 0x0006u)	/* event generated on roll over */
-#else
-#define	WDEV(x)			(((x)<<1) & 0x0006)	/* event generated on roll over */
-#endif /* _MISRA_RULES */
-#define	WDEV_RESET		0x0000				/* generate reset event	on roll	over */
-#define	WDEV_NMI		0x0002				/* generate NMI	event on roll over */
-#define	WDEV_GPI		0x0004				/* generate GP IRQ on roll over */
-#define	WDEV_NONE		0x0006				/* no event on roll over */
-#define	WDEN			0x0FF0				/* enable watchdog */
-#define	WDDIS			0x0AD0				/* disable watchdog */
-#define	WDRO			0x8000				/* watchdog rolled over	latch */
-
-/* deprecated WDOG_CTL Register	Masks for legacy code */
-#define	ICTL WDEV
-#define	ENABLE_RESET	WDEV_RESET
-#define	WDOG_RESET		WDEV_RESET
-#define	ENABLE_NMI		WDEV_NMI
-#define	WDOG_NMI		WDEV_NMI
-#define	ENABLE_GPI		WDEV_GPI
-#define	WDOG_GPI		WDEV_GPI
-#define	DISABLE_EVT	WDEV_NONE
-#define	WDOG_NONE		WDEV_NONE
-
-#define	TMR_EN			WDEN
-#define	WDOG_DISABLE		WDDIS
-#define	TRO			WDRO
-
-#define	ICTL_P0			0x01
-#define	ICTL_P1			0x02
-#define	TRO_P			0x0F
-
-
 /* ***************************** UART CONTROLLER MASKS ********************** */
 /* UARTx_LCR Register */
 #ifdef _MISRA_RULES
