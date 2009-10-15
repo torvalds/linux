@@ -702,7 +702,7 @@ typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event,
 typedef int (*regex_match_func)(char *str, struct regex *r, int len);
 
 enum regex_type {
-	MATCH_FULL,
+	MATCH_FULL = 0,
 	MATCH_FRONT_ONLY,
 	MATCH_MIDDLE_ONLY,
 	MATCH_END_ONLY,

@@ -29,6 +29,7 @@ enum filter_op_ids
 {
 	OP_OR,
 	OP_AND,
+	OP_GLOB,
 	OP_NE,
 	OP_EQ,
 	OP_LT,
@@ -46,16 +47,17 @@ struct filter_op {
 };
 
 static struct filter_op filter_ops[] = {
-	{ OP_OR, "||", 1 },
-	{ OP_AND, "&&", 2 },
-	{ OP_NE, "!=", 4 },
-	{ OP_EQ, "==", 4 },
-	{ OP_LT, "<", 5 },
-	{ OP_LE, "<=", 5 },
-	{ OP_GT, ">", 5 },
-	{ OP_GE, ">=", 5 },
-	{ OP_NONE, "OP_NONE", 0 },
-	{ OP_OPEN_PAREN, "(", 0 },
+	{ OP_OR,	"||",		1 },
+	{ OP_AND,	"&&",		2 },
+	{ OP_GLOB,	"~",		4 },
+	{ OP_NE,	"!=",		4 },
+	{ OP_EQ,	"==",		4 },
+	{ OP_LT,	"<",		5 },
+	{ OP_LE,	"<=",		5 },
+	{ OP_GT,	">",		5 },
+	{ OP_GE,	">=",		5 },
+	{ OP_NONE,	"OP_NONE",	0 },
+	{ OP_OPEN_PAREN, "(",		0 },
 };
 
 enum {
@@ -329,22 +331,18 @@ enum regex_type filter_parse_regex(char *buff, int len, char **search, int *not)
 	return type;
 }
 
-static int filter_build_regex(struct filter_pred *pred)
+static void filter_build_regex(struct filter_pred *pred)
 {
 	struct regex *r = &pred->regex;
-	char *search, *dup;
-	enum regex_type type;
-	int not;
+	char *search;
+	enum regex_type type = MATCH_FULL;
+	int not = 0;
 
-	type = filter_parse_regex(r->pattern, r->len, &search, &not);
-	dup = kstrdup(search, GFP_KERNEL);
-	if (!dup)
-		return -ENOMEM;
-
-	strcpy(r->pattern, dup);
-	kfree(dup);
-
-	r->len = strlen(r->pattern);
+	if (pred->op == OP_GLOB) {
+		type = filter_parse_regex(r->pattern, r->len, &search, &not);
+		r->len = strlen(search);
+		memmove(r->pattern, search, r->len+1);
+	}
 
 	switch (type) {
 	case MATCH_FULL:
@@ -362,8 +360,6 @@ static int filter_build_regex(struct filter_pred *pred)
 	}
 
 	pred->not ^= not;
-
-	return 0;
 }
 
 /* return 1 if event matches, 0 otherwise (discard) */
@@ -676,7 +672,10 @@ static bool is_string_field(struct ftrace_event_field *field)
 
 static int is_legal_op(struct ftrace_event_field *field, int op)
 {
-	if (is_string_field(field) && (op != OP_EQ && op != OP_NE))
+	if (is_string_field(field) &&
+	    (op != OP_EQ && op != OP_NE && op != OP_GLOB))
+		return 0;
+	if (!is_string_field(field) && op == OP_GLOB)
 		return 0;
 
 	return 1;
@@ -761,15 +760,13 @@ static int filter_add_pred(struct filter_parse_state *ps,
 	}
 
 	if (is_string_field(field)) {
-		ret = filter_build_regex(pred);
-		if (ret)
-			return ret;
+		filter_build_regex(pred);
 
 		if (field->filter_type == FILTER_STATIC_STRING) {
 			fn = filter_pred_string;
 			pred->regex.field_len = field->size;
 		} else if (field->filter_type == FILTER_DYN_STRING)
-				fn = filter_pred_strloc;
+			fn = filter_pred_strloc;
 		else {
 			fn = filter_pred_pchar;
 			pred->regex.field_len = strlen(pred->regex.pattern);
