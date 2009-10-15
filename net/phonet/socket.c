@@ -112,8 +112,10 @@ void pn_deliver_sock_broadcast(struct net *net, struct sk_buff *skb)
 			continue;
 
 		clone = skb_clone(skb, GFP_ATOMIC);
-		if (clone)
+		if (clone) {
+			sock_hold(sknode);
 			sk_receive_skb(sknode, clone, 0);
+		}
 	}
 	spin_unlock(&pnsocks.lock);
 }
