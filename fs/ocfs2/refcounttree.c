@@ -4013,10 +4013,6 @@ static int ocfs2_create_reflink_node(struct inode *s_inode,
 		goto out_unlock_refcount;
 	}
 
-	ret = ocfs2_complete_reflink(s_inode, s_bh, t_inode, t_bh, preserve);
-	if (ret)
-		mlog_errno(ret);
-
 out_unlock_refcount:
 	ocfs2_unlock_refcount_tree(osb, ref_tree, 1);
 	brelse(ref_root_bh);
@@ -4068,9 +4064,17 @@ static int __ocfs2_reflink(struct dentry *old_dentry,
 		ret = ocfs2_reflink_xattrs(inode, old_bh,
 					   new_inode, new_bh,
 					   preserve);
-		if (ret)
+		if (ret) {
 			mlog_errno(ret);
+			goto inode_unlock;
+		}
 	}
+
+	ret = ocfs2_complete_reflink(inode, old_bh,
+				     new_inode, new_bh, preserve);
+	if (ret)
+		mlog_errno(ret);
+
 inode_unlock:
 	ocfs2_inode_unlock(new_inode, 1);
 	brelse(new_bh);
