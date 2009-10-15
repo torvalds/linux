@@ -1644,56 +1644,6 @@
 #define	TRO_P			0x0F
 
 
-/* ***************  REAL TIME CLOCK MASKS  **************************/
-/* RTC_STAT and	RTC_ALARM register */
-#define	RTSEC		0x0000003F	/* Real-Time Clock Seconds */
-#define	RTMIN		0x00000FC0	/* Real-Time Clock Minutes */
-#define	RTHR		0x0001F000	/* Real-Time Clock Hours */
-#define	RTDAY		0xFFFE0000	/* Real-Time Clock Days */
-
-/* RTC_ICTL register */
-#define	SWIE		0x0001		/* Stopwatch Interrupt Enable */
-#define	AIE			0x0002		/* Alarm Interrupt Enable */
-#define	SIE			0x0004		/* Seconds (1 Hz) Interrupt Enable */
-#define	MIE			0x0008		/* Minutes Interrupt Enable */
-#define	HIE			0x0010		/* Hours Interrupt Enable */
-#define	DIE			0x0020		/* 24 Hours (Days) Interrupt Enable */
-#define	DAIE		0x0040		/* Day Alarm (Day, Hour, Minute, Second) Interrupt Enable */
-#define	WCIE		0x8000		/* Write Complete Interrupt Enable */
-
-/* RTC_ISTAT register */
-#define	SWEF		0x0001		/* Stopwatch Event Flag */
-#define	AEF			0x0002		/* Alarm Event Flag */
-#define	SEF			0x0004		/* Seconds (1 Hz) Event	Flag */
-#define	MEF			0x0008		/* Minutes Event Flag */
-#define	HEF			0x0010		/* Hours Event Flag */
-#define	DEF			0x0020		/* 24 Hours (Days) Event Flag */
-#define	DAEF		0x0040		/* Day Alarm (Day, Hour, Minute, Second) Event Flag */
-#define	WPS			0x4000		/* Write Pending Status	(RO) */
-#define	WCOM		0x8000		/* Write Complete */
-
-/* RTC_FAST Mask (RTC_PREN Mask) */
-#define	ENABLE_PRESCALE	     0x00000001	 /* Enable prescaler so	RTC runs at 1 Hz */
-#define	PREN		     0x00000001
-		/* ** Must be set after	power-up for proper operation of RTC */
-
-/* Deprecated RTC_STAT and RTC_ALARM Masks			 */
-#define	RTC_SEC			RTSEC	/* Real-Time Clock Seconds */
-#define	RTC_MIN			RTMIN	/* Real-Time Clock Minutes */
-#define	RTC_HR			RTHR	/* Real-Time Clock Hours */
-#define	RTC_DAY			RTDAY	/* Real-Time Clock Days */
-
-/* Deprecated RTC_ICTL/RTC_ISTAT Masks											 */
-#define	STOPWATCH		SWIE		/* Stopwatch Interrupt Enable	 */
-#define	ALARM			AIE		/* Alarm Interrupt Enable		 */
-#define	SECOND			SIE		/* Seconds (1 Hz) Interrupt Enable */
-#define	MINUTE			MIE		/* Minutes Interrupt Enable		 */
-#define	HOUR			HIE		/* Hours Interrupt Enable		 */
-#define	DAY				DIE		/* 24 Hours (Days) Interrupt Enable */
-#define	DAY_ALARM		DAIE		/* Day Alarm (Day, Hour, Minute, Second) Interrupt Enable */
-#define	WRITE_COMPLETE	WCIE		/* Write Complete Interrupt Enable */
-
-
 /* ***************************** UART CONTROLLER MASKS ********************** */
 /* UARTx_LCR Register */
 #ifdef _MISRA_RULES

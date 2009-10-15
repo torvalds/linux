@@ -2149,51 +2149,6 @@
 
 #define                 DPRESCALE  0xf        /* Load Counter Register */
 
-/* Bit masks for RTC_STAT */
-
-#define                   SECONDS  0x3f       /* Seconds */
-#define                   MINUTES  0xfc0      /* Minutes */
-#define                     HOURS  0x1f000    /* Hours */
-#define               DAY_COUNTER  0xfffe0000 /* Day Counter */
-
-/* Bit masks for RTC_ICTL */
-
-#define STOPWATCH_INTERRUPT_ENABLE  0x1        /* Stopwatch Interrupt Enable */
-#define    ALARM_INTERRUPT_ENABLE  0x2        /* Alarm Interrupt Enable */
-#define  SECONDS_INTERRUPT_ENABLE  0x4        /* Seconds Interrupt Enable */
-#define  MINUTES_INTERRUPT_ENABLE  0x8        /* Minutes Interrupt Enable */
-#define    HOURS_INTERRUPT_ENABLE  0x10       /* Hours Interrupt Enable */
-#define TWENTY_FOUR_HOURS_INTERRUPT_ENABLE  0x20       /* 24 Hours Interrupt Enable */
-#define DAY_ALARM_INTERRUPT_ENABLE  0x40       /* Day Alarm Interrupt Enable */
-#define WRITE_COMPLETE_INTERRUPT_ENABLE  0x8000     /* Write Complete Interrupt Enable */
-
-/* Bit masks for RTC_ISTAT */
-
-#define      STOPWATCH_EVENT_FLAG  0x1        /* Stopwatch Event Flag */
-#define          ALARM_EVENT_FLAG  0x2        /* Alarm Event Flag */
-#define        SECONDS_EVENT_FLAG  0x4        /* Seconds Event Flag */
-#define        MINUTES_EVENT_FLAG  0x8        /* Minutes Event Flag */
-#define          HOURS_EVENT_FLAG  0x10       /* Hours Event Flag */
-#define TWENTY_FOUR_HOURS_EVENT_FLAG  0x20       /* 24 Hours Event Flag */
-#define      DAY_ALARM_EVENT_FLAG  0x40       /* Day Alarm Event Flag */
-#define     WRITE_PENDING__STATUS  0x4000     /* Write Pending  Status */
-#define            WRITE_COMPLETE  0x8000     /* Write Complete */
-
-/* Bit masks for RTC_SWCNT */
-
-#define           STOPWATCH_COUNT  0xffff     /* Stopwatch Count */
-
-/* Bit masks for RTC_ALARM */
-
-#define                   SECONDS  0x3f       /* Seconds */
-#define                   MINUTES  0xfc0      /* Minutes */
-#define                     HOURS  0x1f000    /* Hours */
-#define                       DAY  0xfffe0000 /* Day */
-
-/* Bit masks for RTC_PREN */
-
-#define                      PREN  0x1        /* Prescaler Enable */
-
 /* Bit masks for OTP_CONTROL */
 
 #define                FUSE_FADDR  0x1ff      /* OTP/Fuse Address */
