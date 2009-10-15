@@ -95,6 +95,10 @@ config RT2X00_LIB_PCI
 	tristate
 	select RT2X00_LIB
 
+config RT2X00_LIB_SOC
+	tristate
+	select RT2X00_LIB
+
 config RT2X00_LIB_USB
 	tristate
 	select RT2X00_LIB
