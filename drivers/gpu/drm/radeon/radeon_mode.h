@@ -297,6 +297,8 @@ struct radeon_connector {
 	uint32_t connector_id;
 	uint32_t devices;
 	struct radeon_i2c_chan *ddc_bus;
+	/* some systems have a an hdmi and vga port with a shared ddc line */
+	bool shared_ddc;
 	bool use_digital;
 	/* we need to mind the EDID between detect
 	   and get modes due to analog/digital/tvencoder */

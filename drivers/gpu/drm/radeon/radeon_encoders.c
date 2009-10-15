@@ -449,7 +449,7 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 		case 1:
 			args.v1.ucMisc = 0;
 			args.v1.ucAction = action;
-			if (drm_detect_hdmi_monitor((struct edid *)connector->edid_blob_ptr))
+			if (drm_detect_hdmi_monitor(radeon_connector->edid))
 				args.v1.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 			args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
@@ -474,7 +474,7 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 				if (dig->coherent_mode)
 					args.v2.ucMisc |= PANEL_ENCODER_MISC_COHERENT;
 			}
-			if (drm_detect_hdmi_monitor((struct edid *)connector->edid_blob_ptr))
+			if (drm_detect_hdmi_monitor(radeon_connector->edid))
 				args.v2.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 			args.v2.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			args.v2.ucTruncate = 0;
@@ -532,7 +532,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	switch (connector->connector_type) {
 	case DRM_MODE_CONNECTOR_DVII:
 	case DRM_MODE_CONNECTOR_HDMIB: /* HDMI-B is basically DL-DVI; analog works fine */
-		if (drm_detect_hdmi_monitor((struct edid *)connector->edid_blob_ptr))
+		if (drm_detect_hdmi_monitor(radeon_connector->edid))
 			return ATOM_ENCODER_MODE_HDMI;
 		else if (radeon_connector->use_digital)
 			return ATOM_ENCODER_MODE_DVI;
@@ -542,7 +542,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	case DRM_MODE_CONNECTOR_DVID:
 	case DRM_MODE_CONNECTOR_HDMIA:
 	default:
-		if (drm_detect_hdmi_monitor((struct edid *)connector->edid_blob_ptr))
+		if (drm_detect_hdmi_monitor(radeon_connector->edid))
 			return ATOM_ENCODER_MODE_HDMI;
 		else
 			return ATOM_ENCODER_MODE_DVI;
@@ -554,7 +554,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		/*if (radeon_output->MonType == MT_DP)
 		  return ATOM_ENCODER_MODE_DP;
 		  else*/
-		if (drm_detect_hdmi_monitor((struct edid *)connector->edid_blob_ptr))
+		if (drm_detect_hdmi_monitor(radeon_connector->edid))
 			return ATOM_ENCODER_MODE_HDMI;
 		else
 			return ATOM_ENCODER_MODE_DVI;

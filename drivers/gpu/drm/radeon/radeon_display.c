@@ -334,27 +334,19 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 
 int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 {
-	struct edid *edid;
 	int ret = 0;
 
 	if (!radeon_connector->ddc_bus)
 		return -1;
 	if (!radeon_connector->edid) {
 		radeon_i2c_do_lock(radeon_connector, 1);
-		edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
+		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
 		radeon_i2c_do_lock(radeon_connector, 0);
-	} else
-		edid = radeon_connector->edid;
+	}
 
-	if (edid) {
-		/* update digital bits here */
-		if (edid->input & DRM_EDID_INPUT_DIGITAL)
-			radeon_connector->use_digital = 1;
-		else
-			radeon_connector->use_digital = 0;
-		drm_mode_connector_update_edid_property(&radeon_connector->base, edid);
-		ret = drm_add_edid_modes(&radeon_connector->base, edid);
-		kfree(edid);
+	if (radeon_connector->edid) {
+		drm_mode_connector_update_edid_property(&radeon_connector->base, radeon_connector->edid);
+		ret = drm_add_edid_modes(&radeon_connector->base, radeon_connector->edid);
 		return ret;
 	}
 	drm_mode_connector_update_edid_property(&radeon_connector->base, NULL);
