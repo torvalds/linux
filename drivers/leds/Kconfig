@@ -245,6 +245,14 @@ config LEDS_INTEL_SS4200
 	  drive or power LEDs on the front panel.  Using this driver
 	  can stop the front LED from blinking after startup.
 
+config LEDS_LT3593
+	tristate "LED driver for LT3593 controllers"
+	depends on LEDS_CLASS && GENERIC_GPIO
+	help
+	  This option enables support for LEDs driven by a Linear Technology
+	  LT3593 controller. This controller uses a special one-wire pulse
+	  coding protocol to set the brightness.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS
