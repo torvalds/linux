@@ -166,7 +166,6 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 #if defined(CONFIG_BFIN_SPI_ADC) || defined(CONFIG_BFIN_SPI_ADC_MODULE)
 /* SPI ADC chip */
 static struct bfin5xx_spi_chip spi_adc_chip_info = {
-	.ctl_reg = 0x1000,
 	.enable_dma = 1,         /* use dma transfer with this chip*/
 	.bits_per_word = 16,
 };
@@ -174,7 +173,6 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 
 #if defined(CONFIG_SND_BLACKFIN_AD1836) || defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
-	.ctl_reg = 0x1000,
 	.enable_dma = 0,
 	.bits_per_word = 16,
 };
