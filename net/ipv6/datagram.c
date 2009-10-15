@@ -98,13 +98,14 @@ ipv4_connected:
 		if (err)
 			goto out;
 
-		ipv6_addr_set_v4mapped(inet->daddr, &np->daddr);
+		ipv6_addr_set_v4mapped(inet->inet_daddr, &np->daddr);
 
 		if (ipv6_addr_any(&np->saddr))
-			ipv6_addr_set_v4mapped(inet->saddr, &np->saddr);
+			ipv6_addr_set_v4mapped(inet->inet_saddr, &np->saddr);
 
 		if (ipv6_addr_any(&np->rcv_saddr))
-			ipv6_addr_set_v4mapped(inet->rcv_saddr, &np->rcv_saddr);
+			ipv6_addr_set_v4mapped(inet->inet_rcv_saddr,
+					       &np->rcv_saddr);
 
 		goto out;
 	}
@@ -133,7 +134,7 @@ ipv4_connected:
 	ipv6_addr_copy(&np->daddr, daddr);
 	np->flow_label = fl.fl6_flowlabel;
 
-	inet->dport = usin->sin6_port;
+	inet->inet_dport = usin->sin6_port;
 
 	/*
 	 *	Check for a route to destination an obtain the
@@ -145,8 +146,8 @@ ipv4_connected:
 	ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 	fl.oif = sk->sk_bound_dev_if;
 	fl.mark = sk->sk_mark;
-	fl.fl_ip_dport = inet->dport;
-	fl.fl_ip_sport = inet->sport;
+	fl.fl_ip_dport = inet->inet_dport;
+	fl.fl_ip_sport = inet->inet_sport;
 
 	if (!fl.oif && (addr_type&IPV6_ADDR_MULTICAST))
 		fl.oif = np->mcast_oif;
@@ -188,7 +189,7 @@ ipv4_connected:
 
 	if (ipv6_addr_any(&np->rcv_saddr)) {
 		ipv6_addr_copy(&np->rcv_saddr, &fl.fl6_src);
-		inet->rcv_saddr = LOOPBACK4_IPV6;
+		inet->inet_rcv_saddr = LOOPBACK4_IPV6;
 	}
 
 	ip6_dst_store(sk, dst,

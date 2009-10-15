@@ -1297,7 +1297,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 	switch (optname) {
 	case MRT6_INIT:
 		if (sk->sk_type != SOCK_RAW ||
-		    inet_sk(sk)->num != IPPROTO_ICMPV6)
+		    inet_sk(sk)->inet_num != IPPROTO_ICMPV6)
 			return -EOPNOTSUPP;
 		if (optlen < sizeof(int))
 			return -EINVAL;

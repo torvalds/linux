@@ -254,7 +254,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		fl.oif = sk->sk_bound_dev_if;
 		fl.mark = sk->sk_mark;
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
-		fl.fl_ip_sport = inet_sk(sk)->sport;
+		fl.fl_ip_sport = inet_sk(sk)->inet_sport;
 		security_req_classify_flow(req, &fl);
 		if (ip6_dst_lookup(sk, &dst, &fl))
 			goto out_free;

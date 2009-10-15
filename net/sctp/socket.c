@@ -394,7 +394,7 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 
 	/* Refresh ephemeral port.  */
 	if (!bp->port)
-		bp->port = inet_sk(sk)->num;
+		bp->port = inet_sk(sk)->inet_num;
 
 	/* Add the address to the bind address list.
 	 * Use GFP_ATOMIC since BHs will be disabled.
@@ -403,7 +403,7 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 
 	/* Copy back into socket for getsockname() use. */
 	if (!ret) {
-		inet_sk(sk)->sport = htons(inet_sk(sk)->num);
+		inet_sk(sk)->inet_sport = htons(inet_sk(sk)->inet_num);
 		af->to_sk_saddr(addr, sk);
 	}
 
@@ -1115,7 +1115,7 @@ static int __sctp_connect(struct sock* sk,
 	}
 
 	/* Initialize sk's dport and daddr for getpeername() */
-	inet_sk(sk)->dport = htons(asoc->peer.port);
+	inet_sk(sk)->inet_dport = htons(asoc->peer.port);
 	af = sctp_get_af_specific(sa_addr->sa.sa_family);
 	af->to_sk_daddr(sa_addr, sk);
 	sk->sk_err = 0;
@@ -5851,7 +5851,7 @@ pp_not_found:
 	 */
 success:
 	if (!sctp_sk(sk)->bind_hash) {
-		inet_sk(sk)->num = snum;
+		inet_sk(sk)->inet_num = snum;
 		sk_add_bind_node(sk, &pp->owner);
 		sctp_sk(sk)->bind_hash = pp;
 	}
@@ -5923,7 +5923,7 @@ SCTP_STATIC int sctp_listen_start(struct sock *sk, int backlog)
 		if (sctp_autobind(sk))
 			return -EAGAIN;
 	} else {
-		if (sctp_get_port(sk, inet_sk(sk)->num)) {
+		if (sctp_get_port(sk, inet_sk(sk)->inet_num)) {
 			sk->sk_state = SCTP_SS_CLOSED;
 			return -EADDRINUSE;
 		}
@@ -6094,14 +6094,14 @@ static void sctp_bucket_destroy(struct sctp_bind_bucket *pp)
 static inline void __sctp_put_port(struct sock *sk)
 {
 	struct sctp_bind_hashbucket *head =
-		&sctp_port_hashtable[sctp_phashfn(inet_sk(sk)->num)];
+		&sctp_port_hashtable[sctp_phashfn(inet_sk(sk)->inet_num)];
 	struct sctp_bind_bucket *pp;
 
 	sctp_spin_lock(&head->lock);
 	pp = sctp_sk(sk)->bind_hash;
 	__sk_del_bind_node(sk);
 	sctp_sk(sk)->bind_hash = NULL;
-	inet_sk(sk)->num = 0;
+	inet_sk(sk)->inet_num = 0;
 	sctp_bucket_destroy(pp);
 	sctp_spin_unlock(&head->lock);
 }
@@ -6128,7 +6128,7 @@ static int sctp_autobind(struct sock *sk)
 	/* Initialize a local sockaddr structure to INADDR_ANY. */
 	af = sctp_sk(sk)->pf->af;
 
-	port = htons(inet_sk(sk)->num);
+	port = htons(inet_sk(sk)->inet_num);
 	af->inaddr_any(&autoaddr, port);
 
 	return sctp_do_bind(sk, &autoaddr, af->sockaddr_len);
@@ -6697,12 +6697,12 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	/* Initialize sk's sport, dport, rcv_saddr and daddr for
 	 * getsockname() and getpeername()
 	 */
-	newinet->sport = inet->sport;
-	newinet->saddr = inet->saddr;
-	newinet->rcv_saddr = inet->rcv_saddr;
-	newinet->dport = htons(asoc->peer.port);
+	newinet->inet_sport = inet->inet_sport;
+	newinet->inet_saddr = inet->inet_saddr;
+	newinet->inet_rcv_saddr = inet->inet_rcv_saddr;
+	newinet->inet_dport = htons(asoc->peer.port);
 	newinet->pmtudisc = inet->pmtudisc;
-	newinet->id = asoc->next_tsn ^ jiffies;
+	newinet->inet_id = asoc->next_tsn ^ jiffies;
 
 	newinet->uc_ttl = inet->uc_ttl;
 	newinet->mc_loop = 1;
@@ -6741,13 +6741,13 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	newsp->hmac = NULL;
 
 	/* Hook this new socket in to the bind_hash list. */
-	head = &sctp_port_hashtable[sctp_phashfn(inet_sk(oldsk)->num)];
+	head = &sctp_port_hashtable[sctp_phashfn(inet_sk(oldsk)->inet_num)];
 	sctp_local_bh_disable();
 	sctp_spin_lock(&head->lock);
 	pp = sctp_sk(oldsk)->bind_hash;
 	sk_add_bind_node(newsk, &pp->owner);
 	sctp_sk(newsk)->bind_hash = pp;
-	inet_sk(newsk)->num = inet_sk(oldsk)->num;
+	inet_sk(newsk)->inet_num = inet_sk(oldsk)->inet_num;
 	sctp_spin_unlock(&head->lock);
 	sctp_local_bh_enable();
 

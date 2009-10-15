@@ -39,7 +39,7 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	sk_dst_reset(sk);
 
 	oif = sk->sk_bound_dev_if;
-	saddr = inet->saddr;
+	saddr = inet->inet_saddr;
 	if (ipv4_is_multicast(usin->sin_addr.s_addr)) {
 		if (!oif)
 			oif = inet->mc_index;
@@ -49,7 +49,7 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	err = ip_route_connect(&rt, usin->sin_addr.s_addr, saddr,
 			       RT_CONN_FLAGS(sk), oif,
 			       sk->sk_protocol,
-			       inet->sport, usin->sin_port, sk, 1);
+			       inet->inet_sport, usin->sin_port, sk, 1);
 	if (err) {
 		if (err == -ENETUNREACH)
 			IP_INC_STATS_BH(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
@@ -60,14 +60,14 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		ip_rt_put(rt);
 		return -EACCES;
 	}
-	if (!inet->saddr)
-		inet->saddr = rt->rt_src;	/* Update source address */
-	if (!inet->rcv_saddr)
-		inet->rcv_saddr = rt->rt_src;
-	inet->daddr = rt->rt_dst;
-	inet->dport = usin->sin_port;
+	if (!inet->inet_saddr)
+		inet->inet_saddr = rt->rt_src;	/* Update source address */
+	if (!inet->inet_rcv_saddr)
+		inet->inet_rcv_saddr = rt->rt_src;
+	inet->inet_daddr = rt->rt_dst;
+	inet->inet_dport = usin->sin_port;
 	sk->sk_state = TCP_ESTABLISHED;
-	inet->id = jiffies;
+	inet->inet_id = jiffies;
 
 	sk_dst_set(sk, &rt->u.dst);
 	return(0);

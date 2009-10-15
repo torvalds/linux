@@ -516,7 +516,7 @@ static inline int pppol2tp_verify_udp_checksum(struct sock *sk,
 		return 0;
 
 	inet = inet_sk(sk);
-	psum = csum_tcpudp_nofold(inet->saddr, inet->daddr, ulen,
+	psum = csum_tcpudp_nofold(inet->inet_saddr, inet->inet_daddr, ulen,
 				  IPPROTO_UDP, 0);
 
 	if ((skb->ip_summed == CHECKSUM_COMPLETE) &&
@@ -949,8 +949,8 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	inet = inet_sk(sk_tun);
 	udp_len = hdr_len + sizeof(ppph) + total_len;
 	uh = (struct udphdr *) skb->data;
-	uh->source = inet->sport;
-	uh->dest = inet->dport;
+	uh->source = inet->inet_sport;
+	uh->dest = inet->inet_dport;
 	uh->len = htons(udp_len);
 	uh->check = 0;
 	skb_put(skb, sizeof(struct udphdr));
@@ -978,7 +978,8 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	else if (!(skb_dst(skb)->dev->features & NETIF_F_V4_CSUM)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		csum = skb_checksum(skb, 0, udp_len, 0);
-		uh->check = csum_tcpudp_magic(inet->saddr, inet->daddr,
+		uh->check = csum_tcpudp_magic(inet->inet_saddr,
+					      inet->inet_daddr,
 					      udp_len, IPPROTO_UDP, csum);
 		if (uh->check == 0)
 			uh->check = CSUM_MANGLED_0;
@@ -986,7 +987,8 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct udphdr, check);
-		uh->check = ~csum_tcpudp_magic(inet->saddr, inet->daddr,
+		uh->check = ~csum_tcpudp_magic(inet->inet_saddr,
+					       inet->inet_daddr,
 					       udp_len, IPPROTO_UDP, 0);
 	}
 
@@ -1136,8 +1138,8 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	__skb_push(skb, sizeof(*uh));
 	skb_reset_transport_header(skb);
 	uh = udp_hdr(skb);
-	uh->source = inet->sport;
-	uh->dest = inet->dport;
+	uh->source = inet->inet_sport;
+	uh->dest = inet->inet_dport;
 	uh->len = htons(udp_len);
 	uh->check = 0;
 
@@ -1181,7 +1183,8 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	else if (!(skb_dst(skb)->dev->features & NETIF_F_V4_CSUM)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		csum = skb_checksum(skb, 0, udp_len, 0);
-		uh->check = csum_tcpudp_magic(inet->saddr, inet->daddr,
+		uh->check = csum_tcpudp_magic(inet->inet_saddr,
+					      inet->inet_daddr,
 					      udp_len, IPPROTO_UDP, csum);
 		if (uh->check == 0)
 			uh->check = CSUM_MANGLED_0;
@@ -1189,7 +1192,8 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct udphdr, check);
-		uh->check = ~csum_tcpudp_magic(inet->saddr, inet->daddr,
+		uh->check = ~csum_tcpudp_magic(inet->inet_saddr,
+					       inet->inet_daddr,
 					       udp_len, IPPROTO_UDP, 0);
 	}
 

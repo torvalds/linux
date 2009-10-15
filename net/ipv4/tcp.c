@@ -1998,7 +1998,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	__skb_queue_purge(&sk->sk_async_wait_queue);
 #endif
 
-	inet->dport = 0;
+	inet->inet_dport = 0;
 
 	if (!(sk->sk_userlocks & SOCK_BINDADDR_LOCK))
 		inet_reset_saddr(sk);
@@ -2022,7 +2022,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	memset(&tp->rx_opt, 0, sizeof(tp->rx_opt));
 	__sk_dst_reset(sk);
 
-	WARN_ON(inet->num && !icsk->icsk_bind_hash);
+	WARN_ON(inet->inet_num && !icsk->icsk_bind_hash);
 
 	sk->sk_error_report(sk);
 	return err;

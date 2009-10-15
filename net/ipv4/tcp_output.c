@@ -661,8 +661,8 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 
 	/* Build TCP header and checksum it. */
 	th = tcp_hdr(skb);
-	th->source		= inet->sport;
-	th->dest		= inet->dport;
+	th->source		= inet->inet_sport;
+	th->dest		= inet->inet_dport;
 	th->seq			= htonl(tcb->seq);
 	th->ack_seq		= htonl(tp->rcv_nxt);
 	*(((__be16 *)th) + 6)	= htons(((tcp_header_size >> 2) << 12) |

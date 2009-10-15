@@ -214,7 +214,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 			goto fail_unlock;
 	}
 found:
-	inet_sk(sk)->num = snum;
+	inet_sk(sk)->inet_num = snum;
 	sk->sk_hash = snum;
 	if (sk_unhashed(sk)) {
 		sk_nulls_add_node_rcu(sk, &hslot->head);
@@ -233,8 +233,8 @@ static int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
 	struct inet_sock *inet1 = inet_sk(sk1), *inet2 = inet_sk(sk2);
 
 	return 	(!ipv6_only_sock(sk2)  &&
-		 (!inet1->rcv_saddr || !inet2->rcv_saddr ||
-		   inet1->rcv_saddr == inet2->rcv_saddr));
+		 (!inet1->inet_rcv_saddr || !inet2->inet_rcv_saddr ||
+		   inet1->inet_rcv_saddr == inet2->inet_rcv_saddr));
 }
 
 int udp_v4_get_port(struct sock *sk, unsigned short snum)
@@ -253,18 +253,18 @@ static inline int compute_score(struct sock *sk, struct net *net, __be32 saddr,
 		struct inet_sock *inet = inet_sk(sk);
 
 		score = (sk->sk_family == PF_INET ? 1 : 0);
-		if (inet->rcv_saddr) {
-			if (inet->rcv_saddr != daddr)
+		if (inet->inet_rcv_saddr) {
+			if (inet->inet_rcv_saddr != daddr)
 				return -1;
 			score += 2;
 		}
-		if (inet->daddr) {
-			if (inet->daddr != saddr)
+		if (inet->inet_daddr) {
+			if (inet->inet_daddr != saddr)
 				return -1;
 			score += 2;
 		}
-		if (inet->dport) {
-			if (inet->dport != sport)
+		if (inet->inet_dport) {
+			if (inet->inet_dport != sport)
 				return -1;
 			score += 2;
 		}
@@ -360,9 +360,10 @@ static inline struct sock *udp_v4_mcast_next(struct net *net, struct sock *sk,
 
 		if (!net_eq(sock_net(s), net)				||
 		    s->sk_hash != hnum					||
-		    (inet->daddr && inet->daddr != rmt_addr)		||
-		    (inet->dport != rmt_port && inet->dport)		||
-		    (inet->rcv_saddr && inet->rcv_saddr != loc_addr)	||
+		    (inet->inet_daddr && inet->inet_daddr != rmt_addr)	||
+		    (inet->inet_dport != rmt_port && inet->inet_dport)	||
+		    (inet->inet_rcv_saddr	&&
+		     inet->inet_rcv_saddr != loc_addr)			||
 		    ipv6_only_sock(s)					||
 		    (s->sk_bound_dev_if && s->sk_bound_dev_if != dif))
 			continue;
@@ -646,14 +647,14 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	} else {
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -EDESTADDRREQ;
-		daddr = inet->daddr;
-		dport = inet->dport;
+		daddr = inet->inet_daddr;
+		dport = inet->inet_dport;
 		/* Open fast path for connected socket.
 		   Route will not be used, if at least one option is set.
 		 */
 		connected = 1;
 	}
-	ipc.addr = inet->saddr;
+	ipc.addr = inet->inet_saddr;
 
 	ipc.oif = sk->sk_bound_dev_if;
 	err = sock_tx_timestamp(msg, sk, &ipc.shtx);
@@ -708,7 +709,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 				    .proto = sk->sk_protocol,
 				    .flags = inet_sk_flowi_flags(sk),
 				    .uli_u = { .ports =
-					       { .sport = inet->sport,
+					       { .sport = inet->inet_sport,
 						 .dport = dport } } };
 		struct net *net = sock_net(sk);
 
@@ -752,7 +753,7 @@ back_from_confirm:
 	inet->cork.fl.fl4_dst = daddr;
 	inet->cork.fl.fl_ip_dport = dport;
 	inet->cork.fl.fl4_src = saddr;
-	inet->cork.fl.fl_ip_sport = inet->sport;
+	inet->cork.fl.fl_ip_sport = inet->inet_sport;
 	up->pending = AF_INET;
 
 do_append_data:
@@ -1029,15 +1030,15 @@ int udp_disconnect(struct sock *sk, int flags)
 	 */
 
 	sk->sk_state = TCP_CLOSE;
-	inet->daddr = 0;
-	inet->dport = 0;
+	inet->inet_daddr = 0;
+	inet->inet_dport = 0;
 	sk->sk_bound_dev_if = 0;
 	if (!(sk->sk_userlocks & SOCK_BINDADDR_LOCK))
 		inet_reset_saddr(sk);
 
 	if (!(sk->sk_userlocks & SOCK_BINDPORT_LOCK)) {
 		sk->sk_prot->unhash(sk);
-		inet->sport = 0;
+		inet->inet_sport = 0;
 	}
 	sk_dst_reset(sk);
 	return 0;
@@ -1053,7 +1054,7 @@ void udp_lib_unhash(struct sock *sk)
 
 		spin_lock_bh(&hslot->lock);
 		if (sk_nulls_del_node_init_rcu(sk)) {
-			inet_sk(sk)->num = 0;
+			inet_sk(sk)->inet_num = 0;
 			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 		}
 		spin_unlock_bh(&hslot->lock);
@@ -1752,10 +1753,10 @@ static void udp4_format_sock(struct sock *sp, struct seq_file *f,
 		int bucket, int *len)
 {
 	struct inet_sock *inet = inet_sk(sp);
-	__be32 dest = inet->daddr;
-	__be32 src  = inet->rcv_saddr;
-	__u16 destp	  = ntohs(inet->dport);
-	__u16 srcp	  = ntohs(inet->sport);
+	__be32 dest = inet->inet_daddr;
+	__be32 src  = inet->inet_rcv_saddr;
+	__u16 destp	  = ntohs(inet->inet_dport);
+	__u16 srcp	  = ntohs(inet->inet_sport);
 
 	seq_printf(f, "%5d: %08X:%04X %08X:%04X"
 		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d%n",

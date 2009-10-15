@@ -86,7 +86,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	   Note, that any socket with inet->num != 0 MUST be bound in
 	   binding cache, even if it is closed.
 	 */
-	bhead = &hashinfo->bhash[inet_bhashfn(twsk_net(tw), inet->num,
+	bhead = &hashinfo->bhash[inet_bhashfn(twsk_net(tw), inet->inet_num,
 			hashinfo->bhash_size)];
 	spin_lock(&bhead->lock);
 	tw->tw_tb = icsk->icsk_bind_hash;
@@ -124,14 +124,14 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 		kmemcheck_annotate_bitfield(tw, flags);
 
 		/* Give us an identity. */
-		tw->tw_daddr	    = inet->daddr;
-		tw->tw_rcv_saddr    = inet->rcv_saddr;
+		tw->tw_daddr	    = inet->inet_daddr;
+		tw->tw_rcv_saddr    = inet->inet_rcv_saddr;
 		tw->tw_bound_dev_if = sk->sk_bound_dev_if;
-		tw->tw_num	    = inet->num;
+		tw->tw_num	    = inet->inet_num;
 		tw->tw_state	    = TCP_TIME_WAIT;
 		tw->tw_substate	    = state;
-		tw->tw_sport	    = inet->sport;
-		tw->tw_dport	    = inet->dport;
+		tw->tw_sport	    = inet->inet_sport;
+		tw->tw_dport	    = inet->inet_dport;
 		tw->tw_family	    = sk->sk_family;
 		tw->tw_reuse	    = sk->sk_reuse;
 		tw->tw_hash	    = sk->sk_hash;

@@ -194,7 +194,7 @@ static inline struct inet_timewait_sock *inet_twsk(const struct sock *sk)
 static inline __be32 inet_rcv_saddr(const struct sock *sk)
 {
 	return likely(sk->sk_state != TCP_TIME_WAIT) ?
-		inet_sk(sk)->rcv_saddr : inet_twsk(sk)->tw_rcv_saddr;
+		inet_sk(sk)->inet_rcv_saddr : inet_twsk(sk)->tw_rcv_saddr;
 }
 
 extern void inet_twsk_put(struct inet_timewait_sock *tw);

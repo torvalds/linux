@@ -53,7 +53,7 @@ int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 {
 	const struct in6_addr *sk_rcv_saddr6 = &inet6_sk(sk)->rcv_saddr;
 	const struct in6_addr *sk2_rcv_saddr6 = inet6_rcv_saddr(sk2);
-	__be32 sk_rcv_saddr = inet_sk(sk)->rcv_saddr;
+	__be32 sk1_rcv_saddr = inet_sk(sk)->inet_rcv_saddr;
 	__be32 sk2_rcv_saddr = inet_rcv_saddr(sk2);
 	int sk_ipv6only = ipv6_only_sock(sk);
 	int sk2_ipv6only = inet_v6_ipv6only(sk2);
@@ -63,8 +63,8 @@ int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 	/* if both are mapped, treat as IPv4 */
 	if (addr_type == IPV6_ADDR_MAPPED && addr_type2 == IPV6_ADDR_MAPPED)
 		return (!sk2_ipv6only &&
-			(!sk_rcv_saddr || !sk2_rcv_saddr ||
-			  sk_rcv_saddr == sk2_rcv_saddr));
+			(!sk1_rcv_saddr || !sk2_rcv_saddr ||
+			  sk1_rcv_saddr == sk2_rcv_saddr));
 
 	if (addr_type2 == IPV6_ADDR_ANY &&
 	    !(sk2_ipv6only && addr_type == IPV6_ADDR_MAPPED))
@@ -100,8 +100,8 @@ static inline int compute_score(struct sock *sk, struct net *net,
 		struct inet_sock *inet = inet_sk(sk);
 
 		score = 0;
-		if (inet->dport) {
-			if (inet->dport != sport)
+		if (inet->inet_dport) {
+			if (inet->inet_dport != sport)
 				return -1;
 			score++;
 		}
@@ -417,8 +417,8 @@ static struct sock *udp_v6_mcast_next(struct net *net, struct sock *sk,
 
 		if (s->sk_hash == num && s->sk_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(s);
-			if (inet->dport) {
-				if (inet->dport != rmt_port)
+			if (inet->inet_dport) {
+				if (inet->inet_dport != rmt_port)
 					continue;
 			}
 			if (!ipv6_addr_any(&np->daddr) &&
@@ -792,7 +792,7 @@ int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (ipv6_addr_v4mapped(daddr)) {
 			struct sockaddr_in sin;
 			sin.sin_family = AF_INET;
-			sin.sin_port = sin6 ? sin6->sin6_port : inet->dport;
+			sin.sin_port = sin6 ? sin6->sin6_port : inet->inet_dport;
 			sin.sin_addr.s_addr = daddr->s6_addr32[3];
 			msg->msg_name = &sin;
 			msg->msg_namelen = sizeof(sin);
@@ -865,7 +865,7 @@ do_udp_sendmsg:
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -EDESTADDRREQ;
 
-		fl.fl_ip_dport = inet->dport;
+		fl.fl_ip_dport = inet->inet_dport;
 		daddr = &np->daddr;
 		fl.fl6_flowlabel = np->flow_label;
 		connected = 1;
@@ -911,7 +911,7 @@ do_udp_sendmsg:
 		fl.fl6_dst.s6_addr[15] = 0x1; /* :: means loopback (BSD'ism) */
 	if (ipv6_addr_any(&fl.fl6_src) && !ipv6_addr_any(&np->saddr))
 		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
-	fl.fl_ip_sport = inet->sport;
+	fl.fl_ip_sport = inet->inet_sport;
 
 	/* merge ip6_build_xmit from ip6_output */
 	if (opt && opt->srcrt) {
@@ -1192,8 +1192,8 @@ static void udp6_sock_seq_show(struct seq_file *seq, struct sock *sp, int bucket
 
 	dest  = &np->daddr;
 	src   = &np->rcv_saddr;
-	destp = ntohs(inet->dport);
-	srcp  = ntohs(inet->sport);
+	destp = ntohs(inet->inet_dport);
+	srcp  = ntohs(inet->inet_sport);
 	seq_printf(seq,
 		   "%5d: %08X%08X%08X%08X:%04X %08X%08X%08X%08X:%04X "
 		   "%02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d\n",

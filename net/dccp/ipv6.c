@@ -158,8 +158,8 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
 			ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 			fl.oif = sk->sk_bound_dev_if;
-			fl.fl_ip_dport = inet->dport;
-			fl.fl_ip_sport = inet->sport;
+			fl.fl_ip_dport = inet->inet_dport;
+			fl.fl_ip_sport = inet->inet_sport;
 			security_sk_classify_flow(sk, &fl);
 
 			err = ip6_dst_lookup(sk, &dst, &fl);
@@ -510,9 +510,9 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 
 		memcpy(newnp, np, sizeof(struct ipv6_pinfo));
 
-		ipv6_addr_set_v4mapped(newinet->daddr, &newnp->daddr);
+		ipv6_addr_set_v4mapped(newinet->inet_daddr, &newnp->daddr);
 
-		ipv6_addr_set_v4mapped(newinet->saddr, &newnp->saddr);
+		ipv6_addr_set_v4mapped(newinet->inet_saddr, &newnp->saddr);
 
 		ipv6_addr_copy(&newnp->rcv_saddr, &newnp->saddr);
 
@@ -640,7 +640,8 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 
 	dccp_sync_mss(newsk, dst_mtu(dst));
 
-	newinet->daddr = newinet->saddr = newinet->rcv_saddr = LOOPBACK4_IPV6;
+	newinet->inet_daddr = newinet->inet_saddr = LOOPBACK4_IPV6;
+	newinet->inet_rcv_saddr = LOOPBACK4_IPV6;
 
 	__inet6_hash(newsk);
 	__inet_inherit_port(sk, newsk);
@@ -968,10 +969,9 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 			icsk->icsk_af_ops = &dccp_ipv6_af_ops;
 			sk->sk_backlog_rcv = dccp_v6_do_rcv;
 			goto failure;
-		} else {
-			ipv6_addr_set_v4mapped(inet->saddr, &np->saddr);
-			ipv6_addr_set_v4mapped(inet->rcv_saddr, &np->rcv_saddr);
 		}
+		ipv6_addr_set_v4mapped(inet->inet_saddr, &np->saddr);
+		ipv6_addr_set_v4mapped(inet->inet_rcv_saddr, &np->rcv_saddr);
 
 		return err;
 	}
@@ -984,7 +984,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	ipv6_addr_copy(&fl.fl6_src, saddr ? saddr : &np->saddr);
 	fl.oif = sk->sk_bound_dev_if;
 	fl.fl_ip_dport = usin->sin6_port;
-	fl.fl_ip_sport = inet->sport;
+	fl.fl_ip_sport = inet->inet_sport;
 	security_sk_classify_flow(sk, &fl);
 
 	if (np->opt != NULL && np->opt->srcrt != NULL) {
@@ -1017,7 +1017,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	/* set the source address */
 	ipv6_addr_copy(&np->saddr, saddr);
-	inet->rcv_saddr = LOOPBACK4_IPV6;
+	inet->inet_rcv_saddr = LOOPBACK4_IPV6;
 
 	__ip6_dst_store(sk, dst, NULL, NULL);
 
@@ -1026,7 +1026,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		icsk->icsk_ext_hdr_len = (np->opt->opt_flen +
 					  np->opt->opt_nflen);
 
-	inet->dport = usin->sin6_port;
+	inet->inet_dport = usin->sin6_port;
 
 	dccp_set_state(sk, DCCP_REQUESTING);
 	err = inet6_hash_connect(&dccp_death_row, sk);
@@ -1035,7 +1035,8 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	dp->dccps_iss = secure_dccpv6_sequence_number(np->saddr.s6_addr32,
 						      np->daddr.s6_addr32,
-						      inet->sport, inet->dport);
+						      inet->inet_sport,
+						      inet->inet_dport);
 	err = dccp_connect(sk);
 	if (err)
 		goto late_failure;
@@ -1046,7 +1047,7 @@ late_failure:
 	dccp_set_state(sk, DCCP_CLOSED);
 	__sk_dst_reset(sk);
 failure:
-	inet->dport = 0;
+	inet->inet_dport = 0;
 	sk->sk_route_caps = 0;
 	return err;
 }

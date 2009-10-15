@@ -62,10 +62,10 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		nexthop = inet->opt->faddr;
 	}
 
-	tmp = ip_route_connect(&rt, nexthop, inet->saddr,
+	tmp = ip_route_connect(&rt, nexthop, inet->inet_saddr,
 			       RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
 			       IPPROTO_DCCP,
-			       inet->sport, usin->sin_port, sk, 1);
+			       inet->inet_sport, usin->sin_port, sk, 1);
 	if (tmp < 0)
 		return tmp;
 
@@ -77,12 +77,12 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (inet->opt == NULL || !inet->opt->srr)
 		daddr = rt->rt_dst;
 
-	if (inet->saddr == 0)
-		inet->saddr = rt->rt_src;
-	inet->rcv_saddr = inet->saddr;
+	if (inet->inet_saddr == 0)
+		inet->inet_saddr = rt->rt_src;
+	inet->inet_rcv_saddr = inet->inet_saddr;
 
-	inet->dport = usin->sin_port;
-	inet->daddr = daddr;
+	inet->inet_dport = usin->sin_port;
+	inet->inet_daddr = daddr;
 
 	inet_csk(sk)->icsk_ext_hdr_len = 0;
 	if (inet->opt != NULL)
@@ -98,17 +98,19 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (err != 0)
 		goto failure;
 
-	err = ip_route_newports(&rt, IPPROTO_DCCP, inet->sport, inet->dport,
-				sk);
+	err = ip_route_newports(&rt, IPPROTO_DCCP, inet->inet_sport,
+				inet->inet_dport, sk);
 	if (err != 0)
 		goto failure;
 
 	/* OK, now commit destination to socket.  */
 	sk_setup_caps(sk, &rt->u.dst);
 
-	dp->dccps_iss = secure_dccp_sequence_number(inet->saddr, inet->daddr,
-						    inet->sport, inet->dport);
-	inet->id = dp->dccps_iss ^ jiffies;
+	dp->dccps_iss = secure_dccp_sequence_number(inet->inet_saddr,
+						    inet->inet_daddr,
+						    inet->inet_sport,
+						    inet->inet_dport);
+	inet->inet_id = dp->dccps_iss ^ jiffies;
 
 	err = dccp_connect(sk);
 	rt = NULL;
@@ -123,7 +125,7 @@ failure:
 	dccp_set_state(sk, DCCP_CLOSED);
 	ip_rt_put(rt);
 	sk->sk_route_caps = 0;
-	inet->dport = 0;
+	inet->inet_dport = 0;
 	goto out;
 }
 
@@ -352,7 +354,9 @@ void dccp_v4_send_check(struct sock *sk, int unused, struct sk_buff *skb)
 	struct dccp_hdr *dh = dccp_hdr(skb);
 
 	dccp_csum_outgoing(skb);
-	dh->dccph_checksum = dccp_v4_csum_finish(skb, inet->saddr, inet->daddr);
+	dh->dccph_checksum = dccp_v4_csum_finish(skb,
+						 inet->inet_saddr,
+						 inet->inet_daddr);
 }
 
 EXPORT_SYMBOL_GPL(dccp_v4_send_check);
@@ -393,14 +397,14 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	newinet		   = inet_sk(newsk);
 	ireq		   = inet_rsk(req);
-	newinet->daddr	   = ireq->rmt_addr;
-	newinet->rcv_saddr = ireq->loc_addr;
-	newinet->saddr	   = ireq->loc_addr;
+	newinet->inet_daddr	= ireq->rmt_addr;
+	newinet->inet_rcv_saddr = ireq->loc_addr;
+	newinet->inet_saddr	= ireq->loc_addr;
 	newinet->opt	   = ireq->opt;
 	ireq->opt	   = NULL;
 	newinet->mc_index  = inet_iif(skb);
 	newinet->mc_ttl	   = ip_hdr(skb)->ttl;
-	newinet->id	   = jiffies;
+	newinet->inet_id   = jiffies;
 
 	dccp_sync_mss(newsk, dst_mtu(dst));
 

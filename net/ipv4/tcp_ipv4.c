@@ -165,10 +165,10 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		nexthop = inet->opt->faddr;
 	}
 
-	tmp = ip_route_connect(&rt, nexthop, inet->saddr,
+	tmp = ip_route_connect(&rt, nexthop, inet->inet_saddr,
 			       RT_CONN_FLAGS(sk), sk->sk_bound_dev_if,
 			       IPPROTO_TCP,
-			       inet->sport, usin->sin_port, sk, 1);
+			       inet->inet_sport, usin->sin_port, sk, 1);
 	if (tmp < 0) {
 		if (tmp == -ENETUNREACH)
 			IP_INC_STATS_BH(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
@@ -183,11 +183,11 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (!inet->opt || !inet->opt->srr)
 		daddr = rt->rt_dst;
 
-	if (!inet->saddr)
-		inet->saddr = rt->rt_src;
-	inet->rcv_saddr = inet->saddr;
+	if (!inet->inet_saddr)
+		inet->inet_saddr = rt->rt_src;
+	inet->inet_rcv_saddr = inet->inet_saddr;
 
-	if (tp->rx_opt.ts_recent_stamp && inet->daddr != daddr) {
+	if (tp->rx_opt.ts_recent_stamp && inet->inet_daddr != daddr) {
 		/* Reset inherited state */
 		tp->rx_opt.ts_recent	   = 0;
 		tp->rx_opt.ts_recent_stamp = 0;
@@ -210,8 +210,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		}
 	}
 
-	inet->dport = usin->sin_port;
-	inet->daddr = daddr;
+	inet->inet_dport = usin->sin_port;
+	inet->inet_daddr = daddr;
 
 	inet_csk(sk)->icsk_ext_hdr_len = 0;
 	if (inet->opt)
@@ -230,7 +230,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		goto failure;
 
 	err = ip_route_newports(&rt, IPPROTO_TCP,
-				inet->sport, inet->dport, sk);
+				inet->inet_sport, inet->inet_dport, sk);
 	if (err)
 		goto failure;
 
@@ -239,12 +239,12 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	sk_setup_caps(sk, &rt->u.dst);
 
 	if (!tp->write_seq)
-		tp->write_seq = secure_tcp_sequence_number(inet->saddr,
-							   inet->daddr,
-							   inet->sport,
+		tp->write_seq = secure_tcp_sequence_number(inet->inet_saddr,
+							   inet->inet_daddr,
+							   inet->inet_sport,
 							   usin->sin_port);
 
-	inet->id = tp->write_seq ^ jiffies;
+	inet->inet_id = tp->write_seq ^ jiffies;
 
 	err = tcp_connect(sk);
 	rt = NULL;
@@ -261,7 +261,7 @@ failure:
 	tcp_set_state(sk, TCP_CLOSE);
 	ip_rt_put(rt);
 	sk->sk_route_caps = 0;
-	inet->dport = 0;
+	inet->inet_dport = 0;
 	return err;
 }
 
@@ -520,12 +520,13 @@ void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 	struct tcphdr *th = tcp_hdr(skb);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		th->check = ~tcp_v4_check(len, inet->saddr,
-					  inet->daddr, 0);
+		th->check = ~tcp_v4_check(len, inet->inet_saddr,
+					  inet->inet_daddr, 0);
 		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct tcphdr, check);
 	} else {
-		th->check = tcp_v4_check(len, inet->saddr, inet->daddr,
+		th->check = tcp_v4_check(len, inet->inet_saddr,
+					 inet->inet_daddr,
 					 csum_partial(th,
 						      th->doff << 2,
 						      skb->csum));
@@ -848,7 +849,7 @@ static struct tcp_md5sig_key *
 struct tcp_md5sig_key *tcp_v4_md5_lookup(struct sock *sk,
 					 struct sock *addr_sk)
 {
-	return tcp_v4_md5_do_lookup(sk, inet_sk(addr_sk)->daddr);
+	return tcp_v4_md5_do_lookup(sk, inet_sk(addr_sk)->inet_daddr);
 }
 
 EXPORT_SYMBOL(tcp_v4_md5_lookup);
@@ -923,7 +924,7 @@ EXPORT_SYMBOL(tcp_v4_md5_do_add);
 static int tcp_v4_md5_add_func(struct sock *sk, struct sock *addr_sk,
 			       u8 *newkey, u8 newkeylen)
 {
-	return tcp_v4_md5_do_add(sk, inet_sk(addr_sk)->daddr,
+	return tcp_v4_md5_do_add(sk, inet_sk(addr_sk)->inet_daddr,
 				 newkey, newkeylen);
 }
 
@@ -1089,8 +1090,8 @@ int tcp_v4_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
 	__be32 saddr, daddr;
 
 	if (sk) {
-		saddr = inet_sk(sk)->saddr;
-		daddr = inet_sk(sk)->daddr;
+		saddr = inet_sk(sk)->inet_saddr;
+		daddr = inet_sk(sk)->inet_daddr;
 	} else if (req) {
 		saddr = inet_rsk(req)->loc_addr;
 		daddr = inet_rsk(req)->rmt_addr;
@@ -1380,9 +1381,9 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	newtp		      = tcp_sk(newsk);
 	newinet		      = inet_sk(newsk);
 	ireq		      = inet_rsk(req);
-	newinet->daddr	      = ireq->rmt_addr;
-	newinet->rcv_saddr    = ireq->loc_addr;
-	newinet->saddr	      = ireq->loc_addr;
+	newinet->inet_daddr   = ireq->rmt_addr;
+	newinet->inet_rcv_saddr = ireq->loc_addr;
+	newinet->inet_saddr	      = ireq->loc_addr;
 	newinet->opt	      = ireq->opt;
 	ireq->opt	      = NULL;
 	newinet->mc_index     = inet_iif(skb);
@@ -1390,7 +1391,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	inet_csk(newsk)->icsk_ext_hdr_len = 0;
 	if (newinet->opt)
 		inet_csk(newsk)->icsk_ext_hdr_len = newinet->opt->optlen;
-	newinet->id = newtp->write_seq ^ jiffies;
+	newinet->inet_id = newtp->write_seq ^ jiffies;
 
 	tcp_mtup_init(newsk);
 	tcp_sync_mss(newsk, dst_mtu(dst));
@@ -1403,7 +1404,8 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 #ifdef CONFIG_TCP_MD5SIG
 	/* Copy over the MD5 key from the original socket */
-	if ((key = tcp_v4_md5_do_lookup(sk, newinet->daddr)) != NULL) {
+	key = tcp_v4_md5_do_lookup(sk, newinet->inet_daddr);
+	if (key != NULL) {
 		/*
 		 * We're using one, so create a matching key
 		 * on the newsk structure. If we fail to get
@@ -1412,7 +1414,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		 */
 		char *newkey = kmemdup(key->key, key->keylen, GFP_ATOMIC);
 		if (newkey != NULL)
-			tcp_v4_md5_do_add(newsk, newinet->daddr,
+			tcp_v4_md5_do_add(newsk, newinet->inet_daddr,
 					  newkey, key->keylen);
 		newsk->sk_route_caps &= ~NETIF_F_GSO_MASK;
 	}
@@ -1711,8 +1713,8 @@ int tcp_v4_remember_stamp(struct sock *sk)
 	struct inet_peer *peer = NULL;
 	int release_it = 0;
 
-	if (!rt || rt->rt_dst != inet->daddr) {
-		peer = inet_getpeer(inet->daddr, 1);
+	if (!rt || rt->rt_dst != inet->inet_daddr) {
+		peer = inet_getpeer(inet->inet_daddr, 1);
 		release_it = 1;
 	} else {
 		if (!rt->peer)
@@ -2225,7 +2227,7 @@ static void get_openreq4(struct sock *sk, struct request_sock *req,
 		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %u %d %p%n",
 		i,
 		ireq->loc_addr,
-		ntohs(inet_sk(sk)->sport),
+		ntohs(inet_sk(sk)->inet_sport),
 		ireq->rmt_addr,
 		ntohs(ireq->rmt_port),
 		TCP_SYN_RECV,
@@ -2248,10 +2250,10 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i, int *len)
 	struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_sock *inet = inet_sk(sk);
-	__be32 dest = inet->daddr;
-	__be32 src = inet->rcv_saddr;
-	__u16 destp = ntohs(inet->dport);
-	__u16 srcp = ntohs(inet->sport);
+	__be32 dest = inet->inet_daddr;
+	__be32 src = inet->inet_rcv_saddr;
+	__u16 destp = ntohs(inet->inet_dport);
+	__u16 srcp = ntohs(inet->inet_sport);
 
 	if (icsk->icsk_pending == ICSK_TIME_RETRANS) {
 		timer_active	= 1;

@@ -278,7 +278,7 @@ int dccp_disconnect(struct sock *sk, int flags)
 		sk->sk_send_head = NULL;
 	}
 
-	inet->dport = 0;
+	inet->inet_dport = 0;
 
 	if (!(sk->sk_userlocks & SOCK_BINDADDR_LOCK))
 		inet_reset_saddr(sk);
@@ -290,7 +290,7 @@ int dccp_disconnect(struct sock *sk, int flags)
 	inet_csk_delack_init(sk);
 	__sk_dst_reset(sk);
 
-	WARN_ON(inet->num && !icsk->icsk_bind_hash);
+	WARN_ON(inet->inet_num && !icsk->icsk_bind_hash);
 
 	sk->sk_error_report(sk);
 	return err;

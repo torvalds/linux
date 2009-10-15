@@ -149,7 +149,7 @@ socket_match(const struct sk_buff *skb, const struct xt_match_param *par,
 
 		/* Ignore sockets listening on INADDR_ANY */
 		wildcard = (sk->sk_state != TCP_TIME_WAIT &&
-			    inet_sk(sk)->rcv_saddr == 0);
+			    inet_sk(sk)->inet_rcv_saddr == 0);
 
 		/* Ignore non-transparent sockets,
 		   if XT_SOCKET_TRANSPARENT is used */

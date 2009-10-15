@@ -241,7 +241,7 @@ static inline int inet_lhashfn(struct net *net, const unsigned short num)
 
 static inline int inet_sk_listen_hashfn(const struct sock *sk)
 {
-	return inet_lhashfn(sock_net(sk), inet_sk(sk)->num);
+	return inet_lhashfn(sock_net(sk), inet_sk(sk)->inet_num);
 }
 
 /* Caller must disable local BH processing. */
@@ -301,8 +301,8 @@ typedef __u64 __bitwise __addrpair;
 #endif /* __BIG_ENDIAN */
 #define INET_MATCH(__sk, __net, __hash, __cookie, __saddr, __daddr, __ports, __dif)\
 	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net)) &&	\
-	 ((*((__addrpair *)&(inet_sk(__sk)->daddr))) == (__cookie))	&&	\
-	 ((*((__portpair *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
+	 ((*((__addrpair *)&(inet_sk(__sk)->inet_daddr))) == (__cookie))  &&	\
+	 ((*((__portpair *)&(inet_sk(__sk)->inet_dport))) == (__ports))   &&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 #define INET_TW_MATCH(__sk, __net, __hash, __cookie, __saddr, __daddr, __ports, __dif)\
 	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net)) &&	\
@@ -313,9 +313,9 @@ typedef __u64 __bitwise __addrpair;
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr)
 #define INET_MATCH(__sk, __net, __hash, __cookie, __saddr, __daddr, __ports, __dif)	\
 	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net))	&&	\
-	 (inet_sk(__sk)->daddr		== (__saddr))		&&	\
-	 (inet_sk(__sk)->rcv_saddr	== (__daddr))		&&	\
-	 ((*((__portpair *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
+	 (inet_sk(__sk)->inet_daddr	== (__saddr))		&&	\
+	 (inet_sk(__sk)->inet_rcv_saddr	== (__daddr))		&&	\
+	 ((*((__portpair *)&(inet_sk(__sk)->inet_dport))) == (__ports))	&&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 #define INET_TW_MATCH(__sk, __net, __hash,__cookie, __saddr, __daddr, __ports, __dif)	\
 	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net))	&&	\

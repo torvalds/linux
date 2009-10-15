@@ -296,19 +296,19 @@ static void sctp_v4_from_sk(union sctp_addr *addr, struct sock *sk)
 {
 	addr->v4.sin_family = AF_INET;
 	addr->v4.sin_port = 0;
-	addr->v4.sin_addr.s_addr = inet_sk(sk)->rcv_saddr;
+	addr->v4.sin_addr.s_addr = inet_sk(sk)->inet_rcv_saddr;
 }
 
 /* Initialize sk->sk_rcv_saddr from sctp_addr. */
 static void sctp_v4_to_sk_saddr(union sctp_addr *addr, struct sock *sk)
 {
-	inet_sk(sk)->rcv_saddr = addr->v4.sin_addr.s_addr;
+	inet_sk(sk)->inet_rcv_saddr = addr->v4.sin_addr.s_addr;
 }
 
 /* Initialize sk->sk_daddr from sctp_addr. */
 static void sctp_v4_to_sk_daddr(union sctp_addr *addr, struct sock *sk)
 {
-	inet_sk(sk)->daddr = addr->v4.sin_addr.s_addr;
+	inet_sk(sk)->inet_daddr = addr->v4.sin_addr.s_addr;
 }
 
 /* Initialize a sctp_addr from an address parameter. */
@@ -598,7 +598,7 @@ static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 
 	newinet = inet_sk(newsk);
 
-	newinet->daddr = asoc->peer.primary_addr.v4.sin_addr.s_addr;
+	newinet->inet_daddr = asoc->peer.primary_addr.v4.sin_addr.s_addr;
 
 	sk_refcnt_debug_inc(newsk);
 

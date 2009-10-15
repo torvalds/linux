@@ -80,19 +80,20 @@ static int jdccp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (ccid_get_current_tx_ccid(dccp_sk(sk)) == DCCPC_CCID3)
 		hc = ccid3_hc_tx_sk(sk);
 
-	if (port == 0 || ntohs(inet->dport) == port ||
-	    ntohs(inet->sport) == port) {
+	if (port == 0 || ntohs(inet->inet_dport) == port ||
+	    ntohs(inet->inet_sport) == port) {
 		if (hc)
 			printl("%pI4:%u %pI4:%u %d %d %d %d %u %llu %llu %d\n",
-			       &inet->saddr, ntohs(inet->sport),
-			       &inet->daddr, ntohs(inet->dport), size,
+			       &inet->inet_saddr, ntohs(inet->inet_sport),
+			       &inet->inet_daddr, ntohs(inet->inet_dport), size,
 			       hc->tx_s, hc->tx_rtt, hc->tx_p,
 			       hc->tx_x_calc, hc->tx_x_recv >> 6,
 			       hc->tx_x >> 6, hc->tx_t_ipi);
 		else
 			printl("%pI4:%u %pI4:%u %d\n",
-			       &inet->saddr, ntohs(inet->sport),
-			       &inet->daddr, ntohs(inet->dport), size);
+			       &inet->inet_saddr, ntohs(inet->inet_sport),
+			       &inet->inet_daddr, ntohs(inet->inet_dport),
+			       size);
 	}
 
 	jprobe_return();

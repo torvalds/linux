@@ -125,7 +125,7 @@ static int inline compute_score(struct sock *sk, struct net *net,
 {
 	int score = -1;
 
-	if (net_eq(sock_net(sk), net) && inet_sk(sk)->num == hnum &&
+	if (net_eq(sock_net(sk), net) && inet_sk(sk)->inet_num == hnum &&
 	    sk->sk_family == PF_INET6) {
 		const struct ipv6_pinfo *np = inet6_sk(sk);
 
@@ -214,10 +214,10 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	const struct in6_addr *daddr = &np->rcv_saddr;
 	const struct in6_addr *saddr = &np->daddr;
 	const int dif = sk->sk_bound_dev_if;
-	const __portpair ports = INET_COMBINED_PORTS(inet->dport, lport);
+	const __portpair ports = INET_COMBINED_PORTS(inet->inet_dport, lport);
 	struct net *net = sock_net(sk);
 	const unsigned int hash = inet6_ehashfn(net, daddr, lport, saddr,
-						inet->dport);
+						inet->inet_dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
 	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
@@ -248,8 +248,8 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 unique:
 	/* Must record num and sport now. Otherwise we will see
 	 * in hash table socket with a funny identity. */
-	inet->num = lport;
-	inet->sport = htons(lport);
+	inet->inet_num = lport;
+	inet->inet_sport = htons(lport);
 	WARN_ON(!sk_unhashed(sk));
 	__sk_nulls_add_node_rcu(sk, &head->chain);
 	sk->sk_hash = hash;
@@ -279,7 +279,7 @@ static inline u32 inet6_sk_port_offset(const struct sock *sk)
 	const struct ipv6_pinfo *np = inet6_sk(sk);
 	return secure_ipv6_port_ephemeral(np->rcv_saddr.s6_addr32,
 					  np->daddr.s6_addr32,
-					  inet->dport);
+					  inet->inet_dport);
 }
 
 int inet6_hash_connect(struct inet_timewait_death_row *death_row,

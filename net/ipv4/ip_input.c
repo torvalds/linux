@@ -161,7 +161,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 		/* If socket is bound to an interface, only report
 		 * the packet if it came  from that interface.
 		 */
-		if (sk && inet_sk(sk)->num == protocol &&
+		if (sk && inet_sk(sk)->inet_num == protocol &&
 		    (!sk->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == dev->ifindex) &&
 		    sock_net(sk) == dev_net(dev)) {
