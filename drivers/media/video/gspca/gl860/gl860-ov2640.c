@@ -20,8 +20,12 @@
 #include "gl860.h"
 
 static u8 dat_init1[] = "\x00\x41\x07\x6a\x06\x61\x0d\x6a" "\x10\x10\xc1\x01";
-static u8 dat_init2[] = {0x61}; /* expected */
-static u8 dat_init3[] = {0x51}; /* expected */
+
+static u8 c61[] = {0x61}; /* expected */
+static u8 c51[] = {0x51}; /* expected */
+static u8 c50[] = {0x50}; /* expected */
+static u8 c28[] = {0x28}; /* expected */
+static u8 ca8[] = {0xa8}; /* expected */
 
 static u8 dat_post[] =
 	"\x00\x41\x07\x6a\x06\xef\x0d\x6a" "\x10\x10\xc1\x01";
@@ -30,10 +34,6 @@ static u8 dat_640[]  = "\xd0\x01\xd1\x08\xd2\xe0\xd3\x02\xd4\x10\xd5\x81";
 static u8 dat_800[]  = "\xd0\x01\xd1\x10\xd2\x58\xd3\x02\xd4\x18\xd5\x21";
 static u8 dat_1280[] = "\xd0\x01\xd1\x18\xd2\xc0\xd3\x02\xd4\x28\xd5\x01";
 static u8 dat_1600[] = "\xd0\x01\xd1\x20\xd2\xb0\xd3\x02\xd4\x30\xd5\x41";
-
-static u8 c50[] = {0x50}; /* expected */
-static u8 c28[] = {0x28}; /* expected */
-static u8 ca8[] = {0xa8}; /* expected */
 
 static struct validx tbl_init_at_startup[] = {
 	{0x0000, 0x0000}, {0x0010, 0x0010}, {0x0008, 0x00c0}, {0x0001, 0x00c1},
@@ -107,36 +107,6 @@ static struct validx tbl_sensor_settings_common2[] = {
 	{0x6001, 0x00ff}, {0x6038, 0x000c},
 	{10, 0xffff},
 	{0x6000, 0x0011},
-	/* backlight=31/64 */
-	{0x6001, 0x00ff}, {0x603e, 0x0024}, {0x6034, 0x0025},
-	/* bright=0/256 */
-	{0x6000, 0x00ff}, {0x6009, 0x007c}, {0x6000, 0x007d},
-	/* wbal=64/128 */
-	{0x6000, 0x00ff}, {0x6003, 0x007c}, {0x6040, 0x007d},
-	/* cntr=0/256 */
-	{0x6000, 0x00ff}, {0x6007, 0x007c}, {0x6000, 0x007d},
-	/* sat=128/256 */
-	{0x6000, 0x00ff}, {0x6001, 0x007c}, {0x6080, 0x007d},
-	/* sharpness=0/32 */
-	{0x6000, 0x00ff}, {0x6001, 0x0092}, {0x60c0, 0x0093},
-	/* hue=0/256 */
-	{0x6000, 0x00ff}, {0x6002, 0x007c}, {0x6000, 0x007d},
-	/* gam=32/64 */
-	{0x6000, 0x00ff}, {0x6008, 0x007c}, {0x6020, 0x007d},
-	/* image right up */
-	{0xffff, 0xffff},
-	{15, 0xffff},
-	{0x6001, 0x00ff}, {0x6000, 0x8004},
-	{0xffff, 0xffff},
-	{0x60a8, 0x0004},
-	{15, 0xffff},
-	{0x6001, 0x00ff}, {0x6000, 0x8004},
-	{0xffff, 0xffff},
-	{0x60f8, 0x0004},
-	/* image right up */
-	{0xffff, 0xffff},
-	/* backlight=31/64 */
-	{0x6001, 0x00ff}, {0x603e, 0x0024}, {0x6034, 0x0025},
 };
 
 static struct validx tbl_640[] = {
@@ -222,17 +192,19 @@ void ov2640_init_settings(struct gspca_dev *gspca_dev)
 	sd->vcur.hue        =   0;
 	sd->vcur.saturation = 128;
 	sd->vcur.whitebal   =  64;
+	sd->vcur.mirror     =   0;
+	sd->vcur.flip       =   0;
 
 	sd->vmax.backlight  =  64;
 	sd->vmax.brightness = 255;
 	sd->vmax.sharpness  =  31;
 	sd->vmax.contrast   = 255;
 	sd->vmax.gamma      =  64;
-	sd->vmax.hue        = 255 + 1;
+	sd->vmax.hue        = 254 + 2;
 	sd->vmax.saturation = 255;
 	sd->vmax.whitebal   = 128;
-	sd->vmax.mirror     = 0;
-	sd->vmax.flip       = 0;
+	sd->vmax.mirror     = 1;
+	sd->vmax.flip       = 1;
 	sd->vmax.AC50Hz     = 0;
 
 	sd->dev_camera_settings = ov2640_camera_settings;
@@ -258,11 +230,11 @@ static int ov2640_init_at_startup(struct gspca_dev *gspca_dev)
 
 	common(gspca_dev);
 
-	ctrl_in(gspca_dev, 0xc0, 2, 0x0000, 0x0006, 1, dat_init2);
+	ctrl_in(gspca_dev, 0xc0, 2, 0x0000, 0x0006, 1, c61);
 
 	ctrl_out(gspca_dev, 0x40, 1, 0x00ef, 0x0006, 0, NULL);
 
-	ctrl_in(gspca_dev, 0xc0, 2, 0x0000, 0x0000, 1, dat_init3);
+	ctrl_in(gspca_dev, 0xc0, 2, 0x0000, 0x0000, 1, c51);
 
 	ctrl_out(gspca_dev, 0x40, 1, 0x0051, 0x0000, 0, NULL);
 /*	ctrl_out(gspca_dev, 0x40, 11, 0x0000, 0x0000, 0, NULL); */
@@ -284,6 +256,8 @@ static int ov2640_init_pre_alt(struct gspca_dev *gspca_dev)
 	sd->vold.gamma    = -1;
 	sd->vold.hue      = -1;
 	sd->vold.whitebal = -1;
+	sd->vold.mirror = -1;
+	sd->vold.flip   = -1;
 
 	ov2640_init_post_alt(gspca_dev);
 
@@ -346,18 +320,6 @@ static int ov2640_init_post_alt(struct gspca_dev *gspca_dev)
 
 	n = fetch_validx(gspca_dev, tbl_sensor_settings_common2,
 			ARRAY_SIZE(tbl_sensor_settings_common2));
-	ctrl_in(gspca_dev, 0xc0, 2, 0x0000, 0x0000, 1, c50);
-	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common2,
-				ARRAY_SIZE(tbl_sensor_settings_common2), n);
-	ctrl_in(gspca_dev, 0xc0, 2, 0x6000, 0x8004, 1, c28);
-	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common2,
-				ARRAY_SIZE(tbl_sensor_settings_common2), n);
-	ctrl_in(gspca_dev, 0xc0, 2, 0x6000, 0x8004, 1, ca8);
-	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common2,
-				ARRAY_SIZE(tbl_sensor_settings_common2), n);
-	ctrl_in(gspca_dev, 0xc0, 2, 0x0000, 0x0000, 1, c50);
-	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common2,
-				ARRAY_SIZE(tbl_sensor_settings_common2), n);
 
 	ov2640_camera_settings(gspca_dev);
 
@@ -394,6 +356,8 @@ static int ov2640_camera_settings(struct gspca_dev *gspca_dev)
 	s32 sat    = sd->vcur.saturation;
 	s32 hue    = sd->vcur.hue;
 	s32 wbal   = sd->vcur.whitebal;
+	s32 mirror = (((sd->vcur.mirror > 0) ^ sd->mirrorMask) == 0);
+	s32 flip   = (((sd->vcur.flip   > 0) ^ sd->mirrorMask) == 0);
 
 	if (backlight != sd->vold.backlight) {
 		/* No sd->vold.backlight=backlight; (to be done again later) */
@@ -402,9 +366,9 @@ static int ov2640_camera_settings(struct gspca_dev *gspca_dev)
 
 		ctrl_out(gspca_dev, 0x40, 1, 0x6001                 , 0x00ff,
 				0, NULL);
-		ctrl_out(gspca_dev, 0x40, 1, 0x601f + backlight     , 0x0024,
+		ctrl_out(gspca_dev, 0x40, 1, 0x601e + backlight     , 0x0024,
 				0, NULL);
-		ctrl_out(gspca_dev, 0x40, 1, 0x601f + backlight - 10, 0x0025,
+		ctrl_out(gspca_dev, 0x40, 1, 0x601e + backlight - 10, 0x0025,
 				0, NULL);
 	}
 
@@ -467,7 +431,7 @@ static int ov2640_camera_settings(struct gspca_dev *gspca_dev)
 		ctrl_out(gspca_dev, 0x40, 1, 0x6002     , 0x007c, 0, NULL);
 		ctrl_out(gspca_dev, 0x40, 1, 0x6000 + hue * (hue < 255), 0x007d,
 				0, NULL);
-		if (hue >= sd->vmax.hue)
+		if (hue >= 255)
 			sd->swapRB = 1;
 		else
 			sd->swapRB = 0;
@@ -483,14 +447,33 @@ static int ov2640_camera_settings(struct gspca_dev *gspca_dev)
 		ctrl_out(gspca_dev, 0x40, 1, 0x6000 + gam, 0x007d, 0, NULL);
 	}
 
+	if (mirror != sd->vold.mirror || flip != sd->vold.flip) {
+		sd->vold.mirror = mirror;
+		sd->vold.flip   = flip;
+
+		mirror = 0x80 * mirror;
+		ctrl_out(gspca_dev, 0x40, 1, 0x6001, 0x00ff, 0, NULL);
+		ctrl_out(gspca_dev, 0x40, 1, 0x6000, 0x8004, 0, NULL);
+		ctrl_in(gspca_dev, 0xc0, 2, 0x6000, 0x8004, 1, c28);
+		ctrl_out(gspca_dev, 0x40, 1, 0x6028 + mirror, 0x0004, 0, NULL);
+
+		flip = 0x50 * flip + mirror;
+		ctrl_out(gspca_dev, 0x40, 1, 0x6001, 0x00ff, 0, NULL);
+		ctrl_out(gspca_dev, 0x40, 1, 0x6000, 0x8004, 0, NULL);
+		ctrl_in(gspca_dev, 0xc0, 2, 0x6000, 0x8004, 1, ca8);
+		ctrl_out(gspca_dev, 0x40, 1, 0x6028 + flip, 0x0004, 0, NULL);
+
+		ctrl_in(gspca_dev, 0xc0, 2, 0x0000, 0x0000, 1, c50);
+	}
+
 	if (backlight != sd->vold.backlight) {
 		sd->vold.backlight = backlight;
 
 		ctrl_out(gspca_dev, 0x40, 1, 0x6001                 , 0x00ff,
 				0, NULL);
-		ctrl_out(gspca_dev, 0x40, 1, 0x601f + backlight     , 0x0024,
+		ctrl_out(gspca_dev, 0x40, 1, 0x601e + backlight     , 0x0024,
 				0, NULL);
-		ctrl_out(gspca_dev, 0x40, 1, 0x601f + backlight - 10, 0x0025,
+		ctrl_out(gspca_dev, 0x40, 1, 0x601e + backlight - 10, 0x0025,
 				0, NULL);
 	}
 
