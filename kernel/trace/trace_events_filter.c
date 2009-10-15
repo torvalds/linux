@@ -615,14 +615,7 @@ static int init_subsystem_preds(struct event_subsystem *system)
 	return 0;
 }
 
-enum {
-	FILTER_DISABLE_ALL,
-	FILTER_INIT_NO_RESET,
-	FILTER_SKIP_NO_RESET,
-};
-
-static void filter_free_subsystem_preds(struct event_subsystem *system,
-					int flag)
+static void filter_free_subsystem_preds(struct event_subsystem *system)
 {
 	struct ftrace_event_call *call;
 
@@ -631,14 +624,6 @@ static void filter_free_subsystem_preds(struct event_subsystem *system,
 			continue;
 
 		if (strcmp(call->system, system->name) != 0)
-			continue;
-
-		if (flag == FILTER_INIT_NO_RESET) {
-			call->filter->no_reset = false;
-			continue;
-		}
-
-		if (flag == FILTER_SKIP_NO_RESET && call->filter->no_reset)
 			continue;
 
 		filter_disable_preds(call);
@@ -814,44 +799,6 @@ static int filter_add_pred(struct filter_parse_state *ps,
 add_pred_fn:
 	if (!dry_run)
 		return filter_add_pred_fn(ps, call, pred, fn);
-	return 0;
-}
-
-static int filter_add_subsystem_pred(struct filter_parse_state *ps,
-				     struct event_subsystem *system,
-				     struct filter_pred *pred,
-				     char *filter_string,
-				     bool dry_run)
-{
-	struct ftrace_event_call *call;
-	int err = 0;
-	bool fail = true;
-
-	list_for_each_entry(call, &ftrace_events, list) {
-
-		if (!call->define_fields)
-			continue;
-
-		if (strcmp(call->system, system->name))
-			continue;
-
-		if (call->filter->no_reset)
-			continue;
-
-		err = filter_add_pred(ps, call, pred, dry_run);
-		if (err)
-			call->filter->no_reset = true;
-		else
-			fail = false;
-
-		if (!dry_run)
-			replace_filter_string(call->filter, filter_string);
-	}
-
-	if (fail) {
-		parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
-		return err;
-	}
 	return 0;
 }
 
@@ -1209,8 +1156,7 @@ static int check_preds(struct filter_parse_state *ps)
 	return 0;
 }
 
-static int replace_preds(struct event_subsystem *system,
-			 struct ftrace_event_call *call,
+static int replace_preds(struct ftrace_event_call *call,
 			 struct filter_parse_state *ps,
 			 char *filter_string,
 			 bool dry_run)
@@ -1257,11 +1203,7 @@ static int replace_preds(struct event_subsystem *system,
 add_pred:
 		if (!pred)
 			return -ENOMEM;
-		if (call)
-			err = filter_add_pred(ps, call, pred, false);
-		else
-			err = filter_add_subsystem_pred(ps, system, pred,
-						filter_string, dry_run);
+		err = filter_add_pred(ps, call, pred, dry_run);
 		filter_free_pred(pred);
 		if (err)
 			return err;
@@ -1269,6 +1211,44 @@ add_pred:
 		operand1 = operand2 = NULL;
 	}
 
+	return 0;
+}
+
+static int replace_system_preds(struct event_subsystem *system,
+				struct filter_parse_state *ps,
+				char *filter_string)
+{
+	struct ftrace_event_call *call;
+	int err;
+	bool fail = true;
+
+	list_for_each_entry(call, &ftrace_events, list) {
+
+		if (!call->define_fields)
+			continue;
+
+		if (strcmp(call->system, system->name) != 0)
+			continue;
+
+		/* try to see if the filter can be applied */
+		err = replace_preds(call, ps, filter_string, true);
+		if (err)
+			continue;
+
+		/* really apply the filter */
+		filter_disable_preds(call);
+		err = replace_preds(call, ps, filter_string, false);
+		if (err)
+			filter_disable_preds(call);
+		else
+			replace_filter_string(call->filter, filter_string);
+		fail = false;
+	}
+
+	if (fail) {
+		parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
+		return err;
+	}
 	return 0;
 }
 
@@ -1306,7 +1286,7 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 		goto out;
 	}
 
-	err = replace_preds(NULL, call, ps, filter_string, false);
+	err = replace_preds(call, ps, filter_string, false);
 	if (err)
 		append_filter_err(ps, call->filter);
 
@@ -1334,7 +1314,7 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 		goto out_unlock;
 
 	if (!strcmp(strstrip(filter_string), "0")) {
-		filter_free_subsystem_preds(system, FILTER_DISABLE_ALL);
+		filter_free_subsystem_preds(system);
 		remove_filter_string(system->filter);
 		mutex_unlock(&event_mutex);
 		return 0;
@@ -1354,23 +1334,9 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 		goto out;
 	}
 
-	filter_free_subsystem_preds(system, FILTER_INIT_NO_RESET);
-
-	/* try to see the filter can be applied to which events */
-	err = replace_preds(system, NULL, ps, filter_string, true);
-	if (err) {
+	err = replace_system_preds(system, ps, filter_string);
+	if (err)
 		append_filter_err(ps, system->filter);
-		goto out;
-	}
-
-	filter_free_subsystem_preds(system, FILTER_SKIP_NO_RESET);
-
-	/* really apply the filter to the events */
-	err = replace_preds(system, NULL, ps, filter_string, false);
-	if (err) {
-		append_filter_err(ps, system->filter);
-		filter_free_subsystem_preds(system, 2);
-	}
 
 out:
 	filter_opstack_clear(ps);
