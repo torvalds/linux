@@ -3743,6 +3743,9 @@ static int ocfs2_attach_refcount_tree(struct inode *inode,
 		goto out;
 	}
 
+	if (oi->ip_dyn_features & OCFS2_INLINE_DATA_FL)
+		goto attach_xattr;
+
 	ocfs2_init_dinode_extent_tree(&di_et, INODE_CACHE(inode), di_bh);
 
 	size = i_size_read(inode);
@@ -3769,6 +3772,7 @@ static int ocfs2_attach_refcount_tree(struct inode *inode,
 		cpos += num_clusters;
 	}
 
+attach_xattr:
 	if (oi->ip_dyn_features & OCFS2_HAS_XATTR_FL) {
 		ret = ocfs2_xattr_attach_refcount_tree(inode, di_bh,
 						       &ref_tree->rf_ci,
@@ -3855,6 +3859,49 @@ out_commit:
 out:
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
+	return ret;
+}
+
+static int ocfs2_duplicate_inline_data(struct inode *s_inode,
+				       struct buffer_head *s_bh,
+				       struct inode *t_inode,
+				       struct buffer_head *t_bh)
+{
+	int ret;
+	handle_t *handle;
+	struct ocfs2_super *osb = OCFS2_SB(s_inode->i_sb);
+	struct ocfs2_dinode *s_di = (struct ocfs2_dinode *)s_bh->b_data;
+	struct ocfs2_dinode *t_di = (struct ocfs2_dinode *)t_bh->b_data;
+
+	BUG_ON(!(OCFS2_I(s_inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL));
+
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(t_inode), t_bh,
+				      OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	t_di->id2.i_data.id_count = s_di->id2.i_data.id_count;
+	memcpy(t_di->id2.i_data.id_data, s_di->id2.i_data.id_data,
+	       le16_to_cpu(s_di->id2.i_data.id_count));
+	spin_lock(&OCFS2_I(t_inode)->ip_lock);
+	OCFS2_I(t_inode)->ip_dyn_features |= OCFS2_INLINE_DATA_FL;
+	t_di->i_dyn_features = cpu_to_le16(OCFS2_I(t_inode)->ip_dyn_features);
+	spin_unlock(&OCFS2_I(t_inode)->ip_lock);
+
+	ocfs2_journal_dirty(handle, t_bh);
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+out:
 	return ret;
 }
 
@@ -3994,6 +4041,14 @@ static int ocfs2_create_reflink_node(struct inode *s_inode,
 				      le64_to_cpu(di->i_refcount_loc));
 	if (ret) {
 		mlog_errno(ret);
+		goto out;
+	}
+
+	if (OCFS2_I(s_inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+		ret = ocfs2_duplicate_inline_data(s_inode, s_bh,
+						  t_inode, t_bh);
+		if (ret)
+			mlog_errno(ret);
 		goto out;
 	}
 
