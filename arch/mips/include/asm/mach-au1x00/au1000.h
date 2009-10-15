@@ -916,8 +916,6 @@ enum soc_au1200_ints {
 #ifdef CONFIG_SOC_AU1000
 
 #define UART0_ADDR		0xB1100000
-#define UART1_ADDR		0xB1200000
-#define UART2_ADDR		0xB1300000
 #define UART3_ADDR		0xB1400000
 
 #define USB_OHCI_BASE		0x10100000	/* phys addr for ioremap */
@@ -952,7 +950,6 @@ enum soc_au1200_ints {
 #ifdef CONFIG_SOC_AU1100
 
 #define UART0_ADDR		0xB1100000
-#define UART1_ADDR		0xB1200000
 #define UART3_ADDR		0xB1400000
 
 #define USB_OHCI_BASE		0x10100000	/* phys addr for ioremap */
@@ -966,8 +963,6 @@ enum soc_au1200_ints {
 
 #ifdef CONFIG_SOC_AU1550
 #define UART0_ADDR		0xB1100000
-#define UART1_ADDR		0xB1200000
-#define UART3_ADDR		0xB1400000
 
 #define USB_OHCI_BASE		0x14020000	/* phys addr for ioremap */
 #define USB_OHCI_LEN		0x00060000
@@ -985,7 +980,6 @@ enum soc_au1200_ints {
 #ifdef CONFIG_SOC_AU1200
 
 #define UART0_ADDR		0xB1100000
-#define UART1_ADDR		0xB1200000
 
 #define USB_UOC_BASE		0x14020020
 #define USB_UOC_LEN		0x20
@@ -1262,14 +1256,6 @@ enum soc_au1200_ints {
 #define MAC_RX_BUFF3_STATUS	0x30
 #define MAC_RX_BUFF3_ADDR	0x34
 
-/* UARTS 0-3 */
-#define UART_BASE		UART0_ADDR
-#ifdef	CONFIG_SOC_AU1200
-#define UART_DEBUG_BASE 	UART1_ADDR
-#else
-#define UART_DEBUG_BASE 	UART3_ADDR
-#endif
-
 #define UART_RX		0	/* Receive buffer */
 #define UART_TX		4	/* Transmit buffer */
 #define UART_IER	8	/* Interrupt Enable Register */
@@ -1281,84 +1267,6 @@ enum soc_au1200_ints {
 #define UART_MSR	0x20	/* Modem Status Register */
 #define UART_CLK	0x28	/* Baud Rate Clock Divider */
 #define UART_MOD_CNTRL	0x100	/* Module Control */
-
-#define UART_FCR_ENABLE_FIFO	0x01 /* Enable the FIFO */
-#define UART_FCR_CLEAR_RCVR	0x02 /* Clear the RCVR FIFO */
-#define UART_FCR_CLEAR_XMIT	0x04 /* Clear the XMIT FIFO */
-#define UART_FCR_DMA_SELECT	0x08 /* For DMA applications */
-#define UART_FCR_TRIGGER_MASK	0xF0 /* Mask for the FIFO trigger range */
-#define UART_FCR_R_TRIGGER_1	0x00 /* Mask for receive trigger set at 1 */
-#define UART_FCR_R_TRIGGER_4	0x40 /* Mask for receive trigger set at 4 */
-#define UART_FCR_R_TRIGGER_8	0x80 /* Mask for receive trigger set at 8 */
-#define UART_FCR_R_TRIGGER_14   0xA0 /* Mask for receive trigger set at 14 */
-#define UART_FCR_T_TRIGGER_0	0x00 /* Mask for transmit trigger set at 0 */
-#define UART_FCR_T_TRIGGER_4	0x10 /* Mask for transmit trigger set at 4 */
-#define UART_FCR_T_TRIGGER_8    0x20 /* Mask for transmit trigger set at 8 */
-#define UART_FCR_T_TRIGGER_12	0x30 /* Mask for transmit trigger set at 12 */
-
-/*
- * These are the definitions for the Line Control Register
- */
-#define UART_LCR_SBC	0x40	/* Set break control */
-#define UART_LCR_SPAR	0x20	/* Stick parity (?) */
-#define UART_LCR_EPAR	0x10	/* Even parity select */
-#define UART_LCR_PARITY	0x08	/* Parity Enable */
-#define UART_LCR_STOP	0x04	/* Stop bits: 0=1 stop bit, 1= 2 stop bits */
-#define UART_LCR_WLEN5  0x00	/* Wordlength: 5 bits */
-#define UART_LCR_WLEN6  0x01	/* Wordlength: 6 bits */
-#define UART_LCR_WLEN7  0x02	/* Wordlength: 7 bits */
-#define UART_LCR_WLEN8  0x03	/* Wordlength: 8 bits */
-
-/*
- * These are the definitions for the Line Status Register
- */
-#define UART_LSR_TEMT	0x40	/* Transmitter empty */
-#define UART_LSR_THRE	0x20	/* Transmit-hold-register empty */
-#define UART_LSR_BI	0x10	/* Break interrupt indicator */
-#define UART_LSR_FE	0x08	/* Frame error indicator */
-#define UART_LSR_PE	0x04	/* Parity error indicator */
-#define UART_LSR_OE	0x02	/* Overrun error indicator */
-#define UART_LSR_DR	0x01	/* Receiver data ready */
-
-/*
- * These are the definitions for the Interrupt Identification Register
- */
-#define UART_IIR_NO_INT	0x01	/* No interrupts pending */
-#define UART_IIR_ID	0x06	/* Mask for the interrupt ID */
-#define UART_IIR_MSI	0x00	/* Modem status interrupt */
-#define UART_IIR_THRI	0x02	/* Transmitter holding register empty */
-#define UART_IIR_RDI	0x04	/* Receiver data interrupt */
-#define UART_IIR_RLSI	0x06	/* Receiver line status interrupt */
-
-/*
- * These are the definitions for the Interrupt Enable Register
- */
-#define UART_IER_MSI	0x08	/* Enable Modem status interrupt */
-#define UART_IER_RLSI	0x04	/* Enable receiver line status interrupt */
-#define UART_IER_THRI	0x02	/* Enable Transmitter holding register int. */
-#define UART_IER_RDI	0x01	/* Enable receiver data interrupt */
-
-/*
- * These are the definitions for the Modem Control Register
- */
-#define UART_MCR_LOOP	0x10	/* Enable loopback test mode */
-#define UART_MCR_OUT2	0x08	/* Out2 complement */
-#define UART_MCR_OUT1	0x04	/* Out1 complement */
-#define UART_MCR_RTS	0x02	/* RTS complement */
-#define UART_MCR_DTR	0x01	/* DTR complement */
-
-/*
- * These are the definitions for the Modem Status Register
- */
-#define UART_MSR_DCD	0x80	/* Data Carrier Detect */
-#define UART_MSR_RI	0x40	/* Ring Indicator */
-#define UART_MSR_DSR	0x20	/* Data Set Ready */
-#define UART_MSR_CTS	0x10	/* Clear to Send */
-#define UART_MSR_DDCD	0x08	/* Delta DCD */
-#define UART_MSR_TERI	0x04	/* Trailing edge ring indicator */
-#define UART_MSR_DDSR	0x02	/* Delta DSR */
-#define UART_MSR_DCTS	0x01	/* Delta CTS */
-#define UART_MSR_ANY_DELTA 0x0F	/* Any of the delta bits! */
 
 /* SSIO */
 #define SSI0_STATUS		0xB1600000
