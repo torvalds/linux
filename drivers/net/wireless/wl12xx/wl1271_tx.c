@@ -88,6 +88,7 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 {
 	struct wl1271_tx_hw_descr *desc;
 	int pad;
+	u16 tx_attr;
 
 	desc = (struct wl1271_tx_hw_descr *) skb->data;
 
@@ -95,16 +96,17 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	if (extra) {
 		void *framestart = skb->data + sizeof(*desc);
 		u16 fc = *(u16 *)(framestart + extra);
-		int hdrlen = ieee80211_hdrlen(fc);
+		int hdrlen = ieee80211_hdrlen(cpu_to_le16(fc));
 		memmove(framestart, framestart + extra, hdrlen);
 	}
 
 	/* configure packet life time */
-	desc->start_time = jiffies_to_usecs(jiffies) - wl->time_offset;
-	desc->life_time = TX_HW_MGMT_PKT_LIFETIME_TU;
+	desc->start_time = cpu_to_le32(jiffies_to_usecs(jiffies) -
+				       wl->time_offset);
+	desc->life_time = cpu_to_le16(TX_HW_MGMT_PKT_LIFETIME_TU);
 
 	/* configure the tx attributes */
-	desc->tx_attr = wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
+	tx_attr = wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
 	/* FIXME: do we know the packet priority? can we identify mgmt
 	   packets, and use max prio for them at least? */
 	desc->tid = 0;
@@ -113,11 +115,13 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 
 	/* align the length (and store in terms of words) */
 	pad = WL1271_TX_ALIGN(skb->len);
-	desc->length = pad >> 2;
+	desc->length = cpu_to_le16(pad >> 2);
 
 	/* calculate number of padding bytes */
 	pad = pad - skb->len;
-	desc->tx_attr |= pad << TX_HW_ATTR_OFST_LAST_WORD_PAD;
+	tx_attr |= pad << TX_HW_ATTR_OFST_LAST_WORD_PAD;
+
+	desc->tx_attr = cpu_to_le16(tx_attr);
 
 	wl1271_debug(DEBUG_TX, "tx_fill_hdr: pad: %d", pad);
 	return 0;
@@ -331,7 +335,7 @@ void wl1271_tx_complete(struct wl1271 *wl, u32 count)
 	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);
 
 	/* read the tx results from the chipset */
-	wl1271_spi_read(wl, memmap->tx_result,
+	wl1271_spi_read(wl, le32_to_cpu(memmap->tx_result),
 			wl->tx_res_if, sizeof(*wl->tx_res_if), false);
 
 	/* verify that the result buffer is not getting overrun */
@@ -353,10 +357,10 @@ void wl1271_tx_complete(struct wl1271 *wl, u32 count)
 	}
 
 	/* write host counter to chipset (to ack) */
-	wl1271_spi_write32(wl, memmap->tx_result +
+	wl1271_spi_write32(wl, le32_to_cpu(memmap->tx_result) +
 			   offsetof(struct wl1271_tx_hw_res_if,
 				    tx_result_host_counter),
-			   wl->tx_res_if->tx_result_fw_counter);
+			   le32_to_cpu(wl->tx_res_if->tx_result_fw_counter));
 }
 
 /* caller must hold wl->mutex */

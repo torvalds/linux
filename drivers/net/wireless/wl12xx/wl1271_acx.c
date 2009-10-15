@@ -210,7 +210,7 @@ int wl1271_acx_rx_msdu_life_time(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->lifetime = wl->conf.rx.rx_msdu_life_time;
+	acx->lifetime = cpu_to_le32(wl->conf.rx.rx_msdu_life_time);
 	ret = wl1271_cmd_configure(wl, DOT11_RX_MSDU_LIFE_TIME,
 				   acx, sizeof(*acx));
 	if (ret < 0) {
@@ -236,8 +236,8 @@ int wl1271_acx_rx_config(struct wl1271 *wl, u32 config, u32 filter)
 		goto out;
 	}
 
-	rx_config->config_options = config;
-	rx_config->filter_options = filter;
+	rx_config->config_options = cpu_to_le32(config);
+	rx_config->filter_options = cpu_to_le32(filter);
 
 	ret = wl1271_cmd_configure(wl, ACX_RX_CFG,
 				   rx_config, sizeof(*rx_config));
@@ -264,7 +264,7 @@ int wl1271_acx_pd_threshold(struct wl1271 *wl)
 		goto out;
 	}
 
-	pd->threshold = wl->conf.rx.packet_detection_threshold;
+	pd->threshold = cpu_to_le32(wl->conf.rx.packet_detection_threshold);
 
 	ret = wl1271_cmd_configure(wl, ACX_PD_THRESHOLD, pd, sizeof(*pd));
 	if (ret < 0) {
@@ -348,8 +348,8 @@ int wl1271_acx_service_period_timeout(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_ACX, "acx service period timeout");
 
-	rx_timeout->ps_poll_timeout = wl->conf.rx.ps_poll_timeout;
-	rx_timeout->upsd_timeout = wl->conf.rx.upsd_timeout;
+	rx_timeout->ps_poll_timeout = cpu_to_le16(wl->conf.rx.ps_poll_timeout);
+	rx_timeout->upsd_timeout = cpu_to_le16(wl->conf.rx.upsd_timeout);
 
 	ret = wl1271_cmd_configure(wl, ACX_SERVICE_PERIOD_TIMEOUT,
 				   rx_timeout, sizeof(*rx_timeout));
@@ -377,7 +377,7 @@ int wl1271_acx_rts_threshold(struct wl1271 *wl, u16 rts_threshold)
 		goto out;
 	}
 
-	rts->threshold = rts_threshold;
+	rts->threshold = cpu_to_le16(rts_threshold);
 
 	ret = wl1271_cmd_configure(wl, DOT11_RTS_THRESHOLD, rts, sizeof(*rts));
 	if (ret < 0) {
@@ -494,8 +494,8 @@ int wl1271_acx_conn_monit_params(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->synch_fail_thold = wl->conf.conn.synch_fail_thold;
-	acx->bss_lose_timeout = wl->conf.conn.bss_lose_timeout;
+	acx->synch_fail_thold = cpu_to_le32(wl->conf.conn.synch_fail_thold);
+	acx->bss_lose_timeout = cpu_to_le32(wl->conf.conn.bss_lose_timeout);
 
 	ret = wl1271_cmd_configure(wl, ACX_CONN_MONIT_PARAMS,
 				   acx, sizeof(*acx));
@@ -552,16 +552,18 @@ int wl1271_acx_sg_cfg(struct wl1271 *wl)
 	}
 
 	/* BT-WLAN coext parameters */
-	param->per_threshold = c->per_threshold;
-	param->max_scan_compensation_time = c->max_scan_compensation_time;
-	param->nfs_sample_interval = c->nfs_sample_interval;
+	param->per_threshold = cpu_to_le32(c->per_threshold);
+	param->max_scan_compensation_time =
+		cpu_to_le32(c->max_scan_compensation_time);
+	param->nfs_sample_interval = cpu_to_le16(c->nfs_sample_interval);
 	param->load_ratio = c->load_ratio;
 	param->auto_ps_mode = c->auto_ps_mode;
 	param->probe_req_compensation = c->probe_req_compensation;
 	param->scan_window_compensation = c->scan_window_compensation;
 	param->antenna_config = c->antenna_config;
 	param->beacon_miss_threshold = c->beacon_miss_threshold;
-	param->rate_adaptation_threshold = c->rate_adaptation_threshold;
+	param->rate_adaptation_threshold =
+		cpu_to_le32(c->rate_adaptation_threshold);
 	param->rate_adaptation_snr = c->rate_adaptation_snr;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_CFG, param, sizeof(*param));
@@ -588,7 +590,7 @@ int wl1271_acx_cca_threshold(struct wl1271 *wl)
 		goto out;
 	}
 
-	detection->rx_cca_threshold = wl->conf.rx.rx_cca_threshold;
+	detection->rx_cca_threshold = cpu_to_le16(wl->conf.rx.rx_cca_threshold);
 	detection->tx_energy_detection = wl->conf.tx.tx_energy_detection;
 
 	ret = wl1271_cmd_configure(wl, ACX_CCA_THRESHOLD,
@@ -616,8 +618,8 @@ int wl1271_acx_bcn_dtim_options(struct wl1271 *wl)
 		goto out;
 	}
 
-	bb->beacon_rx_timeout = wl->conf.conn.beacon_rx_timeout;
-	bb->broadcast_timeout = wl->conf.conn.broadcast_timeout;
+	bb->beacon_rx_timeout = cpu_to_le16(wl->conf.conn.beacon_rx_timeout);
+	bb->broadcast_timeout = cpu_to_le16(wl->conf.conn.broadcast_timeout);
 	bb->rx_broadcast_in_ps = wl->conf.conn.rx_broadcast_in_ps;
 	bb->ps_poll_threshold = wl->conf.conn.ps_poll_threshold;
 
@@ -645,7 +647,7 @@ int wl1271_acx_aid(struct wl1271 *wl, u16 aid)
 		goto out;
 	}
 
-	acx_aid->aid = aid;
+	acx_aid->aid = cpu_to_le16(aid);
 
 	ret = wl1271_cmd_configure(wl, ACX_AID, acx_aid, sizeof(*acx_aid));
 	if (ret < 0) {
@@ -672,9 +674,8 @@ int wl1271_acx_event_mbox_mask(struct wl1271 *wl, u32 event_mask)
 	}
 
 	/* high event mask is unused */
-	mask->high_event_mask = 0xffffffff;
-
-	mask->event_mask = event_mask;
+	mask->high_event_mask = cpu_to_le32(0xffffffff);
+	mask->event_mask = cpu_to_le32(event_mask);
 
 	ret = wl1271_cmd_configure(wl, ACX_EVENT_MBOX_MASK,
 				   mask, sizeof(*mask));
@@ -773,8 +774,8 @@ int wl1271_acx_rate_policies(struct wl1271 *wl, u32 enabled_rates)
 	}
 
 	/* configure one default (one-size-fits-all) rate class */
-	acx->rate_class_cnt = 1;
-	acx->rate_class[0].enabled_rates = enabled_rates;
+	acx->rate_class_cnt = cpu_to_le32(1);
+	acx->rate_class[0].enabled_rates = cpu_to_le32(enabled_rates);
 	acx->rate_class[0].short_retry_limit = c->short_retry_limit;
 	acx->rate_class[0].long_retry_limit = c->long_retry_limit;
 	acx->rate_class[0].aflags = c->aflags;
@@ -808,10 +809,10 @@ int wl1271_acx_ac_cfg(struct wl1271 *wl)
 		struct conf_tx_ac_category *c = &(wl->conf.tx.ac_conf[i]);
 		acx->ac = c->ac;
 		acx->cw_min = c->cw_min;
-		acx->cw_max = c->cw_max;
+		acx->cw_max = cpu_to_le16(c->cw_max);
 		acx->aifsn = c->aifsn;
 		acx->reserved = 0;
-		acx->tx_op_limit = c->tx_op_limit;
+		acx->tx_op_limit = cpu_to_le16(c->tx_op_limit);
 
 		ret = wl1271_cmd_configure(wl, ACX_AC_CFG, acx, sizeof(*acx));
 		if (ret < 0) {
@@ -847,8 +848,8 @@ int wl1271_acx_tid_cfg(struct wl1271 *wl)
 		acx->tsid = c->tsid;
 		acx->ps_scheme = c->ps_scheme;
 		acx->ack_policy = c->ack_policy;
-		acx->apsd_conf[0] = c->apsd_conf[0];
-		acx->apsd_conf[1] = c->apsd_conf[1];
+		acx->apsd_conf[0] = cpu_to_le32(c->apsd_conf[0]);
+		acx->apsd_conf[1] = cpu_to_le32(c->apsd_conf[1]);
 
 		ret = wl1271_cmd_configure(wl, ACX_TID_CFG, acx, sizeof(*acx));
 		if (ret < 0) {
@@ -876,7 +877,7 @@ int wl1271_acx_frag_threshold(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->frag_threshold = wl->conf.tx.frag_threshold;
+	acx->frag_threshold = cpu_to_le16(wl->conf.tx.frag_threshold);
 	ret = wl1271_cmd_configure(wl, ACX_FRAG_CFG, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of frag threshold failed: %d", ret);
@@ -902,8 +903,8 @@ int wl1271_acx_tx_config_options(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->tx_compl_timeout = wl->conf.tx.tx_compl_timeout;
-	acx->tx_compl_threshold = wl->conf.tx.tx_compl_threshold;
+	acx->tx_compl_timeout = cpu_to_le16(wl->conf.tx.tx_compl_timeout);
+	acx->tx_compl_threshold = cpu_to_le16(wl->conf.tx.tx_compl_threshold);
 	ret = wl1271_cmd_configure(wl, ACX_TX_CONFIG_OPT, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of tx options failed: %d", ret);
@@ -929,11 +930,11 @@ int wl1271_acx_mem_cfg(struct wl1271 *wl)
 	}
 
 	/* memory config */
-	mem_conf->num_stations = cpu_to_le16(DEFAULT_NUM_STATIONS);
+	mem_conf->num_stations = DEFAULT_NUM_STATIONS;
 	mem_conf->rx_mem_block_num = ACX_RX_MEM_BLOCKS;
 	mem_conf->tx_min_mem_block_num = ACX_TX_MIN_MEM_BLOCKS;
 	mem_conf->num_ssid_profiles = ACX_NUM_SSID_PROFILES;
-	mem_conf->total_tx_descriptors = ACX_TX_DESCRIPTORS;
+	mem_conf->total_tx_descriptors = cpu_to_le32(ACX_TX_DESCRIPTORS);
 
 	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
 				   sizeof(*mem_conf));
@@ -973,7 +974,8 @@ int wl1271_acx_init_mem_config(struct wl1271 *wl)
 	}
 
 	/* initialize TX block book keeping */
-	wl->tx_blocks_available = wl->target_mem_map->num_tx_mem_blocks;
+	wl->tx_blocks_available =
+		le32_to_cpu(wl->target_mem_map->num_tx_mem_blocks);
 	wl1271_debug(DEBUG_TX, "available tx blocks: %d",
 		     wl->tx_blocks_available);
 
@@ -993,9 +995,9 @@ int wl1271_acx_init_rx_interrupt(struct wl1271 *wl)
 		goto out;
 	}
 
-	rx_conf->threshold = wl->conf.rx.irq_pkt_threshold;
-	rx_conf->timeout = wl->conf.rx.irq_timeout;
-	rx_conf->mblk_threshold = wl->conf.rx.irq_blk_threshold;
+	rx_conf->threshold = cpu_to_le16(wl->conf.rx.irq_pkt_threshold);
+	rx_conf->timeout = cpu_to_le16(wl->conf.rx.irq_timeout);
+	rx_conf->mblk_threshold = cpu_to_le16(wl->conf.rx.irq_blk_threshold);
 	rx_conf->queue_type = wl->conf.rx.queue_type;
 
 	ret = wl1271_cmd_configure(wl, ACX_RX_CONFIG_OPT, rx_conf,

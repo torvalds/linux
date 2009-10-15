@@ -82,7 +82,8 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 
 	wl1271_event_mbox_dump(mbox);
 
-	vector = mbox->events_vector & ~(mbox->events_mask);
+	vector = le32_to_cpu(mbox->events_vector);
+	vector &= ~(le32_to_cpu(mbox->events_mask));
 	wl1271_debug(DEBUG_EVENT, "vector: 0x%x", vector);
 
 	if (vector & SCAN_COMPLETE_EVENT_ID) {

@@ -188,15 +188,15 @@ static int wl1271_boot_upload_firmware(struct wl1271 *wl)
 	u8 *fw;
 
 	fw = wl->fw;
-	chunks = be32_to_cpup((u32 *) fw);
+	chunks = be32_to_cpup((__be32 *) fw);
 	fw += sizeof(u32);
 
 	wl1271_debug(DEBUG_BOOT, "firmware chunks to be uploaded: %u", chunks);
 
 	while (chunks--) {
-		addr = be32_to_cpup((u32 *) fw);
+		addr = be32_to_cpup((__be32 *) fw);
 		fw += sizeof(u32);
-		len = be32_to_cpup((u32 *) fw);
+		len = be32_to_cpup((__be32 *) fw);
 		fw += sizeof(u32);
 
 		if (len > 300000) {

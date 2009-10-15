@@ -65,7 +65,7 @@ struct wl1271_radio_parms {
 
 	/* Dynamic radio parameters */
 	/* 2.4GHz */
-	s16 tx_ref_pd_voltage;
+	__le16 tx_ref_pd_voltage;
 	s8  tx_ref_power;
 	s8  tx_offset_db;
 
@@ -82,7 +82,7 @@ struct wl1271_radio_parms {
 	u8 padding2;
 
 	/* 5GHz */
-	s16 tx_ref_pd_voltage_5[CONF_NUMBER_OF_SUB_BANDS_5];
+	__le16 tx_ref_pd_voltage_5[CONF_NUMBER_OF_SUB_BANDS_5];
 	s8  tx_ref_power_5[CONF_NUMBER_OF_SUB_BANDS_5];
 	s8  tx_offset_db_5[CONF_NUMBER_OF_SUB_BANDS_5];
 

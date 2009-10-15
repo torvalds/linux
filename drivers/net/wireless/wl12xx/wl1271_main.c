@@ -397,8 +397,11 @@ static void wl1271_fw_status(struct wl1271 *wl,
 
 	/* update number of available TX blocks */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		u32 cnt = status->tx_released_blks[i] - wl->tx_blocks_freed[i];
-		wl->tx_blocks_freed[i] = status->tx_released_blks[i];
+		u32 cnt = le32_to_cpu(status->tx_released_blks[i]) -
+			wl->tx_blocks_freed[i];
+
+		wl->tx_blocks_freed[i] =
+			le32_to_cpu(status->tx_released_blks[i]);
 		wl->tx_blocks_available += cnt;
 		total += cnt;
 	}
@@ -408,7 +411,8 @@ static void wl1271_fw_status(struct wl1271 *wl,
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
 
 	/* update the host-chipset time offset */
-	wl->time_offset = jiffies_to_usecs(jiffies) - status->fw_localtime;
+	wl->time_offset = jiffies_to_usecs(jiffies) -
+		le32_to_cpu(status->fw_localtime);
 }
 
 static void wl1271_irq_work(struct work_struct *work)
@@ -432,7 +436,7 @@ static void wl1271_irq_work(struct work_struct *work)
 	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);
 
 	wl1271_fw_status(wl, wl->fw_status);
-	intr = wl->fw_status->intr;
+	intr = le32_to_cpu(wl->fw_status->intr);
 	if (!intr) {
 		wl1271_debug(DEBUG_IRQ, "Zero interrupt received.");
 		goto out_sleep;

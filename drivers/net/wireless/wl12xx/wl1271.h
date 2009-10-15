@@ -283,15 +283,15 @@ struct wl1271_debugfs {
 
 /* FW status registers */
 struct wl1271_fw_status {
-	u32 intr;
+	__le32 intr;
 	u8  fw_rx_counter;
 	u8  drv_rx_counter;
 	u8  reserved;
 	u8  tx_results_counter;
-	u32 rx_pkt_descs[NUM_RX_PKT_DESC];
-	u32 tx_released_blks[NUM_TX_QUEUES];
-	u32 fw_localtime;
-	u32 padding[2];
+	__le32 rx_pkt_descs[NUM_RX_PKT_DESC];
+	__le32 tx_released_blks[NUM_TX_QUEUES];
+	__le32 fw_localtime;
+	__le32 padding[2];
 } __attribute__ ((packed));
 
 struct wl1271_rx_mem_pool_addr {

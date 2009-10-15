@@ -30,14 +30,15 @@
 static u8 wl1271_rx_get_mem_block(struct wl1271_fw_status *status,
 				  u32 drv_rx_counter)
 {
-	return status->rx_pkt_descs[drv_rx_counter] & RX_MEM_BLOCK_MASK;
+	return le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
+		RX_MEM_BLOCK_MASK;
 }
 
 static u32 wl1271_rx_get_buf_size(struct wl1271_fw_status *status,
 				 u32 drv_rx_counter)
 {
-	return (status->rx_pkt_descs[drv_rx_counter] & RX_BUF_SIZE_MASK) >>
-		RX_BUF_SIZE_SHIFT_DIV;
+	return (le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
+		RX_BUF_SIZE_MASK) >> RX_BUF_SIZE_SHIFT_DIV;
 }
 
 /* The values of this table must match the wl1271_rates[] array */
@@ -203,8 +204,8 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 			break;
 		}
 
-		wl->rx_mem_pool_addr.addr =
-			(mem_block << 8) + wl_mem_map->packet_memory_pool_start;
+		wl->rx_mem_pool_addr.addr = (mem_block << 8) +
+			le32_to_cpu(wl_mem_map->packet_memory_pool_start);
 		wl->rx_mem_pool_addr.addr_extra =
 			wl->rx_mem_pool_addr.addr + 4;
 

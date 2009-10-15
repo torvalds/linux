@@ -120,8 +120,8 @@ enum cmd_templ {
 #define WL1271_CMD_TEMPL_MAX_SIZE  252
 
 struct wl1271_cmd_header {
-	u16 id;
-	u16 status;
+	__le16 id;
+	__le16 status;
 	/* payload */
 	u8 data[0];
 } __attribute__ ((packed));
@@ -174,11 +174,11 @@ struct cmd_read_write_memory {
 	struct wl1271_cmd_header header;
 
 	/* The address of the memory to read from or write to.*/
-	u32 addr;
+	__le32 addr;
 
 	/* The amount of data in bytes to read from or write to the WiLink
 	 * device.*/
-	u32 size;
+	__le32 size;
 
 	/* The actual value read from or written to the Wilink. The source
 	   of this field is the Host in WRITE command or the Wilink in READ
@@ -203,18 +203,18 @@ enum {
 struct wl1271_cmd_join {
 	struct wl1271_cmd_header header;
 
-	u32 bssid_lsb;
-	u16 bssid_msb;
-	u16 beacon_interval; /* in TBTTs */
-	u32 rx_config_options;
-	u32 rx_filter_options;
+	__le32 bssid_lsb;
+	__le16 bssid_msb;
+	__le16 beacon_interval; /* in TBTTs */
+	__le32 rx_config_options;
+	__le32 rx_filter_options;
 
 	/*
 	 * The target uses this field to determine the rate at
 	 * which to transmit control frame responses (such as
 	 * ACK or CTS frames).
 	 */
-	u32 basic_rate_set;
+	__le32 basic_rate_set;
 	u8 dtim_interval;
 	/*
 	 * bits 0-2: This bitwise field specifies the type
@@ -243,10 +243,10 @@ struct cmd_enabledisable_path {
 struct wl1271_cmd_template_set {
 	struct wl1271_cmd_header header;
 
-	u16 len;
+	__le16 len;
 	u8 template_type;
 	u8 index;  /* relevant only for KLV_TEMPLATE type */
-	u32 enabled_rates;
+	__le32 enabled_rates;
 	u8 short_retry_limit;
 	u8 long_retry_limit;
 	u8 aflags;
@@ -283,7 +283,7 @@ struct wl1271_cmd_ps_params {
 	  * to power save mode.
 	  */
 	u8 hang_over_period;
-	u32 null_data_rate;
+	__le32 null_data_rate;
 } __attribute__ ((packed));
 
 /* HW encryption keys */
@@ -314,9 +314,9 @@ struct wl1271_cmd_set_keys {
 	u8 addr[ETH_ALEN];
 
 	/* key_action_e */
-	u16 key_action;
+	__le16 key_action;
 
-	u16 reserved_1;
+	__le16 reserved_1;
 
 	/* key size in bytes */
 	u8 key_size;
@@ -332,8 +332,8 @@ struct wl1271_cmd_set_keys {
 	u8 id;
 	u8 reserved_2[6];
 	u8 key[MAX_KEY_SIZE];
-	u16 ac_seq_num16[NUM_ACCESS_CATEGORIES_COPY];
-	u32 ac_seq_num32[NUM_ACCESS_CATEGORIES_COPY];
+	__le16 ac_seq_num16[NUM_ACCESS_CATEGORIES_COPY];
+	__le32 ac_seq_num32[NUM_ACCESS_CATEGORIES_COPY];
 } __attribute__ ((packed));
 
 
@@ -350,17 +350,17 @@ struct wl1271_cmd_set_keys {
 #define WL1271_SCAN_BAND_DUAL 2
 
 struct basic_scan_params {
-	u32 rx_config_options;
-	u32 rx_filter_options;
+	__le32 rx_config_options;
+	__le32 rx_filter_options;
 	/* Scan option flags (WL1271_SCAN_OPT_*) */
-	u16 scan_options;
+	__le16 scan_options;
 	/* Number of scan channels in the list (maximum 30) */
 	u8 num_channels;
 	/* This field indicates the number of probe requests to send
 	   per channel for an active scan */
 	u8 num_probe_requests;
 	/* Rate bit field for sending the probes */
-	u32 tx_rate;
+	__le32 tx_rate;
 	u8 tid_trigger;
 	u8 ssid_len;
 	/* in order to align */
@@ -375,10 +375,10 @@ struct basic_scan_params {
 
 struct basic_scan_channel_params {
 	/* Duration in TU to wait for frames on a channel for active scan */
-	u32 min_duration;
-	u32 max_duration;
-	u32 bssid_lsb;
-	u16 bssid_msb;
+	__le32 min_duration;
+	__le32 max_duration;
+	__le32 bssid_lsb;
+	__le16 bssid_msb;
 	u8 early_termination;
 	u8 tx_power_att;
 	u8 channel;
@@ -398,7 +398,7 @@ struct wl1271_cmd_scan {
 struct wl1271_cmd_trigger_scan_to {
 	struct wl1271_cmd_header header;
 
-	u32 timeout;
+	__le32 timeout;
 };
 
 struct wl1271_cmd_test_header {
@@ -426,7 +426,7 @@ struct wl1271_cmd_cal_channel_tune {
 	u8 band;
 	u8 channel;
 
-	u16 radio_status;
+	__le16 radio_status;
 } __attribute__ ((packed));
 
 struct wl1271_cmd_cal_update_ref_point {
@@ -434,8 +434,8 @@ struct wl1271_cmd_cal_update_ref_point {
 
 	struct wl1271_cmd_test_header test;
 
-	s32 ref_power;
-	s32 ref_detector;
+	__le32 ref_power;
+	__le32 ref_detector;
 	u8  sub_band;
 	u8  padding[3];
 } __attribute__ ((packed));
@@ -450,12 +450,12 @@ struct wl1271_cmd_cal_p2g {
 
 	struct wl1271_cmd_test_header test;
 
-	u16 len;
+	__le16 len;
 	u8  buf[MAX_TLV_LENGTH];
 	u8  type;
 	u8  padding;
 
-	s16 radio_status;
+	__le16 radio_status;
 	u8  nvs_version[MAX_NVS_VERSION_LENGTH];
 
 	u8  sub_band_mask;
@@ -479,10 +479,10 @@ enum wl1271_disconnect_type {
 };
 
 struct wl1271_cmd_disconnect {
-	u32 rx_config_options;
-	u32 rx_filter_options;
+	__le32 rx_config_options;
+	__le32 rx_filter_options;
 
-	u16 reason;
+	__le16 reason;
 	u8  type;
 
 	u8  padding;
