@@ -310,7 +310,7 @@ static struct resource armadillo5x0_smc911x_resources[] = {
 };
 
 static struct smsc911x_platform_config smsc911x_info = {
-	.flags		= SMSC911X_USE_32BIT,
+	.flags		= SMSC911X_USE_16BIT,
 	.irq_polarity   = SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type       = SMSC911X_IRQ_TYPE_PUSH_PULL,
 };
