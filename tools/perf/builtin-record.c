@@ -374,9 +374,11 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 
 static void create_counter(int counter, int cpu, pid_t pid)
 {
+	char *filter = filters[counter];
 	struct perf_event_attr *attr = attrs + counter;
 	struct perf_header_attr *h_attr;
 	int track = !counter; /* only the first counter needs these */
+	int ret;
 	struct {
 		u64 count;
 		u64 time_enabled;
@@ -479,7 +481,6 @@ try_again:
 		multiplex_fd = fd[nr_cpu][counter];
 
 	if (multiplex && fd[nr_cpu][counter] != multiplex_fd) {
-		int ret;
 
 		ret = ioctl(fd[nr_cpu][counter], PERF_EVENT_IOC_SET_OUTPUT, multiplex_fd);
 		assert(ret != -1);
@@ -495,6 +496,16 @@ try_again:
 				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter], 0);
 		if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
 			error("failed to mmap with %d (%s)\n", errno, strerror(errno));
+			exit(-1);
+		}
+	}
+
+	if (filter != NULL) {
+		ret = ioctl(fd[nr_cpu][counter],
+			    PERF_EVENT_IOC_SET_FILTER, filter);
+		if (ret) {
+			error("failed to set filter with %d (%s)\n", errno,
+			      strerror(errno));
 			exit(-1);
 		}
 	}
@@ -676,6 +687,8 @@ static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events),
+	OPT_CALLBACK(0, "filter", NULL, "filter",
+		     "event filter", parse_filter),
 	OPT_INTEGER('p', "pid", &target_pid,
 		    "record events on existing pid"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,

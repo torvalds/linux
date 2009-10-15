@@ -8,9 +8,10 @@
 #include "cache.h"
 #include "header.h"
 
-int					nr_counters;
+int				nr_counters;
 
 struct perf_event_attr		attrs[MAX_COUNTERS];
+char				*filters[MAX_COUNTERS];
 
 struct event_symbol {
 	u8		type;
@@ -708,7 +709,6 @@ static void store_event_type(const char *orgname)
 	perf_header__push_event(id, orgname);
 }
 
-
 int parse_events(const struct option *opt __used, const char *str, int unset __used)
 {
 	struct perf_event_attr attr;
@@ -741,6 +741,28 @@ int parse_events(const struct option *opt __used, const char *str, int unset __u
 		while (isspace(*str))
 			++str;
 	}
+
+	return 0;
+}
+
+int parse_filter(const struct option *opt __used, const char *str,
+		 int unset __used)
+{
+	int i = nr_counters - 1;
+	int len = strlen(str);
+
+	if (i < 0 || attrs[i].type != PERF_TYPE_TRACEPOINT) {
+		fprintf(stderr,
+			"-F option should follow a -e tracepoint option\n");
+		return -1;
+	}
+
+	filters[i] = malloc(len + 1);
+	if (!filters[i]) {
+		fprintf(stderr, "not enough memory to hold filter string\n");
+		return -1;
+	}
+	strcpy(filters[i], str);
 
 	return 0;
 }
