@@ -3667,6 +3667,7 @@ NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
 L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net
+W:	http://patchwork.ozlabs.org/project/netdev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 F:	net/
@@ -5663,6 +5664,13 @@ L:	openwrt-devel@lists.openwrt.org
 S:	Maintained
 F:	drivers/vlynq/vlynq.c
 F:	include/linux/vlynq.h
+
+VMWARE VMXNET3 ETHERNET DRIVER
+M:     Shreyas Bhatewara <sbhatewara@vmware.com>
+M:     VMware, Inc. <pv-drivers@vmware.com>
+L:     netdev@vger.kernel.org
+S:     Maintained
+F:     drivers/net/vmxnet3/
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 M:	Liam Girdwood <lrg@slimlogic.co.uk>

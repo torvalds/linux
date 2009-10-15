@@ -226,12 +226,12 @@ struct sock {
 #define sk_prot			__sk_common.skc_prot
 #define sk_net			__sk_common.skc_net
 	kmemcheck_bitfield_begin(flags);
-	unsigned char		sk_shutdown : 2,
-				sk_no_check : 2,
-				sk_userlocks : 4;
+	unsigned int		sk_shutdown  : 2,
+				sk_no_check  : 2,
+				sk_userlocks : 4,
+				sk_protocol  : 8,
+				sk_type      : 16;
 	kmemcheck_bitfield_end(flags);
-	unsigned char		sk_protocol;
-	unsigned short		sk_type;
 	int			sk_rcvbuf;
 	socket_lock_t		sk_lock;
 	/*

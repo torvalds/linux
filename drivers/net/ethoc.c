@@ -664,7 +664,8 @@ static int ethoc_open(struct net_device *dev)
 		return ret;
 
 	/* calculate the number of TX/RX buffers, maximum 128 supported */
-	num_bd = min(128, (dev->mem_end - dev->mem_start + 1) / ETHOC_BUFSIZ);
+	num_bd = min_t(unsigned int,
+		128, (dev->mem_end - dev->mem_start + 1) / ETHOC_BUFSIZ);
 	priv->num_tx = max(min_tx, num_bd / 4);
 	priv->num_rx = num_bd - priv->num_tx;
 	ethoc_write(priv, TX_BD_NUM, priv->num_tx);
