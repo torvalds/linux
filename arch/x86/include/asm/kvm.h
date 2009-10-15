@@ -19,6 +19,7 @@
 #define __KVM_HAVE_MSIX
 #define __KVM_HAVE_MCE
 #define __KVM_HAVE_PIT_STATE2
+#define __KVM_HAVE_XEN_HVM
 
 /* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256

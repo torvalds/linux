@@ -593,6 +593,30 @@ struct kvm_irqchip {
 	} chip;
 };
 
+4.27 KVM_XEN_HVM_CONFIG
+
+Capability: KVM_CAP_XEN_HVM
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_xen_hvm_config (in)
+Returns: 0 on success, -1 on error
+
+Sets the MSR that the Xen HVM guest uses to initialize its hypercall
+page, and provides the starting address and size of the hypercall
+blobs in userspace.  When the guest writes the MSR, kvm copies one
+page of a blob (32- or 64-bit, depending on the vcpu mode) to guest
+memory.
+
+struct kvm_xen_hvm_config {
+	__u32 flags;
+	__u32 msr;
+	__u64 blob_addr_32;
+	__u64 blob_addr_64;
+	__u8 blob_size_32;
+	__u8 blob_size_64;
+	__u8 pad2[30];
+};
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by

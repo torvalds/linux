@@ -410,6 +410,8 @@ struct kvm_arch{
 
 	unsigned long irq_sources_bitmap;
 	u64 vm_init_tsc;
+
+	struct kvm_xen_hvm_config xen_hvm_config;
 };
 
 struct kvm_vm_stat {

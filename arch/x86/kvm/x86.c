@@ -857,6 +857,38 @@ static int set_msr_mce(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	return 0;
 }
 
+static int xen_hvm_config(struct kvm_vcpu *vcpu, u64 data)
+{
+	struct kvm *kvm = vcpu->kvm;
+	int lm = is_long_mode(vcpu);
+	u8 *blob_addr = lm ? (u8 *)(long)kvm->arch.xen_hvm_config.blob_addr_64
+		: (u8 *)(long)kvm->arch.xen_hvm_config.blob_addr_32;
+	u8 blob_size = lm ? kvm->arch.xen_hvm_config.blob_size_64
+		: kvm->arch.xen_hvm_config.blob_size_32;
+	u32 page_num = data & ~PAGE_MASK;
+	u64 page_addr = data & PAGE_MASK;
+	u8 *page;
+	int r;
+
+	r = -E2BIG;
+	if (page_num >= blob_size)
+		goto out;
+	r = -ENOMEM;
+	page = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!page)
+		goto out;
+	r = -EFAULT;
+	if (copy_from_user(page, blob_addr + (page_num * PAGE_SIZE), PAGE_SIZE))
+		goto out_free;
+	if (kvm_write_guest(kvm, page_addr, page, PAGE_SIZE))
+		goto out_free;
+	r = 0;
+out_free:
+	kfree(page);
+out:
+	return r;
+}
+
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	switch (msr) {
@@ -972,6 +1004,8 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 			"0x%x data 0x%llx\n", msr, data);
 		break;
 	default:
+		if (msr && (msr == vcpu->kvm->arch.xen_hvm_config.msr))
+			return xen_hvm_config(vcpu, data);
 		if (!ignore_msrs) {
 			pr_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n",
 				msr, data);
@@ -1246,6 +1280,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PIT2:
 	case KVM_CAP_PIT_STATE2:
 	case KVM_CAP_SET_IDENTITY_MAP_ADDR:
+	case KVM_CAP_XEN_HVM:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -2437,6 +2472,17 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		r = kvm_vm_ioctl_reinject(kvm, &control);
 		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_XEN_HVM_CONFIG: {
+		r = -EFAULT;
+		if (copy_from_user(&kvm->arch.xen_hvm_config, argp,
+				   sizeof(struct kvm_xen_hvm_config)))
+			goto out;
+		r = -EINVAL;
+		if (kvm->arch.xen_hvm_config.flags)
 			goto out;
 		r = 0;
 		break;
