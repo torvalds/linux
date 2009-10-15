@@ -33,6 +33,8 @@
 #include <linux/irq.h>
 #include <linux/mtd/physmap.h>
 #include <linux/io.h>
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -97,6 +99,36 @@ static int armadillo5x0_pins[] = {
 	MX31_PIN_FPSHIFT__FPSHIFT,
 	MX31_PIN_DRDY0__DRDY0,
 	IOMUX_MODE(MX31_PIN_LCS1, IOMUX_CONFIG_GPIO), /*ADV7125_PSAVE*/
+};
+/* GPIO BUTTONS */
+static struct gpio_keys_button armadillo5x0_buttons[] = {
+	{
+		.code		= KEY_ENTER, /*28*/
+		.gpio		= IOMUX_TO_GPIO(MX31_PIN_SCLK0),
+		.active_low	= 1,
+		.desc		= "menu",
+		.wakeup		= 1,
+	}, {
+		.code		= KEY_BACK, /*158*/
+		.gpio		= IOMUX_TO_GPIO(MX31_PIN_SRST0),
+		.active_low	= 1,
+		.desc		= "back",
+		.wakeup		= 1,
+	}
+};
+
+static struct gpio_keys_platform_data armadillo5x0_button_data = {
+	.buttons	= armadillo5x0_buttons,
+	.nbuttons	= ARRAY_SIZE(armadillo5x0_buttons),
+};
+
+static struct platform_device armadillo5x0_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &armadillo5x0_button_data,
+	}
 };
 
 /*
@@ -300,6 +332,7 @@ static struct imxuart_platform_data uart_pdata = {
 
 static struct platform_device *devices[] __initdata = {
 	&armadillo5x0_smc911x_device,
+	&armadillo5x0_button_device,
 };
 
 /*
