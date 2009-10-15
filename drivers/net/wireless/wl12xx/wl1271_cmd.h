@@ -184,7 +184,7 @@ struct cmd_read_write_memory {
 	   of this field is the Host in WRITE command or the Wilink in READ
 	   command. */
 	u8 value[MAX_READ_SIZE];
-};
+} __attribute__ ((packed));
 
 #define CMDMBOX_HEADER_LEN 4
 #define CMDMBOX_INFO_ELEM_HEADER_LEN 4
@@ -399,12 +399,12 @@ struct wl1271_cmd_trigger_scan_to {
 	struct wl1271_cmd_header header;
 
 	__le32 timeout;
-};
+} __attribute__ ((packed));
 
 struct wl1271_cmd_test_header {
 	u8 id;
 	u8 padding[3];
-};
+} __attribute__ ((packed));
 
 enum wl1271_channel_tune_bands {
 	WL1271_CHANNEL_TUNE_BAND_2_4,
