@@ -900,6 +900,7 @@ struct bnx2x {
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
 #define HW_VLAN_TX_FLAG			0x400
 #define HW_VLAN_RX_FLAG			0x800
+#define MF_FUNC_DIS			0x1000
 
 	int			func;
 #define BP_PORT(bp)			(bp->func % PORT_MAX)
@@ -965,7 +966,6 @@ struct bnx2x {
 #define BNX2X_STATE_CLOSING_WAIT4_HALT	0x4000
 #define BNX2X_STATE_CLOSING_WAIT4_DELETE 0x5000
 #define BNX2X_STATE_CLOSING_WAIT4_UNLOAD 0x6000
-#define BNX2X_STATE_DISABLED		0xd000
 #define BNX2X_STATE_DIAG		0xe000
 #define BNX2X_STATE_ERROR		0xf000
 
