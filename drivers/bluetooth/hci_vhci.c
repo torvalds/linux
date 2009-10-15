@@ -218,12 +218,6 @@ static unsigned int vhci_poll(struct file *file, poll_table *wait)
 	return POLLOUT | POLLWRNORM;
 }
 
-static int vhci_ioctl(struct inode *inode, struct file *file,
-					unsigned int cmd, unsigned long arg)
-{
-	return -EINVAL;
-}
-
 static int vhci_open(struct inode *inode, struct file *file)
 {
 	struct vhci_data *data;
@@ -287,7 +281,6 @@ static const struct file_operations vhci_fops = {
 	.read		= vhci_read,
 	.write		= vhci_write,
 	.poll		= vhci_poll,
-	.ioctl		= vhci_ioctl,
 	.open		= vhci_open,
 	.release	= vhci_release,
 };
