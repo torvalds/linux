@@ -2565,20 +2565,11 @@ static void bnx2x_set_rx_mode(struct net_device *dev);
 static void bnx2x_e1h_disable(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
-	int i;
-
-	bp->rx_mode = BNX2X_RX_MODE_NONE;
-	bnx2x_set_storm_rx_mode(bp);
 
 	netif_tx_disable(bp->dev);
 	bp->dev->trans_start = jiffies;	/* prevent tx timeout */
 
 	REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 0);
-
-	bnx2x_set_eth_mac_addr_e1h(bp, 0);
-
-	for (i = 0; i < MC_HASH_SIZE; i++)
-		REG_WR(bp, MC_HASH_OFFSET(bp, i), 0);
 
 	netif_carrier_off(bp->dev);
 }
@@ -2589,13 +2580,13 @@ static void bnx2x_e1h_enable(struct bnx2x *bp)
 
 	REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 1);
 
-	bnx2x_set_eth_mac_addr_e1h(bp, 1);
-
 	/* Tx queue should be only reenabled */
 	netif_tx_wake_all_queues(bp->dev);
 
-	/* Initialize the receive filter. */
-	bnx2x_set_rx_mode(bp->dev);
+	/*
+	 * Should not call netif_carrier_on since it will be called if the link
+	 * is up when checking for link state
+	 */
 }
 
 static void bnx2x_update_min_max(struct bnx2x *bp)
@@ -10538,7 +10529,7 @@ static void bnx2x_self_test(struct net_device *dev,
 		/* disable input for TX port IF */
 		REG_WR(bp, NIG_REG_EGRESS_UMP0_IN_EN + port*4, 0);
 
-		link_up = bp->link_vars.link_up;
+		link_up = (bnx2x_link_test(bp) == 0);
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
 		bnx2x_nic_load(bp, LOAD_DIAG);
 		/* wait until link state is restored */
