@@ -913,7 +913,20 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 			spin_unlock(&rnp->lock); /* irqs remain disabled. */
 			break;
 		}
-		rcu_preempt_offline_tasks(rsp, rnp, rdp);
+
+		/*
+		 * If there was a task blocking the current grace period,
+		 * and if all CPUs have checked in, we need to propagate
+		 * the quiescent state up the rcu_node hierarchy.  But that
+		 * is inconvenient at the moment due to deadlock issues if
+		 * this should end the current grace period.  So set the
+		 * offlined CPU's bit in ->qsmask in order to force the
+		 * next force_quiescent_state() invocation to clean up this
+		 * mess in a deadlock-free manner.
+		 */
+		if (rcu_preempt_offline_tasks(rsp, rnp, rdp) && !rnp->qsmask)
+			rnp->qsmask |= mask;
+
 		mask = rnp->grpmask;
 		spin_unlock(&rnp->lock);	/* irqs remain disabled. */
 		rnp = rnp->parent;
