@@ -20,12 +20,14 @@ config MIPS_MTX1
 	select HW_HAS_PCI
 	select SOC_AU1500
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_BOSPORUS
 	bool "Alchemy Bosporus board"
 	select SOC_AU1500
 	select DMA_NONCOHERENT
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_DB1000
 	bool "Alchemy DB1000 board"
@@ -33,12 +35,14 @@ config MIPS_DB1000
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_DB1100
 	bool "Alchemy DB1100 board"
 	select SOC_AU1100
 	select DMA_NONCOHERENT
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_DB1200
 	bool "Alchemy DB1200 board"
@@ -46,6 +50,7 @@ config MIPS_DB1200
 	select DMA_COHERENT
 	select MIPS_DISABLE_OBSOLETE_IDE
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_DB1500
 	bool "Alchemy DB1500 board"
@@ -55,6 +60,7 @@ config MIPS_DB1500
 	select MIPS_DISABLE_OBSOLETE_IDE
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_DB1550
 	bool "Alchemy DB1550 board"
@@ -63,12 +69,14 @@ config MIPS_DB1550
 	select DMA_NONCOHERENT
 	select MIPS_DISABLE_OBSOLETE_IDE
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_MIRAGE
 	bool "Alchemy Mirage board"
 	select DMA_NONCOHERENT
 	select SOC_AU1500
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_PB1000
 	bool "Alchemy PB1000 board"
@@ -77,6 +85,7 @@ config MIPS_PB1000
 	select HW_HAS_PCI
 	select SWAP_IO_SPACE
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_PB1100
 	bool "Alchemy PB1100 board"
@@ -85,6 +94,7 @@ config MIPS_PB1100
 	select HW_HAS_PCI
 	select SWAP_IO_SPACE
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_PB1200
 	bool "Alchemy PB1200 board"
@@ -92,6 +102,7 @@ config MIPS_PB1200
 	select DMA_NONCOHERENT
 	select MIPS_DISABLE_OBSOLETE_IDE
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_PB1500
 	bool "Alchemy PB1500 board"
@@ -99,6 +110,7 @@ config MIPS_PB1500
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_PB1550
 	bool "Alchemy PB1550 board"
@@ -107,12 +119,14 @@ config MIPS_PB1550
 	select HW_HAS_PCI
 	select MIPS_DISABLE_OBSOLETE_IDE
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 config MIPS_XXS1500
 	bool "MyCable XXS1500 board"
 	select DMA_NONCOHERENT
 	select SOC_AU1500
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
 
 endchoice
 

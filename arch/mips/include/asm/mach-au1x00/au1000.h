@@ -161,6 +161,25 @@ static inline int alchemy_get_cputype(void)
 	return ALCHEMY_CPU_UNKNOWN;
 }
 
+static inline void alchemy_uart_putchar(u32 uart_phys, u8 c)
+{
+	void __iomem *base = (void __iomem *)KSEG1ADDR(uart_phys);
+	int timeout, i;
+
+	/* check LSR TX_EMPTY bit */
+	timeout = 0xffffff;
+	do {
+		if (__raw_readl(base + 0x1c) & 0x20)
+			break;
+		/* slow down */
+		for (i = 10000; i; i--)
+			asm volatile ("nop");
+	} while (--timeout);
+
+	__raw_writel(c, base + 0x04);	/* tx */
+	wmb();
+}
+
 /* arch/mips/au1000/common/clocks.c */
 extern void set_au1x00_speed(unsigned int new_freq);
 extern unsigned int get_au1x00_speed(void);

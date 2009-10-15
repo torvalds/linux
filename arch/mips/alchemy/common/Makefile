@@ -5,7 +5,7 @@
 # Makefile for the Alchemy Au1xx0 CPUs, generic files.
 #
 
-obj-y += prom.o irq.o puts.o time.o reset.o \
+obj-y += prom.o irq.o time.o reset.o \
 	clocks.o platform.o power.o setup.o \
 	sleeper.o dma.o dbdma.o
 
