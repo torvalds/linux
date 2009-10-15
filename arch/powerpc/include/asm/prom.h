@@ -71,18 +71,6 @@ struct boot_param_header
 	u32	dt_struct_size;		/* size of the DT structure block */
 };
 
-
-
-typedef u32 phandle;
-typedef u32 ihandle;
-
-struct property {
-	char	*name;
-	int	length;
-	void	*value;
-	struct property *next;
-};
-
 struct device_node {
 	const char *name;
 	const char *type;

@@ -19,6 +19,18 @@
 #include <linux/bitops.h>
 #include <linux/mod_devicetable.h>
 
+typedef u32 phandle;
+typedef u32 ihandle;
+
+struct property {
+	char	*name;
+	int	length;
+	void	*value;
+	struct property *next;
+	unsigned long _flags;
+	unsigned int unique_id;
+};
+
 #include <asm/prom.h>
 
 /* flag descriptions */

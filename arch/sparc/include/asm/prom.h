@@ -29,18 +29,6 @@
 #define of_prop_cmp(s1, s2)		strcasecmp((s1), (s2))
 #define of_node_cmp(s1, s2)		strcmp((s1), (s2))
 
-typedef u32 phandle;
-typedef u32 ihandle;
-
-struct property {
-	char	*name;
-	int	length;
-	void	*value;
-	struct property *next;
-	unsigned long _flags;
-	unsigned int unique_id;
-};
-
 struct of_irq_controller;
 struct device_node {
 	const char	*name;
