@@ -73,26 +73,6 @@ struct boot_param_header {
 	u32	dt_struct_size; /* size of the DT structure block */
 };
 
-struct device_node {
-	const char *name;
-	const char *type;
-	phandle	node;
-	phandle linux_phandle;
-	char	*full_name;
-
-	struct	property *properties;
-	struct	property *deadprops; /* removed properties */
-	struct	device_node *parent;
-	struct	device_node *child;
-	struct	device_node *sibling;
-	struct	device_node *next; /* next device of same type */
-	struct	device_node *allnext; /* next in list of all nodes */
-	struct	proc_dir_entry *pde; /* this node's proc directory */
-	struct	kref kref;
-	unsigned long _flags;
-	void	*data;
-};
-
 extern struct device_node *of_chosen;
 
 static inline int of_node_check_flag(struct device_node *n, unsigned long flag)

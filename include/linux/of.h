@@ -17,6 +17,7 @@
  */
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/kref.h>
 #include <linux/mod_devicetable.h>
 
 typedef u32 phandle;
@@ -29,6 +30,37 @@ struct property {
 	struct property *next;
 	unsigned long _flags;
 	unsigned int unique_id;
+};
+
+#if defined(CONFIG_SPARC)
+struct of_irq_controller;
+#endif
+
+struct device_node {
+	const char *name;
+	const char *type;
+	phandle	node;
+#if !defined(CONFIG_SPARC)
+	phandle linux_phandle;
+#endif
+	char	*full_name;
+
+	struct	property *properties;
+	struct	property *deadprops;	/* removed properties */
+	struct	device_node *parent;
+	struct	device_node *child;
+	struct	device_node *sibling;
+	struct	device_node *next;	/* next device of same type */
+	struct	device_node *allnext;	/* next in list of all nodes */
+	struct	proc_dir_entry *pde;	/* this node's proc directory */
+	struct	kref kref;
+	unsigned long _flags;
+	void	*data;
+#if defined(CONFIG_SPARC)
+	char	*path_component_name;
+	unsigned int unique_id;
+	struct of_irq_controller *irq_trans;
+#endif
 };
 
 #include <asm/prom.h>

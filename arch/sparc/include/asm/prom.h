@@ -29,30 +29,6 @@
 #define of_prop_cmp(s1, s2)		strcasecmp((s1), (s2))
 #define of_node_cmp(s1, s2)		strcmp((s1), (s2))
 
-struct of_irq_controller;
-struct device_node {
-	const char	*name;
-	const char	*type;
-	phandle	node;
-	char	*path_component_name;
-	char	*full_name;
-
-	struct	property *properties;
-	struct  property *deadprops; /* removed properties */
-	struct	device_node *parent;
-	struct	device_node *child;
-	struct	device_node *sibling;
-	struct	device_node *next;	/* next device of same type */
-	struct	device_node *allnext;	/* next in list of all nodes */
-	struct  proc_dir_entry *pde;	/* this node's proc directory */
-	struct  kref kref;
-	unsigned long _flags;
-	void	*data;
-	unsigned int unique_id;
-
-	struct of_irq_controller *irq_trans;
-};
-
 struct of_irq_controller {
 	unsigned int	(*irq_build)(struct device_node *, unsigned int, void *);
 	void		*data;
