@@ -1,6 +1,7 @@
-/* @file gl860.h
- * @author Olivier LORIN, tiré du pilote Syntek par Nicolas VIVIEN
- * @date 2009-08-27
+/* GSPCA subdrivers for Genesys Logic webcams with the GL860 chip
+ * Subdriver declarations
+ *
+ * 2009/10/14 Olivier LORIN <o.lorin@laposte.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

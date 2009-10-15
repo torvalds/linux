@@ -1,6 +1,5 @@
-/* @file gl860-ov2640.c
- * @author Olivier LORIN, from Malmostoso's logs
- * @date 2009-08-27
+/* Subdriver for the GL860 chip with the OV2640 sensor
+ * Author Olivier LORIN, from Malmostoso's logs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,7 +91,7 @@ static struct validx tbl_common[] = {
 	{0x6000, 0x0010},
 };
 
-static struct validx tbl_sensor_settings_common_a[] = {
+static struct validx tbl_sensor_settings_common1[] = {
 	{0x0041, 0x0000}, {0x006a, 0x0007}, {0x00ef, 0x0006}, {0x006a, 0x000d},
 	{0x0000, 0x00c0}, {0x0010, 0x0010}, {0x0001, 0x00c1}, {0x0041, 0x00c2},
 	{0x0004, 0x00d8}, {0x0012, 0x0004}, {0x0000, 0x0058}, {0x0041, 0x0000},
@@ -104,7 +103,7 @@ static struct validx tbl_sensor_settings_common_a[] = {
 	{0x0040, 0x0000},
 };
 
-static struct validx tbl_sensor_settings_common_b[] = {
+static struct validx tbl_sensor_settings_common2[] = {
 	{0x6001, 0x00ff}, {0x6038, 0x000c},
 	{10, 0xffff},
 	{0x6000, 0x0011},
@@ -166,7 +165,7 @@ static struct validx tbl_800[] = {
 	{0x60ff, 0x00dd}, {0x6020, 0x008c}, {0x6001, 0x00ff}, {0x6044, 0x0018},
 };
 
-static struct validx tbl_big_a[] = {
+static struct validx tbl_big1[] = {
 	{0x0002, 0x00c1}, {0x6000, 0x00ff}, {0x60f1, 0x00dd}, {0x6004, 0x00e0},
 	{0x6001, 0x00ff}, {0x6000, 0x0012}, {0x6000, 0x0000}, {0x6000, 0x0045},
 	{0x6000, 0x0010}, {0x6000, 0x0011}, {0x6011, 0x0017}, {0x6075, 0x0018},
@@ -176,14 +175,14 @@ static struct validx tbl_big_a[] = {
 	{0x60c8, 0x00c0}, {0x6096, 0x00c1}, {0x6000, 0x008c},
 };
 
-static struct validx tbl_big_b[] = {
+static struct validx tbl_big2[] = {
 	{0x603d, 0x0086}, {0x6000, 0x0050}, {0x6090, 0x0051}, {0x602c, 0x0052},
 	{0x6000, 0x0053}, {0x6000, 0x0054}, {0x6088, 0x0055}, {0x6000, 0x0057},
 	{0x6040, 0x005a}, {0x60f0, 0x005b}, {0x6001, 0x005c}, {0x6082, 0x00d3},
 	{0x6000, 0x008e},
 };
 
-static struct validx tbl_big_c[] = {
+static struct validx tbl_big3[] = {
 	{0x6004, 0x00da}, {0x6000, 0x00e0}, {0x6067, 0x00e1}, {0x60ff, 0x00dd},
 	{0x6001, 0x00ff}, {0x6000, 0x00ff}, {0x60f1, 0x00dd}, {0x6004, 0x00e0},
 	{0x6001, 0x00ff}, {0x6000, 0x0011}, {0x6000, 0x00ff}, {0x6010, 0x00c7},
@@ -275,6 +274,8 @@ static int ov2640_init_pre_alt(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	sd->mirrorMask = 0;
+
 	sd->vold.backlight  = -1;
 	sd->vold.brightness = -1;
 	sd->vold.sharpness  = -1;
@@ -292,16 +293,16 @@ static int ov2640_init_pre_alt(struct gspca_dev *gspca_dev)
 static int ov2640_init_post_alt(struct gspca_dev *gspca_dev)
 {
 	s32 reso = gspca_dev->cam.cam_mode[(s32) gspca_dev->curr_mode].priv;
-	s32 n; /* reserved for FETCH macros */
+	s32 n; /* reserved for FETCH functions */
 
 	ctrl_out(gspca_dev, 0x40, 5, 0x0001, 0x0000, 0, NULL);
 
-	n = fetch_validx(gspca_dev, tbl_sensor_settings_common_a,
-			ARRAY_SIZE(tbl_sensor_settings_common_a));
+	n = fetch_validx(gspca_dev, tbl_sensor_settings_common1,
+			ARRAY_SIZE(tbl_sensor_settings_common1));
 	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200, 12, dat_post);
 	common(gspca_dev);
-	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common_a,
-				ARRAY_SIZE(tbl_sensor_settings_common_a), n);
+	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common1,
+				ARRAY_SIZE(tbl_sensor_settings_common1), n);
 
 	switch (reso) {
 	case IMAGE_640:
@@ -316,18 +317,18 @@ static int ov2640_init_post_alt(struct gspca_dev *gspca_dev)
 
 	case IMAGE_1600:
 	case IMAGE_1280:
-		n = fetch_validx(gspca_dev, tbl_big_a, ARRAY_SIZE(tbl_big_a));
+		n = fetch_validx(gspca_dev, tbl_big1, ARRAY_SIZE(tbl_big1));
 
 		if (reso == IMAGE_1280) {
-			n = fetch_validx(gspca_dev, tbl_big_b,
-					ARRAY_SIZE(tbl_big_b));
+			n = fetch_validx(gspca_dev, tbl_big2,
+					ARRAY_SIZE(tbl_big2));
 		} else {
 			ctrl_out(gspca_dev, 0x40, 1, 0x601d, 0x0086, 0, NULL);
 			ctrl_out(gspca_dev, 0x40, 1, 0x6001, 0x00d7, 0, NULL);
 			ctrl_out(gspca_dev, 0x40, 1, 0x6082, 0x00d3, 0, NULL);
 		}
 
-		n = fetch_validx(gspca_dev, tbl_big_c, ARRAY_SIZE(tbl_big_c));
+		n = fetch_validx(gspca_dev, tbl_big3, ARRAY_SIZE(tbl_big3));
 
 		if (reso == IMAGE_1280) {
 			ctrl_out(gspca_dev, 0x40, 1, 0x6001, 0x00ff, 0, NULL);
@@ -343,20 +344,20 @@ static int ov2640_init_post_alt(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	n = fetch_validx(gspca_dev, tbl_sensor_settings_common_b,
-			ARRAY_SIZE(tbl_sensor_settings_common_b));
+	n = fetch_validx(gspca_dev, tbl_sensor_settings_common2,
+			ARRAY_SIZE(tbl_sensor_settings_common2));
 	ctrl_in(gspca_dev, 0xc0, 2, 0x0000, 0x0000, 1, c50);
-	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common_b,
-				ARRAY_SIZE(tbl_sensor_settings_common_b), n);
+	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common2,
+				ARRAY_SIZE(tbl_sensor_settings_common2), n);
 	ctrl_in(gspca_dev, 0xc0, 2, 0x6000, 0x8004, 1, c28);
-	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common_b,
-				ARRAY_SIZE(tbl_sensor_settings_common_b), n);
+	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common2,
+				ARRAY_SIZE(tbl_sensor_settings_common2), n);
 	ctrl_in(gspca_dev, 0xc0, 2, 0x6000, 0x8004, 1, ca8);
-	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common_b,
-				ARRAY_SIZE(tbl_sensor_settings_common_b), n);
+	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common2,
+				ARRAY_SIZE(tbl_sensor_settings_common2), n);
 	ctrl_in(gspca_dev, 0xc0, 2, 0x0000, 0x0000, 1, c50);
-	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common_b,
-				ARRAY_SIZE(tbl_sensor_settings_common_b), n);
+	keep_on_fetching_validx(gspca_dev, tbl_sensor_settings_common2,
+				ARRAY_SIZE(tbl_sensor_settings_common2), n);
 
 	ov2640_camera_settings(gspca_dev);
 
@@ -395,6 +396,7 @@ static int ov2640_camera_settings(struct gspca_dev *gspca_dev)
 	s32 wbal   = sd->vcur.whitebal;
 
 	if (backlight != sd->vold.backlight) {
+		/* No sd->vold.backlight=backlight; (to be done again later) */
 		if (backlight < 0 || backlight > sd->vmax.backlight)
 			backlight = 0;
 
@@ -404,7 +406,6 @@ static int ov2640_camera_settings(struct gspca_dev *gspca_dev)
 				0, NULL);
 		ctrl_out(gspca_dev, 0x40, 1, 0x601f + backlight - 10, 0x0025,
 				0, NULL);
-		/* No sd->vold.backlight=backlight; (to be done again later) */
 	}
 
 	if (bright != sd->vold.brightness) {

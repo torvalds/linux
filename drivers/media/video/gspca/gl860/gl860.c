@@ -1,9 +1,7 @@
-/* @file gl860.c
- * @date 2009-08-27
+/* GSPCA subdrivers for Genesys Logic webcams with the GL860 chip
+ * Subdriver core
  *
- * Genesys Logic webcam with gl860 subdrivers
- *
- * Driver by Olivier Lorin <o.lorin@laposte.net>
+ * 2009/09/24 Olivier Lorin <o.lorin@laposte.net>
  * GSPCA by Jean-Francois Moine <http://moinejf.free.fr>
  * Thanks BUGabundo and Malmostoso for your amazing help!
  *
