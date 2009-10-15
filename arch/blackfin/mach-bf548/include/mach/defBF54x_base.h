@@ -1815,10 +1815,6 @@
 #define               DEB3_MERROR  0x40       /* DEB3 Error (2nd) */
 #define               CORE_MERROR  0x80       /* Core Error (2nd) */
 
-/* Bit masks for EBIU_ERRADD */
-
-#define             ERROR_ADDRESS  0xffffffff /* Error Address */
-
 /* Bit masks for EBIU_RSTCTL */
 
 #define                 DDRSRESET  0x1        /* DDR soft reset */
@@ -1826,98 +1822,6 @@
 #define                     SRREQ  0x8        /* Self-refresh request */
 #define                     SRACK  0x10       /* Self-refresh acknowledge */
 #define                MDDRENABLE  0x20       /* Mobile DDR enable */
-
-/* Bit masks for EBIU_DDRBRC0 */
-
-#define                      BRC0  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC1 */
-
-#define                      BRC1  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC2 */
-
-#define                      BRC2  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC3 */
-
-#define                      BRC3  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC4 */
-
-#define                      BRC4  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC5 */
-
-#define                      BRC5  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC6 */
-
-#define                      BRC6  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC7 */
-
-#define                      BRC7  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC0 */
-
-#define                      BWC0  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC1 */
-
-#define                      BWC1  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC2 */
-
-#define                      BWC2  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC3 */
-
-#define                      BWC3  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC4 */
-
-#define                      BWC4  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC5 */
-
-#define                      BWC5  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC6 */
-
-#define                      BWC6  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC7 */
-
-#define                      BWC7  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRACCT */
-
-#define                      ACCT  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRTACT */
-
-#define                      TECT  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRARCT */
-
-#define                      ARCT  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRGC0 */
-
-#define                       GC0  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRGC1 */
-
-#define                       GC1  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRGC2 */
-
-#define                       GC2  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRGC3 */
-
-#define                       GC3  0xffffffff /* Count */
 
 /* Bit masks for EBIU_DDRMCEN */
 
@@ -2407,14 +2311,6 @@
 #define                      UCRC  0x20       /* Universal Counter Reload/Clear */
 #define                      UCCT  0x40       /* Universal Counter CAN Trigger */
 #define                       UCE  0x80       /* Universal Counter Enable */
-
-/* Bit masks for CAN0_UCCNT */
-
-#define                     UCCNT  0xffff     /* Universal Counter Count Value */
-
-/* Bit masks for CAN0_UCRC */
-
-#define                     UCVAL  0xffff     /* Universal Counter Reload/Capture Value */
 
 /* Bit masks for CAN0_CEC */
 
