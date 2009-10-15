@@ -185,6 +185,9 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 		break;
 	case CHIP_ID_1251_PG10:
 	case CHIP_ID_1251_PG11:
+		wl1251_debug(DEBUG_BOOT, "chip id 0x%x (1251 PG11)",
+			     wl->chip_id);
+		break;
 	default:
 		wl1251_error("unsupported chip id: 0x%x", wl->chip_id);
 		ret = -ENODEV;
