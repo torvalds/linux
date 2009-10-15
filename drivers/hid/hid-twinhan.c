@@ -132,12 +132,12 @@ static struct hid_driver twinhan_driver = {
 	.input_mapping = twinhan_input_mapping,
 };
 
-static int twinhan_init(void)
+static int __init twinhan_init(void)
 {
 	return hid_register_driver(&twinhan_driver);
 }
 
-static void twinhan_exit(void)
+static void __exit twinhan_exit(void)
 {
 	hid_unregister_driver(&twinhan_driver);
 }

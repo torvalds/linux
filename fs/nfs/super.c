@@ -1848,8 +1848,8 @@ nfs_compare_remount_data(struct nfs_server *nfss,
 	    data->timeo != (10U * nfss->client->cl_timeout->to_initval / HZ) ||
 	    data->nfs_server.port != nfss->port ||
 	    data->nfs_server.addrlen != nfss->nfs_client->cl_addrlen ||
-	    !rpc_cmp_addr(&data->nfs_server.address,
-		    &nfss->nfs_client->cl_addr))
+	    !rpc_cmp_addr((struct sockaddr *)&data->nfs_server.address,
+			  (struct sockaddr *)&nfss->nfs_client->cl_addr))
 		return -EINVAL;
 
 	return 0;
