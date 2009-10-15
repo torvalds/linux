@@ -233,6 +233,10 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	set_fs(USER_DS);
 
+	/* the tracer may want to single-step inside the handler */
+	if (test_thread_flag(TIF_SINGLESTEP))
+		ptrace_notify(SIGTRAP);
+
 #ifdef DEBUG_SIG
 	printk(KERN_INFO "SIG deliver (%s:%d): sp=%p pc=%08lx\n",
 		current->comm, current->pid, frame, regs->pc);
