@@ -504,7 +504,7 @@ void conf_parse(const char *name)
 	sym_set_change_count(1);
 }
 
-const char *zconf_tokenname(int token)
+static const char *zconf_tokenname(int token)
 {
 	switch (token) {
 	case T_MENU:		return "menu";
@@ -568,7 +568,7 @@ static void zconferror(const char *err)
 #endif
 }
 
-void print_quoted_string(FILE *out, const char *str)
+static void print_quoted_string(FILE *out, const char *str)
 {
 	const char *p;
 	int len;
@@ -585,7 +585,7 @@ void print_quoted_string(FILE *out, const char *str)
 	putc('"', out);
 }
 
-void print_symbol(FILE *out, struct menu *menu)
+static void print_symbol(FILE *out, struct menu *menu)
 {
 	struct symbol *sym = menu->sym;
 	struct property *prop;
