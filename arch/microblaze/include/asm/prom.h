@@ -40,10 +40,6 @@ extern struct device_node *of_chosen;
 extern struct device_node *allnodes;	/* temporary while merging */
 extern rwlock_t devtree_lock;	/* temporary while merging */
 
-extern struct device_node *of_find_all_nodes(struct device_node *prev);
-extern struct device_node *of_node_get(struct device_node *node);
-extern void of_node_put(struct device_node *node);
-
 /* For scanning the flat device-tree at boot time */
 extern int __init of_scan_flat_dt(int (*it)(unsigned long node,
 					const char *uname, int depth,

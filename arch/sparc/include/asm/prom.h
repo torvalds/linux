@@ -51,15 +51,6 @@ extern void prom_build_devicetree(void);
 extern void of_populate_present_mask(void);
 extern void of_fill_in_cpu_data(void);
 
-/* Dummy ref counting routines - to be implemented later */
-static inline struct device_node *of_node_get(struct device_node *node)
-{
-	return node;
-}
-static inline void of_node_put(struct device_node *node)
-{
-}
-
 /* These routines are here to provide compatibility with how powerpc
  * handles IRQ mapping for OF device nodes.  We precompute and permanently
  * register them in the of_device objects, whereas powerpc computes them
