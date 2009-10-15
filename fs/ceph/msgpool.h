@@ -20,7 +20,8 @@ extern int ceph_msgpool_init(struct ceph_msgpool *pool,
 			     int front_len, int size, bool blocking);
 extern void ceph_msgpool_destroy(struct ceph_msgpool *pool);
 extern int ceph_msgpool_resv(struct ceph_msgpool *, int delta);
-extern struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *);
+extern struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *,
+					 int front_len);
 extern void ceph_msgpool_put(struct ceph_msgpool *, struct ceph_msg *);
 
 #endif

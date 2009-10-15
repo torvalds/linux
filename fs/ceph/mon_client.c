@@ -639,14 +639,15 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 {
 	struct ceph_mon_client *monc = con->private;
 	int type = le16_to_cpu(hdr->type);
+	int front = le32_to_cpu(hdr->front_len);
 
 	switch (type) {
 	case CEPH_MSG_CLIENT_MOUNT_ACK:
-		return ceph_msgpool_get(&monc->msgpool_mount_ack);
+		return ceph_msgpool_get(&monc->msgpool_mount_ack, front);
 	case CEPH_MSG_MON_SUBSCRIBE_ACK:
-		return ceph_msgpool_get(&monc->msgpool_subscribe_ack);
+		return ceph_msgpool_get(&monc->msgpool_subscribe_ack, front);
 	case CEPH_MSG_STATFS_REPLY:
-		return ceph_msgpool_get(&monc->msgpool_statfs_reply);
+		return ceph_msgpool_get(&monc->msgpool_statfs_reply, front);
 	}
 	return ceph_alloc_msg(con, hdr);
 }

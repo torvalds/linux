@@ -101,14 +101,28 @@ int ceph_msgpool_resv(struct ceph_msgpool *pool, int delta)
 	return ret;
 }
 
-struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *pool)
+struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *pool, int front_len)
 {
 	wait_queue_t wait;
 	struct ceph_msg *msg;
 
+	if (front_len && front_len > pool->front_len) {
+		pr_err("msgpool_get pool %p need front %d, pool size is %d\n",
+		       pool, front_len, pool->front_len);
+		WARN_ON(1);
+
+		/* try to alloc a fresh message */
+		msg = ceph_msg_new(0, front_len, 0, 0, NULL);
+		if (!IS_ERR(msg))
+			return msg;
+	}
+
+	if (!front_len)
+		front_len = pool->front_len;
+
 	if (pool->blocking) {
 		/* mempool_t behavior; first try to alloc */
-		msg = ceph_msg_new(0, pool->front_len, 0, 0, NULL);
+		msg = ceph_msg_new(0, front_len, 0, 0, NULL);
 		if (!IS_ERR(msg))
 			return msg;
 	}
@@ -133,7 +147,7 @@ struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *pool)
 			WARN_ON(1);
 
 			/* maybe we can allocate it now? */
-			msg = ceph_msg_new(0, pool->front_len, 0, 0, NULL);
+			msg = ceph_msg_new(0, front_len, 0, 0, NULL);
 			if (!IS_ERR(msg))
 				return msg;
 

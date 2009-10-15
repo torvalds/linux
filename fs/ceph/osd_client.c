@@ -161,7 +161,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	if (snapc)
 		msg_size += sizeof(u64) * snapc->num_snaps;
 	if (use_mempool)
-		msg = ceph_msgpool_get(&osdc->msgpool_op);
+		msg = ceph_msgpool_get(&osdc->msgpool_op, 0);
 	else
 		msg = ceph_msg_new(CEPH_MSG_OSD_OP, msg_size, 0, 0, NULL);
 	if (IS_ERR(msg)) {
@@ -1271,10 +1271,11 @@ static struct ceph_msg *alloc_msg(struct ceph_connection *con,
 	struct ceph_osd *osd = con->private;
 	struct ceph_osd_client *osdc = osd->o_osdc;
 	int type = le16_to_cpu(hdr->type);
+	int front = le32_to_cpu(hdr->front_len);
 
 	switch (type) {
 	case CEPH_MSG_OSD_OPREPLY:
-		return ceph_msgpool_get(&osdc->msgpool_op_reply);
+		return ceph_msgpool_get(&osdc->msgpool_op_reply, front);
 	}
 	return ceph_alloc_msg(con, hdr);
 }
