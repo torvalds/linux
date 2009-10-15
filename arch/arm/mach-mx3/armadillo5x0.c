@@ -99,7 +99,11 @@ static int armadillo5x0_pins[] = {
 	MX31_PIN_FPSHIFT__FPSHIFT,
 	MX31_PIN_DRDY0__DRDY0,
 	IOMUX_MODE(MX31_PIN_LCS1, IOMUX_CONFIG_GPIO), /*ADV7125_PSAVE*/
+	/* I2C2 */
+	MX31_PIN_CSPI2_MOSI__SCL,
+	MX31_PIN_CSPI2_MISO__SDA,
 };
+
 /* GPIO BUTTONS */
 static struct gpio_keys_button armadillo5x0_buttons[] = {
 	{
@@ -332,6 +336,7 @@ static struct imxuart_platform_data uart_pdata = {
 
 static struct platform_device *devices[] __initdata = {
 	&armadillo5x0_smc911x_device,
+	&mxc_i2c_device1,
 	&armadillo5x0_button_device,
 };
 
