@@ -89,26 +89,6 @@ extern int release_OF_resource(struct device_node* node, int index);
  * OF address retreival & translation
  */
 
-
-/* Helper to read a big number; size is in cells (not bytes) */
-static inline u64 of_read_number(const u32 *cell, int size)
-{
-	u64 r = 0;
-	while (size--)
-		r = (r << 32) | *(cell++);
-	return r;
-}
-
-/* Like of_read_number, but we want an unsigned long result */
-#ifdef CONFIG_PPC32
-static inline unsigned long of_read_ulong(const u32 *cell, int size)
-{
-	return cell[size-1];
-}
-#else
-#define of_read_ulong(cell, size)	of_read_number(cell, size)
-#endif
-
 /* Translate an OF address block into a CPU physical address
  */
 extern u64 of_translate_address(struct device_node *np, const u32 *addr);
