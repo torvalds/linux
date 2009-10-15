@@ -1,3 +1,4 @@
+#include <linux/of.h>	/* linux/of.h gets to determine #include ordering */
 #ifndef _SPARC_PROM_H
 #define _SPARC_PROM_H
 #ifdef __KERNEL__
@@ -107,12 +108,6 @@ extern unsigned int irq_of_parse_and_map(struct device_node *node, int index);
 static inline void irq_dispose_mapping(unsigned int virq)
 {
 }
-
-/*
- * NB:  This is here while we transition from using asm/prom.h
- * to linux/of.h
- */
-#include <linux/of.h>
 
 extern struct device_node *of_console_device;
 extern char *of_console_path;

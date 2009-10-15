@@ -12,6 +12,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/of.h>	/* linux/of.h gets to determine #include ordering */
+
 #ifndef _ASM_MICROBLAZE_PROM_H
 #define _ASM_MICROBLAZE_PROM_H
 #ifdef __KERNEL__
@@ -304,12 +306,6 @@ extern int of_irq_to_resource(struct device_node *dev, int index,
  * Returns a pointer to the mapped memory
  */
 extern void __iomem *of_iomap(struct device_node *device, int index);
-
-/*
- * NB: This is here while we transition from using asm/prom.h
- * to linux/of.h
- */
-#include <linux/of.h>
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
