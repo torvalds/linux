@@ -2333,8 +2333,14 @@ static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
 	}
 
 	/* ... only if all min rates are zeros - disable fairness */
-	if (all_zero)
-		bp->vn_weight_sum = 0;
+	if (all_zero) {
+		bp->cmng.flags.cmng_enables &=
+					~CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
+		DP(NETIF_MSG_IFUP, "All MIN values are zeroes"
+		   "  fairness will be disabled\n");
+	} else
+		bp->cmng.flags.cmng_enables |=
+					CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
 }
 
 static void bnx2x_init_vn_minmax(struct bnx2x *bp, int func)
@@ -2353,17 +2359,14 @@ static void bnx2x_init_vn_minmax(struct bnx2x *bp, int func)
 	} else {
 		vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
 				FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
-		/* If fairness is enabled (not all min rates are zeroes) and
-		   if current min rate is zero - set it to 1.
-		   This is a requirement of the algorithm. */
-		if (bp->vn_weight_sum && (vn_min_rate == 0))
+		/* If min rate is zero - set it to 1 */
+		if (!vn_min_rate)
 			vn_min_rate = DEF_MIN_RATE;
 		vn_max_rate = ((vn_cfg & FUNC_MF_CFG_MAX_BW_MASK) >>
 				FUNC_MF_CFG_MAX_BW_SHIFT) * 100;
 	}
-
 	DP(NETIF_MSG_IFUP,
-	   "func %d: vn_min_rate=%d  vn_max_rate=%d  vn_weight_sum=%d\n",
+	   "func %d: vn_min_rate %d  vn_max_rate %d  vn_weight_sum %d\n",
 	   func, vn_min_rate, vn_max_rate, bp->vn_weight_sum);
 
 	memset(&m_rs_vn, 0, sizeof(struct rate_shaping_vars_per_vn));
@@ -2490,7 +2493,6 @@ static void bnx2x__link_status_update(struct bnx2x *bp)
 	else
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
-	bp->mf_config = SHMEM_RD(bp, mf_cfg.func_mf_config[func].config);
 	bnx2x_calc_vn_weight_sum(bp);
 
 	/* indicate link status */
@@ -2634,10 +2636,7 @@ static void bnx2x_update_min_max(struct bnx2x *bp)
 
 static void bnx2x_dcc_event(struct bnx2x *bp, u32 dcc_event)
 {
-	int func = BP_FUNC(bp);
-
 	DP(BNX2X_MSG_MCP, "dcc_event 0x%x\n", dcc_event);
-	bp->mf_config = SHMEM_RD(bp, mf_cfg.func_mf_config[func].config);
 
 	if (dcc_event & DRV_STATUS_DCC_DISABLE_ENABLE_PF) {
 
@@ -3067,6 +3066,8 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 			int func = BP_FUNC(bp);
 
 			REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_12 + func*4, 0);
+			bp->mf_config = SHMEM_RD(bp,
+					   mf_cfg.func_mf_config[func].config);
 			val = SHMEM_RD(bp, func_mb[func].drv_status);
 			if (val & DRV_STATUS_DCC_EVENT_MASK)
 				bnx2x_dcc_event(bp,
@@ -5559,20 +5560,18 @@ static void bnx2x_init_internal_func(struct bnx2x *bp)
 		bp->link_vars.line_speed = SPEED_10000;
 		bnx2x_init_port_minmax(bp);
 
+		if (!BP_NOMCP(bp))
+			bp->mf_config =
+			      SHMEM_RD(bp, mf_cfg.func_mf_config[func].config);
 		bnx2x_calc_vn_weight_sum(bp);
 
 		for (vn = VN_0; vn < E1HVN_MAX; vn++)
 			bnx2x_init_vn_minmax(bp, 2*vn + port);
 
 		/* Enable rate shaping and fairness */
-		bp->cmng.flags.cmng_enables =
+		bp->cmng.flags.cmng_enables |=
 					CMNG_FLAGS_PER_PORT_RATE_SHAPING_VN;
-		if (bp->vn_weight_sum)
-			bp->cmng.flags.cmng_enables |=
-					CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
-		else
-			DP(NETIF_MSG_IFUP, "All MIN values are zeroes"
-			   "  fairness will be disabled\n");
+
 	} else {
 		/* rate shaping and fairness are disabled */
 		DP(NETIF_MSG_IFUP,
@@ -9038,17 +9037,18 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (netif_carrier_ok(dev)) {
 		cmd->speed = bp->link_vars.line_speed;
 		cmd->duplex = bp->link_vars.duplex;
-	} else {
-		cmd->speed = bp->link_params.req_line_speed;
-		cmd->duplex = bp->link_params.req_duplex;
-	}
-	if (IS_E1HMF(bp)) {
-		u16 vn_max_rate;
+		if (IS_E1HMF(bp)) {
+			u16 vn_max_rate;
 
-		vn_max_rate = ((bp->mf_config & FUNC_MF_CFG_MAX_BW_MASK) >>
+			vn_max_rate =
+				((bp->mf_config & FUNC_MF_CFG_MAX_BW_MASK) >>
 				FUNC_MF_CFG_MAX_BW_SHIFT) * 100;
-		if (vn_max_rate < cmd->speed)
-			cmd->speed = vn_max_rate;
+			if (vn_max_rate < cmd->speed)
+				cmd->speed = vn_max_rate;
+		}
+	} else {
+		cmd->speed = -1;
+		cmd->duplex = -1;
 	}
 
 	if (bp->link_params.switch_cfg == SWITCH_CFG_10G) {
