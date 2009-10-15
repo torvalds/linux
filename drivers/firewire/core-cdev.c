@@ -1299,7 +1299,23 @@ static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 static int dispatch_ioctl(struct client *client,
 			  unsigned int cmd, void __user *arg)
 {
-	char buffer[256];
+	char buffer[sizeof(union {
+		struct fw_cdev_get_info			_00;
+		struct fw_cdev_send_request		_01;
+		struct fw_cdev_allocate			_02;
+		struct fw_cdev_deallocate		_03;
+		struct fw_cdev_send_response		_04;
+		struct fw_cdev_initiate_bus_reset	_05;
+		struct fw_cdev_add_descriptor		_06;
+		struct fw_cdev_remove_descriptor	_07;
+		struct fw_cdev_create_iso_context	_08;
+		struct fw_cdev_queue_iso		_09;
+		struct fw_cdev_start_iso		_0a;
+		struct fw_cdev_stop_iso			_0b;
+		struct fw_cdev_get_cycle_timer		_0c;
+		struct fw_cdev_allocate_iso_resource	_0d;
+		struct fw_cdev_send_stream_packet	_13;
+	})];
 	int ret;
 
 	if (_IOC_TYPE(cmd) != '#' ||
