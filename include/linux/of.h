@@ -69,6 +69,9 @@ struct device_node {
 #define OF_DYNAMIC	1 /* node and properties were allocated via kmalloc */
 #define OF_DETACHED	2 /* node has been detached from the device tree */
 
+#define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
+#define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
+
 #define OF_BAD_ADDR	((u64)-1)
 
 extern struct device_node *of_find_node_by_name(struct device_node *from,
