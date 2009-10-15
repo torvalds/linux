@@ -929,7 +929,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_ps(local, -1);
 	mutex_unlock(&local->iflist_mtx);
 
-	netif_tx_start_all_queues(sdata->dev);
+	netif_start_queue(sdata->dev);
 	netif_carrier_on(sdata->dev);
 }
 
@@ -1061,7 +1061,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	 * time -- we don't want the scan code to enable queues.
 	 */
 
-	netif_tx_stop_all_queues(sdata->dev);
+	netif_stop_queue(sdata->dev);
 	netif_carrier_off(sdata->dev);
 
 	rcu_read_lock();

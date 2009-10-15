@@ -306,10 +306,10 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.mgd.associated) {
 				ieee80211_scan_ps_disable(sdata);
-				netif_tx_wake_all_queues(sdata->dev);
+				netif_wake_queue(sdata->dev);
 			}
 		} else
-			netif_tx_wake_all_queues(sdata->dev);
+			netif_wake_queue(sdata->dev);
 
 		/* re-enable beaconing */
 		if (sdata->vif.type == NL80211_IFTYPE_AP ||
@@ -364,7 +364,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 		 * are handled in the scan state machine
 		 */
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
-			netif_tx_stop_all_queues(sdata->dev);
+			netif_stop_queue(sdata->dev);
 	}
 	mutex_unlock(&local->iflist_mtx);
 
@@ -523,7 +523,7 @@ static void ieee80211_scan_state_leave_oper_channel(struct ieee80211_local *loca
 			continue;
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			netif_tx_stop_all_queues(sdata->dev);
+			netif_stop_queue(sdata->dev);
 			if (sdata->u.mgd.associated)
 				ieee80211_scan_ps_enable(sdata);
 		}
@@ -558,7 +558,7 @@ static void ieee80211_scan_state_enter_oper_channel(struct ieee80211_local *loca
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.mgd.associated)
 				ieee80211_scan_ps_disable(sdata);
-			netif_tx_wake_all_queues(sdata->dev);
+			netif_wake_queue(sdata->dev);
 		}
 	}
 	mutex_unlock(&local->iflist_mtx);
