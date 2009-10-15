@@ -16,8 +16,6 @@ enum {
 };
 #endif
 
-
-
 TRACE_EVENT(power_start,
 
 	TP_PROTO(unsigned int type, unsigned int state),

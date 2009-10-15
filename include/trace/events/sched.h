@@ -26,7 +26,7 @@ TRACE_EVENT(sched_kthread_stop,
 		__entry->pid	= t->pid;
 	),
 
-	TP_printk("task %s:%d", __entry->comm, __entry->pid)
+	TP_printk("comm=%s pid=%d", __entry->comm, __entry->pid)
 );
 
 /*
@@ -46,7 +46,7 @@ TRACE_EVENT(sched_kthread_stop_ret,
 		__entry->ret	= ret;
 	),
 
-	TP_printk("ret %d", __entry->ret)
+	TP_printk("ret=%d", __entry->ret)
 );
 
 /*
@@ -73,7 +73,7 @@ TRACE_EVENT(sched_wait_task,
 		__entry->prio	= p->prio;
 	),
 
-	TP_printk("task %s:%d [%d]",
+	TP_printk("comm=%s pid=%d prio=%d",
 		  __entry->comm, __entry->pid, __entry->prio)
 );
 
@@ -94,7 +94,7 @@ TRACE_EVENT(sched_wakeup,
 		__field(	pid_t,	pid			)
 		__field(	int,	prio			)
 		__field(	int,	success			)
-		__field(	int,	cpu			)
+		__field(	int,	target_cpu		)
 	),
 
 	TP_fast_assign(
@@ -102,12 +102,12 @@ TRACE_EVENT(sched_wakeup,
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio;
 		__entry->success	= success;
-		__entry->cpu		= task_cpu(p);
+		__entry->target_cpu	= task_cpu(p);
 	),
 
-	TP_printk("task %s:%d [%d] success=%d [%03d]",
+	TP_printk("comm=%s pid=%d prio=%d success=%d target_cpu=%03d",
 		  __entry->comm, __entry->pid, __entry->prio,
-		  __entry->success, __entry->cpu)
+		  __entry->success, __entry->target_cpu)
 );
 
 /*
@@ -127,7 +127,7 @@ TRACE_EVENT(sched_wakeup_new,
 		__field(	pid_t,	pid			)
 		__field(	int,	prio			)
 		__field(	int,	success			)
-		__field(	int,	cpu			)
+		__field(	int,	target_cpu		)
 	),
 
 	TP_fast_assign(
@@ -135,12 +135,12 @@ TRACE_EVENT(sched_wakeup_new,
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio;
 		__entry->success	= success;
-		__entry->cpu		= task_cpu(p);
+		__entry->target_cpu	= task_cpu(p);
 	),
 
-	TP_printk("task %s:%d [%d] success=%d [%03d]",
+	TP_printk("comm=%s pid=%d prio=%d success=%d target_cpu=%03d",
 		  __entry->comm, __entry->pid, __entry->prio,
-		  __entry->success, __entry->cpu)
+		  __entry->success, __entry->target_cpu)
 );
 
 /*
@@ -176,7 +176,7 @@ TRACE_EVENT(sched_switch,
 		__entry->next_prio	= next->prio;
 	),
 
-	TP_printk("task %s:%d [%d] (%s) ==> %s:%d [%d]",
+	TP_printk("prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%s ==> next_comm=%s next_pid=%d next_prio=%d",
 		__entry->prev_comm, __entry->prev_pid, __entry->prev_prio,
 		__entry->prev_state ?
 		  __print_flags(__entry->prev_state, "|",
@@ -211,7 +211,7 @@ TRACE_EVENT(sched_migrate_task,
 		__entry->dest_cpu	= dest_cpu;
 	),
 
-	TP_printk("task %s:%d [%d] from: %d  to: %d",
+	TP_printk("comm=%s pid=%d prio=%d orig_cpu=%d dest_cpu=%d",
 		  __entry->comm, __entry->pid, __entry->prio,
 		  __entry->orig_cpu, __entry->dest_cpu)
 );
@@ -237,7 +237,7 @@ TRACE_EVENT(sched_process_free,
 		__entry->prio		= p->prio;
 	),
 
-	TP_printk("task %s:%d [%d]",
+	TP_printk("comm=%s pid=%d prio=%d",
 		  __entry->comm, __entry->pid, __entry->prio)
 );
 
@@ -262,7 +262,7 @@ TRACE_EVENT(sched_process_exit,
 		__entry->prio		= p->prio;
 	),
 
-	TP_printk("task %s:%d [%d]",
+	TP_printk("comm=%s pid=%d prio=%d",
 		  __entry->comm, __entry->pid, __entry->prio)
 );
 
@@ -287,7 +287,7 @@ TRACE_EVENT(sched_process_wait,
 		__entry->prio		= current->prio;
 	),
 
-	TP_printk("task %s:%d [%d]",
+	TP_printk("comm=%s pid=%d prio=%d",
 		  __entry->comm, __entry->pid, __entry->prio)
 );
 
@@ -314,7 +314,7 @@ TRACE_EVENT(sched_process_fork,
 		__entry->child_pid	= child->pid;
 	),
 
-	TP_printk("parent %s:%d  child %s:%d",
+	TP_printk("comm=%s pid=%d child_comm=%s child_pid=%d",
 		__entry->parent_comm, __entry->parent_pid,
 		__entry->child_comm, __entry->child_pid)
 );
@@ -340,7 +340,7 @@ TRACE_EVENT(sched_signal_send,
 		__entry->sig	= sig;
 	),
 
-	TP_printk("sig: %d  task %s:%d",
+	TP_printk("sig=%d comm=%s pid=%d",
 		  __entry->sig, __entry->comm, __entry->pid)
 );
 
@@ -374,7 +374,7 @@ TRACE_EVENT(sched_stat_wait,
 		__perf_count(delay);
 	),
 
-	TP_printk("task: %s:%d wait: %Lu [ns]",
+	TP_printk("comm=%s pid=%d delay=%Lu [ns]",
 			__entry->comm, __entry->pid,
 			(unsigned long long)__entry->delay)
 );
@@ -406,7 +406,7 @@ TRACE_EVENT(sched_stat_runtime,
 		__perf_count(runtime);
 	),
 
-	TP_printk("task: %s:%d runtime: %Lu [ns], vruntime: %Lu [ns]",
+	TP_printk("comm=%s pid=%d runtime=%Lu [ns] vruntime=%Lu [ns]",
 			__entry->comm, __entry->pid,
 			(unsigned long long)__entry->runtime,
 			(unsigned long long)__entry->vruntime)
@@ -437,7 +437,7 @@ TRACE_EVENT(sched_stat_sleep,
 		__perf_count(delay);
 	),
 
-	TP_printk("task: %s:%d sleep: %Lu [ns]",
+	TP_printk("comm=%s pid=%d delay=%Lu [ns]",
 			__entry->comm, __entry->pid,
 			(unsigned long long)__entry->delay)
 );
@@ -467,7 +467,7 @@ TRACE_EVENT(sched_stat_iowait,
 		__perf_count(delay);
 	),
 
-	TP_printk("task: %s:%d iowait: %Lu [ns]",
+	TP_printk("comm=%s pid=%d delay=%Lu [ns]",
 			__entry->comm, __entry->pid,
 			(unsigned long long)__entry->delay)
 );
