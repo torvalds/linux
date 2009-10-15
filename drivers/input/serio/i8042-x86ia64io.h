@@ -327,6 +327,17 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
+		/*
+		 * Reset and GET ID commands issued via KBD port are
+		 * sometimes being delivered to AUX3.
+		 */
+		.ident = "Sony Vaio FZ-240E",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FZ240E"),
+		},
+	},
+	{
 		.ident = "Amoi M636/A737",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Amoi Electronics CO.,LTD."),
