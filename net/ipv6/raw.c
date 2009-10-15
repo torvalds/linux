@@ -517,7 +517,6 @@ csum_copy_err:
 	   as some normal condition.
 	 */
 	err = (flags&MSG_DONTWAIT) ? -EAGAIN : -EHOSTUNREACH;
-	atomic_inc(&sk->sk_drops);
 	goto out;
 }
 

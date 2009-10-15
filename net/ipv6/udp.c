@@ -390,11 +390,13 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 		if (rc == -ENOMEM)
 			UDP6_INC_STATS_BH(sock_net(sk),
 					UDP_MIB_RCVBUFERRORS, is_udplite);
-		goto drop;
+		goto drop_no_sk_drops_inc;
 	}
 
 	return 0;
 drop:
+	atomic_inc(&sk->sk_drops);
+drop_no_sk_drops_inc:
 	UDP6_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
 	kfree_skb(skb);
 	return -1;

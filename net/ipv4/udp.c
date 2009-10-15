@@ -867,6 +867,7 @@ static unsigned int first_packet_length(struct sock *sk)
 		udp_lib_checksum_complete(skb)) {
 		UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS,
 				 IS_UDPLITE(sk));
+		atomic_inc(&sk->sk_drops);
 		__skb_unlink(skb, rcvq);
 		__skb_queue_tail(&list_kill, skb);
 	}
@@ -1186,6 +1187,7 @@ int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 drop:
 	UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
+	atomic_inc(&sk->sk_drops);
 	kfree_skb(skb);
 	return -1;
 }
