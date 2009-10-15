@@ -23,8 +23,8 @@
 #include "gspca.h"
 #include "gl860.h"
 
-MODULE_AUTHOR("Olivier Lorin <lorin@laposte.net>");
-MODULE_DESCRIPTION("GSPCA/Genesys Logic GL860 USB Camera Driver");
+MODULE_AUTHOR("Olivier Lorin <o.lorin@laposte.net>");
+MODULE_DESCRIPTION("Genesys Logic USB PC Camera Driver");
 MODULE_LICENSE("GPL");
 
 /*======================== static function declarations ====================*/
@@ -53,7 +53,7 @@ MODULE_PARM_DESC(AC50Hz, " Does AC power frequency is 50Hz? (0/1)");
 static char sensor[7];
 module_param_string(sensor, sensor, sizeof(sensor), 0644);
 MODULE_PARM_DESC(sensor,
-		" Driver sensor ('MI1320'/'MI2020'/'OV9655'/'OV2640'/'')");
+		" Driver sensor ('MI1320'/'MI2020'/'OV9655'/'OV2640')");
 
 /*============================ webcam controls =============================*/
 
@@ -156,7 +156,7 @@ static int gl860_build_control_table(struct gspca_dev *gspca_dev)
 	SET_MY_CTRL(V4L2_CID_VFLIP,
 		V4L2_CTRL_TYPE_BOOLEAN, "Flip", flip)
 	SET_MY_CTRL(V4L2_CID_POWER_LINE_FREQUENCY,
-		V4L2_CTRL_TYPE_BOOLEAN, "50Hz", AC50Hz)
+		V4L2_CTRL_TYPE_BOOLEAN, "AC power 50Hz", AC50Hz)
 
 	return nCtrls;
 }
@@ -702,6 +702,7 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 		ctrl_out(gspca_dev, 0x40, 1, 0x006a, 0x000d, 0, NULL);
 		msleep(56);
 
+		PDEBUG(D_PROBE, "probing for sensor MI2020 or OVXXXX");
 		nOV = 0;
 		for (ntry = 0; ntry < 4; ntry++) {
 			ctrl_out(gspca_dev, 0x40, 1, 0x0040, 0x0000, 0, NULL);
@@ -711,14 +712,14 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 			ctrl_out(gspca_dev, 0x40, 1, 0x7a00, 0x8030, 0, NULL);
 			msleep(10);
 			ctrl_in(gspca_dev, 0xc0, 2, 0x7a00, 0x8030, 1, &probe);
-			PDEBUG(D_PROBE, "1st probe=%02x", probe);
+			PDEBUG(D_PROBE, "probe=0x%02x", probe);
 			if (probe == 0xff)
 				nOV++;
 		}
 
 		if (nOV) {
-			PDEBUG(D_PROBE, "0xff -> sensor OVXXXX");
-			PDEBUG(D_PROBE, "Probing for sensor OV2640 or OV9655");
+			PDEBUG(D_PROBE, "0xff -> OVXXXX");
+			PDEBUG(D_PROBE, "probing for sensor OV2640 or OV9655");
 
 			nb26 = nb96 = 0;
 			for (ntry = 0; ntry < 4; ntry++) {
@@ -728,40 +729,38 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 				ctrl_out(gspca_dev, 0x40, 1, 0x6000, 0x800a,
 						0, NULL);
 				msleep(10);
+
 				/* Wait for 26(OV2640) or 96(OV9655) */
 				ctrl_in(gspca_dev, 0xc0, 2, 0x6000, 0x800a,
 						1, &probe);
 
-				PDEBUG(D_PROBE, "2nd probe=%02x", probe);
-				if (probe == 0x00)
-					nb26++;
 				if (probe == 0x26 || probe == 0x40) {
+					PDEBUG(D_PROBE,
+						"probe=0x%02x -> OV2640",
+						probe);
 					sd->sensor = ID_OV2640;
 					nb26 += 4;
 					break;
 				}
 				if (probe == 0x96 || probe == 0x55) {
+					PDEBUG(D_PROBE,
+						"probe=0x%02x -> OV9655",
+						probe);
 					sd->sensor = ID_OV9655;
 					nb96 += 4;
 					break;
 				}
+				PDEBUG(D_PROBE, "probe=0x%02x", probe);
+				if (probe == 0x00)
+					nb26++;
 				if (probe == 0xff)
 					nb96++;
 				msleep(3);
 			}
-			if (nb26 < 4 && nb96 < 4) {
-				PDEBUG(D_PROBE, "No relevant answer ");
-				PDEBUG(D_PROBE, "* 1.3Mpixels -> use OV9655");
-				PDEBUG(D_PROBE, "* 2.0Mpixels -> use OV2640");
-				PDEBUG(D_PROBE,
-					"To force a sensor, add that line to "
-					"/etc/modprobe.d/options.conf:");
-				PDEBUG(D_PROBE, "options gspca_gl860 "
-					"sensor=\"OV2640\" or \"OV9655\"");
+			if (nb26 < 4 && nb96 < 4)
 				return -1;
-			}
-		} else { /* probe = 0 */
-			PDEBUG(D_PROBE, "No 0xff -> sensor MI2020");
+		} else {
+			PDEBUG(D_PROBE, "Not any 0xff -> MI2020");
 			sd->sensor = ID_MI2020;
 		}
 	}
