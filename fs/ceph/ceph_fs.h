@@ -162,6 +162,11 @@ struct ceph_mon_subscribe_item {
 	__u8 onetime;
 } __attribute__ ((packed));
 
+struct ceph_mon_subscribe_ack {
+	__le32 duration;         /* seconds */
+	struct ceph_fsid fsid;
+} __attribute__ ((packed));
+
 /*
  * mds states
  *   > 0 -> in
