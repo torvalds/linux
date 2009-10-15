@@ -944,28 +944,6 @@ _GLOBAL(__setup_e500mc_ivors)
 	blr
 
 /*
- * extern void loadcam_entry(unsigned int index)
- *
- * Load TLBCAM[index] entry in to the L2 CAM MMU
- */
-_GLOBAL(loadcam_entry)
-	lis	r4,TLBCAM@ha
-	addi	r4,r4,TLBCAM@l
-	mulli	r5,r3,TLBCAM_SIZE
-	add	r3,r5,r4
-	lwz	r4,0(r3)
-	mtspr	SPRN_MAS0,r4
-	lwz	r4,4(r3)
-	mtspr	SPRN_MAS1,r4
-	lwz	r4,8(r3)
-	mtspr	SPRN_MAS2,r4
-	lwz	r4,12(r3)
-	mtspr	SPRN_MAS3,r4
-	tlbwe
-	isync
-	blr
-
-/*
  * extern void giveup_altivec(struct task_struct *prev)
  *
  * The e500 core does not have an AltiVec unit.

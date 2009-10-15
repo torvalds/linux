@@ -98,21 +98,10 @@ extern void _tlbia(void);
 
 #ifdef CONFIG_PPC32
 
-struct tlbcam {
-	u32	MAS0;
-	u32	MAS1;
-	u32	MAS2;
-	u32	MAS3;
-	u32	MAS7;
-};
-
 extern void mapin_ram(void);
 extern int map_page(unsigned long va, phys_addr_t pa, int flags);
 extern void setbat(int index, unsigned long virt, phys_addr_t phys,
 		   unsigned int size, int flags);
-extern void settlbcam(int index, unsigned long virt, phys_addr_t phys,
-		      unsigned int size, int flags, unsigned int pid);
-extern void invalidate_tlbcam_entry(int index);
 
 extern int __map_without_bats;
 extern unsigned long ioremap_base;
