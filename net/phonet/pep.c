@@ -360,8 +360,6 @@ static int pipe_do_rcv(struct sock *sk, struct sk_buff *skb)
 			err = sock_queue_rcv_skb(sk, skb);
 			if (!err)
 				return 0;
-			if (err == -ENOMEM)
-				atomic_inc(&sk->sk_drops);
 			break;
 		}
 

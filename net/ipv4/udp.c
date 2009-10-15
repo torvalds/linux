@@ -1063,25 +1063,22 @@ EXPORT_SYMBOL(udp_lib_unhash);
 
 static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
-	int is_udplite = IS_UDPLITE(sk);
-	int rc;
+	int rc = sock_queue_rcv_skb(sk, skb);
 
-	if ((rc = sock_queue_rcv_skb(sk, skb)) < 0) {
+	if (rc < 0) {
+		int is_udplite = IS_UDPLITE(sk);
+
 		/* Note that an ENOMEM error is charged twice */
-		if (rc == -ENOMEM) {
+		if (rc == -ENOMEM)
 			UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_RCVBUFERRORS,
 					 is_udplite);
-			atomic_inc(&sk->sk_drops);
-		}
-		goto drop;
+		UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
+		kfree_skb(skb);
+		return -1;
 	}
 
 	return 0;
 
-drop:
-	UDP_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
-	kfree_skb(skb);
-	return -1;
 }
 
 /* returns:

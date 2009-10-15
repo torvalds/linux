@@ -274,7 +274,7 @@ static void sock_disable_timestamp(struct sock *sk, int flag)
 
 int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
-	int err = 0;
+	int err;
 	int skb_len;
 	unsigned long flags;
 	struct sk_buff_head *list = &sk->sk_receive_queue;
@@ -284,17 +284,17 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	 */
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
 	    (unsigned)sk->sk_rcvbuf) {
-		err = -ENOMEM;
-		goto out;
+		atomic_inc(&sk->sk_drops);
+		return -ENOMEM;
 	}
 
 	err = sk_filter(sk, skb);
 	if (err)
-		goto out;
+		return err;
 
 	if (!sk_rmem_schedule(sk, skb->truesize)) {
-		err = -ENOBUFS;
-		goto out;
+		atomic_inc(&sk->sk_drops);
+		return -ENOBUFS;
 	}
 
 	skb->dev = NULL;
@@ -314,8 +314,7 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	if (!sock_flag(sk, SOCK_DEAD))
 		sk->sk_data_ready(sk, skb_len);
-out:
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(sock_queue_rcv_skb);
 
