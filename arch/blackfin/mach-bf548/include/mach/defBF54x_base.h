@@ -2143,36 +2143,6 @@
 
 #define                 DPRESCALE  0xf        /* Load Counter Register */
 
-/* Bit masks for OTP_CONTROL */
-
-#define                FUSE_FADDR  0x1ff      /* OTP/Fuse Address */
-#define                      FIEN  0x800      /* OTP/Fuse Interrupt Enable */
-#define                  FTESTDEC  0x1000     /* OTP/Fuse Test Decoder */
-#define                   FWRTEST  0x2000     /* OTP/Fuse Write Test */
-#define                     FRDEN  0x4000     /* OTP/Fuse Read Enable */
-#define                     FWREN  0x8000     /* OTP/Fuse Write Enable */
-
-/* Bit masks for OTP_BEN */
-
-#define                      FBEN  0xffff     /* OTP/Fuse Byte Enable */
-
-/* Bit masks for OTP_STATUS */
-
-#define                     FCOMP  0x1        /* OTP/Fuse Access Complete */
-#define                    FERROR  0x2        /* OTP/Fuse Access Error */
-#define                  MMRGLOAD  0x10       /* Memory Mapped Register Gasket Load */
-#define                  MMRGLOCK  0x20       /* Memory Mapped Register Gasket Lock */
-#define                    FPGMEN  0x40       /* OTP/Fuse Program Enable */
-
-/* Bit masks for OTP_TIMING */
-
-#define                   USECDIV  0xff       /* Micro Second Divider */
-#define                   READACC  0x7f00     /* Read Access Time */
-#define                   CPUMPRL  0x38000    /* Charge Pump Release Time */
-#define                   CPUMPSU  0xc0000    /* Charge Pump Setup Time */
-#define                   CPUMPHD  0xf00000   /* Charge Pump Hold Time */
-#define                   PGMTIME  0xff000000 /* Program Time */
-
 /* Bit masks for SECURE_SYSSWT */
 
 #define                   EMUDABL  0x1        /* Emulation Disable. */
