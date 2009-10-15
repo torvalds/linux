@@ -958,67 +958,6 @@
 **				modifier UNLESS the lower order bits are saved and ORed back in when
 **				the macro is used.
 *************************************************************************************/
-/*
-** ********************* PLL AND RESET MASKS ****************************************/
-/* PLL_CTL Masks																	*/
-#define DF				0x0001	/* 0: PLL = CLKIN, 1: PLL = CLKIN/2                                     */
-#define PLL_OFF			0x0002	/* PLL Not Powered                                                                      */
-#define STOPCK			0x0008	/* Core Clock Off                                                                       */
-#define PDWN			0x0020	/* Enter Deep Sleep Mode                                                        */
-#define	IN_DELAY		0x0040	/* Add 200ps Delay To EBIU Input Latches                        */
-#define	OUT_DELAY		0x0080	/* Add 200ps Delay To EBIU Output Signals                       */
-#define BYPASS			0x0100	/* Bypass the PLL                                                                       */
-#define	MSEL			0x7E00	/* Multiplier Select For CCLK/VCO Factors                       */
-/* PLL_CTL Macros (Only Use With Logic OR While Setting Lower Order Bits)			*/
-#define	SET_MSEL(x)		(((x)&0x3F) << 0x9)	/* Set MSEL = 0-63 --> VCO = CLKIN*MSEL         */
-
-/* PLL_DIV Masks														*/
-#define SSEL			0x000F	/* System Select                                                */
-#define	CSEL			0x0030	/* Core Select                                                  */
-#define CSEL_DIV1		0x0000	/*              CCLK = VCO / 1                                  */
-#define CSEL_DIV2		0x0010	/*              CCLK = VCO / 2                                  */
-#define	CSEL_DIV4		0x0020	/*              CCLK = VCO / 4                                  */
-#define	CSEL_DIV8		0x0030	/*              CCLK = VCO / 8                                  */
-/* PLL_DIV Macros														*/
-#define SET_SSEL(x)		((x)&0xF)	/* Set SSEL = 0-15 --> SCLK = VCO/SSEL  */
-
-/* VR_CTL Masks																	*/
-#define	FREQ			0x0003	/* Switching Oscillator Frequency For Regulator */
-#define	HIBERNATE		0x0000	/*              Powerdown/Bypass On-Board Regulation    */
-#define	FREQ_333		0x0001	/*              Switching Frequency Is 333 kHz                  */
-#define	FREQ_667		0x0002	/*              Switching Frequency Is 667 kHz                  */
-#define	FREQ_1000		0x0003	/*              Switching Frequency Is 1 MHz                    */
-
-#define GAIN			0x000C	/* Voltage Level Gain   */
-#define	GAIN_5			0x0000	/*              GAIN = 5                */
-#define	GAIN_10			0x0004	/*              GAIN = 10               */
-#define	GAIN_20			0x0008	/*              GAIN = 20               */
-#define	GAIN_50			0x000C	/*              GAIN = 50               */
-
-#define	VLEV			0x00F0	/* Internal Voltage Level                                       */
-#define	VLEV_085 		0x0060	/*              VLEV = 0.85 V (-5% - +10% Accuracy)     */
-#define	VLEV_090		0x0070	/*              VLEV = 0.90 V (-5% - +10% Accuracy)     */
-#define	VLEV_095		0x0080	/*              VLEV = 0.95 V (-5% - +10% Accuracy)     */
-#define	VLEV_100		0x0090	/*              VLEV = 1.00 V (-5% - +10% Accuracy)     */
-#define	VLEV_105		0x00A0	/*              VLEV = 1.05 V (-5% - +10% Accuracy)     */
-#define	VLEV_110		0x00B0	/*              VLEV = 1.10 V (-5% - +10% Accuracy)     */
-#define	VLEV_115		0x00C0	/*              VLEV = 1.15 V (-5% - +10% Accuracy)     */
-#define	VLEV_120		0x00D0	/*              VLEV = 1.20 V (-5% - +10% Accuracy)     */
-#define	VLEV_125		0x00E0	/*              VLEV = 1.25 V (-5% - +10% Accuracy)     */
-#define	VLEV_130		0x00F0	/*              VLEV = 1.30 V (-5% - +10% Accuracy)     */
-
-#define	WAKE			0x0100	/* Enable RTC/Reset Wakeup From Hibernate       */
-#define	CANWE			0x0200	/* Enable CAN Wakeup From Hibernate			*/
-#define	PHYWE			0x0400	/* Enable PHY Wakeup From Hibernate			*/
-#define	CLKBUFOE		0x4000	/* CLKIN Buffer Output Enable */
-#define	PHYCLKOE		CLKBUFOE	/* Alternative legacy name for the above */
-#define	SCKELOW		0x8000	/* Enable Drive CKE Low During Reset		*/
-
-/* PLL_STAT Masks																	*/
-#define ACTIVE_PLLENABLED	0x0001	/* Processor In Active Mode With PLL Enabled    */
-#define	FULL_ON				0x0002	/* Processor In Full On Mode                                    */
-#define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled   */
-#define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
 
 /* CHIPID Masks */
 #define CHIPID_VERSION         0xF0000000
