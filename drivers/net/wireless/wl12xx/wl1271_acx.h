@@ -75,7 +75,7 @@ struct acx_header {
 
 	/* payload length (not including headers */
 	u16 len;
-};
+} __attribute__ ((packed));
 
 struct acx_error_counter {
 	struct acx_header header;
@@ -390,7 +390,7 @@ struct acx_conn_monit_params {
 
        u32 synch_fail_thold; /* number of beacons missed */
        u32 bss_lose_timeout; /* number of TU's from synch fail */
-};
+} __attribute__ ((packed));
 
 enum {
 	SG_ENABLE = 0,
@@ -420,19 +420,19 @@ struct acx_smart_reflex_state {
 
 	u8 enable;
 	u8 padding[3];
-};
+} __attribute__ ((packed));
 
 struct smart_reflex_err_table {
 	u8 len;
 	s8 upper_limit;
 	s8 values[14];
-};
+} __attribute__ ((packed));
 
 struct acx_smart_reflex_config_params {
 	struct acx_header header;
 
 	struct smart_reflex_err_table error_table[3];
-};
+} __attribute__ ((packed));
 
 #define PTA_ANTENNA_TYPE_DEF		  (0)
 #define PTA_BT_HP_MAXTIME_DEF		  (2000)
