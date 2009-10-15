@@ -1314,9 +1314,11 @@ vmxnet3_netpoll(struct net_device *netdev)
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	int irq;
 
+#ifdef CONFIG_PCI_MSI
 	if (adapter->intr.type == VMXNET3_IT_MSIX)
 		irq = adapter->intr.msix_entries[0].vector;
 	else
+#endif
 		irq = adapter->pdev->irq;
 
 	disable_irq(irq);
@@ -1330,12 +1332,15 @@ vmxnet3_request_irqs(struct vmxnet3_adapter *adapter)
 {
 	int err;
 
+#ifdef CONFIG_PCI_MSI
 	if (adapter->intr.type == VMXNET3_IT_MSIX) {
 		/* we only use 1 MSI-X vector */
 		err = request_irq(adapter->intr.msix_entries[0].vector,
 				  vmxnet3_intr, 0, adapter->netdev->name,
 				  adapter->netdev);
-	} else if (adapter->intr.type == VMXNET3_IT_MSI) {
+	} else
+#endif
+	if (adapter->intr.type == VMXNET3_IT_MSI) {
 		err = request_irq(adapter->pdev->irq, vmxnet3_intr, 0,
 				  adapter->netdev->name, adapter->netdev);
 	} else {
@@ -1376,6 +1381,7 @@ vmxnet3_free_irqs(struct vmxnet3_adapter *adapter)
 	       adapter->intr.num_intrs <= 0);
 
 	switch (adapter->intr.type) {
+#ifdef CONFIG_PCI_MSI
 	case VMXNET3_IT_MSIX:
 	{
 		int i;
@@ -1385,6 +1391,7 @@ vmxnet3_free_irqs(struct vmxnet3_adapter *adapter)
 				 adapter->netdev);
 		break;
 	}
+#endif
 	case VMXNET3_IT_MSI:
 		free_irq(adapter->pdev->irq, adapter->netdev);
 		break;
@@ -2134,6 +2141,7 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 	if (adapter->intr.type == VMXNET3_IT_AUTO) {
 		int err;
 
+#ifdef CONFIG_PCI_MSI
 		adapter->intr.msix_entries[0].entry = 0;
 		err = pci_enable_msix(adapter->pdev, adapter->intr.msix_entries,
 				      VMXNET3_LINUX_MAX_MSIX_VECT);
@@ -2142,6 +2150,7 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 			adapter->intr.type = VMXNET3_IT_MSIX;
 			return;
 		}
+#endif
 
 		err = pci_enable_msi(adapter->pdev);
 		if (!err) {
