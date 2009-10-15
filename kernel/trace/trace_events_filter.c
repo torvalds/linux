@@ -1230,10 +1230,10 @@ static int replace_system_preds(struct event_subsystem *system,
 				struct filter_parse_state *ps,
 				char *filter_string)
 {
+	struct event_filter *filter = system->filter;
 	struct ftrace_event_call *call;
-	struct event_filter *filter;
-	int err;
 	bool fail = true;
+	int err;
 
 	list_for_each_entry(call, &ftrace_events, list) {
 
@@ -1262,7 +1262,7 @@ static int replace_system_preds(struct event_subsystem *system,
 
 	if (fail) {
 		parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
-		return err;
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -1281,8 +1281,7 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 	if (!strcmp(strstrip(filter_string), "0")) {
 		filter_disable_preds(call);
 		remove_filter_string(call->filter);
-		mutex_unlock(&event_mutex);
-		return 0;
+		goto out_unlock;
 	}
 
 	err = -ENOMEM;
@@ -1330,8 +1329,7 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 	if (!strcmp(strstrip(filter_string), "0")) {
 		filter_free_subsystem_preds(system);
 		remove_filter_string(system->filter);
-		mutex_unlock(&event_mutex);
-		return 0;
+		goto out_unlock;
 	}
 
 	err = -ENOMEM;
@@ -1386,15 +1384,20 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 		if (call->id == event_id)
 			break;
 	}
-	if (!call)
-		return -EINVAL;
 
+	err = -EINVAL;
+	if (!call)
+		goto out_unlock;
+
+	err = -EEXIST;
 	if (event->filter)
-		return -EEXIST;
+		goto out_unlock;
 
 	filter = __alloc_preds();
-	if (IS_ERR(filter))
-		return PTR_ERR(filter);
+	if (IS_ERR(filter)) {
+		err = PTR_ERR(filter);
+		goto out_unlock;
+	}
 
 	err = -ENOMEM;
 	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
@@ -1419,6 +1422,7 @@ free_preds:
 	if (err)
 		__free_preds(filter);
 
+out_unlock:
 	mutex_unlock(&event_mutex);
 
 	return err;
