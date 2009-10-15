@@ -89,7 +89,10 @@ enum {
 	 * The MTU is 1400 or less
 	 */
 	I2400M_MAX_MTU = 1400,
-	I2400M_TX_TIMEOUT = HZ,
+	/* 20 secs? yep, this is the maximum timeout that the device
+	 * might take to get out of IDLE / negotiate it with the base
+	 * station. We add 1sec for good measure. */
+	I2400M_TX_TIMEOUT = 21 * HZ,
 	I2400M_TX_QLEN = 5,
 };
 
@@ -151,6 +154,7 @@ void i2400m_wake_tx_work(struct work_struct *ws)
 {
 	int result;
 	struct i2400m *i2400m = container_of(ws, struct i2400m, wake_tx_ws);
+	struct net_device *net_dev = i2400m->wimax_dev.net_dev;
 	struct device *dev = i2400m_dev(i2400m);
 	struct sk_buff *skb = i2400m->wake_tx_skb;
 	unsigned long flags;
@@ -166,6 +170,11 @@ void i2400m_wake_tx_work(struct work_struct *ws)
 		dev_err(dev, "WAKE&TX: skb dissapeared!\n");
 		goto out_put;
 	}
+	/* If we have, somehow, lost the connection after this was
+	 * queued, don't do anything; this might be the device got
+	 * reset or just disconnected. */
+	if (unlikely(!netif_carrier_ok(net_dev)))
+		goto out_kfree;
 	result = i2400m_cmd_exit_idle(i2400m);
 	if (result == -EILSEQ)
 		result = 0;
@@ -176,7 +185,8 @@ void i2400m_wake_tx_work(struct work_struct *ws)
 		goto error;
 	}
 	result = wait_event_timeout(i2400m->state_wq,
-				    i2400m->state != I2400M_SS_IDLE, 5 * HZ);
+				    i2400m->state != I2400M_SS_IDLE,
+				    net_dev->watchdog_timeo - HZ/2);
 	if (result == 0)
 		result = -ETIMEDOUT;
 	if (result < 0) {
@@ -187,8 +197,9 @@ void i2400m_wake_tx_work(struct work_struct *ws)
 	}
 	msleep(20);	/* device still needs some time or it drops it */
 	result = i2400m_tx(i2400m, skb->data, skb->len, I2400M_PT_DATA);
-	netif_wake_queue(i2400m->wimax_dev.net_dev);
 error:
+	netif_wake_queue(net_dev);
+out_kfree:
 	kfree_skb(skb);	/* refcount transferred by _hard_start_xmit() */
 out_put:
 	i2400m_put(i2400m);
