@@ -144,7 +144,7 @@ extern char			*trace_profile_buf_nmi;
 #define MAX_FILTER_STR_VAL	256	/* Should handle KSYM_SYMBOL_LEN */
 
 extern void destroy_preds(struct ftrace_event_call *call);
-extern int filter_match_preds(struct ftrace_event_call *call, void *rec);
+extern int filter_match_preds(struct event_filter *filter, void *rec);
 extern int filter_current_check_discard(struct ring_buffer *buffer,
 					struct ftrace_event_call *call,
 					void *rec,
@@ -185,5 +185,14 @@ do {									\
 	} else								\
 		__trace_printk(ip, fmt, ##args);			\
 } while (0)
+
+#ifdef CONFIG_EVENT_PROFILE
+struct perf_event;
+extern int ftrace_profile_enable(int event_id);
+extern void ftrace_profile_disable(int event_id);
+extern int ftrace_profile_set_filter(struct perf_event *event, int event_id,
+				     char *filter_str);
+extern void ftrace_profile_free_filter(struct perf_event *event);
+#endif
 
 #endif /* _LINUX_FTRACE_EVENT_H */
