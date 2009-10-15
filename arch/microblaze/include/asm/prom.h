@@ -17,20 +17,10 @@
 #ifndef _ASM_MICROBLAZE_PROM_H
 #define _ASM_MICROBLAZE_PROM_H
 #ifdef __KERNEL__
-
-/* Definitions used by the flattened device tree */
-#define OF_DT_HEADER		0xd00dfeed /* marker */
-#define OF_DT_BEGIN_NODE	0x1 /* Start of node, full name */
-#define OF_DT_END_NODE		0x2 /* End node */
-#define OF_DT_PROP		0x3 /* Property: name off, size, content */
-#define OF_DT_NOP		0x4 /* nop */
-#define OF_DT_END		0x9
-
-#define OF_DT_VERSION		0x10
-
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
+#include <linux/of_fdt.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
 #include <asm/irq.h>
