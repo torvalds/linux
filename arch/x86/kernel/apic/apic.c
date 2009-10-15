@@ -246,6 +246,7 @@ static int modern_apic(void)
  */
 void apic_disable(void)
 {
+	pr_info("APIC: switched to apic NOOP\n");
 	apic = &apic_noop;
 }
 
