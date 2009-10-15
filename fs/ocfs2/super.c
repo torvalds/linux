@@ -1413,19 +1413,12 @@ static int ocfs2_parse_options(struct super_block *sb,
 			}
 			mopt->mount_opt |= OCFS2_MOUNT_GRPQUOTA;
 			break;
-#ifdef CONFIG_OCFS2_FS_POSIX_ACL
 		case Opt_acl:
 			mopt->mount_opt |= OCFS2_MOUNT_POSIX_ACL;
 			break;
 		case Opt_noacl:
 			mopt->mount_opt &= ~OCFS2_MOUNT_POSIX_ACL;
 			break;
-#else
-		case Opt_acl:
-		case Opt_noacl:
-			printk(KERN_INFO "ocfs2 (no)acl options not supported\n");
-			break;
-#endif
 		default:
 			mlog(ML_ERROR,
 			     "Unrecognized mount option \"%s\" "
@@ -1502,12 +1495,10 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	if (opts & OCFS2_MOUNT_INODE64)
 		seq_printf(s, ",inode64");
 
-#ifdef CONFIG_OCFS2_FS_POSIX_ACL
 	if (opts & OCFS2_MOUNT_POSIX_ACL)
 		seq_printf(s, ",acl");
 	else
 		seq_printf(s, ",noacl");
-#endif
 
 	return 0;
 }
