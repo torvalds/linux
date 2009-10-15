@@ -25,6 +25,7 @@
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
 #include <asm/irq_handler.h>
+#include <asm/dpmc.h>
 
 #define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
 

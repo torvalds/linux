@@ -13,7 +13,7 @@
 #include <linux/fs.h>
 #include <asm/blackfin.h>
 #include <asm/time.h>
-
+#include <asm/dpmc.h>
 
 /* this is the table of CCLK frequencies, in Hz */
 /* .index is the entry in the auxillary dpm_state_table[] */
