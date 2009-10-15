@@ -707,6 +707,19 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-ixp4xx/
 
+ARM/INTEL RESEARCH IMOTE 2 MACHINE SUPPORT
+M:	Jonathan Cameron <jic23@cam.ac.uk>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-pxa/imote2.c
+
+ARM/INTEL RESEARCH STARGATE 2 MACHINE SUPPORT
+M:	Jonathan Cameron <jic23@cam.ac.uk>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-pxa/stargate2.c
+F:	drivers/pcmcia/pxa2xx_stargate2.c
+
 ARM/INTEL XSC3 (MANZANO) ARM CORE
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 M:	Dan Williams <dan.j.williams@intel.com>
