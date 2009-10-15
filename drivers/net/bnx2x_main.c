@@ -2528,6 +2528,7 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command)
 	u32 cnt = 1;
 	u8 delay = CHIP_REV_IS_SLOW(bp) ? 100 : 10;
 
+	mutex_lock(&bp->fw_mb_mutex);
 	SHMEM_WR(bp, func_mb[func].drv_mb_header, (command | seq));
 	DP(BNX2X_MSG_MCP, "wrote command (%x) to FW MB\n", (command | seq));
 
@@ -2537,8 +2538,8 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command)
 
 		rc = SHMEM_RD(bp, func_mb[func].fw_mb_header);
 
-		/* Give the FW up to 2 second (200*10ms) */
-	} while ((seq != (rc & FW_MSG_SEQ_NUMBER_MASK)) && (cnt++ < 200));
+		/* Give the FW up to 5 second (500*10ms) */
+	} while ((seq != (rc & FW_MSG_SEQ_NUMBER_MASK)) && (cnt++ < 500));
 
 	DP(BNX2X_MSG_MCP, "[after %d ms] read (%x) seq is (%x) from FW MB\n",
 	   cnt*delay, rc, seq);
@@ -2552,6 +2553,7 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command)
 		bnx2x_fw_dump(bp);
 		rc = 0;
 	}
+	mutex_unlock(&bp->fw_mb_mutex);
 
 	return rc;
 }
@@ -8956,6 +8958,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	smp_wmb(); /* Ensure that bp->intr_sem update is SMP-safe */
 
 	mutex_init(&bp->port.phy_mutex);
+	mutex_init(&bp->fw_mb_mutex);
 #ifdef BCM_CNIC
 	mutex_init(&bp->cnic_mutex);
 #endif

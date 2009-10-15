@@ -1023,6 +1023,9 @@ struct bnx2x {
 	/* used to synchronize dmae accesses */
 	struct mutex		dmae_mutex;
 
+	/* used to protect the FW mail box */
+	struct mutex		fw_mb_mutex;
+
 	/* used to synchronize stats collecting */
 	int			stats_state;
 	/* used by dmae command loader */
