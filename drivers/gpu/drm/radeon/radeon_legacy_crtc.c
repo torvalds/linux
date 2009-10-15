@@ -668,6 +668,9 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 
 		WREG32(RADEON_DISP2_MERGE_CNTL, disp2_merge_cntl);
 		WREG32(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
+
+		WREG32(RADEON_FP_H2_SYNC_STRT_WID, crtc_h_sync_strt_wid);
+		WREG32(RADEON_FP_V2_SYNC_STRT_WID, crtc_v_sync_strt_wid);
 	} else {
 		uint32_t crtc_gen_cntl;
 		uint32_t crtc_ext_cntl;
