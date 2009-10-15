@@ -56,6 +56,6 @@ SECTIONS
 	/DISCARD/ : {
 		*(.note*)
 	}
-
-	. = ASSERT(_end <= WAKEUP_SIZE, "Wakeup too big!");
 }
+
+ASSERT(_end <= WAKEUP_SIZE, "Wakeup too big!");

@@ -1,9 +1,11 @@
 /*
- * include/asm-blackfin/dpmc.h -  Miscellaneous IOCTL commands for Dynamic Power
- *   			 	Management Controller Driver.
+ * Miscellaneous IOCTL commands for Dynamic Power Management Controller Driver
+ *
  * Copyright (C) 2004-2008 Analog Device Inc.
  *
+ * Licensed under the GPL-2
  */
+
 #ifndef _BLACKFIN_DPMC_H_
 #define _BLACKFIN_DPMC_H_
 

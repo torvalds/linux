@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/serial.h>
 #include <linux/delay.h>
 #include <linux/ctype.h>

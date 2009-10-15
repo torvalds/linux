@@ -1243,7 +1243,7 @@ bnx2i_session_create(struct iscsi_endpoint *ep,
 		cmds_max = BNX2I_SQ_WQES_MIN;
 
 	cls_session = iscsi_session_setup(&bnx2i_iscsi_transport, shost,
-					  cmds_max, sizeof(struct bnx2i_cmd),
+					  cmds_max, 0, sizeof(struct bnx2i_cmd),
 					  initial_cmdsn, ISCSI_MAX_TARGET);
 	if (!cls_session)
 		return NULL;

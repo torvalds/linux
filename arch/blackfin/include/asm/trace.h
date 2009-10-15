@@ -1,6 +1,9 @@
 /*
- * Common header file for blackfin family of processors.
+ * header file for hardware trace functions
  *
+ * Copyright 2007-2008 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _BLACKFIN_TRACE_

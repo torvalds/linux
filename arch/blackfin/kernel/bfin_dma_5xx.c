@@ -2,6 +2,7 @@
  * bfin_dma_5xx.c - Blackfin DMA implementation
  *
  * Copyright 2004-2008 Analog Devices Inc.
+ *
  * Licensed under the GPL-2 or later.
  */
 

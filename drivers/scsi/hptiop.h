@@ -1,6 +1,6 @@
 /*
  * HighPoint RR3xxx/4xxx controller driver for Linux
- * Copyright (C) 2006-2007 HighPoint Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2006-2009 HighPoint Technologies, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -228,6 +228,7 @@ struct hptiop_hba {
 	union {
 		struct {
 			struct hpt_iopmu_itl __iomem *iop;
+			void __iomem *plx;
 		} itl;
 		struct {
 			struct hpt_iopmv_regs *regs;

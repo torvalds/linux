@@ -1180,7 +1180,7 @@ static int nfs4_init_client(struct nfs_client *clp,
 				      1, flags & NFS_MOUNT_NORESVPORT);
 	if (error < 0)
 		goto error;
-	memcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
+	strlcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
 
 	error = nfs_idmap_new(clp);
 	if (error < 0) {
