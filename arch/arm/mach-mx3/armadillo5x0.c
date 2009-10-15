@@ -35,6 +35,7 @@
 #include <linux/io.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/i2c.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -102,6 +103,13 @@ static int armadillo5x0_pins[] = {
 	/* I2C2 */
 	MX31_PIN_CSPI2_MOSI__SCL,
 	MX31_PIN_CSPI2_MISO__SDA,
+};
+
+/* RTC over I2C*/
+#define ARMADILLO5X0_RTC_GPIO	IOMUX_TO_GPIO(MX31_PIN_SRXD4)
+
+static struct i2c_board_info armadillo5x0_i2c_rtc = {
+	I2C_BOARD_INFO("s35390a", 0x30),
 };
 
 /* GPIO BUTTONS */
@@ -373,6 +381,18 @@ static void __init armadillo5x0_init(void)
 
 	/* set NAND page size to 2k if not configured via boot mode pins */
 	__raw_writel(__raw_readl(MXC_CCM_RCSR) | (1 << 30), MXC_CCM_RCSR);
+
+	/* RTC */
+	/* Get RTC IRQ and register the chip */
+	if (gpio_request(ARMADILLO5X0_RTC_GPIO, "rtc") == 0) {
+		if (gpio_direction_input(ARMADILLO5X0_RTC_GPIO) == 0)
+			armadillo5x0_i2c_rtc.irq = gpio_to_irq(ARMADILLO5X0_RTC_GPIO);
+		else
+			gpio_free(ARMADILLO5X0_RTC_GPIO);
+	}
+	if (armadillo5x0_i2c_rtc.irq == 0)
+		pr_warning("armadillo5x0_init: failed to get RTC IRQ\n");
+	i2c_register_board_info(1, &armadillo5x0_i2c_rtc, 1);
 }
 
 static void __init armadillo5x0_timer_init(void)
