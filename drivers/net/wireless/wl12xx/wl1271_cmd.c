@@ -81,7 +81,7 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_cal_channel_tune(struct wl1271 *wl)
+static int wl1271_cmd_cal_channel_tune(struct wl1271 *wl)
 {
 	struct wl1271_cmd_cal_channel_tune *cmd;
 	int ret = 0;
@@ -104,7 +104,7 @@ int wl1271_cmd_cal_channel_tune(struct wl1271 *wl)
 	return ret;
 }
 
-int wl1271_cmd_cal_update_ref_point(struct wl1271 *wl)
+static int wl1271_cmd_cal_update_ref_point(struct wl1271 *wl)
 {
 	struct wl1271_cmd_cal_update_ref_point *cmd;
 	int ret = 0;
@@ -129,7 +129,7 @@ int wl1271_cmd_cal_update_ref_point(struct wl1271 *wl)
 	return ret;
 }
 
-int wl1271_cmd_cal_p2g(struct wl1271 *wl)
+static int wl1271_cmd_cal_p2g(struct wl1271 *wl)
 {
 	struct wl1271_cmd_cal_p2g *cmd;
 	int ret = 0;
@@ -150,7 +150,7 @@ int wl1271_cmd_cal_p2g(struct wl1271 *wl)
 	return ret;
 }
 
-int wl1271_cmd_cal(struct wl1271 *wl)
+static int wl1271_cmd_cal(struct wl1271 *wl)
 {
 	/*
 	 * FIXME: we must make sure that we're not sleeping when calibration
