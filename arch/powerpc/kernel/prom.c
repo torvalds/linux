@@ -1317,29 +1317,6 @@ struct device_node *of_find_next_cache_node(struct device_node *np)
 }
 
 /**
- *	of_find_all_nodes - Get next node in global list
- *	@prev:	Previous node or NULL to start iteration
- *		of_node_put() will be called on it
- *
- *	Returns a node pointer with refcount incremented, use
- *	of_node_put() on it when done.
- */
-struct device_node *of_find_all_nodes(struct device_node *prev)
-{
-	struct device_node *np;
-
-	read_lock(&devtree_lock);
-	np = prev ? prev->allnext : allnodes;
-	for (; np != 0; np = np->allnext)
-		if (of_node_get(np))
-			break;
-	of_node_put(prev);
-	read_unlock(&devtree_lock);
-	return np;
-}
-EXPORT_SYMBOL(of_find_all_nodes);
-
-/**
  *	of_node_get - Increment refcount of a node
  *	@node:	Node to inc refcount, NULL is supported to
  *		simplify writing of callers
