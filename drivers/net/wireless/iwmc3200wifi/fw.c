@@ -398,6 +398,8 @@ int iwm_load_fw(struct iwm_priv *iwm)
 	iwm_send_prio_table(iwm);
 	iwm_send_calib_results(iwm);
 	iwm_send_periodic_calib_cfg(iwm, periodic_calib_map);
+	iwm_send_ct_kill_cfg(iwm, iwm->conf.ct_kill_entry,
+			     iwm->conf.ct_kill_exit);
 
 	return 0;
 

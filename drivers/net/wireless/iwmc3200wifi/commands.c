@@ -274,6 +274,17 @@ int iwm_send_calib_results(struct iwm_priv *iwm)
 	return ret;
 }
 
+int iwm_send_ct_kill_cfg(struct iwm_priv *iwm, u8 entry, u8 exit)
+{
+	struct iwm_ct_kill_cfg_cmd cmd;
+
+	cmd.entry_threshold = entry;
+	cmd.exit_threshold = exit;
+
+	return iwm_send_lmac_ptrough_cmd(iwm, REPLY_CT_KILL_CONFIG_CMD, &cmd,
+					 sizeof(struct iwm_ct_kill_cfg_cmd), 0);
+}
+
 int iwm_send_umac_reset(struct iwm_priv *iwm, __le32 reset_flags, bool resp)
 {
 	struct iwm_udma_wifi_cmd udma_cmd = UDMA_UMAC_INIT;

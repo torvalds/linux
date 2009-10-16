@@ -396,6 +396,7 @@ int iwm_send_init_calib_cfg(struct iwm_priv *iwm, u8 calib_requested);
 int iwm_send_periodic_calib_cfg(struct iwm_priv *iwm, u8 calib_requested);
 int iwm_send_calib_results(struct iwm_priv *iwm);
 int iwm_store_rxiq_calib_result(struct iwm_priv *iwm);
+int iwm_send_ct_kill_cfg(struct iwm_priv *iwm, u8 entry, u8 exit);
 
 /* UMAC commands */
 int iwm_send_wifi_if_cmd(struct iwm_priv *iwm, void *payload, u16 payload_size,

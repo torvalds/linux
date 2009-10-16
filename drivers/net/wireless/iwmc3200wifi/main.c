@@ -63,6 +63,8 @@ static struct iwm_conf def_iwm_conf = {
 				  BIT(PHY_CALIBRATE_TX_IQ_CMD)	|
 				  BIT(PHY_CALIBRATE_RX_IQ_CMD)	|
 				  BIT(SHILOH_PHY_CALIBRATE_BASE_BAND_CMD),
+	.ct_kill_entry		= 110,
+	.ct_kill_exit		= 110,
 	.reset_on_fatal_err	= 1,
 	.auto_connect		= 1,
 	.wimax_not_present	= 0,
@@ -131,6 +133,17 @@ static void iwm_disconnect_work(struct work_struct *work)
 	wake_up_interruptible(&iwm->mlme_queue);
 
 	cfg80211_disconnected(iwm_to_ndev(iwm), 0, NULL, 0, GFP_KERNEL);
+}
+
+static void iwm_ct_kill_work(struct work_struct *work)
+{
+	struct iwm_priv *iwm =
+		container_of(work, struct iwm_priv, ct_kill_delay.work);
+	struct wiphy *wiphy = iwm_to_wiphy(iwm);
+
+	IWM_INFO(iwm, "CT kill delay timeout\n");
+
+	wiphy_rfkill_set_hw_state(wiphy, false);
 }
 
 static int __iwm_up(struct iwm_priv *iwm);
@@ -225,6 +238,7 @@ int iwm_priv_init(struct iwm_priv *iwm)
 	iwm->scan_id = 1;
 	INIT_DELAYED_WORK(&iwm->stats_request, iwm_statistics_request);
 	INIT_DELAYED_WORK(&iwm->disconnect, iwm_disconnect_work);
+	INIT_DELAYED_WORK(&iwm->ct_kill_delay, iwm_ct_kill_work);
 	INIT_WORK(&iwm->reset_worker, iwm_reset_worker);
 	INIT_LIST_HEAD(&iwm->bss_list);
 
