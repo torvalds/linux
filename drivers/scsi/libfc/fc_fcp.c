@@ -2033,18 +2033,16 @@ EXPORT_SYMBOL(fc_eh_host_reset);
 int fc_slave_alloc(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
-	int queue_depth;
 
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	if (sdev->tagged_supported) {
-		if (sdev->host->hostt->cmd_per_lun)
-			queue_depth = sdev->host->hostt->cmd_per_lun;
-		else
-			queue_depth = FC_FCP_DFLT_QUEUE_DEPTH;
-		scsi_activate_tcq(sdev, queue_depth);
-	}
+	if (sdev->tagged_supported)
+		scsi_activate_tcq(sdev, FC_FCP_DFLT_QUEUE_DEPTH);
+	else
+		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev),
+					FC_FCP_DFLT_QUEUE_DEPTH);
+
 	return 0;
 }
 EXPORT_SYMBOL(fc_slave_alloc);
