@@ -887,41 +887,10 @@ static unsigned int atkbd_hp_forced_release_keys[] = {
 };
 
 /*
- * Inventec system with broken key release on volume keys
- */
-static unsigned int atkbd_inventec_forced_release_keys[] = {
-	0xae, 0xb0, -1U
-};
-
-/*
- * Perform fixup for HP Pavilion ZV6100 laptop that doesn't generate release
- * for its volume buttons
- */
-static unsigned int atkbd_hp_zv6100_forced_release_keys[] = {
-	0xae, 0xb0, -1U
-};
-
-/*
- * Perform fixup for HP (Compaq) Presario R4000 R4100 R4200 that don't generate
- * release for their volume buttons
- */
-static unsigned int atkbd_hp_r4000_forced_release_keys[] = {
-	0xae, 0xb0, -1U
-};
-
-/*
  * Samsung NC10,NC20 with Fn+F? key release not working
  */
 static unsigned int atkbd_samsung_forced_release_keys[] = {
 	0x82, 0x83, 0x84, 0x86, 0x88, 0x89, 0xb3, 0xf7, 0xf9, -1U
-};
-
-/*
- * The volume up and volume down special keys on a Fujitsu Amilo PA 1510 laptop
- * do not generate release events so we have to do it ourselves.
- */
-static unsigned int atkbd_amilo_pa1510_forced_release_keys[] = {
-	0xb0, 0xae, -1U
 };
 
 /*
@@ -943,6 +912,14 @@ static unsigned int atkbd_amilo_xi3650_forced_release_keys[] = {
  */
 static unsigned int atkdb_soltech_ta12_forced_release_keys[] = {
 	0xa0, 0xae, 0xb0, -1U
+};
+
+/*
+ * Many notebooks don't send key release event for volume up/down
+ * keys, with key list below common among them
+ */
+static unsigned int atkbd_volume_forced_release_keys[] = {
+	0xae, 0xb0, -1U
 };
 
 /*
@@ -1585,7 +1562,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Pavilion ZV6100"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_hp_zv6100_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
 		.ident = "HP Presario R4000",
@@ -1594,7 +1571,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4000"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_hp_r4000_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
 		.ident = "HP Presario R4100",
@@ -1603,7 +1580,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4100"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_hp_r4000_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
 		.ident = "HP Presario R4200",
@@ -1612,7 +1589,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Presario R4200"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_hp_r4000_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
 		.ident = "Inventec Symphony",
@@ -1621,7 +1598,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "SYMPHONY 6.0/7.0"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_inventec_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
 		.ident = "Samsung NC10",
@@ -1657,7 +1634,7 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pa 1510"),
 		},
 		.callback = atkbd_setup_forced_release,
-		.driver_data = atkbd_amilo_pa1510_forced_release_keys,
+		.driver_data = atkbd_volume_forced_release_keys,
 	},
 	{
 		.ident = "Fujitsu Amilo Pi 3525",
