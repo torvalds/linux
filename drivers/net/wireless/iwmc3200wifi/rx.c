@@ -732,6 +732,19 @@ static int iwm_mlme_update_sta_table(struct iwm_priv *iwm, u8 *buf,
 	return 0;
 }
 
+static int iwm_mlme_medium_lost(struct iwm_priv *iwm, u8 *buf,
+				unsigned long buf_size,
+				struct iwm_wifi_cmd *cmd)
+{
+	struct wiphy *wiphy = iwm_to_wiphy(iwm);
+
+	IWM_DBG_NTF(iwm, DBG, "WiFi/WiMax coexistence radio is OFF\n");
+
+	wiphy_rfkill_set_hw_state(wiphy, true);
+
+	return 0;
+}
+
 static int iwm_mlme_update_bss_table(struct iwm_priv *iwm, u8 *buf,
 				     unsigned long buf_size,
 				     struct iwm_wifi_cmd *cmd)
@@ -918,6 +931,8 @@ static int iwm_ntf_mlme(struct iwm_priv *iwm, u8 *buf,
 	case WIFI_IF_NTFY_EXTENDED_IE_REQUIRED:
 		IWM_DBG_MLME(iwm, DBG, "Extended IE required\n");
 		break;
+	case WIFI_IF_NTFY_RADIO_PREEMPTION:
+		return iwm_mlme_medium_lost(iwm, buf, buf_size, cmd);
 	case WIFI_IF_NTFY_BSS_TRK_TABLE_CHANGED:
 		return iwm_mlme_update_bss_table(iwm, buf, buf_size, cmd);
 	case WIFI_IF_NTFY_BSS_TRK_ENTRIES_REMOVED:
