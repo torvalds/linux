@@ -501,6 +501,18 @@ static int iwm_mlme_assoc_start(struct iwm_priv *iwm, u8 *buf,
 	return 0;
 }
 
+static u8 iwm_is_open_wep_profile(struct iwm_priv *iwm)
+{
+	if ((iwm->umac_profile->sec.ucast_cipher == UMAC_CIPHER_TYPE_WEP_40 ||
+	     iwm->umac_profile->sec.ucast_cipher == UMAC_CIPHER_TYPE_WEP_104) &&
+	    (iwm->umac_profile->sec.ucast_cipher ==
+	     iwm->umac_profile->sec.mcast_cipher) &&
+	    (iwm->umac_profile->sec.auth_type == UMAC_AUTH_TYPE_OPEN))
+	       return 1;
+
+       return 0;
+}
+
 static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 				   unsigned long buf_size,
 				   struct iwm_wifi_cmd *cmd)
@@ -566,11 +578,17 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 			goto ibss;
 
 		if (!test_bit(IWM_STATUS_RESETTING, &iwm->status))
-			cfg80211_connect_result(iwm_to_ndev(iwm),
-						complete->bssid,
-						NULL, 0, NULL, 0,
-						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
+			if (!iwm_is_open_wep_profile(iwm)) {
+				cfg80211_connect_result(iwm_to_ndev(iwm),
+					       complete->bssid,
+					       NULL, 0, NULL, 0,
+					       WLAN_STATUS_UNSPECIFIED_FAILURE,
+					       GFP_KERNEL);
+			} else {
+				/* Let's try shared WEP auth */
+				IWM_ERR(iwm, "Trying WEP shared auth\n");
+				schedule_work(&iwm->auth_retry_worker);
+			}
 		else
 			cfg80211_disconnected(iwm_to_ndev(iwm), 0, NULL, 0,
 					      GFP_KERNEL);

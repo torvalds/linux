@@ -207,6 +207,33 @@ static void iwm_reset_worker(struct work_struct *work)
 	mutex_unlock(&iwm->mutex);
 }
 
+static void iwm_auth_retry_worker(struct work_struct *work)
+{
+	struct iwm_priv *iwm;
+	int i, ret;
+
+	iwm = container_of(work, struct iwm_priv, auth_retry_worker);
+	if (iwm->umac_profile_active) {
+		ret = iwm_invalidate_mlme_profile(iwm);
+		if (ret < 0)
+			return;
+	}
+
+	iwm->umac_profile->sec.auth_type = UMAC_AUTH_TYPE_LEGACY_PSK;
+
+	ret = iwm_send_mlme_profile(iwm);
+	if (ret < 0)
+		return;
+
+	for (i = 0; i < IWM_NUM_KEYS; i++)
+		if (iwm->keys[i].key_len)
+			iwm_set_key(iwm, 0, &iwm->keys[i]);
+
+	iwm_set_tx_key(iwm, iwm->default_key);
+}
+
+
+
 static void iwm_watchdog(unsigned long data)
 {
 	struct iwm_priv *iwm = (struct iwm_priv *)data;
@@ -240,6 +267,7 @@ int iwm_priv_init(struct iwm_priv *iwm)
 	INIT_DELAYED_WORK(&iwm->disconnect, iwm_disconnect_work);
 	INIT_DELAYED_WORK(&iwm->ct_kill_delay, iwm_ct_kill_work);
 	INIT_WORK(&iwm->reset_worker, iwm_reset_worker);
+	INIT_WORK(&iwm->auth_retry_worker, iwm_auth_retry_worker);
 	INIT_LIST_HEAD(&iwm->bss_list);
 
 	skb_queue_head_init(&iwm->rx_list);
