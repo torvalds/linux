@@ -720,7 +720,7 @@ static int set_syndrome_sources(struct page **srcs, struct stripe_head *sh)
 	int i;
 
 	for (i = 0; i < disks; i++)
-		srcs[i] = (void *)raid6_empty_zero_page;
+		srcs[i] = NULL;
 
 	count = 0;
 	i = d0_idx;
@@ -816,7 +816,7 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 	 * slot number conversion for 'faila' and 'failb'
 	 */
 	for (i = 0; i < disks ; i++)
-		blocks[i] = (void *)raid6_empty_zero_page;
+		blocks[i] = NULL;
 	count = 0;
 	i = d0_idx;
 	do {

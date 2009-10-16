@@ -263,10 +263,10 @@ __2data_recov_n(int disks, size_t bytes, int faila, int failb,
 	 * delta p and delta q
 	 */
 	dp = blocks[faila];
-	blocks[faila] = (void *)raid6_empty_zero_page;
+	blocks[faila] = NULL;
 	blocks[disks-2] = dp;
 	dq = blocks[failb];
-	blocks[failb] = (void *)raid6_empty_zero_page;
+	blocks[failb] = NULL;
 	blocks[disks-1] = dq;
 
 	init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL, scribble);
@@ -338,7 +338,10 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 
 		async_tx_quiesce(&submit->depend_tx);
 		for (i = 0; i < disks; i++)
-			ptrs[i] = page_address(blocks[i]);
+			if (blocks[i] == NULL)
+				ptrs[i] = (void*)raid6_empty_zero_page;
+			else
+				ptrs[i] = page_address(blocks[i]);
 
 		raid6_2data_recov(disks, bytes, faila, failb, ptrs);
 
@@ -398,7 +401,10 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 
 		async_tx_quiesce(&submit->depend_tx);
 		for (i = 0; i < disks; i++)
-			ptrs[i] = page_address(blocks[i]);
+			if (blocks[i] == NULL)
+				ptrs[i] = (void*)raid6_empty_zero_page;
+			else
+				ptrs[i] = page_address(blocks[i]);
 
 		raid6_datap_recov(disks, bytes, faila, ptrs);
 
@@ -414,7 +420,7 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 	 * Use the dead data page as temporary storage for delta q
 	 */
 	dq = blocks[faila];
-	blocks[faila] = (void *)raid6_empty_zero_page;
+	blocks[faila] = NULL;
 	blocks[disks-1] = dq;
 
 	/* in the 4 disk case we only need to perform a single source

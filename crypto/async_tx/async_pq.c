@@ -30,11 +30,6 @@
  */
 static struct page *scribble;
 
-static bool is_raid6_zero_block(struct page *p)
-{
-	return p == (void *) raid6_empty_zero_page;
-}
-
 /* the struct page *blocks[] parameter passed to async_gen_syndrome()
  * and async_syndrome_val() contains the 'P' destination address at
  * blocks[disks-2] and the 'Q' destination address at blocks[disks-1]
@@ -83,7 +78,7 @@ do_async_gen_syndrome(struct dma_chan *chan, struct page **blocks,
 	 * sources and update the coefficients accordingly
 	 */
 	for (i = 0, idx = 0; i < src_cnt; i++) {
-		if (is_raid6_zero_block(blocks[i]))
+		if (blocks[i] == NULL)
 			continue;
 		dma_src[idx] = dma_map_page(dma->dev, blocks[i], offset, len,
 					    DMA_TO_DEVICE);
@@ -160,9 +155,9 @@ do_sync_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
 		srcs = (void **) blocks;
 
 	for (i = 0; i < disks; i++) {
-		if (is_raid6_zero_block(blocks[i])) {
+		if (blocks[i] == NULL) {
 			BUG_ON(i > disks - 3); /* P or Q can't be zero */
-			srcs[i] = blocks[i];
+			srcs[i] = (void*)raid6_empty_zero_page;
 		} else
 			srcs[i] = page_address(blocks[i]) + offset;
 	}
@@ -290,12 +285,10 @@ async_syndrome_val(struct page **blocks, unsigned int offset, int disks,
 		if (submit->flags & ASYNC_TX_FENCE)
 			dma_flags |= DMA_PREP_FENCE;
 		for (i = 0; i < disks; i++)
-			if (likely(blocks[i])) {
-				BUG_ON(is_raid6_zero_block(blocks[i]));
+			if (likely(blocks[i]))
 				dma_src[i] = dma_map_page(dev, blocks[i],
 							  offset, len,
 							  DMA_TO_DEVICE);
-			}
 
 		for (;;) {
 			tx = device->device_prep_dma_pq_val(chan, pq, dma_src,
