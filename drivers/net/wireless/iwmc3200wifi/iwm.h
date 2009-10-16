@@ -294,6 +294,8 @@ struct iwm_priv {
 	int resp_ie_len;
 
 	struct iwm_fw_error_hdr *last_fw_err;
+	char umac_version[8];
+	char lmac_version[8];
 
 	char private[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };

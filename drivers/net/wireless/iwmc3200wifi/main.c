@@ -628,6 +628,7 @@ static int __iwm_up(struct iwm_priv *iwm)
 {
 	int ret;
 	struct iwm_notif *notif_reboot, *notif_ack = NULL;
+	struct wiphy *wiphy = iwm_to_wiphy(iwm);
 
 	ret = iwm_bus_enable(iwm);
 	if (ret) {
@@ -688,6 +689,9 @@ static int __iwm_up(struct iwm_priv *iwm)
 		IWM_ERR(iwm, "FW loading failed\n");
 		goto err_disable;
 	}
+
+	snprintf(wiphy->fw_version, sizeof(wiphy->fw_version), "L%s_U%s",
+		 iwm->lmac_version, iwm->umac_version);
 
 	/* We configure the UMAC and enable the wifi module */
 	ret = iwm_send_umac_config(iwm,

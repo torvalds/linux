@@ -217,6 +217,13 @@ static int iwm_load_img(struct iwm_priv *iwm, const char *img_name)
 		 IWM_BUILD_YEAR(build_date), IWM_BUILD_MONTH(build_date),
 		 IWM_BUILD_DAY(build_date));
 
+	if (!strcmp(img_name, iwm->bus_ops->umac_name))
+		sprintf(iwm->umac_version, "%02X.%02X",
+			ver->major, ver->minor);
+
+	if (!strcmp(img_name, iwm->bus_ops->lmac_name))
+		sprintf(iwm->lmac_version, "%02X.%02X",
+			ver->major, ver->minor);
 
  err_release_fw:
 	release_firmware(fw);
