@@ -673,6 +673,11 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	bio_list_init(&s->queued_bios);
 	INIT_WORK(&s->queued_bios_work, flush_queued_bios);
 
+	if (!s->store->chunk_size) {
+		ti->error = "Chunk size not set";
+		goto bad_load_and_register;
+	}
+
 	/* Add snapshot to the list of snapshots for this origin */
 	/* Exceptions aren't triggered till snapshot_resume() is called */
 	if (register_snapshot(s)) {
