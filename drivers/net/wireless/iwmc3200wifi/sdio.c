@@ -224,8 +224,6 @@ static int if_sdio_disable(struct iwm_priv *iwm)
 	struct iwm_sdio_priv *hw = iwm_to_if_sdio(iwm);
 	int ret;
 
-	iwm_reset(iwm);
-
 	sdio_claim_host(hw->func);
 	sdio_writeb(hw->func, 0, IWM_SDIO_INTR_ENABLE_ADDR, &ret);
 	if (ret < 0)
@@ -236,6 +234,8 @@ static int if_sdio_disable(struct iwm_priv *iwm)
 	sdio_release_host(hw->func);
 
 	iwm_sdio_rx_free(hw);
+
+	iwm_reset(iwm);
 
 	IWM_DBG_SDIO(iwm, INFO, "IWM SDIO disable\n");
 
