@@ -1321,6 +1321,14 @@ int iwm_rx_handle(struct iwm_priv *iwm, u8 *buf, unsigned long buf_size)
 
 	switch (le32_to_cpu(hdr->cmd)) {
 	case UMAC_REBOOT_BARKER:
+		if (test_bit(IWM_STATUS_READY, &iwm->status)) {
+			IWM_ERR(iwm, "Unexpected BARKER\n");
+
+			schedule_work(&iwm->reset_worker);
+
+			return 0;
+		}
+
 		return iwm_notif_send(iwm, NULL, IWM_BARKER_REBOOT_NOTIFICATION,
 				      IWM_SRC_UDMA, buf, buf_size);
 	case UMAC_ACK_BARKER:
