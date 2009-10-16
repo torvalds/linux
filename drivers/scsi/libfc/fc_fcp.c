@@ -1815,21 +1815,6 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 			sc_cmd->result = DID_OK << 16;
 			if (fsp->scsi_resid)
 				CMD_RESID_LEN(sc_cmd) = fsp->scsi_resid;
-		} else if (fsp->cdb_status == QUEUE_FULL) {
-			struct scsi_device *tmp_sdev;
-			struct scsi_device *sdev = sc_cmd->device;
-
-			shost_for_each_device(tmp_sdev, sdev->host) {
-				if (tmp_sdev->id != sdev->id)
-					continue;
-
-				if (tmp_sdev->queue_depth > 1) {
-					scsi_track_queue_full(tmp_sdev,
-							      tmp_sdev->
-							      queue_depth - 1);
-				}
-			}
-			sc_cmd->result = (DID_OK << 16) | fsp->cdb_status;
 		} else {
 			/*
 			 * transport level I/O was ok but scsi
@@ -2066,10 +2051,16 @@ EXPORT_SYMBOL(fc_slave_alloc);
 
 int fc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
-	if (reason != SCSI_QDEPTH_DEFAULT)
+	switch (reason) {
+	case SCSI_QDEPTH_DEFAULT:
+		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+		break;
+	case SCSI_QDEPTH_QFULL:
+		scsi_track_queue_full(sdev, qdepth);
+		break;
+	default:
 		return -EOPNOTSUPP;
-
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	}
 	return sdev->queue_depth;
 }
 EXPORT_SYMBOL(fc_change_queue_depth);
