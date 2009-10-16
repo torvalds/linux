@@ -109,8 +109,9 @@
  * Bit fields:
  *  3-2:  0 = A, 1 = B, 2 = C, 3 = D step
  */
-#define CSR_HW_REV_WA_REG	(CSR_BASE+0x22C)
-#define CSR_DBG_HPET_MEM_REG	(CSR_BASE+0x240)
+#define CSR_HW_REV_WA_REG		(CSR_BASE+0x22C)
+#define CSR_DBG_HPET_MEM_REG		(CSR_BASE+0x240)
+#define CSR_DBG_LINK_PWR_MGMT_REG	(CSR_BASE+0x250)
 
 /* Bits for CSR_HW_IF_CONFIG_REG */
 #define CSR49_HW_IF_CONFIG_REG_BIT_4965_R	(0x00000010)
@@ -195,6 +196,7 @@
 #define CSR_RESET_REG_FLAG_SW_RESET                  (0x00000080)
 #define CSR_RESET_REG_FLAG_MASTER_DISABLED           (0x00000100)
 #define CSR_RESET_REG_FLAG_STOP_MASTER               (0x00000200)
+#define CSR_RESET_LINK_PWR_MGMT_DISABLED             (0x80000000)
 
 /* GP (general purpose) CONTROL */
 #define CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY        (0x00000001)
