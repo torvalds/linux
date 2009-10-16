@@ -678,10 +678,14 @@ enum {
 #define MIU_TEST_AGT_ADDR_HI		(0x08)
 #define MIU_TEST_AGT_WRDATA_LO		(0x10)
 #define MIU_TEST_AGT_WRDATA_HI		(0x14)
-#define MIU_TEST_AGT_WRDATA(i)		(0x10+(4*(i)))
+#define MIU_TEST_AGT_WRDATA_UPPER_LO	(0x20)
+#define MIU_TEST_AGT_WRDATA_UPPER_HI	(0x24)
+#define MIU_TEST_AGT_WRDATA(i)		(0x10+(0x10*((i)>>1))+(4*((i)&1)))
 #define MIU_TEST_AGT_RDDATA_LO		(0x18)
 #define MIU_TEST_AGT_RDDATA_HI		(0x1c)
-#define MIU_TEST_AGT_RDDATA(i)		(0x18+(4*(i)))
+#define MIU_TEST_AGT_RDDATA_UPPER_LO	(0x28)
+#define MIU_TEST_AGT_RDDATA_UPPER_HI	(0x2c)
+#define MIU_TEST_AGT_RDDATA(i)		(0x18+(0x10*((i)>>1))+(4*((i)&1)))
 
 #define MIU_TEST_AGT_ADDR_MASK		0xfffffff8
 #define MIU_TEST_AGT_UPPER_ADDR(off)	(0)
