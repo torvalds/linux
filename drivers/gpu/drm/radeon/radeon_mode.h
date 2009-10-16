@@ -260,6 +260,16 @@ struct radeon_encoder_int_tmds {
 	struct radeon_tmds_pll tmds_pll[4];
 };
 
+/* spread spectrum */
+struct radeon_atom_ss {
+	uint16_t percentage;
+	uint8_t type;
+	uint8_t step;
+	uint8_t delay;
+	uint8_t range;
+	uint8_t refdiv;
+};
+
 struct radeon_encoder_atom_dig {
 	/* atom dig */
 	bool coherent_mode;
@@ -267,6 +277,7 @@ struct radeon_encoder_atom_dig {
 	/* atom lvds */
 	uint32_t lvds_misc;
 	uint16_t panel_pwr_delay;
+	struct radeon_atom_ss *ss;
 	/* panel mode */
 	struct drm_display_mode native_mode;
 };

@@ -351,6 +351,61 @@ static void atombios_crtc_set_timing(struct drm_crtc *crtc,
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+static void atombios_set_ss(struct drm_crtc *crtc, int enable)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct drm_encoder *encoder = NULL;
+	struct radeon_encoder *radeon_encoder = NULL;
+	struct radeon_encoder_atom_dig *dig = NULL;
+	int index = GetIndexIntoMasterTable(COMMAND, EnableSpreadSpectrumOnPPLL);
+	ENABLE_SPREAD_SPECTRUM_ON_PPLL_PS_ALLOCATION args;
+	ENABLE_LVDS_SS_PARAMETERS legacy_args;
+	uint16_t percentage = 0;
+	uint8_t type = 0, step = 0, delay = 0, range = 0;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		if (encoder->crtc == crtc) {
+			radeon_encoder = to_radeon_encoder(encoder);
+			dig = radeon_encoder->enc_priv;
+			/* only enable spread spectrum on LVDS */
+			if (dig && dig->ss) {
+				percentage = dig->ss->percentage;
+				type = dig->ss->type;
+				step = dig->ss->step;
+				delay = dig->ss->delay;
+				range = dig->ss->range;
+			} else if (enable)
+				return;
+			break;
+		}
+	}
+
+	if (!radeon_encoder)
+		return;
+
+	if (ASIC_IS_AVIVO(rdev)) {
+		memset(&args, 0, sizeof(args));
+		args.usSpreadSpectrumPercentage = percentage;
+		args.ucSpreadSpectrumType = type;
+		args.ucSpreadSpectrumStep = step;
+		args.ucSpreadSpectrumDelay = delay;
+		args.ucSpreadSpectrumRange = range;
+		args.ucPpll = radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
+		args.ucEnable = enable;
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	} else {
+		memset(&legacy_args, 0, sizeof(legacy_args));
+		legacy_args.usSpreadSpectrumPercentage = percentage;
+		legacy_args.ucSpreadSpectrumType = type;
+		legacy_args.ucSpreadSpectrumStepSize_Delay = (step & 3) << 2;
+		legacy_args.ucSpreadSpectrumStepSize_Delay |= (delay & 7) << 4;
+		legacy_args.ucEnable = enable;
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&legacy_args);
+	}
+}
+
 void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
@@ -373,8 +428,6 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	memset(&args, 0, sizeof(args));
 
 	if (ASIC_IS_AVIVO(rdev)) {
-		uint32_t ss_cntl;
-
 		if ((rdev->family == CHIP_RS600) ||
 		    (rdev->family == CHIP_RS690) ||
 		    (rdev->family == CHIP_RS740))
@@ -385,15 +438,6 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 		else
 			pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
-
-		/* disable spread spectrum clocking for now -- thanks Hedy Lamarr */
-		if (radeon_crtc->crtc_id == 0) {
-			ss_cntl = RREG32(AVIVO_P1PLL_INT_SS_CNTL);
-			WREG32(AVIVO_P1PLL_INT_SS_CNTL, ss_cntl & ~1);
-		} else {
-			ss_cntl = RREG32(AVIVO_P2PLL_INT_SS_CNTL);
-			WREG32(AVIVO_P2PLL_INT_SS_CNTL, ss_cntl & ~1);
-		}
 	} else {
 		pll_flags |= RADEON_PLL_LEGACY;
 
@@ -641,7 +685,9 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* TODO color tiling */
 
+	atombios_set_ss(crtc, 0);
 	atombios_crtc_set_pll(crtc, adjusted_mode);
+	atombios_set_ss(crtc, 1);
 	atombios_crtc_set_timing(crtc, adjusted_mode);
 
 	if (ASIC_IS_AVIVO(rdev))
