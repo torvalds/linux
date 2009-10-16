@@ -296,6 +296,7 @@ static void __insert_origin(struct origin *o)
  */
 static int register_snapshot(struct dm_snapshot *snap)
 {
+	struct dm_snapshot *l;
 	struct origin *o, *new_o;
 	struct block_device *bdev = snap->origin->bdev;
 
@@ -319,7 +320,11 @@ static int register_snapshot(struct dm_snapshot *snap)
 		__insert_origin(o);
 	}
 
-	list_add_tail(&snap->list, &o->snapshots);
+	/* Sort the list according to chunk size, largest-first smallest-last */
+	list_for_each_entry(l, &o->snapshots, list)
+		if (l->store->chunk_size < snap->store->chunk_size)
+			break;
+	list_add_tail(&snap->list, &l->list);
 
 	up_write(&_origins_lock);
 	return 0;
