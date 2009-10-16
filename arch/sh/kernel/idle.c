@@ -65,7 +65,8 @@ void default_idle(void)
 		if (!need_resched()) {
 			local_irq_enable();
 			cpu_sleep();
-		}
+		} else
+			local_irq_enable();
 
 		set_thread_flag(TIF_POLLING_NRFLAG);
 	} else
