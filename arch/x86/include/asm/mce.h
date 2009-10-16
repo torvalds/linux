@@ -120,9 +120,9 @@ extern int mce_disabled;
 extern int mce_p5_enabled;
 
 #ifdef CONFIG_X86_MCE
-void mcheck_init(struct cpuinfo_x86 *c);
+void mcheck_cpu_init(struct cpuinfo_x86 *c);
 #else
-static inline void mcheck_init(struct cpuinfo_x86 *c) {}
+static inline void mcheck_cpu_init(struct cpuinfo_x86 *c) {}
 #endif
 
 #ifdef CONFIG_X86_ANCIENT_MCE

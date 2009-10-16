@@ -839,7 +839,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 #ifdef CONFIG_X86_MCE
 	/* Init Machine Check Exception if available. */
-	mcheck_init(c);
+	mcheck_cpu_init(c);
 #endif
 
 	select_idle_routine(c);
