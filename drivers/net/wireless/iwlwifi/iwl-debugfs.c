@@ -1802,6 +1802,29 @@ static ssize_t iwl_dbgfs_tx_power_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+static ssize_t iwl_dbgfs_power_save_status_read(struct file *file,
+						    char __user *user_buf,
+						    size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	char buf[60];
+	int pos = 0;
+	const size_t bufsz = sizeof(buf);
+	u32 pwrsave_status;
+
+	pwrsave_status = iwl_read32(priv, CSR_GP_CNTRL) &
+			CSR_GP_REG_POWER_SAVE_STATUS_MSK;
+
+	pos += scnprintf(buf + pos, bufsz - pos, "Power Save Status: ");
+	pos += scnprintf(buf + pos, bufsz - pos, "%s\n",
+		(pwrsave_status == CSR_GP_REG_NO_POWER_SAVE) ? "none" :
+		(pwrsave_status == CSR_GP_REG_MAC_POWER_SAVE) ? "MAC" :
+		(pwrsave_status == CSR_GP_REG_PHY_POWER_SAVE) ? "PHY" :
+		"error");
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(rx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -1813,6 +1836,7 @@ DEBUGFS_READ_FILE_OPS(ucode_general_stats);
 DEBUGFS_READ_FILE_OPS(sensitivity);
 DEBUGFS_READ_FILE_OPS(chain_noise);
 DEBUGFS_READ_FILE_OPS(tx_power);
+DEBUGFS_READ_FILE_OPS(power_save_status);
 
 /*
  * Create the debugfs files and directories
@@ -1860,6 +1884,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(rx_queue, debug);
 	DEBUGFS_ADD_FILE(tx_queue, debug);
 	DEBUGFS_ADD_FILE(tx_power, debug);
+	DEBUGFS_ADD_FILE(power_save_status, debug);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_ADD_FILE(ucode_rx_stats, debug);
 		DEBUGFS_ADD_FILE(ucode_tx_stats, debug);
@@ -1912,6 +1937,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_rx_queue);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_tx_queue);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_tx_power);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_power_save_status);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
 			file_ucode_rx_stats);

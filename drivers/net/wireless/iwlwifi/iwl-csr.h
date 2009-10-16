@@ -235,6 +235,11 @@
 #define CSR_OTP_GP_REG_OTP_ACCESS_MODE	(0x00020000) /* 0 - absolute, 1 - relative */
 #define CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK          (0x00100000) /* bit 20 */
 #define CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK        (0x00200000) /* bit 21 */
+#define CSR_GP_REG_POWER_SAVE_STATUS_MSK            (0x03000000) /* bit 24/25 */
+#define CSR_GP_REG_NO_POWER_SAVE            (0x00000000)
+#define CSR_GP_REG_MAC_POWER_SAVE           (0x01000000)
+#define CSR_GP_REG_PHY_POWER_SAVE           (0x02000000)
+#define CSR_GP_REG_POWER_SAVE_ERROR         (0x03000000)
 
 /* EEPROM signature */
 #define CSR_EEPROM_GP_BAD_SIGNATURE_BOTH_EEP_AND_OTP	(0x00000000)
