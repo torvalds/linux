@@ -64,6 +64,7 @@ struct sd {
 #define BRIDGE_OV518PLUS	3
 #define BRIDGE_OV519		4
 #define BRIDGE_OVFX2		5
+#define BRIDGE_W9968CF		6
 #define BRIDGE_MASK		7
 
 	char invert_led;
@@ -98,7 +99,16 @@ struct sd {
 #define SEN_OV7670 9
 #define SEN_OV76BE 10
 #define SEN_OV8610 11
+
+	u8 sensor_addr;
+	int sensor_width;
+	int sensor_height;
 };
+
+/* Note this is a bit of a hack, but the w9968cf driver needs the code for all
+   the ov sensors which is already present here. When we have the time we
+   really should move the sensor drivers to v4l2 sub drivers. */
+#include "w996Xcf.c"
 
 /* V4L2 controls supported by the driver */
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
@@ -1471,6 +1481,7 @@ static const struct ov_i2c_regvals norm_7610[] = {
 };
 
 static const struct ov_i2c_regvals norm_7620[] = {
+	{ 0x12, 0x80 },		/* reset */
 	{ 0x00, 0x00 },		/* gain */
 	{ 0x01, 0x80 },		/* blue gain */
 	{ 0x02, 0x80 },		/* red gain */
@@ -1835,10 +1846,9 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 }
 
 /* Write a OV519 register */
-static int reg_w(struct sd *sd, __u16 index, __u8 value)
+static int reg_w(struct sd *sd, __u16 index, __u16 value)
 {
-	int ret;
-	int req;
+	int ret, req = 0;
 
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
@@ -1846,11 +1856,14 @@ static int reg_w(struct sd *sd, __u16 index, __u8 value)
 		req = 2;
 		break;
 	case BRIDGE_OVFX2:
+		req = 0x0a;
+		/* fall through */
+	case BRIDGE_W9968CF:
 		ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
-			0x0a,
+			req,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			(__u16)value, index, NULL, 0, 500);
+			value, index, NULL, 0, 500);
 		goto leave;
 	default:
 		req = 1;
@@ -1864,12 +1877,17 @@ static int reg_w(struct sd *sd, __u16 index, __u8 value)
 			0, index,
 			sd->gspca_dev.usb_buf, 1, 500);
 leave:
-	if (ret < 0)
-		PDEBUG(D_ERR, "Write reg [%02x] %02x failed", index, value);
-	return ret;
+	if (ret < 0) {
+		PDEBUG(D_ERR, "Write reg 0x%04x -> [0x%02x] failed",
+		       value, index);
+		return ret;
+	}
+
+	PDEBUG(D_USBO, "Write reg 0x%04x -> [0x%02x]", value, index);
+	return 0;
 }
 
-/* Read from a OV519 register */
+/* Read from a OV519 register, note not valid for the w9968cf!! */
 /* returns: negative is error, pos or zero is data */
 static int reg_r(struct sd *sd, __u16 index)
 {
@@ -1894,10 +1912,12 @@ static int reg_r(struct sd *sd, __u16 index)
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index, sd->gspca_dev.usb_buf, 1, 500);
 
-	if (ret >= 0)
+	if (ret >= 0) {
 		ret = sd->gspca_dev.usb_buf[0];
-	else
+		PDEBUG(D_USBI, "Read reg [0x%02X] -> 0x%04X", index, ret);
+	} else
 		PDEBUG(D_ERR, "Read reg [0x%02x] failed", index);
+
 	return ret;
 }
 
@@ -1917,6 +1937,7 @@ static int reg_r8(struct sd *sd,
 		ret = sd->gspca_dev.usb_buf[0];
 	else
 		PDEBUG(D_ERR, "Read reg 8 [0x%02x] failed", index);
+
 	return ret;
 }
 
@@ -1962,9 +1983,12 @@ static int ov518_reg_w32(struct sd *sd, __u16 index, u32 value, int n)
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index,
 			sd->gspca_dev.usb_buf, n, 500);
-	if (ret < 0)
+	if (ret < 0) {
 		PDEBUG(D_ERR, "Write reg32 [%02x] %08x failed", index, value);
-	return ret;
+		return ret;
+	}
+
+	return 0;
 }
 
 static int ov511_i2c_w(struct sd *sd, __u8 reg, __u8 value)
@@ -2156,12 +2180,13 @@ static int ovfx2_i2c_w(struct sd *sd, __u8 reg, __u8 value)
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			(__u16)value, (__u16)reg, NULL, 0, 500);
 
-	if (ret >= 0)
-		PDEBUG(D_USBO, "i2c 0x%02x -> [0x%02x]", value, reg);
-	else
+	if (ret < 0) {
 		PDEBUG(D_ERR, "i2c 0x%02x -> [0x%02x] failed", value, reg);
+		return ret;
+	}
 
-	return ret;
+	PDEBUG(D_USBO, "i2c 0x%02x -> [0x%02x]", value, reg);
+	return 0;
 }
 
 static int ovfx2_i2c_r(struct sd *sd, __u8 reg)
@@ -2195,6 +2220,8 @@ static int i2c_w(struct sd *sd, __u8 reg, __u8 value)
 		return ov518_i2c_w(sd, reg, value);
 	case BRIDGE_OVFX2:
 		return ovfx2_i2c_w(sd, reg, value);
+	case BRIDGE_W9968CF:
+		return w9968cf_i2c_w(sd, reg, value);
 	}
 	return -1; /* Should never happen */
 }
@@ -2211,6 +2238,8 @@ static int i2c_r(struct sd *sd, __u8 reg)
 		return ov518_i2c_r(sd, reg);
 	case BRIDGE_OVFX2:
 		return ovfx2_i2c_r(sd, reg);
+	case BRIDGE_W9968CF:
+		return w9968cf_i2c_r(sd, reg);
 	}
 	return -1; /* Should never happen */
 }
@@ -2241,6 +2270,8 @@ static int i2c_w_mask(struct sd *sd,
  * registers while the camera is streaming */
 static inline int ov51x_stop(struct sd *sd)
 {
+	int ret;
+
 	PDEBUG(D_STREAM, "stopping");
 	sd->stopped = 1;
 	switch (sd->bridge) {
@@ -2254,6 +2285,11 @@ static inline int ov51x_stop(struct sd *sd)
 		return reg_w(sd, OV519_SYS_RESET1, 0x0f);
 	case BRIDGE_OVFX2:
 		return reg_w_mask(sd, 0x0f, 0x00, 0x02);
+	case BRIDGE_W9968CF:
+		ret  = reg_w(sd, 0x3c, 0x0a05); /* stop USB transfer */
+		ret += reg_w(sd, 0x39, 0x0000); /* disable JPEG encoder */
+		ret += reg_w(sd, 0x16, 0x0000); /* stop video capture */
+		return ret;
 	}
 
 	return 0;
@@ -2285,6 +2321,8 @@ static inline int ov51x_restart(struct sd *sd)
 		return reg_w(sd, OV519_SYS_RESET1, 0x00);
 	case BRIDGE_OVFX2:
 		return reg_w_mask(sd, 0x0f, 0x02, 0x02);
+	case BRIDGE_W9968CF:
+		return reg_w(sd, 0x3c, 0x8a05); /* USB FIFO enable */
 	}
 
 	return 0;
@@ -2338,8 +2376,13 @@ static int ov51x_set_slave_ids(struct sd *sd,
 {
 	int rc;
 
-	if (sd->bridge == BRIDGE_OVFX2)
+	switch (sd->bridge) {
+	case BRIDGE_OVFX2:
 		return reg_w(sd, OVFX2_I2C_ADDR, slave);
+	case BRIDGE_W9968CF:
+		sd->sensor_addr = slave;
+		return 0;
+	}
 
 	rc = reg_w(sd, R51x_I2C_W_SID, slave);
 	if (rc < 0)
@@ -2920,6 +2963,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->bulk_nurbs = MAX_NURBS;
 		cam->bulk = 1;
 		break;
+	case BRIDGE_W9968CF:
+		ret = w9968cf_configure(sd);
+		cam->reverse_alts = 1;
+		break;
 	}
 
 	if (ret)
@@ -3004,6 +3051,16 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			cam->cam_mode = ov519_sif_mode;
 			cam->nmodes = ARRAY_SIZE(ov519_sif_mode);
 		}
+		break;
+	case BRIDGE_W9968CF:
+		cam->cam_mode = w9968cf_vga_mode;
+		cam->nmodes = ARRAY_SIZE(w9968cf_vga_mode);
+		/* if (sd->sif)
+			cam->nmodes--; */
+
+		/* w9968cf needs initialisation once the sensor is known */
+		if (w9968cf_init(sd) < 0)
+			goto error;
 		break;
 	}
 	sd->brightness = BRIGHTNESS_DEF;
@@ -3753,9 +3810,9 @@ static int set_ov_sensor_window(struct sd *sd)
 		return ret;
 
 	i2c_w(sd, 0x17, hwsbase);
-	i2c_w(sd, 0x18, hwebase + (sd->gspca_dev.width >> hwscale));
+	i2c_w(sd, 0x18, hwebase + (sd->sensor_width >> hwscale));
 	i2c_w(sd, 0x19, vwsbase);
-	i2c_w(sd, 0x1a, vwebase + (sd->gspca_dev.height >> vwscale));
+	i2c_w(sd, 0x1a, vwebase + (sd->sensor_height >> vwscale));
 
 	return 0;
 }
@@ -3765,6 +3822,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret = 0;
+
+	/* Default for most bridges, allow bridge_mode_init_regs to override */
+	sd->sensor_width = sd->gspca_dev.width;
+	sd->sensor_height = sd->gspca_dev.height;
 
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
@@ -3779,6 +3840,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		ret = ov519_mode_init_regs(sd);
 		break;
 	/* case BRIDGE_OVFX2: nothing to do */
+	case BRIDGE_W9968CF:
+		ret = w9968cf_mode_init_regs(sd);
+		break;
 	}
 	if (ret < 0)
 		goto out;
@@ -3979,6 +4043,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		break;
 	case BRIDGE_OVFX2:
 		ovfx2_pkt_scan(gspca_dev, frame, data, len);
+		break;
+	case BRIDGE_W9968CF:
+		w9968cf_pkt_scan(gspca_dev, frame, data, len);
 		break;
 	}
 }
@@ -4275,8 +4342,12 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->freq = val;
-	if (gspca_dev->streaming)
+	if (gspca_dev->streaming) {
 		setfreq(sd);
+		/* Ugly but necessary */
+		if (sd->bridge == BRIDGE_W9968CF)
+			w9968cf_set_crop_window(sd);
+	}
 	return 0;
 }
 
@@ -4332,6 +4403,7 @@ static const struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
+	{USB_DEVICE(0x041e, 0x4003), .driver_info = BRIDGE_W9968CF },
 	{USB_DEVICE(0x041e, 0x4052), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x405f), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4060), .driver_info = BRIDGE_OV519 },
@@ -4356,6 +4428,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0813, 0x0002), .driver_info = BRIDGE_OV511PLUS },
 	{USB_DEVICE(0x0b62, 0x0059), .driver_info = BRIDGE_OVFX2 },
 	{USB_DEVICE(0x0e96, 0xc001), .driver_info = BRIDGE_OVFX2 },
+	{USB_DEVICE(0x1046, 0x9967), .driver_info = BRIDGE_W9968CF },
 	{USB_DEVICE(0x8020, 0xEF04), .driver_info = BRIDGE_OVFX2 },
 	{}
 };

@@ -58,6 +58,7 @@ struct cam {
 	u8 npkt;		/* number of packets in an ISOC message
 				 * 0 is the default value: 32 packets */
 	u32 input_flags;	/* value for ENUM_INPUT status flags */
+	char reverse_alts;	/* Alt settings are in high to low order */
 };
 
 struct gspca_dev;

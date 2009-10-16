@@ -475,10 +475,18 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 	xfer = gspca_dev->cam.bulk ? USB_ENDPOINT_XFER_BULK
 				   : USB_ENDPOINT_XFER_ISOC;
 	i = gspca_dev->alt;			/* previous alt setting */
-	while (--i >= 0) {
-		ep = alt_xfer(&intf->altsetting[i], xfer);
-		if (ep)
-			break;
+	if (gspca_dev->cam.reverse_alts) {
+		while (++i < gspca_dev->nbalt) {
+			ep = alt_xfer(&intf->altsetting[i], xfer);
+			if (ep)
+				break;
+		}
+	} else {
+		while (--i >= 0) {
+			ep = alt_xfer(&intf->altsetting[i], xfer);
+			if (ep)
+				break;
+		}
 	}
 	if (ep == NULL) {
 		err("no transfer endpoint found");
@@ -599,7 +607,11 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 
 	/* set the higher alternate setting and
 	 * loop until urb submit succeeds */
-	gspca_dev->alt = gspca_dev->nbalt;
+	if (gspca_dev->cam.reverse_alts)
+		gspca_dev->alt = 0;
+	else
+		gspca_dev->alt = gspca_dev->nbalt;
+
 	if (gspca_dev->sd_desc->isoc_init) {
 		ret = gspca_dev->sd_desc->isoc_init(gspca_dev);
 		if (ret < 0)

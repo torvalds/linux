@@ -76,10 +76,11 @@ config USB_GSPCA_MR97310A
 	  module will be called gspca_mr97310a.
 
 config USB_GSPCA_OV519
-	tristate "OV519 USB Camera Driver"
+	tristate "OV51x / OVFX2 / W996xCF USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
 	help
-	  Say Y here if you want support for cameras based on the OV519 chip.
+	  Say Y here if you want support for cameras based on one of these:
+	  OV511(+), OV518(+), OV519, OVFX2, W9967CF, W9968CF
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_ov519.
