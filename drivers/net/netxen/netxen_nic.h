@@ -1044,6 +1044,9 @@ typedef struct {
 #define LINKEVENT_LINKSPEED_MBPS	0
 #define LINKEVENT_LINKSPEED_ENCODED	1
 
+#define AUTO_FW_RESET_ENABLED	0xEF10AF12
+#define AUTO_FW_RESET_DISABLED	0xDCBAAF12
+
 /* firmware response header:
  *	63:58 - message type
  *	57:56 - owner
