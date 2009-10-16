@@ -1152,6 +1152,8 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 	unsigned sz = 0;
 	struct dm_snapshot *snap = ti->private;
 
+	down_write(&snap->lock);
+
 	switch (type) {
 	case STATUSTYPE_INFO:
 		if (!snap->valid)
@@ -1182,6 +1184,8 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 					  maxlen - sz);
 		break;
 	}
+
+	up_write(&snap->lock);
 
 	return 0;
 }
