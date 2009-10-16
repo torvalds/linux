@@ -422,7 +422,9 @@ static int iwm_ntf_rx_ticket(struct iwm_priv *iwm, u8 *buf,
 			if (IS_ERR(ticket_node))
 				return PTR_ERR(ticket_node);
 
-			IWM_DBG_RX(iwm, DBG, "TICKET RELEASE(%d)\n",
+			IWM_DBG_RX(iwm, DBG, "TICKET %s(%d)\n",
+				   ticket->action ==  IWM_RX_TICKET_RELEASE ?
+				   "RELEASE" : "DROP",
 				   ticket->id);
 			list_add_tail(&ticket_node->node, &iwm->rx_tickets);
 
@@ -1457,7 +1459,8 @@ static void iwm_rx_process_packet(struct iwm_priv *iwm,
 		}
 		break;
 	case IWM_RX_TICKET_DROP:
-		IWM_DBG_RX(iwm, DBG, "DROP packet\n");
+		IWM_DBG_RX(iwm, DBG, "DROP packet: 0x%x\n",
+			   le16_to_cpu(ticket_node->ticket->flags));
 		kfree_skb(packet->skb);
 		break;
 	default:
