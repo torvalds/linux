@@ -2896,7 +2896,7 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
  *
  */
 
-static bool handle_stripe5(struct stripe_head *sh)
+static void handle_stripe5(struct stripe_head *sh)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks, i;
@@ -3167,11 +3167,9 @@ static bool handle_stripe5(struct stripe_head *sh)
 	ops_run_io(sh, &s);
 
 	return_io(return_bi);
-
-	return blocked_rdev == NULL;
 }
 
-static bool handle_stripe6(struct stripe_head *sh)
+static void handle_stripe6(struct stripe_head *sh)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks;
@@ -3455,17 +3453,14 @@ static bool handle_stripe6(struct stripe_head *sh)
 	ops_run_io(sh, &s);
 
 	return_io(return_bi);
-
-	return blocked_rdev == NULL;
 }
 
-/* returns true if the stripe was handled */
-static bool handle_stripe(struct stripe_head *sh)
+static void handle_stripe(struct stripe_head *sh)
 {
 	if (sh->raid_conf->level == 6)
-		return handle_stripe6(sh);
+		handle_stripe6(sh);
 	else
-		return handle_stripe5(sh);
+		handle_stripe5(sh);
 }
 
 static void raid5_activate_delayed(raid5_conf_t *conf)
@@ -4277,9 +4272,7 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	clear_bit(STRIPE_INSYNC, &sh->state);
 	spin_unlock(&sh->lock);
 
-	/* wait for any blocked device to be handled */
-	while (unlikely(!handle_stripe(sh)))
-		;
+	handle_stripe(sh);
 	release_stripe(sh);
 
 	return STRIPE_SECTORS;
