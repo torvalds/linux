@@ -13,7 +13,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 
-#include <mach/omap730.h>
+#include <mach/omap7xx.h>
 #include <mach/omap1510.h>
 #include <mach/omap16xx.h>
 #include <mach/omap24xx.h>
@@ -33,13 +33,13 @@ void __iomem *omap_ioremap(unsigned long p, size_t size, unsigned int type)
 		if (BETWEEN(p, OMAP1_IO_PHYS, OMAP1_IO_SIZE))
 			return XLATE(p, OMAP1_IO_PHYS, OMAP1_IO_VIRT);
 	}
-	if (cpu_is_omap730()) {
-		if (BETWEEN(p, OMAP730_DSP_BASE, OMAP730_DSP_SIZE))
-			return XLATE(p, OMAP730_DSP_BASE, OMAP730_DSP_START);
+	if (cpu_is_omap7xx()) {
+		if (BETWEEN(p, OMAP7XX_DSP_BASE, OMAP7XX_DSP_SIZE))
+			return XLATE(p, OMAP7XX_DSP_BASE, OMAP7XX_DSP_START);
 
-		if (BETWEEN(p, OMAP730_DSPREG_BASE, OMAP730_DSPREG_SIZE))
-			return XLATE(p, OMAP730_DSPREG_BASE,
-					OMAP730_DSPREG_START);
+		if (BETWEEN(p, OMAP7XX_DSPREG_BASE, OMAP7XX_DSPREG_SIZE))
+			return XLATE(p, OMAP7XX_DSPREG_BASE,
+					OMAP7XX_DSPREG_START);
 	}
 	if (cpu_is_omap15xx()) {
 		if (BETWEEN(p, OMAP1510_DSP_BASE, OMAP1510_DSP_SIZE))

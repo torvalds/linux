@@ -280,7 +280,7 @@
  * ---------------------------------------------------------------------------
  */
 
-#include "omap730.h"
+#include "omap7xx.h"
 #include "omap1510.h"
 #include "omap16xx.h"
 #include "omap24xx.h"

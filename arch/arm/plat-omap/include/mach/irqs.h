@@ -86,49 +86,26 @@
 #define INT_1610_SSR_FIFO_0	29
 
 /*
- * OMAP-730 specific IRQ numbers for interrupt handler 1
+ * OMAP-7xx specific IRQ numbers for interrupt handler 1
  */
-#define INT_730_IH2_FIQ		0
-#define INT_730_IH2_IRQ		1
-#define INT_730_USB_NON_ISO	2
-#define INT_730_USB_ISO		3
-#define INT_730_ICR		4
-#define INT_730_EAC		5
-#define INT_730_GPIO_BANK1	6
-#define INT_730_GPIO_BANK2	7
-#define INT_730_GPIO_BANK3	8
-#define INT_730_McBSP2TX	10
-#define INT_730_McBSP2RX	11
-#define INT_730_McBSP2RX_OVF	12
-#define INT_730_LCD_LINE	14
-#define INT_730_GSM_PROTECT	15
-#define INT_730_TIMER3		16
-#define INT_730_GPIO_BANK5	17
-#define INT_730_GPIO_BANK6	18
-#define INT_730_SPGIO_WR	29
-
-/*
- * OMAP-850 specific IRQ numbers for interrupt handler 1
- */
-#define INT_850_IH2_FIQ		0
-#define INT_850_IH2_IRQ		1
-#define INT_850_USB_NON_ISO	2
-#define INT_850_USB_ISO		3
-#define INT_850_ICR		4
-#define INT_850_EAC		5
-#define INT_850_GPIO_BANK1	6
-#define INT_850_GPIO_BANK2	7
-#define INT_850_GPIO_BANK3	8
-#define INT_850_McBSP2TX	10
-#define INT_850_McBSP2RX	11
-#define INT_850_McBSP2RX_OVF	12
-#define INT_850_LCD_LINE	14
-#define INT_850_GSM_PROTECT	15
-#define INT_850_TIMER3		16
-#define INT_850_GPIO_BANK5	17
-#define INT_850_GPIO_BANK6	18
-#define INT_850_SPGIO_WR	29
-
+#define INT_7XX_IH2_FIQ		0
+#define INT_7XX_IH2_IRQ		1
+#define INT_7XX_USB_NON_ISO	2
+#define INT_7XX_USB_ISO		3
+#define INT_7XX_ICR		4
+#define INT_7XX_EAC		5
+#define INT_7XX_GPIO_BANK1	6
+#define INT_7XX_GPIO_BANK2	7
+#define INT_7XX_GPIO_BANK3	8
+#define INT_7XX_McBSP2TX	10
+#define INT_7XX_McBSP2RX	11
+#define INT_7XX_McBSP2RX_OVF	12
+#define INT_7XX_LCD_LINE	14
+#define INT_7XX_GSM_PROTECT	15
+#define INT_7XX_TIMER3		16
+#define INT_7XX_GPIO_BANK5	17
+#define INT_7XX_GPIO_BANK6	18
+#define INT_7XX_SPGIO_WR	29
 
 /*
  * IRQ numbers for interrupt handler 2
@@ -206,120 +183,62 @@
 #define INT_1610_SHA1MD5	(91 + IH2_BASE)
 
 /*
- * OMAP-730 specific IRQ numbers for interrupt handler 2
+ * OMAP-7xx specific IRQ numbers for interrupt handler 2
  */
-#define INT_730_HW_ERRORS	(0 + IH2_BASE)
-#define INT_730_NFIQ_PWR_FAIL	(1 + IH2_BASE)
-#define INT_730_CFCD		(2 + IH2_BASE)
-#define INT_730_CFIREQ		(3 + IH2_BASE)
-#define INT_730_I2C		(4 + IH2_BASE)
-#define INT_730_PCC		(5 + IH2_BASE)
-#define INT_730_MPU_EXT_NIRQ	(6 + IH2_BASE)
-#define INT_730_SPI_100K_1	(7 + IH2_BASE)
-#define INT_730_SYREN_SPI	(8 + IH2_BASE)
-#define INT_730_VLYNQ		(9 + IH2_BASE)
-#define INT_730_GPIO_BANK4	(10 + IH2_BASE)
-#define INT_730_McBSP1TX	(11 + IH2_BASE)
-#define INT_730_McBSP1RX	(12 + IH2_BASE)
-#define INT_730_McBSP1RX_OF	(13 + IH2_BASE)
-#define INT_730_UART_MODEM_IRDA_2 (14 + IH2_BASE)
-#define INT_730_UART_MODEM_1	(15 + IH2_BASE)
-#define INT_730_MCSI		(16 + IH2_BASE)
-#define INT_730_uWireTX		(17 + IH2_BASE)
-#define INT_730_uWireRX		(18 + IH2_BASE)
-#define INT_730_SMC_CD		(19 + IH2_BASE)
-#define INT_730_SMC_IREQ	(20 + IH2_BASE)
-#define INT_730_HDQ_1WIRE	(21 + IH2_BASE)
-#define INT_730_TIMER32K	(22 + IH2_BASE)
-#define INT_730_MMC_SDIO	(23 + IH2_BASE)
-#define INT_730_UPLD		(24 + IH2_BASE)
-#define INT_730_USB_HHC_1	(27 + IH2_BASE)
-#define INT_730_USB_HHC_2	(28 + IH2_BASE)
-#define INT_730_USB_GENI	(29 + IH2_BASE)
-#define INT_730_USB_OTG		(30 + IH2_BASE)
-#define INT_730_CAMERA_IF	(31 + IH2_BASE)
-#define INT_730_RNG		(32 + IH2_BASE)
-#define INT_730_DUAL_MODE_TIMER (33 + IH2_BASE)
-#define INT_730_DBB_RF_EN	(34 + IH2_BASE)
-#define INT_730_MPUIO_KEYPAD	(35 + IH2_BASE)
-#define INT_730_SHA1_MD5	(36 + IH2_BASE)
-#define INT_730_SPI_100K_2	(37 + IH2_BASE)
-#define INT_730_RNG_IDLE	(38 + IH2_BASE)
-#define INT_730_MPUIO		(39 + IH2_BASE)
-#define INT_730_LLPC_LCD_CTRL_CAN_BE_OFF	(40 + IH2_BASE)
-#define INT_730_LLPC_OE_FALLING (41 + IH2_BASE)
-#define INT_730_LLPC_OE_RISING	(42 + IH2_BASE)
-#define INT_730_LLPC_VSYNC	(43 + IH2_BASE)
-#define INT_730_WAKE_UP_REQ	(46 + IH2_BASE)
-#define INT_730_DMA_CH6		(53 + IH2_BASE)
-#define INT_730_DMA_CH7		(54 + IH2_BASE)
-#define INT_730_DMA_CH8		(55 + IH2_BASE)
-#define INT_730_DMA_CH9		(56 + IH2_BASE)
-#define INT_730_DMA_CH10	(57 + IH2_BASE)
-#define INT_730_DMA_CH11	(58 + IH2_BASE)
-#define INT_730_DMA_CH12	(59 + IH2_BASE)
-#define INT_730_DMA_CH13	(60 + IH2_BASE)
-#define INT_730_DMA_CH14	(61 + IH2_BASE)
-#define INT_730_DMA_CH15	(62 + IH2_BASE)
-#define INT_730_NAND		(63 + IH2_BASE)
-
-/*
- * OMAP-850 specific IRQ numbers for interrupt handler 2
- */
-#define INT_850_HW_ERRORS	(0 + IH2_BASE)
-#define INT_850_NFIQ_PWR_FAIL	(1 + IH2_BASE)
-#define INT_850_CFCD		(2 + IH2_BASE)
-#define INT_850_CFIREQ		(3 + IH2_BASE)
-#define INT_850_I2C		(4 + IH2_BASE)
-#define INT_850_PCC		(5 + IH2_BASE)
-#define INT_850_MPU_EXT_NIRQ	(6 + IH2_BASE)
-#define INT_850_SPI_100K_1	(7 + IH2_BASE)
-#define INT_850_SYREN_SPI	(8 + IH2_BASE)
-#define INT_850_VLYNQ		(9 + IH2_BASE)
-#define INT_850_GPIO_BANK4	(10 + IH2_BASE)
-#define INT_850_McBSP1TX	(11 + IH2_BASE)
-#define INT_850_McBSP1RX	(12 + IH2_BASE)
-#define INT_850_McBSP1RX_OF	(13 + IH2_BASE)
-#define INT_850_UART_MODEM_IRDA_2 (14 + IH2_BASE)
-#define INT_850_UART_MODEM_1	(15 + IH2_BASE)
-#define INT_850_MCSI		(16 + IH2_BASE)
-#define INT_850_uWireTX		(17 + IH2_BASE)
-#define INT_850_uWireRX		(18 + IH2_BASE)
-#define INT_850_SMC_CD		(19 + IH2_BASE)
-#define INT_850_SMC_IREQ	(20 + IH2_BASE)
-#define INT_850_HDQ_1WIRE	(21 + IH2_BASE)
-#define INT_850_TIMER32K	(22 + IH2_BASE)
-#define INT_850_MMC_SDIO	(23 + IH2_BASE)
-#define INT_850_UPLD		(24 + IH2_BASE)
-#define INT_850_USB_HHC_1	(27 + IH2_BASE)
-#define INT_850_USB_HHC_2	(28 + IH2_BASE)
-#define INT_850_USB_GENI	(29 + IH2_BASE)
-#define INT_850_USB_OTG		(30 + IH2_BASE)
-#define INT_850_CAMERA_IF	(31 + IH2_BASE)
-#define INT_850_RNG		(32 + IH2_BASE)
-#define INT_850_DUAL_MODE_TIMER (33 + IH2_BASE)
-#define INT_850_DBB_RF_EN	(34 + IH2_BASE)
-#define INT_850_MPUIO_KEYPAD	(35 + IH2_BASE)
-#define INT_850_SHA1_MD5	(36 + IH2_BASE)
-#define INT_850_SPI_100K_2	(37 + IH2_BASE)
-#define INT_850_RNG_IDLE	(38 + IH2_BASE)
-#define INT_850_MPUIO		(39 + IH2_BASE)
-#define INT_850_LLPC_LCD_CTRL_CAN_BE_OFF	(40 + IH2_BASE)
-#define INT_850_LLPC_OE_FALLING (41 + IH2_BASE)
-#define INT_850_LLPC_OE_RISING	(42 + IH2_BASE)
-#define INT_850_LLPC_VSYNC	(43 + IH2_BASE)
-#define INT_850_WAKE_UP_REQ	(46 + IH2_BASE)
-#define INT_850_DMA_CH6		(53 + IH2_BASE)
-#define INT_850_DMA_CH7		(54 + IH2_BASE)
-#define INT_850_DMA_CH8		(55 + IH2_BASE)
-#define INT_850_DMA_CH9		(56 + IH2_BASE)
-#define INT_850_DMA_CH10	(57 + IH2_BASE)
-#define INT_850_DMA_CH11	(58 + IH2_BASE)
-#define INT_850_DMA_CH12	(59 + IH2_BASE)
-#define INT_850_DMA_CH13	(60 + IH2_BASE)
-#define INT_850_DMA_CH14	(61 + IH2_BASE)
-#define INT_850_DMA_CH15	(62 + IH2_BASE)
-#define INT_850_NAND		(63 + IH2_BASE)
+#define INT_7XX_HW_ERRORS	(0 + IH2_BASE)
+#define INT_7XX_NFIQ_PWR_FAIL	(1 + IH2_BASE)
+#define INT_7XX_CFCD		(2 + IH2_BASE)
+#define INT_7XX_CFIREQ		(3 + IH2_BASE)
+#define INT_7XX_I2C		(4 + IH2_BASE)
+#define INT_7XX_PCC		(5 + IH2_BASE)
+#define INT_7XX_MPU_EXT_NIRQ	(6 + IH2_BASE)
+#define INT_7XX_SPI_100K_1	(7 + IH2_BASE)
+#define INT_7XX_SYREN_SPI	(8 + IH2_BASE)
+#define INT_7XX_VLYNQ		(9 + IH2_BASE)
+#define INT_7XX_GPIO_BANK4	(10 + IH2_BASE)
+#define INT_7XX_McBSP1TX	(11 + IH2_BASE)
+#define INT_7XX_McBSP1RX	(12 + IH2_BASE)
+#define INT_7XX_McBSP1RX_OF	(13 + IH2_BASE)
+#define INT_7XX_UART_MODEM_IRDA_2 (14 + IH2_BASE)
+#define INT_7XX_UART_MODEM_1	(15 + IH2_BASE)
+#define INT_7XX_MCSI		(16 + IH2_BASE)
+#define INT_7XX_uWireTX		(17 + IH2_BASE)
+#define INT_7XX_uWireRX		(18 + IH2_BASE)
+#define INT_7XX_SMC_CD		(19 + IH2_BASE)
+#define INT_7XX_SMC_IREQ	(20 + IH2_BASE)
+#define INT_7XX_HDQ_1WIRE	(21 + IH2_BASE)
+#define INT_7XX_TIMER32K	(22 + IH2_BASE)
+#define INT_7XX_MMC_SDIO	(23 + IH2_BASE)
+#define INT_7XX_UPLD		(24 + IH2_BASE)
+#define INT_7XX_USB_HHC_1	(27 + IH2_BASE)
+#define INT_7XX_USB_HHC_2	(28 + IH2_BASE)
+#define INT_7XX_USB_GENI	(29 + IH2_BASE)
+#define INT_7XX_USB_OTG		(30 + IH2_BASE)
+#define INT_7XX_CAMERA_IF	(31 + IH2_BASE)
+#define INT_7XX_RNG		(32 + IH2_BASE)
+#define INT_7XX_DUAL_MODE_TIMER (33 + IH2_BASE)
+#define INT_7XX_DBB_RF_EN	(34 + IH2_BASE)
+#define INT_7XX_MPUIO_KEYPAD	(35 + IH2_BASE)
+#define INT_7XX_SHA1_MD5	(36 + IH2_BASE)
+#define INT_7XX_SPI_100K_2	(37 + IH2_BASE)
+#define INT_7XX_RNG_IDLE	(38 + IH2_BASE)
+#define INT_7XX_MPUIO		(39 + IH2_BASE)
+#define INT_7XX_LLPC_LCD_CTRL_CAN_BE_OFF	(40 + IH2_BASE)
+#define INT_7XX_LLPC_OE_FALLING (41 + IH2_BASE)
+#define INT_7XX_LLPC_OE_RISING	(42 + IH2_BASE)
+#define INT_7XX_LLPC_VSYNC	(43 + IH2_BASE)
+#define INT_7XX_WAKE_UP_REQ	(46 + IH2_BASE)
+#define INT_7XX_DMA_CH6		(53 + IH2_BASE)
+#define INT_7XX_DMA_CH7		(54 + IH2_BASE)
+#define INT_7XX_DMA_CH8		(55 + IH2_BASE)
+#define INT_7XX_DMA_CH9		(56 + IH2_BASE)
+#define INT_7XX_DMA_CH10	(57 + IH2_BASE)
+#define INT_7XX_DMA_CH11	(58 + IH2_BASE)
+#define INT_7XX_DMA_CH12	(59 + IH2_BASE)
+#define INT_7XX_DMA_CH13	(60 + IH2_BASE)
+#define INT_7XX_DMA_CH14	(61 + IH2_BASE)
+#define INT_7XX_DMA_CH15	(62 + IH2_BASE)
+#define INT_7XX_NAND		(63 + IH2_BASE)
 
 #define INT_24XX_SYS_NIRQ	7
 #define INT_24XX_SDMA_IRQ0	12

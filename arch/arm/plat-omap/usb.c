@@ -614,8 +614,8 @@ omap_otg_init(struct omap_usb_config *config)
 	if (config->otg || config->register_host) {
 		syscon &= ~HST_IDLE_EN;
 		ohci_device.dev.platform_data = config;
-		if (cpu_is_omap730())
-			ohci_resources[1].start = INT_730_USB_HHC_1;
+		if (cpu_is_omap7xx())
+			ohci_resources[1].start = INT_7XX_USB_HHC_1;
 		status = platform_device_register(&ohci_device);
 		if (status)
 			pr_debug("can't register OHCI device, %d\n", status);
@@ -626,8 +626,8 @@ omap_otg_init(struct omap_usb_config *config)
 	if (config->otg) {
 		syscon &= ~OTG_IDLE_EN;
 		otg_device.dev.platform_data = config;
-		if (cpu_is_omap730())
-			otg_resources[1].start = INT_730_USB_OTG;
+		if (cpu_is_omap7xx())
+			otg_resources[1].start = INT_7XX_USB_OTG;
 		status = platform_device_register(&otg_device);
 		if (status)
 			pr_debug("can't register OTG device, %d\n", status);
@@ -731,7 +731,7 @@ static inline void omap_1510_usb_init(struct omap_usb_config *config) {}
 
 void __init omap_usb_init(struct omap_usb_config *pdata)
 {
-	if (cpu_is_omap730() || cpu_is_omap16xx() || cpu_is_omap24xx())
+	if (cpu_is_omap7xx() || cpu_is_omap16xx() || cpu_is_omap24xx())
 		omap_otg_init(pdata);
 	else if (cpu_is_omap15xx())
 		omap_1510_usb_init(pdata);

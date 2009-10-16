@@ -69,13 +69,13 @@ struct omap_clk {
 	}
 
 #define CK_310	(1 << 0)
-#define CK_730	(1 << 1)
+#define CK_7XX	(1 << 1)
 #define CK_1510	(1 << 2)
 #define CK_16XX	(1 << 3)
 
 static struct omap_clk omap_clks[] = {
 	/* non-ULPD clocks */
-	CLK(NULL,	"ck_ref",	&ck_ref,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"ck_ref",	&ck_ref,	CK_16XX | CK_1510 | CK_310 | CK_7XX),
 	CLK(NULL,	"ck_dpll1",	&ck_dpll1,	CK_16XX | CK_1510 | CK_310),
 	/* CK_GEN1 clocks */
 	CLK(NULL,	"ck_dpll1out",	&ck_dpll1out.clk, CK_16XX),
@@ -83,7 +83,7 @@ static struct omap_clk omap_clks[] = {
 	CLK(NULL,	"arm_ck",	&arm_ck,	CK_16XX | CK_1510 | CK_310),
 	CLK(NULL,	"armper_ck",	&armper_ck.clk,	CK_16XX | CK_1510 | CK_310),
 	CLK(NULL,	"arm_gpio_ck",	&arm_gpio_ck,	CK_1510 | CK_310),
-	CLK(NULL,	"armxor_ck",	&armxor_ck.clk,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"armxor_ck",	&armxor_ck.clk,	CK_16XX | CK_1510 | CK_310 | CK_7XX),
 	CLK(NULL,	"armtim_ck",	&armtim_ck.clk,	CK_16XX | CK_1510 | CK_310),
 	CLK("omap_wdt",	"fck",		&armwdt_ck.clk,	CK_16XX | CK_1510 | CK_310),
 	CLK("omap_wdt",	"ick",		&armper_ck.clk,	CK_16XX),
@@ -97,7 +97,7 @@ static struct omap_clk omap_clks[] = {
 	CLK(NULL,	"dspxor_ck",	&dspxor_ck,	CK_16XX | CK_1510 | CK_310),
 	CLK(NULL,	"dsptim_ck",	&dsptim_ck,	CK_16XX | CK_1510 | CK_310),
 	/* CK_GEN3 clocks */
-	CLK(NULL,	"tc_ck",	&tc_ck.clk,	CK_16XX | CK_1510 | CK_310 | CK_730),
+	CLK(NULL,	"tc_ck",	&tc_ck.clk,	CK_16XX | CK_1510 | CK_310 | CK_7XX),
 	CLK(NULL,	"tipb_ck",	&tipb_ck,	CK_1510 | CK_310),
 	CLK(NULL,	"l3_ocpi_ck",	&l3_ocpi_ck,	CK_16XX),
 	CLK(NULL,	"tc1_ck",	&tc1_ck,	CK_16XX),
@@ -108,7 +108,7 @@ static struct omap_clk omap_clks[] = {
 	CLK(NULL,	"lb_ck",	&lb_ck.clk,	CK_1510 | CK_310),
 	CLK(NULL,	"rhea1_ck",	&rhea1_ck,	CK_16XX),
 	CLK(NULL,	"rhea2_ck",	&rhea2_ck,	CK_16XX),
-	CLK(NULL,	"lcd_ck",	&lcd_ck_16xx,	CK_16XX | CK_730),
+	CLK(NULL,	"lcd_ck",	&lcd_ck_16xx,	CK_16XX | CK_7XX),
 	CLK(NULL,	"lcd_ck",	&lcd_ck_1510.clk, CK_1510 | CK_310),
 	/* ULPD clocks */
 	CLK(NULL,	"uart1_ck",	&uart1_1510,	CK_1510 | CK_310),
@@ -398,7 +398,7 @@ static int omap1_select_table_rate(struct clk * clk, unsigned long rate)
 	 * Reprogramming the DPLL is tricky, it must be done from SRAM.
 	 * (on 730, bit 13 must always be 1)
 	 */
-	if (cpu_is_omap730())
+	if (cpu_is_omap7xx())
 		omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val | 0x2000);
 	else
 		omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val);
@@ -783,8 +783,8 @@ int __init omap1_clk_init(void)
 		cpu_mask |= CK_16XX;
 	if (cpu_is_omap1510())
 		cpu_mask |= CK_1510;
-	if (cpu_is_omap730())
-		cpu_mask |= CK_730;
+	if (cpu_is_omap7xx())
+		cpu_mask |= CK_7XX;
 	if (cpu_is_omap310())
 		cpu_mask |= CK_310;
 
@@ -800,7 +800,7 @@ int __init omap1_clk_init(void)
 			crystal_type = info->system_clock_type;
 	}
 
-#if defined(CONFIG_ARCH_OMAP730)
+#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 	ck_ref.rate = 13000000;
 #elif defined(CONFIG_ARCH_OMAP16XX)
 	if (crystal_type == 2)
@@ -847,7 +847,7 @@ int __init omap1_clk_init(void)
 		printk(KERN_ERR "System frequencies not set. Check your config.\n");
 		/* Guess sane values (60MHz) */
 		omap_writew(0x2290, DPLL_CTL);
-		omap_writew(cpu_is_omap730() ? 0x3005 : 0x1005, ARM_CKCTL);
+		omap_writew(cpu_is_omap7xx() ? 0x3005 : 0x1005, ARM_CKCTL);
 		ck_dpll1.rate = 60000000;
 	}
 #endif
@@ -862,7 +862,7 @@ int __init omap1_clk_init(void)
 
 #if defined(CONFIG_MACH_OMAP_PERSEUS2) || defined(CONFIG_MACH_OMAP_FSAMPLE)
 	/* Select slicer output as OMAP input clock */
-	omap_writew(omap_readw(OMAP730_PCC_UPLD_CTRL) & ~0x1, OMAP730_PCC_UPLD_CTRL);
+	omap_writew(omap_readw(OMAP7XX_PCC_UPLD_CTRL) & ~0x1, OMAP7XX_PCC_UPLD_CTRL);
 #endif
 
 	/* Amstrad Delta wants BCLK high when inactive */
@@ -873,7 +873,7 @@ int __init omap1_clk_init(void)
 
 	/* Turn off DSP and ARM_TIMXO. Make sure ARM_INTHCK is not divided */
 	/* (on 730, bit 13 must not be cleared) */
-	if (cpu_is_omap730())
+	if (cpu_is_omap7xx())
 		omap_writew(omap_readw(ARM_CKCTL) & 0x2fff, ARM_CKCTL);
 	else
 		omap_writew(omap_readw(ARM_CKCTL) & 0x0fff, ARM_CKCTL);

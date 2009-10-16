@@ -51,23 +51,13 @@
 					.pu_pd_reg = PU_PD_SEL_##reg, \
 					.pu_pd_val = status,
 
-#define MUX_REG_730(reg, mode_offset, mode) .mux_reg_name = "OMAP730_IO_CONF_"#reg, \
-					.mux_reg = OMAP730_IO_CONF_##reg, \
+#define MUX_REG_7XX(reg, mode_offset, mode) .mux_reg_name = "OMAP7XX_IO_CONF_"#reg, \
+					.mux_reg = OMAP7XX_IO_CONF_##reg, \
 					.mask_offset = mode_offset, \
 					.mask = mode,
 
-#define PULL_REG_730(reg, bit, status)	.pull_name = "OMAP730_IO_CONF_"#reg, \
-					.pull_reg = OMAP730_IO_CONF_##reg, \
-					.pull_bit = bit, \
-					.pull_val = status,
-
-#define MUX_REG_850(reg, mode_offset, mode) .mux_reg_name = "OMAP850_IO_CONF_"#reg, \
-					.mux_reg = OMAP850_IO_CONF_##reg, \
-					.mask_offset = mode_offset, \
-					.mask = mode,
-
-#define PULL_REG_850(reg, bit, status)	.pull_name = "OMAP850_IO_CONF_"#reg, \
-					.pull_reg = OMAP850_IO_CONF_##reg, \
+#define PULL_REG_7XX(reg, bit, status)	.pull_name = "OMAP7XX_IO_CONF_"#reg, \
+					.pull_reg = OMAP7XX_IO_CONF_##reg, \
 					.pull_bit = bit, \
 					.pull_val = status,
 
@@ -84,21 +74,12 @@
 #define PU_PD_REG(reg, status)		.pu_pd_reg = PU_PD_SEL_##reg, \
 					.pu_pd_val = status,
 
-#define MUX_REG_730(reg, mode_offset, mode) \
-					.mux_reg = OMAP730_IO_CONF_##reg, \
+#define MUX_REG_7XX(reg, mode_offset, mode) \
+					.mux_reg = OMAP7XX_IO_CONF_##reg, \
 					.mask_offset = mode_offset, \
 					.mask = mode,
 
-#define PULL_REG_730(reg, bit, status)	.pull_reg = OMAP730_IO_CONF_##reg, \
-					.pull_bit = bit, \
-					.pull_val = status,
-
-#define MUX_REG_850(reg, mode_offset, mode) \
-					.mux_reg = OMAP850_IO_CONF_##reg, \
-					.mask_offset = mode_offset, \
-					.mask = mode,
-
-#define PULL_REG_850(reg, bit, status)	.pull_reg = OMAP850_IO_CONF_##reg, \
+#define PULL_REG_7XX(reg, bit, status)	.pull_reg = OMAP7XX_IO_CONF_##reg, \
 					.pull_bit = bit, \
 					.pull_val = status,
 
@@ -118,31 +99,20 @@
 
 /*
  * OMAP730/850 has a slightly different config for the pin mux.
- * - config regs are the OMAP730_IO_CONF_x regs (see omap730.h) regs and
+ * - config regs are the OMAP7XX_IO_CONF_x regs (see omap730.h) regs and
  *   not the FUNC_MUX_CTRL_x regs from hardware.h
  * - for pull-up/down, only has one enable bit which is is in the same register
  *   as mux config
  */
-#define MUX_CFG_730(desc, mux_reg, mode_offset, mode,	\
+#define MUX_CFG_7XX(desc, mux_reg, mode_offset, mode,	\
 		   pull_bit, pull_status, debug_status)\
 {							\
 	.name =	 desc,					\
 	.debug = debug_status,				\
-	MUX_REG_730(mux_reg, mode_offset, mode)		\
-	PULL_REG_730(mux_reg, pull_bit, pull_status)	\
+	MUX_REG_7XX(mux_reg, mode_offset, mode)		\
+	PULL_REG_7XX(mux_reg, pull_bit, pull_status)	\
 	PU_PD_REG(NA, 0)		\
 },
-
-#define MUX_CFG_850(desc, mux_reg, mode_offset, mode,	\
-		   pull_bit, pull_status, debug_status)\
-{							\
-	.name =	 desc,					\
-	.debug = debug_status,				\
-	MUX_REG_850(mux_reg, mode_offset, mode)		\
-	PULL_REG_850(mux_reg, pull_bit, pull_status)	\
-	PU_PD_REG(NA, 0)		\
-},
-
 
 #define MUX_CFG_24XX(desc, reg_offset, mode,			\
 				pull_en, pull_mode, dbg)	\
@@ -232,44 +202,24 @@ struct pin_config {
 
 };
 
-enum omap730_index {
+enum omap7xx_index {
 	/* OMAP 730 keyboard */
-	E2_730_KBR0,
-	J7_730_KBR1,
-	E1_730_KBR2,
-	F3_730_KBR3,
-	D2_730_KBR4,
-	C2_730_KBC0,
-	D3_730_KBC1,
-	E4_730_KBC2,
-	F4_730_KBC3,
-	E3_730_KBC4,
+	E2_7XX_KBR0,
+	J7_7XX_KBR1,
+	E1_7XX_KBR2,
+	F3_7XX_KBR3,
+	D2_7XX_KBR4,
+	C2_7XX_KBC0,
+	D3_7XX_KBC1,
+	E4_7XX_KBC2,
+	F4_7XX_KBC3,
+	E3_7XX_KBC4,
 
 	/* USB */
-	AA17_730_USB_DM,
-	W16_730_USB_PU_EN,
-	W17_730_USB_VBUSI,
+	AA17_7XX_USB_DM,
+	W16_7XX_USB_PU_EN,
+	W17_7XX_USB_VBUSI,
 };
-
-enum omap850_index {
-	/* OMAP 850 keyboard */
-	E2_850_KBR0,
-	J7_850_KBR1,
-	E1_850_KBR2,
-	F3_850_KBR3,
-	D2_850_KBR4,
-	C2_850_KBC0,
-	D3_850_KBC1,
-	E4_850_KBC2,
-	F4_850_KBC3,
-	E3_850_KBC4,
-
-	/* USB */
-	AA17_850_USB_DM,
-	W16_850_USB_PU_EN,
-	W17_850_USB_VBUSI,
-};
-
 
 enum omap1xxx_index {
 	/* UART1 (BT_UART_GATING)*/

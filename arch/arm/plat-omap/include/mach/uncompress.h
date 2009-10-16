@@ -25,6 +25,7 @@ unsigned int system_rev;
 
 #define UART_OMAP_MDR1		0x08	/* mode definition register */
 #define OMAP_ID_730		0x355F
+#define OMAP_ID_850		0x362C
 #define ID_MASK			0x7fff
 #define check_port(base, shift) ((base[UART_OMAP_MDR1 << shift] & 7) == 0)
 #define omap_get_id() ((*(volatile unsigned int *)(0xfffed404)) >> 12) & ID_MASK
@@ -53,7 +54,7 @@ static void putc(int c)
 		/* MMU is not on, so cpu_is_omapXXXX() won't work here */
 		unsigned int omap_id = omap_get_id();
 
-		if (omap_id == OMAP_ID_730)
+		if (omap_id == OMAP_ID_730 || omap_id == OMAP_ID_850)
 			shift = 0;
 
 		if (check_port(uart, shift))
