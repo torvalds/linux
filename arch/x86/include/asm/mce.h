@@ -108,6 +108,8 @@ struct mce_log {
 #define K8_MCE_THRESHOLD_BANK_5    (MCE_THRESHOLD_BASE + 5 * 9)
 #define K8_MCE_THRESHOLD_DRAM_ECC  (MCE_THRESHOLD_BANK_4 + 0)
 
+extern struct atomic_notifier_head x86_mce_decoder_chain;
+
 #ifdef __KERNEL__
 
 #include <linux/percpu.h>
@@ -213,6 +215,5 @@ extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 void intel_init_thermal(struct cpuinfo_x86 *c);
 
 void mce_log_therm_throt_event(__u64 status);
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_MCE_H */

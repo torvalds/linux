@@ -29,6 +29,9 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 
+/* define below to restrict the supported rates and formats */
+/* #define LIMITED_RATE_FMT_SUPPORT */
+
 struct nvhdmi_spec {
 	struct hda_multi_out multiout;
 
@@ -59,6 +62,22 @@ static struct hda_verb nvhdmi_basic_init[] = {
 	{ 0xd, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT | 0x5 },
 	{} /* terminator */
 };
+
+#ifdef LIMITED_RATE_FMT_SUPPORT
+/* support only the safe format and rate */
+#define SUPPORTED_RATES		SNDRV_PCM_RATE_48000
+#define SUPPORTED_MAXBPS	16
+#define SUPPORTED_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
+#else
+/* support all rates and formats */
+#define SUPPORTED_RATES \
+	(SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |\
+	SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |\
+	 SNDRV_PCM_RATE_192000)
+#define SUPPORTED_MAXBPS	24
+#define SUPPORTED_FORMATS \
+	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
+#endif
 
 /*
  * Controls
@@ -258,9 +277,9 @@ static struct hda_pcm_stream nvhdmi_pcm_digital_playback_8ch = {
 	.channels_min = 2,
 	.channels_max = 8,
 	.nid = Nv_Master_Convert_nid,
-	.rates = SNDRV_PCM_RATE_48000,
-	.maxbps = 16,
-	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.rates = SUPPORTED_RATES,
+	.maxbps = SUPPORTED_MAXBPS,
+	.formats = SUPPORTED_FORMATS,
 	.ops = {
 		.open = nvhdmi_dig_playback_pcm_open,
 		.close = nvhdmi_dig_playback_pcm_close_8ch,
@@ -273,9 +292,9 @@ static struct hda_pcm_stream nvhdmi_pcm_digital_playback_2ch = {
 	.channels_min = 2,
 	.channels_max = 2,
 	.nid = Nv_Master_Convert_nid,
-	.rates = SNDRV_PCM_RATE_48000,
-	.maxbps = 16,
-	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.rates = SUPPORTED_RATES,
+	.maxbps = SUPPORTED_MAXBPS,
+	.formats = SUPPORTED_FORMATS,
 	.ops = {
 		.open = nvhdmi_dig_playback_pcm_open,
 		.close = nvhdmi_dig_playback_pcm_close_2ch,

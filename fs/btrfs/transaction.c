@@ -344,10 +344,10 @@ int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 /*
  * when btree blocks are allocated, they have some corresponding bits set for
  * them in one of two extent_io trees.  This is used to make sure all of
- * those extents are on disk for transaction or log commit
+ * those extents are sent to disk but does not wait on them
  */
-int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
-					struct extent_io_tree *dirty_pages)
+int btrfs_write_marked_extents(struct btrfs_root *root,
+			       struct extent_io_tree *dirty_pages)
 {
 	int ret;
 	int err = 0;
@@ -394,6 +394,29 @@ int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 			page_cache_release(page);
 		}
 	}
+	if (err)
+		werr = err;
+	return werr;
+}
+
+/*
+ * when btree blocks are allocated, they have some corresponding bits set for
+ * them in one of two extent_io trees.  This is used to make sure all of
+ * those extents are on disk for transaction or log commit.  We wait
+ * on all the pages and clear them from the dirty pages state tree
+ */
+int btrfs_wait_marked_extents(struct btrfs_root *root,
+			      struct extent_io_tree *dirty_pages)
+{
+	int ret;
+	int err = 0;
+	int werr = 0;
+	struct page *page;
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	u64 start = 0;
+	u64 end;
+	unsigned long index;
+
 	while (1) {
 		ret = find_first_extent_bit(dirty_pages, 0, &start, &end,
 					    EXTENT_DIRTY);
@@ -422,6 +445,22 @@ int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
 	if (err)
 		werr = err;
 	return werr;
+}
+
+/*
+ * when btree blocks are allocated, they have some corresponding bits set for
+ * them in one of two extent_io trees.  This is used to make sure all of
+ * those extents are on disk for transaction or log commit
+ */
+int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
+					struct extent_io_tree *dirty_pages)
+{
+	int ret;
+	int ret2;
+
+	ret = btrfs_write_marked_extents(root, dirty_pages);
+	ret2 = btrfs_wait_marked_extents(root, dirty_pages);
+	return ret || ret2;
 }
 
 int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,

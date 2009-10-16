@@ -53,6 +53,9 @@ SECTIONS
 
 	/DISCARD/ : { *(.note*) }
 
+	/*
+	 * The ASSERT() sink to . is intentional, for binutils 2.14 compatibility:
+	 */
 	. = ASSERT(_end <= 0x8000, "Setup too big!");
 	. = ASSERT(hdr == 0x1f1, "The setup header has the wrong offset!");
 	/* Necessary for the very-old-loader check to work... */
