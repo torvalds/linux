@@ -961,7 +961,7 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 
 	src.bdev = bdev;
 	src.sector = chunk_to_sector(s->store, pe->e.old_chunk);
-	src.count = min(s->store->chunk_size, dev_size - src.sector);
+	src.count = min((sector_t)s->store->chunk_size, dev_size - src.sector);
 
 	dest.bdev = s->store->cow->bdev;
 	dest.sector = chunk_to_sector(s->store, pe->e.new_chunk);
@@ -1402,7 +1402,7 @@ static void origin_resume(struct dm_target *ti)
 	struct dm_dev *dev = ti->private;
 	struct dm_snapshot *snap;
 	struct origin *o;
-	chunk_t chunk_size = 0;
+	unsigned chunk_size = 0;
 
 	down_read(&_origins_lock);
 	o = __lookup_origin(dev->bdev);
