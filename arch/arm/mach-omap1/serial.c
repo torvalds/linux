@@ -64,7 +64,6 @@ static void __init omap_serial_reset(struct plat_serial8250_port *p)
 
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
-		.membase	= OMAP1_IO_ADDRESS(OMAP_UART1_BASE),
 		.mapbase	= OMAP_UART1_BASE,
 		.irq		= INT_UART1,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -73,7 +72,6 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	},
 	{
-		.membase	= OMAP1_IO_ADDRESS(OMAP_UART2_BASE),
 		.mapbase	= OMAP_UART2_BASE,
 		.irq		= INT_UART2,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -82,7 +80,6 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	},
 	{
-		.membase	= OMAP1_IO_ADDRESS(OMAP_UART3_BASE),
 		.mapbase	= OMAP_UART3_BASE,
 		.irq		= INT_UART3,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -125,6 +122,14 @@ void __init omap_serial_init(void)
 
 	for (i = 0; i < OMAP_MAX_NR_PORTS; i++) {
 		unsigned char reg;
+
+		/* Static mapping, never released */
+		serial_platform_data[i].membase =
+			ioremap(serial_platform_data[i].mapbase, SZ_2K);
+		if (!serial_platform_data[i].membase) {
+			printk(KERN_ERR "Could not ioremap uart%i\n", i);
+			continue;
+		}
 
 		switch (i) {
 		case 0:
