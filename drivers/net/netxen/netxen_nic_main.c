@@ -649,7 +649,11 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	adapter->ahw.pci_base1 = mem_ptr1;
 	adapter->ahw.pci_base2 = mem_ptr2;
 
-	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+	if (NX_IS_REVISION_P3P(adapter->ahw.revision_id)) {
+		adapter->ahw.ocm_win_crb = netxen_get_ioaddr(adapter,
+			NETXEN_PCIX_PS_REG(PCIX_OCM_WINDOW_REG(pci_func)));
+
+	} else if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		adapter->ahw.ocm_win_crb = netxen_get_ioaddr(adapter,
 			NETXEN_PCIX_PS_REG(PCIE_MN_WINDOW_REG(pci_func)));
 	}

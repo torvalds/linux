@@ -867,6 +867,9 @@ enum {
 		(PCIX_SN_WINDOW_F0 + (0x20 * (func))) :\
 		(PCIX_SN_WINDOW_F4 + (0x10 * ((func)-4))))
 
+#define PCIX_OCM_WINDOW		(0x10800)
+#define PCIX_OCM_WINDOW_REG(func)	(PCIX_OCM_WINDOW + 0x20 * (func))
+
 #define PCIX_TARGET_STATUS	(0x10118)
 #define PCIX_TARGET_STATUS_F1	(0x10160)
 #define PCIX_TARGET_STATUS_F2	(0x10164)

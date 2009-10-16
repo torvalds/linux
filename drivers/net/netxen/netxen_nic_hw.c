@@ -31,6 +31,7 @@
 #define MASK(n) ((1ULL<<(n))-1)
 #define MN_WIN(addr) (((addr & 0x1fc0000) >> 1) | ((addr >> 25) & 0x3ff))
 #define OCM_WIN(addr) (((addr & 0x1ff0000) >> 1) | ((addr >> 25) & 0x3ff))
+#define OCM_WIN_P3P(addr) (addr & 0xffc0000)
 #define MS_WIN(addr) (addr & 0x0ffc0000)
 
 #define GET_MEM_OFFS_2M(addr) (addr & MASK(18))
@@ -1338,7 +1339,7 @@ static int
 netxen_nic_pci_set_window_2M(struct netxen_adapter *adapter,
 		u64 addr, u32 *start)
 {
-	u32 win_read, window;
+	u32 window;
 	struct pci_dev *pdev = adapter->pdev;
 
 	if ((addr & 0x00ff800) == 0xff800) {
@@ -1347,14 +1348,14 @@ netxen_nic_pci_set_window_2M(struct netxen_adapter *adapter,
 		return -EIO;
 	}
 
-	window = OCM_WIN(addr);
+	if (NX_IS_REVISION_P3P(adapter->ahw.revision_id))
+		window = OCM_WIN_P3P(addr);
+	else
+		window = OCM_WIN(addr);
+
 	writel(window, adapter->ahw.ocm_win_crb);
-	win_read = readl(adapter->ahw.ocm_win_crb);
-	if ((win_read >> 7) != window) {
-		if (printk_ratelimit())
-			dev_warn(&pdev->dev, "failed to set OCM window\n");
-		return -EIO;
-	}
+	/* read back to flush */
+	readl(adapter->ahw.ocm_win_crb);
 
 	adapter->ahw.ocm_win = window;
 	*start = NETXEN_PCI_OCM0_2M + GET_MEM_OFFS_2M(addr);
