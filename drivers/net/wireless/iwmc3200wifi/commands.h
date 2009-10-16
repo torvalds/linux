@@ -288,6 +288,9 @@ struct iwm_umac_cmd_scan_request {
 /* iwm_umac_security.flag is WSC mode on -- bits [2:2] */
 #define UMAC_SEC_FLG_WSC_ON_POS		2
 #define UMAC_SEC_FLG_WSC_ON_SEED	1
+#define UMAC_SEC_FLG_WSC_ON_MSK         (UMAC_SEC_FLG_WSC_ON_SEED << \
+					 UMAC_SEC_FLG_WSC_ON_POS)
+
 
 /* Legacy profile can use only WEP40 and WEP104 for encryption and
  * OPEN or PSK for authentication */

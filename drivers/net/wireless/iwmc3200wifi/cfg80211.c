@@ -627,6 +627,13 @@ static int iwm_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		iwm->default_key = sme->key_idx;
 	}
 
+	/* WPA and open AUTH type from wpa_s means WPS (a.k.a. WSC) */
+	if ((iwm->umac_profile->sec.flags &
+	     (UMAC_SEC_FLG_WPA_ON_MSK | UMAC_SEC_FLG_RSNA_ON_MSK)) &&
+	    iwm->umac_profile->sec.auth_type == UMAC_AUTH_TYPE_OPEN) {
+			iwm->umac_profile->sec.flags = UMAC_SEC_FLG_WSC_ON_MSK;
+	}
+
 	ret = iwm_send_mlme_profile(iwm);
 
 	if (iwm->umac_profile->sec.auth_type != UMAC_AUTH_TYPE_LEGACY_PSK ||
