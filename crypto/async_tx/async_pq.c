@@ -260,8 +260,10 @@ async_syndrome_val(struct page **blocks, unsigned int offset, int disks,
 						      len);
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx;
+	unsigned char coefs[disks-2];
 	enum dma_ctrl_flags dma_flags = submit->cb_fn ? DMA_PREP_INTERRUPT : 0;
 	dma_addr_t *dma_src = NULL;
+	int src_cnt = 0;
 
 	BUG_ON(disks < 4);
 
@@ -280,20 +282,35 @@ async_syndrome_val(struct page **blocks, unsigned int offset, int disks,
 			 __func__, disks, len);
 		if (!P(blocks, disks))
 			dma_flags |= DMA_PREP_PQ_DISABLE_P;
+		else
+			pq[0] = dma_map_page(dev, P(blocks,disks),
+					     offset, len,
+					     DMA_TO_DEVICE);
 		if (!Q(blocks, disks))
 			dma_flags |= DMA_PREP_PQ_DISABLE_Q;
+		else
+			pq[1] = dma_map_page(dev, Q(blocks,disks),
+					     offset, len,
+					     DMA_TO_DEVICE);
+
 		if (submit->flags & ASYNC_TX_FENCE)
 			dma_flags |= DMA_PREP_FENCE;
-		for (i = 0; i < disks; i++)
-			if (likely(blocks[i]))
-				dma_src[i] = dma_map_page(dev, blocks[i],
-							  offset, len,
-							  DMA_TO_DEVICE);
+		for (i = 0; i < disks-2; i++)
+			if (likely(blocks[i])) {
+				dma_src[src_cnt] = dma_map_page(dev, blocks[i],
+								offset, len,
+								DMA_TO_DEVICE);
+				coefs[src_cnt] = raid6_gfexp[i];
+				src_cnt++;
+			}
+		pq[1] = dma_map_page(dev, Q(blocks,disks),
+				     offset, len,
+				     DMA_TO_DEVICE);
 
 		for (;;) {
 			tx = device->device_prep_dma_pq_val(chan, pq, dma_src,
-							    disks - 2,
-							    raid6_gfexp,
+							    src_cnt,
+							    coefs,
 							    len, pqres,
 							    dma_flags);
 			if (likely(tx))
