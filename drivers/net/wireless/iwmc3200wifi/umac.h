@@ -687,6 +687,9 @@ struct iwm_umac_notif_rx_ticket {
 /* Tx/Rx rates window (number of max of last update window per second) */
 #define UMAC_NTF_RATE_SAMPLE_NR	4
 
+/* Max numbers of bits required to go through all antennae in bitmasks */
+#define UMAC_PHY_NUM_CHAINS     3
+
 #define IWM_UMAC_MGMT_TID	8
 #define IWM_UMAC_TID_NR		8
 
@@ -697,9 +700,11 @@ struct iwm_umac_notif_stats {
 	__le16 tid_load[IWM_UMAC_TID_NR + 2]; /* 1 non-QoS + 1 dword align */
 	__le16 tx_rate[UMAC_NTF_RATE_SAMPLE_NR];
 	__le16 rx_rate[UMAC_NTF_RATE_SAMPLE_NR];
+	__le32 chain_energy[UMAC_PHY_NUM_CHAINS];
 	s32 rssi_dbm;
 	s32 noise_dbm;
 	__le32 supp_rates;
+	__le32 supp_ht_rates;
 	__le32 missed_beacons;
 	__le32 rx_beacons;
 	__le32 rx_dir_pkts;
