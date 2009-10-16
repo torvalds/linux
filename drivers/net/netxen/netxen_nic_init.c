@@ -832,6 +832,12 @@ void netxen_request_firmware(struct netxen_adapter *adapter)
 		goto request_fw;
 	}
 
+	if (NX_IS_REVISION_P3P(adapter->ahw.revision_id)) {
+		/* No file firmware for the time being */
+		fw_type = NX_FLASH_ROMIMAGE;
+		goto done;
+	}
+
 	fw_type = netxen_p3_has_mn(adapter) ?
 		NX_P3_MN_ROMIMAGE : NX_P3_CT_ROMIMAGE;
 
