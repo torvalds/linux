@@ -521,7 +521,7 @@ typedef struct r8180_priv
 	//u32 NumTxOkInPeriod;   //YJ,del,080828
 	u8   TxPollingTimes;
 
-	bool	bApBufOurFrame;// TRUE if AP buffer our unicast data , we will keep eAwake untill receive data or timeout.
+	bool	bApBufOurFrame;// TRUE if AP buffer our unicast data , we will keep eAwake until receive data or timeout.
 	u8	WaitBufDataBcnCount;
 	u8	WaitBufDataTimeOut;
 
