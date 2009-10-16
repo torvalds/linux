@@ -1579,6 +1579,17 @@ static bool radeon_apply_legacy_quirks(struct drm_device *dev,
 	return true;
 }
 
+static bool radeon_apply_legacy_tv_quirks(struct drm_device *dev)
+{
+	/* Acer 5102 has non-existent TV port */
+	if (dev->pdev->device == 0x5975 &&
+	    dev->pdev->subsystem_vendor == 0x1025 &&
+	    dev->pdev->subsystem_device == 0x009f)
+		return false;
+
+	return true;
+}
+
 bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -1896,16 +1907,18 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 		    combios_get_table_offset(dev, COMBIOS_TV_INFO_TABLE);
 		if (tv_info) {
 			if (RBIOS8(tv_info + 6) == 'T') {
-				radeon_add_legacy_encoder(dev,
-							  radeon_get_encoder_id
-							  (dev,
-							   ATOM_DEVICE_TV1_SUPPORT,
-							   2),
-							  ATOM_DEVICE_TV1_SUPPORT);
-				radeon_add_legacy_connector(dev, 6,
-							    ATOM_DEVICE_TV1_SUPPORT,
-							    DRM_MODE_CONNECTOR_SVIDEO,
-							    &ddc_i2c);
+				if (radeon_apply_legacy_tv_quirks(dev)) {
+					radeon_add_legacy_encoder(dev,
+								  radeon_get_encoder_id
+								  (dev,
+								   ATOM_DEVICE_TV1_SUPPORT,
+								   2),
+								  ATOM_DEVICE_TV1_SUPPORT);
+					radeon_add_legacy_connector(dev, 6,
+								    ATOM_DEVICE_TV1_SUPPORT,
+								    DRM_MODE_CONNECTOR_SVIDEO,
+								    &ddc_i2c);
+				}
 			}
 		}
 	}
