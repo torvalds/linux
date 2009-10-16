@@ -698,7 +698,7 @@ static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 
 #if defined(CONFIG_INPUT_ADXL34X) || defined(CONFIG_INPUT_ADXL34X_MODULE)
 #include <linux/input.h>
-#include <linux/spi/adxl34x.h>
+#include <linux/input/adxl34x.h>
 static const struct adxl34x_platform_data adxl34x_info = {
 	.x_axis_offset = 0,
 	.y_axis_offset = 0,
@@ -722,9 +722,7 @@ static const struct adxl34x_platform_data adxl34x_info = {
 	.ev_code_y = ABS_Y,		/* EV_REL */
 	.ev_code_z = ABS_Z,		/* EV_REL */
 
-	.ev_code_tap_x = BTN_TOUCH,		/* EV_KEY */
-	.ev_code_tap_y = BTN_TOUCH,		/* EV_KEY */
-	.ev_code_tap_z = BTN_TOUCH,		/* EV_KEY */
+	.ev_code_tap = {BTN_TOUCH, BTN_TOUCH, BTN_TOUCH}, /* EV_KEY x,y,z */
 
 /*	.ev_code_ff = KEY_F,*/		/* EV_KEY */
 /*	.ev_code_act_inactivity = KEY_A,*/	/* EV_KEY */
@@ -790,6 +788,13 @@ static struct flash_platform_data bfin_spi_dataflash_data = {
 
 /* DataFlash chip */
 static struct bfin5xx_spi_chip data_flash_chip_info = {
+	.enable_dma = 0,         /* use dma transfer with this chip*/
+	.bits_per_word = 8,
+};
+#endif
+
+#if defined(CONFIG_INPUT_ADXL34X_SPI) || defined(CONFIG_INPUT_ADXL34X_SPI_MODULE)
+static struct bfin5xx_spi_chip spi_adxl34x_chip_info = {
 	.enable_dma = 0,         /* use dma transfer with this chip*/
 	.bits_per_word = 8,
 };
@@ -931,6 +936,18 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.chip_select = 0,	/* GPIO controlled SSEL */
 		.controller_data = &enc28j60_spi_chip_info,
 		.mode = SPI_MODE_0,
+	},
+#endif
+#if defined(CONFIG_INPUT_ADXL34X_SPI) || defined(CONFIG_INPUT_ADXL34X_SPI_MODULE)
+	{
+		.modalias	= "adxl34x",
+		.platform_data	= &adxl34x_info,
+		.irq		= IRQ_PF6,
+		.max_speed_hz	= 5000000,    /* max spi clock (SCK) speed in HZ */
+		.bus_num	= 0,
+		.chip_select	= 2,
+		.controller_data = &spi_adxl34x_chip_info,
+		.mode = SPI_MODE_3,
 	},
 #endif
 };

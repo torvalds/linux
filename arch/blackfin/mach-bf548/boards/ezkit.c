@@ -186,7 +186,7 @@ static struct platform_device bfin_rotary_device = {
 #endif
 
 #if defined(CONFIG_INPUT_ADXL34X) || defined(CONFIG_INPUT_ADXL34X_MODULE)
-#include <linux/spi/adxl34x.h>
+#include <linux/input/adxl34x.h>
 static const struct adxl34x_platform_data adxl34x_info = {
 	.x_axis_offset = 0,
 	.y_axis_offset = 0,
@@ -210,9 +210,7 @@ static const struct adxl34x_platform_data adxl34x_info = {
 	.ev_code_y = ABS_Y,		/* EV_REL */
 	.ev_code_z = ABS_Z,		/* EV_REL */
 
-	.ev_code_tap_x = BTN_TOUCH,		/* EV_KEY */
-	.ev_code_tap_y = BTN_TOUCH,		/* EV_KEY */
-	.ev_code_tap_z = BTN_TOUCH,		/* EV_KEY */
+	.ev_code_tap = {BTN_TOUCH, BTN_TOUCH, BTN_TOUCH}, /* EV_KEY x,y,z */
 
 /*	.ev_code_ff = KEY_F,*/		/* EV_KEY */
 /*	.ev_code_act_inactivity = KEY_A,*/	/* EV_KEY */
