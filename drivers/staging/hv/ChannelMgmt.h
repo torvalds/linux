@@ -54,7 +54,7 @@ enum vmbus_channel_message_type {
 	ChannelMessageViewRangeRemove		= 18,
 #endif
 	ChannelMessageCount
-} __attribute__((packed));
+};
 
 struct vmbus_channel_message_header {
 	enum vmbus_channel_message_type MessageType;
