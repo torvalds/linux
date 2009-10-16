@@ -186,7 +186,7 @@ static inline uint32_t r100_irq_ack(struct radeon_device *rdev)
 
 int r100_irq_process(struct radeon_device *rdev)
 {
-	uint32_t status;
+	uint32_t status, msi_rearm;
 
 	status = r100_irq_ack(rdev);
 	if (!status) {
@@ -208,6 +208,21 @@ int r100_irq_process(struct radeon_device *rdev)
 			drm_handle_vblank(rdev->ddev, 1);
 		}
 		status = r100_irq_ack(rdev);
+	}
+	if (rdev->msi_enabled) {
+		switch (rdev->family) {
+		case CHIP_RS400:
+		case CHIP_RS480:
+			msi_rearm = RREG32(RADEON_AIC_CNTL) & ~RS400_MSI_REARM;
+			WREG32(RADEON_AIC_CNTL, msi_rearm);
+			WREG32(RADEON_AIC_CNTL, msi_rearm | RS400_MSI_REARM);
+			break;
+		default:
+			msi_rearm = RREG32(RADEON_MSI_REARM_EN) & ~RV370_MSI_REARM_EN;
+			WREG32(RADEON_MSI_REARM_EN, msi_rearm);
+			WREG32(RADEON_MSI_REARM_EN, msi_rearm | RV370_MSI_REARM_EN);
+			break;
+		}
 	}
 	return IRQ_HANDLED;
 }

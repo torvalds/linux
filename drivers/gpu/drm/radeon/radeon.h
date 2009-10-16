@@ -784,6 +784,7 @@ struct radeon_device {
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
 	struct r600_blit r600_blit;
+	int msi_enabled; /* msi enabled */
 };
 
 int radeon_device_init(struct radeon_device *rdev,
