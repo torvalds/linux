@@ -1626,8 +1626,9 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 				break;
 			}
 
-			radeon_apply_legacy_quirks(dev, i, &connector,
-						   &ddc_i2c);
+			if (!radeon_apply_legacy_quirks(dev, i, &connector,
+						       &ddc_i2c))
+				continue;
 
 			switch (connector) {
 			case CONNECTOR_PROPRIETARY_LEGACY:
