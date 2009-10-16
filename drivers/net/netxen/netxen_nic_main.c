@@ -810,7 +810,7 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 
 	if (first_boot != 0x55555555) {
 		NXWR32(adapter, CRB_CMDPEG_STATE, 0);
-		netxen_pinit_from_rom(adapter, 0);
+		netxen_pinit_from_rom(adapter);
 		msleep(1);
 	}
 
