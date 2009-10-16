@@ -1773,8 +1773,25 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 						    DRM_MODE_CONNECTOR_DVII,
 						    &ddc_i2c);
 		} else {
-			DRM_DEBUG("No connector info found\n");
-			return false;
+			uint16_t crt_info =
+				combios_get_table_offset(dev, COMBIOS_CRT_INFO_TABLE);
+			DRM_DEBUG("Found CRT table, assuming VGA connector\n");
+			if (crt_info) {
+				radeon_add_legacy_encoder(dev,
+							  radeon_get_encoder_id(dev,
+										ATOM_DEVICE_CRT1_SUPPORT,
+										1),
+							  ATOM_DEVICE_CRT1_SUPPORT);
+				ddc_i2c = combios_setup_i2c_bus(RADEON_GPIO_VGA_DDC);
+				radeon_add_legacy_connector(dev,
+							    0,
+							    ATOM_DEVICE_CRT1_SUPPORT,
+							    DRM_MODE_CONNECTOR_VGA,
+							    &ddc_i2c);
+			} else {
+				DRM_DEBUG("No connector info found\n");
+				return false;
+			}
 		}
 	}
 
