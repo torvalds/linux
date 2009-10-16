@@ -88,6 +88,9 @@ void cpu_idle(void)
 		tick_nohz_stop_sched_tick(1);
 
 		while (!need_resched() && cpu_online(cpu)) {
+			check_pgt_cache();
+			rmb();
+
 			local_irq_disable();
 			/* Don't trace irqs off for idle */
 			stop_critical_timings();
@@ -104,7 +107,6 @@ void cpu_idle(void)
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
-		check_pgt_cache();
 	}
 }
 
