@@ -493,8 +493,10 @@ static void iwm_sdio_remove(struct sdio_func *func)
 }
 
 static const struct sdio_device_id iwm_sdio_ids[] = {
-	{ SDIO_DEVICE(SDIO_VENDOR_ID_INTEL,
-		      SDIO_DEVICE_ID_INTEL_IWMC3200WIFI) },
+	/* Global/AGN SKU */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_INTEL, 0x1403) },
+	/* BGN SKU */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_INTEL, 0x1408) },
 	{ /* end: all zeroes */	},
 };
 MODULE_DEVICE_TABLE(sdio, iwm_sdio_ids);
