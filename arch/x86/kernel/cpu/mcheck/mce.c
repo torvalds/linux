@@ -1436,8 +1436,6 @@ void __cpuinit mcheck_cpu_init(struct cpuinfo_x86 *c)
 	__mcheck_cpu_init_timer();
 	INIT_WORK(&__get_cpu_var(mce_work), mce_process_work);
 
-	if (raw_smp_processor_id() == 0)
-		atomic_notifier_chain_register(&x86_mce_decoder_chain, &mce_dec_nb);
 }
 
 /*
@@ -1656,6 +1654,14 @@ static int __init mcheck_enable(char *str)
 	return 1;
 }
 __setup("mce", mcheck_enable);
+
+static int __init mcheck_init(void)
+{
+	atomic_notifier_chain_register(&x86_mce_decoder_chain, &mce_dec_nb);
+
+	return 0;
+}
+early_initcall(mcheck_init);
 
 /*
  * Sysfs support
