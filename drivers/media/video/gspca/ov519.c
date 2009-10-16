@@ -103,6 +103,7 @@ struct sd {
 	u8 sensor_addr;
 	int sensor_width;
 	int sensor_height;
+	int sensor_reg_cache[256];
 };
 
 /* Note this is a bit of a hack, but the w9968cf driver needs the code for all
@@ -2210,38 +2211,70 @@ static int ovfx2_i2c_r(struct sd *sd, __u8 reg)
 
 static int i2c_w(struct sd *sd, __u8 reg, __u8 value)
 {
+	int ret = -1;
+
+	if (sd->sensor_reg_cache[reg] == value)
+		return 0;
+
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
-		return ov511_i2c_w(sd, reg, value);
+		ret = ov511_i2c_w(sd, reg, value);
+		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
 	case BRIDGE_OV519:
-		return ov518_i2c_w(sd, reg, value);
+		ret = ov518_i2c_w(sd, reg, value);
+		break;
 	case BRIDGE_OVFX2:
-		return ovfx2_i2c_w(sd, reg, value);
+		ret = ovfx2_i2c_w(sd, reg, value);
+		break;
 	case BRIDGE_W9968CF:
-		return w9968cf_i2c_w(sd, reg, value);
+		ret = w9968cf_i2c_w(sd, reg, value);
+		break;
 	}
-	return -1; /* Should never happen */
+
+	if (ret >= 0) {
+		/* Up on sensor reset empty the register cache */
+		if (reg == 0x12 && (value & 0x80))
+			memset(sd->sensor_reg_cache, -1,
+			       sizeof(sd->sensor_reg_cache));
+		else
+			sd->sensor_reg_cache[reg] = value;
+	}
+
+	return ret;
 }
 
 static int i2c_r(struct sd *sd, __u8 reg)
 {
+	int ret;
+
+	if (sd->sensor_reg_cache[reg] != -1)
+		return sd->sensor_reg_cache[reg];
+
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
-		return ov511_i2c_r(sd, reg);
+		ret = ov511_i2c_r(sd, reg);
+		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
 	case BRIDGE_OV519:
-		return ov518_i2c_r(sd, reg);
+		ret = ov518_i2c_r(sd, reg);
+		break;
 	case BRIDGE_OVFX2:
-		return ovfx2_i2c_r(sd, reg);
+		ret = ovfx2_i2c_r(sd, reg);
+		break;
 	case BRIDGE_W9968CF:
-		return w9968cf_i2c_r(sd, reg);
+		ret = w9968cf_i2c_r(sd, reg);
+		break;
 	}
-	return -1; /* Should never happen */
+
+	if (ret >= 0)
+		sd->sensor_reg_cache[reg] = ret;
+
+	return ret;
 }
 
 /* Writes bits at positions specified by mask to an I2C reg. Bits that are in
