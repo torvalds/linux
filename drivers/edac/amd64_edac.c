@@ -862,32 +862,23 @@ static void amd64_dump_misc_regs(struct amd64_pvt *pvt)
 
 	amd64_dump_dramcfg_low(pvt->dclr0, 0);
 
-	debugf1("  online-spare: 0x%8.08x\n", pvt->online_spare);
+	debugf1("F3xB0 (Online Spare): 0x%08x\n", pvt->online_spare);
 
-	if (boot_cpu_data.x86 == 0xf) {
-		debugf1("  dhar: 0x%8.08x Base=0x%08x Offset=0x%08x\n",
-			pvt->dhar, dhar_base(pvt->dhar),
-			k8_dhar_offset(pvt->dhar));
-		debugf1("      DramHoleValid=%s\n",
-			(pvt->dhar & DHAR_VALID) ?  "True" : "False");
+	debugf1("F1xF0 (DRAM Hole Address): 0x%08x, base: 0x%08x, "
+			"offset: 0x%08x\n",
+			pvt->dhar,
+			dhar_base(pvt->dhar),
+			(boot_cpu_data.x86 == 0xf) ? k8_dhar_offset(pvt->dhar)
+						   : f10_dhar_offset(pvt->dhar));
 
-		debugf1("  dbam-dkt: 0x%8.08x\n", pvt->dbam0);
+	debugf1("  DramHoleValid: %s\n",
+		(pvt->dhar & DHAR_VALID) ? "yes" : "no");
 
-		/* everything below this point is Fam10h and above */
+	/* everything below this point is Fam10h and above */
+	if (boot_cpu_data.x86 == 0xf)
 		return;
 
-	} else {
-		debugf1("  dhar: 0x%8.08x Base=0x%08x Offset=0x%08x\n",
-			pvt->dhar, dhar_base(pvt->dhar),
-			f10_dhar_offset(pvt->dhar));
-		debugf1("    DramMemHoistValid=%s DramHoleValid=%s\n",
-			(pvt->dhar & F10_DRAM_MEM_HOIST_VALID) ?
-			"True" : "False",
-			(pvt->dhar & DHAR_VALID) ?
-			"True" : "False");
-	}
-
-	/* Only if NOT ganged does dcl1 have valid info */
+	/* Only if NOT ganged does dclr1 have valid info */
 	if (!dct_ganging_enabled(pvt))
 		amd64_dump_dramcfg_low(pvt->dclr1, 1);
 
