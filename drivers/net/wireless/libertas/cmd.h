@@ -82,8 +82,6 @@ int lbs_process_event(struct lbs_private *priv, u32 event);
 
 int lbs_update_hw_spec(struct lbs_private *priv);
 
-int lbs_get_channel(struct lbs_private *priv);
-
 int lbs_set_channel(struct lbs_private *priv, u8 channel);
 
 int lbs_update_channel(struct lbs_private *priv);
