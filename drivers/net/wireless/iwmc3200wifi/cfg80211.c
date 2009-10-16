@@ -471,11 +471,11 @@ static int iwm_set_wpa_version(struct iwm_priv *iwm, u32 wpa_version)
 		return 0;
 	}
 
+	if (wpa_version & NL80211_WPA_VERSION_1)
+		iwm->umac_profile->sec.flags = UMAC_SEC_FLG_WPA_ON_MSK;
+
 	if (wpa_version & NL80211_WPA_VERSION_2)
 		iwm->umac_profile->sec.flags = UMAC_SEC_FLG_RSNA_ON_MSK;
-
-	if (wpa_version & NL80211_WPA_VERSION_1)
-		iwm->umac_profile->sec.flags |= UMAC_SEC_FLG_WPA_ON_MSK;
 
 	return 0;
 }
