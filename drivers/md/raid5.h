@@ -488,7 +488,7 @@ static inline int algorithm_valid_raid6(int layout)
 {
 	return (layout >= 0 && layout <= 5)
 		||
-		(layout == 8 || layout == 10)
+		(layout >= 8 && layout <= 10)
 		||
 		(layout >= 16 && layout <= 20);
 }

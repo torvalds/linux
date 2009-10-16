@@ -158,11 +158,14 @@ static int raid6_idx_to_slot(int idx, struct stripe_head *sh,
 {
 	int slot;
 
+	if (sh->ddf_layout)
+		slot = (*count)++;
 	if (idx == sh->pd_idx)
 		return syndrome_disks;
 	if (idx == sh->qd_idx)
 		return syndrome_disks + 1;
-	slot = (*count)++;
+	if (!sh->ddf_layout)
+		slot = (*count)++;
 	return slot;
 }
 
@@ -727,9 +730,8 @@ static int set_syndrome_sources(struct page **srcs, struct stripe_head *sh)
 		srcs[slot] = sh->dev[i].page;
 		i = raid6_next_disk(i, disks);
 	} while (i != d0_idx);
-	BUG_ON(count != syndrome_disks);
 
-	return count;
+	return syndrome_disks;
 }
 
 static struct dma_async_tx_descriptor *
@@ -828,7 +830,6 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 			failb = slot;
 		i = raid6_next_disk(i, disks);
 	} while (i != d0_idx);
-	BUG_ON(count != syndrome_disks);
 
 	BUG_ON(faila == failb);
 	if (failb < faila)
@@ -845,7 +846,7 @@ ops_run_compute6_2(struct stripe_head *sh, struct raid5_percpu *percpu)
 			init_async_submit(&submit, ASYNC_TX_FENCE, NULL,
 					  ops_complete_compute, sh,
 					  to_addr_conv(sh, percpu));
-			return async_gen_syndrome(blocks, 0, count+2,
+			return async_gen_syndrome(blocks, 0, syndrome_disks+2,
 						  STRIPE_SIZE, &submit);
 		} else {
 			struct page *dest;
@@ -1935,10 +1936,15 @@ static sector_t compute_blocknr(struct stripe_head *sh, int i, int previous)
 		case ALGORITHM_PARITY_N:
 			break;
 		case ALGORITHM_ROTATING_N_CONTINUE:
+			/* Like left_symmetric, but P is before Q */
 			if (sh->pd_idx == 0)
 				i--;	/* P D D D Q */
-			else if (i > sh->pd_idx)
-				i -= 2; /* D D Q P D */
+			else {
+				/* D D Q P D */
+				if (i < sh->pd_idx)
+					i += raid_disks;
+				i -= (sh->pd_idx + 1);
+			}
 			break;
 		case ALGORITHM_LEFT_ASYMMETRIC_6:
 		case ALGORITHM_RIGHT_ASYMMETRIC_6:
