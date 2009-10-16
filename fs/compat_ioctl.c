@@ -1918,9 +1918,7 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 
  found_handler:
 	if (t->handler) {
-		lock_kernel();
 		error = t->handler(fd, cmd, arg, filp);
-		unlock_kernel();
 		goto out_fput;
 	}
 
