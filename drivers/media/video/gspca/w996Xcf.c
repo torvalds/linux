@@ -580,7 +580,7 @@ static void w9968cf_pkt_scan(struct gspca_dev *gspca_dev,
 	/* An empty packet signals EOF */
 	if (gspca_dev->empty_packet) {
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-				data, len);
+					NULL, 0);
 		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
 				NULL, 0);
 		gspca_dev->empty_packet = 0;

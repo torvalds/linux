@@ -2248,7 +2248,7 @@ static int i2c_w(struct sd *sd, __u8 reg, __u8 value)
 
 static int i2c_r(struct sd *sd, __u8 reg)
 {
-	int ret;
+	int ret = -1;
 
 	if (sd->sensor_reg_cache[reg] != -1)
 		return sd->sensor_reg_cache[reg];
