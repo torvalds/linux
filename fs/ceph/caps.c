@@ -1270,6 +1270,41 @@ static void ceph_flush_snaps(struct ceph_inode_info *ci)
 }
 
 /*
+ * Mark caps dirty.  If inode is newly dirty, add to the global dirty
+ * list.
+ */
+void __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
+{
+	struct ceph_mds_client *mdsc = &ceph_client(ci->vfs_inode.i_sb)->mdsc;
+	struct inode *inode = &ci->vfs_inode;
+	int was = ci->i_dirty_caps;
+	int dirty = 0;
+
+	dout("__mark_dirty_caps %p %s dirty %s -> %s\n", &ci->vfs_inode,
+	     ceph_cap_string(mask), ceph_cap_string(was),
+	     ceph_cap_string(was | mask));
+	ci->i_dirty_caps |= mask;
+	if (was == 0) {
+		dout(" inode %p now dirty\n", &ci->vfs_inode);
+		BUG_ON(!list_empty(&ci->i_dirty_item));
+		spin_lock(&mdsc->cap_dirty_lock);
+		list_add(&ci->i_dirty_item, &mdsc->cap_dirty);
+		spin_unlock(&mdsc->cap_dirty_lock);
+		if (ci->i_flushing_caps == 0) {
+			igrab(inode);
+			dirty |= I_DIRTY_SYNC;
+		}
+	}
+	BUG_ON(list_empty(&ci->i_dirty_item));
+	if (((was | ci->i_flushing_caps) & CEPH_CAP_FILE_BUFFER) &&
+	    (mask & CEPH_CAP_FILE_BUFFER))
+		dirty |= I_DIRTY_DATASYNC;
+	if (dirty)
+		__mark_inode_dirty(inode, dirty);
+	__cap_delay_requeue(mdsc, ci);
+}
+
+/*
  * Add dirty inode to the flushing list.  Assigned a seq number so we
  * can wait for caps to flush without starving.
  *
@@ -1555,39 +1590,6 @@ ack:
 		mutex_unlock(&session->s_mutex);
 	if (took_snap_rwsem)
 		up_read(&mdsc->snap_rwsem);
-}
-
-/*
- * Mark caps dirty.  If inode is newly dirty, add to the global dirty
- * list.
- */
-void __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
-{
-	struct ceph_mds_client *mdsc = &ceph_client(ci->vfs_inode.i_sb)->mdsc;
-	struct inode *inode = &ci->vfs_inode;
-	int was_dirty = ci->i_dirty_caps;
-	int dirty = 0;
-
-	dout("__mark_dirty_caps %p %s dirty %s -> %s\n", &ci->vfs_inode,
-	     ceph_cap_string(mask), ceph_cap_string(ci->i_dirty_caps),
-	     ceph_cap_string(ci->i_dirty_caps | mask));
-	ci->i_dirty_caps |= mask;
-	if (!was_dirty) {
-		dout(" inode %p now dirty\n", &ci->vfs_inode);
-		spin_lock(&mdsc->cap_dirty_lock);
-		list_add(&ci->i_dirty_item, &mdsc->cap_dirty);
-		spin_unlock(&mdsc->cap_dirty_lock);
-		if (ci->i_flushing_caps == 0) {
-			igrab(inode);
-			dirty |= I_DIRTY_SYNC;
-		}
-	}
-	if (((was_dirty | ci->i_flushing_caps) & CEPH_CAP_FILE_BUFFER) &&
-	    (mask & CEPH_CAP_FILE_BUFFER))
-		dirty |= I_DIRTY_DATASYNC;
-	if (dirty)
-		__mark_inode_dirty(inode, dirty);
-	__cap_delay_requeue(mdsc, ci);
 }
 
 /*
@@ -2370,6 +2372,8 @@ static void handle_cap_flush_ack(struct inode *inode,
 			dout(" inode %p now clean\n", inode);
 			BUG_ON(!list_empty(&ci->i_dirty_item));
 			drop = 1;
+		} else {
+			BUG_ON(list_empty(&ci->i_dirty_item));
 		}
 	}
 	spin_unlock(&mdsc->cap_dirty_lock);
