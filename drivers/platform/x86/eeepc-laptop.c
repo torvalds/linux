@@ -150,8 +150,6 @@ struct eeepc_hotk {
 /* The actual device the driver binds to */
 static struct eeepc_hotk *ehotk;
 
-static void eeepc_rfkill_hotplug(bool real);
-
 /* Platform device/driver */
 static int eeepc_hotk_thaw(struct device *device);
 static int eeepc_hotk_restore(struct device *device);
@@ -345,16 +343,7 @@ static bool eeepc_wlan_rfkill_blocked(void)
 static int eeepc_rfkill_set(void *data, bool blocked)
 {
 	unsigned long asl = (unsigned long)data;
-	int ret;
-
-	if (asl != CM_ASL_WLAN)
-		return set_acpi(asl, !blocked);
-
-	/* hack to avoid panic with rt2860sta */
-	if (blocked)
-		eeepc_rfkill_hotplug(false);
-	ret = set_acpi(asl, !blocked);
-	return ret;
+	return set_acpi(asl, !blocked);
 }
 
 static const struct rfkill_ops eeepc_rfkill_ops = {
@@ -654,13 +643,13 @@ static int eeepc_get_adapter_status(struct hotplug_slot *hotplug_slot,
 	return 0;
 }
 
-static void eeepc_rfkill_hotplug(bool real)
+static void eeepc_rfkill_hotplug(void)
 {
 	struct pci_dev *dev;
 	struct pci_bus *bus;
-	bool blocked = real ? eeepc_wlan_rfkill_blocked() : true;
+	bool blocked = eeepc_wlan_rfkill_blocked();
 
-	if (real && ehotk->wlan_rfkill)
+	if (ehotk->wlan_rfkill)
 		rfkill_set_sw_state(ehotk->wlan_rfkill, blocked);
 
 	mutex_lock(&ehotk->hotplug_lock);
@@ -703,7 +692,7 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 	if (event != ACPI_NOTIFY_BUS_CHECK)
 		return;
 
-	eeepc_rfkill_hotplug(true);
+	eeepc_rfkill_hotplug();
 }
 
 static void eeepc_hotk_notify(struct acpi_device *device, u32 event)
@@ -861,7 +850,7 @@ static int eeepc_hotk_restore(struct device *device)
 {
 	/* Refresh both wlan rfkill state and pci hotplug */
 	if (ehotk->wlan_rfkill)
-		eeepc_rfkill_hotplug(true);
+		eeepc_rfkill_hotplug();
 
 	if (ehotk->bluetooth_rfkill)
 		rfkill_set_sw_state(ehotk->bluetooth_rfkill,
@@ -1004,7 +993,7 @@ static void eeepc_rfkill_exit(void)
 	 * Refresh pci hotplug in case the rfkill state was changed after
 	 * eeepc_unregister_rfkill_notifier()
 	 */
-	eeepc_rfkill_hotplug(true);
+	eeepc_rfkill_hotplug();
 	if (ehotk->hotplug_slot)
 		pci_hp_deregister(ehotk->hotplug_slot);
 
@@ -1120,7 +1109,7 @@ static int eeepc_rfkill_init(struct device *dev)
 	 * Refresh pci hotplug in case the rfkill state was changed during
 	 * setup.
 	 */
-	eeepc_rfkill_hotplug(true);
+	eeepc_rfkill_hotplug();
 
 exit:
 	if (result && result != -ENODEV)
