@@ -2056,6 +2056,9 @@ int fc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 	case SCSI_QDEPTH_QFULL:
 		scsi_track_queue_full(sdev, qdepth);
 		break;
+	case SCSI_QDEPTH_RAMP_UP:
+		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
