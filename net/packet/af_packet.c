@@ -1664,11 +1664,9 @@ static int packet_mc_drop(struct sock *sk, struct packet_mreq_max *mreq)
 			if (--ml->count == 0) {
 				struct net_device *dev;
 				*mlp = ml->next;
-				dev = dev_get_by_index(sock_net(sk), ml->ifindex);
-				if (dev) {
+				dev = __dev_get_by_index(sock_net(sk), ml->ifindex);
+				if (dev)
 					packet_dev_mc(dev, ml, -1);
-					dev_put(dev);
-				}
 				kfree(ml);
 			}
 			rtnl_unlock();
@@ -1692,11 +1690,9 @@ static void packet_flush_mclist(struct sock *sk)
 		struct net_device *dev;
 
 		po->mclist = ml->next;
-		dev = dev_get_by_index(sock_net(sk), ml->ifindex);
-		if (dev != NULL) {
+		dev = __dev_get_by_index(sock_net(sk), ml->ifindex);
+		if (dev != NULL)
 			packet_dev_mc(dev, ml, -1);
-			dev_put(dev);
-		}
 		kfree(ml);
 	}
 	rtnl_unlock();
