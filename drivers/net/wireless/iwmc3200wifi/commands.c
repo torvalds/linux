@@ -793,6 +793,19 @@ int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 	return ret ? 0 : -EBUSY;
 }
 
+int iwm_tx_power_trigger(struct iwm_priv *iwm)
+{
+	struct iwm_umac_pwr_trigger pwr_trigger;
+
+	pwr_trigger.hdr.oid = UMAC_WIFI_IF_CMD_TX_PWR_TRIGGER;
+	pwr_trigger.hdr.buf_size =
+		cpu_to_le16(sizeof(struct iwm_umac_pwr_trigger) -
+			    sizeof(struct iwm_umac_wifi_if));
+
+
+	return iwm_send_wifi_if_cmd(iwm, &pwr_trigger, sizeof(pwr_trigger), 1);
+}
+
 int iwm_send_umac_stats_req(struct iwm_priv *iwm, u32 flags)
 {
 	struct iwm_udma_wifi_cmd udma_cmd = UDMA_UMAC_INIT;

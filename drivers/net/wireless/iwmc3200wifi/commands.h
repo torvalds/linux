@@ -441,6 +441,11 @@ struct iwm_umac_tx_key_id {
 	u8 reserved[3];
 } __attribute__ ((packed));
 
+struct iwm_umac_pwr_trigger {
+	struct iwm_umac_wifi_if hdr;
+	__le32 reseved;
+} __attribute__ ((packed));
+
 struct iwm_umac_cmd_stats_req {
 	__le32 flags;
 } __attribute__ ((packed));
@@ -467,6 +472,7 @@ int iwm_invalidate_mlme_profile(struct iwm_priv *iwm);
 int iwm_send_packet(struct iwm_priv *iwm, struct sk_buff *skb, int pool_id);
 int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx);
 int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key);
+int iwm_tx_power_trigger(struct iwm_priv *iwm);
 int iwm_send_umac_stats_req(struct iwm_priv *iwm, u32 flags);
 int iwm_send_umac_channel_list(struct iwm_priv *iwm);
 int iwm_scan_ssids(struct iwm_priv *iwm, struct cfg80211_ssid *ssids,

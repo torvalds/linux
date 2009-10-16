@@ -670,9 +670,19 @@ static int iwm_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 static int iwm_cfg80211_set_txpower(struct wiphy *wiphy,
 				    enum tx_power_setting type, int dbm)
 {
+	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
+	int ret;
+
 	switch (type) {
 	case TX_POWER_AUTOMATIC:
 		return 0;
+	case TX_POWER_FIXED:
+		ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
+					      CFG_TX_PWR_LIMIT_USR, dbm * 2);
+		if (ret < 0)
+			return ret;
+
+		return iwm_tx_power_trigger(iwm);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -684,7 +694,7 @@ static int iwm_cfg80211_get_txpower(struct wiphy *wiphy, int *dbm)
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 
-	*dbm = iwm->txpower;
+	*dbm = iwm->txpower >> 1;
 
 	return 0;
 }
