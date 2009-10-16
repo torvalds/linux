@@ -138,16 +138,6 @@ int dm_exception_store_type_unregister(struct dm_exception_store_type *type)
 }
 EXPORT_SYMBOL(dm_exception_store_type_unregister);
 
-/*
- * Round a number up to the nearest 'size' boundary.  size must
- * be a power of 2.
- */
-static ulong round_up(ulong n, ulong size)
-{
-	size--;
-	return (n + size) & ~size;
-}
-
 static int set_chunk_size(struct dm_exception_store *store,
 			  const char *chunk_size_arg, char **error)
 {
@@ -165,12 +155,6 @@ static int set_chunk_size(struct dm_exception_store *store,
 		store->chunk_size = store->chunk_mask = store->chunk_shift = 0;
 		return 0;
 	}
-
-	/*
-	 * Chunk size must be multiple of page size.  Silently
-	 * round up if it's not.
-	 */
-	chunk_size_ulong = round_up(chunk_size_ulong, PAGE_SIZE >> 9);
 
 	return dm_exception_store_set_chunk_size(store,
 						 (unsigned) chunk_size_ulong,
