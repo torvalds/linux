@@ -2304,6 +2304,7 @@ static int iwl_setup_mac(struct iwl_priv *priv)
 		hw->flags |= IEEE80211_HW_SUPPORTS_PS |
 			     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
+	hw->sta_data_size = sizeof(struct iwl_station_priv);
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);

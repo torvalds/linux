@@ -2475,18 +2475,16 @@ static void *rs_alloc_sta(void *priv_rate, struct ieee80211_sta *sta,
 			  gfp_t gfp)
 {
 	struct iwl_lq_sta *lq_sta;
+	struct iwl_station_priv *sta_priv = (struct iwl_station_priv *) sta->drv_priv;
 	struct iwl_priv *priv;
 	int i, j;
 
 	priv = (struct iwl_priv *)priv_rate;
 	IWL_DEBUG_RATE(priv, "create station rate scale window\n");
 
-	lq_sta = kzalloc(sizeof(struct iwl_lq_sta), gfp);
+	lq_sta = &sta_priv->lq_sta;
 
-	if (lq_sta == NULL)
-		return NULL;
 	lq_sta->lq.sta_id = 0xff;
-
 
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < IWL_RATE_COUNT; i++)
@@ -2719,11 +2717,9 @@ static void rs_free(void *priv_rate)
 static void rs_free_sta(void *priv_r, struct ieee80211_sta *sta,
 			void *priv_sta)
 {
-	struct iwl_lq_sta *lq_sta = priv_sta;
 	struct iwl_priv *priv __maybe_unused = priv_r;
 
 	IWL_DEBUG_RATE(priv, "enter\n");
-	kfree(lq_sta);
 	IWL_DEBUG_RATE(priv, "leave\n");
 }
 

@@ -576,6 +576,19 @@ struct iwl_station_entry {
 	struct iwl_hw_key keyinfo;
 };
 
+/*
+ * iwl_station_priv: Driver's private station information
+ *
+ * When mac80211 creates a station it reserves some space (hw->sta_data_size)
+ * in the structure for use by driver. This structure is places in that
+ * space.
+ *
+ * At the moment use it for the station's rate scaling information.
+ */
+struct iwl_station_priv {
+	struct iwl_lq_sta lq_sta;
+};
+
 /* one for each uCode image (inst/data, boot/init/runtime) */
 struct fw_desc {
 	void *v_addr;		/* access by driver */
