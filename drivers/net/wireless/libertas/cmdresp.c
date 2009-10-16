@@ -11,6 +11,7 @@
 
 #include "host.h"
 #include "decl.h"
+#include "cmd.h"
 #include "defs.h"
 #include "dev.h"
 #include "assoc.h"

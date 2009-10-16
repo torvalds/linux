@@ -374,21 +374,6 @@ struct cmd_header {
 	__le16 result;
 } __attribute__ ((packed));
 
-struct cmd_ctrl_node {
-	struct list_head list;
-	int result;
-	/* command response */
-	int (*callback)(struct lbs_private *,
-			unsigned long,
-			struct cmd_header *);
-	unsigned long callback_arg;
-	/* command data */
-	struct cmd_header *cmdbuf;
-	/* wait queue */
-	u16 cmdwaitqwoken;
-	wait_queue_head_t cmdwait_q;
-};
-
 /* Generic structure to hold all key types. */
 struct enc_key {
 	u16 len;
