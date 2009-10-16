@@ -9,3 +9,4 @@ obj-y += setup.o init.o cmdline.o env.o time.o reset.o irq.o \
 # Early printk support
 #
 obj-$(CONFIG_EARLY_PRINTK) += early_printk.o
+obj-$(CONFIG_SERIAL_8250) += serial.o
