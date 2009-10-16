@@ -2631,7 +2631,7 @@ static void analyze_sbs(mddev_t * mddev)
 			rdev->desc_nr = i++;
 			rdev->raid_disk = rdev->desc_nr;
 			set_bit(In_sync, &rdev->flags);
-		} else if (rdev->raid_disk >= mddev->raid_disks) {
+		} else if (rdev->raid_disk >= (mddev->raid_disks - min(0, mddev->delta_disks))) {
 			rdev->raid_disk = -1;
 			clear_bit(In_sync, &rdev->flags);
 		}
