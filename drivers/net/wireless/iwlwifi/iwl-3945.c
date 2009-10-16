@@ -1219,6 +1219,7 @@ void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
 
 	/* stop SCD */
 	iwl_write_prph(priv, ALM_SCD_MODE_REG, 0);
+	iwl_write_prph(priv, ALM_SCD_TXFACT_REG, 0);
 
 	/* reset TFD queues */
 	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
