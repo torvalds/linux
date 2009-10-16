@@ -699,8 +699,9 @@ static int ext3_splice_branch(handle_t *handle, struct inode *inode,
 	int err = 0;
 	struct ext3_block_alloc_info *block_i;
 	ext3_fsblk_t current_block;
+	struct ext3_inode_info *ei = EXT3_I(inode);
 
-	block_i = EXT3_I(inode)->i_block_alloc_info;
+	block_i = ei->i_block_alloc_info;
 	/*
 	 * If we're splicing into a [td]indirect block (as opposed to the
 	 * inode) then we need to get write access to the [td]indirect block
@@ -741,6 +742,8 @@ static int ext3_splice_branch(handle_t *handle, struct inode *inode,
 
 	inode->i_ctime = CURRENT_TIME_SEC;
 	ext3_mark_inode_dirty(handle, inode);
+	/* ext3_mark_inode_dirty already updated i_sync_tid */
+	atomic_set(&ei->i_datasync_tid, handle->h_transaction->t_tid);
 
 	/* had we spliced it onto indirect block? */
 	if (where->bh) {
@@ -2754,6 +2757,8 @@ struct inode *ext3_iget(struct super_block *sb, unsigned long ino)
 	struct ext3_inode_info *ei;
 	struct buffer_head *bh;
 	struct inode *inode;
+	journal_t *journal = EXT3_SB(sb)->s_journal;
+	transaction_t *transaction;
 	long ret;
 	int block;
 
@@ -2830,6 +2835,30 @@ struct inode *ext3_iget(struct super_block *sb, unsigned long ino)
 	for (block = 0; block < EXT3_N_BLOCKS; block++)
 		ei->i_data[block] = raw_inode->i_block[block];
 	INIT_LIST_HEAD(&ei->i_orphan);
+
+	/*
+	 * Set transaction id's of transactions that have to be committed
+	 * to finish f[data]sync. We set them to currently running transaction
+	 * as we cannot be sure that the inode or some of its metadata isn't
+	 * part of the transaction - the inode could have been reclaimed and
+	 * now it is reread from disk.
+	 */
+	if (journal) {
+		tid_t tid;
+
+		spin_lock(&journal->j_state_lock);
+		if (journal->j_running_transaction)
+			transaction = journal->j_running_transaction;
+		else
+			transaction = journal->j_committing_transaction;
+		if (transaction)
+			tid = transaction->t_tid;
+		else
+			tid = journal->j_commit_sequence;
+		spin_unlock(&journal->j_state_lock);
+		atomic_set(&ei->i_sync_tid, tid);
+		atomic_set(&ei->i_datasync_tid, tid);
+	}
 
 	if (inode->i_ino >= EXT3_FIRST_INO(inode->i_sb) + 1 &&
 	    EXT3_INODE_SIZE(inode->i_sb) > EXT3_GOOD_OLD_INODE_SIZE) {
@@ -3015,6 +3044,7 @@ again:
 		err = rc;
 	ei->i_state &= ~EXT3_STATE_NEW;
 
+	atomic_set(&ei->i_sync_tid, handle->h_transaction->t_tid);
 out_brelse:
 	brelse (bh);
 	ext3_std_error(inode->i_sb, err);
