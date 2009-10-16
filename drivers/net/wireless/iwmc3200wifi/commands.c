@@ -76,6 +76,11 @@ int iwm_send_wifi_if_cmd(struct iwm_priv *iwm, void *payload, u16 payload_size,
 	int ret;
 	u8 oid = hdr->oid;
 
+	if (!test_bit(IWM_STATUS_READY, &iwm->status)) {
+		IWM_ERR(iwm, "Interface is not ready yet");
+		return -EAGAIN;
+	}
+
 	umac_cmd.id = UMAC_CMD_OPCODE_WIFI_IF_WRAPPER;
 	umac_cmd.resp = resp;
 
