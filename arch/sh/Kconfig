@@ -757,17 +757,6 @@ config ENTRY_OFFSET
 	default "0x00010000" if PAGE_SIZE_64KB
 	default "0x00000000"
 
-config UBC_WAKEUP
-	bool "Wakeup UBC on startup"
-	depends on CPU_SH4 && !CPU_SH4A
-	help
-	  Selecting this option will wakeup the User Break Controller (UBC) on
-	  startup. Although the UBC is left in an awake state when the processor
-	  comes up, some boot loaders misbehave by putting the UBC to sleep in a
-	  power saving state, which causes issues with things like ptrace().
-
-	  If unsure, say N.
-
 choice
 	prompt "Kernel command line"
 	optional

@@ -338,17 +338,6 @@ asmlinkage void __init sh_cpu_init(void)
 	}
 #endif
 
-	/*
-	 * Some brain-damaged loaders decided it would be a good idea to put
-	 * the UBC to sleep. This causes some issues when it comes to things
-	 * like PTRACE_SINGLESTEP or doing hardware watchpoints in GDB.  So ..
-	 * we wake it up and hope that all is well.
-	 */
-#ifdef CONFIG_SUPERH32
-	if (raw_smp_processor_id() == 0)
-		ubc_wakeup();
-#endif
-
 	speculative_execution_init();
 	expmask_init();
 }
