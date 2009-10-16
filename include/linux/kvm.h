@@ -439,6 +439,7 @@ struct kvm_ioeventfd {
 #ifdef __KVM_HAVE_XEN_HVM
 #define KVM_CAP_XEN_HVM 38
 #endif
+#define KVM_CAP_ADJUST_CLOCK 39
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -512,6 +513,12 @@ struct kvm_irqfd {
 	__u8  pad[20];
 };
 
+struct kvm_clock_data {
+	__u64 clock;
+	__u32 flags;
+	__u32 pad[9];
+};
+
 /*
  * ioctls for VM fds
  */
@@ -562,6 +569,9 @@ struct kvm_irqfd {
 #define KVM_SET_BOOT_CPU_ID        _IO(KVMIO, 0x78)
 #define KVM_IOEVENTFD             _IOW(KVMIO, 0x79, struct kvm_ioeventfd)
 #define KVM_XEN_HVM_CONFIG        _IOW(KVMIO, 0x7a, struct kvm_xen_hvm_config)
+#define KVM_SET_CLOCK             _IOW(KVMIO, 0x7b, struct kvm_clock_data)
+#define KVM_GET_CLOCK             _IOR(KVMIO, 0x7c, struct kvm_clock_data)
+
 
 /*
  * ioctls for vcpu fds
