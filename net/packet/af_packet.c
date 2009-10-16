@@ -188,7 +188,6 @@ struct packet_sock {
 	struct packet_ring_buffer	tx_ring;
 	int			copy_thresh;
 #endif
-	struct packet_type	prot_hook;
 	spinlock_t		bind_lock;
 	struct mutex		pg_vec_lock;
 	unsigned int		running:1,	/* prot_hook is attached*/
@@ -204,6 +203,7 @@ struct packet_sock {
 	unsigned int		tp_reserve;
 	unsigned int		tp_loss:1;
 #endif
+	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
 };
 
 struct packet_skb_cb {
