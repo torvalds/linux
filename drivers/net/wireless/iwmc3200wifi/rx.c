@@ -1057,8 +1057,14 @@ static int iwm_ntf_wifi_if_wrapper(struct iwm_priv *iwm, u8 *buf,
 				   unsigned long buf_size,
 				   struct iwm_wifi_cmd *cmd)
 {
-	struct iwm_umac_wifi_if *hdr =
-			(struct iwm_umac_wifi_if *)cmd->buf.payload;
+	struct iwm_umac_wifi_if *hdr;
+
+	if (cmd == NULL) {
+		IWM_ERR(iwm, "Couldn't find expected wifi command\n");
+		return -EINVAL;
+	}
+
+	hdr = (struct iwm_umac_wifi_if *)cmd->buf.payload;
 
 	IWM_DBG_NTF(iwm, DBG, "WIFI_IF_WRAPPER cmd is delivered to UMAC: "
 		    "oid is 0x%x\n", hdr->oid);
