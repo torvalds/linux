@@ -138,7 +138,7 @@ static int qla2xxx_eh_target_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_bus_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_host_reset(struct scsi_cmnd *);
 
-static int qla2x00_change_queue_depth(struct scsi_device *, int);
+static int qla2x00_change_queue_depth(struct scsi_device *, int, int);
 static int qla2x00_change_queue_type(struct scsi_device *, int);
 
 struct scsi_host_template qla2xxx_driver_template = {
@@ -1235,8 +1235,11 @@ qla2xxx_slave_destroy(struct scsi_device *sdev)
 }
 
 static int
-qla2x00_change_queue_depth(struct scsi_device *sdev, int qdepth)
+qla2x00_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
+
 	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
 	return sdev->queue_depth;
 }

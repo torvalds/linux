@@ -919,7 +919,7 @@ int fc_slave_alloc(struct scsi_device *sdev);
 /*
  * Adjust the queue depth.
  */
-int fc_change_queue_depth(struct scsi_device *sdev, int qdepth);
+int fc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason);
 
 /*
  * Change the tag type.

@@ -2064,8 +2064,11 @@ int fc_slave_alloc(struct scsi_device *sdev)
 }
 EXPORT_SYMBOL(fc_slave_alloc);
 
-int fc_change_queue_depth(struct scsi_device *sdev, int qdepth)
+int fc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
+
 	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
 	return sdev->queue_depth;
 }

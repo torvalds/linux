@@ -278,12 +278,17 @@ static void pmcraid_slave_destroy(struct scsi_device *scsi_dev)
  * pmcraid_change_queue_depth - Change the device's queue depth
  * @scsi_dev: scsi device struct
  * @depth: depth to set
+ * @reason: calling context
  *
  * Return value
  * 	actual depth set
  */
-static int pmcraid_change_queue_depth(struct scsi_device *scsi_dev, int depth)
+static int pmcraid_change_queue_depth(struct scsi_device *scsi_dev, int depth,
+				      int reason)
 {
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
+
 	if (depth > PMCRAID_MAX_CMD_PER_LUN)
 		depth = PMCRAID_MAX_CMD_PER_LUN;
 
