@@ -12,7 +12,7 @@
 #include <linux/debugfs.h>
 
 #include "defs.h"
-#include "hostcmd.h"
+#include "host.h"
 
 extern const struct ethtool_ops lbs_ethtool_ops;
 

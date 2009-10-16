@@ -7,7 +7,6 @@
 #include <net/lib80211.h>
 #include <linux/kfifo.h>
 #include "host.h"
-#include "hostcmd.h"
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"

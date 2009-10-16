@@ -3,7 +3,7 @@
 #ifndef _LBS_CMD_H_
 #define _LBS_CMD_H_
 
-#include "hostcmd.h"
+#include "host.h"
 #include "dev.h"
 
 /* lbs_cmd() infers the size of the buffer to copy data back into, from
