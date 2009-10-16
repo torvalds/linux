@@ -404,38 +404,20 @@ static int iwm_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 	struct ieee80211_channel *chan = params->channel;
-	struct cfg80211_bss *bss;
 
 	if (!test_bit(IWM_STATUS_READY, &iwm->status))
 		return -EIO;
 
-	/* UMAC doesn't support creating IBSS network with specified bssid.
-	 * This should be removed after we have join only mode supported. */
+	/* UMAC doesn't support creating or joining an IBSS network
+	 * with specified bssid. */
 	if (params->bssid)
 		return -EOPNOTSUPP;
-
-	bss = cfg80211_get_ibss(iwm_to_wiphy(iwm), NULL,
-				params->ssid, params->ssid_len);
-	if (!bss) {
-		iwm_scan_one_ssid(iwm, params->ssid, params->ssid_len);
-		schedule_timeout_interruptible(2 * HZ);
-		bss = cfg80211_get_ibss(iwm_to_wiphy(iwm), NULL,
-					params->ssid, params->ssid_len);
-	}
-	/* IBSS join only mode is not supported by UMAC ATM */
-	if (bss) {
-		cfg80211_put_bss(bss);
-		return -EOPNOTSUPP;
-	}
 
 	iwm->channel = ieee80211_frequency_to_channel(chan->center_freq);
 	iwm->umac_profile->ibss.band = chan->band;
 	iwm->umac_profile->ibss.channel = iwm->channel;
 	iwm->umac_profile->ssid.ssid_len = params->ssid_len;
 	memcpy(iwm->umac_profile->ssid.ssid, params->ssid, params->ssid_len);
-
-	if (params->bssid)
-		memcpy(&iwm->umac_profile->bssid[0], params->bssid, ETH_ALEN);
 
 	return iwm_send_mlme_profile(iwm);
 }
