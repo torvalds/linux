@@ -2,7 +2,7 @@
 
 menuconfig SND_PPC
 	bool "PowerPC sound devices"
-	depends on PPC64 || PPC32
+	depends on PPC
 	default y
 	help
 	  Support for sound devices specific to PowerPC architectures.
