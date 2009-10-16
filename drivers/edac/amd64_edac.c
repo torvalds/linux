@@ -1204,28 +1204,21 @@ static int f10_early_channel_count(struct amd64_pvt *pvt)
 	int i, j, channels = 0;
 	u32 dbam;
 
-	if (amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_0, &pvt->dclr0))
-		goto err_reg;
-
-	if (amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_1, &pvt->dclr1))
-		goto err_reg;
-
 	/* If we are in 128 bit mode, then we are using 2 channels */
 	if (pvt->dclr0 & F10_WIDTH_128) {
-		debugf0("Data WIDTH is 128 bits - 2 channels\n");
 		channels = 2;
 		return channels;
 	}
 
 	/*
-	 * Need to check if in UN-ganged mode: In such, there are 2 channels,
-	 * but they are NOT in 128 bit mode and thus the above 'dcl0' status bit
-	 * will be OFF.
+	 * Need to check if in unganged mode: In such, there are 2 channels,
+	 * but they are not in 128 bit mode and thus the above 'dclr0' status
+	 * bit will be OFF.
 	 *
 	 * Need to check DCT0[0] and DCT1[0] to see if only one of them has
 	 * their CSEnable bit on. If so, then SINGLE DIMM case.
 	 */
-	debugf0("Data WIDTH is NOT 128 bits - need more decoding\n");
+	debugf0("Data width is not 128 bits - need more decoding\n");
 
 	/*
 	 * Check DRAM Bank Address Mapping values for each DIMM to see if there
@@ -1243,6 +1236,9 @@ static int f10_early_channel_count(struct amd64_pvt *pvt)
 			}
 		}
 	}
+
+	if (channels > 2)
+		channels = 2;
 
 	debugf0("MCT channel count: %d\n", channels);
 
