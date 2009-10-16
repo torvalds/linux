@@ -135,9 +135,6 @@ int lbs_set_data_rate(struct lbs_private *priv, u8 rate);
 int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 				      uint16_t cmd_action);
 
-int lbs_cmd_802_11_inactivity_timeout(struct lbs_private *priv,
-				      uint16_t cmd_action, uint16_t *timeout);
-
 int lbs_cmd_802_11_set_wep(struct lbs_private *priv, uint16_t cmd_action,
 			   struct assoc_request *assoc);
 

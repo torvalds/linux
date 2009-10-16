@@ -272,33 +272,6 @@ static int lbs_cmd_802_11_ps_mode(struct cmd_ds_command *cmd,
 	return 0;
 }
 
-int lbs_cmd_802_11_inactivity_timeout(struct lbs_private *priv,
-				      uint16_t cmd_action, uint16_t *timeout)
-{
-	struct cmd_ds_802_11_inactivity_timeout cmd;
-	int ret;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	cmd.hdr.command = cpu_to_le16(CMD_802_11_INACTIVITY_TIMEOUT);
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-
-	cmd.action = cpu_to_le16(cmd_action);
-
-	if (cmd_action == CMD_ACT_SET)
-		cmd.timeout = cpu_to_le16(*timeout);
-	else
-		cmd.timeout = 0;
-
-	ret = lbs_cmd_with_response(priv, CMD_802_11_INACTIVITY_TIMEOUT, &cmd);
-
-	if (!ret)
-		*timeout = le16_to_cpu(cmd.timeout);
-
-	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
-	return 0;
-}
-
 int lbs_cmd_802_11_sleep_params(struct lbs_private *priv, uint16_t cmd_action,
 				struct sleep_params *sp)
 {

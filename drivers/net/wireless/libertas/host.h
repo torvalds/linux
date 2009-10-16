@@ -621,16 +621,6 @@ struct cmd_ds_802_11_sleep_params {
 	__le16 reserved;
 } __attribute__ ((packed));
 
-struct cmd_ds_802_11_inactivity_timeout {
-	struct cmd_header hdr;
-
-	/* ACT_GET/ACT_SET */
-	__le16 action;
-
-	/* Inactivity timeout in msec */
-	__le16 timeout;
-} __attribute__ ((packed));
-
 struct cmd_ds_802_11_rf_channel {
 	struct cmd_header hdr;
 
