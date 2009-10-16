@@ -4715,6 +4715,18 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 	conf = kzalloc(sizeof(raid5_conf_t), GFP_KERNEL);
 	if (conf == NULL)
 		goto abort;
+	spin_lock_init(&conf->device_lock);
+	init_waitqueue_head(&conf->wait_for_stripe);
+	init_waitqueue_head(&conf->wait_for_overlap);
+	INIT_LIST_HEAD(&conf->handle_list);
+	INIT_LIST_HEAD(&conf->hold_list);
+	INIT_LIST_HEAD(&conf->delayed_list);
+	INIT_LIST_HEAD(&conf->bitmap_list);
+	INIT_LIST_HEAD(&conf->inactive_list);
+	atomic_set(&conf->active_stripes, 0);
+	atomic_set(&conf->preread_active_stripes, 0);
+	atomic_set(&conf->active_aligned_reads, 0);
+	conf->bypass_threshold = BYPASS_THRESHOLD;
 
 	conf->raid_disks = mddev->raid_disks;
 	conf->scribble_len = scribble_len(conf->raid_disks);
@@ -4736,19 +4748,6 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 	conf->level = mddev->new_level;
 	if (raid5_alloc_percpu(conf) != 0)
 		goto abort;
-
-	spin_lock_init(&conf->device_lock);
-	init_waitqueue_head(&conf->wait_for_stripe);
-	init_waitqueue_head(&conf->wait_for_overlap);
-	INIT_LIST_HEAD(&conf->handle_list);
-	INIT_LIST_HEAD(&conf->hold_list);
-	INIT_LIST_HEAD(&conf->delayed_list);
-	INIT_LIST_HEAD(&conf->bitmap_list);
-	INIT_LIST_HEAD(&conf->inactive_list);
-	atomic_set(&conf->active_stripes, 0);
-	atomic_set(&conf->preread_active_stripes, 0);
-	atomic_set(&conf->active_aligned_reads, 0);
-	conf->bypass_threshold = BYPASS_THRESHOLD;
 
 	pr_debug("raid5: run(%s) called.\n", mdname(mddev));
 
