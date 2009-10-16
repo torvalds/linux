@@ -334,7 +334,7 @@ struct quotactl_ops {
 
 struct quota_format_type {
 	int qf_fmt_id;	/* Quota format id */
-	struct quota_format_ops *qf_ops;	/* Operations of format */
+	const struct quota_format_ops *qf_ops;	/* Operations of format */
 	struct module *qf_owner;		/* Module implementing quota format */
 	struct quota_format_type *qf_next;
 };
@@ -394,7 +394,7 @@ struct quota_info {
 	struct rw_semaphore dqptr_sem;		/* serialize ops using quota_info struct, pointers from inode to dquots */
 	struct inode *files[MAXQUOTAS];		/* inodes of quotafiles */
 	struct mem_dqinfo info[MAXQUOTAS];	/* Information for each quota type */
-	struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */
+	const struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */
 };
 
 int register_quota_format(struct quota_format_type *fmt);

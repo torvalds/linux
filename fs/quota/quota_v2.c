@@ -207,7 +207,7 @@ static int v2_free_file_info(struct super_block *sb, int type)
 	return 0;
 }
 
-static struct quota_format_ops v2_format_ops = {
+static const struct quota_format_ops v2_format_ops = {
 	.check_quota_file	= v2_check_quota_file,
 	.read_file_info		= v2_read_file_info,
 	.write_file_info	= v2_write_file_info,
