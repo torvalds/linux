@@ -296,7 +296,6 @@ struct sierra_port_private {
 	int dsr_state;
 	int dcd_state;
 	int ri_state;
-
 	unsigned int opened:1;
 };
 
@@ -306,6 +305,8 @@ static int sierra_send_setup(struct usb_serial_port *port)
 	struct sierra_port_private *portdata;
 	__u16 interface = 0;
 	int val = 0;
+	int do_send = 0;
+	int retval;
 
 	dev_dbg(&port->dev, "%s\n", __func__);
 
@@ -324,10 +325,7 @@ static int sierra_send_setup(struct usb_serial_port *port)
 		 */
 		if (port->interrupt_in_urb) {
 			/* send control message */
-			return usb_control_msg(serial->dev,
-				usb_rcvctrlpipe(serial->dev, 0),
-				0x22, 0x21, val, interface,
-				NULL, 0, USB_CTRL_SET_TIMEOUT);
+			do_send = 1;
 		}
 	}
 
@@ -339,12 +337,18 @@ static int sierra_send_setup(struct usb_serial_port *port)
 			interface = 1;
 		else if (port->bulk_out_endpointAddress == 5)
 			interface = 2;
-		return usb_control_msg(serial->dev,
-			usb_rcvctrlpipe(serial->dev, 0),
-			0x22, 0x21, val, interface,
-			NULL, 0, USB_CTRL_SET_TIMEOUT);
+
+		do_send = 1;
 	}
-	return 0;
+	if (!do_send)
+		return 0;
+
+	usb_autopm_get_interface(serial->interface);
+	retval = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
+		0x22, 0x21, val, interface, NULL, 0, USB_CTRL_SET_TIMEOUT);
+	usb_autopm_put_interface(serial->interface);
+
+	return retval;
 }
 
 static void sierra_set_termios(struct tty_struct *tty,
