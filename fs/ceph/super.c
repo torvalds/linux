@@ -327,6 +327,7 @@ static int parse_mount_args(struct ceph_client *client,
 	args->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT; /* seconds */
 	args->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
 	args->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
+	args->rsize = CEPH_MOUNT_RSIZE_DEFAULT;
 	args->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
 	args->cap_release_safety = CEPH_CAPS_PER_RELEASE * 4;
 	args->max_readdir = 1024;

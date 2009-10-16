@@ -69,7 +69,7 @@ struct ceph_mount_args {
  * defaults
  */
 #define CEPH_MOUNT_TIMEOUT_DEFAULT  60
-#define CEPH_MOUNT_RSIZE_DEFAULT    (128*1024) /* readahead */
+#define CEPH_MOUNT_RSIZE_DEFAULT    (512*1024) /* readahead */
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
