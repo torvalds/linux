@@ -809,9 +809,12 @@ static ssize_t iwl_dbgfs_sleep_level_override_write(struct file *file,
 	if (value != -1 && (value < 0 || value >= IWL_POWER_NUM))
 		return -EINVAL;
 
+	if (!iwl_is_ready_rf(priv))
+		return -EAGAIN;
+
 	priv->power_data.debug_sleep_level_override = value;
 
-	iwl_power_update_mode(priv, false);
+	iwl_power_update_mode(priv, true);
 
 	return count;
 }
