@@ -1,4 +1,4 @@
-What:           /sys/class/usb_host/usb_hostN/wusb_chid
+What:           /sys/class/uwb_rc/uwbN/wusbhc/wusb_chid
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        David Vrabel <david.vrabel@csr.com>
@@ -9,7 +9,7 @@ Description:
 
                 Set an all zero CHID to stop the host controller.
 
-What:           /sys/class/usb_host/usb_hostN/wusb_trust_timeout
+What:           /sys/class/uwb_rc/uwbN/wusbhc/wusb_trust_timeout
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        David Vrabel <david.vrabel@csr.com>

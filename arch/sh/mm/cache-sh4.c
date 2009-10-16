@@ -27,7 +27,7 @@
  */
 #define MAX_ICACHE_PAGES	32
 
-static void __flush_cache_4096(unsigned long addr, unsigned long phys,
+static void __flush_cache_one(unsigned long addr, unsigned long phys,
 			       unsigned long exec_offset);
 
 /*
@@ -82,8 +82,7 @@ static void __uses_jump_to_uncached sh4_flush_icache_range(void *args)
 	local_irq_restore(flags);
 }
 
-static inline void flush_cache_4096(unsigned long start,
-				    unsigned long phys)
+static inline void flush_cache_one(unsigned long start, unsigned long phys)
 {
 	unsigned long flags, exec_offset = 0;
 
@@ -96,8 +95,8 @@ static inline void flush_cache_4096(unsigned long start,
 		exec_offset = cached_to_uncached;
 
 	local_irq_save(flags);
-	__flush_cache_4096(start | SH_CACHE_ASSOC,
-			   virt_to_phys(phys), exec_offset);
+	__flush_cache_one(start | SH_CACHE_ASSOC,
+			  virt_to_phys(phys), exec_offset);
 	local_irq_restore(flags);
 }
 
@@ -121,9 +120,9 @@ static void sh4_flush_dcache_page(void *arg)
 		int i, n;
 
 		/* Loop all the D-cache */
-		n = boot_cpu_data.dcache.way_incr >> 12;
-		for (i = 0; i < n; i++, addr += 4096)
-			flush_cache_4096(addr, phys);
+		n = boot_cpu_data.dcache.n_aliases;
+		for (i = 0; i <= n; i++, addr += PAGE_SIZE)
+			flush_cache_one(addr, phys);
 	}
 
 	wmb();
@@ -220,7 +219,7 @@ static void sh4_flush_cache_page(void *args)
 	void *vaddr;
 
 	vma = data->vma;
-	address = data->addr1;
+	address = data->addr1 & PAGE_MASK;
 	pfn = data->addr2;
 	phys = pfn << PAGE_SHIFT;
 	page = pfn_to_page(pfn);
@@ -228,7 +227,6 @@ static void sh4_flush_cache_page(void *args)
 	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
 		return;
 
-	address &= PAGE_MASK;
 	pgd = pgd_offset(vma->vm_mm, address);
 	pud = pud_offset(pgd, address);
 	pmd = pmd_offset(pud, address);
@@ -257,7 +255,7 @@ static void sh4_flush_cache_page(void *args)
 	}
 
 	if (pages_do_alias(address, phys))
-		flush_cache_4096(CACHE_OC_ADDRESS_ARRAY |
+		flush_cache_one(CACHE_OC_ADDRESS_ARRAY |
 			(address & shm_align_mask), phys);
 
 	if (vma->vm_flags & VM_EXEC)
@@ -307,7 +305,7 @@ static void sh4_flush_cache_range(void *args)
 }
 
 /**
- * __flush_cache_4096
+ * __flush_cache_one
  *
  * @addr:  address in memory mapped cache array
  * @phys:  P1 address to flush (has to match tags if addr has 'A' bit
@@ -320,7 +318,7 @@ static void sh4_flush_cache_range(void *args)
  * operation (purge/write-back) is selected by the lower 2 bits of
  * 'phys'.
  */
-static void __flush_cache_4096(unsigned long addr, unsigned long phys,
+static void __flush_cache_one(unsigned long addr, unsigned long phys,
 			       unsigned long exec_offset)
 {
 	int way_count;
@@ -357,7 +355,7 @@ static void __flush_cache_4096(unsigned long addr, unsigned long phys,
 	 * pointless nead-of-loop check for 0 iterations.
 	 */
 	do {
-		ea = base_addr + 4096;
+		ea = base_addr + PAGE_SIZE;
 		a = base_addr;
 		p = phys;
 

@@ -51,6 +51,7 @@ from http://www.comedi.org
 */
 
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 #include "../comedidev.h"
 
 #include "comedi_pci.h"

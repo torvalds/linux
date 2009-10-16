@@ -188,14 +188,7 @@ static struct fw_device *target_device(struct sbp2_target *tgt)
 /* Impossible login_id, to detect logout attempt before successful login */
 #define INVALID_LOGIN_ID 0x10000
 
-/*
- * Per section 7.4.8 of the SBP-2 spec, a mgt_ORB_timeout value can be
- * provided in the config rom. Most devices do provide a value, which
- * we'll use for login management orbs, but with some sane limits.
- */
-#define SBP2_MIN_LOGIN_ORB_TIMEOUT	5000U	/* Timeout in ms */
-#define SBP2_MAX_LOGIN_ORB_TIMEOUT	40000U	/* Timeout in ms */
-#define SBP2_ORB_TIMEOUT		2000U	/* Timeout in ms */
+#define SBP2_ORB_TIMEOUT		2000U		/* Timeout in ms */
 #define SBP2_ORB_NULL			0x80000000
 #define SBP2_RETRY_LIMIT		0xf		/* 15 retries */
 #define SBP2_CYCLE_LIMIT		(0xc8 << 12)	/* 200 125us cycles */
@@ -1034,7 +1027,6 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
 {
 	struct fw_csr_iterator ci;
 	int key, value;
-	unsigned int timeout;
 
 	fw_csr_iterator_init(&ci, directory);
 	while (fw_csr_iterator_next(&ci, &key, &value)) {
@@ -1059,17 +1051,7 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
 
 		case SBP2_CSR_UNIT_CHARACTERISTICS:
 			/* the timeout value is stored in 500ms units */
-			timeout = ((unsigned int) value >> 8 & 0xff) * 500;
-			timeout = max(timeout, SBP2_MIN_LOGIN_ORB_TIMEOUT);
-			tgt->mgt_orb_timeout =
-				  min(timeout, SBP2_MAX_LOGIN_ORB_TIMEOUT);
-
-			if (timeout > tgt->mgt_orb_timeout)
-				fw_notify("%s: config rom contains %ds "
-					  "management ORB timeout, limiting "
-					  "to %ds\n", tgt->bus_id,
-					  timeout / 1000,
-					  tgt->mgt_orb_timeout / 1000);
+			tgt->mgt_orb_timeout = (value >> 8 & 0xff) * 500;
 			break;
 
 		case SBP2_CSR_LOGICAL_UNIT_NUMBER:
@@ -1085,6 +1067,22 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
 		}
 	}
 	return 0;
+}
+
+/*
+ * Per section 7.4.8 of the SBP-2 spec, a mgt_ORB_timeout value can be
+ * provided in the config rom. Most devices do provide a value, which
+ * we'll use for login management orbs, but with some sane limits.
+ */
+static void sbp2_clamp_management_orb_timeout(struct sbp2_target *tgt)
+{
+	unsigned int timeout = tgt->mgt_orb_timeout;
+
+	if (timeout > 40000)
+		fw_notify("%s: %ds mgt_ORB_timeout limited to 40s\n",
+			  tgt->bus_id, timeout / 1000);
+
+	tgt->mgt_orb_timeout = clamp_val(timeout, 5000, 40000);
 }
 
 static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
@@ -1171,6 +1169,7 @@ static int sbp2_probe(struct device *dev)
 			       &firmware_revision) < 0)
 		goto fail_tgt_put;
 
+	sbp2_clamp_management_orb_timeout(tgt);
 	sbp2_init_workarounds(tgt, model, firmware_revision);
 
 	/*

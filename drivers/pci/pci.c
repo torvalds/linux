@@ -2723,17 +2723,6 @@ int __attribute__ ((weak)) pci_ext_cfg_avail(struct pci_dev *dev)
 	return 1;
 }
 
-static int __devinit pci_init(void)
-{
-	struct pci_dev *dev = NULL;
-
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		pci_fixup_device(pci_fixup_final, dev);
-	}
-
-	return 0;
-}
-
 static int __init pci_setup(char *str)
 {
 	while (str) {
@@ -2770,8 +2759,6 @@ static int __init pci_setup(char *str)
 	return 0;
 }
 early_param("pci", pci_setup);
-
-device_initcall(pci_init);
 
 EXPORT_SYMBOL(pci_reenable_device);
 EXPORT_SYMBOL(pci_enable_device_io);

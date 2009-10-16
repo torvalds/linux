@@ -640,6 +640,24 @@ int schedule_delayed_work(struct delayed_work *dwork,
 EXPORT_SYMBOL(schedule_delayed_work);
 
 /**
+ * flush_delayed_work - block until a dwork_struct's callback has terminated
+ * @dwork: the delayed work which is to be flushed
+ *
+ * Any timeout is cancelled, and any pending work is run immediately.
+ */
+void flush_delayed_work(struct delayed_work *dwork)
+{
+	if (del_timer_sync(&dwork->timer)) {
+		struct cpu_workqueue_struct *cwq;
+		cwq = wq_per_cpu(keventd_wq, get_cpu());
+		__queue_work(cwq, &dwork->work);
+		put_cpu();
+	}
+	flush_work(&dwork->work);
+}
+EXPORT_SYMBOL(flush_delayed_work);
+
+/**
  * schedule_delayed_work_on - queue work in global workqueue on CPU after delay
  * @cpu: cpu to use
  * @dwork: job to be done
