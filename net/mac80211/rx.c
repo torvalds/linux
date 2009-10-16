@@ -1504,19 +1504,28 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		/* illegal frame */
 		return RX_DROP_MONITOR;
 
-	if (!is_multicast_ether_addr(hdr->addr1) &&
-			(mesh_hdr->flags & MESH_FLAGS_AE_A5_A6)) {
+	if (mesh_hdr->flags & MESH_FLAGS_AE) {
 		struct mesh_path *mppath;
+		char *proxied_addr;
+		char *mpp_addr;
+
+		if (is_multicast_ether_addr(hdr->addr1)) {
+			mpp_addr = hdr->addr3;
+			proxied_addr = mesh_hdr->eaddr1;
+		} else {
+			mpp_addr = hdr->addr4;
+			proxied_addr = mesh_hdr->eaddr2;
+		}
 
 		rcu_read_lock();
-		mppath = mpp_path_lookup(mesh_hdr->eaddr2, sdata);
+		mppath = mpp_path_lookup(proxied_addr, sdata);
 		if (!mppath) {
-			mpp_path_add(mesh_hdr->eaddr2, hdr->addr4, sdata);
+			mpp_path_add(proxied_addr, mpp_addr, sdata);
 		} else {
 			spin_lock_bh(&mppath->state_lock);
 			mppath->exp_time = jiffies;
-			if (compare_ether_addr(mppath->mpp, hdr->addr4) != 0)
-				memcpy(mppath->mpp, hdr->addr4, ETH_ALEN);
+			if (compare_ether_addr(mppath->mpp, mpp_addr) != 0)
+				memcpy(mppath->mpp, mpp_addr, ETH_ALEN);
 			spin_unlock_bh(&mppath->state_lock);
 		}
 		rcu_read_unlock();
