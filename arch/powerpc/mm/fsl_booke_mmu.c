@@ -56,11 +56,6 @@
 
 unsigned int tlbcam_index;
 
-
-#if defined(CONFIG_LOWMEM_CAM_NUM_BOOL) && (CONFIG_LOWMEM_CAM_NUM >= NUM_TLBCAMS)
-#error "LOWMEM_CAM_NUM must be less than NUM_TLBCAMS"
-#endif
-
 #define NUM_TLBCAMS	(64)
 struct tlbcam TLBCAM[NUM_TLBCAMS];
 
@@ -185,6 +180,12 @@ unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx)
 	return amount_mapped;
 }
 
+#ifdef CONFIG_PPC32
+
+#if defined(CONFIG_LOWMEM_CAM_NUM_BOOL) && (CONFIG_LOWMEM_CAM_NUM >= NUM_TLBCAMS)
+#error "LOWMEM_CAM_NUM must be less than NUM_TLBCAMS"
+#endif
+
 unsigned long __init mmu_mapin_ram(unsigned long top)
 {
 	return tlbcam_addrs[tlbcam_index - 1].limit - PAGE_OFFSET + 1;
@@ -216,3 +217,4 @@ void __init adjust_total_lowmem(void)
 
 	__initial_memory_limit_addr = memstart_addr + __max_low_memory;
 }
+#endif
