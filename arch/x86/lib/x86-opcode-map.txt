@@ -306,9 +306,10 @@ Referrer: 2-byte escape
 0a:
 0b: UD2 (1B)
 0c:
-0d: NOP Ev
-0e:
-0f:
+0d: NOP Ev | GrpP
+0e: FEMMS
+# 3DNow! uses the last imm byte as opcode extension.
+0f: 3DNow! Pq,Qq,Ib
 # 0x0f 0x10-0x1f
 10: movups Vps,Wps | movss Vss,Wss (F3) | movupd Vpd,Wpd (66) | movsd Vsd,Wsd (F2)
 11: movups Wps,Vps | movss Wss,Vss (F3) | movupd Wpd,Vpd (66) | movsd Wsd,Vsd (F2)
@@ -811,6 +812,12 @@ GrpTable: Grp16
 1: prefetch T0
 2: prefetch T1
 3: prefetch T2
+EndTable
+
+# AMD's Prefetch Group
+GrpTable: GrpP
+0: PREFETCH
+1: PREFETCHW
 EndTable
 
 GrpTable: GrpPDLK
