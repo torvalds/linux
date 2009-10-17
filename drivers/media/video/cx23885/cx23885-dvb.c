@@ -414,12 +414,14 @@ static struct stv6110_config netup_stv6110_tunerconfig_a = {
 	.i2c_address = 0x60,
 	.mclk = 16000000,
 	.clk_div = 1,
+	.gain = 8, /* +16 dB  - maximum gain */
 };
 
 static struct stv6110_config netup_stv6110_tunerconfig_b = {
 	.i2c_address = 0x63,
 	.mclk = 16000000,
 	.clk_div = 1,
+	.gain = 8, /* +16 dB  - maximum gain */
 };
 
 static int tbs_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
