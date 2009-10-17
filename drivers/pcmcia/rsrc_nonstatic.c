@@ -206,6 +206,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
     /* First, what does a floating port look like? */
     b = kzalloc(256, GFP_KERNEL);
     if (!b) {
+	    printk("\n");
 	    dev_printk(KERN_ERR, &s->dev,
 		   "do_io_probe: unable to kmalloc 256 bytes");
             return;
