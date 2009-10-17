@@ -32,6 +32,8 @@
 #include <stdarg.h>
 #include <ctype.h>
 
+#include "event.h"
+#include "debug.h"
 #include "util.h"
 #include "probe-finder.h"
 
@@ -134,7 +136,7 @@ static Dwarf_Unsigned die_get_fileno(Dwarf_Die cu_die, const char *fname)
 		dwarf_dealloc(__dw_debug, srcs, DW_DLA_LIST);
 	}
 	if (found)
-		debug("found fno: %d\n", (int)found);
+		eprintf("found fno: %d\n", (int)found);
 	return found;
 }
 
@@ -440,7 +442,7 @@ static void find_variable(Dwarf_Die sp_die, struct probe_finder *pf)
 		return ;
 	}
 
-	debug("Searching '%s' variable in context.\n", pf->var);
+	eprintf("Searching '%s' variable in context.\n", pf->var);
 	/* Search child die for local variables and parameters. */
 	ret = search_die_from_children(sp_die, variable_callback, pf);
 	if (!ret)
@@ -550,7 +552,7 @@ static void find_by_line(Dwarf_Die cu_die, struct probe_finder *pf)
 
 		ret = dwarf_lineaddr(lines[i], &addr, &__dw_error);
 		ERR_IF(ret != DW_DLV_OK);
-		debug("Probe point found: 0x%llx\n", addr);
+		eprintf("Probe point found: 0x%llx\n", addr);
 		pf->addr = addr;
 		/* Search a real subprogram including this line, */
 		ret = search_die_from_children(cu_die, probeaddr_callback, pf);
@@ -581,7 +583,7 @@ static int probefunc_callback(struct die_link *dlink, void *data)
 							  &pf->inl_offs,
 							  &__dw_error);
 				ERR_IF(ret != DW_DLV_OK);
-				debug("inline definition offset %lld\n",
+				eprintf("inline definition offset %lld\n",
 					pf->inl_offs);
 				return 0;
 			}
@@ -597,7 +599,7 @@ static int probefunc_callback(struct die_link *dlink, void *data)
 			/* Get probe address */
 			pf->addr = die_get_entrypc(dlink->die);
 			pf->addr += pp->offset;
-			debug("found inline addr: 0x%llx\n", pf->addr);
+			eprintf("found inline addr: 0x%llx\n", pf->addr);
 			/* Inlined function. Get a real subprogram */
 			for (lk = dlink->parent; lk != NULL; lk = lk->parent) {
 				tag = 0;

@@ -4,13 +4,6 @@
 #define _stringify(n)	#n
 #define stringify(n)	_stringify(n)
 
-#ifdef DEBUG
-#define debug(fmt ...)	\
-	fprintf(stderr, "DBG(" __FILE__ ":" stringify(__LINE__) "): " fmt)
-#else
-#define debug(fmt ...)	do {} while (0)
-#endif
-
 #define ERR_IF(cnd)	\
 	do { if (cnd) {	\
 		fprintf(stderr, "Error (" __FILE__ ":" stringify(__LINE__) \

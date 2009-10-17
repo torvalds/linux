@@ -35,6 +35,8 @@
 #include "perf.h"
 #include "builtin.h"
 #include "util/util.h"
+#include "util/event.h"
+#include "util/debug.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"	/* For debugfs_path */
 #include "util/probe-finder.h"
@@ -76,7 +78,7 @@ static int parse_probepoint(const struct option *opt __used,
 	if (!str)	/* The end of probe points */
 		return 0;
 
-	debug("Probe-define(%d): %s\n", session.nr_probe, str);
+	eprintf("probe-definition(%d): %s\n", session.nr_probe, str);
 	if (++session.nr_probe == MAX_PROBES)
 		semantic_error("Too many probes");
 
@@ -101,7 +103,7 @@ static int parse_probepoint(const struct option *opt __used,
 				die("strndup");
 			if (++argc == MAX_PROBE_ARGS)
 				semantic_error("Too many arguments");
-			debug("argv[%d]=%s\n", argc, argv[argc - 1]);
+			eprintf("argv[%d]=%s\n", argc, argv[argc - 1]);
 		}
 	} while (*str != '\0');
 	if (argc < 2)
@@ -131,7 +133,7 @@ static int parse_probepoint(const struct option *opt __used,
 		pp->line = atoi(ptr);
 		if (!pp->file || !pp->line)
 			semantic_error("Failed to parse line.");
-		debug("file:%s line:%d\n", pp->file, pp->line);
+		eprintf("file:%s line:%d\n", pp->file, pp->line);
 	} else {
 		/* Function name */
 		ptr = strchr(arg, '+');
@@ -148,7 +150,7 @@ static int parse_probepoint(const struct option *opt __used,
 			pp->file = strdup(ptr);
 		}
 		pp->function = strdup(arg);
-		debug("symbol:%s file:%s offset:%d\n",
+		eprintf("symbol:%s file:%s offset:%d\n",
 		      pp->function, pp->file, pp->offset);
 	}
 	free(argv[1]);
@@ -173,7 +175,7 @@ static int parse_probepoint(const struct option *opt __used,
 			session.need_dwarf = 1;
 		}
 
-	debug("%d arguments\n", pp->nr_args);
+	eprintf("%d arguments\n", pp->nr_args);
 	return 0;
 }
 
@@ -186,7 +188,7 @@ static int open_default_vmlinux(void)
 
 	ret = uname(&uts);
 	if (ret) {
-		debug("uname() failed.\n");
+		eprintf("uname() failed.\n");
 		return -errno;
 	}
 	session.release = uts.release;
@@ -194,11 +196,12 @@ static int open_default_vmlinux(void)
 		ret = snprintf(fname, MAX_PATH_LEN,
 			       default_search_path[i], session.release);
 		if (ret >= MAX_PATH_LEN || ret < 0) {
-			debug("Filename(%d,%s) is too long.\n", i, uts.release);
+			eprintf("Filename(%d,%s) is too long.\n", i,
+				uts.release);
 			errno = E2BIG;
 			return -E2BIG;
 		}
-		debug("try to open %s\n", fname);
+		eprintf("try to open %s\n", fname);
 		fd = open(fname, O_RDONLY);
 		if (fd >= 0)
 			break;
@@ -213,6 +216,8 @@ static const char * const probe_usage[] = {
 };
 
 static const struct option options[] = {
+	OPT_BOOLEAN('v', "verbose", &verbose,
+		    "be more verbose (show parsed arguments, etc)"),
 #ifndef NO_LIBDWARF
 	OPT_STRING('k', "vmlinux", &session.vmlinux, "file",
 		"vmlinux/module pathname"),
@@ -336,7 +341,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		ret = find_probepoint(fd, pp);
 		if (ret <= 0)
 			die("No probe point found.\n");
-		debug("probe event %s found\n", session.events[j]);
+		eprintf("probe event %s found\n", session.events[j]);
 	}
 	close(fd);
 
