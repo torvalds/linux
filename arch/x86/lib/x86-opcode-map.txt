@@ -777,12 +777,22 @@ GrpTable: Grp11
 EndTable
 
 GrpTable: Grp12
+2: psrlw Nq,Ib (11B) | psrlw Udq,Ib (66),(11B)
+4: psraw Nq,Ib (11B) | psraw Udq,Ib (66),(11B)
+6: psllw Nq,Ib (11B) | psllw Udq,Ib (66),(11B)
 EndTable
 
 GrpTable: Grp13
+2: psrld Nq,Ib (11B) | psrld Udq,Ib (66),(11B)
+4: psrad Nq,Ib (11B) | psrad Udq,Ib (66),(11B)
+6: pslld Nq,Ib (11B) | pslld Udq,Ib (66),(11B)
 EndTable
 
 GrpTable: Grp14
+2: psrlq Nq,Ib (11B) | psrlq Udq,Ib (66),(11B)
+3: psrldq Udq,Ib (66),(11B)
+6: psllq Nq,Ib (11B) | psllq Udq,Ib (66),(11B)
+7: pslldq Udq,Ib (66),(11B)
 EndTable
 
 GrpTable: Grp15
