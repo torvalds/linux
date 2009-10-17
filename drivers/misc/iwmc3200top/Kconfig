@@ -1,0 +1,20 @@
+config IWMC3200TOP
+        tristate "Intel Wireless MultiCom Top Driver"
+        depends on MMC && EXPERIMENTAL
+        select FW_LOADER
+	---help---
+	  Intel Wireless MultiCom 3200 Top driver is responsible for
+	  for firmware load and enabled coms enumeration
+
+config IWMC3200TOP_DEBUG
+	bool "Enable full debug output of iwmc3200top Driver"
+	depends on IWMC3200TOP
+	---help---
+	  Enable full debug output of iwmc3200top Driver
+
+config IWMC3200TOP_DEBUGFS
+	bool "Enable Debugfs debugging interface for iwmc3200top"
+	depends on IWMC3200TOP
+	---help---
+	  Enable creation of debugfs files for iwmc3200top
+
