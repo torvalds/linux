@@ -12,7 +12,7 @@
  *  Copyright (C) 2004 William Lee Irwin III
  */
 #include <linux/ring_buffer.h>
-#include <linux/utsrelease.h>
+#include <generated/utsrelease.h>
 #include <linux/stacktrace.h>
 #include <linux/writeback.h>
 #include <linux/kallsyms.h>

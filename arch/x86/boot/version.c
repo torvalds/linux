@@ -13,7 +13,7 @@
  */
 
 #include "boot.h"
-#include <linux/utsrelease.h>
+#include <generated/utsrelease.h>
 #include <generated/compile.h>
 
 const char kernel_version[] =
