@@ -128,7 +128,10 @@ extern struct module __this_module;
  */
 #define MODULE_LICENSE(_license) MODULE_INFO(license, _license)
 
-/* Author, ideally of form NAME[, NAME]*[ and NAME] */
+/*
+ * Author(s), use "Name <email>" or just "Name", for multiple
+ * authors use multiple MODULE_AUTHOR() statements/lines.
+ */
 #define MODULE_AUTHOR(_author) MODULE_INFO(author, _author)
   
 /* What your module does. */
@@ -308,10 +311,14 @@ struct module
 #endif
 
 #ifdef CONFIG_KALLSYMS
-	/* We keep the symbol and string tables for kallsyms. */
-	Elf_Sym *symtab;
-	unsigned int num_symtab;
-	char *strtab;
+	/*
+	 * We keep the symbol and string tables for kallsyms.
+	 * The core_* fields below are temporary, loader-only (they
+	 * could really be discarded after module init).
+	 */
+	Elf_Sym *symtab, *core_symtab;
+	unsigned int num_symtab, core_num_syms;
+	char *strtab, *core_strtab;
 
 	/* Section attributes */
 	struct module_sect_attrs *sect_attrs;

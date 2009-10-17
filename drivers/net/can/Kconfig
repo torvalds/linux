@@ -75,12 +75,25 @@ config CAN_EMS_PCI
 	  CPC-PCIe and CPC-104P cards from EMS Dr. Thomas Wuensche
 	  (http://www.ems-wuensche.de).
 
+config CAN_EMS_USB
+	tristate "EMS CPC-USB/ARM7 CAN/USB interface"
+	depends on USB && CAN_DEV
+	---help---
+	  This driver is for the one channel CPC-USB/ARM7 CAN/USB interface
+	  from from EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
+
 config CAN_KVASER_PCI
 	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
 	depends on PCI && CAN_SJA1000
 	---help---
 	  This driver is for the the PCIcanx and PCIcan cards (1, 2 or
 	  4 channel) from Kvaser (http://www.kvaser.com).
+
+config CAN_AT91
+	tristate "Atmel AT91 onchip CAN controller"
+	depends on CAN && CAN_DEV && ARCH_AT91SAM9263
+	---help---
+	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263.
 
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"

@@ -1496,7 +1496,7 @@ static void et61x251_vm_close(struct vm_area_struct* vma)
 }
 
 
-static struct vm_operations_struct et61x251_vm_ops = {
+static const struct vm_operations_struct et61x251_vm_ops = {
 	.open = et61x251_vm_open,
 	.close = et61x251_vm_close,
 };

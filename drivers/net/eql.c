@@ -111,6 +111,7 @@
  * Sorry, I had to rewrite most of this for 2.5.x -DaveM
  */
 
+#include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

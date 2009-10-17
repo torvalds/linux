@@ -28,6 +28,7 @@
 #include <asm/cache.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
+#include <asm/thread_info.h>
 	
 /* ld script to make hppa Linux kernel */
 #ifndef CONFIG_64BIT
@@ -77,13 +78,7 @@ SECTIONS
 	 */
 	. = ALIGN(PAGE_SIZE);
 	data_start = .;
-	. = ALIGN(16);
-	/* Exception table */
-	__ex_table : {
-		__start___ex_table = .;
-		*(__ex_table)
-		__stop___ex_table = .;
-	}
+	EXCEPTION_TABLE(16)
 
 	NOTES
 
@@ -94,40 +89,14 @@ SECTIONS
 		__stop___unwind = .;
 	}
 
-	/* rarely changed data like cpu maps */
-	. = ALIGN(16);
-	.data.read_mostly : {
-		*(.data.read_mostly)
-	}
-
-	. = ALIGN(L1_CACHE_BYTES);
 	/* Data */
-	.data : {
-		DATA_DATA
-		CONSTRUCTORS
-	}
-
-	. = ALIGN(L1_CACHE_BYTES);
-	.data.cacheline_aligned : {
-		*(.data.cacheline_aligned)
-	}
+	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 
 	/* PA-RISC locks requires 16-byte alignment */
 	. = ALIGN(16);
 	.data.lock_aligned : {
 		*(.data.lock_aligned)
 	}
-
-	/* nosave data is really only used for software suspend...it's here
-	 * just in case we ever implement it
-	 */
-	. = ALIGN(PAGE_SIZE);
-	__nosave_begin = .;
-	.data_nosave : {
-		*(.data.nosave)
-	}
-	. = ALIGN(PAGE_SIZE);
-	__nosave_end = .;
 
 	/* End of data section */
 	_edata = .;
@@ -147,14 +116,6 @@ SECTIONS
 	}
 	__bss_stop = .;
 
-
-	/* assembler code expects init_task to be 16k aligned */
-	. = ALIGN(16384);
-	/* init_task */
-	.data.init_task : {
-		*(.data.init_task)
-	}
-
 #ifdef CONFIG_64BIT
 	. = ALIGN(16);
 	/* Linkage tables */
@@ -172,64 +133,17 @@ SECTIONS
 	/* reserve space for interrupt stack by aligning __init* to 16k */
 	. = ALIGN(16384);
 	__init_begin = .;
-	.init.text : { 
-		_sinittext = .;
-		INIT_TEXT
-		_einittext = .;
-	}
-	.init.data : {
-		INIT_DATA
-	}
-	. = ALIGN(16);
-	.init.setup : {
-		__setup_start = .;
-		*(.init.setup)
-		__setup_end = .;
-	}
-	.initcall.init : {
-		__initcall_start = .;
-		INITCALLS
-		__initcall_end = .;
-	}
-	.con_initcall.init : {
-		__con_initcall_start = .;
-		*(.con_initcall.init)
-		__con_initcall_end = .;
-	}
-	SECURITY_INIT
-
-	/* alternate instruction replacement.  This is a mechanism x86 uses
-	 * to detect the CPU type and replace generic instruction sequences
-	 * with CPU specific ones.  We don't currently do this in PA, but
-	 * it seems like a good idea...
-	 */
-	. = ALIGN(4);
-	.altinstructions : {
-		__alt_instructions = .;
-		*(.altinstructions)
-		__alt_instructions_end = .; 
-	} 
-	.altinstr_replacement : {
-		*(.altinstr_replacement)
-	} 
-
-	/* .exit.text is discard at runtime, not link time, to deal with references
-	 *  from .altinstructions and .eh_frame
-	 */
-	.exit.text : {
+	INIT_TEXT_SECTION(16384)
+	INIT_DATA_SECTION(16)
+	/* we have to discard exit text and such at runtime, not link time */
+	.exit.text :
+	{
 		EXIT_TEXT
 	}
-	.exit.data : {
+	.exit.data :
+	{
 		EXIT_DATA
 	}
-#ifdef CONFIG_BLK_DEV_INITRD
-	. = ALIGN(PAGE_SIZE);
-	.init.ramfs : {
-		__initramfs_start = .;
-		*(.init.ramfs)
-		__initramfs_end = .;
-	}
-#endif
 
 	PERCPU(PAGE_SIZE)
 	. = ALIGN(PAGE_SIZE);

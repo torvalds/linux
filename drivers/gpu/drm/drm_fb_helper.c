@@ -40,6 +40,199 @@ MODULE_LICENSE("GPL and additional rights");
 
 static LIST_HEAD(kernel_fb_helper_list);
 
+int drm_fb_helper_add_connector(struct drm_connector *connector)
+{
+	connector->fb_helper_private = kzalloc(sizeof(struct drm_fb_helper_connector), GFP_KERNEL);
+	if (!connector->fb_helper_private)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_fb_helper_add_connector);
+
+static int my_atoi(const char *name)
+{
+	int val = 0;
+
+	for (;; name++) {
+		switch (*name) {
+		case '0' ... '9':
+			val = 10*val+(*name-'0');
+			break;
+		default:
+			return val;
+		}
+	}
+}
+
+/**
+ * drm_fb_helper_connector_parse_command_line - parse command line for connector
+ * @connector - connector to parse line for
+ * @mode_option - per connector mode option
+ *
+ * This parses the connector specific then generic command lines for
+ * modes and options to configure the connector.
+ *
+ * This uses the same parameters as the fb modedb.c, except for extra
+ *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
+ *
+ * enable/enable Digital/disable bit at the end
+ */
+static bool drm_fb_helper_connector_parse_command_line(struct drm_connector *connector,
+						       const char *mode_option)
+{
+	const char *name;
+	unsigned int namelen;
+	int res_specified = 0, bpp_specified = 0, refresh_specified = 0;
+	unsigned int xres = 0, yres = 0, bpp = 32, refresh = 0;
+	int yres_specified = 0, cvt = 0, rb = 0, interlace = 0, margins = 0;
+	int i;
+	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
+	struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
+	struct drm_fb_helper_cmdline_mode *cmdline_mode;
+
+	if (!fb_help_conn)
+		return false;
+
+	cmdline_mode = &fb_help_conn->cmdline_mode;
+	if (!mode_option)
+		mode_option = fb_mode_option;
+
+	if (!mode_option) {
+		cmdline_mode->specified = false;
+		return false;
+	}
+
+	name = mode_option;
+	namelen = strlen(name);
+	for (i = namelen-1; i >= 0; i--) {
+		switch (name[i]) {
+		case '@':
+			namelen = i;
+			if (!refresh_specified && !bpp_specified &&
+			    !yres_specified) {
+				refresh = my_atoi(&name[i+1]);
+				refresh_specified = 1;
+				if (cvt || rb)
+					cvt = 0;
+			} else
+				goto done;
+			break;
+		case '-':
+			namelen = i;
+			if (!bpp_specified && !yres_specified) {
+				bpp = my_atoi(&name[i+1]);
+				bpp_specified = 1;
+				if (cvt || rb)
+					cvt = 0;
+			} else
+				goto done;
+			break;
+		case 'x':
+			if (!yres_specified) {
+				yres = my_atoi(&name[i+1]);
+				yres_specified = 1;
+			} else
+				goto done;
+		case '0' ... '9':
+			break;
+		case 'M':
+			if (!yres_specified)
+				cvt = 1;
+			break;
+		case 'R':
+			if (!cvt)
+				rb = 1;
+			break;
+		case 'm':
+			if (!cvt)
+				margins = 1;
+			break;
+		case 'i':
+			if (!cvt)
+				interlace = 1;
+			break;
+		case 'e':
+			force = DRM_FORCE_ON;
+			break;
+		case 'D':
+			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) ||
+			    (connector->connector_type != DRM_MODE_CONNECTOR_HDMIB))
+				force = DRM_FORCE_ON;
+			else
+				force = DRM_FORCE_ON_DIGITAL;
+			break;
+		case 'd':
+			force = DRM_FORCE_OFF;
+			break;
+		default:
+			goto done;
+		}
+	}
+	if (i < 0 && yres_specified) {
+		xres = my_atoi(name);
+		res_specified = 1;
+	}
+done:
+
+	DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
+		drm_get_connector_name(connector), xres, yres,
+		(refresh) ? refresh : 60, (rb) ? " reduced blanking" :
+		"", (margins) ? " with margins" : "", (interlace) ?
+		" interlaced" : "");
+
+	if (force) {
+		const char *s;
+		switch (force) {
+		case DRM_FORCE_OFF: s = "OFF"; break;
+		case DRM_FORCE_ON_DIGITAL: s = "ON - dig"; break;
+		default:
+		case DRM_FORCE_ON: s = "ON"; break;
+		}
+
+		DRM_INFO("forcing %s connector %s\n",
+			 drm_get_connector_name(connector), s);
+		connector->force = force;
+	}
+
+	if (res_specified) {
+		cmdline_mode->specified = true;
+		cmdline_mode->xres = xres;
+		cmdline_mode->yres = yres;
+	}
+
+	if (refresh_specified) {
+		cmdline_mode->refresh_specified = true;
+		cmdline_mode->refresh = refresh;
+	}
+
+	if (bpp_specified) {
+		cmdline_mode->bpp_specified = true;
+		cmdline_mode->bpp = bpp;
+	}
+	cmdline_mode->rb = rb ? true : false;
+	cmdline_mode->cvt = cvt  ? true : false;
+	cmdline_mode->interlace = interlace ? true : false;
+
+	return true;
+}
+
+int drm_fb_helper_parse_command_line(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		char *option = NULL;
+
+		/* do something on return - turn off connector maybe */
+		if (fb_get_options(drm_get_connector_name(connector), &option))
+			continue;
+
+		drm_fb_helper_connector_parse_command_line(connector, option);
+	}
+	return 0;
+}
+
 bool drm_fb_helper_force_kernel_mode(void)
 {
 	int i = 0;
@@ -87,6 +280,7 @@ void drm_fb_helper_restore(void)
 }
 EXPORT_SYMBOL(drm_fb_helper_restore);
 
+#ifdef CONFIG_MAGIC_SYSRQ
 static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 {
 	drm_fb_helper_restore();
@@ -103,6 +297,7 @@ static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = {
 	.help_msg = "force-fb(V)",
 	.action_msg = "Restore framebuffer console",
 };
+#endif
 
 static void drm_fb_helper_on(struct fb_info *info)
 {
@@ -259,6 +454,96 @@ out_free:
 }
 EXPORT_SYMBOL(drm_fb_helper_init_crtc_count);
 
+static void setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
+		     u16 blue, u16 regno, struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_framebuffer *fb = fb_helper->fb;
+	int pindex;
+
+	pindex = regno;
+
+	if (fb->bits_per_pixel == 16) {
+		pindex = regno << 3;
+
+		if (fb->depth == 16 && regno > 63)
+			return;
+		if (fb->depth == 15 && regno > 31)
+			return;
+
+		if (fb->depth == 16) {
+			u16 r, g, b;
+			int i;
+			if (regno < 32) {
+				for (i = 0; i < 8; i++)
+					fb_helper->funcs->gamma_set(crtc, red,
+						green, blue, pindex + i);
+			}
+
+			fb_helper->funcs->gamma_get(crtc, &r,
+						    &g, &b,
+						    pindex >> 1);
+
+			for (i = 0; i < 4; i++)
+				fb_helper->funcs->gamma_set(crtc, r,
+							    green, b,
+							    (pindex >> 1) + i);
+		}
+	}
+
+	if (fb->depth != 16)
+		fb_helper->funcs->gamma_set(crtc, red, green, blue, pindex);
+
+	if (regno < 16 && info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
+		((u32 *) fb->pseudo_palette)[regno] =
+			(regno << info->var.red.offset) |
+			(regno << info->var.green.offset) |
+			(regno << info->var.blue.offset);
+	}
+}
+
+int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
+	u16 *red, *green, *blue, *transp;
+	struct drm_crtc *crtc;
+	int i, rc = 0;
+	int start;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+		for (i = 0; i < fb_helper->crtc_count; i++) {
+			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
+				break;
+		}
+		if (i == fb_helper->crtc_count)
+			continue;
+
+		red = cmap->red;
+		green = cmap->green;
+		blue = cmap->blue;
+		transp = cmap->transp;
+		start = cmap->start;
+
+		for (i = 0; i < cmap->len; i++) {
+			u16 hred, hgreen, hblue, htransp = 0xffff;
+
+			hred = *red++;
+			hgreen = *green++;
+			hblue = *blue++;
+
+			if (transp)
+				htransp = *transp++;
+
+			setcolreg(crtc, hred, hgreen, hblue, start++, info);
+		}
+		crtc_funcs->load_lut(crtc);
+	}
+	return rc;
+}
+EXPORT_SYMBOL(drm_fb_helper_setcmap);
+
 int drm_fb_helper_setcolreg(unsigned regno,
 			    unsigned red,
 			    unsigned green,
@@ -271,9 +556,11 @@ int drm_fb_helper_setcolreg(unsigned regno,
 	struct drm_crtc *crtc;
 	int i;
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct drm_framebuffer *fb = fb_helper->fb;
+	if (regno > 255)
+		return 1;
 
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 		for (i = 0; i < fb_helper->crtc_count; i++) {
 			if (crtc->base.id == fb_helper->crtc_info[i].crtc_id)
 				break;
@@ -281,35 +568,9 @@ int drm_fb_helper_setcolreg(unsigned regno,
 		if (i == fb_helper->crtc_count)
 			continue;
 
-		if (regno > 255)
-			return 1;
 
-		if (fb->depth == 8) {
-			fb_helper->funcs->gamma_set(crtc, red, green, blue, regno);
-			return 0;
-		}
-
-		if (regno < 16) {
-			switch (fb->depth) {
-			case 15:
-				fb->pseudo_palette[regno] = ((red & 0xf800) >> 1) |
-					((green & 0xf800) >>  6) |
-					((blue & 0xf800) >> 11);
-				break;
-			case 16:
-				fb->pseudo_palette[regno] = (red & 0xf800) |
-					((green & 0xfc00) >>  5) |
-					((blue  & 0xf800) >> 11);
-				break;
-			case 24:
-			case 32:
-				fb->pseudo_palette[regno] =
-					(((red >> 8) & 0xff) << info->var.red.offset) |
-					(((green >> 8) & 0xff) << info->var.green.offset) |
-					(((blue >> 8) & 0xff) << info->var.blue.offset);
-				break;
-			}
-		}
+		setcolreg(crtc, red, green, blue, regno, info);
+		crtc_funcs->load_lut(crtc);
 	}
 	return 0;
 }
@@ -479,11 +740,14 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
 
 int drm_fb_helper_single_fb_probe(struct drm_device *dev,
+				  int preferred_bpp,
 				  int (*fb_create)(struct drm_device *dev,
 						   uint32_t fb_width,
 						   uint32_t fb_height,
 						   uint32_t surface_width,
 						   uint32_t surface_height,
+						   uint32_t surface_depth,
+						   uint32_t surface_bpp,
 						   struct drm_framebuffer **fb_ptr))
 {
 	struct drm_crtc *crtc;
@@ -497,8 +761,48 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	struct drm_mode_set *modeset = NULL;
 	struct drm_fb_helper *fb_helper;
+	uint32_t surface_depth = 24, surface_bpp = 32;
 
+	/* if driver picks 8 or 16 by default use that
+	   for both depth/bpp */
+	if (preferred_bpp != surface_bpp) {
+		surface_depth = surface_bpp = preferred_bpp;
+	}
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct drm_fb_helper_connector *fb_help_conn = connector->fb_helper_private;
+
+		struct drm_fb_helper_cmdline_mode *cmdline_mode;
+
+		if (!fb_help_conn)
+			continue;
+		
+		cmdline_mode = &fb_help_conn->cmdline_mode;
+
+		if (cmdline_mode->bpp_specified) {
+			switch (cmdline_mode->bpp) {
+			case 8:
+				surface_depth = surface_bpp = 8;
+				break;
+			case 15:
+				surface_depth = 15;
+				surface_bpp = 16;
+				break;
+			case 16:
+				surface_depth = surface_bpp = 16;
+				break;
+			case 24:
+				surface_depth = surface_bpp = 24;
+				break;
+			case 32:
+				surface_depth = 24;
+				surface_bpp = 32;
+				break;
+			}
+			break;
+		}
+	}
+
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (drm_helper_crtc_in_use(crtc)) {
 			if (crtc->desired_mode) {
@@ -527,7 +831,8 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	/* do we have an fb already? */
 	if (list_empty(&dev->mode_config.fb_kernel_list)) {
 		ret = (*fb_create)(dev, fb_width, fb_height, surface_width,
-				   surface_height, &fb);
+				   surface_height, surface_depth, surface_bpp,
+				   &fb);
 		if (ret)
 			return -EINVAL;
 		new_fb = 1;
@@ -618,10 +923,12 @@ void drm_fb_helper_free(struct drm_fb_helper *helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_free);
 
-void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch)
+void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
+			    uint32_t depth)
 {
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
-	info->fix.visual = FB_VISUAL_TRUECOLOR;
+	info->fix.visual = depth == 8 ? FB_VISUAL_PSEUDOCOLOR :
+		FB_VISUAL_DIRECTCOLOR;
 	info->fix.type_aux = 0;
 	info->fix.xpanstep = 1; /* doing it in hw */
 	info->fix.ypanstep = 1; /* doing it in hw */

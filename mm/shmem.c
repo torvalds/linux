@@ -218,7 +218,7 @@ static const struct file_operations shmem_file_operations;
 static const struct inode_operations shmem_inode_operations;
 static const struct inode_operations shmem_dir_inode_operations;
 static const struct inode_operations shmem_special_inode_operations;
-static struct vm_operations_struct shmem_vm_ops;
+static const struct vm_operations_struct shmem_vm_ops;
 
 static struct backing_dev_info shmem_backing_dev_info  __read_mostly = {
 	.ra_pages	= 0,	/* No readahead */
@@ -1046,8 +1046,9 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	 * sync from ever calling shmem_writepage; but a stacking filesystem
 	 * may use the ->writepage of its underlying filesystem, in which case
 	 * tmpfs should write out to swap only in response to memory pressure,
-	 * and not for pdflush or sync.  However, in those cases, we do still
-	 * want to check if there's a redundant swappage to be discarded.
+	 * and not for the writeback threads or sync.  However, in those cases,
+	 * we do still want to check if there's a redundant swappage to be
+	 * discarded.
 	 */
 	if (wbc->for_reclaim)
 		swap = get_swap_page();
@@ -1633,8 +1634,8 @@ shmem_write_end(struct file *file, struct address_space *mapping,
 	if (pos + copied > inode->i_size)
 		i_size_write(inode, pos + copied);
 
-	unlock_page(page);
 	set_page_dirty(page);
+	unlock_page(page);
 	page_cache_release(page);
 
 	return copied;
@@ -1971,13 +1972,13 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 			iput(inode);
 			return error;
 		}
-		unlock_page(page);
 		inode->i_mapping->a_ops = &shmem_aops;
 		inode->i_op = &shmem_symlink_inode_operations;
 		kaddr = kmap_atomic(page, KM_USER0);
 		memcpy(kaddr, symname, len);
 		kunmap_atomic(kaddr, KM_USER0);
 		set_page_dirty(page);
+		unlock_page(page);
 		page_cache_release(page);
 	}
 	if (dir->i_mode & S_ISGID)
@@ -2420,6 +2421,7 @@ static const struct address_space_operations shmem_aops = {
 	.write_end	= shmem_write_end,
 #endif
 	.migratepage	= migrate_page,
+	.error_remove_page = generic_error_remove_page,
 };
 
 static const struct file_operations shmem_file_operations = {
@@ -2496,7 +2498,7 @@ static const struct super_operations shmem_ops = {
 	.put_super	= shmem_put_super,
 };
 
-static struct vm_operations_struct shmem_vm_ops = {
+static const struct vm_operations_struct shmem_vm_ops = {
 	.fault		= shmem_fault,
 #ifdef CONFIG_NUMA
 	.set_policy     = shmem_set_policy,

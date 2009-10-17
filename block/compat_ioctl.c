@@ -21,6 +21,11 @@ static int compat_put_int(unsigned long arg, int val)
 	return put_user(val, (compat_int_t __user *)compat_ptr(arg));
 }
 
+static int compat_put_uint(unsigned long arg, unsigned int val)
+{
+	return put_user(val, (compat_uint_t __user *)compat_ptr(arg));
+}
+
 static int compat_put_long(unsigned long arg, long val)
 {
 	return put_user(val, (compat_long_t __user *)compat_ptr(arg));
@@ -734,6 +739,14 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	switch (cmd) {
 	case HDIO_GETGEO:
 		return compat_hdio_getgeo(disk, bdev, compat_ptr(arg));
+	case BLKPBSZGET:
+		return compat_put_uint(arg, bdev_physical_block_size(bdev));
+	case BLKIOMIN:
+		return compat_put_uint(arg, bdev_io_min(bdev));
+	case BLKIOOPT:
+		return compat_put_uint(arg, bdev_io_opt(bdev));
+	case BLKALIGNOFF:
+		return compat_put_int(arg, bdev_alignment_offset(bdev));
 	case BLKFLSBUF:
 	case BLKROSET:
 	case BLKDISCARD:

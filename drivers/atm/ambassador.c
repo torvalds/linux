@@ -1306,14 +1306,6 @@ static void amb_close (struct atm_vcc * atm_vcc) {
   return;
 }
 
-/********** Set socket options for a VC **********/
-
-// int amb_getsockopt (struct atm_vcc * atm_vcc, int level, int optname, void * optval, int optlen);
-
-/********** Set socket options for a VC **********/
-
-// int amb_setsockopt (struct atm_vcc * atm_vcc, int level, int optname, void * optval, int optlen);
-
 /********** Send **********/
 
 static int amb_send (struct atm_vcc * atm_vcc, struct sk_buff * skb) {

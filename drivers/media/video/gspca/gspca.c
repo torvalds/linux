@@ -99,7 +99,7 @@ static void gspca_vm_close(struct vm_area_struct *vma)
 		frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_MAPPED;
 }
 
-static struct vm_operations_struct gspca_vm_ops = {
+static const struct vm_operations_struct gspca_vm_ops = {
 	.open		= gspca_vm_open,
 	.close		= gspca_vm_close,
 };

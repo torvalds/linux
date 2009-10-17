@@ -1,13 +1,13 @@
 /*
- * linux/arch/kernel/time-ts.c
- *
  * Based on arm clockevents implementation and old bfin time tick.
  *
- * Copyright(C) 2008, GeoTechnologies, Vitja Makarov
+ * Copyright 2008-2009 Analog Devics Inc.
+ *                2008 GeoTechnologies
+ *                     Vitja Makarov
  *
- * This code is licenced under the GPL version 2. For details see
- * kernel-base/COPYING.
+ * Licensed under the GPL-2
  */
+
 #include <linux/module.h>
 #include <linux/profile.h>
 #include <linux/interrupt.h>

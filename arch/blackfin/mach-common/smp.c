@@ -1,24 +1,10 @@
 /*
- * File:         arch/blackfin/kernel/smp.c
- * Author:       Philippe Gerum <rpm@xenomai.org>
- * IPI management based on arch/arm/kernel/smp.c.
+ * IPI management based on arch/arm/kernel/smp.c (Copyright 2002 ARM Limited)
  *
- *               Copyright 2007 Analog Devices Inc.
+ * Copyright 2007-2009 Analog Devices Inc.
+ *                         Philippe Gerum <rpm@xenomai.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>

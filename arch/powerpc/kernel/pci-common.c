@@ -1117,7 +1117,7 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 
 		/* Hook up default DMA ops */
 		sd->dma_ops = pci_dma_ops;
-		sd->dma_data = (void *)PCI_DRAM_OFFSET;
+		set_dma_offset(&dev->dev, PCI_DRAM_OFFSET);
 
 		/* Additional platform DMA/iommu setup */
 		if (ppc_md.pci_dma_dev_setup)
@@ -1190,7 +1190,7 @@ EXPORT_SYMBOL(pcibios_align_resource);
  * Reparent resource children of pr that conflict with res
  * under res, and make res replace those children.
  */
-static int __init reparent_resources(struct resource *parent,
+static int reparent_resources(struct resource *parent,
 				     struct resource *res)
 {
 	struct resource *p, **pp;

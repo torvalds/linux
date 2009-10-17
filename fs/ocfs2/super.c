@@ -28,7 +28,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
-#include <linux/utsname.h>
 #include <linux/init.h>
 #include <linux/random.h>
 #include <linux/statfs.h>
@@ -374,7 +373,7 @@ static ssize_t ocfs2_debug_read(struct file *file, char __user *buf,
 }
 #endif	/* CONFIG_DEBUG_FS */
 
-static struct file_operations ocfs2_osb_debug_fops = {
+static const struct file_operations ocfs2_osb_debug_fops = {
 	.open =		ocfs2_osb_debug_open,
 	.release =	ocfs2_debug_release,
 	.read =		ocfs2_debug_read,

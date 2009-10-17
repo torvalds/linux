@@ -147,11 +147,11 @@ static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
 		udelay(10);
 }
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	int cpu;
 
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu(cpu, mask)
 		smp_ext_bitcall(cpu, ec_call_function);
 }
 

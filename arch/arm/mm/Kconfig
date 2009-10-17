@@ -17,7 +17,7 @@ config CPU_ARM610
 	select CPU_CP15_MMU
 	select CPU_COPY_V3 if MMU
 	select CPU_TLB_V3 if MMU
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	help
 	  The ARM610 is the successor to the ARM3 processor
 	  and was produced by VLSI Technology Inc.
@@ -31,7 +31,7 @@ config CPU_ARM7TDMI
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4
 	help
 	  A 32-bit RISC microprocessor based on the ARM7 processor core
@@ -49,7 +49,7 @@ config CPU_ARM710
 	select CPU_CP15_MMU
 	select CPU_COPY_V3 if MMU
 	select CPU_TLB_V3 if MMU
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	help
 	  A 32-bit RISC microprocessor based on the ARM7 processor core
 	  designed by Advanced RISC Machines Ltd. The ARM710 is the
@@ -64,7 +64,7 @@ config CPU_ARM720T
 	bool "Support ARM720T processor" if ARCH_INTEGRATOR
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -83,7 +83,7 @@ config CPU_ARM740T
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V3	# although the core is v4t
 	select CPU_CP15_MPU
 	help
@@ -100,7 +100,7 @@ config CPU_ARM9TDMI
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_NOMMU
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4
 	help
 	  A 32-bit RISC microprocessor based on the ARM9 processor core
@@ -114,7 +114,7 @@ config CPU_ARM920T
 	bool "Support ARM920T processor" if ARCH_INTEGRATOR
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -135,7 +135,7 @@ config CPU_ARM922T
 	bool "Support ARM922T processor" if ARCH_INTEGRATOR
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -154,7 +154,7 @@ config CPU_ARM925T
  	bool "Support ARM925T processor" if ARCH_OMAP1
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -173,7 +173,7 @@ config CPU_ARM926T
 	bool "Support ARM926T processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
@@ -191,7 +191,7 @@ config CPU_FA526
 	bool
 	select CPU_32v4
 	select CPU_ABRT_EV4
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_CACHE_FA
@@ -210,7 +210,7 @@ config CPU_ARM940T
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_NOMMU
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	help
@@ -228,7 +228,7 @@ config CPU_ARM946E
 	depends on !MMU
 	select CPU_32v5
 	select CPU_ABRT_NOMMU
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	help
@@ -244,7 +244,7 @@ config CPU_ARM1020
 	bool "Support ARM1020T (rev 0) processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -262,7 +262,7 @@ config CPU_ARM1020E
 	bool "Support ARM1020E processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -275,7 +275,7 @@ config CPU_ARM1022
 	bool "Support ARM1022E processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU # can probably do better
@@ -293,7 +293,7 @@ config CPU_ARM1026
 	bool "Support ARM1026EJ-S processor" if ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU # can probably do better
@@ -311,7 +311,7 @@ config CPU_SA110
 	select CPU_32v3 if ARCH_RPC
 	select CPU_32v4 if !ARCH_RPC
 	select CPU_ABRT_EV4
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -331,7 +331,7 @@ config CPU_SA1100
 	bool
 	select CPU_32v4
 	select CPU_ABRT_EV4
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -342,7 +342,7 @@ config CPU_XSCALE
 	bool
 	select CPU_32v5
 	select CPU_ABRT_EV5T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
@@ -352,7 +352,7 @@ config CPU_XSC3
 	bool
 	select CPU_32v5
 	select CPU_ABRT_EV5T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
@@ -363,7 +363,7 @@ config CPU_MOHAWK
 	bool
 	select CPU_32v5
 	select CPU_ABRT_EV5T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
@@ -374,7 +374,7 @@ config CPU_FEROCEON
 	bool
 	select CPU_32v5
 	select CPU_ABRT_EV5T
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_LEGACY
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_FEROCEON if MMU
@@ -394,7 +394,7 @@ config CPU_V6
 	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
 	select CPU_32v6
 	select CPU_ABRT_EV6
-	select CPU_PABRT_NOIFAR
+	select CPU_PABRT_V6
 	select CPU_CACHE_V6
 	select CPU_CACHE_VIPT
 	select CPU_CP15_MMU
@@ -420,7 +420,7 @@ config CPU_V7
 	select CPU_32v6K
 	select CPU_32v7
 	select CPU_ABRT_EV7
-	select CPU_PABRT_IFAR
+	select CPU_PABRT_V7
 	select CPU_CACHE_V7
 	select CPU_CACHE_VIPT
 	select CPU_CP15_MMU
@@ -482,10 +482,13 @@ config CPU_ABRT_EV6
 config CPU_ABRT_EV7
 	bool
 
-config CPU_PABRT_IFAR
+config CPU_PABRT_LEGACY
 	bool
 
-config CPU_PABRT_NOIFAR
+config CPU_PABRT_V6
+	bool
+
+config CPU_PABRT_V7
 	bool
 
 # The cache model
@@ -771,3 +774,8 @@ config CACHE_XSC3L2
 	select OUTER_CACHE
 	help
 	  This option enables the L2 cache on XScale3.
+
+config ARM_L1_CACHE_SHIFT
+	int
+	default 6 if ARCH_OMAP3
+	default 5

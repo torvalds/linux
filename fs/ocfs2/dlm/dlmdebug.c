@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
-#include <linux/utsname.h>
 #include <linux/sysctl.h>
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
@@ -479,7 +478,7 @@ bail:
 	return -ENOMEM;
 }
 
-static struct file_operations debug_purgelist_fops = {
+static const struct file_operations debug_purgelist_fops = {
 	.open =		debug_purgelist_open,
 	.release =	debug_buffer_release,
 	.read =		debug_buffer_read,
@@ -539,7 +538,7 @@ bail:
 	return -ENOMEM;
 }
 
-static struct file_operations debug_mle_fops = {
+static const struct file_operations debug_mle_fops = {
 	.open =		debug_mle_open,
 	.release =	debug_buffer_release,
 	.read =		debug_buffer_read,
@@ -742,7 +741,7 @@ static int debug_lockres_release(struct inode *inode, struct file *file)
 	return seq_release_private(inode, file);
 }
 
-static struct file_operations debug_lockres_fops = {
+static const struct file_operations debug_lockres_fops = {
 	.open =		debug_lockres_open,
 	.release =	debug_lockres_release,
 	.read =		seq_read,
@@ -926,7 +925,7 @@ bail:
 	return -ENOMEM;
 }
 
-static struct file_operations debug_state_fops = {
+static const struct file_operations debug_state_fops = {
 	.open =		debug_state_open,
 	.release =	debug_buffer_release,
 	.read =		debug_buffer_read,

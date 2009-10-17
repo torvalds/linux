@@ -347,13 +347,6 @@ void __smp_call_function_single(int cpu, struct call_single_data *data,
 	generic_exec_single(cpu, data, wait);
 }
 
-/* Deprecated: shim for archs using old arch_send_call_function_ipi API. */
-
-#ifndef arch_send_call_function_ipi_mask
-# define arch_send_call_function_ipi_mask(maskp) \
-	 arch_send_call_function_ipi(*(maskp))
-#endif
-
 /**
  * smp_call_function_many(): Run a function on a set of other CPUs.
  * @mask: The set of cpus to run on (only runs on online subset).

@@ -21,6 +21,7 @@
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/unistd.h>
 #include <linux/stddef.h>
 #include <linux/compat.h>
@@ -34,7 +35,6 @@
 #include <asm/asm-offsets.h>
 
 #ifdef CONFIG_COMPAT
-#include <linux/compat.h>
 #include "signal32.h"
 #endif
 
@@ -468,6 +468,9 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		sigaddset(&current->blocked,sig);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
+
+	tracehook_signal_handler(sig, info, ka, regs, 0);
+
 	return 1;
 }
 

@@ -1038,8 +1038,7 @@ _GLOBAL(mod_return_to_handler)
 	 * We are in a module using the module's TOC.
 	 * Switch to our TOC to run inside the core kernel.
 	 */
-	LOAD_REG_IMMEDIATE(r4,ftrace_return_to_handler)
-	ld	r2, 8(r4)
+	ld	r2, PACATOC(r13)
 
 	bl	.ftrace_return_to_handler
 	nop

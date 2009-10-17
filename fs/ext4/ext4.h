@@ -65,6 +65,12 @@ typedef __u32 ext4_lblk_t;
 /* data type for block group number */
 typedef unsigned int ext4_group_t;
 
+/*
+ * Flags used in mballoc's allocation_context flags field.  
+ *
+ * Also used to show what's going on for debugging purposes when the
+ * flag field is exported via the traceport interface
+ */
 
 /* prefer goal again. length */
 #define EXT4_MB_HINT_MERGE		0x0001
@@ -127,6 +133,16 @@ struct mpage_da_data {
 	int pages_written;
 	int retval;
 };
+#define	DIO_AIO_UNWRITTEN	0x1
+typedef struct ext4_io_end {
+	struct list_head	list;		/* per-file finished AIO list */
+	struct inode		*inode;		/* file being written to */
+	unsigned int		flag;		/* unwritten or not */
+	int			error;		/* I/O error code */
+	ext4_lblk_t		offset;		/* offset in the file */
+	size_t			size;		/* size of the extent */
+	struct work_struct	work;		/* data work queue */
+} ext4_io_end_t;
 
 /*
  * Special inodes numbers
@@ -347,7 +363,16 @@ struct ext4_new_group_data {
 	/* Call ext4_da_update_reserve_space() after successfully 
 	   allocating the blocks */
 #define EXT4_GET_BLOCKS_UPDATE_RESERVE_SPACE	0x0008
-
+	/* caller is from the direct IO path, request to creation of an
+	unitialized extents if not allocated, split the uninitialized
+	extent if blocks has been preallocated already*/
+#define EXT4_GET_BLOCKS_DIO			0x0010
+#define EXT4_GET_BLOCKS_CONVERT			0x0020
+#define EXT4_GET_BLOCKS_DIO_CREATE_EXT		(EXT4_GET_BLOCKS_DIO|\
+					 EXT4_GET_BLOCKS_CREATE_UNINIT_EXT)
+	/* Convert extent to initialized after direct IO complete */
+#define EXT4_GET_BLOCKS_DIO_CONVERT_EXT		(EXT4_GET_BLOCKS_CONVERT|\
+					 EXT4_GET_BLOCKS_DIO_CREATE_EXT)
 
 /*
  * ioctl commands
@@ -500,8 +525,8 @@ struct move_extent {
 static inline __le32 ext4_encode_extra_time(struct timespec *time)
 {
        return cpu_to_le32((sizeof(time->tv_sec) > 4 ?
-			   time->tv_sec >> 32 : 0) |
-			   ((time->tv_nsec << 2) & EXT4_NSEC_MASK));
+			   (time->tv_sec >> 32) & EXT4_EPOCH_MASK : 0) |
+                          ((time->tv_nsec << EXT4_EPOCH_BITS) & EXT4_NSEC_MASK));
 }
 
 static inline void ext4_decode_extra_time(struct timespec *time, __le32 extra)
@@ -509,7 +534,7 @@ static inline void ext4_decode_extra_time(struct timespec *time, __le32 extra)
        if (sizeof(time->tv_sec) > 4)
 	       time->tv_sec |= (__u64)(le32_to_cpu(extra) & EXT4_EPOCH_MASK)
 			       << 32;
-       time->tv_nsec = (le32_to_cpu(extra) & EXT4_NSEC_MASK) >> 2;
+       time->tv_nsec = (le32_to_cpu(extra) & EXT4_NSEC_MASK) >> EXT4_EPOCH_BITS;
 }
 
 #define EXT4_INODE_SET_XTIME(xtime, inode, raw_inode)			       \
@@ -672,6 +697,11 @@ struct ext4_inode_info {
 	__u16 i_extra_isize;
 
 	spinlock_t i_block_reservation_lock;
+
+	/* completed async DIOs that might need unwritten extents handling */
+	struct list_head i_aio_dio_complete_list;
+	/* current io_end structure for async DIO write*/
+	ext4_io_end_t *cur_aio_dio;
 };
 
 /*
@@ -942,17 +972,10 @@ struct ext4_sb_info {
 	unsigned int s_mb_stats;
 	unsigned int s_mb_order2_reqs;
 	unsigned int s_mb_group_prealloc;
+	unsigned int s_max_writeback_mb_bump;
 	/* where last allocation was done - for stream allocation */
 	unsigned long s_mb_last_group;
 	unsigned long s_mb_last_start;
-
-	/* history to debug policy */
-	struct ext4_mb_history *s_mb_history;
-	int s_mb_history_cur;
-	int s_mb_history_max;
-	int s_mb_history_num;
-	spinlock_t s_mb_history_lock;
-	int s_mb_history_filter;
 
 	/* stats for buddy allocator */
 	spinlock_t s_mb_pa_lock;
@@ -980,6 +1003,9 @@ struct ext4_sb_info {
 
 	unsigned int s_log_groups_per_flex;
 	struct flex_groups *s_flex_groups;
+
+	/* workqueue for dio unwritten */
+	struct workqueue_struct *dio_unwritten_wq;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
@@ -1397,7 +1423,7 @@ extern int ext4_block_truncate_page(handle_t *handle,
 		struct address_space *mapping, loff_t from);
 extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern qsize_t ext4_get_reserved_space(struct inode *inode);
-
+extern int flush_aio_dio_completed_IO(struct inode *inode);
 /* ioctl.c */
 extern long ext4_ioctl(struct file *, unsigned int, unsigned long);
 extern long ext4_compat_ioctl(struct file *, unsigned int, unsigned long);
@@ -1698,6 +1724,8 @@ extern void ext4_ext_truncate(struct inode *);
 extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
 extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
+			  loff_t len);
+extern int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 			  loff_t len);
 extern int ext4_get_blocks(handle_t *handle, struct inode *inode,
 			   sector_t block, unsigned int max_blocks,

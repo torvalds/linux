@@ -380,7 +380,7 @@ static inline void rt2x00crypto_tx_insert_iv(struct sk_buff *skb,
 {
 }
 
-static inline void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
+static inline void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 					     unsigned int header_length,
 					     struct rxdone_entry_desc *rxdesc)
 {

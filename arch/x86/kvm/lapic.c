@@ -664,7 +664,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 {
 	ktime_t now = apic->lapic_timer.timer.base->get_time();
 
-	apic->lapic_timer.period = apic_get_reg(apic, APIC_TMICT) *
+	apic->lapic_timer.period = (u64)apic_get_reg(apic, APIC_TMICT) *
 		    APIC_BUS_CYCLE_NS * apic->divide_count;
 	atomic_set(&apic->lapic_timer.pending, 0);
 

@@ -759,12 +759,6 @@ static void mpc52xx_fec_reset(struct net_device *dev)
 
 	mpc52xx_fec_hw_init(dev);
 
-	if (priv->phydev) {
-		phy_stop(priv->phydev);
-		phy_write(priv->phydev, MII_BMCR, BMCR_RESET);
-		phy_start(priv->phydev);
-	}
-
 	bcom_fec_rx_reset(priv->rx_dmatsk);
 	bcom_fec_tx_reset(priv->tx_dmatsk);
 

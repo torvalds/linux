@@ -384,10 +384,10 @@ static struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 
 #ifdef CONFIG_SCHED_DEBUG
 int sched_nr_latency_handler(struct ctl_table *table, int write,
-		struct file *filp, void __user *buffer, size_t *lenp,
+		void __user *buffer, size_t *lenp,
 		loff_t *ppos)
 {
-	int ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 
 	if (ret || !write)
 		return ret;

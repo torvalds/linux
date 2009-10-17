@@ -399,7 +399,7 @@ arm922_crval:
 	.type	arm922_processor_functions, #object
 arm922_processor_functions:
 	.word	v4t_early_abort
-	.word	pabort_noifar
+	.word	legacy_pabort
 	.word	cpu_arm922_proc_init
 	.word	cpu_arm922_proc_fin
 	.word	cpu_arm922_reset

@@ -225,7 +225,11 @@ static void ftrace_update_pid_func(void)
 	if (ftrace_trace_function == ftrace_stub)
 		return;
 
+#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	func = ftrace_trace_function;
+#else
+	func = __ftrace_trace_function;
+#endif
 
 	if (ftrace_pid_trace) {
 		set_ftrace_pid_function(func);
@@ -1074,14 +1078,9 @@ static void ftrace_replace_code(int enable)
 		failed = __ftrace_replace_code(rec, enable);
 		if (failed) {
 			rec->flags |= FTRACE_FL_FAILED;
-			if ((system_state == SYSTEM_BOOTING) ||
-			    !core_kernel_text(rec->ip)) {
-				ftrace_free_rec(rec);
-				} else {
-				ftrace_bug(failed, rec->ip);
-					/* Stop processing */
-					return;
-				}
+			ftrace_bug(failed, rec->ip);
+			/* Stop processing */
+			return;
 		}
 	} while_for_each_ftrace_rec();
 }
@@ -1621,8 +1620,10 @@ ftrace_regex_open(struct inode *inode, struct file *file, int enable)
 		if (!ret) {
 			struct seq_file *m = file->private_data;
 			m->private = iter;
-		} else
+		} else {
+			trace_parser_put(&iter->parser);
 			kfree(iter);
+		}
 	} else
 		file->private_data = iter;
 	mutex_unlock(&ftrace_regex_lock);
@@ -2202,7 +2203,7 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 	struct trace_parser *parser;
 	ssize_t ret, read;
 
-	if (!cnt || cnt < 0)
+	if (!cnt)
 		return 0;
 
 	mutex_lock(&ftrace_regex_lock);
@@ -2216,7 +2217,7 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 	parser = &iter->parser;
 	read = trace_get_user(parser, ubuf, cnt, ppos);
 
-	if (trace_parser_loaded(parser) &&
+	if (read >= 0 && trace_parser_loaded(parser) &&
 	    !trace_parser_cont(parser)) {
 		ret = ftrace_process_regex(parser->buffer,
 					   parser->idx, enable);
@@ -2552,8 +2553,7 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos)
 {
 	struct trace_parser parser;
-	size_t read = 0;
-	ssize_t ret;
+	ssize_t read, ret;
 
 	if (!cnt || cnt < 0)
 		return 0;
@@ -2562,29 +2562,31 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 
 	if (ftrace_graph_count >= FTRACE_GRAPH_MAX_FUNCS) {
 		ret = -EBUSY;
-		goto out;
+		goto out_unlock;
 	}
 
 	if (trace_parser_get_init(&parser, FTRACE_BUFF_MAX)) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_unlock;
 	}
 
 	read = trace_get_user(&parser, ubuf, cnt, ppos);
 
-	if (trace_parser_loaded((&parser))) {
+	if (read >= 0 && trace_parser_loaded((&parser))) {
 		parser.buffer[parser.idx] = 0;
 
 		/* we allow only one expression at a time */
 		ret = ftrace_set_func(ftrace_graph_funcs, &ftrace_graph_count,
 					parser.buffer);
 		if (ret)
-			goto out;
+			goto out_free;
 	}
 
 	ret = read;
- out:
+
+out_free:
 	trace_parser_put(&parser);
+out_unlock:
 	mutex_unlock(&graph_lock);
 
 	return ret;
@@ -2655,19 +2657,17 @@ static int ftrace_convert_nops(struct module *mod,
 }
 
 #ifdef CONFIG_MODULES
-void ftrace_release(void *start, void *end)
+void ftrace_release_mod(struct module *mod)
 {
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
-	unsigned long s = (unsigned long)start;
-	unsigned long e = (unsigned long)end;
 
-	if (ftrace_disabled || !start || start == end)
+	if (ftrace_disabled)
 		return;
 
 	mutex_lock(&ftrace_lock);
 	do_for_each_ftrace_rec(pg, rec) {
-		if ((rec->ip >= s) && (rec->ip < e)) {
+		if (within_module_core(rec->ip, mod)) {
 			/*
 			 * rec->ip is changed in ftrace_free_rec()
 			 * It should not between s and e if record was freed.
@@ -2699,9 +2699,7 @@ static int ftrace_module_notify(struct notifier_block *self,
 				   mod->num_ftrace_callsites);
 		break;
 	case MODULE_STATE_GOING:
-		ftrace_release(mod->ftrace_callsites,
-			       mod->ftrace_callsites +
-			       mod->num_ftrace_callsites);
+		ftrace_release_mod(mod);
 		break;
 	}
 
@@ -3015,7 +3013,7 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 
 int
 ftrace_enable_sysctl(struct ctl_table *table, int write,
-		     struct file *file, void __user *buffer, size_t *lenp,
+		     void __user *buffer, size_t *lenp,
 		     loff_t *ppos)
 {
 	int ret;
@@ -3025,7 +3023,7 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 	mutex_lock(&ftrace_lock);
 
-	ret  = proc_dointvec(table, write, file, buffer, lenp, ppos);
+	ret  = proc_dointvec(table, write, buffer, lenp, ppos);
 
 	if (ret || !write || (last_ftrace_enabled == !!ftrace_enabled))
 		goto out;

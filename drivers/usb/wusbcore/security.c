@@ -200,35 +200,40 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 {
 	int result, bytes, secd_size;
 	struct device *dev = &usb_dev->dev;
-	struct usb_security_descriptor secd;
+	struct usb_security_descriptor *secd;
 	const struct usb_encryption_descriptor *etd, *ccm1_etd = NULL;
-	void *secd_buf;
 	const void *itr, *top;
 	char buf[64];
 
+	secd = kmalloc(sizeof(struct usb_security_descriptor), GFP_KERNEL);
+	if (secd == NULL) {
+		result = -ENOMEM;
+		goto out;
+	}
+
 	result = usb_get_descriptor(usb_dev, USB_DT_SECURITY,
-				    0, &secd, sizeof(secd));
+				    0, secd, sizeof(struct usb_security_descriptor));
 	if (result < sizeof(secd)) {
 		dev_err(dev, "Can't read security descriptor or "
 			"not enough data: %d\n", result);
-		goto error_secd;
+		goto out;
 	}
-	secd_size = le16_to_cpu(secd.wTotalLength);
-	secd_buf = kmalloc(secd_size, GFP_KERNEL);
-	if (secd_buf == NULL) {
+	secd_size = le16_to_cpu(secd->wTotalLength);
+	secd = krealloc(secd, secd_size, GFP_KERNEL);
+	if (secd == NULL) {
 		dev_err(dev, "Can't allocate space for security descriptors\n");
-		goto error_secd_alloc;
+		goto out;
 	}
 	result = usb_get_descriptor(usb_dev, USB_DT_SECURITY,
-				    0, secd_buf, secd_size);
+				    0, secd, secd_size);
 	if (result < secd_size) {
 		dev_err(dev, "Can't read security descriptor or "
 			"not enough data: %d\n", result);
-		goto error_secd_all;
+		goto out;
 	}
 	bytes = 0;
-	itr = secd_buf + sizeof(secd);
-	top = secd_buf + result;
+	itr = &secd[1];
+	top = (void *)secd + result;
 	while (itr < top) {
 		etd = itr;
 		if (top - itr < sizeof(*etd)) {
@@ -259,24 +264,16 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 		dev_err(dev, "WUSB device doesn't support CCM1 encryption, "
 			"can't use!\n");
 		result = -EINVAL;
-		goto error_no_ccm1;
+		goto out;
 	}
 	wusb_dev->ccm1_etd = *ccm1_etd;
 	dev_dbg(dev, "supported encryption: %s; using %s (0x%02x/%02x)\n",
 		buf, wusb_et_name(ccm1_etd->bEncryptionType),
 		ccm1_etd->bEncryptionValue, ccm1_etd->bAuthKeyIndex);
 	result = 0;
-	kfree(secd_buf);
 out:
+	kfree(secd);
 	return result;
-
-
-error_no_ccm1:
-error_secd_all:
-	kfree(secd_buf);
-error_secd_alloc:
-error_secd:
-	goto out;
 }
 
 void wusb_dev_sec_rm(struct wusb_dev *wusb_dev)

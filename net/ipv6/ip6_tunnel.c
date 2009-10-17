@@ -1043,11 +1043,6 @@ ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net_device_stats *stats = &t->dev->stats;
 	int ret;
 
-	if (t->recursion++) {
-		stats->collisions++;
-		goto tx_err;
-	}
-
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		ret = ip4ip6_tnl_xmit(skb, dev);
@@ -1062,14 +1057,12 @@ ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (ret < 0)
 		goto tx_err;
 
-	t->recursion--;
 	return NETDEV_TX_OK;
 
 tx_err:
 	stats->tx_errors++;
 	stats->tx_dropped++;
 	kfree_skb(skb);
-	t->recursion--;
 	return NETDEV_TX_OK;
 }
 

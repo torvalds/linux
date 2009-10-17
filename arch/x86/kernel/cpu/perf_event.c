@@ -1790,6 +1790,9 @@ void smp_perf_pending_interrupt(struct pt_regs *regs)
 void set_perf_event_pending(void)
 {
 #ifdef CONFIG_X86_LOCAL_APIC
+	if (!x86_pmu.apic || !x86_pmu_initialized())
+		return;
+
 	apic->send_IPI_self(LOCAL_PENDING_VECTOR);
 #endif
 }

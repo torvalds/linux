@@ -406,7 +406,6 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 			__func__, status);
 		return retval;
 	}
-	info->hardware_id.string[sizeof(info->hardware_id.length) - 1] = '\0';
 
 	if (info->current_status && (info->valid & ACPI_VALID_HID) &&
 			(!strcmp(info->hardware_id.string, IBM_HARDWARE_ID1) ||

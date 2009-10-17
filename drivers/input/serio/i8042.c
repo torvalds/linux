@@ -87,7 +87,21 @@ static bool i8042_bypass_aux_irq_test;
 
 #include "i8042.h"
 
+/*
+ * i8042_lock protects serialization between i8042_command and
+ * the interrupt handler.
+ */
 static DEFINE_SPINLOCK(i8042_lock);
+
+/*
+ * Writers to AUX and KBD ports as well as users issuing i8042_command
+ * directly should acquire i8042_mutex (by means of calling
+ * i8042_lock_chip() and i8042_unlock_ship() helpers) to ensure that
+ * they do not disturb each other (unfortunately in many i8042
+ * implementations write to one of the ports will immediately abort
+ * command that is being processed by another port).
+ */
+static DEFINE_MUTEX(i8042_mutex);
 
 struct i8042_port {
 	struct serio *serio;
@@ -112,6 +126,18 @@ static unsigned char i8042_suppress_kbd_ack;
 static struct platform_device *i8042_platform_device;
 
 static irqreturn_t i8042_interrupt(int irq, void *dev_id);
+
+void i8042_lock_chip(void)
+{
+	mutex_lock(&i8042_mutex);
+}
+EXPORT_SYMBOL(i8042_lock_chip);
+
+void i8042_unlock_chip(void)
+{
+	mutex_unlock(&i8042_mutex);
+}
+EXPORT_SYMBOL(i8042_unlock_chip);
 
 /*
  * The i8042_wait_read() and i8042_wait_write functions wait for the i8042 to
@@ -583,6 +609,8 @@ static irqreturn_t __init i8042_aux_test_irq(int irq, void *dev_id)
 	str = i8042_read_status();
 	if (str & I8042_STR_OBF) {
 		data = i8042_read_data();
+		dbg("%02x <- i8042 (aux_test_irq, %s)",
+			data, str & I8042_STR_AUXDATA ? "aux" : "kbd");
 		if (i8042_irq_being_tested &&
 		    data == 0xa5 && (str & I8042_STR_AUXDATA))
 			complete(&i8042_aux_irq_delivered);
@@ -724,6 +752,7 @@ static int __init i8042_check_aux(void)
  * AUX IRQ was never delivered so we need to flush the controller to
  * get rid of the byte we put there; otherwise keyboard may not work.
  */
+		dbg("     -- i8042 (aux irq test timeout)");
 		i8042_flush();
 		retval = -1;
 	}
@@ -1160,6 +1189,21 @@ static void __devexit i8042_unregister_ports(void)
 		}
 	}
 }
+
+/*
+ * Checks whether port belongs to i8042 controller.
+ */
+bool i8042_check_port_owner(const struct serio *port)
+{
+	int i;
+
+	for (i = 0; i < I8042_NUM_PORTS; i++)
+		if (i8042_ports[i].serio == port)
+			return true;
+
+	return false;
+}
+EXPORT_SYMBOL(i8042_check_port_owner);
 
 static void i8042_free_irqs(void)
 {

@@ -367,6 +367,9 @@ static struct pxamci_platform_data trizeps4_mci_platform_data = {
 	.exit		= trizeps4_mci_exit,
 	.get_ro		= NULL,	/* write-protection not supported */
 	.setpower 	= NULL,	/* power-switching not supported */
+	.gpio_card_detect = -1,
+	.gpio_card_ro	= -1,
+	.gpio_power	= -1,
 };
 
 /****************************************************************************
@@ -412,6 +415,7 @@ static void trizeps4_irda_transceiver_mode(struct device *dev, int mode)
 }
 
 static struct pxaficp_platform_data trizeps4_ficp_platform_data = {
+	.gpio_pwdown		= -1,
 	.transceiver_cap	= IR_SIRMODE | IR_FIRMODE | IR_OFF,
 	.transceiver_mode	= trizeps4_irda_transceiver_mode,
 	.startup		= trizeps4_irda_startup,

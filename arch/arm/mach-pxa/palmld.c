@@ -25,6 +25,9 @@
 #include <linux/wm97xx_batt.h>
 #include <linux/power_supply.h>
 #include <linux/sysdev.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -141,85 +144,50 @@ static unsigned long palmld_pin_config[] __initdata = {
 };
 
 /******************************************************************************
+ * NOR Flash
+ ******************************************************************************/
+static struct mtd_partition palmld_partitions[] = {
+	{
+		.name		= "Flash",
+		.offset		= 0x00000000,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0
+	}
+};
+
+static struct physmap_flash_data palmld_flash_data[] = {
+	{
+		.width		= 2,			/* bankwidth in bytes */
+		.parts		= palmld_partitions,
+		.nr_parts	= ARRAY_SIZE(palmld_partitions)
+	}
+};
+
+static struct resource palmld_flash_resource = {
+	.start	= PXA_CS0_PHYS,
+	.end	= PXA_CS0_PHYS + SZ_4M - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct platform_device palmld_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.resource	= &palmld_flash_resource,
+	.num_resources	= 1,
+	.dev 		= {
+		.platform_data = palmld_flash_data,
+	},
+};
+
+/******************************************************************************
  * SD/MMC card controller
  ******************************************************************************/
-static int palmld_mci_init(struct device *dev, irq_handler_t palmld_detect_int,
-				void *data)
-{
-	int err = 0;
-
-	/* Setup an interrupt for detecting card insert/remove events */
-	err = gpio_request(GPIO_NR_PALMLD_SD_DETECT_N, "SD IRQ");
-	if (err)
-		goto err;
-	err = gpio_direction_input(GPIO_NR_PALMLD_SD_DETECT_N);
-	if (err)
-		goto err2;
-	err = request_irq(gpio_to_irq(GPIO_NR_PALMLD_SD_DETECT_N),
-			palmld_detect_int, IRQF_DISABLED | IRQF_SAMPLE_RANDOM |
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			"SD/MMC card detect", data);
-	if (err) {
-		printk(KERN_ERR "%s: cannot request SD/MMC card detect IRQ\n",
-				__func__);
-		goto err2;
-	}
-
-	err = gpio_request(GPIO_NR_PALMLD_SD_POWER, "SD_POWER");
-	if (err)
-		goto err3;
-	err = gpio_direction_output(GPIO_NR_PALMLD_SD_POWER, 0);
-	if (err)
-		goto err4;
-
-	err = gpio_request(GPIO_NR_PALMLD_SD_READONLY, "SD_READONLY");
-	if (err)
-		goto err4;
-	err = gpio_direction_input(GPIO_NR_PALMLD_SD_READONLY);
-	if (err)
-		goto err5;
-
-	printk(KERN_DEBUG "%s: irq registered\n", __func__);
-
-	return 0;
-
-err5:
-	gpio_free(GPIO_NR_PALMLD_SD_READONLY);
-err4:
-	gpio_free(GPIO_NR_PALMLD_SD_POWER);
-err3:
-	free_irq(gpio_to_irq(GPIO_NR_PALMLD_SD_DETECT_N), data);
-err2:
-	gpio_free(GPIO_NR_PALMLD_SD_DETECT_N);
-err:
-	return err;
-}
-
-static void palmld_mci_exit(struct device *dev, void *data)
-{
-	gpio_free(GPIO_NR_PALMLD_SD_READONLY);
-	gpio_free(GPIO_NR_PALMLD_SD_POWER);
-	free_irq(gpio_to_irq(GPIO_NR_PALMLD_SD_DETECT_N), data);
-	gpio_free(GPIO_NR_PALMLD_SD_DETECT_N);
-}
-
-static void palmld_mci_power(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data *p_d = dev->platform_data;
-	gpio_set_value(GPIO_NR_PALMLD_SD_POWER, p_d->ocr_mask & (1 << vdd));
-}
-
-static int palmld_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(GPIO_NR_PALMLD_SD_READONLY);
-}
-
 static struct pxamci_platform_data palmld_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.setpower	= palmld_mci_power,
-	.get_ro		= palmld_mci_get_ro,
-	.init 		= palmld_mci_init,
-	.exit		= palmld_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.gpio_card_detect	= GPIO_NR_PALMLD_SD_DETECT_N,
+	.gpio_card_ro		= GPIO_NR_PALMLD_SD_READONLY,
+	.gpio_power		= GPIO_NR_PALMLD_SD_POWER,
+	.detect_delay		= 20,
 };
 
 /******************************************************************************
@@ -336,35 +304,9 @@ static struct platform_device palmld_backlight = {
 /******************************************************************************
  * IrDA
  ******************************************************************************/
-static int palmld_irda_startup(struct device *dev)
-{
-	int err;
-	err = gpio_request(GPIO_NR_PALMLD_IR_DISABLE, "IR DISABLE");
-	if (err)
-		goto err;
-	err = gpio_direction_output(GPIO_NR_PALMLD_IR_DISABLE, 1);
-	if (err)
-		gpio_free(GPIO_NR_PALMLD_IR_DISABLE);
-err:
-	return err;
-}
-
-static void palmld_irda_shutdown(struct device *dev)
-{
-	gpio_free(GPIO_NR_PALMLD_IR_DISABLE);
-}
-
-static void palmld_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(GPIO_NR_PALMLD_IR_DISABLE, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
 static struct pxaficp_platform_data palmld_ficp_platform_data = {
-	.startup		= palmld_irda_startup,
-	.shutdown		= palmld_irda_shutdown,
-	.transceiver_cap	= IR_SIRMODE | IR_FIRMODE | IR_OFF,
-	.transceiver_mode	= palmld_irda_transceiver_mode,
+	.gpio_pwdown		= GPIO_NR_PALMLD_IR_DISABLE,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
 };
 
 /******************************************************************************
@@ -560,6 +502,7 @@ static struct platform_device *devices[] __initdata = {
 	&power_supply,
 	&palmld_asoc,
 	&palmld_hdd,
+	&palmld_flash,
 };
 
 static struct map_desc palmld_io_desc[] __initdata = {

@@ -369,9 +369,8 @@ static int acpi_smbus_cmi_add(struct acpi_device *device)
 		goto err;
 
 	snprintf(smbus_cmi->adapter.name, sizeof(smbus_cmi->adapter.name),
-		"SMBus CMI adapter %s (%s)",
-		acpi_device_name(device),
-		acpi_device_uid(device));
+		"SMBus CMI adapter %s",
+		acpi_device_name(device));
 	smbus_cmi->adapter.owner = THIS_MODULE;
 	smbus_cmi->adapter.algo = &acpi_smbus_cmi_algorithm;
 	smbus_cmi->adapter.algo_data = smbus_cmi;

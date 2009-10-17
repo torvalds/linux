@@ -59,8 +59,6 @@ source "drivers/staging/echo/Kconfig"
 
 source "drivers/staging/poch/Kconfig"
 
-source "drivers/staging/agnx/Kconfig"
-
 source "drivers/staging/otus/Kconfig"
 
 source "drivers/staging/rt2860/Kconfig"
@@ -117,8 +115,6 @@ source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
 
-source "drivers/staging/cpc-usb/Kconfig"
-
 source "drivers/staging/udlfb/Kconfig"
 
 source "drivers/staging/hv/Kconfig"
@@ -130,8 +126,6 @@ source "drivers/staging/rar/Kconfig"
 source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
-
-source "drivers/staging/cowloop/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

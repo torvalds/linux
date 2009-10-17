@@ -121,7 +121,6 @@ static inline void arch_send_call_function_single_ipi(int cpu)
 	smp_ops.send_call_func_single_ipi(cpu);
 }
 
-#define arch_send_call_function_ipi_mask arch_send_call_function_ipi_mask
 static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	smp_ops.send_call_func_ipi(mask);

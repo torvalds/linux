@@ -2085,6 +2085,8 @@ struct sky2_hw {
 	struct timer_list    watchdog_timer;
 	struct work_struct   restart_work;
 	wait_queue_head_t    msi_wait;
+
+	char		     irq_name[0];
 };
 
 static inline int sky2_is_copper(const struct sky2_hw *hw)
