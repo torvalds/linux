@@ -346,7 +346,7 @@ static const u8 sn_mt9v111[0x1c] = {
 
 static const u8 sn_om6802[0x1c] = {
 /*	reg0	reg1	reg2	reg3	reg4	reg5	reg6	reg7 */
-	0x00,	0x23,	0x72,	0x00,	0x1a,	0x34,	0x27,	0x20,
+	0x00,	0x23,	0x72,	0x00,	0x1a,	0x20,	0x20,	0x19,
 /*	reg8	reg9	rega	regb	regc	regd	rege	regf */
 	0x80,	0x34,	0x00,	0x00,	0x00,	0x00,	0x00,	0x00,
 /*	reg10	reg11	reg12	reg13	reg14	reg15	reg16	reg17 */
@@ -1987,11 +1987,19 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 			sd->exposure = setexposure(gspca_dev,
 					(unsigned int) (expotimes << 8));
 			break;
+		case SENSOR_OM6802:
+			expotimes = sd->exposure;
+			expotimes += (luma_mean - delta) >> 2;
+			if (expotimes < 0)
+				expotimes = 0;
+			sd->exposure = setexposure(gspca_dev,
+						   (unsigned int) expotimes);
+			setredblue(gspca_dev);
+			break;
 		default:
 /*		case SENSOR_MO4000: */
 /*		case SENSOR_MI0360: */
 /*		case SENSOR_MT9V111: */
-/*		case SENSOR_OM6802: */
 			expotimes = sd->exposure;
 			expotimes += (luma_mean - delta) >> 6;
 			if (expotimes < 0)
