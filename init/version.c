@@ -6,7 +6,7 @@
  *  May be freely distributed as part of Linux.
  */
 
-#include <linux/compile.h>
+#include <generated/compile.h>
 #include <linux/module.h>
 #include <linux/uts.h>
 #include <linux/utsname.h>
