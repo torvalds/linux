@@ -11,3 +11,4 @@ perf-stat			mainporcelain common
 perf-timechart			mainporcelain common
 perf-top			mainporcelain common
 perf-trace			mainporcelain common
+perf-probe			mainporcelain common

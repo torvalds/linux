@@ -1,0 +1,48 @@
+perf-probe(1)
+=============
+
+NAME
+----
+perf-probe - Define new dynamic tracepoints
+
+SYNOPSIS
+--------
+[verse]
+'perf probe' [-k <file>] -P 'PROBE' [-P 'PROBE' ...]
+
+
+DESCRIPTION
+-----------
+This command defines dynamic tracepoint events, by symbol and registers
+without debuginfo, or by C expressions (C line numbers, C function names,
+and C local variables) with debuginfo.
+
+
+OPTIONS
+-------
+-k::
+--vmlinux::
+	Specify vmlinux path which has debuginfo (Dwarf binary).
+
+-v::
+--verbose::
+        Be more verbose (show parsed arguments, etc).
+
+-P::
+--probe::
+	Define a probe point (see PROBE SYNTAX for detail)
+
+PROBE SYNTAX
+------------
+Probe points are defined by following syntax.
+
+ "TYPE:[GRP/]NAME FUNC[+OFFS][@SRC]|@SRC:LINE [ARG ...]"
+
+'TYPE' specifies the type of probe point, you can use either "p" (kprobe) or "r" (kretprobe) for 'TYPE'. 'GRP' specifies the group name of this probe, and 'NAME' specifies the event name. If 'GRP' is omitted, "kprobes" is used for its group name.
+'FUNC' and 'OFFS' specifies function and offset (in byte) where probe will be put. In addition, 'SRC' specifies a source file which has that function (this is mainly for inline functions).
+You can specify a probe point by the source line number by using '@SRC:LINE' syntax, where 'SRC' is the source file path and 'LINE' is the line number.
+'ARG' specifies the arguments of this probe point. You can use the name of local variable, or kprobe-tracer argument format (e.g. $retval, %ax, etc).
+
+SEE ALSO
+--------
+linkperf:perf-trace[1], linkperf:perf-record[1]
