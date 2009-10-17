@@ -1438,12 +1438,12 @@ static __init int kprobe_trace_self_tests_init(void)
 	pr_info("Testing kprobe tracing: ");
 
 	ret = command_trace_probe("p:testprobe kprobe_trace_selftest_target "
-				  "a1 a2 a3 a4 a5 a6");
+				  "$arg1 $arg2 $arg3 $arg4 $stack $stack0");
 	if (WARN_ON_ONCE(ret))
 		pr_warning("error enabling function entry\n");
 
 	ret = command_trace_probe("r:testprobe2 kprobe_trace_selftest_target "
-				  "ra rv");
+				  "$retval");
 	if (WARN_ON_ONCE(ret))
 		pr_warning("error enabling function return\n");
 
