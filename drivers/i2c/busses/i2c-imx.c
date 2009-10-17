@@ -225,11 +225,13 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 		writeb(temp, i2c_imx->base + IMX_I2C_I2CR);
 		i2c_imx->stopped = 1;
 	}
-	/*
-	 * This delay caused by an i.MXL hardware bug.
-	 * If no (or too short) delay, no "STOP" bit will be generated.
-	 */
-	udelay(i2c_imx->disable_delay);
+	if (cpu_is_mx1()) {
+		/*
+		 * This delay caused by an i.MXL hardware bug.
+		 * If no (or too short) delay, no "STOP" bit will be generated.
+		 */
+		udelay(i2c_imx->disable_delay);
+	}
 
 	if (!i2c_imx->stopped)
 		i2c_imx_bus_busy(i2c_imx, 0);
