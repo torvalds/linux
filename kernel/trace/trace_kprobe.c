@@ -597,15 +597,19 @@ static int create_trace_probe(int argc, char **argv)
 	void *addr = NULL;
 	char buf[MAX_EVENT_NAME_LEN];
 
-	if (argc < 2)
+	if (argc < 2) {
+		pr_info("Probe point is not specified.\n");
 		return -EINVAL;
+	}
 
 	if (argv[0][0] == 'p')
 		is_return = 0;
 	else if (argv[0][0] == 'r')
 		is_return = 1;
-	else
+	else {
+		pr_info("Probe definition must be started with 'p' or 'r'.\n");
 		return -EINVAL;
+	}
 
 	if (argv[0][1] == ':') {
 		event = &argv[0][2];
@@ -625,21 +629,29 @@ static int create_trace_probe(int argc, char **argv)
 	}
 
 	if (isdigit(argv[1][0])) {
-		if (is_return)
+		if (is_return) {
+			pr_info("Return probe point must be a symbol.\n");
 			return -EINVAL;
+		}
 		/* an address specified */
 		ret = strict_strtoul(&argv[0][2], 0, (unsigned long *)&addr);
-		if (ret)
+		if (ret) {
+			pr_info("Failed to parse address.\n");
 			return ret;
+		}
 	} else {
 		/* a symbol specified */
 		symbol = argv[1];
 		/* TODO: support .init module functions */
 		ret = split_symbol_offset(symbol, &offset);
-		if (ret)
+		if (ret) {
+			pr_info("Failed to parse symbol.\n");
 			return ret;
-		if (offset && is_return)
+		}
+		if (offset && is_return) {
+			pr_info("Return probe must be used without offset.\n");
 			return -EINVAL;
+		}
 	}
 	argc -= 2; argv += 2;
 
@@ -658,8 +670,11 @@ static int create_trace_probe(int argc, char **argv)
 	}
 	tp = alloc_trace_probe(group, event, addr, symbol, offset, argc,
 			       is_return);
-	if (IS_ERR(tp))
+	if (IS_ERR(tp)) {
+		pr_info("Failed to allocate trace_probe.(%d)\n",
+			(int)PTR_ERR(tp));
 		return PTR_ERR(tp);
+	}
 
 	/* parse arguments */
 	ret = 0;
@@ -672,6 +687,8 @@ static int create_trace_probe(int argc, char **argv)
 			arg = argv[i];
 
 		if (conflict_field_name(argv[i], tp->args, i)) {
+			pr_info("Argument%d name '%s' conflicts with "
+				"another field.\n", i, argv[i]);
 			ret = -EINVAL;
 			goto error;
 		}
@@ -685,8 +702,10 @@ static int create_trace_probe(int argc, char **argv)
 			goto error;
 		}
 		ret = parse_probe_arg(arg, &tp->args[i].fetch, is_return);
-		if (ret)
+		if (ret) {
+			pr_info("Parse error at argument%d. (%d)\n", i, ret);
 			goto error;
+		}
 	}
 	tp->nr_args = i;
 
