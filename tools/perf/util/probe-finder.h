@@ -1,16 +1,6 @@
 #ifndef _PROBE_FINDER_H
 #define _PROBE_FINDER_H
 
-#define _stringify(n)	#n
-#define stringify(n)	_stringify(n)
-
-#define ERR_IF(cnd)	\
-	do { if (cnd) {	\
-		fprintf(stderr, "Error (" __FILE__ ":" stringify(__LINE__) \
-			"): " stringify(cnd) "\n");			\
-		exit(1);						\
-	} } while (0)
-
 #define MAX_PATH_LEN 256
 #define MAX_PROBE_BUFFER 1024
 #define MAX_PROBES 128
