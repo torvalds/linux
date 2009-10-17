@@ -1400,7 +1400,7 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 
 	dprintk("%s\n", __func__);
 
-	if (temp_int != NULL) {
+	if ((temp_int != NULL) && (p_init->demod_mode == STV0900_DUAL)) {
 		state->internal = temp_int->internal;
 		(state->internal->dmds_used)++;
 		dprintk("%s: Find Internal Structure!\n", __func__);
@@ -1972,7 +1972,7 @@ struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
 	case 0:
 	case 1:
 		init_params.dmd_ref_clk  	= config->xtal;
-		init_params.demod_mode		= STV0900_DUAL;
+		init_params.demod_mode		= config->demod_mode;
 		init_params.rolloff		= STV0900_35;
 		init_params.path1_ts_clock	= config->path1_mode;
 		init_params.tun1_maddress	= config->tun1_maddress;

@@ -400,6 +400,7 @@ static struct stv0900_reg stv0900_ts_regs[] = {
 
 static struct stv0900_config netup_stv0900_config = {
 	.demod_address = 0x68,
+	.demod_mode = 1, /* dual */
 	.xtal = 8000000,
 	.clkmode = 3,/* 0-CLKI, 2-XTALI, else AUTO */
 	.diseqc_mode = 2,/* 2/3 PWM */

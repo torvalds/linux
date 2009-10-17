@@ -36,6 +36,7 @@ struct stv0900_reg {
 
 struct stv0900_config {
 	u8 demod_address;
+	u8 demod_mode;
 	u32 xtal;
 	u8 clkmode;/* 0 for CLKI,  2 for XTALI */
 
