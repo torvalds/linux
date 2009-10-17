@@ -248,7 +248,7 @@ static int rds_cong_monitor(struct rds_sock *rs, char __user *optval,
 }
 
 static int rds_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, int optlen)
+			  char __user *optval, unsigned int optlen)
 {
 	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
 	int ret;
@@ -359,7 +359,7 @@ static struct proto rds_proto = {
 	.obj_size = sizeof(struct rds_sock),
 };
 
-static struct proto_ops rds_proto_ops = {
+static const struct proto_ops rds_proto_ops = {
 	.family =	AF_RDS,
 	.owner =	THIS_MODULE,
 	.release =	rds_release,

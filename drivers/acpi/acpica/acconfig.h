@@ -183,7 +183,7 @@
 
 /* Operation regions */
 
-#define ACPI_NUM_PREDEFINED_REGIONS     8
+#define ACPI_NUM_PREDEFINED_REGIONS     9
 #define ACPI_USER_REGION_BEGIN          0x80
 
 /* Maximum space_ids for Operation Regions */
@@ -199,9 +199,15 @@
 #define ACPI_RSDP_CHECKSUM_LENGTH       20
 #define ACPI_RSDP_XCHECKSUM_LENGTH      36
 
-/* SMBus bidirectional buffer size */
+/* SMBus and IPMI bidirectional buffer size */
 
 #define ACPI_SMBUS_BUFFER_SIZE          34
+#define ACPI_IPMI_BUFFER_SIZE           66
+
+/* _sx_d and _sx_w control methods */
+
+#define ACPI_NUM_sx_d_METHODS           4
+#define ACPI_NUM_sx_w_METHODS           5
 
 /******************************************************************************
  *

@@ -507,7 +507,7 @@ static int __exit hp_wmi_bios_remove(struct platform_device *device)
 	}
 	if (bluetooth_rfkill) {
 		rfkill_unregister(bluetooth_rfkill);
-		rfkill_destroy(wifi_rfkill);
+		rfkill_destroy(bluetooth_rfkill);
 	}
 	if (wwan_rfkill) {
 		rfkill_unregister(wwan_rfkill);

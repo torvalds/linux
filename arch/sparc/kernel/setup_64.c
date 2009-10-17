@@ -295,8 +295,6 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
-#elif defined(CONFIG_PROM_CONSOLE)
-	conswitchp = &prom_con;
 #endif
 
 	idprom_init();

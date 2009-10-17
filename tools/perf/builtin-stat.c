@@ -48,7 +48,7 @@
 #include <sys/prctl.h>
 #include <math.h>
 
-static struct perf_counter_attr default_attrs[] = {
+static struct perf_event_attr default_attrs[] = {
 
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK	},
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CONTEXT_SWITCHES},
@@ -69,7 +69,8 @@ static int			run_idx				=  0;
 static int			run_count			=  1;
 static int			inherit				=  1;
 static int			scale				=  1;
-static int			target_pid			= -1;
+static pid_t			target_pid			= -1;
+static pid_t			child_pid			= -1;
 static int			null_run			=  0;
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
@@ -130,11 +131,11 @@ struct stats			runtime_cycles_stats;
 	 attrs[counter].config == PERF_COUNT_##c)
 
 #define ERR_PERF_OPEN \
-"Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n"
+"Error: counter %d, sys_perf_event_open() syscall returned with %d (%s)\n"
 
 static void create_perf_stat_counter(int counter, int pid)
 {
-	struct perf_counter_attr *attr = attrs + counter;
+	struct perf_event_attr *attr = attrs + counter;
 
 	if (scale)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -144,7 +145,7 @@ static void create_perf_stat_counter(int counter, int pid)
 		unsigned int cpu;
 
 		for (cpu = 0; cpu < nr_cpus; cpu++) {
-			fd[cpu][counter] = sys_perf_counter_open(attr, -1, cpu, -1, 0);
+			fd[cpu][counter] = sys_perf_event_open(attr, -1, cpu, -1, 0);
 			if (fd[cpu][counter] < 0 && verbose)
 				fprintf(stderr, ERR_PERF_OPEN, counter,
 					fd[cpu][counter], strerror(errno));
@@ -154,7 +155,7 @@ static void create_perf_stat_counter(int counter, int pid)
 		attr->disabled	     = 1;
 		attr->enable_on_exec = 1;
 
-		fd[0][counter] = sys_perf_counter_open(attr, pid, -1, -1, 0);
+		fd[0][counter] = sys_perf_event_open(attr, pid, -1, -1, 0);
 		if (fd[0][counter] < 0 && verbose)
 			fprintf(stderr, ERR_PERF_OPEN, counter,
 				fd[0][counter], strerror(errno));
@@ -285,6 +286,8 @@ static int run_perf_stat(int argc __used, const char **argv)
 		exit(-1);
 	}
 
+	child_pid = pid;
+
 	/*
 	 * Wait for the child to be ready to exec.
 	 */
@@ -338,14 +341,24 @@ static void nsec_printout(int counter, double avg)
 
 static void abs_printout(int counter, double avg)
 {
+	double total, ratio = 0.0;
+
 	fprintf(stderr, " %14.0f  %-24s", avg, event_name(counter));
 
 	if (MATCH_EVENT(HARDWARE, HW_INSTRUCTIONS, counter)) {
-		fprintf(stderr, " # %10.3f IPC  ",
-				avg / avg_stats(&runtime_cycles_stats));
+		total = avg_stats(&runtime_cycles_stats);
+
+		if (total)
+			ratio = avg / total;
+
+		fprintf(stderr, " # %10.3f IPC  ", ratio);
 	} else {
-		fprintf(stderr, " # %10.3f M/sec",
-				1000.0 * avg / avg_stats(&runtime_nsecs_stats));
+		total = avg_stats(&runtime_nsecs_stats);
+
+		if (total)
+			ratio = 1000.0 * avg / total;
+
+		fprintf(stderr, " # %10.3f M/sec", ratio);
 	}
 }
 
@@ -423,6 +436,9 @@ static void skip_signal(int signo)
 
 static void sig_atexit(void)
 {
+	if (child_pid != -1)
+		kill(child_pid, SIGTERM);
+
 	if (signr == -1)
 		return;
 

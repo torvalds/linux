@@ -109,15 +109,32 @@ static bool acpi_pci_can_wakeup(struct pci_dev *dev)
 	return handle ? acpi_bus_can_wakeup(handle) : false;
 }
 
+static void acpi_pci_propagate_wakeup_enable(struct pci_bus *bus, bool enable)
+{
+	while (bus->parent) {
+		struct pci_dev *bridge = bus->self;
+		int ret;
+
+		ret = acpi_pm_device_sleep_wake(&bridge->dev, enable);
+		if (!ret || bridge->is_pcie)
+			return;
+		bus = bus->parent;
+	}
+
+	/* We have reached the root bus. */
+	if (bus->bridge)
+		acpi_pm_device_sleep_wake(bus->bridge, enable);
+}
+
 static int acpi_pci_sleep_wake(struct pci_dev *dev, bool enable)
 {
-	int error = acpi_pm_device_sleep_wake(&dev->dev, enable);
+	if (acpi_pci_can_wakeup(dev))
+		return acpi_pm_device_sleep_wake(&dev->dev, enable);
 
-	if (!error)
-		dev_printk(KERN_INFO, &dev->dev,
-				"wake-up capability %s by ACPI\n",
-				enable ? "enabled" : "disabled");
-	return error;
+	if (!dev->is_pcie)
+		acpi_pci_propagate_wakeup_enable(dev->bus, enable);
+
+	return 0;
 }
 
 static struct pci_platform_pm_ops acpi_pci_platform_pm = {

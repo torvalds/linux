@@ -690,7 +690,7 @@ int cx18_v4l2_open(struct file *filp)
 	int res;
 	struct video_device *video_dev = video_devdata(filp);
 	struct cx18_stream *s = video_get_drvdata(video_dev);
-	struct cx18 *cx = s->cx;;
+	struct cx18 *cx = s->cx;
 
 	mutex_lock(&cx->serialize_lock);
 	if (cx18_init_on_first_open(cx)) {

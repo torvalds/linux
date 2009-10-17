@@ -21,6 +21,7 @@
 
 #include "trace_output.h"
 
+#undef TRACE_SYSTEM
 #define TRACE_SYSTEM "TRACE_SYSTEM"
 
 DEFINE_MUTEX(event_mutex);
@@ -86,7 +87,7 @@ int trace_define_common_fields(struct ftrace_event_call *call)
 	__common_field(unsigned char, flags);
 	__common_field(unsigned char, preempt_count);
 	__common_field(int, pid);
-	__common_field(int, tgid);
+	__common_field(int, lock_depth);
 
 	return ret;
 }
@@ -230,73 +231,38 @@ static ssize_t
 ftrace_event_write(struct file *file, const char __user *ubuf,
 		   size_t cnt, loff_t *ppos)
 {
-	size_t read = 0;
-	int i, set = 1;
-	ssize_t ret;
-	char *buf;
-	char ch;
+	struct trace_parser parser;
+	ssize_t read, ret;
 
-	if (!cnt || cnt < 0)
+	if (!cnt)
 		return 0;
 
 	ret = tracing_update_buffers();
 	if (ret < 0)
 		return ret;
 
-	ret = get_user(ch, ubuf++);
-	if (ret)
-		return ret;
-	read++;
-	cnt--;
-
-	/* skip white space */
-	while (cnt && isspace(ch)) {
-		ret = get_user(ch, ubuf++);
-		if (ret)
-			return ret;
-		read++;
-		cnt--;
-	}
-
-	/* Only white space found? */
-	if (isspace(ch)) {
-		file->f_pos += read;
-		ret = read;
-		return ret;
-	}
-
-	buf = kmalloc(EVENT_BUF_SIZE+1, GFP_KERNEL);
-	if (!buf)
+	if (trace_parser_get_init(&parser, EVENT_BUF_SIZE + 1))
 		return -ENOMEM;
 
-	if (cnt > EVENT_BUF_SIZE)
-		cnt = EVENT_BUF_SIZE;
+	read = trace_get_user(&parser, ubuf, cnt, ppos);
 
-	i = 0;
-	while (cnt && !isspace(ch)) {
-		if (!i && ch == '!')
+	if (read >= 0 && trace_parser_loaded((&parser))) {
+		int set = 1;
+
+		if (*parser.buffer == '!')
 			set = 0;
-		else
-			buf[i++] = ch;
 
-		ret = get_user(ch, ubuf++);
+		parser.buffer[parser.idx] = 0;
+
+		ret = ftrace_set_clr_event(parser.buffer + !set, set);
 		if (ret)
-			goto out_free;
-		read++;
-		cnt--;
+			goto out_put;
 	}
-	buf[i] = 0;
-
-	file->f_pos += read;
-
-	ret = ftrace_set_clr_event(buf, set);
-	if (ret)
-		goto out_free;
 
 	ret = read;
 
- out_free:
-	kfree(buf);
+ out_put:
+	trace_parser_put(&parser);
 
 	return ret;
 }
@@ -304,42 +270,32 @@ ftrace_event_write(struct file *file, const char __user *ubuf,
 static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct list_head *list = m->private;
-	struct ftrace_event_call *call;
+	struct ftrace_event_call *call = v;
 
 	(*pos)++;
 
-	for (;;) {
-		if (list == &ftrace_events)
-			return NULL;
-
-		call = list_entry(list, struct ftrace_event_call, list);
-
+	list_for_each_entry_continue(call, &ftrace_events, list) {
 		/*
 		 * The ftrace subsystem is for showing formats only.
 		 * They can not be enabled or disabled via the event files.
 		 */
 		if (call->regfunc)
-			break;
-
-		list = list->next;
+			return call;
 	}
 
-	m->private = list->next;
-
-	return call;
+	return NULL;
 }
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
-	struct ftrace_event_call *call = NULL;
+	struct ftrace_event_call *call;
 	loff_t l;
 
 	mutex_lock(&event_mutex);
 
-	m->private = ftrace_events.next;
+	call = list_entry(&ftrace_events, struct ftrace_event_call, list);
 	for (l = 0; l <= *pos; ) {
-		call = t_next(m, NULL, &l);
+		call = t_next(m, call, &l);
 		if (!call)
 			break;
 	}
@@ -349,37 +305,28 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 static void *
 s_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct list_head *list = m->private;
-	struct ftrace_event_call *call;
+	struct ftrace_event_call *call = v;
 
 	(*pos)++;
 
- retry:
-	if (list == &ftrace_events)
-		return NULL;
-
-	call = list_entry(list, struct ftrace_event_call, list);
-
-	if (!call->enabled) {
-		list = list->next;
-		goto retry;
+	list_for_each_entry_continue(call, &ftrace_events, list) {
+		if (call->enabled)
+			return call;
 	}
 
-	m->private = list->next;
-
-	return call;
+	return NULL;
 }
 
 static void *s_start(struct seq_file *m, loff_t *pos)
 {
-	struct ftrace_event_call *call = NULL;
+	struct ftrace_event_call *call;
 	loff_t l;
 
 	mutex_lock(&event_mutex);
 
-	m->private = ftrace_events.next;
+	call = list_entry(&ftrace_events, struct ftrace_event_call, list);
 	for (l = 0; l <= *pos; ) {
-		call = s_next(m, NULL, &l);
+		call = s_next(m, call, &l);
 		if (!call)
 			break;
 	}
@@ -560,7 +507,7 @@ extern char *__bad_type_size(void);
 #define FIELD(type, name)						\
 	sizeof(type) != sizeof(field.name) ? __bad_type_size() :	\
 	#type, "common_" #name, offsetof(typeof(field), name),		\
-		sizeof(field.name)
+		sizeof(field.name), is_signed_type(type)
 
 static int trace_write_header(struct trace_seq *s)
 {
@@ -568,17 +515,17 @@ static int trace_write_header(struct trace_seq *s)
 
 	/* struct trace_entry */
 	return trace_seq_printf(s,
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\n",
-				FIELD(unsigned short, type),
-				FIELD(unsigned char, flags),
-				FIELD(unsigned char, preempt_count),
-				FIELD(int, pid),
-				FIELD(int, tgid));
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\n",
+			FIELD(unsigned short, type),
+			FIELD(unsigned char, flags),
+			FIELD(unsigned char, preempt_count),
+			FIELD(int, pid),
+			FIELD(int, lock_depth));
 }
 
 static ssize_t
@@ -931,9 +878,9 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 			   "'%s/filter' entry\n", name);
 	}
 
-	entry = trace_create_file("enable", 0644, system->entry,
-				  (void *)system->name,
-				  &ftrace_system_enable_fops);
+	trace_create_file("enable", 0644, system->entry,
+			  (void *)system->name,
+			  &ftrace_system_enable_fops);
 
 	return system->entry;
 }
@@ -945,7 +892,6 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		 const struct file_operations *filter,
 		 const struct file_operations *format)
 {
-	struct dentry *entry;
 	int ret;
 
 	/*
@@ -963,12 +909,12 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 	}
 
 	if (call->regfunc)
-		entry = trace_create_file("enable", 0644, call->dir, call,
-					  enable);
+		trace_create_file("enable", 0644, call->dir, call,
+				  enable);
 
 	if (call->id && call->profile_enable)
-		entry = trace_create_file("id", 0444, call->dir, call,
-					  id);
+		trace_create_file("id", 0444, call->dir, call,
+		 		  id);
 
 	if (call->define_fields) {
 		ret = call->define_fields(call);
@@ -977,16 +923,16 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 				   " events/%s\n", call->name);
 			return ret;
 		}
-		entry = trace_create_file("filter", 0644, call->dir, call,
-					  filter);
+		trace_create_file("filter", 0644, call->dir, call,
+				  filter);
 	}
 
 	/* A trace may not want to export its format */
 	if (!call->show_format)
 		return 0;
 
-	entry = trace_create_file("format", 0444, call->dir, call,
-				  format);
+	trace_create_file("format", 0444, call->dir, call,
+			  format);
 
 	return 0;
 }
@@ -1187,7 +1133,7 @@ static int trace_module_notify(struct notifier_block *self,
 }
 #endif /* CONFIG_MODULES */
 
-struct notifier_block trace_module_nb = {
+static struct notifier_block trace_module_nb = {
 	.notifier_call = trace_module_notify,
 	.priority = 0,
 };
@@ -1359,6 +1305,18 @@ static __init void event_trace_self_tests(void)
 		if (!call->regfunc)
 			continue;
 
+/*
+ * Testing syscall events here is pretty useless, but
+ * we still do it if configured. But this is time consuming.
+ * What we really need is a user thread to perform the
+ * syscalls as we test.
+ */
+#ifndef CONFIG_EVENT_TRACE_TEST_SYSCALLS
+		if (call->system &&
+		    strcmp(call->system, "syscalls") == 0)
+			continue;
+#endif
+
 		pr_info("Testing event %s: ", call->name);
 
 		/*
@@ -1432,7 +1390,7 @@ static __init void event_trace_self_tests(void)
 
 #ifdef CONFIG_FUNCTION_TRACER
 
-static DEFINE_PER_CPU(atomic_t, test_event_disable);
+static DEFINE_PER_CPU(atomic_t, ftrace_test_event_disable);
 
 static void
 function_test_events_call(unsigned long ip, unsigned long parent_ip)
@@ -1449,7 +1407,7 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip)
 	pc = preempt_count();
 	resched = ftrace_preempt_disable();
 	cpu = raw_smp_processor_id();
-	disabled = atomic_inc_return(&per_cpu(test_event_disable, cpu));
+	disabled = atomic_inc_return(&per_cpu(ftrace_test_event_disable, cpu));
 
 	if (disabled != 1)
 		goto out;
@@ -1468,7 +1426,7 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip)
 	trace_nowake_buffer_unlock_commit(buffer, event, flags, pc);
 
  out:
-	atomic_dec(&per_cpu(test_event_disable, cpu));
+	atomic_dec(&per_cpu(ftrace_test_event_disable, cpu));
 	ftrace_preempt_enable(resched);
 }
 

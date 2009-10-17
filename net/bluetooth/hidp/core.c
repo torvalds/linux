@@ -577,11 +577,6 @@ static int hidp_session(void *arg)
 	}
 
 	if (session->hid) {
-		if (session->hid->claimed & HID_CLAIMED_INPUT)
-			hidinput_disconnect(session->hid);
-		if (session->hid->claimed & HID_CLAIMED_HIDRAW)
-			hidraw_disconnect(session->hid);
-
 		hid_destroy_device(session->hid);
 		session->hid = NULL;
 	}
@@ -747,8 +742,6 @@ static void hidp_stop(struct hid_device *hid)
 	skb_queue_purge(&session->ctrl_transmit);
 	skb_queue_purge(&session->intr_transmit);
 
-	if (hid->claimed & HID_CLAIMED_INPUT)
-		hidinput_disconnect(hid);
 	hid->claimed = 0;
 }
 

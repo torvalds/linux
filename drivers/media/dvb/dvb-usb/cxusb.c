@@ -38,7 +38,7 @@
 #include "mxl5005s.h"
 #include "dib7000p.h"
 #include "dib0070.h"
-#include "lgs8gl5.h"
+#include "lgs8gxx.h"
 
 /* debug */
 static int dvb_usb_cxusb_debug;
@@ -392,8 +392,8 @@ static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*state = REMOTE_NO_KEY_PRESSED;
 
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (keymap[i].custom == ircode[2] &&
-		    keymap[i].data == ircode[3]) {
+		if (rc5_custom(&keymap[i]) == ircode[2] &&
+		    rc5_data(&keymap[i]) == ircode[3]) {
 			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 
@@ -420,8 +420,8 @@ static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
 		return 0;
 
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (keymap[i].custom == ircode[1] &&
-		    keymap[i].data == ircode[2]) {
+		if (rc5_custom(&keymap[i]) == ircode[1] &&
+		    rc5_data(&keymap[i]) == ircode[2]) {
 			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 
@@ -446,8 +446,8 @@ static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 		return 0;
 
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (keymap[i].custom == ircode[0] &&
-		    keymap[i].data == ircode[1]) {
+		if (rc5_custom(&keymap[i]) == ircode[0] &&
+		    rc5_data(&keymap[i]) == ircode[1]) {
 			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 
@@ -459,128 +459,128 @@ static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 }
 
 static struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
-	{ 0xfe, 0x02, KEY_TV },
-	{ 0xfe, 0x0e, KEY_MP3 },
-	{ 0xfe, 0x1a, KEY_DVD },
-	{ 0xfe, 0x1e, KEY_FAVORITES },
-	{ 0xfe, 0x16, KEY_SETUP },
-	{ 0xfe, 0x46, KEY_POWER2 },
-	{ 0xfe, 0x0a, KEY_EPG },
-	{ 0xfe, 0x49, KEY_BACK },
-	{ 0xfe, 0x4d, KEY_MENU },
-	{ 0xfe, 0x51, KEY_UP },
-	{ 0xfe, 0x5b, KEY_LEFT },
-	{ 0xfe, 0x5f, KEY_RIGHT },
-	{ 0xfe, 0x53, KEY_DOWN },
-	{ 0xfe, 0x5e, KEY_OK },
-	{ 0xfe, 0x59, KEY_INFO },
-	{ 0xfe, 0x55, KEY_TAB },
-	{ 0xfe, 0x0f, KEY_PREVIOUSSONG },/* Replay */
-	{ 0xfe, 0x12, KEY_NEXTSONG },	/* Skip */
-	{ 0xfe, 0x42, KEY_ENTER	 },	/* Windows/Start */
-	{ 0xfe, 0x15, KEY_VOLUMEUP },
-	{ 0xfe, 0x05, KEY_VOLUMEDOWN },
-	{ 0xfe, 0x11, KEY_CHANNELUP },
-	{ 0xfe, 0x09, KEY_CHANNELDOWN },
-	{ 0xfe, 0x52, KEY_CAMERA },
-	{ 0xfe, 0x5a, KEY_TUNER },	/* Live */
-	{ 0xfe, 0x19, KEY_OPEN },
-	{ 0xfe, 0x0b, KEY_1 },
-	{ 0xfe, 0x17, KEY_2 },
-	{ 0xfe, 0x1b, KEY_3 },
-	{ 0xfe, 0x07, KEY_4 },
-	{ 0xfe, 0x50, KEY_5 },
-	{ 0xfe, 0x54, KEY_6 },
-	{ 0xfe, 0x48, KEY_7 },
-	{ 0xfe, 0x4c, KEY_8 },
-	{ 0xfe, 0x58, KEY_9 },
-	{ 0xfe, 0x13, KEY_ANGLE },	/* Aspect */
-	{ 0xfe, 0x03, KEY_0 },
-	{ 0xfe, 0x1f, KEY_ZOOM },
-	{ 0xfe, 0x43, KEY_REWIND },
-	{ 0xfe, 0x47, KEY_PLAYPAUSE },
-	{ 0xfe, 0x4f, KEY_FASTFORWARD },
-	{ 0xfe, 0x57, KEY_MUTE },
-	{ 0xfe, 0x0d, KEY_STOP },
-	{ 0xfe, 0x01, KEY_RECORD },
-	{ 0xfe, 0x4e, KEY_POWER },
+	{ 0xfe02, KEY_TV },
+	{ 0xfe0e, KEY_MP3 },
+	{ 0xfe1a, KEY_DVD },
+	{ 0xfe1e, KEY_FAVORITES },
+	{ 0xfe16, KEY_SETUP },
+	{ 0xfe46, KEY_POWER2 },
+	{ 0xfe0a, KEY_EPG },
+	{ 0xfe49, KEY_BACK },
+	{ 0xfe4d, KEY_MENU },
+	{ 0xfe51, KEY_UP },
+	{ 0xfe5b, KEY_LEFT },
+	{ 0xfe5f, KEY_RIGHT },
+	{ 0xfe53, KEY_DOWN },
+	{ 0xfe5e, KEY_OK },
+	{ 0xfe59, KEY_INFO },
+	{ 0xfe55, KEY_TAB },
+	{ 0xfe0f, KEY_PREVIOUSSONG },/* Replay */
+	{ 0xfe12, KEY_NEXTSONG },	/* Skip */
+	{ 0xfe42, KEY_ENTER	 },	/* Windows/Start */
+	{ 0xfe15, KEY_VOLUMEUP },
+	{ 0xfe05, KEY_VOLUMEDOWN },
+	{ 0xfe11, KEY_CHANNELUP },
+	{ 0xfe09, KEY_CHANNELDOWN },
+	{ 0xfe52, KEY_CAMERA },
+	{ 0xfe5a, KEY_TUNER },	/* Live */
+	{ 0xfe19, KEY_OPEN },
+	{ 0xfe0b, KEY_1 },
+	{ 0xfe17, KEY_2 },
+	{ 0xfe1b, KEY_3 },
+	{ 0xfe07, KEY_4 },
+	{ 0xfe50, KEY_5 },
+	{ 0xfe54, KEY_6 },
+	{ 0xfe48, KEY_7 },
+	{ 0xfe4c, KEY_8 },
+	{ 0xfe58, KEY_9 },
+	{ 0xfe13, KEY_ANGLE },	/* Aspect */
+	{ 0xfe03, KEY_0 },
+	{ 0xfe1f, KEY_ZOOM },
+	{ 0xfe43, KEY_REWIND },
+	{ 0xfe47, KEY_PLAYPAUSE },
+	{ 0xfe4f, KEY_FASTFORWARD },
+	{ 0xfe57, KEY_MUTE },
+	{ 0xfe0d, KEY_STOP },
+	{ 0xfe01, KEY_RECORD },
+	{ 0xfe4e, KEY_POWER },
 };
 
 static struct dvb_usb_rc_key dvico_portable_rc_keys[] = {
-	{ 0xfc, 0x02, KEY_SETUP },       /* Profile */
-	{ 0xfc, 0x43, KEY_POWER2 },
-	{ 0xfc, 0x06, KEY_EPG },
-	{ 0xfc, 0x5a, KEY_BACK },
-	{ 0xfc, 0x05, KEY_MENU },
-	{ 0xfc, 0x47, KEY_INFO },
-	{ 0xfc, 0x01, KEY_TAB },
-	{ 0xfc, 0x42, KEY_PREVIOUSSONG },/* Replay */
-	{ 0xfc, 0x49, KEY_VOLUMEUP },
-	{ 0xfc, 0x09, KEY_VOLUMEDOWN },
-	{ 0xfc, 0x54, KEY_CHANNELUP },
-	{ 0xfc, 0x0b, KEY_CHANNELDOWN },
-	{ 0xfc, 0x16, KEY_CAMERA },
-	{ 0xfc, 0x40, KEY_TUNER },	/* ATV/DTV */
-	{ 0xfc, 0x45, KEY_OPEN },
-	{ 0xfc, 0x19, KEY_1 },
-	{ 0xfc, 0x18, KEY_2 },
-	{ 0xfc, 0x1b, KEY_3 },
-	{ 0xfc, 0x1a, KEY_4 },
-	{ 0xfc, 0x58, KEY_5 },
-	{ 0xfc, 0x59, KEY_6 },
-	{ 0xfc, 0x15, KEY_7 },
-	{ 0xfc, 0x14, KEY_8 },
-	{ 0xfc, 0x17, KEY_9 },
-	{ 0xfc, 0x44, KEY_ANGLE },	/* Aspect */
-	{ 0xfc, 0x55, KEY_0 },
-	{ 0xfc, 0x07, KEY_ZOOM },
-	{ 0xfc, 0x0a, KEY_REWIND },
-	{ 0xfc, 0x08, KEY_PLAYPAUSE },
-	{ 0xfc, 0x4b, KEY_FASTFORWARD },
-	{ 0xfc, 0x5b, KEY_MUTE },
-	{ 0xfc, 0x04, KEY_STOP },
-	{ 0xfc, 0x56, KEY_RECORD },
-	{ 0xfc, 0x57, KEY_POWER },
-	{ 0xfc, 0x41, KEY_UNKNOWN },    /* INPUT */
-	{ 0xfc, 0x00, KEY_UNKNOWN },    /* HD */
+	{ 0xfc02, KEY_SETUP },       /* Profile */
+	{ 0xfc43, KEY_POWER2 },
+	{ 0xfc06, KEY_EPG },
+	{ 0xfc5a, KEY_BACK },
+	{ 0xfc05, KEY_MENU },
+	{ 0xfc47, KEY_INFO },
+	{ 0xfc01, KEY_TAB },
+	{ 0xfc42, KEY_PREVIOUSSONG },/* Replay */
+	{ 0xfc49, KEY_VOLUMEUP },
+	{ 0xfc09, KEY_VOLUMEDOWN },
+	{ 0xfc54, KEY_CHANNELUP },
+	{ 0xfc0b, KEY_CHANNELDOWN },
+	{ 0xfc16, KEY_CAMERA },
+	{ 0xfc40, KEY_TUNER },	/* ATV/DTV */
+	{ 0xfc45, KEY_OPEN },
+	{ 0xfc19, KEY_1 },
+	{ 0xfc18, KEY_2 },
+	{ 0xfc1b, KEY_3 },
+	{ 0xfc1a, KEY_4 },
+	{ 0xfc58, KEY_5 },
+	{ 0xfc59, KEY_6 },
+	{ 0xfc15, KEY_7 },
+	{ 0xfc14, KEY_8 },
+	{ 0xfc17, KEY_9 },
+	{ 0xfc44, KEY_ANGLE },	/* Aspect */
+	{ 0xfc55, KEY_0 },
+	{ 0xfc07, KEY_ZOOM },
+	{ 0xfc0a, KEY_REWIND },
+	{ 0xfc08, KEY_PLAYPAUSE },
+	{ 0xfc4b, KEY_FASTFORWARD },
+	{ 0xfc5b, KEY_MUTE },
+	{ 0xfc04, KEY_STOP },
+	{ 0xfc56, KEY_RECORD },
+	{ 0xfc57, KEY_POWER },
+	{ 0xfc41, KEY_UNKNOWN },    /* INPUT */
+	{ 0xfc00, KEY_UNKNOWN },    /* HD */
 };
 
 static struct dvb_usb_rc_key d680_dmb_rc_keys[] = {
-	{ 0x00, 0x38, KEY_UNKNOWN },	/* TV/AV */
-	{ 0x08, 0x0c, KEY_ZOOM },
-	{ 0x08, 0x00, KEY_0 },
-	{ 0x00, 0x01, KEY_1 },
-	{ 0x08, 0x02, KEY_2 },
-	{ 0x00, 0x03, KEY_3 },
-	{ 0x08, 0x04, KEY_4 },
-	{ 0x00, 0x05, KEY_5 },
-	{ 0x08, 0x06, KEY_6 },
-	{ 0x00, 0x07, KEY_7 },
-	{ 0x08, 0x08, KEY_8 },
-	{ 0x00, 0x09, KEY_9 },
-	{ 0x00, 0x0a, KEY_MUTE },
-	{ 0x08, 0x29, KEY_BACK },
-	{ 0x00, 0x12, KEY_CHANNELUP },
-	{ 0x08, 0x13, KEY_CHANNELDOWN },
-	{ 0x00, 0x2b, KEY_VOLUMEUP },
-	{ 0x08, 0x2c, KEY_VOLUMEDOWN },
-	{ 0x00, 0x20, KEY_UP },
-	{ 0x08, 0x21, KEY_DOWN },
-	{ 0x00, 0x11, KEY_LEFT },
-	{ 0x08, 0x10, KEY_RIGHT },
-	{ 0x00, 0x0d, KEY_OK },
-	{ 0x08, 0x1f, KEY_RECORD },
-	{ 0x00, 0x17, KEY_PLAYPAUSE },
-	{ 0x08, 0x16, KEY_PLAYPAUSE },
-	{ 0x00, 0x0b, KEY_STOP },
-	{ 0x08, 0x27, KEY_FASTFORWARD },
-	{ 0x00, 0x26, KEY_REWIND },
-	{ 0x08, 0x1e, KEY_UNKNOWN },    /* Time Shift */
-	{ 0x00, 0x0e, KEY_UNKNOWN },    /* Snapshot */
-	{ 0x08, 0x2d, KEY_UNKNOWN },    /* Mouse Cursor */
-	{ 0x00, 0x0f, KEY_UNKNOWN },    /* Minimize/Maximize */
-	{ 0x08, 0x14, KEY_UNKNOWN },    /* Shuffle */
-	{ 0x00, 0x25, KEY_POWER },
+	{ 0x0038, KEY_UNKNOWN },	/* TV/AV */
+	{ 0x080c, KEY_ZOOM },
+	{ 0x0800, KEY_0 },
+	{ 0x0001, KEY_1 },
+	{ 0x0802, KEY_2 },
+	{ 0x0003, KEY_3 },
+	{ 0x0804, KEY_4 },
+	{ 0x0005, KEY_5 },
+	{ 0x0806, KEY_6 },
+	{ 0x0007, KEY_7 },
+	{ 0x0808, KEY_8 },
+	{ 0x0009, KEY_9 },
+	{ 0x000a, KEY_MUTE },
+	{ 0x0829, KEY_BACK },
+	{ 0x0012, KEY_CHANNELUP },
+	{ 0x0813, KEY_CHANNELDOWN },
+	{ 0x002b, KEY_VOLUMEUP },
+	{ 0x082c, KEY_VOLUMEDOWN },
+	{ 0x0020, KEY_UP },
+	{ 0x0821, KEY_DOWN },
+	{ 0x0011, KEY_LEFT },
+	{ 0x0810, KEY_RIGHT },
+	{ 0x000d, KEY_OK },
+	{ 0x081f, KEY_RECORD },
+	{ 0x0017, KEY_PLAYPAUSE },
+	{ 0x0816, KEY_PLAYPAUSE },
+	{ 0x000b, KEY_STOP },
+	{ 0x0827, KEY_FASTFORWARD },
+	{ 0x0026, KEY_REWIND },
+	{ 0x081e, KEY_UNKNOWN },    /* Time Shift */
+	{ 0x000e, KEY_UNKNOWN },    /* Snapshot */
+	{ 0x082d, KEY_UNKNOWN },    /* Mouse Cursor */
+	{ 0x000f, KEY_UNKNOWN },    /* Minimize/Maximize */
+	{ 0x0814, KEY_UNKNOWN },    /* Shuffle */
+	{ 0x0025, KEY_POWER },
 };
 
 static int cxusb_dee1601_demod_init(struct dvb_frontend* fe)
@@ -1094,8 +1094,18 @@ static int cxusb_nano2_frontend_attach(struct dvb_usb_adapter *adap)
 	return -EIO;
 }
 
-static struct lgs8gl5_config lgs8gl5_cfg = {
+static struct lgs8gxx_config d680_lgs8gl5_cfg = {
+	.prod = LGS8GXX_PROD_LGS8GL5,
 	.demod_address = 0x19,
+	.serial_ts = 0,
+	.ts_clk_pol = 0,
+	.ts_clk_gated = 1,
+	.if_clk_freq = 30400, /* 30.4 MHz */
+	.if_freq = 5725, /* 5.725 MHz */
+	.if_neg_center = 0,
+	.ext_adc = 0,
+	.adc_signed = 0,
+	.if_neg_edge = 0,
 };
 
 static int cxusb_d680_dmb_frontend_attach(struct dvb_usb_adapter *adap)
@@ -1135,7 +1145,7 @@ static int cxusb_d680_dmb_frontend_attach(struct dvb_usb_adapter *adap)
 	msleep(100);
 
 	/* Attach frontend */
-	adap->fe = dvb_attach(lgs8gl5_attach, &lgs8gl5_cfg, &d->i2c_adap);
+	adap->fe = dvb_attach(lgs8gxx_attach, &d680_lgs8gl5_cfg, &d->i2c_adap);
 	if (adap->fe == NULL)
 		return -EIO;
 

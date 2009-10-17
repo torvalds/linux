@@ -19,6 +19,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/kmi.h>
 #include <linux/amba/clcd.h>
+#include <linux/amba/mmci.h>
 #include <linux/io.h>
 
 #include <asm/clkdev.h>
@@ -35,7 +36,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
-#include <asm/mach/mmc.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
@@ -400,7 +400,7 @@ static unsigned int mmc_status(struct device *dev)
 	return status & 8;
 }
 
-static struct mmc_platform_data mmc_data = {
+static struct mmci_platform_data mmc_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= mmc_status,
 	.gpio_wp	= -1,

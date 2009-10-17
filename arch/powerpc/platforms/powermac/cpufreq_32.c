@@ -44,14 +44,6 @@
  */
 #undef DEBUG_FREQ
 
-/*
- * There is a problem with the core cpufreq code on SMP kernels,
- * it won't recalculate the Bogomips properly
- */
-#ifdef CONFIG_SMP
-#warning "WARNING, CPUFREQ not recommended on SMP kernels"
-#endif
-
 extern void low_choose_7447a_dfs(int dfs);
 extern void low_choose_750fx_pll(int pll);
 extern void low_sleep_handler(void);

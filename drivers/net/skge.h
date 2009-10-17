@@ -2423,6 +2423,8 @@ struct skge_hw {
 	u16		     phy_addr;
 	spinlock_t	     phy_lock;
 	struct tasklet_struct phy_task;
+
+	char		     irq_name[0]; /* skge@pci:000:04:00.0 */
 };
 
 enum pause_control {

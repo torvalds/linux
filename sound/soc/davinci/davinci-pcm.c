@@ -126,15 +126,8 @@ static void davinci_pcm_dma_irq(unsigned lch, u16 ch_status, void *data)
 static int davinci_pcm_dma_request(struct snd_pcm_substream *substream)
 {
 	struct davinci_runtime_data *prtd = substream->runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct davinci_pcm_dma_params *dma_data = rtd->dai->cpu_dai->dma_data;
 	struct edmacc_param p_ram;
 	int ret;
-
-	if (!dma_data)
-		return -ENODEV;
-
-	prtd->params = dma_data;
 
 	/* Request master DMA channel */
 	ret = edma_alloc_channel(prtd->params->channel,
@@ -145,7 +138,7 @@ static int davinci_pcm_dma_request(struct snd_pcm_substream *substream)
 	prtd->master_lch = ret;
 
 	/* Request parameter RAM reload slot */
-	ret = edma_alloc_slot(EDMA_SLOT_ANY);
+	ret = edma_alloc_slot(EDMA_CTLR(prtd->master_lch), EDMA_SLOT_ANY);
 	if (ret < 0) {
 		edma_free_channel(prtd->master_lch);
 		return ret;
@@ -162,8 +155,8 @@ static int davinci_pcm_dma_request(struct snd_pcm_substream *substream)
 	 * so davinci_pcm_enqueue_dma() takes less time in IRQ.
 	 */
 	edma_read_slot(prtd->slave_lch, &p_ram);
-	p_ram.opt |= TCINTEN | EDMA_TCC(prtd->master_lch);
-	p_ram.link_bcntrld = prtd->slave_lch << 5;
+	p_ram.opt |= TCINTEN | EDMA_TCC(EDMA_CHAN_SLOT(prtd->master_lch));
+	p_ram.link_bcntrld = EDMA_CHAN_SLOT(prtd->slave_lch) << 5;
 	edma_write_slot(prtd->slave_lch, &p_ram);
 
 	return 0;
@@ -244,6 +237,11 @@ static int davinci_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct davinci_runtime_data *prtd;
 	int ret = 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct davinci_pcm_dma_params *pa = rtd->dai->cpu_dai->private_data;
+	struct davinci_pcm_dma_params *params = &pa[substream->stream];
+	if (!params)
+		return -ENODEV;
 
 	snd_soc_set_runtime_hwparams(substream, &davinci_pcm_hardware);
 	/* ensure that buffer size is a multiple of period size */
@@ -257,6 +255,7 @@ static int davinci_pcm_open(struct snd_pcm_substream *substream)
 		return -ENOMEM;
 
 	spin_lock_init(&prtd->lock);
+	prtd->params = params;
 
 	runtime->private_data = prtd;
 

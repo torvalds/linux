@@ -1504,7 +1504,9 @@ static void pohmelfs_flush_inode(struct pohmelfs_inode *pi, unsigned int count)
 		inode->i_sb->s_op->write_inode(inode, 0);
 	}
 
+#ifdef POHMELFS_TRUNCATE_ON_INODE_FLUSH
 	truncate_inode_pages(inode->i_mapping, 0);
+#endif
 
 	pohmelfs_data_unlock(pi, 0, ~0, POHMELFS_WRITE_LOCK);
 	mutex_unlock(&inode->i_mutex);
@@ -1743,11 +1745,10 @@ static int pohmelfs_root_handshake(struct pohmelfs_sb *psb)
 	err = wait_event_interruptible_timeout(psb->wait,
 			(psb->flags != ~0),
 			psb->wait_on_page_timeout);
-	if (!err) {
+	if (!err)
 		err = -ETIMEDOUT;
-	} else {
+	else if (err > 0)
 		err = -psb->flags;
-	}
 
 	if (err)
 		goto err_out_exit;
@@ -1865,7 +1866,7 @@ static int pohmelfs_fill_super(struct super_block *sb, void *data, int silent)
 	INIT_LIST_HEAD(&psb->crypto_active_list);
 
 	atomic_set(&psb->trans_gen, 1);
-	atomic_set(&psb->total_inodes, 0);
+	atomic_long_set(&psb->total_inodes, 0);
 
 	mutex_init(&psb->state_lock);
 	INIT_LIST_HEAD(&psb->state_list);

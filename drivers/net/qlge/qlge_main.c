@@ -34,7 +34,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
-#include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
@@ -1926,12 +1925,10 @@ static void ql_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
 	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
 	if (status)
 		return;
-	spin_lock(&qdev->hw_lock);
 	if (ql_set_mac_addr_reg
 	    (qdev, (u8 *) &enable_bit, MAC_ADDR_TYPE_VLAN, vid)) {
 		QPRINTK(qdev, IFUP, ERR, "Failed to init vlan address.\n");
 	}
-	spin_unlock(&qdev->hw_lock);
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 }
 
@@ -1945,12 +1942,10 @@ static void ql_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
 	if (status)
 		return;
 
-	spin_lock(&qdev->hw_lock);
 	if (ql_set_mac_addr_reg
 	    (qdev, (u8 *) &enable_bit, MAC_ADDR_TYPE_VLAN, vid)) {
 		QPRINTK(qdev, IFUP, ERR, "Failed to clear vlan address.\n");
 	}
-	spin_unlock(&qdev->hw_lock);
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 
 }
@@ -2001,15 +1996,17 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 	/*
 	 * Check MPI processor activity.
 	 */
-	if (var & STS_PI) {
+	if ((var & STS_PI) &&
+		(ql_read32(qdev, INTR_MASK) & INTR_MASK_PI)) {
 		/*
 		 * We've got an async event or mailbox completion.
 		 * Handle it and clear the source of the interrupt.
 		 */
 		QPRINTK(qdev, INTR, ERR, "Got MPI processor interrupt.\n");
 		ql_disable_completion_interrupt(qdev, intr_context->intr);
-		queue_delayed_work_on(smp_processor_id(), qdev->workqueue,
-				      &qdev->mpi_work, 0);
+		ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
+		queue_delayed_work_on(smp_processor_id(),
+				qdev->workqueue, &qdev->mpi_work, 0);
 		work_done++;
 	}
 
@@ -2630,7 +2627,7 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	    FLAGS_LI;		/* Load irq delay values */
 	if (rx_ring->lbq_len) {
 		cqicb->flags |= FLAGS_LL;	/* Load lbq values */
-		tmp = (u64)rx_ring->lbq_base_dma;;
+		tmp = (u64)rx_ring->lbq_base_dma;
 		base_indirect_ptr = (__le64 *) rx_ring->lbq_base_indirect;
 		page_entries = 0;
 		do {
@@ -2654,7 +2651,7 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	}
 	if (rx_ring->sbq_len) {
 		cqicb->flags |= FLAGS_LS;	/* Load sbq values */
-		tmp = (u64)rx_ring->sbq_base_dma;;
+		tmp = (u64)rx_ring->sbq_base_dma;
 		base_indirect_ptr = (__le64 *) rx_ring->sbq_base_indirect;
 		page_entries = 0;
 		do {
@@ -3142,14 +3139,14 @@ static int ql_route_initialize(struct ql_adapter *qdev)
 {
 	int status = 0;
 
-	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
-	if (status)
-		return status;
-
 	/* Clear all the entries in the routing table. */
 	status = ql_clear_routing_entries(qdev);
 	if (status)
-		goto exit;
+		return status;
+
+	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
+	if (status)
+		return status;
 
 	status = ql_set_routing_reg(qdev, RT_IDX_ALL_ERR_SLOT, RT_IDX_ERR, 1);
 	if (status) {
@@ -3380,12 +3377,10 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 
 	ql_free_rx_buffers(qdev);
 
-	spin_lock(&qdev->hw_lock);
 	status = ql_adapter_reset(qdev);
 	if (status)
 		QPRINTK(qdev, IFDOWN, ERR, "reset(func #%d) FAILED!\n",
 			qdev->func);
-	spin_unlock(&qdev->hw_lock);
 	return status;
 }
 
@@ -3587,7 +3582,6 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
 	if (status)
 		return;
-	spin_lock(&qdev->hw_lock);
 	/*
 	 * Set or clear promiscuous mode if a
 	 * transition is taking place.
@@ -3664,7 +3658,6 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 		}
 	}
 exit:
-	spin_unlock(&qdev->hw_lock);
 	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
 }
 
@@ -3684,10 +3677,8 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
 	if (status)
 		return status;
-	spin_lock(&qdev->hw_lock);
 	status = ql_set_mac_addr_reg(qdev, (u8 *) ndev->dev_addr,
 			MAC_ADDR_TYPE_CAM_MAC, qdev->func * MAX_CQ);
-	spin_unlock(&qdev->hw_lock);
 	if (status)
 		QPRINTK(qdev, HW, ERR, "Failed to load MAC address.\n");
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
@@ -3705,7 +3696,7 @@ static void ql_asic_reset_work(struct work_struct *work)
 	struct ql_adapter *qdev =
 	    container_of(work, struct ql_adapter, asic_reset_work.work);
 	int status;
-
+	rtnl_lock();
 	status = ql_adapter_down(qdev);
 	if (status)
 		goto error;
@@ -3713,12 +3704,12 @@ static void ql_asic_reset_work(struct work_struct *work)
 	status = ql_adapter_up(qdev);
 	if (status)
 		goto error;
-
+	rtnl_unlock();
 	return;
 error:
 	QPRINTK(qdev, IFUP, ALERT,
 		"Driver up/down cycle failed, closing device\n");
-	rtnl_lock();
+
 	set_bit(QL_ADAPTER_UP, &qdev->flags);
 	dev_close(qdev->ndev);
 	rtnl_unlock();
@@ -3834,11 +3825,14 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		return err;
 	}
 
+	qdev->ndev = ndev;
+	qdev->pdev = pdev;
+	pci_set_drvdata(pdev, ndev);
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (pos <= 0) {
 		dev_err(&pdev->dev, PFX "Cannot find PCI Express capability, "
 			"aborting.\n");
-		goto err_out;
+		return pos;
 	} else {
 		pci_read_config_word(pdev, pos + PCI_EXP_DEVCTL, &val16);
 		val16 &= ~PCI_EXP_DEVCTL_NOSNOOP_EN;
@@ -3851,7 +3845,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		dev_err(&pdev->dev, "PCI region request failed.\n");
-		goto err_out;
+		return err;
 	}
 
 	pci_set_master(pdev);
@@ -3869,7 +3863,6 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	pci_set_drvdata(pdev, ndev);
 	qdev->reg_base =
 	    ioremap_nocache(pci_resource_start(pdev, 1),
 			    pci_resource_len(pdev, 1));
@@ -3889,8 +3882,6 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		goto err_out;
 	}
 
-	qdev->ndev = ndev;
-	qdev->pdev = pdev;
 	err = ql_get_board_info(qdev);
 	if (err) {
 		dev_err(&pdev->dev, "Register access failed.\n");
@@ -3930,7 +3921,6 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	INIT_DELAYED_WORK(&qdev->mpi_work, ql_mpi_work);
 	INIT_DELAYED_WORK(&qdev->mpi_port_cfg_work, ql_mpi_port_cfg_work);
 	INIT_DELAYED_WORK(&qdev->mpi_idc_work, ql_mpi_idc_work);
-	mutex_init(&qdev->mpi_mutex);
 	init_completion(&qdev->ide_completion);
 
 	if (!cards_found) {

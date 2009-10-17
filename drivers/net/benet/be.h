@@ -258,6 +258,7 @@ struct be_adapter {
 	bool link_up;
 	u32 port_num;
 	bool promiscuous;
+	u32 cap;
 };
 
 extern const struct ethtool_ops be_ethtool_ops;
@@ -362,5 +363,6 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, bool link_up);
+extern void netdev_stats_update(struct be_adapter *adapter);
 extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 #endif				/* BE_H */

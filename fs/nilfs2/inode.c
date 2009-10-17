@@ -238,7 +238,7 @@ nilfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	return size;
 }
 
-struct address_space_operations nilfs_aops = {
+const struct address_space_operations nilfs_aops = {
 	.writepage		= nilfs_writepage,
 	.readpage		= nilfs_readpage,
 	.sync_page		= block_sync_page,
@@ -400,6 +400,7 @@ int nilfs_read_inode_common(struct inode *inode,
 	ii->i_dir_acl = S_ISREG(inode->i_mode) ?
 		0 : le32_to_cpu(raw_inode->i_dir_acl);
 #endif
+	ii->i_dir_start_lookup = 0;
 	ii->i_cno = 0;
 	inode->i_generation = le32_to_cpu(raw_inode->i_generation);
 

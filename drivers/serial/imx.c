@@ -224,7 +224,7 @@ static void imx_mctrl_check(struct imx_port *sport)
 	if (changed & TIOCM_CTS)
 		uart_handle_cts_change(&sport->port, status & TIOCM_CTS);
 
-	wake_up_interruptible(&sport->port.info->delta_msr_wait);
+	wake_up_interruptible(&sport->port.state->port.delta_msr_wait);
 }
 
 /*
@@ -236,7 +236,7 @@ static void imx_timeout(unsigned long data)
 	struct imx_port *sport = (struct imx_port *)data;
 	unsigned long flags;
 
-	if (sport->port.info) {
+	if (sport->port.state) {
 		spin_lock_irqsave(&sport->port.lock, flags);
 		imx_mctrl_check(sport);
 		spin_unlock_irqrestore(&sport->port.lock, flags);
@@ -323,7 +323,7 @@ static void imx_enable_ms(struct uart_port *port)
 
 static inline void imx_transmit_buffer(struct imx_port *sport)
 {
-	struct circ_buf *xmit = &sport->port.info->xmit;
+	struct circ_buf *xmit = &sport->port.state->xmit;
 
 	while (!(readl(sport->port.membase + UTS) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
@@ -388,7 +388,7 @@ static irqreturn_t imx_rtsint(int irq, void *dev_id)
 
 	writel(USR1_RTSD, sport->port.membase + USR1);
 	uart_handle_cts_change(&sport->port, !!val);
-	wake_up_interruptible(&sport->port.info->delta_msr_wait);
+	wake_up_interruptible(&sport->port.state->port.delta_msr_wait);
 
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 	return IRQ_HANDLED;
@@ -397,7 +397,7 @@ static irqreturn_t imx_rtsint(int irq, void *dev_id)
 static irqreturn_t imx_txint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
-	struct circ_buf *xmit = &sport->port.info->xmit;
+	struct circ_buf *xmit = &sport->port.state->xmit;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sport->port.lock,flags);
@@ -427,7 +427,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
 	unsigned int rx,flg,ignored = 0;
-	struct tty_struct *tty = sport->port.info->port.tty;
+	struct tty_struct *tty = sport->port.state->port.tty;
 	unsigned long flags, temp;
 
 	spin_lock_irqsave(&sport->port.lock,flags);
@@ -900,11 +900,11 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	rational_best_approximation(16 * div * baud, sport->port.uartclk,
 		1 << 16, 1 << 16, &num, &denom);
 
-	if (port->info && port->info->port.tty) {
+	if (port->state && port->state->port.tty) {
 		tdiv64 = sport->port.uartclk;
 		tdiv64 *= num;
 		do_div(tdiv64, denom * 16 * div);
-		tty_encode_baud_rate(sport->port.info->port.tty,
+		tty_encode_baud_rate(sport->port.state->port.tty,
 				(speed_t)tdiv64, (speed_t)tdiv64);
 	}
 

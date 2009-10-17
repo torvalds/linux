@@ -330,12 +330,17 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 
 	switch (hw->device_id) {
 	case IXGBE_DEV_ID_82599_KX4:
+	case IXGBE_DEV_ID_82599_KX4_MEZZ:
+	case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
 	case IXGBE_DEV_ID_82599_XAUI_LOM:
 		/* Default device ID is mezzanine card KX/KX4 */
 		media_type = ixgbe_media_type_backplane;
 		break;
 	case IXGBE_DEV_ID_82599_SFP:
 		media_type = ixgbe_media_type_fiber;
+		break;
+	case IXGBE_DEV_ID_82599_CX4:
+		media_type = ixgbe_media_type_cx4;
 		break;
 	default:
 		media_type = ixgbe_media_type_unknown;

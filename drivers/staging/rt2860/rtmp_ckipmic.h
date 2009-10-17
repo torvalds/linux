@@ -46,24 +46,6 @@ typedef	struct	_MIC_CONTEXT	{
 	UCHAR		part[4];			/* for conversion of message to u32 for mmh   */
 }	MIC_CONTEXT, *PMIC_CONTEXT;
 
-VOID	CKIP_key_permute(
-	OUT	UCHAR	*PK,			/* output permuted key */
-	IN	UCHAR	*CK,			/* input CKIP key */
-	IN	UCHAR	toDsFromDs,		/* input toDs/FromDs bits */
-	IN	UCHAR	*piv);			/* input pointer to IV */
-
-VOID	RTMPCkipMicInit(
-	IN	PMIC_CONTEXT		pContext,
-	IN	PUCHAR				CK);
-
-VOID RTMPMicUpdate(
-    IN  PMIC_CONTEXT        pContext,
-    IN  PUCHAR              pOctets,
-    IN  INT                 len);
-
-ULONG RTMPMicGetCoefficient(
-    IN  PMIC_CONTEXT         pContext);
-
 VOID xor_128(
     IN  PUCHAR              a,
     IN  PUCHAR              b,
@@ -92,22 +74,5 @@ VOID shift_row(
 VOID mix_column(
     IN  PUCHAR              in,
     OUT PUCHAR              out);
-
-VOID RTMPAesEncrypt(
-    IN  PUCHAR              key,
-    IN  PUCHAR              data,
-    IN  PUCHAR              ciphertext);
-
-VOID RTMPMicFinal(
-    IN  PMIC_CONTEXT        pContext,
-    OUT UCHAR               digest[4]);
-
-VOID RTMPCkipInsertCMIC(
-    IN  PRTMP_ADAPTER   pAd,
-    OUT PUCHAR          pMIC,
-    IN  PUCHAR          p80211hdr,
-    IN  PNDIS_PACKET    pPacket,
-    IN  PCIPHER_KEY     pKey,
-    IN  PUCHAR          mic_snap);
 
 #endif //__RTMP_CKIPMIC_H__

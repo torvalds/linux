@@ -417,4 +417,4 @@ module_exit(at25_exit);
 MODULE_DESCRIPTION("Driver for most SPI EEPROMs");
 MODULE_AUTHOR("David Brownell");
 MODULE_LICENSE("GPL");
-
+MODULE_ALIAS("spi:at25");

@@ -671,7 +671,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	earlyprintk=	[X86,SH,BLACKFIN]
 			earlyprintk=vga
 			earlyprintk=serial[,ttySn[,baudrate]]
-			earlyprintk=dbgp
+			earlyprintk=ttySn[,baudrate]
+			earlyprintk=dbgp[debugController#]
 
 			Append ",keep" to not disable it when the real console
 			takes over.
@@ -777,6 +778,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			function-list. This list can be changed at run time
 			by the set_ftrace_notrace file in the debugfs
 			tracing directory.
+
+	ftrace_graph_filter=[function-list]
+			[FTRACE] Limit the top level callers functions traced
+			by the function graph tracer at boot up.
+			function-list is a comma separated list of functions
+			that can be changed at run time by the
+			set_graph_function file in the debugfs tracing directory.
 
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
@@ -933,7 +941,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			1 -- enable informational integrity auditing messages.
 
 	ima_hash=	[IMA]
-			Formt: { "sha1" | "md5" }
+			Format: { "sha1" | "md5" }
 			default: "sha1"
 
 	ima_tcb		[IMA]
@@ -1286,6 +1294,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			(machvec) in a generic kernel.
 			Example: machvec=hpzx1_swiotlb
 
+	machtype=	[Loongson] Share the same kernel image file between different
+			 yeeloong laptop.
+			Example: machtype=lemote-yeeloong-2f-7inch
+
 	max_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory greater
 			than or equal to this physical address is ignored.
 
@@ -1561,7 +1573,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			of returning the full 64-bit number.
 			The default is to return 64-bit inode numbers.
 
-	nmi_debug=	[KNL,AVR32] Specify one or more actions to take
+	nmi_debug=	[KNL,AVR32,SH] Specify one or more actions to take
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
 
@@ -1971,11 +1983,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: { 0 | 1 }
 			See arch/parisc/kernel/pdc_chassis.c
 
-	percpu_alloc=	[X86] Select which percpu first chunk allocator to use.
-			Allowed values are one of "lpage", "embed" and "4k".
-			See comments in arch/x86/kernel/setup_percpu.c for
-			details on each allocator.  This parameter is primarily
-			for debugging and performance comparison.
+	percpu_alloc=	Select which percpu first chunk allocator to use.
+			Currently supported values are "embed" and "page".
+			Archs may support subset or none of the	selections.
+			See comments in mm/percpu.c for details on each
+			allocator.  This parameter is primarily	for debugging
+			and performance comparison.
 
 	pf.		[PARIDE]
 			See Documentation/blockdev/paride.txt.

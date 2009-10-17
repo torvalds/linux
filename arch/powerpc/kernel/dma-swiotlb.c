@@ -25,33 +25,13 @@ int swiotlb __read_mostly;
 unsigned int ppc_swiotlb_enable;
 
 /*
- * Determine if an address is reachable by a pci device, or if we must bounce.
- */
-static int
-swiotlb_pci_addr_needs_map(struct device *hwdev, dma_addr_t addr, size_t size)
-{
-	dma_addr_t max;
-	struct pci_controller *hose;
-	struct pci_dev *pdev = to_pci_dev(hwdev);
-
-	hose = pci_bus_to_host(pdev->bus);
-	max = hose->dma_window_base_cur + hose->dma_window_size;
-
-	/* check that we're within mapped pci window space */
-	if ((addr + size > max) | (addr < hose->dma_window_base_cur))
-		return 1;
-
-	return 0;
-}
-
-/*
  * At the moment, all platforms that use this code only require
  * swiotlb to be used if we're operating on HIGHMEM.  Since
  * we don't ever call anything other than map_sg, unmap_sg,
  * map_page, and unmap_page on highmem, use normal dma_ops
  * for everything else.
  */
-struct dma_mapping_ops swiotlb_dma_ops = {
+struct dma_map_ops swiotlb_dma_ops = {
 	.alloc_coherent = dma_direct_alloc_coherent,
 	.free_coherent = dma_direct_free_coherent,
 	.map_sg = swiotlb_map_sg_attrs,
@@ -62,32 +42,33 @@ struct dma_mapping_ops swiotlb_dma_ops = {
 	.sync_single_range_for_cpu = swiotlb_sync_single_range_for_cpu,
 	.sync_single_range_for_device = swiotlb_sync_single_range_for_device,
 	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
-	.sync_sg_for_device = swiotlb_sync_sg_for_device
+	.sync_sg_for_device = swiotlb_sync_sg_for_device,
+	.mapping_error = swiotlb_dma_mapping_error,
 };
 
-struct dma_mapping_ops swiotlb_pci_dma_ops = {
-	.alloc_coherent = dma_direct_alloc_coherent,
-	.free_coherent = dma_direct_free_coherent,
-	.map_sg = swiotlb_map_sg_attrs,
-	.unmap_sg = swiotlb_unmap_sg_attrs,
-	.dma_supported = swiotlb_dma_supported,
-	.map_page = swiotlb_map_page,
-	.unmap_page = swiotlb_unmap_page,
-	.addr_needs_map = swiotlb_pci_addr_needs_map,
-	.sync_single_range_for_cpu = swiotlb_sync_single_range_for_cpu,
-	.sync_single_range_for_device = swiotlb_sync_single_range_for_device,
-	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
-	.sync_sg_for_device = swiotlb_sync_sg_for_device
-};
+void pci_dma_dev_setup_swiotlb(struct pci_dev *pdev)
+{
+	struct pci_controller *hose;
+	struct dev_archdata *sd;
+
+	hose = pci_bus_to_host(pdev->bus);
+	sd = &pdev->dev.archdata;
+	sd->max_direct_dma_addr =
+		hose->dma_window_base_cur + hose->dma_window_size;
+}
 
 static int ppc_swiotlb_bus_notify(struct notifier_block *nb,
 				  unsigned long action, void *data)
 {
 	struct device *dev = data;
+	struct dev_archdata *sd;
 
 	/* We are only intereted in device addition */
 	if (action != BUS_NOTIFY_ADD_DEVICE)
 		return 0;
+
+	sd = &dev->archdata;
+	sd->max_direct_dma_addr = 0;
 
 	/* May need to bounce if the device can't address all of DRAM */
 	if (dma_get_mask(dev) < lmb_end_of_DRAM())

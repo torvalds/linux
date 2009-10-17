@@ -1,5 +1,5 @@
   0 -> Unknown EM2800 video grabber             (em2800)        [eb1a:2800]
-  1 -> Unknown EM2750/28xx video grabber        (em2820/em2840) [eb1a:2710,eb1a:2820,eb1a:2821,eb1a:2860,eb1a:2861,eb1a:2870,eb1a:2881,eb1a:2883]
+  1 -> Unknown EM2750/28xx video grabber        (em2820/em2840) [eb1a:2710,eb1a:2820,eb1a:2821,eb1a:2860,eb1a:2861,eb1a:2870,eb1a:2881,eb1a:2883,eb1a:2868]
   2 -> Terratec Cinergy 250 USB                 (em2820/em2840) [0ccd:0036]
   3 -> Pinnacle PCTV USB 2                      (em2820/em2840) [2304:0208]
   4 -> Hauppauge WinTV USB 2                    (em2820/em2840) [2040:4200,2040:4201]
@@ -7,7 +7,7 @@
   6 -> Terratec Cinergy 200 USB                 (em2800)
   7 -> Leadtek Winfast USB II                   (em2800)        [0413:6023]
   8 -> Kworld USB2800                           (em2800)
-  9 -> Pinnacle Dazzle DVC 90/100/101/107 / Kaiser Baas Video to DVD maker (em2820/em2840) [1b80:e302,2304:0207,2304:021a]
+  9 -> Pinnacle Dazzle DVC 90/100/101/107 / Kaiser Baas Video to DVD maker  (em2820/em2840) [1b80:e302,1b80:e304,2304:0207,2304:021a]
  10 -> Hauppauge WinTV HVR 900                  (em2880)        [2040:6500]
  11 -> Terratec Hybrid XS                       (em2880)        [0ccd:0042]
  12 -> Kworld PVR TV 2800 RF                    (em2820/em2840)
@@ -33,7 +33,7 @@
  34 -> Terratec Cinergy A Hybrid XS             (em2860)        [0ccd:004f]
  35 -> Typhoon DVD Maker                        (em2860)
  36 -> NetGMBH Cam                              (em2860)
- 37 -> Gadmei UTV330                            (em2860)
+ 37 -> Gadmei UTV330                            (em2860)        [eb1a:50a6]
  38 -> Yakumo MovieMixer                        (em2861)
  39 -> KWorld PVRTV 300U                        (em2861)        [eb1a:e300]
  40 -> Plextor ConvertX PX-TV100U               (em2861)        [093b:a005]
@@ -67,3 +67,5 @@
  69 -> KWorld ATSC 315U HDTV TV Box             (em2882)        [eb1a:a313]
  70 -> Evga inDtube                             (em2882)
  71 -> Silvercrest Webcam 1.3mpix               (em2820/em2840)
+ 72 -> Gadmei UTV330+                           (em2861)
+ 73 -> Reddo DVB-C USB TV Box                   (em2870)

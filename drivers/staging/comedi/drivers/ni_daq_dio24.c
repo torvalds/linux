@@ -37,7 +37,7 @@ This is just a wrapper around the 8255.o driver to properly handle
 the PCMCIA interface.
 */
 
-/* #define LABPC_DEBUG */   /*  enable debugging messages */
+			    /* #define LABPC_DEBUG *//*  enable debugging messages */
 #undef LABPC_DEBUG
 
 #include <linux/interrupt.h>
@@ -74,17 +74,17 @@ struct dio24_board_struct {
 
 static const struct dio24_board_struct dio24_boards[] = {
 	{
-	.name = "daqcard-dio24",
-	.device_id = 0x475c,/*  0x10b is manufacturer id, 0x475c is device id */
-	.bustype = pcmcia_bustype,
-	.have_dio = 1,
-		},
+	 .name = "daqcard-dio24",
+	 .device_id = 0x475c,	/*  0x10b is manufacturer id, 0x475c is device id */
+	 .bustype = pcmcia_bustype,
+	 .have_dio = 1,
+	 },
 	{
-	.name = "ni_daq_dio24",
-	.device_id = 0x475c,/*  0x10b is manufacturer id, 0x475c is device id */
-	.bustype = pcmcia_bustype,
-	.have_dio = 1,
-		},
+	 .name = "ni_daq_dio24",
+	 .device_id = 0x475c,	/*  0x10b is manufacturer id, 0x475c is device id */
+	 .bustype = pcmcia_bustype,
+	 .have_dio = 1,
+	 },
 };
 
 /*
@@ -96,7 +96,6 @@ struct dio24_private {
 
 	int data;		/* number of data points left to be taken */
 };
-
 
 #define devpriv ((struct dio24_private *)dev->private)
 
@@ -140,7 +139,7 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	}
 	printk("comedi%d: ni_daq_dio24: %s, io 0x%lx", dev->minor,
-		thisboard->name, iobase);
+	       thisboard->name, iobase);
 #ifdef incomplete
 	if (irq) {
 		printk(", irq %u", irq);
@@ -272,7 +271,7 @@ static int dio24_cs_attach(struct pcmcia_device *link)
 	link->priv = local;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = NULL;
 
@@ -310,7 +309,7 @@ static void dio24_cs_detach(struct pcmcia_device *link)
 	DEBUG(0, "dio24_cs_detach(0x%p)\n", link);
 
 	if (link->dev_node) {
-		((struct local_info_t *) link->priv)->stop = 1;
+		((struct local_info_t *)link->priv)->stop = 1;
 		dio24_release(link);
 	}
 
@@ -439,7 +438,7 @@ static void dio24_config(struct pcmcia_device *link)
 
 		if ((cfg->mem.nwin > 0) || (dflt.mem.nwin > 0)) {
 			cistpl_mem_t *mem =
-				(cfg->mem.nwin) ? &cfg->mem : &dflt.mem;
+			    (cfg->mem.nwin) ? &cfg->mem : &dflt.mem;
 			req.Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM;
 			req.Attributes |= WIN_ENABLE;
 			req.Base = mem->win[0].host_addr;
@@ -457,7 +456,7 @@ static void dio24_config(struct pcmcia_device *link)
 		/* If we got this far, we're cool! */
 		break;
 
-	      next_entry:
+next_entry:
 
 		last_ret = pcmcia_get_next_tuple(link, &tuple);
 		if (last_ret) {
@@ -500,23 +499,23 @@ static void dio24_config(struct pcmcia_device *link)
 
 	/* Finally, report what we've done */
 	printk(KERN_INFO "%s: index 0x%02x",
-		dev->node.dev_name, link->conf.ConfigIndex);
+	       dev->node.dev_name, link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %d", link->irq.AssignedIRQ);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-			link->io.BasePort1 + link->io.NumPorts1 - 1);
+		       link->io.BasePort1 + link->io.NumPorts1 - 1);
 	if (link->io.NumPorts2)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-			link->io.BasePort2 + link->io.NumPorts2 - 1);
+		       link->io.BasePort2 + link->io.NumPorts2 - 1);
 	if (link->win)
 		printk(", mem 0x%06lx-0x%06lx", req.Base,
-			req.Base + req.Size - 1);
+		       req.Base + req.Size - 1);
 	printk("\n");
 
 	return;
 
-      cs_failed:
+cs_failed:
 	printk(KERN_INFO "Fallo");
 	dio24_release(link);
 
@@ -576,7 +575,7 @@ struct pcmcia_driver dio24_cs_driver = {
 	.id_table = dio24_cs_ids,
 	.owner = THIS_MODULE,
 	.drv = {
-			.name = dev_info,
+		.name = dev_info,
 		},
 };
 

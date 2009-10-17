@@ -13,17 +13,6 @@
 #define ISR_TxBcnErr				BIT26			// Transmit Beacon Error
 #define ISR_BcnTimerIntr			BIT13			// Beacon Timer Interrupt
 
-#if 0
-/* Define packet type. */
-typedef enum tag_packet_type
-{
-    PACKET_BROADCAST,
-    PACKET_MULTICAST,
-    PACKET_UNICAST,
-    PACKET_TYPE_MAX
-}cmpk_pkt_type_e;
-#endif
-
 /* Define element ID of command packet. */
 
 /*------------------------------Define structure----------------------------*/
@@ -200,15 +189,6 @@ typedef enum tag_command_packet_directories
     RX_TX_RATE_HISTORY		= 7,
     RX_CMD_ELE_MAX
 }cmpk_element_e;
-
-#if 0
-typedef enum _rt_status{
-        RT_STATUS_SUCCESS,
-        RT_STATUS_FAILURE,
-        RT_STATUS_PENDING,
-        RT_STATUS_RESOURCE
-}rt_status,*prt_status;
-#endif
 
 extern bool cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);
 

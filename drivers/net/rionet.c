@@ -72,7 +72,7 @@ static int rionet_check = 0;
 static int rionet_capable = 1;
 
 /*
- * This is a fast lookup table for for translating TX
+ * This is a fast lookup table for translating TX
  * Ethernet packets into a destination RIO device. It
  * could be made into a hash table to save memory depending
  * on system trade-offs.

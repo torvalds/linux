@@ -1,14 +1,10 @@
-#ifndef __PERF_EVENT_H
-#define __PERF_EVENT_H
+#ifndef __PERF_RECORD_H
+#define __PERF_RECORD_H
+
 #include "../perf.h"
 #include "util.h"
 #include <linux/list.h>
-
-enum {
-	SHOW_KERNEL	= 1,
-	SHOW_USER	= 2,
-	SHOW_HV		= 4,
-};
+#include <linux/rbtree.h>
 
 /*
  * PERF_SAMPLE_IP | PERF_SAMPLE_TID | *
@@ -39,6 +35,7 @@ struct fork_event {
 	struct perf_event_header header;
 	u32 pid, ppid;
 	u32 tid, ptid;
+	u64 time;
 };
 
 struct lost_event {
@@ -52,12 +49,18 @@ struct lost_event {
  */
 struct read_event {
 	struct perf_event_header header;
-	u32 pid,tid;
+	u32 pid, tid;
 	u64 value;
 	u64 time_enabled;
 	u64 time_running;
 	u64 id;
 };
+
+struct sample_event{
+	struct perf_event_header        header;
+	u64 array[];
+};
+
 
 typedef union event_union {
 	struct perf_event_header	header;
@@ -67,10 +70,14 @@ typedef union event_union {
 	struct fork_event		fork;
 	struct lost_event		lost;
 	struct read_event		read;
+	struct sample_event		sample;
 } event_t;
 
 struct map {
-	struct list_head	node;
+	union {
+		struct rb_node	rb_node;
+		struct list_head node;
+	};
 	u64			start;
 	u64			end;
 	u64			pgoff;
@@ -93,4 +100,4 @@ struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *self, FILE *fp);
 
-#endif
+#endif /* __PERF_RECORD_H */

@@ -258,6 +258,7 @@
 #define PIN_TO_PORT(val) (val >> 3)
 
 /* These can be found in arch/arm/mach-u300/gpio.c */
+extern int gpio_is_valid(int number);
 extern int gpio_request(unsigned gpio, const char *label);
 extern void gpio_free(unsigned gpio);
 extern int gpio_direction_input(unsigned gpio);

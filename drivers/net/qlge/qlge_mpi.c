@@ -472,7 +472,6 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 {
 	int status, count;
 
-	mutex_lock(&qdev->mpi_mutex);
 
 	/* Begin polled mode for MPI */
 	ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
@@ -541,7 +540,6 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		status = -EIO;
 	}
 end:
-	mutex_unlock(&qdev->mpi_mutex);
 	/* End polled mode for MPI */
 	ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16) | INTR_MASK_PI);
 	return status;
@@ -776,7 +774,9 @@ static int ql_idc_wait(struct ql_adapter *qdev)
 static int ql_set_port_cfg(struct ql_adapter *qdev)
 {
 	int status;
+	rtnl_lock();
 	status = ql_mb_set_port_cfg(qdev);
+	rtnl_unlock();
 	if (status)
 		return status;
 	status = ql_idc_wait(qdev);
@@ -797,7 +797,9 @@ void ql_mpi_port_cfg_work(struct work_struct *work)
 	    container_of(work, struct ql_adapter, mpi_port_cfg_work.work);
 	int status;
 
+	rtnl_lock();
 	status = ql_mb_get_port_cfg(qdev);
+	rtnl_unlock();
 	if (status) {
 		QPRINTK(qdev, DRV, ERR,
 			"Bug: Failed to get port config data.\n");
@@ -855,7 +857,9 @@ void ql_mpi_idc_work(struct work_struct *work)
 		 * needs to be set.
 		 * */
 		set_bit(QL_CAM_RT_SET, &qdev->flags);
+		rtnl_lock();
 		status = ql_mb_idc_ack(qdev);
+		rtnl_unlock();
 		if (status) {
 			QPRINTK(qdev, DRV, ERR,
 			"Bug: No pending IDC!\n");
@@ -871,7 +875,7 @@ void ql_mpi_work(struct work_struct *work)
 	struct mbox_params *mbcp = &mbc;
 	int err = 0;
 
-	mutex_lock(&qdev->mpi_mutex);
+	rtnl_lock();
 
 	while (ql_read32(qdev, STS) & STS_PI) {
 		memset(mbcp, 0, sizeof(struct mbox_params));
@@ -884,7 +888,7 @@ void ql_mpi_work(struct work_struct *work)
 			break;
 	}
 
-	mutex_unlock(&qdev->mpi_mutex);
+	rtnl_unlock();
 	ql_enable_completion_interrupt(qdev, 0);
 }
 

@@ -28,10 +28,7 @@
 #include "usbdrv.h"
 
 #include <linux/netlink.h>
-
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
-#endif
 
 #ifdef ZM_ENABLE_CENC
 extern int zfLnxCencSendMsg(struct sock *netlink_sk, u_int8_t *msg, int len);

@@ -30,6 +30,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
@@ -2021,6 +2022,12 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 					   agg->frame_count, txq_id, idx);
 
 			hdr = iwl_tx_queue_get_hdr(priv, txq_id, idx);
+			if (!hdr) {
+				IWL_ERR(priv,
+					"BUG_ON idx doesn't point to valid skb"
+					" idx=%d, txq_id=%d\n", idx, txq_id);
+				return -1;
+			}
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
 			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
@@ -2292,6 +2299,8 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.alive_notify = iwl4965_alive_notify,
 	.init_alive_start = iwl4965_init_alive_start,
 	.load_ucode = iwl4965_load_bsm,
+	.dump_nic_event_log = iwl_dump_nic_event_log,
+	.dump_nic_error_log = iwl_dump_nic_error_log,
 	.apm_ops = {
 		.init = iwl4965_apm_init,
 		.reset = iwl4965_apm_reset,
@@ -2346,6 +2355,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.mod_params = &iwl4965_mod_params,
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,
+	.broken_powersave = true,
 };
 
 /* Module firmware */

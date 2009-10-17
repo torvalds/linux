@@ -177,9 +177,11 @@ static void netlink_sock_destruct(struct sock *sk)
  * this, _but_ remember, it adds useless work on UP machines.
  */
 
-static void netlink_table_grab(void)
+void netlink_table_grab(void)
 	__acquires(nl_table_lock)
 {
+	might_sleep();
+
 	write_lock_irq(&nl_table_lock);
 
 	if (atomic_read(&nl_table_users)) {
@@ -200,7 +202,7 @@ static void netlink_table_grab(void)
 	}
 }
 
-static void netlink_table_ungrab(void)
+void netlink_table_ungrab(void)
 	__releases(nl_table_lock)
 {
 	write_unlock_irq(&nl_table_lock);
@@ -1148,7 +1150,7 @@ static void netlink_update_socket_mc(struct netlink_sock *nlk,
 }
 
 static int netlink_setsockopt(struct socket *sock, int level, int optname,
-			      char __user *optval, int optlen)
+			      char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct netlink_sock *nlk = nlk_sk(sk);
@@ -1549,37 +1551,21 @@ static void netlink_free_old_listeners(struct rcu_head *rcu_head)
 	kfree(lrh->ptr);
 }
 
-/**
- * netlink_change_ngroups - change number of multicast groups
- *
- * This changes the number of multicast groups that are available
- * on a certain netlink family. Note that it is not possible to
- * change the number of groups to below 32. Also note that it does
- * not implicitly call netlink_clear_multicast_users() when the
- * number of groups is reduced.
- *
- * @sk: The kernel netlink socket, as returned by netlink_kernel_create().
- * @groups: The new number of groups.
- */
-int netlink_change_ngroups(struct sock *sk, unsigned int groups)
+int __netlink_change_ngroups(struct sock *sk, unsigned int groups)
 {
 	unsigned long *listeners, *old = NULL;
 	struct listeners_rcu_head *old_rcu_head;
 	struct netlink_table *tbl = &nl_table[sk->sk_protocol];
-	int err = 0;
 
 	if (groups < 32)
 		groups = 32;
 
-	netlink_table_grab();
 	if (NLGRPSZ(tbl->groups) < NLGRPSZ(groups)) {
 		listeners = kzalloc(NLGRPSZ(groups) +
 				    sizeof(struct listeners_rcu_head),
 				    GFP_ATOMIC);
-		if (!listeners) {
-			err = -ENOMEM;
-			goto out_ungrab;
-		}
+		if (!listeners)
+			return -ENOMEM;
 		old = tbl->listeners;
 		memcpy(listeners, old, NLGRPSZ(tbl->groups));
 		rcu_assign_pointer(tbl->listeners, listeners);
@@ -1597,9 +1583,40 @@ int netlink_change_ngroups(struct sock *sk, unsigned int groups)
 	}
 	tbl->groups = groups;
 
- out_ungrab:
+	return 0;
+}
+
+/**
+ * netlink_change_ngroups - change number of multicast groups
+ *
+ * This changes the number of multicast groups that are available
+ * on a certain netlink family. Note that it is not possible to
+ * change the number of groups to below 32. Also note that it does
+ * not implicitly call netlink_clear_multicast_users() when the
+ * number of groups is reduced.
+ *
+ * @sk: The kernel netlink socket, as returned by netlink_kernel_create().
+ * @groups: The new number of groups.
+ */
+int netlink_change_ngroups(struct sock *sk, unsigned int groups)
+{
+	int err;
+
+	netlink_table_grab();
+	err = __netlink_change_ngroups(sk, groups);
 	netlink_table_ungrab();
+
 	return err;
+}
+
+void __netlink_clear_multicast_users(struct sock *ksk, unsigned int group)
+{
+	struct sock *sk;
+	struct hlist_node *node;
+	struct netlink_table *tbl = &nl_table[ksk->sk_protocol];
+
+	sk_for_each_bound(sk, node, &tbl->mc_list)
+		netlink_update_socket_mc(nlk_sk(sk), group, 0);
 }
 
 /**
@@ -1612,15 +1629,8 @@ int netlink_change_ngroups(struct sock *sk, unsigned int groups)
  */
 void netlink_clear_multicast_users(struct sock *ksk, unsigned int group)
 {
-	struct sock *sk;
-	struct hlist_node *node;
-	struct netlink_table *tbl = &nl_table[ksk->sk_protocol];
-
 	netlink_table_grab();
-
-	sk_for_each_bound(sk, node, &tbl->mc_list)
-		netlink_update_socket_mc(nlk_sk(sk), group, 0);
-
+	__netlink_clear_multicast_users(ksk, group);
 	netlink_table_ungrab();
 }
 
@@ -1778,7 +1788,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 	}
 
 	rep = __nlmsg_put(skb, NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
-			  NLMSG_ERROR, sizeof(struct nlmsgerr), 0);
+			  NLMSG_ERROR, payload, 0);
 	errmsg = nlmsg_data(rep);
 	errmsg->error = err;
 	memcpy(&errmsg->msg, nlh, err ? nlh->nlmsg_len : sizeof(*nlh));
@@ -2084,10 +2094,10 @@ static int __init netlink_proto_init(void)
 	if (!nl_table)
 		goto panic;
 
-	if (num_physpages >= (128 * 1024))
-		limit = num_physpages >> (21 - PAGE_SHIFT);
+	if (totalram_pages >= (128 * 1024))
+		limit = totalram_pages >> (21 - PAGE_SHIFT);
 	else
-		limit = num_physpages >> (23 - PAGE_SHIFT);
+		limit = totalram_pages >> (23 - PAGE_SHIFT);
 
 	order = get_bitmask_order(limit) - 1 + PAGE_SHIFT;
 	limit = (1UL << order) / sizeof(struct hlist_head);

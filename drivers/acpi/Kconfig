@@ -60,7 +60,11 @@ config ACPI_PROCFS
 	  /proc/acpi/fadt (/sys/firmware/acpi/tables/FACP)
 	  /proc/acpi/debug_layer (/sys/module/acpi/parameters/debug_layer)
 	  /proc/acpi/debug_level (/sys/module/acpi/parameters/debug_level)
-
+	  /proc/acpi/processor/*/power (/sys/devices/system/cpu/*/cpuidle/*)
+	  /proc/acpi/processor/*/performance (/sys/devices/system/cpu/*/
+		cpufreq/*)
+	  /proc/acpi/processor/*/throttling (/sys/class/thermal/
+		cooling_device*/*)
 	  This option has no effect on /proc/acpi/ files
 	  and functions which do not yet exist in /sys.
 
@@ -81,6 +85,17 @@ config ACPI_PROCFS_POWER
 	  and functions, which do not yet exist in /sys
 
 	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
+
+config ACPI_POWER_METER
+	tristate "ACPI 4.0 power meter"
+	depends on HWMON
+	help
+	  This driver exposes ACPI 4.0 power meters as hardware monitoring
+	  devices.  Say Y (or M) if you have a computer with ACPI 4.0 firmware
+	  and a power meter.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called power-meter.
 
 config ACPI_SYSFS_POWER
 	bool "Future power /sys interface"
@@ -195,6 +210,18 @@ config ACPI_HOTPLUG_CPU
 	depends on ACPI_PROCESSOR && HOTPLUG_CPU
 	select ACPI_CONTAINER
 	default y
+
+config ACPI_PROCESSOR_AGGREGATOR
+	tristate "Processor Aggregator"
+	depends on ACPI_PROCESSOR
+	depends on EXPERIMENTAL
+	depends on X86
+	help
+	  ACPI 4.0 defines processor Aggregator, which enables OS to perform
+	  specfic processor configuration and control that applies to all
+	  processors in the platform. Currently only logical processor idling
+	  is defined, which is to reduce power consumption. This driver
+	  support the new device.
 
 config ACPI_THERMAL
 	tristate "Thermal Zone"

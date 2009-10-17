@@ -111,7 +111,7 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 	 */
 	chain = &nlm_hosts[nlm_hash_address(ni->sap)];
 	hlist_for_each_entry(host, pos, chain, h_hash) {
-		if (!nlm_cmp_addr(nlm_addr(host), ni->sap))
+		if (!rpc_cmp_addr(nlm_addr(host), ni->sap))
 			continue;
 
 		/* See if we have an NSM handle for this client */
@@ -125,7 +125,7 @@ static struct nlm_host *nlm_lookup_host(struct nlm_lookup_host_info *ni)
 		if (host->h_server != ni->server)
 			continue;
 		if (ni->server &&
-		    !nlm_cmp_addr(nlm_srcaddr(host), ni->src_sap))
+		    !rpc_cmp_addr(nlm_srcaddr(host), ni->src_sap))
 			continue;
 
 		/* Move to head of hash chain. */

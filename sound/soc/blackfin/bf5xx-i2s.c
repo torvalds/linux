@@ -77,12 +77,12 @@ static struct sport_param sport_params[2] = {
  * TFS. When Port G is selected and EMAC then there is a conflict between
  * the PHY interrupt line and TFS.  Current settings prevent the conflict
  * by ignoring the TFS pin when Port G is selected. This allows both
- * ssm2602 using Port G and EMAC concurrently.
+ * codecs and EMAC using Port G concurrently.
  */
-#ifdef CONFIG_BF527_SPORT0_PORTF
-#define LOCAL_SPORT0_TFS (P_SPORT0_TFS)
-#else
+#ifdef CONFIG_BF527_SPORT0_PORTG
 #define LOCAL_SPORT0_TFS (0)
+#else
+#define LOCAL_SPORT0_TFS (P_SPORT0_TFS)
 #endif
 
 static u16 sport_req[][7] = { {P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
@@ -227,7 +227,8 @@ static int bf5xx_i2s_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static void bf5xx_i2s_remove(struct snd_soc_dai *dai)
+static void bf5xx_i2s_remove(struct platform_device *pdev,
+			struct snd_soc_dai *dai)
 {
 	pr_debug("%s enter\n", __func__);
 	peripheral_free_list(&sport_req[sport_num][0]);
@@ -236,36 +237,31 @@ static void bf5xx_i2s_remove(struct snd_soc_dai *dai)
 #ifdef CONFIG_PM
 static int bf5xx_i2s_suspend(struct snd_soc_dai *dai)
 {
-	struct sport_device *sport =
-		(struct sport_device *)dai->private_data;
 
 	pr_debug("%s : sport %d\n", __func__, dai->id);
-	if (!dai->active)
-		return 0;
+
 	if (dai->capture.active)
-		sport_rx_stop(sport);
+		sport_rx_stop(sport_handle);
 	if (dai->playback.active)
-		sport_tx_stop(sport);
+		sport_tx_stop(sport_handle);
 	return 0;
 }
 
 static int bf5xx_i2s_resume(struct snd_soc_dai *dai)
 {
 	int ret;
-	struct sport_device *sport =
-		(struct sport_device *)dai->private_data;
 
 	pr_debug("%s : sport %d\n", __func__, dai->id);
-	if (!dai->active)
-		return 0;
 
-	ret = sport_config_rx(sport, RFSR | RCKFE, RSFSE|0x1f, 0, 0);
+	ret = sport_config_rx(sport_handle, bf5xx_i2s.rcr1,
+				      bf5xx_i2s.rcr2, 0, 0);
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	ret = sport_config_tx(sport, TFSR | TCKFE, TSFSE|0x1f, 0, 0);
+	ret = sport_config_tx(sport_handle, bf5xx_i2s.tcr1,
+				      bf5xx_i2s.tcr2, 0, 0);
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;

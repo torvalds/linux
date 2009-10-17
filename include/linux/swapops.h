@@ -131,3 +131,41 @@ static inline int is_write_migration_entry(swp_entry_t entry)
 
 #endif
 
+#ifdef CONFIG_MEMORY_FAILURE
+/*
+ * Support for hardware poisoned pages
+ */
+static inline swp_entry_t make_hwpoison_entry(struct page *page)
+{
+	BUG_ON(!PageLocked(page));
+	return swp_entry(SWP_HWPOISON, page_to_pfn(page));
+}
+
+static inline int is_hwpoison_entry(swp_entry_t entry)
+{
+	return swp_type(entry) == SWP_HWPOISON;
+}
+#else
+
+static inline swp_entry_t make_hwpoison_entry(struct page *page)
+{
+	return swp_entry(0, 0);
+}
+
+static inline int is_hwpoison_entry(swp_entry_t swp)
+{
+	return 0;
+}
+#endif
+
+#if defined(CONFIG_MEMORY_FAILURE) || defined(CONFIG_MIGRATION)
+static inline int non_swap_entry(swp_entry_t entry)
+{
+	return swp_type(entry) >= MAX_SWAPFILES;
+}
+#else
+static inline int non_swap_entry(swp_entry_t entry)
+{
+	return 0;
+}
+#endif

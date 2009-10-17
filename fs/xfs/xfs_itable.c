@@ -39,7 +39,7 @@
 #include "xfs_error.h"
 #include "xfs_btree.h"
 
-int
+STATIC int
 xfs_internal_inum(
 	xfs_mount_t	*mp,
 	xfs_ino_t	ino)
@@ -59,6 +59,7 @@ xfs_bulkstat_one_iget(
 {
 	xfs_icdinode_t	*dic;	/* dinode core info pointer */
 	xfs_inode_t	*ip;		/* incore inode pointer */
+	struct inode	*inode;
 	int		error;
 
 	error = xfs_iget(mp, NULL, ino,
@@ -72,6 +73,7 @@ xfs_bulkstat_one_iget(
 	ASSERT(ip->i_imap.im_blkno != 0);
 
 	dic = &ip->i_d;
+	inode = VFS_I(ip);
 
 	/* xfs_iget returns the following without needing
 	 * further change.
@@ -83,16 +85,19 @@ xfs_bulkstat_one_iget(
 	buf->bs_uid = dic->di_uid;
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
+
 	/*
-	 * We are reading the atime from the Linux inode because the
-	 * dinode might not be uptodate.
+	 * We need to read the timestamps from the Linux inode because
+	 * the VFS keeps writing directly into the inode structure instead
+	 * of telling us about the updates.
 	 */
-	buf->bs_atime.tv_sec = VFS_I(ip)->i_atime.tv_sec;
-	buf->bs_atime.tv_nsec = VFS_I(ip)->i_atime.tv_nsec;
-	buf->bs_mtime.tv_sec = dic->di_mtime.t_sec;
-	buf->bs_mtime.tv_nsec = dic->di_mtime.t_nsec;
-	buf->bs_ctime.tv_sec = dic->di_ctime.t_sec;
-	buf->bs_ctime.tv_nsec = dic->di_ctime.t_nsec;
+	buf->bs_atime.tv_sec = inode->i_atime.tv_sec;
+	buf->bs_atime.tv_nsec = inode->i_atime.tv_nsec;
+	buf->bs_mtime.tv_sec = inode->i_mtime.tv_sec;
+	buf->bs_mtime.tv_nsec = inode->i_mtime.tv_nsec;
+	buf->bs_ctime.tv_sec = inode->i_ctime.tv_sec;
+	buf->bs_ctime.tv_nsec = inode->i_ctime.tv_nsec;
+
 	buf->bs_xflags = xfs_ip2xflags(ip);
 	buf->bs_extsize = dic->di_extsize << mp->m_sb.sb_blocklog;
 	buf->bs_extents = dic->di_nextents;
@@ -353,9 +358,6 @@ xfs_bulkstat(
 	int			end_of_ag; /* set if we've seen the ag end */
 	int			error;	/* error code */
 	int                     fmterror;/* bulkstat formatter result */
-	__int32_t		gcnt;	/* current btree rec's count */
-	xfs_inofree_t		gfree;	/* current btree rec's free mask */
-	xfs_agino_t		gino;	/* current btree rec's start inode */
 	int			i;	/* loop index */
 	int			icount;	/* count of inodes good in irbuf */
 	size_t			irbsize; /* size of irec buffer in bytes */
@@ -442,40 +444,43 @@ xfs_bulkstat(
 		 * we need to get the remainder of the chunk we're in.
 		 */
 		if (agino > 0) {
+			xfs_inobt_rec_incore_t r;
+
 			/*
 			 * Lookup the inode chunk that this inode lives in.
 			 */
-			error = xfs_inobt_lookup_le(cur, agino, 0, 0, &tmp);
+			error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE,
+						 &tmp);
 			if (!error &&	/* no I/O error */
 			    tmp &&	/* lookup succeeded */
 					/* got the record, should always work */
-			    !(error = xfs_inobt_get_rec(cur, &gino, &gcnt,
-				    &gfree, &i)) &&
+			    !(error = xfs_inobt_get_rec(cur, &r, &i)) &&
 			    i == 1 &&
 					/* this is the right chunk */
-			    agino < gino + XFS_INODES_PER_CHUNK &&
+			    agino < r.ir_startino + XFS_INODES_PER_CHUNK &&
 					/* lastino was not last in chunk */
-			    (chunkidx = agino - gino + 1) <
+			    (chunkidx = agino - r.ir_startino + 1) <
 				    XFS_INODES_PER_CHUNK &&
 					/* there are some left allocated */
 			    xfs_inobt_maskn(chunkidx,
-				    XFS_INODES_PER_CHUNK - chunkidx) & ~gfree) {
+				    XFS_INODES_PER_CHUNK - chunkidx) &
+				    ~r.ir_free) {
 				/*
 				 * Grab the chunk record.  Mark all the
 				 * uninteresting inodes (because they're
 				 * before our start point) free.
 				 */
 				for (i = 0; i < chunkidx; i++) {
-					if (XFS_INOBT_MASK(i) & ~gfree)
-						gcnt++;
+					if (XFS_INOBT_MASK(i) & ~r.ir_free)
+						r.ir_freecount++;
 				}
-				gfree |= xfs_inobt_maskn(0, chunkidx);
-				irbp->ir_startino = gino;
-				irbp->ir_freecount = gcnt;
-				irbp->ir_free = gfree;
+				r.ir_free |= xfs_inobt_maskn(0, chunkidx);
+				irbp->ir_startino = r.ir_startino;
+				irbp->ir_freecount = r.ir_freecount;
+				irbp->ir_free = r.ir_free;
 				irbp++;
-				agino = gino + XFS_INODES_PER_CHUNK;
-				icount = XFS_INODES_PER_CHUNK - gcnt;
+				agino = r.ir_startino + XFS_INODES_PER_CHUNK;
+				icount = XFS_INODES_PER_CHUNK - r.ir_freecount;
 			} else {
 				/*
 				 * If any of those tests failed, bump the
@@ -493,7 +498,7 @@ xfs_bulkstat(
 			/*
 			 * Start of ag.  Lookup the first inode chunk.
 			 */
-			error = xfs_inobt_lookup_ge(cur, 0, 0, 0, &tmp);
+			error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &tmp);
 			icount = 0;
 		}
 		/*
@@ -501,6 +506,8 @@ xfs_bulkstat(
 		 * until we run out of inodes or space in the buffer.
 		 */
 		while (irbp < irbufend && icount < ubcount) {
+			xfs_inobt_rec_incore_t r;
+
 			/*
 			 * Loop as long as we're unable to read the
 			 * inode btree.
@@ -510,51 +517,55 @@ xfs_bulkstat(
 				if (XFS_AGINO_TO_AGBNO(mp, agino) >=
 						be32_to_cpu(agi->agi_length))
 					break;
-				error = xfs_inobt_lookup_ge(cur, agino, 0, 0,
-							    &tmp);
+				error = xfs_inobt_lookup(cur, agino,
+							 XFS_LOOKUP_GE, &tmp);
 				cond_resched();
 			}
 			/*
 			 * If ran off the end of the ag either with an error,
 			 * or the normal way, set end and stop collecting.
 			 */
-			if (error ||
-			    (error = xfs_inobt_get_rec(cur, &gino, &gcnt,
-				    &gfree, &i)) ||
-			    i == 0) {
+			if (error) {
 				end_of_ag = 1;
 				break;
 			}
+
+			error = xfs_inobt_get_rec(cur, &r, &i);
+			if (error || i == 0) {
+				end_of_ag = 1;
+				break;
+			}
+
 			/*
 			 * If this chunk has any allocated inodes, save it.
 			 * Also start read-ahead now for this chunk.
 			 */
-			if (gcnt < XFS_INODES_PER_CHUNK) {
+			if (r.ir_freecount < XFS_INODES_PER_CHUNK) {
 				/*
 				 * Loop over all clusters in the next chunk.
 				 * Do a readahead if there are any allocated
 				 * inodes in that cluster.
 				 */
-				for (agbno = XFS_AGINO_TO_AGBNO(mp, gino),
-				     chunkidx = 0;
+				agbno = XFS_AGINO_TO_AGBNO(mp, r.ir_startino);
+				for (chunkidx = 0;
 				     chunkidx < XFS_INODES_PER_CHUNK;
 				     chunkidx += nicluster,
 				     agbno += nbcluster) {
-					if (xfs_inobt_maskn(chunkidx,
-							    nicluster) & ~gfree)
+					if (xfs_inobt_maskn(chunkidx, nicluster)
+							& ~r.ir_free)
 						xfs_btree_reada_bufs(mp, agno,
 							agbno, nbcluster);
 				}
-				irbp->ir_startino = gino;
-				irbp->ir_freecount = gcnt;
-				irbp->ir_free = gfree;
+				irbp->ir_startino = r.ir_startino;
+				irbp->ir_freecount = r.ir_freecount;
+				irbp->ir_free = r.ir_free;
 				irbp++;
-				icount += XFS_INODES_PER_CHUNK - gcnt;
+				icount += XFS_INODES_PER_CHUNK - r.ir_freecount;
 			}
 			/*
 			 * Set agino to after this chunk and bump the cursor.
 			 */
-			agino = gino + XFS_INODES_PER_CHUNK;
+			agino = r.ir_startino + XFS_INODES_PER_CHUNK;
 			error = xfs_btree_increment(cur, 0, &tmp);
 			cond_resched();
 		}
@@ -820,9 +831,7 @@ xfs_inumbers(
 	int		bufidx;
 	xfs_btree_cur_t	*cur;
 	int		error;
-	__int32_t	gcnt;
-	xfs_inofree_t	gfree;
-	xfs_agino_t	gino;
+	xfs_inobt_rec_incore_t r;
 	int		i;
 	xfs_ino_t	ino;
 	int		left;
@@ -855,7 +864,8 @@ xfs_inumbers(
 				continue;
 			}
 			cur = xfs_inobt_init_cursor(mp, NULL, agbp, agno);
-			error = xfs_inobt_lookup_ge(cur, agino, 0, 0, &tmp);
+			error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_GE,
+						 &tmp);
 			if (error) {
 				xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 				cur = NULL;
@@ -870,9 +880,8 @@ xfs_inumbers(
 				continue;
 			}
 		}
-		if ((error = xfs_inobt_get_rec(cur, &gino, &gcnt, &gfree,
-			&i)) ||
-		    i == 0) {
+		error = xfs_inobt_get_rec(cur, &r, &i);
+		if (error || i == 0) {
 			xfs_buf_relse(agbp);
 			agbp = NULL;
 			xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
@@ -881,10 +890,12 @@ xfs_inumbers(
 			agino = 0;
 			continue;
 		}
-		agino = gino + XFS_INODES_PER_CHUNK - 1;
-		buffer[bufidx].xi_startino = XFS_AGINO_TO_INO(mp, agno, gino);
-		buffer[bufidx].xi_alloccount = XFS_INODES_PER_CHUNK - gcnt;
-		buffer[bufidx].xi_allocmask = ~gfree;
+		agino = r.ir_startino + XFS_INODES_PER_CHUNK - 1;
+		buffer[bufidx].xi_startino =
+			XFS_AGINO_TO_INO(mp, agno, r.ir_startino);
+		buffer[bufidx].xi_alloccount =
+			XFS_INODES_PER_CHUNK - r.ir_freecount;
+		buffer[bufidx].xi_allocmask = ~r.ir_free;
 		bufidx++;
 		left--;
 		if (bufidx == bcount) {

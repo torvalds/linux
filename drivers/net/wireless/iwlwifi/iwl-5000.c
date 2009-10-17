@@ -29,6 +29,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
@@ -1163,6 +1164,12 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 					   agg->frame_count, txq_id, idx);
 
 			hdr = iwl_tx_queue_get_hdr(priv, txq_id, idx);
+			if (!hdr) {
+				IWL_ERR(priv,
+					"BUG_ON idx doesn't point to valid skb"
+					" idx=%d, txq_id=%d\n", idx, txq_id);
+				return -1;
+			}
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
 			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
@@ -1529,6 +1536,8 @@ struct iwl_lib_ops iwl5000_lib = {
 	.rx_handler_setup = iwl5000_rx_handler_setup,
 	.setup_deferred_work = iwl5000_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
+	.dump_nic_event_log = iwl_dump_nic_event_log,
+	.dump_nic_error_log = iwl_dump_nic_error_log,
 	.load_ucode = iwl5000_load_ucode,
 	.init_alive_start = iwl5000_init_alive_start,
 	.alive_notify = iwl5000_alive_notify,
@@ -1579,6 +1588,8 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.rx_handler_setup = iwl5000_rx_handler_setup,
 	.setup_deferred_work = iwl5000_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
+	.dump_nic_event_log = iwl_dump_nic_event_log,
+	.dump_nic_error_log = iwl_dump_nic_error_log,
 	.load_ucode = iwl5000_load_ucode,
 	.init_alive_start = iwl5000_init_alive_start,
 	.alive_notify = iwl5000_alive_notify,

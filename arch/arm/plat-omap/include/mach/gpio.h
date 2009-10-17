@@ -29,7 +29,7 @@
 #include <linux/io.h>
 #include <mach/irqs.h>
 
-#define OMAP_MPUIO_BASE			0xfffb5000
+#define OMAP1_MPUIO_BASE			0xfffb5000
 
 #if (defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850))
 

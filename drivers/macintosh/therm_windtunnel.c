@@ -239,8 +239,8 @@ setup_hardware( void )
 	 * to be on the safe side (OSX doesn't)...
 	 */
 	if( x.overheat_temp == (80 << 8) ) {
-		x.overheat_temp = 65 << 8;
-		x.overheat_hyst = 60 << 8;
+		x.overheat_temp = 75 << 8;
+		x.overheat_hyst = 70 << 8;
 		write_reg( x.thermostat, 2, x.overheat_hyst, 2 );
 		write_reg( x.thermostat, 3, x.overheat_temp, 2 );
 

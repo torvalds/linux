@@ -135,7 +135,7 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 	return status;
 }
 
-static void netdev_stats_update(struct be_adapter *adapter)
+void netdev_stats_update(struct be_adapter *adapter)
 {
 	struct be_hw_stats *hw_stats = hw_stats_from_cmd(adapter->stats.cmd.va);
 	struct be_rxf_stats *rxf_stats = &hw_stats->rxf;
@@ -197,7 +197,7 @@ static void netdev_stats_update(struct be_adapter *adapter)
 	/* no space available in linux */
 	dev_stats->tx_dropped = 0;
 
-	dev_stats->multicast = port_stats->tx_multicastframes;
+	dev_stats->multicast = port_stats->rx_multicast_frames;
 	dev_stats->collisions = 0;
 
 	/* detailed tx_errors */
@@ -431,8 +431,7 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 }
 
 static netdev_tx_t be_xmit(struct sk_buff *skb,
-				 struct net_device *netdev)
-
+			struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_tx_obj *tx_obj = &adapter->tx_obj;
@@ -490,11 +489,11 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
  * program them in BE.  If more than BE_NUM_VLANS_SUPPORTED are configured,
  * set the BE in promiscuous VLAN mode.
  */
-static void be_vid_config(struct net_device *netdev)
+static int be_vid_config(struct be_adapter *adapter)
 {
-	struct be_adapter *adapter = netdev_priv(netdev);
 	u16 vtag[BE_NUM_VLANS_SUPPORTED];
 	u16 ntags = 0, i;
+	int status;
 
 	if (adapter->num_vlans <= BE_NUM_VLANS_SUPPORTED)  {
 		/* Construct VLAN Table to give to HW */
@@ -504,12 +503,13 @@ static void be_vid_config(struct net_device *netdev)
 				ntags++;
 			}
 		}
-		be_cmd_vlan_config(adapter, adapter->if_handle,
-			vtag, ntags, 1, 0);
+		status = be_cmd_vlan_config(adapter, adapter->if_handle,
+					vtag, ntags, 1, 0);
 	} else {
-		be_cmd_vlan_config(adapter, adapter->if_handle,
-			NULL, 0, 1, 1);
+		status = be_cmd_vlan_config(adapter, adapter->if_handle,
+					NULL, 0, 1, 1);
 	}
+	return status;
 }
 
 static void be_vlan_register(struct net_device *netdev, struct vlan_group *grp)
@@ -532,7 +532,7 @@ static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
 	adapter->num_vlans++;
 	adapter->vlan_tag[vid] = 1;
 
-	be_vid_config(netdev);
+	be_vid_config(adapter);
 }
 
 static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
@@ -543,7 +543,7 @@ static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 	adapter->vlan_tag[vid] = 0;
 
 	vlan_group_set_device(adapter->vlan_grp, vid, NULL);
-	be_vid_config(netdev);
+	be_vid_config(adapter);
 }
 
 static void be_set_multicast_list(struct net_device *netdev)
@@ -747,9 +747,16 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 			struct be_eth_rx_compl *rxcp)
 {
 	struct sk_buff *skb;
-	u32 vtp, vid;
+	u32 vlanf, vid;
+	u8 vtm;
 
-	vtp = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
+	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
+	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
+
+	/* vlanf could be wrongly set in some cards.
+	 * ignore if vtm is not set */
+	if ((adapter->cap == 0x400) && !vtm)
+		vlanf = 0;
 
 	skb = netdev_alloc_skb(adapter->netdev, BE_HDR_LEN + NET_IP_ALIGN);
 	if (!skb) {
@@ -772,7 +779,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
 	skb->dev = adapter->netdev;
 
-	if (vtp) {
+	if (vlanf) {
 		if (!adapter->vlan_grp || adapter->num_vlans == 0) {
 			kfree_skb(skb);
 			return;
@@ -797,11 +804,18 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	struct be_eq_obj *eq_obj =  &adapter->rx_eq;
 	u32 num_rcvd, pkt_size, remaining, vlanf, curr_frag_len;
 	u16 i, rxq_idx = 0, vid, j;
+	u8 vtm;
 
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
 	pkt_size = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
 	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
+	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
+
+	/* vlanf could be wrongly set in some cards.
+	 * ignore if vtm is not set */
+	if ((adapter->cap == 0x400) && !vtm)
+		vlanf = 0;
 
 	skb = napi_get_frags(&eq_obj->napi);
 	if (!skb) {
@@ -1444,12 +1458,8 @@ static void be_worker(struct work_struct *work)
 {
 	struct be_adapter *adapter =
 		container_of(work, struct be_adapter, work.work);
-	int status;
 
-	/* Get Stats */
-	status = be_cmd_get_stats(adapter, &adapter->stats.cmd);
-	if (!status)
-		netdev_stats_update(adapter);
+	be_cmd_get_stats(adapter, &adapter->stats.cmd);
 
 	/* Set EQ delay */
 	be_rx_eqd_update(adapter);
@@ -1622,11 +1632,6 @@ static int be_setup(struct be_adapter *adapter)
 	if (status != 0)
 		goto do_none;
 
-	be_vid_config(netdev);
-
-	status = be_cmd_set_flow_control(adapter, true, true);
-	if (status != 0)
-		goto if_destroy;
 
 	status = be_tx_queues_create(adapter);
 	if (status != 0)
@@ -1640,8 +1645,17 @@ static int be_setup(struct be_adapter *adapter)
 	if (status != 0)
 		goto rx_qs_destroy;
 
+	status = be_vid_config(adapter);
+	if (status != 0)
+		goto mccqs_destroy;
+
+	status = be_cmd_set_flow_control(adapter, true, true);
+	if (status != 0)
+		goto mccqs_destroy;
 	return 0;
 
+mccqs_destroy:
+	be_mcc_queues_destroy(adapter);
 rx_qs_destroy:
 	be_rx_queues_destroy(adapter);
 tx_qs_destroy:
@@ -1885,8 +1899,8 @@ static void be_netdev_init(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
-		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_GRO;
+		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_HW_CSUM |
+		NETIF_F_GRO;
 
 	netdev->flags |= IFF_MULTICAST;
 
@@ -2045,7 +2059,8 @@ static int be_hw_up(struct be_adapter *adapter)
 	if (status)
 		return status;
 
-	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num);
+	status = be_cmd_query_fw_cfg(adapter,
+				&adapter->port_num, &adapter->cap);
 	return status;
 }
 

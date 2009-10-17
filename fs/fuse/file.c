@@ -1313,7 +1313,7 @@ static int fuse_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-static struct vm_operations_struct fuse_file_vm_ops = {
+static const struct vm_operations_struct fuse_file_vm_ops = {
 	.close		= fuse_vma_close,
 	.fault		= filemap_fault,
 	.page_mkwrite	= fuse_page_mkwrite,

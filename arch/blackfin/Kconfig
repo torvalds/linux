@@ -47,6 +47,9 @@ config GENERIC_HARDIRQS
 config GENERIC_IRQ_PROBE
 	def_bool y
 
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	def_bool y
+
 config GENERIC_GPIO
 	def_bool y
 
@@ -229,7 +232,7 @@ endchoice
 
 config SMP
 	depends on BF561
-	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU,
@@ -342,8 +345,9 @@ config MEM_MT48LC64M4A2FB_7E
 config MEM_MT48LC16M16A2TG_75
 	bool
 	depends on (BFIN533_EZKIT || BFIN561_EZKIT \
-		|| BFIN533_BLUETECHNIX_CM || BFIN537_BLUETECHNIX_CM \
-		|| H8606_HVSISTEMAS || BFIN527_BLUETECHNIX_CM)
+		|| BFIN533_BLUETECHNIX_CM || BFIN537_BLUETECHNIX_CM_E \
+		|| BFIN537_BLUETECHNIX_CM_U || H8606_HVSISTEMAS \
+		|| BFIN527_BLUETECHNIX_CM)
 	default y
 
 config MEM_MT48LC32M8A2_75
@@ -459,7 +463,7 @@ config VCO_MULT
 	default "45" if BFIN533_STAMP
 	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM || BFIN538_EZKIT)
 	default "22" if BFIN533_BLUETECHNIX_CM
-	default "20" if (BFIN537_BLUETECHNIX_CM || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
+	default "20" if (BFIN537_BLUETECHNIX_CM_E || BFIN537_BLUETECHNIX_CM_U || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
 	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN518F_EZBRD)
 	help
@@ -574,8 +578,8 @@ config MAX_VCO_HZ
 	default 400000000 if BF514
 	default 400000000 if BF516
 	default 400000000 if BF518
-	default 600000000 if BF522
-	default 400000000 if BF523
+	default 400000000 if BF522
+	default 600000000 if BF523
 	default 400000000 if BF524
 	default 600000000 if BF525
 	default 400000000 if BF526
@@ -612,12 +616,10 @@ comment "Kernel Timer/Scheduler"
 source kernel/Kconfig.hz
 
 config GENERIC_TIME
-	bool "Generic time"
-	default y
+	def_bool y
 
 config GENERIC_CLOCKEVENTS
 	bool "Generic clock events"
-	depends on GENERIC_TIME
 	default y
 
 choice
@@ -647,10 +649,14 @@ config CYCLES_CLOCKSOURCE
 	  writing the registers will most likely crash the kernel.
 
 config GPTMR0_CLOCKSOURCE
-	bool "Use GPTimer0 as a clocksource (higher rating)"
+	bool "Use GPTimer0 as a clocksource"
 	select BFIN_GPTIMERS
 	depends on GENERIC_CLOCKEVENTS
 	depends on !TICKSOURCE_GPTMR0
+
+config ARCH_USES_GETTIMEOFFSET
+	depends on !GENERIC_CLOCKEVENTS
+	def_bool y
 
 source kernel/time/Kconfig
 
@@ -917,10 +923,6 @@ comment "Cache Support"
 config BFIN_ICACHE
 	bool "Enable ICACHE"
 	default y
-config BFIN_ICACHE_LOCK
-	bool "Enable Instruction Cache Locking"
-	depends on BFIN_ICACHE
-	default n
 config BFIN_EXTMEM_ICACHEABLE
 	bool "Enable ICACHE for external memory"
 	depends on BFIN_ICACHE
@@ -987,7 +989,7 @@ endchoice
 config BFIN_L2_DCACHEABLE
 	bool "Enable DCACHE for L2 SRAM"
 	depends on BFIN_DCACHE
-	depends on BF54x || BF561
+	depends on (BF54x || BF561) && !SMP
 	default n
 choice
 	prompt "L2 SRAM DCACHE policy"
@@ -995,11 +997,9 @@ choice
 	default BFIN_L2_WRITEBACK
 config BFIN_L2_WRITEBACK
 	bool "Write back"
-	depends on !SMP
 
 config BFIN_L2_WRITETHROUGH
 	bool "Write through"
-	depends on !SMP
 endchoice
 
 
@@ -1154,11 +1154,12 @@ source "fs/Kconfig.binfmt"
 endmenu
 
 menu "Power management options"
+	depends on !SMP
+
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on !SMP
 
 choice
 	prompt "Standby Power Saving Mode"
@@ -1246,6 +1247,7 @@ config PM_BFIN_WAKE_GP
 endmenu
 
 menu "CPU Frequency scaling"
+	depends on !SMP
 
 source "drivers/cpufreq/Kconfig"
 

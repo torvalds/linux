@@ -31,7 +31,7 @@ struct extent_map {
 
 struct extent_map_tree {
 	struct rb_root map;
-	spinlock_t lock;
+	rwlock_t lock;
 };
 
 static inline u64 extent_map_end(struct extent_map *em)
@@ -59,4 +59,7 @@ struct extent_map *alloc_extent_map(gfp_t mask);
 void free_extent_map(struct extent_map *em);
 int __init extent_map_init(void);
 void extent_map_exit(void);
+int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len);
+struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
+					 u64 start, u64 len);
 #endif

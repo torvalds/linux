@@ -1,6 +1,4 @@
 /*
- *  net/dccp/ccids/ccid3.c
- *
  *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005-7 The University of Waikato, Hamilton, New Zealand.
  *  Copyright (c) 2005-7 Ian McDonald <ian.mcdonald@jandi.co.nz>
@@ -750,7 +748,8 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-/** ccid3_first_li  -  Implements [RFC 3448, 6.3.1]
+/**
+ * ccid3_first_li  -  Implements [RFC 5348, 6.3.1]
  *
  * Determine the length of the first loss interval via inverse lookup.
  * Assume that X_recv can be computed by the throughput equation

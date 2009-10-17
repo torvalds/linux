@@ -42,6 +42,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
@@ -443,8 +444,7 @@ static int whcrc_post_reset(struct umc_dev *umc)
 	struct whcrc *whcrc = umc_get_drvdata(umc);
 	struct uwb_rc *uwb_rc = whcrc->uwb_rc;
 
-	uwb_rc_post_reset(uwb_rc);
-	return 0;
+	return uwb_rc_post_reset(uwb_rc);
 }
 
 /* PCI device ID's that we handle [so it gets loaded] */

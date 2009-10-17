@@ -372,8 +372,7 @@ static const struct {
 	/* DViCO Momobay FX-3A with TSB42AA9A bridge */ {
 		.firmware_revision	= 0x002800,
 		.model			= 0x000000,
-		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY |
-					  SBP2_WORKAROUND_POWER_CONDITION,
+		.workarounds		= SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,

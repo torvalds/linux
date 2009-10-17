@@ -59,6 +59,7 @@ struct bdi_writeback {
 
 struct backing_dev_info {
 	struct list_head bdi_list;
+	struct rcu_head rcu_head;
 	unsigned long ra_pages;	/* max readahead in PAGE_CACHE_SIZE units */
 	unsigned long state;	/* Always use atomic bitops on this */
 	unsigned int capabilities; /* Device capabilities */
@@ -100,7 +101,8 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, ...);
 int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev);
 void bdi_unregister(struct backing_dev_info *bdi);
-void bdi_start_writeback(struct writeback_control *wbc);
+void bdi_start_writeback(struct backing_dev_info *bdi, struct super_block *sb,
+				long nr_pages);
 int bdi_writeback_task(struct bdi_writeback *wb);
 int bdi_has_dirty_io(struct backing_dev_info *bdi);
 

@@ -609,13 +609,12 @@ static int __init i2c_adap_imx_init(void)
 {
 	return platform_driver_probe(&i2c_imx_driver, i2c_imx_probe);
 }
+subsys_initcall(i2c_adap_imx_init);
 
 static void __exit i2c_adap_imx_exit(void)
 {
 	platform_driver_unregister(&i2c_imx_driver);
 }
-
-module_init(i2c_adap_imx_init);
 module_exit(i2c_adap_imx_exit);
 
 MODULE_LICENSE("GPL");

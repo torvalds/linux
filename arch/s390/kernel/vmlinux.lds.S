@@ -51,6 +51,7 @@ SECTIONS
 
 	. = ALIGN(PAGE_SIZE);
 	_eshared = .;		/* End of shareable data */
+	_sdata = .;		/* Start of data section */
 
 	EXCEPTION_TABLE(16) :data
 
@@ -84,13 +85,10 @@ SECTIONS
 
 	_end = . ;
 
-	/* Sections to be discarded */
-	/DISCARD/ : {
-		EXIT_DATA
-		*(.exitcall.exit)
-	}
-
 	/* Debugging sections.	*/
 	STABS_DEBUG
 	DWARF_DEBUG
+
+	/* Sections to be discarded */
+	DISCARDS
 }

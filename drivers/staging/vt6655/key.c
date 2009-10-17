@@ -36,23 +36,9 @@
  *
  */
 
-
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
-#include "tbit.h"
-#endif
-#if !defined(__KEY_H__)
 #include "key.h"
-#endif
-#if !defined(__UMEM_H__)
-#include "umem.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -85,6 +71,7 @@ s_vCheckKeyTableValid (PSKeyManagement pTable, DWORD_PTR dwIoBase)
             (pTable->KeyTable[i].GroupKey[2].bKeyValid == FALSE) &&
             (pTable->KeyTable[i].GroupKey[3].bKeyValid == FALSE)
             ) {
+
             pTable->KeyTable[i].bInUse = FALSE;
             pTable->KeyTable[i].wKeyCtl = 0;
             pTable->KeyTable[i].bSoftWEP = FALSE;
@@ -153,7 +140,7 @@ BOOL KeybGetKey (
 {
     int i;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybGetKey() \n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybGetKey() \n");
 
     *pKey = NULL;
     for (i=0;i<MAX_KEY_TABLE;i++) {
@@ -219,7 +206,7 @@ BOOL KeybSetKey (
     PSKeyItem   pKey;
     UINT        uKeyIdx;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetKey: %lX\n", dwKeyIndex);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetKey: %lX\n", dwKeyIndex);
 
     j = (MAX_KEY_TABLE-1);
     for (i=0;i<(MAX_KEY_TABLE-1);i++) {
@@ -245,7 +232,7 @@ BOOL KeybSetKey (
                 if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
                     // Group transmit key
                     pTable->KeyTable[i].dwGTKeyIndex = dwKeyIndex;
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Group transmit key(R)[%lX]: %d\n", pTable->KeyTable[i].dwGTKeyIndex, i);
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Group transmit key(R)[%lX]: %d\n", pTable->KeyTable[i].dwGTKeyIndex, i);
                 }
                 pTable->KeyTable[i].wKeyCtl &= 0xFF0F;          // clear group key control filed
                 pTable->KeyTable[i].wKeyCtl |= (byKeyDecMode << 4);
@@ -258,7 +245,7 @@ BOOL KeybSetKey (
             pKey->uKeyLength = uKeyLength;
             pKey->dwKeyIndex = dwKeyIndex;
             pKey->byCipherSuite = byKeyDecMode;
-            MEMvCopy(pKey->abyKey, pbyKey, uKeyLength);
+            memcpy(pKey->abyKey, pbyKey, uKeyLength);
             if (byKeyDecMode == KEY_CTL_WEP) {
                 if (uKeyLength == WLAN_WEP40_KEYLEN)
                     pKey->abyKey[15] &= 0x7F;
@@ -269,32 +256,32 @@ BOOL KeybSetKey (
 
             if ((dwKeyIndex & USE_KEYRSC) == 0) {
                 // RSC set by NIC
-                ZERO_MEMORY(&(pKey->KeyRSC), sizeof(QWORD));
+		    memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
             }
             else {
-                MEMvCopy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+                memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
             }
             pKey->dwTSC47_16 = 0;
             pKey->wTSC15_0 = 0;
 
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybSetKey(R): \n");
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->bKeyValid: %d\n ", pKey->bKeyValid);
-            //DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->uKeyLength: %d\n ", pKey->uKeyLength);
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->abyKey: ");
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybSetKey(R): \n");
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->bKeyValid: %d\n ", pKey->bKeyValid);
+            //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->uKeyLength: %d\n ", pKey->uKeyLength);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->abyKey: ");
             for (ii = 0; ii < pKey->uKeyLength; ii++) {
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
             }
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
 
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwTSC47_16: %lx\n ", pKey->dwTSC47_16);
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->wTSC15_0: %x\n ", pKey->wTSC15_0);
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwKeyIndex: %lx\n ", pKey->dwKeyIndex);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwTSC47_16: %lx\n ", pKey->dwTSC47_16);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->wTSC15_0: %x\n ", pKey->wTSC15_0);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwKeyIndex: %lx\n ", pKey->dwKeyIndex);
 
             return (TRUE);
         }
     }
     if (j < (MAX_KEY_TABLE-1)) {
-        MEMvCopy(pTable->KeyTable[j].abyBSSID,pbyBSSID,U_ETHER_ADDR_LEN);
+        memcpy(pTable->KeyTable[j].abyBSSID,pbyBSSID,U_ETHER_ADDR_LEN);
         pTable->KeyTable[j].bInUse = TRUE;
         if ((dwKeyIndex & PAIRWISE_KEY) != 0)  {
             // Pairwise key
@@ -310,7 +297,7 @@ BOOL KeybSetKey (
             if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
                 // Group transmit key
                 pTable->KeyTable[j].dwGTKeyIndex = dwKeyIndex;
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Group transmit key(N)[%lX]: %d\n", pTable->KeyTable[j].dwGTKeyIndex, j);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Group transmit key(N)[%lX]: %d\n", pTable->KeyTable[j].dwGTKeyIndex, j);
             }
             pTable->KeyTable[j].wKeyCtl &= 0xFF0F;          // clear group key control filed
             pTable->KeyTable[j].wKeyCtl |= (byKeyDecMode << 4);
@@ -323,7 +310,7 @@ BOOL KeybSetKey (
         pKey->uKeyLength = uKeyLength;
         pKey->dwKeyIndex = dwKeyIndex;
         pKey->byCipherSuite = byKeyDecMode;
-        MEMvCopy(pKey->abyKey, pbyKey, uKeyLength);
+        memcpy(pKey->abyKey, pbyKey, uKeyLength);
         if (byKeyDecMode == KEY_CTL_WEP) {
             if (uKeyLength == WLAN_WEP40_KEYLEN)
                 pKey->abyKey[15] &= 0x7F;
@@ -334,26 +321,26 @@ BOOL KeybSetKey (
 
         if ((dwKeyIndex & USE_KEYRSC) == 0) {
             // RSC set by NIC
-            ZERO_MEMORY(&(pKey->KeyRSC), sizeof(QWORD));
+		memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
         }
         else {
-            MEMvCopy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+            memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
         }
         pKey->dwTSC47_16 = 0;
         pKey->wTSC15_0 = 0;
 
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybSetKey(N): \n");
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->bKeyValid: %d\n ", pKey->bKeyValid);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->abyKey: ");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybSetKey(N): \n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->bKeyValid: %d\n ", pKey->bKeyValid);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->abyKey: ");
         for (ii = 0; ii < pKey->uKeyLength; ii++) {
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%02x ", pKey->abyKey[ii]);
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
 
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwTSC47_16: %lx\n ", pKey->dwTSC47_16);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->wTSC15_0: %x\n ", pKey->wTSC15_0);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwKeyIndex: %lx\n ", pKey->dwKeyIndex);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwTSC47_16: %lx\n ", pKey->dwTSC47_16);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->wTSC15_0: %x\n ", pKey->wTSC15_0);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwKeyIndex: %lx\n ", pKey->dwKeyIndex);
 
         return (TRUE);
     }
@@ -549,51 +536,51 @@ BOOL KeybGetTransmitKey (
                 if (pTable->KeyTable[i].PairwiseKey.bKeyValid == TRUE) {
                     *pKey = &(pTable->KeyTable[i].PairwiseKey);
 
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybGetTransmitKey:");
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"PAIRWISE_KEY: KeyTable.abyBSSID: ");
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybGetTransmitKey:");
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"PAIRWISE_KEY: KeyTable.abyBSSID: ");
                     for (ii = 0; ii < 6; ii++) {
-                        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%x ", pTable->KeyTable[i].abyBSSID[ii]);
+                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%x ", pTable->KeyTable[i].abyBSSID[ii]);
                     }
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
 
 
                     return (TRUE);
                 }
                 else {
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"PairwiseKey.bKeyValid == FALSE\n");
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"PairwiseKey.bKeyValid == FALSE\n");
                     return (FALSE);
                 }
             } // End of Type == PAIRWISE
             else {
                 if (pTable->KeyTable[i].dwGTKeyIndex == 0) {
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ERROR: dwGTKeyIndex == 0 !!!\n");
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ERROR: dwGTKeyIndex == 0 !!!\n");
                     return FALSE;
                 }
                 if (pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)].bKeyValid == TRUE) {
                     *pKey = &(pTable->KeyTable[i].GroupKey[(pTable->KeyTable[i].dwGTKeyIndex&0x000000FF)]);
 
-                        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybGetTransmitKey:");
-                        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GROUP_KEY: KeyTable.abyBSSID\n");
+                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybGetTransmitKey:");
+                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GROUP_KEY: KeyTable.abyBSSID\n");
                         for (ii = 0; ii < 6; ii++) {
-                            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%x ", pTable->KeyTable[i].abyBSSID[ii]);
+                            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%x ", pTable->KeyTable[i].abyBSSID[ii]);
                         }
-                        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
-                        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"dwGTKeyIndex: %lX\n", pTable->KeyTable[i].dwGTKeyIndex);
+                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
+                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"dwGTKeyIndex: %lX\n", pTable->KeyTable[i].dwGTKeyIndex);
 
                     return (TRUE);
                 }
                 else {
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GroupKey.bKeyValid == FALSE\n");
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GroupKey.bKeyValid == FALSE\n");
                     return (FALSE);
                 }
             } // End of Type = GROUP
         } // BSSID match
     }
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ERROR: NO Match BSSID !!! ");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ERROR: NO Match BSSID !!! ");
     for (ii = 0; ii < 6; ii++) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%02x ", *(pbyBSSID+ii));
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%02x ", *(pbyBSSID+ii));
     }
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
     return (FALSE);
 }
 
@@ -659,7 +646,7 @@ BOOL KeybSetDefaultKey (
     PSKeyItem   pKey;
     UINT        uKeyIdx;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetDefaultKey: %1x, %d \n", (int)dwKeyIndex, (int)uKeyLength);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetDefaultKey: %1x, %d \n", (int)dwKeyIndex, (int)uKeyLength);
 
 
     if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
@@ -677,7 +664,7 @@ BOOL KeybSetDefaultKey (
     if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
         // Group transmit key
         pTable->KeyTable[MAX_KEY_TABLE-1].dwGTKeyIndex = dwKeyIndex;
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Group transmit key(R)[%lX]: %d\n", pTable->KeyTable[MAX_KEY_TABLE-1].dwGTKeyIndex, MAX_KEY_TABLE-1);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Group transmit key(R)[%lX]: %d\n", pTable->KeyTable[MAX_KEY_TABLE-1].dwGTKeyIndex, MAX_KEY_TABLE-1);
 
     }
     pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl &= 0x7F00;          // clear all key control filed
@@ -699,7 +686,7 @@ BOOL KeybSetDefaultKey (
     pKey->uKeyLength = uKeyLength;
     pKey->dwKeyIndex = dwKeyIndex;
     pKey->byCipherSuite = byKeyDecMode;
-    MEMvCopy(pKey->abyKey, pbyKey, uKeyLength);
+    memcpy(pKey->abyKey, pbyKey, uKeyLength);
     if (byKeyDecMode == KEY_CTL_WEP) {
         if (uKeyLength == WLAN_WEP40_KEYLEN)
             pKey->abyKey[15] &= 0x7F;
@@ -710,26 +697,26 @@ BOOL KeybSetDefaultKey (
 
     if ((dwKeyIndex & USE_KEYRSC) == 0) {
         // RSC set by NIC
-        ZERO_MEMORY(&(pKey->KeyRSC), sizeof(QWORD));
+	    memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
     } else {
-        MEMvCopy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+        memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
     }
     pKey->dwTSC47_16 = 0;
     pKey->wTSC15_0 = 0;
 
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybSetKey(R): \n");
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->bKeyValid: %d\n", pKey->bKeyValid);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->uKeyLength: %d\n", (int)pKey->uKeyLength);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->abyKey: \n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybSetKey(R): \n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->bKeyValid: %d\n", pKey->bKeyValid);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->uKeyLength: %d\n", (int)pKey->uKeyLength);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->abyKey: \n");
     for (ii = 0; ii < pKey->uKeyLength; ii++) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%x", pKey->abyKey[ii]);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%x", pKey->abyKey[ii]);
     }
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwTSC47_16: %lx\n", pKey->dwTSC47_16);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->wTSC15_0: %x\n", pKey->wTSC15_0);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwKeyIndex: %lx\n", pKey->dwKeyIndex);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwTSC47_16: %lx\n", pKey->dwTSC47_16);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->wTSC15_0: %x\n", pKey->wTSC15_0);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->dwKeyIndex: %lx\n", pKey->dwKeyIndex);
 
     return (TRUE);
 }
@@ -767,7 +754,7 @@ BOOL KeybSetAllGroupKey (
     PSKeyItem   pKey;
     UINT        uKeyIdx;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetAllGroupKey: %lX\n", dwKeyIndex);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetAllGroupKey: %lX\n", dwKeyIndex);
 
 
     if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
@@ -784,7 +771,7 @@ BOOL KeybSetAllGroupKey (
             if ((dwKeyIndex & TRANSMIT_KEY) != 0)  {
                 // Group transmit key
                 pTable->KeyTable[i].dwGTKeyIndex = dwKeyIndex;
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Group transmit key(R)[%lX]: %d\n", pTable->KeyTable[i].dwGTKeyIndex, i);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Group transmit key(R)[%lX]: %d\n", pTable->KeyTable[i].dwGTKeyIndex, i);
 
             }
             pTable->KeyTable[i].wKeyCtl &= 0xFF0F;          // clear group key control filed
@@ -798,7 +785,7 @@ BOOL KeybSetAllGroupKey (
             pKey->uKeyLength = uKeyLength;
             pKey->dwKeyIndex = dwKeyIndex;
             pKey->byCipherSuite = byKeyDecMode;
-            MEMvCopy(pKey->abyKey, pbyKey, uKeyLength);
+            memcpy(pKey->abyKey, pbyKey, uKeyLength);
             if (byKeyDecMode == KEY_CTL_WEP) {
                 if (uKeyLength == WLAN_WEP40_KEYLEN)
                     pKey->abyKey[15] &= 0x7F;
@@ -809,22 +796,22 @@ BOOL KeybSetAllGroupKey (
 
             if ((dwKeyIndex & USE_KEYRSC) == 0) {
                 // RSC set by NIC
-                ZERO_MEMORY(&(pKey->KeyRSC), sizeof(QWORD));
+		    memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
             }
             else {
-                MEMvCopy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+                memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
             }
             pKey->dwTSC47_16 = 0;
             pKey->wTSC15_0 = 0;
 
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybSetKey(R): \n");
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->bKeyValid: %d\n ", pKey->bKeyValid);
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->abyKey: ");
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"KeybSetKey(R): \n");
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->bKeyValid: %d\n ", pKey->bKeyValid);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pKey->abyKey: ");
             for (ii = 0; ii < pKey->uKeyLength; ii++) {
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%02x ", pKey->abyKey[ii]);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%02x ", pKey->abyKey[ii]);
             }
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
 
             //DBG_PRN_GRP12(("pKey->dwTSC47_16: %lX\n ", pKey->dwTSC47_16));
             //DBG_PRN_GRP12(("pKey->wTSC15_0: %X\n ", pKey->wTSC15_0));

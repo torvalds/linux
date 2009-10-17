@@ -331,7 +331,8 @@ config TREE_PREEMPT_RCU
 	  This option selects the RCU implementation that is
 	  designed for very large SMP systems with hundreds or
 	  thousands of CPUs, but for which real-time response
-	  is also required.
+	  is also required.  It also scales down nicely to
+	  smaller systems.
 
 endchoice
 
@@ -915,31 +916,41 @@ config AIO
           by some high performance threaded applications. Disabling
           this option saves about 7k.
 
-config HAVE_PERF_COUNTERS
+config HAVE_PERF_EVENTS
 	bool
 	help
 	  See tools/perf/design.txt for details.
 
-menu "Performance Counters"
+config PERF_USE_VMALLOC
+	bool
+	help
+	  See tools/perf/design.txt for details
 
-config PERF_COUNTERS
-	bool "Kernel Performance Counters"
-	default y if PROFILING
-	depends on HAVE_PERF_COUNTERS
+menu "Kernel Performance Events And Counters"
+
+config PERF_EVENTS
+	bool "Kernel performance events and counters"
+	default y if (PROFILING || PERF_COUNTERS)
+	depends on HAVE_PERF_EVENTS
 	select ANON_INODES
 	help
-	  Enable kernel support for performance counter hardware.
+	  Enable kernel support for various performance events provided
+	  by software and hardware.
 
-	  Performance counters are special hardware registers available
-	  on most modern CPUs. These registers count the number of certain
+	  Software events are supported either build-in or via the
+	  use of generic tracepoints.
+
+	  Most modern CPUs support performance events via performance
+	  counter registers. These registers count the number of certain
 	  types of hw events: such as instructions executed, cachemisses
 	  suffered, or branches mis-predicted - without slowing down the
 	  kernel or applications. These registers can also trigger interrupts
 	  when a threshold number of events have passed - and can thus be
 	  used to profile the code that runs on that CPU.
 
-	  The Linux Performance Counter subsystem provides an abstraction of
-	  these hardware capabilities, available via a system call. It
+	  The Linux Performance Event subsystem provides an abstraction of
+	  these software and hardware cevent apabilities, available via a
+	  system call and used by the "perf" utility in tools/perf/. It
 	  provides per task and per CPU counters, and it provides event
 	  capabilities on top of those.
 
@@ -947,16 +958,41 @@ config PERF_COUNTERS
 
 config EVENT_PROFILE
 	bool "Tracepoint profiling sources"
-	depends on PERF_COUNTERS && EVENT_TRACING
+	depends on PERF_EVENTS && EVENT_TRACING
 	default y
 	help
-	 Allow the use of tracepoints as software performance counters.
+	 Allow the use of tracepoints as software performance events.
 
-	 When this is enabled, you can create perf counters based on
+	 When this is enabled, you can create perf events based on
 	 tracepoints using PERF_TYPE_TRACEPOINT and the tracepoint ID
 	 found in debugfs://tracing/events/*/*/id. (The -e/--events
 	 option to the perf tool can parse and interpret symbolic
 	 tracepoints, in the subsystem:tracepoint_name format.)
+
+config PERF_COUNTERS
+	bool "Kernel performance counters (old config option)"
+	depends on HAVE_PERF_EVENTS
+	help
+	  This config has been obsoleted by the PERF_EVENTS
+	  config option - please see that one for details.
+
+	  It has no effect on the kernel whether you enable
+	  it or not, it is a compatibility placeholder.
+
+	  Say N if unsure.
+
+config DEBUG_PERF_USE_VMALLOC
+	default n
+	bool "Debug: use vmalloc to back perf mmap() buffers"
+	depends on PERF_EVENTS && DEBUG_KERNEL
+	select PERF_USE_VMALLOC
+	help
+	 Use vmalloc memory to back perf mmap() buffers.
+
+	 Mostly useful for debugging the vmalloc code on platforms
+	 that don't require it.
+
+	 Say N if unsure.
 
 endmenu
 
@@ -987,14 +1023,6 @@ config SLUB_DEBUG
 	  result in significant savings in code size. This also disables
 	  SLUB sysfs support. /sys/slab will not exist and there will be
 	  no support for cache validation etc.
-
-config STRIP_ASM_SYMS
-	bool "Strip assembler-generated symbols during link"
-	default n
-	help
-	  Strip internal assembler-generated symbols during a link (symbols
-	  that look like '.Lxxx') so they don't pollute the output of
-	  get_wchan() and suchlike.
 
 config COMPAT_BRK
 	bool "Disable heap randomization"
@@ -1053,13 +1081,6 @@ config PROFILING
 #
 config TRACEPOINTS
 	bool
-
-config MARKERS
-	bool "Activate markers"
-	select TRACEPOINTS
-	help
-	  Place an empty function call at each marker site. Can be
-	  dynamically changed for a probe function.
 
 source "arch/Kconfig"
 

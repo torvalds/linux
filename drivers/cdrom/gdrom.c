@@ -512,7 +512,7 @@ static int gdrom_bdops_ioctl(struct block_device *bdev, fmode_t mode,
 	return cdrom_ioctl(gd.cd_info, bdev, mode, cmd, arg);
 }
 
-static struct block_device_operations gdrom_bdops = {
+static const struct block_device_operations gdrom_bdops = {
 	.owner			= THIS_MODULE,
 	.open			= gdrom_bdops_open,
 	.release		= gdrom_bdops_release,

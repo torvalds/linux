@@ -279,7 +279,10 @@ int s390_enable_sie(void)
 	/* lets check if we are allowed to replace the mm */
 	task_lock(tsk);
 	if (!tsk->mm || atomic_read(&tsk->mm->mm_users) > 1 ||
-	    tsk->mm != tsk->active_mm || !hlist_empty(&tsk->mm->ioctx_list)) {
+#ifdef CONFIG_AIO
+	    !hlist_empty(&tsk->mm->ioctx_list) ||
+#endif
+	    tsk->mm != tsk->active_mm) {
 		task_unlock(tsk);
 		return -EINVAL;
 	}
@@ -295,7 +298,10 @@ int s390_enable_sie(void)
 	/* Now lets check again if something happened */
 	task_lock(tsk);
 	if (!tsk->mm || atomic_read(&tsk->mm->mm_users) > 1 ||
-	    tsk->mm != tsk->active_mm || !hlist_empty(&tsk->mm->ioctx_list)) {
+#ifdef CONFIG_AIO
+	    !hlist_empty(&tsk->mm->ioctx_list) ||
+#endif
+	    tsk->mm != tsk->active_mm) {
 		mmput(mm);
 		task_unlock(tsk);
 		return -EINVAL;
@@ -314,21 +320,18 @@ int s390_enable_sie(void)
 }
 EXPORT_SYMBOL_GPL(s390_enable_sie);
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-#ifdef CONFIG_HIBERNATION
+#if defined(CONFIG_DEBUG_PAGEALLOC) && defined(CONFIG_HIBERNATION)
 bool kernel_page_present(struct page *page)
 {
 	unsigned long addr;
 	int cc;
 
 	addr = page_to_phys(page);
-	asm("lra %1,0(%1)\n"
-	    "ipm %0\n"
-	    "srl %0,28"
-	    :"=d"(cc),"+a"(addr)::"cc");
+	asm volatile(
+		"	lra	%1,0(%1)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28"
+		: "=d" (cc), "+a" (addr) : : "cc");
 	return cc == 0;
 }
-
-#endif /* CONFIG_HIBERNATION */
-#endif /* CONFIG_DEBUG_PAGEALLOC */
-
+#endif /* CONFIG_HIBERNATION && CONFIG_DEBUG_PAGEALLOC */

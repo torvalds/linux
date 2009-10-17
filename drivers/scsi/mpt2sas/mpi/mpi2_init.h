@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2008 LSI Corporation.
+ *  Copyright (c) 2000-2009 LSI Corporation.
  *
  *
  *           Name:  mpi2_init.h
  *          Title:  MPI SCSI initiator mode messages and structures
  *  Creation Date:  June 23, 2006
  *
- *    mpi2_init.h Version:  02.00.06
+ *    mpi2_init.h Version:  02.00.07
  *
  *  Version History
  *  ---------------
@@ -23,6 +23,10 @@
  *                      Control field Task Attribute flags.
  *                      Moved LUN field defines to mpi2.h becasue they are
  *                      common to many structures.
+ *  05-06-09  02.00.07  Changed task management type of Query Unit Attention to
+ *                      Query Asynchronous Event.
+ *                      Defined two new bits in the SlotStatus field of the SCSI
+ *                      Enclosure Processor Request and Reply.
  *  --------------------------------------------------------------------------
  */
 
@@ -289,7 +293,11 @@ typedef struct _MPI2_SCSI_TASK_MANAGE_REQUEST
 #define MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK           (0x07)
 #define MPI2_SCSITASKMGMT_TASKTYPE_CLR_ACA              (0x08)
 #define MPI2_SCSITASKMGMT_TASKTYPE_QRY_TASK_SET         (0x09)
-#define MPI2_SCSITASKMGMT_TASKTYPE_QRY_UNIT_ATTENTION   (0x0A)
+#define MPI2_SCSITASKMGMT_TASKTYPE_QRY_ASYNC_EVENT      (0x0A)
+
+/* obsolete TaskType name */
+#define MPI2_SCSITASKMGMT_TASKTYPE_QRY_UNIT_ATTENTION	\
+	(MPI2_SCSITASKMGMT_TASKTYPE_QRY_ASYNC_EVENT)
 
 /* MsgFlags bits */
 
@@ -375,6 +383,8 @@ typedef struct _MPI2_SEP_REQUEST
 #define MPI2_SEP_REQ_SLOTSTATUS_HOT_SPARE               (0x00000100)
 #define MPI2_SEP_REQ_SLOTSTATUS_UNCONFIGURED            (0x00000080)
 #define MPI2_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT         (0x00000040)
+#define MPI2_SEP_REQ_SLOTSTATUS_IN_CRITICAL_ARRAY       (0x00000010)
+#define MPI2_SEP_REQ_SLOTSTATUS_IN_FAILED_ARRAY         (0x00000008)
 #define MPI2_SEP_REQ_SLOTSTATUS_DEV_REBUILDING          (0x00000004)
 #define MPI2_SEP_REQ_SLOTSTATUS_DEV_FAULTY              (0x00000002)
 #define MPI2_SEP_REQ_SLOTSTATUS_NO_ERROR                (0x00000001)
@@ -410,6 +420,8 @@ typedef struct _MPI2_SEP_REPLY
 #define MPI2_SEP_REPLY_SLOTSTATUS_HOT_SPARE             (0x00000100)
 #define MPI2_SEP_REPLY_SLOTSTATUS_UNCONFIGURED          (0x00000080)
 #define MPI2_SEP_REPLY_SLOTSTATUS_PREDICTED_FAULT       (0x00000040)
+#define MPI2_SEP_REPLY_SLOTSTATUS_IN_CRITICAL_ARRAY     (0x00000010)
+#define MPI2_SEP_REPLY_SLOTSTATUS_IN_FAILED_ARRAY       (0x00000008)
 #define MPI2_SEP_REPLY_SLOTSTATUS_DEV_REBUILDING        (0x00000004)
 #define MPI2_SEP_REPLY_SLOTSTATUS_DEV_FAULTY            (0x00000002)
 #define MPI2_SEP_REPLY_SLOTSTATUS_NO_ERROR              (0x00000001)

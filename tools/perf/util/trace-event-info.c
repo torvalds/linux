@@ -458,7 +458,7 @@ static void read_proc_kallsyms(void)
 static void read_ftrace_printk(void)
 {
 	unsigned int size, check_size;
-	const char *path;
+	char *path;
 	struct stat st;
 	int ret;
 
@@ -468,23 +468,24 @@ static void read_ftrace_printk(void)
 		/* not found */
 		size = 0;
 		write_or_die(&size, 4);
-		return;
+		goto out;
 	}
 	size = get_size(path);
 	write_or_die(&size, 4);
 	check_size = copy_file(path);
 	if (size != check_size)
 		die("error in size of file '%s'", path);
-
+out:
+	put_tracing_file(path);
 }
 
 static struct tracepoint_path *
-get_tracepoints_path(struct perf_counter_attr *pattrs, int nb_counters)
+get_tracepoints_path(struct perf_event_attr *pattrs, int nb_events)
 {
 	struct tracepoint_path path, *ppath = &path;
 	int i;
 
-	for (i = 0; i < nb_counters; i++) {
+	for (i = 0; i < nb_events; i++) {
 		if (pattrs[i].type != PERF_TYPE_TRACEPOINT)
 			continue;
 		ppath->next = tracepoint_id_to_path(pattrs[i].config);
@@ -495,14 +496,12 @@ get_tracepoints_path(struct perf_counter_attr *pattrs, int nb_counters)
 
 	return path.next;
 }
-void read_tracing_data(struct perf_counter_attr *pattrs, int nb_counters)
+void read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events)
 {
 	char buf[BUFSIZ];
 	struct tracepoint_path *tps;
 
-	output_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (output_fd < 0)
-		die("creating file '%s'", output_file);
+	output_fd = fd;
 
 	buf[0] = 23;
 	buf[1] = 8;
@@ -529,7 +528,7 @@ void read_tracing_data(struct perf_counter_attr *pattrs, int nb_counters)
 	page_size = getpagesize();
 	write_or_die(&page_size, 4);
 
-	tps = get_tracepoints_path(pattrs, nb_counters);
+	tps = get_tracepoints_path(pattrs, nb_events);
 
 	read_header_files();
 	read_ftrace_files(tps);

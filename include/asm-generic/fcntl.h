@@ -73,6 +73,19 @@
 #define F_SETSIG	10	/* for sockets. */
 #define F_GETSIG	11	/* for sockets. */
 #endif
+#ifndef F_SETOWN_EX
+#define F_SETOWN_EX	12
+#define F_GETOWN_EX	13
+#endif
+
+#define F_OWNER_TID	0
+#define F_OWNER_PID	1
+#define F_OWNER_GID	2
+
+struct f_owner_ex {
+	int	type;
+	pid_t	pid;
+};
 
 /* for F_[GET|SET]FL */
 #define FD_CLOEXEC	1	/* actually anything with low bit set goes */

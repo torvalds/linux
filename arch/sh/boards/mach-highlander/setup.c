@@ -22,6 +22,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/usb/r8a66597.h>
+#include <linux/usb/m66592.h>
 #include <net/ax88796.h>
 #include <asm/machvec.h>
 #include <mach/highlander.h>
@@ -60,6 +61,11 @@ static struct platform_device r8a66597_usb_host_device = {
 	.resource	= r8a66597_usb_host_resources,
 };
 
+static struct m66592_platdata usbf_platdata = {
+	.xtal = M66592_PLATDATA_XTAL_24MHZ,
+	.vif = 1,
+};
+
 static struct resource m66592_usb_peripheral_resources[] = {
 	[0] = {
 		.name	= "m66592_udc",
@@ -81,6 +87,7 @@ static struct platform_device m66592_usb_peripheral_device = {
 	.dev = {
 		.dma_mask		= NULL,		/* don't use dma */
 		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &usbf_platdata,
 	},
 	.num_resources	= ARRAY_SIZE(m66592_usb_peripheral_resources),
 	.resource	= m66592_usb_peripheral_resources,

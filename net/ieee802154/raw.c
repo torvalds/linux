@@ -244,7 +244,7 @@ static int raw_getsockopt(struct sock *sk, int level, int optname,
 }
 
 static int raw_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int __user optlen)
+		    char __user *optval, unsigned int optlen)
 {
 	return -EOPNOTSUPP;
 }

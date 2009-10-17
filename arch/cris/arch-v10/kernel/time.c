@@ -28,7 +28,6 @@
 
 extern void update_xtime_from_cmos(void);
 extern int set_rtc_mmss(unsigned long nowtime);
-extern int setup_irq(int, struct irqaction *);
 extern int have_rtc;
 
 unsigned long get_ns_in_jiffie(void)

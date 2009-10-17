@@ -77,7 +77,7 @@ static void timbuart_flush_buffer(struct uart_port *port)
 
 static void timbuart_rx_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = port->info->port.tty;
+	struct tty_struct *tty = port->state->port.tty;
 
 	while (ioread32(port->membase + TIMBUART_ISR) & RXDP) {
 		u8 ch = ioread8(port->membase + TIMBUART_RXFIFO);
@@ -86,7 +86,7 @@ static void timbuart_rx_chars(struct uart_port *port)
 	}
 
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(port->info->port.tty);
+	tty_flip_buffer_push(port->state->port.tty);
 	spin_lock(&port->lock);
 
 	dev_dbg(port->dev, "%s - total read %d bytes\n",
@@ -95,7 +95,7 @@ static void timbuart_rx_chars(struct uart_port *port)
 
 static void timbuart_tx_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 
 	while (!(ioread32(port->membase + TIMBUART_ISR) & TXBF) &&
 		!uart_circ_empty(xmit)) {
@@ -118,7 +118,7 @@ static void timbuart_handle_tx_port(struct uart_port *port, u32 isr, u32 *ier)
 {
 	struct timbuart_port *uart =
 		container_of(port, struct timbuart_port, port);
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit = &port->state->xmit;
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
 		return;
@@ -231,7 +231,7 @@ static void timbuart_mctrl_check(struct uart_port *port, u32 isr, u32 *ier)
 		iowrite32(CTS_DELTA, port->membase + TIMBUART_ISR);
 		cts = timbuart_get_mctrl(port);
 		uart_handle_cts_change(port, cts & TIOCM_CTS);
-		wake_up_interruptible(&port->info->delta_msr_wait);
+		wake_up_interruptible(&port->state->port.delta_msr_wait);
 	}
 
 	*ier |= CTS_DELTA;

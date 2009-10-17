@@ -1,13 +1,13 @@
 /*
- * linux/arch/kernel/time-ts.c
- *
  * Based on arm clockevents implementation and old bfin time tick.
  *
- * Copyright(C) 2008, GeoTechnologies, Vitja Makarov
+ * Copyright 2008-2009 Analog Devics Inc.
+ *                2008 GeoTechnologies
+ *                     Vitja Makarov
  *
- * This code is licenced under the GPL version 2. For details see
- * kernel-base/COPYING.
+ * Licensed under the GPL-2
  */
+
 #include <linux/module.h>
 #include <linux/profile.h>
 #include <linux/interrupt.h>
@@ -66,7 +66,7 @@ static cycle_t bfin_read_cycles(struct clocksource *cs)
 
 static struct clocksource bfin_cs_cycles = {
 	.name		= "bfin_cs_cycles",
-	.rating		= 350,
+	.rating		= 400,
 	.read		= bfin_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(64),
 	.shift		= 22,
@@ -115,7 +115,7 @@ static cycle_t bfin_read_gptimer0(void)
 
 static struct clocksource bfin_cs_gptimer0 = {
 	.name		= "bfin_cs_gptimer0",
-	.rating		= 400,
+	.rating		= 350,
 	.read		= bfin_read_gptimer0,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.shift		= 22,

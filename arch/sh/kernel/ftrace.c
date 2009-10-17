@@ -16,9 +16,13 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <asm/ftrace.h>
 #include <asm/cacheflush.h>
+#include <asm/unistd.h>
+#include <trace/syscall.h>
 
+#ifdef CONFIG_DYNAMIC_FTRACE
 static unsigned char ftrace_replaced_code[MCOUNT_INSN_SIZE];
 
 static unsigned char ftrace_nop[4];
@@ -131,3 +135,204 @@ int __init ftrace_dyn_arch_init(void *data)
 
 	return 0;
 }
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern void ftrace_graph_call(void);
+
+static int ftrace_mod(unsigned long ip, unsigned long old_addr,
+		      unsigned long new_addr)
+{
+	unsigned char code[MCOUNT_INSN_SIZE];
+
+	if (probe_kernel_read(code, (void *)ip, MCOUNT_INSN_SIZE))
+		return -EFAULT;
+
+	if (old_addr != __raw_readl((unsigned long *)code))
+		return -EINVAL;
+
+	__raw_writel(new_addr, ip);
+	return 0;
+}
+
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	unsigned long ip, old_addr, new_addr;
+
+	ip = (unsigned long)(&ftrace_graph_call) + GRAPH_INSN_OFFSET;
+	old_addr = (unsigned long)(&skip_trace);
+	new_addr = (unsigned long)(&ftrace_graph_caller);
+
+	return ftrace_mod(ip, old_addr, new_addr);
+}
+
+int ftrace_disable_ftrace_graph_caller(void)
+{
+	unsigned long ip, old_addr, new_addr;
+
+	ip = (unsigned long)(&ftrace_graph_call) + GRAPH_INSN_OFFSET;
+	old_addr = (unsigned long)(&ftrace_graph_caller);
+	new_addr = (unsigned long)(&skip_trace);
+
+	return ftrace_mod(ip, old_addr, new_addr);
+}
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+/*
+ * Hook the return address and push it in the stack of return addrs
+ * in the current thread info.
+ *
+ * This is the main routine for the function graph tracer. The function
+ * graph tracer essentially works like this:
+ *
+ * parent is the stack address containing self_addr's return address.
+ * We pull the real return address out of parent and store it in
+ * current's ret_stack. Then, we replace the return address on the stack
+ * with the address of return_to_handler. self_addr is the function that
+ * called mcount.
+ *
+ * When self_addr returns, it will jump to return_to_handler which calls
+ * ftrace_return_to_handler. ftrace_return_to_handler will pull the real
+ * return address off of current's ret_stack and jump to it.
+ */
+void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
+{
+	unsigned long old;
+	int faulted, err;
+	struct ftrace_graph_ent trace;
+	unsigned long return_hooker = (unsigned long)&return_to_handler;
+
+	if (unlikely(atomic_read(&current->tracing_graph_pause)))
+		return;
+
+	/*
+	 * Protect against fault, even if it shouldn't
+	 * happen. This tool is too much intrusive to
+	 * ignore such a protection.
+	 */
+	__asm__ __volatile__(
+		"1:						\n\t"
+		"mov.l		@%2, %0				\n\t"
+		"2:						\n\t"
+		"mov.l		%3, @%2				\n\t"
+		"mov		#0, %1				\n\t"
+		"3:						\n\t"
+		".section .fixup, \"ax\"			\n\t"
+		"4:						\n\t"
+		"mov.l		5f, %0				\n\t"
+		"jmp		@%0				\n\t"
+		" mov		#1, %1				\n\t"
+		".balign 4					\n\t"
+		"5:	.long 3b				\n\t"
+		".previous					\n\t"
+		".section __ex_table,\"a\"			\n\t"
+		".long 1b, 4b					\n\t"
+		".long 2b, 4b					\n\t"
+		".previous					\n\t"
+		: "=&r" (old), "=r" (faulted)
+		: "r" (parent), "r" (return_hooker)
+	);
+
+	if (unlikely(faulted)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
+		return;
+	}
+
+	err = ftrace_push_return_trace(old, self_addr, &trace.depth, 0);
+	if (err == -EBUSY) {
+		__raw_writel(old, parent);
+		return;
+	}
+
+	trace.func = self_addr;
+
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace)) {
+		current->curr_ret_stack--;
+		__raw_writel(old, parent);
+	}
+}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#ifdef CONFIG_FTRACE_SYSCALLS
+
+extern unsigned long __start_syscalls_metadata[];
+extern unsigned long __stop_syscalls_metadata[];
+extern unsigned long *sys_call_table;
+
+static struct syscall_metadata **syscalls_metadata;
+
+static struct syscall_metadata *find_syscall_meta(unsigned long *syscall)
+{
+	struct syscall_metadata *start;
+	struct syscall_metadata *stop;
+	char str[KSYM_SYMBOL_LEN];
+
+
+	start = (struct syscall_metadata *)__start_syscalls_metadata;
+	stop = (struct syscall_metadata *)__stop_syscalls_metadata;
+	kallsyms_lookup((unsigned long) syscall, NULL, NULL, NULL, str);
+
+	for ( ; start < stop; start++) {
+		if (start->name && !strcmp(start->name, str))
+			return start;
+	}
+
+	return NULL;
+}
+
+struct syscall_metadata *syscall_nr_to_meta(int nr)
+{
+	if (!syscalls_metadata || nr >= FTRACE_SYSCALL_MAX || nr < 0)
+		return NULL;
+
+	return syscalls_metadata[nr];
+}
+
+int syscall_name_to_nr(char *name)
+{
+	int i;
+
+	if (!syscalls_metadata)
+		return -1;
+	for (i = 0; i < NR_syscalls; i++)
+		if (syscalls_metadata[i])
+			if (!strcmp(syscalls_metadata[i]->name, name))
+				return i;
+	return -1;
+}
+
+void set_syscall_enter_id(int num, int id)
+{
+	syscalls_metadata[num]->enter_id = id;
+}
+
+void set_syscall_exit_id(int num, int id)
+{
+	syscalls_metadata[num]->exit_id = id;
+}
+
+static int __init arch_init_ftrace_syscalls(void)
+{
+	int i;
+	struct syscall_metadata *meta;
+	unsigned long **psys_syscall_table = &sys_call_table;
+
+	syscalls_metadata = kzalloc(sizeof(*syscalls_metadata) *
+					FTRACE_SYSCALL_MAX, GFP_KERNEL);
+	if (!syscalls_metadata) {
+		WARN_ON(1);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < FTRACE_SYSCALL_MAX; i++) {
+		meta = find_syscall_meta(psys_syscall_table[i]);
+		syscalls_metadata[i] = meta;
+	}
+
+	return 0;
+}
+arch_initcall(arch_init_ftrace_syscalls);
+#endif /* CONFIG_FTRACE_SYSCALLS */

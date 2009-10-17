@@ -127,7 +127,7 @@ static inline void switch_mm(struct mm_struct *prev,
 
 	if (prev != next) {
 #ifdef CONFIG_SMP
-		cpu_set(cpu, next->cpu_vm_mask);
+		cpumask_set_cpu(cpu, mm_cpumask(next));
 #endif /* CONFIG_SMP */
 		/* Set MPTB = next->pgd */
 		*(volatile unsigned long *)MPTB = (unsigned long)next->pgd;
@@ -135,7 +135,7 @@ static inline void switch_mm(struct mm_struct *prev,
 	}
 #ifdef CONFIG_SMP
 	else
-		if (!cpu_test_and_set(cpu, next->cpu_vm_mask))
+		if (!cpumask_test_and_set_cpu(cpu, mm_cpumask(next)))
 			activate_context(next);
 #endif /* CONFIG_SMP */
 }

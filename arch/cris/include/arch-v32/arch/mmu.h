@@ -28,10 +28,10 @@ typedef struct
 /*
  * CRISv32 PTE bits:
  *
- *  Bit:  31-13  12-5     4        3       2        1        0
- *       +-----+------+--------+-------+--------+-------+---------+
- *       | pfn | zero | global | valid | kernel | write | execute |
- *       +-----+------+--------+-------+--------+-------+---------+
+ *  Bit:   31     30-13  12-5     4        3       2        1        0
+ *       +-------+-----+------+--------+-------+--------+-------+---------+
+ *       | cache | pfn | zero | global | valid | kernel | write | execute |
+ *       +-------+-----+------+--------+-------+--------+-------+---------+
  */
 
 /*
@@ -45,6 +45,8 @@ typedef struct
 #define _PAGE_VALID         (1 << 3)	/* Page is valid. */
 #define _PAGE_SILENT_READ   (1 << 3)	/* Same as above. */
 #define _PAGE_GLOBAL        (1 << 4)	/* Global page. */
+#define _PAGE_NO_CACHE	    (1 << 31)	/* part of the uncached memory map */
+
 
 /*
  * The hardware doesn't care about these bits, but the kernel uses them in

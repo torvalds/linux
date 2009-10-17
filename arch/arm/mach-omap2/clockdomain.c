@@ -299,7 +299,8 @@ struct clockdomain *clkdm_lookup(const char *name)
  * anything else to indicate failure; or -EINVAL if the function pointer
  * is null.
  */
-int clkdm_for_each(int (*fn)(struct clockdomain *clkdm))
+int clkdm_for_each(int (*fn)(struct clockdomain *clkdm, void *user),
+			void *user)
 {
 	struct clockdomain *clkdm;
 	int ret = 0;
@@ -309,7 +310,7 @@ int clkdm_for_each(int (*fn)(struct clockdomain *clkdm))
 
 	mutex_lock(&clkdm_mutex);
 	list_for_each_entry(clkdm, &clkdm_list, node) {
-		ret = (*fn)(clkdm);
+		ret = (*fn)(clkdm, user);
 		if (ret)
 			break;
 	}
@@ -484,6 +485,8 @@ void omap2_clkdm_allow_idle(struct clockdomain *clkdm)
 			    v << __ffs(clkdm->clktrctrl_mask),
 			    clkdm->pwrdm.ptr->prcm_offs,
 			    CM_CLKSTCTRL);
+
+	pwrdm_clkdm_state_switch(clkdm);
 }
 
 /**
@@ -572,6 +575,7 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 		omap2_clkdm_wakeup(clkdm);
 
 	pwrdm_wait_transition(clkdm->pwrdm.ptr);
+	pwrdm_clkdm_state_switch(clkdm);
 
 	return 0;
 }
@@ -623,6 +627,8 @@ int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 		_clkdm_del_autodeps(clkdm);
 	else
 		omap2_clkdm_sleep(clkdm);
+
+	pwrdm_clkdm_state_switch(clkdm);
 
 	return 0;
 }

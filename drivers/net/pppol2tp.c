@@ -229,7 +229,7 @@ static void pppol2tp_tunnel_free(struct pppol2tp_tunnel *tunnel);
 static atomic_t pppol2tp_tunnel_count;
 static atomic_t pppol2tp_session_count;
 static struct ppp_channel_ops pppol2tp_chan_ops = { pppol2tp_xmit , NULL };
-static struct proto_ops pppol2tp_ops;
+static const struct proto_ops pppol2tp_ops;
 
 /* per-net private data for this module */
 static int pppol2tp_net_id;
@@ -2179,7 +2179,7 @@ static int pppol2tp_session_setsockopt(struct sock *sk,
  * session or the special tunnel type.
  */
 static int pppol2tp_setsockopt(struct socket *sock, int level, int optname,
-			       char __user *optval, int optlen)
+			       char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	struct pppol2tp_session *session = sk->sk_user_data;
@@ -2574,7 +2574,7 @@ static const struct file_operations pppol2tp_proc_fops = {
  * Init and cleanup
  *****************************************************************************/
 
-static struct proto_ops pppol2tp_ops = {
+static const struct proto_ops pppol2tp_ops = {
 	.family		= AF_PPPOX,
 	.owner		= THIS_MODULE,
 	.release	= pppol2tp_release,

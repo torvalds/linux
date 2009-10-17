@@ -544,7 +544,7 @@ struct sctp_af {
 					 int level,
 					 int optname,
 					 char __user *optval,
-					 int optlen);
+					 unsigned int optlen);
 	int		(*getsockopt)	(struct sock *sk,
 					 int level,
 					 int optname,
@@ -554,7 +554,7 @@ struct sctp_af {
 					 int level,
 					 int optname,
 					 char __user *optval,
-					 int optlen);
+					 unsigned int optlen);
 	int		(*compat_getsockopt)	(struct sock *sk,
 					 int level,
 					 int optname,

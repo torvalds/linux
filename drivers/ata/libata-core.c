@@ -5024,8 +5024,6 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		struct ata_device *dev = qc->dev;
 		struct ata_eh_info *ehi = &dev->link->eh_info;
 
-		WARN_ON_ONCE(ap->pflags & ATA_PFLAG_FROZEN);
-
 		if (unlikely(qc->err_mask))
 			qc->flags |= ATA_QCFLAG_FAILED;
 
@@ -5037,6 +5035,8 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 				return;
 			}
 		}
+
+		WARN_ON_ONCE(ap->pflags & ATA_PFLAG_FROZEN);
 
 		/* read result TF if requested */
 		if (qc->flags & ATA_QCFLAG_RESULT_TF)
@@ -5591,6 +5591,9 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
 
 		dev->link = link;
 		dev->devno = dev - link->device;
+#ifdef CONFIG_ATA_ACPI
+		dev->gtf_filter = ata_acpi_gtf_filter;
+#endif
 		ata_dev_init(dev);
 	}
 }

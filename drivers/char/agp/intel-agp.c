@@ -10,6 +10,16 @@
 #include <linux/agp_backend.h>
 #include "agp.h"
 
+/*
+ * If we have Intel graphics, we're not going to have anything other than
+ * an Intel IOMMU. So make the correct use of the PCI DMA API contingent
+ * on the Intel IOMMU support (CONFIG_DMAR).
+ * Only newer chipsets need to bother with this, of course.
+ */
+#ifdef CONFIG_DMAR
+#define USE_PCI_DMA_API 1
+#endif
+
 #define PCI_DEVICE_ID_INTEL_E7221_HB	0x2588
 #define PCI_DEVICE_ID_INTEL_E7221_IG	0x258a
 #define PCI_DEVICE_ID_INTEL_82946GZ_HB      0x2970
@@ -36,6 +46,8 @@
 #define PCI_DEVICE_ID_INTEL_Q35_IG          0x29B2
 #define PCI_DEVICE_ID_INTEL_Q33_HB          0x29D0
 #define PCI_DEVICE_ID_INTEL_Q33_IG          0x29D2
+#define PCI_DEVICE_ID_INTEL_B43_HB          0x2E40
+#define PCI_DEVICE_ID_INTEL_B43_IG          0x2E42
 #define PCI_DEVICE_ID_INTEL_GM45_HB         0x2A40
 #define PCI_DEVICE_ID_INTEL_GM45_IG         0x2A42
 #define PCI_DEVICE_ID_INTEL_IGD_E_HB        0x2E00
@@ -81,6 +93,7 @@
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G41_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_B43_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_D_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_MA_HB)
@@ -171,6 +184,123 @@ static struct _intel_private {
 	struct resource ifp_resource;
 	int resource_valid;
 } intel_private;
+
+#ifdef USE_PCI_DMA_API
+static int intel_agp_map_page(struct page *page, dma_addr_t *ret)
+{
+	*ret = pci_map_page(intel_private.pcidev, page, 0,
+			    PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	if (pci_dma_mapping_error(intel_private.pcidev, *ret))
+		return -EINVAL;
+	return 0;
+}
+
+static void intel_agp_unmap_page(struct page *page, dma_addr_t dma)
+{
+	pci_unmap_page(intel_private.pcidev, dma,
+		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+}
+
+static void intel_agp_free_sglist(struct agp_memory *mem)
+{
+	struct sg_table st;
+
+	st.sgl = mem->sg_list;
+	st.orig_nents = st.nents = mem->page_count;
+
+	sg_free_table(&st);
+
+	mem->sg_list = NULL;
+	mem->num_sg = 0;
+}
+
+static int intel_agp_map_memory(struct agp_memory *mem)
+{
+	struct sg_table st;
+	struct scatterlist *sg;
+	int i;
+
+	DBG("try mapping %lu pages\n", (unsigned long)mem->page_count);
+
+	if (sg_alloc_table(&st, mem->page_count, GFP_KERNEL))
+		return -ENOMEM;
+
+	mem->sg_list = sg = st.sgl;
+
+	for (i = 0 ; i < mem->page_count; i++, sg = sg_next(sg))
+		sg_set_page(sg, mem->pages[i], PAGE_SIZE, 0);
+
+	mem->num_sg = pci_map_sg(intel_private.pcidev, mem->sg_list,
+				 mem->page_count, PCI_DMA_BIDIRECTIONAL);
+	if (unlikely(!mem->num_sg)) {
+		intel_agp_free_sglist(mem);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static void intel_agp_unmap_memory(struct agp_memory *mem)
+{
+	DBG("try unmapping %lu pages\n", (unsigned long)mem->page_count);
+
+	pci_unmap_sg(intel_private.pcidev, mem->sg_list,
+		     mem->page_count, PCI_DMA_BIDIRECTIONAL);
+	intel_agp_free_sglist(mem);
+}
+
+static void intel_agp_insert_sg_entries(struct agp_memory *mem,
+					off_t pg_start, int mask_type)
+{
+	struct scatterlist *sg;
+	int i, j;
+
+	j = pg_start;
+
+	WARN_ON(!mem->num_sg);
+
+	if (mem->num_sg == mem->page_count) {
+		for_each_sg(mem->sg_list, sg, mem->page_count, i) {
+			writel(agp_bridge->driver->mask_memory(agp_bridge,
+					sg_dma_address(sg), mask_type),
+					intel_private.gtt+j);
+			j++;
+		}
+	} else {
+		/* sg may merge pages, but we have to seperate
+		 * per-page addr for GTT */
+		unsigned int len, m;
+
+		for_each_sg(mem->sg_list, sg, mem->num_sg, i) {
+			len = sg_dma_len(sg) / PAGE_SIZE;
+			for (m = 0; m < len; m++) {
+				writel(agp_bridge->driver->mask_memory(agp_bridge,
+								       sg_dma_address(sg) + m * PAGE_SIZE,
+								       mask_type),
+				       intel_private.gtt+j);
+				j++;
+			}
+		}
+	}
+	readl(intel_private.gtt+j-1);
+}
+
+#else
+
+static void intel_agp_insert_sg_entries(struct agp_memory *mem,
+					off_t pg_start, int mask_type)
+{
+	int i, j;
+
+	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
+		writel(agp_bridge->driver->mask_memory(agp_bridge,
+				page_to_phys(mem->pages[i]), mask_type),
+		       intel_private.gtt+j);
+	}
+
+	readl(intel_private.gtt+j-1);
+}
+
+#endif
 
 static int intel_i810_fetch_size(void)
 {
@@ -345,8 +475,7 @@ static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 			global_cache_flush();
 		for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 			writel(agp_bridge->driver->mask_memory(agp_bridge,
-							       mem->pages[i],
-							       mask_type),
+					page_to_phys(mem->pages[i]), mask_type),
 			       intel_private.registers+I810_PTE_BASE+(j*4));
 		}
 		readl(intel_private.registers+I810_PTE_BASE+((j-1)*4));
@@ -463,9 +592,8 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 }
 
 static unsigned long intel_i810_mask_memory(struct agp_bridge_data *bridge,
-					    struct page *page, int type)
+					    dma_addr_t addr, int type)
 {
-	unsigned long addr = phys_to_gart(page_to_phys(page));
 	/* Type checking must be done elsewhere */
 	return addr | bridge->driver->masks[type].mask;
 }
@@ -679,23 +807,39 @@ static void intel_i830_setup_flush(void)
 	if (!intel_private.i8xx_page)
 		return;
 
-	/* make page uncached */
-	map_page_into_agp(intel_private.i8xx_page);
-
 	intel_private.i8xx_flush_page = kmap(intel_private.i8xx_page);
 	if (!intel_private.i8xx_flush_page)
 		intel_i830_fini_flush();
 }
 
+static void
+do_wbinvd(void *null)
+{
+	wbinvd();
+}
+
+/* The chipset_flush interface needs to get data that has already been
+ * flushed out of the CPU all the way out to main memory, because the GPU
+ * doesn't snoop those buffers.
+ *
+ * The 8xx series doesn't have the same lovely interface for flushing the
+ * chipset write buffers that the later chips do. According to the 865
+ * specs, it's 64 octwords, or 1KB.  So, to get those previous things in
+ * that buffer out, we just fill 1KB and clflush it out, on the assumption
+ * that it'll push whatever was in there out.  It appears to work.
+ */
 static void intel_i830_chipset_flush(struct agp_bridge_data *bridge)
 {
 	unsigned int *pg = intel_private.i8xx_flush_page;
-	int i;
 
-	for (i = 0; i < 256; i += 2)
-		*(pg + i) = i;
+	memset(pg, 0, 1024);
 
-	wmb();
+	if (cpu_has_clflush) {
+		clflush_cache_range(pg, 1024);
+	} else {
+		if (on_each_cpu(do_wbinvd, NULL, 1) != 0)
+			printk(KERN_ERR "Timed out waiting for cache flush.\n");
+	}
 }
 
 /* The intel i830 automatically initializes the agp aperture during POST.
@@ -853,7 +997,7 @@ static int intel_i830_insert_entries(struct agp_memory *mem, off_t pg_start,
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
-						       mem->pages[i], mask_type),
+				page_to_phys(mem->pages[i]), mask_type),
 		       intel_private.registers+I810_PTE_BASE+(j*4));
 	}
 	readl(intel_private.registers+I810_PTE_BASE+((j-1)*4));
@@ -1017,6 +1161,12 @@ static int intel_i915_configure(void)
 
 	intel_i9xx_setup_flush();
 
+#ifdef USE_PCI_DMA_API 
+	if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(36)))
+		dev_err(&intel_private.pcidev->dev,
+			"set gfx device dma mask 36bit failed!\n");
+#endif
+
 	return 0;
 }
 
@@ -1041,7 +1191,7 @@ static void intel_i915_chipset_flush(struct agp_bridge_data *bridge)
 static int intel_i915_insert_entries(struct agp_memory *mem, off_t pg_start,
 				     int type)
 {
-	int i, j, num_entries;
+	int num_entries;
 	void *temp;
 	int ret = -EINVAL;
 	int mask_type;
@@ -1065,7 +1215,7 @@ static int intel_i915_insert_entries(struct agp_memory *mem, off_t pg_start,
 	if ((pg_start + mem->page_count) > num_entries)
 		goto out_err;
 
-	/* The i915 can't check the GTT for entries since its read only,
+	/* The i915 can't check the GTT for entries since it's read only;
 	 * depend on the caller to make the correct offset decisions.
 	 */
 
@@ -1081,12 +1231,7 @@ static int intel_i915_insert_entries(struct agp_memory *mem, off_t pg_start,
 	if (!mem->is_flushed)
 		global_cache_flush();
 
-	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
-		writel(agp_bridge->driver->mask_memory(agp_bridge,
-						       mem->pages[i], mask_type), intel_private.gtt+j);
-	}
-
-	readl(intel_private.gtt+j-1);
+	intel_agp_insert_sg_entries(mem, pg_start, mask_type);
 	agp_bridge->driver->tlb_flush(mem);
 
  out:
@@ -1198,9 +1343,8 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
  * this conditional.
  */
 static unsigned long intel_i965_mask_memory(struct agp_bridge_data *bridge,
-					    struct page *page, int type)
+					    dma_addr_t addr, int type)
 {
-	dma_addr_t addr = phys_to_gart(page_to_phys(page));
 	/* Shift high bits down */
 	addr |= (addr >> 28) & 0xf0;
 
@@ -1216,6 +1360,7 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 	case PCI_DEVICE_ID_INTEL_Q45_HB:
 	case PCI_DEVICE_ID_INTEL_G45_HB:
 	case PCI_DEVICE_ID_INTEL_G41_HB:
+	case PCI_DEVICE_ID_INTEL_B43_HB:
 	case PCI_DEVICE_ID_INTEL_IGDNG_D_HB:
 	case PCI_DEVICE_ID_INTEL_IGDNG_M_HB:
 	case PCI_DEVICE_ID_INTEL_IGDNG_MA_HB:
@@ -2006,6 +2151,12 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
+#ifdef USE_PCI_DMA_API
+	.agp_map_page		= intel_agp_map_page,
+	.agp_unmap_page		= intel_agp_unmap_page,
+	.agp_map_memory		= intel_agp_map_memory,
+	.agp_unmap_memory	= intel_agp_unmap_memory,
+#endif
 };
 
 static const struct agp_bridge_driver intel_i965_driver = {
@@ -2034,6 +2185,12 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
+#ifdef USE_PCI_DMA_API
+	.agp_map_page		= intel_agp_map_page,
+	.agp_unmap_page		= intel_agp_unmap_page,
+	.agp_map_memory		= intel_agp_map_memory,
+	.agp_unmap_memory	= intel_agp_unmap_memory,
+#endif
 };
 
 static const struct agp_bridge_driver intel_7505_driver = {
@@ -2088,6 +2245,12 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
+#ifdef USE_PCI_DMA_API
+	.agp_map_page		= intel_agp_map_page,
+	.agp_unmap_page		= intel_agp_unmap_page,
+	.agp_map_memory		= intel_agp_map_memory,
+	.agp_unmap_memory	= intel_agp_unmap_memory,
+#endif
 };
 
 static int find_gmch(u16 device)
@@ -2192,6 +2355,8 @@ static const struct intel_driver_description {
 	    "Q45/Q43", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_G45_HB, PCI_DEVICE_ID_INTEL_G45_IG, 0,
 	    "G45/G43", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_B43_HB, PCI_DEVICE_ID_INTEL_B43_IG, 0,
+	    "B43", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_G41_HB, PCI_DEVICE_ID_INTEL_G41_IG, 0,
 	    "G41", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IGDNG_D_HB, PCI_DEVICE_ID_INTEL_IGDNG_D_IG, 0,
@@ -2313,15 +2478,6 @@ static int agp_intel_resume(struct pci_dev *pdev)
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 	int ret_val;
 
-	pci_restore_state(pdev);
-
-	/* We should restore our graphics device's config space,
-	 * as host bridge (00:00) resumes before graphics device (02:00),
-	 * then our access to its pci space can work right.
-	 */
-	if (intel_private.pcidev)
-		pci_restore_state(intel_private.pcidev);
-
 	if (bridge->driver == &intel_generic_driver)
 		intel_configure();
 	else if (bridge->driver == &intel_850_driver)
@@ -2401,6 +2557,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_Q45_HB),
 	ID(PCI_DEVICE_ID_INTEL_G45_HB),
 	ID(PCI_DEVICE_ID_INTEL_G41_HB),
+	ID(PCI_DEVICE_ID_INTEL_B43_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_D_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_M_HB),
 	ID(PCI_DEVICE_ID_INTEL_IGDNG_MA_HB),

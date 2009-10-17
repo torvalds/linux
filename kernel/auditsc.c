@@ -168,12 +168,12 @@ struct audit_context {
 	int		    in_syscall;	/* 1 if task is in a syscall */
 	enum audit_state    state, current_state;
 	unsigned int	    serial;     /* serial number for record */
-	struct timespec	    ctime;      /* time of syscall entry */
 	int		    major;      /* syscall number */
+	struct timespec	    ctime;      /* time of syscall entry */
 	unsigned long	    argv[4];    /* syscall arguments */
-	int		    return_valid; /* return code is valid */
 	long		    return_code;/* syscall return code */
 	u64		    prio;
+	int		    return_valid; /* return code is valid */
 	int		    name_count;
 	struct audit_names  names[AUDIT_NAMES];
 	char *		    filterkey;	/* key for rule that triggered record */
@@ -198,8 +198,8 @@ struct audit_context {
 	char		    target_comm[TASK_COMM_LEN];
 
 	struct audit_tree_refs *trees, *first_trees;
-	int tree_count;
 	struct list_head killed_trees;
+	int tree_count;
 
 	int type;
 	union {

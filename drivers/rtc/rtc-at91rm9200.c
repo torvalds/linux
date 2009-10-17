@@ -289,7 +289,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 					AT91_RTC_CALEV);
 
 	ret = request_irq(AT91_ID_SYS, at91_rtc_interrupt,
-				IRQF_DISABLED | IRQF_SHARED,
+				IRQF_SHARED,
 				"at91_rtc", pdev);
 	if (ret) {
 		printk(KERN_ERR "at91_rtc: IRQ %d already in use.\n",
@@ -340,7 +340,7 @@ static int __exit at91_rtc_remove(struct platform_device *pdev)
 
 static u32 at91_rtc_imr;
 
-static int at91_rtc_suspend(struct platform_device *pdev, pm_message_t state)
+static int at91_rtc_suspend(struct device *dev)
 {
 	/* this IRQ is shared with DBGU and other hardware which isn't
 	 * necessarily doing PM like we are...
@@ -348,7 +348,7 @@ static int at91_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	at91_rtc_imr = at91_sys_read(AT91_RTC_IMR)
 			& (AT91_RTC_ALARM|AT91_RTC_SECEV);
 	if (at91_rtc_imr) {
-		if (device_may_wakeup(&pdev->dev))
+		if (device_may_wakeup(dev))
 			enable_irq_wake(AT91_ID_SYS);
 		else
 			at91_sys_write(AT91_RTC_IDR, at91_rtc_imr);
@@ -356,28 +356,34 @@ static int at91_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int at91_rtc_resume(struct platform_device *pdev)
+static int at91_rtc_resume(struct device *dev)
 {
 	if (at91_rtc_imr) {
-		if (device_may_wakeup(&pdev->dev))
+		if (device_may_wakeup(dev))
 			disable_irq_wake(AT91_ID_SYS);
 		else
 			at91_sys_write(AT91_RTC_IER, at91_rtc_imr);
 	}
 	return 0;
 }
+
+static const struct dev_pm_ops at91_rtc_pm = {
+	.suspend =	at91_rtc_suspend,
+	.resume =	at91_rtc_resume,
+};
+
+#define at91_rtc_pm_ptr	&at91_rtc_pm
+
 #else
-#define at91_rtc_suspend NULL
-#define at91_rtc_resume  NULL
+#define at91_rtc_pm_ptr	NULL
 #endif
 
 static struct platform_driver at91_rtc_driver = {
 	.remove		= __exit_p(at91_rtc_remove),
-	.suspend	= at91_rtc_suspend,
-	.resume		= at91_rtc_resume,
 	.driver		= {
 		.name	= "at91_rtc",
 		.owner	= THIS_MODULE,
+		.pm	= at91_rtc_pm_ptr,
 	},
 };
 
