@@ -104,13 +104,13 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		event->ip.pid,
 		(void *)(long)ip);
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
-
 	if (thread == NULL) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
+
+	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
 	if (event->header.misc & PERF_RECORD_MISC_KERNEL) {
 		level = 'k';

@@ -1667,13 +1667,13 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		(void *)(long)ip,
 		(long long)period);
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
-
 	if (thread == NULL) {
 		eprintf("problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
+
+	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
 	if (profile_cpu != -1 && profile_cpu != (int) cpu)
 		return 0;

@@ -629,13 +629,13 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		}
 	}
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
-
 	if (thread == NULL) {
 		eprintf("problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
+
+	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
 	if (comm_list && !strlist__has_entry(comm_list, thread->comm))
 		return 0;
