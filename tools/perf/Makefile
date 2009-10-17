@@ -363,6 +363,9 @@ LIB_OBJS += util/parse-options.o
 LIB_OBJS += util/parse-events.o
 LIB_OBJS += util/path.o
 LIB_OBJS += util/rbtree.o
+LIB_OBJS += util/bitmap.o
+LIB_OBJS += util/hweight.o
+LIB_OBJS += util/find_next_bit.o
 LIB_OBJS += util/run-command.o
 LIB_OBJS += util/quote.o
 LIB_OBJS += util/strbuf.o
@@ -789,6 +792,19 @@ util/config.o: util/config.c PERF-CFLAGS
 
 util/rbtree.o: ../../lib/rbtree.c PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o util/rbtree.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+
+# some perf warning policies can't fit to lib/bitmap.c, eg: it warns about variable shadowing
+# from <string.h> that comes from kernel headers wrapping.
+KBITMAP_FLAGS=`echo $(ALL_CFLAGS) | sed s/-Wshadow// | sed s/-Wswitch-default// | sed s/-Wextra//`
+
+util/bitmap.o: ../../lib/bitmap.c PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o util/bitmap.o -c $(KBITMAP_FLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+
+util/hweight.o: ../../lib/hweight.c PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o util/hweight.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+
+util/find_next_bit.o: ../../lib/find_next_bit.c PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o util/find_next_bit.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
 perf-%$X: %.o $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(ALL_LDFLAGS) $(filter %.o,$^) $(LIBS)

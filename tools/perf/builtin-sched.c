@@ -38,8 +38,6 @@ static int			cwdlen;
 #define PR_SET_NAME		15               /* Set process name */
 #define MAX_CPUS		4096
 
-#define BUG_ON(x)		assert(!(x))
-
 static u64			run_measurement_overhead;
 static u64			sleep_measurement_overhead;
 

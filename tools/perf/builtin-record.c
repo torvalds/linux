@@ -21,9 +21,6 @@
 #include <unistd.h>
 #include <sched.h>
 
-#define ALIGN(x, a)		__ALIGN_MASK(x, (typeof(x))(a)-1)
-#define __ALIGN_MASK(x, mask)	(((x)+(mask))&~(mask))
-
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static long			default_interval		=      0;

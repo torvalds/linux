@@ -1,0 +1,6 @@
+#include "../../../../include/asm-generic/bitops/__fls.h"
+#include "../../../../include/asm-generic/bitops/fls.h"
+#include "../../../../include/asm-generic/bitops/fls64.h"
+#include "../../../../include/asm-generic/bitops/__ffs.h"
+#include "../../../../include/asm-generic/bitops/ffz.h"
+#include "../../../../include/asm-generic/bitops/hweight.h"
