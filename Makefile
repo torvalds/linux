@@ -1070,11 +1070,6 @@ firmware_install: FORCE
 export INSTALL_HDR_PATH = $(objtree)/usr
 
 hdr-inst := -rR -f $(srctree)/scripts/Makefile.headersinst obj
-# Find out where the Kbuild file is located to support
-# arch/$(ARCH)/include/asm
-hdr-dir = $(strip                                                         \
-          $(if $(wildcard $(srctree)/arch/$(hdr-arch)/include/asm/Kbuild), \
-               arch/$(hdr-arch)/include/asm, include/asm-$(hdr-arch)))
 
 # If we do an all arch process set dst to asm-$(hdr-arch)
 hdr-dst = $(if $(KBUILD_HEADERS), dst=include/asm-$(hdr-arch), dst=include/asm)
@@ -1089,10 +1084,10 @@ headers_install_all:
 
 PHONY += headers_install
 headers_install: __headers
-	$(if $(wildcard $(srctree)/$(hdr-dir)/Kbuild),, \
+	$(if $(wildcard $(srctree)/arch/$(hdr-arch)/include/asm/Kbuild),, \
 	$(error Headers not exportable for the $(SRCARCH) architecture))
 	$(Q)$(MAKE) $(hdr-inst)=include
-	$(Q)$(MAKE) $(hdr-inst)=$(hdr-dir) $(hdr-dst)
+	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/asm $(hdr-dst)
 
 PHONY += headers_check_all
 headers_check_all: headers_install_all
@@ -1101,7 +1096,7 @@ headers_check_all: headers_install_all
 PHONY += headers_check
 headers_check: headers_install
 	$(Q)$(MAKE) $(hdr-inst)=include HDRCHECK=1
-	$(Q)$(MAKE) $(hdr-inst)=$(hdr-dir) $(hdr-dst) HDRCHECK=1
+	$(Q)$(MAKE) $(hdr-inst)=arch/$(hdr-arch)/include/asm $(hdr-dst) HDRCHECK=1
 
 # ---------------------------------------------------------------------------
 # Modules
