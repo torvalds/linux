@@ -574,11 +574,11 @@ static int __cmd_record(int argc, const char **argv)
 		header = perf_header__new();
 
 	if (raw_samples) {
-		perf_header__set_trace_info();
+		perf_header__feat_trace_info(header);
 	} else {
 		for (i = 0; i < nr_counters; i++) {
 			if (attrs[i].sample_type & PERF_SAMPLE_RAW) {
-				perf_header__set_trace_info();
+				perf_header__feat_trace_info(header);
 				break;
 			}
 		}

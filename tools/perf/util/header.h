@@ -12,18 +12,28 @@ struct perf_header_attr {
 	off_t id_offset;
 };
 
+#define HEADER_TRACE_INFO			1
+
+#define HEADER_FEAT_BITS			256
+
+typedef	typeof(u64[HEADER_FEAT_BITS / 8])	feat_mask_t;
+
 struct perf_header {
-	int frozen;
-	int attrs, size;
+	int			frozen;
+	int			attrs, size;
 	struct perf_header_attr **attr;
-	s64 attr_offset;
-	u64 data_offset;
-	u64 data_size;
-	u64 event_offset;
-	u64 event_size;
-	u64 trace_info_offset;
-	u64 trace_info_size;
+	s64			attr_offset;
+	u64			data_offset;
+	u64			data_size;
+	u64			event_offset;
+	u64			event_size;
+	feat_mask_t		adds_features;
 };
+
+static inline unsigned long *perf_header__adds_mask(struct perf_header *self)
+{
+	return (unsigned long *)(void *)&self->adds_features;
+}
 
 struct perf_header *perf_header__read(int fd);
 void perf_header__write(struct perf_header *self, int fd);
@@ -42,7 +52,7 @@ void perf_header_attr__add_id(struct perf_header_attr *self, u64 id);
 u64 perf_header__sample_type(struct perf_header *header);
 struct perf_event_attr *
 perf_header__find_attr(u64 id, struct perf_header *header);
-void perf_header__set_trace_info(void);
+void perf_header__feat_trace_info(struct perf_header *header);
 
 struct perf_header *perf_header__new(void);
 
