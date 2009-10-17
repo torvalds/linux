@@ -8,8 +8,6 @@
 #include "../perf.h"
 #include "trace-event.h"
 
-#include <linux/bitmap.h>
-
 /*
  * Create new perf.data header attribute:
  */
@@ -143,12 +141,12 @@ struct perf_file_header {
 	struct perf_file_section	attrs;
 	struct perf_file_section	data;
 	struct perf_file_section	event_types;
-	feat_mask_t			adds_features;
+	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
 
 void perf_header__feat_trace_info(struct perf_header *header)
 {
-	set_bit(HEADER_TRACE_INFO, perf_header__adds_mask(header));
+	set_bit(HEADER_TRACE_INFO, header->adds_features);
 }
 
 static void do_write(int fd, void *buf, size_t size)
@@ -168,7 +166,7 @@ static void perf_header__adds_write(struct perf_header *self, int fd)
 {
 	struct perf_file_section trace_sec;
 	u64 cur_offset = lseek(fd, 0, SEEK_CUR);
-	unsigned long *feat_mask = perf_header__adds_mask(self);
+	unsigned long *feat_mask = self->adds_features;
 
 	if (test_bit(HEADER_TRACE_INFO, feat_mask)) {
 		/* Write trace info */
@@ -250,7 +248,7 @@ void perf_header__write(struct perf_header *self, int fd)
 		},
 	};
 
-	memcpy(&f_header.adds_features, &self->adds_features, sizeof(feat_mask_t));
+	memcpy(&f_header.adds_features, &self->adds_features, sizeof(self->adds_features));
 
 	lseek(fd, 0, SEEK_SET);
 	do_write(fd, &f_header, sizeof(f_header));
@@ -276,7 +274,7 @@ static void do_read(int fd, void *buf, size_t size)
 
 static void perf_header__adds_read(struct perf_header *self, int fd)
 {
-	const unsigned long *feat_mask = perf_header__adds_mask(self);
+	const unsigned long *feat_mask = self->adds_features;
 
 	if (test_bit(HEADER_TRACE_INFO, feat_mask)) {
 		struct perf_file_section trace_sec;
@@ -306,11 +304,9 @@ struct perf_header *perf_header__read(int fd)
 
 	if (f_header.size != sizeof(f_header)) {
 		/* Support the previous format */
-		if (f_header.size == offsetof(typeof(f_header), adds_features)) {
-			unsigned long *mask = (unsigned long *)(void *)
-					&f_header.adds_features;
-			bitmap_zero(mask, HEADER_FEAT_BITS);
-		} else
+		if (f_header.size == offsetof(typeof(f_header), adds_features))
+			bitmap_zero(f_header.adds_features, HEADER_FEAT_BITS);
+		else
 			die("incompatible file format");
 	}
 	nr_attrs = f_header.attrs.size / sizeof(f_attr);
@@ -346,7 +342,7 @@ struct perf_header *perf_header__read(int fd)
 		event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
 	}
 
-	memcpy(&self->adds_features, &f_header.adds_features, sizeof(feat_mask_t));
+	memcpy(&self->adds_features, &f_header.adds_features, sizeof(f_header.adds_features));
 
 	perf_header__adds_read(self, fd);
 

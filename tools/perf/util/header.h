@@ -5,6 +5,8 @@
 #include <sys/types.h>
 #include "types.h"
 
+#include <linux/bitmap.h>
+
 struct perf_header_attr {
 	struct perf_event_attr attr;
 	int ids, size;
@@ -16,8 +18,6 @@ struct perf_header_attr {
 
 #define HEADER_FEAT_BITS			256
 
-typedef	typeof(u64[HEADER_FEAT_BITS / 8])	feat_mask_t;
-
 struct perf_header {
 	int			frozen;
 	int			attrs, size;
@@ -27,13 +27,8 @@ struct perf_header {
 	u64			data_size;
 	u64			event_offset;
 	u64			event_size;
-	feat_mask_t		adds_features;
+	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
-
-static inline unsigned long *perf_header__adds_mask(struct perf_header *self)
-{
-	return (unsigned long *)(void *)&self->adds_features;
-}
 
 struct perf_header *perf_header__read(int fd);
 void perf_header__write(struct perf_header *self, int fd);
