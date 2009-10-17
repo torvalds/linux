@@ -31,6 +31,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
+
+#include "util.h"
 #include "probe-finder.h"
 
 
@@ -42,20 +44,6 @@ struct die_link {
 
 static Dwarf_Debug __dw_debug;
 static Dwarf_Error __dw_error;
-
-static void msg_exit(int ret, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	fprintf(stderr, "Error:  ");
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-
-	fprintf(stderr, "\n");
-	exit(ret);
-}
-
 
 /*
  * Generic dwarf analysis helpers
@@ -151,11 +139,11 @@ static Dwarf_Unsigned die_get_fileno(Dwarf_Die cu_die, const char *fname)
 }
 
 /* Compare diename and tname */
-static int die_compare_name(Dwarf_Die die, const char *tname)
+static int die_compare_name(Dwarf_Die dw_die, const char *tname)
 {
 	char *name;
 	int ret;
-	ret = dwarf_diename(die, &name, &__dw_error);
+	ret = dwarf_diename(dw_die, &name, &__dw_error);
 	ERR_IF(ret == DW_DLV_ERROR);
 	if (ret == DW_DLV_OK) {
 		ret = strcmp(tname, name);
@@ -187,25 +175,25 @@ static int die_within_subprogram(Dwarf_Die sp_die, Dwarf_Addr addr,
 }
 
 /* Check the die is inlined function */
-static Dwarf_Bool die_inlined_subprogram(Dwarf_Die die)
+static Dwarf_Bool die_inlined_subprogram(Dwarf_Die dw_die)
 {
 	/* TODO: check strictly */
 	Dwarf_Bool inl;
 	int ret;
 
-	ret = dwarf_hasattr(die, DW_AT_inline, &inl, &__dw_error);
+	ret = dwarf_hasattr(dw_die, DW_AT_inline, &inl, &__dw_error);
 	ERR_IF(ret == DW_DLV_ERROR);
 	return inl;
 }
 
 /* Get the offset of abstruct_origin */
-static Dwarf_Off die_get_abstract_origin(Dwarf_Die die)
+static Dwarf_Off die_get_abstract_origin(Dwarf_Die dw_die)
 {
 	Dwarf_Attribute attr;
 	Dwarf_Off cu_offs;
 	int ret;
 
-	ret = dwarf_attr(die, DW_AT_abstract_origin, &attr, &__dw_error);
+	ret = dwarf_attr(dw_die, DW_AT_abstract_origin, &attr, &__dw_error);
 	ERR_IF(ret != DW_DLV_OK);
 	ret = dwarf_formref(attr, &cu_offs, &__dw_error);
 	ERR_IF(ret != DW_DLV_OK);
@@ -214,7 +202,7 @@ static Dwarf_Off die_get_abstract_origin(Dwarf_Die die)
 }
 
 /* Get entry pc(or low pc, 1st entry of ranges)  of the die */
-static Dwarf_Addr die_get_entrypc(Dwarf_Die die)
+static Dwarf_Addr die_get_entrypc(Dwarf_Die dw_die)
 {
 	Dwarf_Attribute attr;
 	Dwarf_Addr addr;
@@ -224,7 +212,7 @@ static Dwarf_Addr die_get_entrypc(Dwarf_Die die)
 	int ret;
 
 	/* Try to get entry pc */
-	ret = dwarf_attr(die, DW_AT_entry_pc, &attr, &__dw_error);
+	ret = dwarf_attr(dw_die, DW_AT_entry_pc, &attr, &__dw_error);
 	ERR_IF(ret == DW_DLV_ERROR);
 	if (ret == DW_DLV_OK) {
 		ret = dwarf_formaddr(attr, &addr, &__dw_error);
@@ -234,13 +222,13 @@ static Dwarf_Addr die_get_entrypc(Dwarf_Die die)
 	}
 
 	/* Try to get low pc */
-	ret = dwarf_lowpc(die, &addr, &__dw_error);
+	ret = dwarf_lowpc(dw_die, &addr, &__dw_error);
 	ERR_IF(ret == DW_DLV_ERROR);
 	if (ret == DW_DLV_OK)
 		return addr;
 
 	/* Try to get ranges */
-	ret = dwarf_attr(die, DW_AT_ranges, &attr, &__dw_error);
+	ret = dwarf_attr(dw_die, DW_AT_ranges, &attr, &__dw_error);
 	ERR_IF(ret != DW_DLV_OK);
 	ret = dwarf_formref(attr, &offs, &__dw_error);
 	ERR_IF(ret != DW_DLV_OK);
@@ -382,11 +370,11 @@ static void show_location(Dwarf_Loc *loc, struct probe_finder *pf)
 	} else if (op == DW_OP_regx) {
 		regn = loc->lr_number;
 	} else
-		msg_exit(-EINVAL, "Dwarf_OP %d is not supported.\n", op);
+		die("Dwarf_OP %d is not supported.\n", op);
 
 	regs = get_arch_regstr(regn);
 	if (!regs)
-		msg_exit(-EINVAL, "%lld exceeds max register number.\n", regn);
+		die("%lld exceeds max register number.\n", regn);
 
 	if (deref)
 		ret = snprintf(pf->buf, pf->len,
@@ -417,8 +405,8 @@ static void show_variable(Dwarf_Die vr_die, struct probe_finder *pf)
 	dwarf_dealloc(__dw_debug, attr, DW_DLA_ATTR);
 	return ;
 error:
-	msg_exit(-1, "Failed to find the location of %s at this address.\n"
-		 " Perhaps, it was optimized out.\n", pf->var);
+	die("Failed to find the location of %s at this address.\n"
+	    " Perhaps, it has been optimized out.\n", pf->var);
 }
 
 static int variable_callback(struct die_link *dlink, void *data)
@@ -456,8 +444,7 @@ static void find_variable(Dwarf_Die sp_die, struct probe_finder *pf)
 	/* Search child die for local variables and parameters. */
 	ret = search_die_from_children(sp_die, variable_callback, pf);
 	if (!ret)
-		msg_exit(-1, "Failed to find '%s' in this function.\n",
-			 pf->var);
+		die("Failed to find '%s' in this function.\n", pf->var);
 }
 
 /* Get a frame base on the address */
@@ -568,8 +555,7 @@ static void find_by_line(Dwarf_Die cu_die, struct probe_finder *pf)
 		/* Search a real subprogram including this line, */
 		ret = search_die_from_children(cu_die, probeaddr_callback, pf);
 		if (ret == 0)
-			msg_exit(-1,
-				 "Probe point is not found in subprograms.\n");
+			die("Probe point is not found in subprograms.\n");
 		/* Continuing, because target line might be inlined. */
 	}
 	dwarf_srclines_dealloc(__dw_debug, lines, cnt);
@@ -621,7 +607,7 @@ static int probefunc_callback(struct die_link *dlink, void *data)
 				    !die_inlined_subprogram(lk->die))
 					goto found;
 			}
-			msg_exit(-1, "Failed to find real subprogram.\n");
+			die("Failed to find real subprogram.\n");
 found:
 			/* Get offset from subprogram */
 			ret = die_within_subprogram(lk->die, pf->addr, &offs);
@@ -649,8 +635,7 @@ int find_probepoint(int fd, struct probe_point *pp)
 
 	ret = dwarf_init(fd, DW_DLC_READ, 0, 0, &__dw_debug, &__dw_error);
 	if (ret != DW_DLV_OK)
-		msg_exit(-1, "Failed to call dwarf_init(). "
-			 "Maybe, not a dwarf file?\n");
+		die("Failed to call dwarf_init(). Maybe, not a dwarf file.\n");
 
 	pp->found = 0;
 	while (++cu_number) {

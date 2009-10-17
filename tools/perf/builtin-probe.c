@@ -49,6 +49,7 @@ const char *default_search_path[NR_SEARCH_PATH] = {
 
 #define MAX_PATH_LEN 256
 #define MAX_PROBES 128
+#define MAX_PROBE_ARGS 128
 
 /* Session management structure */
 static struct {
@@ -60,19 +61,7 @@ static struct {
 	char *events[MAX_PROBES];
 } session;
 
-static void semantic_error(const char *msg)
-{
-	fprintf(stderr, "Semantic error: %s\n", msg);
-	exit(1);
-}
-
-static void perror_exit(const char *msg)
-{
-	perror(msg);
-	exit(1);
-}
-
-#define MAX_PROBE_ARGS 128
+#define semantic_error(msg ...) die("Semantic error :" msg)
 
 static int parse_probepoint(const struct option *opt __used,
 			    const char *str, int unset __used)
@@ -109,7 +98,7 @@ static int parse_probepoint(const struct option *opt __used,
 			/* Duplicate the argument */
 			argv[argc] = strndup(s, str - s);
 			if (argv[argc] == NULL)
-				perror_exit("strndup");
+				die("strndup");
 			if (++argc == MAX_PROBE_ARGS)
 				semantic_error("Too many arguments");
 			debug("argv[%d]=%s\n", argc, argv[argc - 1]);
@@ -171,7 +160,7 @@ static int parse_probepoint(const struct option *opt __used,
 	if (pp->nr_args > 0) {
 		pp->args = (char **)malloc(sizeof(char *) * pp->nr_args);
 		if (!pp->args)
-			perror_exit("malloc");
+			die("malloc");
 		memcpy(pp->args, &argv[2], sizeof(char *) * pp->nr_args);
 	}
 
@@ -260,7 +249,7 @@ static int write_new_event(int fd, const char *buf)
 	printf("Adding new event: %s\n", buf);
 	ret = write(fd, buf, strlen(buf));
 	if (ret <= 0)
-		perror("Error: Failed to create event");
+		die("failed to create event.");
 
 	return ret;
 }
@@ -273,7 +262,7 @@ static int synthesize_probepoint(struct probe_point *pp)
 	int i, len, ret;
 	pp->probes[0] = buf = (char *)calloc(MAX_CMDLEN, sizeof(char));
 	if (!buf)
-		perror_exit("calloc");
+		die("calloc");
 	ret = snprintf(buf, MAX_CMDLEN, "%s+%d", pp->function, pp->offset);
 	if (ret <= 0 || ret >= MAX_CMDLEN)
 		goto error;
@@ -322,10 +311,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		ret = synthesize_probepoint(&session.probes[j]);
 		if (ret == -E2BIG)
 			semantic_error("probe point is too long.");
-		else if (ret < 0) {
-			perror("snprintf");
-			return -1;
-		}
+		else if (ret < 0)
+			die("snprintf");
 	}
 
 #ifndef NO_LIBDWARF
@@ -336,10 +323,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		fd = open(session.vmlinux, O_RDONLY);
 	else
 		fd = open_default_vmlinux();
-	if (fd < 0) {
-		perror("vmlinux/module file open");
-		return -1;
-	}
+	if (fd < 0)
+		die("vmlinux/module file open");
 
 	/* Searching probe points */
 	for (j = 0; j < session.nr_probe; j++) {
@@ -349,10 +334,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 		lseek(fd, SEEK_SET, 0);
 		ret = find_probepoint(fd, pp);
-		if (ret <= 0) {
-			fprintf(stderr, "Error: No probe point found.\n");
-			return -1;
-		}
+		if (ret <= 0)
+			die("No probe point found.\n");
 		debug("probe event %s found\n", session.events[j]);
 	}
 	close(fd);
@@ -363,10 +346,8 @@ setup_probes:
 	/* Settng up probe points */
 	snprintf(buf, MAX_CMDLEN, "%s/../kprobe_events", debugfs_path);
 	fd = open(buf, O_WRONLY, O_APPEND);
-	if (fd < 0) {
-		perror("kprobe_events open");
-		return -1;
-	}
+	if (fd < 0)
+		die("kprobe_events open");
 	for (j = 0; j < session.nr_probe; j++) {
 		pp = &session.probes[j];
 		if (pp->found == 1) {
