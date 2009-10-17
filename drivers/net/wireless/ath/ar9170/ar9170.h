@@ -231,7 +231,7 @@ struct ar9170 {
 	struct sk_buff_head tx_status_ampdu;
 	spinlock_t tx_ampdu_list_lock;
 	struct list_head tx_ampdu_list;
-	unsigned int tx_ampdu_pending;
+	atomic_t tx_ampdu_pending;
 
 	/* rxstream mpdu merge */
 	struct ar9170_rxstream_mpdu_merge rx_mpdu;

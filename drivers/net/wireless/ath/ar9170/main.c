@@ -414,9 +414,9 @@ static void ar9170_tx_ampdu_callback(struct ar9170 *ar, struct sk_buff *skb)
 
 	skb_queue_tail(&ar->tx_status_ampdu, skb);
 	ar9170_tx_fake_ampdu_status(ar);
-	ar->tx_ampdu_pending--;
 
-	if (!list_empty(&ar->tx_ampdu_list) && !ar->tx_ampdu_pending)
+	if (atomic_dec_and_test(&ar->tx_ampdu_pending) &&
+	    !list_empty(&ar->tx_ampdu_list))
 		ar9170_tx_ampdu(ar);
 }
 
@@ -1248,6 +1248,7 @@ static int ar9170_op_start(struct ieee80211_hw *hw)
 	ar->global_ampdu_density = 6;
 	ar->global_ampdu_factor = 3;
 
+	atomic_set(&ar->tx_ampdu_pending, 0);
 	ar->bad_hw_nagger = jiffies;
 
 	err = ar->open(ar);
@@ -1773,7 +1774,7 @@ static void ar9170_tx(struct ar9170 *ar)
 					  msecs_to_jiffies(AR9170_TX_TIMEOUT);
 
 			if (arinfo->flags == AR9170_TX_FLAG_BLOCK_ACK)
-				ar->tx_ampdu_pending++;
+				atomic_inc(&ar->tx_ampdu_pending);
 
 #ifdef AR9170_QUEUE_DEBUG
 			printk(KERN_DEBUG "%s: send frame q:%d =>\n",
@@ -1784,7 +1785,7 @@ static void ar9170_tx(struct ar9170 *ar)
 			err = ar->tx(ar, skb);
 			if (unlikely(err)) {
 				if (arinfo->flags == AR9170_TX_FLAG_BLOCK_ACK)
-					ar->tx_ampdu_pending--;
+					atomic_dec(&ar->tx_ampdu_pending);
 
 				frames_failed++;
 				dev_kfree_skb_any(skb);
@@ -1931,7 +1932,7 @@ int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
 		bool run = ar9170_tx_ampdu_queue(ar, skb);
 
-		if (run || !ar->tx_ampdu_pending)
+		if (run || !atomic_read(&ar->tx_ampdu_pending))
 			ar9170_tx_ampdu(ar);
 	} else {
 		unsigned int queue = skb_get_queue_mapping(skb);
