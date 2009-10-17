@@ -776,7 +776,7 @@ int conf_write_autoconf(void)
 
 	name = getenv("KCONFIG_AUTOHEADER");
 	if (!name)
-		name = "include/linux/autoconf.h";
+		name = "include/generated/autoconf.h";
 	if (rename(".tmpconfig.h", name))
 		return 1;
 	name = conf_get_autoconfig_name();
