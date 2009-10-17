@@ -1771,7 +1771,6 @@ static int stv0900_diseqc_send(struct stv0900_internal *i_params , u8 *Data,
 			msleep(10);
 			i++;
 		}
-
 		break;
 	}
 
@@ -1795,19 +1794,20 @@ static int stv0900_send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t burst)
 	struct stv0900_internal *i_params = state->internal;
 	enum fe_stv0900_demod_num demod = state->demod;
 	s32 mode_field;
-	u32 diseqc_fifo;
+	u8 data;
 
 	dmd_reg(mode_field, F0900_P1_DISTX_MODE, F0900_P2_DISTX_MODE);
-	dmd_reg(diseqc_fifo, R0900_P1_DISTXDATA, R0900_P2_DISTXDATA);
 
 	switch (burst) {
 	case SEC_MINI_A:
 		stv0900_write_bits(i_params, mode_field, 3);/* Unmodulated */
-		stv0900_write_reg(i_params, diseqc_fifo, 0x00);
+		data = 0x00;
+		stv0900_diseqc_send(state->internal, &data, 1, state->demod);
 		break;
 	case SEC_MINI_B:
 		stv0900_write_bits(i_params, mode_field, 2);/* Modulated */
-		stv0900_write_reg(i_params, diseqc_fifo, 0xff);
+		data = 0xff;
+		stv0900_diseqc_send(state->internal, &data, 1, state->demod);
 		break;
 	}
 
@@ -1858,28 +1858,37 @@ static int stv0900_recv_slave_reply(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int stv0900_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
+static int stv0900_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t toneoff)
 {
 	struct stv0900_state *state = fe->demodulator_priv;
 	struct stv0900_internal *i_params = state->internal;
 	enum fe_stv0900_demod_num demod = state->demod;
 	s32 mode_field, reset_field;
 
-	dprintk("%s: %s\n", __func__, ((tone == 0) ? "Off" : "On"));
+	dprintk("%s: %s\n", __func__, ((toneoff == 0) ? "On" : "Off"));
 
 	dmd_reg(mode_field, F0900_P1_DISTX_MODE, F0900_P2_DISTX_MODE);
 	dmd_reg(reset_field, F0900_P1_DISEQC_RESET, F0900_P2_DISEQC_RESET);
 
-	if (tone) {
-		/*Set the DiseqC mode to 22Khz continues tone*/
+	switch (toneoff) {
+	case SEC_TONE_ON:
+		/*Set the DiseqC mode to 22Khz _continues_ tone*/
 		stv0900_write_bits(i_params, mode_field, 0);
 		stv0900_write_bits(i_params, reset_field, 1);
 		/*release DiseqC reset to enable the 22KHz tone*/
 		stv0900_write_bits(i_params, reset_field, 0);
-	} else {
-		stv0900_write_bits(i_params, mode_field, 0);
+		break;
+	case SEC_TONE_OFF:
+		/*return diseqc mode to config->diseqc_mode.
+		Usually it's without _continues_ tone */
+		stv0900_write_bits(i_params, mode_field,
+				state->config->diseqc_mode);
 		/*maintain the DiseqC reset to disable the 22KHz tone*/
 		stv0900_write_bits(i_params, reset_field, 1);
+		stv0900_write_bits(i_params, reset_field, 0);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
