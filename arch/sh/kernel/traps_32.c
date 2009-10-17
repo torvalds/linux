@@ -25,6 +25,7 @@
 #include <linux/kexec.h>
 #include <linux/limits.h>
 #include <linux/proc_fs.h>
+#include <linux/sysfs.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/fpu.h>
@@ -159,12 +160,12 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	oops_enter();
 
-	console_verbose();
 	spin_lock_irq(&die_lock);
+	console_verbose();
 	bust_spinlocks(1);
 
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
-
+	sysfs_printk_last_file();
 	print_modules();
 	show_regs(regs);
 
@@ -180,6 +181,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
+	oops_exit();
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
@@ -190,7 +192,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (panic_on_oops)
 		panic("Fatal exception");
 
-	oops_exit();
 	do_exit(SIGSEGV);
 }
 

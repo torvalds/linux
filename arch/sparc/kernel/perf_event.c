@@ -437,7 +437,7 @@ static const struct sparc_pmu niagara2_pmu = {
 	.lower_shift	= 6,
 	.event_mask	= 0xfff,
 	.hv_bit		= 0x8,
-	.irq_bit	= 0x03,
+	.irq_bit	= 0x30,
 	.upper_nop	= 0x220,
 	.lower_nop	= 0x220,
 };

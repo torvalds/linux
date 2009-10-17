@@ -3032,12 +3032,22 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 
 	if ((offset & (blocksize - 1)) == 0)
 		goto out;
+	ret = btrfs_check_data_free_space(root, inode, PAGE_CACHE_SIZE);
+	if (ret)
+		goto out;
+
+	ret = btrfs_reserve_metadata_for_delalloc(root, inode, 1);
+	if (ret)
+		goto out;
 
 	ret = -ENOMEM;
 again:
 	page = grab_cache_page(mapping, index);
-	if (!page)
+	if (!page) {
+		btrfs_free_reserved_data_space(root, inode, PAGE_CACHE_SIZE);
+		btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
 		goto out;
+	}
 
 	page_start = page_offset(page);
 	page_end = page_start + PAGE_CACHE_SIZE - 1;
@@ -3070,6 +3080,10 @@ again:
 		goto again;
 	}
 
+	clear_extent_bits(&BTRFS_I(inode)->io_tree, page_start, page_end,
+			  EXTENT_DIRTY | EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING,
+			  GFP_NOFS);
+
 	ret = btrfs_set_extent_delalloc(inode, page_start, page_end);
 	if (ret) {
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
@@ -3088,6 +3102,9 @@ again:
 	unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 
 out_unlock:
+	if (ret)
+		btrfs_free_reserved_data_space(root, inode, PAGE_CACHE_SIZE);
+	btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
 	unlock_page(page);
 	page_cache_release(page);
 out:
@@ -3111,7 +3128,9 @@ int btrfs_cont_expand(struct inode *inode, loff_t size)
 	if (size <= hole_start)
 		return 0;
 
-	btrfs_truncate_page(inode->i_mapping, inode->i_size);
+	err = btrfs_truncate_page(inode->i_mapping, inode->i_size);
+	if (err)
+		return err;
 
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
@@ -3480,6 +3499,7 @@ static noinline void init_btrfs_i(struct inode *inode)
 	bi->generation = 0;
 	bi->sequence = 0;
 	bi->last_trans = 0;
+	bi->last_sub_trans = 0;
 	bi->logged_trans = 0;
 	bi->delalloc_bytes = 0;
 	bi->reserved_bytes = 0;
@@ -4980,7 +5000,9 @@ again:
 	set_page_dirty(page);
 	SetPageUptodate(page);
 
-	BTRFS_I(inode)->last_trans = root->fs_info->generation + 1;
+	BTRFS_I(inode)->last_trans = root->fs_info->generation;
+	BTRFS_I(inode)->last_sub_trans = BTRFS_I(inode)->root->log_transid;
+
 	unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 
 out_unlock:
@@ -5005,7 +5027,9 @@ static void btrfs_truncate(struct inode *inode)
 	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
 		return;
 
-	btrfs_truncate_page(inode->i_mapping, inode->i_size);
+	ret = btrfs_truncate_page(inode->i_mapping, inode->i_size);
+	if (ret)
+		return;
 	btrfs_wait_ordered_range(inode, inode->i_size & (~mask), (u64)-1);
 
 	trans = btrfs_start_transaction(root, 1);
@@ -5100,6 +5124,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	if (!ei)
 		return NULL;
 	ei->last_trans = 0;
+	ei->last_sub_trans = 0;
 	ei->logged_trans = 0;
 	ei->outstanding_extents = 0;
 	ei->reserved_extents = 0;

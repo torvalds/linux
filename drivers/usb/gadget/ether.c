@@ -61,11 +61,6 @@
  * simpler, Microsoft pushes their own approach: RNDIS.  The published
  * RNDIS specs are ambiguous and appear to be incomplete, and are also
  * needlessly complex.  They borrow more from CDC ACM than CDC ECM.
- *
- * While CDC ECM, CDC Subset, and RNDIS are designed to extend the ethernet
- * interface to the target, CDC EEM was designed to use ethernet over the USB
- * link between the host and target.  CDC EEM is implemented as an alternative
- * to those other protocols when that communication model is more appropriate
  */
 
 #define DRIVER_DESC		"Ethernet Gadget"
@@ -157,8 +152,8 @@ static inline bool has_rndis(void)
 #define RNDIS_PRODUCT_NUM	0xa4a2	/* Ethernet/RNDIS Gadget */
 
 /* For EEM gadgets */
-#define EEM_VENDOR_NUM	0x0525	/* INVALID - NEEDS TO BE ALLOCATED */
-#define EEM_PRODUCT_NUM	0xa4a1	/* INVALID - NEEDS TO BE ALLOCATED */
+#define EEM_VENDOR_NUM		0x1d6b	/* Linux Foundation */
+#define EEM_PRODUCT_NUM		0x0102	/* EEM Gadget */
 
 /*-------------------------------------------------------------------------*/
 
