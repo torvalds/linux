@@ -661,8 +661,8 @@ static int nmclan_config(struct pcmcia_device *link)
 {
   struct net_device *dev = link->priv;
   mace_private *lp = netdev_priv(dev);
-  tuple_t tuple;
-  u_char buf[64];
+  u8 *buf;
+  size_t len;
   int i, last_ret, last_fn;
   unsigned int ioaddr;
 
@@ -677,14 +677,13 @@ static int nmclan_config(struct pcmcia_device *link)
   ioaddr = dev->base_addr;
 
   /* Read the ethernet address from the CIS. */
-  tuple.DesiredTuple = 0x80 /* CISTPL_CFTABLE_ENTRY_MISC */;
-  tuple.TupleData = buf;
-  tuple.TupleDataMax = 64;
-  tuple.TupleOffset = 0;
-  tuple.Attributes = 0;
-  CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-  CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-  memcpy(dev->dev_addr, tuple.TupleData, ETHER_ADDR_LEN);
+  len = pcmcia_get_tuple(link, 0x80, &buf);
+  if (!buf || len < ETHER_ADDR_LEN) {
+	  kfree(buf);
+	  goto failed;
+  }
+  memcpy(dev->dev_addr, buf, ETHER_ADDR_LEN);
+  kfree(buf);
 
   /* Verify configuration by reading the MACE ID. */
   {

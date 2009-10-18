@@ -350,32 +350,29 @@ static int fmvj18x_ioprobe(struct pcmcia_device *p_dev,
 	return 0; /* strange, but that's what the code did already before... */
 }
 
-
 static int fmvj18x_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     local_info_t *lp = netdev_priv(dev);
-    tuple_t tuple;
-    u_short buf[32];
     int i, last_fn = RequestIO, last_ret = 0, ret;
     unsigned int ioaddr;
     cardtype_t cardtype;
     char *card_name = "unknown";
-    u_char *node_id;
+    u8 *buf;
+    size_t len;
+    u_char buggybuf[32];
 
     DEBUG(0, "fmvj18x_config(0x%p)\n", link);
 
-    tuple.TupleData = (u_char *)buf;
-    tuple.TupleDataMax = 64;
-    tuple.TupleOffset = 0;
-    tuple.DesiredTuple = CISTPL_FUNCE;
-    tuple.TupleOffset = 0;
-    if (pcmcia_get_first_tuple(link, &tuple) == 0) {
+    len = pcmcia_get_tuple(link, CISTPL_FUNCE, &buf);
+    kfree(buf);
+
+    if (len) {
+	/* Yes, I have CISTPL_FUNCE. Let's check CISTPL_MANFID */
 	last_ret = pcmcia_loop_config(link, fmvj18x_ioprobe, NULL);
 	if (last_ret != 0)
 		goto cs_failed;
 
-	/* Yes, I have CISTPL_FUNCE. Let's check CISTPL_MANFID */
 	switch (link->manf_id) {
 	case MANFID_TDK:
 	    cardtype = TDK;
@@ -482,21 +479,21 @@ static int fmvj18x_config(struct pcmcia_device *link)
     case CONTEC:
     case NEC:
     case KME:
-	tuple.DesiredTuple = CISTPL_FUNCE;
-	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	tuple.TupleOffset = 0;
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
 	if (cardtype == MBH10304) {
-	    /* MBH10304's CIS_FUNCE is corrupted */
-	    node_id = &(tuple.TupleData[5]);
 	    card_name = "FMV-J182";
-	} else {
-	    while (tuple.TupleData[0] != CISTPL_FUNCE_LAN_NODE_ID ) {
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
-		CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+
+	    len = pcmcia_get_tuple(link, CISTPL_FUNCE, &buf);
+	    if (len < 11) {
+		    kfree(buf);
+		    goto failed;
 	    }
-	    node_id = &(tuple.TupleData[2]);
+	    /* Read MACID from CIS */
+	    for (i = 5; i < 11; i++)
+		    dev->dev_addr[i] = buf[i];
+	    kfree(buf);
+	} else {
+	    if (pcmcia_get_mac_from_cis(link, dev))
+		goto failed;
 	    if( cardtype == TDK ) {
 		card_name = "TDK LAK-CD021";
 	    } else if( cardtype == LA501 ) {
@@ -509,9 +506,6 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		card_name = "C-NET(PC)C";
 	    }
 	}
-	/* Read MACID from CIS */
-	for (i = 0; i < 6; i++)
-	    dev->dev_addr[i] = node_id[i];
 	break;
     case UNGERMANN:
 	/* Read MACID from register */
@@ -521,12 +515,12 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	break;
     case XXX10304:
 	/* Read MACID from Buggy CIS */
-	if (fmvj18x_get_hwinfo(link, tuple.TupleData) == -1) {
+	if (fmvj18x_get_hwinfo(link, buggybuf) == -1) {
 	    printk(KERN_NOTICE "fmvj18x_cs: unable to read hardware net address.\n");
 	    goto failed;
 	}
 	for (i = 0 ; i < 6; i++) {
-	    dev->dev_addr[i] = tuple.TupleData[i];
+	    dev->dev_addr[i] = buggybuf[i];
 	}
 	card_name = "FMV-J182";
 	break;

@@ -359,7 +359,7 @@ static void xirc_tx_timeout(struct net_device *dev);
 static void xirc2ps_tx_timeout_task(struct work_struct *work);
 static void set_addresses(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static int set_card_type(struct pcmcia_device *link, const void *s);
+static int set_card_type(struct pcmcia_device *link);
 static int do_config(struct net_device *dev, struct ifmap *map);
 static int do_open(struct net_device *dev);
 static int do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -371,28 +371,6 @@ static void do_powerdown(struct net_device *dev);
 static int do_stop(struct net_device *dev);
 
 /*=============== Helper functions =========================*/
-static int
-first_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
-{
-	int err;
-
-	if ((err = pcmcia_get_first_tuple(handle, tuple)) == 0 &&
-			(err = pcmcia_get_tuple_data(handle, tuple)) == 0)
-		err = pcmcia_parse_tuple(tuple, parse);
-	return err;
-}
-
-static int
-next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
-{
-	int err;
-
-	if ((err = pcmcia_get_next_tuple(handle, tuple)) == 0 &&
-			(err = pcmcia_get_tuple_data(handle, tuple)) == 0)
-		err = pcmcia_parse_tuple(tuple, parse);
-	return err;
-}
-
 #define SelectPage(pgnr)   outb((pgnr), ioaddr + XIRCREG_PR)
 #define GetByte(reg)	   ((unsigned)inb(ioaddr + (reg)))
 #define GetWord(reg)	   ((unsigned)inw(ioaddr + (reg)))
@@ -644,15 +622,23 @@ xirc2ps_detach(struct pcmcia_device *link)
  *
  */
 static int
-set_card_type(struct pcmcia_device *link, const void *s)
+set_card_type(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     local_info_t *local = netdev_priv(dev);
-  #ifdef PCMCIA_DEBUG
-    unsigned cisrev = ((const unsigned char *)s)[2];
-  #endif
-    unsigned mediaid= ((const unsigned char *)s)[3];
-    unsigned prodid = ((const unsigned char *)s)[4];
+    u8 *buf;
+    unsigned int cisrev, mediaid, prodid;
+    size_t len;
+
+    len = pcmcia_get_tuple(link, CISTPL_MANFID, &buf);
+    if (len < 5) {
+	    dev_err(&link->dev, "invalid CIS -- sorry\n");
+	    return 0;
+    }
+
+    cisrev = buf[2];
+    mediaid = buf[3];
+    prodid = buf[4];
 
     DEBUG(0, "cisrev=%02x mediaid=%02x prodid=%02x\n",
 	  cisrev, mediaid, prodid);
@@ -761,6 +747,26 @@ xirc2ps_config_check(struct pcmcia_device *p_dev,
 
 }
 
+
+static int pcmcia_get_mac_ce(struct pcmcia_device *p_dev,
+			     tuple_t *tuple,
+			     void *priv)
+{
+	struct net_device *dev = priv;
+	int i;
+
+	if (tuple->TupleDataLen != 13)
+		return -EINVAL;
+	if ((tuple->TupleData[0] != 2) || (tuple->TupleData[1] != 1) ||
+		(tuple->TupleData[2] != 6))
+		return -EINVAL;
+	/* another try	(James Lehmer's CE2 version 4.1)*/
+	for (i = 2; i < 6; i++)
+		dev->dev_addr[i] = tuple->TupleData[i+2];
+	return 0;
+};
+
+
 /****************
  * xirc2ps_config() is scheduled to run after a CARD_INSERTION event
  * is received, to configure the PCMCIA socket, and to make the
@@ -772,24 +778,13 @@ xirc2ps_config(struct pcmcia_device * link)
     struct net_device *dev = link->priv;
     local_info_t *local = netdev_priv(dev);
     unsigned int ioaddr;
-    tuple_t tuple;
-    cisparse_t parse;
-    int err, i;
-    u_char buf[64];
-    cistpl_lan_node_id_t *node_id = (cistpl_lan_node_id_t*)parse.funce.data;
+    int err;
+    u8 *buf;
+    size_t len;
 
     local->dingo_ccr = NULL;
 
     DEBUG(0, "config(0x%p)\n", link);
-
-    /*
-     * This reads the card's CONFIG tuple to find its configuration
-     * registers.
-     */
-    tuple.Attributes = 0;
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = 64;
-    tuple.TupleOffset = 0;
 
     /* Is this a valid	card */
     if (link->has_manf_id == 0) {
@@ -816,67 +811,41 @@ xirc2ps_config(struct pcmcia_device * link)
 	break;
       default:
 	printk(KNOT_XIRC "Unknown Card Manufacturer ID: 0x%04x\n",
-	       (unsigned)parse.manfid.manf);
+	       (unsigned)link->manf_id);
 	goto failure;
     }
     DEBUG(0, "found %s card\n", local->manf_str);
 
-    /* needed for the additional fields to be parsed by set_card_type() */
-    tuple.DesiredTuple = CISTPL_MANFID;
-    err = first_tuple(link, &tuple, &parse)
-    if (err) {
-	printk(KNOT_XIRC "manfid not found in CIS\n");
-	goto failure;
-    }
-    if (!set_card_type(link, buf)) {
+    if (!set_card_type(link)) {
 	printk(KNOT_XIRC "this card is not supported\n");
 	goto failure;
     }
 
     /* get the ethernet address from the CIS */
-    tuple.DesiredTuple = CISTPL_FUNCE;
-    for (err = first_tuple(link, &tuple, &parse); !err;
-			     err = next_tuple(link, &tuple, &parse)) {
-	/* Once I saw two CISTPL_FUNCE_LAN_NODE_ID entries:
-	 * the first one with a length of zero the second correct -
-	 * so I skip all entries with length 0 */
-	if (parse.funce.type == CISTPL_FUNCE_LAN_NODE_ID
-	    && ((cistpl_lan_node_id_t *)parse.funce.data)->nb)
-	    break;
-    }
-    if (err) { /* not found: try to get the node-id from tuple 0x89 */
-	tuple.DesiredTuple = 0x89;  /* data layout looks like tuple 0x22 */
-	if ((err = pcmcia_get_first_tuple(link, &tuple)) == 0 &&
-		(err = pcmcia_get_tuple_data(link, &tuple)) == 0) {
-	    if (tuple.TupleDataLen == 8 && *buf == CISTPL_FUNCE_LAN_NODE_ID)
-		memcpy(&parse, buf, 8);
-	    else
-		err = -1;
-	}
-    }
-    if (err) { /* another try	(James Lehmer's CE2 version 4.1)*/
-	tuple.DesiredTuple = CISTPL_FUNCE;
-	for (err = first_tuple(link, &tuple, &parse); !err;
-				 err = next_tuple(link, &tuple, &parse)) {
-	    if (parse.funce.type == 0x02 && parse.funce.data[0] == 1
-		&& parse.funce.data[1] == 6 && tuple.TupleDataLen == 13) {
-		buf[1] = 4;
-		memcpy(&parse, buf+1, 8);
-		break;
+    err = pcmcia_get_mac_from_cis(link, dev);
+
+    /* not found: try to get the node-id from tuple 0x89 */
+    if (err) {
+	    len = pcmcia_get_tuple(link, 0x89, &buf);
+	    /* data layout looks like tuple 0x22 */
+	    if (buf && len == 8) {
+		    if (*buf == CISTPL_FUNCE_LAN_NODE_ID) {
+			    int i;
+			    for (i = 2; i < 6; i++)
+				    dev->dev_addr[i] = buf[i+2];
+		    } else
+			    err = -1;
 	    }
-	}
+	    kfree(buf);
     }
+
+    if (err)
+	err = pcmcia_loop_tuple(link, CISTPL_FUNCE, pcmcia_get_mac_ce, dev);
+
     if (err) {
 	printk(KNOT_XIRC "node-id not found in CIS\n");
 	goto failure;
     }
-    node_id = (cistpl_lan_node_id_t *)parse.funce.data;
-    if (node_id->nb != 6) {
-	printk(KNOT_XIRC "malformed node-id in CIS\n");
-	goto failure;
-    }
-    for (i=0; i < 6; i++)
-	dev->dev_addr[i] = node_id->id[i];
 
     link->io.IOAddrLines =10;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;

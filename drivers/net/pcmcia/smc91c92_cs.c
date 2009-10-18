@@ -126,12 +126,6 @@ struct smc_private {
     int				rx_ovrn;
 };
 
-struct smc_cfg_mem {
-    tuple_t tuple;
-    cisparse_t parse;
-    u_char buf[255];
-};
-
 /* Special definitions for Megahertz multifunction cards */
 #define MEGAHERTZ_ISR		0x0380
 
@@ -408,34 +402,7 @@ static int cvt_ascii_address(struct net_device *dev, char *s)
     return 0;
 }
 
-/*====================================================================*/
-
-static int first_tuple(struct pcmcia_device *handle, tuple_t *tuple,
-		cisparse_t *parse)
-{
-	int i;
-
-	i = pcmcia_get_first_tuple(handle, tuple);
-	if (i != 0)
-		return i;
-	i = pcmcia_get_tuple_data(handle, tuple);
-	if (i != 0)
-		return i;
-	return pcmcia_parse_tuple(tuple, parse);
-}
-
-static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple,
-		cisparse_t *parse)
-{
-	int i;
-
-	if ((i = pcmcia_get_next_tuple(handle, tuple)) != 0 ||
-			(i = pcmcia_get_tuple_data(handle, tuple)) != 0)
-		return i;
-	return pcmcia_parse_tuple(tuple, parse);
-}
-
-/*======================================================================
+/*====================================================================
 
     Configuration stuff for Megahertz cards
 
@@ -490,14 +457,9 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
-    struct smc_cfg_mem *cfg_mem;
     win_req_t req;
     memreq_t mem;
     int i;
-
-    cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
-    if (!cfg_mem)
-	    return -ENOMEM;
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
@@ -510,7 +472,8 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     /* The Megahertz combo cards have modem-like CIS entries, so
        we have to explicitly try a bunch of port combinations. */
     if (pcmcia_loop_config(link, mhz_mfc_config_check, NULL))
-	goto free_cfg_mem;
+	    return -ENODEV;
+
     dev->base_addr = link->io.BasePort1;
 
     /* Allocate a memory window, for accessing the ISR */
@@ -519,7 +482,8 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     req.AccessSpeed = 0;
     i = pcmcia_request_window(&link, &req, &link->win);
     if (i != 0)
-	goto free_cfg_mem;
+	    return -ENODEV;
+
     smc->base = ioremap(req.Base, req.Size);
     mem.CardOffset = mem.Page = 0;
     if (smc->manfid == MANFID_MOTOROLA)
@@ -531,18 +495,32 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 	&& (smc->cardid == PRODID_MEGAHERTZ_EM3288))
 	mhz_3288_power(link);
 
-free_cfg_mem:
-    kfree(cfg_mem);
-    return -ENODEV;
+    return 0;
 }
+
+static int pcmcia_get_versmac(struct pcmcia_device *p_dev,
+			      tuple_t *tuple,
+			      void *priv)
+{
+	struct net_device *dev = priv;
+	cisparse_t parse;
+
+	if (pcmcia_parse_tuple(tuple, &parse))
+		return -EINVAL;
+
+	if ((parse.version_1.ns > 3) &&
+	    (cvt_ascii_address(dev,
+			       (parse.version_1.str + parse.version_1.ofs[3]))))
+		return 0;
+
+	return -EINVAL;
+};
 
 static int mhz_setup(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
-    struct smc_cfg_mem *cfg_mem;
-    tuple_t *tuple;
-    cisparse_t *parse;
-    u_char *buf, *station_addr;
+    size_t len;
+    u8 *buf;
     int rc;
 
     /* Read the station address from the CIS.  It is stored as the last
@@ -552,56 +530,22 @@ static int mhz_setup(struct pcmcia_device *link)
 	    return 0;
 
     /* Workarounds for broken cards start here. */
-
-    cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
-    if (!cfg_mem)
-	return -1;
-
-    tuple = &cfg_mem->tuple;
-    parse = &cfg_mem->parse;
-    buf = cfg_mem->buf;
-
-    tuple->Attributes = tuple->TupleOffset = 0;
-    tuple->TupleData = (cisdata_t *)buf;
-    tuple->TupleDataMax = 255;
-
     /* Ugh -- the EM1144 card has two VERS_1 tuples!?! */
-    tuple->DesiredTuple = CISTPL_VERS_1;
-    if (first_tuple(link, tuple, parse) != 0) {
-	rc = -1;
-	goto free_cfg_mem;
-    }
-    /* Ugh -- the EM1144 card has two VERS_1 tuples!?! */
-    if (next_tuple(link, tuple, parse) != 0)
-	first_tuple(link, tuple, parse);
-    if (parse->version_1.ns > 3) {
-	station_addr = parse->version_1.str + parse->version_1.ofs[3];
-	if (cvt_ascii_address(dev, station_addr) == 0) {
-		rc = 0;
-		goto free_cfg_mem;
-	}
-    }
+    if (!pcmcia_loop_tuple(link, CISTPL_VERS_1, pcmcia_get_versmac, dev))
+	    return 0;
 
     /* Another possibility: for the EM3288, in a special tuple */
-    tuple->DesiredTuple = 0x81;
-    if (pcmcia_get_first_tuple(link, tuple) != 0) {
-	rc = -1;
-	goto free_cfg_mem;
-    }
-    if (pcmcia_get_tuple_data(link, tuple) != 0) {
-	rc = -1;
-	goto free_cfg_mem;
-    }
-    buf[12] = '\0';
-    if (cvt_ascii_address(dev, buf) == 0) {
-	rc = 0;
-	goto free_cfg_mem;
-   }
     rc = -1;
-free_cfg_mem:
-   kfree(cfg_mem);
-   return rc;
-}
+    len = pcmcia_get_tuple(link, 0x81, &buf);
+    if (buf && len >= 13) {
+	    buf[12] = '\0';
+	    if (cvt_ascii_address(dev, buf))
+		    rc = 0;
+    }
+    kfree(buf);
+
+    return rc;
+};
 
 /*======================================================================
 
@@ -691,58 +635,21 @@ static int smc_config(struct pcmcia_device *link)
     return i;
 }
 
+
 static int smc_setup(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
-    struct smc_cfg_mem *cfg_mem;
-    tuple_t *tuple;
-    cisparse_t *parse;
-    cistpl_lan_node_id_t *node_id;
-    u_char *buf, *station_addr;
-    int i, rc;
-
-    cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
-    if (!cfg_mem)
-	    return -ENOMEM;
-
-    tuple = &cfg_mem->tuple;
-    parse = &cfg_mem->parse;
-    buf = cfg_mem->buf;
-
-    tuple->Attributes = tuple->TupleOffset = 0;
-    tuple->TupleData = (cisdata_t *)buf;
-    tuple->TupleDataMax = 255;
 
     /* Check for a LAN function extension tuple */
-    tuple->DesiredTuple = CISTPL_FUNCE;
-    i = first_tuple(link, tuple, parse);
-    while (i == 0) {
-	if (parse->funce.type == CISTPL_FUNCE_LAN_NODE_ID)
-	    break;
-	i = next_tuple(link, tuple, parse);
-    }
-    if (i == 0) {
-	node_id = (cistpl_lan_node_id_t *)parse->funce.data;
-	if (node_id->nb == 6) {
-	    for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = node_id->id[i];
-	    rc = 0;
-	    goto free_cfg_mem;
-	}
-    }
+    if (!pcmcia_get_mac_from_cis(link, dev))
+	    return 0;
+
     /* Try the third string in the Version 1 Version/ID tuple. */
     if (link->prod_id[2]) {
-	station_addr = link->prod_id[2];
-	if (cvt_ascii_address(dev, station_addr) == 0) {
-		rc = 0;
-		goto free_cfg_mem;
-	}
+	    if (cvt_ascii_address(dev, link->prod_id[2]) == 0)
+		    return 0;
     }
-
-    rc = -1;
-free_cfg_mem:
-    kfree(cfg_mem);
-    return rc;
+    return -1;
 }
 
 /*====================================================================*/
@@ -801,41 +708,31 @@ static int osi_load_firmware(struct pcmcia_device *link)
 	return err;
 }
 
+static int pcmcia_osi_mac(struct pcmcia_device *p_dev,
+			  tuple_t *tuple,
+			  void *priv)
+{
+	struct net_device *dev = priv;
+	int i;
+
+	if (tuple->TupleDataLen < 8)
+		return -EINVAL;
+	if (tuple->TupleData[0] != 0x04)
+		return -EINVAL;
+	for (i = 0; i < 6; i++)
+		dev->dev_addr[i] = tuple->TupleData[i+2];
+	return 0;
+};
+
+
 static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
 {
     struct net_device *dev = link->priv;
-    struct smc_cfg_mem *cfg_mem;
-    tuple_t *tuple;
-    u_char *buf;
-    int i, rc;
-
-    cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
-    if (!cfg_mem)
-        return -1;
-
-    tuple = &cfg_mem->tuple;
-    buf = cfg_mem->buf;
-
-    tuple->Attributes = TUPLE_RETURN_COMMON;
-    tuple->TupleData = (cisdata_t *)buf;
-    tuple->TupleDataMax = 255;
-    tuple->TupleOffset = 0;
+    int rc;
 
     /* Read the station address from tuple 0x90, subtuple 0x04 */
-    tuple->DesiredTuple = 0x90;
-    i = pcmcia_get_first_tuple(link, tuple);
-    while (i == 0) {
-	i = pcmcia_get_tuple_data(link, tuple);
-	if ((i != 0) || (buf[0] == 0x04))
-	    break;
-	i = pcmcia_get_next_tuple(link, tuple);
-    }
-    if (i != 0) {
-	rc = -1;
-	goto free_cfg_mem;
-    }
-    for (i = 0; i < 6; i++)
-	dev->dev_addr[i] = buf[i+2];
+    if (pcmcia_loop_tuple(link, 0x90, pcmcia_osi_mac, dev))
+	    return -1;
 
     if (((manfid == MANFID_OSITECH) &&
 	 (cardid == PRODID_OSITECH_SEVEN)) ||
@@ -843,7 +740,7 @@ static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
 	 (cardid == PRODID_PSION_NET100))) {
 	rc = osi_load_firmware(link);
 	if (rc)
-		goto free_cfg_mem;
+		return rc;
     } else if (manfid == MANFID_OSITECH) {
 	/* Make sure both functions are powered up */
 	set_bits(0x300, link->io.BasePort1 + OSITECH_AUI_PWR);
@@ -853,10 +750,7 @@ static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
 	      inw(link->io.BasePort1 + OSITECH_AUI_PWR),
 	      inw(link->io.BasePort1 + OSITECH_RESET_ISR));
     }
-    rc = 0;
-free_cfg_mem:
-   kfree(cfg_mem);
-   return rc;
+    return 0;
 }
 
 static int smc91c92_suspend(struct pcmcia_device *link)

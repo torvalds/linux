@@ -256,22 +256,16 @@ static int tc589_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     struct el3_private *lp = netdev_priv(dev);
-    tuple_t tuple;
-    __le16 buf[32];
     __be16 *phys_addr;
     int last_fn, last_ret, i, j, multi = 0, fifo;
     unsigned int ioaddr;
     char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
+    u8 *buf;
+    size_t len;
     
     DEBUG(0, "3c589_config(0x%p)\n", link);
 
     phys_addr = (__be16 *)dev->dev_addr;
-    tuple.Attributes = 0;
-    tuple.TupleData = (cisdata_t *)buf;
-    tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
-    tuple.Attributes = TUPLE_RETURN_COMMON;
-
     /* Is this a 3c562? */
     if (link->manf_id != MANFID_3COM)
 	    printk(KERN_INFO "3c589_cs: hmmm, is this really a "
@@ -301,12 +295,13 @@ static int tc589_config(struct pcmcia_device *link)
 
     /* The 3c589 has an extra EEPROM for configuration info, including
        the hardware address.  The 3c562 puts the address in the CIS. */
-    tuple.DesiredTuple = 0x88;
-    if (pcmcia_get_first_tuple(link, &tuple) == 0) {
-	pcmcia_get_tuple_data(link, &tuple);
-	for (i = 0; i < 3; i++)
-	    phys_addr[i] = htons(le16_to_cpu(buf[i]));
+    len = pcmcia_get_tuple(link, 0x88, &buf);
+    if (buf && len >= 6) {
+	    for (i = 0; i < 3; i++)
+		    phys_addr[i] = htons(le16_to_cpu(buf[i*2]));
+	    kfree(buf);
     } else {
+	kfree(buf); /* 0 < len < 6 */
 	for (i = 0; i < 3; i++)
 	    phys_addr[i] = htons(read_eeprom(ioaddr, i));
 	if (phys_addr[0] == htons(0x6060)) {

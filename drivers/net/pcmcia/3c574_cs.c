@@ -344,13 +344,13 @@ static int tc574_config(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 	struct el3_private *lp = netdev_priv(dev);
-	tuple_t tuple;
-	__le16 buf[32];
 	int last_fn, last_ret, i, j;
 	unsigned int ioaddr;
 	__be16 *phys_addr;
 	char *cardname;
 	__u32 config;
+	u8 *buf;
+	size_t len;
 
 	phys_addr = (__be16 *)dev->dev_addr;
 
@@ -378,16 +378,14 @@ static int tc574_config(struct pcmcia_device *link)
 	/* The 3c574 normally uses an EEPROM for configuration info, including
 	   the hardware address.  The future products may include a modem chip
 	   and put the address in the CIS. */
-	tuple.Attributes = 0;
-	tuple.TupleData = (cisdata_t *)buf;
-	tuple.TupleDataMax = 64;
-	tuple.TupleOffset = 0;
-	tuple.DesiredTuple = 0x88;
-	if (pcmcia_get_first_tuple(link, &tuple) == 0) {
-		pcmcia_get_tuple_data(link, &tuple);
+
+	len = pcmcia_get_tuple(link, 0x88, &buf);
+	if (buf && len >= 6) {
 		for (i = 0; i < 3; i++)
-			phys_addr[i] = htons(le16_to_cpu(buf[i]));
+			phys_addr[i] = htons(le16_to_cpu(buf[i * 2]));
+		kfree(buf);
 	} else {
+		kfree(buf); /* 0 < len < 6 */
 		EL3WINDOW(0);
 		for (i = 0; i < 3; i++)
 			phys_addr[i] = htons(read_eeprom(ioaddr, i + 10));
