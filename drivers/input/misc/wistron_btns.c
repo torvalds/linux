@@ -1263,7 +1263,7 @@ static int __devinit setup_input_dev(void)
 	if (!wistron_idev)
 		return -ENOMEM;
 
-	wistron_idev->flush = wistron_flush;
+	wistron_idev->open = wistron_flush;
 	wistron_idev->poll = wistron_poll;
 	wistron_idev->poll_interval = POLL_INTERVAL_DEFAULT;
 
