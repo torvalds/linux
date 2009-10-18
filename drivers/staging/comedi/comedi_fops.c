@@ -110,13 +110,8 @@ static struct device_attribute dev_attr_read_buffer_kb;
 static struct device_attribute dev_attr_max_write_buffer_kb;
 static struct device_attribute dev_attr_write_buffer_kb;
 
-#ifdef HAVE_UNLOCKED_IOCTL
 static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 				  unsigned long arg)
-#else
-static int comedi_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg)
-#endif
 {
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_device_file_info *dev_file_info =
@@ -1867,11 +1862,7 @@ static int comedi_fasync(int fd, struct file *file, int on)
 
 const struct file_operations comedi_fops = {
 	.owner = THIS_MODULE,
-#ifdef HAVE_UNLOCKED_IOCTL
 	.unlocked_ioctl = comedi_unlocked_ioctl,
-#else
-	.ioctl = comedi_ioctl,
-#endif
 #ifdef HAVE_COMPAT_IOCTL
 	.compat_ioctl = comedi_compat_ioctl,
 #endif

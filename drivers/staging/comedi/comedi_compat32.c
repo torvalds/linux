@@ -101,20 +101,10 @@ static int translated_ioctl(struct file *file, unsigned int cmd,
 	if (!file->f_op)
 		return -ENOTTY;
 
-#ifdef HAVE_UNLOCKED_IOCTL
 	if (file->f_op->unlocked_ioctl) {
 		int rc = (int)(*file->f_op->unlocked_ioctl) (file, cmd, arg);
 		if (rc == -ENOIOCTLCMD)
 			rc = -ENOTTY;
-		return rc;
-	}
-#endif
-	if (file->f_op->ioctl) {
-		int rc;
-		lock_kernel();
-		rc = (*file->f_op->ioctl) (file->f_dentry->d_inode,
-					   file, cmd, arg);
-		unlock_kernel();
 		return rc;
 	}
 	return -ENOTTY;

@@ -125,14 +125,9 @@ struct serial_data {
 
 static long tty_ioctl(struct file *f, unsigned op, unsigned long param)
 {
-#ifdef HAVE_UNLOCKED_IOCTL
-	if (f->f_op->unlocked_ioctl) {
+	if (f->f_op->unlocked_ioctl)
 		return f->f_op->unlocked_ioctl(f, op, param);
-	}
-#endif
-	if (f->f_op->ioctl) {
-		return f->f_op->ioctl(f->f_dentry->d_inode, f, op, param);
-	}
+
 	return -ENOSYS;
 }
 
