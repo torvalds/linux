@@ -85,11 +85,13 @@ void board_reset(void)
 void __init board_setup(void)
 {
 	unsigned long bcsr1, bcsr2;
-	u32 pin_func = 0;
+	u32 pin_func;
 	char *argptr;
 
 	bcsr1 = DB1000_BCSR_PHYS_ADDR;
 	bcsr2 = DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS;
+
+	pin_func = 0;
 
 #ifdef CONFIG_MIPS_DB1000
 	printk(KERN_INFO "AMD Alchemy Au1000/Db1000 Board\n");

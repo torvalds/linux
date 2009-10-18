@@ -56,14 +56,13 @@ void board_reset(void)
 void __init board_setup(void)
 {
 	u32 pin_func;
+	char *argptr;
 
 	bcsr_init(PB1550_BCSR_PHYS_ADDR,
 		  PB1550_BCSR_PHYS_ADDR + PB1550_BCSR_HEXLED_OFS);
 
-
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	char *argptr;
 	argptr = prom_getcmdline();
+#ifdef CONFIG_SERIAL_8250_CONSOLE
 	argptr = strstr(argptr, "console=");
 	if (argptr == NULL) {
 		argptr = prom_getcmdline();

@@ -46,9 +46,13 @@ void __init board_setup(void)
 	u32 pin_func, static_cfg0;
 	u32 sys_freqctrl, sys_clksrc;
 	u32 prid = read_c0_prid();
+	char *argptr;
+
+	sys_freqctrl = 0;
+	sys_clksrc = 0;
+	argptr = prom_getcmdline();
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
-	char *argptr = prom_getcmdline();
 	argptr = strstr(argptr, "console=");
 	if (argptr == NULL) {
 		argptr = prom_getcmdline();
