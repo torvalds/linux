@@ -583,7 +583,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 
 	if (!pccard_read_tuple(p_dev->socket, BIND_FN_ALL, CISTPL_VERS_1,
 			       vers1)) {
-		for (i=0; i < vers1->ns; i++) {
+		for (i = 0; i < min_t(unsigned int, 4, vers1->ns); i++) {
 			char *tmp;
 			unsigned int length;
 
