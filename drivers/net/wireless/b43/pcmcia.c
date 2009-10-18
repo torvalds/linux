@@ -65,35 +65,15 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	struct ssb_bus *ssb;
 	win_req_t win;
 	memreq_t mem;
-	tuple_t tuple;
-	cisparse_t parse;
 	int err = -ENOMEM;
 	int res = 0;
-	unsigned char buf[64];
 
 	ssb = kzalloc(sizeof(*ssb), GFP_KERNEL);
 	if (!ssb)
 		goto out_error;
 
 	err = -ENODEV;
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
 
-	res = pcmcia_get_first_tuple(dev, &tuple);
-	if (res != 0)
-		goto err_kfree_ssb;
-	res = pcmcia_get_tuple_data(dev, &tuple);
-	if (res != 0)
-		goto err_kfree_ssb;
-	res = pcmcia_parse_tuple(&tuple, &parse);
-	if (res != 0)
-		goto err_kfree_ssb;
-
-	dev->conf.ConfigBase = parse.config.base;
-	dev->conf.Present = parse.config.rmask[0];
 	dev->conf.Attributes = CONF_ENABLE_IRQ;
 	dev->conf.IntType = INT_MEMORY_AND_IO;
 

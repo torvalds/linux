@@ -545,6 +545,14 @@ static int mhz_setup(struct pcmcia_device *link)
     u_char *buf, *station_addr;
     int rc;
 
+    /* Read the station address from the CIS.  It is stored as the last
+       (fourth) string in the Version 1 Version/ID tuple. */
+    if ((link->prod_id[3]) &&
+	(cvt_ascii_address(dev, link->prod_id[3]) == 0))
+	    return 0;
+
+    /* Workarounds for broken cards start here. */
+
     cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
     if (!cfg_mem)
 	return -1;
@@ -557,8 +565,7 @@ static int mhz_setup(struct pcmcia_device *link)
     tuple->TupleData = (cisdata_t *)buf;
     tuple->TupleDataMax = 255;
 
-    /* Read the station address from the CIS.  It is stored as the last
-       (fourth) string in the Version 1 Version/ID tuple. */
+    /* Ugh -- the EM1144 card has two VERS_1 tuples!?! */
     tuple->DesiredTuple = CISTPL_VERS_1;
     if (first_tuple(link, tuple, parse) != 0) {
 	rc = -1;

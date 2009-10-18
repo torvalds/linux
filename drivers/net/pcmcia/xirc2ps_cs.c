@@ -792,13 +792,12 @@ xirc2ps_config(struct pcmcia_device * link)
     tuple.TupleOffset = 0;
 
     /* Is this a valid	card */
-    tuple.DesiredTuple = CISTPL_MANFID;
-    if ((err=first_tuple(link, &tuple, &parse))) {
+    if (link->has_manf_id == 0) {
 	printk(KNOT_XIRC "manfid not found in CIS\n");
 	goto failure;
     }
 
-    switch(parse.manfid.manf) {
+    switch (link->manf_id) {
       case MANFID_XIRCOM:
 	local->manf_str = "Xircom";
 	break;
@@ -822,6 +821,13 @@ xirc2ps_config(struct pcmcia_device * link)
     }
     DEBUG(0, "found %s card\n", local->manf_str);
 
+    /* needed for the additional fields to be parsed by set_card_type() */
+    tuple.DesiredTuple = CISTPL_MANFID;
+    err = first_tuple(link, &tuple, &parse)
+    if (err) {
+	printk(KNOT_XIRC "manfid not found in CIS\n");
+	goto failure;
+    }
     if (!set_card_type(link, buf)) {
 	printk(KNOT_XIRC "this card is not supported\n");
 	goto failure;
