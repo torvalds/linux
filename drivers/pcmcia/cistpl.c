@@ -1482,6 +1482,67 @@ done:
 }
 EXPORT_SYMBOL(pccard_read_tuple);
 
+
+/**
+ * pccard_loop_tuple() - loop over tuples in the CIS
+ * @s:		the struct pcmcia_socket where the card is inserted
+ * @function:	the device function we loop for
+ * @code:	which CIS code shall we look for?
+ * @parse:	buffer where the tuple shall be parsed (or NULL, if no parse)
+ * @priv_data:	private data to be passed to the loop_tuple function.
+ * @loop_tuple:	function to call for each CIS entry of type @function. IT
+ *		gets passed the raw tuple, the paresed tuple (if @parse is
+ *		set) and @priv_data.
+ *
+ * pccard_loop_tuple() loops over all CIS entries of type @function, and
+ * calls the @loop_tuple function for each entry. If the call to @loop_tuple
+ * returns 0, the loop exits. Returns 0 on success or errorcode otherwise.
+ */
+int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
+		      cisdata_t code, cisparse_t *parse, void *priv_data,
+		      int (*loop_tuple) (tuple_t *tuple,
+					 cisparse_t *parse,
+					 void *priv_data))
+{
+	tuple_t tuple;
+	cisdata_t *buf;
+	int ret;
+
+	buf = kzalloc(256, GFP_KERNEL);
+	if (buf == NULL) {
+		dev_printk(KERN_WARNING, &s->dev, "no memory to read tuple\n");
+		return -ENOMEM;
+	}
+
+	tuple.TupleData = buf;
+	tuple.TupleDataMax = 255;
+	tuple.TupleOffset = 0;
+	tuple.DesiredTuple = code;
+	tuple.Attributes = 0;
+
+	ret = pccard_get_first_tuple(s, function, &tuple);
+	while (!ret) {
+		if (pccard_get_tuple_data(s, &tuple))
+			goto next_entry;
+
+		if (parse)
+			if (pcmcia_parse_tuple(&tuple, parse))
+				goto next_entry;
+
+		ret = loop_tuple(&tuple, parse, priv_data);
+		if (!ret)
+			break;
+
+next_entry:
+		ret = pccard_get_next_tuple(s, function, &tuple);
+	}
+
+	kfree(buf);
+	return ret;
+}
+EXPORT_SYMBOL(pccard_loop_tuple);
+
+
 /*======================================================================
 
     This tries to determine if a card has a sensible CIS.  It returns

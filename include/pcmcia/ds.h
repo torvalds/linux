@@ -34,6 +34,7 @@
 struct pcmcia_socket;
 struct pcmcia_device;
 struct config_t;
+struct net_device;
 
 /* dynamic device IDs for PCMCIA device drivers. See
  * Documentation/pcmcia/driver.txt for details.
@@ -176,25 +177,38 @@ const char *pcmcia_error_ret(int ret);
 			   pcmcia_error_ret(ret));	\
 	}
 
-/* CIS access.
- * Use the pcmcia_* versions in PCMCIA drivers
+
+/*
+ * CIS access.
+ *
+ * Please use the following functions to access CIS tuples:
+ * - pcmcia_get_tuple()
+ * - pcmcia_loop_tuple()
+ * - pcmcia_get_mac_from_cis()
+ *
+ * To parse a tuple_t, pcmcia_parse_tuple() exists. Its interface
+ * might change in future.
  */
+
+/* get the very first CIS entry of type @code. Note that buf is pointer
+ * to u8 *buf; and that you need to kfree(buf) afterwards. */
+size_t pcmcia_get_tuple(struct pcmcia_device *p_dev, cisdata_t code,
+			u8 **buf);
+
+/* loop over CIS entries */
+int pcmcia_loop_tuple(struct pcmcia_device *p_dev, cisdata_t code,
+		      int (*loop_tuple) (struct pcmcia_device *p_dev,
+					 tuple_t *tuple,
+					 void *priv_data),
+		      void *priv_data);
+
+/* get the MAC address from CISTPL_FUNCE */
+int pcmcia_get_mac_from_cis(struct pcmcia_device *p_dev,
+			    struct net_device *dev);
+
+
+/* parse a tuple_t */
 int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse);
-
-int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function,
-			   tuple_t *tuple);
-#define pcmcia_get_first_tuple(p_dev, tuple) \
-		pccard_get_first_tuple(p_dev->socket, p_dev->func, tuple)
-
-int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function,
-			  tuple_t *tuple);
-#define pcmcia_get_next_tuple(p_dev, tuple) \
-		pccard_get_next_tuple(p_dev->socket, p_dev->func, tuple)
-
-int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
-#define pcmcia_get_tuple_data(p_dev, tuple) \
-		pccard_get_tuple_data(p_dev->socket, tuple)
-
 
 /* loop CIS entries for valid configuration */
 int pcmcia_loop_config(struct pcmcia_device *p_dev,
@@ -214,6 +228,21 @@ int pcmcia_reset_card(struct pcmcia_socket *skt);
 /* CIS config */
 int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 					 conf_reg_t *reg);
+
+/* deprecated -- do not use in drivers. */
+int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function,
+			tuple_t *tuple);
+#define pcmcia_get_first_tuple(p_dev, tuple) \
+	pccard_get_first_tuple(p_dev->socket, p_dev->func, tuple)
+
+int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function,
+			tuple_t *tuple);
+#define pcmcia_get_next_tuple(p_dev, tuple) \
+	pccard_get_next_tuple(p_dev->socket, p_dev->func, tuple)
+
+int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
+#define pcmcia_get_tuple_data(p_dev, tuple) \
+	pccard_get_tuple_data(p_dev->socket, tuple)
 
 /* device configuration */
 int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);

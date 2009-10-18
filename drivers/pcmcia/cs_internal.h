@@ -199,6 +199,13 @@ int pcmcia_replace_cis(struct pcmcia_socket *s,
 		       const u8 *data, const size_t len);
 int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *count);
 
+/* loop over CIS entries */
+int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
+		      cisdata_t code, cisparse_t *parse, void *priv_data,
+		      int (*loop_tuple) (tuple_t *tuple,
+					 cisparse_t *parse,
+					 void *priv_data));
+
 /* rsrc_mgr.c */
 int pcmcia_validate_mem(struct pcmcia_socket *s);
 struct resource *pcmcia_find_io_region(unsigned long base,
