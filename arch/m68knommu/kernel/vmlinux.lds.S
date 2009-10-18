@@ -168,6 +168,8 @@ SECTIONS {
 		CON_INITCALL
 		SECURITY_INITCALL
 		INIT_RAM_FS
+	} > INIT
+	.init : {
 		. = ALIGN(PAGE_SIZE);
 		__init_end = .;
 	} > INIT
