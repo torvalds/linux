@@ -206,6 +206,15 @@ int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
 					 cisparse_t *parse,
 					 void *priv_data));
 
+int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function,
+			tuple_t *tuple);
+
+int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function,
+			tuple_t *tuple);
+
+int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
+
+
 /* rsrc_mgr.c */
 int pcmcia_validate_mem(struct pcmcia_socket *s);
 struct resource *pcmcia_find_io_region(unsigned long base,

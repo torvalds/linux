@@ -229,21 +229,6 @@ int pcmcia_reset_card(struct pcmcia_socket *skt);
 int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 					 conf_reg_t *reg);
 
-/* deprecated -- do not use in drivers. */
-int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function,
-			tuple_t *tuple);
-#define pcmcia_get_first_tuple(p_dev, tuple) \
-	pccard_get_first_tuple(p_dev->socket, p_dev->func, tuple)
-
-int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function,
-			tuple_t *tuple);
-#define pcmcia_get_next_tuple(p_dev, tuple) \
-	pccard_get_next_tuple(p_dev->socket, p_dev->func, tuple)
-
-int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
-#define pcmcia_get_tuple_data(p_dev, tuple) \
-	pccard_get_tuple_data(p_dev->socket, tuple)
-
 /* device configuration */
 int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);
 int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req);
