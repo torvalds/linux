@@ -125,6 +125,7 @@ struct stats			event_res_stats[MAX_COUNTERS][3];
 struct stats			runtime_nsecs_stats;
 struct stats			walltime_nsecs_stats;
 struct stats			runtime_cycles_stats;
+struct stats			runtime_branches_stats;
 
 #define MATCH_EVENT(t, c, counter)			\
 	(attrs[counter].type == PERF_TYPE_##t &&	\
@@ -235,6 +236,8 @@ static void read_counter(int counter)
 		update_stats(&runtime_nsecs_stats, count[0]);
 	if (MATCH_EVENT(HARDWARE, HW_CPU_CYCLES, counter))
 		update_stats(&runtime_cycles_stats, count[0]);
+	if (MATCH_EVENT(HARDWARE, HW_BRANCH_INSTRUCTIONS, counter))
+		update_stats(&runtime_branches_stats, count[0]);
 }
 
 static int run_perf_stat(int argc __used, const char **argv)
@@ -352,6 +355,14 @@ static void abs_printout(int counter, double avg)
 			ratio = avg / total;
 
 		fprintf(stderr, " # %10.3f IPC  ", ratio);
+	} else if (MATCH_EVENT(HARDWARE, HW_BRANCH_MISSES, counter)) {
+		total = avg_stats(&runtime_branches_stats);
+
+		if (total)
+			ratio = avg * 100 / total;
+
+		fprintf(stderr, " # %10.3f %%  ", ratio);
+
 	} else {
 		total = avg_stats(&runtime_nsecs_stats);
 
