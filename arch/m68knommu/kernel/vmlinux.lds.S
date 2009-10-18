@@ -8,6 +8,7 @@
  */
 
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/page.h>
 
 #if defined(CONFIG_RAMKERNEL)
 #define	RAM_START	CONFIG_KERNELBASE
@@ -155,7 +156,7 @@ SECTIONS {
 	} > DATA
 
 	.init : {
-		. = ALIGN(4096);
+		. = ALIGN(PAGE_SIZE);
 		__init_begin = .;
 		_sinittext = .;
 		INIT_TEXT
@@ -180,7 +181,7 @@ SECTIONS {
 		*(.init.ramfs)
 		__initramfs_end = .;
 #endif
-		. = ALIGN(4096);
+		. = ALIGN(PAGE_SIZE);
 		__init_end = .;
 	} > INIT
 
