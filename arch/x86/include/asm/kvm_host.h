@@ -354,7 +354,6 @@ struct kvm_vcpu_arch {
 	unsigned int time_offset;
 	struct page *time_page;
 
-	bool singlestep; /* guest is single stepped by KVM */
 	bool nmi_pending;
 	bool nmi_injected;
 

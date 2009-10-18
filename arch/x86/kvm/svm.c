@@ -107,6 +107,8 @@ struct vcpu_svm {
 	u32 *msrpm;
 
 	struct nested_state nested;
+
+	bool nmi_singlestep;
 };
 
 /* enable NPT for AMD64 and X86 with PAE */
@@ -1050,7 +1052,7 @@ static void update_db_intercept(struct kvm_vcpu *vcpu)
 	svm->vmcb->control.intercept_exceptions &=
 		~((1 << DB_VECTOR) | (1 << BP_VECTOR));
 
-	if (vcpu->arch.singlestep)
+	if (svm->nmi_singlestep)
 		svm->vmcb->control.intercept_exceptions |= (1 << DB_VECTOR);
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_ENABLE) {
@@ -1195,13 +1197,13 @@ static int db_interception(struct vcpu_svm *svm)
 
 	if (!(svm->vcpu.guest_debug &
 	      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)) &&
-		!svm->vcpu.arch.singlestep) {
+		!svm->nmi_singlestep) {
 		kvm_queue_exception(&svm->vcpu, DB_VECTOR);
 		return 1;
 	}
 
-	if (svm->vcpu.arch.singlestep) {
-		svm->vcpu.arch.singlestep = false;
+	if (svm->nmi_singlestep) {
+		svm->nmi_singlestep = false;
 		if (!(svm->vcpu.guest_debug & KVM_GUESTDBG_SINGLESTEP))
 			svm->vmcb->save.rflags &=
 				~(X86_EFLAGS_TF | X86_EFLAGS_RF);
@@ -2543,7 +2545,7 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 	/* Something prevents NMI from been injected. Single step over
 	   possible problem (IRET or exception injection or interrupt
 	   shadow) */
-	vcpu->arch.singlestep = true;
+	svm->nmi_singlestep = true;
 	svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
 	update_db_intercept(vcpu);
 }
