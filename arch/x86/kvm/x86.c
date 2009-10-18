@@ -235,25 +235,6 @@ bool kvm_require_cpl(struct kvm_vcpu *vcpu, int required_cpl)
 }
 EXPORT_SYMBOL_GPL(kvm_require_cpl);
 
-unsigned long kvm_get_rflags(struct kvm_vcpu *vcpu)
-{
-	unsigned long rflags;
-
-	rflags = kvm_x86_ops->get_rflags(vcpu);
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		rflags &= ~(unsigned long)(X86_EFLAGS_TF | X86_EFLAGS_RF);
-	return rflags;
-}
-EXPORT_SYMBOL_GPL(kvm_get_rflags);
-
-void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
-{
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		rflags |= X86_EFLAGS_TF | X86_EFLAGS_RF;
-	kvm_x86_ops->set_rflags(vcpu, rflags);
-}
-EXPORT_SYMBOL_GPL(kvm_set_rflags);
-
 /*
  * Load the pae pdptrs.  Return true is they are all valid.
  */
@@ -4565,6 +4546,12 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 		vcpu->arch.switch_db_regs = (vcpu->arch.dr7 & DR7_BP_EN_MASK);
 	}
 
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
+		vcpu->arch.singlestep_cs =
+			get_segment_selector(vcpu, VCPU_SREG_CS);
+		vcpu->arch.singlestep_rip = kvm_rip_read(vcpu);
+	}
+
 	/*
 	 * Trigger an rflags update that will inject or remove the trace
 	 * flags.
@@ -5030,6 +5017,28 @@ int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
 {
 	return kvm_x86_ops->interrupt_allowed(vcpu);
 }
+
+unsigned long kvm_get_rflags(struct kvm_vcpu *vcpu)
+{
+	unsigned long rflags;
+
+	rflags = kvm_x86_ops->get_rflags(vcpu);
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		rflags &= ~(unsigned long)(X86_EFLAGS_TF | X86_EFLAGS_RF);
+	return rflags;
+}
+EXPORT_SYMBOL_GPL(kvm_get_rflags);
+
+void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
+{
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP &&
+	    vcpu->arch.singlestep_cs ==
+			get_segment_selector(vcpu, VCPU_SREG_CS) &&
+	    vcpu->arch.singlestep_rip == kvm_rip_read(vcpu))
+		rflags |= X86_EFLAGS_TF | X86_EFLAGS_RF;
+	kvm_x86_ops->set_rflags(vcpu, rflags);
+}
+EXPORT_SYMBOL_GPL(kvm_set_rflags);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_exit);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_inj_virq);

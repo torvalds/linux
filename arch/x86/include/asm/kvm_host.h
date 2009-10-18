@@ -371,6 +371,10 @@ struct kvm_vcpu_arch {
 	u64 mcg_status;
 	u64 mcg_ctl;
 	u64 *mce_banks;
+
+	/* used for guest single stepping over the given code position */
+	u16 singlestep_cs;
+	unsigned long singlestep_rip;
 };
 
 struct kvm_mem_alias {
