@@ -322,7 +322,7 @@ static int ixp4xx_mdio_write(struct mii_bus *bus, int phy_id, int location,
 	ret = ixp4xx_mdio_cmd(bus, phy_id, location, 1, val);
 	spin_unlock_irqrestore(&mdio_lock, flags);
 #if DEBUG_MDIO
-	printk(KERN_DEBUG "%s #%i: MII read [%i] <- 0x%X, err = %i\n",
+	printk(KERN_DEBUG "%s #%i: MII write [%i] <- 0x%X, err = %i\n",
 	       bus->name, phy_id, location, val, ret);
 #endif
 	return ret;
