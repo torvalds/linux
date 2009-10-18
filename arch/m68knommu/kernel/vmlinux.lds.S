@@ -157,6 +157,8 @@ SECTIONS {
 	.init : {
 		. = ALIGN(PAGE_SIZE);
 		__init_begin = .;
+	} > INIT
+	.init : {
 		_sinittext = .;
 		INIT_TEXT
 		_einittext = .;
