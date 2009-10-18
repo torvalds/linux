@@ -341,14 +341,23 @@ static int ungermann_try_io_port(struct pcmcia_device *link)
     return ret;	/* RequestIO failed */
 }
 
+static int fmvj18x_ioprobe(struct pcmcia_device *p_dev,
+			   cistpl_cftable_entry_t *cfg,
+			   cistpl_cftable_entry_t *dflt,
+			   unsigned int vcc,
+			   void *priv_data)
+{
+	return 0; /* strange, but that's what the code did already before... */
+}
+
+
 static int fmvj18x_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     local_info_t *lp = netdev_priv(dev);
     tuple_t tuple;
-    cisparse_t parse;
     u_short buf[32];
-    int i, last_fn = 0, last_ret = 0, ret;
+    int i, last_fn = RequestIO, last_ret = 0, ret;
     unsigned int ioaddr;
     cardtype_t cardtype;
     char *card_name = "unknown";
@@ -362,12 +371,11 @@ static int fmvj18x_config(struct pcmcia_device *link)
     tuple.DesiredTuple = CISTPL_FUNCE;
     tuple.TupleOffset = 0;
     if (pcmcia_get_first_tuple(link, &tuple) == 0) {
+	last_ret = pcmcia_loop_config(link, fmvj18x_ioprobe, NULL);
+	if (last_ret != 0)
+		goto cs_failed;
+
 	/* Yes, I have CISTPL_FUNCE. Let's check CISTPL_MANFID */
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(&tuple, &parse));
-	link->conf.ConfigIndex = parse.cftable_entry.index;
 	switch (link->manf_id) {
 	case MANFID_TDK:
 	    cardtype = TDK;

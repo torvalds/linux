@@ -79,14 +79,32 @@ static void signalled_reboot_callback(void *callback_data)
 	schedule_work(&ipw->work_reboot);
 }
 
+static int ipwireless_ioprobe(struct pcmcia_device *p_dev,
+			      cistpl_cftable_entry_t *cfg,
+			      cistpl_cftable_entry_t *dflt,
+			      unsigned int vcc,
+			      void *priv_data)
+{
+	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+	p_dev->io.BasePort1 = cfg->io.win[0].base;
+	p_dev->io.NumPorts1 = cfg->io.win[0].len;
+	p_dev->io.IOAddrLines = 16;
+
+	p_dev->irq.IRQInfo1 = cfg->irq.IRQInfo1;
+
+	/* 0x40 causes it to generate level mode interrupts. */
+	/* 0x04 enables IREQ pin. */
+	p_dev->conf.ConfigIndex = cfg->index | 0x44;
+	return pcmcia_request_io(p_dev, &p_dev->io);
+}
+
 static int config_ipwireless(struct ipw_dev *ipw)
 {
 	struct pcmcia_device *link = ipw->link;
-	int ret;
+	int ret = 0;
 	tuple_t tuple;
 	unsigned short buf[64];
 	cisparse_t parse;
-	unsigned short cor_value;
 	memreq_t memreq_attr_memory;
 	memreq_t memreq_common_memory;
 
@@ -97,103 +115,26 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
 
-	tuple.DesiredTuple = RETURN_FIRST_TUPLE;
-
-	ret = pcmcia_get_first_tuple(link, &tuple);
-
-	while (ret == 0) {
-		ret = pcmcia_get_tuple_data(link, &tuple);
-
-		if (ret != 0) {
-			cs_error(link, GetTupleData, ret);
-			goto exit0;
-		}
-		ret = pcmcia_get_next_tuple(link, &tuple);
-	}
-
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-
-	ret = pcmcia_get_first_tuple(link, &tuple);
-
+	ret = pcmcia_loop_config(link, ipwireless_ioprobe, NULL);
 	if (ret != 0) {
-		cs_error(link, GetFirstTuple, ret);
+		cs_error(link, RequestIO, ret);
 		goto exit0;
 	}
 
-	ret = pcmcia_get_tuple_data(link, &tuple);
-
-	if (ret != 0) {
-		cs_error(link, GetTupleData, ret);
-		goto exit0;
-	}
-
-	ret = pcmcia_parse_tuple(&tuple, &parse);
-
-	if (ret != 0) {
-		cs_error(link, ParseTuple, ret);
-		goto exit0;
-	}
-
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
-	link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
-	link->io.IOAddrLines = 16;
-
-	link->irq.IRQInfo1 = parse.cftable_entry.irq.IRQInfo1;
-
-	/* 0x40 causes it to generate level mode interrupts. */
-	/* 0x04 enables IREQ pin. */
-	cor_value = parse.cftable_entry.index | 0x44;
-	link->conf.ConfigIndex = cor_value;
-
-	/* IRQ and I/O settings */
-	tuple.DesiredTuple = CISTPL_CONFIG;
-
-	ret = pcmcia_get_first_tuple(link, &tuple);
-
-	if (ret != 0) {
-		cs_error(link, GetFirstTuple, ret);
-		goto exit0;
-	}
-
-	ret = pcmcia_get_tuple_data(link, &tuple);
-
-	if (ret != 0) {
-		cs_error(link, GetTupleData, ret);
-		goto exit0;
-	}
-
-	ret = pcmcia_parse_tuple(&tuple, &parse);
-
-	if (ret != 0) {
-		cs_error(link, GetTupleData, ret);
-		goto exit0;
-	}
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
 	link->irq.Handler = ipwireless_interrupt;
 	link->irq.Instance = ipw->hardware;
 
-	ret = pcmcia_request_io(link, &link->io);
-
-	if (ret != 0) {
-		cs_error(link, RequestIO, ret);
-		goto exit0;
-	}
-
 	request_region(link->io.BasePort1, link->io.NumPorts1,
 			IPWIRELESS_PCCARD_NAME);
 
 	/* memory settings */
-
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 
 	ret = pcmcia_get_first_tuple(link, &tuple);
-
 	if (ret != 0) {
 		cs_error(link, GetFirstTuple, ret);
 		goto exit1;
