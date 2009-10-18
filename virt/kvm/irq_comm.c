@@ -205,10 +205,9 @@ int kvm_request_irq_source_id(struct kvm *kvm)
 	int irq_source_id;
 
 	mutex_lock(&kvm->irq_lock);
-	irq_source_id = find_first_zero_bit(bitmap,
-				sizeof(kvm->arch.irq_sources_bitmap));
+	irq_source_id = find_first_zero_bit(bitmap, BITS_PER_LONG);
 
-	if (irq_source_id >= sizeof(kvm->arch.irq_sources_bitmap)) {
+	if (irq_source_id >= BITS_PER_LONG) {
 		printk(KERN_WARNING "kvm: exhaust allocatable IRQ sources!\n");
 		return -EFAULT;
 	}
@@ -228,7 +227,7 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 
 	mutex_lock(&kvm->irq_lock);
 	if (irq_source_id < 0 ||
-	    irq_source_id >= sizeof(kvm->arch.irq_sources_bitmap)) {
+	    irq_source_id >= BITS_PER_LONG) {
 		printk(KERN_ERR "kvm: IRQ source ID out of range!\n");
 		return;
 	}
