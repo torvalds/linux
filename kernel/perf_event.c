@@ -4293,6 +4293,7 @@ perf_event_alloc(struct perf_event_attr *attr,
 		   struct perf_event_context *ctx,
 		   struct perf_event *group_leader,
 		   struct perf_event *parent_event,
+		   perf_callback_t callback,
 		   gfp_t gfpflags)
 {
 	const struct pmu *pmu;
@@ -4334,6 +4335,11 @@ perf_event_alloc(struct perf_event_attr *attr,
 	event->id		= atomic64_inc_return(&perf_event_id);
 
 	event->state		= PERF_EVENT_STATE_INACTIVE;
+
+	if (!callback && parent_event)
+		callback = parent_event->callback;
+	
+	event->callback	= callback;
 
 	if (attr->disabled)
 		event->state = PERF_EVENT_STATE_OFF;
@@ -4611,7 +4617,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	}
 
 	event = perf_event_alloc(&attr, cpu, ctx, group_leader,
-				     NULL, GFP_KERNEL);
+				     NULL, NULL, GFP_KERNEL);
 	err = PTR_ERR(event);
 	if (IS_ERR(event))
 		goto err_put_context;
@@ -4668,7 +4674,7 @@ err_put_context:
  */
 struct perf_event *
 perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
-				 pid_t pid)
+				 pid_t pid, perf_callback_t callback)
 {
 	struct perf_event *event;
 	struct perf_event_context *ctx;
@@ -4683,7 +4689,7 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 		return NULL ;
 
 	event = perf_event_alloc(attr, cpu, ctx, NULL,
-				     NULL, GFP_KERNEL);
+				     NULL, callback, GFP_KERNEL);
 	err = PTR_ERR(event);
 	if (IS_ERR(event))
 		goto err_put_context;
@@ -4736,7 +4742,7 @@ inherit_event(struct perf_event *parent_event,
 	child_event = perf_event_alloc(&parent_event->attr,
 					   parent_event->cpu, child_ctx,
 					   group_leader, parent_event,
-					   GFP_KERNEL);
+					   NULL, GFP_KERNEL);
 	if (IS_ERR(child_event))
 		return child_event;
 	get_ctx(child_ctx);
