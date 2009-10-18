@@ -354,101 +354,110 @@ static void pcmciamtd_release(struct pcmcia_device *link)
 }
 
 
+#ifdef CONFIG_MTD_DEBUG
+static int pcmciamtd_cistpl_format(struct pcmcia_device *p_dev,
+				tuple_t *tuple,
+				void *priv_data)
+{
+	cisparse_t parse;
+
+	if (!pcmcia_parse_tuple(tuple, &parse)) {
+		cistpl_format_t *t = &parse.format;
+		(void)t; /* Shut up, gcc */
+		DEBUG(2, "Format type: %u, Error Detection: %u, offset = %u, length =%u",
+			t->type, t->edc, t->offset, t->length);
+	}
+	return -ENOSPC;
+}
+
+static int pcmciamtd_cistpl_jedec(struct pcmcia_device *p_dev,
+				tuple_t *tuple,
+				void *priv_data)
+{
+	cisparse_t parse;
+	int i;
+
+	if (!pcmcia_parse_tuple(tuple, &parse)) {
+		cistpl_jedec_t *t = &parse.jedec;
+		for (i = 0; i < t->nid; i++)
+			DEBUG(2, "JEDEC: 0x%02x 0x%02x", t->id[i].mfr, t->id[i].info);
+	}
+	return -ENOSPC;
+}
+#endif
+
+static int pcmciamtd_cistpl_device(struct pcmcia_device *p_dev,
+				tuple_t *tuple,
+				void *priv_data)
+{
+	struct pcmciamtd_dev *dev = priv_data;
+	cisparse_t parse;
+	cistpl_device_t *t = &parse.device;
+	int i;
+
+	if (pcmcia_parse_tuple(tuple, &parse))
+		return -EINVAL;
+
+	DEBUG(2, "Common memory:");
+	dev->pcmcia_map.size = t->dev[0].size;
+	/* from here on: DEBUG only */
+	for (i = 0; i < t->ndev; i++) {
+		DEBUG(2, "Region %d, type = %u", i, t->dev[i].type);
+		DEBUG(2, "Region %d, wp = %u", i, t->dev[i].wp);
+		DEBUG(2, "Region %d, speed = %u ns", i, t->dev[i].speed);
+		DEBUG(2, "Region %d, size = %u bytes", i, t->dev[i].size);
+	}
+	return 0;
+}
+
+static int pcmciamtd_cistpl_geo(struct pcmcia_device *p_dev,
+				tuple_t *tuple,
+				void *priv_data)
+{
+	struct pcmciamtd_dev *dev = priv_data;
+	cisparse_t parse;
+	cistpl_device_geo_t *t = &parse.device_geo;
+	int i;
+
+	if (pcmcia_parse_tuple(tuple, &parse))
+		return -EINVAL;
+
+	dev->pcmcia_map.bankwidth = t->geo[0].buswidth;
+	/* from here on: DEBUG only */
+	for (i = 0; i < t->ngeo; i++) {
+		DEBUG(2, "region: %d bankwidth = %u", i, t->geo[i].buswidth);
+		DEBUG(2, "region: %d erase_block = %u", i, t->geo[i].erase_block);
+		DEBUG(2, "region: %d read_block = %u", i, t->geo[i].read_block);
+		DEBUG(2, "region: %d write_block = %u", i, t->geo[i].write_block);
+		DEBUG(2, "region: %d partition = %u", i, t->geo[i].partition);
+		DEBUG(2, "region: %d interleave = %u", i, t->geo[i].interleave);
+	}
+	return 0;
+}
+
+
 static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *link, int *new_name)
 {
-	int rc;
-	tuple_t tuple;
-	cisparse_t parse;
-	u_char buf[64];
+	int i;
 
-	tuple.Attributes = 0;
-	tuple.TupleData = (cisdata_t *)buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-	tuple.DesiredTuple = RETURN_FIRST_TUPLE;
-
-	rc = pcmcia_get_first_tuple(link, &tuple);
-	while (rc == 0) {
-		rc = pcmcia_get_tuple_data(link, &tuple);
-		if (rc != 0) {
-			cs_error(link, GetTupleData, rc);
-			break;
+	if (p_dev->prod_id[0]) {
+		dev->mtd_name[0] = '\0';
+		for (i = 0; i < 4; i++) {
+			if (i)
+				strcat(dev->mtd_name, " ");
+			if (p_dev->prod_id[i])
+				strcat(dev->mtd_name, p_dev->prod_id[i]);
 		}
-		rc = pcmcia_parse_tuple(&tuple, &parse);
-		if (rc != 0) {
-			cs_error(link, ParseTuple, rc);
-			break;
-		}
-
-		switch(tuple.TupleCode) {
-		case  CISTPL_FORMAT: {
-			cistpl_format_t *t = &parse.format;
-			(void)t; /* Shut up, gcc */
-			DEBUG(2, "Format type: %u, Error Detection: %u, offset = %u, length =%u",
-			      t->type, t->edc, t->offset, t->length);
-			break;
-
-		}
-
-		case CISTPL_DEVICE: {
-			cistpl_device_t *t = &parse.device;
-			int i;
-			DEBUG(2, "Common memory:");
-			dev->pcmcia_map.size = t->dev[0].size;
-			for(i = 0; i < t->ndev; i++) {
-				DEBUG(2, "Region %d, type = %u", i, t->dev[i].type);
-				DEBUG(2, "Region %d, wp = %u", i, t->dev[i].wp);
-				DEBUG(2, "Region %d, speed = %u ns", i, t->dev[i].speed);
-				DEBUG(2, "Region %d, size = %u bytes", i, t->dev[i].size);
-			}
-			break;
-		}
-
-		case CISTPL_VERS_1: {
-			cistpl_vers_1_t *t = &parse.version_1;
-			int i;
-			if(t->ns) {
-				dev->mtd_name[0] = '\0';
-				for(i = 0; i < t->ns; i++) {
-					if(i)
-						strcat(dev->mtd_name, " ");
-					strcat(dev->mtd_name, t->str+t->ofs[i]);
-				}
-			}
-			DEBUG(2, "Found name: %s", dev->mtd_name);
-			break;
-		}
-
-		case CISTPL_JEDEC_C: {
-			cistpl_jedec_t *t = &parse.jedec;
-			int i;
-			for(i = 0; i < t->nid; i++) {
-				DEBUG(2, "JEDEC: 0x%02x 0x%02x", t->id[i].mfr, t->id[i].info);
-			}
-			break;
-		}
-
-		case CISTPL_DEVICE_GEO: {
-			cistpl_device_geo_t *t = &parse.device_geo;
-			int i;
-			dev->pcmcia_map.bankwidth = t->geo[0].buswidth;
-			for(i = 0; i < t->ngeo; i++) {
-				DEBUG(2, "region: %d bankwidth = %u", i, t->geo[i].buswidth);
-				DEBUG(2, "region: %d erase_block = %u", i, t->geo[i].erase_block);
-				DEBUG(2, "region: %d read_block = %u", i, t->geo[i].read_block);
-				DEBUG(2, "region: %d write_block = %u", i, t->geo[i].write_block);
-				DEBUG(2, "region: %d partition = %u", i, t->geo[i].partition);
-				DEBUG(2, "region: %d interleave = %u", i, t->geo[i].interleave);
-			}
-			break;
-		}
-
-		default:
-			DEBUG(2, "Unknown tuple code %d", tuple.TupleCode);
-		}
-
-		rc = pcmcia_get_next_tuple(link, &tuple);
+		DEBUG(2, "Found name: %s", dev->mtd_name);
 	}
+
+#ifdef CONFIG_MTD_DEBUG
+	pcmcia_loop_tuple(p_dev, CISTPL_FORMAT, pcmciamtd_cistpl_format, NULL);
+	pcmcia_loop_tuple(p_dev, CISTPL_JEDEC_C, pcmciamtd_cistpl_jedec, NULL);
+#endif
+	pcmcia_loop_tuple(p_dev, CISTPL_DEVICE, pcmciamtd_cistpl_device, dev);
+	pcmcia_loop_tuple(p_dev, CISTPL_DEVICE_GEO, pcmciamtd_cistpl_geo, dev);
+
 	if(!dev->pcmcia_map.size)
 		dev->pcmcia_map.size = MAX_PCMCIA_ADDR;
 
