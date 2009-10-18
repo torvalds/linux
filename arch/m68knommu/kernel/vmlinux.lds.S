@@ -9,6 +9,7 @@
 
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/page.h>
+#include <asm/thread_info.h>
 
 #if defined(CONFIG_RAMKERNEL)
 #define	RAM_START	CONFIG_KERNELBASE
@@ -148,10 +149,8 @@ SECTIONS {
 		. = ALIGN(4);
 		_sdata = . ;
 		DATA_DATA
-		. = ALIGN(32);
-		*(.data.cacheline_aligned)
-		. = ALIGN(8192) ;
-		*(.data.init_task)
+		CACHELINE_ALIGNED_DATA(32)
+		INIT_TASK_DATA(THREAD_SIZE)
 		_edata = . ;
 	} > DATA
 
