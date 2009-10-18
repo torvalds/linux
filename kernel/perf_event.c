@@ -4186,6 +4186,8 @@ static const struct pmu *sw_perf_event_init(struct perf_event *event)
 	case PERF_COUNT_SW_PAGE_FAULTS_MAJ:
 	case PERF_COUNT_SW_CONTEXT_SWITCHES:
 	case PERF_COUNT_SW_CPU_MIGRATIONS:
+	case PERF_COUNT_SW_ALIGNMENT_FAULTS:
+	case PERF_COUNT_SW_EMULATION_FAULTS:
 		if (!event->parent) {
 			atomic_inc(&perf_swevent_enabled[event_id]);
 			event->destroy = sw_perf_event_destroy;

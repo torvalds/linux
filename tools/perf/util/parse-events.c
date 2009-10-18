@@ -46,6 +46,8 @@ static struct event_symbol event_symbols[] = {
   { CSW(PAGE_FAULTS_MAJ),	"major-faults",		""		},
   { CSW(CONTEXT_SWITCHES),	"context-switches",	"cs"		},
   { CSW(CPU_MIGRATIONS),	"cpu-migrations",	"migrations"	},
+  { CSW(ALIGNMENT_FAULTS),	"alignment-faults",	""		},
+  { CSW(EMULATION_FAULTS),	"emulation-faults",	""		},
 };
 
 #define __PERF_EVENT_FIELD(config, name) \
@@ -74,6 +76,8 @@ static const char *sw_event_names[] = {
 	"CPU-migrations",
 	"minor-faults",
 	"major-faults",
+	"alignment-faults",
+	"emulation-faults",
 };
 
 #define MAX_ALIASES 8
