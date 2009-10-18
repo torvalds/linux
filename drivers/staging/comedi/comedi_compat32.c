@@ -97,12 +97,9 @@ static int translated_ioctl(struct file *file, unsigned int cmd,
 	if (!file->f_op)
 		return -ENOTTY;
 
-	if (file->f_op->unlocked_ioctl) {
-		int rc = (int)(*file->f_op->unlocked_ioctl) (file, cmd, arg);
-		if (rc == -ENOIOCTLCMD)
-			rc = -ENOTTY;
-		return rc;
-	}
+	if (file->f_op->unlocked_ioctl)
+		return file->f_op->unlocked_ioctl(file, cmd, arg);
+
 	return -ENOTTY;
 }
 
