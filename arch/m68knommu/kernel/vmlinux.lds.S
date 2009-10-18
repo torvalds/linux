@@ -154,22 +154,13 @@ SECTIONS {
 		_edata = . ;
 	} > DATA
 
-	.init : {
+	.init.text : {
 		. = ALIGN(PAGE_SIZE);
 		__init_begin = .;
 	} > INIT
-	.init : {
-		_sinittext = .;
-		INIT_TEXT
-		_einittext = .;
-		INIT_DATA
-		INIT_SETUP(16)
-		INIT_CALLS
-		CON_INITCALL
-		SECURITY_INITCALL
-		INIT_RAM_FS
-	} > INIT
-	.init : {
+	INIT_TEXT_SECTION(PAGE_SIZE) > INIT
+	INIT_DATA_SECTION(16) > INIT
+	.init.data : {
 		. = ALIGN(PAGE_SIZE);
 		__init_end = .;
 	} > INIT
