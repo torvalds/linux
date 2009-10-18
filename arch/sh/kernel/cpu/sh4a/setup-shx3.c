@@ -15,6 +15,15 @@
 #include <linux/sh_timer.h>
 #include <asm/mmzone.h>
 
+/*
+ * This intentionally only registers SCIF ports 0, 1, and 3. SCIF 2
+ * INTEVT values overlap with the FPU EXPEVT ones, requiring special
+ * demuxing in the exception dispatch path.
+ *
+ * As this overlap is something that never should have made it in to
+ * silicon in the first place, we just refuse to deal with the port at
+ * all rather than adding infrastructure to hack around it.
+ */
 static struct plat_sci_port sci_platform_data[] = {
 	{
 		.mapbase	= 0xffc30000,
@@ -26,11 +35,6 @@ static struct plat_sci_port sci_platform_data[] = {
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
 		.irqs		= { 44, 45, 47, 46 },
-	}, {
-		.mapbase	= 0xffc50000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 48, 49, 51, 50 },
 	}, {
 		.mapbase	= 0xffc60000,
 		.flags		= UPF_BOOT_AUTOCONF,
@@ -313,8 +317,6 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(SCIF0_BRI, 0x740), INTC_VECT(SCIF0_TXI, 0x760),
 	INTC_VECT(SCIF1_ERI, 0x780), INTC_VECT(SCIF1_RXI, 0x7a0),
 	INTC_VECT(SCIF1_BRI, 0x7c0), INTC_VECT(SCIF1_TXI, 0x7e0),
-	INTC_VECT(SCIF2_ERI, 0x800), INTC_VECT(SCIF2_RXI, 0x820),
-	INTC_VECT(SCIF2_BRI, 0x840), INTC_VECT(SCIF2_TXI, 0x860),
 	INTC_VECT(SCIF3_ERI, 0x880), INTC_VECT(SCIF3_RXI, 0x8a0),
 	INTC_VECT(SCIF3_BRI, 0x8c0), INTC_VECT(SCIF3_TXI, 0x8e0),
 	INTC_VECT(DMAC0_DMINT0, 0x900), INTC_VECT(DMAC0_DMINT1, 0x920),
@@ -355,7 +357,6 @@ static struct intc_group groups[] __initdata = {
 	INTC_GROUP(PCII56789, PCII5, PCII6, PCII7, PCII8, PCII9),
 	INTC_GROUP(SCIF0, SCIF0_ERI, SCIF0_RXI, SCIF0_BRI, SCIF0_TXI),
 	INTC_GROUP(SCIF1, SCIF1_ERI, SCIF1_RXI, SCIF1_BRI, SCIF1_TXI),
-	INTC_GROUP(SCIF2, SCIF2_ERI, SCIF2_RXI, SCIF2_BRI, SCIF2_TXI),
 	INTC_GROUP(SCIF3, SCIF3_ERI, SCIF3_RXI, SCIF3_BRI, SCIF3_TXI),
 	INTC_GROUP(DMAC0, DMAC0_DMINT0, DMAC0_DMINT1, DMAC0_DMINT2,
 		   DMAC0_DMINT3, DMAC0_DMINT4, DMAC0_DMINT5, DMAC0_DMAE),
