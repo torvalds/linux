@@ -1863,9 +1863,7 @@ static int comedi_fasync(int fd, struct file *file, int on)
 const struct file_operations comedi_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = comedi_unlocked_ioctl,
-#ifdef HAVE_COMPAT_IOCTL
 	.compat_ioctl = comedi_compat_ioctl,
-#endif
 	.open = comedi_open,
 	.release = comedi_close,
 	.read = comedi_read,
@@ -1950,8 +1948,6 @@ static int __init comedi_init(void)
 		}
 	}
 
-	comedi_register_ioctl32();
-
 	return 0;
 }
 
@@ -1968,8 +1964,6 @@ static void __exit comedi_cleanup(void)
 	unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS);
 
 	comedi_proc_cleanup();
-
-	comedi_unregister_ioctl32();
 }
 
 module_init(comedi_init);

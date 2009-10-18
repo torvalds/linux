@@ -33,10 +33,6 @@
 
 #ifdef CONFIG_COMPAT
 
-#ifndef HAVE_COMPAT_IOCTL
-#include <linux/ioctl32.h>	/* for (un)register_ioctl32_conversion */
-#endif
-
 #define COMEDI32_CHANINFO _IOR(CIO, 3, struct comedi32_chaninfo_struct)
 #define COMEDI32_RANGEINFO _IOR(CIO, 8, struct comedi32_rangeinfo_struct)
 /* N.B. COMEDI32_CMD and COMEDI_CMD ought to use _IOWR, not _IOR.
@@ -462,115 +458,11 @@ static inline int raw_ioctl(struct file *file, unsigned int cmd,
 	return rc;
 }
 
-#ifdef HAVE_COMPAT_IOCTL	/* defined in <linux/fs.h> 2.6.11 onwards */
-
 /* compat_ioctl file operation. */
 /* Returns -ENOIOCTLCMD for unrecognised ioctl codes. */
 long comedi_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return raw_ioctl(file, cmd, arg);
 }
-
-#else /* HAVE_COMPAT_IOCTL */
-
-/*
- * Brain-dead ioctl compatibility for 2.6.10 and earlier.
- *
- * It's brain-dead because cmd numbers need to be unique system-wide!
- * The comedi driver could end up attempting to execute ioctls for non-Comedi
- * devices because it registered the system-wide cmd code first.  Similarly,
- * another driver could end up attempting to execute ioctls for a Comedi
- * device because it registered the cmd code first.  Chaos ensues.
- */
-
-/* Handler for all 32-bit ioctl codes registered by this driver. */
-static int mapped_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg,
-			struct file *file)
-{
-	int rc;
-
-	/* Make sure we are dealing with a Comedi device. */
-	if (imajor(file->f_dentry->d_inode) != COMEDI_MAJOR)
-		return -ENOTTY;
-
-	rc = raw_ioctl(file, cmd, arg);
-	/* Do not return -ENOIOCTLCMD. */
-	if (rc == -ENOIOCTLCMD)
-		rc = -ENOTTY;
-
-	return rc;
-}
-
-struct ioctl32_map {
-	unsigned int cmd;
-	int (*handler) (unsigned int, unsigned int, unsigned long,
-			struct file *);
-	int registered;
-};
-
-static struct ioctl32_map comedi_ioctl32_map[] = {
-	{COMEDI_DEVCONFIG, mapped_ioctl, 0},
-	{COMEDI_DEVINFO, mapped_ioctl, 0},
-	{COMEDI_SUBDINFO, mapped_ioctl, 0},
-	{COMEDI_BUFCONFIG, mapped_ioctl, 0},
-	{COMEDI_BUFINFO, mapped_ioctl, 0},
-	{COMEDI_LOCK, mapped_ioctl, 0},
-	{COMEDI_UNLOCK, mapped_ioctl, 0},
-	{COMEDI_CANCEL, mapped_ioctl, 0},
-	{COMEDI_POLL, mapped_ioctl, 0},
-	{COMEDI32_CHANINFO, mapped_ioctl, 0},
-	{COMEDI32_RANGEINFO, mapped_ioctl, 0},
-	{COMEDI32_CMD, mapped_ioctl, 0},
-	{COMEDI32_CMDTEST, mapped_ioctl, 0},
-	{COMEDI32_INSNLIST, mapped_ioctl, 0},
-	{COMEDI32_INSN, mapped_ioctl, 0},
-};
-
-#define NUM_IOCTL32_MAPS ARRAY_SIZE(comedi_ioctl32_map)
-
-/* Register system-wide 32-bit ioctl handlers. */
-void comedi_register_ioctl32(void)
-{
-	int n, rc;
-
-	for (n = 0; n < NUM_IOCTL32_MAPS; n++) {
-		rc = register_ioctl32_conversion(comedi_ioctl32_map[n].cmd,
-						 comedi_ioctl32_map[n].handler);
-		if (rc) {
-			printk(KERN_WARNING
-			       "comedi: failed to register 32-bit "
-			       "compatible ioctl handler for 0x%X - "
-			       "expect bad things to happen!\n",
-			       comedi_ioctl32_map[n].cmd);
-		}
-		comedi_ioctl32_map[n].registered = !rc;
-	}
-}
-
-/* Unregister system-wide 32-bit ioctl translations. */
-void comedi_unregister_ioctl32(void)
-{
-	int n, rc;
-
-	for (n = 0; n < NUM_IOCTL32_MAPS; n++) {
-		if (comedi_ioctl32_map[n].registered) {
-			rc = unregister_ioctl32_conversion(comedi_ioctl32_map
-							   [n].cmd,
-							   comedi_ioctl32_map
-							   [n].handler);
-			if (rc) {
-				printk(KERN_ERR
-				       "comedi: failed to unregister 32-bit "
-				       "compatible ioctl handler for 0x%X - "
-				       "expect kernel Oops!\n",
-				       comedi_ioctl32_map[n].cmd);
-			} else {
-				comedi_ioctl32_map[n].registered = 0;
-			}
-		}
-	}
-}
-
-#endif /* HAVE_COMPAT_IOCTL */
 
 #endif /* CONFIG_COMPAT */
