@@ -4058,7 +4058,7 @@ static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	/* A short read signals EOF */
 	if (len < OVFX2_BULK_SIZE) {
-		gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, len);
+		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, len);
 		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
 		return;
 	}
