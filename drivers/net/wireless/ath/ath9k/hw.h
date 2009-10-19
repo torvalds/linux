@@ -148,6 +148,15 @@ enum wireless_mode {
 	ATH9K_MODE_MAX,
 };
 
+/**
+ * ath9k_ant_setting - transmit antenna settings
+ *
+ * Configures the antenna setting to use for transmit.
+ *
+ * @ATH9K_ANT_VARIABLE: this means transmit on all active antennas
+ * @ATH9K_ANT_FIXED_A: this means transmit on the first antenna only
+ * @ATH9K_ANT_FIXED_B: this means transmit on the second antenna only
+ */
 enum ath9k_ant_setting {
 	ATH9K_ANT_VARIABLE = 0,
 	ATH9K_ANT_FIXED_A,
