@@ -791,6 +791,8 @@ int ceph_calc_object_layout(struct ceph_object_layout *ol,
 	pgid.pg64 = 0;   /* start with it zeroed out */
 	pgid.pg.ps = ceph_full_name_hash(oid, strlen(oid));
 	pgid.pg.preferred = preferred;
+	if (preferred >= 0)
+		pgid.pg.ps += preferred;
 	pgid.pg.pool = le32_to_cpu(fl->fl_pg_pool);
 	if (preferred >= 0)
 		dout("calc_object_layout '%s' pgid %d.%xp%d (%llx)\n", oid,
