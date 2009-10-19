@@ -17,18 +17,27 @@
 #ifndef PHY_H
 #define PHY_H
 
-int ath9k_hw_ar9280_set_channel(struct ath_hw *ah, struct ath9k_channel *chan);
-int ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan);
+/* Common between single chip and non single-chip solutions */
 void ath9k_hw_write_regs(struct ath_hw *ah, u32 modesIndex,
 			 u32 freqIndex, int regWrites);
+
+/* Single chip radio settings */
+int ath9k_hw_ar9280_set_channel(struct ath_hw *ah, struct ath9k_channel *chan);
+void ath9k_hw_9280_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan);
+
+/* Routines below are for non single-chip solutions */
+int ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan);
+void ath9k_hw_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan);
+
+int ath9k_hw_rf_alloc_ext_banks(struct ath_hw *ah);
+void ath9k_hw_rf_free_ext_banks(struct ath_hw *ah);
+
 bool ath9k_hw_set_rf_regs(struct ath_hw *ah,
 			  struct ath9k_channel *chan,
 			  u16 modesIndex);
+
 void ath9k_hw_decrease_chain_power(struct ath_hw *ah,
 				   struct ath9k_channel *chan);
-
-void ath9k_hw_rf_free_ext_banks(struct ath_hw *ah);
-int ath9k_hw_rf_alloc_ext_banks(struct ath_hw *ah);
 
 #define AR_PHY_BASE     0x9800
 #define AR_PHY(_n)      (AR_PHY_BASE + ((_n)<<2))
