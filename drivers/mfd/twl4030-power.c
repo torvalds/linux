@@ -75,6 +75,8 @@ static u8 twl4030_start_script_address = 0x2b;
 */
 #define DEV_GRP_OFFSET		0
 #define TYPE_OFFSET		1
+#define REMAP_OFFSET		2
+#define DEDICATED_OFFSET	3
 
 /* Bit positions in the registers */
 
@@ -87,6 +89,12 @@ static u8 twl4030_start_script_address = 0x2b;
 #define TYPE_MASK		(7 << TYPE_SHIFT)
 #define TYPE2_SHIFT		3
 #define TYPE2_MASK		(3 << TYPE2_SHIFT)
+
+/* <RESOURCE>_REMAP */
+#define SLEEP_STATE_SHIFT	0
+#define SLEEP_STATE_MASK	(0xf << SLEEP_STATE_SHIFT)
+#define OFF_STATE_SHIFT		4
+#define OFF_STATE_MASK		(0xf << OFF_STATE_SHIFT)
 
 static u8 res_config_addrs[] = {
 	[RES_VAUX1]	= 0x17,
@@ -325,6 +333,7 @@ static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	int err;
 	u8 type;
 	u8 grp;
+	u8 remap;
 
 	if (rconfig->resource > TOTAL_RESOURCES) {
 		pr_err("TWL4030 Resource %d does not exist\n",
@@ -377,6 +386,33 @@ static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 				type, rconfig_addr + TYPE_OFFSET);
 	if (err < 0) {
 		pr_err("TWL4030 failed to program resource type\n");
+		return err;
+	}
+
+	/* Set remap states */
+	err = twl4030_i2c_read_u8(TWL4030_MODULE_PM_RECEIVER, &remap,
+				rconfig_addr + REMAP_OFFSET);
+	if (err < 0) {
+		pr_err("TWL4030 Resource %d remap could not be read\n",
+			rconfig->resource);
+		return err;
+	}
+
+	if (rconfig->remap_off >= 0) {
+		remap &= ~OFF_STATE_MASK;
+		remap |= rconfig->remap_off << OFF_STATE_SHIFT;
+	}
+
+	if (rconfig->remap_sleep >= 0) {
+		remap &= ~SLEEP_STATE_MASK;
+		remap |= rconfig->remap_off << SLEEP_STATE_SHIFT;
+	}
+
+	err = twl4030_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
+				remap,
+				rconfig_addr + REMAP_OFFSET);
+	if (err < 0) {
+		pr_err("TWL4030 failed to program remap\n");
 		return err;
 	}
 
