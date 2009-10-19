@@ -56,7 +56,8 @@
 		MAX_DB_PAGES_PER_BQ(NUM_LARGE_BUFFERS) * sizeof(u64))
 #define SMALL_BUFFER_SIZE 512
 #define SMALL_BUF_MAP_SIZE (SMALL_BUFFER_SIZE / 2)
-#define LARGE_BUFFER_SIZE	PAGE_SIZE
+#define LARGE_BUFFER_MAX_SIZE 8192
+#define LARGE_BUFFER_MIN_SIZE 2048
 #define MAX_SPLIT_SIZE 1023
 #define QLGE_SB_PAD 32
 
@@ -1201,9 +1202,17 @@ struct tx_ring_desc {
 	struct tx_ring_desc *next;
 };
 
+struct page_chunk {
+	struct page *page;	/* master page */
+	char *va;		/* virt addr for this chunk */
+	u64 map;		/* mapping for master */
+	unsigned int offset;	/* offset for this chunk */
+	unsigned int last_flag; /* flag set for last chunk in page */
+};
+
 struct bq_desc {
 	union {
-		struct page *lbq_page;
+		struct page_chunk pg_chunk;
 		struct sk_buff *skb;
 	} p;
 	__le64 *addr;
@@ -1272,6 +1281,7 @@ struct rx_ring {
 	dma_addr_t lbq_base_dma;
 	void *lbq_base_indirect;
 	dma_addr_t lbq_base_indirect_dma;
+	struct page_chunk pg_chunk; /* current page for chunks */
 	struct bq_desc *lbq;	/* array of control blocks */
 	void __iomem *lbq_prod_idx_db_reg;	/* PCI doorbell mem area + 0x18 */
 	u32 lbq_prod_idx;	/* current sw prod idx */
@@ -1526,6 +1536,7 @@ struct ql_adapter {
 
 	struct rx_ring rx_ring[MAX_RX_RINGS];
 	struct tx_ring tx_ring[MAX_TX_RINGS];
+	unsigned int lbq_buf_order;
 
 	int rx_csum;
 	u32 default_rx_queue;
