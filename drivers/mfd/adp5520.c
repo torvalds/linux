@@ -66,7 +66,8 @@ static int __adp5520_write(struct i2c_client *client,
 	return 0;
 }
 
-int __adp5520_ack_bits(struct i2c_client *client, int reg, uint8_t bit_mask)
+static int __adp5520_ack_bits(struct i2c_client *client, int reg,
+			      uint8_t bit_mask)
 {
 	struct adp5520_chip *chip = i2c_get_clientdata(client);
 	uint8_t reg_val;
