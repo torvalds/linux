@@ -352,7 +352,7 @@ static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 		return err;
 	}
 
-	if (rconfig->devgroup >= 0) {
+	if (rconfig->devgroup != TWL4030_RESCONFIG_UNDEF) {
 		grp &= ~DEV_GRP_MASK;
 		grp |= rconfig->devgroup << DEV_GRP_SHIFT;
 		err = twl4030_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
@@ -372,12 +372,12 @@ static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 		return err;
 	}
 
-	if (rconfig->type >= 0) {
+	if (rconfig->type != TWL4030_RESCONFIG_UNDEF) {
 		type &= ~TYPE_MASK;
 		type |= rconfig->type << TYPE_SHIFT;
 	}
 
-	if (rconfig->type2 >= 0) {
+	if (rconfig->type2 != TWL4030_RESCONFIG_UNDEF) {
 		type &= ~TYPE2_MASK;
 		type |= rconfig->type2 << TYPE2_SHIFT;
 	}

@@ -400,6 +400,7 @@ struct twl4030_power_data {
 	struct twl4030_script **scripts;
 	unsigned num;
 	struct twl4030_resconfig *resource_config;
+#define TWL4030_RESCONFIG_UNDEF	((u8)-1)
 };
 
 extern void twl4030_power_init(struct twl4030_power_data *triton2_scripts);
