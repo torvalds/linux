@@ -52,8 +52,17 @@ static struct omap_board_config_kernel sdp4430_config[] __initdata = {
 
 static void __init gic_init_irq(void)
 {
-	gic_dist_init(0, OMAP2_IO_ADDRESS(OMAP44XX_GIC_DIST_BASE), 29);
-	gic_cpu_init(0, OMAP2_IO_ADDRESS(OMAP44XX_GIC_CPU_BASE));
+	void __iomem *base;
+
+	/* Static mapping, never released */
+	base = ioremap(OMAP44XX_GIC_DIST_BASE, SZ_4K);
+	BUG_ON(!base);
+	gic_dist_init(0, base, 29);
+
+	/* Static mapping, never released */
+	gic_cpu_base_addr = ioremap(OMAP44XX_GIC_CPU_BASE, SZ_512);
+	BUG_ON(!gic_cpu_base_addr);
+	gic_cpu_init(0, gic_cpu_base_addr);
 }
 
 static void __init omap_4430sdp_init_irq(void)
