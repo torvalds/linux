@@ -641,8 +641,12 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		    le16_to_cpu(firmware_info->info.usReferenceClock);
 		p1pll->reference_div = 0;
 
-		p1pll->pll_out_min =
-		    le16_to_cpu(firmware_info->info.usMinPixelClockPLL_Output);
+		if (crev < 2)
+			p1pll->pll_out_min =
+				le16_to_cpu(firmware_info->info.usMinPixelClockPLL_Output);
+		else
+			p1pll->pll_out_min =
+				le32_to_cpu(firmware_info->info_12.ulMinPixelClockPLL_Output);
 		p1pll->pll_out_max =
 		    le32_to_cpu(firmware_info->info.ulMaxPixelClockPLL_Output);
 
