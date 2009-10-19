@@ -80,6 +80,10 @@ struct sd {
 	__u8 vflip;
 	__u8 autobrightness;
 	__u8 freq;
+	__u8 quality;
+#define QUALITY_MIN 50
+#define QUALITY_MAX 70
+#define QUALITY_DEF 50
 
 	__u8 stopped;		/* Streaming is temporarily paused */
 
@@ -104,6 +108,8 @@ struct sd {
 	int sensor_width;
 	int sensor_height;
 	int sensor_reg_cache[256];
+
+	u8 *jpeg_hdr;
 };
 
 /* Note this is a bit of a hack, but the w9968cf driver needs the code for all
@@ -2303,8 +2309,6 @@ static int i2c_w_mask(struct sd *sd,
  * registers while the camera is streaming */
 static inline int ov51x_stop(struct sd *sd)
 {
-	int ret;
-
 	PDEBUG(D_STREAM, "stopping");
 	sd->stopped = 1;
 	switch (sd->bridge) {
@@ -2319,10 +2323,7 @@ static inline int ov51x_stop(struct sd *sd)
 	case BRIDGE_OVFX2:
 		return reg_w_mask(sd, 0x0f, 0x00, 0x02);
 	case BRIDGE_W9968CF:
-		ret  = reg_w(sd, 0x3c, 0x0a05); /* stop USB transfer */
-		ret += reg_w(sd, 0x39, 0x0000); /* disable JPEG encoder */
-		ret += reg_w(sd, 0x16, 0x0000); /* stop video capture */
-		return ret;
+		return reg_w(sd, 0x3c, 0x0a05); /* stop USB transfer */
 	}
 
 	return 0;
@@ -3088,8 +3089,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	case BRIDGE_W9968CF:
 		cam->cam_mode = w9968cf_vga_mode;
 		cam->nmodes = ARRAY_SIZE(w9968cf_vga_mode);
-		/* if (sd->sif)
-			cam->nmodes--; */
+		if (sd->sif)
+			cam->nmodes--;
 
 		/* w9968cf needs initialisation once the sensor is known */
 		if (w9968cf_init(sd) < 0)
@@ -3113,6 +3114,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX) |
 				      (1 << OV7670_FREQ_IDX);
 	}
+	sd->quality = QUALITY_DEF;
 	if (sd->sensor == SEN_OV7640 || sd->sensor == SEN_OV7670)
 		gspca_dev->ctrl_dis |= 1 << AUTOBRIGHT_IDX;
 	/* OV8610 Frequency filter control should work but needs testing */
@@ -3909,6 +3911,14 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	ov51x_led_control(sd, 0);
 }
 
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->bridge == BRIDGE_W9968CF)
+		w9968cf_stop0(sd);
+}
+
 static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *in,			/* isoc packet */
@@ -4421,6 +4431,45 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 	return -EINVAL;
 }
 
+static int sd_get_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->bridge != BRIDGE_W9968CF)
+		return -EINVAL;
+
+	memset(jcomp, 0, sizeof *jcomp);
+	jcomp->quality = sd->quality;
+	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT | V4L2_JPEG_MARKER_DQT |
+			      V4L2_JPEG_MARKER_DRI;
+	return 0;
+}
+
+static int sd_set_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->bridge != BRIDGE_W9968CF)
+		return -EINVAL;
+
+	if (gspca_dev->streaming)
+		return -EBUSY;
+
+	if (jcomp->quality < QUALITY_MIN)
+		sd->quality = QUALITY_MIN;
+	else if (jcomp->quality > QUALITY_MAX)
+		sd->quality = QUALITY_MAX;
+	else
+		sd->quality = jcomp->quality;
+
+	/* Return resulting jcomp params to app */
+	sd_get_jcomp(gspca_dev, jcomp);
+
+	return 0;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -4430,8 +4479,11 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
+	.get_jcomp = sd_get_jcomp,
+	.set_jcomp = sd_set_jcomp,
 };
 
 /* -- module initialisation -- */

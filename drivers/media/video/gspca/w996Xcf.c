@@ -31,57 +31,14 @@
    the sensor drivers to v4l2 sub drivers, and properly split of this
    driver from ov519.c */
 
+/* The CONEX_CAM define for jpeg.h needs renaming, now its used here too */
+#define CONEX_CAM
+#include "jpeg.h"
+
 #define W9968CF_I2C_BUS_DELAY    4 /* delay in us for I2C bit r/w operations */
 
-/* FIXME make this runtime configurable */
-/* Comment/uncomment this for high/low quality of compressed video */
-#define W9968CF_DEC_FAST_LOWQUALITY_VIDEO
-
-#ifdef W9968CF_DEC_FAST_LOWQUALITY_VIDEO
-static const unsigned char Y_QUANTABLE[64] = {
-	16,  11,  10,  16,  24,  40,  51,  61,
-	12,  12,  14,  19,  26,  58,  60,  55,
-	14,  13,  16,  24,  40,  57,  69,  56,
-	14,  17,  22,  29,  51,  87,  80,  62,
-	18,  22,  37,  56,  68, 109, 103,  77,
-	24,  35,  55,  64,  81, 104, 113,  92,
-	49,  64,  78,  87, 103, 121, 120, 101,
-	72,  92,  95,  98, 112, 100, 103,  99
-};
-
-static const unsigned char UV_QUANTABLE[64] = {
-	17,  18,  24,  47,  99,  99,  99,  99,
-	18,  21,  26,  66,  99,  99,  99,  99,
-	24,  26,  56,  99,  99,  99,  99,  99,
-	47,  66,  99,  99,  99,  99,  99,  99,
-	99,  99,  99,  99,  99,  99,  99,  99,
-	99,  99,  99,  99,  99,  99,  99,  99,
-	99,  99,  99,  99,  99,  99,  99,  99,
-	99,  99,  99,  99,  99,  99,  99,  99
-};
-#else
-static const unsigned char Y_QUANTABLE[64] = {
-	 8,   5,   5,   8,  12,  20,  25,  30,
-	 6,   6,   7,   9,  13,  29,  30,  27,
-	 7,   6,   8,  12,  20,  28,  34,  28,
-	 7,   8,  11,  14,  25,  43,  40,  31,
-	 9,  11,  18,  28,  34,  54,  51,  38,
-	12,  17,  27,  32,  40,  52,  56,  46,
-	24,  32,  39,  43,  51,  60,  60,  50,
-	36,  46,  47,  49,  56,  50,  51,  49
-};
-
-static const unsigned char UV_QUANTABLE[64] = {
-	 8,   9,  12,  23,  49,  49,  49,  49,
-	 9,  10,  13,  33,  49,  49,  49,  49,
-	12,  13,  28,  49,  49,  49,  49,  49,
-	23,  33,  49,  49,  49,  49,  49,  49,
-	49,  49,  49,  49,  49,  49,  49,  49,
-	49,  49,  49,  49,  49,  49,  49,  49,
-	49,  49,  49,  49,  49,  49,  49,  49,
-	49,  49,  49,  49,  49,  49,  49,  49
-};
-#endif
+#define Y_QUANTABLE (sd->jpeg_hdr + JPEG_QT0_OFFSET)
+#define UV_QUANTABLE (sd->jpeg_hdr + JPEG_QT1_OFFSET)
 
 static const struct v4l2_pix_format w9968cf_vga_mode[] = {
 	{160, 120, V4L2_PIX_FMT_UYVY, V4L2_FIELD_NONE,
@@ -92,18 +49,18 @@ static const struct v4l2_pix_format w9968cf_vga_mode[] = {
 		.bytesperline = 176 * 2,
 		.sizeimage = 176 * 144 * 2,
 		.colorspace = V4L2_COLORSPACE_JPEG},
-	{320, 240, V4L2_PIX_FMT_UYVY, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320 * 2,
 		.sizeimage = 320 * 240 * 2,
 		.colorspace = V4L2_COLORSPACE_JPEG},
-	{352, 288, V4L2_PIX_FMT_UYVY, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 352 * 2,
 		.sizeimage = 352 * 288 * 2,
 		.colorspace = V4L2_COLORSPACE_JPEG},
-/*	{640, 480, V4L2_PIX_FMT_UYVY, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 640 * 2,
 		.sizeimage = 640 * 480 * 2,
-		.colorspace = V4L2_COLORSPACE_JPEG}, */
+		.colorspace = V4L2_COLORSPACE_JPEG},
 };
 
 static int reg_w(struct sd *sd, __u16 index, __u16 value);
@@ -534,16 +491,34 @@ static int w9968cf_mode_init_regs(struct sd *sd)
 	ret += reg_w(sd, 0x31, sd->gspca_dev.height);
 
 	/* Y & UV frame buffer strides (in WORD) */
+	if (w9968cf_vga_mode[sd->gspca_dev.curr_mode].pixelformat ==
+	    V4L2_PIX_FMT_JPEG) {
+		ret += reg_w(sd, 0x2c, sd->gspca_dev.width/2);
+		ret += reg_w(sd, 0x2d, sd->gspca_dev.width/4);
+	} else
 		ret += reg_w(sd, 0x2c, sd->gspca_dev.width);
 
 	ret += reg_w(sd, 0x00, 0xbf17); /* reset everything */
 	ret += reg_w(sd, 0x00, 0xbf10); /* normal operation */
 
-	/* Transfer size */
-	/* FIXME JPEG * 4 ?? */
+	/* Transfer size in WORDS (for UYVY format only) */
 	val = sd->gspca_dev.width * sd->gspca_dev.height;
 	ret += reg_w(sd, 0x3d, val & 0xffff); /* low bits */
 	ret += reg_w(sd, 0x3e, val >> 16);    /* high bits */
+
+	if (w9968cf_vga_mode[sd->gspca_dev.curr_mode].pixelformat ==
+	    V4L2_PIX_FMT_JPEG) {
+		/* We may get called multiple times (usb isoc bw negotiat.) */
+		if (!sd->jpeg_hdr)
+			sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+		if (!sd->jpeg_hdr)
+			return -ENOMEM;
+
+		jpeg_define(sd->jpeg_hdr, sd->gspca_dev.height,
+			    sd->gspca_dev.width, 0x22); /* JPEG 420 */
+		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+		ret += w9968cf_upload_quantizationtables(sd);
+	}
 
 	/* Video Capture Control Register */
 	if (sd->sensor == SEN_OV7620) {
@@ -557,6 +532,15 @@ static int w9968cf_mode_init_regs(struct sd *sd)
 
 	val = (vs_polarity << 12) | (hs_polarity << 11);
 
+	/* NOTE: We may not have enough memory to do double buffering while
+	   doing compression (amount of memory differs per model cam).
+	   So we use the second image buffer also as jpeg stream buffer
+	   (see w9968cf_init), and disable double buffering. */
+	if (w9968cf_vga_mode[sd->gspca_dev.curr_mode].pixelformat ==
+	    V4L2_PIX_FMT_JPEG) {
+		/* val |= 0x0002; YUV422P */
+		val |= 0x0003; /* YUV420P */
+	} else
 		val |= 0x0080; /* Enable HW double buffering */
 
 	/* val |= 0x0020; enable clamping */
@@ -572,18 +556,55 @@ static int w9968cf_mode_init_regs(struct sd *sd)
 	return ret;
 }
 
+static void w9968cf_stop0(struct sd *sd)
+{
+	if (sd->gspca_dev.present) {
+		reg_w(sd, 0x39, 0x0000); /* disable JPEG encoder */
+		reg_w(sd, 0x16, 0x0000); /* stop video capture */
+	}
+
+	kfree(sd->jpeg_hdr);
+	sd->jpeg_hdr = NULL;
+}
+
+/* The w9968cf docs say that a 0 sized packet means EOF (and also SOF
+   for the next frame). This seems to simply not be true when operating
+   in JPEG mode, in this case there may be empty packets within the
+   frame. So in JPEG mode use the JPEG SOI marker to detect SOF.
+
+   Note to make things even more interesting the w9968cf sends *PLANAR* jpeg,
+   to be precise it sends: SOI, SOF, DRI, SOS, Y-data, SOS, U-data, SOS,
+   V-data, EOI. */
 static void w9968cf_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
-	/* An empty packet signals EOF */
-	if (gspca_dev->empty_packet) {
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (w9968cf_vga_mode[gspca_dev->curr_mode].pixelformat ==
+	    V4L2_PIX_FMT_JPEG) {
+		if (len >= 2 &&
+		    data[0] == 0xff &&
+		    data[1] == 0xd8) {
+			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					NULL, 0);
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-				NULL, 0);
-		gspca_dev->empty_packet = 0;
+			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+					sd->jpeg_hdr, JPEG_HDR_SZ);
+			/* Strip the ff d8, our own header (which adds
+			   huffman and quantization tables) already has this */
+			len -= 2;
+			data += 2;
+		}
+	} else {
+		/* In UYVY mode an empty packet signals EOF */
+		if (gspca_dev->empty_packet) {
+			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+						NULL, 0);
+			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+					NULL, 0);
+			gspca_dev->empty_packet = 0;
+		}
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }

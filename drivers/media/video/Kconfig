@@ -956,7 +956,8 @@ config VIDEO_OVCAMCHIP
 	---help---
 	  This driver is DEPRECATED please use the gspca ov519 module
 	  instead. Note that for the ov511 / ov518 support of the gspca module
-	  you need atleast version 0.6.0 of libv4l.
+	  you need atleast version 0.6.0 of libv4l and for the w9968cf
+	  atleast version 0.6.3 of libv4l.
 
 	  Support for the OmniVision OV6xxx and OV7xxx series of camera chips.
 	  This driver is intended to be used with the ov511 and w9968cf USB
@@ -970,7 +971,8 @@ config USB_W9968CF
 	depends on VIDEO_V4L1 && I2C && VIDEO_OVCAMCHIP
 	---help---
 	  This driver is DEPRECATED please use the gspca ov519 module
-	  instead.
+	  instead. Note that for the w9968cf support of the gspca module
+	  you need atleast version 0.6.3 of libv4l.
 
 	  Say Y here if you want support for cameras based on OV681 or
 	  Winbond W9967CF/W9968CF JPEG USB Dual Mode Camera Chips.
