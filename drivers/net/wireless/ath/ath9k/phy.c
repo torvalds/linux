@@ -416,64 +416,32 @@ ath9k_hw_rf_free(struct ath_hw *ah)
  */
 int ath9k_hw_rf_alloc_ext_banks(struct ath_hw *ah)
 {
+#define ATH_ALLOC_BANK(bank, size) do { \
+		bank = kzalloc((sizeof(u32) * size), GFP_KERNEL); \
+		if (!bank) { \
+			ath_print(common, ATH_DBG_FATAL, \
+				  "Cannot allocate RF banks\n"); \
+			return -ENOMEM; \
+		} \
+	} while (0);
+
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	BUG_ON(AR_SREV_9280_10_OR_LATER(ah));
 
-	ah->analogBank0Data =
-	    kzalloc((sizeof(u32) *
-		     ah->iniBank0.ia_rows), GFP_KERNEL);
-	ah->analogBank1Data =
-	    kzalloc((sizeof(u32) *
-		     ah->iniBank1.ia_rows), GFP_KERNEL);
-	ah->analogBank2Data =
-	    kzalloc((sizeof(u32) *
-		     ah->iniBank2.ia_rows), GFP_KERNEL);
-	ah->analogBank3Data =
-	    kzalloc((sizeof(u32) *
-		     ah->iniBank3.ia_rows), GFP_KERNEL);
-	ah->analogBank6Data =
-	    kzalloc((sizeof(u32) *
-		     ah->iniBank6.ia_rows), GFP_KERNEL);
-	ah->analogBank6TPCData =
-	    kzalloc((sizeof(u32) *
-		     ah->iniBank6TPC.ia_rows), GFP_KERNEL);
-	ah->analogBank7Data =
-	    kzalloc((sizeof(u32) *
-		     ah->iniBank7.ia_rows), GFP_KERNEL);
-
-	if (ah->analogBank0Data == NULL
-	    || ah->analogBank1Data == NULL
-	    || ah->analogBank2Data == NULL
-	    || ah->analogBank3Data == NULL
-	    || ah->analogBank6Data == NULL
-	    || ah->analogBank6TPCData == NULL
-	    || ah->analogBank7Data == NULL) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Cannot allocate RF banks\n");
-		return -ENOMEM;
-	}
-
-	ah->addac5416_21 =
-	    kzalloc((sizeof(u32) *
-		     ah->iniAddac.ia_rows *
-		     ah->iniAddac.ia_columns), GFP_KERNEL);
-	if (ah->addac5416_21 == NULL) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Cannot allocate addac5416_21\n");
-		return -ENOMEM;
-	}
-
-	ah->bank6Temp =
-	    kzalloc((sizeof(u32) *
-		     ah->iniBank6.ia_rows), GFP_KERNEL);
-	if (ah->bank6Temp == NULL) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Cannot allocate bank6Temp\n");
-		return -ENOMEM;
-	}
+	ATH_ALLOC_BANK(ah->analogBank0Data, ah->iniBank0.ia_rows);
+	ATH_ALLOC_BANK(ah->analogBank1Data, ah->iniBank1.ia_rows);
+	ATH_ALLOC_BANK(ah->analogBank2Data, ah->iniBank2.ia_rows);
+	ATH_ALLOC_BANK(ah->analogBank3Data, ah->iniBank3.ia_rows);
+	ATH_ALLOC_BANK(ah->analogBank6Data, ah->iniBank6.ia_rows);
+	ATH_ALLOC_BANK(ah->analogBank6TPCData, ah->iniBank6TPC.ia_rows);
+	ATH_ALLOC_BANK(ah->analogBank7Data, ah->iniBank7.ia_rows);
+	ATH_ALLOC_BANK(ah->addac5416_21,
+		       ah->iniAddac.ia_rows * ah->iniAddac.ia_columns);
+	ATH_ALLOC_BANK(ah->bank6Temp, ah->iniBank6.ia_rows);
 
 	return 0;
+#undef ATH_ALLOC_BANK
 }
 
 /**
