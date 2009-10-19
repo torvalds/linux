@@ -17,11 +17,8 @@
 #ifndef PHY_H
 #define PHY_H
 
-void ath9k_hw_ar9280_set_channel(struct ath_hw *ah,
-				 struct ath9k_channel
-				 *chan);
-bool ath9k_hw_set_channel(struct ath_hw *ah,
-			  struct ath9k_channel *chan);
+int ath9k_hw_ar9280_set_channel(struct ath_hw *ah, struct ath9k_channel *chan);
+int ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan);
 void ath9k_hw_write_regs(struct ath_hw *ah, u32 modesIndex,
 			 u32 freqIndex, int regWrites);
 bool ath9k_hw_set_rf_regs(struct ath_hw *ah,

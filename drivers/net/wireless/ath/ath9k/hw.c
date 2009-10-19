@@ -1868,6 +1868,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_channel *channel = chan->chan;
 	u32 synthDelay, qnum;
+	int r;
 
 	for (qnum = 0; qnum < AR_NUM_QCU; qnum++) {
 		if (ath9k_hw_numtxpending(ah, qnum)) {
@@ -1888,14 +1889,14 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 
 	ath9k_hw_set_regs(ah, chan);
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
-		ath9k_hw_ar9280_set_channel(ah, chan);
-	} else {
-		if (!(ath9k_hw_set_channel(ah, chan))) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Failed to set channel\n");
-			return false;
-		}
+	if (AR_SREV_9280_10_OR_LATER(ah))
+		r = ath9k_hw_ar9280_set_channel(ah, chan);
+	else
+		r = ath9k_hw_set_channel(ah, chan);
+	if (r) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Failed to set channel\n");
+		return false;
 	}
 
 	ah->eep_ops->set_txpower(ah, chan,
@@ -2534,10 +2535,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	REG_WRITE(ah, AR_RSSI_THR, INIT_RSSI_THR);
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
-		ath9k_hw_ar9280_set_channel(ah, chan);
+		r = ath9k_hw_ar9280_set_channel(ah, chan);
 	else
-		if (!(ath9k_hw_set_channel(ah, chan)))
-			return -EIO;
+		r = ath9k_hw_set_channel(ah, chan);
+	if (r)
+		return r;
 
 	for (i = 0; i < AR_NUM_DCU; i++)
 		REG_WRITE(ah, AR_DQCUMASK(i), 1 << i);
