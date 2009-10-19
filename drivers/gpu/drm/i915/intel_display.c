@@ -1289,7 +1289,10 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		break;
 	case 24:
 	case 32:
-		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+		if (crtc->fb->depth == 30)
+			dspcntr |= DISPPLANE_32BPP_30BIT_NO_ALPHA;
+		else
+			dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
 		break;
 	default:
 		DRM_ERROR("Unknown color depth\n");
