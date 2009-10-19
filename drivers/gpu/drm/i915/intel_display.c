@@ -2551,15 +2551,39 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
-static void i965_update_wm(struct drm_device *dev, int unused, int unused2,
-			   int unused3, int unused4)
+static void i965_update_wm(struct drm_device *dev, int planea_clock,
+			   int planeb_clock, int sr_hdisplay, int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long line_time_us;
+	int sr_clock, sr_entries, srwm = 1;
 
-	DRM_DEBUG_KMS("Setting FIFO watermarks - A: 8, B: 8, C: 8, SR 8\n");
+	/* Calc sr entries for one plane configs */
+	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
+		/* self-refresh has much higher latency */
+		const static int sr_latency_ns = 12000;
+
+		sr_clock = planea_clock ? planea_clock : planeb_clock;
+		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+
+		/* Use ns/us then divide to preserve precision */
+		sr_entries = (((sr_latency_ns / line_time_us) + 1) *
+			      pixel_size * sr_hdisplay) / 1000;
+		sr_entries = roundup(sr_entries / I915_FIFO_LINE_SIZE, 1);
+		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
+		srwm = I945_FIFO_SIZE - sr_entries;
+		if (srwm < 0)
+			srwm = 1;
+		srwm &= 0x3f;
+		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+	}
+
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: 8, B: 8, C: 8, SR %d\n",
+		      srwm);
 
 	/* 965 has limitations... */
-	I915_WRITE(DSPFW1, (8 << 16) | (8 << 8) | (8 << 0));
+	I915_WRITE(DSPFW1, (srwm << DSPFW_SR_SHIFT) | (8 << 16) | (8 << 8) |
+		   (8 << 0));
 	I915_WRITE(DSPFW2, (8 << 8) | (8 << 0));
 }
 
