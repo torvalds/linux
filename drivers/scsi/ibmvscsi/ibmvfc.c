@@ -1731,7 +1731,10 @@ static int ibmvfc_reset_device(struct scsi_device *sdev, int type, char *desc)
 	sdev_printk(KERN_INFO, sdev, "Resetting %s\n", desc);
 	wait_for_completion(&evt->comp);
 
-	if (rsp_iu.cmd.status) {
+	if (rsp_iu.cmd.status)
+		rsp_code = ibmvfc_get_err_result(&rsp_iu.cmd);
+
+	if (rsp_code) {
 		if (fc_rsp->flags & FCP_RSP_LEN_VALID)
 			rsp_code = fc_rsp->data.info.rsp_code;
 
@@ -1820,7 +1823,10 @@ static int ibmvfc_abort_task_set(struct scsi_device *sdev)
 	sdev_printk(KERN_INFO, sdev, "Aborting outstanding commands\n");
 	wait_for_completion(&evt->comp);
 
-	if (rsp_iu.cmd.status) {
+	if (rsp_iu.cmd.status)
+		rsp_code = ibmvfc_get_err_result(&rsp_iu.cmd);
+
+	if (rsp_code) {
 		if (fc_rsp->flags & FCP_RSP_LEN_VALID)
 			rsp_code = fc_rsp->data.info.rsp_code;
 
