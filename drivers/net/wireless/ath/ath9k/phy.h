@@ -18,8 +18,7 @@
 #define PHY_H
 
 /* Common between single chip and non single-chip solutions */
-void ath9k_hw_write_regs(struct ath_hw *ah, u32 modesIndex,
-			 u32 freqIndex, int regWrites);
+void ath9k_hw_write_regs(struct ath_hw *ah, u32 freqIndex, int regWrites);
 
 /* Single chip radio settings */
 int ath9k_hw_ar9280_set_channel(struct ath_hw *ah, struct ath9k_channel *chan);

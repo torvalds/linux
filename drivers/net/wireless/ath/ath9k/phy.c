@@ -45,15 +45,13 @@
  * ath9k_hw_write_regs - ??
  *
  * @ah: atheros hardware structure
- * @modesIndex:
  * @freqIndex:
  * @regWrites:
  *
  * Used for both the chipsets with an external AR2133/AR5133 radios and
  * single-chip devices.
  */
-void ath9k_hw_write_regs(struct ath_hw *ah, u32 modesIndex,
-			 u32 freqIndex, int regWrites)
+void ath9k_hw_write_regs(struct ath_hw *ah, u32 freqIndex, int regWrites)
 {
 	REG_WRITE_ARRAY(&ah->iniBB_RfGain, freqIndex, regWrites);
 }

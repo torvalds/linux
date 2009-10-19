@@ -1525,7 +1525,7 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 		DO_DELAY(regWrites);
 	}
 
-	ath9k_hw_write_regs(ah, modesIndex, freqIndex, regWrites);
+	ath9k_hw_write_regs(ah, freqIndex, regWrites);
 
 	if (AR_SREV_9271_10(ah))
 		REG_WRITE_ARRAY(&ah->iniModes_9271_1_0_only,
