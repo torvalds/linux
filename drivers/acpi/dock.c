@@ -93,40 +93,30 @@ struct dock_dependent_device {
  *                         Dock Dependent device functions                   *
  *****************************************************************************/
 /**
- *  alloc_dock_dependent_device - allocate and init a dependent device
- *  @handle: the acpi_handle of the dependent device
+ * add_dock_dependent_device - associate a device with the dock station
+ * @ds: The dock station
+ * @handle: handle of the dependent device
  *
- *  Allocate memory for a dependent device structure for a device referenced
- *  by the acpi handle
+ * Add the dependent device to the dock's dependent device list.
  */
-static struct dock_dependent_device *
-alloc_dock_dependent_device(acpi_handle handle)
+static int
+add_dock_dependent_device(struct dock_station *ds, acpi_handle handle)
 {
 	struct dock_dependent_device *dd;
 
 	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
-	if (dd) {
-		dd->handle = handle;
-		INIT_LIST_HEAD(&dd->list);
-		INIT_LIST_HEAD(&dd->hotplug_list);
-	}
-	return dd;
-}
+	if (!dd)
+		return -ENOMEM;
 
-/**
- * add_dock_dependent_device - associate a device with the dock station
- * @ds: The dock station
- * @dd: The dependent device
- *
- * Add the dependent device to the dock's dependent device list.
- */
-static void
-add_dock_dependent_device(struct dock_station *ds,
-			  struct dock_dependent_device *dd)
-{
+	dd->handle = handle;
+	INIT_LIST_HEAD(&dd->list);
+	INIT_LIST_HEAD(&dd->hotplug_list);
+
 	spin_lock(&ds->dd_lock);
 	list_add_tail(&dd->list, &ds->dependent_devices);
 	spin_unlock(&ds->dd_lock);
+
+	return 0;
 }
 
 /**
@@ -826,7 +816,6 @@ find_dock_devices(acpi_handle handle, u32 lvl, void *context, void **rv)
 	acpi_status status;
 	acpi_handle tmp, parent;
 	struct dock_station *ds = context;
-	struct dock_dependent_device *dd;
 
 	status = acpi_bus_get_ejd(handle, &tmp);
 	if (ACPI_FAILURE(status)) {
@@ -840,11 +829,9 @@ find_dock_devices(acpi_handle handle, u32 lvl, void *context, void **rv)
 			goto fdd_out;
 	}
 
-	if (tmp == ds->handle) {
-		dd = alloc_dock_dependent_device(handle);
-		if (dd)
-			add_dock_dependent_device(ds, dd);
-	}
+	if (tmp == ds->handle)
+		add_dock_dependent_device(ds, handle);
+
 fdd_out:
 	return AE_OK;
 }
@@ -959,7 +946,6 @@ static struct attribute_group dock_attribute_group = {
 static int dock_add(acpi_handle handle)
 {
 	int ret;
-	struct dock_dependent_device *dd;
 	struct dock_station *dock_station;
 	struct platform_device *dock_device;
 
@@ -1008,12 +994,9 @@ static int dock_add(acpi_handle handle)
 			    NULL);
 
 	/* add the dock station as a device dependent on itself */
-	dd = alloc_dock_dependent_device(handle);
-	if (!dd) {
-		ret = -ENOMEM;
+	ret = add_dock_dependent_device(dock_station, handle);
+	if (ret)
 		goto err_rmgroup;
-	}
-	add_dock_dependent_device(dock_station, dd);
 
 	dock_station_count++;
 	list_add(&dock_station->sibling, &dock_stations);
