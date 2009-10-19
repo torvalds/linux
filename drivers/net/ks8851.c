@@ -980,7 +980,7 @@ static void ks8851_set_rx_mode(struct net_device *dev)
 			mcptr = mcptr->next;
 		}
 
-		rxctrl.rxcr1 = RXCR1_RXME | RXCR1_RXAE | RXCR1_RXPAFMA;
+		rxctrl.rxcr1 = RXCR1_RXME | RXCR1_RXPAFMA;
 	} else {
 		/* just accept broadcast / unicast */
 		rxctrl.rxcr1 = RXCR1_RXPAFMA;
