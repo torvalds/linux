@@ -2347,24 +2347,28 @@ EXPORT_SYMBOL(omap_stop_lcd_dma);
 
 static int __init omap_init_dma(void)
 {
+	unsigned long base;
 	int ch, r;
 
 	if (cpu_class_is_omap1()) {
-		omap_dma_base = OMAP1_IO_ADDRESS(OMAP1_DMA_BASE);
+		base = OMAP1_DMA_BASE;
 		dma_lch_count = OMAP1_LOGICAL_DMA_CH_COUNT;
 	} else if (cpu_is_omap24xx()) {
-		omap_dma_base = OMAP2_IO_ADDRESS(OMAP24XX_DMA4_BASE);
+		base = OMAP24XX_DMA4_BASE;
 		dma_lch_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
 	} else if (cpu_is_omap34xx()) {
-		omap_dma_base = OMAP2_IO_ADDRESS(OMAP34XX_DMA4_BASE);
+		base = OMAP34XX_DMA4_BASE;
 		dma_lch_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
 	} else if (cpu_is_omap44xx()) {
-		omap_dma_base = OMAP2_IO_ADDRESS(OMAP44XX_DMA4_BASE);
+		base = OMAP44XX_DMA4_BASE;
 		dma_lch_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
 	} else {
 		pr_err("DMA init failed for unsupported omap\n");
 		return -ENODEV;
 	}
+
+	omap_dma_base = ioremap(base, SZ_4K);
+	BUG_ON(!omap_dma_base);
 
 	if (cpu_class_is_omap2() && omap_dma_reserve_channels
 			&& (omap_dma_reserve_channels <= dma_lch_count))
@@ -2372,15 +2376,17 @@ static int __init omap_init_dma(void)
 
 	dma_chan = kzalloc(sizeof(struct omap_dma_lch) * dma_lch_count,
 				GFP_KERNEL);
-	if (!dma_chan)
-		return -ENOMEM;
+	if (!dma_chan) {
+		r = -ENOMEM;
+		goto out_unmap;
+	}
 
 	if (cpu_class_is_omap2()) {
 		dma_linked_lch = kzalloc(sizeof(struct dma_link_info) *
 						dma_lch_count, GFP_KERNEL);
 		if (!dma_linked_lch) {
-			kfree(dma_chan);
-			return -ENOMEM;
+			r = -ENOMEM;
+			goto out_free;
 		}
 	}
 
@@ -2454,7 +2460,7 @@ static int __init omap_init_dma(void)
 				for (i = 0; i < ch; i++)
 					free_irq(omap1_dma_irq[i],
 						 (void *) (i + 1));
-				return r;
+				goto out_free;
 			}
 		}
 	}
@@ -2496,11 +2502,19 @@ static int __init omap_init_dma(void)
 			       "(error %d)\n", r);
 			for (i = 0; i < dma_chan_count; i++)
 				free_irq(omap1_dma_irq[i], (void *) (i + 1));
-			return r;
+			goto out_free;
 		}
 	}
 
 	return 0;
+
+out_free:
+	kfree(dma_chan);
+
+out_unmap:
+	iounmap(omap_dma_base);
+
+	return r;
 }
 
 arch_initcall(omap_init_dma);
