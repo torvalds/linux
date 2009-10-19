@@ -454,21 +454,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 }
 
-static int ath9k_hw_rfattach(struct ath_hw *ah)
-{
-	bool rfStatus = false;
-	int ecode = 0;
-
-	rfStatus = ath9k_hw_init_rf(ah, &ecode);
-	if (!rfStatus) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "RF setup failed, status: %u\n", ecode);
-		return ecode;
-	}
-
-	return 0;
-}
-
 static int ath9k_hw_rf_claim(struct ath_hw *ah)
 {
 	u32 val;
@@ -585,9 +570,15 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 		  ah->eep_ops->get_eeprom_ver(ah),
 		  ah->eep_ops->get_eeprom_rev(ah));
 
-	ecode = ath9k_hw_rfattach(ah);
-	if (ecode != 0)
-		return ecode;
+        if (!AR_SREV_9280_10_OR_LATER(ah)) {
+		ecode = ath9k_hw_rf_alloc_ext_banks(ah);
+		if (ecode) {
+			ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
+				  "Failed allocating banks for "
+				  "external radio\n");
+			return ecode;
+		}
+	}
 
 	if (!AR_SREV_9100(ah)) {
 		ath9k_hw_ani_setup(ah);

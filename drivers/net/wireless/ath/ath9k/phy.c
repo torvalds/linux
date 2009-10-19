@@ -409,18 +409,16 @@ ath9k_hw_rf_free(struct ath_hw *ah)
 }
 
 /**
- * ath9k_hw_init_rf - initialize external radio structures
+ * ath9k_hw_rf_alloc_ext_banks - allocates banks for external radio programming
  * @ah: atheros hardware structure
- * @status:
  *
  * Only required for older devices with external AR2133/AR5133 radios.
  */
-bool ath9k_hw_init_rf(struct ath_hw *ah, int *status)
+int ath9k_hw_rf_alloc_ext_banks(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		return true;
+	BUG_ON(AR_SREV_9280_10_OR_LATER(ah));
 
 	ah->analogBank0Data =
 	    kzalloc((sizeof(u32) *
@@ -453,8 +451,7 @@ bool ath9k_hw_init_rf(struct ath_hw *ah, int *status)
 	    || ah->analogBank7Data == NULL) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Cannot allocate RF banks\n");
-		*status = -ENOMEM;
-		return false;
+		return -ENOMEM;
 	}
 
 	ah->addac5416_21 =
@@ -464,8 +461,7 @@ bool ath9k_hw_init_rf(struct ath_hw *ah, int *status)
 	if (ah->addac5416_21 == NULL) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Cannot allocate addac5416_21\n");
-		*status = -ENOMEM;
-		return false;
+		return -ENOMEM;
 	}
 
 	ah->bank6Temp =
@@ -474,11 +470,10 @@ bool ath9k_hw_init_rf(struct ath_hw *ah, int *status)
 	if (ah->bank6Temp == NULL) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Cannot allocate bank6Temp\n");
-		*status = -ENOMEM;
-		return false;
+		return -ENOMEM;
 	}
 
-	return true;
+	return 0;
 }
 
 /**
