@@ -69,12 +69,12 @@ static u8 twl4030_start_script_address = 0x2b;
 
 /* resource configuration registers */
 
-#define DEVGROUP_OFFSET		0
+#define DEV_GRP_OFFSET		0
 #define TYPE_OFFSET		1
 
-/* Bit positions */
-#define DEVGROUP_SHIFT		5
-#define DEVGROUP_MASK		(7 << DEVGROUP_SHIFT)
+/* Bit positions in the registers */
+#define DEV_GRP_SHIFT		5
+#define DEV_GRP_MASK		(7 << DEV_GRP_SHIFT)
 #define TYPE_SHIFT		0
 #define TYPE_MASK		(7 << TYPE_SHIFT)
 #define TYPE2_SHIFT		3
@@ -328,7 +328,7 @@ static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 
 	/* Set resource group */
 	err = twl4030_i2c_read_u8(TWL4030_MODULE_PM_RECEIVER, &grp,
-				rconfig_addr + DEVGROUP_OFFSET);
+				rconfig_addr + DEV_GRP_OFFSET);
 	if (err) {
 		pr_err("TWL4030 Resource %d group could not be read\n",
 			rconfig->resource);
@@ -336,10 +336,10 @@ static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	}
 
 	if (rconfig->devgroup >= 0) {
-		grp &= ~DEVGROUP_MASK;
-		grp |= rconfig->devgroup << DEVGROUP_SHIFT;
+		grp &= ~DEV_GRP_MASK;
+		grp |= rconfig->devgroup << DEV_GRP_SHIFT;
 		err = twl4030_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
-					grp, rconfig_addr + DEVGROUP_OFFSET);
+					grp, rconfig_addr + DEV_GRP_OFFSET);
 		if (err < 0) {
 			pr_err("TWL4030 failed to program devgroup\n");
 			return err;
