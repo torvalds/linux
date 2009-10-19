@@ -1239,6 +1239,9 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 	ndev->netdev_ops = &ks8851_netdev_ops;
 	ndev->irq = spi->irq;
 
+	/* issue a global soft reset to reset the device. */
+	ks8851_soft_reset(ks, GRR_GSR);
+
 	/* simple check for a valid chip being connected to the bus */
 
 	if ((ks8851_rdreg16(ks, KS_CIDER) & ~CIDER_REV_MASK) != CIDER_ID) {
