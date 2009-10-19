@@ -662,10 +662,13 @@ static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
 static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
 {
 	if (AR_SREV_9271(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271_1_0,
-			       ARRAY_SIZE(ar9271Modes_9271_1_0), 6);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271_1_0,
-			       ARRAY_SIZE(ar9271Common_9271_1_0), 2);
+		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271,
+			       ARRAY_SIZE(ar9271Modes_9271), 6);
+		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271,
+			       ARRAY_SIZE(ar9271Common_9271), 2);
+		INIT_INI_ARRAY(&ah->iniModes_9271_1_0_only,
+			       ar9271Modes_9271_1_0_only,
+			       ARRAY_SIZE(ar9271Modes_9271_1_0_only), 6);
 		return;
 	}
 
@@ -1491,6 +1494,10 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	}
 
 	ath9k_hw_write_regs(ah, modesIndex, freqIndex, regWrites);
+
+	if (AR_SREV_9271_10(ah))
+		REG_WRITE_ARRAY(&ah->iniModes_9271_1_0_only,
+				modesIndex, regWrites);
 
 	if (AR_SREV_9280_20(ah) && IS_CHAN_A_5MHZ_SPACED(chan)) {
 		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex,
