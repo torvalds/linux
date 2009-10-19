@@ -3163,7 +3163,7 @@ static int __init amd64_edac_init(void)
 	opstate_init();
 
 	if (cache_k8_northbridges() < 0)
-		goto err_exit;
+		return err;
 
 	err = pci_register_driver(&amd64_pci_driver);
 	if (err)
@@ -3189,8 +3189,6 @@ static int __init amd64_edac_init(void)
 
 err_2nd_stage:
 	debugf0("2nd stage failed\n");
-
-err_exit:
 	pci_unregister_driver(&amd64_pci_driver);
 
 	return err;
