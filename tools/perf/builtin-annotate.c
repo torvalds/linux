@@ -58,8 +58,11 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 		return;
 
 	sym_size = sym->end - sym->start;
-	ip = he->map->map_ip(he->map, ip);
 	offset = ip - sym->start;
+
+	if (verbose)
+		fprintf(stderr, "%s: ip=%Lx\n", __func__,
+			he->map->unmap_ip(he->map, ip));
 
 	if (offset >= sym_size)
 		return;
@@ -83,8 +86,7 @@ static int hist_entry__add(struct thread *thread, struct map *map,
 						  count, level, &hit);
 	if (he == NULL)
 		return -ENOMEM;
-	if (hit)
-		hist_hit(he, ip);
+	hist_hit(he, ip);
 	return 0;
 }
 
@@ -260,14 +262,15 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
-static int
-parse_line(FILE *file, struct symbol *sym, u64 len)
+static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 {
+	struct symbol *sym = he->sym;
 	char *line = NULL, *tmp, *tmp2;
 	static const char *prev_line;
 	static const char *prev_color;
 	unsigned int offset;
 	size_t line_len;
+	u64 start;
 	s64 line_ip;
 	int ret;
 	char *c;
@@ -304,6 +307,8 @@ parse_line(FILE *file, struct symbol *sym, u64 len)
 			line_ip = -1;
 	}
 
+	start = he->map->unmap_ip(he->map, sym->start);
+
 	if (line_ip != -1) {
 		const char *path = NULL;
 		unsigned int hits = 0;
@@ -311,7 +316,7 @@ parse_line(FILE *file, struct symbol *sym, u64 len)
 		const char *color;
 		struct sym_ext *sym_ext = sym->priv;
 
-		offset = line_ip - sym->start;
+		offset = line_ip - start;
 		if (offset < len)
 			hits = sym->hist[offset];
 
@@ -390,8 +395,10 @@ static void free_source_line(struct symbol *sym, int len)
 
 /* Get the filename:line for the colored entries */
 static void
-get_source_line(struct symbol *sym, int len, const char *filename)
+get_source_line(struct hist_entry *he, int len, const char *filename)
 {
+	struct symbol *sym = he->sym;
+	u64 start;
 	int i;
 	char cmd[PATH_MAX * 2];
 	struct sym_ext *sym_ext;
@@ -404,6 +411,7 @@ get_source_line(struct symbol *sym, int len, const char *filename)
 		return;
 
 	sym_ext = sym->priv;
+	start = he->map->unmap_ip(he->map, sym->start);
 
 	for (i = 0; i < len; i++) {
 		char *path = NULL;
@@ -415,7 +423,7 @@ get_source_line(struct symbol *sym, int len, const char *filename)
 		if (sym_ext[i].percent <= 0.5)
 			continue;
 
-		offset = sym->start + i;
+		offset = start + i;
 		sprintf(cmd, "addr2line -e %s %016llx", filename, offset);
 		fp = popen(cmd, "r");
 		if (!fp)
@@ -465,8 +473,11 @@ static void print_summary(const char *filename)
 	}
 }
 
-static void annotate_sym(struct dso *dso, struct symbol *sym)
+static void annotate_sym(struct hist_entry *he)
 {
+	struct map *map = he->map;
+	struct dso *dso = map->dso;
+	struct symbol *sym = he->sym;
 	const char *filename = dso->long_name, *d_filename;
 	u64 len;
 	char command[PATH_MAX*2];
@@ -474,6 +485,12 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 
 	if (!filename)
 		return;
+
+	if (verbose)
+		fprintf(stderr, "%s: filename=%s, sym=%s, start=%Lx, end=%Lx\n",
+			__func__, filename, sym->name,
+			map->unmap_ip(map, sym->start),
+			map->unmap_ip(map, sym->end));
 
 	if (full_paths)
 		d_filename = filename;
@@ -483,7 +500,7 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 	len = sym->end - sym->start;
 
 	if (print_line) {
-		get_source_line(sym, len, filename);
+		get_source_line(he, len, filename);
 		print_summary(filename);
 	}
 
@@ -496,7 +513,8 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 		       dso, dso->long_name, sym, sym->name);
 
 	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s|grep -v %s",
-		sym->start, sym->end, filename, filename);
+		map->unmap_ip(map, sym->start), map->unmap_ip(map, sym->end),
+		filename, filename);
 
 	if (verbose >= 3)
 		printf("doing: %s\n", command);
@@ -506,7 +524,7 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 		return;
 
 	while (!feof(file)) {
-		if (parse_line(file, sym, len) < 0)
+		if (parse_line(file, he, len) < 0)
 			break;
 	}
 
@@ -518,18 +536,22 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 static void find_annotations(void)
 {
 	struct rb_node *nd;
-	struct dso *dso;
 	int count = 0;
 
-	list_for_each_entry(dso, &dsos, node) {
+	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
+		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 
-		for (nd = rb_first(&dso->syms); nd; nd = rb_next(nd)) {
-			struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+		if (he->sym && he->sym->hist) {
+			annotate_sym(he);
+			count++;
+			/*
+			 * Since we have a hist_entry per IP for the same
+			 * symbol, free he->sym->hist to signal we already
+			 * processed this symbol.
+			 */
+			free(he->sym->hist);
+			he->sym->hist = NULL;
 
-			if (sym->hist) {
-				annotate_sym(dso, sym);
-				count++;
-			}
 		}
 	}
 

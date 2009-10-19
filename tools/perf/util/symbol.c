@@ -337,7 +337,7 @@ static int kernel_maps__split_kallsyms(symbol_filter_t filter, int use_modules)
 				return -1;
 			}
 
-			map->map_ip = vdso__map_ip;
+			map->map_ip = map->unmap_ip = identity__map_ip;
 			kernel_maps__insert(map);
 			++kernel_range;
 		}
@@ -790,7 +790,8 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 					dso__delete(curr_dso);
 					goto out_elf_end;
 				}
-				curr_map->map_ip = vdso__map_ip;
+				curr_map->map_ip = identity__map_ip;
+				curr_map->unmap_ip = identity__map_ip;
 				curr_dso->origin = DSO__ORIG_KERNEL;
 				kernel_maps__insert(curr_map);
 				dsos__add(curr_dso);
@@ -1158,6 +1159,7 @@ static struct map *map__new2(u64 start, struct dso *dso)
 		self->pgoff = 0;
 		self->dso = dso;
 		self->map_ip = map__map_ip;
+		self->unmap_ip = map__unmap_ip;
 		RB_CLEAR_NODE(&self->rb_node);
 	}
 	return self;
@@ -1259,7 +1261,7 @@ int dsos__load_kernel(const char *vmlinux, unsigned int sym_priv_size,
 	if (kernel_map == NULL)
 		goto out_delete_dso;
 
-	kernel_map->map_ip = vdso__map_ip;
+	kernel_map->map_ip = kernel_map->unmap_ip = identity__map_ip;
 
 	if (use_modules && dsos__load_modules(sym_priv_size) < 0) {
 		fprintf(stderr, "Failed to load list of modules in use! "

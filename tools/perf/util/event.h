@@ -82,6 +82,7 @@ struct map {
 	u64			end;
 	u64			pgoff;
 	u64			(*map_ip)(struct map *, u64);
+	u64			(*unmap_ip)(struct map *, u64);
 	struct dso		*dso;
 };
 
@@ -90,7 +91,12 @@ static inline u64 map__map_ip(struct map *map, u64 ip)
 	return ip - map->start + map->pgoff;
 }
 
-static inline u64 vdso__map_ip(struct map *map __used, u64 ip)
+static inline u64 map__unmap_ip(struct map *map, u64 ip)
+{
+	return ip + map->start - map->pgoff;
+}
+
+static inline u64 identity__map_ip(struct map *map __used, u64 ip)
 {
 	return ip;
 }

@@ -54,9 +54,11 @@ static int strcommon(const char *pathname, char *cwd, int cwdlen)
 			goto out_delete;
 
 		if (self->dso == vdso || anon)
-			self->map_ip = vdso__map_ip;
-		else
+			self->map_ip = self->unmap_ip = identity__map_ip;
+		else {
 			self->map_ip = map__map_ip;
+			self->unmap_ip = map__unmap_ip;
+		}
 	}
 	return self;
 out_delete:
