@@ -1799,17 +1799,29 @@
 #define   DSPARB_AEND_SHIFT	0
 
 #define DSPFW1			0x70034
+#define   DSPFW_SR_SHIFT	23
+#define   DSPFW_CURSORB_SHIFT	16
+#define   DSPFW_PLANEB_SHIFT	8
 #define DSPFW2			0x70038
+#define   DSPFW_CURSORA_MASK	0x00003f00
+#define   DSPFW_CURSORA_SHIFT	16
 #define DSPFW3			0x7003c
+#define   DSPFW_HPLL_SR_EN	(1<<31)
+#define   DSPFW_CURSOR_SR_SHIFT	24
 #define   IGD_SELF_REFRESH_EN	(1<<30)
 
 /* FIFO watermark sizes etc */
+#define G4X_FIFO_LINE_SIZE	64
 #define I915_FIFO_LINE_SIZE	64
 #define I830_FIFO_LINE_SIZE	32
+
+#define G4X_FIFO_SIZE		127
 #define I945_FIFO_SIZE		127 /* 945 & 965 */
 #define I915_FIFO_SIZE		95
 #define I855GM_FIFO_SIZE	127 /* In cachelines */
 #define I830_FIFO_SIZE		95
+
+#define G4X_MAX_WM		0x3f
 #define I915_MAX_WM		0x3f
 
 #define IGD_DISPLAY_FIFO	512 /* in 64byte unit */
