@@ -2064,12 +2064,24 @@ static int ibmvfc_eh_device_reset_handler(struct scsi_cmnd *cmd)
 }
 
 /**
- * ibmvfc_dev_cancel_all - Device iterated cancel all function
+ * ibmvfc_dev_cancel_all_abts - Device iterated cancel all function
  * @sdev:	scsi device struct
  * @data:	return code
  *
  **/
-static void ibmvfc_dev_cancel_all(struct scsi_device *sdev, void *data)
+static void ibmvfc_dev_cancel_all_abts(struct scsi_device *sdev, void *data)
+{
+	unsigned long *rc = data;
+	*rc |= ibmvfc_cancel_all(sdev, IBMVFC_TMF_ABORT_TASK_SET);
+}
+
+/**
+ * ibmvfc_dev_cancel_all_reset - Device iterated cancel all function
+ * @sdev:	scsi device struct
+ * @data:	return code
+ *
+ **/
+static void ibmvfc_dev_cancel_all_reset(struct scsi_device *sdev, void *data)
 {
 	unsigned long *rc = data;
 	*rc |= ibmvfc_cancel_all(sdev, IBMVFC_TMF_TGT_RESET);
@@ -2105,7 +2117,7 @@ static int ibmvfc_eh_target_reset_handler(struct scsi_cmnd *cmd)
 
 	ENTER;
 	ibmvfc_wait_while_resetting(vhost);
-	starget_for_each_device(starget, &cancel_rc, ibmvfc_dev_cancel_all);
+	starget_for_each_device(starget, &cancel_rc, ibmvfc_dev_cancel_all_reset);
 	reset_rc = ibmvfc_reset_device(sdev, IBMVFC_TARGET_RESET, "target");
 
 	if (!cancel_rc && !reset_rc)
@@ -2147,7 +2159,7 @@ static void ibmvfc_terminate_rport_io(struct fc_rport *rport)
 	int rc = FAILED;
 
 	ENTER;
-	starget_for_each_device(starget, &cancel_rc, ibmvfc_dev_cancel_all);
+	starget_for_each_device(starget, &cancel_rc, ibmvfc_dev_cancel_all_abts);
 	starget_for_each_device(starget, &abort_rc, ibmvfc_dev_abort_all);
 
 	if (!cancel_rc && !abort_rc)
