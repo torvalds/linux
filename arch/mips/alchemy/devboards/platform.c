@@ -3,6 +3,9 @@
  */
 
 #include <linux/init.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/map.h>
+#include <linux/mtd/physmap.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 
@@ -85,5 +88,106 @@ int __init db1x_register_pcmcia_socket(unsigned long pseudo_attr_start,
 	platform_device_put(pd);
 out:
 	kfree(sr);
+	return ret;
+}
+
+#define YAMON_SIZE	0x00100000
+#define YAMON_ENV_SIZE	0x00040000
+
+int __init db1x_register_norflash(unsigned long size, int width,
+				  int swapped)
+{
+	struct physmap_flash_data *pfd;
+	struct platform_device *pd;
+	struct mtd_partition *parts;
+	struct resource *res;
+	int ret, i;
+
+	if (size < (8 * 1024 * 1024))
+		return -EINVAL;
+
+	ret = -ENOMEM;
+	parts = kzalloc(sizeof(struct mtd_partition) * 5, GFP_KERNEL);
+	if (!parts)
+		goto out;
+
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	if (!res)
+		goto out1;
+
+	pfd = kzalloc(sizeof(struct physmap_flash_data), GFP_KERNEL);
+	if (!pfd)
+		goto out2;
+
+	pd = platform_device_alloc("physmap-flash", 0);
+	if (!pd)
+		goto out3;
+
+	/* NOR flash ends at 0x20000000, regardless of size */
+	res->start = 0x20000000 - size;
+	res->end = 0x20000000 - 1;
+	res->flags = IORESOURCE_MEM;
+
+	/* partition setup.  Most Develboards have a switch which allows
+	 * to swap the physical locations of the 2 NOR flash banks.
+	 */
+	i = 0;
+	if (!swapped) {
+		/* first NOR chip */
+		parts[i].offset = 0;
+		parts[i].name = "User FS";
+		parts[i].size = size / 2;
+		i++;
+	}
+
+	parts[i].offset = MTDPART_OFS_APPEND;
+	parts[i].name = "User FS 2";
+	parts[i].size = (size / 2) - (0x20000000 - 0x1fc00000);
+	i++;
+
+	parts[i].offset = MTDPART_OFS_APPEND;
+	parts[i].name = "YAMON";
+	parts[i].size = YAMON_SIZE;
+	parts[i].mask_flags = MTD_WRITEABLE;
+	i++;
+
+	parts[i].offset = MTDPART_OFS_APPEND;
+	parts[i].name = "raw kernel";
+	parts[i].size = 0x00400000 - YAMON_SIZE - YAMON_ENV_SIZE;
+	i++;
+
+	parts[i].offset = MTDPART_OFS_APPEND;
+	parts[i].name = "YAMON Env";
+	parts[i].size = YAMON_ENV_SIZE;
+	parts[i].mask_flags = MTD_WRITEABLE;
+	i++;
+
+	if (swapped) {
+		parts[i].offset = MTDPART_OFS_APPEND;
+		parts[i].name = "User FS";
+		parts[i].size = size / 2;
+		i++;
+	}
+
+	pfd->width = width;
+	pfd->parts = parts;
+	pfd->nr_parts = 5;
+
+	pd->dev.platform_data = pfd;
+	pd->resource = res;
+	pd->num_resources = 1;
+
+	ret = platform_device_add(pd);
+	if (!ret)
+		return ret;
+
+	platform_device_put(pd);
+out3:
+	kfree(pfd);
+out2:
+	kfree(res);
+out1:
+	kfree(parts);
+out:
 	return ret;
 }

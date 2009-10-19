@@ -31,6 +31,7 @@
 #include <asm/mach-pb1x00/pb1000.h>
 #include <prom.h>
 
+#include "../platform.h"
 
 const char *get_system_type(void)
 {
@@ -194,3 +195,9 @@ static int __init pb1000_init_irq(void)
 	return 0;
 }
 arch_initcall(pb1000_init_irq);
+
+static int __init pb1000_device_init(void)
+{
+	return db1x_register_norflash(8 * 1024 * 1024, 4, 0);
+}
+device_initcall(pb1000_device_init);

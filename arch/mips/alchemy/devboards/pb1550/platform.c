@@ -22,11 +22,14 @@
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1550.h>
+#include <asm/mach-db1x00/bcsr.h>
 
 #include "../platform.h"
 
 static int __init pb1550_dev_init(void)
 {
+	int swapped;
+
 	/* Pb1550, like all others, also has statuschange irqs; however they're
 	* wired up on one of the Au1550's shared GPIO201_205 line, which also
 	* services the PCMCIA card interrupts.  So we ignore statuschange and
@@ -57,6 +60,9 @@ static int __init pb1550_dev_init(void)
 				    0,
 				    0,
 				    1);
+
+	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_PB1550_SWAPBOOT;
+	db1x_register_norflash(128 * 1024 * 1024, 4, swapped);
 
 	return 0;
 }

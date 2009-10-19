@@ -15,4 +15,7 @@ int __init db1x_register_pcmcia_socket(unsigned long pseudo_attr_start,
 				       int eject_irq,
 				       int id);
 
+int __init db1x_register_norflash(unsigned long size, int width,
+				  int swapped);
+
 #endif

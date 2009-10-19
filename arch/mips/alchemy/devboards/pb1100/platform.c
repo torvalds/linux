@@ -21,11 +21,14 @@
 #include <linux/init.h>
 
 #include <asm/mach-au1x00/au1000.h>
+#include <asm/mach-db1x00/bcsr.h>
 
 #include "../platform.h"
 
 static int __init pb1100_dev_init(void)
 {
+	int swapped;
+
 	/* PCMCIA. single socket, identical to Pb1500 */
 	db1x_register_pcmcia_socket(PCMCIA_ATTR_PSEUDO_PHYS,
 				    PCMCIA_ATTR_PSEUDO_PHYS + 0x00040000 - 1,
@@ -38,6 +41,10 @@ static int __init pb1100_dev_init(void)
 				    /*AU1100_GPIO10_INT*/0, /* stschg */
 				    0,			 /* eject */
 				    0);			 /* id */
+
+	swapped = bcsr_read(BCSR_STATUS) &  BCSR_STATUS_DB1000_SWAPBOOT;
+	db1x_register_norflash(64 * 1024 * 1024, 4, swapped);
+
 	return 0;
 }
 device_initcall(pb1100_dev_init);

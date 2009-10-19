@@ -172,6 +172,8 @@ static struct platform_device *board_platform_devices[] __initdata = {
 
 static int __init board_register_devices(void)
 {
+	int swapped;
+
 #ifdef CONFIG_MIPS_PB1200
 	db1x_register_pcmcia_socket(PCMCIA_ATTR_PSEUDO_PHYS,
 				    PCMCIA_ATTR_PSEUDO_PHYS + 0x00040000 - 1,
@@ -220,6 +222,13 @@ static int __init board_register_devices(void)
 				    /*DB1200_PC1_STSCHG_INT*/0,
 				    DB1200_PC1_EJECT_INT,
 				    1);
+#endif
+
+	swapped = bcsr_read(BCSR_STATUS) &  BCSR_STATUS_DB1200_SWAPBOOT;
+#ifdef CONFIG_MIPS_PB1200
+	db1x_register_norflash(128 * 1024 * 1024, 2, swapped);
+#else
+	db1x_register_norflash(64 * 1024 * 1024, 2, swapped);
 #endif
 
 	return platform_add_devices(board_platform_devices,
