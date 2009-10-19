@@ -2416,11 +2416,8 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 
 	memcpy(&open->op_delegate_stateid, &dp->dl_stateid, sizeof(dp->dl_stateid));
 
-	dprintk("NFSD: delegation stateid=(%08x/%08x/%08x/%08x)\n\n",
-	             dp->dl_stateid.si_boot,
-	             dp->dl_stateid.si_stateownerid,
-	             dp->dl_stateid.si_fileid,
-	             dp->dl_stateid.si_generation);
+	dprintk("NFSD: delegation stateid=" STATEID_FMT "\n",
+		STATEID_VAL(&dp->dl_stateid));
 out:
 	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS
 			&& flag == NFS4_OPEN_DELEGATE_NONE
@@ -2510,9 +2507,8 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 
 	status = nfs_ok;
 
-	dprintk("nfs4_process_open2: stateid=(%08x/%08x/%08x/%08x)\n",
-	            stp->st_stateid.si_boot, stp->st_stateid.si_stateownerid,
-	            stp->st_stateid.si_fileid, stp->st_stateid.si_generation);
+	dprintk("%s: stateid=" STATEID_FMT "\n", __func__,
+		STATEID_VAL(&stp->st_stateid));
 out:
 	if (fp)
 		put_nfs4_file(fp);
@@ -2678,9 +2674,8 @@ STALE_STATEID(stateid_t *stateid)
 {
 	if (time_after((unsigned long)boot_time,
 			(unsigned long)stateid->si_boot)) {
-		dprintk("NFSD: stale stateid (%08x/%08x/%08x/%08x)!\n",
-			stateid->si_boot, stateid->si_stateownerid,
-			stateid->si_fileid, stateid->si_generation);
+		dprintk("NFSD: stale stateid " STATEID_FMT "!\n",
+			STATEID_VAL(stateid));
 		return 1;
 	}
 	return 0;
@@ -2692,9 +2687,8 @@ EXPIRED_STATEID(stateid_t *stateid)
 	if (time_before((unsigned long)boot_time,
 			((unsigned long)stateid->si_boot)) &&
 	    time_before((unsigned long)(stateid->si_boot + lease_time), get_seconds())) {
-		dprintk("NFSD: expired stateid (%08x/%08x/%08x/%08x)!\n",
-			stateid->si_boot, stateid->si_stateownerid,
-			stateid->si_fileid, stateid->si_generation);
+		dprintk("NFSD: expired stateid " STATEID_FMT "!\n",
+			STATEID_VAL(stateid));
 		return 1;
 	}
 	return 0;
@@ -2708,9 +2702,8 @@ stateid_error_map(stateid_t *stateid)
 	if (EXPIRED_STATEID(stateid))
 		return nfserr_expired;
 
-	dprintk("NFSD: bad stateid (%08x/%08x/%08x/%08x)!\n",
-		stateid->si_boot, stateid->si_stateownerid,
-		stateid->si_fileid, stateid->si_generation);
+	dprintk("NFSD: bad stateid " STATEID_FMT "!\n",
+		STATEID_VAL(stateid));
 	return nfserr_bad_stateid;
 }
 
@@ -2896,10 +2889,8 @@ nfs4_preprocess_seqid_op(struct nfsd4_compound_state *cstate, u32 seqid,
 	struct svc_fh *current_fh = &cstate->current_fh;
 	__be32 status;
 
-	dprintk("NFSD: preprocess_seqid_op: seqid=%d " 
-			"stateid = (%08x/%08x/%08x/%08x)\n", seqid,
-		stateid->si_boot, stateid->si_stateownerid, stateid->si_fileid,
-		stateid->si_generation);
+	dprintk("NFSD: %s: seqid=%d stateid = " STATEID_FMT "\n", __func__,
+		seqid, STATEID_VAL(stateid));
 
 	*stpp = NULL;
 	*sopp = NULL;
@@ -3031,12 +3022,8 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	sop->so_confirmed = 1;
 	update_stateid(&stp->st_stateid);
 	memcpy(&oc->oc_resp_stateid, &stp->st_stateid, sizeof(stateid_t));
-	dprintk("NFSD: nfsd4_open_confirm: success, seqid=%d " 
-		"stateid=(%08x/%08x/%08x/%08x)\n", oc->oc_seqid,
-		         stp->st_stateid.si_boot,
-		         stp->st_stateid.si_stateownerid,
-		         stp->st_stateid.si_fileid,
-		         stp->st_stateid.si_generation);
+	dprintk("NFSD: %s: success, seqid=%d stateid=" STATEID_FMT "\n",
+		__func__, oc->oc_seqid, STATEID_VAL(&stp->st_stateid));
 
 	nfsd4_create_clid_dir(sop->so_client);
 out:
@@ -3295,9 +3282,8 @@ find_delegation_stateid(struct inode *ino, stateid_t *stid)
 	struct nfs4_file *fp;
 	struct nfs4_delegation *dl;
 
-	dprintk("NFSD:find_delegation_stateid stateid=(%08x/%08x/%08x/%08x)\n",
-                    stid->si_boot, stid->si_stateownerid,
-                    stid->si_fileid, stid->si_generation);
+	dprintk("NFSD: %s: stateid=" STATEID_FMT "\n", __func__,
+		STATEID_VAL(stid));
 
 	fp = find_file(ino);
 	if (!fp)

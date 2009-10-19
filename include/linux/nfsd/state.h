@@ -60,6 +60,13 @@ typedef struct {
 #define si_stateownerid   si_opaque.so_stateownerid
 #define si_fileid         si_opaque.so_fileid
 
+#define STATEID_FMT	"(%08x/%08x/%08x/%08x)"
+#define STATEID_VAL(s) \
+	(s)->si_boot, \
+	(s)->si_stateownerid, \
+	(s)->si_fileid, \
+	(s)->si_generation
+
 struct nfsd4_cb_sequence {
 	/* args/res */
 	u32			cbs_minorversion;
