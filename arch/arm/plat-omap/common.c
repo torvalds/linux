@@ -227,12 +227,12 @@ static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 
 static struct omap_globals omap242x_globals = {
 	.class	= OMAP242X_CLASS,
-	.tap	= OMAP2_IO_ADDRESS(0x48014000),
-	.sdrc	= OMAP2_IO_ADDRESS(OMAP2420_SDRC_BASE),
-	.sms	= OMAP2_IO_ADDRESS(OMAP2420_SMS_BASE),
-	.ctrl	= OMAP2_IO_ADDRESS(OMAP2420_CTRL_BASE),
-	.prm	= OMAP2_IO_ADDRESS(OMAP2420_PRM_BASE),
-	.cm	= OMAP2_IO_ADDRESS(OMAP2420_CM_BASE),
+	.tap	= OMAP2_L4_IO_ADDRESS(0x48014000),
+	.sdrc	= OMAP2_L3_IO_ADDRESS(OMAP2420_SDRC_BASE),
+	.sms	= OMAP2_L3_IO_ADDRESS(OMAP2420_SMS_BASE),
+	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP2420_CTRL_BASE),
+	.prm	= OMAP2_L4_IO_ADDRESS(OMAP2420_PRM_BASE),
+	.cm	= OMAP2_L4_IO_ADDRESS(OMAP2420_CM_BASE),
 };
 
 void __init omap2_set_globals_242x(void)
@@ -245,12 +245,12 @@ void __init omap2_set_globals_242x(void)
 
 static struct omap_globals omap243x_globals = {
 	.class	= OMAP243X_CLASS,
-	.tap	= OMAP2_IO_ADDRESS(0x4900a000),
-	.sdrc	= OMAP2_IO_ADDRESS(OMAP243X_SDRC_BASE),
-	.sms	= OMAP2_IO_ADDRESS(OMAP243X_SMS_BASE),
-	.ctrl	= OMAP2_IO_ADDRESS(OMAP243X_CTRL_BASE),
-	.prm	= OMAP2_IO_ADDRESS(OMAP2430_PRM_BASE),
-	.cm	= OMAP2_IO_ADDRESS(OMAP2430_CM_BASE),
+	.tap	= OMAP2_L4_IO_ADDRESS(0x4900a000),
+	.sdrc	= OMAP2_L3_IO_ADDRESS(OMAP243X_SDRC_BASE),
+	.sms	= OMAP2_L3_IO_ADDRESS(OMAP243X_SMS_BASE),
+	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP243X_CTRL_BASE),
+	.prm	= OMAP2_L4_IO_ADDRESS(OMAP2430_PRM_BASE),
+	.cm	= OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE),
 };
 
 void __init omap2_set_globals_243x(void)
@@ -263,12 +263,12 @@ void __init omap2_set_globals_243x(void)
 
 static struct omap_globals omap343x_globals = {
 	.class	= OMAP343X_CLASS,
-	.tap	= OMAP2_IO_ADDRESS(0x4830A000),
-	.sdrc	= OMAP2_IO_ADDRESS(OMAP343X_SDRC_BASE),
-	.sms	= OMAP2_IO_ADDRESS(OMAP343X_SMS_BASE),
-	.ctrl	= OMAP2_IO_ADDRESS(OMAP343X_CTRL_BASE),
-	.prm	= OMAP2_IO_ADDRESS(OMAP3430_PRM_BASE),
-	.cm	= OMAP2_IO_ADDRESS(OMAP3430_CM_BASE),
+	.tap	= OMAP2_L4_IO_ADDRESS(0x4830A000),
+	.sdrc	= OMAP2_L3_IO_ADDRESS(OMAP343X_SDRC_BASE),
+	.sms	= OMAP2_L3_IO_ADDRESS(OMAP343X_SMS_BASE),
+	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP343X_CTRL_BASE),
+	.prm	= OMAP2_L4_IO_ADDRESS(OMAP3430_PRM_BASE),
+	.cm	= OMAP2_L4_IO_ADDRESS(OMAP3430_CM_BASE),
 };
 
 void __init omap2_set_globals_343x(void)
@@ -280,10 +280,10 @@ void __init omap2_set_globals_343x(void)
 #if defined(CONFIG_ARCH_OMAP4)
 static struct omap_globals omap4_globals = {
 	.class	= OMAP443X_CLASS,
-	.tap	= OMAP2_IO_ADDRESS(0x4830a000),
-	.ctrl	= OMAP2_IO_ADDRESS(OMAP443X_CTRL_BASE),
-	.prm	= OMAP2_IO_ADDRESS(OMAP4430_PRM_BASE),
-	.cm	= OMAP2_IO_ADDRESS(OMAP4430_CM_BASE),
+	.tap	= OMAP2_L4_IO_ADDRESS(0x4830a000),
+	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP443X_CTRL_BASE),
+	.prm	= OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE),
+	.cm	= OMAP2_L4_IO_ADDRESS(OMAP4430_CM_BASE),
 };
 
 void __init omap2_set_globals_443x(void)

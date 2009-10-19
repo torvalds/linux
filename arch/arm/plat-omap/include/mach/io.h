@@ -63,9 +63,11 @@
 #define OMAP1_IO_OFFSET		0x01000000	/* Virtual IO = 0xfefb0000 */
 #define OMAP1_IO_ADDRESS(pa)	IOMEM((pa) - OMAP1_IO_OFFSET)
 
-#define OMAP2_IO_OFFSET		0x90000000
-#define OMAP2_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_IO_OFFSET) /* L3 and L4 */
+#define OMAP2_L3_IO_OFFSET	0x90000000
+#define OMAP2_L3_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_L3_IO_OFFSET) /* L3 */
 
+#define OMAP2_L4_IO_OFFSET	0x90000000
+#define OMAP2_L4_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_L4_IO_OFFSET) /* L4 */
 /*
  * ----------------------------------------------------------------------------
  * Omap1 specific IO mapping

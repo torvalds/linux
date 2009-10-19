@@ -51,7 +51,8 @@ int omap2_pm_debug;
 	regs[reg_count++].val = __raw_readl(reg)
 #define DUMP_INTC_REG(reg, off) \
 	regs[reg_count].name = #reg; \
-	regs[reg_count++].val = __raw_readl(OMAP2_IO_ADDRESS(0x480fe000 + (off)))
+	regs[reg_count++].val = \
+			 __raw_readl(OMAP2_L4_IO_ADDRESS(0x480fe000 + (off)))
 
 static int __init pm_dbg_init(void);
 
