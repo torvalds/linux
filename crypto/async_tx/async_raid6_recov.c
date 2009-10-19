@@ -131,8 +131,8 @@ async_mult(struct page *dest, struct page *src, u8 coef, size_t len,
 }
 
 static struct dma_async_tx_descriptor *
-__2data_recov_4(size_t bytes, int faila, int failb, struct page **blocks,
-	      struct async_submit_ctl *submit)
+__2data_recov_4(int disks, size_t bytes, int faila, int failb,
+		struct page **blocks, struct async_submit_ctl *submit)
 {
 	struct dma_async_tx_descriptor *tx = NULL;
 	struct page *p, *q, *a, *b;
@@ -143,8 +143,8 @@ __2data_recov_4(size_t bytes, int faila, int failb, struct page **blocks,
 	void *cb_param = submit->cb_param;
 	void *scribble = submit->scribble;
 
-	p = blocks[4-2];
-	q = blocks[4-1];
+	p = blocks[disks-2];
+	q = blocks[disks-1];
 
 	a = blocks[faila];
 	b = blocks[failb];
@@ -170,8 +170,8 @@ __2data_recov_4(size_t bytes, int faila, int failb, struct page **blocks,
 }
 
 static struct dma_async_tx_descriptor *
-__2data_recov_5(size_t bytes, int faila, int failb, struct page **blocks,
-	      struct async_submit_ctl *submit)
+__2data_recov_5(int disks, size_t bytes, int faila, int failb,
+		struct page **blocks, struct async_submit_ctl *submit)
 {
 	struct dma_async_tx_descriptor *tx = NULL;
 	struct page *p, *q, *g, *dp, *dq;
@@ -181,21 +181,22 @@ __2data_recov_5(size_t bytes, int faila, int failb, struct page **blocks,
 	dma_async_tx_callback cb_fn = submit->cb_fn;
 	void *cb_param = submit->cb_param;
 	void *scribble = submit->scribble;
-	int uninitialized_var(good);
-	int i;
+	int good_srcs, good, i;
 
-	for (i = 0; i < 3; i++) {
+	good_srcs = 0;
+	good = -1;
+	for (i = 0; i < disks-2; i++) {
+		if (blocks[i] == NULL)
+			continue;
 		if (i == faila || i == failb)
 			continue;
-		else {
-			good = i;
-			break;
-		}
+		good = i;
+		good_srcs++;
 	}
-	BUG_ON(i >= 3);
+	BUG_ON(good_srcs > 1);
 
-	p = blocks[5-2];
-	q = blocks[5-1];
+	p = blocks[disks-2];
+	q = blocks[disks-1];
 	g = blocks[good];
 
 	/* Compute syndrome with zero for the missing data pages
@@ -323,6 +324,8 @@ struct dma_async_tx_descriptor *
 async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 			struct page **blocks, struct async_submit_ctl *submit)
 {
+	int non_zero_srcs, i;
+
 	BUG_ON(faila == failb);
 	if (failb < faila)
 		swap(faila, failb);
@@ -334,12 +337,11 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 	 */
 	if (!submit->scribble) {
 		void **ptrs = (void **) blocks;
-		int i;
 
 		async_tx_quiesce(&submit->depend_tx);
 		for (i = 0; i < disks; i++)
 			if (blocks[i] == NULL)
-				ptrs[i] = (void*)raid6_empty_zero_page;
+				ptrs[i] = (void *) raid6_empty_zero_page;
 			else
 				ptrs[i] = page_address(blocks[i]);
 
@@ -350,19 +352,30 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 		return NULL;
 	}
 
-	switch (disks) {
-	case 4:
+	non_zero_srcs = 0;
+	for (i = 0; i < disks-2 && non_zero_srcs < 4; i++)
+		if (blocks[i])
+			non_zero_srcs++;
+	switch (non_zero_srcs) {
+	case 0:
+	case 1:
+		/* There must be at least 2 sources - the failed devices. */
+		BUG();
+
+	case 2:
 		/* dma devices do not uniformly understand a zero source pq
 		 * operation (in contrast to the synchronous case), so
-		 * explicitly handle the 4 disk special case
+		 * explicitly handle the special case of a 4 disk array with
+		 * both data disks missing.
 		 */
-		return __2data_recov_4(bytes, faila, failb, blocks, submit);
-	case 5:
+		return __2data_recov_4(disks, bytes, faila, failb, blocks, submit);
+	case 3:
 		/* dma devices do not uniformly understand a single
 		 * source pq operation (in contrast to the synchronous
-		 * case), so explicitly handle the 5 disk special case
+		 * case), so explicitly handle the special case of a 5 disk
+		 * array with 2 of 3 data disks missing.
 		 */
-		return __2data_recov_5(bytes, faila, failb, blocks, submit);
+		return __2data_recov_5(disks, bytes, faila, failb, blocks, submit);
 	default:
 		return __2data_recov_n(disks, bytes, faila, failb, blocks, submit);
 	}
@@ -388,6 +401,7 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 	dma_async_tx_callback cb_fn = submit->cb_fn;
 	void *cb_param = submit->cb_param;
 	void *scribble = submit->scribble;
+	int good_srcs, good, i;
 	struct page *srcs[2];
 
 	pr_debug("%s: disks: %d len: %zu\n", __func__, disks, bytes);
@@ -397,7 +411,6 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 	 */
 	if (!scribble) {
 		void **ptrs = (void **) blocks;
-		int i;
 
 		async_tx_quiesce(&submit->depend_tx);
 		for (i = 0; i < disks; i++)
@@ -413,6 +426,20 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 		return NULL;
 	}
 
+	good_srcs = 0;
+	good = -1;
+	for (i = 0; i < disks-2; i++) {
+		if (i == faila)
+			continue;
+		if (blocks[i]) {
+			good = i;
+			good_srcs++;
+			if (good_srcs > 1)
+				break;
+		}
+	}
+	BUG_ON(good_srcs == 0);
+
 	p = blocks[disks-2];
 	q = blocks[disks-1];
 
@@ -423,11 +450,10 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 	blocks[faila] = NULL;
 	blocks[disks-1] = dq;
 
-	/* in the 4 disk case we only need to perform a single source
-	 * multiplication
+	/* in the 4-disk case we only need to perform a single source
+	 * multiplication with the one good data block.
 	 */
-	if (disks == 4) {
-		int good = faila == 0 ? 1 : 0;
+	if (good_srcs == 1) {
 		struct page *g = blocks[good];
 
 		init_async_submit(submit, ASYNC_TX_FENCE, tx, NULL, NULL,
