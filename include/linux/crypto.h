@@ -250,29 +250,6 @@ struct cipher_alg {
 	void (*cia_decrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 };
 
-struct digest_alg {
-	unsigned int dia_digestsize;
-	void (*dia_init)(struct crypto_tfm *tfm);
-	void (*dia_update)(struct crypto_tfm *tfm, const u8 *data,
-			   unsigned int len);
-	void (*dia_final)(struct crypto_tfm *tfm, u8 *out);
-	int (*dia_setkey)(struct crypto_tfm *tfm, const u8 *key,
-	                  unsigned int keylen);
-};
-
-struct hash_alg {
-	int (*init)(struct hash_desc *desc);
-	int (*update)(struct hash_desc *desc, struct scatterlist *sg,
-		      unsigned int nbytes);
-	int (*final)(struct hash_desc *desc, u8 *out);
-	int (*digest)(struct hash_desc *desc, struct scatterlist *sg,
-		      unsigned int nbytes, u8 *out);
-	int (*setkey)(struct crypto_hash *tfm, const u8 *key,
-		      unsigned int keylen);
-
-	unsigned int digestsize;
-};
-
 struct compress_alg {
 	int (*coa_compress)(struct crypto_tfm *tfm, const u8 *src,
 			    unsigned int slen, u8 *dst, unsigned int *dlen);
@@ -293,8 +270,6 @@ struct rng_alg {
 #define cra_aead	cra_u.aead
 #define cra_blkcipher	cra_u.blkcipher
 #define cra_cipher	cra_u.cipher
-#define cra_digest	cra_u.digest
-#define cra_hash	cra_u.hash
 #define cra_compress	cra_u.compress
 #define cra_rng		cra_u.rng
 
@@ -320,8 +295,6 @@ struct crypto_alg {
 		struct aead_alg aead;
 		struct blkcipher_alg blkcipher;
 		struct cipher_alg cipher;
-		struct digest_alg digest;
-		struct hash_alg hash;
 		struct compress_alg compress;
 		struct rng_alg rng;
 	} cra_u;
