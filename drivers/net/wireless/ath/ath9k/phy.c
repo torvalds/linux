@@ -384,17 +384,19 @@ ath9k_hw_set_rf_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 }
 
 /**
- * ath9k_hw_rf_free - Free memory for analog bank scratch buffers
+ * ath9k_hw_rf_free_ext_banks - Free memory for analog bank scratch buffers
  * @ah: atheros hardware struture
- * For the external AR2133/AR5133 radios.
+ * For the external AR2133/AR5133 radios banks.
  */
 void
-ath9k_hw_rf_free(struct ath_hw *ah)
+ath9k_hw_rf_free_ext_banks(struct ath_hw *ah)
 {
 #define ATH_FREE_BANK(bank) do { \
 		kfree(bank); \
 		bank = NULL; \
 	} while (0);
+
+	BUG_ON(AR_SREV_9280_10_OR_LATER(ah));
 
 	ATH_FREE_BANK(ah->analogBank0Data);
 	ATH_FREE_BANK(ah->analogBank1Data);
@@ -405,6 +407,7 @@ ath9k_hw_rf_free(struct ath_hw *ah)
 	ATH_FREE_BANK(ah->analogBank7Data);
 	ATH_FREE_BANK(ah->addac5416_21);
 	ATH_FREE_BANK(ah->bank6Temp);
+
 #undef ATH_FREE_BANK
 }
 

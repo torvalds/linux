@@ -1282,7 +1282,8 @@ void ath9k_hw_detach(struct ath_hw *ah)
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 
 free_hw:
-	ath9k_hw_rf_free(ah);
+	if (!AR_SREV_9280_10_OR_LATER(ah))
+		ath9k_hw_rf_free_ext_banks(ah);
 	kfree(ah);
 	ah = NULL;
 }
