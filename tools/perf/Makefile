@@ -329,6 +329,7 @@ LIB_H += ../../include/linux/perf_event.h
 LIB_H += ../../include/linux/rbtree.h
 LIB_H += ../../include/linux/list.h
 LIB_H += util/include/linux/list.h
+LIB_H += util/include/linux/string.h
 LIB_H += perf.h
 LIB_H += util/event.h
 LIB_H += util/types.h
