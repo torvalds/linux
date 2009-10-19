@@ -496,6 +496,7 @@ static void __iomem *_find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
 	struct omap_hwmod_addr_space *mem;
 	int i;
 	int found = 0;
+	void __iomem *va_start;
 
 	if (!oh || oh->slaves_cnt == 0)
 		return NULL;
@@ -509,16 +510,20 @@ static void __iomem *_find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
 		}
 	}
 
-	/* XXX use ioremap() instead? */
-
-	if (found)
+	if (found) {
+		va_start = ioremap(mem->pa_start, mem->pa_end - mem->pa_start);
+		if (!va_start) {
+			pr_err("omap_hwmod: %s: Could not ioremap\n", oh->name);
+			return NULL;
+		}
 		pr_debug("omap_hwmod: %s: MPU register target at va %p\n",
-			 oh->name, OMAP2_IO_ADDRESS(mem->pa_start));
-	else
+			 oh->name, va_start);
+	} else {
 		pr_debug("omap_hwmod: %s: no MPU register target found\n",
 			 oh->name);
+	}
 
-	return (found) ? OMAP2_IO_ADDRESS(mem->pa_start) : NULL;
+	return (found) ? va_start : NULL;
 }
 
 /**
@@ -1148,6 +1153,7 @@ int omap_hwmod_unregister(struct omap_hwmod *oh)
 	pr_debug("omap_hwmod: %s: unregistering\n", oh->name);
 
 	mutex_lock(&omap_hwmod_mutex);
+	iounmap(oh->_rt_va);
 	list_del(&oh->node);
 	mutex_unlock(&omap_hwmod_mutex);
 
