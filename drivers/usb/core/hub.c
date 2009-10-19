@@ -2123,9 +2123,13 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 				USB_DEVICE_REMOTE_WAKEUP, 0,
 				NULL, 0,
 				USB_CTRL_SET_TIMEOUT);
-		if (status)
+		if (status) {
 			dev_dbg(&udev->dev, "won't remote wakeup, status %d\n",
 					status);
+			/* bail if autosuspend is requested */
+			if (msg.event & PM_EVENT_AUTO)
+				return status;
+		}
 	}
 
 	/* see 7.1.7.6 */
@@ -2134,7 +2138,8 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		dev_dbg(hub->intfdev, "can't suspend port %d, status %d\n",
 				port1, status);
 		/* paranoia:  "should not happen" */
-		(void) usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+		if (udev->do_remote_wakeup)
+			(void) usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				USB_REQ_CLEAR_FEATURE, USB_RECIP_DEVICE,
 				USB_DEVICE_REMOTE_WAKEUP, 0,
 				NULL, 0,
