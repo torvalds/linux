@@ -41,6 +41,10 @@
 
 #include "hw.h"
 
+static void ath9k_phy_modify_rx_buffer(u32 *rfBuf, u32 reg32,
+				       u32 numBits, u32 firstBit,
+				       u32 column);
+
 /**
  * ath9k_hw_write_regs - ??
  *
@@ -429,6 +433,67 @@ void ath9k_hw_9280_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan)
 
 /* All code below is for non single-chip solutions */
 
+/*
+ * Fix on 2.4 GHz band for orientation sensitivity issue by increasing
+ * rf_pwd_icsyndiv.
+ *
+ * Theoretical Rules:
+ *   if 2 GHz band
+ *      if forceBiasAuto
+ *         if synth_freq < 2412
+ *            bias = 0
+ *         else if 2412 <= synth_freq <= 2422
+ *            bias = 1
+ *         else // synth_freq > 2422
+ *            bias = 2
+ *      else if forceBias > 0
+ *         bias = forceBias & 7
+ *      else
+ *         no change, use value from ini file
+ *   else
+ *      no change, invalid band
+ *
+ *  1st Mod:
+ *    2422 also uses value of 2
+ *    <approved>
+ *
+ *  2nd Mod:
+ *    Less than 2412 uses value of 0, 2412 and above uses value of 2
+ */
+static void ath9k_hw_force_bias(struct ath_hw *ah, u16 synth_freq)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	u32 tmp_reg;
+	int reg_writes = 0;
+	u32 new_bias = 0;
+
+	if (!AR_SREV_5416(ah) || synth_freq >= 3000) {
+		return;
+	}
+
+	BUG_ON(AR_SREV_9280_10_OR_LATER(ah));
+
+	if (synth_freq < 2412)
+		new_bias = 0;
+	else if (synth_freq < 2422)
+		new_bias = 1;
+	else
+		new_bias = 2;
+
+	/* pre-reverse this field */
+	tmp_reg = ath9k_hw_reverse_bits(new_bias, 3);
+
+	ath_print(common, ATH_DBG_CONFIG,
+		  "Force rf_pwd_icsyndiv to %1d on %4d\n",
+		  new_bias, synth_freq);
+
+	/* swizzle rf_pwd_icsyndiv */
+	ath9k_phy_modify_rx_buffer(ah->analogBank6Data, tmp_reg, 3, 181, 3);
+
+	/* write Bank 6 with new params */
+	REG_WRITE_RF_ARRAY(&ah->iniBank6, ah->analogBank6Data, reg_writes);
+}
+
 /**
  * ath9k_hw_set_channel - tune to a channel on the external AR2133/AR5133 radios
  * @ah: atheros hardware stucture
@@ -498,6 +563,9 @@ int ath9k_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			  "Invalid channel %u MHz\n", freq);
 		return -EINVAL;
 	}
+
+	ath9k_hw_force_bias(ah, freq);
+	ath9k_hw_decrease_chain_power(ah, chan);
 
 	reg32 =
 	    (channelSel << 8) | (aModeRefSel << 2) | (bModeSynth << 1) |
@@ -945,6 +1013,8 @@ ath9k_hw_decrease_chain_power(struct ath_hw *ah, struct ath9k_channel *chan)
 	int i, regWrites = 0;
 	u32 bank6SelMask;
 	u32 *bank6Temp = ah->bank6Temp;
+
+	BUG_ON(AR_SREV_9280_10_OR_LATER(ah));
 
 	switch (ah->config.diversity_control) {
 	case ATH9K_ANT_FIXED_A:
