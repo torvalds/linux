@@ -357,6 +357,7 @@ struct dst_entry *__sk_dst_check(struct sock *sk, u32 cookie)
 	struct dst_entry *dst = sk->sk_dst_cache;
 
 	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
+		sk_tx_queue_clear(sk);
 		sk->sk_dst_cache = NULL;
 		dst_release(dst);
 		return NULL;
@@ -953,7 +954,8 @@ static void sock_copy(struct sock *nsk, const struct sock *osk)
 	void *sptr = nsk->sk_security;
 #endif
 	BUILD_BUG_ON(offsetof(struct sock, sk_copy_start) !=
-		     sizeof(osk->sk_node) + sizeof(osk->sk_refcnt));
+		     sizeof(osk->sk_node) + sizeof(osk->sk_refcnt) +
+		     sizeof(osk->sk_tx_queue_mapping));
 	memcpy(&nsk->sk_copy_start, &osk->sk_copy_start,
 	       osk->sk_prot->obj_size - offsetof(struct sock, sk_copy_start));
 #ifdef CONFIG_SECURITY_NETWORK
@@ -997,6 +999,7 @@ static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
 
 		if (!try_module_get(prot->owner))
 			goto out_free_sec;
+		sk_tx_queue_clear(sk);
 	}
 
 	return sk;
