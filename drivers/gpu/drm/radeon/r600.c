@@ -339,11 +339,10 @@ int r600_mc_init(struct radeon_device *rdev)
 {
 	fixed20_12 a;
 	u32 tmp;
-	int chansize;
+	int chansize, numchan;
 	int r;
 
 	/* Get VRAM informations */
-	rdev->mc.vram_width = 128;
 	rdev->mc.vram_is_ddr = true;
 	tmp = RREG32(RAMCFG);
 	if (tmp & CHANSIZE_OVERRIDE) {
@@ -353,17 +352,23 @@ int r600_mc_init(struct radeon_device *rdev)
 	} else {
 		chansize = 32;
 	}
-	if (rdev->family == CHIP_R600) {
-		rdev->mc.vram_width = 8 * chansize;
-	} else if (rdev->family == CHIP_RV670) {
-		rdev->mc.vram_width = 4 * chansize;
-	} else if ((rdev->family == CHIP_RV610) ||
-			(rdev->family == CHIP_RV620)) {
-		rdev->mc.vram_width = chansize;
-	} else if ((rdev->family == CHIP_RV630) ||
-			(rdev->family == CHIP_RV635)) {
-		rdev->mc.vram_width = 2 * chansize;
+	tmp = RREG32(CHMAP);
+	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	case 0:
+	default:
+		numchan = 1;
+		break;
+	case 1:
+		numchan = 2;
+		break;
+	case 2:
+		numchan = 4;
+		break;
+	case 3:
+		numchan = 8;
+		break;
 	}
+	rdev->mc.vram_width = numchan * chansize;
 	/* Could aper size report 0 ? */
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);

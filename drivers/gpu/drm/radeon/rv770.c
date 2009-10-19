@@ -774,14 +774,36 @@ int rv770_mc_init(struct radeon_device *rdev)
 {
 	fixed20_12 a;
 	u32 tmp;
+	int chansize, numchan;
 	int r;
 
 	/* Get VRAM informations */
-	/* FIXME: Don't know how to determine vram width, need to check
-	 * vram_width usage
-	 */
-	rdev->mc.vram_width = 128;
 	rdev->mc.vram_is_ddr = true;
+	tmp = RREG32(MC_ARB_RAMCFG);
+	if (tmp & CHANSIZE_OVERRIDE) {
+		chansize = 16;
+	} else if (tmp & CHANSIZE_MASK) {
+		chansize = 64;
+	} else {
+		chansize = 32;
+	}
+	tmp = RREG32(MC_SHARED_CHMAP);
+	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	case 0:
+	default:
+		numchan = 1;
+		break;
+	case 1:
+		numchan = 2;
+		break;
+	case 2:
+		numchan = 4;
+		break;
+	case 3:
+		numchan = 8;
+		break;
+	}
+	rdev->mc.vram_width = numchan * chansize;
 	/* Could aper size report 0 ? */
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
