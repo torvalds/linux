@@ -613,13 +613,16 @@ static int page_action(struct page_state *ps, struct page *p,
 			unsigned long pfn, int ref)
 {
 	int result;
+	int count;
 
 	result = ps->action(p, pfn);
 	action_result(pfn, ps->msg, result);
-	if (page_count(p) != 1 + ref)
+
+	count = page_count(p) - 1 - ref;
+	if (count != 0)
 		printk(KERN_ERR
 		       "MCE %#lx: %s page still referenced by %d users\n",
-		       pfn, ps->msg, page_count(p) - 1);
+		       pfn, ps->msg, count);
 
 	/* Could do more checks here if page looks ok */
 	/*
