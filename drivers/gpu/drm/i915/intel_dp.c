@@ -400,7 +400,7 @@ intel_dp_i2c_init(struct intel_output *intel_output, const char *name)
 {
 	struct intel_dp_priv   *dp_priv = intel_output->dev_priv;
 
-	DRM_ERROR("i2c_init %s\n", name);
+	DRM_DEBUG_KMS("i2c_init %s\n", name);
 	dp_priv->algo.running = false;
 	dp_priv->algo.address = 0;
 	dp_priv->algo.aux_ch = intel_dp_i2c_aux_ch;
