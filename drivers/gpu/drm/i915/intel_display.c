@@ -2814,6 +2814,46 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				  link_bw, &m_n);
 	}
 
+	/* Ironlake: try to setup display ref clock before DPLL
+	 * enabling. This is only under driver's control after
+	 * PCH B stepping, previous chipset stepping should be
+	 * ignoring this setting.
+	 */
+	if (IS_IGDNG(dev)) {
+		temp = I915_READ(PCH_DREF_CONTROL);
+		/* Always enable nonspread source */
+		temp &= ~DREF_NONSPREAD_SOURCE_MASK;
+		temp |= DREF_NONSPREAD_SOURCE_ENABLE;
+		I915_WRITE(PCH_DREF_CONTROL, temp);
+		POSTING_READ(PCH_DREF_CONTROL);
+
+		temp &= ~DREF_SSC_SOURCE_MASK;
+		temp |= DREF_SSC_SOURCE_ENABLE;
+		I915_WRITE(PCH_DREF_CONTROL, temp);
+		POSTING_READ(PCH_DREF_CONTROL);
+
+		udelay(200);
+
+		if (is_edp) {
+			if (dev_priv->lvds_use_ssc) {
+				temp |= DREF_SSC1_ENABLE;
+				I915_WRITE(PCH_DREF_CONTROL, temp);
+				POSTING_READ(PCH_DREF_CONTROL);
+
+				udelay(200);
+
+				temp &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
+				temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
+				I915_WRITE(PCH_DREF_CONTROL, temp);
+				POSTING_READ(PCH_DREF_CONTROL);
+			} else {
+				temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
+				I915_WRITE(PCH_DREF_CONTROL, temp);
+				POSTING_READ(PCH_DREF_CONTROL);
+			}
+		}
+	}
+
 	if (IS_IGD(dev)) {
 		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
 		if (has_reduced_clock)
