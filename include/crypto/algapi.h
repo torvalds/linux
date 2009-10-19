@@ -106,7 +106,6 @@ struct blkcipher_walk {
 extern const struct crypto_type crypto_ablkcipher_type;
 extern const struct crypto_type crypto_aead_type;
 extern const struct crypto_type crypto_blkcipher_type;
-extern const struct crypto_type crypto_hash_type;
 
 void crypto_mod_put(struct crypto_alg *alg);
 
