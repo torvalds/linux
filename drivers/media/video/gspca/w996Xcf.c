@@ -442,11 +442,11 @@ static int w9968cf_set_crop_window(struct sd *sd)
 		/* Sigh, this is dependend on the clock / framerate changes
 		   made by the frequency control, sick. */
 		if (sd->freq == 1) {
-			start_cropx = 279;
-			start_cropy = 35;
+			start_cropx = 277;
+			start_cropy = 37;
 		} else {
-			start_cropx = 103;
-			start_cropy = 35;
+			start_cropx = 105;
+			start_cropy = 37;
 		}
 	} else {
 		start_cropx = 320;
