@@ -1515,7 +1515,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* Enable panel fitting for LVDS */
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 			temp = I915_READ(pf_ctl_reg);
-			I915_WRITE(pf_ctl_reg, temp | PF_ENABLE);
+			I915_WRITE(pf_ctl_reg, temp | PF_ENABLE | PF_FILTER_MED_3x3);
 
 			/* currently full aspect */
 			I915_WRITE(pf_win_pos, 0);

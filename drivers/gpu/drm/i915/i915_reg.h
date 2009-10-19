@@ -2039,6 +2039,11 @@
 #define PFA_CTL_1               0x68080
 #define PFB_CTL_1               0x68880
 #define  PF_ENABLE              (1<<31)
+#define  PF_FILTER_MASK		(3<<23)
+#define  PF_FILTER_PROGRAMMED	(0<<23)
+#define  PF_FILTER_MED_3x3	(1<<23)
+#define  PF_FILTER_EDGE_ENHANCE	(2<<23)
+#define  PF_FILTER_EDGE_SOFTEN	(3<<23)
 #define PFA_WIN_SZ		0x68074
 #define PFB_WIN_SZ		0x68874
 #define PFA_WIN_POS		0x68070
