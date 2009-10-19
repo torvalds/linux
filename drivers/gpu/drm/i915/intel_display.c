@@ -943,6 +943,7 @@ intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
     clock.m = 5 * (clock.m1 + 2) + (clock.m2 + 2);
     clock.p = (clock.p1 * clock.p2);
     clock.dot = 96000 * clock.m / (clock.n + 2) / clock.p;
+    clock.vco = 0;
     memcpy(best_clock, &clock, sizeof(intel_clock_t));
     return true;
 }
