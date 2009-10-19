@@ -60,7 +60,7 @@ config PPC_SMLPAR
 
 config CMM
 	tristate "Collaborative memory management"
-	depends on PPC_SMLPAR && !CRASH_DUMP
+	depends on PPC_SMLPAR
 	default y
 	help
 	  Select this option, if you want to enable the kernel interface
