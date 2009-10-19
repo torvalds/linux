@@ -951,8 +951,11 @@ int ath9k_hw_init(struct ath_hw *ah)
 	ath9k_hw_init_cal_settings(ah);
 
 	ah->ani_function = ATH9K_ANI_ALL;
-	if (AR_SREV_9280_10_OR_LATER(ah))
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
 		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
+		ah->ath9k_hw_rf_set_freq = &ath9k_hw_ar9280_set_channel;
+	} else
+		ah->ath9k_hw_rf_set_freq = &ath9k_hw_set_channel;
 
 	ath9k_hw_init_mode_regs(ah);
 
@@ -1889,10 +1892,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 
 	ath9k_hw_set_regs(ah, chan);
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		r = ath9k_hw_ar9280_set_channel(ah, chan);
-	else
-		r = ath9k_hw_set_channel(ah, chan);
+	r = ah->ath9k_hw_rf_set_freq(ah, chan);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Failed to set channel\n");
@@ -2534,10 +2534,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	REG_WRITE(ah, AR_RSSI_THR, INIT_RSSI_THR);
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		r = ath9k_hw_ar9280_set_channel(ah, chan);
-	else
-		r = ath9k_hw_set_channel(ah, chan);
+	r = ah->ath9k_hw_rf_set_freq(ah, chan);
 	if (r)
 		return r;
 

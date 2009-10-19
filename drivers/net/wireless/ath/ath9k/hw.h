@@ -548,7 +548,9 @@ struct ath_hw {
 		DONT_USE_32KHZ,
 	} enable_32kHz_clock;
 
-	/* RF */
+	/* Callback for radio frequency change */
+	int (*ath9k_hw_rf_set_freq)(struct ath_hw *ah, struct ath9k_channel *chan);
+	/* Used to program the radio on non single-chip devices */
 	u32 *analogBank0Data;
 	u32 *analogBank1Data;
 	u32 *analogBank2Data;
