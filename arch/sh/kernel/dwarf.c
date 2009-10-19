@@ -902,7 +902,7 @@ static int dwarf_parse_section(char *eh_frame_start, char *eh_frame_end,
 	u32 entry_type;
 	void *p, *entry;
 	int count, err = 0;
-	unsigned long len;
+	unsigned long len = 0;
 	unsigned int c_entries, f_entries;
 	unsigned char *end;
 
