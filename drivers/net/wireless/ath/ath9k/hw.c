@@ -952,8 +952,11 @@ int ath9k_hw_init(struct ath_hw *ah)
 	if (AR_SREV_9280_10_OR_LATER(ah)) {
 		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
 		ah->ath9k_hw_rf_set_freq = &ath9k_hw_ar9280_set_channel;
-	} else
+		ah->ath9k_hw_spur_mitigate_freq = &ath9k_hw_9280_spur_mitigate;
+	} else {
 		ah->ath9k_hw_rf_set_freq = &ath9k_hw_set_channel;
+		ah->ath9k_hw_spur_mitigate_freq = &ath9k_hw_spur_mitigate;
+	}
 
 	ath9k_hw_init_mode_regs(ah);
 
@@ -1917,10 +1920,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
 		ath9k_hw_set_delta_slope(ah, chan);
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		ath9k_hw_9280_spur_mitigate(ah, chan);
-	else
-		ath9k_hw_spur_mitigate(ah, chan);
+	ah->ath9k_hw_spur_mitigate_freq(ah, chan);
 
 	if (!chan->oneTimeCalsDone)
 		chan->oneTimeCalsDone = true;
@@ -2053,13 +2053,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
 		ath9k_hw_set_delta_slope(ah, chan);
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		ath9k_hw_9280_spur_mitigate(ah, chan);
-	else
-		ath9k_hw_spur_mitigate(ah, chan);
-
+	ah->ath9k_hw_spur_mitigate_freq(ah, chan);
 	ah->eep_ops->set_board_values(ah, chan);
-
 	ath9k_hw_decrease_chain_power(ah, chan);
 
 	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));

@@ -550,6 +550,11 @@ struct ath_hw {
 
 	/* Callback for radio frequency change */
 	int (*ath9k_hw_rf_set_freq)(struct ath_hw *ah, struct ath9k_channel *chan);
+
+	/* Callback for baseband spur frequency */
+	void (*ath9k_hw_spur_mitigate_freq)(struct ath_hw *ah,
+					    struct ath9k_channel *chan);
+
 	/* Used to program the radio on non single-chip devices */
 	u32 *analogBank0Data;
 	u32 *analogBank1Data;
