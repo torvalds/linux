@@ -935,19 +935,22 @@ int security_compute_av(u32 ssid,
 	u32 requested;
 	int rc;
 
+	read_lock(&policy_rwlock);
+
 	if (!ss_initialized)
 		goto allow;
 
-	read_lock(&policy_rwlock);
 	requested = unmap_perm(orig_tclass, orig_requested);
 	tclass = unmap_class(orig_tclass);
 	if (unlikely(orig_tclass && !tclass)) {
 		if (policydb.allow_unknown)
 			goto allow;
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 	rc = security_compute_av_core(ssid, tsid, tclass, requested, avd);
 	map_decision(orig_tclass, avd, policydb.allow_unknown);
+out:
 	read_unlock(&policy_rwlock);
 	return rc;
 allow:
@@ -956,7 +959,8 @@ allow:
 	avd->auditdeny = 0xffffffff;
 	avd->seqno = latest_granting;
 	avd->flags = 0;
-	return 0;
+	rc = 0;
+	goto out;
 }
 
 int security_compute_av_user(u32 ssid,
