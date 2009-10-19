@@ -558,12 +558,11 @@ static void ibmvfc_link_down(struct ibmvfc_host *vhost,
 /**
  * ibmvfc_init_host - Start host initialization
  * @vhost:		ibmvfc host struct
- * @relogin:	is this a re-login?
  *
  * Return value:
  *	nothing
  **/
-static void ibmvfc_init_host(struct ibmvfc_host *vhost, int relogin)
+static void ibmvfc_init_host(struct ibmvfc_host *vhost)
 {
 	struct ibmvfc_target *tgt;
 
@@ -577,10 +576,8 @@ static void ibmvfc_init_host(struct ibmvfc_host *vhost, int relogin)
 	}
 
 	if (!ibmvfc_set_host_state(vhost, IBMVFC_INITIALIZING)) {
-		if (!relogin) {
-			memset(vhost->async_crq.msgs, 0, PAGE_SIZE);
-			vhost->async_crq.cur = 0;
-		}
+		memset(vhost->async_crq.msgs, 0, PAGE_SIZE);
+		vhost->async_crq.cur = 0;
 
 		list_for_each_entry(tgt, &vhost->targets, queue)
 			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
@@ -2303,13 +2300,13 @@ static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost)
 			/* Send back a response */
 			rc = ibmvfc_send_crq_init_complete(vhost);
 			if (rc == 0)
-				ibmvfc_init_host(vhost, 0);
+				ibmvfc_init_host(vhost);
 			else
 				dev_err(vhost->dev, "Unable to send init rsp. rc=%ld\n", rc);
 			break;
 		case IBMVFC_CRQ_INIT_COMPLETE:
 			dev_info(vhost->dev, "Partner initialization complete\n");
-			ibmvfc_init_host(vhost, 0);
+			ibmvfc_init_host(vhost);
 			break;
 		default:
 			dev_err(vhost->dev, "Unknown crq message type: %d\n", crq->format);
@@ -3731,7 +3728,7 @@ static void ibmvfc_npiv_logout_done(struct ibmvfc_event *evt)
 	case IBMVFC_MAD_SUCCESS:
 		if (list_empty(&vhost->sent) &&
 		    vhost->action == IBMVFC_HOST_ACTION_LOGO_WAIT) {
-			ibmvfc_init_host(vhost, 0);
+			ibmvfc_init_host(vhost);
 			return;
 		}
 		break;
