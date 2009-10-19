@@ -61,7 +61,8 @@ static unsigned short au1xpsc_ac97_read(struct snd_ac97 *ac97,
 {
 	/* FIXME */
 	struct au1xpsc_audio_data *pscdata = au1xpsc_ac97_workdata;
-	unsigned short data, retry, tmo;
+	unsigned short retry, tmo;
+	unsigned long data;
 
 	au_writel(PSC_AC97EVNT_CD, AC97_EVNT(pscdata));
 	au_sync();
@@ -79,15 +80,19 @@ static unsigned short au1xpsc_ac97_read(struct snd_ac97 *ac97,
 			&& --tmo)
 			udelay(2);
 
-		data = au_readl(AC97_CDC(pscdata)) & 0xffff;
+		data = au_readl(AC97_CDC(pscdata));
 
 		au_writel(PSC_AC97EVNT_CD, AC97_EVNT(pscdata));
 		au_sync();
 
 		mutex_unlock(&pscdata->lock);
+
+		if (reg != ((data >> 16) & 0x7f))
+			tmo = 1;	/* wrong register, try again */
+
 	} while (--retry && !tmo);
 
-	return retry ? data : 0xffff;
+	return retry ? data & 0xffff : 0xffff;
 }
 
 /* AC97 controller writes to codec register */
