@@ -255,7 +255,7 @@ int i2400m_op_reset(struct wimax_dev *wimax_dev)
 	mutex_lock(&i2400m->init_mutex);
 	i2400m->reset_ctx = &ctx;
 	mutex_unlock(&i2400m->init_mutex);
-	result = i2400m->bus_reset(i2400m, I2400M_RT_WARM);
+	result = i2400m_reset(i2400m, I2400M_RT_WARM);
 	if (result < 0)
 		goto out;
 	result = wait_for_completion_timeout(&ctx.completion, 4*HZ);
@@ -710,7 +710,7 @@ out_unlock:
 	mutex_unlock(&i2400m->init_mutex);
 	if (result == -EUCLEAN) {
 		/* ops, need to clean up [w/ init_mutex not held] */
-		result = i2400m->bus_reset(i2400m, I2400M_RT_BUS);
+		result = i2400m_reset(i2400m, I2400M_RT_BUS);
 		if (result >= 0)
 			result = -ENODEV;
 	}
@@ -813,6 +813,24 @@ void i2400m_init(struct i2400m *i2400m)
 	/* wake_tx_ws is initialized in i2400m_tx_setup() */
 }
 EXPORT_SYMBOL_GPL(i2400m_init);
+
+
+int i2400m_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
+{
+	struct net_device *net_dev = i2400m->wimax_dev.net_dev;
+
+	/*
+	 * Make sure we stop TXs and down the carrier before
+	 * resetting; this is needed to avoid things like
+	 * i2400m_wake_tx() scheduling stuff in parallel.
+	 */
+	if (net_dev->reg_state == NETREG_REGISTERED) {
+		netif_tx_disable(net_dev);
+		netif_carrier_off(net_dev);
+	}
+	return i2400m->bus_reset(i2400m, rt);
+}
+EXPORT_SYMBOL_GPL(i2400m_reset);
 
 
 /**

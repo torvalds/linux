@@ -58,7 +58,7 @@
  *   i2400mu_rx_release()
  *   i2400mu_tx_release()
  *
- * i2400mu_bus_reset()            Called by i2400m->bus_reset
+ * i2400mu_bus_reset()            Called by i2400m_reset
  *   __i2400mu_reset()
  *     __i2400mu_send_barker()
  *   usb_reset_device()

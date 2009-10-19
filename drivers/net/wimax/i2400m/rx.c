@@ -828,7 +828,7 @@ void i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 		dev_err(dev, "SW BUG? queue nsn %d (lbn %u ws %u)\n",
 			nsn, lbn, roq->ws);
 		i2400m_roq_log_dump(i2400m, roq);
-		i2400m->bus_reset(i2400m, I2400M_RT_WARM);
+		i2400m_reset(i2400m, I2400M_RT_WARM);
 	} else {
 		__i2400m_roq_queue(i2400m, roq, skb, lbn, nsn);
 		i2400m_roq_log_add(i2400m, roq, I2400M_RO_TYPE_PACKET,
@@ -894,7 +894,7 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 		dev_err(dev, "SW BUG? queue_update_ws nsn %u (sn %u ws %u)\n",
 			nsn, sn, roq->ws);
 		i2400m_roq_log_dump(i2400m, roq);
-		i2400m->bus_reset(i2400m, I2400M_RT_WARM);
+		i2400m_reset(i2400m, I2400M_RT_WARM);
 	} else {
 		/* if the queue is empty, don't bother as we'd queue
 		 * it and inmediately unqueue it -- just deliver it */

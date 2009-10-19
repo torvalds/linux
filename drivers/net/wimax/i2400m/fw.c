@@ -130,7 +130,7 @@
  * i2400m_fw_dnload
  *   i2400m_bootrom_init
  *     i2400m_bm_cmd
- *     i2400m->bus_reset
+ *     i2400m_reset
  *   i2400m_dnload_init
  *     i2400m_dnload_init_signed
  *     i2400m_dnload_init_nonsigned
@@ -902,7 +902,7 @@ do_reboot:
 	d_printf(4, dev, "device reboot: reboot command [%d # left]\n",
 		 count);
 	if ((flags & I2400M_BRI_NO_REBOOT) == 0)
-		i2400m->bus_reset(i2400m, I2400M_RT_WARM);
+		i2400m_reset(i2400m, I2400M_RT_WARM);
 	result = i2400m_bm_cmd(i2400m, NULL, 0, &ack, sizeof(ack),
 			       I2400M_BM_CMD_RAW);
 	flags &= ~I2400M_BRI_NO_REBOOT;

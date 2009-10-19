@@ -54,7 +54,7 @@
  *   i2400m_set_init_config()
  *   i2400m_cmd_get_state()
  * i2400m_dev_shutdown()        Called by i2400m_dev_stop()
- *   i2400m->bus_reset()
+ *   i2400m_reset()
  *
  * i2400m_{cmd,get,set}_*()
  *   i2400m_msg_to_dev()
@@ -343,7 +343,7 @@ void i2400m_report_tlv_system_state(struct i2400m *i2400m,
 		/* Huh? just in case, shut it down */
 		dev_err(dev, "HW BUG? unknown state %u: shutting down\n",
 			i2400m_state);
-		i2400m->bus_reset(i2400m, I2400M_RT_WARM);
+		i2400m_reset(i2400m, I2400M_RT_WARM);
 		break;
 	};
 	d_fnend(3, dev, "(i2400m %p ss %p [%u]) = void\n",

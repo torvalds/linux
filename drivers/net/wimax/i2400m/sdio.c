@@ -43,7 +43,7 @@
  *     i2400m_release()
  *     free_netdev(net_dev)
  *
- * i2400ms_bus_reset()            Called by i2400m->bus_reset
+ * i2400ms_bus_reset()            Called by i2400m_reset
  *   __i2400ms_reset()
  *     __i2400ms_send_barker()
  */
@@ -342,13 +342,6 @@ int i2400ms_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
 					       sizeof(i2400m_COLD_BOOT_BARKER));
 	else if (rt == I2400M_RT_BUS) {
 do_bus_reset:
-		/* call netif_tx_disable() before sending IOE disable,
-		 * so that all the tx from network layer are stopped
-		 * while IOE is being reset. Make sure it is called
-		 * only after register_netdev() was issued.
-		 */
-		if (i2400m->wimax_dev.net_dev->reg_state == NETREG_REGISTERED)
-			netif_tx_disable(i2400m->wimax_dev.net_dev);
 
 		i2400ms_bus_release(i2400m);
 

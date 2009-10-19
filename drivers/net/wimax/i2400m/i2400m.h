@@ -717,6 +717,7 @@ unsigned i2400m_brh_get_signature(const struct i2400m_bootrom_header *hdr)
  * Driver / device setup and internal functions
  */
 extern void i2400m_init(struct i2400m *);
+extern int i2400m_reset(struct i2400m *, enum i2400m_reset_type);
 extern void i2400m_netdev_setup(struct net_device *net_dev);
 extern int i2400m_sysfs_setup(struct device_driver *);
 extern void i2400m_sysfs_release(struct device_driver *);

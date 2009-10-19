@@ -171,8 +171,9 @@ void i2400m_wake_tx_work(struct work_struct *ws)
 		result = 0;
 	if (result < 0) {
 		dev_err(dev, "WAKE&TX: device didn't get out of idle: "
-			"%d\n", result);
-			goto error;
+			"%d - resetting\n", result);
+		i2400m_reset(i2400m, I2400M_RT_BUS);
+		goto error;
 	}
 	result = wait_event_timeout(i2400m->state_wq,
 				    i2400m->state != I2400M_SS_IDLE, 5 * HZ);
@@ -180,7 +181,8 @@ void i2400m_wake_tx_work(struct work_struct *ws)
 		result = -ETIMEDOUT;
 	if (result < 0) {
 		dev_err(dev, "WAKE&TX: error waiting for device to exit IDLE: "
-			"%d\n", result);
+			"%d - resetting\n", result);
+		i2400m_reset(i2400m, I2400M_RT_BUS);
 		goto error;
 	}
 	msleep(20);	/* device still needs some time or it drops it */
