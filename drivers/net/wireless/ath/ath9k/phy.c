@@ -419,62 +419,63 @@ bool ath9k_hw_init_rf(struct ath_hw *ah, int *status)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	if (!AR_SREV_9280_10_OR_LATER(ah)) {
-		ah->analogBank0Data =
-		    kzalloc((sizeof(u32) *
-			     ah->iniBank0.ia_rows), GFP_KERNEL);
-		ah->analogBank1Data =
-		    kzalloc((sizeof(u32) *
-			     ah->iniBank1.ia_rows), GFP_KERNEL);
-		ah->analogBank2Data =
-		    kzalloc((sizeof(u32) *
-			     ah->iniBank2.ia_rows), GFP_KERNEL);
-		ah->analogBank3Data =
-		    kzalloc((sizeof(u32) *
-			     ah->iniBank3.ia_rows), GFP_KERNEL);
-		ah->analogBank6Data =
-		    kzalloc((sizeof(u32) *
-			     ah->iniBank6.ia_rows), GFP_KERNEL);
-		ah->analogBank6TPCData =
-		    kzalloc((sizeof(u32) *
-			     ah->iniBank6TPC.ia_rows), GFP_KERNEL);
-		ah->analogBank7Data =
-		    kzalloc((sizeof(u32) *
-			     ah->iniBank7.ia_rows), GFP_KERNEL);
+	if (AR_SREV_9280_10_OR_LATER(ah))
+		return true;
 
-		if (ah->analogBank0Data == NULL
-		    || ah->analogBank1Data == NULL
-		    || ah->analogBank2Data == NULL
-		    || ah->analogBank3Data == NULL
-		    || ah->analogBank6Data == NULL
-		    || ah->analogBank6TPCData == NULL
-		    || ah->analogBank7Data == NULL) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Cannot allocate RF banks\n");
-			*status = -ENOMEM;
-			return false;
-		}
+	ah->analogBank0Data =
+	    kzalloc((sizeof(u32) *
+		     ah->iniBank0.ia_rows), GFP_KERNEL);
+	ah->analogBank1Data =
+	    kzalloc((sizeof(u32) *
+		     ah->iniBank1.ia_rows), GFP_KERNEL);
+	ah->analogBank2Data =
+	    kzalloc((sizeof(u32) *
+		     ah->iniBank2.ia_rows), GFP_KERNEL);
+	ah->analogBank3Data =
+	    kzalloc((sizeof(u32) *
+		     ah->iniBank3.ia_rows), GFP_KERNEL);
+	ah->analogBank6Data =
+	    kzalloc((sizeof(u32) *
+		     ah->iniBank6.ia_rows), GFP_KERNEL);
+	ah->analogBank6TPCData =
+	    kzalloc((sizeof(u32) *
+		     ah->iniBank6TPC.ia_rows), GFP_KERNEL);
+	ah->analogBank7Data =
+	    kzalloc((sizeof(u32) *
+		     ah->iniBank7.ia_rows), GFP_KERNEL);
 
-		ah->addac5416_21 =
-		    kzalloc((sizeof(u32) *
-			     ah->iniAddac.ia_rows *
-			     ah->iniAddac.ia_columns), GFP_KERNEL);
-		if (ah->addac5416_21 == NULL) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Cannot allocate addac5416_21\n");
-			*status = -ENOMEM;
-			return false;
-		}
+	if (ah->analogBank0Data == NULL
+	    || ah->analogBank1Data == NULL
+	    || ah->analogBank2Data == NULL
+	    || ah->analogBank3Data == NULL
+	    || ah->analogBank6Data == NULL
+	    || ah->analogBank6TPCData == NULL
+	    || ah->analogBank7Data == NULL) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Cannot allocate RF banks\n");
+		*status = -ENOMEM;
+		return false;
+	}
 
-		ah->bank6Temp =
-		    kzalloc((sizeof(u32) *
-			     ah->iniBank6.ia_rows), GFP_KERNEL);
-		if (ah->bank6Temp == NULL) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Cannot allocate bank6Temp\n");
-			*status = -ENOMEM;
-			return false;
-		}
+	ah->addac5416_21 =
+	    kzalloc((sizeof(u32) *
+		     ah->iniAddac.ia_rows *
+		     ah->iniAddac.ia_columns), GFP_KERNEL);
+	if (ah->addac5416_21 == NULL) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Cannot allocate addac5416_21\n");
+		*status = -ENOMEM;
+		return false;
+	}
+
+	ah->bank6Temp =
+	    kzalloc((sizeof(u32) *
+		     ah->iniBank6.ia_rows), GFP_KERNEL);
+	if (ah->bank6Temp == NULL) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Cannot allocate bank6Temp\n");
+		*status = -ENOMEM;
+		return false;
 	}
 
 	return true;
