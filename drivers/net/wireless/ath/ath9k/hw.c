@@ -1040,6 +1040,22 @@ static void ath9k_hw_init_qos(struct ath_hw *ah)
 	REG_WRITE(ah, AR_TXOP_12_15, 0xFFFFFFFF);
 }
 
+static void ath9k_hw_change_target_baud(struct ath_hw *ah, u32 freq, u32 baud)
+{
+	u32 lcr;
+	u32 baud_divider = freq * 1000 * 1000 / 16 / baud;
+
+	lcr = REG_READ(ah , 0x5100c);
+	lcr |= 0x80;
+
+	REG_WRITE(ah, 0x5100c, lcr);
+	REG_WRITE(ah, 0x51004, (baud_divider >> 8));
+	REG_WRITE(ah, 0x51000, (baud_divider & 0xff));
+
+	lcr &= ~0x80;
+	REG_WRITE(ah, 0x5100c, lcr);
+}
+
 static void ath9k_hw_init_pll(struct ath_hw *ah,
 			      struct ath9k_channel *chan)
 {
@@ -1102,6 +1118,26 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		}
 	}
 	REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
+
+	/* Switch the core clock for ar9271 to 117Mhz */
+	if (AR_SREV_9271(ah)) {
+		if ((pll == 0x142c) || (pll == 0x2850) ) {
+			udelay(500);
+			/* set CLKOBS to output AHB clock */
+			REG_WRITE(ah, 0x7020, 0xe);
+			/*
+			 * 0x304: 117Mhz, ahb_ratio: 1x1
+			 * 0x306: 40Mhz, ahb_ratio: 1x1
+			 */
+			REG_WRITE(ah, 0x50040, 0x304);
+			/*
+			 * makes adjustments for the baud dividor to keep the
+			 * targetted baud rate based on the used core clock.
+			 */
+			ath9k_hw_change_target_baud(ah, AR9271_CORE_CLOCK,
+						    AR9271_TARGET_BAUD_RATE);
+		}
+	}
 
 	udelay(RTC_PLL_SETTLE_DELAY);
 
