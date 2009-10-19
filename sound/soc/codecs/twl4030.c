@@ -1785,19 +1785,21 @@ static int twl4030_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct twl4030_priv *twl4030 = codec->private_data;
-	u8 infreq;
+	u8 apll_ctrl;
 
+	apll_ctrl = twl4030_read_reg_cache(codec, TWL4030_REG_APLL_CTL);
+	apll_ctrl &= ~TWL4030_APLL_INFREQ;
 	switch (freq) {
 	case 19200000:
-		infreq = TWL4030_APLL_INFREQ_19200KHZ;
+		apll_ctrl |= TWL4030_APLL_INFREQ_19200KHZ;
 		twl4030->sysclk = 19200;
 		break;
 	case 26000000:
-		infreq = TWL4030_APLL_INFREQ_26000KHZ;
+		apll_ctrl |= TWL4030_APLL_INFREQ_26000KHZ;
 		twl4030->sysclk = 26000;
 		break;
 	case 38400000:
-		infreq = TWL4030_APLL_INFREQ_38400KHZ;
+		apll_ctrl |= TWL4030_APLL_INFREQ_38400KHZ;
 		twl4030->sysclk = 38400;
 		break;
 	default:
@@ -1806,8 +1808,7 @@ static int twl4030_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	infreq |= TWL4030_APLL_EN;
-	twl4030_write(codec, TWL4030_REG_APLL_CTL, infreq);
+	twl4030_write(codec, TWL4030_REG_APLL_CTL, apll_ctrl);
 
 	return 0;
 }
@@ -1989,11 +1990,13 @@ static int twl4030_voice_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	u8 infreq;
+	u8 apll_ctrl;
 
+	apll_ctrl = twl4030_read_reg_cache(codec, TWL4030_REG_APLL_CTL);
+	apll_ctrl &= ~TWL4030_APLL_INFREQ;
 	switch (freq) {
 	case 26000000:
-		infreq = TWL4030_APLL_INFREQ_26000KHZ;
+		apll_ctrl |= TWL4030_APLL_INFREQ_26000KHZ;
 		break;
 	default:
 		printk(KERN_ERR "TWL4030 voice set sysclk: unknown rate %d\n",
@@ -2001,8 +2004,7 @@ static int twl4030_voice_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	infreq |= TWL4030_APLL_EN;
-	twl4030_write(codec, TWL4030_REG_APLL_CTL, infreq);
+	twl4030_write(codec, TWL4030_REG_APLL_CTL, apll_ctrl);
 
 	return 0;
 }
