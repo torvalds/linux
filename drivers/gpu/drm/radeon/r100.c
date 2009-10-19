@@ -2548,8 +2548,11 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 static inline void r100_cs_track_texture_print(struct r100_cs_track_texture *t)
 {
 	DRM_ERROR("pitch                      %d\n", t->pitch);
+	DRM_ERROR("use_pitch                  %d\n", t->use_pitch);
 	DRM_ERROR("width                      %d\n", t->width);
+	DRM_ERROR("width_11                   %d\n", t->width_11);
 	DRM_ERROR("height                     %d\n", t->height);
+	DRM_ERROR("height_11                  %d\n", t->height_11);
 	DRM_ERROR("num levels                 %d\n", t->num_levels);
 	DRM_ERROR("depth                      %d\n", t->txdepth);
 	DRM_ERROR("bpp                        %d\n", t->cpp);
@@ -2609,15 +2612,17 @@ static int r100_cs_track_texture_check(struct radeon_device *rdev,
 				else
 					w = track->textures[u].pitch / (1 << i);
 			} else {
-				w = track->textures[u].width / (1 << i);
+				w = track->textures[u].width;
 				if (rdev->family >= CHIP_RV515)
 					w |= track->textures[u].width_11;
+				w = w / (1 << i);
 				if (track->textures[u].roundup_w)
 					w = roundup_pow_of_two(w);
 			}
-			h = track->textures[u].height / (1 << i);
+			h = track->textures[u].height;
 			if (rdev->family >= CHIP_RV515)
 				h |= track->textures[u].height_11;
+			h = h / (1 << i);
 			if (track->textures[u].roundup_h)
 				h = roundup_pow_of_two(h);
 			size += w * h;
