@@ -181,10 +181,14 @@ do_sync_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
  * blocks[disks-1] to NULL.  When P or Q is omitted 'len' must be <=
  * PAGE_SIZE as a temporary buffer of this size is used in the
  * synchronous path.  'disks' always accounts for both destination
- * buffers.
+ * buffers.  If any source buffers (blocks[i] where i < disks - 2) are
+ * set to NULL those buffers will be replaced with the raid6_zero_page
+ * in the synchronous path and omitted in the hardware-asynchronous
+ * path.
  *
  * 'blocks' note: if submit->scribble is NULL then the contents of
- * 'blocks' may be overridden
+ * 'blocks' may be overwritten to perform address conversions
+ * (dma_map_page() or page_address()).
  */
 struct dma_async_tx_descriptor *
 async_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
@@ -283,13 +287,13 @@ async_syndrome_val(struct page **blocks, unsigned int offset, int disks,
 		if (!P(blocks, disks))
 			dma_flags |= DMA_PREP_PQ_DISABLE_P;
 		else
-			pq[0] = dma_map_page(dev, P(blocks,disks),
+			pq[0] = dma_map_page(dev, P(blocks, disks),
 					     offset, len,
 					     DMA_TO_DEVICE);
 		if (!Q(blocks, disks))
 			dma_flags |= DMA_PREP_PQ_DISABLE_Q;
 		else
-			pq[1] = dma_map_page(dev, Q(blocks,disks),
+			pq[1] = dma_map_page(dev, Q(blocks, disks),
 					     offset, len,
 					     DMA_TO_DEVICE);
 
@@ -303,9 +307,6 @@ async_syndrome_val(struct page **blocks, unsigned int offset, int disks,
 				coefs[src_cnt] = raid6_gfexp[i];
 				src_cnt++;
 			}
-		pq[1] = dma_map_page(dev, Q(blocks,disks),
-				     offset, len,
-				     DMA_TO_DEVICE);
 
 		for (;;) {
 			tx = device->device_prep_dma_pq_val(chan, pq, dma_src,
