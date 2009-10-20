@@ -1757,52 +1757,6 @@
 
 
 /* **********  DMA CONTROLLER MASKS  ***********************/
-/* DMAx_CONFIG,	MDMA_yy_CONFIG Masks */
-#define	DMAEN		0x0001	/* Channel Enable */
-#define	WNR			0x0002	/* Channel Direction (W/R*) */
-#define	WDSIZE_8	0x0000	/* Word	Size 8 bits */
-#define	WDSIZE_16	0x0004	/* Word	Size 16	bits */
-#define	WDSIZE_32	0x0008	/* Word	Size 32	bits */
-#define	DMA2D		0x0010	/* 2D/1D* Mode */
-#define	RESTART		0x0020	/* Restart */
-#define	DI_SEL		0x0040	/* Data	Interrupt Select */
-#define	DI_EN		0x0080	/* Data	Interrupt Enable */
-#define	NDSIZE		0x0900	/* Next	Descriptor Size */
-#define	NDSIZE_0	0x0000	/* Next	Descriptor Size	= 0 (Stop/Autobuffer) */
-#define	NDSIZE_1	0x0100	/* Next	Descriptor Size	= 1 */
-#define	NDSIZE_2	0x0200	/* Next	Descriptor Size	= 2 */
-#define	NDSIZE_3	0x0300	/* Next	Descriptor Size	= 3 */
-#define	NDSIZE_4	0x0400	/* Next	Descriptor Size	= 4 */
-#define	NDSIZE_5	0x0500	/* Next	Descriptor Size	= 5 */
-#define	NDSIZE_6	0x0600	/* Next	Descriptor Size	= 6 */
-#define	NDSIZE_7	0x0700	/* Next	Descriptor Size	= 7 */
-#define	NDSIZE_8	0x0800	/* Next	Descriptor Size	= 8 */
-#define	NDSIZE_9	0x0900	/* Next	Descriptor Size	= 9 */
-
-#define DMAFLOW			0x7000	/* Flow Control */
-#define DMAFLOW_STOP		0x0000	/* Stop Mode */
-#define DMAFLOW_AUTO		0x1000	/* Autobuffer Mode */
-#define DMAFLOW_ARRAY		0x4000	/* Descriptor Array Mode */
-#define DMAFLOW_SMALL		0x6000	/* Small Model Descriptor List Mode */
-#define DMAFLOW_LARGE		0x7000	/* Large Model Descriptor List Mode */
-
-#define	DMAEN_P		0x0		/* Channel Enable */
-#define	WNR_P		0x1		/* Channel Direction (W/R*) */
-#define	DMA2D_P		0x4		/* 2D/1D* Mode */
-#define	RESTART_P	0x5		/* Restart */
-#define	DI_SEL_P	0x6		/* Data	Interrupt Select */
-#define	DI_EN_P		0x7		/* Data	Interrupt Enable */
-
-/* DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS Masks */
-#define	DMA_DONE	0x0001	/* DMA Done Indicator */
-#define	DMA_ERR		0x0002	/* DMA Error Indicator */
-#define	DFETCH		0x0004	/* Descriptor Fetch Indicator */
-#define	DMA_RUN		0x0008	/* DMA Running Indicator */
-
-#define	DMA_DONE_P	0x0		/* DMA Done Indicator */
-#define	DMA_ERR_P	0x1		/* DMA Error Indicator */
-#define	DFETCH_P	0x2		/* Descriptor Fetch Indicator */
-#define	DMA_RUN_P	0x3		/* DMA Running Indicator */
 
 /* DMAx_PERIPHERAL_MAP,	MDMA_yy_PERIPHERAL_MAP Masks */
 
