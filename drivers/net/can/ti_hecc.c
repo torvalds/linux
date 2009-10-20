@@ -535,18 +535,15 @@ static int ti_hecc_rx_pkt(struct ti_hecc_priv *priv, int mbxno)
 	u32 data, mbx_mask;
 	unsigned long flags;
 
-	skb = netdev_alloc_skb(priv->ndev, sizeof(struct can_frame));
+	skb = alloc_can_skb(priv->ndev, &cf);
 	if (!skb) {
 		if (printk_ratelimit())
 			dev_err(priv->ndev->dev.parent,
-				"ti_hecc_rx_pkt: netdev_alloc_skb() failed\n");
+				"ti_hecc_rx_pkt: alloc_can_skb() failed\n");
 		return -ENOMEM;
 	}
-	skb->protocol = __constant_htons(ETH_P_CAN);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	mbx_mask = BIT(mbxno);
-	cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
 	data = hecc_read_mbx(priv, mbxno, HECC_CANMID);
 	if (data & HECC_CANMID_IDE)
 		cf->can_id = (data & CAN_EFF_MASK) | CAN_EFF_FLAG;
@@ -656,19 +653,13 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 	struct sk_buff *skb;
 
 	/* propogate the error condition to the can stack */
-	skb = netdev_alloc_skb(ndev, sizeof(struct can_frame));
+	skb = alloc_can_err_skb(ndev, &cf);
 	if (!skb) {
 		if (printk_ratelimit())
 			dev_err(priv->ndev->dev.parent,
-				"ti_hecc_error: netdev_alloc_skb() failed\n");
+				"ti_hecc_error: alloc_can_err_skb() failed\n");
 		return -ENOMEM;
 	}
-	skb->protocol = __constant_htons(ETH_P_CAN);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
-	memset(cf, 0, sizeof(struct can_frame));
-	cf->can_id = CAN_ERR_FLAG;
-	cf->can_dlc = CAN_ERR_DLC;
 
 	if (int_status & HECC_CANGIF_WLIF) { /* warning level int */
 		if ((int_status & HECC_CANGIF_BOIF) == 0) {

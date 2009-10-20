@@ -221,38 +221,6 @@ static inline void set_mb_mode(const struct at91_priv *priv, unsigned int mb,
 	set_mb_mode_prio(priv, mb, mode, 0);
 }
 
-static struct sk_buff *alloc_can_skb(struct net_device *dev,
-		struct can_frame **cf)
-{
-	struct sk_buff *skb;
-
-	skb = netdev_alloc_skb(dev, sizeof(struct can_frame));
-	if (unlikely(!skb))
-		return NULL;
-
-	skb->protocol = htons(ETH_P_CAN);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	*cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
-
-	return skb;
-}
-
-static struct sk_buff *alloc_can_err_skb(struct net_device *dev,
-		struct can_frame **cf)
-{
-	struct sk_buff *skb;
-
-	skb = alloc_can_skb(dev, cf);
-	if (unlikely(!skb))
-		return NULL;
-
-	memset(*cf, 0, sizeof(struct can_frame));
-	(*cf)->can_id = CAN_ERR_FLAG;
-	(*cf)->can_dlc = CAN_ERR_DLC;
-
-	return skb;
-}
-
 /*
  * Swtich transceiver on or off
  */

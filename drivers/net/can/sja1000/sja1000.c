@@ -296,11 +296,9 @@ static void sja1000_rx(struct net_device *dev)
 	uint8_t dlc;
 	int i;
 
-	skb = dev_alloc_skb(sizeof(struct can_frame));
+	skb = alloc_can_skb(dev, &cf);
 	if (skb == NULL)
 		return;
-	skb->dev = dev;
-	skb->protocol = htons(ETH_P_CAN);
 
 	fi = priv->read_reg(priv, REG_FI);
 	dlc = fi & 0x0F;
@@ -351,15 +349,9 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	enum can_state state = priv->can.state;
 	uint8_t ecc, alc;
 
-	skb = dev_alloc_skb(sizeof(struct can_frame));
+	skb = alloc_can_err_skb(dev, &cf);
 	if (skb == NULL)
 		return -ENOMEM;
-	skb->dev = dev;
-	skb->protocol = htons(ETH_P_CAN);
-	cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
-	memset(cf, 0, sizeof(struct can_frame));
-	cf->can_id = CAN_ERR_FLAG;
-	cf->can_dlc = CAN_ERR_DLC;
 
 	if (isrc & IRQ_DOI) {
 		/* data overrun interrupt */
