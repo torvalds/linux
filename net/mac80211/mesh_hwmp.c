@@ -259,7 +259,7 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
  * @hwmp_ie: hwmp information element (PREP or PREQ)
  *
  * This function updates the path routing information to the originator and the
- * transmitter of a HWMP PREQ or PREP fram.
+ * transmitter of a HWMP PREQ or PREP frame.
  *
  * Returns: metric to frame originator or 0 if the frame should not be further
  * processed
