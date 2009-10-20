@@ -795,7 +795,7 @@ twl4030_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			twl->client = i2c_new_dummy(client->adapter,
 					twl->address);
 			if (!twl->client) {
-				dev_err(&twl->client->dev,
+				dev_err(&client->dev,
 					"can't attach client %d\n", i);
 				status = -ENOMEM;
 				goto fail;
