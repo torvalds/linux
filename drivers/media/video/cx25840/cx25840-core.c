@@ -703,6 +703,10 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	u8 is_composite = (vid_input >= CX25840_COMPOSITE1 &&
 			   vid_input <= CX25840_COMPOSITE8);
+	u8 is_component = (vid_input & CX25840_COMPONENT_ON) ==
+			CX25840_COMPONENT_ON;
+	int luma = vid_input & 0xf0;
+	int chroma = vid_input & 0xf00;
 	u8 reg;
 
 	v4l_dbg(1, cx25840_debug, client,
@@ -715,18 +719,14 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		reg = vid_input & 0xff;
 		if ((vid_input & CX25840_SVIDEO_ON) == CX25840_SVIDEO_ON)
 			is_composite = 0;
-		else
+		else if ((vid_input & CX25840_COMPONENT_ON) == 0)
 			is_composite = 1;
 
 		v4l_dbg(1, cx25840_debug, client, "mux cfg 0x%x comp=%d\n",
 			reg, is_composite);
-	} else
-	if (is_composite) {
+	} else if (is_composite) {
 		reg = 0xf0 + (vid_input - CX25840_COMPOSITE1);
 	} else {
-		int luma = vid_input & 0xf0;
-		int chroma = vid_input & 0xf00;
-
 		if ((vid_input & ~0xff0) ||
 		    luma < CX25840_SVIDEO_LUMA1 || luma > CX25840_SVIDEO_LUMA8 ||
 		    chroma < CX25840_SVIDEO_CHROMA4 || chroma > CX25840_SVIDEO_CHROMA8) {
@@ -768,8 +768,11 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 
 	cx25840_write(client, 0x103, reg);
 
-	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
-	cx25840_and_or(client, 0x401, ~0x6, is_composite ? 0 : 0x02);
+	/* Set INPUT_MODE to Composite, S-Video or Component */
+	if (is_component)
+		cx25840_and_or(client, 0x401, ~0x6, 0x6);
+	else
+		cx25840_and_or(client, 0x401, ~0x6, is_composite ? 0 : 0x02);
 
 	if (!is_cx2388x(state) && !is_cx231xx(state)) {
 		/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
@@ -780,12 +783,21 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		else
 			cx25840_and_or(client, 0x102, ~0x4, 0);
 	} else {
-		if (is_composite)
+		/* Set DUAL_MODE_ADC2 to 1 if component*/
+		cx25840_and_or(client, 0x102, ~0x4, is_component ? 0x4 : 0x0);
+		if (is_composite) {
 			/* ADC2 input select channel 2 */
 			cx25840_and_or(client, 0x102, ~0x2, 0);
-		else
-			/* ADC2 input select channel 3 */
-			cx25840_and_or(client, 0x102, ~0x2, 2);
+		} else if (!is_component) {
+			/* S-Video */
+			if (chroma >= CX25840_SVIDEO_CHROMA7) {
+				/* ADC2 input select channel 3 */
+				cx25840_and_or(client, 0x102, ~0x2, 2);
+			} else {
+				/* ADC2 input select channel 2 */
+				cx25840_and_or(client, 0x102, ~0x2, 0);
+			}
+		}
 	}
 
 	state->vid_input = vid_input;
