@@ -32,12 +32,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/board.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/common.h>
-#include <mach/mcspi.h>
-#include <mach/keypad.h>
+#include <plat/board.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/common.h>
+#include <plat/mcspi.h>
+#include <plat/keypad.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"

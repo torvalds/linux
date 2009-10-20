@@ -39,9 +39,9 @@
 #include <asm/sizes.h>
 #ifndef __ASSEMBLER__
 #include <asm/types.h>
-#include <mach/cpu.h>
+#include <plat/cpu.h>
 #endif
-#include <mach/serial.h>
+#include <plat/serial.h>
 
 /*
  * ---------------------------------------------------------------------------
@@ -280,11 +280,11 @@
  * ---------------------------------------------------------------------------
  */
 
-#include <mach/omap7xx.h>
-#include <mach/omap1510.h>
-#include <mach/omap16xx.h>
-#include <mach/omap24xx.h>
-#include <mach/omap34xx.h>
-#include <mach/omap44xx.h>
+#include <plat/omap7xx.h>
+#include <plat/omap1510.h>
+#include <plat/omap16xx.h>
+#include <plat/omap24xx.h>
+#include <plat/omap34xx.h>
+#include <plat/omap44xx.h>
 
 #endif	/* __ASM_ARCH_OMAP_HARDWARE_H */

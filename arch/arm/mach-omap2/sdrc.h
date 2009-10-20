@@ -15,7 +15,7 @@
  */
 #undef DEBUG
 
-#include <mach/sdrc.h>
+#include <plat/sdrc.h>
 
 #ifndef __ASSEMBLER__
 extern void __iomem *omap2_sdrc_base;

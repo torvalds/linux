@@ -38,7 +38,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <mach/hardware.h>
-#include <mach/dmtimer.h>
+#include <plat/dmtimer.h>
 #include <mach/irqs.h>
 
 /* register offsets */

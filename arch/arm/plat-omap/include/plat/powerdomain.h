@@ -19,7 +19,7 @@
 
 #include <asm/atomic.h>
 
-#include <mach/cpu.h>
+#include <plat/cpu.h>
 
 
 /* Powerdomain basic power states */

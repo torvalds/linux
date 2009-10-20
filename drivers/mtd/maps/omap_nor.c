@@ -45,7 +45,7 @@
 #include <asm/io.h>
 #include <mach/hardware.h>
 #include <asm/mach/flash.h>
-#include <mach/tc.h>
+#include <plat/tc.h>
 
 #ifdef CONFIG_MTD_PARTITIONS
 static const char *part_probes[] = { /* "RedBoot", */ "cmdlinepart", NULL };

@@ -18,11 +18,11 @@
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 
-#include <mach/tc.h>
-#include <mach/board.h>
-#include <mach/mux.h>
+#include <plat/tc.h>
+#include <plat/board.h>
+#include <plat/mux.h>
 #include <mach/gpio.h>
-#include <mach/mmc.h>
+#include <plat/mmc.h>
 
 /*-------------------------------------------------------------------------*/
 

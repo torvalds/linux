@@ -33,13 +33,13 @@
 #include <asm/mach/flash.h>
 
 #include <mach/gpio.h>
-#include <mach/led.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/board.h>
-#include <mach/common.h>
-#include <mach/gpmc.h>
-#include <mach/control.h>
+#include <plat/led.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/board.h>
+#include <plat/common.h>
+#include <plat/gpmc.h>
+#include <plat/control.h>
 
 /* LED & Switch macros */
 #define LED0_GPIO13		13

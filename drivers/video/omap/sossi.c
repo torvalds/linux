@@ -24,8 +24,8 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 
-#include <mach/dma.h>
-#include <mach/omapfb.h>
+#include <plat/dma.h>
+#include <plat/omapfb.h>
 
 #include "lcdc.h"
 

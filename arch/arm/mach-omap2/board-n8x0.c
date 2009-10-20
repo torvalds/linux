@@ -23,12 +23,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <mach/board.h>
-#include <mach/common.h>
+#include <plat/board.h>
+#include <plat/common.h>
 #include <mach/irqs.h>
-#include <mach/mcspi.h>
-#include <mach/onenand.h>
-#include <mach/serial.h>
+#include <plat/mcspi.h>
+#include <plat/onenand.h>
+#include <plat/serial.h>
 
 static struct omap2_mcspi_device_config p54spi_mcspi_config = {
 	.turbo_mode	= 0,

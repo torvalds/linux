@@ -29,13 +29,13 @@
 #include <asm/mach/map.h>
 #include <asm/setup.h>
 
-#include <mach/common.h>
-#include <mach/board.h>
-#include <mach/control.h>
-#include <mach/mux.h>
-#include <mach/fpga.h>
+#include <plat/common.h>
+#include <plat/board.h>
+#include <plat/control.h>
+#include <plat/mux.h>
+#include <plat/fpga.h>
 
-#include <mach/clock.h>
+#include <plat/clock.h>
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 # include "../mach-omap2/sdrc.h"

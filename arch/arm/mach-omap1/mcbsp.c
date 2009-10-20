@@ -18,11 +18,11 @@
 #include <linux/platform_device.h>
 
 #include <mach/irqs.h>
-#include <mach/dma.h>
-#include <mach/mux.h>
-#include <mach/cpu.h>
-#include <mach/mcbsp.h>
-#include <mach/dsp_common.h>
+#include <plat/dma.h>
+#include <plat/mux.h>
+#include <plat/cpu.h>
+#include <plat/mcbsp.h>
+#include <plat/dsp_common.h>
 
 #define DPS_RSTCT2_PER_EN	(1 << 0)
 #define DSP_RSTCT2_WD_PER_EN	(1 << 1)

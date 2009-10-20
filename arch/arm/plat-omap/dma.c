@@ -32,9 +32,9 @@
 
 #include <asm/system.h>
 #include <mach/hardware.h>
-#include <mach/dma.h>
+#include <plat/dma.h>
 
-#include <mach/tc.h>
+#include <plat/tc.h>
 
 #undef DEBUG
 

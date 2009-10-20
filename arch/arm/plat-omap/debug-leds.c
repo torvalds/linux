@@ -18,7 +18,7 @@
 #include <asm/system.h>
 #include <asm/mach-types.h>
 
-#include <mach/fpga.h>
+#include <plat/fpga.h>
 #include <mach/gpio.h>
 
 

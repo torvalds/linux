@@ -35,7 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 
-#include <mach/cpu.h>
+#include <plat/cpu.h>
 
 struct omap_device;
 

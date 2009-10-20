@@ -46,7 +46,7 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <mach/gpio.h>
-#include <mach/cpu.h>
+#include <plat/cpu.h>
 
 #define IRQ_BANK(irq) ((irq) >> 5)
 #define IRQ_BIT(irq)  ((irq) & 0x1f)

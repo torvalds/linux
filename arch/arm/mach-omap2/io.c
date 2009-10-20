@@ -27,24 +27,24 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/mux.h>
-#include <mach/omapfb.h>
-#include <mach/sram.h>
-#include <mach/sdrc.h>
-#include <mach/gpmc.h>
-#include <mach/serial.h>
+#include <plat/mux.h>
+#include <plat/omapfb.h>
+#include <plat/sram.h>
+#include <plat/sdrc.h>
+#include <plat/gpmc.h>
+#include <plat/serial.h>
 
 #ifndef CONFIG_ARCH_OMAP4	/* FIXME: Remove this once clkdev is ready */
 #include "clock.h"
 
-#include <mach/omap-pm.h>
-#include <mach/powerdomain.h>
+#include <plat/omap-pm.h>
+#include <plat/powerdomain.h>
 #include "powerdomains.h"
 
-#include <mach/clockdomain.h>
+#include <plat/clockdomain.h>
 #include "clockdomains.h"
 #endif
-#include <mach/omap_hwmod.h>
+#include <plat/omap_hwmod.h>
 #include "omap_hwmod_2420.h"
 #include "omap_hwmod_2430.h"
 #include "omap_hwmod_34xx.h"

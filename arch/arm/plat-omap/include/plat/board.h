@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 
-#include <mach/gpio-switch.h>
+#include <plat/gpio-switch.h>
 
 /* Different peripheral ids */
 #define OMAP_TAG_CLOCK		0x4f01

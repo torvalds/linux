@@ -26,14 +26,14 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <mach/tc.h>
+#include <plat/tc.h>
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/fpga.h>
-#include <mach/nand.h>
-#include <mach/keypad.h>
-#include <mach/common.h>
-#include <mach/board.h>
+#include <plat/mux.h>
+#include <plat/fpga.h>
+#include <plat/nand.h>
+#include <plat/keypad.h>
+#include <plat/common.h>
+#include <plat/board.h>
 
 /* fsample is pretty close to p2-sample */
 

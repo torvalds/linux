@@ -82,8 +82,8 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <mach/omap_device.h>
-#include <mach/omap_hwmod.h>
+#include <plat/omap_device.h>
+#include <plat/omap_hwmod.h>
 
 /* These parameters are passed to _omap_device_{de,}activate() */
 #define USE_WAKEUP_LAT			0

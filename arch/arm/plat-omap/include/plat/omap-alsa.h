@@ -40,10 +40,10 @@
 #ifndef __OMAP_ALSA_H
 #define __OMAP_ALSA_H
 
-#include <mach/dma.h>
+#include <plat/dma.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
-#include <mach/mcbsp.h>
+#include <plat/mcbsp.h>
 #include <linux/platform_device.h>
 
 #define DMA_BUF_SIZE	(1024 * 8)

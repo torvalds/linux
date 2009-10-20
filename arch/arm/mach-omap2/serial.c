@@ -24,10 +24,10 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <mach/common.h>
-#include <mach/board.h>
-#include <mach/clock.h>
-#include <mach/control.h>
+#include <plat/common.h>
+#include <plat/board.h>
+#include <plat/clock.h>
+#include <plat/control.h>
 
 #include "prm.h"
 #include "pm.h"

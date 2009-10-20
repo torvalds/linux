@@ -28,7 +28,7 @@
 #include <linux/io.h>
 #include <asm/system.h>
 #include <linux/spinlock.h>
-#include <mach/mux.h>
+#include <plat/mux.h>
 
 #ifdef CONFIG_OMAP_MUX
 

@@ -168,7 +168,7 @@ enum omapfb_update_mode {
 #include <linux/fb.h>
 #include <linux/mutex.h>
 
-#include <mach/board.h>
+#include <plat/board.h>
 
 #define OMAP_LCDC_INV_VSYNC             0x0001
 #define OMAP_LCDC_INV_HSYNC             0x0002

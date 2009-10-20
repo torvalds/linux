@@ -39,7 +39,7 @@
 #include <linux/i2c/twl4030.h>
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-#include <mach/cpu.h>
+#include <plat/cpu.h>
 #endif
 
 /*

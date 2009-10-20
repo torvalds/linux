@@ -33,10 +33,10 @@
 #include <asm/system.h>
 #include <mach/hardware.h>
 
-#include <mach/control.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/board.h>
+#include <plat/control.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/board.h>
 
 #ifdef CONFIG_ARCH_OMAP1
 

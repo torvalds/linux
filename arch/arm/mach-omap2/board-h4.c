@@ -31,16 +31,16 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <mach/control.h>
+#include <plat/control.h>
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/board.h>
-#include <mach/common.h>
-#include <mach/keypad.h>
-#include <mach/menelaus.h>
-#include <mach/dma.h>
-#include <mach/gpmc.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/board.h>
+#include <plat/common.h>
+#include <plat/keypad.h>
+#include <plat/menelaus.h>
+#include <plat/dma.h>
+#include <plat/gpmc.h>
 
 #define H4_FLASH_CS	0
 #define H4_SMC91X_CS	1

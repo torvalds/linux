@@ -22,10 +22,10 @@
 #include <asm/mach-types.h>
 #include <asm/clkdev.h>
 
-#include <mach/cpu.h>
-#include <mach/usb.h>
-#include <mach/clock.h>
-#include <mach/sram.h>
+#include <plat/cpu.h>
+#include <plat/usb.h>
+#include <plat/clock.h>
+#include <plat/sram.h>
 
 static const struct clkops clkops_generic;
 static const struct clkops clkops_uart;

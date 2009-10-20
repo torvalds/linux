@@ -26,10 +26,10 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-#include <mach/clock.h>
-#include <mach/board.h>
-#include <mach/powerdomain.h>
-#include <mach/clockdomain.h>
+#include <plat/clock.h>
+#include <plat/board.h>
+#include <plat/powerdomain.h>
+#include <plat/clockdomain.h>
 
 #include "prm.h"
 #include "cm.h"

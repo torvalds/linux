@@ -20,9 +20,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/usb.h>
-#include <mach/keypad.h>
+#include <plat/common.h>
+#include <plat/usb.h>
+#include <plat/keypad.h>
 
 #include "mmc-twl4030.h"
 #include "sdram-micron-mt46h32m32lf-6.h"

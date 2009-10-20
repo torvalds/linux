@@ -25,9 +25,9 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <mach/sram.h>
-#include <mach/omapfb.h>
-#include <mach/board.h>
+#include <plat/sram.h>
+#include <plat/omapfb.h>
+#include <plat/board.h>
 
 #include "dispc.h"
 

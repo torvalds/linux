@@ -28,7 +28,7 @@
 #include <linux/spinlock.h>
 
 #include <mach/hardware.h>
-#include <mach/clock.h>
+#include <plat/clock.h>
 
 #define OMAP7XX_MCBSP1_BASE	0xfffb1000
 #define OMAP7XX_MCBSP2_BASE	0xfffb1800

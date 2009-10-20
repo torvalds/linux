@@ -29,7 +29,7 @@
 
 #include <asm/system.h>
 
-#include <mach/mux.h>
+#include <plat/mux.h>
 
 #ifdef CONFIG_OMAP_MUX
 

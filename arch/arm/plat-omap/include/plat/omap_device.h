@@ -34,7 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
-#include <mach/omap_hwmod.h>
+#include <plat/omap_hwmod.h>
 
 /* omap_device._state values */
 #define OMAP_DEVICE_STATE_UNKNOWN	0

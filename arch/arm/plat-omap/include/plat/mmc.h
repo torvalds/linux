@@ -15,7 +15,7 @@
 #include <linux/device.h>
 #include <linux/mmc/host.h>
 
-#include <mach/board.h>
+#include <plat/board.h>
 
 #define OMAP15XX_NR_MMC		1
 #define OMAP16XX_NR_MMC		2

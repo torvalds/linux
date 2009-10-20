@@ -107,7 +107,7 @@ struct iommu_platform_data {
 #if defined(CONFIG_ARCH_OMAP1)
 #error "iommu for this processor not implemented yet"
 #else
-#include <mach/iommu2.h>
+#include <plat/iommu2.h>
 #endif
 
 /*

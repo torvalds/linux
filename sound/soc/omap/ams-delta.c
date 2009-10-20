@@ -31,8 +31,8 @@
 
 #include <asm/mach-types.h>
 
-#include <mach/board-ams-delta.h>
-#include <mach/mcbsp.h>
+#include <plat/board-ams-delta.h>
+#include <plat/mcbsp.h>
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"

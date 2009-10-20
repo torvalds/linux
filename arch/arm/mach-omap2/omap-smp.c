@@ -24,7 +24,7 @@
 #include <asm/localtimer.h>
 #include <asm/smp_scu.h>
 #include <mach/hardware.h>
-#include <mach/common.h>
+#include <plat/common.h>
 
 /* Registers used for communicating startup information */
 static void __iomem *omap4_auxcoreboot_reg0;

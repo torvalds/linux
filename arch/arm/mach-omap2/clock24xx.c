@@ -28,13 +28,13 @@
 #include <linux/cpufreq.h>
 #include <linux/bitops.h>
 
-#include <mach/clock.h>
-#include <mach/sram.h>
-#include <mach/prcm.h>
+#include <plat/clock.h>
+#include <plat/sram.h>
+#include <plat/prcm.h>
 #include <asm/div64.h>
 #include <asm/clkdev.h>
 
-#include <mach/sdrc.h>
+#include <plat/sdrc.h>
 #include "clock.h"
 #include "prm.h"
 #include "prm-regbits-24xx.h"

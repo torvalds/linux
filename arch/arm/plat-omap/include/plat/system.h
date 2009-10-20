@@ -9,7 +9,7 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 
-#include <mach/prcm.h>
+#include <plat/prcm.h>
 
 #ifndef CONFIG_MACH_VOICEBLUE
 #define voiceblue_reset()		do {} while (0)

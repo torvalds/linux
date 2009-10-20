@@ -22,14 +22,14 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/mcspi.h>
-#include <mach/mux.h>
-#include <mach/board.h>
-#include <mach/common.h>
-#include <mach/keypad.h>
-#include <mach/dma.h>
-#include <mach/gpmc.h>
-#include <mach/usb.h>
+#include <plat/mcspi.h>
+#include <plat/mux.h>
+#include <plat/board.h>
+#include <plat/common.h>
+#include <plat/keypad.h>
+#include <plat/dma.h>
+#include <plat/gpmc.h>
+#include <plat/usb.h>
 
 static struct omap_lcd_config rx51_lcd_config = {
 	.ctrl_name	= "internal",

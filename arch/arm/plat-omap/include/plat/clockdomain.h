@@ -16,9 +16,9 @@
 #ifndef __ASM_ARM_ARCH_OMAP_CLOCKDOMAIN_H
 #define __ASM_ARM_ARCH_OMAP_CLOCKDOMAIN_H
 
-#include <mach/powerdomain.h>
-#include <mach/clock.h>
-#include <mach/cpu.h>
+#include <plat/powerdomain.h>
+#include <plat/clock.h>
+#include <plat/cpu.h>
 
 /* Clockdomain capability flags */
 #define CLKDM_CAN_FORCE_SLEEP			(1 << 0)

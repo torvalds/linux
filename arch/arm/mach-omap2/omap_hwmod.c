@@ -45,11 +45,11 @@
 #include <linux/mutex.h>
 #include <linux/bootmem.h>
 
-#include <mach/cpu.h>
-#include <mach/clockdomain.h>
-#include <mach/powerdomain.h>
-#include <mach/clock.h>
-#include <mach/omap_hwmod.h>
+#include <plat/cpu.h>
+#include <plat/clockdomain.h>
+#include <plat/powerdomain.h>
+#include <plat/clock.h>
+#include <plat/omap_hwmod.h>
 
 #include "cm.h"
 

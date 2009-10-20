@@ -37,13 +37,13 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <mach/board.h>
-#include <mach/common.h>
-#include <mach/gpmc.h>
-#include <mach/nand.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/timer-gp.h>
+#include <plat/board.h>
+#include <plat/common.h>
+#include <plat/gpmc.h>
+#include <plat/nand.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/timer-gp.h>
 
 #include "mmc-twl4030.h"
 

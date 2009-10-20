@@ -20,9 +20,9 @@
 #include <linux/regulator/consumer.h>
 
 #include <mach/hardware.h>
-#include <mach/control.h>
-#include <mach/mmc.h>
-#include <mach/board.h>
+#include <plat/control.h>
+#include <plat/mmc.h>
+#include <plat/board.h>
 
 #include "mmc-twl4030.h"
 

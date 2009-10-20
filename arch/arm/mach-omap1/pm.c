@@ -48,14 +48,14 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include <mach/cpu.h>
+#include <plat/cpu.h>
 #include <mach/irqs.h>
-#include <mach/clock.h>
-#include <mach/sram.h>
-#include <mach/tc.h>
-#include <mach/mux.h>
-#include <mach/dma.h>
-#include <mach/dmtimer.h>
+#include <plat/clock.h>
+#include <plat/sram.h>
+#include <plat/tc.h>
+#include <plat/mux.h>
+#include <plat/dma.h>
+#include <plat/dmtimer.h>
 
 #include "pm.h"
 

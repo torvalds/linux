@@ -22,10 +22,10 @@
 
 #include <asm/mach-types.h>
 
-#include <mach/board.h>
-#include <mach/mux.h>
+#include <plat/board.h>
+#include <plat/mux.h>
 #include <mach/gpio.h>
-#include <mach/fpga.h>
+#include <plat/fpga.h>
 
 static struct clk * uart1_ck;
 static struct clk * uart2_ck;

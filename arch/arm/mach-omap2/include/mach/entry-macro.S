@@ -15,8 +15,8 @@
 #include <mach/irqs.h>
 #include <asm/hardware/gic.h>
 
-#include <mach/omap24xx.h>
-#include <mach/omap34xx.h>
+#include <plat/omap24xx.h>
+#include <plat/omap34xx.h>
 
 /* REVISIT: This should be set dynamically if CONFIG_MULTI_OMAP2 is selected */
 #if defined(CONFIG_ARCH_OMAP2420) || defined(CONFIG_ARCH_OMAP2430)
@@ -25,7 +25,7 @@
 #define OMAP2_VA_IC_BASE		OMAP2_L4_IO_ADDRESS(OMAP34XX_IC_BASE)
 #endif
 #if defined(CONFIG_ARCH_OMAP4)
-#include <mach/omap44xx.h>
+#include <plat/omap44xx.h>
 #endif
 #define INTCPS_SIR_IRQ_OFFSET	0x0040		/* Active interrupt offset */
 #define	ACTIVEIRQ_MASK		0x7f		/* Active interrupt bits */

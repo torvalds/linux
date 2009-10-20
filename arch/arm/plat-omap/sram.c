@@ -25,11 +25,11 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/sram.h>
-#include <mach/board.h>
-#include <mach/cpu.h>
+#include <plat/sram.h>
+#include <plat/board.h>
+#include <plat/cpu.h>
 
-#include <mach/control.h>
+#include <plat/control.h>
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 # include "../mach-omap2/prm.h"

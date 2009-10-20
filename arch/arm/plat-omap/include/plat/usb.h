@@ -3,7 +3,7 @@
 #ifndef	__ASM_ARCH_OMAP_USB_H
 #define	__ASM_ARCH_OMAP_USB_H
 
-#include <mach/board.h>
+#include <plat/board.h>
 
 /*-------------------------------------------------------------------------*/
 

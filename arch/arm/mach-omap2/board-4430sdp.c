@@ -23,10 +23,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/board.h>
-#include <mach/common.h>
-#include <mach/control.h>
-#include <mach/timer-gp.h>
+#include <plat/board.h>
+#include <plat/common.h>
+#include <plat/control.h>
+#include <plat/timer-gp.h>
 #include <asm/hardware/gic.h>
 
 static struct platform_device sdp4430_lcd_device = {

@@ -19,7 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/serial_reg.h>
-#include <mach/serial.h>
+#include <plat/serial.h>
 
 unsigned int system_rev;
 

@@ -14,7 +14,7 @@
 #include <linux/smsc911x.h>
 #include <linux/interrupt.h>
 
-#include <mach/gpmc.h>
+#include <plat/gpmc.h>
 
 #define ZOOM2_SMSC911X_CS	7
 #define ZOOM2_SMSC911X_GPIO	158
