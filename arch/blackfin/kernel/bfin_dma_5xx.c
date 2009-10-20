@@ -225,8 +225,13 @@ int blackfin_dma_suspend(void)
 void blackfin_dma_resume(void)
 {
 	int i;
-	for (i = 0; i < MAX_DMA_SUSPEND_CHANNELS; ++i)
-		dma_ch[i].regs->peripheral_map = dma_ch[i].saved_peripheral_map;
+
+	for (i = 0; i < MAX_DMA_CHANNELS; ++i) {
+		dma_ch[i].regs->cfg = 0;
+
+		if (i < MAX_DMA_SUSPEND_CHANNELS)
+			dma_ch[i].regs->peripheral_map = dma_ch[i].saved_peripheral_map;
+	}
 }
 #endif
 
