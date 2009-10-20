@@ -910,7 +910,7 @@ void __init setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "Blackfin support (C) 2004-2009 Analog Devices, Inc.\n");
 	if (bfin_compiled_revid() == 0xffff)
-		printk(KERN_INFO "Compiled for ADSP-%s Rev any\n", CPU);
+		printk(KERN_INFO "Compiled for ADSP-%s Rev any, running on 0.%d\n", CPU, bfin_revid());
 	else if (bfin_compiled_revid() == -1)
 		printk(KERN_INFO "Compiled for ADSP-%s Rev none\n", CPU);
 	else
