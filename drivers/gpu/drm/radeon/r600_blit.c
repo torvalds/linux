@@ -778,8 +778,6 @@ r600_blit_swap(struct drm_device *dev,
 	u64 vb_addr;
 	u32 *vb;
 
-	vb = r600_nomm_get_vb_ptr(dev);
-
 	if ((dev_priv->blit_vb->used + 48) > dev_priv->blit_vb->total) {
 
 		r600_nomm_put_vb(dev);
@@ -788,8 +786,8 @@ r600_blit_swap(struct drm_device *dev,
 			return;
 
 		set_shaders(dev);
-		vb = r600_nomm_get_vb_ptr(dev);
 	}
+	vb = r600_nomm_get_vb_ptr(dev);
 
 	sx2 = sx + w;
 	sy2 = sy + h;
