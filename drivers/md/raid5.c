@@ -156,16 +156,16 @@ static inline int raid6_next_disk(int disk, int raid_disks)
 static int raid6_idx_to_slot(int idx, struct stripe_head *sh,
 			     int *count, int syndrome_disks)
 {
-	int slot;
+	int slot = *count;
 
 	if (sh->ddf_layout)
-		slot = (*count)++;
+		(*count)++;
 	if (idx == sh->pd_idx)
 		return syndrome_disks;
 	if (idx == sh->qd_idx)
 		return syndrome_disks + 1;
 	if (!sh->ddf_layout)
-		slot = (*count)++;
+		(*count)++;
 	return slot;
 }
 
