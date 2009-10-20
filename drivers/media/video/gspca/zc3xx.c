@@ -6036,8 +6036,10 @@ static __u16 i2c_read(struct gspca_dev *gspca_dev,
 
 	reg_w_i(gspca_dev->dev, reg, 0x0092);
 	reg_w_i(gspca_dev->dev, 0x02, 0x0090);		/* <- read command */
-	msleep(25);
+	msleep(20);
 	retbyte = reg_r_i(gspca_dev, 0x0091);		/* read status */
+	if (retbyte != 0x00)
+		err("i2c_r status error %02x", retbyte);
 	retval = reg_r_i(gspca_dev, 0x0095);		/* read Lowbyte */
 	retval |= reg_r_i(gspca_dev, 0x0096) << 8;	/* read Hightbyte */
 	PDEBUG(D_USBI, "i2c r [%02x] -> %04x (%02x)",
@@ -6056,8 +6058,10 @@ static __u8 i2c_write(struct gspca_dev *gspca_dev,
 	reg_w_i(gspca_dev->dev, valL, 0x93);
 	reg_w_i(gspca_dev->dev, valH, 0x94);
 	reg_w_i(gspca_dev->dev, 0x01, 0x90);		/* <- write command */
-	msleep(15);
+	msleep(1);
 	retbyte = reg_r_i(gspca_dev, 0x0091);		/* read status */
+	if (retbyte != 0x00)
+		err("i2c_w status error %02x", retbyte);
 	PDEBUG(D_USBO, "i2c w [%02x] = %02x%02x (%02x)",
 			reg, valH, valL, retbyte);
 	return retbyte;
@@ -6092,7 +6096,7 @@ static void usb_exchange(struct gspca_dev *gspca_dev,
 			break;
 		}
 		action++;
-/*		msleep(1); */
+		msleep(1);
 	}
 }
 
@@ -6555,7 +6559,7 @@ static int vga_2wr_probe(struct gspca_dev *gspca_dev)
 	start_2wr_probe(dev, 0x0e);		/* PAS202BCB */
 	reg_w(dev, 0x08, 0x008d);
 	i2c_write(gspca_dev, 0x03, 0xaa, 0x00);
-	msleep(500);
+	msleep(50);
 	retword = i2c_read(gspca_dev, 0x03);
 	if (retword != 0)
 		return 0x0e;			/* PAS202BCB */
@@ -6699,7 +6703,6 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x01, 0x0001);
 	reg_w(dev, 0xee, 0x008b);
 	reg_w(dev, 0x03, 0x0012);
-/*	msleep(150); */
 	reg_w(dev, 0x01, 0x0012);
 	reg_w(dev, 0x05, 0x0012);
 	retword = i2c_read(gspca_dev, 0x00) << 8;	/* ID 0 */
@@ -7100,7 +7103,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setautogain(gspca_dev);
 	switch (sd->sensor) {
 	case SENSOR_PO2030:
-		msleep(500);
+		msleep(50);
 		reg_r(gspca_dev, 0x0008);
 		reg_r(gspca_dev, 0x0007);
 		/*fall thru*/
