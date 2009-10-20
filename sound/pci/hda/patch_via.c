@@ -41,6 +41,7 @@
 /* 2009-04-14  Lydai Wang  Add support for VT1828S and VT2020		     */
 /* 2009-07-08  Lydia Wang  Add support for VT2002P			     */
 /* 2009-07-21  Lydia Wang  Add support for VT1812			     */
+/* 2009-09-19  Lydia Wang  Add support for VT1818S			     */
 /*									     */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -195,6 +196,8 @@ static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 		codec_type = VT2002P;
 	else if (dev_id == 0x0448)
 		codec_type = VT1812;
+	else if (dev_id == 0x0440)
+		codec_type = VT1708S;
 	else
 		codec_type = UNKNOWN;
 	return codec_type;
@@ -4130,11 +4133,17 @@ static int patch_vt1708S(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1708S_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1708S_uniwill_init_verbs;
 
-	spec->stream_name_analog = "VT1708S Analog";
+	if (codec->vendor_id == 0x11060440)
+		spec->stream_name_analog = "VT1818S Analog";
+	else
+		spec->stream_name_analog = "VT1708S Analog";
 	spec->stream_analog_playback = &vt1708S_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1708S_pcm_analog_capture;
 
-	spec->stream_name_digital = "VT1708S Digital";
+	if (codec->vendor_id == 0x11060440)
+		spec->stream_name_digital = "VT1818S Digital";
+	else
+		spec->stream_name_digital = "VT1708S Digital";
 	spec->stream_digital_playback = &vt1708S_pcm_digital_playback;
 
 	if (!spec->adc_nids && spec->input_mux) {
@@ -6231,6 +6240,8 @@ static struct hda_codec_preset snd_hda_preset_via[] = {
 	{ .id = 0x11060438, .name = "VT2002P", .patch = patch_vt2002P},
 	{ .id = 0x11064438, .name = "VT2002P", .patch = patch_vt2002P},
 	{ .id = 0x11060448, .name = "VT1812", .patch = patch_vt1812},
+	{ .id = 0x11060440, .name = "VT1818S",
+	  .patch = patch_vt1708S},
 	{} /* terminator */
 };
 
