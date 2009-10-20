@@ -33,7 +33,6 @@
 #include <asm/hvcall.h>
 #include "ehea.h"
 #include "ehea_hw.h"
-#include "ehea_hcall.h"
 
 /* Some abbreviations used here:
  *
