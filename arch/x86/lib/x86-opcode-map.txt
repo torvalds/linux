@@ -567,7 +567,7 @@ fe: paddd Pq,Qq | paddd Vdq,Wdq (66)
 ff:
 EndTable
 
-Table: 3-byte opcode 1
+Table: 3-byte opcode 1 (0x0f 0x38)
 Referrer: 3-byte escape 1
 # 0x0f 0x38 0x00-0x0f
 00: pshufb Pq,Qq | pshufb Vdq,Wdq (66)
@@ -642,11 +642,16 @@ Referrer: 3-byte escape 1
 41: phminposuw Vdq,Wdq (66)
 80: INVEPT Gd/q,Mdq (66)
 81: INVPID Gd/q,Mdq (66)
+db: aesimc Vdq,Wdq (66)
+dc: aesenc Vdq,Wdq (66)
+dd: aesenclast Vdq,Wdq (66)
+de: aesdec Vdq,Wdq (66)
+df: aesdeclast Vdq,Wdq (66)
 f0: MOVBE Gv,Mv | CRC32 Gd,Eb (F2)
 f1: MOVBE Mv,Gv | CRC32 Gd,Ev (F2)
 EndTable
 
-Table: 3-byte opcode 2
+Table: 3-byte opcode 2 (0x0f 0x3a)
 Referrer: 3-byte escape 2
 # 0x0f 0x3a 0x00-0xff
 08: roundps Vdq,Wdq,Ib (66)
@@ -671,6 +676,7 @@ Referrer: 3-byte escape 2
 61: pcmpestri Vdq,Wdq,Ib (66)
 62: pcmpistrm Vdq,Wdq,Ib (66)
 63: pcmpistri Vdq,Wdq,Ib (66)
+df: aeskeygenassist Vdq,Wdq,Ib (66)
 EndTable
 
 GrpTable: Grp1
