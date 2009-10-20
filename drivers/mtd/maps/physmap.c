@@ -44,12 +44,10 @@ static int physmap_flash_remove(struct platform_device *dev)
 		return 0;
 	platform_set_drvdata(dev, NULL);
 
-	if (info->cmtd == NULL)
-		return 0;
-
 	physmap_data = dev->dev.platform_data;
 
-	if (mtd_has_partitions()) {
+	if (info->cmtd) {
+#ifdef CONFIG_MTD_PARTITIONS
 		if (info->nr_parts || physmap_data->nr_parts) {
 			del_mtd_partitions(info->cmtd);
 
@@ -58,14 +56,14 @@ static int physmap_flash_remove(struct platform_device *dev)
 		} else {
 			del_mtd_device(info->cmtd);
 		}
-	} else {
+#else
 		del_mtd_device(info->cmtd);
-	}
-
-#ifdef CONFIG_MTD_CONCAT
-	if (info->cmtd != info->mtd[0])
-		mtd_concat_destroy(info->cmtd);
 #endif
+#ifdef CONFIG_MTD_CONCAT
+		if (info->cmtd != info->mtd[0])
+			mtd_concat_destroy(info->cmtd);
+#endif
+	}
 
 	for (i = 0; i < MAX_RESOURCES; i++) {
 		if (info->mtd[i] != NULL)
@@ -170,22 +168,22 @@ static int physmap_flash_probe(struct platform_device *dev)
 	if (err)
 		goto err_out;
 
-	if (mtd_has_partitions()) {
-		err = parse_mtd_partitions(info->cmtd, part_probe_types,
-					&info->parts, 0);
-		if (err > 0) {
-			add_mtd_partitions(info->cmtd, info->parts, err);
-			info->nr_parts = err;
-			return 0;
-		}
-
-		if (physmap_data->nr_parts) {
-			printk(KERN_NOTICE "Using physmap partition information\n");
-			add_mtd_partitions(info->cmtd, physmap_data->parts,
-					physmap_data->nr_parts);
-			return 0;
-		}
+#ifdef CONFIG_MTD_PARTITIONS
+	err = parse_mtd_partitions(info->cmtd, part_probe_types,
+				&info->parts, 0);
+	if (err > 0) {
+		add_mtd_partitions(info->cmtd, info->parts, err);
+		info->nr_parts = err;
+		return 0;
 	}
+
+	if (physmap_data->nr_parts) {
+		printk(KERN_NOTICE "Using physmap partition information\n");
+		add_mtd_partitions(info->cmtd, physmap_data->parts,
+				   physmap_data->nr_parts);
+		return 0;
+	}
+#endif
 
 	add_mtd_device(info->cmtd);
 	return 0;
