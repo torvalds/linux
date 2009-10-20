@@ -70,6 +70,9 @@ enum {
 	Opt_commit,
 	Opt_err_withdraw,
 	Opt_err_panic,
+	Opt_statfs_quantum,
+	Opt_statfs_percent,
+	Opt_quota_quantum,
 	Opt_error,
 };
 
@@ -101,6 +104,9 @@ static const match_table_t tokens = {
 	{Opt_commit, "commit=%d"},
 	{Opt_err_withdraw, "errors=withdraw"},
 	{Opt_err_panic, "errors=panic"},
+	{Opt_statfs_quantum, "statfs_quantum=%d"},
+	{Opt_statfs_percent, "statfs_percent=%d"},
+	{Opt_quota_quantum, "quota_quantum=%d"},
 	{Opt_error, NULL}
 };
 
@@ -211,6 +217,28 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 			rv = match_int(&tmp[0], &args->ar_commit);
 			if (rv || args->ar_commit <= 0) {
 				printk(KERN_WARNING "GFS2: commit mount option requires a positive numeric argument\n");
+				return rv ? rv : -EINVAL;
+			}
+			break;
+		case Opt_statfs_quantum:
+			rv = match_int(&tmp[0], &args->ar_statfs_quantum);
+			if (rv || args->ar_statfs_quantum < 0) {
+				printk(KERN_WARNING "GFS2: statfs_quantum mount option requires a non-negative numeric argument\n");
+				return rv ? rv : -EINVAL;
+			}
+			break;
+		case Opt_quota_quantum:
+			rv = match_int(&tmp[0], &args->ar_quota_quantum);
+			if (rv || args->ar_quota_quantum <= 0) {
+				printk(KERN_WARNING "GFS2: quota_quantum mount option requires a positive numeric argument\n");
+				return rv ? rv : -EINVAL;
+			}
+			break;
+		case Opt_statfs_percent:
+			rv = match_int(&tmp[0], &args->ar_statfs_percent);
+			if (rv || args->ar_statfs_percent < 0 ||
+			    args->ar_statfs_percent > 100) {
+				printk(KERN_WARNING "statfs_percent mount option requires a numeric argument between 0 and 100\n");
 				return rv ? rv : -EINVAL;
 			}
 			break;
@@ -442,7 +470,9 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 {
 	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
+	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	struct buffer_head *l_bh;
+	int percent, sync_percent;
 	int error;
 
 	error = gfs2_meta_inode_buffer(l_ip, &l_bh);
@@ -456,9 +486,17 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 	l_sc->sc_free += free;
 	l_sc->sc_dinodes += dinodes;
 	gfs2_statfs_change_out(l_sc, l_bh->b_data + sizeof(struct gfs2_dinode));
+	if (m_sc->sc_free)
+		percent = (100 * l_sc->sc_free) / m_sc->sc_free;
+	else
+		percent = 100;
 	spin_unlock(&sdp->sd_statfs_spin);
 
 	brelse(l_bh);
+	sync_percent = sdp->sd_args.ar_statfs_percent;
+	if (sync_percent && (percent >= sync_percent ||
+			     percent <= -sync_percent))
+		gfs2_wake_up_statfs(sdp);
 }
 
 void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh,
@@ -522,6 +560,7 @@ int gfs2_statfs_sync(struct super_block *sb, int type)
 		goto out_bh2;
 
 	update_statfs(sdp, m_bh, l_bh);
+	sdp->sd_statfs_force_sync = 0;
 
 	gfs2_trans_end(sdp);
 
@@ -1062,6 +1101,11 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	spin_lock(&gt->gt_spin);
 	args.ar_commit = gt->gt_log_flush_secs;
+	args.ar_quota_quantum = gt->gt_quota_quantum;
+	if (gt->gt_statfs_slow)
+		args.ar_statfs_quantum = 0;
+	else
+		args.ar_statfs_quantum = gt->gt_statfs_quantum;
 	spin_unlock(&gt->gt_spin);
 	error = gfs2_mount_args(&args, data);
 	if (error)
@@ -1100,6 +1144,15 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 		sb->s_flags &= ~MS_POSIXACL;
 	spin_lock(&gt->gt_spin);
 	gt->gt_log_flush_secs = args.ar_commit;
+	gt->gt_quota_quantum = args.ar_quota_quantum;
+	if (args.ar_statfs_quantum) {
+		gt->gt_statfs_slow = 0;
+		gt->gt_statfs_quantum = args.ar_statfs_quantum;
+	}
+	else {
+		gt->gt_statfs_slow = 1;
+		gt->gt_statfs_quantum = 30;
+	}
 	spin_unlock(&gt->gt_spin);
 
 	gfs2_online_uevent(sdp);
@@ -1180,7 +1233,7 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 {
 	struct gfs2_sbd *sdp = mnt->mnt_sb->s_fs_info;
 	struct gfs2_args *args = &sdp->sd_args;
-	int lfsecs;
+	int val;
 
 	if (is_ancestor(mnt->mnt_root, sdp->sd_master_dir))
 		seq_printf(s, ",meta");
@@ -1241,9 +1294,17 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	}
 	if (args->ar_discard)
 		seq_printf(s, ",discard");
-	lfsecs = sdp->sd_tune.gt_log_flush_secs;
-	if (lfsecs != 60)
-		seq_printf(s, ",commit=%d", lfsecs);
+	val = sdp->sd_tune.gt_log_flush_secs;
+	if (val != 60)
+		seq_printf(s, ",commit=%d", val);
+	val = sdp->sd_tune.gt_statfs_quantum;
+	if (val != 30)
+		seq_printf(s, ",statfs_quantum=%d", val);
+	val = sdp->sd_tune.gt_quota_quantum;
+	if (val != 60)
+		seq_printf(s, ",quota_quantum=%d", val);
+	if (args->ar_statfs_percent)
+		seq_printf(s, ",statfs_percent=%d", args->ar_statfs_percent);
 	if (args->ar_errors != GFS2_ERRORS_DEFAULT) {
 		const char *state;
 

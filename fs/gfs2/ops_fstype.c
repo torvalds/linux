@@ -63,13 +63,10 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_quota_warn_period = 10;
 	gt->gt_quota_scale_num = 1;
 	gt->gt_quota_scale_den = 1;
-	gt->gt_quota_quantum = 60;
 	gt->gt_new_files_jdata = 0;
 	gt->gt_max_readahead = 1 << 18;
 	gt->gt_stall_secs = 600;
 	gt->gt_complain_secs = 10;
-	gt->gt_statfs_quantum = 30;
-	gt->gt_statfs_slow = 0;
 }
 
 static struct gfs2_sbd *init_sbd(struct super_block *sb)
@@ -1153,6 +1150,15 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	sdp->sd_fsb2bb = 1 << sdp->sd_fsb2bb_shift;
 
 	sdp->sd_tune.gt_log_flush_secs = sdp->sd_args.ar_commit;
+	sdp->sd_tune.gt_quota_quantum = sdp->sd_args.ar_quota_quantum;
+	if (sdp->sd_args.ar_statfs_quantum) {
+		sdp->sd_tune.gt_statfs_slow = 0;
+		sdp->sd_tune.gt_statfs_quantum = sdp->sd_args.ar_statfs_quantum;
+	}
+	else {
+		sdp->sd_tune.gt_statfs_slow = 1;
+		sdp->sd_tune.gt_statfs_quantum = 30;
+	}
 
 	error = init_names(sdp, silent);
 	if (error)
@@ -1308,6 +1314,8 @@ static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
 	args.ar_quota = GFS2_QUOTA_DEFAULT;
 	args.ar_data = GFS2_DATA_DEFAULT;
 	args.ar_commit = 60;
+	args.ar_statfs_quantum = 30;
+	args.ar_quota_quantum = 60;
 	args.ar_errors = GFS2_ERRORS_DEFAULT;
 
 	error = gfs2_mount_args(&args, data);

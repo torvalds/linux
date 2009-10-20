@@ -1344,6 +1344,14 @@ static void quotad_check_trunc_list(struct gfs2_sbd *sdp)
 	}
 }
 
+void gfs2_wake_up_statfs(struct gfs2_sbd *sdp) {
+	if (!sdp->sd_statfs_force_sync) {
+		sdp->sd_statfs_force_sync = 1;
+		wake_up(&sdp->sd_quota_wait);
+	}
+}
+
+
 /**
  * gfs2_quotad - Write cached quota changes into the quota file
  * @sdp: Pointer to GFS2 superblock
@@ -1363,8 +1371,15 @@ int gfs2_quotad(void *data)
 	while (!kthread_should_stop()) {
 
 		/* Update the master statfs file */
-		quotad_check_timeo(sdp, "statfs", gfs2_statfs_sync, t,
-				   &statfs_timeo, &tune->gt_statfs_quantum);
+		if (sdp->sd_statfs_force_sync) {
+			int error = gfs2_statfs_sync(sdp->sd_vfs, 0);
+			quotad_error(sdp, "statfs", error);
+			statfs_timeo = gfs2_tune_get(sdp, gt_statfs_quantum) * HZ;
+		}
+		else
+			quotad_check_timeo(sdp, "statfs", gfs2_statfs_sync, t,
+				   	   &statfs_timeo,
+					   &tune->gt_statfs_quantum);
 
 		/* Update quota file */
 		quotad_check_timeo(sdp, "sync", gfs2_quota_sync, t,
@@ -1381,7 +1396,7 @@ int gfs2_quotad(void *data)
 		spin_lock(&sdp->sd_trunc_lock);
 		empty = list_empty(&sdp->sd_trunc_list);
 		spin_unlock(&sdp->sd_trunc_lock);
-		if (empty)
+		if (empty && !sdp->sd_statfs_force_sync)
 			t -= schedule_timeout(t);
 		else
 			t = 0;

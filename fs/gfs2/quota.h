@@ -32,6 +32,8 @@ extern int gfs2_quota_init(struct gfs2_sbd *sdp);
 extern void gfs2_quota_cleanup(struct gfs2_sbd *sdp);
 extern int gfs2_quotad(void *data);
 
+extern void gfs2_wake_up_statfs(struct gfs2_sbd *sdp);
+
 static inline int gfs2_quota_lock_check(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
