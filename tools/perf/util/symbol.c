@@ -11,8 +11,6 @@
 #include <elf.h>
 #include <sys/utsname.h>
 
-const char *sym_hist_filter;
-
 enum dso_origin {
 	DSO__ORIG_KERNEL = 0,
 	DSO__ORIG_JAVA_JIT,
@@ -86,22 +84,16 @@ static struct symbol *symbol__new(u64 start, u64 len, const char *name,
 	if (!self)
 		return NULL;
 
-	if (v > 2)
-		printf("new symbol: %016Lx [%08lx]: %s, hist: %p\n",
-			start, (unsigned long)len, name, self->hist);
-
-	self->hist = NULL;
-	self->hist_sum = 0;
-
-	if (sym_hist_filter && !strcmp(name, sym_hist_filter))
-		self->hist = calloc(sizeof(u64), len);
-
 	if (priv_size) {
 		memset(self, 0, priv_size);
 		self = ((void *)self) + priv_size;
 	}
 	self->start = start;
 	self->end   = len ? start + len - 1 : start;
+
+	if (v > 2)
+		printf("%s: %s %#Lx-%#Lx\n", __func__, name, start, self->end);
+
 	memcpy(self->name, name, namelen);
 
 	return self;
@@ -919,7 +911,8 @@ char dso__symtab_origin(const struct dso *self)
 	return origin[self->origin];
 }
 
-int dso__load(struct dso *self, struct map *map, symbol_filter_t filter, int v)
+int dso__load(struct dso *self, struct map *map,
+	      symbol_filter_t filter, int v)
 {
 	int size = PATH_MAX;
 	char *name = malloc(size), *build_id = NULL;
@@ -1335,33 +1328,21 @@ static struct dso *dsos__find(const char *name)
 	return NULL;
 }
 
-struct dso *dsos__findnew(const char *name)
+struct dso *dsos__findnew(const char *name, unsigned int sym_priv_size,
+			  bool *is_new)
 {
 	struct dso *dso = dsos__find(name);
-	int nr;
 
-	if (dso)
-		return dso;
-
-	dso = dso__new(name, 0);
-	if (!dso)
-		goto out_delete_dso;
-
-	nr = dso__load(dso, NULL, NULL, verbose);
-	if (nr < 0) {
-		eprintf("Failed to open: %s\n", name);
-		goto out_delete_dso;
-	}
-	if (!nr)
-		eprintf("No symbols found in: %s, maybe install a debug package?\n", name);
-
-	dsos__add(dso);
+	if (!dso) {
+		dso = dso__new(name, sym_priv_size);
+		if (dso) {
+			dsos__add(dso);
+			*is_new = true;
+		}
+	} else
+		*is_new = false;
 
 	return dso;
-
-out_delete_dso:
-	dso__delete(dso);
-	return NULL;
 }
 
 void dsos__fprintf(FILE *fp)
@@ -1372,9 +1353,10 @@ void dsos__fprintf(FILE *fp)
 		dso__fprintf(pos, fp);
 }
 
-int load_kernel(void)
+int load_kernel(unsigned int sym_priv_size, symbol_filter_t filter)
 {
-	if (dsos__load_kernel(vmlinux_name, 0, NULL, verbose, modules) <= 0)
+	if (dsos__load_kernel(vmlinux_name, sym_priv_size,
+			      filter, verbose, modules) <= 0)
 		return -1;
 
 	vdso = dso__new("[vdso]", 0);

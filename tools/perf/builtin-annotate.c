@@ -37,12 +37,44 @@ static int		print_line;
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
 
+struct sym_hist {
+	u64		sum;
+	u64		ip[0];
+};
+
 struct sym_ext {
 	struct rb_node	node;
 	double		percent;
 	char		*path;
 };
 
+struct sym_priv {
+	struct sym_hist	*hist;
+	struct sym_ext	*ext;
+};
+
+static const char *sym_hist_filter;
+
+static int symbol_filter(struct map *map, struct symbol *sym)
+{
+	if (strcmp(sym->name, sym_hist_filter) == 0) {
+		struct sym_priv *priv = dso__sym_priv(map->dso, sym);
+		const int size = (sizeof(*priv->hist) +
+				  (sym->end - sym->start) * sizeof(u64));
+
+		priv->hist = malloc(size);
+		if (priv->hist)
+			memset(priv->hist, 0, size);
+		return 0;
+	}
+	/*
+	 * FIXME: We should really filter it out, as we don't want to go thru symbols
+	 * we're not interested, and if a DSO ends up with no symbols, delete it too,
+	 * but right now the kernel loading routines in symbol.c bail out if no symbols
+	 * are found, fix it later.
+	 */
+	return 0;
+}
 
 /*
  * collect histogram counts
@@ -51,10 +83,16 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 {
 	unsigned int sym_size, offset;
 	struct symbol *sym = he->sym;
+	struct sym_priv *priv;
+	struct sym_hist *h;
 
 	he->count++;
 
-	if (!sym || !sym->hist)
+	if (!sym || !he->map)
+		return;
+
+	priv = dso__sym_priv(he->map->dso, sym);
+	if (!priv->hist)
 		return;
 
 	sym_size = sym->end - sym->start;
@@ -67,15 +105,16 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 	if (offset >= sym_size)
 		return;
 
-	sym->hist_sum++;
-	sym->hist[offset]++;
+	h = priv->hist;
+	h->sum++;
+	h->ip[offset]++;
 
 	if (verbose >= 3)
 		printf("%p %s: count++ [ip: %p, %08Lx] => %Ld\n",
 			(void *)(unsigned long)he->sym->start,
 			he->sym->name,
 			(void *)(unsigned long)ip, ip - he->sym->start,
-			sym->hist[offset]);
+			h->ip[offset]);
 }
 
 static int hist_entry__add(struct thread *thread, struct map *map,
@@ -162,7 +201,9 @@ got_map:
 static int
 process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct map *map = map__new(&event->mmap, NULL, 0);
+	struct map *map = map__new(&event->mmap, NULL, 0,
+				   sizeof(struct sym_priv), symbol_filter,
+				   verbose);
 	struct thread *thread = threads__findnew(event->mmap.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_MMAP %d: [%p(%p) @ %p]: %s\n",
@@ -314,17 +355,19 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 		unsigned int hits = 0;
 		double percent = 0.0;
 		const char *color;
-		struct sym_ext *sym_ext = sym->priv;
+		struct sym_priv *priv = dso__sym_priv(he->map->dso, sym);
+		struct sym_ext *sym_ext = priv->ext;
+		struct sym_hist *h = priv->hist;
 
 		offset = line_ip - start;
 		if (offset < len)
-			hits = sym->hist[offset];
+			hits = h->ip[offset];
 
 		if (offset < len && sym_ext) {
 			path = sym_ext[offset].path;
 			percent = sym_ext[offset].percent;
-		} else if (sym->hist_sum)
-			percent = 100.0 * hits / sym->hist_sum;
+		} else if (h->sum)
+			percent = 100.0 * hits / h->sum;
 
 		color = get_percent_color(percent);
 
@@ -377,9 +420,10 @@ static void insert_source_line(struct sym_ext *sym_ext)
 	rb_insert_color(&sym_ext->node, &root_sym_ext);
 }
 
-static void free_source_line(struct symbol *sym, int len)
+static void free_source_line(struct hist_entry *he, int len)
 {
-	struct sym_ext *sym_ext = sym->priv;
+	struct sym_priv *priv = dso__sym_priv(he->map->dso, he->sym);
+	struct sym_ext *sym_ext = priv->ext;
 	int i;
 
 	if (!sym_ext)
@@ -389,7 +433,7 @@ static void free_source_line(struct symbol *sym, int len)
 		free(sym_ext[i].path);
 	free(sym_ext);
 
-	sym->priv = NULL;
+	priv->ext = NULL;
 	root_sym_ext = RB_ROOT;
 }
 
@@ -402,15 +446,16 @@ get_source_line(struct hist_entry *he, int len, const char *filename)
 	int i;
 	char cmd[PATH_MAX * 2];
 	struct sym_ext *sym_ext;
+	struct sym_priv *priv = dso__sym_priv(he->map->dso, sym);
+	struct sym_hist *h = priv->hist;
 
-	if (!sym->hist_sum)
+	if (!h->sum)
 		return;
 
-	sym->priv = calloc(len, sizeof(struct sym_ext));
-	if (!sym->priv)
+	sym_ext = priv->ext = calloc(len, sizeof(struct sym_ext));
+	if (!priv->ext)
 		return;
 
-	sym_ext = sym->priv;
 	start = he->map->unmap_ip(he->map, sym->start);
 
 	for (i = 0; i < len; i++) {
@@ -419,7 +464,7 @@ get_source_line(struct hist_entry *he, int len, const char *filename)
 		u64 offset;
 		FILE *fp;
 
-		sym_ext[i].percent = 100.0 * sym->hist[i] / sym->hist_sum;
+		sym_ext[i].percent = 100.0 * h->ip[i] / h->sum;
 		if (sym_ext[i].percent <= 0.5)
 			continue;
 
@@ -530,7 +575,7 @@ static void annotate_sym(struct hist_entry *he)
 
 	pclose(file);
 	if (print_line)
-		free_source_line(sym, len);
+		free_source_line(he, len);
 }
 
 static void find_annotations(void)
@@ -540,19 +585,23 @@ static void find_annotations(void)
 
 	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
+		struct sym_priv *priv;
 
-		if (he->sym && he->sym->hist) {
-			annotate_sym(he);
-			count++;
-			/*
-			 * Since we have a hist_entry per IP for the same
-			 * symbol, free he->sym->hist to signal we already
-			 * processed this symbol.
-			 */
-			free(he->sym->hist);
-			he->sym->hist = NULL;
+		if (he->sym == NULL)
+			continue;
 
-		}
+		priv = dso__sym_priv(he->map->dso, he->sym);
+		if (priv->hist == NULL)
+			continue;
+
+		annotate_sym(he);
+		count++;
+		/*
+		 * Since we have a hist_entry per IP for the same symbol, free
+		 * he->sym->hist to signal we already processed this symbol.
+		 */
+		free(priv->hist);
+		priv->hist = NULL;
 	}
 
 	if (!count)
@@ -593,7 +642,7 @@ static int __cmd_annotate(void)
 		exit(0);
 	}
 
-	if (load_kernel() < 0) {
+	if (load_kernel(sizeof(struct sym_priv), symbol_filter) < 0) {
 		perror("failed to load kernel symbols");
 		return EXIT_FAILURE;
 	}

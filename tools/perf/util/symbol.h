@@ -2,6 +2,7 @@
 #define __PERF_SYMBOL 1
 
 #include <linux/types.h>
+#include <stdbool.h>
 #include "types.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -35,9 +36,6 @@ struct symbol {
 	struct rb_node	rb_node;
 	u64		start;
 	u64		end;
-	u64		hist_sum;
-	u64		*hist;
-	void		*priv;
 	char		name[0];
 };
 
@@ -54,10 +52,6 @@ struct dso {
 	char		 name[0];
 };
 
-extern const char *sym_hist_filter;
-
-typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
-
 struct dso *dso__new(const char *name, unsigned int sym_priv_size);
 void dso__delete(struct dso *self);
 
@@ -70,15 +64,16 @@ struct symbol *dso__find_symbol(struct dso *self, u64 ip);
 
 int dsos__load_kernel(const char *vmlinux, unsigned int sym_priv_size,
 		      symbol_filter_t filter, int verbose, int modules);
-int dso__load(struct dso *self, struct map *map, symbol_filter_t filter,
-	      int verbose);
-struct dso *dsos__findnew(const char *name);
+struct dso *dsos__findnew(const char *name, unsigned int sym_priv_size,
+			  bool *is_new);
+int dso__load(struct dso *self, struct map *map,
+	      symbol_filter_t filter, int v);
 void dsos__fprintf(FILE *fp);
 
 size_t dso__fprintf(struct dso *self, FILE *fp);
 char dso__symtab_origin(const struct dso *self);
 
-int load_kernel(void);
+int load_kernel(unsigned int sym_priv_size, symbol_filter_t filter);
 
 void symbol__init(void);
 
