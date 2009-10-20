@@ -15,14 +15,20 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <asm/cacheflush.h>
 #include <asm/addrspace.h>
 
 #define PREALLOC_DMA_DEBUG_ENTRIES	4096
 
+struct dma_map_ops *dma_ops;
+EXPORT_SYMBOL(dma_ops);
+
 static int __init dma_init(void)
 {
 	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+
+	no_iommu_init();
 	return 0;
 }
 fs_initcall(dma_init);

@@ -3,8 +3,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/dma-mapping.h>
-
 /* Can be used to override the logic in pci_scan_bus for skipping
    already-configured bus numbers - to be used for buggy BIOSes
    or architectures with incomplete PCI setup by the loader */
@@ -54,13 +52,7 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
  * address space.  The networking and block device layers use
  * this boolean for bounce buffer decisions.
  */
-#define PCI_DMA_BUS_IS_PHYS	(1)
-
-#include <linux/types.h>
-#include <linux/slab.h>
-#include <asm/scatterlist.h>
-#include <linux/string.h>
-#include <asm/io.h>
+#define PCI_DMA_BUS_IS_PHYS	(dma_ops->is_phys)
 
 /* pci_unmap_{single,page} being a nop depends upon the
  * configuration.
