@@ -68,7 +68,7 @@ insn_attr_t inat_get_group_attribute(insn_byte_t modrm, insn_byte_t last_pfx,
 	if (!table)
 		return inat_group_common_attribute(grp_attr);
 	if (inat_has_variant(table[X86_MODRM_REG(modrm)]) && m) {
-		table = inat_escape_tables[n][m];
+		table = inat_group_tables[n][m];
 		if (!table)
 			return inat_group_common_attribute(grp_attr);
 	}
