@@ -26,9 +26,10 @@
 #include <linux/async_tx.h>
 
 /**
- * scribble - space to hold throwaway P buffer for synchronous gen_syndrome
+ * pq_scribble_page - space to hold throwaway P or Q buffer for
+ * synchronous gen_syndrome
  */
-static struct page *scribble;
+static struct page *pq_scribble_page;
 
 /* the struct page *blocks[] parameter passed to async_gen_syndrome()
  * and async_syndrome_val() contains the 'P' destination address at
@@ -226,11 +227,11 @@ async_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
 	async_tx_quiesce(&submit->depend_tx);
 
 	if (!P(blocks, disks)) {
-		P(blocks, disks) = scribble;
+		P(blocks, disks) = pq_scribble_page;
 		BUG_ON(len + offset > PAGE_SIZE);
 	}
 	if (!Q(blocks, disks)) {
-		Q(blocks, disks) = scribble;
+		Q(blocks, disks) = pq_scribble_page;
 		BUG_ON(len + offset > PAGE_SIZE);
 	}
 	do_sync_gen_syndrome(blocks, offset, disks, len, submit);
@@ -384,9 +385,9 @@ EXPORT_SYMBOL_GPL(async_syndrome_val);
 
 static int __init async_pq_init(void)
 {
-	scribble = alloc_page(GFP_KERNEL);
+	pq_scribble_page = alloc_page(GFP_KERNEL);
 
-	if (scribble)
+	if (pq_scribble_page)
 		return 0;
 
 	pr_err("%s: failed to allocate required spare page\n", __func__);
@@ -396,7 +397,7 @@ static int __init async_pq_init(void)
 
 static void __exit async_pq_exit(void)
 {
-	put_page(scribble);
+	put_page(pq_scribble_page);
 }
 
 module_init(async_pq_init);
