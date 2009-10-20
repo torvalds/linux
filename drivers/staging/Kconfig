@@ -133,5 +133,7 @@ source "drivers/staging/cowloop/Kconfig"
 
 source "drivers/staging/strip/Kconfig"
 
+source "drivers/staging/arlan/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
