@@ -100,19 +100,6 @@ config SECURITY_FILE_CAPABILITIES
 
 	  If in doubt, answer N.
 
-config SECURITY_ROOTPLUG
-	bool "Root Plug Support"
-	depends on USB=y && SECURITY
-	help
-	  This is a sample LSM module that should only be used as such.
-	  It prevents any programs running with egid == 0 if a specific
-	  USB device is not present in the system.
-
-	  See <http://www.linuxjournal.com/article.php?sid=6279> for
-	  more information about this module.
-
-	  If you are unsure how to answer this question, answer N.
-
 config INTEL_TXT
 	bool "Enable Intel(R) Trusted Execution Technology (Intel(R) TXT)"
 	depends on HAVE_INTEL_TXT
