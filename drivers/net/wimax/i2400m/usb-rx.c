@@ -214,7 +214,7 @@ retry:
 	}
 	result = usb_bulk_msg(
 		i2400mu->usb_dev, usb_pipe, rx_skb->data + rx_skb->len,
-		rx_size, &read_size, HZ);
+		rx_size, &read_size, 200);
 	usb_mark_last_busy(i2400mu->usb_dev);
 	switch (result) {
 	case 0:

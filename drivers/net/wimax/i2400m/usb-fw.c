@@ -102,7 +102,7 @@ ssize_t i2400mu_tx_bulk_out(struct i2400mu *i2400mu, void *buf, size_t buf_size)
 	epd = usb_get_epd(i2400mu->usb_iface, i2400mu->endpoint_cfg.bulk_out);
 	pipe = usb_sndbulkpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 retry:
-	result = usb_bulk_msg(i2400mu->usb_dev, pipe, buf, buf_size, &len, HZ);
+	result = usb_bulk_msg(i2400mu->usb_dev, pipe, buf, buf_size, &len, 200);
 	switch (result) {
 	case 0:
 		if (len != buf_size) {

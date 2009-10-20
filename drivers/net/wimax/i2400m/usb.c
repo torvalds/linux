@@ -173,7 +173,7 @@ int __i2400mu_send_barker(struct i2400mu *i2400mu,
 	pipe = usb_sndbulkpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 	memcpy(buffer, barker, barker_size);
 	ret = usb_bulk_msg(i2400mu->usb_dev, pipe, buffer, barker_size,
-			   &actual_len, HZ);
+			   &actual_len, 200);
 	if (ret < 0) {
 		if (ret != -EINVAL)
 			dev_err(dev, "E: barker error: %d\n", ret);

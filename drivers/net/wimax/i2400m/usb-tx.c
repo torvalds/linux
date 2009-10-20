@@ -105,7 +105,7 @@ int i2400mu_tx(struct i2400mu *i2400mu, struct i2400m_msg_hdr *tx_msg,
 	usb_pipe = usb_sndbulkpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 retry:
 	result = usb_bulk_msg(i2400mu->usb_dev, usb_pipe,
-			      tx_msg, tx_msg_size, &sent_size, HZ);
+			      tx_msg, tx_msg_size, &sent_size, 200);
 	usb_mark_last_busy(i2400mu->usb_dev);
 	switch (result) {
 	case 0:
