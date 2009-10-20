@@ -280,11 +280,11 @@
  * ---------------------------------------------------------------------------
  */
 
-#include "omap7xx.h"
-#include "omap1510.h"
-#include "omap16xx.h"
-#include "omap24xx.h"
-#include "omap34xx.h"
-#include "omap44xx.h"
+#include <mach/omap7xx.h>
+#include <mach/omap1510.h>
+#include <mach/omap16xx.h>
+#include <mach/omap24xx.h>
+#include <mach/omap34xx.h>
+#include <mach/omap44xx.h>
 
 #endif	/* __ASM_ARCH_OMAP_HARDWARE_H */
