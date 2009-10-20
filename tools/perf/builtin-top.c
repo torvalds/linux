@@ -141,7 +141,8 @@ static void parse_source(struct sym_entry *syme)
 	sprintf(command,
 		"objdump --start-address=0x%016Lx "
 			 "--stop-address=0x%016Lx -dS %s",
-		sym->start, sym->end, path);
+		map->unmap_ip(map, sym->start),
+		map->unmap_ip(map, sym->end), path);
 
 	file = popen(command, "r");
 	if (!file)
@@ -173,11 +174,11 @@ static void parse_source(struct sym_entry *syme)
 
 		if (strlen(src->line)>8 && src->line[8] == ':') {
 			src->eip = strtoull(src->line, NULL, 16);
-			src->eip += map->start;
+			src->eip = map->unmap_ip(map, src->eip);
 		}
 		if (strlen(src->line)>8 && src->line[16] == ':') {
 			src->eip = strtoull(src->line, NULL, 16);
-			src->eip += map->start;
+			src->eip = map->unmap_ip(map, src->eip);
 		}
 	}
 	pclose(file);
