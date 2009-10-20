@@ -883,4 +883,7 @@ P3
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+<<<<<<< HEAD:drivers/video/logo/logo_zen_clut224.ppm
 >>>>>>> Revert "revert zen-logo"
+=======
+>>>>>>> Rename zen logo to oldzen in prep for new logo:drivers/video/logo/logo_oldzen_clut224.ppm

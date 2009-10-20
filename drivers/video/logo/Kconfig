@@ -44,8 +44,8 @@ config LOGO_BLACKFIN_CLUT224
 	bool "224-colour Blackfin Processor Linux logo"
 	depends on BLACKFIN
 
-config LOGO_ZEN_CLUT224
-	bool "224-color Zen-Sources logo"
+config LOGO_OLDZEN_CLUT224
+	bool "224-color OLD Zen logo"
 	depends on LOGO
 	default y
 

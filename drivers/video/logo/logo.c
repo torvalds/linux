@@ -81,8 +81,8 @@ static const struct linux_logo *logo_clut224[] = {
 #ifdef CONFIG_LOGO_M32R_CLUT224
 	&logo_m32r_clut224,		/* M32R Linux logo */
 #endif
-#ifdef CONFIG_LOGO_ZEN_CLUT224
-	&logo_zen_clut224,		/* Zen-Sources logo */
+#ifdef CONFIG_LOGO_OLDZEN_CLUT224
+	&logo_oldzen_clut224,		/* Zen-Sources logo */
 #endif
 #ifdef CONFIG_LOGO_ARCH_CLUT224
 	&logo_arch_clut224,		/* Arch Linux logo */
