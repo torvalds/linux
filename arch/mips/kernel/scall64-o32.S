@@ -505,7 +505,7 @@ sys_call_table:
 	PTR	sys_fchmodat
 	PTR	sys_faccessat			/* 4300 */
 	PTR	compat_sys_pselect6
-	PTR	sys_ppoll
+	PTR	compat_sys_ppoll
 	PTR	sys_unshare
 	PTR	sys_splice
 	PTR	sys32_sync_file_range		/* 4305 */
