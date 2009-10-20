@@ -203,6 +203,24 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 		.type		= MT_DEVICE,
 	},
 	{
+		.virtual	= OMAP44XX_EMIF1_VIRT,
+		.pfn		= __phys_to_pfn(OMAP44XX_EMIF1_PHYS),
+		.length		= OMAP44XX_EMIF1_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
+		.virtual	= OMAP44XX_EMIF2_VIRT,
+		.pfn		= __phys_to_pfn(OMAP44XX_EMIF2_PHYS),
+		.length		= OMAP44XX_EMIF2_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
+		.virtual	= OMAP44XX_DMM_VIRT,
+		.pfn		= __phys_to_pfn(OMAP44XX_DMM_PHYS),
+		.length		= OMAP44XX_DMM_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
 		.virtual	= L4_PER_44XX_VIRT,
 		.pfn		= __phys_to_pfn(L4_PER_44XX_PHYS),
 		.length		= L4_PER_44XX_SIZE,
