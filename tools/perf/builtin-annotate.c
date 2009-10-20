@@ -57,7 +57,8 @@ static const char *sym_hist_filter;
 
 static int symbol_filter(struct map *map, struct symbol *sym)
 {
-	if (strcmp(sym->name, sym_hist_filter) == 0) {
+	if (sym_hist_filter == NULL ||
+	    strcmp(sym->name, sym_hist_filter) == 0) {
 		struct sym_priv *priv = dso__sym_priv(map->dso, sym);
 		const int size = (sizeof(*priv->hist) +
 				  (sym->end - sym->start) * sizeof(u64));
@@ -581,7 +582,6 @@ static void annotate_sym(struct hist_entry *he)
 static void find_annotations(void)
 {
 	struct rb_node *nd;
-	int count = 0;
 
 	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
@@ -595,7 +595,6 @@ static void find_annotations(void)
 			continue;
 
 		annotate_sym(he);
-		count++;
 		/*
 		 * Since we have a hist_entry per IP for the same symbol, free
 		 * he->sym->hist to signal we already processed this symbol.
@@ -603,9 +602,6 @@ static void find_annotations(void)
 		free(priv->hist);
 		priv->hist = NULL;
 	}
-
-	if (!count)
-		printf(" Error: symbol '%s' not present amongst the samples.\n", sym_hist_filter);
 }
 
 static int __cmd_annotate(void)
@@ -792,9 +788,6 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 
 		sym_hist_filter = argv[0];
 	}
-
-	if (!sym_hist_filter)
-		usage_with_options(annotate_usage, options);
 
 	setup_pager();
 
