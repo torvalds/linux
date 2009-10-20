@@ -172,14 +172,59 @@ int __i2400mu_send_barker(struct i2400mu *i2400mu,
 	epd = usb_get_epd(i2400mu->usb_iface, endpoint);
 	pipe = usb_sndbulkpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 	memcpy(buffer, barker, barker_size);
+retry:
 	ret = usb_bulk_msg(i2400mu->usb_dev, pipe, buffer, barker_size,
 			   &actual_len, 200);
-	if (ret < 0) {
-		if (ret != -EINVAL)
-			dev_err(dev, "E: barker error: %d\n", ret);
-	} else if (actual_len != barker_size) {
-		dev_err(dev, "E: only %d bytes transmitted\n", actual_len);
-		ret = -EIO;
+	switch (ret) {
+	case 0:
+		if (actual_len != barker_size) {	/* Too short? drop it */
+			dev_err(dev, "E: %s: short write (%d B vs %zu "
+				"expected)\n",
+				__func__, actual_len, barker_size);
+			ret = -EIO;
+		}
+		break;
+	case -EPIPE:
+		/*
+		 * Stall -- maybe the device is choking with our
+		 * requests. Clear it and give it some time. If they
+		 * happen to often, it might be another symptom, so we
+		 * reset.
+		 *
+		 * No error handling for usb_clear_halt(0; if it
+		 * works, the retry works; if it fails, this switch
+		 * does the error handling for us.
+		 */
+		if (edc_inc(&i2400mu->urb_edc,
+			    10 * EDC_MAX_ERRORS, EDC_ERROR_TIMEFRAME)) {
+			dev_err(dev, "E: %s: too many stalls in "
+				"URB; resetting device\n", __func__);
+			usb_queue_reset_device(i2400mu->usb_iface);
+			/* fallthrough */
+		} else {
+			usb_clear_halt(i2400mu->usb_dev, pipe);
+			msleep(10);	/* give the device some time */
+			goto retry;
+		}
+	case -EINVAL:			/* while removing driver */
+	case -ENODEV:			/* dev disconnect ... */
+	case -ENOENT:			/* just ignore it */
+	case -ESHUTDOWN:		/* and exit */
+	case -ECONNRESET:
+		ret = -ESHUTDOWN;
+		break;
+	default:			/* Some error? */
+		if (edc_inc(&i2400mu->urb_edc,
+			    EDC_MAX_ERRORS, EDC_ERROR_TIMEFRAME)) {
+			dev_err(dev, "E: %s: maximum errors in URB "
+				"exceeded; resetting device\n",
+				__func__);
+			usb_queue_reset_device(i2400mu->usb_iface);
+		} else {
+			dev_warn(dev, "W: %s: cannot send URB: %d\n",
+				 __func__, ret);
+			goto retry;
+		}
 	}
 	kfree(buffer);
 error_kzalloc:

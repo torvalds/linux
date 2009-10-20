@@ -222,6 +222,26 @@ retry:
 			goto retry;	/* ZLP, just resubmit */
 		skb_put(rx_skb, read_size);
 		break;
+	case -EPIPE:
+		/*
+		 * Stall -- maybe the device is choking with our
+		 * requests. Clear it and give it some time. If they
+		 * happen to often, it might be another symptom, so we
+		 * reset.
+		 *
+		 * No error handling for usb_clear_halt(0; if it
+		 * works, the retry works; if it fails, this switch
+		 * does the error handling for us.
+		 */
+		if (edc_inc(&i2400mu->urb_edc,
+			    10 * EDC_MAX_ERRORS, EDC_ERROR_TIMEFRAME)) {
+			dev_err(dev, "BM-CMD: too many stalls in "
+				"URB; resetting device\n");
+			goto do_reset;
+		}
+		usb_clear_halt(i2400mu->usb_dev, usb_pipe);
+		msleep(10);	/* give the device some time */
+		goto retry;
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
 	case -ENOENT:			/* just ignore it */
@@ -283,6 +303,7 @@ out:
 error_reset:
 	dev_err(dev, "RX: maximum errors in URB exceeded; "
 		"resetting device\n");
+do_reset:
 	usb_queue_reset_device(i2400mu->usb_iface);
 	rx_skb = ERR_PTR(result);
 	goto out;
