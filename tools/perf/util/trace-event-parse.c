@@ -286,16 +286,19 @@ void parse_ftrace_printk(char *file, unsigned int size __unused)
 	char *line;
 	char *next = NULL;
 	char *addr_str;
-	char *fmt;
 	int i;
 
 	line = strtok_r(file, "\n", &next);
 	while (line) {
+		addr_str = strsep(&line, ":");
+		if (!line) {
+			warning("error parsing print strings");
+			break;
+		}
 		item = malloc_or_die(sizeof(*item));
-		addr_str = strtok_r(line, ":", &fmt);
 		item->addr = strtoull(addr_str, NULL, 16);
 		/* fmt still has a space, skip it */
-		item->printk = strdup(fmt+1);
+		item->printk = strdup(line+1);
 		item->next = list;
 		list = item;
 		line = strtok_r(NULL, "\n", &next);
