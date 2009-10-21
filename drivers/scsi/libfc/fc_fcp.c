@@ -574,7 +574,8 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 		tlen -= sg_bytes;
 		remaining -= sg_bytes;
 
-		if (tlen)
+		if ((skb_shinfo(fp_skb(fp))->nr_frags < FC_FRAME_SG_LEN) &&
+		    (tlen))
 			continue;
 
 		/*
