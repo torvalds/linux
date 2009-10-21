@@ -921,26 +921,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	if (err)
 		goto eirq;
 
-	if (pdata->hw_ecc) {
-		this->ecc.calculate = mxc_nand_calculate_ecc;
-		this->ecc.hwctl = mxc_nand_enable_hwecc;
-		this->ecc.correct = mxc_nand_correct_data;
-		this->ecc.mode = NAND_ECC_HW;
-		this->ecc.size = 512;
-		this->ecc.bytes = 3;
-		tmp = readw(host->regs + NFC_CONFIG1);
-		tmp |= NFC_ECC_EN;
-		writew(tmp, host->regs + NFC_CONFIG1);
-	} else {
-		this->ecc.size = 512;
-		this->ecc.bytes = 3;
-		this->ecc.layout = &nand_hw_eccoob_smallpage;
-		this->ecc.mode = NAND_ECC_SOFT;
-		tmp = readw(host->regs + NFC_CONFIG1);
-		tmp &= ~NFC_ECC_EN;
-		writew(tmp, host->regs + NFC_CONFIG1);
-	}
-
 	/* Reset NAND */
 	this->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
 
@@ -955,11 +935,28 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	/* Unlock Block Command for given address range */
 	writew(0x4, host->regs + NFC_WRPROT);
 
-	/* NAND bus width determines access funtions used by upper layer */
-	if (pdata->width == 2) {
-		this->options |= NAND_BUSWIDTH_16;
-		this->ecc.layout = &nand_hw_eccoob_smallpage;
+	this->ecc.size = 512;
+	this->ecc.bytes = 3;
+	this->ecc.layout = &nand_hw_eccoob_smallpage;
+
+	if (pdata->hw_ecc) {
+		this->ecc.calculate = mxc_nand_calculate_ecc;
+		this->ecc.hwctl = mxc_nand_enable_hwecc;
+		this->ecc.correct = mxc_nand_correct_data;
+		this->ecc.mode = NAND_ECC_HW;
+		tmp = readw(host->regs + NFC_CONFIG1);
+		tmp |= NFC_ECC_EN;
+		writew(tmp, host->regs + NFC_CONFIG1);
+	} else {
+		this->ecc.mode = NAND_ECC_SOFT;
+		tmp = readw(host->regs + NFC_CONFIG1);
+		tmp &= ~NFC_ECC_EN;
+		writew(tmp, host->regs + NFC_CONFIG1);
 	}
+
+	/* NAND bus width determines access funtions used by upper layer */
+	if (pdata->width == 2)
+		this->options |= NAND_BUSWIDTH_16;
 
 	/* first scan to find the device and get the page size */
 	if (nand_scan_ident(mtd, 1)) {
@@ -967,34 +964,9 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		goto escan;
 	}
 
-	host->pagesize_2k = (mtd->writesize == 2048) ? 1 : 0;
-
-	if (this->ecc.mode == NAND_ECC_HW) {
-		switch (mtd->oobsize) {
-		case 8:
-			this->ecc.layout = &nand_hw_eccoob_smallpage;
-			break;
-		case 16:
-			this->ecc.layout = &nand_hw_eccoob_smallpage;
-			break;
-		case 64:
-			this->ecc.layout = &nand_hw_eccoob_largepage;
-			break;
-		default:
-			/* page size not handled by HW ECC */
-			/* switching back to soft ECC */
-			this->ecc.size = 512;
-			this->ecc.bytes = 3;
-			this->ecc.layout = &nand_hw_eccoob_smallpage;
-			this->ecc.mode = NAND_ECC_SOFT;
-			this->ecc.calculate = NULL;
-			this->ecc.correct = NULL;
-			this->ecc.hwctl = NULL;
-			tmp = readw(host->regs + NFC_CONFIG1);
-			tmp &= ~NFC_ECC_EN;
-			writew(tmp, host->regs + NFC_CONFIG1);
-			break;
-		}
+	if (mtd->writesize == 2048) {
+		host->pagesize_2k = 1;
+		this->ecc.layout = &nand_hw_eccoob_largepage;
 	}
 
 	/* second phase scan */
