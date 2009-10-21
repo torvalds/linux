@@ -3335,6 +3335,22 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 	 * the same MAC address.
 	 */
 	ql_write32(qdev, RST_FO, RST_FO_RR_MASK | RST_FO_RR_RCV_FUNC_CQ);
+	/* Reroute all packets to our Interface.
+	 * They may have been routed to MPI firmware
+	 * due to WOL.
+	 */
+	value = ql_read32(qdev, MGMT_RCV_CFG);
+	value &= ~MGMT_RCV_CFG_RM;
+	mask = 0xffff0000;
+
+	/* Sticky reg needs clearing due to WOL. */
+	ql_write32(qdev, MGMT_RCV_CFG, mask);
+	ql_write32(qdev, MGMT_RCV_CFG, mask | value);
+
+	/* Default WOL is enable on Mezz cards */
+	if (qdev->pdev->subsystem_device == 0x0068 ||
+			qdev->pdev->subsystem_device == 0x0180)
+		qdev->wol = WAKE_MAGIC;
 
 	/* Start up the rx queues. */
 	for (i = 0; i < qdev->rx_ring_count; i++) {
@@ -3447,6 +3463,55 @@ static void ql_display_dev_info(struct net_device *ndev)
 		qdev->chip_rev_id >> 8 & 0x0000000f,
 		qdev->chip_rev_id >> 12 & 0x0000000f);
 	QPRINTK(qdev, PROBE, INFO, "MAC address %pM\n", ndev->dev_addr);
+}
+
+int ql_wol(struct ql_adapter *qdev)
+{
+	int status = 0;
+	u32 wol = MB_WOL_DISABLE;
+
+	/* The CAM is still intact after a reset, but if we
+	 * are doing WOL, then we may need to program the
+	 * routing regs. We would also need to issue the mailbox
+	 * commands to instruct the MPI what to do per the ethtool
+	 * settings.
+	 */
+
+	if (qdev->wol & (WAKE_ARP | WAKE_MAGICSECURE | WAKE_PHY | WAKE_UCAST |
+			WAKE_MCAST | WAKE_BCAST)) {
+		QPRINTK(qdev, IFDOWN, ERR,
+			"Unsupported WOL paramter. qdev->wol = 0x%x.\n",
+			qdev->wol);
+		return -EINVAL;
+	}
+
+	if (qdev->wol & WAKE_MAGIC) {
+		status = ql_mb_wol_set_magic(qdev, 1);
+		if (status) {
+			QPRINTK(qdev, IFDOWN, ERR,
+				"Failed to set magic packet on %s.\n",
+				qdev->ndev->name);
+			return status;
+		} else
+			QPRINTK(qdev, DRV, INFO,
+				"Enabled magic packet successfully on %s.\n",
+				qdev->ndev->name);
+
+		wol |= MB_WOL_MAGIC_PKT;
+	}
+
+	if (qdev->wol) {
+		/* Reroute all packets to Management Interface */
+		ql_write32(qdev, MGMT_RCV_CFG, (MGMT_RCV_CFG_RM |
+			(MGMT_RCV_CFG_RM << 16)));
+		wol |= MB_WOL_MODE_ON;
+		status = ql_mb_wol_mode(qdev, wol);
+		QPRINTK(qdev, DRV, ERR, "WOL %s (wol code 0x%x) on %s\n",
+			(status == 0) ? "Sucessfully set" : "Failed", wol,
+			qdev->ndev->name);
+	}
+
+	return status;
 }
 
 static int ql_adapter_down(struct ql_adapter *qdev)
@@ -4285,6 +4350,7 @@ static int qlge_suspend(struct pci_dev *pdev, pm_message_t state)
 			return err;
 	}
 
+	ql_wol(qdev);
 	err = pci_save_state(pdev);
 	if (err)
 		return err;

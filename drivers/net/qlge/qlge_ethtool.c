@@ -371,6 +371,36 @@ static void ql_get_drvinfo(struct net_device *ndev,
 	drvinfo->eedump_len = 0;
 }
 
+static void ql_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
+{
+	struct ql_adapter *qdev = netdev_priv(ndev);
+	/* What we support. */
+	wol->supported = WAKE_MAGIC;
+	/* What we've currently got set. */
+	wol->wolopts = qdev->wol;
+}
+
+static int ql_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
+{
+	struct ql_adapter *qdev = netdev_priv(ndev);
+	int status;
+
+	if (wol->wolopts & ~WAKE_MAGIC)
+		return -EINVAL;
+	qdev->wol = wol->wolopts;
+
+	QPRINTK(qdev, DRV, INFO, "Set wol option 0x%x on %s\n",
+			 qdev->wol, ndev->name);
+	if (!qdev->wol) {
+		u32 wol = 0;
+		status = ql_mb_wol_mode(qdev, wol);
+		QPRINTK(qdev, DRV, ERR, "WOL %s (wol code 0x%x) on %s\n",
+			(status == 0) ? "cleared sucessfully" : "clear failed",
+			wol, qdev->ndev->name);
+	}
+
+	return 0;
+}
 
 static int ql_phys_id(struct net_device *ndev, u32 data)
 {
@@ -523,6 +553,8 @@ static void ql_set_msglevel(struct net_device *ndev, u32 value)
 const struct ethtool_ops qlge_ethtool_ops = {
 	.get_settings = ql_get_settings,
 	.get_drvinfo = ql_get_drvinfo,
+	.get_wol = ql_get_wol,
+	.set_wol = ql_set_wol,
 	.get_msglevel = ql_get_msglevel,
 	.set_msglevel = ql_set_msglevel,
 	.get_link = ethtool_op_get_link,

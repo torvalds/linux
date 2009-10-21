@@ -796,6 +796,7 @@ enum {
 	MB_WOL_BCAST = (1 << 5),
 	MB_WOL_LINK_UP = (1 << 6),
 	MB_WOL_LINK_DOWN = (1 << 7),
+	MB_WOL_MODE_ON = (1 << 16),		/* Wake on Lan Mode on */
 	MB_CMD_SET_WOL_FLTR = 0x00000111,	/* Wake On Lan Filter */
 	MB_CMD_CLEAR_WOL_FLTR = 0x00000112, /* Wake On Lan Filter */
 	MB_CMD_SET_WOL_MAGIC = 0x00000113,	/* Wake On Lan Magic Packet */
@@ -1646,6 +1647,9 @@ int ql_mb_get_fw_state(struct ql_adapter *qdev);
 int ql_cam_route_initialize(struct ql_adapter *qdev);
 int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data);
 int ql_mb_about_fw(struct ql_adapter *qdev);
+int ql_wol(struct ql_adapter *qdev);
+int ql_mb_wol_set_magic(struct ql_adapter *qdev, u32 enable_wol);
+int ql_mb_wol_mode(struct ql_adapter *qdev, u32 wol);
 int ql_mb_set_led_cfg(struct ql_adapter *qdev, u32 led_config);
 int ql_mb_get_led_cfg(struct ql_adapter *qdev);
 void ql_link_on(struct ql_adapter *qdev);
