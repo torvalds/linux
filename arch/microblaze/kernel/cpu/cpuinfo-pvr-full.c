@@ -21,8 +21,14 @@
  */
 
 #define CI(c, p) { ci->c = PVR_##p(pvr); }
+
+#if defined(CONFIG_EARLY_PRINTK) && defined(CONFIG_SERIAL_UARTLITE_CONSOLE)
 #define err_printk(x) \
 	early_printk("ERROR: Microblaze " x "-different for PVR and DTS\n");
+#else
+#define err_printk(x) \
+	printk(KERN_INFO "ERROR: Microblaze " x "-different for PVR and DTS\n");
+#endif
 
 void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
 {
@@ -82,6 +88,11 @@ void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
 	CI(dcache_size, DCACHE_BYTE_SIZE);
 	CI(dcache_base, DCACHE_BASEADDR);
 	CI(dcache_high, DCACHE_HIGHADDR);
+
+	temp = PVR_DCACHE_USE_WRITEBACK(pvr);
+	if (ci->dcache_wb != temp)
+		err_printk("DCACHE WB");
+	ci->dcache_wb = temp;
 
 	CI(use_dopb, D_OPB);
 	CI(use_iopb, I_OPB);
