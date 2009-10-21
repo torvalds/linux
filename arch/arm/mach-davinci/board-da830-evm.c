@@ -282,6 +282,12 @@ static const short da830_evm_emif25_pins[] = {
 	-1
 };
 
+#if defined(CONFIG_MMC_DAVINCI) || defined(CONFIG_MMC_DAVINCI_MODULE)
+#define HAS_MMC	1
+#else
+#define HAS_MMC	0
+#endif
+
 #ifdef CONFIG_DA830_UI_NAND
 static struct mtd_partition da830_evm_nand_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -377,6 +383,13 @@ static inline void da830_evm_init_nand(int mux_mode)
 {
 	int ret;
 
+	if (HAS_MMC) {
+		pr_warning("WARNING: both MMC/SD and NAND are "
+				"enabled, but they share AEMIF pins.\n"
+				"\tDisable MMC/SD for NAND support.\n");
+		return;
+	}
+
 	ret = da8xx_pinmux_setup(da830_evm_emif25_pins);
 	if (ret)
 		pr_warning("da830_evm_init: emif25 mux setup failed: %d\n",
@@ -424,6 +437,9 @@ static int da830_evm_ui_expander_setup(struct i2c_client *client, int gpio,
 		unsigned ngpio, void *context)
 {
 	gpio_request(gpio + 6, "UI MUX_MODE");
+
+	/* Drive mux mode low to match the default without UI card */
+	gpio_direction_output(gpio + 6, 0);
 
 	da830_evm_init_lcdc(gpio + 6);
 
