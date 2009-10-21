@@ -805,6 +805,9 @@ enum {
 	MB_CMD_SET_PORT_CFG = 0x00000122,
 	MB_CMD_GET_PORT_CFG = 0x00000123,
 	MB_CMD_GET_LINK_STS = 0x00000124,
+	MB_CMD_SET_LED_CFG = 0x00000125, /* Set LED Configuration Register */
+		QL_LED_BLINK = 0x03e803e8,
+	MB_CMD_GET_LED_CFG = 0x00000126, /* Get LED Configuration Register */
 	MB_CMD_SET_MGMNT_TFK_CTL = 0x00000160, /* Set Mgmnt Traffic Control */
 	MB_SET_MPI_TFK_STOP = (1 << 0),
 	MB_SET_MPI_TFK_RESUME = (1 << 1),
@@ -1551,6 +1554,7 @@ struct ql_adapter {
 	u32 port_init;
 	u32 link_status;
 	u32 link_config;
+	u32 led_config;
 	u32 max_frame_size;
 
 	union flash_params flash;
@@ -1642,6 +1646,8 @@ int ql_mb_get_fw_state(struct ql_adapter *qdev);
 int ql_cam_route_initialize(struct ql_adapter *qdev);
 int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data);
 int ql_mb_about_fw(struct ql_adapter *qdev);
+int ql_mb_set_led_cfg(struct ql_adapter *qdev, u32 led_config);
+int ql_mb_get_led_cfg(struct ql_adapter *qdev);
 void ql_link_on(struct ql_adapter *qdev);
 void ql_link_off(struct ql_adapter *qdev);
 int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control);

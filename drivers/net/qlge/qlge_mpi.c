@@ -751,6 +751,61 @@ static int ql_idc_wait(struct ql_adapter *qdev)
 	return status;
 }
 
+int ql_mb_set_led_cfg(struct ql_adapter *qdev, u32 led_config)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 2;
+	mbcp->out_count = 1;
+
+	mbcp->mbox_in[0] = MB_CMD_SET_LED_CFG;
+	mbcp->mbox_in[1] = led_config;
+
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed to set LED Configuration.\n");
+		status = -EIO;
+	}
+
+	return status;
+}
+
+int ql_mb_get_led_cfg(struct ql_adapter *qdev)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 1;
+	mbcp->out_count = 2;
+
+	mbcp->mbox_in[0] = MB_CMD_GET_LED_CFG;
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed to get LED Configuration.\n");
+		status = -EIO;
+	} else
+		qdev->led_config = mbcp->mbox_out[1];
+
+	return status;
+}
+
 int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control)
 {
 	struct mbox_params mbc;

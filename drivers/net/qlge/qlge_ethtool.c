@@ -371,6 +371,33 @@ static void ql_get_drvinfo(struct net_device *ndev,
 	drvinfo->eedump_len = 0;
 }
 
+
+static int ql_phys_id(struct net_device *ndev, u32 data)
+{
+	struct ql_adapter *qdev = netdev_priv(ndev);
+	u32 led_reg, i;
+	int status;
+
+	/* Save the current LED settings */
+	status = ql_mb_get_led_cfg(qdev);
+	if (status)
+		return status;
+	led_reg = qdev->led_config;
+
+	/* Start blinking the led */
+	if (!data || data > 300)
+		data = 300;
+
+	for (i = 0; i < (data * 10); i++)
+		ql_mb_set_led_cfg(qdev, QL_LED_BLINK);
+
+	/* Restore LED settings */
+	status = ql_mb_set_led_cfg(qdev, led_reg);
+	if (status)
+		return status;
+
+	return 0;
+}
 static int ql_get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
 	struct ql_adapter *qdev = netdev_priv(dev);
@@ -499,6 +526,7 @@ const struct ethtool_ops qlge_ethtool_ops = {
 	.get_msglevel = ql_get_msglevel,
 	.set_msglevel = ql_set_msglevel,
 	.get_link = ethtool_op_get_link,
+	.phys_id		 = ql_phys_id,
 	.get_pauseparam		 = ql_get_pauseparam,
 	.set_pauseparam		 = ql_set_pauseparam,
 	.get_rx_csum = ql_get_rx_csum,
