@@ -106,8 +106,7 @@ struct symbol;
 typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
 
 struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
-		     unsigned int sym_priv_size, symbol_filter_t filter,
-		     int v);
+		     unsigned int sym_priv_size, symbol_filter_t filter);
 struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *self, FILE *fp);

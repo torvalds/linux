@@ -1666,8 +1666,8 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		(long long)period);
 
 	if (thread == NULL) {
-		eprintf("problem processing %d event, skipping it.\n",
-			event->header.type);
+		pr_debug("problem processing %d event, skipping it.\n",
+			 event->header.type);
 		return -1;
 	}
 

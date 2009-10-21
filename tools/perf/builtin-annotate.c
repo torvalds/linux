@@ -203,8 +203,7 @@ static int
 process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	struct map *map = map__new(&event->mmap, NULL, 0,
-				   sizeof(struct sym_priv), symbol_filter,
-				   verbose);
+				   sizeof(struct sym_priv), symbol_filter);
 	struct thread *thread = threads__findnew(event->mmap.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_MMAP %d: [%p(%p) @ %p]: %s\n",

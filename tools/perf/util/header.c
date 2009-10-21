@@ -93,7 +93,7 @@ static struct perf_trace_event_type *events;
 void perf_header__push_event(u64 id, const char *name)
 {
 	if (strlen(name) > MAX_EVENT_NAME)
-		printf("Event %s will be truncated\n", name);
+		pr_warning("Event %s will be truncated\n", name);
 
 	if (!events) {
 		events = malloc(sizeof(struct perf_trace_event_type));

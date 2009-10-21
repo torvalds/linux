@@ -689,7 +689,8 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		dump_printf("... chain: nr:%Lu\n", chain->nr);
 
 		if (validate_chain(chain, event) < 0) {
-			eprintf("call-chain problem with event, skipping it.\n");
+			pr_debug("call-chain problem with event, "
+				 "skipping it.\n");
 			return 0;
 		}
 
@@ -700,7 +701,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	}
 
 	if (thread == NULL) {
-		eprintf("problem processing %d event, skipping it.\n",
+		pr_debug("problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
@@ -738,7 +739,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 	if (hist_entry__add(thread, map, sym, ip,
 			    chain, level, period)) {
-		eprintf("problem incrementing symbol count, skipping event\n");
+		pr_debug("problem incrementing symbol count, skipping event\n");
 		return -1;
 	}
 
@@ -750,7 +751,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct map *map = map__new(&event->mmap, cwd, cwdlen, 0, NULL, verbose);
+	struct map *map = map__new(&event->mmap, cwd, cwdlen, 0, NULL);
 	struct thread *thread = threads__findnew(event->mmap.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_MMAP %d/%d: [%p(%p) @ %p]: %s\n",

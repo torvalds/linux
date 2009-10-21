@@ -630,7 +630,7 @@ static int __cmd_record(int argc, const char **argv)
 
 		param.sched_priority = realtime_prio;
 		if (sched_setscheduler(0, SCHED_FIFO, &param)) {
-			printf("Could not set realtime priority.\n");
+			pr_err("Could not set realtime priority.\n");
 			exit(-1);
 		}
 	}

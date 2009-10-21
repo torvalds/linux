@@ -85,4 +85,21 @@ simple_strtoul(const char *nptr, char **endptr, int base)
 	return strtoul(nptr, endptr, base);
 }
 
+#ifndef pr_fmt
+#define pr_fmt(fmt) fmt
+#endif
+
+#define pr_err(fmt, ...) \
+	do { fprintf(stderr, pr_fmt(fmt), ##__VA_ARGS__); } while (0)
+#define pr_warning(fmt, ...) \
+	do { fprintf(stderr, pr_fmt(fmt), ##__VA_ARGS__); } while (0)
+#define pr_info(fmt, ...) \
+	do { fprintf(stderr, pr_fmt(fmt), ##__VA_ARGS__); } while (0)
+#define pr_debug(fmt, ...) \
+	eprintf(1, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_debugN(n, fmt, ...) \
+	eprintf(n, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_debug2(fmt, ...) pr_debugN(2, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_debug3(fmt, ...) pr_debugN(3, pr_fmt(fmt), ##__VA_ARGS__)
+
 #endif

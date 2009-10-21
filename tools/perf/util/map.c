@@ -21,8 +21,7 @@ static int strcommon(const char *pathname, char *cwd, int cwdlen)
 }
 
 struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
-		     unsigned int sym_priv_size, symbol_filter_t filter,
-		     int v)
+		     unsigned int sym_priv_size, symbol_filter_t filter)
 {
 	struct map *self = malloc(sizeof(*self));
 
@@ -58,16 +57,16 @@ struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
 			goto out_delete;
 
 		if (new_dso) {
-			int nr = dso__load(self->dso, self, filter, v);
+			int nr = dso__load(self->dso, self, filter);
 
 			if (nr < 0)
-				eprintf("Failed to open %s, continuing "
-					"without symbols\n",
-					self->dso->long_name);
+				pr_warning("Failed to open %s, continuing "
+					   "without symbols\n",
+					   self->dso->long_name);
 			else if (nr == 0)
-				eprintf("No symbols found in %s, maybe "
-					"install a debug package?\n",
-					self->dso->long_name);
+				pr_warning("No symbols found in %s, maybe "
+					   "install a debug package?\n",
+					   self->dso->long_name);
 		}
 
 		if (self->dso == vdso || anon)

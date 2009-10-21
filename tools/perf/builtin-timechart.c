@@ -1162,12 +1162,10 @@ more:
 	size = event->header.size;
 
 	if (!size || process_event(event) < 0) {
-
-		printf("%p [%p]: skipping unknown header type: %d\n",
-			(void *)(offset + head),
-			(void *)(long)(event->header.size),
-			event->header.type);
-
+		pr_warning("%p [%p]: skipping unknown header type: %d\n",
+			   (void *)(offset + head),
+			   (void *)(long)(event->header.size),
+			   event->header.type);
 		/*
 		 * assume we lost track of the stream, check alignment, and
 		 * increment a single u64 in the hope to catch on again 'soon'.
@@ -1200,7 +1198,8 @@ done:
 
 	write_svg_file(output_name);
 
-	printf("Written %2.1f seconds of trace to %s.\n", (last_time - first_time) / 1000000000.0, output_name);
+	pr_info("Written %2.1f seconds of trace to %s.\n",
+		(last_time - first_time) / 1000000000.0, output_name);
 
 	return rc;
 }
