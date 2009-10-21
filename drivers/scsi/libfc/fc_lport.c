@@ -1237,9 +1237,12 @@ static void fc_lport_timeout(struct work_struct *work)
 
 	switch (lport->state) {
 	case LPORT_ST_DISABLED:
-	case LPORT_ST_READY:
-	case LPORT_ST_RESET:
 		WARN_ON(1);
+		break;
+	case LPORT_ST_READY:
+		WARN_ON(1);
+		break;
+	case LPORT_ST_RESET:
 		break;
 	case LPORT_ST_FLOGI:
 		fc_lport_enter_flogi(lport);
