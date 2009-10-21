@@ -135,13 +135,9 @@
 #define EDAC_MAX_NUMNODES		8
 
 /* Extended Model from CPUID, for CPU Revision numbers */
-#define OPTERON_CPU_LE_REV_C		0
-#define OPTERON_CPU_REV_D		1
-#define OPTERON_CPU_REV_E		2
-
-/* NPT processors have the following Extended Models */
-#define OPTERON_CPU_REV_F		4
-#define OPTERON_CPU_REV_FA		5
+#define K8_REV_D			1
+#define K8_REV_E			2
+#define K8_REV_F			4
 
 /* Hardware limit on ChipSelect rows per MC and processors per system */
 #define MAX_CS_COUNT			8
@@ -243,7 +239,7 @@
 #define F10_DCHR_1			0x194
 
 #define F10_DCHR_FOUR_RANK_DIMM		BIT(18)
-#define F10_DCHR_Ddr3Mode		BIT(8)
+#define DDR3_MODE			BIT(8)
 #define F10_DCHR_MblMode		BIT(6)
 
 
@@ -501,7 +497,6 @@ struct scrubrate {
 };
 
 extern struct scrubrate scrubrates[23];
-extern u32 revf_quad_ddr2_shift[16];
 extern const char *tt_msgs[4];
 extern const char *ll_msgs[4];
 extern const char *rrrr_msgs[16];
@@ -531,17 +526,16 @@ extern struct mcidev_sysfs_attribute amd64_dbg_attrs[NUM_DBG_ATTRS],
  * functions and per device encoding/decoding logic.
  */
 struct low_ops {
-	int (*probe_valid_hardware)(struct amd64_pvt *pvt);
-	int (*early_channel_count)(struct amd64_pvt *pvt);
+	int (*probe_valid_hardware)	(struct amd64_pvt *pvt);
+	int (*early_channel_count)	(struct amd64_pvt *pvt);
 
-	u64 (*get_error_address)(struct mem_ctl_info *mci,
-			struct err_regs *info);
-	void (*read_dram_base_limit)(struct amd64_pvt *pvt, int dram);
-	void (*read_dram_ctl_register)(struct amd64_pvt *pvt);
-	void (*map_sysaddr_to_csrow)(struct mem_ctl_info *mci,
-					struct err_regs *info,
-					u64 SystemAddr);
-	int (*dbam_map_to_pages)(struct amd64_pvt *pvt, int dram_map);
+	u64 (*get_error_address)	(struct mem_ctl_info *mci,
+					 struct err_regs *info);
+	void (*read_dram_base_limit)	(struct amd64_pvt *pvt, int dram);
+	void (*read_dram_ctl_register)	(struct amd64_pvt *pvt);
+	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci,
+					 struct err_regs *info, u64 SystemAddr);
+	int (*dbam_to_cs)		(struct amd64_pvt *pvt, int cs_mode);
 };
 
 struct amd64_family_type {
