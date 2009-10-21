@@ -1115,7 +1115,7 @@ static void fc_lport_enter_scr(struct fc_lport *lport)
 
 	if (!lport->tt.elsct_send(lport, FC_FID_FCTRL, fp, ELS_SCR,
 				  fc_lport_scr_resp, lport, lport->e_d_tov))
-		fc_lport_error(lport, fp);
+		fc_lport_error(lport, NULL);
 }
 
 /**
@@ -1186,7 +1186,7 @@ static void fc_lport_enter_rpn_id(struct fc_lport *lport)
 	if (!lport->tt.elsct_send(lport, FC_FID_DIR_SERV, fp, FC_NS_RPN_ID,
 				  fc_lport_rpn_id_resp,
 				  lport, lport->e_d_tov))
-		fc_lport_error(lport, fp);
+		fc_lport_error(lport, NULL);
 }
 
 static struct fc_rport_operations fc_lport_rport_ops = {
@@ -1340,7 +1340,7 @@ static void fc_lport_enter_logo(struct fc_lport *lport)
 
 	if (!lport->tt.elsct_send(lport, FC_FID_FLOGI, fp, ELS_LOGO,
 				  fc_lport_logo_resp, lport, lport->e_d_tov))
-		fc_lport_error(lport, fp);
+		fc_lport_error(lport, NULL);
 }
 
 /**
@@ -1456,7 +1456,7 @@ void fc_lport_enter_flogi(struct fc_lport *lport)
 
 	if (!lport->tt.elsct_send(lport, FC_FID_FLOGI, fp, ELS_FLOGI,
 				  fc_lport_flogi_resp, lport, lport->e_d_tov))
-		fc_lport_error(lport, fp);
+		fc_lport_error(lport, NULL);
 }
 
 /* Configure a fc_lport */
