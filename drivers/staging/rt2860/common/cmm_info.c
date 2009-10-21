@@ -1969,63 +1969,6 @@ VOID	RTMPCommSiteSurveyData(
 	return;
 }
 
-VOID RTMPIoctlGetSiteSurvey(
-	IN	PRTMP_ADAPTER	pAdapter,
-	IN	struct iwreq	*wrq)
-{
-	PSTRING		msg;
-	INT		i=0;
-	INT			WaitCnt;
-	INT		Status=0;
-    INT         max_len = LINE_LEN;
-	PBSS_ENTRY	pBss;
-
-
-	os_alloc_mem(NULL, (PUCHAR *)&msg, sizeof(CHAR)*((MAX_LEN_OF_BSS_TABLE)*max_len));
-
-	if (msg == NULL)
-	{
-		DBGPRINT(RT_DEBUG_TRACE, ("RTMPIoctlGetSiteSurvey - msg memory alloc fail.\n"));
-		return;
-	}
-
-	memset(msg, 0 ,(MAX_LEN_OF_BSS_TABLE)*max_len );
-	sprintf(msg,"%s","\n");
-	sprintf(msg+strlen(msg),"%-4s%-33s%-20s%-23s%-9s%-7s%-7s%-3s\n",
-	    "Ch", "SSID", "BSSID", "Security", "Siganl(%)", "W-Mode", " ExtCH"," NT");
-
-
-
-	WaitCnt = 0;
-	pAdapter->StaCfg.bScanReqIsFromWebUI = TRUE;
-	while ((ScanRunning(pAdapter) == TRUE) && (WaitCnt++ < 200))
-		OS_WAIT(500);
-
-	for(i=0; i<pAdapter->ScanTab.BssNr ;i++)
-	{
-		pBss = &pAdapter->ScanTab.BssEntry[i];
-
-		if( pBss->Channel==0)
-			break;
-
-		if((strlen(msg)+max_len ) >= IW_SCAN_MAX_DATA)
-			break;
-
-
-		RTMPCommSiteSurveyData(msg, pBss);
-
-
-	}
-
-	pAdapter->StaCfg.bScanReqIsFromWebUI = FALSE;
-	wrq->u.data.length = strlen(msg);
-	Status = copy_to_user(wrq->u.data.pointer, msg, wrq->u.data.length);
-
-	DBGPRINT(RT_DEBUG_TRACE, ("RTMPIoctlGetSiteSurvey - wrq->u.data.length = %d\n", wrq->u.data.length));
-	os_free_mem(NULL, (PUCHAR)msg);
-}
-
-
 #define	MAC_LINE_LEN	(14+4+4+10+10+10+6+6)	// Addr+aid+psm+datatime+rxbyte+txbyte+current tx rate+last tx rate
 VOID RTMPIoctlGetMacTable(
 	IN PRTMP_ADAPTER pAd,

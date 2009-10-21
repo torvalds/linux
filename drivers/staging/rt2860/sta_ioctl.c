@@ -2979,6 +2979,7 @@ INT rt28xx_sta_ioctl(
 		case RT_PRIV_IOCTL:
 		case RT_PRIV_IOCTL_EXT:
 		case RTPRIV_IOCTL_SET:
+		case RTPRIV_IOCTL_GSITESURVEY:
 			Status = -EOPNOTSUPP;
 			break;
 		case SIOCGIWPRIV:
@@ -2991,9 +2992,6 @@ INT rt28xx_sta_ioctl(
 					Status = -EFAULT;
 			}
 			break;
-		case RTPRIV_IOCTL_GSITESURVEY:
-			RTMPIoctlGetSiteSurvey(pAd, wrq);
-		    break;
         case SIOCETHTOOL:
                 break;
 		default:
