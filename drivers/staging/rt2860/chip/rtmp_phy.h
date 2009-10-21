@@ -278,18 +278,6 @@
 	But for some chipset which didn't have mcu (e.g., RBUS based chipset), we
 	will use this function too and didn't access the bbp register via the MCU.
 */
-#if 0
-#define RTMP_BBP_IO_READ8_BY_REG_ID(_A, _I, _pV)			\
-	do{														\
-		if ((_A)->bPCIclkOff == FALSE)							\
-		{													\
-			if ((_A)->infType == RTMP_DEV_INF_RBUS)			\
-				RTMP_BBP_IO_READ8((_A), (_I), (_pV), FALSE);	\
-			else												\
-				RTMP_BBP_IO_READ8((_A), (_I), (_pV), TRUE);	\
-		}													\
-	}while(0)
-#else
 // Read BBP register by register's ID. Generate PER to test BA
 #define RTMP_BBP_IO_READ8_BY_REG_ID(_A, _I, _pV)						\
 {																		\
@@ -381,7 +369,6 @@
 		*(_pV) = (_A)->BbpWriteLatch[_I];								\
 	}																	\
 }
-#endif // 0 //
 
 /*
 	basic marco for BBP write operation.
@@ -441,18 +428,6 @@
 	But for some chipset which didn't have mcu (e.g., RBUS based chipset), we
 	will use this function too and didn't access the bbp register via the MCU.
 */
-#if 0
-#define RTMP_BBP_IO_WRITE8_BY_REG_ID(_A, _I, _pV)			\
-	do{														\
-		if ((_A)->bPCIclkOff == FALSE)							\
-		{													\
-			if ((_A)->infType == RTMP_DEV_INF_RBUS)			\
-				RTMP_BBP_IO_WRITE8((_A), (_I), (_pV), FALSE);	\
-			else												\
-				RTMP_BBP_IO_WRITE8((_A), (_I), (_pV), TRUE);	\
-		}													\
-	}while(0)
-#else
 // Write BBP register by register's ID & value
 #define RTMP_BBP_IO_WRITE8_BY_REG_ID(_A, _I, _V)						\
 {																		\
@@ -538,9 +513,8 @@
 		DBGPRINT_ERR(("****** BBP_Write_Latch Buffer exceeds max boundry ****** \n"));	\
 	}																		\
 }
-#endif // 0 //
-
 #endif // RTMP_MAC_PCI //
+
 #ifdef RTMP_MAC_USB
 #define RTMP_BBP_IO_READ8_BY_REG_ID(_A, _I, _pV)   RTUSBReadBBPRegister(_A, _I, _pV)
 #define RTMP_BBP_IO_WRITE8_BY_REG_ID(_A, _I, _V)   RTUSBWriteBBPRegister(_A, _I, _V)
