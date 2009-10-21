@@ -1116,8 +1116,9 @@ static int pg_init_limit_reached(struct multipath *m, struct pgpath *pgpath)
 	return limit_reached;
 }
 
-static void pg_init_done(struct dm_path *path, int errors)
+static void pg_init_done(void *data, int errors)
 {
+	struct dm_path *path = data;
 	struct pgpath *pgpath = path_to_pgpath(path);
 	struct priority_group *pg = pgpath->pg;
 	struct multipath *m = pg->m;
@@ -1183,12 +1184,11 @@ static void pg_init_done(struct dm_path *path, int errors)
 
 static void activate_path(struct work_struct *work)
 {
-	int ret;
 	struct pgpath *pgpath =
 		container_of(work, struct pgpath, activate_path);
 
-	ret = scsi_dh_activate(bdev_get_queue(pgpath->path.dev->bdev));
-	pg_init_done(&pgpath->path, ret);
+	scsi_dh_activate(bdev_get_queue(pgpath->path.dev->bdev),
+				pg_init_done, &pgpath->path);
 }
 
 /*

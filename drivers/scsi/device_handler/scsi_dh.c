@@ -226,7 +226,7 @@ store_dh_state(struct device *dev, struct device_attribute *attr,
 			 * Activate a device handler
 			 */
 			if (scsi_dh->activate)
-				err = scsi_dh->activate(sdev);
+				err = scsi_dh->activate(sdev, NULL, NULL);
 			else
 				err = 0;
 		}
@@ -423,10 +423,17 @@ EXPORT_SYMBOL_GPL(scsi_unregister_device_handler);
 /*
  * scsi_dh_activate - activate the path associated with the scsi_device
  *      corresponding to the given request queue.
- * @q - Request queue that is associated with the scsi_device to be
- *      activated.
+ *     Returns immediately without waiting for activation to be completed.
+ * @q    - Request queue that is associated with the scsi_device to be
+ *         activated.
+ * @fn   - Function to be called upon completion of the activation.
+ *         Function fn is called with data (below) and the error code.
+ *         Function fn may be called from the same calling context. So,
+ *         do not hold the lock in the caller which may be needed in fn.
+ * @data - data passed to the function fn upon completion.
+ *
  */
-int scsi_dh_activate(struct request_queue *q)
+int scsi_dh_activate(struct request_queue *q, activate_complete fn, void *data)
 {
 	int err = 0;
 	unsigned long flags;
@@ -445,7 +452,7 @@ int scsi_dh_activate(struct request_queue *q)
 		return err;
 
 	if (scsi_dh->activate)
-		err = scsi_dh->activate(sdev);
+		err = scsi_dh->activate(sdev, fn, data);
 	put_device(&sdev->sdev_gendev);
 	return err;
 }

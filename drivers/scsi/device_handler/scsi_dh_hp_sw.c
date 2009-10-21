@@ -268,7 +268,8 @@ static int hp_sw_prep_fn(struct scsi_device *sdev, struct request *req)
  * activate the passive path (and deactivate the
  * previously active one).
  */
-static int hp_sw_activate(struct scsi_device *sdev)
+static int hp_sw_activate(struct scsi_device *sdev,
+				activate_complete fn, void *data)
 {
 	int ret = SCSI_DH_OK;
 	struct hp_sw_dh_data *h = get_hp_sw_data(sdev);
@@ -283,7 +284,9 @@ static int hp_sw_activate(struct scsi_device *sdev)
 				    HP_SW_NAME);
 	}
 
-	return ret;
+	if (fn)
+		fn(data, ret);
+	return 0;
 }
 
 static const struct scsi_dh_devlist hp_sw_dh_data_list[] = {

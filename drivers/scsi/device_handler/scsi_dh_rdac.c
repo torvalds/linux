@@ -568,7 +568,8 @@ done:
 	return err;
 }
 
-static int rdac_activate(struct scsi_device *sdev)
+static int rdac_activate(struct scsi_device *sdev,
+			activate_complete fn, void *data)
 {
 	struct rdac_dh_data *h = get_rdac_data(sdev);
 	int err = SCSI_DH_OK;
@@ -580,7 +581,9 @@ static int rdac_activate(struct scsi_device *sdev)
 	if (h->lun_state == RDAC_LUN_UNOWNED)
 		err = send_mode_select(sdev, h);
 done:
-	return err;
+	if (fn)
+		fn(data, err);
+	return 0;
 }
 
 static int rdac_prep_fn(struct scsi_device *sdev, struct request *req)

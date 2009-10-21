@@ -652,7 +652,8 @@ out:
  * based on a certain policy. But until we actually encounter them it
  * should be okay.
  */
-static int alua_activate(struct scsi_device *sdev)
+static int alua_activate(struct scsi_device *sdev,
+			activate_complete fn, void *data)
 {
 	struct alua_dh_data *h = get_alua_data(sdev);
 	int err = SCSI_DH_OK;
@@ -667,7 +668,9 @@ static int alua_activate(struct scsi_device *sdev)
 		err = alua_stpg(sdev, TPGS_STATE_OPTIMIZED, h);
 
 out:
-	return err;
+	if (fn)
+		fn(data, err);
+	return 0;
 }
 
 /*
