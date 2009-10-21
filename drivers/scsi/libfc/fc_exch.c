@@ -1718,7 +1718,7 @@ retry:
  */
 static void fc_exch_els_rrq(struct fc_seq *sp, struct fc_frame *fp)
 {
-	struct fc_exch *ep;		/* request or subject exchange */
+	struct fc_exch *ep = NULL;	/* request or subject exchange */
 	struct fc_els_rrq *rp;
 	u32 sid;
 	u16 xid;
@@ -1768,15 +1768,16 @@ static void fc_exch_els_rrq(struct fc_seq *sp, struct fc_frame *fp)
 	 * Send LS_ACC.
 	 */
 	fc_seq_ls_acc(sp);
-	fc_frame_free(fp);
-	return;
+	goto out;
 
 unlock_reject:
 	spin_unlock_bh(&ep->ex_lock);
-	fc_exch_release(ep);	/* drop hold from fc_exch_find */
 reject:
 	fc_seq_ls_rjt(sp, ELS_RJT_LOGIC, explan);
+out:
 	fc_frame_free(fp);
+	if (ep)
+		fc_exch_release(ep);	/* drop hold from fc_exch_find */
 }
 
 struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *lport,
