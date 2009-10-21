@@ -265,6 +265,8 @@ static void __init emit_cache_params(void)
 
 void __init cpu_cache_init(void)
 {
+	unsigned int cache_disabled = !(__raw_readl(CCR) & CCR_CACHE_ENABLE);
+
 	compute_alias(&boot_cpu_data.icache);
 	compute_alias(&boot_cpu_data.dcache);
 	compute_alias(&boot_cpu_data.scache);
@@ -272,6 +274,13 @@ void __init cpu_cache_init(void)
 	__flush_wback_region		= noop__flush_region;
 	__flush_purge_region		= noop__flush_region;
 	__flush_invalidate_region	= noop__flush_region;
+
+	/*
+	 * No flushing is necessary in the disabled cache case so we can
+	 * just keep the noop functions in local_flush_..() and __flush_..()
+	 */
+	if (unlikely(cache_disabled))
+		goto skip;
 
 	if (boot_cpu_data.family == CPU_FAMILY_SH2) {
 		extern void __weak sh2_cache_init(void);
@@ -312,5 +321,6 @@ void __init cpu_cache_init(void)
 		sh5_cache_init();
 	}
 
+skip:
 	emit_cache_params();
 }
