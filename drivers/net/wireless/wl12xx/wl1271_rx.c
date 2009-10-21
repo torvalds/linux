@@ -184,7 +184,7 @@ static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
 		     beacon ? "beacon" : "");
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
-	ieee80211_rx(wl->hw, skb);
+	ieee80211_rx_ni(wl->hw, skb);
 }
 
 void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
