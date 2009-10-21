@@ -2451,17 +2451,6 @@ NDIS_STATUS RTMPAllocAdapterBlock(
 NDIS_STATUS RTMPAllocTxRxRingMemory(
 	IN  PRTMP_ADAPTER   pAd);
 
-NDIS_STATUS	RTMPSetProfileParameters(
-	IN RTMP_ADAPTER *pAd,
-	IN PSTRING		pBuffer);
-
-INT RTMPGetKeyParameter(
-    IN PSTRING key,
-    OUT PSTRING dest,
-    IN INT destsize,
-    IN PSTRING buffer,
-    IN BOOLEAN bTrimSpace);
-
 VOID RTMPFreeAdapter(
 	IN  PRTMP_ADAPTER   pAd);
 
@@ -4628,32 +4617,9 @@ VOID BARecSessionTearDown(
 BOOLEAN ba_reordering_resource_init(PRTMP_ADAPTER pAd, int num);
 void ba_reordering_resource_release(PRTMP_ADAPTER pAd);
 
-
-
-
-BOOLEAN rtstrmactohex(
-	IN PSTRING s1,
-	IN PSTRING s2);
-
-BOOLEAN rtstrcasecmp(
-	IN PSTRING s1,
-	IN PSTRING s2);
-
-PSTRING rtstrstruncasecmp(
-	IN PSTRING s1,
-	IN PSTRING s2);
-
-PSTRING rtstrstr(
-	IN	const PSTRING s1,
-	IN	const PSTRING s2);
-
 PSTRING rstrtok(
 	IN PSTRING s,
 	IN const PSTRING ct);
-
-int rtinet_aton(
-	const PSTRING cp,
-	unsigned int *addr);
 
 ////////// common ioctl functions //////////
 INT	SetCommonHT(
