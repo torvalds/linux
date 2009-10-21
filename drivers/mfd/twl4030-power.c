@@ -398,12 +398,12 @@ static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 		return err;
 	}
 
-	if (rconfig->remap_off >= 0) {
+	if (rconfig->remap_off != TWL4030_RESCONFIG_UNDEF) {
 		remap &= ~OFF_STATE_MASK;
 		remap |= rconfig->remap_off << OFF_STATE_SHIFT;
 	}
 
-	if (rconfig->remap_sleep >= 0) {
+	if (rconfig->remap_sleep != TWL4030_RESCONFIG_UNDEF) {
 		remap &= ~SLEEP_STATE_MASK;
 		remap |= rconfig->remap_off << SLEEP_STATE_SHIFT;
 	}
