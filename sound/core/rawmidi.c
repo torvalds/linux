@@ -266,17 +266,19 @@ static int open_substream(struct snd_rawmidi *rmidi,
 {
 	int err;
 
-	err = snd_rawmidi_runtime_create(substream);
-	if (err < 0)
-		return err;
-	err = substream->ops->open(substream);
-	if (err < 0)
-		return err;
-	substream->opened = 1;
-	if (substream->use_count++ == 0)
+	if (substream->use_count == 0) {
+		err = snd_rawmidi_runtime_create(substream);
+		if (err < 0)
+			return err;
+		err = substream->ops->open(substream);
+		if (err < 0)
+			return err;
+		substream->opened = 1;
 		substream->active_sensing = 0;
-	if (mode & SNDRV_RAWMIDI_LFLG_APPEND)
-		substream->append = 1;
+		if (mode & SNDRV_RAWMIDI_LFLG_APPEND)
+			substream->append = 1;
+	}
+	substream->use_count++;
 	rmidi->streams[substream->stream].substream_opened++;
 	return 0;
 }
