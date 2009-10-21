@@ -133,7 +133,7 @@ static int icp_multi_detach(struct comedi_device *dev);
 	Data & Structure declarations
 ==============================================================================
 */
-static unsigned short pci_list_builded = 0;	/*>0 list of card is known */
+static unsigned short pci_list_builded;	/*>0 list of card is known */
 
 struct boardtype {
 	const char *name;	/*  driver name */
