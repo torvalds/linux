@@ -1145,6 +1145,7 @@ static int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 		[CX23885_VMUX_COMPOSITE3] = "Composite3",
 		[CX23885_VMUX_COMPOSITE4] = "Composite4",
 		[CX23885_VMUX_SVIDEO]     = "S-Video",
+		[CX23885_VMUX_COMPONENT]  = "Component",
 		[CX23885_VMUX_TELEVISION] = "Television",
 		[CX23885_VMUX_CABLE]      = "Cable TV",
 		[CX23885_VMUX_DVB]        = "DVB",
