@@ -129,19 +129,13 @@ struct mxc_nand_host {
 #define SPARE_SINGLEBIT_ERROR 0x1
 
 /* OOB placement block for use with hardware ecc generation */
-static struct nand_ecclayout nand_hw_eccoob_8 = {
+static struct nand_ecclayout nand_hw_eccoob_smallpage = {
 	.eccbytes = 5,
 	.eccpos = {6, 7, 8, 9, 10},
-	.oobfree = {{0, 5}, {11, 5}, }
+	.oobfree = {{0, 5}, {12, 4}, }
 };
 
-static struct nand_ecclayout nand_hw_eccoob_16 = {
-	.eccbytes = 5,
-	.eccpos = {6, 7, 8, 9, 10},
-	.oobfree = {{0, 5}, {11, 5}, }
-};
-
-static struct nand_ecclayout nand_hw_eccoob_64 = {
+static struct nand_ecclayout nand_hw_eccoob_largepage = {
 	.eccbytes = 20,
 	.eccpos = {6, 7, 8, 9, 10, 22, 23, 24, 25, 26,
 		   38, 39, 40, 41, 42, 54, 55, 56, 57, 58},
@@ -940,7 +934,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	} else {
 		this->ecc.size = 512;
 		this->ecc.bytes = 3;
-		this->ecc.layout = &nand_hw_eccoob_8;
+		this->ecc.layout = &nand_hw_eccoob_smallpage;
 		this->ecc.mode = NAND_ECC_SOFT;
 		tmp = readw(host->regs + NFC_CONFIG1);
 		tmp &= ~NFC_ECC_EN;
@@ -964,7 +958,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	/* NAND bus width determines access funtions used by upper layer */
 	if (pdata->width == 2) {
 		this->options |= NAND_BUSWIDTH_16;
-		this->ecc.layout = &nand_hw_eccoob_16;
+		this->ecc.layout = &nand_hw_eccoob_smallpage;
 	}
 
 	/* first scan to find the device and get the page size */
@@ -978,20 +972,20 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	if (this->ecc.mode == NAND_ECC_HW) {
 		switch (mtd->oobsize) {
 		case 8:
-			this->ecc.layout = &nand_hw_eccoob_8;
+			this->ecc.layout = &nand_hw_eccoob_smallpage;
 			break;
 		case 16:
-			this->ecc.layout = &nand_hw_eccoob_16;
+			this->ecc.layout = &nand_hw_eccoob_smallpage;
 			break;
 		case 64:
-			this->ecc.layout = &nand_hw_eccoob_64;
+			this->ecc.layout = &nand_hw_eccoob_largepage;
 			break;
 		default:
 			/* page size not handled by HW ECC */
 			/* switching back to soft ECC */
 			this->ecc.size = 512;
 			this->ecc.bytes = 3;
-			this->ecc.layout = &nand_hw_eccoob_8;
+			this->ecc.layout = &nand_hw_eccoob_smallpage;
 			this->ecc.mode = NAND_ECC_SOFT;
 			this->ecc.calculate = NULL;
 			this->ecc.correct = NULL;
