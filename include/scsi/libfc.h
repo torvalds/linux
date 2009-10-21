@@ -742,7 +742,6 @@ struct fc_lport {
 
 	/* Miscellaneous */
 	struct delayed_work	retry_work;
-	struct delayed_work	disc_work;
 };
 
 /*

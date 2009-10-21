@@ -75,7 +75,6 @@ struct fc_exch_mgr {
 	struct kref	kref;		/* exchange mgr reference count */
 	u16		min_xid;	/* min exchange ID */
 	u16		max_xid;	/* max exchange ID */
-	struct list_head	ex_list;	/* allocated exchanges list */
 	mempool_t	*ep_pool;	/* reserve ep's */
 	u16		pool_max_index;	/* max exch array index in exch pool */
 	struct fc_exch_pool *pool;	/* per cpu exch pool */
