@@ -1631,7 +1631,7 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 {
 	struct fcoe_interface *fcoe;
 	struct net_device *netdev;
-	int rc;
+	int rc = 0;
 
 	mutex_lock(&fcoe_config_mutex);
 #ifdef CONFIG_FCOE_MODULE
