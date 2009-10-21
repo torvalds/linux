@@ -296,6 +296,12 @@ typedef struct drm_i915_private {
 	u32 saveVBLANK_A;
 	u32 saveVSYNC_A;
 	u32 saveBCLRPAT_A;
+	u32 saveTRANS_HTOTAL_A;
+	u32 saveTRANS_HBLANK_A;
+	u32 saveTRANS_HSYNC_A;
+	u32 saveTRANS_VTOTAL_A;
+	u32 saveTRANS_VBLANK_A;
+	u32 saveTRANS_VSYNC_A;
 	u32 savePIPEASTAT;
 	u32 saveDSPASTRIDE;
 	u32 saveDSPASIZE;
@@ -307,6 +313,8 @@ typedef struct drm_i915_private {
 	u32 saveBLC_HIST_CTL;
 	u32 saveBLC_PWM_CTL;
 	u32 saveBLC_PWM_CTL2;
+	u32 saveBLC_CPU_PWM_CTL;
+	u32 saveBLC_CPU_PWM_CTL2;
 	u32 saveFPB0;
 	u32 saveFPB1;
 	u32 saveDPLL_B;
@@ -318,6 +326,12 @@ typedef struct drm_i915_private {
 	u32 saveVBLANK_B;
 	u32 saveVSYNC_B;
 	u32 saveBCLRPAT_B;
+	u32 saveTRANS_HTOTAL_B;
+	u32 saveTRANS_HBLANK_B;
+	u32 saveTRANS_HSYNC_B;
+	u32 saveTRANS_VTOTAL_B;
+	u32 saveTRANS_VBLANK_B;
+	u32 saveTRANS_VSYNC_B;
 	u32 savePIPEBSTAT;
 	u32 saveDSPBSTRIDE;
 	u32 saveDSPBSIZE;
@@ -351,6 +365,12 @@ typedef struct drm_i915_private {
 	u32 saveIER;
 	u32 saveIIR;
 	u32 saveIMR;
+	u32 saveDEIER;
+	u32 saveDEIMR;
+	u32 saveGTIER;
+	u32 saveGTIMR;
+	u32 saveFDI_RXA_IMR;
+	u32 saveFDI_RXB_IMR;
 	u32 saveCACHE_MODE_0;
 	u32 saveD_STATE;
 	u32 saveDSPCLK_GATE_D;
@@ -384,6 +404,16 @@ typedef struct drm_i915_private {
 	u32 savePIPEB_DP_LINK_M;
 	u32 savePIPEA_DP_LINK_N;
 	u32 savePIPEB_DP_LINK_N;
+	u32 saveFDI_RXA_CTL;
+	u32 saveFDI_TXA_CTL;
+	u32 saveFDI_RXB_CTL;
+	u32 saveFDI_TXB_CTL;
+	u32 savePFA_CTL_1;
+	u32 savePFB_CTL_1;
+	u32 savePFA_WIN_SZ;
+	u32 savePFB_WIN_SZ;
+	u32 savePFA_WIN_POS;
+	u32 savePFB_WIN_POS;
 
 	struct {
 		struct drm_mm gtt_space;
