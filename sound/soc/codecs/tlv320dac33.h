@@ -186,7 +186,7 @@
 #define DAC33_NSM(x)			(x << 0)
 #define DAC33_PSM(x)			(x << 2)
 #define DAC33_ATM(x)			(x << 4)
-#define DAC33_LTM(x)			(x << 4)
+#define DAC33_LTM(x)			(x << 6)
 
 /* DAC33_DAC_CTRL_A (0x2C) */
 #define DAC33_DACRATE(x)		(x << 0)
