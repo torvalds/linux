@@ -1565,13 +1565,11 @@ int fc_setup_rport(void)
 		return -ENOMEM;
 	return 0;
 }
-EXPORT_SYMBOL(fc_setup_rport);
 
 void fc_destroy_rport(void)
 {
 	destroy_workqueue(rport_event_queue);
 }
-EXPORT_SYMBOL(fc_destroy_rport);
 
 void fc_rport_terminate_io(struct fc_rport *rport)
 {

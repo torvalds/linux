@@ -285,7 +285,6 @@ void fc_fcp_ddp_setup(struct fc_fcp_pkt *fsp, u16 xid)
 			fsp->xfer_ddp = xid;
 	}
 }
-EXPORT_SYMBOL(fc_fcp_ddp_setup);
 
 /*
  * fc_fcp_ddp_done - calls to LLD's ddp_done to release any
