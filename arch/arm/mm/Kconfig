@@ -122,10 +122,7 @@ config CPU_ARM920T
 	select CPU_TLB_V4WBI if MMU
 	help
 	  The ARM920T is licensed to be produced by numerous vendors,
-	  and is used in the Maverick EP9312 and the Samsung S3C2410.
-
-	  More information on the Maverick EP9312 at
-	  <http://linuxdevices.com/products/PD2382866068.html>.
+	  and is used in the Cirrus EP93xx and the Samsung S3C2410.
 
 	  Say Y if you want support for the ARM920T processor.
 	  Otherwise, say N.
