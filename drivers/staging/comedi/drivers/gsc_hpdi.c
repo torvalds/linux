@@ -55,7 +55,7 @@ support could be added to this driver.
 
 static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int hpdi_detach(struct comedi_device *dev);
-void abort_dma(struct comedi_device *dev, unsigned int channel);
+static void abort_dma(struct comedi_device *dev, unsigned int channel);
 static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_cmd *cmd);
@@ -1044,7 +1044,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-void abort_dma(struct comedi_device *dev, unsigned int channel)
+static void abort_dma(struct comedi_device *dev, unsigned int channel)
 {
 	unsigned long flags;
 
