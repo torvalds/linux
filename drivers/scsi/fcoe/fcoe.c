@@ -664,7 +664,7 @@ static int fcoe_ddp_setup(struct fc_lport *lp, u16 xid,
 {
 	struct net_device *n = fcoe_netdev(lp);
 
-	if (n->netdev_ops && n->netdev_ops->ndo_fcoe_ddp_setup)
+	if (n->netdev_ops->ndo_fcoe_ddp_setup)
 		return n->netdev_ops->ndo_fcoe_ddp_setup(n, xid, sgl, sgc);
 
 	return 0;
@@ -681,7 +681,7 @@ static int fcoe_ddp_done(struct fc_lport *lp, u16 xid)
 {
 	struct net_device *n = fcoe_netdev(lp);
 
-	if (n->netdev_ops && n->netdev_ops->ndo_fcoe_ddp_done)
+	if (n->netdev_ops->ndo_fcoe_ddp_done)
 		return n->netdev_ops->ndo_fcoe_ddp_done(n, xid);
 	return 0;
 }
