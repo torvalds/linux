@@ -1271,23 +1271,6 @@ int rtmp_ee_efuse_read16(
 	return (*pValue);
 }
 
-
-int rtmp_ee_efuse_write16(
-	IN RTMP_ADAPTER *pAd,
-	IN USHORT Offset,
-	IN USHORT data)
-{
-    if(pAd->bFroceEEPROMBuffer||pAd->bEEPROMFile)
-    {
-        DBGPRINT(RT_DEBUG_TRACE,  ("Write to EEPROM Buffer\n"));
-        NdisMoveMemory(&(pAd->EEPROMImage[Offset]), &data, 2);
-    }
-    else
-        eFuseWriteRegisters(pAd, Offset, 2, &data);
-	return 0;
-}
-
-
 int RtmpEfuseSupportCheck(
 	IN RTMP_ADAPTER *pAd)
 {

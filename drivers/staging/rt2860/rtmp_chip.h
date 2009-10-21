@@ -167,10 +167,6 @@
 #define RT28xx_EEPROM_READ16(_pAd, _offset, _value)			\
 	(_pAd)->chipOps.eeread((RTMP_ADAPTER *)(_pAd), (USHORT)(_offset), (PUSHORT)&(_value))
 
-#define RT28xx_EEPROM_WRITE16(_pAd, _offset, _value)		\
-	(_pAd)->chipOps.eewrite((RTMP_ADAPTER *)(_pAd), (USHORT)(_offset), (USHORT)(_value))
-
-
 
 // -------------------------------------------------------------------
 //  E2PROM data layout

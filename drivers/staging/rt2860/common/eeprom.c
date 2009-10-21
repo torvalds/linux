@@ -66,7 +66,6 @@ INT RtmpChipOpsEepromHook(
 			{
 		pChipOps->eeinit = eFuse_init;
 		pChipOps->eeread = rtmp_ee_efuse_read16;
-		pChipOps->eewrite = rtmp_ee_efuse_write16;
 		return 0 ;
 	     }
 		else
@@ -83,14 +82,12 @@ INT RtmpChipOpsEepromHook(
 		case RTMP_DEV_INF_PCI:
 			pChipOps->eeinit = NULL;
 			pChipOps->eeread = rtmp_ee_prom_read16;
-			pChipOps->eewrite = rtmp_ee_prom_write16;
 					break;
 #endif // RTMP_PCI_SUPPORT //
 #ifdef RTMP_USB_SUPPORT
 		case RTMP_DEV_INF_USB:
 			pChipOps->eeinit = NULL;
 			pChipOps->eeread = RTUSBReadEEPROM16;
-			pChipOps->eewrite = RTUSBWriteEEPROM16;
 					break;
 #endif // RTMP_USB_SUPPORT //
 

@@ -48,11 +48,6 @@ int rtmp_ee_prom_read16(
 	IN PRTMP_ADAPTER	pAd,
 	IN USHORT			Offset,
 	OUT USHORT			*pValue);
-
-int rtmp_ee_prom_write16(
-	IN PRTMP_ADAPTER	pAd,
-	IN USHORT			Offset,
-	IN USHORT			value);
 #endif // RTMP_PCI_SUPPORT //
 #ifdef RTMP_USB_SUPPORT
 /*************************************************************************
@@ -62,11 +57,6 @@ NTSTATUS RTUSBReadEEPROM16(
 	IN PRTMP_ADAPTER	pAd,
 	IN	USHORT			offset,
 	OUT	PUSHORT			pData);
-
-NTSTATUS RTUSBWriteEEPROM16(
-	IN RTMP_ADAPTER *pAd,
-	IN USHORT offset,
-	IN USHORT value);
 #endif // RTMP_USB_SUPPORT //
 
 #ifdef RT30xx
@@ -75,11 +65,6 @@ int rtmp_ee_efuse_read16(
 	IN RTMP_ADAPTER *pAd,
 	IN USHORT Offset,
 	OUT USHORT *pValue);
-
-int rtmp_ee_efuse_write16(
-	IN RTMP_ADAPTER *pAd,
-	IN USHORT Offset,
-	IN USHORT data);
 #endif // RTMP_EFUSE_SUPPORT //
 #endif // RT30xx //
 

@@ -619,17 +619,6 @@ NTSTATUS RTUSBReadEEPROM16(
 
 }
 
-NTSTATUS RTUSBWriteEEPROM16(
-	IN RTMP_ADAPTER *pAd,
-	IN USHORT offset,
-	IN USHORT value)
-{
-	USHORT tmpVal;
-
-	tmpVal = cpu2le16(value);
-	return RTUSBWriteEEPROM(pAd, offset, (PUCHAR)&(tmpVal), 2);
-}
-
 /*
 	========================================================================
 
