@@ -965,6 +965,7 @@ err_free_sk_buff:
  *******************************************************************************/
 int RtmpOSIRQRequest(IN PNET_DEV pNetDev)
 {
+#ifdef RTMP_PCI_SUPPORT
 	struct net_device *net_dev = pNetDev;
 	PRTMP_ADAPTER pAd = NULL;
 	int retval = 0;
@@ -973,7 +974,6 @@ int RtmpOSIRQRequest(IN PNET_DEV pNetDev)
 
 	ASSERT(pAd);
 
-#ifdef RTMP_PCI_SUPPORT
 	if (pAd->infType == RTMP_DEV_INF_PCI)
 	{
 		POS_COOKIE _pObj = (POS_COOKIE)(pAd->OS_Cookie);
@@ -982,13 +982,12 @@ int RtmpOSIRQRequest(IN PNET_DEV pNetDev)
 		if (retval != 0)
 			printk("RT2860: request_irq  ERROR(%d)\n", retval);
 	}
-#endif // RTMP_PCI_SUPPORT //
-
 
 	return retval;
-
+#else
+	return 0;
+#endif
 }
-
 
 int RtmpOSIRQRelease(IN PNET_DEV pNetDev)
 {
@@ -1149,7 +1148,6 @@ NDIS_STATUS RtmpOSTaskAttach(
 	IN void *arg)
 {
 	NDIS_STATUS status = NDIS_STATUS_SUCCESS;
-	pid_t pid_number = -1;
 
 #ifdef KTHREAD_SUPPORT
 	pTask->task_killed = 0;

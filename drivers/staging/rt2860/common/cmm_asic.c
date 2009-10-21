@@ -810,9 +810,9 @@ VOID AsicSwitchChannel(
 
 #if defined(RT3090) || defined(RT3390)
 		// PCIe PHY Transmit attenuation adjustment
-		if (IS_RT3090A(pAd) || IS_RT3390(pAd))
-		{
-			TX_ATTENUATION_CTRL_STRUC TxAttenuationCtrl = {0};
+		if (IS_RT3090A(pAd) || IS_RT3390(pAd)) {
+			TX_ATTENUATION_CTRL_STRUC
+				TxAttenuationCtrl = { .word = 0 };
 
 			RTMP_IO_READ32(pAd, PCIE_PHY_TX_ATTENUATION_CTRL, &TxAttenuationCtrl.word);
 

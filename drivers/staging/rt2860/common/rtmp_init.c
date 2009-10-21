@@ -3621,7 +3621,8 @@ INT RtmpRaDevCtrlInit(
 
 #ifdef RTMP_MAC_USB
 	init_MUTEX(&(pAd->UsbVendorReq_semaphore));
-	os_alloc_mem(pAd, (PUCHAR)&pAd->UsbVendorReqBuf, MAX_PARAM_BUFFER_SIZE - 1);
+	os_alloc_mem(pAd, (PUCHAR *)&pAd->UsbVendorReqBuf,
+		     MAX_PARAM_BUFFER_SIZE - 1);
 	if (pAd->UsbVendorReqBuf == NULL)
 	{
 		DBGPRINT(RT_DEBUG_ERROR, ("Allocate vendor request temp buffer failed!\n"));

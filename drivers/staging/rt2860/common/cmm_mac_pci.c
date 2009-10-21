@@ -1173,10 +1173,9 @@ BOOLEAN RT28xxPciAsicRadioOn(
 	    pAd->Mlme.bPsPollTimerRunning = FALSE;
 		RTMPCancelTimer(&pAd->Mlme.PsPollTimer,	&Cancelled);
 		}
-		if ((pAd->StaCfg.PSControl.field.EnableNewPS == TRUE)&&
-		((Level == GUIRADIO_OFF) || (Level == GUI_IDLE_POWER_SAVE))
-		||(RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND)))
-		{
+		if ((pAd->StaCfg.PSControl.field.EnableNewPS == TRUE &&
+		     (Level == GUIRADIO_OFF || Level == GUI_IDLE_POWER_SAVE)) ||
+		    RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND)) {
 			// Some chips don't need to delay 6ms, so copy RTMPPCIePowerLinkCtrlRestore
 			// return condition here.
 			/*

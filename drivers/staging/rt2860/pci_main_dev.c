@@ -310,7 +310,7 @@ static INT __devinit   rt2860_probe(
 		return rv;
 	}
 
-	print_name = pci_name(pci_dev);
+	print_name = (PSTRING)pci_name(pci_dev);
 
 	if ((rv = pci_request_regions(pci_dev, print_name)) != 0)
 	{
@@ -883,7 +883,7 @@ VOID RTMPPCIeLinkCtrlValueRestore(
 #endif // RT2860 //
 	// Check PSControl Configuration
 	if (pAd->StaCfg.PSControl.field.EnableNewPS == FALSE)
-		return TRUE;
+		return;
 
 	//3090 will not execute the following codes.
 	// Check interface : If not PCIe interface, return.
@@ -977,7 +977,7 @@ VOID RTMPPCIeLinkCtrlSetting(
 #endif // RT2860 //
 	// Check PSControl Configuration
 	if (pAd->StaCfg.PSControl.field.EnableNewPS == FALSE)
-		return TRUE;
+		return;
 
 	// Check interface : If not PCIe interface, return.
 	//Block 3090 to enter the following function
@@ -1086,17 +1086,17 @@ VOID RTMPrt3xSetPCIePowerLinkCtrl(
 	IN	PRTMP_ADAPTER	pAd)
 {
 
-	ULONG	HostConfiguration;
+	ULONG	HostConfiguration = 0;
 	ULONG	Configuration;
-	ULONG	Vendor;
-	ULONG	offset;
 	POS_COOKIE	pObj;
 	INT     pos;
 	USHORT	reg16;
 
 	pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-	DBGPRINT(RT_DEBUG_INFO, ("RTMPrt3xSetPCIePowerLinkCtrl.===> %x\n", pAd->StaCfg.PSControl.word));
+	DBGPRINT(RT_DEBUG_INFO,
+		 ("RTMPrt3xSetPCIePowerLinkCtrl.===> %lx\n",
+		  pAd->StaCfg.PSControl.word));
 
 	// Check PSControl Configuration
 	if (pAd->StaCfg.PSControl.field.EnableNewPS == FALSE)
@@ -1104,7 +1104,6 @@ VOID RTMPrt3xSetPCIePowerLinkCtrl(
 	RTMPFindHostPCIDev(pAd);
         if (pObj->parent_pci_dev)
         {
-		USHORT  vendor_id;
 		// Find PCI-to-PCI Bridge Express Capability Offset
 		pos = pci_find_capability(pObj->parent_pci_dev, PCI_CAP_ID_EXP);
 
@@ -1129,7 +1128,10 @@ VOID RTMPrt3xSetPCIePowerLinkCtrl(
 				// Because in rt30xxForceASPMTest Mode, Force turn on L0s, L1.
 				// Fix HostConfiguration bit0:1 = 0x3 for later use.
 				HostConfiguration = 0x3;
-				DBGPRINT(RT_DEBUG_TRACE, ("PSM : Force ASPM : Host device L1/L0s Value =  0x%x\n", HostConfiguration));
+				DBGPRINT(RT_DEBUG_TRACE,
+					 ("PSM : Force ASPM : "
+					  "Host device L1/L0s Value =  0x%lx\n",
+					  HostConfiguration));
 			}
 		}
 		else if (pAd->StaCfg.PSControl.field.rt30xxFollowHostASPM == 1)
@@ -1141,7 +1143,10 @@ VOID RTMPrt3xSetPCIePowerLinkCtrl(
 			 PCI_REG_READ_WORD(pObj->parent_pci_dev, pAd->HostLnkCtrlOffset, HostConfiguration);
 				pAd->Rt3xxHostLinkCtrl = HostConfiguration;
 				HostConfiguration &= 0x3;
-				DBGPRINT(RT_DEBUG_TRACE, ("PSM : Follow Host ASPM : Host device L1/L0s Value =  0x%x\n", HostConfiguration));
+				DBGPRINT(RT_DEBUG_TRACE,
+					 ("PSM : Follow Host ASPM : "
+					  "Host device L1/L0s Value =  0x%lx\n",
+					  HostConfiguration));
 			}
 		}
         }
@@ -1155,8 +1160,10 @@ VOID RTMPrt3xSetPCIePowerLinkCtrl(
        pAd->RLnkCtrlOffset = pos + PCI_EXP_LNKCTL;
 	pci_read_config_word(pObj->pci_dev, pAd->RLnkCtrlOffset, &reg16);
         Configuration = le2cpu16(reg16);
-	DBGPRINT(RT_DEBUG_TRACE, ("Read (Ralink PCIe Link Control Register) offset 0x%x = 0x%x\n",
-			                                    pAd->RLnkCtrlOffset, Configuration));
+		DBGPRINT(RT_DEBUG_TRACE,
+			 ("Read (Ralink PCIe Link Control Register) "
+			  "offset 0x%x = 0x%lx\n",
+			  pAd->RLnkCtrlOffset, Configuration));
 		Configuration |= 0x100;
 		if ((pAd->StaCfg.PSControl.field.rt30xxFollowHostASPM == 1)
 			|| (pAd->StaCfg.PSControl.field.rt30xxForceASPMTest == 1))
@@ -1182,7 +1189,9 @@ VOID RTMPrt3xSetPCIePowerLinkCtrl(
 		reg16 = cpu2le16(Configuration);
 		pci_write_config_word(pObj->pci_dev, pAd->RLnkCtrlOffset, reg16);
 		pAd->Rt3xxRalinkLinkCtrl = Configuration;
-		DBGPRINT(RT_DEBUG_TRACE, ("PSM :Write Ralink device L1/L0s Value =  0x%x\n", Configuration));
+		DBGPRINT(RT_DEBUG_TRACE,
+			 ("PSM :Write Ralink device L1/L0s Value =  0x%lx\n",
+			  Configuration));
 	}
 	DBGPRINT(RT_DEBUG_INFO,("PSM :RTMPrt3xSetPCIePowerLinkCtrl <==============\n"));
 }

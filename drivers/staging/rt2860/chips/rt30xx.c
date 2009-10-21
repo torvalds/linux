@@ -86,7 +86,9 @@ VOID RT30xxSetRxAnt(
 	IN UCHAR			Ant)
 {
 	UINT32	Value;
+#ifdef RTMP_MAC_PCI
 	UINT32	x;
+#endif
 
 	if ((pAd->EepromAccess) ||
 		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS))	||

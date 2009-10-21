@@ -119,7 +119,9 @@ NDIS_STATUS RtmpAsicLoadFirmware(
 	PUCHAR			pFirmwareImage = NULL;
 	ULONG			FileLength, Index;
 	UINT32			MacReg = 0;
+#ifdef RTMP_MAC_USB
 	UINT32			Version = (pAd->MACVersion >> 16);
+#endif
 
 	// New 8k byte firmware size for RT3071/RT3072
 	{

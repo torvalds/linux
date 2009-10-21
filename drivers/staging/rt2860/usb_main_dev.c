@@ -686,9 +686,10 @@ VOID RTUSBWatchDog(IN RTMP_ADAPTER *pAd)
 
 				RTMP_IRQ_UNLOCK(&pAd->BulkOutLock[idx], irqFlags);
 
-
-				printk("%d:%d LTL=%d , TL=%d L:%d\n",idx,pAd->watchDogTxPendingCnt[idx],pAd->TransferedLength[idx]
-					,actual_length,transfer_buffer_length);
+				printk(KERN_INFO "%d:%lu LTL=%d , TL=%d L:%d\n",
+				       idx, pAd->watchDogTxPendingCnt[idx],
+				       pAd->TransferedLength[idx],
+				       actual_length, transfer_buffer_length);
 
 				if (pUrb)
 				{

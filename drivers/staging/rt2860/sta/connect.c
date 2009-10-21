@@ -1809,7 +1809,6 @@ VOID LinkDown(
 	IN  BOOLEAN      IsReqFromAP)
 {
 	UCHAR			    i, ByteValue = 0;
-	BOOLEAN		Cancelled;
 
 	// Do nothing if monitor mode is on
 	if (MONITOR_ON(pAd))

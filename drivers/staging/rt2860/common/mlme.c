@@ -679,7 +679,6 @@ VOID MlmePeriodicExec(
 {
 	ULONG			TxTotalCnt;
 	PRTMP_ADAPTER	pAd = (RTMP_ADAPTER *)FunctionContext;
-	SHORT	realavgrssi;
 
 #ifdef RTMP_MAC_PCI
 	{

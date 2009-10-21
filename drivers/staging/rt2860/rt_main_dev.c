@@ -209,14 +209,12 @@ int rt28xx_close(IN PNET_DEV dev)
 	BOOLEAN			Cancelled;
 	UINT32			i = 0;
 
-	GET_PAD_FROM_NET_DEV(pAd, net_dev);
-
 #ifdef RTMP_MAC_USB
 	DECLARE_WAIT_QUEUE_HEAD(unlink_wakeup);
 	DECLARE_WAITQUEUE(wait, current);
-
-	//RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_REMOVE_IN_PROGRESS);
 #endif // RTMP_MAC_USB //
+
+	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
     DBGPRINT(RT_DEBUG_TRACE, ("===> rt28xx_close\n"));
 

@@ -552,8 +552,8 @@
 #ifdef RT30xx
 #define RTMP_ASIC_MMPS_DISABLE(_pAd)							\
 	do{															\
-		UCHAR _bbpData;											\
-		UINT32 _macData;											\
+		UINT32 _macData; \
+		UCHAR _bbpData = 0; \
 		/* disable MMPS BBP control register */						\
 		RTMP_BBP_IO_READ8_BY_REG_ID(_pAd, BBP_R3, &_bbpData);	\
 		_bbpData &= ~(0x04);	/*bit 2*/								\
@@ -568,8 +568,8 @@
 
 #define RTMP_ASIC_MMPS_ENABLE(_pAd)							\
 	do{															\
-		UCHAR _bbpData;											\
-		UINT32 _macData;											\
+		UINT32 _macData; \
+		UCHAR _bbpData = 0; \
 		/* enable MMPS BBP control register */						\
 		RTMP_BBP_IO_READ8_BY_REG_ID(_pAd, BBP_R3, &_bbpData);	\
 		_bbpData |= (0x04);	/*bit 2*/								\
