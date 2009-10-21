@@ -1504,6 +1504,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		if (sd) {
 			struct tuner_setup tun_setup;
 
+			memset(&tun_setup, 0, sizeof(tun_setup));
 			tun_setup.mode_mask = T_ANALOG_TV;
 			tun_setup.type = dev->tuner_type;
 			tun_setup.addr = v4l2_i2c_subdev_addr(sd);
