@@ -58,6 +58,7 @@ static inline void fnic_queue_wq_copy_desc_icmnd_16(struct vnic_wq_copy *wq,
 						    u64 sgl_addr, u64 sns_addr,
 						    u8 crn, u8 pri_ta,
 						    u8 flags, u8 *scsi_cdb,
+						    u8 cdb_len,
 						    u32 data_len, u8 *lun,
 						    u32 d_id, u16 mss,
 						    u32 ratov, u32 edtov)
@@ -82,7 +83,8 @@ static inline void fnic_queue_wq_copy_desc_icmnd_16(struct vnic_wq_copy *wq,
 	desc->u.icmnd_16.pri_ta = pri_ta; 	/* SCSI Pri & Task attribute */
 	desc->u.icmnd_16._resvd1 = 0;           /* reserved: should be 0 */
 	desc->u.icmnd_16.flags = flags;         /* command flags */
-	memcpy(desc->u.icmnd_16.scsi_cdb, scsi_cdb, CDB_16);    /* SCSI CDB */
+	memset(desc->u.icmnd_16.scsi_cdb, 0, CDB_16);
+	memcpy(desc->u.icmnd_16.scsi_cdb, scsi_cdb, cdb_len);    /* SCSI CDB */
 	desc->u.icmnd_16.data_len = data_len;   /* length of data expected */
 	memcpy(desc->u.icmnd_16.lun, lun, LUN_ADDRESS);  /* LUN address */
 	desc->u.icmnd_16._resvd2 = 0;          	/* reserved */

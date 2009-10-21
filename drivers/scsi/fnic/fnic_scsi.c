@@ -319,7 +319,8 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 					 0, /* scsi cmd ref, always 0 */
 					 pri_tag, /* scsi pri and tag */
 					 flags,	/* command flags */
-					 sc->cmnd, scsi_bufflen(sc),
+					 sc->cmnd, sc->cmd_len,
+					 scsi_bufflen(sc),
 					 fc_lun.scsi_lun, io_req->port_id,
 					 rport->maxframe_size, rp->r_a_tov,
 					 rp->e_d_tov);
