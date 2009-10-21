@@ -302,10 +302,13 @@ static void fc_fcp_ddp_done(struct fc_fcp_pkt *fsp)
 	if (!fsp)
 		return;
 
+	if (fsp->xfer_ddp == FC_XID_UNKNOWN)
+		return;
+
 	lp = fsp->lp;
-	if (fsp->xfer_ddp && lp->tt.ddp_done) {
+	if (lp->tt.ddp_done) {
 		fsp->xfer_len = lp->tt.ddp_done(lp, fsp->xfer_ddp);
-		fsp->xfer_ddp = 0;
+		fsp->xfer_ddp = FC_XID_UNKNOWN;
 	}
 }
 
@@ -1708,6 +1711,7 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 	fsp->cmd = sc_cmd;	/* save the cmd */
 	fsp->lp = lp;		/* save the softc ptr */
 	fsp->rport = rport;	/* set the remote port ptr */
+	fsp->xfer_ddp = FC_XID_UNKNOWN;
 	sc_cmd->scsi_done = done;
 
 	/*
