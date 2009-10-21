@@ -50,7 +50,6 @@
 
 /* Algorithm options */
 #define SHA1_SUPPORT
-#define SHA256_SUPPORT
 
 #ifdef SHA1_SUPPORT
 #define SHA1_BLOCK_SIZE    64 /* 512 bits = 64 bytes */
@@ -78,32 +77,5 @@ VOID RT_SHA1 (
     IN  UINT MessageLen,
     OUT UINT8 DigestMessage[]);
 #endif /* SHA1_SUPPORT */
-
-#ifdef SHA256_SUPPORT
-#define SHA256_BLOCK_SIZE   64 /* 512 bits = 64 bytes */
-#define SHA256_DIGEST_SIZE  32 /* 256 bits = 32 bytes */
-typedef struct _SHA256_CTX_STRUC {
-    UINT32 HashValue[8];  /* 8 = (SHA256_DIGEST_SIZE / 32) */
-    UINT64 MessageLen;    /* total size */
-    UINT8  Block[SHA256_BLOCK_SIZE];
-    UINT   BlockLen;
-} SHA256_CTX_STRUC, *PSHA256_CTX_STRUC;
-
-VOID SHA256_Init (
-    IN  SHA256_CTX_STRUC *pSHA_CTX);
-VOID SHA256_Hash (
-    IN  SHA256_CTX_STRUC *pSHA_CTX);
-VOID SHA256_Append (
-    IN  SHA256_CTX_STRUC *pSHA_CTX,
-    IN  const UINT8 Message[],
-    IN  UINT MessageLen);
-VOID SHA256_End (
-    IN  SHA256_CTX_STRUC *pSHA_CTX,
-    OUT UINT8 DigestMessage[]);
-VOID RT_SHA256 (
-    IN  const UINT8 Message[],
-    IN  UINT MessageLen,
-    OUT UINT8 DigestMessage[]);
-#endif /* SHA256_SUPPORT */
 
 #endif /* __CRYPT_SHA2_H__ */
