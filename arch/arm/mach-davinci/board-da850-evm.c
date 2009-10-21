@@ -148,10 +148,21 @@ static struct platform_device da850_evm_nandflash_device = {
 static u32 ui_card_detected;
 static void da850_evm_setup_nor_nand(void);
 
+#ifdef CONFIG_DA850_UI_RMII
+static inline void da850_evm_setup_emac_rmii(int rmii_sel)
+{
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
+
+	soc_info->emac_pdata->rmii_en = 1;
+	gpio_set_value(rmii_sel, 0);
+}
+#else
+static inline void da850_evm_setup_emac_rmii(int rmii_sel) { }
+#endif
+
 static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 						unsigned ngpio, void *c)
 {
-	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int sel_a, sel_b, sel_c, ret;
 
 	sel_a = gpio + 7;
@@ -186,9 +197,7 @@ static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 
 	da850_evm_setup_nor_nand();
 
-	if (soc_info->emac_pdata->rmii_en)
-		/* enable RMII */
-		gpio_set_value(sel_a, 0);
+	da850_evm_setup_emac_rmii(sel_a);
 
 	return 0;
 
@@ -513,11 +522,16 @@ static const short da850_evm_lcdc_pins[] = {
 	-1
 };
 
-static int __init da850_evm_config_emac(u8 rmii_en)
+static int __init da850_evm_config_emac(void)
 {
 	void __iomem *cfg_chip3_base;
 	int ret;
 	u32 val;
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
+	u8 rmii_en = soc_info->emac_pdata->rmii_en;
+
+	if (!machine_is_davinci_da850_evm())
+		return 0;
 
 	cfg_chip3_base = DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP3_REG);
 
@@ -562,12 +576,20 @@ static int __init da850_evm_config_emac(u8 rmii_en)
 							" functional\n");
 	}
 
+	soc_info->emac_pdata->phy_mask = DA850_EVM_PHY_MASK;
+	soc_info->emac_pdata->mdio_max_freq = DA850_EVM_MDIO_FREQUENCY;
+
+	ret = da8xx_register_emac();
+	if (ret)
+		pr_warning("da850_evm_init: emac registration failed: %d\n",
+				ret);
+
 	return 0;
 }
+device_initcall(da850_evm_config_emac);
 
 static __init void da850_evm_init(void)
 {
-	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int ret;
 
 	ret = pmic_tps65070_init();
@@ -590,22 +612,6 @@ static __init void da850_evm_init(void)
 		pr_warning("da850_evm_init: i2c0 registration failed: %d\n",
 				ret);
 
-	soc_info->emac_pdata->phy_mask = DA850_EVM_PHY_MASK;
-	soc_info->emac_pdata->mdio_max_freq = DA850_EVM_MDIO_FREQUENCY;
-#ifdef CONFIG_DA850_UI_RMII
-	soc_info->emac_pdata->rmii_en = 1;
-#else
-	soc_info->emac_pdata->rmii_en = 0;
-#endif
-
-	ret = da850_evm_config_emac(soc_info->emac_pdata->rmii_en);
-	if (ret)
-		pr_warning("da850_evm_init: emac setup failed: %d\n", ret);
-
-	ret = da8xx_register_emac();
-	if (ret)
-		pr_warning("da850_evm_init: emac registration failed: %d\n",
-				ret);
 
 	ret = da8xx_register_watchdog();
 	if (ret)
