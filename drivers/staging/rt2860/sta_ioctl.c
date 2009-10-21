@@ -2978,6 +2978,7 @@ INT rt28xx_sta_ioctl(
 		case SIOCSIWRETRY:	//set retry limits and lifetime
 		case RT_PRIV_IOCTL:
 		case RT_PRIV_IOCTL_EXT:
+		case RTPRIV_IOCTL_SET:
 			Status = -EOPNOTSUPP;
 			break;
 		case SIOCGIWPRIV:
@@ -2989,11 +2990,6 @@ INT rt28xx_sta_ioctl(
 				if (copy_to_user(wrq->u.data.pointer, privtab, sizeof(privtab)))
 					Status = -EFAULT;
 			}
-			break;
-		case RTPRIV_IOCTL_SET:
-			if(access_ok(VERIFY_READ, wrq->u.data.pointer, wrq->u.data.length) != TRUE)
-				break;
-			rt_ioctl_setparam(net_dev, NULL, NULL, wrq->u.data.pointer);
 			break;
 		case RTPRIV_IOCTL_GSITESURVEY:
 			RTMPIoctlGetSiteSurvey(pAd, wrq);
