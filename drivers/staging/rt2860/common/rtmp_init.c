@@ -3439,16 +3439,7 @@ int rt28xx_init(
 		goto err3;
 	}
 
-	// Read parameters from Config File
-	Status = RTMPReadParametersHook(pAd);
-
 	DBGPRINT(RT_DEBUG_OFF, ("1. Phy Mode = %d\n", pAd->CommonCfg.PhyMode));
-	if (Status != NDIS_STATUS_SUCCESS)
-	{
-		DBGPRINT_ERR(("NICReadRegParameters failed, Status[=0x%08x]\n",Status));
-//		goto err4;
-		Status = 0;
-	}
 
 #ifdef RTMP_MAC_USB
 	pAd->CommonCfg.bMultipleIRP = FALSE;

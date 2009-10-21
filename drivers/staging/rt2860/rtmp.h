@@ -2453,9 +2453,6 @@ NDIS_STATUS RTMPAllocAdapterBlock(
 NDIS_STATUS RTMPAllocTxRxRingMemory(
 	IN  PRTMP_ADAPTER   pAd);
 
-NDIS_STATUS	RTMPReadParametersHook(
-	IN	PRTMP_ADAPTER pAd);
-
 NDIS_STATUS	RTMPSetProfileParameters(
 	IN RTMP_ADAPTER *pAd,
 	IN PSTRING		pBuffer);

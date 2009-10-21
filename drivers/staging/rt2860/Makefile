@@ -38,7 +38,6 @@ rt2860sta-objs :=	\
 	sta/connect.o		\
 	sta/wpa.o		\
 	rt_linux.o		\
-	rt_profile.o		\
 	rt_main_dev.o		\
 	sta_ioctl.o		\
 	common/ba_action.o	\
