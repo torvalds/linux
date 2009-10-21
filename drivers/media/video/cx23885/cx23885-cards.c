@@ -799,12 +799,13 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		break;
 	case CX23885_BOARD_MYGICA_X8506:
 	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
+		/* GPIO-0 (0)Analog / (1)Digital TV */
 		/* GPIO-1 reset XC5000 */
 		/* GPIO-2 reset LGS8GL5 / LGS8G75 */
-		cx_set(GP0_IO, 0x00060000);
-		cx_clear(GP0_IO, 0x00000006);
+		cx23885_gpio_enable(dev, GPIO_0 | GPIO_1 | GPIO_2, 1);
+		cx23885_gpio_clear(dev, GPIO_1 | GPIO_2);
 		mdelay(100);
-		cx_set(GP0_IO, 0x00060006);
+		cx23885_gpio_set(dev, GPIO_0 | GPIO_1 | GPIO_2);
 		mdelay(100);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
