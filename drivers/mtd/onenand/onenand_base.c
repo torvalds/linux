@@ -1,17 +1,19 @@
 /*
  *  linux/drivers/mtd/onenand/onenand_base.c
  *
- *  Copyright (C) 2005-2007 Samsung Electronics
+ *  Copyright © 2005-2009 Samsung Electronics
+ *  Copyright © 2007 Nokia Corporation
+ *
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *
  *  Credits:
  *	Adrian Hunter <ext-adrian.hunter@nokia.com>:
  *	auto-placement support, read-while load support, various fixes
- *	Copyright (C) Nokia Corporation, 2007
  *
  *	Vishak G <vishak.g at samsung.com>, Rohit Hagargundgi <h.rohit at samsung.com>
  *	Flex-OneNAND support
- *	Copyright (C) Samsung Electronics, 2008
+ *	Amul Kumar Saha <amul.saha at samsung.com>
+ *	OTP support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -42,6 +44,18 @@ MODULE_PARM_DESC(flex_bdry,	"SLC Boundary information for Flex-OneNAND"
 				"LOCK: Locking information for SLC boundary"
 				"    : 0->Set boundary in unlocked status"
 				"    : 1->Set boundary in locked status");
+
+/* Default OneNAND/Flex-OneNAND OTP options*/
+static int otp;
+
+module_param(otp, int, 0400);
+MODULE_PARM_DESC(otp,	"Corresponding behaviour of OneNAND in OTP"
+			"Syntax : otp=LOCK_TYPE"
+			"LOCK_TYPE : Keys issued, for specific OTP Lock type"
+			"	   : 0 -> Default (No Blocks Locked)"
+			"	   : 1 -> OTP Block lock"
+			"	   : 2 -> 1st Block lock"
+			"	   : 3 -> BOTH OTP Block and 1st Block lock");
 
 /**
  *  onenand_oob_128 - oob info for Flex-Onenand with 4KB page
@@ -2591,6 +2605,208 @@ static void onenand_unlock_all(struct mtd_info *mtd)
 
 #ifdef CONFIG_MTD_ONENAND_OTP
 
+/**
+ * onenand_otp_command - Send OTP specific command to OneNAND device
+ * @param mtd	 MTD device structure
+ * @param cmd	 the command to be sent
+ * @param addr	 offset to read from or write to
+ * @param len	 number of bytes to read or write
+ */
+static int onenand_otp_command(struct mtd_info *mtd, int cmd, loff_t addr,
+				size_t len)
+{
+	struct onenand_chip *this = mtd->priv;
+	int value, block, page;
+
+	/* Address translation */
+	switch (cmd) {
+	case ONENAND_CMD_OTP_ACCESS:
+		block = (int) (addr >> this->erase_shift);
+		page = -1;
+		break;
+
+	default:
+		block = (int) (addr >> this->erase_shift);
+		page = (int) (addr >> this->page_shift);
+
+		if (ONENAND_IS_2PLANE(this)) {
+			/* Make the even block number */
+			block &= ~1;
+			/* Is it the odd plane? */
+			if (addr & this->writesize)
+				block++;
+			page >>= 1;
+		}
+		page &= this->page_mask;
+		break;
+	}
+
+	if (block != -1) {
+		/* Write 'DFS, FBA' of Flash */
+		value = onenand_block_address(this, block);
+		this->write_word(value, this->base +
+				ONENAND_REG_START_ADDRESS1);
+	}
+
+	if (page != -1) {
+		/* Now we use page size operation */
+		int sectors = 4, count = 4;
+		int dataram;
+
+		switch (cmd) {
+		default:
+			if (ONENAND_IS_2PLANE(this) && cmd == ONENAND_CMD_PROG)
+				cmd = ONENAND_CMD_2X_PROG;
+			dataram = ONENAND_CURRENT_BUFFERRAM(this);
+			break;
+		}
+
+		/* Write 'FPA, FSA' of Flash */
+		value = onenand_page_address(page, sectors);
+		this->write_word(value, this->base +
+				ONENAND_REG_START_ADDRESS8);
+
+		/* Write 'BSA, BSC' of DataRAM */
+		value = onenand_buffer_address(dataram, sectors, count);
+		this->write_word(value, this->base + ONENAND_REG_START_BUFFER);
+	}
+
+	/* Interrupt clear */
+	this->write_word(ONENAND_INT_CLEAR, this->base + ONENAND_REG_INTERRUPT);
+
+	/* Write command */
+	this->write_word(cmd, this->base + ONENAND_REG_COMMAND);
+
+	return 0;
+}
+
+/**
+ * onenand_otp_write_oob_nolock - [Internal] OneNAND write out-of-band, specific to OTP
+ * @param mtd		MTD device structure
+ * @param to		offset to write to
+ * @param len		number of bytes to write
+ * @param retlen	pointer to variable to store the number of written bytes
+ * @param buf		the data to write
+ *
+ * OneNAND write out-of-band only for OTP
+ */
+static int onenand_otp_write_oob_nolock(struct mtd_info *mtd, loff_t to,
+				    struct mtd_oob_ops *ops)
+{
+	struct onenand_chip *this = mtd->priv;
+	int column, ret = 0, oobsize;
+	int written = 0;
+	u_char *oobbuf;
+	size_t len = ops->ooblen;
+	const u_char *buf = ops->oobbuf;
+	int block, value, status;
+
+	to += ops->ooboffs;
+
+	/* Initialize retlen, in case of early exit */
+	ops->oobretlen = 0;
+
+	oobsize = mtd->oobsize;
+
+	column = to & (mtd->oobsize - 1);
+
+	oobbuf = this->oob_buf;
+
+	/* Loop until all data write */
+	while (written < len) {
+		int thislen = min_t(int, oobsize, len - written);
+
+		cond_resched();
+
+		block = (int) (to >> this->erase_shift);
+		/*
+		 * Write 'DFS, FBA' of Flash
+		 * Add: F100h DQ=DFS, FBA
+		 */
+
+		value = onenand_block_address(this, block);
+		this->write_word(value, this->base +
+				ONENAND_REG_START_ADDRESS1);
+
+		/*
+		 * Select DataRAM for DDP
+		 * Add: F101h DQ=DBS
+		 */
+
+		value = onenand_bufferram_address(this, block);
+		this->write_word(value, this->base +
+				ONENAND_REG_START_ADDRESS2);
+		ONENAND_SET_NEXT_BUFFERRAM(this);
+
+		/*
+		 * Enter OTP access mode
+		 */
+		this->command(mtd, ONENAND_CMD_OTP_ACCESS, 0, 0);
+		this->wait(mtd, FL_OTPING);
+
+		/* We send data to spare ram with oobsize
+		 * to prevent byte access */
+		memcpy(oobbuf + column, buf, thislen);
+
+		/*
+		 * Write Data into DataRAM
+		 * Add: 8th Word
+		 * in sector0/spare/page0
+		 * DQ=XXFCh
+		 */
+		this->write_bufferram(mtd, ONENAND_SPARERAM,
+					oobbuf, 0, mtd->oobsize);
+
+		onenand_otp_command(mtd, ONENAND_CMD_PROGOOB, to, mtd->oobsize);
+		onenand_update_bufferram(mtd, to, 0);
+		if (ONENAND_IS_2PLANE(this)) {
+			ONENAND_SET_BUFFERRAM1(this);
+			onenand_update_bufferram(mtd, to + this->writesize, 0);
+		}
+
+		ret = this->wait(mtd, FL_WRITING);
+		if (ret) {
+			printk(KERN_ERR "%s: write failed %d\n", __func__, ret);
+			break;
+		}
+
+		/* Exit OTP access mode */
+		this->command(mtd, ONENAND_CMD_RESET, 0, 0);
+		this->wait(mtd, FL_RESETING);
+
+		status = this->read_word(this->base + ONENAND_REG_CTRL_STATUS);
+		status &= 0x60;
+
+		if (status == 0x60) {
+			printk(KERN_DEBUG "\nBLOCK\tSTATUS\n");
+			printk(KERN_DEBUG "1st Block\tLOCKED\n");
+			printk(KERN_DEBUG "OTP Block\tLOCKED\n");
+		} else if (status == 0x20) {
+			printk(KERN_DEBUG "\nBLOCK\tSTATUS\n");
+			printk(KERN_DEBUG "1st Block\tLOCKED\n");
+			printk(KERN_DEBUG "OTP Block\tUN-LOCKED\n");
+		} else if (status == 0x40) {
+			printk(KERN_DEBUG "\nBLOCK\tSTATUS\n");
+			printk(KERN_DEBUG "1st Block\tUN-LOCKED\n");
+			printk(KERN_DEBUG "OTP Block\tLOCKED\n");
+		} else {
+			printk(KERN_DEBUG "Reboot to check\n");
+		}
+
+		written += thislen;
+		if (written == len)
+			break;
+
+		to += mtd->writesize;
+		buf += thislen;
+		column = 0;
+	}
+
+	ops->oobretlen = written;
+
+	return ret;
+}
+
 /* Internal OTP operation */
 typedef int (*otp_op_t)(struct mtd_info *mtd, loff_t form, size_t len,
 		size_t *retlen, u_char *buf);
@@ -2693,11 +2909,11 @@ static int do_otp_lock(struct mtd_info *mtd, loff_t from, size_t len,
 	struct mtd_oob_ops ops;
 	int ret;
 
-	/* Enter OTP access mode */
-	this->command(mtd, ONENAND_CMD_OTP_ACCESS, 0, 0);
-	this->wait(mtd, FL_OTPING);
-
 	if (FLEXONENAND(this)) {
+
+		/* Enter OTP access mode */
+		this->command(mtd, ONENAND_CMD_OTP_ACCESS, 0, 0);
+		this->wait(mtd, FL_OTPING);
 		/*
 		 * For Flex-OneNAND, we write lock mark to 1st word of sector 4 of
 		 * main area of page 49.
@@ -2708,18 +2924,18 @@ static int do_otp_lock(struct mtd_info *mtd, loff_t from, size_t len,
 		ops.oobbuf = NULL;
 		ret = onenand_write_ops_nolock(mtd, mtd->writesize * 49, &ops);
 		*retlen = ops.retlen;
+
+		/* Exit OTP access mode */
+		this->command(mtd, ONENAND_CMD_RESET, 0, 0);
+		this->wait(mtd, FL_RESETING);
 	} else {
 		ops.mode = MTD_OOB_PLACE;
 		ops.ooblen = len;
 		ops.oobbuf = buf;
 		ops.ooboffs = 0;
-		ret = onenand_write_oob_nolock(mtd, from, &ops);
+		ret = onenand_otp_write_oob_nolock(mtd, from, &ops);
 		*retlen = ops.oobretlen;
 	}
-
-	/* Exit OTP access mode */
-	this->command(mtd, ONENAND_CMD_RESET, 0, 0);
-	this->wait(mtd, FL_RESETING);
 
 	return ret;
 }
@@ -2751,16 +2967,21 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 	if (density < ONENAND_DEVICE_DENSITY_512Mb)
 		otp_pages = 20;
 	else
-		otp_pages = 10;
+		otp_pages = 50;
 
 	if (mode == MTD_OTP_FACTORY) {
 		from += mtd->writesize * otp_pages;
-		otp_pages = 64 - otp_pages;
+		otp_pages = ONENAND_PAGES_PER_BLOCK - otp_pages;
 	}
 
 	/* Check User/Factory boundary */
-	if (((mtd->writesize * otp_pages) - (from + len)) < 0)
-		return 0;
+	if (mode == MTD_OTP_USER) {
+		if (((mtd->writesize * otp_pages) - (from + len)) < 0)
+			return 0;
+	} else {
+		if (((mtd->writesize * otp_pages) - len) < 0)
+			return 0;
+	}
 
 	onenand_get_device(mtd, FL_OTPING);
 	while (len > 0 && otp_pages > 0) {
@@ -2783,13 +3004,12 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 			*retlen += sizeof(struct otp_info);
 		} else {
 			size_t tmp_retlen;
-			int size = len;
 
 			ret = action(mtd, from, len, &tmp_retlen, buf);
 
-			buf += size;
-			len -= size;
-			*retlen += size;
+			buf += tmp_retlen;
+			len -= tmp_retlen;
+			*retlen += tmp_retlen;
 
 			if (ret)
 				break;
@@ -2902,20 +3122,10 @@ static int onenand_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
 	u_char *buf = FLEXONENAND(this) ? this->page_buf : this->oob_buf;
 	size_t retlen;
 	int ret;
+	unsigned int otp_lock_offset = ONENAND_OTP_LOCK_OFFSET;
 
 	memset(buf, 0xff, FLEXONENAND(this) ? this->writesize
 						 : mtd->oobsize);
-	/*
-	 * Note: OTP lock operation
-	 *       OTP block : 0xXXFC
-	 *       1st block : 0xXXF3 (If chip support)
-	 *       Both      : 0xXXF0 (If chip support)
-	 */
-	if (FLEXONENAND(this))
-		buf[FLEXONENAND_OTP_LOCK_OFFSET] = 0xFC;
-	else
-		buf[ONENAND_OTP_LOCK_OFFSET] = 0xFC;
-
 	/*
 	 * Write lock mark to 8th word of sector0 of page0 of the spare0.
 	 * We write 16 bytes spare area instead of 2 bytes.
@@ -2926,10 +3136,30 @@ static int onenand_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
 	from = 0;
 	len = FLEXONENAND(this) ? mtd->writesize : 16;
 
+	/*
+	 * Note: OTP lock operation
+	 *       OTP block : 0xXXFC			XX 1111 1100
+	 *       1st block : 0xXXF3 (If chip support)	XX 1111 0011
+	 *       Both      : 0xXXF0 (If chip support)	XX 1111 0000
+	 */
+	if (FLEXONENAND(this))
+		otp_lock_offset = FLEXONENAND_OTP_LOCK_OFFSET;
+
+	/* ONENAND_OTP_AREA | ONENAND_OTP_BLOCK0 | ONENAND_OTP_AREA_BLOCK0 */
+	if (otp == 1)
+		buf[otp_lock_offset] = 0xFC;
+	else if (otp == 2)
+		buf[otp_lock_offset] = 0xF3;
+	else if (otp == 3)
+		buf[otp_lock_offset] = 0xF0;
+	else if (otp != 0)
+		printk(KERN_DEBUG "[OneNAND] Invalid option selected for OTP\n");
+
 	ret = onenand_otp_walk(mtd, from, len, &retlen, buf, do_otp_lock, MTD_OTP_USER);
 
 	return ret ? : retlen;
 }
+
 #endif	/* CONFIG_MTD_ONENAND_OTP */
 
 /**
