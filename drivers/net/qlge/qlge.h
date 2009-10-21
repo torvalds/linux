@@ -1645,6 +1645,8 @@ int ql_mb_about_fw(struct ql_adapter *qdev);
 void ql_link_on(struct ql_adapter *qdev);
 void ql_link_off(struct ql_adapter *qdev);
 int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control);
+int ql_mb_get_port_cfg(struct ql_adapter *qdev);
+int ql_mb_set_port_cfg(struct ql_adapter *qdev);
 int ql_wait_fifo_empty(struct ql_adapter *qdev);
 
 #if 1

@@ -424,6 +424,37 @@ static int ql_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *c)
 	return ql_update_ring_coalescing(qdev);
 }
 
+static void ql_get_pauseparam(struct net_device *netdev,
+			struct ethtool_pauseparam *pause)
+{
+	struct ql_adapter *qdev = netdev_priv(netdev);
+
+	ql_mb_get_port_cfg(qdev);
+	if (qdev->link_config & CFG_PAUSE_STD) {
+		pause->rx_pause = 1;
+		pause->tx_pause = 1;
+	}
+}
+
+static int ql_set_pauseparam(struct net_device *netdev,
+			struct ethtool_pauseparam *pause)
+{
+	struct ql_adapter *qdev = netdev_priv(netdev);
+	int status = 0;
+
+	if ((pause->rx_pause) && (pause->tx_pause))
+		qdev->link_config |= CFG_PAUSE_STD;
+	else if (!pause->rx_pause && !pause->tx_pause)
+		qdev->link_config &= ~CFG_PAUSE_STD;
+	else
+		return -EINVAL;
+
+	status = ql_mb_set_port_cfg(qdev);
+	if (status)
+		return status;
+	return status;
+}
+
 static u32 ql_get_rx_csum(struct net_device *netdev)
 {
 	struct ql_adapter *qdev = netdev_priv(netdev);
@@ -468,6 +499,8 @@ const struct ethtool_ops qlge_ethtool_ops = {
 	.get_msglevel = ql_get_msglevel,
 	.set_msglevel = ql_set_msglevel,
 	.get_link = ethtool_op_get_link,
+	.get_pauseparam		 = ql_get_pauseparam,
+	.set_pauseparam		 = ql_set_pauseparam,
 	.get_rx_csum = ql_get_rx_csum,
 	.set_rx_csum = ql_set_rx_csum,
 	.get_tx_csum = ethtool_op_get_tx_csum,

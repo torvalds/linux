@@ -637,7 +637,7 @@ int ql_mb_idc_ack(struct ql_adapter *qdev)
  * for the current port.
  * Most likely will block.
  */
-static int ql_mb_set_port_cfg(struct ql_adapter *qdev)
+int ql_mb_set_port_cfg(struct ql_adapter *qdev)
 {
 	struct mbox_params mbc;
 	struct mbox_params *mbcp = &mbc;
@@ -672,7 +672,7 @@ static int ql_mb_set_port_cfg(struct ql_adapter *qdev)
  * for the current port.
  * Most likely will block.
  */
-static int ql_mb_get_port_cfg(struct ql_adapter *qdev)
+int ql_mb_get_port_cfg(struct ql_adapter *qdev)
 {
 	struct mbox_params mbc;
 	struct mbox_params *mbcp = &mbc;
