@@ -46,7 +46,7 @@ There are 4 x 12-bit Analogue Outputs.  Ranges : 5V, 10V, +/-5V, +/-10V
 
 Options:
  [0] - PCI bus number - if bus number and slot number are 0,
-                        then driver search for first unused card
+			then driver search for first unused card
  [1] - PCI slot number
 */
 
@@ -176,13 +176,13 @@ static const struct boardtype boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
 
 static struct comedi_driver driver_icp_multi = {
-driver_name:"icp_multi",
-module:THIS_MODULE,
-attach:icp_multi_attach,
-detach:icp_multi_detach,
-num_names:n_boardtypes,
-board_name:&boardtypes[0].name,
-offset:sizeof(struct boardtype),
+driver_name: "icp_multi",
+module : THIS_MODULE,
+attach : icp_multi_attach,
+detach : icp_multi_detach,
+num_names : n_boardtypes,
+board_name : &boardtypes[0].name,
+offset : sizeof(struct boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_icp_multi);
@@ -234,18 +234,18 @@ static int icp_multi_reset(struct comedi_device *dev);
 /*
 ==============================================================================
 
-	Name:	icp_multi_insn_read_ai
+Name:	icp_multi_insn_read_ai
 
-	Description:
-		This function reads a single analogue input.
+Description:
+	This function reads a single analogue input.
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current device structure
-		struct comedi_subdevice *s	Pointer to current subdevice structure
-		struct comedi_insn *insn	Pointer to current comedi instruction
-		unsigned int *data		Pointer to analogue input data
+Parameters:
+	struct comedi_device *dev	Pointer to current device structure
+	struct comedi_subdevice *s	Pointer to current subdevice structure
+	struct comedi_insn *insn	Pointer to current comedi instruction
+	unsigned int *data		Pointer to analogue input data
 
-	Returns:int			Nmuber of instructions executed
+Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
@@ -266,7 +266,7 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 	devpriv->IntStatus |= ADC_READY;
 	writew(devpriv->IntStatus, devpriv->io_addr + ICP_MULTI_INT_STAT);
 
-	/*  Set up appropriate channel, mode and range data, for specified channel */
+	/*  Set up appropriate channel, mode and range data, for specified ch */
 	setup_channel_list(dev, s, &insn->chanspec, 1);
 
 #ifdef ICP_MULTI_EXTDEBUG
@@ -356,18 +356,18 @@ conv_finish:
 /*
 ==============================================================================
 
-	Name:	icp_multi_insn_write_ao
+Name:	icp_multi_insn_write_ao
 
-	Description:
-		This function writes a single analogue output.
+Description:
+	This function writes a single analogue output.
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current device structure
-		struct comedi_subdevice *s	Pointer to current subdevice structure
-		struct comedi_insn *insn	Pointer to current comedi instruction
-		unsigned int *data		Pointer to analogue output data
+Parameters:
+	struct comedi_device *dev	Pointer to current device structure
+	struct comedi_subdevice *s	Pointer to current subdevice structure
+	struct comedi_insn *insn	Pointer to current comedi instruction
+	unsigned int *data		Pointer to analogue output data
 
-	Returns:int			Nmuber of instructions executed
+Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
@@ -404,7 +404,8 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev,
 	writew(devpriv->DacCmdStatus, devpriv->io_addr + ICP_MULTI_DAC_CSR);
 
 	for (n = 0; n < insn->n; n++) {
-		/*  Wait for analogue output data register to be ready for new data, or get fed up waiting */
+		/*  Wait for analogue output data register to be
+		 *  ready for new data, or get fed up waiting */
 		timeout = 100;
 		while (timeout--) {
 			if (!(readw(devpriv->io_addr +
@@ -467,18 +468,18 @@ dac_ready:
 /*
 ==============================================================================
 
-	Name:	icp_multi_insn_read_ao
+Name:	icp_multi_insn_read_ao
 
-	Description:
-		This function reads a single analogue output.
+Description:
+	This function reads a single analogue output.
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current device structure
-		struct comedi_subdevice *s	Pointer to current subdevice structure
-		struct comedi_insn *insn	Pointer to current comedi instruction
-		unsigned int *data		Pointer to analogue output data
+Parameters:
+	struct comedi_device *dev	Pointer to current device structure
+	struct comedi_subdevice *s	Pointer to current subdevice structure
+	struct comedi_insn *insn	Pointer to current comedi instruction
+	unsigned int *data		Pointer to analogue output data
 
-	Returns:int			Nmuber of instructions executed
+Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
@@ -501,18 +502,18 @@ static int icp_multi_insn_read_ao(struct comedi_device *dev,
 /*
 ==============================================================================
 
-	Name:	icp_multi_insn_bits_di
+Name:	icp_multi_insn_bits_di
 
-	Description:
-		This function reads the digital inputs.
+Description:
+	This function reads the digital inputs.
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current device structure
-		struct comedi_subdevice *s	Pointer to current subdevice structure
-		struct comedi_insn *insn	Pointer to current comedi instruction
-		unsigned int *data		Pointer to analogue output data
+Parameters:
+	struct comedi_device *dev	Pointer to current device structure
+	struct comedi_subdevice *s	Pointer to current subdevice structure
+	struct comedi_insn *insn	Pointer to current comedi instruction
+	unsigned int *data		Pointer to analogue output data
 
-	Returns:int			Nmuber of instructions executed
+Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
@@ -528,18 +529,18 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev,
 /*
 ==============================================================================
 
-	Name:	icp_multi_insn_bits_do
+Name:	icp_multi_insn_bits_do
 
-	Description:
-		This function writes the appropriate digital outputs.
+Description:
+	This function writes the appropriate digital outputs.
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current device structure
-		struct comedi_subdevice *s	Pointer to current subdevice structure
-		struct comedi_insn *insn	Pointer to current comedi instruction
-		unsigned int *data		Pointer to analogue output data
+Parameters:
+	struct comedi_device *dev	Pointer to current device structure
+	struct comedi_subdevice *s	Pointer to current subdevice structure
+	struct comedi_insn *insn	Pointer to current comedi instruction
+	unsigned int *data		Pointer to analogue output data
 
-	Returns:int			Nmuber of instructions executed
+Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
@@ -571,18 +572,18 @@ static int icp_multi_insn_bits_do(struct comedi_device *dev,
 /*
 ==============================================================================
 
-	Name:	icp_multi_insn_read_ctr
+Name:	icp_multi_insn_read_ctr
 
-	Description:
-		This function reads the specified counter.
+Description:
+	This function reads the specified counter.
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current device structure
-		struct comedi_subdevice *s	Pointer to current subdevice structure
-		struct comedi_insn *insn	Pointer to current comedi instruction
-		unsigned int *data		Pointer to counter data
+Parameters:
+	struct comedi_device *dev	Pointer to current device structure
+	struct comedi_subdevice *s	Pointer to current subdevice structure
+	struct comedi_insn *insn	Pointer to current comedi instruction
+	unsigned int *data		Pointer to counter data
 
-	Returns:int			Nmuber of instructions executed
+Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
@@ -596,18 +597,18 @@ static int icp_multi_insn_read_ctr(struct comedi_device *dev,
 /*
 ==============================================================================
 
-	Name:	icp_multi_insn_write_ctr
+Name:	icp_multi_insn_write_ctr
 
-	Description:
-		This function write to the specified counter.
+Description:
+	This function write to the specified counter.
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current device structure
-		struct comedi_subdevice *s	Pointer to current subdevice structure
-		struct comedi_insn *insn	Pointer to current comedi instruction
-		unsigned int *data		Pointer to counter data
+Parameters:
+	struct comedi_device *dev	Pointer to current device structure
+	struct comedi_subdevice *s	Pointer to current subdevice structure
+	struct comedi_insn *insn	Pointer to current comedi instruction
+	unsigned int *data		Pointer to counter data
 
-	Returns:int			Nmuber of instructions executed
+Returns:int			Nmuber of instructions executed
 
 ==============================================================================
 */
@@ -622,15 +623,15 @@ static int icp_multi_insn_write_ctr(struct comedi_device *dev,
 /*
 ==============================================================================
 
-	Name:	interrupt_service_icp_multi
+Name:	interrupt_service_icp_multi
 
-	Description:
-		This function is the interrupt service routine for all
-		interrupts generated by the icp multi board.
+Description:
+	This function is the interrupt service routine for all
+	interrupts generated by the icp multi board.
 
-	Parameters:
-		int irq
-		void *d			Pointer to current device
+Parameters:
+	int irq
+	void *d			Pointer to current device
 
 ==============================================================================
 */
@@ -688,20 +689,20 @@ static irqreturn_t interrupt_service_icp_multi(int irq, void *d)
 /*
 ==============================================================================
 
-	Name:	check_channel_list
+Name:	check_channel_list
 
-	Description:
-		This function checks if the channel list, provided by user
-		is built correctly
+Description:
+	This function checks if the channel list, provided by user
+	is built correctly
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current sevice structure
-		struct comedi_subdevice *s	Pointer to current subdevice structure
-		unsigned int *chanlist	Pointer to packed channel list
-		unsigned int n_chan	Number of channels to scan
+Parameters:
+	struct comedi_device *dev	Pointer to current sevice structure
+	struct comedi_subdevice *s	Pointer to current subdevice structure
+	unsigned int *chanlist	Pointer to packed channel list
+	unsigned int n_chan	Number of channels to scan
 
-	Returns:int 0 = failure
-		    1 = success
+Returns:int 0 = failure
+	    1 = success
 
 ==============================================================================
 */
@@ -743,20 +744,20 @@ static int check_channel_list(struct comedi_device *dev,
 /*
 ==============================================================================
 
-	Name:	setup_channel_list
+Name:	setup_channel_list
 
-	Description:
-		This function sets the appropriate channel selection,
-		differential input mode and range bits in the ADC Command/
-		Status register.
+Description:
+	This function sets the appropriate channel selection,
+	differential input mode and range bits in the ADC Command/
+	Status register.
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current sevice structure
-		struct comedi_subdevice *s	Pointer to current subdevice structure
-		unsigned int *chanlist	Pointer to packed channel list
-		unsigned int n_chan	Number of channels to scan
+Parameters:
+	struct comedi_device *dev	Pointer to current sevice structure
+	struct comedi_subdevice *s	Pointer to current subdevice structure
+	unsigned int *chanlist	Pointer to packed channel list
+	unsigned int n_chan	Number of channels to scan
 
-	Returns:Void
+Returns:Void
 
 ==============================================================================
 */
@@ -786,7 +787,8 @@ static void setup_channel_list(struct comedi_device *dev,
 			chanprog &= 0x000f;
 		}
 
-		/*  Clear channel, range and input mode bits in A/D command/status register */
+		/*  Clear channel, range and input mode bits
+		 *  in A/D command/status register */
 		devpriv->AdcCmdStatus &= 0xf00f;
 
 		/*  Set channel number and differential mode status bit */
@@ -818,15 +820,15 @@ static void setup_channel_list(struct comedi_device *dev,
 /*
 ==============================================================================
 
-	Name:	icp_multi_reset
+Name:	icp_multi_reset
 
-	Description:
-		This function resets the icp multi device to a 'safe' state
+Description:
+	This function resets the icp multi device to a 'safe' state
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current sevice structure
+Parameters:
+	struct comedi_device *dev	Pointer to current sevice structure
 
-	Returns:int	0 = success
+Returns:int	0 = success
 
 ==============================================================================
 */
@@ -874,17 +876,17 @@ static int icp_multi_reset(struct comedi_device *dev)
 /*
 ==============================================================================
 
-	Name:	icp_multi_attach
+Name:	icp_multi_attach
 
-	Description:
-		This function sets up all the appropriate data for the current
-		device.
+Description:
+	This function sets up all the appropriate data for the current
+	device.
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current device structure
-		struct comedi_devconfig *it	Pointer to current device configuration
+Parameters:
+	struct comedi_device *dev	Pointer to current device structure
+	struct comedi_devconfig *it	Pointer to current device configuration
 
-	Returns:int	0 = success
+Returns:int	0 = success
 
 ==============================================================================
 */
@@ -1072,16 +1074,16 @@ static int icp_multi_attach(struct comedi_device *dev,
 /*
 ==============================================================================
 
-	Name:	icp_multi_detach
+Name:	icp_multi_detach
 
-	Description:
-		This function releases all the resources used by the current
-		device.
+Description:
+	This function releases all the resources used by the current
+	device.
 
-	Parameters:
-		struct comedi_device *dev	Pointer to current device structure
+Parameters:
+	struct comedi_device *dev	Pointer to current device structure
 
-	Returns:int	0 = success
+Returns:int	0 = success
 
 ==============================================================================
 */
