@@ -629,10 +629,13 @@ void
 free_session(struct kref *kref)
 {
 	struct nfsd4_session *ses;
+	int mem;
 
 	ses = container_of(kref, struct nfsd4_session, se_ref);
 	spin_lock(&nfsd_drc_lock);
-	nfsd_drc_mem_used -= ses->se_fchannel.maxreqs * NFSD_SLOT_CACHE_SIZE;
+	mem = ses->se_fchannel.maxreqs
+		* (ses->se_fchannel.maxresp_cached - NFSD_MIN_HDR_SEQ_SZ);
+	nfsd_drc_mem_used -= mem;
 	spin_unlock(&nfsd_drc_lock);
 	free_session_slots(ses);
 	kfree(ses);
