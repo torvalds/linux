@@ -242,8 +242,6 @@ static int assign_substream(struct snd_rawmidi *rmidi, int subdevice,
 		return -ENXIO;
 	if (subdevice >= 0 && subdevice >= s->substream_count)
 		return -ENODEV;
-	if (s->substream_opened >= s->substream_count)
-		return -EAGAIN;
 
 	list_for_each_entry(substream, &s->substreams, list) {
 		if (substream->opened) {
@@ -280,9 +278,9 @@ static int open_substream(struct snd_rawmidi *rmidi,
 		substream->active_sensing = 0;
 		if (mode & SNDRV_RAWMIDI_LFLG_APPEND)
 			substream->append = 1;
+		rmidi->streams[substream->stream].substream_opened++;
 	}
 	substream->use_count++;
-	rmidi->streams[substream->stream].substream_opened++;
 	return 0;
 }
 
@@ -466,7 +464,6 @@ static void close_substream(struct snd_rawmidi *rmidi,
 			    struct snd_rawmidi_substream *substream,
 			    int cleanup)
 {
-	rmidi->streams[substream->stream].substream_opened--;
 	if (--substream->use_count)
 		return;
 
@@ -491,6 +488,7 @@ static void close_substream(struct snd_rawmidi *rmidi,
 	snd_rawmidi_runtime_free(substream);
 	substream->opened = 0;
 	substream->append = 0;
+	rmidi->streams[substream->stream].substream_opened--;
 }
 
 static void rawmidi_release_priv(struct snd_rawmidi_file *rfile)
