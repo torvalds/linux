@@ -867,10 +867,9 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	}
 
 	if (fp == FP_STONITH &&
-	    (ns.role == R_PRIMARY &&
-	     ns.conn < C_CONNECTED &&
-	     ns.pdsk > D_OUTDATED))
-			ns.susp = 1;
+	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED) &&
+	    !(os.role == R_PRIMARY && os.conn < C_CONNECTED && os.pdsk > D_OUTDATED))
+		ns.susp = 1;
 
 	if (ns.aftr_isp || ns.peer_isp || ns.user_isp) {
 		if (ns.conn == C_SYNC_SOURCE)
