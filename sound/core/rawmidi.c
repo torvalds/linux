@@ -248,7 +248,8 @@ static int assign_substream(struct snd_rawmidi *rmidi, int subdevice,
 	list_for_each_entry(substream, &s->substreams, list) {
 		if (substream->opened) {
 			if (stream == SNDRV_RAWMIDI_STREAM_INPUT ||
-			    !(mode & SNDRV_RAWMIDI_LFLG_APPEND))
+			    !(mode & SNDRV_RAWMIDI_LFLG_APPEND) ||
+			    !substream->append)
 				continue;
 		}
 		if (subdevice < 0 || subdevice == substream->number) {
