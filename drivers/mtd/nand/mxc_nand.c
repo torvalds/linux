@@ -118,9 +118,6 @@ struct mxc_nand_host {
 	int			spare_len;
 };
 
-/* Define delays in microsec for NAND device operations */
-#define TROP_US_DELAY   2000
-
 /* OOB placement block for use with hardware ecc generation */
 static struct nand_ecclayout nandv1_hw_eccoob_smallpage = {
 	.eccbytes = 5,
@@ -185,10 +182,10 @@ static irqreturn_t mxc_nfc_irq(int irq, void *dev_id)
 /* This function polls the NANDFC to wait for the basic operation to
  * complete by checking the INT bit of config2 register.
  */
-static void wait_op_done(struct mxc_nand_host *host, int max_retries,
-				int useirq)
+static void wait_op_done(struct mxc_nand_host *host, int useirq)
 {
 	uint32_t tmp;
+	int max_retries = 2000;
 
 	if (useirq) {
 		if ((readw(host->regs + NFC_CONFIG2) & NFC_INT) == 0) {
@@ -230,7 +227,7 @@ static void send_cmd(struct mxc_nand_host *host, uint16_t cmd, int useirq)
 	writew(NFC_CMD, host->regs + NFC_CONFIG2);
 
 	/* Wait for operation to complete */
-	wait_op_done(host, TROP_US_DELAY, useirq);
+	wait_op_done(host, useirq);
 }
 
 /* This function sends an address (or partial address) to the
@@ -244,7 +241,7 @@ static void send_addr(struct mxc_nand_host *host, uint16_t addr, int islast)
 	writew(NFC_ADDR, host->regs + NFC_CONFIG2);
 
 	/* Wait for operation to complete */
-	wait_op_done(host, TROP_US_DELAY, islast);
+	wait_op_done(host, islast);
 }
 
 static void send_page(struct mtd_info *mtd, unsigned int ops)
@@ -266,7 +263,7 @@ static void send_page(struct mtd_info *mtd, unsigned int ops)
 		writew(ops, host->regs + NFC_CONFIG2);
 
 		/* Wait for operation to complete */
-		wait_op_done(host, TROP_US_DELAY, true);
+		wait_op_done(host, true);
 	}
 }
 
@@ -281,7 +278,7 @@ static void send_read_id(struct mxc_nand_host *host)
 	writew(NFC_ID, host->regs + NFC_CONFIG2);
 
 	/* Wait for operation to complete */
-	wait_op_done(host, TROP_US_DELAY, true);
+	wait_op_done(host, true);
 
 	if (this->options & NAND_BUSWIDTH_16) {
 		void __iomem *main_buf = host->main_area0;
@@ -313,7 +310,7 @@ static uint16_t get_dev_status(struct mxc_nand_host *host)
 	writew(NFC_STATUS, host->regs + NFC_CONFIG2);
 
 	/* Wait for operation to complete */
-	wait_op_done(host, TROP_US_DELAY, true);
+	wait_op_done(host, true);
 
 	/* Status is placed in first word of main buffer */
 	/* get status, then recovery area 1 data */
