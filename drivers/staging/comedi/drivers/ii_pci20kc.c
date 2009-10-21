@@ -23,7 +23,8 @@
  *	no extern trigger implemented
  *
  *	NOT WORKING (but soon) only 4 on-board differential channels supported
- *	NOT WORKING (but soon) only ONE di-port and ONE do-port supported instead of 4 digital ports
+ *	NOT WORKING (but soon) only ONE di-port and ONE do-port supported
+ *			       instead of 4 digital ports
  *	di-port == Port 0
  *	do-port == Port 1
  *
@@ -63,17 +64,17 @@ Options:
 
 options for PCI-20006M:
   first:   Analog output channel 0 range configuration
-             0  bipolar 10  (-10V -- +10V)
-             1  unipolar 10  (0V -- +10V)
-             2  bipolar 5  (-5V -- 5V)
+	     0  bipolar 10  (-10V -- +10V)
+	     1  unipolar 10  (0V -- +10V)
+	     2  bipolar 5  (-5V -- 5V)
   second:  Analog output channel 1 range configuration
 
 options for PCI-20341M:
   first:   Analog input gain configuration
-             0  1
-             1  10
-             2  100
-             3  200
+	     0  1
+	     1  10
+	     2  100
+	     3  200
 */
 
 /* XXX needs to use ioremap() for compatibility with 2.4 kernels.  Should also
@@ -95,12 +96,12 @@ options for PCI-20341M:
 #define PCI20000_DIO_3			0xc1
 #define PCI20000_DIO_CONTROL_01		0x83	/* port 0, 1 control */
 #define PCI20000_DIO_CONTROL_23		0xc3	/* port 2, 3 control */
-#define PCI20000_DIO_BUFFER		0x82	/* buffer direction and enable */
+#define PCI20000_DIO_BUFFER		0x82	/* buffer direction & enable */
 #define PCI20000_DIO_EOC		0xef	/* even port, control output */
 #define PCI20000_DIO_OOC		0xfd	/* odd port, control output */
 #define PCI20000_DIO_EIC		0x90	/* even port, control input */
 #define PCI20000_DIO_OIC		0x82	/* odd port, control input */
-#define DIO_CAND			0x12	/* and bit 1, bit 4 of control */
+#define DIO_CAND			0x12	/* and bit 1 & 4 of control */
 #define DIO_BE				0x01	/* buffer: port enable */
 #define DIO_BO				0x04	/* buffer: output */
 #define DIO_BI				0x05	/* buffer: input */
@@ -137,7 +138,8 @@ union pci20xxx_subdev_private {
 	void *iobase;
 	struct {
 		void *iobase;
-		const struct comedi_lrange *ao_range_list[2];	/* range of channels of ao module */
+		const struct comedi_lrange *ao_range_list[2];
+					/* range of channels of ao module */
 		unsigned int last_data[2];
 	} pci20006;
 	struct {
@@ -339,7 +341,8 @@ static int pci20006_insn_write(struct comedi_device *dev,
 	unsigned int boarddata;
 
 	sdp->pci20006.last_data[CR_CHAN(insn->chanspec)] = data[0];
-	boarddata = (((unsigned int)data[0] + 0x8000) & 0xffff);	/* comedi-data -> board-data */
+	boarddata = (((unsigned int)data[0] + 0x8000) & 0xffff);
+						/* comedi-data -> board-data */
 	lo = (boarddata & 0xff);
 	hi = ((boarddata >> 8) & 0xff);
 
@@ -373,8 +376,7 @@ static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
 
 static const struct comedi_lrange range_bipolar0_5 = { 1, {BIP_RANGE(0.5)} };
 static const struct comedi_lrange range_bipolar0_05 = { 1, {BIP_RANGE(0.05)} };
-static const struct comedi_lrange range_bipolar0_025 =
-    { 1, {BIP_RANGE(0.025)} };
+static const struct comedi_lrange range_bipolar0_025 = { 1, {BIP_RANGE(0.025)} };
 
 static const struct comedi_lrange *const pci20341_ranges[] = {
 	&range_bipolar5,
@@ -502,20 +504,18 @@ static int pci20xxx_dio_insn_config(struct comedi_device *dev,
 	int mask, bits;
 
 	mask = 1 << CR_CHAN(insn->chanspec);
-	if (mask & 0x000000ff) {
+	if (mask & 0x000000ff)
 		bits = 0x000000ff;
-	} else if (mask & 0x0000ff00) {
+	else if (mask & 0x0000ff00)
 		bits = 0x0000ff00;
-	} else if (mask & 0x00ff0000) {
+	else if (mask & 0x00ff0000)
 		bits = 0x00ff0000;
-	} else {
+	else
 		bits = 0xff000000;
-	}
-	if (data[0]) {
+	if (data[0])
 		s->io_bits |= bits;
-	} else {
+	else
 		s->io_bits &= ~bits;
-	}
 	pci20xxx_dio_config(dev, s);
 
 	return 1;
