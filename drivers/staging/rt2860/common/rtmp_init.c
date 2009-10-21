@@ -694,15 +694,6 @@ VOID	NICReadEEPROMParameters(
 
 	if (pAd->chipOps.eeinit)
 		pAd->chipOps.eeinit(pAd);
-#ifdef RTMP_EFUSE_SUPPORT
-#ifdef RT30xx
-	if(!pAd->bFroceEEPROMBuffer && pAd->bEEPROMFile)
-	{
-		DBGPRINT(RT_DEBUG_TRACE, ("--> NICReadEEPROMParameters::(Efuse)Load  to EEPROM Buffer Mode\n"));
-		eFuseLoadEEPROM(pAd);
-	}
-#endif // RT30xx //
-#endif // RTMP_EFUSE_SUPPORT //
 
 	// Init EEPROM Address Number, before access EEPROM; if 93c46, EEPROMAddressNum=6, else if 93c66, EEPROMAddressNum=8
 	RTMP_IO_READ32(pAd, E2PROM_CSR, &data);

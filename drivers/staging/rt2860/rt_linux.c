@@ -1065,26 +1065,6 @@ int RtmpOSFileWrite(RTMP_OS_FD osfd, char *pDataPtr, int writeLen)
 	return osfd->f_op->write(osfd, pDataPtr, (size_t)writeLen, &osfd->f_pos);
 }
 
-
-void RtmpOSFSInfoChange(RTMP_OS_FS_INFO *pOSFSInfo, BOOLEAN bSet)
-{
-	if (bSet)
-	{
-		// Save uid and gid used for filesystem access.
-		// Set user and group to 0 (root)
-		pOSFSInfo->fsuid = current_fsuid();
-		pOSFSInfo->fsgid = current_fsgid();
-		pOSFSInfo->fs = get_fs();
-		set_fs(KERNEL_DS);
-	}
-	else
-	{
-		set_fs(pOSFSInfo->fs);
-	}
-}
-
-
-
 /*******************************************************************************
 
 	Task create/management/kill related functions.

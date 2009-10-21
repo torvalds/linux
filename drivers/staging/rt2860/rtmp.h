@@ -2258,8 +2258,6 @@ struct _RTMP_ADAPTER
 #ifdef RT30xx
 #ifdef RTMP_EFUSE_SUPPORT
 	BOOLEAN		bUseEfuse;
-	BOOLEAN		bEEPROMFile;
-	BOOLEAN		bFroceEEPROMBuffer;
 	UCHAR		EEPROMImage[1024];
 #endif // RTMP_EFUSE_SUPPORT //
 #endif // RT30xx //
@@ -4021,10 +4019,6 @@ INT set_eFusedump_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PSTRING			arg);
 
-INT set_eFuseLoadFromBin_Proc(
-	IN PRTMP_ADAPTER    pAd,
-	IN	PSTRING			arg);
-
 VOID eFusePhysicalReadRegisters(
 	IN PRTMP_ADAPTER    pAd,
 	IN	USHORT Offset,
@@ -4033,16 +4027,6 @@ VOID eFusePhysicalReadRegisters(
 
 int RtmpEfuseSupportCheck(
 	IN RTMP_ADAPTER *pAd);
-
-INT set_eFuseBufferModeWriteBack_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT eFuseLoadEEPROM(
-	IN PRTMP_ADAPTER pAd);
-
-INT eFuseWriteEeeppromBuf(
-	IN PRTMP_ADAPTER pAd);
 
 VOID eFuseGetFreeBlockCount(IN PRTMP_ADAPTER pAd,
 	PUINT EfuseFreeBlock);
@@ -5631,11 +5615,6 @@ int RtmpOSFileWrite(
 	IN RTMP_OS_FD osfd,
 	IN char *pDataPtr,
 	IN int writeLen);
-
-void RtmpOSFSInfoChange(
-	IN RTMP_OS_FS_INFO *pOSFSInfo,
-	IN BOOLEAN bSet);
-
 
 #endif  // __RTMP_H__
 

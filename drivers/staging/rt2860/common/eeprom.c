@@ -69,10 +69,7 @@ INT RtmpChipOpsEepromHook(
 		return 0 ;
 	     }
 		else
-			{
-		pAd->bFroceEEPROMBuffer = FALSE;
 		DBGPRINT(RT_DEBUG_TRACE, ("NVM is EEPROM\n"));
-			}
 #endif // RTMP_EFUSE_SUPPORT //
 #endif // RT30xx //
 

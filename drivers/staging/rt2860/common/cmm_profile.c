@@ -1194,16 +1194,6 @@ NDIS_STATUS	RTMPSetProfileParameters(
 			retval = RT_CfgSetCountryRegion(pAd, tmpbuf, BAND_5G);
 			DBGPRINT(RT_DEBUG_TRACE, ("CountryRegionABand=%d\n", pAd->CommonCfg.CountryRegionForABand));
 		}
-#ifdef RTMP_EFUSE_SUPPORT
-#ifdef RT30xx
-		//EfuseBufferMode
-		if(RTMPGetKeyParameter("EfuseBufferMode", tmpbuf, 25, pBuffer, TRUE))
-		{
-			pAd->bEEPROMFile = (UCHAR) simple_strtol(tmpbuf, 0, 10);
-			DBGPRINT(RT_DEBUG_TRACE, ("EfuseBufferMode=%d\n", pAd->bUseEfuse));
-		}
-#endif // RT30xx //
-#endif // RTMP_EFUSE_SUPPORT //
 		//CountryCode
 		if(RTMPGetKeyParameter("CountryCode", tmpbuf, 25, pBuffer, TRUE))
 		{
