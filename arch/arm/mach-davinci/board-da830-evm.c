@@ -36,58 +36,6 @@
 #define DA830_EMIF25_ASYNC_DATA_CE3_BASE	0x62000000
 #define DA830_EMIF25_CONTROL_BASE		0x68000000
 
-static struct at24_platform_data da830_evm_i2c_eeprom_info = {
-	.byte_len	= SZ_256K / 8,
-	.page_size	= 64,
-	.flags		= AT24_FLAG_ADDR16,
-	.setup		= davinci_get_mac_addr,
-	.context	= (void *)0x7f00,
-};
-
-static int da830_evm_ui_expander_setup(struct i2c_client *client, int gpio,
-		unsigned ngpio, void *context)
-{
-	gpio_request(gpio + 6, "MUX_MODE");
-#ifdef CONFIG_DA830_UI_LCD
-	gpio_direction_output(gpio + 6, 0);
-#else /* Must be NAND or NOR */
-	gpio_direction_output(gpio + 6, 1);
-#endif
-	return 0;
-}
-
-static int da830_evm_ui_expander_teardown(struct i2c_client *client, int gpio,
-		unsigned ngpio, void *context)
-{
-	gpio_free(gpio + 6);
-	return 0;
-}
-
-static struct pcf857x_platform_data da830_evm_ui_expander_info = {
-	.gpio_base	= DAVINCI_N_GPIO,
-	.setup		= da830_evm_ui_expander_setup,
-	.teardown	= da830_evm_ui_expander_teardown,
-};
-
-static struct i2c_board_info __initdata da830_evm_i2c_devices[] = {
-	{
-		I2C_BOARD_INFO("24c256", 0x50),
-		.platform_data	= &da830_evm_i2c_eeprom_info,
-	},
-	{
-		I2C_BOARD_INFO("tlv320aic3x", 0x18),
-	},
-	{
-		I2C_BOARD_INFO("pcf8574", 0x3f),
-		.platform_data	= &da830_evm_ui_expander_info,
-	},
-};
-
-static struct davinci_i2c_platform_data da830_evm_i2c_0_pdata = {
-	.bus_freq	= 100,	/* kHz */
-	.bus_delay	= 0,	/* usec */
-};
-
 /*
  * USB1 VBUS is controlled by GPIO1[15], over-current is reported on GPIO2[4].
  */
@@ -425,7 +373,7 @@ static struct platform_device da830_evm_nand_device = {
 	.resource	= da830_evm_nand_resources,
 };
 
-static inline void da830_evm_init_nand(void)
+static inline void da830_evm_init_nand(int mux_mode)
 {
 	int ret;
 
@@ -437,13 +385,15 @@ static inline void da830_evm_init_nand(void)
 	ret = platform_device_register(&da830_evm_nand_device);
 	if (ret)
 		pr_warning("da830_evm_init: NAND device not registered.\n");
+
+	gpio_direction_output(mux_mode, 1);
 }
 #else
-static inline void da830_evm_init_nand(void) { }
+static inline void da830_evm_init_nand(int mux_mode) { }
 #endif
 
 #ifdef CONFIG_DA830_UI_LCD
-static inline void da830_evm_init_lcdc(void)
+static inline void da830_evm_init_lcdc(int mux_mode)
 {
 	int ret;
 
@@ -455,10 +405,64 @@ static inline void da830_evm_init_lcdc(void)
 	ret = da8xx_register_lcdc(&sharp_lcd035q3dg01_pdata);
 	if (ret)
 		pr_warning("da830_evm_init: lcd setup failed: %d\n", ret);
+
+	gpio_direction_output(mux_mode, 0);
 }
 #else
-static inline void da830_evm_init_lcdc(void) { }
+static inline void da830_evm_init_lcdc(int mux_mode) { }
 #endif
+
+static struct at24_platform_data da830_evm_i2c_eeprom_info = {
+	.byte_len	= SZ_256K / 8,
+	.page_size	= 64,
+	.flags		= AT24_FLAG_ADDR16,
+	.setup		= davinci_get_mac_addr,
+	.context	= (void *)0x7f00,
+};
+
+static int da830_evm_ui_expander_setup(struct i2c_client *client, int gpio,
+		unsigned ngpio, void *context)
+{
+	gpio_request(gpio + 6, "UI MUX_MODE");
+
+	da830_evm_init_lcdc(gpio + 6);
+
+	da830_evm_init_nand(gpio + 6);
+
+	return 0;
+}
+
+static int da830_evm_ui_expander_teardown(struct i2c_client *client, int gpio,
+		unsigned ngpio, void *context)
+{
+	gpio_free(gpio + 6);
+	return 0;
+}
+
+static struct pcf857x_platform_data da830_evm_ui_expander_info = {
+	.gpio_base	= DAVINCI_N_GPIO,
+	.setup		= da830_evm_ui_expander_setup,
+	.teardown	= da830_evm_ui_expander_teardown,
+};
+
+static struct i2c_board_info __initdata da830_evm_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("24c256", 0x50),
+		.platform_data	= &da830_evm_i2c_eeprom_info,
+	},
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+	},
+	{
+		I2C_BOARD_INFO("pcf8574", 0x3f),
+		.platform_data	= &da830_evm_ui_expander_info,
+	},
+};
+
+static struct davinci_i2c_platform_data da830_evm_i2c_0_pdata = {
+	.bus_freq	= 100,	/* kHz */
+	.bus_delay	= 0,	/* usec */
+};
 
 static __init void da830_evm_init(void)
 {
@@ -513,10 +517,6 @@ static __init void da830_evm_init(void)
 	da8xx_register_mcasp(1, &da830_evm_snd_data);
 
 	da830_evm_init_mmc();
-
-	da830_evm_init_lcdc();
-
-	da830_evm_init_nand();
 
 	ret = da8xx_register_rtc();
 	if (ret)

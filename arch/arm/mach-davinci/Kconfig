@@ -100,21 +100,18 @@ config MACH_DAVINCI_DA830_EVM
 	bool "TI DA830/OMAP-L137 Reference Platform"
 	default ARCH_DAVINCI_DA830
 	depends on ARCH_DAVINCI_DA830
+	select GPIO_PCF857X
 	help
 	  Say Y here to select the TI DA830/OMAP-L137 Evaluation Module.
 
-config DA830_UI
-	bool "DA830/OMAP-L137 UI (User Interface) board support"
-	depends on MACH_DAVINCI_DA830_EVM
-	help
-	  Say Y here if you have the DA830/OMAP-L137 UI
-	  (User Interface) board installed and you want to
-	  enable the peripherals located on User Interface
-	  board.
-
 choice
 	prompt "Select DA830/OMAP-L137 UI board peripheral"
-	depends on DA830_UI
+	depends on MACH_DAVINCI_DA830_EVM
+	help
+	  The presence of UI card on the DA830/OMAP-L137 EVM is detected
+	  automatically based on successful probe of the I2C based GPIO
+	  expander on that board. This option selected in this menu has
+	  an effect only in case of a successful UI card detection.
 
 config DA830_UI_LCD
 	bool "LCD"
