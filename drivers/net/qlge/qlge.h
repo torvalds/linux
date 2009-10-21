@@ -1400,6 +1400,153 @@ struct nic_stats {
 	u64 rx_nic_fifo_drop;
 };
 
+/* Address/Length pairs for the coredump. */
+enum {
+	MPI_CORE_REGS_ADDR = 0x00030000,
+	MPI_CORE_REGS_CNT = 127,
+	MPI_CORE_SH_REGS_CNT = 16,
+	TEST_REGS_ADDR = 0x00001000,
+	TEST_REGS_CNT = 23,
+	RMII_REGS_ADDR = 0x00001040,
+	RMII_REGS_CNT = 64,
+	FCMAC1_REGS_ADDR = 0x00001080,
+	FCMAC2_REGS_ADDR = 0x000010c0,
+	FCMAC_REGS_CNT = 64,
+	FC1_MBX_REGS_ADDR = 0x00001100,
+	FC2_MBX_REGS_ADDR = 0x00001240,
+	FC_MBX_REGS_CNT = 64,
+	IDE_REGS_ADDR = 0x00001140,
+	IDE_REGS_CNT = 64,
+	NIC1_MBX_REGS_ADDR = 0x00001180,
+	NIC2_MBX_REGS_ADDR = 0x00001280,
+	NIC_MBX_REGS_CNT = 64,
+	SMBUS_REGS_ADDR = 0x00001200,
+	SMBUS_REGS_CNT = 64,
+	I2C_REGS_ADDR = 0x00001fc0,
+	I2C_REGS_CNT = 64,
+	MEMC_REGS_ADDR = 0x00003000,
+	MEMC_REGS_CNT = 256,
+	PBUS_REGS_ADDR = 0x00007c00,
+	PBUS_REGS_CNT = 256,
+	MDE_REGS_ADDR = 0x00010000,
+	MDE_REGS_CNT = 6,
+	CODE_RAM_ADDR = 0x00020000,
+	CODE_RAM_CNT = 0x2000,
+	MEMC_RAM_ADDR = 0x00100000,
+	MEMC_RAM_CNT = 0x2000,
+};
+
+#define MPI_COREDUMP_COOKIE 0x5555aaaa
+struct mpi_coredump_global_header {
+	u32	cookie;
+	u8	idString[16];
+	u32	timeLo;
+	u32	timeHi;
+	u32	imageSize;
+	u32	headerSize;
+	u8	info[220];
+};
+
+struct mpi_coredump_segment_header {
+	u32	cookie;
+	u32	segNum;
+	u32	segSize;
+	u32	extra;
+	u8	description[16];
+};
+
+/* Reg dump segment numbers. */
+enum {
+	CORE_SEG_NUM = 1,
+	TEST_LOGIC_SEG_NUM = 2,
+	RMII_SEG_NUM = 3,
+	FCMAC1_SEG_NUM = 4,
+	FCMAC2_SEG_NUM = 5,
+	FC1_MBOX_SEG_NUM = 6,
+	IDE_SEG_NUM = 7,
+	NIC1_MBOX_SEG_NUM = 8,
+	SMBUS_SEG_NUM = 9,
+	FC2_MBOX_SEG_NUM = 10,
+	NIC2_MBOX_SEG_NUM = 11,
+	I2C_SEG_NUM = 12,
+	MEMC_SEG_NUM = 13,
+	PBUS_SEG_NUM = 14,
+	MDE_SEG_NUM = 15,
+	NIC1_CONTROL_SEG_NUM = 16,
+	NIC2_CONTROL_SEG_NUM = 17,
+	NIC1_XGMAC_SEG_NUM = 18,
+	NIC2_XGMAC_SEG_NUM = 19,
+	WCS_RAM_SEG_NUM = 20,
+	MEMC_RAM_SEG_NUM = 21,
+	XAUI_AN_SEG_NUM = 22,
+	XAUI_HSS_PCS_SEG_NUM = 23,
+	XFI_AN_SEG_NUM = 24,
+	XFI_TRAIN_SEG_NUM = 25,
+	XFI_HSS_PCS_SEG_NUM = 26,
+	XFI_HSS_TX_SEG_NUM = 27,
+	XFI_HSS_RX_SEG_NUM = 28,
+	XFI_HSS_PLL_SEG_NUM = 29,
+	MISC_NIC_INFO_SEG_NUM = 30,
+	INTR_STATES_SEG_NUM = 31,
+	CAM_ENTRIES_SEG_NUM = 32,
+	ROUTING_WORDS_SEG_NUM = 33,
+	ETS_SEG_NUM = 34,
+	PROBE_DUMP_SEG_NUM = 35,
+	ROUTING_INDEX_SEG_NUM = 36,
+	MAC_PROTOCOL_SEG_NUM = 37,
+	XAUI2_AN_SEG_NUM = 38,
+	XAUI2_HSS_PCS_SEG_NUM = 39,
+	XFI2_AN_SEG_NUM = 40,
+	XFI2_TRAIN_SEG_NUM = 41,
+	XFI2_HSS_PCS_SEG_NUM = 42,
+	XFI2_HSS_TX_SEG_NUM = 43,
+	XFI2_HSS_RX_SEG_NUM = 44,
+	XFI2_HSS_PLL_SEG_NUM = 45,
+	SEM_REGS_SEG_NUM = 50
+
+};
+
+struct ql_nic_misc {
+	u32 rx_ring_count;
+	u32 tx_ring_count;
+	u32 intr_count;
+	u32 function;
+};
+
+struct ql_reg_dump {
+
+	/* segment 0 */
+	struct mpi_coredump_global_header mpi_global_header;
+
+	/* segment 16 */
+	struct mpi_coredump_segment_header nic_regs_seg_hdr;
+	u32 nic_regs[64];
+
+	/* segment 30 */
+	struct mpi_coredump_segment_header misc_nic_seg_hdr;
+	struct ql_nic_misc misc_nic_info;
+
+	/* segment 31 */
+	/* one interrupt state for each CQ */
+	struct mpi_coredump_segment_header intr_states_seg_hdr;
+	u32 intr_states[MAX_CPUS];
+
+	/* segment 32 */
+	/* 3 cam words each for 16 unicast,
+	 * 2 cam words for each of 32 multicast.
+	 */
+	struct mpi_coredump_segment_header cam_entries_seg_hdr;
+	u32 cam_entries[(16 * 3) + (32 * 3)];
+
+	/* segment 33 */
+	struct mpi_coredump_segment_header nic_routing_words_seg_hdr;
+	u32 nic_routing_words[16];
+
+	/* segment 34 */
+	struct mpi_coredump_segment_header ets_seg_hdr;
+	u32 ets[8+2];
+};
+
 /*
  * intr_context structure is used during initialization
  * to hook the interrupts.  It is also used in a single
@@ -1658,6 +1805,8 @@ int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control);
 int ql_mb_get_port_cfg(struct ql_adapter *qdev);
 int ql_mb_set_port_cfg(struct ql_adapter *qdev);
 int ql_wait_fifo_empty(struct ql_adapter *qdev);
+void ql_gen_reg_dump(struct ql_adapter *qdev,
+			struct ql_reg_dump *mpi_coredump);
 
 #if 1
 #define QL_ALL_DUMP

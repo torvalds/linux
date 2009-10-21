@@ -428,6 +428,20 @@ static int ql_phys_id(struct net_device *ndev, u32 data)
 
 	return 0;
 }
+
+static int ql_get_regs_len(struct net_device *ndev)
+{
+	return sizeof(struct ql_reg_dump);
+}
+
+static void ql_get_regs(struct net_device *ndev,
+			struct ethtool_regs *regs, void *p)
+{
+	struct ql_adapter *qdev = netdev_priv(ndev);
+
+	ql_gen_reg_dump(qdev, p);
+}
+
 static int ql_get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
 	struct ql_adapter *qdev = netdev_priv(dev);
@@ -555,6 +569,8 @@ const struct ethtool_ops qlge_ethtool_ops = {
 	.get_drvinfo = ql_get_drvinfo,
 	.get_wol = ql_get_wol,
 	.set_wol = ql_set_wol,
+	.get_regs_len	= ql_get_regs_len,
+	.get_regs = ql_get_regs,
 	.get_msglevel = ql_get_msglevel,
 	.set_msglevel = ql_set_msglevel,
 	.get_link = ethtool_op_get_link,
