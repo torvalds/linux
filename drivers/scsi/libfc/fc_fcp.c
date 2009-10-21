@@ -1849,7 +1849,8 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 			 * scsi status is good but transport level
 			 * underrun.
 			 */
-			sc_cmd->result = DID_OK << 16;
+			sc_cmd->result = (fsp->state & FC_SRB_RCV_STATUS ?
+					  DID_OK : DID_ERROR) << 16;
 		} else {
 			/*
 			 * scsi got underrun, this is an error
