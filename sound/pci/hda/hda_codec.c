@@ -30,6 +30,7 @@
 #include <sound/tlv.h>
 #include <sound/initval.h>
 #include "hda_local.h"
+#include "hda_beep.h"
 #include <sound/hda_hwdep.h>
 
 /*
@@ -1733,6 +1734,17 @@ int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_put);
+
+int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+
+	snd_hda_enable_beep_device(codec, *valp);
+	return snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
+}
+EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_put_beep);
 
 /*
  * bound volume controls

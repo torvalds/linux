@@ -2648,6 +2648,7 @@ static int stac92xx_clfe_switch_put(struct snd_kcontrol *kcontrol,
 enum {
 	STAC_CTL_WIDGET_VOL,
 	STAC_CTL_WIDGET_MUTE,
+	STAC_CTL_WIDGET_MUTE_BEEP,
 	STAC_CTL_WIDGET_MONO_MUX,
 	STAC_CTL_WIDGET_HP_SWITCH,
 	STAC_CTL_WIDGET_IO_SWITCH,
@@ -2658,6 +2659,7 @@ enum {
 static struct snd_kcontrol_new stac92xx_control_templates[] = {
 	HDA_CODEC_VOLUME(NULL, 0, 0, 0),
 	HDA_CODEC_MUTE(NULL, 0, 0, 0),
+	HDA_CODEC_MUTE_BEEP(NULL, 0, 0, 0),
 	STAC_MONO_MUX,
 	STAC_CODEC_HP_SWITCH(NULL),
 	STAC_CODEC_IO_SWITCH(NULL, 0),
@@ -3221,11 +3223,14 @@ static int stac92xx_auto_create_beep_ctls(struct hda_codec *codec,
 {
 	struct sigmatel_spec *spec = codec->spec;
 	u32 caps = query_amp_caps(codec, nid, HDA_OUTPUT);
-	int err;
+	int err, type = STAC_CTL_WIDGET_MUTE_BEEP;
+
+	if (spec->anabeep_nid == nid)
+		type = STAC_CTL_WIDGET_MUTE;
 
 	/* check for mute support for the the amp */
 	if ((caps & AC_AMPCAP_MUTE) >> AC_AMPCAP_MUTE_SHIFT) {
-		err = stac92xx_add_control(spec, STAC_CTL_WIDGET_MUTE,
+		err = stac92xx_add_control(spec, type,
 			"Beep Playback Switch",
 			HDA_COMPOSE_AMP_VAL(nid, 1, 0, HDA_OUTPUT));
 			if (err < 0)
@@ -3258,12 +3263,7 @@ static int stac92xx_dig_beep_switch_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	int enabled = !!ucontrol->value.integer.value[0];
-	if (codec->beep->enabled != enabled) {
-		codec->beep->enabled = enabled;
-		return 1;
-	}
-	return 0;
+	return snd_hda_enable_beep_device(codec, ucontrol->value.integer.value[0]);
 }
 
 static struct snd_kcontrol_new stac92xx_dig_beep_ctrl = {

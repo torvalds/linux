@@ -159,7 +159,7 @@ static void ad198x_free_kctls(struct hda_codec *codec);
 /* additional beep mixers; the actual parameters are overwritten at build */
 static struct snd_kcontrol_new ad_beep_mixer[] = {
 	HDA_CODEC_VOLUME("Beep Playback Volume", 0, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Beep Playback Switch", 0, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_BEEP("Beep Playback Switch", 0, 0, HDA_OUTPUT),
 	{ } /* end */
 };
 

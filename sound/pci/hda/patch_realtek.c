@@ -2413,7 +2413,7 @@ static void alc_free_kctls(struct hda_codec *codec);
 /* additional beep mixers; the actual parameters are overwritten at build */
 static struct snd_kcontrol_new alc_beep_mixer[] = {
 	HDA_CODEC_VOLUME("Beep Playback Volume", 0, 0, HDA_INPUT),
-	HDA_CODEC_MUTE("Beep Playback Switch", 0, 0, HDA_INPUT),
+	HDA_CODEC_MUTE_BEEP("Beep Playback Switch", 0, 0, HDA_INPUT),
 	{ } /* end */
 };
 
