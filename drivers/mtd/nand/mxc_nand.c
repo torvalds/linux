@@ -698,7 +698,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	mtd->priv = this;
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
-	mtd->name = "mxc_nand";
+	mtd->name = DRIVER_NAME;
 
 	/* 50 us command delay time */
 	this->chip_delay = 5;
@@ -762,7 +762,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 
 	host->irq = platform_get_irq(pdev, 0);
 
-	err = request_irq(host->irq, mxc_nfc_irq, 0, "mxc_nd", host);
+	err = request_irq(host->irq, mxc_nfc_irq, 0, DRIVER_NAME, host);
 	if (err)
 		goto eirq;
 
