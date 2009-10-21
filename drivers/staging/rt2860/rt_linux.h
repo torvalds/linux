@@ -75,16 +75,6 @@
 #include <linux/kthread.h>
 #endif // KTHREAD_SUPPORT //
 
-#undef AP_WSC_INCLUDED
-#undef STA_WSC_INCLUDED
-#undef WSC_INCLUDED
-
-
-
-
-#ifdef KTHREAD_SUPPORT
-#endif // KTHREAD_SUPPORT //
-
 /***********************************************************************************
  *	Profile related sections
  ***********************************************************************************/

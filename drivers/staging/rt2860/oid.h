@@ -502,19 +502,6 @@ typedef struct _NDIS_802_11_AUTHENTICATION_EVENT
     NDIS_802_11_AUTHENTICATION_REQUEST  Request[1];
 } NDIS_802_11_AUTHENTICATION_EVENT, *PNDIS_802_11_AUTHENTICATION_EVENT;
 
-/*
-typedef struct _NDIS_802_11_TEST
-{
-    ULONG Length;
-    ULONG Type;
-    union
-    {
-        NDIS_802_11_AUTHENTICATION_EVENT AuthenticationEvent;
-        NDIS_802_11_RSSI RssiTrigger;
-    };
-} NDIS_802_11_TEST, *PNDIS_802_11_TEST;
- */
-
 // 802.11 Media stream constraints, associated with OID_802_11_MEDIA_STREAM_MODE
 typedef enum _NDIS_802_11_MEDIA_STREAM_MODE
 {
@@ -553,10 +540,6 @@ typedef struct _NDIS_802_11_CAPABILITY
      NDIS_802_11_AUTHENTICATION_ENCRYPTION AuthenticationEncryptionSupported[1];
 } NDIS_802_11_CAPABILITY, *PNDIS_802_11_CAPABILITY;
 
-#ifdef LINUX
-#endif // LINUX //
-
-
 #define RT_PRIV_IOCTL							(SIOCIWFIRSTPRIV + 0x01) // Sync. with AP for wsc upnp daemon
 #define RTPRIV_IOCTL_SET							(SIOCIWFIRSTPRIV + 0x02)
 
@@ -592,8 +575,6 @@ enum {
 #define OID_802_11_GET_CH_LIST					0x0715
 #define OID_802_11_GET_COUNTRY_CODE				0x0716
 #define OID_802_11_GET_CHANNEL_GEOGRAPHY		0x0717
-
-//#define RT_OID_802_11_STATISTICS              (OID_GET_SET_TOGGLE | OID_802_11_STATISTICS)
 
 #define RT_OID_WSC_SET_PASSPHRASE                   0x0740 // passphrase for wpa(2)-psk
 #define RT_OID_WSC_DRIVER_AUTO_CONNECT              0x0741

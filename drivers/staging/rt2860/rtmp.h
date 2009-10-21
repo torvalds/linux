@@ -41,21 +41,8 @@
 #define __RTMP_H__
 
 #include "spectrum_def.h"
-
 #include "rtmp_dot11.h"
-
-#undef AP_WSC_INCLUDED
-#undef STA_WSC_INCLUDED
-#undef WSC_INCLUDED
-
-
-
-#if defined(AP_WSC_INCLUDED) || defined(STA_WSC_INCLUDED)
-#define WSC_INCLUDED
-#endif
-
 #include "rtmp_chip.h"
-
 
 
 typedef struct _RTMP_ADAPTER		RTMP_ADAPTER;

@@ -41,15 +41,6 @@
 
 #include "oid.h"
 
-#undef AP_WSC_INCLUDED
-#undef STA_WSC_INCLUDED
-#undef WSC_INCLUDED
-
-
-
-#if defined(AP_WSC_INCLUDED) || defined(STA_WSC_INCLUDED)
-#define WSC_INCLUDED
-#endif
 //
 //  Debug information verbosity: lower values indicate higher urgency
 //
