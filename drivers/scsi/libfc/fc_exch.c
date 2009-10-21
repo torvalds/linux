@@ -2046,6 +2046,20 @@ int fc_exch_init(struct fc_lport *lp)
 	if (!lp->tt.seq_exch_abort)
 		lp->tt.seq_exch_abort = fc_seq_exch_abort;
 
+	return 0;
+}
+EXPORT_SYMBOL(fc_exch_init);
+
+/**
+ * fc_setup_exch_mgr() - Setup an exchange manager
+ */
+int fc_setup_exch_mgr()
+{
+	fc_em_cachep = kmem_cache_create("libfc_em", sizeof(struct fc_exch),
+					 0, SLAB_HWCACHE_ALIGN, NULL);
+	if (!fc_em_cachep)
+		return -ENOMEM;
+
 	/*
 	 * Initialize fc_cpu_mask and fc_cpu_order. The
 	 * fc_cpu_mask is set for nr_cpu_ids rounded up
@@ -2068,16 +2082,6 @@ int fc_exch_init(struct fc_lport *lp)
 	}
 	fc_cpu_mask--;
 
-	return 0;
-}
-EXPORT_SYMBOL(fc_exch_init);
-
-int fc_setup_exch_mgr(void)
-{
-	fc_em_cachep = kmem_cache_create("libfc_em", sizeof(struct fc_exch),
-					 0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!fc_em_cachep)
-		return -ENOMEM;
 	return 0;
 }
 
