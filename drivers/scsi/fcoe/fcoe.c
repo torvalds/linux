@@ -161,8 +161,17 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	struct fcoe_ctlr *fip = &fcoe->ctlr;
 	struct netdev_hw_addr *ha;
 	u8 flogi_maddr[ETH_ALEN];
+	const struct net_device_ops *ops;
 
 	fcoe->netdev = netdev;
+
+	/* Let LLD initialize for FCoE */
+	ops = netdev->netdev_ops;
+	if (ops->ndo_fcoe_enable) {
+		if (ops->ndo_fcoe_enable(netdev))
+			FCOE_NETDEV_DBG(netdev, "Failed to enable FCoE"
+					" specific feature for LLD.\n");
+	}
 
 	/* Do not support for bonding device */
 	if ((netdev->priv_flags & IFF_MASTER_ALB) ||
@@ -262,6 +271,7 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	struct net_device *netdev = fcoe->netdev;
 	struct fcoe_ctlr *fip = &fcoe->ctlr;
 	u8 flogi_maddr[ETH_ALEN];
+	const struct net_device_ops *ops;
 
 	/*
 	 * Don't listen for Ethernet packets anymore.
@@ -281,6 +291,14 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	if (fip->spma)
 		dev_unicast_delete(netdev, fip->ctl_src_addr);
 	dev_mc_delete(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
+
+	/* Tell the LLD we are done w/ FCoE */
+	ops = netdev->netdev_ops;
+	if (ops->ndo_fcoe_disable) {
+		if (ops->ndo_fcoe_disable(netdev))
+			FCOE_NETDEV_DBG(netdev, "Failed to disable FCoE"
+					" specific feature for LLD.\n");
+	}
 }
 
 /**
