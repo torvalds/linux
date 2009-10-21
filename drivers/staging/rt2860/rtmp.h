@@ -4237,16 +4237,8 @@ INT RT_CfgSetWPAPSKKey(
 //
 // Prototypes of function definition in cmm_info.c
 //
-NDIS_STATUS RTMPWPARemoveKeyProc(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  PVOID           pBuf);
-
 VOID    RTMPWPARemoveAllKeys(
 	IN  PRTMP_ADAPTER   pAd);
-
-BOOLEAN RTMPCheckStrPrintAble(
-    IN  CHAR *pInPutStr,
-    IN  UCHAR strLen);
 
 VOID    RTMPSetPhyMode(
 	IN  PRTMP_ADAPTER   pAd,
@@ -4683,182 +4675,8 @@ int rtinet_aton(
 	unsigned int *addr);
 
 ////////// common ioctl functions //////////
-INT Set_DriverVersion_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT Set_CountryRegion_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT Set_CountryRegionABand_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT Set_WirelessMode_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT Set_Channel_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_ShortSlot_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_TxPower_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT Set_BGProtection_Proc(
-	IN  PRTMP_ADAPTER		pAd,
-	IN  PSTRING			arg);
-
-INT Set_TxPreamble_Proc(
-	IN  PRTMP_ADAPTER		pAd,
-	IN  PSTRING			arg);
-
-INT Set_RTSThreshold_Proc(
-	IN  PRTMP_ADAPTER		pAd,
-	IN  PSTRING			arg);
-
-INT Set_FragThreshold_Proc(
-	IN  PRTMP_ADAPTER		pAd,
-	IN  PSTRING			arg);
-
-INT Set_TxBurst_Proc(
-	IN  PRTMP_ADAPTER		pAd,
-	IN  PSTRING			arg);
-
-#ifdef AGGREGATION_SUPPORT
-INT	Set_PktAggregate_Proc(
-	IN  PRTMP_ADAPTER		pAd,
-	IN  PSTRING			arg);
-#endif // AGGREGATION_SUPPORT //
-
-INT	Set_IEEE80211H_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-#ifdef DBG
-INT	Set_Debug_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-#endif
-
-INT	Show_DescInfo_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_ResetStatCounter_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_BASetup_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_BADecline_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_BAOriTearDown_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_BARecTearDown_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtBw_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtMcs_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtGi_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtOpMode_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtStbc_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtHtc_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtExtcha_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtMpduDensity_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtBaWinSize_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtRdg_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtLinkAdapt_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtAmsdu_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtAutoBa_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtProtect_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtMimoPs_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-
-INT	Set_ForceShortGI_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_ForceGF_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
 INT	SetCommonHT(
 	IN	PRTMP_ADAPTER	pAd);
-
-INT	Set_SendPSMPAction_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtMIMOPSmode_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-
-INT	Set_HtTxBASize_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-INT	Set_HtDisallowTKIP_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
 
 INT	    WpaCheckEapCode(
 	IN  PRTMP_ADAPTER   	pAd,
@@ -5101,15 +4919,6 @@ VOID    RTMPSetDesiredRates(
 
 INT	Set_FixedTxMode_Proc(
 	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			arg);
-
-
-INT Set_LongRetryLimit_Proc(
-	IN	PRTMP_ADAPTER	pAdapter,
-	IN	PSTRING			arg);
-
-INT Set_ShortRetryLimit_Proc(
-	IN	PRTMP_ADAPTER	pAdapter,
 	IN	PSTRING			arg);
 
 BOOLEAN RT28XXChipsetCheck(
@@ -5660,19 +5469,6 @@ void RtmpTimerQExit(
 void RtmpTimerQInit(
 	IN RTMP_ADAPTER *pAd);
 #endif // RTMP_TIMER_TASK_SUPPORT //
-
-///////////////////////////////////////
-INT RTMPShowCfgValue(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PSTRING			pName,
-	IN	PSTRING			pBuf);
-
-PSTRING RTMPGetRalinkAuthModeStr(
-    IN  NDIS_802_11_AUTHENTICATION_MODE authMode);
-
-PSTRING RTMPGetRalinkEncryModeStr(
-    IN  USHORT encryMode);
-//////////////////////////////////////
 
 VOID AsicStaBbpTuning(
 	IN PRTMP_ADAPTER pAd);
