@@ -4052,18 +4052,6 @@ VOID eFuseGetFreeBlockCount(IN PRTMP_ADAPTER pAd,
 
 INT eFuse_init(
 	IN PRTMP_ADAPTER pAd);
-
-NTSTATUS eFuseRead(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	USHORT			Offset,
-	OUT	PUCHAR			pData,
-	IN	USHORT			Length);
-
-NTSTATUS eFuseWrite(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	USHORT			Offset,
-	IN	PUCHAR			pData,
-	IN	USHORT			length);
 //2008/09/11:KH add to support efuse-->
 #endif // RTMP_EFUSE_SUPPORT //
 
