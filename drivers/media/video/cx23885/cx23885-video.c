@@ -402,6 +402,13 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 		INPUT(input)->gpio2, INPUT(input)->gpio3);
 	dev->input = input;
 
+	if (dev->board == CX23885_BOARD_MYGICA_X8506 ||
+		dev->board == CX23885_BOARD_MAGICPRO_PROHDTVE2) {
+		/* Select Analog TV */
+		if (INPUT(input)->type == CX23885_VMUX_TELEVISION)
+			cx23885_gpio_clear(dev, GPIO_0);
+	}
+
 	/* Tell the internal A/V decoder */
 	v4l2_subdev_call(dev->sd_cx25840, video, s_routing,
 			INPUT(input)->vmux, 0, 0);
@@ -1508,6 +1515,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 			tun_setup.mode_mask = T_ANALOG_TV;
 			tun_setup.type = dev->tuner_type;
 			tun_setup.addr = v4l2_i2c_subdev_addr(sd);
+			tun_setup.tuner_callback = cx23885_tuner_callback;
 
 			v4l2_subdev_call(sd, tuner, s_type_addr, &tun_setup);
 		}

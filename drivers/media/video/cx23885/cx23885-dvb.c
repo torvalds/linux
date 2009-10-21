@@ -486,6 +486,11 @@ static int cx23885_dvb_set_frontend(struct dvb_frontend *fe,
 			break;
 		}
 		break;
+	case CX23885_BOARD_MYGICA_X8506:
+	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
+		/* Select Digital TV */
+		cx23885_gpio_set(dev, GPIO_0);
+		break;
 	}
 	return 0;
 }

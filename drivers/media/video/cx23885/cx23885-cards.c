@@ -200,10 +200,15 @@ struct cx23885_board cx23885_boards[] = {
 	},
 	[CX23885_BOARD_MYGICA_X8506] = {
 		.name		= "Mygica X8506 DMB-TH",
-		.tuner_type = TUNER_ABSENT,
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
 		.porta		= CX23885_ANALOG_VIDEO,
 		.portb		= CX23885_MPEG_DVB,
 		.input		= {
+			{
+				.type   = CX23885_VMUX_TELEVISION,
+				.vmux   = CX25840_COMPOSITE2,
+			},
 			{
 				.type   = CX23885_VMUX_COMPOSITE1,
 				.vmux   = CX25840_COMPOSITE8,
@@ -224,10 +229,15 @@ struct cx23885_board cx23885_boards[] = {
 	},
 	[CX23885_BOARD_MAGICPRO_PROHDTVE2] = {
 		.name		= "Magic-Pro ProHDTV Extreme 2",
-		.tuner_type = TUNER_ABSENT,
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
 		.porta		= CX23885_ANALOG_VIDEO,
 		.portb		= CX23885_MPEG_DVB,
 		.input		= {
+			{
+				.type   = CX23885_VMUX_TELEVISION,
+				.vmux   = CX25840_COMPOSITE2,
+			},
 			{
 				.type   = CX23885_VMUX_COMPOSITE1,
 				.vmux   = CX25840_COMPOSITE8,
