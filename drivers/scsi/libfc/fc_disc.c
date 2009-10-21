@@ -371,7 +371,7 @@ static void fc_disc_gpn_ft_req(struct fc_disc *disc)
 				 disc, lport->e_d_tov))
 		return;
 err:
-	fc_disc_error(disc, fp);
+	fc_disc_error(disc, NULL);
 }
 
 /**

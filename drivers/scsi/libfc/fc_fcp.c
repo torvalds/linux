@@ -1051,7 +1051,6 @@ static int fc_fcp_cmd_send(struct fc_lport *lp, struct fc_fcp_pkt *fsp,
 
 	seq = lp->tt.exch_seq_send(lp, fp, resp, fc_fcp_pkt_destroy, fsp, 0);
 	if (!seq) {
-		fc_frame_free(fp);
 		rc = -1;
 		goto unlock;
 	}
@@ -1316,7 +1315,6 @@ static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
 		fc_fcp_pkt_hold(fsp);		/* hold while REC outstanding */
 		return;
 	}
-	fc_frame_free(fp);
 retry:
 	if (fsp->recov_retry++ < FC_MAX_RECOV_RETRY)
 		fc_fcp_timer_set(fsp, FC_SCSI_REC_TOV);
@@ -1564,10 +1562,9 @@ static void fc_fcp_srr(struct fc_fcp_pkt *fsp, enum fc_rctl r_ctl, u32 offset)
 
 	seq = lp->tt.exch_seq_send(lp, fp, fc_fcp_srr_resp, NULL,
 				   fsp, jiffies_to_msecs(FC_SCSI_REC_TOV));
-	if (!seq) {
-		fc_frame_free(fp);
+	if (!seq)
 		goto retry;
-	}
+
 	fsp->recov_seq = seq;
 	fsp->xfer_len = offset;
 	fsp->xfer_contig_end = offset;
