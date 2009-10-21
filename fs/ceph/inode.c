@@ -568,8 +568,6 @@ static int fill_inode(struct inode *inode,
 	queue_trunc = ceph_fill_file_size(inode, issued,
 					  le32_to_cpu(info->truncate_seq),
 					  le64_to_cpu(info->truncate_size),
-					  S_ISDIR(inode->i_mode) ?
-					  ci->i_rbytes :
 					  le64_to_cpu(info->size));
 	ceph_fill_file_time(inode, issued,
 			    le32_to_cpu(info->time_warp_seq),
@@ -1603,6 +1601,7 @@ int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		 struct kstat *stat)
 {
 	struct inode *inode = dentry->d_inode;
+	struct ceph_inode_info *ci = ceph_inode(inode);
 	int err;
 
 	err = ceph_do_getattr(inode, CEPH_STAT_CAP_INODE_ALL);
@@ -1613,8 +1612,11 @@ int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 			stat->dev = ceph_snap(inode);
 		else
 			stat->dev = 0;
-		if (S_ISDIR(inode->i_mode))
+		if (S_ISDIR(inode->i_mode)) {
+			stat->size = ci->i_rbytes;
+			stat->blocks = 0;
 			stat->blksize = 65536;
+		}
 	}
 	return err;
 }
