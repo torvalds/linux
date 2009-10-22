@@ -410,6 +410,14 @@ static struct regulator_init_data sdp3430_vpll2 = {
 	.consumer_supplies	= &sdp3430_vdvi_supply,
 };
 
+static struct twl4030_codec_audio_data sdp3430_audio = {
+	.audio_mclk = 26000000,
+};
+
+static struct twl4030_codec_data sdp3430_codec = {
+	.audio = &sdp3430_audio,
+};
+
 static struct twl4030_platform_data sdp3430_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -420,6 +428,7 @@ static struct twl4030_platform_data sdp3430_twldata = {
 	.madc		= &sdp3430_madc_data,
 	.keypad		= &sdp3430_kp_data,
 	.usb		= &sdp3430_usb_data,
+	.codec		= &sdp3430_codec,
 
 	.vaux1		= &sdp3430_vaux1,
 	.vaux2		= &sdp3430_vaux2,

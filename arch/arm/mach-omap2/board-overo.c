@@ -329,6 +329,14 @@ static struct regulator_init_data overo_vmmc1 = {
 	.consumer_supplies	= &overo_vmmc1_supply,
 };
 
+static struct twl4030_codec_audio_data overo_audio_data = {
+	.audio_mclk = 26000000,
+};
+
+static struct twl4030_codec_data overo_codec_data = {
+	.audio = &overo_audio_data,
+};
+
 /* mmc2 (WLAN) and Bluetooth don't use twl4030 regulators */
 
 static struct twl4030_platform_data overo_twldata = {
@@ -336,6 +344,7 @@ static struct twl4030_platform_data overo_twldata = {
 	.irq_end	= TWL4030_IRQ_END,
 	.gpio		= &overo_gpio_data,
 	.usb		= &overo_usb_data,
+	.codec		= &overo_codec_data,
 	.vmmc1		= &overo_vmmc1,
 };
 
