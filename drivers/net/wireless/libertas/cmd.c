@@ -1542,30 +1542,6 @@ done:
 	return ret;
 }
 
-void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str)
-{
-	union iwreq_data iwrq;
-	u8 buf[50];
-
-	lbs_deb_enter(LBS_DEB_WEXT);
-
-	memset(&iwrq, 0, sizeof(union iwreq_data));
-	memset(buf, 0, sizeof(buf));
-
-	snprintf(buf, sizeof(buf) - 1, "%s", str);
-
-	iwrq.data.length = strlen(buf) + 1 + IW_EV_LCP_LEN;
-
-	/* Send Event to upper layer */
-	lbs_deb_wext("event indication string %s\n", (char *)buf);
-	lbs_deb_wext("event indication length %d\n", iwrq.data.length);
-	lbs_deb_wext("sending wireless event IWEVCUSTOM for %s\n", str);
-
-	wireless_send_event(priv->dev, IWEVCUSTOM, &iwrq, buf);
-
-	lbs_deb_leave(LBS_DEB_WEXT);
-}
-
 static void lbs_send_confirmsleep(struct lbs_private *priv)
 {
 	unsigned long flags;

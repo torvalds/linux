@@ -44,8 +44,6 @@ struct chan_freq_power *lbs_find_cfp_by_band_and_channel(
 	u8 band,
 	u16 channel);
 
-void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str);
-
 /* persistcfg.c */
 void lbs_persist_config_init(struct net_device *net);
 void lbs_persist_config_remove(struct net_device *net);
