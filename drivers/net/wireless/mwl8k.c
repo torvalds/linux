@@ -1538,9 +1538,9 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 }
 
 /*
- * GET_HW_SPEC.
+ * CMD_GET_HW_SPEC (STA version).
  */
-struct mwl8k_cmd_get_hw_spec {
+struct mwl8k_cmd_get_hw_spec_sta {
 	struct mwl8k_cmd_pkt header;
 	__u8 hw_rev;
 	__u8 host_interface;
@@ -1559,10 +1559,10 @@ struct mwl8k_cmd_get_hw_spec {
 	__le32 total_rxd;
 } __attribute__((packed));
 
-static int mwl8k_cmd_get_hw_spec(struct ieee80211_hw *hw)
+static int mwl8k_cmd_get_hw_spec_sta(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
-	struct mwl8k_cmd_get_hw_spec *cmd;
+	struct mwl8k_cmd_get_hw_spec_sta *cmd;
 	int rc;
 	int i;
 
@@ -3211,7 +3211,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	iowrite32(MWL8K_A2H_EVENTS, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
 
 	/* Get config data, mac addrs etc */
-	rc = mwl8k_cmd_get_hw_spec(hw);
+	rc = mwl8k_cmd_get_hw_spec_sta(hw);
 	if (rc) {
 		printk(KERN_ERR "%s: Cannot initialise firmware\n",
 		       wiphy_name(hw->wiphy));
