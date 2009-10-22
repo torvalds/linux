@@ -170,7 +170,8 @@ static int choose_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
 {
 	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
 	uint8_t chip_id = info->chip->chip_id;
-	int val, ret;
+	int val = -ENOENT;
+	int ret;
 
 	switch (info->desc.id) {
 	case PM8607_ID_BUCK1:
