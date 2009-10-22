@@ -976,12 +976,12 @@ void dump_bfin_process(struct pt_regs *fp)
 	    !((unsigned long)current & 0x3) && current->pid) {
 		verbose_printk(KERN_NOTICE "CURRENT PROCESS:\n");
 		if (current->comm >= (char *)FIXED_CODE_START)
-			verbose_printk(KERN_NOTICE "COMM=%s PID=%d\n",
+			verbose_printk(KERN_NOTICE "COMM=%s PID=%d",
 				current->comm, current->pid);
 		else
-			verbose_printk(KERN_NOTICE "COMM= invalid\n");
+			verbose_printk(KERN_NOTICE "COMM= invalid");
 
-		printk(KERN_NOTICE "CPU = %d\n", current_thread_info()->cpu);
+		printk(KERN_CONT " CPU=%d\n", current_thread_info()->cpu);
 		if (!((unsigned long)current->mm & 0x3) && (unsigned long)current->mm >= FIXED_CODE_START)
 			verbose_printk(KERN_NOTICE
 				"TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
