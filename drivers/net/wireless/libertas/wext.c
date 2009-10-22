@@ -54,7 +54,7 @@ void lbs_send_disconnect_notification(struct lbs_private *priv)
 	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 }
 
-void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str)
+static void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str)
 {
 	union iwreq_data iwrq;
 	u8 buf[50];
@@ -76,6 +76,31 @@ void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str)
 	wireless_send_event(priv->dev, IWEVCUSTOM, &iwrq, buf);
 
 	lbs_deb_leave(LBS_DEB_WEXT);
+}
+
+/**
+ *  @brief This function handles MIC failure event.
+ *
+ *  @param priv    A pointer to struct lbs_private structure
+ *  @para  event   the event id
+ *  @return 	   n/a
+ */
+void lbs_send_mic_failureevent(struct lbs_private *priv, u32 event)
+{
+	char buf[50];
+
+	lbs_deb_enter(LBS_DEB_CMD);
+	memset(buf, 0, sizeof(buf));
+
+	sprintf(buf, "%s", "MLME-MICHAELMICFAILURE.indication ");
+
+	if (event == MACREG_INT_CODE_MIC_ERR_UNICAST)
+		strcat(buf, "unicast ");
+	else
+		strcat(buf, "multicast ");
+
+	lbs_send_iwevcustom_event(priv, buf);
+	lbs_deb_leave(LBS_DEB_CMD);
 }
 
 /**

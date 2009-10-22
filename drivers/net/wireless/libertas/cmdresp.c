@@ -73,32 +73,6 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	lbs_deb_leave(LBS_DEB_ASSOC);
 }
 
-/**
- *  @brief This function handles MIC failure event.
- *
- *  @param priv    A pointer to struct lbs_private structure
- *  @para  event   the event id
- *  @return 	   n/a
- */
-static void handle_mic_failureevent(struct lbs_private *priv, u32 event)
-{
-	char buf[50];
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	memset(buf, 0, sizeof(buf));
-
-	sprintf(buf, "%s", "MLME-MICHAELMICFAILURE.indication ");
-
-	if (event == MACREG_INT_CODE_MIC_ERR_UNICAST) {
-		strcat(buf, "unicast ");
-	} else {
-		strcat(buf, "multicast ");
-	}
-
-	lbs_send_iwevcustom_event(priv, buf);
-	lbs_deb_leave(LBS_DEB_CMD);
-}
-
 static int lbs_ret_reg_access(struct lbs_private *priv,
 			       u16 type, struct cmd_ds_command *resp)
 {
@@ -477,12 +451,12 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 
 	case MACREG_INT_CODE_MIC_ERR_UNICAST:
 		lbs_deb_cmd("EVENT: UNICAST MIC ERROR\n");
-		handle_mic_failureevent(priv, MACREG_INT_CODE_MIC_ERR_UNICAST);
+		lbs_send_mic_failureevent(priv, event);
 		break;
 
 	case MACREG_INT_CODE_MIC_ERR_MULTICAST:
 		lbs_deb_cmd("EVENT: MULTICAST MIC ERROR\n");
-		handle_mic_failureevent(priv, MACREG_INT_CODE_MIC_ERR_MULTICAST);
+		lbs_send_mic_failureevent(priv, event);
 		break;
 
 	case MACREG_INT_CODE_MIB_CHANGED:
