@@ -84,12 +84,6 @@ MODULE_DEVICE_TABLE(pci, mwl8k_table);
 				 MWL8K_A2H_INT_RX_READY | \
 				 MWL8K_A2H_INT_TX_DONE)
 
-/* WME stream classes */
-#define WME_AC_BE	0		/* best effort */
-#define WME_AC_BK	1		/* background */
-#define WME_AC_VI	2		/* video */
-#define WME_AC_VO	3		/* voice */
-
 #define MWL8K_RX_QUEUES		1
 #define MWL8K_TX_QUEUES		4
 
@@ -968,23 +962,9 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
  * Packet transmission.
  */
 
-/* Transmit queue assignment.  */
-enum {
-	MWL8K_WME_AC_BK	= 0,		/* background access */
-	MWL8K_WME_AC_BE	= 1,		/* best effort access */
-	MWL8K_WME_AC_VI	= 2,		/* video access */
-	MWL8K_WME_AC_VO	= 3,		/* voice access */
-};
-
 /* Transmit packet ACK policy */
 #define MWL8K_TXD_ACK_POLICY_NORMAL		0
 #define MWL8K_TXD_ACK_POLICY_BLOCKACK		3
-
-#define GET_TXQ(_ac) (\
-		((_ac) == WME_AC_VO) ? MWL8K_WME_AC_VO : \
-		((_ac) == WME_AC_VI) ? MWL8K_WME_AC_VI : \
-		((_ac) == WME_AC_BK) ? MWL8K_WME_AC_BK : \
-		MWL8K_WME_AC_BE)
 
 #define MWL8K_TXD_STATUS_OK			0x00000001
 #define MWL8K_TXD_STATUS_OK_RETRY		0x00000002
@@ -2068,6 +2048,12 @@ mwl8k_set_edca_params(struct ieee80211_hw *hw, __u8 qnum,
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (cmd == NULL)
 		return -ENOMEM;
+
+	/*
+	 * Queues 0 (BE) and 1 (BK) are swapped in hardware for
+	 * this call.
+	 */
+	qnum ^= !(qnum >> 1);
 
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_SET_EDCA_PARAMS);
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
