@@ -313,6 +313,10 @@ int twl4030_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 
 /*----------------------------------------------------------------------*/
 
+struct twl4030_clock_init_data {
+	bool ck32k_lowpwr_enable;
+};
+
 struct twl4030_bci_platform_data {
 	int *battery_tmp_tbl;
 	unsigned int tblsize;
@@ -425,6 +429,7 @@ struct twl4030_codec_data {
 
 struct twl4030_platform_data {
 	unsigned				irq_base, irq_end;
+	struct twl4030_clock_init_data		*clock;
 	struct twl4030_bci_platform_data	*bci;
 	struct twl4030_gpio_platform_data	*gpio;
 	struct twl4030_madc_platform_data	*madc;

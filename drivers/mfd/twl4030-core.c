@@ -183,6 +183,7 @@
 #define HFCLK_FREQ_26_MHZ		(2 << 0)
 #define HFCLK_FREQ_38p4_MHZ		(3 << 0)
 #define HIGH_PERF_SQ			(1 << 3)
+#define CK32K_LOWPWR_EN			(1 << 7)
 
 
 /* chip-specific feature flags, for i2c_device_id.driver_data */
@@ -695,7 +696,8 @@ static inline int __init unprotect_pm_master(void)
 	return e;
 }
 
-static void clocks_init(struct device *dev)
+static void clocks_init(struct device *dev,
+			struct twl4030_clock_init_data *clock)
 {
 	int e = 0;
 	struct clk *osc;
@@ -742,6 +744,9 @@ static void clocks_init(struct device *dev)
 	}
 
 	ctrl |= HIGH_PERF_SQ;
+	if (clock && clock->ck32k_lowpwr_enable)
+		ctrl |= CK32K_LOWPWR_EN;
+
 	e |= unprotect_pm_master();
 	/* effect->MADC+USB ck en */
 	e |= twl4030_i2c_write_u8(TWL4030_MODULE_PM_MASTER, ctrl, R_CFG_BOOT);
@@ -820,7 +825,7 @@ twl4030_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	inuse = true;
 
 	/* setup clock framework */
-	clocks_init(&client->dev);
+	clocks_init(&client->dev, pdata->clock);
 
 	/* load power event scripts */
 	if (twl_has_power() && pdata->power)
