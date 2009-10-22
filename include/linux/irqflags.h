@@ -124,6 +124,6 @@
 	typecheck(unsigned long, flags);	\
 	raw_irqs_disabled_flags(flags);		\
 })
-#endif		/* CONFIG_X86 */
+#endif /* CONFIG_TRACE_IRQFLAGS_SUPPORT */
 
 #endif
