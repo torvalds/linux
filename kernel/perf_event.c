@@ -3959,8 +3959,9 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
 		regs = task_pt_regs(current);
 
 	if (regs) {
-		if (perf_event_overflow(event, 0, &data, regs))
-			ret = HRTIMER_NORESTART;
+		if (!(event->attr.exclude_idle && current->pid == 0))
+			if (perf_event_overflow(event, 0, &data, regs))
+				ret = HRTIMER_NORESTART;
 	}
 
 	period = max_t(u64, 10000, event->hw.sample_period);
