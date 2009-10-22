@@ -136,6 +136,24 @@ Description:	Discover cpuidle policy and mechanism
 		See files in Documentation/cpuidle/ for more information.
 
 
+What:		/sys/devices/system/cpu/cpu#/cpufreq/*
+Date:		pre-git history
+Contact:	cpufreq@vger.kernel.org
+Description:	Discover and change clock speed of CPUs
+
+		Clock scaling allows you to change the clock speed of the
+		CPUs on the fly. This is a nice method to save battery
+		power, because the lower the clock speed, the less power
+		the CPU consumes.
+
+		There are many knobs to tweak in this directory.
+
+		See files in Documentation/cpu-freq/ for more information.
+
+		In particular, read Documentation/cpu-freq/user-guide.txt
+		to learn how to control the knobs.
+
+
 What:      /sys/devices/system/cpu/cpu*/cache/index*/cache_disable_X
 Date:      August 2008
 KernelVersion:	2.6.27
