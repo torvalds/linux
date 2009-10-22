@@ -114,6 +114,12 @@
 #define twl_has_watchdog()        false
 #endif
 
+#if defined(CONFIG_TWL4030_CODEC) || defined(CONFIG_TWL4030_CODEC_MODULE)
+#define twl_has_codec()	true
+#else
+#define twl_has_codec()	false
+#endif
+
 /* Triton Core internal information (BEGIN) */
 
 /* Last - for index max*/
@@ -597,6 +603,14 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 	if (twl_has_pwrbutton()) {
 		child = add_child(1, "twl4030_pwrbutton",
 				NULL, 0, true, pdata->irq_base + 8 + 0, 0);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+	}
+
+	if (twl_has_codec() && pdata->codec) {
+		child = add_child(1, "twl4030_codec",
+				pdata->codec, sizeof(*pdata->codec),
+				false, 0, 0);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}

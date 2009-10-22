@@ -121,6 +121,12 @@ config TWL4030_POWER
 	  and load scripts controling which resources are switched off/on
 	  or reset when a sleep, wakeup or warm reset event occurs.
 
+config TWL4030_CODEC
+	bool
+	depends on TWL4030_CORE
+	select MFD_CORE
+	default n
+
 config MFD_TMIO
 	bool
 	default n
