@@ -10,6 +10,34 @@ Description:
 		/sys/devices/system/cpu/cpu#/
 
 
+What:		/sys/devices/system/cpu/kernel_max
+		/sys/devices/system/cpu/offline
+		/sys/devices/system/cpu/online
+		/sys/devices/system/cpu/possible
+		/sys/devices/system/cpu/present
+Date:		December 2008
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	CPU topology files that describe kernel limits related to
+		hotplug. Briefly:
+
+		kernel_max: the maximum cpu index allowed by the kernel
+		configuration.
+
+		offline: cpus that are not online because they have been
+		HOTPLUGGED off or exceed the limit of cpus allowed by the
+		kernel configuration (kernel_max above).
+
+		online: cpus that are online and being scheduled.
+
+		possible: cpus that have been allocated resources and can be
+		brought online if they are present.
+
+		present: cpus that have been identified as being present in
+		the system.
+
+		See Documentation/cputopology.txt for more information.
+
+
 What:      /sys/devices/system/cpu/cpu*/cache/index*/cache_disable_X
 Date:      August 2008
 KernelVersion:	2.6.27
