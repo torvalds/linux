@@ -325,15 +325,6 @@ struct lbs_private {
 	/** region channel data */
 	struct region_channel region_channel[MAX_REGION_CHANNEL_NUM];
 
-	struct region_channel universal_channel[MAX_REGION_CHANNEL_NUM];
-
-	/** 11D and Domain Regulatory Data */
-	struct lbs_802_11d_domain_reg domainreg;
-	struct parsed_region_chan_11d parsed_region_chan;
-
-	/** FSM variable for 11d support */
-	u32 enable11d;
-
 	/**	MISCELLANEOUS */
 	struct lbs_offset_value offsetvalue;
 

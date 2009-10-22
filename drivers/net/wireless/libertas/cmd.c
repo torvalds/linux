@@ -190,11 +190,6 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 		goto out;
 	}
 
-	if (lbs_set_universaltable(priv, 0)) {
-		ret = -1;
-		goto out;
-	}
-
 out:
 	lbs_deb_leave(LBS_DEB_CMD);
 	return ret;
@@ -1510,11 +1505,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 		ret = 0;
 		goto done;
-
-	case CMD_802_11D_DOMAIN_INFO:
-		ret = lbs_cmd_802_11d_domain_info(priv, cmdptr,
-						   cmd_no, cmd_action);
-		break;
 
 	case CMD_802_11_TPC_CFG:
 		cmdptr->command = cpu_to_le16(CMD_802_11_TPC_CFG);

@@ -371,11 +371,6 @@ static int lbs_associate(struct lbs_private *priv,
 	/* update curbssparams */
 	priv->curbssparams.channel = bss->phy.ds.channel;
 
-	if (lbs_parse_dnld_countryinfo_11d(priv, bss)) {
-		ret = -1;
-		goto done;
-	}
-
 	ret = lbs_cmd_with_response(priv, command, &cmd);
 	if (ret == 0) {
 		ret = lbs_assoc_post(priv,
@@ -633,11 +628,6 @@ static int lbs_adhoc_join(struct lbs_private *priv,
 		}
 	}
 
-	if (lbs_parse_dnld_countryinfo_11d(priv, bss)) {
-		ret = -1;
-		goto out;
-	}
-
 	ret = lbs_cmd_with_response(priv, CMD_802_11_AD_HOC_JOIN, &cmd);
 	if (ret == 0) {
 		ret = lbs_adhoc_post(priv,
@@ -736,12 +726,6 @@ static int lbs_adhoc_start(struct lbs_private *priv,
 
 	lbs_deb_join("ADHOC_START: rates=%02x %02x %02x %02x\n",
 	       cmd.rates[0], cmd.rates[1], cmd.rates[2], cmd.rates[3]);
-
-	if (lbs_create_dnld_countryinfo_11d(priv)) {
-		lbs_deb_join("ADHOC_START: dnld_countryinfo_11d failed\n");
-		ret = -1;
-		goto out;
-	}
 
 	lbs_deb_join("ADHOC_START: Starting Ad-Hoc BSS on channel %d, band %d\n",
 		     assoc_req->channel, assoc_req->band);

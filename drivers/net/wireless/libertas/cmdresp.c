@@ -228,10 +228,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_802_11_rssi(priv, resp);
 		break;
 
-	case CMD_RET(CMD_802_11D_DOMAIN_INFO):
-		ret = lbs_ret_802_11d_domain_info(resp);
-		break;
-
 	case CMD_RET(CMD_802_11_TPC_CFG):
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.tpccfg,

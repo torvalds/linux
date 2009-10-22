@@ -65,8 +65,6 @@ struct chan_freq_power *lbs_find_cfp_by_band_and_channel(
 	for (j = 0; !cfp && (j < ARRAY_SIZE(priv->region_channel)); j++) {
 		rc = &priv->region_channel[j];
 
-		if (priv->enable11d)
-			rc = &priv->universal_channel[j];
 		if (!rc->valid || !rc->CFP)
 			continue;
 		if (rc->band != band)
@@ -106,8 +104,6 @@ static struct chan_freq_power *find_cfp_by_band_and_freq(
 	for (j = 0; !cfp && (j < ARRAY_SIZE(priv->region_channel)); j++) {
 		rc = &priv->region_channel[j];
 
-		if (priv->enable11d)
-			rc = &priv->universal_channel[j];
 		if (!rc->valid || !rc->CFP)
 			continue;
 		if (rc->band != band)
@@ -546,8 +542,6 @@ static int lbs_get_range(struct net_device *dev, struct iw_request_info *info,
 	struct chan_freq_power *cfp;
 	u8 rates[MAX_RATES + 1];
 
-	u8 flag = 0;
-
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	dwrq->length = sizeof(struct iw_range);
@@ -569,51 +563,20 @@ static int lbs_get_range(struct net_device *dev, struct iw_request_info *info,
 
 	range->scan_capa = IW_SCAN_CAPA_ESSID;
 
-	if (priv->enable11d &&
-	    (priv->connect_status == LBS_CONNECTED ||
-	    priv->mesh_connect_status == LBS_CONNECTED)) {
-		u8 chan_no;
-		u8 band;
-
-		struct parsed_region_chan_11d *parsed_region_chan =
-		    &priv->parsed_region_chan;
-
-		if (parsed_region_chan == NULL) {
-			lbs_deb_wext("11d: parsed_region_chan is NULL\n");
-			goto out;
-		}
-		band = parsed_region_chan->band;
-		lbs_deb_wext("band %d, nr_char %d\n", band,
-		       parsed_region_chan->nr_chan);
-
+	for (j = 0; (range->num_frequency < IW_MAX_FREQUENCIES)
+	     && (j < ARRAY_SIZE(priv->region_channel)); j++) {
+		cfp = priv->region_channel[j].CFP;
 		for (i = 0; (range->num_frequency < IW_MAX_FREQUENCIES)
-		     && (i < parsed_region_chan->nr_chan); i++) {
-			chan_no = parsed_region_chan->chanpwr[i].chan;
-			lbs_deb_wext("chan_no %d\n", chan_no);
-			range->freq[range->num_frequency].i = (long)chan_no;
+		     && priv->region_channel[j].valid
+		     && cfp
+		     && (i < priv->region_channel[j].nrcfp); i++) {
+			range->freq[range->num_frequency].i =
+			    (long)cfp->channel;
 			range->freq[range->num_frequency].m =
-			    (long)lbs_chan_2_freq(chan_no) * 100000;
+			    (long)cfp->freq * 100000;
 			range->freq[range->num_frequency].e = 1;
+			cfp++;
 			range->num_frequency++;
-		}
-		flag = 1;
-	}
-	if (!flag) {
-		for (j = 0; (range->num_frequency < IW_MAX_FREQUENCIES)
-		     && (j < ARRAY_SIZE(priv->region_channel)); j++) {
-			cfp = priv->region_channel[j].CFP;
-			for (i = 0; (range->num_frequency < IW_MAX_FREQUENCIES)
-			     && priv->region_channel[j].valid
-			     && cfp
-			     && (i < priv->region_channel[j].nrcfp); i++) {
-				range->freq[range->num_frequency].i =
-				    (long)cfp->channel;
-				range->freq[range->num_frequency].m =
-				    (long)cfp->freq * 100000;
-				range->freq[range->num_frequency].e = 1;
-				cfp++;
-				range->num_frequency++;
-			}
 		}
 	}
 
@@ -699,7 +662,6 @@ static int lbs_get_range(struct net_device *dev, struct iw_request_info *info,
 		                  | IW_ENC_CAPA_CIPHER_CCMP;
 	}
 
-out:
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
 }

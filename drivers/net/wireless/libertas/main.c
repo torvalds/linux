@@ -1408,9 +1408,6 @@ int lbs_start_card(struct lbs_private *priv)
 	if (ret)
 		goto done;
 
-	/* init 802.11d */
-	lbs_init_11d(priv);
-
 	if (lbs_cfg_register(priv)) {
 		lbs_pr_err("cannot register device\n");
 		goto done;
