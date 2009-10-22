@@ -661,7 +661,7 @@ static enum drm_connector_status intel_lvds_detect(struct drm_connector *connect
 	/* ACPI lid methods were generally unreliable in this generation, so
 	 * don't even bother.
 	 */
-	if (IS_I8XX(dev))
+	if (IS_GEN2(dev))
 		return connector_status_connected;
 
 	if (!dmi_check_system(bad_lid_status) && !acpi_lid_open())

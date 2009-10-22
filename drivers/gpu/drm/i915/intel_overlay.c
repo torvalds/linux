@@ -172,7 +172,7 @@ struct overlay_registers {
 #define OFC_UPDATE		0x1
 
 #define OVERLAY_NONPHYSICAL(dev) (IS_G33(dev) || IS_I965G(dev))
-#define OVERLAY_EXISTS(dev) (!IS_G4X(dev) && !IS_IRONLAKE(dev))
+#define OVERLAY_EXISTS(dev) (!IS_G4X(dev) && !IS_IRONLAKE(dev) && !IS_GEN6(dev))
 
 
 static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_overlay *overlay)

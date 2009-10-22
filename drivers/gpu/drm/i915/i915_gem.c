@@ -1818,7 +1818,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno, int interruptible)
 		return -EIO;
 
 	if (!i915_seqno_passed(i915_get_gem_seqno(dev), seqno)) {
-		if (IS_IRONLAKE(dev))
+		if (HAS_PCH_SPLIT(dev))
 			ier = I915_READ(DEIER) | I915_READ(GTIER);
 		else
 			ier = I915_READ(IER);

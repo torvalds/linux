@@ -1065,7 +1065,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define IS_845G(dev)		((dev)->pci_device == 0x2562)
 #define IS_I85X(dev)		((dev)->pci_device == 0x3582)
 #define IS_I865G(dev)		((dev)->pci_device == 0x2572)
-#define IS_I8XX(dev)		(INTEL_INFO(dev)->is_i8xx)
+#define IS_GEN2(dev)		(INTEL_INFO(dev)->is_i8xx)
 #define IS_I915G(dev)		(INTEL_INFO(dev)->is_i915g)
 #define IS_I915GM(dev)		((dev)->pci_device == 0x2592)
 #define IS_I945G(dev)		((dev)->pci_device == 0x2772)
@@ -1084,7 +1084,28 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define IS_I9XX(dev)		(INTEL_INFO(dev)->is_i9xx)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 
+#define IS_GEN3(dev)	(IS_I915G(dev) ||			\
+			 IS_I915GM(dev) ||			\
+			 IS_I945G(dev) ||			\
+			 IS_I945GM(dev) ||			\
+			 IS_G33(dev) || \
+			 IS_PINEVIEW(dev))
+#define IS_GEN4(dev)	((dev)->pci_device == 0x2972 ||		\
+			 (dev)->pci_device == 0x2982 ||		\
+			 (dev)->pci_device == 0x2992 ||		\
+			 (dev)->pci_device == 0x29A2 ||		\
+			 (dev)->pci_device == 0x2A02 ||		\
+			 (dev)->pci_device == 0x2A12 ||		\
+			 (dev)->pci_device == 0x2E02 ||		\
+			 (dev)->pci_device == 0x2E12 ||		\
+			 (dev)->pci_device == 0x2E22 ||		\
+			 (dev)->pci_device == 0x2E32 ||		\
+			 (dev)->pci_device == 0x2A42 ||		\
+			 (dev)->pci_device == 0x2E42)
+
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
+
+#define IS_GEN6(dev)	((dev)->pci_device == 0x0102)
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
@@ -1105,6 +1126,9 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 #define I915_HAS_RC6(dev) (INTEL_INFO(dev)->has_rc6)
+
+#define HAS_PCH_SPLIT(dev) (IS_IRONLAKE(dev) ||	\
+			    IS_GEN6(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

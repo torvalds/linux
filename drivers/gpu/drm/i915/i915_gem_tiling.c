@@ -92,7 +92,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
-	if (IS_IRONLAKE(dev)) {
+	if (IS_IRONLAKE(dev) || IS_GEN6(dev)) {
 		/* On Ironlake whatever DRAM config, GPU always do
 		 * same swizzling setup.
 		 */
