@@ -27,23 +27,17 @@
  */
 void lbs_mac_event_disconnected(struct lbs_private *priv)
 {
-	union iwreq_data wrqu;
-
 	if (priv->connect_status != LBS_CONNECTED)
 		return;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	memset(wrqu.ap_addr.sa_data, 0x00, ETH_ALEN);
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-
 	/*
 	 * Cisco AP sends EAP failure and de-auth in less than 0.5 ms.
 	 * It causes problem in the Supplicant
 	 */
-
 	msleep_interruptible(1000);
-	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
+	lbs_send_disconnect_notification(priv);
 
 	/* report disconnect to upper layer */
 	netif_stop_queue(priv->dev);

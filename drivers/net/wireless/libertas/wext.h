@@ -4,6 +4,7 @@
 #ifndef	_LBS_WEXT_H_
 #define	_LBS_WEXT_H_
 
+void lbs_send_disconnect_notification(struct lbs_private *priv);
 void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str);
 
 extern struct iw_handler_def lbs_handler_def;

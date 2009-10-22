@@ -45,6 +45,15 @@ static inline void lbs_cancel_association_work(struct lbs_private *priv)
 	priv->pending_assoc_req = NULL;
 }
 
+void lbs_send_disconnect_notification(struct lbs_private *priv)
+{
+	union iwreq_data wrqu;
+
+	memset(wrqu.ap_addr.sa_data, 0x00, ETH_ALEN);
+	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
+	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
+}
+
 void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str)
 {
 	union iwreq_data iwrq;
