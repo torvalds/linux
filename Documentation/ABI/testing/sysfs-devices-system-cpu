@@ -1,3 +1,15 @@
+What:		/sys/devices/system/cpu/
+Date:		pre-git history
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:
+		A collection of both global and individual CPU attributes
+
+		Individual CPU attributes are contained in subdirectories
+		named by the kernel's logical CPU number, e.g.:
+
+		/sys/devices/system/cpu/cpu#/
+
+
 What:      /sys/devices/system/cpu/cpu*/cache/index*/cache_disable_X
 Date:      August 2008
 KernelVersion:	2.6.27
