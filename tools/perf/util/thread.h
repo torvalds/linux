@@ -12,9 +12,11 @@ struct thread {
 	pid_t			pid;
 	char			shortname[3];
 	char			*comm;
+	int			comm_len;
 };
 
 int thread__set_comm(struct thread *self, const char *comm);
+int thread__comm_len(struct thread *self);
 struct thread *threads__findnew(pid_t pid);
 struct thread *register_idle_thread(void);
 void thread__insert_map(struct thread *self, struct map *map);

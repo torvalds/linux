@@ -59,12 +59,28 @@ static struct perf_header *header;
 
 static u64		sample_type;
 
-static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask)
+
+static size_t
+callchain__fprintf_left_margin(FILE *fp, int left_margin)
+{
+	int i;
+	int ret;
+
+	ret = fprintf(fp, "            ");
+
+	for (i = 0; i < left_margin; i++)
+		ret += fprintf(fp, " ");
+
+	return ret;
+}
+
+static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask,
+					  int left_margin)
 {
 	int i;
 	size_t ret = 0;
 
-	ret += fprintf(fp, "%s", "                ");
+	ret += callchain__fprintf_left_margin(fp, left_margin);
 
 	for (i = 0; i < depth; i++)
 		if (depth_mask & (1 << i))
@@ -79,12 +95,12 @@ static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask)
 static size_t
 ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain, int depth,
 		       int depth_mask, int count, u64 total_samples,
-		       int hits)
+		       int hits, int left_margin)
 {
 	int i;
 	size_t ret = 0;
 
-	ret += fprintf(fp, "%s", "                ");
+	ret += callchain__fprintf_left_margin(fp, left_margin);
 	for (i = 0; i < depth; i++) {
 		if (depth_mask & (1 << i))
 			ret += fprintf(fp, "|");
@@ -123,7 +139,8 @@ static void init_rem_hits(void)
 
 static size_t
 __callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
-			   u64 total_samples, int depth, int depth_mask)
+			   u64 total_samples, int depth, int depth_mask,
+			   int left_margin)
 {
 	struct rb_node *node, *next;
 	struct callchain_node *child;
@@ -164,7 +181,8 @@ __callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 		 * But we keep the older depth mask for the line seperator
 		 * to keep the level link until we reach the last child
 		 */
-		ret += ipchain__fprintf_graph_line(fp, depth, depth_mask);
+		ret += ipchain__fprintf_graph_line(fp, depth, depth_mask,
+						   left_margin);
 		i = 0;
 		list_for_each_entry(chain, &child->val, list) {
 			if (chain->ip >= PERF_CONTEXT_MAX)
@@ -172,11 +190,13 @@ __callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 			ret += ipchain__fprintf_graph(fp, chain, depth,
 						      new_depth_mask, i++,
 						      new_total,
-						      cumul);
+						      cumul,
+						      left_margin);
 		}
 		ret += __callchain__fprintf_graph(fp, child, new_total,
 						  depth + 1,
-						  new_depth_mask | (1 << depth));
+						  new_depth_mask | (1 << depth),
+						  left_margin);
 		node = next;
 	}
 
@@ -190,17 +210,19 @@ __callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 
 		ret += ipchain__fprintf_graph(fp, &rem_hits, depth,
 					      new_depth_mask, 0, new_total,
-					      remaining);
+					      remaining, left_margin);
 	}
 
 	return ret;
 }
 
+
 static size_t
 callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
-			 u64 total_samples)
+			 u64 total_samples, int left_margin)
 {
 	struct callchain_list *chain;
+	bool printed = false;
 	int i = 0;
 	int ret = 0;
 
@@ -208,17 +230,27 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 		if (chain->ip >= PERF_CONTEXT_MAX)
 			continue;
 
-		if (!i++ && sort_by_sym_first)
+		if (!i++ && sort__first_dimension == SORT_SYM)
 			continue;
 
+		if (!printed) {
+			ret += callchain__fprintf_left_margin(fp, left_margin);
+			ret += fprintf(fp, "|\n");
+			ret += callchain__fprintf_left_margin(fp, left_margin);
+			ret += fprintf(fp, "---");
+
+			left_margin += 3;
+			printed = true;
+		} else
+			ret += callchain__fprintf_left_margin(fp, left_margin);
+
 		if (chain->sym)
-			ret += fprintf(fp, "                %s\n", chain->sym->name);
+			ret += fprintf(fp, " %s\n", chain->sym->name);
 		else
-			ret += fprintf(fp, "                %p\n",
-					(void *)(long)chain->ip);
+			ret += fprintf(fp, " %p\n", (void *)(long)chain->ip);
 	}
 
-	ret += __callchain__fprintf_graph(fp, self, total_samples, 1, 1);
+	ret += __callchain__fprintf_graph(fp, self, total_samples, 1, 1, left_margin);
 
 	return ret;
 }
@@ -251,7 +283,7 @@ callchain__fprintf_flat(FILE *fp, struct callchain_node *self,
 
 static size_t
 hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
-			      u64 total_samples)
+			      u64 total_samples, int left_margin)
 {
 	struct rb_node *rb_node;
 	struct callchain_node *chain;
@@ -271,7 +303,8 @@ hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 			break;
 		case CHAIN_GRAPH_ABS: /* Falldown */
 		case CHAIN_GRAPH_REL:
-			ret += callchain__fprintf_graph(fp, chain, total_samples);
+			ret += callchain__fprintf_graph(fp, chain, total_samples,
+							left_margin);
 		case CHAIN_NONE:
 		default:
 			break;
@@ -316,8 +349,19 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 
 	ret += fprintf(fp, "\n");
 
-	if (callchain)
-		hist_entry_callchain__fprintf(fp, self, total_samples);
+	if (callchain) {
+		int left_margin = 0;
+
+		if (sort__first_dimension == SORT_COMM) {
+			se = list_first_entry(&hist_entry__sort_list, typeof(*se),
+						list);
+			left_margin = se->width ? *se->width : 0;
+			left_margin -= thread__comm_len(self->thread);
+		}
+
+		hist_entry_callchain__fprintf(fp, self, total_samples,
+					      left_margin);
+	}
 
 	return ret;
 }

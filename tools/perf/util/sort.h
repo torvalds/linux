@@ -39,7 +39,7 @@ extern struct sort_entry sort_parent;
 extern unsigned int dsos__col_width;
 extern unsigned int comms__col_width;
 extern unsigned int threads__col_width;
-extern int sort_by_sym_first;
+extern enum sort_type sort__first_dimension;
 
 struct hist_entry {
 	struct rb_node		rb_node;
@@ -52,6 +52,14 @@ struct hist_entry {
 	struct symbol		*parent;
 	struct callchain_node	callchain;
 	struct rb_root		sorted_chain;
+};
+
+enum sort_type {
+	SORT_PID,
+	SORT_COMM,
+	SORT_DSO,
+	SORT_SYM,
+	SORT_PARENT
 };
 
 /*
