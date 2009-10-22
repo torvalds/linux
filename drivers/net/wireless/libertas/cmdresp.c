@@ -188,12 +188,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 
-	case CMD_RET(CMD_GET_TSF):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		memcpy((void *)priv->cur_cmd->callback_arg,
-		       &resp->params.gettsf.tsfvalue, sizeof(u64));
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-		break;
 	case CMD_RET(CMD_BT_ACCESS):
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		if (priv->cur_cmd->callback_arg)

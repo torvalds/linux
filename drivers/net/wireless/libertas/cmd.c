@@ -1189,12 +1189,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_fwt_access(cmdptr, cmd_action, pdata_buf);
 		break;
 
-	case CMD_GET_TSF:
-		cmdptr->command = cpu_to_le16(CMD_GET_TSF);
-		cmdptr->size = cpu_to_le16(sizeof(struct cmd_ds_get_tsf) +
-					   S_DS_GEN);
-		ret = 0;
-		break;
 	case CMD_802_11_BEACON_CTRL:
 		ret = lbs_cmd_bcn_ctrl(priv, cmdptr, cmd_action);
 		break;

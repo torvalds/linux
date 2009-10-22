@@ -968,7 +968,6 @@ struct cmd_ds_command {
 
 		struct cmd_ds_bt_access bt;
 		struct cmd_ds_fwt_access fwt;
-		struct cmd_ds_get_tsf gettsf;
 		struct cmd_ds_802_11_beacon_control bcn_ctrl;
 	} params;
 } __attribute__ ((packed));
