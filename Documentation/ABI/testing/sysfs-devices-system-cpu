@@ -101,6 +101,26 @@ Description:	CPU topology files that describe a logical CPU's relationship
 		See Documentation/cputopology.txt for more information.
 
 
+What:		/sys/devices/system/cpu/cpuidle/current_driver
+		/sys/devices/system/cpu/cpuidle/current_governer_ro
+Date:		September 2007
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Discover cpuidle policy and mechanism
+
+		Various CPUs today support multiple idle levels that are
+		differentiated by varying exit latencies and power
+		consumption during idle.
+
+		Idle policy (governor) is differentiated from idle mechanism
+		(driver)
+
+		current_driver: displays current idle mechanism
+
+		current_governor_ro: displays current idle policy
+
+		See files in Documentation/cpuidle/ for more information.
+
+
 What:      /sys/devices/system/cpu/cpu*/cache/index*/cache_disable_X
 Date:      August 2008
 KernelVersion:	2.6.27
