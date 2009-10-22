@@ -64,6 +64,8 @@
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB	    0x0062
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB    0x006a
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG	    0x0046
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB  0x0100
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_IG  0x0102
 
 /* cover 915 and 945 variants */
 #define IS_I915 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_E7221_HB || \
@@ -98,7 +100,8 @@
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB)
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB)
 
 extern int agp_memory_reserved;
 
@@ -705,6 +708,12 @@ static void intel_i830_init_gtt_entries(void)
 			gtt_entries = 0;
 			break;
 		}
+	} else if (agp_bridge->dev->device ==
+		   PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB) {
+		/* XXX: This is what my A1 silicon has.  What's the right
+		 * answer?
+		 */
+		gtt_entries = MB(64) - KB(size);
 	} else {
 		switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
 		case I855_GMCH_GMS_STOLEN_1M:
@@ -1364,6 +1373,7 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 	case PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB:
 	case PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB:
 	case PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB:
+	case PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB:
 		*gtt_offset = *gtt_size = MB(2);
 		break;
 	default:
@@ -2369,6 +2379,8 @@ static const struct intel_driver_description {
 	    "HD Graphics", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG, 0,
 	    "HD Graphics", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB, PCI_DEVICE_ID_INTEL_SANDYBRIDGE_IG, 0,
+	    "Sandybridge", NULL, &intel_i965_driver },
 	{ 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -2575,6 +2587,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB),
 	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB),
+	ID(PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB),
 	{ }
 };
 
