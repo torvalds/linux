@@ -3,9 +3,10 @@
   * It prepares command and sends it to firmware when it is ready.
   */
 
-#include <net/iw_handler.h>
 #include <net/lib80211.h>
 #include <linux/kfifo.h>
+#include <linux/sched.h>
+
 #include "host.h"
 #include "decl.h"
 #include "defs.h"
@@ -14,6 +15,7 @@
 #include "wext.h"
 #include "scan.h"
 #include "cmd.h"
+
 
 static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
 

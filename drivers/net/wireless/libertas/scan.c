@@ -12,10 +12,10 @@
 #include <net/lib80211.h>
 
 #include "host.h"
-#include "decl.h"
 #include "dev.h"
 #include "scan.h"
 #include "assoc.h"
+#include "wext.h"
 #include "cmd.h"
 
 //! Approximate amount of data needed to pass a scan result back to iwlist
