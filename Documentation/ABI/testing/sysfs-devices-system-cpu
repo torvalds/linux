@@ -38,6 +38,45 @@ Description:	CPU topology files that describe kernel limits related to
 		See Documentation/cputopology.txt for more information.
 
 
+What:		/sys/devices/system/cpu/cpu#/topology/core_id
+		/sys/devices/system/cpu/cpu#/topology/core_siblings
+		/sys/devices/system/cpu/cpu#/topology/core_siblings_list
+		/sys/devices/system/cpu/cpu#/topology/physical_package_id
+		/sys/devices/system/cpu/cpu#/topology/thread_siblings
+		/sys/devices/system/cpu/cpu#/topology/thread_siblings_list
+Date:		December 2008
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	CPU topology files that describe a logical CPU's relationship
+		to other cores and threads in the same physical package.
+
+		One cpu# directory is created per logical CPU in the system,
+		e.g. /sys/devices/system/cpu/cpu42/.
+
+		Briefly, the files above are:
+
+		core_id: the CPU core ID of cpu#. Typically it is the
+		hardware platform's identifier (rather than the kernel's).
+		The actual value is architecture and platform dependent.
+
+		core_siblings: internal kernel map of cpu#'s hardware threads
+		within the same physical_package_id.
+
+		core_siblings_list: human-readable list of the logical CPU
+		numbers within the same physical_package_id as cpu#.
+
+		physical_package_id: physical package id of cpu#. Typically
+		corresponds to a physical socket number, but the actual value
+		is architecture and platform dependent.
+
+		thread_siblings: internel kernel map of cpu#'s hardware
+		threads within the same core as cpu#
+
+		thread_siblings_list: human-readable list of cpu#'s hardware
+		threads within the same core as cpu#
+
+		See Documentation/cputopology.txt for more information.
+
+
 What:      /sys/devices/system/cpu/cpu*/cache/index*/cache_disable_X
 Date:      August 2008
 KernelVersion:	2.6.27
