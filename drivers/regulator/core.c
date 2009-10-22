@@ -676,6 +676,22 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 	const char *name, struct regulation_constraints *constraints)
 {
 	struct regulator_ops *ops = rdev->desc->ops;
+	int ret;
+
+	/* do we need to apply the constraint voltage */
+	if (rdev->constraints->apply_uV &&
+		rdev->constraints->min_uV == rdev->constraints->max_uV &&
+		ops->set_voltage) {
+		ret = ops->set_voltage(rdev,
+			rdev->constraints->min_uV, rdev->constraints->max_uV);
+			if (ret < 0) {
+				printk(KERN_ERR "%s: failed to apply %duV constraint to %s\n",
+				       __func__,
+				       rdev->constraints->min_uV, name);
+				rdev->constraints = NULL;
+				return ret;
+			}
+	}
 
 	/* constrain machine-level voltage specs to fit
 	 * the actual range supported by this regulator.
@@ -773,26 +789,11 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	else
 		name = "regulator";
 
+	rdev->constraints = constraints;
+
 	ret = machine_constraints_voltage(rdev, name, constraints);
 	if (ret != 0)
 		goto out;
-
-	rdev->constraints = constraints;
-
-	/* do we need to apply the constraint voltage */
-	if (rdev->constraints->apply_uV &&
-		rdev->constraints->min_uV == rdev->constraints->max_uV &&
-		ops->set_voltage) {
-		ret = ops->set_voltage(rdev,
-			rdev->constraints->min_uV, rdev->constraints->max_uV);
-			if (ret < 0) {
-				printk(KERN_ERR "%s: failed to apply %duV constraint to %s\n",
-				       __func__,
-				       rdev->constraints->min_uV, name);
-				rdev->constraints = NULL;
-				goto out;
-			}
-	}
 
 	/* do we need to setup our suspend state */
 	if (constraints->initial_state) {
