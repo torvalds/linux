@@ -2272,17 +2272,34 @@ struct mwl8k_cmd_set_edca_params {
 	/* TX opportunity in units of 32 us */
 	__le16 txop;
 
-	/* Log exponent of max contention period: 0...15*/
-	__u8 log_cw_max;
+	union {
+		struct {
+			/* Log exponent of max contention period: 0...15 */
+			__le32 log_cw_max;
 
-	/* Log exponent of min contention period: 0...15 */
-	__u8 log_cw_min;
+			/* Log exponent of min contention period: 0...15 */
+			__le32 log_cw_min;
 
-	/* Adaptive interframe spacing in units of 32us */
-	__u8 aifs;
+			/* Adaptive interframe spacing in units of 32us */
+			__u8 aifs;
 
-	/* TX queue to configure */
-	__u8 txq;
+			/* TX queue to configure */
+			__u8 txq;
+		} ap;
+		struct {
+			/* Log exponent of max contention period: 0...15 */
+			__u8 log_cw_max;
+
+			/* Log exponent of min contention period: 0...15 */
+			__u8 log_cw_min;
+
+			/* Adaptive interframe spacing in units of 32us */
+			__u8 aifs;
+
+			/* TX queue to configure */
+			__u8 txq;
+		} sta;
+	};
 } __attribute__((packed));
 
 #define MWL8K_SET_EDCA_CW	0x01
@@ -2298,6 +2315,7 @@ mwl8k_set_edca_params(struct ieee80211_hw *hw, __u8 qnum,
 		__u16 cw_min, __u16 cw_max,
 		__u8 aifs, __u16 txop)
 {
+	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_cmd_set_edca_params *cmd;
 	int rc;
 
@@ -2315,10 +2333,17 @@ mwl8k_set_edca_params(struct ieee80211_hw *hw, __u8 qnum,
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le16(MWL8K_SET_EDCA_ALL);
 	cmd->txop = cpu_to_le16(txop);
-	cmd->log_cw_max = (u8)ilog2(cw_max + 1);
-	cmd->log_cw_min = (u8)ilog2(cw_min + 1);
-	cmd->aifs = aifs;
-	cmd->txq = qnum;
+	if (priv->ap_fw) {
+		cmd->ap.log_cw_max = cpu_to_le32(ilog2(cw_max + 1));
+		cmd->ap.log_cw_min = cpu_to_le32(ilog2(cw_min + 1));
+		cmd->ap.aifs = aifs;
+		cmd->ap.txq = qnum;
+	} else {
+		cmd->sta.log_cw_max = (u8)ilog2(cw_max + 1);
+		cmd->sta.log_cw_min = (u8)ilog2(cw_min + 1);
+		cmd->sta.aifs = aifs;
+		cmd->sta.txq = qnum;
+	}
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 	kfree(cmd);
