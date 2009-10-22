@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/i2c/twl4030.h>
@@ -38,7 +39,6 @@
 #include <mach/gpmc.h>
 
 #include <mach/control.h>
-#include <mach/keypad.h>
 #include <mach/gpmc-smc91x.h>
 
 #include "sdram-qimonda-hyb18m512160af-6.h"
