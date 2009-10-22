@@ -9,6 +9,30 @@ Description:
 
 		/sys/devices/system/cpu/cpu#/
 
+What:		/sys/devices/system/cpu/sched_mc_power_savings
+		/sys/devices/system/cpu/sched_smt_power_savings
+Date:		June 2006
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Discover and adjust the kernel's multi-core scheduler support.
+
+		Possible values are:
+
+		0 - No power saving load balance (default value)
+		1 - Fill one thread/core/package first for long running threads
+		2 - Also bias task wakeups to semi-idle cpu package for power
+		    savings
+
+		sched_mc_power_savings is dependent upon SCHED_MC, which is
+		itself architecture dependent.
+
+		sched_smt_power_savings is dependent upon SCHED_SMT, which
+		is itself architecture dependent.
+
+		The two files are independent of each other. It is possible
+		that one file may be present without the other.
+
+		Introduced by git commit 5c45bf27.
+
 
 What:		/sys/devices/system/cpu/kernel_max
 		/sys/devices/system/cpu/offline
