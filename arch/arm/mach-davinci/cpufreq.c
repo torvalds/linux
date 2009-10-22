@@ -127,6 +127,13 @@ static int __init davinci_cpu_init(struct cpufreq_policy *policy)
 	if (policy->cpu != 0)
 		return -EINVAL;
 
+	/* Finish platform specific initialization */
+	if (pdata->init) {
+		result = pdata->init();
+		if (result)
+			return result;
+	}
+
 	policy->cur = policy->min = policy->max = davinci_getspeed(0);
 
 	if (freq_table) {

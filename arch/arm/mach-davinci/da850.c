@@ -907,8 +907,39 @@ static struct cpufreq_frequency_table da850_freq_table[] = {
 	},
 };
 
+#ifdef CONFIG_REGULATOR
+static struct regulator *cvdd;
+
+static int da850_set_voltage(unsigned int index)
+{
+	struct da850_opp *opp;
+
+	if (!cvdd)
+		return -ENODEV;
+
+	opp = (struct da850_opp *) da850_freq_table[index].index;
+
+	return regulator_set_voltage(cvdd, opp->cvdd_min, opp->cvdd_max);
+}
+
+static int da850_regulator_init(void)
+{
+	cvdd = regulator_get(NULL, "cvdd");
+	if (WARN(IS_ERR(cvdd), "Unable to obtain voltage regulator for CVDD;"
+					" voltage scaling unsupported\n")) {
+		return PTR_ERR(cvdd);
+	}
+
+	return 0;
+}
+#endif
+
 static struct davinci_cpufreq_config cpufreq_info = {
 	.freq_table = &da850_freq_table[0],
+#ifdef CONFIG_REGULATOR
+	.init = da850_regulator_init,
+	.set_voltage = da850_set_voltage,
+#endif
 };
 
 static struct platform_device da850_cpufreq_device = {
@@ -997,39 +1028,6 @@ static int da850_round_armrate(struct clk *clk, unsigned long rate)
 }
 #endif
 
-#ifdef CONFIG_REGULATOR
-static struct regulator *cvdd;
-
-static int da850_set_voltage(unsigned int index)
-{
-	struct da850_opp *opp;
-
-	if (!cvdd)
-		return -ENODEV;
-
-	opp = (struct da850_opp *) da850_freq_table[index].index;
-
-	return regulator_set_voltage(cvdd, opp->cvdd_min, opp->cvdd_max);
-}
-
-static int __init da850_regulator_init(void)
-{
-	int ret = 0;
-
-	cvdd = regulator_get(NULL, "cvdd");
-	if (WARN(IS_ERR(cvdd), "Unable to obtain voltage regulator for CVDD;"
-					" voltage scaling unsupported\n")) {
-		ret = PTR_ERR(cvdd);
-		goto out;
-	}
-
-	cpufreq_info.set_voltage = da850_set_voltage;
-
-out:
-	return ret;
-}
-device_initcall(da850_regulator_init);
-#endif
 
 static struct davinci_soc_info davinci_soc_info_da850 = {
 	.io_desc		= da850_io_desc,
