@@ -2713,21 +2713,23 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	if (!rc) {
 		rc = mwl8k_cmd_802_11_radio_enable(hw);
 
-		if (!rc)
-			rc = mwl8k_cmd_set_pre_scan(hw);
+		if (!priv->ap_fw) {
+			if (!rc)
+				rc = mwl8k_enable_sniffer(hw, 0);
 
-		if (!rc)
-			rc = mwl8k_cmd_set_post_scan(hw,
-					"\x00\x00\x00\x00\x00\x00");
+			if (!rc)
+				rc = mwl8k_cmd_set_pre_scan(hw);
+
+			if (!rc)
+				rc = mwl8k_cmd_set_post_scan(hw,
+						"\x00\x00\x00\x00\x00\x00");
+		}
 
 		if (!rc)
 			rc = mwl8k_cmd_setrateadaptmode(hw, 0);
 
 		if (!rc)
 			rc = mwl8k_set_wmm(hw, 0);
-
-		if (!rc)
-			rc = mwl8k_enable_sniffer(hw, 0);
 
 		mwl8k_fw_unlock(hw);
 	}
