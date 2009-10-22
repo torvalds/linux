@@ -390,7 +390,7 @@ int lbs_set_snmp_mib(struct lbs_private *priv, u32 oid, u16 val)
 	switch (oid) {
 	case SNMP_MIB_OID_BSS_TYPE:
 		cmd.bufsize = cpu_to_le16(sizeof(u8));
-		cmd.value[0] = (val == IW_MODE_ADHOC) ? 2 : 1;
+		cmd.value[0] = val;
 		break;
 	case SNMP_MIB_OID_11D_ENABLE:
 	case SNMP_MIB_OID_FRAG_THRESHOLD:
@@ -443,13 +443,7 @@ int lbs_get_snmp_mib(struct lbs_private *priv, u32 oid, u16 *out_val)
 
 	switch (le16_to_cpu(cmd.bufsize)) {
 	case sizeof(u8):
-		if (oid == SNMP_MIB_OID_BSS_TYPE) {
-			if (cmd.value[0] == 2)
-				*out_val = IW_MODE_ADHOC;
-			else
-				*out_val = IW_MODE_INFRA;
-		} else
-			*out_val = cmd.value[0];
+		*out_val = cmd.value[0];
 		break;
 	case sizeof(u16):
 		*out_val = le16_to_cpu(*((__le16 *)(&cmd.value)));
