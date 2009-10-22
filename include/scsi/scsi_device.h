@@ -81,11 +81,14 @@ struct scsi_device {
 	struct list_head starved_entry;
 	struct scsi_cmnd *current_cmnd;	/* currently active command */
 	unsigned short queue_depth;	/* How deep of a queue we want */
+	unsigned short max_queue_depth;	/* max queue depth */
 	unsigned short last_queue_full_depth; /* These two are used by */
 	unsigned short last_queue_full_count; /* scsi_track_queue_full() */
-	unsigned long last_queue_full_time;/* don't let QUEUE_FULLs on the same
-					   jiffie count on our counter, they
-					   could all be from the same event. */
+	unsigned long last_queue_full_time;	/* last queue full time */
+	unsigned long queue_ramp_up_period;	/* ramp up period in jiffies */
+#define SCSI_DEFAULT_RAMP_UP_PERIOD	(120 * HZ)
+
+	unsigned long last_queue_ramp_up;	/* last queue ramp up time */
 
 	unsigned int id, lun, channel;
 

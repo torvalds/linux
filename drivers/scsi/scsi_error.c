@@ -331,6 +331,42 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 	}
 }
 
+static void scsi_handle_queue_ramp_up(struct scsi_device *sdev)
+{
+	struct scsi_host_template *sht = sdev->host->hostt;
+	struct scsi_device *tmp_sdev;
+
+	if (!sht->change_queue_depth ||
+	    sdev->queue_depth >= sdev->max_queue_depth)
+		return;
+
+	if (time_before(jiffies,
+	    sdev->last_queue_ramp_up + sdev->queue_ramp_up_period))
+		return;
+
+	if (time_before(jiffies,
+	    sdev->last_queue_full_time + sdev->queue_ramp_up_period))
+		return;
+
+	/*
+	 * Walk all devices of a target and do
+	 * ramp up on them.
+	 */
+	shost_for_each_device(tmp_sdev, sdev->host) {
+		if (tmp_sdev->channel != sdev->channel ||
+		    tmp_sdev->id != sdev->id ||
+		    tmp_sdev->queue_depth == sdev->max_queue_depth)
+			continue;
+		/*
+		 * call back into LLD to increase queue_depth by one
+		 * with ramp up reason code.
+		 */
+		sht->change_queue_depth(tmp_sdev, tmp_sdev->queue_depth + 1,
+					SCSI_QDEPTH_RAMP_UP);
+		sdev->last_queue_ramp_up = jiffies;
+	}
+}
+
 static void scsi_handle_queue_full(struct scsi_device *sdev)
 {
 	struct scsi_host_template *sht = sdev->host->hostt;
@@ -393,6 +429,7 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 	 */
 	switch (status_byte(scmd->result)) {
 	case GOOD:
+		scsi_handle_queue_ramp_up(scmd->device);
 	case COMMAND_TERMINATED:
 		return SUCCESS;
 	case CHECK_CONDITION:
@@ -1425,6 +1462,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 */
 		return ADD_TO_MLQUEUE;
 	case GOOD:
+		scsi_handle_queue_ramp_up(scmd->device);
 	case COMMAND_TERMINATED:
 		return SUCCESS;
 	case TASK_ABORTED:

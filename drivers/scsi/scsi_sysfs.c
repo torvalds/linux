@@ -771,12 +771,45 @@ sdev_store_queue_depth_rw(struct device *dev, struct device_attribute *attr,
 	if (retval < 0)
 		return retval;
 
+	sdev->max_queue_depth = sdev->queue_depth;
+
 	return count;
 }
 
 static struct device_attribute sdev_attr_queue_depth_rw =
 	__ATTR(queue_depth, S_IRUGO | S_IWUSR, sdev_show_queue_depth,
 	       sdev_store_queue_depth_rw);
+
+static ssize_t
+sdev_show_queue_ramp_up_period(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct scsi_device *sdev;
+	sdev = to_scsi_device(dev);
+	return snprintf(buf, 20, "%u\n",
+			jiffies_to_msecs(sdev->queue_ramp_up_period));
+}
+
+static ssize_t
+sdev_store_queue_ramp_up_period(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	unsigned long period;
+
+	if (strict_strtoul(buf, 10, &period))
+		return -EINVAL;
+
+	sdev->queue_ramp_up_period = msecs_to_jiffies(period);
+	return period;
+}
+
+static struct device_attribute sdev_attr_queue_ramp_up_period =
+	__ATTR(queue_ramp_up_period, S_IRUGO | S_IWUSR,
+	       sdev_show_queue_ramp_up_period,
+	       sdev_store_queue_ramp_up_period);
 
 static ssize_t
 sdev_store_queue_type_rw(struct device *dev, struct device_attribute *attr,
@@ -866,8 +899,12 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	}
 
 	/* create queue files, which may be writable, depending on the host */
-	if (sdev->host->hostt->change_queue_depth)
-		error = device_create_file(&sdev->sdev_gendev, &sdev_attr_queue_depth_rw);
+	if (sdev->host->hostt->change_queue_depth) {
+		error = device_create_file(&sdev->sdev_gendev,
+					   &sdev_attr_queue_depth_rw);
+		error = device_create_file(&sdev->sdev_gendev,
+					   &sdev_attr_queue_ramp_up_period);
+	}
 	else
 		error = device_create_file(&sdev->sdev_gendev, &dev_attr_queue_depth);
 	if (error) {
