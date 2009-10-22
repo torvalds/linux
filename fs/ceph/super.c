@@ -314,7 +314,7 @@ static int parse_mount_args(struct ceph_client *client,
 	int err;
 	substring_t argstr[MAX_OPT_ARGS];
 	int num_mon;
-	struct ceph_entity_addr mon_addr[CEPH_MAX_MON_MOUNT_ADDR];
+	struct ceph_entity_addr mon_addr[CEPH_MAX_MON];
 	int i;
 
 	dout("parse_mount_args dev_name '%s'\n", dev_name);
@@ -344,7 +344,7 @@ static int parse_mount_args(struct ceph_client *client,
 
 	/* get mon ip(s) */
 	err = ceph_parse_ips(dev_name, *path, mon_addr,
-			     CEPH_MAX_MON_MOUNT_ADDR, &num_mon);
+			     CEPH_MAX_MON, &num_mon);
 	if (err < 0)
 		return err;
 

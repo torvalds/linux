@@ -47,8 +47,6 @@
 	(!!((client)->mount_args.flags & CEPH_OPT_##opt))
 
 
-#define CEPH_MAX_MON_MOUNT_ADDR	5
-
 struct ceph_mount_args {
 	int sb_flags;
 	int flags;
