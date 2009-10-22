@@ -685,6 +685,11 @@ static __init void da850_evm_init(void)
 	if (ret)
 		pr_warning("da850_evm_init: cpufreq registration failed: %d\n",
 				ret);
+
+	ret = da8xx_register_cpuidle();
+	if (ret)
+		pr_warning("da850_evm_init: cpuidle registration failed: %d\n",
+				ret);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
