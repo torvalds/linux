@@ -16,7 +16,7 @@
 
 / {
 	#address-cells = <2>;
-	#size-cells = <1>;
+	#size-cells = <2>;
 	model = "amcc,katmai";
 	compatible = "amcc,katmai";
 	dcr-parent = <&{/cpus/cpu@0}>;
@@ -49,7 +49,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0x00000000 0x00000000>; /* Filled in by zImage */
+		reg = <0x0 0x00000000 0x0 0x00000000>; /* Filled in by U-Boot */
 	};
 
 	UIC0: interrupt-controller0 {
@@ -112,7 +112,15 @@
 		compatible = "ibm,plb-440spe", "ibm,plb-440gp", "ibm,plb4";
 		#address-cells = <2>;
 		#size-cells = <1>;
-		ranges;
+		/*        addr-child     addr-parent    size */
+		ranges = <0x4 0xe0000000 0x4 0xe0000000 0x20000000
+			  0xc 0x00000000 0xc 0x00000000 0x20000000
+			  0xd 0x00000000 0xd 0x00000000 0x80000000
+			  0xd 0x80000000 0xd 0x80000000 0x80000000
+			  0xe 0x00000000 0xe 0x00000000 0x80000000
+			  0xe 0x80000000 0xe 0x80000000 0x80000000
+			  0xf 0x00000000 0xf 0x00000000 0x80000000
+			  0xf 0x80000000 0xf 0x80000000 0x80000000>;
 		clock-frequency = <0>; /* Filled in by zImage */
 
 		SDRAM0: sdram {
