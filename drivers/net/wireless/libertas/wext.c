@@ -164,12 +164,12 @@ static int lbs_get_freq(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	cfp = lbs_find_cfp_by_band_and_channel(priv, 0,
-					   priv->curbssparams.channel);
+					   priv->channel);
 
 	if (!cfp) {
-		if (priv->curbssparams.channel)
+		if (priv->channel)
 			lbs_deb_wext("invalid channel %d\n",
-			       priv->curbssparams.channel);
+			       priv->channel);
 		return -EINVAL;
 	}
 
@@ -986,7 +986,7 @@ static int lbs_mesh_set_freq(struct net_device *dev,
 		goto out;
 	}
 
-	if (fwrq->m != priv->curbssparams.channel) {
+	if (fwrq->m != priv->channel) {
 		lbs_deb_wext("mesh channel change forces eth disconnect\n");
 		if (priv->mode == IW_MODE_INFRA)
 			lbs_cmd_80211_deauthenticate(priv,
@@ -2100,7 +2100,7 @@ static int lbs_mesh_set_essid(struct net_device *dev,
 	}
 
 	lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-			priv->curbssparams.channel);
+			priv->channel);
  out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;

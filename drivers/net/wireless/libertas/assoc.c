@@ -376,7 +376,7 @@ static int lbs_associate(struct lbs_private *priv,
 				   (u16)(pos - (u8 *) &cmd.iebuf));
 
 	/* update curbssparams */
-	priv->curbssparams.channel = bss->phy.ds.channel;
+	priv->channel = bss->phy.ds.channel;
 
 	ret = lbs_cmd_with_response(priv, command, &cmd);
 	if (ret == 0) {
@@ -489,7 +489,7 @@ static int lbs_adhoc_post(struct lbs_private *priv,
 	lbs_deb_join("ADHOC_RESP: Joined/started '%s', BSSID %pM, channel %d\n",
 		     print_ssid(ssid, bss->ssid, bss->ssid_len),
 		     priv->curbssparams.bssid,
-		     priv->curbssparams.channel);
+		     priv->channel);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
@@ -562,7 +562,7 @@ static int lbs_adhoc_join(struct lbs_private *priv,
 	lbs_deb_join("AdhocJoin: band = %c\n", assoc_req->band);
 
 	priv->adhoccreate = 0;
-	priv->curbssparams.channel = bss->channel;
+	priv->channel = bss->channel;
 
 	/* Build the join command */
 	memset(&cmd, 0, sizeof(cmd));
@@ -1196,7 +1196,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 		goto done;
 	}
 
-	if (assoc_req->channel == priv->curbssparams.channel)
+	if (assoc_req->channel == priv->channel)
 		goto done;
 
 	if (priv->mesh_dev) {
@@ -1208,7 +1208,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 	}
 
 	lbs_deb_assoc("ASSOC: channel: %d -> %d\n",
-		      priv->curbssparams.channel, assoc_req->channel);
+		      priv->channel, assoc_req->channel);
 
 	ret = lbs_set_channel(priv, assoc_req->channel);
 	if (ret < 0)
@@ -1223,7 +1223,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 		goto done;
 	}
 
-	if (assoc_req->channel != priv->curbssparams.channel) {
+	if (assoc_req->channel != priv->channel) {
 		lbs_deb_assoc("ASSOC: channel: failed to update channel to %d\n",
 		              assoc_req->channel);
 		goto restore_mesh;
@@ -1244,7 +1244,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
  restore_mesh:
 	if (priv->mesh_dev)
 		lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-				priv->curbssparams.channel);
+				priv->channel);
 
  done:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
@@ -1466,7 +1466,7 @@ static int should_stop_adhoc(struct lbs_private *priv,
 	}
 
 	if (test_bit(ASSOC_FLAG_CHANNEL, &assoc_req->flags)) {
-		if (assoc_req->channel != priv->curbssparams.channel)
+		if (assoc_req->channel != priv->channel)
 			return 1;
 	}
 
@@ -1771,7 +1771,7 @@ struct assoc_request *lbs_get_association_request(struct lbs_private *priv)
 	}
 
 	if (!test_bit(ASSOC_FLAG_CHANNEL, &assoc_req->flags))
-		assoc_req->channel = priv->curbssparams.channel;
+		assoc_req->channel = priv->channel;
 
 	if (!test_bit(ASSOC_FLAG_BAND, &assoc_req->flags))
 		assoc_req->band = priv->curbssparams.band;

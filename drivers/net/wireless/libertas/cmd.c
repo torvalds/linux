@@ -880,7 +880,7 @@ int lbs_update_channel(struct lbs_private *priv)
 
 	ret = lbs_get_channel(priv);
 	if (ret > 0) {
-		priv->curbssparams.channel = ret;
+		priv->channel = ret;
 		ret = 0;
 	}
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
@@ -899,7 +899,7 @@ int lbs_set_channel(struct lbs_private *priv, u8 channel)
 {
 	struct cmd_ds_802_11_rf_channel cmd;
 #ifdef DEBUG
-	u8 old_channel = priv->curbssparams.channel;
+	u8 old_channel = priv->channel;
 #endif
 	int ret = 0;
 
@@ -914,9 +914,9 @@ int lbs_set_channel(struct lbs_private *priv, u8 channel)
 	if (ret)
 		goto out;
 
-	priv->curbssparams.channel = (uint8_t) le16_to_cpu(cmd.channel);
+	priv->channel = (uint8_t) le16_to_cpu(cmd.channel);
 	lbs_deb_cmd("channel switch from %d to %d\n", old_channel,
-		priv->curbssparams.channel);
+		priv->channel);
 
 out:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);

@@ -285,7 +285,7 @@ static ssize_t lbs_mesh_set(struct device *dev,
 		return count;
 	if (enable)
 		action = CMD_ACT_MESH_CONFIG_START;
-	ret = lbs_mesh_config(priv, action, priv->curbssparams.channel);
+	ret = lbs_mesh_config(priv, action, priv->channel);
 	if (ret)
 		return ret;
 
@@ -1046,7 +1046,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->mesh_connect_status = LBS_DISCONNECTED;
 	priv->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	priv->mode = IW_MODE_INFRA;
-	priv->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
+	priv->channel = DEFAULT_AD_HOC_CHANNEL;
 	priv->mac_control = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
 	priv->radio_on = 1;
 	priv->enablehwauto = 1;
@@ -1314,10 +1314,10 @@ int lbs_start_card(struct lbs_private *priv)
 
 		priv->mesh_tlv = TLV_TYPE_OLD_MESH_ID;
 		if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-				    priv->curbssparams.channel)) {
+				    priv->channel)) {
 			priv->mesh_tlv = TLV_TYPE_MESH_ID;
 			if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-					    priv->curbssparams.channel))
+					    priv->channel))
 				priv->mesh_tlv = 0;
 		}
 	} else if (priv->mesh_fw_ver == MESH_FW_NEW) {
@@ -1326,7 +1326,7 @@ int lbs_start_card(struct lbs_private *priv)
 		 */
 		priv->mesh_tlv = TLV_TYPE_MESH_ID;
 		if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-				    priv->curbssparams.channel))
+				    priv->channel))
 			priv->mesh_tlv = 0;
 	}
 	if (priv->mesh_tlv) {
