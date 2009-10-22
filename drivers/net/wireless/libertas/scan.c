@@ -15,6 +15,7 @@
 #include "decl.h"
 #include "dev.h"
 #include "scan.h"
+#include "assoc.h"
 #include "cmd.h"
 
 //! Approximate amount of data needed to pass a scan result back to iwlist
@@ -117,6 +118,189 @@ static inline int is_same_network(struct bss_descriptor *src,
 		(src->channel == dst->channel) &&
 		!compare_ether_addr(src->bssid, dst->bssid) &&
 		!memcmp(src->ssid, dst->ssid, src->ssid_len));
+}
+
+
+
+/*********************************************************************/
+/*                                                                   */
+/* Region channel support                                            */
+/*                                                                   */
+/*********************************************************************/
+
+#define LBS_TX_PWR_DEFAULT		20	/*100mW */
+#define LBS_TX_PWR_US_DEFAULT		20	/*100mW */
+#define LBS_TX_PWR_JP_DEFAULT		16	/*50mW */
+#define LBS_TX_PWR_FR_DEFAULT		20	/*100mW */
+#define LBS_TX_PWR_EMEA_DEFAULT	20	/*100mW */
+
+/* Format { channel, frequency (MHz), maxtxpower } */
+/* band: 'B/G', region: USA FCC/Canada IC */
+static struct chan_freq_power channel_freq_power_US_BG[] = {
+	{1, 2412, LBS_TX_PWR_US_DEFAULT},
+	{2, 2417, LBS_TX_PWR_US_DEFAULT},
+	{3, 2422, LBS_TX_PWR_US_DEFAULT},
+	{4, 2427, LBS_TX_PWR_US_DEFAULT},
+	{5, 2432, LBS_TX_PWR_US_DEFAULT},
+	{6, 2437, LBS_TX_PWR_US_DEFAULT},
+	{7, 2442, LBS_TX_PWR_US_DEFAULT},
+	{8, 2447, LBS_TX_PWR_US_DEFAULT},
+	{9, 2452, LBS_TX_PWR_US_DEFAULT},
+	{10, 2457, LBS_TX_PWR_US_DEFAULT},
+	{11, 2462, LBS_TX_PWR_US_DEFAULT}
+};
+
+/* band: 'B/G', region: Europe ETSI */
+static struct chan_freq_power channel_freq_power_EU_BG[] = {
+	{1, 2412, LBS_TX_PWR_EMEA_DEFAULT},
+	{2, 2417, LBS_TX_PWR_EMEA_DEFAULT},
+	{3, 2422, LBS_TX_PWR_EMEA_DEFAULT},
+	{4, 2427, LBS_TX_PWR_EMEA_DEFAULT},
+	{5, 2432, LBS_TX_PWR_EMEA_DEFAULT},
+	{6, 2437, LBS_TX_PWR_EMEA_DEFAULT},
+	{7, 2442, LBS_TX_PWR_EMEA_DEFAULT},
+	{8, 2447, LBS_TX_PWR_EMEA_DEFAULT},
+	{9, 2452, LBS_TX_PWR_EMEA_DEFAULT},
+	{10, 2457, LBS_TX_PWR_EMEA_DEFAULT},
+	{11, 2462, LBS_TX_PWR_EMEA_DEFAULT},
+	{12, 2467, LBS_TX_PWR_EMEA_DEFAULT},
+	{13, 2472, LBS_TX_PWR_EMEA_DEFAULT}
+};
+
+/* band: 'B/G', region: Spain */
+static struct chan_freq_power channel_freq_power_SPN_BG[] = {
+	{10, 2457, LBS_TX_PWR_DEFAULT},
+	{11, 2462, LBS_TX_PWR_DEFAULT}
+};
+
+/* band: 'B/G', region: France */
+static struct chan_freq_power channel_freq_power_FR_BG[] = {
+	{10, 2457, LBS_TX_PWR_FR_DEFAULT},
+	{11, 2462, LBS_TX_PWR_FR_DEFAULT},
+	{12, 2467, LBS_TX_PWR_FR_DEFAULT},
+	{13, 2472, LBS_TX_PWR_FR_DEFAULT}
+};
+
+/* band: 'B/G', region: Japan */
+static struct chan_freq_power channel_freq_power_JPN_BG[] = {
+	{1, 2412, LBS_TX_PWR_JP_DEFAULT},
+	{2, 2417, LBS_TX_PWR_JP_DEFAULT},
+	{3, 2422, LBS_TX_PWR_JP_DEFAULT},
+	{4, 2427, LBS_TX_PWR_JP_DEFAULT},
+	{5, 2432, LBS_TX_PWR_JP_DEFAULT},
+	{6, 2437, LBS_TX_PWR_JP_DEFAULT},
+	{7, 2442, LBS_TX_PWR_JP_DEFAULT},
+	{8, 2447, LBS_TX_PWR_JP_DEFAULT},
+	{9, 2452, LBS_TX_PWR_JP_DEFAULT},
+	{10, 2457, LBS_TX_PWR_JP_DEFAULT},
+	{11, 2462, LBS_TX_PWR_JP_DEFAULT},
+	{12, 2467, LBS_TX_PWR_JP_DEFAULT},
+	{13, 2472, LBS_TX_PWR_JP_DEFAULT},
+	{14, 2484, LBS_TX_PWR_JP_DEFAULT}
+};
+
+/**
+ * the structure for channel, frequency and power
+ */
+struct region_cfp_table {
+	u8 region;
+	struct chan_freq_power *cfp_BG;
+	int cfp_no_BG;
+};
+
+/**
+ * the structure for the mapping between region and CFP
+ */
+static struct region_cfp_table region_cfp_table[] = {
+	{0x10,			/*US FCC */
+	 channel_freq_power_US_BG,
+	 ARRAY_SIZE(channel_freq_power_US_BG),
+	 }
+	,
+	{0x20,			/*CANADA IC */
+	 channel_freq_power_US_BG,
+	 ARRAY_SIZE(channel_freq_power_US_BG),
+	 }
+	,
+	{0x30, /*EU*/ channel_freq_power_EU_BG,
+	 ARRAY_SIZE(channel_freq_power_EU_BG),
+	 }
+	,
+	{0x31, /*SPAIN*/ channel_freq_power_SPN_BG,
+	 ARRAY_SIZE(channel_freq_power_SPN_BG),
+	 }
+	,
+	{0x32, /*FRANCE*/ channel_freq_power_FR_BG,
+	 ARRAY_SIZE(channel_freq_power_FR_BG),
+	 }
+	,
+	{0x40, /*JAPAN*/ channel_freq_power_JPN_BG,
+	 ARRAY_SIZE(channel_freq_power_JPN_BG),
+	 }
+	,
+/*Add new region here */
+};
+
+/**
+ *  @brief This function finds the CFP in
+ *  region_cfp_table based on region and band parameter.
+ *
+ *  @param region  The region code
+ *  @param band	   The band
+ *  @param cfp_no  A pointer to CFP number
+ *  @return 	   A pointer to CFP
+ */
+static struct chan_freq_power *lbs_get_region_cfp_table(u8 region, int *cfp_no)
+{
+	int i, end;
+
+	lbs_deb_enter(LBS_DEB_MAIN);
+
+	end = ARRAY_SIZE(region_cfp_table);
+
+	for (i = 0; i < end ; i++) {
+		lbs_deb_main("region_cfp_table[i].region=%d\n",
+			region_cfp_table[i].region);
+		if (region_cfp_table[i].region == region) {
+			*cfp_no = region_cfp_table[i].cfp_no_BG;
+			lbs_deb_leave(LBS_DEB_MAIN);
+			return region_cfp_table[i].cfp_BG;
+		}
+	}
+
+	lbs_deb_leave_args(LBS_DEB_MAIN, "ret NULL");
+	return NULL;
+}
+
+int lbs_set_regiontable(struct lbs_private *priv, u8 region, u8 band)
+{
+	int ret = 0;
+	int i = 0;
+
+	struct chan_freq_power *cfp;
+	int cfp_no;
+
+	lbs_deb_enter(LBS_DEB_MAIN);
+
+	memset(priv->region_channel, 0, sizeof(priv->region_channel));
+
+	cfp = lbs_get_region_cfp_table(region, &cfp_no);
+	if (cfp != NULL) {
+		priv->region_channel[i].nrcfp = cfp_no;
+		priv->region_channel[i].CFP = cfp;
+	} else {
+		lbs_deb_main("wrong region code %#x in band B/G\n",
+		       region);
+		ret = -1;
+		goto out;
+	}
+	priv->region_channel[i].valid = 1;
+	priv->region_channel[i].region = region;
+	priv->region_channel[i].band = band;
+	i++;
+out:
+	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
+	return ret;
 }
 
 

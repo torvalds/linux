@@ -10,6 +10,9 @@
 
 #include "defs.h"
 
+
+extern const struct ethtool_ops lbs_ethtool_ops;
+
 /** Function Prototype Declaration */
 struct lbs_private;
 struct sk_buff;
@@ -33,7 +36,6 @@ u8 lbs_data_rate_to_fw_index(u32 rate);
 /** The proc fs interface */
 netdev_tx_t lbs_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *dev);
-int lbs_set_regiontable(struct lbs_private *priv, u8 region, u8 band);
 
 int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *);
 
@@ -49,8 +51,6 @@ void lbs_persist_config_init(struct net_device *net);
 void lbs_persist_config_remove(struct net_device *net);
 
 /* main.c */
-struct chan_freq_power *lbs_get_region_cfp_table(u8 region,
-	int *cfp_no);
 struct lbs_private *lbs_add_card(void *card, struct device *dmdev);
 void lbs_remove_card(struct lbs_private *priv);
 int lbs_start_card(struct lbs_private *priv);

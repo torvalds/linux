@@ -12,6 +12,7 @@
 #include "dev.h"
 #include "assoc.h"
 #include "wext.h"
+#include "scan.h"
 #include "cmd.h"
 
 static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);

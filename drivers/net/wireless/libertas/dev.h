@@ -6,75 +6,10 @@
 #ifndef _LBS_DEV_H_
 #define _LBS_DEV_H_
 
-#include <linux/netdevice.h>
-#include <linux/wireless.h>
-#include <linux/ethtool.h>
-#include <linux/debugfs.h>
+#include "scan.h"
+#include "assoc.h"
 
-#include "defs.h"
-#include "host.h"
 
-extern const struct ethtool_ops lbs_ethtool_ops;
-
-#define	MAX_BSSID_PER_CHANNEL		16
-
-#define NR_TX_QUEUE			3
-
-/* For the extended Scan */
-#define MAX_EXTENDED_SCAN_BSSID_LIST    MAX_BSSID_PER_CHANNEL * \
-						MRVDRV_MAX_CHANNEL_SIZE + 1
-
-#define	MAX_REGION_CHANNEL_NUM	2
-
-/** Chan-freq-TxPower mapping table*/
-struct chan_freq_power {
-	/** channel Number		*/
-	u16 channel;
-	/** frequency of this channel	*/
-	u32 freq;
-	/** Max allowed Tx power level	*/
-	u16 maxtxpower;
-	/** TRUE:channel unsupported;  FLASE:supported*/
-	u8 unsupported;
-};
-
-/** region-band mapping table*/
-struct region_channel {
-	/** TRUE if this entry is valid		     */
-	u8 valid;
-	/** region code for US, Japan ...	     */
-	u8 region;
-	/** band B/G/A, used for BAND_CONFIG cmd	     */
-	u8 band;
-	/** Actual No. of elements in the array below */
-	u8 nrcfp;
-	/** chan-freq-txpower mapping table*/
-	struct chan_freq_power *CFP;
-};
-
-struct lbs_802_11_security {
-	u8 WPAenabled;
-	u8 WPA2enabled;
-	u8 wep_enabled;
-	u8 auth_mode;
-	u32 key_mgmt;
-};
-
-/** Current Basic Service Set State Structure */
-struct current_bss_params {
-	/** bssid */
-	u8 bssid[ETH_ALEN];
-	/** ssid */
-	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
-	u8 ssid_len;
-
-	/** band */
-	u8 band;
-	/** channel */
-	u8 channel;
-	/** zero-terminated array of supported data rates */
-	u8 rates[MAX_RATES + 1];
-};
 
 /** sleep_params */
 struct sleep_params {
@@ -295,12 +230,6 @@ struct lbs_private {
 	struct enc_key wpa_mcast_key;
 	struct enc_key wpa_unicast_key;
 
-/*
- * In theory, the IE is limited to the IE length, 255,
- * but in practice 64 bytes are enough.
- */
-#define MAX_WPA_IE_LEN 64
-
 	/** WPA Information Elements*/
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	u8 wpa_ie_len;
@@ -333,85 +262,5 @@ struct lbs_private {
 };
 
 extern struct cmd_confirm_sleep confirm_sleep;
-
-/**
- *  @brief Structure used to store information for each beacon/probe response
- */
-struct bss_descriptor {
-	u8 bssid[ETH_ALEN];
-
-	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
-	u8 ssid_len;
-
-	u16 capability;
-	u32 rssi;
-	u32 channel;
-	u16 beaconperiod;
-	__le16 atimwindow;
-
-	/* IW_MODE_AUTO, IW_MODE_ADHOC, IW_MODE_INFRA */
-	u8 mode;
-
-	/* zero-terminated array of supported data rates */
-	u8 rates[MAX_RATES + 1];
-
-	unsigned long last_scanned;
-
-	union ieee_phy_param_set phy;
-	union ieee_ss_param_set ss;
-
-	u8 wpa_ie[MAX_WPA_IE_LEN];
-	size_t wpa_ie_len;
-	u8 rsn_ie[MAX_WPA_IE_LEN];
-	size_t rsn_ie_len;
-
-	u8 mesh;
-
-	struct list_head list;
-};
-
-/** Association request
- *
- * Encapsulates all the options that describe a specific assocation request
- * or configuration of the wireless card's radio, mode, and security settings.
- */
-struct assoc_request {
-#define ASSOC_FLAG_SSID			1
-#define ASSOC_FLAG_CHANNEL		2
-#define ASSOC_FLAG_BAND			3
-#define ASSOC_FLAG_MODE			4
-#define ASSOC_FLAG_BSSID		5
-#define ASSOC_FLAG_WEP_KEYS		6
-#define ASSOC_FLAG_WEP_TX_KEYIDX	7
-#define ASSOC_FLAG_WPA_MCAST_KEY	8
-#define ASSOC_FLAG_WPA_UCAST_KEY	9
-#define ASSOC_FLAG_SECINFO		10
-#define ASSOC_FLAG_WPA_IE		11
-	unsigned long flags;
-
-	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
-	u8 ssid_len;
-	u8 channel;
-	u8 band;
-	u8 mode;
-	u8 bssid[ETH_ALEN] __attribute__ ((aligned (2)));
-
-	/** WEP keys */
-	struct enc_key wep_keys[4];
-	u16 wep_tx_keyidx;
-
-	/** WPA keys */
-	struct enc_key wpa_mcast_key;
-	struct enc_key wpa_unicast_key;
-
-	struct lbs_802_11_security secinfo;
-
-	/** WPA Information Elements*/
-	u8 wpa_ie[MAX_WPA_IE_LEN];
-	u8 wpa_ie_len;
-
-	/* BSS to associate with for infrastructure of Ad-Hoc join */
-	struct bss_descriptor bss;
-};
 
 #endif

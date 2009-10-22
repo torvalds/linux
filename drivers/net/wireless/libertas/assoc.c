@@ -23,6 +23,13 @@ static const u8 bssid_off[ETH_ALEN]  __attribute__ ((aligned (2))) =
  */
 #define CAPINFO_MASK	(~(0xda00))
 
+/**
+ * 802.11b/g supported bitrates (in 500Kb/s units)
+ */
+u8 lbs_bg_rates[MAX_RATES] =
+    { 0x02, 0x04, 0x0b, 0x16, 0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6c,
+0x00, 0x00 };
+
 
 /**
  *  @brief This function finds common rates between rates and card rates.
