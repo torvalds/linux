@@ -1590,7 +1590,6 @@ __mwl8k_cmd_mac_multicast_adr(struct ieee80211_hw *hw,
  */
 struct mwl8k_cmd_802_11_get_stat {
 	struct mwl8k_cmd_pkt header;
-	__le16 action;
 	__le32 stats[64];
 } __attribute__((packed));
 
@@ -1611,7 +1610,6 @@ static int mwl8k_cmd_802_11_get_stat(struct ieee80211_hw *hw,
 
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_GET_STAT);
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
-	cmd->action = cpu_to_le16(MWL8K_CMD_GET);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 	if (!rc) {
