@@ -1167,7 +1167,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 		ie->val.mesh_id_len = priv->mesh_ssid_len;
 		memcpy(ie->val.mesh_id, priv->mesh_ssid, priv->mesh_ssid_len);
 		ie->len = sizeof(struct mrvl_meshie_val) -
-			IW_ESSID_MAX_SIZE + priv->mesh_ssid_len;
+			IEEE80211_MAX_SSID_LEN + priv->mesh_ssid_len;
 		cmd.length = cpu_to_le16(sizeof(struct mrvl_meshie_val));
 		break;
 	case CMD_ACT_MESH_CONFIG_STOP:

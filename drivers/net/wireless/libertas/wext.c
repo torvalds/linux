@@ -1989,7 +1989,7 @@ static int lbs_set_essid(struct net_device *dev, struct iw_request_info *info,
 {
 	struct lbs_private *priv = dev->ml_priv;
 	int ret = 0;
-	u8 ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_len = 0;
 	struct assoc_request * assoc_req;
 	int in_ssid_len = dwrq->length;
@@ -2003,7 +2003,7 @@ static int lbs_set_essid(struct net_device *dev, struct iw_request_info *info,
 	}
 
 	/* Check the size of the string */
-	if (in_ssid_len > IW_ESSID_MAX_SIZE) {
+	if (in_ssid_len > IEEE80211_MAX_SSID_LEN) {
 		ret = -E2BIG;
 		goto out;
 	}
@@ -2034,7 +2034,7 @@ out:
 			ret = -ENOMEM;
 		} else {
 			/* Copy the SSID to the association request */
-			memcpy(&assoc_req->ssid, &ssid, IW_ESSID_MAX_SIZE);
+			memcpy(&assoc_req->ssid, &ssid, IEEE80211_MAX_SSID_LEN);
 			assoc_req->ssid_len = ssid_len;
 			set_bit(ASSOC_FLAG_SSID, &assoc_req->flags);
 			lbs_postpone_association_work(priv);
@@ -2085,7 +2085,7 @@ static int lbs_mesh_set_essid(struct net_device *dev,
 	}
 
 	/* Check the size of the string */
-	if (dwrq->length > IW_ESSID_MAX_SIZE) {
+	if (dwrq->length > IEEE80211_MAX_SSID_LEN) {
 		ret = -E2BIG;
 		goto out;
 	}

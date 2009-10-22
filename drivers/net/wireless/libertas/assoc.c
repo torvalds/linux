@@ -226,7 +226,7 @@ static int lbs_assoc_post(struct lbs_private *priv,
 	priv->connect_status = LBS_CONNECTED;
 
 	/* Update current SSID and BSSID */
-	memcpy(&priv->curbssparams.ssid, &bss->ssid, IW_ESSID_MAX_SIZE);
+	memcpy(&priv->curbssparams.ssid, &bss->ssid, IEEE80211_MAX_SSID_LEN);
 	priv->curbssparams.ssid_len = bss->ssid_len;
 	memcpy(priv->curbssparams.bssid, bss->bssid, ETH_ALEN);
 
@@ -467,7 +467,7 @@ static int lbs_adhoc_post(struct lbs_private *priv,
 	memcpy(&priv->curbssparams.bssid, bss->bssid, ETH_ALEN);
 
 	/* Set the new SSID to current SSID */
-	memcpy(&priv->curbssparams.ssid, &bss->ssid, IW_ESSID_MAX_SIZE);
+	memcpy(&priv->curbssparams.ssid, &bss->ssid, IEEE80211_MAX_SSID_LEN);
 	priv->curbssparams.ssid_len = bss->ssid_len;
 
 	netif_carrier_on(priv->dev);
@@ -1083,7 +1083,7 @@ static int assoc_helper_essid(struct lbs_private *priv,
 			/* else send START command */
 			lbs_deb_assoc("SSID not found, creating adhoc network\n");
 			memcpy(&assoc_req->bss.ssid, &assoc_req->ssid,
-				IW_ESSID_MAX_SIZE);
+				IEEE80211_MAX_SSID_LEN);
 			assoc_req->bss.ssid_len = assoc_req->ssid_len;
 			lbs_adhoc_start(priv, assoc_req);
 		}
@@ -1541,7 +1541,7 @@ static int lbs_find_best_network_ssid(struct lbs_private *priv,
 
 	found = lbs_find_best_ssid_in_list(priv, preferred_mode);
 	if (found && (found->ssid_len > 0)) {
-		memcpy(out_ssid, &found->ssid, IW_ESSID_MAX_SIZE);
+		memcpy(out_ssid, &found->ssid, IEEE80211_MAX_SSID_LEN);
 		*out_ssid_len = found->ssid_len;
 		*out_mode = found->mode;
 		ret = 0;
@@ -1759,7 +1759,7 @@ struct assoc_request *lbs_get_association_request(struct lbs_private *priv)
 	assoc_req = priv->pending_assoc_req;
 	if (!test_bit(ASSOC_FLAG_SSID, &assoc_req->flags)) {
 		memcpy(&assoc_req->ssid, &priv->curbssparams.ssid,
-		       IW_ESSID_MAX_SIZE);
+		       IEEE80211_MAX_SSID_LEN);
 		assoc_req->ssid_len = priv->curbssparams.ssid_len;
 	}
 

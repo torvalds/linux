@@ -65,7 +65,7 @@ struct current_bss_params {
 	/** bssid */
 	u8 bssid[ETH_ALEN];
 	/** ssid */
-	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 ssid_len;
 
 	/** band */
@@ -163,7 +163,7 @@ struct lbs_private {
 	struct work_struct sync_channel;
 	/* remember which channel was scanned last, != 0 if currently scanning */
 	int scan_channel;
-	u8 scan_ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 scan_ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 scan_ssid_len;
 
 	/** Hardware access */
@@ -230,7 +230,7 @@ struct lbs_private {
 	struct current_bss_params curbssparams;
 
 	uint16_t mesh_tlv;
-	u8 mesh_ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 mesh_ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 mesh_ssid_len;
 
 	/* IW_MODE_* */
@@ -340,7 +340,7 @@ extern struct cmd_confirm_sleep confirm_sleep;
 struct bss_descriptor {
 	u8 bssid[ETH_ALEN];
 
-	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 ssid_len;
 
 	u16 capability;
@@ -389,7 +389,7 @@ struct assoc_request {
 #define ASSOC_FLAG_WPA_IE		11
 	unsigned long flags;
 
-	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 	u8 ssid_len;
 	u8 channel;
 	u8 band;

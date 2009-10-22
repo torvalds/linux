@@ -68,7 +68,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	 * no longer valid.
 	 */
 	memset(&priv->curbssparams.bssid, 0, ETH_ALEN);
-	memset(&priv->curbssparams.ssid, 0, IW_ESSID_MAX_SIZE);
+	memset(&priv->curbssparams.ssid, 0, IEEE80211_MAX_SSID_LEN);
 	priv->curbssparams.ssid_len = 0;
 
 	if (priv->psstate != PS_STATE_FULL_POWER) {

@@ -19,11 +19,11 @@
 
 //! Approximate amount of data needed to pass a scan result back to iwlist
 #define MAX_SCAN_CELL_SIZE  (IW_EV_ADDR_LEN             \
-                             + IW_ESSID_MAX_SIZE        \
+                             + IEEE80211_MAX_SSID_LEN   \
                              + IW_EV_UINT_LEN           \
                              + IW_EV_FREQ_LEN           \
                              + IW_EV_QUAL_LEN           \
-                             + IW_ESSID_MAX_SIZE        \
+                             + IEEE80211_MAX_SSID_LEN   \
                              + IW_EV_PARAM_LEN          \
                              + 40)	/* 40 for WPAIE */
 
@@ -775,7 +775,7 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 	/* SSID */
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
-	iwe.u.data.length = min((uint32_t) bss->ssid_len, (uint32_t) IW_ESSID_MAX_SIZE);
+	iwe.u.data.length = min((uint32_t) bss->ssid_len, (uint32_t) IEEE80211_MAX_SSID_LEN);
 	start = iwe_stream_add_point(info, start, stop, &iwe, bss->ssid);
 
 	/* Mode */

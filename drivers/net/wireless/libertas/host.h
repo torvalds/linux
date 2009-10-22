@@ -719,7 +719,7 @@ struct cmd_ds_802_11_rate_adapt_rateset {
 struct cmd_ds_802_11_ad_hoc_start {
 	struct cmd_header hdr;
 
-	u8 ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 bsstype;
 	__le16 beaconperiod;
 	u8 dtimperiod;   /* Reserved on v9 and later */
@@ -742,7 +742,7 @@ struct cmd_ds_802_11_ad_hoc_result {
 
 struct adhoc_bssdesc {
 	u8 bssid[ETH_ALEN];
-	u8 ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 type;
 	__le16 beaconperiod;
 	u8 dtimperiod;
