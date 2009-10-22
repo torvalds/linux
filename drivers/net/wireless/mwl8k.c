@@ -2135,11 +2135,18 @@ static int mwl8k_enable_sniffer(struct ieee80211_hw *hw, bool enable)
  */
 struct mwl8k_cmd_set_mac_addr {
 	struct mwl8k_cmd_pkt header;
-	__u8 mac_addr[ETH_ALEN];
+	union {
+		struct {
+			__le16 mac_type;
+			__u8 mac_addr[ETH_ALEN];
+		} mbss;
+		__u8 mac_addr[ETH_ALEN];
+	};
 } __attribute__((packed));
 
 static int mwl8k_set_mac_addr(struct ieee80211_hw *hw, u8 *mac)
 {
+	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_cmd_set_mac_addr *cmd;
 	int rc;
 
@@ -2149,7 +2156,12 @@ static int mwl8k_set_mac_addr(struct ieee80211_hw *hw, u8 *mac)
 
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_SET_MAC_ADDR);
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
-	memcpy(cmd->mac_addr, mac, ETH_ALEN);
+	if (priv->ap_fw) {
+		cmd->mbss.mac_type = 0;
+		memcpy(cmd->mbss.mac_addr, mac, ETH_ALEN);
+	} else {
+		memcpy(cmd->mac_addr, mac, ETH_ALEN);
+	}
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 	kfree(cmd);
