@@ -352,7 +352,6 @@ LIB_H += util/include/asm/bitops.h
 LIB_H += util/include/asm/byteorder.h
 LIB_H += util/include/asm/swab.h
 LIB_H += util/include/asm/system.h
-LIB_H += util/include/asm/types.h
 LIB_H += util/include/asm/uaccess.h
 LIB_H += perf.h
 LIB_H += util/event.h
