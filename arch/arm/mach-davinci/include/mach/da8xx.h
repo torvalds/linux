@@ -52,6 +52,7 @@ extern void __iomem *da8xx_syscfg_base;
 #define DA8XX_AEMIF_CS2_BASE	0x60000000
 #define DA8XX_AEMIF_CS3_BASE	0x62000000
 #define DA8XX_AEMIF_CTL_BASE	0x68000000
+#define DA8XX_DDR2_CTL_BASE	0xb0000000
 
 #define PINMUX0			0x00
 #define PINMUX1			0x04
@@ -88,6 +89,7 @@ int da8xx_register_mmcsd0(struct davinci_mmc_config *config);
 void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
 int da8xx_register_rtc(void);
 int da850_register_cpufreq(void);
+int da8xx_register_cpuidle(void);
 
 extern struct platform_device da8xx_serial_device;
 extern struct emac_platform_data da8xx_emac_pdata;

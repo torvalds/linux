@@ -19,6 +19,7 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
+#include <mach/cpuidle.h>
 
 #include "clock.h"
 
@@ -486,3 +487,32 @@ int da8xx_register_rtc(void)
 
 	return platform_device_register(&da8xx_rtc_device);
 }
+
+static struct resource da8xx_cpuidle_resources[] = {
+	{
+		.start		= DA8XX_DDR2_CTL_BASE,
+		.end		= DA8XX_DDR2_CTL_BASE + SZ_32K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+/* DA8XX devices support DDR2 power down */
+static struct davinci_cpuidle_config da8xx_cpuidle_pdata = {
+	.ddr2_pdown	= 1,
+};
+
+
+static struct platform_device da8xx_cpuidle_device = {
+	.name			= "cpuidle-davinci",
+	.num_resources		= ARRAY_SIZE(da8xx_cpuidle_resources),
+	.resource		= da8xx_cpuidle_resources,
+	.dev = {
+		.platform_data	= &da8xx_cpuidle_pdata,
+	},
+};
+
+int __init da8xx_register_cpuidle(void)
+{
+	return platform_device_register(&da8xx_cpuidle_device);
+}
+
