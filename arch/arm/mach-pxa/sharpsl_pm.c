@@ -78,7 +78,7 @@ DEFINE_LED_TRIGGER(sharpsl_charge_led_trigger);
 
 
 
-struct battery_thresh spitz_battery_levels_acin[] = {
+struct battery_thresh sharpsl_battery_levels_acin[] = {
 	{ 213, 100},
 	{ 212,  98},
 	{ 211,  95},
@@ -121,7 +121,7 @@ struct battery_thresh spitz_battery_levels_acin[] = {
 	{   0,   0},
 };
 
-struct battery_thresh  spitz_battery_levels_noac[] = {
+struct battery_thresh sharpsl_battery_levels_noac[] = {
 	{ 213, 100},
 	{ 212,  98},
 	{ 211,  95},
