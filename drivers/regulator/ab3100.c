@@ -81,7 +81,7 @@ static const u8 ab3100_reg_init_order[AB3100_NUM_REGULATORS+2] = {
 #define LDO_C_VOLTAGE 2650000
 #define LDO_D_VOLTAGE 2650000
 
-static const int const ldo_e_buck_typ_voltages[] = {
+static const int ldo_e_buck_typ_voltages[] = {
 	1800000,
 	1400000,
 	1300000,
@@ -91,7 +91,7 @@ static const int const ldo_e_buck_typ_voltages[] = {
 	900000,
 };
 
-static const int const ldo_f_typ_voltages[] = {
+static const int ldo_f_typ_voltages[] = {
 	1800000,
 	1400000,
 	1300000,
@@ -102,21 +102,21 @@ static const int const ldo_f_typ_voltages[] = {
 	2650000,
 };
 
-static const int const ldo_g_typ_voltages[] = {
+static const int ldo_g_typ_voltages[] = {
 	2850000,
 	2750000,
 	1800000,
 	1500000,
 };
 
-static const int const ldo_h_typ_voltages[] = {
+static const int ldo_h_typ_voltages[] = {
 	2750000,
 	1800000,
 	1500000,
 	1200000,
 };
 
-static const int const ldo_k_typ_voltages[] = {
+static const int ldo_k_typ_voltages[] = {
 	2750000,
 	1800000,
 };
