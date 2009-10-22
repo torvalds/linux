@@ -144,9 +144,8 @@ static int multiq3_ao_insn_read(struct comedi_device *dev,
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-	for (i = 0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
-	}
 
 	return i;
 }
@@ -262,11 +261,10 @@ static int multiq3_attach(struct comedi_device *dev,
 	dev->iobase = iobase;
 
 	irq = it->options[1];
-	if (irq) {
+	if (irq)
 		printk("comedi%d: irq = %u ignored\n", dev->minor, irq);
-	} else {
+	else
 		printk("comedi%d: no irq\n", dev->minor);
-	}
 	dev->board_name = "multiq3";
 	result = alloc_subdevices(dev, 5);
 	if (result < 0)
@@ -332,12 +330,10 @@ static int multiq3_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: multiq3: remove\n", dev->minor);
 
-	if (dev->iobase) {
+	if (dev->iobase)
 		release_region(dev->iobase, MULTIQ3_SIZE);
-	}
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
 
 	return 0;
 }
