@@ -39,6 +39,7 @@ extern struct sort_entry sort_parent;
 extern unsigned int dsos__col_width;
 extern unsigned int comms__col_width;
 extern unsigned int threads__col_width;
+extern int sort_by_sym_first;
 
 struct hist_entry {
 	struct rb_node		rb_node;
