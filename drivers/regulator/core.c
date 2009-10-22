@@ -581,10 +581,29 @@ static int suspend_set_state(struct regulator_dev *rdev,
 	struct regulator_state *rstate)
 {
 	int ret = 0;
+	bool can_set_state;
 
-	/* enable & disable are mandatory for suspend control */
-	if (!rdev->desc->ops->set_suspend_enable ||
-		!rdev->desc->ops->set_suspend_disable) {
+	can_set_state = rdev->desc->ops->set_suspend_enable &&
+		rdev->desc->ops->set_suspend_disable;
+
+	/* If we have no suspend mode configration don't set anything;
+	 * only warn if the driver actually makes the suspend mode
+	 * configurable.
+	 */
+	if (!rstate->enabled && !rstate->disabled) {
+		if (can_set_state)
+			printk(KERN_WARNING "%s: No configuration for %s\n",
+			       __func__, rdev_get_name(rdev));
+		return 0;
+	}
+
+	if (rstate->enabled && rstate->disabled) {
+		printk(KERN_ERR "%s: invalid configuration for %s\n",
+		       __func__, rdev_get_name(rdev));
+		return -EINVAL;
+	}
+
+	if (!can_set_state) {
 		printk(KERN_ERR "%s: no way to set suspend state\n",
 			__func__);
 		return -EINVAL;
