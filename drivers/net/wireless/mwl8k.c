@@ -92,6 +92,7 @@ struct mwl8k_device_info {
 	char *helper_image;
 	char *fw_image;
 	struct rxd_ops *rxd_ops;
+	u16 modes;
 };
 
 struct mwl8k_rx_queue {
@@ -3016,6 +3017,7 @@ static struct mwl8k_device_info di_8687 = {
 	.helper_image	= "mwl8k/helper_8687.fw",
 	.fw_image	= "mwl8k/fmimage_8687.fw",
 	.rxd_ops	= &rxd_8687_ops,
+	.modes		= BIT(NL80211_IFTYPE_STATION),
 };
 
 static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
@@ -3122,7 +3124,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	hw->queues = MWL8K_TX_QUEUES;
 
-	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	hw->wiphy->interface_modes = priv->device_info->modes;
 
 	/* Set rssi and noise values to dBm */
 	hw->flags |= IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_NOISE_DBM;
