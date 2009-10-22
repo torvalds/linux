@@ -124,6 +124,7 @@ struct mwl8k_firmware {
 };
 
 struct mwl8k_priv {
+	void __iomem *sram;
 	void __iomem *regs;
 	struct ieee80211_hw *hw;
 
@@ -2987,11 +2988,25 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 	pci_set_drvdata(pdev, hw);
 
-	priv->regs = pci_iomap(pdev, 1, 0x10000);
-	if (priv->regs == NULL) {
-		printk(KERN_ERR "%s: Cannot map device memory\n",
+	priv->sram = pci_iomap(pdev, 0, 0x10000);
+	if (priv->sram == NULL) {
+		printk(KERN_ERR "%s: Cannot map device SRAM\n",
 		       wiphy_name(hw->wiphy));
 		goto err_iounmap;
+	}
+
+	/*
+	 * If BAR0 is a 32 bit BAR, the register BAR will be BAR1.
+	 * If BAR0 is a 64 bit BAR, the register BAR will be BAR2.
+	 */
+	priv->regs = pci_iomap(pdev, 1, 0x10000);
+	if (priv->regs == NULL) {
+		priv->regs = pci_iomap(pdev, 2, 0x10000);
+		if (priv->regs == NULL) {
+			printk(KERN_ERR "%s: Cannot map device registers\n",
+			       wiphy_name(hw->wiphy));
+			goto err_iounmap;
+		}
 	}
 
 	memcpy(priv->channels, mwl8k_channels, sizeof(mwl8k_channels));
@@ -3165,6 +3180,9 @@ err_iounmap:
 	if (priv->regs != NULL)
 		pci_iounmap(pdev, priv->regs);
 
+	if (priv->sram != NULL)
+		pci_iounmap(pdev, priv->sram);
+
 	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 
@@ -3212,6 +3230,7 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 	pci_free_consistent(priv->pdev, 4, priv->cookie, priv->cookie_dma);
 
 	pci_iounmap(pdev, priv->regs);
+	pci_iounmap(pdev, priv->sram);
 	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 	pci_release_regions(pdev);
