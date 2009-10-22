@@ -530,19 +530,22 @@ static int vp_try_to_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			err = PTR_ERR(vqs[i]);
 			goto error_find;
 		}
+
+		if (!vp_dev->per_vq_vectors || msix_vec == VIRTIO_MSI_NO_VECTOR)
+			continue;
+
 		/* allocate per-vq irq if available and necessary */
-		if (vp_dev->per_vq_vectors) {
-			snprintf(vp_dev->msix_names[msix_vec],
-				 sizeof *vp_dev->msix_names,
-				 "%s-%s",
-				 dev_name(&vp_dev->vdev.dev), names[i]);
-			err = request_irq(msix_vec, vring_interrupt, 0,
-					  vp_dev->msix_names[msix_vec],
-					  vqs[i]);
-			if (err) {
-				vp_del_vq(vqs[i]);
-				goto error_find;
-			}
+		snprintf(vp_dev->msix_names[msix_vec],
+			 sizeof *vp_dev->msix_names,
+			 "%s-%s",
+			 dev_name(&vp_dev->vdev.dev), names[i]);
+		err = request_irq(vp_dev->msix_entries[msix_vec].vector,
+				  vring_interrupt, 0,
+				  vp_dev->msix_names[msix_vec],
+				  vqs[i]);
+		if (err) {
+			vp_del_vq(vqs[i]);
+			goto error_find;
 		}
 	}
 	return 0;
