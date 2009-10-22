@@ -28,13 +28,6 @@
 #define MWL8K_NAME	KBUILD_MODNAME
 #define MWL8K_VERSION	"0.10"
 
-static DEFINE_PCI_DEVICE_TABLE(mwl8k_table) = {
-	{ PCI_VDEVICE(MARVELL, 0x2a2b), .driver_data = 8687, },
-	{ PCI_VDEVICE(MARVELL, 0x2a30), .driver_data = 8687, },
-	{ }
-};
-MODULE_DEVICE_TABLE(pci, mwl8k_table);
-
 /* Register definitions */
 #define MWL8K_HIU_GEN_PTR			0x00000c10
 #define  MWL8K_MODE_STA				 0x0000005a
@@ -87,6 +80,10 @@ MODULE_DEVICE_TABLE(pci, mwl8k_table);
 #define MWL8K_RX_QUEUES		1
 #define MWL8K_TX_QUEUES		4
 
+struct mwl8k_device_info {
+	int part_num;
+};
+
 struct mwl8k_rx_queue {
 	int rxd_count;
 
@@ -130,9 +127,10 @@ struct mwl8k_priv {
 
 	struct pci_dev *pdev;
 
+	struct mwl8k_device_info *device_info;
+
 	/* firmware files and meta data */
 	struct mwl8k_firmware fw;
-	u32 part_num;
 
 	/* firmware access */
 	struct mutex fw_mutex;
@@ -356,15 +354,13 @@ static int mwl8k_request_fw(struct mwl8k_priv *priv,
 				fname, &priv->pdev->dev);
 }
 
-static int mwl8k_request_firmware(struct mwl8k_priv *priv, u32 part_num)
+static int mwl8k_request_firmware(struct mwl8k_priv *priv)
 {
 	u8 filename[64];
 	int rc;
 
-	priv->part_num = part_num;
-
 	snprintf(filename, sizeof(filename),
-		 "mwl8k/helper_%u.fw", priv->part_num);
+		 "mwl8k/helper_%u.fw", priv->device_info->part_num);
 
 	rc = mwl8k_request_fw(priv, filename, &priv->fw.helper);
 	if (rc) {
@@ -374,7 +370,7 @@ static int mwl8k_request_firmware(struct mwl8k_priv *priv, u32 part_num)
 	}
 
 	snprintf(filename, sizeof(filename),
-		 "mwl8k/fmimage_%u.fw", priv->part_num);
+		 "mwl8k/fmimage_%u.fw", priv->device_info->part_num);
 
 	rc = mwl8k_request_fw(priv, filename, &priv->fw.ucode);
 	if (rc) {
@@ -2941,6 +2937,22 @@ static void mwl8k_finalize_join_worker(struct work_struct *work)
 	priv->beacon_skb = NULL;
 }
 
+static struct mwl8k_device_info di_8687 = {
+	.part_num	= 8687,
+};
+
+static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
+	{
+		PCI_VDEVICE(MARVELL, 0x2a2b),
+		.driver_data = (unsigned long)&di_8687,
+	}, {
+		PCI_VDEVICE(MARVELL, 0x2a30),
+		.driver_data = (unsigned long)&di_8687,
+	}, {
+	},
+};
+MODULE_DEVICE_TABLE(pci, mwl8k_pci_id_table);
+
 static int __devinit mwl8k_probe(struct pci_dev *pdev,
 				 const struct pci_device_id *id)
 {
@@ -2981,6 +2993,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	priv = hw->priv;
 	priv->hw = hw;
 	priv->pdev = pdev;
+	priv->device_info = (void *)id->driver_data;
 	priv->sniffer_enabled = false;
 	priv->wmm_enabled = false;
 	priv->pending_tx_pkts = 0;
@@ -3092,7 +3105,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	mwl8k_hw_reset(priv);
 
 	/* Ask userland hotplug daemon for the device firmware */
-	rc = mwl8k_request_firmware(priv, (u32)id->driver_data);
+	rc = mwl8k_request_firmware(priv);
 	if (rc) {
 		printk(KERN_ERR "%s: Firmware files not found\n",
 		       wiphy_name(hw->wiphy));
@@ -3152,8 +3165,8 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	}
 
 	printk(KERN_INFO "%s: 88w%u v%d, %pM, firmware version %u.%u.%u.%u\n",
-	       wiphy_name(hw->wiphy), priv->part_num, priv->hw_rev,
-	       hw->wiphy->perm_addr,
+	       wiphy_name(hw->wiphy), priv->device_info->part_num,
+	       priv->hw_rev, hw->wiphy->perm_addr,
 	       (priv->fw_rev >> 24) & 0xff, (priv->fw_rev >> 16) & 0xff,
 	       (priv->fw_rev >> 8) & 0xff, priv->fw_rev & 0xff);
 
@@ -3239,7 +3252,7 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 
 static struct pci_driver mwl8k_driver = {
 	.name		= MWL8K_NAME,
-	.id_table	= mwl8k_table,
+	.id_table	= mwl8k_pci_id_table,
 	.probe		= mwl8k_probe,
 	.remove		= __devexit_p(mwl8k_remove),
 	.shutdown	= __devexit_p(mwl8k_shutdown),
