@@ -1,7 +1,7 @@
 /*
  * usbmidi.c - ALSA USB MIDI driver
  *
- * Copyright (c) 2002-2007 Clemens Ladisch
+ * Copyright (c) 2002-2009 Clemens Ladisch
  * All rights reserved.
  *
  * Based on the OSS usb-midi driver by NAGANO Daisuke,
@@ -47,6 +47,7 @@
 #include <linux/usb.h>
 #include <linux/wait.h>
 #include <sound/core.h>
+#include <sound/control.h>
 #include <sound/rawmidi.h>
 #include <sound/asequencer.h>
 #include "usbaudio.h"
@@ -109,13 +110,17 @@ struct snd_usb_midi {
 	struct list_head list;
 	struct timer_list error_timer;
 	spinlock_t disc_lock;
+	struct mutex mutex;
 
 	struct snd_usb_midi_endpoint {
 		struct snd_usb_midi_out_endpoint *out;
 		struct snd_usb_midi_in_endpoint *in;
 	} endpoints[MIDI_MAX_ENDPOINTS];
 	unsigned long input_triggered;
+	unsigned int opened;
 	unsigned char disconnected;
+
+	struct snd_kcontrol *roland_load_ctl;
 };
 
 struct snd_usb_midi_out_endpoint {
@@ -879,6 +884,50 @@ static struct usb_protocol_ops snd_usbmidi_emagic_ops = {
 };
 
 
+static void update_roland_altsetting(struct snd_usb_midi* umidi)
+{
+	struct usb_interface *intf;
+	struct usb_host_interface *hostif;
+	struct usb_interface_descriptor *intfd;
+	int is_light_load;
+
+	intf = umidi->iface;
+	is_light_load = intf->cur_altsetting != intf->altsetting;
+	if (umidi->roland_load_ctl->private_value == is_light_load)
+		return;
+	hostif = &intf->altsetting[umidi->roland_load_ctl->private_value];
+	intfd = get_iface_desc(hostif);
+	snd_usbmidi_input_stop(&umidi->list);
+	usb_set_interface(umidi->chip->dev, intfd->bInterfaceNumber,
+			  intfd->bAlternateSetting);
+	snd_usbmidi_input_start(&umidi->list);
+}
+
+static void substream_open(struct snd_rawmidi_substream *substream, int open)
+{
+	struct snd_usb_midi* umidi = substream->rmidi->private_data;
+	struct snd_kcontrol *ctl;
+
+	mutex_lock(&umidi->mutex);
+	if (open) {
+		if (umidi->opened++ == 0 && umidi->roland_load_ctl) {
+			ctl = umidi->roland_load_ctl;
+			ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+			snd_ctl_notify(umidi->chip->card,
+				       SNDRV_CTL_EVENT_MASK_INFO, &ctl->id);
+			update_roland_altsetting(umidi);
+		}
+	} else {
+		if (--umidi->opened == 0 && umidi->roland_load_ctl) {
+			ctl = umidi->roland_load_ctl;
+			ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+			snd_ctl_notify(umidi->chip->card,
+				       SNDRV_CTL_EVENT_MASK_INFO, &ctl->id);
+		}
+	}
+	mutex_unlock(&umidi->mutex);
+}
+
 static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
 {
 	struct snd_usb_midi* umidi = substream->rmidi->private_data;
@@ -898,11 +947,13 @@ static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
 	}
 	substream->runtime->private_data = port;
 	port->state = STATE_UNKNOWN;
+	substream_open(substream, 1);
 	return 0;
 }
 
 static int snd_usbmidi_output_close(struct snd_rawmidi_substream *substream)
 {
+	substream_open(substream, 0);
 	return 0;
 }
 
@@ -954,11 +1005,13 @@ static void snd_usbmidi_output_drain(struct snd_rawmidi_substream *substream)
 
 static int snd_usbmidi_input_open(struct snd_rawmidi_substream *substream)
 {
+	substream_open(substream, 1);
 	return 0;
 }
 
 static int snd_usbmidi_input_close(struct snd_rawmidi_substream *substream)
 {
+	substream_open(substream, 0);
 	return 0;
 }
 
@@ -1163,6 +1216,7 @@ static void snd_usbmidi_free(struct snd_usb_midi* umidi)
 		if (ep->in)
 			snd_usbmidi_in_endpoint_delete(ep->in);
 	}
+	mutex_destroy(&umidi->mutex);
 	kfree(umidi);
 }
 
@@ -1524,6 +1578,52 @@ static int snd_usbmidi_get_ms_info(struct snd_usb_midi* umidi,
 	return 0;
 }
 
+static int roland_load_info(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_info *info)
+{
+	static const char *const names[] = { "High Load", "Light Load" };
+
+	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	info->count = 1;
+	info->value.enumerated.items = 2;
+	if (info->value.enumerated.item > 1)
+		info->value.enumerated.item = 1;
+	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
+	return 0;
+}
+
+static int roland_load_get(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *value)
+{
+	value->value.enumerated.item[0] = kcontrol->private_value;
+	return 0;
+}
+
+static int roland_load_put(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *value)
+{
+	struct snd_usb_midi* umidi = kcontrol->private_data;
+	int changed;
+
+	if (value->value.enumerated.item[0] > 1)
+		return -EINVAL;
+	mutex_lock(&umidi->mutex);
+	changed = value->value.enumerated.item[0] != kcontrol->private_value;
+	if (changed)
+		kcontrol->private_value = value->value.enumerated.item[0];
+	mutex_unlock(&umidi->mutex);
+	return changed;
+}
+
+static struct snd_kcontrol_new roland_load_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "MIDI Input Mode",
+	.info = roland_load_info,
+	.get = roland_load_get,
+	.put = roland_load_put,
+	.private_value = 1,
+};
+
 /*
  * On Roland devices, use the second alternate setting to be able to use
  * the interrupt input endpoint.
@@ -1549,6 +1649,10 @@ static void snd_usbmidi_switch_roland_altsetting(struct snd_usb_midi* umidi)
 		    intfd->bAlternateSetting);
 	usb_set_interface(umidi->chip->dev, intfd->bInterfaceNumber,
 			  intfd->bAlternateSetting);
+
+	umidi->roland_load_ctl = snd_ctl_new1(&roland_load_ctl, umidi);
+	if (snd_ctl_add(umidi->chip->card, umidi->roland_load_ctl) < 0)
+		umidi->roland_load_ctl = NULL;
 }
 
 /*
@@ -1834,6 +1938,7 @@ int snd_usb_create_midi_interface(struct snd_usb_audio* chip,
 	umidi->usb_protocol_ops = &snd_usbmidi_standard_ops;
 	init_timer(&umidi->error_timer);
 	spin_lock_init(&umidi->disc_lock);
+	mutex_init(&umidi->mutex);
 	umidi->error_timer.function = snd_usbmidi_error_timer;
 	umidi->error_timer.data = (unsigned long)umidi;
 
