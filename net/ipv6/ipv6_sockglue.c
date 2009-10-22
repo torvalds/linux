@@ -496,13 +496,17 @@ done:
 			goto e_inval;
 
 		if (val) {
+			struct net_device *dev;
+
 			if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != val)
 				goto e_inval;
 
-			if (__dev_get_by_index(net, val) == NULL) {
+			dev = dev_get_by_index(net, val);
+			if (!dev) {
 				retv = -ENODEV;
 				break;
 			}
+			dev_put(dev);
 		}
 		np->mcast_oif = val;
 		retv = 0;
