@@ -229,6 +229,14 @@ static struct twl4030_madc_platform_data zoom2_madc_data = {
 	.irq_line	= 1,
 };
 
+static struct twl4030_codec_audio_data zoom2_audio_data = {
+	.audio_mclk = 26000000,
+};
+
+static struct twl4030_codec_data zoom2_codec_data = {
+	.audio = &zoom2_audio_data,
+};
+
 static struct twl4030_platform_data zoom2_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -239,6 +247,7 @@ static struct twl4030_platform_data zoom2_twldata = {
 	.usb		= &zoom2_usb_data,
 	.gpio		= &zoom2_gpio_data,
 	.keypad		= &zoom2_kp_twl4030_data,
+	.codec		= &zoom2_codec_data,
 	.vmmc1          = &zoom2_vmmc1,
 	.vmmc2          = &zoom2_vmmc2,
 	.vsim           = &zoom2_vsim,
