@@ -97,7 +97,10 @@ struct mwl8k_rx_queue {
 
 	struct mwl8k_rx_desc *rxd;
 	dma_addr_t rxd_dma;
-	struct sk_buff **skb;
+	struct {
+		struct sk_buff *skb;
+		DECLARE_PCI_UNMAP_ADDR(dma)
+	} *buf;
 };
 
 struct mwl8k_tx_queue {
@@ -791,14 +794,14 @@ static int mwl8k_rxq_init(struct ieee80211_hw *hw, int index)
 	}
 	memset(rxq->rxd, 0, size);
 
-	rxq->skb = kmalloc(MWL8K_RX_DESCS * sizeof(*rxq->skb), GFP_KERNEL);
-	if (rxq->skb == NULL) {
+	rxq->buf = kmalloc(MWL8K_RX_DESCS * sizeof(*rxq->buf), GFP_KERNEL);
+	if (rxq->buf == NULL) {
 		printk(KERN_ERR "%s: failed to alloc RX skbuff list\n",
 		       wiphy_name(hw->wiphy));
 		pci_free_consistent(priv->pdev, size, rxq->rxd, rxq->rxd_dma);
 		return -ENOMEM;
 	}
-	memset(rxq->skb, 0, MWL8K_RX_DESCS * sizeof(*rxq->skb));
+	memset(rxq->buf, 0, MWL8K_RX_DESCS * sizeof(*rxq->buf));
 
 	for (i = 0; i < MWL8K_RX_DESCS; i++) {
 		struct mwl8k_rx_desc *rx_desc;
@@ -824,6 +827,7 @@ static int rxq_refill(struct ieee80211_hw *hw, int index, int limit)
 	refilled = 0;
 	while (rxq->rxd_count < MWL8K_RX_DESCS && limit--) {
 		struct sk_buff *skb;
+		dma_addr_t addr;
 		int rx;
 
 		skb = dev_alloc_skb(MWL8K_RX_MAXSZ);
@@ -835,12 +839,13 @@ static int rxq_refill(struct ieee80211_hw *hw, int index, int limit)
 		rx = rxq->tail;
 		rxq->tail = (rx + 1) % MWL8K_RX_DESCS;
 
-		rxq->rxd[rx].pkt_phys_addr =
-			cpu_to_le32(pci_map_single(priv->pdev, skb->data,
-					MWL8K_RX_MAXSZ, DMA_FROM_DEVICE));
+		addr = pci_map_single(priv->pdev, skb->data,
+				      MWL8K_RX_MAXSZ, DMA_FROM_DEVICE);
 
 		rxq->rxd[rx].pkt_len = cpu_to_le16(MWL8K_RX_MAXSZ);
-		rxq->skb[rx] = skb;
+		rxq->rxd[rx].pkt_phys_addr = cpu_to_le32(addr);
+		rxq->buf[rx].skb = skb;
+		pci_unmap_addr_set(&rxq->buf[rx], dma, addr);
 		wmb();
 		rxq->rxd[rx].rx_ctrl = 0;
 
@@ -858,19 +863,19 @@ static void mwl8k_rxq_deinit(struct ieee80211_hw *hw, int index)
 	int i;
 
 	for (i = 0; i < MWL8K_RX_DESCS; i++) {
-		if (rxq->skb[i] != NULL) {
-			unsigned long addr;
+		if (rxq->buf[i].skb != NULL) {
+			pci_unmap_single(priv->pdev,
+					 pci_unmap_addr(&rxq->buf[i], dma),
+					 MWL8K_RX_MAXSZ, PCI_DMA_FROMDEVICE);
+			pci_unmap_addr_set(&rxq->buf[i], dma, 0);
 
-			addr = le32_to_cpu(rxq->rxd[i].pkt_phys_addr);
-			pci_unmap_single(priv->pdev, addr, MWL8K_RX_MAXSZ,
-					 PCI_DMA_FROMDEVICE);
-			kfree_skb(rxq->skb[i]);
-			rxq->skb[i] = NULL;
+			kfree_skb(rxq->buf[i].skb);
+			rxq->buf[i].skb = NULL;
 		}
 	}
 
-	kfree(rxq->skb);
-	rxq->skb = NULL;
+	kfree(rxq->buf);
+	rxq->buf = NULL;
 
 	pci_free_consistent(priv->pdev,
 			    MWL8K_RX_DESCS * sizeof(struct mwl8k_rx_desc),
@@ -920,7 +925,6 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 		struct mwl8k_rx_desc *rx_desc;
 		struct sk_buff *skb;
 		struct ieee80211_rx_status status;
-		unsigned long addr;
 		struct ieee80211_hdr *wh;
 		u16 rate_info;
 
@@ -929,17 +933,18 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 			break;
 		rmb();
 
-		skb = rxq->skb[rxq->head];
+		skb = rxq->buf[rxq->head].skb;
 		if (skb == NULL)
 			break;
-		rxq->skb[rxq->head] = NULL;
+		rxq->buf[rxq->head].skb = NULL;
+
+		pci_unmap_single(priv->pdev,
+				 pci_unmap_addr(&rxq->buf[rxq->head], dma),
+				 MWL8K_RX_MAXSZ, PCI_DMA_FROMDEVICE);
+		pci_unmap_addr_set(&rxq->buf[rxq->head], dma, 0);
 
 		rxq->head = (rxq->head + 1) % MWL8K_RX_DESCS;
 		rxq->rxd_count--;
-
-		addr = le32_to_cpu(rx_desc->pkt_phys_addr);
-		pci_unmap_single(priv->pdev, addr,
-					MWL8K_RX_MAXSZ, PCI_DMA_FROMDEVICE);
 
 		skb_put(skb, le16_to_cpu(rx_desc->pkt_len));
 		mwl8k_remove_dma_header(skb);
