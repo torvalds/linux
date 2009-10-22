@@ -503,7 +503,6 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 	struct ieee_ie_cf_param_set *cf;
 	struct ieee_ie_ibss_param_set *ibss;
 	DECLARE_SSID_BUF(ssid);
-	struct ieee_ie_country_info_set *pcountryinfo;
 	uint8_t *pos, *end, *p;
 	uint8_t n_ex_rates = 0, got_basic_rates = 0, n_basic_rates = 0;
 	uint16_t beaconsize = 0;
@@ -624,26 +623,6 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 			bss->atimwindow = ibss->atimwindow;
 			memcpy(&bss->ss.ibss, ibss, sizeof(*ibss));
 			lbs_deb_scan("got IBSS IE\n");
-			break;
-
-		case WLAN_EID_COUNTRY:
-			pcountryinfo = (struct ieee_ie_country_info_set *) pos;
-			lbs_deb_scan("got COUNTRY IE\n");
-			if (pcountryinfo->header.len < sizeof(pcountryinfo->countrycode)
-			    || pcountryinfo->header.len > 254) {
-				lbs_deb_scan("%s: 11D- Err CountryInfo len %d, min %zd, max 254\n",
-					     __func__,
-					     pcountryinfo->header.len,
-					     sizeof(pcountryinfo->countrycode));
-				ret = -1;
-				goto done;
-			}
-
-			memcpy(&bss->countryinfo, pcountryinfo,
-				pcountryinfo->header.len + 2);
-			lbs_deb_hex(LBS_DEB_SCAN, "process_bss: 11d countryinfo",
-				    (uint8_t *) pcountryinfo,
-				    (int) (pcountryinfo->header.len + 2));
 			break;
 
 		case WLAN_EID_EXT_SUPP_RATES:

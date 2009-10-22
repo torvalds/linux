@@ -6,7 +6,8 @@
 #ifndef _LBS_HOST_H_
 #define _LBS_HOST_H_
 
-#include "11d.h"
+#include "types.h"
+#include "defs.h"
 
 #define DEFAULT_AD_HOC_CHANNEL                  6
 
@@ -960,9 +961,6 @@ struct cmd_ds_command {
 		struct cmd_ds_mac_reg_access macreg;
 		struct cmd_ds_bbp_reg_access bbpreg;
 		struct cmd_ds_rf_reg_access rfreg;
-
-		struct cmd_ds_802_11d_domain_info domaininfo;
-		struct cmd_ds_802_11d_domain_info domaininforesp;
 
 		struct cmd_ds_802_11_tpc_cfg tpccfg;
 		struct cmd_ds_802_11_afc afc;
