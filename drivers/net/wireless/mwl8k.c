@@ -3014,6 +3014,16 @@ static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 	struct mwl8k_cmd_pkt *cmd = (void *)(unsigned long)multicast;
 
 	/*
+	 * AP firmware doesn't allow fine-grained control over
+	 * the receive filter.
+	 */
+	if (priv->ap_fw) {
+		*total_flags &= FIF_ALLMULTI | FIF_BCN_PRBRESP_PROMISC;
+		kfree(cmd);
+		return;
+	}
+
+	/*
 	 * Enable hardware sniffer mode if FIF_CONTROL or
 	 * FIF_OTHER_BSS is requested.
 	 */
