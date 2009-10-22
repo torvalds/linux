@@ -239,7 +239,7 @@ static int lbs_cmd_802_11_ps_mode(struct cmd_ds_command *cmd,
 
 	cmd->command = cpu_to_le16(CMD_802_11_PS_MODE);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_ps_mode) +
-				S_DS_GEN);
+				sizeof(struct cmd_header));
 	psm->action = cpu_to_le16(cmd_action);
 	psm->multipledtim = 0;
 	switch (cmd_action) {
@@ -534,7 +534,7 @@ static int lbs_cmd_802_11_monitor_mode(struct cmd_ds_command *cmd,
 	cmd->command = cpu_to_le16(CMD_802_11_MONITOR_MODE);
 	cmd->size =
 	    cpu_to_le16(sizeof(struct cmd_ds_802_11_monitor_mode) +
-			     S_DS_GEN);
+			     sizeof(struct cmd_header));
 
 	monitor->action = cpu_to_le16(cmd_action);
 	if (cmd_action == CMD_ACT_SET) {
@@ -643,7 +643,7 @@ static int lbs_cmd_reg_access(struct cmd_ds_command *cmdptr,
 
 			cmdptr->size =
 			    cpu_to_le16(sizeof (struct cmd_ds_mac_reg_access)
-					+ S_DS_GEN);
+					+ sizeof(struct cmd_header));
 			macreg =
 			    (struct cmd_ds_mac_reg_access *)&cmdptr->params.
 			    macreg;
@@ -662,7 +662,7 @@ static int lbs_cmd_reg_access(struct cmd_ds_command *cmdptr,
 			cmdptr->size =
 			    cpu_to_le16(sizeof
 					     (struct cmd_ds_bbp_reg_access)
-					     + S_DS_GEN);
+					     + sizeof(struct cmd_header));
 			bbpreg =
 			    (struct cmd_ds_bbp_reg_access *)&cmdptr->params.
 			    bbpreg;
@@ -681,7 +681,7 @@ static int lbs_cmd_reg_access(struct cmd_ds_command *cmdptr,
 			cmdptr->size =
 			    cpu_to_le16(sizeof
 					     (struct cmd_ds_rf_reg_access) +
-					     S_DS_GEN);
+					     sizeof(struct cmd_header));
 			rfreg =
 			    (struct cmd_ds_rf_reg_access *)&cmdptr->params.
 			    rfreg;
@@ -708,7 +708,8 @@ static int lbs_cmd_bt_access(struct cmd_ds_command *cmd,
 	lbs_deb_enter_args(LBS_DEB_CMD, "action %d", cmd_action);
 
 	cmd->command = cpu_to_le16(CMD_BT_ACCESS);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_bt_access) + S_DS_GEN);
+	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_bt_access) +
+		sizeof(struct cmd_header));
 	cmd->result = 0;
 	bt_access->action = cpu_to_le16(cmd_action);
 
@@ -745,7 +746,8 @@ static int lbs_cmd_fwt_access(struct cmd_ds_command *cmd,
 	lbs_deb_enter_args(LBS_DEB_CMD, "action %d", cmd_action);
 
 	cmd->command = cpu_to_le16(CMD_FWT_ACCESS);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_fwt_access) + S_DS_GEN);
+	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_fwt_access) +
+		sizeof(struct cmd_header));
 	cmd->result = 0;
 
 	if (pdata_buf)
@@ -1161,7 +1163,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 		cmdptr->command = cpu_to_le16(cmd_no);
 		cmdptr->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_afc) +
-					   S_DS_GEN);
+					   sizeof(struct cmd_header));
 
 		memmove(&cmdptr->params.afc,
 			pdata_buf, sizeof(struct cmd_ds_802_11_afc));
@@ -1173,7 +1175,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		cmdptr->command = cpu_to_le16(CMD_802_11_TPC_CFG);
 		cmdptr->size =
 		    cpu_to_le16(sizeof(struct cmd_ds_802_11_tpc_cfg) +
-				     S_DS_GEN);
+				     sizeof(struct cmd_header));
 
 		memmove(&cmdptr->params.tpccfg,
 			pdata_buf, sizeof(struct cmd_ds_802_11_tpc_cfg));
@@ -1194,7 +1196,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 	case CMD_802_11_DEEP_SLEEP:
 		cmdptr->command = cpu_to_le16(CMD_802_11_DEEP_SLEEP);
-		cmdptr->size = cpu_to_le16(S_DS_GEN);
+		cmdptr->size = cpu_to_le16(sizeof(struct cmd_header));
 		break;
 	default:
 		lbs_pr_err("PREP_CMD: unknown command 0x%04x\n", cmd_no);

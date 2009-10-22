@@ -389,19 +389,6 @@ struct lbs_offset_value {
 	u32 value;
 } __attribute__ ((packed));
 
-/* Define general data structure */
-/* cmd_DS_GEN */
-struct cmd_ds_gen {
-	__le16 command;
-	__le16 size;
-	__le16 seqnum;
-	__le16 result;
-	void *cmdresp[0];
-} __attribute__ ((packed));
-
-#define S_DS_GEN sizeof(struct cmd_ds_gen)
-
-
 /*
  * Define data structure for CMD_GET_HW_SPEC
  * This structure defines the response for the GET_HW_SPEC command

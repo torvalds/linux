@@ -279,7 +279,7 @@ int lbs_cmd_802_11_key_material(struct lbs_private *priv, uint16_t cmd_action,
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 
 	if (cmd_action == CMD_ACT_GET) {
-		cmd.hdr.size = cpu_to_le16(S_DS_GEN + 2);
+		cmd.hdr.size = cpu_to_le16(sizeof(struct cmd_header) + 2);
 	} else {
 		memset(cmd.keyParamSet, 0, sizeof(cmd.keyParamSet));
 
@@ -456,7 +456,8 @@ int lbs_cmd_802_11_rssi(struct lbs_private *priv,
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->command = cpu_to_le16(CMD_802_11_RSSI);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_rssi) + S_DS_GEN);
+	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_rssi) +
+		sizeof(struct cmd_header));
 	cmd->params.rssi.N = cpu_to_le16(DEFAULT_BCN_AVG_FACTOR);
 
 	/* reset Beacon SNR/NF/RSSI values */
@@ -514,7 +515,7 @@ int lbs_cmd_bcn_ctrl(struct lbs_private *priv,
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->size =
 	    cpu_to_le16(sizeof(struct cmd_ds_802_11_beacon_control)
-			     + S_DS_GEN);
+			     + sizeof(struct cmd_header));
 	cmd->command = cpu_to_le16(CMD_802_11_BEACON_CTRL);
 
 	bcn_ctrl->action = cpu_to_le16(cmd_action);
