@@ -73,9 +73,21 @@ config MACH_OMAP_3430SDP
 	bool "OMAP 3430 SDP board"
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
 
+config MACH_NOKIA_N800
+       bool
+
+config MACH_NOKIA_N810
+       bool
+
+config MACH_NOKIA_N810_WIMAX
+       bool
+
 config MACH_NOKIA_N8X0
 	bool "Nokia N800/N810"
 	depends on ARCH_OMAP2420
+	select MACH_NOKIA_N800
+	select MACH_NOKIA_N810
+	select MACH_NOKIA_N810_WIMAX
 
 config MACH_NOKIA_RX51
 	bool "Nokia RX-51 board"
