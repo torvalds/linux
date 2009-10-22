@@ -135,15 +135,6 @@ int lbs_set_data_rate(struct lbs_private *priv, u8 rate);
 int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 				      uint16_t cmd_action);
 
-int lbs_cmd_802_11_set_wep(struct lbs_private *priv, uint16_t cmd_action,
-			   struct assoc_request *assoc);
-
-int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv, uint16_t cmd_action,
-			      uint16_t *enable);
-
-int lbs_cmd_802_11_key_material(struct lbs_private *priv, uint16_t cmd_action,
-				struct assoc_request *assoc);
-
 int lbs_set_tx_power(struct lbs_private *priv, s16 dbm);
 
 int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep);

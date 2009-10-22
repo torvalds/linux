@@ -132,4 +132,24 @@ int lbs_adhoc_stop(struct lbs_private *priv);
 int lbs_cmd_80211_deauthenticate(struct lbs_private *priv,
 				 u8 bssid[ETH_ALEN], u16 reason);
 
+int lbs_cmd_802_11_rssi(struct lbs_private *priv,
+				struct cmd_ds_command *cmd);
+int lbs_ret_802_11_rssi(struct lbs_private *priv,
+				struct cmd_ds_command *resp);
+
+int lbs_cmd_bcn_ctrl(struct lbs_private *priv,
+				struct cmd_ds_command *cmd,
+				u16 cmd_action);
+int lbs_ret_802_11_bcn_ctrl(struct lbs_private *priv,
+					struct cmd_ds_command *resp);
+
+int lbs_cmd_802_11_set_wep(struct lbs_private *priv, uint16_t cmd_action,
+			   struct assoc_request *assoc);
+
+int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv, uint16_t cmd_action,
+			      uint16_t *enable);
+
+int lbs_cmd_802_11_key_material(struct lbs_private *priv, uint16_t cmd_action,
+				struct assoc_request *assoc);
+
 #endif /* _LBS_ASSOC_H */
