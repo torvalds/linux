@@ -455,7 +455,7 @@ static const u8 hv7131r_sensor_init[][8] = {
 
 	{0xa1, 0x11, 0x01, 0x08, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x11, 0x20, 0x00, 0x00, 0x00, 0x00, 0x10},
-	{0xa1, 0x11, 0x21, 0xD0, 0x00, 0x00, 0x00, 0x10},
+	{0xa1, 0x11, 0x21, 0xd0, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x11, 0x22, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x11, 0x23, 0x09, 0x00, 0x00, 0x00, 0x10},
 
@@ -1014,7 +1014,7 @@ static void i2c_r5(struct gspca_dev *gspca_dev, u8 reg)
 	reg_r(gspca_dev, 0x0a, 5);
 }
 
-static int hv7131r_probe(struct gspca_dev *gspca_dev)
+static void hv7131r_probe(struct gspca_dev *gspca_dev)
 {
 	i2c_w1(gspca_dev, 0x02, 0);			/* sensor wakeup */
 	msleep(10);
@@ -1026,14 +1026,12 @@ static int hv7131r_probe(struct gspca_dev *gspca_dev)
 	    && gspca_dev->usb_buf[2] == 0x01
 	    && gspca_dev->usb_buf[3] == 0x00
 	    && gspca_dev->usb_buf[4] == 0x00) {
-		PDEBUG(D_PROBE, "Find Sensor sn9c102P HV7131R");
-		return 0;
+		PDEBUG(D_PROBE, "Sensor sn9c102P HV7131R found");
+		return;
 	}
-	PDEBUG(D_PROBE, "Find Sensor 0x%02x 0x%02x 0x%02x",
+	PDEBUG(D_PROBE, "Sensor 0x%02x 0x%02x 0x%02x - sn9c102P not found",
 		gspca_dev->usb_buf[0], gspca_dev->usb_buf[1],
 		gspca_dev->usb_buf[2]);
-	PDEBUG(D_PROBE, "Sensor sn9c102P Not found");
-	return -ENODEV;
 }
 
 static void mi0360_probe(struct gspca_dev *gspca_dev)
@@ -1086,7 +1084,7 @@ static void mi0360_probe(struct gspca_dev *gspca_dev)
 	}
 }
 
-static int configure_gpio(struct gspca_dev *gspca_dev,
+static void configure_gpio(struct gspca_dev *gspca_dev,
 			  const u8 *sn9c1xx)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1160,13 +1158,10 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 		reg_w1(gspca_dev, 0x01, 0x43);
 		reg_w1(gspca_dev, 0x17, 0x61);
 		reg_w1(gspca_dev, 0x01, 0x42);
-		if (sd->sensor == SENSOR_HV7131R) {
-			if (hv7131r_probe(gspca_dev) < 0)
-				return -ENODEV;
-		}
+		if (sd->sensor == SENSOR_HV7131R)
+			hv7131r_probe(gspca_dev);
 		break;
 	}
-	return 0;
 }
 
 static void hv7131R_InitSensor(struct gspca_dev *gspca_dev)
@@ -2319,31 +2314,32 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0471, 0x0330), BSI(SN9C105, MI0360, 0x5d)},
 	{USB_DEVICE(0x06f8, 0x3004), BSI(SN9C105, OV7660, 0x21)},
 	{USB_DEVICE(0x06f8, 0x3008), BSI(SN9C105, OV7660, 0x21)},
+/*	{USB_DEVICE(0x0c45, 0x603a), BSI(SN9C102P, OV7648, 0x21)}, */
 	{USB_DEVICE(0x0c45, 0x6040), BSI(SN9C102P, HV7131R, 0x11)},
-/* bw600.inf:
-	{USB_DEVICE(0x0c45, 0x6040), BSI(SN9C102P, MI0360, 0x5d)}, */
-/*	{USB_DEVICE(0x0c45, 0x603a), BSI(SN9C102P, OV7648, 0x??)}, */
-/*	{USB_DEVICE(0x0c45, 0x607a), BSI(SN9C102P, OV7648, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x607a), BSI(SN9C102P, OV7648, 0x21)}, */
+/*	{USB_DEVICE(0x0c45, 0x607b), BSI(SN9C102P, OV7660, 0x21)}, */
 	{USB_DEVICE(0x0c45, 0x607c), BSI(SN9C102P, HV7131R, 0x11)},
-/*	{USB_DEVICE(0x0c45, 0x607e), BSI(SN9C102P, OV7630, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x607e), BSI(SN9C102P, OV7630, 0x21)}, */
 	{USB_DEVICE(0x0c45, 0x60c0), BSI(SN9C105, MI0360, 0x5d)},
-/*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6802, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x60c2), BSI(SN9C105, P1030xC, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6802, 0x21)}, */
 /*	{USB_DEVICE(0x0c45, 0x60cc), BSI(SN9C105, HV7131GP, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x60ec), BSI(SN9C105, MO4000, 0x21)},
 /*	{USB_DEVICE(0x0c45, 0x60ef), BSI(SN9C105, ICM105C, 0x??)}, */
-/*	{USB_DEVICE(0x0c45, 0x60fa), BSI(SN9C105, OV7648, 0x??)}, */
+/*	{USB_DEVICE(0x0c45, 0x60fa), BSI(SN9C105, OV7648, 0x21)}, */
 	{USB_DEVICE(0x0c45, 0x60fb), BSI(SN9C105, OV7660, 0x21)},
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x60fc), BSI(SN9C105, HV7131R, 0x11)},
 	{USB_DEVICE(0x0c45, 0x60fe), BSI(SN9C105, OV7630, 0x21)},
 #endif
 	{USB_DEVICE(0x0c45, 0x6100), BSI(SN9C120, MI0360, 0x5d)}, /*sn9c128*/
-/*	{USB_DEVICE(0x0c45, 0x6102), BSI(SN9C120, PO2030N, ??)}, */
+/*	{USB_DEVICE(0x0c45, 0x6102), BSI(SN9C120, P1030xC, ??)}, */
 /*	{USB_DEVICE(0x0c45, 0x6108), BSI(SN9C120, OM6802, 0x21)}, */
 	{USB_DEVICE(0x0c45, 0x610a), BSI(SN9C120, OV7648, 0x21)}, /*sn9c128*/
 	{USB_DEVICE(0x0c45, 0x610b), BSI(SN9C120, OV7660, 0x21)}, /*sn9c128*/
 	{USB_DEVICE(0x0c45, 0x610c), BSI(SN9C120, HV7131R, 0x11)}, /*sn9c128*/
 	{USB_DEVICE(0x0c45, 0x610e), BSI(SN9C120, OV7630, 0x21)}, /*sn9c128*/
+/*	{USB_DEVICE(0x0c45, 0x610f), BSI(SN9C120, S5K53BEB, 0x??)}, */
 /*	{USB_DEVICE(0x0c45, 0x6122), BSI(SN9C110, ICM105C, 0x??)}, */
 /*	{USB_DEVICE(0x0c45, 0x6123), BSI(SN9C110, SanyoCCD, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x6128), BSI(SN9C110, OM6802, 0x21)}, /*sn9c325?*/
