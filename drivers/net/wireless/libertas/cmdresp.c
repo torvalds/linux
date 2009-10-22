@@ -187,12 +187,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 			sizeof(struct cmd_ds_802_11_tpc_cfg));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
-	case CMD_RET(CMD_802_11_LED_GPIO_CTRL):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.ledgpio,
-			sizeof(struct cmd_ds_802_11_led_ctrl));
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-		break;
 
 	case CMD_RET(CMD_GET_TSF):
 		spin_lock_irqsave(&priv->driver_lock, flags);

@@ -1180,29 +1180,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 		ret = 0;
 		break;
-	case CMD_802_11_LED_GPIO_CTRL:
-		{
-			struct mrvl_ie_ledgpio *gpio =
-			    (struct mrvl_ie_ledgpio*)
-			    cmdptr->params.ledgpio.data;
-
-			memmove(&cmdptr->params.ledgpio,
-				pdata_buf,
-				sizeof(struct cmd_ds_802_11_led_ctrl));
-
-			cmdptr->command =
-			    cpu_to_le16(CMD_802_11_LED_GPIO_CTRL);
-
-#define ACTION_NUMLED_TLVTYPE_LEN_FIELDS_LEN 8
-			cmdptr->size =
-			    cpu_to_le16(le16_to_cpu(gpio->header.len)
-				+ S_DS_GEN
-				+ ACTION_NUMLED_TLVTYPE_LEN_FIELDS_LEN);
-			gpio->header.len = gpio->header.len;
-
-			ret = 0;
-			break;
-		}
 
 	case CMD_BT_ACCESS:
 		ret = lbs_cmd_bt_access(cmdptr, cmd_action, pdata_buf);
