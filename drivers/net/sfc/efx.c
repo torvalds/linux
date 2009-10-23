@@ -2022,10 +2022,6 @@ static void efx_fini_struct(struct efx_nic *efx)
  */
 static void efx_pci_remove_main(struct efx_nic *efx)
 {
-	/* Skip everything if we never obtained a valid membase */
-	if (!efx->membase)
-		return;
-
 	falcon_fini_interrupt(efx);
 	efx_fini_channels(efx);
 	efx_fini_port(efx);
@@ -2056,9 +2052,6 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	/* Allow any queued efx_resets() to complete */
 	rtnl_unlock();
 
-	if (efx->membase == NULL)
-		goto out;
-
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
@@ -2071,7 +2064,6 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	efx_pci_remove_main(efx);
 
-out:
 	efx_fini_io(efx);
 	EFX_LOG(efx, "shutdown successful\n");
 
