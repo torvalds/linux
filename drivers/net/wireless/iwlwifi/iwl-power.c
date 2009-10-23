@@ -163,9 +163,9 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
 
 	slp_itrvl = le32_to_cpu(cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1]);
-	if (slp_itrvl > IWL_CONN_LISTEN_INTERVAL)
+	if (slp_itrvl > IWL_CONN_MAX_LISTEN_INTERVAL)
 		cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1] =
-			cpu_to_le32(IWL_CONN_LISTEN_INTERVAL);
+			cpu_to_le32(IWL_CONN_MAX_LISTEN_INTERVAL);
 
 	/* enforce max sleep interval */
 	for (i = IWL_POWER_VEC_SIZE - 1; i >= 0 ; i--) {

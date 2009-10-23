@@ -30,8 +30,6 @@
 
 #include "iwl-commands.h"
 
-#define IWL_CONN_LISTEN_INTERVAL	10
-
 #define IWL_ABSOLUTE_ZERO		0
 #define IWL_ABSOLUTE_MAX		0xFFFFFFFF
 #define IWL_TT_INCREASE_MARGIN	5
