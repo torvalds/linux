@@ -34,6 +34,13 @@
 
 #include <asm/io.h>
 
+/*
+ * Multiblock erase if number of blocks to erase is 2 or more.
+ * Maximum number of blocks for simultaneous erase is 64.
+ */
+#define MB_ERASE_MIN_BLK_COUNT 2
+#define MB_ERASE_MAX_BLK_COUNT 64
+
 /* Default Flex-OneNAND boundary and lock respectively */
 static int flex_bdry[MAX_DIES * 2] = { -1, 0, -1, 0 };
 
@@ -353,6 +360,8 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 		break;
 
 	case ONENAND_CMD_ERASE:
+	case ONENAND_CMD_MULTIBLOCK_ERASE:
+	case ONENAND_CMD_ERASE_VERIFY:
 	case ONENAND_CMD_BUFFERRAM:
 	case ONENAND_CMD_OTP_ACCESS:
 		block = onenand_block(this, addr);
@@ -497,7 +506,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 		if (interrupt & flags)
 			break;
 
-		if (state != FL_READING)
+		if (state != FL_READING && state != FL_PREPARING_ERASE)
 			cond_resched();
 	}
 	/* To get correct interrupt status in timeout case */
@@ -527,6 +536,18 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 	} else if (state == FL_READING) {
 		printk(KERN_ERR "%s: read timeout! ctrl=0x%04x intr=0x%04x\n",
 			__func__, ctrl, interrupt);
+		return -EIO;
+	}
+
+	if (state == FL_PREPARING_ERASE && !(interrupt & ONENAND_INT_ERASE)) {
+		printk(KERN_ERR "%s: mb erase timeout! ctrl=0x%04x intr=0x%04x\n",
+		       __func__, ctrl, interrupt);
+		return -EIO;
+	}
+
+	if (!(interrupt & ONENAND_INT_MASTER)) {
+		printk(KERN_ERR "%s: timeout! ctrl=0x%04x intr=0x%04x\n",
+		       __func__, ctrl, interrupt);
 		return -EIO;
 	}
 
@@ -2182,6 +2203,148 @@ static int onenand_block_isbad_nolock(struct mtd_info *mtd, loff_t ofs, int allo
 	return bbm->isbad_bbt(mtd, ofs, allowbbt);
 }
 
+
+static int onenand_multiblock_erase_verify(struct mtd_info *mtd,
+					   struct erase_info *instr)
+{
+	struct onenand_chip *this = mtd->priv;
+	loff_t addr = instr->addr;
+	int len = instr->len;
+	unsigned int block_size = (1 << this->erase_shift);
+	int ret = 0;
+
+	while (len) {
+		this->command(mtd, ONENAND_CMD_ERASE_VERIFY, addr, block_size);
+		ret = this->wait(mtd, FL_VERIFYING_ERASE);
+		if (ret) {
+			printk(KERN_ERR "%s: Failed verify, block %d\n",
+			       __func__, onenand_block(this, addr));
+			instr->state = MTD_ERASE_FAILED;
+			instr->fail_addr = addr;
+			return -1;
+		}
+		len -= block_size;
+		addr += block_size;
+	}
+	return 0;
+}
+
+/**
+ * onenand_multiblock_erase - [Internal] erase block(s) using multiblock erase
+ * @param mtd		MTD device structure
+ * @param instr		erase instruction
+ * @param region	erase region
+ *
+ * Erase one or more blocks up to 64 block at a time
+ */
+static int onenand_multiblock_erase(struct mtd_info *mtd,
+				    struct erase_info *instr,
+				    unsigned int block_size)
+{
+	struct onenand_chip *this = mtd->priv;
+	loff_t addr = instr->addr;
+	int len = instr->len;
+	int eb_count = 0;
+	int ret = 0;
+	int bdry_block = 0;
+
+	instr->state = MTD_ERASING;
+
+	if (ONENAND_IS_DDP(this)) {
+		loff_t bdry_addr = this->chipsize >> 1;
+		if (addr < bdry_addr && (addr + len) > bdry_addr)
+			bdry_block = bdry_addr >> this->erase_shift;
+	}
+
+	/* Pre-check bbs */
+	while (len) {
+		/* Check if we have a bad block, we do not erase bad blocks */
+		if (onenand_block_isbad_nolock(mtd, addr, 0)) {
+			printk(KERN_WARNING "%s: attempt to erase a bad block "
+			       "at addr 0x%012llx\n",
+			       __func__, (unsigned long long) addr);
+			instr->state = MTD_ERASE_FAILED;
+			return -EIO;
+		}
+		len -= block_size;
+		addr += block_size;
+	}
+
+	len = instr->len;
+	addr = instr->addr;
+
+	/* loop over 64 eb batches */
+	while (len) {
+		struct erase_info verify_instr = *instr;
+		int max_eb_count = MB_ERASE_MAX_BLK_COUNT;
+
+		verify_instr.addr = addr;
+		verify_instr.len = 0;
+
+		/* do not cross chip boundary */
+		if (bdry_block) {
+			int this_block = (addr >> this->erase_shift);
+
+			if (this_block < bdry_block) {
+				max_eb_count = min(max_eb_count,
+						   (bdry_block - this_block));
+			}
+		}
+
+		eb_count = 0;
+
+		while (len > block_size && eb_count < (max_eb_count - 1)) {
+			this->command(mtd, ONENAND_CMD_MULTIBLOCK_ERASE,
+				      addr, block_size);
+			onenand_invalidate_bufferram(mtd, addr, block_size);
+
+			ret = this->wait(mtd, FL_PREPARING_ERASE);
+			if (ret) {
+				printk(KERN_ERR "%s: Failed multiblock erase, "
+				       "block %d\n", __func__,
+				       onenand_block(this, addr));
+				instr->state = MTD_ERASE_FAILED;
+				instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
+				return -EIO;
+			}
+
+			len -= block_size;
+			addr += block_size;
+			eb_count++;
+		}
+
+		/* last block of 64-eb series */
+		cond_resched();
+		this->command(mtd, ONENAND_CMD_ERASE, addr, block_size);
+		onenand_invalidate_bufferram(mtd, addr, block_size);
+
+		ret = this->wait(mtd, FL_ERASING);
+		/* Check if it is write protected */
+		if (ret) {
+			printk(KERN_ERR "%s: Failed erase, block %d\n",
+			       __func__, onenand_block(this, addr));
+			instr->state = MTD_ERASE_FAILED;
+			instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
+			return -EIO;
+		}
+
+		len -= block_size;
+		addr += block_size;
+		eb_count++;
+
+		/* verify */
+		verify_instr.len = eb_count * block_size;
+		if (onenand_multiblock_erase_verify(mtd, &verify_instr)) {
+			instr->state = verify_instr.state;
+			instr->fail_addr = verify_instr.fail_addr;
+			return -EIO;
+		}
+
+	}
+	return 0;
+}
+
+
 /**
  * onenand_block_by_block_erase - [Internal] erase block(s) using regular erase
  * @param mtd		MTD device structure
@@ -2315,7 +2478,13 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_ERASING);
 
-	ret = onenand_block_by_block_erase(mtd, instr, region, block_size);
+	if (region || instr->len < MB_ERASE_MIN_BLK_COUNT * block_size) {
+		/* region is set for Flex-OneNAND (no mb erase) */
+		ret = onenand_block_by_block_erase(mtd, instr,
+						   region, block_size);
+	} else {
+		ret = onenand_multiblock_erase(mtd, instr, block_size);
+	}
 
 	/* Deselect and wake up anyone waiting on the device */
 	onenand_release_device(mtd);
