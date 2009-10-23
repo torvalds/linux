@@ -23,7 +23,7 @@
 #include "spi.h"
 #include "falcon.h"
 #include "regs.h"
-#include "falcon_io.h"
+#include "io.h"
 #include "mdio_10g.h"
 #include "phy.h"
 #include "workarounds.h"
@@ -163,6 +163,13 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
  *
  **************************************************************************/
 
+static inline void falcon_write_buf_tbl(struct efx_nic *efx, efx_qword_t *value,
+					unsigned int index)
+{
+	efx_sram_writeq(efx, efx->membase + efx->type->buf_tbl_base,
+			value, index);
+}
+
 /* Read the current event from the event queue */
 static inline efx_qword_t *falcon_event(struct efx_channel *channel,
 					unsigned int index)
@@ -199,9 +206,9 @@ static void falcon_setsda(void *data, int state)
 	struct efx_nic *efx = (struct efx_nic *)data;
 	efx_oword_t reg;
 
-	falcon_read(efx, &reg, FR_AB_GPIO_CTL);
+	efx_reado(efx, &reg, FR_AB_GPIO_CTL);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GPIO3_OEN, !state);
-	falcon_write(efx, &reg, FR_AB_GPIO_CTL);
+	efx_writeo(efx, &reg, FR_AB_GPIO_CTL);
 }
 
 static void falcon_setscl(void *data, int state)
@@ -209,9 +216,9 @@ static void falcon_setscl(void *data, int state)
 	struct efx_nic *efx = (struct efx_nic *)data;
 	efx_oword_t reg;
 
-	falcon_read(efx, &reg, FR_AB_GPIO_CTL);
+	efx_reado(efx, &reg, FR_AB_GPIO_CTL);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GPIO0_OEN, !state);
-	falcon_write(efx, &reg, FR_AB_GPIO_CTL);
+	efx_writeo(efx, &reg, FR_AB_GPIO_CTL);
 }
 
 static int falcon_getsda(void *data)
@@ -219,7 +226,7 @@ static int falcon_getsda(void *data)
 	struct efx_nic *efx = (struct efx_nic *)data;
 	efx_oword_t reg;
 
-	falcon_read(efx, &reg, FR_AB_GPIO_CTL);
+	efx_reado(efx, &reg, FR_AB_GPIO_CTL);
 	return EFX_OWORD_FIELD(reg, FRF_AB_GPIO3_IN);
 }
 
@@ -228,7 +235,7 @@ static int falcon_getscl(void *data)
 	struct efx_nic *efx = (struct efx_nic *)data;
 	efx_oword_t reg;
 
-	falcon_read(efx, &reg, FR_AB_GPIO_CTL);
+	efx_reado(efx, &reg, FR_AB_GPIO_CTL);
 	return EFX_OWORD_FIELD(reg, FRF_AB_GPIO0_IN);
 }
 
@@ -278,7 +285,7 @@ falcon_init_special_buffer(struct efx_nic *efx,
 				     FRF_AZ_BUF_ADR_REGION, 0,
 				     FRF_AZ_BUF_ADR_FBUF, dma_addr >> 12,
 				     FRF_AZ_BUF_OWNER_ID_FBUF, 0);
-		falcon_write_sram(efx, &buf_desc, index);
+		falcon_write_buf_tbl(efx, &buf_desc, index);
 	}
 }
 
@@ -302,7 +309,7 @@ falcon_fini_special_buffer(struct efx_nic *efx,
 			     FRF_AZ_BUF_CLR_CMD, 1,
 			     FRF_AZ_BUF_CLR_END_ID, end,
 			     FRF_AZ_BUF_CLR_START_ID, start);
-	falcon_write(efx, &buf_tbl_upd, FR_AZ_BUF_TBL_UPD);
+	efx_writeo(efx, &buf_tbl_upd, FR_AZ_BUF_TBL_UPD);
 }
 
 /*
@@ -415,8 +422,8 @@ static inline void falcon_notify_tx_desc(struct efx_tx_queue *tx_queue)
 
 	write_ptr = tx_queue->write_count & FALCON_TXD_RING_MASK;
 	EFX_POPULATE_DWORD_1(reg, FRF_AZ_TX_DESC_WPTR_DWORD, write_ptr);
-	falcon_writel_page(tx_queue->efx, &reg,
-			   FR_AZ_TX_DESC_UPD_DWORD_P0, tx_queue->queue);
+	efx_writed_page(tx_queue->efx, &reg,
+			FR_AZ_TX_DESC_UPD_DWORD_P0, tx_queue->queue);
 }
 
 
@@ -491,8 +498,8 @@ void falcon_init_tx(struct efx_tx_queue *tx_queue)
 				    !csum);
 	}
 
-	falcon_write_table(efx, &tx_desc_ptr, efx->type->txd_ptr_tbl_base,
-			   tx_queue->queue);
+	efx_writeo_table(efx, &tx_desc_ptr, efx->type->txd_ptr_tbl_base,
+			 tx_queue->queue);
 
 	if (falcon_rev(efx) < FALCON_REV_B0) {
 		efx_oword_t reg;
@@ -500,12 +507,12 @@ void falcon_init_tx(struct efx_tx_queue *tx_queue)
 		/* Only 128 bits in this register */
 		BUILD_BUG_ON(EFX_TX_QUEUE_COUNT >= 128);
 
-		falcon_read(efx, &reg, FR_AA_TX_CHKSM_CFG);
+		efx_reado(efx, &reg, FR_AA_TX_CHKSM_CFG);
 		if (tx_queue->queue == EFX_TX_QUEUE_OFFLOAD_CSUM)
 			clear_bit_le(tx_queue->queue, (void *)&reg);
 		else
 			set_bit_le(tx_queue->queue, (void *)&reg);
-		falcon_write(efx, &reg, FR_AA_TX_CHKSM_CFG);
+		efx_writeo(efx, &reg, FR_AA_TX_CHKSM_CFG);
 	}
 }
 
@@ -518,7 +525,7 @@ static void falcon_flush_tx_queue(struct efx_tx_queue *tx_queue)
 	EFX_POPULATE_OWORD_2(tx_flush_descq,
 			     FRF_AZ_TX_FLUSH_DESCQ_CMD, 1,
 			     FRF_AZ_TX_FLUSH_DESCQ, tx_queue->queue);
-	falcon_write(efx, &tx_flush_descq, FR_AZ_TX_FLUSH_DESCQ);
+	efx_writeo(efx, &tx_flush_descq, FR_AZ_TX_FLUSH_DESCQ);
 }
 
 void falcon_fini_tx(struct efx_tx_queue *tx_queue)
@@ -531,8 +538,8 @@ void falcon_fini_tx(struct efx_tx_queue *tx_queue)
 
 	/* Remove TX descriptor ring from card */
 	EFX_ZERO_OWORD(tx_desc_ptr);
-	falcon_write_table(efx, &tx_desc_ptr, efx->type->txd_ptr_tbl_base,
-			   tx_queue->queue);
+	efx_writeo_table(efx, &tx_desc_ptr, efx->type->txd_ptr_tbl_base,
+			 tx_queue->queue);
 
 	/* Unpin TX descriptor ring */
 	falcon_fini_special_buffer(efx, &tx_queue->txd);
@@ -592,8 +599,8 @@ void falcon_notify_rx_desc(struct efx_rx_queue *rx_queue)
 	wmb();
 	write_ptr = rx_queue->added_count & FALCON_RXD_RING_MASK;
 	EFX_POPULATE_DWORD_1(reg, FRF_AZ_RX_DESC_WPTR_DWORD, write_ptr);
-	falcon_writel_page(rx_queue->efx, &reg,
-			   FR_AZ_RX_DESC_UPD_DWORD_P0, rx_queue->queue);
+	efx_writed_page(rx_queue->efx, &reg,
+			FR_AZ_RX_DESC_UPD_DWORD_P0, rx_queue->queue);
 }
 
 int falcon_probe_rx(struct efx_rx_queue *rx_queue)
@@ -634,8 +641,8 @@ void falcon_init_rx(struct efx_rx_queue *rx_queue)
 			      /* For >=B0 this is scatter so disable */
 			      FRF_AZ_RX_DESCQ_JUMBO, !is_b0,
 			      FRF_AZ_RX_DESCQ_EN, 1);
-	falcon_write_table(efx, &rx_desc_ptr, efx->type->rxd_ptr_tbl_base,
-			   rx_queue->queue);
+	efx_writeo_table(efx, &rx_desc_ptr, efx->type->rxd_ptr_tbl_base,
+			 rx_queue->queue);
 }
 
 static void falcon_flush_rx_queue(struct efx_rx_queue *rx_queue)
@@ -647,7 +654,7 @@ static void falcon_flush_rx_queue(struct efx_rx_queue *rx_queue)
 	EFX_POPULATE_OWORD_2(rx_flush_descq,
 			     FRF_AZ_RX_FLUSH_DESCQ_CMD, 1,
 			     FRF_AZ_RX_FLUSH_DESCQ, rx_queue->queue);
-	falcon_write(efx, &rx_flush_descq, FR_AZ_RX_FLUSH_DESCQ);
+	efx_writeo(efx, &rx_flush_descq, FR_AZ_RX_FLUSH_DESCQ);
 }
 
 void falcon_fini_rx(struct efx_rx_queue *rx_queue)
@@ -660,8 +667,8 @@ void falcon_fini_rx(struct efx_rx_queue *rx_queue)
 
 	/* Remove RX descriptor ring from card */
 	EFX_ZERO_OWORD(rx_desc_ptr);
-	falcon_write_table(efx, &rx_desc_ptr, efx->type->rxd_ptr_tbl_base,
-			   rx_queue->queue);
+	efx_writeo_table(efx, &rx_desc_ptr, efx->type->rxd_ptr_tbl_base,
+			 rx_queue->queue);
 
 	/* Unpin RX descriptor ring */
 	falcon_fini_special_buffer(efx, &rx_queue->rxd);
@@ -695,7 +702,7 @@ void falcon_eventq_read_ack(struct efx_channel *channel)
 	struct efx_nic *efx = channel->efx;
 
 	EFX_POPULATE_DWORD_1(reg, FRF_AZ_EVQ_RPTR, channel->eventq_read_ptr);
-	falcon_writel_table(efx, &reg, efx->type->evq_rptr_tbl_base,
+	efx_writed_table(efx, &reg, efx->type->evq_rptr_tbl_base,
 			    channel->channel);
 }
 
@@ -711,7 +718,7 @@ void falcon_generate_event(struct efx_channel *channel, efx_qword_t *event)
 	drv_ev_reg.u32[2] = 0;
 	drv_ev_reg.u32[3] = 0;
 	EFX_SET_OWORD_FIELD(drv_ev_reg, FRF_AZ_DRV_EV_QID, channel->channel);
-	falcon_write(channel->efx, &drv_ev_reg, FR_AZ_DRV_EV);
+	efx_writeo(channel->efx, &drv_ev_reg, FR_AZ_DRV_EV);
 }
 
 /* Handle a transmit completion event
@@ -1104,8 +1111,8 @@ void falcon_set_int_moderation(struct efx_channel *channel)
 				     FRF_AB_TC_TIMER_VAL, 0);
 	}
 	BUILD_BUG_ON(FR_AA_TIMER_COMMAND_KER != FR_BZ_TIMER_COMMAND_P0);
-	falcon_writel_page_locked(efx, &timer_cmd, FR_BZ_TIMER_COMMAND_P0,
-				  channel->channel);
+	efx_writed_page_locked(efx, &timer_cmd, FR_BZ_TIMER_COMMAND_P0,
+			       channel->channel);
 
 }
 
@@ -1139,8 +1146,8 @@ void falcon_init_eventq(struct efx_channel *channel)
 			     FRF_AZ_EVQ_EN, 1,
 			     FRF_AZ_EVQ_SIZE, FALCON_EVQ_ORDER,
 			     FRF_AZ_EVQ_BUF_BASE_ID, channel->eventq.index);
-	falcon_write_table(efx, &evq_ptr, efx->type->evq_ptr_tbl_base,
-			   channel->channel);
+	efx_writeo_table(efx, &evq_ptr, efx->type->evq_ptr_tbl_base,
+			 channel->channel);
 
 	falcon_set_int_moderation(channel);
 }
@@ -1152,8 +1159,8 @@ void falcon_fini_eventq(struct efx_channel *channel)
 
 	/* Remove event queue from card */
 	EFX_ZERO_OWORD(eventq_ptr);
-	falcon_write_table(efx, &eventq_ptr, efx->type->evq_ptr_tbl_base,
-			   channel->channel);
+	efx_writeo_table(efx, &eventq_ptr, efx->type->evq_ptr_tbl_base,
+			 channel->channel);
 
 	/* Unpin event queue */
 	falcon_fini_special_buffer(efx, &channel->eventq);
@@ -1325,7 +1332,7 @@ static inline void falcon_interrupts(struct efx_nic *efx, int enabled,
 	EFX_POPULATE_OWORD_2(int_en_reg_ker,
 			     FRF_AZ_KER_INT_KER, force,
 			     FRF_AZ_DRV_INT_EN_KER, enabled);
-	falcon_write(efx, &int_en_reg_ker, FR_AZ_INT_EN_KER);
+	efx_writeo(efx, &int_en_reg_ker, FR_AZ_INT_EN_KER);
 }
 
 void falcon_enable_interrupts(struct efx_nic *efx)
@@ -1341,7 +1348,7 @@ void falcon_enable_interrupts(struct efx_nic *efx)
 			     FRF_AZ_NORM_INT_VEC_DIS_KER,
 			     EFX_INT_MODE_USE_MSI(efx),
 			     FRF_AZ_INT_ADR_KER, efx->irq_status.dma_addr);
-	falcon_write(efx, &int_adr_reg_ker, FR_AZ_INT_ADR_KER);
+	efx_writeo(efx, &int_adr_reg_ker, FR_AZ_INT_ADR_KER);
 
 	/* Enable interrupts */
 	falcon_interrupts(efx, 1, 0);
@@ -1382,8 +1389,8 @@ static inline void falcon_irq_ack_a1(struct efx_nic *efx)
 	efx_dword_t reg;
 
 	EFX_POPULATE_DWORD_1(reg, FRF_AA_INT_ACK_KER_FIELD, 0xb7eb7e);
-	falcon_writel(efx, &reg, FR_AA_INT_ACK_KER);
-	falcon_readl(efx, &reg, FR_AA_WORK_AROUND_BROKEN_PCI_READS);
+	efx_writed(efx, &reg, FR_AA_INT_ACK_KER);
+	efx_readd(efx, &reg, FR_AA_WORK_AROUND_BROKEN_PCI_READS);
 }
 
 /* Process a fatal interrupt
@@ -1396,7 +1403,7 @@ static irqreturn_t falcon_fatal_interrupt(struct efx_nic *efx)
 	efx_oword_t fatal_intr;
 	int error, mem_perr;
 
-	falcon_read(efx, &fatal_intr, FR_AZ_FATAL_INTR_KER);
+	efx_reado(efx, &fatal_intr, FR_AZ_FATAL_INTR_KER);
 	error = EFX_OWORD_FIELD(fatal_intr, FRF_AZ_FATAL_INTR);
 
 	EFX_ERR(efx, "SYSTEM ERROR " EFX_OWORD_FMT " status "
@@ -1410,7 +1417,7 @@ static irqreturn_t falcon_fatal_interrupt(struct efx_nic *efx)
 	mem_perr = EFX_OWORD_FIELD(fatal_intr, FRF_AZ_MEM_PERR_INT_KER);
 	if (mem_perr) {
 		efx_oword_t reg;
-		falcon_read(efx, &reg, FR_AZ_MEM_STAT);
+		efx_reado(efx, &reg, FR_AZ_MEM_STAT);
 		EFX_ERR(efx, "SYSTEM ERROR: memory parity error "
 			EFX_OWORD_FMT "\n", EFX_OWORD_VAL(reg));
 	}
@@ -1454,7 +1461,7 @@ static irqreturn_t falcon_legacy_interrupt_b0(int irq, void *dev_id)
 	int syserr;
 
 	/* Read the ISR which also ACKs the interrupts */
-	falcon_readl(efx, &reg, FR_BZ_INT_ISR0);
+	efx_readd(efx, &reg, FR_BZ_INT_ISR0);
 	queues = EFX_EXTRACT_DWORD(reg, 0, 31);
 
 	/* Check to see if we have a serious error condition */
@@ -1576,7 +1583,7 @@ static void falcon_setup_rss_indir_table(struct efx_nic *efx)
 	     offset += 0x10) {
 		EFX_POPULATE_DWORD_1(dword, FRF_BZ_IT_QUEUE,
 				     i % efx->n_rx_queues);
-		falcon_writel(efx, &dword, offset);
+		efx_writed(efx, &dword, offset);
 		i++;
 	}
 }
@@ -1639,7 +1646,7 @@ void falcon_fini_interrupt(struct efx_nic *efx)
 
 	/* ACK legacy interrupt */
 	if (falcon_rev(efx) >= FALCON_REV_B0)
-		falcon_read(efx, &reg, FR_BZ_INT_ISR0);
+		efx_reado(efx, &reg, FR_BZ_INT_ISR0);
 	else
 		falcon_irq_ack_a1(efx);
 
@@ -1660,7 +1667,7 @@ void falcon_fini_interrupt(struct efx_nic *efx)
 static int falcon_spi_poll(struct efx_nic *efx)
 {
 	efx_oword_t reg;
-	falcon_read(efx, &reg, FR_AB_EE_SPI_HCMD);
+	efx_reado(efx, &reg, FR_AB_EE_SPI_HCMD);
 	return EFX_OWORD_FIELD(reg, FRF_AB_EE_SPI_HCMD_CMD_EN) ? -EBUSY : 0;
 }
 
@@ -1714,13 +1721,13 @@ int falcon_spi_cmd(const struct efx_spi_device *spi,
 	/* Program address register, if we have an address */
 	if (addressed) {
 		EFX_POPULATE_OWORD_1(reg, FRF_AB_EE_SPI_HADR_ADR, address);
-		falcon_write(efx, &reg, FR_AB_EE_SPI_HADR);
+		efx_writeo(efx, &reg, FR_AB_EE_SPI_HADR);
 	}
 
 	/* Program data register, if we have data */
 	if (in != NULL) {
 		memcpy(&reg, in, len);
-		falcon_write(efx, &reg, FR_AB_EE_SPI_HDATA);
+		efx_writeo(efx, &reg, FR_AB_EE_SPI_HDATA);
 	}
 
 	/* Issue read/write command */
@@ -1733,7 +1740,7 @@ int falcon_spi_cmd(const struct efx_spi_device *spi,
 			     FRF_AB_EE_SPI_HCMD_ADBCNT,
 			     (addressed ? spi->addr_len : 0),
 			     FRF_AB_EE_SPI_HCMD_ENC, command);
-	falcon_write(efx, &reg, FR_AB_EE_SPI_HCMD);
+	efx_writeo(efx, &reg, FR_AB_EE_SPI_HCMD);
 
 	/* Wait for read/write to complete */
 	rc = falcon_spi_wait(efx);
@@ -1742,7 +1749,7 @@ int falcon_spi_cmd(const struct efx_spi_device *spi,
 
 	/* Read data */
 	if (out != NULL) {
-		falcon_read(efx, &reg, FR_AB_EE_SPI_HDATA);
+		efx_reado(efx, &reg, FR_AB_EE_SPI_HDATA);
 		memcpy(out, &reg, len);
 	}
 
@@ -1884,19 +1891,19 @@ static int falcon_reset_macs(struct efx_nic *efx)
 		 */
 		if (!EFX_IS10G(efx)) {
 			EFX_POPULATE_OWORD_1(reg, FRF_AB_GM_SW_RST, 1);
-			falcon_write(efx, &reg, FR_AB_GM_CFG1);
+			efx_writeo(efx, &reg, FR_AB_GM_CFG1);
 			udelay(1000);
 
 			EFX_POPULATE_OWORD_1(reg, FRF_AB_GM_SW_RST, 0);
-			falcon_write(efx, &reg, FR_AB_GM_CFG1);
+			efx_writeo(efx, &reg, FR_AB_GM_CFG1);
 			udelay(1000);
 			return 0;
 		} else {
 			EFX_POPULATE_OWORD_1(reg, FRF_AB_XM_CORE_RST, 1);
-			falcon_write(efx, &reg, FR_AB_XM_GLB_CFG);
+			efx_writeo(efx, &reg, FR_AB_XM_GLB_CFG);
 
 			for (count = 0; count < 10000; count++) {
-				falcon_read(efx, &reg, FR_AB_XM_GLB_CFG);
+				efx_reado(efx, &reg, FR_AB_XM_GLB_CFG);
 				if (EFX_OWORD_FIELD(reg, FRF_AB_XM_CORE_RST) ==
 				    0)
 					return 0;
@@ -1912,19 +1919,19 @@ static int falcon_reset_macs(struct efx_nic *efx)
 	 * the drain sequence with the statistics fetch */
 	efx_stats_disable(efx);
 
-	falcon_read(efx, &reg, FR_AB_MAC_CTRL);
+	efx_reado(efx, &reg, FR_AB_MAC_CTRL);
 	EFX_SET_OWORD_FIELD(reg, FRF_BB_TXFIFO_DRAIN_EN, 1);
-	falcon_write(efx, &reg, FR_AB_MAC_CTRL);
+	efx_writeo(efx, &reg, FR_AB_MAC_CTRL);
 
-	falcon_read(efx, &reg, FR_AB_GLB_CTL);
+	efx_reado(efx, &reg, FR_AB_GLB_CTL);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_RST_XGTX, 1);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_RST_XGRX, 1);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_RST_EM, 1);
-	falcon_write(efx, &reg, FR_AB_GLB_CTL);
+	efx_writeo(efx, &reg, FR_AB_GLB_CTL);
 
 	count = 0;
 	while (1) {
-		falcon_read(efx, &reg, FR_AB_GLB_CTL);
+		efx_reado(efx, &reg, FR_AB_GLB_CTL);
 		if (!EFX_OWORD_FIELD(reg, FRF_AB_RST_XGTX) &&
 		    !EFX_OWORD_FIELD(reg, FRF_AB_RST_XGRX) &&
 		    !EFX_OWORD_FIELD(reg, FRF_AB_RST_EM)) {
@@ -1958,7 +1965,7 @@ void falcon_drain_tx_fifo(struct efx_nic *efx)
 	    (efx->loopback_mode != LOOPBACK_NONE))
 		return;
 
-	falcon_read(efx, &reg, FR_AB_MAC_CTRL);
+	efx_reado(efx, &reg, FR_AB_MAC_CTRL);
 	/* There is no point in draining more than once */
 	if (EFX_OWORD_FIELD(reg, FRF_BB_TXFIFO_DRAIN_EN))
 		return;
@@ -1974,9 +1981,9 @@ void falcon_deconfigure_mac_wrapper(struct efx_nic *efx)
 		return;
 
 	/* Isolate the MAC -> RX */
-	falcon_read(efx, &reg, FR_AZ_RX_CFG);
+	efx_reado(efx, &reg, FR_AZ_RX_CFG);
 	EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, 0);
-	falcon_write(efx, &reg, FR_AZ_RX_CFG);
+	efx_writeo(efx, &reg, FR_AZ_RX_CFG);
 
 	if (!efx->link_up)
 		falcon_drain_tx_fifo(efx);
@@ -2011,7 +2018,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 				    !efx->link_up);
 	}
 
-	falcon_write(efx, &reg, FR_AB_MAC_CTRL);
+	efx_writeo(efx, &reg, FR_AB_MAC_CTRL);
 
 	/* Restore the multicast hash registers. */
 	falcon_set_multicast_hash(efx);
@@ -2020,13 +2027,13 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	 * covered by RX_XOFF_MAC_EN and XM_TX_CFG_REG:XM_FCNTL.
 	 * Action on receipt of pause frames is controller by XM_DIS_FCNTL */
 	tx_fc = !!(efx->link_fc & EFX_FC_TX);
-	falcon_read(efx, &reg, FR_AZ_RX_CFG);
+	efx_reado(efx, &reg, FR_AZ_RX_CFG);
 	EFX_SET_OWORD_FIELD(reg, FRF_AZ_RX_XOFF_MAC_EN, tx_fc);
 
 	/* Unisolate the MAC -> RX */
 	if (falcon_rev(efx) >= FALCON_REV_B0)
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, 1);
-	falcon_write(efx, &reg, FR_AZ_RX_CFG);
+	efx_writeo(efx, &reg, FR_AZ_RX_CFG);
 }
 
 int falcon_dma_stats(struct efx_nic *efx, unsigned int done_offset)
@@ -2041,7 +2048,7 @@ int falcon_dma_stats(struct efx_nic *efx, unsigned int done_offset)
 	/* Statistics fetch will fail if the MAC is in TX drain */
 	if (falcon_rev(efx) >= FALCON_REV_B0) {
 		efx_oword_t temp;
-		falcon_read(efx, &temp, FR_AB_MAC_CTRL);
+		efx_reado(efx, &temp, FR_AB_MAC_CTRL);
 		if (EFX_OWORD_FIELD(temp, FRF_BB_TXFIFO_DRAIN_EN))
 			return 0;
 	}
@@ -2055,7 +2062,7 @@ int falcon_dma_stats(struct efx_nic *efx, unsigned int done_offset)
 			     FRF_AB_MAC_STAT_DMA_CMD, 1,
 			     FRF_AB_MAC_STAT_DMA_ADR,
 			     efx->stats_buffer.dma_addr);
-	falcon_write(efx, &reg, FR_AB_MAC_STAT_DMA);
+	efx_writeo(efx, &reg, FR_AB_MAC_STAT_DMA);
 
 	/* Wait for transfer to complete */
 	for (i = 0; i < 400; i++) {
@@ -2085,7 +2092,7 @@ static int falcon_gmii_wait(struct efx_nic *efx)
 
 	/* wait upto 50ms - taken max from datasheet */
 	for (count = 0; count < 5000; count++) {
-		falcon_readl(efx, &md_stat, FR_AB_MD_STAT);
+		efx_readd(efx, &md_stat, FR_AB_MD_STAT);
 		if (EFX_DWORD_FIELD(md_stat, FRF_AB_MD_BSY) == 0) {
 			if (EFX_DWORD_FIELD(md_stat, FRF_AB_MD_LNFL) != 0 ||
 			    EFX_DWORD_FIELD(md_stat, FRF_AB_MD_BSERR) != 0) {
@@ -2122,20 +2129,20 @@ static int falcon_mdio_write(struct net_device *net_dev,
 
 	/* Write the address/ID register */
 	EFX_POPULATE_OWORD_1(reg, FRF_AB_MD_PHY_ADR, addr);
-	falcon_write(efx, &reg, FR_AB_MD_PHY_ADR);
+	efx_writeo(efx, &reg, FR_AB_MD_PHY_ADR);
 
 	EFX_POPULATE_OWORD_2(reg, FRF_AB_MD_PRT_ADR, prtad,
 			     FRF_AB_MD_DEV_ADR, devad);
-	falcon_write(efx, &reg, FR_AB_MD_ID);
+	efx_writeo(efx, &reg, FR_AB_MD_ID);
 
 	/* Write data */
 	EFX_POPULATE_OWORD_1(reg, FRF_AB_MD_TXD, value);
-	falcon_write(efx, &reg, FR_AB_MD_TXD);
+	efx_writeo(efx, &reg, FR_AB_MD_TXD);
 
 	EFX_POPULATE_OWORD_2(reg,
 			     FRF_AB_MD_WRC, 1,
 			     FRF_AB_MD_GC, 0);
-	falcon_write(efx, &reg, FR_AB_MD_CS);
+	efx_writeo(efx, &reg, FR_AB_MD_CS);
 
 	/* Wait for data to be written */
 	rc = falcon_gmii_wait(efx);
@@ -2144,7 +2151,7 @@ static int falcon_mdio_write(struct net_device *net_dev,
 		EFX_POPULATE_OWORD_2(reg,
 				     FRF_AB_MD_WRC, 0,
 				     FRF_AB_MD_GC, 1);
-		falcon_write(efx, &reg, FR_AB_MD_CS);
+		efx_writeo(efx, &reg, FR_AB_MD_CS);
 		udelay(10);
 	}
 
@@ -2169,20 +2176,20 @@ static int falcon_mdio_read(struct net_device *net_dev,
 		goto out;
 
 	EFX_POPULATE_OWORD_1(reg, FRF_AB_MD_PHY_ADR, addr);
-	falcon_write(efx, &reg, FR_AB_MD_PHY_ADR);
+	efx_writeo(efx, &reg, FR_AB_MD_PHY_ADR);
 
 	EFX_POPULATE_OWORD_2(reg, FRF_AB_MD_PRT_ADR, prtad,
 			     FRF_AB_MD_DEV_ADR, devad);
-	falcon_write(efx, &reg, FR_AB_MD_ID);
+	efx_writeo(efx, &reg, FR_AB_MD_ID);
 
 	/* Request data to be read */
 	EFX_POPULATE_OWORD_2(reg, FRF_AB_MD_RDC, 1, FRF_AB_MD_GC, 0);
-	falcon_write(efx, &reg, FR_AB_MD_CS);
+	efx_writeo(efx, &reg, FR_AB_MD_CS);
 
 	/* Wait for data to become available */
 	rc = falcon_gmii_wait(efx);
 	if (rc == 0) {
-		falcon_read(efx, &reg, FR_AB_MD_RXD);
+		efx_reado(efx, &reg, FR_AB_MD_RXD);
 		rc = EFX_OWORD_FIELD(reg, FRF_AB_MD_RXD);
 		EFX_REGDUMP(efx, "read from MDIO %d register %d.%d, got %04x\n",
 			    prtad, devad, addr, rc);
@@ -2191,7 +2198,7 @@ static int falcon_mdio_read(struct net_device *net_dev,
 		EFX_POPULATE_OWORD_2(reg,
 				     FRF_AB_MD_RIC, 0,
 				     FRF_AB_MD_GC, 1);
-		falcon_write(efx, &reg, FR_AB_MD_CS);
+		efx_writeo(efx, &reg, FR_AB_MD_CS);
 
 		EFX_LOG(efx, "read from MDIO %d register %d.%d, got error %d\n",
 			prtad, devad, addr, rc);
@@ -2258,12 +2265,12 @@ int falcon_switch_mac(struct efx_nic *efx)
 
 	/* Always push the NIC_STAT_REG setting even if the mac hasn't
 	 * changed, because this function is run post online reset */
-	falcon_read(efx, &nic_stat, FR_AB_NIC_STAT);
+	efx_reado(efx, &nic_stat, FR_AB_NIC_STAT);
 	strap_val = EFX_IS10G(efx) ? 5 : 3;
 	if (falcon_rev(efx) >= FALCON_REV_B0) {
 		EFX_SET_OWORD_FIELD(nic_stat, FRF_BB_EE_STRAP_EN, 1);
 		EFX_SET_OWORD_FIELD(nic_stat, FRF_BB_EE_STRAP, strap_val);
-		falcon_write(efx, &nic_stat, FR_AB_NIC_STAT);
+		efx_writeo(efx, &nic_stat, FR_AB_NIC_STAT);
 	} else {
 		/* Falcon A1 does not support 1G/10G speed switching
 		 * and must not be used with a PHY that does. */
@@ -2341,8 +2348,8 @@ void falcon_set_multicast_hash(struct efx_nic *efx)
 	 */
 	set_bit_le(0xff, mc_hash->byte);
 
-	falcon_write(efx, &mc_hash->oword[0], FR_AB_MAC_MC_HASH_REG0);
-	falcon_write(efx, &mc_hash->oword[1], FR_AB_MAC_MC_HASH_REG1);
+	efx_writeo(efx, &mc_hash->oword[0], FR_AB_MAC_MC_HASH_REG0);
+	efx_writeo(efx, &mc_hash->oword[1], FR_AB_MAC_MC_HASH_REG1);
 }
 
 
@@ -2478,7 +2485,7 @@ int falcon_test_registers(struct efx_nic *efx)
 		mask = imask = efx_test_registers[i].mask;
 		EFX_INVERT_OWORD(imask);
 
-		falcon_read(efx, &original, address);
+		efx_reado(efx, &original, address);
 
 		/* bit sweep on and off */
 		for (j = 0; j < 128; j++) {
@@ -2489,8 +2496,8 @@ int falcon_test_registers(struct efx_nic *efx)
 			EFX_AND_OWORD(reg, original, mask);
 			EFX_SET_OWORD32(reg, j, j, 1);
 
-			falcon_write(efx, &reg, address);
-			falcon_read(efx, &buf, address);
+			efx_writeo(efx, &reg, address);
+			efx_reado(efx, &buf, address);
 
 			if (efx_masked_compare_oword(&reg, &buf, &mask))
 				goto fail;
@@ -2499,14 +2506,14 @@ int falcon_test_registers(struct efx_nic *efx)
 			EFX_OR_OWORD(reg, original, mask);
 			EFX_SET_OWORD32(reg, j, j, 0);
 
-			falcon_write(efx, &reg, address);
-			falcon_read(efx, &buf, address);
+			efx_writeo(efx, &reg, address);
+			efx_reado(efx, &buf, address);
 
 			if (efx_masked_compare_oword(&reg, &buf, &mask))
 				goto fail;
 		}
 
-		falcon_write(efx, &original, address);
+		efx_writeo(efx, &original, address);
 	}
 
 	return 0;
@@ -2571,7 +2578,7 @@ int falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
 				     FFE_AB_EXT_PHY_RST_DUR_10240US,
 				     FRF_AB_SWRST, 1);
 	}
-	falcon_write(efx, &glb_ctl_reg_ker, FR_AB_GLB_CTL);
+	efx_writeo(efx, &glb_ctl_reg_ker, FR_AB_GLB_CTL);
 
 	EFX_LOG(efx, "waiting for hardware reset\n");
 	schedule_timeout_uninterruptible(HZ / 20);
@@ -2596,7 +2603,7 @@ int falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
 	}
 
 	/* Assert that reset complete */
-	falcon_read(efx, &glb_ctl_reg_ker, FR_AB_GLB_CTL);
+	efx_reado(efx, &glb_ctl_reg_ker, FR_AB_GLB_CTL);
 	if (EFX_OWORD_FIELD(glb_ctl_reg_ker, FRF_AB_SWRST) != 0) {
 		rc = -ETIMEDOUT;
 		EFX_ERR(efx, "timed out waiting for hardware reset\n");
@@ -2625,16 +2632,16 @@ static int falcon_reset_sram(struct efx_nic *efx)
 	int count;
 
 	/* Set the SRAM wake/sleep GPIO appropriately. */
-	falcon_read(efx, &gpio_cfg_reg_ker, FR_AB_GPIO_CTL);
+	efx_reado(efx, &gpio_cfg_reg_ker, FR_AB_GPIO_CTL);
 	EFX_SET_OWORD_FIELD(gpio_cfg_reg_ker, FRF_AB_GPIO1_OEN, 1);
 	EFX_SET_OWORD_FIELD(gpio_cfg_reg_ker, FRF_AB_GPIO1_OUT, 1);
-	falcon_write(efx, &gpio_cfg_reg_ker, FR_AB_GPIO_CTL);
+	efx_writeo(efx, &gpio_cfg_reg_ker, FR_AB_GPIO_CTL);
 
 	/* Initiate SRAM reset */
 	EFX_POPULATE_OWORD_2(srm_cfg_reg_ker,
 			     FRF_AZ_SRM_INIT_EN, 1,
 			     FRF_AZ_SRM_NB_SZ, 0);
-	falcon_write(efx, &srm_cfg_reg_ker, FR_AZ_SRM_CFG);
+	efx_writeo(efx, &srm_cfg_reg_ker, FR_AZ_SRM_CFG);
 
 	/* Wait for SRAM reset to complete */
 	count = 0;
@@ -2645,7 +2652,7 @@ static int falcon_reset_sram(struct efx_nic *efx)
 		schedule_timeout_uninterruptible(HZ / 50);
 
 		/* Check for reset complete */
-		falcon_read(efx, &srm_cfg_reg_ker, FR_AZ_SRM_CFG);
+		efx_reado(efx, &srm_cfg_reg_ker, FR_AZ_SRM_CFG);
 		if (!EFX_OWORD_FIELD(srm_cfg_reg_ker, FRF_AZ_SRM_INIT_EN)) {
 			EFX_LOG(efx, "SRAM reset complete\n");
 
@@ -2771,13 +2778,13 @@ static int falcon_probe_nic_variant(struct efx_nic *efx)
 	efx_oword_t altera_build;
 	efx_oword_t nic_stat;
 
-	falcon_read(efx, &altera_build, FR_AZ_ALTERA_BUILD);
+	efx_reado(efx, &altera_build, FR_AZ_ALTERA_BUILD);
 	if (EFX_OWORD_FIELD(altera_build, FRF_AZ_ALTERA_BUILD_VER)) {
 		EFX_ERR(efx, "Falcon FPGA not supported\n");
 		return -ENODEV;
 	}
 
-	falcon_read(efx, &nic_stat, FR_AB_NIC_STAT);
+	efx_reado(efx, &nic_stat, FR_AB_NIC_STAT);
 
 	switch (falcon_rev(efx)) {
 	case FALCON_REV_A0:
@@ -2812,9 +2819,9 @@ static void falcon_probe_spi_devices(struct efx_nic *efx)
 	efx_oword_t nic_stat, gpio_ctl, ee_vpd_cfg;
 	int boot_dev;
 
-	falcon_read(efx, &gpio_ctl, FR_AB_GPIO_CTL);
-	falcon_read(efx, &nic_stat, FR_AB_NIC_STAT);
-	falcon_read(efx, &ee_vpd_cfg, FR_AB_EE_VPD_CFG0);
+	efx_reado(efx, &gpio_ctl, FR_AB_GPIO_CTL);
+	efx_reado(efx, &nic_stat, FR_AB_NIC_STAT);
+	efx_reado(efx, &ee_vpd_cfg, FR_AB_EE_VPD_CFG0);
 
 	if (EFX_OWORD_FIELD(gpio_ctl, FRF_AB_GPIO3_PWRUP_VALUE)) {
 		boot_dev = (EFX_OWORD_FIELD(nic_stat, FRF_AB_SF_PRST) ?
@@ -2832,7 +2839,7 @@ static void falcon_probe_spi_devices(struct efx_nic *efx)
 				     FRF_AB_EE_SF_CLOCK_DIV, 7,
 				     /* 125 MHz / 63 ~= 2 MHz */
 				     FRF_AB_EE_EE_CLOCK_DIV, 63);
-		falcon_write(efx, &ee_vpd_cfg, FR_AB_EE_VPD_CFG0);
+		efx_writeo(efx, &ee_vpd_cfg, FR_AB_EE_VPD_CFG0);
 	}
 
 	if (boot_dev == FFE_AB_SPI_DEVICE_FLASH)
@@ -2946,7 +2953,7 @@ static void falcon_init_rx_cfg(struct efx_nic *efx)
 	int data_xoff_thr = rx_xoff_thresh_bytes >> 8;
 	efx_oword_t reg;
 
-	falcon_read(efx, &reg, FR_AZ_RX_CFG);
+	efx_reado(efx, &reg, FR_AZ_RX_CFG);
 	if (falcon_rev(efx) <= FALCON_REV_A1) {
 		/* Data FIFO size is 5.5K */
 		if (data_xon_thr < 0)
@@ -2975,7 +2982,7 @@ static void falcon_init_rx_cfg(struct efx_nic *efx)
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XOFF_TX_TH, ctrl_xoff_thr);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, 1);
 	}
-	falcon_write(efx, &reg, FR_AZ_RX_CFG);
+	efx_writeo(efx, &reg, FR_AZ_RX_CFG);
 }
 
 /* This call performs hardware-specific global initialisation, such as
@@ -2988,15 +2995,15 @@ int falcon_init_nic(struct efx_nic *efx)
 	int rc;
 
 	/* Use on-chip SRAM */
-	falcon_read(efx, &temp, FR_AB_NIC_STAT);
+	efx_reado(efx, &temp, FR_AB_NIC_STAT);
 	EFX_SET_OWORD_FIELD(temp, FRF_AB_ONCHIP_SRAM, 1);
-	falcon_write(efx, &temp, FR_AB_NIC_STAT);
+	efx_writeo(efx, &temp, FR_AB_NIC_STAT);
 
 	/* Set the source of the GMAC clock */
 	if (falcon_rev(efx) == FALCON_REV_B0) {
-		falcon_read(efx, &temp, FR_AB_GPIO_CTL);
+		efx_reado(efx, &temp, FR_AB_GPIO_CTL);
 		EFX_SET_OWORD_FIELD(temp, FRF_AB_USE_NIC_CLK, true);
-		falcon_write(efx, &temp, FR_AB_GPIO_CTL);
+		efx_writeo(efx, &temp, FR_AB_GPIO_CTL);
 	}
 
 	rc = falcon_reset_sram(efx);
@@ -3005,31 +3012,31 @@ int falcon_init_nic(struct efx_nic *efx)
 
 	/* Set positions of descriptor caches in SRAM. */
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_SRM_TX_DC_BASE_ADR, TX_DC_BASE / 8);
-	falcon_write(efx, &temp, FR_AZ_SRM_TX_DC_CFG);
+	efx_writeo(efx, &temp, FR_AZ_SRM_TX_DC_CFG);
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_SRM_RX_DC_BASE_ADR, RX_DC_BASE / 8);
-	falcon_write(efx, &temp, FR_AZ_SRM_RX_DC_CFG);
+	efx_writeo(efx, &temp, FR_AZ_SRM_RX_DC_CFG);
 
 	/* Set TX descriptor cache size. */
 	BUILD_BUG_ON(TX_DC_ENTRIES != (16 << TX_DC_ENTRIES_ORDER));
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_TX_DC_SIZE, TX_DC_ENTRIES_ORDER);
-	falcon_write(efx, &temp, FR_AZ_TX_DC_CFG);
+	efx_writeo(efx, &temp, FR_AZ_TX_DC_CFG);
 
 	/* Set RX descriptor cache size.  Set low watermark to size-8, as
 	 * this allows most efficient prefetching.
 	 */
 	BUILD_BUG_ON(RX_DC_ENTRIES != (16 << RX_DC_ENTRIES_ORDER));
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_RX_DC_SIZE, RX_DC_ENTRIES_ORDER);
-	falcon_write(efx, &temp, FR_AZ_RX_DC_CFG);
+	efx_writeo(efx, &temp, FR_AZ_RX_DC_CFG);
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_RX_DC_PF_LWM, RX_DC_ENTRIES - 8);
-	falcon_write(efx, &temp, FR_AZ_RX_DC_PF_WM);
+	efx_writeo(efx, &temp, FR_AZ_RX_DC_PF_WM);
 
 	/* Clear the parity enables on the TX data fifos as
 	 * they produce false parity errors because of timing issues
 	 */
 	if (EFX_WORKAROUND_5129(efx)) {
-		falcon_read(efx, &temp, FR_AZ_CSR_SPARE);
+		efx_reado(efx, &temp, FR_AZ_CSR_SPARE);
 		EFX_SET_OWORD_FIELD(temp, FRF_AB_MEM_PERR_EN_TX_DATA, 0);
-		falcon_write(efx, &temp, FR_AZ_CSR_SPARE);
+		efx_writeo(efx, &temp, FR_AZ_CSR_SPARE);
 	}
 
 	/* Enable all the genuinely fatal interrupts.  (They are still
@@ -3043,15 +3050,15 @@ int falcon_init_nic(struct efx_nic *efx)
 			     FRF_AZ_RBUF_OWN_INT_KER_EN, 1,
 			     FRF_AZ_TBUF_OWN_INT_KER_EN, 1);
 	EFX_INVERT_OWORD(temp);
-	falcon_write(efx, &temp, FR_AZ_FATAL_INTR_KER);
+	efx_writeo(efx, &temp, FR_AZ_FATAL_INTR_KER);
 
 	if (EFX_WORKAROUND_7244(efx)) {
-		falcon_read(efx, &temp, FR_BZ_RX_FILTER_CTL);
+		efx_reado(efx, &temp, FR_BZ_RX_FILTER_CTL);
 		EFX_SET_OWORD_FIELD(temp, FRF_BZ_UDP_FULL_SRCH_LIMIT, 8);
 		EFX_SET_OWORD_FIELD(temp, FRF_BZ_UDP_WILD_SRCH_LIMIT, 8);
 		EFX_SET_OWORD_FIELD(temp, FRF_BZ_TCP_FULL_SRCH_LIMIT, 8);
 		EFX_SET_OWORD_FIELD(temp, FRF_BZ_TCP_WILD_SRCH_LIMIT, 8);
-		falcon_write(efx, &temp, FR_BZ_RX_FILTER_CTL);
+		efx_writeo(efx, &temp, FR_BZ_RX_FILTER_CTL);
 	}
 
 	falcon_setup_rss_indir_table(efx);
@@ -3060,17 +3067,17 @@ int falcon_init_nic(struct efx_nic *efx)
 	/* Setup RX.  Wait for descriptor is broken and must
 	 * be disabled.  RXDP recovery shouldn't be needed, but is.
 	 */
-	falcon_read(efx, &temp, FR_AA_RX_SELF_RST);
+	efx_reado(efx, &temp, FR_AA_RX_SELF_RST);
 	EFX_SET_OWORD_FIELD(temp, FRF_AA_RX_NODESC_WAIT_DIS, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_AA_RX_SELF_RST_EN, 1);
 	if (EFX_WORKAROUND_5583(efx))
 		EFX_SET_OWORD_FIELD(temp, FRF_AA_RX_ISCSI_DIS, 1);
-	falcon_write(efx, &temp, FR_AA_RX_SELF_RST);
+	efx_writeo(efx, &temp, FR_AA_RX_SELF_RST);
 
 	/* Disable the ugly timer-based TX DMA backoff and allow TX DMA to be
 	 * controlled by the RX FIFO fill level. Set arbitration to one pkt/Q.
 	 */
-	falcon_read(efx, &temp, FR_AZ_TX_RESERVED);
+	efx_reado(efx, &temp, FR_AZ_TX_RESERVED);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_RX_SPACER, 0xfe);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_RX_SPACER_EN, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_ONE_PKT_PER_Q, 1);
@@ -3083,21 +3090,21 @@ int falcon_init_nic(struct efx_nic *efx)
 	/* Squash TX of packets of 16 bytes or less */
 	if (falcon_rev(efx) >= FALCON_REV_B0 && EFX_WORKAROUND_9141(efx))
 		EFX_SET_OWORD_FIELD(temp, FRF_BZ_TX_FLUSH_MIN_LEN_EN, 1);
-	falcon_write(efx, &temp, FR_AZ_TX_RESERVED);
+	efx_writeo(efx, &temp, FR_AZ_TX_RESERVED);
 
 	/* Do not enable TX_NO_EOP_DISC_EN, since it limits packets to 16
 	 * descriptors (which is bad).
 	 */
-	falcon_read(efx, &temp, FR_AZ_TX_CFG);
+	efx_reado(efx, &temp, FR_AZ_TX_CFG);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_NO_EOP_DISC_EN, 0);
-	falcon_write(efx, &temp, FR_AZ_TX_CFG);
+	efx_writeo(efx, &temp, FR_AZ_TX_CFG);
 
 	falcon_init_rx_cfg(efx);
 
 	/* Set destination of both TX and RX Flush events */
 	if (falcon_rev(efx) >= FALCON_REV_B0) {
 		EFX_POPULATE_OWORD_1(temp, FRF_BZ_FLS_EVQ_ID, 0);
-		falcon_write(efx, &temp, FR_BZ_DP_CTRL);
+		efx_writeo(efx, &temp, FR_BZ_DP_CTRL);
 	}
 
 	return 0;
@@ -3133,7 +3140,7 @@ void falcon_update_nic_stats(struct efx_nic *efx)
 {
 	efx_oword_t cnt;
 
-	falcon_read(efx, &cnt, FR_AZ_RX_NODESC_DROP);
+	efx_reado(efx, &cnt, FR_AZ_RX_NODESC_DROP);
 	efx->n_rx_nodesc_drop_cnt +=
 		EFX_OWORD_FIELD(cnt, FRF_AB_RX_NODESC_DROP_CNT);
 }

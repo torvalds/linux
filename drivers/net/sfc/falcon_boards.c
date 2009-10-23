@@ -14,7 +14,7 @@
 #include "efx.h"
 #include "falcon.h"
 #include "regs.h"
-#include "falcon_io.h"
+#include "io.h"
 #include "workarounds.h"
 
 /* Macros for unpacking the board revision */
@@ -332,14 +332,14 @@ static int sfn4111t_reset(struct efx_nic *efx)
 	 * FLASH_CFG_1 strap (GPIO 3) appropriately.  Only change the
 	 * output enables; the output levels should always be 0 (low)
 	 * and we rely on external pull-ups. */
-	falcon_read(efx, &reg, FR_AB_GPIO_CTL);
+	efx_reado(efx, &reg, FR_AB_GPIO_CTL);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GPIO2_OEN, true);
-	falcon_write(efx, &reg, FR_AB_GPIO_CTL);
+	efx_writeo(efx, &reg, FR_AB_GPIO_CTL);
 	msleep(1000);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GPIO2_OEN, false);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GPIO3_OEN,
 			    !!(efx->phy_mode & PHY_MODE_SPECIAL));
-	falcon_write(efx, &reg, FR_AB_GPIO_CTL);
+	efx_writeo(efx, &reg, FR_AB_GPIO_CTL);
 	msleep(1);
 
 	mutex_unlock(&efx->i2c_adap.bus_lock);

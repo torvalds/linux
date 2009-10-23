@@ -26,7 +26,7 @@
 #include "selftest.h"
 #include "workarounds.h"
 #include "spi.h"
-#include "falcon_io.h"
+#include "io.h"
 #include "mdio_10g.h"
 
 /*

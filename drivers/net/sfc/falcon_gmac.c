@@ -14,7 +14,7 @@
 #include "falcon.h"
 #include "mac.h"
 #include "regs.h"
-#include "falcon_io.h"
+#include "io.h"
 
 /**************************************************************************
  *
@@ -41,7 +41,7 @@ static void falcon_reconfigure_gmac(struct efx_nic *efx)
 			     FRF_AB_GM_TX_FC_EN, tx_fc,
 			     FRF_AB_GM_RX_EN, 1,
 			     FRF_AB_GM_RX_FC_EN, rx_fc);
-	falcon_write(efx, &reg, FR_AB_GM_CFG1);
+	efx_writeo(efx, &reg, FR_AB_GM_CFG1);
 	udelay(10);
 
 	/* Configuration register 2 */
@@ -53,13 +53,13 @@ static void falcon_reconfigure_gmac(struct efx_nic *efx)
 			     FRF_AB_GM_FD, efx->link_fd,
 			     FRF_AB_GM_PAMBL_LEN, 0x7/*datasheet recommended */);
 
-	falcon_write(efx, &reg, FR_AB_GM_CFG2);
+	efx_writeo(efx, &reg, FR_AB_GM_CFG2);
 	udelay(10);
 
 	/* Max frame len register */
 	max_frame_len = EFX_MAX_FRAME_LEN(efx->net_dev->mtu);
 	EFX_POPULATE_OWORD_1(reg, FRF_AB_GM_MAX_FLEN, max_frame_len);
-	falcon_write(efx, &reg, FR_AB_GM_MAX_FLEN);
+	efx_writeo(efx, &reg, FR_AB_GM_MAX_FLEN);
 	udelay(10);
 
 	/* FIFO configuration register 0 */
@@ -69,42 +69,42 @@ static void falcon_reconfigure_gmac(struct efx_nic *efx)
 			     FRF_AB_GMF_FRFENREQ, 1,
 			     FRF_AB_GMF_SRFENREQ, 1,
 			     FRF_AB_GMF_WTMENREQ, 1);
-	falcon_write(efx, &reg, FR_AB_GMF_CFG0);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG0);
 	udelay(10);
 
 	/* FIFO configuration register 1 */
 	EFX_POPULATE_OWORD_2(reg,
 			     FRF_AB_GMF_CFGFRTH, 0x12,
 			     FRF_AB_GMF_CFGXOFFRTX, 0xffff);
-	falcon_write(efx, &reg, FR_AB_GMF_CFG1);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG1);
 	udelay(10);
 
 	/* FIFO configuration register 2 */
 	EFX_POPULATE_OWORD_2(reg,
 			     FRF_AB_GMF_CFGHWM, 0x3f,
 			     FRF_AB_GMF_CFGLWM, 0xa);
-	falcon_write(efx, &reg, FR_AB_GMF_CFG2);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG2);
 	udelay(10);
 
 	/* FIFO configuration register 3 */
 	EFX_POPULATE_OWORD_2(reg,
 			     FRF_AB_GMF_CFGHWMFT, 0x1c,
 			     FRF_AB_GMF_CFGFTTH, 0x08);
-	falcon_write(efx, &reg, FR_AB_GMF_CFG3);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG3);
 	udelay(10);
 
 	/* FIFO configuration register 4 */
 	EFX_POPULATE_OWORD_1(reg, FRF_AB_GMF_HSTFLTRFRM_PAUSE, 1);
-	falcon_write(efx, &reg, FR_AB_GMF_CFG4);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG4);
 	udelay(10);
 
 	/* FIFO configuration register 5 */
-	falcon_read(efx, &reg, FR_AB_GMF_CFG5);
+	efx_reado(efx, &reg, FR_AB_GMF_CFG5);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_CFGBYTMODE, bytemode);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_CFGHDPLX, !efx->link_fd);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_HSTDRPLT64, !efx->link_fd);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_HSTFLTRFRMDC_PAUSE, 0);
-	falcon_write(efx, &reg, FR_AB_GMF_CFG5);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG5);
 	udelay(10);
 
 	/* MAC address */
@@ -113,12 +113,12 @@ static void falcon_reconfigure_gmac(struct efx_nic *efx)
 			     FRF_AB_GM_ADR_B1, efx->net_dev->dev_addr[4],
 			     FRF_AB_GM_ADR_B2, efx->net_dev->dev_addr[3],
 			     FRF_AB_GM_ADR_B3, efx->net_dev->dev_addr[2]);
-	falcon_write(efx, &reg, FR_AB_GM_ADR1);
+	efx_writeo(efx, &reg, FR_AB_GM_ADR1);
 	udelay(10);
 	EFX_POPULATE_OWORD_2(reg,
 			     FRF_AB_GM_ADR_B4, efx->net_dev->dev_addr[1],
 			     FRF_AB_GM_ADR_B5, efx->net_dev->dev_addr[0]);
-	falcon_write(efx, &reg, FR_AB_GM_ADR2);
+	efx_writeo(efx, &reg, FR_AB_GM_ADR2);
 	udelay(10);
 
 	falcon_reconfigure_mac_wrapper(efx);
