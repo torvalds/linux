@@ -1185,6 +1185,26 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 	return ret;
 }
 
+static int tda18271_set_config(struct dvb_frontend *fe, void *priv_cfg)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	struct tda18271_config *cfg = (struct tda18271_config *) priv_cfg;
+
+	priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
+	priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
+	priv->config = (cfg) ? cfg->config : 0;
+	priv->small_i2c = (cfg) ?
+		cfg->small_i2c : TDA18271_39_BYTE_CHUNK_INIT;
+	priv->output_opt = (cfg) ?
+		cfg->output_opt : TDA18271_OUTPUT_LT_XT_ON;
+
+	/* override default std map with values in config struct */
+	if ((cfg) && (cfg->std_map))
+		tda18271_update_std_map(fe, cfg->std_map);
+
+	return 0;
+}
+
 static struct dvb_tuner_ops tda18271_tuner_ops = {
 	.info = {
 		.name = "NXP TDA18271HD",
@@ -1197,6 +1217,7 @@ static struct dvb_tuner_ops tda18271_tuner_ops = {
 	.set_params        = tda18271_set_params,
 	.set_analog_params = tda18271_set_analog_params,
 	.release           = tda18271_release,
+	.set_config        = tda18271_set_config,
 	.get_frequency     = tda18271_get_frequency,
 	.get_bandwidth     = tda18271_get_bandwidth,
 };
@@ -1221,13 +1242,9 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		/* new tuner instance */
 		int rf_cal_on_startup;
 
-		priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
-		priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
-		priv->config = (cfg) ? cfg->config : 0;
-		priv->small_i2c = (cfg) ?
-			cfg->small_i2c : TDA18271_39_BYTE_CHUNK_INIT;
-		priv->output_opt = (cfg) ?
-			cfg->output_opt : TDA18271_OUTPUT_LT_XT_ON;
+		fe->tuner_priv = priv;
+
+		tda18271_set_config(fe, cfg);
 
 		/* tda18271_cal_on_startup == -1 when cal
 		 * module option is unset */
@@ -1242,8 +1259,6 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 
 		priv->cal_initialized = false;
 		mutex_init(&priv->lock);
-
-		fe->tuner_priv = priv;
 
 		if (tda_fail(tda18271_get_id(fe)))
 			goto fail;
@@ -1276,13 +1291,11 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 				priv->small_i2c = cfg->small_i2c;
 			if (cfg->output_opt)
 				priv->output_opt = cfg->output_opt;
+			if (cfg->std_map)
+				tda18271_update_std_map(fe, cfg->std_map);
 		}
 		break;
 	}
-
-	/* override default std map with values in config struct */
-	if ((cfg) && (cfg->std_map))
-		tda18271_update_std_map(fe, cfg->std_map);
 
 	mutex_unlock(&tda18271_list_mutex);
 
