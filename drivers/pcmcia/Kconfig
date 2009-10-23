@@ -17,24 +17,6 @@ menuconfig PCCARD
 
 if PCCARD
 
-config PCMCIA_DEBUG
-	bool "Enable PCCARD debugging"
-	help
-	  Say Y here to enable PCMCIA subsystem debugging.  You
-	  will need to choose the debugging level either via the
-	  kernel command line, or module options depending whether
-	  you build the PCMCIA as modules.
-
-	  The kernel command line options are:
-	    pcmcia_core.pc_debug=N
-	    pcmcia.pc_debug=N
-	    sa11xx_core.pc_debug=N
-
-	  The module option is called pc_debug=N
-
-	  In all the above examples, N is the debugging verbosity
-	  level.
-
 config PCMCIA
 	tristate "16-bit PCMCIA support"
 	select CRC32
@@ -224,6 +206,24 @@ config PCMCIA_PXA2XX
 		    || ARCH_VIPER || ARCH_PXA_ESERIES || MACH_STARGATE2)
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
+
+config PCMCIA_DEBUG
+	bool "Enable debugging"
+	depends on (PCMCIA_SA1111 || PCMCIA_SA1100 || PCMCIA_PXA2XX)
+	help
+	  Say Y here to enable debugging for the SoC PCMCIA layer.
+	  You will need to choose the debugging level either via the
+	  kernel command line, or module options depending whether
+	  you build the drivers as modules.
+
+	  The kernel command line options are:
+	    sa11xx_core.pc_debug=N
+	    pxa2xx_core.pc_debug=N
+
+	  The module option is called pc_debug=N
+
+	  In all the above examples, N is the debugging verbosity
+	  level.
 
 config PCMCIA_PROBE
 	bool
