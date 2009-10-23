@@ -740,7 +740,7 @@ ftrace_profile_write(struct file *filp, const char __user *ubuf,
  out:
 	mutex_unlock(&ftrace_profile_lock);
 
-	filp->f_pos += cnt;
+	*ppos += cnt;
 
 	return cnt;
 }
