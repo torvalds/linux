@@ -1956,7 +1956,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 	struct port *port, *prev_port, *temp_port;
 	struct aggregator *aggregator, *new_aggregator, *temp_aggregator;
 	int select_new_active_agg = 0;
-	
+
 	// find the aggregator related to this slave
 	aggregator = &(SLAVE_AD_INFO(slave).aggregator);
 
@@ -2024,7 +2024,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 
 				// clear the aggregator
 				ad_clear_agg(aggregator);
-				
+
 				if (select_new_active_agg) {
 					ad_agg_selection_logic(__get_first_agg(port));
 				}
@@ -2075,7 +2075,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 			}
 		}
 	}
-	port->slave=NULL;	
+	port->slave=NULL;
 }
 
 /**
@@ -2301,7 +2301,7 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 }
 
 /*
- * set link state for bonding master: if we have an active 
+ * set link state for bonding master: if we have an active
  * aggregator, we're up, if not, we're down.  Presumes that we cannot
  * have an active aggregator if there are no slaves with link up.
  *
@@ -2395,7 +2395,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 	}
 
-	slave_agg_no = bond->xmit_hash_policy(skb, dev, slaves_in_agg);
+	slave_agg_no = bond->xmit_hash_policy(skb, slaves_in_agg);
 
 	bond_for_each_slave(bond, slave, i) {
 		struct aggregator *agg = SLAVE_AD_INFO(slave).port.aggregator;
@@ -2468,4 +2468,3 @@ out:
 
 	return ret;
 }
-

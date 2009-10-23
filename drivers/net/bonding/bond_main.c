@@ -3696,8 +3696,7 @@ void bond_unregister_arp(struct bonding *bond)
  * Hash for the output device based upon layer 2 and layer 3 data. If
  * the packet is not IP mimic bond_xmit_hash_policy_l2()
  */
-static int bond_xmit_hash_policy_l23(struct sk_buff *skb,
-				     struct net_device *bond_dev, int count)
+static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
 	struct iphdr *iph = ip_hdr(skb);
@@ -3715,8 +3714,7 @@ static int bond_xmit_hash_policy_l23(struct sk_buff *skb,
  * the packet is a frag or not TCP or UDP, just use layer 3 data.  If it is
  * altogether not IP, mimic bond_xmit_hash_policy_l2()
  */
-static int bond_xmit_hash_policy_l34(struct sk_buff *skb,
-				    struct net_device *bond_dev, int count)
+static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
 	struct iphdr *iph = ip_hdr(skb);
@@ -3740,8 +3738,7 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb,
 /*
  * Hash for the output device based upon layer 2 data
  */
-static int bond_xmit_hash_policy_l2(struct sk_buff *skb,
-				   struct net_device *bond_dev, int count)
+static int bond_xmit_hash_policy_l2(struct sk_buff *skb, int count)
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
 
@@ -4334,7 +4331,7 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 	if (!BOND_IS_OK(bond))
 		goto out;
 
-	slave_no = bond->xmit_hash_policy(skb, bond_dev, bond->slave_cnt);
+	slave_no = bond->xmit_hash_policy(skb, bond->slave_cnt);
 
 	bond_for_each_slave(bond, slave, i) {
 		slave_no--;

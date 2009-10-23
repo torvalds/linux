@@ -206,7 +206,7 @@ struct bonding {
 #endif /* CONFIG_PROC_FS */
 	struct   list_head bond_list;
 	struct   dev_mc_list *mc_list;
-	int      (*xmit_hash_policy)(struct sk_buff *, struct net_device *, int);
+	int      (*xmit_hash_policy)(struct sk_buff *, int);
 	__be32   master_ip;
 	u16      flags;
 	u16      rr_tx_counter;
@@ -377,4 +377,3 @@ static inline void bond_unregister_ipv6_notifier(void)
 #endif
 
 #endif /* _LINUX_BONDING_H */
-
