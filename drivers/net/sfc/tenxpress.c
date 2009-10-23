@@ -14,7 +14,7 @@
 #include "mdio_10g.h"
 #include "falcon.h"
 #include "phy.h"
-#include "falcon_hwdefs.h"
+#include "regs.h"
 #include "workarounds.h"
 #include "selftest.h"
 
