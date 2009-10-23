@@ -35,30 +35,31 @@
 static void blink_led_timer(unsigned long context)
 {
 	struct efx_nic *efx = (struct efx_nic *)context;
-	struct efx_blinker *bl = &efx->board_info.blinker;
-	efx->board_info.set_id_led(efx, bl->state);
-	bl->state = !bl->state;
-	if (bl->resubmit)
-		mod_timer(&bl->timer, jiffies + BLINK_INTERVAL);
+	struct efx_board *board = &efx->board_info;
+
+	board->set_id_led(efx, board->blink_state);
+	board->blink_state = !board->blink_state;
+	if (board->blink_resubmit)
+		mod_timer(&board->blink_timer, jiffies + BLINK_INTERVAL);
 }
 
 static void board_blink(struct efx_nic *efx, bool blink)
 {
-	struct efx_blinker *blinker = &efx->board_info.blinker;
+	struct efx_board *board = &efx->board_info;
 
 	/* The rtnl mutex serialises all ethtool ioctls, so
 	 * nothing special needs doing here. */
 	if (blink) {
-		blinker->resubmit = true;
-		blinker->state = false;
-		setup_timer(&blinker->timer, blink_led_timer,
+		board->blink_resubmit = true;
+		board->blink_state = false;
+		setup_timer(&board->blink_timer, blink_led_timer,
 			    (unsigned long)efx);
-		mod_timer(&blinker->timer, jiffies + BLINK_INTERVAL);
+		mod_timer(&board->blink_timer, jiffies + BLINK_INTERVAL);
 	} else {
-		blinker->resubmit = false;
-		if (blinker->timer.function)
-			del_timer_sync(&blinker->timer);
-		efx->board_info.init_leds(efx);
+		board->blink_resubmit = false;
+		if (board->blink_timer.function)
+			del_timer_sync(&board->blink_timer);
+		board->init_leds(efx);
 	}
 }
 

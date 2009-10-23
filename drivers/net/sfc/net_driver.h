@@ -389,19 +389,6 @@ struct efx_channel {
 };
 
 /**
- * struct efx_blinker - S/W LED blinking context
- * @state: Current state - on or off
- * @resubmit: Timer resubmission flag
- * @timer: Control timer for blinking
- */
-struct efx_blinker {
-	bool state;
-	bool resubmit;
-	struct timer_list timer;
-};
-
-
-/**
  * struct efx_board - board information
  * @type: Board model type
  * @major: Major rev. ('A', 'B' ...)
@@ -412,7 +399,9 @@ struct efx_blinker {
  * @blink: Starts/stops blinking
  * @monitor: Board-specific health check function
  * @fini: Cleanup function
- * @blinker: used to blink LEDs in software
+ * @blink_state: Current blink state
+ * @blink_resubmit: Blink timer resubmission flag
+ * @blink_timer: Blink timer
  * @hwmon_client: I2C client for hardware monitor
  * @ioexp_client: I2C client for power/port control
  */
@@ -429,7 +418,9 @@ struct efx_board {
 	int (*monitor) (struct efx_nic *nic);
 	void (*blink) (struct efx_nic *efx, bool start);
 	void (*fini) (struct efx_nic *nic);
-	struct efx_blinker blinker;
+	bool blink_state;
+	bool blink_resubmit;
+	struct timer_list blink_timer;
 	struct i2c_client *hwmon_client, *ioexp_client;
 };
 
