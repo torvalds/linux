@@ -17,7 +17,6 @@
 #include "mac.h"
 #include "mdio_10g.h"
 #include "phy.h"
-#include "boards.h"
 #include "workarounds.h"
 
 /**************************************************************************

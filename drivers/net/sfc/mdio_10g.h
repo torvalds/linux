@@ -17,7 +17,6 @@
  */
 
 #include "efx.h"
-#include "boards.h"
 
 static inline unsigned efx_mdio_id_rev(u32 id) { return id & 0xf; }
 static inline unsigned efx_mdio_id_model(u32 id) { return (id >> 4) & 0x3f; }

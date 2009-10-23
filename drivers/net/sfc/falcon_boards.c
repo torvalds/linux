@@ -11,7 +11,6 @@
 
 #include "net_driver.h"
 #include "phy.h"
-#include "boards.h"
 #include "efx.h"
 #include "falcon.h"
 #include "falcon_hwdefs.h"

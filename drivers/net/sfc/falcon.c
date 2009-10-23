@@ -26,7 +26,6 @@
 #include "falcon_io.h"
 #include "mdio_10g.h"
 #include "phy.h"
-#include "boards.h"
 #include "workarounds.h"
 
 /* Falcon hardware control.

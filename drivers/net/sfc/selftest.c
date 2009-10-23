@@ -24,7 +24,6 @@
 #include "efx.h"
 #include "falcon.h"
 #include "selftest.h"
-#include "boards.h"
 #include "workarounds.h"
 #include "spi.h"
 #include "falcon_io.h"

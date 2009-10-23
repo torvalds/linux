@@ -39,6 +39,8 @@ extern struct efx_nic_type falcon_b_nic_type;
  **************************************************************************
  */
 
+extern void falcon_probe_board(struct efx_nic *efx, u16 revision_info);
+
 /* TX data path */
 extern int falcon_probe_tx(struct efx_tx_queue *tx_queue);
 extern void falcon_init_tx(struct efx_tx_queue *tx_queue);

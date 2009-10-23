@@ -15,7 +15,6 @@
 #include "falcon.h"
 #include "phy.h"
 #include "falcon_hwdefs.h"
-#include "boards.h"
 #include "workarounds.h"
 #include "selftest.h"
 
