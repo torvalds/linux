@@ -3256,6 +3256,15 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 		iwl_down(priv);
 	}
 
+	/*
+	 * Make sure device is reset to low power before unloading driver.
+	 * This may be redundant with iwl_down(), but there are paths to
+	 * run iwl_down() without calling apm_ops.stop(), and there are
+	 * paths to avoid running iwl_down() at all before leaving driver.
+	 * This (inexpensive) call *makes sure* device is reset.
+	 */
+	priv->cfg->ops->lib->apm_ops.stop(priv);
+
 	iwl_tt_exit(priv);
 
 	/* make sure we flush any pending irq or
