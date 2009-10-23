@@ -274,4 +274,10 @@ void omap_intc_restore_context(void)
 	}
 	/* MIRs are saved and restore with other PRCM registers */
 }
+
+void omap3_intc_suspend(void)
+{
+	/* A pending interrupt would prevent OMAP from entering suspend */
+	omap_ack_irq(0);
+}
 #endif /* CONFIG_ARCH_OMAP3 */

@@ -578,6 +578,8 @@ static int omap3_pm_suspend(void)
 	}
 
 	omap_uart_prepare_suspend();
+	omap3_intc_suspend();
+
 	omap_sram_idle();
 
 restore:
