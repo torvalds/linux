@@ -364,7 +364,7 @@ enum {
 	CMD_WANT_SKB = (1 << 2),
 };
 
-#define IWL_CMD_MAX_PAYLOAD 320
+#define DEF_CMD_PAYLOAD_SIZE 320
 
 /*
  * IWL_LINK_HDR_MAX should include ieee80211_hdr, radiotap header,
@@ -388,7 +388,8 @@ struct iwl_device_cmd {
 		u16 val16;
 		u32 val32;
 		struct iwl_tx_cmd tx;
-		u8 payload[IWL_CMD_MAX_PAYLOAD];
+		struct iwl6000_channel_switch_cmd chswitch;
+		u8 payload[DEF_CMD_PAYLOAD_SIZE];
 	} __attribute__ ((packed)) cmd;
 } __attribute__ ((packed));
 
@@ -741,7 +742,11 @@ static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 
 static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
 {
-	/* This is for scan command, the big buffer at end of command array */
+	/*
+	 * This is for init calibration result and scan command which
+	 * required buffer > TFD_MAX_PAYLOAD_SIZE,
+	 * the big buffer at end of command array
+	 */
 	if (is_huge)
 		return q->n_window;	/* must be power of 2 */
 
