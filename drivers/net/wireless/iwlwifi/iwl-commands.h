@@ -2218,6 +2218,19 @@ struct iwl_link_quality_cmd {
 	__le32 reserved2;
 } __attribute__ ((packed));
 
+#define BT_COEX_DISABLE (0x0)
+#define BT_COEX_MODE_2W (0x1)
+#define BT_COEX_MODE_3W (0x2)
+#define BT_COEX_MODE_4W (0x3)
+
+#define BT_LEAD_TIME_MIN (0x0)
+#define BT_LEAD_TIME_DEF (0x1E)
+#define BT_LEAD_TIME_MAX (0xFF)
+
+#define BT_MAX_KILL_MIN (0x1)
+#define BT_MAX_KILL_DEF (0x5)
+#define BT_MAX_KILL_MAX (0xFF)
+
 /*
  * REPLY_BT_CONFIG = 0x9b (command, has simple generic response)
  *
