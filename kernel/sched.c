@@ -5017,8 +5017,13 @@ static void account_guest_time(struct task_struct *p, cputime_t cputime,
 	p->gtime = cputime_add(p->gtime, cputime);
 
 	/* Add guest time to cpustat. */
-	cpustat->user = cputime64_add(cpustat->user, tmp);
-	cpustat->guest = cputime64_add(cpustat->guest, tmp);
+	if (TASK_NICE(p) > 0) {
+		cpustat->nice = cputime64_add(cpustat->nice, tmp);
+		cpustat->guest_nice = cputime64_add(cpustat->guest_nice, tmp);
+	} else {
+		cpustat->user = cputime64_add(cpustat->user, tmp);
+		cpustat->guest = cputime64_add(cpustat->guest, tmp);
+	}
 }
 
 /*
