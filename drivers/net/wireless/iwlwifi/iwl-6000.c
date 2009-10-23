@@ -277,6 +277,7 @@ struct iwl_cfg iwl6000h_2agn_cfg = {
 	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
+	.adv_thermal_throttle = true,
 };
 
 struct iwl_cfg iwl6000h_2abg_cfg = {
@@ -304,6 +305,7 @@ struct iwl_cfg iwl6000h_2abg_cfg = {
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
+	.adv_thermal_throttle = true,
 };
 
 struct iwl_cfg iwl6000h_2bg_cfg = {
@@ -331,6 +333,7 @@ struct iwl_cfg iwl6000h_2bg_cfg = {
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
+	.adv_thermal_throttle = true,
 };
 
 /*
@@ -362,6 +365,7 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
+	.adv_thermal_throttle = true,
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
@@ -389,6 +393,7 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
+	.adv_thermal_throttle = true,
 };
 
 struct iwl_cfg iwl6000i_2bg_cfg = {
@@ -416,6 +421,7 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
+	.adv_thermal_throttle = true,
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
@@ -444,6 +450,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
+	.adv_thermal_throttle = true,
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
@@ -471,6 +478,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
+	.adv_thermal_throttle = true,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
@@ -499,6 +507,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
+	.adv_thermal_throttle = true,
 };
 
 struct iwl_cfg iwl6050_3agn_cfg = {
@@ -527,6 +536,7 @@ struct iwl_cfg iwl6050_3agn_cfg = {
 	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
+	.adv_thermal_throttle = true,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

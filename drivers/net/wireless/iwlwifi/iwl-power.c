@@ -893,9 +893,7 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 	INIT_WORK(&priv->ct_enter, iwl_bg_ct_enter);
 	INIT_WORK(&priv->ct_exit, iwl_bg_ct_exit);
 
-	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
-	case CSR_HW_REV_TYPE_6x00:
-	case CSR_HW_REV_TYPE_6x50:
+	if (priv->cfg->adv_thermal_throttle) {
 		IWL_DEBUG_POWER(priv, "Advanced Thermal Throttling\n");
 		tt->restriction = kzalloc(sizeof(struct iwl_tt_restriction) *
 					 IWL_TI_STATE_MAX, GFP_KERNEL);
@@ -928,11 +926,9 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 				&restriction_range[0], size);
 			priv->thermal_throttle.advanced_tt = true;
 		}
-		break;
-	default:
+	} else {
 		IWL_DEBUG_POWER(priv, "Legacy Thermal Throttling\n");
 		priv->thermal_throttle.advanced_tt = false;
-		break;
 	}
 }
 EXPORT_SYMBOL(iwl_tt_initialize);
