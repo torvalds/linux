@@ -528,7 +528,6 @@ struct efx_mac_operations {
  * @fini: Shut down PHY
  * @reconfigure: Reconfigure PHY (e.g. for new link parameters)
  * @clear_interrupt: Clear down interrupt
- * @blink: Blink LEDs
  * @poll: Poll for hardware state. Serialised by the mac_lock.
  * @get_settings: Get ethtool settings. Serialised by the mac_lock.
  * @set_settings: Set ethtool settings. Serialised by the mac_lock.
