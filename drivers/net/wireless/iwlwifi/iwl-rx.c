@@ -241,6 +241,7 @@ void iwl_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 	struct iwl_rx_mem_buffer *rxb;
 	struct page *page;
 	unsigned long flags;
+	gfp_t gfp_mask = priority;
 
 	while (1) {
 		spin_lock_irqsave(&rxq->lock, flags);
@@ -251,13 +252,13 @@ void iwl_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		spin_unlock_irqrestore(&rxq->lock, flags);
 
 		if (rxq->free_count > RX_LOW_WATERMARK)
-			priority |= __GFP_NOWARN;
+			gfp_mask |= __GFP_NOWARN;
 
 		if (priv->hw_params.rx_page_order > 0)
-			priority |= __GFP_COMP;
+			gfp_mask |= __GFP_COMP;
 
 		/* Alloc a new receive buffer */
-		page = alloc_pages(priority, priv->hw_params.rx_page_order);
+		page = alloc_pages(gfp_mask, priv->hw_params.rx_page_order);
 		if (!page) {
 			if (net_ratelimit())
 				IWL_DEBUG_INFO(priv, "alloc_pages failed, "
@@ -922,6 +923,7 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 {
 	struct sk_buff *skb;
 	int ret = 0;
+	__le16 fc = hdr->frame_control;
 
 	/* We only process data packets if the interface is open */
 	if (unlikely(!priv->is_open)) {
@@ -946,9 +948,9 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	/* mac80211 currently doesn't support paged SKB. Convert it to
 	 * linear SKB for management frame and data frame requires
 	 * software decryption or software defragementation. */
-	if (ieee80211_is_mgmt(hdr->frame_control) ||
-	    ieee80211_has_protected(hdr->frame_control) ||
-	    ieee80211_has_morefrags(hdr->frame_control) ||
+	if (ieee80211_is_mgmt(fc) ||
+	    ieee80211_has_protected(fc) ||
+	    ieee80211_has_morefrags(fc) ||
 	    le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG)
 		ret = skb_linearize(skb);
 	else
@@ -960,7 +962,12 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 		goto out;
 	}
 
-	iwl_update_stats(priv, false, hdr->frame_control, len);
+	/*
+	 * XXX: We cannot touch the page and its virtual memory (hdr) after
+	 * here. It might have already been freed by the above skb change.
+	 */
+
+	iwl_update_stats(priv, false, fc, len);
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
 	ieee80211_rx(priv->hw, skb);
