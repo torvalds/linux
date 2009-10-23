@@ -138,7 +138,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		if (!gspca_dev->frozen)
 #endif
 			PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
-		return;
+		goto resubmit;
 	}
 	pkt_scan = gspca_dev->sd_desc->pkt_scan;
 	for (i = 0; i < urb->number_of_packets; i++) {
@@ -174,6 +174,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		pkt_scan(gspca_dev, frame, data, len);
 	}
 
+resubmit:
 	/* resubmit the URB */
 	st = usb_submit_urb(urb, GFP_ATOMIC);
 	if (st < 0)
@@ -220,7 +221,7 @@ static void bulk_irq(struct urb *urb)
 		if (!gspca_dev->frozen)
 #endif
 			PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
-		return;
+		goto resubmit;
 	}
 
 	/* check the availability of the frame buffer */
@@ -235,6 +236,7 @@ static void bulk_irq(struct urb *urb)
 					urb->actual_length);
 	}
 
+resubmit:
 	/* resubmit the URB */
 	if (gspca_dev->cam.bulk_nurbs != 0) {
 		st = usb_submit_urb(urb, GFP_ATOMIC);
