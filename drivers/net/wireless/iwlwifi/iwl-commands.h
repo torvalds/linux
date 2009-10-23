@@ -109,7 +109,7 @@ enum {
 	REPLY_TX_LINK_QUALITY_CMD = 0x4e, /* 4965 only */
 
 	/* WiMAX coexistence */
-	COEX_PRIORITY_TABLE_CMD = 0x5a,	/*5000 only */
+	COEX_PRIORITY_TABLE_CMD = 0x5a,	/* for 5000 series and up */
 	COEX_MEDIUM_NOTIFICATION = 0x5b,
 	COEX_EVENT_CMD = 0x5c,
 
