@@ -2239,7 +2239,7 @@ int falcon_probe_port(struct efx_nic *efx)
 		break;
 	case PHY_TYPE_QT2022C2:
 	case PHY_TYPE_QT2025C:
-		efx->phy_op = &falcon_xfp_phy_ops;
+		efx->phy_op = &falcon_qt202x_phy_ops;
 		break;
 	default:
 		EFX_ERR(efx, "Unknown PHY type %d\n",

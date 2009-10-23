@@ -23,9 +23,9 @@ extern void tenxpress_phy_blink(struct efx_nic *efx, bool blink);
 extern int sft9001_wait_boot(struct efx_nic *efx);
 
 /****************************************************************************
- * AMCC/Quake QT20xx PHYs
+ * AMCC/Quake QT202x PHYs
  */
-extern struct efx_phy_operations falcon_xfp_phy_ops;
+extern struct efx_phy_operations falcon_qt202x_phy_ops;
 
 /* These PHYs provide various H/W control states for LEDs */
 #define QUAKE_LED_LINK_INVAL	(0)
@@ -39,6 +39,6 @@ extern struct efx_phy_operations falcon_xfp_phy_ops;
 #define QUAKE_LED_TXLINK	(0)
 #define QUAKE_LED_RXLINK	(8)
 
-extern void xfp_set_led(struct efx_nic *p, int led, int state);
+extern void falcon_qt202x_set_led(struct efx_nic *p, int led, int state);
 
 #endif

@@ -612,17 +612,17 @@ static void sfe4002_init_leds(struct efx_nic *efx)
 {
 	/* Set the TX and RX LEDs to reflect status and activity, and the
 	 * fault LED off */
-	xfp_set_led(efx, SFE4002_TX_LED,
-		    QUAKE_LED_TXLINK | QUAKE_LED_LINK_ACTSTAT);
-	xfp_set_led(efx, SFE4002_RX_LED,
-		    QUAKE_LED_RXLINK | QUAKE_LED_LINK_ACTSTAT);
-	xfp_set_led(efx, SFE4002_FAULT_LED, QUAKE_LED_OFF);
+	falcon_qt202x_set_led(efx, SFE4002_TX_LED,
+			      QUAKE_LED_TXLINK | QUAKE_LED_LINK_ACTSTAT);
+	falcon_qt202x_set_led(efx, SFE4002_RX_LED,
+			      QUAKE_LED_RXLINK | QUAKE_LED_LINK_ACTSTAT);
+	falcon_qt202x_set_led(efx, SFE4002_FAULT_LED, QUAKE_LED_OFF);
 }
 
 static void sfe4002_set_id_led(struct efx_nic *efx, bool state)
 {
-	xfp_set_led(efx, SFE4002_FAULT_LED, state ? QUAKE_LED_ON :
-			QUAKE_LED_OFF);
+	falcon_qt202x_set_led(efx, SFE4002_FAULT_LED, state ? QUAKE_LED_ON :
+			      QUAKE_LED_OFF);
 }
 
 static int sfe4002_check_hw(struct efx_nic *efx)
@@ -677,16 +677,16 @@ static struct i2c_board_info sfn4112f_hwmon_info = {
 
 static void sfn4112f_init_leds(struct efx_nic *efx)
 {
-	xfp_set_led(efx, SFN4112F_ACT_LED,
-		    QUAKE_LED_RXLINK | QUAKE_LED_LINK_ACT);
-	xfp_set_led(efx, SFN4112F_LINK_LED,
-		    QUAKE_LED_RXLINK | QUAKE_LED_LINK_STAT);
+	falcon_qt202x_set_led(efx, SFN4112F_ACT_LED,
+			      QUAKE_LED_RXLINK | QUAKE_LED_LINK_ACT);
+	falcon_qt202x_set_led(efx, SFN4112F_LINK_LED,
+			      QUAKE_LED_RXLINK | QUAKE_LED_LINK_STAT);
 }
 
 static void sfn4112f_set_id_led(struct efx_nic *efx, bool state)
 {
-	xfp_set_led(efx, SFN4112F_LINK_LED,
-		    state ? QUAKE_LED_ON : QUAKE_LED_OFF);
+	falcon_qt202x_set_led(efx, SFN4112F_LINK_LED,
+			      state ? QUAKE_LED_ON : QUAKE_LED_OFF);
 }
 
 static int sfn4112f_check_hw(struct efx_nic *efx)
