@@ -131,7 +131,7 @@ void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	struct pci_dev *dev = priv->pci_dev;
-	int i, len;
+	int i;
 
 	if (q->n_bd == 0)
 		return;
@@ -140,8 +140,6 @@ void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 	for (; q->write_ptr != q->read_ptr;
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
 		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
-
-	len = sizeof(struct iwl_device_cmd) * q->n_window;
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
@@ -180,13 +178,10 @@ void iwl_cmd_queue_free(struct iwl_priv *priv)
 	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 	struct iwl_queue *q = &txq->q;
 	struct pci_dev *dev = priv->pci_dev;
-	int i, len;
+	int i;
 
 	if (q->n_bd == 0)
 		return;
-
-	len = sizeof(struct iwl_device_cmd) * q->n_window;
-	len += IWL_MAX_SCAN_SIZE;
 
 	/* De-alloc array of command/tx buffers */
 	for (i = 0; i <= TFD_CMD_SLOTS; i++)
