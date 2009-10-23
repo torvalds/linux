@@ -2933,10 +2933,6 @@ int falcon_init_nic(struct efx_nic *efx)
 		falcon_write(efx, &temp, GPIO_CTL_REG_KER);
 	}
 
-	/* Set buffer table mode */
-	EFX_POPULATE_OWORD_1(temp, BUF_TBL_MODE, BUF_TBL_MODE_FULL);
-	falcon_write(efx, &temp, BUF_TBL_CFG_REG_KER);
-
 	rc = falcon_reset_sram(efx);
 	if (rc)
 		return rc;
