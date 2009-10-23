@@ -537,18 +537,7 @@ static int vmbus_child_device_register(struct hv_device *root_device_obj,
 	DPRINT_DBG(VMBUS_DRV, "child device (%p) registering",
 		   child_device_ctx);
 
-	/* Make sure we are not registered already */
-	if (strlen(dev_name(&child_device_ctx->device)) != 0) {
-		DPRINT_ERR(VMBUS_DRV,
-			   "child device (%p) already registered - busid %s",
-			   child_device_ctx,
-			   dev_name(&child_device_ctx->device));
-
-		ret = -1;
-		goto Cleanup;
-	}
-
-	/* Set the device bus id. Otherwise, device_register()will fail. */
+	/* Set the device name. Otherwise, device_register() will fail. */
 	dev_set_name(&child_device_ctx->device, "vmbus_0_%d",
 		     atomic_inc_return(&device_num));
 
@@ -573,7 +562,6 @@ static int vmbus_child_device_register(struct hv_device *root_device_obj,
 		DPRINT_INFO(VMBUS_DRV, "child device (%p) registered",
 			    &child_device_ctx->device);
 
-Cleanup:
 	DPRINT_EXIT(VMBUS_DRV);
 
 	return ret;
