@@ -407,12 +407,6 @@ struct iwl_host_cmd {
 	u8 id;
 };
 
-/*
- * RX related structures and functions
- */
-#define RX_FREE_BUFFERS 64
-#define RX_LOW_WATERMARK 8
-
 #define SUP_RATE_11A_MAX_NUM_CHANNELS  8
 #define SUP_RATE_11B_MAX_NUM_CHANNELS  4
 #define SUP_RATE_11G_MAX_NUM_CHANNELS  12

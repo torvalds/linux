@@ -248,12 +248,6 @@ struct iwl3945_eeprom {
 #define TFD_CTL_PAD_SET(n)         (n << 28)
 #define TFD_CTL_PAD_GET(ctl)       (ctl >> 28)
 
-/*
- * RX related structures and functions
- */
-#define RX_FREE_BUFFERS 64
-#define RX_LOW_WATERMARK 8
-
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 3945's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
 #define IWL39_RTC_INST_LOWER_BOUND		(0x000000)
