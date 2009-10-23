@@ -341,10 +341,14 @@ int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 
 enum efx_fc_type efx_mdio_get_pause(struct efx_nic *efx)
 {
-	int lpa;
+	BUILD_BUG_ON(EFX_FC_AUTO & (EFX_FC_RX | EFX_FC_TX));
 
-	if (!(efx->phy_op->mmds & MDIO_DEVS_AN))
+	if (!(efx->wanted_fc & EFX_FC_AUTO))
 		return efx->wanted_fc;
-	lpa = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_LPA);
-	return efx_fc_resolve(efx->wanted_fc, lpa);
+
+	WARN_ON(!(efx->mdio.mmds & MDIO_DEVS_AN));
+
+	return mii_resolve_flowctrl_fdx(
+		mii_advertise_flowctrl(efx->wanted_fc),
+		efx_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_LPA));
 }

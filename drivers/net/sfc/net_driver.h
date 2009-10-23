@@ -497,17 +497,6 @@ enum efx_mac_type {
 	EFX_XMAC = 2,
 };
 
-static inline enum efx_fc_type efx_fc_resolve(enum efx_fc_type wanted_fc,
-					      unsigned int lpa)
-{
-	BUILD_BUG_ON(EFX_FC_AUTO & (EFX_FC_RX | EFX_FC_TX));
-
-	if (!(wanted_fc & EFX_FC_AUTO))
-		return wanted_fc;
-
-	return mii_resolve_flowctrl_fdx(mii_advertise_flowctrl(wanted_fc), lpa);
-}
-
 /**
  * struct efx_mac_operations - Efx MAC operations table
  * @reconfigure: Reconfigure MAC. Serialised by the mac_lock
