@@ -124,6 +124,24 @@ static void efx_tsoh_free(struct efx_tx_queue *tx_queue,
 }
 
 
+static inline unsigned
+efx_max_tx_len(struct efx_nic *efx, dma_addr_t dma_addr)
+{
+	/* Depending on the NIC revision, we can use descriptor
+	 * lengths up to 8K or 8K-1.  However, since PCI Express
+	 * devices must split read requests at 4K boundaries, there is
+	 * little benefit from using descriptors that cross those
+	 * boundaries and we keep things simple by not doing so.
+	 */
+	unsigned len = (~dma_addr & 0xfff) + 1;
+
+	/* Work around hardware bug for unaligned buffers. */
+	if (EFX_WORKAROUND_5391(efx) && (dma_addr & 0xf))
+		len = min_t(unsigned, len, 512 - (dma_addr & 0xf));
+
+	return len;
+}
+
 /*
  * Add a socket buffer to a TX queue
  *
@@ -146,7 +164,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 	skb_frag_t *fragment;
 	struct page *page;
 	int page_offset;
-	unsigned int len, unmap_len = 0, fill_level, insert_ptr, misalign;
+	unsigned int len, unmap_len = 0, fill_level, insert_ptr;
 	dma_addr_t dma_addr, unmap_addr = 0;
 	unsigned int dma_len;
 	bool unmap_single;
@@ -223,13 +241,9 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 			EFX_BUG_ON_PARANOID(!buffer->continuation);
 			EFX_BUG_ON_PARANOID(buffer->unmap_len);
 
-			dma_len = (((~dma_addr) & efx->type->tx_dma_mask) + 1);
-			if (likely(dma_len > len))
+			dma_len = efx_max_tx_len(efx, dma_addr);
+			if (likely(dma_len >= len))
 				dma_len = len;
-
-			misalign = (unsigned)dma_addr & efx->type->bug5391_mask;
-			if (misalign && dma_len + misalign > 512)
-				dma_len = 512 - misalign;
 
 			/* Fill out per descriptor fields */
 			buffer->len = dma_len;
@@ -703,7 +717,7 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 {
 	struct efx_tx_buffer *buffer;
 	struct efx_nic *efx = tx_queue->efx;
-	unsigned dma_len, fill_level, insert_ptr, misalign;
+	unsigned dma_len, fill_level, insert_ptr;
 	int q_space;
 
 	EFX_BUG_ON_PARANOID(len <= 0);
@@ -752,12 +766,7 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 
 		buffer->dma_addr = dma_addr;
 
-		/* Ensure we do not cross a boundary unsupported by H/W */
-		dma_len = (~dma_addr & efx->type->tx_dma_mask) + 1;
-
-		misalign = (unsigned)dma_addr & efx->type->bug5391_mask;
-		if (misalign && dma_len + misalign > 512)
-			dma_len = 512 - misalign;
+		dma_len = efx_max_tx_len(efx, dma_addr);
 
 		/* If there is enough space to send then do so */
 		if (dma_len >= len)

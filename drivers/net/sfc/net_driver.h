@@ -870,8 +870,6 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
  * @evq_ptr_tbl_base: Event queue pointer table base address
  * @evq_rptr_tbl_base: Event queue read-pointer table base address
  * @max_dma_mask: Maximum possible DMA mask
- * @tx_dma_mask: TX DMA mask
- * @bug5391_mask: Address mask for bug 5391 workaround
  * @rx_buffer_padding: Padding added to each RX buffer
  * @max_interrupt_mode: Highest capability interrupt mode supported
  *	from &enum efx_init_mode.
@@ -888,8 +886,6 @@ struct efx_nic_type {
 	unsigned int evq_rptr_tbl_base;
 
 	u64 max_dma_mask;
-	unsigned int tx_dma_mask;
-	unsigned bug5391_mask;
 
 	unsigned int rx_buffer_padding;
 	unsigned int max_interrupt_mode;

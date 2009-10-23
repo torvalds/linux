@@ -127,9 +127,6 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
  **************************************************************************
  */
 
-/* TX DMA length mask (13-bit) */
-#define FALCON_TX_DMA_MASK (4096 - 1)
-
 /* Size and alignment of special buffers (4KB) */
 #define FALCON_BUF_SIZE 4096
 
@@ -3146,8 +3143,6 @@ struct efx_nic_type falcon_a_nic_type = {
 	.evq_ptr_tbl_base = FR_AA_EVQ_PTR_TBL_KER,
 	.evq_rptr_tbl_base = FR_AA_EVQ_RPTR_KER,
 	.max_dma_mask = DMA_BIT_MASK(FSF_AZ_TX_KER_BUF_ADDR_WIDTH),
-	.tx_dma_mask = FALCON_TX_DMA_MASK,
-	.bug5391_mask = 0xf,
 	.rx_buffer_padding = 0x24,
 	.max_interrupt_mode = EFX_INT_MODE_MSI,
 	.phys_addr_channels = 4,
@@ -3167,8 +3162,6 @@ struct efx_nic_type falcon_b_nic_type = {
 	.evq_ptr_tbl_base = FR_BZ_EVQ_PTR_TBL,
 	.evq_rptr_tbl_base = FR_BZ_EVQ_RPTR,
 	.max_dma_mask = DMA_BIT_MASK(FSF_AZ_TX_KER_BUF_ADDR_WIDTH),
-	.tx_dma_mask = FALCON_TX_DMA_MASK,
-	.bug5391_mask = 0,
 	.rx_buffer_padding = 0,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,
 	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy

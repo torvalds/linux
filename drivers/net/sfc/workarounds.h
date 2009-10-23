@@ -41,6 +41,8 @@
 
 /* Spurious parity errors in TSORT buffers */
 #define EFX_WORKAROUND_5129 EFX_WORKAROUND_FALCON_A
+/* Unaligned read request >512 bytes after aligning may break TSORT */
+#define EFX_WORKAROUND_5391 EFX_WORKAROUND_FALCON_A
 /* iSCSI parsing errors */
 #define EFX_WORKAROUND_5583 EFX_WORKAROUND_FALCON_A
 /* RX events go missing */
