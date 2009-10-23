@@ -44,21 +44,6 @@ static u8 pcmcia_used_irq[NR_IRQS];
 #endif
 
 
-#ifdef CONFIG_PCMCIA_DEBUG
-extern int ds_pc_debug;
-
-#define ds_dbg(skt, lvl, fmt, arg...) do {			\
-	if (ds_pc_debug >= lvl)					\
-		dev_printk(KERN_DEBUG, &skt->dev,		\
-			   "pcmcia_resource: " fmt,		\
-			   ## arg);				\
-} while (0)
-#else
-#define ds_dbg(skt, lvl, fmt, arg...) do { } while (0)
-#endif
-
-
-
 /** alloc_io_space
  *
  * Special stuff for managing IO windows, because they are scarce
@@ -73,14 +58,14 @@ static int alloc_io_space(struct pcmcia_socket *s, u_int attr,
 	align = (*base) ? (lines ? 1<<lines : 0) : 1;
 	if (align && (align < num)) {
 		if (*base) {
-			ds_dbg(s, 0, "odd IO request: num %#x align %#x\n",
+			dev_dbg(&s->dev, "odd IO request: num %#x align %#x\n",
 			       num, align);
 			align = 0;
 		} else
 			while (align && (align < num)) align <<= 1;
 	}
 	if (*base & ~(align-1)) {
-		ds_dbg(s, 0, "odd IO request: base %#x align %#x\n",
+		dev_dbg(&s->dev, "odd IO request: base %#x align %#x\n",
 		       *base, align);
 		align = 0;
 	}
@@ -253,12 +238,12 @@ int pcmcia_map_mem_page(window_handle_t win, memreq_t *req)
 		return -EINVAL;
 	s = win->sock;
 	if (req->Page != 0) {
-		ds_dbg(s, 0, "failure: requested page is zero\n");
+		dev_dbg(&s->dev, "failure: requested page is zero\n");
 		return -EINVAL;
 	}
 	win->ctl.card_start = req->CardOffset;
 	if (s->ops->set_mem_map(s, &win->ctl) != 0) {
-		ds_dbg(s, 0, "failed to set_mem_map\n");
+		dev_dbg(&s->dev, "failed to set_mem_map\n");
 		return -EIO;
 	}
 	return 0;
@@ -296,7 +281,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	}
 
 	if (mod->Attributes & CONF_VCC_CHANGE_VALID) {
-		ds_dbg(s, 0, "changing Vcc is not allowed at this time\n");
+		dev_dbg(&s->dev, "changing Vcc is not allowed at this time\n");
 		return -EINVAL;
 	}
 
@@ -304,7 +289,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) &&
 	    (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
 		if (mod->Vpp1 != mod->Vpp2) {
-			ds_dbg(s, 0, "Vpp1 and Vpp2 must be the same\n");
+			dev_dbg(&s->dev, "Vpp1 and Vpp2 must be the same\n");
 			return -EINVAL;
 		}
 		s->socket.Vpp = mod->Vpp1;
@@ -315,7 +300,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 		}
 	} else if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) ||
 		   (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
-		ds_dbg(s, 0, "changing Vcc is not allowed at this time\n");
+		dev_dbg(&s->dev, "changing Vcc is not allowed at this time\n");
 		return -EINVAL;
 	}
 
@@ -426,11 +411,11 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	if (c->state & CONFIG_LOCKED)
 		return -EACCES;
 	if (c->irq.Attributes != req->Attributes) {
-		ds_dbg(s, 0, "IRQ attributes must match assigned ones\n");
+		dev_dbg(&s->dev, "IRQ attributes must match assigned ones\n");
 		return -EINVAL;
 	}
 	if (s->irq.AssignedIRQ != req->AssignedIRQ) {
-		ds_dbg(s, 0, "IRQ must match assigned one\n");
+		dev_dbg(&s->dev, "IRQ must match assigned one\n");
 		return -EINVAL;
 	}
 	if (--s->irq.Config == 0) {
@@ -493,7 +478,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	if (req->IntType & INT_CARDBUS) {
-		ds_dbg(p_dev->socket, 0, "IntType may not be INT_CARDBUS\n");
+		dev_dbg(&s->dev, "IntType may not be INT_CARDBUS\n");
 		return -EINVAL;
 	}
 	c = p_dev->function_config;
@@ -619,31 +604,31 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 	if (c->state & CONFIG_LOCKED)
 		return -EACCES;
 	if (c->state & CONFIG_IO_REQ) {
-		ds_dbg(s, 0, "IO already configured\n");
+		dev_dbg(&s->dev, "IO already configured\n");
 		return -EBUSY;
 	}
 	if (req->Attributes1 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS)) {
-		ds_dbg(s, 0, "bad attribute setting for IO region 1\n");
+		dev_dbg(&s->dev, "bad attribute setting for IO region 1\n");
 		return -EINVAL;
 	}
 	if ((req->NumPorts2 > 0) &&
 	    (req->Attributes2 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS))) {
-		ds_dbg(s, 0, "bad attribute setting for IO region 2\n");
+		dev_dbg(&s->dev, "bad attribute setting for IO region 2\n");
 		return -EINVAL;
 	}
 
-	ds_dbg(s, 1, "trying to allocate resource 1\n");
+	dev_dbg(&s->dev, "trying to allocate resource 1\n");
 	if (alloc_io_space(s, req->Attributes1, &req->BasePort1,
 			   req->NumPorts1, req->IOAddrLines)) {
-		ds_dbg(s, 0, "allocation of resource 1 failed\n");
+		dev_dbg(&s->dev, "allocation of resource 1 failed\n");
 		return -EBUSY;
 	}
 
 	if (req->NumPorts2) {
-		ds_dbg(s, 1, "trying to allocate resource 2\n");
+		dev_dbg(&s->dev, "trying to allocate resource 2\n");
 		if (alloc_io_space(s, req->Attributes2, &req->BasePort2,
 				   req->NumPorts2, req->IOAddrLines)) {
-			ds_dbg(s, 0, "allocation of resource 2 failed\n");
+			dev_dbg(&s->dev, "allocation of resource 2 failed\n");
 			release_io_space(s, req->BasePort1, req->NumPorts1);
 			return -EBUSY;
 		}
@@ -687,7 +672,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	if (c->state & CONFIG_LOCKED)
 		return -EACCES;
 	if (c->state & CONFIG_IRQ_REQ) {
-		ds_dbg(s, 0, "IRQ already configured\n");
+		dev_dbg(&s->dev, "IRQ already configured\n");
 		return -EBUSY;
 	}
 
@@ -798,7 +783,7 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
 	if (req->Attributes & (WIN_PAGED | WIN_SHARED)) {
-		ds_dbg(s, 0, "bad attribute setting for iomem region\n");
+		dev_dbg(&s->dev, "bad attribute setting for iomem region\n");
 		return -EINVAL;
 	}
 
@@ -809,12 +794,12 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 		  (req->Attributes & WIN_STRICT_ALIGN)) ?
 		 req->Size : s->map_size);
 	if (req->Size & (s->map_size-1)) {
-		ds_dbg(s, 0, "invalid map size\n");
+		dev_dbg(&s->dev, "invalid map size\n");
 		return -EINVAL;
 	}
 	if ((req->Base && (s->features & SS_CAP_STATIC_MAP)) ||
 	    (req->Base & (align-1))) {
-		ds_dbg(s, 0, "invalid base address\n");
+		dev_dbg(&s->dev, "invalid base address\n");
 		return -EINVAL;
 	}
 	if (req->Base)
@@ -824,7 +809,7 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	for (w = 0; w < MAX_WIN; w++)
 		if (!(s->state & SOCKET_WIN_REQ(w))) break;
 	if (w == MAX_WIN) {
-		ds_dbg(s, 0, "all windows are used already\n");
+		dev_dbg(&s->dev, "all windows are used already\n");
 		return -EINVAL;
 	}
 
@@ -838,7 +823,7 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 		win->ctl.res = pcmcia_find_mem_region(req->Base, req->Size, align,
 						      (req->Attributes & WIN_MAP_BELOW_1MB), s);
 		if (!win->ctl.res) {
-			ds_dbg(s, 0, "allocating mem region failed\n");
+			dev_dbg(&s->dev, "allocating mem region failed\n");
 			return -EINVAL;
 		}
 	}
@@ -858,7 +843,7 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 		win->ctl.flags |= MAP_USE_WAIT;
 	win->ctl.card_start = 0;
 	if (s->ops->set_mem_map(s, &win->ctl) != 0) {
-		ds_dbg(s, 0, "failed to set memory mapping\n");
+		dev_dbg(&s->dev, "failed to set memory mapping\n");
 		return -EIO;
 	}
 	s->state |= SOCKET_WIN_REQ(w);

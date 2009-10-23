@@ -138,7 +138,7 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
     void __iomem *sys, *end;
     unsigned char *buf = ptr;
     
-    cs_dbg(s, 3, "pcmcia_read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    dev_dbg(&s->dev, "pcmcia_read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -190,7 +190,7 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	    addr = 0;
 	}
     }
-    cs_dbg(s, 3, "  %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
+    dev_dbg(&s->dev, "  %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
 	  *(u_char *)(ptr+0), *(u_char *)(ptr+1),
 	  *(u_char *)(ptr+2), *(u_char *)(ptr+3));
     return 0;
@@ -204,7 +204,7 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
     void __iomem *sys, *end;
     unsigned char *buf = ptr;
     
-    cs_dbg(s, 3, "pcmcia_write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
+    dev_dbg(&s->dev, "pcmcia_write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
@@ -584,7 +584,7 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 	ofs += link[1] + 2;
     }
     if (i == MAX_TUPLES) {
-	cs_dbg(s, 1, "cs: overrun in pcmcia_get_next_tuple\n");
+	dev_dbg(&s->dev, "cs: overrun in pcmcia_get_next_tuple\n");
 	return -ENOSPC;
     }
     
@@ -1440,7 +1440,7 @@ int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse)
 	break;
     }
     if (ret)
-	    __cs_dbg(0, "parse_tuple failed %d\n", ret);
+	    pr_debug("parse_tuple failed %d\n", ret);
     return ret;
 }
 EXPORT_SYMBOL(pcmcia_parse_tuple);

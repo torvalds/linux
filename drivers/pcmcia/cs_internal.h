@@ -107,28 +107,6 @@ static inline void cs_socket_put(struct pcmcia_socket *skt)
 	}
 }
 
-#ifdef CONFIG_PCMCIA_DEBUG
-extern int cs_debug_level(int);
-
-#define cs_dbg(skt, lvl, fmt, arg...) do {		\
-	if (cs_debug_level(lvl))			\
-		dev_printk(KERN_DEBUG, &skt->dev,	\
-		 "cs: " fmt, ## arg);			\
-} while (0)
-#define __cs_dbg(lvl, fmt, arg...) do {			\
-	if (cs_debug_level(lvl))			\
-		printk(KERN_DEBUG 			\
-		 "cs: " fmt, ## arg);			\
-} while (0)
-
-#else
-#define cs_dbg(skt, lvl, fmt, arg...) do { } while (0)
-#define __cs_dbg(lvl, fmt, arg...) do { } while (0)
-#endif
-
-#define cs_err(skt, fmt, arg...) \
-	dev_printk(KERN_ERR, &skt->dev, "cs: " fmt, ## arg)
-
 
 /*
  * Stuff internal to module "pcmcia_core":
