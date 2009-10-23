@@ -503,7 +503,7 @@ extern char *__bad_type_size(void);
 #define FIELD(type, name)						\
 	sizeof(type) != sizeof(field.name) ? __bad_type_size() :	\
 	#type, "common_" #name, offsetof(typeof(field), name),		\
-		sizeof(field.name)
+		sizeof(field.name), is_signed_type(type)
 
 static int trace_write_header(struct trace_seq *s)
 {
@@ -511,17 +511,17 @@ static int trace_write_header(struct trace_seq *s)
 
 	/* struct trace_entry */
 	return trace_seq_printf(s,
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
-				"\n",
-				FIELD(unsigned short, type),
-				FIELD(unsigned char, flags),
-				FIELD(unsigned char, preempt_count),
-				FIELD(int, pid),
-				FIELD(int, lock_depth));
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
+			"\n",
+			FIELD(unsigned short, type),
+			FIELD(unsigned char, flags),
+			FIELD(unsigned char, preempt_count),
+			FIELD(int, pid),
+			FIELD(int, lock_depth));
 }
 
 static ssize_t
@@ -874,9 +874,9 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 			   "'%s/filter' entry\n", name);
 	}
 
-	entry = trace_create_file("enable", 0644, system->entry,
-				  (void *)system->name,
-				  &ftrace_system_enable_fops);
+	trace_create_file("enable", 0644, system->entry,
+			  (void *)system->name,
+			  &ftrace_system_enable_fops);
 
 	return system->entry;
 }
@@ -888,7 +888,6 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		 const struct file_operations *filter,
 		 const struct file_operations *format)
 {
-	struct dentry *entry;
 	int ret;
 
 	/*
@@ -906,12 +905,12 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 	}
 
 	if (call->regfunc)
-		entry = trace_create_file("enable", 0644, call->dir, call,
-					  enable);
+		trace_create_file("enable", 0644, call->dir, call,
+				  enable);
 
 	if (call->id && call->profile_enable)
-		entry = trace_create_file("id", 0444, call->dir, call,
-					  id);
+		trace_create_file("id", 0444, call->dir, call,
+		 		  id);
 
 	if (call->define_fields) {
 		ret = call->define_fields(call);
@@ -920,16 +919,16 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 				   " events/%s\n", call->name);
 			return ret;
 		}
-		entry = trace_create_file("filter", 0644, call->dir, call,
-					  filter);
+		trace_create_file("filter", 0644, call->dir, call,
+				  filter);
 	}
 
 	/* A trace may not want to export its format */
 	if (!call->show_format)
 		return 0;
 
-	entry = trace_create_file("format", 0444, call->dir, call,
-				  format);
+	trace_create_file("format", 0444, call->dir, call,
+			  format);
 
 	return 0;
 }

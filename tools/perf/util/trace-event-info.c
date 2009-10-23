@@ -496,14 +496,12 @@ get_tracepoints_path(struct perf_event_attr *pattrs, int nb_events)
 
 	return path.next;
 }
-void read_tracing_data(struct perf_event_attr *pattrs, int nb_events)
+void read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events)
 {
 	char buf[BUFSIZ];
 	struct tracepoint_path *tps;
 
-	output_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (output_fd < 0)
-		die("creating file '%s'", output_file);
+	output_fd = fd;
 
 	buf[0] = 23;
 	buf[1] = 8;

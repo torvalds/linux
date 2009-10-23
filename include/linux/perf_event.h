@@ -221,6 +221,7 @@ struct perf_event_attr {
 #define PERF_EVENT_IOC_RESET		_IO ('$', 3)
 #define PERF_EVENT_IOC_PERIOD		_IOW('$', 4, u64)
 #define PERF_EVENT_IOC_SET_OUTPUT	_IO ('$', 5)
+#define PERF_EVENT_IOC_SET_FILTER	_IOW('$', 6, char *)
 
 enum perf_event_ioc_flags {
 	PERF_IOC_FLAG_GROUP		= 1U << 0,
@@ -633,7 +634,12 @@ struct perf_event {
 
 	struct pid_namespace		*ns;
 	u64				id;
+
+#ifdef CONFIG_EVENT_PROFILE
+	struct event_filter		*filter;
 #endif
+
+#endif /* CONFIG_PERF_EVENTS */
 };
 
 /**

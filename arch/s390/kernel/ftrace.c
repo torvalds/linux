@@ -203,73 +203,10 @@ out:
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 
-extern unsigned long __start_syscalls_metadata[];
-extern unsigned long __stop_syscalls_metadata[];
 extern unsigned int sys_call_table[];
 
-static struct syscall_metadata **syscalls_metadata;
-
-struct syscall_metadata *syscall_nr_to_meta(int nr)
+unsigned long __init arch_syscall_addr(int nr)
 {
-	if (!syscalls_metadata || nr >= NR_syscalls || nr < 0)
-		return NULL;
-
-	return syscalls_metadata[nr];
+	return (unsigned long)sys_call_table[nr];
 }
-
-int syscall_name_to_nr(char *name)
-{
-	int i;
-
-	if (!syscalls_metadata)
-		return -1;
-	for (i = 0; i < NR_syscalls; i++)
-		if (syscalls_metadata[i])
-			if (!strcmp(syscalls_metadata[i]->name, name))
-				return i;
-	return -1;
-}
-
-void set_syscall_enter_id(int num, int id)
-{
-	syscalls_metadata[num]->enter_id = id;
-}
-
-void set_syscall_exit_id(int num, int id)
-{
-	syscalls_metadata[num]->exit_id = id;
-}
-
-static struct syscall_metadata *find_syscall_meta(unsigned long syscall)
-{
-	struct syscall_metadata *start;
-	struct syscall_metadata *stop;
-	char str[KSYM_SYMBOL_LEN];
-
-	start = (struct syscall_metadata *)__start_syscalls_metadata;
-	stop = (struct syscall_metadata *)__stop_syscalls_metadata;
-	kallsyms_lookup(syscall, NULL, NULL, NULL, str);
-
-	for ( ; start < stop; start++) {
-		if (start->name && !strcmp(start->name + 3, str + 3))
-			return start;
-	}
-	return NULL;
-}
-
-static int __init arch_init_ftrace_syscalls(void)
-{
-	struct syscall_metadata *meta;
-	int i;
-	syscalls_metadata = kzalloc(sizeof(*syscalls_metadata) * NR_syscalls,
-				    GFP_KERNEL);
-	if (!syscalls_metadata)
-		return -ENOMEM;
-	for (i = 0; i < NR_syscalls; i++) {
-		meta = find_syscall_meta((unsigned long)sys_call_table[i]);
-		syscalls_metadata[i] = meta;
-	}
-	return 0;
-}
-arch_initcall(arch_init_ftrace_syscalls);
 #endif

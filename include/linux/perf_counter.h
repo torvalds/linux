@@ -225,6 +225,7 @@ struct perf_counter_attr {
 #define PERF_COUNTER_IOC_RESET		_IO ('$', 3)
 #define PERF_COUNTER_IOC_PERIOD		_IOW('$', 4, u64)
 #define PERF_COUNTER_IOC_SET_OUTPUT	_IO ('$', 5)
+#define PERF_COUNTER_IOC_SET_FILTER	_IOW('$', 6, char *)
 
 enum perf_counter_ioc_flags {
 	PERF_IOC_FLAG_GROUP		= 1U << 0,

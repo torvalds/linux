@@ -153,6 +153,17 @@ static struct wake_event     *wake_events;
 
 struct sample_wrapper *all_samples;
 
+
+struct process_filter;
+struct process_filter {
+	char 			*name;
+	int  			pid;
+	struct process_filter 	*next;
+};
+
+static struct process_filter *process_filter;
+
+
 static struct per_pid *find_create_pid(int pid)
 {
 	struct per_pid *cursor = all_data;
@@ -763,19 +774,40 @@ static void draw_wakeups(void)
 				c = p->all;
 				while (c) {
 					if (c->Y && c->start_time <= we->time && c->end_time >= we->time) {
-						if (p->pid == we->waker) {
+						if (p->pid == we->waker && !from) {
 							from = c->Y;
-							task_from = c->comm;
+							task_from = strdup(c->comm);
 						}
-						if (p->pid == we->wakee) {
+						if (p->pid == we->wakee && !to) {
 							to = c->Y;
-							task_to = c->comm;
+							task_to = strdup(c->comm);
 						}
+					}
+					c = c->next;
+				}
+				c = p->all;
+				while (c) {
+					if (p->pid == we->waker && !from) {
+						from = c->Y;
+						task_from = strdup(c->comm);
+					}
+					if (p->pid == we->wakee && !to) {
+						to = c->Y;
+						task_to = strdup(c->comm);
 					}
 					c = c->next;
 				}
 			}
 			p = p->next;
+		}
+
+		if (!task_from) {
+			task_from = malloc(40);
+			sprintf(task_from, "[%i]", we->waker);
+		}
+		if (!task_to) {
+			task_to = malloc(40);
+			sprintf(task_to, "[%i]", we->wakee);
 		}
 
 		if (we->waker == -1)
@@ -785,6 +817,9 @@ static void draw_wakeups(void)
 		else
 			svg_partial_wakeline(we->time, from, task_from, to, task_to);
 		we = we->next;
+
+		free(task_from);
+		free(task_to);
 	}
 }
 
@@ -858,11 +893,88 @@ static void draw_process_bars(void)
 	}
 }
 
+static void add_process_filter(const char *string)
+{
+	struct process_filter *filt;
+	int pid;
+
+	pid = strtoull(string, NULL, 10);
+	filt = malloc(sizeof(struct process_filter));
+	if (!filt)
+		return;
+
+	filt->name = strdup(string);
+	filt->pid  = pid;
+	filt->next = process_filter;
+
+	process_filter = filt;
+}
+
+static int passes_filter(struct per_pid *p, struct per_pidcomm *c)
+{
+	struct process_filter *filt;
+	if (!process_filter)
+		return 1;
+
+	filt = process_filter;
+	while (filt) {
+		if (filt->pid && p->pid == filt->pid)
+			return 1;
+		if (strcmp(filt->name, c->comm) == 0)
+			return 1;
+		filt = filt->next;
+	}
+	return 0;
+}
+
+static int determine_display_tasks_filtered(void)
+{
+	struct per_pid *p;
+	struct per_pidcomm *c;
+	int count = 0;
+
+	p = all_data;
+	while (p) {
+		p->display = 0;
+		if (p->start_time == 1)
+			p->start_time = first_time;
+
+		/* no exit marker, task kept running to the end */
+		if (p->end_time == 0)
+			p->end_time = last_time;
+
+		c = p->all;
+
+		while (c) {
+			c->display = 0;
+
+			if (c->start_time == 1)
+				c->start_time = first_time;
+
+			if (passes_filter(p, c)) {
+				c->display = 1;
+				p->display = 1;
+				count++;
+			}
+
+			if (c->end_time == 0)
+				c->end_time = last_time;
+
+			c = c->next;
+		}
+		p = p->next;
+	}
+	return count;
+}
+
 static int determine_display_tasks(u64 threshold)
 {
 	struct per_pid *p;
 	struct per_pidcomm *c;
 	int count = 0;
+
+	if (process_filter)
+		return determine_display_tasks_filtered();
 
 	p = all_data;
 	while (p) {
@@ -1050,12 +1162,10 @@ more:
 	size = event->header.size;
 
 	if (!size || process_event(event) < 0) {
-
-		printf("%p [%p]: skipping unknown header type: %d\n",
-			(void *)(offset + head),
-			(void *)(long)(event->header.size),
-			event->header.type);
-
+		pr_warning("%p [%p]: skipping unknown header type: %d\n",
+			   (void *)(offset + head),
+			   (void *)(long)(event->header.size),
+			   event->header.type);
 		/*
 		 * assume we lost track of the stream, check alignment, and
 		 * increment a single u64 in the hope to catch on again 'soon'.
@@ -1088,7 +1198,8 @@ done:
 
 	write_svg_file(output_name);
 
-	printf("Written %2.1f seconds of trace to %s.\n", (last_time - first_time) / 1000000000.0, output_name);
+	pr_info("Written %2.1f seconds of trace to %s.\n",
+		(last_time - first_time) / 1000000000.0, output_name);
 
 	return rc;
 }
@@ -1129,6 +1240,14 @@ static int __cmd_record(int argc, const char **argv)
 	return cmd_record(i, rec_argv, NULL);
 }
 
+static int
+parse_process(const struct option *opt __used, const char *arg, int __used unset)
+{
+	if (arg)
+		add_process_filter(arg);
+	return 0;
+}
+
 static const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
@@ -1136,8 +1255,11 @@ static const struct option options[] = {
 		    "output file name"),
 	OPT_INTEGER('w', "width", &svg_page_width,
 		    "page width"),
-	OPT_BOOLEAN('p', "power-only", &power_only,
+	OPT_BOOLEAN('P', "power-only", &power_only,
 		    "output power data only"),
+	OPT_CALLBACK('p', "process", NULL, "process",
+		      "process selector. Pass a pid or process name.",
+		       parse_process),
 	OPT_END()
 };
 

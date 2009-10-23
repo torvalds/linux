@@ -1,3 +1,4 @@
+#include <string.h>
 #include "string.h"
 
 static int hex(char ch)
@@ -31,4 +32,14 @@ int hex2u64(const char *ptr, u64 *long_val)
 	}
 
 	return p - ptr;
+}
+
+char *strxfrchar(char *s, char from, char to)
+{
+	char *p = s;
+
+	while ((p = strchr(p, from)) != NULL)
+		*p++ = to;
+
+	return s;
 }

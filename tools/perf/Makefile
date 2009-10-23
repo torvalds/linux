@@ -201,7 +201,14 @@ EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wold-style-definition
 EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wstrict-prototypes
 EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wdeclaration-after-statement
 
-CFLAGS = $(MBITS) -ggdb3 -Wall -Wextra -std=gnu99 -Werror -O6 -fstack-protector-all -D_FORTIFY_SOURCE=2 $(EXTRA_WARNINGS)
+ifeq ("$(origin DEBUG)", "command line")
+  PERF_DEBUG = $(DEBUG)
+endif
+ifndef PERF_DEBUG
+  CFLAGS_OPTIMIZE = -O6
+endif
+
+CFLAGS = $(MBITS) -ggdb3 -Wall -Wextra -std=gnu99 -Werror $(CFLAGS_OPTIMIZE) -fstack-protector-all -D_FORTIFY_SOURCE=2 $(EXTRA_WARNINGS)
 LDFLAGS = -lpthread -lrt -lelf -lm
 ALL_CFLAGS = $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
@@ -329,8 +336,26 @@ LIB_H += ../../include/linux/perf_event.h
 LIB_H += ../../include/linux/rbtree.h
 LIB_H += ../../include/linux/list.h
 LIB_H += ../../include/linux/stringify.h
+LIB_H += util/include/linux/bitmap.h
+LIB_H += util/include/linux/bitops.h
+LIB_H += util/include/linux/compiler.h
+LIB_H += util/include/linux/ctype.h
+LIB_H += util/include/linux/kernel.h
 LIB_H += util/include/linux/list.h
+LIB_H += util/include/linux/module.h
+LIB_H += util/include/linux/poison.h
+LIB_H += util/include/linux/prefetch.h
+LIB_H += util/include/linux/rbtree.h
+LIB_H += util/include/linux/string.h
+LIB_H += util/include/linux/types.h
+LIB_H += util/include/asm/asm-offsets.h
+LIB_H += util/include/asm/bitops.h
+LIB_H += util/include/asm/byteorder.h
+LIB_H += util/include/asm/swab.h
+LIB_H += util/include/asm/system.h
+LIB_H += util/include/asm/uaccess.h
 LIB_H += perf.h
+LIB_H += util/event.h
 LIB_H += util/types.h
 LIB_H += util/levenshtein.h
 LIB_H += util/parse-options.h
@@ -344,9 +369,12 @@ LIB_H += util/strlist.h
 LIB_H += util/run-command.h
 LIB_H += util/sigchain.h
 LIB_H += util/symbol.h
-LIB_H += util/module.h
 LIB_H += util/color.h
 LIB_H += util/values.h
+LIB_H += util/sort.h
+LIB_H += util/hist.h
+LIB_H += util/thread.h
+LIB_H += util/data_map.h
 
 LIB_OBJS += util/abspath.o
 LIB_OBJS += util/alias.o
@@ -360,6 +388,9 @@ LIB_OBJS += util/parse-options.o
 LIB_OBJS += util/parse-events.o
 LIB_OBJS += util/path.o
 LIB_OBJS += util/rbtree.o
+LIB_OBJS += util/bitmap.o
+LIB_OBJS += util/hweight.o
+LIB_OBJS += util/find_next_bit.o
 LIB_OBJS += util/run-command.o
 LIB_OBJS += util/quote.o
 LIB_OBJS += util/strbuf.o
@@ -369,7 +400,6 @@ LIB_OBJS += util/usage.o
 LIB_OBJS += util/wrapper.o
 LIB_OBJS += util/sigchain.o
 LIB_OBJS += util/symbol.o
-LIB_OBJS += util/module.o
 LIB_OBJS += util/color.o
 LIB_OBJS += util/pager.o
 LIB_OBJS += util/header.o
@@ -382,6 +412,9 @@ LIB_OBJS += util/trace-event-parse.o
 LIB_OBJS += util/trace-event-read.o
 LIB_OBJS += util/trace-event-info.o
 LIB_OBJS += util/svghelper.o
+LIB_OBJS += util/sort.o
+LIB_OBJS += util/hist.o
+LIB_OBJS += util/data_map.o
 
 BUILTIN_OBJS += builtin-annotate.o
 BUILTIN_OBJS += builtin-help.o
@@ -424,8 +457,12 @@ ifeq ($(uname_S),Darwin)
 	PTHREAD_LIBS =
 endif
 
+ifneq ($(shell sh -c "(echo '\#include <gnu/libc-version.h>'; echo 'int main(void) { const char * version = gnu_get_libc_version(); return (long)version; }') | $(CC) -x c - $(ALL_CFLAGS) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -o /dev/null $(ALL_LDFLAGS) > /dev/null 2>&1 && echo y"), y)
+	msg := $(error No gnu/libc-version.h found, please install glibc-dev[el]);
+endif
+
 ifneq ($(shell sh -c "(echo '\#include <libelf.h>'; echo 'int main(void) { Elf * elf = elf_begin(0, ELF_C_READ_MMAP, 0); return (long)elf; }') | $(CC) -x c - $(ALL_CFLAGS) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -o /dev/null $(ALL_LDFLAGS) > /dev/null 2>&1 && echo y"), y)
-	msg := $(error No libelf.h/libelf found, please install libelf-dev/elfutils-libelf-devel and glibc-dev[el]);
+	msg := $(error No libelf.h/libelf found, please install libelf-dev/elfutils-libelf-devel);
 endif
 
 ifneq ($(shell sh -c "(echo '\#include <libdwarf/dwarf.h>'; echo '\#include <libdwarf/libdwarf.h>'; echo 'int main(void) { Dwarf_Debug dbg; Dwarf_Error err; Dwarf_Ranges *rng; dwarf_init(0, DW_DLC_READ, 0, 0, &dbg, &err); dwarf_get_ranges(dbg, 0, &rng, 0, 0, &err); return (long)dbg; }') | $(CC) -x c - $(ALL_CFLAGS) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -ldwarf -lelf -o /dev/null $(ALL_LDFLAGS) > /dev/null 2>&1 && echo y"), y)
@@ -794,6 +831,19 @@ util/config.o: util/config.c PERF-CFLAGS
 
 util/rbtree.o: ../../lib/rbtree.c PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o util/rbtree.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+
+# some perf warning policies can't fit to lib/bitmap.c, eg: it warns about variable shadowing
+# from <string.h> that comes from kernel headers wrapping.
+KBITMAP_FLAGS=`echo $(ALL_CFLAGS) | sed s/-Wshadow// | sed s/-Wswitch-default// | sed s/-Wextra//`
+
+util/bitmap.o: ../../lib/bitmap.c PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o util/bitmap.o -c $(KBITMAP_FLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+
+util/hweight.o: ../../lib/hweight.c PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o util/hweight.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+
+util/find_next_bit.o: ../../lib/find_next_bit.c PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o util/find_next_bit.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
 perf-%$X: %.o $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(ALL_LDFLAGS) $(filter %.o,$^) $(LIBS)

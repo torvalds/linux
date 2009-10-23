@@ -1,5 +1,5 @@
-#ifndef COLOR_H
-#define COLOR_H
+#ifndef __PERF_COLOR_H
+#define __PERF_COLOR_H
 
 /* "\033[1;38;5;2xx;48;5;2xxm\0" is 23 bytes */
 #define COLOR_MAXLEN 24
@@ -39,4 +39,4 @@ int color_fwrite_lines(FILE *fp, const char *color, size_t count, const char *bu
 int percent_color_fprintf(FILE *fp, const char *fmt, double percent);
 const char *get_percent_color(double percent);
 
-#endif /* COLOR_H */
+#endif /* __PERF_COLOR_H */

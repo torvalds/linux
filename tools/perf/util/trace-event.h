@@ -1,5 +1,5 @@
-#ifndef _TRACE_EVENTS_H
-#define _TRACE_EVENTS_H
+#ifndef __PERF_TRACE_EVENTS_H
+#define __PERF_TRACE_EVENTS_H
 
 #include "parse-events.h"
 
@@ -26,6 +26,9 @@ enum {
 enum format_flags {
 	FIELD_IS_ARRAY		= 1,
 	FIELD_IS_POINTER	= 2,
+	FIELD_IS_SIGNED		= 4,
+	FIELD_IS_STRING		= 8,
+	FIELD_IS_DYNAMIC	= 16,
 };
 
 struct format_field {
@@ -132,15 +135,18 @@ struct event {
 	int			flags;
 	struct format		format;
 	struct print_fmt	print_fmt;
+	char			*system;
 };
 
 enum {
-	EVENT_FL_ISFTRACE	= 1,
-	EVENT_FL_ISPRINT	= 2,
-	EVENT_FL_ISBPRINT	= 4,
-	EVENT_FL_ISFUNC		= 8,
-	EVENT_FL_ISFUNCENT	= 16,
-	EVENT_FL_ISFUNCRET	= 32,
+	EVENT_FL_ISFTRACE	= 0x01,
+	EVENT_FL_ISPRINT	= 0x02,
+	EVENT_FL_ISBPRINT	= 0x04,
+	EVENT_FL_ISFUNC		= 0x08,
+	EVENT_FL_ISFUNCENT	= 0x10,
+	EVENT_FL_ISFUNCRET	= 0x20,
+
+	EVENT_FL_FAILED		= 0x80000000
 };
 
 struct record {
@@ -154,7 +160,7 @@ struct record *trace_read_data(int cpu);
 
 void parse_set_info(int nr_cpus, int long_sz);
 
-void trace_report(void);
+void trace_report(int fd);
 
 void *malloc_or_die(unsigned int size);
 
@@ -166,7 +172,7 @@ void print_funcs(void);
 void print_printk(void);
 
 int parse_ftrace_file(char *buf, unsigned long size);
-int parse_event_file(char *buf, unsigned long size, char *system);
+int parse_event_file(char *buf, unsigned long size, char *sys);
 void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 		  char *comm);
 
@@ -233,6 +239,8 @@ extern int header_page_size_size;
 extern int header_page_data_offset;
 extern int header_page_data_size;
 
+extern int latency_format;
+
 int parse_header_page(char *buf, unsigned long size);
 int trace_parse_common_type(void *data);
 struct event *trace_find_event(int id);
@@ -240,6 +248,15 @@ unsigned long long
 raw_field_value(struct event *event, const char *name, void *data);
 void *raw_field_ptr(struct event *event, const char *name, void *data);
 
-void read_tracing_data(struct perf_event_attr *pattrs, int nb_events);
+void read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events);
 
-#endif /* _TRACE_EVENTS_H */
+/* taken from kernel/trace/trace.h */
+enum trace_flag_type {
+	TRACE_FLAG_IRQS_OFF		= 0x01,
+	TRACE_FLAG_IRQS_NOSUPPORT	= 0x02,
+	TRACE_FLAG_NEED_RESCHED		= 0x04,
+	TRACE_FLAG_HARDIRQ		= 0x08,
+	TRACE_FLAG_SOFTIRQ		= 0x10,
+};
+
+#endif /* __PERF_TRACE_EVENTS_H */
