@@ -1382,6 +1382,36 @@ IWL5000_UCODE_GET(init_size);
 IWL5000_UCODE_GET(init_data_size);
 IWL5000_UCODE_GET(boot_size);
 
+static int iwl5000_hw_channel_switch(struct iwl_priv *priv, u16 channel)
+{
+	struct iwl5000_channel_switch_cmd cmd;
+	const struct iwl_channel_info *ch_info;
+	struct iwl_host_cmd hcmd = {
+		.id = REPLY_CHANNEL_SWITCH,
+		.len = sizeof(cmd),
+		.flags = CMD_SIZE_HUGE,
+		.data = &cmd,
+	};
+
+	IWL_DEBUG_11H(priv, "channel switch from %d to %d\n",
+		priv->active_rxon.channel, channel);
+	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
+	cmd.channel = cpu_to_le16(channel);
+	cmd.rxon_flags = priv->active_rxon.flags;
+	cmd.rxon_filter_flags = priv->active_rxon.filter_flags;
+	cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+	ch_info = iwl_get_channel_info(priv, priv->band, channel);
+	if (ch_info)
+		cmd.expect_beacon = is_channel_radar(ch_info);
+	else {
+		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
+			priv->active_rxon.channel, channel);
+		return -EFAULT;
+	}
+
+	return iwl_send_cmd_sync(priv, &hcmd);
+}
+
 struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
@@ -1429,6 +1459,7 @@ struct iwl_lib_ops iwl5000_lib = {
 	.alive_notify = iwl5000_alive_notify,
 	.send_tx_power = iwl5000_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
+	.set_channel_switch = iwl5000_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
 		.stop = iwl_apm_stop,
@@ -1480,6 +1511,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.alive_notify = iwl5000_alive_notify,
 	.send_tx_power = iwl5000_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
+	.set_channel_switch = iwl5000_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
 		.stop = iwl_apm_stop,

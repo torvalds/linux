@@ -1284,10 +1284,15 @@ void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rxon_cmd *rxon = (void *)&priv->active_rxon;
 	struct iwl_csa_notification *csa = &(pkt->u.csa_notif);
-	IWL_DEBUG_11H(priv, "CSA notif: channel %d, status %d\n",
-		      le16_to_cpu(csa->channel), le32_to_cpu(csa->status));
-	rxon->channel = csa->channel;
-	priv->staging_rxon.channel = csa->channel;
+
+	if (!le32_to_cpu(csa->status)) {
+		rxon->channel = csa->channel;
+		priv->staging_rxon.channel = csa->channel;
+		IWL_DEBUG_11H(priv, "CSA notif: channel %d\n",
+		      le16_to_cpu(csa->channel));
+	} else
+		IWL_ERR(priv, "CSA notif (fail) : channel %d\n",
+		      le16_to_cpu(csa->channel));
 }
 EXPORT_SYMBOL(iwl_rx_csa);
 
@@ -2712,6 +2717,14 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 				conf->channel->hw_value, conf->channel->band);
 			ret = -EINVAL;
 			goto set_ch_out;
+		}
+
+		if (iwl_is_associated(priv) &&
+		    (le16_to_cpu(priv->active_rxon.channel) != ch) &&
+		    priv->cfg->ops->lib->set_channel_switch) {
+			ret = priv->cfg->ops->lib->set_channel_switch(priv,
+				ch);
+			goto out;
 		}
 
 		spin_lock_irqsave(&priv->lock, flags);

@@ -1433,14 +1433,13 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 	return ret;
 }
 
-#ifdef IEEE80211_CONF_CHANNEL_SWITCH
 static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 {
 	int rc;
 	u8 band = 0;
 	bool is_ht40 = false;
 	u8 ctrl_chan_high = 0;
-	struct iwl4965_channel_switch_cmd cmd = { 0 };
+	struct iwl4965_channel_switch_cmd cmd;
 	const struct iwl_channel_info *ch_info;
 
 	band = priv->band == IEEE80211_BAND_2GHZ;
@@ -1461,8 +1460,11 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 	cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
 	if (ch_info)
 		cmd.expect_beacon = is_channel_radar(ch_info);
-	else
-		cmd.expect_beacon = 1;
+	else {
+		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
+			priv->active_rxon.channel, channel);
+		return -EFAULT;
+	}
 
 	rc = iwl4965_fill_txpower_tbl(priv, band, channel, is_ht40,
 				      ctrl_chan_high, &cmd.tx_power);
@@ -1474,7 +1476,6 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 	rc = iwl_send_cmd_pdu(priv, REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
 	return rc;
 }
-#endif
 
 /**
  * iwl4965_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
@@ -2171,6 +2172,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.load_ucode = iwl4965_load_bsm,
 	.dump_nic_event_log = iwl_dump_nic_event_log,
 	.dump_nic_error_log = iwl_dump_nic_error_log,
+	.set_channel_switch = iwl4965_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
 		.stop = iwl_apm_stop,

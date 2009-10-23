@@ -280,8 +280,6 @@ extern void iwl3945_config_ap(struct iwl_priv *priv);
  */
 extern u8 iwl3945_hw_find_station(struct iwl_priv *priv, const u8 *bssid);
 
-extern int iwl3945_hw_channel_switch(struct iwl_priv *priv, u16 channel);
-
 /*
  * Forward declare iwl-3945.c functions for iwl-base.c
  */

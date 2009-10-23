@@ -172,6 +172,37 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 	return 0;
 }
 
+static int iwl6000_hw_channel_switch(struct iwl_priv *priv, u16 channel)
+{
+	struct iwl6000_channel_switch_cmd cmd;
+	const struct iwl_channel_info *ch_info;
+	struct iwl_host_cmd hcmd = {
+		.id = REPLY_CHANNEL_SWITCH,
+		.len = sizeof(cmd),
+		.flags = CMD_SIZE_HUGE,
+		.data = &cmd,
+	};
+
+	IWL_DEBUG_11H(priv, "channel switch from %d to %d\n",
+		priv->active_rxon.channel, channel);
+
+	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
+	cmd.channel = cpu_to_le16(channel);
+	cmd.rxon_flags = priv->active_rxon.flags;
+	cmd.rxon_filter_flags = priv->active_rxon.filter_flags;
+	cmd.switch_time = cpu_to_le32(priv->ucode_beacon_time);
+	ch_info = iwl_get_channel_info(priv, priv->band, channel);
+	if (ch_info)
+		cmd.expect_beacon = is_channel_radar(ch_info);
+	else {
+		IWL_ERR(priv, "invalid channel switch from %u to %u\n",
+			priv->active_rxon.channel, channel);
+		return -EFAULT;
+	}
+
+	return iwl_send_cmd_sync(priv, &hcmd);
+}
+
 static struct iwl_lib_ops iwl6000_lib = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
@@ -192,6 +223,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 	.alive_notify = iwl5000_alive_notify,
 	.send_tx_power = iwl5000_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
+	.set_channel_switch = iwl6000_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
 		.stop = iwl_apm_stop,

@@ -1982,12 +1982,6 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	return 0;
 }
 
-/* will add 3945 channel switch cmd handling later */
-int iwl3945_hw_channel_switch(struct iwl_priv *priv, u16 channel)
-{
-	return 0;
-}
-
 /**
  * iwl3945_reg_txpower_periodic -  called when time to check our temperature.
  *
