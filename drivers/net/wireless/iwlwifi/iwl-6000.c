@@ -52,8 +52,8 @@
 #define IWL6050_UCODE_API_MAX 4
 
 /* Lowest firmware API version supported */
-#define IWL6000_UCODE_API_MIN 1
-#define IWL6050_UCODE_API_MIN 1
+#define IWL6000_UCODE_API_MIN 4
+#define IWL6050_UCODE_API_MIN 4
 
 #define IWL6000_FW_PRE "iwlwifi-6000-"
 #define _IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE #api ".ucode"
