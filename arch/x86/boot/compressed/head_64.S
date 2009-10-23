@@ -107,8 +107,7 @@ ENTRY(startup_32)
 	lgdt	gdt(%ebp)
 
 	/* Enable PAE mode */
-	xorl	%eax, %eax
-	orl	$(X86_CR4_PAE), %eax
+	movl	$(X86_CR4_PAE), %eax
 	movl	%eax, %cr4
 
  /*
