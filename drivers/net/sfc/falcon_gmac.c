@@ -15,7 +15,6 @@
 #include "mac.h"
 #include "falcon_hwdefs.h"
 #include "falcon_io.h"
-#include "gmii.h"
 
 /**************************************************************************
  *
