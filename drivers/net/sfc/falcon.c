@@ -2922,16 +2922,17 @@ static void falcon_init_rx_cfg(struct efx_nic *efx)
 	const unsigned ctrl_xon_thr = 20;
 	const unsigned ctrl_xoff_thr = 25;
 	/* RX data FIFO thresholds (256-byte units; size varies) */
-	unsigned data_xon_thr =
-		((rx_xon_thresh_bytes >= 0) ?
-		 rx_xon_thresh_bytes : efx->type->rx_xon_thresh) >> 8;
-	unsigned data_xoff_thr =
-		((rx_xoff_thresh_bytes >= 0) ?
-		 rx_xoff_thresh_bytes : efx->type->rx_xoff_thresh) >> 8;
+	int data_xon_thr = rx_xon_thresh_bytes >> 8;
+	int data_xoff_thr = rx_xoff_thresh_bytes >> 8;
 	efx_oword_t reg;
 
 	falcon_read(efx, &reg, RX_CFG_REG_KER);
 	if (falcon_rev(efx) <= FALCON_REV_A1) {
+		/* Data FIFO size is 5.5K */
+		if (data_xon_thr < 0)
+			data_xon_thr = 512 >> 8;
+		if (data_xoff_thr < 0)
+			data_xoff_thr = 2048 >> 8;
 		EFX_SET_OWORD_FIELD(reg, RX_DESC_PUSH_EN_A1, 0);
 		EFX_SET_OWORD_FIELD(reg, RX_USR_BUF_SIZE_A1, huge_buf_size);
 		EFX_SET_OWORD_FIELD(reg, RX_XON_MAC_TH_A1, data_xon_thr);
@@ -2939,7 +2940,11 @@ static void falcon_init_rx_cfg(struct efx_nic *efx)
 		EFX_SET_OWORD_FIELD(reg, RX_XON_TX_TH_A1, ctrl_xon_thr);
 		EFX_SET_OWORD_FIELD(reg, RX_XOFF_TX_TH_A1, ctrl_xoff_thr);
 	} else {
-		/* Register fields moved */
+		/* Data FIFO size is 80K; register fields moved */
+		if (data_xon_thr < 0)
+			data_xon_thr = 27648 >> 8; /* ~3*max MTU */
+		if (data_xoff_thr < 0)
+			data_xoff_thr = 54272 >> 8; /* ~80Kb - 3*max MTU */
 		EFX_SET_OWORD_FIELD(reg, RX_DESC_PUSH_EN_B0, 0);
 		EFX_SET_OWORD_FIELD(reg, RX_USR_BUF_SIZE_B0, huge_buf_size);
 		EFX_SET_OWORD_FIELD(reg, RX_XON_MAC_TH_B0, data_xon_thr);
@@ -3130,8 +3135,6 @@ struct efx_nic_type falcon_a_nic_type = {
 	.max_dma_mask = FALCON_DMA_MASK,
 	.tx_dma_mask = FALCON_TX_DMA_MASK,
 	.bug5391_mask = 0xf,
-	.rx_xoff_thresh = 2048,
-	.rx_xon_thresh = 512,
 	.rx_buffer_padding = 0x24,
 	.max_interrupt_mode = EFX_INT_MODE_MSI,
 	.phys_addr_channels = 4,
@@ -3154,8 +3157,6 @@ struct efx_nic_type falcon_b_nic_type = {
 	.max_dma_mask = FALCON_DMA_MASK,
 	.tx_dma_mask = FALCON_TX_DMA_MASK,
 	.bug5391_mask = 0,
-	.rx_xoff_thresh = 54272, /* ~80Kb - 3*max MTU */
-	.rx_xon_thresh = 27648,  /* ~3*max MTU */
 	.rx_buffer_padding = 0,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,
 	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy

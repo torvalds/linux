@@ -875,8 +875,6 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
  * @max_dma_mask: Maximum possible DMA mask
  * @tx_dma_mask: TX DMA mask
  * @bug5391_mask: Address mask for bug 5391 workaround
- * @rx_xoff_thresh: RX FIFO XOFF watermark (bytes)
- * @rx_xon_thresh: RX FIFO XON watermark (bytes)
  * @rx_buffer_padding: Padding added to each RX buffer
  * @max_interrupt_mode: Highest capability interrupt mode supported
  *	from &enum efx_init_mode.
@@ -899,8 +897,6 @@ struct efx_nic_type {
 	unsigned int tx_dma_mask;
 	unsigned bug5391_mask;
 
-	int rx_xoff_thresh;
-	int rx_xon_thresh;
 	unsigned int rx_buffer_padding;
 	unsigned int max_interrupt_mode;
 	unsigned int phys_addr_channels;
