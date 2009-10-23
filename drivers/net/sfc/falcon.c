@@ -3117,7 +3117,6 @@ void falcon_update_nic_stats(struct efx_nic *efx)
  */
 
 struct efx_nic_type falcon_a_nic_type = {
-	.mem_bar = 2,
 	.mem_map_size = 0x20000,
 	.txd_ptr_tbl_base = FR_AA_TX_DESC_PTR_TBL_KER,
 	.rxd_ptr_tbl_base = FR_AA_RX_DESC_PTR_TBL_KER,
@@ -3131,7 +3130,6 @@ struct efx_nic_type falcon_a_nic_type = {
 };
 
 struct efx_nic_type falcon_b_nic_type = {
-	.mem_bar = 2,
 	/* Map everything up to and including the RSS indirection
 	 * table.  Don't map MSI-X table, MSI-X PBA since Linux
 	 * requires that they not be mapped.  */

@@ -19,6 +19,9 @@
 #define FALCON_A_S_DEVID        0x6703
 #define FALCON_B_P_DEVID        0x0710
 
+/* Solarstorm controllers use BAR 0 for I/O space and BAR 2(&3) for memory */
+#define EFX_MEM_BAR 2
+
 /* TX */
 extern netdev_tx_t efx_xmit(struct efx_nic *efx,
 				  struct efx_tx_queue *tx_queue,

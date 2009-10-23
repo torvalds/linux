@@ -818,9 +818,8 @@ static int efx_init_io(struct efx_nic *efx)
 		goto fail2;
 	}
 
-	efx->membase_phys = pci_resource_start(efx->pci_dev,
-					       efx->type->mem_bar);
-	rc = pci_request_region(pci_dev, efx->type->mem_bar, "sfc");
+	efx->membase_phys = pci_resource_start(efx->pci_dev, EFX_MEM_BAR);
+	rc = pci_request_region(pci_dev, EFX_MEM_BAR, "sfc");
 	if (rc) {
 		EFX_ERR(efx, "request for memory BAR failed\n");
 		rc = -EIO;
@@ -829,21 +828,20 @@ static int efx_init_io(struct efx_nic *efx)
 	efx->membase = ioremap_nocache(efx->membase_phys,
 				       efx->type->mem_map_size);
 	if (!efx->membase) {
-		EFX_ERR(efx, "could not map memory BAR %d at %llx+%x\n",
-			efx->type->mem_bar,
+		EFX_ERR(efx, "could not map memory BAR at %llx+%x\n",
 			(unsigned long long)efx->membase_phys,
 			efx->type->mem_map_size);
 		rc = -ENOMEM;
 		goto fail4;
 	}
-	EFX_LOG(efx, "memory BAR %u at %llx+%x (virtual %p)\n",
-		efx->type->mem_bar, (unsigned long long)efx->membase_phys,
+	EFX_LOG(efx, "memory BAR at %llx+%x (virtual %p)\n",
+		(unsigned long long)efx->membase_phys,
 		efx->type->mem_map_size, efx->membase);
 
 	return 0;
 
  fail4:
-	pci_release_region(efx->pci_dev, efx->type->mem_bar);
+	pci_release_region(efx->pci_dev, EFX_MEM_BAR);
  fail3:
 	efx->membase_phys = 0;
  fail2:
@@ -862,7 +860,7 @@ static void efx_fini_io(struct efx_nic *efx)
 	}
 
 	if (efx->membase_phys) {
-		pci_release_region(efx->pci_dev, efx->type->mem_bar);
+		pci_release_region(efx->pci_dev, EFX_MEM_BAR);
 		efx->membase_phys = 0;
 	}
 
