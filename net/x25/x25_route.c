@@ -190,7 +190,7 @@ int x25_route_ioctl(unsigned int cmd, void __user *arg)
 		goto out;
 
 	rc = -EINVAL;
-	if (rt.sigdigits < 0 || rt.sigdigits > 15)
+	if (rt.sigdigits > 15)
 		goto out;
 
 	dev = x25_dev_get(rt.device);
