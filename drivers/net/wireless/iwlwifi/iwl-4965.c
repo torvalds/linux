@@ -653,10 +653,10 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
-	priv->hw_params.tx_chains_num = 2;
-	priv->hw_params.rx_chains_num = 2;
-	priv->hw_params.valid_tx_ant = ANT_A | ANT_B;
-	priv->hw_params.valid_rx_ant = ANT_A | ANT_B;
+	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
+	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
+	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
+	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
 	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
 		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
 
@@ -2225,6 +2225,8 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.num_of_queues = IWL49_NUM_QUEUES,
 	.num_of_ampdu_queues = IWL49_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl4965_mod_params,
+	.valid_tx_ant = ANT_AB,
+	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = 0,
 	.set_l0s = true,
 	.use_bsm = true,
