@@ -125,7 +125,7 @@ static void beiscsi_cq_notify(struct beiscsi_hba *phba, u16 qid, bool arm,
 }
 
 
-int be_process_mcc(struct beiscsi_hba *phba)
+int beiscsi_process_mcc(struct beiscsi_hba *phba)
 {
 	struct be_mcc_compl *compl;
 	int num = 0, status = 0;
@@ -161,7 +161,7 @@ static int be_mcc_wait_compl(struct beiscsi_hba *phba)
 #define mcc_timeout		120000 /* 5s timeout */
 	int i, status;
 	for (i = 0; i < mcc_timeout; i++) {
-		status = be_process_mcc(phba);
+		status = beiscsi_process_mcc(phba);
 		if (status)
 			return status;
 
@@ -504,7 +504,7 @@ static u32 be_encoded_q_len(int q_len)
 	return len_encoded;
 }
 
-int be_cmd_mccq_create(struct beiscsi_hba *phba,
+int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq)
 {

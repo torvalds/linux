@@ -418,7 +418,7 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 
 int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 			  int type);
-int be_cmd_mccq_create(struct beiscsi_hba *phba,
+int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq);
 
