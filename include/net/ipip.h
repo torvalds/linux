@@ -45,6 +45,7 @@ struct ip_tunnel_prl_entry
 	struct ip_tunnel_prl_entry	*next;
 	__be32				addr;
 	u16				flags;
+	struct rcu_head			rcu_head;
 };
 
 #define IPTUNNEL_XMIT() do {						\
