@@ -390,9 +390,6 @@ asmlinkage long compat_sys_setsockopt(int fd, int level, int optname,
 	int err;
 	struct socket *sock;
 
-	if (optlen < 0)
-		return -EINVAL;
-
 	if ((sock = sockfd_lookup(fd, &err))!=NULL)
 	{
 		err = security_socket_setsockopt(sock,level,optname);

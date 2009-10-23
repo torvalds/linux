@@ -424,8 +424,6 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 
 	if (level != SOL_CAN_RAW)
 		return -EINVAL;
-	if (optlen < 0)
-		return -EINVAL;
 
 	switch (optname) {
 

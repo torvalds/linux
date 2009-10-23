@@ -480,7 +480,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	case IP_OPTIONS:
 	{
 		struct ip_options *opt = NULL;
-		if (optlen > 40 || optlen < 0)
+		if (optlen > 40)
 			goto e_inval;
 		err = ip_options_get_from_user(sock_net(sk), &opt,
 					       optval, optlen);
