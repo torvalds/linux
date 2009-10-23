@@ -10,13 +10,6 @@
 #ifndef EFX_BOARDS_H
 #define EFX_BOARDS_H
 
-#define FALCON_BOARD_SFE4001 0x01
-
 extern void falcon_probe_board(struct efx_nic *efx, u16 revision_info);
-
-/* SFE4001 (10GBASE-T) */
-extern int sfe4001_init(struct efx_nic *efx);
-/* SFN4111T (100/1000/10GBASE-T) */
-extern int sfn4111t_init(struct efx_nic *efx);
 
 #endif
