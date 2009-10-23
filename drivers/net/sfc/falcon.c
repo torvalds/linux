@@ -929,7 +929,9 @@ static void falcon_handle_global_event(struct efx_channel *channel,
 		handled = true;
 	}
 
-	if (EFX_QWORD_FIELD_VER(efx, *event, RX_RECOVERY)) {
+	if (falcon_rev(efx) <= FALCON_REV_A1 ?
+	    EFX_QWORD_FIELD(*event, RX_RECOVERY_A1) :
+	    EFX_QWORD_FIELD(*event, RX_RECOVERY_B0)) {
 		EFX_ERR(efx, "channel %d seen global RX_RESET "
 			"event. Resetting.\n", channel->channel);
 
@@ -2006,7 +2008,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	 * Action on receipt of pause frames is controller by XM_DIS_FCNTL */
 	tx_fc = !!(efx->link_fc & EFX_FC_TX);
 	falcon_read(efx, &reg, RX_CFG_REG_KER);
-	EFX_SET_OWORD_FIELD_VER(efx, reg, RX_XOFF_MAC_EN, tx_fc);
+	EFX_SET_OWORD_FIELD(reg, RX_XOFF_MAC_EN, tx_fc);
 
 	/* Unisolate the MAC -> RX */
 	if (falcon_rev(efx) >= FALCON_REV_B0)
@@ -2910,6 +2912,45 @@ int falcon_probe_nic(struct efx_nic *efx)
 	return rc;
 }
 
+static void falcon_init_rx_cfg(struct efx_nic *efx)
+{
+	/* Prior to Siena the RX DMA engine will split each frame at
+	 * intervals of RX_USR_BUF_SIZE (32-byte units). We set it to
+	 * be so large that that never happens. */
+	const unsigned huge_buf_size = (3 * 4096) >> 5;
+	/* RX control FIFO thresholds (32 entries) */
+	const unsigned ctrl_xon_thr = 20;
+	const unsigned ctrl_xoff_thr = 25;
+	/* RX data FIFO thresholds (256-byte units; size varies) */
+	unsigned data_xon_thr =
+		((rx_xon_thresh_bytes >= 0) ?
+		 rx_xon_thresh_bytes : efx->type->rx_xon_thresh) >> 8;
+	unsigned data_xoff_thr =
+		((rx_xoff_thresh_bytes >= 0) ?
+		 rx_xoff_thresh_bytes : efx->type->rx_xoff_thresh) >> 8;
+	efx_oword_t reg;
+
+	falcon_read(efx, &reg, RX_CFG_REG_KER);
+	if (falcon_rev(efx) <= FALCON_REV_A1) {
+		EFX_SET_OWORD_FIELD(reg, RX_DESC_PUSH_EN_A1, 0);
+		EFX_SET_OWORD_FIELD(reg, RX_USR_BUF_SIZE_A1, huge_buf_size);
+		EFX_SET_OWORD_FIELD(reg, RX_XON_MAC_TH_A1, data_xon_thr);
+		EFX_SET_OWORD_FIELD(reg, RX_XOFF_MAC_TH_A1, data_xoff_thr);
+		EFX_SET_OWORD_FIELD(reg, RX_XON_TX_TH_A1, ctrl_xon_thr);
+		EFX_SET_OWORD_FIELD(reg, RX_XOFF_TX_TH_A1, ctrl_xoff_thr);
+	} else {
+		/* Register fields moved */
+		EFX_SET_OWORD_FIELD(reg, RX_DESC_PUSH_EN_B0, 0);
+		EFX_SET_OWORD_FIELD(reg, RX_USR_BUF_SIZE_B0, huge_buf_size);
+		EFX_SET_OWORD_FIELD(reg, RX_XON_MAC_TH_B0, data_xon_thr);
+		EFX_SET_OWORD_FIELD(reg, RX_XOFF_MAC_TH_B0, data_xoff_thr);
+		EFX_SET_OWORD_FIELD(reg, RX_XON_TX_TH_B0, ctrl_xon_thr);
+		EFX_SET_OWORD_FIELD(reg, RX_XOFF_TX_TH_B0, ctrl_xoff_thr);
+		EFX_SET_OWORD_FIELD(reg, RX_INGR_EN_B0, 1);
+	}
+	falcon_write(efx, &reg, RX_CFG_REG_KER);
+}
+
 /* This call performs hardware-specific global initialisation, such as
  * defining the descriptor cache sizes and number of RSS channels.
  * It does not set up any buffers, descriptor rings or event queues.
@@ -2917,7 +2958,6 @@ int falcon_probe_nic(struct efx_nic *efx)
 int falcon_init_nic(struct efx_nic *efx)
 {
 	efx_oword_t temp;
-	unsigned thresh;
 	int rc;
 
 	/* Use on-chip SRAM */
@@ -3024,26 +3064,7 @@ int falcon_init_nic(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, TX_NO_EOP_DISC_EN, 0);
 	falcon_write(efx, &temp, TX_CFG_REG_KER);
 
-	/* RX config */
-	falcon_read(efx, &temp, RX_CFG_REG_KER);
-	EFX_SET_OWORD_FIELD_VER(efx, temp, RX_DESC_PUSH_EN, 0);
-	if (EFX_WORKAROUND_7575(efx))
-		EFX_SET_OWORD_FIELD_VER(efx, temp, RX_USR_BUF_SIZE,
-					(3 * 4096) / 32);
-	if (falcon_rev(efx) >= FALCON_REV_B0)
-		EFX_SET_OWORD_FIELD(temp, RX_INGR_EN_B0, 1);
-
-	/* RX FIFO flow control thresholds */
-	thresh = ((rx_xon_thresh_bytes >= 0) ?
-		  rx_xon_thresh_bytes : efx->type->rx_xon_thresh);
-	EFX_SET_OWORD_FIELD_VER(efx, temp, RX_XON_MAC_TH, thresh / 256);
-	thresh = ((rx_xoff_thresh_bytes >= 0) ?
-		  rx_xoff_thresh_bytes : efx->type->rx_xoff_thresh);
-	EFX_SET_OWORD_FIELD_VER(efx, temp, RX_XOFF_MAC_TH, thresh / 256);
-	/* RX control FIFO thresholds [32 entries] */
-	EFX_SET_OWORD_FIELD_VER(efx, temp, RX_XON_TX_TH, 20);
-	EFX_SET_OWORD_FIELD_VER(efx, temp, RX_XOFF_TX_TH, 25);
-	falcon_write(efx, &temp, RX_CFG_REG_KER);
+	falcon_init_rx_cfg(efx);
 
 	/* Set destination of both TX and RX Flush events */
 	if (falcon_rev(efx) >= FALCON_REV_B0) {

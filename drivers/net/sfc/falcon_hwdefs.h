@@ -313,8 +313,6 @@
 #define RX_XON_MAC_TH_B0_WIDTH 9
 #define RX_XOFF_MAC_TH_B0_LBN 1
 #define RX_XOFF_MAC_TH_B0_WIDTH 9
-#define RX_XOFF_MAC_EN_B0_LBN 0
-#define RX_XOFF_MAC_EN_B0_WIDTH 1
 
 /* A1 */
 #define RX_DESC_PUSH_EN_A1_LBN 35
@@ -329,8 +327,9 @@
 #define RX_XON_MAC_TH_A1_WIDTH 5
 #define RX_XOFF_MAC_TH_A1_LBN 1
 #define RX_XOFF_MAC_TH_A1_WIDTH 5
-#define RX_XOFF_MAC_EN_A1_LBN 0
-#define RX_XOFF_MAC_EN_A1_WIDTH 1
+
+#define RX_XOFF_MAC_EN_LBN 0
+#define RX_XOFF_MAC_EN_WIDTH 1
 
 /* Receive filter control register */
 #define RX_FILTER_CTL_REG 0x810
