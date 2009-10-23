@@ -1115,7 +1115,7 @@ static int saa717x_s_video_routing(struct v4l2_subdev *sd,
 	v4l2_dbg(1, debug, sd, "decoder set input (%d)\n", input);
 	/* inputs from 0-9 are available*/
 	/* saa717x have mode0-mode9 but mode5 is reserved. */
-	if (input < 0 || input > 9 || input == 5)
+	if (input > 9 || input == 5)
 		return -EINVAL;
 
 	if (decoder->input != input) {

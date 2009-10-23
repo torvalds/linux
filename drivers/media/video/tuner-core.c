@@ -328,7 +328,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 	t->type = type;
 	/* prevent invalid config values */
-	t->config = ((new_config >= 0) && (new_config < 256)) ? new_config : 0;
+	t->config = new_config < 256 ? new_config : 0;
 	if (tuner_callback != NULL) {
 		tuner_dbg("defining GPIO callback\n");
 		t->fe.callback = tuner_callback;

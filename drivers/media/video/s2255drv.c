@@ -1958,7 +1958,7 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 				if (pdword[1] >= MAX_CHANNELS)
 					break;
 				cc = G_chnmap[pdword[1]];
-				if (!(cc >= 0 && cc < MAX_CHANNELS))
+				if (cc >= MAX_CHANNELS)
 					break;
 				switch (pdword[2]) {
 				case S2255_RESPONSE_SETMODE:

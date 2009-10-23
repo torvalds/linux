@@ -2764,7 +2764,7 @@ static int zoran_enum_input(struct file *file, void *__fh,
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
 
-	if (inp->index < 0 || inp->index >= zr->card.inputs)
+	if (inp->index >= zr->card.inputs)
 		return -EINVAL;
 	else {
 		int id = inp->index;

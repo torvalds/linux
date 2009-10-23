@@ -251,7 +251,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 
 	DEB_EE(("VIDIOC_S_INPUT %d.\n", input));
 
-	if (input < 0 || input >= HEXIUM_INPUTS)
+	if (input >= HEXIUM_INPUTS)
 		return -EINVAL;
 
 	hexium->cur_input = input;

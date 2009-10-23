@@ -299,7 +299,7 @@ static int bt819_s_routing(struct v4l2_subdev *sd,
 
 	v4l2_dbg(1, debug, sd, "set input %x\n", input);
 
-	if (input < 0 || input > 7)
+	if (input > 7)
 		return -EINVAL;
 
 	if (sd->v4l2_dev == NULL || sd->v4l2_dev->notify == NULL)

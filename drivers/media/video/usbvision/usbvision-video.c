@@ -601,7 +601,7 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int input)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
-	if ((input >= usbvision->video_inputs) || (input < 0) )
+	if (input >= usbvision->video_inputs)
 		return -EINVAL;
 
 	mutex_lock(&usbvision->lock);
