@@ -127,9 +127,6 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
  **************************************************************************
  */
 
-/* DMA address mask */
-#define FALCON_DMA_MASK DMA_BIT_MASK(46)
-
 /* TX DMA length mask (13-bit) */
 #define FALCON_TX_DMA_MASK (4096 - 1)
 
@@ -3148,7 +3145,7 @@ struct efx_nic_type falcon_a_nic_type = {
 	.buf_tbl_base = FR_AA_BUF_FULL_TBL_KER,
 	.evq_ptr_tbl_base = FR_AA_EVQ_PTR_TBL_KER,
 	.evq_rptr_tbl_base = FR_AA_EVQ_RPTR_KER,
-	.max_dma_mask = FALCON_DMA_MASK,
+	.max_dma_mask = DMA_BIT_MASK(FSF_AZ_TX_KER_BUF_ADDR_WIDTH),
 	.tx_dma_mask = FALCON_TX_DMA_MASK,
 	.bug5391_mask = 0xf,
 	.rx_buffer_padding = 0x24,
@@ -3169,7 +3166,7 @@ struct efx_nic_type falcon_b_nic_type = {
 	.buf_tbl_base = FR_BZ_BUF_FULL_TBL,
 	.evq_ptr_tbl_base = FR_BZ_EVQ_PTR_TBL,
 	.evq_rptr_tbl_base = FR_BZ_EVQ_RPTR,
-	.max_dma_mask = FALCON_DMA_MASK,
+	.max_dma_mask = DMA_BIT_MASK(FSF_AZ_TX_KER_BUF_ADDR_WIDTH),
 	.tx_dma_mask = FALCON_TX_DMA_MASK,
 	.bug5391_mask = 0,
 	.rx_buffer_padding = 0,
