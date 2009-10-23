@@ -2165,10 +2165,7 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 	priv->thermal_throttle.ct_kill_toggle = false;
 
-	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
-	case CSR_HW_REV_TYPE_1000:
-	case CSR_HW_REV_TYPE_6x00:
-	case CSR_HW_REV_TYPE_6x50:
+	if (priv->cfg->support_ct_kill_exit) {
 		adv_cmd.critical_temperature_enter =
 			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 		adv_cmd.critical_temperature_exit =
@@ -2185,8 +2182,7 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 					"exit is %d\n",
 				       priv->hw_params.ct_kill_threshold,
 				       priv->hw_params.ct_kill_exit_threshold);
-		break;
-	default:
+	} else {
 		cmd.critical_temperature_R =
 			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 
@@ -2199,7 +2195,6 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 					"succeeded, "
 					"critical temperature is %d\n",
 					priv->hw_params.ct_kill_threshold);
-		break;
 	}
 }
 EXPORT_SYMBOL(iwl_rf_kill_ct_config);
