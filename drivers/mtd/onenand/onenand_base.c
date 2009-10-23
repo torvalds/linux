@@ -2183,69 +2183,33 @@ static int onenand_block_isbad_nolock(struct mtd_info *mtd, loff_t ofs, int allo
 }
 
 /**
- * onenand_erase - [MTD Interface] erase block(s)
+ * onenand_block_by_block_erase - [Internal] erase block(s) using regular erase
  * @param mtd		MTD device structure
  * @param instr		erase instruction
+ * @param region	erase region
+ * @param block_size	erase block size
  *
- * Erase one ore more blocks
+ * Erase one or more blocks one block at a time
  */
-static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
+static int onenand_block_by_block_erase(struct mtd_info *mtd,
+					struct erase_info *instr,
+					struct mtd_erase_region_info *region,
+					unsigned int block_size)
 {
 	struct onenand_chip *this = mtd->priv;
-	unsigned int block_size;
 	loff_t addr = instr->addr;
-	loff_t len = instr->len;
-	int ret = 0, i;
-	struct mtd_erase_region_info *region = NULL;
+	int len = instr->len;
 	loff_t region_end = 0;
+	int ret = 0;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "onenand_erase: start = 0x%012llx, len = %llu\n", (unsigned long long) instr->addr, (unsigned long long) instr->len);
-
-	/* Do not allow erase past end of device */
-	if (unlikely((len + addr) > mtd->size)) {
-		printk(KERN_ERR "%s: Erase past end of device\n", __func__);
-		return -EINVAL;
-	}
-
-	if (FLEXONENAND(this)) {
-		/* Find the eraseregion of this address */
-		i = flexonenand_region(mtd, addr);
-		region = &mtd->eraseregions[i];
-
-		block_size = region->erasesize;
+	if (region) {
+		/* region is set for Flex-OneNAND */
 		region_end = region->offset + region->erasesize * region->numblocks;
-
-		/* Start address within region must align on block boundary.
-		 * Erase region's start offset is always block start address.
-		 */
-		if (unlikely((addr - region->offset) & (block_size - 1))) {
-			printk(KERN_ERR "%s: Unaligned address\n", __func__);
-			return -EINVAL;
-		}
-	} else {
-		block_size = 1 << this->erase_shift;
-
-		/* Start address must align on block boundary */
-		if (unlikely(addr & (block_size - 1))) {
-			printk(KERN_ERR "%s: Unaligned address\n", __func__);
-			return -EINVAL;
-		}
 	}
 
-	/* Length must align on block boundary */
-	if (unlikely(len & (block_size - 1))) {
-		printk(KERN_ERR "%s: Length not block aligned\n", __func__);
-		return -EINVAL;
-	}
-
-	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
-
-	/* Grab the lock and see if the device is available */
-	onenand_get_device(mtd, FL_ERASING);
-
-	/* Loop through the blocks */
 	instr->state = MTD_ERASING;
 
+	/* Loop through the blocks */
 	while (len) {
 		cond_resched();
 
@@ -2255,7 +2219,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 					"at addr 0x%012llx\n",
 					__func__, (unsigned long long) addr);
 			instr->state = MTD_ERASE_FAILED;
-			goto erase_exit;
+			return -EIO;
 		}
 
 		this->command(mtd, ONENAND_CMD_ERASE, addr, block_size);
@@ -2269,7 +2233,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 				__func__, onenand_block(this, addr));
 			instr->state = MTD_ERASE_FAILED;
 			instr->fail_addr = addr;
-			goto erase_exit;
+			return -EIO;
 		}
 
 		len -= block_size;
@@ -2287,24 +2251,80 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 				/* FIXME: This should be handled at MTD partitioning level. */
 				printk(KERN_ERR "%s: Unaligned address\n",
 					__func__);
-				goto erase_exit;
+				return -EIO;
 			}
 		}
+	}
+	return 0;
+}
 
+/**
+ * onenand_erase - [MTD Interface] erase block(s)
+ * @param mtd		MTD device structure
+ * @param instr		erase instruction
+ *
+ * Erase one or more blocks
+ */
+static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
+{
+	struct onenand_chip *this = mtd->priv;
+	unsigned int block_size;
+	loff_t addr = instr->addr;
+	loff_t len = instr->len;
+	int ret = 0;
+	struct mtd_erase_region_info *region = NULL;
+	loff_t region_offset = 0;
+
+	DEBUG(MTD_DEBUG_LEVEL3, "%s: start=0x%012llx, len=%llu\n", __func__,
+	      (unsigned long long) instr->addr, (unsigned long long) instr->len);
+
+	/* Do not allow erase past end of device */
+	if (unlikely((len + addr) > mtd->size)) {
+		printk(KERN_ERR "%s: Erase past end of device\n", __func__);
+		return -EINVAL;
 	}
 
-	instr->state = MTD_ERASE_DONE;
+	if (FLEXONENAND(this)) {
+		/* Find the eraseregion of this address */
+		int i = flexonenand_region(mtd, addr);
 
-erase_exit:
+		region = &mtd->eraseregions[i];
+		block_size = region->erasesize;
 
-	ret = instr->state == MTD_ERASE_DONE ? 0 : -EIO;
+		/* Start address within region must align on block boundary.
+		 * Erase region's start offset is always block start address.
+		 */
+		region_offset = region->offset;
+	} else
+		block_size = 1 << this->erase_shift;
+
+	/* Start address must align on block boundary */
+	if (unlikely((addr - region_offset) & (block_size - 1))) {
+		printk(KERN_ERR "%s: Unaligned address\n", __func__);
+		return -EINVAL;
+	}
+
+	/* Length must align on block boundary */
+	if (unlikely(len & (block_size - 1))) {
+		printk(KERN_ERR "%s: Length not block aligned\n", __func__);
+		return -EINVAL;
+	}
+
+	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
+
+	/* Grab the lock and see if the device is available */
+	onenand_get_device(mtd, FL_ERASING);
+
+	ret = onenand_block_by_block_erase(mtd, instr, region, block_size);
 
 	/* Deselect and wake up anyone waiting on the device */
 	onenand_release_device(mtd);
 
 	/* Do call back function */
-	if (!ret)
+	if (!ret) {
+		instr->state = MTD_ERASE_DONE;
 		mtd_erase_callback(instr);
+	}
 
 	return ret;
 }
