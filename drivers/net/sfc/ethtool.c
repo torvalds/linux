@@ -618,6 +618,9 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 	coalesce->use_adaptive_rx_coalesce = efx->irq_rx_adaptive;
 	coalesce->rx_coalesce_usecs_irq = efx->irq_rx_moderation;
 
+	coalesce->tx_coalesce_usecs_irq *= FALCON_IRQ_MOD_RESOLUTION;
+	coalesce->rx_coalesce_usecs_irq *= FALCON_IRQ_MOD_RESOLUTION;
+
 	return 0;
 }
 
@@ -656,11 +659,6 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	}
 
 	efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive);
-
-	/* Reset channel to pick up new moderation value.  Note that
-	 * this may change the value of the irq_moderation field
-	 * (e.g. to allow for hardware timer granularity).
-	 */
 	efx_for_each_channel(channel, efx)
 		falcon_set_int_moderation(channel);
 

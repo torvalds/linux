@@ -228,26 +228,20 @@ static int efx_poll(struct napi_struct *napi, int budget)
 		if (channel->used_flags & EFX_USED_BY_RX &&
 		    efx->irq_rx_adaptive &&
 		    unlikely(++channel->irq_count == 1000)) {
-			unsigned old_irq_moderation = channel->irq_moderation;
-
 			if (unlikely(channel->irq_mod_score <
 				     irq_adapt_low_thresh)) {
-				channel->irq_moderation =
-					max_t(int,
-					      channel->irq_moderation -
-					      FALCON_IRQ_MOD_RESOLUTION,
-					      FALCON_IRQ_MOD_RESOLUTION);
+				if (channel->irq_moderation > 1) {
+					channel->irq_moderation -= 1;
+					falcon_set_int_moderation(channel);
+				}
 			} else if (unlikely(channel->irq_mod_score >
 					    irq_adapt_high_thresh)) {
-				channel->irq_moderation =
-					min(channel->irq_moderation +
-					    FALCON_IRQ_MOD_RESOLUTION,
-					    efx->irq_rx_moderation);
+				if (channel->irq_moderation <
+				    efx->irq_rx_moderation) {
+					channel->irq_moderation += 1;
+					falcon_set_int_moderation(channel);
+				}
 			}
-
-			if (channel->irq_moderation != old_irq_moderation)
-				falcon_set_int_moderation(channel);
-
 			channel->irq_count = 0;
 			channel->irq_mod_score = 0;
 		}
@@ -1220,22 +1214,33 @@ void efx_flush_queues(struct efx_nic *efx)
  *
  **************************************************************************/
 
+static unsigned irq_mod_ticks(int usecs, int resolution)
+{
+	if (usecs <= 0)
+		return 0; /* cannot receive interrupts ahead of time :-) */
+	if (usecs < resolution)
+		return 1; /* never round down to 0 */
+	return usecs / resolution;
+}
+
 /* Set interrupt moderation parameters */
 void efx_init_irq_moderation(struct efx_nic *efx, int tx_usecs, int rx_usecs,
 			     bool rx_adaptive)
 {
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
+	unsigned tx_ticks = irq_mod_ticks(tx_usecs, FALCON_IRQ_MOD_RESOLUTION);
+	unsigned rx_ticks = irq_mod_ticks(rx_usecs, FALCON_IRQ_MOD_RESOLUTION);
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	efx_for_each_tx_queue(tx_queue, efx)
-		tx_queue->channel->irq_moderation = tx_usecs;
+		tx_queue->channel->irq_moderation = tx_ticks;
 
 	efx->irq_rx_adaptive = rx_adaptive;
-	efx->irq_rx_moderation = rx_usecs;
+	efx->irq_rx_moderation = rx_ticks;
 	efx_for_each_rx_queue(rx_queue, efx)
-		rx_queue->channel->irq_moderation = rx_usecs;
+		rx_queue->channel->irq_moderation = rx_ticks;
 }
 
 /**************************************************************************

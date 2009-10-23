@@ -1063,20 +1063,11 @@ void falcon_set_int_moderation(struct efx_channel *channel)
 
 	/* Set timer register */
 	if (channel->irq_moderation) {
-		/* Round to resolution supported by hardware.  The value we
-		 * program is based at 0.  So actual interrupt moderation
-		 * achieved is ((x + 1) * res).
-		 */
-		channel->irq_moderation -= (channel->irq_moderation %
-					    FALCON_IRQ_MOD_RESOLUTION);
-		if (channel->irq_moderation < FALCON_IRQ_MOD_RESOLUTION)
-			channel->irq_moderation = FALCON_IRQ_MOD_RESOLUTION;
 		EFX_POPULATE_DWORD_2(timer_cmd,
 				     FRF_AB_TC_TIMER_MODE,
 				     FFE_BB_TIMER_MODE_INT_HLDOFF,
 				     FRF_AB_TC_TIMER_VAL,
-				     channel->irq_moderation /
-				     FALCON_IRQ_MOD_RESOLUTION - 1);
+				     channel->irq_moderation - 1);
 	} else {
 		EFX_POPULATE_DWORD_2(timer_cmd,
 				     FRF_AB_TC_TIMER_MODE,
