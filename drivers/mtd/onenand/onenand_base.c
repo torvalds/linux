@@ -3698,8 +3698,8 @@ int flexonenand_set_boundary(struct mtd_info *mtd, int die,
 	this->command(mtd, ONENAND_CMD_ERASE, addr, 0);
 	ret = this->wait(mtd, FL_ERASING);
 	if (ret) {
-		printk(KERN_ERR "%s: flexonenand_set_boundary: "
-				"Failed PI erase for Die %d\n", __func__, die);
+		printk(KERN_ERR "%s: Failed PI erase for Die %d\n",
+		       __func__, die);
 		goto out;
 	}
 
