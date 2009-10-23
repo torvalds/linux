@@ -293,8 +293,7 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 	 * fill anyway.
 	 */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
-	EFX_BUG_ON_PARANOID(fill_level >
-			    rx_queue->efx->type->rxd_ring_mask + 1);
+	EFX_BUG_ON_PARANOID(fill_level > EFX_RXQ_SIZE);
 
 	/* Don't fill if we don't need to */
 	if (fill_level >= rx_queue->fast_fill_trigger)
@@ -316,8 +315,7 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
  retry:
 	/* Recalculate current fill level now that we have the lock */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
-	EFX_BUG_ON_PARANOID(fill_level >
-			    rx_queue->efx->type->rxd_ring_mask + 1);
+	EFX_BUG_ON_PARANOID(fill_level > EFX_RXQ_SIZE);
 	space = rx_queue->fast_fill_limit - fill_level;
 	if (space < EFX_RX_BATCH)
 		goto out_unlock;
@@ -329,8 +327,7 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 
 	do {
 		for (i = 0; i < EFX_RX_BATCH; ++i) {
-			index = (rx_queue->added_count &
-				 rx_queue->efx->type->rxd_ring_mask);
+			index = rx_queue->added_count & EFX_RXQ_MASK;
 			rx_buf = efx_rx_buffer(rx_queue, index);
 			rc = efx_init_rx_buffer(rx_queue, rx_buf);
 			if (unlikely(rc))
@@ -629,7 +626,7 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 	EFX_LOG(efx, "creating RX queue %d\n", rx_queue->queue);
 
 	/* Allocate RX buffers */
-	rxq_size = (efx->type->rxd_ring_mask + 1) * sizeof(*rx_queue->buffer);
+	rxq_size = EFX_RXQ_SIZE * sizeof(*rx_queue->buffer);
 	rx_queue->buffer = kzalloc(rxq_size, GFP_KERNEL);
 	if (!rx_queue->buffer)
 		return -ENOMEM;
@@ -644,7 +641,6 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 
 void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 {
-	struct efx_nic *efx = rx_queue->efx;
 	unsigned int max_fill, trigger, limit;
 
 	EFX_LOG(rx_queue->efx, "initialising RX queue %d\n", rx_queue->queue);
@@ -657,7 +653,7 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 	rx_queue->min_overfill = -1U;
 
 	/* Initialise limit fields */
-	max_fill = efx->type->rxd_ring_mask + 1 - EFX_RXD_HEAD_ROOM;
+	max_fill = EFX_RXQ_SIZE - EFX_RXD_HEAD_ROOM;
 	trigger = max_fill * min(rx_refill_threshold, 100U) / 100U;
 	limit = max_fill * min(rx_refill_limit, 100U) / 100U;
 
@@ -680,7 +676,7 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 
 	/* Release RX buffers NB start at index 0 not current HW ptr */
 	if (rx_queue->buffer) {
-		for (i = 0; i <= rx_queue->efx->type->rxd_ring_mask; i++) {
+		for (i = 0; i <= EFX_RXQ_MASK; i++) {
 			rx_buf = efx_rx_buffer(rx_queue, i);
 			efx_fini_rx_buffer(rx_queue, rx_buf);
 		}

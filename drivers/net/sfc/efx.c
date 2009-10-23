@@ -290,7 +290,7 @@ void efx_process_channel_now(struct efx_channel *channel)
 	napi_disable(&channel->napi_str);
 
 	/* Poll the channel */
-	efx_process_channel(channel, efx->type->evq_size);
+	efx_process_channel(channel, EFX_EVQ_SIZE);
 
 	/* Ack the eventq. This may cause an interrupt to be generated
 	 * when they are reenabled */
@@ -1981,17 +1981,9 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 
 	efx->type = type;
 
-	/* Sanity-check NIC type */
-	EFX_BUG_ON_PARANOID(efx->type->txd_ring_mask &
-			    (efx->type->txd_ring_mask + 1));
-	EFX_BUG_ON_PARANOID(efx->type->rxd_ring_mask &
-			    (efx->type->rxd_ring_mask + 1));
-	EFX_BUG_ON_PARANOID(efx->type->evq_size &
-			    (efx->type->evq_size - 1));
 	/* As close as we can get to guaranteeing that we don't overflow */
-	EFX_BUG_ON_PARANOID(efx->type->evq_size <
-			    (efx->type->txd_ring_mask + 1 +
-			     efx->type->rxd_ring_mask + 1));
+	BUILD_BUG_ON(EFX_EVQ_SIZE < EFX_TXQ_SIZE + EFX_RXQ_SIZE);
+
 	EFX_BUG_ON_PARANOID(efx->type->phys_addr_channels > EFX_MAX_CHANNELS);
 
 	/* Higher numbered interrupt modes are less capable! */

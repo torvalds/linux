@@ -25,16 +25,22 @@ extern netdev_tx_t efx_xmit(struct efx_nic *efx,
 				  struct sk_buff *skb);
 extern void efx_stop_queue(struct efx_nic *efx);
 extern void efx_wake_queue(struct efx_nic *efx);
+#define EFX_TXQ_SIZE 1024
+#define EFX_TXQ_MASK (EFX_TXQ_SIZE - 1)
 
 /* RX */
 extern void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 extern void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 			  unsigned int len, bool checksummed, bool discard);
 extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue, int delay);
+#define EFX_RXQ_SIZE 1024
+#define EFX_RXQ_MASK (EFX_RXQ_SIZE - 1)
 
 /* Channels */
 extern void efx_process_channel_now(struct efx_channel *channel);
 extern void efx_flush_queues(struct efx_nic *efx);
+#define EFX_EVQ_SIZE 4096
+#define EFX_EVQ_MASK (EFX_EVQ_SIZE - 1)
 
 /* Ports */
 extern void efx_stats_disable(struct efx_nic *efx);

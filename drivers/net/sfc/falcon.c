@@ -108,21 +108,6 @@ static int rx_xon_thresh_bytes = -1;
 module_param(rx_xon_thresh_bytes, int, 0644);
 MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
 
-/* TX descriptor ring size - min 512 max 4k */
-#define FALCON_TXD_RING_ORDER FFE_AZ_TX_DESCQ_SIZE_1K
-#define FALCON_TXD_RING_SIZE 1024
-#define FALCON_TXD_RING_MASK (FALCON_TXD_RING_SIZE - 1)
-
-/* RX descriptor ring size - min 512 max 4k */
-#define FALCON_RXD_RING_ORDER FFE_AZ_RX_DESCQ_SIZE_1K
-#define FALCON_RXD_RING_SIZE 1024
-#define FALCON_RXD_RING_MASK (FALCON_RXD_RING_SIZE - 1)
-
-/* Event queue size - max 32k */
-#define FALCON_EVQ_ORDER FFE_AZ_EVQ_SIZE_4K
-#define FALCON_EVQ_SIZE 4096
-#define FALCON_EVQ_MASK (FALCON_EVQ_SIZE - 1)
-
 /* If FALCON_MAX_INT_ERRORS internal errors occur within
  * FALCON_INT_ERROR_EXPIRE seconds, we consider the NIC broken and
  * disable it.
@@ -420,7 +405,7 @@ static inline void falcon_notify_tx_desc(struct efx_tx_queue *tx_queue)
 	unsigned write_ptr;
 	efx_dword_t reg;
 
-	write_ptr = tx_queue->write_count & FALCON_TXD_RING_MASK;
+	write_ptr = tx_queue->write_count & EFX_TXQ_MASK;
 	EFX_POPULATE_DWORD_1(reg, FRF_AZ_TX_DESC_WPTR_DWORD, write_ptr);
 	efx_writed_page(tx_queue->efx, &reg,
 			FR_AZ_TX_DESC_UPD_DWORD_P0, tx_queue->queue);
@@ -441,7 +426,7 @@ void falcon_push_buffers(struct efx_tx_queue *tx_queue)
 	BUG_ON(tx_queue->write_count == tx_queue->insert_count);
 
 	do {
-		write_ptr = tx_queue->write_count & FALCON_TXD_RING_MASK;
+		write_ptr = tx_queue->write_count & EFX_TXQ_MASK;
 		buffer = &tx_queue->buffer[write_ptr];
 		txd = falcon_tx_desc(tx_queue, write_ptr);
 		++tx_queue->write_count;
@@ -462,9 +447,10 @@ void falcon_push_buffers(struct efx_tx_queue *tx_queue)
 int falcon_probe_tx(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
+	BUILD_BUG_ON(EFX_TXQ_SIZE < 512 || EFX_TXQ_SIZE > 4096 ||
+		     EFX_TXQ_SIZE & EFX_TXQ_MASK);
 	return falcon_alloc_special_buffer(efx, &tx_queue->txd,
-					   FALCON_TXD_RING_SIZE *
-					   sizeof(efx_qword_t));
+					   EFX_TXQ_SIZE * sizeof(efx_qword_t));
 }
 
 void falcon_init_tx(struct efx_tx_queue *tx_queue)
@@ -487,7 +473,8 @@ void falcon_init_tx(struct efx_tx_queue *tx_queue)
 			      tx_queue->channel->channel,
 			      FRF_AZ_TX_DESCQ_OWNER_ID, 0,
 			      FRF_AZ_TX_DESCQ_LABEL, tx_queue->queue,
-			      FRF_AZ_TX_DESCQ_SIZE, FALCON_TXD_RING_ORDER,
+			      FRF_AZ_TX_DESCQ_SIZE,
+			      __ffs(tx_queue->txd.entries),
 			      FRF_AZ_TX_DESCQ_TYPE, 0,
 			      FRF_BZ_TX_NON_IP_DROP_DIS, 1);
 
@@ -592,12 +579,12 @@ void falcon_notify_rx_desc(struct efx_rx_queue *rx_queue)
 	while (rx_queue->notified_count != rx_queue->added_count) {
 		falcon_build_rx_desc(rx_queue,
 				     rx_queue->notified_count &
-				     FALCON_RXD_RING_MASK);
+				     EFX_RXQ_MASK);
 		++rx_queue->notified_count;
 	}
 
 	wmb();
-	write_ptr = rx_queue->added_count & FALCON_RXD_RING_MASK;
+	write_ptr = rx_queue->added_count & EFX_RXQ_MASK;
 	EFX_POPULATE_DWORD_1(reg, FRF_AZ_RX_DESC_WPTR_DWORD, write_ptr);
 	efx_writed_page(rx_queue->efx, &reg,
 			FR_AZ_RX_DESC_UPD_DWORD_P0, rx_queue->queue);
@@ -606,9 +593,10 @@ void falcon_notify_rx_desc(struct efx_rx_queue *rx_queue)
 int falcon_probe_rx(struct efx_rx_queue *rx_queue)
 {
 	struct efx_nic *efx = rx_queue->efx;
+	BUILD_BUG_ON(EFX_RXQ_SIZE < 512 || EFX_RXQ_SIZE > 4096 ||
+		     EFX_RXQ_SIZE & EFX_RXQ_MASK);
 	return falcon_alloc_special_buffer(efx, &rx_queue->rxd,
-					   FALCON_RXD_RING_SIZE *
-					   sizeof(efx_qword_t));
+					   EFX_RXQ_SIZE * sizeof(efx_qword_t));
 }
 
 void falcon_init_rx(struct efx_rx_queue *rx_queue)
@@ -636,7 +624,8 @@ void falcon_init_rx(struct efx_rx_queue *rx_queue)
 			      rx_queue->channel->channel,
 			      FRF_AZ_RX_DESCQ_OWNER_ID, 0,
 			      FRF_AZ_RX_DESCQ_LABEL, rx_queue->queue,
-			      FRF_AZ_RX_DESCQ_SIZE, FALCON_RXD_RING_ORDER,
+			      FRF_AZ_RX_DESCQ_SIZE,
+			      __ffs(rx_queue->rxd.entries),
 			      FRF_AZ_RX_DESCQ_TYPE, 0 /* kernel queue */ ,
 			      /* For >=B0 this is scatter so disable */
 			      FRF_AZ_RX_DESCQ_JUMBO, !is_b0,
@@ -741,7 +730,7 @@ static void falcon_handle_tx_event(struct efx_channel *channel,
 		tx_queue = &efx->tx_queue[tx_ev_q_label];
 		channel->irq_mod_score +=
 			(tx_ev_desc_ptr - tx_queue->read_count) &
-			efx->type->txd_ring_mask;
+			EFX_TXQ_MASK;
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
@@ -848,9 +837,8 @@ static void falcon_handle_rx_bad_index(struct efx_rx_queue *rx_queue,
 	struct efx_nic *efx = rx_queue->efx;
 	unsigned expected, dropped;
 
-	expected = rx_queue->removed_count & FALCON_RXD_RING_MASK;
-	dropped = ((index + FALCON_RXD_RING_SIZE - expected) &
-		   FALCON_RXD_RING_MASK);
+	expected = rx_queue->removed_count & EFX_RXQ_MASK;
+	dropped = (index - expected) & EFX_RXQ_MASK;
 	EFX_INFO(efx, "dropped %d events (index=%d expected=%d)\n",
 		dropped, index, expected);
 
@@ -887,7 +875,7 @@ static void falcon_handle_rx_event(struct efx_channel *channel,
 	rx_queue = &efx->rx_queue[channel->channel];
 
 	rx_ev_desc_ptr = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_DESC_PTR);
-	expected_ptr = rx_queue->removed_count & FALCON_RXD_RING_MASK;
+	expected_ptr = rx_queue->removed_count & EFX_RXQ_MASK;
 	if (unlikely(rx_ev_desc_ptr != expected_ptr))
 		falcon_handle_rx_bad_index(rx_queue, rx_ev_desc_ptr);
 
@@ -1075,7 +1063,7 @@ int falcon_process_eventq(struct efx_channel *channel, int rx_quota)
 		}
 
 		/* Increment read pointer */
-		read_ptr = (read_ptr + 1) & FALCON_EVQ_MASK;
+		read_ptr = (read_ptr + 1) & EFX_EVQ_MASK;
 
 	} while (rx_packets < rx_quota);
 
@@ -1120,10 +1108,10 @@ void falcon_set_int_moderation(struct efx_channel *channel)
 int falcon_probe_eventq(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
-	unsigned int evq_size;
-
-	evq_size = FALCON_EVQ_SIZE * sizeof(efx_qword_t);
-	return falcon_alloc_special_buffer(efx, &channel->eventq, evq_size);
+	BUILD_BUG_ON(EFX_EVQ_SIZE < 512 || EFX_EVQ_SIZE > 32768 ||
+		     EFX_EVQ_SIZE & EFX_EVQ_MASK);
+	return falcon_alloc_special_buffer(efx, &channel->eventq,
+					   EFX_EVQ_SIZE * sizeof(efx_qword_t));
 }
 
 void falcon_init_eventq(struct efx_channel *channel)
@@ -1144,7 +1132,7 @@ void falcon_init_eventq(struct efx_channel *channel)
 	/* Push event queue to card */
 	EFX_POPULATE_OWORD_3(evq_ptr,
 			     FRF_AZ_EVQ_EN, 1,
-			     FRF_AZ_EVQ_SIZE, FALCON_EVQ_ORDER,
+			     FRF_AZ_EVQ_SIZE, __ffs(channel->eventq.entries),
 			     FRF_AZ_EVQ_BUF_BASE_ID, channel->eventq.index);
 	efx_writeo_table(efx, &evq_ptr, efx->type->evq_ptr_tbl_base,
 			 channel->channel);
@@ -1214,7 +1202,7 @@ static void falcon_poll_flush_events(struct efx_nic *efx)
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
 	unsigned int read_ptr = channel->eventq_read_ptr;
-	unsigned int end_ptr = (read_ptr - 1) & FALCON_EVQ_MASK;
+	unsigned int end_ptr = (read_ptr - 1) & EFX_EVQ_MASK;
 
 	do {
 		efx_qword_t *event = falcon_event(channel, read_ptr);
@@ -1252,7 +1240,7 @@ static void falcon_poll_flush_events(struct efx_nic *efx)
 			}
 		}
 
-		read_ptr = (read_ptr + 1) & FALCON_EVQ_MASK;
+		read_ptr = (read_ptr + 1) & EFX_EVQ_MASK;
 	} while (read_ptr != end_ptr);
 }
 
@@ -3160,9 +3148,6 @@ struct efx_nic_type falcon_a_nic_type = {
 	.buf_tbl_base = FR_AA_BUF_FULL_TBL_KER,
 	.evq_ptr_tbl_base = FR_AA_EVQ_PTR_TBL_KER,
 	.evq_rptr_tbl_base = FR_AA_EVQ_RPTR_KER,
-	.txd_ring_mask = FALCON_TXD_RING_MASK,
-	.rxd_ring_mask = FALCON_RXD_RING_MASK,
-	.evq_size = FALCON_EVQ_SIZE,
 	.max_dma_mask = FALCON_DMA_MASK,
 	.tx_dma_mask = FALCON_TX_DMA_MASK,
 	.bug5391_mask = 0xf,
@@ -3184,9 +3169,6 @@ struct efx_nic_type falcon_b_nic_type = {
 	.buf_tbl_base = FR_BZ_BUF_FULL_TBL,
 	.evq_ptr_tbl_base = FR_BZ_EVQ_PTR_TBL,
 	.evq_rptr_tbl_base = FR_BZ_EVQ_RPTR,
-	.txd_ring_mask = FALCON_TXD_RING_MASK,
-	.rxd_ring_mask = FALCON_RXD_RING_MASK,
-	.evq_size = FALCON_EVQ_SIZE,
 	.max_dma_mask = FALCON_DMA_MASK,
 	.tx_dma_mask = FALCON_TX_DMA_MASK,
 	.bug5391_mask = 0,

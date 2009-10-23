@@ -869,9 +869,6 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
  * @buf_tbl_base: Buffer table base address
  * @evq_ptr_tbl_base: Event queue pointer table base address
  * @evq_rptr_tbl_base: Event queue read-pointer table base address
- * @txd_ring_mask: TX descriptor ring size - 1 (must be a power of two - 1)
- * @rxd_ring_mask: RX descriptor ring size - 1 (must be a power of two - 1)
- * @evq_size: Event queue size (must be a power of two)
  * @max_dma_mask: Maximum possible DMA mask
  * @tx_dma_mask: TX DMA mask
  * @bug5391_mask: Address mask for bug 5391 workaround
@@ -890,9 +887,6 @@ struct efx_nic_type {
 	unsigned int evq_ptr_tbl_base;
 	unsigned int evq_rptr_tbl_base;
 
-	unsigned int txd_ring_mask;
-	unsigned int rxd_ring_mask;
-	unsigned int evq_size;
 	u64 max_dma_mask;
 	unsigned int tx_dma_mask;
 	unsigned bug5391_mask;

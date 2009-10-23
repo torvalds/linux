@@ -26,8 +26,7 @@
  * The tx_queue descriptor ring fill-level must fall below this value
  * before we restart the netif queue
  */
-#define EFX_NETDEV_TX_THRESHOLD(_tx_queue)	\
-	(_tx_queue->efx->type->txd_ring_mask / 2u)
+#define EFX_TXQ_THRESHOLD (EFX_TXQ_MASK / 2u)
 
 /* We want to be able to nest calls to netif_stop_queue(), since each
  * channel can have an individual stop on the queue.
@@ -171,7 +170,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 	}
 
 	fill_level = tx_queue->insert_count - tx_queue->old_read_count;
-	q_space = efx->type->txd_ring_mask - 1 - fill_level;
+	q_space = EFX_TXQ_MASK - 1 - fill_level;
 
 	/* Map for DMA.  Use pci_map_single rather than pci_map_page
 	 * since this is more efficient on machines with sparse
@@ -208,16 +207,14 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 					&tx_queue->read_count;
 				fill_level = (tx_queue->insert_count
 					      - tx_queue->old_read_count);
-				q_space = (efx->type->txd_ring_mask - 1 -
-					   fill_level);
+				q_space = EFX_TXQ_MASK - 1 - fill_level;
 				if (unlikely(q_space-- <= 0))
 					goto stop;
 				smp_mb();
 				--tx_queue->stopped;
 			}
 
-			insert_ptr = (tx_queue->insert_count &
-				      efx->type->txd_ring_mask);
+			insert_ptr = tx_queue->insert_count & EFX_TXQ_MASK;
 			buffer = &tx_queue->buffer[insert_ptr];
 			efx_tsoh_free(tx_queue, buffer);
 			EFX_BUG_ON_PARANOID(buffer->tsoh);
@@ -289,7 +286,7 @@ static netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 	/* Work backwards until we hit the original insert pointer value */
 	while (tx_queue->insert_count != tx_queue->write_count) {
 		--tx_queue->insert_count;
-		insert_ptr = tx_queue->insert_count & efx->type->txd_ring_mask;
+		insert_ptr = tx_queue->insert_count & EFX_TXQ_MASK;
 		buffer = &tx_queue->buffer[insert_ptr];
 		efx_dequeue_buffer(tx_queue, buffer);
 		buffer->len = 0;
@@ -318,10 +315,9 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 {
 	struct efx_nic *efx = tx_queue->efx;
 	unsigned int stop_index, read_ptr;
-	unsigned int mask = tx_queue->efx->type->txd_ring_mask;
 
-	stop_index = (index + 1) & mask;
-	read_ptr = tx_queue->read_count & mask;
+	stop_index = (index + 1) & EFX_TXQ_MASK;
+	read_ptr = tx_queue->read_count & EFX_TXQ_MASK;
 
 	while (read_ptr != stop_index) {
 		struct efx_tx_buffer *buffer = &tx_queue->buffer[read_ptr];
@@ -338,7 +334,7 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 		buffer->len = 0;
 
 		++tx_queue->read_count;
-		read_ptr = tx_queue->read_count & mask;
+		read_ptr = tx_queue->read_count & EFX_TXQ_MASK;
 	}
 }
 
@@ -391,7 +387,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	unsigned fill_level;
 	struct efx_nic *efx = tx_queue->efx;
 
-	EFX_BUG_ON_PARANOID(index > efx->type->txd_ring_mask);
+	EFX_BUG_ON_PARANOID(index > EFX_TXQ_MASK);
 
 	efx_dequeue_buffers(tx_queue, index);
 
@@ -401,7 +397,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	smp_mb();
 	if (unlikely(tx_queue->stopped) && likely(efx->port_enabled)) {
 		fill_level = tx_queue->insert_count - tx_queue->read_count;
-		if (fill_level < EFX_NETDEV_TX_THRESHOLD(tx_queue)) {
+		if (fill_level < EFX_TXQ_THRESHOLD) {
 			EFX_BUG_ON_PARANOID(!efx_dev_registered(efx));
 
 			/* Do this under netif_tx_lock(), to avoid racing
@@ -425,11 +421,11 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 	EFX_LOG(efx, "creating TX queue %d\n", tx_queue->queue);
 
 	/* Allocate software ring */
-	txq_size = (efx->type->txd_ring_mask + 1) * sizeof(*tx_queue->buffer);
+	txq_size = EFX_TXQ_SIZE * sizeof(*tx_queue->buffer);
 	tx_queue->buffer = kzalloc(txq_size, GFP_KERNEL);
 	if (!tx_queue->buffer)
 		return -ENOMEM;
-	for (i = 0; i <= efx->type->txd_ring_mask; ++i)
+	for (i = 0; i <= EFX_TXQ_MASK; ++i)
 		tx_queue->buffer[i].continuation = true;
 
 	/* Allocate hardware ring */
@@ -468,8 +464,7 @@ void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
 
 	/* Free any buffers left in the ring */
 	while (tx_queue->read_count != tx_queue->write_count) {
-		buffer = &tx_queue->buffer[tx_queue->read_count &
-					   tx_queue->efx->type->txd_ring_mask];
+		buffer = &tx_queue->buffer[tx_queue->read_count & EFX_TXQ_MASK];
 		efx_dequeue_buffer(tx_queue, buffer);
 		buffer->continuation = true;
 		buffer->len = 0;
@@ -715,7 +710,7 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 
 	fill_level = tx_queue->insert_count - tx_queue->old_read_count;
 	/* -1 as there is no way to represent all descriptors used */
-	q_space = efx->type->txd_ring_mask - 1 - fill_level;
+	q_space = EFX_TXQ_MASK - 1 - fill_level;
 
 	while (1) {
 		if (unlikely(q_space-- <= 0)) {
@@ -731,7 +726,7 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 				*(volatile unsigned *)&tx_queue->read_count;
 			fill_level = (tx_queue->insert_count
 				      - tx_queue->old_read_count);
-			q_space = efx->type->txd_ring_mask - 1 - fill_level;
+			q_space = EFX_TXQ_MASK - 1 - fill_level;
 			if (unlikely(q_space-- <= 0)) {
 				*final_buffer = NULL;
 				return 1;
@@ -740,13 +735,13 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 			--tx_queue->stopped;
 		}
 
-		insert_ptr = tx_queue->insert_count & efx->type->txd_ring_mask;
+		insert_ptr = tx_queue->insert_count & EFX_TXQ_MASK;
 		buffer = &tx_queue->buffer[insert_ptr];
 		++tx_queue->insert_count;
 
 		EFX_BUG_ON_PARANOID(tx_queue->insert_count -
 				    tx_queue->read_count >
-				    efx->type->txd_ring_mask);
+				    EFX_TXQ_MASK);
 
 		efx_tsoh_free(tx_queue, buffer);
 		EFX_BUG_ON_PARANOID(buffer->len);
@@ -792,8 +787,7 @@ static void efx_tso_put_header(struct efx_tx_queue *tx_queue,
 {
 	struct efx_tx_buffer *buffer;
 
-	buffer = &tx_queue->buffer[tx_queue->insert_count &
-				   tx_queue->efx->type->txd_ring_mask];
+	buffer = &tx_queue->buffer[tx_queue->insert_count & EFX_TXQ_MASK];
 	efx_tsoh_free(tx_queue, buffer);
 	EFX_BUG_ON_PARANOID(buffer->len);
 	EFX_BUG_ON_PARANOID(buffer->unmap_len);
@@ -818,7 +812,7 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 	while (tx_queue->insert_count != tx_queue->write_count) {
 		--tx_queue->insert_count;
 		buffer = &tx_queue->buffer[tx_queue->insert_count &
-					   tx_queue->efx->type->txd_ring_mask];
+					   EFX_TXQ_MASK];
 		efx_tsoh_free(tx_queue, buffer);
 		EFX_BUG_ON_PARANOID(buffer->skb);
 		buffer->len = 0;
@@ -1135,7 +1129,7 @@ static void efx_fini_tso(struct efx_tx_queue *tx_queue)
 	unsigned i;
 
 	if (tx_queue->buffer) {
-		for (i = 0; i <= tx_queue->efx->type->txd_ring_mask; ++i)
+		for (i = 0; i <= EFX_TXQ_MASK; ++i)
 			efx_tsoh_free(tx_queue, &tx_queue->buffer[i]);
 	}
 
