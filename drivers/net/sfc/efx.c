@@ -2025,12 +2025,12 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	if (!efx->membase)
 		return;
 
+	falcon_fini_interrupt(efx);
 	efx_fini_channels(efx);
 	efx_fini_port(efx);
 
 	/* Shutdown the board, then the NIC and board state */
 	efx->board_info.fini(efx);
-	falcon_fini_interrupt(efx);
 
 	efx_fini_napi(efx);
 	efx_remove_all(efx);
