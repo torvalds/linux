@@ -392,6 +392,7 @@ void omap_sram_idle(void)
 		prm_set_mod_reg_bits(OMAP3430_EN_IO, WKUP_MOD, PM_WKEN);
 		omap3_enable_io_chain();
 	}
+	omap3_intc_prepare_idle();
 
 	/*
 	* On EMU/HS devices ROM code restores a SRDC value
@@ -438,6 +439,7 @@ void omap_sram_idle(void)
 					       OMAP3430_GR_MOD,
 					       OMAP3_PRM_VOLTCTRL_OFFSET);
 	}
+	omap3_intc_resume_idle();
 
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
