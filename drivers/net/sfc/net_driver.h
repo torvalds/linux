@@ -688,10 +688,13 @@ union efx_multicast_hash {
  * @tx_queue: TX DMA queues
  * @rx_queue: RX DMA queues
  * @channel: Channels
+ * @next_buffer_table: First available buffer table id
  * @n_rx_queues: Number of RX queues
  * @n_channels: Number of channels in use
  * @rx_buffer_len: RX buffer length
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
+ * @int_error_count: Number of internal errors seen recently
+ * @int_error_expire: Time at which error count will be expired
  * @irq_status: Interrupt status buffer
  * @last_irq_cpu: Last CPU to handle interrupt.
  *	This register is written with the SMP processor ID whenever an
@@ -775,10 +778,14 @@ struct efx_nic {
 	struct efx_rx_queue rx_queue[EFX_MAX_RX_QUEUES];
 	struct efx_channel channel[EFX_MAX_CHANNELS];
 
+	unsigned next_buffer_table;
 	int n_rx_queues;
 	int n_channels;
 	unsigned int rx_buffer_len;
 	unsigned int rx_buffer_order;
+
+	unsigned int_error_count;
+	unsigned long int_error_expire;
 
 	struct efx_buffer irq_status;
 	volatile signed int last_irq_cpu;
