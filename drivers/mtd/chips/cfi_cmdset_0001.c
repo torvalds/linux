@@ -2564,6 +2564,7 @@ static int cfi_intelext_reset(struct mtd_info *mtd)
 		if (!ret) {
 			map_write(map, CMD(0xff), chip->start);
 			chip->state = FL_SHUTDOWN;
+			put_chip(map, chip, chip->start);
 		}
 		spin_unlock(chip->mutex);
 	}
