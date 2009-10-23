@@ -164,9 +164,6 @@ static ssize_t dac_audio_write(struct file *file, const char *buf, size_t count,
 	int free;
 	int nbytes;
 
-	if (count < 0)
-		return -EINVAL;
-
 	if (!count) {
 		dac_audio_sync();
 		return 0;
