@@ -359,8 +359,6 @@ void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
 
 	memcpy(&priv->statistics_39, pkt->u.raw, sizeof(priv->statistics_39));
-
-	iwl_leds_background(priv);
 }
 
 /******************************************************************************
