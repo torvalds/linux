@@ -112,6 +112,11 @@ struct cfq_queue {
 	unsigned short ioprio, org_ioprio;
 	unsigned short ioprio_class, org_ioprio_class;
 
+	unsigned int seek_samples;
+	u64 seek_total;
+	sector_t seek_mean;
+	sector_t last_request_pos;
+
 	pid_t pid;
 };
 
@@ -962,16 +967,16 @@ static inline sector_t cfq_dist_from_last(struct cfq_data *cfqd,
 		return cfqd->last_position - blk_rq_pos(rq);
 }
 
-#define CIC_SEEK_THR	8 * 1024
-#define CIC_SEEKY(cic)	((cic)->seek_mean > CIC_SEEK_THR)
+#define CFQQ_SEEK_THR		8 * 1024
+#define CFQQ_SEEKY(cfqq)	((cfqq)->seek_mean > CFQQ_SEEK_THR)
 
-static inline int cfq_rq_close(struct cfq_data *cfqd, struct request *rq)
+static inline int cfq_rq_close(struct cfq_data *cfqd, struct cfq_queue *cfqq,
+			       struct request *rq)
 {
-	struct cfq_io_context *cic = cfqd->active_cic;
-	sector_t sdist = cic->seek_mean;
+	sector_t sdist = cfqq->seek_mean;
 
-	if (!sample_valid(cic->seek_samples))
-		sdist = CIC_SEEK_THR;
+	if (!sample_valid(cfqq->seek_samples))
+		sdist = CFQQ_SEEK_THR;
 
 	return cfq_dist_from_last(cfqd, rq) <= sdist;
 }
@@ -1000,7 +1005,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 	 * will contain the closest sector.
 	 */
 	__cfqq = rb_entry(parent, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, __cfqq->next_rq))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
 		return __cfqq;
 
 	if (blk_rq_pos(__cfqq->next_rq) < sector)
@@ -1011,7 +1016,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 		return NULL;
 
 	__cfqq = rb_entry(node, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, __cfqq->next_rq))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
 		return __cfqq;
 
 	return NULL;
@@ -1032,13 +1037,6 @@ static struct cfq_queue *cfq_close_cooperator(struct cfq_data *cfqd,
 					      bool probe)
 {
 	struct cfq_queue *cfqq;
-
-	/*
-	 * A valid cfq_io_context is necessary to compare requests against
-	 * the seek_mean of the current cfqq.
-	 */
-	if (!cfqd->active_cic)
-		return NULL;
 
 	/*
 	 * We should notice if some of the queues are cooperating, eg
@@ -1110,7 +1108,7 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	 * seeks. so allow a little bit of time for him to submit a new rq
 	 */
 	sl = cfqd->cfq_slice_idle;
-	if (sample_valid(cic->seek_samples) && CIC_SEEKY(cic))
+	if (sample_valid(cfqq->seek_samples) && CFQQ_SEEKY(cfqq))
 		sl = min(sl, msecs_to_jiffies(CFQ_MIN_TT));
 
 	mod_timer(&cfqd->idle_slice_timer, jiffies + sl);
@@ -1947,33 +1945,33 @@ cfq_update_io_thinktime(struct cfq_data *cfqd, struct cfq_io_context *cic)
 }
 
 static void
-cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_io_context *cic,
+cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		       struct request *rq)
 {
 	sector_t sdist;
 	u64 total;
 
-	if (!cic->last_request_pos)
+	if (!cfqq->last_request_pos)
 		sdist = 0;
-	else if (cic->last_request_pos < blk_rq_pos(rq))
-		sdist = blk_rq_pos(rq) - cic->last_request_pos;
+	else if (cfqq->last_request_pos < blk_rq_pos(rq))
+		sdist = blk_rq_pos(rq) - cfqq->last_request_pos;
 	else
-		sdist = cic->last_request_pos - blk_rq_pos(rq);
+		sdist = cfqq->last_request_pos - blk_rq_pos(rq);
 
 	/*
 	 * Don't allow the seek distance to get too large from the
 	 * odd fragment, pagein, etc
 	 */
-	if (cic->seek_samples <= 60) /* second&third seek */
-		sdist = min(sdist, (cic->seek_mean * 4) + 2*1024*1024);
+	if (cfqq->seek_samples <= 60) /* second&third seek */
+		sdist = min(sdist, (cfqq->seek_mean * 4) + 2*1024*1024);
 	else
-		sdist = min(sdist, (cic->seek_mean * 4)	+ 2*1024*64);
+		sdist = min(sdist, (cfqq->seek_mean * 4) + 2*1024*64);
 
-	cic->seek_samples = (7*cic->seek_samples + 256) / 8;
-	cic->seek_total = (7*cic->seek_total + (u64)256*sdist) / 8;
-	total = cic->seek_total + (cic->seek_samples/2);
-	do_div(total, cic->seek_samples);
-	cic->seek_mean = (sector_t)total;
+	cfqq->seek_samples = (7*cfqq->seek_samples + 256) / 8;
+	cfqq->seek_total = (7*cfqq->seek_total + (u64)256*sdist) / 8;
+	total = cfqq->seek_total + (cfqq->seek_samples/2);
+	do_div(total, cfqq->seek_samples);
+	cfqq->seek_mean = (sector_t)total;
 }
 
 /*
@@ -1995,11 +1993,11 @@ cfq_update_idle_window(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	enable_idle = old_idle = cfq_cfqq_idle_window(cfqq);
 
 	if (!atomic_read(&cic->ioc->nr_tasks) || !cfqd->cfq_slice_idle ||
-	    (!cfqd->cfq_latency && cfqd->hw_tag && CIC_SEEKY(cic)))
+	    (!cfqd->cfq_latency && cfqd->hw_tag && CFQQ_SEEKY(cfqq)))
 		enable_idle = 0;
 	else if (sample_valid(cic->ttime_samples)) {
 		unsigned int slice_idle = cfqd->cfq_slice_idle;
-		if (sample_valid(cic->seek_samples) && CIC_SEEKY(cic))
+		if (sample_valid(cfqq->seek_samples) && CFQQ_SEEKY(cfqq))
 			slice_idle = msecs_to_jiffies(CFQ_MIN_TT);
 		if (cic->ttime_mean > slice_idle)
 			enable_idle = 0;
@@ -2066,7 +2064,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * if this request is as-good as one we would expect from the
 	 * current cfqq, let it preempt
 	 */
-	if (cfq_rq_close(cfqd, rq))
+	if (cfq_rq_close(cfqd, cfqq, rq))
 		return true;
 
 	return false;
@@ -2108,10 +2106,10 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		cfqq->meta_pending++;
 
 	cfq_update_io_thinktime(cfqd, cic);
-	cfq_update_io_seektime(cfqd, cic, rq);
+	cfq_update_io_seektime(cfqd, cfqq, rq);
 	cfq_update_idle_window(cfqd, cfqq, cic);
 
-	cic->last_request_pos = blk_rq_pos(rq) + blk_rq_sectors(rq);
+	cfqq->last_request_pos = blk_rq_pos(rq) + blk_rq_sectors(rq);
 
 	if (cfqq == cfqd->active_queue) {
 		/*
