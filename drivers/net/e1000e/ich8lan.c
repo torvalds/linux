@@ -2843,9 +2843,8 @@ void e1000e_disable_gig_wol_ich8lan(struct e1000_hw *hw)
 		            E1000_PHY_CTRL_GBE_DISABLE;
 		ew32(PHY_CTRL, phy_ctrl);
 
-		/* Workaround SWFLAG unexpectedly set during S0->Sx */
 		if (hw->mac.type == e1000_pchlan)
-			udelay(500);
+			e1000_phy_hw_reset_ich8lan(hw);
 	default:
 		break;
 	}
