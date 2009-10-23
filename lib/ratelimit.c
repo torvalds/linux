@@ -20,7 +20,7 @@
  * This enforces a rate limit: not more than @rs->ratelimit_burst callbacks
  * in every @rs->ratelimit_jiffies
  */
-int __ratelimit(struct ratelimit_state *rs)
+int ___ratelimit(struct ratelimit_state *rs, const char *func)
 {
 	unsigned long flags;
 	int ret;
@@ -43,7 +43,7 @@ int __ratelimit(struct ratelimit_state *rs)
 	if (time_is_before_jiffies(rs->begin + rs->interval)) {
 		if (rs->missed)
 			printk(KERN_WARNING "%s: %d callbacks suppressed\n",
-				__func__, rs->missed);
+				func, rs->missed);
 		rs->begin   = 0;
 		rs->printed = 0;
 		rs->missed  = 0;
@@ -59,4 +59,4 @@ int __ratelimit(struct ratelimit_state *rs)
 
 	return ret;
 }
-EXPORT_SYMBOL(__ratelimit);
+EXPORT_SYMBOL(___ratelimit);
