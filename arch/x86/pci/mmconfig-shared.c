@@ -15,6 +15,7 @@
 #include <linux/acpi.h>
 #include <linux/sfi_acpi.h>
 #include <linux/bitmap.h>
+#include <linux/dmi.h>
 #include <linux/sort.h>
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
@@ -527,18 +528,31 @@ reject:
 
 static int __initdata known_bridge;
 
-static int acpi_mcfg_64bit_base_addr __initdata = FALSE;
-
 /* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
 struct acpi_mcfg_allocation *pci_mmcfg_config;
 int pci_mmcfg_config_num;
 
-static int __init acpi_mcfg_oem_check(struct acpi_table_mcfg *mcfg)
+static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
+					struct acpi_mcfg_allocation *cfg)
 {
-	if (!strcmp(mcfg->header.oem_id, "SGI"))
-		acpi_mcfg_64bit_base_addr = TRUE;
+	int year;
 
-	return 0;
+	if (cfg->address < 0xFFFFFFFF)
+		return 0;
+
+	if (!strcmp(mcfg->header.oem_id, "SGI"))
+		return 0;
+
+	if (mcfg->header.revision >= 1) {
+		if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) &&
+		    year >= 2010)
+			return 0;
+	}
+
+	printk(KERN_ERR PREFIX "MCFG region for %04x:%02x-%02x at %#llx "
+	       "is above 4GB, ignored\n", cfg->pci_segment,
+	       cfg->start_bus_number, cfg->end_bus_number, cfg->address);
+	return -EINVAL;
 }
 
 static int __init pci_parse_mcfg(struct acpi_table_header *header)
@@ -574,13 +588,8 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 
 	memcpy(pci_mmcfg_config, &mcfg[1], config_size);
 
-	acpi_mcfg_oem_check(mcfg);
-
 	for (i = 0; i < pci_mmcfg_config_num; ++i) {
-		if ((pci_mmcfg_config[i].address > 0xFFFFFFFF) &&
-		    !acpi_mcfg_64bit_base_addr) {
-			printk(KERN_ERR PREFIX
-			       "MMCONFIG not in low 4GB of memory\n");
+		if (acpi_mcfg_check_entry(mcfg, &pci_mmcfg_config[i])) {
 			kfree(pci_mmcfg_config);
 			pci_mmcfg_config_num = 0;
 			return -ENODEV;
