@@ -2173,37 +2173,6 @@ static int falcon_mdio_read(struct net_device *net_dev,
 	return rc;
 }
 
-static int falcon_probe_phy(struct efx_nic *efx)
-{
-	switch (efx->phy_type) {
-	case PHY_TYPE_SFX7101:
-		efx->phy_op = &falcon_sfx7101_phy_ops;
-		break;
-	case PHY_TYPE_SFT9001A:
-	case PHY_TYPE_SFT9001B:
-		efx->phy_op = &falcon_sft9001_phy_ops;
-		break;
-	case PHY_TYPE_QT2022C2:
-	case PHY_TYPE_QT2025C:
-		efx->phy_op = &falcon_xfp_phy_ops;
-		break;
-	default:
-		EFX_ERR(efx, "Unknown PHY type %d\n",
-			efx->phy_type);
-		return -1;
-	}
-
-	if (efx->phy_op->macs & EFX_XMAC)
-		efx->loopback_modes |= ((1 << LOOPBACK_XGMII) |
-					(1 << LOOPBACK_XGXS) |
-					(1 << LOOPBACK_XAUI));
-	if (efx->phy_op->macs & EFX_GMAC)
-		efx->loopback_modes |= (1 << LOOPBACK_GMAC);
-	efx->loopback_modes |= efx->phy_op->loopbacks;
-
-	return 0;
-}
-
 int falcon_switch_mac(struct efx_nic *efx)
 {
 	struct efx_mac_operations *old_mac_op = efx->mac_op;
@@ -2260,10 +2229,31 @@ int falcon_probe_port(struct efx_nic *efx)
 {
 	int rc;
 
-	/* Hook in PHY operations table */
-	rc = falcon_probe_phy(efx);
-	if (rc)
-		return rc;
+	switch (efx->phy_type) {
+	case PHY_TYPE_SFX7101:
+		efx->phy_op = &falcon_sfx7101_phy_ops;
+		break;
+	case PHY_TYPE_SFT9001A:
+	case PHY_TYPE_SFT9001B:
+		efx->phy_op = &falcon_sft9001_phy_ops;
+		break;
+	case PHY_TYPE_QT2022C2:
+	case PHY_TYPE_QT2025C:
+		efx->phy_op = &falcon_xfp_phy_ops;
+		break;
+	default:
+		EFX_ERR(efx, "Unknown PHY type %d\n",
+			efx->phy_type);
+		return -ENODEV;
+	}
+
+	if (efx->phy_op->macs & EFX_XMAC)
+		efx->loopback_modes |= ((1 << LOOPBACK_XGMII) |
+					(1 << LOOPBACK_XGXS) |
+					(1 << LOOPBACK_XAUI));
+	if (efx->phy_op->macs & EFX_GMAC)
+		efx->loopback_modes |= (1 << LOOPBACK_GMAC);
+	efx->loopback_modes |= efx->phy_op->loopbacks;
 
 	/* Set up MDIO structure for PHY */
 	efx->mdio.mmds = efx->phy_op->mmds;
