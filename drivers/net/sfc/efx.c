@@ -2022,8 +2022,6 @@ static void efx_fini_struct(struct efx_nic *efx)
  */
 static void efx_pci_remove_main(struct efx_nic *efx)
 {
-	EFX_ASSERT_RESET_SERIALISED(efx);
-
 	/* Skip everything if we never obtained a valid membase */
 	if (!efx->membase)
 		return;
