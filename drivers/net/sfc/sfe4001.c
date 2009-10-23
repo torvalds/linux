@@ -241,7 +241,7 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 		efx->phy_mode = new_mode;
 		if (new_mode & PHY_MODE_SPECIAL)
 			efx_stats_disable(efx);
-		if (efx->board_info.type == EFX_BOARD_SFE4001)
+		if (efx->board_info.type == FALCON_BOARD_SFE4001)
 			err = sfe4001_poweron(efx);
 		else
 			err = sfn4111t_reset(efx);

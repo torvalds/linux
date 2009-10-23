@@ -15,9 +15,14 @@
 
 /* Macros for unpacking the board revision */
 /* The revision info is in host byte order. */
-#define BOARD_TYPE(_rev) (_rev >> 8)
-#define BOARD_MAJOR(_rev) ((_rev >> 4) & 0xf)
-#define BOARD_MINOR(_rev) (_rev & 0xf)
+#define FALCON_BOARD_TYPE(_rev) (_rev >> 8)
+#define FALCON_BOARD_MAJOR(_rev) ((_rev >> 4) & 0xf)
+#define FALCON_BOARD_MINOR(_rev) (_rev & 0xf)
+
+/* Board types */
+#define FALCON_BOARD_SFE4002 0x02
+#define FALCON_BOARD_SFN4111T 0x51
+#define FALCON_BOARD_SFN4112F 0x52
 
 /* Blink support. If the PHY has no auto-blink mode so we hang it off a timer */
 #define BLINK_INTERVAL (HZ/2)
@@ -286,31 +291,31 @@ static int sfn4112f_init(struct efx_nic *efx)
 
 /* This will get expanded as board-specific details get moved out of the
  * PHY drivers. */
-struct efx_board_data {
-	enum efx_board_type type;
+struct falcon_board_data {
+	u8 type;
 	const char *ref_model;
 	const char *gen_type;
 	int (*init) (struct efx_nic *nic);
 };
 
 
-static struct efx_board_data board_data[] = {
-	{ EFX_BOARD_SFE4001, "SFE4001", "10GBASE-T adapter", sfe4001_init },
-	{ EFX_BOARD_SFE4002, "SFE4002", "XFP adapter", sfe4002_init },
-	{ EFX_BOARD_SFN4111T, "SFN4111T", "100/1000/10GBASE-T adapter",
+static struct falcon_board_data board_data[] = {
+	{ FALCON_BOARD_SFE4001, "SFE4001", "10GBASE-T adapter", sfe4001_init },
+	{ FALCON_BOARD_SFE4002, "SFE4002", "XFP adapter", sfe4002_init },
+	{ FALCON_BOARD_SFN4111T, "SFN4111T", "100/1000/10GBASE-T adapter",
 	  sfn4111t_init },
-	{ EFX_BOARD_SFN4112F, "SFN4112F", "SFP+ adapter",
+	{ FALCON_BOARD_SFN4112F, "SFN4112F", "SFP+ adapter",
 	  sfn4112f_init },
 };
 
-void efx_set_board_info(struct efx_nic *efx, u16 revision_info)
+void falcon_probe_board(struct efx_nic *efx, u16 revision_info)
 {
-	struct efx_board_data *data = NULL;
+	struct falcon_board_data *data = NULL;
 	int i;
 
-	efx->board_info.type = BOARD_TYPE(revision_info);
-	efx->board_info.major = BOARD_MAJOR(revision_info);
-	efx->board_info.minor = BOARD_MINOR(revision_info);
+	efx->board_info.type = FALCON_BOARD_TYPE(revision_info);
+	efx->board_info.major = FALCON_BOARD_MAJOR(revision_info);
+	efx->board_info.minor = FALCON_BOARD_MINOR(revision_info);
 
 	for (i = 0; i < ARRAY_SIZE(board_data); i++)
 		if (board_data[i].type == efx->board_info.type)
