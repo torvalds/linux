@@ -91,11 +91,9 @@ extern void falcon_fini_interrupt(struct efx_nic *efx);
 
 /* Global Resources */
 extern int falcon_probe_nic(struct efx_nic *efx);
-extern int falcon_probe_resources(struct efx_nic *efx);
 extern int falcon_init_nic(struct efx_nic *efx);
 extern int falcon_flush_queues(struct efx_nic *efx);
 extern int falcon_reset_hw(struct efx_nic *efx, enum reset_type method);
-extern void falcon_remove_resources(struct efx_nic *efx);
 extern void falcon_remove_nic(struct efx_nic *efx);
 extern void falcon_update_nic_stats(struct efx_nic *efx);
 extern void falcon_set_multicast_hash(struct efx_nic *efx);
