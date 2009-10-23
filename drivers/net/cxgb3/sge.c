@@ -2135,6 +2135,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	if (!complete)
 		return;
 
+	skb_record_rx_queue(skb, qs - &adap->sge.qs[0]);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	cpl = qs->lro_va;
 
