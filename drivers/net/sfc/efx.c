@@ -2209,13 +2209,15 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	 * MAC stats succeeds. */
 	efx->state = STATE_RUNNING;
 
-	efx_mtd_probe(efx); /* allowed to fail */
-
 	rc = efx_register_netdev(efx);
 	if (rc)
 		goto fail5;
 
 	EFX_LOG(efx, "initialisation successful\n");
+
+	rtnl_lock();
+	efx_mtd_probe(efx); /* allowed to fail */
+	rtnl_unlock();
 	return 0;
 
  fail5:
