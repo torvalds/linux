@@ -3619,10 +3619,6 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	set_bit(STOP_SYNC_TIMER, &mdev->flags);
 	resync_timer_fn((unsigned long)mdev);
 
-	/* so we can be sure that all remote or resync reads
-	 * made it at least to net_ee */
-	wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
-
 	/* wait for all w_e_end_data_req, w_e_end_rsdata_req, w_send_barrier,
 	 * w_make_resync_request etc. which may still be on the worker queue
 	 * to be "canceled" */
