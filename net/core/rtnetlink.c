@@ -682,22 +682,33 @@ nla_put_failure:
 static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
-	int idx;
-	int s_idx = cb->args[0];
+	int h, s_h;
+	int idx = 0, s_idx;
 	struct net_device *dev;
+	struct hlist_head *head;
+	struct hlist_node *node;
 
-	idx = 0;
-	for_each_netdev(net, dev) {
-		if (idx < s_idx)
-			goto cont;
-		if (rtnl_fill_ifinfo(skb, dev, RTM_NEWLINK,
-				     NETLINK_CB(cb->skb).pid,
-				     cb->nlh->nlmsg_seq, 0, NLM_F_MULTI) <= 0)
-			break;
+	s_h = cb->args[0];
+	s_idx = cb->args[1];
+
+	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
+		idx = 0;
+		head = &net->dev_index_head[h];
+		hlist_for_each_entry(dev, node, head, index_hlist) {
+			if (idx < s_idx)
+				goto cont;
+			if (rtnl_fill_ifinfo(skb, dev, RTM_NEWLINK,
+					     NETLINK_CB(cb->skb).pid,
+					     cb->nlh->nlmsg_seq, 0,
+					     NLM_F_MULTI) <= 0)
+				goto out;
 cont:
-		idx++;
+			idx++;
+		}
 	}
-	cb->args[0] = idx;
+out:
+	cb->args[1] = idx;
+	cb->args[0] = h;
 
 	return skb->len;
 }
