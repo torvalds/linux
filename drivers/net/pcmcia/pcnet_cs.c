@@ -71,15 +71,6 @@
 
 static const char *if_names[] = { "auto", "10baseT", "10base2"};
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"pcnet_cs.c 1.153 2003/11/09 18:53:09 (David Hinds)";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -265,7 +256,7 @@ static int pcnet_probe(struct pcmcia_device *link)
     pcnet_dev_t *info;
     struct net_device *dev;
 
-    DEBUG(0, "pcnet_attach()\n");
+    dev_dbg(&link->dev, "pcnet_attach()\n");
 
     /* Create new ethernet device */
     dev = __alloc_ei_netdev(sizeof(pcnet_dev_t));
@@ -297,7 +288,7 @@ static void pcnet_detach(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	DEBUG(0, "pcnet_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "pcnet_detach\n");
 
 	if (link->dev_node)
 		unregister_netdev(dev);
@@ -327,10 +318,8 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
     i = pcmcia_request_window(&link, &req, &link->win);
-    if (i != 0) {
-	cs_error(link, RequestWindow, i);
+    if (i != 0)
 	return NULL;
-    }
 
     virt = ioremap(req.Base, req.Size);
     mem.Page = 0;
@@ -349,8 +338,6 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 
     iounmap(virt);
     j = pcmcia_release_window(link->win);
-    if (j != 0)
-	cs_error(link, ReleaseWindow, j);
     return (i < NR_INFO) ? hw_info+i : NULL;
 } /* get_hwinfo */
 
@@ -495,9 +482,6 @@ static hw_info_t *get_hwired(struct pcmcia_device *link)
 
 ======================================================================*/
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static int try_io_port(struct pcmcia_device *link)
 {
     int j, ret;
@@ -567,19 +551,19 @@ static int pcnet_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     pcnet_dev_t *info = PRIV(dev);
-    int last_ret, last_fn, start_pg, stop_pg, cm_offset;
+    int ret, start_pg, stop_pg, cm_offset;
     int has_shmem = 0;
     hw_info_t *local_hw_info;
 
-    DEBUG(0, "pcnet_config(0x%p)\n", link);
+    dev_dbg(&link->dev, "pcnet_config\n");
 
-    last_ret = pcmcia_loop_config(link, pcnet_confcheck, &has_shmem);
-    if (last_ret) {
-	cs_error(link, RequestIO, last_ret);
+    ret = pcmcia_loop_config(link, pcnet_confcheck, &has_shmem);
+    if (ret)
 	goto failed;
-    }
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+    ret = pcmcia_request_irq(link, &link->irq);
+    if (ret)
+	    goto failed;
 
     if (link->io.NumPorts2 == 8) {
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
@@ -589,7 +573,9 @@ static int pcnet_config(struct pcmcia_device *link)
 	(link->card_id == PRODID_IBM_HOME_AND_AWAY))
 	link->conf.ConfigIndex |= 0x10;
 
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret)
+	    goto failed;
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
     if (info->flags & HAS_MISC_REG) {
@@ -687,8 +673,6 @@ static int pcnet_config(struct pcmcia_device *link)
     printk(" hw_addr %pM\n", dev->dev_addr);
     return 0;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
 failed:
     pcnet_release(link);
     return -ENODEV;
@@ -706,7 +690,7 @@ static void pcnet_release(struct pcmcia_device *link)
 {
 	pcnet_dev_t *info = PRIV(link->priv);
 
-	DEBUG(0, "pcnet_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "pcnet_release\n");
 
 	if (info->flags & USE_SHMEM)
 		iounmap(info->base);
@@ -960,7 +944,7 @@ static void mii_phy_probe(struct net_device *dev)
 	phyid = tmp << 16;
 	phyid |= mdio_read(mii_addr, i, MII_PHYID_REG2);
 	phyid &= MII_PHYID_REV_MASK;
-	DEBUG(0, "%s: MII at %d is 0x%08x\n", dev->name, i, phyid);
+	pr_debug("%s: MII at %d is 0x%08x\n", dev->name, i, phyid);
 	if (phyid == AM79C9XX_HOME_PHY) {
 	    info->pna_phy = i;
 	} else if (phyid != AM79C9XX_ETH_PHY) {
@@ -976,7 +960,7 @@ static int pcnet_open(struct net_device *dev)
     struct pcmcia_device *link = info->p_dev;
     unsigned int nic_base = dev->base_addr;
 
-    DEBUG(2, "pcnet_open('%s')\n", dev->name);
+    dev_dbg(&link->dev, "pcnet_open('%s')\n", dev->name);
 
     if (!pcmcia_dev_present(link))
 	return -ENODEV;
@@ -1008,7 +992,7 @@ static int pcnet_close(struct net_device *dev)
     pcnet_dev_t *info = PRIV(dev);
     struct pcmcia_device *link = info->p_dev;
 
-    DEBUG(2, "pcnet_close('%s')\n", dev->name);
+    dev_dbg(&link->dev, "pcnet_close('%s')\n", dev->name);
 
     ei_close(dev);
     free_irq(dev->irq, dev);
@@ -1251,10 +1235,8 @@ static void dma_block_input(struct net_device *dev, int count,
     int xfer_count = count;
     char *buf = skb->data;
 
-#ifdef PCMCIA_DEBUG
     if ((ei_debug > 4) && (count != 4))
-	printk(KERN_DEBUG "%s: [bi=%d]\n", dev->name, count+4);
-#endif
+	pr_debug("%s: [bi=%d]\n", dev->name, count+4);
     if (ei_status.dmaing) {
 	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_input."
 	       "[DMAstat:%1x][irqlock:%1x]\n",
@@ -1495,7 +1477,7 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     pcnet_dev_t *info = PRIV(dev);
     win_req_t req;
     memreq_t mem;
-    int i, window_size, offset, last_ret, last_fn;
+    int i, window_size, offset, ret;
 
     window_size = (stop_pg - start_pg) << 8;
     if (window_size > 32 * 1024)
@@ -1509,13 +1491,17 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     req.Attributes |= WIN_USE_WAIT;
     req.Base = 0; req.Size = window_size;
     req.AccessSpeed = mem_speed;
-    CS_CHECK(RequestWindow, pcmcia_request_window(&link, &req, &link->win));
+    ret = pcmcia_request_window(&link, &req, &link->win);
+    if (ret)
+	    goto failed;
 
     mem.CardOffset = (start_pg << 8) + cm_offset;
     offset = mem.CardOffset % window_size;
     mem.CardOffset -= offset;
     mem.Page = 0;
-    CS_CHECK(MapMemPage, pcmcia_map_mem_page(link->win, &mem));
+    ret = pcmcia_map_mem_page(link->win, &mem);
+    if (ret)
+	    goto failed;
 
     /* Try scribbling on the buffer */
     info->base = ioremap(req.Base, window_size);
@@ -1549,8 +1535,6 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     info->flags |= USE_SHMEM;
     return 0;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
 failed:
     return 1;
 }
@@ -1788,7 +1772,6 @@ static int __init init_pcnet_cs(void)
 
 static void __exit exit_pcnet_cs(void)
 {
-    DEBUG(0, "pcnet_cs: unloading\n");
     pcmcia_unregister_driver(&pcnet_driver);
 }
 

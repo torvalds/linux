@@ -211,20 +211,6 @@ enum xirc_cmd { 	    /* Commands */
 
 static const char *if_names[] = { "Auto", "10BaseT", "10Base2", "AUI", "100BaseT" };
 
-/****************
- * All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
- * you do not define PCMCIA_DEBUG at all, all the debug code will be
- * left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
- * be present but disabled -- but it can then be enabled for specific
- * modules at load time with a 'pc_debug=#' option to insmod.
- */
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KDBG_XIRC args)
-#else
-#define DEBUG(n, args...)
-#endif
 
 #define KDBG_XIRC KERN_DEBUG   "xirc2ps_cs: "
 #define KERR_XIRC KERN_ERR     "xirc2ps_cs: "
@@ -378,7 +364,7 @@ static int do_stop(struct net_device *dev);
 #define PutWord(reg,value) outw((value), ioaddr+(reg))
 
 /*====== Functions used for debugging =================================*/
-#if defined(PCMCIA_DEBUG) && 0 /* reading regs may change system status */
+#if 0 /* reading regs may change system status */
 static void
 PrintRegisters(struct net_device *dev)
 {
@@ -410,7 +396,7 @@ PrintRegisters(struct net_device *dev)
 	}
     }
 }
-#endif /* PCMCIA_DEBUG */
+#endif /* 0 */
 
 /*============== MII Management functions ===============*/
 
@@ -554,7 +540,7 @@ xirc2ps_probe(struct pcmcia_device *link)
     struct net_device *dev;
     local_info_t *local;
 
-    DEBUG(0, "attach()\n");
+    dev_dbg(&link->dev, "attach()\n");
 
     /* Allocate the device structure */
     dev = alloc_etherdev(sizeof(local_info_t));
@@ -593,7 +579,7 @@ xirc2ps_detach(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
 
-    DEBUG(0, "detach(0x%p)\n", link);
+    dev_dbg(&link->dev, "detach\n");
 
     if (link->dev_node)
 	unregister_netdev(dev);
@@ -640,7 +626,7 @@ set_card_type(struct pcmcia_device *link)
     mediaid = buf[3];
     prodid = buf[4];
 
-    DEBUG(0, "cisrev=%02x mediaid=%02x prodid=%02x\n",
+    dev_dbg(&link->dev, "cisrev=%02x mediaid=%02x prodid=%02x\n",
 	  cisrev, mediaid, prodid);
 
     local->mohawk = 0;
@@ -784,7 +770,7 @@ xirc2ps_config(struct pcmcia_device * link)
 
     local->dingo_ccr = NULL;
 
-    DEBUG(0, "config(0x%p)\n", link);
+    dev_dbg(&link->dev, "config\n");
 
     /* Is this a valid	card */
     if (link->has_manf_id == 0) {
@@ -814,7 +800,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	       (unsigned)link->manf_id);
 	goto failure;
     }
-    DEBUG(0, "found %s card\n", local->manf_str);
+    dev_dbg(&link->dev, "found %s card\n", local->manf_str);
 
     if (!set_card_type(link)) {
 	printk(KNOT_XIRC "this card is not supported\n");
@@ -891,10 +877,8 @@ xirc2ps_config(struct pcmcia_device * link)
 		goto port_found;
 	}
 	link->io.BasePort1 = 0; /* let CS decide */
-	if ((err=pcmcia_request_io(link, &link->io))) {
-	    cs_error(link, RequestIO, err);
+	if ((err=pcmcia_request_io(link, &link->io)))
 	    goto config_error;
-	}
     }
   port_found:
     if (err)
@@ -904,19 +888,15 @@ xirc2ps_config(struct pcmcia_device * link)
      * Now allocate an interrupt line.	Note that this does not
      * actually assign a handler to the interrupt.
      */
-    if ((err=pcmcia_request_irq(link, &link->irq))) {
-	cs_error(link, RequestIRQ, err);
+    if ((err=pcmcia_request_irq(link, &link->irq)))
 	goto config_error;
-    }
 
     /****************
      * This actually configures the PCMCIA socket -- setting up
      * the I/O windows and the interrupt mapping.
      */
-    if ((err=pcmcia_request_configuration(link, &link->conf))) {
-	cs_error(link, RequestConfiguration, err);
+    if ((err=pcmcia_request_configuration(link, &link->conf)))
 	goto config_error;
-    }
 
     if (local->dingo) {
 	conf_reg_t reg;
@@ -931,17 +911,13 @@ xirc2ps_config(struct pcmcia_device * link)
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_IOBASE_0;
 	reg.Value = link->io.BasePort2 & 0xff;
-	if ((err = pcmcia_access_configuration_register(link, &reg))) {
-	    cs_error(link, AccessConfigurationRegister, err);
+	if ((err = pcmcia_access_configuration_register(link, &reg)))
 	    goto config_error;
-	}
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_IOBASE_1;
 	reg.Value = (link->io.BasePort2 >> 8) & 0xff;
-	if ((err = pcmcia_access_configuration_register(link, &reg))) {
-	    cs_error(link, AccessConfigurationRegister, err);
+	if ((err = pcmcia_access_configuration_register(link, &reg)))
 	    goto config_error;
-	}
 
 	/* There is no config entry for the Ethernet part which
 	 * is at 0x0800. So we allocate a window into the attribute
@@ -950,17 +926,14 @@ xirc2ps_config(struct pcmcia_device * link)
 	req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
 	req.Base = req.Size = 0;
 	req.AccessSpeed = 0;
-	if ((err = pcmcia_request_window(&link, &req, &link->win))) {
-	    cs_error(link, RequestWindow, err);
+	if ((err = pcmcia_request_window(&link, &req, &link->win)))
 	    goto config_error;
-	}
+
 	local->dingo_ccr = ioremap(req.Base,0x1000) + 0x0800;
 	mem.CardOffset = 0x0;
 	mem.Page = 0;
-	if ((err = pcmcia_map_mem_page(link->win, &mem))) {
-	    cs_error(link, MapMemPage, err);
+	if ((err = pcmcia_map_mem_page(link->win, &mem)))
 	    goto config_error;
-	}
 
 	/* Setup the CCRs; there are no infos in the CIS about the Ethernet
 	 * part.
@@ -1052,7 +1025,7 @@ xirc2ps_config(struct pcmcia_device * link)
 static void
 xirc2ps_release(struct pcmcia_device *link)
 {
-	DEBUG(0, "release(0x%p)\n", link);
+	dev_dbg(&link->dev, "release\n");
 
 	if (link->win) {
 		struct net_device *dev = link->priv;
@@ -1119,7 +1092,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	PutByte(XIRCREG_CR, 0);
     }
 
-    DEBUG(6, "%s: interrupt %d at %#x.\n", dev->name, irq, ioaddr);
+    pr_debug("%s: interrupt %d at %#x.\n", dev->name, irq, ioaddr);
 
     saved_page = GetByte(XIRCREG_PR);
     /* Read the ISR to see whats the cause for the interrupt.
@@ -1129,7 +1102,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
     bytes_rcvd = 0;
   loop_entry:
     if (int_status == 0xff) { /* card may be ejected */
-	DEBUG(3, "%s: interrupt %d for dead card\n", dev->name, irq);
+	pr_debug("%s: interrupt %d for dead card\n", dev->name, irq);
 	goto leave;
     }
     eth_status = GetByte(XIRCREG_ESR);
@@ -1142,7 +1115,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
     PutByte(XIRCREG40_TXST0, 0);
     PutByte(XIRCREG40_TXST1, 0);
 
-    DEBUG(3, "%s: ISR=%#2.2x ESR=%#2.2x RSR=%#2.2x TSR=%#4.4x\n",
+    pr_debug("%s: ISR=%#2.2x ESR=%#2.2x RSR=%#2.2x TSR=%#4.4x\n",
 	  dev->name, int_status, eth_status, rx_status, tx_status);
 
     /***** receive section ******/
@@ -1153,14 +1126,14 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	    /* too many bytes received during this int, drop the rest of the
 	     * packets */
 	    dev->stats.rx_dropped++;
-	    DEBUG(2, "%s: RX drop, too much done\n", dev->name);
+	    pr_debug("%s: RX drop, too much done\n", dev->name);
 	} else if (rsr & PktRxOk) {
 	    struct sk_buff *skb;
 
 	    pktlen = GetWord(XIRCREG0_RBC);
 	    bytes_rcvd += pktlen;
 
-	    DEBUG(5, "rsr=%#02x packet_length=%u\n", rsr, pktlen);
+	    pr_debug("rsr=%#02x packet_length=%u\n", rsr, pktlen);
 
 	    skb = dev_alloc_skb(pktlen+3); /* 1 extra so we can use insw */
 	    if (!skb) {
@@ -1228,19 +1201,19 @@ xirc2ps_interrupt(int irq, void *dev_id)
 		    dev->stats.multicast++;
 	    }
 	} else { /* bad packet */
-	    DEBUG(5, "rsr=%#02x\n", rsr);
+	    pr_debug("rsr=%#02x\n", rsr);
 	}
 	if (rsr & PktTooLong) {
 	    dev->stats.rx_frame_errors++;
-	    DEBUG(3, "%s: Packet too long\n", dev->name);
+	    pr_debug("%s: Packet too long\n", dev->name);
 	}
 	if (rsr & CRCErr) {
 	    dev->stats.rx_crc_errors++;
-	    DEBUG(3, "%s: CRC error\n", dev->name);
+	    pr_debug("%s: CRC error\n", dev->name);
 	}
 	if (rsr & AlignErr) {
 	    dev->stats.rx_fifo_errors++; /* okay ? */
-	    DEBUG(3, "%s: Alignment error\n", dev->name);
+	    pr_debug("%s: Alignment error\n", dev->name);
 	}
 
 	/* clear the received/dropped/error packet */
@@ -1252,7 +1225,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
     if (rx_status & 0x10) { /* Receive overrun */
 	dev->stats.rx_over_errors++;
 	PutByte(XIRCREG_CR, ClearRxOvrun);
-	DEBUG(3, "receive overrun cleared\n");
+	pr_debug("receive overrun cleared\n");
     }
 
     /***** transmit section ******/
@@ -1265,13 +1238,13 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	if (nn < n) /* rollover */
 	    dev->stats.tx_packets += 256 - n;
 	else if (n == nn) { /* happens sometimes - don't know why */
-	    DEBUG(0, "PTR not changed?\n");
+	    pr_debug("PTR not changed?\n");
 	} else
 	    dev->stats.tx_packets += lp->last_ptr_value - n;
 	netif_wake_queue(dev);
     }
     if (tx_status & 0x0002) {	/* Execessive collissions */
-	DEBUG(0, "tx restarted due to execssive collissions\n");
+	pr_debug("tx restarted due to execssive collissions\n");
 	PutByte(XIRCREG_CR, RestartTx);  /* restart transmitter process */
     }
     if (tx_status & 0x0040)
@@ -1290,14 +1263,14 @@ xirc2ps_interrupt(int irq, void *dev_id)
 		maxrx_bytes = 2000;
 	    else if (maxrx_bytes > 22000)
 		maxrx_bytes = 22000;
-	    DEBUG(1, "set maxrx=%u (rcvd=%u ticks=%lu)\n",
+	    pr_debug("set maxrx=%u (rcvd=%u ticks=%lu)\n",
 		  maxrx_bytes, bytes_rcvd, duration);
 	} else if (!duration && maxrx_bytes < 22000) {
 	    /* now much faster */
 	    maxrx_bytes += 2000;
 	    if (maxrx_bytes > 22000)
 		maxrx_bytes = 22000;
-	    DEBUG(1, "set maxrx=%u\n", maxrx_bytes);
+	    pr_debug("set maxrx=%u\n", maxrx_bytes);
 	}
     }
 
@@ -1347,7 +1320,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     unsigned freespace;
     unsigned pktlen = skb->len;
 
-    DEBUG(1, "do_start_xmit(skb=%p, dev=%p) len=%u\n",
+    pr_debug("do_start_xmit(skb=%p, dev=%p) len=%u\n",
 	  skb, dev, pktlen);
 
 
@@ -1373,7 +1346,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     freespace &= 0x7fff;
     /* TRS doesn't work - (indeed it is eliminated with sil-rev 1) */
     okay = pktlen +2 < freespace;
-    DEBUG(2 + (okay ? 2 : 0), "%s: avail. tx space=%u%s\n",
+    pr_debug("%s: avail. tx space=%u%s\n",
 	  dev->name, freespace, okay ? " (okay)":" (not enough)");
     if (!okay) { /* not enough space */
 	return NETDEV_TX_BUSY;  /* upper layer may decide to requeue this packet */
@@ -1475,7 +1448,7 @@ do_config(struct net_device *dev, struct ifmap *map)
 {
     local_info_t *local = netdev_priv(dev);
 
-    DEBUG(0, "do_config(%p)\n", dev);
+    pr_debug("do_config(%p)\n", dev);
     if (map->port != 255 && map->port != dev->if_port) {
 	if (map->port > 4)
 	    return -EINVAL;
@@ -1502,7 +1475,7 @@ do_open(struct net_device *dev)
     local_info_t *lp = netdev_priv(dev);
     struct pcmcia_device *link = lp->p_dev;
 
-    DEBUG(0, "do_open(%p)\n", dev);
+    dev_dbg(&link->dev, "do_open(%p)\n", dev);
 
     /* Check that the PCMCIA card is still here. */
     /* Physical device present signature. */
@@ -1536,7 +1509,7 @@ do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     unsigned int ioaddr = dev->base_addr;
     struct mii_ioctl_data *data = if_mii(rq);
 
-    DEBUG(1, "%s: ioctl(%-.6s, %#04x) %04x %04x %04x %04x\n",
+    pr_debug("%s: ioctl(%-.6s, %#04x) %04x %04x %04x %04x\n",
 	  dev->name, rq->ifr_ifrn.ifrn_name, cmd,
 	  data->phy_id, data->reg_num, data->val_in, data->val_out);
 
@@ -1585,7 +1558,7 @@ do_reset(struct net_device *dev, int full)
     unsigned int ioaddr = dev->base_addr;
     unsigned value;
 
-    DEBUG(0, "%s: do_reset(%p,%d)\n", dev? dev->name:"eth?", dev, full);
+    pr_debug("%s: do_reset(%p,%d)\n", dev? dev->name:"eth?", dev, full);
 
     hardreset(dev);
     PutByte(XIRCREG_CR, SoftReset); /* set */
@@ -1623,8 +1596,8 @@ do_reset(struct net_device *dev, int full)
     }
     msleep(40);			     /* wait 40 msec to let it complete */
 
-  #ifdef PCMCIA_DEBUG
-    if (pc_debug) {
+  #if 0
+    {
 	SelectPage(0);
 	value = GetByte(XIRCREG_ESR);	 /* read the ESR */
 	printk(KERN_DEBUG "%s: ESR is: %#02x\n", dev->name, value);
@@ -1641,7 +1614,7 @@ do_reset(struct net_device *dev, int full)
 	value |= DisableLinkPulse;
     PutByte(XIRCREG1_ECR, value);
   #endif
-    DEBUG(0, "%s: ECR is: %#02x\n", dev->name, value);
+    pr_debug("%s: ECR is: %#02x\n", dev->name, value);
 
     SelectPage(0x42);
     PutByte(XIRCREG42_SWC0, 0x20); /* disable source insertion */
@@ -1819,7 +1792,7 @@ do_powerdown(struct net_device *dev)
 
     unsigned int ioaddr = dev->base_addr;
 
-    DEBUG(0, "do_powerdown(%p)\n", dev);
+    pr_debug("do_powerdown(%p)\n", dev);
 
     SelectPage(4);
     PutByte(XIRCREG4_GPR1, 0);	     /* clear bit 0: power down */
@@ -1833,7 +1806,7 @@ do_stop(struct net_device *dev)
     local_info_t *lp = netdev_priv(dev);
     struct pcmcia_device *link = lp->p_dev;
 
-    DEBUG(0, "do_stop(%p)\n", dev);
+    dev_dbg(&link->dev, "do_stop(%p)\n", dev);
 
     if (!link)
 	return -ENODEV;
