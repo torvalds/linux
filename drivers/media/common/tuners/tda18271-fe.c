@@ -1185,10 +1185,10 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int tda18271_set_config(struct dvb_frontend *fe, void *priv_cfg)
+static int tda18271_setup_configuration(struct dvb_frontend *fe,
+					struct tda18271_config *cfg)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
-	struct tda18271_config *cfg = (struct tda18271_config *) priv_cfg;
 
 	priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
 	priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
@@ -1201,6 +1201,28 @@ static int tda18271_set_config(struct dvb_frontend *fe, void *priv_cfg)
 	/* override default std map with values in config struct */
 	if ((cfg) && (cfg->std_map))
 		tda18271_update_std_map(fe, cfg->std_map);
+
+	return 0;
+}
+
+static int tda18271_set_config(struct dvb_frontend *fe, void *priv_cfg)
+{
+	struct tda18271_config *cfg = (struct tda18271_config *) priv_cfg;
+	int rf_cal_on_startup;
+
+	tda18271_setup_configuration(fe, cfg);
+
+	/* tda18271_cal_on_startup == -1 when cal module option is unset */
+	if (tda18271_cal_on_startup == -1) {
+		/* honor configuration setting */
+		rf_cal_on_startup =
+			((cfg) && (cfg->rf_cal_on_startup)) ? 1 : 0;
+	} else {
+		/* module option overrides configuration setting */
+		rf_cal_on_startup = tda18271_cal_on_startup;
+	}
+	if (rf_cal_on_startup)
+		tda18271_init(fe);
 
 	return 0;
 }
@@ -1244,7 +1266,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 
 		fe->tuner_priv = priv;
 
-		tda18271_set_config(fe, cfg);
+		tda18271_setup_configuration(fe, cfg);
 
 		/* tda18271_cal_on_startup == -1 when cal
 		 * module option is unset */
