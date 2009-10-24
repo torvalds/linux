@@ -157,7 +157,6 @@ retry:
 			result);
 		goto retry;
 	}
-	result = len;
 	if (do_autopm)
 		usb_autopm_put_interface(i2400mu->usb_iface);
 	return result;
