@@ -1764,5 +1764,42 @@ modulation mode which can be one of the following:
 </entry>
  </row></tbody></tgroup></informaltable>
 </section>
+
+<section id="FE_SET_FRONTEND_TUNE_MODE">
+<title>FE_SET_FRONTEND_TUNE_MODE</title>
+<para>DESCRIPTION</para>
+<informaltable><tgroup cols="1"><tbody><row>
+<entry align="char">
+<para>Allow setting tuner mode flags to the frontend.</para>
+</entry>
+</row></tbody></tgroup></informaltable>
+
+<para>SYNOPSIS</para>
+<informaltable><tgroup cols="1"><tbody><row>
+<entry align="char">
+<para>int ioctl(int fd, int request =
+<link linkend="FE_SET_FRONTEND_TUNE_MODE">FE_SET_FRONTEND_TUNE_MODE</link>, unsigned int flags);</para>
+</entry>
+</row></tbody></tgroup></informaltable>
+
+<para>PARAMETERS</para>
+<informaltable><tgroup cols="2"><tbody><row>
+<entry align="char">
+	<para>unsigned int flags</para>
+</entry>
+<entry align="char">
+<para>
+FE_TUNE_MODE_ONESHOT When set, this flag will disable any zigzagging or other "normal" tuning behaviour. Additionally, there will be no automatic monitoring of the lock status, and hence no frontend events will be generated. If a frontend device is closed, this flag will be automatically turned off when the device is reopened read-write.
+</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+
+<para>ERRORS</para>
+<informaltable><tgroup cols="2"><tbody><row>
+<entry align="char"><para>EINVAL</para></entry>
+<entry align="char"><para>Invalid argument.</para></entry>
+ </row></tbody></tgroup></informaltable>
+
+</section>
 </section>
 &sub-isdbt;

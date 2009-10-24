@@ -30,6 +30,14 @@
 <revhistory>
 <!-- Put document revisions here, newest first. -->
 <revision>
+	<revnumber>2.0.2</revnumber>
+	<date>2009-10-25</date>
+	<authorinitials>mcc</authorinitials>
+	<revremark>
+		documents FE_SET_FRONTEND_TUNE_MODE ioctl
+	</revremark>
+</revision>
+<revision>
 <revnumber>2.0.1</revnumber>
 <date>2009-09-16</date>
 <authorinitials>mcc</authorinitials>
