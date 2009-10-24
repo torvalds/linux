@@ -160,12 +160,6 @@ static void orinoco_cs_detach(struct pcmcia_device *link)
  * device available to the system.
  */
 
-#define CS_CHECK(fn, ret) do { \
-	last_fn = (fn); \
-	if ((last_ret = (ret)) != 0) \
-		goto cs_failed; \
-} while (0)
-
 static int orinoco_cs_config_check(struct pcmcia_device *p_dev,
 				   cistpl_cftable_entry_t *cfg,
 				   cistpl_cftable_entry_t *dflt,
@@ -240,7 +234,7 @@ orinoco_cs_config(struct pcmcia_device *link)
 	struct orinoco_private *priv = link->priv;
 	struct orinoco_pccard *card = priv->card;
 	hermes_t *hw = &priv->hw;
-	int last_fn, last_ret;
+	int ret;
 	void __iomem *mem;
 
 	/*
@@ -257,13 +251,12 @@ orinoco_cs_config(struct pcmcia_device *link)
 	 * and most client drivers will only use the CIS to fill in
 	 * implementation-defined details.
 	 */
-	last_ret = pcmcia_loop_config(link, orinoco_cs_config_check, NULL);
-	if (last_ret) {
+	ret = pcmcia_loop_config(link, orinoco_cs_config_check, NULL);
+	if (ret) {
 		if (!ignore_cis_vcc)
 			printk(KERN_ERR PFX "GetNextTuple(): No matching "
 			       "CIS configuration.  Maybe you need the "
 			       "ignore_cis_vcc=1 parameter.\n");
-		cs_error(link, RequestIO, last_ret);
 		goto failed;
 	}
 
@@ -272,14 +265,16 @@ orinoco_cs_config(struct pcmcia_device *link)
 	 * a handler to the interrupt, unless the 'Handler' member of
 	 * the irq structure is initialized.
 	 */
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+	ret = pcmcia_request_irq(link, &link->irq);
+	if (ret)
+		goto failed;
 
 	/* We initialize the hermes structure before completing PCMCIA
 	 * configuration just in case the interrupt handler gets
 	 * called. */
 	mem = ioport_map(link->io.BasePort1, link->io.NumPorts1);
 	if (!mem)
-		goto cs_failed;
+		goto failed;
 
 	hermes_struct_init(hw, mem, HERMES_16BIT_REGSPACING);
 
@@ -288,8 +283,9 @@ orinoco_cs_config(struct pcmcia_device *link)
 	 * the I/O windows and the interrupt mapping, and putting the
 	 * card and host interface into "Memory and IO" mode.
 	 */
-	CS_CHECK(RequestConfiguration,
-		 pcmcia_request_configuration(link, &link->conf));
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 
 	/* Ok, we have the configuration, prepare to register the netdev */
 	card->node.major = card->node.minor = 0;
@@ -314,9 +310,6 @@ orinoco_cs_config(struct pcmcia_device *link)
 				       * used to indicate that the
 				       * net_device has been registered */
 	return 0;
-
- cs_failed:
-	cs_error(link, last_fn, last_ret);
 
  failed:
 	orinoco_cs_release(link);

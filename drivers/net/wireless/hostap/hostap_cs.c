@@ -510,10 +510,6 @@ static void prism2_detach(struct pcmcia_device *link)
 }
 
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
-
 /* run after a CARD_INSERTION event is received to configure the PCMCIA
  * socket and make the device available to the system */
 
@@ -605,7 +601,6 @@ static int prism2_config(struct pcmcia_device *link)
 	struct hostap_interface *iface;
 	local_info_t *local;
 	int ret = 1;
-	int last_fn, last_ret;
 	struct hostap_cs_priv *hw_priv;
 
 	PDEBUG(DEBUG_FLOW, "prism2_config()\n");
@@ -617,13 +612,12 @@ static int prism2_config(struct pcmcia_device *link)
 	}
 
 	/* Look for an appropriate configuration table entry in the CIS */
-	last_ret = pcmcia_loop_config(link, prism2_config_check, NULL);
-	if (last_ret) {
+	ret = pcmcia_loop_config(link, prism2_config_check, NULL);
+	if (ret) {
 		if (!ignore_cis_vcc)
 			printk(KERN_ERR "GetNextTuple(): No matching "
 			       "CIS configuration.  Maybe you need the "
 			       "ignore_cis_vcc=1 parameter.\n");
-		cs_error(link, RequestIO, last_ret);
 		goto failed;
 	}
 
@@ -652,8 +646,9 @@ static int prism2_config(struct pcmcia_device *link)
 		link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 		link->irq.Handler = prism2_interrupt;
 		link->irq.Instance = dev;
-		CS_CHECK(RequestIRQ,
-			 pcmcia_request_irq(link, &link->irq));
+		ret = pcmcia_request_irq(link, &link->irq);
+		if (ret)
+			goto failed;
 	}
 
 	/*
@@ -661,8 +656,9 @@ static int prism2_config(struct pcmcia_device *link)
 	 * the I/O windows and the interrupt mapping, and putting the
 	 * card and host interface into "Memory and IO" mode.
 	 */
-	CS_CHECK(RequestConfiguration,
-		 pcmcia_request_configuration(link, &link->conf));
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 
 	dev->irq = link->irq.AssignedIRQ;
 	dev->base_addr = link->io.BasePort1;
@@ -694,9 +690,6 @@ static int prism2_config(struct pcmcia_device *link)
 			strcpy(hw_priv->node.dev_name, local->ddev->name);
 	}
 	return ret;
-
- cs_failed:
-	cs_error(link, last_fn, last_ret);
 
  failed:
 	kfree(hw_priv);

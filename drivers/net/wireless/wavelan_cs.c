@@ -3656,10 +3656,7 @@ wv_pcmcia_reset(struct net_device *	dev)
 
   i = pcmcia_access_configuration_register(link, &reg);
   if (i != 0)
-    {
-      cs_error(link, AccessConfigurationRegister, i);
       return FALSE;
-    }
       
 #ifdef DEBUG_CONFIG_INFO
   printk(KERN_DEBUG "%s: wavelan_pcmcia_reset(): Config reg is 0x%x\n",
@@ -3670,19 +3667,13 @@ wv_pcmcia_reset(struct net_device *	dev)
   reg.Value = reg.Value | COR_SW_RESET;
   i = pcmcia_access_configuration_register(link, &reg);
   if (i != 0)
-    {
-      cs_error(link, AccessConfigurationRegister, i);
       return FALSE;
-    }
       
   reg.Action = CS_WRITE;
   reg.Value = COR_LEVEL_IRQ | COR_CONFIG;
   i = pcmcia_access_configuration_register(link, &reg);
   if (i != 0)
-    {
-      cs_error(link, AccessConfigurationRegister, i);
       return FALSE;
-    }
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "%s: <-wv_pcmcia_reset()\n", dev->name);
@@ -3857,10 +3848,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
     {
       i = pcmcia_request_io(link, &link->io);
       if (i != 0)
-	{
-	  cs_error(link, RequestIO, i);
 	  break;
-	}
 
       /*
        * Now allocate an interrupt line.  Note that this does not
@@ -3868,10 +3856,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
        */
       i = pcmcia_request_irq(link, &link->irq);
       if (i != 0)
-	{
-	  cs_error(link, RequestIRQ, i);
 	  break;
-	}
 
       /*
        * This actually configures the PCMCIA socket -- setting up
@@ -3880,10 +3865,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
       link->conf.ConfigIndex = 1;
       i = pcmcia_request_configuration(link, &link->conf);
       if (i != 0)
-	{
-	  cs_error(link, RequestConfiguration, i);
 	  break;
-	}
 
       /*
        * Allocate a small memory window.  Note that the struct pcmcia_device
@@ -3896,10 +3878,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
       req.AccessSpeed = mem_speed;
       i = pcmcia_request_window(&link, &req, &link->win);
       if (i != 0)
-	{
-	  cs_error(link, RequestWindow, i);
 	  break;
-	}
 
       lp->mem = ioremap(req.Base, req.Size);
       dev->mem_start = (u_long)lp->mem;
@@ -3908,10 +3887,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
       mem.CardOffset = 0; mem.Page = 0;
       i = pcmcia_map_mem_page(link->win, &mem);
       if (i != 0)
-	{
-	  cs_error(link, MapMemPage, i);
 	  break;
-	}
 
       /* Feed device with this info... */
       dev->irq = link->irq.AssignedIRQ;
