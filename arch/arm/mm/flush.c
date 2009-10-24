@@ -134,11 +134,9 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 	 * we only need to do one flush - which would be at the relevant
 	 * userspace colour, which is congruent with page->index.
 	 */
-	if (mapping && cache_is_vipt_aliasing()) {
+	if (mapping && cache_is_vipt_aliasing())
 		flush_pfn_alias(page_to_pfn(page),
 				page->index << PAGE_CACHE_SHIFT);
-		__flush_icache_all();
-	}
 }
 
 static void __flush_dcache_aliases(struct address_space *mapping, struct page *page)
