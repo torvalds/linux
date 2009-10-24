@@ -46,6 +46,7 @@ static unsigned int crb_addr_xform[NETXEN_MAX_CRB_XFORM];
 static void
 netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 		struct nx_host_rds_ring *rds_ring);
+static int netxen_p3_has_mn(struct netxen_adapter *adapter);
 
 static void crb_addr_transform_setup(void)
 {
@@ -589,6 +590,172 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter)
 	return 0;
 }
 
+static struct uni_table_desc *nx_get_table_desc(const u8 *unirom, int section)
+{
+	uint32_t i;
+	struct uni_table_desc *directory = (struct uni_table_desc *) &unirom[0];
+	__le32 entries = cpu_to_le32(directory->num_entries);
+
+	for (i = 0; i < entries; i++) {
+
+		__le32 offs = cpu_to_le32(directory->findex) +
+				(i * cpu_to_le32(directory->entry_size));
+		__le32 tab_type = cpu_to_le32(*((u32 *)&unirom[offs] + 8));
+
+		if (tab_type == section)
+			return (struct uni_table_desc *) &unirom[offs];
+	}
+
+	return NULL;
+}
+
+static int
+nx_set_product_offs(struct netxen_adapter *adapter)
+{
+	struct uni_table_desc *ptab_descr;
+	const u8 *unirom = adapter->fw->data;
+	uint32_t i;
+	__le32 entries;
+
+	ptab_descr = nx_get_table_desc(unirom, NX_UNI_DIR_SECT_PRODUCT_TBL);
+	if (ptab_descr == NULL)
+		return -1;
+
+	entries = cpu_to_le32(ptab_descr->num_entries);
+
+	for (i = 0; i < entries; i++) {
+
+		__le32 flags, file_chiprev, offs;
+		u8 chiprev = adapter->ahw.revision_id;
+		int mn_present = netxen_p3_has_mn(adapter);
+		uint32_t flagbit;
+
+		offs = cpu_to_le32(ptab_descr->findex) +
+				(i * cpu_to_le32(ptab_descr->entry_size));
+		flags = cpu_to_le32(*((int *)&unirom[offs] + NX_UNI_FLAGS_OFF));
+		file_chiprev = cpu_to_le32(*((int *)&unirom[offs] +
+							NX_UNI_CHIP_REV_OFF));
+
+		flagbit = mn_present ? 1 : 2;
+
+		if ((chiprev == file_chiprev) &&
+					((1ULL << flagbit) & flags)) {
+			adapter->file_prd_off = offs;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+
+static struct uni_data_desc *nx_get_data_desc(struct netxen_adapter *adapter,
+			u32 section, u32 idx_offset)
+{
+	const u8 *unirom = adapter->fw->data;
+	int idx = cpu_to_le32(*((int *)&unirom[adapter->file_prd_off] +
+								idx_offset));
+	struct uni_table_desc *tab_desc;
+	__le32 offs;
+
+	tab_desc = nx_get_table_desc(unirom, section);
+
+	if (tab_desc == NULL)
+		return NULL;
+
+	offs = cpu_to_le32(tab_desc->findex) +
+			(cpu_to_le32(tab_desc->entry_size) * idx);
+
+	return (struct uni_data_desc *)&unirom[offs];
+}
+
+static u8 *
+nx_get_bootld_offs(struct netxen_adapter *adapter)
+{
+	u32 offs = NETXEN_BOOTLD_START;
+
+	if (adapter->fw_type == NX_UNIFIED_ROMIMAGE)
+		offs = cpu_to_le32((nx_get_data_desc(adapter,
+					NX_UNI_DIR_SECT_BOOTLD,
+					NX_UNI_BOOTLD_IDX_OFF))->findex);
+
+	return (u8 *)&adapter->fw->data[offs];
+}
+
+static u8 *
+nx_get_fw_offs(struct netxen_adapter *adapter)
+{
+	u32 offs = NETXEN_IMAGE_START;
+
+	if (adapter->fw_type == NX_UNIFIED_ROMIMAGE)
+		offs = cpu_to_le32((nx_get_data_desc(adapter,
+					NX_UNI_DIR_SECT_FW,
+					NX_UNI_FIRMWARE_IDX_OFF))->findex);
+
+	return (u8 *)&adapter->fw->data[offs];
+}
+
+static __le32
+nx_get_fw_size(struct netxen_adapter *adapter)
+{
+	if (adapter->fw_type == NX_UNIFIED_ROMIMAGE)
+		return cpu_to_le32((nx_get_data_desc(adapter,
+					NX_UNI_DIR_SECT_FW,
+					NX_UNI_FIRMWARE_IDX_OFF))->size);
+	else
+		return cpu_to_le32(
+				*(u32 *)&adapter->fw->data[NX_FW_SIZE_OFFSET]);
+}
+
+static __le32
+nx_get_fw_version(struct netxen_adapter *adapter)
+{
+	struct uni_data_desc *fw_data_desc;
+	const struct firmware *fw = adapter->fw;
+	__le32 major, minor, sub;
+	const u8 *ver_str;
+	int i, ret = 0;
+
+	if (adapter->fw_type == NX_UNIFIED_ROMIMAGE) {
+
+		fw_data_desc = nx_get_data_desc(adapter,
+				NX_UNI_DIR_SECT_FW, NX_UNI_FIRMWARE_IDX_OFF);
+		ver_str = fw->data + cpu_to_le32(fw_data_desc->findex) +
+				cpu_to_le32(fw_data_desc->size) - 17;
+
+		for (i = 0; i < 12; i++) {
+			if (!strncmp(&ver_str[i], "REV=", 4)) {
+				ret = sscanf(&ver_str[i+4], "%u.%u.%u ",
+							&major, &minor, &sub);
+				break;
+			}
+		}
+
+		if (ret != 3)
+			return 0;
+
+		return major + (minor << 8) + (sub << 16);
+
+	} else
+		return cpu_to_le32(*(u32 *)&fw->data[NX_FW_VERSION_OFFSET]);
+}
+
+static __le32
+nx_get_bios_version(struct netxen_adapter *adapter)
+{
+	const struct firmware *fw = adapter->fw;
+	__le32 bios_ver, prd_off = adapter->file_prd_off;
+
+	if (adapter->fw_type == NX_UNIFIED_ROMIMAGE) {
+		bios_ver = cpu_to_le32(*((u32 *) (&fw->data[prd_off])
+						+ NX_UNI_BIOS_VERSION_OFF));
+		return (bios_ver << 24) + ((bios_ver >> 8) & 0xff00) +
+							(bios_ver >> 24);
+	} else
+		return cpu_to_le32(*(u32 *)&fw->data[NX_BIOS_VERSION_OFFSET]);
+
+}
+
 int
 netxen_need_fw_reset(struct netxen_adapter *adapter)
 {
@@ -628,9 +795,8 @@ netxen_need_fw_reset(struct netxen_adapter *adapter)
 	/* check if we have got newer or different file firmware */
 	if (adapter->fw) {
 
-		const struct firmware *fw = adapter->fw;
+		val = nx_get_fw_version(adapter);
 
-		val = cpu_to_le32(*(u32 *)&fw->data[NX_FW_VERSION_OFFSET]);
 		version = NETXEN_DECODE_VERSION(val);
 
 		major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
@@ -640,7 +806,8 @@ netxen_need_fw_reset(struct netxen_adapter *adapter)
 		if (version > NETXEN_VERSION_CODE(major, minor, build))
 			return 1;
 
-		if (version == NETXEN_VERSION_CODE(major, minor, build)) {
+		if (version == NETXEN_VERSION_CODE(major, minor, build) &&
+			adapter->fw_type != NX_UNIFIED_ROMIMAGE) {
 
 			val = NXRD32(adapter, NETXEN_MIU_MN_CONTROL);
 			fw_type = (val & 0x4) ?
@@ -655,7 +822,7 @@ netxen_need_fw_reset(struct netxen_adapter *adapter)
 }
 
 static char *fw_name[] = {
-	"nxromimg.bin", "nx3fwct.bin", "nx3fwmn.bin", "flash",
+	"nxromimg.bin", "nx3fwct.bin", "nx3fwmn.bin", "phanfw.bin", "flash",
 };
 
 int
@@ -677,22 +844,21 @@ netxen_load_firmware(struct netxen_adapter *adapter)
 
 		size = (NETXEN_IMAGE_START - NETXEN_BOOTLD_START) / 8;
 
-		ptr64 = (u64 *)&fw->data[NETXEN_BOOTLD_START];
+		ptr64 = (u64 *)nx_get_bootld_offs(adapter);
 		flashaddr = NETXEN_BOOTLD_START;
 
 		for (i = 0; i < size; i++) {
 			data = cpu_to_le64(ptr64[i]);
-			if (adapter->pci_mem_write(adapter,
-						flashaddr, data))
+
+			if (adapter->pci_mem_write(adapter, flashaddr, data))
 				return -EIO;
 
 			flashaddr += 8;
 		}
 
-		size = *(u32 *)&fw->data[NX_FW_SIZE_OFFSET];
-		size = (__force u32)cpu_to_le32(size) / 8;
+		size = (__force u32)nx_get_fw_size(adapter) / 8;
 
-		ptr64 = (u64 *)&fw->data[NETXEN_IMAGE_START];
+		ptr64 = (u64 *)nx_get_fw_offs(adapter);
 		flashaddr = NETXEN_IMAGE_START;
 
 		for (i = 0; i < size; i++) {
@@ -745,21 +911,31 @@ netxen_load_firmware(struct netxen_adapter *adapter)
 }
 
 static int
-netxen_validate_firmware(struct netxen_adapter *adapter, const char *fwname)
+netxen_validate_firmware(struct netxen_adapter *adapter)
 {
 	__le32 val;
-	u32 ver, min_ver, bios;
+	u32 ver, min_ver, bios, min_size;
 	struct pci_dev *pdev = adapter->pdev;
 	const struct firmware *fw = adapter->fw;
+	u8 fw_type = adapter->fw_type;
 
-	if (fw->size < NX_FW_MIN_SIZE)
+	if (fw_type == NX_UNIFIED_ROMIMAGE) {
+		if (nx_set_product_offs(adapter))
+			return -EINVAL;
+
+		min_size = NX_UNI_FW_MIN_SIZE;
+	} else {
+		val = cpu_to_le32(*(u32 *)&fw->data[NX_FW_MAGIC_OFFSET]);
+		if ((__force u32)val != NETXEN_BDINFO_MAGIC)
+			return -EINVAL;
+
+		min_size = NX_FW_MIN_SIZE;
+	}
+
+	if (fw->size < min_size)
 		return -EINVAL;
 
-	val = cpu_to_le32(*(u32 *)&fw->data[NX_FW_MAGIC_OFFSET]);
-	if ((__force u32)val != NETXEN_BDINFO_MAGIC)
-		return -EINVAL;
-
-	val = cpu_to_le32(*(u32 *)&fw->data[NX_FW_VERSION_OFFSET]);
+	val = nx_get_fw_version(adapter);
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		min_ver = NETXEN_VERSION_CODE(4, 0, 216);
@@ -771,15 +947,15 @@ netxen_validate_firmware(struct netxen_adapter *adapter, const char *fwname)
 	if ((_major(ver) > _NETXEN_NIC_LINUX_MAJOR) || (ver < min_ver)) {
 		dev_err(&pdev->dev,
 				"%s: firmware version %d.%d.%d unsupported\n",
-				fwname, _major(ver), _minor(ver), _build(ver));
+		fw_name[fw_type], _major(ver), _minor(ver), _build(ver));
 		return -EINVAL;
 	}
 
-	val = cpu_to_le32(*(u32 *)&fw->data[NX_BIOS_VERSION_OFFSET]);
+	val = nx_get_bios_version(adapter);
 	netxen_rom_fast_read(adapter, NX_BIOS_VERSION_OFFSET, (int *)&bios);
 	if ((__force u32)val != bios) {
 		dev_err(&pdev->dev, "%s: firmware bios is incompatible\n",
-				fwname);
+				fw_name[fw_type]);
 		return -EINVAL;
 	}
 
@@ -790,12 +966,47 @@ netxen_validate_firmware(struct netxen_adapter *adapter, const char *fwname)
 	val = NETXEN_DECODE_VERSION(val);
 	if (val > ver) {
 		dev_info(&pdev->dev, "%s: firmware is older than flash\n",
-				fwname);
+				fw_name[fw_type]);
 		return -EINVAL;
 	}
 
 	NXWR32(adapter, NETXEN_CAM_RAM(0x1fc), NETXEN_BDINFO_MAGIC);
 	return 0;
+}
+
+static void
+nx_get_next_fwtype(struct netxen_adapter *adapter)
+{
+	u8 fw_type;
+
+	switch (adapter->fw_type) {
+	case NX_UNKNOWN_ROMIMAGE:
+		fw_type = NX_UNIFIED_ROMIMAGE;
+		break;
+
+	case NX_UNIFIED_ROMIMAGE:
+		if (NX_IS_REVISION_P3P(adapter->ahw.revision_id))
+			fw_type = NX_FLASH_ROMIMAGE;
+		else if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+			fw_type = NX_P2_MN_ROMIMAGE;
+		else if (netxen_p3_has_mn(adapter))
+			fw_type = NX_P3_MN_ROMIMAGE;
+		else
+			fw_type = NX_P3_CT_ROMIMAGE;
+		break;
+
+	case NX_P3_MN_ROMIMAGE:
+		fw_type = NX_P3_CT_ROMIMAGE;
+		break;
+
+	case NX_P2_MN_ROMIMAGE:
+	case NX_P3_CT_ROMIMAGE:
+	default:
+		fw_type = NX_FLASH_ROMIMAGE;
+		break;
+	}
+
+	adapter->fw_type = fw_type;
 }
 
 static int
@@ -819,55 +1030,29 @@ netxen_p3_has_mn(struct netxen_adapter *adapter)
 
 void netxen_request_firmware(struct netxen_adapter *adapter)
 {
-	u8 fw_type;
 	struct pci_dev *pdev = adapter->pdev;
 	int rc = 0;
 
-	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-		fw_type = NX_P2_MN_ROMIMAGE;
-		goto request_fw;
-	}
+	adapter->fw_type = NX_UNKNOWN_ROMIMAGE;
 
-	if (NX_IS_REVISION_P3P(adapter->ahw.revision_id)) {
-		/* No file firmware for the time being */
-		fw_type = NX_FLASH_ROMIMAGE;
-		goto done;
-	}
+next:
+	nx_get_next_fwtype(adapter);
 
-	fw_type = netxen_p3_has_mn(adapter) ?
-		NX_P3_MN_ROMIMAGE : NX_P3_CT_ROMIMAGE;
-
-request_fw:
-	rc = request_firmware(&adapter->fw, fw_name[fw_type], &pdev->dev);
-	if (rc != 0) {
-		if (fw_type == NX_P3_MN_ROMIMAGE) {
-			msleep(1);
-			fw_type = NX_P3_CT_ROMIMAGE;
-			goto request_fw;
-		}
-
-		fw_type = NX_FLASH_ROMIMAGE;
+	if (adapter->fw_type == NX_FLASH_ROMIMAGE) {
 		adapter->fw = NULL;
-		goto done;
-	}
+	} else {
+		rc = request_firmware(&adapter->fw,
+				fw_name[adapter->fw_type], &pdev->dev);
+		if (rc != 0)
+			goto next;
 
-	rc = netxen_validate_firmware(adapter, fw_name[fw_type]);
-	if (rc != 0) {
-		release_firmware(adapter->fw);
-
-		if (fw_type == NX_P3_MN_ROMIMAGE) {
+		rc = netxen_validate_firmware(adapter);
+		if (rc != 0) {
+			release_firmware(adapter->fw);
 			msleep(1);
-			fw_type = NX_P3_CT_ROMIMAGE;
-			goto request_fw;
+			goto next;
 		}
-
-		fw_type = NX_FLASH_ROMIMAGE;
-		adapter->fw = NULL;
-		goto done;
 	}
-
-done:
-	adapter->fw_type = fw_type;
 }
 
 

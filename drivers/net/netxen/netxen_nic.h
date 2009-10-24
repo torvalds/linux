@@ -421,6 +421,34 @@ struct status_desc {
 	__le64 status_desc_data[2];
 } __attribute__ ((aligned(16)));
 
+/* UNIFIED ROMIMAGE *************************/
+#define NX_UNI_FW_MIN_SIZE		0x3eb000
+#define NX_UNI_DIR_SECT_PRODUCT_TBL	0x0
+#define NX_UNI_DIR_SECT_BOOTLD		0x6
+#define NX_UNI_DIR_SECT_FW		0x7
+
+/*Offsets */
+#define NX_UNI_CHIP_REV_OFF		10
+#define NX_UNI_FLAGS_OFF		11
+#define NX_UNI_BIOS_VERSION_OFF 	12
+#define NX_UNI_BOOTLD_IDX_OFF		27
+#define NX_UNI_FIRMWARE_IDX_OFF 	29
+
+struct uni_table_desc{
+	uint32_t	findex;
+	uint32_t	num_entries;
+	uint32_t	entry_size;
+	uint32_t	reserved[5];
+};
+
+struct uni_data_desc{
+	uint32_t	findex;
+	uint32_t	size;
+	uint32_t	reserved[5];
+};
+
+/* UNIFIED ROMIMAGE *************************/
+
 /* The version of the main data structure */
 #define	NETXEN_BDINFO_VERSION 1
 
@@ -487,7 +515,9 @@ struct status_desc {
 #define NX_P2_MN_ROMIMAGE	0
 #define NX_P3_CT_ROMIMAGE	1
 #define NX_P3_MN_ROMIMAGE	2
-#define NX_FLASH_ROMIMAGE	3
+#define NX_UNIFIED_ROMIMAGE	3
+#define NX_FLASH_ROMIMAGE	4
+#define NX_UNKNOWN_ROMIMAGE	0xff
 
 extern char netxen_nic_driver_name[];
 
@@ -1210,7 +1240,7 @@ struct netxen_adapter {
 	nx_nic_intr_coalesce_t coal;
 
 	unsigned long state;
-	u32 resv5;
+	__le32 file_prd_off;	/*File fw product offset*/
 	u32 fw_version;
 	const struct firmware *fw;
 };
