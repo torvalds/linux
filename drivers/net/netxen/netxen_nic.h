@@ -74,8 +74,6 @@
 #define NETXEN_FLASH_TOTAL_SIZE  (NETXEN_NUM_FLASH_SECTORS \
 					* NETXEN_FLASH_SECTOR_SIZE)
 
-#define PHAN_VENDOR_ID 0x4040
-
 #define RCV_DESC_RINGSIZE(rds_ring)	\
 	(sizeof(struct rcv_desc) * (rds_ring)->num_desc)
 #define RCV_BUFF_RINGSIZE(rds_ring)	\

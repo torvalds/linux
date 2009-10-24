@@ -688,8 +688,8 @@ static int netxen_nic_reg_test(struct net_device *dev)
 	u32 data_read, data_written;
 
 	data_read = NXRD32(adapter, NETXEN_PCIX_PH_REG(0));
-	if ((data_read & 0xffff) != PHAN_VENDOR_ID)
-	return 1;
+	if ((data_read & 0xffff) != adapter->pdev->vendor)
+		return 1;
 
 	data_written = (u32)0xa5a5a5a5;
 

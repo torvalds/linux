@@ -92,6 +92,11 @@ static void netxen_config_indev_addr(struct net_device *dev, unsigned long);
 #define ENTRY(device) \
 	{PCI_DEVICE(PCI_VENDOR_ID_NETXEN, (device)), \
 	.class = PCI_CLASS_NETWORK_ETHERNET << 8, .class_mask = ~0}
+#define ENTRY2(device) \
+	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, (device)), \
+	.class = PCI_CLASS_NETWORK_ETHERNET << 8, .class_mask = ~0}
+
+#define PCI_DEVICE_ID_QLOGIC_QLE824X	0x8020
 
 static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 	ENTRY(PCI_DEVICE_ID_NX2031_10GXSR),
@@ -102,6 +107,7 @@ static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 	ENTRY(PCI_DEVICE_ID_NX2031_XG_MGMT),
 	ENTRY(PCI_DEVICE_ID_NX2031_XG_MGMT2),
 	ENTRY(PCI_DEVICE_ID_NX3031),
+	ENTRY2(PCI_DEVICE_ID_QLOGIC_QLE824X),
 	{0,}
 };
 
