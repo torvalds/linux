@@ -159,6 +159,10 @@ function_enabled:
 /*
  * Setup minimal device communication infrastructure needed to at
  * least be able to update the firmware.
+ *
+ * Note the ugly trick: if we are in the probe path
+ * (i2400ms->debugfs_dentry == NULL), we only retry function
+ * enablement one, to avoid racing with the iwmc3200 top controller.
  */
 static
 int i2400ms_bus_setup(struct i2400m *i2400m)
@@ -168,6 +172,7 @@ int i2400ms_bus_setup(struct i2400m *i2400m)
 		container_of(i2400m, struct i2400ms, i2400m);
 	struct device *dev = i2400m_dev(i2400m);
 	struct sdio_func *func = i2400ms->func;
+	int retries;
 
 	sdio_claim_host(func);
 	result = sdio_set_block_size(func, I2400MS_BLK_SIZE);
@@ -177,7 +182,11 @@ int i2400ms_bus_setup(struct i2400m *i2400m)
 		goto error_set_blk_size;
 	}
 
-	result = i2400ms_enable_function(i2400ms, 1);
+	if (i2400ms->iwmc3200 && i2400ms->debugfs_dentry == NULL)
+		retries = 0;
+	else
+		retries = 1;
+	result = i2400ms_enable_function(i2400ms, retries);
 	if (result < 0) {
 		dev_err(dev, "Cannot enable SDIO function: %d\n", result);
 		goto error_func_enable;
@@ -415,6 +424,7 @@ int i2400ms_debugfs_add(struct i2400ms *i2400ms)
 
 error:
 	debugfs_remove_recursive(i2400ms->debugfs_dentry);
+	i2400ms->debugfs_dentry = NULL;
 	return result;
 }
 
@@ -531,6 +541,7 @@ void i2400ms_remove(struct sdio_func *func)
 
 	d_fnstart(3, dev, "SDIO func %p\n", func);
 	debugfs_remove_recursive(i2400ms->debugfs_dentry);
+	i2400ms->debugfs_dentry = NULL;
 	i2400m_release(i2400m);
 	sdio_set_drvdata(func, NULL);
 	free_netdev(net_dev);
