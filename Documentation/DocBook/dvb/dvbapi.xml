@@ -34,7 +34,7 @@
 	<date>2009-10-25</date>
 	<authorinitials>mcc</authorinitials>
 	<revremark>
-		documents FE_SET_FRONTEND_TUNE_MODE ioctl
+		documents FE_SET_FRONTEND_TUNE_MODE and FE_DISHETWORK_SEND_LEGACY_CMD ioctls.
 	</revremark>
 </revision>
 <revision>

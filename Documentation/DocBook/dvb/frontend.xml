@@ -1799,7 +1799,48 @@ FE_TUNE_MODE_ONESHOT When set, this flag will disable any zigzagging or other "n
 <entry align="char"><para>EINVAL</para></entry>
 <entry align="char"><para>Invalid argument.</para></entry>
  </row></tbody></tgroup></informaltable>
+</section>
+
+<section id="FE_DISHNETWORK_SEND_LEGACY_CMD">
+	<title>FE_DISHNETWORK_SEND_LEGACY_CMD</title>
+<para>DESCRIPTION</para>
+<informaltable><tgroup cols="1"><tbody><row>
+<entry align="char">
+<para>WARNING: This is a very obscure legacy command, used only at stv0299 driver. Should not be used on newer drivers.</para>
+<para>It provides a non-standard method for selecting Diseqc voltage on the frontend, for Dish Network legacy switches.</para>
+<para>As support for this ioctl were added in 2004, this means that such dishes were already legacy in 2004.</para>
+</entry>
+</row></tbody></tgroup></informaltable>
+
+<para>SYNOPSIS</para>
+<informaltable><tgroup cols="1"><tbody><row>
+<entry align="char">
+<para>int ioctl(int fd, int request =
+	<link linkend="FE_DISHNETWORK_SEND_LEGACY_CMD">FE_DISHNETWORK_SEND_LEGACY_CMD</link>, unsigned long cmd);</para>
+</entry>
+</row></tbody></tgroup></informaltable>
+
+<para>PARAMETERS</para>
+<informaltable><tgroup cols="2"><tbody><row>
+<entry align="char">
+	<para>unsigned long cmd</para>
+</entry>
+<entry align="char">
+<para>
+sends the specified raw cmd to the dish via DISEqC.
+</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+
+<para>ERRORS</para>
+<informaltable><tgroup cols="1"><tbody><row>
+<entry align="char">
+	<para>There are no errors in use for this call</para>
+</entry>
+</row></tbody></tgroup></informaltable>
 
 </section>
+
+
 </section>
 &sub-isdbt;
