@@ -420,8 +420,6 @@ extern void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
  */
 extern void flush_dcache_page(struct page *);
 
-extern void __flush_dcache_page(struct address_space *mapping, struct page *page);
-
 static inline void __flush_icache_all(void)
 {
 #ifdef CONFIG_ARM_ERRATA_411920

@@ -23,6 +23,8 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
+#include "mm.h"
+
 static unsigned long shared_pte_mask = L_PTE_MT_BUFFERABLE;
 
 /*
