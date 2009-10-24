@@ -198,7 +198,6 @@ static int avmcs_config(struct pcmcia_device *link)
 	 */
 	i = pcmcia_request_irq(link, &link->irq);
 	if (i != 0) {
-	    cs_error(link, RequestIRQ, i);
 	    /* undo */
 	    pcmcia_disable_device(link);
 	    break;
@@ -209,7 +208,6 @@ static int avmcs_config(struct pcmcia_device *link)
 	  */
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != 0) {
-	    cs_error(link, RequestConfiguration, i);
 	    pcmcia_disable_device(link);
 	    break;
 	}
