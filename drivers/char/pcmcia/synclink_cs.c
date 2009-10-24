@@ -572,9 +572,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
 /* Card has been inserted.
  */
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static int mgslpc_ioprobe(struct pcmcia_device *p_dev,
 			  cistpl_cftable_entry_t *cfg,
 			  cistpl_cftable_entry_t *dflt,
@@ -598,15 +595,14 @@ static int mgslpc_ioprobe(struct pcmcia_device *p_dev,
 static int mgslpc_config(struct pcmcia_device *link)
 {
     MGSLPC_INFO *info = link->priv;
-    int last_fn = RequestIO;
-    int last_ret;
+    int ret;
 
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_config(0x%p)\n", link);
 
-    last_ret = pcmcia_loop_config(link, mgslpc_ioprobe, NULL);
-    if (last_ret != 0)
-	    goto cs_failed;
+    ret = pcmcia_loop_config(link, mgslpc_ioprobe, NULL);
+    if (ret != 0)
+	    goto failed;
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
@@ -616,9 +612,13 @@ static int mgslpc_config(struct pcmcia_device *link)
     link->irq.Attributes |= IRQ_HANDLE_PRESENT;
     link->irq.Handler     = mgslpc_isr;
     link->irq.Instance    = info;
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+    ret = pcmcia_request_irq(link, &link->irq);
+    if (ret)
+	    goto failed;
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret)
+	    goto failed;
 
     info->io_base = link->io.BasePort1;
     info->irq_level = link->irq.AssignedIRQ;
@@ -638,8 +638,7 @@ static int mgslpc_config(struct pcmcia_device *link)
     printk("\n");
     return 0;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
+failed:
     mgslpc_release((u_long)link);
     return -ENODEV;
 }

@@ -65,10 +65,7 @@ static void signalled_reboot_work(struct work_struct *work_reboot)
 	struct ipw_dev *ipw = container_of(work_reboot, struct ipw_dev,
 			work_reboot);
 	struct pcmcia_device *link = ipw->link;
-	int ret = pcmcia_reset_card(link->socket);
-
-	if (ret != 0)
-		cs_error(link, ResetCard, ret);
+	pcmcia_reset_card(link->socket);
 }
 
 static void signalled_reboot_callback(void *callback_data)
@@ -122,10 +119,8 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 	ret = pcmcia_request_window(&p_dev, &ipw->request_common_memory,
 				&ipw->handle_common_memory);
 
-	if (ret != 0) {
-		cs_error(p_dev, RequestWindow, ret);
+	if (ret != 0)
 		goto exit1;
-	}
 
 	memreq_common_memory.CardOffset = cfg->mem.win[0].card_addr;
 	memreq_common_memory.Page = 0;
@@ -133,10 +128,8 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 	ret = pcmcia_map_mem_page(ipw->handle_common_memory,
 				&memreq_common_memory);
 
-	if (ret != 0) {
-		cs_error(p_dev, MapMemPage, ret);
+	if (ret != 0)
 		goto exit2;
-	}
 
 	ipw->is_v2_card = cfg->mem.win[0].len == 0x100;
 
@@ -155,10 +148,8 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 	ret = pcmcia_request_window(&p_dev, &ipw->request_attr_memory,
 				&ipw->handle_attr_memory);
 
-	if (ret != 0) {
-		cs_error(p_dev, RequestWindow, ret);
+	if (ret != 0)
 		goto exit2;
-	}
 
 	memreq_attr_memory.CardOffset = 0;
 	memreq_attr_memory.Page = 0;
@@ -166,10 +157,8 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 	ret = pcmcia_map_mem_page(ipw->handle_attr_memory,
 				&memreq_attr_memory);
 
-	if (ret != 0) {
-		cs_error(p_dev, MapMemPage, ret);
+	if (ret != 0)
 		goto exit3;
-	}
 
 	ipw->attr_memory = ioremap(ipw->request_attr_memory.Base,
 				ipw->request_attr_memory.Size);
@@ -202,10 +191,8 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	ipw->is_v2_card = 0;
 
 	ret = pcmcia_loop_config(link, ipwireless_probe, ipw);
-	if (ret != 0) {
-		cs_error(link, RequestIO, ret);
+	if (ret != 0)
 		return ret;
-	}
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
@@ -223,10 +210,8 @@ static int config_ipwireless(struct ipw_dev *ipw)
 
 	ret = pcmcia_request_irq(link, &link->irq);
 
-	if (ret != 0) {
-		cs_error(link, RequestIRQ, ret);
+	if (ret != 0)
 		goto exit;
-	}
 
 	printk(KERN_INFO IPWIRELESS_PCCARD_NAME ": Card type %s\n",
 			ipw->is_v2_card ? "V2/V3" : "V1");
@@ -263,10 +248,8 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	 */
 	ret = pcmcia_request_configuration(link, &link->conf);
 
-	if (ret != 0) {
-		cs_error(link, RequestConfiguration, ret);
+	if (ret != 0)
 		goto exit;
-	}
 
 	link->dev_node = &ipw->nodes[0];
 
@@ -347,7 +330,6 @@ static int ipwireless_attach(struct pcmcia_device *link)
 	ret = config_ipwireless(ipw);
 
 	if (ret != 0) {
-		cs_error(link, RegisterClient, ret);
 		ipwireless_detach(link);
 		return ret;
 	}

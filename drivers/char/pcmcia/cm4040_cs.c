@@ -17,8 +17,6 @@
  * All rights reserved, Dual BSD/GPL Licensed.
  */
 
-/* #define PCMCIA_DEBUG 6 */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -41,18 +39,16 @@
 #include "cm4040_cs.h"
 
 
-#ifdef PCMCIA_DEBUG
 #define reader_to_dev(x)	(&handle_to_dev(x->p_dev))
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0600);
-#define DEBUGP(n, rdr, x, args...) do { 				\
-	if (pc_debug >= (n)) 						\
-		dev_printk(KERN_DEBUG, reader_to_dev(rdr), "%s:" x, 	\
-			   __func__ , ##args); 			\
+
+/* n (debug level) is ignored */
+/* additional debug output may be enabled by re-compiling with
+ * CM4040_DEBUG set */
+/* #define CM4040_DEBUG */
+#define DEBUGP(n, rdr, x, args...) do { 		\
+		dev_dbg(reader_to_dev(rdr), "%s:" x, 	\
+			   __func__ , ## args);		\
 	} while (0)
-#else
-#define DEBUGP(n, rdr, x, args...)
-#endif
 
 static char *version =
 "OMNIKEY CardMan 4040 v1.1.0gm5 - All bugs added by Harald Welte";
@@ -90,14 +86,13 @@ struct reader_dev {
 
 static struct pcmcia_device *dev_table[CM_MAX_DEV];
 
-#ifndef PCMCIA_DEBUG
+#ifndef CM4040_DEBUG
 #define	xoutb	outb
 #define	xinb	inb
 #else
 static inline void xoutb(unsigned char val, unsigned short port)
 {
-	if (pc_debug >= 7)
-		printk(KERN_DEBUG "outb(val=%.2x,port=%.4x)\n", val, port);
+	pr_debug("outb(val=%.2x,port=%.4x)\n", val, port);
 	outb(val, port);
 }
 
@@ -106,8 +101,7 @@ static inline unsigned char xinb(unsigned short port)
 	unsigned char val;
 
 	val = inb(port);
-	if (pc_debug >= 7)
-		printk(KERN_DEBUG "%.2x=inb(%.4x)\n", val, port);
+	pr_debug("%.2x=inb(%.4x)\n", val, port);
 	return val;
 }
 #endif
@@ -260,11 +254,10 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 			return -EIO;
 		}
 	  	dev->r_buf[i] = xinb(iobase + REG_OFFSET_BULK_IN);
-#ifdef PCMCIA_DEBUG
-		if (pc_debug >= 6)
-			printk(KERN_DEBUG "%lu:%2x ", i, dev->r_buf[i]);
+#ifdef CM4040_DEBUG
+		pr_debug("%lu:%2x ", i, dev->r_buf[i]);
 	}
-	printk("\n");
+	pr_debug("\n");
 #else
 	}
 #endif
@@ -288,11 +281,10 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 			return -EIO;
 		}
 		dev->r_buf[i+5] = xinb(iobase + REG_OFFSET_BULK_IN);
-#ifdef PCMCIA_DEBUG
-		if (pc_debug >= 6)
-			printk(KERN_DEBUG "%lu:%2x ", i, dev->r_buf[i]);
+#ifdef CM4040_DEBUG
+		pr_debug("%lu:%2x ", i, dev->r_buf[i]);
 	}
-	printk("\n");
+	pr_debug("\n");
 #else
 	}
 #endif
