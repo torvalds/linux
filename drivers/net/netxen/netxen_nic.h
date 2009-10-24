@@ -517,6 +517,12 @@ struct uni_data_desc{
 #define NX_FLASH_ROMIMAGE	4
 #define NX_UNKNOWN_ROMIMAGE	0xff
 
+#define NX_P2_MN_ROMIMAGE_NAME		"nxromimg.bin"
+#define NX_P3_CT_ROMIMAGE_NAME		"nx3fwct.bin"
+#define NX_P3_MN_ROMIMAGE_NAME		"nx3fwmn.bin"
+#define NX_UNIFIED_ROMIMAGE_NAME	"phanfw.bin"
+#define NX_FLASH_ROMIMAGE_NAME		"flash"
+
 extern char netxen_nic_driver_name[];
 
 /* Number of status descriptors to handle per interrupt */
