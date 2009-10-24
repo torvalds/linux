@@ -62,10 +62,14 @@ static void
 activate_substream(struct snd_usb_caiaqdev *dev,
 	           struct snd_pcm_substream *sub)
 {
+	spin_lock(&dev->spinlock);
+
 	if (sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dev->sub_playback[sub->number] = sub;
 	else
 		dev->sub_capture[sub->number] = sub;
+
+	spin_unlock(&dev->spinlock);
 }
 
 static void
