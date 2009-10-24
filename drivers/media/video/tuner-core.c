@@ -320,6 +320,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 	unsigned char buffer[4];
+	int tune_now = 1;
 
 	if (type == UNSET || type == TUNER_ABSENT) {
 		tuner_dbg ("tuner 0x%02x: Tuner type absent\n",c->addr);
@@ -404,6 +405,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		};
 		if (!dvb_attach(xc2028_attach, &t->fe, &cfg))
 			goto attach_failed;
+		tune_now = 0;
 		break;
 	}
 	case TUNER_TDA9887:
@@ -419,6 +421,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		if (!dvb_attach(xc5000_attach,
 				&t->fe, t->i2c->adapter, &xc5000_cfg))
 			goto attach_failed;
+		tune_now = 0;
 		break;
 	}
 	case TUNER_NXP_TDA18271:
@@ -430,6 +433,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		if (!dvb_attach(tda18271_attach, &t->fe, t->i2c->addr,
 				t->i2c->adapter, &cfg))
 			goto attach_failed;
+		tune_now = 0;
 		break;
 	}
 	default:
@@ -458,12 +462,13 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	if (t->mode_mask == T_UNINITIALIZED)
 		t->mode_mask = new_mode_mask;
 
-	/* xc2028/3028 and xc5000 requires a firmware to be set-up later
+	/* Some tuners require more initialization setup before use,
+	   such as firmware download or device calibration.
 	   trying to set a frequency here will just fail
 	   FIXME: better to move set_freq to the tuner code. This is needed
 	   on analog tuners for PLL to properly work
 	 */
-	if (t->type != TUNER_XC2028 && t->type != TUNER_XC5000)
+	if (tune_now)
 		set_freq(c, (V4L2_TUNER_RADIO == t->mode) ?
 			    t->radio_freq : t->tv_freq);
 
