@@ -105,8 +105,9 @@ static const struct i2400m_poke_table i2400ms_pokes[] = {
  *     error (-ENODEV when it was unable to enable the function).
  */
 static
-int i2400ms_enable_function(struct sdio_func *func, unsigned maxtries)
+int i2400ms_enable_function(struct i2400ms *i2400ms, unsigned maxtries)
 {
+	struct sdio_func *func = i2400ms->func;
 	u64 timeout;
 	int err;
 	struct device *dev = &func->dev;
@@ -126,7 +127,7 @@ int i2400ms_enable_function(struct sdio_func *func, unsigned maxtries)
 		 * platforms (system hang). We explicitly overwrite
 		 * func->enable_timeout here to work around the issue.
 		 */
-		if (func->device == SDIO_DEVICE_ID_INTEL_IWMC3200WIMAX)
+		if (i2400ms->iwmc3200)
 			func->enable_timeout = IWMC3200_IOR_TIMEOUT;
 		err = sdio_enable_func(func);
 		if (0 == err) {
@@ -176,7 +177,7 @@ int i2400ms_bus_setup(struct i2400m *i2400m)
 		goto error_set_blk_size;
 	}
 
-	result = i2400ms_enable_function(func, 1);
+	result = i2400ms_enable_function(i2400ms, 1);
 	if (result < 0) {
 		dev_err(dev, "Cannot enable SDIO function: %d\n", result);
 		goto error_func_enable;
@@ -486,6 +487,15 @@ int i2400ms_probe(struct sdio_func *func,
 	i2400m->bus_fw_names = i2400ms_bus_fw_names;
 	i2400m->bus_bm_mac_addr_impaired = 1;
 	i2400m->bus_bm_pokes_table = &i2400ms_pokes[0];
+
+	switch (func->device) {
+	case SDIO_DEVICE_ID_INTEL_IWMC3200WIMAX:
+	case SDIO_DEVICE_ID_INTEL_IWMC3200WIMAX_2G5:
+		i2400ms->iwmc3200 = 1;
+		break;
+	default:
+		i2400ms->iwmc3200 = 0;
+	}
 
 	result = i2400m_setup(i2400m, I2400M_BRI_NO_REBOOT);
 	if (result < 0) {

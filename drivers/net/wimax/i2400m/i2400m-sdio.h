@@ -114,6 +114,9 @@ struct i2400ms {
 	wait_queue_head_t bm_wfa_wq;
 	int bm_wait_result;
 	size_t bm_ack_size;
+
+	/* Device is any of the iwmc3200 SKUs */
+	unsigned iwmc3200:1;
 };
 
 
