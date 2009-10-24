@@ -669,21 +669,16 @@ static int btuart_config(struct pcmcia_device *link)
 		goto found_port;
 
 	BT_ERR("No usable port range found");
-	cs_error(link, RequestIO, -ENODEV);
 	goto failed;
 
 found_port:
 	i = pcmcia_request_irq(link, &link->irq);
-	if (i != 0) {
-		cs_error(link, RequestIRQ, i);
+	if (i != 0)
 		link->irq.AssignedIRQ = 0;
-	}
 
 	i = pcmcia_request_configuration(link, &link->conf);
-	if (i != 0) {
-		cs_error(link, RequestConfiguration, i);
+	if (i != 0)
 		goto failed;
-	}
 
 	if (btuart_open(info) != 0)
 		goto failed;

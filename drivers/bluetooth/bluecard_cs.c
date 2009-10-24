@@ -905,22 +905,16 @@ static int bluecard_config(struct pcmcia_device *link)
 			break;
 	}
 
-	if (i != 0) {
-		cs_error(link, RequestIO, i);
+	if (i != 0)
 		goto failed;
-	}
 
 	i = pcmcia_request_irq(link, &link->irq);
-	if (i != 0) {
-		cs_error(link, RequestIRQ, i);
+	if (i != 0)
 		link->irq.AssignedIRQ = 0;
-	}
 
 	i = pcmcia_request_configuration(link, &link->conf);
-	if (i != 0) {
-		cs_error(link, RequestConfiguration, i);
+	if (i != 0)
 		goto failed;
-	}
 
 	if (bluecard_open(info) != 0)
 		goto failed;
