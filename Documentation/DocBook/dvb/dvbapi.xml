@@ -85,3 +85,8 @@ Added ISDB-T test originally written by Patrick Boettcher
     &sub-examples;
   </chapter>
 <!-- END OF CHAPTERS -->
+  <appendix id="frontend_h">
+    <title>DVB Frontend Header File</title>
+    &sub-frontend-h;
+  </appendix>
+
