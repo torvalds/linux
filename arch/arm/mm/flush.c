@@ -35,7 +35,6 @@ static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 	    :
 	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES), "r" (zero)
 	    : "cc");
-	__flush_icache_all();
 }
 
 void flush_cache_mm(struct mm_struct *mm)
@@ -79,8 +78,10 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsig
 		return;
 	}
 
-	if (cache_is_vipt_aliasing())
+	if (cache_is_vipt_aliasing()) {
 		flush_pfn_alias(pfn, user_addr);
+		__flush_icache_all();
+	}
 }
 
 void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
@@ -94,6 +95,7 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 
 	if (cache_is_vipt_aliasing()) {
 		flush_pfn_alias(page_to_pfn(page), uaddr);
+		__flush_icache_all();
 		return;
 	}
 
@@ -132,9 +134,11 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 	 * we only need to do one flush - which would be at the relevant
 	 * userspace colour, which is congruent with page->index.
 	 */
-	if (mapping && cache_is_vipt_aliasing())
+	if (mapping && cache_is_vipt_aliasing()) {
 		flush_pfn_alias(page_to_pfn(page),
 				page->index << PAGE_CACHE_SHIFT);
+		__flush_icache_all();
+	}
 }
 
 static void __flush_dcache_aliases(struct address_space *mapping, struct page *page)
@@ -244,6 +248,7 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
 		 * userspace address only.
 		 */
 		flush_pfn_alias(pfn, vmaddr);
+		__flush_icache_all();
 	}
 
 	/*
