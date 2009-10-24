@@ -752,14 +752,17 @@ int pcmcia_reset_card(struct pcmcia_socket *skt)
 	mutex_lock(&skt->skt_mutex);
 	do {
 		if (!(skt->state & SOCKET_PRESENT)) {
+			dev_dbg(&skt->dev, "can't reset, not present\n");
 			ret = -ENODEV;
 			break;
 		}
 		if (skt->state & SOCKET_SUSPEND) {
+			dev_dbg(&skt->dev, "can't reset, suspended\n");
 			ret = -EBUSY;
 			break;
 		}
 		if (skt->state & SOCKET_CARDBUS) {
+			dev_dbg(&skt->dev, "can't reset, is cardbus\n");
 			ret = -EPERM;
 			break;
 		}

@@ -159,8 +159,10 @@ int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 	s = p_dev->socket;
 	c = p_dev->function_config;
 
-	if (!(c->state & CONFIG_LOCKED))
+	if (!(c->state & CONFIG_LOCKED)) {
+		dev_dbg(&s->dev, "Configuration isnt't locked\n");
 		return -EACCES;
+	}
 
 	addr = (c->ConfigBase + reg->Offset) >> 1;
 
@@ -174,6 +176,7 @@ int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 		pcmcia_write_cis_mem(s, 1, addr, 1, &val);
 		break;
 	default:
+		dev_dbg(&s->dev, "Invalid conf register request\n");
 		return -EINVAL;
 		break;
 	}
@@ -264,10 +267,14 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	s = p_dev->socket;
 	c = p_dev->function_config;
 
-	if (!(s->state & SOCKET_PRESENT))
+	if (!(s->state & SOCKET_PRESENT)) {
+		dev_dbg(&s->dev, "No card present\n");
 		return -ENODEV;
-	if (!(c->state & CONFIG_LOCKED))
+	}
+	if (!(c->state & CONFIG_LOCKED)) {
+		dev_dbg(&s->dev, "Configuration isnt't locked\n");
 		return -EACCES;
+	}
 
 	if (mod->Attributes & CONF_IRQ_CHANGE_VALID) {
 		if (mod->Attributes & CONF_ENABLE_IRQ) {
@@ -442,8 +449,10 @@ int pcmcia_release_window(window_handle_t win)
 	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
 		return -EINVAL;
 	s = win->sock;
-	if (!(win->handle->_win & CLIENT_WIN_REQ(win->index)))
+	if (!(win->handle->_win & CLIENT_WIN_REQ(win->index))) {
+		dev_dbg(&s->dev, "not releasing unknown window\n");
 		return -EINVAL;
+	}
 
 	/* Shut down memory window */
 	win->ctl.flags &= ~MAP_ACTIVE;
@@ -482,8 +491,10 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 		return -EINVAL;
 	}
 	c = p_dev->function_config;
-	if (c->state & CONFIG_LOCKED)
+	if (c->state & CONFIG_LOCKED) {
+		dev_dbg(&s->dev, "Configuration is locked\n");
 		return -EACCES;
+	}
 
 	/* Do power control.  We don't allow changes in Vcc. */
 	s->socket.Vpp = req->Vpp;
@@ -595,14 +606,18 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c;
 
-	if (!(s->state & SOCKET_PRESENT))
+	if (!(s->state & SOCKET_PRESENT)) {
+		dev_dbg(&s->dev, "No card present\n");
 		return -ENODEV;
+	}
 
 	if (!req)
 		return -EINVAL;
 	c = p_dev->function_config;
-	if (c->state & CONFIG_LOCKED)
+	if (c->state & CONFIG_LOCKED) {
+		dev_dbg(&s->dev, "Configuration is locked\n");
 		return -EACCES;
+	}
 	if (c->state & CONFIG_IO_REQ) {
 		dev_dbg(&s->dev, "IO already configured\n");
 		return -EBUSY;
@@ -666,11 +681,15 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	int ret = -EINVAL, irq = 0;
 	int type;
 
-	if (!(s->state & SOCKET_PRESENT))
+	if (!(s->state & SOCKET_PRESENT)) {
+		dev_dbg(&s->dev, "No card present\n");
 		return -ENODEV;
+	}
 	c = p_dev->function_config;
-	if (c->state & CONFIG_LOCKED)
+	if (c->state & CONFIG_LOCKED) {
+		dev_dbg(&s->dev, "Configuration is locked\n");
 		return -EACCES;
+	}
 	if (c->state & CONFIG_IRQ_REQ) {
 		dev_dbg(&s->dev, "IRQ already configured\n");
 		return -EBUSY;
@@ -731,8 +750,10 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 #endif
 	/* only assign PCI irq if no IRQ already assigned */
 	if (ret && !s->irq.AssignedIRQ) {
-		if (!s->pci_irq)
+		if (!s->pci_irq) {
+			dev_printk(KERN_INFO, &s->dev, "no IRQ found\n");
 			return ret;
+		}
 		type = IRQF_SHARED;
 		irq = s->pci_irq;
 	}
@@ -740,8 +761,11 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	if (ret && (req->Attributes & IRQ_HANDLE_PRESENT)) {
 		ret = request_irq(irq, req->Handler, type,
 				  p_dev->devname, req->Instance);
-		if (ret)
+		if (ret) {
+			dev_printk(KERN_INFO, &s->dev,
+				"request_irq() failed\n");
 			return ret;
+		}
 	}
 
 	/* Make sure the fact the request type was overridden is passed back */
@@ -780,8 +804,10 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	u_long align;
 	int w;
 
-	if (!(s->state & SOCKET_PRESENT))
+	if (!(s->state & SOCKET_PRESENT)) {
+		dev_dbg(&s->dev, "No card present\n");
 		return -ENODEV;
+	}
 	if (req->Attributes & (WIN_PAGED | WIN_SHARED)) {
 		dev_dbg(&s->dev, "bad attribute setting for iomem region\n");
 		return -EINVAL;
@@ -1020,7 +1046,8 @@ static int pcmcia_do_get_tuple(struct pcmcia_device *p_dev, tuple_t *tuple,
 	if (*get->buf) {
 		get->len = tuple->TupleDataLen;
 		memcpy(*get->buf, tuple->TupleData, tuple->TupleDataLen);
-	}
+	} else
+		dev_dbg(&p_dev->dev, "do_get_tuple: out of memory\n");
 	return 0;
 };
 
