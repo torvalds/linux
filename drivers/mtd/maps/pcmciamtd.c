@@ -119,10 +119,8 @@ static caddr_t remap_window(struct map_info *map, unsigned long to)
 		      dev->offset, mrq.CardOffset);
 		mrq.Page = 0;
 		ret = pcmcia_map_mem_page(win, &mrq);
-		if (ret != 0) {
-			cs_error(dev->p_dev, MapMemPage, ret);
+		if (ret != 0)
 			return NULL;
-		}
 		dev->offset = mrq.CardOffset;
 	}
 	return dev->win_base + (to & (dev->win_size-1));
@@ -327,8 +325,6 @@ static void pcmciamtd_set_vpp(struct map_info *map, int on)
 
 	DEBUG(2, "dev = %p on = %d vpp = %d\n", dev, on, dev->vpp);
 	ret = pcmcia_modify_configuration(link, &mod);
-	if (ret != 0)
-		cs_error(link, ModifyConfiguration, ret);
 }
 
 
@@ -490,16 +486,12 @@ static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *link,
  * MTD device available to the system.
  */
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static int pcmciamtd_config(struct pcmcia_device *link)
 {
 	struct pcmciamtd_dev *dev = link->priv;
 	struct mtd_info *mtd = NULL;
 	cs_status_t status;
 	win_req_t req;
-	int last_ret = 0, last_fn = 0;
 	int ret;
 	int i;
 	static char *probes[] = { "jedec_probe", "cfi_probe" };
@@ -586,7 +578,6 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	DEBUG(2, "Setting Configuration");
 	ret = pcmcia_request_configuration(link, &link->conf);
 	if (ret != 0) {
-		cs_error(link, RequestConfiguration, ret);
 		if (dev->win_base) {
 			iounmap(dev->win_base);
 			dev->win_base = NULL;
@@ -661,8 +652,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	link->dev_node = &dev->node;
 	return 0;
 
- cs_failed:
-	cs_error(link, last_fn, last_ret);
+ failed:
 	err("CS Error, exiting");
 	pcmciamtd_release(link);
 	return -ENODEV;
