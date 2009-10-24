@@ -628,11 +628,12 @@ static void init_vmcb(struct vcpu_svm *svm)
 	save->rip = 0x0000fff0;
 	svm->vcpu.arch.regs[VCPU_REGS_RIP] = save->rip;
 
-	/*
-	 * cr0 val on cpu init should be 0x60000010, we enable cpu
-	 * cache by default. the orderly way is to enable cache in bios.
+	/* This is the guest-visible cr0 value.
+	 * svm_set_cr0() sets PG and WP and clears NW and CD on save->cr0.
 	 */
-	save->cr0 = 0x00000010 | X86_CR0_PG | X86_CR0_WP;
+	svm->vcpu.arch.cr0 = X86_CR0_NW | X86_CR0_CD | X86_CR0_ET;
+	kvm_set_cr0(&svm->vcpu, svm->vcpu.arch.cr0);
+
 	save->cr4 = X86_CR4_PAE;
 	/* rdx = ?? */
 
