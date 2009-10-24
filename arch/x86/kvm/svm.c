@@ -648,8 +648,6 @@ static void init_vmcb(struct vcpu_svm *svm)
 		control->intercept_cr_write &= ~(INTERCEPT_CR0_MASK|
 						 INTERCEPT_CR3_MASK);
 		save->g_pat = 0x0007040600070406ULL;
-		/* enable caching because the QEMU Bios doesn't enable it */
-		save->cr0 = X86_CR0_ET;
 		save->cr3 = 0;
 		save->cr4 = 0;
 	}
