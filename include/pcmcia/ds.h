@@ -142,42 +142,6 @@ struct pcmcia_device {
 #define handle_to_dev(handle) (handle->dev)
 
 
-/* (deprecated) error reporting by PCMCIA devices. Use dev_printk()
- * or dev_dbg() directly in the driver, without referring to pcmcia_error_func()
- * and/or pcmcia_error_ret() for those functions will go away soon.
- */
-enum service {
-    AccessConfigurationRegister, AddSocketServices,
-    AdjustResourceInfo, CheckEraseQueue, CloseMemory, CopyMemory,
-    DeregisterClient, DeregisterEraseQueue, GetCardServicesInfo,
-    GetClientInfo, GetConfigurationInfo, GetEventMask,
-    GetFirstClient, GetFirstPartion, GetFirstRegion, GetFirstTuple,
-    GetNextClient, GetNextPartition, GetNextRegion, GetNextTuple,
-    GetStatus, GetTupleData, MapLogSocket, MapLogWindow, MapMemPage,
-    MapPhySocket, MapPhyWindow, ModifyConfiguration, ModifyWindow,
-    OpenMemory, ParseTuple, ReadMemory, RegisterClient,
-    RegisterEraseQueue, RegisterMTD, RegisterTimer,
-    ReleaseConfiguration, ReleaseExclusive, ReleaseIO, ReleaseIRQ,
-    ReleaseSocketMask, ReleaseWindow, ReplaceSocketServices,
-    RequestConfiguration, RequestExclusive, RequestIO, RequestIRQ,
-    RequestSocketMask, RequestWindow, ResetCard, ReturnSSEntry,
-    SetEventMask, SetRegion, ValidateCIS, VendorSpecific,
-    WriteMemory, BindDevice, BindMTD, ReportError,
-    SuspendCard, ResumeCard, EjectCard, InsertCard, ReplaceCIS,
-    GetFirstWindow, GetNextWindow, GetMemPage
-};
-const char *pcmcia_error_func(int func);
-const char *pcmcia_error_ret(int ret);
-
-#define cs_error(p_dev, func, ret)			\
-	{						\
-		dev_printk(KERN_NOTICE, &p_dev->dev,	\
-			   "%s : %s\n",			\
-			   pcmcia_error_func(func),	\
-			   pcmcia_error_ret(ret));	\
-	}
-
-
 /*
  * CIS access.
  *
