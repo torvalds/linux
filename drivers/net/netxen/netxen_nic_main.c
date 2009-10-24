@@ -38,6 +38,10 @@
 MODULE_DESCRIPTION("NetXen Multi port (1/10) Gigabit Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(NETXEN_NIC_LINUX_VERSIONID);
+MODULE_FIRMWARE(NX_P2_MN_ROMIMAGE_NAME);
+MODULE_FIRMWARE(NX_P3_CT_ROMIMAGE_NAME);
+MODULE_FIRMWARE(NX_P3_MN_ROMIMAGE_NAME);
+MODULE_FIRMWARE(NX_UNIFIED_ROMIMAGE_NAME);
 
 char netxen_nic_driver_name[] = "netxen_nic";
 static char netxen_nic_driver_string[] = "NetXen Network Driver version "
