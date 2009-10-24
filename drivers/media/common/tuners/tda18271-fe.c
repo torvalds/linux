@@ -1249,7 +1249,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 				     struct tda18271_config *cfg)
 {
 	struct tda18271_priv *priv = NULL;
-	int instance;
+	int instance, rf_cal_on_startup = 0;
 
 	mutex_lock(&tda18271_list_mutex);
 
@@ -1262,8 +1262,6 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	case 1:
 	{
 		/* new tuner instance */
-		int rf_cal_on_startup;
-
 		fe->tuner_priv = priv;
 
 		tda18271_setup_configuration(fe, cfg);
@@ -1315,7 +1313,20 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 				priv->output_opt = cfg->output_opt;
 			if (cfg->std_map)
 				tda18271_update_std_map(fe, cfg->std_map);
+
+			/* tda18271_cal_on_startup == -1 when cal
+			 * module option is unset */
+			if (tda18271_cal_on_startup == -1) {
+				/* honor attach-time configuration */
+				rf_cal_on_startup =
+					(cfg->rf_cal_on_startup) ? 1 : 0;
+			} else {
+				/* module option overrides attach config */
+				rf_cal_on_startup = tda18271_cal_on_startup;
+			}
 		}
+		if (rf_cal_on_startup)
+			tda18271_init(fe);
 		break;
 	}
 
