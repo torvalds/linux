@@ -819,7 +819,7 @@ static int watchdog_release(struct inode *inode, struct file *filp)
 static ssize_t watchdog_write(struct file *filp, const char __user *buf,
 	size_t count, loff_t *offset)
 {
-	size_t ret;
+	int ret;
 	struct fschmd_data *data = filp->private_data;
 
 	if (count) {
