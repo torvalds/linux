@@ -2646,7 +2646,7 @@ static void __init serial8250_isa_init_ports(void)
 {
 	struct uart_8250_port *up;
 	static int first = 1;
-	int i;
+	int i, irqflag = 0;
 
 	if (!first)
 		return;
@@ -2670,6 +2670,9 @@ static void __init serial8250_isa_init_ports(void)
 		up->port.ops = &serial8250_pops;
 	}
 
+	if (share_irqs)
+		irqflag = IRQF_SHARED;
+
 	for (i = 0, up = serial8250_ports;
 	     i < ARRAY_SIZE(old_serial_port) && i < nr_uarts;
 	     i++, up++) {
@@ -2683,8 +2686,7 @@ static void __init serial8250_isa_init_ports(void)
 		up->port.iotype   = old_serial_port[i].io_type;
 		up->port.regshift = old_serial_port[i].iomem_reg_shift;
 		set_io_from_upio(&up->port);
-		if (share_irqs)
-			up->port.irqflags |= IRQF_SHARED;
+		up->port.irqflags |= irqflag;
 	}
 }
 
@@ -2940,9 +2942,12 @@ static int __devinit serial8250_probe(struct platform_device *dev)
 {
 	struct plat_serial8250_port *p = dev->dev.platform_data;
 	struct uart_port port;
-	int ret, i;
+	int ret, i, irqflag = 0;
 
 	memset(&port, 0, sizeof(struct uart_port));
+
+	if (share_irqs)
+		irqflag = IRQF_SHARED;
 
 	for (i = 0; p && p->flags != 0; p++, i++) {
 		port.iobase		= p->iobase;
@@ -2960,8 +2965,7 @@ static int __devinit serial8250_probe(struct platform_device *dev)
 		port.serial_in		= p->serial_in;
 		port.serial_out		= p->serial_out;
 		port.dev		= &dev->dev;
-		if (share_irqs)
-			port.irqflags |= IRQF_SHARED;
+		port.irqflags		|= irqflag;
 		ret = serial8250_register_port(&port);
 		if (ret < 0) {
 			dev_err(&dev->dev, "unable to register port at index %d "
