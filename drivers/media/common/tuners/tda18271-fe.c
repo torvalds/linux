@@ -1260,7 +1260,6 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	case 0:
 		goto fail;
 	case 1:
-	{
 		/* new tuner instance */
 		fe->tuner_priv = priv;
 
@@ -1284,7 +1283,6 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 
 		mutex_unlock(&priv->lock);
 		break;
-	}
 	default:
 		/* existing tuner instance */
 		fe->tuner_priv = priv;
