@@ -39,12 +39,12 @@
 static int writebuf_from_LL(int driverID, int channel, int ack,
 			    struct sk_buff *skb)
 {
-	struct cardstate *cs;
+	struct cardstate *cs = gigaset_get_cs_by_id(driverID);
 	struct bc_state *bcs;
 	unsigned char *ack_header;
 	unsigned len;
 
-	if (!(cs = gigaset_get_cs_by_id(driverID))) {
+	if (!cs) {
 		pr_err("%s: invalid driver ID (%d)\n", __func__, driverID);
 		return -ENODEV;
 	}
@@ -391,22 +391,19 @@ static int command_from_LL(isdn_ctrl *cntrl)
 
 		break;
 	case ISDN_CMD_PROCEED:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_PROCEED"); //FIXME
+		gig_dbg(DEBUG_ANY, "ISDN_CMD_PROCEED");
 		break;
 	case ISDN_CMD_ALERT:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_ALERT"); //FIXME
+		gig_dbg(DEBUG_ANY, "ISDN_CMD_ALERT");
 		if (cntrl->arg >= cs->channels) {
 			dev_err(cs->dev,
 				"ISDN_CMD_ALERT: invalid channel (%d)\n",
 				(int) cntrl->arg);
 			return -EINVAL;
 		}
-		//bcs = cs->bcs + cntrl->arg;
-		//bcs->proto2 = -1;
-		// FIXME
 		break;
 	case ISDN_CMD_REDIR:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_REDIR"); //FIXME
+		gig_dbg(DEBUG_ANY, "ISDN_CMD_REDIR");
 		break;
 	case ISDN_CMD_PROT_IO:
 		gig_dbg(DEBUG_ANY, "ISDN_CMD_PROT_IO");
@@ -486,7 +483,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 	/* fill ICALL structure */
 	response.parm.setup.si1 = 0;	/* default: unknown */
 	response.parm.setup.si2 = 0;
-	response.parm.setup.screen = 0;	//FIXME how to set these?
+	response.parm.setup.screen = 0;
 	response.parm.setup.plan = 0;
 	if (!at_state->str_var[STR_ZBC]) {
 		/* no BC (internal call): assume speech, A-law */
@@ -507,26 +504,24 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 		return ICALL_IGNORE;
 	}
 	if (at_state->str_var[STR_NMBR]) {
-		strncpy(response.parm.setup.phone, at_state->str_var[STR_NMBR],
-			sizeof response.parm.setup.phone - 1);
-		response.parm.setup.phone[sizeof response.parm.setup.phone - 1] = 0;
+		strlcpy(response.parm.setup.phone, at_state->str_var[STR_NMBR],
+			sizeof response.parm.setup.phone);
 	} else
 		response.parm.setup.phone[0] = 0;
 	if (at_state->str_var[STR_ZCPN]) {
-		strncpy(response.parm.setup.eazmsn, at_state->str_var[STR_ZCPN],
-			sizeof response.parm.setup.eazmsn - 1);
-		response.parm.setup.eazmsn[sizeof response.parm.setup.eazmsn - 1] = 0;
+		strlcpy(response.parm.setup.eazmsn, at_state->str_var[STR_ZCPN],
+			sizeof response.parm.setup.eazmsn);
 	} else
 		response.parm.setup.eazmsn[0] = 0;
 
 	if (!bcs) {
 		dev_notice(cs->dev, "no channel for incoming call\n");
 		response.command = ISDN_STAT_ICALLW;
-		response.arg = 0; //FIXME
+		response.arg = 0;
 	} else {
 		gig_dbg(DEBUG_CMD, "Sending ICALL");
 		response.command = ISDN_STAT_ICALL;
-		response.arg = bcs->channel; //FIXME
+		response.arg = bcs->channel;
 	}
 	response.driver = cs->myid;
 	retval = iif->statcallb(&response);

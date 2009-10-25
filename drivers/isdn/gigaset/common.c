@@ -108,7 +108,7 @@ int gigaset_enterconfigmode(struct cardstate *cs)
 {
 	int i, r;
 
-	cs->control_state = TIOCM_RTS; //FIXME
+	cs->control_state = TIOCM_RTS;
 
 	r = setflags(cs, TIOCM_DTR, 200);
 	if (r < 0)
@@ -132,10 +132,10 @@ int gigaset_enterconfigmode(struct cardstate *cs)
 
 error:
 	dev_err(cs->dev, "error %d on setuartbits\n", -r);
-	cs->control_state = TIOCM_RTS|TIOCM_DTR; // FIXME is this a good value?
+	cs->control_state = TIOCM_RTS|TIOCM_DTR;
 	cs->ops->set_modem_ctrl(cs, 0, TIOCM_RTS|TIOCM_DTR);
 
-	return -1; //r
+	return -1;
 }
 
 static int test_timeout(struct at_state_t *at_state)
@@ -150,10 +150,9 @@ static int test_timeout(struct at_state_t *at_state)
 	}
 
 	if (!gigaset_add_event(at_state->cs, at_state, EV_TIMEOUT, NULL,
-			       at_state->timer_index, NULL)) {
-		//FIXME what should we do?
-	}
-
+			       at_state->timer_index, NULL))
+			dev_err(at_state->cs->dev, "%s: out of memory\n",
+				__func__);
 	return 1;
 }
 
@@ -393,9 +392,8 @@ static void gigaset_freebcs(struct bc_state *bcs)
 	int i;
 
 	gig_dbg(DEBUG_INIT, "freeing bcs[%d]->hw", bcs->channel);
-	if (!bcs->cs->ops->freebcshw(bcs)) {
+	if (!bcs->cs->ops->freebcshw(bcs))
 		gig_dbg(DEBUG_INIT, "failed");
-	}
 
 	gig_dbg(DEBUG_INIT, "clearing bcs[%d]->at_state", bcs->channel);
 	clear_at_state(&bcs->at_state);
@@ -502,8 +500,6 @@ void gigaset_freecs(struct cardstate *cs)
 
 		gig_dbg(DEBUG_INIT, "clearing hw");
 		cs->ops->freecshw(cs);
-
-		//FIXME cmdbuf
 
 		/* fall through */
 	case 2: /* error in initcshw */
@@ -622,7 +618,7 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 {
 	int i;
 
-	bcs->tx_skb = NULL; //FIXME -> hw part
+	bcs->tx_skb = NULL;
 
 	skb_queue_head_init(&bcs->squeue);
 
@@ -696,12 +692,13 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 				 int onechannel, int ignoreframes,
 				 int cidmode, const char *modulename)
 {
-	struct cardstate *cs = NULL;
+	struct cardstate *cs;
 	unsigned long flags;
 	int i;
 
 	gig_dbg(DEBUG_INIT, "allocating cs");
-	if (!(cs = alloc_cs(drv))) {
+	cs = alloc_cs(drv);
+	if (!cs) {
 		pr_err("maximum number of devices exceeded\n");
 		return NULL;
 	}
@@ -931,15 +928,13 @@ int gigaset_start(struct cardstate *cs)
 		cs->ops->baud_rate(cs, B115200);
 		cs->ops->set_line_ctrl(cs, CS8);
 		cs->control_state = TIOCM_DTR|TIOCM_RTS;
-	} else {
-		//FIXME use some saved values?
 	}
 
 	cs->waiting = 1;
 
 	if (!gigaset_add_event(cs, &cs->at_state, EV_START, NULL, 0, NULL)) {
 		cs->waiting = 0;
-		//FIXME what should we do?
+		dev_err(cs->dev, "%s: out of memory\n", __func__);
 		goto error;
 	}
 
@@ -979,7 +974,7 @@ int gigaset_shutdown(struct cardstate *cs)
 	cs->waiting = 1;
 
 	if (!gigaset_add_event(cs, &cs->at_state, EV_SHUTDOWN, NULL, 0, NULL)) {
-		//FIXME what should we do?
+		dev_err(cs->dev, "%s: out of memory\n", __func__);
 		goto exit;
 	}
 
@@ -1010,7 +1005,7 @@ void gigaset_stop(struct cardstate *cs)
 	cs->waiting = 1;
 
 	if (!gigaset_add_event(cs, &cs->at_state, EV_STOP, NULL, 0, NULL)) {
-		//FIXME what should we do?
+		dev_err(cs->dev, "%s: out of memory\n", __func__);
 		goto exit;
 	}
 

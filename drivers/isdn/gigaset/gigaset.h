@@ -34,8 +34,8 @@
 #include <linux/list.h>
 #include <asm/atomic.h>
 
-#define GIG_VERSION {0,5,0,0}
-#define GIG_COMPAT  {0,4,0,0}
+#define GIG_VERSION {0, 5, 0, 0}
+#define GIG_COMPAT  {0, 4, 0, 0}
 
 #define MAX_REC_PARAMS 10	/* Max. number of params in response string */
 #define MAX_RESP_SIZE 512	/* Max. size of a response string */
@@ -133,35 +133,32 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define OUT_VENDOR_REQ	(USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT)
 #define IN_VENDOR_REQ	(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT)
 
-/* int-in-events 3070 */
+/* interrupt pipe messages */
 #define HD_B1_FLOW_CONTROL		0x80
 #define HD_B2_FLOW_CONTROL		0x81
-#define HD_RECEIVEATDATA_ACK		(0x35)		// 3070
-						// att: HD_RECEIVE>>AT<<DATA_ACK
-#define HD_READY_SEND_ATDATA		(0x36)		// 3070
-#define HD_OPEN_ATCHANNEL_ACK		(0x37)		// 3070
-#define HD_CLOSE_ATCHANNEL_ACK		(0x38)		// 3070
-#define HD_DEVICE_INIT_OK		(0x11)		// ISurf USB + 3070
-#define HD_OPEN_B1CHANNEL_ACK		(0x51)		// ISurf USB + 3070
-#define HD_OPEN_B2CHANNEL_ACK		(0x52)		// ISurf USB + 3070
-#define HD_CLOSE_B1CHANNEL_ACK		(0x53)		// ISurf USB + 3070
-#define HD_CLOSE_B2CHANNEL_ACK		(0x54)		// ISurf USB + 3070
-// 	 Powermangment
-#define HD_SUSPEND_END			(0x61)		// ISurf USB
-//   Configuration
-#define HD_RESET_INTERRUPT_PIPE_ACK	(0xFF)		// ISurf USB + 3070
+#define HD_RECEIVEATDATA_ACK		(0x35)		/* 3070 */
+#define HD_READY_SEND_ATDATA		(0x36)		/* 3070 */
+#define HD_OPEN_ATCHANNEL_ACK		(0x37)		/* 3070 */
+#define HD_CLOSE_ATCHANNEL_ACK		(0x38)		/* 3070 */
+#define HD_DEVICE_INIT_OK		(0x11)		/* ISurf USB + 3070 */
+#define HD_OPEN_B1CHANNEL_ACK		(0x51)		/* ISurf USB + 3070 */
+#define HD_OPEN_B2CHANNEL_ACK		(0x52)		/* ISurf USB + 3070 */
+#define HD_CLOSE_B1CHANNEL_ACK		(0x53)		/* ISurf USB + 3070 */
+#define HD_CLOSE_B2CHANNEL_ACK		(0x54)		/* ISurf USB + 3070 */
+#define HD_SUSPEND_END			(0x61)		/* ISurf USB */
+#define HD_RESET_INTERRUPT_PIPE_ACK	(0xFF)		/* ISurf USB + 3070 */
 
-/* control requests 3070 */
-#define	HD_OPEN_B1CHANNEL		(0x23)		// ISurf USB + 3070
-#define	HD_CLOSE_B1CHANNEL		(0x24)		// ISurf USB + 3070
-#define	HD_OPEN_B2CHANNEL		(0x25)		// ISurf USB + 3070
-#define	HD_CLOSE_B2CHANNEL		(0x26)		// ISurf USB + 3070
-#define HD_RESET_INTERRUPT_PIPE		(0x27)		// ISurf USB + 3070
-#define	HD_DEVICE_INIT_ACK		(0x34)		// ISurf USB + 3070
-#define	HD_WRITE_ATMESSAGE		(0x12)		// 3070
-#define	HD_READ_ATMESSAGE		(0x13)		// 3070
-#define	HD_OPEN_ATCHANNEL		(0x28)		// 3070
-#define	HD_CLOSE_ATCHANNEL		(0x29)		// 3070
+/* control requests */
+#define	HD_OPEN_B1CHANNEL		(0x23)		/* ISurf USB + 3070 */
+#define	HD_CLOSE_B1CHANNEL		(0x24)		/* ISurf USB + 3070 */
+#define	HD_OPEN_B2CHANNEL		(0x25)		/* ISurf USB + 3070 */
+#define	HD_CLOSE_B2CHANNEL		(0x26)		/* ISurf USB + 3070 */
+#define HD_RESET_INTERRUPT_PIPE		(0x27)		/* ISurf USB + 3070 */
+#define	HD_DEVICE_INIT_ACK		(0x34)		/* ISurf USB + 3070 */
+#define	HD_WRITE_ATMESSAGE		(0x12)		/* 3070 */
+#define	HD_READ_ATMESSAGE		(0x13)		/* 3070 */
+#define	HD_OPEN_ATCHANNEL		(0x28)		/* 3070 */
+#define	HD_CLOSE_ATCHANNEL		(0x29)		/* 3070 */
 
 /* number of B channels supported by base driver */
 #define BAS_CHANNELS	2
@@ -631,7 +628,8 @@ struct gigaset_ops {
 
 };
 
-/* = Common structures and definitions ======================================= */
+/* = Common structures and definitions =======================================
+ */
 
 /* Parser states for DLE-Event:
  * <DLE-EVENT>: <DLE_FLAG> "X" <EVENT> <DLE_FLAG> "."
@@ -776,7 +774,7 @@ struct event_t *gigaset_add_event(struct cardstate *cs,
 				  void *ptr, int parameter, void *arg);
 
 /* Called on CONFIG1 command from frontend. */
-int gigaset_enterconfigmode(struct cardstate *cs); //0: success <0: errorcode
+int gigaset_enterconfigmode(struct cardstate *cs);
 
 /* cs->lock must not be locked */
 static inline void gigaset_schedule_event(struct cardstate *cs)
