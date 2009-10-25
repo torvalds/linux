@@ -2344,7 +2344,7 @@ static const struct tty_operations uart_ops = {
  */
 int uart_register_driver(struct uart_driver *drv)
 {
-	struct tty_driver *normal = NULL;
+	struct tty_driver *normal;
 	int i, retval;
 
 	BUG_ON(drv->state);
@@ -2354,13 +2354,12 @@ int uart_register_driver(struct uart_driver *drv)
 	 * we have a large number of ports to handle.
 	 */
 	drv->state = kzalloc(sizeof(struct uart_state) * drv->nr, GFP_KERNEL);
-	retval = -ENOMEM;
 	if (!drv->state)
 		goto out;
 
-	normal  = alloc_tty_driver(drv->nr);
+	normal = alloc_tty_driver(drv->nr);
 	if (!normal)
-		goto out;
+		goto out_kfree;
 
 	drv->tty_driver = normal;
 
@@ -2393,12 +2392,14 @@ int uart_register_driver(struct uart_driver *drv)
 	}
 
 	retval = tty_register_driver(normal);
- out:
-	if (retval < 0) {
-		put_tty_driver(normal);
-		kfree(drv->state);
-	}
-	return retval;
+	if (retval >= 0)
+		return retval;
+
+	put_tty_driver(normal);
+out_kfree:
+	kfree(drv->state);
+out:
+	return -ENOMEM;
 }
 
 /**
