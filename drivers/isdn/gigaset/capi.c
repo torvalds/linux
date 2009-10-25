@@ -1254,7 +1254,7 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	commands[AT_DIAL] = kmalloc(l+3, GFP_KERNEL);
 	if (!commands[AT_DIAL])
 		goto oom;
-	snprintf(commands[AT_DIAL], l+3, "D%*s\r", l, pp);
+	snprintf(commands[AT_DIAL], l+3, "D%.*s\r", l, pp);
 
 	/* encode parameter: Calling party number */
 	pp = cmsg->CallingPartyNumber;
