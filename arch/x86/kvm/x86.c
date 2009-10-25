@@ -4530,11 +4530,6 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 	if (reason != TASK_SWITCH_CALL && reason != TASK_SWITCH_GATE)
 		old_tss_sel = 0xffff;
 
-	/* set back link to prev task only if NT bit is set in eflags
-	   note that old_tss_sel is not used afetr this point */
-	if (reason != TASK_SWITCH_CALL && reason != TASK_SWITCH_GATE)
-		old_tss_sel = 0xffff;
-
 	if (nseg_desc.type & 8)
 		ret = kvm_task_switch_32(vcpu, tss_selector, old_tss_sel,
 					 old_tss_base, &nseg_desc);
