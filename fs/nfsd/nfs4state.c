@@ -524,6 +524,15 @@ free_session_slots(struct nfsd4_session *ses)
 		kfree(ses->se_slots[i]);
 }
 
+/*
+ * We don't actually need to cache the rpc and session headers, so we
+ * can allocate a little less for each slot:
+ */
+static inline int slot_bytes(struct nfsd4_channel_attrs *ca)
+{
+	return ca->maxresp_cached - NFSD_MIN_HDR_SEQ_SZ;
+}
+
 static int
 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp,
 		   struct nfsd4_create_session *cses)
@@ -555,7 +564,7 @@ alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp,
 	memcpy(new, &tmp, sizeof(*new));
 
 	/* allocate each struct nfsd4_slot and data cache in one piece */
-	cachesize = new->se_fchannel.maxresp_cached - NFSD_MIN_HDR_SEQ_SZ;
+	cachesize = slot_bytes(&new->se_fchannel);
 	for (i = 0; i < new->se_fchannel.maxreqs; i++) {
 		sp = kzalloc(sizeof(*sp) + cachesize, GFP_KERNEL);
 		if (!sp)
@@ -633,8 +642,7 @@ free_session(struct kref *kref)
 
 	ses = container_of(kref, struct nfsd4_session, se_ref);
 	spin_lock(&nfsd_drc_lock);
-	mem = ses->se_fchannel.maxreqs
-		* (ses->se_fchannel.maxresp_cached - NFSD_MIN_HDR_SEQ_SZ);
+	mem = ses->se_fchannel.maxreqs * slot_bytes(&ses->se_fchannel);
 	nfsd_drc_mem_used -= mem;
 	spin_unlock(&nfsd_drc_lock);
 	free_session_slots(ses);
