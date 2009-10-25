@@ -417,3 +417,30 @@ int unwind_to_user(struct unwind_frame_info *info)
 
 	return ret;
 }
+
+unsigned long return_address(unsigned int level)
+{
+	struct unwind_frame_info info;
+	struct pt_regs r;
+	unsigned long sp;
+
+	/* initialize unwind info */
+	asm volatile ("copy %%r30, %0" : "=r"(sp));
+	memset(&r, 0, sizeof(struct pt_regs));
+	r.iaoq[0] = (unsigned long) current_text_addr();
+	r.gr[2] = (unsigned long) __builtin_return_address(0);
+	r.gr[30] = sp;
+	unwind_frame_init(&info, current, &r);
+
+	/* unwind stack */
+	++level;
+	do {
+		if (unwind_once(&info) < 0 || info.ip == 0)
+			return 0;
+		if (!__kernel_text_address(info.ip)) {
+			return 0;
+		}
+	} while (info.ip && level--);
+
+	return info.ip;
+}
