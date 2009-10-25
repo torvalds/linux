@@ -400,9 +400,9 @@ static void gigaset_freebcs(struct bc_state *bcs)
 	gig_dbg(DEBUG_INIT, "clearing bcs[%d]->at_state", bcs->channel);
 	clear_at_state(&bcs->at_state);
 	gig_dbg(DEBUG_INIT, "freeing bcs[%d]->skb", bcs->channel);
+	dev_kfree_skb(bcs->skb);
+	bcs->skb = NULL;
 
-	if (bcs->skb)
-		dev_kfree_skb(bcs->skb);
 	for (i = 0; i < AT_NUM; ++i) {
 		kfree(bcs->commands[i]);
 		bcs->commands[i] = NULL;
@@ -560,16 +560,13 @@ void gigaset_at_init(struct at_state_t *at_state, struct bc_state *bcs,
 }
 
 
-static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct bc_state *bcs,
-			       struct cardstate *cs, int inputstate)
+static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct cardstate *cs)
 /* inbuf->read must be allocated before! */
 {
 	inbuf->head = 0;
 	inbuf->tail = 0;
 	inbuf->cs = cs;
-	inbuf->bcs = bcs; /*base driver: NULL*/
-	inbuf->rcvbuf = NULL;
-	inbuf->inputstate = inputstate;
+	inbuf->inputstate = INS_command;
 }
 
 /**
@@ -644,16 +641,13 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	bcs->fcs = PPP_INITFCS;
 	bcs->inputstate = 0;
 	if (cs->ignoreframes) {
-		bcs->inputstate |= INS_skip_frame;
 		bcs->skb = NULL;
 	} else {
 		bcs->skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
 		if (bcs->skb != NULL)
 			skb_reserve(bcs->skb, cs->hw_hdr_len);
-		else {
+		else
 			pr_err("out of memory\n");
-			bcs->inputstate |= INS_skip_frame;
-		}
 	}
 
 	bcs->channel = channel;
@@ -674,8 +668,8 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	gig_dbg(DEBUG_INIT, "  failed");
 
 	gig_dbg(DEBUG_INIT, "  freeing bcs[%d]->skb", channel);
-	if (bcs->skb)
-		dev_kfree_skb(bcs->skb);
+	dev_kfree_skb(bcs->skb);
+	bcs->skb = NULL;
 
 	return NULL;
 }
@@ -764,10 +758,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->cbytes = 0;
 
 	gig_dbg(DEBUG_INIT, "setting up inbuf");
-	if (onechannel) {			//FIXME distinction necessary?
-		gigaset_inbuf_init(cs->inbuf, cs->bcs, cs, INS_command);
-	} else
-		gigaset_inbuf_init(cs->inbuf, NULL,    cs, INS_command);
+	gigaset_inbuf_init(cs->inbuf, cs);
 
 	cs->connected = 0;
 	cs->isdn_up = 0;
@@ -854,9 +845,10 @@ void gigaset_bcs_reinit(struct bc_state *bcs)
 	bcs->chstate = 0;
 
 	bcs->ignore = cs->ignoreframes;
-	if (bcs->ignore)
-		bcs->inputstate |= INS_skip_frame;
-
+	if (bcs->ignore) {
+		dev_kfree_skb(bcs->skb);
+		bcs->skb = NULL;
+	}
 
 	cs->ops->reinitbcshw(bcs);
 }
@@ -877,8 +869,6 @@ static void cleanup_cs(struct cardstate *cs)
 	free_strings(&cs->at_state);
 	gigaset_at_init(&cs->at_state, NULL, cs, 0);
 
-	kfree(cs->inbuf->rcvbuf);
-	cs->inbuf->rcvbuf = NULL;
 	cs->inbuf->inputstate = INS_command;
 	cs->inbuf->head = 0;
 	cs->inbuf->tail = 0;

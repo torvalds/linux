@@ -19,7 +19,7 @@
 
 /* check if byte must be stuffed/escaped
  * I'm not sure which data should be encoded.
- * Therefore I will go the hard way and decode every value
+ * Therefore I will go the hard way and encode every value
  * less than 0x20, the flag sequence and the control escape char.
  */
 static inline int muststuff(unsigned char c)
@@ -35,288 +35,383 @@ static inline int muststuff(unsigned char c)
 
 /* == data input =========================================================== */
 
-/* process a block of received bytes in command mode (modem response)
+/* process a block of received bytes in command mode
+ * (mstate != MS_LOCKED && (inputstate & INS_command))
+ * Append received bytes to the command response buffer and forward them
+ * line by line to the response handler. Exit whenever a mode/state change
+ * might have occurred.
  * Return value:
  *	number of processed bytes
  */
-static inline int cmd_loop(unsigned char c, unsigned char *src, int numbytes,
-			   struct inbuf_t *inbuf)
+static unsigned cmd_loop(unsigned numbytes, struct inbuf_t *inbuf)
 {
+	unsigned char *src = inbuf->data + inbuf->head;
 	struct cardstate *cs = inbuf->cs;
-	unsigned cbytes      = cs->cbytes;
-	int inputstate = inbuf->inputstate;
-	int startbytes = numbytes;
+	unsigned cbytes = cs->cbytes;
+	unsigned procbytes = 0;
+	unsigned char c;
 
-	for (;;) {
-		cs->respdata[cbytes] = c;
-		if (c == 10 || c == 13) {
-			gig_dbg(DEBUG_TRANSCMD, "%s: End of Command (%d Bytes)",
-				__func__, cbytes);
-			cs->cbytes = cbytes;
-			gigaset_handle_modem_response(cs); /* can change
-							      cs->dle */
-			cbytes = 0;
+	while (procbytes < numbytes) {
+		c = *src++;
+		procbytes++;
 
-			if (cs->dle &&
-			    !(inputstate & INS_DLE_command)) {
-				inputstate &= ~INS_command;
+		switch (c) {
+		case '\n':
+			if (cbytes == 0 && cs->respdata[0] == '\r') {
+				/* collapse LF with preceding CR */
+				cs->respdata[0] = 0;
 				break;
 			}
-		} else {
-			/* advance in line buffer, checking for overflow */
-			if (cbytes < MAX_RESP_SIZE - 1)
-				cbytes++;
-			else
-				dev_warn(cs->dev, "response too large\n");
-		}
+			/* --v-- fall through --v-- */
+		case '\r':
+			/* end of message line, pass to response handler */
+			gig_dbg(DEBUG_TRANSCMD, "%s: End of Message (%d Bytes)",
+				__func__, cbytes);
+			if (cbytes >= MAX_RESP_SIZE) {
+				dev_warn(cs->dev, "response too large (%d)\n",
+					 cbytes);
+				cbytes = MAX_RESP_SIZE;
+			}
+			cs->cbytes = cbytes;
+			gigaset_handle_modem_response(cs);
+			cbytes = 0;
 
-		if (!numbytes)
-			break;
-		c = *src++;
-		--numbytes;
-		if (c == DLE_FLAG &&
-		    (cs->dle || inputstate & INS_DLE_command)) {
-			inputstate |= INS_DLE_char;
-			break;
+			/* store EOL byte for CRLF collapsing */
+			cs->respdata[0] = c;
+
+			/* cs->dle may have changed */
+			if (cs->dle && !(inbuf->inputstate & INS_DLE_command))
+				inbuf->inputstate &= ~INS_command;
+
+			/* return for reevaluating state */
+			goto exit;
+
+		case DLE_FLAG:
+			if (inbuf->inputstate & INS_DLE_char) {
+				/* quoted DLE: clear quote flag */
+				inbuf->inputstate &= ~INS_DLE_char;
+			} else if (cs->dle ||
+				   (inbuf->inputstate & INS_DLE_command)) {
+				/* DLE escape, pass up for handling */
+				inbuf->inputstate |= INS_DLE_char;
+				goto exit;
+			}
+			/* quoted or not in DLE mode: treat as regular data */
+			/* --v-- fall through --v-- */
+		default:
+			/* append to line buffer if possible */
+			if (cbytes < MAX_RESP_SIZE)
+				cs->respdata[cbytes] = c;
+			cbytes++;
 		}
 	}
-
+exit:
 	cs->cbytes = cbytes;
-	inbuf->inputstate = inputstate;
-
-	return startbytes - numbytes;
+	return procbytes;
 }
 
-/* process a block of received bytes in lock mode (tty i/f)
+/* process a block of received bytes in lock mode
+ * All received bytes are passed unmodified to the tty i/f.
  * Return value:
  *	number of processed bytes
  */
-static inline int lock_loop(unsigned char *src, int numbytes,
-			    struct inbuf_t *inbuf)
+static unsigned lock_loop(unsigned numbytes, struct inbuf_t *inbuf)
 {
-	struct cardstate *cs = inbuf->cs;
+	unsigned char *src = inbuf->data + inbuf->head;
 
-	gigaset_dbg_buffer(DEBUG_LOCKCMD, "received response",
-			   numbytes, src);
-	gigaset_if_receive(cs, src, numbytes);
-
+	gigaset_dbg_buffer(DEBUG_LOCKCMD, "received response", numbytes, src);
+	gigaset_if_receive(inbuf->cs, src, numbytes);
 	return numbytes;
 }
 
+/* set up next receive skb for data mode
+ */
+static void new_rcv_skb(struct bc_state *bcs)
+{
+	struct cardstate *cs = bcs->cs;
+	unsigned short hw_hdr_len = cs->hw_hdr_len;
+
+	if (bcs->ignore) {
+		bcs->skb = NULL;
+		return;
+	}
+
+	bcs->skb = dev_alloc_skb(SBUFSIZE + hw_hdr_len);
+	if (bcs->skb == NULL) {
+		dev_warn(cs->dev, "could not allocate new skb\n");
+		return;
+	}
+	skb_reserve(bcs->skb, hw_hdr_len);
+}
+
 /* process a block of received bytes in HDLC data mode
+ * (mstate != MS_LOCKED && !(inputstate & INS_command) && proto2 == L2_HDLC)
  * Collect HDLC frames, undoing byte stuffing and watching for DLE escapes.
  * When a frame is complete, check the FCS and pass valid frames to the LL.
  * If DLE is encountered, return immediately to let the caller handle it.
  * Return value:
  *	number of processed bytes
- *	numbytes (all bytes processed) on error --FIXME
  */
-static inline int hdlc_loop(unsigned char c, unsigned char *src, int numbytes,
-			    struct inbuf_t *inbuf)
+static unsigned hdlc_loop(unsigned numbytes, struct inbuf_t *inbuf)
 {
 	struct cardstate *cs = inbuf->cs;
-	struct bc_state *bcs = inbuf->bcs;
+	struct bc_state *bcs = cs->bcs;
 	int inputstate = bcs->inputstate;
 	__u16 fcs = bcs->fcs;
 	struct sk_buff *skb = bcs->skb;
-	int startbytes = numbytes;
+	unsigned char *src = inbuf->data + inbuf->head;
+	unsigned procbytes = 0;
+	unsigned char c;
 
-	if (unlikely(inputstate & INS_byte_stuff)) {
+	if (inputstate & INS_byte_stuff) {
+		if (!numbytes)
+			return 0;
 		inputstate &= ~INS_byte_stuff;
 		goto byte_stuff;
 	}
-	for (;;) {
-		if (unlikely(c == PPP_ESCAPE)) {
-			if (unlikely(!numbytes)) {
-				inputstate |= INS_byte_stuff;
+
+	while (procbytes < numbytes) {
+		c = *src++;
+		procbytes++;
+		if (c == DLE_FLAG) {
+			if (inputstate & INS_DLE_char) {
+				/* quoted DLE: clear quote flag */
+				inputstate &= ~INS_DLE_char;
+			} else if (cs->dle || (inputstate & INS_DLE_command)) {
+				/* DLE escape, pass up for handling */
+				inputstate |= INS_DLE_char;
 				break;
 			}
-			c = *src++;
-			--numbytes;
-			if (unlikely(c == DLE_FLAG &&
-				     (cs->dle ||
-				      inbuf->inputstate & INS_DLE_command))) {
-				inbuf->inputstate |= INS_DLE_char;
+		}
+
+		if (c == PPP_ESCAPE) {
+			/* byte stuffing indicator: pull in next byte */
+			if (procbytes >= numbytes) {
+				/* end of buffer, save for later processing */
 				inputstate |= INS_byte_stuff;
 				break;
 			}
 byte_stuff:
+			c = *src++;
+			procbytes++;
+			if (c == DLE_FLAG) {
+				if (inputstate & INS_DLE_char) {
+					/* quoted DLE: clear quote flag */
+					inputstate &= ~INS_DLE_char;
+				} else if (cs->dle ||
+					   (inputstate & INS_DLE_command)) {
+					/* DLE escape, pass up for handling */
+					inputstate |=
+						INS_DLE_char | INS_byte_stuff;
+					break;
+				}
+			}
 			c ^= PPP_TRANS;
-			if (unlikely(!muststuff(c)))
+#ifdef CONFIG_GIGASET_DEBUG
+			if (!muststuff(c))
 				gig_dbg(DEBUG_HDLC, "byte stuffed: 0x%02x", c);
-		} else if (unlikely(c == PPP_FLAG)) {
-			if (unlikely(inputstate & INS_skip_frame)) {
-#ifdef CONFIG_GIGASET_DEBUG
-				if (!(inputstate & INS_have_data)) { /* 7E 7E */
-					++bcs->emptycount;
-				} else
-					gig_dbg(DEBUG_HDLC,
-					    "7e----------------------------");
 #endif
-
-				/* end of frame */
-				gigaset_isdn_rcv_err(bcs);
-				dev_kfree_skb_any(skb);
-			} else if (!(inputstate & INS_have_data)) { /* 7E 7E */
-#ifdef CONFIG_GIGASET_DEBUG
-				++bcs->emptycount;
-#endif
-				break;
-			} else {
+		} else if (c == PPP_FLAG) {
+			/* end of frame: process content if any */
+			if (inputstate & INS_have_data) {
 				gig_dbg(DEBUG_HDLC,
 					"7e----------------------------");
 
-				/* end of frame */
-				if (unlikely(fcs != PPP_GOODFCS)) {
+				/* check and pass received frame */
+				if (!skb) {
+					/* skipped frame */
+					gigaset_isdn_rcv_err(bcs);
+				} else if (skb->len < 2) {
+					/* frame too short for FCS */
+					dev_warn(cs->dev,
+						 "short frame (%d)\n",
+						 skb->len);
+					gigaset_isdn_rcv_err(bcs);
+					dev_kfree_skb_any(skb);
+				} else if (fcs != PPP_GOODFCS) {
+					/* frame check error */
 					dev_err(cs->dev,
 				"Checksum failed, %u bytes corrupted!\n",
 						skb->len);
 					gigaset_isdn_rcv_err(bcs);
 					dev_kfree_skb_any(skb);
-				} else if (likely(skb->len > 2)) {
+				} else {
+					/* good frame */
 					__skb_trim(skb, skb->len - 2);
 					gigaset_skb_rcvd(bcs, skb);
-				} else {
-					if (skb->len) {
-						dev_err(cs->dev,
-					"invalid packet size (%d)\n", skb->len);
-						gigaset_isdn_rcv_err(bcs);
-					}
-					dev_kfree_skb_any(skb);
+				}
+
+				/* prepare reception of next frame */
+				inputstate &= ~INS_have_data;
+				new_rcv_skb(bcs);
+				skb = bcs->skb;
+			} else {
+				/* empty frame (7E 7E) */
+#ifdef CONFIG_GIGASET_DEBUG
+				++bcs->emptycount;
+#endif
+				if (!skb) {
+					/* skipped (?) */
+					gigaset_isdn_rcv_err(bcs);
+					new_rcv_skb(bcs);
+					skb = bcs->skb;
 				}
 			}
 
 			fcs = PPP_INITFCS;
-			inputstate &= ~(INS_have_data | INS_skip_frame);
-			if (unlikely(bcs->ignore)) {
-				inputstate |= INS_skip_frame;
-				skb = NULL;
-			} else {
-				skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
-				if (skb != NULL) {
-					skb_reserve(skb, cs->hw_hdr_len);
-				} else {
-					dev_warn(cs->dev,
-						"could not allocate new skb\n");
-					inputstate |= INS_skip_frame;
-				}
-			}
-
-			break;
-		} else if (unlikely(muststuff(c))) {
+			continue;
+#ifdef CONFIG_GIGASET_DEBUG
+		} else if (muststuff(c)) {
 			/* Should not happen. Possible after ZDLE=1<CR><LF>. */
 			gig_dbg(DEBUG_HDLC, "not byte stuffed: 0x%02x", c);
+#endif
 		}
 
-		/* add character */
-
+		/* regular data byte, append to skb */
 #ifdef CONFIG_GIGASET_DEBUG
-		if (unlikely(!(inputstate & INS_have_data))) {
+		if (!(inputstate & INS_have_data)) {
 			gig_dbg(DEBUG_HDLC, "7e (%d x) ================",
 				bcs->emptycount);
 			bcs->emptycount = 0;
 		}
 #endif
-
 		inputstate |= INS_have_data;
-
-		if (likely(!(inputstate & INS_skip_frame))) {
-			if (unlikely(skb->len == SBUFSIZE)) {
+		if (skb) {
+			if (skb->len == SBUFSIZE) {
 				dev_warn(cs->dev, "received packet too long\n");
 				dev_kfree_skb_any(skb);
-				skb = NULL;
-				inputstate |= INS_skip_frame;
-				break;
+				/* skip remainder of packet */
+				bcs->skb = skb = NULL;
+			} else {
+				*__skb_put(skb, 1) = c;
+				fcs = crc_ccitt_byte(fcs, c);
 			}
-			*__skb_put(skb, 1) = c;
-			fcs = crc_ccitt_byte(fcs, c);
-		}
-
-		if (unlikely(!numbytes))
-			break;
-		c = *src++;
-		--numbytes;
-		if (unlikely(c == DLE_FLAG &&
-			     (cs->dle ||
-			      inbuf->inputstate & INS_DLE_command))) {
-			inbuf->inputstate |= INS_DLE_char;
-			break;
 		}
 	}
+
 	bcs->inputstate = inputstate;
 	bcs->fcs = fcs;
-	bcs->skb = skb;
-	return startbytes - numbytes;
+	return procbytes;
 }
 
 /* process a block of received bytes in transparent data mode
+ * (mstate != MS_LOCKED && !(inputstate & INS_command) && proto2 != L2_HDLC)
  * Invert bytes, undoing byte stuffing and watching for DLE escapes.
  * If DLE is encountered, return immediately to let the caller handle it.
  * Return value:
  *	number of processed bytes
- *	numbytes (all bytes processed) on error --FIXME
  */
-static inline int iraw_loop(unsigned char c, unsigned char *src, int numbytes,
-			    struct inbuf_t *inbuf)
+static unsigned iraw_loop(unsigned numbytes, struct inbuf_t *inbuf)
 {
 	struct cardstate *cs = inbuf->cs;
-	struct bc_state *bcs = inbuf->bcs;
+	struct bc_state *bcs = cs->bcs;
 	int inputstate = bcs->inputstate;
 	struct sk_buff *skb = bcs->skb;
-	int startbytes = numbytes;
+	unsigned char *src = inbuf->data + inbuf->head;
+	unsigned procbytes = 0;
+	unsigned char c;
 
-	for (;;) {
-		/* add character */
-		inputstate |= INS_have_data;
+	if (!skb) {
+		/* skip this block */
+		new_rcv_skb(bcs);
+		return numbytes;
+	}
 
-		if (likely(!(inputstate & INS_skip_frame))) {
-			if (unlikely(skb->len == SBUFSIZE)) {
-				//FIXME just pass skb up and allocate a new one
-				dev_warn(cs->dev, "received packet too long\n");
-				dev_kfree_skb_any(skb);
-				skb = NULL;
-				inputstate |= INS_skip_frame;
+	while (procbytes < numbytes && skb->len < SBUFSIZE) {
+		c = *src++;
+		procbytes++;
+
+		if (c == DLE_FLAG) {
+			if (inputstate & INS_DLE_char) {
+				/* quoted DLE: clear quote flag */
+				inputstate &= ~INS_DLE_char;
+			} else if (cs->dle || (inputstate & INS_DLE_command)) {
+				/* DLE escape, pass up for handling */
+				inputstate |= INS_DLE_char;
 				break;
 			}
-			*__skb_put(skb, 1) = bitrev8(c);
 		}
 
-		if (unlikely(!numbytes))
-			break;
-		c = *src++;
-		--numbytes;
-		if (unlikely(c == DLE_FLAG &&
-			     (cs->dle ||
-			      inbuf->inputstate & INS_DLE_command))) {
-			inbuf->inputstate |= INS_DLE_char;
-			break;
-		}
+		/* regular data byte: append to current skb */
+		inputstate |= INS_have_data;
+		*__skb_put(skb, 1) = bitrev8(c);
 	}
 
 	/* pass data up */
-	if (likely(inputstate & INS_have_data)) {
-		if (likely(!(inputstate & INS_skip_frame))) {
-			gigaset_skb_rcvd(bcs, skb);
-		}
-		inputstate &= ~(INS_have_data | INS_skip_frame);
-		if (unlikely(bcs->ignore)) {
-			inputstate |= INS_skip_frame;
-			skb = NULL;
-		} else {
-			skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
-			if (skb != NULL) {
-				skb_reserve(skb, cs->hw_hdr_len);
-			} else {
-				dev_warn(cs->dev,
-					 "could not allocate new skb\n");
-				inputstate |= INS_skip_frame;
-			}
-		}
+	if (inputstate & INS_have_data) {
+		gigaset_skb_rcvd(bcs, skb);
+		inputstate &= ~INS_have_data;
+		new_rcv_skb(bcs);
 	}
 
 	bcs->inputstate = inputstate;
-	bcs->skb = skb;
-	return startbytes - numbytes;
+	return procbytes;
+}
+
+/* process DLE escapes
+ * Called whenever a DLE sequence might be encountered in the input stream.
+ * Either processes the entire DLE sequence or, if that isn't possible,
+ * notes the fact that an initial DLE has been received in the INS_DLE_char
+ * inputstate flag and resumes processing of the sequence on the next call.
+ */
+static void handle_dle(struct inbuf_t *inbuf)
+{
+	struct cardstate *cs = inbuf->cs;
+
+	if (cs->mstate == MS_LOCKED)
+		return;		/* no DLE processing in lock mode */
+
+	if (!(inbuf->inputstate & INS_DLE_char)) {
+		/* no DLE pending */
+		if (inbuf->data[inbuf->head] == DLE_FLAG &&
+		    (cs->dle || inbuf->inputstate & INS_DLE_command)) {
+			/* start of DLE sequence */
+			inbuf->head++;
+			if (inbuf->head == inbuf->tail ||
+			    inbuf->head == RBUFSIZE) {
+				/* end of buffer, save for later processing */
+				inbuf->inputstate |= INS_DLE_char;
+				return;
+			}
+		} else {
+			/* regular data byte */
+			return;
+		}
+	}
+
+	/* consume pending DLE */
+	inbuf->inputstate &= ~INS_DLE_char;
+
+	switch (inbuf->data[inbuf->head]) {
+	case 'X':	/* begin of event message */
+		if (inbuf->inputstate & INS_command)
+			dev_notice(cs->dev,
+				   "received <DLE>X in command mode\n");
+		inbuf->inputstate |= INS_command | INS_DLE_command;
+		inbuf->head++;	/* byte consumed */
+		break;
+	case '.':	/* end of event message */
+		if (!(inbuf->inputstate & INS_DLE_command))
+			dev_notice(cs->dev,
+				   "received <DLE>. without <DLE>X\n");
+		inbuf->inputstate &= ~INS_DLE_command;
+		/* return to data mode if in DLE mode */
+		if (cs->dle)
+			inbuf->inputstate &= ~INS_command;
+		inbuf->head++;	/* byte consumed */
+		break;
+	case DLE_FLAG:	/* DLE in data stream */
+		/* mark as quoted */
+		inbuf->inputstate |= INS_DLE_char;
+		if (!(cs->dle || inbuf->inputstate & INS_DLE_command))
+			dev_notice(cs->dev,
+				   "received <DLE><DLE> not in DLE mode\n");
+		break;	/* quoted byte left in buffer */
+	default:
+		dev_notice(cs->dev, "received <DLE><%02x>\n",
+			   inbuf->data[inbuf->head]);
+		/* quoted byte left in buffer */
+	}
 }
 
 /**
@@ -330,94 +425,39 @@ static inline int iraw_loop(unsigned char c, unsigned char *src, int numbytes,
  */
 void gigaset_m10x_input(struct inbuf_t *inbuf)
 {
-	struct cardstate *cs;
-	unsigned tail, head, numbytes;
-	unsigned char *src, c;
-	int procbytes;
+	struct cardstate *cs = inbuf->cs;
+	unsigned numbytes, procbytes;
 
-	head = inbuf->head;
-	tail = inbuf->tail;
-	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
+	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", inbuf->head, inbuf->tail);
 
-	if (head != tail) {
-		cs = inbuf->cs;
-		src = inbuf->data + head;
-		numbytes = (head > tail ? RBUFSIZE : tail) - head;
+	while (inbuf->head != inbuf->tail) {
+		/* check for DLE escape */
+		handle_dle(inbuf);
+
+		/* process a contiguous block of bytes */
+		numbytes = (inbuf->head > inbuf->tail ?
+			    RBUFSIZE : inbuf->tail) - inbuf->head;
 		gig_dbg(DEBUG_INTR, "processing %u bytes", numbytes);
+		/*
+		 * numbytes may be 0 if handle_dle() ate the last byte.
+		 * This does no harm, *_loop() will just return 0 immediately.
+		 */
 
-		while (numbytes) {
-			if (cs->mstate == MS_LOCKED) {
-				procbytes = lock_loop(src, numbytes, inbuf);
-				src += procbytes;
-				numbytes -= procbytes;
-			} else {
-				c = *src++;
-				--numbytes;
-				if (c == DLE_FLAG && (cs->dle ||
-				    inbuf->inputstate & INS_DLE_command)) {
-					if (!(inbuf->inputstate & INS_DLE_char)) {
-						inbuf->inputstate |= INS_DLE_char;
-						goto nextbyte;
-					}
-					/* <DLE> <DLE> => <DLE> in data stream */
-					inbuf->inputstate &= ~INS_DLE_char;
-				}
+		if (cs->mstate == MS_LOCKED)
+			procbytes = lock_loop(numbytes, inbuf);
+		else if (inbuf->inputstate & INS_command)
+			procbytes = cmd_loop(numbytes, inbuf);
+		else if (cs->bcs->proto2 == L2_HDLC)
+			procbytes = hdlc_loop(numbytes, inbuf);
+		else
+			procbytes = iraw_loop(numbytes, inbuf);
+		inbuf->head += procbytes;
 
-				if (!(inbuf->inputstate & INS_DLE_char)) {
+		/* check for buffer wraparound */
+		if (inbuf->head >= RBUFSIZE)
+			inbuf->head = 0;
 
-					/* FIXME use function pointers?  */
-					if (inbuf->inputstate & INS_command)
-						procbytes = cmd_loop(c, src, numbytes, inbuf);
-					else if (inbuf->bcs->proto2 == L2_HDLC)
-						procbytes = hdlc_loop(c, src, numbytes, inbuf);
-					else
-						procbytes = iraw_loop(c, src, numbytes, inbuf);
-
-					src += procbytes;
-					numbytes -= procbytes;
-				} else {  /* DLE char */
-					inbuf->inputstate &= ~INS_DLE_char;
-					switch (c) {
-					case 'X': /*begin of command*/
-						if (inbuf->inputstate & INS_command)
-							dev_warn(cs->dev,
-					"received <DLE> 'X' in command mode\n");
-						inbuf->inputstate |=
-							INS_command | INS_DLE_command;
-						break;
-					case '.': /*end of command*/
-						if (!(inbuf->inputstate & INS_command))
-							dev_warn(cs->dev,
-					"received <DLE> '.' in hdlc mode\n");
-						inbuf->inputstate &= cs->dle ?
-							~(INS_DLE_command|INS_command)
-							: ~INS_DLE_command;
-						break;
-					//case DLE_FLAG: /*DLE_FLAG in data stream*/ /* schon oben behandelt! */
-					default:
-						dev_err(cs->dev,
-						      "received 0x10 0x%02x!\n",
-							(int) c);
-						/* FIXME: reset driver?? */
-					}
-				}
-			}
-nextbyte:
-			if (!numbytes) {
-				/* end of buffer, check for wrap */
-				if (head > tail) {
-					head = 0;
-					src = inbuf->data;
-					numbytes = tail;
-				} else {
-					head = tail;
-					break;
-				}
-			}
-		}
-
-		gig_dbg(DEBUG_INTR, "setting head to %u", head);
-		inbuf->head = head;
+		gig_dbg(DEBUG_INTR, "head set to %u", inbuf->head);
 	}
 }
 EXPORT_SYMBOL_GPL(gigaset_m10x_input);
@@ -563,6 +603,7 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb)
  */
 int gigaset_m10x_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 {
+	struct cardstate *cs = bcs->cs;
 	unsigned len = skb->len;
 	unsigned long flags;
 
@@ -571,16 +612,16 @@ int gigaset_m10x_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 	else
 		skb = iraw_encode(skb);
 	if (!skb) {
-		dev_err(bcs->cs->dev,
+		dev_err(cs->dev,
 			"unable to allocate memory for encoding!\n");
 		return -ENOMEM;
 	}
 
 	skb_queue_tail(&bcs->squeue, skb);
-	spin_lock_irqsave(&bcs->cs->lock, flags);
-	if (bcs->cs->connected)
-		tasklet_schedule(&bcs->cs->write_tasklet);
-	spin_unlock_irqrestore(&bcs->cs->lock, flags);
+	spin_lock_irqsave(&cs->lock, flags);
+	if (cs->connected)
+		tasklet_schedule(&cs->write_tasklet);
+	spin_unlock_irqrestore(&cs->lock, flags);
 
 	return len;	/* ok so far */
 }

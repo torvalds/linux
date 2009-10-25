@@ -223,12 +223,11 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define EV_BC_CLOSED	-118
 
 /* input state */
-#define INS_command	0x0001
-#define INS_DLE_char	0x0002
+#define INS_command	0x0001	/* receiving messages (not payload data) */
+#define INS_DLE_char	0x0002	/* DLE flag received (in DLE mode) */
 #define INS_byte_stuff	0x0004
 #define INS_have_data	0x0008
-#define INS_skip_frame	0x0010
-#define INS_DLE_command	0x0020
+#define INS_DLE_command	0x0020	/* DLE message start (<DLE> X) received */
 #define INS_flag_hunt	0x0040
 
 /* channel state */
@@ -290,8 +289,6 @@ extern struct reply_t gigaset_tab_cid[];
 extern struct reply_t gigaset_tab_nocid[];
 
 struct inbuf_t {
-	unsigned char		*rcvbuf;	/* usb-gigaset receive buffer */
-	struct bc_state		*bcs;
 	struct cardstate	*cs;
 	int			inputstate;
 	int			head, tail;
@@ -483,8 +480,8 @@ struct cardstate {
 
 	struct timer_list timer;
 	int retry_count;
-	int dle;			/* !=0 if modem commands/responses are
-					   dle encoded */
+	int dle;			/* !=0 if DLE mode is active
+					   (ZDLE=1 received -- M10x only) */
 	int cur_at_seq;			/* sequence of AT commands being
 					   processed */
 	int curchannel;			/* channel those commands are meant
