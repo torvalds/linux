@@ -189,7 +189,16 @@ static void __flush_dcache_aliases(struct address_space *mapping, struct page *p
  */
 void flush_dcache_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
+	struct address_space *mapping;
+
+	/*
+	 * The zero page is never written to, so never has any dirty
+	 * cache lines, and therefore never needs to be flushed.
+	 */
+	if (page == ZERO_PAGE(0))
+		return;
+
+	mapping = page_mapping(page);
 
 #ifndef CONFIG_SMP
 	if (!PageHighMem(page) && mapping && !mapping_mapped(mapping))
