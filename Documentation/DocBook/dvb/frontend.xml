@@ -1838,9 +1838,8 @@ sends the specified raw cmd to the dish via DISEqC.
 	<para>There are no errors in use for this call</para>
 </entry>
 </row></tbody></tgroup></informaltable>
+</section>
 
 </section>
 
-
-</section>
-&sub-isdbt;
+&sub-dvbproperty;
