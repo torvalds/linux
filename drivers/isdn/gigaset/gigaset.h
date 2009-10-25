@@ -357,12 +357,6 @@ struct at_state_t {
 	struct bc_state		*bcs;
 };
 
-struct resp_type_t {
-	unsigned char	*response;
-	int		resp_code;	/* RSP_XXXX */
-	int		type;		/* RT_XXXX */
-};
-
 struct event_t {
 	int type;
 	void *ptr, *arg;

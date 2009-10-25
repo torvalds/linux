@@ -374,7 +374,11 @@ struct reply_t gigaset_tab_cid[] =
 };
 
 
-static const struct resp_type_t resp_type[] =
+static const struct resp_type_t {
+	unsigned char	*response;
+	int		resp_code;
+	int		type;
+} resp_type[] =
 {
 	{"OK",		RSP_OK,		RT_NOTHING},
 	{"ERROR",	RSP_ERROR,	RT_NOTHING},
@@ -400,6 +404,20 @@ static const struct resp_type_t resp_type[] =
 	{"ZABINFO",	RSP_ZABINFO,	RT_NOTHING},
 	{"ZSMLSTCHG",	RSP_ZSMLSTCHG,	RT_NOTHING},
 	{NULL,		0,		0}
+};
+
+static const struct zsau_resp_t {
+	unsigned char	*str;
+	int		code;
+} zsau_resp[] =
+{
+	{"OUTGOING_CALL_PROCEEDING",	ZSAU_OUTGOING_CALL_PROCEEDING},
+	{"CALL_DELIVERED",		ZSAU_CALL_DELIVERED},
+	{"ACTIVE",			ZSAU_ACTIVE},
+	{"DISCONNECT_IND",		ZSAU_DISCONNECT_IND},
+	{"NULL",			ZSAU_NULL},
+	{"DISCONNECT_REQ",		ZSAU_DISCONNECT_REQ},
+	{NULL,				ZSAU_UNKNOWN}
 };
 
 /*
@@ -480,6 +498,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 	int params;
 	int i, j;
 	const struct resp_type_t *rt;
+	const struct zsau_resp_t *zr;
 	int curarg;
 	unsigned long flags;
 	unsigned next, tail, head;
@@ -606,25 +625,14 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 				event->parameter = ZSAU_NONE;
 				break;
 			}
-			if (!strcmp(argv[curarg], "OUTGOING_CALL_PROCEEDING"))
-				event->parameter =
-					ZSAU_OUTGOING_CALL_PROCEEDING;
-			else if (!strcmp(argv[curarg], "CALL_DELIVERED"))
-				event->parameter = ZSAU_CALL_DELIVERED;
-			else if (!strcmp(argv[curarg], "ACTIVE"))
-				event->parameter = ZSAU_ACTIVE;
-			else if (!strcmp(argv[curarg], "DISCONNECT_IND"))
-				event->parameter = ZSAU_DISCONNECT_IND;
-			else if (!strcmp(argv[curarg], "NULL"))
-				event->parameter = ZSAU_NULL;
-			else if (!strcmp(argv[curarg], "DISCONNECT_REQ"))
-				event->parameter = ZSAU_DISCONNECT_REQ;
-			else {
-				event->parameter = ZSAU_UNKNOWN;
+			for (zr = zsau_resp; zr->str; ++zr)
+				if (!strcmp(argv[curarg], zr->str))
+					break;
+			event->parameter = zr->code;
+			if (!zr->str)
 				dev_warn(cs->dev,
 					"%s: unknown parameter %s after ZSAU\n",
 					 __func__, argv[curarg]);
-			}
 			++curarg;
 			break;
 		case RT_STRING:
