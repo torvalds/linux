@@ -66,10 +66,9 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned
 		    :
 		    : "r" (0)
 		    : "cc");
-		__flush_icache_all();
 	}
 
-	if (vma->vm_flags & VM_EXEC && icache_is_vivt_asid_tagged())
+	if (vma->vm_flags & VM_EXEC)
 		__flush_icache_all();
 }
 
