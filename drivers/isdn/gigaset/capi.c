@@ -362,6 +362,7 @@ void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *dskb)
 	struct cardstate *cs = bcs->cs;
 	struct gigaset_capi_ctr *iif = cs->iif;
 	struct gigaset_capi_appl *ap = bcs->ap;
+	unsigned char *req = skb_mac_header(dskb);
 	struct sk_buff *cskb;
 	u16 flags;
 
@@ -380,7 +381,7 @@ void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *dskb)
 	}
 
 	/* ToDo: honor unset "delivery confirmation" bit */
-	flags = CAPIMSG_FLAGS(dskb->head);
+	flags = CAPIMSG_FLAGS(req);
 
 	/* build DATA_B3_CONF message */
 	cskb = alloc_skb(CAPI_DATA_B3_CONF_LEN, GFP_ATOMIC);
@@ -393,11 +394,11 @@ void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *dskb)
 	CAPIMSG_SETAPPID(cskb->data, ap->id);
 	CAPIMSG_SETCOMMAND(cskb->data, CAPI_DATA_B3);
 	CAPIMSG_SETSUBCOMMAND(cskb->data,  CAPI_CONF);
-	CAPIMSG_SETMSGID(cskb->data, CAPIMSG_MSGID(dskb->head));
+	CAPIMSG_SETMSGID(cskb->data, CAPIMSG_MSGID(req));
 	CAPIMSG_SETCONTROLLER(cskb->data, iif->ctr.cnr);
 	CAPIMSG_SETPLCI_PART(cskb->data, bcs->channel + 1);
 	CAPIMSG_SETNCCI_PART(cskb->data, 1);
-	CAPIMSG_SETHANDLE_CONF(cskb->data, CAPIMSG_HANDLE_REQ(dskb->head));
+	CAPIMSG_SETHANDLE_CONF(cskb->data, CAPIMSG_HANDLE_REQ(req));
 	if (flags & ~CAPI_FLAGS_DELIVERY_CONFIRMATION)
 		CAPIMSG_SETINFO_CONF(cskb->data,
 				     CapiFlagsNotSupportedByProtocol);
@@ -437,7 +438,7 @@ void gigaset_skb_rcvd(struct bc_state *bcs, struct sk_buff *skb)
 	/* don't send further B3 messages if disconnected */
 	if (ap->connected < APCONN_ACTIVE) {
 		gig_dbg(DEBUG_LLDATA, "disconnected, discarding data");
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return;
 	}
 
@@ -1461,7 +1462,7 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 	/* decode message */
 	capi_message2cmsg(cmsg, skb->data);
 	dump_cmsg(DEBUG_CMD, __func__, cmsg);
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 
 	/* extract and check channel number from PLCI */
 	channel = (cmsg->adr.adrPLCI >> 8) & 0xff;
@@ -1652,7 +1653,7 @@ static void do_connect_b3_resp(struct gigaset_capi_ctr *iif,
 	    ((cmsg->adr.adrNCCI >> 16) & 0xffff) != 1) {
 		dev_notice(cs->dev, "%s: invalid %s 0x%02x\n",
 			   "CONNECT_B3_RESP", "NCCI", cmsg->adr.adrNCCI);
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return;
 	}
 	bcs = &cs->bcs[channel-1];
@@ -1665,7 +1666,7 @@ static void do_connect_b3_resp(struct gigaset_capi_ctr *iif,
 		if (!gigaset_add_event(cs, &bcs->at_state,
 				       EV_HUP, NULL, 0, NULL)) {
 			dev_err(cs->dev, "%s: out of memory\n", __func__);
-			dev_kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			return;
 		}
 		gig_dbg(DEBUG_CMD, "scheduling HUP");
@@ -1880,12 +1881,12 @@ static void do_data_b3_req(struct gigaset_capi_ctr *iif,
 		return;
 	}
 
-	/*
-	 * pull CAPI message from skb,
-	 * pass payload data to device-specific module
-	 * CAPI message will be preserved in headroom
-	 */
+	/* pull CAPI message into link layer header */
+	skb_reset_mac_header(skb);
+	skb->mac_len = msglen;
 	skb_pull(skb, msglen);
+
+	/* pass to device-specific module */
 	if (cs->ops->send_skb(&cs->bcs[channel-1], skb) < 0) {
 		send_conf(iif, ap, skb, CAPI_MSGOSRESOURCEERR);
 		return;
@@ -1946,7 +1947,7 @@ static void do_nothing(struct gigaset_capi_ctr *iif,
 		capi_message2cmsg(&iif->acmsg, skb->data);
 		dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
 	}
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 }
 
 static void do_data_b3_resp(struct gigaset_capi_ctr *iif,
@@ -1954,7 +1955,7 @@ static void do_data_b3_resp(struct gigaset_capi_ctr *iif,
 			    struct sk_buff *skb)
 {
 	dump_rawmsg(DEBUG_LLDATA, __func__, skb->data);
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 }
 
 /* table of outgoing CAPI message handlers with lookup function */

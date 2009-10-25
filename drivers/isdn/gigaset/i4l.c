@@ -41,8 +41,8 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 {
 	struct cardstate *cs;
 	struct bc_state *bcs;
+	unsigned char *ack_header;
 	unsigned len;
-	unsigned skblen;
 
 	if (!(cs = gigaset_get_cs_by_id(driverID))) {
 		pr_err("%s: invalid driver ID (%d)\n", __func__, driverID);
@@ -78,11 +78,23 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 		return -EINVAL;
 	}
 
-	skblen = ack ? len : 0;
-	skb->head[0] = skblen & 0xff;
-	skb->head[1] = skblen >> 8;
-	gig_dbg(DEBUG_MCMD, "skb: len=%u, skblen=%u: %02x %02x",
-		len, skblen, (unsigned) skb->head[0], (unsigned) skb->head[1]);
+	/* set up acknowledgement header */
+	if (skb_headroom(skb) < HW_HDR_LEN) {
+		/* should never happen */
+		dev_err(cs->dev, "%s: insufficient skb headroom\n", __func__);
+		return -ENOMEM;
+	}
+	skb_set_mac_header(skb, -HW_HDR_LEN);
+	skb->mac_len = HW_HDR_LEN;
+	ack_header = skb_mac_header(skb);
+	if (ack) {
+		ack_header[0] = len & 0xff;
+		ack_header[1] = len >> 8;
+	} else {
+		ack_header[0] = ack_header[1] = 0;
+	}
+	gig_dbg(DEBUG_MCMD, "skb: len=%u, ack=%d: %02x %02x",
+		len, ack, ack_header[0], ack_header[1]);
 
 	/* pass to device-specific module */
 	return cs->ops->send_skb(bcs, skb);
@@ -99,6 +111,7 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb)
 {
 	isdn_if *iif = bcs->cs->iif;
+	unsigned char *ack_header = skb_mac_header(skb);
 	unsigned len;
 	isdn_ctrl response;
 
@@ -108,8 +121,7 @@ void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb)
 		dev_warn(bcs->cs->dev, "%s: skb->len==%d\n",
 			 __func__, skb->len);
 
-	len = (unsigned char) skb->head[0] |
-	      (unsigned) (unsigned char) skb->head[1] << 8;
+	len = ack_header[0] + ((unsigned) ack_header[1] << 8);
 	if (len) {
 		gig_dbg(DEBUG_MCMD, "ACKing to LL (id: %d, ch: %d, sz: %u)",
 			bcs->cs->myid, bcs->channel, len);

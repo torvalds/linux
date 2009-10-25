@@ -625,7 +625,7 @@ struct gigaset_ops {
 
 	/* Called from LL interface to put an skb into the send-queue.
 	 * After sending is completed, gigaset_skb_sent() must be called
-	 * with the first cs->hw_hdr_len bytes of skb->head preserved. */
+	 * with the skb's link layer header preserved. */
 	int (*send_skb)(struct bc_state *bcs, struct sk_buff *skb);
 
 	/* Called from ev-layer.c to process a block of data

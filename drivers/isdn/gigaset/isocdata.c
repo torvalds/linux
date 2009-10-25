@@ -576,12 +576,12 @@ static inline void hdlc_done(struct bc_state *bcs)
 		dev_notice(cs->dev, "received short frame (%d octets)\n",
 			   procskb->len);
 		bcs->hw.bas->runts++;
-		dev_kfree_skb(procskb);
+		dev_kfree_skb_any(procskb);
 		gigaset_isdn_rcv_err(bcs);
 	} else if (bcs->fcs != PPP_GOODFCS) {
 		dev_notice(cs->dev, "frame check error (0x%04x)\n", bcs->fcs);
 		bcs->hw.bas->fcserrs++;
-		dev_kfree_skb(procskb);
+		dev_kfree_skb_any(procskb);
 		gigaset_isdn_rcv_err(bcs);
 	} else {
 		len = procskb->len;
@@ -985,7 +985,7 @@ void gigaset_isoc_input(struct inbuf_t *inbuf)
  * Called by LL to queue an skb for sending, and start transmission if
  * necessary.
  * Once the payload data has been transmitted completely, gigaset_skb_sent()
- * will be called with the first cs->hw_hdr_len bytes of skb->head preserved.
+ * will be called with the skb's link layer header preserved.
  *
  * Return value:
  *	number of bytes accepted for sending (skb->len) if ok,

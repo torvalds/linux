@@ -156,7 +156,7 @@ byte_stuff:
 
 				/* end of frame */
 				gigaset_isdn_rcv_err(bcs);
-				dev_kfree_skb(skb);
+				dev_kfree_skb_any(skb);
 			} else if (!(inputstate & INS_have_data)) { /* 7E 7E */
 #ifdef CONFIG_GIGASET_DEBUG
 				++bcs->emptycount;
@@ -172,7 +172,7 @@ byte_stuff:
 				"Checksum failed, %u bytes corrupted!\n",
 						skb->len);
 					gigaset_isdn_rcv_err(bcs);
-					dev_kfree_skb(skb);
+					dev_kfree_skb_any(skb);
 				} else if (likely(skb->len > 2)) {
 					__skb_trim(skb, skb->len - 2);
 					gigaset_skb_rcvd(bcs, skb);
@@ -182,7 +182,7 @@ byte_stuff:
 					"invalid packet size (%d)\n", skb->len);
 						gigaset_isdn_rcv_err(bcs);
 					}
-					dev_kfree_skb(skb);
+					dev_kfree_skb_any(skb);
 				}
 			}
 
@@ -430,11 +430,11 @@ EXPORT_SYMBOL_GPL(gigaset_m10x_input);
  * opening and closing flags, preserving headroom data.
  * parameters:
  *	skb		skb containing original packet (freed upon return)
- *	headroom	number of headroom bytes to preserve
  * Return value:
  *	pointer to newly allocated skb containing the result frame
+ *	and the original link layer header, NULL on error
  */
-static struct sk_buff *HDLC_Encode(struct sk_buff *skb, int headroom)
+static struct sk_buff *HDLC_Encode(struct sk_buff *skb)
 {
 	struct sk_buff *hdlc_skb;
 	__u16 fcs;
@@ -456,17 +456,19 @@ static struct sk_buff *HDLC_Encode(struct sk_buff *skb, int headroom)
 
 	/* size of new buffer: original size + number of stuffing bytes
 	 * + 2 bytes FCS + 2 stuffing bytes for FCS (if needed) + 2 flag bytes
-	 * + room for acknowledgement header
+	 * + room for link layer header
 	 */
-	hdlc_skb = dev_alloc_skb(skb->len + stuf_cnt + 6 + headroom);
+	hdlc_skb = dev_alloc_skb(skb->len + stuf_cnt + 6 + skb->mac_len);
 	if (!hdlc_skb) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NULL;
 	}
 
-	/* Copy acknowledgement header into new skb */
-	skb_reserve(hdlc_skb, headroom);
-	memcpy(hdlc_skb->head, skb->head, headroom);
+	/* Copy link layer header into new skb */
+	skb_reset_mac_header(hdlc_skb);
+	skb_reserve(hdlc_skb, skb->mac_len);
+	memcpy(skb_mac_header(hdlc_skb), skb_mac_header(skb), skb->mac_len);
+	hdlc_skb->mac_len = skb->mac_len;
 
 	/* Add flag sequence in front of everything.. */
 	*(skb_put(hdlc_skb, 1)) = PPP_FLAG;
@@ -497,7 +499,7 @@ static struct sk_buff *HDLC_Encode(struct sk_buff *skb, int headroom)
 
 	*(skb_put(hdlc_skb, 1)) = PPP_FLAG;
 
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return hdlc_skb;
 }
 
@@ -506,28 +508,33 @@ static struct sk_buff *HDLC_Encode(struct sk_buff *skb, int headroom)
  * preserving headroom data.
  * parameters:
  *	skb		skb containing original packet (freed upon return)
- *	headroom	number of headroom bytes to preserve
  * Return value:
  *	pointer to newly allocated skb containing the result frame
+ *	and the original link layer header, NULL on error
  */
-static struct sk_buff *iraw_encode(struct sk_buff *skb, int headroom)
+static struct sk_buff *iraw_encode(struct sk_buff *skb)
 {
 	struct sk_buff *iraw_skb;
 	unsigned char c;
 	unsigned char *cp;
 	int len;
 
-	/* worst case: every byte must be stuffed */
-	iraw_skb = dev_alloc_skb(2*skb->len + headroom);
+	/* size of new buffer (worst case = every byte must be stuffed):
+	 * 2 * original size + room for link layer header
+	 */
+	iraw_skb = dev_alloc_skb(2*skb->len + skb->mac_len);
 	if (!iraw_skb) {
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NULL;
 	}
 
-	/* Copy acknowledgement header into new skb */
-	skb_reserve(iraw_skb, headroom);
-	memcpy(iraw_skb->head, skb->head, headroom);
+	/* copy link layer header into new skb */
+	skb_reset_mac_header(iraw_skb);
+	skb_reserve(iraw_skb, skb->mac_len);
+	memcpy(skb_mac_header(iraw_skb), skb_mac_header(skb), skb->mac_len);
+	iraw_skb->mac_len = skb->mac_len;
 
+	/* copy and stuff data */
 	cp = skb->data;
 	len = skb->len;
 	while (len--) {
@@ -536,7 +543,7 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb, int headroom)
 			*(skb_put(iraw_skb, 1)) = c;
 		*(skb_put(iraw_skb, 1)) = c;
 	}
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return iraw_skb;
 }
 
@@ -548,7 +555,7 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb, int headroom)
  * Called by LL to encode and queue an skb for sending, and start
  * transmission if necessary.
  * Once the payload data has been transmitted completely, gigaset_skb_sent()
- * will be called with the first cs->hw_hdr_len bytes of skb->head preserved.
+ * will be called with the skb's link layer header preserved.
  *
  * Return value:
  *	number of bytes accepted for sending (skb->len) if ok,
@@ -560,9 +567,9 @@ int gigaset_m10x_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 	unsigned long flags;
 
 	if (bcs->proto2 == L2_HDLC)
-		skb = HDLC_Encode(skb, bcs->cs->hw_hdr_len);
+		skb = HDLC_Encode(skb);
 	else
-		skb = iraw_encode(skb, bcs->cs->hw_hdr_len);
+		skb = iraw_encode(skb);
 	if (!skb) {
 		dev_err(bcs->cs->dev,
 			"unable to allocate memory for encoding!\n");
