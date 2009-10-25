@@ -1,3 +1,6 @@
+<section id="FE_GET_PROPERTY">
+<title>FE_GET_PROPERTY/FE_SET_PROPERTY</title>
+
 <section id="isdbt">
 	<title>ISDB-T frontend</title>
 	<para>This section describes shortly what are the possible parameters in the Linux
@@ -311,4 +314,5 @@
 			</section>
 		</section>
 	</section>
+</section>
 </section>
