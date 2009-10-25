@@ -982,7 +982,7 @@
 #define AR5K_5414_CBCFG_BUF_DIS	0x10	/* Disable buffer */
 
 /*
- * PCI-E Power managment configuration
+ * PCI-E Power management configuration
  * and status register [5424+]
  */
 #define	AR5K_PCIE_PM_CTL		0x4068			/* Register address */

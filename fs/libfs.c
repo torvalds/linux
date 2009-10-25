@@ -527,14 +527,18 @@ ssize_t simple_read_from_buffer(void __user *to, size_t count, loff_t *ppos,
 				const void *from, size_t available)
 {
 	loff_t pos = *ppos;
+	size_t ret;
+
 	if (pos < 0)
 		return -EINVAL;
-	if (pos >= available)
+	if (pos >= available || !count)
 		return 0;
 	if (count > available - pos)
 		count = available - pos;
-	if (copy_to_user(to, from + pos, count))
+	ret = copy_to_user(to, from + pos, count);
+	if (ret == count)
 		return -EFAULT;
+	count -= ret;
 	*ppos = pos + count;
 	return count;
 }
@@ -735,10 +739,11 @@ ssize_t simple_attr_write(struct file *file, const char __user *buf,
 	if (copy_from_user(attr->set_buf, buf, size))
 		goto out;
 
-	ret = len; /* claim we got the whole input */
 	attr->set_buf[size] = '\0';
 	val = simple_strtol(attr->set_buf, NULL, 0);
-	attr->set(attr->data, val);
+	ret = attr->set(attr->data, val);
+	if (ret == 0)
+		ret = len; /* on success, claim we got the whole input */
 out:
 	mutex_unlock(&attr->mutex);
 	return ret;

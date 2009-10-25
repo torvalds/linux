@@ -3036,7 +3036,7 @@ void ip_rt_multicast_event(struct in_device *in_dev)
 
 #ifdef CONFIG_SYSCTL
 static int ipv4_sysctl_rtcache_flush(ctl_table *__ctl, int write,
-					struct file *filp, void __user *buffer,
+					void __user *buffer,
 					size_t *lenp, loff_t *ppos)
 {
 	if (write) {
@@ -3046,7 +3046,7 @@ static int ipv4_sysctl_rtcache_flush(ctl_table *__ctl, int write,
 
 		memcpy(&ctl, __ctl, sizeof(ctl));
 		ctl.data = &flush_delay;
-		proc_dointvec(&ctl, write, filp, buffer, lenp, ppos);
+		proc_dointvec(&ctl, write, buffer, lenp, ppos);
 
 		net = (struct net *)__ctl->extra1;
 		rt_cache_flush(net, flush_delay);
@@ -3106,12 +3106,11 @@ static void rt_secret_reschedule(int old)
 }
 
 static int ipv4_sysctl_rt_secret_interval(ctl_table *ctl, int write,
-					  struct file *filp,
 					  void __user *buffer, size_t *lenp,
 					  loff_t *ppos)
 {
 	int old = ip_rt_secret_interval;
-	int ret = proc_dointvec_jiffies(ctl, write, filp, buffer, lenp, ppos);
+	int ret = proc_dointvec_jiffies(ctl, write, buffer, lenp, ppos);
 
 	rt_secret_reschedule(old);
 
@@ -3414,7 +3413,7 @@ int __init ip_rt_init(void)
 		alloc_large_system_hash("IP route cache",
 					sizeof(struct rt_hash_bucket),
 					rhash_entries,
-					(num_physpages >= 128 * 1024) ?
+					(totalram_pages >= 128 * 1024) ?
 					15 : 17,
 					0,
 					&rt_hash_log,

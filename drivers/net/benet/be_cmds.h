@@ -62,7 +62,7 @@ enum {
 	MCC_STATUS_QUEUE_FLUSHING = 0x4,
 /* The command is completing with a DMA error */
 	MCC_STATUS_DMA_FAILED = 0x5,
-	MCC_STATUS_NOT_SUPPORTED = 0x66
+	MCC_STATUS_NOT_SUPPORTED = 66
 };
 
 #define CQE_STATUS_COMPL_MASK		0xFFFF
@@ -720,8 +720,9 @@ extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 			u32 if_id, u32 *pmac_id);
 extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, u32 pmac_id);
-extern int be_cmd_if_create(struct be_adapter *adapter, u32 if_flags, u8 *mac,
-			bool pmac_invalid, u32 *if_handle, u32 *pmac_id);
+extern int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags,
+			u32 en_flags, u8 *mac, bool pmac_invalid,
+			u32 *if_handle, u32 *pmac_id);
 extern int be_cmd_if_destroy(struct be_adapter *adapter, u32 if_handle);
 extern int be_cmd_eq_create(struct be_adapter *adapter,
 			struct be_queue_info *eq, int eq_delay);
@@ -760,7 +761,8 @@ extern int be_cmd_set_flow_control(struct be_adapter *adapter,
 			u32 tx_fc, u32 rx_fc);
 extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 			u32 *tx_fc, u32 *rx_fc);
-extern int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num);
+extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
+			u32 *port_num, u32 *cap);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
 extern int be_process_mcc(struct be_adapter *adapter);
 extern int be_cmd_write_flashrom(struct be_adapter *adapter,

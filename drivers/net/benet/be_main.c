@@ -197,7 +197,7 @@ void netdev_stats_update(struct be_adapter *adapter)
 	/* no space available in linux */
 	dev_stats->tx_dropped = 0;
 
-	dev_stats->multicast = port_stats->tx_multicastframes;
+	dev_stats->multicast = port_stats->rx_multicast_frames;
 	dev_stats->collisions = 0;
 
 	/* detailed tx_errors */
@@ -747,9 +747,16 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 			struct be_eth_rx_compl *rxcp)
 {
 	struct sk_buff *skb;
-	u32 vtp, vid;
+	u32 vlanf, vid;
+	u8 vtm;
 
-	vtp = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
+	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
+	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
+
+	/* vlanf could be wrongly set in some cards.
+	 * ignore if vtm is not set */
+	if ((adapter->cap == 0x400) && !vtm)
+		vlanf = 0;
 
 	skb = netdev_alloc_skb(adapter->netdev, BE_HDR_LEN + NET_IP_ALIGN);
 	if (!skb) {
@@ -772,7 +779,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
 	skb->dev = adapter->netdev;
 
-	if (vtp) {
+	if (vlanf) {
 		if (!adapter->vlan_grp || adapter->num_vlans == 0) {
 			kfree_skb(skb);
 			return;
@@ -797,11 +804,18 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	struct be_eq_obj *eq_obj =  &adapter->rx_eq;
 	u32 num_rcvd, pkt_size, remaining, vlanf, curr_frag_len;
 	u16 i, rxq_idx = 0, vid, j;
+	u8 vtm;
 
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
 	pkt_size = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
 	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
+	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
+
+	/* vlanf could be wrongly set in some cards.
+	 * ignore if vtm is not set */
+	if ((adapter->cap == 0x400) && !vtm)
+		vlanf = 0;
 
 	skb = napi_get_frags(&eq_obj->napi);
 	if (!skb) {
@@ -1606,18 +1620,21 @@ static int be_open(struct net_device *netdev)
 static int be_setup(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	u32 if_flags;
+	u32 cap_flags, en_flags;
 	int status;
 
-	if_flags = BE_IF_FLAGS_BROADCAST | BE_IF_FLAGS_PROMISCUOUS |
-		BE_IF_FLAGS_MCAST_PROMISCUOUS | BE_IF_FLAGS_UNTAGGED |
-		BE_IF_FLAGS_PASS_L3L4_ERRORS;
-	status = be_cmd_if_create(adapter, if_flags, netdev->dev_addr,
-			false/* pmac_invalid */, &adapter->if_handle,
-			&adapter->pmac_id);
+	cap_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+			BE_IF_FLAGS_MCAST_PROMISCUOUS |
+			BE_IF_FLAGS_PROMISCUOUS |
+			BE_IF_FLAGS_PASS_L3L4_ERRORS;
+	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+			BE_IF_FLAGS_PASS_L3L4_ERRORS;
+
+	status = be_cmd_if_create(adapter, cap_flags, en_flags,
+			netdev->dev_addr, false/* pmac_invalid */,
+			&adapter->if_handle, &adapter->pmac_id);
 	if (status != 0)
 		goto do_none;
-
 
 	status = be_tx_queues_create(adapter);
 	if (status != 0)
@@ -1885,8 +1902,8 @@ static void be_netdev_init(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
-		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_GRO;
+		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_HW_CSUM |
+		NETIF_F_GRO;
 
 	netdev->flags |= IFF_MULTICAST;
 
@@ -2041,11 +2058,16 @@ static int be_hw_up(struct be_adapter *adapter)
 	if (status)
 		return status;
 
+	status = be_cmd_reset_function(adapter);
+	if (status)
+		return status;
+
 	status = be_cmd_get_fw_ver(adapter, adapter->fw_ver);
 	if (status)
 		return status;
 
-	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num);
+	status = be_cmd_query_fw_cfg(adapter,
+				&adapter->port_num, &adapter->cap);
 	return status;
 }
 
@@ -2092,10 +2114,6 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	status = be_ctrl_init(adapter);
 	if (status)
 		goto free_netdev;
-
-	status = be_cmd_reset_function(adapter);
-	if (status)
-		goto ctrl_clean;
 
 	status = be_stats_init(adapter);
 	if (status)

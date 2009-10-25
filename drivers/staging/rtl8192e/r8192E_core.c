@@ -46,6 +46,7 @@
 #undef DEBUG_TX_DESC
 
 //#define CONFIG_RTL8192_IO_MAP
+#include <linux/vmalloc.h>
 #include <asm/uaccess.h>
 #include "r8192E_hw.h"
 #include "r8192E.h"

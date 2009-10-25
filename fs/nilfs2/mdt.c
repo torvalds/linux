@@ -427,13 +427,13 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 }
 
 
-static struct address_space_operations def_mdt_aops = {
+static const struct address_space_operations def_mdt_aops = {
 	.writepage		= nilfs_mdt_write_page,
 	.sync_page		= block_sync_page,
 };
 
-static struct inode_operations def_mdt_iops;
-static struct file_operations def_mdt_fops;
+static const struct inode_operations def_mdt_iops;
+static const struct file_operations def_mdt_fops;
 
 /*
  * NILFS2 uses pseudo inodes for meta data files such as DAT, cpfile, sufile,

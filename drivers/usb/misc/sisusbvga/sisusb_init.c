@@ -43,7 +43,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/kref.h>
 
 #include "sisusb.h"
 

@@ -15,7 +15,6 @@
  * Roger Venning <r.venning@telstra.com>:	6to4 support
  * Nate Thompson <nate@thebog.net>:		6to4 support
  * Fred Templin <fred.l.templin@boeing.com>:	isatap support
- * Sascha Hlusiak <mail@saschahlusiak.de>:	stateless autoconf for isatap
  */
 
 #include <linux/module.h>
@@ -223,44 +222,6 @@ failed:
 	return NULL;
 }
 
-static void ipip6_tunnel_rs_timer(unsigned long data)
-{
-	struct ip_tunnel_prl_entry *p = (struct ip_tunnel_prl_entry *) data;
-	struct inet6_dev *ifp;
-	struct inet6_ifaddr *addr;
-
-	spin_lock(&p->lock);
-	ifp = __in6_dev_get(p->tunnel->dev);
-
-	read_lock_bh(&ifp->lock);
-	for (addr = ifp->addr_list; addr; addr = addr->if_next) {
-		struct in6_addr rtr;
-
-		if (!(ipv6_addr_type(&addr->addr) & IPV6_ADDR_LINKLOCAL))
-			continue;
-
-		/* Send RS to guessed linklocal address of router
-		 *
-		 * Better: send to ff02::2 encapsuled in unicast directly
-		 * to router-v4 instead of guessing the v6 address.
-		 *
-		 * Cisco/Windows seem to not set the u/l bit correctly,
-		 * so we won't guess right.
-		 */
-		ipv6_addr_set(&rtr,  htonl(0xFE800000), 0, 0, 0);
-		if (!__ipv6_isatap_ifid(rtr.s6_addr + 8,
-					p->addr)) {
-			ndisc_send_rs(p->tunnel->dev, &addr->addr, &rtr);
-		}
-	}
-	read_unlock_bh(&ifp->lock);
-
-	mod_timer(&p->rs_timer, jiffies + HZ * p->rs_delay);
-	spin_unlock(&p->lock);
-
-	return;
-}
-
 static struct ip_tunnel_prl_entry *
 __ipip6_tunnel_locate_prl(struct ip_tunnel *t, __be32 addr)
 {
@@ -313,13 +274,12 @@ static int ipip6_tunnel_get_prl(struct ip_tunnel *t,
 
 	c = 0;
 	for (prl = t->prl; prl; prl = prl->next) {
-		if (c > cmax)
+		if (c >= cmax)
 			break;
 		if (kprl.addr != htonl(INADDR_ANY) && prl->addr != kprl.addr)
 			continue;
 		kp[c].addr = prl->addr;
 		kp[c].flags = prl->flags;
-		kp[c].rs_delay = prl->rs_delay;
 		c++;
 		if (kprl.addr != htonl(INADDR_ANY))
 			break;
@@ -369,23 +329,11 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 	}
 
 	p->next = t->prl;
-	p->tunnel = t;
 	t->prl = p;
 	t->prl_count++;
-
-	spin_lock_init(&p->lock);
-	setup_timer(&p->rs_timer, ipip6_tunnel_rs_timer, (unsigned long) p);
 update:
 	p->addr = a->addr;
 	p->flags = a->flags;
-	p->rs_delay = a->rs_delay;
-	if (p->rs_delay == 0)
-		p->rs_delay = IPTUNNEL_RS_DEFAULT_DELAY;
-	spin_lock(&p->lock);
-	del_timer(&p->rs_timer);
-	if (p->flags & PRL_DEFAULT)
-		mod_timer(&p->rs_timer, jiffies + 1);
-	spin_unlock(&p->lock);
 out:
 	write_unlock(&ipip6_lock);
 	return err;
@@ -404,9 +352,6 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 			if ((*p)->addr == a->addr) {
 				x = *p;
 				*p = x->next;
-				spin_lock(&x->lock);
-				del_timer(&x->rs_timer);
-				spin_unlock(&x->lock);
 				kfree(x);
 				t->prl_count--;
 				goto out;
@@ -417,9 +362,6 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 		while (t->prl) {
 			x = t->prl;
 			t->prl = t->prl->next;
-			spin_lock(&x->lock);
-			del_timer(&x->rs_timer);
-			spin_unlock(&x->lock);
 			kfree(x);
 			t->prl_count--;
 		}
@@ -626,11 +568,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	struct in6_addr *addr6;
 	int addr_type;
 
-	if (tunnel->recursion++) {
-		stats->collisions++;
-		goto tx_error;
-	}
-
 	if (skb->protocol != htons(ETH_P_IPV6))
 		goto tx_error;
 
@@ -753,7 +690,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			ip_rt_put(rt);
 			stats->tx_dropped++;
 			dev_kfree_skb(skb);
-			tunnel->recursion--;
 			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
@@ -794,7 +730,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	nf_reset(skb);
 
 	IPTUNNEL_XMIT();
-	tunnel->recursion--;
 	return NETDEV_TX_OK;
 
 tx_error_icmp:
@@ -802,7 +737,6 @@ tx_error_icmp:
 tx_error:
 	stats->tx_errors++;
 	dev_kfree_skb(skb);
-	tunnel->recursion--;
 	return NETDEV_TX_OK;
 }
 

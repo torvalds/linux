@@ -258,6 +258,7 @@ struct be_adapter {
 	bool link_up;
 	u32 port_num;
 	bool promiscuous;
+	u32 cap;
 };
 
 extern const struct ethtool_ops be_ethtool_ops;

@@ -67,6 +67,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/bitops.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -616,6 +617,14 @@ static void sl_uninit(struct net_device *dev)
 	sl_free_bufs(sl);
 }
 
+/* Hook the destructor so we can free slip devices at the right point in time */
+static void sl_free_netdev(struct net_device *dev)
+{
+	int i = dev->base_addr;
+	free_netdev(dev);
+	slip_devs[i] = NULL;
+}
+
 static const struct net_device_ops sl_netdev_ops = {
 	.ndo_init		= sl_init,
 	.ndo_uninit	  	= sl_uninit,
@@ -634,7 +643,7 @@ static const struct net_device_ops sl_netdev_ops = {
 static void sl_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &sl_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->destructor		= sl_free_netdev;
 
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
@@ -712,8 +721,6 @@ static void sl_sync(void)
 static struct slip *sl_alloc(dev_t line)
 {
 	int i;
-	int sel = -1;
-	int score = -1;
 	struct net_device *dev = NULL;
 	struct slip       *sl;
 
@@ -724,55 +731,7 @@ static struct slip *sl_alloc(dev_t line)
 		dev = slip_devs[i];
 		if (dev == NULL)
 			break;
-
-		sl = netdev_priv(dev);
-		if (sl->leased) {
-			if (sl->line != line)
-				continue;
-			if (sl->tty)
-				return NULL;
-
-			/* Clear ESCAPE & ERROR flags */
-			sl->flags &= (1 << SLF_INUSE);
-			return sl;
-		}
-
-		if (sl->tty)
-			continue;
-
-		if (current->pid == sl->pid) {
-			if (sl->line == line && score < 3) {
-				sel = i;
-				score = 3;
-				continue;
-			}
-			if (score < 2) {
-				sel = i;
-				score = 2;
-			}
-			continue;
-		}
-		if (sl->line == line && score < 1) {
-			sel = i;
-			score = 1;
-			continue;
-		}
-		if (score < 0) {
-			sel = i;
-			score = 0;
-		}
 	}
-
-	if (sel >= 0) {
-		i = sel;
-		dev = slip_devs[i];
-		if (score > 1) {
-			sl = netdev_priv(dev);
-			sl->flags &= (1 << SLF_INUSE);
-			return sl;
-		}
-	}
-
 	/* Sorry, too many, all slots in use */
 	if (i >= slip_maxdev)
 		return NULL;
@@ -909,30 +868,13 @@ err_exit:
 }
 
 /*
-
-  FIXME: 1,2 are fixed 3 was never true anyway.
-
-   Let me to blame a bit.
-   1. TTY module calls this funstion on soft interrupt.
-   2. TTY module calls this function WITH MASKED INTERRUPTS!
-   3. TTY module does not notify us about line discipline
-      shutdown,
-
-   Seems, now it is clean. The solution is to consider netdevice and
-   line discipline sides as two independent threads.
-
-   By-product (not desired): sl? does not feel hangups and remains open.
-   It is supposed, that user level program (dip, diald, slattach...)
-   will catch SIGHUP and make the rest of work.
-
-   I see no way to make more with current tty code. --ANK
- */
-
-/*
  * Close down a SLIP channel.
  * This means flushing out any pending queues, and then returning. This
  * call is serialized against other ldisc functions.
+ *
+ * We also use this method fo a hangup event
  */
+
 static void slip_close(struct tty_struct *tty)
 {
 	struct slip *sl = tty->disc_data;
@@ -951,10 +893,16 @@ static void slip_close(struct tty_struct *tty)
 	del_timer_sync(&sl->keepalive_timer);
 	del_timer_sync(&sl->outfill_timer);
 #endif
-
-	/* Count references from TTY module */
+	/* Flush network side */
+	unregister_netdev(sl->dev);
+	/* This will complete via sl_free_netdev */
 }
 
+static int slip_hangup(struct tty_struct *tty)
+{
+	slip_close(tty);
+	return 0;
+}
  /************************************************************************
   *			STANDARD SLIP ENCAPSULATION		  	 *
   ************************************************************************/
@@ -1311,6 +1259,7 @@ static struct tty_ldisc_ops sl_ldisc = {
 	.name 		= "slip",
 	.open 		= slip_open,
 	.close	 	= slip_close,
+	.hangup	 	= slip_hangup,
 	.ioctl		= slip_ioctl,
 	.receive_buf	= slip_receive_buf,
 	.write_wakeup	= slip_write_wakeup,
@@ -1384,6 +1333,8 @@ static void __exit slip_exit(void)
 		}
 	} while (busy && time_before(jiffies, timeout));
 
+	/* FIXME: hangup is async so we should wait when doing this second
+	   phase */
 
 	for (i = 0; i < slip_maxdev; i++) {
 		dev = slip_devs[i];

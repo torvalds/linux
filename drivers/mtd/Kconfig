@@ -25,6 +25,14 @@ config MTD_DEBUG_VERBOSE
 	help
 	  Determines the verbosity level of the MTD debugging messages.
 
+config MTD_TESTS
+	tristate "MTD tests support"
+	depends on m
+	help
+	  This option includes various MTD tests into compilation. The tests
+	  should normally be compiled as kernel modules. The modules perform
+	  various checks and verifications when loaded.
+
 config MTD_CONCAT
 	tristate "MTD concatenating support"
 	help
@@ -44,14 +52,6 @@ config MTD_PARTITIONS
 	  Note, however, that you don't need this option for the DiskOnChip
 	  devices. Partitioning on NFTL 'devices' is a different - that's the
 	  'normal' form of partitioning used on a block device.
-
-config MTD_TESTS
-	tristate "MTD tests support"
-	depends on m
-	help
-	  This option includes various MTD tests into compilation. The tests
-	  should normally be compiled as kernel modules. The modules perform
-	  various checks and verifications when loaded.
 
 config MTD_REDBOOT_PARTS
 	tristate "RedBoot partition table parsing"
@@ -159,7 +159,7 @@ config MTD_AFS_PARTS
 
 config MTD_OF_PARTS
 	tristate "Flash partition map based on OF description"
-	depends on PPC_OF && MTD_PARTITIONS
+	depends on (MICROBLAZE || PPC_OF) && MTD_PARTITIONS
 	help
 	  This provides a partition parsing function which derives
 	  the partition map from the children of the flash node,

@@ -18,6 +18,8 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/cdev.h>
 #include "iio.h"
 #include "trigger_consumer.h"
@@ -39,14 +41,14 @@ dev_t iio_devt;
 EXPORT_SYMBOL(iio_devt);
 
 #define IIO_DEV_MAX 256
-static char *iio_nodename(struct device *dev)
+static char *iio_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "iio/%s", dev_name(dev));
 }
 
 struct class iio_class = {
 	.name = "iio",
-	.nodename = iio_nodename,
+	.devnode = iio_devnode,
 };
 EXPORT_SYMBOL(iio_class);
 

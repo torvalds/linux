@@ -83,16 +83,14 @@ struct adm1021_data {
 
 	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
+	char low_power;		/* !=0 if device in low power mode */
 	unsigned long last_updated;	/* In jiffies */
 
-	s8 temp_max[2];		/* Register values */
-	s8 temp_min[2];
-	s8 temp[2];
+	int temp_max[2];		/* Register values */
+	int temp_min[2];
+	int temp[2];
 	u8 alarms;
 	/* Special values for ADM1023 only */
-	u8 remote_temp_prec;
-	u8 remote_temp_os_prec;
-	u8 remote_temp_hyst_prec;
 	u8 remote_temp_offset;
 	u8 remote_temp_offset_prec;
 };
@@ -141,7 +139,7 @@ static ssize_t show_temp(struct device *dev,
 	int index = to_sensor_dev_attr(devattr)->index;
 	struct adm1021_data *data = adm1021_update_device(dev);
 
-	return sprintf(buf, "%d\n", 1000 * data->temp[index]);
+	return sprintf(buf, "%d\n", data->temp[index]);
 }
 
 static ssize_t show_temp_max(struct device *dev,
@@ -150,7 +148,7 @@ static ssize_t show_temp_max(struct device *dev,
 	int index = to_sensor_dev_attr(devattr)->index;
 	struct adm1021_data *data = adm1021_update_device(dev);
 
-	return sprintf(buf, "%d\n", 1000 * data->temp_max[index]);
+	return sprintf(buf, "%d\n", data->temp_max[index]);
 }
 
 static ssize_t show_temp_min(struct device *dev,
@@ -159,7 +157,7 @@ static ssize_t show_temp_min(struct device *dev,
 	int index = to_sensor_dev_attr(devattr)->index;
 	struct adm1021_data *data = adm1021_update_device(dev);
 
-	return sprintf(buf, "%d\n", 1000 * data->temp_min[index]);
+	return sprintf(buf, "%d\n", data->temp_min[index]);
 }
 
 static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
@@ -216,6 +214,35 @@ static ssize_t set_temp_min(struct device *dev,
 	return count;
 }
 
+static ssize_t show_low_power(struct device *dev,
+			      struct device_attribute *devattr, char *buf)
+{
+	struct adm1021_data *data = adm1021_update_device(dev);
+	return sprintf(buf, "%d\n", data->low_power);
+}
+
+static ssize_t set_low_power(struct device *dev,
+			     struct device_attribute *devattr,
+			     const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct adm1021_data *data = i2c_get_clientdata(client);
+	int low_power = simple_strtol(buf, NULL, 10) != 0;
+
+	mutex_lock(&data->update_lock);
+	if (low_power != data->low_power) {
+		int config = i2c_smbus_read_byte_data(
+			client, ADM1021_REG_CONFIG_R);
+		data->low_power = low_power;
+		i2c_smbus_write_byte_data(client, ADM1021_REG_CONFIG_W,
+			(config & 0xBF) | (low_power << 6));
+	}
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp_max,
 			  set_temp_max, 0);
@@ -233,6 +260,7 @@ static SENSOR_DEVICE_ATTR(temp2_min_alarm, S_IRUGO, show_alarm, NULL, 3);
 static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_alarm, NULL, 2);
 
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
+static DEVICE_ATTR(low_power, S_IWUSR | S_IRUGO, show_low_power, set_low_power);
 
 static struct attribute *adm1021_attributes[] = {
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
@@ -247,6 +275,7 @@ static struct attribute *adm1021_attributes[] = {
 	&sensor_dev_attr_temp2_min_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp2_fault.dev_attr.attr,
 	&dev_attr_alarms.attr,
+	&dev_attr_low_power.attr,
 	NULL
 };
 
@@ -412,25 +441,27 @@ static struct adm1021_data *adm1021_update_device(struct device *dev)
 		dev_dbg(&client->dev, "Starting adm1021 update\n");
 
 		for (i = 0; i < 2; i++) {
-			data->temp[i] = i2c_smbus_read_byte_data(client,
-						ADM1021_REG_TEMP(i));
-			data->temp_max[i] = i2c_smbus_read_byte_data(client,
-						ADM1021_REG_TOS_R(i));
-			data->temp_min[i] = i2c_smbus_read_byte_data(client,
-						ADM1021_REG_THYST_R(i));
+			data->temp[i] = 1000 *
+				(s8) i2c_smbus_read_byte_data(
+					client, ADM1021_REG_TEMP(i));
+			data->temp_max[i] = 1000 *
+				(s8) i2c_smbus_read_byte_data(
+					client, ADM1021_REG_TOS_R(i));
+			data->temp_min[i] = 1000 *
+				(s8) i2c_smbus_read_byte_data(
+					client, ADM1021_REG_THYST_R(i));
 		}
 		data->alarms = i2c_smbus_read_byte_data(client,
 						ADM1021_REG_STATUS) & 0x7c;
 		if (data->type == adm1023) {
-			data->remote_temp_prec =
-				i2c_smbus_read_byte_data(client,
-						ADM1023_REG_REM_TEMP_PREC);
-			data->remote_temp_os_prec =
-				i2c_smbus_read_byte_data(client,
-						ADM1023_REG_REM_TOS_PREC);
-			data->remote_temp_hyst_prec =
-				i2c_smbus_read_byte_data(client,
-						ADM1023_REG_REM_THYST_PREC);
+			/* The ADM1023 provides 3 extra bits of precision for
+			 * the remote sensor in extra registers. */
+			data->temp[1] += 125 * (i2c_smbus_read_byte_data(
+				client, ADM1023_REG_REM_TEMP_PREC) >> 5);
+			data->temp_max[1] += 125 * (i2c_smbus_read_byte_data(
+				client, ADM1023_REG_REM_TOS_PREC) >> 5);
+			data->temp_min[1] += 125 * (i2c_smbus_read_byte_data(
+				client, ADM1023_REG_REM_THYST_PREC) >> 5);
 			data->remote_temp_offset =
 				i2c_smbus_read_byte_data(client,
 						ADM1023_REG_REM_OFFSET);

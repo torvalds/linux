@@ -172,6 +172,7 @@ void __init colibri_pxa300_init(void)
 {
 	colibri_pxa300_init_eth();
 	colibri_pxa300_init_ohci();
+	colibri_pxa3xx_init_nand();
 	colibri_pxa300_init_lcd();
 	colibri_pxa3xx_init_lcd(mfp_to_gpio(GPIO39_GPIO));
 	colibri_pxa310_init_ac97();

@@ -11,11 +11,13 @@
  */
 
 #include <linux/init.h>
+#include <linux/types.h>
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/major.h>
 #include <linux/proc_fs.h>
+#include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/device.h>
@@ -514,7 +516,7 @@ static void input_disconnect_device(struct input_dev *dev)
 	 * that there are no threads in the middle of input_open_device()
 	 */
 	mutex_lock(&dev->mutex);
-	dev->going_away = 1;
+	dev->going_away = true;
 	mutex_unlock(&dev->mutex);
 
 	spin_lock_irq(&dev->event_lock);
@@ -780,10 +782,29 @@ static unsigned int input_proc_devices_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
+union input_seq_state {
+	struct {
+		unsigned short pos;
+		bool mutex_acquired;
+	};
+	void *p;
+};
+
 static void *input_devices_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	if (mutex_lock_interruptible(&input_mutex))
-		return NULL;
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	int error;
+
+	/* We need to fit into seq->private pointer */
+	BUILD_BUG_ON(sizeof(union input_seq_state) != sizeof(seq->private));
+
+	error = mutex_lock_interruptible(&input_mutex);
+	if (error) {
+		state->mutex_acquired = false;
+		return ERR_PTR(error);
+	}
+
+	state->mutex_acquired = true;
 
 	return seq_list_start(&input_dev_list, *pos);
 }
@@ -793,9 +814,12 @@ static void *input_devices_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	return seq_list_next(v, &input_dev_list, pos);
 }
 
-static void input_devices_seq_stop(struct seq_file *seq, void *v)
+static void input_seq_stop(struct seq_file *seq, void *v)
 {
-	mutex_unlock(&input_mutex);
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
+
+	if (state->mutex_acquired)
+		mutex_unlock(&input_mutex);
 }
 
 static void input_seq_print_bitmap(struct seq_file *seq, const char *name,
@@ -859,7 +883,7 @@ static int input_devices_seq_show(struct seq_file *seq, void *v)
 static const struct seq_operations input_devices_seq_ops = {
 	.start	= input_devices_seq_start,
 	.next	= input_devices_seq_next,
-	.stop	= input_devices_seq_stop,
+	.stop	= input_seq_stop,
 	.show	= input_devices_seq_show,
 };
 
@@ -879,40 +903,49 @@ static const struct file_operations input_devices_fileops = {
 
 static void *input_handlers_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	if (mutex_lock_interruptible(&input_mutex))
-		return NULL;
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	int error;
 
-	seq->private = (void *)(unsigned long)*pos;
+	/* We need to fit into seq->private pointer */
+	BUILD_BUG_ON(sizeof(union input_seq_state) != sizeof(seq->private));
+
+	error = mutex_lock_interruptible(&input_mutex);
+	if (error) {
+		state->mutex_acquired = false;
+		return ERR_PTR(error);
+	}
+
+	state->mutex_acquired = true;
+	state->pos = *pos;
+
 	return seq_list_start(&input_handler_list, *pos);
 }
 
 static void *input_handlers_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	seq->private = (void *)(unsigned long)(*pos + 1);
-	return seq_list_next(v, &input_handler_list, pos);
-}
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
 
-static void input_handlers_seq_stop(struct seq_file *seq, void *v)
-{
-	mutex_unlock(&input_mutex);
+	state->pos = *pos + 1;
+	return seq_list_next(v, &input_handler_list, pos);
 }
 
 static int input_handlers_seq_show(struct seq_file *seq, void *v)
 {
 	struct input_handler *handler = container_of(v, struct input_handler, node);
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
 
-	seq_printf(seq, "N: Number=%ld Name=%s",
-		   (unsigned long)seq->private, handler->name);
+	seq_printf(seq, "N: Number=%u Name=%s", state->pos, handler->name);
 	if (handler->fops)
 		seq_printf(seq, " Minor=%d", handler->minor);
 	seq_putc(seq, '\n');
 
 	return 0;
 }
+
 static const struct seq_operations input_handlers_seq_ops = {
 	.start	= input_handlers_seq_start,
 	.next	= input_handlers_seq_next,
-	.stop	= input_handlers_seq_stop,
+	.stop	= input_seq_stop,
 	.show	= input_handlers_seq_show,
 };
 
@@ -1259,20 +1292,81 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 	return 0;
 }
 
+#define INPUT_DO_TOGGLE(dev, type, bits, on)			\
+	do {							\
+		int i;						\
+		if (!test_bit(EV_##type, dev->evbit))		\
+			break;					\
+		for (i = 0; i < type##_MAX; i++) {		\
+			if (!test_bit(i, dev->bits##bit) ||	\
+			    !test_bit(i, dev->bits))		\
+				continue;			\
+			dev->event(dev, EV_##type, i, on);	\
+		}						\
+	} while (0)
+
+#ifdef CONFIG_PM
+static void input_dev_reset(struct input_dev *dev, bool activate)
+{
+	if (!dev->event)
+		return;
+
+	INPUT_DO_TOGGLE(dev, LED, led, activate);
+	INPUT_DO_TOGGLE(dev, SND, snd, activate);
+
+	if (activate && test_bit(EV_REP, dev->evbit)) {
+		dev->event(dev, EV_REP, REP_PERIOD, dev->rep[REP_PERIOD]);
+		dev->event(dev, EV_REP, REP_DELAY, dev->rep[REP_DELAY]);
+	}
+}
+
+static int input_dev_suspend(struct device *dev)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+
+	mutex_lock(&input_dev->mutex);
+	input_dev_reset(input_dev, false);
+	mutex_unlock(&input_dev->mutex);
+
+	return 0;
+}
+
+static int input_dev_resume(struct device *dev)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+
+	mutex_lock(&input_dev->mutex);
+	input_dev_reset(input_dev, true);
+	mutex_unlock(&input_dev->mutex);
+
+	return 0;
+}
+
+static const struct dev_pm_ops input_dev_pm_ops = {
+	.suspend	= input_dev_suspend,
+	.resume		= input_dev_resume,
+	.poweroff	= input_dev_suspend,
+	.restore	= input_dev_resume,
+};
+#endif /* CONFIG_PM */
+
 static struct device_type input_dev_type = {
 	.groups		= input_dev_attr_groups,
 	.release	= input_dev_release,
 	.uevent		= input_dev_uevent,
+#ifdef CONFIG_PM
+	.pm		= &input_dev_pm_ops,
+#endif
 };
 
-static char *input_nodename(struct device *dev)
+static char *input_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "input/%s", dev_name(dev));
 }
 
 struct class input_class = {
 	.name		= "input",
-	.nodename	= input_nodename,
+	.devnode	= input_devnode,
 };
 EXPORT_SYMBOL_GPL(input_class);
 

@@ -86,6 +86,7 @@
 #include <linux/audit.h>
 #include <linux/wireless.h>
 #include <linux/nsproxy.h>
+#include <linux/magic.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -235,8 +236,6 @@ int move_addr_to_user(struct sockaddr *kaddr, int klen, void __user *uaddr,
 	return __put_user(klen, ulen);
 }
 
-#define SOCKFS_MAGIC 0x534F434B
-
 static struct kmem_cache *sock_inode_cachep __read_mostly;
 
 static struct inode *sock_alloc_inode(struct super_block *sb)
@@ -285,7 +284,7 @@ static int init_inodecache(void)
 	return 0;
 }
 
-static struct super_operations sockfs_ops = {
+static const struct super_operations sockfs_ops = {
 	.alloc_inode =	sock_alloc_inode,
 	.destroy_inode =sock_destroy_inode,
 	.statfs =	simple_statfs,
@@ -2099,12 +2098,17 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 	unsigned long a[6];
 	unsigned long a0, a1;
 	int err;
+	unsigned int len;
 
 	if (call < 1 || call > SYS_ACCEPT4)
 		return -EINVAL;
 
+	len = nargs[call];
+	if (len > sizeof(a))
+		return -EINVAL;
+
 	/* copy_from_user should be SMP safe. */
-	if (copy_from_user(a, args, nargs[call]))
+	if (copy_from_user(a, args, len))
 		return -EFAULT;
 
 	audit_socketcall(nargs[call] / sizeof(unsigned long), a);
@@ -2387,7 +2391,7 @@ int kernel_getsockopt(struct socket *sock, int level, int optname,
 }
 
 int kernel_setsockopt(struct socket *sock, int level, int optname,
-			char *optval, int optlen)
+			char *optval, unsigned int optlen)
 {
 	mm_segment_t oldfs = get_fs();
 	int err;

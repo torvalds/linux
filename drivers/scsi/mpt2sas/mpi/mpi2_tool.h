@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2008 LSI Corporation.
+ *  Copyright (c) 2000-2009 LSI Corporation.
  *
  *
  *           Name:  mpi2_tool.h
  *          Title:  MPI diagnostic tool structures and definitions
  *  Creation Date:  March 26, 2007
  *
- *    mpi2_tool.h Version:  02.00.02
+ *    mpi2_tool.h Version:  02.00.03
  *
  *  Version History
  *  ---------------
@@ -17,6 +17,7 @@
  *  12-18-07  02.00.01  Added Diagnostic Buffer Post and Diagnostic Release
  *                      structures and defines.
  *  02-29-08  02.00.02  Modified various names to make them 32-character unique.
+ *  05-06-09  02.00.03  Added ISTWI Read Write Tool and Diagnostic CLI Tool.
  *  --------------------------------------------------------------------------
  */
 
@@ -32,7 +33,10 @@
 /* defines for the Tools */
 #define MPI2_TOOLBOX_CLEAN_TOOL                     (0x00)
 #define MPI2_TOOLBOX_MEMORY_MOVE_TOOL               (0x01)
+#define MPI2_TOOLBOX_ISTWI_READ_WRITE_TOOL          (0x03)
 #define MPI2_TOOLBOX_BEACON_TOOL                    (0x05)
+#define MPI2_TOOLBOX_DIAGNOSTIC_CLI_TOOL            (0x06)
+
 
 /****************************************************************************
 *  Toolbox reply
@@ -112,6 +116,77 @@ typedef struct _MPI2_TOOLBOX_MEM_MOVE_REQUEST
 
 
 /****************************************************************************
+*  Toolbox ISTWI Read Write Tool
+****************************************************************************/
+
+/* Toolbox ISTWI Read Write Tool request message */
+typedef struct _MPI2_TOOLBOX_ISTWI_READ_WRITE_REQUEST {
+    U8                      Tool;                       /* 0x00 */
+    U8                      Reserved1;                  /* 0x01 */
+    U8                      ChainOffset;                /* 0x02 */
+    U8                      Function;                   /* 0x03 */
+    U16                     Reserved2;                  /* 0x04 */
+    U8                      Reserved3;                  /* 0x06 */
+    U8                      MsgFlags;                   /* 0x07 */
+    U8                      VP_ID;                      /* 0x08 */
+    U8                      VF_ID;                      /* 0x09 */
+    U16                     Reserved4;                  /* 0x0A */
+    U32                     Reserved5;                  /* 0x0C */
+    U32                     Reserved6;                  /* 0x10 */
+    U8                      DevIndex;                   /* 0x14 */
+    U8                      Action;                     /* 0x15 */
+    U8                      SGLFlags;                   /* 0x16 */
+    U8                      Reserved7;                  /* 0x17 */
+    U16                     TxDataLength;               /* 0x18 */
+    U16                     RxDataLength;               /* 0x1A */
+    U32                     Reserved8;                  /* 0x1C */
+    U32                     Reserved9;                  /* 0x20 */
+    U32                     Reserved10;                 /* 0x24 */
+    U32                     Reserved11;                 /* 0x28 */
+    U32                     Reserved12;                 /* 0x2C */
+    MPI2_SGE_SIMPLE_UNION   SGL;                        /* 0x30 */
+} MPI2_TOOLBOX_ISTWI_READ_WRITE_REQUEST,
+  MPI2_POINTER PTR_MPI2_TOOLBOX_ISTWI_READ_WRITE_REQUEST,
+  Mpi2ToolboxIstwiReadWriteRequest_t,
+  MPI2_POINTER pMpi2ToolboxIstwiReadWriteRequest_t;
+
+/* values for the Action field */
+#define MPI2_TOOL_ISTWI_ACTION_READ_DATA            (0x01)
+#define MPI2_TOOL_ISTWI_ACTION_WRITE_DATA           (0x02)
+#define MPI2_TOOL_ISTWI_ACTION_SEQUENCE             (0x03)
+#define MPI2_TOOL_ISTWI_ACTION_RESERVE_BUS          (0x10)
+#define MPI2_TOOL_ISTWI_ACTION_RELEASE_BUS          (0x11)
+#define MPI2_TOOL_ISTWI_ACTION_RESET                (0x12)
+
+/* values for SGLFlags field are in the SGL section of mpi2.h */
+
+
+/* Toolbox ISTWI Read Write Tool reply message */
+typedef struct _MPI2_TOOLBOX_ISTWI_REPLY {
+    U8                      Tool;                       /* 0x00 */
+    U8                      Reserved1;                  /* 0x01 */
+    U8                      MsgLength;                  /* 0x02 */
+    U8                      Function;                   /* 0x03 */
+    U16                     Reserved2;                  /* 0x04 */
+    U8                      Reserved3;                  /* 0x06 */
+    U8                      MsgFlags;                   /* 0x07 */
+    U8                      VP_ID;                      /* 0x08 */
+    U8                      VF_ID;                      /* 0x09 */
+    U16                     Reserved4;                  /* 0x0A */
+    U16                     Reserved5;                  /* 0x0C */
+    U16                     IOCStatus;                  /* 0x0E */
+    U32                     IOCLogInfo;                 /* 0x10 */
+    U8                      DevIndex;                   /* 0x14 */
+    U8                      Action;                     /* 0x15 */
+    U8                      IstwiStatus;                /* 0x16 */
+    U8                      Reserved6;                  /* 0x17 */
+    U16                     TxDataCount;                /* 0x18 */
+    U16                     RxDataCount;                /* 0x1A */
+} MPI2_TOOLBOX_ISTWI_REPLY, MPI2_POINTER PTR_MPI2_TOOLBOX_ISTWI_REPLY,
+  Mpi2ToolboxIstwiReply_t, MPI2_POINTER pMpi2ToolboxIstwiReply_t;
+
+
+/****************************************************************************
 *  Toolbox Beacon Tool request
 ****************************************************************************/
 
@@ -137,6 +212,61 @@ typedef struct _MPI2_TOOLBOX_BEACON_REQUEST
 /* values for the Flags field */
 #define MPI2_TOOLBOX_FLAGS_BEACONMODE_OFF       (0x00)
 #define MPI2_TOOLBOX_FLAGS_BEACONMODE_ON        (0x01)
+
+
+/****************************************************************************
+*  Toolbox Diagnostic CLI Tool
+****************************************************************************/
+
+#define MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH    (0x5C)
+
+/* Toolbox Diagnostic CLI Tool request message */
+typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST {
+    U8                      Tool;                       /* 0x00 */
+    U8                      Reserved1;                  /* 0x01 */
+    U8                      ChainOffset;                /* 0x02 */
+    U8                      Function;                   /* 0x03 */
+    U16                     Reserved2;                  /* 0x04 */
+    U8                      Reserved3;                  /* 0x06 */
+    U8                      MsgFlags;                   /* 0x07 */
+    U8                      VP_ID;                      /* 0x08 */
+    U8                      VF_ID;                      /* 0x09 */
+    U16                     Reserved4;                  /* 0x0A */
+    U8                      SGLFlags;                   /* 0x0C */
+    U8                      Reserved5;                  /* 0x0D */
+    U16                     Reserved6;                  /* 0x0E */
+    U32                     DataLength;                 /* 0x10 */
+    U8                      DiagnosticCliCommand
+		[MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH];     /* 0x14 */
+    MPI2_SGE_SIMPLE_UNION   SGL;                        /* 0x70 */
+} MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
+  MPI2_POINTER PTR_MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
+  Mpi2ToolboxDiagnosticCliRequest_t,
+  MPI2_POINTER pMpi2ToolboxDiagnosticCliRequest_t;
+
+/* values for SGLFlags field are in the SGL section of mpi2.h */
+
+
+/* Toolbox Diagnostic CLI Tool reply message */
+typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REPLY {
+    U8                      Tool;                       /* 0x00 */
+    U8                      Reserved1;                  /* 0x01 */
+    U8                      MsgLength;                  /* 0x02 */
+    U8                      Function;                   /* 0x03 */
+    U16                     Reserved2;                  /* 0x04 */
+    U8                      Reserved3;                  /* 0x06 */
+    U8                      MsgFlags;                   /* 0x07 */
+    U8                      VP_ID;                      /* 0x08 */
+    U8                      VF_ID;                      /* 0x09 */
+    U16                     Reserved4;                  /* 0x0A */
+    U16                     Reserved5;                  /* 0x0C */
+    U16                     IOCStatus;                  /* 0x0E */
+    U32                     IOCLogInfo;                 /* 0x10 */
+    U32                     ReturnedDataLength;         /* 0x14 */
+} MPI2_TOOLBOX_DIAGNOSTIC_CLI_REPLY,
+  MPI2_POINTER PTR_MPI2_TOOLBOX_DIAG_CLI_REPLY,
+  Mpi2ToolboxDiagnosticCliReply_t,
+  MPI2_POINTER pMpi2ToolboxDiagnosticCliReply_t;
 
 
 /*****************************************************************************

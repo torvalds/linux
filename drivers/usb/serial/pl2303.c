@@ -96,6 +96,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(HP_VENDOR_ID, HP_LD220_PRODUCT_ID) },
 	{ USB_DEVICE(CRESSI_VENDOR_ID, CRESSI_EDY_PRODUCT_ID) },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_QN3USB_PRODUCT_ID) },
+	{ USB_DEVICE(SANWA_VENDOR_ID, SANWA_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
 
@@ -527,6 +528,12 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	int baud;
 	int i;
 	u8 control;
+	const int baud_sup[] = { 75, 150, 300, 600, 1200, 1800, 2400, 3600,
+	                         4800, 7200, 9600, 14400, 19200, 28800, 38400,
+	                         57600, 115200, 230400, 460800, 614400,
+	                         921600, 1228800, 2457600, 3000000, 6000000 };
+	int baud_floor, baud_ceil;
+	int k;
 
 	dbg("%s -  port %d", __func__, port->number);
 
@@ -572,9 +579,39 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		dbg("%s - data bits = %d", __func__, buf[6]);
 	}
 
+	/* For reference buf[0]:buf[3] baud rate value */
+	/* NOTE: Only the values defined in baud_sup are supported !
+	 *       => if unsupported values are set, the PL2303 seems to use
+	 *          9600 baud (at least my PL2303X always does)
+	 */
 	baud = tty_get_baud_rate(tty);
-	dbg("%s - baud = %d", __func__, baud);
+	dbg("%s - baud requested = %d", __func__, baud);
 	if (baud) {
+		/* Set baudrate to nearest supported value */
+		for (k=0; k<ARRAY_SIZE(baud_sup); k++) {
+			if (baud_sup[k] / baud) {
+				baud_ceil = baud_sup[k];
+				if (k==0) {
+					baud = baud_ceil;
+				} else {
+					baud_floor = baud_sup[k-1];
+					if ((baud_ceil % baud)
+					    > (baud % baud_floor))
+						baud = baud_floor;
+					else
+						baud = baud_ceil;
+				}
+				break;
+			}
+		}
+		if (baud > 1228800) {
+			/* type_0, type_1 only support up to 1228800 baud */
+			if (priv->type != HX)
+				baud = 1228800;
+			else if (baud > 6000000)
+				baud = 6000000;
+		}
+		dbg("%s - baud set = %d", __func__, baud);
 		buf[0] = baud & 0xff;
 		buf[1] = (baud >> 8) & 0xff;
 		buf[2] = (baud >> 16) & 0xff;
@@ -585,8 +622,16 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	/* For reference buf[4]=1 is 1.5 stop bits */
 	/* For reference buf[4]=2 is 2 stop bits */
 	if (cflag & CSTOPB) {
-		buf[4] = 2;
-		dbg("%s - stop bits = 2", __func__);
+		/* NOTE: Comply with "real" UARTs / RS232:
+		 *       use 1.5 instead of 2 stop bits with 5 data bits
+		 */
+		if ((cflag & CSIZE) == CS5) {
+			buf[4] = 1;
+			dbg("%s - stop bits = 1.5", __func__);
+		} else {
+			buf[4] = 2;
+			dbg("%s - stop bits = 2", __func__);
+		}
 	} else {
 		buf[4] = 0;
 		dbg("%s - stop bits = 1", __func__);
@@ -599,11 +644,21 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		/* For reference buf[5]=3 is mark parity */
 		/* For reference buf[5]=4 is space parity */
 		if (cflag & PARODD) {
-			buf[5] = 1;
-			dbg("%s - parity = odd", __func__);
+			if (cflag & CMSPAR) {
+				buf[5] = 3;
+				dbg("%s - parity = mark", __func__);
+			} else {
+				buf[5] = 1;
+				dbg("%s - parity = odd", __func__);
+			}
 		} else {
-			buf[5] = 2;
-			dbg("%s - parity = even", __func__);
+			if (cflag & CMSPAR) {
+				buf[5] = 4;
+				dbg("%s - parity = space", __func__);
+			} else {
+				buf[5] = 2;
+				dbg("%s - parity = even", __func__);
+			}
 		}
 	} else {
 		buf[5] = 0;
@@ -647,7 +702,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		pl2303_vendor_write(0x0, 0x0, serial);
 	}
 
-	/* FIXME: Need to read back resulting baud rate */
+	/* Save resulting baud rate */
 	if (baud)
 		tty_encode_baud_rate(tty, baud, baud);
 
@@ -691,8 +746,7 @@ static void pl2303_close(struct usb_serial_port *port)
 
 }
 
-static int pl2303_open(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
@@ -713,8 +767,6 @@ static int pl2303_open(struct tty_struct *tty,
 	/* Setup termios */
 	if (tty)
 		pl2303_set_termios(tty, port, &tmp_termios);
-
-	/* FIXME: need to assert RTS and DTR if CRTSCTS off */
 
 	dbg("%s - submitting read urb", __func__);
 	port->read_urb->dev = serial->dev;
@@ -994,13 +1046,15 @@ static void pl2303_push_data(struct tty_struct *tty,
 	/* overrun is special, not associated with a char */
 	if (line_status & UART_OVERRUN_ERROR)
 		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-	if (port->console && port->sysrq) {
+
+	if (tty_flag == TTY_NORMAL && !(port->console && port->sysrq))
+		tty_insert_flip_string(tty, data, urb->actual_length);
+	else {
 		int i;
 		for (i = 0; i < urb->actual_length; ++i)
 			if (!usb_serial_handle_sysrq_char(tty, port, data[i]))
 				tty_insert_flip_char(tty, data[i], tty_flag);
-	} else
-		tty_insert_flip_string(tty, data, urb->actual_length);
+	}
 	tty_flip_buffer_push(tty);
 }
 

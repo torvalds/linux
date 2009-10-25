@@ -863,8 +863,10 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 	int tmp, i;
 	struct radeon_encoder_lvds *lvds = NULL;
 
-	if (rdev->bios == NULL)
-		return radeon_legacy_get_lvds_info_from_regs(rdev);
+	if (rdev->bios == NULL) {
+		lvds = radeon_legacy_get_lvds_info_from_regs(rdev);
+		goto out;
+	}
 
 	lcd_info = combios_get_table_offset(dev, COMBIOS_LCD_INFO_TABLE);
 
@@ -965,11 +967,13 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 				lvds->native_mode.flags = 0;
 			}
 		}
-		encoder->native_mode = lvds->native_mode;
 	} else {
 		DRM_INFO("No panel info found in BIOS\n");
-		return radeon_legacy_get_lvds_info_from_regs(rdev);
+		lvds = radeon_legacy_get_lvds_info_from_regs(rdev);
 	}
+out:
+	if (lvds)
+		encoder->native_mode = lvds->native_mode;
 	return lvds;
 }
 
@@ -994,48 +998,37 @@ static const struct radeon_tmds_pll default_tmds_pll[CHIP_LAST][4] = {
 	{{15000, 0xb0155}, {0xffffffff, 0xb01cb}, {0, 0}, {0, 0}},	/* CHIP_RS480 */
 };
 
-static struct radeon_encoder_int_tmds
-    *radeon_legacy_get_tmds_info_from_table(struct radeon_device *rdev)
+bool radeon_legacy_get_tmds_info_from_table(struct radeon_encoder *encoder,
+					    struct radeon_encoder_int_tmds *tmds)
 {
+	struct drm_device *dev = encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
 	int i;
-	struct radeon_encoder_int_tmds *tmds = NULL;
-
-	tmds = kzalloc(sizeof(struct radeon_encoder_int_tmds), GFP_KERNEL);
-
-	if (!tmds)
-		return NULL;
 
 	for (i = 0; i < 4; i++) {
 		tmds->tmds_pll[i].value =
-		    default_tmds_pll[rdev->family][i].value;
+			default_tmds_pll[rdev->family][i].value;
 		tmds->tmds_pll[i].freq = default_tmds_pll[rdev->family][i].freq;
 	}
 
-	return tmds;
+	return true;
 }
 
-struct radeon_encoder_int_tmds *radeon_combios_get_tmds_info(struct
-							     radeon_encoder
-							     *encoder)
+bool radeon_legacy_get_tmds_info_from_combios(struct radeon_encoder *encoder,
+					      struct radeon_encoder_int_tmds *tmds)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct radeon_device *rdev = dev->dev_private;
 	uint16_t tmds_info;
 	int i, n;
 	uint8_t ver;
-	struct radeon_encoder_int_tmds *tmds = NULL;
 
 	if (rdev->bios == NULL)
-		return radeon_legacy_get_tmds_info_from_table(rdev);
+		return false;
 
 	tmds_info = combios_get_table_offset(dev, COMBIOS_DFP_INFO_TABLE);
 
 	if (tmds_info) {
-		tmds =
-		    kzalloc(sizeof(struct radeon_encoder_int_tmds), GFP_KERNEL);
-
-		if (!tmds)
-			return NULL;
 
 		ver = RBIOS8(tmds_info);
 		DRM_INFO("DFP table revision: %d\n", ver);
@@ -1073,6 +1066,23 @@ struct radeon_encoder_int_tmds *radeon_combios_get_tmds_info(struct
 		}
 	} else
 		DRM_INFO("No TMDS info found in BIOS\n");
+	return true;
+}
+
+struct radeon_encoder_int_tmds *radeon_combios_get_tmds_info(struct radeon_encoder *encoder)
+{
+	struct radeon_encoder_int_tmds *tmds = NULL;
+	bool ret;
+
+	tmds = kzalloc(sizeof(struct radeon_encoder_int_tmds), GFP_KERNEL);
+
+	if (!tmds)
+		return NULL;
+
+	ret = radeon_legacy_get_tmds_info_from_combios(encoder, tmds);
+	if (ret == false)
+		radeon_legacy_get_tmds_info_from_table(encoder, tmds);
+
 	return tmds;
 }
 

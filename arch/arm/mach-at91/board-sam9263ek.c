@@ -57,7 +57,7 @@ static void __init ek_map_io(void)
 	/* Initialize processor: 16.367 MHz crystal */
 	at91sam9263_initialize(16367660);
 
-	/* DGBU on ttyS0. (Rx & Tx only) */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
 	/* USART0 on ttyS1. (Rx, Tx, RTS, CTS) */
@@ -400,6 +400,23 @@ static struct gpio_led ek_pwm_led[] = {
 	}
 };
 
+/*
+ * CAN
+ */
+static void sam9263ek_transceiver_switch(int on)
+{
+	if (on) {
+		at91_set_gpio_output(AT91_PIN_PA18, 1); /* CANRXEN */
+		at91_set_gpio_output(AT91_PIN_PA19, 0); /* CANRS */
+	} else {
+		at91_set_gpio_output(AT91_PIN_PA18, 0); /* CANRXEN */
+		at91_set_gpio_output(AT91_PIN_PA19, 1); /* CANRS */
+	}
+}
+
+static struct at91_can_data ek_can_data = {
+	.transceiver_switch = sam9263ek_transceiver_switch,
+};
 
 static void __init ek_board_init(void)
 {
@@ -431,6 +448,8 @@ static void __init ek_board_init(void)
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 	at91_pwm_leds(ek_pwm_led, ARRAY_SIZE(ek_pwm_led));
+	/* CAN */
+	at91_add_device_can(&ek_can_data);
 }
 
 MACHINE_START(AT91SAM9263EK, "Atmel AT91SAM9263-EK")

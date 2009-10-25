@@ -223,10 +223,14 @@ static int platinumfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 static inline int platinum_vram_reqd(int video_mode, int color_mode)
 {
-	return vmode_attrs[video_mode-1].vres *
-	       (vmode_attrs[video_mode-1].hres * (1<<color_mode) +
-		((video_mode == VMODE_832_624_75) &&
-		 (color_mode > CMODE_8)) ? 0x10 : 0x20) + 0x1000;
+	int baseval = vmode_attrs[video_mode-1].hres * (1<<color_mode);
+
+	if ((video_mode == VMODE_832_624_75) && (color_mode > CMODE_8))
+		baseval += 0x10;
+	else
+		baseval += 0x20;
+
+	return vmode_attrs[video_mode-1].vres * baseval + 0x1000;
 }
 
 #define STORE_D2(a, d) { \

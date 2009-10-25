@@ -47,6 +47,8 @@ source "drivers/staging/slicoss/Kconfig"
 
 source "drivers/staging/go7007/Kconfig"
 
+source "drivers/staging/cx25821/Kconfig"
+
 source "drivers/staging/usbip/Kconfig"
 
 source "drivers/staging/winbond/Kconfig"
@@ -56,8 +58,6 @@ source "drivers/staging/wlan-ng/Kconfig"
 source "drivers/staging/echo/Kconfig"
 
 source "drivers/staging/poch/Kconfig"
-
-source "drivers/staging/agnx/Kconfig"
 
 source "drivers/staging/otus/Kconfig"
 
@@ -115,8 +115,6 @@ source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
 
-source "drivers/staging/cpc-usb/Kconfig"
-
 source "drivers/staging/udlfb/Kconfig"
 
 source "drivers/staging/hv/Kconfig"
@@ -128,8 +126,6 @@ source "drivers/staging/rar/Kconfig"
 source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
-
-source "drivers/staging/cowloop/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

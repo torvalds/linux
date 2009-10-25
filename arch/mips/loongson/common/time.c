@@ -21,7 +21,8 @@ void __init plat_time_init(void)
 	mips_hpt_frequency = cpu_clock_freq / 2;
 }
 
-unsigned long read_persistent_clock(void)
+void read_persistent_clock(struct timespec *ts)
 {
-	return mc146818_get_cmos_time();
+	ts->tv_sec = mc146818_get_cmos_time();
+	ts->tv_nsec = 0;
 }

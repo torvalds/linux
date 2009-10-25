@@ -324,8 +324,7 @@ static inline int elf_sym__is_function(const GElf_Sym *sym)
 {
 	return elf_sym__type(sym) == STT_FUNC &&
 	       sym->st_name != 0 &&
-	       sym->st_shndx != SHN_UNDEF &&
-	       sym->st_size != 0;
+	       sym->st_shndx != SHN_UNDEF;
 }
 
 static inline int elf_sym__is_label(const GElf_Sym *sym)
@@ -833,7 +832,7 @@ int dso__load_modules(struct dso *self, symbol_filter_t filter, int v)
 	struct mod_dso *mods = mod_dso__new_dso("modules");
 	struct module *pos;
 	struct rb_node *next;
-	int err;
+	int err, count = 0;
 
 	err = mod_dso__load_modules(mods);
 
@@ -852,14 +851,16 @@ int dso__load_modules(struct dso *self, symbol_filter_t filter, int v)
 			break;
 
 		next = rb_next(&pos->rb_node);
+		count += err;
 	}
 
 	if (err < 0) {
 		mod_dso__delete_modules(mods);
 		mod_dso__delete_self(mods);
+		return err;
 	}
 
-	return err;
+	return count;
 }
 
 static inline void dso__fill_symbol_holes(struct dso *self)
@@ -913,8 +914,15 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 
 	if (vmlinux) {
 		err = dso__load_vmlinux(self, vmlinux, filter, v);
-		if (err > 0 && use_modules)
-			err = dso__load_modules(self, filter, v);
+		if (err > 0 && use_modules) {
+			int syms = dso__load_modules(self, filter, v);
+
+			if (syms < 0) {
+				fprintf(stderr, "dso__load_modules failed!\n");
+				return syms;
+			}
+			err += syms;
+		}
 	}
 
 	if (err <= 0)

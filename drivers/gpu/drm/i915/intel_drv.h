@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
+#include "i915_drv.h"
 #include "drm_crtc.h"
 
 #include "drm_crtc_helper.h"
@@ -111,15 +112,15 @@ struct intel_output {
 
 struct intel_crtc {
 	struct drm_crtc base;
-	int pipe;
-	int plane;
+	enum pipe pipe;
+	enum plane plane;
 	struct drm_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	int dpms_mode;
-	struct intel_framebuffer *fbdev_fb;
-	/* a mode_set for fbdev users on this crtc */
-	struct drm_mode_set mode_set;
+	bool busy; /* is scanout buffer being updated frequently? */
+	struct timer_list idle_timer;
+	bool lowfreq_avail;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -138,6 +139,7 @@ extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
 extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
+extern void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj);
 extern void intel_lvds_init(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int dp_reg);
 void
@@ -173,9 +175,12 @@ extern int intelfb_resize(struct drm_device *dev, struct drm_crtc *crtc);
 extern void intelfb_restore(void);
 extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				    u16 blue, int regno);
+extern void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+				    u16 *blue, int regno);
 
 extern int intel_framebuffer_create(struct drm_device *dev,
 				    struct drm_mode_fb_cmd *mode_cmd,
 				    struct drm_framebuffer **fb,
 				    struct drm_gem_object *obj);
+
 #endif /* __INTEL_DRV_H__ */

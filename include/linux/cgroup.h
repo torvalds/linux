@@ -37,7 +37,7 @@ extern void cgroup_exit(struct task_struct *p, int run_callbacks);
 extern int cgroupstats_build(struct cgroupstats *stats,
 				struct dentry *dentry);
 
-extern struct file_operations proc_cgroup_operations;
+extern const struct file_operations proc_cgroup_operations;
 
 /* Define the enumeration of all cgroup subsystems */
 #define SUBSYS(_x) _x ## _subsys_id,
@@ -141,6 +141,38 @@ enum {
 	CGRP_WAIT_ON_RMDIR,
 };
 
+/* which pidlist file are we talking about? */
+enum cgroup_filetype {
+	CGROUP_FILE_PROCS,
+	CGROUP_FILE_TASKS,
+};
+
+/*
+ * A pidlist is a list of pids that virtually represents the contents of one
+ * of the cgroup files ("procs" or "tasks"). We keep a list of such pidlists,
+ * a pair (one each for procs, tasks) for each pid namespace that's relevant
+ * to the cgroup.
+ */
+struct cgroup_pidlist {
+	/*
+	 * used to find which pidlist is wanted. doesn't change as long as
+	 * this particular list stays in the list.
+	 */
+	struct { enum cgroup_filetype type; struct pid_namespace *ns; } key;
+	/* array of xids */
+	pid_t *list;
+	/* how many elements the above list has */
+	int length;
+	/* how many files are using the current array */
+	int use_count;
+	/* each of these stored in a list by its cgroup */
+	struct list_head links;
+	/* pointer to the cgroup we belong to, for list removal purposes */
+	struct cgroup *owner;
+	/* protects the other fields */
+	struct rw_semaphore mutex;
+};
+
 struct cgroup {
 	unsigned long flags;		/* "unsigned long" so bitops work */
 
@@ -179,11 +211,12 @@ struct cgroup {
 	 */
 	struct list_head release_list;
 
-	/* pids_mutex protects pids_list and cached pid arrays. */
-	struct rw_semaphore pids_mutex;
-
-	/* Linked list of struct cgroup_pids */
-	struct list_head pids_list;
+	/*
+	 * list of pidlists, up to two for each namespace (one for procs, one
+	 * for tasks); created on demand.
+	 */
+	struct list_head pidlists;
+	struct mutex pidlist_mutex;
 
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
@@ -227,6 +260,9 @@ struct css_set {
 	 * during subsystem registration (at boot time).
 	 */
 	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
+
+	/* For RCU-protected deletion */
+	struct rcu_head rcu_head;
 };
 
 /*
@@ -389,10 +425,11 @@ struct cgroup_subsys {
 						  struct cgroup *cgrp);
 	int (*pre_destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
 	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
-	int (*can_attach)(struct cgroup_subsys *ss,
-			  struct cgroup *cgrp, struct task_struct *tsk);
+	int (*can_attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
+			  struct task_struct *tsk, bool threadgroup);
 	void (*attach)(struct cgroup_subsys *ss, struct cgroup *cgrp,
-			struct cgroup *old_cgrp, struct task_struct *tsk);
+			struct cgroup *old_cgrp, struct task_struct *tsk,
+			bool threadgroup);
 	void (*fork)(struct cgroup_subsys *ss, struct task_struct *task);
 	void (*exit)(struct cgroup_subsys *ss, struct task_struct *task);
 	int (*populate)(struct cgroup_subsys *ss,

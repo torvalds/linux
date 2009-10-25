@@ -21,15 +21,15 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 
 #include <media/soc_camera.h>
 #include <media/v4l2-common.h>
-#include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-dev.h>
 #include <media/videobuf-core.h>
 
 /* Default to VGA resolution */
@@ -38,7 +38,7 @@
 
 static LIST_HEAD(hosts);
 static LIST_HEAD(devices);
-static DEFINE_MUTEX(list_lock);
+static DEFINE_MUTEX(list_lock);		/* Protects the list of hosts */
 
 const struct soc_camera_data_format *soc_camera_format_by_fourcc(
 	struct soc_camera_device *icd, unsigned int fourcc)
@@ -152,12 +152,9 @@ static int soc_camera_s_std(struct file *file, void *priv, v4l2_std_id *a)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	int ret = 0;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	if (icd->ops->set_std)
-		ret = icd->ops->set_std(icd, a);
-
-	return ret;
+	return v4l2_subdev_call(sd, core, s_std, *a);
 }
 
 static int soc_camera_reqbufs(struct file *file, void *priv,
@@ -169,8 +166,6 @@ static int soc_camera_reqbufs(struct file *file, void *priv,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
 	WARN_ON(priv != file->private_data);
-
-	dev_dbg(&icd->dev, "%s: %d\n", __func__, p->memory);
 
 	ret = videobuf_reqbufs(&icf->vb_vidq, p);
 	if (ret < 0)
@@ -209,10 +204,11 @@ static int soc_camera_dqbuf(struct file *file, void *priv,
 	return videobuf_dqbuf(&icf->vb_vidq, p, file->f_flags & O_NONBLOCK);
 }
 
+/* Always entered with .video_lock held */
 static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int i, fmts = 0;
+	int i, fmts = 0, ret;
 
 	if (!ici->ops->get_formats)
 		/*
@@ -225,8 +221,12 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 		 * First pass - only count formats this host-sensor
 		 * configuration can provide
 		 */
-		for (i = 0; i < icd->num_formats; i++)
-			fmts += ici->ops->get_formats(icd, i, NULL);
+		for (i = 0; i < icd->num_formats; i++) {
+			ret = ici->ops->get_formats(icd, i, NULL);
+			if (ret < 0)
+				return ret;
+			fmts += ret;
+		}
 
 	if (!fmts)
 		return -ENXIO;
@@ -248,19 +248,38 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 			icd->user_formats[i].cam_fmt = icd->formats + i;
 			icd->user_formats[i].buswidth = icd->formats[i].depth;
 		} else {
-			fmts += ici->ops->get_formats(icd, i,
-						      &icd->user_formats[fmts]);
+			ret = ici->ops->get_formats(icd, i,
+						    &icd->user_formats[fmts]);
+			if (ret < 0)
+				goto egfmt;
+			fmts += ret;
 		}
 
 	icd->current_fmt = icd->user_formats[0].host_fmt;
 
 	return 0;
+
+egfmt:
+	icd->num_user_formats = 0;
+	vfree(icd->user_formats);
+	return ret;
 }
 
+/* Always entered with .video_lock held */
 static void soc_camera_free_user_formats(struct soc_camera_device *icd)
 {
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+
+	if (ici->ops->put_formats)
+		ici->ops->put_formats(icd);
+	icd->current_fmt = NULL;
+	icd->num_user_formats = 0;
 	vfree(icd->user_formats);
+	icd->user_formats = NULL;
 }
+
+#define pixfmtstr(x) (x) & 0xff, ((x) >> 8) & 0xff, ((x) >> 16) & 0xff, \
+	((x) >> 24) & 0xff
 
 /* Called with .vb_lock held */
 static int soc_camera_set_fmt(struct soc_camera_file *icf,
@@ -270,6 +289,9 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	int ret;
+
+	dev_dbg(&icd->dev, "S_FMT(%c%c%c%c, %ux%u)\n",
+		pixfmtstr(pix->pixelformat), pix->width, pix->height);
 
 	/* We always call try_fmt() before set_fmt() or set_crop() */
 	ret = ici->ops->try_fmt(icd, f);
@@ -281,13 +303,13 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 		return ret;
 	} else if (!icd->current_fmt ||
 		   icd->current_fmt->fourcc != pix->pixelformat) {
-		dev_err(ici->dev,
+		dev_err(&icd->dev,
 			"Host driver hasn't set up current format correctly!\n");
 		return -EINVAL;
 	}
 
-	icd->width		= pix->width;
-	icd->height		= pix->height;
+	icd->user_width		= pix->width;
+	icd->user_height	= pix->height;
 	icf->vb_vidq.field	=
 		icd->field	= pix->field;
 
@@ -296,7 +318,7 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 			 f->type);
 
 	dev_dbg(&icd->dev, "set width: %d height: %d\n",
-		icd->width, icd->height);
+		icd->user_width, icd->user_height);
 
 	/* set physical bus parameters */
 	return ici->ops->set_bus_param(icd, pix->pixelformat);
@@ -304,30 +326,24 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 
 static int soc_camera_open(struct file *file)
 {
-	struct video_device *vdev;
-	struct soc_camera_device *icd;
+	struct video_device *vdev = video_devdata(file);
+	struct soc_camera_device *icd = container_of(vdev->parent,
+						     struct soc_camera_device,
+						     dev);
+	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	struct soc_camera_host *ici;
 	struct soc_camera_file *icf;
 	int ret;
 
+	if (!icd->ops)
+		/* No device driver attached */
+		return -ENODEV;
+
+	ici = to_soc_camera_host(icd->dev.parent);
+
 	icf = vmalloc(sizeof(*icf));
 	if (!icf)
 		return -ENOMEM;
-
-	/*
-	 * It is safe to dereference these pointers now as long as a user has
-	 * the video device open - we are protected by the held cdev reference.
-	 */
-
-	vdev = video_devdata(file);
-	icd = container_of(vdev->parent, struct soc_camera_device, dev);
-	ici = to_soc_camera_host(icd->dev.parent);
-
-	if (!try_module_get(icd->ops->owner)) {
-		dev_err(&icd->dev, "Couldn't lock sensor driver.\n");
-		ret = -EINVAL;
-		goto emgd;
-	}
 
 	if (!try_module_get(ici->ops->owner)) {
 		dev_err(&icd->dev, "Couldn't lock capture bus driver.\n");
@@ -335,7 +351,10 @@ static int soc_camera_open(struct file *file)
 		goto emgi;
 	}
 
-	/* Protect against icd->remove() until we module_get() both drivers. */
+	/*
+	 * Protect against icd->ops->remove() until we module_get() both
+	 * drivers.
+	 */
 	mutex_lock(&icd->video_lock);
 
 	icf->icd = icd;
@@ -347,13 +366,23 @@ static int soc_camera_open(struct file *file)
 		struct v4l2_format f = {
 			.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			.fmt.pix = {
-				.width		= icd->width,
-				.height		= icd->height,
+				.width		= icd->user_width,
+				.height		= icd->user_height,
 				.field		= icd->field,
 				.pixelformat	= icd->current_fmt->fourcc,
 				.colorspace	= icd->current_fmt->colorspace,
 			},
 		};
+
+		if (icl->power) {
+			ret = icl->power(icd->pdev, 1);
+			if (ret < 0)
+				goto epower;
+		}
+
+		/* The camera could have been already on, try to reset */
+		if (icl->reset)
+			icl->reset(icd->pdev);
 
 		ret = ici->ops->add(icd);
 		if (ret < 0) {
@@ -367,28 +396,29 @@ static int soc_camera_open(struct file *file)
 			goto esfmt;
 	}
 
-	mutex_unlock(&icd->video_lock);
-
 	file->private_data = icf;
 	dev_dbg(&icd->dev, "camera device open\n");
 
 	ici->ops->init_videobuf(&icf->vb_vidq, icd);
 
+	mutex_unlock(&icd->video_lock);
+
 	return 0;
 
 	/*
-	 * First three errors are entered with the .video_lock held
+	 * First five errors are entered with the .video_lock held
 	 * and use_count == 1
 	 */
 esfmt:
 	ici->ops->remove(icd);
 eiciadd:
+	if (icl->power)
+		icl->power(icd->pdev, 0);
+epower:
 	icd->use_count--;
 	mutex_unlock(&icd->video_lock);
 	module_put(ici->ops->owner);
 emgi:
-	module_put(icd->ops->owner);
-emgd:
 	vfree(icf);
 	return ret;
 }
@@ -398,21 +428,24 @@ static int soc_camera_close(struct file *file)
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct video_device *vdev = icd->vdev;
 
 	mutex_lock(&icd->video_lock);
 	icd->use_count--;
-	if (!icd->use_count)
+	if (!icd->use_count) {
+		struct soc_camera_link *icl = to_soc_camera_link(icd);
+
 		ici->ops->remove(icd);
+		if (icl->power)
+			icl->power(icd->pdev, 0);
+	}
 
 	mutex_unlock(&icd->video_lock);
 
-	module_put(icd->ops->owner);
 	module_put(ici->ops->owner);
 
 	vfree(icf);
 
-	dev_dbg(vdev->parent, "camera device close\n");
+	dev_dbg(&icd->dev, "camera device close\n");
 
 	return 0;
 }
@@ -422,10 +455,9 @@ static ssize_t soc_camera_read(struct file *file, char __user *buf,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	struct video_device *vdev = icd->vdev;
 	int err = -EINVAL;
 
-	dev_err(vdev->parent, "camera device read not implemented\n");
+	dev_err(&icd->dev, "camera device read not implemented\n");
 
 	return err;
 }
@@ -483,8 +515,8 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
-	if (videobuf_queue_is_busy(&icf->vb_vidq)) {
-		dev_err(&icd->dev, "S_FMT denied: queue busy\n");
+	if (icf->vb_vidq.bufs[0]) {
+		dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
 		ret = -EBUSY;
 		goto unlock;
 	}
@@ -525,8 +557,8 @@ static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	pix->width		= icd->width;
-	pix->height		= icd->height;
+	pix->width		= icd->user_width;
+	pix->height		= icd->user_height;
 	pix->field		= icf->vb_vidq.field;
 	pix->pixelformat	= icd->current_fmt->fourcc;
 	pix->bytesperline	= pix->width *
@@ -555,18 +587,17 @@ static int soc_camera_streamon(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	int ret;
 
 	WARN_ON(priv != file->private_data);
-
-	dev_dbg(&icd->dev, "%s\n", __func__);
 
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	mutex_lock(&icd->video_lock);
 
-	icd->ops->start_capture(icd);
+	v4l2_subdev_call(sd, video, s_stream, 1);
 
 	/* This calls buf_queue from host driver's videobuf_queue_ops */
 	ret = videobuf_streamon(&icf->vb_vidq);
@@ -581,10 +612,9 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
 	WARN_ON(priv != file->private_data);
-
-	dev_dbg(&icd->dev, "%s\n", __func__);
 
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -595,7 +625,7 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 	 * remaining buffers. When the last buffer is freed, stop capture */
 	videobuf_streamoff(&icf->vb_vidq);
 
-	icd->ops->stop_capture(icd);
+	v4l2_subdev_call(sd, video, s_stream, 0);
 
 	mutex_unlock(&icd->video_lock);
 
@@ -607,6 +637,7 @@ static int soc_camera_queryctrl(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	int i;
 
 	WARN_ON(priv != file->private_data);
@@ -614,6 +645,15 @@ static int soc_camera_queryctrl(struct file *file, void *priv,
 	if (!qc->id)
 		return -EINVAL;
 
+	/* First check host controls */
+	for (i = 0; i < ici->ops->num_controls; i++)
+		if (qc->id == ici->ops->controls[i].id) {
+			memcpy(qc, &(ici->ops->controls[i]),
+				sizeof(*qc));
+			return 0;
+		}
+
+	/* Then device controls */
 	for (i = 0; i < icd->ops->num_controls; i++)
 		if (qc->id == icd->ops->controls[i].id) {
 			memcpy(qc, &(icd->ops->controls[i]),
@@ -629,25 +669,19 @@ static int soc_camera_g_ctrl(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	int ret;
 
 	WARN_ON(priv != file->private_data);
 
-	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
-		if (icd->gain == (unsigned short)~0)
-			return -EINVAL;
-		ctrl->value = icd->gain;
-		return 0;
-	case V4L2_CID_EXPOSURE:
-		if (icd->exposure == (unsigned short)~0)
-			return -EINVAL;
-		ctrl->value = icd->exposure;
-		return 0;
+	if (ici->ops->get_ctrl) {
+		ret = ici->ops->get_ctrl(icd, ctrl);
+		if (ret != -ENOIOCTLCMD)
+			return ret;
 	}
 
-	if (icd->ops->get_control)
-		return icd->ops->get_control(icd, ctrl);
-	return -EINVAL;
+	return v4l2_subdev_call(sd, core, g_ctrl, ctrl);
 }
 
 static int soc_camera_s_ctrl(struct file *file, void *priv,
@@ -655,12 +689,19 @@ static int soc_camera_s_ctrl(struct file *file, void *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	int ret;
 
 	WARN_ON(priv != file->private_data);
 
-	if (icd->ops->set_control)
-		return icd->ops->set_control(icd, ctrl);
-	return -EINVAL;
+	if (ici->ops->set_ctrl) {
+		ret = ici->ops->set_ctrl(icd, ctrl);
+		if (ret != -ENOIOCTLCMD)
+			return ret;
+	}
+
+	return v4l2_subdev_call(sd, core, s_ctrl, ctrl);
 }
 
 static int soc_camera_cropcap(struct file *file, void *fh,
@@ -668,20 +709,9 @@ static int soc_camera_cropcap(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->bounds.left			= icd->x_min;
-	a->bounds.top			= icd->y_min;
-	a->bounds.width			= icd->width_max;
-	a->bounds.height		= icd->height_max;
-	a->defrect.left			= icd->x_min;
-	a->defrect.top			= icd->y_min;
-	a->defrect.width		= DEFAULT_WIDTH;
-	a->defrect.height		= DEFAULT_HEIGHT;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	return ici->ops->cropcap(icd, a);
 }
 
 static int soc_camera_g_crop(struct file *file, void *fh,
@@ -689,36 +719,53 @@ static int soc_camera_g_crop(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	int ret;
 
-	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->c.left	= icd->x_current;
-	a->c.top	= icd->y_current;
-	a->c.width	= icd->width;
-	a->c.height	= icd->height;
+	mutex_lock(&icf->vb_vidq.vb_lock);
+	ret = ici->ops->get_crop(icd, a);
+	mutex_unlock(&icf->vb_vidq.vb_lock);
 
-	return 0;
+	return ret;
 }
 
+/*
+ * According to the V4L2 API, drivers shall not update the struct v4l2_crop
+ * argument with the actual geometry, instead, the user shall use G_CROP to
+ * retrieve it. However, we expect camera host and client drivers to update
+ * the argument, which we then use internally, but do not return to the user.
+ */
 static int soc_camera_s_crop(struct file *file, void *fh,
 			     struct v4l2_crop *a)
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct v4l2_rect *rect = &a->c;
+	struct v4l2_crop current_crop;
 	int ret;
 
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
+	dev_dbg(&icd->dev, "S_CROP(%ux%u@%u:%u)\n",
+		rect->width, rect->height, rect->left, rect->top);
+
 	/* Cropping is allowed during a running capture, guard consistency */
 	mutex_lock(&icf->vb_vidq.vb_lock);
 
-	ret = ici->ops->set_crop(icd, &a->c);
-	if (!ret) {
-		icd->width	= a->c.width;
-		icd->height	= a->c.height;
-		icd->x_current	= a->c.left;
-		icd->y_current	= a->c.top;
+	/* If get_crop fails, we'll let host and / or client drivers decide */
+	ret = ici->ops->get_crop(icd, &current_crop);
+
+	/* Prohibit window size change with initialised buffers */
+	if (icf->vb_vidq.bufs[0] && !ret &&
+	    (a->c.width != current_crop.c.width ||
+	     a->c.height != current_crop.c.height)) {
+		dev_err(&icd->dev,
+			"S_CROP denied: queue initialised and sizes differ\n");
+		ret = -EBUSY;
+	} else {
+		ret = ici->ops->set_crop(icd, a);
 	}
 
 	mutex_unlock(&icf->vb_vidq.vb_lock);
@@ -731,11 +778,9 @@ static int soc_camera_g_chip_ident(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	if (!icd->ops->get_chip_id)
-		return -EINVAL;
-
-	return icd->ops->get_chip_id(icd, id);
+	return v4l2_subdev_call(sd, core, g_chip_ident, id);
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -744,11 +789,9 @@ static int soc_camera_g_register(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	if (!icd->ops->get_register)
-		return -EINVAL;
-
-	return icd->ops->get_register(icd, reg);
+	return v4l2_subdev_call(sd, core, g_register, reg);
 }
 
 static int soc_camera_s_register(struct file *file, void *fh,
@@ -756,36 +799,11 @@ static int soc_camera_s_register(struct file *file, void *fh,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
-	if (!icd->ops->set_register)
-		return -EINVAL;
-
-	return icd->ops->set_register(icd, reg);
+	return v4l2_subdev_call(sd, core, s_register, reg);
 }
 #endif
-
-static int device_register_link(struct soc_camera_device *icd)
-{
-	int ret = dev_set_name(&icd->dev, "%u-%u", icd->iface, icd->devnum);
-
-	if (!ret)
-		ret = device_register(&icd->dev);
-
-	if (ret < 0) {
-		/* Prevent calling device_unregister() */
-		icd->dev.parent = NULL;
-		dev_err(&icd->dev, "Cannot register device: %d\n", ret);
-	/* Even if probe() was unsuccessful for all registered drivers,
-	 * device_register() returns 0, and we add the link, just to
-	 * document this camera's control device */
-	} else if (icd->control)
-		/* Have to sysfs_remove_link() before device_unregister()? */
-		if (sysfs_create_link(&icd->dev.kobj, &icd->control->kobj,
-				      "control"))
-			dev_warn(&icd->dev,
-				 "Failed creating the control symlink\n");
-	return ret;
-}
 
 /* So far this function cannot fail */
 static void scan_add_host(struct soc_camera_host *ici)
@@ -796,106 +814,193 @@ static void scan_add_host(struct soc_camera_host *ici)
 
 	list_for_each_entry(icd, &devices, list) {
 		if (icd->iface == ici->nr) {
-			icd->dev.parent = ici->dev;
-			device_register_link(icd);
+			int ret;
+			icd->dev.parent = ici->v4l2_dev.dev;
+			dev_set_name(&icd->dev, "%u-%u", icd->iface,
+				     icd->devnum);
+			ret = device_register(&icd->dev);
+			if (ret < 0) {
+				icd->dev.parent = NULL;
+				dev_err(&icd->dev,
+					"Cannot register device: %d\n", ret);
+			}
 		}
 	}
 
 	mutex_unlock(&list_lock);
 }
 
-/* return: 0 if no match found or a match found and
- * device_register() successful, error code otherwise */
-static int scan_add_device(struct soc_camera_device *icd)
+#ifdef CONFIG_I2C_BOARDINFO
+static int soc_camera_init_i2c(struct soc_camera_device *icd,
+			       struct soc_camera_link *icl)
 {
-	struct soc_camera_host *ici;
-	int ret = 0;
+	struct i2c_client *client;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct i2c_adapter *adap = i2c_get_adapter(icl->i2c_adapter_id);
+	struct v4l2_subdev *subdev;
+	int ret;
 
-	mutex_lock(&list_lock);
-
-	list_add_tail(&icd->list, &devices);
-
-	/* Watch out for class_for_each_device / class_find_device API by
-	 * Dave Young <hidave.darkstar@gmail.com> */
-	list_for_each_entry(ici, &hosts, list) {
-		if (icd->iface == ici->nr) {
-			ret = 1;
-			icd->dev.parent = ici->dev;
-			break;
-		}
+	if (!adap) {
+		ret = -ENODEV;
+		dev_err(&icd->dev, "Cannot get I2C adapter #%d. No driver?\n",
+			icl->i2c_adapter_id);
+		goto ei2cga;
 	}
 
-	mutex_unlock(&list_lock);
+	icl->board_info->platform_data = icd;
 
-	if (ret)
-		ret = device_register_link(icd);
+	subdev = v4l2_i2c_new_subdev_board(&ici->v4l2_dev, adap,
+				icl->module_name, icl->board_info, NULL);
+	if (!subdev) {
+		ret = -ENOMEM;
+		goto ei2cnd;
+	}
 
+	client = subdev->priv;
+
+	/* Use to_i2c_client(dev) to recover the i2c client */
+	dev_set_drvdata(&icd->dev, &client->dev);
+
+	return 0;
+ei2cnd:
+	i2c_put_adapter(adap);
+ei2cga:
 	return ret;
 }
 
+static void soc_camera_free_i2c(struct soc_camera_device *icd)
+{
+	struct i2c_client *client =
+		to_i2c_client(to_soc_camera_control(icd));
+	dev_set_drvdata(&icd->dev, NULL);
+	v4l2_device_unregister_subdev(i2c_get_clientdata(client));
+	i2c_unregister_device(client);
+	i2c_put_adapter(client->adapter);
+}
+#else
+#define soc_camera_init_i2c(icd, icl)	(-ENODEV)
+#define soc_camera_free_i2c(icd)	do {} while (0)
+#endif
+
+static int soc_camera_video_start(struct soc_camera_device *icd);
+static int video_dev_create(struct soc_camera_device *icd);
+/* Called during host-driver probe */
 static int soc_camera_probe(struct device *dev)
 {
 	struct soc_camera_device *icd = to_soc_camera_dev(dev);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(dev->parent);
+	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct device *control = NULL;
+	struct v4l2_subdev *sd;
+	struct v4l2_format f = {.type = V4L2_BUF_TYPE_VIDEO_CAPTURE};
 	int ret;
 
-	/*
-	 * Possible race scenario:
-	 * modprobe <camera-host-driver> triggers __func__
-	 * at this moment respective <camera-sensor-driver> gets rmmod'ed
-	 * to protect take module references.
-	 */
+	dev_info(dev, "Probing %s\n", dev_name(dev));
 
-	if (!try_module_get(icd->ops->owner)) {
-		dev_err(&icd->dev, "Couldn't lock sensor driver.\n");
-		ret = -EINVAL;
-		goto emgd;
+	if (icl->power) {
+		ret = icl->power(icd->pdev, 1);
+		if (ret < 0) {
+			dev_err(dev,
+				"Platform failed to power-on the camera.\n");
+			goto epower;
+		}
 	}
 
-	if (!try_module_get(ici->ops->owner)) {
-		dev_err(&icd->dev, "Couldn't lock capture bus driver.\n");
-		ret = -EINVAL;
-		goto emgi;
-	}
+	/* The camera could have been already on, try to reset */
+	if (icl->reset)
+		icl->reset(icd->pdev);
 
-	mutex_lock(&icd->video_lock);
-
-	/* We only call ->add() here to activate and probe the camera.
-	 * We shall ->remove() and deactivate it immediately afterwards. */
 	ret = ici->ops->add(icd);
 	if (ret < 0)
-		goto eiadd;
+		goto eadd;
 
-	ret = icd->ops->probe(icd);
-	if (ret >= 0) {
-		const struct v4l2_queryctrl *qctrl;
+	/* Must have icd->vdev before registering the device */
+	ret = video_dev_create(icd);
+	if (ret < 0)
+		goto evdc;
 
-		qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_GAIN);
-		icd->gain = qctrl ? qctrl->default_value : (unsigned short)~0;
-		qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_EXPOSURE);
-		icd->exposure = qctrl ? qctrl->default_value :
-			(unsigned short)~0;
+	/* Non-i2c cameras, e.g., soc_camera_platform, have no board_info */
+	if (icl->board_info) {
+		ret = soc_camera_init_i2c(icd, icl);
+		if (ret < 0)
+			goto eadddev;
+	} else if (!icl->add_device || !icl->del_device) {
+		ret = -EINVAL;
+		goto eadddev;
+	} else {
+		if (icl->module_name)
+			ret = request_module(icl->module_name);
 
-		ret = soc_camera_init_user_formats(icd);
-		if (ret < 0) {
-			if (icd->ops->remove)
-				icd->ops->remove(icd);
-			goto eiufmt;
+		ret = icl->add_device(icl, &icd->dev);
+		if (ret < 0)
+			goto eadddev;
+
+		/*
+		 * FIXME: this is racy, have to use driver-binding notification,
+		 * when it is available
+		 */
+		control = to_soc_camera_control(icd);
+		if (!control || !control->driver || !dev_get_drvdata(control) ||
+		    !try_module_get(control->driver->owner)) {
+			icl->del_device(icl);
+			goto enodrv;
 		}
-
-		icd->height	= DEFAULT_HEIGHT;
-		icd->width	= DEFAULT_WIDTH;
-		icd->field	= V4L2_FIELD_ANY;
 	}
 
-eiufmt:
+	/* At this point client .probe() should have run already */
+	ret = soc_camera_init_user_formats(icd);
+	if (ret < 0)
+		goto eiufmt;
+
+	icd->field = V4L2_FIELD_ANY;
+
+	/* ..._video_start() will create a device node, so we have to protect */
+	mutex_lock(&icd->video_lock);
+
+	ret = soc_camera_video_start(icd);
+	if (ret < 0)
+		goto evidstart;
+
+	/* Try to improve our guess of a reasonable window format */
+	sd = soc_camera_to_subdev(icd);
+	if (!v4l2_subdev_call(sd, video, g_fmt, &f)) {
+		icd->user_width		= f.fmt.pix.width;
+		icd->user_height	= f.fmt.pix.height;
+	}
+
+	/* Do we have to sysfs_remove_link() before device_unregister()? */
+	if (sysfs_create_link(&icd->dev.kobj, &to_soc_camera_control(icd)->kobj,
+			      "control"))
+		dev_warn(&icd->dev, "Failed creating the control symlink\n");
+
 	ici->ops->remove(icd);
-eiadd:
+
+	if (icl->power)
+		icl->power(icd->pdev, 0);
+
 	mutex_unlock(&icd->video_lock);
-	module_put(ici->ops->owner);
-emgi:
-	module_put(icd->ops->owner);
-emgd:
+
+	return 0;
+
+evidstart:
+	mutex_unlock(&icd->video_lock);
+	soc_camera_free_user_formats(icd);
+eiufmt:
+	if (icl->board_info) {
+		soc_camera_free_i2c(icd);
+	} else {
+		icl->del_device(icl);
+		module_put(control->driver->owner);
+	}
+enodrv:
+eadddev:
+	video_device_release(icd->vdev);
+evdc:
+	ici->ops->remove(icd);
+eadd:
+	if (icl->power)
+		icl->power(icd->pdev, 0);
+epower:
 	return ret;
 }
 
@@ -904,12 +1009,28 @@ emgd:
 static int soc_camera_remove(struct device *dev)
 {
 	struct soc_camera_device *icd = to_soc_camera_dev(dev);
+	struct soc_camera_link *icl = to_soc_camera_link(icd);
+	struct video_device *vdev = icd->vdev;
 
-	mutex_lock(&icd->video_lock);
-	if (icd->ops->remove)
-		icd->ops->remove(icd);
-	mutex_unlock(&icd->video_lock);
+	BUG_ON(!dev->parent);
 
+	if (vdev) {
+		mutex_lock(&icd->video_lock);
+		video_unregister_device(vdev);
+		icd->vdev = NULL;
+		mutex_unlock(&icd->video_lock);
+	}
+
+	if (icl->board_info) {
+		soc_camera_free_i2c(icd);
+	} else {
+		struct device_driver *drv = to_soc_camera_control(icd) ?
+			to_soc_camera_control(icd)->driver : NULL;
+		if (drv) {
+			icl->del_device(icl);
+			module_put(drv->owner);
+		}
+	}
 	soc_camera_free_user_formats(icd);
 
 	return 0;
@@ -957,14 +1078,33 @@ static void dummy_release(struct device *dev)
 {
 }
 
+static int default_cropcap(struct soc_camera_device *icd,
+			   struct v4l2_cropcap *a)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	return v4l2_subdev_call(sd, video, cropcap, a);
+}
+
+static int default_g_crop(struct soc_camera_device *icd, struct v4l2_crop *a)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	return v4l2_subdev_call(sd, video, g_crop, a);
+}
+
+static int default_s_crop(struct soc_camera_device *icd, struct v4l2_crop *a)
+{
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	return v4l2_subdev_call(sd, video, s_crop, a);
+}
+
 int soc_camera_host_register(struct soc_camera_host *ici)
 {
 	struct soc_camera_host *ix;
+	int ret;
 
 	if (!ici || !ici->ops ||
 	    !ici->ops->try_fmt ||
 	    !ici->ops->set_fmt ||
-	    !ici->ops->set_crop ||
 	    !ici->ops->set_bus_param ||
 	    !ici->ops->querycap ||
 	    !ici->ops->init_videobuf ||
@@ -972,18 +1112,27 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	    !ici->ops->add ||
 	    !ici->ops->remove ||
 	    !ici->ops->poll ||
-	    !ici->dev)
+	    !ici->v4l2_dev.dev)
 		return -EINVAL;
+
+	if (!ici->ops->set_crop)
+		ici->ops->set_crop = default_s_crop;
+	if (!ici->ops->get_crop)
+		ici->ops->get_crop = default_g_crop;
+	if (!ici->ops->cropcap)
+		ici->ops->cropcap = default_cropcap;
 
 	mutex_lock(&list_lock);
 	list_for_each_entry(ix, &hosts, list) {
 		if (ix->nr == ici->nr) {
-			mutex_unlock(&list_lock);
-			return -EBUSY;
+			ret = -EBUSY;
+			goto edevreg;
 		}
 	}
 
-	dev_set_drvdata(ici->dev, ici);
+	ret = v4l2_device_register(ici->v4l2_dev.dev, &ici->v4l2_dev);
+	if (ret < 0)
+		goto edevreg;
 
 	list_add_tail(&ici->list, &hosts);
 	mutex_unlock(&list_lock);
@@ -991,6 +1140,10 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	scan_add_host(ici);
 
 	return 0;
+
+edevreg:
+	mutex_unlock(&list_lock);
+	return ret;
 }
 EXPORT_SYMBOL(soc_camera_host_register);
 
@@ -1004,42 +1157,34 @@ void soc_camera_host_unregister(struct soc_camera_host *ici)
 	list_del(&ici->list);
 
 	list_for_each_entry(icd, &devices, list) {
-		if (icd->dev.parent == ici->dev) {
+		if (icd->iface == ici->nr) {
+			/* The bus->remove will be called */
 			device_unregister(&icd->dev);
 			/* Not before device_unregister(), .remove
 			 * needs parent to call ici->ops->remove() */
 			icd->dev.parent = NULL;
+
+			/* If the host module is loaded again, device_register()
+			 * would complain "already initialised" */
 			memset(&icd->dev.kobj, 0, sizeof(icd->dev.kobj));
 		}
 	}
 
 	mutex_unlock(&list_lock);
 
-	dev_set_drvdata(ici->dev, NULL);
+	v4l2_device_unregister(&ici->v4l2_dev);
 }
 EXPORT_SYMBOL(soc_camera_host_unregister);
 
 /* Image capture device */
-int soc_camera_device_register(struct soc_camera_device *icd)
+static int soc_camera_device_register(struct soc_camera_device *icd)
 {
 	struct soc_camera_device *ix;
 	int num = -1, i;
 
-	if (!icd || !icd->ops ||
-	    !icd->ops->probe ||
-	    !icd->ops->init ||
-	    !icd->ops->release ||
-	    !icd->ops->start_capture ||
-	    !icd->ops->stop_capture ||
-	    !icd->ops->set_crop ||
-	    !icd->ops->set_fmt ||
-	    !icd->ops->try_fmt ||
-	    !icd->ops->query_bus_param ||
-	    !icd->ops->set_bus_param)
-		return -EINVAL;
-
 	for (i = 0; i < 256 && num < 0; i++) {
 		num = i;
+		/* Check if this index is available on this interface */
 		list_for_each_entry(ix, &devices, list) {
 			if (ix->iface == icd->iface && ix->devnum == i) {
 				num = -1;
@@ -1061,21 +1206,15 @@ int soc_camera_device_register(struct soc_camera_device *icd)
 	icd->host_priv		= NULL;
 	mutex_init(&icd->video_lock);
 
-	return scan_add_device(icd);
-}
-EXPORT_SYMBOL(soc_camera_device_register);
+	list_add_tail(&icd->list, &devices);
 
-void soc_camera_device_unregister(struct soc_camera_device *icd)
+	return 0;
+}
+
+static void soc_camera_device_unregister(struct soc_camera_device *icd)
 {
-	mutex_lock(&list_lock);
 	list_del(&icd->list);
-
-	/* The bus->remove will be eventually called */
-	if (icd->dev.parent)
-		device_unregister(&icd->dev);
-	mutex_unlock(&list_lock);
 }
-EXPORT_SYMBOL(soc_camera_device_unregister);
 
 static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_querycap	 = soc_camera_querycap,
@@ -1106,23 +1245,13 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 #endif
 };
 
-/*
- * Usually called from the struct soc_camera_ops .probe() method, i.e., from
- * soc_camera_probe() above with .video_lock held
- */
-int soc_camera_video_start(struct soc_camera_device *icd)
+static int video_dev_create(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int err = -ENOMEM;
-	struct video_device *vdev;
+	struct video_device *vdev = video_device_alloc();
 
-	if (!icd->dev.parent)
-		return -ENODEV;
-
-	vdev = video_device_alloc();
 	if (!vdev)
-		goto evidallocd;
-	dev_dbg(ici->dev, "Allocated video_device %p\n", vdev);
+		return -ENOMEM;
 
 	strlcpy(vdev->name, ici->drv_name, sizeof(vdev->name));
 
@@ -1132,87 +1261,93 @@ int soc_camera_video_start(struct soc_camera_device *icd)
 	vdev->ioctl_ops		= &soc_camera_ioctl_ops;
 	vdev->release		= video_device_release;
 	vdev->minor		= -1;
-	vdev->tvnorms		= V4L2_STD_UNKNOWN,
+	vdev->tvnorms		= V4L2_STD_UNKNOWN;
 
-	err = video_register_device(vdev, VFL_TYPE_GRABBER, vdev->minor);
-	if (err < 0) {
-		dev_err(vdev->parent, "video_register_device failed\n");
-		goto evidregd;
-	}
 	icd->vdev = vdev;
 
 	return 0;
-
-evidregd:
-	video_device_release(vdev);
-evidallocd:
-	return err;
 }
-EXPORT_SYMBOL(soc_camera_video_start);
 
-/* Called from client .remove() methods with .video_lock held */
-void soc_camera_video_stop(struct soc_camera_device *icd)
+/*
+ * Called from soc_camera_probe() above (with .video_lock held???)
+ */
+static int soc_camera_video_start(struct soc_camera_device *icd)
 {
-	struct video_device *vdev = icd->vdev;
+	int ret;
 
-	dev_dbg(&icd->dev, "%s\n", __func__);
+	if (!icd->dev.parent)
+		return -ENODEV;
 
-	if (!icd->dev.parent || !vdev)
-		return;
+	if (!icd->ops ||
+	    !icd->ops->query_bus_param ||
+	    !icd->ops->set_bus_param)
+		return -EINVAL;
 
-	video_unregister_device(vdev);
-	icd->vdev = NULL;
+	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER,
+				    icd->vdev->minor);
+	if (ret < 0) {
+		dev_err(&icd->dev, "video_register_device failed: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
-EXPORT_SYMBOL(soc_camera_video_stop);
 
 static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
 {
 	struct soc_camera_link *icl = pdev->dev.platform_data;
-	struct i2c_adapter *adap;
-	struct i2c_client *client;
+	struct soc_camera_device *icd;
+	int ret;
 
 	if (!icl)
 		return -EINVAL;
 
-	adap = i2c_get_adapter(icl->i2c_adapter_id);
-	if (!adap) {
-		dev_warn(&pdev->dev, "Cannot get adapter #%d. No driver?\n",
-			 icl->i2c_adapter_id);
-		/* -ENODEV and -ENXIO do not produce an error on probe()... */
-		return -ENOENT;
-	}
-
-	icl->board_info->platform_data = icl;
-	client = i2c_new_device(adap, icl->board_info);
-	if (!client) {
-		i2c_put_adapter(adap);
+	icd = kzalloc(sizeof(*icd), GFP_KERNEL);
+	if (!icd)
 		return -ENOMEM;
-	}
 
-	platform_set_drvdata(pdev, client);
+	icd->iface = icl->bus_id;
+	icd->pdev = &pdev->dev;
+	platform_set_drvdata(pdev, icd);
+	icd->dev.platform_data = icl;
+
+	ret = soc_camera_device_register(icd);
+	if (ret < 0)
+		goto escdevreg;
+
+	icd->user_width		= DEFAULT_WIDTH;
+	icd->user_height	= DEFAULT_HEIGHT;
 
 	return 0;
+
+escdevreg:
+	kfree(icd);
+
+	return ret;
 }
 
+/* Only called on rmmod for each platform device, since they are not
+ * hot-pluggable. Now we know, that all our users - hosts and devices have
+ * been unloaded already */
 static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
 {
-	struct i2c_client *client = platform_get_drvdata(pdev);
+	struct soc_camera_device *icd = platform_get_drvdata(pdev);
 
-	if (!client)
-		return -ENODEV;
+	if (!icd)
+		return -EINVAL;
 
-	i2c_unregister_device(client);
-	i2c_put_adapter(client->adapter);
+	soc_camera_device_unregister(icd);
+
+	kfree(icd);
 
 	return 0;
 }
 
 static struct platform_driver __refdata soc_camera_pdrv = {
-	.probe	= soc_camera_pdrv_probe,
-	.remove	= __devexit_p(soc_camera_pdrv_remove),
-	.driver	= {
-		.name = "soc-camera-pdrv",
-		.owner = THIS_MODULE,
+	.remove  = __devexit_p(soc_camera_pdrv_remove),
+	.driver  = {
+		.name	= "soc-camera-pdrv",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1225,7 +1360,7 @@ static int __init soc_camera_init(void)
 	if (ret)
 		goto edrvr;
 
-	ret = platform_driver_register(&soc_camera_pdrv);
+	ret = platform_driver_probe(&soc_camera_pdrv, soc_camera_pdrv_probe);
 	if (ret)
 		goto epdr;
 

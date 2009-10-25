@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/proc_fs.h>
+#include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/random.h>
 #include <linux/netdevice.h>

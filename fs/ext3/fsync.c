@@ -23,6 +23,7 @@
  */
 
 #include <linux/time.h>
+#include <linux/blkdev.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/writeback.h>
@@ -73,7 +74,7 @@ int ext3_sync_file(struct file * file, struct dentry *dentry, int datasync)
 	}
 
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
-		goto out;
+		goto flush;
 
 	/*
 	 * The VFS has written the file data.  If the inode is unaltered
@@ -85,7 +86,16 @@ int ext3_sync_file(struct file * file, struct dentry *dentry, int datasync)
 			.nr_to_write = 0, /* sys_fsync did this */
 		};
 		ret = sync_inode(inode, &wbc);
+		goto out;
 	}
+flush:
+	/*
+	 * In case we didn't commit a transaction, we have to flush
+	 * disk caches manually so that data really is on persistent
+	 * storage
+	 */
+	if (test_opt(inode->i_sb, BARRIER))
+		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
 out:
 	return ret;
 }

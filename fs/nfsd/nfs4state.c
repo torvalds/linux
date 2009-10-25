@@ -55,6 +55,7 @@
 #include <linux/lockd/bind.h>
 #include <linux/module.h>
 #include <linux/sunrpc/svcauth_gss.h>
+#include <linux/sunrpc/clnt.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -413,36 +414,65 @@ gen_sessionid(struct nfsd4_session *ses)
 }
 
 /*
- * Give the client the number of slots it requests bound by
- * NFSD_MAX_SLOTS_PER_SESSION and by sv_drc_max_pages.
- *
- * If we run out of pages (sv_drc_pages_used == sv_drc_max_pages) we
- * should (up to a point) re-negotiate active sessions and reduce their
- * slot usage to make rooom for new connections. For now we just fail the
- * create session.
+ * The protocol defines ca_maxresponssize_cached to include the size of
+ * the rpc header, but all we need to cache is the data starting after
+ * the end of the initial SEQUENCE operation--the rest we regenerate
+ * each time.  Therefore we can advertise a ca_maxresponssize_cached
+ * value that is the number of bytes in our cache plus a few additional
+ * bytes.  In order to stay on the safe side, and not promise more than
+ * we can cache, those additional bytes must be the minimum possible: 24
+ * bytes of rpc header (xid through accept state, with AUTH_NULL
+ * verifier), 12 for the compound header (with zero-length tag), and 44
+ * for the SEQUENCE op response:
  */
-static int set_forechannel_maxreqs(struct nfsd4_channel_attrs *fchan)
+#define NFSD_MIN_HDR_SEQ_SZ  (24 + 12 + 44)
+
+/*
+ * Give the client the number of ca_maxresponsesize_cached slots it
+ * requests, of size bounded by NFSD_SLOT_CACHE_SIZE,
+ * NFSD_MAX_MEM_PER_SESSION, and nfsd_drc_max_mem. Do not allow more
+ * than NFSD_MAX_SLOTS_PER_SESSION.
+ *
+ * If we run out of reserved DRC memory we should (up to a point)
+ * re-negotiate active sessions and reduce their slot usage to make
+ * rooom for new connections. For now we just fail the create session.
+ */
+static int set_forechannel_drc_size(struct nfsd4_channel_attrs *fchan)
 {
-	int status = 0, np = fchan->maxreqs * NFSD_PAGES_PER_SLOT;
+	int mem, size = fchan->maxresp_cached;
 
 	if (fchan->maxreqs < 1)
 		return nfserr_inval;
-	else if (fchan->maxreqs > NFSD_MAX_SLOTS_PER_SESSION)
-		fchan->maxreqs = NFSD_MAX_SLOTS_PER_SESSION;
 
-	spin_lock(&nfsd_serv->sv_lock);
-	if (np + nfsd_serv->sv_drc_pages_used > nfsd_serv->sv_drc_max_pages)
-		np = nfsd_serv->sv_drc_max_pages - nfsd_serv->sv_drc_pages_used;
-	nfsd_serv->sv_drc_pages_used += np;
-	spin_unlock(&nfsd_serv->sv_lock);
+	if (size < NFSD_MIN_HDR_SEQ_SZ)
+		size = NFSD_MIN_HDR_SEQ_SZ;
+	size -= NFSD_MIN_HDR_SEQ_SZ;
+	if (size > NFSD_SLOT_CACHE_SIZE)
+		size = NFSD_SLOT_CACHE_SIZE;
 
-	if (np <= 0) {
-		status = nfserr_resource;
-		fchan->maxreqs = 0;
-	} else
-		fchan->maxreqs = np / NFSD_PAGES_PER_SLOT;
+	/* bound the maxreqs by NFSD_MAX_MEM_PER_SESSION */
+	mem = fchan->maxreqs * size;
+	if (mem > NFSD_MAX_MEM_PER_SESSION) {
+		fchan->maxreqs = NFSD_MAX_MEM_PER_SESSION / size;
+		if (fchan->maxreqs > NFSD_MAX_SLOTS_PER_SESSION)
+			fchan->maxreqs = NFSD_MAX_SLOTS_PER_SESSION;
+		mem = fchan->maxreqs * size;
+	}
 
-	return status;
+	spin_lock(&nfsd_drc_lock);
+	/* bound the total session drc memory ussage */
+	if (mem + nfsd_drc_mem_used > nfsd_drc_max_mem) {
+		fchan->maxreqs = (nfsd_drc_max_mem - nfsd_drc_mem_used) / size;
+		mem = fchan->maxreqs * size;
+	}
+	nfsd_drc_mem_used += mem;
+	spin_unlock(&nfsd_drc_lock);
+
+	if (fchan->maxreqs == 0)
+		return nfserr_serverfault;
+
+	fchan->maxresp_cached = size + NFSD_MIN_HDR_SEQ_SZ;
+	return 0;
 }
 
 /*
@@ -466,28 +496,31 @@ static int init_forechannel_attrs(struct svc_rqst *rqstp,
 		fchan->maxresp_sz = maxcount;
 	session_fchan->maxresp_sz = fchan->maxresp_sz;
 
-	/* Set the max response cached size our default which is
-	 * a multiple of PAGE_SIZE and small */
-	session_fchan->maxresp_cached = NFSD_PAGES_PER_SLOT * PAGE_SIZE;
-	fchan->maxresp_cached = session_fchan->maxresp_cached;
-
 	/* Use the client's maxops if possible */
 	if (fchan->maxops > NFSD_MAX_OPS_PER_COMPOUND)
 		fchan->maxops = NFSD_MAX_OPS_PER_COMPOUND;
 	session_fchan->maxops = fchan->maxops;
 
-	/* try to use the client requested number of slots */
-	if (fchan->maxreqs > NFSD_MAX_SLOTS_PER_SESSION)
-		fchan->maxreqs = NFSD_MAX_SLOTS_PER_SESSION;
-
 	/* FIXME: Error means no more DRC pages so the server should
 	 * recover pages from existing sessions. For now fail session
 	 * creation.
 	 */
-	status = set_forechannel_maxreqs(fchan);
+	status = set_forechannel_drc_size(fchan);
 
+	session_fchan->maxresp_cached = fchan->maxresp_cached;
 	session_fchan->maxreqs = fchan->maxreqs;
+
+	dprintk("%s status %d\n", __func__, status);
 	return status;
+}
+
+static void
+free_session_slots(struct nfsd4_session *ses)
+{
+	int i;
+
+	for (i = 0; i < ses->se_fchannel.maxreqs; i++)
+		kfree(ses->se_slots[i]);
 }
 
 static int
@@ -495,7 +528,9 @@ alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp,
 		   struct nfsd4_create_session *cses)
 {
 	struct nfsd4_session *new, tmp;
-	int idx, status = nfserr_resource, slotsize;
+	struct nfsd4_slot *sp;
+	int idx, slotsize, cachesize, i;
+	int status;
 
 	memset(&tmp, 0, sizeof(tmp));
 
@@ -506,13 +541,26 @@ alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp,
 	if (status)
 		goto out;
 
-	/* allocate struct nfsd4_session and slot table in one piece */
-	slotsize = tmp.se_fchannel.maxreqs * sizeof(struct nfsd4_slot);
+	BUILD_BUG_ON(NFSD_MAX_SLOTS_PER_SESSION * sizeof(struct nfsd4_slot)
+		     + sizeof(struct nfsd4_session) > PAGE_SIZE);
+
+	status = nfserr_serverfault;
+	/* allocate struct nfsd4_session and slot table pointers in one piece */
+	slotsize = tmp.se_fchannel.maxreqs * sizeof(struct nfsd4_slot *);
 	new = kzalloc(sizeof(*new) + slotsize, GFP_KERNEL);
 	if (!new)
 		goto out;
 
 	memcpy(new, &tmp, sizeof(*new));
+
+	/* allocate each struct nfsd4_slot and data cache in one piece */
+	cachesize = new->se_fchannel.maxresp_cached - NFSD_MIN_HDR_SEQ_SZ;
+	for (i = 0; i < new->se_fchannel.maxreqs; i++) {
+		sp = kzalloc(sizeof(*sp) + cachesize, GFP_KERNEL);
+		if (!sp)
+			goto out_free;
+		new->se_slots[i] = sp;
+	}
 
 	new->se_client = clp;
 	gen_sessionid(new);
@@ -530,6 +578,10 @@ alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp,
 	status = nfs_ok;
 out:
 	return status;
+out_free:
+	free_session_slots(new);
+	kfree(new);
+	goto out;
 }
 
 /* caller must hold sessionid_lock */
@@ -572,19 +624,16 @@ release_session(struct nfsd4_session *ses)
 	nfsd4_put_session(ses);
 }
 
-static void nfsd4_release_respages(struct page **respages, short resused);
-
 void
 free_session(struct kref *kref)
 {
 	struct nfsd4_session *ses;
-	int i;
 
 	ses = container_of(kref, struct nfsd4_session, se_ref);
-	for (i = 0; i < ses->se_fchannel.maxreqs; i++) {
-		struct nfsd4_cache_entry *e = &ses->se_slots[i].sl_cache_entry;
-		nfsd4_release_respages(e->ce_respages, e->ce_resused);
-	}
+	spin_lock(&nfsd_drc_lock);
+	nfsd_drc_mem_used -= ses->se_fchannel.maxreqs * NFSD_SLOT_CACHE_SIZE;
+	spin_unlock(&nfsd_drc_lock);
+	free_session_slots(ses);
 	kfree(ses);
 }
 
@@ -647,18 +696,14 @@ shutdown_callback_client(struct nfs4_client *clp)
 		clp->cl_cb_conn.cb_client = NULL;
 		rpc_shutdown_client(clnt);
 	}
-	if (clp->cl_cb_conn.cb_cred) {
-		put_rpccred(clp->cl_cb_conn.cb_cred);
-		clp->cl_cb_conn.cb_cred = NULL;
-	}
 }
 
 static inline void
 free_client(struct nfs4_client *clp)
 {
 	shutdown_callback_client(clp);
-	nfsd4_release_respages(clp->cl_slot.sl_cache_entry.ce_respages,
-			     clp->cl_slot.sl_cache_entry.ce_resused);
+	if (clp->cl_cb_xprt)
+		svc_xprt_put(clp->cl_cb_xprt);
 	if (clp->cl_cred.cr_group_info)
 		put_group_info(clp->cl_cred.cr_group_info);
 	kfree(clp->cl_principal);
@@ -712,25 +757,6 @@ expire_client(struct nfs4_client *clp)
 		release_session(ses);
 	}
 	put_nfs4_client(clp);
-}
-
-static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir)
-{
-	struct nfs4_client *clp;
-
-	clp = alloc_client(name);
-	if (clp == NULL)
-		return NULL;
-	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
-	atomic_set(&clp->cl_count, 1);
-	atomic_set(&clp->cl_cb_conn.cb_set, 0);
-	INIT_LIST_HEAD(&clp->cl_idhash);
-	INIT_LIST_HEAD(&clp->cl_strhash);
-	INIT_LIST_HEAD(&clp->cl_openowners);
-	INIT_LIST_HEAD(&clp->cl_delegations);
-	INIT_LIST_HEAD(&clp->cl_sessions);
-	INIT_LIST_HEAD(&clp->cl_lru);
-	return clp;
 }
 
 static void copy_verf(struct nfs4_client *target, nfs4_verifier *source)
@@ -793,6 +819,46 @@ static void gen_confirm(struct nfs4_client *clp)
 	p = (u32 *)clp->cl_confirm.data;
 	*p++ = get_seconds();
 	*p++ = i++;
+}
+
+static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
+		struct svc_rqst *rqstp, nfs4_verifier *verf)
+{
+	struct nfs4_client *clp;
+	struct sockaddr *sa = svc_addr(rqstp);
+	char *princ;
+
+	clp = alloc_client(name);
+	if (clp == NULL)
+		return NULL;
+
+	princ = svc_gss_principal(rqstp);
+	if (princ) {
+		clp->cl_principal = kstrdup(princ, GFP_KERNEL);
+		if (clp->cl_principal == NULL) {
+			free_client(clp);
+			return NULL;
+		}
+	}
+
+	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
+	atomic_set(&clp->cl_count, 1);
+	atomic_set(&clp->cl_cb_conn.cb_set, 0);
+	INIT_LIST_HEAD(&clp->cl_idhash);
+	INIT_LIST_HEAD(&clp->cl_strhash);
+	INIT_LIST_HEAD(&clp->cl_openowners);
+	INIT_LIST_HEAD(&clp->cl_delegations);
+	INIT_LIST_HEAD(&clp->cl_sessions);
+	INIT_LIST_HEAD(&clp->cl_lru);
+	clear_bit(0, &clp->cl_cb_slot_busy);
+	rpc_init_wait_queue(&clp->cl_cb_waitq, "Backchannel slot table");
+	copy_verf(clp, verf);
+	rpc_copy_addr((struct sockaddr *) &clp->cl_addr, sa);
+	clp->cl_flavor = rqstp->rq_flavor;
+	copy_cred(&clp->cl_cred, &rqstp->rq_cred);
+	gen_confirm(clp);
+
+	return clp;
 }
 
 static int check_name(struct xdr_netobj name)
@@ -902,93 +968,40 @@ find_unconfirmed_client_by_str(const char *dname, unsigned int hashval,
 	return NULL;
 }
 
-/* a helper function for parse_callback */
-static int
-parse_octet(unsigned int *lenp, char **addrp)
-{
-	unsigned int len = *lenp;
-	char *p = *addrp;
-	int n = -1;
-	char c;
-
-	for (;;) {
-		if (!len)
-			break;
-		len--;
-		c = *p++;
-		if (c == '.')
-			break;
-		if ((c < '0') || (c > '9')) {
-			n = -1;
-			break;
-		}
-		if (n < 0)
-			n = 0;
-		n = (n * 10) + (c - '0');
-		if (n > 255) {
-			n = -1;
-			break;
-		}
-	}
-	*lenp = len;
-	*addrp = p;
-	return n;
-}
-
-/* parse and set the setclientid ipv4 callback address */
-static int
-parse_ipv4(unsigned int addr_len, char *addr_val, unsigned int *cbaddrp, unsigned short *cbportp)
-{
-	int temp = 0;
-	u32 cbaddr = 0;
-	u16 cbport = 0;
-	u32 addrlen = addr_len;
-	char *addr = addr_val;
-	int i, shift;
-
-	/* ipaddress */
-	shift = 24;
-	for(i = 4; i > 0  ; i--) {
-		if ((temp = parse_octet(&addrlen, &addr)) < 0) {
-			return 0;
-		}
-		cbaddr |= (temp << shift);
-		if (shift > 0)
-		shift -= 8;
-	}
-	*cbaddrp = cbaddr;
-
-	/* port */
-	shift = 8;
-	for(i = 2; i > 0  ; i--) {
-		if ((temp = parse_octet(&addrlen, &addr)) < 0) {
-			return 0;
-		}
-		cbport |= (temp << shift);
-		if (shift > 0)
-			shift -= 8;
-	}
-	*cbportp = cbport;
-	return 1;
-}
-
 static void
-gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se)
+gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, u32 scopeid)
 {
 	struct nfs4_cb_conn *cb = &clp->cl_cb_conn;
+	unsigned short expected_family;
 
-	/* Currently, we only support tcp for the callback channel */
-	if ((se->se_callback_netid_len != 3) || memcmp((char *)se->se_callback_netid_val, "tcp", 3))
+	/* Currently, we only support tcp and tcp6 for the callback channel */
+	if (se->se_callback_netid_len == 3 &&
+	    !memcmp(se->se_callback_netid_val, "tcp", 3))
+		expected_family = AF_INET;
+	else if (se->se_callback_netid_len == 4 &&
+		 !memcmp(se->se_callback_netid_val, "tcp6", 4))
+		expected_family = AF_INET6;
+	else
 		goto out_err;
 
-	if ( !(parse_ipv4(se->se_callback_addr_len, se->se_callback_addr_val,
-	                 &cb->cb_addr, &cb->cb_port)))
+	cb->cb_addrlen = rpc_uaddr2sockaddr(se->se_callback_addr_val,
+					    se->se_callback_addr_len,
+					    (struct sockaddr *) &cb->cb_addr,
+					    sizeof(cb->cb_addr));
+
+	if (!cb->cb_addrlen || cb->cb_addr.ss_family != expected_family)
 		goto out_err;
+
+	if (cb->cb_addr.ss_family == AF_INET6)
+		((struct sockaddr_in6 *) &cb->cb_addr)->sin6_scope_id = scopeid;
+
 	cb->cb_minorversion = 0;
 	cb->cb_prog = se->se_callback_prog;
 	cb->cb_ident = se->se_callback_ident;
 	return;
 out_err:
+	cb->cb_addr.ss_family = AF_UNSPEC;
+	cb->cb_addrlen = 0;
 	dprintk(KERN_INFO "NFSD: this client (clientid %08x/%08x) "
 		"will not receive delegations\n",
 		clp->cl_clientid.cl_boot, clp->cl_clientid.cl_id);
@@ -996,175 +1009,87 @@ out_err:
 	return;
 }
 
-void
-nfsd4_set_statp(struct svc_rqst *rqstp, __be32 *statp)
-{
-	struct nfsd4_compoundres *resp = rqstp->rq_resp;
-
-	resp->cstate.statp = statp;
-}
-
 /*
- * Dereference the result pages.
- */
-static void
-nfsd4_release_respages(struct page **respages, short resused)
-{
-	int i;
-
-	dprintk("--> %s\n", __func__);
-	for (i = 0; i < resused; i++) {
-		if (!respages[i])
-			continue;
-		put_page(respages[i]);
-		respages[i] = NULL;
-	}
-}
-
-static void
-nfsd4_copy_pages(struct page **topages, struct page **frompages, short count)
-{
-	int i;
-
-	for (i = 0; i < count; i++) {
-		topages[i] = frompages[i];
-		if (!topages[i])
-			continue;
-		get_page(topages[i]);
-	}
-}
-
-/*
- * Cache the reply pages up to NFSD_PAGES_PER_SLOT + 1, clearing the previous
- * pages. We add a page to NFSD_PAGES_PER_SLOT for the case where the total
- * length of the XDR response is less than se_fmaxresp_cached
- * (NFSD_PAGES_PER_SLOT * PAGE_SIZE) but the xdr_buf pages is used for a
- * of the reply (e.g. readdir).
- *
- * Store the base and length of the rq_req.head[0] page
- * of the NFSv4.1 data, just past the rpc header.
+ * Cache a reply. nfsd4_check_drc_limit() has bounded the cache size.
  */
 void
 nfsd4_store_cache_entry(struct nfsd4_compoundres *resp)
 {
-	struct nfsd4_cache_entry *entry = &resp->cstate.slot->sl_cache_entry;
-	struct svc_rqst *rqstp = resp->rqstp;
-	struct nfsd4_compoundargs *args = rqstp->rq_argp;
-	struct nfsd4_op *op = &args->ops[resp->opcnt];
-	struct kvec *resv = &rqstp->rq_res.head[0];
+	struct nfsd4_slot *slot = resp->cstate.slot;
+	unsigned int base;
 
-	dprintk("--> %s entry %p\n", __func__, entry);
+	dprintk("--> %s slot %p\n", __func__, slot);
 
-	/* Don't cache a failed OP_SEQUENCE. */
-	if (resp->opcnt == 1 && op->opnum == OP_SEQUENCE && resp->cstate.status)
-		return;
-
-	nfsd4_release_respages(entry->ce_respages, entry->ce_resused);
-	entry->ce_opcnt = resp->opcnt;
-	entry->ce_status = resp->cstate.status;
-
-	/*
-	 * Don't need a page to cache just the sequence operation - the slot
-	 * does this for us!
-	 */
+	slot->sl_opcnt = resp->opcnt;
+	slot->sl_status = resp->cstate.status;
 
 	if (nfsd4_not_cached(resp)) {
-		entry->ce_resused = 0;
-		entry->ce_rpchdrlen = 0;
-		dprintk("%s Just cache SEQUENCE. ce_cachethis %d\n", __func__,
-			resp->cstate.slot->sl_cache_entry.ce_cachethis);
+		slot->sl_datalen = 0;
 		return;
 	}
-	entry->ce_resused = rqstp->rq_resused;
-	if (entry->ce_resused > NFSD_PAGES_PER_SLOT + 1)
-		entry->ce_resused = NFSD_PAGES_PER_SLOT + 1;
-	nfsd4_copy_pages(entry->ce_respages, rqstp->rq_respages,
-			 entry->ce_resused);
-	entry->ce_datav.iov_base = resp->cstate.statp;
-	entry->ce_datav.iov_len = resv->iov_len - ((char *)resp->cstate.statp -
-				(char *)page_address(rqstp->rq_respages[0]));
-	/* Current request rpc header length*/
-	entry->ce_rpchdrlen = (char *)resp->cstate.statp -
-				(char *)page_address(rqstp->rq_respages[0]);
+	slot->sl_datalen = (char *)resp->p - (char *)resp->cstate.datap;
+	base = (char *)resp->cstate.datap -
+					(char *)resp->xbuf->head[0].iov_base;
+	if (read_bytes_from_xdr_buf(resp->xbuf, base, slot->sl_data,
+				    slot->sl_datalen))
+		WARN("%s: sessions DRC could not cache compound\n", __func__);
+	return;
 }
 
 /*
- * We keep the rpc header, but take the nfs reply from the replycache.
+ * Encode the replay sequence operation from the slot values.
+ * If cachethis is FALSE encode the uncached rep error on the next
+ * operation which sets resp->p and increments resp->opcnt for
+ * nfs4svc_encode_compoundres.
+ *
  */
-static int
-nfsd41_copy_replay_data(struct nfsd4_compoundres *resp,
-			struct nfsd4_cache_entry *entry)
+static __be32
+nfsd4_enc_sequence_replay(struct nfsd4_compoundargs *args,
+			  struct nfsd4_compoundres *resp)
 {
-	struct svc_rqst *rqstp = resp->rqstp;
-	struct kvec *resv = &resp->rqstp->rq_res.head[0];
-	int len;
+	struct nfsd4_op *op;
+	struct nfsd4_slot *slot = resp->cstate.slot;
 
-	/* Current request rpc header length*/
-	len = (char *)resp->cstate.statp -
-			(char *)page_address(rqstp->rq_respages[0]);
-	if (entry->ce_datav.iov_len + len > PAGE_SIZE) {
-		dprintk("%s v41 cached reply too large (%Zd).\n", __func__,
-			entry->ce_datav.iov_len);
-		return 0;
+	dprintk("--> %s resp->opcnt %d cachethis %u \n", __func__,
+		resp->opcnt, resp->cstate.slot->sl_cachethis);
+
+	/* Encode the replayed sequence operation */
+	op = &args->ops[resp->opcnt - 1];
+	nfsd4_encode_operation(resp, op);
+
+	/* Return nfserr_retry_uncached_rep in next operation. */
+	if (args->opcnt > 1 && slot->sl_cachethis == 0) {
+		op = &args->ops[resp->opcnt++];
+		op->status = nfserr_retry_uncached_rep;
+		nfsd4_encode_operation(resp, op);
 	}
-	/* copy the cached reply nfsd data past the current rpc header */
-	memcpy((char *)resv->iov_base + len, entry->ce_datav.iov_base,
-		entry->ce_datav.iov_len);
-	resv->iov_len = len + entry->ce_datav.iov_len;
-	return 1;
+	return op->status;
 }
 
 /*
- * Keep the first page of the replay. Copy the NFSv4.1 data from the first
- * cached page.  Replace any futher replay pages from the cache.
+ * The sequence operation is not cached because we can use the slot and
+ * session values.
  */
 __be32
 nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 			 struct nfsd4_sequence *seq)
 {
-	struct nfsd4_cache_entry *entry = &resp->cstate.slot->sl_cache_entry;
+	struct nfsd4_slot *slot = resp->cstate.slot;
 	__be32 status;
 
-	dprintk("--> %s entry %p\n", __func__, entry);
+	dprintk("--> %s slot %p\n", __func__, slot);
 
-	/*
-	 * If this is just the sequence operation, we did not keep
-	 * a page in the cache entry because we can just use the
-	 * slot info stored in struct nfsd4_sequence that was checked
-	 * against the slot in nfsd4_sequence().
-	 *
-	 * This occurs when seq->cachethis is FALSE, or when the client
-	 * session inactivity timer fires and a solo sequence operation
-	 * is sent (lease renewal).
-	 */
-	if (seq && nfsd4_not_cached(resp)) {
-		seq->maxslots = resp->cstate.session->se_fchannel.maxreqs;
-		return nfs_ok;
-	}
+	/* Either returns 0 or nfserr_retry_uncached */
+	status = nfsd4_enc_sequence_replay(resp->rqstp->rq_argp, resp);
+	if (status == nfserr_retry_uncached_rep)
+		return status;
 
-	if (!nfsd41_copy_replay_data(resp, entry)) {
-		/*
-		 * Not enough room to use the replay rpc header, send the
-		 * cached header. Release all the allocated result pages.
-		 */
-		svc_free_res_pages(resp->rqstp);
-		nfsd4_copy_pages(resp->rqstp->rq_respages, entry->ce_respages,
-			entry->ce_resused);
-	} else {
-		/* Release all but the first allocated result page */
+	/* The sequence operation has been encoded, cstate->datap set. */
+	memcpy(resp->cstate.datap, slot->sl_data, slot->sl_datalen);
 
-		resp->rqstp->rq_resused--;
-		svc_free_res_pages(resp->rqstp);
-
-		nfsd4_copy_pages(&resp->rqstp->rq_respages[1],
-				 &entry->ce_respages[1],
-				 entry->ce_resused - 1);
-	}
-
-	resp->rqstp->rq_resused = entry->ce_resused;
-	resp->opcnt = entry->ce_opcnt;
-	resp->cstate.iovlen = entry->ce_datav.iov_len + entry->ce_rpchdrlen;
-	status = entry->ce_status;
+	resp->opcnt = slot->sl_opcnt;
+	resp->p = resp->cstate.datap + XDR_QUADLEN(slot->sl_datalen);
+	status = slot->sl_status;
 
 	return status;
 }
@@ -1194,13 +1119,15 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 	int status;
 	unsigned int		strhashval;
 	char			dname[HEXDIR_LEN];
+	char			addr_str[INET6_ADDRSTRLEN];
 	nfs4_verifier		verf = exid->verifier;
-	u32			ip_addr = svc_addr_in(rqstp)->sin_addr.s_addr;
+	struct sockaddr		*sa = svc_addr(rqstp);
 
+	rpc_ntop(sa, addr_str, sizeof(addr_str));
 	dprintk("%s rqstp=%p exid=%p clname.len=%u clname.data=%p "
-		" ip_addr=%u flags %x, spa_how %d\n",
+		"ip_addr=%s flags %x, spa_how %d\n",
 		__func__, rqstp, exid, exid->clname.len, exid->clname.data,
-		ip_addr, exid->flags, exid->spa_how);
+		addr_str, exid->flags, exid->spa_how);
 
 	if (!check_name(exid->clname) || (exid->flags & ~EXCHGID4_FLAG_MASK_A))
 		return nfserr_inval;
@@ -1281,28 +1208,23 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 
 out_new:
 	/* Normal case */
-	new = create_client(exid->clname, dname);
+	new = create_client(exid->clname, dname, rqstp, &verf);
 	if (new == NULL) {
-		status = nfserr_resource;
+		status = nfserr_serverfault;
 		goto out;
 	}
 
-	copy_verf(new, &verf);
-	copy_cred(&new->cl_cred, &rqstp->rq_cred);
-	new->cl_addr = ip_addr;
 	gen_clid(new);
-	gen_confirm(new);
 	add_to_unconfirmed(new, strhashval);
 out_copy:
 	exid->clientid.cl_boot = new->cl_clientid.cl_boot;
 	exid->clientid.cl_id = new->cl_clientid.cl_id;
 
-	new->cl_slot.sl_seqid = 0;
 	exid->seqid = 1;
 	nfsd4_set_ex_flags(new, exid);
 
 	dprintk("nfsd4_exchange_id seqid %d flags %x\n",
-		new->cl_slot.sl_seqid, new->cl_exchange_flags);
+		new->cl_cs_slot.sl_seqid, new->cl_exchange_flags);
 	status = nfs_ok;
 
 out:
@@ -1313,29 +1235,50 @@ error:
 }
 
 static int
-check_slot_seqid(u32 seqid, struct nfsd4_slot *slot)
+check_slot_seqid(u32 seqid, u32 slot_seqid, int slot_inuse)
 {
-	dprintk("%s enter. seqid %d slot->sl_seqid %d\n", __func__, seqid,
-		slot->sl_seqid);
+	dprintk("%s enter. seqid %d slot_seqid %d\n", __func__, seqid,
+		slot_seqid);
 
 	/* The slot is in use, and no response has been sent. */
-	if (slot->sl_inuse) {
-		if (seqid == slot->sl_seqid)
+	if (slot_inuse) {
+		if (seqid == slot_seqid)
 			return nfserr_jukebox;
 		else
 			return nfserr_seq_misordered;
 	}
 	/* Normal */
-	if (likely(seqid == slot->sl_seqid + 1))
+	if (likely(seqid == slot_seqid + 1))
 		return nfs_ok;
 	/* Replay */
-	if (seqid == slot->sl_seqid)
+	if (seqid == slot_seqid)
 		return nfserr_replay_cache;
 	/* Wraparound */
-	if (seqid == 1 && (slot->sl_seqid + 1) == 0)
+	if (seqid == 1 && (slot_seqid + 1) == 0)
 		return nfs_ok;
 	/* Misordered replay or misordered new request */
 	return nfserr_seq_misordered;
+}
+
+/*
+ * Cache the create session result into the create session single DRC
+ * slot cache by saving the xdr structure. sl_seqid has been set.
+ * Do this for solo or embedded create session operations.
+ */
+static void
+nfsd4_cache_create_session(struct nfsd4_create_session *cr_ses,
+			   struct nfsd4_clid_slot *slot, int nfserr)
+{
+	slot->sl_status = nfserr;
+	memcpy(&slot->sl_cr_ses, cr_ses, sizeof(*cr_ses));
+}
+
+static __be32
+nfsd4_replay_create_session(struct nfsd4_create_session *cr_ses,
+			    struct nfsd4_clid_slot *slot)
+{
+	memcpy(cr_ses, &slot->sl_cr_ses, sizeof(*cr_ses));
+	return slot->sl_status;
 }
 
 __be32
@@ -1343,10 +1286,9 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		     struct nfsd4_compound_state *cstate,
 		     struct nfsd4_create_session *cr_ses)
 {
-	u32 ip_addr = svc_addr_in(rqstp)->sin_addr.s_addr;
-	struct nfsd4_compoundres *resp = rqstp->rq_resp;
+	struct sockaddr *sa = svc_addr(rqstp);
 	struct nfs4_client *conf, *unconf;
-	struct nfsd4_slot *slot = NULL;
+	struct nfsd4_clid_slot *cs_slot = NULL;
 	int status = 0;
 
 	nfs4_lock_state();
@@ -1354,40 +1296,38 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	conf = find_confirmed_client(&cr_ses->clientid);
 
 	if (conf) {
-		slot = &conf->cl_slot;
-		status = check_slot_seqid(cr_ses->seqid, slot);
+		cs_slot = &conf->cl_cs_slot;
+		status = check_slot_seqid(cr_ses->seqid, cs_slot->sl_seqid, 0);
 		if (status == nfserr_replay_cache) {
 			dprintk("Got a create_session replay! seqid= %d\n",
-				slot->sl_seqid);
-			cstate->slot = slot;
-			cstate->status = status;
+				cs_slot->sl_seqid);
 			/* Return the cached reply status */
-			status = nfsd4_replay_cache_entry(resp, NULL);
+			status = nfsd4_replay_create_session(cr_ses, cs_slot);
 			goto out;
-		} else if (cr_ses->seqid != conf->cl_slot.sl_seqid + 1) {
+		} else if (cr_ses->seqid != cs_slot->sl_seqid + 1) {
 			status = nfserr_seq_misordered;
 			dprintk("Sequence misordered!\n");
 			dprintk("Expected seqid= %d but got seqid= %d\n",
-				slot->sl_seqid, cr_ses->seqid);
+				cs_slot->sl_seqid, cr_ses->seqid);
 			goto out;
 		}
-		conf->cl_slot.sl_seqid++;
+		cs_slot->sl_seqid++;
 	} else if (unconf) {
 		if (!same_creds(&unconf->cl_cred, &rqstp->rq_cred) ||
-		    (ip_addr != unconf->cl_addr)) {
+		    !rpc_cmp_addr(sa, (struct sockaddr *) &unconf->cl_addr)) {
 			status = nfserr_clid_inuse;
 			goto out;
 		}
 
-		slot = &unconf->cl_slot;
-		status = check_slot_seqid(cr_ses->seqid, slot);
+		cs_slot = &unconf->cl_cs_slot;
+		status = check_slot_seqid(cr_ses->seqid, cs_slot->sl_seqid, 0);
 		if (status) {
 			/* an unconfirmed replay returns misordered */
 			status = nfserr_seq_misordered;
-			goto out;
+			goto out_cache;
 		}
 
-		slot->sl_seqid++; /* from 0 to 1 */
+		cs_slot->sl_seqid++; /* from 0 to 1 */
 		move_to_confirmed(unconf);
 
 		/*
@@ -1396,6 +1336,19 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		cr_ses->flags &= ~SESSION4_PERSIST;
 		cr_ses->flags &= ~SESSION4_RDMA;
 
+		if (cr_ses->flags & SESSION4_BACK_CHAN) {
+			unconf->cl_cb_xprt = rqstp->rq_xprt;
+			svc_xprt_get(unconf->cl_cb_xprt);
+			rpc_copy_addr(
+				(struct sockaddr *)&unconf->cl_cb_conn.cb_addr,
+				sa);
+			unconf->cl_cb_conn.cb_addrlen = svc_addr_len(sa);
+			unconf->cl_cb_conn.cb_minorversion =
+				cstate->minorversion;
+			unconf->cl_cb_conn.cb_prog = cr_ses->callback_prog;
+			unconf->cl_cb_seq_nr = 1;
+			nfsd4_probe_callback(unconf);
+		}
 		conf = unconf;
 	} else {
 		status = nfserr_stale_clientid;
@@ -1408,12 +1361,11 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 
 	memcpy(cr_ses->sessionid.data, conf->cl_sessionid.data,
 	       NFS4_MAX_SESSIONID_LEN);
-	cr_ses->seqid = slot->sl_seqid;
+	cr_ses->seqid = cs_slot->sl_seqid;
 
-	slot->sl_inuse = true;
-	cstate->slot = slot;
-	/* Ensure a page is used for the cache */
-	slot->sl_cache_entry.ce_cachethis = 1;
+out_cache:
+	/* cache solo and embedded create sessions under the state lock */
+	nfsd4_cache_create_session(cr_ses, cs_slot, status);
 out:
 	nfs4_unlock_state();
 	dprintk("%s returns %d\n", __func__, ntohl(status));
@@ -1478,18 +1430,23 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	if (seq->slotid >= session->se_fchannel.maxreqs)
 		goto out;
 
-	slot = &session->se_slots[seq->slotid];
+	slot = session->se_slots[seq->slotid];
 	dprintk("%s: slotid %d\n", __func__, seq->slotid);
 
-	status = check_slot_seqid(seq->seqid, slot);
+	/* We do not negotiate the number of slots yet, so set the
+	 * maxslots to the session maxreqs which is used to encode
+	 * sr_highest_slotid and the sr_target_slot id to maxslots */
+	seq->maxslots = session->se_fchannel.maxreqs;
+
+	status = check_slot_seqid(seq->seqid, slot->sl_seqid, slot->sl_inuse);
 	if (status == nfserr_replay_cache) {
 		cstate->slot = slot;
 		cstate->session = session;
 		/* Return the cached reply status and set cstate->status
-		 * for nfsd4_svc_encode_compoundres processing */
+		 * for nfsd4_proc_compound processing */
 		status = nfsd4_replay_cache_entry(resp, seq);
 		cstate->status = nfserr_replay_cache;
-		goto replay_cache;
+		goto out;
 	}
 	if (status)
 		goto out;
@@ -1497,23 +1454,23 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	/* Success! bump slot seqid */
 	slot->sl_inuse = true;
 	slot->sl_seqid = seq->seqid;
-	slot->sl_cache_entry.ce_cachethis = seq->cachethis;
-	/* Always set the cache entry cachethis for solo sequence */
-	if (nfsd4_is_solo_sequence(resp))
-		slot->sl_cache_entry.ce_cachethis = 1;
+	slot->sl_cachethis = seq->cachethis;
 
 	cstate->slot = slot;
 	cstate->session = session;
 
-replay_cache:
-	/* Renew the clientid on success and on replay.
-	 * Hold a session reference until done processing the compound:
+	/* Hold a session reference until done processing the compound:
 	 * nfsd4_put_session called only if the cstate slot is set.
 	 */
-	renew_client(session->se_client);
 	nfsd4_get_session(session);
 out:
 	spin_unlock(&sessionid_lock);
+	/* Renew the clientid on success and on replay */
+	if (cstate->session) {
+		nfs4_lock_state();
+		renew_client(session->se_client);
+		nfs4_unlock_state();
+	}
 	dprintk("%s: return %d\n", __func__, ntohl(status));
 	return status;
 }
@@ -1522,7 +1479,7 @@ __be32
 nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		  struct nfsd4_setclientid *setclid)
 {
-	struct sockaddr_in	*sin = svc_addr_in(rqstp);
+	struct sockaddr		*sa = svc_addr(rqstp);
 	struct xdr_netobj 	clname = { 
 		.len = setclid->se_namelen,
 		.data = setclid->se_name,
@@ -1531,7 +1488,6 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	unsigned int 		strhashval;
 	struct nfs4_client	*conf, *unconf, *new;
 	__be32 			status;
-	char			*princ;
 	char                    dname[HEXDIR_LEN];
 	
 	if (!check_name(clname))
@@ -1554,8 +1510,11 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		/* RFC 3530 14.2.33 CASE 0: */
 		status = nfserr_clid_inuse;
 		if (!same_creds(&conf->cl_cred, &rqstp->rq_cred)) {
-			dprintk("NFSD: setclientid: string in use by client"
-				" at %pI4\n", &conf->cl_addr);
+			char addr_str[INET6_ADDRSTRLEN];
+			rpc_ntop((struct sockaddr *) &conf->cl_addr, addr_str,
+				 sizeof(addr_str));
+			dprintk("NFSD: setclientid: string in use by client "
+				"at %s\n", addr_str);
 			goto out;
 		}
 	}
@@ -1573,7 +1532,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		 */
 		if (unconf)
 			expire_client(unconf);
-		new = create_client(clname, dname);
+		new = create_client(clname, dname, rqstp, &clverifier);
 		if (new == NULL)
 			goto out;
 		gen_clid(new);
@@ -1590,7 +1549,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			 */
 			expire_client(unconf);
 		}
-		new = create_client(clname, dname);
+		new = create_client(clname, dname, rqstp, &clverifier);
 		if (new == NULL)
 			goto out;
 		copy_clid(new, conf);
@@ -1600,7 +1559,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		 * probable client reboot; state will be removed if
 		 * confirmed.
 		 */
-		new = create_client(clname, dname);
+		new = create_client(clname, dname, rqstp, &clverifier);
 		if (new == NULL)
 			goto out;
 		gen_clid(new);
@@ -1611,25 +1570,12 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		 * confirmed.
 		 */
 		expire_client(unconf);
-		new = create_client(clname, dname);
+		new = create_client(clname, dname, rqstp, &clverifier);
 		if (new == NULL)
 			goto out;
 		gen_clid(new);
 	}
-	copy_verf(new, &clverifier);
-	new->cl_addr = sin->sin_addr.s_addr;
-	new->cl_flavor = rqstp->rq_flavor;
-	princ = svc_gss_principal(rqstp);
-	if (princ) {
-		new->cl_principal = kstrdup(princ, GFP_KERNEL);
-		if (new->cl_principal == NULL) {
-			free_client(new);
-			goto out;
-		}
-	}
-	copy_cred(&new->cl_cred, &rqstp->rq_cred);
-	gen_confirm(new);
-	gen_callback(new, setclid);
+	gen_callback(new, setclid, rpc_get_scope_id(sa));
 	add_to_unconfirmed(new, strhashval);
 	setclid->se_clientid.cl_boot = new->cl_clientid.cl_boot;
 	setclid->se_clientid.cl_id = new->cl_clientid.cl_id;
@@ -1651,7 +1597,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			 struct nfsd4_compound_state *cstate,
 			 struct nfsd4_setclientid_confirm *setclientid_confirm)
 {
-	struct sockaddr_in *sin = svc_addr_in(rqstp);
+	struct sockaddr *sa = svc_addr(rqstp);
 	struct nfs4_client *conf, *unconf;
 	nfs4_verifier confirm = setclientid_confirm->sc_confirm; 
 	clientid_t * clid = &setclientid_confirm->sc_clientid;
@@ -1670,9 +1616,9 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 	unconf = find_unconfirmed_client(clid);
 
 	status = nfserr_clid_inuse;
-	if (conf && conf->cl_addr != sin->sin_addr.s_addr)
+	if (conf && !rpc_cmp_addr((struct sockaddr *) &conf->cl_addr, sa))
 		goto out;
-	if (unconf && unconf->cl_addr != sin->sin_addr.s_addr)
+	if (unconf && !rpc_cmp_addr((struct sockaddr *) &unconf->cl_addr, sa))
 		goto out;
 
 	/*
@@ -2163,7 +2109,7 @@ int nfsd_change_deleg_cb(struct file_lock **onlist, int arg)
 		return -EAGAIN;
 }
 
-static struct lock_manager_operations nfsd_lease_mng_ops = {
+static const struct lock_manager_operations nfsd_lease_mng_ops = {
 	.fl_break = nfsd_break_deleg_cb,
 	.fl_release_private = nfsd_release_deleg_cb,
 	.fl_copy_lock = nfsd_copy_lock_deleg_cb,
@@ -3368,7 +3314,7 @@ nfs4_transform_lock_offset(struct file_lock *lock)
 
 /* Hack!: For now, we're defining this just so we can use a pointer to it
  * as a unique cookie to identify our (NFSv4's) posix locks. */
-static struct lock_manager_operations nfsd_posix_mng_ops  = {
+static const struct lock_manager_operations nfsd_posix_mng_ops  = {
 };
 
 static inline void
@@ -4072,7 +4018,7 @@ set_max_delegations(void)
 
 /* initialization to perform when the nfsd service is started: */
 
-static void
+static int
 __nfs4_state_start(void)
 {
 	unsigned long grace_time;
@@ -4084,19 +4030,26 @@ __nfs4_state_start(void)
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
 	       grace_time/HZ);
 	laundry_wq = create_singlethread_workqueue("nfsd4");
+	if (laundry_wq == NULL)
+		return -ENOMEM;
 	queue_delayed_work(laundry_wq, &laundromat_work, grace_time);
 	set_max_delegations();
+	return set_callback_cred();
 }
 
-void
+int
 nfs4_state_start(void)
 {
+	int ret;
+
 	if (nfs4_init)
-		return;
+		return 0;
 	nfsd4_load_reboot_recovery_data();
-	__nfs4_state_start();
+	ret = __nfs4_state_start();
+	if (ret)
+		return ret;
 	nfs4_init = 1;
-	return;
+	return 0;
 }
 
 time_t

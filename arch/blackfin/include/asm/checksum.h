@@ -1,9 +1,14 @@
+/*
+ * Copyright 2004-2009 Analog Devices Inc.
+ *                     akbar.hussain@lineo.com
+ *
+ * Licensed under the GPL-2 or later.
+ */
+
 #ifndef _BFIN_CHECKSUM_H
 #define _BFIN_CHECKSUM_H
 
 /*
- * MODIFIED FOR BFIN April 30, 2001 akbar.hussain@lineo.com
- *
  * computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit)
  *

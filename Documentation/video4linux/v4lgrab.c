@@ -89,7 +89,7 @@
 	}                                                               \
 }
 
-int get_brightness_adj(unsigned char *image, long size, int *brightness) {
+static int get_brightness_adj(unsigned char *image, long size, int *brightness) {
   long i, tot = 0;
   for (i=0;i<size*3;i++)
     tot += image[i];

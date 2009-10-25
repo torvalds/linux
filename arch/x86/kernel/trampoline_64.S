@@ -25,14 +25,19 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/init.h>
 #include <asm/pgtable_types.h>
 #include <asm/page_types.h>
 #include <asm/msr.h>
 #include <asm/segment.h>
 #include <asm/processor-flags.h>
 
+#ifdef CONFIG_ACPI_SLEEP
 .section .rodata, "a", @progbits
-
+#else
+/* We can free up the trampoline after bootup if cpu hotplug is not supported. */
+__CPUINITRODATA
+#endif
 .code16
 
 ENTRY(trampoline_data)

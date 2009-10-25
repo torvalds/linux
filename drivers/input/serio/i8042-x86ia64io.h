@@ -327,6 +327,17 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
+		/*
+		 * Reset and GET ID commands issued via KBD port are
+		 * sometimes being delivered to AUX3.
+		 */
+		.ident = "Sony Vaio FZ-240E",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FZ240E"),
+		},
+	},
+	{
 		.ident = "Amoi M636/A737",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Amoi Electronics CO.,LTD."),
@@ -661,7 +672,7 @@ static void i8042_pnp_exit(void)
 static int __init i8042_pnp_init(void)
 {
 	char kbd_irq_str[4] = { 0 }, aux_irq_str[4] = { 0 };
-	int pnp_data_busted = false;
+	bool pnp_data_busted = false;
 	int err;
 
 #ifdef CONFIG_X86

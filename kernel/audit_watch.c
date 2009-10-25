@@ -45,8 +45,8 @@
 
 struct audit_watch {
 	atomic_t		count;	/* reference count */
-	char			*path;	/* insertion path */
 	dev_t			dev;	/* associated superblock device */
+	char			*path;	/* insertion path */
 	unsigned long		ino;	/* associated inode number */
 	struct audit_parent	*parent; /* associated parent */
 	struct list_head	wlist;	/* entry in parent->watches list */

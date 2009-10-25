@@ -109,7 +109,6 @@ extern asmlinkage int  gdbstub_intercept(struct pt_regs *, enum exception_code);
 extern asmlinkage void gdbstub_exception(struct pt_regs *, enum exception_code);
 extern asmlinkage void __gdbstub_bug_trap(void);
 extern asmlinkage void __gdbstub_pause(void);
-extern asmlinkage void start_kernel(void);
 
 #ifndef CONFIG_MN10300_CACHE_DISABLED
 extern asmlinkage void gdbstub_purge_cache(void);

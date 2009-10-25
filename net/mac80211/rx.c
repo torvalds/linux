@@ -2164,11 +2164,17 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 	skb = rx.skb;
 
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+	if (rx.sdata && ieee80211_is_data(hdr->frame_control)) {
+		rx.flags |= IEEE80211_RX_RA_MATCH;
+		prepares = prepare_for_handlers(rx.sdata, &rx, hdr);
+		if (prepares)
+			prev = rx.sdata;
+	} else list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (!netif_running(sdata->dev))
 			continue;
 
-		if (sdata->vif.type == NL80211_IFTYPE_MONITOR)
+		if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
+		    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			continue;
 
 		rx.flags |= IEEE80211_RX_RA_MATCH;
@@ -2446,6 +2452,8 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_rate *rate = NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+
+	WARN_ON_ONCE(softirq_count() == 0);
 
 	if (WARN_ON(status->band < 0 ||
 		    status->band >= IEEE80211_NUM_BANDS))

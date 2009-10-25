@@ -18,6 +18,7 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/major.h>
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>

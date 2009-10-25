@@ -44,7 +44,7 @@ static struct loongson2_register_config {
 	unsigned int ctrl;
 	unsigned long long reset_counter1;
 	unsigned long long reset_counter2;
-	int cnt1_enalbed, cnt2_enalbed;
+	int cnt1_enabled, cnt2_enabled;
 } reg;
 
 DEFINE_SPINLOCK(sample_lock);
@@ -81,8 +81,8 @@ static void loongson2_reg_setup(struct op_counter_config *cfg)
 
 	reg.ctrl = ctrl;
 
-	reg.cnt1_enalbed = cfg[0].enabled;
-	reg.cnt2_enalbed = cfg[1].enabled;
+	reg.cnt1_enabled = cfg[0].enabled;
+	reg.cnt2_enabled = cfg[1].enabled;
 
 }
 
@@ -99,7 +99,7 @@ static void loongson2_cpu_setup(void *args)
 static void loongson2_cpu_start(void *args)
 {
 	/* Start all counters on current CPU */
-	if (reg.cnt1_enalbed || reg.cnt2_enalbed)
+	if (reg.cnt1_enabled || reg.cnt2_enabled)
 		write_c0_perfctrl(reg.ctrl);
 }
 
@@ -125,7 +125,7 @@ static irqreturn_t loongson2_perfcount_handler(int irq, void *dev_id)
 	 */
 
 	/* Check whether the irq belongs to me */
-	enabled = reg.cnt1_enalbed | reg.cnt2_enalbed;
+	enabled = reg.cnt1_enabled | reg.cnt2_enabled;
 	if (!enabled)
 		return IRQ_NONE;
 
@@ -136,12 +136,12 @@ static irqreturn_t loongson2_perfcount_handler(int irq, void *dev_id)
 	spin_lock_irqsave(&sample_lock, flags);
 
 	if (counter1 & LOONGSON2_PERFCNT_OVERFLOW) {
-		if (reg.cnt1_enalbed)
+		if (reg.cnt1_enabled)
 			oprofile_add_sample(regs, 0);
 		counter1 = reg.reset_counter1;
 	}
 	if (counter2 & LOONGSON2_PERFCNT_OVERFLOW) {
-		if (reg.cnt2_enalbed)
+		if (reg.cnt2_enabled)
 			oprofile_add_sample(regs, 1);
 		counter2 = reg.reset_counter2;
 	}

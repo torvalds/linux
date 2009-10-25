@@ -22,6 +22,7 @@
 #include <linux/usb/r8a66597.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
+#include <sound/sh_fsi.h>
 #include <asm/io.h>
 #include <asm/heartbeat.h>
 #include <asm/sh_eth.h>
@@ -39,7 +40,15 @@
  * SW41 : abxx xxxx  -> a = 0 : Analog  monitor
  *                          1 : Digital monitor
  *                      b = 0 : VGA
- *                          1 : SVGA
+ *                          1 : 720p
+ */
+
+/*
+ * about 720p
+ *
+ * When you use 1280 x 720 lcdc output,
+ * you should change OSC6 lcdc clock from 25.175MHz to 74.25MHz,
+ * and change SW41 to use 720p
  */
 
 /* Heartbeat */
@@ -158,7 +167,7 @@ static struct resource lcdc_resources[] = {
 	[0] = {
 		.name	= "LCDC",
 		.start	= 0xfe940000,
-		.end	= 0xfe941fff,
+		.end	= 0xfe942fff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -173,6 +182,9 @@ static struct platform_device lcdc_device = {
 	.resource	= lcdc_resources,
 	.dev		= {
 		.platform_data	= &lcdc_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_LCDC,
 	},
 };
 
@@ -205,6 +217,9 @@ static struct platform_device ceu0_device = {
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu0_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_CEU0,
+	},
 };
 
 /* CEU1 */
@@ -235,6 +250,68 @@ static struct platform_device ceu1_device = {
 	.resource	= ceu1_resources,
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu1_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_CEU1,
+	},
+};
+
+/* FSI */
+/*
+ * FSI-A use external clock which came from ak464x.
+ * So, we should change parent of fsi
+ */
+#define FCLKACR		0xa4150008
+static void fsimck_init(struct clk *clk)
+{
+	u32 status = ctrl_inl(clk->enable_reg);
+
+	/* use external clock */
+	status &= ~0x000000ff;
+	status |= 0x00000080;
+	ctrl_outl(status, clk->enable_reg);
+}
+
+static struct clk_ops fsimck_clk_ops = {
+	.init = fsimck_init,
+};
+
+static struct clk fsimcka_clk = {
+	.name		= "fsimcka_clk",
+	.id		= -1,
+	.ops		= &fsimck_clk_ops,
+	.enable_reg	= (void __iomem *)FCLKACR,
+	.rate		= 0, /* unknown */
+};
+
+struct sh_fsi_platform_info fsi_info = {
+	.porta_flags = SH_FSI_BRS_INV |
+		       SH_FSI_OUT_SLAVE_MODE |
+		       SH_FSI_IN_SLAVE_MODE |
+		       SH_FSI_OFMT(PCM) |
+		       SH_FSI_IFMT(PCM),
+};
+
+static struct resource fsi_resources[] = {
+	[0] = {
+		.name	= "FSI",
+		.start	= 0xFE3C0000,
+		.end	= 0xFE3C021d,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 108,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device fsi_device = {
+	.name		= "sh_fsi",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(fsi_resources),
+	.resource	= fsi_resources,
+	.dev	= {
+		.platform_data	= &fsi_info,
 	},
 };
 
@@ -274,6 +351,9 @@ static struct platform_device keysc_device = {
 	.dev	= {
 		.platform_data	= &keysc_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_KEYSC,
+	},
 };
 
 /* SH Eth */
@@ -302,15 +382,19 @@ static struct platform_device sh_eth_device = {
 	},
 	.num_resources = ARRAY_SIZE(sh_eth_resources),
 	.resource = sh_eth_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_ETHER,
+	},
 };
 
 static struct r8a66597_platdata sh7724_usb0_host_data = {
+	.on_chip = 1,
 };
 
 static struct resource sh7724_usb0_host_resources[] = {
 	[0] = {
 		.start	= 0xa4d80000,
-		.end	= 0xa4d800ff,
+		.end	= 0xa4d80124 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -330,6 +414,38 @@ static struct platform_device sh7724_usb0_host_device = {
 	},
 	.num_resources	= ARRAY_SIZE(sh7724_usb0_host_resources),
 	.resource	= sh7724_usb0_host_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_USB0,
+	},
+};
+
+static struct r8a66597_platdata sh7724_usb1_gadget_data = {
+	.on_chip = 1,
+};
+
+static struct resource sh7724_usb1_gadget_resources[] = {
+	[0] = {
+		.start	= 0xa4d90000,
+		.end	= 0xa4d90123,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 66,
+		.end	= 66,
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
+	},
+};
+
+static struct platform_device sh7724_usb1_gadget_device = {
+	.name		= "r8a66597_udc",
+	.id		= 1, /* USB1 */
+	.dev = {
+		.dma_mask		= NULL,         /*  not use dma */
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &sh7724_usb1_gadget_data,
+	},
+	.num_resources	= ARRAY_SIZE(sh7724_usb1_gadget_resources),
+	.resource	= sh7724_usb1_gadget_resources,
 };
 
 static struct platform_device *ms7724se_devices[] __initdata = {
@@ -342,6 +458,8 @@ static struct platform_device *ms7724se_devices[] __initdata = {
 	&keysc_device,
 	&sh_eth_device,
 	&sh7724_usb0_host_device,
+	&sh7724_usb1_gadget_device,
+	&fsi_device,
 };
 
 #define EEPROM_OP   0xBA206000
@@ -409,11 +527,13 @@ static void __init sh_eth_init(void)
 static int __init devices_setup(void)
 {
 	u16 sw = ctrl_inw(SW4140); /* select camera, monitor */
+	struct clk *fsia_clk;
 
 	/* Reset Release */
 	ctrl_outw(ctrl_inw(FPGA_OUT) &
 		  ~((1 << 1)  | /* LAN */
 		    (1 << 6)  | /* VIDEO DAC */
+		    (1 << 7)  | /* AK4643 */
 		    (1 << 12) | /* USB0 */
 		    (1 << 14)), /* RMII */
 		  FPGA_OUT);
@@ -421,8 +541,37 @@ static int __init devices_setup(void)
 	/* turn on USB clocks, use external clock */
 	ctrl_outw((ctrl_inw(PORT_MSELCRB) & ~0xc000) | 0x8000, PORT_MSELCRB);
 
+#ifdef CONFIG_PM
+	/* Let LED9 show STATUS2 */
+	gpio_request(GPIO_FN_STATUS2, NULL);
+
+	/* Lit LED10 show STATUS0 */
+	gpio_request(GPIO_FN_STATUS0, NULL);
+
+	/* Lit LED11 show PDSTATUS */
+	gpio_request(GPIO_FN_PDSTATUS, NULL);
+#else
+	/* Lit LED9 */
+	gpio_request(GPIO_PTJ6, NULL);
+	gpio_direction_output(GPIO_PTJ6, 1);
+	gpio_export(GPIO_PTJ6, 0);
+
+	/* Lit LED10 */
+	gpio_request(GPIO_PTJ5, NULL);
+	gpio_direction_output(GPIO_PTJ5, 1);
+	gpio_export(GPIO_PTJ5, 0);
+
+	/* Lit LED11 */
+	gpio_request(GPIO_PTJ7, NULL);
+	gpio_direction_output(GPIO_PTJ7, 1);
+	gpio_export(GPIO_PTJ7, 0);
+#endif
+
 	/* enable USB0 port */
 	ctrl_outw(0x0600, 0xa40501d4);
+
+	/* enable USB1 port */
+	ctrl_outw(0x0600, 0xa4050192);
 
 	/* enable IRQ 0,1,2 */
 	gpio_request(GPIO_FN_INTC_IRQ0, NULL);
@@ -523,6 +672,32 @@ static int __init devices_setup(void)
 	gpio_request(GPIO_FN_KEYOUT1,     NULL);
 	gpio_request(GPIO_FN_KEYOUT0,     NULL);
 
+	/* enable FSI */
+	gpio_request(GPIO_FN_FSIMCKB,    NULL);
+	gpio_request(GPIO_FN_FSIMCKA,    NULL);
+	gpio_request(GPIO_FN_FSIOASD,    NULL);
+	gpio_request(GPIO_FN_FSIIABCK,   NULL);
+	gpio_request(GPIO_FN_FSIIALRCK,  NULL);
+	gpio_request(GPIO_FN_FSIOABCK,   NULL);
+	gpio_request(GPIO_FN_FSIOALRCK,  NULL);
+	gpio_request(GPIO_FN_CLKAUDIOAO, NULL);
+	gpio_request(GPIO_FN_FSIIBSD,    NULL);
+	gpio_request(GPIO_FN_FSIOBSD,    NULL);
+	gpio_request(GPIO_FN_FSIIBBCK,   NULL);
+	gpio_request(GPIO_FN_FSIIBLRCK,  NULL);
+	gpio_request(GPIO_FN_FSIOBBCK,   NULL);
+	gpio_request(GPIO_FN_FSIOBLRCK,  NULL);
+	gpio_request(GPIO_FN_CLKAUDIOBO, NULL);
+	gpio_request(GPIO_FN_FSIIASD,    NULL);
+
+	/* change parent of FSI A */
+	fsia_clk = clk_get(NULL, "fsia_clk");
+	clk_register(&fsimcka_clk);
+	clk_set_parent(fsia_clk, &fsimcka_clk);
+	clk_set_rate(fsia_clk, 11000);
+	clk_set_rate(&fsimcka_clk, 11000);
+	clk_put(fsia_clk);
+
 	/*
 	 * enable SH-Eth
 	 *
@@ -546,15 +721,15 @@ static int __init devices_setup(void)
 	sh_eth_init();
 
 	if (sw & SW41_B) {
-		/* SVGA */
-		lcdc_info.ch[0].lcd_cfg.xres         = 800;
-		lcdc_info.ch[0].lcd_cfg.yres         = 600;
-		lcdc_info.ch[0].lcd_cfg.left_margin  = 142;
-		lcdc_info.ch[0].lcd_cfg.right_margin = 52;
-		lcdc_info.ch[0].lcd_cfg.hsync_len    = 96;
-		lcdc_info.ch[0].lcd_cfg.upper_margin = 24;
-		lcdc_info.ch[0].lcd_cfg.lower_margin = 2;
-		lcdc_info.ch[0].lcd_cfg.vsync_len    = 2;
+		/* 720p */
+		lcdc_info.ch[0].lcd_cfg.xres         = 1280;
+		lcdc_info.ch[0].lcd_cfg.yres         = 720;
+		lcdc_info.ch[0].lcd_cfg.left_margin  = 220;
+		lcdc_info.ch[0].lcd_cfg.right_margin = 110;
+		lcdc_info.ch[0].lcd_cfg.hsync_len    = 40;
+		lcdc_info.ch[0].lcd_cfg.upper_margin = 20;
+		lcdc_info.ch[0].lcd_cfg.lower_margin = 5;
+		lcdc_info.ch[0].lcd_cfg.vsync_len    = 5;
 	} else {
 		/* VGA */
 		lcdc_info.ch[0].lcd_cfg.xres         = 640;

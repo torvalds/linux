@@ -59,6 +59,7 @@ enum port_dev_state {
  * @bulk_out_buffer: pointer to the bulk out buffer for this port.
  * @bulk_out_size: the size of the bulk_out_buffer, in bytes.
  * @write_urb: pointer to the bulk out struct urb for this port.
+ * @write_fifo: kfifo used to buffer outgoing data
  * @write_urb_busy: port`s writing status
  * @bulk_out_endpointAddress: endpoint address for the bulk out pipe for this
  *	port.
@@ -96,6 +97,7 @@ struct usb_serial_port {
 	unsigned char		*bulk_out_buffer;
 	int			bulk_out_size;
 	struct urb		*write_urb;
+	struct kfifo		*write_fifo;
 	int			write_urb_busy;
 	__u8			bulk_out_endpointAddress;
 
@@ -148,6 +150,7 @@ struct usb_serial {
 	struct usb_interface		*interface;
 	unsigned char			disconnected:1;
 	unsigned char			suspending:1;
+	unsigned char			attached:1;
 	unsigned char			minor;
 	unsigned char			num_ports;
 	unsigned char			num_port_pointers;
@@ -238,9 +241,8 @@ struct usb_serial_driver {
 	int (*resume)(struct usb_serial *serial);
 
 	/* serial function calls */
-	/* Called by console with tty = NULL and by tty */
-	int  (*open)(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+	/* Called by console and by the tty layer */
+	int  (*open)(struct tty_struct *tty, struct usb_serial_port *port);
 	void (*close)(struct usb_serial_port *port);
 	int  (*write)(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
@@ -261,6 +263,9 @@ struct usb_serial_driver {
 	   be an attached tty at this point */
 	void (*dtr_rts)(struct usb_serial_port *port, int on);
 	int  (*carrier_raised)(struct usb_serial_port *port);
+	/* Called by the usb serial hooks to allow the user to rework the
+	   termios state */
+	void (*init_termios)(struct tty_struct *tty);
 	/* USB events */
 	void (*read_int_callback)(struct urb *urb);
 	void (*write_int_callback)(struct urb *urb);
@@ -300,7 +305,7 @@ static inline void usb_serial_console_disconnect(struct usb_serial *serial) {}
 extern struct usb_serial *usb_serial_get_by_index(unsigned int minor);
 extern void usb_serial_put(struct usb_serial *serial);
 extern int usb_serial_generic_open(struct tty_struct *tty,
-		struct usb_serial_port *port, struct file *filp);
+	struct usb_serial_port *port);
 extern int usb_serial_generic_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count);
 extern void usb_serial_generic_close(struct usb_serial_port *port);

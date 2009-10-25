@@ -39,7 +39,7 @@
 #define USBTMC_SIZE_IOBUFFER	2048
 
 /* Default USB timeout (in milliseconds) */
-#define USBTMC_TIMEOUT		10
+#define USBTMC_TIMEOUT		5000
 
 /*
  * Maximum number of read cycles to empty bulk in endpoint during CLEAR and
@@ -57,7 +57,9 @@ MODULE_DEVICE_TABLE(usb, usbtmc_devices);
 
 /*
  * This structure is the capabilities for the device
- * See section 4.2.1.8 of the USBTMC specification for details.
+ * See section 4.2.1.8 of the USBTMC specification,
+ * and section 4.2.2 of the USBTMC usb488 subclass
+ * specification for details.
  */
 struct usbtmc_dev_capabilities {
 	__u8 interface_capabilities;
@@ -85,6 +87,8 @@ struct usbtmc_device_data {
 	u8 TermChar;
 	bool TermCharEnabled;
 	bool auto_abort;
+
+	bool zombie; /* fd of disconnected device */
 
 	struct usbtmc_dev_capabilities	capabilities;
 	struct kref kref;
@@ -367,13 +371,13 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 {
 	struct usbtmc_device_data *data;
 	struct device *dev;
-	unsigned long int n_characters;
+	u32 n_characters;
 	u8 *buffer;
 	int actual;
-	int done;
-	int remaining;
+	size_t done;
+	size_t remaining;
 	int retval;
-	int this_part;
+	size_t this_part;
 
 	/* Get pointer to private data structure */
 	data = filp->private_data;
@@ -384,6 +388,10 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		return -ENOMEM;
 
 	mutex_lock(&data->io_mutex);
+	if (data->zombie) {
+		retval = -ENODEV;
+		goto exit;
+	}
 
 	remaining = count;
 	done = 0;
@@ -401,10 +409,10 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		buffer[1] = data->bTag;
 		buffer[2] = ~(data->bTag);
 		buffer[3] = 0; /* Reserved */
-		buffer[4] = (this_part - 12 - 3) & 255;
-		buffer[5] = ((this_part - 12 - 3) >> 8) & 255;
-		buffer[6] = ((this_part - 12 - 3) >> 16) & 255;
-		buffer[7] = ((this_part - 12 - 3) >> 24) & 255;
+		buffer[4] = (this_part) & 255;
+		buffer[5] = ((this_part) >> 8) & 255;
+		buffer[6] = ((this_part) >> 16) & 255;
+		buffer[7] = ((this_part) >> 24) & 255;
 		buffer[8] = data->TermCharEnabled * 2;
 		/* Use term character? */
 		buffer[9] = data->TermChar;
@@ -455,6 +463,22 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 			       (buffer[6] << 16) +
 			       (buffer[7] << 24);
 
+		/* Ensure the instrument doesn't lie about it */
+		if(n_characters > actual - 12) {
+			dev_err(dev, "Device lies about message size: %u > %d\n", n_characters, actual - 12);
+			n_characters = actual - 12;
+		}
+
+		/* Ensure the instrument doesn't send more back than requested */
+		if(n_characters > this_part) {
+			dev_err(dev, "Device returns more than requested: %zu > %zu\n", done + n_characters, done + this_part);
+			n_characters = this_part;
+		}
+
+		/* Bound amount of data received by amount of data requested */
+		if (n_characters > this_part)
+			n_characters = this_part;
+
 		/* Copy buffer to user space */
 		if (copy_to_user(buf + done, &buffer[12], n_characters)) {
 			/* There must have been an addressing problem */
@@ -463,8 +487,11 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		}
 
 		done += n_characters;
-		if (n_characters < USBTMC_SIZE_IOBUFFER)
+		/* Terminate if end-of-message bit recieved from device */
+		if ((buffer[8] &  0x01) && (actual >= n_characters + 12))
 			remaining = 0;
+		else
+			remaining -= n_characters;
 	}
 
 	/* Update file position value */
@@ -496,6 +523,10 @@ static ssize_t usbtmc_write(struct file *filp, const char __user *buf,
 		return -ENOMEM;
 
 	mutex_lock(&data->io_mutex);
+	if (data->zombie) {
+		retval = -ENODEV;
+		goto exit;
+	}
 
 	remaining = count;
 	done = 0;
@@ -767,20 +798,21 @@ static int get_capabilities(struct usbtmc_device_data *data)
 	}
 
 	dev_dbg(dev, "GET_CAPABILITIES returned %x\n", buffer[0]);
-	dev_dbg(dev, "Interface capabilities are %x\n", buffer[4]);
-	dev_dbg(dev, "Device capabilities are %x\n", buffer[5]);
-	dev_dbg(dev, "USB488 interface capabilities are %x\n", buffer[14]);
-	dev_dbg(dev, "USB488 device capabilities are %x\n", buffer[15]);
 	if (buffer[0] != USBTMC_STATUS_SUCCESS) {
 		dev_err(dev, "GET_CAPABILITIES returned %x\n", buffer[0]);
 		rv = -EPERM;
 		goto err_out;
 	}
+	dev_dbg(dev, "Interface capabilities are %x\n", buffer[4]);
+	dev_dbg(dev, "Device capabilities are %x\n", buffer[5]);
+	dev_dbg(dev, "USB488 interface capabilities are %x\n", buffer[14]);
+	dev_dbg(dev, "USB488 device capabilities are %x\n", buffer[15]);
 
 	data->capabilities.interface_capabilities = buffer[4];
 	data->capabilities.device_capabilities = buffer[5];
 	data->capabilities.usb488_interface_capabilities = buffer[14];
 	data->capabilities.usb488_device_capabilities = buffer[15];
+	rv = 0;
 
 err_out:
 	kfree(buffer);
@@ -925,6 +957,10 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	data = file->private_data;
 	mutex_lock(&data->io_mutex);
+	if (data->zombie) {
+		retval = -ENODEV;
+		goto skip_io_on_zombie;
+	}
 
 	switch (cmd) {
 	case USBTMC_IOCTL_CLEAR_OUT_HALT:
@@ -952,11 +988,12 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
+skip_io_on_zombie:
 	mutex_unlock(&data->io_mutex);
 	return retval;
 }
 
-static struct file_operations fops = {
+static const struct file_operations fops = {
 	.owner		= THIS_MODULE,
 	.read		= usbtmc_read,
 	.write		= usbtmc_write,
@@ -995,6 +1032,7 @@ static int usbtmc_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, data);
 	kref_init(&data->kref);
 	mutex_init(&data->io_mutex);
+	data->zombie = 0;
 
 	/* Initialize USBTMC bTag and other fields */
 	data->bTag	= 1;
@@ -1065,14 +1103,30 @@ static void usbtmc_disconnect(struct usb_interface *intf)
 	usb_deregister_dev(intf, &usbtmc_class);
 	sysfs_remove_group(&intf->dev.kobj, &capability_attr_grp);
 	sysfs_remove_group(&intf->dev.kobj, &data_attr_grp);
+	mutex_lock(&data->io_mutex);
+	data->zombie = 1;
+	mutex_unlock(&data->io_mutex);
 	kref_put(&data->kref, usbtmc_delete);
+}
+
+static int usbtmc_suspend (struct usb_interface *intf, pm_message_t message)
+{
+	/* this driver does not have pending URBs */
+	return 0;
+}
+
+static int usbtmc_resume (struct usb_interface *intf)
+{
+	return 0;
 }
 
 static struct usb_driver usbtmc_driver = {
 	.name		= "usbtmc",
 	.id_table	= usbtmc_devices,
 	.probe		= usbtmc_probe,
-	.disconnect	= usbtmc_disconnect
+	.disconnect	= usbtmc_disconnect,
+	.suspend	= usbtmc_suspend,
+	.resume		= usbtmc_resume,
 };
 
 static int __init usbtmc_init(void)

@@ -624,7 +624,7 @@ static struct ata_port_operations hpt374_fn1_port_ops = {
 };
 
 /**
- *	htp37x_clock_slot	-	Turn timing to PC clock entry
+ *	hpt37x_clock_slot	-	Turn timing to PC clock entry
  *	@freq: Reported frequency timing
  *	@base: Base timing
  *

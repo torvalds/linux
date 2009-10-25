@@ -477,10 +477,8 @@ void __init iop13xx_platform_init(void)
 			plat_data = &iop13xx_adma_0_data;
 			dma_cap_set(DMA_MEMCPY, plat_data->cap_mask);
 			dma_cap_set(DMA_XOR, plat_data->cap_mask);
-			dma_cap_set(DMA_DUAL_XOR, plat_data->cap_mask);
-			dma_cap_set(DMA_ZERO_SUM, plat_data->cap_mask);
+			dma_cap_set(DMA_XOR_VAL, plat_data->cap_mask);
 			dma_cap_set(DMA_MEMSET, plat_data->cap_mask);
-			dma_cap_set(DMA_MEMCPY_CRC32C, plat_data->cap_mask);
 			dma_cap_set(DMA_INTERRUPT, plat_data->cap_mask);
 			break;
 		case IOP13XX_INIT_ADMA_1:
@@ -489,10 +487,8 @@ void __init iop13xx_platform_init(void)
 			plat_data = &iop13xx_adma_1_data;
 			dma_cap_set(DMA_MEMCPY, plat_data->cap_mask);
 			dma_cap_set(DMA_XOR, plat_data->cap_mask);
-			dma_cap_set(DMA_DUAL_XOR, plat_data->cap_mask);
-			dma_cap_set(DMA_ZERO_SUM, plat_data->cap_mask);
+			dma_cap_set(DMA_XOR_VAL, plat_data->cap_mask);
 			dma_cap_set(DMA_MEMSET, plat_data->cap_mask);
-			dma_cap_set(DMA_MEMCPY_CRC32C, plat_data->cap_mask);
 			dma_cap_set(DMA_INTERRUPT, plat_data->cap_mask);
 			break;
 		case IOP13XX_INIT_ADMA_2:
@@ -501,14 +497,11 @@ void __init iop13xx_platform_init(void)
 			plat_data = &iop13xx_adma_2_data;
 			dma_cap_set(DMA_MEMCPY, plat_data->cap_mask);
 			dma_cap_set(DMA_XOR, plat_data->cap_mask);
-			dma_cap_set(DMA_DUAL_XOR, plat_data->cap_mask);
-			dma_cap_set(DMA_ZERO_SUM, plat_data->cap_mask);
+			dma_cap_set(DMA_XOR_VAL, plat_data->cap_mask);
 			dma_cap_set(DMA_MEMSET, plat_data->cap_mask);
-			dma_cap_set(DMA_MEMCPY_CRC32C, plat_data->cap_mask);
 			dma_cap_set(DMA_INTERRUPT, plat_data->cap_mask);
-			dma_cap_set(DMA_PQ_XOR, plat_data->cap_mask);
-			dma_cap_set(DMA_PQ_UPDATE, plat_data->cap_mask);
-			dma_cap_set(DMA_PQ_ZERO_SUM, plat_data->cap_mask);
+			dma_cap_set(DMA_PQ, plat_data->cap_mask);
+			dma_cap_set(DMA_PQ_VAL, plat_data->cap_mask);
 			break;
 		}
 	}

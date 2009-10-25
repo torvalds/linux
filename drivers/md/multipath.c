@@ -198,6 +198,9 @@ static int multipath_congested(void *data, int bits)
 	multipath_conf_t *conf = mddev->private;
 	int i, ret = 0;
 
+	if (mddev_congested(mddev, bits))
+		return 1;
+
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks ; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
@@ -493,7 +496,7 @@ static int multipath_run (mddev_t *mddev)
 	}
 	mddev->degraded = conf->raid_disks - conf->working_disks;
 
-	conf->pool = mempool_create_kzalloc_pool(NR_RESERVED_BUFS,
+	conf->pool = mempool_create_kmalloc_pool(NR_RESERVED_BUFS,
 						 sizeof(struct multipath_bh));
 	if (conf->pool == NULL) {
 		printk(KERN_ERR 
@@ -503,7 +506,7 @@ static int multipath_run (mddev_t *mddev)
 	}
 
 	{
-		mddev->thread = md_register_thread(multipathd, mddev, "%s_multipath");
+		mddev->thread = md_register_thread(multipathd, mddev, NULL);
 		if (!mddev->thread) {
 			printk(KERN_ERR "multipath: couldn't allocate thread"
 				" for %s\n", mdname(mddev));

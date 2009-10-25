@@ -41,6 +41,16 @@ struct fdpic_func_descriptor {
 };
 
 /*
+ * The following define adds a 64 byte gap between the signal
+ * stack frame and previous contents of the stack.  This allows
+ * frame unwinding in a function epilogue but only if a frame
+ * pointer is used in the function.  This is necessary because
+ * current gcc compilers (<4.3) do not generate unwind info on
+ * SH for function epilogues.
+ */
+#define UNWINDGUARD 64
+
+/*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 asmlinkage int
@@ -135,7 +145,7 @@ static inline int restore_sigcontext_fpu(struct sigcontext __user *sc)
 {
 	struct task_struct *tsk = current;
 
-	if (!(current_cpu_data.flags & CPU_HAS_FPU))
+	if (!(boot_cpu_data.flags & CPU_HAS_FPU))
 		return 0;
 
 	set_used_math();
@@ -148,7 +158,7 @@ static inline int save_sigcontext_fpu(struct sigcontext __user *sc,
 {
 	struct task_struct *tsk = current;
 
-	if (!(current_cpu_data.flags & CPU_HAS_FPU))
+	if (!(boot_cpu_data.flags & CPU_HAS_FPU))
 		return 0;
 
 	if (!used_math()) {
@@ -189,7 +199,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *r0_p
 #undef COPY
 
 #ifdef CONFIG_SH_FPU
-	if (current_cpu_data.flags & CPU_HAS_FPU) {
+	if (boot_cpu_data.flags & CPU_HAS_FPU) {
 		int owned_fp;
 		struct task_struct *tsk = current;
 
@@ -327,7 +337,7 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 			sp = current->sas_ss_sp + current->sas_ss_size;
 	}
 
-	return (void __user *)((sp - frame_size) & -8ul);
+	return (void __user *)((sp - (frame_size+UNWINDGUARD)) & -8ul);
 }
 
 /* These symbols are defined with the addresses in the vsyscall page.
@@ -462,6 +472,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		err |= __put_user(OR_R0_R0, &frame->retcode[6]);
 		err |= __put_user((__NR_rt_sigreturn), &frame->retcode[7]);
 		regs->pr = (unsigned long) frame->retcode;
+		flush_icache_range(regs->pr, regs->pr + sizeof(frame->retcode));
 	}
 
 	if (err)
@@ -486,8 +497,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	pr_debug("SIG deliver (%s:%d): sp=%p pc=%08lx pr=%08lx\n",
 		 current->comm, task_pid_nr(current), frame, regs->pc, regs->pr);
-
-	flush_icache_range(regs->pr, regs->pr + sizeof(frame->retcode));
 
 	return 0;
 

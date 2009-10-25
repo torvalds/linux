@@ -12,7 +12,6 @@ struct ip_tunnel
 	struct ip_tunnel	*next;
 	struct net_device	*dev;
 
-	int			recursion;	/* Depth of hard_start_xmit recursion */
 	int			err_count;	/* Number of arrived ICMP errors */
 	unsigned long		err_time;	/* Time when the last ICMP error arrived */
 
@@ -28,18 +27,11 @@ struct ip_tunnel
 	unsigned int			prl_count;	/* # of entries in PRL */
 };
 
-/* ISATAP: default interval between RS in secondy */
-#define IPTUNNEL_RS_DEFAULT_DELAY	(900)
-
 struct ip_tunnel_prl_entry
 {
 	struct ip_tunnel_prl_entry	*next;
 	__be32				addr;
 	u16				flags;
-	unsigned long			rs_delay;
-	struct timer_list		rs_timer;
-	struct ip_tunnel		*tunnel;
-	spinlock_t			lock;
 };
 
 #define IPTUNNEL_XMIT() do {						\

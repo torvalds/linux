@@ -34,7 +34,7 @@ static struct tcf_hashinfo pedit_hash_info = {
 };
 
 static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {
-	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tcf_pedit) },
+	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tc_pedit) },
 };
 
 static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
