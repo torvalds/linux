@@ -4051,7 +4051,7 @@ static int save_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 	return kvm_write_guest_virt(dtable.base + index*8, seg_desc, sizeof(*seg_desc), vcpu);
 }
 
-static u32 get_tss_base_addr(struct kvm_vcpu *vcpu,
+static gpa_t get_tss_base_addr(struct kvm_vcpu *vcpu,
 			     struct desc_struct *seg_desc)
 {
 	u32 base_addr = get_desc_base(seg_desc);
