@@ -205,7 +205,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 
 	order = get_order(size);
 
-	if (mask != 0xffffffff)
+	if (mask < 0xffffffffULL)
 		gfp |= GFP_DMA;
 
 	page = alloc_pages(gfp, order);
@@ -289,7 +289,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	if (!mask)
 		goto error;
 
-	if (mask != 0xffffffff)
+	if (mask < 0xffffffffULL)
 		gfp |= GFP_DMA;
 	virt = kmalloc(size, gfp);
 	if (!virt)
