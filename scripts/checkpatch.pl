@@ -1234,7 +1234,6 @@ sub process {
 		$linenr++;
 
 		my $rawline = $rawlines[$linenr - 1];
-		my $hunk_line = ($realcnt != 0);
 
 #extract the line range in the file after the patch is applied
 		if ($line=~/^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@/) {
@@ -1273,6 +1272,8 @@ sub process {
 		} elsif ($realcnt == 1) {
 			$realcnt--;
 		}
+
+		my $hunk_line = ($realcnt != 0);
 
 #make up the handle for any error we report on this line
 		$prefix = "$filename:$realline: " if ($emacs && $file);
