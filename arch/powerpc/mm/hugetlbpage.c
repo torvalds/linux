@@ -344,27 +344,6 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 	} while (pgd++, addr = next, addr != end);
 }
 
-void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-		     pte_t *ptep, pte_t pte)
-{
-	if (pte_present(*ptep)) {
-		/* We open-code pte_clear because we need to pass the right
-		 * argument to hpte_need_flush (huge / !huge). Might not be
-		 * necessary anymore if we make hpte_need_flush() get the
-		 * page size from the slices
-		 */
-		pte_update(mm, addr, ptep, ~0UL, 1);
-	}
-	*ptep = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
-}
-
-pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep)
-{
-	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 1);
-	return __pte(old);
-}
-
 struct page *
 follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
 {
@@ -580,3 +559,13 @@ static int __init hugetlbpage_init(void)
 }
 
 module_init(hugetlbpage_init);
+
+void flush_dcache_icache_hugepage(struct page *page)
+{
+	int i;
+
+	BUG_ON(!PageCompound(page));
+
+	for (i = 0; i < (1UL << compound_order(page)); i++)
+		__flush_dcache_icache(page_address(page+i));
+}

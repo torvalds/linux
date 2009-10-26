@@ -14,33 +14,6 @@
 #include <asm/cacheflush.h>
 #include <asm/machdep.h>
 
-/*
- * Called by asm hashtable.S for doing lazy icache flush
- */
-static unsigned int hash_huge_page_do_lazy_icache(unsigned long rflags,
-					pte_t pte, int trap, unsigned long sz)
-{
-	struct page *page;
-	int i;
-
-	if (!pfn_valid(pte_pfn(pte)))
-		return rflags;
-
-	page = pte_page(pte);
-
-	/* page is dirty */
-	if (!test_bit(PG_arch_1, &page->flags) && !PageReserved(page)) {
-		if (trap == 0x400) {
-			for (i = 0; i < (sz / PAGE_SIZE); i++)
-				__flush_dcache_icache(page_address(page+i));
-			set_bit(PG_arch_1, &page->flags);
-		} else {
-			rflags |= HPTE_R_N;
-		}
-	}
-	return rflags;
-}
-
 int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		     pte_t *ptep, unsigned long trap, int local, int ssize,
 		     unsigned int shift, unsigned int mmu_psize)
@@ -89,8 +62,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		/* No CPU has hugepages but lacks no execute, so we
 		 * don't need to worry about that case */
-		rflags = hash_huge_page_do_lazy_icache(rflags, __pte(old_pte),
-						       trap, sz);
+		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
 
 	/* Check if pte already has an hpte (case 2) */
 	if (unlikely(old_pte & _PAGE_HASHPTE)) {
