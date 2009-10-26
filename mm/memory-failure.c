@@ -35,6 +35,7 @@
 #include <linux/mm.h>
 #include <linux/page-flags.h>
 #include <linux/sched.h>
+#include <linux/ksm.h>
 #include <linux/rmap.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
@@ -661,7 +662,7 @@ static void hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	int i;
 	int kill = 1;
 
-	if (PageReserved(p) || PageCompound(p) || PageSlab(p))
+	if (PageReserved(p) || PageCompound(p) || PageSlab(p) || PageKsm(p))
 		return;
 
 	if (!PageLRU(p))
