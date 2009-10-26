@@ -281,7 +281,7 @@ EXPORT_SYMBOL_GPL(vector_used_by_percpu_irq);
 /* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
 void fixup_irqs(void)
 {
-	unsigned int irq;
+	unsigned int irq, vector;
 	static int warned;
 	struct irq_desc *desc;
 
@@ -336,9 +336,33 @@ void fixup_irqs(void)
 			printk("Cannot set affinity for irq %i\n", irq);
 	}
 
-	/* That doesn't seem sufficient.  Give it 1ms. */
-	local_irq_enable();
+	/*
+	 * We can remove mdelay() and then send spuriuous interrupts to
+	 * new cpu targets for all the irqs that were handled previously by
+	 * this cpu. While it works, I have seen spurious interrupt messages
+	 * (nothing wrong but still...).
+	 *
+	 * So for now, retain mdelay(1) and check the IRR and then send those
+	 * interrupts to new targets as this cpu is already offlined...
+	 */
 	mdelay(1);
-	local_irq_disable();
+
+	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
+		unsigned int irr;
+
+		if (__get_cpu_var(vector_irq)[vector] < 0)
+			continue;
+
+		irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
+		if (irr  & (1 << (vector % 32))) {
+			irq = __get_cpu_var(vector_irq)[vector];
+
+			desc = irq_to_desc(irq);
+			spin_lock(&desc->lock);
+			if (desc->chip->retrigger)
+				desc->chip->retrigger(irq);
+			spin_unlock(&desc->lock);
+		}
+	}
 }
 #endif
