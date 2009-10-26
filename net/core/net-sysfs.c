@@ -139,7 +139,9 @@ static ssize_t show_speed(struct device *dev,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (netif_running(netdev) && netdev->ethtool_ops->get_settings) {
+	if (netif_running(netdev) &&
+	    netdev->ethtool_ops &&
+	    netdev->ethtool_ops->get_settings) {
 		struct ethtool_cmd cmd = { ETHTOOL_GSET };
 
 		if (!netdev->ethtool_ops->get_settings(netdev, &cmd))
@@ -158,7 +160,9 @@ static ssize_t show_duplex(struct device *dev,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (netif_running(netdev) && netdev->ethtool_ops->get_settings) {
+	if (netif_running(netdev) &&
+	    netdev->ethtool_ops &&
+	    netdev->ethtool_ops->get_settings) {
 		struct ethtool_cmd cmd = { ETHTOOL_GSET };
 
 		if (!netdev->ethtool_ops->get_settings(netdev, &cmd))
