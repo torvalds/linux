@@ -5742,8 +5742,7 @@ S:	Maintained
 F:	drivers/scsi/wd7000.c
 
 WINBOND CIR DRIVER
-P:	David Härdeman
-M:	david@hardeman.nu
+M:	David HÃ¤rdeman <david@hardeman.nu>
 S:	Maintained
 F:	drivers/input/misc/winbond-cir.c
 
