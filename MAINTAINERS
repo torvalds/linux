@@ -2151,7 +2151,7 @@ S:	Supported
 F:	arch/powerpc/sysdev/qe_lib/
 F:	arch/powerpc/include/asm/*qe.h
 
-FREESCALE USB PERIPHERIAL DRIVERS
+FREESCALE USB PERIPHERAL DRIVERS
 M:	Li Yang <leoli@freescale.com>
 L:	linux-usb@vger.kernel.org
 L:	linuxppc-dev@ozlabs.org
