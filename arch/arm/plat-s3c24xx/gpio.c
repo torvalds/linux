@@ -29,6 +29,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/gpio-fns.h>
 #include <asm/irq.h>
 
 #include <mach/regs-gpio.h>
