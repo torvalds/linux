@@ -2492,6 +2492,51 @@ static void ack_apic_edge(unsigned int irq)
 
 atomic_t irq_mis_count;
 
+static int use_eoi_reg __read_mostly;
+
+static void __eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg)
+{
+	struct irq_pin_list *entry;
+
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
+		if (irq_remapped(irq))
+			io_apic_eoi(entry->apic, entry->pin);
+		else
+			io_apic_eoi(entry->apic, cfg->vector);
+	}
+}
+
+static void eoi_ioapic_irq(struct irq_desc *desc)
+{
+	struct irq_cfg *cfg;
+	unsigned long flags;
+	unsigned int irq;
+
+	irq = desc->irq;
+	cfg = desc->chip_data;
+
+	spin_lock_irqsave(&ioapic_lock, flags);
+	__eoi_ioapic_irq(irq, cfg);
+	spin_unlock_irqrestore(&ioapic_lock, flags);
+}
+
+static int ioapic_supports_eoi(void)
+{
+	struct pci_dev *root;
+
+	root = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
+	if (root && root->vendor == PCI_VENDOR_ID_INTEL &&
+	    mp_ioapics[0].apicver >= 0x2) {
+		use_eoi_reg = 1;
+		printk(KERN_INFO "IO-APIC supports EOI register\n");
+	} else
+		printk(KERN_INFO "IO-APIC doesn't support EOI\n");
+
+	return 0;
+}
+
+fs_initcall(ioapic_supports_eoi);
+
 static void ack_apic_level(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
@@ -2575,37 +2620,19 @@ static void ack_apic_level(unsigned int irq)
 	/* Tail end of version 0x11 I/O APIC bug workaround */
 	if (!(v & (1 << (i & 0x1f)))) {
 		atomic_inc(&irq_mis_count);
-		spin_lock(&ioapic_lock);
-		__mask_and_edge_IO_APIC_irq(cfg);
-		__unmask_and_level_IO_APIC_irq(cfg);
-		spin_unlock(&ioapic_lock);
+
+		if (use_eoi_reg)
+			eoi_ioapic_irq(desc);
+		else {
+			spin_lock(&ioapic_lock);
+			__mask_and_edge_IO_APIC_irq(cfg);
+			__unmask_and_level_IO_APIC_irq(cfg);
+			spin_unlock(&ioapic_lock);
+		}
 	}
 }
 
 #ifdef CONFIG_INTR_REMAP
-static void __eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg)
-{
-	struct irq_pin_list *entry;
-
-	for_each_irq_pin(entry, cfg->irq_2_pin)
-		io_apic_eoi(entry->apic, entry->pin);
-}
-
-static void
-eoi_ioapic_irq(struct irq_desc *desc)
-{
-	struct irq_cfg *cfg;
-	unsigned long flags;
-	unsigned int irq;
-
-	irq = desc->irq;
-	cfg = desc->chip_data;
-
-	spin_lock_irqsave(&ioapic_lock, flags);
-	__eoi_ioapic_irq(irq, cfg);
-	spin_unlock_irqrestore(&ioapic_lock, flags);
-}
-
 static void ir_ack_apic_edge(unsigned int irq)
 {
 	ack_APIC_irq();
