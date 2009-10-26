@@ -10,7 +10,7 @@
 #include <linux/irqflags.h>
 #include <linux/module.h>
 
-void raw_local_irq_restore(unsigned long flags)
+void notrace raw_local_irq_restore(unsigned long flags)
 {
 	unsigned long __dummy0, __dummy1;
 
@@ -40,7 +40,7 @@ void raw_local_irq_restore(unsigned long flags)
 }
 EXPORT_SYMBOL(raw_local_irq_restore);
 
-unsigned long __raw_local_save_flags(void)
+unsigned long notrace __raw_local_save_flags(void)
 {
 	unsigned long flags;
 

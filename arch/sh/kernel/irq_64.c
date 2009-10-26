@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <cpu/registers.h>
 
-void raw_local_irq_restore(unsigned long flags)
+void notrace raw_local_irq_restore(unsigned long flags)
 {
 	unsigned long long __dummy;
 
@@ -35,7 +35,7 @@ void raw_local_irq_restore(unsigned long flags)
 }
 EXPORT_SYMBOL(raw_local_irq_restore);
 
-unsigned long __raw_local_save_flags(void)
+unsigned long notrace __raw_local_save_flags(void)
 {
 	unsigned long flags;
 
