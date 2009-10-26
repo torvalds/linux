@@ -19,7 +19,7 @@
  * The time it takes is system-specific though, so when we test this
  * during system bootup we allow a LOT of time.
  */
-#define TEST_SUSPEND_SECONDS	5
+#define TEST_SUSPEND_SECONDS	10
 
 static unsigned long suspend_test_start_time;
 
@@ -49,7 +49,8 @@ void suspend_test_finish(const char *label)
 	 * has some performance issues.  The stack dump of a WARN_ON
 	 * is more likely to get the right attention than a printk...
 	 */
-	WARN(msec > (TEST_SUSPEND_SECONDS * 1000), "Component: %s\n", label);
+	WARN(msec > (TEST_SUSPEND_SECONDS * 1000),
+	     "Component: %s, time: %u\n", label, msec);
 }
 
 /*

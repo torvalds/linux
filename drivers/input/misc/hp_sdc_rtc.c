@@ -209,7 +209,7 @@ static inline int hp_sdc_rtc_read_rt(struct timeval *res) {
 
 /* Read the i8042 fast handshake timer */
 static inline int hp_sdc_rtc_read_fhs(struct timeval *res) {
-	uint64_t raw;
+	int64_t raw;
 	unsigned int tenms;
 
 	raw = hp_sdc_rtc_read_i8042timer(HP_SDC_CMD_LOAD_FHS, 2);
