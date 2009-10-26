@@ -166,6 +166,19 @@ static int nfsd_lookup_parent(struct svc_rqst *rqstp, struct dentry *dparent, st
 	return 0;
 }
 
+/*
+ * For nfsd purposes, we treat V4ROOT exports as though there was an
+ * export at *every* directory.
+ */
+static int nfsd_mountpoint(struct dentry *dentry, struct svc_export *exp)
+{
+	if (d_mountpoint(dentry))
+		return 1;
+	if (!(exp->ex_flags & NFSEXP_V4ROOT))
+		return 0;
+	return dentry->d_inode != NULL;
+}
+
 __be32
 nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		   const char *name, unsigned int len,
@@ -211,7 +224,7 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		/*
 		 * check if we have crossed a mount point ...
 		 */
-		if (d_mountpoint(dentry)) {
+		if (nfsd_mountpoint(dentry, exp)) {
 			if ((host_err = nfsd_cross_mnt(rqstp, &dentry, &exp))) {
 				dput(dentry);
 				goto out_nfserr;
