@@ -79,7 +79,6 @@
 // device specific
 //
 
-#include "kcompat.h"
 #include "device_cfg.h"
 #include "ttype.h"
 #include "80211hdr.h"
