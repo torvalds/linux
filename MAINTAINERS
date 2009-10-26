@@ -3885,6 +3885,15 @@ S:	Maintained
 F:	Documentation/i2c/busses/i2c-ocores
 F:	drivers/i2c/busses/i2c-ocores.c
 
+OPEN FIRMWARE AND FLATTENED DEVICE TREE
+M:	Grant Likely <grant.likely@secretlab.ca>
+L:	devicetree-discuss@lists.ozlabs.org
+W:	http://fdt.secretlab.ca
+S:	Maintained
+F:	drivers/of
+F:	include/linux/of*.h
+K:	of_get_property
+
 OPROFILE
 M:	Robert Richter <robert.richter@amd.com>
 L:	oprofile-list@lists.sf.net
