@@ -4714,8 +4714,7 @@ F:	drivers/usb/gadget/lh7a40*
 F:	drivers/usb/host/ohci-lh7a40*
 
 SIMPLE FIRMWARE INTERFACE (SFI)
-P:	Len Brown
-M:	lenb@kernel.org
+M:	Len Brown <lenb@kernel.org>
 L:	sfi-devel@simplefirmware.org
 W:	http://simplefirmware.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux-sfi-2.6.git
