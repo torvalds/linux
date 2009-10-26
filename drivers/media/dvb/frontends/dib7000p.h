@@ -97,7 +97,7 @@ static inline int dib7000pc_detection(struct i2c_adapter *i2c_adap)
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;
 }
-static inline int dib7000p_pid_filter(struct dvb_frontend *, u8 id, u16 pid, u8 onoff)
+static inline int dib7000p_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
 {
     printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
     return -ENODEV;
