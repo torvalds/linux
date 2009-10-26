@@ -46,7 +46,6 @@
 #include "control.h"
 #include "datarate.h"
 #include "rndis.h"
-#include "control.h"
 
 /*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
