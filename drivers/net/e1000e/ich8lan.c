@@ -124,6 +124,11 @@
 
 #define SW_FLAG_TIMEOUT    1000 /* SW Semaphore flag timeout in milliseconds */
 
+/* OEM Bits Phy Register */
+#define HV_OEM_BITS            PHY_REG(768, 25)
+#define HV_OEM_BITS_LPLU       0x0004 /* Low Power Link Up */
+#define HV_OEM_BITS_RESTART_AN 0x0400 /* Restart Auto-negotiation */
+
 /* ICH GbE Flash Hardware Sequencing Flash Status Register bit breakdown */
 /* Offset 04h HSFSTS */
 union ich8_hws_flash_status {
@@ -202,6 +207,7 @@ static s32 e1000_setup_led_pchlan(struct e1000_hw *hw);
 static s32 e1000_cleanup_led_pchlan(struct e1000_hw *hw);
 static s32 e1000_led_on_pchlan(struct e1000_hw *hw);
 static s32 e1000_led_off_pchlan(struct e1000_hw *hw);
+static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active);
 
 static inline u16 __er16flash(struct e1000_hw *hw, unsigned long reg)
 {
@@ -244,6 +250,8 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 
 	phy->ops.check_polarity       = e1000_check_polarity_ife_ich8lan;
 	phy->ops.read_phy_reg         = e1000_read_phy_reg_hv;
+	phy->ops.set_d0_lplu_state    = e1000_set_lplu_state_pchlan;
+	phy->ops.set_d3_lplu_state    = e1000_set_lplu_state_pchlan;
 	phy->ops.write_phy_reg        = e1000_write_phy_reg_hv;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
@@ -1056,6 +1064,38 @@ static s32 e1000_check_polarity_ife_ich8lan(struct e1000_hw *hw)
 				      ? e1000_rev_polarity_reversed
 				      : e1000_rev_polarity_normal;
 
+	return ret_val;
+}
+
+/**
+ *  e1000_set_lplu_state_pchlan - Set Low Power Link Up state
+ *  @hw: pointer to the HW structure
+ *  @active: true to enable LPLU, false to disable
+ *
+ *  Sets the LPLU state according to the active flag.  For PCH, if OEM write
+ *  bit are disabled in the NVM, writing the LPLU bits in the MAC will not set
+ *  the phy speed. This function will manually set the LPLU bit and restart
+ *  auto-neg as hw would do. D3 and D0 LPLU will call the same function
+ *  since it configures the same bit.
+ **/
+static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active)
+{
+	s32 ret_val = 0;
+	u16 oem_reg;
+
+	ret_val = e1e_rphy(hw, HV_OEM_BITS, &oem_reg);
+	if (ret_val)
+		goto out;
+
+	if (active)
+		oem_reg |= HV_OEM_BITS_LPLU;
+	else
+		oem_reg &= ~HV_OEM_BITS_LPLU;
+
+	oem_reg |= HV_OEM_BITS_RESTART_AN;
+	ret_val = e1e_wphy(hw, HV_OEM_BITS, oem_reg);
+
+out:
 	return ret_val;
 }
 
