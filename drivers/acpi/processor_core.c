@@ -353,7 +353,7 @@ static int acpi_processor_info_open_fs(struct inode *inode, struct file *file)
 			   PDE(inode)->data);
 }
 
-static int acpi_processor_add_fs(struct acpi_device *device)
+static int __cpuinit acpi_processor_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry *entry = NULL;
 
