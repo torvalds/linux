@@ -235,6 +235,9 @@
 #define   I965_FENCE_REG_VALID		(1<<0)
 #define   I965_FENCE_MAX_PITCH_VAL	0x0400
 
+#define FENCE_REG_SANDYBRIDGE_0		0x100000
+#define   SANDYBRIDGE_FENCE_PITCH_SHIFT	32
+
 /*
  * Instruction and interrupt control regs
  */

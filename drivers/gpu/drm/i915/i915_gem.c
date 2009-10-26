@@ -2261,6 +2261,28 @@ i915_gem_object_get_pages(struct drm_gem_object *obj,
 	return 0;
 }
 
+static void sandybridge_write_fence_reg(struct drm_i915_fence_reg *reg)
+{
+	struct drm_gem_object *obj = reg->obj;
+	struct drm_device *dev = obj->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	int regnum = obj_priv->fence_reg;
+	uint64_t val;
+
+	val = (uint64_t)((obj_priv->gtt_offset + obj->size - 4096) &
+		    0xfffff000) << 32;
+	val |= obj_priv->gtt_offset & 0xfffff000;
+	val |= (uint64_t)((obj_priv->stride / 128) - 1) <<
+		SANDYBRIDGE_FENCE_PITCH_SHIFT;
+
+	if (obj_priv->tiling_mode == I915_TILING_Y)
+		val |= 1 << I965_FENCE_TILING_Y_SHIFT;
+	val |= I965_FENCE_REG_VALID;
+
+	I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + (regnum * 8), val);
+}
+
 static void i965_write_fence_reg(struct drm_i915_fence_reg *reg)
 {
 	struct drm_gem_object *obj = reg->obj;
@@ -2478,7 +2500,9 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 
 	reg->obj = obj;
 
-	if (IS_I965G(dev))
+	if (IS_GEN6(dev))
+		sandybridge_write_fence_reg(reg);
+	else if (IS_I965G(dev))
 		i965_write_fence_reg(reg);
 	else if (IS_I9XX(dev))
 		i915_write_fence_reg(reg);
@@ -2504,9 +2528,12 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 
-	if (IS_I965G(dev))
+	if (IS_GEN6(dev)) {
+		I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 +
+			     (obj_priv->fence_reg * 8), 0);
+	} else if (IS_I965G(dev)) {
 		I915_WRITE64(FENCE_REG_965_0 + (obj_priv->fence_reg * 8), 0);
-	else {
+	} else {
 		uint32_t fence_reg;
 
 		if (obj_priv->fence_reg < 8)
