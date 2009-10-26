@@ -225,6 +225,7 @@ define archhelp
 	@echo '  vmlinux.srec	           - Create an ELF S-record'
 	@echo '* uImage  	           - Alias to bootable U-Boot image'
 	@echo '  uImage.srec	           - Create an S-record for U-Boot'
+	@echo '  uImage.bin	           - Kernel-only image for U-Boot (bin)'
 	@echo '* uImage.gz	           - Kernel-only image for U-Boot (gzip)'
 	@echo '  uImage.bz2	           - Kernel-only image for U-Boot (bzip2)'
 	@echo '  uImage.lzma	           - Kernel-only image for U-Boot (lzma)'
