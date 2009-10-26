@@ -122,6 +122,8 @@
 
 #define HV_LED_CONFIG		PHY_REG(768, 30) /* LED Configuration */
 
+#define SW_FLAG_TIMEOUT    1000 /* SW Semaphore flag timeout in milliseconds */
+
 /* ICH GbE Flash Hardware Sequencing Flash Status Register bit breakdown */
 /* Offset 04h HSFSTS */
 union ich8_hws_flash_status {
@@ -599,7 +601,7 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 		goto out;
 	}
 
-	timeout = PHY_CFG_TIMEOUT * 2;
+	timeout = SW_FLAG_TIMEOUT;
 
 	extcnf_ctrl |= E1000_EXTCNF_CTRL_SWFLAG;
 	ew32(EXTCNF_CTRL, extcnf_ctrl);
