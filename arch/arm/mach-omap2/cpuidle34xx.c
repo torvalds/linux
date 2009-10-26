@@ -137,7 +137,7 @@ return_sleep_time:
 	local_irq_enable();
 	local_fiq_enable();
 
-	return (u32)timespec_to_ns(&ts_idle)/1000;
+	return ts_idle.tv_nsec / NSEC_PER_USEC + ts_idle.tv_sec * USEC_PER_SEC;
 }
 
 /**
