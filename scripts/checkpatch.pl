@@ -997,23 +997,25 @@ sub annotate_values {
 
 sub possible {
 	my ($possible, $line) = @_;
-
-	print "CHECK<$possible> ($line)\n" if ($dbg_possible > 2);
-	if ($possible !~ /(?:
+	my $notPermitted = qr{(?:
 		^(?:
 			$Modifier|
 			$Storage|
 			$Type|
-			DEFINE_\S+|
+			DEFINE_\S+
+		)$|
+		^(?:
 			goto|
 			return|
 			case|
 			else|
 			asm|__asm__|
 			do
-		)$|
+		)(?:\s|$)|
 		^(?:typedef|struct|enum)\b
-	    )/x) {
+	    )}x;
+	warn "CHECK<$possible> ($line)\n" if ($dbg_possible > 2);
+	if ($possible !~ $notPermitted) {
 		# Check for modifiers.
 		$possible =~ s/\s*$Storage\s*//g;
 		$possible =~ s/\s*$Sparse\s*//g;
@@ -1022,8 +1024,10 @@ sub possible {
 		} elsif ($possible =~ /\s/) {
 			$possible =~ s/\s*$Type\s*//g;
 			for my $modifier (split(' ', $possible)) {
-				warn "MODIFIER: $modifier ($possible) ($line)\n" if ($dbg_possible);
-				push(@modifierList, $modifier);
+				if ($modifier !~ $notPermitted) {
+					warn "MODIFIER: $modifier ($possible) ($line)\n" if ($dbg_possible);
+					push(@modifierList, $modifier);
+				}
 			}
 
 		} else {
