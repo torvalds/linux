@@ -310,7 +310,7 @@ void fixup_irqs(void)
 			affinity = cpu_all_mask;
 		}
 
-		if (desc->chip->mask)
+		if (!(desc->status & IRQ_MOVE_PCNTXT) && desc->chip->mask)
 			desc->chip->mask(irq);
 
 		if (desc->chip->set_affinity)
@@ -318,7 +318,7 @@ void fixup_irqs(void)
 		else if (!(warned++))
 			set_affinity = 0;
 
-		if (desc->chip->unmask)
+		if (!(desc->status & IRQ_MOVE_PCNTXT) && desc->chip->unmask)
 			desc->chip->unmask(irq);
 
 		spin_unlock(&desc->lock);
