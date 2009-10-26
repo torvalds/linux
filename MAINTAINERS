@@ -4599,20 +4599,20 @@ S:	Maintained
 F:	drivers/mmc/host/sdricoh_cs.c
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
-S:     Orphan
-L:     linux-mmc@vger.kernel.org
-F:     drivers/mmc/host/sdhci.*
+S:	Orphan
+L:	linux-mmc@vger.kernel.org
+F:	drivers/mmc/host/sdhci.*
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE, OPEN FIRMWARE BINDINGS (SDHCI-OF)
 M:	Anton Vorontsov <avorontsov@ru.mvista.com>
 L:	linuxppc-dev@ozlabs.org
-L:     linux-mmc@vger.kernel.org
+L:	linux-mmc@vger.kernel.org
 S:	Maintained
-F:     drivers/mmc/host/sdhci-of.*
+F:	drivers/mmc/host/sdhci-of.*
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) SAMSUNG DRIVER
 M:	Ben Dooks <ben-linux@fluff.org>
-L:     linux-mmc@vger.kernel.org
+L:	linux-mmc@vger.kernel.org
 S:	Maintained
 F:	drivers/mmc/host/sdhci-s3c.c
 
