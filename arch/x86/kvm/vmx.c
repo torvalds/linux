@@ -1737,6 +1737,7 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 		vmcs_write64(EPT_POINTER, eptp);
 		guest_cr3 = is_paging(vcpu) ? vcpu->arch.cr3 :
 			vcpu->kvm->arch.ept_identity_map_addr;
+		ept_load_pdptrs(vcpu);
 	}
 
 	vmx_flush_tlb(vcpu);
@@ -3625,10 +3626,6 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (enable_ept && is_paging(vcpu)) {
-		vmcs_writel(GUEST_CR3, vcpu->arch.cr3);
-		ept_load_pdptrs(vcpu);
-	}
 	/* Record the guest's net vcpu time for enforced NMI injections. */
 	if (unlikely(!cpu_has_virtual_nmis() && vmx->soft_vnmi_blocked))
 		vmx->entry_time = ktime_get();

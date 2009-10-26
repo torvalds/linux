@@ -4591,8 +4591,10 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 	mmu_reset_needed |= vcpu->arch.cr4 != sregs->cr4;
 	kvm_x86_ops->set_cr4(vcpu, sregs->cr4);
-	if (!is_long_mode(vcpu) && is_pae(vcpu))
+	if (!is_long_mode(vcpu) && is_pae(vcpu)) {
 		load_pdptrs(vcpu, vcpu->arch.cr3);
+		mmu_reset_needed = 1;
+	}
 
 	if (mmu_reset_needed)
 		kvm_mmu_reset_context(vcpu);
