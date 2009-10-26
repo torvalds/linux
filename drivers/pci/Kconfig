@@ -69,3 +69,10 @@ config PCI_IOV
 	  physical resources.
 
 	  If unsure, say N.
+
+config PCI_IOAPIC
+	bool
+	depends on PCI
+	depends on ACPI
+	depends on HOTPLUG
+	default y
