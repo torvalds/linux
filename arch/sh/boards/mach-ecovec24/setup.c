@@ -519,12 +519,9 @@ static u8 mac_read(struct i2c_adapter *a, u8 command)
 	return buf;
 }
 
-#define MAC_LEN 6
-static void __init sh_eth_init(void)
+static void __init sh_eth_init(struct sh_eth_plat_data *pd)
 {
 	struct i2c_adapter *a = i2c_get_adapter(1);
-	struct clk *eth_clk;
-	u8 mac[MAC_LEN];
 	int i;
 
 	if (!a) {
@@ -532,33 +529,11 @@ static void __init sh_eth_init(void)
 		return;
 	}
 
-	eth_clk = clk_get(NULL, "eth0");
-	if (!eth_clk) {
-		pr_err("can not get eth0 clk\n");
-		return;
-	}
-
 	/* read MAC address frome EEPROM */
-	for (i = 0; i < MAC_LEN; i++) {
-		mac[i] = mac_read(a, 0x10 + i);
+	for (i = 0; i < sizeof(pd->mac_addr); i++) {
+		pd->mac_addr[i] = mac_read(a, 0x10 + i);
 		msleep(10);
 	}
-
-	/* clock enable */
-	clk_enable(eth_clk);
-
-	/* reset sh-eth */
-	ctrl_outl(0x1, SH_ETH_ADDR + 0x0);
-
-	/* set MAC addr */
-	ctrl_outl((mac[0] << 24) |
-		  (mac[1] << 16) |
-		  (mac[2] <<  8) |
-		  (mac[3] <<  0), SH_ETH_MAHR);
-	ctrl_outl((mac[4] <<  8) |
-		  (mac[5] <<  0), SH_ETH_MALR);
-
-	clk_put(eth_clk);
 }
 
 #define PORT_HIZA 0xA4050158
@@ -802,7 +777,7 @@ arch_initcall(arch_setup);
 
 static int __init devices_setup(void)
 {
-	sh_eth_init();
+	sh_eth_init(&sh_eth_plat);
 	return 0;
 }
 device_initcall(devices_setup);
