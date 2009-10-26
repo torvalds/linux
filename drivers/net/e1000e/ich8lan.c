@@ -844,7 +844,7 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
 	u32 i;
 	u32 data, cnf_size, cnf_base_addr, sw_cfg_mask;
 	s32 ret_val;
-	u16 word_addr, reg_data, reg_addr, phy_page = 0;
+	u16 reg, word_addr, reg_data, reg_addr, phy_page = 0;
 
 	ret_val = e1000e_phy_hw_reset_generic(hw);
 	if (ret_val)
@@ -858,6 +858,10 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 	}
+
+	/* Dummy read to clear the phy wakeup bit after lcd reset */
+	if (hw->mac.type == e1000_pchlan)
+		e1e_rphy(hw, BM_WUC, &reg);
 
 	/*
 	 * Initialize the PHY from the NVM on ICH platforms.  This
@@ -2229,6 +2233,7 @@ static s32 e1000_get_bus_info_ich8lan(struct e1000_hw *hw)
  **/
 static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 {
+	u16 reg;
 	u32 ctrl, icr, kab;
 	s32 ret_val;
 
@@ -2304,6 +2309,9 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 			hw_dbg(hw, "Auto Read Done did not complete\n");
 		}
 	}
+	/* Dummy read to clear the phy wakeup bit after lcd reset */
+	if (hw->mac.type == e1000_pchlan)
+		e1e_rphy(hw, BM_WUC, &reg);
 
 	/*
 	 * For PCH, this write will make sure that any noise
