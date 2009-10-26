@@ -75,8 +75,9 @@ static DEFINE_SPINLOCK(ioc_gone_lock);
 struct cfq_rb_root {
 	struct rb_root rb;
 	struct rb_node *left;
+	unsigned count;
 };
-#define CFQ_RB_ROOT	(struct cfq_rb_root) { RB_ROOT, NULL, }
+#define CFQ_RB_ROOT	(struct cfq_rb_root) { RB_ROOT, NULL, 0, }
 
 /*
  * Per process-grouping structure
@@ -128,6 +129,7 @@ struct cfq_queue {
 
 	pid_t pid;
 
+	struct cfq_rb_root *service_tree;
 	struct cfq_queue *new_cfqq;
 };
 
@@ -503,6 +505,7 @@ static void cfq_rb_erase(struct rb_node *n, struct cfq_rb_root *root)
 	if (root->left == n)
 		root->left = NULL;
 	rb_erase_init(n, &root->rb);
+	--root->count;
 }
 
 /*
@@ -553,11 +556,12 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	struct rb_node **p, *parent;
 	struct cfq_queue *__cfqq;
 	unsigned long rb_key;
+	struct cfq_rb_root *service_tree = &cfqd->service_tree;
 	int left;
 
 	if (cfq_class_idle(cfqq)) {
 		rb_key = CFQ_IDLE_DELAY;
-		parent = rb_last(&cfqd->service_tree.rb);
+		parent = rb_last(&service_tree->rb);
 		if (parent && parent != &cfqq->rb_node) {
 			__cfqq = rb_entry(parent, struct cfq_queue, rb_node);
 			rb_key += __cfqq->rb_key;
@@ -575,7 +579,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		cfqq->slice_resid = 0;
 	} else {
 		rb_key = -HZ;
-		__cfqq = cfq_rb_first(&cfqd->service_tree);
+		__cfqq = cfq_rb_first(service_tree);
 		rb_key += __cfqq ? __cfqq->rb_key : jiffies;
 	}
 
@@ -586,12 +590,14 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		if (rb_key == cfqq->rb_key)
 			return;
 
-		cfq_rb_erase(&cfqq->rb_node, &cfqd->service_tree);
+		cfq_rb_erase(&cfqq->rb_node, cfqq->service_tree);
+		cfqq->service_tree = NULL;
 	}
 
 	left = 1;
 	parent = NULL;
-	p = &cfqd->service_tree.rb.rb_node;
+	cfqq->service_tree = service_tree;
+	p = &service_tree->rb.rb_node;
 	while (*p) {
 		struct rb_node **n;
 
@@ -623,11 +629,12 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	}
 
 	if (left)
-		cfqd->service_tree.left = &cfqq->rb_node;
+		service_tree->left = &cfqq->rb_node;
 
 	cfqq->rb_key = rb_key;
 	rb_link_node(&cfqq->rb_node, parent, p);
-	rb_insert_color(&cfqq->rb_node, &cfqd->service_tree.rb);
+	rb_insert_color(&cfqq->rb_node, &service_tree->rb);
+	service_tree->count++;
 }
 
 static struct cfq_queue *
@@ -730,8 +737,10 @@ static void cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	BUG_ON(!cfq_cfqq_on_rr(cfqq));
 	cfq_clear_cfqq_on_rr(cfqq);
 
-	if (!RB_EMPTY_NODE(&cfqq->rb_node))
-		cfq_rb_erase(&cfqq->rb_node, &cfqd->service_tree);
+	if (!RB_EMPTY_NODE(&cfqq->rb_node)) {
+		cfq_rb_erase(&cfqq->rb_node, cfqq->service_tree);
+		cfqq->service_tree = NULL;
+	}
 	if (cfqq->p_root) {
 		rb_erase(&cfqq->p_node, cfqq->p_root);
 		cfqq->p_root = NULL;
@@ -2292,10 +2301,9 @@ static void cfq_insert_request(struct request_queue *q, struct request *rq)
 	cfq_log_cfqq(cfqd, cfqq, "insert_request");
 	cfq_init_prio_data(cfqq, RQ_CIC(rq)->ioc);
 
-	cfq_add_rq_rb(rq);
-
 	rq_set_fifo_time(rq, jiffies + cfqd->cfq_fifo_expire[rq_is_sync(rq)]);
 	list_add_tail(&rq->queuelist, &cfqq->fifo);
+	cfq_add_rq_rb(rq);
 
 	cfq_rq_enqueued(cfqd, cfqq, rq);
 }
