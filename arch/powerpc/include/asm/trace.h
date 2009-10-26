@@ -42,6 +42,40 @@ TRACE_EVENT(irq_exit,
 	TP_printk("pt_regs=%p", __entry->regs)
 );
 
+TRACE_EVENT(timer_interrupt_entry,
+
+	TP_PROTO(struct pt_regs *regs),
+
+	TP_ARGS(regs),
+
+	TP_STRUCT__entry(
+		__field(struct pt_regs *, regs)
+	),
+
+	TP_fast_assign(
+		__entry->regs = regs;
+	),
+
+	TP_printk("pt_regs=%p", __entry->regs)
+);
+
+TRACE_EVENT(timer_interrupt_exit,
+
+	TP_PROTO(struct pt_regs *regs),
+
+	TP_ARGS(regs),
+
+	TP_STRUCT__entry(
+		__field(struct pt_regs *, regs)
+	),
+
+	TP_fast_assign(
+		__entry->regs = regs;
+	),
+
+	TP_printk("pt_regs=%p", __entry->regs)
+);
+
 #endif /* _TRACE_POWERPC_H */
 
 #undef TRACE_INCLUDE_PATH
