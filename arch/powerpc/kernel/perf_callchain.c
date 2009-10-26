@@ -119,13 +119,6 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 }
 
 #ifdef CONFIG_PPC64
-
-#ifdef CONFIG_HUGETLB_PAGE
-#define is_huge_psize(pagesize)	(HPAGE_SHIFT && mmu_huge_psizes[pagesize])
-#else
-#define is_huge_psize(pagesize)	0
-#endif
-
 /*
  * On 64-bit we don't want to invoke hash_page on user addresses from
  * interrupt context, so if the access faults, we read the page tables
@@ -135,7 +128,7 @@ static int read_user_stack_slow(void __user *ptr, void *ret, int nb)
 {
 	pgd_t *pgdir;
 	pte_t *ptep, pte;
-	int pagesize;
+	unsigned shift;
 	unsigned long addr = (unsigned long) ptr;
 	unsigned long offset;
 	unsigned long pfn;
@@ -145,16 +138,13 @@ static int read_user_stack_slow(void __user *ptr, void *ret, int nb)
 	if (!pgdir)
 		return -EFAULT;
 
-	pagesize = get_slice_psize(current->mm, addr);
+	ptep = find_linux_pte_or_hugepte(pgdir, addr, &shift);
+	if (!shift)
+		shift = PAGE_SHIFT;
 
 	/* align address to page boundary */
-	offset = addr & ((1ul << mmu_psize_defs[pagesize].shift) - 1);
+	offset = addr & ((1UL << shift) - 1);
 	addr -= offset;
-
-	if (is_huge_psize(pagesize))
-		ptep = huge_pte_offset(current->mm, addr);
-	else
-		ptep = find_linux_pte(pgdir, addr);
 
 	if (ptep == NULL)
 		return -EFAULT;

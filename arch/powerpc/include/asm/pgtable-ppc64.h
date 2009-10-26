@@ -379,7 +379,18 @@ void pgtable_cache_init(void);
 	return pt;
 }
 
-pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long address);
+#ifdef CONFIG_HUGETLB_PAGE
+pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+				 unsigned *shift);
+#else
+static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+					       unsigned *shift)
+{
+	if (shift)
+		*shift = 0;
+	return find_linux_pte(pgdir, ea);
+}
+#endif /* !CONFIG_HUGETLB_PAGE */
 
 #endif /* __ASSEMBLY__ */
 

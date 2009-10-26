@@ -41,6 +41,7 @@
 #include <linux/module.h>
 #include <linux/poison.h>
 #include <linux/lmb.h>
+#include <linux/hugetlb.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
@@ -136,8 +137,13 @@ void pgtable_cache_add(unsigned shift, void (*ctor)(void *))
 
 	/* When batching pgtable pointers for RCU freeing, we store
 	 * the index size in the low bits.  Table alignment must be
-	 * big enough to fit it */
-	unsigned long minalign = MAX_PGTABLE_INDEX_SIZE + 1;
+	 * big enough to fit it.
+	 *
+	 * Likewise, hugeapge pagetable pointers contain a (different)
+	 * shift value in the low bits.  All tables must be aligned so
+	 * as to leave enough 0 bits in the address to contain it. */
+	unsigned long minalign = max(MAX_PGTABLE_INDEX_SIZE + 1,
+				     HUGEPD_SHIFT_MASK + 1);
 	struct kmem_cache *new;
 
 	/* It would be nice if this was a BUILD_BUG_ON(), but at the

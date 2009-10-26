@@ -891,6 +891,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	unsigned long vsid;
 	struct mm_struct *mm;
 	pte_t *ptep;
+	unsigned hugeshift;
 	const struct cpumask *tmp;
 	int rc, user_region = 0, local = 0;
 	int psize, ssize;
@@ -943,29 +944,30 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	if (user_region && cpumask_equal(mm_cpumask(mm), tmp))
 		local = 1;
 
-#ifdef CONFIG_HUGETLB_PAGE
-	/* Handle hugepage regions */
-	if (HPAGE_SHIFT && mmu_huge_psizes[psize]) {
-		DBG_LOW(" -> huge page !\n");
-		return hash_huge_page(mm, access, ea, vsid, local, trap);
-	}
-#endif /* CONFIG_HUGETLB_PAGE */
-
 #ifndef CONFIG_PPC_64K_PAGES
-	/* If we use 4K pages and our psize is not 4K, then we are hitting
-	 * a special driver mapping, we need to align the address before
-	 * we fetch the PTE
+	/* If we use 4K pages and our psize is not 4K, then we might
+	 * be hitting a special driver mapping, and need to align the
+	 * address before we fetch the PTE.
+	 *
+	 * It could also be a hugepage mapping, in which case this is
+	 * not necessary, but it's not harmful, either.
 	 */
 	if (psize != MMU_PAGE_4K)
 		ea &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
 #endif /* CONFIG_PPC_64K_PAGES */
 
 	/* Get PTE and page size from page tables */
-	ptep = find_linux_pte(pgdir, ea);
+	ptep = find_linux_pte_or_hugepte(pgdir, ea, &hugeshift);
 	if (ptep == NULL || !pte_present(*ptep)) {
 		DBG_LOW(" no PTE !\n");
 		return 1;
 	}
+
+#ifdef CONFIG_HUGETLB_PAGE
+	if (hugeshift)
+		return __hash_page_huge(ea, access, vsid, ptep, trap, local,
+					ssize, hugeshift, psize);
+#endif /* CONFIG_HUGETLB_PAGE */
 
 #ifndef CONFIG_PPC_64K_PAGES
 	DBG_LOW(" i-pte: %016lx\n", pte_val(*ptep));

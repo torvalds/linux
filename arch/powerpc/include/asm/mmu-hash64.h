@@ -173,14 +173,6 @@ extern unsigned long tce_alloc_start, tce_alloc_end;
  */
 extern int mmu_ci_restrictions;
 
-#ifdef CONFIG_HUGETLB_PAGE
-/*
- * The page size indexes of the huge pages for use by hugetlbfs
- */
-extern unsigned int mmu_huge_psizes[MMU_PAGE_COUNT];
-
-#endif /* CONFIG_HUGETLB_PAGE */
-
 /*
  * This function sets the AVPN and L fields of the HPTE  appropriately
  * for the page size
@@ -254,9 +246,9 @@ extern int __hash_page_64K(unsigned long ea, unsigned long access,
 			   unsigned int local, int ssize);
 struct mm_struct;
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap);
-extern int hash_huge_page(struct mm_struct *mm, unsigned long access,
-			  unsigned long ea, unsigned long vsid, int local,
-			  unsigned long trap);
+int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
+		     pte_t *ptep, unsigned long trap, int local, int ssize,
+		     unsigned int shift, unsigned int mmu_psize);
 
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long prot,

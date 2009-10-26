@@ -3,7 +3,6 @@
 
 #include <asm/page.h>
 
-
 int is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 			   unsigned long len);
 
