@@ -1058,7 +1058,8 @@ static long do_mbind(unsigned long start, unsigned long len,
 
 		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
 			err = -EIO;
-	}
+	} else
+		putback_lru_pages(&pagelist);
 
 	up_write(&mm->mmap_sem);
 	mpol_put(new);
