@@ -305,6 +305,13 @@ void fixup_irqs(void)
 			continue;
 		}
 
+		/*
+		 * Complete the irq move. This cpu is going down and for
+		 * non intr-remapping case, we can't wait till this interrupt
+		 * arrives at this cpu before completing the irq move.
+		 */
+		irq_force_complete_move(irq);
+
 		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 			break_affinity = 1;
 			affinity = cpu_all_mask;

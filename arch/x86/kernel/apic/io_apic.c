@@ -2450,20 +2450,32 @@ unlock:
 	irq_exit();
 }
 
-static void irq_complete_move(struct irq_desc **descp)
+static void __irq_complete_move(struct irq_desc **descp, unsigned vector)
 {
 	struct irq_desc *desc = *descp;
 	struct irq_cfg *cfg = desc->chip_data;
-	unsigned vector, me;
+	unsigned me;
 
 	if (likely(!cfg->move_in_progress))
 		return;
 
-	vector = ~get_irq_regs()->orig_ax;
 	me = smp_processor_id();
 
 	if (vector == cfg->vector && cpumask_test_cpu(me, cfg->domain))
 		send_cleanup_vector(cfg);
+}
+
+static void irq_complete_move(struct irq_desc **descp)
+{
+	__irq_complete_move(descp, ~get_irq_regs()->orig_ax);
+}
+
+void irq_force_complete_move(int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_cfg *cfg = desc->chip_data;
+
+	__irq_complete_move(&desc, cfg->vector);
 }
 #else
 static inline void irq_complete_move(struct irq_desc **descp) {}
