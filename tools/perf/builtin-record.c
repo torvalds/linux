@@ -206,6 +206,7 @@ static pid_t pid_synthesize_comm_event(pid_t pid, int full)
 
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
+out_race:	
 		/*
 		 * We raced with a task exiting - just return:
 		 */
@@ -247,6 +248,9 @@ static pid_t pid_synthesize_comm_event(pid_t pid, int full)
 	snprintf(filename, sizeof(filename), "/proc/%d/task", pid);
 
 	tasks = opendir(filename);
+	if (tasks == NULL)
+		goto out_race;
+
 	while (!readdir_r(tasks, &dirent, &next) && next) {
 		char *end;
 		pid = strtol(dirent.d_name, &end, 10);
