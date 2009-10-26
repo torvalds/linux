@@ -49,6 +49,7 @@ int init_srcu_struct(struct srcu_struct *sp)
 	sp->per_cpu_ref = alloc_percpu(struct srcu_struct_array);
 	return (sp->per_cpu_ref ? 0 : -ENOMEM);
 }
+EXPORT_SYMBOL_GPL(init_srcu_struct);
 
 /*
  * srcu_readers_active_idx -- returns approximate number of readers
@@ -97,6 +98,7 @@ void cleanup_srcu_struct(struct srcu_struct *sp)
 	free_percpu(sp->per_cpu_ref);
 	sp->per_cpu_ref = NULL;
 }
+EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
 
 /**
  * srcu_read_lock - register a new reader for an SRCU-protected structure.
@@ -118,6 +120,7 @@ int srcu_read_lock(struct srcu_struct *sp)
 	preempt_enable();
 	return idx;
 }
+EXPORT_SYMBOL_GPL(srcu_read_lock);
 
 /**
  * srcu_read_unlock - unregister a old reader from an SRCU-protected structure.
@@ -136,22 +139,12 @@ void srcu_read_unlock(struct srcu_struct *sp, int idx)
 	per_cpu_ptr(sp->per_cpu_ref, smp_processor_id())->c[idx]--;
 	preempt_enable();
 }
+EXPORT_SYMBOL_GPL(srcu_read_unlock);
 
-/**
- * synchronize_srcu - wait for prior SRCU read-side critical-section completion
- * @sp: srcu_struct with which to synchronize.
- *
- * Flip the completed counter, and wait for the old count to drain to zero.
- * As with classic RCU, the updater must use some separate means of
- * synchronizing concurrent updates.  Can block; must be called from
- * process context.
- *
- * Note that it is illegal to call synchornize_srcu() from the corresponding
- * SRCU read-side critical section; doing so will result in deadlock.
- * However, it is perfectly legal to call synchronize_srcu() on one
- * srcu_struct from some other srcu_struct's read-side critical section.
+/*
+ * Helper function for synchronize_srcu() and synchronize_srcu_expedited().
  */
-void synchronize_srcu(struct srcu_struct *sp)
+void __synchronize_srcu(struct srcu_struct *sp, void (*sync_func)(void))
 {
 	int idx;
 
@@ -173,7 +166,7 @@ void synchronize_srcu(struct srcu_struct *sp)
 		return;
 	}
 
-	synchronize_sched();  /* Force memory barrier on all CPUs. */
+	sync_func();  /* Force memory barrier on all CPUs. */
 
 	/*
 	 * The preceding synchronize_sched() ensures that any CPU that
@@ -190,7 +183,7 @@ void synchronize_srcu(struct srcu_struct *sp)
 	idx = sp->completed & 0x1;
 	sp->completed++;
 
-	synchronize_sched();  /* Force memory barrier on all CPUs. */
+	sync_func();  /* Force memory barrier on all CPUs. */
 
 	/*
 	 * At this point, because of the preceding synchronize_sched(),
@@ -203,7 +196,7 @@ void synchronize_srcu(struct srcu_struct *sp)
 	while (srcu_readers_active_idx(sp, idx))
 		schedule_timeout_interruptible(1);
 
-	synchronize_sched();  /* Force memory barrier on all CPUs. */
+	sync_func();  /* Force memory barrier on all CPUs. */
 
 	/*
 	 * The preceding synchronize_sched() forces all srcu_read_unlock()
@@ -237,6 +230,47 @@ void synchronize_srcu(struct srcu_struct *sp)
 }
 
 /**
+ * synchronize_srcu - wait for prior SRCU read-side critical-section completion
+ * @sp: srcu_struct with which to synchronize.
+ *
+ * Flip the completed counter, and wait for the old count to drain to zero.
+ * As with classic RCU, the updater must use some separate means of
+ * synchronizing concurrent updates.  Can block; must be called from
+ * process context.
+ *
+ * Note that it is illegal to call synchronize_srcu() from the corresponding
+ * SRCU read-side critical section; doing so will result in deadlock.
+ * However, it is perfectly legal to call synchronize_srcu() on one
+ * srcu_struct from some other srcu_struct's read-side critical section.
+ */
+void synchronize_srcu(struct srcu_struct *sp)
+{
+	__synchronize_srcu(sp, synchronize_sched);
+}
+EXPORT_SYMBOL_GPL(synchronize_srcu);
+
+/**
+ * synchronize_srcu_expedited - like synchronize_srcu, but less patient
+ * @sp: srcu_struct with which to synchronize.
+ *
+ * Flip the completed counter, and wait for the old count to drain to zero.
+ * As with classic RCU, the updater must use some separate means of
+ * synchronizing concurrent updates.  Can block; must be called from
+ * process context.
+ *
+ * Note that it is illegal to call synchronize_srcu_expedited()
+ * from the corresponding SRCU read-side critical section; doing so
+ * will result in deadlock.  However, it is perfectly legal to call
+ * synchronize_srcu_expedited() on one srcu_struct from some other
+ * srcu_struct's read-side critical section.
+ */
+void synchronize_srcu_expedited(struct srcu_struct *sp)
+{
+	__synchronize_srcu(sp, synchronize_sched_expedited);
+}
+EXPORT_SYMBOL_GPL(synchronize_srcu_expedited);
+
+/**
  * srcu_batches_completed - return batches completed.
  * @sp: srcu_struct on which to report batch completion.
  *
@@ -248,10 +282,4 @@ long srcu_batches_completed(struct srcu_struct *sp)
 {
 	return sp->completed;
 }
-
-EXPORT_SYMBOL_GPL(init_srcu_struct);
-EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
-EXPORT_SYMBOL_GPL(srcu_read_lock);
-EXPORT_SYMBOL_GPL(srcu_read_unlock);
-EXPORT_SYMBOL_GPL(synchronize_srcu);
 EXPORT_SYMBOL_GPL(srcu_batches_completed);
