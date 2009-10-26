@@ -2,7 +2,7 @@
 # (c) 2001, Dave Jones. <davej@redhat.com> (the file handling bit)
 # (c) 2005, Joel Schopp <jschopp@austin.ibm.com> (the ugly bit)
 # (c) 2007,2008, Andy Whitcroft <apw@uk.ibm.com> (new conditions, test suite)
-# (c) 2008, Andy Whitcroft <apw@canonical.com>
+# (c) 2008,2009, Andy Whitcroft <apw@canonical.com>
 # Licensed under the terms of the GNU GPL License version 2
 
 use strict;
