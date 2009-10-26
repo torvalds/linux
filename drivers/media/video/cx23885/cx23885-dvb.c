@@ -38,6 +38,7 @@
 #include "tda18271.h"
 #include "lgdt330x.h"
 #include "xc5000.h"
+#include "max2165.h"
 #include "tda10048.h"
 #include "tuner-xc2028.h"
 #include "tuner-simple.h"
@@ -54,6 +55,7 @@
 #include "netup-eeprom.h"
 #include "netup-init.h"
 #include "lgdt3305.h"
+#include "atbm8830.h"
 
 static unsigned int debug;
 
@@ -543,6 +545,38 @@ static struct xc5000_config magicpro_prohdtve2_xc5000_config = {
 	.if_khz = 6500,
 };
 
+static struct atbm8830_config mygica_x8558pro_atbm8830_cfg1 = {
+	.prod = ATBM8830_PROD_8830,
+	.demod_address = 0x44,
+	.serial_ts = 0,
+	.ts_sampling_edge = 1,
+	.ts_clk_gated = 0,
+	.osc_clk_freq = 30400, /* in kHz */
+	.if_freq = 0, /* zero IF */
+	.zif_swap_iq = 1,
+};
+
+static struct max2165_config mygic_x8558pro_max2165_cfg1 = {
+	.i2c_address = 0x60,
+	.osc_clk = 20
+};
+
+static struct atbm8830_config mygica_x8558pro_atbm8830_cfg2 = {
+	.prod = ATBM8830_PROD_8830,
+	.demod_address = 0x44,
+	.serial_ts = 1,
+	.ts_sampling_edge = 1,
+	.ts_clk_gated = 0,
+	.osc_clk_freq = 30400, /* in kHz */
+	.if_freq = 0, /* zero IF */
+	.zif_swap_iq = 1,
+};
+
+static struct max2165_config mygic_x8558pro_max2165_cfg2 = {
+	.i2c_address = 0x60,
+	.osc_clk = 20
+};
+
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
@@ -907,6 +941,36 @@ static int dvb_register(struct cx23885_tsport *port)
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				0x60, &dev->i2c_bus[0].i2c_adap,
 				&hauppauge_tda18271_config);
+		break;
+	case CX23885_BOARD_MYGICA_X8558PRO:
+		switch (port->nr) {
+		/* port B */
+		case 1:
+			i2c_bus = &dev->i2c_bus[0];
+			fe0->dvb.frontend = dvb_attach(atbm8830_attach,
+				&mygica_x8558pro_atbm8830_cfg1,
+				&i2c_bus->i2c_adap);
+			if (fe0->dvb.frontend != NULL) {
+				dvb_attach(max2165_attach,
+					fe0->dvb.frontend,
+					&i2c_bus->i2c_adap,
+					&mygic_x8558pro_max2165_cfg1);
+			}
+			break;
+		/* port C */
+		case 2:
+			i2c_bus = &dev->i2c_bus[1];
+			fe0->dvb.frontend = dvb_attach(atbm8830_attach,
+				&mygica_x8558pro_atbm8830_cfg2,
+				&i2c_bus->i2c_adap);
+			if (fe0->dvb.frontend != NULL) {
+				dvb_attach(max2165_attach,
+					fe0->dvb.frontend,
+					&i2c_bus->i2c_adap,
+					&mygic_x8558pro_max2165_cfg2);
+			}
+			break;
+		}
 		break;
 
 	default:
