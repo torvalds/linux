@@ -1336,9 +1336,6 @@ static void f10_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 	/* Read from the ECS data register for the HIGH portion */
 	amd64_read_pci_cfg(pvt->addr_f1_ctl, high_offset, &high_limit);
 
-	debugf0("  HW Regs: BASE=0x%08x-%08x      LIMIT=  0x%08x-%08x\n",
-		high_base, low_base, high_limit, low_limit);
-
 	pvt->dram_DstNode[dram] = (low_limit & 0x7);
 	pvt->dram_IntlvSel[dram] = (low_limit >> 8) & 0x7;
 
