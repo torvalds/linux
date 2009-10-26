@@ -3,6 +3,9 @@
 
 #include <asm/page.h>
 
+pte_t *huge_pte_offset_and_shift(struct mm_struct *mm,
+				 unsigned long addr, unsigned *shift);
+
 int is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 			   unsigned long len);
 
