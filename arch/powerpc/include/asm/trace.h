@@ -76,6 +76,51 @@ TRACE_EVENT(timer_interrupt_exit,
 	TP_printk("pt_regs=%p", __entry->regs)
 );
 
+#ifdef CONFIG_PPC_PSERIES
+extern void hcall_tracepoint_regfunc(void);
+extern void hcall_tracepoint_unregfunc(void);
+
+TRACE_EVENT_FN(hcall_entry,
+
+	TP_PROTO(unsigned long opcode),
+
+	TP_ARGS(opcode),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, opcode)
+	),
+
+	TP_fast_assign(
+		__entry->opcode = opcode;
+	),
+
+	TP_printk("opcode=%lu", __entry->opcode),
+
+	hcall_tracepoint_regfunc, hcall_tracepoint_unregfunc
+);
+
+TRACE_EVENT_FN(hcall_exit,
+
+	TP_PROTO(unsigned long opcode, unsigned long retval),
+
+	TP_ARGS(opcode, retval),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, opcode)
+		__field(unsigned long, retval)
+	),
+
+	TP_fast_assign(
+		__entry->opcode = opcode;
+		__entry->retval = retval;
+	),
+
+	TP_printk("opcode=%lu retval=%lu", __entry->opcode, __entry->retval),
+
+	hcall_tracepoint_regfunc, hcall_tracepoint_unregfunc
+);
+#endif
+
 #endif /* _TRACE_POWERPC_H */
 
 #undef TRACE_INCLUDE_PATH

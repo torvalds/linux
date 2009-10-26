@@ -39,6 +39,7 @@
 #include <asm/cputable.h>
 #include <asm/udbg.h>
 #include <asm/smp.h>
+#include <asm/trace.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"
@@ -660,4 +661,35 @@ void arch_free_page(struct page *page, int order)
 }
 EXPORT_SYMBOL(arch_free_page);
 
+#endif
+
+#ifdef CONFIG_TRACEPOINTS
+/*
+ * We optimise our hcall path by placing hcall_tracepoint_refcount
+ * directly in the TOC so we can check if the hcall tracepoints are
+ * enabled via a single load.
+ */
+
+/* NB: reg/unreg are called while guarded with the tracepoints_mutex */
+extern long hcall_tracepoint_refcount;
+
+void hcall_tracepoint_regfunc(void)
+{
+	hcall_tracepoint_refcount++;
+}
+
+void hcall_tracepoint_unregfunc(void)
+{
+	hcall_tracepoint_refcount--;
+}
+
+void __trace_hcall_entry(unsigned long opcode)
+{
+	trace_hcall_entry(opcode);
+}
+
+void __trace_hcall_exit(long opcode, unsigned long retval)
+{
+	trace_hcall_exit(opcode, retval);
+}
 #endif
