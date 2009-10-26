@@ -2202,18 +2202,6 @@ F:	Documentation/filesystems/caching/
 F:	fs/fscache/
 F:	include/linux/fscache*.h
 
-TRACING
-M:	Steven Rostedt <rostedt@goodmis.org>
-M:	Frederic Weisbecker <fweisbec@gmail.com>
-M:	Ingo Molnar <mingo@redhat.com>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git tracing/core
-S:	Maintained
-F:	Documentation/trace/ftrace.txt
-F:	arch/*/*/*/ftrace.h
-F:	arch/*/kernel/ftrace.c
-F:	include/*/ftrace.h include/trace/ include/linux/trace*.h
-F:	kernel/trace/
-
 FUJITSU FR-V (FRV) PORT
 M:	David Howells <dhowells@redhat.com>
 S:	Maintained
@@ -5175,6 +5163,20 @@ W:	http://www.sirrix.com
 L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/char/tpm/
+
+TRACING
+M:	Steven Rostedt <rostedt@goodmis.org>
+M:	Frederic Weisbecker <fweisbec@gmail.com>
+M:	Ingo Molnar <mingo@redhat.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/linux-2.6-tip.git tracing/core
+S:	Maintained
+F:	Documentation/trace/ftrace.txt
+F:	arch/*/*/*/ftrace.h
+F:	arch/*/kernel/ftrace.c
+F:	include/*/ftrace.h
+F:	include/linux/trace*.h
+F:	include/trace/
+F:	kernel/trace/
 
 TRIVIAL PATCHES
 M:	Jiri Kosina <trivial@kernel.org>
