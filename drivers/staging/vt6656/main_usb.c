@@ -807,12 +807,6 @@ vntwusb_found1(struct usb_interface *intf, const struct usb_device_id *id)
         kfree(pDevice);
         return -ENODEV;
     }
-	//2008-0623-02<Remark>by MikeLiu
-        //2007-0821-01<Add>by MikeLiu
-       //#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)
-  	//usb_set_intfdata(intf, pDevice);
-	//SET_NETDEV_DEV(netdev, &intf->dev);
-       //#endif
 
 //2008-07-21-01<Add>by MikeLiu
 //register wpadev
