@@ -22,6 +22,7 @@
  * All Rights Reserved.
  */
 
+#define TC35815_NAPI
 #ifdef TC35815_NAPI
 #define DRV_VERSION	"1.38-NAPI"
 #else
