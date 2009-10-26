@@ -445,11 +445,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		 * necessary anymore if we make hpte_need_flush() get the
 		 * page size from the slices
 		 */
-		unsigned int psize = get_slice_psize(mm, addr);
-		unsigned int shift = mmu_psize_to_shift(psize);
-		unsigned long sz = ((1UL) << shift);
-		struct hstate *hstate = size_to_hstate(sz);
-		pte_update(mm, addr & hstate->mask, ptep, ~0UL, 1);
+		pte_update(mm, addr, ptep, ~0UL, 1);
 	}
 	*ptep = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
 }
