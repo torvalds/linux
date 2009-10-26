@@ -108,7 +108,6 @@ static struct platform_device physmap_flash_device = {
 static struct platform_device *devices[] __initdata = {
 	&smsc91x_device,
 	&physmap_flash_device,
-	&mxc_i2c_device1,
 };
 
 static int mx31lilly_baseboard;
@@ -128,8 +127,6 @@ static void __init mx31lilly_board_init(void)
 	}
 
 	mxc_iomux_alloc_pin(MX31_PIN_CS4__CS4, "Ethernet CS");
-	mxc_iomux_alloc_pin(MX31_PIN_CSPI2_MOSI__SCL, "I2C SCL");
-	mxc_iomux_alloc_pin(MX31_PIN_CSPI2_MISO__SDA, "I2C SDA");
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
