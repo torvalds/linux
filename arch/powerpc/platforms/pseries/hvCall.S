@@ -30,7 +30,7 @@ hcall_tracepoint_refcount:
  * in early init (eg when populating the MMU hashtable) by using an
  * unconditional cpu feature.
  */
-#define HCALL_INST_PRECALL					\
+#define HCALL_INST_PRECALL(FIRST_REG)				\
 BEGIN_FTR_SECTION;						\
 	b	1f;						\
 END_FTR_SECTION(0, 1);						\
@@ -47,6 +47,7 @@ END_FTR_SECTION(0, 1);						\
 	std	r9,STK_PARM(r9)(r1);				\
 	std	r10,STK_PARM(r10)(r1);				\
 	std	r0,16(r1);					\
+	addi	r4,r1,STK_PARM(FIRST_REG);			\
 	stdu	r1,-STACK_FRAME_OVERHEAD(r1);			\
 	bl	.__trace_hcall_entry;				\
 	addi	r1,r1,STACK_FRAME_OVERHEAD;			\
@@ -68,7 +69,7 @@ END_FTR_SECTION(0, 1);						\
  * in early init (eg when populating the MMU hashtable) by using an
  * unconditional cpu feature.
  */
-#define HCALL_INST_POSTCALL					\
+#define __HCALL_INST_POSTCALL					\
 BEGIN_FTR_SECTION;						\
 	b	1f;						\
 END_FTR_SECTION(0, 1);						\
@@ -88,9 +89,19 @@ END_FTR_SECTION(0, 1);						\
 	ld	r3,STK_PARM(r3)(r1);				\
 	mtlr	r0;						\
 1:
+
+#define HCALL_INST_POSTCALL_NORETS				\
+	li	r5,0;						\
+	__HCALL_INST_POSTCALL
+
+#define HCALL_INST_POSTCALL(BUFREG)				\
+	mr	r5,BUFREG;					\
+	__HCALL_INST_POSTCALL
+
 #else
-#define HCALL_INST_PRECALL
-#define HCALL_INST_POSTCALL
+#define HCALL_INST_PRECALL(FIRST_ARG)
+#define HCALL_INST_POSTCALL_NORETS
+#define HCALL_INST_POSTCALL(BUFREG)
 #endif
 
 	.text
@@ -101,11 +112,11 @@ _GLOBAL(plpar_hcall_norets)
 	mfcr	r0
 	stw	r0,8(r1)
 
-	HCALL_INST_PRECALL
+	HCALL_INST_PRECALL(r4)
 
 	HVSC				/* invoke the hypervisor */
 
-	HCALL_INST_POSTCALL
+	HCALL_INST_POSTCALL_NORETS
 
 	lwz	r0,8(r1)
 	mtcrf	0xff,r0
@@ -117,7 +128,7 @@ _GLOBAL(plpar_hcall)
 	mfcr	r0
 	stw	r0,8(r1)
 
-	HCALL_INST_PRECALL
+	HCALL_INST_PRECALL(r5)
 
 	std     r4,STK_PARM(r4)(r1)     /* Save ret buffer */
 
@@ -136,7 +147,7 @@ _GLOBAL(plpar_hcall)
 	std	r6, 16(r12)
 	std	r7, 24(r12)
 
-	HCALL_INST_POSTCALL
+	HCALL_INST_POSTCALL(r12)
 
 	lwz	r0,8(r1)
 	mtcrf	0xff,r0
@@ -183,7 +194,7 @@ _GLOBAL(plpar_hcall9)
 	mfcr	r0
 	stw	r0,8(r1)
 
-	HCALL_INST_PRECALL
+	HCALL_INST_PRECALL(r5)
 
 	std     r4,STK_PARM(r4)(r1)     /* Save ret buffer */
 
@@ -211,7 +222,7 @@ _GLOBAL(plpar_hcall9)
 	std	r11,56(r12)
 	std	r0, 64(r12)
 
-	HCALL_INST_POSTCALL
+	HCALL_INST_POSTCALL(r12)
 
 	lwz	r0,8(r1)
 	mtcrf	0xff,r0

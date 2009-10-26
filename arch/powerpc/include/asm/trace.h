@@ -82,9 +82,9 @@ extern void hcall_tracepoint_unregfunc(void);
 
 TRACE_EVENT_FN(hcall_entry,
 
-	TP_PROTO(unsigned long opcode),
+	TP_PROTO(unsigned long opcode, unsigned long *args),
 
-	TP_ARGS(opcode),
+	TP_ARGS(opcode, args),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, opcode)
@@ -101,9 +101,10 @@ TRACE_EVENT_FN(hcall_entry,
 
 TRACE_EVENT_FN(hcall_exit,
 
-	TP_PROTO(unsigned long opcode, unsigned long retval),
+	TP_PROTO(unsigned long opcode, unsigned long retval,
+		unsigned long *retbuf),
 
-	TP_ARGS(opcode, retval),
+	TP_ARGS(opcode, retval, retbuf),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, opcode)

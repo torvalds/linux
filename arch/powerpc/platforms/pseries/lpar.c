@@ -683,13 +683,14 @@ void hcall_tracepoint_unregfunc(void)
 	hcall_tracepoint_refcount--;
 }
 
-void __trace_hcall_entry(unsigned long opcode)
+void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 {
-	trace_hcall_entry(opcode);
+	trace_hcall_entry(opcode, args);
 }
 
-void __trace_hcall_exit(long opcode, unsigned long retval)
+void __trace_hcall_exit(long opcode, unsigned long retval,
+			unsigned long *retbuf)
 {
-	trace_hcall_exit(opcode, retval);
+	trace_hcall_exit(opcode, retval, retbuf);
 }
 #endif

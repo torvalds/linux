@@ -102,7 +102,7 @@ static const struct file_operations hcall_inst_seq_fops = {
 #define CPU_NAME_BUF_SIZE	32
 
 
-static void probe_hcall_entry(unsigned long opcode)
+static void probe_hcall_entry(unsigned long opcode, unsigned long *args)
 {
 	struct hcall_stats *h;
 
@@ -114,7 +114,8 @@ static void probe_hcall_entry(unsigned long opcode)
 	h->purr_start = mfspr(SPRN_PURR);
 }
 
-static void probe_hcall_exit(unsigned long opcode, unsigned long retval)
+static void probe_hcall_exit(unsigned long opcode, unsigned long retval,
+			     unsigned long *retbuf)
 {
 	struct hcall_stats *h;
 
