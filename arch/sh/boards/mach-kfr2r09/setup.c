@@ -332,6 +332,28 @@ static struct platform_device kfr2r09_camera = {
 	},
 };
 
+static struct resource kfr2r09_sh_sdhi0_resources[] = {
+	[0] = {
+		.name	= "SDHI0",
+		.start  = 0x04ce0000,
+		.end    = 0x04ce01ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 101,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device kfr2r09_sh_sdhi0_device = {
+	.name           = "sh_mobile_sdhi",
+	.num_resources  = ARRAY_SIZE(kfr2r09_sh_sdhi0_resources),
+	.resource       = kfr2r09_sh_sdhi0_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI0,
+	},
+};
+
 static struct platform_device *kfr2r09_devices[] __initdata = {
 	&kfr2r09_nor_flash_device,
 	&kfr2r09_nand_flash_device,
@@ -339,6 +361,7 @@ static struct platform_device *kfr2r09_devices[] __initdata = {
 	&kfr2r09_sh_lcdc_device,
 	&kfr2r09_ceu_device,
 	&kfr2r09_camera,
+	&kfr2r09_sh_sdhi0_device,
 };
 
 #define BSC_CS0BCR 0xfec10004
@@ -499,6 +522,16 @@ static int __init kfr2r09_devices_setup(void)
 	gpio_request(GPIO_FN_VIO0_D0, NULL);
 
 	platform_resource_setup_memory(&kfr2r09_ceu_device, "ceu", 4 << 20);
+
+	/* SDHI0 connected to yc304 */
+	gpio_request(GPIO_FN_SDHI0CD, NULL);
+	gpio_request(GPIO_FN_SDHI0WP, NULL);
+	gpio_request(GPIO_FN_SDHI0D3, NULL);
+	gpio_request(GPIO_FN_SDHI0D2, NULL);
+	gpio_request(GPIO_FN_SDHI0D1, NULL);
+	gpio_request(GPIO_FN_SDHI0D0, NULL);
+	gpio_request(GPIO_FN_SDHI0CMD, NULL);
+	gpio_request(GPIO_FN_SDHI0CLK, NULL);
 
 	return platform_add_devices(kfr2r09_devices,
 				    ARRAY_SIZE(kfr2r09_devices));
