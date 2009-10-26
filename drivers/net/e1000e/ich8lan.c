@@ -250,9 +250,11 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 
 	phy->ops.check_polarity       = e1000_check_polarity_ife_ich8lan;
 	phy->ops.read_phy_reg         = e1000_read_phy_reg_hv;
+	phy->ops.read_phy_reg_locked  = e1000_read_phy_reg_hv_locked;
 	phy->ops.set_d0_lplu_state    = e1000_set_lplu_state_pchlan;
 	phy->ops.set_d3_lplu_state    = e1000_set_lplu_state_pchlan;
 	phy->ops.write_phy_reg        = e1000_write_phy_reg_hv;
+	phy->ops.write_phy_reg_locked = e1000_write_phy_reg_hv_locked;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
 	phy->id = e1000_phy_unknown;
@@ -313,6 +315,8 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 	case IGP03E1000_E_PHY_ID:
 		phy->type = e1000_phy_igp_3;
 		phy->autoneg_mask = AUTONEG_ADVERTISE_SPEED_DEFAULT;
+		phy->ops.read_phy_reg_locked = e1000e_read_phy_reg_igp_locked;
+		phy->ops.write_phy_reg_locked = e1000e_write_phy_reg_igp_locked;
 		break;
 	case IFE_E_PHY_ID:
 	case IFE_PLUS_E_PHY_ID:
