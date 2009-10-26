@@ -1669,8 +1669,8 @@ sub process {
 		}
 
 # check for initialisation to aggregates open brace on the next line
-		if ($prevline =~ /$Declare\s*$Ident\s*=\s*$/ &&
-		    $line =~ /^.\s*{/) {
+		if ($line =~ /^.\s*{/ &&
+		    $prevline =~ /(?:^|[^=])=\s*$/) {
 			ERROR("that open brace { should be on the previous line\n" . $hereprev);
 		}
 
