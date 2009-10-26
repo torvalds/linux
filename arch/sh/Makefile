@@ -199,7 +199,7 @@ endif
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
 libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
 
-BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.srec \
+BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.srec uImage.bin \
 	       zImage vmlinux.srec romImage
 PHONY += maketools $(BOOT_TARGETS) FORCE
 
