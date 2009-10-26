@@ -1592,7 +1592,12 @@ static int tc35815_do_interrupt(struct net_device *dev, u32 status)
 		lp->lstats.tx_ints++;
 		tc35815_txdone(dev);
 		netif_wake_queue(dev);
+#ifdef TC35815_NAPI
+		if (ret < 0)
+			ret = 0;
+#else
 		ret = 0;
+#endif
 	}
 	return ret;
 }
