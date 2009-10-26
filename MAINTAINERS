@@ -4521,12 +4521,11 @@ F:	kernel/sched*
 F:	include/linux/sched.h
 
 SCORE ARCHITECTURE
-P:	Chen Liqin
-M:	liqin.chen@sunplusct.com
-P:	Lennox Wu
-M:	lennox.wu@gmail.com
+M:	Chen Liqin <liqin.chen@sunplusct.com>
+M:	Lennox Wu <lennox.wu@gmail.com>
 W:	http://www.sunplusct.com
 S:	Supported
+F:	arch/score/
 
 SCSI CDROM DRIVER
 M:	Jens Axboe <axboe@kernel.dk>
