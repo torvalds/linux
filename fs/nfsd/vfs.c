@@ -99,8 +99,16 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 
 	exp2 = rqst_exp_get_by_name(rqstp, &path);
 	if (IS_ERR(exp2)) {
-		if (PTR_ERR(exp2) != -ENOENT)
-			err = PTR_ERR(exp2);
+		err = PTR_ERR(exp2);
+		/*
+		 * We normally allow NFS clients to continue
+		 * "underneath" a mountpoint that is not exported.
+		 * The exception is V4ROOT, where no traversal is ever
+		 * allowed without an explicit export of the new
+		 * directory.
+		 */
+		if (err == -ENOENT && !(exp->ex_flags & NFSEXP_V4ROOT))
+			err = 0;
 		path_put(&path);
 		goto out;
 	}
