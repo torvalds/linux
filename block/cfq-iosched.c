@@ -27,6 +27,8 @@ static const int cfq_slice_sync = HZ / 10;
 static int cfq_slice_async = HZ / 25;
 static const int cfq_slice_async_rq = 2;
 static int cfq_slice_idle = HZ / 125;
+static const int cfq_target_latency = HZ * 3/10; /* 300 ms */
+static const int cfq_hist_divisor = 4;
 
 /*
  * offset from end of service tree
@@ -148,6 +150,8 @@ struct cfq_data {
 	struct rb_root prio_trees[CFQ_PRIO_LISTS];
 
 	unsigned int busy_queues;
+	unsigned int busy_rt_queues;
+	unsigned int busy_queues_avg[2];
 
 	int rq_in_driver[2];
 	int sync_flight;
@@ -315,10 +319,52 @@ cfq_prio_to_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	return cfq_prio_slice(cfqd, cfq_cfqq_sync(cfqq), cfqq->ioprio);
 }
 
+/*
+ * get averaged number of queues of RT/BE priority.
+ * average is updated, with a formula that gives more weight to higher numbers,
+ * to quickly follows sudden increases and decrease slowly
+ */
+
+static inline unsigned
+cfq_get_avg_queues(struct cfq_data *cfqd, bool rt) {
+	unsigned min_q, max_q;
+	unsigned mult  = cfq_hist_divisor - 1;
+	unsigned round = cfq_hist_divisor / 2;
+	unsigned busy = cfqd->busy_rt_queues;
+
+	if (!rt)
+		busy = cfqd->busy_queues - cfqd->busy_rt_queues;
+
+	min_q = min(cfqd->busy_queues_avg[rt], busy);
+	max_q = max(cfqd->busy_queues_avg[rt], busy);
+	cfqd->busy_queues_avg[rt] = (mult * max_q + min_q + round) /
+		cfq_hist_divisor;
+	return cfqd->busy_queues_avg[rt];
+}
+
 static inline void
 cfq_set_prio_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
-	cfqq->slice_end = cfq_prio_to_slice(cfqd, cfqq) + jiffies;
+	unsigned slice = cfq_prio_to_slice(cfqd, cfqq);
+	if (cfqd->cfq_latency) {
+		/* interested queues (we consider only the ones with the same
+		 * priority class) */
+		unsigned iq = cfq_get_avg_queues(cfqd, cfq_class_rt(cfqq));
+		unsigned sync_slice = cfqd->cfq_slice[1];
+		unsigned expect_latency = sync_slice * iq;
+		if (expect_latency > cfq_target_latency) {
+			unsigned base_low_slice = 2 * cfqd->cfq_slice_idle;
+			/* scale low_slice according to IO priority
+			 * and sync vs async */
+			unsigned low_slice =
+				min(slice, base_low_slice * slice / sync_slice);
+			/* the adapted slice value is scaled to fit all iqs
+			 * into the target latency */
+			slice = max(slice * cfq_target_latency / expect_latency,
+				    low_slice);
+		}
+	}
+	cfqq->slice_end = jiffies + slice;
 	cfq_log_cfqq(cfqd, cfqq, "set_slice=%lu", cfqq->slice_end - jiffies);
 }
 
@@ -669,7 +715,8 @@ static void cfq_add_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	BUG_ON(cfq_cfqq_on_rr(cfqq));
 	cfq_mark_cfqq_on_rr(cfqq);
 	cfqd->busy_queues++;
-
+	if (cfq_class_rt(cfqq))
+		cfqd->busy_rt_queues++;
 	cfq_resort_rr_list(cfqd, cfqq);
 }
 
@@ -692,6 +739,8 @@ static void cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 
 	BUG_ON(!cfqd->busy_queues);
 	cfqd->busy_queues--;
+	if (cfq_class_rt(cfqq))
+		cfqd->busy_rt_queues--;
 }
 
 /*
