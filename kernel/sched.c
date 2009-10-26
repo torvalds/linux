@@ -309,6 +309,8 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct rt_rq, init_rt_rq);
  */
 static DEFINE_SPINLOCK(task_group_lock);
 
+#ifdef CONFIG_FAIR_GROUP_SCHED
+
 #ifdef CONFIG_SMP
 static int root_task_group_empty(void)
 {
@@ -316,7 +318,6 @@ static int root_task_group_empty(void)
 }
 #endif
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
 #ifdef CONFIG_USER_SCHED
 # define INIT_TASK_GROUP_LOAD	(2*NICE_0_LOAD)
 #else /* !CONFIG_USER_SCHED */
