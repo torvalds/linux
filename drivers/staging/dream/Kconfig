@@ -1,5 +1,6 @@
 config DREAM
        tristate "HTC Dream support"
+       depends on BROKEN
 
 source "drivers/staging/dream/smd/Kconfig"
 
