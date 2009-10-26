@@ -109,6 +109,12 @@ static void write_output(void *buf, size_t size)
 	}
 }
 
+static int process_synthesized_event(event_t *event)
+{
+	write_output(event, event->header.size);
+	return 0;
+}
+
 static void mmap_read(struct mmap_data *md)
 {
 	unsigned int head = mmap_read_head(md);
@@ -189,172 +195,6 @@ static void sig_atexit(void)
 
 	signal(signr, SIG_DFL);
 	kill(getpid(), signr);
-}
-
-static pid_t pid_synthesize_comm_event(pid_t pid, int full)
-{
-	struct comm_event comm_ev;
-	char filename[PATH_MAX];
-	char bf[BUFSIZ];
-	FILE *fp;
-	size_t size = 0;
-	DIR *tasks;
-	struct dirent dirent, *next;
-	pid_t tgid = 0;
-
-	snprintf(filename, sizeof(filename), "/proc/%d/status", pid);
-
-	fp = fopen(filename, "r");
-	if (fp == NULL) {
-out_race:	
-		/*
-		 * We raced with a task exiting - just return:
-		 */
-		if (verbose)
-			fprintf(stderr, "couldn't open %s\n", filename);
-		return 0;
-	}
-
-	memset(&comm_ev, 0, sizeof(comm_ev));
-	while (!comm_ev.comm[0] || !comm_ev.pid) {
-		if (fgets(bf, sizeof(bf), fp) == NULL)
-			goto out_failure;
-
-		if (memcmp(bf, "Name:", 5) == 0) {
-			char *name = bf + 5;
-			while (*name && isspace(*name))
-				++name;
-			size = strlen(name) - 1;
-			memcpy(comm_ev.comm, name, size++);
-		} else if (memcmp(bf, "Tgid:", 5) == 0) {
-			char *tgids = bf + 5;
-			while (*tgids && isspace(*tgids))
-				++tgids;
-			tgid = comm_ev.pid = atoi(tgids);
-		}
-	}
-
-	comm_ev.header.type = PERF_RECORD_COMM;
-	size = ALIGN(size, sizeof(u64));
-	comm_ev.header.size = sizeof(comm_ev) - (sizeof(comm_ev.comm) - size);
-
-	if (!full) {
-		comm_ev.tid = pid;
-
-		write_output(&comm_ev, comm_ev.header.size);
-		goto out_fclose;
-	}
-
-	snprintf(filename, sizeof(filename), "/proc/%d/task", pid);
-
-	tasks = opendir(filename);
-	if (tasks == NULL)
-		goto out_race;
-
-	while (!readdir_r(tasks, &dirent, &next) && next) {
-		char *end;
-		pid = strtol(dirent.d_name, &end, 10);
-		if (*end)
-			continue;
-
-		comm_ev.tid = pid;
-
-		write_output(&comm_ev, comm_ev.header.size);
-	}
-	closedir(tasks);
-
-out_fclose:
-	fclose(fp);
-	return tgid;
-
-out_failure:
-	fprintf(stderr, "couldn't get COMM and pgid, malformed %s\n",
-		filename);
-	exit(EXIT_FAILURE);
-}
-
-static void pid_synthesize_mmap_samples(pid_t pid, pid_t tgid)
-{
-	char filename[PATH_MAX];
-	FILE *fp;
-
-	snprintf(filename, sizeof(filename), "/proc/%d/maps", pid);
-
-	fp = fopen(filename, "r");
-	if (fp == NULL) {
-		/*
-		 * We raced with a task exiting - just return:
-		 */
-		if (verbose)
-			fprintf(stderr, "couldn't open %s\n", filename);
-		return;
-	}
-	while (1) {
-		char bf[BUFSIZ], *pbf = bf;
-		struct mmap_event mmap_ev = {
-			.header = { .type = PERF_RECORD_MMAP },
-		};
-		int n;
-		size_t size;
-		if (fgets(bf, sizeof(bf), fp) == NULL)
-			break;
-
-		/* 00400000-0040c000 r-xp 00000000 fd:01 41038  /bin/cat */
-		n = hex2u64(pbf, &mmap_ev.start);
-		if (n < 0)
-			continue;
-		pbf += n + 1;
-		n = hex2u64(pbf, &mmap_ev.len);
-		if (n < 0)
-			continue;
-		pbf += n + 3;
-		if (*pbf == 'x') { /* vm_exec */
-			char *execname = strchr(bf, '/');
-
-			/* Catch VDSO */
-			if (execname == NULL)
-				execname = strstr(bf, "[vdso]");
-
-			if (execname == NULL)
-				continue;
-
-			size = strlen(execname);
-			execname[size - 1] = '\0'; /* Remove \n */
-			memcpy(mmap_ev.filename, execname, size);
-			size = ALIGN(size, sizeof(u64));
-			mmap_ev.len -= mmap_ev.start;
-			mmap_ev.header.size = (sizeof(mmap_ev) -
-					       (sizeof(mmap_ev.filename) - size));
-			mmap_ev.pid = tgid;
-			mmap_ev.tid = pid;
-
-			write_output(&mmap_ev, mmap_ev.header.size);
-		}
-	}
-
-	fclose(fp);
-}
-
-static void synthesize_all(void)
-{
-	DIR *proc;
-	struct dirent dirent, *next;
-
-	proc = opendir("/proc");
-
-	while (!readdir_r(proc, &dirent, &next) && next) {
-		char *end;
-		pid_t pid, tgid;
-
-		pid = strtol(dirent.d_name, &end, 10);
-		if (*end) /* only interested in proper numerical dirents */
-			continue;
-
-		tgid = pid_synthesize_comm_event(pid, 1);
-		pid_synthesize_mmap_samples(pid, tgid);
-	}
-
-	closedir(proc);
 }
 
 static int group_fd;
@@ -608,11 +448,10 @@ static int __cmd_record(int argc, const char **argv)
 	if (file_new)
 		perf_header__write(header, output);
 
-	if (!system_wide) {
-		pid_t tgid = pid_synthesize_comm_event(pid, 0);
-		pid_synthesize_mmap_samples(pid, tgid);
-	} else
-		synthesize_all();
+	if (!system_wide)
+		event__synthesize_thread(pid, process_synthesized_event);
+	else
+		event__synthesize_threads(process_synthesized_event);
 
 	if (target_pid == -1 && argc) {
 		pid = fork();

@@ -111,4 +111,7 @@ struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *self, FILE *fp);
 
+int event__synthesize_thread(pid_t pid, int (*process)(event_t *event));
+void event__synthesize_threads(int (*process)(event_t *event));
+
 #endif /* __PERF_RECORD_H */
