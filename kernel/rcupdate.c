@@ -67,6 +67,8 @@ void wakeme_after_rcu(struct rcu_head  *head)
 	complete(&rcu->completion);
 }
 
+#ifndef CONFIG_TINY_RCU
+
 #ifdef CONFIG_TREE_PREEMPT_RCU
 
 /**
@@ -156,6 +158,8 @@ void synchronize_rcu_bh(void)
 	wait_for_completion(&rcu.completion);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_bh);
+
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 static int __cpuinit rcu_barrier_cpu_hotplug(struct notifier_block *self,
 		unsigned long action, void *hcpu)

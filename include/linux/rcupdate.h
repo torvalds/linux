@@ -68,11 +68,17 @@ extern int sched_expedited_torture_stats(char *page);
 /* Internal to kernel */
 extern void rcu_init(void);
 extern void rcu_scheduler_starting(void);
+#ifndef CONFIG_TINY_RCU
 extern int rcu_needs_cpu(int cpu);
+#else
+static inline int rcu_needs_cpu(int cpu) { return 0; }
+#endif
 extern int rcu_scheduler_active;
 
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
 #include <linux/rcutree.h>
+#elif CONFIG_TINY_RCU
+#include <linux/rcutiny.h>
 #else
 #error "Unknown RCU implementation specified to kernel configuration"
 #endif
