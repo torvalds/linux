@@ -130,7 +130,10 @@ if ($tree) {
 
 my $emitted_corrupt = 0;
 
-our $Ident       = qr{[A-Za-z_][A-Za-z\d_]*};
+our $Ident	= qr{
+			[A-Za-z_][A-Za-z\d_]*
+			(?:\s*\#\#\s*[A-Za-z_][A-Za-z\d_]*)*
+		}x;
 our $Storage	= qr{extern|static|asmlinkage};
 our $Sparse	= qr{
 			__user|
