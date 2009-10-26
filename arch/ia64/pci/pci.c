@@ -720,9 +720,6 @@ int ia64_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 	return ret;
 }
 
-/* It's defined in drivers/pci/pci.c */
-extern u8 pci_cache_line_size;
-
 /**
  * set_pci_cacheline_size - determine cacheline size for PCI devices
  *
@@ -731,7 +728,7 @@ extern u8 pci_cache_line_size;
  *
  * Code mostly taken from arch/ia64/kernel/palinfo.c:cache_info().
  */
-static void __init set_pci_cacheline_size(void)
+static void __init set_pci_dfl_cacheline_size(void)
 {
 	unsigned long levels, unique_caches;
 	long status;
@@ -751,7 +748,7 @@ static void __init set_pci_cacheline_size(void)
 			"(status=%ld)\n", __func__, status);
 		return;
 	}
-	pci_cache_line_size = (1 << cci.pcci_line_size) / 4;
+	pci_dfl_cache_line_size = (1 << cci.pcci_line_size) / 4;
 }
 
 u64 ia64_dma_get_required_mask(struct device *dev)
@@ -782,7 +779,7 @@ EXPORT_SYMBOL_GPL(dma_get_required_mask);
 
 static int __init pcibios_init(void)
 {
-	set_pci_cacheline_size();
+	set_pci_dfl_cacheline_size();
 	return 0;
 }
 

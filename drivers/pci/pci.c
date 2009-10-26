@@ -47,6 +47,19 @@ unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 unsigned long pci_hotplug_io_size  = DEFAULT_HOTPLUG_IO_SIZE;
 unsigned long pci_hotplug_mem_size = DEFAULT_HOTPLUG_MEM_SIZE;
 
+#ifndef PCI_CACHE_LINE_BYTES
+#define PCI_CACHE_LINE_BYTES L1_CACHE_BYTES
+#endif
+
+/*
+ * The default CLS is used if arch didn't set CLS explicitly and not
+ * all pci devices agree on the same value.  Arch can override either
+ * the dfl or actual value as it sees fit.  Don't forget this is
+ * measured in 32-bit words, not bytes.
+ */
+u8 pci_dfl_cache_line_size __initdata = PCI_CACHE_LINE_BYTES >> 2;
+u8 pci_cache_line_size;
+
 /**
  * pci_bus_max_busnr - returns maximum PCI bus number of given bus' children
  * @bus: pointer to PCI bus structure to search
@@ -1882,14 +1895,6 @@ void pci_clear_mwi(struct pci_dev *dev)
 }
 
 #else
-
-#ifndef PCI_CACHE_LINE_BYTES
-#define PCI_CACHE_LINE_BYTES L1_CACHE_BYTES
-#endif
-
-/* This can be overridden by arch code. */
-/* Don't forget this is measured in 32-bit words, not bytes */
-u8 pci_cache_line_size = PCI_CACHE_LINE_BYTES / 4;
 
 /**
  * pci_set_cacheline_size - ensure the CACHE_LINE_SIZE register is programmed
