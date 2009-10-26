@@ -802,7 +802,7 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
 #define __NR_statfs __NR3264_statfs
 #define __NR_fstatfs __NR3264_fstatfs
 #define __NR_truncate __NR3264_truncate
-#define __NR_ftruncate __NR3264_truncate
+#define __NR_ftruncate __NR3264_ftruncate
 #define __NR_lseek __NR3264_lseek
 #define __NR_sendfile __NR3264_sendfile
 #define __NR_newfstatat __NR3264_fstatat
@@ -818,7 +818,7 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
 #define __NR_statfs64 __NR3264_statfs
 #define __NR_fstatfs64 __NR3264_fstatfs
 #define __NR_truncate64 __NR3264_truncate
-#define __NR_ftruncate64 __NR3264_truncate
+#define __NR_ftruncate64 __NR3264_ftruncate
 #define __NR_llseek __NR3264_lseek
 #define __NR_sendfile64 __NR3264_sendfile
 #define __NR_fstatat64 __NR3264_fstatat
