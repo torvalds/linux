@@ -170,7 +170,7 @@ static int nfsd_lookup_parent(struct svc_rqst *rqstp, struct dentry *dparent, st
  * For nfsd purposes, we treat V4ROOT exports as though there was an
  * export at *every* directory.
  */
-static int nfsd_mountpoint(struct dentry *dentry, struct svc_export *exp)
+int nfsd_mountpoint(struct dentry *dentry, struct svc_export *exp)
 {
 	if (d_mountpoint(dentry))
 		return 1;
