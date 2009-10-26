@@ -5799,9 +5799,7 @@ F:	drivers/input/touchscreen/*wm97*
 F:	include/linux/wm97xx.h
 
 WOLFSON MICROELECTRONICS PMIC DRIVERS
-P:	Mark Brown
-M:	broonie@opensource.wolfsonmicro.com
-L:	linux-kernel@vger.kernel.org
+M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
 W:	http://opensource.wolfsonmicro.com/node/8
 S:	Supported
