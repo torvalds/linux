@@ -407,7 +407,7 @@ int i2400ms_debugfs_add(struct i2400ms *i2400ms)
 	int result;
 	struct dentry *dentry = i2400ms->i2400m.wimax_dev.debugfs_dentry;
 
-	dentry = debugfs_create_dir("i2400m-usb", dentry);
+	dentry = debugfs_create_dir("i2400m-sdio", dentry);
 	result = PTR_ERR(dentry);
 	if (IS_ERR(dentry)) {
 		if (result == -ENODEV)
