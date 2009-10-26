@@ -481,16 +481,6 @@ static void __init htab_init_page_sizes(void)
 #ifdef CONFIG_HUGETLB_PAGE
 	/* Reserve 16G huge page memory sections for huge pages */
 	of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
-
-/* Set default large page size. Currently, we pick 16M or 1M depending
-	 * on what is available
-	 */
-	if (mmu_psize_defs[MMU_PAGE_16M].shift)
-		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_16M].shift;
-	/* With 4k/4level pagetables, we can't (for now) cope with a
-	 * huge page size < PMD_SIZE */
-	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
-		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_1M].shift;
 #endif /* CONFIG_HUGETLB_PAGE */
 }
 

@@ -37,27 +37,17 @@
 static unsigned long gpage_freearray[MAX_NUMBER_GPAGES];
 static unsigned nr_gpages;
 
-/* Array of valid huge page sizes - non-zero value(hugepte_shift) is
- * stored for the huge page sizes that are valid.
- */
-static unsigned int mmu_huge_psizes[MMU_PAGE_COUNT] = { }; /* initialize all to 0 */
-
 /* Flag to mark huge PD pointers.  This means pmd_bad() and pud_bad()
  * will choke on pointers to hugepte tables, which is handy for
  * catching screwups early. */
 
 static inline int shift_to_mmu_psize(unsigned int shift)
 {
-	switch (shift) {
-#ifndef CONFIG_PPC_64K_PAGES
-	case PAGE_SHIFT_64K:
-	    return MMU_PAGE_64K;
-#endif
-	case PAGE_SHIFT_16M:
-	    return MMU_PAGE_16M;
-	case PAGE_SHIFT_16G:
-	    return MMU_PAGE_16G;
-	}
+	int psize;
+
+	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize)
+		if (mmu_psize_defs[psize].shift == shift)
+			return psize;
 	return -1;
 }
 
@@ -502,8 +492,6 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	struct hstate *hstate = hstate_file(file);
 	int mmu_psize = shift_to_mmu_psize(huge_page_shift(hstate));
 
-	if (!mmu_huge_psizes[mmu_psize])
-		return -EINVAL;
 	return slice_get_unmapped_area(addr, len, flags, mmu_psize, 1, 0);
 }
 
@@ -666,47 +654,46 @@ repeat:
 	return err;
 }
 
-static void __init set_huge_psize(int psize)
+static int __init add_huge_page_size(unsigned long long size)
 {
-	unsigned pdshift;
+	int shift = __ffs(size);
+	int mmu_psize;
 
 	/* Check that it is a page size supported by the hardware and
-	 * that it fits within pagetable limits. */
-	if (mmu_psize_defs[psize].shift &&
-		mmu_psize_defs[psize].shift < SID_SHIFT_1T &&
-		(mmu_psize_defs[psize].shift > MIN_HUGEPTE_SHIFT ||
-		 mmu_psize_defs[psize].shift == PAGE_SHIFT_64K ||
-		 mmu_psize_defs[psize].shift == PAGE_SHIFT_16G)) {
-		/* Return if huge page size has already been setup or is the
-		 * same as the base page size. */
-		if (mmu_huge_psizes[psize] ||
-		   mmu_psize_defs[psize].shift == PAGE_SHIFT)
-			return;
-		hugetlb_add_hstate(mmu_psize_defs[psize].shift - PAGE_SHIFT);
+	 * that it fits within pagetable and slice limits. */
+	if (!is_power_of_2(size)
+	    || (shift > SLICE_HIGH_SHIFT) || (shift <= PAGE_SHIFT))
+		return -EINVAL;
 
-		if (mmu_psize_defs[psize].shift < PMD_SHIFT)
-			pdshift = PMD_SHIFT;
-		else if (mmu_psize_defs[psize].shift < PUD_SHIFT)
-			pdshift = PUD_SHIFT;
-		else
-			pdshift = PGDIR_SHIFT;
-		mmu_huge_psizes[psize] = pdshift - mmu_psize_defs[psize].shift;
-	}
+	if ((mmu_psize = shift_to_mmu_psize(shift)) < 0)
+		return -EINVAL;
+
+#ifdef CONFIG_SPU_FS_64K_LS
+	/* Disable support for 64K huge pages when 64K SPU local store
+	 * support is enabled as the current implementation conflicts.
+	 */
+	if (shift == PAGE_SHIFT_64K)
+		return -EINVAL;
+#endif /* CONFIG_SPU_FS_64K_LS */
+
+	BUG_ON(mmu_psize_defs[mmu_psize].shift != shift);
+
+	/* Return if huge page size has already been setup */
+	if (size_to_hstate(size))
+		return 0;
+
+	hugetlb_add_hstate(shift - PAGE_SHIFT);
+
+	return 0;
 }
 
 static int __init hugepage_setup_sz(char *str)
 {
 	unsigned long long size;
-	int mmu_psize;
-	int shift;
 
 	size = memparse(str, &str);
 
-	shift = __ffs(size);
-	mmu_psize = shift_to_mmu_psize(shift);
-	if (mmu_psize >= 0 && mmu_psize_defs[mmu_psize].shift)
-		set_huge_psize(mmu_psize);
-	else
+	if (add_huge_page_size(size) != 0)
 		printk(KERN_WARNING "Invalid huge page size specified(%llu)\n", size);
 
 	return 1;
@@ -720,29 +707,38 @@ static int __init hugetlbpage_init(void)
 	if (!cpu_has_feature(CPU_FTR_16M_PAGE))
 		return -ENODEV;
 
-	/* Add supported huge page sizes.  Need to change
-	 *  HUGE_MAX_HSTATE if the number of supported huge page sizes
-	 *  changes.
-	 */
-	set_huge_psize(MMU_PAGE_16M);
-	set_huge_psize(MMU_PAGE_16G);
-
-	/* Temporarily disable support for 64K huge pages when 64K SPU local
-	 * store support is enabled as the current implementation conflicts.
-	 */
-#ifndef CONFIG_SPU_FS_64K_LS
-	set_huge_psize(MMU_PAGE_64K);
-#endif
-
 	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
-		if (mmu_huge_psizes[psize]) {
-			pgtable_cache_add(mmu_huge_psizes[psize], NULL);
-			if (!PGT_CACHE(mmu_huge_psizes[psize]))
-				panic("hugetlbpage_init(): could not create "
-				      "pgtable cache for %d bit pagesize\n",
-				      mmu_psize_to_shift(psize));
-		}
+		unsigned shift;
+		unsigned pdshift;
+
+		if (!mmu_psize_defs[psize].shift)
+			continue;
+
+		shift = mmu_psize_to_shift(psize);
+
+		if (add_huge_page_size(1ULL << shift) < 0)
+			continue;
+
+		if (shift < PMD_SHIFT)
+			pdshift = PMD_SHIFT;
+		else if (shift < PUD_SHIFT)
+			pdshift = PUD_SHIFT;
+		else
+			pdshift = PGDIR_SHIFT;
+
+		pgtable_cache_add(pdshift - shift, NULL);
+		if (!PGT_CACHE(pdshift - shift))
+			panic("hugetlbpage_init(): could not create "
+			      "pgtable cache for %d bit pagesize\n", shift);
 	}
+
+	/* Set default large page size. Currently, we pick 16M or 1M
+	 * depending on what is available
+	 */
+	if (mmu_psize_defs[MMU_PAGE_16M].shift)
+		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_16M].shift;
+	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
+		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_1M].shift;
 
 	return 0;
 }
