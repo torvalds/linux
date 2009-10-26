@@ -94,7 +94,6 @@ struct irq_cfg {
 	struct irq_pin_list	*irq_2_pin;
 	cpumask_var_t		domain;
 	cpumask_var_t		old_domain;
-	unsigned		move_cleanup_count;
 	u8			vector;
 	u8			move_in_progress : 1;
 };
