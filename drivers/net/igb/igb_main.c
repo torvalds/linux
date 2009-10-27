@@ -919,6 +919,11 @@ static void igb_irq_disable(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 
+	/*
+	 * we need to be careful when disabling interrupts.  The VFs are also
+	 * mapped into these registers and so clearing the bits can cause
+	 * issues on the VF drivers so we only need to clear what we set
+	 */
 	if (adapter->msix_entries) {
 		u32 regval = rd32(E1000_EIAM);
 		wr32(E1000_EIAM, regval & ~adapter->eims_enable_mask);
@@ -942,15 +947,17 @@ static void igb_irq_enable(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	if (adapter->msix_entries) {
+		u32 ims = E1000_IMS_LSC | E1000_IMS_DOUTSYNC;
 		u32 regval = rd32(E1000_EIAC);
 		wr32(E1000_EIAC, regval | adapter->eims_enable_mask);
 		regval = rd32(E1000_EIAM);
 		wr32(E1000_EIAM, regval | adapter->eims_enable_mask);
 		wr32(E1000_EIMS, adapter->eims_enable_mask);
-		if (adapter->vfs_allocated_count)
+		if (adapter->vfs_allocated_count) {
 			wr32(E1000_MBVFIMR, 0xFF);
-		wr32(E1000_IMS, (E1000_IMS_LSC | E1000_IMS_VMMB |
-		                 E1000_IMS_DOUTSYNC));
+			ims |= E1000_IMS_VMMB;
+		}
+		wr32(E1000_IMS, ims);
 	} else {
 		wr32(E1000_IMS, IMS_ENABLE_MASK);
 		wr32(E1000_IAM, IMS_ENABLE_MASK);
@@ -1091,8 +1098,10 @@ int igb_up(struct igb_adapter *adapter)
 
 	netif_tx_start_all_queues(adapter->netdev);
 
-	/* Fire a link change interrupt to start the watchdog. */
-	wr32(E1000_ICS, E1000_ICS_LSC);
+	/* start the watchdog. */
+	hw->mac.get_link_status = 1;
+	schedule_work(&adapter->watchdog_task);
+
 	return 0;
 }
 
@@ -1889,8 +1898,9 @@ static int igb_open(struct net_device *netdev)
 
 	netif_tx_start_all_queues(netdev);
 
-	/* Fire a link status change interrupt to start the watchdog. */
-	wr32(E1000_ICS, E1000_ICS_LSC);
+	/* start the watchdog. */
+	hw->mac.get_link_status = 1;
+	schedule_work(&adapter->watchdog_task);
 
 	return 0;
 
@@ -3952,7 +3962,12 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
-	wr32(E1000_IMS, E1000_IMS_LSC | E1000_IMS_DOUTSYNC | E1000_IMS_VMMB);
+	if (adapter->vfs_allocated_count)
+		wr32(E1000_IMS, E1000_IMS_LSC |
+				E1000_IMS_VMMB |
+				E1000_IMS_DOUTSYNC);
+	else
+		wr32(E1000_IMS, E1000_IMS_LSC | E1000_IMS_DOUTSYNC);
 	wr32(E1000_EIMS, adapter->eims_other);
 
 	return IRQ_HANDLED;
