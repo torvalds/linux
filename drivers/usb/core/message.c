@@ -403,7 +403,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (!io->urbs)
 		goto nomem;
 
-	urb_flags = URB_NO_INTERRUPT;
+	urb_flags = 0;
 	if (dma)
 		urb_flags |= URB_NO_TRANSFER_DMA_MAP;
 	if (usb_pipein(pipe))
@@ -435,6 +435,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 		io->urbs[0]->num_sgs = io->entries;
 		io->entries = 1;
 	} else {
+		urb_flags |= URB_NO_INTERRUPT;
 		for_each_sg(sg, sg, io->entries, i) {
 			unsigned len;
 
