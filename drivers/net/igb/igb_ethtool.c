@@ -502,19 +502,10 @@ static void igb_get_regs(struct net_device *netdev,
 	regs_buff[119] = adapter->stats.scvpc;
 	regs_buff[120] = adapter->stats.hrmpc;
 
-	/* These should probably be added to e1000_regs.h instead */
-	#define E1000_PSRTYPE_REG(_i) (0x05480 + ((_i) * 4))
-	#define E1000_IP4AT_REG(_i)   (0x05840 + ((_i) * 8))
-	#define E1000_IP6AT_REG(_i)   (0x05880 + ((_i) * 4))
-	#define E1000_WUPM_REG(_i)    (0x05A00 + ((_i) * 4))
-	#define E1000_FFMT_REG(_i)    (0x09000 + ((_i) * 8))
-	#define E1000_FFVT_REG(_i)    (0x09800 + ((_i) * 8))
-	#define E1000_FFLT_REG(_i)    (0x05F00 + ((_i) * 8))
-
 	for (i = 0; i < 4; i++)
 		regs_buff[121 + i] = rd32(E1000_SRRCTL(i));
 	for (i = 0; i < 4; i++)
-		regs_buff[125 + i] = rd32(E1000_PSRTYPE_REG(i));
+		regs_buff[125 + i] = rd32(E1000_PSRTYPE(i));
 	for (i = 0; i < 4; i++)
 		regs_buff[129 + i] = rd32(E1000_RDBAL(i));
 	for (i = 0; i < 4; i++)

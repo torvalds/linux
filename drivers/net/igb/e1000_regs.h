@@ -288,10 +288,17 @@ enum {
 #define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
 #define E1000_RA       0x05400  /* Receive Address - RW Array */
 #define E1000_RA2      0x054E0  /* 2nd half of receive address array - RW Array */
+#define E1000_PSRTYPE(_i)       (0x05480 + ((_i) * 4))
 #define E1000_RAL(_i)  (((_i) <= 15) ? (0x05400 + ((_i) * 8)) : \
                                        (0x054E0 + ((_i - 16) * 8)))
 #define E1000_RAH(_i)  (((_i) <= 15) ? (0x05404 + ((_i) * 8)) : \
                                        (0x054E4 + ((_i - 16) * 8)))
+#define E1000_IP4AT_REG(_i)     (0x05840 + ((_i) * 8))
+#define E1000_IP6AT_REG(_i)     (0x05880 + ((_i) * 4))
+#define E1000_WUPM_REG(_i)      (0x05A00 + ((_i) * 4))
+#define E1000_FFMT_REG(_i)      (0x09000 + ((_i) * 8))
+#define E1000_FFVT_REG(_i)      (0x09800 + ((_i) * 8))
+#define E1000_FFLT_REG(_i)      (0x05F00 + ((_i) * 8))
 #define E1000_VFTA     0x05600  /* VLAN Filter Table Array - RW Array */
 #define E1000_VT_CTL   0x0581C  /* VMDq Control - RW */
 #define E1000_WUC      0x05800  /* Wakeup Control - RW */
