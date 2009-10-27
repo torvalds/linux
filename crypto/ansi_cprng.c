@@ -193,9 +193,6 @@ static int get_prng_bytes(char *buf, size_t nbytes, struct prng_context *ctx,
 	int err;
 
 
-	if (nbytes < 0)
-		return -EINVAL;
-
 	spin_lock_bh(&ctx->prng_lock);
 
 	err = -EINVAL;
