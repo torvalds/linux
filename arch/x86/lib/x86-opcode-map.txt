@@ -401,9 +401,9 @@ Referrer: 2-byte escape
 62: punpckldq Pq,Qd | punpckldq Vdq,Wdq (66)
 63: packsswb Pq,Qq | packsswb Vdq,Wdq (66)
 64: pcmpgtb Pq,Qq | pcmpgtb Vdq,Wdq (66)
-65: pcmpgtw Pq,Qq | pcmpgtw(66) Vdq,Wdq
+65: pcmpgtw Pq,Qq | pcmpgtw Vdq,Wdq (66)
 66: pcmpgtd Pq,Qq | pcmpgtd Vdq,Wdq (66)
-67: packuswb Pq,Qq | packuswb(66) Vdq,Wdq
+67: packuswb Pq,Qq | packuswb Vdq,Wdq (66)
 68: punpckhbw Pq,Qd | punpckhbw Vdq,Wdq (66)
 69: punpckhwd Pq,Qd | punpckhwd Vdq,Wdq (66)
 6a: punpckhdq Pq,Qd | punpckhdq Vdq,Wdq (66)
@@ -425,8 +425,8 @@ Referrer: 2-byte escape
 79: VMWRITE Gd/q,Ed/q
 7a:
 7b:
-7c: haddps(F2) Vps,Wps | haddpd(66) Vpd,Wpd
-7d: hsubps(F2) Vps,Wps | hsubpd(66) Vpd,Wpd
+7c: haddps Vps,Wps (F2) | haddpd Vpd,Wpd (66)
+7d: hsubps Vps,Wps (F2) | hsubpd Vpd,Wpd (66)
 7e: movd/q Ed/q,Pd | movd/q Ed/q,Vdq (66) | movq Vq,Wq (F3)
 7f: movq Qq,Pq | movdqa Wdq,Vdq (66) | movdqu Wdq,Vdq (F3)
 # 0x0f 0x80-0x8f
@@ -574,7 +574,7 @@ Referrer: 3-byte escape 1
 01: phaddw Pq,Qq | phaddw Vdq,Wdq (66)
 02: phaddd Pq,Qq | phaddd Vdq,Wdq (66)
 03: phaddsw Pq,Qq | phaddsw Vdq,Wdq (66)
-04: pmaddubsw Pq,Qq | pmaddubsw (66)Vdq,Wdq
+04: pmaddubsw Pq,Qq | pmaddubsw Vdq,Wdq (66)
 05: phsubw Pq,Qq | phsubw Vdq,Wdq (66)
 06: phsubd Pq,Qq | phsubd Vdq,Wdq (66)
 07: phsubsw Pq,Qq | phsubsw Vdq,Wdq (66)
