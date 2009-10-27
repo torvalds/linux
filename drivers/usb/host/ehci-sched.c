@@ -1394,10 +1394,11 @@ iso_stream_schedule (
 	struct ehci_iso_stream	*stream
 )
 {
-	u32			now, start, max, period;
+	u32			now, next, start, period;
 	int			status;
 	unsigned		mod = ehci->periodic_size << 3;
 	struct ehci_iso_sched	*sched = urb->hcpriv;
+	struct pci_dev		*pdev;
 
 	if (sched->span > (mod - SCHEDULE_SLOP)) {
 		ehci_dbg (ehci, "iso request %p too long\n", urb);
@@ -1418,26 +1419,35 @@ iso_stream_schedule (
 
 	now = ehci_readl(ehci, &ehci->regs->frame_index) % mod;
 
-	/* when's the last uframe this urb could start? */
-	max = now + mod;
-
 	/* Typical case: reuse current schedule, stream is still active.
 	 * Hopefully there are no gaps from the host falling behind
 	 * (irq delays etc), but if there are we'll take the next
 	 * slot in the schedule, implicitly assuming URB_ISO_ASAP.
 	 */
 	if (likely (!list_empty (&stream->td_list))) {
+		pdev = to_pci_dev(ehci_to_hcd(ehci)->self.controller);
 		start = stream->next_uframe;
-		if (start < now)
-			start += mod;
+
+		/* For high speed devices, allow scheduling within the
+		 * isochronous scheduling threshold.  For full speed devices,
+		 * don't. (Work around for Intel ICH9 bug.)
+		 */
+		if (!stream->highspeed &&
+				pdev->vendor == PCI_VENDOR_ID_INTEL)
+			next = now + ehci->i_thresh;
+		else
+			next = now;
 
 		/* Fell behind (by up to twice the slop amount)? */
-		if (start >= max - 2 * SCHEDULE_SLOP)
+		if (((start - next) & (mod - 1)) >=
+				mod - 2 * SCHEDULE_SLOP)
 			start += period * DIV_ROUND_UP(
-					max - start, period) - mod;
+					(next - start) & (mod - 1),
+					period);
 
 		/* Tried to schedule too far into the future? */
-		if (unlikely((start + sched->span) >= max)) {
+		if (unlikely(((start - now) & (mod - 1)) + sched->span
+					>= mod - 2 * SCHEDULE_SLOP)) {
 			status = -EFBIG;
 			goto fail;
 		}
@@ -1482,7 +1492,7 @@ iso_stream_schedule (
 	/* no room in the schedule */
 	ehci_dbg (ehci, "iso %ssched full %p (now %d max %d)\n",
 		list_empty (&stream->td_list) ? "" : "re",
-		urb, now, max);
+		urb, now, now + mod);
 	status = -ENOSPC;
 
 fail:
