@@ -22,6 +22,8 @@ struct probe_point {
 	int	nr_args;	/* Number of arguments */
 	char	**args;		/* Arguments */
 
+	int	retprobe;	/* Return probe */
+
 	/* Output */
 	int	found;		/* Number of found probe points */
 	char	*probes[MAX_PROBES];	/* Output buffers (will be allocated)*/

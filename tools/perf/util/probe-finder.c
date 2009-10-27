@@ -483,10 +483,20 @@ static void show_probepoint(Dwarf_Die sp_die, Dwarf_Signed offs,
 	if (ret == DW_DLV_OK) {
 		ret = snprintf(tmp, MAX_PROBE_BUFFER, "%s+%u", name,
 				(unsigned int)offs);
+		/* Copy the function name if possible */
+		if (!pp->function) {
+			pp->function = strdup(name);
+			pp->offset = offs;
+		}
 		dwarf_dealloc(__dw_debug, name, DW_DLA_STRING);
 	} else {
 		/* This function has no name. */
 		ret = snprintf(tmp, MAX_PROBE_BUFFER, "0x%llx", pf->addr);
+		if (!pp->function) {
+			/* TODO: Use _stext */
+			pp->function = strdup("");
+			pp->offset = (int)pf->addr;
+		}
 	}
 	DIE_IF(ret < 0);
 	DIE_IF(ret >= MAX_PROBE_BUFFER);
