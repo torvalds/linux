@@ -1713,7 +1713,7 @@ static int do_write(struct fsg_dev *fsg)
 		}
 		if (fsg->cmnd[1] & 0x08) {	// FUA
 			spin_lock(&curlun->filp->f_lock);
-			curlun->filp->f_flags |= O_SYNC;
+			curlun->filp->f_flags |= O_DSYNC;
 			spin_unlock(&curlun->filp->f_lock);
 		}
 	}

@@ -692,8 +692,9 @@ ssize_t afs_file_write(struct kiocb *iocb, const struct iovec *iov,
 	}
 
 	/* return error values for O_SYNC and IS_SYNC() */
-	if (IS_SYNC(&vnode->vfs_inode) || iocb->ki_filp->f_flags & O_SYNC) {
-		ret = afs_fsync(iocb->ki_filp, dentry, 1);
+	if (IS_SYNC(&vnode->vfs_inode) || iocb->ki_filp->f_flags & O_DSYNC) {
+		ret = afs_fsync(iocb->ki_filp, dentry,
+				(iocb->ki_filp->f_flags & __O_SYNC) ? 0 : 1);
 		if (ret < 0)
 			result = ret;
 	}
