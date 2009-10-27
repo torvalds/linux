@@ -285,7 +285,7 @@ module_exit(igb_exit_module);
  **/
 static void igb_cache_ring_register(struct igb_adapter *adapter)
 {
-	int i;
+	int i = 0, j = 0;
 	u32 rbase_offset = adapter->vfs_allocated_count;
 
 	switch (adapter->hw.mac.type) {
@@ -295,19 +295,20 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 		 * In order to avoid collision we start at the first free queue
 		 * and continue consuming queues in the same sequence
 		 */
-		for (i = 0; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i].reg_idx = rbase_offset +
-			                              Q_IDX_82576(i);
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			adapter->tx_ring[i].reg_idx = rbase_offset +
-			                              Q_IDX_82576(i);
-		break;
+		if (adapter->vfs_allocated_count) {
+			for (; i < adapter->num_rx_queues; i++)
+				adapter->rx_ring[i].reg_idx = rbase_offset +
+				                              Q_IDX_82576(i);
+			for (; j < adapter->num_tx_queues; j++)
+				adapter->tx_ring[j].reg_idx = rbase_offset +
+				                              Q_IDX_82576(j);
+		}
 	case e1000_82575:
 	default:
-		for (i = 0; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i].reg_idx = i;
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			adapter->tx_ring[i].reg_idx = i;
+		for (; i < adapter->num_rx_queues; i++)
+			adapter->rx_ring[i].reg_idx = rbase_offset + i;
+		for (; j < adapter->num_tx_queues; j++)
+			adapter->tx_ring[j].reg_idx = rbase_offset + j;
 		break;
 	}
 }
