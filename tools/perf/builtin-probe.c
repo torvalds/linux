@@ -133,17 +133,16 @@ static void parse_probe_point(char *arg, struct probe_point *pp)
 	}
 
 	/* Exclusion check */
-	if (pp->line && pp->function)
-		semantic_error("Function-relative line number is not"
-				" supported yet.");
+	if (pp->line && pp->offset)
+		semantic_error("Offset can't be used with line number.");
 	if (!pp->line && pp->file && !pp->function)
 		semantic_error("File always requires line number.");
 	if (pp->offset && !pp->function)
 		semantic_error("Offset requires an entry function.");
 	if (pp->retprobe && !pp->function)
 		semantic_error("Return probe requires an entry function.");
-	if (pp->offset && pp->retprobe)
-		semantic_error("Offset can't be used with return probe.");
+	if ((pp->offset || pp->line) && pp->retprobe)
+		semantic_error("Offset/Line can't be used with return probe.");
 
 	pr_debug("symbol:%s file:%s line:%d offset:%d, return:%d\n",
 		 pp->function, pp->file, pp->line, pp->offset, pp->retprobe);
@@ -270,7 +269,7 @@ static const struct option options[] = {
 #ifdef NO_LIBDWARF
 		"FUNC[+OFFS|%return] [ARG ...]",
 #else
-		"FUNC[+OFFS|%return][@SRC]|SRC:LINE [ARG ...]",
+		"FUNC[+OFFS|%return|:RLN][@SRC]|SRC:ALN [ARG ...]",
 #endif
 		"probe point definition, where\n"
 		"\t\tGRP:\tGroup name (optional)\n"
@@ -282,7 +281,8 @@ static const struct option options[] = {
 		"\t\tARG:\tProbe argument (only \n"
 #else
 		"\t\tSRC:\tSource code path\n"
-		"\t\tLINE:\tLine number\n"
+		"\t\tRLN:\tRelative line number from function entry.\n"
+		"\t\tALN:\tAbsolute line number in file.\n"
 		"\t\tARG:\tProbe argument (local variable name or\n"
 #endif
 		"\t\t\tkprobe-tracer argument format is supported.)\n",

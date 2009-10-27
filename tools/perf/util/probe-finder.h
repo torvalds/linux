@@ -41,7 +41,9 @@ struct probe_finder {
 	/* For function searching */
 	Dwarf_Addr	addr;		/* Address */
 	Dwarf_Unsigned	fno;		/* File number */
+	Dwarf_Unsigned	lno;		/* Line number */
 	Dwarf_Off	inl_offs;	/* Inline offset */
+	Dwarf_Die	cu_die;		/* Current CU */
 
 	/* For variable searching */
 	Dwarf_Addr	cu_base;	/* Current CU base address */

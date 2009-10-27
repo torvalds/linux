@@ -114,7 +114,7 @@ static int strtailcmp(const char *s1, const char *s2)
 }
 
 /* Find the fileno of the target file. */
-static Dwarf_Unsigned die_get_fileno(Dwarf_Die cu_die, const char *fname)
+static Dwarf_Unsigned cu_find_fileno(Dwarf_Die cu_die, const char *fname)
 {
 	Dwarf_Signed cnt, i;
 	Dwarf_Unsigned found = 0;
@@ -335,6 +335,36 @@ static int attr_get_locdesc(Dwarf_Attribute attr, Dwarf_Locdesc *desc,
 	return ret;
 }
 
+/* Get decl_file attribute value (file number) */
+static Dwarf_Unsigned die_get_decl_file(Dwarf_Die sp_die)
+{
+	Dwarf_Attribute attr;
+	Dwarf_Unsigned fno;
+	int ret;
+
+	ret = dwarf_attr(sp_die, DW_AT_decl_file, &attr, &__dw_error);
+	DIE_IF(ret != DW_DLV_OK);
+	dwarf_formudata(attr, &fno, &__dw_error);
+	DIE_IF(ret != DW_DLV_OK);
+	dwarf_dealloc(__dw_debug, attr, DW_DLA_ATTR);
+	return fno;
+}
+
+/* Get decl_line attribute value (line number) */
+static Dwarf_Unsigned die_get_decl_line(Dwarf_Die sp_die)
+{
+	Dwarf_Attribute attr;
+	Dwarf_Unsigned lno;
+	int ret;
+
+	ret = dwarf_attr(sp_die, DW_AT_decl_line, &attr, &__dw_error);
+	DIE_IF(ret != DW_DLV_OK);
+	dwarf_formudata(attr, &lno, &__dw_error);
+	DIE_IF(ret != DW_DLV_OK);
+	dwarf_dealloc(__dw_debug, attr, DW_DLA_ATTR);
+	return lno;
+}
+
 /*
  * Probe finder related functions
  */
@@ -501,6 +531,7 @@ static void show_probepoint(Dwarf_Die sp_die, Dwarf_Signed offs,
 	DIE_IF(ret < 0);
 	DIE_IF(ret >= MAX_PROBE_BUFFER);
 	len = ret;
+	pr_debug("Probe point found: %s\n", tmp);
 
 	/* Find each argument */
 	get_current_frame_base(sp_die, pf);
@@ -536,17 +567,16 @@ static int probeaddr_callback(struct die_link *dlink, void *data)
 }
 
 /* Find probe point from its line number */
-static void find_by_line(Dwarf_Die cu_die, struct probe_finder *pf)
+static void find_by_line(struct probe_finder *pf)
 {
-	struct probe_point *pp = pf->pp;
-	Dwarf_Signed cnt, i;
+	Dwarf_Signed cnt, i, clm;
 	Dwarf_Line *lines;
 	Dwarf_Unsigned lineno = 0;
 	Dwarf_Addr addr;
 	Dwarf_Unsigned fno;
 	int ret;
 
-	ret = dwarf_srclines(cu_die, &lines, &cnt, &__dw_error);
+	ret = dwarf_srclines(pf->cu_die, &lines, &cnt, &__dw_error);
 	DIE_IF(ret != DW_DLV_OK);
 
 	for (i = 0; i < cnt; i++) {
@@ -557,15 +587,20 @@ static void find_by_line(Dwarf_Die cu_die, struct probe_finder *pf)
 
 		ret = dwarf_lineno(lines[i], &lineno, &__dw_error);
 		DIE_IF(ret != DW_DLV_OK);
-		if (lineno != (Dwarf_Unsigned)pp->line)
+		if (lineno != pf->lno)
 			continue;
+
+		ret = dwarf_lineoff(lines[i], &clm, &__dw_error);
+		DIE_IF(ret != DW_DLV_OK);
 
 		ret = dwarf_lineaddr(lines[i], &addr, &__dw_error);
 		DIE_IF(ret != DW_DLV_OK);
-		pr_debug("Probe point found: 0x%llx\n", addr);
+		pr_debug("Probe line found: line[%d]:%u,%d addr:0x%llx\n",
+			 (int)i, (unsigned)lineno, (int)clm, addr);
 		pf->addr = addr;
 		/* Search a real subprogram including this line, */
-		ret = search_die_from_children(cu_die, probeaddr_callback, pf);
+		ret = search_die_from_children(pf->cu_die,
+					       probeaddr_callback, pf);
 		if (ret == 0)
 			die("Probe point is not found in subprograms.\n");
 		/* Continuing, because target line might be inlined. */
@@ -587,6 +622,13 @@ static int probefunc_callback(struct die_link *dlink, void *data)
 	DIE_IF(ret == DW_DLV_ERROR);
 	if (tag == DW_TAG_subprogram) {
 		if (die_compare_name(dlink->die, pp->function) == 0) {
+			if (pp->line) {	/* Function relative line */
+				pf->fno = die_get_decl_file(dlink->die);
+				pf->lno = die_get_decl_line(dlink->die)
+					 + pp->line;
+				find_by_line(pf);
+				return 1;
+			}
 			if (die_inlined_subprogram(dlink->die)) {
 				/* Inlined function, save it. */
 				ret = dwarf_die_CU_offset(dlink->die,
@@ -631,9 +673,9 @@ found:
 	return 0;
 }
 
-static void find_by_func(Dwarf_Die cu_die, struct probe_finder *pf)
+static void find_by_func(struct probe_finder *pf)
 {
-	search_die_from_children(cu_die, probefunc_callback, pf);
+	search_die_from_children(pf->cu_die, probefunc_callback, pf);
 }
 
 /* Find a probe point */
@@ -641,7 +683,6 @@ int find_probepoint(int fd, struct probe_point *pp)
 {
 	Dwarf_Half addr_size = 0;
 	Dwarf_Unsigned next_cuh = 0;
-	Dwarf_Die cu_die = 0;
 	int cu_number = 0, ret;
 	struct probe_finder pf = {.pp = pp};
 
@@ -659,25 +700,27 @@ int find_probepoint(int fd, struct probe_point *pp)
 			break;
 
 		/* Get the DIE(Debugging Information Entry) of this CU */
-		ret = dwarf_siblingof(__dw_debug, 0, &cu_die, &__dw_error);
+		ret = dwarf_siblingof(__dw_debug, 0, &pf.cu_die, &__dw_error);
 		DIE_IF(ret != DW_DLV_OK);
 
 		/* Check if target file is included. */
 		if (pp->file)
-			pf.fno = die_get_fileno(cu_die, pp->file);
+			pf.fno = cu_find_fileno(pf.cu_die, pp->file);
 
 		if (!pp->file || pf.fno) {
 			/* Save CU base address (for frame_base) */
-			ret = dwarf_lowpc(cu_die, &pf.cu_base, &__dw_error);
+			ret = dwarf_lowpc(pf.cu_die, &pf.cu_base, &__dw_error);
 			DIE_IF(ret == DW_DLV_ERROR);
 			if (ret == DW_DLV_NO_ENTRY)
 				pf.cu_base = 0;
-			if (pp->line)
-				find_by_line(cu_die, &pf);
 			if (pp->function)
-				find_by_func(cu_die, &pf);
+				find_by_func(&pf);
+			else {
+				pf.lno = pp->line;
+				find_by_line(&pf);
+			}
 		}
-		dwarf_dealloc(__dw_debug, cu_die, DW_DLA_DIE);
+		dwarf_dealloc(__dw_debug, pf.cu_die, DW_DLA_DIE);
 	}
 	ret = dwarf_finish(__dw_debug, &__dw_error);
 	DIE_IF(ret != DW_DLV_OK);
