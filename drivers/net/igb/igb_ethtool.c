@@ -794,7 +794,7 @@ static int igb_set_ringparam(struct net_device *netdev,
 
 		for (i = 0; i < adapter->num_tx_queues; i++) {
 			temp_ring[i].count = new_tx_count;
-			err = igb_setup_tx_resources(adapter, &temp_ring[i]);
+			err = igb_setup_tx_resources(&temp_ring[i]);
 			if (err) {
 				while (i) {
 					i--;
@@ -819,7 +819,7 @@ static int igb_set_ringparam(struct net_device *netdev,
 
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			temp_ring[i].count = new_rx_count;
-			err = igb_setup_rx_resources(adapter, &temp_ring[i]);
+			err = igb_setup_rx_resources(&temp_ring[i]);
 			if (err) {
 				while (i) {
 					i--;
