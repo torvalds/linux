@@ -46,9 +46,15 @@
  * fix-mapped?
  */
 enum fixed_addresses {
+	/*
+	 * The FIX_CMAP entries are used by kmap_coherent() to get virtual
+	 * addresses which are of a known color, and so their values are
+	 * important. __fix_to_virt(FIX_CMAP_END - n) must give an address
+	 * which is the same color as a page (n<<PAGE_SHIFT).
+	 */
 #define FIX_N_COLOURS 8
 	FIX_CMAP_BEGIN,
-	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * NR_CPUS),
+	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * NR_CPUS) - 1,
 	FIX_UNCACHED,
 #ifdef CONFIG_HIGHMEM
 	FIX_KMAP_BEGIN,	/* reserved pte's for temporary kernel mappings */
