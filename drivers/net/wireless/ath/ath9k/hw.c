@@ -4381,7 +4381,7 @@ static struct {
 /*
  * Return the MAC/BB name. "????" is returned if the MAC/BB is unknown.
  */
-const char *ath9k_hw_mac_bb_name(u32 mac_bb_version)
+static const char *ath9k_hw_mac_bb_name(u32 mac_bb_version)
 {
 	int i;
 
@@ -4393,13 +4393,12 @@ const char *ath9k_hw_mac_bb_name(u32 mac_bb_version)
 
 	return "????";
 }
-EXPORT_SYMBOL(ath9k_hw_mac_bb_name);
 
 /*
  * Return the RF name. "????" is returned if the RF is unknown.
  * Used for devices with external radios.
  */
-const char *ath9k_hw_rf_name(u16 rf_version)
+static const char *ath9k_hw_rf_name(u16 rf_version)
 {
 	int i;
 
@@ -4411,4 +4410,28 @@ const char *ath9k_hw_rf_name(u16 rf_version)
 
 	return "????";
 }
-EXPORT_SYMBOL(ath9k_hw_rf_name);
+
+void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len)
+{
+	int used;
+
+	/* chipsets >= AR9280 are single-chip */
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
+		used = snprintf(hw_name, len,
+			       "Atheros AR%s Rev:%x",
+			       ath9k_hw_mac_bb_name(ah->hw_version.macVersion),
+			       ah->hw_version.macRev);
+	}
+	else {
+		used = snprintf(hw_name, len,
+			       "Atheros AR%s MAC/BB Rev:%x AR%s RF Rev:%x",
+			       ath9k_hw_mac_bb_name(ah->hw_version.macVersion),
+			       ah->hw_version.macRev,
+			       ath9k_hw_rf_name((ah->hw_version.analog5GhzRev &
+						AR_RADIO_SREV_MAJOR)),
+			       ah->hw_version.phyRev);
+	}
+
+	hw_name[used] = '\0';
+}
+EXPORT_SYMBOL(ath9k_hw_name);
