@@ -45,7 +45,6 @@ struct usb_hub {
 
 	/* buffer for urb ... with extra space in case of babble */
 	char			(*buffer)[8];
-	dma_addr_t		buffer_dma;	/* DMA address for buffer */
 	union {
 		struct usb_hub_status	hub;
 		struct usb_port_status	port;
@@ -869,8 +868,7 @@ static int hub_configure(struct usb_hub *hub,
 	int maxp, ret;
 	char *message = "out of memory";
 
-	hub->buffer = usb_buffer_alloc(hdev, sizeof(*hub->buffer), GFP_KERNEL,
-			&hub->buffer_dma);
+	hub->buffer = kmalloc(sizeof(*hub->buffer), GFP_KERNEL);
 	if (!hub->buffer) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1111,8 +1109,6 @@ static int hub_configure(struct usb_hub *hub,
 
 	usb_fill_int_urb(hub->urb, hdev, pipe, *hub->buffer, maxp, hub_irq,
 		hub, endpoint->bInterval);
-	hub->urb->transfer_dma = hub->buffer_dma;
-	hub->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	/* maybe cycle the hub leds */
 	if (hub->has_indicators && blinkenlights)
@@ -1162,8 +1158,7 @@ static void hub_disconnect(struct usb_interface *intf)
 	kfree(hub->port_owners);
 	kfree(hub->descriptor);
 	kfree(hub->status);
-	usb_buffer_free(hub->hdev, sizeof(*hub->buffer), hub->buffer,
-			hub->buffer_dma);
+	kfree(hub->buffer);
 
 	kref_put(&hub->kref, hub_release);
 }
