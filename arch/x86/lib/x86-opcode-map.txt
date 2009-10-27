@@ -672,6 +672,7 @@ Referrer: 3-byte escape 2
 40: dpps Vdq,Wdq,Ib (66)
 41: dppd Vdq,Wdq,Ib (66)
 42: mpsadbw Vdq,Wdq,Ib (66)
+44: pclmulq Vdq,Wdq,Ib (66)
 60: pcmpestrm Vdq,Wdq,Ib (66)
 61: pcmpestri Vdq,Wdq,Ib (66)
 62: pcmpistrm Vdq,Wdq,Ib (66)
