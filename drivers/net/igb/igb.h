@@ -78,6 +78,8 @@ struct vf_data_storage {
 };
 
 #define IGB_VF_FLAG_CTS            0x00000001 /* VF is clear to send data */
+#define IGB_VF_FLAG_UNI_PROMISC    0x00000002 /* VF has unicast promisc */
+#define IGB_VF_FLAG_MULTI_PROMISC  0x00000004 /* VF has multicast promisc */
 
 /* RX descriptor control thresholds.
  * PTHRESH - MAC will consider prefetch if it has fewer than this number of
