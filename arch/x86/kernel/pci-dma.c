@@ -303,13 +303,6 @@ static int __init pci_iommu_init(void)
 	no_iommu_init();
 	return 0;
 }
-
-void pci_iommu_shutdown(void)
-{
-	gart_iommu_shutdown();
-
-	amd_iommu_shutdown();
-}
 /* Must execute after PCI subsystem */
 rootfs_initcall(pci_iommu_init);
 

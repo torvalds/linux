@@ -1297,6 +1297,7 @@ int __init amd_iommu_init(void)
 	else
 		printk(KERN_INFO "AMD-Vi: Lazy IO/TLB flushing enabled\n");
 
+	x86_platform.iommu_shutdown = disable_iommus;
 out:
 	return ret;
 
@@ -1321,11 +1322,6 @@ free:
 	free_unity_maps();
 
 	goto out;
-}
-
-void amd_iommu_shutdown(void)
-{
-	disable_iommus();
 }
 
 /****************************************************************************
