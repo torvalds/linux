@@ -108,11 +108,6 @@ DECLARE_EXPORT(__udivsi3_i4);
 DECLARE_EXPORT(__sdivsi3_i4i);
 DECLARE_EXPORT(__udivsi3_i4i);
 
-/* needed by some modules */
-EXPORT_SYMBOL(flush_cache_all);
-EXPORT_SYMBOL(flush_cache_range);
-EXPORT_SYMBOL(flush_dcache_page);
-
 #ifdef CONFIG_MCOUNT
 DECLARE_EXPORT(mcount);
 #endif
@@ -125,9 +120,3 @@ EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(__clear_user);
 EXPORT_SYMBOL(_ebss);
 EXPORT_SYMBOL(empty_zero_page);
-
-#ifndef CONFIG_CACHE_OFF
-EXPORT_SYMBOL(__flush_purge_region);
-EXPORT_SYMBOL(__flush_wback_region);
-EXPORT_SYMBOL(__flush_invalidate_region);
-#endif
