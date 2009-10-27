@@ -353,12 +353,14 @@ static void free_trace_probe(struct trace_probe *tp)
 	kfree(tp);
 }
 
-static struct trace_probe *find_probe_event(const char *event)
+static struct trace_probe *find_probe_event(const char *event,
+					    const char *group)
 {
 	struct trace_probe *tp;
 
 	list_for_each_entry(tp, &probe_list, list)
-		if (!strcmp(tp->call.name, event))
+		if (strcmp(tp->call.name, event) == 0 &&
+		    strcmp(tp->call.system, group) == 0)
 			return tp;
 	return NULL;
 }
@@ -383,7 +385,7 @@ static int register_trace_probe(struct trace_probe *tp)
 	mutex_lock(&probe_lock);
 
 	/* register as an event */
-	old_tp = find_probe_event(tp->call.name);
+	old_tp = find_probe_event(tp->call.name, tp->call.system);
 	if (old_tp) {
 		/* delete old event */
 		unregister_trace_probe(old_tp);
