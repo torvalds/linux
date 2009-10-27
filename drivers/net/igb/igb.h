@@ -185,15 +185,14 @@ struct igb_ring {
 	dma_addr_t dma;                /* phys address of the ring */
 	void *desc;                    /* descriptor ring memory */
 	unsigned int size;             /* length of desc. ring in bytes */
-	unsigned int count;            /* number of desc. in the ring */
+	u16 count;                     /* number of desc. in the ring */
 	u16 next_to_use;
 	u16 next_to_clean;
+	u8 queue_index;
+	u8 reg_idx;
 	void __iomem *head;
 	void __iomem *tail;
 	struct igb_buffer *buffer_info; /* array of buffer info structs */
-
-	u8 queue_index;
-	u8 reg_idx;
 
 	unsigned int total_bytes;
 	unsigned int total_packets;
@@ -249,6 +248,7 @@ struct igb_adapter {
 	u32 en_mng_pt;
 	u16 link_speed;
 	u16 link_duplex;
+
 	unsigned int total_tx_bytes;
 	unsigned int total_tx_packets;
 	unsigned int total_rx_bytes;
@@ -311,8 +311,8 @@ struct igb_adapter {
 	u32 eeprom_wol;
 
 	struct igb_ring *multi_tx_table[IGB_ABS_MAX_TX_QUEUES];
-	unsigned int tx_ring_count;
-	unsigned int rx_ring_count;
+	u16 tx_ring_count;
+	u16 rx_ring_count;
 	unsigned int vfs_allocated_count;
 	struct vf_data_storage *vf_data;
 };
