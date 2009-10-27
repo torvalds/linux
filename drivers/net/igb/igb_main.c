@@ -125,9 +125,8 @@ static void igb_restore_vlan(struct igb_adapter *);
 static void igb_rar_set_qsel(struct igb_adapter *, u8 *, u32 , u8);
 static void igb_ping_all_vfs(struct igb_adapter *);
 static void igb_msg_task(struct igb_adapter *);
-static int igb_rcv_msg_from_vf(struct igb_adapter *, u32);
 static void igb_vmm_control(struct igb_adapter *);
-static int igb_set_vf_mac(struct igb_adapter *adapter, int, unsigned char *);
+static int igb_set_vf_mac(struct igb_adapter *, int, unsigned char *);
 static void igb_restore_vf_multicasts(struct igb_adapter *adapter);
 
 static inline void igb_set_vmolr(struct e1000_hw *hw, int vfn)
@@ -1291,10 +1290,10 @@ void igb_reset(struct igb_adapter *adapter)
 	if (adapter->vfs_allocated_count) {
 		int i;
 		for (i = 0 ; i < adapter->vfs_allocated_count; i++)
-			adapter->vf_data[i].clear_to_send = false;
+			adapter->vf_data[i].flags = 0;
 
 		/* ping all the active vfs to let them know we are going down */
-			igb_ping_all_vfs(adapter);
+		igb_ping_all_vfs(adapter);
 
 		/* disable transmits and receives */
 		wr32(E1000_VFRE, 0);
@@ -4096,7 +4095,7 @@ static void igb_ping_all_vfs(struct igb_adapter *adapter)
 
 	for (i = 0 ; i < adapter->vfs_allocated_count; i++) {
 		ping = E1000_PF_CONTROL_MSG;
-		if (adapter->vf_data[i].clear_to_send)
+		if (adapter->vf_data[i].flags & IGB_VF_FLAG_CTS)
 			ping |= E1000_VT_MSGTYPE_CTS;
 		igb_write_mbx(hw, &ping, 1, i);
 	}
@@ -4276,15 +4275,14 @@ static int igb_set_vf_vlan(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
 	return igb_vlvf_set(adapter, vid, add, vf);
 }
 
-static inline void igb_vf_reset_event(struct igb_adapter *adapter, u32 vf)
+static inline void igb_vf_reset(struct igb_adapter *adapter, u32 vf)
 {
-	struct e1000_hw *hw = &adapter->hw;
-
-	/* disable mailbox functionality for vf */
-	adapter->vf_data[vf].clear_to_send = false;
+	/* clear all flags */
+	adapter->vf_data[vf].flags = 0;
+	adapter->vf_data[vf].last_nack = jiffies;
 
 	/* reset offloads to defaults */
-	igb_set_vmolr(hw, vf);
+	igb_set_vmolr(&adapter->hw, vf);
 
 	/* reset vlans for device */
 	igb_clear_vf_vfta(adapter, vf);
@@ -4296,7 +4294,18 @@ static inline void igb_vf_reset_event(struct igb_adapter *adapter, u32 vf)
 	igb_set_rx_mode(adapter->netdev);
 }
 
-static inline void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
+static void igb_vf_reset_event(struct igb_adapter *adapter, u32 vf)
+{
+	unsigned char *vf_mac = adapter->vf_data[vf].vf_mac_addresses;
+
+	/* generate a new mac address as we were hotplug removed/added */
+	random_ether_addr(vf_mac);
+
+	/* process remaining reset events */
+	igb_vf_reset(adapter, vf);
+}
+
+static void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	unsigned char *vf_mac = adapter->vf_data[vf].vf_mac_addresses;
@@ -4305,7 +4314,7 @@ static inline void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 	u8 *addr = (u8 *)(&msgbuf[1]);
 
 	/* process all the same items cleared in a function level reset */
-	igb_vf_reset_event(adapter, vf);
+	igb_vf_reset(adapter, vf);
 
 	/* set vf mac address */
 	igb_rar_set_qsel(adapter, vf_mac, rar_entry, vf);
@@ -4316,8 +4325,7 @@ static inline void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 	reg = rd32(E1000_VFRE);
 	wr32(E1000_VFRE, reg | (1 << vf));
 
-	/* enable mailbox functionality for vf */
-	adapter->vf_data[vf].clear_to_send = true;
+	adapter->vf_data[vf].flags = IGB_VF_FLAG_CTS;
 
 	/* reply to reset with ack and vf mac address */
 	msgbuf[0] = E1000_VF_RESET | E1000_VT_MSGTYPE_ACK;
@@ -4327,66 +4335,45 @@ static inline void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 
 static int igb_set_vf_mac_addr(struct igb_adapter *adapter, u32 *msg, int vf)
 {
-		unsigned char *addr = (char *)&msg[1];
-		int err = -1;
+	unsigned char *addr = (char *)&msg[1];
+	int err = -1;
 
-		if (is_valid_ether_addr(addr))
-			err = igb_set_vf_mac(adapter, vf, addr);
+	if (is_valid_ether_addr(addr))
+		err = igb_set_vf_mac(adapter, vf, addr);
 
-		return err;
-
+	return err;
 }
 
 static void igb_rcv_ack_from_vf(struct igb_adapter *adapter, u32 vf)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	struct vf_data_storage *vf_data = &adapter->vf_data[vf];
 	u32 msg = E1000_VT_MSGTYPE_NACK;
 
 	/* if device isn't clear to send it shouldn't be reading either */
-	if (!adapter->vf_data[vf].clear_to_send)
+	if (!(vf_data->flags & IGB_VF_FLAG_CTS) &&
+	    time_after(jiffies, vf_data->last_nack + (2 * HZ))) {
 		igb_write_mbx(hw, &msg, 1, vf);
-}
-
-
-static void igb_msg_task(struct igb_adapter *adapter)
-{
-	struct e1000_hw *hw = &adapter->hw;
-	u32 vf;
-
-	for (vf = 0; vf < adapter->vfs_allocated_count; vf++) {
-		/* process any reset requests */
-		if (!igb_check_for_rst(hw, vf)) {
-			adapter->vf_data[vf].clear_to_send = false;
-			igb_vf_reset_event(adapter, vf);
-		}
-
-		/* process any messages pending */
-		if (!igb_check_for_msg(hw, vf))
-			igb_rcv_msg_from_vf(adapter, vf);
-
-		/* process any acks */
-		if (!igb_check_for_ack(hw, vf))
-			igb_rcv_ack_from_vf(adapter, vf);
-
+		vf_data->last_nack = jiffies;
 	}
 }
 
-static int igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
+static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 {
-	u32 mbx_size = E1000_VFMAILBOX_SIZE;
-	u32 msgbuf[mbx_size];
+	struct pci_dev *pdev = adapter->pdev;
+	u32 msgbuf[E1000_VFMAILBOX_SIZE];
 	struct e1000_hw *hw = &adapter->hw;
+	struct vf_data_storage *vf_data = &adapter->vf_data[vf];
 	s32 retval;
 
-	retval = igb_read_mbx(hw, msgbuf, mbx_size, vf);
+	retval = igb_read_mbx(hw, msgbuf, E1000_VFMAILBOX_SIZE, vf);
 
 	if (retval)
-		dev_err(&adapter->pdev->dev,
-		        "Error receiving message from VF\n");
+		dev_err(&pdev->dev, "Error receiving message from VF\n");
 
 	/* this is a message we already processed, do nothing */
 	if (msgbuf[0] & (E1000_VT_MSGTYPE_ACK | E1000_VT_MSGTYPE_NACK))
-		return retval;
+		return;
 
 	/*
 	 * until the vf completes a reset it should not be
@@ -4395,14 +4382,16 @@ static int igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 
 	if (msgbuf[0] == E1000_VF_RESET) {
 		igb_vf_reset_msg(adapter, vf);
-
-		return retval;
+		return;
 	}
 
-	if (!adapter->vf_data[vf].clear_to_send) {
-		msgbuf[0] |= E1000_VT_MSGTYPE_NACK;
-		igb_write_mbx(hw, msgbuf, 1, vf);
-		return retval;
+	if (!(vf_data->flags & IGB_VF_FLAG_CTS)) {
+		msgbuf[0] = E1000_VT_MSGTYPE_NACK;
+		if (time_after(jiffies, vf_data->last_nack + (2 * HZ))) {
+			igb_write_mbx(hw, msgbuf, 1, vf);
+			vf_data->last_nack = jiffies;
+		}
+		return;
 	}
 
 	switch ((msgbuf[0] & 0xFFFF)) {
@@ -4433,8 +4422,26 @@ static int igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 	msgbuf[0] |= E1000_VT_MSGTYPE_CTS;
 
 	igb_write_mbx(hw, msgbuf, 1, vf);
+}
 
-	return retval;
+static void igb_msg_task(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 vf;
+
+	for (vf = 0; vf < adapter->vfs_allocated_count; vf++) {
+		/* process any reset requests */
+		if (!igb_check_for_rst(hw, vf))
+			igb_vf_reset_event(adapter, vf);
+
+		/* process any messages pending */
+		if (!igb_check_for_msg(hw, vf))
+			igb_rcv_msg_from_vf(adapter, vf);
+
+		/* process any acks */
+		if (!igb_check_for_ack(hw, vf))
+			igb_rcv_ack_from_vf(adapter, vf);
+	}
 }
 
 /**

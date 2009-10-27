@@ -73,8 +73,11 @@ struct vf_data_storage {
 	u16 vf_mc_hashes[IGB_MAX_VF_MC_ENTRIES];
 	u16 num_vf_mc_hashes;
 	u16 vlans_enabled;
-	bool clear_to_send;
+	u32 flags;
+	unsigned long last_nack;
 };
+
+#define IGB_VF_FLAG_CTS            0x00000001 /* VF is clear to send data */
 
 /* RX descriptor control thresholds.
  * PTHRESH - MAC will consider prefetch if it has fewer than this number of
