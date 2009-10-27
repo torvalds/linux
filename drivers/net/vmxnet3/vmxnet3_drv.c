@@ -481,7 +481,8 @@ vmxnet3_rq_alloc_rx_buf(struct vmxnet3_rx_queue *rq, u32 ring_idx,
 	}
 	rq->uncommitted[ring_idx] += num_allocated;
 
-	dprintk(KERN_ERR "alloc_rx_buf: %d allocated, next2fill %u, next2comp "
+	dev_dbg(&adapter->netdev->dev,
+		"alloc_rx_buf: %d allocated, next2fill %u, next2comp "
 		"%u, uncommited %u\n", num_allocated, ring->next2fill,
 		ring->next2comp, rq->uncommitted[ring_idx]);
 
@@ -539,7 +540,8 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 		tbi = tq->buf_info + tq->tx_ring.next2fill;
 		tbi->map_type = VMXNET3_MAP_NONE;
 
-		dprintk(KERN_ERR "txd[%u]: 0x%Lx 0x%x 0x%x\n",
+		dev_dbg(&adapter->netdev->dev,
+			"txd[%u]: 0x%Lx 0x%x 0x%x\n",
 			tq->tx_ring.next2fill, ctx->sop_txd->txd.addr,
 			ctx->sop_txd->dword[2], ctx->sop_txd->dword[3]);
 		vmxnet3_cmd_ring_adv_next2fill(&tq->tx_ring);
@@ -572,7 +574,8 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 		gdesc->dword[2] = dw2 | buf_size;
 		gdesc->dword[3] = 0;
 
-		dprintk(KERN_ERR "txd[%u]: 0x%Lx 0x%x 0x%x\n",
+		dev_dbg(&adapter->netdev->dev,
+			"txd[%u]: 0x%Lx 0x%x 0x%x\n",
 			tq->tx_ring.next2fill, gdesc->txd.addr,
 			gdesc->dword[2], gdesc->dword[3]);
 		vmxnet3_cmd_ring_adv_next2fill(&tq->tx_ring);
@@ -600,7 +603,8 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 		gdesc->dword[2] = dw2 | frag->size;
 		gdesc->dword[3] = 0;
 
-		dprintk(KERN_ERR "txd[%u]: 0x%llu %u %u\n",
+		dev_dbg(&adapter->netdev->dev,
+			"txd[%u]: 0x%llu %u %u\n",
 			tq->tx_ring.next2fill, gdesc->txd.addr,
 			gdesc->dword[2], gdesc->dword[3]);
 		vmxnet3_cmd_ring_adv_next2fill(&tq->tx_ring);
@@ -697,7 +701,8 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 	tdd = tq->data_ring.base + tq->tx_ring.next2fill;
 
 	memcpy(tdd->data, skb->data, ctx->copy_size);
-	dprintk(KERN_ERR "copy %u bytes to dataRing[%u]\n",
+	dev_dbg(&adapter->netdev->dev,
+		"copy %u bytes to dataRing[%u]\n",
 		ctx->copy_size, tq->tx_ring.next2fill);
 	return 1;
 
@@ -808,7 +813,8 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 
 	if (count > vmxnet3_cmd_ring_desc_avail(&tq->tx_ring)) {
 		tq->stats.tx_ring_full++;
-		dprintk(KERN_ERR "tx queue stopped on %s, next2comp %u"
+		dev_dbg(&adapter->netdev->dev,
+			"tx queue stopped on %s, next2comp %u"
 			" next2fill %u\n", adapter->netdev->name,
 			tq->tx_ring.next2comp, tq->tx_ring.next2fill);
 
@@ -853,7 +859,8 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 
 	/* finally flips the GEN bit of the SOP desc */
 	gdesc->dword[2] ^= VMXNET3_TXD_GEN;
-	dprintk(KERN_ERR "txd[%u]: SOP 0x%Lx 0x%x 0x%x\n",
+	dev_dbg(&adapter->netdev->dev,
+		"txd[%u]: SOP 0x%Lx 0x%x 0x%x\n",
 		(u32)((union Vmxnet3_GenericDesc *)ctx.sop_txd -
 		tq->tx_ring.base), gdesc->txd.addr, gdesc->dword[2],
 		gdesc->dword[3]);
@@ -990,7 +997,8 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			if (unlikely(rcd->len == 0)) {
 				/* Pretend the rx buffer is skipped. */
 				BUG_ON(!(rcd->sop && rcd->eop));
-				dprintk(KERN_ERR "rxRing[%u][%u] 0 length\n",
+				dev_dbg(&adapter->netdev->dev,
+					"rxRing[%u][%u] 0 length\n",
 					ring_idx, idx);
 				goto rcd_done;
 			}
@@ -1314,9 +1322,11 @@ vmxnet3_netpoll(struct net_device *netdev)
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	int irq;
 
+#ifdef CONFIG_PCI_MSI
 	if (adapter->intr.type == VMXNET3_IT_MSIX)
 		irq = adapter->intr.msix_entries[0].vector;
 	else
+#endif
 		irq = adapter->pdev->irq;
 
 	disable_irq(irq);
@@ -1330,12 +1340,15 @@ vmxnet3_request_irqs(struct vmxnet3_adapter *adapter)
 {
 	int err;
 
+#ifdef CONFIG_PCI_MSI
 	if (adapter->intr.type == VMXNET3_IT_MSIX) {
 		/* we only use 1 MSI-X vector */
 		err = request_irq(adapter->intr.msix_entries[0].vector,
 				  vmxnet3_intr, 0, adapter->netdev->name,
 				  adapter->netdev);
-	} else if (adapter->intr.type == VMXNET3_IT_MSI) {
+	} else
+#endif
+	if (adapter->intr.type == VMXNET3_IT_MSI) {
 		err = request_irq(adapter->pdev->irq, vmxnet3_intr, 0,
 				  adapter->netdev->name, adapter->netdev);
 	} else {
@@ -1376,6 +1389,7 @@ vmxnet3_free_irqs(struct vmxnet3_adapter *adapter)
 	       adapter->intr.num_intrs <= 0);
 
 	switch (adapter->intr.type) {
+#ifdef CONFIG_PCI_MSI
 	case VMXNET3_IT_MSIX:
 	{
 		int i;
@@ -1385,6 +1399,7 @@ vmxnet3_free_irqs(struct vmxnet3_adapter *adapter)
 				 adapter->netdev);
 		break;
 	}
+#endif
 	case VMXNET3_IT_MSI:
 		free_irq(adapter->pdev->irq, adapter->netdev);
 		break;
@@ -1676,7 +1691,8 @@ vmxnet3_activate_dev(struct vmxnet3_adapter *adapter)
 	int err;
 	u32 ret;
 
-	dprintk(KERN_ERR "%s: skb_buf_size %d, rx_buf_per_pkt %d, ring sizes"
+	dev_dbg(&adapter->netdev->dev,
+		"%s: skb_buf_size %d, rx_buf_per_pkt %d, ring sizes"
 		" %u %u %u\n", adapter->netdev->name, adapter->skb_buf_size,
 		adapter->rx_buf_per_pkt, adapter->tx_queue.tx_ring.size,
 		adapter->rx_queue.rx_ring[0].size,
@@ -2134,6 +2150,7 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 	if (adapter->intr.type == VMXNET3_IT_AUTO) {
 		int err;
 
+#ifdef CONFIG_PCI_MSI
 		adapter->intr.msix_entries[0].entry = 0;
 		err = pci_enable_msix(adapter->pdev, adapter->intr.msix_entries,
 				      VMXNET3_LINUX_MAX_MSIX_VECT);
@@ -2142,6 +2159,7 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 			adapter->intr.type = VMXNET3_IT_MSIX;
 			return;
 		}
+#endif
 
 		err = pci_enable_msi(adapter->pdev);
 		if (!err) {

@@ -24,6 +24,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -2990,6 +2991,7 @@ static struct of_device_id emac_match[] =
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, emac_match);
 
 static struct of_platform_driver emac_driver = {
 	.name = "emac",

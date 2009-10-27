@@ -555,11 +555,11 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 
 	conn->feat_mask = 0;
 
-	setup_timer(&conn->info_timer, l2cap_info_timeout,
-						(unsigned long) conn);
-
 	spin_lock_init(&conn->lock);
 	rwlock_init(&conn->chan_list.lock);
+
+	setup_timer(&conn->info_timer, l2cap_info_timeout,
+						(unsigned long) conn);
 
 	conn->disc_reason = 0x13;
 
@@ -783,6 +783,9 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 	/* Default config options */
 	pi->conf_len = 0;
 	pi->flush_to = L2CAP_DEFAULT_FLUSH_TO;
+	skb_queue_head_init(TX_QUEUE(sk));
+	skb_queue_head_init(SREJ_QUEUE(sk));
+	INIT_LIST_HEAD(SREJ_LIST(sk));
 }
 
 static struct proto l2cap_proto = {

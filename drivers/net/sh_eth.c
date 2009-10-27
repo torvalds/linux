@@ -31,6 +31,8 @@
 #include <linux/cache.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <asm/cacheflush.h>
+
 #include "sh_eth.h"
 
 /* There is CPU dependent code */

@@ -98,12 +98,13 @@ static void ri_tasklet(unsigned long dev)
 		stats->tx_packets++;
 		stats->tx_bytes +=skb->len;
 
-		skb->dev = __dev_get_by_index(&init_net, skb->iif);
+		skb->dev = dev_get_by_index(&init_net, skb->iif);
 		if (!skb->dev) {
 			dev_kfree_skb(skb);
 			stats->tx_dropped++;
 			break;
 		}
+		dev_put(skb->dev);
 		skb->iif = _dev->ifindex;
 
 		if (from & AT_EGRESS) {
