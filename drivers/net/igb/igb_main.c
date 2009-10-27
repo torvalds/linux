@@ -101,7 +101,6 @@ static void igb_update_phy_info(unsigned long);
 static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
 static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *,
-					   struct net_device *,
 					   struct igb_ring *);
 static netdev_tx_t igb_xmit_frame_adv(struct sk_buff *skb,
 				      struct net_device *);
@@ -437,6 +436,7 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		ring->count = adapter->tx_ring_count;
 		ring->queue_index = i;
 		ring->pdev = adapter->pdev;
+		ring->netdev = adapter->netdev;
 		/* For 82575, context index must be unique per ring. */
 		if (adapter->hw.mac.type == e1000_82575)
 			ring->flags = IGB_RING_FLAG_TX_CTX_IDX;
@@ -447,6 +447,7 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		ring->count = adapter->rx_ring_count;
 		ring->queue_index = i;
 		ring->pdev = adapter->pdev;
+		ring->netdev = adapter->netdev;
 		ring->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 		ring->flags = IGB_RING_FLAG_RX_CSUM; /* enable rx checksum */
 		/* set flag indicating ring supports SCTP checksum offload */
@@ -3550,9 +3551,10 @@ static inline void igb_tx_queue_adv(struct igb_ring *tx_ring,
 	mmiowb();
 }
 
-static int __igb_maybe_stop_tx(struct net_device *netdev,
-			       struct igb_ring *tx_ring, int size)
+static int __igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
 {
+	struct net_device *netdev = tx_ring->netdev;
+
 	netif_stop_subqueue(netdev, tx_ring->queue_index);
 
 	/* Herbert's original patch had:
@@ -3571,19 +3573,17 @@ static int __igb_maybe_stop_tx(struct net_device *netdev,
 	return 0;
 }
 
-static int igb_maybe_stop_tx(struct net_device *netdev,
-			     struct igb_ring *tx_ring, int size)
+static int igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
 {
 	if (igb_desc_unused(tx_ring) >= size)
 		return 0;
-	return __igb_maybe_stop_tx(netdev, tx_ring, size);
+	return __igb_maybe_stop_tx(tx_ring, size);
 }
 
 static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
-					   struct net_device *netdev,
 					   struct igb_ring *tx_ring)
 {
-	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
 	unsigned int first;
 	unsigned int tx_flags = 0;
 	u8 hdr_len = 0;
@@ -3606,7 +3606,7 @@ static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	 *       + 1 desc for skb->data,
 	 *       + 1 desc for context descriptor,
 	 * otherwise try next time */
-	if (igb_maybe_stop_tx(netdev, tx_ring, skb_shinfo(skb)->nr_frags + 4)) {
+	if (igb_maybe_stop_tx(tx_ring, skb_shinfo(skb)->nr_frags + 4)) {
 		/* this is a hard error */
 		return NETDEV_TX_BUSY;
 	}
@@ -3665,7 +3665,7 @@ static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	igb_tx_queue_adv(tx_ring, tx_flags, count, skb->len, hdr_len);
 
 	/* Make sure there is space in the ring for the next send. */
-	igb_maybe_stop_tx(netdev, tx_ring, MAX_SKB_FRAGS + 4);
+	igb_maybe_stop_tx(tx_ring, MAX_SKB_FRAGS + 4);
 
 	return NETDEV_TX_OK;
 }
@@ -3684,7 +3684,7 @@ static netdev_tx_t igb_xmit_frame_adv(struct sk_buff *skb,
 	 * to a flow.  Right now, performance is impacted slightly negatively
 	 * if using multiple tx queues.  If the stack breaks away from a
 	 * single qdisc implementation, we can look at this again. */
-	return igb_xmit_frame_ring_adv(skb, netdev, tx_ring);
+	return igb_xmit_frame_ring_adv(skb, tx_ring);
 }
 
 /**
@@ -4667,7 +4667,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct igb_ring *tx_ring = q_vector->tx_ring;
-	struct net_device *netdev = adapter->netdev;
+	struct net_device *netdev = tx_ring->netdev;
 	struct e1000_hw *hw = &adapter->hw;
 	struct igb_buffer *buffer_info;
 	struct sk_buff *skb;
@@ -4841,8 +4841,8 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
                                  int *work_done, int budget)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
-	struct net_device *netdev = adapter->netdev;
 	struct igb_ring *rx_ring = q_vector->rx_ring;
+	struct net_device *netdev = rx_ring->netdev;
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = rx_ring->pdev;
 	union e1000_adv_rx_desc *rx_desc , *next_rxd;
@@ -5018,8 +5018,7 @@ next_desc:
 static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 				     int cleaned_count)
 {
-	struct igb_adapter *adapter = rx_ring->q_vector->adapter;
-	struct net_device *netdev = adapter->netdev;
+	struct net_device *netdev = rx_ring->netdev;
 	union e1000_adv_rx_desc *rx_desc;
 	struct igb_buffer *buffer_info;
 	struct sk_buff *skb;
