@@ -55,6 +55,8 @@ struct igb_adapter;
 #define IGB_DEFAULT_ITR                    3 /* dynamic */
 #define IGB_MAX_ITR_USECS              10000
 #define IGB_MIN_ITR_USECS                 10
+#define NON_Q_VECTORS                      1
+#define MAX_Q_VECTORS                      8
 
 /* Transmit and receive queues */
 #define IGB_MAX_RX_QUEUES     (adapter->vfs_allocated_count ? \
@@ -149,25 +151,38 @@ struct igb_rx_queue_stats {
 	u64 drops;
 };
 
-struct igb_ring {
+struct igb_q_vector {
 	struct igb_adapter *adapter; /* backlink */
-	void *desc;                  /* descriptor ring memory */
-	dma_addr_t dma;              /* phys address of the ring */
-	unsigned int size;           /* length of desc. ring in bytes */
-	unsigned int count;          /* number of desc. in the ring */
+	struct igb_ring *rx_ring;
+	struct igb_ring *tx_ring;
+	struct napi_struct napi;
+
+	u32 eims_value;
+	u16 cpu;
+
+	u16 itr_val;
+	u8 set_itr;
+	u8 itr_shift;
+	void __iomem *itr_register;
+
+	char name[IFNAMSIZ + 9];
+};
+
+struct igb_ring {
+	struct igb_q_vector *q_vector; /* backlink to q_vector */
+	void *desc;                    /* descriptor ring memory */
+	dma_addr_t dma;                /* phys address of the ring */
+	unsigned int size;             /* length of desc. ring in bytes */
+	unsigned int count;            /* number of desc. in the ring */
 	u16 next_to_use;
 	u16 next_to_clean;
 	u16 head;
 	u16 tail;
 	struct igb_buffer *buffer_info; /* array of buffer info structs */
 
-	u32 eims_value;
-	u32 itr_val;
-	u16 itr_register;
-	u16 cpu;
+	u8 queue_index;
+	u8 reg_idx;
 
-	u16 queue_index;
-	u16 reg_idx;
 	unsigned int total_bytes;
 	unsigned int total_packets;
 
@@ -181,13 +196,8 @@ struct igb_ring {
 		struct {
 			struct igb_rx_queue_stats rx_stats;
 			u64 rx_queue_drops;
-			struct napi_struct napi;
-			int set_itr;
-			struct igb_ring *buddy;
 		};
 	};
-
-	char name[IFNAMSIZ + 5];
 };
 
 #define E1000_RX_DESC_ADV(R, i)	    \
@@ -254,7 +264,6 @@ struct igb_adapter {
 
 	/* OS defined structs */
 	struct net_device *netdev;
-	struct napi_struct napi;
 	struct pci_dev *pdev;
 	struct cyclecounter cycles;
 	struct timecounter clock;
@@ -272,6 +281,9 @@ struct igb_adapter {
 	struct igb_ring test_rx_ring;
 
 	int msg_enable;
+
+	unsigned int num_q_vectors;
+	struct igb_q_vector *q_vector[MAX_Q_VECTORS];
 	struct msix_entry *msix_entries;
 	u32 eims_enable_mask;
 	u32 eims_other;

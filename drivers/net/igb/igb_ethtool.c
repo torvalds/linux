@@ -1907,7 +1907,6 @@ static int igb_set_coalesce(struct net_device *netdev,
 			    struct ethtool_coalesce *ec)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
 	int i;
 
 	if ((ec->rx_coalesce_usecs > IGB_MAX_ITR_USECS) ||
@@ -1925,8 +1924,11 @@ static int igb_set_coalesce(struct net_device *netdev,
 		adapter->itr = adapter->itr_setting;
 	}
 
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		wr32(adapter->rx_ring[i].itr_register, adapter->itr);
+	for (i = 0; i < adapter->num_q_vectors; i++) {
+		struct igb_q_vector *q_vector = adapter->q_vector[i];
+		q_vector->itr_val = adapter->itr;
+		q_vector->set_itr = 1;
+	}
 
 	return 0;
 }
