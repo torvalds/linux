@@ -248,6 +248,15 @@ struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci,
 		(ctx->bytes + (ep_index * CTX_SIZE(xhci->hcc_params)));
 }
 
+static void xhci_init_endpoint_timer(struct xhci_hcd *xhci,
+		struct xhci_virt_ep *ep)
+{
+	init_timer(&ep->stop_cmd_timer);
+	ep->stop_cmd_timer.data = (unsigned long) ep;
+	ep->stop_cmd_timer.function = xhci_stop_endpoint_command_watchdog;
+	ep->xhci = xhci;
+}
+
 /* All the xhci_tds in the ring's TD list should be freed at this point */
 void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 {
@@ -309,9 +318,11 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	xhci_dbg(xhci, "Slot %d input ctx = 0x%llx (dma)\n", slot_id,
 			(unsigned long long)dev->in_ctx->dma);
 
-	/* Initialize the cancellation list for each endpoint */
-	for (i = 0; i < 31; i++)
+	/* Initialize the cancellation list and watchdog timers for each ep */
+	for (i = 0; i < 31; i++) {
+		xhci_init_endpoint_timer(xhci, &dev->eps[i]);
 		INIT_LIST_HEAD(&dev->eps[i].cancelled_td_list);
+	}
 
 	/* Allocate endpoint 0 ring */
 	dev->eps[0].ring = xhci_ring_alloc(xhci, 1, true, flags);

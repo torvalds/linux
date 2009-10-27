@@ -246,8 +246,14 @@ static void xhci_work(struct xhci_hcd *xhci)
 	/* Flush posted writes */
 	xhci_readl(xhci, &xhci->ir_set->irq_pending);
 
-	/* FIXME this should be a delayed service routine that clears the EHB */
-	xhci_handle_event(xhci);
+	if (xhci->xhc_state & XHCI_STATE_DYING)
+		xhci_dbg(xhci, "xHCI dying, ignoring interrupt. "
+				"Shouldn't IRQs be disabled?\n");
+	else
+		/* FIXME this should be a delayed service routine
+		 * that clears the EHB.
+		 */
+		xhci_handle_event(xhci);
 
 	/* Clear the event handler busy flag (RW1C); the event ring should be empty. */
 	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
@@ -320,7 +326,7 @@ void xhci_event_ring_work(unsigned long arg)
 	spin_lock_irqsave(&xhci->lock, flags);
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	xhci_dbg(xhci, "op reg status = 0x%x\n", temp);
-	if (temp == 0xffffffff) {
+	if (temp == 0xffffffff || (xhci->xhc_state & XHCI_STATE_DYING)) {
 		xhci_dbg(xhci, "HW died, polling stopped.\n");
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
@@ -710,16 +716,22 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		 * atomic context to this function, which may allocate memory.
 		 */
 		spin_lock_irqsave(&xhci->lock, flags);
+		if (xhci->xhc_state & XHCI_STATE_DYING)
+			goto dying;
 		ret = xhci_queue_ctrl_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 	} else if (usb_endpoint_xfer_bulk(&urb->ep->desc)) {
 		spin_lock_irqsave(&xhci->lock, flags);
+		if (xhci->xhc_state & XHCI_STATE_DYING)
+			goto dying;
 		ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 	} else if (usb_endpoint_xfer_int(&urb->ep->desc)) {
 		spin_lock_irqsave(&xhci->lock, flags);
+		if (xhci->xhc_state & XHCI_STATE_DYING)
+			goto dying;
 		ret = xhci_queue_intr_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
 		spin_unlock_irqrestore(&xhci->lock, flags);
@@ -728,6 +740,12 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	}
 exit:
 	return ret;
+dying:
+	xhci_dbg(xhci, "Ep 0x%x: URB %p submitted for "
+			"non-responsive xHCI host.\n",
+			urb->ep->desc.bEndpointAddress, urb);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	return -ESHUTDOWN;
 }
 
 /*
@@ -789,6 +807,17 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		kfree(td);
 		return ret;
 	}
+	if (xhci->xhc_state & XHCI_STATE_DYING) {
+		xhci_dbg(xhci, "Ep 0x%x: URB %p to be canceled on "
+				"non-responsive xHCI host.\n",
+				urb->ep->desc.bEndpointAddress, urb);
+		/* Let the stop endpoint command watchdog timer (which set this
+		 * state) finish cleaning up the endpoint TD lists.  We must
+		 * have caught it in the middle of dropping a lock and giving
+		 * back an URB.
+		 */
+		goto done;
+	}
 
 	xhci_dbg(xhci, "Cancel URB %p\n", urb);
 	xhci_dbg(xhci, "Event ring:\n");
@@ -806,6 +835,10 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	 */
 	if (!(ep->ep_state & EP_HALT_PENDING)) {
 		ep->ep_state |= EP_HALT_PENDING;
+		ep->stop_cmds_pending++;
+		ep->stop_cmd_timer.expires = jiffies +
+			XHCI_STOP_EP_CMD_TIMEOUT * HZ;
+		add_timer(&ep->stop_cmd_timer);
 		xhci_queue_stop_endpoint(xhci, urb->dev->slot_id, ep_index);
 		xhci_ring_cmd_db(xhci);
 	}
@@ -1410,16 +1443,27 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct xhci_virt_device *virt_dev;
 	unsigned long flags;
 	u32 state;
+	int i;
 
 	if (udev->slot_id == 0)
 		return;
+	virt_dev = xhci->devs[udev->slot_id];
+	if (!virt_dev)
+		return;
+
+	/* Stop any wayward timer functions (which may grab the lock) */
+	for (i = 0; i < 31; ++i) {
+		virt_dev->eps[i].ep_state &= ~EP_HALT_PENDING;
+		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
+	}
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* Don't disable the slot if the host controller is dead. */
 	state = xhci_readl(xhci, &xhci->op_regs->status);
-	if (state == 0xffffffff) {
+	if (state == 0xffffffff || (xhci->xhc_state & XHCI_STATE_DYING)) {
 		xhci_free_virt_device(xhci, udev->slot_id);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;

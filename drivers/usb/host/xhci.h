@@ -659,6 +659,10 @@ struct xhci_virt_ep {
 	/* The TRB that was last reported in a stopped endpoint ring */
 	union xhci_trb		*stopped_trb;
 	struct xhci_td		*stopped_td;
+	/* Watchdog timer for stop endpoint command to cancel URBs */
+	struct timer_list	stop_cmd_timer;
+	int			stop_cmds_pending;
+	struct xhci_hcd		*xhci;
 };
 
 struct xhci_virt_device {
@@ -1022,6 +1026,8 @@ struct xhci_scratchpad {
 #define	ERST_ENTRIES	1
 /* Poll every 60 seconds */
 #define	POLL_TIMEOUT	60
+/* Stop endpoint command timeout (secs) for URB cancellation watchdog timer */
+#define XHCI_STOP_EP_CMD_TIMEOUT	5
 /* XXX: Make these module parameters */
 
 
@@ -1083,6 +1089,21 @@ struct xhci_hcd {
 	struct timer_list	event_ring_timer;
 	int			zombie;
 #endif
+	/* Host controller watchdog timer structures */
+	unsigned int		xhc_state;
+/* Host controller is dying - not responding to commands. "I'm not dead yet!"
+ *
+ * xHC interrupts have been disabled and a watchdog timer will (or has already)
+ * halt the xHCI host, and complete all URBs with an -ESHUTDOWN code.  Any code
+ * that sees this status (other than the timer that set it) should stop touching
+ * hardware immediately.  Interrupt handlers should return immediately when
+ * they see this status (any time they drop and re-acquire xhci->lock).
+ * xhci_urb_dequeue() should call usb_hcd_check_unlink_urb() and return without
+ * putting the TD on the canceled list, etc.
+ *
+ * There are no reports of xHCI host controllers that display this issue.
+ */
+#define XHCI_STATE_DYING	(1 << 0)
 	/* Statistics */
 	int			noops_submitted;
 	int			noops_handled;
@@ -1279,6 +1300,7 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 void xhci_queue_config_ep_quirk(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		struct xhci_dequeue_state *deq_state);
+void xhci_stop_endpoint_command_watchdog(unsigned long arg);
 
 /* xHCI roothub code */
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,

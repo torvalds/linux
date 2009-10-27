@@ -475,6 +475,35 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 	ep->ep_state |= SET_DEQ_PENDING;
 }
 
+static inline void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
+		struct xhci_virt_ep *ep)
+{
+	ep->ep_state &= ~EP_HALT_PENDING;
+	/* Can't del_timer_sync in interrupt, so we attempt to cancel.  If the
+	 * timer is running on another CPU, we don't decrement stop_cmds_pending
+	 * (since we didn't successfully stop the watchdog timer).
+	 */
+	if (del_timer(&ep->stop_cmd_timer))
+		ep->stop_cmds_pending--;
+}
+
+/* Must be called with xhci->lock held in interrupt context */
+static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
+		struct xhci_td *cur_td, int status, char *adjective)
+{
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+
+	cur_td->urb->hcpriv = NULL;
+	usb_hcd_unlink_urb_from_ep(hcd, cur_td->urb);
+	xhci_dbg(xhci, "Giveback %s URB %p\n", adjective, cur_td->urb);
+
+	spin_unlock(&xhci->lock);
+	usb_hcd_giveback_urb(hcd, cur_td->urb, status);
+	kfree(cur_td);
+	spin_lock(&xhci->lock);
+	xhci_dbg(xhci, "%s URB given back\n", adjective);
+}
+
 /*
  * When we get a command completion for a Stop Endpoint Command, we need to
  * unlink any cancelled TDs from the ring.  There are two ways to do that:
@@ -508,7 +537,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	ep_ring = ep->ring;
 
 	if (list_empty(&ep->cancelled_td_list)) {
-		ep->ep_state &= ~EP_HALT_PENDING;
+		xhci_stop_watchdog_timer_in_irq(xhci, ep);
 		ring_ep_doorbell(xhci, slot_id, ep_index);
 		return;
 	}
@@ -540,7 +569,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 		list_del(&cur_td->td_list);
 	}
 	last_unlinked_td = cur_td;
-	ep->ep_state &= ~EP_HALT_PENDING;
+	xhci_stop_watchdog_timer_in_irq(xhci, ep);
 
 	/* If necessary, queue a Set Transfer Ring Dequeue Pointer command */
 	if (deq_state.new_deq_ptr && deq_state.new_deq_seg) {
@@ -568,21 +597,134 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 		hcd_stat_update(xhci->tp_stat, cur_td->urb->actual_length,
 				ktime_sub(stop_time, cur_td->start_time));
 #endif
-		cur_td->urb->hcpriv = NULL;
-		usb_hcd_unlink_urb_from_ep(xhci_to_hcd(xhci), cur_td->urb);
-
-		xhci_dbg(xhci, "Giveback cancelled URB %p\n", cur_td->urb);
-		spin_unlock(&xhci->lock);
 		/* Doesn't matter what we pass for status, since the core will
 		 * just overwrite it (because the URB has been unlinked).
 		 */
-		usb_hcd_giveback_urb(xhci_to_hcd(xhci), cur_td->urb, 0);
-		kfree(cur_td);
+		xhci_giveback_urb_in_irq(xhci, cur_td, 0, "cancelled");
 
-		spin_lock(&xhci->lock);
+		/* Stop processing the cancelled list if the watchdog timer is
+		 * running.
+		 */
+		if (xhci->xhc_state & XHCI_STATE_DYING)
+			return;
 	} while (cur_td != last_unlinked_td);
 
 	/* Return to the event handler with xhci->lock re-acquired */
+}
+
+/* Watchdog timer function for when a stop endpoint command fails to complete.
+ * In this case, we assume the host controller is broken or dying or dead.  The
+ * host may still be completing some other events, so we have to be careful to
+ * let the event ring handler and the URB dequeueing/enqueueing functions know
+ * through xhci->state.
+ *
+ * The timer may also fire if the host takes a very long time to respond to the
+ * command, and the stop endpoint command completion handler cannot delete the
+ * timer before the timer function is called.  Another endpoint cancellation may
+ * sneak in before the timer function can grab the lock, and that may queue
+ * another stop endpoint command and add the timer back.  So we cannot use a
+ * simple flag to say whether there is a pending stop endpoint command for a
+ * particular endpoint.
+ *
+ * Instead we use a combination of that flag and a counter for the number of
+ * pending stop endpoint commands.  If the timer is the tail end of the last
+ * stop endpoint command, and the endpoint's command is still pending, we assume
+ * the host is dying.
+ */
+void xhci_stop_endpoint_command_watchdog(unsigned long arg)
+{
+	struct xhci_hcd *xhci;
+	struct xhci_virt_ep *ep;
+	struct xhci_virt_ep *temp_ep;
+	struct xhci_ring *ring;
+	struct xhci_td *cur_td;
+	int ret, i, j;
+
+	ep = (struct xhci_virt_ep *) arg;
+	xhci = ep->xhci;
+
+	spin_lock(&xhci->lock);
+
+	ep->stop_cmds_pending--;
+	if (xhci->xhc_state & XHCI_STATE_DYING) {
+		xhci_dbg(xhci, "Stop EP timer ran, but another timer marked "
+				"xHCI as DYING, exiting.\n");
+		spin_unlock(&xhci->lock);
+		return;
+	}
+	if (!(ep->stop_cmds_pending == 0 && (ep->ep_state & EP_HALT_PENDING))) {
+		xhci_dbg(xhci, "Stop EP timer ran, but no command pending, "
+				"exiting.\n");
+		spin_unlock(&xhci->lock);
+		return;
+	}
+
+	xhci_warn(xhci, "xHCI host not responding to stop endpoint command.\n");
+	xhci_warn(xhci, "Assuming host is dying, halting host.\n");
+	/* Oops, HC is dead or dying or at least not responding to the stop
+	 * endpoint command.
+	 */
+	xhci->xhc_state |= XHCI_STATE_DYING;
+	/* Disable interrupts from the host controller and start halting it */
+	xhci_quiesce(xhci);
+	spin_unlock(&xhci->lock);
+
+	ret = xhci_halt(xhci);
+
+	spin_lock(&xhci->lock);
+	if (ret < 0) {
+		/* This is bad; the host is not responding to commands and it's
+		 * not allowing itself to be halted.  At least interrupts are
+		 * disabled, so we can set HC_STATE_HALT and notify the
+		 * USB core.  But if we call usb_hc_died(), it will attempt to
+		 * disconnect all device drivers under this host.  Those
+		 * disconnect() methods will wait for all URBs to be unlinked,
+		 * so we must complete them.
+		 */
+		xhci_warn(xhci, "Non-responsive xHCI host is not halting.\n");
+		xhci_warn(xhci, "Completing active URBs anyway.\n");
+		/* We could turn all TDs on the rings to no-ops.  This won't
+		 * help if the host has cached part of the ring, and is slow if
+		 * we want to preserve the cycle bit.  Skip it and hope the host
+		 * doesn't touch the memory.
+		 */
+	}
+	for (i = 0; i < MAX_HC_SLOTS; i++) {
+		if (!xhci->devs[i])
+			continue;
+		for (j = 0; j < 31; j++) {
+			temp_ep = &xhci->devs[i]->eps[j];
+			ring = temp_ep->ring;
+			if (!ring)
+				continue;
+			xhci_dbg(xhci, "Killing URBs for slot ID %u, "
+					"ep index %u\n", i, j);
+			while (!list_empty(&ring->td_list)) {
+				cur_td = list_first_entry(&ring->td_list,
+						struct xhci_td,
+						td_list);
+				list_del(&cur_td->td_list);
+				if (!list_empty(&cur_td->cancelled_td_list))
+					list_del(&cur_td->cancelled_td_list);
+				xhci_giveback_urb_in_irq(xhci, cur_td,
+						-ESHUTDOWN, "killed");
+			}
+			while (!list_empty(&temp_ep->cancelled_td_list)) {
+				cur_td = list_first_entry(
+						&temp_ep->cancelled_td_list,
+						struct xhci_td,
+						cancelled_td_list);
+				list_del(&cur_td->cancelled_td_list);
+				xhci_giveback_urb_in_irq(xhci, cur_td,
+						-ESHUTDOWN, "killed");
+			}
+		}
+	}
+	spin_unlock(&xhci->lock);
+	xhci_to_hcd(xhci)->state = HC_STATE_HALT;
+	xhci_dbg(xhci, "Calling usb_hc_died()\n");
+	usb_hc_died(xhci_to_hcd(xhci));
+	xhci_dbg(xhci, "xHCI host controller is dead.\n");
 }
 
 /*
@@ -1332,6 +1474,14 @@ void xhci_handle_event(struct xhci_hcd *xhci)
 		break;
 	default:
 		xhci->error_bitmask |= 1 << 3;
+	}
+	/* Any of the above functions may drop and re-acquire the lock, so check
+	 * to make sure a watchdog timer didn't mark the host as non-responsive.
+	 */
+	if (xhci->xhc_state & XHCI_STATE_DYING) {
+		xhci_dbg(xhci, "xHCI host dying, returning from "
+				"event handler.\n");
+		return;
 	}
 
 	if (update_ptrs) {
