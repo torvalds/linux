@@ -169,6 +169,12 @@ config ARCH_HAS_CPU_IDLE_WAIT
 config IO_TRAPPED
 	bool
 
+config DMA_COHERENT
+	bool
+
+config DMA_NONCOHERENT
+	def_bool !DMA_COHERENT
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -217,6 +223,7 @@ config CPU_SHX2
 
 config CPU_SHX3
 	bool
+	select DMA_COHERENT
 
 config ARCH_SHMOBILE
 	bool

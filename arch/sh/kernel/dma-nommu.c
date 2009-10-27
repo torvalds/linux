@@ -44,6 +44,7 @@ static int nommu_map_sg(struct device *dev, struct scatterlist *sg,
 	return nents;
 }
 
+#ifdef CONFIG_DMA_NONCOHERENT
 static void nommu_sync_single(struct device *dev, dma_addr_t addr,
 			      size_t size, enum dma_data_direction dir)
 {
@@ -59,14 +60,17 @@ static void nommu_sync_sg(struct device *dev, struct scatterlist *sg,
 	for_each_sg(sg, s, nelems, i)
 		dma_cache_sync(dev, sg_virt(s), s->length, dir);
 }
+#endif
 
 struct dma_map_ops nommu_dma_ops = {
 	.alloc_coherent		= dma_generic_alloc_coherent,
 	.free_coherent		= dma_generic_free_coherent,
 	.map_page		= nommu_map_page,
 	.map_sg			= nommu_map_sg,
+#ifdef CONFIG_DMA_NONCOHERENT
 	.sync_single_for_device	= nommu_sync_single,
 	.sync_sg_for_device	= nommu_sync_sg,
+#endif
 	.is_phys		= 1,
 };
 
