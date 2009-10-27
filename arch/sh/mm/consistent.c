@@ -27,8 +27,6 @@ EXPORT_SYMBOL(dma_ops);
 static int __init dma_init(void)
 {
 	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-
-	no_iommu_init();
 	return 0;
 }
 fs_initcall(dma_init);
