@@ -1387,6 +1387,26 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 	return 0;
 }
 
+static bool need_dynamic_ps(struct ieee80211_local *local)
+{
+	/* driver doesn't support power save */
+	if (!(local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK))
+		return false;
+
+	/* dynamic power save disabled */
+	if (local->hw.conf.dynamic_ps_timeout <= 0)
+		return false;
+
+	/* we are scanning, don't enable power save */
+	if (local->scanning)
+		return false;
+
+	if (!local->ps_sdata)
+		return false;
+
+	return true;
+}
+
 static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 			   struct sk_buff *skb)
 {
@@ -1399,9 +1419,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 
 	dev_hold(sdata->dev);
 
-	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
-	    local->hw.conf.dynamic_ps_timeout > 0 &&
-	    !(local->scanning) && local->ps_sdata) {
+	if (need_dynamic_ps(local)) {
 		if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 			ieee80211_stop_queues_by_reason(&local->hw,
 					IEEE80211_QUEUE_STOP_REASON_PS);
