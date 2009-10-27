@@ -3002,6 +3002,10 @@ link_up:
 		}
 	}
 
+	/* Force detection of hung controller every watchdog period */
+	for (i = 0; i < adapter->num_tx_queues; i++)
+		adapter->tx_ring[i].detect_tx_hung = true;
+
 	/* Cause software interrupt to ensure rx ring is cleaned */
 	if (adapter->msix_entries) {
 		u32 eics = 0;
@@ -3013,9 +3017,6 @@ link_up:
 	} else {
 		wr32(E1000_ICS, E1000_ICS_RXDMT0);
 	}
-
-	/* Force detection of hung controller every watchdog period */
-	tx_ring->detect_tx_hung = true;
 
 	/* Reset the timer */
 	if (!test_bit(__IGB_DOWN, &adapter->state))
@@ -3667,6 +3668,7 @@ static void igb_tx_timeout(struct net_device *netdev)
 
 	/* Do the reset outside of interrupt context */
 	adapter->tx_timeout_count++;
+
 	schedule_work(&adapter->reset_task);
 	wr32(E1000_EICS,
 	     (adapter->eims_enable_mask & ~adapter->eims_other));
@@ -4804,7 +4806,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 				readl(tx_ring->tail),
 				tx_ring->next_to_use,
 				tx_ring->next_to_clean,
-				tx_ring->buffer_info[i].time_stamp,
+				tx_ring->buffer_info[eop].time_stamp,
 				eop,
 				jiffies,
 				eop_desc->wb.status);
