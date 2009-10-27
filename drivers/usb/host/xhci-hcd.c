@@ -67,6 +67,25 @@ static int handshake(struct xhci_hcd *xhci, void __iomem *ptr,
 }
 
 /*
+ * Disable interrupts and begin the xHCI halting process.
+ */
+void xhci_quiesce(struct xhci_hcd *xhci)
+{
+	u32 halted;
+	u32 cmd;
+	u32 mask;
+
+	mask = ~(XHCI_IRQS);
+	halted = xhci_readl(xhci, &xhci->op_regs->status) & STS_HALT;
+	if (!halted)
+		mask &= ~CMD_RUN;
+
+	cmd = xhci_readl(xhci, &xhci->op_regs->command);
+	cmd &= mask;
+	xhci_writel(xhci, cmd, &xhci->op_regs->command);
+}
+
+/*
  * Force HC into halt state.
  *
  * Disable any IRQs and clear the run/stop bit.
@@ -77,20 +96,8 @@ static int handshake(struct xhci_hcd *xhci, void __iomem *ptr,
  */
 int xhci_halt(struct xhci_hcd *xhci)
 {
-	u32 halted;
-	u32 cmd;
-	u32 mask;
-
 	xhci_dbg(xhci, "// Halt the HC\n");
-	/* Disable all interrupts from the host controller */
-	mask = ~(XHCI_IRQS);
-	halted = xhci_readl(xhci, &xhci->op_regs->status) & STS_HALT;
-	if (!halted)
-		mask &= ~CMD_RUN;
-
-	cmd = xhci_readl(xhci, &xhci->op_regs->command);
-	cmd &= mask;
-	xhci_writel(xhci, cmd, &xhci->op_regs->command);
+	xhci_quiesce(xhci);
 
 	return handshake(xhci, &xhci->op_regs->status,
 			STS_HALT, STS_HALT, XHCI_MAX_HALT_USEC);
@@ -124,28 +131,6 @@ int xhci_reset(struct xhci_hcd *xhci)
 	return handshake(xhci, &xhci->op_regs->command, CMD_RESET, 0, 250 * 1000);
 }
 
-/*
- * Stop the HC from processing the endpoint queues.
- */
-static void xhci_quiesce(struct xhci_hcd *xhci)
-{
-	/*
-	 * Queues are per endpoint, so we need to disable an endpoint or slot.
-	 *
-	 * To disable a slot, we need to insert a disable slot command on the
-	 * command ring and ring the doorbell.  This will also free any internal
-	 * resources associated with the slot (which might not be what we want).
-	 *
-	 * A Release Endpoint command sounds better - doesn't free internal HC
-	 * memory, but removes the endpoints from the schedule and releases the
-	 * bandwidth, disables the doorbells, and clears the endpoint enable
-	 * flag.  Usually used prior to a set interface command.
-	 *
-	 * TODO: Implement after command ring code is done.
-	 */
-	BUG_ON(!HC_IS_RUNNING(xhci_to_hcd(xhci)->state));
-	xhci_dbg(xhci, "Finished quiescing -- code not written yet\n");
-}
 
 #if 0
 /* Set up MSI-X table for entry 0 (may claim other entries later) */
@@ -490,8 +475,6 @@ void xhci_stop(struct usb_hcd *hcd)
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
 	spin_lock_irq(&xhci->lock);
-	if (HC_IS_RUNNING(hcd->state))
-		xhci_quiesce(xhci);
 	xhci_halt(xhci);
 	xhci_reset(xhci);
 	spin_unlock_irq(&xhci->lock);

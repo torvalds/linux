@@ -1223,6 +1223,7 @@ void xhci_unregister_pci(void);
 #endif
 
 /* xHCI host controller glue */
+void xhci_quiesce(struct xhci_hcd *xhci);
 int xhci_halt(struct xhci_hcd *xhci);
 int xhci_reset(struct xhci_hcd *xhci);
 int xhci_init(struct usb_hcd *hcd);
