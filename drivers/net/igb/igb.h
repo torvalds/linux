@@ -198,7 +198,7 @@ struct igb_ring {
 		/* RX */
 		struct {
 			struct igb_rx_queue_stats rx_stats;
-			u64 rx_queue_drops;
+			u32 rx_buffer_len;
 		};
 	};
 };
@@ -218,7 +218,6 @@ struct igb_adapter {
 	struct vlan_group *vlgrp;
 	u16 mng_vlan_id;
 	u32 bd_number;
-	u32 rx_buffer_len;
 	u32 wol;
 	u32 en_mng_pt;
 	u16 link_speed;

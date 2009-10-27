@@ -443,6 +443,7 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		ring->count = adapter->rx_ring_count;
 		ring->queue_index = i;
 		ring->pdev = adapter->pdev;
+		ring->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 	}
 
 	igb_cache_ring_register(adapter);
@@ -1863,7 +1864,6 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 
 	adapter->tx_ring_count = IGB_DEFAULT_TXD;
 	adapter->rx_ring_count = IGB_DEFAULT_RXD;
-	adapter->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
@@ -2358,8 +2358,8 @@ static void igb_configure_rx_ring(struct igb_adapter *adapter,
 	writel(0, ring->tail);
 
 	/* set descriptor configuration */
-	if (adapter->rx_buffer_len < IGB_RXBUFFER_1024) {
-		srrctl = ALIGN(adapter->rx_buffer_len, 64) <<
+	if (ring->rx_buffer_len < IGB_RXBUFFER_1024) {
+		srrctl = ALIGN(ring->rx_buffer_len, 64) <<
 		         E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
 #if (PAGE_SIZE / 2) > IGB_RXBUFFER_16384
 		srrctl |= IGB_RXBUFFER_16384 >>
@@ -2370,7 +2370,7 @@ static void igb_configure_rx_ring(struct igb_adapter *adapter,
 #endif
 		srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
 	} else {
-		srrctl = ALIGN(adapter->rx_buffer_len, 1024) >>
+		srrctl = ALIGN(ring->rx_buffer_len, 1024) >>
 		         E1000_SRRCTL_BSIZEPKT_SHIFT;
 		srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 	}
@@ -2619,7 +2619,6 @@ static void igb_free_all_rx_resources(struct igb_adapter *adapter)
  **/
 static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 {
-	struct igb_adapter *adapter = rx_ring->q_vector->adapter;
 	struct igb_buffer *buffer_info;
 	unsigned long size;
 	unsigned int i;
@@ -2632,7 +2631,7 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 		if (buffer_info->dma) {
 			pci_unmap_single(rx_ring->pdev,
 			                 buffer_info->dma,
-					 adapter->rx_buffer_len,
+					 rx_ring->rx_buffer_len,
 					 PCI_DMA_FROMDEVICE);
 			buffer_info->dma = 0;
 		}
@@ -3746,6 +3745,7 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
+	u32 rx_buffer_len, i;
 
 	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
 	    (max_frame > MAX_JUMBO_FRAME_SIZE)) {
@@ -3763,9 +3763,6 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 
 	/* igb_down has a dependency on max_frame_size */
 	adapter->max_frame_size = max_frame;
-	if (netif_running(netdev))
-		igb_down(adapter);
-
 	/* NOTE: netdev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
 	 * means we reserve 2 more, this pushes us to allocate from the next
 	 * larger slab size.
@@ -3773,15 +3770,21 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 	 */
 
 	if (max_frame <= IGB_RXBUFFER_1024)
-		adapter->rx_buffer_len = IGB_RXBUFFER_1024;
+		rx_buffer_len = IGB_RXBUFFER_1024;
 	else if (max_frame <= MAXIMUM_ETHERNET_VLAN_SIZE)
-		adapter->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
+		rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 	else
-		adapter->rx_buffer_len = IGB_RXBUFFER_128;
+		rx_buffer_len = IGB_RXBUFFER_128;
+
+	if (netif_running(netdev))
+		igb_down(adapter);
 
 	dev_info(&adapter->pdev->dev, "changing MTU from %d to %d\n",
 		 netdev->mtu, new_mtu);
 	netdev->mtu = new_mtu;
+
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		adapter->rx_ring[i].rx_buffer_len = rx_buffer_len;
 
 	if (netif_running(netdev))
 		igb_up(adapter);
@@ -4828,7 +4831,7 @@ static inline void igb_rx_checksum_adv(struct igb_adapter *adapter,
 	dev_dbg(&adapter->pdev->dev, "cksum success: bits %08X\n", status_err);
 }
 
-static inline u16 igb_get_hlen(struct igb_adapter *adapter,
+static inline u16 igb_get_hlen(struct igb_ring *rx_ring,
                                union e1000_adv_rx_desc *rx_desc)
 {
 	/* HW will not DMA in data larger than the given buffer, even if it
@@ -4837,8 +4840,8 @@ static inline u16 igb_get_hlen(struct igb_adapter *adapter,
 	 */
 	u16 hlen = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hdr_info) &
 	           E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT;
-	if (hlen > adapter->rx_buffer_len)
-		hlen = adapter->rx_buffer_len;
+	if (hlen > rx_ring->rx_buffer_len)
+		hlen = rx_ring->rx_buffer_len;
 	return hlen;
 }
 
@@ -4888,14 +4891,14 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 
 		if (buffer_info->dma) {
 			pci_unmap_single(pdev, buffer_info->dma,
-					 adapter->rx_buffer_len,
+					 rx_ring->rx_buffer_len,
 					 PCI_DMA_FROMDEVICE);
 			buffer_info->dma = 0;
-			if (adapter->rx_buffer_len >= IGB_RXBUFFER_1024) {
+			if (rx_ring->rx_buffer_len >= IGB_RXBUFFER_1024) {
 				skb_put(skb, length);
 				goto send_up;
 			}
-			skb_put(skb, igb_get_hlen(adapter, rx_desc));
+			skb_put(skb, igb_get_hlen(rx_ring, rx_desc));
 		}
 
 		if (length) {
@@ -5034,7 +5037,7 @@ static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 	i = rx_ring->next_to_use;
 	buffer_info = &rx_ring->buffer_info[i];
 
-	bufsz = adapter->rx_buffer_len;
+	bufsz = rx_ring->rx_buffer_len;
 
 	while (cleaned_count--) {
 		rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
