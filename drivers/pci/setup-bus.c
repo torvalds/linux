@@ -299,17 +299,8 @@ static struct resource *find_free_bus_resource(struct pci_bus *bus, unsigned lon
 		r = bus->resource[i];
 		if (r == &ioport_resource || r == &iomem_resource)
 			continue;
-		if (r && (r->flags & type_mask) == type) {
-			if (!r->parent)
-				return r;
-			/*
-			 * if there is no child under that, we should release
-			 * and use it. don't need to reset it, pbus_size_* will
-			 * set it again
-			 */
-			if (!r->child && !release_resource(r))
-				return r;
-		}
+		if (r && (r->flags & type_mask) == type && !r->parent)
+			return r;
 	}
 	return NULL;
 }
