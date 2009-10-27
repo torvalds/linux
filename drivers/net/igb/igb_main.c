@@ -90,6 +90,7 @@ static int igb_open(struct net_device *);
 static int igb_close(struct net_device *);
 static void igb_configure_tx(struct igb_adapter *);
 static void igb_configure_rx(struct igb_adapter *);
+static void igb_setup_tctl(struct igb_adapter *);
 static void igb_setup_rctl(struct igb_adapter *);
 static void igb_clean_all_tx_rings(struct igb_adapter *);
 static void igb_clean_all_rx_rings(struct igb_adapter *);
@@ -1101,8 +1102,10 @@ static void igb_configure(struct igb_adapter *adapter)
 
 	igb_restore_vlan(adapter);
 
-	igb_configure_tx(adapter);
+	igb_setup_tctl(adapter);
 	igb_setup_rctl(adapter);
+
+	igb_configure_tx(adapter);
 	igb_configure_rx(adapter);
 
 	igb_rx_fifo_flush_82575(&adapter->hw);
@@ -2069,49 +2072,16 @@ static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 }
 
 /**
- * igb_configure_tx - Configure transmit Unit after Reset
- * @adapter: board private structure
- *
- * Configure the Tx unit of the MAC after a reset.
+ * igb_setup_tctl - configure the transmit control registers
+ * @adapter: Board private structure
  **/
-static void igb_configure_tx(struct igb_adapter *adapter)
+static void igb_setup_tctl(struct igb_adapter *adapter)
 {
-	u64 tdba;
 	struct e1000_hw *hw = &adapter->hw;
 	u32 tctl;
-	u32 txdctl, txctrl;
-	int i, j;
 
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		struct igb_ring *ring = &adapter->tx_ring[i];
-		j = ring->reg_idx;
-		wr32(E1000_TDLEN(j),
-		     ring->count * sizeof(union e1000_adv_tx_desc));
-		tdba = ring->dma;
-		wr32(E1000_TDBAL(j),
-		     tdba & 0x00000000ffffffffULL);
-		wr32(E1000_TDBAH(j), tdba >> 32);
-
-		ring->head = E1000_TDH(j);
-		ring->tail = E1000_TDT(j);
-		writel(0, hw->hw_addr + ring->tail);
-		writel(0, hw->hw_addr + ring->head);
-		txdctl = rd32(E1000_TXDCTL(j));
-		txdctl |= E1000_TXDCTL_QUEUE_ENABLE;
-		wr32(E1000_TXDCTL(j), txdctl);
-
-		/* Turn off Relaxed Ordering on head write-backs.  The
-		 * writebacks MUST be delivered in order or it will
-		 * completely screw up our bookeeping.
-		 */
-		txctrl = rd32(E1000_DCA_TXCTRL(j));
-		txctrl &= ~E1000_DCA_TXCTRL_TX_WB_RO_EN;
-		wr32(E1000_DCA_TXCTRL(j), txctrl);
-	}
-
-	/* disable queue 0 to prevent tail bump w/o re-configuration */
-	if (adapter->vfs_allocated_count)
-		wr32(E1000_TXDCTL(0), 0);
+	/* disable queue 0 which is enabled by default on 82575 and 82576 */
+	wr32(E1000_TXDCTL(0), 0);
 
 	/* Program the Transmit Control Register */
 	tctl = rd32(E1000_TCTL);
@@ -2121,13 +2091,68 @@ static void igb_configure_tx(struct igb_adapter *adapter)
 
 	igb_config_collision_dist(hw);
 
-	/* Setup Transmit Descriptor Settings for eop descriptor */
-	adapter->txd_cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
-
 	/* Enable transmits */
 	tctl |= E1000_TCTL_EN;
 
 	wr32(E1000_TCTL, tctl);
+}
+
+/**
+ * igb_configure_tx_ring - Configure transmit ring after Reset
+ * @adapter: board private structure
+ * @ring: tx ring to configure
+ *
+ * Configure a transmit ring after a reset.
+ **/
+static void igb_configure_tx_ring(struct igb_adapter *adapter,
+                                  struct igb_ring *ring)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 txdctl;
+	u64 tdba = ring->dma;
+	int reg_idx = ring->reg_idx;
+
+	/* disable the queue */
+	txdctl = rd32(E1000_TXDCTL(reg_idx));
+	wr32(E1000_TXDCTL(reg_idx),
+	                txdctl & ~E1000_TXDCTL_QUEUE_ENABLE);
+	wrfl();
+	mdelay(10);
+
+	wr32(E1000_TDLEN(reg_idx),
+	                ring->count * sizeof(union e1000_adv_tx_desc));
+	wr32(E1000_TDBAL(reg_idx),
+	                tdba & 0x00000000ffffffffULL);
+	wr32(E1000_TDBAH(reg_idx), tdba >> 32);
+
+	ring->head = E1000_TDH(reg_idx);
+	ring->tail = E1000_TDT(reg_idx);
+	writel(0, hw->hw_addr + ring->tail);
+	writel(0, hw->hw_addr + ring->head);
+
+	txdctl |= IGB_TX_PTHRESH;
+	txdctl |= IGB_TX_HTHRESH << 8;
+	txdctl |= IGB_TX_WTHRESH << 16;
+
+	txdctl |= E1000_TXDCTL_QUEUE_ENABLE;
+	wr32(E1000_TXDCTL(reg_idx), txdctl);
+}
+
+/**
+ * igb_configure_tx - Configure transmit Unit after Reset
+ * @adapter: board private structure
+ *
+ * Configure the Tx unit of the MAC after a reset.
+ **/
+static void igb_configure_tx(struct igb_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_tx_queues; i++)
+		igb_configure_tx_ring(adapter, &adapter->tx_ring[i]);
+
+	/* Setup Transmit Descriptor Settings for eop descriptor */
+	adapter->txd_cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
 }
 
 /**
@@ -2334,6 +2359,49 @@ static void igb_configure_vt_default_pool(struct igb_adapter *adapter)
 }
 
 /**
+ * igb_configure_rx_ring - Configure a receive ring after Reset
+ * @adapter: board private structure
+ * @ring: receive ring to be configured
+ *
+ * Configure the Rx unit of the MAC after a reset.
+ **/
+static void igb_configure_rx_ring(struct igb_adapter *adapter,
+                                  struct igb_ring *ring)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u64 rdba = ring->dma;
+	int reg_idx = ring->reg_idx;
+	u32 rxdctl;
+
+	/* disable the queue */
+	rxdctl = rd32(E1000_RXDCTL(reg_idx));
+	wr32(E1000_RXDCTL(reg_idx),
+	                rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
+
+	/* Set DMA base address registers */
+	wr32(E1000_RDBAL(reg_idx),
+	     rdba & 0x00000000ffffffffULL);
+	wr32(E1000_RDBAH(reg_idx), rdba >> 32);
+	wr32(E1000_RDLEN(reg_idx),
+	               ring->count * sizeof(union e1000_adv_rx_desc));
+
+	/* initialize head and tail */
+	ring->head = E1000_RDH(reg_idx);
+	ring->tail = E1000_RDT(reg_idx);
+	writel(0, hw->hw_addr + ring->head);
+	writel(0, hw->hw_addr + ring->tail);
+
+	/* enable receive descriptor fetching */
+	rxdctl = rd32(E1000_RXDCTL(reg_idx));
+	rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
+	rxdctl &= 0xFFF00000;
+	rxdctl |= IGB_RX_PTHRESH;
+	rxdctl |= IGB_RX_HTHRESH << 8;
+	rxdctl |= IGB_RX_WTHRESH << 16;
+	wr32(E1000_RXDCTL(reg_idx), rxdctl);
+}
+
+/**
  * igb_configure_rx - Configure receive Unit after Reset
  * @adapter: board private structure
  *
@@ -2341,10 +2409,8 @@ static void igb_configure_vt_default_pool(struct igb_adapter *adapter)
  **/
 static void igb_configure_rx(struct igb_adapter *adapter)
 {
-	u64 rdba;
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl, rxcsum;
-	u32 rxdctl;
 	int i;
 
 	/* disable receives while setting up the descriptors */
@@ -2358,29 +2424,8 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring */
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct igb_ring *ring = &adapter->rx_ring[i];
-		int j = ring->reg_idx;
-		rdba = ring->dma;
-		wr32(E1000_RDBAL(j),
-		     rdba & 0x00000000ffffffffULL);
-		wr32(E1000_RDBAH(j), rdba >> 32);
-		wr32(E1000_RDLEN(j),
-		     ring->count * sizeof(union e1000_adv_rx_desc));
-
-		ring->head = E1000_RDH(j);
-		ring->tail = E1000_RDT(j);
-		writel(0, hw->hw_addr + ring->tail);
-		writel(0, hw->hw_addr + ring->head);
-
-		rxdctl = rd32(E1000_RXDCTL(j));
-		rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
-		rxdctl &= 0xFFF00000;
-		rxdctl |= IGB_RX_PTHRESH;
-		rxdctl |= IGB_RX_HTHRESH << 8;
-		rxdctl |= IGB_RX_WTHRESH << 16;
-		wr32(E1000_RXDCTL(j), rxdctl);
-	}
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		igb_configure_rx_ring(adapter, &adapter->rx_ring[i]);
 
 	if (adapter->num_rx_queues > 1) {
 		u32 random[10];

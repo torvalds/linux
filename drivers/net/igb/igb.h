@@ -87,9 +87,13 @@ struct vf_data_storage {
  *           descriptors until either it has this many to write back, or the
  *           ITR timer expires.
  */
-#define IGB_RX_PTHRESH                    16
+#define IGB_RX_PTHRESH                    (hw->mac.type <= e1000_82576 ? 16 : 8)
 #define IGB_RX_HTHRESH                     8
 #define IGB_RX_WTHRESH                     1
+#define IGB_TX_PTHRESH                     8
+#define IGB_TX_HTHRESH                     1
+#define IGB_TX_WTHRESH                     ((hw->mac.type == e1000_82576 && \
+                                             adapter->msix_entries) ? 0 : 16)
 
 /* this is the size past which hardware will drop packets when setting LPE=0 */
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
