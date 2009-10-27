@@ -1390,7 +1390,11 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 static bool need_dynamic_ps(struct ieee80211_local *local)
 {
 	/* driver doesn't support power save */
-	if (!(local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK))
+	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
+		return false;
+
+	/* hardware does dynamic power save */
+	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
 		return false;
 
 	/* dynamic power save disabled */
