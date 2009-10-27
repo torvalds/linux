@@ -2257,11 +2257,23 @@ static void cfq_insert_request(struct request_queue *q, struct request *rq)
  */
 static void cfq_update_hw_tag(struct cfq_data *cfqd)
 {
+	struct cfq_queue *cfqq = cfqd->active_queue;
+
 	if (rq_in_driver(cfqd) > cfqd->rq_in_driver_peak)
 		cfqd->rq_in_driver_peak = rq_in_driver(cfqd);
 
 	if (cfqd->rq_queued <= CFQ_HW_QUEUE_MIN &&
 	    rq_in_driver(cfqd) <= CFQ_HW_QUEUE_MIN)
+		return;
+
+	/*
+	 * If active queue hasn't enough requests and can idle, cfq might not
+	 * dispatch sufficient requests to hardware. Don't zero hw_tag in this
+	 * case
+	 */
+	if (cfqq && cfq_cfqq_idle_window(cfqq) &&
+	    cfqq->dispatched + cfqq->queued[0] + cfqq->queued[1] <
+	    CFQ_HW_QUEUE_MIN && rq_in_driver(cfqd) < CFQ_HW_QUEUE_MIN)
 		return;
 
 	if (cfqd->hw_tag_samples++ < 50)
