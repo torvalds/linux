@@ -65,8 +65,8 @@ static struct {
 
 #define semantic_error(msg ...) die("Semantic error :" msg)
 
-static int parse_probepoint(const struct option *opt __used,
-			    const char *str, int unset __used)
+/* Parse a probe point. Note that any error must die. */
+static void parse_probepoint(const char *str)
 {
 	char *argv[MAX_PROBE_ARGS + 2];	/* Event + probe + args */
 	int argc, i;
@@ -74,9 +74,6 @@ static int parse_probepoint(const struct option *opt __used,
 	struct probe_point *pp = &session.probes[session.nr_probe];
 	char **event = &session.events[session.nr_probe];
 	int retp = 0;
-
-	if (!str)	/* The end of probe points */
-		return 0;
 
 	pr_debug("probe-definition(%d): %s\n", session.nr_probe, str);
 	if (++session.nr_probe == MAX_PROBES)
@@ -176,6 +173,13 @@ static int parse_probepoint(const struct option *opt __used,
 		}
 
 	pr_debug("%d arguments\n", pp->nr_args);
+}
+
+static int opt_add_probepoint(const struct option *opt __used,
+			      const char *str, int unset __used)
+{
+	if (str)
+		parse_probepoint(str);
 	return 0;
 }
 
@@ -211,7 +215,8 @@ static int open_default_vmlinux(void)
 #endif
 
 static const char * const probe_usage[] = {
-	"perf probe [<options>] -P 'PROBEDEF' [-P 'PROBEDEF' ...]",
+	"perf probe [<options>] 'PROBEDEF' ['PROBEDEF' ...]",
+	"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
 	NULL
 };
 
@@ -222,7 +227,7 @@ static const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &session.vmlinux, "file",
 		"vmlinux/module pathname"),
 #endif
-	OPT_CALLBACK('P', "probe", NULL,
+	OPT_CALLBACK('a', "add", NULL,
 #ifdef NO_LIBDWARF
 		"p|r:[GRP/]NAME FUNC[+OFFS] [ARG ...]",
 #else
@@ -243,7 +248,7 @@ static const struct option options[] = {
 		"\t\tARG:\tProbe argument (local variable name or\n"
 #endif
 		"\t\t\tkprobe-tracer argument format is supported.)\n",
-		parse_probepoint),
+		opt_add_probepoint),
 	OPT_END()
 };
 
@@ -296,8 +301,11 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	char buf[MAX_CMDLEN];
 
 	argc = parse_options(argc, argv, options, probe_usage,
-		PARSE_OPT_STOP_AT_NON_OPTION);
-	if (argc || session.nr_probe == 0)
+			     PARSE_OPT_STOP_AT_NON_OPTION);
+	for (i = 0; i < argc; i++)
+		parse_probe_event(argv[i]);
+
+	if (session.nr_probe == 0)
 		usage_with_options(probe_usage, options);
 
 #ifdef NO_LIBDWARF
