@@ -249,8 +249,8 @@ struct igb_adapter {
 	unsigned int total_rx_bytes;
 	unsigned int total_rx_packets;
 	/* Interrupt Throttle Rate */
-	u32 itr;
-	u32 itr_setting;
+	u32 rx_itr_setting;
+	u32 tx_itr_setting;
 	u16 tx_itr;
 	u16 rx_itr;
 
@@ -321,6 +321,7 @@ struct igb_adapter {
 #define IGB_FLAG_HAS_MSI           (1 << 0)
 #define IGB_FLAG_DCA_ENABLED       (1 << 1)
 #define IGB_FLAG_QUAD_PORT_A       (1 << 2)
+#define IGB_FLAG_QUEUE_PAIRS       (1 << 3)
 
 enum e1000_state_t {
 	__IGB_TESTING,

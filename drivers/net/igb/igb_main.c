@@ -734,6 +734,8 @@ msi_only:
 		dev_info(&adapter->pdev->dev, "IOV Disabled\n");
 	}
 #endif
+	adapter->vfs_allocated_count = 0;
+	adapter->flags |= IGB_FLAG_QUEUE_PAIRS;
 	adapter->num_rx_queues = 1;
 	adapter->num_tx_queues = 1;
 	adapter->num_q_vectors = 1;
@@ -791,7 +793,9 @@ static void igb_map_rx_ring_to_vector(struct igb_adapter *adapter,
 	q_vector = adapter->q_vector[v_idx];
 	q_vector->rx_ring = &adapter->rx_ring[ring_idx];
 	q_vector->rx_ring->q_vector = q_vector;
-	q_vector->itr_val = adapter->itr;
+	q_vector->itr_val = adapter->rx_itr_setting;
+	if (q_vector->itr_val && q_vector->itr_val <= 3)
+		q_vector->itr_val = IGB_START_ITR;
 }
 
 static void igb_map_tx_ring_to_vector(struct igb_adapter *adapter,
@@ -802,7 +806,9 @@ static void igb_map_tx_ring_to_vector(struct igb_adapter *adapter,
 	q_vector = adapter->q_vector[v_idx];
 	q_vector->tx_ring = &adapter->tx_ring[ring_idx];
 	q_vector->tx_ring->q_vector = q_vector;
-	q_vector->itr_val = adapter->itr;
+	q_vector->itr_val = adapter->tx_itr_setting;
+	if (q_vector->itr_val && q_vector->itr_val <= 3)
+		q_vector->itr_val = IGB_START_ITR;
 }
 
 /**
@@ -1597,9 +1603,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	hw->fc.requested_mode = e1000_fc_default;
 	hw->fc.current_mode = e1000_fc_default;
 
-	adapter->itr_setting = IGB_DEFAULT_ITR;
-	adapter->itr = IGB_START_ITR;
-
 	igb_validate_mdi_setting(hw);
 
 	/* Initial Wake on LAN setting If APM wake is enabled in the EEPROM,
@@ -1854,6 +1857,9 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 
 	adapter->tx_ring_count = IGB_DEFAULT_TXD;
 	adapter->rx_ring_count = IGB_DEFAULT_RXD;
+	adapter->rx_itr_setting = IGB_DEFAULT_ITR;
+	adapter->tx_itr_setting = IGB_DEFAULT_ITR;
+
 	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
@@ -3052,7 +3058,6 @@ enum latency_range {
 	latency_invalid = 255
 };
 
-
 /**
  * igb_update_ring_itr - update the dynamic ITR value based on packet size
  *
@@ -3216,7 +3221,7 @@ static void igb_set_itr(struct igb_adapter *adapter)
 	current_itr = max(adapter->rx_itr, adapter->tx_itr);
 
 	/* conservative mode (itr 3) eliminates the lowest_latency setting */
-	if (adapter->itr_setting == 3 && current_itr == lowest_latency)
+	if (adapter->rx_itr_setting == 3 && current_itr == lowest_latency)
 		current_itr = low_latency;
 
 	switch (current_itr) {
@@ -4577,7 +4582,8 @@ static inline void igb_ring_irq_enable(struct igb_q_vector *q_vector)
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (adapter->itr_setting & 3) {
+	if ((q_vector->rx_ring && (adapter->rx_itr_setting & 3)) ||
+	    (!q_vector->rx_ring && (adapter->tx_itr_setting & 3))) {
 		if (!adapter->msix_entries)
 			igb_set_itr(adapter);
 		else

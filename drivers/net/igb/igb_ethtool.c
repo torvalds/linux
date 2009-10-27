@@ -1827,18 +1827,37 @@ static int igb_set_coalesce(struct net_device *netdev,
 	    (ec->rx_coalesce_usecs == 2))
 		return -EINVAL;
 
+	if ((ec->tx_coalesce_usecs > IGB_MAX_ITR_USECS) ||
+	    ((ec->tx_coalesce_usecs > 3) &&
+	     (ec->tx_coalesce_usecs < IGB_MIN_ITR_USECS)) ||
+	    (ec->tx_coalesce_usecs == 2))
+		return -EINVAL;
+
+	if ((adapter->flags & IGB_FLAG_QUEUE_PAIRS) && ec->tx_coalesce_usecs)
+		return -EINVAL;
+
 	/* convert to rate of irq's per second */
-	if (ec->rx_coalesce_usecs && ec->rx_coalesce_usecs <= 3) {
-		adapter->itr_setting = ec->rx_coalesce_usecs;
-		adapter->itr = IGB_START_ITR;
-	} else {
-		adapter->itr_setting = ec->rx_coalesce_usecs << 2;
-		adapter->itr = adapter->itr_setting;
-	}
+	if (ec->rx_coalesce_usecs && ec->rx_coalesce_usecs <= 3)
+		adapter->rx_itr_setting = ec->rx_coalesce_usecs;
+	else
+		adapter->rx_itr_setting = ec->rx_coalesce_usecs << 2;
+
+	/* convert to rate of irq's per second */
+	if (adapter->flags & IGB_FLAG_QUEUE_PAIRS)
+		adapter->tx_itr_setting = adapter->rx_itr_setting;
+	else if (ec->tx_coalesce_usecs && ec->tx_coalesce_usecs <= 3)
+		adapter->tx_itr_setting = ec->tx_coalesce_usecs;
+	else
+		adapter->tx_itr_setting = ec->tx_coalesce_usecs << 2;
 
 	for (i = 0; i < adapter->num_q_vectors; i++) {
 		struct igb_q_vector *q_vector = adapter->q_vector[i];
-		q_vector->itr_val = adapter->itr;
+		if (q_vector->rx_ring)
+			q_vector->itr_val = adapter->rx_itr_setting;
+		else
+			q_vector->itr_val = adapter->tx_itr_setting;
+		if (q_vector->itr_val && q_vector->itr_val <= 3)
+			q_vector->itr_val = IGB_START_ITR;
 		q_vector->set_itr = 1;
 	}
 
@@ -1850,14 +1869,20 @@ static int igb_get_coalesce(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->itr_setting <= 3)
-		ec->rx_coalesce_usecs = adapter->itr_setting;
+	if (adapter->rx_itr_setting <= 3)
+		ec->rx_coalesce_usecs = adapter->rx_itr_setting;
 	else
-		ec->rx_coalesce_usecs = adapter->itr_setting >> 2;
+		ec->rx_coalesce_usecs = adapter->rx_itr_setting >> 2;
+
+	if (!(adapter->flags & IGB_FLAG_QUEUE_PAIRS)) {
+		if (adapter->tx_itr_setting <= 3)
+			ec->tx_coalesce_usecs = adapter->tx_itr_setting;
+		else
+			ec->tx_coalesce_usecs = adapter->tx_itr_setting >> 2;
+	}
 
 	return 0;
 }
-
 
 static int igb_nway_reset(struct net_device *netdev)
 {
