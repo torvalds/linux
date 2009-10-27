@@ -12,8 +12,6 @@
  * published by the Free Software Foundation.
  */
 
-/* TODO: figure out how to avoid that the "current BSS" expires */
-
 #include <linux/wireless.h>
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
