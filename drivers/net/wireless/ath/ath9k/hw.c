@@ -4363,7 +4363,8 @@ static struct {
 	/* Single-chip solutions */
 	{ AR_SREV_VERSION_9280,		"9280" },
 	{ AR_SREV_VERSION_9285,		"9285" },
-	{ AR_SREV_VERSION_9287,         "9287" }
+	{ AR_SREV_VERSION_9287,         "9287" },
+	{ AR_SREV_VERSION_9271,         "9271" },
 };
 
 /* For devices with external radios */
