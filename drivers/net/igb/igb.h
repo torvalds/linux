@@ -145,12 +145,15 @@ struct igb_buffer {
 struct igb_tx_queue_stats {
 	u64 packets;
 	u64 bytes;
+	u64 restart_queue;
 };
 
 struct igb_rx_queue_stats {
 	u64 packets;
 	u64 bytes;
 	u64 drops;
+	u64 csum_err;
+	u64 alloc_failed;
 };
 
 struct igb_q_vector {
@@ -241,7 +244,6 @@ struct igb_adapter {
 
 	/* TX */
 	struct igb_ring *tx_ring;      /* One per active queue */
-	unsigned int restart_queue;
 	unsigned long tx_queue_len;
 	u32 txd_cmd;
 	u32 gotc;
@@ -255,8 +257,6 @@ struct igb_adapter {
 	int num_tx_queues;
 	int num_rx_queues;
 
-	u64 hw_csum_err;
-	u32 alloc_rx_buff_failed;
 	u32 gorc;
 	u64 gorc_old;
 	u32 max_frame_size;

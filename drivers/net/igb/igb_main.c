@@ -3562,8 +3562,6 @@ static inline void igb_tx_queue_adv(struct igb_adapter *adapter,
 static int __igb_maybe_stop_tx(struct net_device *netdev,
 			       struct igb_ring *tx_ring, int size)
 {
-	struct igb_adapter *adapter = netdev_priv(netdev);
-
 	netif_stop_subqueue(netdev, tx_ring->queue_index);
 
 	/* Herbert's original patch had:
@@ -3578,7 +3576,7 @@ static int __igb_maybe_stop_tx(struct net_device *netdev,
 
 	/* A reprieve! */
 	netif_wake_subqueue(netdev, tx_ring->queue_index);
-	++adapter->restart_queue;
+	tx_ring->tx_stats.restart_queue++;
 	return 0;
 }
 
@@ -4734,7 +4732,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		if (__netif_subqueue_stopped(netdev, tx_ring->queue_index) &&
 		    !(test_bit(__IGB_DOWN, &adapter->state))) {
 			netif_wake_subqueue(netdev, tx_ring->queue_index);
-			++adapter->restart_queue;
+			tx_ring->tx_stats.restart_queue++;
 		}
 	}
 
@@ -4801,7 +4799,8 @@ static void igb_receive_skb(struct igb_q_vector *q_vector,
 		napi_gro_receive(&q_vector->napi, skb);
 }
 
-static inline void igb_rx_checksum_adv(struct igb_adapter *adapter,
+static inline void igb_rx_checksum_adv(struct igb_ring *ring,
+                                       struct igb_adapter *adapter,
 				       u32 status_err, struct sk_buff *skb)
 {
 	skb->ip_summed = CHECKSUM_NONE;
@@ -4820,7 +4819,7 @@ static inline void igb_rx_checksum_adv(struct igb_adapter *adapter,
 		 */
 		if (!((adapter->hw.mac.type == e1000_82576) &&
 		      (skb->len == 60)))
-			adapter->hw_csum_err++;
+			ring->rx_stats.csum_err++;
 		/* let the stack verify checksum errors */
 		return;
 	}
@@ -4979,7 +4978,7 @@ send_up:
 		total_bytes += skb->len;
 		total_packets++;
 
-		igb_rx_checksum_adv(adapter, staterr, skb);
+		igb_rx_checksum_adv(rx_ring, adapter, staterr, skb);
 
 		skb->protocol = eth_type_trans(skb, netdev);
 		skb_record_rx_queue(skb, rx_ring->queue_index);
@@ -5046,7 +5045,7 @@ static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 			if (!buffer_info->page) {
 				buffer_info->page = alloc_page(GFP_ATOMIC);
 				if (!buffer_info->page) {
-					adapter->alloc_rx_buff_failed++;
+					rx_ring->rx_stats.alloc_failed++;
 					goto no_buffers;
 				}
 				buffer_info->page_offset = 0;
@@ -5063,7 +5062,7 @@ static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 		if (!buffer_info->skb) {
 			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
 			if (!skb) {
-				adapter->alloc_rx_buff_failed++;
+				rx_ring->rx_stats.alloc_failed++;
 				goto no_buffers;
 			}
 

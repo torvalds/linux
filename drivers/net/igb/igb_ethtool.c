@@ -84,7 +84,6 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	{ "tx_single_coll_ok", IGB_STAT(stats.scc) },
 	{ "tx_multi_coll_ok", IGB_STAT(stats.mcc) },
 	{ "tx_timeout_count", IGB_STAT(tx_timeout_count) },
-	{ "tx_restart_queue", IGB_STAT(restart_queue) },
 	{ "rx_long_length_errors", IGB_STAT(stats.roc) },
 	{ "rx_short_length_errors", IGB_STAT(stats.ruc) },
 	{ "rx_align_errors", IGB_STAT(stats.algnerrc) },
@@ -95,9 +94,7 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	{ "tx_flow_control_xon", IGB_STAT(stats.xontxc) },
 	{ "tx_flow_control_xoff", IGB_STAT(stats.xofftxc) },
 	{ "rx_long_byte_count", IGB_STAT(stats.gorc) },
-	{ "rx_csum_offload_errors", IGB_STAT(hw_csum_err) },
 	{ "tx_dma_out_of_sync", IGB_STAT(stats.doosync) },
-	{ "alloc_rx_buff_failed", IGB_STAT(alloc_rx_buff_failed) },
 	{ "tx_smbus", IGB_STAT(stats.mgptc) },
 	{ "rx_smbus", IGB_STAT(stats.mgprc) },
 	{ "dropped_smbus", IGB_STAT(stats.mgpdc) },
@@ -2031,6 +2028,8 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "tx_queue_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
+			sprintf(p, "tx_queue_%u_restart", i);
+			p += ETH_GSTRING_LEN;
 		}
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			sprintf(p, "rx_queue_%u_packets", i);
@@ -2038,6 +2037,10 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 			sprintf(p, "rx_queue_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "rx_queue_%u_drops", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_csum_err", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_alloc_failed", i);
 			p += ETH_GSTRING_LEN;
 		}
 /*		BUG_ON(p - data != IGB_STATS_LEN * ETH_GSTRING_LEN); */
