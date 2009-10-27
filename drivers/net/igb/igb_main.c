@@ -1862,7 +1862,6 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 	adapter->tx_ring_count = IGB_DEFAULT_TXD;
 	adapter->rx_ring_count = IGB_DEFAULT_RXD;
 	adapter->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
-	adapter->rx_ps_hdr_size = 0; /* disable packet split */
 	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
@@ -2254,12 +2253,8 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	 */
 	rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_SZ_256);
 
-	/* enable LPE when to prevent packets larger than max_frame_size */
-		rctl |= E1000_RCTL_LPE;
-
-	/* Setup buffer sizes */
-	srrctl = ALIGN(adapter->rx_buffer_len, 1024)
-	         >> E1000_SRRCTL_BSIZEPKT_SHIFT;
+	/* enable LPE to prevent packets larger than max_frame_size */
+	rctl |= E1000_RCTL_LPE;
 
 	/* 82575 and greater support packet-split where the protocol
 	 * header is placed in skb->data and the packet data is
@@ -2270,13 +2265,20 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	 */
 	/* allocations using alloc_page take too long for regular MTU
 	 * so only enable packet split for jumbo frames */
-	if (adapter->netdev->mtu > ETH_DATA_LEN) {
-		adapter->rx_ps_hdr_size = IGB_RXBUFFER_128;
-		srrctl |= adapter->rx_ps_hdr_size <<
-			 E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
+	if (adapter->rx_buffer_len < IGB_RXBUFFER_1024) {
+		srrctl = ALIGN(adapter->rx_buffer_len, 64) <<
+		         E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
+#if (PAGE_SIZE / 2) > IGB_RXBUFFER_16384
+		srrctl |= IGB_RXBUFFER_16384 >>
+		          E1000_SRRCTL_BSIZEPKT_SHIFT;
+#else
+		srrctl |= (PAGE_SIZE / 2) >>
+		          E1000_SRRCTL_BSIZEPKT_SHIFT;
+#endif
 		srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
 	} else {
-		adapter->rx_ps_hdr_size = 0;
+		srrctl = ALIGN(adapter->rx_buffer_len, 1024) >>
+		         E1000_SRRCTL_BSIZEPKT_SHIFT;
 		srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 	}
 
@@ -2647,14 +2649,9 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 	for (i = 0; i < rx_ring->count; i++) {
 		buffer_info = &rx_ring->buffer_info[i];
 		if (buffer_info->dma) {
-			if (adapter->rx_ps_hdr_size)
-				pci_unmap_single(pdev, buffer_info->dma,
-						 adapter->rx_ps_hdr_size,
-						 PCI_DMA_FROMDEVICE);
-			else
-				pci_unmap_single(pdev, buffer_info->dma,
-						 adapter->rx_buffer_len,
-						 PCI_DMA_FROMDEVICE);
+			pci_unmap_single(pdev, buffer_info->dma,
+					 adapter->rx_buffer_len,
+					 PCI_DMA_FROMDEVICE);
 			buffer_info->dma = 0;
 		}
 
@@ -2662,14 +2659,15 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 			dev_kfree_skb(buffer_info->skb);
 			buffer_info->skb = NULL;
 		}
+		if (buffer_info->page_dma) {
+			pci_unmap_page(pdev, buffer_info->page_dma,
+				       PAGE_SIZE / 2,
+				       PCI_DMA_FROMDEVICE);
+			buffer_info->page_dma = 0;
+		}
 		if (buffer_info->page) {
-			if (buffer_info->page_dma)
-				pci_unmap_page(pdev, buffer_info->page_dma,
-					       PAGE_SIZE / 2,
-					       PCI_DMA_FROMDEVICE);
 			put_page(buffer_info->page);
 			buffer_info->page = NULL;
-			buffer_info->page_dma = 0;
 			buffer_info->page_offset = 0;
 		}
 	}
@@ -3792,19 +3790,10 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 
 	if (max_frame <= IGB_RXBUFFER_1024)
 		adapter->rx_buffer_len = IGB_RXBUFFER_1024;
-	else if (max_frame <= IGB_RXBUFFER_2048)
-		adapter->rx_buffer_len = IGB_RXBUFFER_2048;
-	else
-#if (PAGE_SIZE / 2) > IGB_RXBUFFER_16384
-		adapter->rx_buffer_len = IGB_RXBUFFER_16384;
-#else
-		adapter->rx_buffer_len = PAGE_SIZE / 2;
-#endif
-
-	/* adjust allocation if LPE protects us, and we aren't using SBP */
-	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN) ||
-	     (max_frame == MAXIMUM_ETHERNET_VLAN_SIZE))
+	else if (max_frame <= MAXIMUM_ETHERNET_VLAN_SIZE)
 		adapter->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
+	else
+		adapter->rx_buffer_len = IGB_RXBUFFER_128;
 
 	dev_info(&adapter->pdev->dev, "changing MTU from %d to %d\n",
 		 netdev->mtu, new_mtu);
@@ -4864,8 +4853,8 @@ static inline u16 igb_get_hlen(struct igb_adapter *adapter,
 	 */
 	u16 hlen = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hdr_info) &
 	           E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT;
-	if (hlen > adapter->rx_ps_hdr_size)
-		hlen = adapter->rx_ps_hdr_size;
+	if (hlen > adapter->rx_buffer_len)
+		hlen = adapter->rx_buffer_len;
 	return hlen;
 }
 
@@ -4913,23 +4902,16 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 		cleaned = true;
 		cleaned_count++;
 
-		/* this is the fast path for the non-packet split case */
-		if (!adapter->rx_ps_hdr_size) {
+		if (buffer_info->dma) {
 			pci_unmap_single(pdev, buffer_info->dma,
 					 adapter->rx_buffer_len,
 					 PCI_DMA_FROMDEVICE);
 			buffer_info->dma = 0;
-			skb_put(skb, length);
-			goto send_up;
-		}
-
-		if (buffer_info->dma) {
-			u16 hlen = igb_get_hlen(adapter, rx_desc);
-			pci_unmap_single(pdev, buffer_info->dma,
-					 adapter->rx_ps_hdr_size,
-					 PCI_DMA_FROMDEVICE);
-			buffer_info->dma = 0;
-			skb_put(skb, hlen);
+			if (adapter->rx_buffer_len >= IGB_RXBUFFER_1024) {
+				skb_put(skb, length);
+				goto send_up;
+			}
+			skb_put(skb, igb_get_hlen(adapter, rx_desc));
 		}
 
 		if (length) {
@@ -4942,8 +4924,7 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 						buffer_info->page_offset,
 						length);
 
-			if ((adapter->rx_buffer_len > (PAGE_SIZE / 2)) ||
-			    (page_count(buffer_info->page) != 1))
+			if (page_count(buffer_info->page) != 1)
 				buffer_info->page = NULL;
 			else
 				get_page(buffer_info->page);
@@ -5070,15 +5051,12 @@ static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 	i = rx_ring->next_to_use;
 	buffer_info = &rx_ring->buffer_info[i];
 
-	if (adapter->rx_ps_hdr_size)
-		bufsz = adapter->rx_ps_hdr_size;
-	else
-		bufsz = adapter->rx_buffer_len;
+	bufsz = adapter->rx_buffer_len;
 
 	while (cleaned_count--) {
 		rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
 
-		if (adapter->rx_ps_hdr_size && !buffer_info->page_dma) {
+		if ((bufsz < IGB_RXBUFFER_1024) && !buffer_info->page_dma) {
 			if (!buffer_info->page) {
 				buffer_info->page = alloc_page(GFP_ATOMIC);
 				if (!buffer_info->page) {
@@ -5110,7 +5088,7 @@ static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
 		 * each write-back erases this info. */
-		if (adapter->rx_ps_hdr_size) {
+		if (bufsz < IGB_RXBUFFER_1024) {
 			rx_desc->read.pkt_addr =
 			     cpu_to_le64(buffer_info->page_dma);
 			rx_desc->read.hdr_addr = cpu_to_le64(buffer_info->dma);

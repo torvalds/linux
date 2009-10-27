@@ -259,7 +259,6 @@ struct igb_adapter {
 	u32 alloc_rx_buff_failed;
 	u32 gorc;
 	u64 gorc_old;
-	u16 rx_ps_hdr_size;
 	u32 max_frame_size;
 	u32 min_frame_size;
 
