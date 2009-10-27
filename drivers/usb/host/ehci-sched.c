@@ -1385,7 +1385,7 @@ sitd_slot_ok (
  * given EHCI_TUNE_FLS and the slop).  Or, write a smarter scheduler!
  */
 
-#define SCHEDULE_SLOP	10	/* frames */
+#define SCHEDULE_SLOP	80	/* microframes */
 
 static int
 iso_stream_schedule (
@@ -1399,7 +1399,7 @@ iso_stream_schedule (
 	unsigned		mod = ehci->periodic_size << 3;
 	struct ehci_iso_sched	*sched = urb->hcpriv;
 
-	if (sched->span > (mod - 8 * SCHEDULE_SLOP)) {
+	if (sched->span > (mod - SCHEDULE_SLOP)) {
 		ehci_dbg (ehci, "iso request %p too long\n", urb);
 		status = -EFBIG;
 		goto fail;
@@ -1432,7 +1432,7 @@ iso_stream_schedule (
 			start += mod;
 
 		/* Fell behind (by up to twice the slop amount)? */
-		if (start >= max - 2 * 8 * SCHEDULE_SLOP)
+		if (start >= max - 2 * SCHEDULE_SLOP)
 			start += period * DIV_ROUND_UP(
 					max - start, period) - mod;
 
@@ -1451,7 +1451,7 @@ iso_stream_schedule (
 	 * can also help high bandwidth if the dma and irq loads don't
 	 * jump until after the queue is primed.
 	 */
-	start = SCHEDULE_SLOP * 8 + (now & ~0x07);
+	start = SCHEDULE_SLOP + (now & ~0x07);
 	start %= mod;
 	stream->next_uframe = start;
 
