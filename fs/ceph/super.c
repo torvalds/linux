@@ -314,11 +314,15 @@ static int parse_mount_args(struct ceph_client *client,
 	int err;
 	substring_t argstr[MAX_OPT_ARGS];
 	int num_mon;
-	struct ceph_entity_addr mon_addr[CEPH_MAX_MON];
+	struct ceph_entity_addr *mon_addr;
 	int i;
 
 	dout("parse_mount_args dev_name '%s'\n", dev_name);
 	memset(args, 0, sizeof(*args));
+
+	mon_addr = kcalloc(CEPH_MAX_MON, sizeof(*mon_addr), GFP_KERNEL);
+	if (!mon_addr)
+		return -ENOMEM;
 
 	/* start with defaults */
 	args->sb_flags = flags;
@@ -333,27 +337,29 @@ static int parse_mount_args(struct ceph_client *client,
 	args->max_readdir = 1024;
 
 	/* ip1[:port1][,ip2[:port2]...]:/subdir/in/fs */
+	err = -EINVAL;
 	if (!dev_name)
-		return -EINVAL;
+		goto out;
 	*path = strstr(dev_name, ":/");
 	if (*path == NULL) {
 		pr_err("device name is missing path (no :/ in %s)\n",
 		       dev_name);
-		return -EINVAL;
+		goto out;
 	}
 
 	/* get mon ip(s) */
 	err = ceph_parse_ips(dev_name, *path, mon_addr,
 			     CEPH_MAX_MON, &num_mon);
 	if (err < 0)
-		return err;
+		goto out;
 
 	/* build initial monmap */
+	err = -ENOMEM;
 	client->monc.monmap = kzalloc(sizeof(*client->monc.monmap) +
 			       num_mon*sizeof(client->monc.monmap->mon_inst[0]),
 			       GFP_KERNEL);
 	if (!client->monc.monmap)
-		return -ENOMEM;
+		goto out;
 	for (i = 0; i < num_mon; i++) {
 		client->monc.monmap->mon_inst[i].addr = mon_addr[i];
 		client->monc.monmap->mon_inst[i].addr.erank = 0;
@@ -374,11 +380,11 @@ static int parse_mount_args(struct ceph_client *client,
 		int token, intval, ret;
 		if (!*c)
 			continue;
+		err = -EINVAL;
 		token = match_token((char *)c, arg_tokens, argstr);
 		if (token < 0) {
 			pr_err("bad mount option at '%s'\n", c);
-			return -EINVAL;
-
+			goto out;
 		}
 		if (token < Opt_ip) {
 			ret = match_int(&argstr[0], &intval);
@@ -468,8 +474,11 @@ static int parse_mount_args(struct ceph_client *client,
 			BUG_ON(token);
 		}
 	}
+	err = 0;
 
-	return 0;
+out:
+	kfree(mon_addr);
+	return err;
 }
 
 static void release_mount_args(struct ceph_mount_args *args)
