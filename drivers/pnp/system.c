@@ -48,7 +48,7 @@ static void reserve_range(struct pnp_dev *dev, struct resource *r, int port)
 	 * example do reserve stuff they know about too, so we may well
 	 * have double reservations.
 	 */
-	dev_info(&dev->dev, "%pRt %s reserved\n", r,
+	dev_info(&dev->dev, "%pR %s reserved\n", r,
 		 res ? "has been" : "could not be");
 }
 

@@ -298,18 +298,19 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	window->offset = offset;
 
 	if (insert_resource(root, &window->resource)) {
-		dev_err(&info->bridge->dev, "can't allocate %pRt\n",
+		dev_err(&info->bridge->dev,
+			"can't allocate host bridge window %pR\n",
 			&window->resource);
 	} else {
 		if (offset)
-			dev_info(&info->bridge->dev, "host bridge window: %pRt "
+			dev_info(&info->bridge->dev, "host bridge window %pR "
 				 "(PCI address [%#llx-%#llx])\n",
 				 &window->resource,
 				 window->resource.start - offset,
 				 window->resource.end - offset);
 		else
 			dev_info(&info->bridge->dev,
-				 "host bridge window: %pRt\n",
+				 "host bridge window %pR\n",
 				 &window->resource);
 	}
 
@@ -330,7 +331,9 @@ pcibios_setup_root_windows(struct pci_bus *bus, struct pci_controller *ctrl)
 		    (res->end - res->start < 16))
 			continue;
 		if (j >= PCI_BUS_NUM_RESOURCES) {
-			dev_warn(&bus->dev, "ignoring %pRf (no space)\n", res);
+			dev_warn(&bus->dev,
+				 "ignoring host bridge window %pR (no space)\n",
+				 res);
 			continue;
 		}
 		bus->resource[j++] = res;

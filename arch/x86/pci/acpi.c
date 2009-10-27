@@ -108,18 +108,19 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->child = NULL;
 
 	if (insert_resource(root, res)) {
-		dev_err(&info->bridge->dev, "can't allocate %pRt\n", res);
+		dev_err(&info->bridge->dev,
+			"can't allocate host bridge window %pR\n", res);
 	} else {
 		info->bus->resource[info->res_num] = res;
 		info->res_num++;
 		if (addr.translation_offset)
-			dev_info(&info->bridge->dev, "host bridge window: %pRt "
+			dev_info(&info->bridge->dev, "host bridge window %pR "
 				 "(PCI address [%#llx-%#llx])\n",
 				 res, res->start - addr.translation_offset,
 				 res->end - addr.translation_offset);
 		else
 			dev_info(&info->bridge->dev,
-				 "host bridge window: %pRt\n", res);
+				 "host bridge window %pR\n", res);
 	}
 	return AE_OK;
 }

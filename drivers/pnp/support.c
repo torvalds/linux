@@ -82,7 +82,7 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 	else {
 		pnp_dbg(&dev->dev, "%s: current resources:\n", desc);
 		list_for_each_entry(pnp_res, &dev->resources, list)
-			pnp_dbg(&dev->dev, "%pRf\n", &pnp_res->res);
+			pnp_dbg(&dev->dev, "%pr\n", &pnp_res->res);
 	}
 }
 
