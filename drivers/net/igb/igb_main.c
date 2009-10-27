@@ -1107,8 +1107,8 @@ int igb_up(struct igb_adapter *adapter)
 
 void igb_down(struct igb_adapter *adapter)
 {
-	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
+	struct e1000_hw *hw = &adapter->hw;
 	u32 tctl, rctl;
 	int i;
 
@@ -1271,10 +1271,10 @@ void igb_reset(struct igb_adapter *adapter)
 	}
 
 	/* Allow time for pending master requests to run */
-	adapter->hw.mac.ops.reset_hw(&adapter->hw);
+	hw->mac.ops.reset_hw(hw);
 	wr32(E1000_WUC, 0);
 
-	if (adapter->hw.mac.ops.init_hw(&adapter->hw))
+	if (hw->mac.ops.init_hw(hw))
 		dev_err(&adapter->pdev->dev, "Hardware Error\n");
 
 	igb_update_mng_vlan(adapter);
@@ -1282,8 +1282,8 @@ void igb_reset(struct igb_adapter *adapter)
 	/* Enable h/w to recognize an 802.1Q VLAN Ethernet packet */
 	wr32(E1000_VET, ETHERNET_IEEE_VLAN_TYPE);
 
-	igb_reset_adaptive(&adapter->hw);
-	igb_get_phy_info(&adapter->hw);
+	igb_reset_adaptive(hw);
+	igb_get_phy_info(hw);
 }
 
 static const struct net_device_ops igb_netdev_ops = {
@@ -1404,8 +1404,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	hw->subsystem_vendor_id = pdev->subsystem_vendor;
 	hw->subsystem_device_id = pdev->subsystem_device;
 
-	/* setup the private structure */
-	hw->back = adapter;
 	/* Copy the default MAC, PHY and NVM function pointers */
 	memcpy(&hw->mac.ops, ei->mac_ops, sizeof(hw->mac.ops));
 	memcpy(&hw->phy.ops, ei->phy_ops, sizeof(hw->phy.ops));
@@ -1460,7 +1458,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	if (adapter->hw.mac.type == e1000_82576)
 		netdev->features |= NETIF_F_SCTP_CSUM;
 
-	adapter->en_mng_pt = igb_enable_mng_pass_thru(&adapter->hw);
+	adapter->en_mng_pt = igb_enable_mng_pass_thru(hw);
 
 	/* before reading the NVM, reset the controller to put the device in a
 	 * known good starting state */
@@ -1705,8 +1703,8 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 
-	if (!igb_check_reset_block(&adapter->hw))
-		igb_reset_phy(&adapter->hw);
+	if (!igb_check_reset_block(hw))
+		igb_reset_phy(hw);
 
 	igb_clear_interrupt_scheme(adapter);
 
@@ -2928,9 +2926,9 @@ static void igb_watchdog_task(struct work_struct *work)
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
 			u32 ctrl;
-			hw->mac.ops.get_speed_and_duplex(&adapter->hw,
-						   &adapter->link_speed,
-						   &adapter->link_duplex);
+			hw->mac.ops.get_speed_and_duplex(hw,
+			                                 &adapter->link_speed,
+			                                 &adapter->link_duplex);
 
 			ctrl = rd32(E1000_CTRL);
 			/* Links status message must follow this format */
@@ -5552,7 +5550,7 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		wr32(E1000_CTRL, ctrl);
 
 		/* Allow time for pending master requests to run */
-		igb_disable_pcie_master(&adapter->hw);
+		igb_disable_pcie_master(hw);
 
 		wr32(E1000_WUC, E1000_WUC_PME_EN);
 		wr32(E1000_WUFC, wufc);
