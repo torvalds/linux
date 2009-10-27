@@ -585,14 +585,14 @@ static int probefunc_callback(struct die_link *dlink, void *data)
 				DIE_IF(ret != DW_DLV_OK);
 				pr_debug("inline definition offset %lld\n",
 					 pf->inl_offs);
-				return 0;
+				return 0;	/* Continue to search */
 			}
 			/* Get probe address */
 			pf->addr = die_get_entrypc(dlink->die);
 			pf->addr += pp->offset;
 			/* TODO: Check the address in this function */
 			show_probepoint(dlink->die, pp->offset, pf);
-			/* Continue to search */
+			return 1; /* Exit; no same symbol in this CU. */
 		}
 	} else if (tag == DW_TAG_inlined_subroutine && pf->inl_offs) {
 		if (die_get_abstract_origin(dlink->die) == pf->inl_offs) {
