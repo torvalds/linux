@@ -1006,7 +1006,6 @@ static void igb_release_hw_control(struct igb_adapter *adapter)
 			ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
 }
 
-
 /**
  * igb_get_hw_control - get control of the h/w from f/w
  * @adapter: address of board private structure
@@ -1067,7 +1066,6 @@ static void igb_configure(struct igb_adapter *adapter)
  * igb_up - Open the interface and prepare it to handle traffic
  * @adapter: board private structure
  **/
-
 int igb_up(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
@@ -1288,7 +1286,7 @@ void igb_reset(struct igb_adapter *adapter)
 }
 
 static const struct net_device_ops igb_netdev_ops = {
-	.ndo_open 		= igb_open,
+	.ndo_open		= igb_open,
 	.ndo_stop		= igb_close,
 	.ndo_start_xmit		= igb_xmit_frame_adv,
 	.ndo_get_stats		= igb_get_stats,
@@ -1444,7 +1442,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_IPV6_CSUM;
 	netdev->features |= NETIF_F_TSO;
 	netdev->features |= NETIF_F_TSO6;
-
 	netdev->features |= NETIF_F_GRO;
 
 	netdev->vlan_features |= NETIF_F_TSO;
@@ -1569,7 +1566,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	}
 
 #endif
-
 	switch (hw->mac.type) {
 	case e1000_82576:
 		/*
@@ -1624,8 +1620,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	/* print bus type/speed/width info */
 	dev_info(&pdev->dev, "%s: (PCIe:%s:%s) %pM\n",
 		 netdev->name,
-		 ((hw->bus.speed == e1000_bus_speed_2500)
-		  ? "2.5Gb/s" : "unknown"),
+		 ((hw->bus.speed == e1000_bus_speed_2500) ? "2.5Gb/s" :
+		                                            "unknown"),
 		 ((hw->bus.width == e1000_bus_width_pcie_x4) ? "Width x4" :
 		  (hw->bus.width == e1000_bus_width_pcie_x2) ? "Width x2" :
 		  (hw->bus.width == e1000_bus_width_pcie_x1) ? "Width x1" :
@@ -1658,8 +1654,8 @@ err_sw_init:
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_selected_regions(pdev, pci_select_bars(pdev,
-	                             IORESOURCE_MEM));
+	pci_release_selected_regions(pdev,
+	                             pci_select_bars(pdev, IORESOURCE_MEM));
 err_pci_reg:
 err_dma:
 	pci_disable_device(pdev);
@@ -1723,11 +1719,12 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 		dev_info(&pdev->dev, "IOV Disabled\n");
 	}
 #endif
+
 	iounmap(hw->hw_addr);
 	if (hw->flash_address)
 		iounmap(hw->flash_address);
-	pci_release_selected_regions(pdev, pci_select_bars(pdev,
-	                             IORESOURCE_MEM));
+	pci_release_selected_regions(pdev,
+	                             pci_select_bars(pdev, IORESOURCE_MEM));
 
 	free_netdev(netdev);
 
@@ -2288,9 +2285,7 @@ void igb_setup_rctl(struct igb_adapter *adapter)
 	 */
 	rctl |= E1000_RCTL_SECRC;
 
-	/*
-	 * disable store bad packets and clear size bits.
-	 */
+	/* disable store bad packets and clear size bits. */
 	rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_SZ_256);
 
 	/* enable LPE to prevent packets larger than max_frame_size */
@@ -2916,7 +2911,8 @@ static void igb_watchdog(unsigned long data)
 static void igb_watchdog_task(struct work_struct *work)
 {
 	struct igb_adapter *adapter = container_of(work,
-					struct igb_adapter, watchdog_task);
+	                                           struct igb_adapter,
+                                                   watchdog_task);
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 	struct igb_ring *tx_ring = adapter->tx_ring;
@@ -2935,14 +2931,14 @@ static void igb_watchdog_task(struct work_struct *work)
 			/* Links status message must follow this format */
 			printk(KERN_INFO "igb: %s NIC Link is Up %d Mbps %s, "
 				 "Flow Control: %s\n",
-			         netdev->name,
-				 adapter->link_speed,
-				 adapter->link_duplex == FULL_DUPLEX ?
+			       netdev->name,
+			       adapter->link_speed,
+			       adapter->link_duplex == FULL_DUPLEX ?
 				 "Full Duplex" : "Half Duplex",
-				 ((ctrl & E1000_CTRL_TFCE) && (ctrl &
-				 E1000_CTRL_RFCE)) ? "RX/TX" : ((ctrl &
-				 E1000_CTRL_RFCE) ? "RX" : ((ctrl &
-				 E1000_CTRL_TFCE) ? "TX" : "None")));
+			       ((ctrl & E1000_CTRL_TFCE) &&
+			        (ctrl & E1000_CTRL_RFCE)) ? "RX/TX" :
+			       ((ctrl & E1000_CTRL_RFCE) ?  "RX" :
+			       ((ctrl & E1000_CTRL_TFCE) ?  "TX" : "None")));
 
 			/* tweak tx_queue_len according to speed/duplex and
 			 * adjust the timeout factor */
@@ -3724,6 +3720,7 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 
 	/* igb_down has a dependency on max_frame_size */
 	adapter->max_frame_size = max_frame;
+
 	/* NOTE: netdev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
 	 * means we reserve 2 more, this pushes us to allocate from the next
 	 * larger slab size.
