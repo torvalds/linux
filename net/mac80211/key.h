@@ -118,18 +118,6 @@ struct ieee80211_key {
 	struct {
 		struct dentry *stalink;
 		struct dentry *dir;
-		struct dentry *keylen;
-		struct dentry *flags;
-		struct dentry *keyidx;
-		struct dentry *hw_key_idx;
-		struct dentry *tx_rx_count;
-		struct dentry *algorithm;
-		struct dentry *tx_spec;
-		struct dentry *rx_spec;
-		struct dentry *replays;
-		struct dentry *icverrors;
-		struct dentry *key;
-		struct dentry *ifindex;
 		int cnt;
 	} debugfs;
 #endif

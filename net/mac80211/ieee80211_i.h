@@ -471,74 +471,11 @@ struct ieee80211_sub_if_data {
 	} u;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	struct dentry *debugfsdir;
-	union {
-		struct {
-			struct dentry *drop_unencrypted;
-			struct dentry *bssid;
-			struct dentry *aid;
-			struct dentry *capab;
-			struct dentry *force_unicast_rateidx;
-			struct dentry *max_ratectrl_rateidx;
-		} sta;
-		struct {
-			struct dentry *drop_unencrypted;
-			struct dentry *num_sta_ps;
-			struct dentry *dtim_count;
-			struct dentry *force_unicast_rateidx;
-			struct dentry *max_ratectrl_rateidx;
-			struct dentry *num_buffered_multicast;
-		} ap;
-		struct {
-			struct dentry *drop_unencrypted;
-			struct dentry *peer;
-			struct dentry *force_unicast_rateidx;
-			struct dentry *max_ratectrl_rateidx;
-		} wds;
-		struct {
-			struct dentry *drop_unencrypted;
-			struct dentry *force_unicast_rateidx;
-			struct dentry *max_ratectrl_rateidx;
-		} vlan;
-		struct {
-			struct dentry *mode;
-		} monitor;
-	} debugfs;
 	struct {
+		struct dentry *dir;
 		struct dentry *default_key;
 		struct dentry *default_mgmt_key;
-	} common_debugfs;
-
-#ifdef CONFIG_MAC80211_MESH
-	struct dentry *mesh_stats_dir;
-	struct {
-		struct dentry *fwded_mcast;
-		struct dentry *fwded_unicast;
-		struct dentry *fwded_frames;
-		struct dentry *dropped_frames_ttl;
-		struct dentry *dropped_frames_no_route;
-		struct dentry *estab_plinks;
-		struct timer_list mesh_path_timer;
-	} mesh_stats;
-
-	struct dentry *mesh_config_dir;
-	struct {
-		struct dentry *dot11MeshRetryTimeout;
-		struct dentry *dot11MeshConfirmTimeout;
-		struct dentry *dot11MeshHoldingTimeout;
-		struct dentry *dot11MeshMaxRetries;
-		struct dentry *dot11MeshTTL;
-		struct dentry *auto_open_plinks;
-		struct dentry *dot11MeshMaxPeerLinks;
-		struct dentry *dot11MeshHWMPactivePathTimeout;
-		struct dentry *dot11MeshHWMPpreqMinInterval;
-		struct dentry *dot11MeshHWMPnetDiameterTraversalTime;
-		struct dentry *dot11MeshHWMPmaxPREQretries;
-		struct dentry *path_refresh_time;
-		struct dentry *min_discovery_timeout;
-	} mesh_config;
-#endif
-
+	} debugfs;
 #endif
 	/* must be last, dynamically sized area in this! */
 	struct ieee80211_vif vif;
@@ -818,53 +755,6 @@ struct ieee80211_local {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct local_debugfsdentries {
 		struct dentry *rcdir;
-		struct dentry *rcname;
-		struct dentry *frequency;
-		struct dentry *total_ps_buffered;
-		struct dentry *wep_iv;
-		struct dentry *tsf;
-		struct dentry *queues;
-		struct dentry *reset;
-		struct dentry *noack;
-		struct dentry *statistics;
-		struct local_debugfsdentries_statsdentries {
-			struct dentry *transmitted_fragment_count;
-			struct dentry *multicast_transmitted_frame_count;
-			struct dentry *failed_count;
-			struct dentry *retry_count;
-			struct dentry *multiple_retry_count;
-			struct dentry *frame_duplicate_count;
-			struct dentry *received_fragment_count;
-			struct dentry *multicast_received_frame_count;
-			struct dentry *transmitted_frame_count;
-			struct dentry *wep_undecryptable_count;
-			struct dentry *num_scans;
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-			struct dentry *tx_handlers_drop;
-			struct dentry *tx_handlers_queued;
-			struct dentry *tx_handlers_drop_unencrypted;
-			struct dentry *tx_handlers_drop_fragment;
-			struct dentry *tx_handlers_drop_wep;
-			struct dentry *tx_handlers_drop_not_assoc;
-			struct dentry *tx_handlers_drop_unauth_port;
-			struct dentry *rx_handlers_drop;
-			struct dentry *rx_handlers_queued;
-			struct dentry *rx_handlers_drop_nullfunc;
-			struct dentry *rx_handlers_drop_defrag;
-			struct dentry *rx_handlers_drop_short;
-			struct dentry *rx_handlers_drop_passive_scan;
-			struct dentry *tx_expand_skb_head;
-			struct dentry *tx_expand_skb_head_cloned;
-			struct dentry *rx_expand_skb_head;
-			struct dentry *rx_expand_skb_head2;
-			struct dentry *rx_handlers_fragments;
-			struct dentry *tx_status_drop;
-#endif
-			struct dentry *dot11ACKFailureCount;
-			struct dentry *dot11RTSFailureCount;
-			struct dentry *dot11FCSErrorCount;
-			struct dentry *dot11RTSSuccessCount;
-		} stats;
 		struct dentry *stations;
 		struct dentry *keys;
 	} debugfs;

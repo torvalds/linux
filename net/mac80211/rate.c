@@ -163,8 +163,7 @@ struct rate_control_ref *rate_control_alloc(const char *name,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	debugfsdir = debugfs_create_dir("rc", local->hw.wiphy->debugfsdir);
 	local->debugfs.rcdir = debugfsdir;
-	local->debugfs.rcname = debugfs_create_file("name", 0400, debugfsdir,
-						    ref, &rcname_ops);
+	debugfs_create_file("name", 0400, debugfsdir, ref, &rcname_ops);
 #endif
 
 	ref->priv = ref->ops->alloc(&local->hw, debugfsdir);
@@ -188,9 +187,7 @@ static void rate_control_release(struct kref *kref)
 	ctrl_ref->ops->free(ctrl_ref->priv);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	debugfs_remove(ctrl_ref->local->debugfs.rcname);
-	ctrl_ref->local->debugfs.rcname = NULL;
-	debugfs_remove(ctrl_ref->local->debugfs.rcdir);
+	debugfs_remove_recursive(ctrl_ref->local->debugfs.rcdir);
 	ctrl_ref->local->debugfs.rcdir = NULL;
 #endif
 

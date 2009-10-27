@@ -158,12 +158,8 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 STA_OPS(agg_status);
 
 #define DEBUGFS_ADD(name) \
-	sta->debugfs.name = debugfs_create_file(#name, 0400, \
+	debugfs_create_file(#name, 0400, \
 		sta->debugfs.dir, sta, &sta_ ##name## _ops);
-
-#define DEBUGFS_DEL(name) \
-	debugfs_remove(sta->debugfs.name);\
-	sta->debugfs.name = NULL;
 
 
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
@@ -216,29 +212,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 
 void ieee80211_sta_debugfs_remove(struct sta_info *sta)
 {
-	DEBUGFS_DEL(flags);
-	DEBUGFS_DEL(num_ps_buf_frames);
-	DEBUGFS_DEL(inactive_ms);
-	DEBUGFS_DEL(last_seq_ctrl);
-	DEBUGFS_DEL(agg_status);
-	DEBUGFS_DEL(aid);
-	DEBUGFS_DEL(dev);
-	DEBUGFS_DEL(rx_packets);
-	DEBUGFS_DEL(tx_packets);
-	DEBUGFS_DEL(rx_bytes);
-	DEBUGFS_DEL(tx_bytes);
-	DEBUGFS_DEL(rx_duplicates);
-	DEBUGFS_DEL(rx_fragments);
-	DEBUGFS_DEL(rx_dropped);
-	DEBUGFS_DEL(tx_fragments);
-	DEBUGFS_DEL(tx_filtered);
-	DEBUGFS_DEL(tx_retry_failed);
-	DEBUGFS_DEL(tx_retry_count);
-	DEBUGFS_DEL(last_signal);
-	DEBUGFS_DEL(last_qual);
-	DEBUGFS_DEL(last_noise);
-	DEBUGFS_DEL(wep_weak_iv_count);
-
-	debugfs_remove(sta->debugfs.dir);
+	debugfs_remove_recursive(sta->debugfs.dir);
 	sta->debugfs.dir = NULL;
 }

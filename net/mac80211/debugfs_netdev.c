@@ -152,9 +152,9 @@ IEEE80211_IF_FILE(min_discovery_timeout,
 #endif
 
 
-#define DEBUGFS_ADD(name, type)\
-	sdata->debugfs.type.name = debugfs_create_file(#name, 0400,\
-		sdata->debugfsdir, sdata, &name##_ops);
+#define DEBUGFS_ADD(name, type) \
+	debugfs_create_file(#name, 0400, sdata->debugfs.dir, \
+			    sdata, &name##_ops);
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
@@ -199,30 +199,32 @@ static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
 }
 
 #ifdef CONFIG_MAC80211_MESH
-#define MESHSTATS_ADD(name)\
-	sdata->mesh_stats.name = debugfs_create_file(#name, 0400,\
-		sdata->mesh_stats_dir, sdata, &name##_ops);
 
 static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
 {
-	sdata->mesh_stats_dir = debugfs_create_dir("mesh_stats",
-				sdata->debugfsdir);
+	struct dentry *dir = debugfs_create_dir("mesh_stats",
+						sdata->debugfs.dir);
+
+#define MESHSTATS_ADD(name)\
+	debugfs_create_file(#name, 0400, dir, sdata, &name##_ops);
+
 	MESHSTATS_ADD(fwded_mcast);
 	MESHSTATS_ADD(fwded_unicast);
 	MESHSTATS_ADD(fwded_frames);
 	MESHSTATS_ADD(dropped_frames_ttl);
 	MESHSTATS_ADD(dropped_frames_no_route);
 	MESHSTATS_ADD(estab_plinks);
+#undef MESHSTATS_ADD
 }
-
-#define MESHPARAMS_ADD(name)\
-	sdata->mesh_config.name = debugfs_create_file(#name, 0600,\
-		sdata->mesh_config_dir, sdata, &name##_ops);
 
 static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 {
-	sdata->mesh_config_dir = debugfs_create_dir("mesh_config",
-				sdata->debugfsdir);
+	struct dentry *dir = debugfs_create_dir("mesh_config",
+						sdata->debugfs.dir);
+
+#define MESHPARAMS_ADD(name) \
+	debugfs_create_file(#name, 0600, dir, sdata, &name##_ops);
+
 	MESHPARAMS_ADD(dot11MeshMaxRetries);
 	MESHPARAMS_ADD(dot11MeshRetryTimeout);
 	MESHPARAMS_ADD(dot11MeshConfirmTimeout);
@@ -236,12 +238,14 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(dot11MeshHWMPmaxPREQretries);
 	MESHPARAMS_ADD(path_refresh_time);
 	MESHPARAMS_ADD(min_discovery_timeout);
+
+#undef MESHPARAMS_ADD
 }
 #endif
 
 static void add_files(struct ieee80211_sub_if_data *sdata)
 {
-	if (!sdata->debugfsdir)
+	if (!sdata->debugfs.dir)
 		return;
 
 	switch (sdata->vif.type) {
@@ -274,134 +278,6 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 	}
 }
 
-#define DEBUGFS_DEL(name, type)					\
-	do {							\
-		debugfs_remove(sdata->debugfs.type.name);	\
-		sdata->debugfs.type.name = NULL;		\
-	} while (0)
-
-static void del_sta_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_DEL(drop_unencrypted, sta);
-	DEBUGFS_DEL(force_unicast_rateidx, sta);
-	DEBUGFS_DEL(max_ratectrl_rateidx, sta);
-
-	DEBUGFS_DEL(bssid, sta);
-	DEBUGFS_DEL(aid, sta);
-	DEBUGFS_DEL(capab, sta);
-}
-
-static void del_ap_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_DEL(drop_unencrypted, ap);
-	DEBUGFS_DEL(force_unicast_rateidx, ap);
-	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
-
-	DEBUGFS_DEL(num_sta_ps, ap);
-	DEBUGFS_DEL(dtim_count, ap);
-	DEBUGFS_DEL(num_buffered_multicast, ap);
-}
-
-static void del_wds_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_DEL(drop_unencrypted, wds);
-	DEBUGFS_DEL(force_unicast_rateidx, wds);
-	DEBUGFS_DEL(max_ratectrl_rateidx, wds);
-
-	DEBUGFS_DEL(peer, wds);
-}
-
-static void del_vlan_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_DEL(drop_unencrypted, vlan);
-	DEBUGFS_DEL(force_unicast_rateidx, vlan);
-	DEBUGFS_DEL(max_ratectrl_rateidx, vlan);
-}
-
-static void del_monitor_files(struct ieee80211_sub_if_data *sdata)
-{
-}
-
-#ifdef CONFIG_MAC80211_MESH
-#define MESHSTATS_DEL(name)			\
-	do {						\
-		debugfs_remove(sdata->mesh_stats.name);	\
-		sdata->mesh_stats.name = NULL;		\
-	} while (0)
-
-static void del_mesh_stats(struct ieee80211_sub_if_data *sdata)
-{
-	MESHSTATS_DEL(fwded_mcast);
-	MESHSTATS_DEL(fwded_unicast);
-	MESHSTATS_DEL(fwded_frames);
-	MESHSTATS_DEL(dropped_frames_ttl);
-	MESHSTATS_DEL(dropped_frames_no_route);
-	MESHSTATS_DEL(estab_plinks);
-	debugfs_remove(sdata->mesh_stats_dir);
-	sdata->mesh_stats_dir = NULL;
-}
-
-#define MESHPARAMS_DEL(name)			\
-	do {						\
-		debugfs_remove(sdata->mesh_config.name);	\
-		sdata->mesh_config.name = NULL;		\
-	} while (0)
-
-static void del_mesh_config(struct ieee80211_sub_if_data *sdata)
-{
-	MESHPARAMS_DEL(dot11MeshMaxRetries);
-	MESHPARAMS_DEL(dot11MeshRetryTimeout);
-	MESHPARAMS_DEL(dot11MeshConfirmTimeout);
-	MESHPARAMS_DEL(dot11MeshHoldingTimeout);
-	MESHPARAMS_DEL(dot11MeshTTL);
-	MESHPARAMS_DEL(auto_open_plinks);
-	MESHPARAMS_DEL(dot11MeshMaxPeerLinks);
-	MESHPARAMS_DEL(dot11MeshHWMPactivePathTimeout);
-	MESHPARAMS_DEL(dot11MeshHWMPpreqMinInterval);
-	MESHPARAMS_DEL(dot11MeshHWMPnetDiameterTraversalTime);
-	MESHPARAMS_DEL(dot11MeshHWMPmaxPREQretries);
-	MESHPARAMS_DEL(path_refresh_time);
-	MESHPARAMS_DEL(min_discovery_timeout);
-	debugfs_remove(sdata->mesh_config_dir);
-	sdata->mesh_config_dir = NULL;
-}
-#endif
-
-static void del_files(struct ieee80211_sub_if_data *sdata)
-{
-	if (!sdata->debugfsdir)
-		return;
-
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_MESH_POINT:
-#ifdef CONFIG_MAC80211_MESH
-		del_mesh_stats(sdata);
-		del_mesh_config(sdata);
-#endif
-		break;
-	case NL80211_IFTYPE_STATION:
-		del_sta_files(sdata);
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		/* XXX */
-		break;
-	case NL80211_IFTYPE_AP:
-		del_ap_files(sdata);
-		break;
-	case NL80211_IFTYPE_WDS:
-		del_wds_files(sdata);
-		break;
-	case NL80211_IFTYPE_MONITOR:
-		del_monitor_files(sdata);
-		break;
-	case NL80211_IFTYPE_AP_VLAN:
-		del_vlan_files(sdata);
-		break;
-	default:
-		break;
-	}
-}
-
 static int notif_registered;
 
 void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
@@ -412,16 +288,18 @@ void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	sprintf(buf, "netdev:%s", sdata->dev->name);
-	sdata->debugfsdir = debugfs_create_dir(buf,
+	sdata->debugfs.dir = debugfs_create_dir(buf,
 		sdata->local->hw.wiphy->debugfsdir);
 	add_files(sdata);
 }
 
 void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 {
-	del_files(sdata);
-	debugfs_remove(sdata->debugfsdir);
-	sdata->debugfsdir = NULL;
+	if (!sdata->debugfs.dir)
+		return;
+
+	debugfs_remove_recursive(sdata->debugfs.dir);
+	sdata->debugfs.dir = NULL;
 }
 
 static int netdev_notify(struct notifier_block *nb,
@@ -444,7 +322,7 @@ static int netdev_notify(struct notifier_block *nb,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	dir = sdata->debugfsdir;
+	dir = sdata->debugfs.dir;
 
 	if (!dir)
 		return 0;
