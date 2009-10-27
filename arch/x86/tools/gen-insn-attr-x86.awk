@@ -13,6 +13,18 @@ function check_awk_implement() {
 	return ""
 }
 
+# Clear working vars
+function clear_vars() {
+	delete table
+	delete lptable2
+	delete lptable1
+	delete lptable3
+	eid = -1 # escape id
+	gid = -1 # group id
+	aid = -1 # AVX id
+	tname = ""
+}
+
 BEGIN {
 	# Implementation error checking
 	awkchecked = check_awk_implement()
@@ -24,11 +36,15 @@ BEGIN {
 
 	# Setup generating tables
 	print "/* x86 opcode map generated from x86-opcode-map.txt */"
-	print "/* Do not change this code. */"
+	print "/* Do not change this code. */\n"
 	ggid = 1
 	geid = 1
+	gaid = 0
+	delete etable
+	delete gtable
+	delete atable
 
-	opnd_expr = "^[[:alpha:]]"
+	opnd_expr = "^[[:alpha:]/]"
 	ext_expr = "^\\("
 	sep_expr = "^\\|$"
 	group_expr = "^Grp[[:alnum:]]+"
@@ -46,18 +62,18 @@ BEGIN {
 	imm_flag["Ob"] = "INAT_MOFFSET"
 	imm_flag["Ov"] = "INAT_MOFFSET"
 
-	modrm_expr = "^([CDEGMNPQRSUVW][[:lower:]]+|NTA|T[012])"
+	modrm_expr = "^([CDEGMNPQRSUVW/][[:lower:]]+|NTA|T[012])"
 	force64_expr = "\\([df]64\\)"
 	rex_expr = "^REX(\\.[XRWB]+)*"
 	fpu_expr = "^ESC" # TODO
 
 	lprefix1_expr = "\\(66\\)"
-	delete lptable1
-	lprefix2_expr = "\\(F2\\)"
-	delete lptable2
-	lprefix3_expr = "\\(F3\\)"
-	delete lptable3
+	lprefix2_expr = "\\(F3\\)"
+	lprefix3_expr = "\\(F2\\)"
 	max_lprefix = 4
+
+	vexok_expr = "\\(VEX\\)"
+	vexonly_expr = "\\(oVEX\\)"
 
 	prefix_expr = "\\(Prefix\\)"
 	prefix_num["Operand-Size"] = "INAT_PFX_OPNDSZ"
@@ -71,12 +87,10 @@ BEGIN {
 	prefix_num["SEG=GS"] = "INAT_PFX_GS"
 	prefix_num["SEG=SS"] = "INAT_PFX_SS"
 	prefix_num["Address-Size"] = "INAT_PFX_ADDRSZ"
+	prefix_num["2bytes-VEX"] = "INAT_PFX_VEX2"
+	prefix_num["3bytes-VEX"] = "INAT_PFX_VEX3"
 
-	delete table
-	delete etable
-	delete gtable
-	eid = -1
-	gid = -1
+	clear_vars()
 }
 
 function semantic_error(msg) {
@@ -97,14 +111,12 @@ function array_size(arr,   i,c) {
 
 /^Table:/ {
 	print "/* " $0 " */"
+	if (tname != "")
+		semantic_error("Hit Table: before EndTable:.");
 }
 
 /^Referrer:/ {
-	if (NF == 1) {
-		# primary opcode table
-		tname = "inat_primary_table"
-		eid = -1
-	} else {
+	if (NF != 1) {
 		# escape opcode table
 		ref = ""
 		for (i = 2; i <= NF; i++)
@@ -112,6 +124,19 @@ function array_size(arr,   i,c) {
 		eid = escape[ref]
 		tname = sprintf("inat_escape_table_%d", eid)
 	}
+}
+
+/^AVXcode:/ {
+	if (NF != 1) {
+		# AVX/escape opcode table
+		aid = $2
+		if (gaid <= aid)
+			gaid = aid + 1
+		if (tname == "")	# AVX only opcode table
+			tname = sprintf("inat_avx_table_%d", $2)
+	}
+	if (aid == -1 && eid == -1)	# primary opcode table
+		tname = "inat_primary_table"
 }
 
 /^GrpTable:/ {
@@ -162,30 +187,33 @@ function print_table(tbl,name,fmt,n)
 			print_table(table, tname "[INAT_OPCODE_TABLE_SIZE]",
 				    "0x%02x", 256)
 			etable[eid,0] = tname
+			if (aid >= 0)
+				atable[aid,0] = tname
 		}
 		if (array_size(lptable1) != 0) {
 			print_table(lptable1,tname "_1[INAT_OPCODE_TABLE_SIZE]",
 				    "0x%02x", 256)
 			etable[eid,1] = tname "_1"
+			if (aid >= 0)
+				atable[aid,1] = tname "_1"
 		}
 		if (array_size(lptable2) != 0) {
 			print_table(lptable2,tname "_2[INAT_OPCODE_TABLE_SIZE]",
 				    "0x%02x", 256)
 			etable[eid,2] = tname "_2"
+			if (aid >= 0)
+				atable[aid,2] = tname "_2"
 		}
 		if (array_size(lptable3) != 0) {
 			print_table(lptable3,tname "_3[INAT_OPCODE_TABLE_SIZE]",
 				    "0x%02x", 256)
 			etable[eid,3] = tname "_3"
+			if (aid >= 0)
+				atable[aid,3] = tname "_3"
 		}
 	}
 	print ""
-	delete table
-	delete lptable1
-	delete lptable2
-	delete lptable3
-	gid = -1
-	eid = -1
+	clear_vars()
 }
 
 function add_flags(old,new) {
@@ -284,6 +312,14 @@ function convert_operands(opnd,       i,imm,mod)
 		if (match(opcode, fpu_expr))
 			flags = add_flags(flags, "INAT_MODRM")
 
+		# check VEX only code
+		if (match(ext, vexonly_expr))
+			flags = add_flags(flags, "INAT_VEXOK | INAT_VEXONLY")
+
+		# check VEX only code
+		if (match(ext, vexok_expr))
+			flags = add_flags(flags, "INAT_VEXOK")
+
 		# check prefixes
 		if (match(ext, prefix_expr)) {
 			if (!prefix_num[opcode])
@@ -330,5 +366,15 @@ END {
 		for (j = 0; j < max_lprefix; j++)
 			if (gtable[i,j])
 				print "	["i"]["j"] = "gtable[i,j]","
+	print "};\n"
+	# print AVX opcode map's array
+	print "/* AVX opcode map array */"
+	print "const insn_attr_t const *inat_avx_tables[X86_VEX_M_MAX + 1]"\
+	      "[INAT_LSTPFX_MAX + 1] = {"
+	for (i = 0; i < gaid; i++)
+		for (j = 0; j < max_lprefix; j++)
+			if (atable[i,j])
+				print "	["i"]["j"] = "atable[i,j]","
 	print "};"
 }
+

@@ -39,6 +39,7 @@ struct insn {
 					 * prefixes.bytes[3]: last prefix
 					 */
 	struct insn_field rex_prefix;	/* REX prefix */
+	struct insn_field vex_prefix;	/* VEX prefix */
 	struct insn_field opcode;	/*
 					 * opcode.bytes[0]: opcode1
 					 * opcode.bytes[1]: opcode2
@@ -80,6 +81,19 @@ struct insn {
 #define X86_REX_X(rex) ((rex) & 2)
 #define X86_REX_B(rex) ((rex) & 1)
 
+/* VEX bit flags  */
+#define X86_VEX_W(vex)	((vex) & 0x80)	/* VEX3 Byte2 */
+#define X86_VEX_R(vex)	((vex) & 0x80)	/* VEX2/3 Byte1 */
+#define X86_VEX_X(vex)	((vex) & 0x40)	/* VEX3 Byte1 */
+#define X86_VEX_B(vex)	((vex) & 0x20)	/* VEX3 Byte1 */
+#define X86_VEX_L(vex)	((vex) & 0x04)	/* VEX3 Byte2, VEX2 Byte1 */
+/* VEX bit fields */
+#define X86_VEX3_M(vex)	((vex) & 0x1f)		/* VEX3 Byte1 */
+#define X86_VEX2_M	1			/* VEX2.M always 1 */
+#define X86_VEX_V(vex)	(((vex) & 0x78) >> 3)	/* VEX3 Byte2, VEX2 Byte1 */
+#define X86_VEX_P(vex)	((vex) & 0x03)		/* VEX3 Byte2, VEX2 Byte1 */
+#define X86_VEX_M_MAX	0x1f			/* VEX3.M Maximum value */
+
 /* The last prefix is needed for two-byte and three-byte opcodes */
 static inline insn_byte_t insn_last_prefix(struct insn *insn)
 {
@@ -114,14 +128,41 @@ static inline void kernel_insn_init(struct insn *insn, const void *kaddr)
 #endif
 }
 
+static inline int insn_is_avx(struct insn *insn)
+{
+	if (!insn->prefixes.got)
+		insn_get_prefixes(insn);
+	return (insn->vex_prefix.value != 0);
+}
+
+static inline insn_byte_t insn_vex_m_bits(struct insn *insn)
+{
+	if (insn->vex_prefix.nbytes == 2)	/* 2 bytes VEX */
+		return X86_VEX2_M;
+	else
+		return X86_VEX3_M(insn->vex_prefix.bytes[1]);
+}
+
+static inline insn_byte_t insn_vex_p_bits(struct insn *insn)
+{
+	if (insn->vex_prefix.nbytes == 2)	/* 2 bytes VEX */
+		return X86_VEX_P(insn->vex_prefix.bytes[1]);
+	else
+		return X86_VEX_P(insn->vex_prefix.bytes[2]);
+}
+
 /* Offset of each field from kaddr */
 static inline int insn_offset_rex_prefix(struct insn *insn)
 {
 	return insn->prefixes.nbytes;
 }
-static inline int insn_offset_opcode(struct insn *insn)
+static inline int insn_offset_vex_prefix(struct insn *insn)
 {
 	return insn_offset_rex_prefix(insn) + insn->rex_prefix.nbytes;
+}
+static inline int insn_offset_opcode(struct insn *insn)
+{
+	return insn_offset_vex_prefix(insn) + insn->vex_prefix.nbytes;
 }
 static inline int insn_offset_modrm(struct insn *insn)
 {

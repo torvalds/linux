@@ -28,6 +28,9 @@
 #define peek_next(t, insn)	\
 	({t r; r = *(t*)insn->next_byte; r; })
 
+#define peek_nbyte_next(t, insn, n)	\
+	({t r; r = *(t*)((insn)->next_byte + n); r; })
+
 /**
  * insn_init() - initialize struct insn
  * @insn:	&struct insn to be initialized
@@ -107,6 +110,7 @@ found:
 		insn->prefixes.bytes[3] = lb;
 	}
 
+	/* Decode REX prefix */
 	if (insn->x86_64) {
 		b = peek_next(insn_byte_t, insn);
 		attr = inat_get_opcode_attribute(b);
@@ -120,6 +124,39 @@ found:
 		}
 	}
 	insn->rex_prefix.got = 1;
+
+	/* Decode VEX prefix */
+	b = peek_next(insn_byte_t, insn);
+	attr = inat_get_opcode_attribute(b);
+	if (inat_is_vex_prefix(attr)) {
+		insn_byte_t b2 = peek_nbyte_next(insn_byte_t, insn, 1);
+		if (!insn->x86_64) {
+			/*
+			 * In 32-bits mode, if the [7:6] bits (mod bits of
+			 * ModRM) on the second byte are not 11b, it is
+			 * LDS or LES.
+			 */
+			if (X86_MODRM_MOD(b2) != 3)
+				goto vex_end;
+		}
+		insn->vex_prefix.bytes[0] = b;
+		insn->vex_prefix.bytes[1] = b2;
+		if (inat_is_vex3_prefix(attr)) {
+			b2 = peek_nbyte_next(insn_byte_t, insn, 2);
+			insn->vex_prefix.bytes[2] = b2;
+			insn->vex_prefix.nbytes = 3;
+			insn->next_byte += 3;
+			if (insn->x86_64 && X86_VEX_W(b2))
+				/* VEX.W overrides opnd_size */
+				insn->opnd_bytes = 8;
+		} else {
+			insn->vex_prefix.nbytes = 2;
+			insn->next_byte += 2;
+		}
+	}
+vex_end:
+	insn->vex_prefix.got = 1;
+
 	prefixes->got = 1;
 	return;
 }
@@ -147,6 +184,18 @@ void insn_get_opcode(struct insn *insn)
 	op = get_next(insn_byte_t, insn);
 	opcode->bytes[0] = op;
 	opcode->nbytes = 1;
+
+	/* Check if there is VEX prefix or not */
+	if (insn_is_avx(insn)) {
+		insn_byte_t m, p;
+		m = insn_vex_m_bits(insn);
+		p = insn_vex_p_bits(insn);
+		insn->attr = inat_get_avx_attribute(op, m, p);
+		if (!inat_accept_vex(insn->attr))
+			insn->attr = 0;	/* This instruction is bad */
+		goto end;	/* VEX has only 1 byte for opcode */
+	}
+
 	insn->attr = inat_get_opcode_attribute(op);
 	while (inat_is_escape(insn->attr)) {
 		/* Get escaped opcode */
@@ -155,6 +204,9 @@ void insn_get_opcode(struct insn *insn)
 		pfx = insn_last_prefix(insn);
 		insn->attr = inat_get_escape_attribute(op, pfx, insn->attr);
 	}
+	if (inat_must_vex(insn->attr))
+		insn->attr = 0;	/* This instruction is bad */
+end:
 	opcode->got = 1;
 }
 

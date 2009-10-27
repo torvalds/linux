@@ -32,8 +32,8 @@
 
 /* Legacy last prefixes */
 #define INAT_PFX_OPNDSZ	1	/* 0x66 */ /* LPFX1 */
-#define INAT_PFX_REPNE	2	/* 0xF2 */ /* LPFX2 */
-#define INAT_PFX_REPE	3	/* 0xF3 */ /* LPFX3 */
+#define INAT_PFX_REPE	2	/* 0xF3 */ /* LPFX2 */
+#define INAT_PFX_REPNE	3	/* 0xF2 */ /* LPFX3 */
 /* Other Legacy prefixes */
 #define INAT_PFX_LOCK	4	/* 0xF0 */
 #define INAT_PFX_CS	5	/* 0x2E */
@@ -45,6 +45,9 @@
 #define INAT_PFX_ADDRSZ	11	/* 0x67 */
 /* x86-64 REX prefix */
 #define INAT_PFX_REX	12	/* 0x4X */
+/* AVX VEX prefixes */
+#define INAT_PFX_VEX2	13	/* 2-bytes VEX prefix */
+#define INAT_PFX_VEX3	14	/* 3-bytes VEX prefix */
 
 #define INAT_LSTPFX_MAX	3
 #define INAT_LGCPFX_MAX	11
@@ -84,6 +87,8 @@
 #define INAT_SCNDIMM	(1 << (INAT_FLAG_OFFS + 2))
 #define INAT_MOFFSET	(1 << (INAT_FLAG_OFFS + 3))
 #define INAT_VARIANT	(1 << (INAT_FLAG_OFFS + 4))
+#define INAT_VEXOK	(1 << (INAT_FLAG_OFFS + 5))
+#define INAT_VEXONLY	(1 << (INAT_FLAG_OFFS + 6))
 /* Attribute making macros for attribute tables */
 #define INAT_MAKE_PREFIX(pfx)	(pfx << INAT_PFX_OFFS)
 #define INAT_MAKE_ESCAPE(esc)	(esc << INAT_ESC_OFFS)
@@ -98,6 +103,9 @@ extern insn_attr_t inat_get_escape_attribute(insn_byte_t opcode,
 extern insn_attr_t inat_get_group_attribute(insn_byte_t modrm,
 					    insn_byte_t last_pfx,
 					    insn_attr_t esc_attr);
+extern insn_attr_t inat_get_avx_attribute(insn_byte_t opcode,
+					  insn_byte_t vex_m,
+					  insn_byte_t vex_pp);
 
 /* Attribute checking functions */
 static inline int inat_is_legacy_prefix(insn_attr_t attr)
@@ -127,6 +135,17 @@ static inline int inat_last_prefix_id(insn_attr_t attr)
 		return 0;
 	else
 		return attr & INAT_PFX_MASK;
+}
+
+static inline int inat_is_vex_prefix(insn_attr_t attr)
+{
+	attr &= INAT_PFX_MASK;
+	return attr == INAT_PFX_VEX2 || attr == INAT_PFX_VEX3;
+}
+
+static inline int inat_is_vex3_prefix(insn_attr_t attr)
+{
+	return (attr & INAT_PFX_MASK) == INAT_PFX_VEX3;
 }
 
 static inline int inat_is_escape(insn_attr_t attr)
@@ -189,4 +208,13 @@ static inline int inat_has_variant(insn_attr_t attr)
 	return attr & INAT_VARIANT;
 }
 
+static inline int inat_accept_vex(insn_attr_t attr)
+{
+	return attr & INAT_VEXOK;
+}
+
+static inline int inat_must_vex(insn_attr_t attr)
+{
+	return attr & INAT_VEXONLY;
+}
 #endif
