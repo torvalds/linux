@@ -223,6 +223,15 @@ struct igb_ring {
 #define E1000_TX_CTXTDESC_ADV(R, i)	    \
 	(&(((struct e1000_adv_tx_context_desc *)((R).desc))[i]))
 
+/* igb_desc_unused - calculate if we have unused descriptors */
+static inline int igb_desc_unused(struct igb_ring *ring)
+{
+	if (ring->next_to_clean > ring->next_to_use)
+		return ring->next_to_clean - ring->next_to_use - 1;
+
+	return ring->count + ring->next_to_clean - ring->next_to_use - 1;
+}
+
 /* board specific private data structure */
 
 struct igb_adapter {
@@ -336,6 +345,11 @@ extern int igb_setup_tx_resources(struct igb_ring *);
 extern int igb_setup_rx_resources(struct igb_ring *);
 extern void igb_free_tx_resources(struct igb_ring *);
 extern void igb_free_rx_resources(struct igb_ring *);
+extern void igb_configure_tx_ring(struct igb_adapter *, struct igb_ring *);
+extern void igb_configure_rx_ring(struct igb_adapter *, struct igb_ring *);
+extern void igb_setup_tctl(struct igb_adapter *);
+extern void igb_setup_rctl(struct igb_adapter *);
+extern void igb_alloc_rx_buffers_adv(struct igb_ring *, int);
 extern void igb_update_stats(struct igb_adapter *);
 extern void igb_set_ethtool_ops(struct net_device *);
 

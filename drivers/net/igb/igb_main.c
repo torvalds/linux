@@ -91,8 +91,6 @@ static int igb_open(struct net_device *);
 static int igb_close(struct net_device *);
 static void igb_configure_tx(struct igb_adapter *);
 static void igb_configure_rx(struct igb_adapter *);
-static void igb_setup_tctl(struct igb_adapter *);
-static void igb_setup_rctl(struct igb_adapter *);
 static void igb_clean_all_tx_rings(struct igb_adapter *);
 static void igb_clean_all_rx_rings(struct igb_adapter *);
 static void igb_clean_tx_ring(struct igb_ring *);
@@ -120,7 +118,6 @@ static void igb_setup_dca(struct igb_adapter *);
 static bool igb_clean_tx_irq(struct igb_q_vector *);
 static int igb_poll(struct napi_struct *, int);
 static bool igb_clean_rx_irq_adv(struct igb_q_vector *, int *, int);
-static void igb_alloc_rx_buffers_adv(struct igb_ring *, int);
 static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
 static void igb_tx_timeout(struct net_device *);
 static void igb_reset_task(struct work_struct *);
@@ -308,17 +305,6 @@ static char *igb_get_time_str(struct igb_adapter *adapter,
 	return buffer;
 }
 #endif
-
-/**
- * igb_desc_unused - calculate if we have unused descriptors
- **/
-static int igb_desc_unused(struct igb_ring *ring)
-{
-	if (ring->next_to_clean > ring->next_to_use)
-		return ring->next_to_clean - ring->next_to_use - 1;
-
-	return ring->count + ring->next_to_clean - ring->next_to_use - 1;
-}
 
 /**
  * igb_init_module - Driver Registration Routine
@@ -2087,7 +2073,7 @@ static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
  * igb_setup_tctl - configure the transmit control registers
  * @adapter: Board private structure
  **/
-static void igb_setup_tctl(struct igb_adapter *adapter)
+void igb_setup_tctl(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 tctl;
@@ -2116,8 +2102,8 @@ static void igb_setup_tctl(struct igb_adapter *adapter)
  *
  * Configure a transmit ring after a reset.
  **/
-static void igb_configure_tx_ring(struct igb_adapter *adapter,
-                                  struct igb_ring *ring)
+void igb_configure_tx_ring(struct igb_adapter *adapter,
+                           struct igb_ring *ring)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 txdctl;
@@ -2339,7 +2325,7 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
  * igb_setup_rctl - configure the receive control registers
  * @adapter: Board private structure
  **/
-static void igb_setup_rctl(struct igb_adapter *adapter)
+void igb_setup_rctl(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl;
@@ -2423,8 +2409,8 @@ static void igb_rlpml_set(struct igb_adapter *adapter)
  *
  * Configure the Rx unit of the MAC after a reset.
  **/
-static void igb_configure_rx_ring(struct igb_adapter *adapter,
-                                  struct igb_ring *ring)
+void igb_configure_rx_ring(struct igb_adapter *adapter,
+                           struct igb_ring *ring)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u64 rdba = ring->dma;
@@ -5034,8 +5020,7 @@ next_desc:
  * igb_alloc_rx_buffers_adv - Replace used receive buffers; packet split
  * @adapter: address of board private structure
  **/
-static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
-				     int cleaned_count)
+void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring, int cleaned_count)
 {
 	struct net_device *netdev = rx_ring->netdev;
 	union e1000_adv_rx_desc *rx_desc;
