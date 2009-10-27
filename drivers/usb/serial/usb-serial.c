@@ -156,7 +156,8 @@ static void destroy_serial(struct kref *kref)
 	if (serial->minor != SERIAL_TTY_NO_MINOR)
 		return_serial(serial);
 
-	serial->type->release(serial);
+	if (serial->attached)
+		serial->type->release(serial);
 
 	/* Now that nothing is using the ports, they can be freed */
 	for (i = 0; i < serial->num_port_pointers; ++i) {
@@ -1059,12 +1060,15 @@ int usb_serial_probe(struct usb_interface *interface,
 		module_put(type->driver.owner);
 		if (retval < 0)
 			goto probe_error;
+		serial->attached = 1;
 		if (retval > 0) {
 			/* quietly accept this device, but don't bind to a
 			   serial port as it's about to disappear */
 			serial->num_ports = 0;
 			goto exit;
 		}
+	} else {
+		serial->attached = 1;
 	}
 
 	if (get_free_serial(serial, num_ports, &minor) == NULL) {
@@ -1164,8 +1168,10 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 
 	if (serial->type->suspend) {
 		r = serial->type->suspend(serial, message);
-		if (r < 0)
+		if (r < 0) {
+			serial->suspending = 0;
 			goto err_out;
+		}
 	}
 
 	for (i = 0; i < serial->num_ports; ++i) {

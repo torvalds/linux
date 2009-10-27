@@ -1,6 +1,10 @@
 /*
  * board initialization should put one of these structures into platform_data
  * and place the bfin-rotary onto platform_bus named "bfin-rotary".
+ *
+ * Copyright 2008 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _BFIN_ROTARY_H

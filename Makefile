@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 32
-EXTRAVERSION = -rc2
+EXTRAVERSION = -rc5
 NAME = Man-Eating Seals of Antiquity
 
 # *DOCUMENTATION*
@@ -179,46 +179,9 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 # Alternatively CROSS_COMPILE can be set in the environment.
 # Default value for CROSS_COMPILE is not to prefix executables
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
-#
-# To force ARCH and CROSS_COMPILE settings include kernel.* files
-# in the kernel tree - do not patch this file.
 export KBUILD_BUILDHOST := $(SUBARCH)
-
-# Kbuild save the ARCH and CROSS_COMPILE setting in kernel.* files.
-# Restore these settings and check that user did not specify
-# conflicting values.
-
-saved_arch  := $(shell cat include/generated/kernel.arch  2> /dev/null)
-saved_cross := $(shell cat include/generated/kernel.cross 2> /dev/null)
-
-ifneq ($(CROSS_COMPILE),)
-        ifneq ($(saved_cross),)
-                ifneq ($(CROSS_COMPILE),$(saved_cross))
-                        $(error CROSS_COMPILE changed from \
-                                "$(saved_cross)" to \
-                                 to "$(CROSS_COMPILE)". \
-                                 Use "make mrproper" to fix it up)
-                endif
-        endif
-else
-    CROSS_COMPILE := $(saved_cross)
-endif
-
-ifneq ($(ARCH),)
-        ifneq ($(saved_arch),)
-                ifneq ($(saved_arch),$(ARCH))
-                        $(error ARCH changed from \
-                                "$(saved_arch)" to "$(ARCH)". \
-                                 Use "make mrproper" to fix it up)
-                endif
-        endif
-else
-        ifneq ($(saved_arch),)
-                ARCH := $(saved_arch)
-        else
-                ARCH := $(SUBARCH)
-        endif
-endif
+ARCH		?= $(SUBARCH)
+CROSS_COMPILE	?=
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
@@ -482,11 +445,6 @@ ifeq ($(config-targets),1)
 # used for 'make defconfig'
 include $(srctree)/arch/$(SRCARCH)/Makefile
 export KBUILD_DEFCONFIG KBUILD_KCONFIG
-
-# save ARCH & CROSS_COMPILE settings
-$(shell mkdir -p include/generated &&                            \
-        echo $(ARCH)          > include/generated/kernel.arch && \
-        echo $(CROSS_COMPILE) > include/generated/kernel.cross)
 
 config: scripts_basic outputmakefile FORCE
 	$(Q)mkdir -p include/linux include/config

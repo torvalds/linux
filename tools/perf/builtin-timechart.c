@@ -46,6 +46,8 @@ static u64		turbo_frequency;
 
 static u64		first_time, last_time;
 
+static int		power_only;
+
 
 static struct perf_header	*header;
 
@@ -547,7 +549,7 @@ static void end_sample_processing(void)
 	u64 cpu;
 	struct power_event *pwr;
 
-	for (cpu = 0; cpu < numcpus; cpu++) {
+	for (cpu = 0; cpu <= numcpus; cpu++) {
 		pwr = malloc(sizeof(struct power_event));
 		if (!pwr)
 			return;
@@ -871,7 +873,7 @@ static int determine_display_tasks(u64 threshold)
 		/* no exit marker, task kept running to the end */
 		if (p->end_time == 0)
 			p->end_time = last_time;
-		if (p->total_time >= threshold)
+		if (p->total_time >= threshold && !power_only)
 			p->display = 1;
 
 		c = p->all;
@@ -882,7 +884,7 @@ static int determine_display_tasks(u64 threshold)
 			if (c->start_time == 1)
 				c->start_time = first_time;
 
-			if (c->total_time >= threshold) {
+			if (c->total_time >= threshold && !power_only) {
 				c->display = 1;
 				count++;
 			}
@@ -1134,6 +1136,8 @@ static const struct option options[] = {
 		    "output file name"),
 	OPT_INTEGER('w', "width", &svg_page_width,
 		    "page width"),
+	OPT_BOOLEAN('p', "power-only", &power_only,
+		    "output power data only"),
 	OPT_END()
 };
 

@@ -1052,6 +1052,8 @@ static void acpi_device_set_id(struct acpi_device *device)
 			device->flags.bus_address = 1;
 		}
 
+		kfree(info);
+
 		/*
 		 * Some devices don't reliably have _HIDs & _CIDs, so add
 		 * synthetic HIDs to make sure drivers can find them.
@@ -1325,12 +1327,7 @@ static int acpi_bus_scan(acpi_handle handle, struct acpi_bus_ops *ops,
 			 struct acpi_device **child)
 {
 	acpi_status status;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	void *device = NULL;
-
-	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-	printk(KERN_INFO PREFIX "Enumerating devices from [%s]\n",
-	       (char *) buffer.pointer);
 
 	status = acpi_bus_check_add(handle, 0, ops, &device);
 	if (ACPI_SUCCESS(status))

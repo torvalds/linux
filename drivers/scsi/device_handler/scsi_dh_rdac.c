@@ -500,8 +500,6 @@ static int mode_select_handle_sense(struct scsi_device *sdev,
 	if (!ret)
 		goto done;
 
-	err = SCSI_DH_OK;
-
 	switch (sense_hdr.sense_key) {
 	case NO_SENSE:
 	case ABORTED_COMMAND:

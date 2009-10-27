@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/sched.h>
 #include <linux/sysdev.h>
 #include <linux/fs.h>
 #include <linux/types.h>
@@ -1182,6 +1183,7 @@ static ssize_t bonding_store_primary(struct device *d,
 				       ": %s: Setting %s as primary slave.\n",
 				       bond->dev->name, slave->dev->name);
 				bond->primary_slave = slave;
+				strcpy(bond->params.primary, slave->dev->name);
 				bond_select_active_slave(bond);
 				goto out;
 			}

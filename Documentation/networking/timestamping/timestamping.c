@@ -381,7 +381,7 @@ int main(int argc, char **argv)
 	memset(&hwtstamp, 0, sizeof(hwtstamp));
 	strncpy(hwtstamp.ifr_name, interface, sizeof(hwtstamp.ifr_name));
 	hwtstamp.ifr_data = (void *)&hwconfig;
-	memset(&hwconfig, 0, sizeof(&hwconfig));
+	memset(&hwconfig, 0, sizeof(hwconfig));
 	hwconfig.tx_type =
 		(so_timestamping_flags & SOF_TIMESTAMPING_TX_HARDWARE) ?
 		HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;

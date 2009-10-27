@@ -334,7 +334,14 @@ static inline int iraw_loop(unsigned char c, unsigned char *src, int numbytes,
 	return startbytes - numbytes;
 }
 
-/* process a block of data received from the device
+/**
+ * gigaset_m10x_input() - process a block of data received from the device
+ * @inbuf:	received data and device descriptor structure.
+ *
+ * Called by hardware module {ser,usb}_gigaset with a block of received
+ * bytes. Separates the bytes received over the serial data channel into
+ * user data and command replies (locked/unlocked) according to the
+ * current state of the interface.
  */
 void gigaset_m10x_input(struct inbuf_t *inbuf)
 {
@@ -543,16 +550,17 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb, int head, int tail)
 	return iraw_skb;
 }
 
-/* gigaset_send_skb
- * called by common.c to queue an skb for sending
- * and start transmission if necessary
- * parameters:
- *	B Channel control structure
- *	skb
+/**
+ * gigaset_m10x_send_skb() - queue an skb for sending
+ * @bcs:	B channel descriptor structure.
+ * @skb:	data to send.
+ *
+ * Called by i4l.c to encode and queue an skb for sending, and start
+ * transmission if necessary.
+ *
  * Return value:
- *	number of bytes accepted for sending
- *	(skb->len if ok, 0 if out of buffer space)
- *	or error code (< 0, eg. -EINVAL)
+ *	number of bytes accepted for sending (skb->len) if ok,
+ *	error code < 0 (eg. -ENOMEM) on error
  */
 int gigaset_m10x_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 {

@@ -158,16 +158,17 @@ TRACE_EVENT(i915_gem_request_submit,
 	    TP_ARGS(dev, seqno),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_device *, dev)
+			     __field(u32, dev)
 			     __field(u32, seqno)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = dev;
+			   __entry->dev = dev->primary->index;
 			   __entry->seqno = seqno;
+			   i915_trace_irq_get(dev, seqno);
 			   ),
 
-	    TP_printk("dev=%p, seqno=%u", __entry->dev, __entry->seqno)
+	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
 );
 
 TRACE_EVENT(i915_gem_request_flush,
@@ -178,20 +179,20 @@ TRACE_EVENT(i915_gem_request_flush,
 	    TP_ARGS(dev, seqno, flush_domains, invalidate_domains),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_device *, dev)
+			     __field(u32, dev)
 			     __field(u32, seqno)
 			     __field(u32, flush_domains)
 			     __field(u32, invalidate_domains)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = dev;
+			   __entry->dev = dev->primary->index;
 			   __entry->seqno = seqno;
 			   __entry->flush_domains = flush_domains;
 			   __entry->invalidate_domains = invalidate_domains;
 			   ),
 
-	    TP_printk("dev=%p, seqno=%u, flush=%04x, invalidate=%04x",
+	    TP_printk("dev=%u, seqno=%u, flush=%04x, invalidate=%04x",
 		      __entry->dev, __entry->seqno,
 		      __entry->flush_domains, __entry->invalidate_domains)
 );
@@ -204,16 +205,16 @@ TRACE_EVENT(i915_gem_request_complete,
 	    TP_ARGS(dev, seqno),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_device *, dev)
+			     __field(u32, dev)
 			     __field(u32, seqno)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = dev;
+			   __entry->dev = dev->primary->index;
 			   __entry->seqno = seqno;
 			   ),
 
-	    TP_printk("dev=%p, seqno=%u", __entry->dev, __entry->seqno)
+	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
 );
 
 TRACE_EVENT(i915_gem_request_retire,
@@ -223,16 +224,16 @@ TRACE_EVENT(i915_gem_request_retire,
 	    TP_ARGS(dev, seqno),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_device *, dev)
+			     __field(u32, dev)
 			     __field(u32, seqno)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = dev;
+			   __entry->dev = dev->primary->index;
 			   __entry->seqno = seqno;
 			   ),
 
-	    TP_printk("dev=%p, seqno=%u", __entry->dev, __entry->seqno)
+	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
 );
 
 TRACE_EVENT(i915_gem_request_wait_begin,
@@ -242,16 +243,16 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 	    TP_ARGS(dev, seqno),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_device *, dev)
+			     __field(u32, dev)
 			     __field(u32, seqno)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = dev;
+			   __entry->dev = dev->primary->index;
 			   __entry->seqno = seqno;
 			   ),
 
-	    TP_printk("dev=%p, seqno=%u", __entry->dev, __entry->seqno)
+	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
 );
 
 TRACE_EVENT(i915_gem_request_wait_end,
@@ -261,16 +262,16 @@ TRACE_EVENT(i915_gem_request_wait_end,
 	    TP_ARGS(dev, seqno),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_device *, dev)
+			     __field(u32, dev)
 			     __field(u32, seqno)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = dev;
+			   __entry->dev = dev->primary->index;
 			   __entry->seqno = seqno;
 			   ),
 
-	    TP_printk("dev=%p, seqno=%u", __entry->dev, __entry->seqno)
+	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
 );
 
 TRACE_EVENT(i915_ring_wait_begin,
@@ -280,14 +281,14 @@ TRACE_EVENT(i915_ring_wait_begin,
 	    TP_ARGS(dev),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_device *, dev)
+			     __field(u32, dev)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = dev;
+			   __entry->dev = dev->primary->index;
 			   ),
 
-	    TP_printk("dev=%p", __entry->dev)
+	    TP_printk("dev=%u", __entry->dev)
 );
 
 TRACE_EVENT(i915_ring_wait_end,
@@ -297,14 +298,14 @@ TRACE_EVENT(i915_ring_wait_end,
 	    TP_ARGS(dev),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_device *, dev)
+			     __field(u32, dev)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = dev;
+			   __entry->dev = dev->primary->index;
 			   ),
 
-	    TP_printk("dev=%p", __entry->dev)
+	    TP_printk("dev=%u", __entry->dev)
 );
 
 #endif /* _I915_TRACE_H_ */

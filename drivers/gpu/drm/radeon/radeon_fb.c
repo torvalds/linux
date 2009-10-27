@@ -55,6 +55,7 @@ static struct fb_ops radeonfb_ops = {
 	.fb_imageblit = cfb_imageblit,
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
+	.fb_setcmap = drm_fb_helper_setcmap,
 };
 
 /**
@@ -123,11 +124,13 @@ static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bo
 
 static struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
 	.gamma_set = radeon_crtc_fb_gamma_set,
+	.gamma_get = radeon_crtc_fb_gamma_get,
 };
 
 int radeonfb_create(struct drm_device *dev,
 		    uint32_t fb_width, uint32_t fb_height,
 		    uint32_t surface_width, uint32_t surface_height,
+		    uint32_t surface_depth, uint32_t surface_bpp,
 		    struct drm_framebuffer **fb_p)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -145,13 +148,19 @@ int radeonfb_create(struct drm_device *dev,
 	unsigned long tmp;
 	bool fb_tiled = false; /* useful for testing */
 	u32 tiling_flags = 0;
+	int crtc_count;
 
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
-	mode_cmd.bpp = 32;
+
+	/* avivo can't scanout real 24bpp */
+	if ((surface_bpp == 24) && ASIC_IS_AVIVO(rdev))
+		surface_bpp = 32;
+
+	mode_cmd.bpp = surface_bpp;
 	/* need to align pitch with crtc limits */
 	mode_cmd.pitch = radeon_align_pitch(rdev, mode_cmd.width, mode_cmd.bpp, fb_tiled) * ((mode_cmd.bpp + 1) / 8);
-	mode_cmd.depth = 24;
+	mode_cmd.depth = surface_depth;
 
 	size = mode_cmd.pitch * mode_cmd.height;
 	aligned_size = ALIGN(size, PAGE_SIZE);
@@ -216,7 +225,11 @@ int radeonfb_create(struct drm_device *dev,
 	rfbdev = info->par;
 	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
 	rfbdev->helper.dev = dev;
-	ret = drm_fb_helper_init_crtc_count(&rfbdev->helper, 2,
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		crtc_count = 1;
+	else
+		crtc_count = 2;
+	ret = drm_fb_helper_init_crtc_count(&rfbdev->helper, crtc_count,
 					    RADEONFB_CONN_LIMIT);
 	if (ret)
 		goto out_unref;
@@ -233,7 +246,7 @@ int radeonfb_create(struct drm_device *dev,
 
 	strcpy(info->fix.id, "radeondrmfb");
 
-	drm_fb_helper_fill_fix(info, fb->pitch);
+	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
 
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &radeonfb_ops;
@@ -290,13 +303,26 @@ out:
 	return ret;
 }
 
+static char *mode_option;
+int radeon_parse_options(char *options)
+{
+	char *this_opt;
+
+	if (!options || !*options)
+		return 0;
+
+	while ((this_opt = strsep(&options, ",")) != NULL) {
+		if (!*this_opt)
+			continue;
+		mode_option = this_opt;
+	}
+	return 0;
+}
+
 int radeonfb_probe(struct drm_device *dev)
 {
-	int ret;
-	ret = drm_fb_helper_single_fb_probe(dev, &radeonfb_create);
-	return ret;
+	return drm_fb_helper_single_fb_probe(dev, 32, &radeonfb_create);
 }
-EXPORT_SYMBOL(radeonfb_probe);
 
 int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb)
 {

@@ -981,8 +981,10 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 			goto eperm;
 
 		if (copy_from_user(&vsa, (struct vt_setactivate __user *)arg,
-						sizeof(struct vt_setactivate)))
-			return -EFAULT;
+					sizeof(struct vt_setactivate))) {
+			ret = -EFAULT;
+			goto out;
+		}
 		if (vsa.console == 0 || vsa.console > MAX_NR_CONSOLES)
 			ret = -ENXIO;
 		else {
@@ -1530,7 +1532,7 @@ long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
 
 	case PIO_UNIMAP:
 	case GIO_UNIMAP:
-		ret = do_unimap_ioctl(cmd, up, perm, vc);
+		ret = compat_unimap_ioctl(cmd, up, perm, vc);
 		break;
 
 	/*

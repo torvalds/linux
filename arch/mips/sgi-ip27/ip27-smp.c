@@ -165,7 +165,7 @@ static void ip27_send_ipi_single(int destid, unsigned int action)
 	REMOTE_HUB_SEND_INTR(COMPACT_TO_NASID_NODEID(cpu_to_node(destid)), irq);
 }
 
-static void ip27_send_ipi(const struct cpumask *mask, unsigned int action)
+static void ip27_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 {
 	unsigned int i;
 

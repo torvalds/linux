@@ -29,37 +29,17 @@
 #include "drmP.h"
 #include "rv515d.h"
 #include "radeon.h"
-
+#include "atom.h"
 #include "rv515_reg_safe.h"
-/* rv515 depends on : */
-void r100_hdp_reset(struct radeon_device *rdev);
-int r100_cp_reset(struct radeon_device *rdev);
-int r100_rb2d_reset(struct radeon_device *rdev);
-int r100_gui_wait_for_idle(struct radeon_device *rdev);
-int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
-void r420_pipes_init(struct radeon_device *rdev);
-void rs600_mc_disable_clients(struct radeon_device *rdev);
-void rs600_disable_vga(struct radeon_device *rdev);
 
-/* This files gather functions specifics to:
- * rv515
- *
- * Some of these functions might be used by newer ASICs.
- */
+/* This files gather functions specifics to: rv515 */
 int rv515_debugfs_pipes_info_init(struct radeon_device *rdev);
 int rv515_debugfs_ga_info_init(struct radeon_device *rdev);
 void rv515_gpu_init(struct radeon_device *rdev);
 int rv515_mc_wait_for_idle(struct radeon_device *rdev);
 
-
-/*
- * MC
- */
-int rv515_mc_init(struct radeon_device *rdev)
+void rv515_debugfs(struct radeon_device *rdev)
 {
-	uint32_t tmp;
-	int r;
-
 	if (r100_debugfs_rbbm_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for RBBM !\n");
 	}
@@ -69,67 +49,8 @@ int rv515_mc_init(struct radeon_device *rdev)
 	if (rv515_debugfs_ga_info_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for pipes !\n");
 	}
-
-	rv515_gpu_init(rdev);
-	rv370_pcie_gart_disable(rdev);
-
-	/* Setup GPU memory space */
-	rdev->mc.vram_location = 0xFFFFFFFFUL;
-	rdev->mc.gtt_location = 0xFFFFFFFFUL;
-	if (rdev->flags & RADEON_IS_AGP) {
-		r = radeon_agp_init(rdev);
-		if (r) {
-			printk(KERN_WARNING "[drm] Disabling AGP\n");
-			rdev->flags &= ~RADEON_IS_AGP;
-			rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-		} else {
-			rdev->mc.gtt_location = rdev->mc.agp_base;
-		}
-	}
-	r = radeon_mc_setup(rdev);
-	if (r) {
-		return r;
-	}
-
-	/* Program GPU memory space */
-	rs600_mc_disable_clients(rdev);
-	if (rv515_mc_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait MC idle while "
-		       "programming pipes. Bad things might happen.\n");
-	}
-	/* Write VRAM size in case we are limiting it */
-	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
-	tmp = REG_SET(MC_FB_START, rdev->mc.vram_location >> 16);
-	WREG32(0x134, tmp);
-	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
-	tmp = REG_SET(MC_FB_TOP, tmp >> 16);
-	tmp |= REG_SET(MC_FB_START, rdev->mc.vram_location >> 16);
-	WREG32_MC(MC_FB_LOCATION, tmp);
-	WREG32(HDP_FB_LOCATION, rdev->mc.vram_location >> 16);
-	WREG32(0x310, rdev->mc.vram_location);
-	if (rdev->flags & RADEON_IS_AGP) {
-		tmp = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
-		tmp = REG_SET(MC_AGP_TOP, tmp >> 16);
-		tmp |= REG_SET(MC_AGP_START, rdev->mc.gtt_location >> 16);
-		WREG32_MC(MC_AGP_LOCATION, tmp);
-		WREG32_MC(MC_AGP_BASE, rdev->mc.agp_base);
-		WREG32_MC(MC_AGP_BASE_2, 0);
-	} else {
-		WREG32_MC(MC_AGP_LOCATION, 0x0FFFFFFF);
-		WREG32_MC(MC_AGP_BASE, 0);
-		WREG32_MC(MC_AGP_BASE_2, 0);
-	}
-	return 0;
 }
 
-void rv515_mc_fini(struct radeon_device *rdev)
-{
-}
-
-
-/*
- * Global GPU functions
- */
 void rv515_ring_start(struct radeon_device *rdev)
 {
 	int r;
@@ -198,11 +119,6 @@ void rv515_ring_start(struct radeon_device *rdev)
 	radeon_ring_unlock_commit(rdev);
 }
 
-void rv515_errata(struct radeon_device *rdev)
-{
-	rdev->pll_errata = 0;
-}
-
 int rv515_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
@@ -219,6 +135,12 @@ int rv515_mc_wait_for_idle(struct radeon_device *rdev)
 	return -1;
 }
 
+void rv515_vga_render_disable(struct radeon_device *rdev)
+{
+	WREG32(R_000300_VGA_RENDER_CONTROL,
+		RREG32(R_000300_VGA_RENDER_CONTROL) & C_000300_VGA_VSTATUS_CNTL);
+}
+
 void rv515_gpu_init(struct radeon_device *rdev)
 {
 	unsigned pipe_select_current, gb_pipe_select, tmp;
@@ -231,7 +153,7 @@ void rv515_gpu_init(struct radeon_device *rdev)
 		       "reseting GPU. Bad things might happen.\n");
 	}
 
-	rs600_disable_vga(rdev);
+	rv515_vga_render_disable(rdev);
 
 	r420_pipes_init(rdev);
 	gb_pipe_select = RREG32(0x402C);
@@ -335,10 +257,6 @@ int rv515_gpu_reset(struct radeon_device *rdev)
 	return 0;
 }
 
-
-/*
- * VRAM info
- */
 static void rv515_vram_get_type(struct radeon_device *rdev)
 {
 	uint32_t tmp;
@@ -374,10 +292,6 @@ void rv515_vram_info(struct radeon_device *rdev)
 	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
 }
 
-
-/*
- * Indirect registers accessor
- */
 uint32_t rv515_mc_rreg(struct radeon_device *rdev, uint32_t reg)
 {
 	uint32_t r;
@@ -395,9 +309,6 @@ void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	WREG32(MC_IND_INDEX, 0);
 }
 
-/*
- * Debugfs info
- */
 #if defined(CONFIG_DEBUG_FS)
 static int rv515_debugfs_pipes_info(struct seq_file *m, void *data)
 {
@@ -459,13 +370,257 @@ int rv515_debugfs_ga_info_init(struct radeon_device *rdev)
 #endif
 }
 
-/*
- * Asic initialization
- */
-int rv515_init(struct radeon_device *rdev)
+void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
+{
+	save->d1vga_control = RREG32(R_000330_D1VGA_CONTROL);
+	save->d2vga_control = RREG32(R_000338_D2VGA_CONTROL);
+	save->vga_render_control = RREG32(R_000300_VGA_RENDER_CONTROL);
+	save->vga_hdp_control = RREG32(R_000328_VGA_HDP_CONTROL);
+	save->d1crtc_control = RREG32(R_006080_D1CRTC_CONTROL);
+	save->d2crtc_control = RREG32(R_006880_D2CRTC_CONTROL);
+
+	/* Stop all video */
+	WREG32(R_000330_D1VGA_CONTROL, 0);
+	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 0);
+	WREG32(R_000300_VGA_RENDER_CONTROL, 0);
+	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 1);
+	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 1);
+	WREG32(R_006080_D1CRTC_CONTROL, 0);
+	WREG32(R_006880_D2CRTC_CONTROL, 0);
+	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 0);
+	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 0);
+}
+
+void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
+{
+	WREG32(R_006110_D1GRPH_PRIMARY_SURFACE_ADDRESS, rdev->mc.vram_start);
+	WREG32(R_006118_D1GRPH_SECONDARY_SURFACE_ADDRESS, rdev->mc.vram_start);
+	WREG32(R_006910_D2GRPH_PRIMARY_SURFACE_ADDRESS, rdev->mc.vram_start);
+	WREG32(R_006918_D2GRPH_SECONDARY_SURFACE_ADDRESS, rdev->mc.vram_start);
+	WREG32(R_000310_VGA_MEMORY_BASE_ADDRESS, rdev->mc.vram_start);
+	/* Unlock host access */
+	WREG32(R_000328_VGA_HDP_CONTROL, save->vga_hdp_control);
+	mdelay(1);
+	/* Restore video state */
+	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 1);
+	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 1);
+	WREG32(R_006080_D1CRTC_CONTROL, save->d1crtc_control);
+	WREG32(R_006880_D2CRTC_CONTROL, save->d2crtc_control);
+	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 0);
+	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 0);
+	WREG32(R_000330_D1VGA_CONTROL, save->d1vga_control);
+	WREG32(R_000338_D2VGA_CONTROL, save->d2vga_control);
+	WREG32(R_000300_VGA_RENDER_CONTROL, save->vga_render_control);
+}
+
+void rv515_mc_program(struct radeon_device *rdev)
+{
+	struct rv515_mc_save save;
+
+	/* Stops all mc clients */
+	rv515_mc_stop(rdev, &save);
+
+	/* Wait for mc idle */
+	if (rv515_mc_wait_for_idle(rdev))
+		dev_warn(rdev->dev, "Wait MC idle timeout before updating MC.\n");
+	/* Write VRAM size in case we are limiting it */
+	WREG32(R_0000F8_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
+	/* Program MC, should be a 32bits limited address space */
+	WREG32_MC(R_000001_MC_FB_LOCATION,
+			S_000001_MC_FB_START(rdev->mc.vram_start >> 16) |
+			S_000001_MC_FB_TOP(rdev->mc.vram_end >> 16));
+	WREG32(R_000134_HDP_FB_LOCATION,
+		S_000134_HDP_FB_START(rdev->mc.vram_start >> 16));
+	if (rdev->flags & RADEON_IS_AGP) {
+		WREG32_MC(R_000002_MC_AGP_LOCATION,
+			S_000002_MC_AGP_START(rdev->mc.gtt_start >> 16) |
+			S_000002_MC_AGP_TOP(rdev->mc.gtt_end >> 16));
+		WREG32_MC(R_000003_MC_AGP_BASE, lower_32_bits(rdev->mc.agp_base));
+		WREG32_MC(R_000004_MC_AGP_BASE_2,
+			S_000004_AGP_BASE_ADDR_2(upper_32_bits(rdev->mc.agp_base)));
+	} else {
+		WREG32_MC(R_000002_MC_AGP_LOCATION, 0xFFFFFFFF);
+		WREG32_MC(R_000003_MC_AGP_BASE, 0);
+		WREG32_MC(R_000004_MC_AGP_BASE_2, 0);
+	}
+
+	rv515_mc_resume(rdev, &save);
+}
+
+void rv515_clock_startup(struct radeon_device *rdev)
+{
+	if (radeon_dynclks != -1 && radeon_dynclks)
+		radeon_atom_set_clock_gating(rdev, 1);
+	/* We need to force on some of the block */
+	WREG32_PLL(R_00000F_CP_DYN_CNTL,
+		RREG32_PLL(R_00000F_CP_DYN_CNTL) | S_00000F_CP_FORCEON(1));
+	WREG32_PLL(R_000011_E2_DYN_CNTL,
+		RREG32_PLL(R_000011_E2_DYN_CNTL) | S_000011_E2_FORCEON(1));
+	WREG32_PLL(R_000013_IDCT_DYN_CNTL,
+		RREG32_PLL(R_000013_IDCT_DYN_CNTL) | S_000013_IDCT_FORCEON(1));
+}
+
+static int rv515_startup(struct radeon_device *rdev)
+{
+	int r;
+
+	rv515_mc_program(rdev);
+	/* Resume clock */
+	rv515_clock_startup(rdev);
+	/* Initialize GPU configuration (# pipes, ...) */
+	rv515_gpu_init(rdev);
+	/* Initialize GART (initialize after TTM so we can allocate
+	 * memory through TTM but finalize after TTM) */
+	if (rdev->flags & RADEON_IS_PCIE) {
+		r = rv370_pcie_gart_enable(rdev);
+		if (r)
+			return r;
+	}
+	/* Enable IRQ */
+	rdev->irq.sw_int = true;
+	rs600_irq_set(rdev);
+	/* 1M ring buffer */
+	r = r100_cp_init(rdev, 1024 * 1024);
+	if (r) {
+		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
+		return r;
+	}
+	r = r100_wb_init(rdev);
+	if (r)
+		dev_err(rdev->dev, "failled initializing WB (%d).\n", r);
+	r = r100_ib_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
+		return r;
+	}
+	return 0;
+}
+
+int rv515_resume(struct radeon_device *rdev)
+{
+	/* Make sur GART are not working */
+	if (rdev->flags & RADEON_IS_PCIE)
+		rv370_pcie_gart_disable(rdev);
+	/* Resume clock before doing reset */
+	rv515_clock_startup(rdev);
+	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
+	if (radeon_gpu_reset(rdev)) {
+		dev_warn(rdev->dev, "GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
+			RREG32(R_000E40_RBBM_STATUS),
+			RREG32(R_0007C0_CP_STAT));
+	}
+	/* post */
+	atom_asic_init(rdev->mode_info.atom_context);
+	/* Resume clock after posting */
+	rv515_clock_startup(rdev);
+	return rv515_startup(rdev);
+}
+
+int rv515_suspend(struct radeon_device *rdev)
+{
+	r100_cp_disable(rdev);
+	r100_wb_disable(rdev);
+	rs600_irq_disable(rdev);
+	if (rdev->flags & RADEON_IS_PCIE)
+		rv370_pcie_gart_disable(rdev);
+	return 0;
+}
+
+void rv515_set_safe_registers(struct radeon_device *rdev)
 {
 	rdev->config.r300.reg_safe_bm = rv515_reg_safe_bm;
 	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(rv515_reg_safe_bm);
+}
+
+void rv515_fini(struct radeon_device *rdev)
+{
+	rv515_suspend(rdev);
+	r100_cp_fini(rdev);
+	r100_wb_fini(rdev);
+	r100_ib_fini(rdev);
+	radeon_gem_fini(rdev);
+    rv370_pcie_gart_fini(rdev);
+	radeon_agp_fini(rdev);
+	radeon_irq_kms_fini(rdev);
+	radeon_fence_driver_fini(rdev);
+	radeon_object_fini(rdev);
+	radeon_atombios_fini(rdev);
+	kfree(rdev->bios);
+	rdev->bios = NULL;
+}
+
+int rv515_init(struct radeon_device *rdev)
+{
+	int r;
+
+	/* Initialize scratch registers */
+	radeon_scratch_init(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
+	/* TODO: disable VGA need to use VGA request */
+	/* BIOS*/
+	if (!radeon_get_bios(rdev)) {
+		if (ASIC_IS_AVIVO(rdev))
+			return -EINVAL;
+	}
+	if (rdev->is_atom_bios) {
+		r = radeon_atombios_init(rdev);
+		if (r)
+			return r;
+	} else {
+		dev_err(rdev->dev, "Expecting atombios for RV515 GPU\n");
+		return -EINVAL;
+	}
+	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
+	if (radeon_gpu_reset(rdev)) {
+		dev_warn(rdev->dev,
+			"GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
+			RREG32(R_000E40_RBBM_STATUS),
+			RREG32(R_0007C0_CP_STAT));
+	}
+	/* check if cards are posted or not */
+	if (!radeon_card_posted(rdev) && rdev->bios) {
+		DRM_INFO("GPU not posted. posting now...\n");
+		atom_asic_init(rdev->mode_info.atom_context);
+	}
+	/* Initialize clocks */
+	radeon_get_clock_info(rdev->ddev);
+	/* Get vram informations */
+	rv515_vram_info(rdev);
+	/* Initialize memory controller (also test AGP) */
+	r = r420_mc_init(rdev);
+	if (r)
+		return r;
+	rv515_debugfs(rdev);
+	/* Fence driver */
+	r = radeon_fence_driver_init(rdev);
+	if (r)
+		return r;
+	r = radeon_irq_kms_init(rdev);
+	if (r)
+		return r;
+	/* Memory manager */
+	r = radeon_object_init(rdev);
+	if (r)
+		return r;
+	r = rv370_pcie_gart_init(rdev);
+	if (r)
+		return r;
+	rv515_set_safe_registers(rdev);
+	rdev->accel_working = true;
+	r = rv515_startup(rdev);
+	if (r) {
+		/* Somethings want wront with the accel init stop accel */
+		dev_err(rdev->dev, "Disabling GPU acceleration\n");
+		rv515_suspend(rdev);
+		r100_cp_fini(rdev);
+		r100_wb_fini(rdev);
+		r100_ib_fini(rdev);
+		rv370_pcie_gart_fini(rdev);
+		radeon_agp_fini(rdev);
+		radeon_irq_kms_fini(rdev);
+		rdev->accel_working = false;
+	}
 	return 0;
 }
 

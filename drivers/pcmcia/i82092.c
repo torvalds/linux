@@ -42,7 +42,7 @@ MODULE_DEVICE_TABLE(pci, i82092aa_pci_ids);
 #ifdef CONFIG_PM
 static int i82092aa_socket_suspend (struct pci_dev *dev, pm_message_t state)
 {
-	return pcmcia_socket_dev_suspend(&dev->dev, state);
+	return pcmcia_socket_dev_suspend(&dev->dev);
 }
 
 static int i82092aa_socket_resume (struct pci_dev *dev)

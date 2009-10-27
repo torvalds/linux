@@ -2,7 +2,10 @@
  * page-types: Tool for querying page flags
  *
  * Copyright (C) 2009 Intel corporation
- * Copyright (C) 2009 Wu Fengguang <fengguang.wu@intel.com>
+ *
+ * Authors: Wu Fengguang <fengguang.wu@intel.com>
+ *
+ * Released under the General Public License (GPL).
  */
 
 #define _LARGEFILE64_SOURCE
@@ -69,7 +72,9 @@
 #define KPF_COMPOUND_TAIL	16
 #define KPF_HUGE		17
 #define KPF_UNEVICTABLE		18
+#define KPF_HWPOISON		19
 #define KPF_NOPAGE		20
+#define KPF_KSM			21
 
 /* [32-] kernel hacking assistances */
 #define KPF_RESERVED		32
@@ -116,7 +121,9 @@ static char *page_flag_names[] = {
 	[KPF_COMPOUND_TAIL]	= "T:compound_tail",
 	[KPF_HUGE]		= "G:huge",
 	[KPF_UNEVICTABLE]	= "u:unevictable",
+	[KPF_HWPOISON]		= "X:hwpoison",
 	[KPF_NOPAGE]		= "n:nopage",
+	[KPF_KSM]		= "x:ksm",
 
 	[KPF_RESERVED]		= "r:reserved",
 	[KPF_MLOCKED]		= "m:mlocked",
@@ -152,9 +159,6 @@ static unsigned long	opt_size[MAX_ADDR_RANGES];
 static int		nr_vmas;
 static unsigned long	pg_start[MAX_VMAS];
 static unsigned long	pg_end[MAX_VMAS];
-static unsigned long	voffset;
-
-static int		pagemap_fd;
 
 #define MAX_BIT_FILTERS	64
 static int		nr_bit_filters;
@@ -163,8 +167,15 @@ static uint64_t		opt_bits[MAX_BIT_FILTERS];
 
 static int		page_size;
 
-#define PAGES_BATCH	(64 << 10)	/* 64k pages */
+static int		pagemap_fd;
 static int		kpageflags_fd;
+
+static int		opt_hwpoison;
+static int		opt_unpoison;
+
+static char		*hwpoison_debug_fs = "/debug/hwpoison";
+static int		hwpoison_inject_fd;
+static int		hwpoison_forget_fd;
 
 #define HASH_SHIFT	13
 #define HASH_SIZE	(1 << HASH_SHIFT)
@@ -205,6 +216,74 @@ static void fatal(const char *x, ...)
 	vfprintf(stderr, x, ap);
 	va_end(ap);
 	exit(EXIT_FAILURE);
+}
+
+int checked_open(const char *pathname, int flags)
+{
+	int fd = open(pathname, flags);
+
+	if (fd < 0) {
+		perror(pathname);
+		exit(EXIT_FAILURE);
+	}
+
+	return fd;
+}
+
+/*
+ * pagemap/kpageflags routines
+ */
+
+static unsigned long do_u64_read(int fd, char *name,
+				 uint64_t *buf,
+				 unsigned long index,
+				 unsigned long count)
+{
+	long bytes;
+
+	if (index > ULONG_MAX / 8)
+		fatal("index overflow: %lu\n", index);
+
+	if (lseek(fd, index * 8, SEEK_SET) < 0) {
+		perror(name);
+		exit(EXIT_FAILURE);
+	}
+
+	bytes = read(fd, buf, count * 8);
+	if (bytes < 0) {
+		perror(name);
+		exit(EXIT_FAILURE);
+	}
+	if (bytes % 8)
+		fatal("partial read: %lu bytes\n", bytes);
+
+	return bytes / 8;
+}
+
+static unsigned long kpageflags_read(uint64_t *buf,
+				     unsigned long index,
+				     unsigned long pages)
+{
+	return do_u64_read(kpageflags_fd, PROC_KPAGEFLAGS, buf, index, pages);
+}
+
+static unsigned long pagemap_read(uint64_t *buf,
+				  unsigned long index,
+				  unsigned long pages)
+{
+	return do_u64_read(pagemap_fd, "/proc/pid/pagemap", buf, index, pages);
+}
+
+static unsigned long pagemap_pfn(uint64_t val)
+{
+	unsigned long pfn;
+
+	if (val & PM_PRESENT)
+		pfn = PM_PFRAME(val);
+	else
+		pfn = 0;
+
+	return pfn;
 }
 
 
@@ -255,7 +334,8 @@ static char *page_flag_longname(uint64_t flags)
  * page list and summary
  */
 
-static void show_page_range(unsigned long offset, uint64_t flags)
+static void show_page_range(unsigned long voffset,
+			    unsigned long offset, uint64_t flags)
 {
 	static uint64_t      flags0;
 	static unsigned long voff;
@@ -281,7 +361,8 @@ static void show_page_range(unsigned long offset, uint64_t flags)
 	count  = 1;
 }
 
-static void show_page(unsigned long offset, uint64_t flags)
+static void show_page(unsigned long voffset,
+		      unsigned long offset, uint64_t flags)
 {
 	if (opt_pid)
 		printf("%lx\t", voffset);
@@ -362,6 +443,62 @@ static uint64_t well_known_flags(uint64_t flags)
 	return flags;
 }
 
+static uint64_t kpageflags_flags(uint64_t flags)
+{
+	flags = expand_overloaded_flags(flags);
+
+	if (!opt_raw)
+		flags = well_known_flags(flags);
+
+	return flags;
+}
+
+/*
+ * page actions
+ */
+
+static void prepare_hwpoison_fd(void)
+{
+	char buf[100];
+
+	if (opt_hwpoison && !hwpoison_inject_fd) {
+		sprintf(buf, "%s/corrupt-pfn", hwpoison_debug_fs);
+		hwpoison_inject_fd = checked_open(buf, O_WRONLY);
+	}
+
+	if (opt_unpoison && !hwpoison_forget_fd) {
+		sprintf(buf, "%s/renew-pfn", hwpoison_debug_fs);
+		hwpoison_forget_fd = checked_open(buf, O_WRONLY);
+	}
+}
+
+static int hwpoison_page(unsigned long offset)
+{
+	char buf[100];
+	int len;
+
+	len = sprintf(buf, "0x%lx\n", offset);
+	len = write(hwpoison_inject_fd, buf, len);
+	if (len < 0) {
+		perror("hwpoison inject");
+		return len;
+	}
+	return 0;
+}
+
+static int unpoison_page(unsigned long offset)
+{
+	char buf[100];
+	int len;
+
+	len = sprintf(buf, "0x%lx\n", offset);
+	len = write(hwpoison_forget_fd, buf, len);
+	if (len < 0) {
+		perror("hwpoison forget");
+		return len;
+	}
+	return 0;
+}
 
 /*
  * page frame walker
@@ -394,104 +531,83 @@ static int hash_slot(uint64_t flags)
 	exit(EXIT_FAILURE);
 }
 
-static void add_page(unsigned long offset, uint64_t flags)
+static void add_page(unsigned long voffset,
+		     unsigned long offset, uint64_t flags)
 {
-	flags = expand_overloaded_flags(flags);
-
-	if (!opt_raw)
-		flags = well_known_flags(flags);
+	flags = kpageflags_flags(flags);
 
 	if (!bit_mask_ok(flags))
 		return;
 
+	if (opt_hwpoison)
+		hwpoison_page(offset);
+	if (opt_unpoison)
+		unpoison_page(offset);
+
 	if (opt_list == 1)
-		show_page_range(offset, flags);
+		show_page_range(voffset, offset, flags);
 	else if (opt_list == 2)
-		show_page(offset, flags);
+		show_page(voffset, offset, flags);
 
 	nr_pages[hash_slot(flags)]++;
 	total_pages++;
 }
 
-static void walk_pfn(unsigned long index, unsigned long count)
+#define KPAGEFLAGS_BATCH	(64 << 10)	/* 64k pages */
+static void walk_pfn(unsigned long voffset,
+		     unsigned long index,
+		     unsigned long count)
 {
+	uint64_t buf[KPAGEFLAGS_BATCH];
 	unsigned long batch;
-	unsigned long n;
+	unsigned long pages;
 	unsigned long i;
 
-	if (index > ULONG_MAX / KPF_BYTES)
-		fatal("index overflow: %lu\n", index);
-
-	lseek(kpageflags_fd, index * KPF_BYTES, SEEK_SET);
-
 	while (count) {
-		uint64_t kpageflags_buf[KPF_BYTES * PAGES_BATCH];
-
-		batch = min_t(unsigned long, count, PAGES_BATCH);
-		n = read(kpageflags_fd, kpageflags_buf, batch * KPF_BYTES);
-		if (n == 0)
+		batch = min_t(unsigned long, count, KPAGEFLAGS_BATCH);
+		pages = kpageflags_read(buf, index, batch);
+		if (pages == 0)
 			break;
-		if (n < 0) {
-			perror(PROC_KPAGEFLAGS);
-			exit(EXIT_FAILURE);
-		}
 
-		if (n % KPF_BYTES != 0)
-			fatal("partial read: %lu bytes\n", n);
-		n = n / KPF_BYTES;
+		for (i = 0; i < pages; i++)
+			add_page(voffset + i, index + i, buf[i]);
 
-		for (i = 0; i < n; i++)
-			add_page(index + i, kpageflags_buf[i]);
-
-		index += batch;
-		count -= batch;
+		index += pages;
+		count -= pages;
 	}
 }
 
-
-#define PAGEMAP_BATCH	4096
-static unsigned long task_pfn(unsigned long pgoff)
+#define PAGEMAP_BATCH	(64 << 10)
+static void walk_vma(unsigned long index, unsigned long count)
 {
-	static uint64_t buf[PAGEMAP_BATCH];
-	static unsigned long start;
-	static long count;
-	uint64_t pfn;
+	uint64_t buf[PAGEMAP_BATCH];
+	unsigned long batch;
+	unsigned long pages;
+	unsigned long pfn;
+	unsigned long i;
 
-	if (pgoff < start || pgoff >= start + count) {
-		if (lseek64(pagemap_fd,
-			    (uint64_t)pgoff * PM_ENTRY_BYTES,
-			    SEEK_SET) < 0) {
-			perror("pagemap seek");
-			exit(EXIT_FAILURE);
+	while (count) {
+		batch = min_t(unsigned long, count, PAGEMAP_BATCH);
+		pages = pagemap_read(buf, index, batch);
+		if (pages == 0)
+			break;
+
+		for (i = 0; i < pages; i++) {
+			pfn = pagemap_pfn(buf[i]);
+			if (pfn)
+				walk_pfn(index + i, pfn, 1);
 		}
-		count = read(pagemap_fd, buf, sizeof(buf));
-		if (count == 0)
-			return 0;
-		if (count < 0) {
-			perror("pagemap read");
-			exit(EXIT_FAILURE);
-		}
-		if (count % PM_ENTRY_BYTES) {
-			fatal("pagemap read not aligned.\n");
-			exit(EXIT_FAILURE);
-		}
-		count /= PM_ENTRY_BYTES;
-		start = pgoff;
+
+		index += pages;
+		count -= pages;
 	}
-
-	pfn = buf[pgoff - start];
-	if (pfn & PM_PRESENT)
-		pfn = PM_PFRAME(pfn);
-	else
-		pfn = 0;
-
-	return pfn;
 }
 
 static void walk_task(unsigned long index, unsigned long count)
 {
-	int i = 0;
 	const unsigned long end = index + count;
+	unsigned long start;
+	int i = 0;
 
 	while (index < end) {
 
@@ -501,15 +617,11 @@ static void walk_task(unsigned long index, unsigned long count)
 		if (pg_start[i] >= end)
 			return;
 
-		voffset = max_t(unsigned long, pg_start[i], index);
-		index   = min_t(unsigned long, pg_end[i], end);
+		start = max_t(unsigned long, pg_start[i], index);
+		index = min_t(unsigned long, pg_end[i], end);
 
-		assert(voffset < index);
-		for (; voffset < index; voffset++) {
-			unsigned long pfn = task_pfn(voffset);
-			if (pfn)
-				walk_pfn(pfn, 1);
-		}
+		assert(start < index);
+		walk_vma(start, index - start);
 	}
 }
 
@@ -527,18 +639,14 @@ static void walk_addr_ranges(void)
 {
 	int i;
 
-	kpageflags_fd = open(PROC_KPAGEFLAGS, O_RDONLY);
-	if (kpageflags_fd < 0) {
-		perror(PROC_KPAGEFLAGS);
-		exit(EXIT_FAILURE);
-	}
+	kpageflags_fd = checked_open(PROC_KPAGEFLAGS, O_RDONLY);
 
 	if (!nr_addr_ranges)
 		add_addr_range(0, ULONG_MAX);
 
 	for (i = 0; i < nr_addr_ranges; i++)
 		if (!opt_pid)
-			walk_pfn(opt_offset[i], opt_size[i]);
+			walk_pfn(0, opt_offset[i], opt_size[i]);
 		else
 			walk_task(opt_offset[i], opt_size[i]);
 
@@ -575,6 +683,8 @@ static void usage(void)
 "            -l|--list                 Show page details in ranges\n"
 "            -L|--list-each            Show page details one by one\n"
 "            -N|--no-summary           Don't show summay info\n"
+"            -X|--hwpoison             hwpoison pages\n"
+"            -x|--unpoison             unpoison pages\n"
 "            -h|--help                 Show this usage message\n"
 "addr-spec:\n"
 "            N                         one page at offset N (unit: pages)\n"
@@ -624,11 +734,7 @@ static void parse_pid(const char *str)
 	opt_pid = parse_number(str);
 
 	sprintf(buf, "/proc/%d/pagemap", opt_pid);
-	pagemap_fd = open(buf, O_RDONLY);
-	if (pagemap_fd < 0) {
-		perror(buf);
-		exit(EXIT_FAILURE);
-	}
+	pagemap_fd = checked_open(buf, O_RDONLY);
 
 	sprintf(buf, "/proc/%d/maps", opt_pid);
 	file = fopen(buf, "r");
@@ -788,6 +894,8 @@ static struct option opts[] = {
 	{ "list"      , 0, NULL, 'l' },
 	{ "list-each" , 0, NULL, 'L' },
 	{ "no-summary", 0, NULL, 'N' },
+	{ "hwpoison"  , 0, NULL, 'X' },
+	{ "unpoison"  , 0, NULL, 'x' },
 	{ "help"      , 0, NULL, 'h' },
 	{ NULL        , 0, NULL, 0 }
 };
@@ -799,7 +907,7 @@ int main(int argc, char *argv[])
 	page_size = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"rp:f:a:b:lLNh", opts, NULL)) != -1) {
+				"rp:f:a:b:lLNXxh", opts, NULL)) != -1) {
 		switch (c) {
 		case 'r':
 			opt_raw = 1;
@@ -825,6 +933,14 @@ int main(int argc, char *argv[])
 		case 'N':
 			opt_no_summary = 1;
 			break;
+		case 'X':
+			opt_hwpoison = 1;
+			prepare_hwpoison_fd();
+			break;
+		case 'x':
+			opt_unpoison = 1;
+			prepare_hwpoison_fd();
+			break;
 		case 'h':
 			usage();
 			exit(0);
@@ -844,7 +960,7 @@ int main(int argc, char *argv[])
 	walk_addr_ranges();
 
 	if (opt_list == 1)
-		show_page_range(0, 0);  /* drain the buffer */
+		show_page_range(0, 0, 0);  /* drain the buffer */
 
 	if (opt_no_summary)
 		return 0;
