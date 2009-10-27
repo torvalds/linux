@@ -1254,7 +1254,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	struct igb_ring *tx_ring = &adapter->test_tx_ring;
 	struct igb_ring *rx_ring = &adapter->test_rx_ring;
 	struct e1000_hw *hw = &adapter->hw;
-	int i, ret_val;
+	int ret_val;
 
 	/* Setup Tx descriptor ring and Tx buffers */
 	tx_ring->count = IGB_DEFAULT_TXD;
@@ -1269,34 +1269,6 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 
 	igb_setup_tctl(adapter);
 	igb_configure_tx_ring(adapter, tx_ring);
-
-	for (i = 0; i < tx_ring->count; i++) {
-		union e1000_adv_tx_desc *tx_desc;
-		unsigned int size = 1024;
-		struct sk_buff *skb = alloc_skb(size, GFP_KERNEL);
-
-		if (!skb) {
-			ret_val = 2;
-			goto err_nomem;
-		}
-		skb_put(skb, size);
-		tx_ring->buffer_info[i].skb = skb;
-		tx_ring->buffer_info[i].length = skb->len;
-		tx_ring->buffer_info[i].dma =
-			pci_map_single(tx_ring->pdev, skb->data, skb->len,
-				       PCI_DMA_TODEVICE);
-		tx_desc = E1000_TX_DESC_ADV(*tx_ring, i);
-		tx_desc->read.buffer_addr =
-			cpu_to_le64(tx_ring->buffer_info[i].dma);
-		tx_desc->read.olinfo_status = cpu_to_le32(skb->len) <<
-		                              E1000_ADVTXD_PAYLEN_SHIFT;
-		tx_desc->read.cmd_type_len = cpu_to_le32(skb->len);
-		tx_desc->read.cmd_type_len |= cpu_to_le32(E1000_TXD_CMD_EOP |
-		                                          E1000_TXD_CMD_IFCS |
-		                                          E1000_TXD_CMD_RS |
-		                                          E1000_ADVTXD_DTYP_DATA |
-		                                          E1000_ADVTXD_DCMD_DEXT);
-	}
 
 	/* Setup Rx descriptor ring and Rx buffers */
 	rx_ring->count = IGB_DEFAULT_RXD;
@@ -1470,14 +1442,78 @@ static int igb_check_lbtest_frame(struct sk_buff *skb, unsigned int frame_size)
 	return 13;
 }
 
+static int igb_clean_test_rings(struct igb_ring *rx_ring,
+                                struct igb_ring *tx_ring,
+                                unsigned int size)
+{
+	union e1000_adv_rx_desc *rx_desc;
+	struct igb_buffer *buffer_info;
+	int rx_ntc, tx_ntc, count = 0;
+	u32 staterr;
+
+	/* initialize next to clean and descriptor values */
+	rx_ntc = rx_ring->next_to_clean;
+	tx_ntc = tx_ring->next_to_clean;
+	rx_desc = E1000_RX_DESC_ADV(*rx_ring, rx_ntc);
+	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
+
+	while (staterr & E1000_RXD_STAT_DD) {
+		/* check rx buffer */
+		buffer_info = &rx_ring->buffer_info[rx_ntc];
+
+		/* unmap rx buffer, will be remapped by alloc_rx_buffers */
+		pci_unmap_single(rx_ring->pdev,
+		                 buffer_info->dma,
+				 rx_ring->rx_buffer_len,
+				 PCI_DMA_FROMDEVICE);
+		buffer_info->dma = 0;
+
+		/* verify contents of skb */
+		if (!igb_check_lbtest_frame(buffer_info->skb, size))
+			count++;
+
+		/* unmap buffer on tx side */
+		buffer_info = &tx_ring->buffer_info[tx_ntc];
+		igb_unmap_and_free_tx_resource(tx_ring, buffer_info);
+
+		/* increment rx/tx next to clean counters */
+		rx_ntc++;
+		if (rx_ntc == rx_ring->count)
+			rx_ntc = 0;
+		tx_ntc++;
+		if (tx_ntc == tx_ring->count)
+			tx_ntc = 0;
+
+		/* fetch next descriptor */
+		rx_desc = E1000_RX_DESC_ADV(*rx_ring, rx_ntc);
+		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
+	}
+
+	/* re-map buffers to ring, store next to clean values */
+	igb_alloc_rx_buffers_adv(rx_ring, count);
+	rx_ring->next_to_clean = rx_ntc;
+	tx_ring->next_to_clean = tx_ntc;
+
+	return count;
+}
+
 static int igb_run_loopback_test(struct igb_adapter *adapter)
 {
 	struct igb_ring *tx_ring = &adapter->test_tx_ring;
 	struct igb_ring *rx_ring = &adapter->test_rx_ring;
-	int i, j, k, l, lc, good_cnt, ret_val = 0;
-	unsigned long time;
+	int i, j, lc, good_cnt, ret_val = 0;
+	unsigned int size = 1024;
+	netdev_tx_t tx_ret_val;
+	struct sk_buff *skb;
 
-	writel(rx_ring->count - 1, rx_ring->tail);
+	/* allocate test skb */
+	skb = alloc_skb(size, GFP_KERNEL);
+	if (!skb)
+		return 11;
+
+	/* place data into test skb */
+	igb_create_lbtest_frame(skb, size);
+	skb_put(skb, size);
 
 	/* Calculate the loop count based on the largest descriptor ring
 	 * The idea is to wrap the largest ring a number of times using 64
@@ -1489,50 +1525,36 @@ static int igb_run_loopback_test(struct igb_adapter *adapter)
 	else
 		lc = ((rx_ring->count / 64) * 2) + 1;
 
-	k = l = 0;
 	for (j = 0; j <= lc; j++) { /* loop count loop */
-		for (i = 0; i < 64; i++) { /* send the packets */
-			igb_create_lbtest_frame(tx_ring->buffer_info[k].skb,
-						1024);
-			pci_dma_sync_single_for_device(tx_ring->pdev,
-				tx_ring->buffer_info[k].dma,
-				tx_ring->buffer_info[k].length,
-				PCI_DMA_TODEVICE);
-			k++;
-			if (k == tx_ring->count)
-				k = 0;
-		}
-		writel(k, tx_ring->tail);
-		msleep(200);
-		time = jiffies; /* set the start time for the receive */
+		/* reset count of good packets */
 		good_cnt = 0;
-		do { /* receive the sent packets */
-			pci_dma_sync_single_for_cpu(rx_ring->pdev,
-					rx_ring->buffer_info[l].dma,
-					IGB_RXBUFFER_2048,
-					PCI_DMA_FROMDEVICE);
 
-			ret_val = igb_check_lbtest_frame(
-					     rx_ring->buffer_info[l].skb, 1024);
-			if (!ret_val)
+		/* place 64 packets on the transmit queue*/
+		for (i = 0; i < 64; i++) {
+			skb_get(skb);
+			tx_ret_val = igb_xmit_frame_ring_adv(skb, tx_ring);
+			if (tx_ret_val == NETDEV_TX_OK)
 				good_cnt++;
-			l++;
-			if (l == rx_ring->count)
-				l = 0;
-			/* time + 20 msecs (200 msecs on 2.4) is more than
-			 * enough time to complete the receives, if it's
-			 * exceeded, break and error off
-			 */
-		} while (good_cnt < 64 && jiffies < (time + 20));
+		}
+
 		if (good_cnt != 64) {
-			ret_val = 13; /* ret_val is the same as mis-compare */
+			ret_val = 12;
 			break;
 		}
-		if (jiffies >= (time + 20)) {
-			ret_val = 14; /* error code for time out error */
+
+		/* allow 200 milliseconds for packets to go from tx to rx */
+		msleep(200);
+
+		good_cnt = igb_clean_test_rings(rx_ring, tx_ring, size);
+		if (good_cnt != 64) {
+			ret_val = 13;
 			break;
 		}
 	} /* end loop count loop */
+
+	/* free the original skb */
+	kfree_skb(skb);
+
 	return ret_val;
 }
 
