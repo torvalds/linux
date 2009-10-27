@@ -42,13 +42,15 @@
 #define CEPH_OPT_DEFAULT   (CEPH_OPT_RBYTES)
 
 #define ceph_set_opt(client, opt) \
-	(client)->mount_args.flags |= CEPH_OPT_##opt;
+	(client)->mount_args->flags |= CEPH_OPT_##opt;
 #define ceph_test_opt(client, opt) \
-	(!!((client)->mount_args.flags & CEPH_OPT_##opt))
+	(!!((client)->mount_args->flags & CEPH_OPT_##opt))
 
 
 struct ceph_mount_args {
 	int sb_flags;
+	int num_mon;
+	struct ceph_entity_addr *mon_addr;
 	int flags;
 	int mount_timeout;
 	int caps_wanted_delay_min, caps_wanted_delay_max;
@@ -115,7 +117,7 @@ struct ceph_client {
 	struct dentry *debugfs_dir, *debugfs_dentry_lru, *debugfs_caps;
 
 	struct mutex mount_mutex;       /* serialize mount attempts */
-	struct ceph_mount_args mount_args;
+	struct ceph_mount_args *mount_args;
 	struct ceph_fsid fsid;
 
 	struct super_block *sb;

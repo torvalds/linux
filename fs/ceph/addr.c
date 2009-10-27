@@ -600,8 +600,8 @@ static int ceph_writepages_start(struct address_space *mapping,
 		pr_warning("writepage_start %p on forced umount\n", inode);
 		return -EIO; /* we're in a forced umount, don't write! */
 	}
-	if (client->mount_args.wsize && client->mount_args.wsize < wsize)
-		wsize = client->mount_args.wsize;
+	if (client->mount_args->wsize && client->mount_args->wsize < wsize)
+		wsize = client->mount_args->wsize;
 	if (wsize < PAGE_CACHE_SIZE)
 		wsize = PAGE_CACHE_SIZE;
 	max_pages_ever = wsize >> PAGE_CACHE_SHIFT;

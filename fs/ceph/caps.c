@@ -270,7 +270,7 @@ static void put_cap(struct ceph_cap *cap,
 	 * lots of free/alloc churn.
 	 */
 	if (caps_avail_count >= caps_reserve_count +
-	    ceph_client(cap->ci->vfs_inode.i_sb)->mount_args.max_readdir) {
+	    ceph_client(cap->ci->vfs_inode.i_sb)->mount_args->max_readdir) {
 		caps_total_count--;
 		kmem_cache_free(ceph_cap_cachep, cap);
 	} else {
@@ -388,7 +388,7 @@ static void __insert_cap_node(struct ceph_inode_info *ci,
 static void __cap_set_timeouts(struct ceph_mds_client *mdsc,
 			       struct ceph_inode_info *ci)
 {
-	struct ceph_mount_args *ma = &mdsc->client->mount_args;
+	struct ceph_mount_args *ma = mdsc->client->mount_args;
 
 	ci->i_hold_caps_min = round_jiffies(jiffies +
 					    ma->caps_wanted_delay_min * HZ);

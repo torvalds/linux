@@ -943,7 +943,7 @@ static int add_cap_releases(struct ceph_mds_client *mdsc,
 	int err = -ENOMEM;
 
 	if (extra < 0)
-		extra = mdsc->client->mount_args.cap_release_safety;
+		extra = mdsc->client->mount_args->cap_release_safety;
 
 	spin_lock(&session->s_cap_lock);
 
@@ -2601,7 +2601,7 @@ static void wait_requests(struct ceph_mds_client *mdsc)
 		mutex_unlock(&mdsc->mutex);
 		dout("wait_requests waiting for requests\n");
 		wait_for_completion_timeout(&mdsc->safe_umount_waiters,
-				    client->mount_args.mount_timeout * HZ);
+				    client->mount_args->mount_timeout * HZ);
 		mutex_lock(&mdsc->mutex);
 
 		/* tear down remaining requests */
@@ -2693,7 +2693,7 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 	int i;
 	int n;
 	struct ceph_client *client = mdsc->client;
-	unsigned long started, timeout = client->mount_args.mount_timeout * HZ;
+	unsigned long started, timeout = client->mount_args->mount_timeout * HZ;
 
 	dout("close_sessions\n");
 

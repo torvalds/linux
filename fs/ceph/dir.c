@@ -225,7 +225,7 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	int err;
 	u32 ftype;
 	struct ceph_mds_reply_info_parsed *rinfo;
-	const int max_entries = client->mount_args.max_readdir;
+	const int max_entries = client->mount_args->max_readdir;
 
 	dout("readdir %p filp %p frag %u off %u\n", inode, filp, frag, off);
 	if (fi->at_end)
@@ -479,7 +479,8 @@ struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 	/* .snap dir? */
 	if (err == -ENOENT &&
 	    ceph_vino(parent).ino != CEPH_INO_ROOT && /* no .snap in root dir */
-	    strcmp(dentry->d_name.name, client->mount_args.snapdir_name) == 0) {
+	    strcmp(dentry->d_name.name,
+		   client->mount_args->snapdir_name) == 0) {
 		struct inode *inode = ceph_get_snapdir(parent);
 		dout("ENOENT on snapdir %p '%.*s', linking to snapdir %p\n",
 		     dentry, dentry->d_name.len, dentry->d_name.name, inode);
@@ -550,7 +551,7 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 		spin_lock(&dir->i_lock);
 		dout(" dir %p flags are %d\n", dir, ci->i_ceph_flags);
 		if (strncmp(dentry->d_name.name,
-			    client->mount_args.snapdir_name,
+			    client->mount_args->snapdir_name,
 			    dentry->d_name.len) &&
 		    (ci->i_ceph_flags & CEPH_I_COMPLETE) &&
 		    (__ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1))) {

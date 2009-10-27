@@ -444,7 +444,7 @@ static void register_request(struct ceph_osd_client *osdc,
 	osdc->num_requests++;
 
 	req->r_timeout_stamp =
-		jiffies + osdc->client->mount_args.osd_timeout*HZ;
+		jiffies + osdc->client->mount_args->osd_timeout*HZ;
 
 	if (osdc->num_requests == 1) {
 		osdc->timeout_tid = req->r_tid;
@@ -609,7 +609,7 @@ static int __send_request(struct ceph_osd_client *osdc,
 	reqhead->flags |= cpu_to_le32(req->r_flags);  /* e.g., RETRY */
 	reqhead->reassert_version = req->r_reassert_version;
 
-	req->r_timeout_stamp = jiffies+osdc->client->mount_args.osd_timeout*HZ;
+	req->r_timeout_stamp = jiffies+osdc->client->mount_args->osd_timeout*HZ;
 
 	ceph_msg_get(req->r_request); /* send consumes a ref */
 	ceph_con_send(&req->r_osd->o_con, req->r_request);
@@ -632,7 +632,7 @@ static void handle_timeout(struct work_struct *work)
 		container_of(work, struct ceph_osd_client, timeout_work.work);
 	struct ceph_osd_request *req;
 	struct ceph_osd *osd;
-	unsigned long timeout = osdc->client->mount_args.osd_timeout * HZ;
+	unsigned long timeout = osdc->client->mount_args->osd_timeout * HZ;
 	unsigned long next_timeout = timeout + jiffies;
 	struct rb_node *p;
 

@@ -527,6 +527,40 @@ static void delayed_work(struct work_struct *work)
 	mutex_unlock(&monc->mutex);
 }
 
+/*
+ * On startup, we build a temporary monmap populated with the IPs
+ * provided by mount(2).
+ */
+static int build_initial_monmap(struct ceph_mon_client *monc)
+{
+	struct ceph_mount_args *args = monc->client->mount_args;
+	struct ceph_entity_addr *mon_addr = args->mon_addr;
+	int num_mon = args->num_mon;
+	int i;
+
+	/* build initial monmap */
+	monc->monmap = kzalloc(sizeof(*monc->monmap) +
+			       num_mon*sizeof(monc->monmap->mon_inst[0]),
+			       GFP_KERNEL);
+	if (!monc->monmap)
+		return -ENOMEM;
+	for (i = 0; i < num_mon; i++) {
+		monc->monmap->mon_inst[i].addr = mon_addr[i];
+		monc->monmap->mon_inst[i].addr.erank = 0;
+		monc->monmap->mon_inst[i].addr.nonce = 0;
+		monc->monmap->mon_inst[i].name.type =
+			CEPH_ENTITY_TYPE_MON;
+		monc->monmap->mon_inst[i].name.num = cpu_to_le64(i);
+	}
+	monc->monmap->num_mon = num_mon;
+
+	/* release addr memory */
+	kfree(args->mon_addr);
+	args->mon_addr = NULL;
+	args->num_mon = 0;
+	return 0;
+}
+
 int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 {
 	int err = 0;
@@ -536,6 +570,10 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	monc->client = cl;
 	monc->monmap = NULL;
 	mutex_init(&monc->mutex);
+
+	err = build_initial_monmap(monc);
+	if (err)
+		goto out;
 
 	monc->con = NULL;
 

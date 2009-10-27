@@ -110,7 +110,7 @@ static int ceph_syncfs(struct super_block *sb, int wait)
 static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
 {
 	struct ceph_client *client = ceph_sb_to_client(mnt->mnt_sb);
-	struct ceph_mount_args *args = &client->mount_args;
+	struct ceph_mount_args *args = client->mount_args;
 
 	if (args->flags & CEPH_OPT_FSID)
 		seq_printf(m, ",fsidmajor=%llu,fsidminor%llu",
@@ -307,24 +307,24 @@ static match_table_t arg_tokens = {
 };
 
 
-static int parse_mount_args(struct ceph_client *client,
-			    int flags, char *options, const char *dev_name,
-			    const char **path)
+static struct ceph_mount_args *parse_mount_args(int flags, char *options,
+						const char *dev_name,
+						const char **path)
 {
-	struct ceph_mount_args *args = &client->mount_args;
+	struct ceph_mount_args *args;
 	const char *c;
-	int err;
+	int err = -ENOMEM;
 	substring_t argstr[MAX_OPT_ARGS];
-	int num_mon;
-	struct ceph_entity_addr *mon_addr;
-	int i;
 
-	dout("parse_mount_args dev_name '%s'\n", dev_name);
-	memset(args, 0, sizeof(*args));
+	args = kzalloc(sizeof(*args), GFP_KERNEL);
+	if (!args)
+		return ERR_PTR(-ENOMEM);
+	args->mon_addr = kcalloc(CEPH_MAX_MON, sizeof(*args->mon_addr),
+				 GFP_KERNEL);
+	if (!args->mon_addr)
+		goto out;
 
-	mon_addr = kcalloc(CEPH_MAX_MON, sizeof(*mon_addr), GFP_KERNEL);
-	if (!mon_addr)
-		return -ENOMEM;
+	dout("parse_mount_args %p, dev_name '%s'\n", args, dev_name);
 
 	/* start with defaults */
 	args->sb_flags = flags;
@@ -350,28 +350,10 @@ static int parse_mount_args(struct ceph_client *client,
 	}
 
 	/* get mon ip(s) */
-	err = ceph_parse_ips(dev_name, *path, mon_addr,
-			     CEPH_MAX_MON, &num_mon);
+	err = ceph_parse_ips(dev_name, *path, args->mon_addr,
+			     CEPH_MAX_MON, &args->num_mon);
 	if (err < 0)
 		goto out;
-
-	/* build initial monmap */
-	err = -ENOMEM;
-	client->monc.monmap = kzalloc(sizeof(*client->monc.monmap) +
-			       num_mon*sizeof(client->monc.monmap->mon_inst[0]),
-			       GFP_KERNEL);
-	if (!client->monc.monmap)
-		goto out;
-	for (i = 0; i < num_mon; i++) {
-		client->monc.monmap->mon_inst[i].addr = mon_addr[i];
-		client->monc.monmap->mon_inst[i].addr.erank = 0;
-		client->monc.monmap->mon_inst[i].addr.nonce = 0;
-		client->monc.monmap->mon_inst[i].name.type =
-			CEPH_ENTITY_TYPE_MON;
-		client->monc.monmap->mon_inst[i].name.num = cpu_to_le64(i);
-	}
-	client->monc.monmap->num_mon = num_mon;
-	memset(&args->my_addr.in_addr, 0, sizeof(args->my_addr.in_addr));
 
 	/* path on server */
 	*path += 2;
@@ -415,7 +397,7 @@ static int parse_mount_args(struct ceph_client *client,
 					     &args->my_addr,
 					     1, NULL);
 			if (err < 0)
-				return err;
+				goto out;
 			args->flags |= CEPH_OPT_MYIP;
 			break;
 
@@ -481,25 +463,28 @@ static int parse_mount_args(struct ceph_client *client,
 			BUG_ON(token);
 		}
 	}
-	err = 0;
+	return args;
 
 out:
-	kfree(mon_addr);
-	return err;
+	kfree(args->mon_addr);
+	kfree(args);
+	return ERR_PTR(err);
 }
 
-static void release_mount_args(struct ceph_mount_args *args)
+static void destroy_mount_args(struct ceph_mount_args *args)
 {
+	dout("destroy_mount_args %p\n", args);
 	kfree(args->snapdir_name);
 	args->snapdir_name = NULL;
 	kfree(args->secret);
 	args->secret = NULL;
+	kfree(args);
 }
 
 /*
  * create a fresh client instance
  */
-static struct ceph_client *ceph_create_client(void)
+static struct ceph_client *ceph_create_client(struct ceph_mount_args *args)
 {
 	struct ceph_client *client;
 	int err = -ENOMEM;
@@ -515,6 +500,7 @@ static struct ceph_client *ceph_create_client(void)
 	client->sb = NULL;
 	client->mount_state = CEPH_MOUNT_MOUNTING;
 	client->whoami = -1;
+	client->mount_args = args;
 
 	client->msgr = NULL;
 
@@ -577,7 +563,7 @@ static void ceph_destroy_client(struct ceph_client *client)
 	if (client->wb_pagevec_pool)
 		mempool_destroy(client->wb_pagevec_pool);
 
-	release_mount_args(&client->mount_args);
+	destroy_mount_args(client->mount_args);
 
 	kfree(client);
 	dout("destroy_client %p done\n", client);
@@ -613,7 +599,7 @@ static struct dentry *open_root_dentry(struct ceph_client *client,
 	req->r_ino1.ino = CEPH_INO_ROOT;
 	req->r_ino1.snap = CEPH_NOSNAP;
 	req->r_started = started;
-	req->r_timeout = client->mount_args.mount_timeout * HZ;
+	req->r_timeout = client->mount_args->mount_timeout * HZ;
 	req->r_args.getattr.mask = cpu_to_le32(CEPH_STAT_CAP_INODE);
 	req->r_num_caps = 2;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
@@ -641,7 +627,7 @@ static int ceph_mount(struct ceph_client *client, struct vfsmount *mnt,
 {
 	struct ceph_entity_addr *myaddr = NULL;
 	int err;
-	unsigned long timeout = client->mount_args.mount_timeout * HZ;
+	unsigned long timeout = client->mount_args->mount_timeout * HZ;
 	unsigned long started = jiffies;  /* note the start time */
 	struct dentry *root;
 
@@ -651,7 +637,7 @@ static int ceph_mount(struct ceph_client *client, struct vfsmount *mnt,
 	/* initialize the messenger */
 	if (client->msgr == NULL) {
 		if (ceph_test_opt(client, MYIP))
-			myaddr = &client->mount_args.my_addr;
+			myaddr = &client->mount_args->my_addr;
 		client->msgr = ceph_messenger_create(myaddr);
 		if (IS_ERR(client->msgr)) {
 			err = PTR_ERR(client->msgr);
@@ -727,7 +713,7 @@ static int ceph_set_super(struct super_block *s, void *data)
 
 	dout("set_super %p data %p\n", s, data);
 
-	s->s_flags = client->mount_args.sb_flags;
+	s->s_flags = client->mount_args->sb_flags;
 	s->s_maxbytes = 1ULL << 40;  /* temp value until we get mdsmap */
 
 	s->s_fs_info = client;
@@ -756,7 +742,7 @@ fail:
 static int ceph_compare_super(struct super_block *sb, void *data)
 {
 	struct ceph_client *new = data;
-	struct ceph_mount_args *args = &new->mount_args;
+	struct ceph_mount_args *args = new->mount_args;
 	struct ceph_client *other = ceph_sb_to_client(sb);
 	int i;
 
@@ -778,7 +764,7 @@ static int ceph_compare_super(struct super_block *sb, void *data)
 		}
 		dout("mon ip matches existing sb %p\n", sb);
 	}
-	if (args->sb_flags != other->mount_args.sb_flags) {
+	if (args->sb_flags != other->mount_args->sb_flags) {
 		dout("flags differ\n");
 		return 0;
 	}
@@ -798,9 +784,9 @@ static int ceph_init_bdi(struct super_block *sb, struct ceph_client *client)
 	sb->s_bdi = &client->backing_dev_info;
 
 	/* set ra_pages based on rsize mount option? */
-	if (client->mount_args.rsize >= PAGE_CACHE_SIZE)
+	if (client->mount_args->rsize >= PAGE_CACHE_SIZE)
 		client->backing_dev_info.ra_pages =
-			(client->mount_args.rsize + PAGE_CACHE_SIZE - 1)
+			(client->mount_args->rsize + PAGE_CACHE_SIZE - 1)
 			>> PAGE_SHIFT;
 
 	err = bdi_register_dev(&client->backing_dev_info, sb->s_dev);
@@ -816,19 +802,23 @@ static int ceph_get_sb(struct file_system_type *fs_type,
 	int err;
 	int (*compare_super)(struct super_block *, void *) = ceph_compare_super;
 	const char *path = 0;
+	struct ceph_mount_args *args;
 
 	dout("ceph_get_sb\n");
+	args = parse_mount_args(flags, data, dev_name, &path);
+	if (IS_ERR(args)) {
+		err = PTR_ERR(args);
+		goto out_final;
+	}
 
 	/* create client (which we may/may not use) */
-	client = ceph_create_client();
-	if (IS_ERR(client))
-		return PTR_ERR(client);
+	client = ceph_create_client(args);
+	if (IS_ERR(client)) {
+		err = PTR_ERR(client);
+		goto out_final;
+	}
 
-	err = parse_mount_args(client, flags, data, dev_name, &path);
-	if (err < 0)
-		goto out;
-
-	if (client->mount_args.flags & CEPH_OPT_NOSHARE)
+	if (client->mount_args->flags & CEPH_OPT_NOSHARE)
 		compare_super = NULL;
 	sb = sget(fs_type, compare_super, ceph_set_super, client);
 	if (IS_ERR(sb)) {
@@ -846,7 +836,7 @@ static int ceph_get_sb(struct file_system_type *fs_type,
 		/* set up mempools */
 		err = -ENOMEM;
 		client->wb_pagevec_pool = mempool_create_kmalloc_pool(10,
-			      client->mount_args.wsize >> PAGE_CACHE_SHIFT);
+			      client->mount_args->wsize >> PAGE_CACHE_SHIFT);
 		if (!client->wb_pagevec_pool)
 			goto out_splat;
 
