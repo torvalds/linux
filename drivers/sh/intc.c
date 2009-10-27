@@ -70,9 +70,7 @@ static LIST_HEAD(intc_list);
 #endif
 
 static unsigned int intc_prio_level[NR_IRQS]; /* for now */
-#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 static unsigned long ack_handle[NR_IRQS];
-#endif
 
 static inline struct intc_desc_int *get_intc_desc(unsigned int irq)
 {
@@ -250,7 +248,6 @@ static int intc_set_wake(unsigned int irq, unsigned int on)
 	return 0; /* allow wakeup, but setup hardware in intc_suspend() */
 }
 
-#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 static void intc_mask_ack(unsigned int irq)
 {
 	struct intc_desc_int *d = get_intc_desc(irq);
@@ -282,7 +279,6 @@ static void intc_mask_ack(unsigned int irq)
 		}
 	}
 }
-#endif
 
 static struct intc_handle_int *intc_find_irq(struct intc_handle_int *hp,
 					     unsigned int nr_hp,
@@ -501,7 +497,6 @@ static unsigned int __init intc_prio_data(struct intc_desc *desc,
 	return 0;
 }
 
-#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 static unsigned int __init intc_ack_data(struct intc_desc *desc,
 					  struct intc_desc_int *d,
 					  intc_enum enum_id)
@@ -533,7 +528,6 @@ static unsigned int __init intc_ack_data(struct intc_desc *desc,
 
 	return 0;
 }
-#endif
 
 static unsigned int __init intc_sense_data(struct intc_desc *desc,
 					   struct intc_desc_int *d,
@@ -641,10 +635,8 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	/* irq should be disabled by default */
 	d->chip.mask(irq);
 
-#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	if (desc->ack_regs)
 		ack_handle[irq] = intc_ack_data(desc, d, enum_id);
-#endif
 }
 
 static unsigned int __init save_reg(struct intc_desc_int *d,
@@ -681,10 +673,8 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->nr_reg = desc->mask_regs ? desc->nr_mask_regs * 2 : 0;
 	d->nr_reg += desc->prio_regs ? desc->nr_prio_regs * 2 : 0;
 	d->nr_reg += desc->sense_regs ? desc->nr_sense_regs : 0;
-
-#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	d->nr_reg += desc->ack_regs ? desc->nr_ack_regs : 0;
-#endif
+
 	d->reg = kzalloc(d->nr_reg * sizeof(*d->reg), GFP_NOWAIT);
 #ifdef CONFIG_SMP
 	d->smp = kzalloc(d->nr_reg * sizeof(*d->smp), GFP_NOWAIT);
@@ -727,14 +717,12 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->chip.set_type = intc_set_sense;
 	d->chip.set_wake = intc_set_wake;
 
-#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	if (desc->ack_regs) {
 		for (i = 0; i < desc->nr_ack_regs; i++)
 			k += save_reg(d, k, desc->ack_regs[i].set_reg, 0);
 
 		d->chip.mask_ack = intc_mask_ack;
 	}
-#endif
 
 	BUG_ON(k > 256); /* _INTC_ADDR_E() and _INTC_ADDR_D() are 8 bits */
 
