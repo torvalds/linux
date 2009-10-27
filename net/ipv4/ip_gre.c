@@ -1290,16 +1290,19 @@ static const struct net_protocol ipgre_protocol = {
 	.netns_ok	=	1,
 };
 
-static void ipgre_destroy_tunnels(struct ipgre_net *ign)
+static void ipgre_destroy_tunnels(struct ipgre_net *ign, struct list_head *head)
 {
 	int prio;
 
 	for (prio = 0; prio < 4; prio++) {
 		int h;
 		for (h = 0; h < HASH_SIZE; h++) {
-			struct ip_tunnel *t;
-			while ((t = ign->tunnels[prio][h]) != NULL)
-				unregister_netdevice(t->dev);
+			struct ip_tunnel *t = ign->tunnels[prio][h];
+
+			while (t != NULL) {
+				unregister_netdevice_queue(t->dev, head);
+				t = t->next;
+			}
 		}
 	}
 }
@@ -1347,10 +1350,12 @@ err_alloc:
 static void ipgre_exit_net(struct net *net)
 {
 	struct ipgre_net *ign;
+	LIST_HEAD(list);
 
 	ign = net_generic(net, ipgre_net_id);
 	rtnl_lock();
-	ipgre_destroy_tunnels(ign);
+	ipgre_destroy_tunnels(ign, &list);
+	unregister_netdevice_many(&list);
 	rtnl_unlock();
 	kfree(ign);
 }
