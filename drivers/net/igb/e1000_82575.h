@@ -228,6 +228,8 @@ struct e1000_adv_tx_context_desc {
 
 #define ALL_QUEUES   0xFFFF
 
+/* RX packet buffer size defines */
+#define E1000_RXPBS_SIZE_MASK_82576  0x0000007F
 void igb_vmdq_set_loopback_pf(struct e1000_hw *, bool);
 void igb_vmdq_set_replication_pf(struct e1000_hw *, bool);
 

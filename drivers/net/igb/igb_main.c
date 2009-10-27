@@ -1215,7 +1215,8 @@ void igb_reset(struct igb_adapter *adapter)
 	 */
 	switch (mac->type) {
 	case e1000_82576:
-		pba = E1000_PBA_64K;
+		pba = rd32(E1000_RXPBS);
+		pba &= E1000_RXPBS_SIZE_MASK_82576;
 		break;
 	case e1000_82575:
 	default:
