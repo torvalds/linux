@@ -278,7 +278,7 @@ function convert_operands(opnd,       i,imm,mod)
 
 		# check REX prefix
 		if (match(opcode, rex_expr))
-			flags = add_flags(flags, "INAT_REXPFX")
+			flags = add_flags(flags, "INAT_MAKE_PREFIX(INAT_PFX_REX)")
 
 		# check coprocessor escape : TODO
 		if (match(opcode, fpu_expr))
@@ -316,7 +316,7 @@ END {
 	# print escape opcode map's array
 	print "/* Escape opcode map array */"
 	print "const insn_attr_t const *inat_escape_tables[INAT_ESC_MAX + 1]" \
-	      "[INAT_LPREFIX_MAX + 1] = {"
+	      "[INAT_LSTPFX_MAX + 1] = {"
 	for (i = 0; i < geid; i++)
 		for (j = 0; j < max_lprefix; j++)
 			if (etable[i,j])
@@ -325,7 +325,7 @@ END {
 	# print group opcode map's array
 	print "/* Group opcode map array */"
 	print "const insn_attr_t const *inat_group_tables[INAT_GRP_MAX + 1]"\
-	      "[INAT_LPREFIX_MAX + 1] = {"
+	      "[INAT_LSTPFX_MAX + 1] = {"
 	for (i = 0; i < ggid; i++)
 		for (j = 0; j < max_lprefix; j++)
 			if (gtable[i,j])

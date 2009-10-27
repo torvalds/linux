@@ -69,7 +69,7 @@ void insn_get_prefixes(struct insn *insn)
 	lb = 0;
 	b = peek_next(insn_byte_t, insn);
 	attr = inat_get_opcode_attribute(b);
-	while (inat_is_prefix(attr)) {
+	while (inat_is_legacy_prefix(attr)) {
 		/* Skip if same prefix */
 		for (i = 0; i < nb; i++)
 			if (prefixes->bytes[i] == b)

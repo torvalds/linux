@@ -30,10 +30,11 @@
 #define INAT_OPCODE_TABLE_SIZE 256
 #define INAT_GROUP_TABLE_SIZE 8
 
-/* Legacy instruction prefixes */
+/* Legacy last prefixes */
 #define INAT_PFX_OPNDSZ	1	/* 0x66 */ /* LPFX1 */
 #define INAT_PFX_REPNE	2	/* 0xF2 */ /* LPFX2 */
 #define INAT_PFX_REPE	3	/* 0xF3 */ /* LPFX3 */
+/* Other Legacy prefixes */
 #define INAT_PFX_LOCK	4	/* 0xF0 */
 #define INAT_PFX_CS	5	/* 0x2E */
 #define INAT_PFX_DS	6	/* 0x3E */
@@ -42,8 +43,11 @@
 #define INAT_PFX_GS	9	/* 0x65 */
 #define INAT_PFX_SS	10	/* 0x36 */
 #define INAT_PFX_ADDRSZ	11	/* 0x67 */
+/* x86-64 REX prefix */
+#define INAT_PFX_REX	12	/* 0x4X */
 
-#define INAT_LPREFIX_MAX	3
+#define INAT_LSTPFX_MAX	3
+#define INAT_LGCPFX_MAX	11
 
 /* Immediate size */
 #define INAT_IMM_BYTE		1
@@ -75,12 +79,11 @@
 #define INAT_IMM_MASK	(((1 << INAT_IMM_BITS) - 1) << INAT_IMM_OFFS)
 /* Flags */
 #define INAT_FLAG_OFFS	(INAT_IMM_OFFS + INAT_IMM_BITS)
-#define INAT_REXPFX	(1 << INAT_FLAG_OFFS)
-#define INAT_MODRM	(1 << (INAT_FLAG_OFFS + 1))
-#define INAT_FORCE64	(1 << (INAT_FLAG_OFFS + 2))
-#define INAT_SCNDIMM	(1 << (INAT_FLAG_OFFS + 3))
-#define INAT_MOFFSET	(1 << (INAT_FLAG_OFFS + 4))
-#define INAT_VARIANT	(1 << (INAT_FLAG_OFFS + 5))
+#define INAT_MODRM	(1 << (INAT_FLAG_OFFS))
+#define INAT_FORCE64	(1 << (INAT_FLAG_OFFS + 1))
+#define INAT_SCNDIMM	(1 << (INAT_FLAG_OFFS + 2))
+#define INAT_MOFFSET	(1 << (INAT_FLAG_OFFS + 3))
+#define INAT_VARIANT	(1 << (INAT_FLAG_OFFS + 4))
 /* Attribute making macros for attribute tables */
 #define INAT_MAKE_PREFIX(pfx)	(pfx << INAT_PFX_OFFS)
 #define INAT_MAKE_ESCAPE(esc)	(esc << INAT_ESC_OFFS)
@@ -97,9 +100,10 @@ extern insn_attr_t inat_get_group_attribute(insn_byte_t modrm,
 					    insn_attr_t esc_attr);
 
 /* Attribute checking functions */
-static inline int inat_is_prefix(insn_attr_t attr)
+static inline int inat_is_legacy_prefix(insn_attr_t attr)
 {
-	return attr & INAT_PFX_MASK;
+	attr &= INAT_PFX_MASK;
+	return attr && attr <= INAT_LGCPFX_MAX;
 }
 
 static inline int inat_is_address_size_prefix(insn_attr_t attr)
@@ -112,9 +116,14 @@ static inline int inat_is_operand_size_prefix(insn_attr_t attr)
 	return (attr & INAT_PFX_MASK) == INAT_PFX_OPNDSZ;
 }
 
+static inline int inat_is_rex_prefix(insn_attr_t attr)
+{
+	return (attr & INAT_PFX_MASK) == INAT_PFX_REX;
+}
+
 static inline int inat_last_prefix_id(insn_attr_t attr)
 {
-	if ((attr & INAT_PFX_MASK) > INAT_LPREFIX_MAX)
+	if ((attr & INAT_PFX_MASK) > INAT_LSTPFX_MAX)
 		return 0;
 	else
 		return attr & INAT_PFX_MASK;
@@ -153,11 +162,6 @@ static inline int inat_has_immediate(insn_attr_t attr)
 static inline int inat_immediate_size(insn_attr_t attr)
 {
 	return (attr & INAT_IMM_MASK) >> INAT_IMM_OFFS;
-}
-
-static inline int inat_is_rex_prefix(insn_attr_t attr)
-{
-	return attr & INAT_REXPFX;
 }
 
 static inline int inat_has_modrm(insn_attr_t attr)
