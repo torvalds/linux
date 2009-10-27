@@ -1,6 +1,6 @@
 config PRISM2_USB
 	tristate "Prism2.5/3 USB driver"
-	depends on WLAN_80211 && USB && WIRELESS_EXT
+	depends on WLAN && USB && WIRELESS_EXT
 	default n
 	---help---
 	  This is the wlan-ng prism 2.5/3 USB driver for a wide range of
