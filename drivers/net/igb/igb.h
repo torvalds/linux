@@ -254,7 +254,6 @@ struct igb_adapter {
 	int num_rx_queues;
 
 	u64 hw_csum_err;
-	u64 hw_csum_good;
 	u32 alloc_rx_buff_failed;
 	u32 gorc;
 	u64 gorc_old;

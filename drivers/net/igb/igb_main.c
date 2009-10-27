@@ -4827,7 +4827,6 @@ static inline void igb_rx_checksum_adv(struct igb_adapter *adapter,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	dev_dbg(&adapter->pdev->dev, "cksum success: bits %08X\n", status_err);
-	adapter->hw_csum_good++;
 }
 
 static inline u16 igb_get_hlen(struct igb_adapter *adapter,
