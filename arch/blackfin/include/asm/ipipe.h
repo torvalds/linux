@@ -35,9 +35,9 @@
 #include <asm/atomic.h>
 #include <asm/traps.h>
 
-#define IPIPE_ARCH_STRING     "1.11-00"
+#define IPIPE_ARCH_STRING     "1.12-00"
 #define IPIPE_MAJOR_NUMBER    1
-#define IPIPE_MINOR_NUMBER    11
+#define IPIPE_MINOR_NUMBER    12
 #define IPIPE_PATCH_NUMBER    0
 
 #ifdef CONFIG_SMP
