@@ -172,6 +172,7 @@ enum radeon_connector_table {
 
 struct radeon_mode_info {
 	struct atom_context *atom_context;
+	struct card_info *atom_card_info;
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
 	struct radeon_crtc *crtcs[2];

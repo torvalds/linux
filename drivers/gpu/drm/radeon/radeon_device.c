@@ -443,20 +443,24 @@ static uint32_t cail_reg_read(struct card_info *info, uint32_t reg)
 	return r;
 }
 
-static struct card_info atom_card_info = {
-	.dev = NULL,
-	.reg_read = cail_reg_read,
-	.reg_write = cail_reg_write,
-	.mc_read = cail_mc_read,
-	.mc_write = cail_mc_write,
-	.pll_read = cail_pll_read,
-	.pll_write = cail_pll_write,
-};
-
 int radeon_atombios_init(struct radeon_device *rdev)
 {
-	atom_card_info.dev = rdev->ddev;
-	rdev->mode_info.atom_context = atom_parse(&atom_card_info, rdev->bios);
+	struct card_info *atom_card_info =
+	    kzalloc(sizeof(struct card_info), GFP_KERNEL);
+
+	if (!atom_card_info)
+		return -ENOMEM;
+
+	rdev->mode_info.atom_card_info = atom_card_info;
+	atom_card_info->dev = rdev->ddev;
+	atom_card_info->reg_read = cail_reg_read;
+	atom_card_info->reg_write = cail_reg_write;
+	atom_card_info->mc_read = cail_mc_read;
+	atom_card_info->mc_write = cail_mc_write;
+	atom_card_info->pll_read = cail_pll_read;
+	atom_card_info->pll_write = cail_pll_write;
+
+	rdev->mode_info.atom_context = atom_parse(atom_card_info, rdev->bios);
 	radeon_atom_initialize_bios_scratch_regs(rdev->ddev);
 	return 0;
 }
@@ -464,6 +468,7 @@ int radeon_atombios_init(struct radeon_device *rdev)
 void radeon_atombios_fini(struct radeon_device *rdev)
 {
 	kfree(rdev->mode_info.atom_context);
+	kfree(rdev->mode_info.atom_card_info);
 }
 
 int radeon_combios_init(struct radeon_device *rdev)
