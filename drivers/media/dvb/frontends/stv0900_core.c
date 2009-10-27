@@ -599,6 +599,8 @@ static s32 stv0900_get_rf_level(struct stv0900_internal *i_params,
 			break;
 		}
 
+	dprintk("%s: AGC Gain = 0x%x\n", __func__, agc_gain);
+
 		imin = 0;
 		imax = lookup->size - 1;
 		if (INRANGE(lookup->table[imin].regval, agc_gain, lookup->table[imax].regval)) {
@@ -634,7 +636,14 @@ static int stv0900_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	s32 rflevel = stv0900_get_rf_level(internal, &stv0900_rf,
 								state->demod);
 
-	*strength = (rflevel + 100) * (16383 / 105);
+	rflevel = (rflevel + 100) * (65535 / 70);
+	if (rflevel < 0)
+		rflevel = 0;
+
+	if (rflevel > 65535)
+		rflevel = 65535;
+
+	*strength = rflevel;
 
 	return 0;
 }
@@ -709,6 +718,8 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 		}
 	}
 
+	dprintk("%s: Quality = %d\n", __func__, c_n);
+
 	return c_n;
 }
 
@@ -752,10 +763,16 @@ static int stv0900_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 
 static int stv0900_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	*snr = stv0900_carr_get_quality(fe,
+	s32 snrlcl = stv0900_carr_get_quality(fe,
 			(const struct stv0900_table *)&stv0900_s2_cn);
-	*snr += 30;
-	*snr *= (16383 / 1030);
+	snrlcl = (snrlcl + 30) * 384;
+	if (snrlcl < 0)
+		snrlcl = 0;
+
+	if (snrlcl > 65535)
+		snrlcl = 65535;
+
+	*snr = snrlcl;
 
 	return 0;
 }
