@@ -777,8 +777,11 @@ static void sierra_close(struct usb_serial_port *port)
 
 	if (serial->dev) {
 		mutex_lock(&serial->disc_mutex);
-		if (!serial->disconnected)
+		if (!serial->disconnected) {
+			serial->interface->needs_remote_wakeup = 0;
+			usb_autopm_get_interface(serial->interface);
 			sierra_send_setup(port);
+		}
 		mutex_unlock(&serial->disc_mutex);
 		spin_lock_irq(&intfdata->susp_lock);
 		portdata->opened = 0;
@@ -792,8 +795,6 @@ static void sierra_close(struct usb_serial_port *port)
 			sierra_release_urb(portdata->in_urbs[i]);
 			portdata->in_urbs[i] = NULL;
 		}
-		usb_autopm_get_interface(serial->interface);
-		serial->interface->needs_remote_wakeup = 0;
 	}
 }
 
@@ -831,6 +832,8 @@ static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (err) {
 		/* get rid of everything as in close */
 		sierra_close(port);
+		/* restore balance for autopm */
+		usb_autopm_put_interface(serial->interface);
 		return err;
 	}
 	sierra_send_setup(port);
@@ -919,7 +922,7 @@ static void sierra_release(struct usb_serial *serial)
 #ifdef CONFIG_PM
 static void stop_read_write_urbs(struct usb_serial *serial)
 {
-	int i, j;
+	int i;
 	struct usb_serial_port *port;
 	struct sierra_port_private *portdata;
 
@@ -927,8 +930,7 @@ static void stop_read_write_urbs(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		portdata = usb_get_serial_port_data(port);
-		for (j = 0; j < N_IN_URB; j++)
-			usb_kill_urb(portdata->in_urbs[j]);
+		sierra_stop_rx_urbs(port);
 		usb_kill_anchored_urbs(&portdata->active);
 	}
 }
