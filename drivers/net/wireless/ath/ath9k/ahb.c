@@ -137,9 +137,10 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	       "%s: Atheros AR%s MAC/BB Rev:%x, "
 	       "AR%s RF Rev:%x, mem=0x%lx, irq=%d\n",
 	       wiphy_name(hw->wiphy),
-	       ath_mac_bb_name(ah->hw_version.macVersion),
+	       ath9k_hw_mac_bb_name(ah->hw_version.macVersion),
 	       ah->hw_version.macRev,
-	       ath_rf_name((ah->hw_version.analog5GhzRev & AR_RADIO_SREV_MAJOR)),
+	       ath9k_hw_rf_name((ah->hw_version.analog5GhzRev &
+				 AR_RADIO_SREV_MAJOR)),
 	       ah->hw_version.phyRev,
 	       (unsigned long)mem, irq);
 
