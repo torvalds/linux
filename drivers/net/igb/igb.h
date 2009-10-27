@@ -269,10 +269,6 @@ struct igb_adapter {
 	/* TX */
 	struct igb_ring *tx_ring;      /* One per active queue */
 	unsigned long tx_queue_len;
-	u32 gotc;
-	u64 gotc_old;
-	u64 tpt_old;
-	u64 colc_old;
 	u32 tx_timeout_count;
 
 	/* RX */
@@ -280,8 +276,6 @@ struct igb_adapter {
 	int num_tx_queues;
 	int num_rx_queues;
 
-	u32 gorc;
-	u64 gorc_old;
 	u32 max_frame_size;
 	u32 min_frame_size;
 

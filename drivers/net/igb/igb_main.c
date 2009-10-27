@@ -2925,9 +2925,6 @@ static void igb_watchdog_task(struct work_struct *work)
 	int i;
 
 	link = igb_has_link(adapter);
-	if ((netif_carrier_ok(netdev)) && link)
-		goto link_up;
-
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
 			u32 ctrl;
@@ -2990,20 +2987,8 @@ static void igb_watchdog_task(struct work_struct *work)
 		}
 	}
 
-link_up:
 	igb_update_stats(adapter);
-
-	hw->mac.tx_packet_delta = adapter->stats.tpt - adapter->tpt_old;
-	adapter->tpt_old = adapter->stats.tpt;
-	hw->mac.collision_delta = adapter->stats.colc - adapter->colc_old;
-	adapter->colc_old = adapter->stats.colc;
-
-	adapter->gorc = adapter->stats.gorc - adapter->gorc_old;
-	adapter->gorc_old = adapter->stats.gorc;
-	adapter->gotc = adapter->stats.gotc - adapter->gotc_old;
-	adapter->gotc_old = adapter->stats.gotc;
-
-	igb_update_adaptive(&adapter->hw);
+	igb_update_adaptive(hw);
 
 	if (!netif_carrier_ok(netdev)) {
 		if (igb_desc_unused(tx_ring) + 1 < tx_ring->count) {
@@ -3875,7 +3860,6 @@ void igb_update_stats(struct igb_adapter *adapter)
 	adapter->stats.bptc += rd32(E1000_BPTC);
 
 	/* used for adaptive IFS */
-
 	hw->mac.tx_packet_delta = rd32(E1000_TPT);
 	adapter->stats.tpt += hw->mac.tx_packet_delta;
 	hw->mac.collision_delta = rd32(E1000_COLC);
