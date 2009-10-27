@@ -483,8 +483,14 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		atom_execute_table(rdev->mode_info.atom_context,
 				   index, (uint32_t *)&adjust_pll_args);
 		adjusted_clock = le16_to_cpu(adjust_pll_args.usPixelClock) * 10;
-	} else
-		adjusted_clock = mode->clock;
+	} else {
+		/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
+		if (ASIC_IS_AVIVO(rdev) &&
+		    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1))
+			adjusted_clock = mode->clock * 2;
+		else
+			adjusted_clock = mode->clock;
+	}
 
 	if (radeon_crtc->crtc_id == 0)
 		pll = &rdev->clock.p1pll;
