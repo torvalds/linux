@@ -1409,46 +1409,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_sw_init;
 
-#ifdef CONFIG_PCI_IOV
-	/* since iov functionality isn't critical to base device function we
-	 * can accept failure.  If it fails we don't allow iov to be enabled */
-	if (hw->mac.type == e1000_82576) {
-		/* 82576 supports a maximum of 7 VFs in addition to the PF */
-		unsigned int num_vfs = (max_vfs > 7) ? 7 : max_vfs;
-		int i;
-		unsigned char mac_addr[ETH_ALEN];
-
-		if (num_vfs) {
-			adapter->vf_data = kcalloc(num_vfs,
-						sizeof(struct vf_data_storage),
-						GFP_KERNEL);
-			if (!adapter->vf_data) {
-				dev_err(&pdev->dev,
-				        "Could not allocate VF private data - "
-					"IOV enable failed\n");
-			} else {
-				err = pci_enable_sriov(pdev, num_vfs);
-				if (!err) {
-					adapter->vfs_allocated_count = num_vfs;
-					dev_info(&pdev->dev,
-					         "%d vfs allocated\n",
-					         num_vfs);
-					for (i = 0;
-					     i < adapter->vfs_allocated_count;
-					     i++) {
-						random_ether_addr(mac_addr);
-						igb_set_vf_mac(adapter, i,
-						               mac_addr);
-					}
-				} else {
-					kfree(adapter->vf_data);
-					adapter->vf_data = NULL;
-				}
-			}
-		}
-	}
-
-#endif
 	/* setup the private structure */
 	err = igb_sw_init(adapter);
 	if (err)
@@ -1772,6 +1732,54 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 }
 
 /**
+ * igb_probe_vfs - Initialize vf data storage and add VFs to pci config space
+ * @adapter: board private structure to initialize
+ *
+ * This function initializes the vf specific data storage and then attempts to
+ * allocate the VFs.  The reason for ordering it this way is because it is much
+ * mor expensive time wise to disable SR-IOV than it is to allocate and free
+ * the memory for the VFs.
+ **/
+static void __devinit igb_probe_vfs(struct igb_adapter * adapter)
+{
+#ifdef CONFIG_PCI_IOV
+	struct pci_dev *pdev = adapter->pdev;
+
+	if (adapter->vfs_allocated_count > 7)
+		adapter->vfs_allocated_count = 7;
+
+	if (adapter->vfs_allocated_count) {
+		adapter->vf_data = kcalloc(adapter->vfs_allocated_count,
+		                           sizeof(struct vf_data_storage),
+		                           GFP_KERNEL);
+		/* if allocation failed then we do not support SR-IOV */
+		if (!adapter->vf_data) {
+			adapter->vfs_allocated_count = 0;
+			dev_err(&pdev->dev, "Unable to allocate memory for VF "
+			        "Data Storage\n");
+		}
+	}
+
+	if (pci_enable_sriov(pdev, adapter->vfs_allocated_count)) {
+		kfree(adapter->vf_data);
+		adapter->vf_data = NULL;
+#endif /* CONFIG_PCI_IOV */
+		adapter->vfs_allocated_count = 0;
+#ifdef CONFIG_PCI_IOV
+	} else {
+		unsigned char mac_addr[ETH_ALEN];
+		int i;
+		dev_info(&pdev->dev, "%d vfs allocated\n",
+		         adapter->vfs_allocated_count);
+		for (i = 0; i < adapter->vfs_allocated_count; i++) {
+			random_ether_addr(mac_addr);
+			igb_set_vf_mac(adapter, i, mac_addr);
+		}
+	}
+#endif /* CONFIG_PCI_IOV */
+}
+
+/**
  * igb_sw_init - Initialize general software structures (struct igb_adapter)
  * @adapter: board private structure to initialize
  *
@@ -1795,12 +1803,18 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
-	/* This call may decrease the number of queues depending on
-	 * interrupt mode. */
+#ifdef CONFIG_PCI_IOV
+	if (hw->mac.type == e1000_82576)
+		adapter->vfs_allocated_count = max_vfs;
+
+#endif /* CONFIG_PCI_IOV */
+	/* This call may decrease the number of queues */
 	if (igb_init_interrupt_scheme(adapter)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}
+
+	igb_probe_vfs(adapter);
 
 	/* Explicitly disable IRQ since the NIC can be in any state. */
 	igb_irq_disable(adapter);
