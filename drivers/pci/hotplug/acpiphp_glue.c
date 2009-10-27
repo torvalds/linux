@@ -309,17 +309,13 @@ static void init_bridge_misc(struct acpiphp_bridge *bridge)
 /* find acpiphp_func from acpiphp_bridge */
 static struct acpiphp_func *acpiphp_bridge_handle_to_function(acpi_handle handle)
 {
-	struct list_head *node, *l;
 	struct acpiphp_bridge *bridge;
 	struct acpiphp_slot *slot;
 	struct acpiphp_func *func;
 
-	list_for_each(node, &bridge_list) {
-		bridge = list_entry(node, struct acpiphp_bridge, list);
+	list_for_each_entry(bridge, &bridge_list, list) {
 		for (slot = bridge->slots; slot; slot = slot->next) {
-			list_for_each(l, &slot->funcs) {
-				func = list_entry(l, struct acpiphp_func,
-							sibling);
+			list_for_each_entry(func, &slot->funcs, sibling) {
 				if (func->handle == handle)
 					return func;
 			}
@@ -493,21 +489,19 @@ static int add_bridge(acpi_handle handle)
 
 static struct acpiphp_bridge *acpiphp_handle_to_bridge(acpi_handle handle)
 {
-	struct list_head *head;
-	list_for_each(head, &bridge_list) {
-		struct acpiphp_bridge *bridge = list_entry(head,
-						struct acpiphp_bridge, list);
+	struct acpiphp_bridge *bridge;
+
+	list_for_each_entry(bridge, &bridge_list, list)
 		if (bridge->handle == handle)
 			return bridge;
-	}
 
 	return NULL;
 }
 
 static void cleanup_bridge(struct acpiphp_bridge *bridge)
 {
-	struct list_head *list, *tmp;
-	struct acpiphp_slot *slot;
+	struct acpiphp_slot *slot, *next;
+	struct acpiphp_func *func, *tmp;
 	acpi_status status;
 	acpi_handle handle = bridge->handle;
 
@@ -528,10 +522,8 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 
 	slot = bridge->slots;
 	while (slot) {
-		struct acpiphp_slot *next = slot->next;
-		list_for_each_safe (list, tmp, &slot->funcs) {
-			struct acpiphp_func *func;
-			func = list_entry(list, struct acpiphp_func, sibling);
+		next = slot->next;
+		list_for_each_entry_safe(func, tmp, &slot->funcs, sibling) {
 			if (is_dock_device(func->handle)) {
 				unregister_hotplug_dock_device(func->handle);
 				unregister_dock_notifier(&func->nb);
@@ -543,7 +535,7 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 				if (ACPI_FAILURE(status))
 					err("failed to remove notify handler\n");
 			}
-			list_del(list);
+			list_del(&func->sibling);
 			kfree(func);
 		}
 		acpiphp_unregister_hotplug_slot(slot);
@@ -608,16 +600,13 @@ static int power_on_slot(struct acpiphp_slot *slot)
 {
 	acpi_status status;
 	struct acpiphp_func *func;
-	struct list_head *l;
 	int retval = 0;
 
 	/* if already enabled, just skip */
 	if (slot->flags & SLOT_POWEREDON)
 		goto err_exit;
 
-	list_for_each (l, &slot->funcs) {
-		func = list_entry(l, struct acpiphp_func, sibling);
-
+	list_for_each_entry(func, &slot->funcs, sibling) {
 		if (func->flags & FUNC_HAS_PS0) {
 			dbg("%s: executing _PS0\n", __func__);
 			status = acpi_evaluate_object(func->handle, "_PS0", NULL, NULL);
@@ -643,7 +632,6 @@ static int power_off_slot(struct acpiphp_slot *slot)
 {
 	acpi_status status;
 	struct acpiphp_func *func;
-	struct list_head *l;
 
 	int retval = 0;
 
@@ -651,9 +639,7 @@ static int power_off_slot(struct acpiphp_slot *slot)
 	if ((slot->flags & SLOT_POWEREDON) == 0)
 		goto err_exit;
 
-	list_for_each (l, &slot->funcs) {
-		func = list_entry(l, struct acpiphp_func, sibling);
-
+	list_for_each_entry(func, &slot->funcs, sibling) {
 		if (func->flags & FUNC_HAS_PS3) {
 			status = acpi_evaluate_object(func->handle, "_PS3", NULL, NULL);
 			if (ACPI_FAILURE(status)) {
@@ -780,7 +766,6 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 {
 	struct pci_dev *dev;
 	struct pci_bus *bus = slot->bridge->pci_bus;
-	struct list_head *l;
 	struct acpiphp_func *func;
 	int retval = 0;
 	int num, max, pass;
@@ -820,10 +805,8 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 		}
 	}
 
-	list_for_each (l, &slot->funcs) {
-		func = list_entry(l, struct acpiphp_func, sibling);
+	list_for_each_entry(func, &slot->funcs, sibling)
 		acpiphp_bus_add(func);
-	}
 
 	pci_bus_assign_resources(bus);
 	acpiphp_sanitize_bus(bus);
@@ -831,8 +814,7 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 	pci_enable_bridges(bus);
 	pci_bus_add_devices(bus);
 
-	list_for_each (l, &slot->funcs) {
-		func = list_entry(l, struct acpiphp_func, sibling);
+	list_for_each_entry(func, &slot->funcs, sibling) {
 		dev = pci_get_slot(bus, PCI_DEVFN(slot->device,
 						  func->function));
 		if (!dev)
@@ -930,12 +912,9 @@ static unsigned int get_slot_status(struct acpiphp_slot *slot)
 	acpi_status status;
 	unsigned long long sta = 0;
 	u32 dvid;
-	struct list_head *l;
 	struct acpiphp_func *func;
 
-	list_for_each (l, &slot->funcs) {
-		func = list_entry(l, struct acpiphp_func, sibling);
-
+	list_for_each_entry(func, &slot->funcs, sibling) {
 		if (func->flags & FUNC_HAS_STA) {
 			status = acpi_evaluate_integer(func->handle, "_STA", NULL, &sta);
 			if (ACPI_SUCCESS(status) && sta)
@@ -963,13 +942,10 @@ int acpiphp_eject_slot(struct acpiphp_slot *slot)
 {
 	acpi_status status;
 	struct acpiphp_func *func;
-	struct list_head *l;
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 
-	list_for_each (l, &slot->funcs) {
-		func = list_entry(l, struct acpiphp_func, sibling);
-
+	list_for_each_entry(func, &slot->funcs, sibling) {
 		/* We don't want to call _EJ0 on non-existing functions. */
 		if ((func->flags & FUNC_HAS_EJ0)) {
 			/* _EJ0 method take one argument */
@@ -1352,7 +1328,7 @@ int __init acpiphp_get_num_slots(void)
 	struct acpiphp_bridge *bridge;
 	int num_slots = 0;
 
-	list_for_each_entry (bridge, &bridge_list, list) {
+	list_for_each_entry(bridge, &bridge_list, list) {
 		dbg("Bus %04x:%02x has %d slot%s\n",
 				pci_domain_nr(bridge->pci_bus),
 				bridge->pci_bus->number, bridge->nr_slots,
