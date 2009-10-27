@@ -2233,18 +2233,8 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 		rctl |= E1000_RCTL_LPE;
 
 	/* Setup buffer sizes */
-	switch (adapter->rx_buffer_len) {
-	case IGB_RXBUFFER_256:
-		rctl |= E1000_RCTL_SZ_256;
-		break;
-	case IGB_RXBUFFER_512:
-		rctl |= E1000_RCTL_SZ_512;
-		break;
-	default:
-		srrctl = ALIGN(adapter->rx_buffer_len, 1024)
-		         >> E1000_SRRCTL_BSIZEPKT_SHIFT;
-		break;
-	}
+	srrctl = ALIGN(adapter->rx_buffer_len, 1024)
+	         >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 
 	/* 82575 and greater support packet-split where the protocol
 	 * header is placed in skb->data and the packet data is
@@ -3755,11 +3745,7 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 	 * i.e. RXBUFFER_2048 --> size-4096 slab
 	 */
 
-	if (max_frame <= IGB_RXBUFFER_256)
-		adapter->rx_buffer_len = IGB_RXBUFFER_256;
-	else if (max_frame <= IGB_RXBUFFER_512)
-		adapter->rx_buffer_len = IGB_RXBUFFER_512;
-	else if (max_frame <= IGB_RXBUFFER_1024)
+	if (max_frame <= IGB_RXBUFFER_1024)
 		adapter->rx_buffer_len = IGB_RXBUFFER_1024;
 	else if (max_frame <= IGB_RXBUFFER_2048)
 		adapter->rx_buffer_len = IGB_RXBUFFER_2048;
@@ -3769,11 +3755,6 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 #else
 		adapter->rx_buffer_len = PAGE_SIZE / 2;
 #endif
-
-	/* if sr-iov is enabled we need to force buffer size to 1K or larger */
-	if (adapter->vfs_allocated_count &&
-	    (adapter->rx_buffer_len < IGB_RXBUFFER_1024))
-		adapter->rx_buffer_len = IGB_RXBUFFER_1024;
 
 	/* adjust allocation if LPE protects us, and we aren't using SBP */
 	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN) ||

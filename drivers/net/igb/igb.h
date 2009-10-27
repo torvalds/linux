@@ -96,8 +96,6 @@ struct vf_data_storage {
 
 /* Supported Rx Buffer Sizes */
 #define IGB_RXBUFFER_128   128    /* Used for packet split */
-#define IGB_RXBUFFER_256   256    /* Used for packet split */
-#define IGB_RXBUFFER_512   512
 #define IGB_RXBUFFER_1024  1024
 #define IGB_RXBUFFER_2048  2048
 #define IGB_RXBUFFER_16384 16384
