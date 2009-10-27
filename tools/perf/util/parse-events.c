@@ -806,7 +806,7 @@ static void print_tracepoint_events(void)
 		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next) {
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent.d_name, evt_dirent.d_name);
-			fprintf(stderr, "  %-42s [%s]\n", evt_path,
+			printf("  %-42s [%s]\n", evt_path,
 				event_type_descriptors[PERF_TYPE_TRACEPOINT+1]);
 		}
 		closedir(evt_dir);
@@ -823,8 +823,8 @@ void print_events(void)
 	unsigned int i, type, op, prev_type = -1;
 	char name[40];
 
-	fprintf(stderr, "\n");
-	fprintf(stderr, "List of pre-defined events (to be used in -e):\n");
+	printf("\n");
+	printf("List of pre-defined events (to be used in -e):\n");
 
 	for (i = 0; i < ARRAY_SIZE(event_symbols); i++, syms++) {
 		type = syms->type + 1;
@@ -832,19 +832,19 @@ void print_events(void)
 			type = 0;
 
 		if (type != prev_type)
-			fprintf(stderr, "\n");
+			printf("\n");
 
 		if (strlen(syms->alias))
 			sprintf(name, "%s OR %s", syms->symbol, syms->alias);
 		else
 			strcpy(name, syms->symbol);
-		fprintf(stderr, "  %-42s [%s]\n", name,
+		printf("  %-42s [%s]\n", name,
 			event_type_descriptors[type]);
 
 		prev_type = type;
 	}
 
-	fprintf(stderr, "\n");
+	printf("\n");
 	for (type = 0; type < PERF_COUNT_HW_CACHE_MAX; type++) {
 		for (op = 0; op < PERF_COUNT_HW_CACHE_OP_MAX; op++) {
 			/* skip invalid cache type */
@@ -852,17 +852,17 @@ void print_events(void)
 				continue;
 
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {
-				fprintf(stderr, "  %-42s [%s]\n",
+				printf("  %-42s [%s]\n",
 					event_cache_name(type, op, i),
 					event_type_descriptors[4]);
 			}
 		}
 	}
 
-	fprintf(stderr, "\n");
-	fprintf(stderr, "  %-42s [raw hardware event descriptor]\n",
+	printf("\n");
+	printf("  %-42s [raw hardware event descriptor]\n",
 		"rNNN");
-	fprintf(stderr, "\n");
+	printf("\n");
 
 	print_tracepoint_events();
 
