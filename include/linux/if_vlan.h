@@ -63,7 +63,11 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 	return (struct vlan_ethhdr *)skb_mac_header(skb);
 }
 
-#define VLAN_VID_MASK	0xfff
+#define VLAN_PRIO_MASK		0xe000 /* Priority Code Point */
+#define VLAN_PRIO_SHIFT		13
+#define VLAN_CFI_MASK		0x1000 /* Canonical Format Indicator */
+#define VLAN_TAG_PRESENT	VLAN_CFI_MASK
+#define VLAN_VID_MASK		0x0fff /* VLAN Identifier */
 
 /* found in socket.c */
 extern void vlan_ioctl_set(int (*hook)(struct net *, void __user *));
@@ -105,8 +109,8 @@ static inline void vlan_group_set_device(struct vlan_group *vg,
 	array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] = dev;
 }
 
-#define vlan_tx_tag_present(__skb)	((__skb)->vlan_tci)
-#define vlan_tx_tag_get(__skb)		((__skb)->vlan_tci)
+#define vlan_tx_tag_present(__skb)	((__skb)->vlan_tci & VLAN_TAG_PRESENT)
+#define vlan_tx_tag_get(__skb)		((__skb)->vlan_tci & ~VLAN_TAG_PRESENT)
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
@@ -231,7 +235,7 @@ static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, u16 vlan_tci)
 static inline struct sk_buff *__vlan_hwaccel_put_tag(struct sk_buff *skb,
 						     u16 vlan_tci)
 {
-	skb->vlan_tci = vlan_tci;
+	skb->vlan_tci = VLAN_TAG_PRESENT | vlan_tci;
 	return skb;
 }
 
@@ -284,7 +288,7 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
 					 u16 *vlan_tci)
 {
 	if (vlan_tx_tag_present(skb)) {
-		*vlan_tci = skb->vlan_tci;
+		*vlan_tci = vlan_tx_tag_get(skb);
 		return 0;
 	} else {
 		*vlan_tci = 0;

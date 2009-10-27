@@ -89,7 +89,7 @@ static inline u32 vlan_get_ingress_priority(struct net_device *dev,
 {
 	struct vlan_dev_info *vip = vlan_dev_info(dev);
 
-	return vip->ingress_priority_map[(vlan_tci >> 13) & 0x7];
+	return vip->ingress_priority_map[(vlan_tci >> VLAN_PRIO_SHIFT) & 0x7];
 }
 
 #ifdef CONFIG_VLAN_8021Q_GVRP

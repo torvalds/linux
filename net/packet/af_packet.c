@@ -79,6 +79,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <linux/if_vlan.h>
 
 #ifdef CONFIG_INET
 #include <net/inet_common.h>
@@ -766,7 +767,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 			getnstimeofday(&ts);
 		h.h2->tp_sec = ts.tv_sec;
 		h.h2->tp_nsec = ts.tv_nsec;
-		h.h2->tp_vlan_tci = skb->vlan_tci;
+		h.h2->tp_vlan_tci = vlan_tx_tag_get(skb);
 		hdrlen = sizeof(*h.h2);
 		break;
 	default:
@@ -1493,7 +1494,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 		aux.tp_snaplen = skb->len;
 		aux.tp_mac = 0;
 		aux.tp_net = skb_network_offset(skb);
-		aux.tp_vlan_tci = skb->vlan_tci;
+		aux.tp_vlan_tci = vlan_tx_tag_get(skb);
 
 		put_cmsg(msg, SOL_PACKET, PACKET_AUXDATA, sizeof(aux), &aux);
 	}
