@@ -1274,7 +1274,8 @@ static void ath9k_hw_override_ini(struct ath_hw *ah,
 		 * AR9271 1.1
 		 */
 		if (AR_SREV_9271_10(ah)) {
-			val = REG_READ(ah, AR_PHY_SPECTRAL_SCAN) | AR_PHY_SPECTRAL_SCAN_ENABLE;
+			val = REG_READ(ah, AR_PHY_SPECTRAL_SCAN) |
+			      AR_PHY_SPECTRAL_SCAN_ENABLE;
 			REG_WRITE(ah, AR_PHY_SPECTRAL_SCAN, val);
 		}
 		else if (AR_SREV_9271_11(ah))

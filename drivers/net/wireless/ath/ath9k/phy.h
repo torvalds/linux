@@ -186,8 +186,20 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 #define AR_PHY_PLL_CTL_44_2133  0xeb
 #define AR_PHY_PLL_CTL_40_2133  0xea
 
-#define AR_PHY_SPECTRAL_SCAN		0x9912
-#define AR_PHY_SPECTRAL_SCAN_ENABLE	0x1
+#define AR_PHY_SPECTRAL_SCAN			0x9910  /* AR9280 spectral scan configuration register */
+#define	AR_PHY_SPECTRAL_SCAN_ENABLE		0x1
+#define AR_PHY_SPECTRAL_SCAN_ENA		0x00000001  /* Enable spectral scan, reg 68, bit 0 */
+#define AR_PHY_SPECTRAL_SCAN_ENA_S		0  /* Enable spectral scan, reg 68, bit 0 */
+#define AR_PHY_SPECTRAL_SCAN_ACTIVE		0x00000002  /* Activate spectral scan reg 68, bit 1*/
+#define AR_PHY_SPECTRAL_SCAN_ACTIVE_S		1  /* Activate spectral scan reg 68, bit 1*/
+#define AR_PHY_SPECTRAL_SCAN_FFT_PERIOD		0x000000F0  /* Interval for FFT reports, reg 68, bits 4-7*/
+#define AR_PHY_SPECTRAL_SCAN_FFT_PERIOD_S	4
+#define AR_PHY_SPECTRAL_SCAN_PERIOD		0x0000FF00  /* Interval for FFT reports, reg 68, bits 8-15*/
+#define AR_PHY_SPECTRAL_SCAN_PERIOD_S		8
+#define AR_PHY_SPECTRAL_SCAN_COUNT		0x00FF0000  /* Number of reports, reg 68, bits 16-23*/
+#define AR_PHY_SPECTRAL_SCAN_COUNT_S		16
+#define AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT	0x01000000  /* Short repeat, reg 68, bit 24*/
+#define AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT_S	24  /* Short repeat, reg 68, bit 24*/
 
 #define AR_PHY_RX_DELAY           0x9914
 #define AR_PHY_SEARCH_START_DELAY 0x9918
