@@ -209,7 +209,6 @@
 			reg = <0x1700 0x20>;
 			interrupts = <9 0x8>;
 			interrupt-parent = < &ipic >;
-			fsl5200-clocking;
 		};
 
 		i2c@1720 {
@@ -220,7 +219,6 @@
 			reg = <0x1720 0x20>;
 			interrupts = <10 0x8>;
 			interrupt-parent = < &ipic >;
-			fsl5200-clocking;
 		};
 
 		i2c@1740 {
@@ -231,7 +229,6 @@
 			reg = <0x1740 0x20>;
 			interrupts = <11 0x8>;
 			interrupt-parent = < &ipic >;
-			fsl5200-clocking;
 		};
 
 		i2ccontrol@1760 {
