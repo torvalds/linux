@@ -183,9 +183,9 @@ int i2400ms_bus_setup(struct i2400m *i2400m)
 	}
 
 	if (i2400ms->iwmc3200 && i2400ms->debugfs_dentry == NULL)
-		retries = 0;
-	else
 		retries = 1;
+	else
+		retries = 0;
 	result = i2400ms_enable_function(i2400ms, retries);
 	if (result < 0) {
 		dev_err(dev, "Cannot enable SDIO function: %d\n", result);
