@@ -2230,8 +2230,6 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl;
-	u32 srrctl = 0;
-	int i;
 
 	rctl = rd32(E1000_RCTL);
 
@@ -2256,31 +2254,8 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	/* enable LPE to prevent packets larger than max_frame_size */
 	rctl |= E1000_RCTL_LPE;
 
-	/* 82575 and greater support packet-split where the protocol
-	 * header is placed in skb->data and the packet data is
-	 * placed in pages hanging off of skb_shinfo(skb)->nr_frags.
-	 * In the case of a non-split, skb->data is linearly filled,
-	 * followed by the page buffers.  Therefore, skb->data is
-	 * sized to hold the largest protocol header.
-	 */
-	/* allocations using alloc_page take too long for regular MTU
-	 * so only enable packet split for jumbo frames */
-	if (adapter->rx_buffer_len < IGB_RXBUFFER_1024) {
-		srrctl = ALIGN(adapter->rx_buffer_len, 64) <<
-		         E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
-#if (PAGE_SIZE / 2) > IGB_RXBUFFER_16384
-		srrctl |= IGB_RXBUFFER_16384 >>
-		          E1000_SRRCTL_BSIZEPKT_SHIFT;
-#else
-		srrctl |= (PAGE_SIZE / 2) >>
-		          E1000_SRRCTL_BSIZEPKT_SHIFT;
-#endif
-		srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
-	} else {
-		srrctl = ALIGN(adapter->rx_buffer_len, 1024) >>
-		         E1000_SRRCTL_BSIZEPKT_SHIFT;
-		srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
-	}
+	/* disable queue 0 to prevent tail write w/o re-config */
+	wr32(E1000_RXDCTL(0), 0);
 
 	/* Attention!!!  For SR-IOV PF driver operations you must enable
 	 * queue drop for all VF and PF queues to prevent head of line blocking
@@ -2291,10 +2266,6 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 
 		/* set all queue drop enable bits */
 		wr32(E1000_QDE, ALL_QUEUES);
-		srrctl |= E1000_SRRCTL_DROP_EN;
-
-		/* disable queue 0 to prevent tail write w/o re-config */
-		wr32(E1000_RXDCTL(0), 0);
 
 		vmolr = rd32(E1000_VMOLR(adapter->vfs_allocated_count));
 		if (rctl & E1000_RCTL_LPE)
@@ -2302,11 +2273,6 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 		if (adapter->num_rx_queues > 1)
 			vmolr |= E1000_VMOLR_RSSE;
 		wr32(E1000_VMOLR(adapter->vfs_allocated_count), vmolr);
-	}
-
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		int j = adapter->rx_ring[i].reg_idx;
-		wr32(E1000_SRRCTL(j), srrctl);
 	}
 
 	wr32(E1000_RCTL, rctl);
@@ -2373,7 +2339,7 @@ static void igb_configure_rx_ring(struct igb_adapter *adapter,
 	struct e1000_hw *hw = &adapter->hw;
 	u64 rdba = ring->dma;
 	int reg_idx = ring->reg_idx;
-	u32 rxdctl;
+	u32 srrctl, rxdctl;
 
 	/* disable the queue */
 	rxdctl = rd32(E1000_RXDCTL(reg_idx));
@@ -2392,6 +2358,26 @@ static void igb_configure_rx_ring(struct igb_adapter *adapter,
 	ring->tail = E1000_RDT(reg_idx);
 	writel(0, hw->hw_addr + ring->head);
 	writel(0, hw->hw_addr + ring->tail);
+
+	/* set descriptor configuration */
+	if (adapter->rx_buffer_len < IGB_RXBUFFER_1024) {
+		srrctl = ALIGN(adapter->rx_buffer_len, 64) <<
+		         E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
+#if (PAGE_SIZE / 2) > IGB_RXBUFFER_16384
+		srrctl |= IGB_RXBUFFER_16384 >>
+		          E1000_SRRCTL_BSIZEPKT_SHIFT;
+#else
+		srrctl |= (PAGE_SIZE / 2) >>
+		          E1000_SRRCTL_BSIZEPKT_SHIFT;
+#endif
+		srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
+	} else {
+		srrctl = ALIGN(adapter->rx_buffer_len, 1024) >>
+		         E1000_SRRCTL_BSIZEPKT_SHIFT;
+		srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
+	}
+
+	wr32(E1000_SRRCTL(reg_idx), srrctl);
 
 	/* enable receive descriptor fetching */
 	rxdctl = rd32(E1000_RXDCTL(reg_idx));
