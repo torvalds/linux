@@ -811,7 +811,13 @@ config MAPLE
 	 Dreamcast with a serial line terminal or a remote network
 	 connection.
 
-source "arch/sh/drivers/pci/Kconfig"
+config PCI
+	bool "PCI support"
+	depends on SYS_SUPPORTS_PCI
+	help
+	  Find out whether you have a PCI motherboard. PCI is the name of a
+	  bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box. If you have PCI, say Y, otherwise N.
 
 source "drivers/pci/pcie/Kconfig"
 
