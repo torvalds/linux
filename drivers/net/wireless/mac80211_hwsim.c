@@ -1045,18 +1045,19 @@ static int __init init_mac80211_hwsim(void)
 				sband->channels = data->channels_2ghz;
 				sband->n_channels =
 					ARRAY_SIZE(hwsim_channels_2ghz);
+				sband->bitrates = data->rates;
+				sband->n_bitrates = ARRAY_SIZE(hwsim_rates);
 				break;
 			case IEEE80211_BAND_5GHZ:
 				sband->channels = data->channels_5ghz;
 				sband->n_channels =
 					ARRAY_SIZE(hwsim_channels_5ghz);
+				sband->bitrates = data->rates + 4;
+				sband->n_bitrates = ARRAY_SIZE(hwsim_rates) - 4;
 				break;
 			default:
 				break;
 			}
-
-			sband->bitrates = data->rates;
-			sband->n_bitrates = ARRAY_SIZE(hwsim_rates);
 
 			sband->ht_cap.ht_supported = true;
 			sband->ht_cap.cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
