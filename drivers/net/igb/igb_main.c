@@ -1456,7 +1456,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-	if (adapter->hw.mac.type == e1000_82576)
+	if (hw->mac.type >= e1000_82576)
 		netdev->features |= NETIF_F_SCTP_CSUM;
 
 	adapter->en_mng_pt = igb_enable_mng_pass_thru(hw);
