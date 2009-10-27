@@ -306,7 +306,7 @@ static void ring_ep_doorbell(struct xhci_hcd *xhci,
 	/* Don't ring the doorbell for this endpoint if there are pending
 	 * cancellations because the we don't want to interrupt processing.
 	 */
-	if (!ep->cancels_pending && !(ep_state & SET_DEQ_PENDING)
+	if (!(ep_state & EP_HALT_PENDING) && !(ep_state & SET_DEQ_PENDING)
 			&& !(ep_state & EP_HALTED)) {
 		field = xhci_readl(xhci, db_addr) & DB_MASK;
 		xhci_writel(xhci, field | EPI_TO_DB(ep_index), db_addr);
@@ -507,8 +507,11 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	ep = &xhci->devs[slot_id]->eps[ep_index];
 	ep_ring = ep->ring;
 
-	if (list_empty(&ep->cancelled_td_list))
+	if (list_empty(&ep->cancelled_td_list)) {
+		ep->ep_state &= ~EP_HALT_PENDING;
+		ring_ep_doorbell(xhci, slot_id, ep_index);
 		return;
+	}
 
 	/* Fix up the ep ring first, so HW stops executing cancelled TDs.
 	 * We have the xHCI lock, so nothing can modify this list until we drop
@@ -535,9 +538,9 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 		 * the cancelled TD list for URB completion later.
 		 */
 		list_del(&cur_td->td_list);
-		ep->cancels_pending--;
 	}
 	last_unlinked_td = cur_td;
+	ep->ep_state &= ~EP_HALT_PENDING;
 
 	/* If necessary, queue a Set Transfer Ring Dequeue Pointer command */
 	if (deq_state.new_deq_ptr && deq_state.new_deq_seg) {
@@ -1249,10 +1252,9 @@ td_cleanup:
 		}
 		list_del(&td->td_list);
 		/* Was this TD slated to be cancelled but completed anyway? */
-		if (!list_empty(&td->cancelled_td_list)) {
+		if (!list_empty(&td->cancelled_td_list))
 			list_del(&td->cancelled_td_list);
-			ep->cancels_pending--;
-		}
+
 		/* Leave the TD around for the reset endpoint function to use
 		 * (but only if it's not a control endpoint, since we already
 		 * queued the Set TR dequeue pointer command for stalled

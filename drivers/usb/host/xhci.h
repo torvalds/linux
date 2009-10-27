@@ -652,10 +652,10 @@ struct xhci_virt_ep {
 	struct xhci_ring		*new_ring;
 	unsigned int			ep_state;
 #define SET_DEQ_PENDING		(1 << 0)
-#define EP_HALTED		(1 << 1)
+#define EP_HALTED		(1 << 1)	/* For stall handling */
+#define EP_HALT_PENDING		(1 << 2)	/* For URB cancellation */
 	/* ----  Related to URB cancellation ---- */
 	struct list_head	cancelled_td_list;
-	unsigned int		cancels_pending;
 	/* The TRB that was last reported in a stopped endpoint ring */
 	union xhci_trb		*stopped_trb;
 	struct xhci_td		*stopped_td;

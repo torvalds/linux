@@ -817,12 +817,12 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	xhci_debug_ring(xhci, ep_ring);
 	td = (struct xhci_td *) urb->hcpriv;
 
-	ep->cancels_pending++;
 	list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
 	/* Queue a stop endpoint command, but only if this is
 	 * the first cancellation to be handled.
 	 */
-	if (ep->cancels_pending == 1) {
+	if (!(ep->ep_state & EP_HALT_PENDING)) {
+		ep->ep_state |= EP_HALT_PENDING;
 		xhci_queue_stop_endpoint(xhci, urb->dev->slot_id, ep_index);
 		xhci_ring_cmd_db(xhci);
 	}
