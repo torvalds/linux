@@ -1952,7 +1952,8 @@ int igb_setup_tx_resources(struct igb_ring *tx_ring)
 	tx_ring->size = tx_ring->count * sizeof(union e1000_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 
-	tx_ring->desc = pci_alloc_consistent(pdev, tx_ring->size,
+	tx_ring->desc = pci_alloc_consistent(pdev,
+	                                     tx_ring->size,
 					     &tx_ring->dma);
 
 	if (!tx_ring->desc)
@@ -1978,13 +1979,13 @@ err:
  **/
 static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 {
+	struct pci_dev *pdev = adapter->pdev;
 	int i, err = 0;
-	int r_idx;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		err = igb_setup_tx_resources(&adapter->tx_ring[i]);
 		if (err) {
-			dev_err(&adapter->pdev->dev,
+			dev_err(&pdev->dev,
 				"Allocation for Tx Queue %u failed\n", i);
 			for (i--; i >= 0; i--)
 				igb_free_tx_resources(&adapter->tx_ring[i]);
@@ -1993,7 +1994,7 @@ static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 	}
 
 	for (i = 0; i < IGB_MAX_TX_QUEUES; i++) {
-		r_idx = i % adapter->num_tx_queues;
+		int r_idx = i % adapter->num_tx_queues;
 		adapter->multi_tx_table[i] = &adapter->tx_ring[r_idx];
 	}
 	return err;
@@ -2116,6 +2117,7 @@ int igb_setup_rx_resources(struct igb_ring *rx_ring)
 
 err:
 	vfree(rx_ring->buffer_info);
+	rx_ring->buffer_info = NULL;
 	dev_err(&pdev->dev, "Unable to allocate memory for "
 		"the receive descriptor ring\n");
 	return -ENOMEM;
@@ -2130,12 +2132,13 @@ err:
  **/
 static int igb_setup_all_rx_resources(struct igb_adapter *adapter)
 {
+	struct pci_dev *pdev = adapter->pdev;
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		err = igb_setup_rx_resources(&adapter->rx_ring[i]);
 		if (err) {
-			dev_err(&adapter->pdev->dev,
+			dev_err(&pdev->dev,
 				"Allocation for Rx Queue %u failed\n", i);
 			for (i--; i >= 0; i--)
 				igb_free_rx_resources(&adapter->rx_ring[i]);
@@ -2476,6 +2479,10 @@ void igb_free_tx_resources(struct igb_ring *tx_ring)
 	vfree(tx_ring->buffer_info);
 	tx_ring->buffer_info = NULL;
 
+	/* if not set, then don't free */
+	if (!tx_ring->desc)
+		return;
+
 	pci_free_consistent(tx_ring->pdev, tx_ring->size,
 	                    tx_ring->desc, tx_ring->dma);
 
@@ -2534,14 +2541,10 @@ static void igb_clean_tx_ring(struct igb_ring *tx_ring)
 	memset(tx_ring->buffer_info, 0, size);
 
 	/* Zero out the descriptor ring */
-
 	memset(tx_ring->desc, 0, tx_ring->size);
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
-
-	writel(0, tx_ring->head);
-	writel(0, tx_ring->tail);
 }
 
 /**
@@ -2568,6 +2571,10 @@ void igb_free_rx_resources(struct igb_ring *rx_ring)
 
 	vfree(rx_ring->buffer_info);
 	rx_ring->buffer_info = NULL;
+
+	/* if not set, then don't free */
+	if (!rx_ring->desc)
+		return;
 
 	pci_free_consistent(rx_ring->pdev, rx_ring->size,
 	                    rx_ring->desc, rx_ring->dma);
@@ -2601,6 +2608,7 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 
 	if (!rx_ring->buffer_info)
 		return;
+
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
 		buffer_info = &rx_ring->buffer_info[i];
@@ -2638,9 +2646,6 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
-
-	writel(0, rx_ring->head);
-	writel(0, rx_ring->tail);
 }
 
 /**
