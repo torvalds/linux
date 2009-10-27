@@ -667,10 +667,9 @@ struct ieee80211_local {
 	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
 	struct cfg80211_scan_request *int_scan_req;
-	struct cfg80211_scan_request *scan_req;
+	struct cfg80211_scan_request *scan_req, *hw_scan_req;
 	struct ieee80211_channel *scan_channel;
-	const u8 *orig_ies;
-	int orig_ies_len;
+	enum ieee80211_band hw_scan_band;
 	int scan_channel_idx;
 	int scan_ies_len;
 
@@ -1050,7 +1049,8 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u8 *extra, size_t extra_len, const u8 *bssid,
 			 const u8 *key, u8 key_len, u8 key_idx);
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
-			     const u8 *ie, size_t ie_len);
+			     const u8 *ie, size_t ie_len,
+			     enum ieee80211_band band);
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len);
