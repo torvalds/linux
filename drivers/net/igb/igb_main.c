@@ -99,10 +99,7 @@ static void igb_set_rx_mode(struct net_device *);
 static void igb_update_phy_info(unsigned long);
 static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
-static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *,
-					   struct igb_ring *);
-static netdev_tx_t igb_xmit_frame_adv(struct sk_buff *skb,
-				      struct net_device *);
+static netdev_tx_t igb_xmit_frame_adv(struct sk_buff *skb, struct net_device *);
 static struct net_device_stats *igb_get_stats(struct net_device *);
 static int igb_change_mtu(struct net_device *, int);
 static int igb_set_mac(struct net_device *, void *);
@@ -2521,8 +2518,8 @@ static void igb_free_all_tx_resources(struct igb_adapter *adapter)
 		igb_free_tx_resources(&adapter->tx_ring[i]);
 }
 
-static void igb_unmap_and_free_tx_resource(struct igb_ring *tx_ring,
-					   struct igb_buffer *buffer_info)
+void igb_unmap_and_free_tx_resource(struct igb_ring *tx_ring,
+				    struct igb_buffer *buffer_info)
 {
 	buffer_info->dma = 0;
 	if (buffer_info->skb) {
@@ -3585,8 +3582,8 @@ static int igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
 	return __igb_maybe_stop_tx(tx_ring, size);
 }
 
-static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
-					   struct igb_ring *tx_ring)
+netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
+				    struct igb_ring *tx_ring)
 {
 	struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
 	unsigned int first;
@@ -3595,16 +3592,6 @@ static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	int count = 0;
 	int tso = 0;
 	union skb_shared_tx *shtx;
-
-	if (test_bit(__IGB_DOWN, &adapter->state)) {
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
-	}
-
-	if (skb->len <= 0) {
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
-	}
 
 	/* need: 1 descriptor per page,
 	 *       + 2 desc gap to keep tail from touching head,
@@ -3680,8 +3667,18 @@ static netdev_tx_t igb_xmit_frame_adv(struct sk_buff *skb,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct igb_ring *tx_ring;
-
 	int r_idx = 0;
+
+	if (test_bit(__IGB_DOWN, &adapter->state)) {
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
+	}
+
+	if (skb->len <= 0) {
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
+	}
+
 	r_idx = skb->queue_mapping & (IGB_ABS_MAX_TX_QUEUES - 1);
 	tx_ring = adapter->multi_tx_table[r_idx];
 
