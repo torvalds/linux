@@ -82,6 +82,7 @@ static int igb_setup_all_tx_resources(struct igb_adapter *);
 static int igb_setup_all_rx_resources(struct igb_adapter *);
 static void igb_free_all_tx_resources(struct igb_adapter *);
 static void igb_free_all_rx_resources(struct igb_adapter *);
+static void igb_setup_mrqc(struct igb_adapter *);
 void igb_update_stats(struct igb_adapter *);
 static int igb_probe(struct pci_dev *, const struct pci_device_id *);
 static void __devexit igb_remove(struct pci_dev *pdev);
@@ -1115,6 +1116,7 @@ static void igb_configure(struct igb_adapter *adapter)
 	igb_restore_vlan(adapter);
 
 	igb_setup_tctl(adapter);
+	igb_setup_mrqc(adapter);
 	igb_setup_rctl(adapter);
 
 	igb_configure_tx(adapter);
@@ -1157,7 +1159,6 @@ int igb_up(struct igb_adapter *adapter)
 	if (adapter->msix_entries)
 		igb_configure_msix(adapter);
 
-	igb_vmm_control(adapter);
 	igb_set_vmolr(hw, adapter->vfs_allocated_count);
 
 	/* Clear any pending interrupts. */
@@ -1928,7 +1929,6 @@ static int igb_open(struct net_device *netdev)
 	 * clean_rx handler before we do so.  */
 	igb_configure(adapter);
 
-	igb_vmm_control(adapter);
 	igb_set_vmolr(hw, adapter->vfs_allocated_count);
 
 	err = igb_request_irq(adapter);
@@ -2217,6 +2217,111 @@ static int igb_setup_all_rx_resources(struct igb_adapter *adapter)
 }
 
 /**
+ * igb_setup_mrqc - configure the multiple receive queue control registers
+ * @adapter: Board private structure
+ **/
+static void igb_setup_mrqc(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 mrqc, rxcsum;
+	u32 j, num_rx_queues, shift = 0, shift2 = 0;
+	union e1000_reta {
+		u32 dword;
+		u8  bytes[4];
+	} reta;
+	static const u8 rsshash[40] = {
+		0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2, 0x41, 0x67,
+		0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0, 0xd0, 0xca, 0x2b, 0xcb,
+		0xae, 0x7b, 0x30, 0xb4,	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30,
+		0xf2, 0x0c, 0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa };
+
+	/* Fill out hash function seeds */
+	for (j = 0; j < 10; j++) {
+		u32 rsskey = rsshash[(j * 4)];
+		rsskey |= rsshash[(j * 4) + 1] << 8;
+		rsskey |= rsshash[(j * 4) + 2] << 16;
+		rsskey |= rsshash[(j * 4) + 3] << 24;
+		array_wr32(E1000_RSSRK(0), j, rsskey);
+	}
+
+	num_rx_queues = adapter->num_rx_queues;
+
+	if (adapter->vfs_allocated_count) {
+		/* 82575 and 82576 supports 2 RSS queues for VMDq */
+		switch (hw->mac.type) {
+		case e1000_82576:
+			shift = 3;
+			num_rx_queues = 2;
+			break;
+		case e1000_82575:
+			shift = 2;
+			shift2 = 6;
+		default:
+			break;
+		}
+	} else {
+		if (hw->mac.type == e1000_82575)
+			shift = 6;
+	}
+
+	for (j = 0; j < (32 * 4); j++) {
+		reta.bytes[j & 3] = (j % num_rx_queues) << shift;
+		if (shift2)
+			reta.bytes[j & 3] |= num_rx_queues << shift2;
+		if ((j & 3) == 3)
+			wr32(E1000_RETA(j >> 2), reta.dword);
+	}
+
+	/*
+	 * Disable raw packet checksumming so that RSS hash is placed in
+	 * descriptor on writeback.  No need to enable TCP/UDP/IP checksum
+	 * offloads as they are enabled by default
+	 */
+	rxcsum = rd32(E1000_RXCSUM);
+	rxcsum |= E1000_RXCSUM_PCSD;
+
+	if (adapter->hw.mac.type >= e1000_82576)
+		/* Enable Receive Checksum Offload for SCTP */
+		rxcsum |= E1000_RXCSUM_CRCOFL;
+
+	/* Don't need to set TUOFL or IPOFL, they default to 1 */
+	wr32(E1000_RXCSUM, rxcsum);
+
+	/* If VMDq is enabled then we set the appropriate mode for that, else
+	 * we default to RSS so that an RSS hash is calculated per packet even
+	 * if we are only using one queue */
+	if (adapter->vfs_allocated_count) {
+		if (hw->mac.type > e1000_82575) {
+			/* Set the default pool for the PF's first queue */
+			u32 vtctl = rd32(E1000_VT_CTL);
+			vtctl &= ~(E1000_VT_CTL_DEFAULT_POOL_MASK |
+				   E1000_VT_CTL_DISABLE_DEF_POOL);
+			vtctl |= adapter->vfs_allocated_count <<
+				E1000_VT_CTL_DEFAULT_POOL_SHIFT;
+			wr32(E1000_VT_CTL, vtctl);
+		}
+		if (adapter->num_rx_queues > 1)
+			mrqc = E1000_MRQC_ENABLE_VMDQ_RSS_2Q;
+		else
+			mrqc = E1000_MRQC_ENABLE_VMDQ;
+	} else {
+		mrqc = E1000_MRQC_ENABLE_RSS_4Q;
+	}
+	igb_vmm_control(adapter);
+
+	mrqc |= (E1000_MRQC_RSS_FIELD_IPV4 |
+		 E1000_MRQC_RSS_FIELD_IPV4_TCP);
+	mrqc |= (E1000_MRQC_RSS_FIELD_IPV6 |
+		 E1000_MRQC_RSS_FIELD_IPV6_TCP);
+	mrqc |= (E1000_MRQC_RSS_FIELD_IPV4_UDP |
+		 E1000_MRQC_RSS_FIELD_IPV6_UDP);
+	mrqc |= (E1000_MRQC_RSS_FIELD_IPV6_UDP_EX |
+		 E1000_MRQC_RSS_FIELD_IPV6_TCP_EX);
+
+	wr32(E1000_MRQC, mrqc);
+}
+
+/**
  * igb_setup_rctl - configure the receive control registers
  * @adapter: Board private structure
  **/
@@ -2298,29 +2403,6 @@ static void igb_rlpml_set(struct igb_adapter *adapter)
 }
 
 /**
- * igb_configure_vt_default_pool - Configure VT default pool
- * @adapter: board private structure
- *
- * Configure the default pool
- **/
-static void igb_configure_vt_default_pool(struct igb_adapter *adapter)
-{
-	struct e1000_hw *hw = &adapter->hw;
-	u16 pf_id = adapter->vfs_allocated_count;
-	u32 vtctl;
-
-	/* not in sr-iov mode - do nothing */
-	if (!pf_id)
-		return;
-
-	vtctl = rd32(E1000_VT_CTL);
-	vtctl &= ~(E1000_VT_CTL_DEFAULT_POOL_MASK |
-		   E1000_VT_CTL_DISABLE_DEF_POOL);
-	vtctl |= pf_id << E1000_VT_CTL_DEFAULT_POOL_SHIFT;
-	wr32(E1000_VT_CTL, vtctl);
-}
-
-/**
  * igb_configure_rx_ring - Configure a receive ring after Reset
  * @adapter: board private structure
  * @ring: receive ring to be configured
@@ -2391,84 +2473,7 @@ static void igb_configure_rx_ring(struct igb_adapter *adapter,
  **/
 static void igb_configure_rx(struct igb_adapter *adapter)
 {
-	struct e1000_hw *hw = &adapter->hw;
-	u32 rctl, rxcsum;
 	int i;
-
-	/* disable receives while setting up the descriptors */
-	rctl = rd32(E1000_RCTL);
-	wr32(E1000_RCTL, rctl & ~E1000_RCTL_EN);
-	wrfl();
-	mdelay(10);
-
-	if (adapter->itr_setting > 3)
-		wr32(E1000_ITR, adapter->itr);
-
-	/* Setup the HW Rx Head and Tail Descriptor Pointers and
-	 * the Base and Length of the Rx Descriptor Ring */
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_configure_rx_ring(adapter, &adapter->rx_ring[i]);
-
-	if (adapter->num_rx_queues > 1) {
-		u32 random[10];
-		u32 mrqc;
-		u32 j, shift;
-		union e1000_reta {
-			u32 dword;
-			u8  bytes[4];
-		} reta;
-
-		get_random_bytes(&random[0], 40);
-
-		if (hw->mac.type >= e1000_82576)
-			shift = 0;
-		else
-			shift = 6;
-		for (j = 0; j < (32 * 4); j++) {
-			reta.bytes[j & 3] =
-				adapter->rx_ring[(j % adapter->num_rx_queues)].reg_idx << shift;
-			if ((j & 3) == 3)
-				writel(reta.dword,
-				       hw->hw_addr + E1000_RETA(0) + (j & ~3));
-		}
-		if (adapter->vfs_allocated_count)
-			mrqc = E1000_MRQC_ENABLE_VMDQ_RSS_2Q;
-		else
-			mrqc = E1000_MRQC_ENABLE_RSS_4Q;
-
-		/* Fill out hash function seeds */
-		for (j = 0; j < 10; j++)
-			array_wr32(E1000_RSSRK(0), j, random[j]);
-
-		mrqc |= (E1000_MRQC_RSS_FIELD_IPV4 |
-			 E1000_MRQC_RSS_FIELD_IPV4_TCP);
-		mrqc |= (E1000_MRQC_RSS_FIELD_IPV6 |
-			 E1000_MRQC_RSS_FIELD_IPV6_TCP);
-		mrqc |= (E1000_MRQC_RSS_FIELD_IPV4_UDP |
-			 E1000_MRQC_RSS_FIELD_IPV6_UDP);
-		mrqc |= (E1000_MRQC_RSS_FIELD_IPV6_UDP_EX |
-			 E1000_MRQC_RSS_FIELD_IPV6_TCP_EX);
-
-		wr32(E1000_MRQC, mrqc);
-	} else if (adapter->vfs_allocated_count) {
-		/* Enable multi-queue for sr-iov */
-		wr32(E1000_MRQC, E1000_MRQC_ENABLE_VMDQ);
-	}
-
-	/* Enable Receive Checksum Offload for TCP and UDP */
-	rxcsum = rd32(E1000_RXCSUM);
-	/* Disable raw packet checksumming */
-	rxcsum |= E1000_RXCSUM_PCSD;
-
-	if (adapter->hw.mac.type == e1000_82576)
-		/* Enable Receive Checksum Offload for SCTP */
-		rxcsum |= E1000_RXCSUM_CRCOFL;
-
-	/* Don't need to set TUOFL or IPOFL, they default to 1 */
-	wr32(E1000_RXCSUM, rxcsum);
-
-	/* Set the default pool for the PF's first queue */
-	igb_configure_vt_default_pool(adapter);
 
 	/* set UTA to appropriate mode */
 	igb_set_uta(adapter);
@@ -2477,10 +2482,10 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 	igb_rar_set_qsel(adapter, adapter->hw.mac.addr, 0,
 	                 adapter->vfs_allocated_count);
 
-	igb_rlpml_set(adapter);
-
-	/* Enable Receives */
-	wr32(E1000_RCTL, rctl);
+	/* Setup the HW Rx Head and Tail Descriptor Pointers and
+	 * the Base and Length of the Rx Descriptor Ring */
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		igb_configure_rx_ring(adapter, &adapter->rx_ring[i]);
 }
 
 /**
