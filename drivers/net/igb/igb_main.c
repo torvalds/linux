@@ -3245,9 +3245,9 @@ set_itr_now:
 #define IGB_TX_FLAGS_VLAN		0x00000002
 #define IGB_TX_FLAGS_TSO		0x00000004
 #define IGB_TX_FLAGS_IPV4		0x00000008
-#define IGB_TX_FLAGS_TSTAMP             0x00000010
-#define IGB_TX_FLAGS_VLAN_MASK	0xffff0000
-#define IGB_TX_FLAGS_VLAN_SHIFT	16
+#define IGB_TX_FLAGS_TSTAMP		0x00000010
+#define IGB_TX_FLAGS_VLAN_MASK		0xffff0000
+#define IGB_TX_FLAGS_VLAN_SHIFT		        16
 
 static inline int igb_tso_adv(struct igb_ring *tx_ring,
 			      struct sk_buff *skb, u32 tx_flags, u8 *hdr_len)
@@ -3346,6 +3346,7 @@ static inline bool igb_tx_csum_adv(struct igb_ring *tx_ring,
 
 		if (tx_flags & IGB_TX_FLAGS_VLAN)
 			info |= (tx_flags & IGB_TX_FLAGS_VLAN_MASK);
+
 		info |= (skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT);
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
 			info |= skb_network_header_len(skb);
@@ -3462,17 +3463,17 @@ static inline int igb_tx_map_adv(struct igb_ring *tx_ring, struct sk_buff *skb,
 	tx_ring->buffer_info[i].skb = skb;
 	tx_ring->buffer_info[first].next_to_watch = i;
 
-	return count + 1;
+	return ++count;
 }
 
 static inline void igb_tx_queue_adv(struct igb_ring *tx_ring,
 				    int tx_flags, int count, u32 paylen,
 				    u8 hdr_len)
 {
-	union e1000_adv_tx_desc *tx_desc = NULL;
+	union e1000_adv_tx_desc *tx_desc;
 	struct igb_buffer *buffer_info;
 	u32 olinfo_status = 0, cmd_type_len;
-	unsigned int i;
+	unsigned int i = tx_ring->next_to_use;
 
 	cmd_type_len = (E1000_ADVTXD_DTYP_DATA | E1000_ADVTXD_DCMD_IFCS |
 			E1000_ADVTXD_DCMD_DEXT);
@@ -3505,18 +3506,18 @@ static inline void igb_tx_queue_adv(struct igb_ring *tx_ring,
 
 	olinfo_status |= ((paylen - hdr_len) << E1000_ADVTXD_PAYLEN_SHIFT);
 
-	i = tx_ring->next_to_use;
-	while (count--) {
+	do {
 		buffer_info = &tx_ring->buffer_info[i];
 		tx_desc = E1000_TX_DESC_ADV(*tx_ring, i);
 		tx_desc->read.buffer_addr = cpu_to_le64(buffer_info->dma);
 		tx_desc->read.cmd_type_len =
 			cpu_to_le32(cmd_type_len | buffer_info->length);
 		tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
+		count--;
 		i++;
 		if (i == tx_ring->count)
 			i = 0;
-	}
+	} while (count > 0);
 
 	tx_desc->read.cmd_type_len |= cpu_to_le32(IGB_ADVTXD_DCMD);
 	/* Force memory writes to complete before letting h/w
@@ -3568,8 +3569,7 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	unsigned int first;
 	unsigned int tx_flags = 0;
 	u8 hdr_len = 0;
-	int count = 0;
-	int tso = 0;
+	int tso = 0, count;
 	union skb_shared_tx *shtx = skb_tx(skb);
 
 	/* need: 1 descriptor per page,
@@ -3587,7 +3587,7 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 		tx_flags |= IGB_TX_FLAGS_TSTAMP;
 	}
 
-	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb) && adapter->vlgrp) {
 		tx_flags |= IGB_TX_FLAGS_VLAN;
 		tx_flags |= (vlan_tx_tag_get(skb) << IGB_TX_FLAGS_VLAN_SHIFT);
 	}
@@ -3598,6 +3598,7 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	first = tx_ring->next_to_use;
 	if (skb_is_gso(skb)) {
 		tso = igb_tso_adv(tx_ring, skb, tx_flags, &hdr_len);
+
 		if (tso < 0) {
 			dev_kfree_skb_any(skb);
 			return NETDEV_TX_OK;
@@ -3611,12 +3612,11 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 		tx_flags |= IGB_TX_FLAGS_CSUM;
 
 	/*
-	 * count reflects descriptors mapped, if 0 then mapping error
+	 * count reflects descriptors mapped, if 0 or less then mapping error
 	 * has occured and we need to rewind the descriptor queue
 	 */
 	count = igb_tx_map_adv(tx_ring, skb, first);
-
-	if (!count) {
+	if (count <= 0) {
 		dev_kfree_skb_any(skb);
 		tx_ring->buffer_info[first].time_stamp = 0;
 		tx_ring->next_to_use = first;
