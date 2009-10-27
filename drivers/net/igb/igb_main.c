@@ -179,8 +179,6 @@ static struct pci_driver igb_driver = {
 	.err_handler = &igb_err_handler
 };
 
-static int global_quad_port_a; /* global quad port a indication */
-
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Ethernet Network Driver");
 MODULE_LICENSE("GPL");
@@ -252,12 +250,9 @@ static int __init igb_init_module(void)
 
 	printk(KERN_INFO "%s\n", igb_copyright);
 
-	global_quad_port_a = 0;
-
 #ifdef CONFIG_IGB_DCA
 	dca_register_notify(&dca_notifier);
 #endif
-
 	ret = pci_register_driver(&igb_driver);
 	return ret;
 }
@@ -1318,10 +1313,11 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct igb_adapter *adapter;
 	struct e1000_hw *hw;
+	u16 eeprom_data = 0;
+	static int global_quad_port_a; /* global quad port a indication */
 	const struct e1000_info *ei = igb_info_tbl[ent->driver_data];
 	unsigned long mmio_start, mmio_len;
 	int err, pci_using_dac;
-	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = IGB_EEPROM_APME;
 	u32 part_num;
 
