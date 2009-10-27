@@ -655,6 +655,16 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 				p1pll->pll_out_min = 64800;
 			else
 				p1pll->pll_out_min = 20000;
+		} else if (p1pll->pll_out_min > 64800) {
+			/* Limiting the pll output range is a good thing generally as
+			 * it limits the number of possible pll combinations for a given
+			 * frequency presumably to the ones that work best on each card.
+			 * However, certain duallink DVI monitors seem to like
+			 * pll combinations that would be limited by this at least on
+			 * pre-DCE 3.0 r6xx hardware.  This might need to be adjusted per
+			 * family.
+			 */
+			p1pll->pll_out_min = 64800;
 		}
 
 		p1pll->pll_in_min =
