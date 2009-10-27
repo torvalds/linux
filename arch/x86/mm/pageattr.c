@@ -279,7 +279,8 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address,
 		   __pa((unsigned long)__end_rodata) >> PAGE_SHIFT))
 		pgprot_val(forbidden) |= _PAGE_RW;
 
-#if defined(CONFIG_X86_64) && defined(CONFIG_DEBUG_RODATA)
+#if defined(CONFIG_X86_64) && defined(CONFIG_DEBUG_RODATA) && \
+	!defined(CONFIG_DYNAMIC_FTRACE)
 	/*
 	 * Kernel text mappings for the large page aligned .rodata section
 	 * will be read-only. For the kernel identity mappings covering
