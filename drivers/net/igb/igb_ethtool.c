@@ -1123,32 +1123,36 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	*data = 0;
 
 	/* Hook up test interrupt handler just for this test */
-	if (adapter->msix_entries)
-		/* NOTE: we don't test MSI-X interrupts here, yet */
-		return 0;
+	if (adapter->msix_entries) {
+		if (request_irq(adapter->msix_entries[0].vector,
+		                &igb_test_intr, 0, netdev->name, adapter)) {
+			*data = 1;
+			return -1;
+		}
 
-	if (adapter->flags & IGB_FLAG_HAS_MSI) {
+	} else if (adapter->flags & IGB_FLAG_HAS_MSI) {
 		shared_int = false;
-		if (request_irq(irq, &igb_test_intr, 0, netdev->name, netdev)) {
+		if (request_irq(irq,
+		                &igb_test_intr, 0, netdev->name, adapter)) {
 			*data = 1;
 			return -1;
 		}
 	} else if (!request_irq(irq, &igb_test_intr, IRQF_PROBE_SHARED,
-				netdev->name, netdev)) {
+				netdev->name, adapter)) {
 		shared_int = false;
 	} else if (request_irq(irq, &igb_test_intr, IRQF_SHARED,
-		 netdev->name, netdev)) {
+		 netdev->name, adapter)) {
 		*data = 1;
 		return -1;
 	}
 	dev_info(&adapter->pdev->dev, "testing %s interrupt\n",
 		(shared_int ? "shared" : "unshared"));
 	/* Disable all the interrupts */
-	wr32(E1000_IMC, 0xFFFFFFFF);
+	wr32(E1000_IMC, ~0);
 	msleep(10);
 
 	/* Define all writable bits for ICS */
-	switch(hw->mac.type) {
+	switch (hw->mac.type) {
 	case e1000_82575:
 		ics_mask = 0x37F47EDD;
 		break;
@@ -1238,7 +1242,10 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 	msleep(10);
 
 	/* Unhook test interrupt handler */
-	free_irq(irq, netdev);
+	if (adapter->msix_entries)
+		free_irq(adapter->msix_entries[0].vector, adapter);
+	else
+		free_irq(irq, adapter);
 
 	return *data;
 }
