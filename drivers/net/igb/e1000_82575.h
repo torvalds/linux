@@ -66,6 +66,8 @@ extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
     E1000_EICR_RX_QUEUE3)
 
 /* Immediate Interrupt Rx (A.K.A. Low Latency Interrupt) */
+#define E1000_IMIREXT_SIZE_BP     0x00001000  /* Packet size bypass */
+#define E1000_IMIREXT_CTRL_BP     0x00080000  /* Bypass check of ctrl bits */
 
 /* Receive Descriptor - Advanced */
 union e1000_adv_rx_desc {
@@ -98,6 +100,7 @@ union e1000_adv_rx_desc {
 
 #define E1000_RXDADV_HDRBUFLEN_MASK      0x7FE0
 #define E1000_RXDADV_HDRBUFLEN_SHIFT     5
+#define E1000_RXDADV_STAT_TS             0x10000 /* Pkt was time stamped */
 
 /* Transmit Descriptor - Advanced */
 union e1000_adv_tx_desc {
@@ -166,6 +169,17 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DCA_RXCTRL_CPUID_MASK_82576 0xFF000000 /* Rx CPUID Mask */
 #define E1000_DCA_TXCTRL_CPUID_SHIFT 24 /* Tx CPUID now in the last byte */
 #define E1000_DCA_RXCTRL_CPUID_SHIFT 24 /* Rx CPUID now in the last byte */
+
+/* ETQF register bit definitions */
+#define E1000_ETQF_FILTER_ENABLE   (1 << 26)
+#define E1000_ETQF_1588            (1 << 30)
+
+/* FTQF register bit definitions */
+#define E1000_FTQF_VF_BP               0x00008000
+#define E1000_FTQF_1588_TIME_STAMP     0x08000000
+#define E1000_FTQF_MASK                0xF0000000
+#define E1000_FTQF_MASK_PROTO_BP       0x10000000
+#define E1000_FTQF_MASK_SOURCE_PORT_BP 0x80000000
 
 #define E1000_NVM_APME_82575          0x0400
 #define MAX_NUM_VFS                   8

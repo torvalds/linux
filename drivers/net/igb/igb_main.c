@@ -220,38 +220,6 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
 /**
- * Scale the NIC clock cycle by a large factor so that
- * relatively small clock corrections can be added or
- * substracted at each clock tick. The drawbacks of a
- * large factor are a) that the clock register overflows
- * more quickly (not such a big deal) and b) that the
- * increment per tick has to fit into 24 bits.
- *
- * Note that
- *   TIMINCA = IGB_TSYNC_CYCLE_TIME_IN_NANOSECONDS *
- *             IGB_TSYNC_SCALE
- *   TIMINCA += TIMINCA * adjustment [ppm] / 1e9
- *
- * The base scale factor is intentionally a power of two
- * so that the division in %struct timecounter can be done with
- * a shift.
- */
-#define IGB_TSYNC_SHIFT (19)
-#define IGB_TSYNC_SCALE (1<<IGB_TSYNC_SHIFT)
-
-/**
- * The duration of one clock cycle of the NIC.
- *
- * @todo This hard-coded value is part of the specification and might change
- * in future hardware revisions. Add revision check.
- */
-#define IGB_TSYNC_CYCLE_TIME_IN_NANOSECONDS 16
-
-#if (IGB_TSYNC_SCALE * IGB_TSYNC_CYCLE_TIME_IN_NANOSECONDS) >= (1<<24)
-# error IGB_TSYNC_SCALE and/or IGB_TSYNC_CYCLE_TIME_IN_NANOSECONDS are too large to fit into TIMINCA
-#endif
-
-/**
  * igb_read_clock - read raw cycle counter (to be used by time counter)
  */
 static cycle_t igb_read_clock(const struct cyclecounter *tc)
@@ -259,11 +227,11 @@ static cycle_t igb_read_clock(const struct cyclecounter *tc)
 	struct igb_adapter *adapter =
 		container_of(tc, struct igb_adapter, cycles);
 	struct e1000_hw *hw = &adapter->hw;
-	u64 stamp;
+	u64 stamp = 0;
+	int shift = 0;
 
-	stamp =  rd32(E1000_SYSTIML);
-	stamp |= (u64)rd32(E1000_SYSTIMH) << 32ULL;
-
+	stamp |= (u64)rd32(E1000_SYSTIML) << shift;
+	stamp |= (u64)rd32(E1000_SYSTIMH) << (shift + 32);
 	return stamp;
 }
 
@@ -1669,59 +1637,58 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		dev_info(&pdev->dev, "DCA enabled\n");
 		igb_setup_dca(adapter);
 	}
+
 #endif
 
-	/*
-	 * Initialize hardware timer: we keep it running just in case
-	 * that some program needs it later on.
-	 */
-	memset(&adapter->cycles, 0, sizeof(adapter->cycles));
-	adapter->cycles.read = igb_read_clock;
-	adapter->cycles.mask = CLOCKSOURCE_MASK(64);
-	adapter->cycles.mult = 1;
-	adapter->cycles.shift = IGB_TSYNC_SHIFT;
-	wr32(E1000_TIMINCA,
-	     (1<<24) |
-	     IGB_TSYNC_CYCLE_TIME_IN_NANOSECONDS * IGB_TSYNC_SCALE);
-#if 0
-	/*
-	 * Avoid rollover while we initialize by resetting the time counter.
-	 */
-	wr32(E1000_SYSTIML, 0x00000000);
-	wr32(E1000_SYSTIMH, 0x00000000);
-#else
-	/*
-	 * Set registers so that rollover occurs soon to test this.
-	 */
-	wr32(E1000_SYSTIML, 0x00000000);
-	wr32(E1000_SYSTIMH, 0xFF800000);
-#endif
-	wrfl();
-	timecounter_init(&adapter->clock,
-			 &adapter->cycles,
-			 ktime_to_ns(ktime_get_real()));
+	switch (hw->mac.type) {
+	case e1000_82576:
+		/*
+		 * Initialize hardware timer: we keep it running just in case
+		 * that some program needs it later on.
+		 */
+		memset(&adapter->cycles, 0, sizeof(adapter->cycles));
+		adapter->cycles.read = igb_read_clock;
+		adapter->cycles.mask = CLOCKSOURCE_MASK(64);
+		adapter->cycles.mult = 1;
+		/**
+		 * Scale the NIC clock cycle by a large factor so that
+		 * relatively small clock corrections can be added or
+		 * substracted at each clock tick. The drawbacks of a large
+		 * factor are a) that the clock register overflows more quickly
+		 * (not such a big deal) and b) that the increment per tick has
+		 * to fit into 24 bits.  As a result we need to use a shift of
+		 * 19 so we can fit a value of 16 into the TIMINCA register.
+		 */
+		adapter->cycles.shift = IGB_82576_TSYNC_SHIFT;
+		wr32(E1000_TIMINCA,
+		                (1 << E1000_TIMINCA_16NS_SHIFT) |
+		                (16 << IGB_82576_TSYNC_SHIFT));
 
-	/*
-	 * Synchronize our NIC clock against system wall clock. NIC
-	 * time stamp reading requires ~3us per sample, each sample
-	 * was pretty stable even under load => only require 10
-	 * samples for each offset comparison.
-	 */
-	memset(&adapter->compare, 0, sizeof(adapter->compare));
-	adapter->compare.source = &adapter->clock;
-	adapter->compare.target = ktime_get_real;
-	adapter->compare.num_samples = 10;
-	timecompare_update(&adapter->compare, 0);
+		/* Set registers so that rollover occurs soon to test this. */
+		wr32(E1000_SYSTIML, 0x00000000);
+		wr32(E1000_SYSTIMH, 0xFF800000);
+		wrfl();
 
-#ifdef DEBUG
-	{
-		char buffer[160];
-		printk(KERN_DEBUG
-			"igb: %s: hw %p initialized timer\n",
-			igb_get_time_str(adapter, buffer),
-			&adapter->hw);
+		timecounter_init(&adapter->clock,
+				 &adapter->cycles,
+				 ktime_to_ns(ktime_get_real()));
+		/*
+		 * Synchronize our NIC clock against system wall clock. NIC
+		 * time stamp reading requires ~3us per sample, each sample
+		 * was pretty stable even under load => only require 10
+		 * samples for each offset comparison.
+		 */
+		memset(&adapter->compare, 0, sizeof(adapter->compare));
+		adapter->compare.source = &adapter->clock;
+		adapter->compare.target = ktime_get_real;
+		adapter->compare.num_samples = 10;
+		timecompare_update(&adapter->compare, 0);
+		break;
+	case e1000_82575:
+		/* 82575 does not support timesync */
+	default:
+		break;
 	}
-#endif
 
 	dev_info(&pdev->dev, "Intel(R) Gigabit Ethernet Network Connection\n");
 	/* print bus type/speed/width info */
@@ -3596,7 +3563,7 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	u8 hdr_len = 0;
 	int count = 0;
 	int tso = 0;
-	union skb_shared_tx *shtx;
+	union skb_shared_tx *shtx = skb_tx(skb);
 
 	/* need: 1 descriptor per page,
 	 *       + 2 desc gap to keep tail from touching head,
@@ -3608,16 +3575,6 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	/*
-	 * TODO: check that there currently is no other packet with
-	 * time stamping in the queue
-	 *
-	 * When doing time stamping, keep the connection to the socket
-	 * a while longer: it is still needed by skb_hwtstamp_tx(),
-	 * called either in igb_tx_hwtstamp() or by our caller when
-	 * doing software time stamping.
-	 */
-	shtx = skb_tx(skb);
 	if (unlikely(shtx->hardware)) {
 		shtx->in_progress = 1;
 		tx_flags |= IGB_TX_FLAGS_TSTAMP;
@@ -4633,37 +4590,54 @@ static int igb_poll(struct napi_struct *napi, int budget)
 }
 
 /**
- * igb_hwtstamp - utility function which checks for TX time stamp
+ * igb_systim_to_hwtstamp - convert system time value to hw timestamp
  * @adapter: board private structure
+ * @shhwtstamps: timestamp structure to update
+ * @regval: unsigned 64bit system time value.
+ *
+ * We need to convert the system time value stored in the RX/TXSTMP registers
+ * into a hwtstamp which can be used by the upper level timestamping functions
+ */
+static void igb_systim_to_hwtstamp(struct igb_adapter *adapter,
+                                   struct skb_shared_hwtstamps *shhwtstamps,
+                                   u64 regval)
+{
+	u64 ns;
+
+	ns = timecounter_cyc2time(&adapter->clock, regval);
+	timecompare_update(&adapter->compare, ns);
+	memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
+	shhwtstamps->hwtstamp = ns_to_ktime(ns);
+	shhwtstamps->syststamp = timecompare_transform(&adapter->compare, ns);
+}
+
+/**
+ * igb_tx_hwtstamp - utility function which checks for TX time stamp
+ * @q_vector: pointer to q_vector containing needed info
  * @skb: packet that was just sent
  *
  * If we were asked to do hardware stamping and such a time stamp is
  * available, then it must have been for this skb here because we only
  * allow only one such packet into the queue.
  */
-static void igb_tx_hwtstamp(struct igb_adapter *adapter, struct sk_buff *skb)
+static void igb_tx_hwtstamp(struct igb_q_vector *q_vector, struct sk_buff *skb)
 {
+	struct igb_adapter *adapter = q_vector->adapter;
 	union skb_shared_tx *shtx = skb_tx(skb);
 	struct e1000_hw *hw = &adapter->hw;
+	struct skb_shared_hwtstamps shhwtstamps;
+	u64 regval;
 
-	if (unlikely(shtx->hardware)) {
-		u32 valid = rd32(E1000_TSYNCTXCTL) & E1000_TSYNCTXCTL_VALID;
-		if (valid) {
-			u64 regval = rd32(E1000_TXSTMPL);
-			u64 ns;
-			struct skb_shared_hwtstamps shhwtstamps;
+	/* if skb does not support hw timestamp or TX stamp not valid exit */
+	if (likely(!shtx->hardware) ||
+	    !(rd32(E1000_TSYNCTXCTL) & E1000_TSYNCTXCTL_VALID))
+		return;
 
-			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
-			regval |= (u64)rd32(E1000_TXSTMPH) << 32;
-			ns = timecounter_cyc2time(&adapter->clock,
-						  regval);
-			timecompare_update(&adapter->compare, ns);
-			shhwtstamps.hwtstamp = ns_to_ktime(ns);
-			shhwtstamps.syststamp =
-				timecompare_transform(&adapter->compare, ns);
-			skb_tstamp_tx(skb, &shhwtstamps);
-		}
-	}
+	regval = rd32(E1000_TXSTMPL);
+	regval |= (u64)rd32(E1000_TXSTMPH) << 32;
+
+	igb_systim_to_hwtstamp(adapter, &shhwtstamps, regval);
+	skb_tstamp_tx(skb, &shhwtstamps);
 }
 
 /**
@@ -4706,7 +4680,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 				total_packets += segs;
 				total_bytes += bytecount;
 
-				igb_tx_hwtstamp(adapter, skb);
+				igb_tx_hwtstamp(q_vector, skb);
 			}
 
 			igb_unmap_and_free_tx_resource(tx_ring, buffer_info);
@@ -4831,6 +4805,34 @@ static inline void igb_rx_checksum_adv(struct igb_ring *ring,
 	dev_dbg(&ring->pdev->dev, "cksum success: bits %08X\n", status_err);
 }
 
+static inline void igb_rx_hwtstamp(struct igb_q_vector *q_vector, u32 staterr,
+                                   struct sk_buff *skb)
+{
+	struct igb_adapter *adapter = q_vector->adapter;
+	struct e1000_hw *hw = &adapter->hw;
+	u64 regval;
+
+	/*
+	 * If this bit is set, then the RX registers contain the time stamp. No
+	 * other packet will be time stamped until we read these registers, so
+	 * read the registers to make them available again. Because only one
+	 * packet can be time stamped at a time, we know that the register
+	 * values must belong to this one here and therefore we don't need to
+	 * compare any of the additional attributes stored for it.
+	 *
+	 * If nothing went wrong, then it should have a skb_shared_tx that we
+	 * can turn into a skb_shared_hwtstamps.
+	 */
+	if (likely(!(staterr & E1000_RXDADV_STAT_TS)))
+		return;
+	if (!(rd32(E1000_TSYNCRXCTL) & E1000_TSYNCRXCTL_VALID))
+		return;
+
+	regval = rd32(E1000_RXSTMPL);
+	regval |= (u64)rd32(E1000_RXSTMPH) << 32;
+
+	igb_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
+}
 static inline u16 igb_get_hlen(struct igb_ring *rx_ring,
                                union e1000_adv_rx_desc *rx_desc)
 {
@@ -4848,10 +4850,8 @@ static inline u16 igb_get_hlen(struct igb_ring *rx_ring,
 static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
                                  int *work_done, int budget)
 {
-	struct igb_adapter *adapter = q_vector->adapter;
 	struct igb_ring *rx_ring = q_vector->rx_ring;
 	struct net_device *netdev = rx_ring->netdev;
-	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = rx_ring->pdev;
 	union e1000_adv_rx_desc *rx_desc , *next_rxd;
 	struct igb_buffer *buffer_info , *next_buffer;
@@ -4930,52 +4930,12 @@ static bool igb_clean_rx_irq_adv(struct igb_q_vector *q_vector,
 			goto next_desc;
 		}
 send_up:
-		/*
-		 * If this bit is set, then the RX registers contain
-		 * the time stamp. No other packet will be time
-		 * stamped until we read these registers, so read the
-		 * registers to make them available again. Because
-		 * only one packet can be time stamped at a time, we
-		 * know that the register values must belong to this
-		 * one here and therefore we don't need to compare
-		 * any of the additional attributes stored for it.
-		 *
-		 * If nothing went wrong, then it should have a
-		 * skb_shared_tx that we can turn into a
-		 * skb_shared_hwtstamps.
-		 *
-		 * TODO: can time stamping be triggered (thus locking
-		 * the registers) without the packet reaching this point
-		 * here? In that case RX time stamping would get stuck.
-		 *
-		 * TODO: in "time stamp all packets" mode this bit is
-		 * not set. Need a global flag for this mode and then
-		 * always read the registers. Cannot be done without
-		 * a race condition.
-		 */
-		if (unlikely(staterr & E1000_RXD_STAT_TS)) {
-			u64 regval;
-			u64 ns;
-			struct skb_shared_hwtstamps *shhwtstamps =
-				skb_hwtstamps(skb);
-
-			WARN(!(rd32(E1000_TSYNCRXCTL) & E1000_TSYNCRXCTL_VALID),
-			     "igb: no RX time stamp available for time stamped packet");
-			regval = rd32(E1000_RXSTMPL);
-			regval |= (u64)rd32(E1000_RXSTMPH) << 32;
-			ns = timecounter_cyc2time(&adapter->clock, regval);
-			timecompare_update(&adapter->compare, ns);
-			memset(shhwtstamps, 0, sizeof(*shhwtstamps));
-			shhwtstamps->hwtstamp = ns_to_ktime(ns);
-			shhwtstamps->syststamp =
-				timecompare_transform(&adapter->compare, ns);
-		}
-
 		if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
 			dev_kfree_skb_irq(skb);
 			goto next_desc;
 		}
 
+		igb_rx_hwtstamp(q_vector, staterr, skb);
 		total_bytes += skb->len;
 		total_packets++;
 
@@ -5161,13 +5121,11 @@ static int igb_hwtstamp_ioctl(struct net_device *netdev,
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct hwtstamp_config config;
-	u32 tsync_tx_ctl_bit = E1000_TSYNCTXCTL_ENABLED;
-	u32 tsync_rx_ctl_bit = E1000_TSYNCRXCTL_ENABLED;
-	u32 tsync_rx_ctl_type = 0;
+	u32 tsync_tx_ctl = E1000_TSYNCTXCTL_ENABLED;
+	u32 tsync_rx_ctl = E1000_TSYNCRXCTL_ENABLED;
 	u32 tsync_rx_cfg = 0;
-	int is_l4 = 0;
-	int is_l2 = 0;
-	short port = 319; /* PTP */
+	bool is_l4 = false;
+	bool is_l2 = false;
 	u32 regval;
 
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
@@ -5179,10 +5137,8 @@ static int igb_hwtstamp_ioctl(struct net_device *netdev,
 
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
-		tsync_tx_ctl_bit = 0;
-		break;
+		tsync_tx_ctl = 0;
 	case HWTSTAMP_TX_ON:
-		tsync_tx_ctl_bit = E1000_TSYNCTXCTL_ENABLED;
 		break;
 	default:
 		return -ERANGE;
@@ -5190,7 +5146,7 @@ static int igb_hwtstamp_ioctl(struct net_device *netdev,
 
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		tsync_rx_ctl_bit = 0;
+		tsync_rx_ctl = 0;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
@@ -5201,86 +5157,97 @@ static int igb_hwtstamp_ioctl(struct net_device *netdev,
 		 * possible to time stamp both Sync and Delay_Req messages
 		 * => fall back to time stamping all packets
 		 */
-		tsync_rx_ctl_type = E1000_TSYNCRXCTL_TYPE_ALL;
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_ALL;
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
-		tsync_rx_ctl_type = E1000_TSYNCRXCTL_TYPE_L4_V1;
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L4_V1;
 		tsync_rx_cfg = E1000_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE;
-		is_l4 = 1;
+		is_l4 = true;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
-		tsync_rx_ctl_type = E1000_TSYNCRXCTL_TYPE_L4_V1;
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L4_V1;
 		tsync_rx_cfg = E1000_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE;
-		is_l4 = 1;
+		is_l4 = true;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
-		tsync_rx_ctl_type = E1000_TSYNCRXCTL_TYPE_L2_L4_V2;
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_L4_V2;
 		tsync_rx_cfg = E1000_TSYNCRXCFG_PTP_V2_SYNC_MESSAGE;
-		is_l2 = 1;
-		is_l4 = 1;
+		is_l2 = true;
+		is_l4 = true;
 		config.rx_filter = HWTSTAMP_FILTER_SOME;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
-		tsync_rx_ctl_type = E1000_TSYNCRXCTL_TYPE_L2_L4_V2;
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_L2_L4_V2;
 		tsync_rx_cfg = E1000_TSYNCRXCFG_PTP_V2_DELAY_REQ_MESSAGE;
-		is_l2 = 1;
-		is_l4 = 1;
+		is_l2 = true;
+		is_l4 = true;
 		config.rx_filter = HWTSTAMP_FILTER_SOME;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		tsync_rx_ctl_type = E1000_TSYNCRXCTL_TYPE_EVENT_V2;
+		tsync_rx_ctl |= E1000_TSYNCRXCTL_TYPE_EVENT_V2;
 		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
-		is_l2 = 1;
+		is_l2 = true;
 		break;
 	default:
 		return -ERANGE;
 	}
 
+	if (hw->mac.type == e1000_82575) {
+		if (tsync_rx_ctl | tsync_tx_ctl)
+			return -EINVAL;
+		return 0;
+	}
+
 	/* enable/disable TX */
 	regval = rd32(E1000_TSYNCTXCTL);
-	regval = (regval & ~E1000_TSYNCTXCTL_ENABLED) | tsync_tx_ctl_bit;
+	regval &= ~E1000_TSYNCTXCTL_ENABLED;
+	regval |= tsync_tx_ctl;
 	wr32(E1000_TSYNCTXCTL, regval);
 
-	/* enable/disable RX, define which PTP packets are time stamped */
+	/* enable/disable RX */
 	regval = rd32(E1000_TSYNCRXCTL);
-	regval = (regval & ~E1000_TSYNCRXCTL_ENABLED) | tsync_rx_ctl_bit;
-	regval = (regval & ~0xE) | tsync_rx_ctl_type;
+	regval &= ~(E1000_TSYNCRXCTL_ENABLED | E1000_TSYNCRXCTL_TYPE_MASK);
+	regval |= tsync_rx_ctl;
 	wr32(E1000_TSYNCRXCTL, regval);
+
+	/* define which PTP packets are time stamped */
 	wr32(E1000_TSYNCRXCFG, tsync_rx_cfg);
 
-	/*
-	 * Ethertype Filter Queue Filter[0][15:0] = 0x88F7
-	 *                                          (Ethertype to filter on)
-	 * Ethertype Filter Queue Filter[0][26] = 0x1 (Enable filter)
-	 * Ethertype Filter Queue Filter[0][30] = 0x1 (Enable Timestamping)
-	 */
-	wr32(E1000_ETQF0, is_l2 ? 0x440088f7 : 0);
+	/* define ethertype filter for timestamped packets */
+	if (is_l2)
+		wr32(E1000_ETQF(3),
+		                (E1000_ETQF_FILTER_ENABLE | /* enable filter */
+		                 E1000_ETQF_1588 | /* enable timestamping */
+		                 ETH_P_1588));     /* 1588 eth protocol type */
+	else
+		wr32(E1000_ETQF(3), 0);
 
-	/* L4 Queue Filter[0]: only filter by source and destination port */
-	wr32(E1000_SPQF0, htons(port));
-	wr32(E1000_IMIREXT(0), is_l4 ?
-	     ((1<<12) | (1<<19) /* bypass size and control flags */) : 0);
-	wr32(E1000_IMIR(0), is_l4 ?
-	     (htons(port)
-	      | (0<<16) /* immediate interrupt disabled */
-	      | 0 /* (1<<17) bit cleared: do not bypass
-		     destination port check */)
-		: 0);
-	wr32(E1000_FTQF0, is_l4 ?
-	     (0x11 /* UDP */
-	      | (1<<15) /* VF not compared */
-	      | (1<<27) /* Enable Timestamping */
-	      | (7<<28) /* only source port filter enabled,
-			   source/target address and protocol
-			   masked */)
-	     : ((1<<15) | (15<<28) /* all mask bits set = filter not
-				      enabled */));
+#define PTP_PORT 319
+	/* L4 Queue Filter[3]: filter by destination port and protocol */
+	if (is_l4) {
+		u32 ftqf = (IPPROTO_UDP /* UDP */
+			| E1000_FTQF_VF_BP /* VF not compared */
+			| E1000_FTQF_1588_TIME_STAMP /* Enable Timestamping */
+			| E1000_FTQF_MASK); /* mask all inputs */
+		ftqf &= ~E1000_FTQF_MASK_PROTO_BP; /* enable protocol check */
 
+		wr32(E1000_IMIR(3), htons(PTP_PORT));
+		wr32(E1000_IMIREXT(3),
+		     (E1000_IMIREXT_SIZE_BP | E1000_IMIREXT_CTRL_BP));
+		if (hw->mac.type == e1000_82576) {
+			/* enable source port check */
+			wr32(E1000_SPQF(3), htons(PTP_PORT));
+			ftqf &= ~E1000_FTQF_MASK_SOURCE_PORT_BP;
+		}
+		wr32(E1000_FTQF(3), ftqf);
+	} else {
+		wr32(E1000_FTQF(3), E1000_FTQF_MASK);
+	}
 	wrfl();
 
 	adapter->hwtstamp_config = config;
