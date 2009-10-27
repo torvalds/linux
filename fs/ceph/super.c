@@ -264,9 +264,11 @@ enum {
 	Opt_caps_wanted_delay_min,
 	Opt_caps_wanted_delay_max,
 	Opt_readdir_max_entries,
+	Opt_last_int,
 	/* int args above */
 	Opt_snapdirname,
 	Opt_secret,
+	Opt_last_string,
 	/* string args above */
 	Opt_ip,
 	Opt_noshare,
@@ -386,14 +388,19 @@ static int parse_mount_args(struct ceph_client *client,
 			pr_err("bad mount option at '%s'\n", c);
 			goto out;
 		}
-		if (token < Opt_ip) {
+		if (token < Opt_last_int) {
 			ret = match_int(&argstr[0], &intval);
 			if (ret < 0) {
 				pr_err("bad mount option arg (not int) "
 				       "at '%s'\n", c);
 				continue;
 			}
-			dout("got token %d intval %d\n", token, intval);
+			dout("got int token %d val %d\n", token, intval);
+		} else if (token > Opt_last_int && token < Opt_last_string) {
+			dout("got string token %d val %s\n", token,
+			     argstr[0].from);
+		} else {
+			dout("got token %d\n", token);
 		}
 		switch (token) {
 		case Opt_fsidmajor:
