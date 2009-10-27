@@ -192,6 +192,8 @@ struct igb_ring {
 	unsigned int total_bytes;
 	unsigned int total_packets;
 
+	u32 flags;
+
 	union {
 		/* TX */
 		struct {
@@ -205,6 +207,13 @@ struct igb_ring {
 		};
 	};
 };
+
+#define IGB_RING_FLAG_RX_CSUM        0x00000001 /* RX CSUM enabled */
+#define IGB_RING_FLAG_RX_SCTP_CSUM   0x00000002 /* SCTP CSUM offload enabled */
+
+#define IGB_RING_FLAG_TX_CTX_IDX     0x00000001 /* HW requires context index */
+
+#define IGB_ADVTXD_DCMD (E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS)
 
 #define E1000_RX_DESC_ADV(R, i)	    \
 	(&(((union e1000_adv_rx_desc *)((R).desc))[i]))
@@ -245,7 +254,6 @@ struct igb_adapter {
 	/* TX */
 	struct igb_ring *tx_ring;      /* One per active queue */
 	unsigned long tx_queue_len;
-	u32 txd_cmd;
 	u32 gotc;
 	u64 gotc_old;
 	u64 tpt_old;
@@ -303,8 +311,6 @@ struct igb_adapter {
 #define IGB_FLAG_HAS_MSI           (1 << 0)
 #define IGB_FLAG_DCA_ENABLED       (1 << 1)
 #define IGB_FLAG_QUAD_PORT_A       (1 << 2)
-#define IGB_FLAG_NEED_CTX_IDX      (1 << 3)
-#define IGB_FLAG_RX_CSUM_DISABLED  (1 << 4)
 
 enum e1000_state_t {
 	__IGB_TESTING,

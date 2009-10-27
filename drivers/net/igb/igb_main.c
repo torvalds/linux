@@ -437,13 +437,21 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		ring->count = adapter->tx_ring_count;
 		ring->queue_index = i;
 		ring->pdev = adapter->pdev;
+		/* For 82575, context index must be unique per ring. */
+		if (adapter->hw.mac.type == e1000_82575)
+			ring->flags = IGB_RING_FLAG_TX_CTX_IDX;
 	}
+
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct igb_ring *ring = &(adapter->rx_ring[i]);
 		ring->count = adapter->rx_ring_count;
 		ring->queue_index = i;
 		ring->pdev = adapter->pdev;
 		ring->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
+		ring->flags = IGB_RING_FLAG_RX_CSUM; /* enable rx checksum */
+		/* set flag indicating ring supports SCTP checksum offload */
+		if (adapter->hw.mac.type >= e1000_82576)
+			ring->flags |= IGB_RING_FLAG_RX_SCTP_CSUM;
 	}
 
 	igb_cache_ring_register(adapter);
@@ -1517,16 +1525,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	igb_get_bus_info_pcie(hw);
 
-	/* set flags */
-	switch (hw->mac.type) {
-	case e1000_82575:
-		adapter->flags |= IGB_FLAG_NEED_CTX_IDX;
-		break;
-	case e1000_82576:
-	default:
-		break;
-	}
-
 	hw->phy.autoneg_wait_to_complete = false;
 	hw->mac.adaptive_ifs = true;
 
@@ -2149,9 +2147,6 @@ static void igb_configure_tx(struct igb_adapter *adapter)
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		igb_configure_tx_ring(adapter, &adapter->tx_ring[i]);
-
-	/* Setup Transmit Descriptor Settings for eop descriptor */
-	adapter->txd_cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
 }
 
 /**
@@ -3272,8 +3267,7 @@ set_itr_now:
 #define IGB_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IGB_TX_FLAGS_VLAN_SHIFT	16
 
-static inline int igb_tso_adv(struct igb_adapter *adapter,
-			      struct igb_ring *tx_ring,
+static inline int igb_tso_adv(struct igb_ring *tx_ring,
 			      struct sk_buff *skb, u32 tx_flags, u8 *hdr_len)
 {
 	struct e1000_adv_tx_context_desc *context_desc;
@@ -3335,8 +3329,8 @@ static inline int igb_tso_adv(struct igb_adapter *adapter,
 	mss_l4len_idx |= (l4len << E1000_ADVTXD_L4LEN_SHIFT);
 
 	/* For 82575, context index must be unique per ring. */
-	if (adapter->flags & IGB_FLAG_NEED_CTX_IDX)
-		mss_l4len_idx |= tx_ring->queue_index << 4;
+	if (tx_ring->flags & IGB_RING_FLAG_TX_CTX_IDX)
+		mss_l4len_idx |= tx_ring->reg_idx << 4;
 
 	context_desc->mss_l4len_idx = cpu_to_le32(mss_l4len_idx);
 	context_desc->seqnum_seed = 0;
@@ -3353,9 +3347,8 @@ static inline int igb_tso_adv(struct igb_adapter *adapter,
 	return true;
 }
 
-static inline bool igb_tx_csum_adv(struct igb_adapter *adapter,
-					struct igb_ring *tx_ring,
-					struct sk_buff *skb, u32 tx_flags)
+static inline bool igb_tx_csum_adv(struct igb_ring *tx_ring,
+				   struct sk_buff *skb, u32 tx_flags)
 {
 	struct e1000_adv_tx_context_desc *context_desc;
 	struct pci_dev *pdev = tx_ring->pdev;
@@ -3417,11 +3410,9 @@ static inline bool igb_tx_csum_adv(struct igb_adapter *adapter,
 
 		context_desc->type_tucmd_mlhl = cpu_to_le32(tu_cmd);
 		context_desc->seqnum_seed = 0;
-		if (adapter->flags & IGB_FLAG_NEED_CTX_IDX)
+		if (tx_ring->flags & IGB_RING_FLAG_TX_CTX_IDX)
 			context_desc->mss_l4len_idx =
-				cpu_to_le32(tx_ring->queue_index << 4);
-		else
-			context_desc->mss_l4len_idx = 0;
+				cpu_to_le32(tx_ring->reg_idx << 4);
 
 		buffer_info->time_stamp = jiffies;
 		buffer_info->next_to_watch = i;
@@ -3492,8 +3483,7 @@ static inline int igb_tx_map_adv(struct igb_ring *tx_ring, struct sk_buff *skb,
 	return count + 1;
 }
 
-static inline void igb_tx_queue_adv(struct igb_adapter *adapter,
-				    struct igb_ring *tx_ring,
+static inline void igb_tx_queue_adv(struct igb_ring *tx_ring,
 				    int tx_flags, int count, u32 paylen,
 				    u8 hdr_len)
 {
@@ -3525,10 +3515,11 @@ static inline void igb_tx_queue_adv(struct igb_adapter *adapter,
 		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
 	}
 
-	if ((adapter->flags & IGB_FLAG_NEED_CTX_IDX) &&
-	    (tx_flags & (IGB_TX_FLAGS_CSUM | IGB_TX_FLAGS_TSO |
+	if ((tx_ring->flags & IGB_RING_FLAG_TX_CTX_IDX) &&
+	    (tx_flags & (IGB_TX_FLAGS_CSUM |
+	                 IGB_TX_FLAGS_TSO |
 			 IGB_TX_FLAGS_VLAN)))
-		olinfo_status |= tx_ring->queue_index << 4;
+		olinfo_status |= tx_ring->reg_idx << 4;
 
 	olinfo_status |= ((paylen - hdr_len) << E1000_ADVTXD_PAYLEN_SHIFT);
 
@@ -3545,7 +3536,7 @@ static inline void igb_tx_queue_adv(struct igb_adapter *adapter,
 			i = 0;
 	}
 
-	tx_desc->read.cmd_type_len |= cpu_to_le32(adapter->txd_cmd);
+	tx_desc->read.cmd_type_len |= cpu_to_le32(IGB_ADVTXD_DCMD);
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.  (Only
 	 * applicable for weak-ordered memory model archs,
@@ -3644,17 +3635,17 @@ static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 		tx_flags |= IGB_TX_FLAGS_IPV4;
 
 	first = tx_ring->next_to_use;
-	tso = skb_is_gso(skb) ? igb_tso_adv(adapter, tx_ring, skb, tx_flags,
-					      &hdr_len) : 0;
-
-	if (tso < 0) {
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
+	if (skb_is_gso(skb)) {
+		tso = igb_tso_adv(tx_ring, skb, tx_flags, &hdr_len);
+		if (tso < 0) {
+			dev_kfree_skb_any(skb);
+			return NETDEV_TX_OK;
+		}
 	}
 
 	if (tso)
 		tx_flags |= IGB_TX_FLAGS_TSO;
-	else if (igb_tx_csum_adv(adapter, tx_ring, skb, tx_flags) &&
+	else if (igb_tx_csum_adv(tx_ring, skb, tx_flags) &&
 	         (skb->ip_summed == CHECKSUM_PARTIAL))
 		tx_flags |= IGB_TX_FLAGS_CSUM;
 
@@ -3664,16 +3655,17 @@ static netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	 */
 	count = igb_tx_map_adv(tx_ring, skb, first);
 
-	if (count) {
-		igb_tx_queue_adv(adapter, tx_ring, tx_flags, count,
-			         skb->len, hdr_len);
-		/* Make sure there is space in the ring for the next send. */
-		igb_maybe_stop_tx(netdev, tx_ring, MAX_SKB_FRAGS + 4);
-	} else {
+	if (!count) {
 		dev_kfree_skb_any(skb);
 		tx_ring->buffer_info[first].time_stamp = 0;
 		tx_ring->next_to_use = first;
+		return NETDEV_TX_OK;
 	}
+
+	igb_tx_queue_adv(tx_ring, tx_flags, count, skb->len, hdr_len);
+
+	/* Make sure there is space in the ring for the next send. */
+	igb_maybe_stop_tx(netdev, tx_ring, MAX_SKB_FRAGS + 4);
 
 	return NETDEV_TX_OK;
 }
@@ -4800,15 +4792,15 @@ static void igb_receive_skb(struct igb_q_vector *q_vector,
 }
 
 static inline void igb_rx_checksum_adv(struct igb_ring *ring,
-                                       struct igb_adapter *adapter,
 				       u32 status_err, struct sk_buff *skb)
 {
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Ignore Checksum bit is set or checksum is disabled through ethtool */
-	if ((status_err & E1000_RXD_STAT_IXSM) ||
-	    (adapter->flags & IGB_FLAG_RX_CSUM_DISABLED))
+	if (!(ring->flags & IGB_RING_FLAG_RX_CSUM) ||
+	     (status_err & E1000_RXD_STAT_IXSM))
 		return;
+
 	/* TCP/UDP checksum error bit is set */
 	if (status_err &
 	    (E1000_RXDEXT_STATERR_TCPE | E1000_RXDEXT_STATERR_IPE)) {
@@ -4817,9 +4809,10 @@ static inline void igb_rx_checksum_adv(struct igb_ring *ring,
 		 * L4E bit is set incorrectly on 64 byte (60 byte w/o crc)
 		 * packets, (aka let the stack check the crc32c)
 		 */
-		if (!((adapter->hw.mac.type == e1000_82576) &&
-		      (skb->len == 60)))
+		if ((skb->len == 60) &&
+		    (ring->flags & IGB_RING_FLAG_RX_SCTP_CSUM))
 			ring->rx_stats.csum_err++;
+
 		/* let the stack verify checksum errors */
 		return;
 	}
@@ -4827,7 +4820,7 @@ static inline void igb_rx_checksum_adv(struct igb_ring *ring,
 	if (status_err & (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	dev_dbg(&adapter->pdev->dev, "cksum success: bits %08X\n", status_err);
+	dev_dbg(&ring->pdev->dev, "cksum success: bits %08X\n", status_err);
 }
 
 static inline u16 igb_get_hlen(struct igb_ring *rx_ring,
@@ -4978,7 +4971,7 @@ send_up:
 		total_bytes += skb->len;
 		total_packets++;
 
-		igb_rx_checksum_adv(rx_ring, adapter, staterr, skb);
+		igb_rx_checksum_adv(rx_ring, staterr, skb);
 
 		skb->protocol = eth_type_trans(skb, netdev);
 		skb_record_rx_queue(skb, rx_ring->queue_index);
