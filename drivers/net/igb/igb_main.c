@@ -2124,10 +2124,10 @@ static void igb_configure_tx_ring(struct igb_adapter *adapter,
 	                tdba & 0x00000000ffffffffULL);
 	wr32(E1000_TDBAH(reg_idx), tdba >> 32);
 
-	ring->head = E1000_TDH(reg_idx);
-	ring->tail = E1000_TDT(reg_idx);
-	writel(0, hw->hw_addr + ring->tail);
-	writel(0, hw->hw_addr + ring->head);
+	ring->head = hw->hw_addr + E1000_TDH(reg_idx);
+	ring->tail = hw->hw_addr + E1000_TDT(reg_idx);
+	writel(0, ring->head);
+	writel(0, ring->tail);
 
 	txdctl |= IGB_TX_PTHRESH;
 	txdctl |= IGB_TX_HTHRESH << 8;
@@ -2354,10 +2354,10 @@ static void igb_configure_rx_ring(struct igb_adapter *adapter,
 	               ring->count * sizeof(union e1000_adv_rx_desc));
 
 	/* initialize head and tail */
-	ring->head = E1000_RDH(reg_idx);
-	ring->tail = E1000_RDT(reg_idx);
-	writel(0, hw->hw_addr + ring->head);
-	writel(0, hw->hw_addr + ring->tail);
+	ring->head = hw->hw_addr + E1000_RDH(reg_idx);
+	ring->tail = hw->hw_addr + E1000_RDT(reg_idx);
+	writel(0, ring->head);
+	writel(0, ring->tail);
 
 	/* set descriptor configuration */
 	if (adapter->rx_buffer_len < IGB_RXBUFFER_1024) {
@@ -2567,8 +2567,8 @@ static void igb_clean_tx_ring(struct igb_ring *tx_ring)
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
 
-	writel(0, adapter->hw.hw_addr + tx_ring->head);
-	writel(0, adapter->hw.hw_addr + tx_ring->tail);
+	writel(0, tx_ring->head);
+	writel(0, tx_ring->tail);
 }
 
 /**
@@ -2667,8 +2667,8 @@ static void igb_clean_rx_ring(struct igb_ring *rx_ring)
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
 
-	writel(0, adapter->hw.hw_addr + rx_ring->head);
-	writel(0, adapter->hw.hw_addr + rx_ring->tail);
+	writel(0, rx_ring->head);
+	writel(0, rx_ring->tail);
 }
 
 /**
@@ -3556,7 +3556,7 @@ static inline void igb_tx_queue_adv(struct igb_adapter *adapter,
 	wmb();
 
 	tx_ring->next_to_use = i;
-	writel(i, adapter->hw.hw_addr + tx_ring->tail);
+	writel(i, tx_ring->tail);
 	/* we need this if more than one processor can write to our tail
 	 * at a time, it syncronizes IO on IA64/Altix systems */
 	mmiowb();
@@ -4761,8 +4761,8 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 				"  jiffies              <%lx>\n"
 				"  desc.status          <%x>\n",
 				tx_ring->queue_index,
-				readl(adapter->hw.hw_addr + tx_ring->head),
-				readl(adapter->hw.hw_addr + tx_ring->tail),
+				readl(tx_ring->head),
+				readl(tx_ring->tail),
 				tx_ring->next_to_use,
 				tx_ring->next_to_clean,
 				tx_ring->buffer_info[i].time_stamp,
@@ -5103,7 +5103,7 @@ no_buffers:
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64). */
 		wmb();
-		writel(i, adapter->hw.hw_addr + rx_ring->tail);
+		writel(i, rx_ring->tail);
 	}
 }
 

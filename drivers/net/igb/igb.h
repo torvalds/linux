@@ -178,8 +178,8 @@ struct igb_ring {
 	unsigned int count;            /* number of desc. in the ring */
 	u16 next_to_use;
 	u16 next_to_clean;
-	u16 head;
-	u16 tail;
+	void __iomem *head;
+	void __iomem *tail;
 	struct igb_buffer *buffer_info; /* array of buffer info structs */
 
 	u8 queue_index;
