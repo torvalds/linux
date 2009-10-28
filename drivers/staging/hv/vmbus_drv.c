@@ -507,12 +507,12 @@ static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 
 	child_device_obj = &child_device_ctx->device_obj;
 	child_device_obj->context = context;
-	memcpy(&child_device_obj->deviceType, &type, sizeof(struct hv_guid));
-	memcpy(&child_device_obj->deviceInstance, &instance,
+	memcpy(&child_device_obj->deviceType, type, sizeof(struct hv_guid));
+	memcpy(&child_device_obj->deviceInstance, instance,
 	       sizeof(struct hv_guid));
 
-	memcpy(&child_device_ctx->class_id, &type, sizeof(struct hv_guid));
-	memcpy(&child_device_ctx->device_id, &instance, sizeof(struct hv_guid));
+	memcpy(&child_device_ctx->class_id, type, sizeof(struct hv_guid));
+	memcpy(&child_device_ctx->device_id, instance, sizeof(struct hv_guid));
 
 	DPRINT_EXIT(VMBUS_DRV);
 
@@ -611,8 +611,6 @@ static void vmbus_child_device_destroy(struct hv_device *device_obj)
 static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 {
 	struct device_context *device_ctx = device_to_device_context(device);
-	int i = 0;
-	int len = 0;
 	int ret;
 
 	DPRINT_ENTER(VMBUS_DRV);
@@ -632,8 +630,6 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 		    device_ctx->class_id.data[14],
 		    device_ctx->class_id.data[15]);
 
-	env->envp_idx = i;
-	env->buflen = len;
 	ret = add_uevent_var(env, "VMBUS_DEVICE_CLASS_GUID={"
 			     "%02x%02x%02x%02x-%02x%02x-%02x%02x-"
 			     "%02x%02x%02x%02x%02x%02x%02x%02x}",
@@ -678,8 +674,6 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 			     device_ctx->device_id.data[15]);
 	if (ret)
 		return ret;
-
-	env->envp[env->envp_idx] = NULL;
 
 	DPRINT_EXIT(VMBUS_DRV);
 
