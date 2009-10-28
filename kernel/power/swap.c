@@ -536,7 +536,8 @@ static int load_image(struct swap_map_handle *handle,
 		snapshot_write_finalize(snapshot);
 		if (!snapshot_image_loaded(snapshot))
 			error = -ENODATA;
-	}
+	} else
+		printk("\n");
 	swsusp_show_speed(&start, &stop, nr_to_read, "Read");
 	return error;
 }
