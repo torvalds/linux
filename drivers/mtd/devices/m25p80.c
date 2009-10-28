@@ -78,7 +78,7 @@ struct m25p {
 	struct mtd_info		mtd;
 	unsigned		partitioned:1;
 	u8			erase_opcode;
-	u8			command[CMD_SIZE + FAST_READ_DUMMY_BYTE];
+	u8			*command;
 };
 
 static inline struct m25p *mtd_to_m25p(struct mtd_info *mtd)
@@ -769,6 +769,11 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	flash = kzalloc(sizeof *flash, GFP_KERNEL);
 	if (!flash)
 		return -ENOMEM;
+	flash->command = kmalloc(CMD_SIZE + FAST_READ_DUMMY_BYTE, GFP_KERNEL);
+	if (!flash->command) {
+		kfree(flash);
+		return -ENOMEM;
+	}
 
 	flash->spi = spi;
 	mutex_init(&flash->lock);
@@ -888,8 +893,10 @@ static int __devexit m25p_remove(struct spi_device *spi)
 		status = del_mtd_partitions(&flash->mtd);
 	else
 		status = del_mtd_device(&flash->mtd);
-	if (status == 0)
+	if (status == 0) {
+		kfree(flash->command);
 		kfree(flash);
+	}
 	return 0;
 }
 
