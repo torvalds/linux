@@ -735,7 +735,7 @@ void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 
 	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, *plen,
 	     osize, su);
-	su_per_object = osize / le32_to_cpu(layout->fl_stripe_unit);
+	su_per_object = osize / su;
 	dout("osize %u / su %u = su_per_object %u\n", osize, su,
 	     su_per_object);
 
