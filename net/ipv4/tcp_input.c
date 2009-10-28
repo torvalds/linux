@@ -3698,11 +3698,13 @@ old_ack:
  * the fast version below fails.
  */
 void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
-		       int estab)
+		       int estab,  struct dst_entry *dst)
 {
 	unsigned char *ptr;
 	struct tcphdr *th = tcp_hdr(skb);
 	int length = (th->doff * 4) - sizeof(struct tcphdr);
+
+	BUG_ON(!estab && !dst);
 
 	ptr = (unsigned char *)(th + 1);
 	opt_rx->saw_tstamp = 0;
@@ -3820,7 +3822,7 @@ static int tcp_fast_parse_options(struct sk_buff *skb, struct tcphdr *th,
 		if (tcp_parse_aligned_timestamp(tp, th))
 			return 1;
 	}
-	tcp_parse_options(skb, &tp->rx_opt, 1);
+	tcp_parse_options(skb, &tp->rx_opt, 1, NULL);
 	return 1;
 }
 
@@ -5364,8 +5366,9 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	int saved_clamp = tp->rx_opt.mss_clamp;
+	struct dst_entry *dst = __sk_dst_get(sk);
 
-	tcp_parse_options(skb, &tp->rx_opt, 0);
+	tcp_parse_options(skb, &tp->rx_opt, 0, dst);
 
 	if (th->ack) {
 		/* rfc793:

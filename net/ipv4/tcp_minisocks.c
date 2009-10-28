@@ -102,7 +102,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 
 	if (th->doff > (sizeof(*th) >> 2) && tcptw->tw_ts_recent_stamp) {
 		tmp_opt.tstamp_ok = 1;
-		tcp_parse_options(skb, &tmp_opt, 1);
+		tcp_parse_options(skb, &tmp_opt, 1, NULL);
 
 		if (tmp_opt.saw_tstamp) {
 			tmp_opt.ts_recent	= tcptw->tw_ts_recent;
@@ -500,10 +500,11 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	int paws_reject = 0;
 	struct tcp_options_received tmp_opt;
 	struct sock *child;
+	struct dst_entry *dst = inet_csk_route_req(sk, req);
 
 	tmp_opt.saw_tstamp = 0;
 	if (th->doff > (sizeof(struct tcphdr)>>2)) {
-		tcp_parse_options(skb, &tmp_opt, 0);
+		tcp_parse_options(skb, &tmp_opt, 0, dst);
 
 		if (tmp_opt.saw_tstamp) {
 			tmp_opt.ts_recent = req->ts_recent;
@@ -515,6 +516,8 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			paws_reject = tcp_paws_reject(&tmp_opt, th->rst);
 		}
 	}
+
+	dst_release(dst);
 
 	/* Check for pure retransmitted SYN. */
 	if (TCP_SKB_CB(skb)->seq == tcp_rsk(req)->rcv_isn &&
