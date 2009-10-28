@@ -26,7 +26,9 @@
 		.irq		= _irq,				\
 		.regshift	= 2,				\
 		.iotype		= UPIO_AU,			\
-		.flags		= UPF_SKIP_TEST | UPF_IOREMAP	\
+		.flags		= UPF_SKIP_TEST | UPF_IOREMAP |	\
+				  UPF_FIXED_TYPE,		\
+		.type		= PORT_16550A,			\
 	}
 
 static struct plat_serial8250_port au1x00_uart_data[] = {
