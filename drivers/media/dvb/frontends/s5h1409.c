@@ -614,6 +614,21 @@ static int s5h1409_init(struct dvb_frontend *fe)
 	/* The datasheet says that after initialisation, VSB is default */
 	state->current_modulation = VSB_8;
 
+	/* Optimize for the HVR-1600 if appropriate.  Note that some of these
+	   may get folded into the generic case after testing with other
+	   devices */
+	if (state->config->hvr1600_opt == S5H1409_HVR1600_OPTIMIZE) {
+		/* VSB AGC REF */
+		s5h1409_writereg(state, 0x09, 0x0050);
+
+		/* Unknown but Windows driver does it... */
+		s5h1409_writereg(state, 0x21, 0x0001);
+		s5h1409_writereg(state, 0x50, 0x030e);
+
+		/* QAM AGC REF */
+		s5h1409_writereg(state, 0x82, 0x0800);
+	}
+
 	if (state->config->output_mode == S5H1409_SERIAL_OUTPUT)
 		s5h1409_writereg(state, 0xab,
 			s5h1409_readreg(state, 0xab) | 0x100); /* Serial */
