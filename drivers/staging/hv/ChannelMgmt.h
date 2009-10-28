@@ -26,6 +26,7 @@
 #define _CHANNEL_MGMT_H_
 
 #include <linux/list.h>
+#include <linux/timer.h>
 #include "RingBuffer.h"
 #include "VmbusChannelInterface.h"
 #include "VmbusPacketFormat.h"
