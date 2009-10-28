@@ -135,5 +135,7 @@ source "drivers/staging/strip/Kconfig"
 
 source "drivers/staging/arlan/Kconfig"
 
+source "drivers/staging/wavelan/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

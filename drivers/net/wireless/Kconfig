@@ -25,45 +25,6 @@ menuconfig WLAN_PRE80211
 	  This option does not affect the kernel build, it only
 	  lets you choose drivers.
 
-config WAVELAN
-	tristate "AT&T/Lucent old WaveLAN & DEC RoamAbout DS ISA support"
-	depends on ISA && WLAN_PRE80211
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select WEXT_PRIV
-	---help---
-	  The Lucent WaveLAN (formerly NCR and AT&T; or DEC RoamAbout DS) is
-	  a Radio LAN (wireless Ethernet-like Local Area Network) using the
-	  radio frequencies 900 MHz and 2.4 GHz.
-
-	  If you want to use an ISA WaveLAN card under Linux, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>. Some more specific
-	  information is contained in
-	  <file:Documentation/networking/wavelan.txt> and in the source code
-	  <file:drivers/net/wireless/wavelan.p.h>.
-
-	  You will also need the wireless tools package available from
-	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
-	  Please read the man pages contained therein.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called wavelan.
-
-config PCMCIA_WAVELAN
-	tristate "AT&T/Lucent old WaveLAN Pcmcia wireless support"
-	depends on PCMCIA && WLAN_PRE80211
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select WEXT_PRIV
-	help
-	  Say Y here if you intend to attach an AT&T/Lucent Wavelan PCMCIA
-	  (PC-card) wireless Ethernet networking card to your computer.  This
-	  driver is for the non-IEEE-802.11 Wavelan cards.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called wavelan_cs.  If unsure, say N.
-
 config PCMCIA_NETWAVE
 	tristate "Xircom Netwave AirSurfer Pcmcia wireless support"
 	depends on PCMCIA && WLAN_PRE80211

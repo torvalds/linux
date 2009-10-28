@@ -49,3 +49,5 @@ obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_COWLOOP)		+= cowloop/
 obj-$(CONFIG_STRIP)		+= strip/
 obj-$(CONFIG_ARLAN)		+= arlan/
+obj-$(CONFIG_WAVELAN)		+= wavelan/
+obj-$(CONFIG_PCMCIA_WAVELAN)	+= wavelan/
