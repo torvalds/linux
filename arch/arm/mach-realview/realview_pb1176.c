@@ -290,6 +290,16 @@ static struct sys_timer realview_pb1176_timer = {
 	.init		= realview_pb1176_timer_init,
 };
 
+static void realview_pb1176_reset(char mode)
+{
+	void __iomem *hdr_ctrl = __io_address(REALVIEW_SYS_BASE) +
+		REALVIEW_SYS_RESETCTL_OFFSET;
+	void __iomem *rst_hdr_ctrl = __io_address(REALVIEW_SYS_BASE) +
+		REALVIEW_SYS_LOCK_OFFSET;
+	__raw_writel(REALVIEW_SYS_LOCKVAL_MASK, rst_hdr_ctrl);
+	__raw_writel(REALVIEW_PB1176_SYS_LOCKVAL_RSTCTL, hdr_ctrl);
+}
+
 static void __init realview_pb1176_init(void)
 {
 	int i;
@@ -313,6 +323,7 @@ static void __init realview_pb1176_init(void)
 #ifdef CONFIG_LEDS
 	leds_event = realview_leds_event;
 #endif
+	realview_reset = realview_pb1176_reset;
 }
 
 MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")
