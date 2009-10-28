@@ -1145,16 +1145,19 @@ static struct xfrm_tunnel sit_handler = {
 	.priority	=	1,
 };
 
-static void sit_destroy_tunnels(struct sit_net *sitn)
+static void sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
 {
 	int prio;
 
 	for (prio = 1; prio < 4; prio++) {
 		int h;
 		for (h = 0; h < HASH_SIZE; h++) {
-			struct ip_tunnel *t;
-			while ((t = sitn->tunnels[prio][h]) != NULL)
-				unregister_netdevice(t->dev);
+			struct ip_tunnel *t = sitn->tunnels[prio][h];
+
+			while (t != NULL) {
+				unregister_netdevice_queue(t->dev, head);
+				t = t->next;
+			}
 		}
 	}
 }
@@ -1208,11 +1211,13 @@ err_alloc:
 static void sit_exit_net(struct net *net)
 {
 	struct sit_net *sitn;
+	LIST_HEAD(list);
 
 	sitn = net_generic(net, sit_net_id);
 	rtnl_lock();
-	sit_destroy_tunnels(sitn);
-	unregister_netdevice(sitn->fb_tunnel_dev);
+	sit_destroy_tunnels(sitn, &list);
+	unregister_netdevice_queue(sitn->fb_tunnel_dev, &list);
+	unregister_netdevice_many(&list);
 	rtnl_unlock();
 	kfree(sitn);
 }
