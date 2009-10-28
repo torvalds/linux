@@ -1586,6 +1586,8 @@ static int be_open(struct net_device *netdev)
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	bool link_up;
 	int status;
+	u8 mac_speed;
+	u16 link_speed;
 
 	/* First time posting */
 	be_post_rx_frags(adapter);
@@ -1604,7 +1606,8 @@ static int be_open(struct net_device *netdev)
 	/* Rx compl queue may be in unarmed state; rearm it */
 	be_cq_notify(adapter, adapter->rx_obj.cq.id, true, 0);
 
-	status = be_cmd_link_status_query(adapter, &link_up);
+	status = be_cmd_link_status_query(adapter, &link_up, &mac_speed,
+			&link_speed);
 	if (status)
 		return status;
 	be_link_status_update(adapter, link_up);
