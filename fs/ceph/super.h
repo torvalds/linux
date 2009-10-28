@@ -364,7 +364,7 @@ struct ceph_inode_info {
 
 static inline struct ceph_inode_info *ceph_inode(struct inode *inode)
 {
-	return list_entry(inode, struct ceph_inode_info, vfs_inode);
+	return container_of(inode, struct ceph_inode_info, vfs_inode);
 }
 
 static inline void ceph_i_clear(struct inode *inode, unsigned mask)
