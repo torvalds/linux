@@ -47,7 +47,7 @@
  * Calculate the bit offset in the hamming code buffer based on the bit's
  * offset in the data buffer.  Since the hamming code reserves all
  * power-of-two bits for parity, the data bit number and the code bit
- * number are offest by all the parity bits beforehand.
+ * number are offset by all the parity bits beforehand.
  *
  * Recall that bit numbers in hamming code are 1-based.  This function
  * takes the 0-based data bit from the caller.
