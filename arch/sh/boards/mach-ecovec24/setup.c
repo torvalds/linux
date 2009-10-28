@@ -188,30 +188,18 @@ static struct platform_device usb0_host_device = {
 	.resource	= usb0_host_resources,
 };
 
-/*
- * USB1
- *
- * CN5 can use both host/function,
- * and we can determine it by checking PTB[3]
- *
- * This time only USB1 host is supported.
- */
+/* USB1 host/function */
 void usb1_port_power(int port, int power)
 {
-	if (!gpio_get_value(GPIO_PTB3)) {
-		printk(KERN_ERR "USB1 function is not supported\n");
-		return;
-	}
-
 	gpio_set_value(GPIO_PTB5, power);
 }
 
-static struct r8a66597_platdata usb1_host_data = {
+static struct r8a66597_platdata usb1_common_data = {
 	.on_chip = 1,
 	.port_power = usb1_port_power,
 };
 
-static struct resource usb1_host_resources[] = {
+static struct resource usb1_common_resources[] = {
 	[0] = {
 		.start	= 0xa4d90000,
 		.end	= 0xa4d90124 - 1,
@@ -224,16 +212,16 @@ static struct resource usb1_host_resources[] = {
 	},
 };
 
-static struct platform_device usb1_host_device = {
-	.name		= "r8a66597_hcd",
+static struct platform_device usb1_common_device = {
+	/* .name will be added in arch_setup */
 	.id		= 1,
 	.dev = {
 		.dma_mask		= NULL,         /*  not use dma */
 		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &usb1_host_data,
+		.platform_data		= &usb1_common_data,
 	},
-	.num_resources	= ARRAY_SIZE(usb1_host_resources),
-	.resource	= usb1_host_resources,
+	.num_resources	= ARRAY_SIZE(usb1_common_resources),
+	.resource	= usb1_common_resources,
 };
 
 /* LCDC */
@@ -484,7 +472,7 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&nor_flash_device,
 	&sh_eth_device,
 	&usb0_host_device,
-	&usb1_host_device, /* USB1 host support */
+	&usb1_common_device,
 	&lcdc_device,
 	&ceu0_device,
 	&ceu1_device,
@@ -588,6 +576,14 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTB5, 0);
 	ctrl_outw(0x0600, 0xa40501d4);
 	ctrl_outw(0x0600, 0xa4050192);
+
+	if (gpio_get_value(GPIO_PTB3)) {
+		printk(KERN_INFO "USB1 function is selected\n");
+		usb1_common_device.name = "r8a66597_udc";
+	} else {
+		printk(KERN_INFO "USB1 host is selected\n");
+		usb1_common_device.name = "r8a66597_hcd";
+	}
 
 	/* enable LCDC */
 	gpio_request(GPIO_FN_LCDD23,   NULL);
