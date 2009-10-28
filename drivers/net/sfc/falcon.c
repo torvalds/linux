@@ -869,8 +869,9 @@ static void falcon_handle_rx_event(struct efx_channel *channel,
 		 * UDP/IPv4, then we can rely on the hardware checksum.
 		 */
 		checksummed =
-			rx_ev_hdr_type == FSE_AB_RX_EV_HDR_TYPE_IPV4_TCP ||
-			rx_ev_hdr_type == FSE_AB_RX_EV_HDR_TYPE_IPV4_UDP;
+			efx->rx_checksum_enabled &&
+			(rx_ev_hdr_type == FSE_AB_RX_EV_HDR_TYPE_IPV4_TCP ||
+			 rx_ev_hdr_type == FSE_AB_RX_EV_HDR_TYPE_IPV4_UDP);
 	} else {
 		falcon_handle_rx_not_ok(rx_queue, event, &rx_ev_pkt_ok,
 					&discard);
