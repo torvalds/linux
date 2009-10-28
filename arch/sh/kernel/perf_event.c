@@ -308,7 +308,7 @@ int register_sh_pmu(struct sh_pmu *pmu)
 
 	pr_info("Performance Events: %s support registered\n", pmu->name);
 
-	WARN_ON(pmu->num_events >= MAX_HWEVENTS);
+	WARN_ON(pmu->num_events > MAX_HWEVENTS);
 
 	return 0;
 }
