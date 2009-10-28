@@ -1025,11 +1025,14 @@ static void scan_block(void *_start, void *_end,
 		 * added to the gray_list.
 		 */
 		object->count++;
-		if (color_gray(object))
+		if (color_gray(object)) {
 			list_add_tail(&object->gray_list, &gray_list);
-		else
-			put_object(object);
+			spin_unlock_irqrestore(&object->lock, flags);
+			continue;
+		}
+
 		spin_unlock_irqrestore(&object->lock, flags);
+		put_object(object);
 	}
 }
 
