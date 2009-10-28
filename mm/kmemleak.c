@@ -119,8 +119,8 @@
 /* scanning area inside a memory block */
 struct kmemleak_scan_area {
 	struct hlist_node node;
-	unsigned long offset;
-	size_t length;
+	unsigned long start;
+	size_t size;
 };
 
 #define KMEMLEAK_GREY	0
@@ -241,8 +241,6 @@ struct early_log {
 	const void *ptr;		/* allocated/freed memory block */
 	size_t size;			/* memory block size */
 	int min_count;			/* minimum reference count */
-	unsigned long offset;		/* scan area offset */
-	size_t length;			/* scan area length */
 	unsigned long trace[MAX_TRACE];	/* stack trace */
 	unsigned int trace_len;		/* stack trace length */
 };
@@ -720,14 +718,13 @@ static void make_black_object(unsigned long ptr)
  * Add a scanning area to the object. If at least one such area is added,
  * kmemleak will only scan these ranges rather than the whole memory block.
  */
-static void add_scan_area(unsigned long ptr, unsigned long offset,
-			  size_t length, gfp_t gfp)
+static void add_scan_area(unsigned long ptr, size_t size, gfp_t gfp)
 {
 	unsigned long flags;
 	struct kmemleak_object *object;
 	struct kmemleak_scan_area *area;
 
-	object = find_and_get_object(ptr, 0);
+	object = find_and_get_object(ptr, 1);
 	if (!object) {
 		kmemleak_warn("Adding scan area to unknown object at 0x%08lx\n",
 			      ptr);
@@ -741,7 +738,7 @@ static void add_scan_area(unsigned long ptr, unsigned long offset,
 	}
 
 	spin_lock_irqsave(&object->lock, flags);
-	if (offset + length > object->size) {
+	if (ptr + size > object->pointer + object->size) {
 		kmemleak_warn("Scan area larger than object 0x%08lx\n", ptr);
 		dump_object_info(object);
 		kmem_cache_free(scan_area_cache, area);
@@ -749,8 +746,8 @@ static void add_scan_area(unsigned long ptr, unsigned long offset,
 	}
 
 	INIT_HLIST_NODE(&area->node);
-	area->offset = offset;
-	area->length = length;
+	area->start = ptr;
+	area->size = size;
 
 	hlist_add_head(&area->node, &object->area_list);
 out_unlock:
@@ -786,7 +783,7 @@ static void object_no_scan(unsigned long ptr)
  * processed later once kmemleak is fully initialized.
  */
 static void __init log_early(int op_type, const void *ptr, size_t size,
-			     int min_count, unsigned long offset, size_t length)
+			     int min_count)
 {
 	unsigned long flags;
 	struct early_log *log;
@@ -808,8 +805,6 @@ static void __init log_early(int op_type, const void *ptr, size_t size,
 	log->ptr = ptr;
 	log->size = size;
 	log->min_count = min_count;
-	log->offset = offset;
-	log->length = length;
 	if (op_type == KMEMLEAK_ALLOC)
 		log->trace_len = __save_stack_trace(log->trace);
 	crt_early_log++;
@@ -858,7 +853,7 @@ void __ref kmemleak_alloc(const void *ptr, size_t size, int min_count,
 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
 		create_object((unsigned long)ptr, size, min_count, gfp);
 	else if (atomic_read(&kmemleak_early_log))
-		log_early(KMEMLEAK_ALLOC, ptr, size, min_count, 0, 0);
+		log_early(KMEMLEAK_ALLOC, ptr, size, min_count);
 }
 EXPORT_SYMBOL_GPL(kmemleak_alloc);
 
@@ -873,7 +868,7 @@ void __ref kmemleak_free(const void *ptr)
 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
 		delete_object_full((unsigned long)ptr);
 	else if (atomic_read(&kmemleak_early_log))
-		log_early(KMEMLEAK_FREE, ptr, 0, 0, 0, 0);
+		log_early(KMEMLEAK_FREE, ptr, 0, 0);
 }
 EXPORT_SYMBOL_GPL(kmemleak_free);
 
@@ -888,7 +883,7 @@ void __ref kmemleak_free_part(const void *ptr, size_t size)
 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
 		delete_object_part((unsigned long)ptr, size);
 	else if (atomic_read(&kmemleak_early_log))
-		log_early(KMEMLEAK_FREE_PART, ptr, size, 0, 0, 0);
+		log_early(KMEMLEAK_FREE_PART, ptr, size, 0);
 }
 EXPORT_SYMBOL_GPL(kmemleak_free_part);
 
@@ -903,7 +898,7 @@ void __ref kmemleak_not_leak(const void *ptr)
 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
 		make_gray_object((unsigned long)ptr);
 	else if (atomic_read(&kmemleak_early_log))
-		log_early(KMEMLEAK_NOT_LEAK, ptr, 0, 0, 0, 0);
+		log_early(KMEMLEAK_NOT_LEAK, ptr, 0, 0);
 }
 EXPORT_SYMBOL(kmemleak_not_leak);
 
@@ -919,22 +914,21 @@ void __ref kmemleak_ignore(const void *ptr)
 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
 		make_black_object((unsigned long)ptr);
 	else if (atomic_read(&kmemleak_early_log))
-		log_early(KMEMLEAK_IGNORE, ptr, 0, 0, 0, 0);
+		log_early(KMEMLEAK_IGNORE, ptr, 0, 0);
 }
 EXPORT_SYMBOL(kmemleak_ignore);
 
 /*
  * Limit the range to be scanned in an allocated memory block.
  */
-void __ref kmemleak_scan_area(const void *ptr, unsigned long offset,
-			      size_t length, gfp_t gfp)
+void __ref kmemleak_scan_area(const void *ptr, size_t size, gfp_t gfp)
 {
 	pr_debug("%s(0x%p)\n", __func__, ptr);
 
 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
-		add_scan_area((unsigned long)ptr, offset, length, gfp);
+		add_scan_area((unsigned long)ptr, size, gfp);
 	else if (atomic_read(&kmemleak_early_log))
-		log_early(KMEMLEAK_SCAN_AREA, ptr, 0, 0, offset, length);
+		log_early(KMEMLEAK_SCAN_AREA, ptr, size, 0);
 }
 EXPORT_SYMBOL(kmemleak_scan_area);
 
@@ -948,7 +942,7 @@ void __ref kmemleak_no_scan(const void *ptr)
 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
 		object_no_scan((unsigned long)ptr);
 	else if (atomic_read(&kmemleak_early_log))
-		log_early(KMEMLEAK_NO_SCAN, ptr, 0, 0, 0, 0);
+		log_early(KMEMLEAK_NO_SCAN, ptr, 0, 0);
 }
 EXPORT_SYMBOL(kmemleak_no_scan);
 
@@ -1075,9 +1069,9 @@ static void scan_object(struct kmemleak_object *object)
 		}
 	} else
 		hlist_for_each_entry(area, elem, &object->area_list, node)
-			scan_block((void *)(object->pointer + area->offset),
-				   (void *)(object->pointer + area->offset
-					    + area->length), object, 0);
+			scan_block((void *)area->start,
+				   (void *)(area->start + area->size),
+				   object, 0);
 out:
 	spin_unlock_irqrestore(&object->lock, flags);
 }
@@ -1642,8 +1636,7 @@ void __init kmemleak_init(void)
 			kmemleak_ignore(log->ptr);
 			break;
 		case KMEMLEAK_SCAN_AREA:
-			kmemleak_scan_area(log->ptr, log->offset, log->length,
-					   GFP_KERNEL);
+			kmemleak_scan_area(log->ptr, log->size, GFP_KERNEL);
 			break;
 		case KMEMLEAK_NO_SCAN:
 			kmemleak_no_scan(log->ptr);

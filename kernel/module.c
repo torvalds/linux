@@ -2043,9 +2043,7 @@ static void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
 	unsigned int i;
 
 	/* only scan the sections containing data */
-	kmemleak_scan_area(mod->module_core, (unsigned long)mod -
-			   (unsigned long)mod->module_core,
-			   sizeof(struct module), GFP_KERNEL);
+	kmemleak_scan_area(mod, sizeof(struct module), GFP_KERNEL);
 
 	for (i = 1; i < hdr->e_shnum; i++) {
 		if (!(sechdrs[i].sh_flags & SHF_ALLOC))
@@ -2054,8 +2052,7 @@ static void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
 		    && strncmp(secstrings + sechdrs[i].sh_name, ".bss", 4) != 0)
 			continue;
 
-		kmemleak_scan_area(mod->module_core, sechdrs[i].sh_addr -
-				   (unsigned long)mod->module_core,
+		kmemleak_scan_area((void *)sechdrs[i].sh_addr,
 				   sechdrs[i].sh_size, GFP_KERNEL);
 	}
 }

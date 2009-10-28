@@ -2584,8 +2584,8 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
 		 * kmemleak does not treat the ->s_mem pointer as a reference
 		 * to the object. Otherwise we will not report the leak.
 		 */
-		kmemleak_scan_area(slabp, offsetof(struct slab, list),
-				   sizeof(struct list_head), local_flags);
+		kmemleak_scan_area(&slabp->list, sizeof(struct list_head),
+				   local_flags);
 		if (!slabp)
 			return NULL;
 	} else {
