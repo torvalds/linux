@@ -551,6 +551,60 @@ static int ark3116_tiocmget(struct tty_struct *tty, struct file *file)
 		(ctrl   & UART_MCR_OUT2 ? TIOCM_OUT2 : 0);
 }
 
+static int ark3116_tiocmset(struct tty_struct *tty, struct file *file,
+			unsigned set, unsigned clr)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct ark3116_private *priv = usb_get_serial_port_data(port);
+
+	/* we need to take the mutex here, to make sure that the value
+	 * in priv->mcr is actually the one that is in the hardware
+	 */
+
+	mutex_lock(&priv->hw_lock);
+
+	if (set & TIOCM_RTS)
+		priv->mcr |= UART_MCR_RTS;
+	if (set & TIOCM_DTR)
+		priv->mcr |= UART_MCR_DTR;
+	if (set & TIOCM_OUT1)
+		priv->mcr |= UART_MCR_OUT1;
+	if (set & TIOCM_OUT2)
+		priv->mcr |= UART_MCR_OUT2;
+	if (clr & TIOCM_RTS)
+		priv->mcr &= ~UART_MCR_RTS;
+	if (clr & TIOCM_DTR)
+		priv->mcr &= ~UART_MCR_DTR;
+	if (clr & TIOCM_OUT1)
+		priv->mcr &= ~UART_MCR_OUT1;
+	if (clr & TIOCM_OUT2)
+		priv->mcr &= ~UART_MCR_OUT2;
+
+	ark3116_write_reg(port->serial, UART_MCR, priv->mcr);
+
+	mutex_unlock(&priv->hw_lock);
+
+	return 0;
+}
+
+static void ark3116_break_ctl(struct tty_struct *tty, int break_state)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct ark3116_private *priv = usb_get_serial_port_data(port);
+
+	/* LCR is also used for other things: protect access */
+	mutex_lock(&priv->hw_lock);
+
+	if (break_state)
+		priv->lcr |= UART_LCR_SBC;
+	else
+		priv->lcr &= ~UART_LCR_SBC;
+
+	ark3116_write_reg(port->serial, UART_LCR, priv->lcr);
+
+	mutex_unlock(&priv->hw_lock);
+}
+
 static struct usb_driver ark3116_driver = {
 	.name =		"ark3116",
 	.probe =	usb_serial_probe,
@@ -573,8 +627,10 @@ static struct usb_serial_driver ark3116_device = {
 	.init_termios =		ark3116_init_termios,
 	.ioctl =		ark3116_ioctl,
 	.tiocmget =		ark3116_tiocmget,
+	.tiocmset =		ark3116_tiocmset,
 	.open =			ark3116_open,
 	.close =		ark3116_close,
+	.break_ctl = 		ark3116_break_ctl,
 };
 
 static int __init ark3116_init(void)
