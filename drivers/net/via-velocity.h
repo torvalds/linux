@@ -1499,8 +1499,6 @@ struct velocity_opt {
 #define GET_RD_BY_IDX(vptr, idx)   (vptr->rd_ring[idx])
 
 struct velocity_info {
-	struct list_head list;
-
 	struct pci_dev *pdev;
 	struct net_device *dev;
 

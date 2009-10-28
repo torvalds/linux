@@ -364,11 +364,6 @@ static int rx_copybreak = 200;
 module_param(rx_copybreak, int, 0644);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 
-#ifdef CONFIG_PM
-static DEFINE_SPINLOCK(velocity_dev_list_lock);
-static LIST_HEAD(velocity_dev_list);
-#endif
-
 /*
  *	Internal board variants. At the moment we have only one
  */
@@ -417,14 +412,6 @@ static void __devexit velocity_remove1(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct velocity_info *vptr = netdev_priv(dev);
 
-#ifdef CONFIG_PM
-	unsigned long flags;
-
-	spin_lock_irqsave(&velocity_dev_list_lock, flags);
-	if (!list_empty(&velocity_dev_list))
-		list_del(&vptr->list);
-	spin_unlock_irqrestore(&velocity_dev_list_lock, flags);
-#endif
 	unregister_netdev(dev);
 	iounmap(vptr->mac_regs);
 	pci_release_regions(pdev);
@@ -2577,7 +2564,6 @@ static void __devinit velocity_init_info(struct pci_dev *pdev,
 	vptr->tx.numq = info->txqueue;
 	vptr->multicast_limit = MCAM_SIZE;
 	spin_lock_init(&vptr->lock);
-	INIT_LIST_HEAD(&vptr->list);
 }
 
 /**
@@ -2776,15 +2762,6 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	/* and leave the chip powered down */
 
 	pci_set_power_state(pdev, PCI_D3hot);
-#ifdef CONFIG_PM
-	{
-		unsigned long flags;
-
-		spin_lock_irqsave(&velocity_dev_list_lock, flags);
-		list_add(&vptr->list, &velocity_dev_list);
-		spin_unlock_irqrestore(&velocity_dev_list_lock, flags);
-	}
-#endif
 	velocity_nics++;
 out:
 	return ret;
@@ -3240,20 +3217,10 @@ static int velocity_netdev_event(struct notifier_block *nb, unsigned long notifi
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *) ptr;
 	struct net_device *dev = ifa->ifa_dev->dev;
-	struct velocity_info *vptr;
-	unsigned long flags;
 
-	if (dev_net(dev) != &init_net)
-		return NOTIFY_DONE;
-
-	spin_lock_irqsave(&velocity_dev_list_lock, flags);
-	list_for_each_entry(vptr, &velocity_dev_list, list) {
-		if (vptr->dev == dev) {
-			velocity_get_ip(vptr);
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&velocity_dev_list_lock, flags);
+	if (dev_net(dev) == &init_net &&
+	    dev->netdev_ops == &velocity_netdev_ops)
+		velocity_get_ip(netdev_priv(dev));
 
 	return NOTIFY_DONE;
 }
