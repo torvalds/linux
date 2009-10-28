@@ -496,7 +496,8 @@ static unsigned tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 		opts->tsecr = tp->rx_opt.ts_recent;
 		size += TCPOLEN_TSTAMP_ALIGNED;
 	}
-	if (likely(sysctl_tcp_window_scaling)) {
+	if (likely(sysctl_tcp_window_scaling &&
+		   !dst_feature(dst, RTAX_FEATURE_NO_WSCALE))) {
 		opts->ws = tp->rx_opt.rcv_wscale;
 		opts->options |= OPTION_WSCALE;
 		size += TCPOLEN_WSCALE_ALIGNED;
@@ -2347,7 +2348,8 @@ static void tcp_connect_init(struct sock *sk)
 				  tp->advmss - (tp->rx_opt.ts_recent_stamp ? tp->tcp_header_len - sizeof(struct tcphdr) : 0),
 				  &tp->rcv_wnd,
 				  &tp->window_clamp,
-				  sysctl_tcp_window_scaling,
+				  (sysctl_tcp_window_scaling &&
+				   !dst_feature(dst, RTAX_FEATURE_NO_WSCALE)),
 				  &rcv_wscale);
 
 	tp->rx_opt.rcv_wscale = rcv_wscale;
