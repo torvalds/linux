@@ -1230,12 +1230,12 @@ static int replace_system_preds(struct event_subsystem *system,
 				struct filter_parse_state *ps,
 				char *filter_string)
 {
-	struct event_filter *filter = system->filter;
 	struct ftrace_event_call *call;
 	bool fail = true;
 	int err;
 
 	list_for_each_entry(call, &ftrace_events, list) {
+		struct event_filter *filter = call->filter;
 
 		if (!call->define_fields)
 			continue;
