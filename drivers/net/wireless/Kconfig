@@ -111,6 +111,7 @@ config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
 	depends on PCMCIA && (BROKEN || !M32R)
 	select WIRELESS_EXT
+	select WEXT_SPY
 	select CRYPTO
 	select CRYPTO_AES
 	---help---
