@@ -16,27 +16,9 @@ menuconfig WLAN
 
 if WLAN
 
-menuconfig WLAN_PRE80211
-	bool "Wireless LAN (pre-802.11)"
-	depends on NETDEVICES
-	---help---
-	  Say Y if you have any pre-802.11 wireless LAN hardware.
-
-	  This option does not affect the kernel build, it only
-	  lets you choose drivers.
-
-menuconfig WLAN_80211
-	bool "Wireless LAN (IEEE 802.11)"
-	depends on NETDEVICES
-	---help---
-	  Say Y if you have any 802.11 wireless LAN hardware.
-
-	  This option does not affect the kernel build, it only
-	  lets you choose drivers.
-
 config PCMCIA_RAYCS
 	tristate "Aviator/Raytheon 2.4GHz wireless support"
-	depends on PCMCIA && WLAN_80211
+	depends on PCMCIA
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select WEXT_PRIV
@@ -51,7 +33,7 @@ config PCMCIA_RAYCS
 
 config LIBERTAS_THINFIRM
 	tristate "Marvell 8xxx Libertas WLAN driver support with thin firmware"
-	depends on WLAN_80211 && MAC80211
+	depends on MAC80211
 	select FW_LOADER
 	---help---
 	  A library for Marvell Libertas 8xxx devices using thinfirm.
@@ -64,7 +46,7 @@ config LIBERTAS_THINFIRM_USB
 
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
-	depends on ISA_DMA_API && WLAN_80211 && (PCI || BROKEN)
+	depends on ISA_DMA_API && (PCI || BROKEN)
 	select WIRELESS_EXT
 	select CRYPTO
 	select WEXT_SPY
@@ -84,7 +66,7 @@ config AIRO
 
 config ATMEL
       tristate "Atmel at76c50x chipset  802.11b support"
-      depends on (PCI || PCMCIA) && WLAN_80211
+      depends on (PCI || PCMCIA)
       select WIRELESS_EXT
       select WEXT_PRIV
       select FW_LOADER
@@ -119,7 +101,7 @@ config PCMCIA_ATMEL
 
 config AT76C50X_USB
         tristate "Atmel at76c503/at76c505/at76c505a USB cards"
-        depends on MAC80211 && WLAN_80211 && USB
+        depends on MAC80211 && USB
         select FW_LOADER
         ---help---
           Enable support for USB Wireless devices using Atmel at76c503,
@@ -127,7 +109,7 @@ config AT76C50X_USB
 
 config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
-	depends on PCMCIA && (BROKEN || !M32R) && WLAN_80211
+	depends on PCMCIA && (BROKEN || !M32R)
 	select WIRELESS_EXT
 	select CRYPTO
 	select CRYPTO_AES
@@ -147,7 +129,7 @@ config AIRO_CS
 
 config PCMCIA_WL3501
 	tristate "Planet WL3501 PCMCIA cards"
-	depends on EXPERIMENTAL && PCMCIA && WLAN_80211
+	depends on EXPERIMENTAL && PCMCIA
 	select WIRELESS_EXT
 	select WEXT_SPY
 	help
@@ -157,7 +139,7 @@ config PCMCIA_WL3501
 
 config PRISM54
 	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus (DEPRECATED)'
-	depends on PCI && EXPERIMENTAL && WLAN_80211
+	depends on PCI && EXPERIMENTAL
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select WEXT_PRIV
@@ -181,7 +163,7 @@ config PRISM54
 
 config USB_ZD1201
 	tristate "USB ZD1201 based Wireless device support"
-	depends on USB && WLAN_80211
+	depends on USB
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select FW_LOADER
@@ -200,7 +182,7 @@ config USB_ZD1201
 
 config USB_NET_RNDIS_WLAN
 	tristate "Wireless RNDIS USB support"
-	depends on USB && WLAN_80211 && EXPERIMENTAL
+	depends on USB && EXPERIMENTAL
 	depends on CFG80211
 	select USB_USBNET
 	select USB_NET_CDCETHER
@@ -228,7 +210,7 @@ config USB_NET_RNDIS_WLAN
 
 config RTL8180
 	tristate "Realtek 8180/8185 PCI support"
-	depends on MAC80211 && PCI && WLAN_80211 && EXPERIMENTAL
+	depends on MAC80211 && PCI && EXPERIMENTAL
 	select EEPROM_93CX6
 	---help---
 	  This is a driver for RTL8180 and RTL8185 based cards.
@@ -284,7 +266,7 @@ config RTL8180
 
 config RTL8187
 	tristate "Realtek 8187 and 8187B USB support"
-	depends on MAC80211 && USB && WLAN_80211
+	depends on MAC80211 && USB
 	select EEPROM_93CX6
 	---help---
 	  This is a driver for RTL8187 and RTL8187B based cards.
@@ -313,7 +295,7 @@ config RTL8187_LEDS
 
 config ADM8211
 	tristate "ADMtek ADM8211 support"
-	depends on MAC80211 && PCI && WLAN_80211 && EXPERIMENTAL
+	depends on MAC80211 && PCI && EXPERIMENTAL
 	select CRC32
 	select EEPROM_93CX6
 	---help---
@@ -340,7 +322,7 @@ config ADM8211
 
 config MAC80211_HWSIM
 	tristate "Simulated radio testing tool for mac80211"
-	depends on MAC80211 && WLAN_80211
+	depends on MAC80211
 	---help---
 	  This driver is a developer testing tool that can be used to test
 	  IEEE 802.11 networking stack (mac80211) functionality. This is not
@@ -353,7 +335,7 @@ config MAC80211_HWSIM
 
 config MWL8K
 	tristate "Marvell 88W8xxx PCI/PCIe Wireless support"
-	depends on MAC80211 && PCI && WLAN_80211 && EXPERIMENTAL
+	depends on MAC80211 && PCI && EXPERIMENTAL
 	---help---
 	  This driver supports Marvell TOPDOG 802.11 wireless cards.
 

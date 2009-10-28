@@ -1,6 +1,6 @@
 config LIBERTAS
 	tristate "Marvell 8xxx Libertas WLAN driver support"
-	depends on WLAN_80211 && CFG80211
+	depends on CFG80211
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select LIB80211

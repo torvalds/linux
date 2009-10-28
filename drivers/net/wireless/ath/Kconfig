@@ -1,6 +1,5 @@
 menuconfig ATH_COMMON
 	tristate "Atheros Wireless Cards"
-	depends on WLAN_80211
 	depends on CFG80211
 	---help---
 	  This will enable the support for the Atheros wireless drivers.
