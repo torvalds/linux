@@ -111,6 +111,12 @@ dst_metric(const struct dst_entry *dst, int metric)
 	return dst->metrics[metric-1];
 }
 
+static inline u32
+dst_feature(const struct dst_entry *dst, u32 feature)
+{
+	return dst_metric(dst, RTAX_FEATURES) & feature;
+}
+
 static inline u32 dst_mtu(const struct dst_entry *dst)
 {
 	u32 mtu = dst_metric(dst, RTAX_MTU);
@@ -136,7 +142,7 @@ static inline void set_dst_metric_rtt(struct dst_entry *dst, int metric,
 static inline u32
 dst_allfrag(const struct dst_entry *dst)
 {
-	int ret = dst_metric(dst, RTAX_FEATURES) & RTAX_FEATURE_ALLFRAG;
+	int ret = dst_feature(dst,  RTAX_FEATURE_ALLFRAG);
 	/* Yes, _exactly_. This is paranoia. */
 	barrier();
 	return ret;
