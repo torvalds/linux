@@ -1624,8 +1624,6 @@ struct super_operations {
  *			on the bit address once it is done.
  *
  * Q: What is the difference between I_WILL_FREE and I_FREEING?
- * Q: igrab() only checks on (I_FREEING|I_WILL_FREE).  Should it also check on
- *    I_CLEAR?  If not, why?
  */
 #define I_DIRTY_SYNC		1
 #define I_DIRTY_DATASYNC	2
