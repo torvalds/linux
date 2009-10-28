@@ -3612,11 +3612,12 @@ static int __devinit vxge_config_vpaths(
 		device_config->vp_config[i].fifo.enable =
 						VXGE_HW_FIFO_ENABLE;
 		device_config->vp_config[i].fifo.max_frags =
-				MAX_SKB_FRAGS;
+				MAX_SKB_FRAGS + 1;
 		device_config->vp_config[i].fifo.memblock_size =
 			VXGE_HW_MIN_FIFO_MEMBLOCK_SIZE;
 
-		txdl_size = MAX_SKB_FRAGS * sizeof(struct vxge_hw_fifo_txd);
+		txdl_size = device_config->vp_config[i].fifo.max_frags *
+				sizeof(struct vxge_hw_fifo_txd);
 		txdl_per_memblock = VXGE_HW_MIN_FIFO_MEMBLOCK_SIZE / txdl_size;
 
 		device_config->vp_config[i].fifo.fifo_blocks =
