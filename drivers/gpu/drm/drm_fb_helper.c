@@ -707,7 +707,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 
 		if (crtc->fb == fb_helper->crtc_info[i].mode_set.fb) {
 			mutex_lock(&dev->mode_config.mutex);
-			ret = crtc->funcs->set_config(&fb_helper->crtc_info->mode_set);
+			ret = crtc->funcs->set_config(&fb_helper->crtc_info[i].mode_set);
 			mutex_unlock(&dev->mode_config.mutex);
 			if (ret)
 				return ret;

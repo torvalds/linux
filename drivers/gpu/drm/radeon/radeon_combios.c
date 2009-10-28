@@ -1587,6 +1587,12 @@ static bool radeon_apply_legacy_tv_quirks(struct drm_device *dev)
 	    dev->pdev->subsystem_device == 0x009f)
 		return false;
 
+	/* HP dc5750 has non-existent TV port */
+	if (dev->pdev->device == 0x5974 &&
+	    dev->pdev->subsystem_vendor == 0x103c &&
+	    dev->pdev->subsystem_device == 0x280a)
+		return false;
+
 	return true;
 }
 

@@ -368,14 +368,17 @@ static void atombios_set_ss(struct drm_crtc *crtc, int enable)
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
 			radeon_encoder = to_radeon_encoder(encoder);
-			dig = radeon_encoder->enc_priv;
 			/* only enable spread spectrum on LVDS */
-			if (dig && dig->ss) {
-				percentage = dig->ss->percentage;
-				type = dig->ss->type;
-				step = dig->ss->step;
-				delay = dig->ss->delay;
-				range = dig->ss->range;
+			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+				dig = radeon_encoder->enc_priv;
+				if (dig && dig->ss) {
+					percentage = dig->ss->percentage;
+					type = dig->ss->type;
+					step = dig->ss->step;
+					delay = dig->ss->delay;
+					range = dig->ss->range;
+				} else if (enable)
+					return;
 			} else if (enable)
 				return;
 			break;
@@ -387,7 +390,7 @@ static void atombios_set_ss(struct drm_crtc *crtc, int enable)
 
 	if (ASIC_IS_AVIVO(rdev)) {
 		memset(&args, 0, sizeof(args));
-		args.usSpreadSpectrumPercentage = percentage;
+		args.usSpreadSpectrumPercentage = cpu_to_le16(percentage);
 		args.ucSpreadSpectrumType = type;
 		args.ucSpreadSpectrumStep = step;
 		args.ucSpreadSpectrumDelay = delay;
@@ -397,7 +400,7 @@ static void atombios_set_ss(struct drm_crtc *crtc, int enable)
 		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 	} else {
 		memset(&legacy_args, 0, sizeof(legacy_args));
-		legacy_args.usSpreadSpectrumPercentage = percentage;
+		legacy_args.usSpreadSpectrumPercentage = cpu_to_le16(percentage);
 		legacy_args.ucSpreadSpectrumType = type;
 		legacy_args.ucSpreadSpectrumStepSize_Delay = (step & 3) << 2;
 		legacy_args.ucSpreadSpectrumStepSize_Delay |= (delay & 7) << 4;
@@ -483,8 +486,14 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		atom_execute_table(rdev->mode_info.atom_context,
 				   index, (uint32_t *)&adjust_pll_args);
 		adjusted_clock = le16_to_cpu(adjust_pll_args.usPixelClock) * 10;
-	} else
-		adjusted_clock = mode->clock;
+	} else {
+		/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
+		if (ASIC_IS_AVIVO(rdev) &&
+		    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1))
+			adjusted_clock = mode->clock * 2;
+		else
+			adjusted_clock = mode->clock;
+	}
 
 	if (radeon_crtc->crtc_id == 0)
 		pll = &rdev->clock.p1pll;
