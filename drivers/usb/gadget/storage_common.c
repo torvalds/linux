@@ -4,8 +4,37 @@
  * Copyright (C) 2003-2008 Alan Stern
  * Copyeight (C) 2009 Samsung Electronics
  * Author: Michal Nazarewicz (m.nazarewicz@samsung.com)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+
+/*
+ * This file requires the following identifiers used in USB strings to
+ * be defined (each of type pointer to char):
+ *  - fsg_string_manufacturer -- name of the manufacturer
+ *  - fsg_string_product      -- name of the product
+ *  - fsg_string_serial       -- product's serial
+ *  - fsg_string_config       -- name of the configuration
+ *  - fsg_string_interface    -- name of the interface
+ * The first four are only needed when FSG_DESCRIPTORS_DEVICE_STRINGS
+ * macro is defined prior to including this file.
+ */
+
+
+#include <asm/unaligned.h>
 
 
 /*-------------------------------------------------------------------------*/
@@ -93,7 +122,7 @@
 /* Bulk-only data structures */
 
 /* Command Block Wrapper */
-struct bulk_cb_wrap {
+struct fsg_bulk_cb_wrap {
 	__le32	Signature;		// Contains 'USBC'
 	u32	Tag;			// Unique per command id
 	__le32	DataTransferLength;	// Size of the data
@@ -191,7 +220,7 @@ struct interrupt_data {
 /*-------------------------------------------------------------------------*/
 
 
-struct lun {
+struct fsg_lun {
 	struct file	*filp;
 	loff_t		file_length;
 	loff_t		num_sectors;
@@ -208,11 +237,11 @@ struct lun {
 	struct device	dev;
 };
 
-#define backing_file_is_open(curlun)	((curlun)->filp != NULL)
+#define fsg_lun_is_open(curlun)	((curlun)->filp != NULL)
 
-static struct lun *dev_to_lun(struct device *dev)
+static struct fsg_lun *fsg_lun_from_dev(struct device *dev)
 {
-	return container_of(dev, struct lun, dev);
+	return container_of(dev, struct fsg_lun, dev);
 }
 
 
@@ -221,7 +250,7 @@ static struct lun *dev_to_lun(struct device *dev)
 #define DELAYED_STATUS	(EP0_BUFSIZE + 999)	// An impossibly large value
 
 /* Number of buffers we will use.  2 is enough for double-buffering */
-#define NUM_BUFFERS	2
+#define FSG_NUM_BUFFERS	2
 
 enum fsg_buffer_state {
 	BUF_STATE_EMPTY = 0,
@@ -280,16 +309,18 @@ static inline u32 get_unaligned_be24(u8 *buf)
 /*-------------------------------------------------------------------------*/
 
 
-#define STRING_MANUFACTURER	1
-#define STRING_PRODUCT		2
-#define STRING_SERIAL		3
-#define STRING_CONFIG		4
-#define STRING_INTERFACE	5
+enum {
+	FSG_STRING_MANUFACTURER	= 1,
+	FSG_STRING_PRODUCT,
+	FSG_STRING_SERIAL,
+	FSG_STRING_CONFIG,
+	FSG_STRING_INTERFACE
+};
 
 
 static struct usb_otg_descriptor
-otg_desc = {
-	.bLength =		sizeof(otg_desc),
+fsg_otg_desc = {
+	.bLength =		sizeof fsg_otg_desc,
 	.bDescriptorType =	USB_DT_OTG,
 
 	.bmAttributes =		USB_OTG_SRP,
@@ -298,22 +329,22 @@ otg_desc = {
 /* There is only one interface. */
 
 static struct usb_interface_descriptor
-intf_desc = {
-	.bLength =		sizeof intf_desc,
+fsg_intf_desc = {
+	.bLength =		sizeof fsg_intf_desc,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
 	.bNumEndpoints =	2,		// Adjusted during fsg_bind()
 	.bInterfaceClass =	USB_CLASS_MASS_STORAGE,
 	.bInterfaceSubClass =	USB_SC_SCSI,	// Adjusted during fsg_bind()
 	.bInterfaceProtocol =	USB_PR_BULK,	// Adjusted during fsg_bind()
-	.iInterface =		STRING_INTERFACE,
+	.iInterface =		FSG_STRING_INTERFACE,
 };
 
 /* Three full-speed endpoint descriptors: bulk-in, bulk-out,
  * and interrupt-in. */
 
 static struct usb_endpoint_descriptor
-fs_bulk_in_desc = {
+fsg_fs_bulk_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -323,7 +354,7 @@ fs_bulk_in_desc = {
 };
 
 static struct usb_endpoint_descriptor
-fs_bulk_out_desc = {
+fsg_fs_bulk_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -333,7 +364,7 @@ fs_bulk_out_desc = {
 };
 
 static struct usb_endpoint_descriptor
-fs_intr_in_desc = {
+fsg_fs_intr_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -343,15 +374,15 @@ fs_intr_in_desc = {
 	.bInterval =		32,	// frames -> 32 ms
 };
 
-static const struct usb_descriptor_header *fs_function[] = {
-	(struct usb_descriptor_header *) &otg_desc,
-	(struct usb_descriptor_header *) &intf_desc,
-	(struct usb_descriptor_header *) &fs_bulk_in_desc,
-	(struct usb_descriptor_header *) &fs_bulk_out_desc,
-	(struct usb_descriptor_header *) &fs_intr_in_desc,
+static const struct usb_descriptor_header *fsg_fs_function[] = {
+	(struct usb_descriptor_header *) &fsg_otg_desc,
+	(struct usb_descriptor_header *) &fsg_intf_desc,
+	(struct usb_descriptor_header *) &fsg_fs_bulk_in_desc,
+	(struct usb_descriptor_header *) &fsg_fs_bulk_out_desc,
+	(struct usb_descriptor_header *) &fsg_fs_intr_in_desc,
 	NULL,
 };
-#define FS_FUNCTION_PRE_EP_ENTRIES	2
+#define FSG_FS_FUNCTION_PRE_EP_ENTRIES	2
 
 
 /*
@@ -363,7 +394,7 @@ static const struct usb_descriptor_header *fs_function[] = {
  * for the config descriptor.
  */
 static struct usb_endpoint_descriptor
-hs_bulk_in_desc = {
+fsg_hs_bulk_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -373,7 +404,7 @@ hs_bulk_in_desc = {
 };
 
 static struct usb_endpoint_descriptor
-hs_bulk_out_desc = {
+fsg_hs_bulk_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -384,7 +415,7 @@ hs_bulk_out_desc = {
 };
 
 static struct usb_endpoint_descriptor
-hs_intr_in_desc = {
+fsg_hs_intr_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -394,19 +425,19 @@ hs_intr_in_desc = {
 	.bInterval =		9,	// 2**(9-1) = 256 uframes -> 32 ms
 };
 
-static const struct usb_descriptor_header *hs_function[] = {
-	(struct usb_descriptor_header *) &otg_desc,
-	(struct usb_descriptor_header *) &intf_desc,
-	(struct usb_descriptor_header *) &hs_bulk_in_desc,
-	(struct usb_descriptor_header *) &hs_bulk_out_desc,
-	(struct usb_descriptor_header *) &hs_intr_in_desc,
+static const struct usb_descriptor_header *fsg_hs_function[] = {
+	(struct usb_descriptor_header *) &fsg_otg_desc,
+	(struct usb_descriptor_header *) &fsg_intf_desc,
+	(struct usb_descriptor_header *) &fsg_hs_bulk_in_desc,
+	(struct usb_descriptor_header *) &fsg_hs_bulk_out_desc,
+	(struct usb_descriptor_header *) &fsg_hs_intr_in_desc,
 	NULL,
 };
-#define HS_FUNCTION_PRE_EP_ENTRIES	2
+#define FSG_HS_FUNCTION_PRE_EP_ENTRIES	2
 
 /* Maxpacket and other transfer characteristics vary by speed. */
 static struct usb_endpoint_descriptor *
-ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *fs,
+fsg_ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *fs,
 		struct usb_endpoint_descriptor *hs)
 {
 	if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
@@ -415,24 +446,19 @@ ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *fs,
 }
 
 
-/* The CBI specification limits the serial string to 12 uppercase hexadecimal
- * characters. */
-static char				manufacturer[64];
-static char				serial[13];
-
 /* Static strings, in UTF-8 (for simplicity we use only ASCII characters) */
-static struct usb_string		strings[] = {
-	{STRING_MANUFACTURER,	manufacturer},
-	{STRING_PRODUCT,	longname},
-	{STRING_SERIAL,		serial},
-	{STRING_CONFIG,		"Self-powered"},
-	{STRING_INTERFACE,	"Mass Storage"},
+static struct usb_string		fsg_strings[] = {
+	{FSG_STRING_MANUFACTURER,	fsg_string_manufacturer},
+	{FSG_STRING_PRODUCT,		fsg_string_product},
+	{FSG_STRING_SERIAL,		fsg_string_serial},
+	{FSG_STRING_CONFIG,		fsg_string_config},
+	{FSG_STRING_INTERFACE,		fsg_string_interface},
 	{}
 };
 
-static struct usb_gadget_strings	stringtab = {
+static struct usb_gadget_strings	fsg_stringtab = {
 	.language	= 0x0409,		// en-us
-	.strings	= strings,
+	.strings	= fsg_strings,
 };
 
 
@@ -441,7 +467,7 @@ static struct usb_gadget_strings	stringtab = {
 /* If the next two routines are called while the gadget is registered,
  * the caller must own fsg->filesem for writing. */
 
-static int open_backing_file(struct lun *curlun, const char *filename)
+static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 {
 	int				ro;
 	struct file			*filp = NULL;
@@ -525,7 +551,7 @@ out:
 }
 
 
-static void close_backing_file(struct lun *curlun)
+static void fsg_lun_close(struct fsg_lun *curlun)
 {
 	if (curlun->filp) {
 		LDBG(curlun, "close backing file\n");
@@ -539,7 +565,7 @@ static void close_backing_file(struct lun *curlun)
 
 /* Sync the file data, don't bother with the metadata.
  * This code was copied from fs/buffer.c:sys_fdatasync(). */
-static int fsync_sub(struct lun *curlun)
+static int fsg_lun_fsync_sub(struct fsg_lun *curlun)
 {
 	struct file	*filp = curlun->filp;
 
