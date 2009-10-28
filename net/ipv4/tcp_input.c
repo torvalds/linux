@@ -3763,7 +3763,8 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 				break;
 			case TCPOPT_SACK_PERM:
 				if (opsize == TCPOLEN_SACK_PERM && th->syn &&
-				    !estab && sysctl_tcp_sack) {
+				    !estab && sysctl_tcp_sack &&
+				    !dst_feature(dst, RTAX_FEATURE_NO_SACK)) {
 					opt_rx->sack_ok = 1;
 					tcp_sack_reset(opt_rx);
 				}

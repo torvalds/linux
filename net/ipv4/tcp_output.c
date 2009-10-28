@@ -464,6 +464,7 @@ static unsigned tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 				struct tcp_md5sig_key **md5) {
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned size = 0;
+	struct dst_entry *dst = __sk_dst_get(sk);
 
 #ifdef CONFIG_TCP_MD5SIG
 	*md5 = tp->af_specific->md5_lookup(sk, sk);
@@ -498,7 +499,8 @@ static unsigned tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 		opts->options |= OPTION_WSCALE;
 		size += TCPOLEN_WSCALE_ALIGNED;
 	}
-	if (likely(sysctl_tcp_sack)) {
+	if (likely(sysctl_tcp_sack &&
+		   !dst_feature(dst, RTAX_FEATURE_NO_SACK))) {
 		opts->options |= OPTION_SACK_ADVERTISE;
 		if (unlikely(!(OPTION_TS & opts->options)))
 			size += TCPOLEN_SACKPERM_ALIGNED;
