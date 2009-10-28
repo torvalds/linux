@@ -393,8 +393,8 @@ cfq_prio_to_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
  * to quickly follows sudden increases and decrease slowly
  */
 
-static inline unsigned
-cfq_get_avg_queues(struct cfq_data *cfqd, bool rt) {
+static inline unsigned cfq_get_avg_queues(struct cfq_data *cfqd, bool rt)
+{
 	unsigned min_q, max_q;
 	unsigned mult  = cfq_hist_divisor - 1;
 	unsigned round = cfq_hist_divisor / 2;
