@@ -1326,10 +1326,10 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 				skb = NULL;
 			} else {
 				u8 *data = skb->data;
-				size_t len = skb->len;
-				u8 *new = __skb_push(skb, align);
-				memmove(new, data, len);
-				__skb_trim(skb, len);
+				size_t len = skb_headlen(skb);
+				skb->data -= align;
+				memmove(skb->data, data, len);
+				skb_set_tail_pointer(skb, len);
 			}
 		}
 #endif
