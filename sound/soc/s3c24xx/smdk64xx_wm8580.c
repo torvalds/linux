@@ -103,7 +103,7 @@ static int smdk64xx_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	/* Set WM8580 to drive MCLK from it's PLLA */
+	/* Set WM8580 to drive MCLK from its PLLA */
 	ret = snd_soc_dai_set_clkdiv(codec_dai, WM8580_MCLK,
 					WM8580_CLKSRC_PLLA);
 	if (ret < 0)
@@ -115,7 +115,6 @@ static int smdk64xx_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	/* Assuming the CODEC driver evaluates it's rfs too from this call */
 	ret = snd_soc_dai_set_pll(codec_dai, 0, WM8580_PLLA,
 					SMDK64XX_WM8580_FREQ, pll_out);
 	if (ret < 0)
@@ -186,9 +185,10 @@ static int smdk64xx_wm8580_init_paiftx(struct snd_soc_codec *codec)
 	/* Set up PAIFTX audio path */
 	snd_soc_dapm_add_routes(codec, audio_map_tx, ARRAY_SIZE(audio_map_tx));
 
-	/* All enabled by default */
-	snd_soc_dapm_enable_pin(codec, "MicIn");
-	snd_soc_dapm_enable_pin(codec, "LineIn");
+	/* Enabling the microphone requires the fitting of a 0R
+	 * resistor to connect the line from the microphone jack.
+	 */
+	snd_soc_dapm_disable_pin(codec, "MicIn");
 
 	/* signal a DAPM event */
 	snd_soc_dapm_sync(codec);
@@ -204,11 +204,6 @@ static int smdk64xx_wm8580_init_paifrx(struct snd_soc_codec *codec)
 
 	/* Set up PAIFRX audio path */
 	snd_soc_dapm_add_routes(codec, audio_map_rx, ARRAY_SIZE(audio_map_rx));
-
-	/* All enabled by default */
-	snd_soc_dapm_enable_pin(codec, "Front-L/R");
-	snd_soc_dapm_enable_pin(codec, "Center/Sub");
-	snd_soc_dapm_enable_pin(codec, "Rear-L/R");
 
 	/* signal a DAPM event */
 	snd_soc_dapm_sync(codec);
