@@ -752,7 +752,7 @@ void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 
 	*bno = objsetno * sc + stripepos;
 	dout("objset %u * sc %u = bno %u\n", objsetno, sc, (unsigned)*bno);
-	/* *oxoff = *off / layout->fl_stripe_unit; */
+	/* *oxoff = *off % layout->fl_stripe_unit; */
 	t = off;
 	*oxoff = do_div(t, su);
 	*oxlen = min_t(u64, *plen, su - *oxoff);
