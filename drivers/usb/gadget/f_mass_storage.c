@@ -258,6 +258,7 @@ static const char fsg_string_interface[] = "Mass Storage";
 
 
 #define FSG_NO_INTR_EP 1
+#define FSG_BUFFHD_STATIC_BUFFER 1
 
 #include "storage_common.c"
 
@@ -1894,9 +1895,8 @@ static int send_status(struct fsg_dev *fsg)
 				SK(sd), ASC(sd), ASCQ(sd), sdinfo);
 	}
 
-
 	/* Store and send the Bulk-only CSW */
-	csw = bh->buf;
+	csw = (void*)bh->buf;
 
 	csw->Signature = cpu_to_le32(USB_BULK_CS_SIG);
 	csw->Tag = fsg->tag;
@@ -2808,10 +2808,6 @@ static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 		complete(&fsg->thread_notifier);
 	}
 
-	/* Free the data buffers */
-	for (i = 0; i < FSG_NUM_BUFFERS; ++i)
-		kfree(fsg->common->buffhds[i].buf);
-
 	/* Free the request and buffer for endpoint 0 */
 	if (req) {
 		kfree(req->buf);
@@ -2978,20 +2974,6 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 		goto out;
 	req->complete = ep0_complete;
 
-	/* Allocate the data buffers */
-	for (i = 0; i < FSG_NUM_BUFFERS; ++i) {
-		struct fsg_buffhd	*bh = &fsg->common->buffhds[i];
-
-		/* Allocate for the bulk-in endpoint.  We assume that
-		 * the buffer will also work with the bulk-out (and
-		 * interrupt-in) endpoint. */
-		bh->buf = kmalloc(FSG_BUFLEN, GFP_KERNEL);
-		if (!bh->buf)
-			goto out;
-		bh->next = bh + 1;
-	}
-	fsg->common->buffhds[FSG_NUM_BUFFERS - 1].next = &fsg->common->buffhds[0];
-
 	/* This should reflect the actual gadget power source */
 	usb_gadget_set_selfpowered(gadget);
 
@@ -3087,6 +3069,8 @@ static struct usb_gadget_driver		fsg_driver = {
 static int __init fsg_alloc(void)
 {
 	struct fsg_dev		*fsg;
+	struct fsg_buffhd	*bh;
+	unsigned		i;
 
 	fsg = kzalloc(sizeof *fsg, GFP_KERNEL);
 	if (!fsg)
@@ -3097,6 +3081,13 @@ static int __init fsg_alloc(void)
 		kfree(fsg);
 		return -ENOMEM;
 	}
+
+	bh = fsg->common->buffhds;
+	i = FSG_NUM_BUFFERS - 1;
+	do {
+		bh->next = bh + 1;
+	} while (++bh, --i);
+	bh->next = fsg->common->buffhds;
 
 	spin_lock_init(&fsg->lock);
 	init_rwsem(&fsg->common->filesem);

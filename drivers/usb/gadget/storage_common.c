@@ -47,6 +47,12 @@
  * When FSG_NO_OTG is defined fsg_otg_desc won't be defined.
  */
 
+/*
+ * When FSG_BUFFHD_STATIC_BUFFER is defined when this file is included
+ * the fsg_buffhd structure's buf field will be an array of FSG_BUFLEN
+ * characters rather then a pointer to void.
+ */
+
 
 #include <asm/unaligned.h>
 
@@ -290,7 +296,11 @@ enum fsg_buffer_state {
 };
 
 struct fsg_buffhd {
+#ifdef FSG_BUFFHD_STATIC_BUFFER
+	char				buf[FSG_BUFLEN];
+#else
 	void				*buf;
+#endif
 	enum fsg_buffer_state		state;
 	struct fsg_buffhd		*next;
 
