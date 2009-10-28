@@ -106,10 +106,11 @@ struct symbol;
 typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
 
 struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
-		     unsigned int sym_priv_size, symbol_filter_t filter);
+		     unsigned int sym_priv_size);
 struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *self, FILE *fp);
+struct symbol *map__find_symbol(struct map *self, u64 ip, symbol_filter_t filter);
 
 int event__synthesize_thread(pid_t pid, int (*process)(event_t *event));
 void event__synthesize_threads(int (*process)(event_t *event));

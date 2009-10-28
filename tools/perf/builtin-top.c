@@ -834,7 +834,7 @@ static void event__process_sample(const event_t *self, int counter)
 		map = thread__find_map(thread, ip);
 		if (map != NULL) {
 			ip = map->map_ip(map, ip);
-			sym = map->dso->find_symbol(map->dso, ip);
+			sym = map__find_symbol(map, ip, symbol_filter);
 			if (sym == NULL)
 				return;
 			userspace_samples++;
@@ -879,8 +879,7 @@ static void event__process_mmap(event_t *self)
 
 	if (thread != NULL) {
 		struct map *map = map__new(&self->mmap, NULL, 0,
-					   sizeof(struct sym_entry),
-					   symbol_filter);
+					   sizeof(struct sym_entry));
 		if (map != NULL)
 			thread__insert_map(thread, map);
 	}

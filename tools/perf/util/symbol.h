@@ -46,6 +46,7 @@ struct dso {
 	unsigned int	 sym_priv_size;
 	unsigned char	 adjust_symbols;
 	unsigned char	 slen_calculated;
+	bool		 loaded;
 	unsigned char	 origin;
 	const char	 *short_name;
 	char	 	 *long_name;
@@ -64,8 +65,7 @@ struct symbol *dso__find_symbol(struct dso *self, u64 ip);
 
 int dsos__load_kernel(const char *vmlinux, unsigned int sym_priv_size,
 		      symbol_filter_t filter, int modules);
-struct dso *dsos__findnew(const char *name, unsigned int sym_priv_size,
-			  bool *is_new);
+struct dso *dsos__findnew(const char *name, unsigned int sym_priv_size);
 int dso__load(struct dso *self, struct map *map, symbol_filter_t filter);
 void dsos__fprintf(FILE *fp);
 

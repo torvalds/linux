@@ -909,6 +909,8 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	int ret = -1;
 	int fd;
 
+	self->loaded = true;
+
 	if (!name)
 		return -1;
 
@@ -1018,6 +1020,8 @@ static int dso__load_module_sym(struct dso *self, struct map *map,
 				symbol_filter_t filter)
 {
 	int err = 0, fd = open(self->long_name, O_RDONLY);
+
+	self->loaded = true;
 
 	if (fd < 0) {
 		pr_err("%s: cannot open %s\n", __func__, self->long_name);
@@ -1214,6 +1218,8 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 {
 	int err, fd = open(vmlinux, O_RDONLY);
 
+	self->loaded = true;
+
 	if (fd < 0)
 		return -1;
 
@@ -1312,19 +1318,15 @@ static struct dso *dsos__find(const char *name)
 	return NULL;
 }
 
-struct dso *dsos__findnew(const char *name, unsigned int sym_priv_size,
-			  bool *is_new)
+struct dso *dsos__findnew(const char *name, unsigned int sym_priv_size)
 {
 	struct dso *dso = dsos__find(name);
 
 	if (!dso) {
 		dso = dso__new(name, sym_priv_size);
-		if (dso) {
+		if (dso != NULL)
 			dsos__add(dso);
-			*is_new = true;
-		}
-	} else
-		*is_new = false;
+	}
 
 	return dso;
 }

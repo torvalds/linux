@@ -455,7 +455,7 @@ got_map:
 	dump_printf(" ...... map: %Lx -> %Lx\n", *ipp, ip);
 	*ipp  = ip;
 
-	return map ? map->dso->find_symbol(map->dso, ip) : NULL;
+	return map ? map__find_symbol(map, ip, NULL) : NULL;
 }
 
 static int call__match(struct symbol *sym)
@@ -751,7 +751,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	struct map *map = map__new(&event->mmap, cwd, cwdlen, 0, NULL);
+	struct map *map = map__new(&event->mmap, cwd, cwdlen, 0);
 	struct thread *thread = threads__findnew(event->mmap.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_MMAP %d/%d: [%p(%p) @ %p]: %s\n",

@@ -165,7 +165,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		if (map != NULL) {
 got_map:
 			ip = map->map_ip(map, ip);
-			sym = map->dso->find_symbol(map->dso, ip);
+			sym = map__find_symbol(map, ip, symbol_filter);
 		} else {
 			/*
 			 * If this is outside of all known maps,
@@ -203,7 +203,7 @@ static int
 process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	struct map *map = map__new(&event->mmap, NULL, 0,
-				   sizeof(struct sym_priv), symbol_filter);
+				   sizeof(struct sym_priv));
 	struct thread *thread = threads__findnew(event->mmap.pid);
 
 	dump_printf("%p [%p]: PERF_RECORD_MMAP %d: [%p(%p) @ %p]: %s\n",

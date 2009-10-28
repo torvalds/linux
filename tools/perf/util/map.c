@@ -21,7 +21,7 @@ static int strcommon(const char *pathname, char *cwd, int cwdlen)
 }
 
 struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
-		     unsigned int sym_priv_size, symbol_filter_t filter)
+		     unsigned int sym_priv_size)
 {
 	struct map *self = malloc(sizeof(*self));
 
@@ -29,7 +29,6 @@ struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
 		const char *filename = event->filename;
 		char newfilename[PATH_MAX];
 		int anon;
-		bool new_dso;
 
 		if (cwd) {
 			int n = strcommon(filename, cwd, cwdlen);
@@ -52,22 +51,9 @@ struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
 		self->end   = event->start + event->len;
 		self->pgoff = event->pgoff;
 
-		self->dso = dsos__findnew(filename, sym_priv_size, &new_dso);
+		self->dso = dsos__findnew(filename, sym_priv_size);
 		if (self->dso == NULL)
 			goto out_delete;
-
-		if (new_dso) {
-			int nr = dso__load(self->dso, self, filter);
-
-			if (nr < 0)
-				pr_warning("Failed to open %s, continuing "
-					   "without symbols\n",
-					   self->dso->long_name);
-			else if (nr == 0)
-				pr_warning("No symbols found in %s, maybe "
-					   "install a debug package?\n",
-					   self->dso->long_name);
-		}
 
 		if (self->dso == vdso || anon)
 			self->map_ip = self->unmap_ip = identity__map_ip;
@@ -80,6 +66,26 @@ struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen,
 out_delete:
 	free(self);
 	return NULL;
+}
+
+struct symbol *
+map__find_symbol(struct map *self, u64 ip, symbol_filter_t filter)
+{
+	if (!self->dso->loaded) {
+		int nr = dso__load(self->dso, self, filter);
+
+		if (nr < 0) {
+			pr_warning("Failed to open %s, continuing without symbols\n",
+				   self->dso->long_name);
+			return NULL;
+		} else if (nr == 0) {
+			pr_warning("No symbols found in %s, maybe install a debug package?\n",
+				   self->dso->long_name);
+			return NULL;
+		}
+	}
+
+	return self->dso->find_symbol(self->dso, ip);
 }
 
 struct map *map__clone(struct map *self)
