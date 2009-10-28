@@ -488,7 +488,9 @@ static unsigned tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 	opts->mss = tcp_advertise_mss(sk);
 	size += TCPOLEN_MSS_ALIGNED;
 
-	if (likely(sysctl_tcp_timestamps && *md5 == NULL)) {
+	if (likely(sysctl_tcp_timestamps &&
+		   !dst_feature(dst, RTAX_FEATURE_NO_TSTAMP) &&
+		   *md5 == NULL)) {
 		opts->options |= OPTION_TS;
 		opts->tsval = TCP_SKB_CB(skb)->when;
 		opts->tsecr = tp->rx_opt.ts_recent;
@@ -2317,7 +2319,9 @@ static void tcp_connect_init(struct sock *sk)
 	 * See tcp_input.c:tcp_rcv_state_process case TCP_SYN_SENT.
 	 */
 	tp->tcp_header_len = sizeof(struct tcphdr) +
-		(sysctl_tcp_timestamps ? TCPOLEN_TSTAMP_ALIGNED : 0);
+		(sysctl_tcp_timestamps &&
+		(!dst_feature(dst, RTAX_FEATURE_NO_TSTAMP) ?
+		  TCPOLEN_TSTAMP_ALIGNED : 0));
 
 #ifdef CONFIG_TCP_MD5SIG
 	if (tp->af_specific->md5_lookup(sk, sk) != NULL)
