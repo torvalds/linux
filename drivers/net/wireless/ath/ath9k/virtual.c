@@ -298,6 +298,7 @@ static void ath9k_wiphy_unpause_channel(struct ath_softc *sc)
 void ath9k_wiphy_chan_work(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc, chan_work);
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_wiphy *aphy = sc->next_wiphy;
 
 	if (aphy == NULL)
@@ -313,6 +314,10 @@ void ath9k_wiphy_chan_work(struct work_struct *work)
 	/* XXX: remove me eventually */
 	ath9k_update_ichannel(sc, aphy->hw,
 			      &sc->sc_ah->channels[sc->chan_idx]);
+
+	/* sync hw configuration for hw code */
+	common->hw = aphy->hw;
+
 	ath_update_chainmask(sc, sc->chan_is_ht);
 	if (ath_set_channel(sc, aphy->hw,
 			    &sc->sc_ah->channels[sc->chan_idx]) < 0) {
