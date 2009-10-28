@@ -123,7 +123,7 @@ struct twl4030_priv {
 	struct snd_soc_codec codec;
 
 	unsigned int codec_powered;
-	unsigned int codec_muted;
+	unsigned int apll_enabled;
 
 	struct snd_pcm_substream *master_substream;
 	struct snd_pcm_substream *slave_substream;
@@ -218,25 +218,25 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 
 }
 
-static void twl4030_codec_mute(struct snd_soc_codec *codec, int mute)
+static void twl4030_apll_enable(struct snd_soc_codec *codec, int enable)
 {
 	struct twl4030_priv *twl4030 = codec->private_data;
 	int status;
 
-	if (mute == twl4030->codec_muted)
+	if (enable == twl4030->apll_enabled)
 		return;
 
-	if (mute)
-		/* Disable PLL */
-		status = twl4030_codec_disable_resource(TWL4030_CODEC_RES_APLL);
-	else
+	if (enable)
 		/* Enable PLL */
 		status = twl4030_codec_enable_resource(TWL4030_CODEC_RES_APLL);
+	else
+		/* Disable PLL */
+		status = twl4030_codec_disable_resource(TWL4030_CODEC_RES_APLL);
 
 	if (status >= 0)
 		twl4030_write_reg_cache(codec, TWL4030_REG_APLL_CTL, status);
 
-	twl4030->codec_muted = mute;
+	twl4030->apll_enabled = enable;
 }
 
 static void twl4030_power_up(struct snd_soc_codec *codec)
@@ -1464,14 +1464,14 @@ static int twl4030_set_bias_level(struct snd_soc_codec *codec,
 {
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		twl4030_codec_mute(codec, 0);
+		twl4030_apll_enable(codec, 1);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF)
 			twl4030_power_up(codec);
-		twl4030_codec_mute(codec, 1);
+		twl4030_apll_enable(codec, 0);
 		break;
 	case SND_SOC_BIAS_OFF:
 		twl4030_power_down(codec);
