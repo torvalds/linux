@@ -3138,7 +3138,9 @@ static ssize_t show_ro(struct device *dev, struct device_attribute *attr, char *
 {
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
 
-	return sprintf(buf, "%d\n", curlun->ro);
+	return sprintf(buf, "%d\n", fsg_lun_is_open(curlun)
+				  ? curlun->ro
+				  : curlun->initially_ro);
 }
 
 static ssize_t show_file(struct device *dev, struct device_attribute *attr,
@@ -3188,6 +3190,7 @@ static ssize_t store_ro(struct device *dev, struct device_attribute *attr,
 		rc = -EBUSY;
 	} else {
 		curlun->ro = !!i;
+		curlun->initially_ro = !!i;
 		LDBG(curlun, "read-only status set to %d\n", curlun->ro);
 	}
 	up_read(&fsg->filesem);
@@ -3433,9 +3436,10 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 
 	for (i = 0; i < fsg->nluns; ++i) {
 		curlun = &fsg->luns[i];
-		curlun->ro = mod_data.ro[i];
-		if (mod_data.cdrom)
-			curlun->ro = 1;
+		curlun->cdrom = !!mod_data.cdrom;
+		curlun->ro = mod_data.cdrom || mod_data.ro[i];
+		curlun->initially_ro = curlun->ro;
+		curlun->removable = mod_data.removable;
 		curlun->dev.release = lun_release;
 		curlun->dev.parent = &gadget->dev;
 		curlun->dev.driver = &fsg_driver.driver;

@@ -225,7 +225,10 @@ struct fsg_lun {
 	loff_t		file_length;
 	loff_t		num_sectors;
 
+	unsigned int	initially_ro : 1;
 	unsigned int	ro : 1;
+	unsigned int	removable : 1;
+	unsigned int	cdrom : 1;
 	unsigned int	prevent_medium_removal : 1;
 	unsigned int	registered : 1;
 	unsigned int	info_valid : 1;
@@ -478,7 +481,7 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 	loff_t				min_sectors;
 
 	/* R/W if we can, R/O if we must */
-	ro = curlun->ro;
+	ro = curlun->initially_ro;
 	if (!ro) {
 		filp = filp_open(filename, O_RDWR | O_LARGEFILE, 0);
 		if (-EROFS == PTR_ERR(filp))
@@ -521,7 +524,7 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 	}
 	num_sectors = size >> 9;	// File size in 512-byte blocks
 	min_sectors = 1;
-	if (mod_data.cdrom) {
+	if (curlun->cdrom) {
 		num_sectors &= ~3;	// Reduce to a multiple of 2048
 		min_sectors = 300*4;	// Smallest track is 300 frames
 		if (num_sectors >= 256*60*75*4) {
