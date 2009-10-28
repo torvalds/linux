@@ -4,6 +4,7 @@
 #include <linux/pci.h>
 
 extern struct pci_device_id k8_nb_ids[];
+struct bootnode;
 
 extern int early_is_k8_nb(u32 value);
 extern struct pci_dev **k8_northbridges;
