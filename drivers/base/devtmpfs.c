@@ -32,6 +32,8 @@ static int dev_mount = 1;
 static int dev_mount;
 #endif
 
+static rwlock_t dirlock;
+
 static int __init mount_param(char *str)
 {
 	dev_mount = simple_strtoul(str, NULL, 0);
@@ -86,16 +88,12 @@ static int dev_mkdir(const char *name, mode_t mode)
 
 static int create_path(const char *nodepath)
 {
-	char *path;
 	struct nameidata nd;
 	int err = 0;
 
-	path = kstrdup(nodepath, GFP_KERNEL);
-	if (!path)
-		return -ENOMEM;
-
+	read_lock(&dirlock);
 	err = vfs_path_lookup(dev_mnt->mnt_root, dev_mnt,
-			      path, LOOKUP_PARENT, &nd);
+			      nodepath, LOOKUP_PARENT, &nd);
 	if (err == 0) {
 		struct dentry *dentry;
 
@@ -107,14 +105,17 @@ static int create_path(const char *nodepath)
 			dput(dentry);
 		}
 		mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-
 		path_put(&nd.path);
 	} else if (err == -ENOENT) {
+		char *path;
 		char *s;
 
 		/* parent directories do not exist, create them */
+		path = kstrdup(nodepath, GFP_KERNEL);
+		if (!path)
+			return -ENOMEM;
 		s = path;
-		while (1) {
+		for (;;) {
 			s = strchr(s, '/');
 			if (!s)
 				break;
@@ -125,9 +126,10 @@ static int create_path(const char *nodepath)
 			s[0] = '/';
 			s++;
 		}
+		kfree(path);
 	}
+	read_unlock(&dirlock);
 
-	kfree(path);
 	return err;
 }
 
@@ -234,7 +236,8 @@ static int delete_path(const char *nodepath)
 	if (!path)
 		return -ENOMEM;
 
-	while (1) {
+	write_lock(&dirlock);
+	for (;;) {
 		char *base;
 
 		base = strrchr(path, '/');
@@ -245,6 +248,7 @@ static int delete_path(const char *nodepath)
 		if (err)
 			break;
 	}
+	write_unlock(&dirlock);
 
 	kfree(path);
 	return err;
@@ -359,6 +363,8 @@ int __init devtmpfs_init(void)
 {
 	int err;
 	struct vfsmount *mnt;
+
+	rwlock_init(&dirlock);
 
 	err = register_filesystem(&dev_fs_type);
 	if (err) {
