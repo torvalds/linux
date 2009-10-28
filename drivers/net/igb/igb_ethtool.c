@@ -741,11 +741,11 @@ static int igb_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 
 	new_rx_count = min(ring->rx_pending, (u32)IGB_MAX_RXD);
-	new_rx_count = max(new_rx_count, (u16)IGB_MIN_RXD);
+	new_rx_count = max(new_rx_count, (u32)IGB_MIN_RXD);
 	new_rx_count = ALIGN(new_rx_count, REQ_RX_DESCRIPTOR_MULTIPLE);
 
 	new_tx_count = min(ring->tx_pending, (u32)IGB_MAX_TXD);
-	new_tx_count = max(new_tx_count, (u16)IGB_MIN_TXD);
+	new_tx_count = max(new_tx_count, (u32)IGB_MIN_TXD);
 	new_tx_count = ALIGN(new_tx_count, REQ_TX_DESCRIPTOR_MULTIPLE);
 
 	if ((new_tx_count == adapter->tx_ring_count) &&
