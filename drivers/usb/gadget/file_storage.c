@@ -278,17 +278,13 @@ static       char fsg_string_serial[13];
 static const char fsg_string_config[] = "Self-powered";
 static const char fsg_string_interface[] = "Mass Storage";
 
+
+#include "storage_common.c"
+
+
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Alan Stern");
 MODULE_LICENSE("Dual BSD/GPL");
-
-/* Thanks to NetChip Technologies for donating this product ID.
- *
- * DO NOT REUSE THESE IDs with any other driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures. */
-#define FSG_VENDOR_ID	0x0525	// NetChip
-#define FSG_PRODUCT_ID	0xa4a5	// Linux-USB File-backed Storage Gadget
-
 
 /*
  * This driver assumes self-powered hardware and has no way for users to
@@ -301,8 +297,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 
 /* Encapsulate the module parameter settings */
-
-#define FSG_MAX_LUNS	8
 
 static struct {
 	char		*file[FSG_MAX_LUNS];
@@ -407,10 +401,6 @@ MODULE_PARM_DESC(buflen, "I/O buffer size");
 
 #endif /* CONFIG_USB_FILE_STORAGE_TEST */
 
-
-/*-------------------------------------------------------------------------*/
-
-#include "storage_common.c"
 
 /*-------------------------------------------------------------------------*/
 
@@ -3134,107 +3124,10 @@ static int fsg_main_thread(void *fsg_)
 
 /*-------------------------------------------------------------------------*/
 
-static ssize_t show_ro(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
-
-	return sprintf(buf, "%d\n", fsg_lun_is_open(curlun)
-				  ? curlun->ro
-				  : curlun->initially_ro);
-}
-
-static ssize_t show_file(struct device *dev, struct device_attribute *attr,
-		char *buf)
-{
-	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
-	struct fsg_dev	*fsg = dev_get_drvdata(dev);
-	char		*p;
-	ssize_t		rc;
-
-	down_read(&fsg->filesem);
-	if (fsg_lun_is_open(curlun)) {	// Get the complete pathname
-		p = d_path(&curlun->filp->f_path, buf, PAGE_SIZE - 1);
-		if (IS_ERR(p))
-			rc = PTR_ERR(p);
-		else {
-			rc = strlen(p);
-			memmove(buf, p, rc);
-			buf[rc] = '\n';		// Add a newline
-			buf[++rc] = 0;
-		}
-	} else {				// No file, return 0 bytes
-		*buf = 0;
-		rc = 0;
-	}
-	up_read(&fsg->filesem);
-	return rc;
-}
-
-
-static ssize_t store_ro(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	ssize_t		rc = count;
-	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
-	struct fsg_dev	*fsg = dev_get_drvdata(dev);
-	int		i;
-
-	if (sscanf(buf, "%d", &i) != 1)
-		return -EINVAL;
-
-	/* Allow the write-enable status to change only while the backing file
-	 * is closed. */
-	down_read(&fsg->filesem);
-	if (fsg_lun_is_open(curlun)) {
-		LDBG(curlun, "read-only status change prevented\n");
-		rc = -EBUSY;
-	} else {
-		curlun->ro = !!i;
-		curlun->initially_ro = !!i;
-		LDBG(curlun, "read-only status set to %d\n", curlun->ro);
-	}
-	up_read(&fsg->filesem);
-	return rc;
-}
-
-static ssize_t store_file(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
-	struct fsg_dev	*fsg = dev_get_drvdata(dev);
-	int		rc = 0;
-
-	if (curlun->prevent_medium_removal && fsg_lun_is_open(curlun)) {
-		LDBG(curlun, "eject attempt prevented\n");
-		return -EBUSY;				// "Door is locked"
-	}
-
-	/* Remove a trailing newline */
-	if (count > 0 && buf[count-1] == '\n')
-		((char *) buf)[count-1] = 0;		// Ugh!
-
-	/* Eject current medium */
-	down_write(&fsg->filesem);
-	if (fsg_lun_is_open(curlun)) {
-		fsg_lun_close(curlun);
-		curlun->unit_attention_data = SS_MEDIUM_NOT_PRESENT;
-	}
-
-	/* Load new medium */
-	if (count > 0 && buf[0]) {
-		rc = fsg_lun_open(curlun, buf);
-		if (rc == 0)
-			curlun->unit_attention_data =
-					SS_NOT_READY_TO_READY_TRANSITION;
-	}
-	up_write(&fsg->filesem);
-	return (rc < 0 ? rc : count);
-}
-
 
 /* The write permissions and store_xxx pointers are set in fsg_bind() */
-static DEVICE_ATTR(ro, 0444, show_ro, NULL);
-static DEVICE_ATTR(file, 0444, show_file, NULL);
+static DEVICE_ATTR(ro, 0444, fsg_show_ro, NULL);
+static DEVICE_ATTR(file, 0444, fsg_show_file, NULL);
 
 
 /*-------------------------------------------------------------------------*/
@@ -3249,7 +3142,9 @@ static void fsg_release(struct kref *ref)
 
 static void lun_release(struct device *dev)
 {
-	struct fsg_dev	*fsg = dev_get_drvdata(dev);
+	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
+	struct fsg_dev		*fsg =
+		container_of(filesem, struct fsg_dev, filesem);
 
 	kref_put(&fsg->ref, fsg_release);
 }
@@ -3408,10 +3303,10 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 
 	if (mod_data.removable) {	// Enable the store_xxx attributes
 		dev_attr_file.attr.mode = 0644;
-		dev_attr_file.store = store_file;
+		dev_attr_file.store = fsg_store_file;
 		if (!mod_data.cdrom) {
 			dev_attr_ro.attr.mode = 0644;
-			dev_attr_ro.store = store_ro;
+			dev_attr_ro.store = fsg_store_ro;
 		}
 	}
 
@@ -3443,7 +3338,7 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 		curlun->dev.release = lun_release;
 		curlun->dev.parent = &gadget->dev;
 		curlun->dev.driver = &fsg_driver.driver;
-		dev_set_drvdata(&curlun->dev, fsg);
+		dev_set_drvdata(&curlun->dev, &fsg->filesem);
 		dev_set_name(&curlun->dev,"%s-lun%d",
 			     dev_name(&gadget->dev), i);
 
