@@ -43,25 +43,13 @@ static unsigned nr_gpages;
 unsigned int mmu_huge_psizes[MMU_PAGE_COUNT] = { }; /* initialize all to 0 */
 
 #define hugepte_shift			mmu_huge_psizes
-#define PTRS_PER_HUGEPTE(psize)		(1 << hugepte_shift[psize])
-#define HUGEPTE_TABLE_SIZE(psize)	(sizeof(pte_t) << hugepte_shift[psize])
+#define HUGEPTE_INDEX_SIZE(psize)	(mmu_huge_psizes[(psize)])
+#define PTRS_PER_HUGEPTE(psize)		(1 << mmu_huge_psizes[psize])
 
 #define HUGEPD_SHIFT(psize)		(mmu_psize_to_shift(psize) \
-						+ hugepte_shift[psize])
+					 + HUGEPTE_INDEX_SIZE(psize))
 #define HUGEPD_SIZE(psize)		(1UL << HUGEPD_SHIFT(psize))
 #define HUGEPD_MASK(psize)		(~(HUGEPD_SIZE(psize)-1))
-
-/* Subtract one from array size because we don't need a cache for 4K since
- * is not a huge page size */
-#define HUGE_PGTABLE_INDEX(psize)	(HUGEPTE_CACHE_NUM + psize - 1)
-#define HUGEPTE_CACHE_NAME(psize)	(huge_pgtable_cache_name[psize])
-
-static const char *huge_pgtable_cache_name[MMU_PAGE_COUNT] = {
-	[MMU_PAGE_64K]	= "hugepte_cache_64K",
-	[MMU_PAGE_1M]	= "hugepte_cache_1M",
-	[MMU_PAGE_16M]	= "hugepte_cache_16M",
-	[MMU_PAGE_16G]	= "hugepte_cache_16G",
-};
 
 /* Flag to mark huge PD pointers.  This means pmd_bad() and pud_bad()
  * will choke on pointers to hugepte tables, which is handy for
@@ -114,15 +102,15 @@ static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
 static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 			   unsigned long address, unsigned int psize)
 {
-	pte_t *new = kmem_cache_zalloc(pgtable_cache[HUGE_PGTABLE_INDEX(psize)],
-				      GFP_KERNEL|__GFP_REPEAT);
+	pte_t *new = kmem_cache_zalloc(PGT_CACHE(hugepte_shift[psize]),
+				       GFP_KERNEL|__GFP_REPEAT);
 
 	if (! new)
 		return -ENOMEM;
 
 	spin_lock(&mm->page_table_lock);
 	if (!hugepd_none(*hpdp))
-		kmem_cache_free(pgtable_cache[HUGE_PGTABLE_INDEX(psize)], new);
+		kmem_cache_free(PGT_CACHE(hugepte_shift[psize]), new);
 	else
 		hpdp->pd = (unsigned long)new | HUGEPD_OK;
 	spin_unlock(&mm->page_table_lock);
@@ -271,9 +259,7 @@ static void free_hugepte_range(struct mmu_gather *tlb, hugepd_t *hpdp,
 
 	hpdp->pd = 0;
 	tlb->need_flush = 1;
-	pgtable_free_tlb(tlb, pgtable_free_cache(hugepte,
-						 HUGEPTE_CACHE_NUM+psize-1,
-						 PGF_CACHENUM_MASK));
+	pgtable_free_tlb(tlb, hugepte, hugepte_shift[psize]);
 }
 
 static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
@@ -698,8 +684,6 @@ static void __init set_huge_psize(int psize)
 		if (mmu_huge_psizes[psize] ||
 		   mmu_psize_defs[psize].shift == PAGE_SHIFT)
 			return;
-		if (WARN_ON(HUGEPTE_CACHE_NAME(psize) == NULL))
-			return;
 		hugetlb_add_hstate(mmu_psize_defs[psize].shift - PAGE_SHIFT);
 
 		switch (mmu_psize_defs[psize].shift) {
@@ -753,9 +737,9 @@ static int __init hugetlbpage_init(void)
 	if (!cpu_has_feature(CPU_FTR_16M_PAGE))
 		return -ENODEV;
 
-	/* Add supported huge page sizes.  Need to change HUGE_MAX_HSTATE
-	 * and adjust PTE_NONCACHE_NUM if the number of supported huge page
-	 * sizes changes.
+	/* Add supported huge page sizes.  Need to change
+	 *  HUGE_MAX_HSTATE if the number of supported huge page sizes
+	 *  changes.
 	 */
 	set_huge_psize(MMU_PAGE_16M);
 	set_huge_psize(MMU_PAGE_16G);
@@ -769,16 +753,11 @@ static int __init hugetlbpage_init(void)
 
 	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
 		if (mmu_huge_psizes[psize]) {
-			pgtable_cache[HUGE_PGTABLE_INDEX(psize)] =
-				kmem_cache_create(
-					HUGEPTE_CACHE_NAME(psize),
-					HUGEPTE_TABLE_SIZE(psize),
-					HUGEPTE_TABLE_SIZE(psize),
-					0,
-					NULL);
-			if (!pgtable_cache[HUGE_PGTABLE_INDEX(psize)])
-				panic("hugetlbpage_init(): could not create %s"\
-				      "\n", HUGEPTE_CACHE_NAME(psize));
+			pgtable_cache_add(hugepte_shift[psize], NULL);
+			if (!PGT_CACHE(hugepte_shift[psize]))
+				panic("hugetlbpage_init(): could not create "
+				      "pgtable cache for %d bit pagesize\n",
+				      mmu_psize_to_shift(psize));
 		}
 	}
 
