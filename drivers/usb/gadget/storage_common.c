@@ -33,6 +33,20 @@
  * macro is defined prior to including this file.
  */
 
+/*
+ * When FSG_NO_INTR_EP is defined fsg_fs_intr_in_desc and
+ * fsg_hs_intr_in_desc objects as well as
+ * FSG_FS_FUNCTION_PRE_EP_ENTRIES and FSG_HS_FUNCTION_PRE_EP_ENTRIES
+ * macros are not defined.
+ *
+ * When FSG_NO_DEVICE_STRINGS is defined FSG_STRING_MANUFACTURER,
+ * FSG_STRING_PRODUCT, FSG_STRING_SERIAL and FSG_STRING_CONFIG are not
+ * defined (as well as corresponding entries in string tables are
+ * missing) and FSG_STRING_INTERFACE has value of zero.
+ *
+ * When FSG_NO_OTG is defined fsg_otg_desc won't be defined.
+ */
+
 
 #include <asm/unaligned.h>
 
@@ -327,14 +341,17 @@ static inline u32 get_unaligned_be24(u8 *buf)
 
 
 enum {
+#ifndef FSG_NO_DEVICE_STRINGS
 	FSG_STRING_MANUFACTURER	= 1,
 	FSG_STRING_PRODUCT,
 	FSG_STRING_SERIAL,
 	FSG_STRING_CONFIG,
+#endif
 	FSG_STRING_INTERFACE
 };
 
 
+#ifndef FSG_NO_OTG
 static struct usb_otg_descriptor
 fsg_otg_desc = {
 	.bLength =		sizeof fsg_otg_desc,
@@ -342,6 +359,7 @@ fsg_otg_desc = {
 
 	.bmAttributes =		USB_OTG_SRP,
 };
+#endif
 
 /* There is only one interface. */
 
@@ -380,6 +398,8 @@ fsg_fs_bulk_out_desc = {
 	/* wMaxPacketSize set by autoconfiguration */
 };
 
+#ifndef FSG_NO_INTR_EP
+
 static struct usb_endpoint_descriptor
 fsg_fs_intr_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
@@ -391,15 +411,26 @@ fsg_fs_intr_in_desc = {
 	.bInterval =		32,	// frames -> 32 ms
 };
 
+#ifndef FSG_NO_OTG
+#  define FSG_FS_FUNCTION_PRE_EP_ENTRIES	2
+#else
+#  define FSG_FS_FUNCTION_PRE_EP_ENTRIES	1
+#endif
+
+#endif
+
 static const struct usb_descriptor_header *fsg_fs_function[] = {
+#ifndef FSG_NO_OTG
 	(struct usb_descriptor_header *) &fsg_otg_desc,
+#endif
 	(struct usb_descriptor_header *) &fsg_intf_desc,
 	(struct usb_descriptor_header *) &fsg_fs_bulk_in_desc,
 	(struct usb_descriptor_header *) &fsg_fs_bulk_out_desc,
+#ifndef FSG_NO_INTR_EP
 	(struct usb_descriptor_header *) &fsg_fs_intr_in_desc,
+#endif
 	NULL,
 };
-#define FSG_FS_FUNCTION_PRE_EP_ENTRIES	2
 
 
 /*
@@ -431,6 +462,8 @@ fsg_hs_bulk_out_desc = {
 	.bInterval =		1,	// NAK every 1 uframe
 };
 
+#ifndef FSG_NO_INTR_EP
+
 static struct usb_endpoint_descriptor
 fsg_hs_intr_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
@@ -442,15 +475,26 @@ fsg_hs_intr_in_desc = {
 	.bInterval =		9,	// 2**(9-1) = 256 uframes -> 32 ms
 };
 
+#ifndef FSG_NO_OTG
+#  define FSG_HS_FUNCTION_PRE_EP_ENTRIES	2
+#else
+#  define FSG_HS_FUNCTION_PRE_EP_ENTRIES	1
+#endif
+
+#endif
+
 static const struct usb_descriptor_header *fsg_hs_function[] = {
+#ifndef FSG_NO_OTG
 	(struct usb_descriptor_header *) &fsg_otg_desc,
+#endif
 	(struct usb_descriptor_header *) &fsg_intf_desc,
 	(struct usb_descriptor_header *) &fsg_hs_bulk_in_desc,
 	(struct usb_descriptor_header *) &fsg_hs_bulk_out_desc,
+#ifndef FSG_NO_INTR_EP
 	(struct usb_descriptor_header *) &fsg_hs_intr_in_desc,
+#endif
 	NULL,
 };
-#define FSG_HS_FUNCTION_PRE_EP_ENTRIES	2
 
 /* Maxpacket and other transfer characteristics vary by speed. */
 static struct usb_endpoint_descriptor *
@@ -465,10 +509,12 @@ fsg_ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *fs,
 
 /* Static strings, in UTF-8 (for simplicity we use only ASCII characters) */
 static struct usb_string		fsg_strings[] = {
+#ifndef FSG_NO_DEVICE_STRINGS
 	{FSG_STRING_MANUFACTURER,	fsg_string_manufacturer},
 	{FSG_STRING_PRODUCT,		fsg_string_product},
 	{FSG_STRING_SERIAL,		fsg_string_serial},
 	{FSG_STRING_CONFIG,		fsg_string_config},
+#endif
 	{FSG_STRING_INTERFACE,		fsg_string_interface},
 	{}
 };
