@@ -723,7 +723,7 @@ bad:
  */
 void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 				   u64 off, u64 *plen,
-				   u64 *bno,
+				   u64 *ono,
 				   u64 *oxoff, u64 *oxlen)
 {
 	u32 osize = le32_to_cpu(layout->fl_object_size);
@@ -750,11 +750,14 @@ void ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 	stripepos = bl % sc;
 	objsetno = stripeno / su_per_object;
 
-	*bno = objsetno * sc + stripepos;
-	dout("objset %u * sc %u = bno %u\n", objsetno, sc, (unsigned)*bno);
-	/* *oxoff = *off % layout->fl_stripe_unit; */
+	*ono = objsetno * sc + stripepos;
+	dout("objset %u * sc %u = ono %u\n", objsetno, sc, (unsigned)*ono);
+
+	/* *oxoff = *off % layout->fl_stripe_unit;  # offset in su */
 	t = off;
 	*oxoff = do_div(t, su);
+	*oxoff += (stripeno % su_per_object) * su;
+
 	*oxlen = min_t(u64, *plen, su - *oxoff);
 	*plen = *oxlen;
 
