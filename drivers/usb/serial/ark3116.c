@@ -528,32 +528,27 @@ static int ark3116_ioctl(struct tty_struct *tty, struct file *file,
 static int ark3116_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct usb_serial *serial = port->serial;
-	char *buf;
-	char temp;
+	struct ark3116_private *priv = usb_get_serial_port_data(port);
+	__u32 status;
+	__u32 ctrl;
+	unsigned long flags;
 
-	/* seems like serial port status info (RTS, CTS, ...) is stored
-	 * in reg(?) 0x0006
-	 * pcb connection point 11 = GND -> sets bit4 of response
-	 * pcb connection point  7 = GND -> sets bit6 of response
-	 */
+	mutex_lock(&priv->hw_lock);
+	ctrl = priv->mcr;
+	mutex_unlock(&priv->hw_lock);
 
-	buf = kmalloc(1, GFP_KERNEL);
-	if (!buf) {
-		dbg("error kmalloc");
-		return -ENOMEM;
-	}
+	spin_lock_irqsave(&priv->status_lock, flags);
+	status = priv->msr;
+	spin_unlock_irqrestore(&priv->status_lock, flags);
 
-	/* read register */
-	ARK3116_RCV_QUIET(serial, 0xFE, 0xC0, 0x0000, 0x0006, buf);
-	temp = buf[0];
-	kfree(buf);
-
-	/* i do not really know if bit4=CTS and bit6=DSR... just a
-	 * quick guess!
-	 */
-	return (temp & (1<<4) ? TIOCM_CTS : 0)
-	       | (temp & (1<<6) ? TIOCM_DSR : 0);
+	return  (status & UART_MSR_DSR  ? TIOCM_DSR  : 0) |
+		(status & UART_MSR_CTS  ? TIOCM_CTS  : 0) |
+		(status & UART_MSR_RI   ? TIOCM_RI   : 0) |
+		(status & UART_MSR_DCD  ? TIOCM_CD   : 0) |
+		(ctrl   & UART_MCR_DTR  ? TIOCM_DTR  : 0) |
+		(ctrl   & UART_MCR_RTS  ? TIOCM_RTS  : 0) |
+		(ctrl   & UART_MCR_OUT1 ? TIOCM_OUT1 : 0) |
+		(ctrl   & UART_MCR_OUT2 ? TIOCM_OUT2 : 0);
 }
 
 static struct usb_driver ark3116_driver = {
