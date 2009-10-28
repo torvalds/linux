@@ -346,11 +346,13 @@ static void print_unreferenced(struct seq_file *seq,
 			       struct kmemleak_object *object)
 {
 	int i;
+	unsigned int msecs_age = jiffies_to_msecs(jiffies - object->jiffies);
 
 	seq_printf(seq, "unreferenced object 0x%08lx (size %zu):\n",
 		   object->pointer, object->size);
-	seq_printf(seq, "  comm \"%s\", pid %d, jiffies %lu\n",
-		   object->comm, object->pid, object->jiffies);
+	seq_printf(seq, "  comm \"%s\", pid %d, jiffies %lu (age %d.%03ds)\n",
+		   object->comm, object->pid, object->jiffies,
+		   msecs_age / 1000, msecs_age % 1000);
 	hex_dump_object(seq, object);
 	seq_printf(seq, "  backtrace:\n");
 
