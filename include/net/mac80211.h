@@ -494,7 +494,6 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_MMIC_ERROR: Michael MIC error was reported on this frame.
  *	Use together with %RX_FLAG_MMIC_STRIPPED.
  * @RX_FLAG_DECRYPTED: This frame was decrypted in hardware.
- * @RX_FLAG_RADIOTAP: This frame starts with a radiotap header.
  * @RX_FLAG_MMIC_STRIPPED: the Michael MIC is stripped off this frame,
  *	verification has been done by the hardware.
  * @RX_FLAG_IV_STRIPPED: The IV/ICV are stripped from this frame.
@@ -515,7 +514,6 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
 	RX_FLAG_DECRYPTED	= 1<<1,
-	RX_FLAG_RADIOTAP	= 1<<2,
 	RX_FLAG_MMIC_STRIPPED	= 1<<3,
 	RX_FLAG_IV_STRIPPED	= 1<<4,
 	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
@@ -565,7 +563,9 @@ struct ieee80211_rx_status {
  *
  * Flags to define PHY configuration options
  *
- * @IEEE80211_CONF_RADIOTAP: add radiotap header at receive time (if supported)
+ * @IEEE80211_CONF_MONITOR: there's a monitor interface present -- use this
+ *	to determine for example whether to calculate timestamps for packets
+ *	or not, do not use instead of filter flags!
  * @IEEE80211_CONF_PS: Enable 802.11 power save mode (managed mode only)
  * @IEEE80211_CONF_IDLE: The device is running, but idle; if the flag is set
  *	the driver should be prepared to handle configuration requests but
@@ -574,7 +574,7 @@ struct ieee80211_rx_status {
  *	it can also be unset in that case when monitor interfaces are active.
  */
 enum ieee80211_conf_flags {
-	IEEE80211_CONF_RADIOTAP		= (1<<0),
+	IEEE80211_CONF_MONITOR		= (1<<0),
 	IEEE80211_CONF_PS		= (1<<1),
 	IEEE80211_CONF_IDLE		= (1<<2),
 };
@@ -584,7 +584,7 @@ enum ieee80211_conf_flags {
  * enum ieee80211_conf_changed - denotes which configuration changed
  *
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
- * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
+ * @IEEE80211_CONF_CHANGE_MONITOR: the monitor flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag or dynamic PS timeout changed
  * @IEEE80211_CONF_CHANGE_POWER: the TX power changed
  * @IEEE80211_CONF_CHANGE_CHANNEL: the channel/channel_type changed
@@ -593,7 +593,7 @@ enum ieee80211_conf_flags {
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
-	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
+	IEEE80211_CONF_CHANGE_MONITOR		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
 	IEEE80211_CONF_CHANGE_POWER		= BIT(5),
 	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
@@ -1661,8 +1661,7 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw);
  * ieee80211_rx - receive frame
  *
  * Use this function to hand received frames to mac80211. The receive
- * buffer in @skb must start with an IEEE 802.11 header or a radiotap
- * header if %RX_FLAG_RADIOTAP is set in the @status flags.
+ * buffer in @skb must start with an IEEE 802.11 header.
  *
  * This function may not be called in IRQ context. Calls to this function
  * for a single hardware must be synchronized against each other. Calls to
