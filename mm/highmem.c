@@ -426,9 +426,9 @@ void __init page_address_init(void)
 
 void debug_kmap_atomic(enum km_type type)
 {
-	static unsigned warn_count = 10;
+	static int warn_count = 10;
 
-	if (unlikely(warn_count == 0))
+	if (unlikely(warn_count < 0))
 		return;
 
 	if (unlikely(in_interrupt())) {
