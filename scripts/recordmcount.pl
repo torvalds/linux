@@ -350,15 +350,11 @@ sub update_funcs
 {
     return unless ($ref_func and @offsets);
 
-    # A section only had a weak function, to represent it.
-    # Unfortunately, a weak function may be overwritten by another
-    # function of the same name, making all these offsets incorrect.
-    # To be safe, we simply print a warning and bail.
+    # Sanity check on weak function. A weak function may be overwritten by
+    # another function of the same name, making all these offsets incorrect.
     if (defined $weak{$ref_func}) {
-	print STDERR
-	    "$inputfile: WARNING: referencing weak function" .
+	die "$inputfile: ERROR: referencing weak function" .
 	    " $ref_func for mcount\n";
-	return;
     }
 
     # is this function static? If so, note this fact.
