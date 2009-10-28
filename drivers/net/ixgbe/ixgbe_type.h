@@ -1539,6 +1539,16 @@
 #define IXGBE_FW_PASSTHROUGH_PATCH_CONFIG_PTR   0x4
 #define IXGBE_FW_PATCH_VERSION_4   0x7
 
+/* Alternative SAN MAC Address Block */
+#define IXGBE_ALT_SAN_MAC_ADDR_BLK_PTR      0x27 /* Alt. SAN MAC block */
+#define IXGBE_ALT_SAN_MAC_ADDR_CAPS_OFFSET  0x0 /* Alt. SAN MAC capability */
+#define IXGBE_ALT_SAN_MAC_ADDR_PORT0_OFFSET 0x1 /* Alt. SAN MAC 0 offset */
+#define IXGBE_ALT_SAN_MAC_ADDR_PORT1_OFFSET 0x4 /* Alt. SAN MAC 1 offset */
+#define IXGBE_ALT_SAN_MAC_ADDR_WWNN_OFFSET  0x7 /* Alt. WWNN prefix offset */
+#define IXGBE_ALT_SAN_MAC_ADDR_WWPN_OFFSET  0x8 /* Alt. WWPN prefix offset */
+#define IXGBE_ALT_SAN_MAC_ADDR_CAPS_SANMAC  0x0 /* Alt. SAN MAC exists */
+#define IXGBE_ALT_SAN_MAC_ADDR_CAPS_ALTWWN  0x1 /* Alt. WWN base exists */
+
 /* PCI Bus Info */
 #define IXGBE_PCI_LINK_STATUS     0xB2
 #define IXGBE_PCI_DEVICE_CONTROL2 0xC8
@@ -2345,6 +2355,7 @@ struct ixgbe_mac_operations {
 	s32 (*get_mac_addr)(struct ixgbe_hw *, u8 *);
 	s32 (*get_san_mac_addr)(struct ixgbe_hw *, u8 *);
 	s32 (*get_device_caps)(struct ixgbe_hw *, u16 *);
+	s32 (*get_wwn_prefix)(struct ixgbe_hw *, u16 *, u16 *);
 	s32 (*stop_adapter)(struct ixgbe_hw *);
 	s32 (*get_bus_info)(struct ixgbe_hw *);
 	void (*set_lan_id)(struct ixgbe_hw *);
@@ -2416,6 +2427,10 @@ struct ixgbe_mac_info {
 	u8                              addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
 	u8                              perm_addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
 	u8                              san_addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
+	/* prefix for World Wide Node Name (WWNN) */
+	u16                             wwnn_prefix;
+	/* prefix for World Wide Port Name (WWPN) */
+	u16                             wwpn_prefix;
 	s32                             mc_filter_type;
 	u32                             mcft_size;
 	u32                             vft_size;

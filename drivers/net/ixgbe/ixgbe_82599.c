@@ -1000,6 +1000,10 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 		hw->mac.num_rar_entries--;
 	}
 
+	/* Store the alternative WWNN/WWPN prefix */
+	hw->mac.ops.get_wwn_prefix(hw, &hw->mac.wwnn_prefix,
+	                               &hw->mac.wwpn_prefix);
+
 reset_hw_out:
 	return status;
 }
@@ -2536,6 +2540,51 @@ fw_version_out:
 	return status;
 }
 
+/**
+ *  ixgbe_get_wwn_prefix_82599 - Get alternative WWNN/WWPN prefix from
+ *  the EEPROM
+ *  @hw: pointer to hardware structure
+ *  @wwnn_prefix: the alternative WWNN prefix
+ *  @wwpn_prefix: the alternative WWPN prefix
+ *
+ *  This function will read the EEPROM from the alternative SAN MAC address
+ *  block to check the support for the alternative WWNN/WWPN prefix support.
+ **/
+static s32 ixgbe_get_wwn_prefix_82599(struct ixgbe_hw *hw, u16 *wwnn_prefix,
+                                      u16 *wwpn_prefix)
+{
+	u16 offset, caps;
+	u16 alt_san_mac_blk_offset;
+
+	/* clear output first */
+	*wwnn_prefix = 0xFFFF;
+	*wwpn_prefix = 0xFFFF;
+
+	/* check if alternative SAN MAC is supported */
+	hw->eeprom.ops.read(hw, IXGBE_ALT_SAN_MAC_ADDR_BLK_PTR,
+	                    &alt_san_mac_blk_offset);
+
+	if ((alt_san_mac_blk_offset == 0) ||
+	    (alt_san_mac_blk_offset == 0xFFFF))
+		goto wwn_prefix_out;
+
+	/* check capability in alternative san mac address block */
+	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_CAPS_OFFSET;
+	hw->eeprom.ops.read(hw, offset, &caps);
+	if (!(caps & IXGBE_ALT_SAN_MAC_ADDR_CAPS_ALTWWN))
+		goto wwn_prefix_out;
+
+	/* get the corresponding prefix for WWNN/WWPN */
+	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_WWNN_OFFSET;
+	hw->eeprom.ops.read(hw, offset, wwnn_prefix);
+
+	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_WWPN_OFFSET;
+	hw->eeprom.ops.read(hw, offset, wwpn_prefix);
+
+wwn_prefix_out:
+	return 0;
+}
+
 static struct ixgbe_mac_operations mac_ops_82599 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_82599,
@@ -2547,6 +2596,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
 	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_82599,
 	.get_device_caps        = &ixgbe_get_device_caps_82599,
+	.get_wwn_prefix         = &ixgbe_get_wwn_prefix_82599,
 	.stop_adapter           = &ixgbe_stop_adapter_generic,
 	.get_bus_info           = &ixgbe_get_bus_info_generic,
 	.set_lan_id             = &ixgbe_set_lan_id_multi_port_pcie,
