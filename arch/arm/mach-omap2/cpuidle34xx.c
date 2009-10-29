@@ -71,19 +71,19 @@ struct powerdomain *mpu_pd, *core_pd;
  */
 static struct cpuidle_params cpuidle_params_table[] = {
 	/* C1 */
-	{2, 2, 5},
+	{1, 2, 2, 5},
 	/* C2 */
-	{10, 10, 30},
+	{1, 10, 10, 30},
 	/* C3 */
-	{50, 50, 300},
+	{1, 50, 50, 300},
 	/* C4 */
-	{1500, 1800, 4000},
+	{1, 1500, 1800, 4000},
 	/* C5 */
-	{2500, 7500, 12000},
+	{1, 2500, 7500, 12000},
 	/* C6 */
-	{3000, 8500, 15000},
+	{1, 3000, 8500, 15000},
 	/* C7 */
-	{10000, 30000, 300000},
+	{1, 10000, 30000, 300000},
 };
 
 static int omap3_idle_bm_check(void)
@@ -277,6 +277,8 @@ void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params)
 		return;
 
 	for (i = OMAP3_STATE_C1; i < OMAP3_MAX_STATES; i++) {
+		cpuidle_params_table[i].valid =
+			cpuidle_board_params[i].valid;
 		cpuidle_params_table[i].sleep_latency =
 			cpuidle_board_params[i].sleep_latency;
 		cpuidle_params_table[i].wake_latency =
@@ -301,7 +303,8 @@ void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params)
 void omap_init_power_states(void)
 {
 	/* C1 . MPU WFI + Core active */
-	omap3_power_states[OMAP3_STATE_C1].valid = 1;
+	omap3_power_states[OMAP3_STATE_C1].valid =
+			cpuidle_params_table[OMAP3_STATE_C1].valid;
 	omap3_power_states[OMAP3_STATE_C1].type = OMAP3_STATE_C1;
 	omap3_power_states[OMAP3_STATE_C1].sleep_latency =
 			cpuidle_params_table[OMAP3_STATE_C1].sleep_latency;
@@ -314,7 +317,8 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C1].flags = CPUIDLE_FLAG_TIME_VALID;
 
 	/* C2 . MPU WFI + Core inactive */
-	omap3_power_states[OMAP3_STATE_C2].valid = 1;
+	omap3_power_states[OMAP3_STATE_C2].valid =
+			cpuidle_params_table[OMAP3_STATE_C2].valid;
 	omap3_power_states[OMAP3_STATE_C2].type = OMAP3_STATE_C2;
 	omap3_power_states[OMAP3_STATE_C2].sleep_latency =
 			cpuidle_params_table[OMAP3_STATE_C2].sleep_latency;
@@ -327,7 +331,8 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C2].flags = CPUIDLE_FLAG_TIME_VALID;
 
 	/* C3 . MPU CSWR + Core inactive */
-	omap3_power_states[OMAP3_STATE_C3].valid = 1;
+	omap3_power_states[OMAP3_STATE_C3].valid =
+			cpuidle_params_table[OMAP3_STATE_C3].valid;
 	omap3_power_states[OMAP3_STATE_C3].type = OMAP3_STATE_C3;
 	omap3_power_states[OMAP3_STATE_C3].sleep_latency =
 			cpuidle_params_table[OMAP3_STATE_C3].sleep_latency;
@@ -341,7 +346,8 @@ void omap_init_power_states(void)
 				CPUIDLE_FLAG_CHECK_BM;
 
 	/* C4 . MPU OFF + Core inactive */
-	omap3_power_states[OMAP3_STATE_C4].valid = 1;
+	omap3_power_states[OMAP3_STATE_C4].valid =
+			cpuidle_params_table[OMAP3_STATE_C4].valid;
 	omap3_power_states[OMAP3_STATE_C4].type = OMAP3_STATE_C4;
 	omap3_power_states[OMAP3_STATE_C4].sleep_latency =
 			cpuidle_params_table[OMAP3_STATE_C4].sleep_latency;
@@ -355,7 +361,8 @@ void omap_init_power_states(void)
 				CPUIDLE_FLAG_CHECK_BM;
 
 	/* C5 . MPU CSWR + Core CSWR*/
-	omap3_power_states[OMAP3_STATE_C5].valid = 1;
+	omap3_power_states[OMAP3_STATE_C5].valid =
+			cpuidle_params_table[OMAP3_STATE_C5].valid;
 	omap3_power_states[OMAP3_STATE_C5].type = OMAP3_STATE_C5;
 	omap3_power_states[OMAP3_STATE_C5].sleep_latency =
 			cpuidle_params_table[OMAP3_STATE_C5].sleep_latency;
@@ -369,7 +376,8 @@ void omap_init_power_states(void)
 				CPUIDLE_FLAG_CHECK_BM;
 
 	/* C6 . MPU OFF + Core CSWR */
-	omap3_power_states[OMAP3_STATE_C6].valid = 1;
+	omap3_power_states[OMAP3_STATE_C6].valid =
+			cpuidle_params_table[OMAP3_STATE_C6].valid;
 	omap3_power_states[OMAP3_STATE_C6].type = OMAP3_STATE_C6;
 	omap3_power_states[OMAP3_STATE_C6].sleep_latency =
 			cpuidle_params_table[OMAP3_STATE_C6].sleep_latency;
@@ -383,7 +391,8 @@ void omap_init_power_states(void)
 				CPUIDLE_FLAG_CHECK_BM;
 
 	/* C7 . MPU OFF + Core OFF */
-	omap3_power_states[OMAP3_STATE_C7].valid = 1;
+	omap3_power_states[OMAP3_STATE_C7].valid =
+			cpuidle_params_table[OMAP3_STATE_C7].valid;
 	omap3_power_states[OMAP3_STATE_C7].type = OMAP3_STATE_C7;
 	omap3_power_states[OMAP3_STATE_C7].sleep_latency =
 			cpuidle_params_table[OMAP3_STATE_C7].sleep_latency;
