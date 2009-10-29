@@ -26,7 +26,6 @@ static struct sclp_async_sccb *sccb;
 static int sclp_async_send_wait(char *message);
 static struct ctl_table_header *callhome_sysctl_header;
 static DEFINE_SPINLOCK(sclp_async_lock);
-static char nodename[64];
 #define SCLP_NORMAL_WRITE	0x00
 
 struct async_evbuf {
@@ -52,9 +51,10 @@ static struct sclp_register sclp_async_register = {
 static int call_home_on_panic(struct notifier_block *self,
 			      unsigned long event, void *data)
 {
-		strncat(data, nodename, strlen(nodename));
-		sclp_async_send_wait(data);
-		return NOTIFY_DONE;
+	strncat(data, init_utsname()->nodename,
+		sizeof(init_utsname()->nodename));
+	sclp_async_send_wait(data);
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block call_home_panic_nb = {
@@ -183,10 +183,8 @@ static int __init sclp_async_init(void)
 		goto out_mem;
 	rc = atomic_notifier_chain_register(&panic_notifier_list,
 					    &call_home_panic_nb);
-	if (rc)
-		goto out_mem;
-	strncpy(nodename, init_utsname()->nodename, 64);
-	goto out;
+	if (!rc)
+		goto out;
 out_mem:
 	kfree(request);
 	free_page((unsigned long) sccb);
