@@ -31,6 +31,7 @@
 #include <plat/usb.h>
 
 #include "mux.h"
+#include "pm.h"
 
 #define RX51_GPIO_SLEEP_IND 162
 
@@ -54,6 +55,23 @@ static struct platform_device leds_gpio = {
 	.dev	= {
 		.platform_data	= &gpio_led_info,
 	},
+};
+
+static struct cpuidle_params rx51_cpuidle_params[] = {
+	/* C1 */
+	{1, 110, 162, 5},
+	/* C2 */
+	{1, 106, 180, 309},
+	/* C3 */
+	{0, 107, 410, 46057},
+	/* C4 */
+	{0, 121, 3374, 46057},
+	/* C5 */
+	{1, 855, 1146, 46057},
+	/* C6 */
+	{0, 7580, 4134, 484329},
+	/* C7 */
+	{1, 7505, 15274, 484329},
 };
 
 static struct omap_lcd_config rx51_lcd_config = {
@@ -85,6 +103,7 @@ static void __init rx51_init_irq(void)
 
 	omap_board_config = rx51_config;
 	omap_board_config_size = ARRAY_SIZE(rx51_config);
+	omap3_pm_init_cpuidle(rx51_cpuidle_params);
 	sdrc_params = rx51_get_sdram_timings();
 	omap2_init_common_hw(sdrc_params, sdrc_params);
 	omap_init_irq();
