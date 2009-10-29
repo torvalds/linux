@@ -1449,6 +1449,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"ADC Virtual Left2", NULL, "TX2 Capture Route"},
 	{"ADC Virtual Right2", NULL, "TX2 Capture Route"},
 
+	{"ADC Virtual Left1", NULL, "APLL Enable"},
+	{"ADC Virtual Right1", NULL, "APLL Enable"},
+	{"ADC Virtual Left2", NULL, "APLL Enable"},
+	{"ADC Virtual Right2", NULL, "APLL Enable"},
+
 	/* Analog bypass routes */
 	{"Right1 Analog Loopback", "Switch", "Analog Right"},
 	{"Left1 Analog Loopback", "Switch", "Analog Left"},
