@@ -95,8 +95,7 @@ static inline void flush_cache_one(unsigned long start, unsigned long phys)
 		exec_offset = cached_to_uncached;
 
 	local_irq_save(flags);
-	__flush_cache_one(start | SH_CACHE_ASSOC,
-			  virt_to_phys(phys), exec_offset);
+	__flush_cache_one(start | SH_CACHE_ASSOC, phys, exec_offset);
 	local_irq_restore(flags);
 }
 
