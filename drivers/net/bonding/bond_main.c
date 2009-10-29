@@ -5089,14 +5089,6 @@ int bond_create(const char *name)
 	int res;
 
 	rtnl_lock();
-	/* Check to see if the bond already exists. */
-	/* FIXME: pass netns from caller */
-	if (name && __dev_get_by_name(&init_net, name)) {
-		pr_err(DRV_NAME ": cannot add bond %s; already exists\n",
-		       name);
-		res = -EEXIST;
-		goto out_rtnl;
-	}
 
 	bond_dev = alloc_netdev(sizeof(struct bonding), name ? name : "",
 				bond_setup);
@@ -5104,7 +5096,7 @@ int bond_create(const char *name)
 		pr_err(DRV_NAME ": %s: eek! can't alloc netdev!\n",
 		       name);
 		res = -ENOMEM;
-		goto out_rtnl;
+		goto out;
 	}
 
 	if (!name) {
@@ -5114,19 +5106,13 @@ int bond_create(const char *name)
 	}
 
 	res = register_netdevice(bond_dev);
-	if (res < 0)
-		goto out_bond;
 
-	rtnl_unlock();
-	return 0;
-
-out_bond:
-	bond_deinit(bond_dev);
-out_netdev:
-	free_netdev(bond_dev);
-out_rtnl:
+out:
 	rtnl_unlock();
 	return res;
+out_netdev:
+	free_netdev(bond_dev);
+	goto out;
 }
 
 static int __init bonding_init(void)
