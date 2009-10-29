@@ -92,6 +92,8 @@ static void add_conn(struct work_struct *work)
 
 	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
 
+	dev_set_drvdata(&conn->dev, conn);
+
 	if (device_add(&conn->dev) < 0) {
 		BT_ERR("Failed to register connection device");
 		return;
@@ -143,8 +145,6 @@ void hci_conn_init_sysfs(struct hci_conn *conn)
 	conn->dev.type = &bt_link;
 	conn->dev.class = bt_class;
 	conn->dev.parent = &hdev->dev;
-
-	dev_set_drvdata(&conn->dev, conn);
 
 	device_initialize(&conn->dev);
 

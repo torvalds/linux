@@ -9,6 +9,7 @@
 
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/rtnetlink.h>
 
 /*
  * General definitions...
@@ -135,9 +136,9 @@ enum {
 	RST_FO_TFO = (1 << 0),
 	RST_FO_RR_MASK = 0x00060000,
 	RST_FO_RR_CQ_CAM = 0x00000000,
-	RST_FO_RR_DROP = 0x00000001,
-	RST_FO_RR_DQ = 0x00000002,
-	RST_FO_RR_RCV_FUNC_CQ = 0x00000003,
+	RST_FO_RR_DROP = 0x00000002,
+	RST_FO_RR_DQ = 0x00000004,
+	RST_FO_RR_RCV_FUNC_CQ = 0x00000006,
 	RST_FO_FRB = (1 << 12),
 	RST_FO_MOP = (1 << 13),
 	RST_FO_REG = (1 << 14),
@@ -802,6 +803,12 @@ enum {
 	MB_CMD_SET_PORT_CFG = 0x00000122,
 	MB_CMD_GET_PORT_CFG = 0x00000123,
 	MB_CMD_GET_LINK_STS = 0x00000124,
+	MB_CMD_SET_MGMNT_TFK_CTL = 0x00000160, /* Set Mgmnt Traffic Control */
+	MB_SET_MPI_TFK_STOP = (1 << 0),
+	MB_SET_MPI_TFK_RESUME = (1 << 1),
+	MB_CMD_GET_MGMNT_TFK_CTL = 0x00000161, /* Get Mgmnt Traffic Control */
+	MB_GET_MPI_TFK_STOPPED = (1 << 0),
+	MB_GET_MPI_TFK_FIFO_EMPTY = (1 << 1),
 
 	/* Mailbox Command Status. */
 	MB_CMD_STS_GOOD = 0x00004000,	/* Success. */
@@ -1167,7 +1174,7 @@ struct ricb {
 #define RSS_RI6 0x40
 #define RSS_RT6 0x80
 	__le16 mask;
-	__le32 hash_cq_id[256];
+	u8 hash_cq_id[1024];
 	__le32 ipv6_hash_key[10];
 	__le32 ipv4_hash_key[4];
 } __attribute((packed));
@@ -1477,7 +1484,6 @@ struct ql_adapter {
 	u32 mailbox_in;
 	u32 mailbox_out;
 	struct mbox_params idc_mbc;
-	struct mutex	mpi_mutex;
 
 	int tx_ring_size;
 	int rx_ring_size;
@@ -1606,6 +1612,8 @@ int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data);
 int ql_mb_about_fw(struct ql_adapter *qdev);
 void ql_link_on(struct ql_adapter *qdev);
 void ql_link_off(struct ql_adapter *qdev);
+int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control);
+int ql_wait_fifo_empty(struct ql_adapter *qdev);
 
 #if 1
 #define QL_ALL_DUMP

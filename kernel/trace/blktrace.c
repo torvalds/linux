@@ -856,6 +856,37 @@ static void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
 }
 
 /**
+ * blk_add_trace_rq_remap - Add a trace for a request-remap operation
+ * @q:		queue the io is for
+ * @rq:		the source request
+ * @dev:	target device
+ * @from:	source sector
+ *
+ * Description:
+ *     Device mapper remaps request to other devices.
+ *     Add a trace for that action.
+ *
+ **/
+static void blk_add_trace_rq_remap(struct request_queue *q,
+				   struct request *rq, dev_t dev,
+				   sector_t from)
+{
+	struct blk_trace *bt = q->blk_trace;
+	struct blk_io_trace_remap r;
+
+	if (likely(!bt))
+		return;
+
+	r.device_from = cpu_to_be32(dev);
+	r.device_to   = cpu_to_be32(disk_devt(rq->rq_disk));
+	r.sector_from = cpu_to_be64(from);
+
+	__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq),
+			rq_data_dir(rq), BLK_TA_REMAP, !!rq->errors,
+			sizeof(r), &r);
+}
+
+/**
  * blk_add_driver_data - Add binary message with driver-specific data
  * @q:		queue the io is for
  * @rq:		io request
@@ -922,10 +953,13 @@ static void blk_register_tracepoints(void)
 	WARN_ON(ret);
 	ret = register_trace_block_remap(blk_add_trace_remap);
 	WARN_ON(ret);
+	ret = register_trace_block_rq_remap(blk_add_trace_rq_remap);
+	WARN_ON(ret);
 }
 
 static void blk_unregister_tracepoints(void)
 {
+	unregister_trace_block_rq_remap(blk_add_trace_rq_remap);
 	unregister_trace_block_remap(blk_add_trace_remap);
 	unregister_trace_block_split(blk_add_trace_split);
 	unregister_trace_block_unplug_io(blk_add_trace_unplug_io);
@@ -1655,6 +1689,11 @@ out:
 int blk_trace_init_sysfs(struct device *dev)
 {
 	return sysfs_create_group(&dev->kobj, &blk_trace_attr_group);
+}
+
+void blk_trace_remove_sysfs(struct device *dev)
+{
+	sysfs_remove_group(&dev->kobj, &blk_trace_attr_group);
 }
 
 #endif /* CONFIG_BLK_DEV_IO_TRACE */

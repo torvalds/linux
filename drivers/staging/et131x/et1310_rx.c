@@ -1177,12 +1177,20 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 
 static inline u32 bump_fbr(u32 *fbr, u32 limit)
 {
-	u32 v = *fbr;
-	add_10bit(&v, 1);
-	if (v > limit)
-		v = (*fbr & ~ET_DMA10_MASK) ^ ET_DMA10_WRAP;
-	*fbr = v;
-	return v;
+        u32 v = *fbr;
+        v++;
+        /* This works for all cases where limit < 1024. The 1023 case
+           works because 1023++ is 1024 which means the if condition is not
+           taken but the carry of the bit into the wrap bit toggles the wrap
+           value correctly */
+        if ((v & ET_DMA10_MASK) > limit) {
+                v &= ~ET_DMA10_MASK;
+                v ^= ET_DMA10_WRAP;
+        }
+        /* For the 1023 case */
+        v &= (ET_DMA10_MASK|ET_DMA10_WRAP);
+        *fbr = v;
+        return v;
 }
 
 /**

@@ -184,11 +184,6 @@ static DEFINE_SPINLOCK(ksm_mmlist_lock);
 		sizeof(struct __struct), __alignof__(struct __struct),\
 		(__flags), NULL)
 
-static void __init ksm_init_max_kernel_pages(void)
-{
-	ksm_max_kernel_pages = nr_free_buffer_pages() / 4;
-}
-
 static int __init ksm_slab_init(void)
 {
 	rmap_item_cache = KSM_KMEM_CACHE(rmap_item, 0);
@@ -1673,7 +1668,7 @@ static int __init ksm_init(void)
 	struct task_struct *ksm_thread;
 	int err;
 
-	ksm_init_max_kernel_pages();
+	ksm_max_kernel_pages = totalram_pages / 4;
 
 	err = ksm_slab_init();
 	if (err)
@@ -1697,6 +1692,9 @@ static int __init ksm_init(void)
 		kthread_stop(ksm_thread);
 		goto out_free2;
 	}
+#else
+	ksm_run = KSM_RUN_MERGE;	/* no way for user to start it */
+
 #endif /* CONFIG_SYSFS */
 
 	return 0;

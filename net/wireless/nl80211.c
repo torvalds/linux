@@ -4029,7 +4029,7 @@ static int nl80211_wiphy_netns(struct sk_buff *skb, struct genl_info *info)
 	rdev = cfg80211_get_dev_from_info(info);
 	if (IS_ERR(rdev)) {
 		err = PTR_ERR(rdev);
-		goto out;
+		goto out_rtnl;
 	}
 
 	net = get_net_ns_by_pid(pid);
@@ -4049,6 +4049,7 @@ static int nl80211_wiphy_netns(struct sk_buff *skb, struct genl_info *info)
 	put_net(net);
  out:
 	cfg80211_unlock_rdev(rdev);
+ out_rtnl:
 	rtnl_unlock();
 	return err;
 }

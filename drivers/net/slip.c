@@ -67,6 +67,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/bitops.h>
+#include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>

@@ -64,14 +64,14 @@ be used to view the printk buffer of a remote machine, even with live update.
 
 Bernhard Kaindl enhanced firescope to support accessing 64-bit machines
 from 32-bit firescope and vice versa:
-- ftp://ftp.suse.de/private/bk/firewire/tools/firescope-0.2.2.tar.bz2
+- http://halobates.de/firewire/firescope-0.2.2.tar.bz2
 
 and he implemented fast system dump (alpha version - read README.txt):
-- ftp://ftp.suse.de/private/bk/firewire/tools/firedump-0.1.tar.bz2
+- http://halobates.de/firewire/firedump-0.1.tar.bz2
 
 There is also a gdb proxy for firewire which allows to use gdb to access
 data which can be referenced from symbols found by gdb in vmlinux:
-- ftp://ftp.suse.de/private/bk/firewire/tools/fireproxy-0.33.tar.bz2
+- http://halobates.de/firewire/fireproxy-0.33.tar.bz2
 
 The latest version of this gdb proxy (fireproxy-0.34) can communicate (not
 yet stable) with kgdb over an memory-based communication module (kgdbom).
@@ -178,7 +178,7 @@ Step-by-step instructions for using firescope with early OHCI initialization:
 
 Notes
 -----
-Documentation and specifications: ftp://ftp.suse.de/private/bk/firewire/docs
+Documentation and specifications: http://halobates.de/firewire/
 
 FireWire is a trademark of Apple Inc. - for more information please refer to:
 http://en.wikipedia.org/wiki/FireWire

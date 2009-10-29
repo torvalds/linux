@@ -247,6 +247,13 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	}
 
 	/*
+	 * Put vDSO base into mm struct. We need to do this before calling
+	 * install_special_mapping or the perf counter mmap tracking code
+	 * will fail to recognise it as a vDSO (since arch_vma_name fails).
+	 */
+	current->mm->context.vdso_base = vdso_base;
+
+	/*
 	 * our vma flags don't have VM_WRITE so by default, the process
 	 * isn't allowed to write those pages.
 	 * gdb can break that with ptrace interface, and thus trigger COW
@@ -267,14 +274,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 				     VM_ALWAYSDUMP,
 				     vdso_pagelist);
 	if (rc)
-		goto out_up;
-
-	/* Put vDSO base into mm struct */
-	current->mm->context.vdso_base = vdso_base;
-
-	up_write(&mm->mmap_sem);
-	return 0;
-
+		current->mm->context.vdso_base = 0;
 out_up:
 	up_write(&mm->mmap_sem);
 	return rc;

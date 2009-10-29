@@ -921,6 +921,11 @@ config HAVE_PERF_EVENTS
 	help
 	  See tools/perf/design.txt for details.
 
+config PERF_USE_VMALLOC
+	bool
+	help
+	  See tools/perf/design.txt for details
+
 menu "Kernel Performance Events And Counters"
 
 config PERF_EVENTS
@@ -975,6 +980,19 @@ config PERF_COUNTERS
 	  it or not, it is a compatibility placeholder.
 
 	  Say N if unsure.
+
+config DEBUG_PERF_USE_VMALLOC
+	default n
+	bool "Debug: use vmalloc to back perf mmap() buffers"
+	depends on PERF_EVENTS && DEBUG_KERNEL
+	select PERF_USE_VMALLOC
+	help
+	 Use vmalloc memory to back perf mmap() buffers.
+
+	 Mostly useful for debugging the vmalloc code on platforms
+	 that don't require it.
+
+	 Say N if unsure.
 
 endmenu
 

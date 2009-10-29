@@ -106,24 +106,33 @@ void radeon_crtc_load_lut(struct drm_crtc *crtc)
 		legacy_crtc_load_lut(crtc);
 }
 
-/** Sets the color ramps on behalf of RandR */
+/** Sets the color ramps on behalf of fbcon */
 void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 			      u16 blue, int regno)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
-	if (regno == 0)
-		DRM_DEBUG("gamma set %d\n", radeon_crtc->crtc_id);
 	radeon_crtc->lut_r[regno] = red >> 6;
 	radeon_crtc->lut_g[regno] = green >> 6;
 	radeon_crtc->lut_b[regno] = blue >> 6;
+}
+
+/** Gets the color ramps on behalf of fbcon */
+void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+			      u16 *blue, int regno)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
+	*red = radeon_crtc->lut_r[regno] << 6;
+	*green = radeon_crtc->lut_g[regno] << 6;
+	*blue = radeon_crtc->lut_b[regno] << 6;
 }
 
 static void radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 				  u16 *blue, uint32_t size)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int i, j;
+	int i;
 
 	if (size != 256) {
 		return;
@@ -132,23 +141,11 @@ static void radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 		return;
 	}
 
-	if (crtc->fb->depth == 16) {
-		for (i = 0; i < 64; i++) {
-			if (i <= 31) {
-				for (j = 0; j < 8; j++) {
-					radeon_crtc->lut_r[i * 8 + j] = red[i] >> 6;
-					radeon_crtc->lut_b[i * 8 + j] = blue[i] >> 6;
-				}
-			}
-			for (j = 0; j < 4; j++)
-				radeon_crtc->lut_g[i * 4 + j] = green[i] >> 6;
-		}
-	} else {
-		for (i = 0; i < 256; i++) {
-			radeon_crtc->lut_r[i] = red[i] >> 6;
-			radeon_crtc->lut_g[i] = green[i] >> 6;
-			radeon_crtc->lut_b[i] = blue[i] >> 6;
-		}
+	/* userspace palettes are always correct as is */
+	for (i = 0; i < 256; i++) {
+		radeon_crtc->lut_r[i] = red[i] >> 6;
+		radeon_crtc->lut_g[i] = green[i] >> 6;
+		radeon_crtc->lut_b[i] = blue[i] >> 6;
 	}
 
 	radeon_crtc_load_lut(crtc);
@@ -724,7 +721,11 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	if (ret) {
 		return ret;
 	}
-	/* allocate crtcs - TODO single crtc */
+
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		num_crtc = 1;
+
+	/* allocate crtcs */
 	for (i = 0; i < num_crtc; i++) {
 		radeon_crtc_init(rdev->ddev, i);
 	}

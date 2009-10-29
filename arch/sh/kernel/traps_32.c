@@ -25,6 +25,7 @@
 #include <linux/kexec.h>
 #include <linux/limits.h>
 #include <linux/proc_fs.h>
+#include <linux/sysfs.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/fpu.h>
@@ -54,8 +55,8 @@ static unsigned long se_multi;
 /* bitfield: 1: warn 2: fixup 4: signal -> combinations 2|4 && 1|2|4 are not
    valid! */
 static int se_usermode = 3;
-/* 0: no warning 1: print a warning message */
-static int se_kernmode_warn = 1;
+/* 0: no warning 1: print a warning message, disabled by default */
+static int se_kernmode_warn;
 
 #ifdef CONFIG_PROC_FS
 static const char *se_usermode_action[] = {
@@ -159,12 +160,12 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	oops_enter();
 
-	console_verbose();
 	spin_lock_irq(&die_lock);
+	console_verbose();
 	bust_spinlocks(1);
 
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
-
+	sysfs_printk_last_file();
 	print_modules();
 	show_regs(regs);
 
@@ -180,6 +181,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
+	oops_exit();
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
@@ -190,7 +192,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (panic_on_oops)
 		panic("Fatal exception");
 
-	oops_exit();
 	do_exit(SIGSEGV);
 }
 

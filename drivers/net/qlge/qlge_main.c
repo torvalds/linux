@@ -34,7 +34,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
-#include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
@@ -321,6 +320,37 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 
 	switch (type) {
 	case MAC_ADDR_TYPE_MULTI_MAC:
+		{
+			u32 upper = (addr[0] << 8) | addr[1];
+			u32 lower = (addr[2] << 24) | (addr[3] << 16) |
+					(addr[4] << 8) | (addr[5]);
+
+			status =
+				ql_wait_reg_rdy(qdev,
+				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			if (status)
+				goto exit;
+			ql_write32(qdev, MAC_ADDR_IDX, (offset++) |
+				(index << MAC_ADDR_IDX_SHIFT) |
+				type | MAC_ADDR_E);
+			ql_write32(qdev, MAC_ADDR_DATA, lower);
+			status =
+				ql_wait_reg_rdy(qdev,
+				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			if (status)
+				goto exit;
+			ql_write32(qdev, MAC_ADDR_IDX, (offset++) |
+				(index << MAC_ADDR_IDX_SHIFT) |
+				type | MAC_ADDR_E);
+
+			ql_write32(qdev, MAC_ADDR_DATA, upper);
+			status =
+				ql_wait_reg_rdy(qdev,
+				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
+			if (status)
+				goto exit;
+			break;
+		}
 	case MAC_ADDR_TYPE_CAM_MAC:
 		{
 			u32 cam_output;
@@ -366,16 +396,14 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 			   and possibly the function id.  Right now we hardcode
 			   the route field to NIC core.
 			 */
-			if (type == MAC_ADDR_TYPE_CAM_MAC) {
-				cam_output = (CAM_OUT_ROUTE_NIC |
-					      (qdev->
-					       func << CAM_OUT_FUNC_SHIFT) |
-						(0 << CAM_OUT_CQ_ID_SHIFT));
-				if (qdev->vlgrp)
-					cam_output |= CAM_OUT_RV;
-				/* route to NIC core */
-				ql_write32(qdev, MAC_ADDR_DATA, cam_output);
-			}
+			cam_output = (CAM_OUT_ROUTE_NIC |
+				      (qdev->
+				       func << CAM_OUT_FUNC_SHIFT) |
+					(0 << CAM_OUT_CQ_ID_SHIFT));
+			if (qdev->vlgrp)
+				cam_output |= CAM_OUT_RV;
+			/* route to NIC core */
+			ql_write32(qdev, MAC_ADDR_DATA, cam_output);
 			break;
 		}
 	case MAC_ADDR_TYPE_VLAN:
@@ -547,14 +575,14 @@ static int ql_set_routing_reg(struct ql_adapter *qdev, u32 index, u32 mask,
 		}
 	case RT_IDX_MCAST:	/* Pass up All Multicast frames. */
 		{
-			value = RT_IDX_DST_CAM_Q |	/* dest */
+			value = RT_IDX_DST_DFLT_Q |	/* dest */
 			    RT_IDX_TYPE_NICQ |	/* type */
 			    (RT_IDX_ALLMULTI_SLOT << RT_IDX_IDX_SHIFT);/* index */
 			break;
 		}
 	case RT_IDX_MCAST_MATCH:	/* Pass up matched Multicast frames. */
 		{
-			value = RT_IDX_DST_CAM_Q |	/* dest */
+			value = RT_IDX_DST_DFLT_Q |	/* dest */
 			    RT_IDX_TYPE_NICQ |	/* type */
 			    (RT_IDX_MCAST_MATCH_SLOT << RT_IDX_IDX_SHIFT);/* index */
 			break;
@@ -1926,12 +1954,10 @@ static void ql_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
 	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
 	if (status)
 		return;
-	spin_lock(&qdev->hw_lock);
 	if (ql_set_mac_addr_reg
 	    (qdev, (u8 *) &enable_bit, MAC_ADDR_TYPE_VLAN, vid)) {
 		QPRINTK(qdev, IFUP, ERR, "Failed to init vlan address.\n");
 	}
-	spin_unlock(&qdev->hw_lock);
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 }
 
@@ -1945,12 +1971,10 @@ static void ql_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
 	if (status)
 		return;
 
-	spin_lock(&qdev->hw_lock);
 	if (ql_set_mac_addr_reg
 	    (qdev, (u8 *) &enable_bit, MAC_ADDR_TYPE_VLAN, vid)) {
 		QPRINTK(qdev, IFUP, ERR, "Failed to clear vlan address.\n");
 	}
-	spin_unlock(&qdev->hw_lock);
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 
 }
@@ -2001,15 +2025,17 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 	/*
 	 * Check MPI processor activity.
 	 */
-	if (var & STS_PI) {
+	if ((var & STS_PI) &&
+		(ql_read32(qdev, INTR_MASK) & INTR_MASK_PI)) {
 		/*
 		 * We've got an async event or mailbox completion.
 		 * Handle it and clear the source of the interrupt.
 		 */
 		QPRINTK(qdev, INTR, ERR, "Got MPI processor interrupt.\n");
 		ql_disable_completion_interrupt(qdev, intr_context->intr);
-		queue_delayed_work_on(smp_processor_id(), qdev->workqueue,
-				      &qdev->mpi_work, 0);
+		ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
+		queue_delayed_work_on(smp_processor_id(),
+				qdev->workqueue, &qdev->mpi_work, 0);
 		work_done++;
 	}
 
@@ -3080,6 +3106,12 @@ err_irq:
 
 static int ql_start_rss(struct ql_adapter *qdev)
 {
+	u8 init_hash_seed[] = {0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+				0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f,
+				0xb0, 0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b,
+				0x30, 0xb4, 0x77, 0xcb, 0x2d, 0xa3, 0x80,
+				0x30, 0xf2, 0x0c, 0x6a, 0x42, 0xb7, 0x3b,
+				0xbe, 0xac, 0x01, 0xfa};
 	struct ricb *ricb = &qdev->ricb;
 	int status = 0;
 	int i;
@@ -3089,21 +3121,17 @@ static int ql_start_rss(struct ql_adapter *qdev)
 
 	ricb->base_cq = RSS_L4K;
 	ricb->flags =
-	    (RSS_L6K | RSS_LI | RSS_LB | RSS_LM | RSS_RI4 | RSS_RI6 | RSS_RT4 |
-	     RSS_RT6);
-	ricb->mask = cpu_to_le16(qdev->rss_ring_count - 1);
+		(RSS_L6K | RSS_LI | RSS_LB | RSS_LM | RSS_RT4 | RSS_RT6);
+	ricb->mask = cpu_to_le16((u16)(0x3ff));
 
 	/*
 	 * Fill out the Indirection Table.
 	 */
-	for (i = 0; i < 256; i++)
-		hash_id[i] = i & (qdev->rss_ring_count - 1);
+	for (i = 0; i < 1024; i++)
+		hash_id[i] = (i & (qdev->rss_ring_count - 1));
 
-	/*
-	 * Random values for the IPv6 and IPv4 Hash Keys.
-	 */
-	get_random_bytes((void *)&ricb->ipv6_hash_key[0], 40);
-	get_random_bytes((void *)&ricb->ipv4_hash_key[0], 16);
+	memcpy((void *)&ricb->ipv6_hash_key[0], init_hash_seed, 40);
+	memcpy((void *)&ricb->ipv4_hash_key[0], init_hash_seed, 16);
 
 	QPRINTK(qdev, IFUP, DEBUG, "Initializing RSS.\n");
 
@@ -3242,6 +3270,13 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 	ql_write32(qdev, SPLT_HDR, SPLT_HDR_EP |
 		min(SMALL_BUFFER_SIZE, MAX_SPLIT_SIZE));
 
+	/* Set RX packet routing to use port/pci function on which the
+	 * packet arrived on in addition to usual frame routing.
+	 * This is helpful on bonding where both interfaces can have
+	 * the same MAC address.
+	 */
+	ql_write32(qdev, RST_FO, RST_FO_RR_MASK | RST_FO_RR_RCV_FUNC_CQ);
+
 	/* Start up the rx queues. */
 	for (i = 0; i < qdev->rx_ring_count; i++) {
 		status = ql_start_rx_ring(qdev, &qdev->rx_ring[i]);
@@ -3314,6 +3349,13 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 
 	end_jiffies = jiffies +
 		max((unsigned long)1, usecs_to_jiffies(30));
+
+	/* Stop management traffic. */
+	ql_mb_set_mgmnt_traffic_ctl(qdev, MB_SET_MPI_TFK_STOP);
+
+	/* Wait for the NIC and MGMNT FIFOs to empty. */
+	ql_wait_fifo_empty(qdev);
+
 	ql_write32(qdev, RST_FO, (RST_FO_FR << 16) | RST_FO_FR);
 
 	do {
@@ -3329,6 +3371,8 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 		status = -ETIMEDOUT;
 	}
 
+	/* Resume management traffic. */
+	ql_mb_set_mgmnt_traffic_ctl(qdev, MB_SET_MPI_TFK_RESUME);
 	return status;
 }
 
@@ -3585,7 +3629,6 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
 	if (status)
 		return;
-	spin_lock(&qdev->hw_lock);
 	/*
 	 * Set or clear promiscuous mode if a
 	 * transition is taking place.
@@ -3662,7 +3705,6 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 		}
 	}
 exit:
-	spin_unlock(&qdev->hw_lock);
 	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
 }
 
@@ -3682,10 +3724,8 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
 	if (status)
 		return status;
-	spin_lock(&qdev->hw_lock);
 	status = ql_set_mac_addr_reg(qdev, (u8 *) ndev->dev_addr,
 			MAC_ADDR_TYPE_CAM_MAC, qdev->func * MAX_CQ);
-	spin_unlock(&qdev->hw_lock);
 	if (status)
 		QPRINTK(qdev, HW, ERR, "Failed to load MAC address.\n");
 	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
@@ -3711,6 +3751,12 @@ static void ql_asic_reset_work(struct work_struct *work)
 	status = ql_adapter_up(qdev);
 	if (status)
 		goto error;
+
+	/* Restore rx mode. */
+	clear_bit(QL_ALLMULTI, &qdev->flags);
+	clear_bit(QL_PROMISCUOUS, &qdev->flags);
+	qlge_set_multicast_list(qdev->ndev);
+
 	rtnl_unlock();
 	return;
 error:
@@ -3928,7 +3974,6 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	INIT_DELAYED_WORK(&qdev->mpi_work, ql_mpi_work);
 	INIT_DELAYED_WORK(&qdev->mpi_port_cfg_work, ql_mpi_port_cfg_work);
 	INIT_DELAYED_WORK(&qdev->mpi_idc_work, ql_mpi_idc_work);
-	mutex_init(&qdev->mpi_mutex);
 	init_completion(&qdev->ide_completion);
 
 	if (!cards_found) {

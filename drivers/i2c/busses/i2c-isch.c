@@ -281,7 +281,7 @@ static int __devinit sch_probe(struct pci_dev *dev,
 		return -ENODEV;
 	}
 	if (acpi_check_region(sch_smba, SMBIOSIZE, sch_driver.name))
-		return -EBUSY;
+		return -ENODEV;
 	if (!request_region(sch_smba, SMBIOSIZE, sch_driver.name)) {
 		dev_err(&dev->dev, "SMBus region 0x%x already in use!\n",
 			sch_smba);

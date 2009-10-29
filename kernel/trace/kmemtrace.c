@@ -501,7 +501,7 @@ static int __init init_kmem_tracer(void)
 		return 1;
 	}
 
-	if (!register_tracer(&kmem_tracer)) {
+	if (register_tracer(&kmem_tracer) != 0) {
 		pr_warning("Warning: could not register the kmem tracer\n");
 		return 1;
 	}

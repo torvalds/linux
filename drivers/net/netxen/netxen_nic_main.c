@@ -595,7 +595,8 @@ netxen_setup_pci_map(struct netxen_adapter *adapter)
 	void __iomem *mem_ptr2 = NULL;
 	void __iomem *db_ptr = NULL;
 
-	unsigned long mem_base, mem_len, db_base, db_len = 0, pci_len0 = 0;
+	resource_size_t mem_base, db_base;
+	unsigned long mem_len, db_len = 0, pci_len0 = 0;
 
 	struct pci_dev *pdev = adapter->pdev;
 	int pci_func = adapter->ahw.pci_func;
@@ -1714,7 +1715,7 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* 4 fragments per cmd des */
 	no_of_desc = (frag_count + 3) >> 2;
 
-	if (unlikely(no_of_desc + 2) > netxen_tx_avail(tx_ring)) {
+	if (unlikely(no_of_desc + 2 > netxen_tx_avail(tx_ring))) {
 		netif_stop_queue(netdev);
 		return NETDEV_TX_BUSY;
 	}

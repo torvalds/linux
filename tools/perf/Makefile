@@ -157,11 +157,18 @@ uname_R := $(shell sh -c 'uname -r 2>/dev/null || echo not')
 uname_P := $(shell sh -c 'uname -p 2>/dev/null || echo not')
 uname_V := $(shell sh -c 'uname -v 2>/dev/null || echo not')
 
-# If we're on a 64-bit kernel, use -m64
-ifndef NO_64BIT
-	ifneq ($(patsubst %64,%,$(uname_M)),$(uname_M))
-	  M64 := -m64
-	endif
+#
+# Add -m32 for cross-builds:
+#
+ifdef NO_64BIT
+  MBITS := -m32
+else
+  #
+  # If we're on a 64-bit kernel, use -m64:
+  #
+  ifneq ($(patsubst %64,%,$(uname_M)),$(uname_M))
+    MBITS := -m64
+  endif
 endif
 
 # CFLAGS and LDFLAGS are for the users to override from the command line.
@@ -194,7 +201,7 @@ EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wold-style-definition
 EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wstrict-prototypes
 EXTRA_WARNINGS := $(EXTRA_WARNINGS) -Wdeclaration-after-statement
 
-CFLAGS = $(M64) -ggdb3 -Wall -Wextra -std=gnu99 -Werror -O6 -fstack-protector-all -D_FORTIFY_SOURCE=2 $(EXTRA_WARNINGS)
+CFLAGS = $(MBITS) -ggdb3 -Wall -Wextra -std=gnu99 -Werror -O6 -fstack-protector-all -D_FORTIFY_SOURCE=2 $(EXTRA_WARNINGS)
 LDFLAGS = -lpthread -lrt -lelf -lm
 ALL_CFLAGS = $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
@@ -416,7 +423,7 @@ ifeq ($(uname_S),Darwin)
 endif
 
 ifneq ($(shell sh -c "(echo '\#include <libelf.h>'; echo 'int main(void) { Elf * elf = elf_begin(0, ELF_C_READ_MMAP, 0); return (long)elf; }') | $(CC) -x c - $(ALL_CFLAGS) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -o /dev/null $(ALL_LDFLAGS) > /dev/null 2>&1 && echo y"), y)
-	msg := $(error No libelf.h/libelf found, please install libelf-dev/elfutils-libelf-devel);
+	msg := $(error No libelf.h/libelf found, please install libelf-dev/elfutils-libelf-devel and glibc-dev[el]);
 endif
 
 ifdef NO_DEMANGLE
@@ -728,7 +735,7 @@ $(BUILT_INS): perf$X
 common-cmds.h: util/generate-cmdlist.sh command-list.txt
 
 common-cmds.h: $(wildcard Documentation/perf-*.txt)
-	$(QUIET_GEN)util/generate-cmdlist.sh > $@+ && mv $@+ $@
+	$(QUIET_GEN). util/generate-cmdlist.sh > $@+ && mv $@+ $@
 
 $(patsubst %.sh,%,$(SCRIPT_SH)) : % : %.sh
 	$(QUIET_GEN)$(RM) $@ $@+ && \

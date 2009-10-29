@@ -95,6 +95,13 @@ struct musb_ep;
 #endif
 #endif	/* need MUSB gadget selection */
 
+#ifndef CONFIG_HAVE_CLK
+/* Dummy stub for clk framework */
+#define clk_get(dev, id)	NULL
+#define clk_put(clock)		do {} while (0)
+#define clk_enable(clock)	do {} while (0)
+#define clk_disable(clock)	do {} while (0)
+#endif
 
 #ifdef CONFIG_PROC_FS
 #include <linux/fs.h>

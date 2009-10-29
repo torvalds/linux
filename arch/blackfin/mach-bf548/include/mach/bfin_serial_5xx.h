@@ -1,32 +1,7 @@
 /*
- * file:        include/asm-blackfin/mach-bf548/bfin_serial_5xx.h
- * based on:
- * author:
+ * Copyright 2007-2009 Analog Devices Inc.
  *
- * created:
- * description:
- *	blackfin serial driver head file
- * rev:
- *
- * modified:
- *
- *
- * bugs:         enter bugs at http://blackfin.uclinux.org/
- *
- * this program is free software; you can redistribute it and/or modify
- * it under the terms of the gnu general public license as published by
- * the free software foundation; either version 2, or (at your option)
- * any later version.
- *
- * this program is distributed in the hope that it will be useful,
- * but without any warranty; without even the implied warranty of
- * merchantability or fitness for a particular purpose.  see the
- * gnu general public license for more details.
- *
- * you should have received a copy of the gnu general public license
- * along with this program; see the file copying.
- * if not, write to the free software foundation,
- * 59 temple place - suite 330, boston, ma 02111-1307, usa.
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/serial.h>

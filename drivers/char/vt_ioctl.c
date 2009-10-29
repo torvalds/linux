@@ -1532,7 +1532,7 @@ long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
 
 	case PIO_UNIMAP:
 	case GIO_UNIMAP:
-		ret = do_unimap_ioctl(cmd, up, perm, vc);
+		ret = compat_unimap_ioctl(cmd, up, perm, vc);
 		break;
 
 	/*

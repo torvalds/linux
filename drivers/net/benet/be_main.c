@@ -197,7 +197,7 @@ void netdev_stats_update(struct be_adapter *adapter)
 	/* no space available in linux */
 	dev_stats->tx_dropped = 0;
 
-	dev_stats->multicast = port_stats->tx_multicastframes;
+	dev_stats->multicast = port_stats->rx_multicast_frames;
 	dev_stats->collisions = 0;
 
 	/* detailed tx_errors */
@@ -1620,18 +1620,21 @@ static int be_open(struct net_device *netdev)
 static int be_setup(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	u32 if_flags;
+	u32 cap_flags, en_flags;
 	int status;
 
-	if_flags = BE_IF_FLAGS_BROADCAST | BE_IF_FLAGS_PROMISCUOUS |
-		BE_IF_FLAGS_MCAST_PROMISCUOUS | BE_IF_FLAGS_UNTAGGED |
-		BE_IF_FLAGS_PASS_L3L4_ERRORS;
-	status = be_cmd_if_create(adapter, if_flags, netdev->dev_addr,
-			false/* pmac_invalid */, &adapter->if_handle,
-			&adapter->pmac_id);
+	cap_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+			BE_IF_FLAGS_MCAST_PROMISCUOUS |
+			BE_IF_FLAGS_PROMISCUOUS |
+			BE_IF_FLAGS_PASS_L3L4_ERRORS;
+	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+			BE_IF_FLAGS_PASS_L3L4_ERRORS;
+
+	status = be_cmd_if_create(adapter, cap_flags, en_flags,
+			netdev->dev_addr, false/* pmac_invalid */,
+			&adapter->if_handle, &adapter->pmac_id);
 	if (status != 0)
 		goto do_none;
-
 
 	status = be_tx_queues_create(adapter);
 	if (status != 0)
@@ -1899,8 +1902,8 @@ static void be_netdev_init(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
-		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_GRO;
+		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_HW_CSUM |
+		NETIF_F_GRO;
 
 	netdev->flags |= IFF_MULTICAST;
 
@@ -2055,6 +2058,10 @@ static int be_hw_up(struct be_adapter *adapter)
 	if (status)
 		return status;
 
+	status = be_cmd_reset_function(adapter);
+	if (status)
+		return status;
+
 	status = be_cmd_get_fw_ver(adapter, adapter->fw_ver);
 	if (status)
 		return status;
@@ -2107,10 +2114,6 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	status = be_ctrl_init(adapter);
 	if (status)
 		goto free_netdev;
-
-	status = be_cmd_reset_function(adapter);
-	if (status)
-		goto ctrl_clean;
 
 	status = be_stats_init(adapter);
 	if (status)

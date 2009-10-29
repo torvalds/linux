@@ -17,6 +17,7 @@
 #include <linux/random.h>
 #include <linux/major.h>
 #include <linux/proc_fs.h>
+#include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/device.h>
@@ -781,10 +782,29 @@ static unsigned int input_proc_devices_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
+union input_seq_state {
+	struct {
+		unsigned short pos;
+		bool mutex_acquired;
+	};
+	void *p;
+};
+
 static void *input_devices_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	if (mutex_lock_interruptible(&input_mutex))
-		return NULL;
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	int error;
+
+	/* We need to fit into seq->private pointer */
+	BUILD_BUG_ON(sizeof(union input_seq_state) != sizeof(seq->private));
+
+	error = mutex_lock_interruptible(&input_mutex);
+	if (error) {
+		state->mutex_acquired = false;
+		return ERR_PTR(error);
+	}
+
+	state->mutex_acquired = true;
 
 	return seq_list_start(&input_dev_list, *pos);
 }
@@ -794,9 +814,12 @@ static void *input_devices_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	return seq_list_next(v, &input_dev_list, pos);
 }
 
-static void input_devices_seq_stop(struct seq_file *seq, void *v)
+static void input_seq_stop(struct seq_file *seq, void *v)
 {
-	mutex_unlock(&input_mutex);
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
+
+	if (state->mutex_acquired)
+		mutex_unlock(&input_mutex);
 }
 
 static void input_seq_print_bitmap(struct seq_file *seq, const char *name,
@@ -860,7 +883,7 @@ static int input_devices_seq_show(struct seq_file *seq, void *v)
 static const struct seq_operations input_devices_seq_ops = {
 	.start	= input_devices_seq_start,
 	.next	= input_devices_seq_next,
-	.stop	= input_devices_seq_stop,
+	.stop	= input_seq_stop,
 	.show	= input_devices_seq_show,
 };
 
@@ -880,40 +903,49 @@ static const struct file_operations input_devices_fileops = {
 
 static void *input_handlers_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	if (mutex_lock_interruptible(&input_mutex))
-		return NULL;
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	int error;
 
-	seq->private = (void *)(unsigned long)*pos;
+	/* We need to fit into seq->private pointer */
+	BUILD_BUG_ON(sizeof(union input_seq_state) != sizeof(seq->private));
+
+	error = mutex_lock_interruptible(&input_mutex);
+	if (error) {
+		state->mutex_acquired = false;
+		return ERR_PTR(error);
+	}
+
+	state->mutex_acquired = true;
+	state->pos = *pos;
+
 	return seq_list_start(&input_handler_list, *pos);
 }
 
 static void *input_handlers_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	seq->private = (void *)(unsigned long)(*pos + 1);
-	return seq_list_next(v, &input_handler_list, pos);
-}
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
 
-static void input_handlers_seq_stop(struct seq_file *seq, void *v)
-{
-	mutex_unlock(&input_mutex);
+	state->pos = *pos + 1;
+	return seq_list_next(v, &input_handler_list, pos);
 }
 
 static int input_handlers_seq_show(struct seq_file *seq, void *v)
 {
 	struct input_handler *handler = container_of(v, struct input_handler, node);
+	union input_seq_state *state = (union input_seq_state *)&seq->private;
 
-	seq_printf(seq, "N: Number=%ld Name=%s",
-		   (unsigned long)seq->private, handler->name);
+	seq_printf(seq, "N: Number=%u Name=%s", state->pos, handler->name);
 	if (handler->fops)
 		seq_printf(seq, " Minor=%d", handler->minor);
 	seq_putc(seq, '\n');
 
 	return 0;
 }
+
 static const struct seq_operations input_handlers_seq_ops = {
 	.start	= input_handlers_seq_start,
 	.next	= input_handlers_seq_next,
-	.stop	= input_handlers_seq_stop,
+	.stop	= input_seq_stop,
 	.show	= input_handlers_seq_show,
 };
 

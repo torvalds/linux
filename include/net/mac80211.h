@@ -1669,6 +1669,8 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw);
  * to this function and ieee80211_rx_irqsafe() may not be mixed for a
  * single hardware.
  *
+ * Note that right now, this function must be called with softirqs disabled.
+ *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
  */

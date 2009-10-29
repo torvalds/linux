@@ -257,6 +257,13 @@ W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 F:	drivers/acpi/fan.c
 
+ACPI PROCESSOR AGGREGATOR DRIVER
+M:	Shaohua Li <shaohua.li@intel.com>
+L:	linux-acpi@vger.kernel.org
+W:	http://www.lesswatts.org/projects/acpi/
+S:	Supported
+F:	drivers/acpi/acpi_pad.c
+
 ACPI THERMAL DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
@@ -569,6 +576,11 @@ ARM/COMPULAB CM-X270/EM-X270 and CM-X300 MACHINE SUPPORT
 M:	Mike Rapoport <mike@compulab.co.il>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+
+ARM/CONTEC MICRO9 MACHINE SUPPORT
+M:	Hubert Feurstein <hubert.feurstein@contec.at>
+S:	Maintained
+F:	arch/arm/mach-ep93xx/micro9.c
 
 ARM/CORGI MACHINE SUPPORT
 M:	Richard Purdie <rpurdie@rpsys.net>
@@ -1223,6 +1235,13 @@ M:	Michael Chan <mchan@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/tg3.*
+
+BROCADE BFA FC SCSI DRIVER
+P:      Jing Huang
+M:      huangj@brocade.com
+L:      linux-scsi@vger.kernel.org
+S:      Supported
+F:      drivers/scsi/bfa/
 
 BSG (block layer generic sg v4 driver)
 M:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
@@ -2051,7 +2070,7 @@ S:	Maintained
 F:	fs/*
 
 FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
-M:	Riku Voipio <riku.vipio@iki.fi>
+M:	Riku Voipio <riku.voipio@iki.fi>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/f75375s.c
@@ -2596,6 +2615,7 @@ L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
 S:	Maintained
+F:	Documentation/debugging-via-ohci1394.txt
 F:	drivers/ieee1394/
 
 IEEE 1394 RAW I/O DRIVER
@@ -3636,10 +3656,18 @@ F:	Documentation/blockdev/nbd.txt
 F:	drivers/block/nbd.c
 F:	include/linux/nbd.h
 
+NETWORK DROP MONITOR
+M:	Neil Horman <nhorman@tuxdriver.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+W:	https://fedorahosted.org/dropwatch/
+F:	net/core/drop_monitor.c
+
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
 L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net
+W:	http://patchwork.ozlabs.org/project/netdev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 F:	net/
@@ -3966,6 +3994,7 @@ F:	drivers/block/paride/
 PARISC ARCHITECTURE
 M:	Kyle McMartin <kyle@mcmartin.ca>
 M:	Helge Deller <deller@gmx.de>
+M:	"James E.J. Bottomley" <jejb@parisc-linux.org>
 L:	linux-parisc@vger.kernel.org
 W:	http://www.parisc-linux.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
@@ -4049,6 +4078,13 @@ M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 M:	Paul Mackerras <paulus@samba.org>
 M:	Ingo Molnar <mingo@elte.hu>
 S:	Supported
+F:	kernel/perf_event.c
+F:	include/linux/perf_event.h
+F:	arch/*/*/kernel/perf_event.c
+F:	arch/*/include/asm/perf_event.h
+F:	arch/*/lib/perf_event.c
+F:	arch/*/kernel/perf_callchain.c
+F:	tools/perf/
 
 PERSONALITY HANDLING
 M:	Christoph Hellwig <hch@infradead.org>
@@ -4630,6 +4666,14 @@ S:	Supported
 F:	drivers/ata/
 F:	include/linux/ata.h
 F:	include/linux/libata.h
+
+SERVER ENGINES 10Gbps iSCSI - BladeEngine 2 DRIVER
+P:     Jayamohan Kallickal
+M:     jayamohank@serverengines.com
+L:     linux-scsi@vger.kernel.org
+W:     http://www.serverengines.com
+S:     Supported
+F:     drivers/scsi/be2iscsi/
 
 SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
 M:	Sathya Perla <sathyap@serverengines.com>
@@ -5620,6 +5664,13 @@ L:	openwrt-devel@lists.openwrt.org
 S:	Maintained
 F:	drivers/vlynq/vlynq.c
 F:	include/linux/vlynq.h
+
+VMWARE VMXNET3 ETHERNET DRIVER
+M:     Shreyas Bhatewara <sbhatewara@vmware.com>
+M:     VMware, Inc. <pv-drivers@vmware.com>
+L:     netdev@vger.kernel.org
+S:     Maintained
+F:     drivers/net/vmxnet3/
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 M:	Liam Girdwood <lrg@slimlogic.co.uk>

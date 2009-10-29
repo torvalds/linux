@@ -229,7 +229,7 @@ int syscall_exit_format(struct ftrace_event_call *call, struct trace_seq *s)
 			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n"
 			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;\n",
 			       SYSCALL_FIELD(int, nr),
-			       SYSCALL_FIELD(unsigned long, ret));
+			       SYSCALL_FIELD(long, ret));
 	if (!ret)
 		return 0;
 
@@ -275,7 +275,7 @@ int syscall_exit_define_fields(struct ftrace_event_call *call)
 	if (ret)
 		return ret;
 
-	ret = trace_define_field(call, SYSCALL_FIELD(unsigned long, ret), 0,
+	ret = trace_define_field(call, SYSCALL_FIELD(long, ret), 0,
 				 FILTER_OTHER);
 
 	return ret;

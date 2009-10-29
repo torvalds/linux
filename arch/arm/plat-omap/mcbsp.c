@@ -595,7 +595,7 @@ void omap_mcbsp_stop(unsigned int id, int tx, int rx)
 	rx &= 1;
 	if (cpu_is_omap2430() || cpu_is_omap34xx()) {
 		w = OMAP_MCBSP_READ(io_base, RCCR);
-		w |= (tx ? RDISABLE : 0);
+		w |= (rx ? RDISABLE : 0);
 		OMAP_MCBSP_WRITE(io_base, RCCR, w);
 	}
 	w = OMAP_MCBSP_READ(io_base, SPCR1);
