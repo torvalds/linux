@@ -365,6 +365,7 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
  * 0 if noop, 1 if successfully extended, -errno on failure.
  */
 static int pcpu_extend_area_map(struct pcpu_chunk *chunk)
+	__releases(lock) __acquires(lock)
 {
 	int new_alloc;
 	int *new;

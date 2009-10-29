@@ -226,20 +226,20 @@ do {									\
 
 extern void __bad_size_call_parameter(void);
 
-#define __size_call_return(stem, variable)				\
-({	typeof(variable) ret__;						\
+#define __pcpu_size_call_return(stem, variable)				\
+({	typeof(variable) pscr_ret__;					\
 	switch(sizeof(variable)) {					\
-	case 1: ret__ = stem##1(variable);break;			\
-	case 2: ret__ = stem##2(variable);break;			\
-	case 4: ret__ = stem##4(variable);break;			\
-	case 8: ret__ = stem##8(variable);break;			\
+	case 1: pscr_ret__ = stem##1(variable);break;			\
+	case 2: pscr_ret__ = stem##2(variable);break;			\
+	case 4: pscr_ret__ = stem##4(variable);break;			\
+	case 8: pscr_ret__ = stem##8(variable);break;			\
 	default:							\
 		__bad_size_call_parameter();break;			\
 	}								\
-	ret__;								\
+	pscr_ret__;							\
 })
 
-#define __size_call(stem, variable, ...)				\
+#define __pcpu_size_call(stem, variable, ...)				\
 do {									\
 	switch(sizeof(variable)) {					\
 		case 1: stem##1(variable, __VA_ARGS__);break;		\
@@ -299,7 +299,7 @@ do {									\
 # ifndef this_cpu_read_8
 #  define this_cpu_read_8(pcp)	_this_cpu_generic_read(pcp)
 # endif
-# define this_cpu_read(pcp)	__size_call_return(this_cpu_read_, (pcp))
+# define this_cpu_read(pcp)	__pcpu_size_call_return(this_cpu_read_, (pcp))
 #endif
 
 #define _this_cpu_generic_to_op(pcp, val, op)				\
@@ -322,7 +322,7 @@ do {									\
 # ifndef this_cpu_write_8
 #  define this_cpu_write_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), =)
 # endif
-# define this_cpu_write(pcp, val)	__size_call(this_cpu_write_, (pcp), (val))
+# define this_cpu_write(pcp, val)	__pcpu_size_call(this_cpu_write_, (pcp), (val))
 #endif
 
 #ifndef this_cpu_add
@@ -338,7 +338,7 @@ do {									\
 # ifndef this_cpu_add_8
 #  define this_cpu_add_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), +=)
 # endif
-# define this_cpu_add(pcp, val)		__size_call(this_cpu_add_, (pcp), (val))
+# define this_cpu_add(pcp, val)		__pcpu_size_call(this_cpu_add_, (pcp), (val))
 #endif
 
 #ifndef this_cpu_sub
@@ -366,7 +366,7 @@ do {									\
 # ifndef this_cpu_and_8
 #  define this_cpu_and_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), &=)
 # endif
-# define this_cpu_and(pcp, val)		__size_call(this_cpu_and_, (pcp), (val))
+# define this_cpu_and(pcp, val)		__pcpu_size_call(this_cpu_and_, (pcp), (val))
 #endif
 
 #ifndef this_cpu_or
@@ -382,7 +382,7 @@ do {									\
 # ifndef this_cpu_or_8
 #  define this_cpu_or_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), |=)
 # endif
-# define this_cpu_or(pcp, val)		__size_call(this_cpu_or_, (pcp), (val))
+# define this_cpu_or(pcp, val)		__pcpu_size_call(this_cpu_or_, (pcp), (val))
 #endif
 
 #ifndef this_cpu_xor
@@ -398,7 +398,7 @@ do {									\
 # ifndef this_cpu_xor_8
 #  define this_cpu_xor_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), ^=)
 # endif
-# define this_cpu_xor(pcp, val)		__size_call(this_cpu_or_, (pcp), (val))
+# define this_cpu_xor(pcp, val)		__pcpu_size_call(this_cpu_or_, (pcp), (val))
 #endif
 
 /*
@@ -428,7 +428,7 @@ do {									\
 # ifndef __this_cpu_read_8
 #  define __this_cpu_read_8(pcp)	(*__this_cpu_ptr(&(pcp)))
 # endif
-# define __this_cpu_read(pcp)	__size_call_return(__this_cpu_read_, (pcp))
+# define __this_cpu_read(pcp)	__pcpu_size_call_return(__this_cpu_read_, (pcp))
 #endif
 
 #define __this_cpu_generic_to_op(pcp, val, op)				\
@@ -449,7 +449,7 @@ do {									\
 # ifndef __this_cpu_write_8
 #  define __this_cpu_write_8(pcp, val)	__this_cpu_generic_to_op((pcp), (val), =)
 # endif
-# define __this_cpu_write(pcp, val)	__size_call(__this_cpu_write_, (pcp), (val))
+# define __this_cpu_write(pcp, val)	__pcpu_size_call(__this_cpu_write_, (pcp), (val))
 #endif
 
 #ifndef __this_cpu_add
@@ -465,7 +465,7 @@ do {									\
 # ifndef __this_cpu_add_8
 #  define __this_cpu_add_8(pcp, val)	__this_cpu_generic_to_op((pcp), (val), +=)
 # endif
-# define __this_cpu_add(pcp, val)	__size_call(__this_cpu_add_, (pcp), (val))
+# define __this_cpu_add(pcp, val)	__pcpu_size_call(__this_cpu_add_, (pcp), (val))
 #endif
 
 #ifndef __this_cpu_sub
@@ -493,7 +493,7 @@ do {									\
 # ifndef __this_cpu_and_8
 #  define __this_cpu_and_8(pcp, val)	__this_cpu_generic_to_op((pcp), (val), &=)
 # endif
-# define __this_cpu_and(pcp, val)	__size_call(__this_cpu_and_, (pcp), (val))
+# define __this_cpu_and(pcp, val)	__pcpu_size_call(__this_cpu_and_, (pcp), (val))
 #endif
 
 #ifndef __this_cpu_or
@@ -509,7 +509,7 @@ do {									\
 # ifndef __this_cpu_or_8
 #  define __this_cpu_or_8(pcp, val)	__this_cpu_generic_to_op((pcp), (val), |=)
 # endif
-# define __this_cpu_or(pcp, val)	__size_call(__this_cpu_or_, (pcp), (val))
+# define __this_cpu_or(pcp, val)	__pcpu_size_call(__this_cpu_or_, (pcp), (val))
 #endif
 
 #ifndef __this_cpu_xor
@@ -525,7 +525,7 @@ do {									\
 # ifndef __this_cpu_xor_8
 #  define __this_cpu_xor_8(pcp, val)	__this_cpu_generic_to_op((pcp), (val), ^=)
 # endif
-# define __this_cpu_xor(pcp, val)	__size_call(__this_cpu_xor_, (pcp), (val))
+# define __this_cpu_xor(pcp, val)	__pcpu_size_call(__this_cpu_xor_, (pcp), (val))
 #endif
 
 /*
@@ -556,7 +556,7 @@ do {									\
 # ifndef irqsafe_cpu_add_8
 #  define irqsafe_cpu_add_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), +=)
 # endif
-# define irqsafe_cpu_add(pcp, val) __size_call(irqsafe_cpu_add_, (pcp), (val))
+# define irqsafe_cpu_add(pcp, val) __pcpu_size_call(irqsafe_cpu_add_, (pcp), (val))
 #endif
 
 #ifndef irqsafe_cpu_sub
@@ -584,7 +584,7 @@ do {									\
 # ifndef irqsafe_cpu_and_8
 #  define irqsafe_cpu_and_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), &=)
 # endif
-# define irqsafe_cpu_and(pcp, val) __size_call(irqsafe_cpu_and_, (val))
+# define irqsafe_cpu_and(pcp, val) __pcpu_size_call(irqsafe_cpu_and_, (val))
 #endif
 
 #ifndef irqsafe_cpu_or
@@ -600,7 +600,7 @@ do {									\
 # ifndef irqsafe_cpu_or_8
 #  define irqsafe_cpu_or_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), |=)
 # endif
-# define irqsafe_cpu_or(pcp, val) __size_call(irqsafe_cpu_or_, (val))
+# define irqsafe_cpu_or(pcp, val) __pcpu_size_call(irqsafe_cpu_or_, (val))
 #endif
 
 #ifndef irqsafe_cpu_xor
@@ -616,7 +616,7 @@ do {									\
 # ifndef irqsafe_cpu_xor_8
 #  define irqsafe_cpu_xor_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), ^=)
 # endif
-# define irqsafe_cpu_xor(pcp, val) __size_call(irqsafe_cpu_xor_, (val))
+# define irqsafe_cpu_xor(pcp, val) __pcpu_size_call(irqsafe_cpu_xor_, (val))
 #endif
 
 #endif /* __LINUX_PERCPU_H */

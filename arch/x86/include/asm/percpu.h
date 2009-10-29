@@ -74,31 +74,31 @@ extern void __bad_percpu_size(void);
 
 #define percpu_to_op(op, var, val)			\
 do {							\
-	typedef typeof(var) T__;			\
+	typedef typeof(var) pto_T__;			\
 	if (0) {					\
-		T__ tmp__;				\
-		tmp__ = (val);				\
+		pto_T__ pto_tmp__;			\
+		pto_tmp__ = (val);			\
 	}						\
 	switch (sizeof(var)) {				\
 	case 1:						\
 		asm(op "b %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
-		    : "qi" ((T__)(val)));		\
+		    : "qi" ((pto_T__)(val)));		\
 		break;					\
 	case 2:						\
 		asm(op "w %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
-		    : "ri" ((T__)(val)));		\
+		    : "ri" ((pto_T__)(val)));		\
 		break;					\
 	case 4:						\
 		asm(op "l %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
-		    : "ri" ((T__)(val)));		\
+		    : "ri" ((pto_T__)(val)));		\
 		break;					\
 	case 8:						\
 		asm(op "q %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
-		    : "re" ((T__)(val)));		\
+		    : "re" ((pto_T__)(val)));		\
 		break;					\
 	default: __bad_percpu_size();			\
 	}						\
@@ -106,31 +106,31 @@ do {							\
 
 #define percpu_from_op(op, var, constraint)		\
 ({							\
-	typeof(var) ret__;				\
+	typeof(var) pfo_ret__;				\
 	switch (sizeof(var)) {				\
 	case 1:						\
 		asm(op "b "__percpu_arg(1)",%0"		\
-		    : "=q" (ret__)			\
+		    : "=q" (pfo_ret__)			\
 		    : constraint);			\
 		break;					\
 	case 2:						\
 		asm(op "w "__percpu_arg(1)",%0"		\
-		    : "=r" (ret__)			\
+		    : "=r" (pfo_ret__)			\
 		    : constraint);			\
 		break;					\
 	case 4:						\
 		asm(op "l "__percpu_arg(1)",%0"		\
-		    : "=r" (ret__)			\
+		    : "=r" (pfo_ret__)			\
 		    : constraint);			\
 		break;					\
 	case 8:						\
 		asm(op "q "__percpu_arg(1)",%0"		\
-		    : "=r" (ret__)			\
+		    : "=r" (pfo_ret__)			\
 		    : constraint);			\
 		break;					\
 	default: __bad_percpu_size();			\
 	}						\
-	ret__;						\
+	pfo_ret__;					\
 })
 
 /*
