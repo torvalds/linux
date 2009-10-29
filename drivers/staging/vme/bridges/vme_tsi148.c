@@ -77,8 +77,6 @@ struct mutex vme_int;	/*
 				 * Only one VME interrupt can be
 				 * generated at a time, provide locking
 				 */
-struct mutex vme_irq;	/* Locking for VME irq callback configuration */
-
 
 static char driver_name[] = "vme_tsi148";
 
@@ -251,8 +249,6 @@ static u32 tsi148_IACK_irqhandler(void)
 static u32 tsi148_VIRQ_irqhandler(u32 stat)
 {
 	int vec, i, serviced = 0;
-	void (*call)(int, int, void *);
-	void *priv_data;
 
 	for (i = 7; i > 0; i--) {
 		if (stat & (1 << i)) {
@@ -265,15 +261,7 @@ static u32 tsi148_VIRQ_irqhandler(u32 stat)
 			vec = ioread8(tsi148_bridge->base +
 				TSI148_LCSR_VIACK[i] + 3);
 
-			call = tsi148_bridge->irq[i - 1].callback[vec].func;
-			priv_data =
-				tsi148_bridge->irq[i-1].callback[vec].priv_data;
-
-			if (call != NULL)
-				call(i, vec, priv_data);
-			else
-				printk("Spurilous VME interrupt, level:%x, "
-					"vector:%x\n", i, vec);
+			vme_irq_handler(tsi148_bridge, i, vec);
 
 			serviced |= (1 << i);
 		}
@@ -352,6 +340,8 @@ static int tsi148_irq_init(struct vme_bridge *bridge)
 
 	/* Initialise list for VME bus errors */
 	INIT_LIST_HEAD(&(bridge->vme_errors));
+
+	mutex_init(&(bridge->irq_mtx));
 
 	result = request_irq(pdev->irq,
 			     tsi148_irqhandler,
@@ -432,55 +422,15 @@ int tsi148_iack_received(void)
 }
 
 /*
- * Set up an VME interrupt
+ * Configure VME interrupt
  */
-int tsi148_request_irq(int level, int statid,
-	void (*callback)(int level, int vector, void *priv_data),
-        void *priv_data)
+void tsi148_irq_set(int level, int state, int sync)
 {
-	u32 tmp;
-
-	mutex_lock(&(vme_irq));
-
-	if(tsi148_bridge->irq[level - 1].callback[statid].func) {
-		mutex_unlock(&(vme_irq));
-		printk("VME Interrupt already taken\n");
-		return -EBUSY;
-	}
-
-
-	tsi148_bridge->irq[level - 1].count++;
-	tsi148_bridge->irq[level - 1].callback[statid].priv_data = priv_data;
-	tsi148_bridge->irq[level - 1].callback[statid].func = callback;
-
-	/* Enable IRQ level */
-	tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEO);
-	tmp |= TSI148_LCSR_INTEO_IRQEO[level - 1];
-	iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
-
-	tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEN);
-	tmp |= TSI148_LCSR_INTEN_IRQEN[level - 1];
-	iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEN);
-
-	mutex_unlock(&(vme_irq));
-
-	return 0;
-}
-
-/*
- * Free VME interrupt
- */
-void tsi148_free_irq(int level, int statid)
-{
-	u32 tmp;
 	struct pci_dev *pdev;
+	u32 tmp;
 
-	mutex_lock(&(vme_irq));
-
-	tsi148_bridge->irq[level - 1].count--;
-
-	/* Disable IRQ level if no more interrupts attached at this level*/
-	if (tsi148_bridge->irq[level - 1].count == 0) {
+	/* We need to do the ordering differently for enabling and disabling */
+	if (state == 0) {
 		tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEN);
 		tmp &= ~TSI148_LCSR_INTEN_IRQEN[level - 1];
 		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEN);
@@ -489,22 +439,28 @@ void tsi148_free_irq(int level, int statid)
 		tmp &= ~TSI148_LCSR_INTEO_IRQEO[level - 1];
 		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
 
-		pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
+		if (sync != 0) {
+			pdev = container_of(tsi148_bridge->parent,
+				struct pci_dev, dev);
 
-		synchronize_irq(pdev->irq);
+			synchronize_irq(pdev->irq);
+		}
+	} else {
+		tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEO);
+		tmp |= TSI148_LCSR_INTEO_IRQEO[level - 1];
+		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
+
+		tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEN);
+		tmp |= TSI148_LCSR_INTEN_IRQEN[level - 1];
+		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEN);
 	}
-
-	tsi148_bridge->irq[level - 1].callback[statid].func = NULL;
-	tsi148_bridge->irq[level - 1].callback[statid].priv_data = NULL;
-
-	mutex_unlock(&(vme_irq));
 }
 
 /*
  * Generate a VME bus interrupt at the requested level & vector. Wait for
  * interrupt to be acked.
  */
-int tsi148_generate_irq(int level, int statid)
+int tsi148_irq_generate(int level, int statid)
 {
 	u32 tmp;
 
@@ -2333,7 +2289,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_waitqueue_head(&dma_queue[1]);
 	init_waitqueue_head(&iack_queue);
 	mutex_init(&(vme_int));
-	mutex_init(&(vme_irq));
 	mutex_init(&(vme_rmw));
 
 	tsi148_bridge->parent = &(pdev->dev);
@@ -2481,9 +2436,8 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	tsi148_bridge->dma_list_add = tsi148_dma_list_add;
 	tsi148_bridge->dma_list_exec = tsi148_dma_list_exec;
 	tsi148_bridge->dma_list_empty = tsi148_dma_list_empty;
-	tsi148_bridge->request_irq = tsi148_request_irq;
-	tsi148_bridge->free_irq = tsi148_free_irq;
-	tsi148_bridge->generate_irq = tsi148_generate_irq;
+	tsi148_bridge->irq_set = tsi148_irq_set;
+	tsi148_bridge->irq_generate = tsi148_irq_generate;
 	tsi148_bridge->lm_set = tsi148_lm_set;
 	tsi148_bridge->lm_get = tsi148_lm_get;
 	tsi148_bridge->lm_attach = tsi148_lm_attach;

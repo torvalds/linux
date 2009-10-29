@@ -136,10 +136,10 @@ int vme_dma_list_exec(struct vme_dma_list *);
 int vme_dma_list_free(struct vme_dma_list *);
 int vme_dma_free(struct vme_resource *);
 
-int vme_request_irq(struct device *, int, int,
+int vme_irq_request(struct device *, int, int,
 	void (*callback)(int, int, void *), void *);
-void vme_free_irq(struct device *, int, int);
-int vme_generate_irq(struct device *, int, int);
+void vme_irq_free(struct device *, int, int);
+int vme_irq_generate(struct device *, int, int);
 
 struct vme_resource * vme_lm_request(struct device *);
 int vme_lm_count(struct vme_resource *);

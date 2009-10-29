@@ -974,7 +974,23 @@ int vme_dma_free(struct vme_resource *resource)
 }
 EXPORT_SYMBOL(vme_dma_free);
 
-int vme_request_irq(struct device *dev, int level, int statid,
+void vme_irq_handler(struct vme_bridge *bridge, int level, int statid)
+{
+	void (*call)(int, int, void *);
+	void *priv_data;
+
+	call = bridge->irq[level - 1].callback[statid].func;
+	priv_data = bridge->irq[level - 1].callback[statid].priv_data;
+
+	if (call != NULL)
+		call(level, statid, priv_data);
+	else
+		printk(KERN_WARNING "Spurilous VME interrupt, level:%x, "
+			"vector:%x\n", level, statid);
+}
+EXPORT_SYMBOL(vme_irq_handler);
+
+int vme_irq_request(struct device *dev, int level, int statid,
 	void (*callback)(int level, int vector, void *priv_data),
 	void *priv_data)
 {
@@ -987,20 +1003,37 @@ int vme_request_irq(struct device *dev, int level, int statid,
 	}
 
 	if((level < 1) || (level > 7)) {
-		printk(KERN_WARNING "Invalid interrupt level\n");
+		printk(KERN_ERR "Invalid interrupt level\n");
 		return -EINVAL;
 	}
 
-	if (bridge->request_irq == NULL) {
-		printk("Registering interrupts not supported\n");
+	if (bridge->irq_set == NULL) {
+		printk(KERN_ERR "Configuring interrupts not supported\n");
 		return -EINVAL;
 	}
 
-	return bridge->request_irq(level, statid, callback, priv_data);
+	mutex_lock(&(bridge->irq_mtx));
+
+	if (bridge->irq[level - 1].callback[statid].func) {
+		mutex_unlock(&(bridge->irq_mtx));
+		printk(KERN_WARNING "VME Interrupt already taken\n");
+		return -EBUSY;
+	}
+
+	bridge->irq[level - 1].count++;
+	bridge->irq[level - 1].callback[statid].priv_data = priv_data;
+	bridge->irq[level - 1].callback[statid].func = callback;
+
+	/* Enable IRQ level */
+	bridge->irq_set(level, 1, 1);
+
+	mutex_unlock(&(bridge->irq_mtx));
+
+	return 0;
 }
-EXPORT_SYMBOL(vme_request_irq);
+EXPORT_SYMBOL(vme_irq_request);
 
-void vme_free_irq(struct device *dev, int level, int statid)
+void vme_irq_free(struct device *dev, int level, int statid)
 {
 	struct vme_bridge *bridge;
 
@@ -1011,20 +1044,31 @@ void vme_free_irq(struct device *dev, int level, int statid)
 	}
 
 	if((level < 1) || (level > 7)) {
-		printk(KERN_WARNING "Invalid interrupt level\n");
+		printk(KERN_ERR "Invalid interrupt level\n");
 		return;
 	}
 
-	if (bridge->free_irq == NULL) {
-		printk("Freeing interrupts not supported\n");
+	if (bridge->irq_set == NULL) {
+		printk(KERN_ERR "Configuring interrupts not supported\n");
 		return;
 	}
 
-	bridge->free_irq(level, statid);
+	mutex_lock(&(bridge->irq_mtx));
+
+	bridge->irq[level - 1].count--;
+
+	/* Disable IRQ level if no more interrupts attached at this level*/
+	if (bridge->irq[level - 1].count == 0)
+		bridge->irq_set(level, 0, 1);
+
+	bridge->irq[level - 1].callback[statid].func = NULL;
+	bridge->irq[level - 1].callback[statid].priv_data = NULL;
+
+	mutex_unlock(&(bridge->irq_mtx));
 }
-EXPORT_SYMBOL(vme_free_irq);
+EXPORT_SYMBOL(vme_irq_free);
 
-int vme_generate_irq(struct device *dev, int level, int statid)
+int vme_irq_generate(struct device *dev, int level, int statid)
 {
 	struct vme_bridge *bridge;
 
@@ -1039,14 +1083,14 @@ int vme_generate_irq(struct device *dev, int level, int statid)
 		return -EINVAL;
 	}
 
-	if (bridge->generate_irq == NULL) {
+	if (bridge->irq_generate == NULL) {
 		printk("Interrupt generation not supported\n");
 		return -EINVAL;
 	}
 
-	return bridge->generate_irq(level, statid);
+	return bridge->irq_generate(level, statid);
 }
-EXPORT_SYMBOL(vme_generate_irq);
+EXPORT_SYMBOL(vme_irq_generate);
 
 /*
  * Request the location monitor, return resource or NULL
