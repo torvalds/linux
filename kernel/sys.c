@@ -1548,24 +1548,37 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			if (arg4 | arg5)
 				return -EINVAL;
 			switch (arg2) {
-			case 0:
+			case PR_MCE_KILL_CLEAR:
 				if (arg3 != 0)
 					return -EINVAL;
 				current->flags &= ~PF_MCE_PROCESS;
 				break;
-			case 1:
+			case PR_MCE_KILL_SET:
 				current->flags |= PF_MCE_PROCESS;
-				if (arg3 != 0)
+				if (arg3 == PR_MCE_KILL_EARLY)
 					current->flags |= PF_MCE_EARLY;
-				else
+				else if (arg3 == PR_MCE_KILL_LATE)
 					current->flags &= ~PF_MCE_EARLY;
+				else if (arg3 == PR_MCE_KILL_DEFAULT)
+					current->flags &=
+						~(PF_MCE_EARLY|PF_MCE_PROCESS);
+				else
+					return -EINVAL;
 				break;
 			default:
 				return -EINVAL;
 			}
 			error = 0;
 			break;
-
+		case PR_MCE_KILL_GET:
+			if (arg2 | arg3 | arg4 | arg5)
+				return -EINVAL;
+			if (current->flags & PF_MCE_PROCESS)
+				error = (current->flags & PF_MCE_EARLY) ?
+					PR_MCE_KILL_EARLY : PR_MCE_KILL_LATE;
+			else
+				error = PR_MCE_KILL_DEFAULT;
+			break;
 		default:
 			error = -EINVAL;
 			break;

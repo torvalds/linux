@@ -2542,7 +2542,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	} else if (PageHWPoison(page)) {
 		ret = VM_FAULT_HWPOISON;
 		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-		goto out;
+		goto out_release;
 	}
 
 	lock_page(page);
@@ -2614,6 +2614,7 @@ out_nomap:
 	pte_unmap_unlock(page_table, ptl);
 out_page:
 	unlock_page(page);
+out_release:
 	page_cache_release(page);
 	return ret;
 }
