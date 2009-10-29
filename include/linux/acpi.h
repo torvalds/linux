@@ -263,7 +263,6 @@ struct acpi_osc_context {
 #define OSC_QUERY_TYPE			0
 #define OSC_SUPPORT_TYPE 		1
 #define OSC_CONTROL_TYPE		2
-#define OSC_SUPPORT_MASKS		0x1f
 
 /* _OSC DW0 Definition */
 #define OSC_QUERY_ENABLE		1
@@ -274,12 +273,14 @@ struct acpi_osc_context {
 
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 
+/* PCI defined _OSC bits */
 /* _OSC DW1 Definition (OS Support Fields) */
 #define OSC_EXT_PCI_CONFIG_SUPPORT		1
 #define OSC_ACTIVE_STATE_PWR_SUPPORT 		2
 #define OSC_CLOCK_PWR_CAPABILITY_SUPPORT	4
 #define OSC_PCI_SEGMENT_GROUPS_SUPPORT		8
 #define OSC_MSI_SUPPORT				16
+#define OSC_PCI_SUPPORT_MASKS			0x1f
 
 /* _OSC DW1 Definition (OS Control Fields) */
 #define OSC_PCI_EXPRESS_NATIVE_HP_CONTROL	1
@@ -288,7 +289,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 #define OSC_PCI_EXPRESS_AER_CONTROL		8
 #define OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL	16
 
-#define OSC_CONTROL_MASKS 	(OSC_PCI_EXPRESS_NATIVE_HP_CONTROL | 	\
+#define OSC_PCI_CONTROL_MASKS 	(OSC_PCI_EXPRESS_NATIVE_HP_CONTROL | 	\
 				OSC_SHPC_NATIVE_HP_CONTROL | 		\
 				OSC_PCI_EXPRESS_PME_CONTROL |		\
 				OSC_PCI_EXPRESS_AER_CONTROL |		\
