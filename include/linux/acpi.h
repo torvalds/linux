@@ -253,6 +253,13 @@ void __init acpi_old_suspend_ordering(void);
 void __init acpi_s4_no_nvs(void);
 #endif /* CONFIG_PM_SLEEP */
 
+struct acpi_osc_context {
+	char *uuid_str; /* uuid string */
+	int rev;
+	struct acpi_buffer cap; /* arg2/arg3 */
+	struct acpi_buffer ret; /* free by caller if success */
+};
+
 #define OSC_QUERY_TYPE			0
 #define OSC_SUPPORT_TYPE 		1
 #define OSC_CONTROL_TYPE		2
@@ -264,6 +271,8 @@ void __init acpi_s4_no_nvs(void);
 #define OSC_INVALID_UUID_ERROR		4
 #define OSC_INVALID_REVISION_ERROR	8
 #define OSC_CAPABILITIES_MASK_ERROR	16
+
+acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 
 /* _OSC DW1 Definition (OS Support Fields) */
 #define OSC_EXT_PCI_CONFIG_SUPPORT		1
