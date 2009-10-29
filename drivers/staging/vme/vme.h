@@ -123,7 +123,7 @@ unsigned int vme_master_rmw (struct vme_resource *, unsigned int, unsigned int,
 	unsigned int, loff_t);
 void vme_master_free(struct vme_resource *);
 
-struct vme_resource *vme_request_dma(struct device *);
+struct vme_resource *vme_dma_request(struct device *);
 struct vme_dma_list *vme_new_dma_list(struct vme_resource *);
 struct vme_dma_attr *vme_dma_pattern_attribute(u32, vme_pattern_t);
 struct vme_dma_attr *vme_dma_pci_attribute(dma_addr_t);

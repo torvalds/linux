@@ -77,7 +77,7 @@ driver in question:
 	struct vme_resource * vme_slave_request(struct device *dev,
 		vme_address_t aspace, vme_cycle_t cycle);
 
-	struct vme_resource *vme_request_dma(struct device *dev);
+	struct vme_resource *vme_dma_request(struct device *dev);
 
 For slave windows these attributes are split into those of type 'vme_address_t'
 and 'vme_cycle_t'. Master windows add a further set of attributes 'vme_cycle_t'.

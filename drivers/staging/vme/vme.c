@@ -643,7 +643,7 @@ EXPORT_SYMBOL(vme_master_free);
  * Request a DMA controller with specific attributes, return some unique
  * identifier.
  */
-struct vme_resource *vme_request_dma(struct device *dev)
+struct vme_resource *vme_dma_request(struct device *dev)
 {
 	struct vme_bridge *bridge;
 	struct list_head *dma_pos = NULL;
@@ -704,7 +704,7 @@ err_ctrlr:
 err_bus:
 	return NULL;
 }
-EXPORT_SYMBOL(vme_request_dma);
+EXPORT_SYMBOL(vme_dma_request);
 
 /*
  * Start new list
