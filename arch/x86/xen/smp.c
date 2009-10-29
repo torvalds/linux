@@ -35,10 +35,10 @@
 
 cpumask_var_t xen_cpu_initialized_map;
 
-static DEFINE_PER_CPU(int, resched_irq);
-static DEFINE_PER_CPU(int, callfunc_irq);
-static DEFINE_PER_CPU(int, callfuncsingle_irq);
-static DEFINE_PER_CPU(int, debug_irq) = -1;
+static DEFINE_PER_CPU(int, xen_resched_irq);
+static DEFINE_PER_CPU(int, xen_callfunc_irq);
+static DEFINE_PER_CPU(int, xen_callfuncsingle_irq);
+static DEFINE_PER_CPU(int, xen_debug_irq) = -1;
 
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id);
 static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id);
@@ -103,7 +103,7 @@ static int xen_smp_intr_init(unsigned int cpu)
 				    NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(resched_irq, cpu) = rc;
+	per_cpu(xen_resched_irq, cpu) = rc;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "callfunc%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_VECTOR,
@@ -114,7 +114,7 @@ static int xen_smp_intr_init(unsigned int cpu)
 				    NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(callfunc_irq, cpu) = rc;
+	per_cpu(xen_callfunc_irq, cpu) = rc;
 
 	debug_name = kasprintf(GFP_KERNEL, "debug%d", cpu);
 	rc = bind_virq_to_irqhandler(VIRQ_DEBUG, cpu, xen_debug_interrupt,
@@ -122,7 +122,7 @@ static int xen_smp_intr_init(unsigned int cpu)
 				     debug_name, NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(debug_irq, cpu) = rc;
+	per_cpu(xen_debug_irq, cpu) = rc;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "callfuncsingle%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_SINGLE_VECTOR,
@@ -133,19 +133,20 @@ static int xen_smp_intr_init(unsigned int cpu)
 				    NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(callfuncsingle_irq, cpu) = rc;
+	per_cpu(xen_callfuncsingle_irq, cpu) = rc;
 
 	return 0;
 
  fail:
-	if (per_cpu(resched_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
-	if (per_cpu(callfunc_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
-	if (per_cpu(debug_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(debug_irq, cpu), NULL);
-	if (per_cpu(callfuncsingle_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(callfuncsingle_irq, cpu), NULL);
+	if (per_cpu(xen_resched_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu), NULL);
+	if (per_cpu(xen_callfunc_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
+	if (per_cpu(xen_debug_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
+	if (per_cpu(xen_callfuncsingle_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu),
+				       NULL);
 
 	return rc;
 }
@@ -348,10 +349,10 @@ static void xen_cpu_die(unsigned int cpu)
 		current->state = TASK_UNINTERRUPTIBLE;
 		schedule_timeout(HZ/10);
 	}
-	unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(debug_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(callfuncsingle_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu), NULL);
 	xen_uninit_lock_cpu(cpu);
 	xen_teardown_timer(cpu);
 
