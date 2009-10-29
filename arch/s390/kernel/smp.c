@@ -638,6 +638,8 @@ void __cpu_die(unsigned int cpu)
 	/* Wait until target cpu is down */
 	while (!cpu_stopped(cpu))
 		cpu_relax();
+	while (signal_processor_p(0, cpu, sigp_set_prefix) == sigp_busy)
+		udelay(10);
 	smp_free_lowcore(cpu);
 	pr_info("Processor %d stopped\n", cpu);
 }
