@@ -41,7 +41,9 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
  * Only S390 provides its own means of moving the pointer.
  */
 #ifndef SHIFT_PERCPU_PTR
-#define SHIFT_PERCPU_PTR(__p, __offset)	RELOC_HIDE((__p), (__offset))
+/* Weird cast keeps both GCC and sparse happy. */
+#define SHIFT_PERCPU_PTR(__p, __offset)				\
+	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset))
 #endif
 
 /*

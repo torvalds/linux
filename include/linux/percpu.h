@@ -30,8 +30,12 @@
 	preempt_disable();				\
 	&__get_cpu_var(var); }))
 
+/*
+ * The weird & is necessary because sparse considers (void)(var) to be
+ * a direct dereference of percpu variable (var).
+ */
 #define put_cpu_var(var) do {				\
-	(void)(var);					\
+	(void)&(var);					\
 	preempt_enable();				\
 } while (0)
 
@@ -130,9 +134,9 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
  */
 #define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
 
-extern void *__alloc_reserved_percpu(size_t size, size_t align);
-extern void *__alloc_percpu(size_t size, size_t align);
-extern void free_percpu(void *__pdata);
+extern void __percpu *__alloc_reserved_percpu(size_t size, size_t align);
+extern void __percpu *__alloc_percpu(size_t size, size_t align);
+extern void free_percpu(void __percpu *__pdata);
 
 #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
 extern void __init setup_per_cpu_areas(void);
@@ -142,7 +146,7 @@ extern void __init setup_per_cpu_areas(void);
 
 #define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
 
-static inline void *__alloc_percpu(size_t size, size_t align)
+static inline void __percpu *__alloc_percpu(size_t size, size_t align)
 {
 	/*
 	 * Can't easily make larger alignment work with kmalloc.  WARN
@@ -153,7 +157,7 @@ static inline void *__alloc_percpu(size_t size, size_t align)
 	return kzalloc(size, GFP_KERNEL);
 }
 
-static inline void free_percpu(void *p)
+static inline void free_percpu(void __percpu *p)
 {
 	kfree(p);
 }
@@ -168,7 +172,7 @@ static inline void *pcpu_lpage_remapped(void *kaddr)
 #endif /* CONFIG_SMP */
 
 #define alloc_percpu(type)	\
-	(typeof(type) *)__alloc_percpu(sizeof(type), __alignof__(type))
+	(typeof(type) __percpu *)__alloc_percpu(sizeof(type), __alignof__(type))
 
 /*
  * Optional methods for optimized non-lvalue per-cpu variable access.
