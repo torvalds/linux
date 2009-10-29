@@ -679,7 +679,7 @@ static u8 ath_rc_get_highest_rix(struct ath_softc *sc,
 		return rate;
 
 	if (rate_table->info[rate].valid_single_stream &&
-	    !(ath_rc_priv->ht_cap & WLAN_RC_DS_FLAG));
+	    !(ath_rc_priv->ht_cap & WLAN_RC_DS_FLAG))
 		return rate;
 
 	/* This should not happen */
