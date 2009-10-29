@@ -37,7 +37,7 @@ extern void cpu_die(void);
 extern void smp_send_debugger_break(int cpu);
 extern void smp_message_recv(int);
 
-DECLARE_PER_CPU(unsigned int, pvr);
+DECLARE_PER_CPU(unsigned int, cpu_pvr);
 
 #ifdef CONFIG_HOTPLUG_CPU
 extern void fixup_irqs(cpumask_t map);

@@ -232,7 +232,7 @@ struct thread_info *current_set[NR_CPUS];
 
 static void __devinit smp_store_cpu_info(int id)
 {
-	per_cpu(pvr, id) = mfspr(SPRN_PVR);
+	per_cpu(cpu_pvr, id) = mfspr(SPRN_PVR);
 }
 
 static void __init smp_create_idle(unsigned int cpu)

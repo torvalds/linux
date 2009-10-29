@@ -497,11 +497,11 @@ static void perf_callchain_user_32(struct pt_regs *regs,
  * Since we can't get PMU interrupts inside a PMU interrupt handler,
  * we don't need separate irq and nmi entries here.
  */
-static DEFINE_PER_CPU(struct perf_callchain_entry, callchain);
+static DEFINE_PER_CPU(struct perf_callchain_entry, cpu_perf_callchain);
 
 struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 {
-	struct perf_callchain_entry *entry = &__get_cpu_var(callchain);
+	struct perf_callchain_entry *entry = &__get_cpu_var(cpu_perf_callchain);
 
 	entry->nr = 0;
 

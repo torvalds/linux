@@ -54,7 +54,7 @@ struct iic {
 	struct device_node *node;
 };
 
-static DEFINE_PER_CPU(struct iic, iic);
+static DEFINE_PER_CPU(struct iic, cpu_iic);
 #define IIC_NODE_COUNT	2
 static struct irq_host *iic_host;
 
@@ -82,7 +82,7 @@ static void iic_unmask(unsigned int irq)
 
 static void iic_eoi(unsigned int irq)
 {
-	struct iic *iic = &__get_cpu_var(iic);
+	struct iic *iic = &__get_cpu_var(cpu_iic);
 	out_be64(&iic->regs->prio, iic->eoi_stack[--iic->eoi_ptr]);
 	BUG_ON(iic->eoi_ptr < 0);
 }
@@ -146,7 +146,7 @@ static unsigned int iic_get_irq(void)
 	struct iic *iic;
 	unsigned int virq;
 
-	iic = &__get_cpu_var(iic);
+	iic = &__get_cpu_var(cpu_iic);
 	*(unsigned long *) &pending =
 		in_be64((u64 __iomem *) &iic->regs->pending_destr);
 	if (!(pending.flags & CBE_IIC_IRQ_VALID))
@@ -161,12 +161,12 @@ static unsigned int iic_get_irq(void)
 
 void iic_setup_cpu(void)
 {
-	out_be64(&__get_cpu_var(iic).regs->prio, 0xff);
+	out_be64(&__get_cpu_var(cpu_iic).regs->prio, 0xff);
 }
 
 u8 iic_get_target_id(int cpu)
 {
-	return per_cpu(iic, cpu).target_id;
+	return per_cpu(cpu_iic, cpu).target_id;
 }
 
 EXPORT_SYMBOL_GPL(iic_get_target_id);
@@ -181,7 +181,7 @@ static inline int iic_ipi_to_irq(int ipi)
 
 void iic_cause_IPI(int cpu, int mesg)
 {
-	out_be64(&per_cpu(iic, cpu).regs->generate, (0xf - mesg) << 4);
+	out_be64(&per_cpu(cpu_iic, cpu).regs->generate, (0xf - mesg) << 4);
 }
 
 struct irq_host *iic_get_irq_host(int node)
@@ -348,7 +348,7 @@ static void __init init_one_iic(unsigned int hw_cpu, unsigned long addr,
 	/* XXX FIXME: should locate the linux CPU number from the HW cpu
 	 * number properly. We are lucky for now
 	 */
-	struct iic *iic = &per_cpu(iic, hw_cpu);
+	struct iic *iic = &per_cpu(cpu_iic, hw_cpu);
 
 	iic->regs = ioremap(addr, sizeof(struct cbe_iic_thread_regs));
 	BUG_ON(iic->regs == NULL);
