@@ -55,7 +55,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_PURR);				\
 	/* calculate address of stat structure r4 = opcode */	\
 	srdi	r4,r4,2;		/* index into array */	\
 	mulli	r4,r4,HCALL_STAT_SIZE;				\
-	LOAD_REG_ADDR(r7, per_cpu__hcall_stats);		\
+	LOAD_REG_ADDR(r7, hcall_stats);				\
 	add	r4,r4,r7;					\
 	ld	r7,PACA_DATA_OFFSET(r13); /* per cpu offset */	\
 	add	r4,r4,r7;					\

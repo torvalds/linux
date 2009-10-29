@@ -25,19 +25,18 @@
  */
 #ifdef CONFIG_SMP
 #define PER_CPU(var, reg)						\
-	__percpu_mov_op %__percpu_seg:per_cpu__this_cpu_off, reg;	\
-	lea per_cpu__##var(reg), reg
-#define PER_CPU_VAR(var)	%__percpu_seg:per_cpu__##var
+	__percpu_mov_op %__percpu_seg:this_cpu_off, reg;		\
+	lea var(reg), reg
+#define PER_CPU_VAR(var)	%__percpu_seg:var
 #else /* ! SMP */
-#define PER_CPU(var, reg)						\
-	__percpu_mov_op $per_cpu__##var, reg
-#define PER_CPU_VAR(var)	per_cpu__##var
+#define PER_CPU(var, reg)	__percpu_mov_op $var, reg
+#define PER_CPU_VAR(var)	var
 #endif	/* SMP */
 
 #ifdef CONFIG_X86_64_SMP
 #define INIT_PER_CPU_VAR(var)  init_per_cpu__##var
 #else
-#define INIT_PER_CPU_VAR(var)  per_cpu__##var
+#define INIT_PER_CPU_VAR(var)  var
 #endif
 
 #else /* ...!ASSEMBLY */
@@ -60,12 +59,12 @@
  * There also must be an entry in vmlinux_64.lds.S
  */
 #define DECLARE_INIT_PER_CPU(var) \
-       extern typeof(per_cpu_var(var)) init_per_cpu_var(var)
+       extern typeof(var) init_per_cpu_var(var)
 
 #ifdef CONFIG_X86_64_SMP
 #define init_per_cpu_var(var)  init_per_cpu__##var
 #else
-#define init_per_cpu_var(var)  per_cpu_var(var)
+#define init_per_cpu_var(var)  var
 #endif
 
 /* For arch-specific code, we can use direct single-insn ops (they
@@ -142,16 +141,14 @@ do {							\
  * per-thread variables implemented as per-cpu variables and thus
  * stable for the duration of the respective task.
  */
-#define percpu_read(var)	percpu_from_op("mov", per_cpu__##var,	\
-					       "m" (per_cpu__##var))
-#define percpu_read_stable(var)	percpu_from_op("mov", per_cpu__##var,	\
-					       "p" (&per_cpu__##var))
-#define percpu_write(var, val)	percpu_to_op("mov", per_cpu__##var, val)
-#define percpu_add(var, val)	percpu_to_op("add", per_cpu__##var, val)
-#define percpu_sub(var, val)	percpu_to_op("sub", per_cpu__##var, val)
-#define percpu_and(var, val)	percpu_to_op("and", per_cpu__##var, val)
-#define percpu_or(var, val)	percpu_to_op("or", per_cpu__##var, val)
-#define percpu_xor(var, val)	percpu_to_op("xor", per_cpu__##var, val)
+#define percpu_read(var)		percpu_from_op("mov", var, "m" (var))
+#define percpu_read_stable(var)		percpu_from_op("mov", var, "p" (&(var)))
+#define percpu_write(var, val)		percpu_to_op("mov", var, val)
+#define percpu_add(var, val)		percpu_to_op("add", var, val)
+#define percpu_sub(var, val)		percpu_to_op("sub", var, val)
+#define percpu_and(var, val)		percpu_to_op("and", var, val)
+#define percpu_or(var, val)		percpu_to_op("or", var, val)
+#define percpu_xor(var, val)		percpu_to_op("xor", var, val)
 
 #define __this_cpu_read_1(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
 #define __this_cpu_read_2(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
@@ -236,7 +233,7 @@ do {							\
 ({									\
 	int old__;							\
 	asm volatile("btr %2,"__percpu_arg(1)"\n\tsbbl %0,%0"		\
-		     : "=r" (old__), "+m" (per_cpu__##var)		\
+		     : "=r" (old__), "+m" (var)				\
 		     : "dIr" (bit));					\
 	old__;								\
 })

@@ -731,13 +731,13 @@ static void rcu_torture_timer(unsigned long unused)
 		/* Should not happen, but... */
 		pipe_count = RCU_TORTURE_PIPE_LEN;
 	}
-	__this_cpu_inc(per_cpu_var(rcu_torture_count)[pipe_count]);
+	__this_cpu_inc(rcu_torture_count[pipe_count]);
 	completed = cur_ops->completed() - completed;
 	if (completed > RCU_TORTURE_PIPE_LEN) {
 		/* Should not happen, but... */
 		completed = RCU_TORTURE_PIPE_LEN;
 	}
-	__this_cpu_inc(per_cpu_var(rcu_torture_batch)[completed]);
+	__this_cpu_inc(rcu_torture_batch[completed]);
 	preempt_enable();
 	cur_ops->readunlock(idx);
 }
@@ -786,13 +786,13 @@ rcu_torture_reader(void *arg)
 			/* Should not happen, but... */
 			pipe_count = RCU_TORTURE_PIPE_LEN;
 		}
-		__this_cpu_inc(per_cpu_var(rcu_torture_count)[pipe_count]);
+		__this_cpu_inc(rcu_torture_count[pipe_count]);
 		completed = cur_ops->completed() - completed;
 		if (completed > RCU_TORTURE_PIPE_LEN) {
 			/* Should not happen, but... */
 			completed = RCU_TORTURE_PIPE_LEN;
 		}
-		__this_cpu_inc(per_cpu_var(rcu_torture_batch)[completed]);
+		__this_cpu_inc(rcu_torture_batch[completed]);
 		preempt_enable();
 		cur_ops->readunlock(idx);
 		schedule();

@@ -50,11 +50,11 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
  * offset.
  */
 #define per_cpu(var, cpu) \
-	(*SHIFT_PERCPU_PTR(&per_cpu_var(var), per_cpu_offset(cpu)))
+	(*SHIFT_PERCPU_PTR(&(var), per_cpu_offset(cpu)))
 #define __get_cpu_var(var) \
-	(*SHIFT_PERCPU_PTR(&per_cpu_var(var), my_cpu_offset))
+	(*SHIFT_PERCPU_PTR(&(var), my_cpu_offset))
 #define __raw_get_cpu_var(var) \
-	(*SHIFT_PERCPU_PTR(&per_cpu_var(var), __my_cpu_offset))
+	(*SHIFT_PERCPU_PTR(&(var), __my_cpu_offset))
 
 #define this_cpu_ptr(ptr) SHIFT_PERCPU_PTR(ptr, my_cpu_offset)
 #define __this_cpu_ptr(ptr) SHIFT_PERCPU_PTR(ptr, __my_cpu_offset)
@@ -66,9 +66,9 @@ extern void setup_per_cpu_areas(void);
 
 #else /* ! SMP */
 
-#define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu_var(var)))
-#define __get_cpu_var(var)			per_cpu_var(var)
-#define __raw_get_cpu_var(var)			per_cpu_var(var)
+#define per_cpu(var, cpu)			(*((void)(cpu), &(var)))
+#define __get_cpu_var(var)			(var)
+#define __raw_get_cpu_var(var)			(var)
 #define this_cpu_ptr(ptr) per_cpu_ptr(ptr, 0)
 #define __this_cpu_ptr(ptr) this_cpu_ptr(ptr)
 

@@ -2,12 +2,6 @@
 #define _LINUX_PERCPU_DEFS_H
 
 /*
- * Determine the real variable name from the name visible in the
- * kernel sources.
- */
-#define per_cpu_var(var) per_cpu__##var
-
-/*
  * Base implementations of per-CPU variable declarations and definitions, where
  * the section in which the variable is to be placed is provided by the
  * 'sec' argument.  This may be used to affect the parameters governing the
@@ -56,24 +50,24 @@
  */
 #define DECLARE_PER_CPU_SECTION(type, name, sec)			\
 	extern __PCPU_DUMMY_ATTRS char __pcpu_scope_##name;		\
-	extern __PCPU_ATTRS(sec) __typeof__(type) per_cpu__##name
+	extern __PCPU_ATTRS(sec) __typeof__(type) name
 
 #define DEFINE_PER_CPU_SECTION(type, name, sec)				\
 	__PCPU_DUMMY_ATTRS char __pcpu_scope_##name;			\
 	extern __PCPU_DUMMY_ATTRS char __pcpu_unique_##name;		\
 	__PCPU_DUMMY_ATTRS char __pcpu_unique_##name;			\
 	__PCPU_ATTRS(sec) PER_CPU_DEF_ATTRIBUTES __weak			\
-	__typeof__(type) per_cpu__##name
+	__typeof__(type) name
 #else
 /*
  * Normal declaration and definition macros.
  */
 #define DECLARE_PER_CPU_SECTION(type, name, sec)			\
-	extern __PCPU_ATTRS(sec) __typeof__(type) per_cpu__##name
+	extern __PCPU_ATTRS(sec) __typeof__(type) name
 
 #define DEFINE_PER_CPU_SECTION(type, name, sec)				\
 	__PCPU_ATTRS(sec) PER_CPU_DEF_ATTRIBUTES			\
-	__typeof__(type) per_cpu__##name
+	__typeof__(type) name
 #endif
 
 /*
@@ -137,8 +131,8 @@
 /*
  * Intermodule exports for per-CPU variables.
  */
-#define EXPORT_PER_CPU_SYMBOL(var) EXPORT_SYMBOL(per_cpu__##var)
-#define EXPORT_PER_CPU_SYMBOL_GPL(var) EXPORT_SYMBOL_GPL(per_cpu__##var)
+#define EXPORT_PER_CPU_SYMBOL(var) EXPORT_SYMBOL(var)
+#define EXPORT_PER_CPU_SYMBOL_GPL(var) EXPORT_SYMBOL_GPL(var)
 
 
 #endif /* _LINUX_PERCPU_DEFS_H */

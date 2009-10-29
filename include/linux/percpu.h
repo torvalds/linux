@@ -182,7 +182,7 @@ static inline void *pcpu_lpage_remapped(void *kaddr)
 #ifndef percpu_read
 # define percpu_read(var)						\
   ({									\
-	typeof(per_cpu_var(var)) __tmp_var__;				\
+	typeof(var) __tmp_var__;					\
 	__tmp_var__ = get_cpu_var(var);					\
 	put_cpu_var(var);						\
 	__tmp_var__;							\
@@ -253,8 +253,7 @@ do {									\
 
 /*
  * Optimized manipulation for memory allocated through the per cpu
- * allocator or for addresses of per cpu variables (can be determined
- * using per_cpu_var(xx).
+ * allocator or for addresses of per cpu variables.
  *
  * These operation guarantee exclusivity of access for other operations
  * on the *same* processor. The assumption is that per cpu data is only

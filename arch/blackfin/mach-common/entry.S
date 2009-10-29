@@ -835,8 +835,8 @@ ENDPROC(_resume)
 
 ENTRY(_ret_from_exception)
 #ifdef CONFIG_IPIPE
-	p2.l = _per_cpu__ipipe_percpu_domain;
-	p2.h = _per_cpu__ipipe_percpu_domain;
+	p2.l = _ipipe_percpu_domain;
+	p2.h = _ipipe_percpu_domain;
 	r0.l = _ipipe_root;
 	r0.h = _ipipe_root;
 	r2 = [p2];
