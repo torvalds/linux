@@ -140,6 +140,9 @@
 #define HV_OEM_BITS_GBE_DIS    0x0040 /* Gigabit Disable */
 #define HV_OEM_BITS_RESTART_AN 0x0400 /* Restart Auto-negotiation */
 
+#define E1000_NVM_K1_CONFIG 0x1B /* NVM K1 Config Word */
+#define E1000_NVM_K1_ENABLE 0x1  /* NVM Enable K1 bit */
+
 /* ICH GbE Flash Hardware Sequencing Flash Status Register bit breakdown */
 /* Offset 04h HSFSTS */
 union ich8_hws_flash_status {
@@ -220,6 +223,8 @@ static s32 e1000_led_on_pchlan(struct e1000_hw *hw);
 static s32 e1000_led_off_pchlan(struct e1000_hw *hw);
 static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active);
 static void e1000_lan_init_done_ich8lan(struct e1000_hw *hw);
+static s32  e1000_k1_gig_workaround_hv(struct e1000_hw *hw, bool link);
+static s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable);
 
 static inline u16 __er16flash(struct e1000_hw *hw, unsigned long reg)
 {
@@ -495,14 +500,6 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 		goto out;
 	}
 
-	if (hw->mac.type == e1000_pchlan) {
-		ret_val = e1000e_write_kmrn_reg(hw,
-		                                   E1000_KMRNCTRLSTA_K1_CONFIG,
-		                                   E1000_KMRNCTRLSTA_K1_ENABLE);
-		if (ret_val)
-			goto out;
-	}
-
 	/*
 	 * First we want to see if the MII Status Register reports
 	 * link.  If so, then we want to get the current speed/duplex
@@ -511,6 +508,12 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	ret_val = e1000e_phy_has_link_generic(hw, 1, 0, &link);
 	if (ret_val)
 		goto out;
+
+	if (hw->mac.type == e1000_pchlan) {
+		ret_val = e1000_k1_gig_workaround_hv(hw, link);
+		if (ret_val)
+			goto out;
+	}
 
 	if (!link)
 		goto out; /* No link detected */
@@ -929,6 +932,141 @@ out:
 }
 
 /**
+ *  e1000_k1_gig_workaround_hv - K1 Si workaround
+ *  @hw:   pointer to the HW structure
+ *  @link: link up bool flag
+ *
+ *  If K1 is enabled for 1Gbps, the MAC might stall when transitioning
+ *  from a lower speed.  This workaround disables K1 whenever link is at 1Gig
+ *  If link is down, the function will restore the default K1 setting located
+ *  in the NVM.
+ **/
+static s32 e1000_k1_gig_workaround_hv(struct e1000_hw *hw, bool link)
+{
+	s32 ret_val = 0;
+	u16 status_reg = 0;
+	bool k1_enable = hw->dev_spec.ich8lan.nvm_k1_enabled;
+
+	if (hw->mac.type != e1000_pchlan)
+		goto out;
+
+	/* Wrap the whole flow with the sw flag */
+	ret_val = hw->phy.ops.acquire_phy(hw);
+	if (ret_val)
+		goto out;
+
+	/* Disable K1 when link is 1Gbps, otherwise use the NVM setting */
+	if (link) {
+		if (hw->phy.type == e1000_phy_82578) {
+			ret_val = hw->phy.ops.read_phy_reg_locked(hw,
+			                                          BM_CS_STATUS,
+			                                          &status_reg);
+			if (ret_val)
+				goto release;
+
+			status_reg &= BM_CS_STATUS_LINK_UP |
+			              BM_CS_STATUS_RESOLVED |
+			              BM_CS_STATUS_SPEED_MASK;
+
+			if (status_reg == (BM_CS_STATUS_LINK_UP |
+			                   BM_CS_STATUS_RESOLVED |
+			                   BM_CS_STATUS_SPEED_1000))
+				k1_enable = false;
+		}
+
+		if (hw->phy.type == e1000_phy_82577) {
+			ret_val = hw->phy.ops.read_phy_reg_locked(hw,
+			                                          HV_M_STATUS,
+			                                          &status_reg);
+			if (ret_val)
+				goto release;
+
+			status_reg &= HV_M_STATUS_LINK_UP |
+			              HV_M_STATUS_AUTONEG_COMPLETE |
+			              HV_M_STATUS_SPEED_MASK;
+
+			if (status_reg == (HV_M_STATUS_LINK_UP |
+			                   HV_M_STATUS_AUTONEG_COMPLETE |
+			                   HV_M_STATUS_SPEED_1000))
+				k1_enable = false;
+		}
+
+		/* Link stall fix for link up */
+		ret_val = hw->phy.ops.write_phy_reg_locked(hw, PHY_REG(770, 19),
+		                                           0x0100);
+		if (ret_val)
+			goto release;
+
+	} else {
+		/* Link stall fix for link down */
+		ret_val = hw->phy.ops.write_phy_reg_locked(hw, PHY_REG(770, 19),
+		                                           0x4100);
+		if (ret_val)
+			goto release;
+	}
+
+	ret_val = e1000_configure_k1_ich8lan(hw, k1_enable);
+
+release:
+	hw->phy.ops.release_phy(hw);
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_configure_k1_ich8lan - Configure K1 power state
+ *  @hw: pointer to the HW structure
+ *  @enable: K1 state to configure
+ *
+ *  Configure the K1 power state based on the provided parameter.
+ *  Assumes semaphore already acquired.
+ *
+ *  Success returns 0, Failure returns -E1000_ERR_PHY (-2)
+ **/
+static s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable)
+{
+	s32 ret_val = 0;
+	u32 ctrl_reg = 0;
+	u32 ctrl_ext = 0;
+	u32 reg = 0;
+	u16 kmrn_reg = 0;
+
+	ret_val = e1000e_read_kmrn_reg_locked(hw,
+	                                     E1000_KMRNCTRLSTA_K1_CONFIG,
+	                                     &kmrn_reg);
+	if (ret_val)
+		goto out;
+
+	if (k1_enable)
+		kmrn_reg |= E1000_KMRNCTRLSTA_K1_ENABLE;
+	else
+		kmrn_reg &= ~E1000_KMRNCTRLSTA_K1_ENABLE;
+
+	ret_val = e1000e_write_kmrn_reg_locked(hw,
+	                                      E1000_KMRNCTRLSTA_K1_CONFIG,
+	                                      kmrn_reg);
+	if (ret_val)
+		goto out;
+
+	udelay(20);
+	ctrl_ext = er32(CTRL_EXT);
+	ctrl_reg = er32(CTRL);
+
+	reg = ctrl_reg & ~(E1000_CTRL_SPD_1000 | E1000_CTRL_SPD_100);
+	reg |= E1000_CTRL_FRCSPD;
+	ew32(CTRL, reg);
+
+	ew32(CTRL_EXT, ctrl_ext | E1000_CTRL_EXT_SPD_BYPS);
+	udelay(20);
+	ew32(CTRL, ctrl_reg);
+	ew32(CTRL_EXT, ctrl_ext);
+	udelay(20);
+
+out:
+	return ret_val;
+}
+
+/**
  *  e1000_oem_bits_config_ich8lan - SW-based LCD Configuration
  *  @hw:       pointer to the HW structure
  *  @d0_state: boolean if entering d0 or d3 device state
@@ -1030,10 +1168,20 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 	ret_val = hw->phy.ops.acquire_phy(hw);
 	if (ret_val)
 		return ret_val;
+
 	hw->phy.addr = 1;
-	e1000e_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT, 0);
+	ret_val = e1000e_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT, 0);
+	if (ret_val)
+		goto out;
 	hw->phy.ops.release_phy(hw);
 
+	/*
+	 * Configure the K1 Si workaround during phy reset assuming there is
+	 * link so that it disables K1 if link is in 1Gbps.
+	 */
+	ret_val = e1000_k1_gig_workaround_hv(hw, true);
+
+out:
 	return ret_val;
 }
 
@@ -2435,6 +2583,7 @@ static s32 e1000_get_bus_info_ich8lan(struct e1000_hw *hw)
  **/
 static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 {
+	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
 	u16 reg;
 	u32 ctrl, icr, kab;
 	s32 ret_val;
@@ -2468,6 +2617,18 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 		ew32(PBA, E1000_PBA_8K);
 		/* Set Packet Buffer Size to 16k. */
 		ew32(PBS, E1000_PBS_16K);
+	}
+
+	if (hw->mac.type == e1000_pchlan) {
+		/* Save the NVM K1 bit setting*/
+		ret_val = e1000_read_nvm(hw, E1000_NVM_K1_CONFIG, 1, &reg);
+		if (ret_val)
+			return ret_val;
+
+		if (reg & E1000_NVM_K1_ENABLE)
+			dev_spec->nvm_k1_enabled = true;
+		else
+			dev_spec->nvm_k1_enabled = false;
 	}
 
 	ctrl = er32(CTRL);
@@ -2846,14 +3007,6 @@ static s32 e1000_get_link_up_info_ich8lan(struct e1000_hw *hw, u16 *speed,
 	ret_val = e1000e_get_speed_and_duplex_copper(hw, speed, duplex);
 	if (ret_val)
 		return ret_val;
-
-	if ((hw->mac.type == e1000_pchlan) && (*speed == SPEED_1000)) {
-		ret_val = e1000e_write_kmrn_reg(hw,
-		                                  E1000_KMRNCTRLSTA_K1_CONFIG,
-		                                  E1000_KMRNCTRLSTA_K1_DISABLE);
-		if (ret_val)
-			return ret_val;
-	}
 
 	if ((hw->mac.type == e1000_ich8lan) &&
 	    (hw->phy.type == e1000_phy_igp_3) &&

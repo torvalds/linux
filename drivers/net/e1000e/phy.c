@@ -95,13 +95,6 @@ static const u16 e1000_igp_2_cable_length_table[] =
 /* BM PHY Copper Specific Control 1 */
 #define BM_CS_CTRL1                       16
 
-/* BM PHY Copper Specific Status */
-#define BM_CS_STATUS                      17
-#define BM_CS_STATUS_LINK_UP              0x0400
-#define BM_CS_STATUS_RESOLVED             0x0800
-#define BM_CS_STATUS_SPEED_MASK           0xC000
-#define BM_CS_STATUS_SPEED_1000           0x8000
-
 #define HV_MUX_DATA_CTRL               PHY_REG(776, 16)
 #define HV_MUX_DATA_CTRL_GEN_TO_MAC    0x0400
 #define HV_MUX_DATA_CTRL_FORCE_SPEED   0x0004
@@ -563,7 +556,7 @@ s32 e1000e_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data)
 }
 
 /**
- *  e1000_read_kmrn_reg_locked -  Read kumeran register
+ *  e1000e_read_kmrn_reg_locked -  Read kumeran register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read
  *  @data: pointer to the read data
@@ -572,7 +565,7 @@ s32 e1000e_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data)
  *  information retrieved is stored in data.
  *  Assumes semaphore already acquired.
  **/
-s32 e1000_read_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 *data)
+s32 e1000e_read_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	return __e1000_read_kmrn_reg(hw, offset, data, true);
 }
@@ -631,7 +624,7 @@ s32 e1000e_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data)
 }
 
 /**
- *  e1000_write_kmrn_reg_locked -  Write kumeran register
+ *  e1000e_write_kmrn_reg_locked -  Write kumeran register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to write to
  *  @data: data to write at register offset
@@ -639,7 +632,7 @@ s32 e1000e_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data)
  *  Write the data to PHY register at the offset using the kumeran interface.
  *  Assumes semaphore already acquired.
  **/
-s32 e1000_write_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 data)
+s32 e1000e_write_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	return __e1000_write_kmrn_reg(hw, offset, data, true);
 }

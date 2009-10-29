@@ -141,6 +141,20 @@ struct e1000_info;
 #define HV_TNCRS_UPPER		PHY_REG(778, 29) /* Transmit with no CRS */
 #define HV_TNCRS_LOWER		PHY_REG(778, 30)
 
+/* BM PHY Copper Specific Status */
+#define BM_CS_STATUS                      17
+#define BM_CS_STATUS_LINK_UP              0x0400
+#define BM_CS_STATUS_RESOLVED             0x0800
+#define BM_CS_STATUS_SPEED_MASK           0xC000
+#define BM_CS_STATUS_SPEED_1000           0x8000
+
+/* 82577 Mobile Phy Status Register */
+#define HV_M_STATUS                       26
+#define HV_M_STATUS_AUTONEG_COMPLETE      0x1000
+#define HV_M_STATUS_SPEED_MASK            0x0300
+#define HV_M_STATUS_SPEED_1000            0x0200
+#define HV_M_STATUS_LINK_UP               0x0040
+
 enum e1000_boards {
 	board_82571,
 	board_82572,
