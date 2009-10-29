@@ -17,6 +17,12 @@
 #include <asm/uaccess.h>
 
 /*
+ * Notifier lists for pre/post sleep notification
+ */
+ATOMIC_NOTIFIER_HEAD(sh_mobile_pre_sleep_notifier_list);
+ATOMIC_NOTIFIER_HEAD(sh_mobile_post_sleep_notifier_list);
+
+/*
  * Sleep modes available on SuperH Mobile:
  *
  * Sleep mode is just plain "sleep" instruction
@@ -44,8 +50,14 @@ void sh_mobile_call_standby(unsigned long mode)
 	void *onchip_mem = (void *)ILRAM_BASE;
 	void (*standby_onchip_mem)(unsigned long, unsigned long) = onchip_mem;
 
+	atomic_notifier_call_chain(&sh_mobile_pre_sleep_notifier_list,
+				   mode, NULL);
+
 	/* Let assembly snippet in on-chip memory handle the rest */
 	standby_onchip_mem(mode, ILRAM_BASE);
+
+	atomic_notifier_call_chain(&sh_mobile_post_sleep_notifier_list,
+				   mode, NULL);
 }
 
 static int sh_pm_enter(suspend_state_t state)
