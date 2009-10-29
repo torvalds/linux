@@ -300,6 +300,7 @@ static int param_array(const char *name,
 		       unsigned int min, unsigned int max,
 		       void *elem, int elemsize,
 		       int (*set)(const char *, struct kernel_param *kp),
+		       u16 flags,
 		       unsigned int *num)
 {
 	int ret;
@@ -309,6 +310,7 @@ static int param_array(const char *name,
 	/* Get the name right for errors. */
 	kp.name = name;
 	kp.arg = elem;
+	kp.flags = flags;
 
 	/* No equals sign? */
 	if (!val) {
@@ -354,7 +356,8 @@ int param_array_set(const char *val, struct kernel_param *kp)
 	unsigned int temp_num;
 
 	return param_array(kp->name, val, 1, arr->max, arr->elem,
-			   arr->elemsize, arr->set, arr->num ?: &temp_num);
+			   arr->elemsize, arr->set, kp->flags,
+			   arr->num ?: &temp_num);
 }
 
 int param_array_get(char *buffer, struct kernel_param *kp)
