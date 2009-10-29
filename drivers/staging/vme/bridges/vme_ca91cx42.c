@@ -1171,7 +1171,9 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	vme_unregister_bridge(ca91cx42_bridge);
 err_reg:
 	ca91cx42_crcsr_exit(pdev);
+#if 0
 err_crcsr:
+#endif
 err_lm:
 	/* resources are stored in link list */
 	list_for_each(pos, &(ca91cx42_bridge->lm_resources)) {
@@ -1226,7 +1228,6 @@ void ca91cx42_remove(struct pci_dev *pdev)
 	struct vme_slave_resource *slave_image;
 	struct vme_dma_resource *dma_ctrlr;
 	struct vme_lm_resource *lm;
-	int i;
 
 	/* Turn off Ints */
 	iowrite32(0, ca91cx42_bridge->base + LINT_EN);
