@@ -1616,24 +1616,8 @@ void bond_destroy_sysfs(void)
  * Initialize sysfs for each bond.  This sets up and registers
  * the 'bondctl' directory for each individual bond under /sys/class/net.
  */
-int bond_create_sysfs_entry(struct bonding *bond)
+void bond_prepare_sysfs_group(struct bonding *bond)
 {
-	struct net_device *dev = bond->dev;
-	int err;
-
-	err = sysfs_create_group(&(dev->dev.kobj), &bonding_group);
-	if (err)
-		pr_emerg("eek! didn't create group!\n");
-
-	return err;
-}
-/*
- * Remove sysfs entries for each bond.
- */
-void bond_destroy_sysfs_entry(struct bonding *bond)
-{
-	struct net_device *dev = bond->dev;
-
-	sysfs_remove_group(&(dev->dev.kobj), &bonding_group);
+	bond->dev->sysfs_groups[0] = &bonding_group;
 }
 

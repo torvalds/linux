@@ -2011,7 +2011,6 @@ static void bond_uninit(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 
 	bond_deinit(bond_dev);
-	bond_destroy_sysfs_entry(bond);
 
 	if (bond->wq)
 		destroy_workqueue(bond->wq);
@@ -3456,9 +3455,6 @@ static int bond_event_changename(struct bonding *bond)
 {
 	bond_remove_proc_entry(bond);
 	bond_create_proc_entry(bond);
-
-	bond_destroy_sysfs_entry(bond);
-	bond_create_sysfs_entry(bond);
 
 	return NOTIFY_DONE;
 }
@@ -5078,6 +5074,7 @@ static int bond_init(struct net_device *bond_dev)
 	bond_create_proc_entry(bond);
 	list_add_tail(&bond->bond_list, &bond_dev_list);
 
+	bond_prepare_sysfs_group(bond);
 	return 0;
 }
 
@@ -5120,15 +5117,9 @@ int bond_create(const char *name)
 	if (res < 0)
 		goto out_bond;
 
-	res = bond_create_sysfs_entry(netdev_priv(bond_dev));
-	if (res < 0)
-		goto out_unreg;
-
 	rtnl_unlock();
 	return 0;
 
-out_unreg:
-	unregister_netdevice(bond_dev);
 out_bond:
 	bond_deinit(bond_dev);
 out_netdev:
