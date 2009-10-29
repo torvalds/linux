@@ -27,10 +27,13 @@
  * we force a syntax error here if it isn't.
  */
 #define get_cpu_var(var) (*({				\
-	extern int simple_identifier_##var(void);	\
 	preempt_disable();				\
 	&__get_cpu_var(var); }))
-#define put_cpu_var(var) preempt_enable()
+
+#define put_cpu_var(var) do {				\
+	(void)(var);					\
+	preempt_enable();				\
+} while (0)
 
 #ifdef CONFIG_SMP
 
@@ -182,17 +185,19 @@ static inline void *pcpu_lpage_remapped(void *kaddr)
 #ifndef percpu_read
 # define percpu_read(var)						\
   ({									\
-	typeof(var) __tmp_var__;					\
-	__tmp_var__ = get_cpu_var(var);					\
-	put_cpu_var(var);						\
-	__tmp_var__;							\
+	typeof(var) *pr_ptr__ = &(var);					\
+	typeof(var) pr_ret__;						\
+	pr_ret__ = get_cpu_var(*pr_ptr__);				\
+	put_cpu_var(*pr_ptr__);						\
+	pr_ret__;							\
   })
 #endif
 
 #define __percpu_generic_to_op(var, val, op)				\
 do {									\
-	get_cpu_var(var) op val;					\
-	put_cpu_var(var);						\
+	typeof(var) *pgto_ptr__ = &(var);				\
+	get_cpu_var(*pgto_ptr__) op val;				\
+	put_cpu_var(*pgto_ptr__);					\
 } while (0)
 
 #ifndef percpu_write
@@ -304,7 +309,7 @@ do {									\
 #define _this_cpu_generic_to_op(pcp, val, op)				\
 do {									\
 	preempt_disable();						\
-	*__this_cpu_ptr(&pcp) op val;					\
+	*__this_cpu_ptr(&(pcp)) op val;					\
 	preempt_enable();						\
 } while (0)
 
