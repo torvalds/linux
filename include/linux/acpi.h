@@ -273,6 +273,13 @@ struct acpi_osc_context {
 
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 
+/* platform-wide _OSC bits */
+#define OSC_SB_PAD_SUPPORT		1
+#define OSC_SB_PPC_OST_SUPPORT		2
+#define OSC_SB_PR3_SUPPORT		4
+#define OSC_SB_CPUHP_OST_SUPPORT	8
+#define OSC_SB_APEI_SUPPORT		16
+
 /* PCI defined _OSC bits */
 /* _OSC DW1 Definition (OS Support Fields) */
 #define OSC_EXT_PCI_CONFIG_SUPPORT		1

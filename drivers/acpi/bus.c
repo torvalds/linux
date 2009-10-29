@@ -466,6 +466,30 @@ out_kfree:
 }
 EXPORT_SYMBOL(acpi_run_osc);
 
+static u8 sb_uuid_str[] = "0811B06E-4A27-44F9-8D60-3CBBC22E7B48";
+static void acpi_bus_osc_support(void)
+{
+	u32 capbuf[2];
+	struct acpi_osc_context context = {
+		.uuid_str = sb_uuid_str,
+		.rev = 1,
+		.cap.length = 8,
+		.cap.pointer = capbuf,
+	};
+	acpi_handle handle;
+
+	capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
+	capbuf[OSC_SUPPORT_TYPE] = OSC_SB_PR3_SUPPORT; /* _PR3 is in use */
+#ifdef CONFIG_ACPI_PROCESSOR_AGGREGATOR
+	capbuf[OSC_SUPPORT_TYPE] |= OSC_SB_PAD_SUPPORT;
+#endif
+	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &handle)))
+		return;
+	if (ACPI_SUCCESS(acpi_run_osc(handle, &context)))
+		kfree(context.ret.pointer);
+	/* do we need to check the returned cap? Sounds no */
+}
+
 /* --------------------------------------------------------------------------
                                 Event Management
    -------------------------------------------------------------------------- */
@@ -855,6 +879,8 @@ static int __init acpi_bus_init(void)
 	 */
 	status = acpi_ec_ecdt_probe();
 	/* Ignore result. Not having an ECDT is not fatal. */
+
+	acpi_bus_osc_support();
 
 	status = acpi_initialize_objects(ACPI_FULL_INITIALIZATION);
 	if (ACPI_FAILURE(status)) {
