@@ -28,6 +28,7 @@
 #include <asm/sh_eth.h>
 #include <asm/clock.h>
 #include <asm/sh_keysc.h>
+#include <asm/suspend.h>
 #include <cpu/sh7724.h>
 #include <mach-se/mach/se7724.h>
 
@@ -566,11 +567,22 @@ static void __init sh_eth_init(void)
 #define SW41_G    0x4000
 #define SW41_H    0x8000
 
+extern char ms7724se_sdram_enter_start;
+extern char ms7724se_sdram_enter_end;
+extern char ms7724se_sdram_leave_start;
+extern char ms7724se_sdram_leave_end;
+
 static int __init devices_setup(void)
 {
 	u16 sw = ctrl_inw(SW4140); /* select camera, monitor */
 	struct clk *fsia_clk;
 
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+					&ms7724se_sdram_enter_start,
+					&ms7724se_sdram_enter_end,
+					&ms7724se_sdram_leave_start,
+					&ms7724se_sdram_leave_end);
 	/* Reset Release */
 	ctrl_outw(ctrl_inw(FPGA_OUT) &
 		  ~((1 << 1)  | /* LAN */
