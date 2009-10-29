@@ -4612,22 +4612,6 @@ static void bond_uninit(struct net_device *bond_dev)
 	netif_addr_unlock_bh(bond_dev);
 }
 
-/* Unregister and free all bond devices.
- * Caller must hold rtnl_lock.
- */
-static void bond_free_all(void)
-{
-	struct bonding *bond, *nxt;
-
-	list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list) {
-		struct net_device *bond_dev = bond->dev;
-
-		unregister_netdevice(bond_dev);
-	}
-
-	bond_destroy_proc_dir();
-}
-
 /*------------------------- Module initialization ---------------------------*/
 
 /*
@@ -5065,6 +5049,23 @@ static int bond_init(struct net_device *bond_dev)
 	return 0;
 }
 
+static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
+{
+	if (tb[IFLA_ADDRESS]) {
+		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
+			return -EINVAL;
+		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
+			return -EADDRNOTAVAIL;
+	}
+	return 0;
+}
+
+static struct rtnl_link_ops bond_link_ops __read_mostly = {
+	.kind		= "bond",
+	.setup		= bond_setup,
+	.validate	= bond_validate,
+};
+
 /* Create a new bond based on the specified name and bonding parameters.
  * If name is NULL, obtain a suitable "bond%d" name for us.
  * Caller must NOT hold rtnl_lock; we need to release it here before we
@@ -5085,6 +5086,8 @@ int bond_create(const char *name)
 		res = -ENOMEM;
 		goto out;
 	}
+
+	bond_dev->rtnl_link_ops = &bond_link_ops;
 
 	if (!name) {
 		res = dev_alloc_name(bond_dev, "bond%d");
@@ -5115,6 +5118,10 @@ static int __init bonding_init(void)
 
 	bond_create_proc_dir();
 
+	res = rtnl_link_register(&bond_link_ops);
+	if (res)
+		goto err;
+
 	for (i = 0; i < max_bonds; i++) {
 		res = bond_create(NULL);
 		if (res)
@@ -5128,14 +5135,12 @@ static int __init bonding_init(void)
 	register_netdevice_notifier(&bond_netdev_notifier);
 	register_inetaddr_notifier(&bond_inetaddr_notifier);
 	bond_register_ipv6_notifier();
-
-	goto out;
-err:
-	rtnl_lock();
-	bond_free_all();
-	rtnl_unlock();
 out:
 	return res;
+err:
+	rtnl_link_unregister(&bond_link_ops);
+	bond_destroy_proc_dir();
+	goto out;
 
 }
 
@@ -5147,9 +5152,8 @@ static void __exit bonding_exit(void)
 
 	bond_destroy_sysfs();
 
-	rtnl_lock();
-	bond_free_all();
-	rtnl_unlock();
+	rtnl_link_unregister(&bond_link_ops);
+	bond_destroy_proc_dir();
 }
 
 module_init(bonding_init);
@@ -5158,3 +5162,4 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DESCRIPTION(DRV_DESCRIPTION ", v" DRV_VERSION);
 MODULE_AUTHOR("Thomas Davis, tadavis@lbl.gov and many others");
+MODULE_ALIAS_RTNL_LINK("bond");
