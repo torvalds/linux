@@ -55,6 +55,10 @@
 #define MR97310A_GAIN_MAX		31
 #define MR97310A_GAIN_DEFAULT		25
 
+#define MR97310A_MIN_CLOCKDIV_MIN	3
+#define MR97310A_MIN_CLOCKDIV_MAX	8
+#define MR97310A_MIN_CLOCKDIV_DEFAULT	3
+
 MODULE_AUTHOR("Kyle Guinn <elyk03@gmail.com>,"
 	      "Theodore Kilgore <kilgota@auburn.edu>");
 MODULE_DESCRIPTION("GSPCA/Mars-Semi MR97310A USB Camera Driver");
@@ -76,6 +80,7 @@ struct sd {
 	int brightness;
 	u16 exposure;
 	u8 gain;
+	u8 min_clockdiv;
 };
 
 struct sensor_w_data {
@@ -92,6 +97,8 @@ static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setmin_clockdiv(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getmin_clockdiv(struct gspca_dev *gspca_dev, __s32 *val);
 static void setbrightness(struct gspca_dev *gspca_dev);
 static void setexposure(struct gspca_dev *gspca_dev);
 static void setgain(struct gspca_dev *gspca_dev);
@@ -159,6 +166,21 @@ static struct ctrl sd_ctrls[] = {
 		},
 		.set = sd_setgain,
 		.get = sd_getgain,
+	},
+	{
+#define MIN_CLOCKDIV_IDX 4
+		{
+			.id = V4L2_CID_PRIVATE_BASE,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "Minimum Clock Divider",
+			.minimum = MR97310A_MIN_CLOCKDIV_MIN,
+			.maximum = MR97310A_MIN_CLOCKDIV_MAX,
+			.step = 1,
+			.default_value = MR97310A_MIN_CLOCKDIV_DEFAULT,
+			.flags = 0,
+		},
+		.set = sd_setmin_clockdiv,
+		.get = sd_getmin_clockdiv,
 	},
 };
 
@@ -544,14 +566,16 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
 					      (1 << ARGUS_QC_BRIGHTNESS_IDX);
 		else
-			gspca_dev->ctrl_dis = (1 << ARGUS_QC_BRIGHTNESS_IDX);
+			gspca_dev->ctrl_dis = (1 << ARGUS_QC_BRIGHTNESS_IDX) |
+					      (1 << MIN_CLOCKDIV_IDX);
 	} else {
 		/* All controls need to be disabled if VGA sensor_type is 0 */
 		if (sd->sensor_type == 0)
 			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
 					      (1 << ARGUS_QC_BRIGHTNESS_IDX) |
 					      (1 << EXPOSURE_IDX) |
-					      (1 << GAIN_IDX);
+					      (1 << GAIN_IDX) |
+					      (1 << MIN_CLOCKDIV_IDX);
 		else if (sd->do_lcd_stop)
 			/* Argus QuickClix has different brightness limits */
 			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX);
@@ -562,6 +586,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = MR97310A_BRIGHTNESS_DEFAULT;
 	sd->exposure = MR97310A_EXPOSURE_DEFAULT;
 	sd->gain = MR97310A_GAIN_DEFAULT;
+	sd->min_clockdiv = MR97310A_MIN_CLOCKDIV_DEFAULT;
 
 	return 0;
 }
@@ -837,6 +862,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int exposure;
+	u8 buf[2];
 
 	if (gspca_dev->ctrl_dis & (1 << EXPOSURE_IDX))
 		return;
@@ -858,8 +884,8 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		u8 clockdiv = (60 * sd->exposure + 7999) / 8000;
 
 		/* Limit framerate to not exceed usb bandwidth */
-		if (clockdiv < 3 && gspca_dev->width >= 320)
-			clockdiv = 3;
+		if (clockdiv < sd->min_clockdiv && gspca_dev->width >= 320)
+			clockdiv = sd->min_clockdiv;
 		else if (clockdiv < 2)
 			clockdiv = 2;
 
@@ -875,9 +901,10 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		/* exposure register value is reversed! */
 		exposure = 511 - exposure;
 
+		buf[0] = exposure & 0xff;
+		buf[1] = exposure >> 8;
+		sensor_write_reg(gspca_dev, 0x0e, 0, buf, 2);
 		sensor_write1(gspca_dev, 0x02, clockdiv);
-		sensor_write1(gspca_dev, 0x0e, exposure & 0xff);
-		sensor_write1(gspca_dev, 0x0f, exposure >> 8);
 	}
 }
 
@@ -946,6 +973,24 @@ static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->gain;
+	return 0;
+}
+
+static int sd_setmin_clockdiv(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->min_clockdiv = val;
+	if (gspca_dev->streaming)
+		setexposure(gspca_dev);
+	return 0;
+}
+
+static int sd_getmin_clockdiv(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->min_clockdiv;
 	return 0;
 }
 
