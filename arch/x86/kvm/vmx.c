@@ -101,7 +101,6 @@ struct vcpu_vmx {
 	struct shared_msr_entry *guest_msrs;
 	int                   nmsrs;
 	int                   save_nmsrs;
-	int                   msr_offset_efer;
 #ifdef CONFIG_X86_64
 	u64 		      msr_host_kernel_gs_base;
 	u64 		      msr_guest_kernel_gs_base;
@@ -584,14 +583,11 @@ static void reload_tss(void)
 	load_TR_desc();
 }
 
-static bool update_transition_efer(struct vcpu_vmx *vmx)
+static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 {
-	int efer_offset = vmx->msr_offset_efer;
 	u64 guest_efer;
 	u64 ignore_bits;
 
-	if (efer_offset < 0)
-		return false;
 	guest_efer = vmx->vcpu.arch.shadow_efer;
 
 	/*
@@ -926,8 +922,8 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 			move_msr_up(vmx, index, save_nmsrs++);
 	}
 #endif
-	vmx->msr_offset_efer = index = __find_msr_index(vmx, MSR_EFER);
-	if (index >= 0 && update_transition_efer(vmx))
+	index = __find_msr_index(vmx, MSR_EFER);
+	if (index >= 0 && update_transition_efer(vmx, index))
 		move_msr_up(vmx, index, save_nmsrs++);
 
 	vmx->save_nmsrs = save_nmsrs;
