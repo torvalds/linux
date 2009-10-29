@@ -237,6 +237,7 @@ extern void __bad_size_call_parameter(void);
 
 #define __pcpu_size_call_return(stem, variable)				\
 ({	typeof(variable) pscr_ret__;					\
+	__verify_pcpu_ptr(&(variable));					\
 	switch(sizeof(variable)) {					\
 	case 1: pscr_ret__ = stem##1(variable);break;			\
 	case 2: pscr_ret__ = stem##2(variable);break;			\
@@ -250,6 +251,7 @@ extern void __bad_size_call_parameter(void);
 
 #define __pcpu_size_call(stem, variable, ...)				\
 do {									\
+	__verify_pcpu_ptr(&(variable));					\
 	switch(sizeof(variable)) {					\
 		case 1: stem##1(variable, __VA_ARGS__);break;		\
 		case 2: stem##2(variable, __VA_ARGS__);break;		\
