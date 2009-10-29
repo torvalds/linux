@@ -732,7 +732,7 @@ static int igb_set_ringparam(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct igb_ring *temp_ring;
-	int i, err;
+	int i, err = 0;
 	u32 new_rx_count, new_tx_count;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
@@ -752,18 +752,30 @@ static int igb_set_ringparam(struct net_device *netdev,
 		return 0;
 	}
 
+	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
+		msleep(1);
+
+	if (!netif_running(adapter->netdev)) {
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			adapter->tx_ring[i].count = new_tx_count;
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			adapter->rx_ring[i].count = new_rx_count;
+		adapter->tx_ring_count = new_tx_count;
+		adapter->rx_ring_count = new_rx_count;
+		goto clear_reset;
+	}
+
 	if (adapter->num_tx_queues > adapter->num_rx_queues)
 		temp_ring = vmalloc(adapter->num_tx_queues * sizeof(struct igb_ring));
 	else
 		temp_ring = vmalloc(adapter->num_rx_queues * sizeof(struct igb_ring));
-	if (!temp_ring)
-		return -ENOMEM;
 
-	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
-		msleep(1);
+	if (!temp_ring) {
+		err = -ENOMEM;
+		goto clear_reset;
+	}
 
-	if (netif_running(adapter->netdev))
-		igb_down(adapter);
+	igb_down(adapter);
 
 	/*
 	 * We can't just free everything and then setup again,
@@ -820,14 +832,11 @@ static int igb_set_ringparam(struct net_device *netdev,
 
 		adapter->rx_ring_count = new_rx_count;
 	}
-
-	err = 0;
 err_setup:
-	if (netif_running(adapter->netdev))
-		igb_up(adapter);
-
-	clear_bit(__IGB_RESETTING, &adapter->state);
+	igb_up(adapter);
 	vfree(temp_ring);
+clear_reset:
+	clear_bit(__IGB_RESETTING, &adapter->state);
 	return err;
 }
 
