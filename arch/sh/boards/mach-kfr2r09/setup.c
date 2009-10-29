@@ -21,6 +21,7 @@
 #include <media/soc_camera.h>
 #include <media/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
+#include <asm/suspend.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
@@ -444,8 +445,20 @@ static int kfr2r09_usb0_gadget_setup(void)
 	return 0;
 }
 
+extern char kfr2r09_sdram_enter_start;
+extern char kfr2r09_sdram_enter_end;
+extern char kfr2r09_sdram_leave_start;
+extern char kfr2r09_sdram_leave_end;
+
 static int __init kfr2r09_devices_setup(void)
 {
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+					&kfr2r09_sdram_enter_start,
+					&kfr2r09_sdram_enter_end,
+					&kfr2r09_sdram_leave_start,
+					&kfr2r09_sdram_leave_end);
+
 	/* enable SCIF1 serial port for YC401 console support */
 	gpio_request(GPIO_FN_SCIF1_RXD, NULL);
 	gpio_request(GPIO_FN_SCIF1_TXD, NULL);
