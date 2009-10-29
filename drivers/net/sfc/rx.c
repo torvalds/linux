@@ -445,6 +445,7 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 			      bool checksummed)
 {
 	struct napi_struct *napi = &channel->napi_str;
+	gro_result_t gro_result;
 
 	/* Pass the skb/page into the LRO engine */
 	if (rx_buf->page) {
@@ -452,6 +453,7 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 
 		if (!skb) {
 			put_page(rx_buf->page);
+			gro_result = GRO_DROP;
 			goto out;
 		}
 
@@ -467,7 +469,7 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 		skb->ip_summed =
 			checksummed ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 
-		napi_gro_frags(napi);
+		gro_result = napi_gro_frags(napi);
 
 out:
 		EFX_BUG_ON_PARANOID(rx_buf->skb);
@@ -476,8 +478,15 @@ out:
 		EFX_BUG_ON_PARANOID(!rx_buf->skb);
 		EFX_BUG_ON_PARANOID(!checksummed);
 
-		napi_gro_receive(napi, rx_buf->skb);
+		gro_result = napi_gro_receive(napi, rx_buf->skb);
 		rx_buf->skb = NULL;
+	}
+
+	if (gro_result == GRO_NORMAL) {
+		channel->rx_alloc_level += RX_ALLOC_FACTOR_SKB;
+	} else if (gro_result != GRO_DROP) {
+		channel->rx_alloc_level += RX_ALLOC_FACTOR_LRO;
+		channel->irq_mod_score += 2;
 	}
 }
 
