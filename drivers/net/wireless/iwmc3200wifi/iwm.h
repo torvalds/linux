@@ -65,6 +65,8 @@ struct iwm_conf {
 	u32 sdio_ior_timeout;
 	unsigned long calib_map;
 	unsigned long expected_calib_map;
+	u8 ct_kill_entry;
+	u8 ct_kill_exit;
 	bool reset_on_fatal_err;
 	bool auto_connect;
 	bool wimax_not_present;
@@ -276,12 +278,14 @@ struct iwm_priv {
 	struct iw_statistics wstats;
 	struct delayed_work stats_request;
 	struct delayed_work disconnect;
+	struct delayed_work ct_kill_delay;
 
 	struct iwm_debugfs dbg;
 
 	u8 *eeprom;
 	struct timer_list watchdog;
 	struct work_struct reset_worker;
+	struct work_struct auth_retry_worker;
 	struct mutex mutex;
 
 	u8 *req_ie;
@@ -290,6 +294,8 @@ struct iwm_priv {
 	int resp_ie_len;
 
 	struct iwm_fw_error_hdr *last_fw_err;
+	char umac_version[8];
+	char lmac_version[8];
 
 	char private[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };

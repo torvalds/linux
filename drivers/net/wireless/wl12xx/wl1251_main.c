@@ -183,8 +183,11 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 		wl1251_debug(DEBUG_BOOT, "chip id 0x%x (1251 PG12)",
 			     wl->chip_id);
 		break;
-	case CHIP_ID_1251_PG10:
 	case CHIP_ID_1251_PG11:
+		wl1251_debug(DEBUG_BOOT, "chip id 0x%x (1251 PG11)",
+			     wl->chip_id);
+		break;
+	case CHIP_ID_1251_PG10:
 	default:
 		wl1251_error("unsupported chip id: 0x%x", wl->chip_id);
 		ret = -ENODEV;
@@ -1426,4 +1429,4 @@ EXPORT_SYMBOL_GPL(wl1251_free_hw);
 MODULE_DESCRIPTION("TI wl1251 Wireles LAN Driver Core");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kalle.valo@nokia.com>");
-MODULE_ALIAS("spi:wl12xx");
+MODULE_ALIAS("spi:wl1251");

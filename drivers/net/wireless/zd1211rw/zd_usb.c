@@ -419,7 +419,7 @@ static void int_urb_complete(struct urb *urb)
 		handle_regs_int(urb);
 		break;
 	case USB_INT_ID_RETRY_FAILED:
-		zd_mac_tx_failed(zd_usb_to_hw(urb->context));
+		zd_mac_tx_failed(urb);
 		break;
 	default:
 		dev_dbg_f(urb_dev(urb), "error: urb %p unknown id %x\n", urb,
@@ -553,6 +553,8 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 
 	if (length < sizeof(struct rx_length_info)) {
 		/* It's not a complete packet anyhow. */
+		printk("%s: invalid, small RX packet : %d\n",
+		       __func__, length);
 		return;
 	}
 	length_info = (struct rx_length_info *)

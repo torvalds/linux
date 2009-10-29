@@ -92,6 +92,8 @@ const char *get_cmd_string(u8 cmd)
 		IWL_CMD(CALIBRATION_RES_NOTIFICATION);
 		IWL_CMD(CALIBRATION_COMPLETE_NOTIFICATION);
 		IWL_CMD(REPLY_TX_POWER_DBM_CMD);
+		IWL_CMD(TEMPERATURE_NOTIFICATION);
+		IWL_CMD(TX_ANT_CONFIGURATION_CMD);
 	default:
 		return "UNKNOWN";
 
@@ -103,17 +105,8 @@ EXPORT_SYMBOL(get_cmd_string);
 
 static void iwl_generic_cmd_callback(struct iwl_priv *priv,
 				     struct iwl_device_cmd *cmd,
-				     struct sk_buff *skb)
+				     struct iwl_rx_packet *pkt)
 {
-	struct iwl_rx_packet *pkt = NULL;
-
-	if (!skb) {
-		IWL_ERR(priv, "Error: Response NULL in %s.\n",
-				get_cmd_string(cmd->hdr.cmd));
-		return;
-	}
-
-	pkt = (struct iwl_rx_packet *)skb->data;
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from %s (0x%08X)\n",
 			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
@@ -215,7 +208,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		ret = -EIO;
 		goto fail;
 	}
-	if ((cmd->flags & CMD_WANT_SKB) && !cmd->reply_skb) {
+	if ((cmd->flags & CMD_WANT_SKB) && !cmd->reply_page) {
 		IWL_ERR(priv, "Error: Response NULL in '%s'\n",
 			  get_cmd_string(cmd->id));
 		ret = -EIO;
@@ -237,9 +230,9 @@ cancel:
 							~CMD_WANT_SKB;
 	}
 fail:
-	if (cmd->reply_skb) {
-		dev_kfree_skb_any(cmd->reply_skb);
-		cmd->reply_skb = NULL;
+	if (cmd->reply_page) {
+		free_pages(cmd->reply_page, priv->hw_params.rx_page_order);
+		cmd->reply_page = 0;
 	}
 out:
 	clear_bit(STATUS_HCMD_SYNC_ACTIVE, &priv->status);
@@ -272,7 +265,7 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv,
 			   u8 id, u16 len, const void *data,
 			   void (*callback)(struct iwl_priv *priv,
 					    struct iwl_device_cmd *cmd,
-					    struct sk_buff *skb))
+					    struct iwl_rx_packet *pkt))
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,

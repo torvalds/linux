@@ -158,6 +158,13 @@ struct rt2x00_chip {
 #define RT2561		0x0302
 #define RT2661		0x0401
 #define RT2571		0x1300
+#define RT2860		0x0601	/* 2.4GHz PCI/CB */
+#define RT2860D		0x0681	/* 2.4GHz, 5GHz PCI/CB */
+#define RT2890		0x0701	/* 2.4GHz PCIe */
+#define RT2890D		0x0781	/* 2.4GHz, 5GHz PCIe */
+#define RT2880		0x2880	/* WSOC */
+#define RT3052		0x3052	/* WSOC */
+#define RT3090		0x3090	/* 2.4GHz PCIe */
 #define RT2870		0x1600
 
 	u16 rf;

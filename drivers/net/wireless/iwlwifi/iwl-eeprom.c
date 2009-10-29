@@ -358,6 +358,14 @@ static int iwl_init_otp_access(struct iwl_priv *priv)
 		udelay(5);
 		iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
 				    APMG_PS_CTRL_VAL_RESET_REQ);
+
+		/*
+		 * CSR auto clock gate disable bit -
+		 * this is only applicable for HW with OTP shadow RAM
+		 */
+		if (priv->cfg->shadow_ram_support)
+			iwl_set_bit(priv, CSR_DBG_LINK_PWR_MGMT_REG,
+				CSR_RESET_LINK_PWR_MGMT_DISABLED);
 	}
 	return ret;
 }

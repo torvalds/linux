@@ -5,8 +5,8 @@
 #define _LBS_TYPES_H_
 
 #include <linux/if_ether.h>
+#include <linux/ieee80211.h>
 #include <asm/byteorder.h>
-#include <linux/wireless.h>
 
 struct ieee_ie_header {
 	u8 id;
@@ -247,7 +247,7 @@ struct mrvl_meshie_val {
 	uint8_t active_metric_id;
 	uint8_t mesh_capability;
 	uint8_t mesh_id_len;
-	uint8_t mesh_id[IW_ESSID_MAX_SIZE];
+	uint8_t mesh_id[IEEE80211_MAX_SSID_LEN];
 } __attribute__ ((packed));
 
 struct mrvl_meshie {

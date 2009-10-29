@@ -63,6 +63,8 @@ static struct iwm_conf def_iwm_conf = {
 				  BIT(PHY_CALIBRATE_TX_IQ_CMD)	|
 				  BIT(PHY_CALIBRATE_RX_IQ_CMD)	|
 				  BIT(SHILOH_PHY_CALIBRATE_BASE_BAND_CMD),
+	.ct_kill_entry		= 110,
+	.ct_kill_exit		= 110,
 	.reset_on_fatal_err	= 1,
 	.auto_connect		= 1,
 	.wimax_not_present	= 0,
@@ -133,6 +135,17 @@ static void iwm_disconnect_work(struct work_struct *work)
 	cfg80211_disconnected(iwm_to_ndev(iwm), 0, NULL, 0, GFP_KERNEL);
 }
 
+static void iwm_ct_kill_work(struct work_struct *work)
+{
+	struct iwm_priv *iwm =
+		container_of(work, struct iwm_priv, ct_kill_delay.work);
+	struct wiphy *wiphy = iwm_to_wiphy(iwm);
+
+	IWM_INFO(iwm, "CT kill delay timeout\n");
+
+	wiphy_rfkill_set_hw_state(wiphy, false);
+}
+
 static int __iwm_up(struct iwm_priv *iwm);
 static int __iwm_down(struct iwm_priv *iwm);
 
@@ -194,6 +207,33 @@ static void iwm_reset_worker(struct work_struct *work)
 	mutex_unlock(&iwm->mutex);
 }
 
+static void iwm_auth_retry_worker(struct work_struct *work)
+{
+	struct iwm_priv *iwm;
+	int i, ret;
+
+	iwm = container_of(work, struct iwm_priv, auth_retry_worker);
+	if (iwm->umac_profile_active) {
+		ret = iwm_invalidate_mlme_profile(iwm);
+		if (ret < 0)
+			return;
+	}
+
+	iwm->umac_profile->sec.auth_type = UMAC_AUTH_TYPE_LEGACY_PSK;
+
+	ret = iwm_send_mlme_profile(iwm);
+	if (ret < 0)
+		return;
+
+	for (i = 0; i < IWM_NUM_KEYS; i++)
+		if (iwm->keys[i].key_len)
+			iwm_set_key(iwm, 0, &iwm->keys[i]);
+
+	iwm_set_tx_key(iwm, iwm->default_key);
+}
+
+
+
 static void iwm_watchdog(unsigned long data)
 {
 	struct iwm_priv *iwm = (struct iwm_priv *)data;
@@ -225,7 +265,9 @@ int iwm_priv_init(struct iwm_priv *iwm)
 	iwm->scan_id = 1;
 	INIT_DELAYED_WORK(&iwm->stats_request, iwm_statistics_request);
 	INIT_DELAYED_WORK(&iwm->disconnect, iwm_disconnect_work);
+	INIT_DELAYED_WORK(&iwm->ct_kill_delay, iwm_ct_kill_work);
 	INIT_WORK(&iwm->reset_worker, iwm_reset_worker);
+	INIT_WORK(&iwm->auth_retry_worker, iwm_auth_retry_worker);
 	INIT_LIST_HEAD(&iwm->bss_list);
 
 	skb_queue_head_init(&iwm->rx_list);
@@ -586,6 +628,7 @@ static int __iwm_up(struct iwm_priv *iwm)
 {
 	int ret;
 	struct iwm_notif *notif_reboot, *notif_ack = NULL;
+	struct wiphy *wiphy = iwm_to_wiphy(iwm);
 
 	ret = iwm_bus_enable(iwm);
 	if (ret) {
@@ -646,6 +689,9 @@ static int __iwm_up(struct iwm_priv *iwm)
 		IWM_ERR(iwm, "FW loading failed\n");
 		goto err_disable;
 	}
+
+	snprintf(wiphy->fw_version, sizeof(wiphy->fw_version), "L%s_U%s",
+		 iwm->lmac_version, iwm->umac_version);
 
 	/* We configure the UMAC and enable the wifi module */
 	ret = iwm_send_umac_config(iwm,

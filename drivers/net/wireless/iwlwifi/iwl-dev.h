@@ -85,8 +85,6 @@ extern void iwl5000_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
 				    __le32 *tx_flags);
 extern int iwl5000_calc_rssi(struct iwl_priv *priv,
 			     struct iwl_rx_phy_res *rx_resp);
-extern int iwl5000_apm_init(struct iwl_priv *priv);
-extern int iwl5000_apm_reset(struct iwl_priv *priv);
 extern void iwl5000_nic_config(struct iwl_priv *priv);
 extern u16 iwl5000_eeprom_calib_version(struct iwl_priv *priv);
 extern const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
@@ -147,11 +145,12 @@ extern void iwl5000_temperature(struct iwl_priv *priv);
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
 struct iwl_rx_mem_buffer {
-	dma_addr_t real_dma_addr;
-	dma_addr_t aligned_dma_addr;
-	struct sk_buff *skb;
+	dma_addr_t page_dma;
+	struct page *page;
 	struct list_head list;
 };
+
+#define rxb_addr(r) page_address(r->page)
 
 /* defined below */
 struct iwl_device_cmd;
@@ -168,7 +167,7 @@ struct iwl_cmd_meta {
 	 */
 	void (*callback)(struct iwl_priv *priv,
 			 struct iwl_device_cmd *cmd,
-			 struct sk_buff *skb);
+			 struct iwl_rx_packet *pkt);
 
 	/* The CMD_SIZE_HUGE flag bit indicates that the command
 	 * structure is stored at the end of the shared queue memory. */
@@ -324,6 +323,12 @@ struct iwl_channel_info {
  * queue, 2 (unused) HCCA queues, and 4 HT queues (one for each AC) */
 #define IWL_MIN_NUM_QUEUES	10
 
+/*
+ * uCode queue management definitions ...
+ * Queue #4 is the command queue for 3945/4965/5x00/1000/6x00.
+ */
+#define IWL_CMD_QUEUE_NUM	4
+
 /* Power management (not Tx power) structures */
 
 enum iwl_pwr_src {
@@ -359,7 +364,14 @@ enum {
 	CMD_WANT_SKB = (1 << 2),
 };
 
-#define IWL_CMD_MAX_PAYLOAD 320
+#define DEF_CMD_PAYLOAD_SIZE 320
+
+/*
+ * IWL_LINK_HDR_MAX should include ieee80211_hdr, radiotap header,
+ * SNAP header and alignment. It should also be big enough for 802.11
+ * control frames.
+ */
+#define IWL_LINK_HDR_MAX 64
 
 /**
  * struct iwl_device_cmd
@@ -376,7 +388,8 @@ struct iwl_device_cmd {
 		u16 val16;
 		u32 val32;
 		struct iwl_tx_cmd tx;
-		u8 payload[IWL_CMD_MAX_PAYLOAD];
+		struct iwl6000_channel_switch_cmd chswitch;
+		u8 payload[DEF_CMD_PAYLOAD_SIZE];
 	} __attribute__ ((packed)) cmd;
 } __attribute__ ((packed));
 
@@ -385,20 +398,14 @@ struct iwl_device_cmd {
 
 struct iwl_host_cmd {
 	const void *data;
-	struct sk_buff *reply_skb;
+	unsigned long reply_page;
 	void (*callback)(struct iwl_priv *priv,
 			 struct iwl_device_cmd *cmd,
-			 struct sk_buff *skb);
+			 struct iwl_rx_packet *pkt);
 	u32 flags;
 	u16 len;
 	u8 id;
 };
-
-/*
- * RX related structures and functions
- */
-#define RX_FREE_BUFFERS 64
-#define RX_LOW_WATERMARK 8
 
 #define SUP_RATE_11A_MAX_NUM_CHANNELS  8
 #define SUP_RATE_11B_MAX_NUM_CHANNELS  4
@@ -563,6 +570,19 @@ struct iwl_station_entry {
 	struct iwl_hw_key keyinfo;
 };
 
+/*
+ * iwl_station_priv: Driver's private station information
+ *
+ * When mac80211 creates a station it reserves some space (hw->sta_data_size)
+ * in the structure for use by driver. This structure is places in that
+ * space.
+ *
+ * At the moment use it for the station's rate scaling information.
+ */
+struct iwl_station_priv {
+	struct iwl_lq_sta lq_sta;
+};
+
 /* one for each uCode image (inst/data, boot/init/runtime) */
 struct fw_desc {
 	void *v_addr;		/* access by driver */
@@ -624,6 +644,10 @@ struct iwl_sensitivity_ranges {
 	u16 auto_corr_max_cck_mrc;
 	u16 auto_corr_min_cck;
 	u16 auto_corr_min_cck_mrc;
+
+	u16 barker_corr_th_min;
+	u16 barker_corr_th_min_mrc;
+	u16 nrg_th_cca;
 };
 
 
@@ -641,7 +665,7 @@ struct iwl_sensitivity_ranges {
  * @valid_tx/rx_ant: usable antennas
  * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
  * @max_rxq_log: Log-base-2 of max_rxq_size
- * @rx_buf_size: Rx buffer size
+ * @rx_page_order: Rx buffer page order
  * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
  * @max_stations:
  * @bcast_sta_id:
@@ -664,9 +688,8 @@ struct iwl_hw_params {
 	u8  valid_rx_ant;
 	u16 max_rxq_size;
 	u16 max_rxq_log;
-	u32 rx_buf_size;
+	u32 rx_page_order;
 	u32 rx_wrt_ptr_reg;
-	u32 max_pkt_size;
 	u8  max_stations;
 	u8  bcast_sta_id;
 	u8  ht40_channel;
@@ -713,7 +736,11 @@ static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 
 static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
 {
-	/* This is for scan command, the big buffer at end of command array */
+	/*
+	 * This is for init calibration result and scan command which
+	 * required buffer > TFD_MAX_PAYLOAD_SIZE,
+	 * the big buffer at end of command array
+	 */
 	if (is_huge)
 		return q->n_window;	/* must be power of 2 */
 
@@ -845,6 +872,10 @@ struct iwl_sensitivity_data {
 	s32 nrg_auto_corr_silence_diff;
 	u32 num_in_cck_no_fa;
 	u32 nrg_th_ofdm;
+
+	u16 barker_corr_th_min;
+	u16 barker_corr_th_min_mrc;
+	u16 nrg_th_cca;
 };
 
 /* Chain noise (differential Rx gain) calib data */
@@ -961,8 +992,6 @@ struct traffic_stats {
 };
 #endif
 
-#define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
-
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -976,7 +1005,7 @@ struct iwl_priv {
 	int frames_count;
 
 	enum ieee80211_band band;
-	int alloc_rxb_skb;
+	int alloc_rxb_page;
 
 	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
 				       struct iwl_rx_mem_buffer *rxb);
@@ -1081,7 +1110,6 @@ struct iwl_priv {
 	u8 last_phy_res[100];
 
 	/* Rate scaling data */
-	s8 data_retry_limit;
 	u8 retry_rate;
 
 	wait_queue_head_t wait_command_queue;
@@ -1090,7 +1118,7 @@ struct iwl_priv {
 
 	/* Rx and Tx DMA processing queues */
 	struct iwl_rx_queue rxq;
-	struct iwl_tx_queue txq[IWL_MAX_NUM_QUEUES];
+	struct iwl_tx_queue *txq;
 	unsigned long txq_ctx_active_msk;
 	struct iwl_dma_ptr  kw;	/* keep warm address */
 	struct iwl_dma_ptr  scd_bc_tbls;
@@ -1113,7 +1141,9 @@ struct iwl_priv {
 	struct iwl_tt_mgmt thermal_throttle;
 
 	struct iwl_notif_statistics statistics;
-	unsigned long last_statistics_time;
+#ifdef CONFIG_IWLWIFI_DEBUG
+	struct iwl_notif_statistics accum_statistics;
+#endif
 
 	/* context information */
 	u16 rates_mask;

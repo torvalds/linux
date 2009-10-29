@@ -93,7 +93,6 @@ struct orinoco_private {
 
 	/* Capabilities of the hardware/firmware */
 	fwtype_t firmware_type;
-	char fw_name[32];
 	int ibss_port;
 	int nicbuf_size;
 	u16 channel_mask;

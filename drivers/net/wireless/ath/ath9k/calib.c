@@ -813,7 +813,7 @@ static void ath9k_olc_temp_compensation(struct ath_hw *ah)
 	}
 }
 
-static void ath9k_hw_9271_pa_cal(struct ath_hw *ah)
+static void ath9k_hw_9271_pa_cal(struct ath_hw *ah, bool is_reset)
 {
 	u32 regVal;
 	unsigned int i;
@@ -889,10 +889,19 @@ static void ath9k_hw_9271_pa_cal(struct ath_hw *ah)
 		REG_WRITE(ah, 0x7834, regVal);
 	}
 
-	/*  Empirical offset correction  */
-#if 0
-	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9271_AN_RF2G6_OFFS, 0x20);
-#endif
+	regVal = (regVal >>20) & 0x7f;
+
+	/* Update PA cal info */
+	if ((!is_reset) && (ah->pacal_info.prev_offset == regVal)) {
+		if (ah->pacal_info.max_skipcount < MAX_PACAL_SKIPCOUNT)
+			ah->pacal_info.max_skipcount =
+				2 * ah->pacal_info.max_skipcount;
+		ah->pacal_info.skipcount = ah->pacal_info.max_skipcount;
+	} else {
+		ah->pacal_info.max_skipcount = 1;
+		ah->pacal_info.skipcount = 0;
+		ah->pacal_info.prev_offset = regVal;
+	}
 
 	regVal = REG_READ(ah, 0x7834);
 	regVal |= 0x1;
@@ -1043,7 +1052,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (longcal) {
 		/* Do periodic PAOffset Cal */
 		if (AR_SREV_9271(ah))
-			ath9k_hw_9271_pa_cal(ah);
+			ath9k_hw_9271_pa_cal(ah, false);
 		else if (AR_SREV_9285_11_OR_LATER(ah)) {
 			if (!ah->pacal_info.skipcount)
 				ath9k_hw_9285_pa_cal(ah, false);
@@ -1070,6 +1079,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 }
 EXPORT_SYMBOL(ath9k_hw_calibrate);
 
+/* Carrier leakage Calibration fix */
 static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1115,7 +1125,7 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	if (AR_SREV_9285_12_OR_LATER(ah)) {
+	if (AR_SREV_9271(ah) || AR_SREV_9285_12_OR_LATER(ah)) {
 		if (!ar9285_clc(ah, chan))
 			return false;
 	} else {
@@ -1151,7 +1161,9 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	}
 
 	/* Do PA Calibration */
-	if (AR_SREV_9285_11_OR_LATER(ah))
+	if (AR_SREV_9271(ah))
+		ath9k_hw_9271_pa_cal(ah, true);
+	else if (AR_SREV_9285_11_OR_LATER(ah))
 		ath9k_hw_9285_pa_cal(ah, true);
 
 	/* Do NF Calibration after DC offset and other calibrations */

@@ -102,7 +102,6 @@ enum {
 	CFG_SCAN_NUM_PASSIVE_CHAN_PER_PARTIAL_SCAN,
 	CFG_TLC_SUPPORTED_TX_HT_RATES,
 	CFG_TLC_SUPPORTED_TX_RATES,
-	CFG_TLC_VALID_ANTENNA,
 	CFG_TLC_SPATIAL_STREAM_SUPPORTED,
 	CFG_TLC_RETRY_PER_RATE,
 	CFG_TLC_RETRY_PER_HT_RATE,
@@ -136,6 +135,10 @@ enum {
 	CFG_TLC_RENEW_ADDBA_DELAY,
 	CFG_TLC_NUM_OF_MULTISEC_TO_COUN_LOAD,
 	CFG_TLC_IS_STABLE_IN_HT,
+	CFG_TLC_SR_SIC_1ST_FAIL,
+	CFG_TLC_SR_SIC_1ST_PASS,
+	CFG_TLC_SR_SIC_TOTAL_FAIL,
+	CFG_TLC_SR_SIC_TOTAL_PASS,
 	CFG_RLC_CHAIN_CTRL,
 	CFG_TRK_TABLE_OP_MODE,
 	CFG_TRK_TABLE_RSSI_THRESHOLD,
@@ -147,6 +150,58 @@ enum {
 	CFG_MLME_DBG_NOTIF_BLOCK,
 	CFG_BT_OFF_BECONS_INTERVALS,
 	CFG_BT_FRAG_DURATION,
+	CFG_ACTIVE_CHAINS,
+	CFG_CALIB_CTRL,
+	CFG_CAPABILITY_SUPPORTED_HT_RATES,
+	CFG_HT_MAC_PARAM_INFO,
+	CFG_MIMO_PS_MODE,
+	CFG_HT_DEFAULT_CAPABILIES_INFO,
+	CFG_LED_SC_RESOLUTION_FACTOR,
+	CFG_PTAM_ENERGY_CCK_DET_DEFAULT,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MRC_DEFAULT,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_DEFAULT,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MRC_DEFAULT,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_DEFAULT,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MRC_DEFAULT,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_DEFAULT,
+	CFG_PTAM_ENERGY_CCK_DET_MIN_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MRC_MIN_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MIN_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MRC_MIN_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MIN_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MRC_MIN_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MIN_VAL,
+	CFG_PTAM_ENERGY_CCK_DET_MAX_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MRC_MAX_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MAX_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MRC_MAX_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MAX_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MRC_MAX_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MAX_VAL,
+	CFG_PTAM_ENERGY_CCK_DET_STEP_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_MRC_STEP_VAL,
+	CFG_PTAM_CORR40_4_TH_ADD_MIN_STEP_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_MRC_STEP_VAL,
+	CFG_PTAM_CORR32_4_TH_ADD_MIN_STEP_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_MRC_STEP_VAL,
+	CFG_PTAM_CORR32_1_TH_ADD_MIN_STEP_VAL,
+	CFG_PTAM_LINK_SENS_FA_OFDM_MAX,
+	CFG_PTAM_LINK_SENS_FA_OFDM_MIN,
+	CFG_PTAM_LINK_SENS_FA_CCK_MAX,
+	CFG_PTAM_LINK_SENS_FA_CCK_MIN,
+	CFG_PTAM_LINK_SENS_NRG_DIFF,
+	CFG_PTAM_LINK_SENS_NRG_MARGIN,
+	CFG_PTAM_LINK_SENS_MAX_NUMBER_OF_TIMES_IN_CCK_NO_FA,
+	CFG_PTAM_LINK_SENS_AUTO_CORR_MAX_TH_CCK,
+	CFG_AGG_MGG_TID_LOAD_ADDBA_THRESHOLD,
+	CFG_AGG_MGG_TID_LOAD_DELBA_THRESHOLD,
+	CFG_AGG_MGG_ADDBA_BUF_SIZE,
+	CFG_AGG_MGG_ADDBA_INACTIVE_TIMEOUT,
+	CFG_AGG_MGG_ADDBA_DEBUG_FLAGS,
+	CFG_SCAN_PERIODIC_RSSI_HIGH_THRESHOLD,
+	CFG_SCAN_PERIODIC_COEF_RSSI_HIGH,
+	CFG_11D_ENABLED,
+	CFG_11H_FEATURE_FLAGS,
 
 	/* <-- LAST --> */
 	CFG_TBL_FIX_LAST
@@ -155,7 +210,8 @@ enum {
 /* variable size table */
 enum {
 	CFG_NET_ADDR = 0,
-	CFG_PROFILE,
+	CFG_LED_PATTERN_TABLE,
+
 	/* <-- LAST --> */
 	CFG_TBL_VAR_LAST
 };
@@ -288,6 +344,9 @@ struct iwm_umac_cmd_scan_request {
 /* iwm_umac_security.flag is WSC mode on -- bits [2:2] */
 #define UMAC_SEC_FLG_WSC_ON_POS		2
 #define UMAC_SEC_FLG_WSC_ON_SEED	1
+#define UMAC_SEC_FLG_WSC_ON_MSK         (UMAC_SEC_FLG_WSC_ON_SEED << \
+					 UMAC_SEC_FLG_WSC_ON_POS)
+
 
 /* Legacy profile can use only WEP40 and WEP104 for encryption and
  * OPEN or PSK for authentication */
@@ -382,6 +441,11 @@ struct iwm_umac_tx_key_id {
 	u8 reserved[3];
 } __attribute__ ((packed));
 
+struct iwm_umac_pwr_trigger {
+	struct iwm_umac_wifi_if hdr;
+	__le32 reseved;
+} __attribute__ ((packed));
+
 struct iwm_umac_cmd_stats_req {
 	__le32 flags;
 } __attribute__ ((packed));
@@ -393,6 +457,7 @@ int iwm_send_init_calib_cfg(struct iwm_priv *iwm, u8 calib_requested);
 int iwm_send_periodic_calib_cfg(struct iwm_priv *iwm, u8 calib_requested);
 int iwm_send_calib_results(struct iwm_priv *iwm);
 int iwm_store_rxiq_calib_result(struct iwm_priv *iwm);
+int iwm_send_ct_kill_cfg(struct iwm_priv *iwm, u8 entry, u8 exit);
 
 /* UMAC commands */
 int iwm_send_wifi_if_cmd(struct iwm_priv *iwm, void *payload, u16 payload_size,
@@ -407,6 +472,7 @@ int iwm_invalidate_mlme_profile(struct iwm_priv *iwm);
 int iwm_send_packet(struct iwm_priv *iwm, struct sk_buff *skb, int pool_id);
 int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx);
 int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key);
+int iwm_tx_power_trigger(struct iwm_priv *iwm);
 int iwm_send_umac_stats_req(struct iwm_priv *iwm, u32 flags);
 int iwm_send_umac_channel_list(struct iwm_priv *iwm);
 int iwm_scan_ssids(struct iwm_priv *iwm, struct cfg80211_ssid *ssids,

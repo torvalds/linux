@@ -1124,77 +1124,148 @@ ath5k_hw_calibration_poll(struct ath5k_hw *ah)
 		ah->ah_swi_mask = AR5K_SWI_FULL_CALIBRATION;
 		AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI);
 	}
-
 }
 
-/**
- * ath5k_hw_noise_floor_calibration - perform PHY noise floor calibration
- *
- * @ah: struct ath5k_hw pointer we are operating on
- * @freq: the channel frequency, just used for error logging
- *
- * This function performs a noise floor calibration of the PHY and waits for
- * it to complete. Then the noise floor value is compared to some maximum
- * noise floor we consider valid.
- *
- * Note that this is different from what the madwifi HAL does: it reads the
- * noise floor and afterwards initiates the calibration. Since the noise floor
- * calibration can take some time to finish, depending on the current channel
- * use, that avoids the occasional timeout warnings we are seeing now.
- *
- * See the following link for an Atheros patent on noise floor calibration:
- * http://patft.uspto.gov/netacgi/nph-Parser?Sect1=PTO1&Sect2=HITOFF&d=PALL \
- * &p=1&u=%2Fnetahtml%2FPTO%2Fsrchnum.htm&r=1&f=G&l=50&s1=7245893.PN.&OS=PN/7
- *
- * XXX: Since during noise floor calibration antennas are detached according to
- * the patent, we should stop tx queues here.
- */
-int
-ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq)
+static int sign_extend(int val, const int nbits)
 {
-	int ret;
-	unsigned int i;
-	s32 noise_floor;
+	int order = BIT(nbits-1);
+	return (val ^ order) - order;
+}
 
-	/*
-	 * Enable noise floor calibration
-	 */
-	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
-				AR5K_PHY_AGCCTL_NF);
+static s32 ath5k_hw_read_measured_noise_floor(struct ath5k_hw *ah)
+{
+	s32 val;
 
-	ret = ath5k_hw_register_timeout(ah, AR5K_PHY_AGCCTL,
-			AR5K_PHY_AGCCTL_NF, 0, false);
-	if (ret) {
-		ATH5K_ERR(ah->ah_sc,
-			"noise floor calibration timeout (%uMHz)\n", freq);
-		return -EAGAIN;
-	}
+	val = ath5k_hw_reg_read(ah, AR5K_PHY_NF);
+	return sign_extend(AR5K_REG_MS(val, AR5K_PHY_NF_MINCCA_PWR), 9);
+}
 
-	/* Wait until the noise floor is calibrated and read the value */
-	for (i = 20; i > 0; i--) {
-		mdelay(1);
-		noise_floor = ath5k_hw_reg_read(ah, AR5K_PHY_NF);
-		noise_floor = AR5K_PHY_NF_RVAL(noise_floor);
-		if (noise_floor & AR5K_PHY_NF_ACTIVE) {
-			noise_floor = AR5K_PHY_NF_AVAL(noise_floor);
+void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah)
+{
+	int i;
 
-			if (noise_floor <= AR5K_TUNE_NOISE_FLOOR)
-				break;
+	ah->ah_nfcal_hist.index = 0;
+	for (i = 0; i < ATH5K_NF_CAL_HIST_MAX; i++)
+		ah->ah_nfcal_hist.nfval[i] = AR5K_TUNE_CCA_MAX_GOOD_VALUE;
+}
+
+static void ath5k_hw_update_nfcal_hist(struct ath5k_hw *ah, s16 noise_floor)
+{
+	struct ath5k_nfcal_hist *hist = &ah->ah_nfcal_hist;
+	hist->index = (hist->index + 1) & (ATH5K_NF_CAL_HIST_MAX-1);
+	hist->nfval[hist->index] = noise_floor;
+}
+
+static s16 ath5k_hw_get_median_noise_floor(struct ath5k_hw *ah)
+{
+	s16 sort[ATH5K_NF_CAL_HIST_MAX];
+	s16 tmp;
+	int i, j;
+
+	memcpy(sort, ah->ah_nfcal_hist.nfval, sizeof(sort));
+	for (i = 0; i < ATH5K_NF_CAL_HIST_MAX - 1; i++) {
+		for (j = 1; j < ATH5K_NF_CAL_HIST_MAX - i; j++) {
+			if (sort[j] > sort[j-1]) {
+				tmp = sort[j];
+				sort[j] = sort[j-1];
+				sort[j-1] = tmp;
+			}
 		}
 	}
+	for (i = 0; i < ATH5K_NF_CAL_HIST_MAX; i++) {
+		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+			"cal %d:%d\n", i, sort[i]);
+	}
+	return sort[(ATH5K_NF_CAL_HIST_MAX-1) / 2];
+}
 
-	ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
-		"noise floor %d\n", noise_floor);
+/*
+ * When we tell the hardware to perform a noise floor calibration
+ * by setting the AR5K_PHY_AGCCTL_NF bit, it will periodically
+ * sample-and-hold the minimum noise level seen at the antennas.
+ * This value is then stored in a ring buffer of recently measured
+ * noise floor values so we have a moving window of the last few
+ * samples.
+ *
+ * The median of the values in the history is then loaded into the
+ * hardware for its own use for RSSI and CCA measurements.
+ */
+void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
+{
+	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
+	u32 val;
+	s16 nf, threshold;
+	u8 ee_mode;
 
-	if (noise_floor > AR5K_TUNE_NOISE_FLOOR) {
-		ATH5K_ERR(ah->ah_sc,
-			"noise floor calibration failed (%uMHz)\n", freq);
-		return -EAGAIN;
+	/* keep last value if calibration hasn't completed */
+	if (ath5k_hw_reg_read(ah, AR5K_PHY_AGCCTL) & AR5K_PHY_AGCCTL_NF) {
+		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+			"NF did not complete in calibration window\n");
+
+		return;
 	}
 
-	ah->ah_noise_floor = noise_floor;
+	switch (ah->ah_current_channel->hw_value & CHANNEL_MODES) {
+	case CHANNEL_A:
+	case CHANNEL_T:
+	case CHANNEL_XR:
+		ee_mode = AR5K_EEPROM_MODE_11A;
+		break;
+	case CHANNEL_G:
+	case CHANNEL_TG:
+		ee_mode = AR5K_EEPROM_MODE_11G;
+		break;
+	default:
+	case CHANNEL_B:
+		ee_mode = AR5K_EEPROM_MODE_11B;
+		break;
+	}
 
-	return 0;
+
+	/* completed NF calibration, test threshold */
+	nf = ath5k_hw_read_measured_noise_floor(ah);
+	threshold = ee->ee_noise_floor_thr[ee_mode];
+
+	if (nf > threshold) {
+		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+			"noise floor failure detected; "
+			"read %d, threshold %d\n",
+			nf, threshold);
+
+		nf = AR5K_TUNE_CCA_MAX_GOOD_VALUE;
+	}
+
+	ath5k_hw_update_nfcal_hist(ah, nf);
+	nf = ath5k_hw_get_median_noise_floor(ah);
+
+	/* load noise floor (in .5 dBm) so the hardware will use it */
+	val = ath5k_hw_reg_read(ah, AR5K_PHY_NF) & ~AR5K_PHY_NF_M;
+	val |= (nf * 2) & AR5K_PHY_NF_M;
+	ath5k_hw_reg_write(ah, val, AR5K_PHY_NF);
+
+	AR5K_REG_MASKED_BITS(ah, AR5K_PHY_AGCCTL, AR5K_PHY_AGCCTL_NF,
+		~(AR5K_PHY_AGCCTL_NF_EN | AR5K_PHY_AGCCTL_NF_NOUPDATE));
+
+	ath5k_hw_register_timeout(ah, AR5K_PHY_AGCCTL, AR5K_PHY_AGCCTL_NF,
+		0, false);
+
+	/*
+	 * Load a high max CCA Power value (-50 dBm in .5 dBm units)
+	 * so that we're not capped by the median we just loaded.
+	 * This will be used as the initial value for the next noise
+	 * floor calibration.
+	 */
+	val = (val & ~AR5K_PHY_NF_M) | ((-50 * 2) & AR5K_PHY_NF_M);
+	ath5k_hw_reg_write(ah, val, AR5K_PHY_NF);
+	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
+		AR5K_PHY_AGCCTL_NF_EN |
+		AR5K_PHY_AGCCTL_NF_NOUPDATE |
+		AR5K_PHY_AGCCTL_NF);
+
+	ah->ah_noise_floor = nf;
+
+	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+		"noise floor calibrated: %d\n", nf);
 }
 
 /*
@@ -1287,7 +1358,7 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 		return ret;
 	}
 
-	ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
+	ath5k_hw_update_noise_floor(ah);
 
 	/*
 	 * Re-enable RX/TX and beacons
@@ -1360,7 +1431,7 @@ done:
 	 * since noise floor calibration interrupts rx path while I/Q
 	 * calibration doesn't. We don't need to run noise floor calibration
 	 * as often as I/Q calibration.*/
-	ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
+	ath5k_hw_update_noise_floor(ah);
 
 	/* Initiate a gain_F calibration */
 	ath5k_hw_request_rfgain_probe(ah);

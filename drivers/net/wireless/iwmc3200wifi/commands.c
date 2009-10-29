@@ -76,6 +76,11 @@ int iwm_send_wifi_if_cmd(struct iwm_priv *iwm, void *payload, u16 payload_size,
 	int ret;
 	u8 oid = hdr->oid;
 
+	if (!test_bit(IWM_STATUS_READY, &iwm->status)) {
+		IWM_ERR(iwm, "Interface is not ready yet");
+		return -EAGAIN;
+	}
+
 	umac_cmd.id = UMAC_CMD_OPCODE_WIFI_IF_WRAPPER;
 	umac_cmd.resp = resp;
 
@@ -272,6 +277,17 @@ int iwm_send_calib_results(struct iwm_priv *iwm)
 	}
 
 	return ret;
+}
+
+int iwm_send_ct_kill_cfg(struct iwm_priv *iwm, u8 entry, u8 exit)
+{
+	struct iwm_ct_kill_cfg_cmd cmd;
+
+	cmd.entry_threshold = entry;
+	cmd.exit_threshold = exit;
+
+	return iwm_send_lmac_ptrough_cmd(iwm, REPLY_CT_KILL_CONFIG_CMD, &cmd,
+					 sizeof(struct iwm_ct_kill_cfg_cmd), 0);
 }
 
 int iwm_send_umac_reset(struct iwm_priv *iwm, __le32 reset_flags, bool resp)
@@ -777,9 +793,22 @@ int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 		return ret;
 
 	ret = wait_event_interruptible_timeout(iwm->mlme_queue,
-				(iwm->umac_profile_active == 0), 2 * HZ);
+				(iwm->umac_profile_active == 0), 5 * HZ);
 
 	return ret ? 0 : -EBUSY;
+}
+
+int iwm_tx_power_trigger(struct iwm_priv *iwm)
+{
+	struct iwm_umac_pwr_trigger pwr_trigger;
+
+	pwr_trigger.hdr.oid = UMAC_WIFI_IF_CMD_TX_PWR_TRIGGER;
+	pwr_trigger.hdr.buf_size =
+		cpu_to_le16(sizeof(struct iwm_umac_pwr_trigger) -
+			    sizeof(struct iwm_umac_wifi_if));
+
+
+	return iwm_send_wifi_if_cmd(iwm, &pwr_trigger, sizeof(pwr_trigger), 1);
 }
 
 int iwm_send_umac_stats_req(struct iwm_priv *iwm, u32 flags)

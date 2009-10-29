@@ -4671,7 +4671,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
 	struct ssb_bus *bus = dev->dev->bus;
-	struct pci_dev *pdev = bus->host_pci;
+	struct pci_dev *pdev = (bus->bustype == SSB_BUSTYPE_PCI) ? bus->host_pci : NULL;
 	int err;
 	bool have_2ghz_phy = 0, have_5ghz_phy = 0;
 	u32 tmp;
@@ -4804,7 +4804,7 @@ static int b43_one_core_attach(struct ssb_device *dev, struct b43_wl *wl)
 
 	if (!list_empty(&wl->devlist)) {
 		/* We are not the first core on this chip. */
-		pdev = dev->bus->host_pci;
+		pdev = (dev->bus->bustype == SSB_BUSTYPE_PCI) ? dev->bus->host_pci : NULL;
 		/* Only special chips support more than one wireless
 		 * core, although some of the other chips have more than
 		 * one wireless core as well. Check for this and

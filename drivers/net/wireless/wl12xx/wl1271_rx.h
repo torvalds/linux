@@ -102,14 +102,14 @@
 #define RX_BUF_SIZE_SHIFT_DIV 6
 
 struct wl1271_rx_descriptor {
-	u16 length;
+	__le16 length;
 	u8  status;
 	u8  flags;
 	u8  rate;
 	u8  channel;
 	s8  rssi;
 	u8  snr;
-	u32 timestamp;
+	__le32 timestamp;
 	u8  packet_class;
 	u8  process_id;
 	u8  pad_len;

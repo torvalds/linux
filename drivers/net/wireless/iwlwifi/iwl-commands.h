@@ -109,11 +109,12 @@ enum {
 	REPLY_TX_LINK_QUALITY_CMD = 0x4e, /* 4965 only */
 
 	/* WiMAX coexistence */
-	COEX_PRIORITY_TABLE_CMD = 0x5a,	/*5000 only */
+	COEX_PRIORITY_TABLE_CMD = 0x5a,	/* for 5000 series and up */
 	COEX_MEDIUM_NOTIFICATION = 0x5b,
 	COEX_EVENT_CMD = 0x5c,
 
 	/* Calibration */
+	TEMPERATURE_NOTIFICATION = 0x62,
 	CALIBRATION_CFG_CMD = 0x65,
 	CALIBRATION_RES_NOTIFICATION = 0x66,
 	CALIBRATION_COMPLETE_NOTIFICATION = 0x67,
@@ -352,6 +353,9 @@ struct iwl3945_power_per_rate {
 #define POWER_TABLE_NUM_ENTRIES			33
 #define POWER_TABLE_NUM_HT_OFDM_ENTRIES		32
 #define POWER_TABLE_CCK_ENTRY			32
+
+#define IWL_PWR_NUM_HT_OFDM_ENTRIES		24
+#define IWL_PWR_CCK_ENTRIES			2
 
 /**
  * union iwl4965_tx_power_dual_stream
@@ -803,7 +807,7 @@ struct iwl3945_channel_switch_cmd {
 	struct iwl3945_power_per_rate power[IWL_MAX_RATES];
 } __attribute__ ((packed));
 
-struct iwl_channel_switch_cmd {
+struct iwl4965_channel_switch_cmd {
 	u8 band;
 	u8 expect_beacon;
 	__le16 channel;
@@ -811,6 +815,48 @@ struct iwl_channel_switch_cmd {
 	__le32 rxon_filter_flags;
 	__le32 switch_time;
 	struct iwl4965_tx_power_db tx_power;
+} __attribute__ ((packed));
+
+/**
+ * struct iwl5000_channel_switch_cmd
+ * @band: 0- 5.2GHz, 1- 2.4GHz
+ * @expect_beacon: 0- resume transmits after channel switch
+ *		   1- wait for beacon to resume transmits
+ * @channel: new channel number
+ * @rxon_flags: Rx on flags
+ * @rxon_filter_flags: filtering parameters
+ * @switch_time: switch time in extended beacon format
+ * @reserved: reserved bytes
+ */
+struct iwl5000_channel_switch_cmd {
+	u8 band;
+	u8 expect_beacon;
+	__le16 channel;
+	__le32 rxon_flags;
+	__le32 rxon_filter_flags;
+	__le32 switch_time;
+	__le32 reserved[2][IWL_PWR_NUM_HT_OFDM_ENTRIES + IWL_PWR_CCK_ENTRIES];
+} __attribute__ ((packed));
+
+/**
+ * struct iwl6000_channel_switch_cmd
+ * @band: 0- 5.2GHz, 1- 2.4GHz
+ * @expect_beacon: 0- resume transmits after channel switch
+ *		   1- wait for beacon to resume transmits
+ * @channel: new channel number
+ * @rxon_flags: Rx on flags
+ * @rxon_filter_flags: filtering parameters
+ * @switch_time: switch time in extended beacon format
+ * @reserved: reserved bytes
+ */
+struct iwl6000_channel_switch_cmd {
+	u8 band;
+	u8 expect_beacon;
+	__le16 channel;
+	__le32 rxon_flags;
+	__le32 rxon_filter_flags;
+	__le32 switch_time;
+	__le32 reserved[3][IWL_PWR_NUM_HT_OFDM_ENTRIES + IWL_PWR_CCK_ENTRIES];
 } __attribute__ ((packed));
 
 /*
@@ -2172,6 +2218,19 @@ struct iwl_link_quality_cmd {
 	__le32 reserved2;
 } __attribute__ ((packed));
 
+#define BT_COEX_DISABLE (0x0)
+#define BT_COEX_MODE_2W (0x1)
+#define BT_COEX_MODE_3W (0x2)
+#define BT_COEX_MODE_4W (0x3)
+
+#define BT_LEAD_TIME_MIN (0x0)
+#define BT_LEAD_TIME_DEF (0x1E)
+#define BT_LEAD_TIME_MAX (0xFF)
+
+#define BT_MAX_KILL_MIN (0x1)
+#define BT_MAX_KILL_DEF (0x5)
+#define BT_MAX_KILL_MAX (0xFF)
+
 /*
  * REPLY_BT_CONFIG = 0x9b (command, has simple generic response)
  *
@@ -3247,12 +3306,6 @@ struct iwl_missed_beacon_notif {
  *   Lower values mean higher energy; this means making sure that the value
  *   in HD_MIN_ENERGY_CCK_DET_INDEX is at or *above* "Max cck energy".
  *
- * Driver should set the following entries to fixed values:
- *
- *   HD_MIN_ENERGY_OFDM_DET_INDEX               100
- *   HD_BARKER_CORR_TH_ADD_MIN_INDEX            190
- *   HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX        390
- *   HD_OFDM_ENERGY_TH_IN_INDEX                  62
  */
 
 /*
@@ -3505,6 +3558,16 @@ struct iwl_wimax_coex_cmd {
  *****************************************************************************/
 
 struct iwl_rx_packet {
+	/*
+	 * The first 4 bytes of the RX frame header contain both the RX frame
+	 * size and some flags.
+	 * Bit fields:
+	 * 31:    flag flush RB request
+	 * 30:    flag ignore TC (terminal counter) request
+	 * 29:    flag fast IRQ request
+	 * 28-14: Reserved
+	 * 13-00: RX frame size
+	 */
 	__le32 len_n_flags;
 	struct iwl_cmd_header hdr;
 	union {

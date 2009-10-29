@@ -458,9 +458,15 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.deauth.reason_code = cpu_to_le16(reason);
 
 	if (stype == IEEE80211_STYPE_DEAUTH)
-		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len, cookie);
+		if (cookie)
+			__cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
+		else
+			cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 	else
-		cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len, cookie);
+		if (cookie)
+			__cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
+		else
+			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
 	ieee80211_tx_skb(sdata, skb, ifmgd->flags & IEEE80211_STA_MFP_ENABLED);
 }
 
@@ -923,7 +929,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_ps(local, -1);
 	mutex_unlock(&local->iflist_mtx);
 
-	netif_tx_start_all_queues(sdata->dev);
+	netif_start_queue(sdata->dev);
 	netif_carrier_on(sdata->dev);
 }
 
@@ -1055,7 +1061,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	 * time -- we don't want the scan code to enable queues.
 	 */
 
-	netif_tx_stop_all_queues(sdata->dev);
+	netif_stop_queue(sdata->dev);
 	netif_carrier_off(sdata->dev);
 
 	rcu_read_lock();
@@ -1959,12 +1965,10 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			/* no action */
 			break;
 		case RX_MGMT_CFG80211_DEAUTH:
-			cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len,
-					     NULL);
+			cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 			break;
 		case RX_MGMT_CFG80211_DISASSOC:
-			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len,
-					       NULL);
+			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
 			break;
 		default:
 			WARN(1, "unexpected: %d", rma);
@@ -2019,7 +2023,7 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		cfg80211_send_rx_assoc(sdata->dev, (u8 *) mgmt, skb->len);
 		break;
 	case RX_MGMT_CFG80211_DEAUTH:
-		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len, NULL);
+		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 		break;
 	default:
 		WARN(1, "unexpected: %d", rma);

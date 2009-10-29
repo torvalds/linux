@@ -261,8 +261,11 @@ struct iwl_eeprom_enhanced_txpwr {
 /* 1000 Specific */
 #define EEPROM_1000_EEPROM_VERSION	(0x15C)
 
-/* 60x0 Specific */
+/* 6x00 Specific */
 #define EEPROM_6000_EEPROM_VERSION	(0x434)
+
+/* 6x50 Specific */
+#define EEPROM_6050_EEPROM_VERSION	(0x532)
 
 /* OTP */
 /* lower blocks contain EEPROM image and calibration data */

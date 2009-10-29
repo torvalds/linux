@@ -524,7 +524,7 @@ int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 static void iwl_rx_reply_alive(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_alive_resp *palive;
 	struct delayed_work *pwork;
 
@@ -610,7 +610,7 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl4965_beacon_notif *beacon =
 		(struct iwl4965_beacon_notif *)pkt->u.raw;
 	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
@@ -634,7 +634,7 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 static void iwl_rx_card_state_notif(struct iwl_priv *priv,
 				    struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = priv->status;
 
@@ -769,7 +769,7 @@ void iwl_rx_handle(struct iwl_priv *priv)
 		IWL_DEBUG_RX(priv, "r = %d, i = %d\n", r, i);
 
 	/* calculate total frames need to be restock after handling RX */
-	total_empty = r - priv->rxq.write_actual;
+	total_empty = r - rxq->write_actual;
 	if (total_empty < 0)
 		total_empty += RX_QUEUE_SIZE;
 
@@ -786,10 +786,10 @@ void iwl_rx_handle(struct iwl_priv *priv)
 
 		rxq->queue[i] = NULL;
 
-		pci_unmap_single(priv->pci_dev, rxb->real_dma_addr,
-				 priv->hw_params.rx_buf_size + 256,
-				 PCI_DMA_FROMDEVICE);
-		pkt = (struct iwl_rx_packet *)rxb->skb->data;
+		pci_unmap_page(priv->pci_dev, rxb->page_dma,
+			       PAGE_SIZE << priv->hw_params.rx_page_order,
+			       PCI_DMA_FROMDEVICE);
+		pkt = rxb_addr(rxb);
 
 		trace_iwlwifi_dev_rx(priv, pkt,
 			le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
@@ -814,8 +814,8 @@ void iwl_rx_handle(struct iwl_priv *priv)
 		if (priv->rx_handlers[pkt->hdr.cmd]) {
 			IWL_DEBUG_RX(priv, "r = %d, i = %d, %s, 0x%02x\n", r,
 				i, get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
-			priv->rx_handlers[pkt->hdr.cmd] (priv, rxb);
 			priv->isr_stats.rx_handlers[pkt->hdr.cmd]++;
+			priv->rx_handlers[pkt->hdr.cmd] (priv, rxb);
 		} else {
 			/* No handling needed */
 			IWL_DEBUG_RX(priv,
@@ -824,35 +824,45 @@ void iwl_rx_handle(struct iwl_priv *priv)
 				pkt->hdr.cmd);
 		}
 
+		/*
+		 * XXX: After here, we should always check rxb->page
+		 * against NULL before touching it or its virtual
+		 * memory (pkt). Because some rx_handler might have
+		 * already taken or freed the pages.
+		 */
+
 		if (reclaim) {
-			/* Invoke any callbacks, transfer the skb to caller, and
-			 * fire off the (possibly) blocking iwl_send_cmd()
+			/* Invoke any callbacks, transfer the buffer to caller,
+			 * and fire off the (possibly) blocking iwl_send_cmd()
 			 * as we reclaim the driver command queue */
-			if (rxb && rxb->skb)
+			if (rxb->page)
 				iwl_tx_cmd_complete(priv, rxb);
 			else
 				IWL_WARN(priv, "Claim null rxb?\n");
 		}
 
-		/* For now we just don't re-use anything.  We can tweak this
-		 * later to try and re-use notification packets and SKBs that
-		 * fail to Rx correctly */
-		if (rxb->skb != NULL) {
-			priv->alloc_rxb_skb--;
-			dev_kfree_skb_any(rxb->skb);
-			rxb->skb = NULL;
-		}
-
+		/* Reuse the page if possible. For notification packets and
+		 * SKBs that fail to Rx correctly, add them back into the
+		 * rx_free list for reuse later. */
 		spin_lock_irqsave(&rxq->lock, flags);
-		list_add_tail(&rxb->list, &priv->rxq.rx_used);
+		if (rxb->page != NULL) {
+			rxb->page_dma = pci_map_page(priv->pci_dev, rxb->page,
+				0, PAGE_SIZE << priv->hw_params.rx_page_order,
+				PCI_DMA_FROMDEVICE);
+			list_add_tail(&rxb->list, &rxq->rx_free);
+			rxq->free_count++;
+		} else
+			list_add_tail(&rxb->list, &rxq->rx_used);
+
 		spin_unlock_irqrestore(&rxq->lock, flags);
+
 		i = (i + 1) & RX_QUEUE_MASK;
 		/* If there are a lot of unused frames,
 		 * restock the Rx queue so ucode wont assert. */
 		if (fill_rx) {
 			count++;
 			if (count >= 8) {
-				priv->rxq.read = i;
+				rxq->read = i;
 				iwl_rx_replenish_now(priv);
 				count = 0;
 			}
@@ -860,7 +870,7 @@ void iwl_rx_handle(struct iwl_priv *priv)
 	}
 
 	/* Backtrack one entry */
-	priv->rxq.read = i;
+	rxq->read = i;
 	if (fill_rx)
 		iwl_rx_replenish_now(priv);
 	else
@@ -907,6 +917,8 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 	}
 #endif
 
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 	/* Since CSR_INT and CSR_FH_INT_STATUS reads and clears are not
 	 * atomic, make sure that inta covers all the interrupts that
 	 * we've discovered, even if FH interrupt came in just after
@@ -927,8 +939,6 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 		iwl_irq_handle_error(priv);
 
 		handled |= CSR_INT_BIT_HW_ERR;
-
-		spin_unlock_irqrestore(&priv->lock, flags);
 
 		return;
 	}
@@ -1019,6 +1029,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 	if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX)) {
 		iwl_rx_handle(priv);
 		priv->isr_stats.rx++;
+		iwl_leds_background(priv);
 		handled |= (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX);
 	}
 
@@ -1056,7 +1067,6 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 			"flags 0x%08lx\n", inta, inta_mask, inta_fh, flags);
 	}
 #endif
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 /* tasklet for iwlagn interrupt */
@@ -1086,6 +1096,9 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 				inta, inta_mask);
 	}
 #endif
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 	/* saved interrupt in inta variable now we can reset priv->inta */
 	priv->inta = 0;
 
@@ -1100,8 +1113,6 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		iwl_irq_handle_error(priv);
 
 		handled |= CSR_INT_BIT_HW_ERR;
-
-		spin_unlock_irqrestore(&priv->lock, flags);
 
 		return;
 	}
@@ -1220,6 +1231,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 				    CSR_INT_PERIODIC_ENA);
 
 		priv->isr_stats.rx++;
+		iwl_leds_background(priv);
 	}
 
 	if (inta & CSR_INT_BIT_FH_TX) {
@@ -1242,14 +1254,10 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 			 inta & ~priv->inta_mask);
 	}
 
-
 	/* Re-enable all interrupts */
 	/* only Re-enable if diabled by irq */
 	if (test_bit(STATUS_INT_ENABLED, &priv->status))
 		iwl_enable_interrupts(priv);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 }
 
 
@@ -1899,11 +1907,9 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	udelay(5);
 
-	/* FIXME: apm_ops.suspend(priv) */
-	if (exit_pending)
-		priv->cfg->ops->lib->apm_ops.stop(priv);
-	else
-		priv->cfg->ops->lib->apm_ops.reset(priv);
+	/* Stop the device, and put it in low power state */
+	priv->cfg->ops->lib->apm_ops.stop(priv);
+
  exit:
 	memset(&priv->card_alive, 0, sizeof(struct iwl_alive_resp));
 
@@ -2289,6 +2295,69 @@ void iwl_post_associate(struct iwl_priv *priv)
  *****************************************************************************/
 
 #define UCODE_READY_TIMEOUT	(4 * HZ)
+
+/*
+ * Not a mac80211 entry point function, but it fits in with all the
+ * other mac80211 functions grouped here.
+ */
+static int iwl_setup_mac(struct iwl_priv *priv)
+{
+	int ret;
+	struct ieee80211_hw *hw = priv->hw;
+	hw->rate_control_algorithm = "iwl-agn-rs";
+
+	/* Tell mac80211 our characteristics */
+	hw->flags = IEEE80211_HW_SIGNAL_DBM |
+		    IEEE80211_HW_NOISE_DBM |
+		    IEEE80211_HW_AMPDU_AGGREGATION |
+		    IEEE80211_HW_SPECTRUM_MGMT;
+
+	if (!priv->cfg->broken_powersave)
+		hw->flags |= IEEE80211_HW_SUPPORTS_PS |
+			     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
+
+	hw->sta_data_size = sizeof(struct iwl_station_priv);
+	hw->wiphy->interface_modes =
+		BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_ADHOC);
+
+	hw->wiphy->custom_regulatory = true;
+
+	/* Firmware does not support this */
+	hw->wiphy->disable_beacon_hints = true;
+
+	/*
+	 * For now, disable PS by default because it affects
+	 * RX performance significantly.
+	 */
+	hw->wiphy->ps_default = false;
+
+	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
+	/* we create the 802.11 header and a zero-length SSID element */
+	hw->wiphy->max_scan_ie_len = IWL_MAX_PROBE_REQUEST - 24 - 2;
+
+	/* Default value; 4 EDCA QOS priorities */
+	hw->queues = 4;
+
+	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
+
+	if (priv->bands[IEEE80211_BAND_2GHZ].n_channels)
+		priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
+			&priv->bands[IEEE80211_BAND_2GHZ];
+	if (priv->bands[IEEE80211_BAND_5GHZ].n_channels)
+		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
+			&priv->bands[IEEE80211_BAND_5GHZ];
+
+	ret = ieee80211_register_hw(priv->hw);
+	if (ret) {
+		IWL_ERR(priv, "Failed to register hw (error %d)\n", ret);
+		return ret;
+	}
+	priv->mac80211_registered = 1;
+
+	return 0;
+}
+
 
 static int iwl_mac_start(struct ieee80211_hw *hw)
 {
@@ -3186,6 +3255,15 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	} else {
 		iwl_down(priv);
 	}
+
+	/*
+	 * Make sure device is reset to low power before unloading driver.
+	 * This may be redundant with iwl_down(), but there are paths to
+	 * run iwl_down() without calling apm_ops.stop(), and there are
+	 * paths to avoid running iwl_down() at all before leaving driver.
+	 * This (inexpensive) call *makes sure* device is reset.
+	 */
+	priv->cfg->ops->lib->apm_ops.stop(priv);
 
 	iwl_tt_exit(priv);
 

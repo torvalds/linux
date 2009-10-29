@@ -404,38 +404,20 @@ static int iwm_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 	struct ieee80211_channel *chan = params->channel;
-	struct cfg80211_bss *bss;
 
 	if (!test_bit(IWM_STATUS_READY, &iwm->status))
 		return -EIO;
 
-	/* UMAC doesn't support creating IBSS network with specified bssid.
-	 * This should be removed after we have join only mode supported. */
+	/* UMAC doesn't support creating or joining an IBSS network
+	 * with specified bssid. */
 	if (params->bssid)
 		return -EOPNOTSUPP;
-
-	bss = cfg80211_get_ibss(iwm_to_wiphy(iwm), NULL,
-				params->ssid, params->ssid_len);
-	if (!bss) {
-		iwm_scan_one_ssid(iwm, params->ssid, params->ssid_len);
-		schedule_timeout_interruptible(2 * HZ);
-		bss = cfg80211_get_ibss(iwm_to_wiphy(iwm), NULL,
-					params->ssid, params->ssid_len);
-	}
-	/* IBSS join only mode is not supported by UMAC ATM */
-	if (bss) {
-		cfg80211_put_bss(bss);
-		return -EOPNOTSUPP;
-	}
 
 	iwm->channel = ieee80211_frequency_to_channel(chan->center_freq);
 	iwm->umac_profile->ibss.band = chan->band;
 	iwm->umac_profile->ibss.channel = iwm->channel;
 	iwm->umac_profile->ssid.ssid_len = params->ssid_len;
 	memcpy(iwm->umac_profile->ssid.ssid, params->ssid, params->ssid_len);
-
-	if (params->bssid)
-		memcpy(&iwm->umac_profile->bssid[0], params->bssid, ETH_ALEN);
 
 	return iwm_send_mlme_profile(iwm);
 }
@@ -489,11 +471,11 @@ static int iwm_set_wpa_version(struct iwm_priv *iwm, u32 wpa_version)
 		return 0;
 	}
 
+	if (wpa_version & NL80211_WPA_VERSION_1)
+		iwm->umac_profile->sec.flags = UMAC_SEC_FLG_WPA_ON_MSK;
+
 	if (wpa_version & NL80211_WPA_VERSION_2)
 		iwm->umac_profile->sec.flags = UMAC_SEC_FLG_RSNA_ON_MSK;
-
-	if (wpa_version & NL80211_WPA_VERSION_1)
-		iwm->umac_profile->sec.flags |= UMAC_SEC_FLG_WPA_ON_MSK;
 
 	return 0;
 }
@@ -645,6 +627,13 @@ static int iwm_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		iwm->default_key = sme->key_idx;
 	}
 
+	/* WPA and open AUTH type from wpa_s means WPS (a.k.a. WSC) */
+	if ((iwm->umac_profile->sec.flags &
+	     (UMAC_SEC_FLG_WPA_ON_MSK | UMAC_SEC_FLG_RSNA_ON_MSK)) &&
+	    iwm->umac_profile->sec.auth_type == UMAC_AUTH_TYPE_OPEN) {
+			iwm->umac_profile->sec.flags = UMAC_SEC_FLG_WSC_ON_MSK;
+	}
+
 	ret = iwm_send_mlme_profile(iwm);
 
 	if (iwm->umac_profile->sec.auth_type != UMAC_AUTH_TYPE_LEGACY_PSK ||
@@ -681,9 +670,19 @@ static int iwm_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 static int iwm_cfg80211_set_txpower(struct wiphy *wiphy,
 				    enum tx_power_setting type, int dbm)
 {
+	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
+	int ret;
+
 	switch (type) {
 	case TX_POWER_AUTOMATIC:
 		return 0;
+	case TX_POWER_FIXED:
+		ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
+					      CFG_TX_PWR_LIMIT_USR, dbm * 2);
+		if (ret < 0)
+			return ret;
+
+		return iwm_tx_power_trigger(iwm);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -695,7 +694,7 @@ static int iwm_cfg80211_get_txpower(struct wiphy *wiphy, int *dbm)
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 
-	*dbm = iwm->txpower;
+	*dbm = iwm->txpower >> 1;
 
 	return 0;
 }

@@ -187,9 +187,9 @@ static ssize_t mesh_id_get(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	if (defs.meshie.val.mesh_id_len > IW_ESSID_MAX_SIZE) {
+	if (defs.meshie.val.mesh_id_len > IEEE80211_MAX_SSID_LEN) {
 		lbs_pr_err("inconsistent mesh ID length");
-		defs.meshie.val.mesh_id_len = IW_ESSID_MAX_SIZE;
+		defs.meshie.val.mesh_id_len = IEEE80211_MAX_SSID_LEN;
 	}
 
 	/* SSID not null terminated: reserve room for \0 + \n */
@@ -214,7 +214,7 @@ static ssize_t mesh_id_set(struct device *dev, struct device_attribute *attr,
 	int len;
 	int ret;
 
-	if (count < 2 || count > IW_ESSID_MAX_SIZE + 1)
+	if (count < 2 || count > IEEE80211_MAX_SSID_LEN + 1)
 		return -EINVAL;
 
 	memset(&cmd, 0, sizeof(struct cmd_ds_mesh_config));
@@ -233,7 +233,7 @@ static ssize_t mesh_id_set(struct device *dev, struct device_attribute *attr,
 	/* SSID len */
 	ie->val.mesh_id_len = len;
 	/* IE len */
-	ie->len = sizeof(struct mrvl_meshie_val) - IW_ESSID_MAX_SIZE + len;
+	ie->len = sizeof(struct mrvl_meshie_val) - IEEE80211_MAX_SSID_LEN + len;
 
 	ret = lbs_mesh_config_send(priv, &cmd, CMD_ACT_MESH_CONFIG_SET,
 				   CMD_TYPE_MESH_SET_MESH_IE);

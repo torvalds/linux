@@ -152,6 +152,7 @@ void iwm_if_free(struct iwm_priv *iwm)
 	if (!iwm_to_ndev(iwm))
 		return;
 
+	cancel_delayed_work_sync(&iwm->ct_kill_delay);
 	free_netdev(iwm_to_ndev(iwm));
 	iwm_priv_deinit(iwm);
 	kfree(iwm->umac_profile);

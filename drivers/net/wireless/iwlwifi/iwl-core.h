@@ -109,7 +109,6 @@ struct iwl_hcmd_utils_ops {
 
 struct iwl_apm_ops {
 	int (*init)(struct iwl_priv *priv);
-	int (*reset)(struct iwl_priv *priv);
 	void (*stop)(struct iwl_priv *priv);
 	void (*config)(struct iwl_priv *priv);
 	int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
@@ -170,6 +169,7 @@ struct iwl_lib_ops {
 	int (*load_ucode)(struct iwl_priv *priv);
 	void (*dump_nic_event_log)(struct iwl_priv *priv);
 	void (*dump_nic_error_log)(struct iwl_priv *priv);
+	int (*set_channel_switch)(struct iwl_priv *priv, u16 channel);
 	/* power management */
 	struct iwl_apm_ops apm_ops;
 
@@ -205,7 +205,6 @@ struct iwl_mod_params {
 	int sw_crypto;		/* def: 0 = using hardware encryption */
 	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
-	int num_of_ampdu_queues;/* def: HW dependent */
 	int disable_11n;	/* def: 0 = 11n capabilities enabled */
 	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
 	int antenna;  		/* def: 0 = both antennas (use diversity) */
@@ -227,6 +226,8 @@ struct iwl_mod_params {
  *	The detail algorithm is described in iwl-led.c
  * @use_rts_for_ht: use rts/cts protection for HT traffic
  * @chain_noise_num_beacons: number of beacons used to compute chain noise
+ * @adv_thermal_throttle: support advance thermal throttle
+ * @support_ct_kill_exit: support ct kill exit condition
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -258,11 +259,18 @@ struct iwl_cfg {
 	int eeprom_size;
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
+	int num_of_queues;	/* def: HW dependent */
+	int num_of_ampdu_queues;/* def: HW dependent */
 	const struct iwl_ops *ops;
 	const struct iwl_mod_params *mod_params;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
-	bool need_pll_cfg;
+
+	/* for iwl_apm_init() */
+	u32 pll_cfg_val;
+	bool set_l0s;
+	bool use_bsm;
+
 	bool use_isr_legacy;
 	enum iwl_pa_type pa_type;
 	const u16 max_ll_items;
@@ -273,6 +281,8 @@ struct iwl_cfg {
 	bool use_rts_for_ht;
 	int chain_noise_num_beacons;
 	const bool supports_idle;
+	bool adv_thermal_throttle;
+	bool support_ct_kill_exit;
 };
 
 /***************************
@@ -305,7 +315,6 @@ void iwl_configure_filter(struct ieee80211_hw *hw,
 			  unsigned int changed_flags,
 			  unsigned int *total_flags, u64 multicast);
 int iwl_hw_nic_init(struct iwl_priv *priv);
-int iwl_setup_mac(struct iwl_priv *priv);
 int iwl_set_hw_params(struct iwl_priv *priv);
 int iwl_init_drv(struct iwl_priv *priv);
 void iwl_uninit_drv(struct iwl_priv *priv);
@@ -327,6 +336,10 @@ void iwl_config_ap(struct iwl_priv *priv);
 int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
 			 struct ieee80211_tx_queue_stats *stats);
 void iwl_mac_reset_tsf(struct ieee80211_hw *hw);
+int iwl_alloc_txq_mem(struct iwl_priv *priv);
+void iwl_free_txq_mem(struct iwl_priv *priv);
+void iwlcore_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
+				__le32 *tx_flags);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_alloc_traffic_mem(struct iwl_priv *priv);
 void iwl_free_traffic_mem(struct iwl_priv *priv);
@@ -527,7 +540,7 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 			   const void *data,
 			   void (*callback)(struct iwl_priv *priv,
 					    struct iwl_device_cmd *cmd,
-					    struct sk_buff *skb));
+					    struct iwl_rx_packet *pkt));
 
 int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 
@@ -660,6 +673,7 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 					   struct iwl_rx_mem_buffer *rxb);
 void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_stop_master(struct iwl_priv *priv);
+int iwl_apm_init(struct iwl_priv *priv);
 
 void iwl_setup_rxon_timing(struct iwl_priv *priv);
 static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)

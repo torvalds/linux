@@ -34,7 +34,7 @@
 #define REGISTERS_WORK_SIZE 0x0000b000
 
 #define HW_ACCESS_ELP_CTRL_REG_ADDR         0x1FFFC
-#define STATUS_MEM_ADDRESS                  0x40400
+#define FW_STATUS_ADDR                      (0x14FC0 + 0xA000)
 
 /* ELP register commands */
 #define ELPCTRL_WAKE_UP             0x1
@@ -213,7 +213,6 @@
 ==============================================*/
 #define ACX_REG_INTERRUPT_ACK          (REGISTERS_BASE + 0x04F0)
 
-#define RX_DRIVER_DUMMY_WRITE_ADDRESS  (REGISTERS_BASE + 0x0534)
 #define RX_DRIVER_COUNTER_ADDRESS      (REGISTERS_BASE + 0x0538)
 
 /* Device Configuration registers*/
@@ -612,50 +611,6 @@ enum {
 	DEFAULT_BAND = RADIO_BAND_2_4GHZ,
 	INVALID_BAND = 0xFE,
 	MAX_RADIO_BANDS = 0xFF
-};
-
-enum {
-	NO_RATE      = 0,
-	RATE_1MBPS   = 0x0A,
-	RATE_2MBPS   = 0x14,
-	RATE_5_5MBPS = 0x37,
-	RATE_6MBPS   = 0x0B,
-	RATE_9MBPS   = 0x0F,
-	RATE_11MBPS  = 0x6E,
-	RATE_12MBPS  = 0x0A,
-	RATE_18MBPS  = 0x0E,
-	RATE_22MBPS  = 0xDC,
-	RATE_24MBPS  = 0x09,
-	RATE_36MBPS  = 0x0D,
-	RATE_48MBPS  = 0x08,
-	RATE_54MBPS  = 0x0C
-};
-
-enum {
-	RATE_INDEX_1MBPS   =  0,
-	RATE_INDEX_2MBPS   =  1,
-	RATE_INDEX_5_5MBPS =  2,
-	RATE_INDEX_6MBPS   =  3,
-	RATE_INDEX_9MBPS   =  4,
-	RATE_INDEX_11MBPS  =  5,
-	RATE_INDEX_12MBPS  =  6,
-	RATE_INDEX_18MBPS  =  7,
-	RATE_INDEX_22MBPS  =  8,
-	RATE_INDEX_24MBPS  =  9,
-	RATE_INDEX_36MBPS  =  10,
-	RATE_INDEX_48MBPS  =  11,
-	RATE_INDEX_54MBPS  =  12,
-	RATE_INDEX_MAX     =  RATE_INDEX_54MBPS,
-	MAX_RATE_INDEX,
-	INVALID_RATE_INDEX = MAX_RATE_INDEX,
-	RATE_INDEX_ENUM_MAX_SIZE = 0x7FFFFFFF
-};
-
-enum {
-	RATE_MASK_1MBPS = 0x1,
-	RATE_MASK_2MBPS = 0x2,
-	RATE_MASK_5_5MBPS = 0x4,
-	RATE_MASK_11MBPS = 0x20,
 };
 
 #define SHORT_PREAMBLE_BIT   BIT(0) /* CCK or Barker depending on the rate */

@@ -110,8 +110,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 	.send_tx_power = iwl5000_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
 	.apm_ops = {
-		.init =	iwl5000_apm_init,
-		.reset = iwl5000_apm_reset,
+		.init = iwl_apm_init,
 		.stop = iwl_apm_stop,
 		.config = iwl1000_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
@@ -159,15 +158,20 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
+	.num_of_queues = IWL50_NUM_QUEUES,
+	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl50_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
-	.need_pll_cfg = true,
+	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
+	.set_l0s = false,
+	.use_bsm = false,
 	.max_ll_items = OTP_MAX_LL_ITEMS_1000,
 	.shadow_ram_support = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.support_ct_kill_exit = true,
 };
 
 struct iwl_cfg iwl1000_bg_cfg = {
@@ -180,15 +184,20 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
+	.num_of_queues = IWL50_NUM_QUEUES,
+	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl50_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
-	.need_pll_cfg = true,
+	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
+	.set_l0s = false,
+	.use_bsm = false,
 	.max_ll_items = OTP_MAX_LL_ITEMS_1000,
 	.shadow_ram_support = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.support_ct_kill_exit = true,
 };
 
 MODULE_FIRMWARE(IWL1000_MODULE_FIRMWARE(IWL1000_UCODE_API_MAX));

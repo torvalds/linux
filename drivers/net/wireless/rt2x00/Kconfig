@@ -53,6 +53,32 @@ config RT61PCI
 
 	  When compiled as a module, this driver will be called rt61pci.
 
+config RT2800PCI_PCI
+	tristate
+	depends on PCI
+	default y
+
+config RT2800PCI_SOC
+	tristate
+	depends on RALINK_RT288X || RALINK_RT305X
+	default y
+
+config RT2800PCI
+	tristate "Ralink rt2800 (PCI/PCMCIA) support"
+	depends on (RT2800PCI_PCI || RT2800PCI_SOC) && EXPERIMENTAL
+	select RT2X00_LIB_PCI if RT2800PCI_PCI
+	select RT2X00_LIB_SOC if RT2800PCI_SOC
+	select RT2X00_LIB_HT
+	select RT2X00_LIB_FIRMWARE
+	select RT2X00_LIB_CRYPTO
+	select CRC_CCITT
+	select EEPROM_93CX6
+	---help---
+	  This adds support for rt2800 wireless chipset family.
+	  Supported chips: RT2760, RT2790, RT2860, RT2880, RT2890 & RT3052
+
+	  When compiled as a module, this driver will be called "rt2800pci.ko".
+
 config RT2500USB
 	tristate "Ralink rt2500 (USB) support"
 	depends on USB
@@ -92,6 +118,10 @@ config RT2800USB
 	  When compiled as a module, this driver will be called "rt2800usb.ko".
 
 config RT2X00_LIB_PCI
+	tristate
+	select RT2X00_LIB
+
+config RT2X00_LIB_SOC
 	tristate
 	select RT2X00_LIB
 

@@ -45,131 +45,11 @@ module_param_named(libertas_debug, lbs_debug, int, 0644);
 struct cmd_confirm_sleep confirm_sleep;
 
 
-#define LBS_TX_PWR_DEFAULT		20	/*100mW */
-#define LBS_TX_PWR_US_DEFAULT		20	/*100mW */
-#define LBS_TX_PWR_JP_DEFAULT		16	/*50mW */
-#define LBS_TX_PWR_FR_DEFAULT		20	/*100mW */
-#define LBS_TX_PWR_EMEA_DEFAULT	20	/*100mW */
-
-/* Format { channel, frequency (MHz), maxtxpower } */
-/* band: 'B/G', region: USA FCC/Canada IC */
-static struct chan_freq_power channel_freq_power_US_BG[] = {
-	{1, 2412, LBS_TX_PWR_US_DEFAULT},
-	{2, 2417, LBS_TX_PWR_US_DEFAULT},
-	{3, 2422, LBS_TX_PWR_US_DEFAULT},
-	{4, 2427, LBS_TX_PWR_US_DEFAULT},
-	{5, 2432, LBS_TX_PWR_US_DEFAULT},
-	{6, 2437, LBS_TX_PWR_US_DEFAULT},
-	{7, 2442, LBS_TX_PWR_US_DEFAULT},
-	{8, 2447, LBS_TX_PWR_US_DEFAULT},
-	{9, 2452, LBS_TX_PWR_US_DEFAULT},
-	{10, 2457, LBS_TX_PWR_US_DEFAULT},
-	{11, 2462, LBS_TX_PWR_US_DEFAULT}
-};
-
-/* band: 'B/G', region: Europe ETSI */
-static struct chan_freq_power channel_freq_power_EU_BG[] = {
-	{1, 2412, LBS_TX_PWR_EMEA_DEFAULT},
-	{2, 2417, LBS_TX_PWR_EMEA_DEFAULT},
-	{3, 2422, LBS_TX_PWR_EMEA_DEFAULT},
-	{4, 2427, LBS_TX_PWR_EMEA_DEFAULT},
-	{5, 2432, LBS_TX_PWR_EMEA_DEFAULT},
-	{6, 2437, LBS_TX_PWR_EMEA_DEFAULT},
-	{7, 2442, LBS_TX_PWR_EMEA_DEFAULT},
-	{8, 2447, LBS_TX_PWR_EMEA_DEFAULT},
-	{9, 2452, LBS_TX_PWR_EMEA_DEFAULT},
-	{10, 2457, LBS_TX_PWR_EMEA_DEFAULT},
-	{11, 2462, LBS_TX_PWR_EMEA_DEFAULT},
-	{12, 2467, LBS_TX_PWR_EMEA_DEFAULT},
-	{13, 2472, LBS_TX_PWR_EMEA_DEFAULT}
-};
-
-/* band: 'B/G', region: Spain */
-static struct chan_freq_power channel_freq_power_SPN_BG[] = {
-	{10, 2457, LBS_TX_PWR_DEFAULT},
-	{11, 2462, LBS_TX_PWR_DEFAULT}
-};
-
-/* band: 'B/G', region: France */
-static struct chan_freq_power channel_freq_power_FR_BG[] = {
-	{10, 2457, LBS_TX_PWR_FR_DEFAULT},
-	{11, 2462, LBS_TX_PWR_FR_DEFAULT},
-	{12, 2467, LBS_TX_PWR_FR_DEFAULT},
-	{13, 2472, LBS_TX_PWR_FR_DEFAULT}
-};
-
-/* band: 'B/G', region: Japan */
-static struct chan_freq_power channel_freq_power_JPN_BG[] = {
-	{1, 2412, LBS_TX_PWR_JP_DEFAULT},
-	{2, 2417, LBS_TX_PWR_JP_DEFAULT},
-	{3, 2422, LBS_TX_PWR_JP_DEFAULT},
-	{4, 2427, LBS_TX_PWR_JP_DEFAULT},
-	{5, 2432, LBS_TX_PWR_JP_DEFAULT},
-	{6, 2437, LBS_TX_PWR_JP_DEFAULT},
-	{7, 2442, LBS_TX_PWR_JP_DEFAULT},
-	{8, 2447, LBS_TX_PWR_JP_DEFAULT},
-	{9, 2452, LBS_TX_PWR_JP_DEFAULT},
-	{10, 2457, LBS_TX_PWR_JP_DEFAULT},
-	{11, 2462, LBS_TX_PWR_JP_DEFAULT},
-	{12, 2467, LBS_TX_PWR_JP_DEFAULT},
-	{13, 2472, LBS_TX_PWR_JP_DEFAULT},
-	{14, 2484, LBS_TX_PWR_JP_DEFAULT}
-};
-
-/**
- * the structure for channel, frequency and power
- */
-struct region_cfp_table {
-	u8 region;
-	struct chan_freq_power *cfp_BG;
-	int cfp_no_BG;
-};
-
-/**
- * the structure for the mapping between region and CFP
- */
-static struct region_cfp_table region_cfp_table[] = {
-	{0x10,			/*US FCC */
-	 channel_freq_power_US_BG,
-	 ARRAY_SIZE(channel_freq_power_US_BG),
-	 }
-	,
-	{0x20,			/*CANADA IC */
-	 channel_freq_power_US_BG,
-	 ARRAY_SIZE(channel_freq_power_US_BG),
-	 }
-	,
-	{0x30, /*EU*/ channel_freq_power_EU_BG,
-	 ARRAY_SIZE(channel_freq_power_EU_BG),
-	 }
-	,
-	{0x31, /*SPAIN*/ channel_freq_power_SPN_BG,
-	 ARRAY_SIZE(channel_freq_power_SPN_BG),
-	 }
-	,
-	{0x32, /*FRANCE*/ channel_freq_power_FR_BG,
-	 ARRAY_SIZE(channel_freq_power_FR_BG),
-	 }
-	,
-	{0x40, /*JAPAN*/ channel_freq_power_JPN_BG,
-	 ARRAY_SIZE(channel_freq_power_JPN_BG),
-	 }
-	,
-/*Add new region here */
-};
-
 /**
  * the table to keep region code
  */
 u16 lbs_region_code_to_index[MRVDRV_MAX_REGION_CODE] =
     { 0x10, 0x20, 0x30, 0x31, 0x32, 0x40 };
-
-/**
- * 802.11b/g supported bitrates (in 500Kb/s units)
- */
-u8 lbs_bg_rates[MAX_RATES] =
-    { 0x02, 0x04, 0x0b, 0x16, 0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6c,
-0x00, 0x00 };
 
 /**
  * FW rate table.  FW refers to rates by their index in this table, not by the
@@ -405,7 +285,7 @@ static ssize_t lbs_mesh_set(struct device *dev,
 		return count;
 	if (enable)
 		action = CMD_ACT_MESH_CONFIG_START;
-	ret = lbs_mesh_config(priv, action, priv->curbssparams.channel);
+	ret = lbs_mesh_config(priv, action, priv->channel);
 	if (ret)
 		return ret;
 
@@ -1089,6 +969,8 @@ static void auto_deepsleep_timer_fn(unsigned long data)
 			ret = lbs_prepare_and_send_command(priv,
 					CMD_802_11_DEEP_SLEEP, 0,
 					0, 0, NULL);
+			if (ret)
+				lbs_pr_err("Enter Deep Sleep command failed\n");
 		}
 	}
 	mod_timer(&priv->auto_deepsleep_timer , jiffies +
@@ -1164,7 +1046,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->mesh_connect_status = LBS_DISCONNECTED;
 	priv->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	priv->mode = IW_MODE_INFRA;
-	priv->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
+	priv->channel = DEFAULT_AD_HOC_CHANNEL;
 	priv->mac_control = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
 	priv->radio_on = 1;
 	priv->enablehwauto = 1;
@@ -1345,7 +1227,6 @@ EXPORT_SYMBOL_GPL(lbs_add_card);
 void lbs_remove_card(struct lbs_private *priv)
 {
 	struct net_device *dev = priv->dev;
-	union iwreq_data wrqu;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
@@ -1370,9 +1251,7 @@ void lbs_remove_card(struct lbs_private *priv)
 		lbs_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
 	}
 
-	memset(wrqu.ap_addr.sa_data, 0xaa, ETH_ALEN);
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
+	lbs_send_disconnect_notification(priv);
 
 	if (priv->is_deep_sleep) {
 		priv->is_deep_sleep = 0;
@@ -1406,9 +1285,6 @@ int lbs_start_card(struct lbs_private *priv)
 	if (ret)
 		goto done;
 
-	/* init 802.11d */
-	lbs_init_11d(priv);
-
 	if (lbs_cfg_register(priv)) {
 		lbs_pr_err("cannot register device\n");
 		goto done;
@@ -1435,10 +1311,10 @@ int lbs_start_card(struct lbs_private *priv)
 
 		priv->mesh_tlv = TLV_TYPE_OLD_MESH_ID;
 		if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-				    priv->curbssparams.channel)) {
+				    priv->channel)) {
 			priv->mesh_tlv = TLV_TYPE_MESH_ID;
 			if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-					    priv->curbssparams.channel))
+					    priv->channel))
 				priv->mesh_tlv = 0;
 		}
 	} else if (priv->mesh_fw_ver == MESH_FW_NEW) {
@@ -1447,7 +1323,7 @@ int lbs_start_card(struct lbs_private *priv)
 		 */
 		priv->mesh_tlv = TLV_TYPE_MESH_ID;
 		if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START,
-				    priv->curbssparams.channel))
+				    priv->channel))
 			priv->mesh_tlv = 0;
 	}
 	if (priv->mesh_tlv) {
@@ -1616,68 +1492,6 @@ static void lbs_remove_mesh(struct lbs_private *priv)
 	priv->mesh_dev = NULL;
 	free_netdev(mesh_dev);
 	lbs_deb_leave(LBS_DEB_MESH);
-}
-
-/**
- *  @brief This function finds the CFP in
- *  region_cfp_table based on region and band parameter.
- *
- *  @param region  The region code
- *  @param band	   The band
- *  @param cfp_no  A pointer to CFP number
- *  @return 	   A pointer to CFP
- */
-struct chan_freq_power *lbs_get_region_cfp_table(u8 region, int *cfp_no)
-{
-	int i, end;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
-
-	end = ARRAY_SIZE(region_cfp_table);
-
-	for (i = 0; i < end ; i++) {
-		lbs_deb_main("region_cfp_table[i].region=%d\n",
-			region_cfp_table[i].region);
-		if (region_cfp_table[i].region == region) {
-			*cfp_no = region_cfp_table[i].cfp_no_BG;
-			lbs_deb_leave(LBS_DEB_MAIN);
-			return region_cfp_table[i].cfp_BG;
-		}
-	}
-
-	lbs_deb_leave_args(LBS_DEB_MAIN, "ret NULL");
-	return NULL;
-}
-
-int lbs_set_regiontable(struct lbs_private *priv, u8 region, u8 band)
-{
-	int ret = 0;
-	int i = 0;
-
-	struct chan_freq_power *cfp;
-	int cfp_no;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
-
-	memset(priv->region_channel, 0, sizeof(priv->region_channel));
-
-	cfp = lbs_get_region_cfp_table(region, &cfp_no);
-	if (cfp != NULL) {
-		priv->region_channel[i].nrcfp = cfp_no;
-		priv->region_channel[i].CFP = cfp;
-	} else {
-		lbs_deb_main("wrong region code %#x in band B/G\n",
-		       region);
-		ret = -1;
-		goto out;
-	}
-	priv->region_channel[i].valid = 1;
-	priv->region_channel[i].region = region;
-	priv->region_channel[i].band = band;
-	i++;
-out:
-	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
-	return ret;
 }
 
 void lbs_queue_event(struct lbs_private *priv, u32 event)

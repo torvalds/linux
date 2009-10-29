@@ -66,33 +66,33 @@ enum {
 struct event_debug_report {
 	u8 debug_event_id;
 	u8 num_params;
-	u16 pad;
-	u32 report_1;
-	u32 report_2;
-	u32 report_3;
+	__le16 pad;
+	__le32 report_1;
+	__le32 report_2;
+	__le32 report_3;
 } __attribute__ ((packed));
 
 #define NUM_OF_RSSI_SNR_TRIGGERS 8
 
 struct event_mailbox {
-	u32 events_vector;
-	u32 events_mask;
-	u32 reserved_1;
-	u32 reserved_2;
+	__le32 events_vector;
+	__le32 events_mask;
+	__le32 reserved_1;
+	__le32 reserved_2;
 
 	u8 dbg_event_id;
 	u8 num_relevant_params;
-	u16 reserved_3;
-	u32 event_report_p1;
-	u32 event_report_p2;
-	u32 event_report_p3;
+	__le16 reserved_3;
+	__le32 event_report_p1;
+	__le32 event_report_p2;
+	__le32 event_report_p3;
 
 	u8 number_of_scan_results;
 	u8 scan_tag;
 	u8 reserved_4[2];
-	u32 compl_scheduled_scan_status;
+	__le32 compl_scheduled_scan_status;
 
-	u16 scheduled_scan_attended_channels;
+	__le16 scheduled_scan_attended_channels;
 	u8 soft_gemini_sense_info;
 	u8 soft_gemini_protective_info;
 	s8 rssi_snr_trigger_metric[NUM_OF_RSSI_SNR_TRIGGERS];
@@ -105,6 +105,6 @@ struct event_mailbox {
 
 int wl1271_event_unmask(struct wl1271 *wl);
 void wl1271_event_mbox_config(struct wl1271 *wl);
-int wl1271_event_handle(struct wl1271 *wl, u8 mbox);
+int wl1271_event_handle(struct wl1271 *wl, u8 mbox, bool do_ack);
 
 #endif

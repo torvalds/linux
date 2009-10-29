@@ -59,6 +59,14 @@ static int wl1271_init_templates_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	if (wl1271_11a_enabled()) {
+		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
+				NULL,
+				sizeof(struct wl12xx_probe_req_template));
+		if (ret < 0)
+			return ret;
+	}
+
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, NULL,
 				      sizeof(struct wl12xx_null_data_template));
 	if (ret < 0)
@@ -94,7 +102,7 @@ static int wl1271_init_rx_config(struct wl1271 *wl, u32 config, u32 filter)
 {
 	int ret;
 
-	ret = wl1271_acx_rx_msdu_life_time(wl, RX_MSDU_LIFETIME_DEF);
+	ret = wl1271_acx_rx_msdu_life_time(wl);
 	if (ret < 0)
 		return ret;
 
@@ -117,7 +125,7 @@ static int wl1271_init_phy_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_group_address_tbl(wl);
+	ret = wl1271_acx_group_address_tbl(wl, true, NULL, 0);
 	if (ret < 0)
 		return ret;
 
@@ -125,7 +133,7 @@ static int wl1271_init_phy_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_rts_threshold(wl, RTS_THRESHOLD_DEF);
+	ret = wl1271_acx_rts_threshold(wl, wl->conf.rx.rts_threshold);
 	if (ret < 0)
 		return ret;
 
@@ -136,7 +144,8 @@ static int wl1271_init_beacon_filter(struct wl1271 *wl)
 {
 	int ret;
 
-	ret = wl1271_acx_beacon_filter_opt(wl);
+	/* disable beacon filtering at this stage */
+	ret = wl1271_acx_beacon_filter_opt(wl, false);
 	if (ret < 0)
 		return ret;
 
@@ -187,6 +196,7 @@ static int wl1271_init_beacon_broadcast(struct wl1271 *wl)
 static int wl1271_init_general_parms(struct wl1271 *wl)
 {
 	struct wl1271_general_parms *gen_parms;
+	struct conf_general_parms *g = &wl->conf.init.genparam;
 	int ret;
 
 	gen_parms = kzalloc(sizeof(*gen_parms), GFP_KERNEL);
@@ -195,15 +205,14 @@ static int wl1271_init_general_parms(struct wl1271 *wl)
 
 	gen_parms->id = TEST_CMD_INI_FILE_GENERAL_PARAM;
 
-	gen_parms->ref_clk = REF_CLK_38_4_E;
-	/* FIXME: magic numbers */
-	gen_parms->settling_time = 5;
-	gen_parms->clk_valid_on_wakeup = 0;
-	gen_parms->dc2dcmode = 0;
-	gen_parms->single_dual_band = 0;
-	gen_parms->tx_bip_fem_autodetect = 1;
-	gen_parms->tx_bip_fem_manufacturer = 1;
-	gen_parms->settings = 1;
+	gen_parms->ref_clk = g->ref_clk;
+	gen_parms->settling_time = g->settling_time;
+	gen_parms->clk_valid_on_wakeup = g->clk_valid_on_wakeup;
+	gen_parms->dc2dcmode = g->dc2dcmode;
+	gen_parms->single_dual_band = g->single_dual_band;
+	gen_parms->tx_bip_fem_autodetect = g->tx_bip_fem_autodetect;
+	gen_parms->tx_bip_fem_manufacturer = g->tx_bip_fem_manufacturer;
+	gen_parms->settings = g->settings;
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), 0);
 	if (ret < 0) {
@@ -217,32 +226,9 @@ static int wl1271_init_general_parms(struct wl1271 *wl)
 
 static int wl1271_init_radio_parms(struct wl1271 *wl)
 {
-	/*
-	 * FIXME: All these magic numbers should be moved to some place where
-	 * they can be configured (separate file?)
-	 */
-
 	struct wl1271_radio_parms *radio_parms;
-	int ret;
-	u8 compensation[] = { 0xec, 0xf6, 0x00, 0x0c, 0x18, 0xf8, 0xfc, 0x00,
-			      0x08, 0x10, 0xf0, 0xf8, 0x00, 0x0a, 0x14 };
-
-	u8 tx_rate_limits_normal[]   = { 0x1e, 0x1f, 0x22, 0x24, 0x28, 0x29 };
-	u8 tx_rate_limits_degraded[] = { 0x1b, 0x1c, 0x1e, 0x20, 0x24, 0x25 };
-
-	u8 tx_channel_limits_11b[] = { 0x22, 0x50, 0x50, 0x50,
-				       0x50, 0x50, 0x50, 0x50,
-				       0x50, 0x50, 0x22, 0x50,
-				       0x22, 0x50 };
-
-	u8 tx_channel_limits_ofdm[] = { 0x20, 0x50, 0x50, 0x50,
-					0x50, 0x50, 0x50, 0x50,
-					0x50, 0x50, 0x20, 0x50,
-					0x20, 0x50 };
-
-	u8 tx_pdv_rate_offsets[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-	u8 tx_ibias[] = { 0x1a, 0x1a, 0x1a, 0x1a, 0x1a, 0x27 };
+	struct conf_radio_parms *r = &wl->conf.init.radioparam;
+	int i, ret;
 
 	radio_parms = kzalloc(sizeof(*radio_parms), GFP_KERNEL);
 	if (!radio_parms)
@@ -251,33 +237,59 @@ static int wl1271_init_radio_parms(struct wl1271 *wl)
 	radio_parms->id = TEST_CMD_INI_FILE_RADIO_PARAM;
 
 	/* Static radio parameters */
-	radio_parms->rx_trace_loss = 10;
-	radio_parms->tx_trace_loss = 10;
-	memcpy(radio_parms->rx_rssi_and_proc_compens, compensation,
-	       sizeof(compensation));
+	radio_parms->rx_trace_loss = r->rx_trace_loss;
+	radio_parms->tx_trace_loss = r->tx_trace_loss;
+	memcpy(radio_parms->rx_rssi_and_proc_compens,
+	       r->rx_rssi_and_proc_compens,
+	       CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE);
 
-	/* We don't set the 5GHz -- N/A */
+	memcpy(radio_parms->rx_trace_loss_5, r->rx_trace_loss_5,
+	       CONF_NUMBER_OF_SUB_BANDS_5);
+	memcpy(radio_parms->tx_trace_loss_5, r->tx_trace_loss_5,
+	       CONF_NUMBER_OF_SUB_BANDS_5);
+	memcpy(radio_parms->rx_rssi_and_proc_compens_5,
+	       r->rx_rssi_and_proc_compens_5,
+	       CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE);
 
 	/* Dynamic radio parameters */
-	radio_parms->tx_ref_pd_voltage = cpu_to_le16(0x24e);
-	radio_parms->tx_ref_power = 0x78;
-	radio_parms->tx_offset_db = 0x0;
+	radio_parms->tx_ref_pd_voltage = cpu_to_le16(r->tx_ref_pd_voltage);
+	radio_parms->tx_ref_power = r->tx_ref_power;
+	radio_parms->tx_offset_db = r->tx_offset_db;
 
-	memcpy(radio_parms->tx_rate_limits_normal, tx_rate_limits_normal,
-	       sizeof(tx_rate_limits_normal));
-	memcpy(radio_parms->tx_rate_limits_degraded, tx_rate_limits_degraded,
-	       sizeof(tx_rate_limits_degraded));
+	memcpy(radio_parms->tx_rate_limits_normal, r->tx_rate_limits_normal,
+	       CONF_NUMBER_OF_RATE_GROUPS);
+	memcpy(radio_parms->tx_rate_limits_degraded, r->tx_rate_limits_degraded,
+	       CONF_NUMBER_OF_RATE_GROUPS);
 
-	memcpy(radio_parms->tx_channel_limits_11b, tx_channel_limits_11b,
-	       sizeof(tx_channel_limits_11b));
-	memcpy(radio_parms->tx_channel_limits_ofdm, tx_channel_limits_ofdm,
-	       sizeof(tx_channel_limits_ofdm));
-	memcpy(radio_parms->tx_pdv_rate_offsets, tx_pdv_rate_offsets,
-	       sizeof(tx_pdv_rate_offsets));
-	memcpy(radio_parms->tx_ibias, tx_ibias,
-	       sizeof(tx_ibias));
+	memcpy(radio_parms->tx_channel_limits_11b, r->tx_channel_limits_11b,
+	       CONF_NUMBER_OF_CHANNELS_2_4);
+	memcpy(radio_parms->tx_channel_limits_ofdm, r->tx_channel_limits_ofdm,
+	       CONF_NUMBER_OF_CHANNELS_2_4);
+	memcpy(radio_parms->tx_pdv_rate_offsets, r->tx_pdv_rate_offsets,
+	       CONF_NUMBER_OF_RATE_GROUPS);
+	memcpy(radio_parms->tx_ibias, r->tx_ibias, CONF_NUMBER_OF_RATE_GROUPS);
 
-	radio_parms->rx_fem_insertion_loss = 0x14;
+	radio_parms->rx_fem_insertion_loss = r->rx_fem_insertion_loss;
+
+	for (i = 0; i < CONF_NUMBER_OF_SUB_BANDS_5; i++)
+		radio_parms->tx_ref_pd_voltage_5[i] =
+			cpu_to_le16(r->tx_ref_pd_voltage_5[i]);
+	memcpy(radio_parms->tx_ref_power_5, r->tx_ref_power_5,
+	       CONF_NUMBER_OF_SUB_BANDS_5);
+	memcpy(radio_parms->tx_offset_db_5, r->tx_offset_db_5,
+	       CONF_NUMBER_OF_SUB_BANDS_5);
+	memcpy(radio_parms->tx_rate_limits_normal_5,
+	       r->tx_rate_limits_normal_5, CONF_NUMBER_OF_RATE_GROUPS);
+	memcpy(radio_parms->tx_rate_limits_degraded_5,
+	       r->tx_rate_limits_degraded_5, CONF_NUMBER_OF_RATE_GROUPS);
+	memcpy(radio_parms->tx_channel_limits_ofdm_5,
+	       r->tx_channel_limits_ofdm_5, CONF_NUMBER_OF_CHANNELS_5);
+	memcpy(radio_parms->tx_pdv_rate_offsets_5, r->tx_pdv_rate_offsets_5,
+	       CONF_NUMBER_OF_RATE_GROUPS);
+	memcpy(radio_parms->tx_ibias_5, r->tx_ibias_5,
+	       CONF_NUMBER_OF_RATE_GROUPS);
+	memcpy(radio_parms->rx_fem_insertion_loss_5,
+	       r->rx_fem_insertion_loss_5, CONF_NUMBER_OF_SUB_BANDS_5);
 
 	ret = wl1271_cmd_test(wl, radio_parms, sizeof(*radio_parms), 0);
 	if (ret < 0)
@@ -311,8 +323,8 @@ int wl1271_hw_init(struct wl1271 *wl)
 
 	/* RX config */
 	ret = wl1271_init_rx_config(wl,
-				       RX_CFG_PROMISCUOUS | RX_CFG_TSF,
-				       RX_FILTER_OPTION_DEF);
+				    RX_CFG_PROMISCUOUS | RX_CFG_TSF,
+				    RX_FILTER_OPTION_DEF);
 	/* RX_CONFIG_OPTION_ANY_DST_ANY_BSS,
 	   RX_FILTER_OPTION_FILTER_ALL); */
 	if (ret < 0)
@@ -320,6 +332,11 @@ int wl1271_hw_init(struct wl1271 *wl)
 
 	/* PHY layer config */
 	ret = wl1271_init_phy_config(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Initialize connection monitoring thresholds */
+	ret = wl1271_acx_conn_monit_params(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 
@@ -369,7 +386,7 @@ int wl1271_hw_init(struct wl1271 *wl)
 		goto out_free_memmap;
 
 	/* Configure TX rate classes */
-	ret = wl1271_acx_rate_policies(wl);
+	ret = wl1271_acx_rate_policies(wl, CONF_TX_RATE_MASK_ALL);
 	if (ret < 0)
 		goto out_free_memmap;
 
@@ -388,10 +405,16 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
+	/* Configure smart reflex */
+	ret = wl1271_acx_smart_reflex(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
 	return 0;
 
  out_free_memmap:
 	kfree(wl->target_mem_map);
+	wl->target_mem_map = NULL;
 
 	return ret;
 }
