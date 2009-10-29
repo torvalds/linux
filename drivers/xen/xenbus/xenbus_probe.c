@@ -242,7 +242,7 @@ int xenbus_dev_probe(struct device *_dev)
 fail:
 	xenbus_dev_error(dev, err, "xenbus_dev_probe on %s", dev->nodename);
 	xenbus_switch_state(dev, XenbusStateClosed);
-	return -ENODEV;
+	return err;
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_probe);
 
@@ -709,7 +709,7 @@ static int __init xenbus_init(void)
 
 	err = -ENODEV;
 	if (!xen_domain())
-		goto out_error;
+		return err;
 
 	/*
 	 * Domain0 doesn't have a store_evtchn or store_mfn yet.
