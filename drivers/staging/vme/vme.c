@@ -879,7 +879,7 @@ int vme_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 		return -EINVAL;
 	}
 
-	if (mutex_trylock(&(list->mtx))) {
+	if (!mutex_trylock(&(list->mtx))) {
 		printk("Link List already submitted\n");
 		return -EINVAL;
 	}
@@ -922,7 +922,7 @@ int vme_dma_list_free(struct vme_dma_list *list)
 		return -EINVAL;
 	}
 
-	if (mutex_trylock(&(list->mtx))) {
+	if (!mutex_trylock(&(list->mtx))) {
 		printk("Link List in use\n");
 		return -EINVAL;
 	}
@@ -955,7 +955,7 @@ int vme_dma_free(struct vme_resource *resource)
 
 	ctrlr = list_entry(resource->entry, struct vme_dma_resource, list);
 
-	if (mutex_trylock(&(ctrlr->mtx))) {
+	if (!mutex_trylock(&(ctrlr->mtx))) {
 		printk("Resource busy, can't free\n");
 		return -EBUSY;
 	}
