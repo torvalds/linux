@@ -199,6 +199,7 @@ pgm_check_entry:
 	brc	2,4b			/* busy, try again */
 5:
 	sigp	%r9,%r2,__SIGP_STOP	/* stop resume (current) CPU */
+	brc	2,5b			/* busy, try again */
 6:	j	6b
 
 restart_suspend:

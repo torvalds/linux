@@ -647,8 +647,8 @@ void __cpu_die(unsigned int cpu)
 void cpu_die(void)
 {
 	idle_task_exit();
-	signal_processor(smp_processor_id(), sigp_stop);
-	BUG();
+	while (signal_processor(smp_processor_id(), sigp_stop) == sigp_busy)
+		cpu_relax();
 	for (;;);
 }
 
