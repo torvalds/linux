@@ -165,19 +165,6 @@ config MULTICORE_RAID456
 
 	  If unsure, say N.
 
-config ASYNC_RAID6_TEST
-	tristate "Self test for hardware accelerated raid6 recovery"
-	depends on RAID6_PQ
-	select ASYNC_RAID6_RECOV
-	---help---
-	  This is a one-shot self test that permutes through the
-	  recovery of all the possible two disk failure scenarios for a
-	  N-disk array.  Recovery is performed with the asynchronous
-	  raid6 recovery routines, and will optionally use an offload
-	  engine if one is available.
-
-	  If unsure, say N.
-
 config MD_MULTIPATH
 	tristate "Multipath I/O support"
 	depends on BLK_DEV_MD
