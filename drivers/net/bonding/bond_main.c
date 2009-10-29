@@ -5056,6 +5056,7 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 
 static struct rtnl_link_ops bond_link_ops __read_mostly = {
 	.kind		= "bond",
+	.priv_size	= sizeof(struct bonding),
 	.setup		= bond_setup,
 	.validate	= bond_validate,
 };
@@ -5157,7 +5158,7 @@ static int __init bonding_init(void)
 
 	res = rtnl_link_register(&bond_link_ops);
 	if (res)
-		goto err;
+		goto err_link;
 
 	for (i = 0; i < max_bonds; i++) {
 		res = bond_create(&init_net, NULL);
@@ -5176,6 +5177,7 @@ out:
 	return res;
 err:
 	rtnl_link_unregister(&bond_link_ops);
+err_link:
 	unregister_pernet_gen_subsys(bond_net_id, &bond_net_ops);
 	goto out;
 
