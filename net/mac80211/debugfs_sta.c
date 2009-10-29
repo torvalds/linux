@@ -57,7 +57,6 @@ STA_FILE(tx_filtered, tx_filtered_count, LU);
 STA_FILE(tx_retry_failed, tx_retry_failed, LU);
 STA_FILE(tx_retry_count, tx_retry_count, LU);
 STA_FILE(last_signal, last_signal, D);
-STA_FILE(last_qual, last_qual, D);
 STA_FILE(last_noise, last_noise, D);
 STA_FILE(wep_weak_iv_count, wep_weak_iv_count, LU);
 
@@ -205,7 +204,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(tx_retry_failed);
 	DEBUGFS_ADD(tx_retry_count);
 	DEBUGFS_ADD(last_signal);
-	DEBUGFS_ADD(last_qual);
 	DEBUGFS_ADD(last_noise);
 	DEBUGFS_ADD(wep_weak_iv_count);
 }

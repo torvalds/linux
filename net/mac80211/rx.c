@@ -859,7 +859,6 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	sta->rx_fragments++;
 	sta->rx_bytes += rx->skb->len;
 	sta->last_signal = rx->status->signal;
-	sta->last_qual = rx->status->qual;
 	sta->last_noise = rx->status->noise;
 
 	/*

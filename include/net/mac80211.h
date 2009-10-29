@@ -552,7 +552,7 @@ struct ieee80211_rx_status {
 	int freq;
 	int signal;
 	int noise;
-	int qual;
+	int __deprecated qual;
 	int antenna;
 	int rate_idx;
 	int flag;
