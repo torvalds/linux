@@ -2012,8 +2012,9 @@ static void ieee80211_beacon_add_tim(struct ieee80211_if_ap *bss,
 	}
 }
 
-struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif)
+struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 u16 *tim_offset, u16 *tim_length)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct sk_buff *skb = NULL;
@@ -2029,6 +2030,11 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	rcu_read_lock();
 
 	sdata = vif_to_sdata(vif);
+
+	if (tim_offset)
+		*tim_offset = 0;
+	if (tim_length)
+		*tim_length = 0;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		ap = &sdata->u.ap;
@@ -2064,6 +2070,11 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 				ieee80211_beacon_add_tim(ap, skb, beacon);
 				spin_unlock_irqrestore(&local->sta_lock, flags);
 			}
+
+			if (tim_offset)
+				*tim_offset = beacon->head_len;
+			if (tim_length)
+				*tim_length = skb->len - beacon->head_len;
 
 			if (beacon->tail)
 				memcpy(skb_put(skb, beacon->tail_len),
@@ -2141,7 +2152,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	rcu_read_unlock();
 	return skb;
 }
-EXPORT_SYMBOL(ieee80211_beacon_get);
+EXPORT_SYMBOL(ieee80211_beacon_get_tim);
 
 void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       const void *frame, size_t frame_len,
