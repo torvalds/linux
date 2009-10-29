@@ -1200,23 +1200,25 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	struct sk_buff *skb = tx->skb;
 	ieee80211_tx_result res = TX_DROP;
 
-#define CALL_TXH(txh)		\
-	res = txh(tx);		\
-	if (res != TX_CONTINUE)	\
-		goto txh_done;
+#define CALL_TXH(txh) \
+	do {				\
+		res = txh(tx);		\
+		if (res != TX_CONTINUE)	\
+			goto txh_done;	\
+	} while (0)
 
-	CALL_TXH(ieee80211_tx_h_check_assoc)
-	CALL_TXH(ieee80211_tx_h_ps_buf)
-	CALL_TXH(ieee80211_tx_h_select_key)
-	CALL_TXH(ieee80211_tx_h_michael_mic_add)
-	CALL_TXH(ieee80211_tx_h_rate_ctrl)
-	CALL_TXH(ieee80211_tx_h_misc)
-	CALL_TXH(ieee80211_tx_h_sequence)
-	CALL_TXH(ieee80211_tx_h_fragment)
+	CALL_TXH(ieee80211_tx_h_check_assoc);
+	CALL_TXH(ieee80211_tx_h_ps_buf);
+	CALL_TXH(ieee80211_tx_h_select_key);
+	CALL_TXH(ieee80211_tx_h_michael_mic_add);
+	CALL_TXH(ieee80211_tx_h_rate_ctrl);
+	CALL_TXH(ieee80211_tx_h_misc);
+	CALL_TXH(ieee80211_tx_h_sequence);
+	CALL_TXH(ieee80211_tx_h_fragment);
 	/* handlers after fragment must be aware of tx info fragmentation! */
-	CALL_TXH(ieee80211_tx_h_stats)
-	CALL_TXH(ieee80211_tx_h_encrypt)
-	CALL_TXH(ieee80211_tx_h_calculate_duration)
+	CALL_TXH(ieee80211_tx_h_stats);
+	CALL_TXH(ieee80211_tx_h_encrypt);
+	CALL_TXH(ieee80211_tx_h_calculate_duration);
 #undef CALL_TXH
 
  txh_done:
