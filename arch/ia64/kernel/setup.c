@@ -74,7 +74,7 @@ unsigned long __per_cpu_offset[NR_CPUS];
 EXPORT_SYMBOL(__per_cpu_offset);
 #endif
 
-DEFINE_PER_CPU(struct cpuinfo_ia64, cpu_info);
+DEFINE_PER_CPU(struct cpuinfo_ia64, ia64_cpu_info);
 DEFINE_PER_CPU(unsigned long, local_per_cpu_offset);
 unsigned long ia64_cycles_per_usec;
 struct ia64_boot_param *ia64_boot_param;
@@ -967,7 +967,7 @@ cpu_init (void)
 	 * depends on the data returned by identify_cpu().  We break the dependency by
 	 * accessing cpu_data() through the canonical per-CPU address.
 	 */
-	cpu_info = cpu_data + ((char *) &__ia64_per_cpu_var(cpu_info) - __per_cpu_start);
+	cpu_info = cpu_data + ((char *) &__ia64_per_cpu_var(ia64_cpu_info) - __per_cpu_start);
 	identify_cpu(cpu_info);
 
 #ifdef CONFIG_MCKINLEY

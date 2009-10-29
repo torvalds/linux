@@ -229,7 +229,7 @@ struct cpuinfo_ia64 {
 #endif
 };
 
-DECLARE_PER_CPU(struct cpuinfo_ia64, cpu_info);
+DECLARE_PER_CPU(struct cpuinfo_ia64, ia64_cpu_info);
 
 /*
  * The "local" data variable.  It refers to the per-CPU data of the currently executing
@@ -237,8 +237,8 @@ DECLARE_PER_CPU(struct cpuinfo_ia64, cpu_info);
  * Do not use the address of local_cpu_data, since it will be different from
  * cpu_data(smp_processor_id())!
  */
-#define local_cpu_data		(&__ia64_per_cpu_var(cpu_info))
-#define cpu_data(cpu)		(&per_cpu(cpu_info, cpu))
+#define local_cpu_data		(&__ia64_per_cpu_var(ia64_cpu_info))
+#define cpu_data(cpu)		(&per_cpu(ia64_cpu_info, cpu))
 
 extern void print_cpu_info (struct cpuinfo_ia64 *);
 

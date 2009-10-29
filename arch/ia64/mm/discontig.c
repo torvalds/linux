@@ -450,7 +450,8 @@ static void __init initialize_pernode_data(void)
 	/* Set the node_data pointer for each per-cpu struct */
 	for_each_possible_early_cpu(cpu) {
 		node = node_cpuid[cpu].nid;
-		per_cpu(cpu_info, cpu).node_data = mem_data[node].node_data;
+		per_cpu(ia64_cpu_info, cpu).node_data =
+			mem_data[node].node_data;
 	}
 #else
 	{
@@ -458,7 +459,7 @@ static void __init initialize_pernode_data(void)
 		cpu = 0;
 		node = node_cpuid[cpu].nid;
 		cpu0_cpu_info = (struct cpuinfo_ia64 *)(__phys_per_cpu_start +
-			((char *)&per_cpu__cpu_info - __per_cpu_start));
+			((char *)&per_cpu__ia64_cpu_info - __per_cpu_start));
 		cpu0_cpu_info->node_data = mem_data[node].node_data;
 	}
 #endif /* CONFIG_SMP */
