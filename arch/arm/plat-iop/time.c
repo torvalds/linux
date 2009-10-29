@@ -66,6 +66,17 @@ static void __init iop_clocksource_set_hz(struct clocksource *cs, unsigned int h
 }
 
 /*
+ * IOP sched_clock() implementation via its clocksource.
+ */
+unsigned long long sched_clock(void)
+{
+	cycle_t cyc = iop_clocksource_read(NULL);
+	struct clocksource *cs = &iop_clocksource;
+
+	return clocksource_cyc2ns(cyc, cs->mult, cs->shift);
+}
+
+/*
  * IOP clockevents (interrupting timer 0).
  */
 static int iop_set_next_event(unsigned long delta,
