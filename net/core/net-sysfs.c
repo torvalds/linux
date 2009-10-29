@@ -544,8 +544,11 @@ int netdev_register_kobject(struct net_device *net)
 	dev_set_name(dev, "%s", net->name);
 
 #ifdef CONFIG_SYSFS
-	*groups++ = &netstat_group;
+	/* Allow for a device specific group */
+	if (*groups)
+		groups++;
 
+	*groups++ = &netstat_group;
 #ifdef CONFIG_WIRELESS_EXT_SYSFS
 	if (net->ieee80211_ptr)
 		*groups++ = &wireless_group;
