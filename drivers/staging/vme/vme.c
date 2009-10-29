@@ -1191,7 +1191,7 @@ int vme_lm_set(struct vme_resource *resource, unsigned long long lm_base,
 
 	/* XXX Check parameters */
 
-	return lm->parent->lm_set(lm, lm_base, aspace, cycle);
+	return bridge->lm_set(lm, lm_base, aspace, cycle);
 }
 EXPORT_SYMBOL(vme_lm_set);
 
@@ -1271,16 +1271,18 @@ void vme_lm_free(struct vme_resource *resource)
 
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
-	if (mutex_trylock(&(lm->mtx))) {
-		printk(KERN_ERR "Resource busy, can't free\n");
-		return;
-	}
+	mutex_lock(&(lm->mtx));
 
-	/* XXX Check to see that there aren't any callbacks still attached */
+	/* XXX
+	 * Check to see that there aren't any callbacks still attached, if
+	 * there are we should probably be detaching them!
+	 */
 
 	lm->locked = 0;
 
 	mutex_unlock(&(lm->mtx));
+
+	kfree(resource);
 }
 EXPORT_SYMBOL(vme_lm_free);
 
