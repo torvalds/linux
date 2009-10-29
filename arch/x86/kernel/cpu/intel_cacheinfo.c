@@ -512,8 +512,8 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 #ifdef CONFIG_SYSFS
 
 /* pointer to _cpuid4_info array (for each cache leaf) */
-static DEFINE_PER_CPU(struct _cpuid4_info *, cpuid4_info);
-#define CPUID4_INFO_IDX(x, y)	(&((per_cpu(cpuid4_info, x))[y]))
+static DEFINE_PER_CPU(struct _cpuid4_info *, ici_cpuid4_info);
+#define CPUID4_INFO_IDX(x, y)	(&((per_cpu(ici_cpuid4_info, x))[y]))
 
 #ifdef CONFIG_SMP
 static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
@@ -526,7 +526,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 	if ((index == 3) && (c->x86_vendor == X86_VENDOR_AMD)) {
 		struct cpuinfo_x86 *d;
 		for_each_online_cpu(i) {
-			if (!per_cpu(cpuid4_info, i))
+			if (!per_cpu(ici_cpuid4_info, i))
 				continue;
 			d = &cpu_data(i);
 			this_leaf = CPUID4_INFO_IDX(i, index);
@@ -548,7 +548,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 			    c->apicid >> index_msb) {
 				cpumask_set_cpu(i,
 					to_cpumask(this_leaf->shared_cpu_map));
-				if (i != cpu && per_cpu(cpuid4_info, i))  {
+				if (i != cpu && per_cpu(ici_cpuid4_info, i))  {
 					sibling_leaf =
 						CPUID4_INFO_IDX(i, index);
 					cpumask_set_cpu(cpu, to_cpumask(
@@ -587,8 +587,8 @@ static void __cpuinit free_cache_attributes(unsigned int cpu)
 	for (i = 0; i < num_cache_leaves; i++)
 		cache_remove_shared_cpu_map(cpu, i);
 
-	kfree(per_cpu(cpuid4_info, cpu));
-	per_cpu(cpuid4_info, cpu) = NULL;
+	kfree(per_cpu(ici_cpuid4_info, cpu));
+	per_cpu(ici_cpuid4_info, cpu) = NULL;
 }
 
 static int
@@ -627,15 +627,15 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 	if (num_cache_leaves == 0)
 		return -ENOENT;
 
-	per_cpu(cpuid4_info, cpu) = kzalloc(
+	per_cpu(ici_cpuid4_info, cpu) = kzalloc(
 	    sizeof(struct _cpuid4_info) * num_cache_leaves, GFP_KERNEL);
-	if (per_cpu(cpuid4_info, cpu) == NULL)
+	if (per_cpu(ici_cpuid4_info, cpu) == NULL)
 		return -ENOMEM;
 
 	smp_call_function_single(cpu, get_cpu_leaves, &retval, true);
 	if (retval) {
-		kfree(per_cpu(cpuid4_info, cpu));
-		per_cpu(cpuid4_info, cpu) = NULL;
+		kfree(per_cpu(ici_cpuid4_info, cpu));
+		per_cpu(ici_cpuid4_info, cpu) = NULL;
 	}
 
 	return retval;
@@ -647,7 +647,7 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 extern struct sysdev_class cpu_sysdev_class; /* from drivers/base/cpu.c */
 
 /* pointer to kobject for cpuX/cache */
-static DEFINE_PER_CPU(struct kobject *, cache_kobject);
+static DEFINE_PER_CPU(struct kobject *, ici_cache_kobject);
 
 struct _index_kobject {
 	struct kobject kobj;
@@ -656,8 +656,8 @@ struct _index_kobject {
 };
 
 /* pointer to array of kobjects for cpuX/cache/indexY */
-static DEFINE_PER_CPU(struct _index_kobject *, index_kobject);
-#define INDEX_KOBJECT_PTR(x, y)		(&((per_cpu(index_kobject, x))[y]))
+static DEFINE_PER_CPU(struct _index_kobject *, ici_index_kobject);
+#define INDEX_KOBJECT_PTR(x, y)		(&((per_cpu(ici_index_kobject, x))[y]))
 
 #define show_one_plus(file_name, object, val)				\
 static ssize_t show_##file_name						\
@@ -876,10 +876,10 @@ static struct kobj_type ktype_percpu_entry = {
 
 static void __cpuinit cpuid4_cache_sysfs_exit(unsigned int cpu)
 {
-	kfree(per_cpu(cache_kobject, cpu));
-	kfree(per_cpu(index_kobject, cpu));
-	per_cpu(cache_kobject, cpu) = NULL;
-	per_cpu(index_kobject, cpu) = NULL;
+	kfree(per_cpu(ici_cache_kobject, cpu));
+	kfree(per_cpu(ici_index_kobject, cpu));
+	per_cpu(ici_cache_kobject, cpu) = NULL;
+	per_cpu(ici_index_kobject, cpu) = NULL;
 	free_cache_attributes(cpu);
 }
 
@@ -895,14 +895,14 @@ static int __cpuinit cpuid4_cache_sysfs_init(unsigned int cpu)
 		return err;
 
 	/* Allocate all required memory */
-	per_cpu(cache_kobject, cpu) =
+	per_cpu(ici_cache_kobject, cpu) =
 		kzalloc(sizeof(struct kobject), GFP_KERNEL);
-	if (unlikely(per_cpu(cache_kobject, cpu) == NULL))
+	if (unlikely(per_cpu(ici_cache_kobject, cpu) == NULL))
 		goto err_out;
 
-	per_cpu(index_kobject, cpu) = kzalloc(
+	per_cpu(ici_index_kobject, cpu) = kzalloc(
 	    sizeof(struct _index_kobject) * num_cache_leaves, GFP_KERNEL);
-	if (unlikely(per_cpu(index_kobject, cpu) == NULL))
+	if (unlikely(per_cpu(ici_index_kobject, cpu) == NULL))
 		goto err_out;
 
 	return 0;
@@ -926,7 +926,7 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 	if (unlikely(retval < 0))
 		return retval;
 
-	retval = kobject_init_and_add(per_cpu(cache_kobject, cpu),
+	retval = kobject_init_and_add(per_cpu(ici_cache_kobject, cpu),
 				      &ktype_percpu_entry,
 				      &sys_dev->kobj, "%s", "cache");
 	if (retval < 0) {
@@ -940,12 +940,12 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 		this_object->index = i;
 		retval = kobject_init_and_add(&(this_object->kobj),
 					      &ktype_cache,
-					      per_cpu(cache_kobject, cpu),
+					      per_cpu(ici_cache_kobject, cpu),
 					      "index%1lu", i);
 		if (unlikely(retval)) {
 			for (j = 0; j < i; j++)
 				kobject_put(&(INDEX_KOBJECT_PTR(cpu, j)->kobj));
-			kobject_put(per_cpu(cache_kobject, cpu));
+			kobject_put(per_cpu(ici_cache_kobject, cpu));
 			cpuid4_cache_sysfs_exit(cpu);
 			return retval;
 		}
@@ -953,7 +953,7 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 	}
 	cpumask_set_cpu(cpu, to_cpumask(cache_dev_map));
 
-	kobject_uevent(per_cpu(cache_kobject, cpu), KOBJ_ADD);
+	kobject_uevent(per_cpu(ici_cache_kobject, cpu), KOBJ_ADD);
 	return 0;
 }
 
@@ -962,7 +962,7 @@ static void __cpuinit cache_remove_dev(struct sys_device * sys_dev)
 	unsigned int cpu = sys_dev->id;
 	unsigned long i;
 
-	if (per_cpu(cpuid4_info, cpu) == NULL)
+	if (per_cpu(ici_cpuid4_info, cpu) == NULL)
 		return;
 	if (!cpumask_test_cpu(cpu, to_cpumask(cache_dev_map)))
 		return;
@@ -970,7 +970,7 @@ static void __cpuinit cache_remove_dev(struct sys_device * sys_dev)
 
 	for (i = 0; i < num_cache_leaves; i++)
 		kobject_put(&(INDEX_KOBJECT_PTR(cpu, i)->kobj));
-	kobject_put(per_cpu(cache_kobject, cpu));
+	kobject_put(per_cpu(ici_cache_kobject, cpu));
 	cpuid4_cache_sysfs_exit(cpu);
 }
 
