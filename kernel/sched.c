@@ -298,7 +298,7 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct cfs_rq, init_tg_cfs_rq);
 
 #ifdef CONFIG_RT_GROUP_SCHED
 static DEFINE_PER_CPU(struct sched_rt_entity, init_sched_rt_entity);
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct rt_rq, init_rt_rq);
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct rt_rq, init_rt_rq_var);
 #endif /* CONFIG_RT_GROUP_SCHED */
 #else /* !CONFIG_USER_SCHED */
 #define root_task_group init_task_group
@@ -8199,14 +8199,14 @@ enum s_alloc {
  */
 #ifdef CONFIG_SCHED_SMT
 static DEFINE_PER_CPU(struct static_sched_domain, cpu_domains);
-static DEFINE_PER_CPU(struct static_sched_group, sched_group_cpus);
+static DEFINE_PER_CPU(struct static_sched_group, sched_groups);
 
 static int
 cpu_to_cpu_group(int cpu, const struct cpumask *cpu_map,
 		 struct sched_group **sg, struct cpumask *unused)
 {
 	if (sg)
-		*sg = &per_cpu(sched_group_cpus, cpu).sg;
+		*sg = &per_cpu(sched_groups, cpu).sg;
 	return cpu;
 }
 #endif /* CONFIG_SCHED_SMT */
@@ -9470,7 +9470,7 @@ void __init sched_init(void)
 #elif defined CONFIG_USER_SCHED
 		init_tg_rt_entry(&root_task_group, &rq->rt, NULL, i, 0, NULL);
 		init_tg_rt_entry(&init_task_group,
-				&per_cpu(init_rt_rq, i),
+				&per_cpu(init_rt_rq_var, i),
 				&per_cpu(init_sched_rt_entity, i), i, 1,
 				root_task_group.rt_se[i]);
 #endif
