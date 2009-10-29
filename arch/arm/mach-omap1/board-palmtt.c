@@ -289,6 +289,14 @@ static void __init omap_mpu_wdt_mode(int mode) {
 
 static void __init omap_palmtt_init(void)
 {
+	/* mux pins for uarts */
+	omap_cfg_reg(UART1_TX);
+	omap_cfg_reg(UART1_RTS);
+	omap_cfg_reg(UART2_TX);
+	omap_cfg_reg(UART2_RTS);
+	omap_cfg_reg(UART3_TX);
+	omap_cfg_reg(UART3_RX);
+
 	omap_mpu_wdt_mode(0);
 
 	omap_board_config = palmtt_config;

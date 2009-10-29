@@ -26,7 +26,6 @@
 #include <mach/mux.h>
 #include <mach/board.h>
 #include <mach/common.h>
-#include <mach/keypad.h>
 #include <mach/dma.h>
 #include <mach/gpmc.h>
 #include <mach/usb.h>
