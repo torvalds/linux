@@ -222,7 +222,7 @@ int param_set_charp(const char *val, struct kernel_param *kp)
 	 * don't need to; this mangled commandline is preserved. */
 	if (slab_is_available()) {
 		*(char **)kp->arg = kstrdup(val, GFP_KERNEL);
-		if (!kp->arg)
+		if (!*(char **)kp->arg)
 			return -ENOMEM;
 	} else
 		*(const char **)kp->arg = val;
