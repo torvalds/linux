@@ -227,7 +227,7 @@ struct bond_parm_tbl ad_select_tbl[] = {
 
 static void bond_send_gratuitous_arp(struct bonding *bond);
 static int bond_init(struct net_device *bond_dev);
-static void bond_deinit(struct net_device *bond_dev);
+static void bond_uninit(struct net_device *bond_dev);
 
 /*---------------------------- General routines -----------------------------*/
 
@@ -2003,24 +2003,6 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 }
 
 /*
-* Destroy a bonding device.
-* Must be under rtnl_lock when this function is called.
-*/
-static void bond_uninit(struct net_device *bond_dev)
-{
-	struct bonding *bond = netdev_priv(bond_dev);
-
-	bond_deinit(bond_dev);
-
-	if (bond->wq)
-		destroy_workqueue(bond->wq);
-
-	netif_addr_lock_bh(bond_dev);
-	bond_mc_list_destroy(bond);
-	netif_addr_unlock_bh(bond_dev);
-}
-
-/*
 * First release a slave and than destroy the bond if no more slaves are left.
 * Must be under rtnl_lock when this function is called.
 */
@@ -3467,9 +3449,6 @@ static int bond_master_netdev_event(unsigned long event,
 	switch (event) {
 	case NETDEV_CHANGENAME:
 		return bond_event_changename(event_bond);
-	case NETDEV_UNREGISTER:
-		bond_release_all(event_bond->dev);
-		break;
 	default:
 		break;
 	}
@@ -4608,18 +4587,29 @@ static void bond_work_cancel_all(struct bonding *bond)
 		cancel_delayed_work(&bond->ad_work);
 }
 
-/* De-initialize device specific data.
- * Caller must hold rtnl_lock.
- */
-static void bond_deinit(struct net_device *bond_dev)
+/*
+* Destroy a bonding device.
+* Must be under rtnl_lock when this function is called.
+*/
+static void bond_uninit(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+
+	/* Release the bonded slaves */
+	bond_release_all(bond_dev);
 
 	list_del(&bond->bond_list);
 
 	bond_work_cancel_all(bond);
 
 	bond_remove_proc_entry(bond);
+
+	if (bond->wq)
+		destroy_workqueue(bond->wq);
+
+	netif_addr_lock_bh(bond_dev);
+	bond_mc_list_destroy(bond);
+	netif_addr_unlock_bh(bond_dev);
 }
 
 /* Unregister and free all bond devices.
@@ -4632,9 +4622,6 @@ static void bond_free_all(void)
 	list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list) {
 		struct net_device *bond_dev = bond->dev;
 
-		bond_work_cancel_all(bond);
-		/* Release the bonded slaves */
-		bond_release_all(bond_dev);
 		unregister_netdevice(bond_dev);
 	}
 
