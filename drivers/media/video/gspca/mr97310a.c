@@ -457,7 +457,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (err_code < 0)
 		return err_code;
 
-	if (id->idProduct == 0x010e) {
+	if (id->idProduct == 0x0110 || id->idProduct == 0x010e) {
 		sd->cam_type = CAM_TYPE_CIF;
 		cam->nmodes--;
 		err_code = cam_get_response16(gspca_dev, 0x06, 1);
@@ -1039,6 +1039,7 @@ static const struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
+	{USB_DEVICE(0x08ca, 0x0110)},	/* Trust Spyc@m 100 */
 	{USB_DEVICE(0x08ca, 0x0111)},	/* Aiptek Pencam VGA+ */
 	{USB_DEVICE(0x093a, 0x010f)},	/* All other known MR97310A VGA cams */
 	{USB_DEVICE(0x093a, 0x010e)},	/* All known MR97310A CIF cams */
