@@ -520,6 +520,7 @@ static const struct snd_kcontrol_new cs4270_snd_controls[] = {
 	SOC_SINGLE("Digital Sidetone Switch", CS4270_FORMAT, 5, 1, 0),
 	SOC_SINGLE("Soft Ramp Switch", CS4270_TRANS, 6, 1, 0),
 	SOC_SINGLE("Zero Cross Switch", CS4270_TRANS, 5, 1, 0),
+	SOC_SINGLE("De-emphasis filter", CS4270_TRANS, 0, 1, 0),
 	SOC_SINGLE("Popguard Switch", CS4270_MODE, 0, 1, 1),
 	SOC_SINGLE("Auto-Mute Switch", CS4270_MUTE, 5, 1, 0),
 	SOC_DOUBLE("Master Capture Switch", CS4270_MUTE, 3, 4, 1, 1),
