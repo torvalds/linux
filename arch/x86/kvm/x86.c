@@ -2362,25 +2362,39 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (r)
 			goto out;
 		break;
-	case KVM_CREATE_IRQCHIP:
+	case KVM_CREATE_IRQCHIP: {
+		struct kvm_pic *vpic;
+
+		mutex_lock(&kvm->lock);
+		r = -EEXIST;
+		if (kvm->arch.vpic)
+			goto create_irqchip_unlock;
 		r = -ENOMEM;
-		kvm->arch.vpic = kvm_create_pic(kvm);
-		if (kvm->arch.vpic) {
+		vpic = kvm_create_pic(kvm);
+		if (vpic) {
 			r = kvm_ioapic_init(kvm);
 			if (r) {
-				kfree(kvm->arch.vpic);
-				kvm->arch.vpic = NULL;
-				goto out;
+				kfree(vpic);
+				goto create_irqchip_unlock;
 			}
 		} else
-			goto out;
+			goto create_irqchip_unlock;
+		smp_wmb();
+		kvm->arch.vpic = vpic;
+		smp_wmb();
 		r = kvm_setup_default_irq_routing(kvm);
 		if (r) {
+			mutex_lock(&kvm->irq_lock);
 			kfree(kvm->arch.vpic);
 			kfree(kvm->arch.vioapic);
-			goto out;
+			kvm->arch.vpic = NULL;
+			kvm->arch.vioapic = NULL;
+			mutex_unlock(&kvm->irq_lock);
 		}
+	create_irqchip_unlock:
+		mutex_unlock(&kvm->lock);
 		break;
+	}
 	case KVM_CREATE_PIT:
 		u.pit_config.flags = KVM_PIT_SPEAKER_DUMMY;
 		goto create_pit;
