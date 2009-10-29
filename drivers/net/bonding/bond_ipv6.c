@@ -25,6 +25,7 @@
 #include <net/ipv6.h>
 #include <net/ndisc.h>
 #include <net/addrconf.h>
+#include <net/netns/generic.h>
 #include "bonding.h"
 
 /*
@@ -152,11 +153,9 @@ static int bond_inet6addr_event(struct notifier_block *this,
 	struct net_device *vlan_dev, *event_dev = ifa->idev->dev;
 	struct bonding *bond;
 	struct vlan_entry *vlan;
+	struct bond_net *bn = net_generic(dev_net(event_dev), bond_net_id);
 
-	if (dev_net(event_dev) != &init_net)
-		return NOTIFY_DONE;
-
-	list_for_each_entry(bond, &bond_dev_list, bond_list) {
+	list_for_each_entry(bond, &bn->dev_list, bond_list) {
 		if (bond->dev == event_dev) {
 			switch (event) {
 			case NETDEV_UP:

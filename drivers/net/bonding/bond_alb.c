@@ -355,9 +355,6 @@ static int rlb_arp_recv(struct sk_buff *skb, struct net_device *bond_dev, struct
 	struct arp_pkt *arp = (struct arp_pkt *)skb->data;
 	int res = NET_RX_DROP;
 
-	if (dev_net(bond_dev) != &init_net)
-		goto out;
-
 	while (bond_dev->priv_flags & IFF_802_1Q_VLAN)
 		bond_dev = vlan_dev_real_dev(bond_dev);
 

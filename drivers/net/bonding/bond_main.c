@@ -75,6 +75,7 @@
 #include <linux/jiffies.h>
 #include <net/route.h>
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 #include "bonding.h"
 #include "bond_3ad.h"
 #include "bond_alb.h"
@@ -157,11 +158,7 @@ MODULE_PARM_DESC(fail_over_mac, "For active-backup, do not set all slaves to the
 static const char * const version =
 	DRV_DESCRIPTION ": v" DRV_VERSION " (" DRV_RELDATE ")\n";
 
-LIST_HEAD(bond_dev_list);
-
-#ifdef CONFIG_PROC_FS
-static struct proc_dir_entry *bond_proc_dir;
-#endif
+int bond_net_id;
 
 static __be32 arp_target[BOND_MAX_ARP_TARGETS];
 static int arp_ip_count;
@@ -2586,7 +2583,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		fl.fl4_dst = targets[i];
 		fl.fl4_tos = RTO_ONLINK;
 
-		rv = ip_route_output_key(&init_net, &rt, &fl);
+		rv = ip_route_output_key(dev_net(bond->dev), &rt, &fl);
 		if (rv) {
 			if (net_ratelimit()) {
 				pr_warning(DRV_NAME
@@ -2693,9 +2690,6 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	struct bonding *bond;
 	unsigned char *arp_ptr;
 	__be32 sip, tip;
-
-	if (dev_net(dev) != &init_net)
-		goto out;
 
 	if (!(dev->priv_flags & IFF_BONDING) || !(dev->flags & IFF_MASTER))
 		goto out;
@@ -3359,10 +3353,11 @@ static const struct file_operations bond_info_fops = {
 static void bond_create_proc_entry(struct bonding *bond)
 {
 	struct net_device *bond_dev = bond->dev;
+	struct bond_net *bn = net_generic(dev_net(bond_dev), bond_net_id);
 
-	if (bond_proc_dir) {
+	if (bn->proc_dir) {
 		bond->proc_entry = proc_create_data(bond_dev->name,
-						    S_IRUGO, bond_proc_dir,
+						    S_IRUGO, bn->proc_dir,
 						    &bond_info_fops, bond);
 		if (bond->proc_entry == NULL)
 			pr_warning(DRV_NAME
@@ -3375,8 +3370,11 @@ static void bond_create_proc_entry(struct bonding *bond)
 
 static void bond_remove_proc_entry(struct bonding *bond)
 {
-	if (bond_proc_dir && bond->proc_entry) {
-		remove_proc_entry(bond->proc_file_name, bond_proc_dir);
+	struct net_device *bond_dev = bond->dev;
+	struct bond_net *bn = net_generic(dev_net(bond_dev), bond_net_id);
+
+	if (bn->proc_dir && bond->proc_entry) {
+		remove_proc_entry(bond->proc_file_name, bn->proc_dir);
 		memset(bond->proc_file_name, 0, IFNAMSIZ);
 		bond->proc_entry = NULL;
 	}
@@ -3385,11 +3383,11 @@ static void bond_remove_proc_entry(struct bonding *bond)
 /* Create the bonding directory under /proc/net, if doesn't exist yet.
  * Caller must hold rtnl_lock.
  */
-static void bond_create_proc_dir(void)
+static void bond_create_proc_dir(struct bond_net *bn)
 {
-	if (!bond_proc_dir) {
-		bond_proc_dir = proc_mkdir(DRV_NAME, init_net.proc_net);
-		if (!bond_proc_dir)
+	if (!bn->proc_dir) {
+		bn->proc_dir = proc_mkdir(DRV_NAME, bn->net->proc_net);
+		if (!bn->proc_dir)
 			pr_warning(DRV_NAME
 				": Warning: cannot create /proc/net/%s\n",
 				DRV_NAME);
@@ -3399,11 +3397,11 @@ static void bond_create_proc_dir(void)
 /* Destroy the bonding directory under /proc/net, if empty.
  * Caller must hold rtnl_lock.
  */
-static void bond_destroy_proc_dir(void)
+static void bond_destroy_proc_dir(struct bond_net *bn)
 {
-	if (bond_proc_dir) {
-		remove_proc_entry(DRV_NAME, init_net.proc_net);
-		bond_proc_dir = NULL;
+	if (bn->proc_dir) {
+		remove_proc_entry(DRV_NAME, bn->net->proc_net);
+		bn->proc_dir = NULL;
 	}
 }
 
@@ -3417,11 +3415,11 @@ static void bond_remove_proc_entry(struct bonding *bond)
 {
 }
 
-static void bond_create_proc_dir(void)
+static void bond_create_proc_dir(struct bond_net *bn)
 {
 }
 
-static void bond_destroy_proc_dir(void)
+static void bond_destroy_proc_dir(struct bond_net *bn)
 {
 }
 
@@ -3540,9 +3538,6 @@ static int bond_netdev_event(struct notifier_block *this,
 {
 	struct net_device *event_dev = (struct net_device *)ptr;
 
-	if (dev_net(event_dev) != &init_net)
-		return NOTIFY_DONE;
-
 	pr_debug("event_dev: %s, event: %lx\n",
 		(event_dev ? event_dev->name : "None"),
 		event);
@@ -3575,13 +3570,11 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 {
 	struct in_ifaddr *ifa = ptr;
 	struct net_device *vlan_dev, *event_dev = ifa->ifa_dev->dev;
+	struct bond_net *bn = net_generic(dev_net(event_dev), bond_net_id);
 	struct bonding *bond;
 	struct vlan_entry *vlan;
 
-	if (dev_net(ifa->ifa_dev->dev) != &init_net)
-		return NOTIFY_DONE;
-
-	list_for_each_entry(bond, &bond_dev_list, bond_list) {
+	list_for_each_entry(bond, &bn->dev_list, bond_list) {
 		if (bond->dev == event_dev) {
 			switch (event) {
 			case NETDEV_UP:
@@ -3950,7 +3943,7 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	slave_dev = dev_get_by_name(&init_net, ifr->ifr_slave);
+	slave_dev = dev_get_by_name(dev_net(bond_dev), ifr->ifr_slave);
 
 	pr_debug("slave_dev=%p: \n", slave_dev);
 
@@ -5031,6 +5024,7 @@ static void bond_set_lockdep_class(struct net_device *dev)
 static int bond_init(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	struct bond_net *bn = net_generic(dev_net(bond_dev), bond_net_id);
 
 	pr_debug("Begin bond_init for %s\n", bond_dev->name);
 
@@ -5043,7 +5037,7 @@ static int bond_init(struct net_device *bond_dev)
 	netif_carrier_off(bond_dev);
 
 	bond_create_proc_entry(bond);
-	list_add_tail(&bond->bond_list, &bond_dev_list);
+	list_add_tail(&bond->bond_list, &bn->dev_list);
 
 	bond_prepare_sysfs_group(bond);
 	return 0;
@@ -5071,7 +5065,7 @@ static struct rtnl_link_ops bond_link_ops __read_mostly = {
  * Caller must NOT hold rtnl_lock; we need to release it here before we
  * set up our sysfs entries.
  */
-int bond_create(const char *name)
+int bond_create(struct net *net, const char *name)
 {
 	struct net_device *bond_dev;
 	int res;
@@ -5087,6 +5081,7 @@ int bond_create(const char *name)
 		goto out;
 	}
 
+	dev_net_set(bond_dev, net);
 	bond_dev->rtnl_link_ops = &bond_link_ops;
 
 	if (!name) {
@@ -5105,6 +5100,46 @@ out_netdev:
 	goto out;
 }
 
+static int bond_net_init(struct net *net)
+{
+	struct bond_net *bn;
+	int err;
+
+	err = -ENOMEM;
+	bn = kzalloc(sizeof(struct bond_net), GFP_KERNEL);
+	if (bn == NULL)
+		goto out;
+
+	bn->net = net;
+	INIT_LIST_HEAD(&bn->dev_list);
+
+	err = net_assign_generic(net, bond_net_id, bn);
+	if (err)
+		goto out_free;
+
+	bond_create_proc_dir(bn);
+out:
+	return err;
+out_free:
+	kfree(bn);
+	goto out;
+}
+
+static void bond_net_exit(struct net *net)
+{
+	struct bond_net *bn;
+
+	bn = net_generic(net, bond_net_id);
+
+	bond_destroy_proc_dir(bn);
+	kfree(bn);
+}
+
+static struct pernet_operations bond_net_ops = {
+	.init = bond_net_init,
+	.exit = bond_net_exit,
+};
+
 static int __init bonding_init(void)
 {
 	int i;
@@ -5116,14 +5151,16 @@ static int __init bonding_init(void)
 	if (res)
 		goto out;
 
-	bond_create_proc_dir();
+	res = register_pernet_gen_subsys(&bond_net_id, &bond_net_ops);
+	if (res)
+		goto out;
 
 	res = rtnl_link_register(&bond_link_ops);
 	if (res)
 		goto err;
 
 	for (i = 0; i < max_bonds; i++) {
-		res = bond_create(NULL);
+		res = bond_create(&init_net, NULL);
 		if (res)
 			goto err;
 	}
@@ -5139,7 +5176,7 @@ out:
 	return res;
 err:
 	rtnl_link_unregister(&bond_link_ops);
-	bond_destroy_proc_dir();
+	unregister_pernet_gen_subsys(bond_net_id, &bond_net_ops);
 	goto out;
 
 }
@@ -5153,7 +5190,7 @@ static void __exit bonding_exit(void)
 	bond_destroy_sysfs();
 
 	rtnl_link_unregister(&bond_link_ops);
-	bond_destroy_proc_dir();
+	unregister_pernet_gen_subsys(bond_net_id, &bond_net_ops);
 }
 
 module_init(bonding_init);
