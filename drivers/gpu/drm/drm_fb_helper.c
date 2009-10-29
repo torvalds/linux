@@ -373,11 +373,9 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 					mutex_unlock(&dev->mode_config.mutex);
 				}
 			}
-			if (dpms_mode == DRM_MODE_DPMS_OFF) {
-				mutex_lock(&dev->mode_config.mutex);
-				crtc_funcs->dpms(crtc, dpms_mode);
-				mutex_unlock(&dev->mode_config.mutex);
-			}
+			mutex_lock(&dev->mode_config.mutex);
+			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+			mutex_unlock(&dev->mode_config.mutex);
 		}
 	}
 }
@@ -385,18 +383,23 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 int drm_fb_helper_blank(int blank, struct fb_info *info)
 {
 	switch (blank) {
+	/* Display: On; HSync: On, VSync: On */
 	case FB_BLANK_UNBLANK:
 		drm_fb_helper_on(info);
 		break;
+	/* Display: Off; HSync: On, VSync: On */
 	case FB_BLANK_NORMAL:
-		drm_fb_helper_off(info, DRM_MODE_DPMS_STANDBY);
+		drm_fb_helper_off(info, DRM_MODE_DPMS_ON);
 		break;
+	/* Display: Off; HSync: Off, VSync: On */
 	case FB_BLANK_HSYNC_SUSPEND:
 		drm_fb_helper_off(info, DRM_MODE_DPMS_STANDBY);
 		break;
+	/* Display: Off; HSync: On, VSync: Off */
 	case FB_BLANK_VSYNC_SUSPEND:
 		drm_fb_helper_off(info, DRM_MODE_DPMS_SUSPEND);
 		break;
+	/* Display: Off; HSync: Off, VSync: Off */
 	case FB_BLANK_POWERDOWN:
 		drm_fb_helper_off(info, DRM_MODE_DPMS_OFF);
 		break;
