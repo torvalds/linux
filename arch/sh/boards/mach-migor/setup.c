@@ -26,6 +26,7 @@
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
+#include <asm/suspend.h>
 #include <mach/migor.h>
 #include <cpu/sh7722.h>
 
@@ -478,9 +479,19 @@ static struct platform_device *migor_devices[] __initdata = {
 	&migor_camera[1],
 };
 
+extern char migor_sdram_enter_start;
+extern char migor_sdram_enter_end;
+extern char migor_sdram_leave_start;
+extern char migor_sdram_leave_end;
+
 static int __init migor_devices_setup(void)
 {
-
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+					&migor_sdram_enter_start,
+					&migor_sdram_enter_end,
+					&migor_sdram_leave_start,
+					&migor_sdram_leave_end);
 #ifdef CONFIG_PM
 	/* Let D11 LED show STATUS0 */
 	gpio_request(GPIO_FN_STATUS0, NULL);
