@@ -140,33 +140,6 @@ static void __init iop_clockevent_set_hz(struct clock_event_device *ce, unsigned
 	       ce->name, ce->shift, ce->mult);
 }
 
-static unsigned long ticks_per_usec;
-static unsigned long next_jiffy_time;
-
-unsigned long iop_gettimeoffset(void)
-{
-	unsigned long offset, temp;
-
-	/* enable cp6, if necessary, to avoid taking the overhead of an
-	 * undefined instruction trap
-	 */
-	asm volatile (
-	"mrc	p15, 0, %0, c15, c1, 0\n\t"
-	"tst	%0, #(1 << 6)\n\t"
-	"orreq	%0, %0, #(1 << 6)\n\t"
-	"mcreq	p15, 0, %0, c15, c1, 0\n\t"
-#ifdef CONFIG_CPU_XSCALE
-	"mrceq	p15, 0, %0, c15, c1, 0\n\t"
-	"moveq	%0, %0\n\t"
-	"subeq	pc, pc, #4\n\t"
-#endif
-	: "=r"(temp) : : "cc");
-
-	offset = next_jiffy_time - read_tcr1();
-
-	return offset / ticks_per_usec;
-}
-
 static irqreturn_t
 iop_timer_interrupt(int irq, void *dev_id)
 {
@@ -196,8 +169,6 @@ void __init iop_init_time(unsigned long tick_rate)
 	u32 timer_ctl;
 
 	ticks_per_jiffy = DIV_ROUND_CLOSEST(tick_rate, HZ);
-	ticks_per_usec = tick_rate / 1000000;
-	next_jiffy_time = 0xffffffff;
 	iop_tick_rate = tick_rate;
 
 	timer_ctl = IOP_TMR_EN | IOP_TMR_PRIVILEGED |

@@ -48,7 +48,6 @@ static void __init iq80332_timer_init(void)
 
 static struct sys_timer iq80332_timer = {
 	.init		= iq80332_timer_init,
-	.offset		= iop_gettimeoffset,
 };
 
 

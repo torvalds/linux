@@ -20,7 +20,6 @@
 #define IOP13XX_CORE_FREQ_1200		(5 << 16)
 
 void iop_init_time(unsigned long tickrate);
-unsigned long iop_gettimeoffset(void);
 
 static inline unsigned long iop13xx_core_freq(void)
 {
