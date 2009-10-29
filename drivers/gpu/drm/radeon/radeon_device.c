@@ -582,10 +582,9 @@ int radeon_device_init(struct radeon_device *rdev,
 	DRM_INFO("register mmio size: %u\n", (unsigned)rdev->rmmio_size);
 
 	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
-	r = vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
-	if (r) {
-		return -EINVAL;
-	}
+	/* this will fail for cards that aren't VGA class devices, just
+	 * ignore it */
+	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
 
 	r = radeon_init(rdev);
 	if (r)

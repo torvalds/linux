@@ -626,6 +626,12 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 		return NULL;
 	}
 
+	/* it is incorrect if hsync/vsync width is zero */
+	if (!hsync_pulse_width || !vsync_pulse_width) {
+		DRM_DEBUG_KMS("Incorrect Detailed timing. "
+				"Wrong Hsync/Vsync pulse width\n");
+		return NULL;
+	}
 	mode = drm_mode_create(dev);
 	if (!mode)
 		return NULL;
@@ -646,6 +652,15 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	mode->vsync_start = mode->vdisplay + vsync_offset;
 	mode->vsync_end = mode->vsync_start + vsync_pulse_width;
 	mode->vtotal = mode->vdisplay + vblank;
+
+	/* perform the basic check for the detailed timing */
+	if (mode->hsync_end > mode->htotal ||
+		mode->vsync_end > mode->vtotal) {
+		drm_mode_destroy(dev, mode);
+		DRM_DEBUG_KMS("Incorrect detailed timing. "
+				"Sync is beyond the blank.\n");
+		return NULL;
+	}
 
 	drm_mode_set_name(mode);
 
