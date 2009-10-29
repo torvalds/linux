@@ -641,6 +641,12 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	if ((ret = pci_enable_device(dev)))
 		goto err_out_free_mem;
 
+	if (!pci_resource_start(dev, 0)) {
+		printk(KERN_INFO "pd6729: refusing to load the driver "
+				 "as the io_base is 0.\n");
+		goto err_out_free_mem;
+	}
+
 	printk(KERN_INFO "pd6729: Cirrus PD6729 PCI to PCMCIA Bridge "
 		"at 0x%llx on irq %d\n",
 		(unsigned long long)pci_resource_start(dev, 0), dev->irq);

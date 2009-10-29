@@ -206,6 +206,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
     /* First, what does a floating port look like? */
     b = kzalloc(256, GFP_KERNEL);
     if (!b) {
+	    printk("\n");
 	    dev_printk(KERN_ERR, &s->dev,
 		   "do_io_probe: unable to kmalloc 256 bytes");
             return;
@@ -275,7 +276,7 @@ static int readable(struct pcmcia_socket *s, struct resource *res,
 	s->cis_mem.res = res;
 	s->cis_virt = ioremap(res->start, s->map_size);
 	if (s->cis_virt) {
-		ret = pccard_validate_cis(s, BIND_FN_ALL, count);
+		ret = pccard_validate_cis(s, count);
 		/* invalidate mapping and CIS cache */
 		iounmap(s->cis_virt);
 		s->cis_virt = NULL;
