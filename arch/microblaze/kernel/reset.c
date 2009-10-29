@@ -17,6 +17,7 @@
 #include <linux/of_gpio.h>
 
 static int handle; /* reset pin handle */
+static unsigned int reset_val;
 
 static int of_reset_gpio_handle(void)
 {
@@ -75,9 +76,9 @@ void of_platform_reset_gpio_probe(void)
 	}
 
 	/* get current setup value */
-	ret = gpio_get_value(handle);
+	reset_val = gpio_get_value(handle);
 	/* FIXME maybe worth to perform any action */
-	pr_debug("Reset: Gpio output state: 0x%x\n", ret);
+	pr_debug("Reset: Gpio output state: 0x%x\n", reset_val);
 
 	/* Setup GPIO as output */
 	ret = gpio_direction_output(handle, 0);
@@ -87,7 +88,8 @@ void of_platform_reset_gpio_probe(void)
 	/* Setup output direction */
 	gpio_set_value(handle, 0);
 
-	printk(KERN_INFO "RESET: Registered gpio device: %d\n", handle);
+	printk(KERN_INFO "RESET: Registered gpio device: %d, current val: %d\n",
+							handle, reset_val);
 	return;
 err:
 	gpio_free(handle);
@@ -97,7 +99,7 @@ err:
 
 static void gpio_system_reset(void)
 {
-	gpio_set_value(handle, 1);
+	gpio_set_value(handle, 1 - reset_val);
 }
 #else
 #define gpio_system_reset() do {} while (0)
