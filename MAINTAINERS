@@ -1488,6 +1488,7 @@ F:	mm/*cgroup*
 
 CORETEMP HARDWARE MONITORING DRIVER
 M:	Rudolf Marek <r.marek@assembler.cz>
+M:	Huaxu Wan <huaxu.wan@intel.com>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/coretemp
