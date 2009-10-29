@@ -846,7 +846,7 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 		image->pci_resource.start);
 
 	/* If the existing size is OK, return */
-	if (existing_size == (size - 1))
+	if ((size != 0) && (existing_size == (size - 1)))
 		return 0;
 
 	if (existing_size != 0) {
@@ -856,6 +856,11 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 			kfree(image->pci_resource.name);
 		release_resource(&(image->pci_resource));
 		memset(&(image->pci_resource), 0, sizeof(struct resource));
+	}
+
+	/* Exit here if size is zero */
+	if (size == 0) {
+		return 0;
 	}
 
 	if (image->pci_resource.name == NULL) {
@@ -936,12 +941,13 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 
 	/* Verify input data */
 	if (vme_base & 0xFFFF) {
-		printk("Invalid VME Window alignment\n");
+		printk(KERN_ERR "Invalid VME Window alignment\n");
 		retval = -EINVAL;
 		goto err_window;
 	}
-	if (size < 0x10000) {
-		printk("Invalid VME Window size\n");
+
+	if ((size == 0) && (enabled != 0)) {
+		printk(KERN_ERR "Size must be non-zero for enabled windows\n");
 		retval = -EINVAL;
 		goto err_window;
 	}
@@ -949,26 +955,31 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 	spin_lock(&(image->lock));
 
 	/* Let's allocate the resource here rather than further up the stack as
-	 * it avoids pushing loads of bus dependant stuff up the stack
+	 * it avoids pushing loads of bus dependant stuff up the stack. If size
+	 * is zero, any existing resource will be freed.
 	 */
 	retval = tsi148_alloc_resource(image, size);
 	if (retval) {
 		spin_unlock(&(image->lock));
-		printk(KERN_ERR "Unable to allocate memory for resource "
-			"name\n");
-		retval = -ENOMEM;
+		printk(KERN_ERR "Unable to allocate memory for "
+			"resource\n");
 		goto err_res;
 	}
 
-	pci_base = (unsigned long long)image->pci_resource.start;
+	if (size == 0) {
+		pci_base = 0;
+		pci_bound = 0;
+		vme_offset = 0;
+	} else {
+		pci_base = (unsigned long long)image->pci_resource.start;
 
-
-	/*
-	 * Bound address is a valid address for the window, adjust
-	 * according to window granularity.
-	 */
-	pci_bound = pci_base + (size - 0x10000);
-	vme_offset = vme_base - pci_base;
+		/*
+		 * Bound address is a valid address for the window, adjust
+		 * according to window granularity.
+		 */
+		pci_bound = pci_base + (size - 0x10000);
+		vme_offset = vme_base - pci_base;
+	}
 
 	/* Convert 64-bit variables to 2x 32-bit variables */
 	reg_split(pci_base, &pci_base_high, &pci_base_low);
@@ -977,19 +988,19 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 
 	if (pci_base_low & 0xFFFF) {
 		spin_unlock(&(image->lock));
-		printk("Invalid PCI base alignment\n");
+		printk(KERN_ERR "Invalid PCI base alignment\n");
 		retval = -EINVAL;
 		goto err_gran;
 	}
 	if (pci_bound_low & 0xFFFF) {
 		spin_unlock(&(image->lock));
-		printk("Invalid PCI bound alignment\n");
+		printk(KERN_ERR "Invalid PCI bound alignment\n");
 		retval = -EINVAL;
 		goto err_gran;
 	}
 	if (vme_offset_low & 0xFFFF) {
 		spin_unlock(&(image->lock));
-		printk("Invalid VME Offset alignment\n");
+		printk(KERN_ERR "Invalid VME Offset alignment\n");
 		retval = -EINVAL;
 		goto err_gran;
 	}
@@ -1049,7 +1060,8 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 		temp_ctl |= TSI148_LCSR_OTAT_TM_2eSST;
 	}
 	if (cycle & VME_2eSSTB) {
-		printk("Currently not setting Broadcast Select Registers\n");
+		printk(KERN_WARNING "Currently not setting Broadcast Select "
+			"Registers\n");
 		temp_ctl &= ~TSI148_LCSR_OTAT_TM_M;
 		temp_ctl |= TSI148_LCSR_OTAT_TM_2eSSTB;
 	}
@@ -1065,7 +1077,7 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 		break;
 	default:
 		spin_unlock(&(image->lock));
-		printk("Invalid data width\n");
+		printk(KERN_ERR "Invalid data width\n");
 		retval = -EINVAL;
 		goto err_dwidth;
 	}
@@ -1102,7 +1114,7 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 		break;
 	default:
 		spin_unlock(&(image->lock));
-		printk("Invalid address space\n");
+		printk(KERN_ERR "Invalid address space\n");
 		retval = -EINVAL;
 		goto err_aspace;
 		break;
