@@ -68,15 +68,14 @@ static int proc_handler_callhome(struct ctl_table *ctl, int write,
 {
 	unsigned long val;
 	int len, rc;
-	char buf[2];
+	char buf[3];
 
-	if (!*count | (*ppos && !write)) {
+	if (!*count || (*ppos && !write)) {
 		*count = 0;
 		return 0;
 	}
 	if (!write) {
-		len =  sprintf(buf, "%d\n", callhome_enabled);
-		buf[len] = '\0';
+		len = snprintf(buf, sizeof(buf), "%d\n", callhome_enabled);
 		rc = copy_to_user(buffer, buf, sizeof(buf));
 		if (rc != 0)
 			return -EFAULT;
