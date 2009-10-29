@@ -237,7 +237,6 @@ static u32 tsi148_VERR_irqhandler(void)
  */
 static u32 tsi148_IACK_irqhandler(void)
 {
-	printk("tsi148_IACK_irqhandler\n");
 	wake_up(&iack_queue);
 
 	return TSI148_LCSR_INTC_IACKC;
@@ -2121,7 +2120,7 @@ int tsi148_lm_detach(struct vme_lm_resource *lm, int monitor)
 	iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
 
 	iowrite32be(TSI148_LCSR_INTC_LMC[monitor],
-		 tsi148_bridge->base + TSI148_LCSR_INTEO);
+		 tsi148_bridge->base + TSI148_LCSR_INTC);
 
 	/* Detach callback */
 	lm_callback[monitor] = NULL;
@@ -2580,13 +2579,6 @@ static void tsi148_remove(struct pci_dev *pdev)
 	if (ioread32be(tsi148_bridge->base + TSI148_LCSR_VICR) & 0x800) {
 		iowrite32be(0x8000, tsi148_bridge->base + TSI148_LCSR_VICR);
 	}
-
-	/*
-	 *  Disable and clear all interrupts.
-	 */
-	iowrite32be(0x0, tsi148_bridge->base + TSI148_LCSR_INTEO);
-	iowrite32be(0xFFFFFFFF, tsi148_bridge->base + TSI148_LCSR_INTC);
-	iowrite32be(0xFFFFFFFF, tsi148_bridge->base + TSI148_LCSR_INTEN);
 
 	/*
 	 *  Map all Interrupts to PCI INTA
