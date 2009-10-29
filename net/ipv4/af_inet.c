@@ -685,7 +685,7 @@ int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 {
 	struct sock *sk		= sock->sk;
 	struct inet_sock *inet	= inet_sk(sk);
-	struct sockaddr_in *sin	= (struct sockaddr_in *)uaddr;
+	DECLARE_SOCKADDR(struct sockaddr_in *, sin, uaddr);
 
 	sin->sin_family = AF_INET;
 	if (peer) {

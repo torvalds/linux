@@ -24,6 +24,9 @@ struct __kernel_sockaddr_storage {
 #include <linux/types.h>		/* pid_t			*/
 #include <linux/compiler.h>		/* __user			*/
 
+#define __sockaddr_check_size(size)	\
+	BUILD_BUG_ON(((size) > sizeof(struct __kernel_sockaddr_storage)))
+
 #ifdef __KERNEL__
 # ifdef CONFIG_PROC_FS
 struct seq_file;

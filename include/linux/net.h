@@ -199,6 +199,9 @@ struct proto_ops {
 				       struct pipe_inode_info *pipe, size_t len, unsigned int flags);
 };
 
+#define DECLARE_SOCKADDR(type, dst, src)	\
+	type dst = ({ __sockaddr_check_size(sizeof(*dst)); (type) src; })
+
 struct net_proto_family {
 	int		family;
 	int		(*create)(struct net *net, struct socket *sock, int protocol);
