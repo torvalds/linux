@@ -20,10 +20,10 @@
 
 #define BTS_BUFFER_SIZE (1 << 13)
 
-static DEFINE_PER_CPU(struct bts_tracer *, tracer);
-static DEFINE_PER_CPU(unsigned char[BTS_BUFFER_SIZE], buffer);
+static DEFINE_PER_CPU(struct bts_tracer *, hwb_tracer);
+static DEFINE_PER_CPU(unsigned char[BTS_BUFFER_SIZE], hwb_buffer);
 
-#define this_tracer per_cpu(tracer, smp_processor_id())
+#define this_tracer per_cpu(hwb_tracer, smp_processor_id())
 
 static int trace_hw_branches_enabled __read_mostly;
 static int trace_hw_branches_suspended __read_mostly;
@@ -32,12 +32,13 @@ static struct trace_array *hw_branch_trace __read_mostly;
 
 static void bts_trace_init_cpu(int cpu)
 {
-	per_cpu(tracer, cpu) =
-		ds_request_bts_cpu(cpu, per_cpu(buffer, cpu), BTS_BUFFER_SIZE,
-				   NULL, (size_t)-1, BTS_KERNEL);
+	per_cpu(hwb_tracer, cpu) =
+		ds_request_bts_cpu(cpu, per_cpu(hwb_buffer, cpu),
+				   BTS_BUFFER_SIZE, NULL, (size_t)-1,
+				   BTS_KERNEL);
 
-	if (IS_ERR(per_cpu(tracer, cpu)))
-		per_cpu(tracer, cpu) = NULL;
+	if (IS_ERR(per_cpu(hwb_tracer, cpu)))
+		per_cpu(hwb_tracer, cpu) = NULL;
 }
 
 static int bts_trace_init(struct trace_array *tr)
@@ -51,7 +52,7 @@ static int bts_trace_init(struct trace_array *tr)
 	for_each_online_cpu(cpu) {
 		bts_trace_init_cpu(cpu);
 
-		if (likely(per_cpu(tracer, cpu)))
+		if (likely(per_cpu(hwb_tracer, cpu)))
 			trace_hw_branches_enabled = 1;
 	}
 	trace_hw_branches_suspended = 0;
@@ -67,9 +68,9 @@ static void bts_trace_reset(struct trace_array *tr)
 
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
-		if (likely(per_cpu(tracer, cpu))) {
-			ds_release_bts(per_cpu(tracer, cpu));
-			per_cpu(tracer, cpu) = NULL;
+		if (likely(per_cpu(hwb_tracer, cpu))) {
+			ds_release_bts(per_cpu(hwb_tracer, cpu));
+			per_cpu(hwb_tracer, cpu) = NULL;
 		}
 	}
 	trace_hw_branches_enabled = 0;
@@ -83,8 +84,8 @@ static void bts_trace_start(struct trace_array *tr)
 
 	get_online_cpus();
 	for_each_online_cpu(cpu)
-		if (likely(per_cpu(tracer, cpu)))
-			ds_resume_bts(per_cpu(tracer, cpu));
+		if (likely(per_cpu(hwb_tracer, cpu)))
+			ds_resume_bts(per_cpu(hwb_tracer, cpu));
 	trace_hw_branches_suspended = 0;
 	put_online_cpus();
 }
@@ -95,8 +96,8 @@ static void bts_trace_stop(struct trace_array *tr)
 
 	get_online_cpus();
 	for_each_online_cpu(cpu)
-		if (likely(per_cpu(tracer, cpu)))
-			ds_suspend_bts(per_cpu(tracer, cpu));
+		if (likely(per_cpu(hwb_tracer, cpu)))
+			ds_suspend_bts(per_cpu(hwb_tracer, cpu));
 	trace_hw_branches_suspended = 1;
 	put_online_cpus();
 }
@@ -114,16 +115,16 @@ static int __cpuinit bts_hotcpu_handler(struct notifier_block *nfb,
 			bts_trace_init_cpu(cpu);
 
 			if (trace_hw_branches_suspended &&
-			    likely(per_cpu(tracer, cpu)))
-				ds_suspend_bts(per_cpu(tracer, cpu));
+			    likely(per_cpu(hwb_tracer, cpu)))
+				ds_suspend_bts(per_cpu(hwb_tracer, cpu));
 		}
 		break;
 
 	case CPU_DOWN_PREPARE:
 		/* The notification is sent with interrupts enabled. */
-		if (likely(per_cpu(tracer, cpu))) {
-			ds_release_bts(per_cpu(tracer, cpu));
-			per_cpu(tracer, cpu) = NULL;
+		if (likely(per_cpu(hwb_tracer, cpu))) {
+			ds_release_bts(per_cpu(hwb_tracer, cpu));
+			per_cpu(hwb_tracer, cpu) = NULL;
 		}
 	}
 
@@ -256,8 +257,8 @@ static void trace_bts_prepare(struct trace_iterator *iter)
 
 	get_online_cpus();
 	for_each_online_cpu(cpu)
-		if (likely(per_cpu(tracer, cpu)))
-			ds_suspend_bts(per_cpu(tracer, cpu));
+		if (likely(per_cpu(hwb_tracer, cpu)))
+			ds_suspend_bts(per_cpu(hwb_tracer, cpu));
 	/*
 	 * We need to collect the trace on the respective cpu since ftrace
 	 * implicitly adds the record for the current cpu.
@@ -266,8 +267,8 @@ static void trace_bts_prepare(struct trace_iterator *iter)
 	on_each_cpu(trace_bts_cpu, iter->tr, 1);
 
 	for_each_online_cpu(cpu)
-		if (likely(per_cpu(tracer, cpu)))
-			ds_resume_bts(per_cpu(tracer, cpu));
+		if (likely(per_cpu(hwb_tracer, cpu)))
+			ds_resume_bts(per_cpu(hwb_tracer, cpu));
 	put_online_cpus();
 }
 
