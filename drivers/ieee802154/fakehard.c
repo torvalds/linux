@@ -32,7 +32,7 @@
 #include <net/nl802154.h>
 #include <net/wpan-phy.h>
 
-struct wpan_phy *net_to_phy(struct net_device *dev)
+static struct wpan_phy *net_to_phy(struct net_device *dev)
 {
 	return container_of(dev->dev.parent, struct wpan_phy, dev);
 }
