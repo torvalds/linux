@@ -33,6 +33,7 @@
 #include <net/nl802154.h>
 #include <net/ieee802154.h>
 #include <net/ieee802154_netdev.h>
+#include <net/wpan-phy.h>
 
 #include "ieee802154.h"
 
@@ -251,6 +252,7 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 pid,
 	u32 seq, int flags, struct net_device *dev)
 {
 	void *hdr;
+	struct wpan_phy *phy;
 
 	pr_debug("%s\n", __func__);
 
@@ -259,7 +261,11 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 pid,
 	if (!hdr)
 		goto out;
 
+	phy = ieee802154_mlme_ops(dev)->get_phy(dev);
+	BUG_ON(!phy);
+
 	NLA_PUT_STRING(msg, IEEE802154_ATTR_DEV_NAME, dev->name);
+	NLA_PUT_STRING(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy));
 	NLA_PUT_U32(msg, IEEE802154_ATTR_DEV_INDEX, dev->ifindex);
 
 	NLA_PUT(msg, IEEE802154_ATTR_HW_ADDR, IEEE802154_ADDR_LEN,
@@ -268,9 +274,11 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 pid,
 		ieee802154_mlme_ops(dev)->get_short_addr(dev));
 	NLA_PUT_U16(msg, IEEE802154_ATTR_PAN_ID,
 		ieee802154_mlme_ops(dev)->get_pan_id(dev));
+	wpan_phy_put(phy);
 	return genlmsg_end(msg, hdr);
 
 nla_put_failure:
+	wpan_phy_put(phy);
 	genlmsg_cancel(msg, hdr);
 out:
 	return -EMSGSIZE;
