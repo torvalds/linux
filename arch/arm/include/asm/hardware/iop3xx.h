@@ -260,6 +260,11 @@ static inline u32 read_tcr1(void)
 	return val;
 }
 
+static inline void write_tcr1(u32 val)
+{
+	asm volatile("mcr p6, 0, %0, c3, c1, 0" : : "r" (val));
+}
+
 static inline void write_trr0(u32 val)
 {
 	asm volatile("mcr p6, 0, %0, c4, c1, 0" : : "r" (val));

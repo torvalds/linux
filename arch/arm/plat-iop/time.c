@@ -19,12 +19,50 @@
 #include <linux/init.h>
 #include <linux/timex.h>
 #include <linux/io.h>
+#include <linux/clocksource.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <mach/time.h>
+
+/*
+ * IOP clocksource (free-running timer 1).
+ */
+static cycle_t iop_clocksource_read(struct clocksource *unused)
+{
+	return 0xffffffffu - read_tcr1();
+}
+
+static struct clocksource iop_clocksource = {
+	.name 		= "iop_timer1",
+	.rating		= 300,
+	.read		= iop_clocksource_read,
+	.mask		= CLOCKSOURCE_MASK(32),
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static void __init iop_clocksource_set_hz(struct clocksource *cs, unsigned int hz)
+{
+	u64 temp;
+	u32 shift;
+
+	/* Find shift and mult values for hz. */
+	shift = 32;
+	do {
+		temp = (u64) NSEC_PER_SEC << shift;
+		do_div(temp, hz);
+		if ((temp >> 32) == 0)
+			break;
+	} while (--shift != 0);
+
+	cs->shift = shift;
+	cs->mult = (u32) temp;
+
+	printk(KERN_INFO "clocksource: %s uses shift %u mult %#x\n",
+	       cs->name, cs->shift, cs->mult);
+}
 
 static unsigned long ticks_per_jiffy;
 static unsigned long ticks_per_usec;
@@ -99,8 +137,15 @@ void __init iop_init_time(unsigned long tick_rate)
 	 */
 	write_trr0(ticks_per_jiffy - 1);
 	write_tmr0(timer_ctl);
+
+	/*
+	 * Set up free-running clocksource timer 1.
+	 */
 	write_trr1(0xffffffff);
+	write_tcr1(0xffffffff);
 	write_tmr1(timer_ctl);
+	iop_clocksource_set_hz(&iop_clocksource, tick_rate);
+	clocksource_register(&iop_clocksource);
 
 	setup_irq(IRQ_IOP_TIMER0, &iop_timer_irq);
 }
