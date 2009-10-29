@@ -233,9 +233,12 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 		printk(KERN_ERR "kvm: IRQ source ID out of range!\n");
 		goto unlock;
 	}
+	clear_bit(irq_source_id, &kvm->arch.irq_sources_bitmap);
+	if (!irqchip_in_kernel(kvm))
+		goto unlock;
+
 	for (i = 0; i < KVM_IOAPIC_NUM_PINS; i++)
 		clear_bit(irq_source_id, &kvm->arch.irq_states[i]);
-	clear_bit(irq_source_id, &kvm->arch.irq_sources_bitmap);
 unlock:
 	mutex_unlock(&kvm->irq_lock);
 }
