@@ -380,7 +380,7 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 		}
 	}
 
-	if (loop >= INIT_LOOP) {
+	if (loop > INIT_LOOP) {
 		wl1271_error("timeout waiting for the hardware to "
 			     "complete initialization");
 		return -EIO;
