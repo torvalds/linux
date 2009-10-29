@@ -61,7 +61,7 @@
  *   rx_alloc_method = (rx_alloc_level > RX_ALLOC_LEVEL_LRO ?
  *                      RX_ALLOC_METHOD_PAGE : RX_ALLOC_METHOD_SKB)
  */
-static int rx_alloc_method = RX_ALLOC_METHOD_PAGE;
+static int rx_alloc_method = RX_ALLOC_METHOD_AUTO;
 
 #define RX_ALLOC_LEVEL_LRO 0x2000
 #define RX_ALLOC_LEVEL_MAX 0x3000
