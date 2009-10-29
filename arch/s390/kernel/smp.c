@@ -76,7 +76,6 @@ static int cpu_stopped(int cpu)
 	__u32 status;
 
 	switch (signal_processor_ps(&status, 0, cpu, sigp_sense)) {
-	case sigp_order_code_accepted:
 	case sigp_status_stored:
 		/* Check for stopped and check stop state */
 		if (status & 0x50)

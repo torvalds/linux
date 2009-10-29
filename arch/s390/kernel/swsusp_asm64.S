@@ -207,6 +207,7 @@ restart_suspend:
 	llgh	%r2,0(%r1)
 7:
 	sigp	%r9,%r2,__SIGP_SENSE	/* Wait for resume CPU */
+	brc	8,7b			/* accepted, status 0, still running */
 	brc	2,7b			/* busy, try again */
 	tmll	%r9,0x40		/* Test if resume CPU is stopped */
 	jz	7b
