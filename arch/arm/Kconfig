@@ -810,6 +810,7 @@ config ARCH_ACORN
 
 config PLAT_IOP
 	bool
+	select GENERIC_CLOCKEVENTS
 
 config PLAT_ORION
 	bool
