@@ -61,6 +61,7 @@ static struct mxl5005s_config hauppauge_hvr1600_tuner = {
 	.top		 = MXL5005S_TOP_25P2,
 	.mod_mode        = MXL_DIGITAL_MODE,
 	.if_mode         = MXL_ZERO_IF,
+	.qam_gain        = 0x02,
 	.AgcMasterByte   = 0x00,
 };
 

@@ -2789,7 +2789,10 @@ static u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq)
 
 	/* add for 2.6.5 Special setting for QAM */
 	if (state->Mod_Type == MXL_QAM) {
-		if (state->RF_IN < 680000000)
+		if (state->config->qam_gain != 0)
+			status += MXL_ControlWrite(fe, RFSYN_CHP_GAIN,
+						   state->config->qam_gain);
+		else if (state->RF_IN < 680000000)
 			status += MXL_ControlWrite(fe, RFSYN_CHP_GAIN, 3);
 		else
 			status += MXL_ControlWrite(fe, RFSYN_CHP_GAIN, 2);
