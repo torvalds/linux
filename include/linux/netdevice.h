@@ -348,13 +348,14 @@ enum
 	NAPI_STATE_NPSVC,	/* Netpoll - don't dequeue from poll_list */
 };
 
-enum {
+enum gro_result {
 	GRO_MERGED,
 	GRO_MERGED_FREE,
 	GRO_HELD,
 	GRO_NORMAL,
 	GRO_DROP,
 };
+typedef enum gro_result gro_result_t;
 
 extern void __napi_schedule(struct napi_struct *n);
 
@@ -1480,16 +1481,17 @@ extern int		netif_rx_ni(struct sk_buff *skb);
 #define HAVE_NETIF_RECEIVE_SKB 1
 extern int		netif_receive_skb(struct sk_buff *skb);
 extern void		napi_gro_flush(struct napi_struct *napi);
-extern int		dev_gro_receive(struct napi_struct *napi,
+extern gro_result_t	dev_gro_receive(struct napi_struct *napi,
 					struct sk_buff *skb);
-extern int		napi_skb_finish(int ret, struct sk_buff *skb);
+extern int		napi_skb_finish(gro_result_t ret, struct sk_buff *skb);
 extern int		napi_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb);
 extern void		napi_reuse_skb(struct napi_struct *napi,
 				       struct sk_buff *skb);
 extern struct sk_buff *	napi_get_frags(struct napi_struct *napi);
 extern int		napi_frags_finish(struct napi_struct *napi,
-					  struct sk_buff *skb, int ret);
+					  struct sk_buff *skb,
+					  gro_result_t ret);
 extern struct sk_buff *	napi_frags_skb(struct napi_struct *napi);
 extern int		napi_gro_frags(struct napi_struct *napi);
 
