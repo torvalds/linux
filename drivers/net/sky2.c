@@ -787,8 +787,7 @@ static void sky2_set_tx_stfwd(struct sky2_hw *hw, unsigned port)
 
 	if ( (hw->chip_id == CHIP_ID_YUKON_EX &&
 	      hw->chip_rev != CHIP_REV_YU_EX_A0) ||
-	     hw->chip_id == CHIP_ID_YUKON_FE_P ||
-	     hw->chip_id == CHIP_ID_YUKON_SUPR) {
+	     hw->chip_id >= CHIP_ID_YUKON_FE_P) {
 		/* Yukon-Extreme B0 and further Extreme devices */
 		/* enable Store & Forward mode for TX */
 
@@ -1404,6 +1403,31 @@ static int sky2_rx_start(struct sky2_port *sky2)
 
 	/* Tell chip about available buffers */
 	sky2_rx_update(sky2, rxq);
+
+	if (hw->chip_id == CHIP_ID_YUKON_EX ||
+	    hw->chip_id == CHIP_ID_YUKON_SUPR) {
+		/*
+		 * Disable flushing of non ASF packets;
+		 * must be done after initializing the BMUs;
+		 * drivers without ASF support should do this too, otherwise
+		 * it may happen that they cannot run on ASF devices;
+		 * remember that the MAC FIFO isn't reset during initialization.
+		 */
+		sky2_write32(hw, SK_REG(sky2->port, RX_GMF_CTRL_T), RX_MACSEC_FLUSH_OFF);
+	}
+
+	if (hw->chip_id >= CHIP_ID_YUKON_SUPR) {
+		/* Enable RX Home Address & Routing Header checksum fix */
+		sky2_write16(hw, SK_REG(sky2->port, RX_GMF_FL_CTRL),
+			     RX_IPV6_SA_MOB_ENA | RX_IPV6_DA_MOB_ENA);
+
+		/* Enable TX Home Address & Routing Header checksum fix */
+		sky2_write32(hw, Q_ADDR(txqaddr[sky2->port], Q_TEST),
+			     TBMU_TEST_HOME_ADD_FIX_EN | TBMU_TEST_ROUTING_ADD_FIX_EN);
+	}
+
+
+
 	return 0;
 nomem:
 	sky2_rx_clean(sky2);
@@ -2992,6 +3016,12 @@ static void sky2_reset(struct sky2_hw *hw)
 			sky2_write16(hw, SK_REG(i, GMAC_CTRL),
 				     GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON
 				     | GMC_BYP_RETR_ON);
+
+	}
+
+	if (hw->chip_id == CHIP_ID_YUKON_SUPR && hw->chip_rev > CHIP_REV_YU_SU_B0) {
+		/* enable MACSec clock gating */
+		sky2_pci_write32(hw, PCI_DEV_REG3, P_CLK_MACSEC_DIS);
 	}
 
 	/* Clear I2C IRQ noise */
