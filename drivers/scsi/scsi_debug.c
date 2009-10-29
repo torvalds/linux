@@ -685,10 +685,12 @@ static int inquiry_evpd_89(unsigned char * arr)
 }
 
 
+/* Block limits VPD page (SBC-3) */
 static unsigned char vpdb0_data[] = {
-	/* from 4th byte */ 0,0,0,4,
-	0,0,0x4,0,
-	0,0,0,64,
+	/* from 4th byte */ 0,0,0,4, 0,0,0x4,0, 0,0,0,64,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
 static int inquiry_evpd_b0(unsigned char * arr)
@@ -731,11 +733,14 @@ static int inquiry_evpd_b0(unsigned char * arr)
 	return sizeof(vpdb0_data);
 }
 
+/* Block device characteristics VPD page (SBC-3) */
 static int inquiry_evpd_b1(unsigned char *arr)
 {
 	memset(arr, 0, 0x3c);
 	arr[0] = 0;
-	arr[1] = 1;
+	arr[1] = 1;	/* non rotating medium (e.g. solid state) */
+	arr[2] = 0;
+	arr[3] = 5;	/* less than 1.8" */
 
 	return 0x3c;
 }
