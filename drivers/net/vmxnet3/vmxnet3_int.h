@@ -27,16 +27,11 @@
 #ifndef _VMXNET3_INT_H
 #define _VMXNET3_INT_H
 
-#include <linux/types.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
-#include <linux/device.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
-#include <linux/ethtool.h>
 #include <linux/compiler.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/ioport.h>
